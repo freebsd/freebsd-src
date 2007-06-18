@@ -35,7 +35,7 @@
 .Dt SCTP_SEND 3
 .Os
 .Sh NAME
-.Nm sctp_send
+.Nm sctp_send ,
 .Nm sctp_sendx
 .Nd send a message from an SCTP socket
 .Sh LIBRARY
@@ -45,15 +45,20 @@
 .In sys/socket.h
 .In netinet/sctp.h
 .Ft ssize_t
-.Fn sctp_send "int sd" "const void *msg" "size_t len" "const struct sctp_sndrcvinfo *sinfo" "int flags"
+.Fo sctp_send
+.Fa "int sd" "const void *msg" "size_t len"
+.Fa "const struct sctp_sndrcvinfo *sinfo" "int flags"
+.Fc
 .Ft ssize_t
-.Fn sctp_sendx "int sd" "const void *msg" "size_t len" "struct sockaddr *addrs" "int addrcnt" "const struct sctp_sndrcvinfo *sinfo" "int flags"
+.Fo sctp_sendx
+.Fa "int sd" "const void *msg" "size_t len" "struct sockaddr *addrs"
+.Fa "int addrcnt" "const struct sctp_sndrcvinfo *sinfo" "int flags"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn sctp_send
-system calls
+system call
 is used to transmit a message to another SCTP endpoint.
-The
 .Fn sctp_send
 may be used to send data to an existing association for both
 one-to-many (SOCK_SEQPACKET) and one-to-one (SOCK_STREAM) socket types.
@@ -62,9 +67,11 @@ The length of the message
 is given by
 .Fa len .
 If the message is too long to pass atomically through the
-underlying protocol, the errno is set to 
-.Er EMSGSIZE
-a -1 is returned, and
+underlying protocol,
+.Va errno
+is set to 
+.Er EMSGSIZE ,
+-1 is returned, and
 the message is not transmitted.
 .Pp
 No indication of failure to deliver is implicit in a
@@ -77,7 +84,7 @@ the message to be transmitted, then
 normally blocks, unless the socket has been placed in
 non-blocking I/O mode.
 The
-.Fn select 2
+.Xr select 2
 system call may be used to determine when it is possible to
 send more data on one-to-one type (SOCK_STREAM) sockets.
 .Pp
@@ -98,13 +105,15 @@ struct sctp_sndrcvinfo {
 	sctp_assoc_t sinfo_assoc_id; /* The association id */
 };
 .Ed
+.Pp
 The 
 .Fa sinfo->sinfo_ppid
 argument is an opaque 32 bit value that is passed transparently
 through the stack to the peer endpoint. It will be available on
 reception of a message (see
-.Fn sctp_recvmsg 2
-). Note that the stack passes this value without regard to byte
+.Xr sctp_recvmsg 2
+).
+Note that the stack passes this value without regard to byte
 order.
 .Pp
 The
@@ -126,54 +135,65 @@ argument may include one or more of the following:
 The flag 
 .Dv SCTP_EOF
 is used to instruct the SCTP stack to queue this message
-and then start a graceful shutdown of the association. All
+and then start a graceful shutdown of the association.
+All
 remaining data in queue will be sent after which the association
-will be shutdown.
+will be shut down.
 .Pp
 .Dv SCTP_ABORT
-is used to immediately terminate an association. An abort
+is used to immediately terminate an association.
+An abort
 is sent to the peer and the local TCB is destroyed.
 .Pp
 .Dv SCTP_UNORDERED
 is used to specify that the message being sent has no
 specific order and should be delivered to the peer application
-as soon as possible. When this flag is absent messages
+as soon as possible.
+When this flag is absent messages
 are delivered in order within the stream they are sent, but without
 respect to order to peer streams.
 .Pp
 The flag
 .Dv SCTP_ADDR_OVER
-is used to specify that an specific address should be used. Normally
-SCTP will use only one of a multi-homed peers address as the primary
-address to send to. By default, no matter what the 
+is used to specify that a specific address should be used.
+Normally
+SCTP will use only one of a multi-homed peers addresses as the primary
+address to send to.
+By default, no matter what the 
 .Fa to
-argument is, this primary address is used to send data. By specifying
+argument is, this primary address is used to send data.
+By specifying
 this flag, the user is asking the stack to ignore the primary address
-and instead use the specified address not only has a lookup mechanism
-to find the association but also has the actual address to send to.
+and instead use the specified address not only as a lookup mechanism
+to find the association but also as the actual address to send to.
 .Pp
 For a one-to-many type (SOCK_SEQPACKET) socket the flag
 .Dv SCTP_SENDALL
-can be used as a convient way to make one send call and have
+can be used as a convenient way to make one send call and have
 all associations that are under the socket get a copy of the message.
 Note that this mechanism is quite efficent and makes only one actual
 copy of the data which is shared by all the associations for sending.
 .Pp
 The remaining flags are used for the partial reliabilty extension (RFC3758)
 and will only be effective if the peer endpoint supports this extension.
-This option specify's what local policy the local endpoint should use
-in skipping data. If none of these options are set, then data is
+This option specifies what local policy the local endpoint should use
+in skipping data.
+If none of these options are set, then data is
 never skipped over.
 .Pp
 .Dv SCTP_PR_SCTP_TTL
 Is used to indicate that a time based lifetime is being applied
-to the data. The
+to the data.
+The
 .Fa sinfo->sinfo_timetolive
 argument is then a number of milliseconds for which the data is
-attempted to be transmitted. If that many milliseconds ellapses
-and the peer has not acknowledge the data, the data will be
-skipped and no longer transmitted. Note that this policy does
-not even assure that the data will ever be sent. In times of a congestion
+attempted to be transmitted.
+If that many milliseconds ellapse
+and the peer has not acknowledged the data, the data will be
+skipped and no longer transmitted.
+Note that this policy does
+not even assure that the data will ever be sent.
+In times of a congestion
 with large amounts of data being queued, the 
 .Fa sinfo->sinfo_timetolive
 may expire before the first transmission is ever made.
@@ -183,8 +203,9 @@ The
 based policy transforms the
 .Fa sinfo->sinfo_timetolive 
 field into a total number of bytes allowed on the outbound
-send queue. If that number or more bytes are in queue, then
-other buffer based sends are looked to be removed and
+send queue.
+If that number or more bytes are in queue, then
+other buffer-based sends are looked to be removed and
 skipped. Note that this policy may also result in the data
 never being sent if no buffer based sends are in queue and
 the maximum specified by 
@@ -195,35 +216,40 @@ The
 .Dv SCTP_PR_SCTP_RTX
 policy transforms the
 .Fa sinfo->sinfo_timetolive 
-into a number of retransmissions to allow. This policy
+into a number of retransmissions to allow.
+This policy
 always assures that at a minimum one send attempt is
-made of the data. After which no more than 
+made of the data.
+After which no more than 
 .Fa sinfo->sinfo_timetolive
 retransmissions will be made before the data is skipped.
 .Pp
 .Fa sinfo->sinfo_stream
 is the SCTP stream that you wish to send the
-message on. Streams in SCTP are reliable (or partially reliable) flows of ordered
+message on.
+Streams in SCTP are reliable (or partially reliable) flows of ordered
 messages. 
 .Pp
 The
 .Fa sinfo->sinfo_assoc_id
 field is used to 
-select the association to send to on an one-to-many socket. For a
-one-to-one socket, this field is ignored.
+select the association to send to on an one-to-many socket.
+For a one-to-one socket, this field is ignored.
 .Pp
 .Fa sinfo->sinfo_context
-field is used only in the event the message cannot be sent. This is an opaque
+field is used only in the event the message cannot be sent.
+This is an opaque
 value that the stack retains and will give to the user when a failed send
 is given if that notification is enabled (see
-.Tn sctp
-). Normally a user process can use this value to index some application
+.Xr sctp 4
+).
+Normally a user process can use this value to index some application
 specific data structure when a send cannot be fulfilled.
 .Pp
 The
 .Fa flags
-argument holds the same meaning and values has those found in
-.Fn sendmsg 2
+argument holds the same meaning and values as those found in
+.Xr sendmsg 2
 but is generally ignored by SCTP.
 .Pp
 The fields
@@ -232,30 +258,35 @@ The fields
 and
 .Fa sinfo->sinfo_cumtsn 
 are used only when receiving messages and are thus ignored by
-.Fn sctp_send.
+.Fn sctp_send .
 The function
 .Fn sctp_sendx 
 has the same properties as 
 .Fn sctp_send
 with the additional arguments of an array of sockaddr structures
-passed in. With the 
+passed in.
+With the 
 .Fa addrs
 argument being given as an array of addresses to be sent to and
 the
 .Fa addrcnt
 argument indicating how many socket addresses are in the passed
-in array. Note that all of the addresses will only be used
-when an implicit association is being setup. This allows the
+in array.
+Note that all of the addresses will only be used
+when an implicit association is being set up.
+This allows the
 user the equivilant behavior as doing a
 .Fn sctp_connectx
 followed by a 
 .Fn sctp_send
-to the association. Note that if the association id.
+to the association.
+Note that if the
 .Fa sinfo->sinfo_assoc_id
 field is 0, then the first address will be used to look up
-the association in place of the association id. If both
-an address and and association id are specified, the association
-id has priority. 
+the association in place of the association id.
+If both
+an address and an association id are specified, the association
+id has priority.
 .Sh RETURN VALUES
 The call returns the number of characters sent, or -1
 if an error occurred.
@@ -289,12 +320,12 @@ but may be caused by transient congestion.
 .It Bq Er EHOSTUNREACH
 The remote host was unreachable.
 .It Bq Er ENOTCON
-On a one to one style socket no association exists.
+On a one-to-one style socket no association exists.
 .It Bq Er ECONNRESET
 An abort was received by the stack while the user was
 attempting to send data to the peer.
 .It Bq Er ENOENT
-On a one to many style socket no address is specified
+On a one-to-many style socket no address is specified
 so that the association cannot be located or the
 SCTP_ABORT flag was specified on a non-existing association.
 .It Bq Er EPIPE
@@ -305,20 +336,19 @@ This typically means that the socket
 is not connected and is a one-to-one style socket.
 .El
 .Sh SEE ALSO
-.Xr sctp 4 ,
-.Xr sendmsg 2 ,
-.Xr sctp_sendmsg 3 ,
-.Xr sctp_recvmsg 3 ,
-.Xr sctp_connectx 3 ,
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
 .Xr select 2 ,
+.Xr sendmsg 2 ,
 .Xr socket 2 ,
 .Xr write 2
+.Xr sctp_connectx 3 ,
+.Xr sctp_recvmsg 3 ,
+.Xr sctp_sendmsg 3 ,
+.Xr sctp 4
 .Sh BUGS
 Because
 .Fn sctp_send
 may have multiple associations under one endpoint, a
 select on write will only work for a one-to-one style
 socket.
-
