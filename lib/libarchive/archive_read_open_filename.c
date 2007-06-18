@@ -52,6 +52,7 @@ struct read_file_data {
 	size_t	 block_size;
 	void	*buffer;
 	mode_t	 st_mode;  /* Mode bits for opened file. */
+	char	 can_skip; /* This file supports skipping. */
 	char	 filename[1]; /* Must be last! */
 };
 
@@ -95,6 +96,7 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	mine->block_size = block_size;
 	mine->buffer = NULL;
 	mine->fd = -1;
+	mine->can_skip = 1;
 	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
 }
 
@@ -165,8 +167,14 @@ file_skip(struct archive *a, void *client_data, off_t request)
 	struct read_file_data *mine = (struct read_file_data *)client_data;
 	off_t old_offset, new_offset;
 
+	if (!mine->can_skip) /* We can't skip, so ... */
+		return (0); /* ... skip zero bytes. */
+
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
+	if (request == 0)
+		return (0);
+
 	/*
 	 * Hurray for lazy evaluation: if the first lseek fails, the second
 	 * one will not be executed.
@@ -174,6 +182,9 @@ file_skip(struct archive *a, void *client_data, off_t request)
 	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) < 0) ||
 	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) < 0))
 	{
+		/* If skip failed once, it will probably fail again. */
+		mine->can_skip = 0;
+
 		if (errno == ESPIPE)
 		{
 			/*
