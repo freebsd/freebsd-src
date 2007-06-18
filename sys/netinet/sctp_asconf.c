@@ -2590,6 +2590,8 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 
 			if (inp->laddr_count < 2) {
 				/* can't delete the last local address */
+				SCTP_FREE(asc, SCTP_M_ASC_IT);
+				SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, wi);
 				return (EINVAL);
 			}
 			LIST_FOREACH(laddr, &inp->sctp_addr_list,
