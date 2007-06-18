@@ -242,6 +242,56 @@ ENTRY(casuptr, 3)
 END(casuptr)
 
 /*
+ * casuword32(int32_t *p, int32_t old, int32_t new)
+ *	Perform a 32-bit compare-exchange in user space.
+ */
+ENTRY(casuword32, 3)
+{	.mlx
+	add		r15=PC_CURTHREAD,r13
+	movl		r14=VM_MAX_ADDRESS
+	;;
+}
+{	.mib
+	ld8		r15=[r15]		// r15 = curthread
+	cmp.geu		p6,p0=in0,r14
+(p6)	br.dpnt.few	1f
+	;;
+}
+{	.mlx
+	add		r15=TD_PCB,r15
+	movl		r14=fusufault
+	;;
+}
+{	.mmi
+	ld8		r15=[r15]		// r15 = PCB
+	;;
+	mov		ar.ccv=in1
+	add		r15=PCB_ONFAULT,r15
+	;;
+}
+{	.mmi
+	st8		[r15]=r14		// Set onfault
+	;;
+	cmpxchg4.rel	ret0=[in0],in2,ar.ccv
+	nop		0
+	;;
+}
+{	.mfb
+	st8.rel		[r15]=r0		// Clear onfault
+	nop		0
+	br.ret.sptk	rp
+	;;
+}
+1:
+{	.mfb
+	add		ret0=-1,r0
+	nop		0
+	br.ret.sptk	rp
+	;;
+}
+END(casuword32)
+
+/*
  * subyte(void *addr, int byte)
  * suword16(void *addr, int word)
  * suword32(void *addr, int word)

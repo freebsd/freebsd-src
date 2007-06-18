@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -47,6 +48,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+
+#ifdef COMPAT_IA32
+#include <compat/freebsd32/freebsd32_proto.h>
+
+#define	UMTX_CONTESTED32 (-0x7fffffff - 1)
+#endif
 
 #define UMTX_PRIVATE	0
 #define UMTX_SHARED	1
@@ -113,7 +120,7 @@ static void fork_handler(void *arg, struct proc *p1, struct proc *p2,
 	int flags);
 #endif
 static int umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2);
-static int umtx_key_get(struct thread *td, struct umtx *umtx,
+static int umtx_key_get(struct thread *td, void *umtx,
 	struct umtx_key *key);
 static void umtx_key_release(struct umtx_key *key);
 
@@ -299,7 +306,7 @@ umtxq_sleep(struct thread *td, struct umtx_key *key, int priority,
 }
 
 static int
-umtx_key_get(struct thread *td, struct umtx *umtx, struct umtx_key *key)
+umtx_key_get(struct thread *td, void *umtx, struct umtx_key *key)
 {
 #if defined(UMTX_DYNAMIC_SHARED) || defined(UMTX_STATIC_SHARED)
 	vm_map_t map;
@@ -355,7 +362,7 @@ umtx_key_release(struct umtx_key *key)
 }
 
 static inline int
-umtxq_queue_me(struct thread *td, struct umtx *umtx, struct umtx_q *uq)
+umtxq_queue_me(struct thread *td, void *umtx, struct umtx_q *uq)
 {
 	int error;
 
@@ -621,6 +628,186 @@ do_unlock(struct thread *td, struct umtx *umtx, long id)
 	return (0);
 }
 
+#ifdef COMPAT_IA32
+static int
+_do_lock32(struct thread *td, uint32_t *m, uint32_t id, int timo)
+{
+	struct umtx_q *uq;
+	int32_t owner;
+	int32_t old;
+	int error = 0;
+
+	uq = td->td_umtxq;
+	/*
+	 * Care must be exercised when dealing with umtx structure.  It
+	 * can fault on any access.
+	 */
+
+	for (;;) {
+		/*
+		 * Try the uncontested case.  This should be done in userland.
+		 */
+		owner = casuword32(m, UMTX_UNOWNED, id);
+
+		/* The acquire succeeded. */
+		if (owner == UMTX_UNOWNED)
+			return (0);
+
+		/* The address was invalid. */
+		if (owner == -1)
+			return (EFAULT);
+
+		/* If no one owns it but it is contested try to acquire it. */
+		if (owner == UMTX_CONTESTED32) {
+			owner = casuword32(m,
+			    UMTX_CONTESTED32, id | UMTX_CONTESTED32);
+
+			if (owner == UMTX_CONTESTED32)
+				return (0);
+
+			/* The address was invalid. */
+			if (owner == -1)
+				return (EFAULT);
+
+			/* If this failed the lock has changed, restart. */
+			continue;
+		}
+
+		/*
+		 * If we caught a signal, we have retried and now
+		 * exit immediately.
+		 */
+		if (error || (error = umtxq_queue_me(td, m, uq)) != 0)
+			return (error);
+
+		/*
+		 * Set the contested bit so that a release in user space
+		 * knows to use the system call for unlock.  If this fails
+		 * either some one else has acquired the lock or it has been
+		 * released.
+		 */
+		old = casuword32(m, owner, owner | UMTX_CONTESTED32);
+
+		/* The address was invalid. */
+		if (old == -1) {
+			umtxq_lock(&uq->uq_key);
+			umtxq_busy(&uq->uq_key);
+			umtxq_remove(uq);
+			umtxq_unbusy(&uq->uq_key);
+			umtxq_unlock(&uq->uq_key);
+			umtx_key_release(&uq->uq_key);
+			return (EFAULT);
+		}
+
+		/*
+		 * We set the contested bit, sleep. Otherwise the lock changed
+		 * and we need to retry or we lost a race to the thread
+		 * unlocking the umtx.
+		 */
+		umtxq_lock(&uq->uq_key);
+		if (old == owner && (td->td_flags & TDF_UMTXQ)) {
+			error = umtxq_sleep(td, &uq->uq_key, PCATCH,
+				       "umtx", timo);
+		}
+		umtxq_busy(&uq->uq_key);
+		umtxq_remove(uq);
+		umtxq_unbusy(&uq->uq_key);
+		umtxq_unlock(&uq->uq_key);
+		umtx_key_release(&uq->uq_key);
+	}
+
+	return (0);
+}
+
+static int
+do_lock32(struct thread *td, void *m, uint32_t id,
+	struct timespec *timeout)
+{
+	struct timespec ts, ts2, ts3;
+	struct timeval tv;
+	int error;
+
+	if (timeout == NULL) {
+		error = _do_lock32(td, m, id, 0);
+	} else {
+		getnanouptime(&ts);
+		timespecadd(&ts, timeout);
+		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		for (;;) {
+			error = _do_lock32(td, m, id, tvtohz(&tv));
+			if (error != ETIMEDOUT)
+				break;
+			getnanouptime(&ts2);
+			if (timespeccmp(&ts2, &ts, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			ts3 = ts;
+			timespecsub(&ts3, &ts2);
+			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		}
+	}
+	/*
+	 * This lets userland back off critical region if needed.
+	 */
+	if (error == ERESTART)
+		error = EINTR;
+	return (error);
+}
+
+static int
+do_unlock32(struct thread *td, uint32_t *m, uint32_t id)
+{
+	struct umtx_key key;
+	int32_t owner;
+	int32_t old;
+	int error;
+	int count;
+
+	/*
+	 * Make sure we own this mtx.
+	 *
+	 * XXX Need a {fu,su}ptr this is not correct on arch where
+	 * sizeof(intptr_t) != sizeof(long).
+	 */
+	if ((owner = fuword32(m)) == -1)
+		return (EFAULT);
+
+	if ((owner & ~UMTX_CONTESTED32) != id)
+		return (EPERM);
+
+	/* We should only ever be in here for contested locks */
+	if ((owner & UMTX_CONTESTED32) == 0)
+		return (EINVAL);
+
+	if ((error = umtx_key_get(td, m, &key)) != 0)
+		return (error);
+
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	count = umtxq_count(&key);
+	umtxq_unlock(&key);
+
+	/*
+	 * When unlocking the umtx, it must be marked as unowned if
+	 * there is zero or one thread only waiting for it.
+	 * Otherwise, it must be marked as contested.
+	 */
+	old = casuword32(m, owner,
+			count <= 1 ? UMTX_UNOWNED : UMTX_CONTESTED32);
+	umtxq_lock(&key);
+	umtxq_signal(&key, 0);
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	if (old == -1)
+		return (EFAULT);
+	if (old != owner)
+		return (EINVAL);
+	return (0);
+}
+#endif
+
 static int
 do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 {
@@ -768,3 +955,107 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	}
 	return (error);
 }
+
+#ifdef COMPAT_IA32
+int
+freebsd32_umtx_lock(struct thread *td, struct freebsd32_umtx_lock_args *uap)
+    /* struct umtx *umtx */
+{
+	return (do_lock32(td, (uint32_t *)uap->umtx, td->td_tid, NULL));
+}
+
+int
+freebsd32_umtx_unlock(struct thread *td, struct freebsd32_umtx_unlock_args *uap)
+    /* struct umtx *umtx */
+{
+	return (do_unlock32(td, (uint32_t *)uap->umtx, td->td_tid));
+}
+
+struct timespec32 {
+	u_int32_t tv_sec;
+	u_int32_t tv_nsec;
+};
+
+static inline int
+copyin_timeout32(void *addr, struct timespec *tsp)
+{
+	struct timespec32 ts32;
+	int error;
+
+	error = copyin(addr, &ts32, sizeof(struct timespec32));
+	if (error == 0) {
+		tsp->tv_sec = ts32.tv_sec;
+		tsp->tv_nsec = ts32.tv_nsec;
+	}
+	return (error);
+}
+
+static int
+__umtx_op_lock_umtx_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0) {
+			return (EINVAL);
+		}
+		ts = &timeout;
+	}
+	return (do_lock32(td, uap->umtx, uap->id, ts));
+}
+
+static int
+__umtx_op_unlock_umtx_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	return (do_unlock32(td, (uint32_t *)uap->umtx, (uint32_t)uap->id));
+}
+
+static int
+__umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return do_wait(td, uap->umtx, uap->id, ts);
+}
+
+int
+freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
+{
+
+	switch ((unsigned)uap->op) {
+	case UMTX_OP_LOCK:
+		return __umtx_op_lock_umtx_compat32(td,
+		    (struct _umtx_op_args *)uap);
+	case UMTX_OP_UNLOCK:
+		return __umtx_op_unlock_umtx_compat32(td,
+		    (struct _umtx_op_args *)uap);
+	case UMTX_OP_WAIT:
+		return __umtx_op_wait_compat32(td,
+		    (struct _umtx_op_args *)uap);
+	case UMTX_OP_WAKE:
+		return kern_umtx_wake(td, (uint32_t *)uap->umtx, uap->id);
+	default:
+		return (EINVAL);
+	}
+}
+#endif

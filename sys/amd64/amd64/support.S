@@ -314,6 +314,34 @@ copyin_fault:
 	ret
 
 /*
+ * casuword32.  Compare and set user integer.  Returns -1 or the current value.
+ *        dst = %rdi, old = %rsi, new = %rdx
+ */
+ENTRY(casuword32)
+	movq	PCPU(CURPCB),%rcx
+	movq	$fusufault,PCB_ONFAULT(%rcx)
+
+	movq	$VM_MAXUSER_ADDRESS-4,%rax
+	cmpq	%rax,%rdi			/* verify address is valid */
+	ja	fusufault
+
+	movl	%esi,%eax			/* old */
+#ifdef SMP
+	lock
+#endif
+	cmpxchgl %edx,(%rdi)			/* new = %edx */
+
+	/*
+	 * The old value is in %eax.  If the store succeeded it will be the
+	 * value we expected (old) from before the store, otherwise it will
+	 * be the current value.
+	 */
+
+	movq	PCPU(CURPCB),%rcx
+	movq	$0,PCB_ONFAULT(%rcx)
+	ret
+
+/*
  * casuptr.  Compare and set user pointer.  Returns -1 or the current value.
  *        dst = %rdi, old = %rsi, new = %rdx
  */
