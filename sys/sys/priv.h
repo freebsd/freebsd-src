@@ -36,7 +36,7 @@
 #define	_SYS_PRIV_H_
 
 /*
- * Privilege list.  In no particular order.
+ * Privilege list, sorted loosely by kernel subsystem.
  *
  * Think carefully before adding or reusing one of these privileges -- are
  * there existing instances referring to the same privilege?  Third party
