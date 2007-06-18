@@ -48,6 +48,11 @@ __FBSDID("$FreeBSD$");
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
+/*
+ * XXX TODO: Convert this driver to use si_drv[12] rather than the
+ * devclass_get_softc junk
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -163,7 +168,31 @@ static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
 static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
 			      struct thread *);
 
-USB_DECLARE_DRIVER(uhid);
+MODULE_DEPEND(uhid, usb, 1, 1, 1);
+MODULE_DEPEND(uhid, ether, 1, 1, 1);
+
+static device_probe_t uhid_match;
+static device_attach_t uhid_attach;
+static device_detach_t uhid_detach;
+
+static device_method_t uhid_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		uhid_match),
+	DEVMETHOD(device_attach,	uhid_attach),
+	DEVMETHOD(device_detach,	uhid_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t uhid_driver = {
+	"uhid",
+	uhid_methods,
+	sizeof(struct uhid_softc)
+};
+
+static devclass_t uhid_devclass;
+
+DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);
 
 static int
 uhid_match(device_t self)
@@ -196,7 +225,8 @@ uhid_match(device_t self)
 static int
 uhid_attach(device_t self)
 {
-	USB_ATTACH_START(uhid, sc, uaa);
+	struct uhid_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
@@ -306,7 +336,7 @@ uhid_attach(device_t self)
 static int
 uhid_detach(device_t self)
 {
-	USB_DETACH_START(uhid, sc);
+	struct uhid_softc *sc = device_get_softc(self);
 	int s;
 
 	DPRINTF(("uhid_detach: sc=%p\n", sc));
@@ -382,7 +412,9 @@ uhidopen(struct cdev *dev, int flag, int mode, struct thread *p)
 	struct uhid_softc *sc;
 	usbd_status err;
 
-	USB_GET_SC_OPEN(uhid, UHIDUNIT(dev), sc);
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
+	if (sc == NULL)
+		return (ENXIO);
 
 	DPRINTF(("uhidopen: sc=%p\n", sc));
 
@@ -424,7 +456,7 @@ uhidclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct uhid_softc *sc;
 
-	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
 
 	DPRINTF(("uhidclose: sc=%p\n", sc));
 
@@ -515,8 +547,7 @@ uhidread(struct cdev *dev, struct uio *uio, int flag)
 	struct uhid_softc *sc;
 	int error;
 
-	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
-
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
 	sc->sc_refcnt++;
 	error = uhid_do_read(sc, uio, flag);
 	if (--sc->sc_refcnt < 0)
@@ -561,8 +592,7 @@ uhidwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct uhid_softc *sc;
 	int error;
 
-	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
-
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
 	sc->sc_refcnt++;
 	error = uhid_do_write(sc, uio, flag);
 	if (--sc->sc_refcnt < 0)
@@ -691,8 +721,7 @@ uhidioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p
 	struct uhid_softc *sc;
 	int error;
 
-	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
-
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
 	sc->sc_refcnt++;
 	error = uhid_do_ioctl(sc, cmd, addr, flag, p);
 	if (--sc->sc_refcnt < 0)
@@ -707,8 +736,7 @@ uhidpoll(struct cdev *dev, int events, struct thread *p)
 	int revents = 0;
 	int s;
 
-	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
-
+	sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
 	if (sc->sc_dying)
 		return (EIO);
 
@@ -725,5 +753,3 @@ uhidpoll(struct cdev *dev, int events, struct thread *p)
 	splx(s);
 	return (revents);
 }
-
-DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, usbd_driver_load, 0);

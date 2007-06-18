@@ -160,7 +160,8 @@ umct_match(device_t self)
 static int
 umct_attach(device_t self)
 {
-	USB_ATTACH_START(umct, sc, uaa);
+	struct umct_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev;
 	struct ucom_softc *ucom;
 	usb_config_descriptor_t *cdesc;
@@ -278,7 +279,8 @@ error:
 static int
 umct_detach(device_t self)
 {
-	USB_DETACH_START(umct, sc);
+	struct umct_softc *sc = device_get_softc(self);
+
 	int rv;
 
 	if (sc->sc_intr_pipe != NULL) {
