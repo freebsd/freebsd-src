@@ -98,6 +98,7 @@ __KERNEL_RCSID(0, "$NetBSD: uaudio.c,v 1.91 2004/11/05 17:46:14 kent Exp $");
 #include "feeder_if.h"
 #endif
 
+#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
