@@ -718,21 +718,20 @@
 428	AUE_NULL	UNIMPL	__acl_aclcheck_link
 ; XXX implement
 429	AUE_SIGWAIT	UNIMPL	sigwait
-430	AUE_NULL	MNOPROTO { int thr_create(ucontext_t *ctx, long *id, \
-				    int flag s); }
+430	AUE_NULL	UNIMPL	thr_create
 431	AUE_NULL	MNOPROTO { void thr_exit(long *state); }
 432	AUE_NULL	MNOPROTO { int thr_self(long *id); }
 433	AUE_NULL	MNOPROTO { int thr_kill(long id, int sig); }
-434	AUE_NULL	MNOPROTO { int _umtx_lock(struct umtx *umtx); }
-435	AUE_NULL	MNOPROTO { int _umtx_unlock(struct umtx *umtx); }
+434	AUE_NULL	MSTD	{ int freebsd32_umtx_lock(struct umtx *umtx); }
+435	AUE_NULL	MSTD	{ int freebsd32_umtx_unlock(struct umtx *umtx); }
 436	AUE_NULL	MNOPROTO { int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	UNIMPL	extattr_list_fd
 438	AUE_EXTATTR_LIST_FILE	UNIMPL	extattr_list_file
 439	AUE_EXTATTR_LIST_LINK	UNIMPL	extattr_list_link
 440	AUE_NULL	UNIMPL	kse_switchin
 441	AUE_NULL	UNIMPL	ksem_timedwait
-442	AUE_NULL	MNOPROTO { int thr_suspend( \
-				    const struct timespec *timeout); }
+442	AUE_NULL	MSTD	{ int freebsd32_thr_suspend( \
+				    const struct timespec32 *timeout); }
 443	AUE_NULL	MNOPROTO { int thr_wake(long id); }
 444	AUE_MODUNLOAD	MNOPROTO { int kldunloadf(int fileid, int flags); }
 445	AUE_AUDIT	MNOPROTO { int audit(const void *record, \
@@ -750,4 +749,9 @@
 				    struct auditinfo_addr *auditinfo_addr, \
 				    u_int length); }
 453	AUE_AUDITCTL	MNOPROTO	{ int auditctl(char *path); }
-454	AUE_NULL	UNIMPL	_umtx_op
+454	AUE_NULL	MSTD	{ int freebsd32_umtx_op(struct umtx *umtx, \
+				    int op, long id, void *uaddr, \
+				    void *uaddr2); }
+455	AUE_NULL	MSTD	{ int freebsd32_thr_new(	\
+				    struct thr_param32 *param,	\
+				    int param_size); }

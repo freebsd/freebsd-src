@@ -2115,6 +2115,60 @@ freebsd32_clock_getres(struct thread *td,
 	return (error);
 }
 
+int
+freebsd32_thr_new(struct thread *td,
+		  struct freebsd32_thr_new_args *uap)
+{
+	struct thr_param32 param32;
+	struct thr_param param;
+	int error;
+
+	if (uap->param_size < 0 ||
+	    uap->param_size > sizeof(struct thr_param32))
+		return (EINVAL);
+	bzero(&param, sizeof(struct thr_param));
+	bzero(&param32, sizeof(struct thr_param32));
+	error = copyin(uap->param, &param32, uap->param_size);
+	if (error != 0)
+		return (error);
+	param.start_func = PTRIN(param32.start_func);
+	param.arg = PTRIN(param32.arg);
+	param.stack_base = PTRIN(param32.stack_base);
+	param.stack_size = param32.stack_size;
+	param.tls_base = PTRIN(param32.tls_base);
+	param.tls_size = param32.tls_size;
+	param.child_tid = PTRIN(param32.child_tid);
+	param.parent_tid = PTRIN(param32.parent_tid);
+	param.flags = param32.flags;
+	param.spare[0] = PTRIN(param32.spare[0]);
+	param.spare[1] = PTRIN(param32.spare[1]);
+	param.spare[2] = PTRIN(param32.spare[2]);
+	param.spare[3] = PTRIN(param32.spare[3]);
+
+	return (kern_thr_new(td, &param));
+}
+
+int
+freebsd32_thr_suspend(struct thread *td, struct freebsd32_thr_suspend_args *uap)
+{
+	struct timespec32 ts32;
+	struct timespec ts, *tsp;
+	int error;
+
+	error = 0;
+	tsp = NULL;
+	if (uap->timeout != NULL) {
+		error = copyin((const void *)uap->timeout, (void *)&ts32,
+		    sizeof(struct timespec32));
+		if (error != 0)
+			return (error);
+		ts.tv_sec = ts32.tv_sec;
+		ts.tv_nsec = ts32.tv_nsec;
+		tsp = &ts;
+	}
+	return (kern_thr_suspend(td, tsp));
+}
+
 #if 0
 
 int

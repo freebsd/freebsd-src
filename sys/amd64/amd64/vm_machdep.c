@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_isa.h"
 #include "opt_cpu.h"
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -69,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/specialreg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -78,6 +80,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <amd64/isa/isa.h>
+
+#ifdef COMPAT_IA32
+
+extern struct sysentvec ia32_freebsd_sysvec;
+
+#endif
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -320,6 +328,28 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	 */
 	cpu_thread_clean(td);
 
+#ifdef COMPAT_IA32
+	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+		/*
+	 	 * Set the trap frame to point at the beginning of the uts
+		 * function.
+		 */
+		td->td_frame->tf_rbp = 0;
+		td->td_frame->tf_rsp =
+		   (((uintptr_t)stack->ss_sp + stack->ss_size - 4) & ~0x0f) - 4;
+		td->td_frame->tf_rip = (uintptr_t)entry;
+
+		/*
+		 * Pass the address of the mailbox for this kse to the uts
+		 * function as a parameter on the stack.
+		 */
+		suword32((void *)(td->td_frame->tf_rsp + sizeof(int32_t)),
+		    (uint32_t)(uintptr_t)arg);
+
+		return;
+	}
+#endif
+
 	/*
 	 * Set the trap frame to point at the beginning of the uts
 	 * function.
@@ -328,7 +358,6 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	td->td_frame->tf_rsp =
 	    ((register_t)stack->ss_sp + stack->ss_size) & ~0x0f;
 	td->td_frame->tf_rsp -= 8;
-	td->td_frame->tf_rbp = 0;
 	td->td_frame->tf_rip = (register_t)entry;
 
 	/*
@@ -345,6 +374,19 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	if ((u_int64_t)tls_base >= VM_MAXUSER_ADDRESS)
 		return (EINVAL);
 
+#ifdef COMPAT_IA32
+	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+		if (td == curthread) {
+			critical_enter();
+			td->td_pcb->pcb_gsbase = (register_t)tls_base;
+			wrmsr(MSR_KGSBASE, td->td_pcb->pcb_gsbase);
+			critical_exit();
+		} else {
+			td->td_pcb->pcb_gsbase = (register_t)tls_base;
+		}
+		return (0);
+	}
+#endif
 	if (td == curthread) {
 		critical_enter();
 		td->td_pcb->pcb_fsbase = (register_t)tls_base;
