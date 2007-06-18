@@ -45,10 +45,12 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include <dev/usb/usb_port.h>
-
 #if defined(_KERNEL)
 #include "opt_usb.h"
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_hw_usb);
+#endif
 
 #include <sys/malloc.h>
 
