@@ -64,6 +64,4 @@ struct ofw_pci_ranges {
 	(((uint64_t)(r)->size_hi << 32) | (uint64_t)(r)->size_lo)
 #define	OFW_PCI_RANGE_CS(r)	(((r)->cspace >> 24) & 0x03)
 
-uint8_t ofw_pci_alloc_busno(phandle_t);
-
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */
