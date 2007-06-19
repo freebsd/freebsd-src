@@ -290,7 +290,7 @@ ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
 	int			error = 0;
 
 	/* checks for sc != NULL */
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL)
 		return (ENXIO);
 	if (sc->sc_dying)
@@ -342,7 +342,7 @@ ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	ubtbcmfw_softc_p	sc = NULL;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL)
 		return (ENXIO);
 
@@ -383,7 +383,7 @@ ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
 	usbd_status		err;
 	int			n, tn, error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -447,7 +447,7 @@ ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
 	usbd_status		err;
 	int			n, error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -510,7 +510,7 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 	ubtbcmfw_softc_p	sc = NULL;
 	int			error = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
@@ -547,7 +547,7 @@ ubtbcmfw_poll(struct cdev *dev, int events, struct thread *p)
 	ubtbcmfw_softc_p	sc = NULL;
 	int			revents = 0;
 
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFWUNIT(dev));
+	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
 	if (sc == NULL)
 		return (ENXIO);
 
