@@ -1139,7 +1139,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>Support has been added for the Stream Control Transmission
 	Protocol (SCTP).  SCTP implements a reliable, message-oriented
-	transport protocol, and is defined in RFC 3268.  It is enabled
+	transport protocol, and is defined in RFC 4960.  It is enabled
 	in &os; with the <literal>SCTP</literal> kernel option and is
 	part of the <filename>GENERIC</filename> kernel.  More
 	information can be found in the &man.sctp.4; manual page.</para>
