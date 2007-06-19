@@ -64,6 +64,7 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_mem.h>
+#include <dev/usb/usb_port.h>
 #include "usbdevs.h"
 
 #include <dev/usb/sl811hsreg.h>

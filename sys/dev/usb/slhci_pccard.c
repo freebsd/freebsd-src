@@ -47,6 +47,7 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_mem.h>
+#include <dev/usb/usb_port.h>
 #include <dev/usb/sl811hsvar.h>
 #include "pccarddevs.h"
 
