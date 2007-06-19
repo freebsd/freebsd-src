@@ -54,11 +54,39 @@ static struct cdev *make_dev_credv(struct cdevsw *devsw, int minornr,
 	    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
 	    va_list ap);
 
+static struct cdev_priv_list cdevp_free_list =
+    TAILQ_HEAD_INITIALIZER(cdevp_free_list);
+
 void
 dev_lock(void)
 {
 
 	mtx_lock(&devmtx);
+}
+
+static void
+dev_unlock_and_free(void)
+{
+	struct cdev_priv *cdp;
+
+	mtx_assert(&devmtx, MA_OWNED);
+	while ((cdp = TAILQ_FIRST(&cdevp_free_list)) != NULL) {
+		TAILQ_REMOVE(&cdevp_free_list, cdp, cdp_list);
+		mtx_unlock(&devmtx);
+		devfs_free(&cdp->cdp_c);
+		mtx_lock(&devmtx);
+	}
+	mtx_unlock(&devmtx);
+}
+
+static void
+dev_free_devlocked(struct cdev *cdev)
+{
+	struct cdev_priv *cdp;
+
+	mtx_assert(&devmtx, MA_OWNED);
+	cdp = cdev->si_priv;
+	TAILQ_INSERT_HEAD(&cdevp_free_list, cdp, cdp_list);
 }
 
 void
@@ -417,7 +445,7 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	udev = y;
 	LIST_FOREACH(si2, &csw->d_devs, si_list) {
 		if (si2->si_drv0 == udev) {
-			devfs_free(si);
+			dev_free_devlocked(si);
 			return (si2);
 		}
 	}
@@ -548,7 +576,7 @@ make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 		 * simplifies cloning devices.
 		 * XXX: still ??
 		 */
-		dev_unlock();
+		dev_unlock_and_free();
 		return (dev);
 	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
@@ -709,7 +737,7 @@ destroy_devl(struct cdev *dev)
 	if (dev->si_refcount > 0) {
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
 	} else {
-		devfs_free(dev);
+		dev_free_devlocked(dev);
 	}
 }
 
@@ -719,7 +747,7 @@ destroy_dev(struct cdev *dev)
 
 	dev_lock();
 	destroy_devl(dev);
-	dev_unlock();
+	dev_unlock_and_free();
 }
 
 const char *
@@ -839,8 +867,8 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 		u = dev2unit(dev);
 		if (u == (unit | extra)) {
 			*dp = dev;
-			devfs_free(ndev);
 			dev_unlock();
+			devfs_free(ndev);
 			return (0);
 		}
 		if (unit == -1 && u == low) {
@@ -876,7 +904,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 		LIST_INSERT_HEAD(&cd->head, dev, si_clone);
 	dev->si_flags |= SI_CLONELIST;
 	*up = unit;
-	dev_unlock();
+	dev_unlock_and_free();
 	return (1);
 }
 
