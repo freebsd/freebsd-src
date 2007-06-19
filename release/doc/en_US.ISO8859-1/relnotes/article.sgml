@@ -1712,7 +1712,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       programs.  Due to the use of different algorithms and data
       structures, jemalloc may expose some previously-unknown bugs in
       userland code, although most of the &os; base system and common
-      ports have been tested and/or fixed.</para>
+      ports have been tested and/or fixed.  Note that jemalloc uses
+      &man.mmap.2; to obtain memory and only uses &man.sbrk.2; under
+      limited circumstances (and then only for 32-bit architectures).
+      As a result, the <literal>datasize</literal> resource limit
+      has little practical effect for typical applications.  The
+      <literal>vmemoryuse</literal> resource limit, however, can be
+      used to bound the total virtual memory used by a process, as
+      described in &man.limits.1;.</para>
 
     <para>The &man.mdconfig.8; utility now supports producing
       device listings formatted as XML.  Currently, the
@@ -2136,7 +2143,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       1.0.3 to 1.0.4.</para>
 
     <para>GNU <application>Diffutils</application> has been updated
-      to 2.8.7.</para>
+      from 2.7 to 2.8.7.</para>
 
     <para><application>DRM</application> has
       been updated to a snapshot from DRI CVS as of 20060517.
