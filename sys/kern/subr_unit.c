@@ -714,6 +714,7 @@ free_unr(struct unrhdr *uh, u_int item)
 {
 	void *p1, *p2;
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "free_unr");
 	p1 = Malloc(sizeof(struct unr));
 	p2 = Malloc(sizeof(struct unr));
 	mtx_lock(uh->mtx);
