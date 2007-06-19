@@ -533,7 +533,7 @@ pfs_read(struct vop_read_args *va)
 			PRELE(proc);
 		PFS_RETURN (EINVAL);
 	}
-	if (buflen > MAXPHYS) {
+	if (buflen > MAXPHYS + 1) {
 		if (proc != NULL)
 			PRELE(proc);
 		PFS_RETURN (EIO);
