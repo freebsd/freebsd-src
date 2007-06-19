@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2006
+.Dd June 19, 2007
 .Dt SCTP_CONNECTX 3
 .Os
 .Sh NAME
@@ -72,11 +72,13 @@ If the peer SCTP stack does not list one or more of
 the provided addresses in its response message then 
 the extra addresses sent in the
 .Fn sctp_connectx
-call will be silently discarded from the association. On
-successful completion the provided sctp_assoc_t * will be
+call will be silently discarded from the association.
+On
+successful completion the provided
+.Fa "sctp_assoc_t *"
+will be
 filled in with the association identification of the newly
 forming association.
-
 .Sh RETURN VALUES
 The call returns 0 on success and -1 upon failure.
 .Sh ERRORS
