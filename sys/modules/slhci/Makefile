@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ../../dev/usb
+.PATH:	${.CURDIR}/../../dev/usb
 
 KMOD=	slhci
 SRCS=	sl811hs.c slhci_pccard.c
