@@ -126,7 +126,7 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
 
 #define DPRINTFN(n, x)	do { \
 				if (uplcomdebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 #else
 #define DPRINTFN(n, x)

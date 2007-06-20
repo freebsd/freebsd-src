@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/dsbr100io.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (ufmdebug) logprintf x
-#define DPRINTFN(n,x)	if (ufmdebug>(n)) logprintf x
+#define DPRINTF(x)	if (ufmdebug) printf x
+#define DPRINTFN(n,x)	if (ufmdebug>(n)) printf x
 int	ufmdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ufm, CTLFLAG_RW, 0, "USB ufm");
 SYSCTL_INT(_hw_usb_ufm, OID_AUTO, debug, CTLFLAG_RW,

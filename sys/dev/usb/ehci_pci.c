@@ -147,7 +147,7 @@ static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
 #ifdef USB_DEBUG
 #define EHCI_DEBUG USB_DEBUG
-#define DPRINTF(x)	do { if (ehcidebug) logprintf x; } while (0)
+#define DPRINTF(x)	do { if (ehcidebug) printf x; } while (0)
 extern int ehcidebug;
 #else
 #define DPRINTF(x)

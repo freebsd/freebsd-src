@@ -104,8 +104,8 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/netgraph.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (udbpdebug) logprintf x
-#define DPRINTFN(n,x)	if (udbpdebug>(n)) logprintf x
+#define DPRINTF(x)	if (udbpdebug) printf x
+#define DPRINTFN(n,x)	if (udbpdebug>(n)) printf x
 int	udbpdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
 SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RW,

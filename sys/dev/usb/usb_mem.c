@@ -70,8 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_mem.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (usbdebug) logprintf x
-#define DPRINTFN(n,x)	if (usbdebug>(n)) logprintf x
+#define DPRINTF(x)	if (usbdebug) printf x
+#define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
 extern int usbdebug;
 #else
 #define DPRINTF(x)

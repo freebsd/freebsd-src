@@ -72,8 +72,8 @@ __FBSDID("$FreeBSD$");
 #include "usbdevs.h"
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (uscannerdebug) logprintf x
-#define DPRINTFN(n,x)	if (uscannerdebug>(n)) logprintf x
+#define DPRINTF(x)	if (uscannerdebug) printf x
+#define DPRINTFN(n,x)	if (uscannerdebug>(n)) printf x
 int	uscannerdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, uscanner, CTLFLAG_RW, 0, "USB uscanner");
 SYSCTL_INT(_hw_usb_uscanner, OID_AUTO, debug, CTLFLAG_RW,

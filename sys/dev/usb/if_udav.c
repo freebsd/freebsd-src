@@ -235,8 +235,8 @@ DRIVER_MODULE(miibus, udav, miibus_driver, miibus_devclass, 0, 0);
 
 /* Macros */
 #ifdef UDAV_DEBUG
-#define DPRINTF(x)	if (udavdebug) logprintf x
-#define DPRINTFN(n,x)	if (udavdebug >= (n)) logprintf x
+#define DPRINTF(x)	if (udavdebug) printf x
+#define DPRINTFN(n,x)	if (udavdebug >= (n)) printf x
 int udavdebug = 0;
 #else
 #define DPRINTF(x)

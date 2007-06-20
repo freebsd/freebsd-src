@@ -112,7 +112,7 @@ int	umodemdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
 SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
 	   &umodemdebug, 0, "umodem debug level");
-#define DPRINTFN(n, x)	if (umodemdebug > (n)) logprintf x
+#define DPRINTFN(n, x)	if (umodemdebug > (n)) printf x
 #else
 #define DPRINTFN(n, x)
 #endif
