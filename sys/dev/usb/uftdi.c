@@ -79,12 +79,12 @@ SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
 	   &uftdidebug, 0, "uftdi debug level");
 #define DPRINTF(x)      do { \
 				if (uftdidebug) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 
 #define DPRINTFN(n, x)  do { \
 				if (uftdidebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 
 #else

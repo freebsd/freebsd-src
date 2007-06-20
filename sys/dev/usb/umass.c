@@ -132,7 +132,7 @@
 
 #ifdef USB_DEBUG
 #define DIF(m, x)	if (umassdebug & (m)) do { x ; } while (0)
-#define	DPRINTF(m, x)	if (umassdebug & (m)) logprintf x
+#define	DPRINTF(m, x)	if (umassdebug & (m)) printf x
 #define UDMASS_GEN	0x00010000	/* general */
 #define UDMASS_SCSI	0x00020000	/* scsi */
 #define UDMASS_UFI	0x00040000	/* ufi command set */

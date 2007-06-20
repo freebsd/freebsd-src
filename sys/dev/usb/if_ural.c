@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/if_uralvar.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	do { if (uraldebug > 0) logprintf x; } while (0)
-#define DPRINTFN(n, x)	do { if (uraldebug >= (n)) logprintf x; } while (0)
+#define DPRINTF(x)	do { if (uraldebug > 0) printf x; } while (0)
+#define DPRINTFN(n, x)	do { if (uraldebug >= (n)) printf x; } while (0)
 int uraldebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
 SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &uraldebug, 0,

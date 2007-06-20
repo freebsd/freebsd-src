@@ -42,7 +42,7 @@
 #ifdef UARK_DEBUG
 #define DPRINTFN(n, x)	do {	\
 	if (uarkdebug > (n))	\
-		logprintf x;	\
+		printf x;	\
 } while (0)
 int	uarkebug = 0;
 #else

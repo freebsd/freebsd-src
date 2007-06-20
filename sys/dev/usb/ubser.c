@@ -112,12 +112,12 @@ SYSCTL_INT(_hw_usb_ubser, OID_AUTO, debug, CTLFLAG_RW,
 	   &ubserdebug, 0, "ubser debug level");
 #define DPRINTF(x)      do { \
 				if (ubserdebug) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 
 #define DPRINTFN(n, x)  do { \
 				if (ubserdebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 #else
 #define DPRINTF(x)
