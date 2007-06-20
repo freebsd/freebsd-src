@@ -128,8 +128,8 @@ __CONCAT(dname,_detach)(device_t self)
 
 #include <sys/syslog.h>
 /*
-#define logprintf(args...)	log(LOG_DEBUG, args)
+#define printf(args...)	log(LOG_DEBUG, args)
 */
-#define logprintf		printf
+#define printf		printf
 
 #endif /* _USB_PORT_H */

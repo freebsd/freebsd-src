@@ -101,12 +101,12 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 	   &ucomdebug, 0, "ucom debug level");
 #define DPRINTF(x)	do { \
 				if (ucomdebug) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 
 #define DPRINTFN(n, x)	do { \
 				if (ucomdebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 #else
 #define DPRINTF(x)

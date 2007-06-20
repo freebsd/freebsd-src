@@ -110,7 +110,7 @@ SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
 
 #define DPRINTFN(n, x)	do { \
 				if (ruedebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0);
 #else
 #define DPRINTFN(n, x)

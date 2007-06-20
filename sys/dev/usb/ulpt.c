@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 #define ULPT_READ_TIMO 10
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (ulptdebug) logprintf x
-#define DPRINTFN(n,x)	if (ulptdebug>(n)) logprintf x
+#define DPRINTF(x)	if (ulptdebug) printf x
+#define DPRINTFN(n,x)	if (ulptdebug>(n)) printf x
 int	ulptdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ulpt, CTLFLAG_RW, 0, "USB ulpt");
 SYSCTL_INT(_hw_usb_ulpt, OID_AUTO, debug, CTLFLAG_RW,

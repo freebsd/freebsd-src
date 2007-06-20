@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/rt2573_ucode.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	do { if (rumdebug > 0) logprintf x; } while (0)
-#define DPRINTFN(n, x)	do { if (rumdebug >= (n)) logprintf x; } while (0)
+#define DPRINTF(x)	do { if (rumdebug > 0) printf x; } while (0)
+#define DPRINTFN(n, x)	do { if (rumdebug >= (n)) printf x; } while (0)
 int rumdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
 SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rumdebug, 0,
