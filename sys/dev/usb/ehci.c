@@ -92,8 +92,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef USB_DEBUG
 #define EHCI_DEBUG USB_DEBUG
-#define DPRINTF(x)	do { if (ehcidebug) logprintf x; } while (0)
-#define DPRINTFN(n,x)	do { if (ehcidebug>(n)) logprintf x; } while (0)
+#define DPRINTF(x)	do { if (ehcidebug) printf x; } while (0)
+#define DPRINTFN(n,x)	do { if (ehcidebug>(n)) printf x; } while (0)
 int ehcidebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,

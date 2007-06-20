@@ -90,8 +90,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_quirks.h>
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (uhiddebug) logprintf x
-#define DPRINTFN(n,x)	if (uhiddebug>(n)) logprintf x
+#define DPRINTF(x)	if (uhiddebug) printf x
+#define DPRINTFN(n,x)	if (uhiddebug>(n)) printf x
 int	uhiddebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
 SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,

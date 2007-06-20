@@ -97,7 +97,7 @@ SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	DPRINTFN(n, x)	do { \
 				if (ubsadebug > (n)) \
-					logprintf x; \
+					printf x; \
 			} while (0)
 #else
 #define	DPRINTFN(n, x)

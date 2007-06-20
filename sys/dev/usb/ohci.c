@@ -88,8 +88,8 @@ __FBSDID("$FreeBSD$");
 #define delay(d)                DELAY(d)
 
 #ifdef USB_DEBUG
-#define DPRINTF(x)	if (ohcidebug) logprintf x
-#define DPRINTFN(n,x)	if (ohcidebug>(n)) logprintf x
+#define DPRINTF(x)	if (ohcidebug) printf x
+#define DPRINTFN(n,x)	if (ohcidebug>(n)) printf x
 int ohcidebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
 SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
