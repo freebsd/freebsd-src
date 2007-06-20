@@ -400,6 +400,8 @@ static struct rodentparam {
     float accely;		/* Acceleration in the Y axis */
     float expoaccel;		/* Exponential acceleration */
     float expoffset;		/* Movement offset for exponential accel. */
+    float remainx;		/* Remainder on X and Y axis, respectively... */
+    float remainy;		/*    ... to compensate for rounding errors. */
     int scrollthreshold;	/* Movement distance before virtual scrolling */
 } rodent = {
     .flags = 0,
@@ -421,6 +423,8 @@ static struct rodentparam {
     .accely = 1.0,
     .expoaccel = 1.0,
     .expoffset = 1.0,
+    .remainx = 0.0,
+    .remainy = 0.0,
     .scrollthreshold = DFLT_SCROLLTHRESHOLD,
 };
 
@@ -500,6 +504,7 @@ static struct drift_xy  drift_previous={0,0}; /* steps in previous drift_time */
 
 /* function prototypes */
 
+static void	linacc(int, int, int*, int*);
 static void	expoacc(int, int, int*, int*);
 static void	moused(void);
 static void	hup(int sig);
@@ -956,7 +961,33 @@ usbmodule(void)
 }
 
 /*
+ * Function to calculate linear acceleration.
+ *
+ * If there are any rounding errors, the remainder
+ * is stored in the remainx and remainy variables
+ * and taken into account upon the next movement.
+ */
+
+static void
+linacc(int dx, int dy, int *movex, int *movey)
+{
+    float fdx, fdy;
+
+    if (dx == 0 && dy == 0) {
+	*movex = *movey = 0;
+	return;
+    }
+    fdx = dx * rodent.accelx + rodent.remainx;
+    fdy = dy * rodent.accely + rodent.remainy;
+    *movex = lround(fdx);
+    *movey = lround(fdy);
+    rodent.remainx = fdx - *movex;
+    rodent.remainy = fdy - *movey;
+}
+
+/*
  * Function to calculate exponential acceleration.
+ * (Also includes linear acceleration if enabled.)
  *
  * In order to give a smoother behaviour, we record the four
  * most recent non-zero movements and use their average value
@@ -979,8 +1010,12 @@ expoacc(int dx, int dy, int *movex, int *movey)
     length = (length + lastlength[0] + lastlength[1] + lastlength[2]) / 4;
     lbase = length / rodent.expoffset;
     accel = powf(lbase, rodent.expoaccel) / lbase;
-    *movex = lroundf(fdx * accel);
-    *movey = lroundf(fdy * accel);
+    fdx = fdx * accel + rodent.remainx;
+    fdy = fdy * accel + rodent.remainy;
+    *movex = lroundf(fdx);
+    *movey = lroundf(fdy);
+    rodent.remainx = fdx - *movex;
+    rodent.remainy = fdy - *movey;
     lastlength[2] = lastlength[1];
     lastlength[1] = lastlength[0];
     lastlength[0] = length;	/* Insert new average, not original length! */
@@ -1250,8 +1285,8 @@ moused(void)
 			    &mouse.u.data.x, &mouse.u.data.y);
 		    }
 		    else {
-			mouse.u.data.x = action2.dx * rodent.accelx;
-			mouse.u.data.y = action2.dy * rodent.accely;
+			linacc(action2.dx, action2.dy,
+			    &mouse.u.data.x, &mouse.u.data.y);
 		    }
 		    mouse.u.data.z = action2.dz;
 		    if (debug < 2)
@@ -1266,8 +1301,8 @@ moused(void)
 			&mouse.u.data.x, &mouse.u.data.y);
 		}
 		else {
-		    mouse.u.data.x = action2.dx * rodent.accelx;
-		    mouse.u.data.y = action2.dy * rodent.accely;
+		    linacc(action2.dx, action2.dy,
+			&mouse.u.data.x, &mouse.u.data.y);
 		}
 		mouse.u.data.z = action2.dz;
 		if (debug < 2)
