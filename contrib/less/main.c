@@ -142,7 +142,8 @@ main(argc, argv)
 	if (s != NULL)
 		scan_option(save(s));
 
-#define	isoptstring(s)	(((s)[0] == '-' || (s)[0] == '+') && (s)[1] != '\0')
+#define	isoptstring(s)	less_is_more   ? (((s)[0] == '-') && (s)[1] != '\0') : \
+			(((s)[0] == '-' || (s)[0] == '+') && (s)[1] != '\0')
 	while (argc > 0 && (isoptstring(*argv) || isoptpending()))
 	{
 		s = *argv++;
