@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 #include <sys/rman.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -65,9 +66,42 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/toecore/toedev.h>
 #endif
 
+#define USE_SX
+
 struct adapter;
 struct sge_qset;
 extern int cxgb_debug;
+
+#ifdef DEBUG_LOCKING
+#define MTX_INIT(lock, lockname, class, flags) \
+	do { \
+		printf("initializing %s at %s:%d\n", lockname, __FILE__, __LINE__); \
+		mtx_init((lock), lockname, class, flags);		\
+	} while (0)
+
+#define MTX_DESTROY(lock) \
+	do { \
+		printf("destroying %s at %s:%d\n", (lock)->lock_object.lo_name, __FILE__, __LINE__); \
+		mtx_destroy((lock));					\
+	} while (0)
+
+#define SX_INIT(lock, lockname) \
+	do { \
+		printf("initializing %s at %s:%d\n", lockname, __FILE__, __LINE__); \
+		sx_init((lock), lockname);		\
+	} while (0)
+
+#define SX_DESTROY(lock) \
+	do { \
+		printf("destroying %s at %s:%d\n", (lock)->lock_object.lo_name, __FILE__, __LINE__); \
+		sx_destroy((lock));					\
+	} while (0)
+#else
+#define MTX_INIT mtx_init
+#define MTX_DESTROY mtx_destroy
+#define SX_INIT sx_init
+#define SX_DESTROY sx_destroy
+#endif
 
 struct port_info {
 	struct adapter	*adapter;
@@ -77,9 +111,12 @@ struct port_info {
 	struct cphy	phy;
 	struct cmac	mac;
 	struct link_config link_config;
-	struct ifmedia	media;	
+	struct ifmedia	media;
+#ifdef USE_SX	
+	struct sx	lock;
+#else	
 	struct mtx	lock;
-	
+#endif	
 	int		port;
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	uint8_t		nqsets;
@@ -88,6 +125,11 @@ struct port_info {
 	struct task     start_task;
 	struct task	timer_reclaim_task;
 	struct cdev     *port_cdev;
+
+#define PORT_NAME_LEN 32
+#define TASKQ_NAME_LEN 32
+	char            lockbuf[PORT_NAME_LEN];
+	char            taskqbuf[TASKQ_NAME_LEN];
 };
 
 enum {				/* adapter flags */
@@ -103,6 +145,8 @@ enum {				/* adapter flags */
 #define JUMBO_Q_SIZE	512
 #define RSPQ_Q_SIZE	1024
 #define TX_ETH_Q_SIZE	1024
+
+
 
 /*
  * Types of Tx queues in each queue set.  Order here matters, do not change.
@@ -165,6 +209,9 @@ struct sge_rspq {
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
 	struct mbuf	*m;
+#define RSPQ_NAME_LEN  32
+	char            lockbuf[RSPQ_NAME_LEN];
+
 };
 
 struct rx_desc;
@@ -216,6 +263,8 @@ struct sge_txq {
 	bus_dma_tag_t   entry_tag;
 	struct mbuf_head sendq;
 	struct mtx      lock;
+#define TXQ_NAME_LEN  32
+	char            lockbuf[TXQ_NAME_LEN];
 };
      	
 
@@ -260,7 +309,6 @@ struct adapter {
 	bus_space_tag_t		bt;
 	bus_size_t              mmio_len;
 	uint32_t                link_width;
-				
 	
 	/* DMA resources */
 	bus_dma_tag_t		parent_dmat;
@@ -283,8 +331,8 @@ struct adapter {
 	/* Tasks */
 	struct task		ext_intr_task;
 	struct task		slow_intr_task;
+	struct task		tick_task;
 	struct task		process_responses_task;
-	struct task		mr_refresh_task;
 	struct taskqueue	*tq;
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
@@ -310,9 +358,19 @@ struct adapter {
 	char                    fw_version[64];
 	uint32_t                open_device_map;
 	uint32_t                registered_device_map;
+#ifdef USE_SX
+	struct sx               lock;
+#else	
 	struct mtx              lock;
+#endif	
 	driver_intr_t           *cxgb_intr;
 	int                     msi_count;
+
+#define ADAPTER_LOCK_NAME_LEN	32
+	char                    lockbuf[ADAPTER_LOCK_NAME_LEN];
+	char                    reglockbuf[ADAPTER_LOCK_NAME_LEN];
+	char                    mdiolockbuf[ADAPTER_LOCK_NAME_LEN];
+	char                    elmerlockbuf[ADAPTER_LOCK_NAME_LEN];
 };
 
 struct t3_rx_mode {
@@ -327,12 +385,32 @@ struct t3_rx_mode {
 #define ELMR_LOCK(adapter)	mtx_lock(&(adapter)->elmer_lock)
 #define ELMR_UNLOCK(adapter)	mtx_unlock(&(adapter)->elmer_lock)
 
-#define PORT_LOCK(port)		mtx_lock(&(port)->lock);
-#define PORT_UNLOCK(port)	mtx_unlock(&(port)->lock);
+
+#ifdef USE_SX
+#define PORT_LOCK(port)		     sx_xlock(&(port)->lock);
+#define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
+#define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
+#define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
+#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SX_LOCKED)
+
+#define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
+#define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
+#define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
+#define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SX_UNLOCKED)
+#else
+#define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
+#define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);
+#define PORT_LOCK_INIT(port, name)   mtx_init(&(port)->lock, name, 0, MTX_DEF)
+#define PORT_LOCK_DEINIT(port)       mtx_destroy(&(port)->lock)
+#define PORT_LOCK_ASSERT_OWNED(port) mtx_assert(&(port)->lock, MA_OWNED)
 
 #define ADAPTER_LOCK(adap)	mtx_lock(&(adap)->lock);
 #define ADAPTER_UNLOCK(adap)	mtx_unlock(&(adap)->lock);
-
+#define ADAPTER_LOCK_INIT(adap, name) mtx_init(&(adap)->lock, name, 0, MTX_DEF)
+#define ADAPTER_LOCK_DEINIT(adap) mtx_destroy(&(adap)->lock)
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) mtx_assert(&(adap)->lock, MO_NOTOWNED)
+#endif
 
 
 static __inline uint32_t
