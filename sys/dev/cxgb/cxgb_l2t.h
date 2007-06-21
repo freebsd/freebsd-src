@@ -48,6 +48,7 @@ $FreeBSD$
 #define rw_rlock(x) mtx_lock((x))
 #define rw_runlock(x) mtx_unlock((x))
 #define rw_init(x, str) mtx_init((x), (str), NULL, MTX_DEF)
+#define rw_destroy(x) mtx_destroy((x))
 
 #endif
 
