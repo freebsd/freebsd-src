@@ -39,12 +39,14 @@
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/selinfo.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+struct apm_clone_data;
 struct acpi_softc {
     device_t		acpi_dev;
     struct cdev		*acpi_dev_t;
@@ -76,6 +78,11 @@ struct acpi_softc {
     bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
+
+    int			acpi_next_sstate;	/* Next suspend Sx state. */
+    struct apm_clone_data *acpi_clone;		/* Pseudo-dev for devd(8). */
+    STAILQ_HEAD(,apm_clone_data) apm_cdevs;	/* All apm/apmctl/acpi cdevs. */
+    struct callout	susp_force_to;		/* Force suspend if no acks. */
 };
 
 struct acpi_device {
@@ -87,6 +94,22 @@ struct acpi_device {
 
     /* Resources */
     struct resource_list	ad_rl;
+};
+
+/* Track device (/dev/{apm,apmctl} and /dev/acpi) notification status. */
+struct apm_clone_data {
+    STAILQ_ENTRY(apm_clone_data) entries;
+    struct cdev 	*cdev;
+    int			flags;
+#define	ACPI_EVF_NONE	0	/* /dev/apm semantics */
+#define	ACPI_EVF_DEVD	1	/* /dev/acpi is handled via devd(8) */
+#define	ACPI_EVF_WRITE	2	/* Device instance is opened writable. */
+    int			notify_status;
+#define	APM_EV_NONE	0	/* Device not yet aware of pending sleep. */
+#define	APM_EV_NOTIFIED	1	/* Device saw next sleep state. */
+#define	APM_EV_ACKED	2	/* Device agreed sleep can occur. */
+    struct acpi_softc	*acpi_sc;
+    struct selinfo	sel_read;
 };
 
 #define ACPI_PRW_MAX_POWERRES	8
@@ -304,6 +327,8 @@ ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 		    ACPI_RESOURCE *res);
 ACPI_STATUS	acpi_OverrideInterruptLevel(UINT32 InterruptNumber);
 ACPI_STATUS	acpi_SetIntrModel(int model);
+int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
+int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
