@@ -1390,11 +1390,14 @@ init_cmdhist()
 		}
 		if (strcmp(line, HISTFILE_SEARCH_SECTION) == 0)
 			ml = &mlist_search;
-#if SHELL_ESCAPE || PIPEC
 		else if (strcmp(line, HISTFILE_SHELL_SECTION) == 0)
+		{
+#if SHELL_ESCAPE || PIPEC
 			ml = &mlist_shell;
+#else
+			ml = NULL;
 #endif
-		else if (*line == '"')
+		} else if (*line == '"')
 		{
 			if (ml != NULL)
 				cmd_addhist(ml, line+1);
@@ -1444,11 +1447,18 @@ save_cmdhist()
 #if CMD_HISTORY
 	char *filename;
 	FILE *f;
+	int modified = 0;
 
 	filename = histfile_name();
 	if (filename == NULL)
 		return;
-	if (!mlist_search.modified && !mlist_shell.modified)
+	if (mlist_search.modified)
+		modified = 1;
+#if SHELL_ESCAPE || PIPEC
+	if (mlist_shell.modified)
+		modified = 1;
+#endif
+	if (!modified)
 		return;
 	f = fopen(filename, "w");
 	free(filename);
