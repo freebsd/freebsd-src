@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070611_0045"
+#define HDA_DRV_TEST_REV	"20070619_0045"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -269,6 +269,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Uniwill ? */
 #define UNIWILL_VENDORID	0x1584
 #define UNIWILL_9075_SUBVENDOR	HDA_MODEL_CONSTRUCT(UNIWILL, 0x9075)
+#define UNIWILL_9080_SUBVENDOR	HDA_MODEL_CONSTRUCT(UNIWILL, 0x9080)
 
 
 /* Misc constants.. */
@@ -646,6 +647,8 @@ static const struct {
 	{ ACER_A5050_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 	{ ACER_3681WXM_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 20, { 21, -1 }, -1 },
+	{ UNIWILL_9080_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 	{ MSI_MS1034_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 27, -1 }, -1 },
@@ -3607,12 +3610,7 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (sc == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENOMEM);
-	}
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
 	sc->dev = dev;
 	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
@@ -5639,10 +5637,12 @@ hdac_release_resources(struct hdac_softc *sc)
 	hdac_lock(sc);
 	sc->polling = 0;
 	sc->poll_ival = 0;
+	callout_stop(&sc->poll_hda);
 	callout_stop(&sc->poll_hdac);
 	callout_stop(&sc->poll_jack);
 	hdac_reset(sc);
 	hdac_unlock(sc);
+	callout_drain(&sc->poll_hda);
 	callout_drain(&sc->poll_hdac);
 	callout_drain(&sc->poll_jack);
 
