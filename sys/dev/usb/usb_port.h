@@ -1,5 +1,5 @@
 /*	$OpenBSD: usb_port.h,v 1.18 2000/09/06 22:42:10 rahnds Exp $ */
-/*	$NetBSD: usb_port.h,v 1.68 2005/07/30 06:14:50 skrll Exp $	*/
+/*	$NetBSD: usb_port.h,v 1.54 2002/03/28 21:49:19 ichiro Exp $	*/
 /*	$FreeBSD$       */
 
 /* Also already merged from NetBSD:
@@ -60,7 +60,34 @@
 #define USB_USE_SOFTINTR
 #endif
 
+#define Static static
+
+#define device_ptr_t device_t
+#define USBBASEDEVICE device_t
+#define USBDEV(bdev) (bdev)
+#define USBDEVNAME(bdev) device_get_nameunit(bdev)
+#define USBDEVUNIT(bdev) device_get_unit(bdev)
+#define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
+#define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
+
+#define DECLARE_USB_DMA_T \
+	struct usb_dma_block; \
+	typedef struct { \
+		struct usb_dma_block *block; \
+		u_int offs; \
+		u_int len; \
+	} usb_dma_t
+
+typedef struct thread *usb_proc_ptr;
+
+#define uio_procp uio_td
+
+#define usb_kthread_create1(f, s, p, a0, a1) \
+		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
+#define usb_kthread_create2(f, s, p, a0) \
+		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0))
+#define usb_kthread_create	kthread_create
 
 #define	config_pending_incr()
 #define	config_pending_decr()
@@ -70,6 +97,18 @@ typedef struct callout usb_callout_t;
 #define usb_callout(h, t, f, d) callout_reset(&(h), (t), (f), (d))
 #define usb_uncallout(h, f, d)  callout_stop(&(h))
 #define usb_uncallout_drain(h, f, d)  callout_drain(&(h))
+
+#define clalloc(p, s, x) (clist_alloc_cblocks((p), (s), (s)), 0)
+#define clfree(p) clist_free_cblocks((p))
+
+#define config_detach(dev, flag) \
+	do { \
+		device_detach(dev); \
+		free(device_get_ivars(dev), M_USB); \
+		device_delete_child(device_get_parent(dev), dev); \
+	} while (0);
+
+typedef struct malloc_type *usb_malloc_type;
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
 static device_probe_t __CONCAT(dname,_match); \
@@ -94,7 +133,8 @@ static driver_t __CONCAT(dname,_driver) = { \
 MODULE_DEPEND(dname, usb, 1, 1, 1)
 
 
-#define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, {0,0})
+#define METHODS_NONE			{0,0}
+#define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
 
 #define USB_MATCH(dname) \
 static int \
@@ -103,6 +143,9 @@ __CONCAT(dname,_match)(device_t self)
 #define USB_MATCH_START(dname, uaa) \
         struct usb_attach_arg *uaa = device_get_ivars(self)
 
+#define USB_MATCH_SETUP \
+	sc->sc_dev = self
+
 #define USB_ATTACH(dname) \
 static int \
 __CONCAT(dname,_attach)(device_t self)
@@ -110,6 +153,17 @@ __CONCAT(dname,_attach)(device_t self)
 #define USB_ATTACH_START(dname, sc, uaa) \
         struct __CONCAT(dname,_softc) *sc = device_get_softc(self); \
         struct usb_attach_arg *uaa = device_get_ivars(self)
+
+/* Returns from attach */
+#define USB_ATTACH_ERROR_RETURN	return ENXIO
+#define USB_ATTACH_SUCCESS_RETURN	return 0
+
+#define USB_ATTACH_SETUP \
+	do { \
+		sc->sc_dev = self; \
+		device_set_desc_copy(self, devinfo); \
+		device_printf(self, "%s\n", devinfo); \
+	} while (0);
 
 #define USB_DETACH(dname) \
 static int \
@@ -126,10 +180,26 @@ __CONCAT(dname,_detach)(device_t self)
 #define USB_GET_SC(dname, unit, sc) \
 	sc = devclass_get_softc(__CONCAT(dname,_devclass), unit)
 
+#define USB_DO_ATTACH(dev, bdev, parent, args, print, sub) \
+	(device_probe_and_attach((bdev)) == 0 ? (bdev) : 0)
+
+/* conversion from one type of queue to the other */
+#define SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
+#define SIMPLEQ_INSERT_HEAD	STAILQ_INSERT_HEAD
+#define SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
+#define SIMPLEQ_NEXT		STAILQ_NEXT
+#define SIMPLEQ_FIRST		STAILQ_FIRST
+#define SIMPLEQ_HEAD		STAILQ_HEAD
+#define SIMPLEQ_EMPTY		STAILQ_EMPTY
+#define SIMPLEQ_FOREACH		STAILQ_FOREACH
+#define SIMPLEQ_INIT		STAILQ_INIT
+#define SIMPLEQ_HEAD_INITIALIZER	STAILQ_HEAD_INITIALIZER
+#define SIMPLEQ_ENTRY		STAILQ_ENTRY
+
 #include <sys/syslog.h>
 /*
-#define printf(args...)	log(LOG_DEBUG, args)
+#define logprintf(args...)	log(LOG_DEBUG, args)
 */
-#define printf		printf
+#define logprintf		printf
 
 #endif /* _USB_PORT_H */
