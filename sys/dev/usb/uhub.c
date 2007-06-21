@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -94,40 +93,58 @@ struct uhub_softc {
 static usbd_status uhub_explore(usbd_device_handle hub);
 static void uhub_intr(usbd_xfer_handle, usbd_private_handle,usbd_status);
 
-static bus_child_location_str_t uhub_child_location_str;
-static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
-
 /*
  * We need two attachment points:
  * hub to usb and hub to hub
  * Every other driver only connects to hubs
  */
 
-/* XXX driver_added needs special care */
-USB_DECLARE_DRIVER_INIT(uhub,
+static device_probe_t uhub_match;
+static device_attach_t uhub_attach;
+static device_detach_t uhub_detach;
+static bus_child_location_str_t uhub_child_location_str;
+static bus_child_pnpinfo_str_t uhub_child_pnpinfo_str;
+
+static device_method_t uhub_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		uhub_match),
+	DEVMETHOD(device_attach,	uhub_attach),
+	DEVMETHOD(device_detach,	uhub_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown)
-	);
+	/* XXX driver_added needs special care */
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	{ 0, 0 }
+};
+
+static driver_t uhub_driver = {
+	"uhub",
+	uhub_methods,
+	sizeof(struct uhub_softc)
+};
+
+static devclass_t uhub_devclass;
 
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
-/* XXX driver_added needs special care */
 static device_method_t uhubroot_methods[] = {
+	DEVMETHOD(device_probe,		uhub_match),
+	DEVMETHOD(device_attach,	uhub_attach),
+	DEVMETHOD(device_detach,	uhub_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
 	DEVMETHOD(bus_child_location_str, uhub_child_location_str),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_str),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
+	/* XXX driver_added needs special care */
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 
-	DEVMETHOD(device_probe, uhub_match),
-	DEVMETHOD(device_attach, uhub_attach),
-	DEVMETHOD(device_detach, uhub_detach),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 	{0,0}
 };
 
@@ -539,7 +556,7 @@ uhub_explore(usbd_device_handle dev)
 static int
 uhub_detach(device_t self)
 {
-	USB_DETACH_START(uhub, sc);
+	struct uhub_softc *sc = device_get_softc(self);
 	struct usbd_hub *hub = sc->sc_hub->hub;
 	struct usbd_port *rup;
 	int port, nports;
@@ -680,5 +697,6 @@ uhub_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 		usb_needs_explore(sc->sc_hub);
 }
 
+MODULE_DEPEND(uhub, usb, 1, 1, 1);
 DRIVER_MODULE(uhub, usb, uhubroot_driver, uhubroot_devclass, 0, 0);
 DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, usbd_driver_load, 0);

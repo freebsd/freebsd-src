@@ -115,7 +115,6 @@
 #include <sys/bus.h>
 #include <sys/sysctl.h>
 
-#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -645,7 +644,7 @@ struct umass_softc {
 	unsigned char 		cam_scsi_command2[CAM_MAX_CDBLEN];
 	struct scsi_sense	cam_scsi_sense;
 	struct scsi_sense	cam_scsi_test_unit_ready;
-	usb_callout_t		cam_scsi_rescan_ch;
+	struct callout		cam_scsi_rescan_ch;
 
 	int			timeout;		/* in msecs */
 
@@ -685,7 +684,27 @@ static uint8_t fake_inq_data[SHORT_INQUIRY_LENGTH] = {
 };
 
 /* USB device probe/attach/detach functions */
-USB_DECLARE_DRIVER(umass);
+static device_probe_t umass_match;
+static device_attach_t umass_attach;
+static device_detach_t umass_detach;
+
+static device_method_t umass_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		umass_match),
+	DEVMETHOD(device_attach,	umass_attach),
+	DEVMETHOD(device_detach,	umass_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t umass_driver = {
+	"umass",
+	umass_methods,
+	sizeof(struct umass_softc)
+};
+
+static devclass_t umass_devclass;
+
 static int umass_match_proto	(struct umass_softc *sc,
 				usbd_interface_handle iface,
 				usbd_device_handle udev);
@@ -784,7 +803,8 @@ static void umass_dump_buffer	(struct umass_softc *sc, u_int8_t *buffer,
 				int buflen, int printlen);
 #endif
 
-MODULE_DEPEND(umass, cam, 1,1,1);
+MODULE_DEPEND(umass, cam, 1, 1, 1);
+MODULE_DEPEND(umass, usb, 1, 1, 1);
 
 /*
  * USB device probe/attach/detach
@@ -924,7 +944,8 @@ umass_match(device_t self)
 static int
 umass_attach(device_t self)
 {
-	USB_ATTACH_START(umass, sc, uaa);
+	struct umass_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	int i;
@@ -937,7 +958,7 @@ umass_attach(device_t self)
 	sc->sc_dev = self;
 	sc->iface = uaa->iface;
 	sc->ifaceno = uaa->ifaceno;
-	usb_callout_init(sc->cam_scsi_rescan_ch);
+	callout_init(&sc->cam_scsi_rescan_ch, 0);
 
 	/* initialise the proto and drive values in the umass_softc (again) */
 	(void) umass_match_proto(sc, sc->iface, uaa->device);
@@ -1179,7 +1200,7 @@ umass_attach(device_t self)
 static int
 umass_detach(device_t self)
 {
-	USB_DETACH_START(umass, sc);
+	struct umass_softc *sc = device_get_softc(self);
 	int err = 0;
 	int i;
 
@@ -1196,7 +1217,7 @@ umass_detach(device_t self)
 	if (sc->intrin_pipe)
 		usbd_abort_pipe(sc->intrin_pipe);
 
-	usb_uncallout_drain(sc->cam_scsi_rescan_ch, umass_cam_rescan, sc);
+	callout_drain(&sc->cam_scsi_rescan_ch);
 	if ((sc->proto & UMASS_PROTO_SCSI) ||
 	    (sc->proto & UMASS_PROTO_ATAPI) ||
 	    (sc->proto & UMASS_PROTO_UFI) ||
@@ -2339,7 +2360,7 @@ umass_cam_attach(struct umass_softc *sc)
 		 * completed, when interrupts have been enabled.
 		 */
 
-		usb_callout(sc->cam_scsi_rescan_ch, MS_TO_TICKS(200),
+		callout_reset(&sc->cam_scsi_rescan_ch, MS_TO_TICKS(200),
 		    umass_cam_rescan, sc);
 	}
 

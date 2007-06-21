@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
-#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
 
@@ -100,7 +99,7 @@ struct ums_softc {
 	struct hid_location sc_loc_x, sc_loc_y, sc_loc_z, sc_loc_t;
 	struct hid_location *sc_loc_btn;
 
-	usb_callout_t callout_handle;	/* for spurious button ups */
+	struct callout callout_handle;	/* for spurious button ups */
 
 	int sc_enabled;
 	int sc_disconnected;	/* device is gone */
@@ -158,7 +157,26 @@ static struct cdevsw ums_cdevsw = {
 	.d_name =	"ums",
 };
 
-USB_DECLARE_DRIVER(ums);
+static device_probe_t ums_match;
+static device_attach_t ums_attach;
+static device_detach_t ums_detach;
+
+static device_method_t ums_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ums_match),
+	DEVMETHOD(device_attach,	ums_attach),
+	DEVMETHOD(device_detach,	ums_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t ums_driver = {
+	"ums",
+	ums_methods,
+	sizeof(struct ums_softc)
+};
+
+static devclass_t ums_devclass;
 
 static int
 ums_match(device_t self)
@@ -192,7 +210,8 @@ ums_match(device_t self)
 static int
 ums_attach(device_t self)
 {
-	USB_ATTACH_START(ums, sc, uaa);
+	struct ums_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
@@ -355,7 +374,7 @@ ums_attach(device_t self)
 			UID_ROOT, GID_OPERATOR,
 			0644, "ums%d", device_get_unit(self));
 
-	usb_callout_init(sc->callout_handle);
+	callout_init(&sc->callout_handle, 0);
 	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_SPUR_BUT_UP) {
 		DPRINTF(("%s: Spurious button up events\n",
 			device_get_nameunit(sc->sc_dev)));
@@ -402,10 +421,7 @@ ums_detach(device_t self)
 }
 
 void
-ums_intr(xfer, addr, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle addr;
-	usbd_status status;
+ums_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	struct ums_softc *sc = addr;
 	u_char *ibuf;
@@ -494,11 +510,10 @@ ums_intr(xfer, addr, status)
 		 */
 		if (sc->flags & UMS_SPUR_BUT_UP &&
 		    dx == 0 && dy == 0 && dz == 0 && dt == 0 && buttons == 0) {
-			usb_callout(sc->callout_handle, MS_TO_TICKS(50 /*msecs*/),
-				    ums_add_to_queue_timeout, (void *) sc);
+			callout_reset(&sc->callout_handle, MS_TO_TICKS(50),
+			    ums_add_to_queue_timeout, (void *) sc);
 		} else {
-			usb_uncallout(sc->callout_handle,
-				      ums_add_to_queue_timeout, (void *) sc);
+			callout_stop(&sc->callout_handle);
 			ums_add_to_queue(sc, dx, dy, dz, dt, buttons);
 		}
 	}
@@ -603,7 +618,7 @@ ums_disable(priv)
 {
 	struct ums_softc *sc = priv;
 
-	usb_uncallout(sc->callout_handle, ums_add_to_queue_timeout, sc);
+	callout_stop(&sc->callout_handle);
 
 	/* Disable interrupts. */
 	usbd_abort_pipe(sc->sc_intrpipe);
@@ -620,7 +635,9 @@ ums_open(struct cdev *dev, int flag, int fmt, struct thread *p)
 {
 	struct ums_softc *sc;
 
-	USB_GET_SC_OPEN(ums, UMSUNIT(dev), sc);
+	sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
+	if (sc == NULL)
+		return (ENXIO);
 
 	return ums_enable(sc);
 }
@@ -630,8 +647,7 @@ ums_close(struct cdev *dev, int flag, int fmt, struct thread *p)
 {
 	struct ums_softc *sc;
 
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
-
+	sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
 	if (!sc)
 		return 0;
 
@@ -650,8 +666,7 @@ ums_read(struct cdev *dev, struct uio *uio, int flag)
 	int l = 0;
 	int error;
 
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
-
+	sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
 	s = splusb();
 	if (!sc) {
 		splx(s);
@@ -718,8 +733,7 @@ ums_poll(struct cdev *dev, int events, struct thread *p)
 	int revents = 0;
 	int s;
 
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
-
+	sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
 	if (!sc)
 		return 0;
 
@@ -745,8 +759,7 @@ ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p
 	int s;
 	mousemode_t mode;
 
-	USB_GET_SC(ums, UMSUNIT(dev), sc);
-
+	sc = devclass_get_softc(ums_devclass, UMSUNIT(dev));
 	if (!sc)
 		return EIO;
 
@@ -853,4 +866,5 @@ ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *p
 	return error;
 }
 
+MODULE_DEPEND(ums, usb, 1, 1, 1);
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, usbd_driver_load, 0);

@@ -144,6 +144,7 @@ static driver_t ukbd_driver = {
 
 static devclass_t ukbd_devclass;
 
+MODULE_DEPEND(ukbd, usb, 1, 1, 1);
 DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
 
 static int
@@ -1413,7 +1414,6 @@ static int
 init_keyboard(ukbd_state_t *state, int *type, int flags)
 {
 	usb_endpoint_descriptor_t *ed;
-	usbd_status err;
 
 	*type = KB_OTHER;
 
@@ -1439,14 +1439,6 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 		return EINVAL;
 	}
 
-	if ((usbd_get_quirks(state->ks_uaa->device)->uq_flags & UQ_NO_SET_PROTO) == 0) {
-		err = usbd_set_protocol(state->ks_iface, 0);
-		DPRINTFN(5, ("ukbd:init_keyboard: protocol set\n"));
-		if (err) {
-			printf("ukbd: set protocol failed\n");
-			return EIO;
-		}
-	}
 	/* Ignore if SETIDLE fails since it is not crucial. */
 	usbd_set_idle(state->ks_iface, 0, 0);
 
