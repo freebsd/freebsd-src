@@ -169,7 +169,6 @@ static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
 			      struct thread *);
 
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
-MODULE_DEPEND(uhid, ether, 1, 1, 1);
 
 static device_probe_t uhid_match;
 static device_attach_t uhid_attach;

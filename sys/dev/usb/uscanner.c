@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
-#include <dev/usb/usb_port.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -289,7 +288,26 @@ static void uscanner_do_close(struct uscanner_softc *);
 
 #define USCANNERUNIT(n) (minor(n))
 
-USB_DECLARE_DRIVER(uscanner);
+static device_probe_t uscanner_match;
+static device_attach_t uscanner_attach;
+static device_detach_t uscanner_detach;
+
+static device_method_t uscanner_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		uscanner_match),
+	DEVMETHOD(device_attach,	uscanner_attach),
+	DEVMETHOD(device_detach,	uscanner_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t uscanner_driver = {
+	"uscanner",
+	uscanner_methods,
+	sizeof(struct uscanner_softc)
+};
+
+static devclass_t uscanner_devclass;
 
 static int
 uscanner_match(device_t self)
@@ -306,7 +324,8 @@ uscanner_match(device_t self)
 static int
 uscanner_attach(device_t self)
 {
-	USB_ATTACH_START(uscanner, sc, uaa);
+	struct uscanner_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usb_interface_descriptor_t *id = 0;
 	usb_endpoint_descriptor_t *ed, *ed_bulkin = NULL, *ed_bulkout = NULL;
 	int i;
@@ -379,7 +398,9 @@ uscanneropen(struct cdev *dev, int flag, int mode, struct thread *p)
 	int unit = USCANNERUNIT(dev);
 	usbd_status err;
 
-	USB_GET_SC_OPEN(uscanner, unit, sc);
+	sc = devclass_get_softc(uscanner_devclass, unit);
+	if (sc == NULL)
+		return (ENXIO);
 
  	DPRINTFN(5, ("uscanneropen: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, unit));
@@ -440,8 +461,7 @@ uscannerclose(struct cdev *dev, int flag, int mode, struct thread *p)
 {
 	struct uscanner_softc *sc;
 
-	USB_GET_SC(uscanner, USCANNERUNIT(dev), sc);
-
+	sc = devclass_get_softc(uscanner_devclass, USCANNERUNIT(dev));
 	DPRINTFN(5, ("uscannerclose: flag=%d, mode=%d, unit=%d\n",
 		     flag, mode, USCANNERUNIT(dev)));
 
@@ -539,8 +559,7 @@ uscannerread(struct cdev *dev, struct uio *uio, int flag)
 	struct uscanner_softc *sc;
 	int error;
 
-	USB_GET_SC(uscanner, USCANNERUNIT(dev), sc);
-
+	sc = devclass_get_softc(uscanner_devclass, USCANNERUNIT(dev));
 	sc->sc_refcnt++;
 	error = uscanner_do_read(sc, uio, flag);
 	if (--sc->sc_refcnt < 0)
@@ -589,8 +608,7 @@ uscannerwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct uscanner_softc *sc;
 	int error;
 
-	USB_GET_SC(uscanner, USCANNERUNIT(dev), sc);
-
+	sc = devclass_get_softc(uscanner_devclass, USCANNERUNIT(dev));
 	sc->sc_refcnt++;
 	error = uscanner_do_write(sc, uio, flag);
 	if (--sc->sc_refcnt < 0)
@@ -601,7 +619,7 @@ uscannerwrite(struct cdev *dev, struct uio *uio, int flag)
 static int
 uscanner_detach(device_t self)
 {
-	USB_DETACH_START(uscanner, sc);
+	struct uscanner_softc *sc = device_get_softc(self);
 	int s;
 
 	DPRINTF(("uscanner_detach: sc=%p\n", sc));
@@ -635,8 +653,7 @@ uscannerpoll(struct cdev *dev, int events, struct thread *p)
 	struct uscanner_softc *sc;
 	int revents = 0;
 
-	USB_GET_SC(uscanner, USCANNERUNIT(dev), sc);
-
+	sc = devclass_get_softc(uscanner_devclass, USCANNERUNIT(dev));
 	if (sc->sc_dying)
 		return (EIO);
 
@@ -651,4 +668,5 @@ uscannerpoll(struct cdev *dev, int events, struct thread *p)
 	return (revents);
 }
 
+MODULE_DEPEND(uscanner, usb, 1, 1, 1);
 DRIVER_MODULE(uscanner, uhub, uscanner_driver, uscanner_devclass, usbd_driver_load, 0);

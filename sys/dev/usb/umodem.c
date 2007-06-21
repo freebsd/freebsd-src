@@ -284,9 +284,6 @@ umodem_attach(device_t self)
 	int i;
 	struct ucom_softc *ucom;
 
-	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
-	device_printf(self, "iclass %d/%d", id->bInterfaceClass,
-	  id->bInterfaceSubClass);
 	ucom = &sc->sc_ucom;
 	ucom->sc_dev = self;
 	sc->sc_dev = self;
@@ -296,6 +293,9 @@ umodem_attach(device_t self)
 	sc->sc_udev = dev;
 	sc->sc_ctl_iface = uaa->iface;
 	sc->sc_ctl_iface_no = id->bInterfaceNumber;
+	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
+	device_printf(self, "iclass %d/%d", id->bInterfaceClass,
+	  id->bInterfaceSubClass);
 
 	umodem_get_caps(dev, &sc->sc_cm_cap, &sc->sc_acm_cap);
 
@@ -360,16 +360,11 @@ umodem_attach(device_t self)
 		goto bad;
 	}
 
-	if (usbd_get_quirks(sc->sc_udev)->uq_flags & UQ_ASSUME_CM_OVER_DATA) {
-		DPRINTF(("Quirk says to assume CM over data\n"));
+	if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
+		if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE)
+			umodem_set_comm_feature(sc, UCDC_ABSTRACT_STATE,
+			    UCDC_DATA_MULTIPLEXED);
 		sc->sc_cm_over_data = 1;
-	} else {
-		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
-			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE)
-				umodem_set_comm_feature(sc,
-				  UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
-			sc->sc_cm_over_data = 1;
-		}
 	}
 
 	/*

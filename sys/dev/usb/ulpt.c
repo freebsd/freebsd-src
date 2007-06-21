@@ -187,6 +187,7 @@ static driver_t ulpt_driver = {
 
 static devclass_t ulpt_devclass;
 
+MODULE_DEPEND(umass, usb, 1, 1, 1);
 DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass, usbd_driver_load, 0);
 
 static int

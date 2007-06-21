@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_port.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
@@ -103,9 +102,9 @@ struct ucycom_softc {
 	char			 sc_dying;
 };
 
-static int ucycom_probe(device_t);
-static int ucycom_attach(device_t);
-static int ucycom_detach(device_t);
+static device_probe_t ucycom_probe;
+static device_attach_t ucycom_attach;
+static device_detach_t ucycom_detach;
 static t_open_t ucycom_open;
 static t_close_t ucycom_close;
 static void ucycom_start(struct tty *);

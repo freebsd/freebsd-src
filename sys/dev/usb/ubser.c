@@ -885,5 +885,5 @@ ubsermodem(struct tty *tp, int sigon, int sigoff)
 	return (SER_DTR | SER_RTS | SER_DCD);
 }
 
+MODULE_DEPEND(ubser, usb, 1, 1, 1);
 DRIVER_MODULE(ubser, uhub, ubser_driver, ubser_devclass, usbd_driver_load, 0);
-

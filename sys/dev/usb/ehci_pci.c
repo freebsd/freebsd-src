@@ -153,11 +153,11 @@ extern int ehcidebug;
 #define DPRINTF(x)
 #endif
 
-static int ehci_pci_attach(device_t self);
-static int ehci_pci_detach(device_t self);
-static int ehci_pci_shutdown(device_t self);
-static int ehci_pci_suspend(device_t self);
-static int ehci_pci_resume(device_t self);
+static device_attach_t ehci_pci_attach;
+static device_detach_t ehci_pci_detach;
+static device_shutdown_t ehci_pci_shutdown;
+static device_suspend_t ehci_pci_suspend;
+static device_resume_t ehci_pci_resume;
 static void ehci_pci_givecontroller(device_t self);
 static void ehci_pci_takecontroller(device_t self);
 

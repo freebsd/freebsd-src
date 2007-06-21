@@ -112,6 +112,7 @@ static const struct usb_devno ural_devs[] = {
 
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
 MODULE_DEPEND(ural, wlan_amrr, 1, 1, 1);
+MODULE_DEPEND(ural, usb, 1, 1, 1);
 
 static int		ural_alloc_tx_list(struct ural_softc *);
 static void		ural_free_tx_list(struct ural_softc *);
