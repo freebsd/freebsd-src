@@ -1606,8 +1606,8 @@ ng_btsocket_rfcomm_session_send(ng_btsocket_rfcomm_session_p s)
 			return (0); /* we are done */
 
 		/* Call send function on the L2CAP socket */
-		error = sosend(s->l2so, NULL, NULL, m, NULL, 0,
-		    curthread /* XXX */);
+		error = (*s->l2so->so_proto->pr_usrreqs->pru_send)(s->l2so,
+				0, m, NULL, NULL, curthread /* XXX */);
 		if (error != 0) {
 			NG_BTSOCKET_RFCOMM_ERR(
 "%s: Could not send data to L2CAP socket, error=%d\n", __func__, error);
