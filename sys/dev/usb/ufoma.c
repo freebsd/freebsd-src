@@ -184,9 +184,9 @@ struct ufoma_softc{
 };
 static usbd_status
 ufoma_set_line_coding(struct ufoma_softc *sc, usb_cdc_line_state_t *state);
-static int ufoma_match(device_t);
-static int ufoma_attach(device_t);
-static int ufoma_detach(device_t);
+static device_probe_t ufoma_match;
+static device_attach_t ufoma_attach;
+static device_detach_t ufoma_detach;
 static void *ufoma_get_intconf(usb_config_descriptor_t *cd, usb_interface_descriptor_t *id,int type, int subtype);
 static void ufoma_notify(void * ,int count);
 static void ufoma_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);

@@ -356,4 +356,4 @@ static driver_t uipaq_driver = {
 
 DRIVER_MODULE(uipaq, uhub, uipaq_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
-MODULE_DEPEND(uipaq, ucom,UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
+MODULE_DEPEND(uipaq, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);

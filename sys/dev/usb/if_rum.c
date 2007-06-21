@@ -123,6 +123,7 @@ static const struct usb_devno rum_devs[] = {
 
 MODULE_DEPEND(rum, wlan, 1, 1, 1);
 MODULE_DEPEND(rum, wlan_amrr, 1, 1, 1);
+MODULE_DEPEND(rum, usb, 1, 1, 1);
 
 static int		rum_alloc_tx_list(struct rum_softc *);
 static void		rum_free_tx_list(struct rum_softc *);

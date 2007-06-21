@@ -40,7 +40,6 @@
 
 struct usbd_quirks {
 	u_int32_t uq_flags;	/* Device problems: */
-#define UQ_NO_SET_PROTO	0x0001	/* cannot handle SET PROTOCOL. */
 #define UQ_SWAP_UNICODE	0x0002	/* has some Unicode strings swapped. */
 #define UQ_MS_REVZ	0x0004	/* mouse has Z-axis reversed */
 #define UQ_NO_STRINGS	0x0008	/* string descriptors are broken. */
@@ -52,12 +51,10 @@ struct usbd_quirks {
 #define UQ_POWER_CLAIM	0x0200	/* hub lies about power status */
 #define UQ_AU_NO_FRAC	0x0400	/* don't adjust for fractional samples */
 #define UQ_AU_INP_ASYNC	0x0800	/* input is async despite claim of adaptive */
-#define UQ_ASSUME_CM_OVER_DATA 0x1000 /* modem device breaks on cm over data */
 #define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
 #define UQ_OPEN_CLEARSTALL	0x4000	/* device needs clear endpoint stall */
 #define UQ_HID_IGNORE	0x8000	/* device should be ignored by hid class */
 #define UQ_KBD_IGNORE  0x18000	/* device should be ignored by both kbd and hid class */
-					
 };
 
 extern const struct usbd_quirks usbd_no_quirk;
