@@ -1907,6 +1907,7 @@ product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
+product	YANO FW800HD		0x05fc  METALWEAR-HDD
 
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
