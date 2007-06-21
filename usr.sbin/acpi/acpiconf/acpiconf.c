@@ -40,8 +40,6 @@
 #include <contrib/dev/acpica/acpi.h>
 
 #define ACPIDEV		"/dev/acpi"
-#define RC_SUSPEND_PATH	"/etc/rc.suspend"
-#define RC_RESUME_PATH	"/etc/rc.resume"
 
 static int	acpifd;
 
@@ -55,32 +53,27 @@ acpi_init(void)
 		err(EX_OSFILE, ACPIDEV);
 }
 
-static int
+/* Prepare to sleep and then wait for the signal that sleeping can occur. */
+static void
 acpi_sleep(int sleep_type)
 {
-	char cmd[64];
+	int ret;
+  
+	/* Notify OS that we want to sleep.  devd(8) gets this notify. */
+	ret = ioctl(acpifd, ACPIIO_REQSLPSTATE, &sleep_type);
+	if (ret != 0)
+		err(EX_IOERR, "request sleep type (%d) failed", sleep_type);
+}
+
+/* Ack or abort a pending suspend request. */
+static void
+acpi_sleep_ack(int err_val)
+{
 	int ret;
 
-	/* Run the suspend rc script, if available. */
-	if (access(RC_SUSPEND_PATH, X_OK) == 0) {
-		snprintf(cmd, sizeof(cmd), "%s acpi %d", RC_SUSPEND_PATH,
-		    sleep_type);
-		system(cmd);
-	}
-
-	ret = ioctl(acpifd, ACPIIO_SETSLPSTATE, &sleep_type);
-
-	/* Run the resume rc script, if available. */
-	if (access(RC_RESUME_PATH, X_OK) == 0) {
-		snprintf(cmd, sizeof(cmd), "%s acpi %d", RC_RESUME_PATH,
-		    sleep_type);
-		system(cmd);
-	}
-
+	ret = ioctl(acpifd, ACPIIO_ACKSLPSTATE, &err_val);
 	if (ret != 0)
-		err(EX_IOERR, "sleep type (%d) failed", sleep_type);
-
-	return (0);
+		err(EX_IOERR, "ack sleep type failed");
 }
 
 /* should be a acpi define, but doesn't appear to be */
@@ -183,7 +176,7 @@ acpi_battinfo(int num)
 static void
 usage(const char* prog)
 {
-	printf("usage: %s [-h] [-i batt] [-s 1-5]\n", prog);
+	printf("usage: %s [-h] [-i batt] [-k ack] [-s 1-4]\n", prog);
 	exit(0);
 }
 
@@ -200,17 +193,20 @@ main(int argc, char *argv[])
 
 	sleep_type = -1;
 	acpi_init();
-	while ((c = getopt(argc, argv, "hi:s:")) != -1) {
+	while ((c = getopt(argc, argv, "hi:k:s:")) != -1) {
 		switch (c) {
 		case 'i':
 			acpi_battinfo(atoi(optarg));
+			break;
+		case 'k':
+			acpi_sleep_ack(atoi(optarg));
 			break;
 		case 's':
 			if (optarg[0] == 'S')
 				sleep_type = optarg[1] - '0';
 			else
 				sleep_type = optarg[0] - '0';
-			if (sleep_type < 0 || sleep_type > 5)
+			if (sleep_type < 1 || sleep_type > 4)
 				errx(EX_USAGE, "invalid sleep type (%d)",
 				     sleep_type);
 			break;
@@ -223,10 +219,8 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (sleep_type != -1) {
-		sleep(1);	/* wait 1 sec. for key-release event */
+	if (sleep_type != -1)
 		acpi_sleep(sleep_type);
-	}
 
 	close(acpifd);
 	exit (0);
