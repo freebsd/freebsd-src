@@ -292,6 +292,7 @@ clear_attn()
 	POSITION old_end_attnpos;
 	POSITION pos;
 	POSITION epos;
+	int moved = 0;
 
 	if (start_attnpos == NULL_POSITION)
 		return;
@@ -319,8 +320,11 @@ clear_attn()
 			(void) forw_line(pos);
 			goto_line(slinenum);
 			put_line();
+			moved = 1;
 		}
 	}
+	if (moved)
+		lower_left();
 }
 #endif
 

@@ -690,6 +690,9 @@ v401  3/24/07	Minor documentation fixes.
 v402  3/30/07	Fix autoconf bug when memcpy etc are inline;
 		fix bug in terminating number following -j option.
 v403  5/25/07	Fix Windows build.
+v404  6/5/07	Fix display bug with F command and long lines.
+v405  6/17/07	Fix display bug when using -w option.
+v406  6/17/07	Fix secure build.
 */
 
-char version[] = "403";
+char version[] = "406";
