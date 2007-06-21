@@ -85,7 +85,7 @@ static void multi_search();
 cmd_exec()
 {
 	clear_attn();
-	line_left();
+	clear_bot();
 	flush();
 }
 

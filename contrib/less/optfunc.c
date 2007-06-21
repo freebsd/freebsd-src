@@ -45,6 +45,9 @@ extern char *hproto;
 extern char *wproto;
 extern IFILE curr_ifile;
 extern char version[];
+extern int jump_sline;
+extern int jump_sline_fraction;
+extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
 extern int force_logfile;
@@ -53,9 +56,6 @@ extern int logfile;
 #if TAGS
 public char *tagoption = NULL;
 extern char *tags;
-extern int jump_sline;
-extern int jump_sline_fraction;
-extern int less_is_more;
 #endif
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color;
