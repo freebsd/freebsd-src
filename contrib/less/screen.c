@@ -626,7 +626,25 @@ ltget_env(capname)
 	char *capname;
 {
 	char name[16];
+	char *s;
 
+	s = lgetenv("LESS_TERMCAP_DEBUG");
+	if (s != NULL && *s != '\0')
+	{
+		struct env { struct env *next; char *name; char *value; };
+		static struct env *envs = NULL;
+		struct env *p;
+		for (p = envs;  p != NULL;  p = p->next)
+			if (strcmp(p->name, capname) == 0)
+				return p->value;
+		p = (struct env *) ecalloc(1, sizeof(struct env));
+		p->name = save(capname);
+		p->value = (char *) ecalloc(strlen(capname)+3, sizeof(char));
+		sprintf(p->value, "<%s>", capname);
+		p->next = envs;
+		envs = p;
+		return p->value;
+	}
 	strcpy(name, "LESS_TERMCAP_");
 	strcat(name, capname);
 	return (lgetenv(name));
