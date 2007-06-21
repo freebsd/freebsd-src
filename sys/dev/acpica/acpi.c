@@ -136,6 +136,7 @@ static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
 static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
+static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
@@ -410,6 +411,7 @@ acpi_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->acpi_dev = dev;
+    callout_init(&sc->susp_force_to, TRUE);
 
     error = ENXIO;
 
@@ -592,7 +594,7 @@ acpi_attach(device_t dev)
 
     /* Pick the first valid sleep state for the sleep button default. */
     sc->acpi_sleep_button_sx = ACPI_S_STATES_MAX + 1;
-    for (state = ACPI_STATE_S1; state < ACPI_STATE_S5; state++)
+    for (state = ACPI_STATE_S1; state <= ACPI_STATE_S4; state++)
 	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
 	    sc->acpi_sleep_button_sx = state;
 	    break;
@@ -2118,6 +2120,150 @@ acpi_SetIntrModel(int model)
     return (acpi_SetInteger(ACPI_ROOT_OBJECT, "_PIC", model));
 }
 
+/*
+ * DEPRECATED.  This interface has serious deficiencies and will be
+ * removed.
+ *
+ * Immediately enter the sleep state.  In the old model, acpiconf(8) ran
+ * rc.suspend and rc.resume so we don't have to notify devd(8) to do this.
+ */
+ACPI_STATUS
+acpi_SetSleepState(struct acpi_softc *sc, int state)
+{
+    static int once;
+
+    if (!once) {
+	printf(
+"warning: acpi_SetSleepState() deprecated, need to update your software\n");
+	once = 1;
+    }
+    return (acpi_EnterSleepState(sc, state));
+}
+
+static void
+acpi_sleep_force(void *arg)
+{
+    struct acpi_softc *sc;
+
+    printf("acpi: suspend request timed out, forcing sleep now\n");
+    sc = arg;
+    if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
+	printf("acpi: force sleep state S%d failed\n", sc->acpi_next_sstate);
+}
+
+/*
+ * Request that the system enter the given suspend state.  All /dev/apm
+ * devices and devd(8) will be notified.  Userland then has a chance to
+ * save state and acknowledge the request.  The system sleeps once all
+ * acks are in.
+ */
+int
+acpi_ReqSleepState(struct acpi_softc *sc, int state)
+{
+    struct apm_clone_data *clone;
+
+    if (state < ACPI_STATE_S1 || state > ACPI_STATE_S5)
+	return (EINVAL);
+
+    /* S5 (soft-off) should be entered directly with no waiting. */
+    if (state == ACPI_STATE_S5) {
+	if (ACPI_SUCCESS(acpi_EnterSleepState(sc, state)))
+	    return (0);
+	else
+	    return (ENXIO);
+    }
+
+    /* If a suspend request is already in progress, just return. */
+    ACPI_LOCK(acpi);
+    if (sc->acpi_next_sstate != 0) {
+    	ACPI_UNLOCK(acpi);
+	return (0);
+    }
+
+    /* Record the pending state and notify all apm devices. */
+    sc->acpi_next_sstate = state;
+    STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
+	clone->notify_status = APM_EV_NONE;
+	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
+	    selwakeuppri(&clone->sel_read, PZERO);
+	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
+	}
+    }
+
+    /* Now notify devd(8) also. */
+    acpi_UserNotify("Suspend", ACPI_ROOT_OBJECT, state);
+
+    /*
+     * Set a timeout to fire if userland doesn't ack the suspend request
+     * in time.  This way we still eventually go to sleep if we were
+     * overheating or running low on battery, even if userland is hung.
+     * We cancel this timeout once all userland acks are in or the
+     * suspend request is aborted.
+     */
+    callout_reset(&sc->susp_force_to, 10 * hz, acpi_sleep_force, sc);
+    ACPI_UNLOCK(acpi);
+    return (0);
+}
+
+/*
+ * Acknowledge (or reject) a pending sleep state.  The caller has
+ * prepared for suspend and is now ready for it to proceed.  If the
+ * error argument is non-zero, it indicates suspend should be cancelled
+ * and gives an errno value describing why.  Once all votes are in,
+ * we suspend the system.
+ */
+int
+acpi_AckSleepState(struct apm_clone_data *clone, int error)
+{
+    struct acpi_softc *sc;
+    int ret, sleeping;
+
+    /* If no pending sleep state, return an error. */
+    ACPI_LOCK(acpi);
+    sc = clone->acpi_sc;
+    if (sc->acpi_next_sstate == 0) {
+    	ACPI_UNLOCK(acpi);
+	return (ENXIO);
+    }
+
+    /* Caller wants to abort suspend process. */
+    if (error) {
+	sc->acpi_next_sstate = 0;
+	callout_stop(&sc->susp_force_to);
+	printf("acpi: listener on %s cancelled the pending suspend\n",
+	    devtoname(clone->cdev));
+    	ACPI_UNLOCK(acpi);
+	return (0);
+    }
+
+    /*
+     * Mark this device as acking the suspend request.  Then, walk through
+     * all devices, seeing if they agree yet.  We only count devices that
+     * are writable since read-only devices couldn't ack the request.
+     */
+    clone->notify_status = APM_EV_ACKED;
+    sleeping = TRUE;
+    STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
+	if ((clone->flags & ACPI_EVF_WRITE) != 0 &&
+	    clone->notify_status != APM_EV_ACKED) {
+	    sleeping = FALSE;
+	    break;
+	}
+    }
+
+    /* If all devices have voted "yes", we will suspend now. */
+    if (sleeping)
+	callout_stop(&sc->susp_force_to);
+    ACPI_UNLOCK(acpi);
+    ret = 0;
+    if (sleeping) {
+	if (ACPI_FAILURE(acpi_EnterSleepState(sc, sc->acpi_next_sstate)))
+		ret = ENODEV;
+    }
+
+    return (ret);
+}
+
 static void
 acpi_sleep_enable(void *arg)
 {
@@ -2134,12 +2280,12 @@ enum acpi_sleep_state {
 };
 
 /*
- * Set the system sleep state
+ * Enter the desired system sleep state.
  *
  * Currently we support S1-S5 but S4 is only S4BIOS
  */
-ACPI_STATUS
-acpi_SetSleepState(struct acpi_softc *sc, int state)
+static ACPI_STATUS
+acpi_EnterSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status;
     UINT8	TypeA;
@@ -2148,14 +2294,13 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
+    /* Re-entry once we're suspending is not allowed. */
     status = AE_OK;
     ACPI_LOCK(acpi);
     if (sc->acpi_sleep_disabled) {
-	if (sc->acpi_sstate != ACPI_STATE_S0)
-	    status = AE_ERROR;
 	ACPI_UNLOCK(acpi);
 	printf("acpi: suspend request ignored (not ready yet)\n");
-	return (status);
+	return (AE_ERROR);
     }
     sc->acpi_sleep_disabled = 1;
     ACPI_UNLOCK(acpi);
@@ -2251,6 +2396,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
      * Back out state according to how far along we got in the suspend
      * process.  This handles both the error and success cases.
      */
+    sc->acpi_next_sstate = 0;
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -2264,7 +2410,10 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
     /* Allow another sleep request after a while. */
     if (state != ACPI_STATE_S5)
-	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
+	timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
+
+    /* Run /etc/rc.resume after we are back. */
+    acpi_UserNotify("Resume", ACPI_ROOT_OBJECT, state);
 
     mtx_unlock(&Giant);
     return_ACPI_STATUS (status);
@@ -2574,11 +2723,15 @@ out:
 static void
 acpi_system_eventhandler_sleep(void *arg, int state)
 {
+    int ret;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
-    if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
-	acpi_SetSleepState((struct acpi_softc *)arg, state);
+    /* Request that the system prepare to enter the given suspend state. */
+    ret = acpi_ReqSleepState((struct acpi_softc *)arg, state);
+    if (ret != 0)
+	printf("acpi: request to enter state S%d failed (err %d)\n",
+	    state, ret);
 
     return_VOID;
 }
@@ -2840,7 +2993,20 @@ acpiioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 
     /* Core system ioctls. */
     switch (cmd) {
-    case ACPIIO_SETSLPSTATE:
+    case ACPIIO_REQSLPSTATE:
+	state = *(int *)addr;
+	if (state != ACPI_STATE_S5)
+	    error = acpi_ReqSleepState(sc, state);
+	else {
+	    printf("power off via acpi ioctl not supported\n");
+	    error = ENXIO;
+	}
+	break;
+    case ACPIIO_ACKSLPSTATE:
+	error = *(int *)addr;
+	error = acpi_AckSleepState(sc->acpi_clone, error);
+	break;
+    case ACPIIO_SETSLPSTATE:	/* DEPRECATED */
 	error = EINVAL;
 	state = *(int *)addr;
 	if (state >= ACPI_STATE_S0 && state <= ACPI_S_STATES_MAX)
@@ -3171,7 +3337,8 @@ acpi_pm_func(u_long cmd, void *arg, ...)
 			goto out;
 		}
 
-		acpi_SetSleepState(sc, acpi_state);
+		if (ACPI_FAILURE(acpi_EnterSleepState(sc, acpi_state)))
+			error = ENXIO;
 		break;
 	default:
 		error = EINVAL;
