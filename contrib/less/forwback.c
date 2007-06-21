@@ -142,9 +142,6 @@ forw(n, pos, force, only_last, nblank)
 				clear();
 				home();
 			}
-		} else
-		{
-			clear_bot();
 		}
 
 		if (pos != position(BOTTOM_PLUS_ONE) || empty_screen())
