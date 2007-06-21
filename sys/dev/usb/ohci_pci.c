@@ -128,10 +128,10 @@ static const char *ohci_device_generic = "OHCI (generic) USB controller";
 #define PCI_OHCI_BASE_REG	0x10
 
 
-static int ohci_pci_attach(device_t self);
-static int ohci_pci_detach(device_t self);
-static int ohci_pci_suspend(device_t self);
-static int ohci_pci_resume(device_t self);
+static device_attach_t ohci_pci_attach;
+static device_detach_t ohci_pci_detach;
+static device_suspend_t ohci_pci_suspend;
+static device_resume_t ohci_pci_resume;
 
 static int
 ohci_pci_suspend(device_t self)

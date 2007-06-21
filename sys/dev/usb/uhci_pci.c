@@ -58,13 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
-#if defined(__FreeBSD__)
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-#endif
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -155,11 +153,10 @@ static const char *uhci_device_generic = "UHCI (generic) USB controller";
 #define PCI_UHCI_BASE_REG               0x20
 
 
-static int uhci_pci_attach(device_t self);
-static int uhci_pci_detach(device_t self);
-static int uhci_pci_suspend(device_t self);
-static int uhci_pci_resume(device_t self);
-
+static device_attach_t uhci_pci_attach;
+static device_detach_t uhci_pci_detach;
+static device_suspend_t uhci_pci_suspend;
+static device_resume_t uhci_pci_resume;
 
 static int
 uhci_pci_suspend(device_t self)

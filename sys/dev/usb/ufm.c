@@ -372,4 +372,5 @@ ufm_detach(device_t self)
 	return 0;
 }
 
+MODULE_DEPEND(ufm, usb, 1, 1, 1);
 DRIVER_MODULE(ufm, uhub, ufm_driver, ufm_devclass, usbd_driver_load, 0);
