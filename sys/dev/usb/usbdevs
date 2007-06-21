@@ -643,13 +643,14 @@ product ACTIONTEC UAT1		0x7605	UAT1 Wireless Ethernet
 product ADMTEK PEGASUS		0x0986	AN986 Ethernet
 product ADMTEK PEGASUSII	0x8511	AN8511 Ethernet
 product ADMTEK PEGASUSII_2	0x8513	AN8513 Ethernet
+product ADMTEK PEGASUSII_3	0x8515	AN8515 Ethernet
 
 /* ADDON products */
 /* PNY OEMs these */
 product ADDON ATTACHE		0x1300	USB 2.0 Flash Drive
 product ADDON ATTACHE		0x1300	USB 2.0 Flash Drive
 product ADDON A256MB		0x1400	Attache 256MB USB 2.0 Flash Drive
-product ADDON DISKPRO512		0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
+product ADDON DISKPRO512	0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet
@@ -1629,6 +1630,7 @@ product SAGEM USBSERIAL		0x0027	USB-Serial Controller
 
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
+product	SAMSUNG I500		0x6601	I500 Palm USB Phone 
 
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
