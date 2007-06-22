@@ -916,8 +916,8 @@ bstp_update_state(struct bstp_state *bs, struct bstp_port *bp)
 	if (!bs->bs_allsynced) {
 		synced = 1;
 		LIST_FOREACH(bp2, &bs->bs_bplist, bp_next) {
-			if (!(bp->bp_synced ||
-			     bp->bp_role == BSTP_ROLE_ROOT)) {
+			if (!(bp2->bp_synced ||
+			     bp2->bp_role == BSTP_ROLE_ROOT)) {
 				synced = 0;
 				break;
 			}
