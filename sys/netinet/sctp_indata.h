@@ -102,7 +102,7 @@ sctp_handle_sack(struct mbuf *m, int offset, struct sctp_sack_chunk *, struct sc
 /* draft-ietf-tsvwg-usctp */
 void
 sctp_handle_forward_tsn(struct sctp_tcb *,
-    struct sctp_forward_tsn_chunk *, int *);
+    struct sctp_forward_tsn_chunk *, int *, struct mbuf *, int);
 
 struct sctp_tmit_chunk *
                 sctp_try_advance_peer_ack_point(struct sctp_tcb *, struct sctp_association *);
