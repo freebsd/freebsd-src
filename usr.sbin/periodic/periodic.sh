@@ -40,11 +40,11 @@ do
     case "$output" in
     /*) pipe="cat >>$output";;
     "") pipe=cat;;
-    *)  pipe="mail -s '$host ${arg##*/} run output' $output";;
+    *)  pipe="mail -E -s '$host ${arg##*/} run output' $output";;
     esac
 
-    success=YES info=YES badconfig=NO	# Defaults when ${run}_* aren't YES/NO
-    for var in success info badconfig
+    success=YES info=YES badconfig=NO empty_output=YES	# Defaults when ${run}_* aren't YES/NO
+    for var in success info badconfig empty_output
     do
         case $(eval echo "\$${arg##*/}_show_$var") in
         [Yy][Ee][Ss]) eval $var=YES;;
@@ -95,8 +95,11 @@ do
         done
         if [ $empty = TRUE ]
         then
-          [ $processed = 1 ] && plural= || plural=s
-          echo "No output from the $processed file$plural processed"
+          if [ $empty_output = TRUE ]
+          then
+            [ $processed = 1 ] && plural= || plural=s
+            echo "No output from the $processed file$plural processed"
+          fi
         else
           echo ""
           echo "-- End of $arg output --"
