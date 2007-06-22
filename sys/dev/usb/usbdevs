@@ -1870,6 +1870,7 @@ product VISIONEER 8600		0x0331	OneTouch 8600
 product OPTION VODAFONEMC3G	0x5000	Vodafone Mobile Connect 3G datacard
 product	OPTION GT3G		0x6000	GlobeTrotter 3G datacard
 product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
+product	OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 
 /* VTech products */
 product VTECH RT2570		0x3012	RT2570
