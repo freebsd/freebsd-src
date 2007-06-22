@@ -851,13 +851,6 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
 
-/* Crystalfontz products */
-product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
-product FTDI CFA_632		0xfc08	Crystalfontz CFA-632 USB LCD
-product FTDI CFA_633		0xfc0b	Crystalfontz CFA-633 USB LCD
-product FTDI CFA_634		0xfc09	Crystalfontz CFA-634 USB LCD
-product FTDI SEMC_DSS20		0xfc82	SEMC DSS-20 SyncStation
-
 /* Cambridge Silicon Radio Ltd. products */
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
 product CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
@@ -1036,6 +1029,17 @@ product FTDI UOPTBR		0xe889 "USB-RS232 OptoBridge"
 product FTDI EMCU2D		0xe88a "Expert mouseCLOCK USB II"
 product FTDI PCMSFU		0xe88b "Precision Clock MSF USB"
 product FTDI EMCU2H		0xe88c "Expert mouseCLOCK USB II HBG"
+product FTDI USBSERIAL		0xfa00	Matrix Orbital USB Serial
+product FTDI MX2_3		0xfa01	Matrix Orbital MX2 or MX3
+product FTDI MX4_5		0xfa02	Matrix Orbital MX4 or MX5
+product FTDI LK202		0xfa03	Matrix Orbital VK/LK202 Family
+product FTDI LK204		0xfa04	Matrix Orbital VK/LK204 Family
+product FTDI CFA_632		0xfc08	Crystalfontz CFA-632 USB LCD
+product FTDI CFA_634		0xfc09	Crystalfontz CFA-634 USB LCD
+product FTDI CFA_633		0xfc0b	Crystalfontz CFA-633 USB LCD
+product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
+product	FTDI CFA_635		0xfc0d	Crystalfontz CFA-635 USB LCD
+product	FTDI SEMC_DSS20		0xfc82	SEMC DSS-20 SyncStation
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
@@ -1336,13 +1340,6 @@ product LUWEN EASYDISK		0x0005	EasyDisc
 
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
-
-/* Matrix Orbital products */
-product FTDI USBSERIAL		0xfa00	Matrix Orbital USB Serial
-product FTDI MX2_3		0xfa01	Matrix Orbital MX2 or MX3
-product FTDI MX4_5		0xfa02	Matrix Orbital MX4 or MX5
-product FTDI LK202		0xfa03	Matrix Orbital VK/LK202 Family
-product FTDI LK204		0xfa04	Matrix Orbital VK/LK204 Family
 
 /* MCT Corp. */
 product MCT HUB0100		0x0100	Hub
