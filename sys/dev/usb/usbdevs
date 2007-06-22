@@ -495,6 +495,7 @@ vendor CONCEPTRONIC	0x0d8e	Conceptronic
 vendor MSI		0x0db0	Micro Star International
 vendor SITECOMEU	0x0df6	Sitecom Europe
 vendor HAWKING		0x0e66	Hawking
+vendor FOSSIL		0x0e67	Fossil, Inc
 vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours
 vendor PILOTECH		0x0eaf	Pilotech
@@ -1003,6 +1004,9 @@ product ETEK 1COM		0x8007	Serial
 
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
+
+/* Fossil, Inc products */
+product	FOSSIL WRISTPDA		0x0002	Wrist PDA
 
 /* GoHubs products */
 product GOHUBS GOCOM232		0x1001	GoCOM232 Serial
