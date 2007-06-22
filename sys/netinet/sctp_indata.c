@@ -5624,7 +5624,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 
 void
 sctp_handle_forward_tsn(struct sctp_tcb *stcb,
-    struct sctp_forward_tsn_chunk *fwd, int *abort_flag)
+    struct sctp_forward_tsn_chunk *fwd, int *abort_flag, struct mbuf *m, int offset)
 {
 	/*
 	 * ISSUES that MUST be fixed for ECN! When we are the sender of the
@@ -5649,7 +5649,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	 * pr-in-streams 4) clean up re-assembly queue 5) Send a sack to
 	 * report where we are.
 	 */
-	struct sctp_strseq *stseq;
 	struct sctp_association *asoc;
 	uint32_t new_cum_tsn, gap, back_out_htsn;
 	unsigned int i, cnt_gone, fwd_sz, cumack_set_flag, m_size;
@@ -5883,17 +5882,25 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	/*************************************************************/
 	/* 3. Update the PR-stream re-ordering queues                */
 	/*************************************************************/
-	stseq = (struct sctp_strseq *)((caddr_t)fwd + sizeof(*fwd));
 	fwd_sz -= sizeof(*fwd);
-	{
+	if (m && fwd_sz) {
 		/* New method. */
 		unsigned int num_str;
+		struct sctp_strseq *stseq, strseqbuf;
+
+		offset += sizeof(*fwd);
 
 		num_str = fwd_sz / sizeof(struct sctp_strseq);
 		for (i = 0; i < num_str; i++) {
 			uint16_t st;
 			unsigned char *xx;
 
+			stseq = (struct sctp_strseq *)sctp_m_getptr(m, offset,
+			    sizeof(struct sctp_strseq),
+			    (uint8_t *) & strseqbuf);
+			offset += sizeof(struct sctp_strseq);
+			if (stseq == NULL)
+				break;
 			/* Convert */
 			xx = (unsigned char *)&stseq[i];
 			st = ntohs(stseq[i].stream);
@@ -5901,7 +5908,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			st = ntohs(stseq[i].sequence);
 			stseq[i].sequence = st;
 			/* now process */
-			if (stseq[i].stream > asoc->streamincnt) {
+			if (stseq[i].stream >= asoc->streamincnt) {
 				/*
 				 * It is arguable if we should continue.
 				 * Since the peer sent bogus stream info we

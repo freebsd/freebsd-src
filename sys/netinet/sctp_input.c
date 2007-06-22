@@ -2832,7 +2832,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 					fwdtsn.ch.chunk_length = htons(sizeof(struct sctp_forward_tsn_chunk));
 					fwdtsn.ch.chunk_type = SCTP_FORWARD_CUM_TSN;
 					fwdtsn.new_cumulative_tsn = htonl(ntohl(resp->senders_next_tsn) - 1);
-					sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag);
+					sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag, NULL, 0);
 					if (abort_flag) {
 						return (1);
 					}
@@ -2860,7 +2860,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 static void
 sctp_handle_str_reset_request_in(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk,
-    struct sctp_stream_reset_in_request *req)
+    struct sctp_stream_reset_in_request *req, int trunc)
 {
 	uint32_t seq;
 	int len, i;
@@ -2875,7 +2875,12 @@ sctp_handle_str_reset_request_in(struct sctp_tcb *stcb,
 
 	seq = ntohl(req->request_seq);
 	if (asoc->str_reset_seq_in == seq) {
-		if (stcb->asoc.stream_reset_out_is_outstanding == 0) {
+		if (trunc) {
+			/* Can't do it, since they exceeded our buffer size  */
+			asoc->last_reset_action[1] = asoc->last_reset_action[0];
+			asoc->last_reset_action[0] = SCTP_STREAM_RESET_DENIED;
+			sctp_add_stream_reset_result(chk, seq, asoc->last_reset_action[0]);
+		} else if (stcb->asoc.stream_reset_out_is_outstanding == 0) {
 			len = ntohs(req->ph.param_length);
 			number_entries = ((len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t));
 			for (i = 0; i < number_entries; i++) {
@@ -2930,7 +2935,7 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 		fwdtsn.ch.chunk_type = SCTP_FORWARD_CUM_TSN;
 		fwdtsn.ch.chunk_flags = 0;
 		fwdtsn.new_cumulative_tsn = htonl(stcb->asoc.highest_tsn_inside_map + 1);
-		sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag);
+		sctp_handle_forward_tsn(stcb, &fwdtsn, &abort_flag, NULL, 0);
 		if (abort_flag) {
 			return (1);
 		}
@@ -2975,7 +2980,7 @@ sctp_handle_str_reset_request_tsn(struct sctp_tcb *stcb,
 static void
 sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
     struct sctp_tmit_chunk *chk,
-    struct sctp_stream_reset_out_request *req)
+    struct sctp_stream_reset_out_request *req, int trunc)
 {
 	uint32_t seq, tsn;
 	int number_entries, len;
@@ -2998,7 +3003,10 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 
 		/* move the reset action back one */
 		asoc->last_reset_action[1] = asoc->last_reset_action[0];
-		if ((tsn == asoc->cumulative_tsn) ||
+		if (trunc) {
+			sctp_add_stream_reset_result(chk, seq, SCTP_STREAM_RESET_DENIED);
+			asoc->last_reset_action[0] = SCTP_STREAM_RESET_DENIED;
+		} else if ((tsn == asoc->cumulative_tsn) ||
 		    (compare_with_wrap(asoc->cumulative_tsn, tsn, MAX_TSN))) {
 			/* we can do it now */
 			sctp_reset_in_stream(stcb, number_entries, req->list_of_streams);
@@ -3047,12 +3055,20 @@ sctp_handle_str_reset_request_out(struct sctp_tcb *stcb,
 	}
 }
 
-static int
-sctp_handle_stream_reset(struct sctp_tcb *stcb, struct sctp_stream_reset_out_req *sr_req)
+#ifdef __GNUC__
+__attribute__((noinline))
+#endif
+	static int
+	    sctp_handle_stream_reset(struct sctp_tcb *stcb, struct mbuf *m, int offset,
+        struct sctp_stream_reset_out_req *sr_req)
 {
 	int chk_length, param_len, ptype;
+	struct sctp_paramhdr pstore;
+	uint8_t cstore[SCTP_CHUNK_BUFFER_SIZE];
+
 	uint32_t seq;
 	int num_req = 0;
+	int trunc = 0;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_chunkhdr *ch;
 	struct sctp_paramhdr *ph;
@@ -3096,15 +3112,26 @@ strres_nochunk:
 	ch->chunk_flags = 0;
 	ch->chunk_length = htons(chk->send_size);
 	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
-	ph = (struct sctp_paramhdr *)&sr_req->sr_req;
+	offset += sizeof(struct sctp_chunkhdr);
 	while ((size_t)chk_length >= sizeof(struct sctp_stream_reset_tsn_request)) {
+		ph = (struct sctp_paramhdr *)sctp_m_getptr(m, offset, sizeof(pstore), (uint8_t *) & pstore);
+		if (ph == NULL)
+			break;
 		param_len = ntohs(ph->param_length);
 		if (param_len < (int)sizeof(struct sctp_stream_reset_tsn_request)) {
 			/* bad param */
 			break;
 		}
+		ph = (struct sctp_paramhdr *)sctp_m_getptr(m, offset, min(param_len, sizeof(cstore)),
+		    (uint8_t *) & cstore);
 		ptype = ntohs(ph->param_type);
 		num_param++;
+		if (param_len > sizeof(cstore)) {
+			trunc = 1;
+		} else {
+			trunc = 0;
+		}
+
 		if (num_param > SCTP_MAX_RESET_PARAMS) {
 			/* hit the max of parameters already sorry.. */
 			break;
@@ -3121,18 +3148,22 @@ strres_nochunk:
 					(void)sctp_handle_stream_reset_response(stcb, seq, SCTP_STREAM_RESET_PERFORMED, NULL);
 				}
 			}
-			sctp_handle_str_reset_request_out(stcb, chk, req_out);
+			sctp_handle_str_reset_request_out(stcb, chk, req_out, trunc);
 		} else if (ptype == SCTP_STR_RESET_IN_REQUEST) {
 			struct sctp_stream_reset_in_request *req_in;
 
 			num_req++;
+
+
 			req_in = (struct sctp_stream_reset_in_request *)ph;
-			sctp_handle_str_reset_request_in(stcb, chk, req_in);
+
+			sctp_handle_str_reset_request_in(stcb, chk, req_in, trunc);
 		} else if (ptype == SCTP_STR_RESET_TSN_REQUEST) {
 			struct sctp_stream_reset_tsn_request *req_tsn;
 
 			num_req++;
 			req_tsn = (struct sctp_stream_reset_tsn_request *)ph;
+
 			if (sctp_handle_str_reset_request_tsn(stcb, chk, req_tsn)) {
 				ret_code = 1;
 				goto strres_nochunk;
@@ -3153,8 +3184,7 @@ strres_nochunk:
 		} else {
 			break;
 		}
-
-		ph = (struct sctp_paramhdr *)((caddr_t)ph + SCTP_SIZE32(param_len));
+		offset += SCTP_SIZE32(param_len);
 		chk_length -= SCTP_SIZE32(param_len);
 	}
 	if (num_req == 0) {
@@ -4223,7 +4253,7 @@ process_control_chunks:
 					return (NULL);
 				}
 				sctp_handle_forward_tsn(stcb,
-				    (struct sctp_forward_tsn_chunk *)ch, &abort_flag);
+				    (struct sctp_forward_tsn_chunk *)ch, &abort_flag, m, *offset);
 				if (abort_flag) {
 					*offset = length;
 					return (NULL);
@@ -4257,7 +4287,7 @@ process_control_chunks:
 				 */
 				stcb->asoc.peer_supports_strreset = 1;
 			}
-			if (sctp_handle_stream_reset(stcb, (struct sctp_stream_reset_out_req *)ch)) {
+			if (sctp_handle_stream_reset(stcb, m, *offset, (struct sctp_stream_reset_out_req *)ch)) {
 				/* stop processing */
 				*offset = length;
 				return (NULL);
