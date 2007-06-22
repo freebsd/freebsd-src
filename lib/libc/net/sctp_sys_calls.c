@@ -152,14 +152,14 @@ sctp_getaddrlen(sa_family_t family)
 	sd = socket(AF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP);
 #endif
 	if (sd == -1) {
-		return (errno);
+		return (-1);
 	}
 	error = getsockopt(sd, IPPROTO_SCTP, SCTP_GET_ADDR_LEN, &av, &siz);
 	close(sd);
 	if (error == 0) {
 		return ((int)av.assoc_value);
 	} else {
-		return (error);
+		return (-1);
 	}
 }
 
@@ -256,8 +256,8 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 	for (i = 0; i < addrcnt; i++) {
 		sz = sa->sa_len;
 		fam = sa->sa_family;
-		((struct sockaddr_in *)&addrs[i])->sin_port = ((struct sockaddr_in *)sa)->sin_port;
 		if ((fam != AF_INET) && (fam != AF_INET6)) {
+			free(gaddrs);
 			errno = EINVAL;
 			return (-1);
 		}
