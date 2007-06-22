@@ -30,7 +30,6 @@ TESTS= \
 	test_read_format_zip.c			\
 	test_read_large.c			\
 	test_read_position.c			\
-	test_read_pax_truncated.c		\
 	test_read_truncated.c			\
 	test_tar_filenames.c			\
 	test_write_compress_program.c		\
