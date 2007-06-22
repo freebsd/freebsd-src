@@ -479,7 +479,7 @@ main(int argc, char * argv[])
 				    cpu_running_mark, curfreq, freqs[i]);
 			}
 			if (set_freq(freqs[i]))
-				err(1, "error setting CPU frequency %d",
+				warn("error setting CPU frequency %d",
 				    freqs[i]);
 		} else if (idle > (total * cpu_idle_mark) / 100 &&
 		    curfreq > freqs[numfreqs - 1]) {
