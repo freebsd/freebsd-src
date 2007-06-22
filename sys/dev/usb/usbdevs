@@ -426,6 +426,7 @@ vendor AUDIOTECHNICA	0x0909	Audio-Technica
 vendor TRUMPION		0x090a	Trumpion
 vendor ALATION		0x0910	Alation
 vendor CONCORDCAMERA	0x0919	Concord Camera
+vendor GARMIN		0x091e	Garmin
 vendor GOHUBS		0x0921	GoHubs
 vendor XEROX		0x0924	Xerox
 vendor BIOMETRIC	0x0929	American Biometric
@@ -1002,21 +1003,6 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 /* Fossil, Inc products */
 product	FOSSIL WRISTPDA		0x0002	Wrist PDA
 
-/* GoHubs products */
-product GOHUBS GOCOM232		0x1001	GoCOM232 Serial
-
-/* Good Way Technology products */
-product GOODWAY RT2573		0xc019	RT2573
-
-/* Gravis products */
-product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
-
-/* GREENHOUSE products */
-product GREENHOUSE KANA21	0x0001	CF-writer with MP3
-
-/* Griffin Technology */
-product GRIFFIN IMATE		0x0405	iMate, ADB adapter
-
 /* Freecom products */
 product FREECOM DVD		0xfc01	DVD drive
 
@@ -1050,6 +1036,9 @@ product FUJIPHOTO MASS0100	0x0100	Mass Storage
 
 /* Fujitsu protducts */
 product FUJITSU AH_F401U	0x105b	AH-F401U Air H device
+
+/* Garmin products */
+product	GARMIN IQUE_3600	0x0004	iQue 3600
 
 /* General Instruments (Motorola) products */
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
@@ -1086,6 +1075,21 @@ product GLOBALSUN AR5523_2_NF	0x7812	AR5523 (no firmware)
 
 /* G.Mate, Inc products */
 product GMATE YP3X00		0x1001	YP3X00 PDA
+
+/* GoHubs products */
+product GOHUBS GOCOM232		0x1001	GoCOM232 Serial
+
+/* Good Way Technology products */
+product GOODWAY RT2573		0xc019	RT2573
+
+/* Gravis products */
+product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
+
+/* GREENHOUSE products */
+product GREENHOUSE KANA21	0x0001	CF-writer with MP3
+
+/* Griffin Technology */
+product GRIFFIN IMATE		0x0405	iMate, ADB adapter
 
 /* Guillemot Corporation */
 product GUILLEMOT DALEADER	0xa300	DA Leader
