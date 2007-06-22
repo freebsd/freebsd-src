@@ -1042,6 +1042,7 @@ product FUJITSU AH_F401U	0x105b	AH-F401U Air H device
 product GENERALINSTMNTS SB5100	0x5100	SURFboard SB5100 Cable modem
 
 /* Genesys Logic products */
+product	GENESYS GL620USB	0x0501	GL620USB Host-Host interface
 product GENESYS GL650		0x0604	GL650 Hub
 product GENESYS GL641USB	0x0700	GL641USB CompactFlash Card Reader
 product GENESYS GL641USB2IDE_2	0x0701	GL641USB USB-IDE Bridge No 2
