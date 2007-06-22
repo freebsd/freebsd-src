@@ -162,6 +162,9 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_MX4_5 ||
 	     uaa->product == USB_PRODUCT_FTDI_LK202 ||
 	     uaa->product == USB_PRODUCT_FTDI_LK204 ||
+	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13M ||
+	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13S ||
+	     uaa->product == USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13U ||
 	     uaa->product == USB_PRODUCT_FTDI_EISCOU ||
 	     uaa->product == USB_PRODUCT_FTDI_UOPTBR ||
 	     uaa->product == USB_PRODUCT_FTDI_EMCU2D ||
@@ -244,6 +247,9 @@ uftdi_attach(device_t self)
 		case USB_PRODUCT_FTDI_MX4_5:
 		case USB_PRODUCT_FTDI_LK202:
 		case USB_PRODUCT_FTDI_LK204:
+		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13M:
+		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13S:
+		case USB_PRODUCT_FTDI_TACTRIX_OPENPORT_13U:
 		case USB_PRODUCT_FTDI_EISCOU:
 		case USB_PRODUCT_FTDI_UOPTBR:
 		case USB_PRODUCT_FTDI_EMCU2D:
