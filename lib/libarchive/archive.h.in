@@ -390,6 +390,7 @@ int		 archive_write_set_format_by_name(struct archive *,
 int		 archive_write_set_format_ar_bsd(struct archive *);
 int		 archive_write_set_format_ar_svr4(struct archive *);
 int		 archive_write_set_format_cpio(struct archive *);
+int		 archive_write_set_format_cpio_newc(struct archive *);
 /* TODO: int archive_write_set_format_old_tar(struct archive *); */
 int		 archive_write_set_format_pax(struct archive *);
 int		 archive_write_set_format_pax_restricted(struct archive *);
