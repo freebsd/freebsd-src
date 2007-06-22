@@ -156,6 +156,7 @@ uftdi_match(device_t self)
 	     uaa->product == USB_PRODUCT_FTDI_CFA_632 ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_633 ||
 	     uaa->product == USB_PRODUCT_FTDI_CFA_634 ||
+	     uaa->product == USB_PRODUCT_FTDI_CFA_635 ||
 	     uaa->product == USB_PRODUCT_FTDI_USBSERIAL ||
 	     uaa->product == USB_PRODUCT_FTDI_MX2_3 ||
 	     uaa->product == USB_PRODUCT_FTDI_MX4_5 ||
@@ -237,6 +238,7 @@ uftdi_attach(device_t self)
 		case USB_PRODUCT_FTDI_CFA_632:
 		case USB_PRODUCT_FTDI_CFA_633:
 		case USB_PRODUCT_FTDI_CFA_634:
+		case USB_PRODUCT_FTDI_CFA_635:
 		case USB_PRODUCT_FTDI_USBSERIAL:
 		case USB_PRODUCT_FTDI_MX2_3:
 		case USB_PRODUCT_FTDI_MX4_5:
