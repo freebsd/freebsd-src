@@ -194,10 +194,9 @@ ufs_reclaim(ap)
 	 * Destroy the vm object and flush associated pages.
 	 */
 	vnode_destroy_vobject(vp);
-	if (ip->i_flag & IN_LAZYMOD) {
+	if (ip->i_flag & IN_LAZYMOD)
 		ip->i_flag |= IN_MODIFIED;
-		UFS_UPDATE(vp, 0);
-	}
+	UFS_UPDATE(vp, 0);
 	/*
 	 * Remove the inode from its hash chain.
 	 */
