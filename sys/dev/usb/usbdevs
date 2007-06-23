@@ -1835,6 +1835,7 @@ product DIAMOND2 RIO600USB	0x5001	Rio 600 USB
 product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
 
 /* Surecom Technology products */
+product SURECOM RT2570		0x11f3	RT2570
 product SURECOM RT2573		0x31f3	RT2573
 
 /* System TALKS, Inc. */
