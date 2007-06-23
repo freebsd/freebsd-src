@@ -90,7 +90,7 @@ uniarp_timeout(tip)
 	 * Back-off to uniarp control block
 	 */
 	uap = (struct uniarp *)
-			((caddr_t)tip - (int)(&((struct uniarp *)0)->ua_time));
+		((caddr_t)tip - offsetof(struct uniarp, ua_time));
 	uip = uap->ua_intf;
 
 
