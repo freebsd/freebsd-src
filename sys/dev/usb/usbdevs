@@ -1043,11 +1043,11 @@ product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
 product	FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product	FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
 product	FTDI TACTRIX_OPENPORT_13U 0xcc4a OpenPort 1.3 Universal
-product FTDI EISCOU		0xe888 "Expert ISDN Control USB"
-product FTDI UOPTBR		0xe889 "USB-RS232 OptoBridge"
-product FTDI EMCU2D		0xe88a "Expert mouseCLOCK USB II"
-product FTDI PCMSFU		0xe88b "Precision Clock MSF USB"
-product FTDI EMCU2H		0xe88c "Expert mouseCLOCK USB II HBG"
+product FTDI EISCOU		0xe888	Expert ISDN Control USB
+product FTDI UOPTBR		0xe889	USB-RS232 OptoBridge
+product FTDI EMCU2D		0xe88a	Expert mouseCLOCK USB II
+product FTDI PCMSFU		0xe88b	Precision Clock MSF USB
+product FTDI EMCU2H		0xe88c	Expert mouseCLOCK USB II HBG
 product FTDI USBSERIAL		0xfa00	Matrix Orbital USB Serial
 product FTDI MX2_3		0xfa01	Matrix Orbital MX2 or MX3
 product FTDI MX4_5		0xfa02	Matrix Orbital MX4 or MX5
