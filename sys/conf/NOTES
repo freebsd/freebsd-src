@@ -938,10 +938,12 @@ device		harp			#Pseudo-interface for NATM
 # currently be demand-loaded.)  Some people still prefer to statically
 # compile other filesystems as well.
 #
-# NB: The NULL, PORTAL, UMAP and UNION filesystems are known to be
-# buggy, and WILL panic your system if you attempt to do anything with
-# them.  They are included here as an incentive for some enterprising
-# soul to sit down and fix them.
+# NB: The PORTAL and UMAP filesystems are known to be buggy, and WILL
+# panic your system if you attempt to do anything with them.  They are
+# included here as an incentive for some enterprising soul to sit down
+# and fix them.  The UNION filesystem was known to be buggy in the past.
+# It is now being actively maintained, although there are still some
+# issues being resolved.
 #
 
 # One of these is mandatory:
