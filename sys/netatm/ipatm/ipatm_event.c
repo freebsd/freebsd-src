@@ -82,7 +82,7 @@ ipatm_timeout(tip)
 	 * Back-off to ipvcc control block
 	 */
 	ivp = (struct ipvcc *)
-			((caddr_t)tip - (int)(&((struct ipvcc *)0)->iv_time));
+		((caddr_t)tip - offsetof(struct ipvcc, iv_time));
 
 	/*
 	 * Process timeout based on protocol state
