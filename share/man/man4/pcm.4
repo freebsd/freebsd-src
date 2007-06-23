@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2007
+.Dd June 23, 2007
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -191,6 +191,11 @@ Controls the internal format conversion if it is
 available transparently to the application software.
 When disabled or not available, the application will
 only be able to select formats the device natively supports.
+.It Va hw.snd.compat_linux_mmap
+Enable to allow PROT_EXEC page mappings.
+All Linux applications using sound and
+.Xr mmap 2
+require this.
 .It Va hw.snd.feeder_rate_round
 Sample rate rounding threshold, to avoid large prime division at the
 cost of accuracy.
@@ -245,6 +250,9 @@ Equivalent to a symlink from
 .Pa /dev/dsp
 to
 .Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
+.It Va hw.snd.default_auto
+Enable to automatically assign default sound unit to the most recent
+attached device.
 .It Va dev.pcm.%d.[play|rec].vchans
 The current number of
 .Tn VCHANs
