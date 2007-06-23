@@ -59,6 +59,7 @@ static char consoleTitle[256];
 extern int	missing_cap;
 extern int	know_dumb;
 extern int	quit_if_one_screen;
+extern int	no_init;
 extern int	pr_type;
 
 
@@ -165,7 +166,7 @@ main(argc, argv)
 	}
 
 	if (less_is_more && get_quit_at_eof())
-		quit_if_one_screen = TRUE;
+		no_init = quit_if_one_screen = TRUE;
 
 #if EDITOR
 	editor = lgetenv("VISUAL");
