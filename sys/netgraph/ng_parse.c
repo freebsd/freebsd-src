@@ -84,9 +84,9 @@ struct int64_temp {
 };
 
 #define INT8_ALIGNMENT		1
-#define INT16_ALIGNMENT		((int)&((struct int16_temp *)0)->y)
-#define INT32_ALIGNMENT		((int)&((struct int32_temp *)0)->y)
-#define INT64_ALIGNMENT		((int)&((struct int64_temp *)0)->y)
+#define INT16_ALIGNMENT		((size_t)&((struct int16_temp *)0)->y)
+#define INT32_ALIGNMENT		((size_t)&((struct int32_temp *)0)->y)
+#define INT64_ALIGNMENT		((size_t)&((struct int64_temp *)0)->y)
 
 /* Output format for integral types */
 #define INT_UNSIGNED		0

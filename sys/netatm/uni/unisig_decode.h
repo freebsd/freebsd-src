@@ -58,19 +58,8 @@ struct ie_ent {
 				(struct usfmt *, struct ie_generic *);
 };
 
-/*
- * Macro to give the offset of a field in a generic IE structure
- */
-#define	IE_OFFSET(f) \
-	((int)&((struct ie_generic *) 0)->f)
-
-/*
- * Macro to give the size of a field in a generic IE structure
- */
-#define IE_FSIZE(f) \
-	(sizeof(((struct ie_generic *) 0)->f))
-
-#define IE_OFF_SIZE(f)   IE_OFFSET(f),IE_FSIZE(f)
+#define IE_OFF_SIZE(f)   \
+	offsetof(struct ie_generic, f), (sizeof(((struct ie_generic *) 0)->f))
 
 
 /*
