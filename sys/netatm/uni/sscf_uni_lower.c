@@ -142,7 +142,7 @@ sscf_uni_lower(cmd, tok, arg1, arg2)
 		uvp->uv_lstate = UVL_IDLE;
 
 		STACK_CALL(SSCOP_INIT, uvp->uv_lower, uvp->uv_tokl, cvp, 
-			(int)vers, (int)&sscf_uni_sscop_parms, err);
+			(int)vers, (size_t)&sscf_uni_sscop_parms, err);
 		if (err) {
 			/*
 			 * Should never happen

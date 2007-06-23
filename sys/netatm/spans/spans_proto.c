@@ -214,7 +214,7 @@ spans_timer(tip)
 	 * Back-off to SPANS control block
 	 */
 	spp = (struct spans *)
-		((caddr_t)tip - (int)(&((struct spans *)0)->sp_time));
+		((caddr_t)tip - offsetof(struct spans, sp_time));
 
 	ATM_DEBUG2("spans_timer: spp=%p,state=%d\n",
 			spp, spp->sp_state);
@@ -363,8 +363,8 @@ spans_vctimer(tip)
 	/*
 	 * Get VCCB and SPANS control block addresses
 	 */
-	svp = (struct spans_vccb *) ((caddr_t)tip -
-			(int)(&((struct vccb *)0)->vc_time));
+	svp = (struct spans_vccb *)
+		((caddr_t)tip - offsetof(struct vccb, vc_time));
 	spp = (struct spans *)svp->sv_pif->pif_siginst;
 
 	ATM_DEBUG3("spans_vctimer: svp=%p, sstate=%d, ustate=%d\n",

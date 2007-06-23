@@ -202,7 +202,7 @@ static __inline void sym_que_splice(struct sym_quehead *list,
 }
 
 #define sym_que_entry(ptr, type, member) \
-	((type *)((char *)(ptr)-(unsigned int)(&((type *)0)->member)))
+	((type *)((char *)(ptr)-(size_t)(&((type *)0)->member)))
 
 
 #define sym_insque(new, pos)		__sym_que_add(new, pos, (pos)->flink)
