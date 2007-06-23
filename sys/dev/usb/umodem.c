@@ -292,8 +292,8 @@ umodem_attach(device_t self)
 
 	sc->sc_udev = dev;
 	sc->sc_ctl_iface = uaa->iface;
-	sc->sc_ctl_iface_no = id->bInterfaceNumber;
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
+	sc->sc_ctl_iface_no = id->bInterfaceNumber;
 	device_printf(self, "iclass %d/%d", id->bInterfaceClass,
 	  id->bInterfaceSubClass);
 
