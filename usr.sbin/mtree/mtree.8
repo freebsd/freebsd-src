@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 03, 2006
+.Dd June 16, 2007
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -352,6 +352,17 @@ for distributions and other such things; the files in
 were used to create almost all directories in this
 .Fx
 distribution.
+.Pp
+To create an
+.Pa /etc/mtree
+style BSD.*.dist file, use
+.Nm
+.Fl c
+.Fl d
+.Fl i
+.Fl n
+.Fl k
+.Cm uname,gname,mode,nochange.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
