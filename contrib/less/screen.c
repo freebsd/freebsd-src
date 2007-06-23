@@ -228,8 +228,6 @@ extern int quiet;		/* If VERY_QUIET, use visual bell for bell */
 extern int no_back_scroll;
 extern int swindow;
 extern int no_init;
-extern int quit_at_eof;
-extern int less_is_more;
 extern int no_keypad;
 extern int sigs;
 extern int wscroll;
@@ -1211,19 +1209,11 @@ get_term()
 	if (sc_e_keypad == NULL)
 		sc_e_keypad = "";
 		
-	/*
-	 * This loses for terminals with termcap entries with ti/te strings
-	 * that switch to/from an alternate screen, and we're in quit_at_eof
-	 * (eg, more(1)).
- 	 */
-	if (!quit_at_eof && !less_is_more) {
-		sc_init = ltgetstr("ti", &sp);
-		sc_deinit = ltgetstr("te", &sp);
-	}
-
+	sc_init = ltgetstr("ti", &sp);
 	if (sc_init == NULL)
 		sc_init = "";
 
+	sc_deinit= ltgetstr("te", &sp);
 	if (sc_deinit == NULL)
 		sc_deinit = "";
 
