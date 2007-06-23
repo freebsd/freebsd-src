@@ -187,7 +187,7 @@ vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing
 vendor LSI		0x04d4	LSI
 vendor MENTORGRAPHICS	0x04d6	Mentor Graphics
-vendor ITUNERNET	0x04d8  I-Tuner Networks
+vendor ITUNERNET	0x04d8	I-Tuner Networks
 vendor HOLTEK		0x04d9	Holtek
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor HUANHSIN		0x04dc	Huan Hsin
@@ -494,6 +494,7 @@ vendor ACDC		0x0d7e	ACDC
 vendor ABC		0x0d8c	ABC
 vendor CONCEPTRONIC	0x0d8e	Conceptronic
 vendor MSI		0x0db0	Micro Star International
+vendor ELCON		0x0db7	ELCON Systemtechnik
 vendor SITECOMEU	0x0df6	Sitecom Europe
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
@@ -560,6 +561,7 @@ vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor HIROSE		0x2631	Hirose
 vendor NHJ		0x2770	NHJ
 vendor PLANEX		0x2c02	Planex
+vendor AEI		0x3334	AEI
 vendor VIDZMEDIA	0x3275	VidzMedia
 vendor AEI		0x3334	AEI
 vendor PQI		0x3538	PQI
@@ -643,6 +645,7 @@ product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 product ACTIONTEC UAT1		0x7605	UAT1 Wireless Ethernet
 
 /* ADMtek products */
+product ADMTEK PEGASUSII_4	0x07c2	AN986AEthernet
 product ADMTEK PEGASUS		0x0986	AN986 Ethernet
 product ADMTEK PEGASUSII	0x8511	AN8511 Ethernet
 product ADMTEK PEGASUSII_2	0x8513	AN8513 Ethernet
@@ -657,6 +660,9 @@ product ADDON DISKPRO512	0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB f
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet
+
+/* AEI products */
+product	AEI FASTETHERNET	0x1701	Fast Ethernet
 
 /* Agate Technologies products */
 product AGATE QDRIVE		0x0378	Q-Drive
@@ -691,8 +697,8 @@ product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
 product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
 
-/* American Power Conversion products */
-product APC UPS			0x0002	Uninterruptible Power Supply
+/* Allied Telesyn International products */
+product	ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
 
 /* AMIT products */
 product AMIT CGWLUSB2GO		0x0002	CG-WLUSB2GO
@@ -706,6 +712,9 @@ product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
 
 /* AOX, Inc. products */
 product AOX USB101		0x0008	Ethernet
+
+/* American Power Conversion products */
+product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
 product APPLE OPTMOUSE		0x0302	Optical mouse
@@ -729,7 +738,7 @@ product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
 product ASAHIOPTICAL OPTIO330	0x0006	Digital camera
 
 /* ASIX Electronics products */
-product ASIX AX88172		0x1720  10/100 ethernet
+product ASIX AX88172		0x1720	10/100 ethernet
 
 /* ASUS products */
 product ASUS WL167G		0x1707	WL-167g wireless adapter
@@ -739,7 +748,10 @@ product ASUS RT2573_2		0x1724	RT2573
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
 product ATEN UC10T		0x2002	10Mbps ethernet
+product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
+product ATEN UC210T		0x2000	UC-210T Ethernet
+product	ATEN DSB650C		0x4000	DSB-650C
 
 /* Atheros Communications products */
 product ATHEROS AR5523		0x0001	AR5523
@@ -935,6 +947,9 @@ product DLINK DSB650		0xabc1	10/100 ethernet
 product EIZO HUB		0x0000	hub
 product EIZO MONITOR		0x0001	monitor
 
+/* ELCON Systemtechnik products */
+product	ELCON PLAN		0x0002	Goldpfeil P-LAN
+
 /* Elecom products */
 product ELECOM MOUSE29UO	0x0002	mouse 29UO
 product ELECOM LDUSBTX0		0x200c	LD-USB/TX
@@ -987,12 +1002,12 @@ product EPSON 1260		0x011d	Perfection 1260 scanner
 product EPSON 1660		0x011e	Perfection 1660 scanner
 product EPSON 1670		0x011f	Perfection 1670 scanner
 product EPSON 1270		0x0120	Perfection 1270 scanner
-product EPSON 2480		0x0121  Perfection 2480 scanner
+product EPSON 2480		0x0121	Perfection 2480 scanner
 product EPSON 3590		0x0122	Perfection 3590 scanner
 product EPSON 4990		0x012a	Perfection 4990 Photo scanner
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
-product EPSON 4200		0x0820  CX4200 MP scanner
+product EPSON 4200		0x0820	CX4200 MP scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
@@ -1149,7 +1164,7 @@ product HP 840C			0x0604	DeskJet 840c
 product HP 2200C		0x0605	ScanJet 2200C
 product HP 5300C		0x0701	Scanjet 5300C
 product HP 4400C		0x0705	Scanjet 4400C
-product HP 82x0C		0x0b01  Scanjet 82x0C
+product HP 82x0C		0x0b01	Scanjet 82x0C
 product HP 2300D 		0x0b17	Laserjet 2300d
 product HP 970CSE		0x1004	Deskjet 970Cse
 product HP 5400C		0x1005	Scanjet 5400C
@@ -1433,7 +1448,7 @@ product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
-product MOTOROLA2 A41XV32X      0x2a22  A41x/V32x Mobile Phones
+product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 
 /* MultiTech products */
@@ -1487,7 +1502,7 @@ product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
 
 /* NovaTech Products */
-product NOVATECH NV902		0x9020  NovaTech NV-902W
+product NOVATECH NV902		0x9020	NovaTech NV-902W
 product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
@@ -1588,7 +1603,7 @@ product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 product	PROLIFIC PHAROS		0xaaa0	Prolific Pharos
 product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial adapter (IODATA USB-RSAQ3)
-product PROLIFIC2 WSIM		0x2001  Willcom WSIM
+product PROLIFIC2 WSIM		0x2001	Willcom WSIM
 
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
@@ -1693,8 +1708,10 @@ product SIERRA MC5720		0x0218	MC5720 Wireless Modem
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
+/* Also: Omnidirectional Control Technology products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 product SIIG WINTERREADER	0x0330	WINTERREADER Reader
+product SIIG2 USBTOETHER        0x0109  USB TO Ethernet
 product SIIG2 US2308		0x0421	Serial
 
 /* Silicom products */
@@ -1729,6 +1746,7 @@ product SMC3 2662WUSB		0xa002	2662W-AR Wireless
 
 /* SOHOware products */
 product SOHOWARE NUB100		0x9100	10/100 USB Ethernet
+product SOHOWARE NUB110		0x9110	10/100 USB Ethernet
 
 /* SOLID YEAR products */
 product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
@@ -1919,7 +1937,7 @@ product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
-product	YANO FW800HD		0x05fc  METALWEAR-HDD
+product	YANO FW800HD		0x05fc	METALWEAR-HDD
 
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
