@@ -478,6 +478,7 @@ vendor KURUSUGAWA	0x0b7e	Kurusugawa
 vendor ASIX		0x0b95	ASIX
 vendor O2MICRO		0x0b97	O2 Micro, Inc.
 vendor USR		0x0baf	U.S. Robotics
+vendor AMBIT		0x0bb2	Ambit Microsystems
 vendor REALTEK		0x0bda	RealTek
 vendor ADDONICS2	0x0bf6	Addonics
 vendor AGATE		0x0c08	Agate
@@ -626,6 +627,9 @@ product ACCTON SS1001		0x5046	SpeedStream Ethernet
 /* Aceeca products */
 product ACEECA MEZ1000		0x0001	Aceeca Mez1000 RDA
 
+/* Acer Labs products */
+product ACERLABS M5632		0x5632	USB 2.0 Data Link
+
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
 product ACERP ACERSCAN_320U	0x2022	Acerscan 320U
@@ -660,6 +664,7 @@ product ADDON DISKPRO512	0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB f
 
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet
+product ADS UBS10BTX		0x0009	UBS-10BT Ethernet
 
 /* AEI products */
 product	AEI FASTETHERNET	0x1701	Fast Ethernet
@@ -700,6 +705,10 @@ product ALTEC ASC495		0xff05	ASC495 Speakers
 /* Allied Telesyn International products */
 product	ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
 
+/* Ambit Microsystems products */
+product AMBIT WLAN		0x0302	WLAN
+product AMBIT NTL_250		0x6098	NTL 250 cable modem
+
 /* AMIT products */
 product AMIT CGWLUSB2GO		0x0002	CG-WLUSB2GO
 
@@ -736,6 +745,9 @@ product ARKMICRO ARK3116	0x0232	ARK3116 Serial
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
 product ASAHIOPTICAL OPTIO330	0x0006	Digital camera
+
+/* Asante products */
+product ASANTE EA		0x1427	Ethernet
 
 /* ASIX Electronics products */
 product ASIX AX88172		0x1720	10/100 ethernet
@@ -975,10 +987,12 @@ product ENTREGA 1S25		0x0003	1S25 serial
 product ENTREGA 4S		0x0004	4S serial
 product ENTREGA E45		0x0005	E45 Ethernet
 product ENTREGA CENTRONICS	0x0006	Parallel Port
+product ENTREGA XX1		0x0008	Ethernet
 product ENTREGA 1S9		0x0093	1S9 serial
 product ENTREGA EZUSB		0x8000	EZ-USB
 /*product ENTREGA SERIAL	0x8001	DB25 Serial*/
 product ENTREGA 2U4S		0x8004	2U4S serial/usb hub
+product ENTREGA XX2		0x8005	Ethernet
 /*product ENTREGA SERIAL_DB9	0x8093	DB9 Serial*/
 
 /* Epson products */
@@ -1225,6 +1239,9 @@ product IOMEGA ZIP250		0x0030	Zip 250
 /* Ituner networks products */
 product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
 
+/* Jaton products */
+product JATON EDA		0x5704	Ethernet
+
 /* JVC products */
 product JVC GR_DX95		0x000a	GR-DX95
 product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
@@ -1232,18 +1249,11 @@ product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH PHONE AH-J3001V/J3002V
 
-/* Kawasaki products */
-product KLSI DUH3E10BT		0x0008	USB ethernet
-product KLSI DUH3E10BTN		0x0009	USB ethernet
-
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
 
 /* Keisokugiken Corp. products */
 product KEISOKUGIKEN USBDAQ	0x0068	HKS-0200 USBDAQ
-
-/* Kawasaki products */
-product KLSI DUH3E10BT		0x0008	DU-H3E 10BT Ethernet
 
 /* Kensington products */
 product KENSINGTON ORBIT	0x1003	Orbit USB/PS2 trackball
@@ -1280,7 +1290,12 @@ product KEYSPAN UIA10		0x0201	UIA-10 remote control
 product KEYSPAN UIA11		0x0202	UIA-11 remote control
 
 /* Kingston products */
+product KINGSTON XX1		0x0008	Ethernet
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
+
+/* Kawasaki products */
+product KLSI DUH3E10BT		0x0008	USB ethernet
+product KLSI DUH3E10BTN		0x0009	USB ethernet
 
 /* Kodak products */
 product KODAK DC220		0x0100	Digital Science DC220
@@ -1445,11 +1460,17 @@ product MINOLTA 5400		0x400e	Dimage 5400
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 
+/* Mobility products */
+product MOBILITY EA		0x0204	Ethernet
+product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
+
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
 product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
+product MOTOROLA2 USBLAN	0x600c	USBLAN
+product MOTOROLA2 USBLAN2	0x6027	USBLAN
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
@@ -1488,6 +1509,7 @@ product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet
+product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR3 WG111T		0x4250	WG111T
@@ -1574,6 +1596,13 @@ product PLX TESTBOARD		0x9060	test board
 
 /* PNY products */
 product PNY ATTACHE2		0x0010	USB 2.0 Flash Drive
+
+/* PortGear products */
+product PORTGEAR EA8		0x0008	Ethernet
+product PORTGEAR EA9		0x0009	Ethernet
+
+/* Portsmith products */
+product PORTSMITH EEA		0x3003	Express Ethernet
 
 /* Primax products */
 product PRIMAX G2X300		0x0300	G2-200 scanner
@@ -1676,6 +1705,9 @@ product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
 
+/* Shark products */
+product SHARK PA		0x0400	Pocket Adapter
+
 /* Sharp products */
 product SHARP SL5500		0x8004	Zaurus SL-5500 PDA
 product SHARP SLA300		0x8005	Zaurus SL-A300 PDA
@@ -1715,6 +1747,7 @@ product SIIG2 USBTOETHER        0x0109  USB TO Ethernet
 product SIIG2 US2308		0x0421	Serial
 
 /* Silicom products */
+product SILICOM U2E		0x0001	U2E
 product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* Silicon Portals Inc. */
