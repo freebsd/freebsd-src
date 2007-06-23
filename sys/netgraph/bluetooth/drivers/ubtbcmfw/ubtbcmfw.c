@@ -131,6 +131,8 @@ static driver_t ubtbcmfw_driver = {
 };
 
 static devclass_t ubtbcmfw_devclass;
+
+MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
 DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass,
 	      usbd_driver_load, 0);
 
