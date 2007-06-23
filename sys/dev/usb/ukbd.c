@@ -145,7 +145,7 @@ static driver_t ukbd_driver = {
 static devclass_t ukbd_devclass;
 
 MODULE_DEPEND(ukbd, usb, 1, 1, 1);
-DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 
 static int
 ukbd_match(device_t self)
