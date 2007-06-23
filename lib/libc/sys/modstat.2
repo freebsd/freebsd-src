@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2000
+.Dd June 13, 2007
 .Dt MODSTAT 2
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ into
 .Bd -literal
 struct module_stat {
 	int         version;        /* set to sizeof(module_stat) */
-	char        name[MAXPATHLEN];
+	char        name[MAXMODNAME];
 	int         refs;
 	int         id;
 	modspecific_t data;
