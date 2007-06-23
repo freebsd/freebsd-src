@@ -809,7 +809,8 @@ do_unlock32(struct thread *td, uint32_t *m, uint32_t id)
 #endif
 
 static int
-do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
+do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout,
+	int compat32)
 {
 	struct umtx_q *uq;
 	struct timespec ts, ts2, ts3;
@@ -820,7 +821,10 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout)
 	uq = td->td_umtxq;
 	if ((error = umtxq_queue_me(td, umtx, uq)) != 0)
 		return (error);
-	tmp = fuword(&umtx->u_owner);
+	if (compat32 == 0)
+		tmp = fuword(&umtx->u_owner);
+	else
+		tmp = fuword32(&umtx->u_owner);
 	if (tmp != id) {
 		umtxq_lock(&uq->uq_key);
 		umtxq_remove(uq);
@@ -944,7 +948,7 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 			}
 			ts = &timeout;
 		}
-		error = do_wait(td, uap->umtx, uap->id, ts);
+		error = do_wait(td, uap->umtx, uap->id, ts, 0);
 		break;
 	case UMTX_OP_WAKE:
 		error = kern_umtx_wake(td, uap->umtx, uap->id);
@@ -1035,7 +1039,7 @@ __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->umtx, uap->id, ts);
+	return do_wait(td, uap->umtx, uap->id, ts, 1);
 }
 
 int
