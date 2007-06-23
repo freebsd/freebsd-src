@@ -456,7 +456,9 @@ getprocname(pid_t pid)
 	mib[3] = (int)pid;
 	len = sizeof proc;
 	if (sysctl(mib, 4, &proc, &len, NULL, 0) == -1) {
-		warn("sysctl()");
+		/* Do not warn if the process exits before we get its name. */
+		if (errno != ESRCH)
+			warn("sysctl()");
 		return ("??");
 	}
 	return (proc.ki_ocomm);
