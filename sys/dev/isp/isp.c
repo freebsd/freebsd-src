@@ -812,7 +812,7 @@ isp_reset(ispsoftc_t *isp)
 				}
 				cp = isp->isp_rquest;
 				for (i = 0; i < nw; i++) {
-					cp[i] = ptr[wi++];
+					ISP_IOXPUT_32(isp,  ptr[wi++], &cp[i]);
 					wl--;
 				}
 				MEMORYBARRIER(isp, SYNC_REQUEST,
@@ -875,7 +875,7 @@ isp_reset(ispsoftc_t *isp)
 				}
 				cp = isp->isp_rquest;
 				for (i = 0; i < nw; i++) {
-					cp[i] = ptr[wi++];
+					ISP_IOXPUT_16(isp,  ptr[wi++], &cp[i]);
 					wl--;
 				}
 				MEMORYBARRIER(isp, SYNC_REQUEST,
