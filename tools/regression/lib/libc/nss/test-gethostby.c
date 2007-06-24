@@ -58,6 +58,7 @@ enum test_methods {
 
 static int use_ipnode_functions = 0;
 static int use_ipv6_mapping = 0;
+static int ipnode_flags = 0;
 static int debug = 0;
 static int af_type = AF_INET;
 static enum test_methods method = TEST_BUILD_SNAPSHOT;
@@ -103,17 +104,11 @@ __gethostbyname2(const char *name, int af)
 	struct hostent *he;
 	int error;
 	
-	if (use_ipnode_functions == 0) {
-		if (use_ipv6_mapping != 0)
-			af = AF_INET;
-		
+	if (use_ipnode_functions == 0)
 		he = gethostbyname2(name, af);
-	} else {
+	else {
 		error = 0;
-		if (use_ipv6_mapping != 0)
-			af = AF_INET6;
-		he = getipnodebyname(name, af, use_ipv6_mapping == 0 ? AI_ALL :
-			AI_ALL | AI_V4MAPPED, &error);
+		he = getipnodebyname(name, af, ipnode_flags, &error);
 		if (he == NULL);
 			errno = error;
 	}
@@ -127,17 +122,11 @@ __gethostbyaddr(const void *addr, socklen_t len, int af)
 	struct hostent *he;
 	int error;
 	
-	if (use_ipnode_functions == 0) {
-		if (use_ipv6_mapping != 0)
-			af = AF_INET;
-
+	if (use_ipnode_functions == 0)
 		he = gethostbyaddr(addr, len, af);
-	} else {
+	else {
 		error = 0;
-		if (use_ipv6_mapping != 0)
-			af = AF_INET6;
-		he = getipnodebyaddr(addr, len, use_ipv6_mapping == 0 ? AI_ALL :
-			AI_ALL | AI_V4MAPPED, &error);
+		he = getipnodebyaddr(addr, len, af, &error);
 		if (he == NULL)
 			errno = error;
 	}
@@ -238,7 +227,8 @@ free_hostent(struct hostent *ht)
 static  int 
 compare_hostent(struct hostent *ht1, struct hostent *ht2, void *mdata)
 {
-	char **c1, **c2;
+	char **c1, **c2, **ct, **cb;
+	int b;
         
 	if (ht1 == ht2)
 		return 0;
@@ -262,12 +252,39 @@ compare_hostent(struct hostent *ht1, struct hostent *ht2, void *mdata)
 		goto errfin;
 	
 	if ((c1 != NULL) && (c2 != NULL)) {
-		for (;*c1 && *c2; ++c1, ++c2)
-			if (strcmp(*c1, *c2) != 0)
+		cb = c1;
+		for (;*c1; ++c1) {
+			b = 0;
+			for (ct = c2; *ct; ++ct) {
+				if (strcmp(*c1, *ct) == 0) {
+					b = 1;
+					break;
+				}
+			}
+			if (b == 0) {
+				if (debug)
+					printf("h1 aliases item can't be "\
+					    "found in h2 aliases\n");
 				goto errfin;
-                
-	if ((*c1 != NULL) || (*c2 != NULL))
-		goto errfin;
+			}
+		}
+
+		c1 = cb;
+		for (;*c2; ++c2) {
+			b = 0;
+			for (ct = c1; *ct; ++ct) {
+				if (strcmp(*c2, *ct) == 0) {
+					b = 1;
+					break;
+				}
+			}
+			if (b == 0) {
+				if (debug)
+					printf("h2 aliases item can't be "\
+					    " found in h1 aliases\n");
+				goto errfin;
+			}
+		}
 	}
         
 	c1 = ht1->h_addr_list;
@@ -278,12 +295,39 @@ compare_hostent(struct hostent *ht1, struct hostent *ht2, void *mdata)
 		goto errfin;
 	
 	if ((c1 != NULL) && (c2 != NULL)) {
-		for (;*c1 && *c2; ++c1, ++c2)
-			if (memcmp(*c1, *c2, ht1->h_length) != 0)
+		cb = c1;
+		for (;*c1; ++c1) {
+			b = 0;
+			for (ct = c2; *ct; ++ct) {
+				if (memcmp(*c1, *ct, ht1->h_length) == 0) {
+					b = 1;
+					break;
+				}
+			}
+			if (b == 0) {
+				if (debug)
+					printf("h1 addresses item can't be "\
+					    "found in h2 addresses\n");
 				goto errfin;
-                
-		if ((*c1 != NULL) || (*c2 != NULL))
-			goto errfin;
+			}
+		}
+		
+		c1 = cb;
+		for (;*c2; ++c2) {
+			b = 0;
+			for (ct = c1; *ct; ++ct) {
+				if (memcmp(*c2, *ct, ht1->h_length) == 0) {
+					b = 1;
+					break;
+				}
+			}
+			if (b == 0) {
+				if (debug)
+					printf("h2 addresses item can't be "\
+					    "found in h1 addresses\n");
+				goto errfin;
+			}
+		}
 	}
 
 	return 0;
@@ -588,8 +632,8 @@ hostent_read_snapshot_func(struct hostent *ht, char *line)
 					    ts = (char *)malloc(ht->h_length);
 					    assert(ts != NULL);
 					    memset(ts, 0, ht->h_length);
-					    rv = hostent_read_snapshot_addr(
-						    s, ts, ht->h_length);
+					    rv = hostent_read_snapshot_addr(s,\
+						 (unsigned char *)ts, ht->h_length);
 					    sl_add(sl2, ts);
 					    if (rv != 0)
 						    goto fin;
@@ -598,8 +642,8 @@ hostent_read_snapshot_func(struct hostent *ht, char *line)
 				    ts = (char *)malloc(ht->h_length);
 				    assert(ts != NULL);
 				    memset(ts, 0, ht->h_length);
-				    rv = hostent_read_snapshot_addr(
-					    s, ts, ht->h_length);
+				    rv = hostent_read_snapshot_addr(s,\
+					(unsigned char *)ts, ht->h_length);
 				    sl_add(sl2, ts);
 				    if (rv != 0)
 					    goto fin;
@@ -869,7 +913,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "Usage: %s -na2i [-o] [-d] [-m46] [-s <file>] -f <file>\n",
+	    "Usage: %s -na2i [-o] [-d] [-46] [-mAcM] [-C] [-s <file>] -f <file>\n",
 	    getprogname());
 	exit(1);
 }
@@ -888,39 +932,29 @@ main(int argc, char **argv)
 		
 	snapshot_file = NULL;
 	hostlist_file = NULL;
-	while ((c = getopt(argc, argv, "m46na2idos:f:")) != -1)
+	while ((c = getopt(argc, argv, "nad2iod46mAcMs:f:")) != -1)
 		switch (c) {
 		case '4':
+			af_type = AF_INET;
+			break;
 		case '6':
+			af_type = AF_INET6;
+			break;
+		case 'M':
+			af_type = AF_INET6;
+			use_ipv6_mapping = 1;
+			ipnode_flags |= AI_V4MAPPED_CFG;
+			break;
 		case 'm':
-			statp = __res_state();
-			if ((statp == NULL) ||
-				((statp->options & RES_INIT) == 0 && 
-				res_ninit(statp) == -1)) {
-				if (debug)
-				    printf("error: can't init res_state\n");
-				
-				free(snapshot_file);
-				free(hostlist_file);
-				return (-1);
-			}
-		
-			switch (c) {
-			case '4':
-				af_type = AF_INET;
-				statp->options &= ~RES_USE_INET6;
-				break;
-			case '6':
-				af_type = AF_INET6;
-				statp->options &= ~RES_USE_INET6;
-				break;
-			case 'm':
-				statp->options |= RES_USE_INET6;
-				use_ipv6_mapping = 1;
-				break;
-			default:
-				break;
-			};
+			af_type = AF_INET6;
+			use_ipv6_mapping = 1;
+			ipnode_flags |= AI_V4MAPPED;
+			break;
+		case 'c':
+			ipnode_flags |= AI_ADDRCONFIG;
+			break;
+		case 'A':
+			ipnode_flags |= AI_ALL;
 			break;
 		case 'o':
 			use_ipnode_functions = 1;
@@ -949,6 +983,24 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+
+	if (use_ipnode_functions == 0) {
+		statp = __res_state();
+		if ((statp == NULL) || ((statp->options & RES_INIT) == 0 && 
+			res_ninit(statp) == -1)) {
+			if (debug)
+			    printf("error: can't init res_state\n");
+			
+			free(snapshot_file);
+			free(hostlist_file);
+			return (-1);
+		}
+	
+		if (use_ipv6_mapping == 0)	
+			statp->options &= ~RES_USE_INET6;
+		else
+			statp->options |= RES_USE_INET6;
+	}
 	
 	TEST_DATA_INIT(hostent, &td, clone_hostent, free_hostent);
 	TEST_DATA_INIT(hostent, &td_addr, clone_hostent, free_hostent);
@@ -1047,5 +1099,7 @@ fin:
 	TEST_DATA_DESTROY(hostent, &td);
 	free(hostlist_file);
 	free(snapshot_file);
+
 	return (rv);
 }
+
