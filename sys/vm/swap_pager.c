@@ -1128,7 +1128,6 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 	int i;
 	int n = 0;
 
-	GIANT_REQUIRED;
 	if (count && m[0]->object != object) {
 		panic("swap_pager_getpages: object mismatch %p/%p", 
 		    object, 
