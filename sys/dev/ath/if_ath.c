@@ -4798,8 +4798,10 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		bf->bf_node = NULL;
 		if (ni != NULL) {
 			/*
-			 * Reclaim node reference.
+			 * Do any callback and reclaim the node reference.
 			 */
+			if (bf->bf_m->m_flags & M_TXCB)
+				ieee80211_process_callback(ni, bf->bf_m, -1);
 			ieee80211_free_node(ni);
 		}
 		m_freem(bf->bf_m);
