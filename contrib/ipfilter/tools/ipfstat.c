@@ -1811,7 +1811,7 @@ int *port;
 			*port = -1;
 		} else if (!sscanf(comma + 1, "%d", port) ||
 			   (*port < 0) || (*port > 65535)) {
-			fprintf(stderr, "Invalid port specfication in %s\n",
+			fprintf(stderr, "Invalid port specification in %s\n",
 				argument);
 			free(s);
 			exit(-2);
@@ -1823,6 +1823,7 @@ int *port;
 	/* get ip address */
 	if (!strcasecmp(s, "any")) {
 		ip->in4.s_addr = INADDR_ANY;
+		ok = 1;
 #ifdef	USE_INET6
 		ip->in6 = in6addr_any;
 	} else if (use_inet6 && inet_pton(AF_INET6, s, &ip->in6)) {
