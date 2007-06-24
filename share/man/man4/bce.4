@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2007
+.Dd June 24, 2007
 .Dt BCE 4
 .Os
 .Sh NAME
@@ -139,6 +139,17 @@ following:
 HP NC370T Multifunction Gigabit Server Adapter
 .It
 HP NC370i Multifunction Gigabit Server Adapter
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.bce.msi_enable
+Whether or not MSI support is enabled in the driver.
+The default value is 1.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
