@@ -322,8 +322,8 @@ installFixitHoloShell(dialogMenuItem *self)
 {
     FixItMode = 1;
     systemCreateHoloshell();
-    return DITEM_SUCCESS;
     FixItMode = 0;
+    return DITEM_SUCCESS;
 }
 
 int

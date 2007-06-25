@@ -484,7 +484,7 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern DMenu		MenuXOrgConfig;		/* Select X.Org configuration tool		*/
-extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
+extern int              FixItMode;              /* FixItMode starts shell on current device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
 extern int		NCpus;			/* # cpus on machine */
 

@@ -40,9 +40,9 @@ of over 50KB/sec are not uncommon.
 Finally, for the fastest possible network installation, an Ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC
 Ethernet cards, a table of which is provided in the FreeBSD Hardware
-Guide (see the Documentation menu on the boot floppy).  If you are
+Guide (see the `Documentation' entry in the main menu).  If you are
 using one of the supported PCMCIA Ethernet cards, also be sure that
-it's plugged in _before_ the laptop is powered on!  FreeBSD does not,
+it's plugged in BEFORE the laptop is powered on!  Sysinstall does not,
 unfortunately, currently support "hot insertion" of PCMCIA cards.
 
 You will also need to know your IP address on the network, the
