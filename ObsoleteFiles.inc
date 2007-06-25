@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070625: umapfs removal
+OLD_FILES+=rescue/mount_umapfs
+OLD_FILES+=sbin/mount_umapfs
+OLD_FILES+=usr/include/fs/umapfs/umap.h
+OLD_FILES+=usr/share/man/man8/mount_umapfs.8.gz
+OLD_DIRS+=usr/include/fs/umapfs
 # 20070618: shared library version bump
 OLD_LIBS+=lib/libalias.so.5
 OLD_LIBS+=lib/libbsnmp.so.3

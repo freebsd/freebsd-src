@@ -938,12 +938,12 @@ device		harp			#Pseudo-interface for NATM
 # currently be demand-loaded.)  Some people still prefer to statically
 # compile other filesystems as well.
 #
-# NB: The PORTAL and UMAP filesystems are known to be buggy, and WILL
-# panic your system if you attempt to do anything with them.  They are
-# included here as an incentive for some enterprising soul to sit down
-# and fix them.  The UNION filesystem was known to be buggy in the past.
-# It is now being actively maintained, although there are still some
-# issues being resolved.
+# NB: The PORTAL filesystem is known to be buggy, and WILL panic your
+# system if you attempt to do anything with it.  It is included here
+# as an incentive for some enterprising soul to sit down and fix it.
+# The UNION filesystem was known to be buggy in the past.  It is now
+# being actively maintained, although there are still some issues being
+# resolved.
 #
 
 # One of these is mandatory:
@@ -966,8 +966,6 @@ options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	PSEUDOFS_TRACE		#Debugging support for PSEUDOFS
 options 	SMBFS			#SMB/CIFS filesystem
 options 	UDF			#Universal Disk Format
-# Broken (seriously (functionally) broken):
-#options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
 options 	NFS_ROOT		#NFS usable as root device

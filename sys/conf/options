@@ -198,7 +198,6 @@ REISERFS	opt_dontuse.h
 SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
-UMAPFS		opt_dontuse.h
 UNIONFS		opt_dontuse.h
 
 # Pseudofs debugging
