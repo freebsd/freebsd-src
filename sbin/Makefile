@@ -59,7 +59,6 @@ SUBDIR=	adjkerntz \
 	mount_ntfs \
 	mount_nullfs \
 	mount_udf \
-	mount_umapfs \
 	mount_unionfs \
 	natd \
 	newfs \

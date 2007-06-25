@@ -73,7 +73,6 @@ sbin/mdmfs
 sbin/mount
 sbin/mount_nfs
 sbin/mount_nullfs
-sbin/mount_umapfs
 sbin/mount_unionfs
 sbin/newfs
 sbin/nextboot
