@@ -44,26 +44,14 @@ uma_zone_t	tmpfs_zone_create(char *name, int size, int align,
 		    struct tmpfs_mount *m);
 void		tmpfs_zone_destroy(uma_zone_t zone);
 
-static __inline void* 
-tmpfs_zone_alloc(uma_zone_t zone, int flags)
-{
-	return uma_zalloc(zone, flags);
-}
-
-static __inline void
-tmpfs_zone_free(uma_zone_t zone, void *item)
-{
-	uma_zfree(zone, item); 
-} 
-
-void	tmpfs_str_zone_create(struct tmpfs_str_zone *, struct tmpfs_mount *); 
+void	tmpfs_str_zone_create(struct tmpfs_str_zone *); 
 void	tmpfs_str_zone_destroy(struct tmpfs_str_zone *);
 
 static __inline char*
 tmpfs_str_zone_alloc(struct tmpfs_str_zone *tsz, int flags, size_t len)
 {
 
-	int i, zlen;
+	size_t i, zlen;
 	char *ptr;
 
 	MPASS(len <= (TMPFS_STRZONE_STARTLEN << (TMPFS_STRZONE_ZONECOUNT-1)));
@@ -74,14 +62,14 @@ tmpfs_str_zone_alloc(struct tmpfs_str_zone *tsz, int flags, size_t len)
 		++i;
 		zlen  <<= 1;
 	}
-	ptr = (char *)tmpfs_zone_alloc(tsz->tsz_zone[i], flags);
+	ptr = (char *)uma_zalloc(tsz->tsz_zone[i], flags);
 	return  ptr;
 }
 
 static __inline void
 tmpfs_str_zone_free(struct tmpfs_str_zone *tsz, char *item, size_t len)
 {
-	int i, zlen;
+	size_t i, zlen;
 
 	MPASS(len <= (TMPFS_STRZONE_STARTLEN << (TMPFS_STRZONE_ZONECOUNT-1)));
 
@@ -91,7 +79,7 @@ tmpfs_str_zone_free(struct tmpfs_str_zone *tsz, char *item, size_t len)
 		++i;
 		zlen  <<= 1;
 	}
-	tmpfs_zone_free(tsz->tsz_zone[i], item);
+	uma_zfree(tsz->tsz_zone[i], item);
 }
 
 #endif
