@@ -532,6 +532,16 @@ ucomstart(struct tty *tp)
 	if (sc->sc_dying)
 		return;
 
+	/*
+	 * If there's no sc_oxfer, then ucomclose has removed it.  The buffer
+	 * has just been flushed in the ttyflush() in ttyclose().  ttyflush()
+	 * then calls tt_stop().  ucomstop calls ucomstart, so the right thing
+	 * to do here is just abort if sc_oxfer is NULL, as everything else
+	 * is cleaned up elsewhere.
+	 */
+	if (sc->sc_oxfer == NULL)
+		return;
+
 	s = spltty();
 
 	if (tp->t_state & TS_TBLOCK) {
