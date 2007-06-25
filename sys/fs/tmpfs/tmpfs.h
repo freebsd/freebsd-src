@@ -314,7 +314,6 @@ struct tmpfs_mount {
 	 * they will go into the available list, remaining alive until the
 	 * file system is unmounted. */
 	struct tmpfs_node_list	tm_nodes_used;
-	struct tmpfs_node_list	tm_nodes_avail;
 
 	/* All node lock to protect the node list and tmp_pages_used */
 	struct mtx allnode_lock;
@@ -470,10 +469,14 @@ TMPFS_PAGES_MAX(struct tmpfs_mount *tmp)
 }
 
 /* Returns the available space for the given file system. */
-#define TMPFS_META_SIZE(tmp) ((tmp)->tm_nodes_inuse * (sizeof(struct tmpfs_node) \
-				+ sizeof(struct dirent)))
-#define TMPFS_PAGES_AVAIL(tmp) (TMPFS_PAGES_MAX(tmp) - (tmp)->tm_pages_used - \
-			  	TMPFS_META_SIZE(tmp) / PAGE_SIZE - 1) 
+#define TMPFS_META_PAGES(tmp) ((tmp)->tm_nodes_inuse * (sizeof(struct tmpfs_node) \
+				+ sizeof(struct tmpfs_dirent))/PAGE_SIZE + 1)
+#define TMPFS_FILE_PAGES(tmp) ((tmp)->tm_pages_used)
+
+#define TMPFS_PAGES_AVAIL(tmp) (TMPFS_PAGES_MAX(tmp) > \
+			TMPFS_META_PAGES(tmp)+TMPFS_FILE_PAGES(tmp)? \
+			TMPFS_PAGES_MAX(tmp) - TMPFS_META_PAGES(tmp) \
+			- TMPFS_FILE_PAGES(tmp):0)
 
 #endif
 

@@ -100,47 +100,23 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	MPASS(IFF(type == VLNK, target != NULL));
 	MPASS(IFF(type == VBLK || type == VCHR, rdev != VNOVAL));
 
-	nnode = NULL;
+	if (tmp->tm_nodes_inuse > tmp->tm_nodes_max)
+		return (ENOSPC);
 
-	TMPFS_LOCK(tmp);
-	if (LIST_EMPTY(&tmp->tm_nodes_avail)) {
-		MPASS(tmp->tm_nodes_last <= tmp->tm_nodes_max);
-		if (tmp->tm_nodes_last == tmp->tm_nodes_max) {
-			TMPFS_UNLOCK(tmp);
-			return ENOSPC;
-		}
-		TMPFS_UNLOCK(tmp);
-		nnode = (struct tmpfs_node *)tmpfs_zone_alloc(
-						tmp->tm_node_pool, M_WAITOK);
-		if (nnode == NULL)
-			return ENOSPC;
-		nnode->tn_id = tmp->tm_nodes_last++;
-		nnode->tn_gen = arc4random();
-	} else {
-		nnode = LIST_FIRST(&tmp->tm_nodes_avail);
-		LIST_REMOVE(nnode, tn_entries);
-		TMPFS_UNLOCK(tmp);
-		nnode->tn_gen++;
-	}
-	MPASS(nnode != NULL);
+	nnode = (struct tmpfs_node *)uma_zalloc_arg(
+				tmp->tm_node_pool, tmp, M_WAITOK);
+	if (nnode == NULL)
+		return (ENOSPC);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
-	nnode->tn_size = 0;
-	nnode->tn_status = 0;
-	nnode->tn_flags = 0;
-	nnode->tn_links = 0;
 	nanotime(&nnode->tn_atime);
 	nnode->tn_birthtime = nnode->tn_ctime = nnode->tn_mtime =
 	    nnode->tn_atime;
 	nnode->tn_uid = uid;
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
-	nnode->tn_lockf = NULL;
-	nnode->tn_vnode = NULL;
 	
-	nnode->tn_vpstate = 0;
-	mtx_init(&nnode->tn_interlock, "tmpfs node interlock", NULL, MTX_DEF);
 	/* Type-specific initialization. */
 	switch (nnode->tn_type) {
 	case VBLK:
@@ -169,7 +145,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		    M_WAITOK, nnode->tn_size);
 		if (nnode->tn_link == NULL) {
 			nnode->tn_type = VNON;
-			tmpfs_free_node(tmp, nnode);
+			uma_zfree(tmp->tm_node_pool, nnode);
 			return ENOSPC;
 		}
 		memcpy(nnode->tn_link, target, nnode->tn_size);
@@ -216,9 +192,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 void
 tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 {
-	ino_t id;
-	unsigned long gen;
-	size_t pages;
+	size_t pages = 0;
 
 	TMPFS_LOCK(tmp);
 	LIST_REMOVE(node, tn_entries);
@@ -240,38 +214,28 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 	case VFIFO:
 		/* FALLTHROUGH */
 	case VSOCK:
-		pages = 0;
 		break;
 
 	case VLNK:
 		tmpfs_str_zone_free(&tmp->tm_str_pool, node->tn_link,
 		    node->tn_size);
-		pages = 0;
 		break;
 
 	case VREG:
 		if (node->tn_reg.tn_aobj != NULL) {
 			vm_object_deallocate(node->tn_reg.tn_aobj);
-			node->tn_reg.tn_aobj = 0;
 		}
 		pages = node->tn_reg.tn_aobj_pages;
 		break;
 
 	default:
 		MPASS(0);
-		pages = 0; /* Shut up gcc when !DIAGNOSTIC. */
 		break;
 	}
 
-	id = node->tn_id;
-	gen = node->tn_gen;
-	memset(node, 0, sizeof(struct tmpfs_node));
-	node->tn_id = id;
-	node->tn_type = VNON;
-	node->tn_gen = gen;
+	uma_zfree(tmp->tm_node_pool, node);
 
 	TMPFS_LOCK(tmp);
-	LIST_INSERT_HEAD(&tmp->tm_nodes_avail, node, tn_entries);
 	tmp->tm_pages_used -= pages;
 	TMPFS_UNLOCK(tmp);
 }
@@ -293,14 +257,14 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 {
 	struct tmpfs_dirent *nde;
 
-	nde = (struct tmpfs_dirent *)tmpfs_zone_alloc(
+	nde = (struct tmpfs_dirent *)uma_zalloc(
 					tmp->tm_dirent_pool, M_WAITOK);
 	if (nde == NULL)
 		return ENOSPC;
 
 	nde->td_name = tmpfs_str_zone_alloc(&tmp->tm_str_pool, M_WAITOK, len);
 	if (nde->td_name == NULL) {
-		tmpfs_zone_free(tmp->tm_dirent_pool, nde);
+		uma_zfree(tmp->tm_dirent_pool, nde);
 		return ENOSPC;
 	}
 	nde->td_namelen = len;
@@ -339,7 +303,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de,
 	}
 
 	tmpfs_str_zone_free(&tmp->tm_str_pool, de->td_name, de->td_namelen);
-	tmpfs_zone_free(tmp->tm_dirent_pool, de);
+	uma_zfree(tmp->tm_dirent_pool, de);
 }
 
 /* --------------------------------------------------------------------- */
@@ -576,7 +540,6 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
-	vnode_pager_setsize(vp, dnode->tn_size);
 }
 
 /* --------------------------------------------------------------------- */
@@ -602,8 +565,6 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size -= sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
-
-	vnode_pager_setsize(vp, dnode->tn_size);
 }
 
 /* --------------------------------------------------------------------- */
@@ -905,7 +866,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	node->tn_size = newsize;
 	vnode_pager_setsize(vp, newsize);
 	if (newsize < oldsize) {
-		int zerolen = MIN(round_page(newsize), node->tn_size) - newsize;
+		size_t zerolen = MIN(round_page(newsize), node->tn_size) - newsize;
 		struct vm_object *uobj = node->tn_reg.tn_aobj;
 		vm_page_t m;
 
