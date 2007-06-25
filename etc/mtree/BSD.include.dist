@@ -146,8 +146,6 @@
         ..
         udf
         ..
-        umapfs
-        ..
         unionfs
         ..
     ..
