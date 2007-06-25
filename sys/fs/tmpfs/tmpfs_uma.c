@@ -32,29 +32,17 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/tmpfs/tmpfs.h>
 
-uma_zone_t
-tmpfs_zone_create(char *name, int size, int align, struct tmpfs_mount *tmp)
-{
-	uma_zone_t z;
-	z = uma_zcreate(name, size, NULL, NULL, NULL, NULL, align, M_WAITOK);
-	return z;
-}
-
 void
-tmpfs_zone_destroy(uma_zone_t zone)
-{
-	uma_zdestroy(zone);
-}
-
-void
-tmpfs_str_zone_create(struct tmpfs_str_zone *tsz, struct tmpfs_mount *tmp)
+tmpfs_str_zone_create(struct tmpfs_str_zone *tsz)
 {
 	int i, len;
 
 	len = TMPFS_STRZONE_STARTLEN;
 	for (i = 0; i < TMPFS_STRZONE_ZONECOUNT; ++i) {
-		tsz->tsz_zone[i] = tmpfs_zone_create(
-					"TMPFS str", len, UMA_ALIGN_PTR, tmp);
+		tsz->tsz_zone[i] = uma_zcreate(
+					"TMPFS str", len, 
+					NULL, NULL, NULL, NULL,
+					UMA_ALIGN_PTR, 0);
 		len <<= 1;
 	}
 }
@@ -66,7 +54,7 @@ tmpfs_str_zone_destroy(struct tmpfs_str_zone *tsz)
 
 	len = TMPFS_STRZONE_STARTLEN;
 	for (i = 0; i < TMPFS_STRZONE_ZONECOUNT; ++i) {
-		tmpfs_zone_destroy(tsz->tsz_zone[i]);
+		uma_zdestroy(tsz->tsz_zone[i]);
 		len <<= 1;
 	}
 }

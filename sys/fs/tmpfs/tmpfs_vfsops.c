@@ -91,13 +91,13 @@ static const char *tmpfs_opts[] = {
 
 #define SWI_MAXMIB	3
 
-static int
+static u_int
 get_swpgtotal(void)
 {
 	struct xswdev xsd;
 	char *sname = "vm.swap_info";
 	int soid[SWI_MAXMIB], oid[2];
-	int unswdev, total, dmmax, nswapdev;
+	u_int unswdev, total, dmmax, nswapdev;
 	size_t mibi, len;
 
 	total = 0;
@@ -139,6 +139,60 @@ get_swpgtotal(void)
 }
 
 /* --------------------------------------------------------------------- */
+static int
+tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
+{
+	struct tmpfs_node *node = (struct tmpfs_node *)mem;
+	
+	if (node->tn_id == 0) {
+		/* if this node structure first time used */
+		struct tmpfs_mount *tmp = (struct tmpfs_mount *)arg;
+		TMPFS_LOCK(tmp);
+		node->tn_id = tmp->tm_nodes_last++;
+		TMPFS_UNLOCK(tmp);
+		node->tn_gen = arc4random();	
+	}
+	else {
+		node->tn_gen++;
+	}
+	
+	node->tn_size = 0;
+	node->tn_status = 0;
+	node->tn_flags = 0;
+	node->tn_links = 0;
+	node->tn_lockf = NULL;
+	node->tn_vnode = NULL;
+	node->tn_vpstate = 0;
+	node->tn_lookup_dirent = NULL;
+
+	return (0);
+}
+
+static void
+tmpfs_node_dtor(void *mem, int size, void *arg)
+{
+	struct tmpfs_node *node = (struct tmpfs_node *)mem;
+	node->tn_type = VNON;
+}
+
+static int 
+tmpfs_node_init(void *mem, int size, int flags)
+{
+	struct tmpfs_node *node = (struct tmpfs_node *)mem;
+	node->tn_id = 0;
+
+	mtx_init(&node->tn_interlock, "tmpfs node interlock", NULL, MTX_DEF);
+	
+	return (0);
+}
+
+static void
+tmpfs_node_fini(void *mem, int size)
+{
+	struct tmpfs_node *node = (struct tmpfs_node *)mem;
+	
+	mtx_destroy(&node->tn_interlock);
+}
 
 static int
 tmpfs_mount(struct mount *mp, struct thread *l)
@@ -208,21 +262,23 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	tmp->tm_nodes_inuse = 0;
 	tmp->tm_maxfilesize = get_swpgtotal() * PAGE_SIZE;
 	LIST_INIT(&tmp->tm_nodes_used);
-	LIST_INIT(&tmp->tm_nodes_avail);
-
+	
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
-	tmp->tm_dirent_pool = tmpfs_zone_create(
+	tmp->tm_dirent_pool = uma_zcreate(
 					"TMPFS dirent",
 					sizeof(struct tmpfs_dirent),
+					NULL, NULL, NULL, NULL,
 					UMA_ALIGN_PTR,
-	    				tmp);
-	tmp->tm_node_pool = tmpfs_zone_create(
+	    				0);
+	tmp->tm_node_pool = uma_zcreate(
 					"TMPFS node",
 					sizeof(struct tmpfs_node),
+					tmpfs_node_ctor, tmpfs_node_dtor,
+					tmpfs_node_init, tmpfs_node_fini,
 					UMA_ALIGN_PTR,
-					tmp);
-	tmpfs_str_zone_create(&tmp->tm_str_pool, tmp);
+					0);
+	tmpfs_str_zone_create(&tmp->tm_str_pool);
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(tmp, VDIR, args.ta_root_uid,
@@ -231,8 +287,8 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 
 	if (error != 0 || root == NULL) {
 	    tmpfs_str_zone_destroy(&tmp->tm_str_pool);
-	    tmpfs_zone_destroy(tmp->tm_node_pool);
-	    tmpfs_zone_destroy(tmp->tm_dirent_pool);
+	    uma_zdestroy(tmp->tm_node_pool);
+	    uma_zdestroy(tmp->tm_dirent_pool);
 	    free(tmp, M_TMPFSMNT);
 	    return error;
 	}
@@ -300,18 +356,9 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 		tmpfs_free_node(tmp, node);
 		node = next;
 	}
-	node = LIST_FIRST(&tmp->tm_nodes_avail);
-	while (node != NULL) {
-		struct tmpfs_node *next;
 
-		next = LIST_NEXT(node, tn_entries);
-		LIST_REMOVE(node, tn_entries);
-		tmpfs_zone_free(tmp->tm_node_pool, node);
-		node = next;
-	}
-
-	tmpfs_zone_destroy(tmp->tm_dirent_pool);
-	tmpfs_zone_destroy(tmp->tm_node_pool);
+	uma_zdestroy(tmp->tm_dirent_pool);
+	uma_zdestroy(tmp->tm_node_pool);
 	tmpfs_str_zone_destroy(&tmp->tm_str_pool);
 
 	mtx_destroy(&tmp->allnode_lock);
@@ -336,7 +383,7 @@ tmpfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, vpp, td);
 
 	if (!error)
-		(*vpp)->v_vflag = VV_ROOT;
+		(*vpp)->v_vflag |= VV_ROOT;
 
 	return error;
 }
