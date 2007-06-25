@@ -222,6 +222,10 @@ struct ata_connect_task {
 #define ATA_NFORCE_MCP55        0x036e10de
 #define ATA_NFORCE_MCP55_S1     0x037e10de
 #define ATA_NFORCE_MCP55_S2     0x037f10de
+#define ATA_NFORCE_MCP61        0x03ec10de
+#define ATA_NFORCE_MCP61_S1     0x03e710de
+#define ATA_NFORCE_MCP61_S2     0x03f610de
+#define ATA_NFORCE_MCP61_S3     0x03f710de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
