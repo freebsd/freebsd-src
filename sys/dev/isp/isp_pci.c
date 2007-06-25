@@ -2849,8 +2849,14 @@ mbxsync:
 	case RQSTYPE_T2RQS:
 		isp_put_request_t2(isp, (ispreqt2_t *) rq, (ispreqt2_t *) qep);
 		break;
-	case RQSTYPE_A64:
 	case RQSTYPE_T3RQS:
+		if (FCPARAM(isp)->isp_2klogin) {
+			isp_put_request_t3e(isp,
+			    (ispreqt3e_t *) rq, (ispreqt3e_t *) qep);
+			break;
+		}
+		/* FALLTHROUGH */
+	case RQSTYPE_A64:
 		isp_put_request_t3(isp, (ispreqt3_t *) rq, (ispreqt3_t *) qep);
 		break;
 	case RQSTYPE_T7RQS:
