@@ -38,7 +38,7 @@ DGEN=	conf \
 	dev dev/scsi \
 	fs fs/deadfs fs/fdescfs fs/fifofs \
 	fs/lofs fs/nullfs fs/portalfs fs/procfs \
-	fs/specfs fs/umapfs fs/unionfs \
+	fs/specfs fs/unionfs \
 	hp hp/dev hp/hpux \
 	kern libkern \
 	net netinet nfs scripts sys \

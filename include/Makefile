@@ -43,8 +43,7 @@ LSUBDIRS=	cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
-	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
-	fs/unionfs \
+	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/nop geom/raid3 geom/shsec geom/stripe \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \

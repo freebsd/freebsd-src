@@ -113,7 +113,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
-	mount_udf mount_umapfs mount_unionfs newfs		\
+	mount_udf mount_unionfs newfs		\
 	newfs_msdos nos-tun ping reboot			\
 	restore rcorder route routed rtquery rtsol savecore 		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
