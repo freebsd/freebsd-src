@@ -535,7 +535,7 @@ systemCreateHoloshell(void)
 	    else {
 	        (void)waitpid(ehs_pid, &waitstatus, 0); /* we only wait for
 							   shell to finish 
-							   it serial mode
+							   in serial mode
 							   since there is no
 							   virtual console */
 	        systemResumeDialog();

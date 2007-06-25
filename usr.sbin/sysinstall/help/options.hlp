@@ -85,7 +85,7 @@ Editor:  Specify which screen editor to use.
    thrown unceremoniously into a screen editor.  A relatively
    simplistic editor which shows its command set on-screen is
    selected by default, but UNIX purists may wish to change this
-   setting to /usr/bin/vi
+   setting to `/usr/bin/vi'.
 
 
 Tape Blocksize:  Specify block size in 512 byte blocks of tape.
@@ -123,7 +123,7 @@ Install Root:  Specify some directory other than / as your "root".
     for some reason.
 
     Note:  If you set this option, you will only be able to install
-    packages if the bin distribution is also installed (usually
+    packages if the base distribution is also installed (usually
     the case anyway) since /usr/sbin/pkg_add will otherwise not be
     found after the chroot() call.
 
