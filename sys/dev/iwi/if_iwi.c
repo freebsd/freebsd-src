@@ -2630,6 +2630,7 @@ iwi_config(struct iwi_softc *sc)
 			return error;
 	}
 
+	memset(&rs, 0, sizeof rs);
 	rs.mode = IWI_MODE_11G;
 	rs.type = IWI_RATESET_TYPE_SUPPORTED;
 	rs.nrates = ic->ic_sup_rates[IEEE80211_MODE_11G].rs_nrates;
@@ -2640,6 +2641,7 @@ iwi_config(struct iwi_softc *sc)
 	if (error != 0)
 		return error;
 
+	memset(&rs, 0, sizeof rs);
 	rs.mode = IWI_MODE_11A;
 	rs.type = IWI_RATESET_TYPE_SUPPORTED;
 	rs.nrates = ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates;
@@ -2866,7 +2868,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	struct iwi_associate *assoc = &sc->assoc;
 	struct iwi_rateset rs;
 	uint16_t capinfo;
-	int error;
+	int error, mode;
 
 	IWI_LOCK_ASSERT(sc);
 
@@ -2877,12 +2879,22 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 
 	IWI_STATE_BEGIN(sc, IWI_FW_ASSOCIATING);
 	error = 0;
+	mode = 0;
+
+	if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
+		mode = IWI_MODE_11A;
+	else if (IEEE80211_IS_CHAN_G(ic->ic_curchan))
+		mode = IWI_MODE_11G;
+	if (IEEE80211_IS_CHAN_B(ic->ic_curchan))
+		mode = IWI_MODE_11B;
+
 	if (IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan)) {
 		memset(&config, 0, sizeof config);
 		config.bluetooth_coexistence = sc->bluetooth;
 		config.antenna = sc->antenna;
 		config.multicast_enabled = 1;
-		config.use_protection = 1;
+		if (mode == IWI_MODE_11G)
+			config.use_protection = 1;
 		config.answer_pbreq =
 		    (ic->ic_opmode == IEEE80211_M_IBSS) ? 1 : 0;
 		config.disable_unicast_decryption = 1;
@@ -2905,13 +2917,8 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 		goto done;
 
 	/* the rate set has already been "negotiated" */
-	if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
-		rs.mode = IWI_MODE_11A;
-	else if (IEEE80211_IS_CHAN_G(ic->ic_curchan))
-		rs.mode = IWI_MODE_11G;
-	if (IEEE80211_IS_CHAN_B(ic->ic_curchan))
-		rs.mode = IWI_MODE_11B;
-
+	memset(&rs, 0, sizeof rs);
+	rs.mode = mode;
 	rs.type = IWI_RATESET_TYPE_NEGOTIATED;
 	rs.nrates = ni->ni_rates.rs_nrates;
 	if (rs.nrates > IWI_RATESET_SIZE) {
@@ -2946,13 +2953,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	if (error != 0)
 		goto done;
 
-	if (IEEE80211_IS_CHAN_A(ic->ic_curchan))
-		assoc->mode = IWI_MODE_11A;
-	else if (IEEE80211_IS_CHAN_G(ic->ic_curchan))
-		assoc->mode = IWI_MODE_11G;
-	else if (IEEE80211_IS_CHAN_B(ic->ic_curchan))
-		assoc->mode = IWI_MODE_11B;
-	
+	assoc->mode = mode;
 	assoc->chan = ic->ic_curchan->ic_ieee;
 	/*
 	 * NB: do not arrange for shared key auth w/o privacy
