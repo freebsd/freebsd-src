@@ -141,6 +141,7 @@ ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
 rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
 sanpei [label="MIHIRA Sanpei Yoshiro\nsanpei@FreeBSD.org\n2000/06/19"]
+scf [label="Sean C. Farley\nscf@FreeBSD.org\n2007/06/24"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 shiba [label="Takeshi Shibagaki\nshiba@FreeBSD.org\n2000/06/19"]
@@ -354,6 +355,8 @@ shin -> ume
 ume -> jinmei
 ume -> suz
 ume -> tshiozak
+
+wes -> scf
 
 wollman -> gad
 
