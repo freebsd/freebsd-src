@@ -7,7 +7,6 @@ tests+=	t_mkdir
 tests+=	t_vnode_leak
 tests+=	t_setattr
 tests+=	t_rmdir
-tests+=	t_id_gen
 tests+=	t_trail_slash
 tests+=	t_dots
 tests+=	t_create
