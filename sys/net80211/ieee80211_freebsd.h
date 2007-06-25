@@ -177,7 +177,7 @@ int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 struct ifqueue;
 void	ieee80211_drain_ifq(struct ifqueue *);
 
-#define	msecs_to_ticks(ms)	((ms)*1000/hz)
+#define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
 #define time_after(a,b) 	((long)(b) - (long)(a) < 0)
 #define time_before(a,b)	time_after(b,a)
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)
