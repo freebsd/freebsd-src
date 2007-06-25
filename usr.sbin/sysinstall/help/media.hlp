@@ -1,8 +1,8 @@
 You can install from the following types of media:
 
    CDROM    requires one of the following supported CDROM drives:
-            ATAPI - Any standard ATAPI CDROM driver hooked to
-	    a supported controller <see Hardware Guide).
+            ATAPI - Any standard ATAPI CDROM drive hooked to
+	    a supported controller (see Hardware Guide).
             SCSI - Any standard SCSI CDROM drive hooked to
             a supported controller (see Hardware Guide).
 

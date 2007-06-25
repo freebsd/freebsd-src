@@ -15,16 +15,16 @@ The current "canned" installations are provided:
 
 All:            The base distribution, man pages, dictionary files,
                 profiling libraries, the FreeBSD compatibility libraries,
-                the complete source tree, games and your choice of XFree86
+                the complete source tree, games and your choice of Xorg
                 distribution components.
 
-Developer:      Base ("bin") distribution, man pages, dictionary
-                files, profiling libraries and the complete source tree.
+Developer:      Base distribution, man pages, dictionary files,
+                profiling libraries and the complete source tree.
 
 Kern-Developer: As Developer, but with only kernel sources instead of
                 the complete source tree.
 
-User:           The base distribution, man pages, and dictionary files.
+User:           The base distribution, man pages and dictionary files.
 
 Minimal:        Only the base distribution.
 
