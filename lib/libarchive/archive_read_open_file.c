@@ -51,6 +51,7 @@ struct read_FILE_data {
 	FILE    *f;
 	size_t	 block_size;
 	void	*buffer;
+	char	 can_skip;
 };
 
 static int	file_close(struct archive *, void *);
@@ -80,6 +81,8 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 		return (ARCHIVE_FATAL);
 	}
 	mine->f = f;
+	/* Suppress skip by default. See below. */
+	mine->can_skip = 0;
 	return (archive_read_open2(a, mine, file_open, file_read,
 		    file_skip, file_close));
 }
@@ -95,8 +98,11 @@ file_open(struct archive *a, void *client_data)
 	 * it's not a file.  (FILE * objects can wrap many kinds
 	 * of I/O streams.)
 	 */
-	if (fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode))
+	if (fstat(fileno(mine->f), &st) == 0 && S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+		/* Enable the seek optimization for regular files. */
+		mine->can_skip = 1;
+	}
 
 	return (ARCHIVE_OK);
 }
@@ -125,21 +131,25 @@ file_skip(struct archive *a, void *client_data, off_t request)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 
+	(void)a; /* UNUSED */
+
 	/*
-	 * Note: the 'fd' and 'filename' versions round the request
-	 * down to a multiple of the block size to ensure proper
-	 * operation on block-oriented media such as tapes.  But stdio
-	 * doesn't work with such media (it doesn't ensure blocking),
-	 * so we don't need to bother.
+	 * If we can't skip, return 0 as the amount we did step and
+	 * the caller will work around by reading and discarding.
 	 */
+	if (!mine->can_skip)
+		return (0);
+	if (request == 0)
+		return (0);
+
 #if HAVE_FSEEKO
 	if (fseeko(mine->f, request, SEEK_CUR) != 0)
 #else
 	if (fseek(mine->f, request, SEEK_CUR) != 0)
 #endif
 	{
-		archive_set_error(a, errno, "Error skipping forward");
-		return (ARCHIVE_FATAL);
+		mine->can_skip = 0;
+		return (0);
 	}
 	return (request);
 }
