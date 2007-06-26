@@ -214,7 +214,7 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 		if (len > (sizeof(buf) - sizeof(int))) {
 			/* Never enough memory */
 			errno = E2BIG;
-			return (-1)
+			return (-1);
 		}
 		at = (struct sockaddr *)((caddr_t)at + at->sa_len);
 		cnt++;
