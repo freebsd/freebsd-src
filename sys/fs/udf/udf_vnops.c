@@ -1064,20 +1064,22 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 		*size = max_size;
 	*size = min(*size, MAXBSIZE);
 
-	if ((error = udf_readlblks(udfmp, sector, *size, bp))) {
+	if ((error = udf_readlblks(udfmp, sector, *size + (offset & udfmp->bmask), bp))) {
 		printf("warning: udf_readlblks returned error %d\n", error);
 		/* note: *bp may be non-NULL */
 		return (error);
 	}
 
 	bp1 = *bp;
-	*data = (uint8_t *)&bp1->b_data[offset % udfmp->bsize];
+	*data = (uint8_t *)&bp1->b_data[offset & udfmp->bmask];
 	return (0);
 }
 
 /*
  * Translate a file offset into a logical block and then into a physical
  * block.
+ * max_size - maximum number of bytes that can be read starting from given
+ * offset, rather than beginning of calculated sector number
  */
 static int
 udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
@@ -1132,7 +1134,7 @@ udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
 		lsector = (offset  >> udfmp->bshift) +
 		    ((struct short_ad *)(icb))->pos;
 
-		*max_size = GETICBLEN(short_ad, icb);
+		*max_size = icblen - offset;
 
 		break;
 	case 1:
@@ -1157,7 +1159,7 @@ udf_bmap_internal(struct udf_node *node, off_t offset, daddr_t *sector,
 		lsector = (offset >> udfmp->bshift) +
 		    le32toh(((struct long_ad *)(icb))->loc.lb_num);
 
-		*max_size = GETICBLEN(long_ad, icb);
+		*max_size = icblen - offset;
 
 		break;
 	case 3:
