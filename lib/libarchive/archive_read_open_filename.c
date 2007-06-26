@@ -96,7 +96,8 @@ archive_read_open_filename(struct archive *a, const char *filename,
 	mine->block_size = block_size;
 	mine->buffer = NULL;
 	mine->fd = -1;
-	mine->can_skip = 1;
+	/* lseek() almost never works; disable it by default.  See below. */
+	mine->can_skip = 0;
 	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
 }
 
@@ -123,8 +124,19 @@ file_open(struct archive *a, void *client_data)
 	if (fstat(mine->fd, &st) == 0) {
 		/* If we're reading a file from disk, ensure that we don't
 		   overwrite it with an extracted file. */
-		if (S_ISREG(st.st_mode))
+		if (S_ISREG(st.st_mode)) {
 			archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+			/*
+			 * Enabling skip here is a performance
+			 * optimization for anything that supports
+			 * lseek().  On FreeBSD, only regular files
+			 * and raw disk devices support lseek() and
+			 * there's no portable way to determine if a
+			 * device is a raw disk device, so we only
+			 * enable this optimization for regular files.
+			 */
+			mine->can_skip = 1;
+		}
 		/* Remember mode so close can decide whether to flush. */
 		mine->st_mode = st.st_mode;
 	} else {
