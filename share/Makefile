@@ -25,7 +25,7 @@ SUBDIR=	${_colldef} \
 	tabset \
 	termcap \
 	${_timedef} \
-	zoneinfo
+	${_zoneinfo}
 
 .if ${MK_LOCALES} != "no"
 _colldef =	colldef
@@ -66,6 +66,10 @@ _sendmail=	 sendmail
 
 .if ${MK_SHAREDOCS} != "no"
 _doc=		doc
+.endif
+
+.if ${MK_ZONEINFO} != "no"
+_zoneinfo=	zoneinfo
 .endif
 
 .include <bsd.subdir.mk>
