@@ -1,4 +1,4 @@
-/*	$NetBSD: tmpfs_fifoops.h,v 1.3.2.2 2005/12/11 10:29:11 christos Exp $	*/
+/*	$NetBSD: tmpfs_fifoops.h,v 1.4 2005/12/03 17:34:44 christos Exp $	*/
 
 /*
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
