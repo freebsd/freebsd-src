@@ -916,6 +916,13 @@ stub_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
 }
 
 static int
+stub_check_proc_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+{
+
+	return (0);
+}
+
+static int
 stub_check_proc_setauid(struct ucred *cred, uid_t auid)
 {
 
@@ -1579,6 +1586,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_proc_debug = stub_check_proc_debug,
 	.mpo_check_proc_sched = stub_check_proc_sched,
 	.mpo_check_proc_setaudit = stub_check_proc_setaudit,
+	.mpo_check_proc_setaudit_addr = stub_check_proc_setaudit_addr,
 	.mpo_check_proc_setauid = stub_check_proc_setauid,
 	.mpo_check_proc_setuid = stub_check_proc_setuid,
 	.mpo_check_proc_seteuid = stub_check_proc_seteuid,

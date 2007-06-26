@@ -450,6 +450,8 @@ typedef int	(*mpo_check_proc_sched_t)(struct ucred *cred,
 		    struct proc *p);
 typedef int	(*mpo_check_proc_setaudit_t)(struct ucred *cred,
 		    struct auditinfo *ai);
+typedef int	(*mpo_check_proc_setaudit_addr_t)(struct ucred *cred,
+		    struct auditinfo_addr *aia);
 typedef int	(*mpo_check_proc_setauid_t)(struct ucred *cred, uid_t auid);
 typedef int	(*mpo_check_proc_setuid_t)(struct ucred *cred, uid_t uid);
 typedef int	(*mpo_check_proc_seteuid_t)(struct ucred *cred, uid_t euid);
@@ -826,6 +828,7 @@ struct mac_policy_ops {
 	mpo_check_proc_debug_t			mpo_check_proc_debug;
 	mpo_check_proc_sched_t			mpo_check_proc_sched;
 	mpo_check_proc_setaudit_t		mpo_check_proc_setaudit;
+	mpo_check_proc_setaudit_addr_t		mpo_check_proc_setaudit_addr;
 	mpo_check_proc_setauid_t		mpo_check_proc_setauid;
 	mpo_check_proc_setuid_t			mpo_check_proc_setuid;
 	mpo_check_proc_seteuid_t		mpo_check_proc_seteuid;
