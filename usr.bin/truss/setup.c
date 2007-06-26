@@ -197,7 +197,7 @@ waitevent(struct trussinfo *info)
 		info->pr_data = WEXITSTATUS(waitval);
 		return;
 	}
-	if (WIFSTOPPED(waitval) || (WIFSIGNALED(waitval))) {
+	if (WIFSTOPPED(waitval)) {
 		struct ptrace_lwpinfo lwpinfo;
 		ptrace(PT_LWPINFO, info->pid, (caddr_t)&lwpinfo, sizeof(lwpinfo));	
 		find_thread(info, lwpinfo.pl_lwpid);
@@ -212,5 +212,10 @@ waitevent(struct trussinfo *info)
 			pending_signal = info->pr_data;
 			break;
 		}
+	}
+	if (WIFSIGNALED(waitval)) {
+	        info->pr_why = S_EXIT;
+		info->pr_why = 0;
+                return;
 	}
 }
