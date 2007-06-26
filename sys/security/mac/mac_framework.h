@@ -51,6 +51,7 @@
 #endif
 
 struct auditinfo;
+struct auditinfo_addr;
 struct bpf_d;
 struct cdev;
 struct componentname;
@@ -297,6 +298,8 @@ int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *p);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *p);
 int	mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai);
+int	mac_check_proc_setaudit_addr(struct ucred *cred,
+	    struct auditinfo_addr *aia);
 int	mac_check_proc_setauid(struct ucred *cred, uid_t auid);
 int	mac_check_proc_setuid(struct proc *p,  struct ucred *cred,
 	    uid_t uid);
