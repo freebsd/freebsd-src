@@ -591,7 +591,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_check_proc_setaudit(oldcred, NULL);
+	error = mac_check_proc_setaudit_addr(oldcred, &aia);
 	if (error)
 		goto fail;
 #endif
