@@ -228,13 +228,6 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   fprintf(trussinfo->outfile, "\n");
 #endif
 
-  /*
-   * Some system calls should be printed out before they are done --
-   * execve() and exit(), for example, never return.  Possibly change
-   * this to work for any system call that doesn't have an OUT
-   * parameter?
-   */
-
   if (fsc.name && (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
 
     /* XXX
@@ -253,9 +246,6 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
             fsc.s_args[2] = NULL;
           }
     }
-
-    print_syscall(trussinfo, fsc.name, fsc.nargs, fsc.s_args);
-    fprintf(trussinfo->outfile, "\n");
   }
 
   return;
@@ -276,6 +266,9 @@ powerpc_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
   int i;
   int errorp;
   struct syscall *sc;
+
+  if (fsc.name == NULL)
+	return (-1);
 
   cpid = trussinfo->curthread->tid;
 
@@ -323,6 +316,12 @@ powerpc_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
       }
     }
   }
+
+  if (fsc.name != NULL &&
+      (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit"))) {
+	trussinfo->curthread->in_syscall = 1;
+  }
+
 
   /*
    * It would probably be a good idea to merge the error handling,
