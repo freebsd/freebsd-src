@@ -358,6 +358,7 @@ WITH_IDEA=
     TOOLCHAIN \
     USB \
     WPA_SUPPLICANT_EAPOL \
+    ZONEINFO \
     ZFS
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
