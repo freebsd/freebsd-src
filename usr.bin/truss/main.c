@@ -162,12 +162,11 @@ main(int ac, char **av)
 	int i;
 	char **command;
 	struct ex_types *funcs;
-	int sigexit, initial_open;
+	int initial_open;
 	char *fname;
 	struct trussinfo *trussinfo;
 	char *signame;
 
-	sigexit = 0;
 	fname = NULL;
 	initial_open = 1;
 
@@ -186,6 +185,11 @@ main(int ac, char **av)
 		switch (c) {
 		case 'p':	/* specified pid */
 			trussinfo->pid = atoi(optarg);
+			/* make sure i don't trace me */
+			if(trussinfo->pid == getpid()) {
+				fprintf(stderr, "attempt to grab self.\n");
+				exit(2);
+			}
 			break;
 		case 'f': /* Follow fork()'s */
 			trussinfo->flags |= FOLLOWFORKS;
@@ -352,15 +356,6 @@ START_TRACE:
 		}
 	} while (trussinfo->pr_why != S_EXIT);
 	fflush(trussinfo->outfile);
-	if (sigexit) {
-		struct rlimit rlp;
-
-		rlp.rlim_cur = 0;
-		rlp.rlim_max = 0;
-		setrlimit(RLIMIT_CORE, &rlp);
-		(void) signal(sigexit, SIG_DFL);
-		(void) kill(getpid(), sigexit);
-	}
 	
 	return (0);
 }
