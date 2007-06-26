@@ -40,10 +40,6 @@ struct tmpfs_str_zone {
 	uma_zone_t		tsz_zone[TMPFS_STRZONE_ZONECOUNT];
 };
 
-uma_zone_t	tmpfs_zone_create(char *name, int size, int align,
-		    struct tmpfs_mount *m);
-void		tmpfs_zone_destroy(uma_zone_t zone);
-
 void	tmpfs_str_zone_create(struct tmpfs_str_zone *); 
 void	tmpfs_str_zone_destroy(struct tmpfs_str_zone *);
 
