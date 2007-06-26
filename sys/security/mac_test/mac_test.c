@@ -1668,6 +1668,18 @@ mac_test_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
 	return (0);
 }
 
+COUNTER_DECL(check_proc_setaudit_addr);
+static int
+mac_test_check_proc_setaudit_addr(struct ucred *cred,
+    struct auditinfo_addr *aia)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(check_proc_setaudit_addr);
+
+	return (0);
+}
+
 COUNTER_DECL(check_proc_setauid);
 static int
 mac_test_check_proc_setauid(struct ucred *cred, uid_t auid)
@@ -2608,6 +2620,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_proc_debug = mac_test_check_proc_debug,
 	.mpo_check_proc_sched = mac_test_check_proc_sched,
 	.mpo_check_proc_setaudit = mac_test_check_proc_setaudit,
+	.mpo_check_proc_setaudit_addr = mac_test_check_proc_setaudit_addr,
 	.mpo_check_proc_setauid = mac_test_check_proc_setauid,
 	.mpo_check_proc_setuid = mac_test_check_proc_setuid,
 	.mpo_check_proc_seteuid = mac_test_check_proc_seteuid,

@@ -56,6 +56,16 @@ mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
 }
 
 int
+mac_check_proc_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+{
+	int error;
+
+	MAC_CHECK(check_proc_setaudit_addr, cred, aia);
+
+	return (error);
+}
+
+int
 mac_check_proc_setauid(struct ucred *cred, uid_t auid)
 {
 	int error;
