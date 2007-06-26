@@ -454,8 +454,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_SETIFFLAGS)) != 0)
 			break;
@@ -470,8 +470,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		goto recompute;
 	case SIOCSIFMTU:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_SETIFMTU)) != 0)
 			break;
@@ -486,8 +486,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCADDMULTI:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_checkr() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_ADDMULTI)) != 0)
 			break;
@@ -511,8 +511,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCDELMULTI:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_DELIFGROUP)) != 0)
 			break;
@@ -536,8 +536,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case GRESPROTO:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_GRE)) != 0)
 			break;
@@ -627,8 +627,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFPHYADDR:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
 			break;
@@ -647,8 +647,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		goto recompute;
 	case SIOCSLIFPHYADDR:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
 			break;
@@ -668,8 +668,8 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		goto recompute;
 	case SIOCDIFPHYADDR:
 		/*
-		 * XXXRW: Isn't this suser() redundant to the ifnet layer
-		 * check?
+		 * XXXRW: Isn't this priv_check() redundant to the ifnet
+		 * layer check?
 		 */
 		if ((error = priv_check(curthread, PRIV_NET_SETIFPHYS)) != 0)
 			break;
