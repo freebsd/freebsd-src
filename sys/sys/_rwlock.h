@@ -38,6 +38,7 @@
 struct rwlock {
 	struct lock_object	lock_object;
 	volatile uintptr_t	rw_lock;
+	volatile unsigned	rw_recurse;
 };
 
 #endif /* !_SYS__RWLOCK_H_ */
