@@ -164,9 +164,13 @@ prt(char *fmt, ...)
 
 	va_start(args, fmt);
 	vfprintf(stdout, fmt, args);
-	if (fsxlogf)
-		vfprintf(fsxlogf, fmt, args);
 	va_end(args);
+
+	if (fsxlogf) {
+		va_start(args, fmt);
+		vfprintf(fsxlogf, fmt, args);
+		va_end(args);
+	}
 }
 
 void
