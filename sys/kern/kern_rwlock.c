@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock_profile.h>
 #include <machine/cpu.h>
 
+CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
+
 #if defined(SMP) && !defined(NO_ADAPTIVE_RWLOCKS)
 #define	ADAPTIVE_RWLOCKS
 #endif
@@ -77,6 +79,17 @@ struct lock_class lock_class_rw = {
 #define	rw_wowner(rw)							\
 	((rw)->rw_lock & RW_LOCK_READ ? NULL :				\
 	    (struct thread *)RW_OWNER((rw)->rw_lock))
+
+/*
+ * Returns if a write owner is recursed.  Write ownership is not assured
+ * here and should be previously checked.
+ */
+#define	rw_recursed(rw)		((rw)->rw_recurse != 0)
+
+/*
+ * Return true if curthread helds the lock.
+ */
+#define	rw_wlocked(rw)		(rw_wowner((rw)) == curthread)
 
 /*
  * Return a pointer to the owning thread for this lock who should receive
@@ -118,13 +131,27 @@ unlock_rw(struct lock_object *lock)
 }
 
 void
-rw_init(struct rwlock *rw, const char *name)
+rw_init_flags(struct rwlock *rw, const char *name, int opts)
 {
+	int flags;
+
+	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
+	    RW_RECURSE)) == 0);
+
+	flags = LO_UPGRADABLE | LO_RECURSABLE;
+	if (opts & RW_DUPOK)
+		flags |= LO_DUPOK;
+	if (opts & RW_NOPROFILE)
+		flags |= LO_NOPROFILE;
+	if (!(opts & RW_NOWITNESS))
+		flags |= LO_WITNESS;
+	if (opts & RW_QUIET)
+		flags |= LO_QUIET;
+	flags |= opts & RW_RECURSE;
 
 	rw->rw_lock = RW_UNLOCKED;
-
-	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, LO_WITNESS |
-	    LO_RECURSABLE | LO_UPGRADABLE);
+	rw->rw_recurse = 0;
+	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 }
 
 void
@@ -132,6 +159,7 @@ rw_destroy(struct rwlock *rw)
 {
 
 	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
+	KASSERT(rw->rw_recurse == 0, ("rw lock still recursed"));
 	rw->rw_lock = RW_DESTROYED;
 	lock_destroy(&rw->lock_object);
 }
@@ -164,7 +192,7 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
 	__rw_wlock(rw, curthread, file, line);
-	LOCK_LOG_LOCK("WLOCK", &rw->lock_object, 0, 0, file, line);
+	LOCK_LOG_LOCK("WLOCK", &rw->lock_object, 0, rw->rw_recurse, file, line);
 	WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
 	curthread->td_locks++;
 }
@@ -179,8 +207,10 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 	_rw_assert(rw, RA_WLOCKED, file, line);
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
-	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, 0, file, line);
-	lock_profile_release_lock(&rw->lock_object);
+	LOCK_LOG_LOCK("WUNLOCK", &rw->lock_object, 0, rw->rw_recurse, file,
+	    line);
+	if (!rw_recursed(rw))
+		lock_profile_release_lock(&rw->lock_object);
 	__rw_wunlock(rw, curthread, file, line);
 }
 
@@ -466,6 +496,17 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 #endif
 	uintptr_t v;
 
+	if (rw_wlocked(rw)) {
+		KASSERT(rw->lock_object.lo_flags & RW_RECURSE,
+		    ("%s: recursing but non-recursive rw %s @ %s:%d\n",
+		    __func__, rw->lock_object.lo_name, file, line));
+		rw->rw_recurse++;
+		atomic_set_ptr(&rw->rw_lock, RW_LOCK_RECURSED);
+		if (LOCK_LOG_TEST(&rw->lock_object, 0))
+			CTR2(KTR_LOCK, "%s: %p recursing", __func__, rw);
+		return;
+	}
+
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
@@ -569,6 +610,14 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	struct turnstile *ts;
 	uintptr_t v;
 	int queue;
+
+	if (rw_wlocked(rw) && rw_recursed(rw)) {
+		if ((--rw->rw_recurse) == 0)
+			atomic_clear_ptr(&rw->rw_lock, RW_LOCK_RECURSED);
+		if (LOCK_LOG_TEST(&rw->lock_object, 0))
+			CTR2(KTR_LOCK, "%s: %p unrecursing", __func__, rw);
+		return;
+	}
 
 	KASSERT(rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS),
 	    ("%s: neither of the waiter flags are set", __func__));
@@ -732,7 +781,11 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_downgrade() of destroyed rwlock @ %s:%d", file, line));
-	_rw_assert(rw, RA_WLOCKED, file, line);
+	_rw_assert(rw, RA_WLOCKED | RA_NOTRECURSED, file, line);
+#ifndef INVARIANTS
+	if (rw_recursed(rw))
+		panic("downgrade of a recursed lock");
+#endif
 
 	WITNESS_DOWNGRADE(&rw->lock_object, 0, file, line);
 
@@ -809,7 +862,8 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		return;
 	switch (what) {
 	case RA_LOCKED:
-	case RA_LOCKED | LA_NOTRECURSED:
+	case RA_LOCKED | RA_RECURSED:
+	case RA_LOCKED | RA_NOTRECURSED:
 	case RA_RLOCKED:
 #ifdef WITNESS
 		witness_assert(&rw->lock_object, what, file, line);
@@ -825,11 +879,31 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 			panic("Lock %s not %slocked @ %s:%d\n",
 			    rw->lock_object.lo_name, (what == RA_RLOCKED) ?
 			    "read " : "", file, line);
+
+		if (!(rw->rw_lock & RW_LOCK_READ)) {
+			if (rw_recursed(rw)) {
+				if (what & RA_NOTRECURSED)
+					panic("Lock %s recursed @ %s:%d\n",
+					    rw->lock_object.lo_name, file,
+					    line);
+			} else if (what & RA_RECURSED)
+				panic("Lock %s not recursed @ %s:%d\n",
+				    rw->lock_object.lo_name, file, line);
+		}
 #endif
 		break;
 	case RA_WLOCKED:
+	case RA_WLOCKED | RA_RECURSED:
+	case RA_WLOCKED | RA_NOTRECURSED:
 		if (rw_wowner(rw) != curthread)
 			panic("Lock %s not exclusively locked @ %s:%d\n",
+			    rw->lock_object.lo_name, file, line);
+		if (rw_recursed(rw)) {
+			if (what & RA_NOTRECURSED)
+				panic("Lock %s recursed @ %s:%d\n",
+				    rw->lock_object.lo_name, file, line);
+		} else if (what & RA_RECURSED)
+			panic("Lock %s not recursed @ %s:%d\n",
 			    rw->lock_object.lo_name, file, line);
 		break;
 	case RA_UNLOCKED:
@@ -874,6 +948,8 @@ db_show_rwlock(struct lock_object *lock)
 		td = rw_wowner(rw);
 		db_printf("WLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
 		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
+		if (rw_recursed(rw))
+			db_printf(" recursed: %u\n", rw->rw_recurse);
 	}
 	db_printf(" waiters: ");
 	switch (rw->rw_lock & (RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS)) {
