@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 
 static int avg_depth;
@@ -308,8 +309,10 @@ softclock(void *dummy)
 					 * There is someone waiting
 					 * for the callout to complete.
 					 */
-					wakeup(&callout_wait);
 					callout_wait = 0;
+					mtx_unlock_spin(&callout_lock);
+					wakeup(&callout_wait);
+					mtx_lock_spin(&callout_lock);
 				}
 				steps = 0;
 				c = nextsoftcheck;
@@ -529,9 +532,38 @@ _callout_stop_safe(c, safe)
 			 * finish.
 			 */
 			while (c == curr_callout) {
+
+				/*
+				 * Use direct calls to sleepqueue interface
+				 * instead of cv/msleep in order to avoid
+				 * a LOR between callout_lock and sleepqueue
+				 * chain spinlocks.  This piece of code
+				 * emulates a msleep_spin() call actually.
+				 */
+				mtx_unlock_spin(&callout_lock);
+				sleepq_lock(&callout_wait);
+
+				/*
+				 * Check again the state of curr_callout
+				 * because curthread could have lost the
+				 * race previously won.
+				 */
+				mtx_lock_spin(&callout_lock);
+				if (c != curr_callout) {
+					sleepq_release(&callout_wait);
+					break;
+				}
 				callout_wait = 1;
-				msleep_spin(&callout_wait, &callout_lock,
-				    "codrain", 0);
+				DROP_GIANT();
+				mtx_unlock_spin(&callout_lock);
+				sleepq_add(&callout_wait,
+				    &callout_lock.lock_object, "codrain",
+				    SLEEPQ_SLEEP, 0);
+				sleepq_wait(&callout_wait);
+
+				/* Reacquire locks previously released. */
+				PICKUP_GIANT();
+				mtx_lock_spin(&callout_lock);
 			}
 		} else if (use_mtx && !curr_cancelled) {
 			/*
