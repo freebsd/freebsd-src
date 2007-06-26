@@ -65,11 +65,13 @@
 #define	RW_LOCK_READ		0x01
 #define	RW_LOCK_READ_WAITERS	0x02
 #define	RW_LOCK_WRITE_WAITERS	0x04
+#define	RW_LOCK_RECURSED	0x08
 #define	RW_LOCK_FLAGMASK						\
-	(RW_LOCK_READ | RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS)
+	(RW_LOCK_READ | RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS |	\
+	RW_LOCK_RECURSED)
 
 #define	RW_OWNER(x)		((x) & ~RW_LOCK_FLAGMASK)
-#define	RW_READERS_SHIFT	3
+#define	RW_READERS_SHIFT	4
 #define	RW_READERS(x)		(RW_OWNER((x)) >> RW_READERS_SHIFT)
 #define	RW_READERS_LOCK(x)	((x) << RW_READERS_SHIFT | RW_LOCK_READ)
 #define	RW_ONE_READER		(1 << RW_READERS_SHIFT)
@@ -124,7 +126,8 @@
  * be used instead.
  */
 
-void	rw_init(struct rwlock *rw, const char *name);
+#define	rw_init(rw, name)	rw_init_flags((rw), (name), 0)
+void	rw_init_flags(struct rwlock *rw, const char *name, int opts);
 void	rw_destroy(struct rwlock *rw);
 void	rw_sysinit(void *arg);
 int	rw_wowned(struct rwlock *rw);
@@ -185,6 +188,15 @@ struct rw_args {
 	    rw_destroy, (rw))
 
 /*
+ * Options passed to rw_init_flags().
+ */
+#define	RW_DUPOK	0x01
+#define	RW_NOPROFILE	0x02
+#define	RW_NOWITNESS	0x04
+#define	RW_QUIET	0x08
+#define	RW_RECURSE	0x10
+
+/*
  * The INVARIANTS-enabled rw_assert() functionality.
  *
  * The constants need to be defined for INVARIANT_SUPPORT infrastructure
@@ -196,6 +208,8 @@ struct rw_args {
 #define	RA_RLOCKED		LA_SLOCKED
 #define	RA_WLOCKED		LA_XLOCKED
 #define	RA_UNLOCKED		LA_UNLOCKED
+#define	RA_RECURSED		LA_RECURSED
+#define	RA_NOTRECURSED		LA_NOTRECURSED
 #endif
 
 #ifdef INVARIANTS
