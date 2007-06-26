@@ -2850,7 +2850,7 @@ mbxsync:
 		if (FCPARAM(isp)->isp_2klogin) {
 			isp_put_request_t2e(isp,
 			    (ispreqt2e_t *) rq, (ispreqt2e_t *) qep);
-		else {
+		} else {
 			isp_put_request_t2(isp,
 			    (ispreqt2_t *) rq, (ispreqt2_t *) qep);
 		}
