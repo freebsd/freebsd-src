@@ -68,37 +68,17 @@ not the thread's own, when there is no thread, when superuser
 powers should be extended to imprisoned roots, or when the credential
 to be checked is the real user rather than the effective user.
 .Pp
-By default, a process does not command superuser powers if it has
-been imprisoned by the
-.Xr jail 2
-system call.
-There are cases however where this is appropriate, and this can
-be done by passing
-.Dv SUSER_ALLOWJAIL
-in the
-.Fa flag
-argument to the
-.Fn suser_cred
-function.
-It is important to review carefully in each case that
-this does not weaken the prison.
-Generally, only where the action is protected by
-.Xr chroot 2
-implicit in the
-.Xr jail 2
-call should such powers be granted.
+Whether or not a privilege is permitted in a
+.Xr jail 8
+depends on logic in
+.Fn prison_priv_check .
 .Pp
-By default, the credential checked is the effective user.
-There are cases
-where it is instead necessary to check the real user (for example, when
-determining if resource limits should be applied), and this can be done
-by passing the
-.Dv SUSER_RUID
-flag in the
-.Fa flag
-argument to the
-.Fn suser_cred
-function.
+In general, privileges are assigned based on the effective user ID; in some
+cases, the real user ID may be used.
+.Pp
+The
+.Fa flags
+field is currently unused.
 .Pp
 The
 .Fn suser

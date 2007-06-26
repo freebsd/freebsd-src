@@ -57,9 +57,9 @@ policy or access control list.
 The caller identifies the desired privilege via the
 .Fa priv
 argument.
-Additional access control context may also be passed using the
-.Fa flags
-argument.
+The optional flags argument,
+.Fa flags ,
+is currently unused.
 .Ss Privilege Policies
 Privileges are typically granted based on one of two base system policies:
 the superuser policy, which grants privilege based on the effective (or
