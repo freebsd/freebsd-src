@@ -766,7 +766,7 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 		vn_lock(*vpp, flags, curthread);
 	}
 	ZFS_EXIT(zfsvfs);
-	return (0);
+	return (err);
 }
 
 static int
