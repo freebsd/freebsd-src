@@ -358,13 +358,13 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 {
 	token_t *t;
 	u_char *dptr = NULL;
-	u_int32_t type = AF_INET6;
+	u_int32_t type = AU_IPv6;
 
 	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 5 * sizeof(uint32_t));
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR_EX);
 	ADD_U_INT32(dptr, type);
-	ADD_MEM(dptr, internet_addr, 5 * sizeof(uint32_t));
+	ADD_MEM(dptr, internet_addr, 4 * sizeof(uint32_t));
 
 	return (t);
 }
