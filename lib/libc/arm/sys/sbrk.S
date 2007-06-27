@@ -35,7 +35,7 @@
 __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
-	.globl	_C_LABEL(end)
+	.globl	_C_LABEL(_end)
 
 #ifdef WEAK_ALIAS
 WEAK_ALIAS(sbrk, _sbrk)
@@ -46,7 +46,7 @@ WEAK_ALIAS(sbrk, _sbrk)
 	.globl	CURBRK
 	.type	CURBRK,#object
 CURBRK:
-	.word	_C_LABEL(end)
+	.word	_C_LABEL(_end)
 
 /*
  * Change the data segment size
