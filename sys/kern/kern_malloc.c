@@ -112,8 +112,8 @@ SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
 
 static struct malloc_type *kmemstatistics;
-static char *kmembase;
-static char *kmemlimit;
+static vm_offset_t kmembase;
+static vm_offset_t kmemlimit;
 static int kmemcount;
 
 #define KMEM_ZSHIFT	4
@@ -593,8 +593,8 @@ kmeminit(void *dummy)
 	 */
 	init_param3(vm_kmem_size / PAGE_SIZE);
 
-	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
-		(vm_offset_t *)&kmemlimit, vm_kmem_size);
+	kmem_map = kmem_suballoc(kernel_map, &kmembase, &kmemlimit,
+	    vm_kmem_size);
 	kmem_map->system_map = 1;
 
 #ifdef DEBUG_MEMGUARD
