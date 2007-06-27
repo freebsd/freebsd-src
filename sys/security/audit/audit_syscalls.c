@@ -503,13 +503,15 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
+	if (td->td_ucred->cr_audit.ai_termid.at_type == AU_IPv6)
+		return (E2BIG);
 	bzero(&ai, sizeof(ai));
 	ai.ai_auid = td->td_ucred->cr_audit.ai_auid;
 	ai.ai_mask = td->td_ucred->cr_audit.ai_mask;
 	ai.ai_asid = td->td_ucred->cr_audit.ai_asid;
 	ai.ai_termid.machine = td->td_ucred->cr_audit.ai_termid.at_addr[0];
 	ai.ai_termid.port = td->td_ucred->cr_audit.ai_termid.at_port;
-	return (copyout(&ai, uap->auditinfo, sizeof(&ai)));
+	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
 }
 
 /* ARGSUSED */
@@ -585,7 +587,10 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
-	/* XXXRW: Audit argument. */
+	audit_arg_auditinfo_addr(&aia);
+	if (aia.ai_termid.at_type != AU_IPv6 &&
+	    aia.ai_termid.at_type != AU_IPv4)
+		return (EINVAL);
 	newcred = crget();
 	PROC_LOCK(td->td_proc);	
 	oldcred = td->td_proc->p_ucred;

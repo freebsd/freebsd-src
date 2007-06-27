@@ -467,6 +467,28 @@ audit_arg_auditinfo(struct auditinfo *au_info)
 }
 
 void
+audit_arg_auditinfo_addr(struct auditinfo_addr *au_info)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_auid = au_info->ai_auid;
+	ar->k_ar.ar_arg_asid = au_info->ai_asid;
+	ar->k_ar.ar_arg_amask.am_success = au_info->ai_mask.am_success;
+	ar->k_ar.ar_arg_amask.am_failure = au_info->ai_mask.am_failure;
+	ar->k_ar.ar_arg_termid_addr.at_type = au_info->ai_termid.at_type;
+	ar->k_ar.ar_arg_termid_addr.at_port = au_info->ai_termid.at_port;
+	ar->k_ar.ar_arg_termid_addr.at_addr[0] = au_info->ai_termid.at_addr[0];
+	ar->k_ar.ar_arg_termid_addr.at_addr[1] = au_info->ai_termid.at_addr[1];
+	ar->k_ar.ar_arg_termid_addr.at_addr[2] = au_info->ai_termid.at_addr[2];
+	ar->k_ar.ar_arg_termid_addr.at_addr[3] = au_info->ai_termid.at_addr[3];
+	ARG_SET_VALID(ar, ARG_AUID | ARG_ASID | ARG_AMASK | ARG_TERMID_ADDR);
+}
+
+void
 audit_arg_text(char *text)
 {
 	struct kaudit_record *ar;

@@ -499,7 +499,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SETAUDIT:
-		if (ARG_IS_VALID(kar, ARG_AUID)) {
+		if (ARG_IS_VALID(kar, ARG_AUID) &&
+		    ARG_IS_VALID(kar, ARG_ASID) &&
+		    ARG_IS_VALID(kar, ARG_AMASK) &&
+		    ARG_IS_VALID(kar, ARG_TERMID)) {
 			tok = au_to_arg32(1, "setaudit:auid",
 			    ar->ar_arg_auid);
 			kau_write(rec, tok);
@@ -522,7 +525,37 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SETAUDIT_ADDR:
-		break;		/* XXX need to add arguments */
+		if (ARG_IS_VALID(kar, ARG_AUID) &&
+		    ARG_IS_VALID(kar, ARG_ASID) &&
+		    ARG_IS_VALID(kar, ARG_AMASK) &&
+		    ARG_IS_VALID(kar, ARG_TERMID_ADDR)) {
+			tok = au_to_arg32(1, "setaudit_addr:auid",
+			    ar->ar_arg_auid);
+			kau_write(rec, tok);
+			tok = au_to_arg32(1, "setaudit_addr:as_success",
+			    ar->ar_arg_amask.am_success);
+			kau_write(rec, tok);
+			tok = au_to_arg32(1, "setaudit_addr:as_failure",
+			    ar->ar_arg_amask.am_failure);
+			kau_write(rec, tok);
+			tok = au_to_arg32(1, "setaudit_addr:asid",
+			    ar->ar_arg_asid);
+			kau_write(rec, tok);
+			tok = au_to_arg32(1, "setaudit_addr:type",
+			    ar->ar_arg_termid_addr.at_type);
+			kau_write(rec, tok);
+			tok = au_to_arg32(1, "setaudit_addr:port",
+			    ar->ar_arg_termid_addr.at_port);
+			kau_write(rec, tok);
+			if (ar->ar_arg_termid_addr.at_type == AU_IPv6)
+				tok = au_to_in_addr_ex((struct in6_addr *)
+				    &ar->ar_arg_termid_addr.at_addr[0]);
+			if (ar->ar_arg_termid_addr.at_type == AU_IPv4)
+				tok = au_to_in_addr((struct in_addr *)
+				    &ar->ar_arg_termid_addr.at_addr[0]);
+			kau_write(rec, tok);
+		}
+		break;
 
 	case AUE_AUDITON:
 		/*
