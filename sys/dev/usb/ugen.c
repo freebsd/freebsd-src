@@ -714,11 +714,16 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 			}
 			sce->state |= UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: sleep on %p\n", sce));
-			error = tsleep(sce, PZERO | PCATCH, "ugenri", 0);
+			error = tsleep(sce, PZERO | PCATCH, "ugenri",
+			    sce->timeout);
 			sce->state &= ~UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: woke, error=%d\n", error));
 			if (sc->sc_dying)
 				error = EIO;
+			if (error == EAGAIN) {
+				error = 0;	/* timeout, return 0 bytes */
+				break;
+			}
 			if (error)
 				break;
 		}
@@ -779,17 +784,22 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 			}
 			sce->state |= UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: sleep on %p\n", sce));
-			error = tsleep(sce, PZERO | PCATCH, "ugenri", 0);
+			error = tsleep(sce, PZERO | PCATCH, "ugenri",
+			    sce->timeout);
 			sce->state &= ~UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: woke, error=%d\n", error));
 			if (sc->sc_dying)
 				error = EIO;
+			if (error == EAGAIN) {
+				error = 0;	/* timeout, return 0 bytes */
+				break;
+			}
 			if (error)
 				break;
 		}
 
 		while (sce->cur != sce->fill && uio->uio_resid > 0 && !error) {
-			if(sce->fill > sce->cur)
+			if (sce->fill > sce->cur)
 				n = min(sce->fill - sce->cur, uio->uio_resid);
 			else
 				n = min(sce->limit - sce->cur, uio->uio_resid);
