@@ -116,7 +116,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	nnode->tn_uid = uid;
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
-	
+
 	/* Type-specific initialization. */
 	switch (nnode->tn_type) {
 	case VBLK:
@@ -152,7 +152,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	case VREG:
-		nnode->tn_reg.tn_aobj = 
+		nnode->tn_reg.tn_aobj =
 		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0);
 		nnode->tn_reg.tn_aobj_pages = 0;
 		break;
@@ -328,7 +328,7 @@ loop:
 	if (node->tn_vnode != NULL) {
 		vp = node->tn_vnode;
 		vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		
+
 		/*
 		 * Make sure the vnode is still there after
 		 * getting the interlock to avoid racing a free.
@@ -409,14 +409,14 @@ unlock:
 	MPASS(node->tn_vpstate & TMPFS_VNODE_ALLOCATING);
 	TMPFS_NODE_LOCK(node);
 	node->tn_vpstate &= ~TMPFS_VNODE_ALLOCATING;
-	
+
 	if (node->tn_vpstate & TMPFS_VNODE_WANT) {
 		node->tn_vpstate &= ~TMPFS_VNODE_WANT;
 		TMPFS_NODE_UNLOCK(node);
 		wakeup((caddr_t) &node->tn_vpstate);
 	} else
 		TMPFS_NODE_UNLOCK(node);
-	
+
 out:
 	*vpp = vp;
 
@@ -597,7 +597,7 @@ tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
 		}
 	}
 	node->tn_status |= TMPFS_NODE_ACCESSED;
-	
+
 	return found ? de : NULL;
 }
 
@@ -875,7 +875,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 
 		if (newpages < oldpages) {
 			VM_OBJECT_LOCK(uobj);
-			swap_pager_freespace(uobj, 
+			swap_pager_freespace(uobj,
 						newpages, oldpages - newpages);
 			VM_OBJECT_UNLOCK(uobj);
 		}
@@ -885,9 +885,9 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 		 */
 
 		 if (zerolen > 0) {
-			m = vm_page_grab(uobj, OFF_TO_IDX(newsize), 
+			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
 					VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-			pmap_zero_page_area(m, PAGE_SIZE - zerolen, 
+			pmap_zero_page_area(m, PAGE_SIZE - zerolen,
 				zerolen);
 			vm_page_wakeup(m);
 		 }
@@ -1068,7 +1068,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 * group of which we are not a member, the caller must have
 	 * privilege.
 	 */
-	if ((uid != node->tn_uid || 
+	if ((uid != node->tn_uid ||
 	    (gid != node->tn_gid && !groupmember(gid, cred))) &&
 	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
 		return (error);
@@ -1178,7 +1178,7 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 	 * several other file systems.  Shouldn't this be centralized
 	 * somewhere? */
 	if (cred->cr_uid != node->tn_uid &&
-	    (error = suser_cred(cred, 0)) && 
+	    (error = suser_cred(cred, 0)) &&
 	      ((vaflags & VA_UTIMES_NULL) == 0 ||
 	      (error = VOP_ACCESS(vp, VWRITE, cred, l))))
 		return error;
@@ -1191,9 +1191,9 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 
 	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
-	
+
 	tmpfs_itimes(vp, atime, mtime);
-	
+
 	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
 		node->tn_birthtime = *birthtime;
 	MPASS(VOP_ISLOCKED(vp, l));

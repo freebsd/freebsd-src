@@ -68,13 +68,13 @@ tmpfs_fifo_kqfilter(struct vop_kqfilter_args *ap)
 
 	switch (ap->a_kn->kn_filter){
 	case EVFILT_READ:
-		node->tn_status |= TMPFS_NODE_ACCESSED;		
+		node->tn_status |= TMPFS_NODE_ACCESSED;
 		break;
 	case EVFILT_WRITE:
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 		break;
 	}
-	
+
 	return fifo_specops.vop_kqfilter(ap);
 }
 
@@ -86,7 +86,7 @@ tmpfs_fifo_close(struct vop_close_args *v)
 	struct tmpfs_node *node;
 	node = VP_TO_TMPFS_NODE(v->a_vp);
 	node->tn_status |= TMPFS_NODE_ACCESSED;
-	
+
 	tmpfs_update(v->a_vp);
 	return fifo_specops.vop_close(v);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Rohit Jalan (rohitj@purpe.com) 
+ * Copyright (c) 2007 Rohit Jalan (rohitj@purpe.com)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,7 @@ struct tmpfs_str_zone {
 	uma_zone_t		tsz_zone[TMPFS_STRZONE_ZONECOUNT];
 };
 
-void	tmpfs_str_zone_create(struct tmpfs_str_zone *); 
+void	tmpfs_str_zone_create(struct tmpfs_str_zone *);
 void	tmpfs_str_zone_destroy(struct tmpfs_str_zone *);
 
 static __inline char*
