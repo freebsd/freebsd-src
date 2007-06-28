@@ -132,11 +132,11 @@ static const struct umodem_product {
 
 /*
  * These are the maximum number of bytes transferred per frame.
- * If some really high speed devices should use this driver they
- * may need to be increased, but this is good enough for normal modems.
+ * As speeds for umodem deivces increase, these numbers will need to
+ * be increased.  They should be good for G3 speeds and below.
  */
-#define UMODEMIBUFSIZE 64
-#define UMODEMOBUFSIZE 256
+#define UMODEMIBUFSIZE 1024
+#define UMODEMOBUFSIZE 1024
 
 #define UMODEM_MODVER			1	/* module version */
 
