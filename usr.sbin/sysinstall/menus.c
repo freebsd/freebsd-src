@@ -1066,6 +1066,8 @@ DMenu MenuSrcDistributions = {
 	NULL,		clearSrc, NULL, NULL, ' ', ' ', ' ' },
       { " base",	"top-level files in /usr/src",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
+      { " cddl",	"/usr/src/cddl (software from Sun)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CDDL },
       { " contrib",	"/usr/src/contrib (contributed software)",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
       { " crypto",	"/usr/src/crypto (contrib encryption sources)",
