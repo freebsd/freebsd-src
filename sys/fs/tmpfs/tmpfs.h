@@ -299,7 +299,7 @@ struct tmpfs_mount {
 
 	/* maximum representable file size */
 	u_int64_t		tm_maxfilesize;
-	
+
 	/* Nodes are organized in two different lists.  The used list
 	 * contains all nodes that are currently used by the file system;
 	 * i.e., they refer to existing files.  The available list contains
@@ -375,7 +375,7 @@ int	tmpfs_chmod(struct vnode *, mode_t, struct ucred *, struct thread *);
 int	tmpfs_chown(struct vnode *, uid_t, gid_t, struct ucred *,
 	    struct thread *);
 int	tmpfs_chsize(struct vnode *, u_quad_t, struct ucred *, struct thread *);
-int	tmpfs_chtimes(struct vnode *, struct timespec *, struct timespec *, 
+int	tmpfs_chtimes(struct vnode *, struct timespec *, struct timespec *,
 	    struct timespec *, int, struct ucred *, struct thread *);
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
@@ -428,7 +428,7 @@ int	tmpfs_truncate(struct vnode *, off_t);
  * Returns information about the number of available memory pages,
  * including physical and virtual ones.
  *
- * If 'total' is TRUE, the value returned is the total amount of memory 
+ * If 'total' is TRUE, the value returned is the total amount of memory
  * pages configured for the system (either in use or free).
  * If it is FALSE, the value returned is the amount of free memory pages.
  *
@@ -462,7 +462,7 @@ TMPFS_PAGES_MAX(struct tmpfs_mount *tmp)
 	size_t freepages;
 
 	freepages = tmpfs_mem_info();
-	freepages -= freepages < TMPFS_PAGES_RESERVED ? 
+	freepages -= freepages < TMPFS_PAGES_RESERVED ?
 	    freepages : TMPFS_PAGES_RESERVED;
 
 	return MIN(tmp->tm_pages_max, freepages + tmp->tm_pages_used);
