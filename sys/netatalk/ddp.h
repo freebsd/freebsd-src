@@ -64,7 +64,7 @@ struct elaphdr {
 	u_char	el_dnode;
 	u_char	el_snode;
 	u_char	el_type;
-};
+} __packed;
 
 #define	SZ_ELAPHDR	3
 
@@ -90,7 +90,7 @@ struct ddpehdr {
 			unsigned	dub_hops:4;
 			unsigned	dub_pad:2;
 #endif
-		} du_bits;
+		} __packed du_bits;
 		unsigned	du_bytes;
 	} deh_u;
 	u_short	deh_dnet;
@@ -99,7 +99,7 @@ struct ddpehdr {
 	u_char	deh_snode;
 	u_char	deh_dport;
 	u_char	deh_sport;
-};
+} __packed;
 #define	deh_pad		deh_u.du_bits.dub_pad
 #define	deh_hops	deh_u.du_bits.dub_hops
 #define	deh_len		deh_u.du_bits.dub_len
@@ -123,10 +123,11 @@ struct ddpshdr {
 			unsigned	dub_len:10;
 			unsigned	dub_pad:6;
 #endif
-		} du_bits;
+		} __packed du_bits;
 		unsigned	du_bytes;
 	} dsh_u;
-};
+} __packed;
+
 #define	dsh_pad		dsh_u.du_bits.dub_pad
 #define	dsh_len		dsh_u.du_bits.dub_len
 #define	dsh_dport	dsh_u.du_bits.dub_dport

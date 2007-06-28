@@ -42,7 +42,7 @@ union aapa {
 		u_char an_zero;
 		u_char an_net[2];
 		u_char an_node;
-	} ap_node;
+	} __packed ap_node;
 };
 
 struct ether_aarp {
@@ -51,7 +51,8 @@ struct ether_aarp {
 	union aapa aarp_spu;
 	u_char aarp_tha[6];
 	union aapa aarp_tpu;
-};
+} __packed;
+
 #define	aarp_hrd	eaa_hdr.ar_hrd
 #define	aarp_pro	eaa_hdr.ar_pro
 #define	aarp_hln	eaa_hdr.ar_hln
