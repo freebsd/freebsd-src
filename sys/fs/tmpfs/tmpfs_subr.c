@@ -1,4 +1,4 @@
-/*	$NetBSD: tmpfs_subr.c,v 1.17 2005/12/11 12:24:29 christos Exp $	*/
+/*	$NetBSD: tmpfs_subr.c,v 1.21 2006/06/07 22:33:39 kardel Exp $	*/
 
 /*
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
@@ -110,7 +110,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
-	nanotime(&nnode->tn_atime);
+	vfs_timestamp(&nnode->tn_atime);
 	nnode->tn_birthtime = nnode->tn_ctime = nnode->tn_mtime =
 	    nnode->tn_atime;
 	nnode->tn_uid = uid;
@@ -414,8 +414,7 @@ unlock:
 		node->tn_vpstate &= ~TMPFS_VNODE_WANT;
 		TMPFS_NODE_UNLOCK(node);
 		wakeup((caddr_t) &node->tn_vpstate);
-	}
-	else
+	} else
 		TMPFS_NODE_UNLOCK(node);
 	
 out:
