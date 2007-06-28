@@ -457,6 +457,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * iRiver U10 MP3 player
+		 * PR: usb/92306
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "iriver", "U10*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * X-Micro Flash Disk
 		 * PR: usb/96901
 		 */
