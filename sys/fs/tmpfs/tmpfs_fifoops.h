@@ -56,8 +56,5 @@
 
 extern struct vop_vector tmpfs_fifoop_entries;
 
-vop_close_t	tmpfs_fifo_close;
-vop_kqfilter_t tmpfs_fifo_kqfilter;
-
 /* --------------------------------------------------------------------- */
 #endif /* _FS_TMPFS_TMPFS_FIFOOPS_H_ */
