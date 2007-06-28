@@ -42,9 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/systm.h>
 
+#include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/vm86.h>
 
@@ -70,6 +73,8 @@ struct smist_softc {
 	int			 flags;
 	struct cf_setting	 sets[2];	/* Only two settings. */
 };
+
+static char smist_magic[] = "Copyright (c) 1999 Intel Corporation";
 
 static void	smist_identify(driver_t *driver, device_t parent);
 static int	smist_probe(device_t dev);
@@ -147,34 +152,84 @@ int15_gsic_call(int *sig, int *smi_cmd, int *command, int *smi_data, int *flags)
 	return (0);
 }
 
-static int
-set_ownership(device_t dev)
+/* Temporary structure to hold mapped page and status. */
+struct set_ownership_data {
+	int	smi_cmd;
+	int	command;
+	int	result;
+	void	*buf;
+};
+
+/* Perform actual SMI call to enable SpeedStep. */
+static void
+set_ownership_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	int result;
-	struct smist_softc *sc;
-	vm_paddr_t pmagic;
-	static char magic[] = "Copyright (c) 1999 Intel Corporation";
+	struct set_ownership_data *data;
 
-	sc = device_get_softc(dev);
-	if (!sc)
-		return (ENXIO);
+	data = arg;
+	if (error) {
+		data->result = error;
+		return;
+	}
 
-	pmagic = vtophys(magic);
-
+	/* Copy in the magic string and send it by writing to the SMI port. */
+	strlcpy(data->buf, smist_magic, PAGE_SIZE);
 	__asm __volatile(
 	    "movl $-1, %%edi\n\t"
 	    "out %%al, (%%dx)\n"
-	    : "=D" (result)
-	    : "a" (sc->command),
+	    : "=D" (data->result)
+	    : "a" (data->command),
 	      "b" (0),
 	      "c" (0),
-	      "d" (sc->smi_cmd),
-	      "S" (pmagic)
+	      "d" (data->smi_cmd),
+	      "S" ((uint32_t)segs[0].ds_addr)
 	);
+}
 
-	DPRINT(dev, "taking ownership over BIOS return %d\n", result);
+static int
+set_ownership(device_t dev)
+{
+	struct smist_softc *sc;
+	struct set_ownership_data cb_data;
+	bus_dma_tag_t tag;
+	bus_dmamap_t map;
 
-	return (result ? ENXIO : 0);
+	/*
+	 * Specify the region to store the magic string.  Since its address is
+	 * passed to the BIOS in a 32-bit register, we have to make sure it is
+	 * located in a physical page below 4 GB (i.e., for PAE.)
+	 */
+	sc = device_get_softc(dev);
+	if (bus_dma_tag_create(/*parent*/ NULL,
+	    /*alignment*/ PAGE_SIZE, /*no boundary*/ 0,
+	    /*lowaddr*/ BUS_SPACE_MAXADDR_32BIT, /*highaddr*/ BUS_SPACE_MAXADDR,
+	    NULL, NULL, /*maxsize*/ PAGE_SIZE, /*segments*/ 1,
+	    /*maxsegsize*/ PAGE_SIZE, 0, busdma_lock_mutex, &Giant,
+	    &tag) != 0) {
+		device_printf(dev, "can't create mem tag\n");
+		return (ENXIO);
+	}
+	if (bus_dmamem_alloc(tag, &cb_data.buf, BUS_DMA_NOWAIT, &map) != 0) {
+		bus_dma_tag_destroy(tag);
+		device_printf(dev, "can't alloc mapped mem\n");
+		return (ENXIO);
+	}
+
+	/* Load the physical page map and take ownership in the callback. */
+	cb_data.smi_cmd = sc->smi_cmd;
+	cb_data.command = sc->command;
+	if (bus_dmamap_load(tag, map, cb_data.buf, PAGE_SIZE, set_ownership_cb,
+	    &cb_data, BUS_DMA_NOWAIT) != 0) {
+		bus_dmamem_free(tag, cb_data.buf, map);
+		bus_dma_tag_destroy(tag);
+		device_printf(dev, "can't load mem\n");
+		return (ENXIO);
+	};
+	DPRINT(dev, "taking ownership over BIOS return %d\n", cb_data.result);
+	bus_dmamap_unload(tag, map);
+	bus_dmamem_free(tag, cb_data.buf, map);
+	bus_dma_tag_destroy(tag);
+	return (cb_data.result ? ENXIO : 0);
 }
 
 static int
