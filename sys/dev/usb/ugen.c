@@ -715,7 +715,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 			sce->state |= UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: sleep on %p\n", sce));
 			error = tsleep(sce, PZERO | PCATCH, "ugenri",
-			    sce->timeout);
+			    (sce->timeout * hz + 999) / 1000);
 			sce->state &= ~UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: woke, error=%d\n", error));
 			if (sc->sc_dying)
@@ -785,7 +785,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 			sce->state |= UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: sleep on %p\n", sce));
 			error = tsleep(sce, PZERO | PCATCH, "ugenri",
-			    sce->timeout);
+			    (sce->timeout * hz + 999) / 1000);
 			sce->state &= ~UGEN_ASLP;
 			DPRINTFN(5, ("ugenread: woke, error=%d\n", error));
 			if (sc->sc_dying)
