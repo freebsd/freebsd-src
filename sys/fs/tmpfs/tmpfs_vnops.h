@@ -54,31 +54,10 @@
 
 extern struct vop_vector tmpfs_vnodeop_entries;
 
-vop_cachedlookup_t tmpfs_lookup;
-vop_create_t	tmpfs_create;
-vop_mknod_t	tmpfs_mknod;
-vop_open_t	tmpfs_open;
-vop_close_t	tmpfs_close;
 vop_access_t	tmpfs_access;
 vop_getattr_t	tmpfs_getattr;
 vop_setattr_t	tmpfs_setattr;
-vop_read_t	tmpfs_read;
-vop_write_t	tmpfs_write;
-vop_fsync_t	tmpfs_fsync;
-vop_remove_t	tmpfs_remove;
-vop_link_t	tmpfs_link;
-vop_rename_t	tmpfs_rename;
-vop_mkdir_t	tmpfs_mkdir;
-vop_rmdir_t	tmpfs_rmdir;
-vop_symlink_t	tmpfs_symlink;
-vop_readdir_t	tmpfs_readdir;
-vop_readlink_t	tmpfs_readlink;
-vop_inactive_t	tmpfs_inactive;
 vop_reclaim_t	tmpfs_reclaim;
-vop_print_t	tmpfs_print;
-vop_pathconf_t	tmpfs_pathconf;
-vop_advlock_t	tmpfs_advlock;
-vop_vptofh_t	tmpfs_vptofh;
 
 /* --------------------------------------------------------------------- */
 
