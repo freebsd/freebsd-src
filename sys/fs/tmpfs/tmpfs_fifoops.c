@@ -57,21 +57,7 @@
 
 /* --------------------------------------------------------------------- */
 
-/*
- * vnode operations vector used for fifos stored in a tmpfs file system.
- */
-struct vop_vector tmpfs_fifoop_entries = {
-	.vop_default =			&fifo_specops,
-	.vop_close =			tmpfs_fifo_close,
-	.vop_reclaim =			tmpfs_reclaim,
-	.vop_access =			tmpfs_access,
-	.vop_getattr = 			tmpfs_getattr,
-	.vop_setattr = 			tmpfs_setattr,
-	.vop_kqfilter =			tmpfs_fifo_kqfilter,
-};
-
-
-int
+static int
 tmpfs_fifo_kqfilter(struct vop_kqfilter_args *ap)
 {
 	struct vnode *vp;
@@ -94,7 +80,7 @@ tmpfs_fifo_kqfilter(struct vop_kqfilter_args *ap)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_fifo_close(struct vop_close_args *v)
 {
 	struct tmpfs_node *node;
@@ -104,3 +90,17 @@ tmpfs_fifo_close(struct vop_close_args *v)
 	tmpfs_update(v->a_vp);
 	return fifo_specops.vop_close(v);
 }
+
+/*
+ * vnode operations vector used for fifos stored in a tmpfs file system.
+ */
+struct vop_vector tmpfs_fifoop_entries = {
+	.vop_default =			&fifo_specops,
+	.vop_close =			tmpfs_fifo_close,
+	.vop_reclaim =			tmpfs_reclaim,
+	.vop_access =			tmpfs_access,
+	.vop_getattr =			tmpfs_getattr,
+	.vop_setattr =			tmpfs_setattr,
+	.vop_kqfilter =			tmpfs_fifo_kqfilter,
+};
+
