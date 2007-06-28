@@ -158,7 +158,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				    cnp->cn_thread);
 				if (error != 0)
 					goto out;
-			 
+
 				/* Allocate a new vnode on the matching entry. */
 				error = tmpfs_alloc_vp(dvp->v_mount, tnode, vpp, td);
 				if (error != 0)
@@ -171,7 +171,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 					vput(*vpp);
 					*vpp = NULL;
 					goto out;
-				} 
+				}
 				tnode->tn_lookup_dirent = de;
 				cnp->cn_flags |= SAVENAME;
 			}
@@ -240,7 +240,7 @@ tmpfs_open(struct vop_open_args *v)
 	MPASS(VOP_ISLOCKED(vp, v->a_td));
 
 	node = VP_TO_TMPFS_NODE(vp);
-	
+
 	/* The file is still active but all its names have been removed
 	 * (e.g. by a "rmdir $(pwd)").  It cannot be opened any more as
 	 * it is about to die. */
@@ -252,7 +252,7 @@ tmpfs_open(struct vop_open_args *v)
 		error = EPERM;
 	else {
 		error = 0;
-		vnode_create_vobject(vp, node->tn_size, v->a_td);	
+		vnode_create_vobject(vp, node->tn_size, v->a_td);
 	}
 
 	MPASS(VOP_ISLOCKED(vp, v->a_td));
@@ -426,7 +426,7 @@ tmpfs_setattr(struct vop_setattr_args *v)
 	    vap->va_mtime.tv_nsec != VNOVAL) ||
 	    (vap->va_birthtime.tv_sec != VNOVAL &&
 	    vap->va_birthtime.tv_nsec != VNOVAL)))
-		error = tmpfs_chtimes(vp, &vap->va_atime, &vap->va_mtime, 
+		error = tmpfs_chtimes(vp, &vap->va_atime, &vap->va_mtime,
 			&vap->va_birthtime, vap->va_vaflags, cred, l);
 
 	/* Update the node times.  We give preference to the error codes
@@ -441,7 +441,7 @@ tmpfs_setattr(struct vop_setattr_args *v)
 
 /* --------------------------------------------------------------------- */
 static int
-tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node, 
+tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
     struct uio *uio, vm_object_t uobj)
 {
 	struct sf_buf *sf;
@@ -466,7 +466,7 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		idx = OFF_TO_IDX(uio->uio_offset);
 		d = uio->uio_offset - IDX_TO_OFF(idx);
 		len = MIN(len, (PAGE_SIZE - d));
-		m = vm_page_grab(uobj, idx, VM_ALLOC_WIRED | VM_ALLOC_ZERO | 
+		m = vm_page_grab(uobj, idx, VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 				VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		if (uio->uio_rw == UIO_READ && m->valid != VM_PAGE_BITS_ALL)
 			vm_page_zero_invalid(m, TRUE);
@@ -557,8 +557,8 @@ tmpfs_write(struct vop_write_args *v)
 
 	if (ioflag & IO_APPEND)
 		uio->uio_offset = node->tn_size;
-	
-	if (uio->uio_offset + uio->uio_resid > 
+
+	if (uio->uio_offset + uio->uio_resid >
 	  VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
@@ -732,7 +732,7 @@ tmpfs_link(struct vop_link_args *v)
 	tmpfs_update(vp);
 
 	error = 0;
-	
+
 out:
 	return error;
 }
@@ -792,21 +792,21 @@ tmpfs_rename(struct vop_rename_args *v)
 	}
 	MPASS(de->td_node == fnode);
 
-	/* If re-naming a directory to another preexisting directory 
+	/* If re-naming a directory to another preexisting directory
 	 * ensure that the target directory is empty so that its
-	 * removal causes no side effects. 
+	 * removal causes no side effects.
 	 * Kern_rename gurantees the destination to be a directory
 	 * if the source is one. */
 	if (tvp != NULL) {
 		tnode = VP_TO_TMPFS_NODE(tvp);
-		
+
 		if ((tnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 		    (tdnode->tn_flags & (APPEND | IMMUTABLE))) {
 			error = EPERM;
 			goto out;
 		}
 
-	    	if ((de->td_node->tn_type == VDIR) && (tnode->tn_size > 0)) {
+		if ((de->td_node->tn_type == VDIR) && (tnode->tn_size > 0)) {
 			error = ENOTEMPTY;
 			goto out;
 		}
@@ -967,12 +967,12 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_DIR(vp);
 
-	/* Directories with more than two entries ('.' and '..') cannot be 
-	  * removed. */ 
-	 if (node->tn_size > 0) { 
-		 error = ENOTEMPTY; 
-		 goto out; 
-	 } 
+	/* Directories with more than two entries ('.' and '..') cannot be
+	 * removed. */
+	 if (node->tn_size > 0) {
+		 error = ENOTEMPTY;
+		 goto out;
+	 }
 
 	if ((dnode->tn_flags & APPEND)
 	    || (node->tn_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
@@ -980,8 +980,8 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 		goto out;
 	}
 
-	/* This invariant holds only if we are not trying to remove "..". 
-	  * We checked for that above so this is safe now. */ 
+	/* This invariant holds only if we are not trying to remove "..".
+	  * We checked for that above so this is safe now. */
 	MPASS(node->tn_dir.tn_parent == dnode);
 
 	/* Get the directory entry associated with node (vp).  This was
@@ -1008,7 +1008,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	node->tn_dir.tn_parent->tn_status |= TMPFS_NODE_ACCESSED | \
 	    TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
 
-	cache_purge(dvp); 
+	cache_purge(dvp);
 	cache_purge(vp);
 
 	/* Free the directory entry we just deleted.  Note that the node
@@ -1204,7 +1204,7 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-		
+
 	vnode_destroy_vobject(vp);
 	cache_purge(vp);
 	tmpfs_free_vp(vp);
@@ -1325,7 +1325,7 @@ tmpfs_vptofh(struct vop_vptofh_args *ap)
 	tfhp->tf_len = sizeof(struct tmpfs_fid);
 	tfhp->tf_id = node->tn_id;
 	tfhp->tf_gen = node->tn_gen;
-	
+
 	return (0);
 }
 

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/tmpfs/tmpfs.h>
 
 /*
- * Default permission for root node 
+ * Default permission for root node
  */
 #define TMPFS_DEFAULT_ROOT_MODE	(S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
@@ -83,7 +83,7 @@ static int	tmpfs_statfs(struct mount *, struct statfs *, struct thread *);
 /* --------------------------------------------------------------------- */
 
 static const char *tmpfs_opts[] = {
-	"from", "size", "inodes", "uid", "gid", "mode", 
+	"from", "size", "inodes", "uid", "gid", "mode",
 	NULL
 };
 
@@ -108,7 +108,7 @@ get_swpgtotal(void)
 		return total;
 
 	len = sizeof(nswapdev);
-	if (kernel_sysctlbyname(curthread, "vm.nswapdev", 
+	if (kernel_sysctlbyname(curthread, "vm.nswapdev",
 				&nswapdev, &len,
 				NULL, 0, NULL, 0) != 0)
 		return total;
@@ -117,7 +117,7 @@ get_swpgtotal(void)
 	oid[0] = 0;
 	oid[1] = 3;
 
-	if (kernel_sysctl(curthread, oid, 2, 
+	if (kernel_sysctl(curthread, oid, 2,
 			soid, &mibi, (void *)sname, strlen(sname),
 			NULL, 0) != 0)
 		return total;
@@ -126,8 +126,8 @@ get_swpgtotal(void)
 	for (unswdev = 0; unswdev < nswapdev; ++unswdev) {
 		soid[mibi] = unswdev;
 		len = sizeof(struct xswdev);
-		if (kernel_sysctl(curthread, 
-				soid, mibi + 1, &xsd, &len, NULL, 0, 
+		if (kernel_sysctl(curthread,
+				soid, mibi + 1, &xsd, &len, NULL, 0,
 				NULL, 0) != 0)
 			return total;
 		if (len == sizeof(struct xswdev))
@@ -143,19 +143,18 @@ static int
 tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-	
+
 	if (node->tn_id == 0) {
 		/* if this node structure first time used */
 		struct tmpfs_mount *tmp = (struct tmpfs_mount *)arg;
 		TMPFS_LOCK(tmp);
 		node->tn_id = tmp->tm_nodes_last++;
 		TMPFS_UNLOCK(tmp);
-		node->tn_gen = arc4random();	
-	}
-	else {
+		node->tn_gen = arc4random();
+	} else {
 		node->tn_gen++;
 	}
-	
+
 	node->tn_size = 0;
 	node->tn_status = 0;
 	node->tn_flags = 0;
@@ -175,14 +174,14 @@ tmpfs_node_dtor(void *mem, int size, void *arg)
 	node->tn_type = VNON;
 }
 
-static int 
+static int
 tmpfs_node_init(void *mem, int size, int flags)
 {
 	struct tmpfs_node *node = (struct tmpfs_node *)mem;
 	node->tn_id = 0;
 
 	mtx_init(&node->tn_interlock, "tmpfs node interlock", NULL, MTX_DEF);
-	
+
 	return (0);
 }
 
@@ -190,7 +189,7 @@ static void
 tmpfs_node_fini(void *mem, int size)
 {
 	struct tmpfs_node *node = (struct tmpfs_node *)mem;
-	
+
 	mtx_destroy(&node->tn_interlock);
 }
 
@@ -223,8 +222,8 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	if(vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &args.ta_nodes_max) != 1)
 		args.ta_nodes_max = 0;
 
-	if(vfs_scanopt(mp->mnt_optnew, 
-			"size", 
+	if(vfs_scanopt(mp->mnt_optnew,
+			"size",
 			"%qu", &args.ta_size_max) != 1)
 		args.ta_size_max = 0;
 
@@ -255,14 +254,14 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	/* Allocate the tmpfs mount structure and fill it. */
 	tmp = (struct tmpfs_mount *)malloc(sizeof(struct tmpfs_mount),
 	    M_TMPFSMNT, M_WAITOK | M_ZERO);
-	
+
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes;
 	tmp->tm_nodes_last = 2;
 	tmp->tm_nodes_inuse = 0;
 	tmp->tm_maxfilesize = get_swpgtotal() * PAGE_SIZE;
 	LIST_INIT(&tmp->tm_nodes_used);
-	
+
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
 	tmp->tm_dirent_pool = uma_zcreate(
@@ -270,7 +269,7 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 					sizeof(struct tmpfs_dirent),
 					NULL, NULL, NULL, NULL,
 					UMA_ALIGN_PTR,
-	    				0);
+					0);
 	tmp->tm_node_pool = uma_zcreate(
 					"TMPFS node",
 					sizeof(struct tmpfs_node),
@@ -298,7 +297,7 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
-	
+
 	mp->mnt_data = tmp;
 	mp->mnt_stat.f_namemax = MAXNAMLEN;
 	vfs_getnewfsid(mp);
@@ -328,7 +327,7 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 		return error;
 
 	tmp = VFS_TO_TMPFS(mp);
-	
+
 	/* Free all associated data.  The loop iterates over the linked list
 	 * we have containing all used nodes.  For each of them that is
 	 * a directory, we free all its directory entries.  Note that after
@@ -367,7 +366,7 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 	/* Throw away the tmpfs_mount structure. */
 	free(mp->mnt_data, M_TMPFSMNT);
 	mp->mnt_data = NULL;
-	
+
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
@@ -433,7 +432,7 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *l)
 
 	tmp = VFS_TO_TMPFS(mp);
 
-	sbp->f_iosize = PAGE_SIZE; 
+	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_bsize = PAGE_SIZE;
 
 	sbp->f_blocks = TMPFS_PAGES_MAX(tmp);
