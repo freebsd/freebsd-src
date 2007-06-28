@@ -471,6 +471,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EM732X", "MP3 Player*",
 		"1.0"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Denver MP3 player
+		 * PR: usb/107101
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DENVER", "MP3 PLAYER",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
