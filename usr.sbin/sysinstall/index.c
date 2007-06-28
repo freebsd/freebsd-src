@@ -114,6 +114,7 @@ static char *descrs[] = {
     "japanese", "Ported software for the Japanese market.",
     "java", "Java language support.",
     "kde", "Software for the K Desktop Environment.",
+    "kld", "Kernel loadable modules",
     "korean", "Ported software for the Korean market.",
     "lang", "Computer languages.",
     "linux", "Linux programs that can run under binary compatibility.",
