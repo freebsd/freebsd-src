@@ -1,4 +1,4 @@
-/*	$NetBSD: tmpfs_vnops.c,v 1.20 2006/01/26 20:07:34 jmmv Exp $	*/
+/*	$NetBSD: tmpfs_vnops.c,v 1.35 2007/01/04 15:42:37 elad Exp $	*/
 
 /*
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
@@ -69,42 +69,7 @@ __FBSDID("$FreeBSD$");
 
 /* --------------------------------------------------------------------- */
 
-/*
- * vnode operations vector used for files stored in a tmpfs file system.
- */
-struct vop_vector tmpfs_vnodeop_entries = {
-	.vop_default =			&default_vnodeops,
-	.vop_lookup =			vfs_cache_lookup,
-	.vop_cachedlookup =		tmpfs_lookup,
-	.vop_create =			tmpfs_create,
-	.vop_mknod =			tmpfs_mknod,
-	.vop_open =			tmpfs_open,
-	.vop_close =			tmpfs_close,
-	.vop_access =			tmpfs_access,
-	.vop_getattr =			tmpfs_getattr,
-	.vop_setattr =			tmpfs_setattr,
-	.vop_read =			tmpfs_read,
-	.vop_write =			tmpfs_write,
-	.vop_fsync =			tmpfs_fsync,
-	.vop_remove =			tmpfs_remove,
-	.vop_link =			tmpfs_link,
-	.vop_rename =			tmpfs_rename,
-	.vop_mkdir =			tmpfs_mkdir,
-	.vop_rmdir =			tmpfs_rmdir,
-	.vop_symlink = 			tmpfs_symlink,
-	.vop_readdir =			tmpfs_readdir,
-	.vop_readlink =			tmpfs_readlink,
-	.vop_inactive =			tmpfs_inactive,
-	.vop_reclaim =			tmpfs_reclaim,
-	.vop_print =			tmpfs_print,
-	.vop_pathconf =			tmpfs_pathconf,
-	.vop_advlock =			tmpfs_advlock,
-	.vop_bmap =			VOP_EOPNOTSUPP,
-};
-
-/* --------------------------------------------------------------------- */
-
-int
+static int
 tmpfs_lookup(struct vop_cachedlookup_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -232,7 +197,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_create(struct vop_create_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -246,7 +211,7 @@ tmpfs_create(struct vop_create_args *v)
 }
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_mknod(struct vop_mknod_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -263,7 +228,7 @@ tmpfs_mknod(struct vop_mknod_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_open(struct vop_open_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -296,7 +261,7 @@ tmpfs_open(struct vop_open_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_close(struct vop_close_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -528,7 +493,7 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	return error;
 }
 
-int
+static int
 tmpfs_read(struct vop_read_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -563,7 +528,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_write(struct vop_write_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -638,7 +603,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_fsync(struct vop_fsync_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -652,7 +617,7 @@ tmpfs_fsync(struct vop_fsync_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_remove(struct vop_remove_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -706,7 +671,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_link(struct vop_link_args *v)
 {
 	struct vnode *dvp = v->a_tdvp;
@@ -767,14 +732,14 @@ tmpfs_link(struct vop_link_args *v)
 	tmpfs_update(vp);
 
 	error = 0;
-out:
 	
+out:
 	return error;
 }
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_rename(struct vop_rename_args *v)
 {
 	struct vnode *fdvp = v->a_fdvp;
@@ -968,7 +933,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_mkdir(struct vop_mkdir_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -983,7 +948,7 @@ tmpfs_mkdir(struct vop_mkdir_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_rmdir(struct vop_rmdir_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -1002,7 +967,6 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_DIR(vp);
 
-	
 	/* Directories with more than two entries ('.' and '..') cannot be 
 	  * removed. */ 
 	 if (node->tn_size > 0) { 
@@ -1066,7 +1030,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_symlink(struct vop_symlink_args *v)
 {
 	struct vnode *dvp = v->a_dvp;
@@ -1086,7 +1050,7 @@ tmpfs_symlink(struct vop_symlink_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_readdir(struct vop_readdir_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1187,7 +1151,7 @@ out:
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_readlink(struct vop_readlink_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1210,7 +1174,7 @@ tmpfs_readlink(struct vop_readlink_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1257,7 +1221,7 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_print(struct vop_print_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1283,7 +1247,7 @@ tmpfs_print(struct vop_print_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_pathconf(struct vop_pathconf_args *v)
 {
 	int name = v->a_name;
@@ -1335,7 +1299,7 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_advlock(struct vop_advlock_args *v)
 {
 	struct vnode *vp = v->a_vp;
@@ -1349,7 +1313,7 @@ tmpfs_advlock(struct vop_advlock_args *v)
 
 /* --------------------------------------------------------------------- */
 
-int
+static int
 tmpfs_vptofh(struct vop_vptofh_args *ap)
 {
 	struct tmpfs_fid *tfhp;
@@ -1364,3 +1328,40 @@ tmpfs_vptofh(struct vop_vptofh_args *ap)
 	
 	return (0);
 }
+
+/* --------------------------------------------------------------------- */
+
+/*
+ * vnode operations vector used for files stored in a tmpfs file system.
+ */
+struct vop_vector tmpfs_vnodeop_entries = {
+	.vop_default =			&default_vnodeops,
+	.vop_lookup =			vfs_cache_lookup,
+	.vop_cachedlookup =		tmpfs_lookup,
+	.vop_create =			tmpfs_create,
+	.vop_mknod =			tmpfs_mknod,
+	.vop_open =			tmpfs_open,
+	.vop_close =			tmpfs_close,
+	.vop_access =			tmpfs_access,
+	.vop_getattr =			tmpfs_getattr,
+	.vop_setattr =			tmpfs_setattr,
+	.vop_read =			tmpfs_read,
+	.vop_write =			tmpfs_write,
+	.vop_fsync =			tmpfs_fsync,
+	.vop_remove =			tmpfs_remove,
+	.vop_link =			tmpfs_link,
+	.vop_rename =			tmpfs_rename,
+	.vop_mkdir =			tmpfs_mkdir,
+	.vop_rmdir =			tmpfs_rmdir,
+	.vop_symlink =			tmpfs_symlink,
+	.vop_readdir =			tmpfs_readdir,
+	.vop_readlink =			tmpfs_readlink,
+	.vop_inactive =			tmpfs_inactive,
+	.vop_reclaim =			tmpfs_reclaim,
+	.vop_print =			tmpfs_print,
+	.vop_pathconf =			tmpfs_pathconf,
+	.vop_advlock =			tmpfs_advlock,
+	.vop_vptofh =			tmpfs_vptofh,
+	.vop_bmap =			VOP_EOPNOTSUPP,
+};
+
