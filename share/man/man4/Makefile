@@ -246,6 +246,7 @@ MAN=	aac.4 \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
+	${_nxge.4} \
 	ohci.4 \
 	oldcard.4 \
 	orm.4 \
@@ -480,6 +481,7 @@ MLINKS+=netintro.4 net.4 \
 MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=${_nve.4} ${_if_nve.4}
+MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
@@ -539,10 +541,12 @@ _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
+_if_nxge.4=	if_nxge.4
 _ipmi.4=	ipmi.4
 _nfsmb.4=	nfsmb.4
 _nfe.4=		nfe.4
 _nve.4=		nve.4
+_nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
 _spkr.4=	spkr.4
 _speaker.4=	speaker.4

@@ -42,6 +42,7 @@ mfc		Merge a directory from HEAD to a branch where it does not
 		already exist and other MFC related script(s).
 mid	 	Create a Message-ID database for mailing lists.
 ncpus		Count the number of processors
+nxge		A diagnostic tool for the nxge(4) driver
 pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.

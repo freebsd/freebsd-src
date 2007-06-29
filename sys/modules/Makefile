@@ -184,6 +184,7 @@ SUBDIR=	${_3dfx} \
 	${_nsp} \
 	ntfs \
 	ntfs_iconv \
+	${_nxge} \
 	nullfs \
 	${_nve} \
 	${_nwfs} \
@@ -447,6 +448,7 @@ _mly=		mly
 _mxge=		mxge
 _nfe=		nfe
 _nve=		nve
+_nxge=		nxge
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
@@ -504,6 +506,7 @@ _mxge=		mxge
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
+_nxge=		nxge
 _pccard=	pccard
 _rr232x=	rr232x
 _safe=		safe
