@@ -83,7 +83,7 @@ struct uhub_softc {
 	device_t		sc_dev;		/* base device */
 	usbd_device_handle	sc_hub;		/* USB device */
 	usbd_pipe_handle	sc_ipipe;	/* interrupt pipe */
-	u_int8_t		sc_status[1];	/* XXX more ports */
+	u_int8_t		sc_status[32];	/* max 255 ports */
 	u_char			sc_running;
 };
 #define UHUB_PROTO(sc) ((sc)->sc_hub->ddesc.bDeviceProtocol)
@@ -279,7 +279,7 @@ uhub_attach(device_t self)
 
 	err = usbd_open_pipe_intr(iface, ed->bEndpointAddress,
 		  USBD_SHORT_XFER_OK, &sc->sc_ipipe, sc, sc->sc_status,
-		  sizeof(sc->sc_status), uhub_intr, UHUB_INTR_INTERVAL);
+	          (nports + 1 + 7) / 8, uhub_intr, UHUB_INTR_INTERVAL);
 	if (err) {
 		device_printf(sc->sc_dev, "cannot open interrupt pipe\n");
 		goto bad;
