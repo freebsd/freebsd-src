@@ -1206,7 +1206,6 @@ fs/tmpfs/tmpfs_vnops.c		optional tmpfs
 fs/tmpfs/tmpfs_fifoops.c 	optional tmpfs
 fs/tmpfs/tmpfs_vfsops.c 	optional tmpfs
 fs/tmpfs/tmpfs_subr.c 		optional tmpfs
-fs/tmpfs/tmpfs_uma.c 		optional tmpfs
 gdb/gdb_cons.c			optional gdb
 gdb/gdb_main.c			optional gdb
 gdb/gdb_packet.c		optional gdb
