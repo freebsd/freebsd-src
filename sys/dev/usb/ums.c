@@ -197,8 +197,9 @@ ums_match(device_t self)
 	if (err)
 		return (UMATCH_NONE);
 
-	if (hid_is_collection(desc, size,
-			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
+	if (id->bInterfaceClass == UICLASS_HID &&
+	    id->bInterfaceSubClass == UISUBCLASS_BOOT &&
+	    id->bInterfaceProtocol == UIPROTO_MOUSE)
 		ret = UMATCH_IFACECLASS;
 	else
 		ret = UMATCH_NONE;
@@ -289,11 +290,13 @@ ums_attach(device_t self)
 		}
 	}
 
-	/* The Microsoft Wireless Intellimouse 2.0 reports it's wheel
+	/*
+	 * The Microsoft Wireless Intellimouse 2.0 reports it's wheel
 	 * using 0x0048 (i've called it HUG_TWHEEL) and seems to expect
 	 * you to know that the byte after the wheel is the tilt axis.
 	 * There are no other HID axis descriptors other than X,Y and 
-	 * TWHEEL */
+	 * TWHEEL
+	 */
 	if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
 			hid_input, &sc->sc_loc_t, &flags)) {
 			sc->sc_loc_t.pos = sc->sc_loc_t.pos + 8;
@@ -327,6 +330,27 @@ ums_attach(device_t self)
 		printf("%s: no memory\n", device_get_nameunit(sc->sc_dev));
 		free(sc->sc_loc_btn, M_USB);
 		return ENXIO;
+	}
+
+	/*
+	 * The Microsoft Wireless Notebook Optical Mouse seems to be in worse
+	 * shape than the Wireless Intellimouse 2.0, as its X, Y, wheel, and
+	 * all of its other button positions are all off. It also reports that
+	 * it has two addional buttons and a tilt wheel.
+	 */
+	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_MS_BAD_CLASS) {
+		sc->flags = UMS_Z;
+		sc->flags |= UMS_SPUR_BUT_UP;
+		sc->nbuttons = 3;
+		sc->sc_isize = 5;
+		sc->sc_iid = 0;
+		/* 1st byte of descriptor report contains garbage */
+		sc->sc_loc_x.pos = 16;
+		sc->sc_loc_y.pos = 24;
+		sc->sc_loc_z.pos = 32;
+		sc->sc_loc_btn[0].pos = 8;
+		sc->sc_loc_btn[1].pos = 9;
+		sc->sc_loc_btn[2].pos = 10;
 	}
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
@@ -459,12 +483,20 @@ ums_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 	 * This should sort that.
 	 * Currently it's the only user of UMS_T so use it as an identifier.
 	 * We probably should switch to some more official quirk.
+	 *
+	 * UPDATE: This problem affects the M$ Wireless Notebook Optical Mouse,
+	 * too. However, the leading byte for this mouse is normally 0x11,
+	 * and the phantom mouse click occurs when its 0x14.
 	 */
 	if (sc->flags & UMS_T) {
 		if (sc->sc_iid) {
 			if (*ibuf++ == 0x02)
 				return;
 		}
+	} else if (sc->flags & UMS_SPUR_BUT_UP) {
+		DPRINTFN(5, ("ums_intr: #### ibuf[0] =3D %d ####\n", *ibuf));
+		if (*ibuf == 0x14 || *ibuf == 0x15)
+			return;
 	} else {
 		if (sc->sc_iid) {
 			if (*ibuf++ != sc->sc_iid)
