@@ -40,9 +40,23 @@
 
 KMOD=	ath_rate
 SRCS=	onoe.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ah.h
 
 HAL=	${.CURDIR}/../../contrib/dev/ath
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${HAL}
+
+# patch for hal naming difference
+.if ${MACHINE_ARCH} == "amd64"
+ATH_MODULE_ARCH=x86_64
+.elif ${MACHINE_ARCH} == "sparc64"
+ATH_MODULE_ARCH=sparc64-be
+.elif ${MACHINE_ARCH} == "powerpc"
+ATH_MODULE_ARCH=powerpc-be
+.else
+ATH_MODULE_ARCH=${MACHINE_ARCH}
+.endif
+
+opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
+	cp ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h ${.TARGET}
 
 .include <bsd.kmod.mk>
