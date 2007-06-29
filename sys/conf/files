@@ -811,6 +811,17 @@ dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/nge/if_nge.c		optional nge
+dev/nxge/if_nxge.c		optional nxge
+dev/nxge/xgehal/xgehal-device.c	optional nxge
+dev/nxge/xgehal/xgehal-mm.c	optional nxge
+dev/nxge/xgehal/xge-queue.c	optional nxge
+dev/nxge/xgehal/xgehal-driver.c	optional nxge
+dev/nxge/xgehal/xgehal-ring.c	optional nxge
+dev/nxge/xgehal/xgehal-channel.c	optional nxge
+dev/nxge/xgehal/xgehal-fifo.c	optional nxge
+dev/nxge/xgehal/xgehal-stats.c	optional nxge
+dev/nxge/xgehal/xgehal-config.c	optional nxge
+dev/nxge/xgehal/xgehal-mgmt.c	optional nxge
 dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
