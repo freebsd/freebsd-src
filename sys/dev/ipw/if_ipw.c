@@ -312,13 +312,14 @@ ipw_attach(device_t dev)
 	ieee80211_media_init(ic, ipw_media_change, ipw_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + 64, &sc->sc_drvbpf);
+	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap), 
+	    &sc->sc_drvbpf);
 
-	sc->sc_rxtap_len = sizeof sc->sc_rxtapu;
+	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
 	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
 	sc->sc_rxtap.wr_ihdr.it_present = htole32(IPW_RX_RADIOTAP_PRESENT);
 
-	sc->sc_txtap_len = sizeof sc->sc_txtapu;
+	sc->sc_txtap_len = sizeof sc->sc_txtap;
 	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
 	sc->sc_txtap.wt_ihdr.it_present = htole32(IPW_TX_RADIOTAP_PRESENT);
 
