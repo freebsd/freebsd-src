@@ -105,8 +105,6 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 
 	nnode = (struct tmpfs_node *)uma_zalloc_arg(
 				tmp->tm_node_pool, tmp, M_WAITOK);
-	if (nnode == NULL)
-		return (ENOSPC);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
@@ -141,13 +139,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	case VLNK:
 		MPASS(strlen(target) < MAXPATHLEN);
 		nnode->tn_size = strlen(target);
-		nnode->tn_link = tmpfs_str_zone_alloc(&tmp->tm_str_pool,
-		    M_WAITOK, nnode->tn_size);
-		if (nnode->tn_link == NULL) {
-			nnode->tn_type = VNON;
-			uma_zfree(tmp->tm_node_pool, nnode);
-			return ENOSPC;
-		}
+		nnode->tn_link = malloc(nnode->tn_size, M_TMPFSNAME,
+		    M_WAITOK);
 		memcpy(nnode->tn_link, target, nnode->tn_size);
 		break;
 
@@ -217,8 +210,7 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 		break;
 
 	case VLNK:
-		tmpfs_str_zone_free(&tmp->tm_str_pool, node->tn_link,
-		    node->tn_size);
+		free(node->tn_link, M_TMPFSNAME);
 		break;
 
 	case VREG:
@@ -259,14 +251,7 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 
 	nde = (struct tmpfs_dirent *)uma_zalloc(
 					tmp->tm_dirent_pool, M_WAITOK);
-	if (nde == NULL)
-		return ENOSPC;
-
-	nde->td_name = tmpfs_str_zone_alloc(&tmp->tm_str_pool, M_WAITOK, len);
-	if (nde->td_name == NULL) {
-		uma_zfree(tmp->tm_dirent_pool, nde);
-		return ENOSPC;
-	}
+	nde->td_name = malloc(len, M_TMPFSNAME, M_WAITOK);
 	nde->td_namelen = len;
 	memcpy(nde->td_name, name, len);
 
@@ -302,7 +287,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de,
 		node->tn_links--;
 	}
 
-	tmpfs_str_zone_free(&tmp->tm_str_pool, de->td_name, de->td_namelen);
+	free(de->td_name, M_TMPFSNAME);
 	uma_zfree(tmp->tm_dirent_pool, de);
 }
 
@@ -1174,14 +1159,15 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 	if (node->tn_flags & (IMMUTABLE | APPEND))
 		return EPERM;
 
-	/* XXX: The following comes from UFS code, and can be found in
-	 * several other file systems.  Shouldn't this be centralized
-	 * somewhere? */
-	if (cred->cr_uid != node->tn_uid &&
-	    (error = suser_cred(cred, 0)) &&
-	      ((vaflags & VA_UTIMES_NULL) == 0 ||
-	      (error = VOP_ACCESS(vp, VWRITE, cred, l))))
-		return error;
+	/* Determine if the user have proper privilege to update time. */
+	if (vaflags & VA_UTIMES_NULL) {
+		error = VOP_ACCESS(vp, VADMIN, cred, l);
+		if (error)
+			error = VOP_ACCESS(vp, VWRITE, cred, l);
+	} else
+		error = VOP_ACCESS(vp, VADMIN, cred, l);
+	if (error)
+		return (error);
 
 	if (atime->tv_sec != VNOVAL && atime->tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_ACCESSED;

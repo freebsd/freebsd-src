@@ -830,12 +830,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * has to be changed. */
 	if (fcnp->cn_namelen != tcnp->cn_namelen ||
 	    memcmp(fcnp->cn_nameptr, tcnp->cn_nameptr, fcnp->cn_namelen) != 0) {
-		newname = tmpfs_str_zone_alloc(&tmp->tm_str_pool, M_WAITOK,
-		    tcnp->cn_namelen);
-		if (newname == NULL) {
-			error = ENOSPC;
-			goto out_locked;
-		}
+		newname = malloc(tcnp->cn_namelen, M_TMPFSNAME, M_WAITOK);
 	} else
 		newname = NULL;
 
@@ -855,8 +850,7 @@ tmpfs_rename(struct vop_rename_args *v)
 				if (n == fnode) {
 					error = EINVAL;
 					if (newname != NULL)
-						tmpfs_str_zone_free(&tmp->tm_str_pool,
-						    newname, tcnp->cn_namelen);
+						    free(newname, M_TMPFSNAME);
 					goto out_locked;
 				}
 				n = n->tn_dir.tn_parent;
@@ -884,8 +878,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	if (newname != NULL) {
 		MPASS(tcnp->cn_namelen <= MAXNAMLEN);
 
-		tmpfs_str_zone_free(&tmp->tm_str_pool, de->td_name,
-		    de->td_namelen);
+		free(de->td_name, M_TMPFSNAME);
 		de->td_namelen = (uint16_t)tcnp->cn_namelen;
 		memcpy(newname, tcnp->cn_nameptr, tcnp->cn_namelen);
 		de->td_name = newname;

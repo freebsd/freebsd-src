@@ -60,8 +60,7 @@
 #include <vm/swap_pager.h>
 
 MALLOC_DECLARE(M_TMPFSMNT);
-
-#include <fs/tmpfs/tmpfs_uma.h>
+MALLOC_DECLARE(M_TMPFSNAME);
 
 /* --------------------------------------------------------------------- */
 
@@ -323,7 +322,6 @@ struct tmpfs_mount {
 	 * tmpfs_pool.c. */
 	uma_zone_t		tm_dirent_pool;
 	uma_zone_t		tm_node_pool;
-	struct tmpfs_str_zone	tm_str_pool;
 };
 #define TMPFS_LOCK(tm) mtx_lock(&(tm)->allnode_lock)
 #define TMPFS_UNLOCK(tm) mtx_unlock(&(tm)->allnode_lock)
