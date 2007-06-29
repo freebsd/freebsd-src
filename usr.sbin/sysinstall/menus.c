@@ -2148,7 +2148,7 @@ DMenu MenuSysconsSaver = {
     "By default, the console driver will not attempt to do anything\n"
     "special with your screen when it's idle.  If you expect to leave your\n"
     "monitor switched on and idle for long periods of time then you should\n"
-    "probably enable one of these screen savers to prevent phosphor burn-in.",
+    "probably enable one of these screen savers to prevent burn-in.",
     "Choose a nifty-looking screen saver",
     NULL,
     { { "1 Blank",	"Simply blank the screen",
