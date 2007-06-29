@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define TMPFS_DEFAULT_ROOT_MODE	(S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
 MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
+MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 
 /* --------------------------------------------------------------------- */
 
@@ -276,8 +277,7 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 					tmpfs_node_ctor, tmpfs_node_dtor,
 					tmpfs_node_init, tmpfs_node_fini,
 					UMA_ALIGN_PTR,
-					0);
-	tmpfs_str_zone_create(&tmp->tm_str_pool);
+					UMA_ZONE_NOFREE);
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(tmp, VDIR, args.ta_root_uid,
@@ -285,7 +285,6 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	    VNOVAL, l, &root);
 
 	if (error != 0 || root == NULL) {
-	    tmpfs_str_zone_destroy(&tmp->tm_str_pool);
 	    uma_zdestroy(tmp->tm_node_pool);
 	    uma_zdestroy(tmp->tm_dirent_pool);
 	    free(tmp, M_TMPFSMNT);
@@ -358,7 +357,6 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
-	tmpfs_str_zone_destroy(&tmp->tm_str_pool);
 
 	mtx_destroy(&tmp->allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
