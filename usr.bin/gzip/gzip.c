@@ -143,7 +143,7 @@ static suffixes_t suffixes[] = {
 };
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 
-static	const char	gzip_version[] = "FreeBSD gzip 20070126";
+static	const char	gzip_version[] = "FreeBSD gzip 20070528";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -181,6 +181,7 @@ static	int	numflag = 6;		/* gzip -1..-9 value */
 
 #ifndef SMALL
 static	int	fflag;			/* force mode */
+static	int	kflag;			/* don't delete input files */
 static	int	nflag;			/* don't save name/timestamp */
 static	int	Nflag;			/* don't restore name/timestamp */
 static	int	qflag;			/* quiet mode */
@@ -261,6 +262,7 @@ static const struct option longopts[] = {
 	{ "uncompress",		no_argument,		0,	'd' },
 	{ "force",		no_argument,		0,	'f' },
 	{ "help",		no_argument,		0,	'h' },
+	{ "keep",		no_argument,		0,	'k' },
 	{ "list",		no_argument,		0,	'l' },
 	{ "no-name",		no_argument,		0,	'n' },
 	{ "name",		no_argument,		0,	'N' },
@@ -308,7 +310,7 @@ main(int argc, char **argv)
 #ifdef SMALL
 #define OPT_LIST "123456789cdhltV"
 #else
-#define OPT_LIST "123456789acdfhlLNnqrS:tVv"
+#define OPT_LIST "123456789acdfhklLNnqrS:tVv"
 #endif
 
 	while ((ch = getopt_long(argc, argv, OPT_LIST, longopts, NULL)) != -1) {
@@ -337,6 +339,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			fflag = 1;
+			break;
+		case 'k':
+			kflag = 1;
 			break;
 		case 'L':
 			display_license();
@@ -1139,6 +1144,8 @@ unlink_input(const char *file, const struct stat *sb)
 {
 	struct stat nsb;
 
+	if (kflag)
+		return;
 	if (stat(file, &nsb) != 0)
 		/* Must be gone alrady */
 		return;
@@ -1985,6 +1992,7 @@ usage(void)
     "    --uncompress\n"
     " -f --force           force overwriting & compress links\n"
     " -h --help            display this help\n"
+    " -k --keep            don't delete input files during operation\n"
     " -l --list            list compressed file contents\n"
     " -N --name            save or restore original file name and time stamp\n"
     " -n --no-name         don't save original file name or time stamp\n"
