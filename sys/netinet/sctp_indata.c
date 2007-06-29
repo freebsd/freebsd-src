@@ -2489,19 +2489,6 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	m = *mm;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
-	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
-	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
-		/*
-		 * wait a minute, this guy is gone, there is no longer a
-		 * receiver. Send peer an ABORT!
-		 */
-		struct mbuf *op_err;
-
-		op_err = sctp_generate_invmanparam(SCTP_CAUSE_OUT_OF_RESC);
-		sctp_abort_an_association(stcb->sctp_ep, stcb, 0, op_err);
-		return (2);
-	}
 	if (compare_with_wrap(stcb->asoc.highest_tsn_inside_map,
 	    stcb->asoc.cumulative_tsn, MAX_TSN)) {
 		/* there was a gap before this data was processed */
