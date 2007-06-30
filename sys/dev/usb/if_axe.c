@@ -108,17 +108,34 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/products.
  */
-static struct axe_type axe_devs[] = {
-	{ USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88172 },
-	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DUBE100 },
-	{ USB_VENDOR_JVC, USB_PRODUCT_JVC_MP_PRX1 },
-	{ USB_VENDOR_LINKSYS2, USB_PRODUCT_LINKSYS2_USB200M },
-	{ USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUAU2KTX },
-	{ USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_FA120 },
-	{ USB_VENDOR_SYSTEMTALKS, USB_PRODUCT_SYSTEMTALKS_SGCX2UL },
-	{ USB_VENDOR_SITECOM, USB_PRODUCT_SITECOM_LN029 },
-	{ 0, 0 }
+const struct axe_type axe_devs[] = {
+        { { USB_VENDOR_ABOCOM, USB_PRODUCT_ABOCOM_UF200}, 0 },
+        { { USB_VENDOR_ACERCM, USB_PRODUCT_ACERCM_EP1427X2}, 0 },
+        { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88172}, 0 },
+        { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88772}, AX772 },
+        { { USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88178}, AX178 },
+        { { USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC210T}, 0 },
+        { { USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5D5055 }, AX178 },
+        { { USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB2AR}, 0},
+        { { USB_VENDOR_CISCOLINKSYS, USB_PRODUCT_CISCOLINKSYS_USB200MV2}, AX772 },
+        { { USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB2_TX }, 0},
+        { { USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DUBE100}, 0 },
+        { { USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DUBE100B1 }, AX772 },
+        { { USB_VENDOR_GOODWAY, USB_PRODUCT_GOODWAY_GWUSB2E}, 0 },
+        { { USB_VENDOR_IODATA, USB_PRODUCT_IODATA_ETGUS2 }, AX178 },
+        { { USB_VENDOR_JVC, USB_PRODUCT_JVC_MP_PRX1}, 0 },
+        { { USB_VENDOR_LINKSYS2, USB_PRODUCT_LINKSYS2_USB200M}, 0 },
+        { { USB_VENDOR_LINKSYS4, USB_PRODUCT_LINKSYS4_USB1000 }, AX178 },
+        { { USB_VENDOR_MELCO, USB_PRODUCT_MELCO_LUAU2KTX}, 0 },
+        { { USB_VENDOR_NETGEAR, USB_PRODUCT_NETGEAR_FA120}, 0 },
+        { { USB_VENDOR_OQO, USB_PRODUCT_OQO_ETHER01PLUS }, AX772 },
+        { { USB_VENDOR_PLANEX3, USB_PRODUCT_PLANEX3_GU1000T }, AX178 },
+        { { USB_VENDOR_SYSTEMTALKS, USB_PRODUCT_SYSTEMTALKS_SGCX2UL}, 0 },
+        { { USB_VENDOR_SITECOM, USB_PRODUCT_SITECOM_LN029}, 0 },
+        { { USB_VENDOR_SITECOMEU, USB_PRODUCT_SITECOMEU_LN028 }, AX178 }
 };
+
+#define axe_lookup(v, p) ((const struct axe_type *)usb_lookup(axe_devs, v, p))
 
 static device_probe_t axe_match;
 static device_attach_t axe_attach;
@@ -383,21 +400,11 @@ static int
 axe_match(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
-	struct axe_type			*t;
 
 	if (!uaa->iface)
 		return(UMATCH_NONE);
-
-	t = axe_devs;
-	while(t->axe_vid) {
-		if (uaa->vendor == t->axe_vid &&
-		    uaa->product == t->axe_did) {
-			return(UMATCH_VENDOR_PRODUCT);
-		}
-		t++;
-	}
-
-	return(UMATCH_NONE);
+	return (axe_lookup(uaa->vendor, uaa->product) != NULL ?
+		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
 /*
