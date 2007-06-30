@@ -3098,7 +3098,7 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 
 		memcpy(wh.i_addr2, ws_dat.wi_bssid, sizeof(ap->bssid));
 		memcpy(wh.i_addr3, ws_dat.wi_bssid, sizeof(ap->bssid));
-		sp.chan = ap->channel = le16toh(ws_dat.wi_chid);
+		ap->channel = le16toh(ws_dat.wi_chid);
 		ap->signal  = le16toh(ws_dat.wi_signal);
 		ap->noise   = le16toh(ws_dat.wi_noise);
 		ap->quality = ap->signal - ap->noise;
@@ -3114,6 +3114,12 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 		sp.ssid = (uint8_t *)&ssid[0];
 		memcpy(sp.ssid + 2, ap->name, ap->namelen);
 		sp.ssid[1] = ap->namelen;
+		sp.bchan = ap->channel;
+		sp.curchan = ieee80211_find_channel(ic,
+			ieee80211_ieee2mhz(ap->channel, IEEE80211_CHAN_B),
+			IEEE80211_CHAN_B);
+		if (sp.curchan == NULL)
+			sp.curchan = &ic->ic_channels[0];
 		sp.rates = &rates[0];
 		sp.tstamp = (uint8_t *)&rstamp;
 		printf("calling add_scan \n");
