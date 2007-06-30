@@ -519,6 +519,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_FIXED, "GS-Magic", "stor*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * JoyFly 128mb USB Flash Drive
+		 * PR: 96133
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB*", "Flash Disk*",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
