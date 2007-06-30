@@ -2090,8 +2090,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		scan.tstamp  = frm;				frm += 8;
 		scan.bintval = le16toh(*(uint16_t *)frm);	frm += 2;
 		scan.capinfo = le16toh(*(uint16_t *)frm);	frm += 2;
-		scan.bchan = ieee80211_chan2ieee(ic, ic->ic_curchan);
-		scan.chan = scan.bchan;
+		scan.bchan = IEEE80211_CHAN2IEEE(ic->ic_curchan);
+		scan.curchan = ic->ic_curchan;
 
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
@@ -2108,7 +2108,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			case IEEE80211_ELEMID_FHPARMS:
 				if (ic->ic_phytype == IEEE80211_T_FH) {
 					scan.fhdwell = LE_READ_2(&frm[2]);
-					scan.chan = IEEE80211_FH_CHAN(frm[4], frm[5]);
+					scan.bchan = IEEE80211_FH_CHAN(frm[4], frm[5]);
 					scan.fhindex = frm[6];
 				}
 				break;
@@ -2118,7 +2118,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				 * is problematic for multi-mode devices.
 				 */
 				if (ic->ic_phytype != IEEE80211_T_FH)
-					scan.chan = frm[2];
+					scan.bchan = frm[2];
 				break;
 			case IEEE80211_ELEMID_TIM:
 				/* XXX ATIM? */
@@ -2194,7 +2194,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			return;
 		}
 #endif
-		if (scan.chan != scan.bchan &&
+		if (IEEE80211_CHAN2IEEE(scan.curchan) != scan.bchan &&
 		    ic->ic_phytype != IEEE80211_T_FH) {
 			/*
 			 * Frame was received on a channel different from the
@@ -2210,7 +2210,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
 			    wh, ieee80211_mgt_subtype_name[subtype >>
 				IEEE80211_FC0_SUBTYPE_SHIFT],
-			    "for off-channel %u", scan.chan);
+			    "for off-channel %u",
+			    IEEE80211_CHAN2IEEE(scan.curchan));
 			ic->ic_stats.is_rx_chanmismatch++;
 			return;
 		}
