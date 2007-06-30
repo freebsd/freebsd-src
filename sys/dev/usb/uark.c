@@ -98,31 +98,20 @@ struct ucom_callback uark_callback = {
 	NULL,
 };
 
-static const struct uark_product {
-	uint16_t	vendor;
-	uint16_t	product;
-} uark_products[] = {
-	{ USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116 },
-	{ 0, 0 }
+static const struct usb_devno uark_devs[] = {
+	{ USB_VENDOR_ARKMICRO,		USB_PRODUCT_ARKMICRO_ARK3116 }
 };
 
 static int
 uark_match(device_t self)
 {
         struct usb_attach_arg *uaa = device_get_ivars(self);
-	int i;
 
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
 
-	for (i = 0; uark_products[i].vendor != 0; i++) {
-		if (uark_products[i].vendor == uaa->vendor &&
-		    uark_products[i].product == uaa->product) {
-			return (UMATCH_VENDOR_PRODUCT);
-		}
-	}
-
-	return (UMATCH_NONE);
+	return (usb_lookup(uark_devs, uaa->vendor, uaa->product) != NULL) ?
+	    UMATCH_VENDOR_PRODUCT : UMATCH_NONE;
 }
 
 static int
