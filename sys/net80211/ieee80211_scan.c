@@ -627,6 +627,19 @@ ieee80211_scan_next(struct ieee80211com *ic)
 }
 
 /*
+ * Public access to scan_next for drivers that are not able to scan single
+ * channels (e.g. for firmware-based devices).
+ */
+void
+ieee80211_scan_done(struct ieee80211com *ic)
+{
+	struct ieee80211_scan_state *ss = ic->ic_scan;
+
+	ss->ss_next = ss->ss_last; /* all channels are complete */
+	scan_next(ss);
+}
+
+/*
  * Scan curchan.  If this is an active scan and the channel
  * is not marked passive then send probe request frame(s).
  * Arrange for the channel change after maxdwell ticks.
@@ -897,17 +910,7 @@ ieee80211_add_scan(struct ieee80211com *ic,
 			    ieee80211_chan2ieee(ic, ic->ic_curchan),
 				channel_type(ic->ic_curchan),
 			    ticks, SCAN_PRIVATE(ss)->ss_chanmindwell);
-			/*
-			 * XXX
-			 * We want to just kick the timer and still
-			 * process frames until it fires but linux
-			 * will livelock unless we discard frames.
-			 */
-#if 0
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_MINDWELL;
-#else
-			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
-#endif
 			/*
 			 * NB: trigger at next clock tick or wait for the
 			 * hardware
