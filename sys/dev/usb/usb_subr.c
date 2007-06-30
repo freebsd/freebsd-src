@@ -213,12 +213,14 @@ usbd_devinfo_vp(usbd_device_handle dev, char *v, char *p, int usedev)
 	}
 
 	if (usedev) {
-		if (usbd_get_string(dev, udd->iManufacturer, v))
+		if (usbd_get_string(dev, udd->iManufacturer, v,
+		    USB_MAX_STRING_LEN))
 			vendor = NULL;
 		else
 			vendor = v;
 		usbd_trim_spaces(vendor);
-		if (usbd_get_string(dev, udd->iProduct, p))
+		if (usbd_get_string(dev, udd->iProduct, p,
+		    USB_MAX_STRING_LEN))
 			product = NULL;
 		else
 			product = p;
@@ -1052,6 +1054,20 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 
 	up->device = dev;
 
+	if (up->parent && speed > up->parent->speed) {
+#ifdef USB_DEBUG
+		printf("%s: maxium speed of attached "
+		    "device, %d, is higher than speed "
+		    "of parent HUB, %d.\n",
+		    __FUNCTION__, speed, up->parent->speed);
+#endif
+		/*
+		 * Reduce the speed, otherwise we won't setup the
+		 * proper transfer methods.
+		 */
+		speed = up->parent->speed;
+	}
+	
 	/* Locate port on upstream high speed hub */
 	for (adev = dev, hub = up->parent;
 	     hub != NULL && hub->speed != USB_SPEED_HIGH;

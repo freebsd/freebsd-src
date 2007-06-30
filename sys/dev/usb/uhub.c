@@ -655,7 +655,8 @@ uhub_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 
 found_dev:
 	/* XXX can sleep */
-	(void)usbd_get_string(dev, dev->ddesc.iSerialNumber, &serial[0]);
+	(void)usbd_get_string(dev, dev->ddesc.iSerialNumber, serial,
+	    sizeof(serial));
 	if (dev->ifacenums == NULL) {
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "

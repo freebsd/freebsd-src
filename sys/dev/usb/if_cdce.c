@@ -280,7 +280,8 @@ cdce_attach(device_t self)
 
 	ue = (const usb_cdc_ethernet_descriptor_t *)usb_find_desc(dev,
 	    UDESC_INTERFACE, UDESCSUB_CDC_ENF);
-	if (!ue || usbd_get_string(dev, ue->iMacAddress, eaddr_str)) {
+	if (!ue || usbd_get_string(dev, ue->iMacAddress, eaddr_str,
+	    sizeof(eaddr_str))) {
 		/* Fake MAC address */
 		device_printf(sc->cdce_dev, "faking MAC address\n");
 		eaddr[0]= 0x2a;
