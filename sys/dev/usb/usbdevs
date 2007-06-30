@@ -1550,6 +1550,9 @@ product MUSTEK MDC800		0xa800	MDC-800 digital camera
 product MSYSTEMS DISKONKEY	0x0010	DiskOnKey
 product MSYSTEMS DISKONKEY2	0x0011	DiskOnKey
 
+/* Myson products */
+product	MYSON HEDEN		0x8818	USB-IDE
+
 /* National Semiconductor */
 product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
 product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
