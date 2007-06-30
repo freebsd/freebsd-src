@@ -677,9 +677,13 @@
 
     &hwlist.my;
 
+    &hwlist.nfe;
+
     &hwlist.nge;
 
     &hwlist.nve;
+
+    &hwlist.nxge;
 
     &hwlist.pcn;
 

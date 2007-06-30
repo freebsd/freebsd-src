@@ -91,11 +91,13 @@ mxge	i386,amd64
 my	i386,pc98
 ncr	i386,pc98,sparc64,amd64
 ncv	i386,pc98
+nfe	i386,amd64
 ng_bt3c	i386,pc98,amd64
 ng_ubt	i386,pc98,amd64
 nge	i386,pc98,amd64
 nsp	i386,pc98
 nve	i386,amd64
+nxge	i386,amd64
 ohci	i386,pc98,ia64,amd64,powerpc
 oltr	i386
 pcn	i386,pc98,ia64,amd64
