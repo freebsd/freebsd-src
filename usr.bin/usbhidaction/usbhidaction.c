@@ -93,6 +93,7 @@ main(int argc, char **argv)
 {
 	const char *conf = NULL;
 	const char *dev = NULL;
+	const char *table = NULL;
 	int fd, fp, ch, n, val, i;
 	size_t sz, sz1;
 	int demon, ignore, dieearly;
@@ -105,7 +106,7 @@ main(int argc, char **argv)
 	demon = 1;
 	ignore = 0;
 	dieearly = 0;
-	while ((ch = getopt(argc, argv, "c:def:ip:v")) != -1) {
+	while ((ch = getopt(argc, argv, "c:def:ip:t:v")) != -1) {
 		switch(ch) {
 		case 'c':
 			conf = optarg;
@@ -125,6 +126,9 @@ main(int argc, char **argv)
 		case 'p':
 			pidfile = optarg;
 			break;
+		case 't':
+			table = optarg;
+			break;
 		case 'v':
 			demon = 0;
 			verbose++;
@@ -140,7 +144,7 @@ main(int argc, char **argv)
 	if (conf == NULL || dev == NULL)
 		usage();
 
-	hid_init(NULL);
+	hid_init(table);
 
 	if (dev[0] != '/') {
 		snprintf(devnamebuf, sizeof(devnamebuf), "/dev/%s%s",
@@ -245,7 +249,7 @@ usage(void)
 {
 
 	fprintf(stderr, "Usage: %s [-deiv] -c config_file -f hid_dev "
-		"[-p pidfile]\n", getprogname());
+		"[-p pidfile] [-t tablefile]\n", getprogname());
 	exit(1);
 }
 

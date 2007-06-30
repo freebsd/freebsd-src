@@ -47,6 +47,7 @@
 .Fl c Ar config-file
 .Fl f Ar device
 .Op Fl p Ar pidfile
+.Op Fl t Ar tablefile
 .Ar arg ...
 .Sh DESCRIPTION
 The
@@ -73,6 +74,8 @@ Ignore HID items in the configuration file that do not exist in the device.
 Be verbose, and do not become a daemon.
 .It Fl c Ar config-file
 Specify a path name for the configuration file.
+.It Fl t Ar tablefile
+Specify a path name for the HID usage table file.
 .It Fl f Ar device
 Specify a path name for the device to operate on.
 If
