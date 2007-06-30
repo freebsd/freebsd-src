@@ -46,13 +46,18 @@ gss_indicate_mechs(OM_uint32 *minor_status,
 		return (major_status);
 	
 	SLIST_FOREACH(m, &_gss_mechs, gm_link) {
-		major_status = m->gm_indicate_mechs(minor_status, &set);
-		if (major_status)
-			continue;
-		for (i = 0; i < set->count; i++)
-			major_status = gss_add_oid_set_member(minor_status,
-			    &set->elements[i], mech_set);
-		gss_release_oid_set(minor_status, &set);
+		if (m->gm_indicate_mechs) {
+			major_status = m->gm_indicate_mechs(minor_status, &set);
+			if (major_status)
+				continue;
+			for (i = 0; i < set->count; i++)
+				major_status = gss_add_oid_set_member(minor_status,
+				    &set->elements[i], mech_set);
+			gss_release_oid_set(minor_status, &set);
+		} else {
+			major_status = gss_add_oid_set_member(
+			    minor_status, &m->gm_mech_oid, mech_set);
+		}
 	}
 
 	*minor_status = 0;

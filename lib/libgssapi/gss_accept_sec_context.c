@@ -48,7 +48,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
     OM_uint32 *time_rec,
     gss_cred_id_t *delegated_cred_handle)
 {
-	OM_uint32 major_status;
+	OM_uint32 major_status, mech_ret_flags;
 	struct _gss_mech_switch *m;
 	struct _gss_context *ctx = (struct _gss_context *) *context_handle;
 	struct _gss_cred *cred = (struct _gss_cred *) acceptor_cred_handle;
@@ -165,7 +165,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 	    &src_mn,
 	    mech_type,
 	    output_token,
-	    ret_flags,
+	    &mech_ret_flags,
 	    time_rec,
 	    &delegated_mc);
 	if (major_status != GSS_S_COMPLETE &&
@@ -187,7 +187,7 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		*src_name = (gss_name_t) name;
 	}
 
-	if (*ret_flags & GSS_C_DELEG_FLAG) {
+	if (mech_ret_flags & GSS_C_DELEG_FLAG) {
 		if (!delegated_cred_handle) {
 			m->gm_release_cred(minor_status, &delegated_mc);
 			*ret_flags &= ~GSS_C_DELEG_FLAG;
@@ -217,6 +217,8 @@ OM_uint32 gss_accept_sec_context(OM_uint32 *minor_status,
 		}
 	}
 
+	if (ret_flags)
+		*ret_flags = mech_ret_flags;
 	*context_handle = (gss_ctx_id_t) ctx;
 	return (major_status);
 }

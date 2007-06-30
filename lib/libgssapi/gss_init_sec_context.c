@@ -98,6 +98,11 @@ gss_init_sec_context(OM_uint32 * minor_status,
 	 * Find the MN for this mechanism.
 	 */
 	mn = _gss_find_mn(name, mech_type);
+	if (mn == NULL) {
+		if (allocated_ctx)
+			free(ctx);
+		return GSS_S_BAD_NAME;
+	}
 
 	/*
 	 * If we have a cred, find the cred for this mechanism.
