@@ -77,8 +77,8 @@ The report descriptor is delivered
 without any processing.
 .Bd -literal
 struct usb_ctl_report_desc {
-    int     size;
-    u_char  data[1024];	/* filled data size will vary */
+    int     ucrd_size;
+    u_char  ucrd_data[1024];	/* filled data size will vary */
 };
 .Ed
 .It Dv USB_SET_IMMED Pq Vt int
@@ -106,8 +106,8 @@ or
 This call may fail if the device does not support this feature.
 .Bd -literal
 struct usb_ctl_report {
-	int report;
-	u_char	data[1024];	/* used data size will vary */
+	int ucr_report;
+	u_char	ucr_data[1024];	/* used data size will vary */
 };
 .Ed
 .It Dv USB_SET_REPORT Pq Vt "struct usb_ctl_report"
