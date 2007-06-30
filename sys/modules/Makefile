@@ -27,8 +27,8 @@ SUBDIR=	${_3dfx} \
 	ata \
 	${_ath} \
 	${_ath_hal} \
-	ath_rate_amrr \
-	ath_rate_onoe \
+	${_ath_rate_amrr} \
+	${_ath_rate_onoe} \
 	${_ath_rate_sample} \
 	aue \
 	${_auxio} \
@@ -355,6 +355,8 @@ _ar=		ar
 _arcnet=	arcnet
 _ath=		ath
 _ath_hal=	ath_hal
+_ath_rate_amrr=	ath_rate_amrr
+_ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _awi=		awi
 _bktr=		bktr
@@ -474,6 +476,8 @@ _an=		an
 _arcmsr=	arcmsr
 _ath=		ath
 _ath_hal=	ath_hal
+_ath_rate_amrr=	ath_rate_amrr
+_ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _cardbus=	cardbus
 _cbb=		cbb
@@ -563,6 +567,8 @@ _xe=		xe
 _an=		an
 _ath=		ath
 _ath_hal=	ath_hal
+_ath_rate_amrr=	ath_rate_amrr
+_ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _gem=		gem
 _powermac_nvram=	powermac_nvram
@@ -572,6 +578,8 @@ _smbfs=		smbfs
 .if ${MACHINE_ARCH} == "sparc64"
 _ath=		ath
 _ath_hal=	ath_hal
+_ath_rate_amrr=	ath_rate_amrr
+_ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _auxio=		auxio
 _em=		em
