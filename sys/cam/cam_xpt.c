@@ -620,6 +620,18 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		/*
+		 * Western Digital My Book 250GB (USB)
+		 * hangs upon serial number probing.
+		 * PR: 107495
+		 */
+		{
+			T_DIRECT, SIP_MEDIA_FIXED, "WD",
+			"2500JB External", "*"
+		},
+		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
