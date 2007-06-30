@@ -66,7 +66,6 @@
 #define USBBASEDEVICE device_t
 #define USBDEV(bdev) (bdev)
 #define USBDEVNAME(bdev) device_get_nameunit(bdev)
-#define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBGETSOFTC(bdev) (device_get_softc(bdev))
