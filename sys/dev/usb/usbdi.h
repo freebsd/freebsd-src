@@ -173,7 +173,8 @@ usbd_status usbd_reload_device_desc(usbd_device_handle);
 
 int usbd_ratecheck(struct timeval *last);
 
-usbd_status usbd_get_string(usbd_device_handle dev, int si, char *buf);
+usbd_status usbd_get_string(usbd_device_handle dev, int si, char *buf,
+    size_t len);
 
 /* An iterator for descriptors. */
 typedef struct {
