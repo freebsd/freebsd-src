@@ -1769,6 +1769,7 @@ product SAGEM USBSERIAL		0x0027	USB-Serial Controller
 
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
+product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
 
 /* SanDisk products */
