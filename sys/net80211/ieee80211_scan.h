@@ -83,6 +83,7 @@ int	ieee80211_check_scan(struct ieee80211com *, int flags, u_int duration,
 int	ieee80211_bg_scan(struct ieee80211com *);
 void	ieee80211_cancel_scan(struct ieee80211com *);
 void	ieee80211_scan_next(struct ieee80211com *);
+void	ieee80211_scan_done(struct ieee80211com *);
 
 struct ieee80211_scanparams;
 void	ieee80211_add_scan(struct ieee80211com *,
