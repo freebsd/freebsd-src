@@ -165,6 +165,8 @@ static int wi_symbol_write_firm(struct wi_softc *, const void *, int,
 static int wi_symbol_set_hcr(struct wi_softc *, int);
 
 static void wi_scan_start(struct ieee80211com *);
+static void wi_scan_curchan(struct ieee80211com *, unsigned long);
+static void wi_scan_mindwell(struct ieee80211com *);
 static void wi_scan_end(struct ieee80211com *);
 static void wi_set_channel(struct ieee80211com *);
 static void wi_update_slot(struct ifnet *);
@@ -369,8 +371,9 @@ wi_attach(device_t dev)
 		val = le16toh(val);
 		ic->ic_bsschan = ieee80211_find_channel(ic,
 			ieee80211_ieee2mhz(val, IEEE80211_CHAN_B),
-			IEEE80211_MODE_AUTO);
-		/* XXX check return value */
+			IEEE80211_CHAN_B);
+		if (ic->ic_bsschan == NULL)
+			ic->ic_bsschan = &ic->ic_channels[0];
 	} else {
 		device_printf(dev,
 			"WI_RID_OWN_CHNL failed, using first channel!\n");
@@ -467,7 +470,6 @@ wi_attach(device_t dev)
 				rs->rs_rates[rs->rs_nrates++] = ratebuf[2+i];
 	} else {
 		/* XXX fallback on error? */
-		rs->rs_nrates = 0;
 	}
 
 	buflen = sizeof(val);
@@ -504,6 +506,8 @@ wi_attach(device_t dev)
 	ic->ic_raw_xmit = wi_raw_xmit;
 
 	ic->ic_scan_start = wi_scan_start;
+	ic->ic_scan_curchan = wi_scan_curchan;
+	ic->ic_scan_mindwell = wi_scan_mindwell;
 	ic->ic_scan_end = wi_scan_end;
 	ic->ic_set_channel = wi_set_channel;
 	ic->ic_node_alloc = wi_node_alloc;
@@ -1918,9 +1922,9 @@ wi_info_intr(struct wi_softc *sc)
 	case WI_INFO_SCAN_RESULTS:
 	case WI_INFO_HOST_SCAN_RESULTS:
 		wi_scan_result(sc, fid, le16toh(ltbuf[0]));
-		ieee80211_notify_scan_done(ic);
+		ieee80211_scan_done(ic);
 		break;
-		
+
 	default:
 		DPRINTF(("wi_info_intr: got fid %x type %x len %d\n", fid,
 		    le16toh(ltbuf[1]), le16toh(ltbuf[0])));
@@ -2945,6 +2949,8 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		return (*sc->sc_newstate)(ic, nstate, arg);
 
 	case IEEE80211_S_SCAN:
+		return (*sc->sc_newstate)(ic, nstate, arg);
+
 	case IEEE80211_S_AUTH:
 	case IEEE80211_S_ASSOC:
 		ic->ic_state = nstate;	/* NB: skip normal ieee80211 handling */
@@ -2964,7 +2970,6 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		    IEEE80211_CHAN_B);
 		if (ni->ni_chan == NULL)
 			ni->ni_chan = &ic->ic_channels[0];
-		/* XXX validate channel */
 		ic->ic_curchan = ic->ic_bsschan = ni->ni_chan;
 #if NBPFILTER > 0
 		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
@@ -3046,7 +3051,6 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 	struct ieee80211com *ic;
 	uint8_t ssid[2+IEEE80211_NWID_LEN];
 
-	printf("wi_scan_result\n");
 	ic = &sc->sc_ic;
 	rstamp++;
 	memset(&sp, 0, sizeof(sp));
@@ -3081,7 +3085,7 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 	memset(&ws_dat, 0, sizeof(ws_dat));
 
 	for (i = 0; i < naps; i++, ap++) {
-		uint8_t rates[2];
+		uint8_t rates[2 + IEEE80211_RATE_MAXSIZE];
 		uint16_t *bssid;
 		wi_read_bap(sc, fid, off, &ws_dat,
 		    (sizeof(ws_dat) < szbuf ? sizeof(ws_dat) : szbuf));
@@ -3106,7 +3110,7 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 		sp.bintval = ap->interval = le16toh(ws_dat.wi_interval);
 		ap->rate = le16toh(ws_dat.wi_rate);
 		rates[1] = 1;
-		rates[2] = (uint8_t)ap->rate;
+		rates[2] = (uint8_t)ap->rate / 5;
 		ap->namelen = le16toh(ws_dat.wi_namelen);
 		if (ap->namelen > sizeof(ap->name))
 			ap->namelen = sizeof(ap->name);
@@ -3122,7 +3126,8 @@ wi_scan_result(struct wi_softc *sc, int fid, int cnt)
 			sp.curchan = &ic->ic_channels[0];
 		sp.rates = &rates[0];
 		sp.tstamp = (uint8_t *)&rstamp;
-		printf("calling add_scan \n");
+		DPRINTF(("calling add_scan, bssid %s chan %d signal %d\n",
+		    ether_sprintf(ws_dat.wi_bssid), ap->channel, ap->signal));
 		ieee80211_add_scan(ic, &sp, &wh, 0, ap->signal, ap->noise, rstamp);
 	}
 done:
@@ -3534,6 +3539,18 @@ wi_scan_start(struct ieee80211com *ic)
 	wi_scan_ap(sc, 0x3fff, 0x000f);
 	WI_UNLOCK(sc);
 
+}
+
+static void
+wi_scan_curchan(struct ieee80211com *ic, unsigned long maxdwell)
+{
+	/* The firmware is not capable of scanning a single channel */
+}
+
+static void
+wi_scan_mindwell(struct ieee80211com *ic)
+{
+	/* NB: don't try to abort scan; wait for firmware to finish */
 }
 
 static void
