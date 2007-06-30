@@ -487,6 +487,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DENVER", "MP3 PLAYER",
 		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Philips USB Key Audio KEY013
+		 * PR: usb/68412
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "PHILIPS", "Key*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
+	},
 };
 
 static	disk_strategy_t	dastrategy;
