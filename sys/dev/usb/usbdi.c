@@ -1310,7 +1310,7 @@ usb_desc_iter_next(usbd_desc_iter_t *iter)
 }
 
 usbd_status
-usbd_get_string(usbd_device_handle dev, int si, char *buf)
+usbd_get_string(usbd_device_handle dev, int si, char *buf, size_t len)
 {
 	int swap = dev->quirks->uq_flags & UQ_SWAP_UNICODE;
 	usb_string_descriptor_t us;
@@ -1321,6 +1321,8 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 	int size;
 
 	buf[0] = '\0';
+	if (len == 0)
+		return (USBD_NORMAL_COMPLETION);
 	if (si == 0)
 		return (USBD_INVAL);
 	if (dev->quirks->uq_flags & UQ_NO_STRINGS)
@@ -1342,7 +1344,7 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 		return (err);
 	s = buf;
 	n = size / 2 - 1;
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < n && i < len - 1; i++) {
 		c = UGETW(us.bString[i]);
 		/* Convert from Unicode, handle buggy strings. */
 		if ((c & 0xff00) == 0)
