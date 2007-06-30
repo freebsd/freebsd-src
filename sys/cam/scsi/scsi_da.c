@@ -503,6 +503,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JNC*" , "MP3 Player*",
 		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * SAMSUNG MP0402H
+		 * PR: usb/108427
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "MP0402H", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
