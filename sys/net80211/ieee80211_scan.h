@@ -117,8 +117,8 @@ void	ieee80211_scan_iterate(struct ieee80211com *,
 struct ieee80211_scanparams {
 	uint16_t	capinfo;	/* 802.11 capabilities */
 	uint16_t	fhdwell;	/* FHSS dwell interval */
-	uint8_t		chan;		/* */
-	uint8_t		bchan;
+	struct ieee80211_channel *curchan;
+	uint8_t		bchan;		/* chan# advertised inside beacon */
 	uint8_t		fhindex;
 	uint8_t		erp;
 	uint16_t	bintval;

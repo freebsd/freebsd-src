@@ -835,7 +835,7 @@ dump_probe_beacon(uint8_t subtype, int isnew,
 	printf("[%s] %s%s on chan %u (bss chan %u) ",
 	    ether_sprintf(mac), isnew ? "new " : "",
 	    ieee80211_mgt_subtype_name[subtype >> IEEE80211_FC0_SUBTYPE_SHIFT],
-	    sp->chan, sp->bchan);
+	    IEEE80211_CHAN2IEEE(sp->curchan), sp->bchan);
 	ieee80211_print_essid(sp->ssid + 2, sp->ssid[1]);
 	printf("\n");
 
