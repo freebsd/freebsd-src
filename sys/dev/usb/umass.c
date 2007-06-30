@@ -2330,7 +2330,7 @@ umass_cam_rescan(void *addr)
 	if (ccb == NULL)
 		return;
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->umass_sim),
-			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
+			    device_get_unit(sc->sc_dev), CAM_LUN_WILDCARD)
 	    != CAM_REQ_CMP) {
 		free(ccb, M_USBDEV);
 		return;
@@ -2533,7 +2533,8 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 * buffer (see umass_scsi_transform).
 		 */
 
-		if (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
+		switch (sc->transform(sc, cmd, cmdlen, &rcmd, &rcmdlen)) {
+		case 1:
 			/*
 			 * Handle EVPD inquiry for broken devices first
 			 * NO_INQUIRY also implies NO_INQUIRY_EVPD
@@ -2573,9 +2574,15 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 				     csio->data_ptr,
 				     csio->dxfer_len, dir, ccb->ccb_h.timeout,
 				     umass_cam_cb, (void *) ccb);
-		} else {
+			break;
+		case 0:
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
+			break;
+		case 2:
+			ccb->ccb_h.status = CAM_REQ_CMP;
+			xpt_done(ccb);
+			break;
 		}
 
 		break;
@@ -2764,7 +2771,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			if (sc->transform(sc,
 				    (unsigned char *) &sc->cam_scsi_sense,
 				    sizeof(sc->cam_scsi_sense),
-				    &rcmd, &rcmdlen)) {
+				    &rcmd, &rcmdlen) == 1) {
 				if ((sc->quirks & FORCE_SHORT_INQUIRY) && (rcmd[0] == INQUIRY)) {
 					csio->sense_len = SHORT_INQUIRY_LENGTH;
 				}
@@ -2874,7 +2881,7 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 					(unsigned char *)
 					&sc->cam_scsi_test_unit_ready,
 					sizeof(sc->cam_scsi_test_unit_ready),
-					&rcmd, &rcmdlen)) {
+					&rcmd, &rcmdlen) == 1) {
 				sc->transfer(sc, ccb->ccb_h.target_lun,
 					     rcmd, rcmdlen,
 					     NULL, 0, DIR_NONE, ccb->ccb_h.timeout,
@@ -3070,6 +3077,14 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case READ_FORMAT_CAPACITIES:
 		memcpy(*rcmd, cmd, cmdlen);
 		return 1;
+
+	/*
+	 * SYNCHRONIZE_CACHE isn't supported by UFI, nor should it be
+	 * required for UFI devices, so it is appropriate to fake
+	 * success.
+	 */
+	case SYNCHRONIZE_CACHE:
+		return 2;
 
 	default:
 		printf("%s: Unsupported UFI command 0x%02x\n",
