@@ -2959,8 +2959,12 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		IEEE80211_ADDR_COPY(ni->ni_macaddr, ni->ni_bssid);
 		buflen = sizeof(val);
 		wi_read_rid(sc, WI_RID_CURRENT_CHAN, &val, &buflen);
+		ni->ni_chan = ieee80211_find_channel(ic,
+		    ieee80211_ieee2mhz(val, IEEE80211_CHAN_B),
+		    IEEE80211_CHAN_B);
+		if (ni->ni_chan == NULL)
+			ni->ni_chan = &ic->ic_channels[0];
 		/* XXX validate channel */
-		ni->ni_chan = &ic->ic_channels[le16toh(val)];
 		ic->ic_curchan = ic->ic_bsschan = ni->ni_chan;
 #if NBPFILTER > 0
 		sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
