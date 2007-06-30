@@ -2727,6 +2727,10 @@ acpi_system_eventhandler_sleep(void *arg, int state)
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, state);
 
+    /* Check if button action is disabled. */
+    if (state == ACPI_S_STATES_MAX + 1)
+	return;
+
     /* Request that the system prepare to enter the given suspend state. */
     ret = acpi_ReqSleepState((struct acpi_softc *)arg, state);
     if (ret != 0)
