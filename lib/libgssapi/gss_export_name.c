@@ -39,6 +39,9 @@ gss_export_name(OM_uint32 *minor_status,
 	struct _gss_name *name = (struct _gss_name *) input_name;
 	struct _gss_mechanism_name *mn;
 
+	exported_name->value = NULL;
+	exported_name->length = 0;
+
 	/*
 	 * If this name already has any attached MNs, export the first
 	 * one, otherwise export based on the first mechanism in our
