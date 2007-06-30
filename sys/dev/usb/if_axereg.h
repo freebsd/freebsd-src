@@ -113,8 +113,10 @@
 #define AXE_ENDPT_MAX		0x3
 
 struct axe_type {
-	u_int16_t		axe_vid;
-	u_int16_t		axe_did;
+	struct usb_devno        axe_dev;
+	uint32_t                axe_flags;
+#define AX178   0x0001                /* AX88178 */
+#define AX772   0x0002                /* AX88772 */
 };
 
 #define AXE_INC(x, y)		(x) = (x + 1) % y
