@@ -29,6 +29,7 @@ node [color=grey62, style=filled, bgcolor=black];
 # Alumni go here.. Try to keep things sorted.
 
 adamw [label="Adam Weinberger\nadamw@FreeBSD.org\n2002/10/16\n2006/09/25"]
+asami [label="Satoshi Asami\nasami@FreeBSD.org\n1994/11/18\n2001/09/11"]
 billf [label="Bill Fumerola\nbillf@FreeBSD.org\n1998/11/11\n2006/12/14"]
 bmah [label="Bruce A. Mah\nbmah@FreeBSD.org\n2000/08/23\n2006/12/19"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
@@ -72,6 +73,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+gerald [label="Gerald Pfeifer\gerald@FreeBSD.org\n2002/04/03"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -105,6 +107,8 @@ nobutaka [label="Nobutaka Mantani\nnobutaka@FreeBSD.org\n2001/11/02"]
 nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2002/04/01"]
 novel [label="Roman Bogorodskiy\nnovel@FreeBSD.org\n2005/03/07"]
 nox [label="Juergen Lock\nnox@FreeBSD.org\n2006/12/22"]
+obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
+mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
 osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
 pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
@@ -141,6 +145,8 @@ ahze -> tmclaugh
 
 arved -> markus
 arved -> stefan
+
+asami -> obrien
 
 billf -> sobomax
 billf -> will
@@ -230,6 +236,9 @@ nork -> ale
 
 novel -> alexbl
 novel -> ehaupt
+
+obrien -> mharo
+obrien -> gerald
 
 pat -> adamw
 
