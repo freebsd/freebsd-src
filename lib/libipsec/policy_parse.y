@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 
 #include <stdlib.h>
 #include <stdio.h>

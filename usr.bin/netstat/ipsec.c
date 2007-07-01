@@ -104,11 +104,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#if defined(IPSEC) && !defined(FAST_IPSEC)
-#include <netinet6/ipsec.h>
-#endif
-
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
@@ -250,9 +246,24 @@ print_ipsecstats(const struct ipsecstat *ipsecstat)
 	hist(ipsecstat->out_comphist, ipsec_compnames, "IPComp output");
 	p(spdcachelookup, "\t%ju SPD cache lookup%s\n");
 	pes(spdcachemiss, "\t%ju SPD cache miss%s\n");
-#undef p
 #undef pes
 #undef hist
+	p(ips_in_polvio, "\t%ju inbound packet%s violated process "
+		"security policy\n");
+	p(ips_out_polvio, "\t%ju outbound packet%s violated process "
+		"security policy\n");
+	p(ips_out_nosa, "\t%ju outbound packet%s with no SA available\n");
+	p(ips_out_nomem, "\t%ju outbound packet%s failed due to "
+		"insufficient memory\n");
+	p(ips_out_noroute, "\t%ju outbound packet%s with no route "
+		"available\n");
+	p(ips_out_inval, "\t%ju invalid outbound packet%s\n");
+	p(ips_out_bundlesa, "\t%ju outbound packet%s with bundled SAs\n");
+	p(ips_mbcoalesced, "\t%ju mbuf%s coalesced during clone\n");
+	p(ips_clcoalesced, "\t%ju cluster%s coalesced during clone\n");
+	p(ips_clcopied, "\t%ju cluster%s copied during clone\n");
+	p(ips_mbinserted, "\t%ju mbuf%s inserted during makespace\n");
+#undef p
 }
 
 void
@@ -269,11 +280,8 @@ ipsec_stats(u_long off, const char *name, int af1 __unused)
 }
 
 
-#ifdef FAST_IPSEC
-
 static void ipsec_hist_new(const u_int32_t *hist, size_t histmax,
 			   const struct val2str *name, const char *title);
-static void print_newipsecstats(const struct newipsecstat *newipsecstat);
 static void print_ahstats(const struct ahstat *ahstat);
 static void print_espstats(const struct espstat *espstat);
 static void print_ipcompstats(const struct ipcompstat *ipcompstat);
@@ -310,43 +318,6 @@ ipsec_hist_new(const u_int32_t *hist, size_t histmax,
 	}
 }
   
-static void
-print_newipsecstats(const struct newipsecstat *newipsecstat)
-{
-#define	p(f, m) if (newipsecstat->f || sflag <= 1) \
-    printf(m, newipsecstat->f, plural(newipsecstat->f))
-
-	p(ips_in_polvio, "\t%u inbound packet%s violated process "
-		"security policy\n");
-	p(ips_out_polvio, "\t%u outbound packet%s violated process "
-		"security policy\n");
-	p(ips_out_nosa, "\t%u outbound packet%s with no SA available\n");
-	p(ips_out_nomem, "\t%u outbound packet%s failed due to "
-		"insufficient memory\n");
-	p(ips_out_noroute, "\t%u outbound packet%s with no route "
-		"available\n");
-	p(ips_out_inval, "\t%u invalid outbound packet%s\n");
-	p(ips_out_bundlesa, "\t%u outbound packet%s with bundled SAs\n");
-	p(ips_mbcoalesced, "\t%u mbuf%s coalesced during clone\n");
-	p(ips_clcoalesced, "\t%u cluster%s coalesced during clone\n");
-	p(ips_clcopied, "\t%u cluster%s copied during clone\n");
-	p(ips_mbinserted, "\t%u mbuf%s inserted during makespace\n");
-#undef p
-}
-  
-void
-ipsec_stats_new(u_long off, const char *name, int family __unused)
-{
-	struct newipsecstat newipsecstat;
-
-	if (off == 0)
-		return;
-  	printf ("%s:\n", name);
-	kread(off, (char *)&newipsecstat, sizeof(newipsecstat));
-
-	print_newipsecstats(&newipsecstat);
-}
-
 static void
 print_ahstats(const struct ahstat *ahstat)
 {
@@ -491,5 +462,4 @@ ipcomp_stats(u_long off, const char *name, int family __unused)
 	print_ipcompstats(&ipcompstat);
 }
 
-#endif /* FAST_IPSEC */
 #endif /*IPSEC*/

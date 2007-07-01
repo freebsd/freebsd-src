@@ -279,7 +279,7 @@ static const char rcsid[] =
 
 #ifdef IPSEC
 #include <net/route.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #endif
 
 #define DUMMY_PORT 10010

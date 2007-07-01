@@ -79,11 +79,7 @@ static const char rcsid[] =
 
 #include <netinet/in.h>
 
-#if defined(IPSEC) && !defined(FAST_IPSEC)
-#include <netkey/keysock.h>
-#endif
-
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/keysock.h>
 #endif
 
