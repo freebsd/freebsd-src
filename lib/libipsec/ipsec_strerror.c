@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <string.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 
 #include "ipsec_strerror.h"
 

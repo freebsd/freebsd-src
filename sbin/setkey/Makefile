@@ -44,9 +44,9 @@ CLEANFILES=	y.tab.c y.tab.h key_test.o keytest
 
 # libpfkey
 # ipsec_strerror.c is for avoiding shlib reference to non-exported function.
-.PATH: ${.CURDIR}/../../lib/libipsec ${.CURDIR}/../../sys/netkey
+.PATH: ${.CURDIR}/../../lib/libipsec ${.CURDIR}/../../sys/netipsec
 SRCS+= pfkey.c pfkey_dump.c key_debug.c ipsec_strerror.c
-CFLAGS+= -I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
+CFLAGS+= -I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netipsec
 
 SRCS+=	y.tab.h
 y.tab.h: parse.y

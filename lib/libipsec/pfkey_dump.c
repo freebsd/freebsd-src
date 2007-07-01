@@ -35,13 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #include <net/pfkeyv2.h>
-#include <netkey/key_var.h>
-#include <netkey/key_debug.h>
+#include <netipsec/key_var.h>
+#include <netipsec/key_debug.h>
 
 #include <netinet/in.h>
-#include <netinet6/ipsec.h>
 #include <arpa/inet.h>
 
 #include <stdlib.h>

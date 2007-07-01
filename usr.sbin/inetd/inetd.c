@@ -144,7 +144,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 #ifdef IPSEC
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #ifndef IPSEC_POLICY_IPSEC	/* no ipsec support on old ipsec */
 #undef IPSEC
 #endif

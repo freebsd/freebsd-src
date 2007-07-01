@@ -10,7 +10,6 @@ SRCS=	if.c inet.c main.c mbuf.c mcast.c mroute.c route.c \
 WARNS?=	3
 
 CFLAGS+=-DIPSEC
-CFLAGS+=-DFAST_IPSEC
 CFLAGS+=-DSCTP
 
 .if ${MK_INET6_SUPPORT} != "no"

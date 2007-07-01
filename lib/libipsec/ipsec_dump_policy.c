@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/socket.h>
 
-#include <netkey/key_var.h>
+#include <netipsec/key_var.h>
 #include <netinet/in.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 
 #include <arpa/inet.h>
 

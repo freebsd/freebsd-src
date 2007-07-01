@@ -49,7 +49,7 @@
 #include <arpa/inet.h>
 
 #ifdef IPSEC
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #endif
 
 #include <stdio.h>
