@@ -67,11 +67,12 @@
  *    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  */
 
-#include <sys/ctype.h>
-
 #include <dev/sound/pcm/sound.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+
+#include <sys/ctype.h>
+#include <sys/taskqueue.h>
 
 #include <dev/sound/pci/hda/hdac_private.h>
 #include <dev/sound/pci/hda/hdac_reg.h>
@@ -80,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070619_0045"
+#define HDA_DRV_TEST_REV	"20070702_0046"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -113,6 +114,14 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Default controller / jack sense poll: 250ms */
 #define HDAC_POLL_INTERVAL	max(hz >> 2, 1)
+
+/*
+ * Make room for possible 4096 playback/record channels, in 100 years to come.
+ */
+#define HDAC_TRIGGER_NONE	0x00000000
+#define HDAC_TRIGGER_PLAY	0x00000fff
+#define HDAC_TRIGGER_REC	0x00fff000
+#define HDAC_TRIGGER_UNSOL	0x80000000
 
 #define HDA_MODEL_CONSTRUCT(vendor, model)	\
 		(((uint32_t)(model) << 16) | ((vendor##_VENDORID) & 0xffff))
@@ -205,6 +214,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_M2N_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x8234)
 #define ASUS_M2NPVMX_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_P5BWD_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81ec)
+#define ASUS_A8NVMCSM_SUBVENDOR	HDA_MODEL_CONSTRUCT(NVIDIA, 0xcb84)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -316,6 +326,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define SOUND_MASK_SKIP		(1 << 30)
 #define SOUND_MASK_DISABLE	(1 << 31)
+
+#if __FreeBSD_version < 600000
+#define taskqueue_drain(...)
+#endif
 
 static const struct {
 	char *key;
@@ -830,7 +844,7 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 	struct hdac_widget *w;
 	struct hdac_audio_ctl *ctl;
 	uint32_t val, id, res;
-	int i = 0, j, forcemute;
+	int i = 0, j, timeout, forcemute;
 	nid_t cad;
 
 	if (devinfo == NULL || devinfo->codec == NULL ||
@@ -862,13 +876,23 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 		hdac_command(sc,
 		    HDA_CMD_SET_PIN_SENSE(cad, hdac_hp_switch[i].hpnid,
 		    hdac_hp_switch[i].execsense), cad);
-	res = hdac_command(sc,
-	    HDA_CMD_GET_PIN_SENSE(cad, hdac_hp_switch[i].hpnid), cad);
+
+	timeout = 10000;
+	do {
+		res = hdac_command(sc,
+		    HDA_CMD_GET_PIN_SENSE(cad, hdac_hp_switch[i].hpnid),
+		    cad);
+		if (hdac_hp_switch[i].execsense == -1 || res != 0x7fffffff)
+			break;
+		DELAY(10);
+	} while (--timeout != 0);
+
 	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
-		    "HDA_DEBUG: Pin sense: nid=%d res=0x%08x\n",
-		    hdac_hp_switch[i].hpnid, res);
+		    "HDA_DEBUG: Pin sense: nid=%d timeout=%d res=0x%08x\n",
+		    hdac_hp_switch[i].hpnid, timeout, res);
 	);
+
 	res = HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT(res);
 	res ^= hdac_hp_switch[i].inverted;
 
@@ -1100,7 +1124,7 @@ hdac_intr_handler(void *context)
 	uint32_t intsts;
 	uint8_t rirbsts;
 	struct hdac_rirb *rirb_base;
-	uint32_t trigger = 0;
+	uint32_t trigger;
 
 	sc = (struct hdac_softc *)context;
 
@@ -1109,12 +1133,15 @@ hdac_intr_handler(void *context)
 		hdac_unlock(sc);
 		return;
 	}
+
 	/* Do we have anything to do? */
 	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
 	if (!HDA_FLAG_MATCH(intsts, HDAC_INTSTS_GIS)) {
 		hdac_unlock(sc);
 		return;
 	}
+
+	trigger = 0;
 
 	/* Was this a controller interrupt? */
 	if (HDA_FLAG_MATCH(intsts, HDAC_INTSTS_CIS)) {
@@ -1124,7 +1151,8 @@ hdac_intr_handler(void *context)
 		while (HDA_FLAG_MATCH(rirbsts, HDAC_RIRBSTS_RINTFL)) {
 			HDAC_WRITE_1(&sc->mem,
 			    HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
-			hdac_rirb_flush(sc);
+			if (hdac_rirb_flush(sc) != 0)
+				trigger |= HDAC_TRIGGER_UNSOL;
 			rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
 		}
 		/* XXX to be removed */
@@ -1134,15 +1162,13 @@ hdac_intr_handler(void *context)
 #endif
 	}
 
-	hdac_unsolq_flush(sc);
-
 	if (intsts & HDAC_INTSTS_SIS_MASK) {
 		if ((intsts & (1 << sc->num_iss)) &&
 		    hdac_stream_intr(sc, &sc->play) != 0)
-			trigger |= 1;
+			trigger |= HDAC_TRIGGER_PLAY;
 		if ((intsts & (1 << 0)) &&
 		    hdac_stream_intr(sc, &sc->rec) != 0)
-			trigger |= 2;
+			trigger |= HDAC_TRIGGER_REC;
 		/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
 		HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, intsts &
@@ -1152,10 +1178,12 @@ hdac_intr_handler(void *context)
 
 	hdac_unlock(sc);
 
-	if (trigger & 1)
+	if (trigger & HDAC_TRIGGER_PLAY)
 		chn_intr(sc->play.c);
-	if (trigger & 2)
+	if (trigger & HDAC_TRIGGER_REC)
 		chn_intr(sc->rec.c);
+	if (trigger & HDAC_TRIGGER_UNSOL)
+		taskqueue_enqueue(taskqueue_thread, &sc->unsolq_task);
 }
 
 /****************************************************************************
@@ -2054,8 +2082,9 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 		default:
 			break;
 		}
-	} else if (id == HDA_CODEC_AD1986A && sc->pci_subvendor ==
-	    ASUS_M2NPVMX_SUBVENDOR) {
+	} else if (id == HDA_CODEC_AD1986A &&
+	    (sc->pci_subvendor == ASUS_M2NPVMX_SUBVENDOR ||
+	    sc->pci_subvendor == ASUS_A8NVMCSM_SUBVENDOR)) {
 		switch (nid) {
 		case 28:	/* LINE */
 			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
@@ -2372,7 +2401,7 @@ static void
 hda_poll_callback(void *arg)
 {
 	struct hdac_softc *sc = arg;
-	uint32_t trigger = 0;
+	uint32_t trigger;
 
 	if (sc == NULL)
 		return;
@@ -2383,8 +2412,9 @@ hda_poll_callback(void *arg)
 		return;
 	}
 
-	trigger |= (hda_poll_channel(&sc->play) != 0) ? 1 : 0;
-	trigger |= (hda_poll_channel(&sc->rec) != 0) ? 2 : 0;
+	trigger = 0;
+	trigger |= (hda_poll_channel(&sc->play) != 0) ? HDAC_TRIGGER_PLAY : 0;
+	trigger |= (hda_poll_channel(&sc->rec)) != 0 ? HDAC_TRIGGER_REC : 0;
 
 	/* XXX */
 	callout_reset(&sc->poll_hda, 1/*sc->poll_ticks*/,
@@ -2392,9 +2422,9 @@ hda_poll_callback(void *arg)
 
 	hdac_unlock(sc);
 
-	if (trigger & 1)
+	if (trigger & HDAC_TRIGGER_PLAY)
 		chn_intr(sc->play.c);
-	if (trigger & 2)
+	if (trigger & HDAC_TRIGGER_REC)
 		chn_intr(sc->rec.c);
 }
 
@@ -2407,7 +2437,7 @@ hdac_rirb_flush(struct hdac_softc *sc)
 	nid_t cad;
 	uint32_t resp;
 	uint8_t rirbwp;
-	int ret = 0;
+	int ret;
 
 	rirb_base = (struct hdac_rirb *)sc->rirb_dma.dma_vaddr;
 	rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
@@ -2415,6 +2445,8 @@ hdac_rirb_flush(struct hdac_softc *sc)
 	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 #endif
+
+	ret = 0;
 
 	while (sc->rirb_rp != rirbwp) {
 		sc->rirb_rp++;
@@ -2475,8 +2507,8 @@ hdac_poll_callback(void *arg)
 		hdac_unlock(sc);
 		return;
 	}
-	hdac_rirb_flush(sc);
-	hdac_unsolq_flush(sc);
+	if (hdac_rirb_flush(sc) != 0)
+		hdac_unsolq_flush(sc);
 	callout_reset(&sc->poll_hdac, sc->poll_ival, hdac_poll_callback, sc);
 	hdac_unlock(sc);
 }
@@ -3563,6 +3595,18 @@ static kobj_method_t hdac_audio_ctl_ossmixer_methods[] = {
 };
 MIXER_DECLARE(hdac_audio_ctl_ossmixer);
 
+static void
+hdac_unsolq_task(void *context, int pending)
+{
+	struct hdac_softc *sc;
+
+	sc = (struct hdac_softc *)context;
+
+	hdac_lock(sc);
+	hdac_unsolq_flush(sc);
+	hdac_unlock(sc);
+}
+
 /****************************************************************************
  * int hdac_attach(device_t)
  *
@@ -3594,6 +3638,8 @@ hdac_attach(device_t dev)
 	callout_init(&sc->poll_hda, CALLOUT_MPSAFE);
 	callout_init(&sc->poll_hdac, CALLOUT_MPSAFE);
 	callout_init(&sc->poll_jack, CALLOUT_MPSAFE);
+
+	TASK_INIT(&sc->unsolq_task, 0, hdac_unsolq_task, sc);
 
 	sc->poll_ticks = 1;
 	sc->poll_ival = HDAC_POLL_INTERVAL;
@@ -4221,7 +4267,8 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			if (w->nid != 3)
 				w->enable = 0;
 		}
-		if (subvendor == ASUS_M2NPVMX_SUBVENDOR) {
+		if (subvendor == ASUS_M2NPVMX_SUBVENDOR ||
+		    subvendor == ASUS_A8NVMCSM_SUBVENDOR) {
 			/* nid 28 is mic, nid 29 is line-in */
 			w = hdac_widget_get(devinfo, 15);
 			if (w != NULL)
@@ -5611,6 +5658,7 @@ hdac_release_resources(struct hdac_softc *sc)
 	callout_stop(&sc->poll_jack);
 	hdac_reset(sc);
 	hdac_unlock(sc);
+	taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
 	callout_drain(&sc->poll_hda);
 	callout_drain(&sc->poll_hdac);
 	callout_drain(&sc->poll_jack);
@@ -5766,6 +5814,9 @@ sysctl_hdac_polling(SYSCTL_HANDLER_ARGS)
 			ctl = HDAC_READ_1(&sc->mem, HDAC_RIRBCTL);
 			ctl &= ~HDAC_RIRBCTL_RINTCTL;
 			HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, ctl);
+			hdac_unlock(sc);
+			taskqueue_drain(taskqueue_thread, &sc->unsolq_task);
+			hdac_lock(sc);
 			callout_reset(&sc->poll_hdac, 1, hdac_poll_callback,
 			    sc);
 			sc->polling = 1;
@@ -5818,13 +5869,13 @@ sysctl_hdac_polling_interval(SYSCTL_HANDLER_ARGS)
 
 #ifdef SND_DEBUG
 static int
-sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
+sysctl_hdac_pindump(SYSCTL_HANDLER_ARGS)
 {
 	struct hdac_softc *sc;
 	struct hdac_devinfo *devinfo;
 	struct hdac_widget *w;
 	device_t dev;
-	uint32_t res, execres;
+	uint32_t res, pincap, timeout;
 	int i, err, val;
 	nid_t cad;
 
@@ -5846,11 +5897,28 @@ sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
 		if (w == NULL || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 			continue;
-		execres = hdac_command(sc, HDA_CMD_SET_PIN_SENSE(cad, w->nid, 0),
-		    cad);
-		res = hdac_command(sc, HDA_CMD_GET_PIN_SENSE(cad, w->nid), cad);
-		device_printf(dev, "nid=%-3d exec=0x%08x sense=0x%08x [%s]\n",
-		    w->nid, execres, res,
+		pincap = w->wclass.pin.cap;
+		if ((HDA_PARAM_PIN_CAP_IMP_SENSE_CAP(pincap) ||
+		    HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(pincap)) &&
+		    HDA_PARAM_PIN_CAP_TRIGGER_REQD(pincap)) {
+			timeout = 10000;
+			hdac_command(sc,
+			    HDA_CMD_SET_PIN_SENSE(cad, w->nid, 0), cad);
+			do {
+				res = hdac_command(sc,
+				    HDA_CMD_GET_PIN_SENSE(cad, w->nid), cad);
+				if (res != 0x7fffffff)
+					break;
+				DELAY(10);
+			} while (--timeout != 0);
+		} else {
+			timeout = -1;
+			res = hdac_command(sc, HDA_CMD_GET_PIN_SENSE(cad,
+			    w->nid), cad);
+		}
+		device_printf(dev,
+		    "PIN_SENSE: nid=%-3d timeout=%d res=0x%08x [%s]\n",
+		    w->nid, timeout, res,
 		    (w->enable == 0) ? "DISABLED" : "ENABLED");
 	}
 	device_printf(dev,
@@ -5860,7 +5928,7 @@ sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
 	    HDA_PARAM_GPIO_COUNT_NUM_GPI(devinfo->function.audio.gpio),
 	    HDA_PARAM_GPIO_COUNT_GPI_WAKE(devinfo->function.audio.gpio),
 	    HDA_PARAM_GPIO_COUNT_GPI_UNSOL(devinfo->function.audio.gpio));
-	if (1 || HDA_PARAM_GPIO_COUNT_NUM_GPI(devinfo->function.audio.gpio) > 0) {
+	if (HDA_PARAM_GPIO_COUNT_NUM_GPI(devinfo->function.audio.gpio) > 0) {
 		device_printf(dev, " GPI:");
 		res = hdac_command(sc,
 		    HDA_CMD_GET_GPI_DATA(cad, devinfo->nid), cad);
@@ -5877,13 +5945,13 @@ sysctl_hdac_dump(SYSCTL_HANDLER_ARGS)
 		    HDA_CMD_GET_GPI_STICKY_MASK(cad, devinfo->nid), cad);
 		printf(" sticky=0x%08x\n", res);
 	}
-	if (1 || HDA_PARAM_GPIO_COUNT_NUM_GPO(devinfo->function.audio.gpio) > 0) {
+	if (HDA_PARAM_GPIO_COUNT_NUM_GPO(devinfo->function.audio.gpio) > 0) {
 		device_printf(dev, " GPO:");
 		res = hdac_command(sc,
 		    HDA_CMD_GET_GPO_DATA(cad, devinfo->nid), cad);
 		printf(" data=0x%08x\n", res);
 	}
-	if (1 || HDA_PARAM_GPIO_COUNT_NUM_GPIO(devinfo->function.audio.gpio) > 0) {
+	if (HDA_PARAM_GPIO_COUNT_NUM_GPIO(devinfo->function.audio.gpio) > 0) {
 		device_printf(dev, "GPI0:");
 		res = hdac_command(sc,
 		    HDA_CMD_GET_GPIO_DATA(cad, devinfo->nid), cad);
@@ -6123,8 +6191,8 @@ hdac_attach2(void *arg)
 #ifdef SND_DEBUG
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
-	    "dump", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
-	    sysctl_hdac_dump, "I", "Dump states");
+	    "pindump", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
+	    sysctl_hdac_pindump, "I", "Dump pin states/data");
 #endif
 #endif
 
