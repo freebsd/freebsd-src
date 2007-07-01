@@ -327,6 +327,8 @@ struct hdac_softc {
 	struct callout		poll_hdac;
 	struct callout		poll_jack;
 
+	struct task		unsolq_task;
+
 #define HDAC_UNSOLQ_MAX		64
 #define HDAC_UNSOLQ_READY	0
 #define HDAC_UNSOLQ_BUSY	1
