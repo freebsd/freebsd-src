@@ -283,6 +283,9 @@ device		acpi
 options 	ACPI_DEBUG
 #!options 	ACPI_NO_SEMAPHORES
 
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
+
 # Direct Rendering modules for 3D acceleration.
 device		drm		# DRM core module required by DRM drivers
 device		i915drm		# Intel i830 through i915
