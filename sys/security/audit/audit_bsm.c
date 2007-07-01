@@ -65,7 +65,6 @@ void
 kau_init(void)
 {
 
-	printf("BSM auditing present\n");
 	au_evclassmap_init();
 }
 
