@@ -524,7 +524,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * JoyFly 128mb USB Flash Drive
 		 * PR: 96133
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB*", "Flash Disk*",
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB 2.0", "Flash Disk*",
 		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
