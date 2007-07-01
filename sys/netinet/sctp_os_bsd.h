@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <sys/domain.h>
 #ifdef FAST_IPSEC
-#include <netinet6/ipsec6.h>
+#include <netipsec/ipsec6.h>
 #endif
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
