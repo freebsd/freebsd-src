@@ -72,7 +72,7 @@ typedef unsigned char cc_t;
 #include <string.h>
 
 #if defined(IPSEC)
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #if defined(IPSEC_POLICY_IPSEC)
 extern char *ipsec_policy_in;
 extern char *ipsec_policy_out;

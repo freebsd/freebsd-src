@@ -21,7 +21,7 @@ LDADD=	-lutil -lwrap
 
 # XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)
-CFLAGS+= -DIPSEC
+CFLAGS+= -DIPSEC -DFAST_IPSEC
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 .endif

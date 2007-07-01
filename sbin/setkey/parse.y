@@ -38,8 +38,8 @@
 #include <net/route.h>
 #include <netinet/in.h>
 #include <net/pfkeyv2.h>
-#include <netkey/key_var.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/key_var.h>
+#include <netipsec/ipsec.h>
 #include <arpa/inet.h>
 
 #include <string.h>

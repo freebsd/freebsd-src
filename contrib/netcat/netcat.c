@@ -42,7 +42,7 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #ifdef IPSEC
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #endif
 #include <netinet/tcp.h>
 #include <netinet/ip.h>

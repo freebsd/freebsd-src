@@ -100,7 +100,7 @@ static struct nlist nl[] = {
 #define N_ICMP6STAT	13
 	{ .n_name = "_icmp6stat" },
 #define N_IPSECSTAT	14
-	{ .n_name = "_ipsecstat" },
+	{ .n_name = "_ipsec4stat" },
 #define N_IPSEC6STAT	15
 	{ .n_name = "_ipsec6stat" },
 #define N_PIM6STAT	16
@@ -141,8 +141,6 @@ static struct nlist nl[] = {
 	{ .n_name = "_carpstats" },
 #define N_PFSYNCSTAT	34
 	{ .n_name = "_pfsyncstats" },
-#define	N_FAST_IPSECSTAT 35
-	{ .n_name = "_newipsecstat" },
 #define	N_AHSTAT	36
 	{ .n_name = "_ahstat" },
 #define	N_ESPSTAT	37
@@ -181,18 +179,14 @@ struct protox {
 	{ -1,		-1,		1,	protopr,
 	  igmp_stats,	NULL,		"igmp",	IPPROTO_IGMP },
 #ifdef IPSEC
-	{ -1,		N_IPSECSTAT,	1,	NULL,
+	{ -1,		N_IPSECSTAT,	1,	NULL,	/* keep as compat */
 	  ipsec_stats,	NULL,		"ipsec",	0},
-#ifdef FAST_IPSEC
-	{ -1,		N_FAST_IPSECSTAT, 1,	0,
-	  ipsec_stats_new, NULL,	"fastipsec",	0},
-	{ -1,		N_AHSTAT,	1,	0,
+	{ -1,		N_AHSTAT,	1,	NULL,
 	  ah_stats,	NULL,		"ah",		0},
-	{ -1,		N_ESPSTAT,	1,	0,
+	{ -1,		N_ESPSTAT,	1,	NULL,
 	  esp_stats,	NULL,		"esp",		0},
-	{ -1,		N_IPCOMPSTAT,	1,	0,
+	{ -1,		N_IPCOMPSTAT,	1,	NULL,
 	  ipcomp_stats,	NULL,		"ipcomp",	0},
-#endif
 #endif
 	{ -1,		-1,		1,	protopr,
 	  pim_stats,	NULL,		"pim",	IPPROTO_PIM },
@@ -526,17 +520,6 @@ main(int argc, char *argv[])
 
 	kread(0, 0, 0);
 	if (tp) {
-#ifdef FAST_IPSEC
-		/*
-		 * HACK: fallback to printing the new FAST IPSEC stats
-		 *	 if the kernel was built with FAST_IPSEC rather
-		 *	 than the KAME IPSEC stack (the two are mutually
-		 *	 exclusive).
-		 */
-		if (nl[tp->pr_sindex].n_value == 0 &&
-		    strcmp(tp->pr_name, "ipsec") == 0)
-			tp = name2protox("fastipsec");
-#endif
 		printproto(tp, tp->pr_name);
 		exit(0);
 	}

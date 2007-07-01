@@ -231,8 +231,6 @@
     ..
     netipx
     ..
-    netkey
-    ..
     netnatm
         api
         ..

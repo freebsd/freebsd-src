@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 
 #ifdef IPSEC
-#include <netinet6/ipsec.h>
+#include <netipsec/ipsec.h>
 #endif /*IPSEC*/
 
 #include <ctype.h>
