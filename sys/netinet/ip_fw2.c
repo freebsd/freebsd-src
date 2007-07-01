@@ -93,10 +93,6 @@
 
 #include <altq/if_altq.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif
-
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #ifdef INET6
@@ -3150,9 +3146,6 @@ check_body:
 #ifdef FAST_IPSEC
 				match = (m_tag_find(m,
 				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
-#endif
-#ifdef IPSEC
-				match = (ipsec_getnhist(m) != 0);
 #endif
 				/* otherwise no match */
 				break;

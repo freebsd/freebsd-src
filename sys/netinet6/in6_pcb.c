@@ -99,18 +99,6 @@
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#include <netinet6/ah.h>
-#ifdef INET6
-#include <netinet6/ah6.h>
-#endif
-#include <netkey/key.h>
-#endif /* IPSEC */
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
@@ -402,10 +390,7 @@ in6_pcbconnect(inp, nam, cred)
 		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
 
 	in_pcbrehash(inp);
-#ifdef IPSEC
-	if (inp->inp_socket->so_type == SOCK_STREAM)
-		ipsec_pcbconn(inp->inp_sp);
-#endif
+
 	return (0);
 }
 
@@ -422,9 +407,6 @@ in6_pcbdisconnect(inp)
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	in_pcbrehash(inp);
-#ifdef IPSEC
-	ipsec_pcbdisconn(inp->inp_sp);
-#endif
 }
 
 void
@@ -445,10 +427,10 @@ in6_pcbfree(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	if (inp->in6p_sp != NULL)
 		ipsec6_delete_pcbpolicy(inp);
-#endif /* IPSEC */
+#endif /* FAST_IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
  	ip6_freepcbopts(inp->in6p_outputopts);

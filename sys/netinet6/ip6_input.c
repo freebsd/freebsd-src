@@ -101,17 +101,10 @@
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#endif
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
+#include <netinet6/ip6_ipsec.h>
 #include <netipsec/ipsec6.h>
-#define	IPSEC
 #endif /* FAST_IPSEC */
 
 #include <netinet6/ip6protosw.h>
@@ -230,16 +223,18 @@ ip6_input(m)
 	int srcrt = 0;
 
 	GIANT_REQUIRED;			/* XXX for now */
-#ifdef IPSEC
+
+#ifdef FAST_IPSEC
 	/*
 	 * should the inner packet be considered authentic?
 	 * see comment in ah4_input().
+	 * NB: m cannot be NULL when passed to the input routine
 	 */
-	if (m) {
-		m->m_flags &= ~M_AUTHIPHDR;
-		m->m_flags &= ~M_AUTHIPDGM;
-	}
-#endif
+
+	m->m_flags &= ~M_AUTHIPHDR;
+	m->m_flags &= ~M_AUTHIPDGM;
+
+#endif /* FAST_IPSEC */
 
 	/*
 	 * make sure we don't have onion peering information into m_tag.
@@ -766,18 +761,15 @@ passin:
 			goto bad;
 		}
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 		/*
 		 * enforce IPsec policy checking if we are seeing last header.
 		 * note that we do not visit this with protocols with pcb layer
 		 * code - like udp/tcp/raw ip.
 		 */
-		if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
-		    ipsec6_in_reject(m, NULL)) {
-			ipsec6stat.in_polvio++;
+		if (ip6_ipsec_input(m, nxt))
 			goto bad;
-		}
-#endif
+#endif /* FAST_IPSEC */
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	return;

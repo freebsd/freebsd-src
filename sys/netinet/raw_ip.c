@@ -70,10 +70,6 @@
 #include <netipsec/ipsec.h>
 #endif /*FAST_IPSEC*/
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif /*IPSEC*/
-
 #include <security/mac/mac_framework.h>
 
 struct	inpcbhead ripcb;
@@ -159,16 +155,12 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 
 	INP_LOCK_ASSERT(last);
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, last)) {
 		policyfail = 1;
-#ifdef IPSEC
-		ipsecstat.in_polvio++;
-#endif /*IPSEC*/
-		/* do not inject data to pcb */
 	}
-#endif /*IPSEC || FAST_IPSEC*/
+#endif /* FAST_IPSEC */
 #ifdef MAC
 	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
 		policyfail = 1;

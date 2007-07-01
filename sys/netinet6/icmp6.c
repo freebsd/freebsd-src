@@ -99,11 +99,6 @@
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
@@ -2232,7 +2227,7 @@ icmp6_redirect_input(m, off)
 	struct mbuf *m;
 	int off;
 {
-	struct ifnet *ifp = m->m_pkthdr.rcvif;
+	struct ifnet *ifp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_redirect *nd_rd;
 	int icmp6len = ntohs(ip6->ip6_plen);
@@ -2249,7 +2244,12 @@ icmp6_redirect_input(m, off)
 	union nd_opts ndopts;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	if (!m || !ifp)
+	if (!m)
+		return;
+
+	ifp = m->m_pkthdr.rcvif;
+
+	if (!ifp)
 		return;
 
 	/* XXX if we are router, we don't update route by icmp6 redirect */
@@ -2417,9 +2417,9 @@ icmp6_redirect_input(m, off)
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	key_sa_routechange((struct sockaddr *)&sdst);
-#endif
+#endif /* FAST_IPSEC */
     }
 
  freeit:

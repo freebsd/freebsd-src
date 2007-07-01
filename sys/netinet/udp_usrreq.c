@@ -82,10 +82,6 @@
 #include <netipsec/ipsec.h>
 #endif
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif
-
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
@@ -499,16 +495,14 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 
 	INP_LOCK_ASSERT(inp);
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
-#ifdef IPSEC
-		ipsecstat.in_polvio++;
-#endif
+		ipsec4stat.in_polvio++;
 		m_freem(n);
 		return;
 	}
-#endif /*IPSEC || FAST_IPSEC*/
+#endif /* FAST_IPSEC */
 #ifdef MAC
 	if (mac_check_inpcb_deliver(inp, n) != 0) {
 		m_freem(n);

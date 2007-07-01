@@ -3592,6 +3592,25 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 #  - usr/share/tmac/mm/se_locale
 #  - var/yp/Makefile
 
+# 20070610: KAME IPSec removal
+OLD_FILES+=usr/include/netinet6/ah.h
+OLD_FILES+=usr/include/netinet6/ah6.h
+OLD_FILES+=usr/include/netinet6/ah_aesxcbcmac.h
+OLD_FILES+=usr/include/netinet6/esp.h
+OLD_FILES+=usr/include/netinet6/esp6.h
+OLD_FILES+=usr/include/netinet6/esp_aesctr.h
+OLD_FILES+=usr/include/netinet6/esp_camellia.h
+OLD_FILES+=usr/include/netinet6/esp_rijndael.h
+OLD_FILES+=usr/include/netinet6/ipsec.h
+OLD_FILES+=usr/include/netinet6/ipsec6.h
+OLD_FILES+=usr/include/netinet6/ipcomp.h
+OLD_FILES+=usr/include/netinet6/ipcomp6.h
+OLD_FILES+=usr/include/netkey/key.h
+OLD_FILES+=usr/include/netkey/key_debug.h
+OLD_FILES+=usr/include/netkey/key_var.h
+OLD_FILES+=usr/include/netkey/keydb.h
+OLD_FILES+=usr/include/netkey/keysock.h
+OLD_DIRS+=usr/include/netkey
 # 20070519: GCC 4.2
 OLD_LIBS+=usr/lib/libg2c.a
 OLD_LIBS+=usr/lib/libg2c.so

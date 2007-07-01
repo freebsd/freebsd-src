@@ -2145,8 +2145,6 @@ key_spddelete2(so, m, mhp)
 	/* create new sadb_msg to reply. */
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg));
 
-	if (len > MCLBYTES)
-		return key_senderror(so, m, ENOBUFS);
 	MGETHDR(n, M_DONTWAIT, MT_DATA);
 	if (n && len > MHLEN) {
 		MCLGET(n, M_DONTWAIT);
@@ -4518,8 +4516,6 @@ key_getspi(so, m, mhp)
 	/* create new sadb_msg to reply. */
 	len = PFKEY_ALIGN8(sizeof(struct sadb_msg)) +
 	    PFKEY_ALIGN8(sizeof(struct sadb_sa));
-	if (len > MCLBYTES)
-		return key_senderror(so, m, ENOBUFS);
 
 	MGETHDR(n, M_DONTWAIT, MT_DATA);
 	if (len > MHLEN) {
@@ -7299,7 +7295,6 @@ key_setkey(struct seckey *src, u_int16_t exttype)
 		return NULL;
 
 	len = PFKEY_ALIGN8(sizeof(struct sadb_key) + _KEYLEN(src));
-
 	m = key_alloc_mbuf(len);
 	if (m == NULL)
 		return NULL;
