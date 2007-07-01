@@ -271,7 +271,8 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
     vm_page_t *free);
-static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
+static void pmap_remove_page(struct pmap *pmap, vm_offset_t va,
+    vm_page_t *free);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -1987,19 +1988,17 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
  * Remove a single page from a process address space
  */
 static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va)
+pmap_remove_page(pmap_t pmap, vm_offset_t va, vm_page_t *free)
 {
 	pt_entry_t *pte;
-	vm_page_t free = NULL;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va, &free);
+	pmap_remove_pte(pmap, pte, va, free);
 	pmap_invalidate_page(pmap, va);
-	pmap_free_zero_pages(free);
 }
 
 /*
@@ -2036,7 +2035,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if ((sva + PAGE_SIZE == eva) && 
 	    ((pmap->pm_pdir[(sva >> PDRSHIFT)] & PG_PS) == 0)) {
-		pmap_remove_page(pmap, sva);
+		pmap_remove_page(pmap, sva, &free);
 		goto out;
 	}
 
@@ -2095,12 +2094,11 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 out:
 	sched_unpin();
-	if (anyvalid) {
+	if (anyvalid)
 		pmap_invalidate_all(pmap);
-		pmap_free_zero_pages(free);
-	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
+	pmap_free_zero_pages(free);
 }
 
 /*
@@ -3119,9 +3117,9 @@ pmap_remove_pages(pmap_t pmap)
 	}
 	sched_unpin();
 	pmap_invalidate_all(pmap);
-	pmap_free_zero_pages(free);
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
+	pmap_free_zero_pages(free);
 }
 
 /*
