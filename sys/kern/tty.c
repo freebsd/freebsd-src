@@ -2536,6 +2536,7 @@ ttyinfo(struct tty *tp)
 	int load, pctcpu;
 	pid_t pid;
 	char comm[MAXCOMLEN + 1];
+	struct rusage ru;
 
 	if (ttycheckoutq(tp,0) == 0)
 		return;
@@ -2615,9 +2616,7 @@ ttyinfo(struct tty *tp)
 	PROC_SUNLOCK(pick);
 	PROC_LOCK(pick);
 	PGRP_UNLOCK(tp->t_pgrp);
-	PROC_SLOCK(pick);
-	calcru(pick, &utime, &stime);
-	PROC_SUNLOCK(pick);
+	rufetchcalc(pick, &ru, &utime, &stime);
 	pid = pick->p_pid;
 	bcopy(pick->p_comm, comm, sizeof(comm));
 	PROC_UNLOCK(pick);
