@@ -76,6 +76,9 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
+# CPU frequency control
+device		cpufreq
+
 # Bus support.
 device		eisa
 device		pci
