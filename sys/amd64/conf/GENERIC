@@ -75,6 +75,9 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# CPU frequency control
+device		cpufreq
+
 # Bus support.
 device		acpi
 device		pci
