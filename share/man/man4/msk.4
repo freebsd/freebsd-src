@@ -61,11 +61,11 @@ The Yukon II supports TBI (ten bit interface) and GMII
 transceivers, which means it can be used with either copper or
 1000baseX fiber applications.
 .Pp
-The Yukon II also supports jumbo frames (up to 9022 bytes), which can be
+The Yukon II also supports Jumbo Frames (up to 9022 bytes), which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
-utility configures the adapter to receive and transmit jumbo frames.
+utility configures the adapter to receive and transmit Jumbo Frames.
 .Pp
 The
 .Nm
@@ -214,9 +214,9 @@ variables and
 tunables:
 .Bl -tag -width indent
 .It Va dev.mskc.%d.process_limit
-Maximum amount of Rx events to be processed in event loop before
+Maximum amount of Rx events to be processed in the event loop before
 rescheduling a taskqueue.
-The accepted range is 30 to 256, default value is 128 events.
+The accepted range is 30 to 256, the default value is 128 events.
 The interface does not need to be brought down and up again before
 a change takes effect.
 .El
@@ -240,4 +240,6 @@ and Marvell's
 .Fx
 driver.
 It first appeared in
-.Fx 7.0 .
+.Fx 7.0
+and
+.Fx 6.3 .
