@@ -205,7 +205,7 @@ struct secspacq {
 				 */
 #define IPSEC_REPLAYWSIZE  32
 
-/* old statistics for ipsec processing */
+/* statistics for ipsec processing */
 struct ipsecstat {
 	u_quad_t in_success;  /* succeeded inbound process */
 	u_quad_t in_polvio;
@@ -236,10 +236,7 @@ struct ipsecstat {
 
 	u_quad_t spdcachelookup;
 	u_quad_t spdcachemiss;
-};
 
-/* statistics for ipsec processing */
-struct newipsecstat {
 	u_int32_t ips_in_polvio;	/* input: sec policy violation */
 	u_int32_t ips_out_polvio;	/* output: sec policy violation */
 	u_int32_t ips_out_nosa;		/* output: SA unavailable  */
@@ -335,7 +332,7 @@ extern int ipsec_replay;
 extern int ipsec_integrity;
 #endif
 
-extern struct newipsecstat newipsecstat;
+extern struct ipsecstat ipsec4stat;
 extern struct secpolicy ip4_def_policy;
 extern int ip4_esp_trans_deflev;
 extern int ip4_esp_net_deflev;
@@ -351,10 +348,6 @@ extern int crypto_support;
 #define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
 #define	DPRINTF(x)	do { if (ipsec_debug) printf x; } while (0)
-
-/* XXX for KAME code compatibility */
-#define ipsec_pcbconn(_x)
-#define	ipsec_pcbdisconn(_x)
 
 extern	struct ipsecrequest *ipsec_newisr(void);
 extern	void ipsec_delisr(struct ipsecrequest *);

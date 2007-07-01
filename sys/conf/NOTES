@@ -495,9 +495,9 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 #
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
-options 	IPSEC			#IP security
-options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
-options 	IPSEC_DEBUG		#debug for IP security
+#options 	IPSEC			#IP security
+#options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
+#options 	IPSEC_DEBUG		#debug for IP security
 #
 # Set IPSEC_FILTERGIF to force packets coming through a gif tunnel
 # to be processed by any configured packet filtering (ipfw, ipf).
@@ -509,7 +509,7 @@ options 	IPSEC_DEBUG		#debug for IP security
 #
 #options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
 
-#options 	FAST_IPSEC		#new IPsec (cannot define w/ IPSEC)
+options 	FAST_IPSEC		#new IPsec (cannot define w/ IPSEC)
 
 options 	IPX			#IPX/SPX communications protocols
 

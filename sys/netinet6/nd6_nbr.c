@@ -823,7 +823,7 @@ nd6_na_input(m, off, icmp6len)
 		 * prevent a ln_hold lookup in nd6_output()
 		 * (wouldn't happen, though...)
 		 */
-		for (m_hold = ln->ln_hold, ln->ln_hold = NULL;
+		for (m_hold = ln->ln_hold;
 		    m_hold; m_hold = m_hold_next) {
 			m_hold_next = m_hold->m_nextpkt;
 			m_hold->m_nextpkt = NULL;
@@ -834,6 +834,7 @@ nd6_na_input(m, off, icmp6len)
 			nd6_output(ifp, ifp, m_hold,
 			    (struct sockaddr_in6 *)rt_key(rt), rt);
 		}
+		ln->ln_hold = NULL;
 	}
 
  freeit:

@@ -4878,14 +4878,14 @@ sctp_skip_csum_4:
 	} else if (stcb == NULL) {
 		refcount_up = 1;
 	}
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	/*
 	 * I very much doubt any of the IPSEC stuff will work but I have no
 	 * idea, so I will leave it in place.
 	 */
 
 	if (inp && ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-		ipsecstat.in_polvio++;
+		ipsec4stat.in_polvio++;
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}

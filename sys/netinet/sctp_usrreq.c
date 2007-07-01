@@ -485,9 +485,8 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	int error;
 	uint32_t vrf_id = SCTP_DEFAULT_VRFID;
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	uint32_t flags;
-
 #endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp != 0) {
@@ -509,8 +508,8 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	ip_inp->inp_vflag |= INP_IPV4;
 	ip_inp->inp_ip_ttl = ip_defttl;
 
-#ifdef IPSEC
-	error = ipsec_init_pcbpolicy(so, &ip_inp->inp_sp);
+#ifdef FAST_IPSEC
+	error = ipsec_init_policy(so, &ip_inp->inp_sp);
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 17);
 #endif
@@ -529,7 +528,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 		}
 		return error;
 	}
-#endif				/* IPSEC */
+#endif				/* FAST_IPSEC */
 	SCTP_INP_WUNLOCK(inp);
 	return 0;
 }

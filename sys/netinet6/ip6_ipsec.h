@@ -1,9 +1,6 @@
-/*	$FreeBSD$	*/
-/*	$KAME: ah.h,v 1.13 2000/10/18 21:28:00 itojun Exp $	*/
-
 /*-
- * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
- * All rights reserved.
+ * Copyright (c) 1982, 1986, 1988, 1993
+ *      The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,14 +10,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the project nor the names of its contributors
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,25 +25,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/*
- * RFC1826/2402 authentication header.
- */
+#ifndef _NETINET_IP6_IPSEC_H_
+#define _NETINET_IP6_IPSEC_H_
 
-#ifndef _NETINET6_AH6_H_
-#define _NETINET6_AH6_H_
-
-#ifdef _KERNEL
-struct secasvar;
-
-extern int ah6_input __P((struct mbuf **, int *, int));
-extern int ah6_output __P((struct mbuf *, u_char *, struct mbuf *,
-	struct ipsecrequest *));
-extern int ah6_calccksum __P((struct mbuf *, u_int8_t *, size_t,
-	const struct ah_algorithm *, struct secasvar *));
-
-extern void ah6_ctlinput __P((int, struct sockaddr *, void *));
+int	ip6_ipsec_filtergif(struct mbuf *);
+int	ip6_ipsec_fwd(struct mbuf *);
+int	ip6_ipsec_input(struct mbuf *, int);
+int	ip6_ipsec_mtu(struct mbuf *);
+int	ip6_ipsec_output(struct mbuf **, struct inpcb *, int *, int *,
+			 struct ifnet **, struct secpolicy **sp);
 #endif
-
-#endif /*_NETINET6_AH6_H_*/

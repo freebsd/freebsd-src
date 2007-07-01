@@ -1829,7 +1829,6 @@ netinet/ip_fw2.c		optional ipfirewall
 netinet/ip_fw_pfil.c		optional ipfirewall
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
-netinet/ip_ipsec.c		optional ipsec
 netinet/ip_ipsec.c		optional fast_ipsec
 netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
@@ -1865,16 +1864,7 @@ netinet/libalias/alias_db.c	optional libalias | netgraph_nat
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
 netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
 netinet/libalias/alias_util.c	optional libalias | netgraph_nat
-netinet6/ah_aesxcbcmac.c	optional ipsec
-netinet6/ah_core.c		optional ipsec
-netinet6/ah_input.c		optional ipsec
-netinet6/ah_output.c		optional ipsec
 netinet6/dest6.c		optional inet6
-netinet6/esp_aesctr.c		optional ipsec ipsec_esp
-netinet6/esp_core.c		optional ipsec ipsec_esp
-netinet6/esp_input.c		optional ipsec ipsec_esp
-netinet6/esp_output.c		optional ipsec ipsec_esp
-netinet6/esp_rijndael.c		optional ipsec ipsec_esp
 netinet6/esp_camellia.c		optional ipsec ipsec_esp
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
@@ -1891,10 +1881,7 @@ netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional mrouting inet6
 netinet6/ip6_output.c		optional inet6
-netinet6/ipcomp_core.c		optional ipsec
-netinet6/ipcomp_input.c		optional ipsec
-netinet6/ipcomp_output.c	optional ipsec
-netinet6/ipsec.c		optional ipsec
+netinet6/ip6_ipsec.c		optional fast_ipsec
 netinet6/mld6.c			optional inet6
 netinet6/nd6.c			optional inet6
 netinet6/nd6_nbr.c		optional inet6
@@ -1926,10 +1913,6 @@ netipx/ipx_proto.c		optional ipx
 netipx/ipx_usrreq.c		optional ipx
 netipx/spx_debug.c		optional ipx
 netipx/spx_usrreq.c		optional ipx
-netkey/key.c			optional ipsec
-netkey/key_debug.c		optional ipsec
-netkey/keydb.c			optional ipsec
-netkey/keysock.c		optional ipsec
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm

@@ -110,7 +110,7 @@ static int ah_output_cb(struct cryptop*);
 struct auth_hash *
 ah_algorithm_lookup(int alg)
 {
-	if (alg >= AH_ALG_MAX)
+	if (alg > SADB_AALG_MAX)
 		return NULL;
 	switch (alg) {
 	case SADB_X_AALG_NULL:

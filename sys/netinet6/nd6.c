@@ -2144,11 +2144,6 @@ again:
 		goto bad;
 	}
 
-#ifdef IPSEC
-	/* clean ipsec history once it goes out of the node */
-	ipsec_delaux(m);
-#endif
-
 #ifdef MAC
 	mac_create_mbuf_linklayer(ifp, m);
 #endif
