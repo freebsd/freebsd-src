@@ -49,6 +49,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
+#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
@@ -75,6 +76,9 @@ static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
+
+SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
+    "TrustedBSD audit controls");
 
 /*
  * Audit control settings that are set/read by system calls and are hence
@@ -215,7 +219,6 @@ static void
 audit_init(void)
 {
 
-	printf("Security auditing service present\n");
 	audit_enabled = 0;
 	audit_suspended = 0;
 	audit_panic_on_write_fail = 0;
