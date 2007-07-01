@@ -44,7 +44,13 @@ void ad1886_patch(struct ac97_info* codec)
 
 void ad198x_patch(struct ac97_info* codec)
 {
-	ac97_wrcd(codec, 0x76, ac97_rdcd(codec, 0x76) | 0x0420);
+	switch (ac97_getsubvendor(codec)) {
+	case 0x11931043:	/* Not for ASUS A9T (probably else too). */
+		break;
+	default:
+		ac97_wrcd(codec, 0x76, ac97_rdcd(codec, 0x76) | 0x0420);
+		break;
+	}
 }
 
 void ad1981b_patch(struct ac97_info* codec)
