@@ -210,7 +210,8 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
 		vm_offset_t sva, pd_entry_t ptepde, vm_page_t *free);
-static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde);
+static void pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
+    vm_page_t *free);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 		vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -1895,10 +1896,9 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va,
  * Remove a single page from a process address space
  */
 static void
-pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
+pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, vm_page_t *free)
 {
 	pt_entry_t *pte;
-	vm_page_t free = NULL;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((*pde & PG_V) == 0)
@@ -1906,9 +1906,8 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, pd_entry_t *pde)
 	pte = pmap_pde_to_pte(pde, va);
 	if ((*pte & PG_V) == 0)
 		return;
-	pmap_remove_pte(pmap, pte, va, *pde, &free);
+	pmap_remove_pte(pmap, pte, va, *pde, free);
 	pmap_invalidate_page(pmap, va);
-	pmap_free_zero_pages(free);
 }
 
 /*
@@ -1947,7 +1946,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (sva + PAGE_SIZE == eva) {
 		pde = pmap_pde(pmap, sva);
 		if (pde && (*pde & PG_PS) == 0) {
-			pmap_remove_page(pmap, sva, pde);
+			pmap_remove_page(pmap, sva, pde, &free);
 			goto out;
 		}
 	}
@@ -2018,12 +2017,11 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 	}
 out:
-	if (anyvalid) {
+	if (anyvalid)
 		pmap_invalidate_all(pmap);
-		pmap_free_zero_pages(free);
-	}
 	vm_page_unlock_queues();	
 	PMAP_UNLOCK(pmap);
+	pmap_free_zero_pages(free);
 }
 
 /*
@@ -3003,9 +3001,9 @@ pmap_remove_pages(pmap_t pmap)
 		}
 	}
 	pmap_invalidate_all(pmap);
-	pmap_free_zero_pages(free);
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
+	pmap_free_zero_pages(free);
 }
 
 /*
