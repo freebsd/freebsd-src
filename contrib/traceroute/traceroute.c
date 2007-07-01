@@ -228,7 +228,7 @@ static const char rcsid[] =
 
 #ifdef	IPSEC
 #include <net/route.h>
-#include <netinet6/ipsec.h>	/* XXX */
+#include <netipsec/ipsec.h>	/* XXX */
 #endif	/* IPSEC */
 
 #include <ctype.h>

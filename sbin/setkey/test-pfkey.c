@@ -36,9 +36,9 @@
 #include <net/route.h>
 #include <net/pfkeyv2.h>
 #include <netinet/in.h>
-#include <netkey/keydb.h>
-#include <netkey/key_var.h>
-#include <netkey/key_debug.h>
+#include <netipsec/keydb.h>
+#include <netipsec/key_var.h>
+#include <netipsec/key_debug.h>
 
 #include <stdio.h>
 #include <stdlib.h>

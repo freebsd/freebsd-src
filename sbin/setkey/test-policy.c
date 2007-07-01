@@ -34,11 +34,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet6/in6.h>
-#include <netkey/keyv2.h>
+#include <netipsec/ipsec.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <netinet6/ipsec.h>
 
 char *requests[] = {
 "must_error",		/* must be error */

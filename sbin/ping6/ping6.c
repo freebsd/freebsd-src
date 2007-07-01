@@ -134,8 +134,8 @@ static const char rcsid[] =
 #endif
 
 #ifdef IPSEC
-#include <netinet6/ah.h>
-#include <netinet6/ipsec.h>
+#include <netipsec/ah.h>
+#include <netipsec/ipsec.h>
 #endif
 
 #include <md5.h>
