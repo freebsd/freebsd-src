@@ -35,6 +35,7 @@ OLD_FILES+=usr/include/netkey/keysock.h
 OLD_DIRS+=usr/include/netkey
 # 20070701: remove wicontrol
 OLD_FILES+=usr/sbin/wicontrol
+OLD_FILES+=usr/share/man/man8/wicontrol.8.gz
 # 20070625: umapfs removal
 OLD_FILES+=rescue/mount_umapfs
 OLD_FILES+=sbin/mount_umapfs
