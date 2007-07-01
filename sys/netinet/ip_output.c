@@ -59,15 +59,10 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
-#include <netinet/ip_ipsec.h>
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif
 #ifdef FAST_IPSEC
+#include <netinet/ip_ipsec.h>
 #include <netipsec/ipsec.h>
-#endif
-#endif /*IPSEC*/
+#endif /* FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
 
@@ -417,7 +412,7 @@ again:
 	}
 
 sendit:
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
 	case 1:
 		goto bad;
@@ -430,7 +425,7 @@ sendit:
 	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
-#endif /* IPSEC */
+#endif /* FAST_IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&inet_pfil_hook))
@@ -539,10 +534,6 @@ passout:
 				ia->ia_ifa.if_opackets++;
 			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
 		}
-#ifdef IPSEC
-		/* clean ipsec history once it goes out of the node */
-		ipsec_delaux(m);
-#endif
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
 			m = m_fragment(m, M_DONTWAIT, mbuf_frag_size);
@@ -575,10 +566,6 @@ passout:
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
-#ifdef IPSEC
-		/* clean ipsec history once it goes out of the node */
-		ipsec_delaux(m);
-#endif
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia != NULL) {
@@ -979,7 +966,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_UNLOCK(inp);
 			break;
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 		case IP_IPSEC_POLICY:
 		{
 			caddr_t req;
@@ -1013,7 +1000,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			m_freem(m);
 			break;
 		}
-#endif /*IPSEC*/
+#endif /* FAST_IPSEC */
 
 		default:
 			error = ENOPROTOOPT;
@@ -1117,7 +1104,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = inp_getmoptions(inp, sopt);
 			break;
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 		case IP_IPSEC_POLICY:
 		{
 			struct mbuf *m = NULL;
@@ -1135,7 +1122,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				m_freem(m);
 			break;
 		}
-#endif /*IPSEC*/
+#endif /* FAST_IPSEC */
 
 		default:
 			error = ENOPROTOOPT;

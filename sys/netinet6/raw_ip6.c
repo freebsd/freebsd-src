@@ -95,11 +95,6 @@
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netinet6/ipsec6.h>
-#endif /*IPSEC*/
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
@@ -186,18 +181,16 @@ docontinue:
 		if (last) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 			/*
 			 * Check AH/ESP integrity.
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-#ifdef IPSEC
 				ipsec6stat.in_polvio++;
-#endif /*IPSEC*/
 				/* do not inject data into pcb */
 			} else
-#endif /*IPSEC || FAST_IPSEC*/
+#endif /* FAST_IPSEC */
 			if (n) {
 				if (last->in6p_flags & IN6P_CONTROLOPTS ||
 				    last->in6p_socket->so_options & SO_TIMESTAMP)
@@ -219,20 +212,18 @@ docontinue:
 		}
 		last = in6p;
 	}
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
 	if (last && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-#ifdef IPSEC
 		ipsec6stat.in_polvio++;
-#endif /*IPSEC*/
 		ip6stat.ip6s_delivered--;
 		/* do not inject data into pcb */
 		INP_UNLOCK(last);
 	} else
-#endif /*IPSEC || FAST_IPSEC*/
+#endif /* FAST_IPSEC */
 	if (last) {
 		if (last->in6p_flags & IN6P_CONTROLOPTS ||
 		    last->in6p_socket->so_options & SO_TIMESTAMP)

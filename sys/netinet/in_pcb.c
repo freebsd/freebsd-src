@@ -73,16 +73,8 @@
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif /* IPSEC */
 
 #ifdef FAST_IPSEC
-#if defined(IPSEC) || defined(IPSEC_ESP)
-#error "Bad idea: don't compile with both IPSEC and FAST_IPSEC!"
-#endif
-
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
 #endif /* FAST_IPSEC */
@@ -200,15 +192,12 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	mac_create_inpcb_from_socket(so, inp);
 	SOCK_UNLOCK(so);
 #endif
-#if defined(IPSEC) || defined(FAST_IPSEC)
+
 #ifdef FAST_IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
-#else
-	error = ipsec_init_pcbpolicy(so, &inp->inp_sp);
-#endif
 	if (error != 0)
 		goto out;
-#endif /*IPSEC*/
+#endif /*FAST_IPSEC*/
 #ifdef INET6
 	if (INP_SOCKAF(so) == AF_INET6) {
 		inp->inp_vflag |= INP_IPV6PROTO;
@@ -226,7 +215,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	INP_LOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	
-#if defined(IPSEC) || defined(FAST_IPSEC) || defined(MAC)
+#if defined(FAST_IPSEC) || defined(MAC)
 out:
 	if (error != 0)
 		uma_zfree(pcbinfo->ipi_zone, inp);
@@ -535,10 +524,7 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	inp->inp_faddr.s_addr = faddr;
 	inp->inp_fport = fport;
 	in_pcbrehash(inp);
-#ifdef IPSEC
-	if (inp->inp_socket->so_type == SOCK_STREAM)
-		ipsec_pcbconn(inp->inp_sp);
-#endif
+
 	if (anonport)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
@@ -698,9 +684,6 @@ in_pcbdisconnect(struct inpcb *inp)
 	inp->inp_faddr.s_addr = INADDR_ANY;
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
-#ifdef IPSEC
-	ipsec_pcbdisconn(inp->inp_sp);
-#endif
 }
 
 /*
@@ -728,9 +711,9 @@ in_pcbfree(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_LOCK_ASSERT(inp);
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 	ipsec4_delete_pcbpolicy(inp);
-#endif /*IPSEC*/
+#endif /*FAST_IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	if (inp->inp_options)

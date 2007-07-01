@@ -65,19 +65,10 @@
 
 #include <netinet/in_pcb.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#include <netkey/key.h>
-#endif /* IPSEC */
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
-#define	IPSEC
 #endif /* FAST_IPSEC */
 
 #include <netinet6/ip6protosw.h>
@@ -110,7 +101,7 @@ ip6_forward(m, srcrt)
 	struct ifnet *origifp;	/* maybe unnecessary */
 	u_int32_t inzone, outzone;
 	struct in6_addr src_in6, dst_in6;
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif
@@ -118,7 +109,7 @@ ip6_forward(m, srcrt)
 
 	GIANT_REQUIRED; /* XXX bz: ip6_forward_rt */
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -127,13 +118,11 @@ ip6_forward(m, srcrt)
 	 * before forwarding packet actually.
 	 */
 	if (ipsec6_in_reject(m, NULL)) {
-#if !defined(FAST_IPSEC)
 		ipsec6stat.in_polvio++;
-#endif
 		m_freem(m);
 		return;
 	}
-#endif /* IPSEC */
+#endif /* FAST_IPSEC */
 
 	/*
 	 * Do not forward packets to multicast destination (should be handled
@@ -186,9 +175,9 @@ ip6_forward(m, srcrt)
 	 */
 	mcopy = m_copy(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN));
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	/* get a security policy for this packet */
-	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
+	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
 	    IP_FORWARDING, &error);
 	if (sp == NULL) {
 		ipsec6stat.out_inval++;
@@ -214,7 +203,7 @@ ip6_forward(m, srcrt)
 		 */
 		ipsec6stat.out_polvio++;
 		ip6stat.ip6s_cantforward++;
-		key_freesp(sp);
+		KEY_FREESP(&sp);
 		if (mcopy) {
 #if 0
 			/* XXX: what icmp ? */
@@ -228,7 +217,7 @@ ip6_forward(m, srcrt)
 	case IPSEC_POLICY_BYPASS:
 	case IPSEC_POLICY_NONE:
 		/* no need to do IPsec. */
-		key_freesp(sp);
+		KEY_FREESP(&sp);
 		goto skip_ipsec;
 
 	case IPSEC_POLICY_IPSEC:
@@ -236,7 +225,7 @@ ip6_forward(m, srcrt)
 			/* XXX should be panic ? */
 			printf("ip6_forward: No IPsec request specified.\n");
 			ip6stat.ip6s_cantforward++;
-			key_freesp(sp);
+			KEY_FREESP(&sp);
 			if (mcopy) {
 #if 0
 				/* XXX: what icmp ? */
@@ -254,7 +243,7 @@ ip6_forward(m, srcrt)
 	default:
 		/* should be panic ?? */
 		printf("ip6_forward: Invalid policy found. %d\n", sp->policy);
-		key_freesp(sp);
+		KEY_FREESP(&sp);
 		goto skip_ipsec;
 	}
 
@@ -301,7 +290,7 @@ ip6_forward(m, srcrt)
 	error = ipsec6_output_tunnel(&state, sp, 0);
 
 	m = state.m;
-	key_freesp(sp);
+	KEY_FREESP(&sp);
 
 	if (error) {
 		/* mbuf is already reclaimed in ipsec6_output_tunnel. */
@@ -329,9 +318,18 @@ ip6_forward(m, srcrt)
 		}
 		m_freem(m);
 		return;
+	} else {
+		/* 
+		 * In the FAST IPSec case we have already 
+		 * re-injected the packet and it has been freed
+		 * by the ipsec_done() function.  So, just clean 
+		 * up after ourselves.
+		 */
+		m = NULL;
+		goto freecopy;
 	}
 
-	if (ip6 != mtod(m, struct ip6_hdr *)) {
+	if ((m != NULL) && (ip6 != mtod(m, struct ip6_hdr *)) ){
 		/*
 		 * now tunnel mode headers are added.  we are originating
 		 * packet instead of forwarding the packet.
@@ -348,9 +346,9 @@ ip6_forward(m, srcrt)
 		ipsecrt = 1;
     }
     skip_ipsec:
-#endif /* IPSEC */
+#endif /* FAST_IPSEC */
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	if (ipsecrt)
 		goto skip_routing;
 #endif
@@ -403,7 +401,7 @@ ip6_forward(m, srcrt)
 		}
 	}
 	rt = ip6_forward_rt.ro_rt;
-#ifdef IPSEC
+#ifdef FAST_IPSEC
     skip_routing:;
 #endif
 
@@ -431,7 +429,7 @@ ip6_forward(m, srcrt)
 		return;
 	}
 	if (inzone != outzone
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	    && !ipsecrt
 #endif
 	    ) {
@@ -477,14 +475,14 @@ ip6_forward(m, srcrt)
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
 		if (mcopy) {
 			u_long mtu;
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 			struct secpolicy *sp;
 			int ipsecerror;
 			size_t ipsechdrsiz;
-#endif
+#endif /* FAST_IPSEC */
 
 			mtu = IN6_LINKMTU(rt->rt_ifp);
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play
 			 * with the link value (decrement IPsec header size
@@ -492,7 +490,7 @@ ip6_forward(m, srcrt)
 			 * case, as we have the outgoing interface for
 			 * encapsulated packet as "rt->rt_ifp".
 			 */
-			sp = ipsec6_getpolicybyaddr(mcopy, IPSEC_DIR_OUTBOUND,
+			sp = ipsec_getpolicybyaddr(mcopy, IPSEC_DIR_OUTBOUND,
 				IP_FORWARDING, &ipsecerror);
 			if (sp) {
 				ipsechdrsiz = ipsec6_hdrsiz(mcopy,
@@ -507,7 +505,7 @@ ip6_forward(m, srcrt)
 			 */
 			if (mtu < IPV6_MMTU)
 				mtu = IPV6_MMTU;
-#endif
+#endif /* FAST_IPSEC */
 			icmp6_error(mcopy, ICMP6_PACKET_TOO_BIG, 0, mtu);
 		}
 		m_freem(m);
@@ -527,9 +525,9 @@ ip6_forward(m, srcrt)
 	 * modified by a redirect.
 	 */
 	if (ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	    !ipsecrt &&
-#endif
+#endif /* FAST_IPSEC */
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
 		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*

@@ -125,7 +125,7 @@ struct inpcb {
 	struct	label *inp_label;	/* MAC label */
 	int	inp_flags;		/* generic IP/datagram flags */
 
-	struct	inpcbpolicy *inp_sp;	/* for IPSEC */
+	struct	inpcbpolicy *inp_sp;    /* for IPSEC */
 	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2

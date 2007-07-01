@@ -59,15 +59,9 @@
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
-#define	IPSEC
 #endif
 
 #include <machine/in_cksum.h>
@@ -585,7 +579,7 @@ reflect:
 		  (struct sockaddr *)0, RTF_GATEWAY | RTF_HOST,
 		  (struct sockaddr *)&icmpgw);
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 		key_sa_routechange((struct sockaddr *)&icmpsrc);
 #endif
 		break;

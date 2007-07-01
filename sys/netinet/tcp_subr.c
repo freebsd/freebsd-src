@@ -91,14 +91,6 @@
 #endif
 #include <netinet6/ip6protosw.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#include <netkey/key.h>
-#endif /*IPSEC*/
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -106,7 +98,6 @@
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/key.h>
-#define	IPSEC
 #endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
@@ -1643,7 +1634,7 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 }
 #endif /* INET6 */
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 /* compute ESP/AH header size for TCP, including outer IP header. */
 size_t
 ipsec_hdrsiz_tcp(struct tcpcb *tp)
@@ -1684,7 +1675,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 	m_free(m);
 	return (hdrsiz);
 }
-#endif /*IPSEC*/
+#endif /* FAST_IPSEC */
 
 /*
  * TCP BANDWIDTH DELAY PRODUCT WINDOW LIMITING

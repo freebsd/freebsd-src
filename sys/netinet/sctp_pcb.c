@@ -1807,11 +1807,11 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
 
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	{
 		struct inpcbpolicy *pcb_sp = NULL;
 
-		error = ipsec_init_pcbpolicy(so, &pcb_sp);
+		error = ipsec_init_policy(so, &pcb_sp);
 		/* Arrange to share the policy */
 		inp->ip_inp.inp.inp_sp = pcb_sp;
 		((struct in6pcb *)(&inp->ip_inp.inp))->in6p_sp = pcb_sp;
@@ -1821,7 +1821,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		SCTP_INP_INFO_WUNLOCK();
 		return error;
 	}
-#endif				/* IPSEC */
+#endif				/* FAST_IPSEC */
 	SCTP_INCR_EP_COUNT();
 	inp->ip_inp.inp.inp_ip_ttl = ip_defttl;
 	SCTP_INP_INFO_WUNLOCK();
@@ -2833,9 +2833,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 */
 	cnt = 0;
 	if (so) {
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 		ipsec4_delete_pcbpolicy(ip_pcb);
-#endif				/* IPSEC */
+#endif				/* FAST_IPSEC */
 
 		/* Unlocks not needed since the socket is gone now */
 	}

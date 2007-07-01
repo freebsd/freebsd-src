@@ -87,12 +87,6 @@
 #include <netipsec/ipsec6.h>
 #endif /*FAST_IPSEC*/
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netinet6/ipsec6.h>
-#include <netkey/key.h>
-#endif /*IPSEC*/
-
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
@@ -451,22 +445,18 @@ findpcb:
 						m->m_pkthdr.rcvif);
 	}
 
-#if defined(IPSEC) || defined(FAST_IPSEC)
+#ifdef FAST_IPSEC
 #ifdef INET6
 	if (isipv6 && inp != NULL && ipsec6_in_reject(m, inp)) {
-#ifdef IPSEC
 		ipsec6stat.in_polvio++;
-#endif
 		goto dropunlock;
 	} else
 #endif /* INET6 */
 	if (inp != NULL && ipsec4_in_reject(m, inp)) {
-#ifdef IPSEC
-		ipsecstat.in_polvio++;
-#endif
+		ipsec4stat.in_polvio++;
 		goto dropunlock;
 	}
-#endif /*IPSEC || FAST_IPSEC*/
+#endif /* FAST_IPSEC */
 
 	/*
 	 * If the INPCB does not exist then all data in the incoming

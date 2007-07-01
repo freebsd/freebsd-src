@@ -88,7 +88,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			return (NULL);
 		n->m_next = m->m_next;		/* splice new mbuf */
 		m->m_next = n;
-		newipsecstat.ips_mbinserted++;
+		ipsec4stat.ips_mbinserted++;
 		if (hlen <= M_TRAILINGSPACE(m) + remain) {
 			/*
 			 * New header fits in the old mbuf if we copy
@@ -122,7 +122,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 				/* splice in second mbuf */
 				n2->m_next = n->m_next;
 				n->m_next = n2;
-				newipsecstat.ips_mbinserted++;
+				ipsec4stat.ips_mbinserted++;
 			} else {
 				memcpy(mtod(n, caddr_t) + hlen,
 				       mtod(m, caddr_t) + skip, remain);
@@ -238,7 +238,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 	/* Remove the header and associated data from the mbuf. */
 	if (roff == 0) {
 		/* The header was at the beginning of the mbuf */
-		newipsecstat.ips_input_front++;
+		ipsec4stat.ips_input_front++;
 		m_adj(m1, hlen);
 		if ((m1->m_flags & M_PKTHDR) == 0)
 			m->m_pkthdr.len -= hlen;
@@ -250,7 +250,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 * so first let's remove the remainder of the header from
 		 * the beginning of the remainder of the mbuf chain, if any.
 		 */
-		newipsecstat.ips_input_end++;
+		ipsec4stat.ips_input_end++;
 		if (roff + hlen > m1->m_len) {
 			/* Adjust the next mbuf by the remainder */
 			m_adj(m1->m_next, roff + hlen - m1->m_len);
@@ -275,7 +275,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 * The header lies in the "middle" of the mbuf; copy
 		 * the remainder of the mbuf down over the header.
 		 */
-		newipsecstat.ips_input_middle++;
+		ipsec4stat.ips_input_middle++;
 		bcopy(mtod(m1, u_char *) + roff + hlen,
 		      mtod(m1, u_char *) + roff,
 		      m1->m_len - (roff + hlen));
