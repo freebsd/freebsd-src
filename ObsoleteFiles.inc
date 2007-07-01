@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070701: remove wicontrol
+OLD_FILES+=usr/sbin/wicontrol
 # 20070625: umapfs removal
 OLD_FILES+=rescue/mount_umapfs
 OLD_FILES+=sbin/mount_umapfs

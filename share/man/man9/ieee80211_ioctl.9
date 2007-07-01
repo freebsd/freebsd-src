@@ -55,11 +55,6 @@ and
 .Fn ieee80211_cfgset
 functions implement a legacy interface for getting and setting 802.11
 interface attributes respectively.
-The interface is compatible with the RIDs implemented by the legacy
-.Xr owi 4
-driver and used by the
-.Xr wicontrol 8
-utility.
 .Pp
 .\"
 The
@@ -80,7 +75,6 @@ to use this as the catch-all in a switch statement to avoid code duplication.
 .\"
 .Sh SEE ALSO
 .Xr ifconfig 8 ,
-.Xr wicontrol 8 ,
 .Xr ieee80211 9 ,
 .Xr ifnet 9
 .Sh HISTORY

@@ -220,7 +220,6 @@ usr/sbin/vidcontrol
 usr/sbin/vipw
 usr/sbin/vnconfig
 usr/sbin/watch
-usr/sbin/wicontrol
 usr/sbin/pccardc
 usr/sbin/pccardd
 
