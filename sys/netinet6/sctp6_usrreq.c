@@ -52,6 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_bsd_addr.h>
 
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#if defined(INET6)
+#include <netipsec/ipsec6.h>
+#endif /* INET6 */
+#endif /* FAST_IPSEC */
 
 extern struct protosw inetsw[];
 
@@ -201,7 +207,7 @@ sctp_skip_csum:
 		refcount_up = 1;
 	}
 	in6p_ip = (struct inpcb *)in6p;
-#ifdef IPSEC
+#ifdef FAST_IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -210,7 +216,7 @@ sctp_skip_csum:
 		ipsec6stat.in_polvio++;
 		goto bad;
 	}
-#endif				/* IPSEC */
+#endif /* FAST_IPSEC */
 
 	/*
 	 * CONTROL chunk processing

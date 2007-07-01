@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	to maximize performance.
 
 20070701:
+	Remove KAME IPsec in favor of FAST_IPSEC, which is now the
+	only IPsec supported by FreeBSD.  The new IPsec stack
+	supports both IPv4 and IPv6. The kernel option will change
+	after the code changes have settled in.  For now the kernel
+	option IPSEC is deprecated and FAST_IPSEC is the only option, that
+	will change after some settling time.
+
+20070701:
 	The wicontrol(8) utility has been removed from the base system. wi(4)
 	cards should be configured using ifconfig(8), see the man page for more
 	information.

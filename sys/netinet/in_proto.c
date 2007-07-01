@@ -69,15 +69,6 @@
 
 static struct pr_usrreqs nousrreqs;
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netinet6/ah.h>
-#ifdef IPSEC_ESP
-#include <netinet6/esp.h>
-#endif
-#include <netinet6/ipcomp.h>
-#endif /* IPSEC */
-
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
 #endif /* FAST_IPSEC */
@@ -219,34 +210,6 @@ struct protosw inetsw[] = {
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
-#ifdef IPSEC
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_AH,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ah4_input,
-	.pr_usrreqs =		&nousrreqs
-},
-#ifdef IPSEC_ESP
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_ESP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		esp4_input,
-	.pr_usrreqs =		&nousrreqs
-},
-#endif
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IPCOMP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		ipcomp4_input,
-	.pr_usrreqs =		&nousrreqs
-},
-#endif /* IPSEC */
 #ifdef FAST_IPSEC
 {
 	.pr_type =		SOCK_RAW,
@@ -412,11 +375,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_AH,	ah,	CTLFLAG_RW, 0,	"AH");
 SYSCTL_NODE(_net_inet, IPPROTO_ESP,	esp,	CTLFLAG_RW, 0,	"ESP");
 SYSCTL_NODE(_net_inet, IPPROTO_IPCOMP,	ipcomp,	CTLFLAG_RW, 0,	"IPCOMP");
 SYSCTL_NODE(_net_inet, IPPROTO_IPIP,	ipip,	CTLFLAG_RW, 0,	"IPIP");
-#else
-#ifdef IPSEC
-SYSCTL_NODE(_net_inet, IPPROTO_AH,	ipsec,	CTLFLAG_RW, 0,	"IPSEC");
-#endif /* IPSEC */
-#endif /* !FAST_IPSEC */
+#endif /* FAST_IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
 #ifdef DEV_PFSYNC
 SYSCTL_NODE(_net_inet, IPPROTO_PFSYNC,	pfsync,	CTLFLAG_RW, 0,	"PFSYNC");

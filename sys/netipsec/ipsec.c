@@ -76,6 +76,7 @@
 #include <netinet/icmp6.h>
 #endif
 
+#include <sys/types.h>
 #include <netipsec/ipsec.h>
 #ifdef INET6
 #include <netipsec/ipsec6.h>
@@ -102,7 +103,7 @@ int ipsec_debug = 0;
 #endif
 
 /* NB: name changed so netstat doesn't use it */
-struct newipsecstat newipsecstat;
+struct ipsecstat ipsec4stat;
 int ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
 int ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
 int ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
@@ -149,7 +150,7 @@ SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ESP_RANDPAD,
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO,
 	crypto_support,	CTLFLAG_RW,	&crypto_support,0, "");
 SYSCTL_STRUCT(_net_inet_ipsec, OID_AUTO,
-	ipsecstats,	CTLFLAG_RD,	&newipsecstat,	newipsecstat, "");
+	ipsecstats,	CTLFLAG_RD,	&ipsec4stat, ipsecstat, "");
 
 #ifdef REGRESSION
 /*
@@ -168,7 +169,8 @@ SYSCTL_INT(_net_inet_ipsec, OID_AUTO, test_integrity, CTLFLAG_RW,
     &ipsec_integrity, 0, "Emulate man-in-the-middle attack");
 #endif
 
-#ifdef INET6
+#ifdef INET6 
+struct ipsecstat ipsec6stat;
 int ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
 int ip6_esp_net_deflev = IPSEC_LEVEL_USE;
 int ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
@@ -199,6 +201,8 @@ SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG,
 	debug, CTLFLAG_RW,	&ipsec_debug,	0, "");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ESP_RANDPAD,
 	esp_randpad, CTLFLAG_RW,	&ip6_esp_randpad,	0, "");
+SYSCTL_STRUCT(_net_inet6_ipsec6, IPSECCTL_STATS,
+	ipsecstats, CTLFLAG_RD, &ipsec6stat, ipsecstat, "");
 #endif /* INET6 */
 
 static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
@@ -451,7 +455,7 @@ ipsec4_checkpolicy(m, dir, flag, error, inp)
 		sp = ipsec_getpolicybysock(m, dir, inp, error);
 	if (sp == NULL) {
 		IPSEC_ASSERT(*error != 0, ("getpolicy failed w/o error"));
-		newipsecstat.ips_out_inval++;
+		ipsec4stat.ips_out_inval++;
 		return NULL;
 	}
 	IPSEC_ASSERT(*error == 0, ("sp w/ error set to %u", *error));
@@ -461,7 +465,7 @@ ipsec4_checkpolicy(m, dir, flag, error, inp)
 		printf("%s: invalid policy %u\n", __func__, sp->policy);
 		/* fall thru... */
 	case IPSEC_POLICY_DISCARD:
-		newipsecstat.ips_out_polvio++;
+		ipsec4stat.ips_out_polvio++;
 		*error = -EINVAL;	/* packet is discarded by caller */
 		break;
 	case IPSEC_POLICY_BYPASS:
@@ -1462,7 +1466,7 @@ ipsec4_in_reject(m, inp)
 	if (sp != NULL) {
 		result = ipsec_in_reject(sp, m);
 		if (result)
-			newipsecstat.ips_in_polvio++;
+			ipsec4stat.ips_in_polvio++;
 		KEY_FREESP(&sp);
 	} else {
 		result = 0;	/* XXX should be panic ?
@@ -1502,7 +1506,7 @@ ipsec6_in_reject(m, inp)
 	if (sp != NULL) {
 		result = ipsec_in_reject(sp, m);
 		if (result)
-			newipsecstat.ips_in_polvio++;
+			ipsec6stat.ips_in_polvio++;
 		KEY_FREESP(&sp);
 	} else {
 		result = 0;

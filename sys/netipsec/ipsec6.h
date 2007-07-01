@@ -41,6 +41,7 @@
 #include <netipsec/keydb.h>
 
 #ifdef _KERNEL
+extern struct ipsecstat ipsec6stat;
 extern int ip6_esp_trans_deflev;
 extern int ip6_esp_net_deflev;
 extern int ip6_ah_trans_deflev;
@@ -49,15 +50,6 @@ extern int ip6_ipsec_ecn;
 extern int ip6_esp_randpad;
 
 struct inpcb;
-
-/* KAME compatibility shims */
-#define	ipsec6_getpolicybyaddr	ipsec_getpolicybyaddr
-#define	ipsec6_getpolicybysock	ipsec_getpolicybysock
-#define	ipsec6stat		newipsecstat
-#define	out_inval		ips_out_inval
-#define	in_polvio		ips_in_polvio
-#define	out_polvio		ips_out_polvio
-#define	key_freesp(_x)		KEY_FREESP(&_x)
 
 extern int ipsec6_delete_pcbpolicy __P((struct inpcb *));
 extern int ipsec6_set_policy __P((struct inpcb *inp, int optname,

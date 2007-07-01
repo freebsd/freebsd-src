@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -51,17 +52,24 @@
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#include <netinet/ip_ipsec.h>
 
 #include <machine/in_cksum.h>
 
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec.h>
+#include <netipsec/ipsec6.h>
 #include <netipsec/xform.h>
 #include <netipsec/key.h>
+#ifdef IPSEC_DEBUG
+#include <netipsec/key_debug.h>
+#else
+#define	KEYDEBUG(lev,arg)
+#endif
 #endif /*FAST_IPSEC*/
 
-extern	struct protosw inetsw[];
+#include <netinet6/ip6_ipsec.h>
+
+extern	struct protosw inet6sw[];
 
 /*
  * Check if we have to jump over firewall processing for this packet.
@@ -69,7 +77,7 @@ extern	struct protosw inetsw[];
  * 1 = jump over firewall, 0 = packet goes through firewall.
  */
 int
-ip_ipsec_filtergif(struct mbuf *m)
+ip6_ipsec_filtergif(struct mbuf *m)
 {
 #if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
 	/*
@@ -88,14 +96,13 @@ ip_ipsec_filtergif(struct mbuf *m)
  * 1 = drop packet, 0 = forward packet.
  */
 int
-ip_ipsec_fwd(struct mbuf *m)
+ip6_ipsec_fwd(struct mbuf *m)
 {
 #ifdef FAST_IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
 	int s, error;
-
 	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
 	s = splnet();
 	if (mtag != NULL) {
@@ -134,9 +141,9 @@ ip_ipsec_fwd(struct mbuf *m)
  * 1 = drop packet, 0 = continue processing packet.
  */
 int
-ip_ipsec_input(struct mbuf *m)
+ip6_ipsec_input(struct mbuf *m, int nxt)
+
 {
-	struct ip *ip = mtod(m, struct ip *);
 #ifdef FAST_IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
@@ -147,7 +154,9 @@ ip_ipsec_input(struct mbuf *m)
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if ((inetsw[ip_protox[ip->ip_p]].pr_flags & PR_LASTHDR) != 0) {
+	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
+	    ipsec6_in_reject(m, NULL)) {
+
 		/*
 		 * Check if the packet has already had IPsec processing
 		 * done.  If so, then just pass it along.  This tag gets
@@ -184,12 +193,133 @@ ip_ipsec_input(struct mbuf *m)
 }
 
 /*
+ * Called from ip6_output().
+ * 1 = drop packet, 0 = continue processing packet,
+ * -1 = packet was reinjected and stop processing packet (FAST_IPSEC only)
+ */ 
+
+int
+ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
+		 struct ifnet **ifp, struct secpolicy **sp)
+{
+#ifdef FAST_IPSEC
+	struct tdb_ident *tdbi;
+	struct m_tag *mtag;
+	int s;
+	if (sp == NULL)
+		return 1;
+	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
+	if (mtag != NULL) {
+		tdbi = (struct tdb_ident *)(mtag + 1);
+		*sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
+		if (*sp == NULL)
+			*error = -EINVAL;	/* force silent drop */
+		m_tag_delete(*m, mtag);
+	} else {
+		*sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
+					error, inp);
+	}
+
+	/*
+	 * There are four return cases:
+	 *    sp != NULL	 	    apply IPsec policy
+	 *    sp == NULL, error == 0	    no IPsec handling needed
+	 *    sp == NULL, error == -EINVAL  discard packet w/o error
+	 *    sp == NULL, error != 0	    discard packet, report error
+	 */
+	if (*sp != NULL) {
+		/* Loop detection, check if ipsec processing already done */
+		KASSERT((*sp)->req != NULL, ("ip_output: no ipsec request"));
+		for (mtag = m_tag_first(*m); mtag != NULL;
+		     mtag = m_tag_next(*m, mtag)) {
+			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
+				continue;
+			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
+			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
+				continue;
+			/*
+			 * Check if policy has an SA associated with it.
+			 * This can happen when an SP has yet to acquire
+			 * an SA; e.g. on first reference.  If it occurs,
+			 * then we let ipsec4_process_packet do its thing.
+			 */
+			if ((*sp)->req->sav == NULL)
+				break;
+			tdbi = (struct tdb_ident *)(mtag + 1);
+			if (tdbi->spi == (*sp)->req->sav->spi &&
+			    tdbi->proto == (*sp)->req->sav->sah->saidx.proto &&
+			    bcmp(&tdbi->dst, &(*sp)->req->sav->sah->saidx.dst,
+				 sizeof (union sockaddr_union)) == 0) {
+				/*
+				 * No IPsec processing is needed, free
+				 * reference to SP.
+				 *
+				 * NB: null pointer to avoid free at
+				 *     done: below.
+				 */
+				KEY_FREESP(sp), sp = NULL;
+				splx(s);
+				goto done;
+			}
+		}
+
+		/*
+		 * Do delayed checksums now because we send before
+		 * this is done in the normal processing path.
+		 */
+		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(*m);
+			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+		}
+
+		/*
+		 * Preserve KAME behaviour: ENOENT can be returned
+		 * when an SA acquire is in progress.  Don't propagate
+		 * this to user-level; it confuses applications.
+		 *
+		 * XXX this will go away when the SADB is redone.
+		 */
+		if (*error == ENOENT)
+			*error = 0;
+		goto do_ipsec;
+	} else {	/* sp == NULL */
+		if (*error != 0) {
+			/*
+			 * Hack: -EINVAL is used to signal that a packet
+			 * should be silently discarded.  This is typically
+			 * because we asked key management for an SA and
+			 * it was delayed (e.g. kicked up to IKE).
+			 */
+			if (*error == -EINVAL)
+				*error = 0;
+			goto bad;
+		} else {
+			/* No IPsec processing for this packet. */
+		}
+	}
+done:
+	if (sp != NULL)
+		if (*sp != NULL)
+			KEY_FREESP(sp);
+	return 0;
+do_ipsec:
+	return -1;
+bad:
+	if (sp != NULL)
+		if (*sp != NULL)
+			KEY_FREESP(sp);
+	return 1;
+#endif /* FAST_IPSEC */
+	return 0;
+}
+
+/*
  * Compute the MTU for a forwarded packet that gets IPSEC encapsulated.
  * Called from ip_forward().
  * Returns MTU suggestion for ICMP needfrag reply.
  */
 int
-ip_ipsec_mtu(struct mbuf *m)
+ip6_ipsec_mtu(struct mbuf *m)
 {
 	int mtu = 0;
 	/*
@@ -202,10 +332,12 @@ ip_ipsec_mtu(struct mbuf *m)
 	int ipsecerror;
 	int ipsechdr;
 	struct route *ro;
+#ifdef FAST_IPSEC
 	sp = ipsec_getpolicybyaddr(m,
 				   IPSEC_DIR_OUTBOUND,
 				   IP_FORWARDING,
 				   &ipsecerror);
+#endif /* FAST_IPSEC */
 	if (sp != NULL) {
 		/* count IPsec header size */
 		ipsechdr = ipsec4_hdrsiz(m,
@@ -228,159 +360,10 @@ ip_ipsec_mtu(struct mbuf *m)
 				mtu -= ipsechdr;
 			}
 		}
+#ifdef FAST_IPSEC
 		KEY_FREESP(&sp);
+#endif /* FAST_IPSEC */
 	}
 	return mtu;
 }
 
-/*
- * 
- * Called from ip_output().
- * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet (FAST_IPSEC only)
- */
-int
-ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct route **ro, struct route *iproute, struct sockaddr_in **dst,
-    struct in_ifaddr **ia, struct ifnet **ifp)
-{
-#ifdef FAST_IPSEC
-	struct secpolicy *sp = NULL;
-	struct ip *ip = mtod(*m, struct ip *);
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
-	int s;
-	/*
-	 * Check the security policy (SP) for the packet and, if
-	 * required, do IPsec-related processing.  There are two
-	 * cases here; the first time a packet is sent through
-	 * it will be untagged and handled by ipsec4_checkpolicy.
-	 * If the packet is resubmitted to ip_output (e.g. after
-	 * AH, ESP, etc. processing), there will be a tag to bypass
-	 * the lookup and related policy checking.
-	 */
-	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
-	s = splnet();
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (sp == NULL)
-			*error = -EINVAL;	/* force silent drop */
-		m_tag_delete(*m, mtag);
-	} else {
-		sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
-					error, inp);
-	}
-	/*
-	 * There are four return cases:
-	 *    sp != NULL	 	    apply IPsec policy
-	 *    sp == NULL, error == 0	    no IPsec handling needed
-	 *    sp == NULL, error == -EINVAL  discard packet w/o error
-	 *    sp == NULL, error != 0	    discard packet, report error
-	 */
-	if (sp != NULL) {
-		/* Loop detection, check if ipsec processing already done */
-		KASSERT(sp->req != NULL, ("ip_output: no ipsec request"));
-		for (mtag = m_tag_first(*m); mtag != NULL;
-		     mtag = m_tag_next(*m, mtag)) {
-			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
-				continue;
-			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
-			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
-				continue;
-			/*
-			 * Check if policy has an SA associated with it.
-			 * This can happen when an SP has yet to acquire
-			 * an SA; e.g. on first reference.  If it occurs,
-			 * then we let ipsec4_process_packet do its thing.
-			 */
-			if (sp->req->sav == NULL)
-				break;
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == sp->req->sav->spi &&
-			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
-				 sizeof (union sockaddr_union)) == 0) {
-				/*
-				 * No IPsec processing is needed, free
-				 * reference to SP.
-				 *
-				 * NB: null pointer to avoid free at
-				 *     done: below.
-				 */
-				KEY_FREESP(&sp), sp = NULL;
-				splx(s);
-				goto done;
-			}
-		}
-
-		/*
-		 * Do delayed checksums now because we send before
-		 * this is done in the normal processing path.
-		 */
-		if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-			in_delayed_cksum(*m);
-			(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-		}
-
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
-
-		/* NB: callee frees mbuf */
-		*error = ipsec4_process_packet(*m, sp->req, *flags, 0);
-		/*
-		 * Preserve KAME behaviour: ENOENT can be returned
-		 * when an SA acquire is in progress.  Don't propagate
-		 * this to user-level; it confuses applications.
-		 *
-		 * XXX this will go away when the SADB is redone.
-		 */
-		if (*error == ENOENT)
-			*error = 0;
-		splx(s);
-		goto reinjected;
-	} else {	/* sp == NULL */
-		splx(s);
-
-		if (*error != 0) {
-			/*
-			 * Hack: -EINVAL is used to signal that a packet
-			 * should be silently discarded.  This is typically
-			 * because we asked key management for an SA and
-			 * it was delayed (e.g. kicked up to IKE).
-			 */
-			if (*error == -EINVAL)
-				*error = 0;
-			goto bad;
-		} else {
-			/* No IPsec processing for this packet. */
-		}
-#ifdef notyet
-		/*
-		 * If deferred crypto processing is needed, check that
-		 * the interface supports it.
-		 */ 
-		mtag = m_tag_find(*m, PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED, NULL);
-		if (mtag != NULL && ((*ifp)->if_capenable & IFCAP_IPSEC) == 0) {
-			/* notify IPsec to do its own crypto */
-			ipsp_skipcrypto_unmark((struct tdb_ident *)(mtag + 1));
-			*error = EHOSTUNREACH;
-			goto bad;
-		}
-#endif
-	}
-done:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return 0;
-reinjected:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return -1;
-bad:
-	if (sp != NULL)
-		KEY_FREESP(&sp);
-	return 1;
-#endif /* FAST_IPSEC */
-	return 0;
-}

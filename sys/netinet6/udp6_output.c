@@ -98,13 +98,6 @@
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#ifdef INET6
-#include <netinet6/ipsec6.h>
-#endif
-#endif /* IPSEC */
-
 /*
  * UDP protocol inplementation.
  * Per RFC 768, August, 1980.

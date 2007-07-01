@@ -73,7 +73,7 @@ static void kdebug_secreplay __P((struct secreplay *));
 #endif
 
 #ifndef _KERNEL
-#define panic(param)	{ printf(param); exit(-1); }
+#define panic(fmt, ...)	{ printf(fmt, ## __VA_ARGS__); exit(-1); }
 #endif
 
 /* NOTE: host byte order */
