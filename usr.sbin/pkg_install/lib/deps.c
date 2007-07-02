@@ -26,98 +26,144 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <stdio.h>
 
+void list_deps(const char *pkgname, char **pkgs, char *listed, 
+               char *check_loop, char **newpkgs, int *nrnewpkgs,
+               int *err_cnt);
+
 /*
  * Sort given NULL-terminated list of installed packages (pkgs) in
  * such a way that if package A depends on package B then after
  * sorting A will be listed before B no matter how they were
  * originally positioned in the list.
+ *
+ * Works by performing a recursive depth-first search on the 
+ * required-by lists.
  */
+
 int
 sortdeps(char **pkgs)
 {
-    char *tmp;
-    int i, j, loop_cnt;
-    int err_cnt = 0;
+    int i, err_cnt=0;
+    int nrpkgs, nrnewpkgs;
+    char *listed, *check_loop, **newpkgs;
+    char *cp;
 
     if (pkgs[0] == NULL || pkgs[1] == NULL)
 	return (0);
 
-    for (i = 0; pkgs[i + 1]; i++) {
-	/*
-	 * Check to see if any other package in pkgs[i+1:] depends
-	 * on pkgs[i] and swap those two packages if so.
-	 */
-	loop_cnt = 0;
-	for (j = i + 1; pkgs[j]; j++) {
-	    if (chkifdepends(pkgs[j], pkgs[i]) == 1) {
-		/*
-		 * Try to avoid deadlock if package A depends on B which in
-		 * turn depends on C and C due to an error depends on A.
-		 * Use ugly but simple method, becase it Should Never
-		 * Happen[tm] in the real life anyway.
-		 */
-		if (loop_cnt > 4096) {
-		    warnx("dependency loop detected for package %s", pkgs[j]);
-		    err_cnt++;
-		    break;
-		}
-		loop_cnt++;
-		tmp = pkgs[i];
-		pkgs[i] = pkgs[j];
-		pkgs[j] = tmp;
-		/*
-		 * Another iteration requred to check if new pkgs[i]
-		 * itself has any packages that depend on it
-		 */
-		j = i + 1;
-	    }
-	}
+    nrpkgs = 0;
+    while (pkgs[nrpkgs]) nrpkgs++;
+    listed = alloca(nrpkgs);
+    if (listed == NULL) {
+	warnx("%s(): alloca() failed", __func__);
+	return 1;
     }
+    bzero(listed,nrpkgs);
+    check_loop = alloca(nrpkgs);
+    if (check_loop == NULL) {
+	warnx("%s(): alloca() failed", __func__);
+	return 1;
+    }
+    bzero(check_loop,nrpkgs);
+    newpkgs = alloca(nrpkgs*sizeof(char*));
+    if (newpkgs == NULL) {
+	warnx("%s(): alloca() failed", __func__);
+	return 1;
+    }
+    nrnewpkgs = 0;
+
+    for (i = 0; pkgs[i]; i++) if (!listed[i]) {
+	check_loop[i] = 1;
+	cp = strchr(pkgs[i], ':');
+	if (cp != NULL)
+	    *cp = '\0';
+	list_deps(pkgs[i],pkgs,listed,check_loop,newpkgs,&nrnewpkgs,&err_cnt);
+	if (cp != NULL)
+	    *cp = ':';
+	listed[i] = 1;
+	newpkgs[nrnewpkgs] = pkgs[i];
+	nrnewpkgs++;
+    }
+
+    if (nrnewpkgs != nrpkgs) {
+	fprintf(stderr,"This shouldn't happen, and indicates a huge error in the code.\n");
+	exit(1);
+    }
+    for (i = 0; i < nrnewpkgs; i++) pkgs[i] = newpkgs[i];
+
     return err_cnt;
 }
 
 /*
- * Check to see if pkgname1 depends on pkgname2.
- * Returns 1 if depends, 0 if not, and -1 if error occured.
- */ 
-int
-chkifdepends(const char *pkgname1, const char *pkgname2)
-{
-    char *cp1, *cp2;
-    int errcode;
+ * This recursive function lists the dependencies (that is, the 
+ * "required-by"s) for pkgname, putting them into newpkgs.
+ */
+
+void list_deps(const char *pkgname, char **pkgs, char *listed, 
+               char *check_loop, char **newpkgs, int *nrnewpkgs,
+               int *err_cnt) {
+    char **rb, **rbtmp;
+    char *cp;
+    int errcode, i, j;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
 
-    cp2 = strchr(pkgname2, ':');
-    if (cp2 != NULL)
-	*cp2 = '\0';
-    cp1 = strchr(pkgname1, ':');
-    if (cp1 != NULL)
-	*cp1 = '\0';
+    if (isinstalledpkg(pkgname) <= 0)
+	return;
 
-    errcode = 0;
-    /* Check that pkgname2 is actually installed */
-    if (isinstalledpkg(pkgname2) <= 0)
-	goto exit;
-
-    errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
+    errcode = requiredby(pkgname, &rb_list, FALSE, TRUE);
     if (errcode < 0)
-	goto exit;
+	return;
+    /*
+     * We put rb_list into an argv style NULL terminated list,
+     * because requiredby uses some static storage, and list_deps
+     * is a recursive function.
+     */
 
-    errcode = 0;
-    STAILQ_FOREACH(rb_entry, rb_list, link) {
-	if (strcmp(rb_entry->pkgname, pkgname1) == 0) {	/* match */
-	    errcode = 1;
-	    break;
-	}
+    rbtmp = rb = alloca((errcode + 1) * sizeof(*rb));
+    if (rb == NULL) {
+	warnx("%s(): alloca() failed", __func__);
+	(*err_cnt)++;
+	return;
     }
+    STAILQ_FOREACH(rb_entry, rb_list, link) {
+	*rbtmp = alloca(strlen(rb_entry->pkgname) + 1);
+	if (*rbtmp == NULL) {
+	    warnx("%s(): alloca() failed", __func__);
+	    (*err_cnt)++;
+	    return;
+	}
+	strcpy(*rbtmp, rb_entry->pkgname);
+	rbtmp++;
+    }
+    *rbtmp = NULL;
 
-exit:
-    if (cp1 != NULL)
-	*cp1 = ':';
-    if (cp2 != NULL)
-	*cp2 = ':';
-    return errcode;
+    for (i = 0; rb[i]; i++)
+	for (j = 0; pkgs[j]; j++) if (!listed[j]) {
+	    cp = strchr(pkgs[j], ':');
+	    if (cp != NULL)
+		*cp = '\0';
+	    if (strcmp(rb[i], pkgs[j]) == 0) { /*match */
+		/*
+		 * Try to avoid deadlock if package A depends on B which in
+		 * turn depends on C and C due to an error depends on A.
+		 * It Should Never Happen[tm] in real life.
+		 */
+		if (check_loop[j]) {
+		    warnx("dependency loop detected for package %s", pkgs[j]);
+		    (*err_cnt)++;
+		}
+		else {
+		    check_loop[j] = 1;
+		    list_deps(pkgs[j],pkgs,listed,check_loop,newpkgs,nrnewpkgs,err_cnt);
+		    listed[j] = 1;
+		    newpkgs[*nrnewpkgs] = pkgs[j];
+		    (*nrnewpkgs)++;
+		}
+	    }
+	    if (cp != NULL)
+		*cp = ':';
+	}
 }
 
 /*
