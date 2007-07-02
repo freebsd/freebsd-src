@@ -3450,9 +3450,6 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
-			if (chk->whoTo)
-				sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = NULL;
 			sctp_free_a_chunk(stcb, chk);
 			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->sent_queue);
@@ -3481,9 +3478,6 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
-			if (chk->whoTo)
-				sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = NULL;
 			sctp_free_a_chunk(stcb, chk);
 			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->send_queue);
