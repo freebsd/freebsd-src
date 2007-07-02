@@ -51,7 +51,7 @@
  * userland programs, and should not be done without careful consideration of
  * the consequences. 
  */
-int	suser_enabled = 1;
+static int	suser_enabled = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
