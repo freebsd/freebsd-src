@@ -387,7 +387,6 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 				chk->data = NULL;
 			}
 			/* Now free the address and data */
-			sctp_free_remote_addr(chk->whoTo);
 			sctp_free_a_chunk(stcb, chk);
 			/* sa_ignore FREED_MEMORY */
 			chk = TAILQ_FIRST(&asoc->reasmqueue);
@@ -481,7 +480,6 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 		sctp_ucount_decr(asoc->cnt_on_reasm_queue);
 		/* free up the chk */
 		chk->data = NULL;
-		sctp_free_remote_addr(chk->whoTo);
 		sctp_free_a_chunk(stcb, chk);
 
 		if (asoc->fragmented_delivery_inprogress == 0) {
@@ -690,7 +688,9 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					control->data = NULL;
 					asoc->size_on_all_streams -= control->length;
 					sctp_ucount_decr(asoc->cnt_on_all_streams);
-					sctp_free_remote_addr(control->whoFrom);
+					if (control->whoFrom)
+						sctp_free_remote_addr(control->whoFrom);
+					control->whoFrom = NULL;
 					sctp_free_a_readq(stcb, control);
 					return;
 				} else {
@@ -1009,7 +1009,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
-			sctp_free_remote_addr(chk->whoTo);
 			sctp_free_a_chunk(stcb, chk);
 			return;
 		} else {
@@ -1876,7 +1875,10 @@ failed_pdapi_express_del:
 				/* Evil/Broke peer */
 				sctp_m_freem(control->data);
 				control->data = NULL;
-				sctp_free_remote_addr(control->whoFrom);
+				if (control->whoFrom) {
+					sctp_free_remote_addr(control->whoFrom);
+					control->whoFrom = NULL;
+				}
 				sctp_free_a_readq(stcb, control);
 				oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + 3 * sizeof(uint32_t)),
 				    0, M_DONTWAIT, 1, MT_DATA);
@@ -1908,7 +1910,10 @@ failed_pdapi_express_del:
 				if (sctp_does_tsn_belong_to_reasm(asoc, control->sinfo_tsn)) {
 					sctp_m_freem(control->data);
 					control->data = NULL;
-					sctp_free_remote_addr(control->whoFrom);
+					if (control->whoFrom) {
+						sctp_free_remote_addr(control->whoFrom);
+						control->whoFrom = NULL;
+					}
 					sctp_free_a_readq(stcb, control);
 
 					oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + 3 * sizeof(uint32_t)),
@@ -1953,7 +1958,10 @@ failed_pdapi_express_del:
 				if (sctp_does_tsn_belong_to_reasm(asoc, control->sinfo_tsn)) {
 					sctp_m_freem(control->data);
 					control->data = NULL;
-					sctp_free_remote_addr(control->whoFrom);
+					if (control->whoFrom) {
+						sctp_free_remote_addr(control->whoFrom);
+						control->whoFrom = NULL;
+					}
 					sctp_free_a_readq(stcb, control);
 					oper = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + 3 * sizeof(uint32_t)),
 					    0, M_DONTWAIT, 1, MT_DATA);
@@ -4318,7 +4326,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			}
 			tp1->data = NULL;
 			asoc->sent_queue_cnt--;
-			sctp_free_remote_addr(tp1->whoTo);
 			sctp_free_a_chunk(stcb, tp1);
 			tp1 = tp2;
 		}
@@ -5029,8 +5036,6 @@ skip_segments:
 		}
 		tp1->data = NULL;
 		asoc->sent_queue_cnt--;
-		sctp_free_remote_addr(tp1->whoTo);
-
 		sctp_free_a_chunk(stcb, tp1);
 		wake_him++;
 		tp1 = tp2;
@@ -5825,7 +5830,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 					sctp_m_freem(chk->data);
 					chk->data = NULL;
 				}
-				sctp_free_remote_addr(chk->whoTo);
 				sctp_free_a_chunk(stcb, chk);
 			} else {
 				/*
