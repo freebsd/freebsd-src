@@ -716,8 +716,8 @@ pppsioctl(ifp, cmd, data)
 
     case SIOCSIFMTU:
 	/*
-	 * XXXRW: Isn't this suser() check redundant to the one at the ifnet
-	 * layer?
+	 * XXXRW: Isn't this priv_check() check redundant to the one at the
+	 * ifnet layer?
 	 */
 	error = priv_check(td, PRIV_NET_SETIFMTU);
 	if (error)
