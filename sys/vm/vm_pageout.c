@@ -887,7 +887,7 @@ rescan0:
 			 */
 			int swap_pageouts_ok, vfslocked = 0;
 			struct vnode *vp = NULL;
-			struct mount *mp;
+			struct mount *mp = NULL;
 
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
@@ -943,25 +943,24 @@ rescan0:
 			 */
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
-				mp = NULL;
 				if (vp->v_type == VREG &&
 				    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+					KASSERT(mp == NULL,
+					    ("vm_pageout_scan: mp != NULL"));
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					vp = NULL;
 					goto unlock_and_continue;
 				}
 				vm_page_unlock_queues();
+				vm_object_reference_locked(object);
 				VM_OBJECT_UNLOCK(object);
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
 				    curthread)) {
-					VFS_UNLOCK_GIANT(vfslocked);
 					VM_OBJECT_LOCK(object);
 					vm_page_lock_queues();
 					++pageout_lock_miss;
-					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vp = NULL;
@@ -973,12 +972,10 @@ rescan0:
 				 * The page might have been moved to another
 				 * queue during potential blocking in vget()
 				 * above.  The page might have been freed and
-				 * reused for another vnode.  The object might
-				 * have been reused for another vnode.
+				 * reused for another vnode.
 				 */
 				if (VM_PAGE_GETQUEUE(m) != PQ_INACTIVE ||
 				    m->object != object ||
-				    object->handle != vp ||
 				    TAILQ_NEXT(m, pageq) != &marker) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -987,7 +984,7 @@ rescan0:
 	
 				/*
 				 * The page may have been busied during the
-				 * blocking in vput();  We don't move the
+				 * blocking in vget().  We don't move the
 				 * page back onto the end of the queue so that
 				 * statistics are more correct if we don't.
 				 */
@@ -1023,10 +1020,12 @@ rescan0:
 			}
 unlock_and_continue:
 			VM_OBJECT_UNLOCK(object);
-			if (vp) {
+			if (mp != NULL) {
 				vm_page_unlock_queues();
-				vput(vp);
+				if (vp != NULL)
+					vput(vp);
 				VFS_UNLOCK_GIANT(vfslocked);
+				vm_object_deallocate(object);
 				vn_finished_write(mp);
 				vm_page_lock_queues();
 			}
