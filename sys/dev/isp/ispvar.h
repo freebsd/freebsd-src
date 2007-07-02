@@ -1015,6 +1015,9 @@ int isp_async(ispsoftc_t *, ispasync_t, void *);
  *	ISP_IOXGET_32(ispsoftc_t *, uint32_t *srcptr, uint32_t dstrval)
  *
  *	ISP_SWIZZLE_NVRAM_WORD(ispsoftc_t *, uint16_t *)
+ *	ISP_SWIZZLE_NVRAM_LONG(ispsoftc_t *, uint32_t *)
+ *	ISP_SWAP16(ispsoftc_t *, uint16_t srcval)
+ *	ISP_SWAP32(ispsoftc_t *, uint32_t srcval)
  */
 
 #endif	/* _ISPVAR_H */

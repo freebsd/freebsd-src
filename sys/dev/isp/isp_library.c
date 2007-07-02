@@ -593,7 +593,7 @@ isp_put_request_t7(ispsoftc_t *isp, ispreqt7_t *src, ispreqt7_t *dst)
 	a = (uint32_t *) src->req_lun;
 	b = (uint32_t *) dst->req_lun;
 	for (i = 0; i < (ASIZE(src->req_lun) >> 2); i++ ) {
-		ISP_IOZPUT_32(isp, *a++, b++);
+		*b++ = ISP_SWAP32(isp, *a++);
 	}
 	ISP_IOXPUT_8(isp, src->req_alen_datadir, &dst->req_alen_datadir);
 	ISP_IOXPUT_8(isp, src->req_task_management, &dst->req_task_management);
@@ -601,8 +601,8 @@ isp_put_request_t7(ispsoftc_t *isp, ispreqt7_t *src, ispreqt7_t *dst)
 	ISP_IOXPUT_8(isp, src->req_crn, &dst->req_crn);
 	a = (uint32_t *) src->req_cdb;
 	b = (uint32_t *) dst->req_cdb;
-	for (i = 0; i < (ASIZE(src->req_cdb) >> 2); i++ ) {
-		ISP_IOZPUT_32(isp, *a++, b++);
+	for (i = 0; i < (ASIZE(src->req_cdb) >> 2); i++) {
+		*b++ = ISP_SWAP32(isp, *a++);
 	}
 	ISP_IOXPUT_32(isp, src->req_dl, &dst->req_dl);
 	ISP_IOXPUT_16(isp, src->req_tidlo, &dst->req_tidlo);
@@ -695,6 +695,8 @@ isp_get_24xx_response(ispsoftc_t *isp, isp24xx_statusreq_t *src,
     isp24xx_statusreq_t *dst)
 {
 	int i;
+	uint32_t *s, *d;
+
 	isp_get_hdr(isp, &src->req_header, &dst->req_header);
 	ISP_IOXGET_32(isp, &src->req_handle, dst->req_handle);
 	ISP_IOXGET_16(isp, &src->req_completion_status,
@@ -708,9 +710,10 @@ isp_get_24xx_response(ispsoftc_t *isp, isp24xx_statusreq_t *src,
 	ISP_IOXGET_32(isp, &src->req_fcp_residual, dst->req_fcp_residual);
 	ISP_IOXGET_32(isp, &src->req_sense_len, dst->req_sense_len);
 	ISP_IOXGET_32(isp, &src->req_response_len, dst->req_response_len);
-	for (i = 0; i < 28; i++) {
-		ISP_IOXGET_8(isp, &src->req_rsp_sense[i],
-		    dst->req_rsp_sense[i]);
+	s = (uint32_t *)src->req_rsp_sense;
+	d = (uint32_t *)dst->req_rsp_sense;
+	for (i = 0; i < (ASIZE(src->req_rsp_sense) >> 2); i++) {
+		d[i] = ISP_SWAP32(isp, s[i]);
 	}
 }
 
@@ -723,14 +726,14 @@ isp_get_24xx_abrt(ispsoftc_t *isp, isp24xx_abrt_t *src, isp24xx_abrt_t *dst)
 	ISP_IOXGET_16(isp, &src->abrt_nphdl, dst->abrt_nphdl);
 	ISP_IOXGET_16(isp, &src->abrt_options, dst->abrt_options);
 	ISP_IOXGET_32(isp, &src->abrt_cmd_handle, dst->abrt_cmd_handle);
-	for (i = 0; i < ASIZE(&src->abrt_reserved); i++) {
+	for (i = 0; i < ASIZE(src->abrt_reserved); i++) {
 		ISP_IOXGET_8(isp, &src->abrt_reserved[i],
 		    dst->abrt_reserved[i]);
 	}
 	ISP_IOXGET_16(isp, &src->abrt_tidlo, dst->abrt_tidlo);
 	ISP_IOXGET_8(isp, &src->abrt_tidhi, dst->abrt_tidhi);
 	ISP_IOXGET_8(isp, &src->abrt_vpidx, dst->abrt_vpidx);
-	for (i = 0; i < ASIZE(&src->abrt_reserved1); i++) {
+	for (i = 0; i < ASIZE(src->abrt_reserved1); i++) {
 		ISP_IOXGET_8(isp, &src->abrt_reserved1[i],
 		    dst->abrt_reserved1[i]);
 	}
