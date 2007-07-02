@@ -295,7 +295,8 @@ int
 sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 {
 	if (arg == NULL) {
-		return (EINVAL);
+		errno = EINVAL;
+		return (-1);
 	}
 	*(sctp_assoc_t *) arg = id;
 	return (getsockopt(sd, IPPROTO_SCTP, opt, arg, size));
@@ -320,7 +321,6 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	siz = sizeof(sctp_assoc_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
 	    &asoc, &siz) != 0) {
-		errno = ENOMEM;
 		return (-1);
 	}
 	/* size required is returned in 'asoc' */
@@ -328,7 +328,6 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	siz += sizeof(struct sctp_getaddresses);
 	addrs = calloc(1, siz);
 	if (addrs == NULL) {
-		errno = ENOMEM;
 		return (-1);
 	}
 	addrs->sget_assoc_id = id;
@@ -336,7 +335,6 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_PEER_ADDRESSES,
 	    addrs, &siz) != 0) {
 		free(addrs);
-		errno = ENOMEM;
 		return (-1);
 	}
 	re = (struct sockaddr *)&addrs->addr[0];
