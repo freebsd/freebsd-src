@@ -349,7 +349,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
  * after it gives up privilege, so some caution is required.  For options
  * passed down to the IP layer via ip_ctloutput(), checks are assumed to be
  * performed in ip_ctloutput() and therefore no check occurs here.
- * Unilaterally checking suser() here breaks normal IP socket option
+ * Unilaterally checking priv_check() here breaks normal IP socket option
  * operations on raw sockets.
  *
  * When adding new socket options here, make sure to add access control
