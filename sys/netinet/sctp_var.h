@@ -90,6 +90,10 @@ extern struct pr_usrreqs sctp_usrreqs;
 
 
 #define sctp_free_a_chunk(_stcb, _chk) { \
+        if ((_chk)->whoTo) { \
+                sctp_free_remote_addr((_chk)->whoTo); \
+                (_chk)->whoTo = NULL; \
+	} \
 	if (((_stcb)->asoc.free_chunk_cnt > sctp_asoc_free_resc_limit) || \
 	    (sctppcbinfo.ipi_free_chunks > sctp_system_free_resc_limit)) { \
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_chunk, (_chk)); \
@@ -106,6 +110,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 		(_chk) = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_chunk, struct sctp_tmit_chunk); \
 		if ((_chk)) { \
 			SCTP_INCR_CHK_COUNT(); \
+                        (_chk)->whoTo = NULL; \
 		} \
 	} else { \
 		(_chk) = TAILQ_FIRST(&(_stcb)->asoc.free_chunks); \
