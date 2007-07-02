@@ -409,6 +409,7 @@ default:							\
 #define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((uint32_t *)s))
 #endif
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)	*rp = bswap16(*rp)
+#define	ISP_SWIZZLE_NVRAM_LONG(isp, rp)	*rp = bswap32(*rp)
 
 #define	ISP_IOZGET_8(isp, s, d)		d = (*((uint8_t *)s))
 #define	ISP_IOZGET_16(isp, s, d)	d = (*((uint16_t *)s))
@@ -426,6 +427,7 @@ default:							\
 #define	ISP_IOXGET_16(isp, s, d)	d = *(s)
 #define	ISP_IOXGET_32(isp, s, d)	d = *(s)
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)
+#define	ISP_SWIZZLE_NVRAM_LONG(isp, rp)
 
 #define	ISP_IOZPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOZPUT_16(isp, s, d)	*(d) = bswap16(s)
@@ -436,6 +438,9 @@ default:							\
 #define	ISP_IOZGET_32(isp, s, d)	d = bswap32(*((uint32_t *)(s)))
 
 #endif
+
+#define	ISP_SWAP16(isp, s)	bswap16(s)
+#define	ISP_SWAP32(isp, s)	bswap32(s)
 
 /*
  * Includes of common header files
