@@ -245,6 +245,10 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **
 
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
+int	destroy_dev_sched(struct cdev *dev);
+int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
+void	destroy_dev_drain(struct cdevsw *csw);
+void	drain_dev_clone_events(void);
 struct cdevsw *dev_refthread(struct cdev *_dev);
 struct cdevsw *devvn_refthread(struct vnode *vp, struct cdev **devp);
 void	dev_relthread(struct cdev *_dev);
@@ -258,6 +262,12 @@ struct cdev *make_dev(struct cdevsw *_devsw, int _minor, uid_t _uid, gid_t _gid,
 struct cdev *make_dev_cred(struct cdevsw *_devsw, int _minor,
 		struct ucred *_cr, uid_t _uid, gid_t _gid, int _perms,
 		const char *_fmt, ...) __printflike(7, 8);
+#define MAKEDEV_REF     0x1
+#define MAKEDEV_WHTOUT	0x2
+struct cdev *make_dev_credf(int _flags,
+		struct cdevsw *_devsw, int _minornr,
+		struct ucred *_cr, uid_t _uid, gid_t _gid, int _mode,
+		const char *_fmt, ...) __printflike(8, 9);
 struct cdev *make_dev_alias(struct cdev *_pdev, const char *_fmt, ...) __printflike(2, 3);
 int	dev2unit(struct cdev *_dev);
 void	dev_lock(void);
