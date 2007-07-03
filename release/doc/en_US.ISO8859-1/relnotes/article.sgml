@@ -1244,6 +1244,14 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.ciss.4; driver is now MPSAFE.</para>
 
+      <para>A new <literal>GEOM_JOURNAL</literal> class has been added
+	to the GEOM storage transformation system.  It supports
+	block-level journaling operations, which can be used by file
+	system modules to perform file system journaling and to keep
+	file systems in a consistent state.  (Currently, only UFS file
+	systems are supported.)  Its operation can be controlled using
+	the &man.gjournal.8; utility.</para>
+
       <para>The <literal>GEOM_LABEL</literal> class now supports
 	Ext2FS, NTFS, and ReiserFS.  &merged;</para>
 
