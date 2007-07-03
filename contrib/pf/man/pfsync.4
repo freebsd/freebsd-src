@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pfsync.4,v 1.22 2005/02/24 15:53:17 jmc Exp $
+.\"	$OpenBSD: pfsync.4,v 1.24 2006/10/23 07:05:49 jmc Exp $
 .\"
 .\" Copyright (c) 2002 Michael Shalayeff
 .\" Copyright (c) 2003-2004 Ryan McBride
@@ -209,7 +209,7 @@ The following should be added to the top of
 .Pa /etc/pf.conf :
 .Bd -literal -offset indent
 pass quick on { sis2 } proto pfsync
-pass quick on { sis0 sis1 } proto carp keep state
+pass on { sis0 sis1 } proto carp
 .Ed
 .Pp
 If it is preferable that one firewall handle the traffic,
@@ -248,6 +248,9 @@ yet.
 .Xr pf.conf 5 ,
 .Xr protocols 5 ,
 .Xr rc.conf 5
+.Xr ifconfig 8 ,
+.Xr ifstated 8 ,
+.Xr tcpdump 8
 .Sh HISTORY
 The
 .Nm

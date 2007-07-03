@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.os.5,v 1.6 2004/03/31 11:13:03 dhartmei Exp $
+.\"	$OpenBSD: pf.os.5,v 1.7 2005/11/16 20:07:18 stevesk Exp $
 .\"
 .\" Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
 .\"
@@ -207,37 +207,15 @@ The
 output of
 .Bd -literal
   # tcpdump -s128 -c1 -nv 'tcp[13] == 2'
-  03:13:48.118526 10.0.0.1.3377 > 10.0.0.0.2: S [tcp sum ok] \e
+  03:13:48.118526 10.0.0.1.3377 > 10.0.0.2.80: S [tcp sum ok] \e
       534596083:534596083(0) win 57344 <mss 1460> (DF) [tos 0x10] \e
-      (ttl 64, id 11315)
+      (ttl 64, id 11315, len 44)
 .Ed
 .Pp
 almost translates into the following fingerprint
 .Bd -literal
   57344:64:1:44:M1460:	exampleOS:1.0::exampleOS 1.0
 .Ed
-.Pp
-.Xr tcpdump 1
-does not explicitly give the packet length.
-But it can usually be derived by adding the size of the IPv4 header to
-the size of the TCP header to the size of the TCP options.
-The size of both headers is typically twenty each and the usual
-sizes of the TCP options are:
-.Pp
-.Bl -tag -width timestamp -offset indent -compact
-.It mss
-four bytes.
-.It nop
-1 byte.
-.It sackOK
-two bytes.
-.It timestamp
-ten bytes.
-.It wscale
-three bytes.
-.El
-.Pp
-In the above example, the packet size comes out to 44 bytes.
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
 .Xr pf 4 ,
