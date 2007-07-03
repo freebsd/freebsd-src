@@ -546,7 +546,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct mbuf *md;
 	enum vtype vtyp;
 	u_short vmode;
-	struct timespec mtime;
+	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
 	struct thread *td = curthread;
 
@@ -615,6 +615,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	vap->va_type = vtyp;
 	vap->va_mode = (vmode & 07777);
 	vap->va_rdev = rdev;
+	mtime_save = vap->va_mtime;
 	vap->va_mtime = mtime;
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	if (v3) {
@@ -686,6 +687,21 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 			np->n_size = vap->va_size;
 		}
 	}
+	/*
+	 * The following checks are added to prevent a race between (say)
+	 * a READDIR+ and a WRITE. 
+	 * READDIR+, WRITE requests sent out.
+	 * READDIR+ resp, WRITE resp received on client.
+	 * However, the WRITE resp was handled before the READDIR+ resp
+	 * causing the post op attrs from the write to be loaded first
+	 * and the attrs from the READDIR+ to be loaded later. If this 
+	 * happens, we have stale attrs loaded into the attrcache.
+	 * We detect this by for the mtime moving back. We invalidate the 
+	 * attrcache when this happens.
+	 */
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+		/* Size changed or mtime went backwards */
+		np->n_attrstamp = 0;
 	if (vaper != NULL) {
 		bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
