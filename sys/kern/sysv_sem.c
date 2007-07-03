@@ -826,9 +826,9 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		mtx_unlock(sema_mtxp);		    
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
 		error = copyin(arg->array, array, count * sizeof(*array));
+		mtx_lock(sema_mtxp);
 		if (error)
 			break;
-		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, semakptr)) != 0)
 			goto done2;
 		KASSERT(count == semakptr->u.sem_nsems, ("nsems changed"));
