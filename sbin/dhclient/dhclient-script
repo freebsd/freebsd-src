@@ -22,6 +22,7 @@
 ARP=/usr/sbin/arp
 AWK=/usr/bin/awk
 HOSTNAME=/bin/hostname
+IFCONFIG='/sbin/ifconfig -n'
 NETSTAT=/usr/bin/netstat
 
 LOCALHOST=127.0.0.1
@@ -55,11 +56,11 @@ arp_flush() {
 }
 
 delete_old_address() {
-	eval "ifconfig $interface inet -alias $old_ip_address $medium"
+	eval "$IFCONFIG $interface inet -alias $old_ip_address $medium"
 }
 
 add_new_address() {
-	eval "ifconfig $interface \
+	eval "$IFCONFIG $interface \
 		inet $new_ip_address \
 		netmask $new_subnet_mask \
 		broadcast $new_broadcast_address \
@@ -73,14 +74,14 @@ add_new_address() {
 
 delete_old_alias() {
 	if [ -n "$alias_ip_address" ]; then
-		ifconfig $interface inet -alias $alias_ip_address > /dev/null 2>&1
+		$IFCONFIG $interface inet -alias $alias_ip_address > /dev/null 2>&1
 		#route delete $alias_ip_address $LOCALHOST > /dev/null 2>&1
 	fi
 }
 
 add_new_alias() {
 	if [ -n "$alias_ip_address" ]; then
-		ifconfig $interface inet alias $alias_ip_address netmask \
+		$IFCONFIG $interface inet alias $alias_ip_address netmask \
 		    $alias_subnet_mask
 		#route add $alias_ip_address $LOCALHOST
 	fi
@@ -276,14 +277,14 @@ fi
 
 case $reason in
 MEDIUM)
-	eval "ifconfig $interface $medium"
-	eval "ifconfig $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
+	eval "$IFCONFIG $interface $medium"
+	eval "$IFCONFIG $interface inet -alias 0.0.0.0 $medium" >/dev/null 2>&1
 	sleep 1
 	;;
 
 PREINIT)
 	delete_old_alias
-	ifconfig $interface inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	$IFCONFIG $interface inet 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
 	;;
 
 ARPCHECK|ARPSEND)
@@ -346,7 +347,7 @@ TIMEOUT)
 			fi
 		fi
 	fi
-	eval "ifconfig $interface inet -alias $new_ip_address $medium"
+	eval "$IFCONFIG $interface inet -alias $new_ip_address $medium"
 	delete_old_routes
 	exit_with_hooks 1
 	;;
