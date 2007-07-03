@@ -358,10 +358,8 @@ MROUTING		opt_mrouting.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPSEC			opt_ipsec.h
-IPSEC_ESP		opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
 IPSEC_FILTERGIF		opt_ipsec.h
-FAST_IPSEC		opt_ipsec.h
 IPDIVERT
 DUMMYNET		opt_ipdn.h
 IPFILTER		opt_ipfilter.h

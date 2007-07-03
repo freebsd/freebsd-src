@@ -135,9 +135,8 @@ amd64/isa/isa_dma.c		standard
 amd64/isa/nmi.c			standard
 amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
-						netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		standard
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc

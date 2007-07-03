@@ -91,12 +91,12 @@
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
 #include <netinet6/ip6_ipsec.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
@@ -208,13 +208,13 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct ipsec_output_state state;
 	struct ip6_rthdr *rh = NULL;
 	int needipsectun = 0;
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -253,7 +253,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp, &sp))
 	{
 	case 1:                 /* Bad packet */
@@ -264,7 +264,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	default:
 		break;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * Calculate the total length of the extension header chain.
@@ -362,7 +362,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
 		   IPPROTO_ROUTING);
 	
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	if (!needipsec)
 		goto skip_ipsec2;
 	
@@ -418,7 +418,7 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 		rh->ip6r_segleft = segleft_org;
 	}
 skip_ipsec2:;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * If there is a routing header, replace the destination address field
@@ -522,12 +522,9 @@ again:
 			ip6->ip6_hlim = ip6_defmcasthlim;
 	}
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
-	 * Same as similar comment above.  
-	 * We only want to do regular IPSEC here and leave this pure
-	 * in the case that we're using FAST_IPSEC which uses
-	 * this code to re-inject packets.
+	 * We may re-inject packets into the stack here.
 	 */
 	if (needipsec && needipsectun) {
 		struct ipsec_output_state state;
@@ -586,7 +583,7 @@ again:
 
 		exthdrs.ip6e_ip6 = m;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -1774,7 +1771,7 @@ do { \
 				}
 				break;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 			case IPV6_IPSEC_POLICY:
 			    {
 				caddr_t req = NULL;
@@ -1794,7 +1791,7 @@ do { \
 				m_freem(m);
 			    }
 				break;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 			default:
 				error = ENOPROTOOPT;
@@ -1991,7 +1988,7 @@ do { \
 			    }
 				break;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 			case IPV6_IPSEC_POLICY:
 			  {
 				caddr_t req = NULL;
@@ -2020,7 +2017,7 @@ do { \
 					m_freem(m);
 				break;
 			  }
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 			default:
 				error = ENOPROTOOPT;

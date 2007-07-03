@@ -102,10 +102,10 @@
 #include <netinet6/udp6_var.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 /*
  * UDP protocol inplementation.
@@ -124,7 +124,7 @@ udp6_append(struct inpcb *in6p, struct mbuf *n, int off,
 
 	/* XXXRW: Not yet: INP_LOCK_ASSERT(in6p); */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -133,7 +133,7 @@ udp6_append(struct inpcb *in6p, struct mbuf *n, int off,
 		ipsec6stat.in_polvio++;
 		return;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	opts = NULL;
 	if (in6p->in6p_flags & IN6P_CONTROLOPTS ||

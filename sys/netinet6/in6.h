@@ -409,9 +409,9 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#ifdef FAST_IPSEC 
+#ifdef IPSEC 
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #define IPV6_FAITH		29 /* bool; accept FAITH'ed connections */
 

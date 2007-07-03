@@ -338,12 +338,12 @@ contrib/pf/net/pf_table.c	optional pf \
 contrib/pf/net/pf_osfp.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
-crypto/blowfish/bf_ecb.c	optional ipsec ipsec_esp
-crypto/blowfish/bf_skey.c	optional crypto | ipsec ipsec_esp
-crypto/camellia/camellia.c	optional crypto | ipsec ipsec_esp
-crypto/camellia/camellia-api.c	optional crypto | ipsec ipsec_esp
-crypto/des/des_ecb.c		optional crypto | ipsec ipsec_esp | netsmb
-crypto/des/des_setkey.c		optional crypto | ipsec ipsec_esp | netsmb
+crypto/blowfish/bf_ecb.c	optional ipsec 
+crypto/blowfish/bf_skey.c	optional crypto | ipsec 
+crypto/camellia/camellia.c	optional crypto | ipsec 
+crypto/camellia/camellia-api.c	optional crypto | ipsec 
+crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
+crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
@@ -1829,7 +1829,7 @@ netinet/ip_fw2.c		optional ipfirewall
 netinet/ip_fw_pfil.c		optional ipfirewall
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
-netinet/ip_ipsec.c		optional fast_ipsec
+netinet/ip_ipsec.c		optional ipsec
 netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
@@ -1880,7 +1880,7 @@ netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional mrouting inet6
 netinet6/ip6_output.c		optional inet6
-netinet6/ip6_ipsec.c		optional inet6 fast_ipsec
+netinet6/ip6_ipsec.c		optional ipsec
 netinet6/mld6.c			optional inet6
 netinet6/nd6.c			optional inet6
 netinet6/nd6_nbr.c		optional inet6
@@ -1891,18 +1891,18 @@ netinet6/scope6.c		optional inet6
 netinet6/sctp6_usrreq.c		optional inet6 sctp
 netinet6/udp6_output.c		optional inet6
 netinet6/udp6_usrreq.c		optional inet6
-netipsec/ipsec.c		optional fast_ipsec
-netipsec/ipsec_input.c		optional fast_ipsec
-netipsec/ipsec_mbuf.c		optional fast_ipsec
-netipsec/ipsec_output.c		optional fast_ipsec
-netipsec/key.c			optional fast_ipsec
-netipsec/key_debug.c		optional fast_ipsec
-netipsec/keysock.c		optional fast_ipsec
-netipsec/xform_ah.c		optional fast_ipsec
-netipsec/xform_esp.c		optional fast_ipsec
-netipsec/xform_ipcomp.c		optional fast_ipsec
-netipsec/xform_ipip.c		optional fast_ipsec
-netipsec/xform_tcp.c		optional fast_ipsec tcp_signature
+netipsec/ipsec.c		optional ipsec
+netipsec/ipsec_input.c		optional ipsec
+netipsec/ipsec_mbuf.c		optional ipsec
+netipsec/ipsec_output.c		optional ipsec
+netipsec/key.c			optional ipsec
+netipsec/key_debug.c		optional ipsec
+netipsec/keysock.c		optional ipsec
+netipsec/xform_ah.c		optional ipsec
+netipsec/xform_esp.c		optional ipsec
+netipsec/xform_ipcomp.c		optional ipsec
+netipsec/xform_ipip.c		optional ipsec
+netipsec/xform_tcp.c		optional ipsec tcp_signature
 netipx/ipx.c			optional ipx
 netipx/ipx_cksum.c		optional ipx
 netipx/ipx_input.c		optional ipx
@@ -1959,7 +1959,7 @@ nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
 nfsserver/nfs_syscalls.c	optional nfsserver
 # crypto support
-opencrypto/cast.c		optional crypto | ipsec ipsec_esp
+opencrypto/cast.c		optional crypto | ipsec
 opencrypto/criov.c		optional crypto
 opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev

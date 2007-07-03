@@ -65,11 +65,11 @@
 
 #include <netinet/in_pcb.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
 
@@ -101,7 +101,7 @@ ip6_forward(m, srcrt)
 	struct ifnet *origifp;	/* maybe unnecessary */
 	u_int32_t inzone, outzone;
 	struct in6_addr src_in6, dst_in6;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif
@@ -109,7 +109,7 @@ ip6_forward(m, srcrt)
 
 	GIANT_REQUIRED; /* XXX bz: ip6_forward_rt */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -122,7 +122,7 @@ ip6_forward(m, srcrt)
 		m_freem(m);
 		return;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * Do not forward packets to multicast destination (should be handled
@@ -175,7 +175,7 @@ ip6_forward(m, srcrt)
 	 */
 	mcopy = m_copy(m, 0, imin(m->m_pkthdr.len, ICMPV6_PLD_MAXLEN));
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/* get a security policy for this packet */
 	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
 	    IP_FORWARDING, &error);
@@ -346,9 +346,9 @@ ip6_forward(m, srcrt)
 		ipsecrt = 1;
     }
     skip_ipsec:
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	if (ipsecrt)
 		goto skip_routing;
 #endif
@@ -401,7 +401,7 @@ ip6_forward(m, srcrt)
 		}
 	}
 	rt = ip6_forward_rt.ro_rt;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
     skip_routing:;
 #endif
 
@@ -429,7 +429,7 @@ ip6_forward(m, srcrt)
 		return;
 	}
 	if (inzone != outzone
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	    && !ipsecrt
 #endif
 	    ) {
@@ -475,14 +475,14 @@ ip6_forward(m, srcrt)
 		in6_ifstat_inc(rt->rt_ifp, ifs6_in_toobig);
 		if (mcopy) {
 			u_long mtu;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 			struct secpolicy *sp;
 			int ipsecerror;
 			size_t ipsechdrsiz;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 			mtu = IN6_LINKMTU(rt->rt_ifp);
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 			/*
 			 * When we do IPsec tunnel ingress, we need to play
 			 * with the link value (decrement IPsec header size
@@ -505,7 +505,7 @@ ip6_forward(m, srcrt)
 			 */
 			if (mtu < IPV6_MMTU)
 				mtu = IPV6_MMTU;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 			icmp6_error(mcopy, ICMP6_PACKET_TOO_BIG, 0, mtu);
 		}
 		m_freem(m);
@@ -525,9 +525,9 @@ ip6_forward(m, srcrt)
 	 * modified by a redirect.
 	 */
 	if (ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	    !ipsecrt &&
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
 		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
 			/*

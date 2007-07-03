@@ -80,13 +80,13 @@
 #include <netinet6/tcp6_var.h>
 #endif
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/key.h>
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
 
@@ -621,7 +621,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		inp->inp_lport = 0;
 		goto abort;
 	}
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/* Copy old policy into new socket's. */
 	if (ipsec_copy_policy(sotoinpcb(lso)->inp_sp, inp->inp_sp))
 		printf("syncache_socket: could not copy policy\n");

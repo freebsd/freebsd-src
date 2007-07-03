@@ -99,7 +99,7 @@
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
 #endif
@@ -2417,9 +2417,9 @@ icmp6_redirect_input(m, off)
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	key_sa_routechange((struct sockaddr *)&sdst);
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
     }
 
  freeit:

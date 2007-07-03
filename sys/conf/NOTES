@@ -495,8 +495,7 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 #
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
-#options 	IPSEC			#IP security
-#options 	IPSEC_ESP		#IP security (crypto; define w/ IPSEC)
+options 	IPSEC			#IP security
 #options 	IPSEC_DEBUG		#debug for IP security
 #
 # Set IPSEC_FILTERGIF to force packets coming through a gif tunnel
@@ -508,8 +507,6 @@ options 	INET6			#IPv6 communications protocols
 # using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
 #
 #options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
-
-options 	FAST_IPSEC		#new IPsec (cannot define w/ IPSEC)
 
 options 	IPX			#IPX/SPX communications protocols
 
@@ -786,7 +783,7 @@ device		pflog			#logging support interface for PF
 device		pfsync			#synchronization interface for PF
 options 	PF_MPSAFE_UGID		#Workaround LOR with user/group rules
 device		carp			#Common Address Redundancy Protocol
-device		enc			#IPSec interface (needs FAST_IPSEC)
+device		enc			#IPsec interface
 device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
@@ -880,8 +877,8 @@ options 	ACCEPT_FILTER_HTTP
 # carried in TCP option 19. This option is commonly used to protect
 # TCP sessions (e.g. BGP) where IPSEC is not available nor desirable.
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
-# This requires the use of 'device crypto', 'options FAST_IPSEC' or 'options
-# IPSEC', and 'device cryptodev'.
+# This requires the use of 'device crypto', 'options IPSEC'
+# or 'device cryptodev'.
 #options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
@@ -2513,7 +2510,7 @@ options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 # crypto subsystem
 #
 # This is a port of the OpenBSD crypto framework.  Include this when
-# configuring FAST_IPSEC and when you have a h/w crypto device to accelerate
+# configuring IPSEC and when you have a h/w crypto device to accelerate
 # user applications that link to OpenSSL.
 #
 # Drivers are ports from OpenBSD with some simple enhancements that have

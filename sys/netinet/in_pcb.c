@@ -74,10 +74,10 @@
 #endif /* INET6 */
 
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <security/mac/mac_framework.h>
 
@@ -193,11 +193,11 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	SOCK_UNLOCK(so);
 #endif
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	error = ipsec_init_policy(so, &inp->inp_sp);
 	if (error != 0)
 		goto out;
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 #ifdef INET6
 	if (INP_SOCKAF(so) == AF_INET6) {
 		inp->inp_vflag |= INP_IPV6PROTO;
@@ -215,7 +215,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	INP_LOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
 	
-#if defined(FAST_IPSEC) || defined(MAC)
+#if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0)
 		uma_zfree(pcbinfo->ipi_zone, inp);
@@ -711,9 +711,9 @@ in_pcbfree(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_LOCK_ASSERT(inp);
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	ipsec4_delete_pcbpolicy(inp);
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	if (inp->inp_options)

@@ -55,7 +55,7 @@
 
 #include <machine/in_cksum.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/xform.h>
@@ -65,7 +65,7 @@
 #else
 #define	KEYDEBUG(lev,arg)
 #endif
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 #include <netinet6/ip6_ipsec.h>
 
@@ -79,7 +79,7 @@ extern	struct protosw inet6sw[];
 int
 ip6_ipsec_filtergif(struct mbuf *m)
 {
-#if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
+#if defined(IPSEC) && !defined(IPSEC_FILTERGIF)
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
@@ -98,7 +98,7 @@ ip6_ipsec_filtergif(struct mbuf *m)
 int
 ip6_ipsec_fwd(struct mbuf *m)
 {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -129,7 +129,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 		ipstat.ips_cantforward++;
 		return 1;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }
 
@@ -144,7 +144,7 @@ int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 
 {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -188,21 +188,21 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 		if (error)
 			return 1;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }
 
 /*
  * Called from ip6_output().
  * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet (FAST_IPSEC only)
+ * -1 = packet was reinjected and stop processing packet 
  */ 
 
 int
 ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		 struct ifnet **ifp, struct secpolicy **sp)
 {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
 	int s;
@@ -309,7 +309,7 @@ bad:
 		if (*sp != NULL)
 			KEY_FREESP(sp);
 	return 1;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }
 
@@ -332,12 +332,12 @@ ip6_ipsec_mtu(struct mbuf *m)
 	int ipsecerror;
 	int ipsechdr;
 	struct route *ro;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	sp = ipsec_getpolicybyaddr(m,
 				   IPSEC_DIR_OUTBOUND,
 				   IP_FORWARDING,
 				   &ipsecerror);
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	if (sp != NULL) {
 		/* count IPsec header size */
 		ipsechdr = ipsec4_hdrsiz(m,
@@ -360,9 +360,9 @@ ip6_ipsec_mtu(struct mbuf *m)
 				mtu -= ipsechdr;
 			}
 		}
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		KEY_FREESP(&sp);
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	}
 	return mtu;
 }
