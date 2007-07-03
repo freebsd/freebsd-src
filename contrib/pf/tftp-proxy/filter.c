@@ -1,4 +1,5 @@
 /*	$OpenBSD: filter.c,v 1.1 2005/12/28 19:07:07 jcs Exp $ */
+/*	$FreeBSD$ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>
@@ -297,9 +298,15 @@ prepare_rule(u_int32_t id, int rs_num, struct sockaddr *src,
 		pfr.rule.quick = 1;
 		pfr.rule.log = rule_log;
 		pfr.rule.keep_state = 1;
+#ifdef __FreeBSD__
+		pfr.rule.flags = (proto == IPPROTO_TCP ? TH_SYN : 0);
+		pfr.rule.flagset = (proto == IPPROTO_TCP ?
+		    (TH_SYN|TH_ACK|TH_FIN|TH_RST) : 0);
+#else
 		pfr.rule.flags = (proto == IPPROTO_TCP ? TH_SYN : NULL);
 		pfr.rule.flagset = (proto == IPPROTO_TCP ?
 		    (TH_SYN|TH_ACK|TH_FIN|TH_RST) : NULL);
+#endif
 		pfr.rule.max_states = 1;
 		if (qname != NULL)
 			strlcpy(pfr.rule.qname, qname, sizeof pfr.rule.qname);

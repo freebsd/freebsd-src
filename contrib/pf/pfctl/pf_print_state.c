@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.40 2004/12/10 22:13:26 henning Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.44 2007/03/01 17:20:53 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -99,6 +99,9 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		break;
 	case PF_ADDR_NOROUTE:
 		printf("no-route");
+		return;
+	case PF_ADDR_URPFFAILED:
+		printf("urpf-failed");
 		return;
 	case PF_ADDR_RTLABEL:
 		printf("route \"%s\"", addr->v.rtlabelname);
@@ -278,8 +281,15 @@ print_state(struct pf_state *s, int opts)
 		min = s->expire % 60;
 		s->expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", s->expire, min, sec);
-		printf(", %u:%u pkts, %u:%u bytes",
+		printf(", %llu:%llu pkts, %llu:%llu bytes",
+#ifdef __FreeBSD__
+		    (unsigned long long)s->packets[0],
+		    (unsigned long long)s->packets[1],
+		    (unsigned long long)s->bytes[0],
+		    (unsigned long long)s->bytes[1]);
+#else
 		    s->packets[0], s->packets[1], s->bytes[0], s->bytes[1]);
+#endif
 		if (s->anchor.nr != -1)
 			printf(", anchor %u", s->anchor.nr);
 		if (s->rule.nr != -1)
@@ -291,13 +301,13 @@ print_state(struct pf_state *s, int opts)
 		printf("\n");
 	}
 	if (opts & PF_OPT_VERBOSE2) {
+		printf("   id: %016llx creatorid: %08x%s\n",
 #ifdef __FreeBSD__
-		printf("   id: %016llx creatorid: %08x\n",
-		    (long long)be64toh(s->id), ntohl(s->creatorid));
+		    (unsigned long long)be64toh(s->id), ntohl(s->creatorid),
 #else
-		printf("   id: %016llx creatorid: %08x\n",
-		    betoh64(s->id), ntohl(s->creatorid));
+		    betoh64(s->id), ntohl(s->creatorid),
 #endif
+		    ((s->sync_flags & PFSTATE_NOSYNC) ? " (no-sync)" : ""));
 	}
 }
 
