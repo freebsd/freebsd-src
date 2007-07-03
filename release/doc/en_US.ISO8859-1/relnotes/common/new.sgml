@@ -329,6 +329,9 @@
     <para>The GNU version of <application>gzip</application> has been
       replaced with a modified version of gzip ported from NetBSD.</para>
 
+    <para><application>less</application> has been updated from v381
+      to v406.</para>
+
     <para><application>ncurses</application> has been updated from
       5.2-20020615 to 5.6-20061217.  ncurses now also has wide
       character support.</para>
