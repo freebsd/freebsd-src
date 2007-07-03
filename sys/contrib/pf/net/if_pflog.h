@@ -1,6 +1,5 @@
-/*	$FreeBSD$	*/
-/* $OpenBSD: if_pflog.h,v 1.11 2004/05/19 17:50:51 dhartmei Exp $ */
-
+/* $FreeBSD$ */
+/* $OpenBSD: if_pflog.h,v 1.14 2006/10/25 11:27:01 henning Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -29,14 +28,19 @@
 #ifndef _NET_IF_PFLOG_H_
 #define _NET_IF_PFLOG_H_
 
+#define	PFLOGIFS_MAX	16
+
+#ifdef _KERNEL
 struct pflog_softc {
 #ifdef __FreeBSD__
-	struct ifnet	*sc_ifp;  /* the interface */
-	LIST_ENTRY(pflog_softc) sc_next;
+	struct ifnet		*sc_ifp;	/* the interface pointer */
 #else
-	struct ifnet	sc_if;  /* the interface */
+	struct ifnet		sc_if;		/* the interface */
 #endif
+	int			sc_unit;
+	LIST_ENTRY(pflog_softc)	sc_list;
 };
+#endif /* _KERNEL */
 
 #define PFLOG_RULESET_NAME_SIZE	16
 
@@ -49,6 +53,10 @@ struct pfloghdr {
 	char		ruleset[PFLOG_RULESET_NAME_SIZE];
 	u_int32_t	rulenr;
 	u_int32_t	subrulenr;
+	uid_t		uid;
+	pid_t		pid;
+	uid_t		rule_uid;
+	pid_t		rule_pid;
 	u_int8_t	dir;
 	u_int8_t	pad[3];
 };
@@ -74,20 +82,21 @@ struct old_pfloghdr {
 struct pf_rule;
 struct pf_ruleset;
 struct pfi_kif;
+struct pf_pdesc;
 
 typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
-    struct pf_ruleset *);
+    struct pf_ruleset *, struct pf_pdesc *);
 extern pflog_packet_t *pflog_packet_ptr;
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g) do {		\
-	if (pflog_packet_ptr != NULL)			\
-		pflog_packet_ptr(i,a,b,c,d,e,f,g);	\
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) do {	\
+	if (pflog_packet_ptr != NULL)		\
+	pflog_packet_ptr(i,a,b,c,d,e,f,g,h);	\
 } while (0)
-#else
+#else /* ! __FreeBSD__ */
 #if NPFLOG > 0
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g) pflog_packet(i,a,b,c,d,e,f,g)
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) pflog_packet(i,a,b,c,d,e,f,g,h)
 #else
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g)	((void)0)
+#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) ((void)0)
 #endif /* NPFLOG > 0 */
 #endif /* __FreeBSD__ */
 #endif /* _KERNEL */

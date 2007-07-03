@@ -1,5 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$OpenBSD: pf_table.c,v 1.62 2004/12/07 18:02:04 mcbride Exp $	*/
+/*	$OpenBSD: pf_table.c,v 1.68 2006/05/02 10:08:45 dhartmei Exp $	*/
 
 /*
  * Copyright (c) 2002 Cedric Berger
@@ -34,6 +33,9 @@
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
@@ -465,7 +467,8 @@ _bad:
 
 int
 pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
-    int *size2, int *nadd, int *ndel, int *nchange, int flags)
+    int *size2, int *nadd, int *ndel, int *nchange, int flags,
+    u_int32_t ignore_pfrt_flags)
 {
 	struct pfr_ktable	*kt, *tmpkt;
 	struct pfr_kentryworkq	 addq, delq, changeq;
@@ -475,7 +478,8 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	long			 tzero = time_second;
 
 	ACCEPT_FLAGS(PFR_FLAG_ATOMIC+PFR_FLAG_DUMMY+PFR_FLAG_FEEDBACK);
-	if (pfr_validate_table(tbl, 0, flags & PFR_FLAG_USERIOCTL))
+	if (pfr_validate_table(tbl, ignore_pfrt_flags, flags &
+	    PFR_FLAG_USERIOCTL))
 		return (EINVAL);
 	kt = pfr_lookup_table(tbl);
 	if (kt == NULL || !(kt->pfrkt_flags & PFR_TFLAG_ACTIVE))
@@ -875,13 +879,10 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	if (ADDR_NETWORK(ad)) {
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
 		s = splsoftnet(); /* rn_lookup makes use of globals */
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-		RADIX_NODE_HEAD_LOCK(head);
+#ifdef __FreeBSD__
+		PF_ASSERT(MA_OWNED);
 #endif
 		ke = (struct pfr_kentry *)rn_lookup(&sa, &mask, head);
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-		RADIX_NODE_HEAD_UNLOCK(head);
-#endif
 		splx(s);
 		if (ke && KENTRY_RNF_ROOT(ke))
 			ke = NULL;
@@ -1079,17 +1080,14 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 		head = kt->pfrkt_ip6;
 
 	s = splsoftnet();
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-	RADIX_NODE_HEAD_LOCK(head);
+#ifdef __FreeBSD__
+	PF_ASSERT(MA_OWNED);
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
 		rn = rn_addroute(&ke->pfrke_sa, &mask, head, ke->pfrke_node);
 	} else
 		rn = rn_addroute(&ke->pfrke_sa, NULL, head, ke->pfrke_node);
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-	RADIX_NODE_HEAD_UNLOCK(head);
-#endif
 	splx(s);
 
 	return (rn == NULL ? -1 : 0);
@@ -1109,8 +1107,8 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 		head = kt->pfrkt_ip6;
 
 	s = splsoftnet();
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-	RADIX_NODE_HEAD_LOCK(head);
+#ifdef __FreeBSD__
+	PF_ASSERT(MA_OWNED);
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -1124,9 +1122,6 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 		rn = rn_delete(&ke->pfrke_sa, NULL, head);
 #else
 		rn = rn_delete(&ke->pfrke_sa, NULL, head, NULL);
-#endif
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500100)
-	RADIX_NODE_HEAD_UNLOCK(head);
 #endif
 	splx(s);
 
@@ -2182,7 +2177,7 @@ pfr_attach_table(struct pf_ruleset *rs, char *name)
 	bzero(&tbl, sizeof(tbl));
 	strlcpy(tbl.pfrt_name, name, sizeof(tbl.pfrt_name));
 	if (ac != NULL)
-		strlcpy(tbl.pfrt_anchor, ac->name, sizeof(tbl.pfrt_anchor));
+		strlcpy(tbl.pfrt_anchor, ac->path, sizeof(tbl.pfrt_anchor));
 	kt = pfr_lookup_table(&tbl);
 	if (kt == NULL) {
 		kt = pfr_create_ktable(&tbl, time_second, 1);
