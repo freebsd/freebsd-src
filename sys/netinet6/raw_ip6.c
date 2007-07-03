@@ -95,10 +95,10 @@
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <machine/stdarg.h>
 
@@ -181,7 +181,7 @@ docontinue:
 		if (last) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 			/*
 			 * Check AH/ESP integrity.
 			 */
@@ -190,7 +190,7 @@ docontinue:
 				ipsec6stat.in_polvio++;
 				/* do not inject data into pcb */
 			} else
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 			if (n) {
 				if (last->in6p_flags & IN6P_CONTROLOPTS ||
 				    last->in6p_socket->so_options & SO_TIMESTAMP)
@@ -212,7 +212,7 @@ docontinue:
 		}
 		last = in6p;
 	}
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
@@ -223,7 +223,7 @@ docontinue:
 		/* do not inject data into pcb */
 		INP_UNLOCK(last);
 	} else
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	if (last) {
 		if (last->in6p_flags & IN6P_CONTROLOPTS ||
 		    last->in6p_socket->so_options & SO_TIMESTAMP)

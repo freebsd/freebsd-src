@@ -55,11 +55,11 @@
 
 #include <machine/in_cksum.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 #include <netipsec/key.h>
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 extern	struct protosw inetsw[];
 
@@ -71,7 +71,7 @@ extern	struct protosw inetsw[];
 int
 ip_ipsec_filtergif(struct mbuf *m)
 {
-#if defined(FAST_IPSEC) && !defined(IPSEC_FILTERGIF)
+#if defined(IPSEC) && !defined(IPSEC_FILTERGIF)
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
@@ -90,7 +90,7 @@ ip_ipsec_filtergif(struct mbuf *m)
 int
 ip_ipsec_fwd(struct mbuf *m)
 {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -122,7 +122,7 @@ ip_ipsec_fwd(struct mbuf *m)
 		ipstat.ips_cantforward++;
 		return 1;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }
 
@@ -137,7 +137,7 @@ int
 ip_ipsec_input(struct mbuf *m)
 {
 	struct ip *ip = mtod(m, struct ip *);
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -179,7 +179,7 @@ ip_ipsec_input(struct mbuf *m)
 		if (error)
 			return 1;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }
 
@@ -237,14 +237,14 @@ ip_ipsec_mtu(struct mbuf *m)
  * 
  * Called from ip_output().
  * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet (FAST_IPSEC only)
+ * -1 = packet was reinjected and stop processing packet
  */
 int
 ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
     struct route **ro, struct route *iproute, struct sockaddr_in **dst,
     struct in_ifaddr **ia, struct ifnet **ifp)
 {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	struct ip *ip = mtod(*m, struct ip *);
 	struct tdb_ident *tdbi;
@@ -381,6 +381,6 @@ bad:
 	if (sp != NULL)
 		KEY_FREESP(&sp);
 	return 1;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	return 0;
 }

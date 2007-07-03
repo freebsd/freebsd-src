@@ -66,9 +66,9 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 #include <security/mac/mac_framework.h>
 
@@ -155,12 +155,12 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 
 	INP_LOCK_ASSERT(last);
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, last)) {
 		policyfail = 1;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 #ifdef MAC
 	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
 		policyfail = 1;

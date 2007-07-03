@@ -99,11 +99,11 @@
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 struct	in6_addr zeroin6_addr;
 
@@ -427,10 +427,10 @@ in6_pcbfree(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	if (inp->in6p_sp != NULL)
 		ipsec6_delete_pcbpolicy(inp);
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
  	ip6_freepcbopts(inp->in6p_outputopts);

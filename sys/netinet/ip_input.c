@@ -70,9 +70,9 @@
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
 #endif
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netinet/ip_ipsec.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <sys/socketvar.h>
 
@@ -391,13 +391,13 @@ tooshort:
 		} else
 			m_adj(m, ip->ip_len - m->m_pkthdr.len);
 	}
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
 	if (ip_ipsec_filtergif(m))
 		goto passin;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * Run through list of hooks for input packets.
@@ -601,10 +601,10 @@ passin:
 		ipstat.ips_cantforward++;
 		m_freem(m);
 	} else {
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		if (ip_ipsec_fwd(m))
 			goto bad;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 		ip_forward(m, dchg);
 	}
 	return;
@@ -645,7 +645,7 @@ ours:
 	 */
 	ip->ip_len -= hlen;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
@@ -653,7 +653,7 @@ ours:
 	 */
 	if (ip_ipsec_input(m))
 		goto bad;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * Switch out to protocol's input routine.
@@ -1390,9 +1390,9 @@ ip_forward(struct mbuf *m, int srcrt)
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_NEEDFRAG;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		mtu = ip_ipsec_mtu(m);
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 		/*
 		 * If the MTU wasn't set before use the interface mtu or
 		 * fall back to the next smaller mtu step compared to the

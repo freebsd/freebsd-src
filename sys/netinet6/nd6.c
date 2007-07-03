@@ -474,7 +474,7 @@ nd6_llinfo_timer(arg)
 				ln->ln_hold = m0;
 				clear_llinfo_pqueue(ln);
 			}
-			if (rt)
+			if (rt && rt->rt_llinfo)
 				(void)nd6_free(rt, 0);
 			ln = NULL;
 		}
@@ -489,7 +489,8 @@ nd6_llinfo_timer(arg)
 	case ND6_LLINFO_STALE:
 		/* Garbage Collection(RFC 2461 5.3) */
 		if (!ND6_LLINFO_PERMANENT(ln)) {
-			(void)nd6_free(rt, 1);
+			if (rt && rt->rt_llinfo)
+				(void)nd6_free(rt, 1);
 			ln = NULL;
 		}
 		break;
@@ -525,7 +526,8 @@ nd6_llinfo_timer(arg)
 			ln->ln_expire = 0; /* make it permanent */
 			ln->ln_state = ND6_LLINFO_STALE;
 		} else {
-			(void)nd6_free(rt, 0);
+			if (rt && rt->rt_llinfo)
+				(void)nd6_free(rt, 0);
 			ln = NULL;
 		}
 		break;
@@ -2009,7 +2011,7 @@ again:
 			rt = rt->rt_gwroute;
 			RT_LOCK(rt);		/* NB: gwroute */
 			if ((rt->rt_flags & RTF_UP) == 0) {
-				rtfree(rt);	/* unlock gwroute */
+				RTFREE_LOCKED(rt);	/* unlock gwroute */
 				rt = rt0;
 			lookup:
 				RT_UNLOCK(rt0);
@@ -2322,7 +2324,8 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 			d->rtaddr.sin6_family = AF_INET6;
 			d->rtaddr.sin6_len = sizeof(d->rtaddr);
 			d->rtaddr.sin6_addr = dr->rtaddr;
-			sa6_recoverscope(&d->rtaddr);
+			if (error = sa6_recoverscope(&d->rtaddr) != 0)
+				return (error);
 			d->flags = dr->flags;
 			d->rtlifetime = dr->rtlifetime;
 			d->expire = dr->expire;

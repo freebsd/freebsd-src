@@ -72,9 +72,9 @@
 #include <netinet/tcp_debug.h>
 #endif
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
 
@@ -695,7 +695,7 @@ send:
 				offsetof(struct ipoption, ipopt_list);
 	else
 		ipoptlen = 0;
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	ipoptlen += ipsec_hdrsiz_tcp(tp);
 #endif
 

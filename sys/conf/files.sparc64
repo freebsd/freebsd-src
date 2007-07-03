@@ -32,9 +32,8 @@ opt_ah.h			optional	ath_hal			\
 	no-obj no-implicit-rule before-depend				\
 	clean		"opt_ah.h"
 #
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
-						netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional	atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional	atkbdc

@@ -82,10 +82,10 @@
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
 
@@ -445,7 +445,7 @@ findpcb:
 						m->m_pkthdr.rcvif);
 	}
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && inp != NULL && ipsec6_in_reject(m, inp)) {
 		ipsec6stat.in_polvio++;
@@ -456,7 +456,7 @@ findpcb:
 		ipsec4stat.in_polvio++;
 		goto dropunlock;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * If the INPCB does not exist then all data in the incoming

@@ -18,9 +18,8 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	clean		"ukbdmap.h"
 #
 #
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
-						netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/ofw/ofw_bus_if.m		standard
 dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	ofw_console
