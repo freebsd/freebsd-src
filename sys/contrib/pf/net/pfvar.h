@@ -624,6 +624,7 @@ struct pf_rule {
 	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
+	u_int32_t		 spare1;		/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -642,6 +643,7 @@ struct pf_rule {
 	u_int16_t		 max_mss;
 	u_int16_t		 tag;
 	u_int16_t		 match_tag;
+	u_int16_t		 spare2;		/* netgraph */
 
 	struct pf_rule_uid	 uid;
 	struct pf_rule_gid	 gid;
