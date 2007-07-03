@@ -75,6 +75,8 @@ static struct fileops devfs_ops_f;
 
 struct mtx	devfs_de_interlock;
 MTX_SYSINIT(devfs_de_interlock, &devfs_de_interlock, "devfs interlock", MTX_DEF);
+struct sx	clone_drain_lock;
+SX_SYSINIT(clone_drain_lock, &clone_drain_lock, "clone events drain lock");
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
@@ -618,8 +620,19 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 			break;
 
 		cdev = NULL;
+		DEVFS_DMP_HOLD(dmp);
+		sx_xunlock(&dmp->dm_lock);
+		sx_slock(&clone_drain_lock);
 		EVENTHANDLER_INVOKE(dev_clone,
 		    td->td_ucred, pname, strlen(pname), &cdev);
+		sx_sunlock(&clone_drain_lock);
+		sx_xlock(&dmp->dm_lock);
+		if (DEVFS_DMP_DROP(dmp)) {
+			*dm_unlock = 0;
+			sx_xunlock(&dmp->dm_lock);
+			devfs_unmount_final(dmp);
+			return (ENOENT);
+		}
 		if (cdev == NULL)
 			break;
 
