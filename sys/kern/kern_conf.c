@@ -39,9 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/queue.h>
 #include <sys/poll.h>
+#include <sys/sx.h>
 #include <sys/ctype.h>
 #include <sys/tty.h>
 #include <sys/ucred.h>
+#include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 
 #include <fs/devfs/devfs_int.h>
@@ -50,9 +52,11 @@ static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
 struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
-static struct cdev *make_dev_credv(struct cdevsw *devsw, int minornr,
-	    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
-	    va_list ap);
+
+static struct cdev *make_dev_credv(int flags,
+    struct cdevsw *devsw, int minornr,
+    struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
+    va_list ap);
 
 static struct cdev_priv_list cdevp_free_list =
     TAILQ_HEAD_INITIALIZER(cdevp_free_list);
@@ -143,12 +147,18 @@ struct cdevsw *
 dev_refthread(struct cdev *dev)
 {
 	struct cdevsw *csw;
+	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	dev_lock();
 	csw = dev->si_devsw;
-	if (csw != NULL)
-		dev->si_threadcount++;
+	if (csw != NULL) {
+		cdp = dev->si_priv;
+		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0)
+			dev->si_threadcount++;
+		else
+			csw = NULL;
+	}
 	dev_unlock();
 	return (csw);
 }
@@ -157,15 +167,19 @@ struct cdevsw *
 devvn_refthread(struct vnode *vp, struct cdev **devp)
 {
 	struct cdevsw *csw;
+	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	csw = NULL;
 	dev_lock();
 	*devp = vp->v_rdev;
 	if (*devp != NULL) {
-		csw = (*devp)->si_devsw;
-		if (csw != NULL)
-			(*devp)->si_threadcount++;
+		cdp = (*devp)->si_priv;
+		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
+			csw = (*devp)->si_devsw;
+			if (csw != NULL)
+				(*devp)->si_threadcount++;
+		}
 	}
 	dev_unlock();
 	return (csw);
@@ -554,8 +568,9 @@ prep_cdevsw(struct cdevsw *devsw)
 	dev_unlock();
 }
 
-static struct cdev *
-make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
+struct cdev *
+make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
+    struct ucred *cr, uid_t uid,
     gid_t gid, int mode, const char *fmt, va_list ap)
 {
 	struct cdev *dev;
@@ -569,6 +584,8 @@ make_dev_credv(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 	dev = devfs_alloc();
 	dev_lock();
 	dev = newdev(devsw, minornr, dev);
+	if (flags & MAKEDEV_REF)
+		dev_refl(dev);
 	if (dev->si_flags & SI_CHEAPCLONE &&
 	    dev->si_flags & SI_NAMED) {
 		/*
@@ -611,7 +628,7 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode,
 	va_list ap;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(devsw, minornr, NULL, uid, gid, mode, fmt, ap);
+	dev = make_dev_credv(0, devsw, minornr, NULL, uid, gid, mode, fmt, ap);
 	va_end(ap);
 	return (dev);
 }
@@ -624,7 +641,23 @@ make_dev_cred(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
 	va_list ap;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(devsw, minornr, cr, uid, gid, mode, fmt, ap);
+	dev = make_dev_credv(0, devsw, minornr, cr, uid, gid, mode, fmt, ap);
+	va_end(ap);
+
+	return (dev);
+}
+
+struct cdev *
+make_dev_credf(int flags, struct cdevsw *devsw, int minornr,
+    struct ucred *cr, uid_t uid,
+    gid_t gid, int mode, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+
+	va_start(ap, fmt);
+	dev = make_dev_credv(flags, devsw, minornr, cr, uid, gid, mode,
+	    fmt, ap);
 	va_end(ap);
 
 	return (dev);
@@ -728,8 +761,10 @@ destroy_devl(struct cdev *dev)
 		LIST_REMOVE(dev, si_list);
 
 		/* If cdevsw has no more struct cdev *'s, clean it */
-		if (LIST_EMPTY(&csw->d_devs))
+		if (LIST_EMPTY(&csw->d_devs)) {
 			fini_cdevsw(csw);
+			wakeup(&csw->d_devs);
+		}
 	}
 	dev->si_flags &= ~SI_ALIAS;
 	dev->si_refcount--;	/* Avoid race with dev_rel() */
@@ -915,21 +950,115 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 void
 clone_cleanup(struct clonedevs **cdp)
 {
-	struct cdev *dev, *tdev;
+	struct cdev *dev;
+	struct cdev_priv *cp;
 	struct clonedevs *cd;
 	
 	cd = *cdp;
 	if (cd == NULL)
 		return;
 	dev_lock();
-	LIST_FOREACH_SAFE(dev, &cd->head, si_clone, tdev) {
+	while (!LIST_EMPTY(&cd->head)) {
+		dev = LIST_FIRST(&cd->head);
+		LIST_REMOVE(dev, si_clone);
 		KASSERT(dev->si_flags & SI_CLONELIST,
 		    ("Dev %p(%s) should be on clonelist", dev, dev->si_name));
-		KASSERT(dev->si_flags & SI_NAMED,
-		    ("Driver has goofed in cloning underways udev %x", dev->si_drv0));
-		destroy_devl(dev);
+		dev->si_flags &= ~SI_CLONELIST;
+		cp = dev->si_priv;
+		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
+			cp->cdp_flags |= CDP_SCHED_DTR;
+			KASSERT(dev->si_flags & SI_NAMED,
+				("Driver has goofed in cloning underways udev %x", dev->si_drv0));
+			destroy_devl(dev);
+		}
 	}
 	dev_unlock();
 	free(cd, M_DEVBUF);
 	*cdp = NULL;
 }
+
+static TAILQ_HEAD(, cdev_priv) dev_ddtr =
+	TAILQ_HEAD_INITIALIZER(dev_ddtr);
+static struct task dev_dtr_task;
+
+static void
+destroy_dev_tq(void *ctx, int pending)
+{
+	struct cdev_priv *cp;
+	struct cdev *dev;
+	void (*cb)(void *);
+	void *cb_arg;
+
+	dev_lock();
+	while (!TAILQ_EMPTY(&dev_ddtr)) {
+		cp = TAILQ_FIRST(&dev_ddtr);
+		dev = &cp->cdp_c;
+		KASSERT(cp->cdp_flags & CDP_SCHED_DTR,
+		    ("cdev %p in dev_destroy_tq without CDP_SCHED_DTR", cp));
+		TAILQ_REMOVE(&dev_ddtr, cp, cdp_dtr_list);
+		cb = cp->cdp_dtr_cb;
+		cb_arg = cp->cdp_dtr_cb_arg;
+		destroy_devl(dev);
+		dev_unlock();
+		dev_rel(dev);
+		if (cb != NULL)
+			cb(cb_arg);
+		dev_lock();
+	}
+	dev_unlock();
+}
+
+int
+destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
+{
+	struct cdev_priv *cp;
+	
+	cp = dev->si_priv;
+	dev_lock();
+	if (cp->cdp_flags & CDP_SCHED_DTR) {
+		dev_unlock();
+		return (0);
+	}
+	dev_refl(dev);
+	cp->cdp_flags |= CDP_SCHED_DTR;
+	cp->cdp_dtr_cb = cb;
+	cp->cdp_dtr_cb_arg = arg;
+	TAILQ_INSERT_TAIL(&dev_ddtr, cp, cdp_dtr_list);
+	dev_unlock();
+	taskqueue_enqueue(taskqueue_swi_giant, &dev_dtr_task);
+	return (1);
+}
+
+int
+destroy_dev_sched(struct cdev *dev)
+{
+	return (destroy_dev_sched_cb(dev, NULL, NULL));
+}
+
+void
+destroy_dev_drain(struct cdevsw *csw)
+{
+
+	dev_lock();
+	while (!LIST_EMPTY(&csw->d_devs)) {
+		msleep(&csw->d_devs, &devmtx, PRIBIO, "devscd", hz/10);
+	}
+	dev_unlock();
+}
+
+void
+drain_dev_clone_events(void)
+{
+
+	sx_xlock(&clone_drain_lock);
+	sx_xunlock(&clone_drain_lock);
+}
+
+static void
+devdtr_init(void *dummy __unused)
+{
+
+	TASK_INIT(&dev_dtr_task, 0, destroy_dev_tq, NULL);
+}
+
+SYSINIT(devdtr, SI_SUB_DEVFS, SI_ORDER_SECOND, devdtr_init, NULL);

@@ -47,11 +47,16 @@ struct cdev_priv {
 
 	u_int			cdp_flags;
 #define CDP_ACTIVE		(1 << 0)
+#define CDP_SCHED_DTR		(1 << 1)
 
 	u_int			cdp_inuse;
 	u_int			cdp_maxdirent;
 	struct devfs_dirent	**cdp_dirents;
 	struct devfs_dirent	*cdp_dirent0;
+
+	TAILQ_ENTRY(cdev_priv)	cdp_dtr_list;
+	void			(*cdp_dtr_cb)(void *);
+	void			*cdp_dtr_cb_arg;
 };
 
 struct cdev *devfs_alloc(void);
@@ -62,6 +67,7 @@ void devfs_destroy(struct cdev *dev);
 extern struct unrhdr *devfs_inos;
 extern struct mtx devmtx;
 extern struct mtx devfs_de_interlock;
+extern struct sx clone_drain_lock;
 extern TAILQ_HEAD(cdev_priv_list, cdev_priv) cdevp_list;
 
 #endif /* _KERNEL */
