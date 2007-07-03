@@ -1,4 +1,4 @@
-/*	$OpenBSD: if_pflog.c,v 1.12 2004/05/19 17:50:51 dhartmei Exp $	*/
+/*	$OpenBSD: if_pflog.c,v 1.22 2006/12/15 09:31:20 otto Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
  * Angelos D. Keromytis (kermit@csd.uch.gr) and 
@@ -39,6 +39,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 
@@ -72,44 +73,90 @@
 #define DPRINTF(x)
 #endif
 
-struct pflog_softc pflogif[NPFLOG];
-
 void	pflogattach(int);
 int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	    	       struct rtentry *);
 int	pflogioctl(struct ifnet *, u_long, caddr_t);
-void	pflogrtrequest(int, struct rtentry *, struct sockaddr *);
 void	pflogstart(struct ifnet *);
+int	pflog_clone_create(struct if_clone *, int);
+int	pflog_clone_destroy(struct ifnet *);
+
+LIST_HEAD(, pflog_softc)	pflogif_list;
+struct if_clone	pflog_cloner =
+    IF_CLONE_INITIALIZER("pflog", pflog_clone_create, pflog_clone_destroy);
+
+struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
 
 extern int ifqmaxlen;
 
 void
 pflogattach(int npflog)
 {
+	int	i;
+	LIST_INIT(&pflogif_list);
+	for (i = 0; i < PFLOGIFS_MAX; i++)
+		pflogifs[i] = NULL;
+	(void) pflog_clone_create(&pflog_cloner, 0);
+	if_clone_attach(&pflog_cloner);
+}
+
+int
+pflog_clone_create(struct if_clone *ifc, int unit)
+{
 	struct ifnet *ifp;
-	int i;
+	struct pflog_softc *pflogif;
+	int s;
 
-	bzero(pflogif, sizeof(pflogif));
+	if (unit >= PFLOGIFS_MAX)
+		return (EINVAL);
 
-	for (i = 0; i < NPFLOG; i++) {
-		ifp = &pflogif[i].sc_if;
-		snprintf(ifp->if_xname, sizeof ifp->if_xname, "pflog%d", i);
-		ifp->if_softc = &pflogif[i];
-		ifp->if_mtu = PFLOGMTU;
-		ifp->if_ioctl = pflogioctl;
-		ifp->if_output = pflogoutput;
-		ifp->if_start = pflogstart;
-		ifp->if_type = IFT_PFLOG;
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-		ifp->if_hdrlen = PFLOG_HDRLEN;
-		if_attach(ifp);
-		if_alloc_sadl(ifp);
+	if ((pflogif = malloc(sizeof(*pflogif), M_DEVBUF, M_NOWAIT)) == NULL)
+		return (ENOMEM);
+	bzero(pflogif, sizeof(*pflogif));
+
+	pflogif->sc_unit = unit;
+	ifp = &pflogif->sc_if;
+	snprintf(ifp->if_xname, sizeof ifp->if_xname, "pflog%d", unit);
+	ifp->if_softc = pflogif;
+	ifp->if_mtu = PFLOGMTU;
+	ifp->if_ioctl = pflogioctl;
+	ifp->if_output = pflogoutput;
+	ifp->if_start = pflogstart;
+	ifp->if_type = IFT_PFLOG;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ifp->if_hdrlen = PFLOG_HDRLEN;
+	if_attach(ifp);
+	if_alloc_sadl(ifp);
 
 #if NBPFILTER > 0
-		bpfattach(&pflogif[i].sc_if.if_bpf, ifp, DLT_PFLOG,
-			  PFLOG_HDRLEN);
+	bpfattach(&pflogif->sc_if.if_bpf, ifp, DLT_PFLOG, PFLOG_HDRLEN);
 #endif
-	}
+
+	s = splnet();
+	LIST_INSERT_HEAD(&pflogif_list, pflogif, sc_list);
+	pflogifs[unit] = ifp;
+	splx(s);
+
+	return (0);
+}
+
+int
+pflog_clone_destroy(struct ifnet *ifp)
+{
+	struct pflog_softc	*pflogif = ifp->if_softc;
+	int			 s;
+
+	s = splnet();
+	pflogifs[pflogif->sc_unit] = NULL;
+	LIST_REMOVE(pflogif, sc_list);
+	splx(s);
+
+#if NBPFILTER > 0
+	bpfdetach(ifp);
+#endif
+	if_detach(ifp);
+	free(pflogif, M_DEVBUF);
+	return (0);
 }
 
 /*
@@ -122,7 +169,7 @@ pflogstart(struct ifnet *ifp)
 	int s;
 
 	for (;;) {
-		s = splimp();
+		s = splnet();
 		IF_DROP(&ifp->if_snd);
 		IF_DEQUEUE(&ifp->if_snd, m);
 		splx(s);
@@ -140,14 +187,6 @@ pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 {
 	m_freem(m);
 	return (0);
-}
-
-/* ARGSUSED */
-void
-pflogrtrequest(int cmd, struct rtentry *rt, struct sockaddr *sa)
-{
-	if (rt)
-		rt->rt_rmx.rmx_mtu = PFLOGMTU;
 }
 
 /* ARGSUSED */
@@ -174,15 +213,17 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 int
 pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
-    struct pf_ruleset *ruleset)
+    struct pf_ruleset *ruleset, struct pf_pdesc *pd)
 {
 #if NBPFILTER > 0
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
-	struct mbuf m1;
 
-	if (kif == NULL || m == NULL || rm == NULL)
+	if (kif == NULL || m == NULL || rm == NULL || pd == NULL)
 		return (-1);
+
+	if ((ifn = pflogifs[rm->logif]) == NULL || !ifn->if_bpf)
+		return (0);
 
 	bzero(&hdr, sizeof(hdr));
 	hdr.length = PFLOG_REAL_HDRLEN;
@@ -201,6 +242,17 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 			strlcpy(hdr.ruleset, ruleset->anchor->name,
 			    sizeof(hdr.ruleset));
 	}
+	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done)
+		pd->lookup.done = pf_socket_lookup(dir, pd);
+	if (pd->lookup.done > 0) {
+		hdr.uid = pd->lookup.uid;
+		hdr.pid = pd->lookup.pid;
+	} else {
+		hdr.uid = UID_MAX;
+		hdr.pid = NO_PID;
+	}
+	hdr.rule_uid = rm->cuid;
+	hdr.rule_pid = rm->cpid;
 	hdr.dir = dir;
 
 #ifdef INET
@@ -213,14 +265,10 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 	}
 #endif /* INET */
 
-	m1.m_next = m;
-	m1.m_len = PFLOG_HDRLEN;
-	m1.m_data = (char *) &hdr;
-
-	ifn = &(pflogif[0].sc_if);
-
-	if (ifn->if_bpf)
-		bpf_mtap(ifn->if_bpf, &m1);
+	ifn->if_opackets++;
+	ifn->if_obytes += m->m_pkthdr.len;
+	bpf_mtap_hdr(ifn->if_bpf, (char *)&hdr, PFLOG_HDRLEN, m,
+	    BPF_DIRECTION_OUT);
 #endif
 
 	return (0);
