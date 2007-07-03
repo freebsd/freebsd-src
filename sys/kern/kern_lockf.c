@@ -73,14 +73,14 @@ MALLOC_DEFINE(M_LOCKF, "lockf", "Byte-range locking structures");
 #define NOLOCKF (struct lockf *)0
 #define SELF	0x1
 #define OTHERS	0x2
-static int	 lf_clearlock(struct lockf *);
+static int	 lf_clearlock(struct lockf *, struct lockf **);
 static int	 lf_findoverlap(struct lockf *,
 	    struct lockf *, int, struct lockf ***, struct lockf **);
 static struct lockf *
 	 lf_getblock(struct lockf *);
 static int	 lf_getlock(struct lockf *, struct flock *);
-static int	 lf_setlock(struct lockf *);
-static void	 lf_split(struct lockf *, struct lockf *);
+static int	 lf_setlock(struct lockf *, struct vnode *, struct lockf **);
+static void	 lf_split(struct lockf *, struct lockf *, struct lockf **);
 static void	 lf_wakelock(struct lockf *);
 #ifdef LOCKF_DEBUG
 static void	 lf_print(char *, struct lockf *);
@@ -102,12 +102,13 @@ lf_advlock(ap, head, size)
 	struct lockf **head;
 	u_quad_t size;
 {
-	register struct flock *fl = ap->a_fl;
-	register struct lockf *lock;
+	struct flock *fl = ap->a_fl;
+	struct lockf *lock;
+	struct vnode *vp = ap->a_vp;
 	off_t start, end, oadd;
+	struct lockf *split;
 	int error;
 
-	mtx_lock(&Giant);
 	/*
 	 * Convert the flock structure into a start and end.
 	 */
@@ -124,40 +125,29 @@ lf_advlock(ap, head, size)
 
 	case SEEK_END:
 		if (size > OFF_MAX ||
-		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start)) {
-			error = EOVERFLOW;
-			goto out;
-		}
+		    (fl->l_start > 0 && size > OFF_MAX - fl->l_start))
+			return (EOVERFLOW);
 		start = size + fl->l_start;
 		break;
 
 	default:
-		error = EINVAL;
-		goto out;
+		return (EINVAL);
 	}
-	if (start < 0) {
-		error = EINVAL;
-		goto out;
-	}
+	if (start < 0)
+		return (EINVAL);
 	if (fl->l_len < 0) {
-		if (start == 0) {
-			error = EINVAL;
-			goto out;
-		}
+		if (start == 0)
+			return (EINVAL);
 		end = start - 1;
 		start += fl->l_len;
-		if (start < 0) {
-			error = EINVAL;
-			goto out;
-		}
+		if (start < 0)
+			return (EINVAL);
 	} else if (fl->l_len == 0)
 		end = -1;
 	else {
 		oadd = fl->l_len - 1;
-		if (oadd > OFF_MAX - start) {
-			error = EOVERFLOW;
-			goto out;
-		}
+		if (oadd > OFF_MAX - start)
+			return (EOVERFLOW);
 		end = start + oadd;
 	}
 	/*
@@ -166,10 +156,15 @@ lf_advlock(ap, head, size)
 	if (*head == (struct lockf *)0) {
 		if (ap->a_op != F_SETLK) {
 			fl->l_type = F_UNLCK;
-			error = 0;
-			goto out;
+			return (0);
 		}
 	}
+	/*
+	 * Allocate a spare structure in case we have to split.
+	 */
+	split = NULL;
+	if (ap->a_op == F_SETLK || ap->a_op == F_UNLCK)
+		MALLOC(split, struct lockf *, sizeof *lock, M_LOCKF, M_WAITOK);
 	/*
 	 * Create the lockf structure
 	 */
@@ -192,29 +187,30 @@ lf_advlock(ap, head, size)
 	/*
 	 * Do the requested operation.
 	 */
+	VI_LOCK(vp);
 	switch(ap->a_op) {
 	case F_SETLK:
-		error = lf_setlock(lock);
-		goto out;
+		error = lf_setlock(lock, vp, &split);
+		break;
 
 	case F_UNLCK:
-		error = lf_clearlock(lock);
+		error = lf_clearlock(lock, &split);
 		FREE(lock, M_LOCKF);
-		goto out;
+		break;
 
 	case F_GETLK:
 		error = lf_getlock(lock, fl);
 		FREE(lock, M_LOCKF);
-		goto out;
+		break;
 
 	default:
 		free(lock, M_LOCKF);
 		error = EINVAL;
-		goto out;
+		break;
 	}
-	/* NOTREACHED */
-out:
-	mtx_unlock(&Giant);
+	VI_UNLOCK(vp);
+	if (split)
+		FREE(split, M_LOCKF);
 	return (error);
 }
 
@@ -222,10 +218,12 @@ out:
  * Set a byte-range lock.
  */
 static int
-lf_setlock(lock)
-	register struct lockf *lock;
+lf_setlock(lock, vp, split)
+	struct lockf *lock;
+	struct vnode *vp;
+	struct lockf **split;
 {
-	register struct lockf *block;
+	struct lockf *block;
 	struct lockf **head = lock->lf_head;
 	struct lockf **prev, *overlap, *ltmp;
 	static char lockstr[] = "lockf";
@@ -310,7 +308,7 @@ restart:
 		if ((lock->lf_flags & F_FLOCK) &&
 		    lock->lf_type == F_WRLCK) {
 			lock->lf_type = F_UNLCK;
-			(void) lf_clearlock(lock);
+			(void) lf_clearlock(lock, split);
 			lock->lf_type = F_WRLCK;
 		}
 		/*
@@ -325,7 +323,7 @@ restart:
 			lf_printlist("lf_setlock", block);
 		}
 #endif /* LOCKF_DEBUG */
-		error = tsleep(lock, priority, lockstr, 0);
+		error = msleep(lock, VI_MTX(vp), priority, lockstr, 0);
 		/*
 		 * We may have been awakened by a signal and/or by a
 		 * debugger continuing us (in which cases we must remove
@@ -402,7 +400,7 @@ restart:
 				lock->lf_next = overlap;
 				overlap->lf_start = lock->lf_end + 1;
 			} else
-				lf_split(overlap, lock);
+				lf_split(overlap, lock, split);
 			lf_wakelock(overlap);
 			break;
 
@@ -479,8 +477,9 @@ restart:
  * and remove it (or shrink it), then wakeup anyone we can.
  */
 static int
-lf_clearlock(unlock)
-	register struct lockf *unlock;
+lf_clearlock(unlock, split)
+	struct lockf *unlock;
+	struct lockf **split;
 {
 	struct lockf **head = unlock->lf_head;
 	register struct lockf *lf = *head;
@@ -514,7 +513,7 @@ lf_clearlock(unlock)
 				overlap->lf_start = unlock->lf_end + 1;
 				break;
 			}
-			lf_split(overlap, unlock);
+			lf_split(overlap, unlock, split);
 			overlap->lf_next = unlock->lf_next;
 			break;
 
@@ -722,11 +721,12 @@ lf_findoverlap(lf, lock, type, prev, overlap)
  * two or three locks as necessary.
  */
 static void
-lf_split(lock1, lock2)
-	register struct lockf *lock1;
-	register struct lockf *lock2;
+lf_split(lock1, lock2, split)
+	struct lockf *lock1;
+	struct lockf *lock2;
+	struct lockf **split;
 {
-	register struct lockf *splitlock;
+	struct lockf *splitlock;
 
 #ifdef LOCKF_DEBUG
 	if (lockf_debug & 2) {
@@ -750,9 +750,11 @@ lf_split(lock1, lock2)
 	}
 	/*
 	 * Make a new lock consisting of the last part of
-	 * the encompassing lock
+	 * the encompassing lock.  We use the preallocated
+	 * splitlock so we don't have to block.
 	 */
-	MALLOC(splitlock, struct lockf *, sizeof *splitlock, M_LOCKF, M_WAITOK);
+	splitlock = *split;
+	*split = NULL;
 	bcopy(lock1, splitlock, sizeof *splitlock);
 	splitlock->lf_start = lock2->lf_end + 1;
 	TAILQ_INIT(&splitlock->lf_blkhd);
