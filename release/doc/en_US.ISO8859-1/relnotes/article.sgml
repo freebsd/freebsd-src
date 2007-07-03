@@ -654,6 +654,10 @@
 	When both &man.sio.4; and &man.uart.4; can handle a given serial port,
 	&man.sio.4; will claim it.</para>
 
+      <para>The &man.uark.4; driver, which supports the Arkmicro
+	Technologies ARK3116-based USB serial adapter, has been
+	added.</para>
+
       <para>The &man.uart.4; driver now supports LOM (Lights Out Management)
 	and RSC (Remote System Control) devices as consoles.</para>
 
@@ -864,6 +868,9 @@
 	<para>The &man.nve.4; driver has been updated to version 1.0-0310
 	  (23-Nov-2005).  It also now has &man.altq.4; support. &merged;</para>
 
+	<para>The &man.nxge.4; driver, which supports the Neterion
+	  Xframe 10 Gigabit Ethernet adapter, has been added.</para>
+
 	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.re.4; driver now supports the D-Link DGE-528(T)
@@ -1044,6 +1051,16 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The ip6fw(8) packet filter has been removed.  Since &man.ipfw.4; has gained
         IPv6 support, it should be used instead.  Please note that some rules might need
         to be adjusted.</para>
+
+      <para>The KAME IPsec implementation has been removed.  In its
+	place, <literal>FAST_IPSEC</literal> is now the only IPsec
+	implementation supported by the &os; kernel.  The
+	<literal>IPSEC</literal> kernel configuration option, which
+	formerly enabled KAME IPsec, now enables
+	<literal>FAST_IPSEC</literal>.  <literal>FAST_IPSEC</literal>
+	now supports both IPv4 and IPv6, uses fine-grained kernel
+	locking, and supports hardware cryptographic
+	acceleration.</para>
 
       <para>Support for tunneling IPX over IP has been removed.</para>
 
@@ -1789,9 +1806,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       which prints all interface statistics in human readable form. &merged;</para>
 
     <para>The &man.netstat.1; utility now supports
-      printing &man.ipsec.4; protocol statistics if the
-      kernel was compiled with <literal>FAST_IPSEC</literal>
-      rather than the KAME IPSEC stack.
+      printing &man.ipsec.4; protocol statistics.
       Note that the output of <command>netstat -s -p ipsec</command>
       differs depending on which stack is compiled into
       the kernel since they each keep different statistics.  &merged;</para>
@@ -2001,6 +2016,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The vnconfig(8) utility, which was long ago replaced by
       &man.mdconfig.8;, has been removed.</para>
 
+    <para>The wicontrol(8) utility has been removed.  Configuration
+      functions for &man.wi.4; interfaces should be performed using
+      &man.ifconfig.8;.</para>
+
     <para>The &man.xargs.1; utility now supports a <option>-r</option>
       flag which makes the command execution when the standard input
       does not contain any non-whitespace-characters.  &merged;</para>
@@ -2185,7 +2204,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       4.1.8 to 4.1.23.</para>
 
     <para><application>less</application> has been updated from v381
-      to v406.</para>
+      to v406. &merged;</para>
 
     <para><application>libpcap</application> has been updated from
       0.9.1 to 0.9.4. &merged;</para>
@@ -2207,6 +2226,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.
       &merged;</para>
+
+    <para><application>PF</application> has been updated from OpenBSD
+      version 3.7 to OpenBSD version 4.1.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.4 to 8.14.1.  &merged;</para>
