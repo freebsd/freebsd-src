@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070702:
+	The packet filter (pf) code has been updated to OpenBSD 4.1 Please
+	note the changed syntax - keep state is now on by default.  Also
+	note the fact that ftp-proxy(8) has been changed from bottom up and
+	has been moved from libexec to usr/sbin.  Changes in the ALTQ
+	handling also affect users of IPFW's ALTQ capabilities.
+
 20070701:
 	Remove KAME IPsec in favor of FAST_IPSEC, which is now the
 	only IPsec supported by FreeBSD.  The new IPsec stack
