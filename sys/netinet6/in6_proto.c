@@ -115,10 +115,10 @@
 #include <netinet6/sctp6_var.h>
 #endif /* SCTP */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
 
@@ -252,7 +252,7 @@ struct ip6protosw inet6sw[] = {
 	.pr_input =		frag6_input,
 	.pr_usrreqs =		&nousrreqs
 },
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
@@ -278,7 +278,7 @@ struct ip6protosw inet6sw[] = {
         .pr_input =		ipsec6_common_input,
 	.pr_usrreqs =		&nousrreqs,
 },
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 #ifdef INET
 {
 	.pr_type =		SOCK_RAW,
@@ -438,9 +438,9 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_TCP,	tcp6,	CTLFLAG_RW, 0,	"TCP6");
 #ifdef SCTP
 SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP,	sctp6,	CTLFLAG_RW, 0,	"SCTP6");
 #endif
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 /* net.inet6.ip6 */
 static int

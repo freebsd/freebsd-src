@@ -3143,7 +3143,7 @@ check_body:
 				break;
 
 			case O_IPSEC:
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 				match = (m_tag_find(m,
 				    PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL);
 #endif

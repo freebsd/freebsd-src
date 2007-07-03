@@ -199,7 +199,7 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	/*
 	 * We only support HMAC algorithms to be able to work with
-	 * fast_ipsec(4), so if we are asked only for authentication without
+	 * ipsec(4), so if we are asked only for authentication without
 	 * encryption, don't pretend we can accellerate it.
 	 */
 	if (encini == NULL)

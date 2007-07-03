@@ -606,7 +606,7 @@ bad:
 	return (error);
 }
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 static int
 ipe4_init(struct secasvar *sav, struct xformsw *xsp)
 {
@@ -685,4 +685,4 @@ ipe4_attach(void)
 #endif
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);
-#endif	/* FAST_IPSEC */
+#endif	/* IPSEC */
