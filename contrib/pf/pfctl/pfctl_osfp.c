@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_osfp.c,v 1.12 2005/02/17 13:18:00 aaron Exp $ */
+/*	$OpenBSD: pfctl_osfp.c,v 1.15 2006/12/13 05:10:15 itojun Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@openbsd.org>
@@ -22,6 +22,10 @@
 
 #include <net/if.h>
 #include <net/pfvar.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -240,6 +244,10 @@ pfctl_file_fingerprints(int dev, int opts, const char *fp_filename)
 		    sizeof(fp.fp_os.fp_subtype_nm));
 
 		add_fingerprint(dev, opts, &fp);
+
+		fp.fp_flags |= (PF_OSFP_DF | PF_OSFP_INET6);
+		fp.fp_psize += sizeof(struct ip6_hdr) - sizeof(struct ip);
+		add_fingerprint(dev, opts, &fp);
 	}
 
 	if (class)
@@ -250,6 +258,8 @@ pfctl_file_fingerprints(int dev, int opts, const char *fp_filename)
 		free(subtype);
 	if (desc)
 		free(desc);
+	if (tcpopts)
+		free(tcpopts);
 
 	fclose(in);
 
@@ -762,7 +772,6 @@ sort_name_list(int opts, struct name_list *nml)
 			LIST_INSERT_AFTER(nmlast, nm, nm_entry);
 		nmlast = nm;
 	}
-	return;
 }
 
 /* parse the next integer in a formatted config file line */
