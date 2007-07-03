@@ -350,6 +350,11 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 #define IN6_IS_SCOPE_LINKLOCAL(a)	\
 	((IN6_IS_ADDR_LINKLOCAL(a)) ||	\
 	 (IN6_IS_ADDR_MC_LINKLOCAL(a)))
+#define	IN6_IS_SCOPE_EMBED(a)			\
+	((IN6_IS_ADDR_LINKLOCAL(a)) ||		\
+	 (IN6_IS_ADDR_MC_LINKLOCAL(a)) || 	\
+	 (IN6_IS_ADDR_MC_INTFACELOCAL(a)))
+                          
 
 #define IFA6_IS_DEPRECATED(a) \
 	((a)->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME && \

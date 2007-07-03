@@ -461,7 +461,7 @@ priq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
 	struct priq_if	*pif = (struct priq_if *)ifq->altq_disc;
 	struct priq_class *cl;
-	struct m_tag *t;
+	struct pf_mtag *t;
 	int len;
 
 	IFQ_LOCK_ASSERT(ifq);
@@ -481,8 +481,8 @@ priq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 		return (ENOBUFS);
 	}
 	cl = NULL;
-	if ((t = m_tag_find(m, PACKET_TAG_PF_QID, NULL)) != NULL)
-		cl = clh_to_clp(pif, ((struct altq_tag *)(t+1))->qid);
+	if ((t = pf_find_mtag(m)) != NULL)
+		cl = clh_to_clp(pif, t->qid);
 #ifdef ALTQ3_COMPAT
 	else if ((ifq->altq_flags & ALTQF_CLASSIFY) && pktattr != NULL)
 		cl = pktattr->pattr_class;
