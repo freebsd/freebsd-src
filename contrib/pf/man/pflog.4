@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflog.4,v 1.7 2004/03/21 19:47:59 miod Exp $
+.\"	$OpenBSD: pflog.4,v 1.9 2006/10/25 12:51:31 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Tobias Weingartner
 .\" All rights reserved.
@@ -47,6 +47,14 @@ on the
 interface, or stored to disk using
 .Xr pflogd 8 .
 .Pp
+The pflog0 interface is created automatically at boot if both
+.Xr pf 4
+and
+.Xr pflogd 8
+are enabled;
+further instances can be created using
+.Xr ifconfig 8 .
+.Pp
 Each packet retrieved on this interface has a header associated
 with it of length
 .Dv PFLOG_HDRLEN .
@@ -65,14 +73,22 @@ struct pfloghdr {
 	char		ruleset[PF_RULESET_NAME_SIZE];
 	u_int32_t	rulenr;
 	u_int32_t	subrulenr;
+	uid_t		uid;
+	pid_t		pid;
+	uid_t		rule_uid;
+	pid_t		rule_pid;
 	u_int8_t	dir;
 	u_int8_t	pad[3];
 };
 .Ed
 .Sh EXAMPLES
+Create a
+.Nm
+interface
+and monitor all packets logged on it:
 .Bd -literal -offset indent
-# ifconfig pflog0 up
-# tcpdump -n -e -ttt -i pflog0
+# ifconfig pflog1 up
+# tcpdump -n -e -ttt -i pflog1
 .Ed
 .Sh SEE ALSO
 .Xr tcpdump 1

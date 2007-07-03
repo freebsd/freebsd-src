@@ -1,4 +1,4 @@
-/*	$OpenBSD: pflogd.c,v 1.33 2005/02/09 12:09:30 henning Exp $	*/
+/*	$OpenBSD: pflogd.c,v 1.37 2006/10/26 13:34:47 jmc Exp $	*/
 
 /*
  * Copyright (c) 2001 Theo de Raadt
@@ -81,7 +81,7 @@ int   flush_buffer(FILE *);
 int   init_pcap(void);
 void  logmsg(int, const char *, ...);
 void  purge_buffer(void);
-int   reset_dump(void);
+int   reset_dump(int);
 int   scan_dump(FILE *, off_t);
 int   set_snaplen(int);
 void  set_suspended(int);
@@ -89,6 +89,8 @@ void  sig_alrm(int);
 void  sig_close(int);
 void  sig_hup(int);
 void  usage(void);
+
+static int try_reset_dump(int);
 
 /* buffer must always be greater than snaplen */
 static int    bufpkt = 0;	/* number of packets in buffer */
@@ -108,8 +110,9 @@ set_suspended(int s)
 		return;
 
 	suspended = s;
-	setproctitle("[%s] -s %d -f %s",
-            suspended ? "suspended" : "running", cur_snaplen, filename);
+	setproctitle("[%s] -s %d -i %s -f %s",
+	    suspended ? "suspended" : "running",
+	    cur_snaplen, interface, filename);
 }
 
 char *
@@ -159,8 +162,9 @@ __dead void
 #endif
 usage(void)
 {
-	fprintf(stderr, "usage: pflogd [-Dx] [-d delay] [-f filename] ");
-	fprintf(stderr, "[-s snaplen] [expression]\n");
+	fprintf(stderr, "usage: pflogd [-Dx] [-d delay] [-f filename]");
+	fprintf(stderr, " [-i interface] [-s snaplen]\n");
+	fprintf(stderr, "              [expression]\n");
 	exit(1);
 }
 
@@ -240,7 +244,25 @@ set_snaplen(int snap)
 }
 
 int
-reset_dump(void)
+reset_dump(int nomove)
+{
+	int ret;
+
+	for (;;) {
+		ret = try_reset_dump(nomove);
+		if (ret <= 0)
+			break;
+	}
+
+	return (ret);
+}
+
+/*
+ * tries to (re)open log file, nomove flag is used with -x switch
+ * returns 0: success, 1: retry (log moved), -1: error
+ */
+int
+try_reset_dump(int nomove)
 {
 	struct pcap_file_header hdr;
 	struct stat st;
@@ -262,26 +284,26 @@ reset_dump(void)
 	 */
 	fd = priv_open_log();
 	if (fd < 0)
-		return (1);
+		return (-1);
 
 	fp = fdopen(fd, "a+");
 
 	if (fp == NULL) {
-		close(fd);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
-		return (1);
+		close(fd);
+		return (-1);
 	}
 	if (fstat(fileno(fp), &st) == -1) {
-		fclose(fp);
 		logmsg(LOG_ERR, "Error: %s: %s", filename, strerror(errno));
-		return (1);
+		fclose(fp);
+		return (-1);
 	}
 
 	/* set FILE unbuffered, we do our own buffering */
 	if (setvbuf(fp, NULL, _IONBF, 0)) {
-		fclose(fp);
 		logmsg(LOG_ERR, "Failed to set output buffers");
-		return (1);
+		fclose(fp);
+		return (-1);
 	}
 
 #define TCPDUMP_MAGIC 0xa1b2c3d4
@@ -289,11 +311,9 @@ reset_dump(void)
 	if (st.st_size == 0) {
 		if (snaplen != cur_snaplen) {
 			logmsg(LOG_NOTICE, "Using snaplen %d", snaplen);
-			if (set_snaplen(snaplen)) {
-				fclose(fp);
+			if (set_snaplen(snaplen))
 				logmsg(LOG_WARNING,
 				    "Failed, using old settings");
-			}
 		}
 		hdr.magic = TCPDUMP_MAGIC;
 		hdr.version_major = PCAP_VERSION_MAJOR;
@@ -305,11 +325,15 @@ reset_dump(void)
 
 		if (fwrite((char *)&hdr, sizeof(hdr), 1, fp) != 1) {
 			fclose(fp);
-			return (1);
+			return (-1);
 		}
 	} else if (scan_dump(fp, st.st_size)) {
-		/* XXX move file and continue? */
 		fclose(fp);
+		if (nomove || priv_move_log()) {
+			logmsg(LOG_ERR,
+			    "Invalid/incompatible log file, move it away");
+			return (-1);
+		}
 		return (1);
 	}
 
@@ -352,7 +376,6 @@ scan_dump(FILE *fp, off_t size)
 	    hdr.version_minor != PCAP_VERSION_MINOR ||
 	    hdr.linktype != hpcap->linktype ||
 	    hdr.snaplen > PFLOGD_MAXSNAPLEN) {
-		logmsg(LOG_ERR, "Invalid/incompatible log file, move it away");
 		return (1);
 	}
 
@@ -563,7 +586,7 @@ main(int argc, char **argv)
 	closefrom(STDERR_FILENO + 1);
 #endif
 
-	while ((ch = getopt(argc, argv, "Dxd:s:f:")) != -1) {
+	while ((ch = getopt(argc, argv, "Dxd:f:i:s:")) != -1) {
 		switch (ch) {
 		case 'D':
 			Debug = 1;
@@ -575,6 +598,9 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			filename = optarg;
+			break;
+		case 'i':
+			interface = optarg;
 			break;
 		case 's':
 			snaplen = strtonum(optarg, 0, PFLOGD_MAXSNAPLEN,
@@ -648,7 +674,7 @@ main(int argc, char **argv)
 		bufpkt = 0;
 	}
 
-	if (reset_dump()) {
+	if (reset_dump(Xflag) < 0) {
 		if (Xflag)
 			return (1);
 
@@ -674,7 +700,7 @@ main(int argc, char **argv)
 		if (gotsig_close)
 			break;
 		if (gotsig_hup) {
-			if (reset_dump()) {
+			if (reset_dump(0)) {
 				logmsg(LOG_ERR,
 				    "Logging suspended: open error");
 				set_suspended(1);
@@ -685,6 +711,8 @@ main(int argc, char **argv)
 		if (gotsig_alrm) {
 			if (dpcap)
 				flush_buffer(dpcap);
+			else 
+				gotsig_hup = 1;
 			gotsig_alrm = 0;
 			alarm(delay);
 		}

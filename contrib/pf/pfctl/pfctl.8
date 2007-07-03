@@ -1,4 +1,4 @@
-.\" $OpenBSD: pfctl.8,v 1.118 2005/01/05 23:41:45 jmc Exp $
+.\" $OpenBSD: pfctl.8,v 1.128 2007/01/30 21:01:56 jmc Exp $
 .\"
 .\" Copyright (c) 2001 Kjell Wooding.  All rights reserved.
 .\"
@@ -35,23 +35,23 @@
 .Sh SYNOPSIS
 .Nm pfctl
 .Bk -words
-.Op Fl AdeghmNnOoqRrvz
+.Op Fl AdeghmNnOqRrvz
 .Op Fl a Ar anchor
-.Xo
-.Oo Fl D
-.Ar macro Ns = Ns Ar value Oc
-.Xc
+.Oo Fl D Ar macro Ns =
+.Ar value Oc
 .Op Fl F Ar modifier
 .Op Fl f Ar file
 .Op Fl i Ar interface
-.Op Fl k Ar host
+.Op Fl K Ar host | network
+.Op Fl k Ar host | network
+.Op Fl o Op Ar level
 .Op Fl p Ar device
 .Op Fl s Ar modifier
-.Oo Xo
+.Oo
 .Fl t Ar table
 .Fl T Ar command
-.Op Ar address ... Oc
-.Xc
+.Op Ar address ...
+.Oc
 .Op Fl x Ar level
 .Ek
 .Sh DESCRIPTION
@@ -140,8 +140,10 @@ rules from the main ruleset is described in
 For example, the following will show all filter rules (see the
 .Fl s
 flag below) inside the anchor
-.Li authpf/smith(1234) ,
-which would have been created for user smith by
+.Dq authpf/smith(1234) ,
+which would have been created for user
+.Dq smith
+by
 .Xr authpf 8 ,
 PID 1234:
 .Bd -literal -offset indent
@@ -163,6 +165,27 @@ This is similar to C rules for variable scope.
 It is possible to create distinct tables with the same name in the global
 ruleset and in an anchor, but this is often bad design and a warning will be
 issued in that case.
+.Pp
+By default, recursive inline printing of anchors applies only to unnamed
+anchors specified inline in the ruleset.
+If the anchor name is terminated with a
+.Sq *
+character, the
+.Fl s
+flag will recursively print all anchors in a brace delimited block.
+For example the following will print the
+.Dq authpf
+ruleset recursively:
+.Bd -literal -offset indent
+# pfctl -a 'authpf/*' -sr
+.Ed
+.Pp
+To print the main ruleset recursively, specify only
+.Sq *
+as the anchor name:
+.Bd -literal -offset indent
+# pfctl -a '*' -sr
+.Ed
 .It Fl D Ar macro Ns = Ns Ar value
 Define
 .Ar macro
@@ -217,29 +240,49 @@ Help.
 .It Fl i Ar interface
 Restrict the operation to the given
 .Ar interface .
-.It Fl k Ar host
+.It Fl K Ar host | network
+Kill all of the source tracking entries originating from the specified
+.Ar host
+or
+.Ar network .
+A second
+.Fl K Ar host
+or
+.Fl K Ar network
+option may be specified, which will kill all the source tracking
+entries from the first host/network to the second.
+.It Fl k Ar host | network
 Kill all of the state entries originating from the specified
-.Ar host .
+.Ar host
+or
+.Ar network .
 A second
 .Fl k Ar host
+or
+.Fl k Ar network
 option may be specified, which will kill all the state entries
-from the first
-.Ar host
-to the second
-.Ar host .
+from the first host/network to the second.
 For example, to kill all of the state entries originating from
-.Li host :
-.Bd -literal -offset indent
-# pfctl -k host
-.Ed
+.Dq host :
+.Pp
+.Dl # pfctl -k host
 .Pp
 To kill all of the state entries from
-.Li host1
+.Dq host1
 to
-.Li host2 :
-.Bd -literal -offset indent
-# pfctl -k host1 -k host2
-.Ed
+.Dq host2 :
+.Pp
+.Dl # pfctl -k host1 -k host2
+.Pp
+To kill all states originating from 192.168.1.0/24 to 172.16.0.0/16:
+.Pp
+.Dl # pfctl -k 192.168.1.0/24 -k 172.16.0.0/16
+.Pp
+A network prefix length of 0 can be used as a wildcard.
+To kill all states with the target
+.Dq host2 :
+.Pp
+.Dl # pfctl -k 0.0.0.0/0 -k host2
 .It Fl m
 Merge in explicitly given options without resetting those
 which are omitted.
@@ -255,11 +298,22 @@ Do not actually load rules, just parse them.
 .It Fl O
 Load only the options present in the rule file.
 Other rules and options are ignored.
-.It Fl o
-Enable the ruleset optimizer.
+.It Fl o Op Ar level
+Control the ruleset optimizer.
 The ruleset optimizer attempts to improve rulesets by removing rule
 duplication and making better use of rule ordering.
-Specifically, it does four things:
+.Pp
+.Bl -tag -width xxxxxxxxxxxx -compact
+.It Fl o Cm none
+Disable the ruleset optimizer.
+.It Fl o Cm basic
+Enable basic ruleset optimizations.
+.It Fl o Cm profile
+Enable basic ruleset optimizations with profiling.
+.El
+.Pp
+.Cm basic
+optimization does does four things:
 .Pp
 .Bl -enum -compact
 .It
@@ -272,10 +326,10 @@ combine multiple rules into a table when advantageous
 re-order the rules to improve evaluation performance
 .El
 .Pp
-A second
-.Fl o
-may be specified to use the currently loaded ruleset as a feedback profile
-to tailor the optimization of the
+If
+.Cm profile
+is specified, the currently loaded ruleset will be examined as a feedback
+profile to tailor the optimization of the
 .Ar quick
 rules to the actual network behavior.
 .Pp
@@ -288,6 +342,14 @@ the ruleset optimizer should not be used or a
 .Ar label
 field should be added to all of the accounting rules to act as optimization
 barriers.
+.Pp
+To retain compatibility with previous behaviour, a single
+.Fl o
+without any options will enable
+.Cm basic
+optimizations, and a second
+.Fl o
+will enable profiling.
 .It Fl p Ar device
 Use the device file
 .Ar device
@@ -352,7 +414,8 @@ When used together with
 .Fl v ,
 source tracking statistics are also shown.
 .It Fl s Cm labels
-Show per-rule statistics (label, evaluations, packets, bytes) of
+Show per-rule statistics (label, evaluations, packets total, bytes total,
+packets in, bytes in, packets out, bytes out) of
 filter rules with labels, useful for accounting.
 .It Fl s Cm timeouts
 Show the current global timeouts.
@@ -364,8 +427,11 @@ Show the list of tables.
 Show the list of operating system fingerprints.
 .It Fl s Cm Interfaces
 Show the list of interfaces and interface drivers available to PF.
-When used together with a double
+When used together with
 .Fl v ,
+it additionally lists which interfaces have skip rules activated.
+When used together with
+.Fl vv ,
 interface statistics are also shown.
 .Fl i
 can be used to select an interface or a group of interfaces.
@@ -389,6 +455,13 @@ Add one or more addresses in a table.
 Automatically create a nonexisting table.
 .It Fl T Cm delete
 Delete one or more addresses from a table.
+.It Fl T Cm expire Ar number
+Delete addresses which had their statistics cleared more than
+.Ar number
+seconds ago.
+For entries which have never had their statistics cleared,
+.Ar number
+refers to the time they were added to the table.
 .It Fl T Cm replace
 Replace the addresses of the table.
 Automatically create a nonexisting table.
@@ -465,7 +538,7 @@ The following commands configure the firewall and send 10 pings to the FTP
 server:
 .Bd -literal -offset indent
 # printf "table <test> { ftp.openbsd.org }\en \e
-    pass out to <test> keep state\en" | pfctl -f-
+    pass out to <test>\en" | pfctl -f-
 # ping -qc10 ftp.openbsd.org
 .Ed
 .Pp
