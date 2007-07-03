@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070703: pf 4.1 import
+OLD_FILES+=usr/libexec/ftp-proxy
 # 20070701: KAME IPSec removal
 OLD_FILES+=usr/include/netinet6/ah.h
 OLD_FILES+=usr/include/netinet6/ah6.h
