@@ -1,5 +1,4 @@
-/*	$FreeBSD$	*/
-/*	$OpenBSD: pf_osfp.c,v 1.10 2004/04/09 19:30:41 frantzen Exp $ */
+/*	$OpenBSD: pf_osfp.c,v 1.12 2006/12/13 18:14:10 itojun Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
@@ -18,6 +17,11 @@
  *
  */
 
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+#endif
+
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
@@ -33,9 +37,10 @@
 #include <net/if.h>
 #include <net/pfvar.h>
 
-#ifdef INET6
 #include <netinet/ip6.h>
-#endif /* INET6 */
+#ifdef _KERNEL
+#include <netinet6/in6_var.h>
+#endif
 
 #ifdef _KERNEL
 # define DPFPRINTF(format, x...)		\
@@ -55,6 +60,7 @@ typedef struct pool pool_t;
 # include <stdio.h>
 # include <stdlib.h>
 # include <string.h>
+# include <netdb.h>
 # define pool_t			int
 # define pool_get(pool, flags)	malloc(*(pool))
 # define pool_put(pool, item)	free(item)
@@ -95,38 +101,96 @@ pf_osfp_fingerprint(struct pf_pdesc *pd, struct mbuf *m, int off,
     const struct tcphdr *tcp)
 {
 	struct ip *ip;
+	struct ip6_hdr *ip6;
 	char hdr[60];
 
-	/* XXX don't have a fingerprint database for IPv6 :-( */
-	if (pd->af != PF_INET || pd->proto != IPPROTO_TCP || (tcp->th_off << 2)
-	    < sizeof(*tcp))
+	if ((pd->af != PF_INET && pd->af != PF_INET6) ||
+	    pd->proto != IPPROTO_TCP || (tcp->th_off << 2) < sizeof(*tcp))
 		return (NULL);
 
-	ip = mtod(m, struct ip *);
-	if (!pf_pull_hdr(m, off, hdr, tcp->th_off << 2, NULL, NULL, pd->af))
-		return (NULL);
+	if (pd->af == PF_INET) {
+		ip = mtod(m, struct ip *);
+		ip6 = (struct ip6_hdr *)NULL;
+	} else {
+		ip = (struct ip *)NULL;
+		ip6 = mtod(m, struct ip6_hdr *);
+	}
+	if (!pf_pull_hdr(m, off, hdr, tcp->th_off << 2, NULL, NULL,
+	    pd->af)) return (NULL);
 
-	return (pf_osfp_fingerprint_hdr(ip, (struct tcphdr *)hdr));
+	return (pf_osfp_fingerprint_hdr(ip, ip6, (struct tcphdr *)hdr));
 }
 #endif /* _KERNEL */
 
 struct pf_osfp_enlist *
-pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
+pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const struct tcphdr *tcp)
 {
 	struct pf_os_fingerprint fp, *fpresult;
 	int cnt, optlen = 0;
 	const u_int8_t *optp;
+#ifdef _KERNEL
+	char srcname[128];
+#else
+	char srcname[NI_MAXHOST];
+#endif
 
-	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN || (ip->ip_off &
-	    htons(IP_OFFMASK)))
+	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN)
 		return (NULL);
+	if (ip) {
+		if ((ip->ip_off & htons(IP_OFFMASK)) != 0)
+			return (NULL);
+	}
 
 	memset(&fp, 0, sizeof(fp));
 
-	fp.fp_psize = ntohs(ip->ip_len);
-	fp.fp_ttl = ip->ip_ttl;
-	if (ip->ip_off & htons(IP_DF))
+	if (ip) {
+#ifndef _KERNEL
+		struct sockaddr_in sin;
+#endif
+
+		fp.fp_psize = ntohs(ip->ip_len);
+		fp.fp_ttl = ip->ip_ttl;
+		if (ip->ip_off & htons(IP_DF))
+			fp.fp_flags |= PF_OSFP_DF;
+#ifdef _KERNEL
+		strlcpy(srcname, inet_ntoa(ip->ip_src), sizeof(srcname));
+#else
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_addr = ip->ip_src;
+		(void)getnameinfo((struct sockaddr *)&sin,
+		    sizeof(struct sockaddr_in), srcname, sizeof(srcname),
+		    NULL, 0, NI_NUMERICHOST);
+#endif
+	}
+#ifdef INET6
+	else if (ip6) {
+#ifndef _KERNEL
+		struct sockaddr_in6 sin6;
+#endif
+
+		/* jumbo payload? */
+		fp.fp_psize = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
+		fp.fp_ttl = ip6->ip6_hlim;
 		fp.fp_flags |= PF_OSFP_DF;
+		fp.fp_flags |= PF_OSFP_INET6;
+#ifdef _KERNEL
+		strlcpy(srcname, ip6_sprintf((struct in6_addr *)&ip6->ip6_src),
+		    sizeof(srcname));
+#else
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_addr = ip6->ip6_src;
+		(void)getnameinfo((struct sockaddr *)&sin6,
+		    sizeof(struct sockaddr_in6), srcname, sizeof(srcname),
+		    NULL, 0, NI_NUMERICHOST);
+#endif
+	}
+#endif
+	else
+		return (NULL);
 	fp.fp_wsize = ntohs(tcp->th_win);
 
 
@@ -189,7 +253,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
 
 	DPFPRINTF("fingerprinted %s:%d  %d:%d:%d:%d:%llx (%d) "
 	    "(TS=%s,M=%s%d,W=%s%d)\n",
-	    inet_ntoa(ip->ip_src), ntohs(tcp->th_sport),
+	    srcname, ntohs(tcp->th_sport),
 	    fp.fp_wsize, fp.fp_ttl, (fp.fp_flags & PF_OSFP_DF) != 0,
 	    fp.fp_psize, (long long int)fp.fp_tcpopts, fp.fp_optcnt,
 	    (fp.fp_flags & PF_OSFP_TS0) ? "0" : "",
