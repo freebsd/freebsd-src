@@ -217,14 +217,15 @@ static void
 pty_release(struct pt_desc *pt)
 {
 
+	mtx_lock(&pt_mtx);
 	KASSERT(pt->pt_ptc_open == 0 && pt->pt_pts_open == 0,
 	    ("pty_release: pts/%d freed while open\n", pt->pt_num));
 	KASSERT(pt->pt_devs == NULL && pt->pt_devc == NULL,
 	    ("pty_release: pts/%d freed whith non-null struct cdev\n", pt->pt_num));
-	mtx_assert(&pt_mtx, MA_OWNED);
 	nb_allocated--;
 	LIST_REMOVE(pt, pt_list);
 	LIST_INSERT_HEAD(&pt_free_list, pt, pt_list);
+	mtx_unlock(&pt_mtx);
 }
 
 /*
@@ -235,6 +236,7 @@ pty_release(struct pt_desc *pt)
 static void
 pty_maybecleanup(struct pt_desc *pt)
 {
+	struct cdev *pt_devs, *pt_devc;
 
 	if (pt->pt_ptc_open || pt->pt_pts_open)
 		return;
@@ -245,16 +247,15 @@ pty_maybecleanup(struct pt_desc *pt)
 	if (bootverbose)
 		printf("destroying pty %d\n", pt->pt_num);
 
-	destroy_dev(pt->pt_devs);
-	destroy_dev(pt->pt_devc);
+	pt_devs = pt->pt_devs;
+	pt_devc = pt->pt_devc;
 	pt->pt_devs = pt->pt_devc = NULL;
 	pt->pt_tty->t_dev = NULL;
+	pt_devc->si_drv1 = NULL;
 	ttyrel(pt->pt_tty);
 	pt->pt_tty = NULL;
-
-	mtx_lock(&pt_mtx);
-	pty_release(pt);
-	mtx_unlock(&pt_mtx);
+	destroy_dev_sched(pt_devs);
+	destroy_dev_sched_cb(pt_devc, pty_release, pt);
 }
 
 /*ARGSUSED*/
@@ -391,6 +392,8 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	struct cdev *devs;
 
 	pt = dev->si_drv1;
+	if (pt == NULL)
+		return (EIO);
 	/*
 	 * In case we have destroyed the struct tty at the last connect time,
 	 * we need to recreate it.
@@ -866,9 +869,12 @@ pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (strcmp(name, "ptmx") != 0)
 		return;
 
+	mtx_lock(&Giant);
 	pt = pty_new();
-	if (pt == NULL)
+	if (pt == NULL) {
+		mtx_unlock(&Giant);
 		return;
+	}
 
 	/*
 	 * XXX: Lack of locking here considered worrying.  We expose the
@@ -881,14 +887,14 @@ pty_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	 * opened, or some way to tell devfs that "this had better be for
 	 * an open() or we won't create a device".
 	 */
-	pt->pt_devc = devc = make_dev_cred(&ptc_cdevsw, 
+	pt->pt_devc = devc = make_dev_credf(MAKEDEV_REF, &ptc_cdevsw, 
 	    NUM_TO_MINOR(pt->pt_num), cred, UID_ROOT, GID_WHEEL, 0666,
 	    "pty/%d", pt->pt_num);
 
-	dev_ref(devc);
 	devc->si_drv1 = pt;
 	devc->si_tty = pt->pt_tty;
 	*dev = devc;
+	mtx_unlock(&Giant);
 
 	if (bootverbose)
 		printf("pty_clone: allocated pty %d to uid %d\n", pt->pt_num,
