@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 394: 03 Dec 2005"
+.TH LESSKEY 1 "Version 406: 19 Jun 2007"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -358,7 +358,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 
 .SH COPYRIGHT
-Copyright (C) 2004  Mark Nudelman
+Copyright (C) 2000-2007  Mark Nudelman
 .PP
 lesskey is part of the GNU project and is free software;
 you can redistribute it and/or modify it

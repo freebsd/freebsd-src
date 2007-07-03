@@ -2,43 +2,43 @@ LESSECHO(1)                                                        LESSECHO(1)
 
 
 
-NNAAMMEE
+[1mNAME[0m
        lessecho - expand metacharacters
 
-SSYYNNOOPPSSIISS
-       lleesssseecchhoo _[_-_o_x_] _[_-_c_x_] _[_-_p_n_] _[_-_d_n_] _[_-_m_x_] _[_-_n_n_] _[_-_e_x_] _[_-_a_] _f_i_l_e _._._.
+[1mSYNOPSIS[0m
+       [1mlessecho [4m[22m[-ox][24m [4m[-cx][24m [4m[-pn][24m [4m[-dn][24m [4m[-mx][24m [4m[-nn][24m [4m[-ex][24m [4m[-a][24m [4mfile[24m [4m...[0m
 
-DDEESSCCRRIIPPTTIIOONN
-       _l_e_s_s_e_c_h_o  is a program that simply echos its arguments on standard out-
+[1mDESCRIPTION[0m
+       [4mlessecho[24m  is a program that simply echos its arguments on standard out-
        put.  But any argument containing spaces is enclosed in quotes.
 
-OOPPTTIIOONNSS
+[1mOPTIONS[0m
        A summary of options is included below.
 
-       --ooxx    Specifies "x" to be the open quote character.
+       [1m-ox    [22mSpecifies "x" to be the open quote character.
 
-       --ccxx    Specifies "x" to be the close quote character.
+       [1m-cx    [22mSpecifies "x" to be the close quote character.
 
-       --ppnn    Specifies "n" to be the open quote character, as an integer.
+       [1m-pn    [22mSpecifies "n" to be the open quote character, as an integer.
 
-       --ddnn    Specifies "n" to be the close quote character, as an integer.
+       [1m-dn    [22mSpecifies "n" to be the close quote character, as an integer.
 
-       --mmxx    Specifies "x" to be a metachar.
+       [1m-mx    [22mSpecifies "x" to be a metachar.
 
-       --nnnn    Specifies "n" to be a metachar, as an integer.
+       [1m-nn    [22mSpecifies "n" to be a metachar, as an integer.
 
-       --eexx    Specifies "x" to be the escape char for metachars.
+       [1m-ex    [22mSpecifies "x" to be the escape char for metachars.
 
-       --ffnn    Specifies "n" to be the escape char for metachars, as  an  inte-
+       [1m-fn    [22mSpecifies "n" to be the escape char for metachars, as  an  inte-
               ger.
 
-       --aa     Specifies  that  all arguments are to be quoted.  The default is
+       [1m-a     [22mSpecifies  that  all arguments are to be quoted.  The default is
               that only arguments containing spaces are quoted.
 
-SSEEEE AALLSSOO
+[1mSEE ALSO[0m
        less(1)
 
-AAUUTTHHOORR
+[1mAUTHOR[0m
        This manual page was written by  Thomas  Schoepf  <schoepf@debian.org>,
        for the Debian GNU/Linux system (but may be used by others).
 
@@ -46,4 +46,4 @@ AAUUTTHHOORR
 
 
 
-                           Version 394: 03 Dec 2005                LESSECHO(1)
+                           Version 406: 19 Jun 2007                LESSECHO(1)
