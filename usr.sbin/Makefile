@@ -56,6 +56,7 @@ SUBDIR=	ac \
 	fdwrite \
 	flowctl \
 	freebsd-update \
+	${_ftp-proxy} \
 	fwcontrol \
 	getfmac \
 	getpmac \
@@ -226,6 +227,10 @@ _bluetooth=	bluetooth
 
 .if ${MK_OPENSSL} != "no"
 _keyserv=	keyserv
+.endif
+
+.if ${MK_PF} != "no"
+_ftp-proxy=	ftp-proxy
 .endif
 
 .if ${MK_INET6} != "no"

@@ -8,7 +8,6 @@ SUBDIR=	atrun \
 	comsat \
 	fingerd \
 	ftpd \
-	${_ftp-proxy} \
 	getty \
 	lukemftpd \
 	${_mail.local} \
@@ -32,6 +31,7 @@ SUBDIR=	atrun \
 	tcpd \
 	telnetd \
 	tftpd \
+	${_tftp-proxy} \
 	${_ypxfr}
 
 .if ${MK_NIS} != "no"
@@ -40,7 +40,7 @@ _ypxfr=		ypxfr
 .endif
 
 .if ${MK_PF} != "no"
-_ftp-proxy=	ftp-proxy
+_tftp-proxy=	tftp-proxy
 .endif
 
 .if !defined(NO_PIC)

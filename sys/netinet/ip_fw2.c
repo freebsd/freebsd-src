@@ -66,6 +66,7 @@
 #include <net/if.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/pf_mtag.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -3058,24 +3059,21 @@ check_body:
 				break;
 
 			case O_ALTQ: {
-				struct altq_tag *at;
+				struct pf_mtag *at;
 				ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
 
 				match = 1;
-				mtag = m_tag_find(m, PACKET_TAG_PF_QID, NULL);
-				if (mtag != NULL)
+				at = pf_find_mtag(m);
+				if (at != NULL && at->qid != 0)
 					break;
-				mtag = m_tag_get(PACKET_TAG_PF_QID,
-						sizeof(struct altq_tag),
-						M_NOWAIT);
-				if (mtag == NULL) {
+				at = pf_get_mtag(m);
+				if (at == NULL) {
 					/*
 					 * Let the packet fall back to the
 					 * default ALTQ.
 					 */
 					break;
 				}
-				at = (struct altq_tag *)(mtag+1);
 				at->qid = altq->qid;
 				if (is_ipv4)
 					at->af = AF_INET;

@@ -60,7 +60,7 @@ enum { PASS, BLOCK };
 #define PFI_IFTYPE_DETACHED	2
 
 struct pfi_entry {
-	struct pfi_if	pfi;
+	struct pfi_kif	pfi;
 	u_int		index;
 	TAILQ_ENTRY(pfi_entry) link;
 };
@@ -544,83 +544,83 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 
 	switch (which) {
 		case LEAF_pfInterfacesIfDescr:
-			return (string_get(val, e->pfi.pfif_name, -1));
+			return (string_get(val, e->pfi.pfik_name, -1));
 		case LEAF_pfInterfacesIfType:
 			val->v.integer = PFI_IFTYPE_INSTANCE;
 			break;
 		case LEAF_pfInterfacesIfTZero:
 			val->v.uint32 =
-			    (time(NULL) - e->pfi.pfif_tzero) * 100;
+			    (time(NULL) - e->pfi.pfik_tzero) * 100;
 			break;
 		case LEAF_pfInterfacesIfRefsState:
-			val->v.uint32 = e->pfi.pfif_states;
+			val->v.uint32 = e->pfi.pfik_states;
 			break;
 		case LEAF_pfInterfacesIfRefsRule:
-			val->v.uint32 = e->pfi.pfif_rules;
+			val->v.uint32 = e->pfi.pfik_rules;
 			break;
 		case LEAF_pfInterfacesIf4BytesInPass:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV4][IN][PASS];
+			    e->pfi.pfik_bytes[IPV4][IN][PASS];
 			break;
 		case LEAF_pfInterfacesIf4BytesInBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV4][IN][BLOCK];
+			    e->pfi.pfik_bytes[IPV4][IN][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf4BytesOutPass:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV4][OUT][PASS];
+			    e->pfi.pfik_bytes[IPV4][OUT][PASS];
 			break;
 		case LEAF_pfInterfacesIf4BytesOutBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV4][OUT][BLOCK];
+			    e->pfi.pfik_bytes[IPV4][OUT][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf4PktsInPass:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV4][IN][PASS];
+			    e->pfi.pfik_packets[IPV4][IN][PASS];
 			break;
 		case LEAF_pfInterfacesIf4PktsInBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV4][IN][BLOCK];
+			    e->pfi.pfik_packets[IPV4][IN][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf4PktsOutPass:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV4][OUT][PASS];
+			    e->pfi.pfik_packets[IPV4][OUT][PASS];
 			break;
 		case LEAF_pfInterfacesIf4PktsOutBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV4][OUT][BLOCK];
+			    e->pfi.pfik_packets[IPV4][OUT][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf6BytesInPass:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV6][IN][PASS];
+			    e->pfi.pfik_bytes[IPV6][IN][PASS];
 			break;
 		case LEAF_pfInterfacesIf6BytesInBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV6][IN][BLOCK];
+			    e->pfi.pfik_bytes[IPV6][IN][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf6BytesOutPass:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV6][OUT][PASS];
+			    e->pfi.pfik_bytes[IPV6][OUT][PASS];
 			break;
 		case LEAF_pfInterfacesIf6BytesOutBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_bytes[IPV6][OUT][BLOCK];
+			    e->pfi.pfik_bytes[IPV6][OUT][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf6PktsInPass:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV6][IN][PASS];
+			    e->pfi.pfik_packets[IPV6][IN][PASS];
 			break;
 		case LEAF_pfInterfacesIf6PktsInBlock:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV6][IN][BLOCK];
+			    e->pfi.pfik_packets[IPV6][IN][BLOCK];
 			break;
 		case LEAF_pfInterfacesIf6PktsOutPass:
 			val->v.counter64 =
-			    e->pfi.pfif_packets[IPV6][OUT][PASS];
+			    e->pfi.pfik_packets[IPV6][OUT][PASS];
 			break;
 		case LEAF_pfInterfacesIf6PktsOutBlock:
 			val->v.counter64 = 
-			    e->pfi.pfif_packets[IPV6][OUT][BLOCK];
+			    e->pfi.pfik_packets[IPV6][OUT][BLOCK];
 			break;
 
 		default:
@@ -911,7 +911,7 @@ static int
 pfi_refresh(void)
 {
 	struct pfioc_iface io;
-	struct pfi_if *p = NULL;
+	struct pfi_kif *p = NULL;
 	struct pfi_entry *e;
 	int i, numifs = 1;
 
@@ -925,11 +925,10 @@ pfi_refresh(void)
 	}
 
 	bzero(&io, sizeof(io));
-	io.pfiio_flags = PFI_FLAG_INSTANCE;
-	io.pfiio_esize = sizeof(struct pfi_if);
+	io.pfiio_esize = sizeof(struct pfi_kif);
 
 	for (;;) {
-		p = reallocf(p, numifs * sizeof(struct pfi_if));
+		p = reallocf(p, numifs * sizeof(struct pfi_kif));
 		if (p == NULL) {
 			syslog(LOG_ERR, "pfi_refresh(): reallocf() numifs=%d: %s",
 			    numifs, strerror(errno));
@@ -955,7 +954,7 @@ pfi_refresh(void)
 		if (e == NULL)
 			goto err1;
 		e->index = i + 1;
-		memcpy(&e->pfi, p+i, sizeof(struct pfi_if));
+		memcpy(&e->pfi, p+i, sizeof(struct pfi_kif));
 		TAILQ_INSERT_TAIL(&pfi_table, e, link);
 	}
 
