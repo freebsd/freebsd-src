@@ -1,29 +1,19 @@
 .\" $FreeBSD$
-.\" $OpenBSD: authpf.8,v 1.38 2005/01/04 09:57:04 jmc Exp $
+.\" $OpenBSD: authpf.8,v 1.43 2007/02/24 17:21:04 beck Exp $
 .\"
-.\" Copyright (c) 2002 Bob Beck (beck@openbsd.org>.  All rights reserved.
+.\" Copyright (c) 1998-2007 Bob Beck (beck@openbsd.org>.  All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote products
-.\"    derived from this software without specific prior written permission.
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
 .Dd March 28, 2006
 .Dt AUTHPF 8
@@ -230,8 +220,11 @@ it becomes unresponsive, or if arp or address spoofing is used to
 hijack the session.
 Note that TCP keepalives are not sufficient for
 this, since they are not secure.
-Also note that
+Also note that the various SSH tunnelling mechanisms,
+such as
 .Ar AllowTcpForwarding
+and
+.Ar PermitTunnel ,
 should be disabled for
 .Nm
 users to prevent them from circumventing restrictions imposed by the
@@ -429,8 +422,7 @@ TCP connections.
 external_if = "xl0"
 internal_if = "fxp0"
 
-pass in log quick on $internal_if proto tcp from $user_ip to any \e
-      keep state
+pass in log quick on $internal_if proto tcp from $user_ip to any
 pass in quick on $internal_if from $user_ip to any
 .Ed
 .Pp
@@ -445,16 +437,15 @@ ipsec_gw="10.2.3.4"
 
 # rdr ftp for proxying by ftp-proxy(8)
 rdr on $internal_if proto tcp from $user_ip to any port 21 \e
-      -> 127.0.0.1 port 8081
+      -> 127.0.0.1 port 8021
 
 # allow out ftp, ssh, www and https only, and allow user to negotiate
 # ipsec with the ipsec server.
 pass in log quick on $internal_if proto tcp from $user_ip to any \e
-      port { 21, 22, 80, 443 } flags S/SA
+      port { 21, 22, 80, 443 }
 pass in quick on $internal_if proto tcp from $user_ip to any \e
       port { 21, 22, 80, 443 }
-pass in quick proto udp from $user_ip to $ipsec_gw port = isakmp \e
-      keep state
+pass in quick proto udp from $user_ip to $ipsec_gw port = isakmp
 pass in quick proto esp from $user_ip to $ipsec_gw
 .Ed
 .Pp
@@ -469,7 +460,7 @@ int_if = "fxp0"
 # nat and tag connections...
 nat on $ext_if from $user_ip to any tag $user_ip -> $ext_addr
 pass in quick on $int_if from $user_ip to any
-pass out log quick on $ext_if tagged $user_ip keep state
+pass out log quick on $ext_if tagged $user_ip
 .Ed
 .Pp
 With the above rules added by
@@ -495,7 +486,7 @@ lines will give SMTP and IMAP access to logged in users:
 .Bd -literal
 table <authpf_users> persist
 pass in on $ext_if proto tcp from <authpf_users> \e
-        to port { smtp imap } keep state
+        to port { smtp imap }
 .Ed
 .Pp
 It is also possible to use the "authpf_users"
@@ -522,6 +513,7 @@ rdr-anchor "authpf/*" from <authpf_users>
 .Xr pf 4 ,
 .Xr pf.conf 5 ,
 .Xr fdescfs 5 ,
+.Xr securelevel 7 ,
 .Xr ftp-proxy 8
 .Sh HISTORY
 The

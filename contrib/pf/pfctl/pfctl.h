@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl.h,v 1.37 2005/01/05 18:23:10 mcbride Exp $ */
+/*	$OpenBSD: pfctl.h,v 1.40 2007/02/09 11:25:27 henning Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -33,6 +33,8 @@
 
 #ifndef _PFCTL_H_
 #define _PFCTL_H_
+
+enum pfctl_show { PFCTL_SHOW_RULES, PFCTL_SHOW_LABELS, PFCTL_SHOW_NOTHING };
 
 enum {	PFRB_TABLES = 1, PFRB_TSTATS, PFRB_ADDRS, PFRB_ASTATS,
 	PFRB_IFACES, PFRB_TRANS, PFRB_MAX };
@@ -74,7 +76,7 @@ int	 pfr_buf_grow(struct pfr_buffer *, int);
 int	 pfr_buf_load(struct pfr_buffer *, char *, int,
 	    int (*)(struct pfr_buffer *, char *, int));
 char	*pfr_strerror(int);
-int	 pfi_get_ifaces(const char *, struct pfi_if *, int *, int);
+int	 pfi_get_ifaces(const char *, struct pfi_kif *, int *);
 int	 pfi_clr_istats(const char *, int *, int);
 
 void	 pfctl_print_title(char *);
@@ -111,7 +113,6 @@ extern	int loadopt;
 
 int		 check_commit_altq(int, int);
 void		 pfaltq_store(struct pf_altq *);
-void		 pfaltq_free(struct pf_altq *);
 struct pf_altq	*pfaltq_lookup(const char *);
 char		*rate2str(double);
 

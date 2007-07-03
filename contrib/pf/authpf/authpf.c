@@ -1,28 +1,19 @@
-/*	$OpenBSD: authpf.c,v 1.89 2005/02/10 04:24:15 joel Exp $	*/
+/*	$OpenBSD: authpf.c,v 1.104 2007/02/24 17:35:08 beck Exp $	*/
 
 /*
- * Copyright (C) 1998 - 2002 Bob Beck (beck@openbsd.org).
+ * Copyright (C) 1998 - 2007 Bob Beck (beck@openbsd.org).
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <sys/cdefs.h>
@@ -56,15 +47,13 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
-extern int	symset(const char *, const char *, int);
-
 static int	read_config(FILE *);
 static void	print_message(char *);
 static int	allowed_luser(char *);
 static int	check_luser(char *, char *);
 static int	remove_stale_rulesets(void);
 static int	change_filter(int, const char *, const char *);
-static int	change_table(int, const char *, const char *);
+static int	change_table(int, const char *);
 static void	authpf_kill_states(void);
 
 int	dev;			/* pf device */
@@ -73,7 +62,6 @@ char	rulesetname[MAXPATHLEN - PF_ANCHOR_NAME_SIZE - 2];
 char	tablename[PF_TABLE_NAME_SIZE] = "authpf_users";
 
 FILE	*pidfp;
-char	*infile;		/* file name printed by yyerror() in parse.y */
 char	 luser[MAXLOGNAME];	/* username */
 char	 ipsrc[256];		/* ip as a string */
 char	 pidfile[MAXPATHLEN];	/* we save pid in this file. */
@@ -102,11 +90,16 @@ main(int argc, char *argv[])
 	struct in6_addr	 ina;
 	struct passwd	*pw;
 	char		*cp;
+	gid_t		 gid;
 	uid_t		 uid;
 	char		*shell;
 	login_cap_t	*lc;
 
 	config = fopen(PATH_CONFFILE, "r");
+	if (config == NULL) {
+		syslog(LOG_ERR, "can not open %s (%m)", PATH_CONFFILE);
+		exit(1);
+	}
 
 	if ((cp = getenv("SSH_TTY")) == NULL) {
 		syslog(LOG_ERR, "non-interactive session connection for authpf");
@@ -143,7 +136,6 @@ main(int argc, char *argv[])
 
 	uid = getuid();
 	pw = getpwuid(uid);
-	endpwent();
 	if (pw == NULL) {
 		syslog(LOG_ERR, "cannot find user for uid %u", uid);
 		goto die;
@@ -256,6 +248,8 @@ main(int argc, char *argv[])
 		if (++lockcnt > 10) {
 			syslog(LOG_ERR, "cannot kill previous authpf (pid %d)",
 			    otherpid);
+			fclose(pidfp);
+			pidfp = NULL;
 			goto dogdeath;
 		}
 		sleep(1);
@@ -265,12 +259,22 @@ main(int argc, char *argv[])
 		 * it's lock, giving us a chance to get it now
 		 */
 		fclose(pidfp);
+		pidfp = NULL;
 	} while (1);
+	
+	/* whack the group list */
+	gid = getegid();
+	if (setgroups(1, &gid) == -1) {
+		syslog(LOG_INFO, "setgroups: %s", strerror(errno));
+		do_death(0);
+	}
 
 	/* revoke privs */
-	seteuid(getuid());
-	setuid(getuid());
-
+	uid = getuid();
+	if (setresuid(uid, uid, uid) == -1) {
+		syslog(LOG_INFO, "setresuid: %s", strerror(errno));
+		do_death(0);
+	}
 	openlog("authpf", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 
 	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(luser)) {
@@ -278,8 +282,8 @@ main(int argc, char *argv[])
 		do_death(0);
 	}
 
-	if (config == NULL || read_config(config)) {
-		syslog(LOG_INFO, "bad or nonexistent %s", PATH_CONFFILE);
+	if (read_config(config)) {
+		syslog(LOG_ERR, "invalid config file %s", PATH_CONFFILE);
 		do_death(0);
 	}
 
@@ -298,7 +302,7 @@ main(int argc, char *argv[])
 		printf("Unable to modify filters\r\n");
 		do_death(0);
 	}
-	if (change_table(1, luser, ipsrc) == -1) {
+	if (change_table(1, ipsrc) == -1) {
 		printf("Unable to modify table\r\n");
 		change_filter(0, luser, ipsrc);
 		do_death(0);
@@ -309,7 +313,7 @@ main(int argc, char *argv[])
 	signal(SIGALRM, need_death);
 	signal(SIGPIPE, need_death);
 	signal(SIGHUP, need_death);
-	signal(SIGSTOP, need_death);
+	signal(SIGQUIT, need_death);
 	signal(SIGTSTP, need_death);
 	while (1) {
 		printf("\r\nHello %s. ", luser);
@@ -559,9 +563,11 @@ check_luser(char *luserdir, char *luser)
 		while (fputs(tmp, stdout) != EOF && !feof(f)) {
 			if (fgets(tmp, sizeof(tmp), f) == NULL) {
 				fflush(stdout);
+				fclose(f);
 				return (0);
 			}
 		}
+		fclose(f);
 	}
 	fflush(stdout);
 	return (0);
@@ -645,6 +651,7 @@ change_filter(int add, const char *luser, const char *ipsrc)
 	char	*fdpath = NULL, *userstr = NULL, *ipstr = NULL;
 	char	*rsn = NULL, *fn = NULL;
 	pid_t	pid;
+	gid_t   gid;
 	int	s;
 
 	if (luser == NULL || !luser[0] || ipsrc == NULL || !ipsrc[0]) {
@@ -684,8 +691,14 @@ change_filter(int add, const char *luser, const char *ipsrc)
 
 	switch (pid = fork()) {
 	case -1:
-		err(1, "fork failed");
+		syslog(LOG_ERR, "fork failed");
+		goto error;
 	case 0:
+		/* revoke group privs before exec */
+		gid = getgid();
+		if (setregid(gid, gid) == -1) {
+			err(1, "setregid");
+		}
 		execvp(PATH_PFCTL, pargv);
 		warn("exec of %s failed", PATH_PFCTL);
 		_exit(1);
@@ -694,10 +707,8 @@ change_filter(int add, const char *luser, const char *ipsrc)
 	/* parent */
 	waitpid(pid, &s, 0);
 	if (s != 0) {
-		if (WIFEXITED(s)) {
-			syslog(LOG_ERR, "pfctl exited abnormally");
-			goto error;
-		}
+		syslog(LOG_ERR, "pfctl exited abnormally");
+		goto error;
 	}
 
 	if (add) {
@@ -718,16 +729,10 @@ no_mem:
 	syslog(LOG_ERR, "malloc failed");
 error:
 	free(fdpath);
-	fdpath = NULL;
 	free(rsn);
-	rsn = NULL;
 	free(userstr);
-	userstr = NULL;
 	free(ipstr);
-	ipstr = NULL;
 	free(fn);
-	fn = NULL;
-	infile = NULL;
 	return (-1);
 }
 
@@ -735,13 +740,14 @@ error:
  * Add/remove this IP from the "authpf_users" table.
  */
 static int
-change_table(int add, const char *luser, const char *ipsrc)
+change_table(int add, const char *ipsrc)
 {
 	struct pfioc_table	io;
 	struct pfr_addr		addr;
 
 	bzero(&io, sizeof(io));
-	strlcpy(io.pfrio_table.pfrt_name, tablename, sizeof(io.pfrio_table));
+	strlcpy(io.pfrio_table.pfrt_name, tablename,
+	    sizeof(io.pfrio_table.pfrt_name));
 	io.pfrio_buffer = &addr;
 	io.pfrio_esize = sizeof(addr);
 	io.pfrio_size = 1;
@@ -834,13 +840,11 @@ do_death(int active)
 
 	if (active) {
 		change_filter(0, luser, ipsrc);
-		change_table(0, luser, ipsrc);
+		change_table(0, ipsrc);
 		authpf_kill_states();
 		remove_stale_rulesets();
 	}
-	if (pidfp)
-		ftruncate(fileno(pidfp), 0);
-	if (pidfile[0])
+	if (pidfile[0] && (pidfp != NULL))
 		if (unlink(pidfile) == -1)
 			syslog(LOG_ERR, "cannot unlink %s (%m)", pidfile);
 	exit(ret);

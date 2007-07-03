@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.4,v 1.54 2004/12/22 17:17:55 dhartmei Exp $
+.\"	$OpenBSD: pf.4,v 1.58 2007/02/09 11:39:06 henning Exp $
 .\"
 .\" Copyright (C) 2001, Kjell Wooding.  All rights reserved.
 .\"
@@ -186,6 +186,11 @@ using the
 obtained through a preceding
 .Dv DIOCGETRULES
 call.
+If
+.Va action
+is set to
+.Dv PF_GET_CLR_CNTR ,
+the per-rule statistics on the requested rule are cleared.
 .It Dv DIOCGETADDRS Fa "struct pfioc_pooladdr *pp"
 Get a
 .Va ticket
@@ -348,6 +353,7 @@ struct pf_status {
 	u_int32_t	debug;
 	u_int32_t	hostid;
 	char		ifname[IFNAMSIZ];
+	u_int8_t	pf_chksum[MD5_DIGEST_LENGTH];
 };
 .Ed
 .It Dv DIOCCLRSTATUS
@@ -391,19 +397,14 @@ struct pfioc_states {
 .Pp
 If
 .Va ps_len
-is zero, all states will be gathered into
-.Va pf_states
-and
+is non-zero on entry, as many states as possible that can fit into this
+size will be copied into the supplied buffer
+.Va ps_states .
+On exit,
 .Va ps_len
-will be set to the size they take in memory (i.e.,
+is always set to the total size required to hold all state table entries
+(i.e., it is set to
 .Li sizeof(struct pf_state) * nr ) .
-If
-.Va ps_len
-is non-zero, as many states that can fit into
-.Va ps_len
-as possible will be gathered, and
-.Va ps_len
-will be updated to the size those rules take in memory.
 .It Dv DIOCCHANGERULE Fa "struct pfioc_rule *pcr"
 Add or remove the
 .Va rule
@@ -485,7 +486,8 @@ struct pfioc_limit {
 	unsigned	limit;
 };
 
-enum { PF_LIMIT_STATES, PF_LIMIT_SRC_NODES, PF_LIMIT_FRAGS };
+enum	{ PF_LIMIT_STATES, PF_LIMIT_SRC_NODES, PF_LIMIT_FRAGS,
+	  PF_LIMIT_TABLES, PF_LIMIT_TABLE_ENTRIES, PF_LIMIT_MAX };
 .Ed
 .It Dv DIOCGETLIMIT Fa "struct pfioc_limit *pl"
 Get the hard
@@ -523,10 +525,15 @@ struct pfioc_table {
 .It Dv DIOCRADDTABLES Fa "struct pfioc_table *io"
 Create one or more tables.
 On entry,
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_table
-structures.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_table
+containing at least
+.Vt pfrio_size
+elements.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_table .
 On exit,
 .Va pfrio_nadd
 contains the number of tables effectively created.
@@ -541,12 +548,17 @@ struct pfr_table {
 .It Dv DIOCRDELTABLES Fa "struct pfioc_table *io"
 Delete one or more tables.
 On entry,
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_table
-structures.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_table
+containing at least
+.Vt pfrio_size
+elements.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_table .
 On exit,
-.Va pfrio_nadd
+.Va pfrio_ndel
 contains the number of tables effectively deleted.
 .It Dv DIOCRGETTABLES Fa "struct pfioc_table *io"
 Get the list of all tables.
@@ -585,10 +597,15 @@ struct pfr_tstats {
 .It Dv DIOCRCLRTSTATS Fa "struct pfioc_table *io"
 Clear the statistics of one or more tables.
 On entry,
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_table
-structures.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_table
+containing at least
+.Vt pfrio_size
+elements.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_table .
 On exit,
 .Va pfrio_nzero
 contains the number of tables effectively cleared.
@@ -605,10 +622,15 @@ Add one or more addresses to a table.
 On entry,
 .Va pfrio_table
 contains the table ID and
-.Va pfrio_buffer[pfrio_size]
-contains the list of
-.Vt pfr_addr
-structures to add.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_addr
+containing at least
+.Vt pfrio_size
+elements to add to the table.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_addr .
 On exit,
 .Va pfrio_nadd
 contains the number of addresses effectively added.
@@ -631,10 +653,15 @@ Delete one or more addresses from a table.
 On entry,
 .Va pfrio_table
 contains the table ID and
-.Va pfrio_buffer[pfrio_size]
-contains the list of
-.Vt pfr_addr
-structures to delete.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_addr
+containing at least
+.Vt pfrio_size
+elements to delete from the table.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_addr .
 On exit,
 .Va pfrio_ndel
 contains the number of addresses effectively deleted.
@@ -645,10 +672,15 @@ This is the most complicated command, which uses all the structure members.
 On entry,
 .Va pfrio_table
 contains the table ID and
-.Va pfrio_buffer[pfrio_size]
-contains the new list of
-.Vt pfr_addr
-structures.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_addr
+containing at least
+.Vt pfrio_size
+elements which become the new contents of the table.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_addr .
 Additionally, if
 .Va pfrio_size2
 is non-zero,
@@ -703,10 +735,15 @@ Clear the statistics of one or more addresses.
 On entry,
 .Va pfrio_table
 contains the table ID and
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_addr
-structures to clear.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_addr
+containing at least
+.Vt pfrio_size
+elements to be cleared from the table.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_addr .
 On exit,
 .Va pfrio_nzero
 contains the number of addresses effectively cleared.
@@ -715,13 +752,18 @@ Test if the given addresses match a table.
 On entry,
 .Va pfrio_table
 contains the table ID and
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_addr
-structures to test.
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_addr
+containing at least
+.Vt pfrio_size
+elements, each of which will be tested for a match in the table.
+.Vt pfrio_esize
+must be the size of
+.Vt struct pfr_addr .
 On exit, the kernel updates the
 .Vt pfr_addr
-table by setting the
+array by setting the
 .Va pfra_fback
 member appropriately.
 .It Dv DIOCRSETTFLAGS Fa "struct pfioc_table *io"
@@ -731,14 +773,19 @@ or
 .Dv PFR_TFLAG_PERSIST
 flags of a table.
 On entry,
-.Va pfrio_buffer[pfrio_size]
-contains a table of
-.Vt pfr_table
-structures, and
+.Va pfrio_buffer
+must point to an array of
+.Vt struct pfr_table
+containing at least
+.Vt pfrio_size
+elements.
+.Va pfrio_esize
+must be the size of
+.Vt struct pfr_table .
 .Va pfrio_setflag
-contains the flags to add, while
+must contain the flags to add, while
 .Va pfrio_clrflag
-contains the flags to remove.
+must contain the flags to remove.
 On exit,
 .Va pfrio_nchange
 and
@@ -753,7 +800,7 @@ On entry,
 .Va pfrio_table
 contains the table ID and
 .Va pfrio_buffer[pfrio_size]
-contains the list of
+contains an array of
 .Vt pfr_addr
 structures to put in the table.
 A valid ticket must also be supplied to
@@ -955,10 +1002,6 @@ struct pfioc_iface {
 	int			 pfiio_nzero;
 	int			 pfiio_flags;
 };
-
-#define PFI_FLAG_GROUP     0x0001  /* gets groups of interfaces */
-#define PFI_FLAG_INSTANCE  0x0002  /* gets single interfaces */
-#define PFI_FLAG_ALLMASK   0x0003
 .Ed
 .Pp
 If not empty,
@@ -968,61 +1011,45 @@ can be used to restrict the search to a specific interface or driver.
 is the user-supplied buffer for returning the data.
 On entry,
 .Va pfiio_size
-represents the number of
-.Va pfi_if
+contains the number of
+.Vt pfi_kif
 entries that can fit into the buffer.
 The kernel will replace this value by the real number of entries it wants
 to return.
 .Va pfiio_esize
 should be set to
-.Li sizeof(struct pfi_if) .
-.Va pfiio_flags
-should be set to
-.Dv PFI_FLAG_GROUP ,
-.Dv PFI_FLAG_INSTANCE ,
-or both, to tell the kernel to return a group of interfaces
-(drivers, like "fxp"), real interface instances (like "fxp1") or both.
+.Li sizeof(struct pfi_kif) .
+.Pp
 The data is returned in the
-.Vt pfi_if
+.Vt pfi_kif
 structure described below:
 .Bd -literal
-struct pfi_if {
-	char				 pfif_name[IFNAMSIZ];
-	u_int64_t			 pfif_packets[2][2][2];
-	u_int64_t			 pfif_bytes[2][2][2];
-	u_int64_t			 pfif_addcnt;
-	u_int64_t			 pfif_delcnt;
-	long				 pfif_tzero;
-	int				 pfif_states;
-	int				 pfif_rules;
-	int				 pfif_flags;
+struct pfi_kif {
+	RB_ENTRY(pfi_kif)		 pfik_tree;
+	char				 pfik_name[IFNAMSIZ];
+	u_int64_t			 pfik_packets[2][2][2];
+	u_int64_t			 pfik_bytes[2][2][2];
+	u_int32_t			 pfik_tzero;
+	int				 pfik_flags;
+	struct pf_state_tree_lan_ext	 pfik_lan_ext;
+	struct pf_state_tree_ext_gwy	 pfik_ext_gwy;
+	TAILQ_ENTRY(pfi_kif)		 pfik_w_states;
+	void				*pfik_ah_cookie;
+	struct ifnet			*pfik_ifp;
+	struct ifg_group		*pfik_group;
+	int				 pfik_states;
+	int				 pfik_rules;
+	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
 };
-
-#define PFI_IFLAG_GROUP		0x0001	/* group of interfaces */
-#define PFI_IFLAG_INSTANCE	0x0002	/* single instance */
-#define PFI_IFLAG_CLONABLE	0x0010	/* clonable group */
-#define PFI_IFLAG_DYNAMIC	0x0020	/* dynamic group */
-#define PFI_IFLAG_ATTACHED	0x0040	/* interface attached */
 .Ed
-.It Dv DIOCICLRISTATS Fa "struct pfioc_iface *io"
-Clear the statistics counters of one or more interfaces.
-.Va pfiio_name
-and
-.Va pfiio_flags
-can be used to select which interfaces need to be cleared.
-The filtering process is the same as for
-.Dv DIOCIGETIFACES .
-.Va pfiio_nzero
-will be set by the kernel to the number of interfaces and drivers
-that have been cleared.
 .It Dv DIOCSETIFFLAG Fa "struct pfioc_iface *io"
-Set the user setable flags (described below) of the pf internal interface
-description.
+Set the user setable flags (described above) of the
+.Nm
+internal interface description.
 The filtering process is the same as for
 .Dv DIOCIGETIFACES .
 .Bd -literal
-#define PFI_IFLAG_SKIP		0x0100	/* skip interface */
-#define PFI_IFLAG_SETABLE_MASK	0x0100	/* mask */
+#define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
 .Ed
 .It Dv DIOCCLRIFFLAG Fa "struct pfioc_iface *io"
 Works as
