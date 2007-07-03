@@ -1714,6 +1714,19 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 		 * the vp's paging queues so we cannot call bdirty().  The
 		 * bp in this case is not an NFS cache block so we should
 		 * be safe. XXX
+		 *
+		 * The logic below breaks up errors into recoverable and 
+		 * unrecoverable. For the former, we clear B_INVAL|B_NOCACHE
+		 * and keep the buffer around for potential write retries.
+		 * For the latter (eg ESTALE), we toss the buffer away (B_INVAL)
+		 * and save the error in the nfsnode. This is less than ideal 
+		 * but necessary. Keeping such buffers around could potentially
+		 * cause buffer exhaustion eventually (they can never be written
+		 * out, so will get constantly be re-dirtied). It also causes
+		 * all sorts of vfs panics. For non-recoverable write errors, 
+		 * also invalidate the attrcache, so we'll be forced to go over
+		 * the wire for this object, returning an error to user on next
+		 * call (most of the time).
 		 */
     		if (error == EINTR || error == EIO || error == ETIMEDOUT
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
@@ -1731,9 +1744,11 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 	    	} else {
 		    if (error) {
 			bp->b_ioflags |= BIO_ERROR;
+			bp->b_flags |= B_INVAL;
 			bp->b_error = np->n_error = error;
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NWRITEERR;
+			np->n_attrstamp = 0;
 			mtx_unlock(&np->n_mtx);
 		    }
 		    bp->b_dirtyoff = bp->b_dirtyend = 0;
