@@ -500,7 +500,7 @@ cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 {
 	cbq_state_t	*cbqp = (cbq_state_t *)ifq->altq_disc;
 	struct rm_class	*cl;
-	struct m_tag	*t;
+	struct pf_mtag	*t;
 	int		 len;
 
 	IFQ_LOCK_ASSERT(ifq);
@@ -520,8 +520,8 @@ cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 		return (ENOBUFS);
 	}
 	cl = NULL;
-	if ((t = m_tag_find(m, PACKET_TAG_PF_QID, NULL)) != NULL)
-		cl = clh_to_clp(cbqp, ((struct altq_tag *)(t+1))->qid);
+	if ((t = pf_find_mtag(m)) != NULL)
+		cl = clh_to_clp(cbqp, t->qid);
 #ifdef ALTQ3_COMPAT
 	else if ((ifq->altq_flags & ALTQF_CLASSIFY) && pktattr != NULL)
 		cl = pktattr->pattr_class;

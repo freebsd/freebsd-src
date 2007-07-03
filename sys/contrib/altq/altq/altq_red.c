@@ -514,16 +514,12 @@ int
 mark_ecn(struct mbuf *m, struct altq_pktattr *pktattr, int flags)
 {
 	struct mbuf	*m0;
-	struct m_tag	*t;
-	struct altq_tag	*at;
+	struct pf_mtag	*at;
 	void		*hdr;
 	int		 af;
 
-	t = m_tag_find(m, PACKET_TAG_PF_QID, NULL);
-	if (t != NULL) {
-		at = (struct altq_tag *)(t + 1);
-		if (at == NULL)
-			return (0);
+	at = pf_find_mtag(m);
+	if (at != NULL) {
 		af = at->af;
 		hdr = at->hdr;
 #ifdef ALTQ3_COMPAT

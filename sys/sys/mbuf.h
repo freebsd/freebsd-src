@@ -833,12 +833,8 @@ struct mbuf	*m_unshare(struct mbuf *, int how);
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
-#define	PACKET_TAG_PF_ROUTED			21 /* PF routed, avoid loops */
-#define	PACKET_TAG_PF_FRAGCACHE			22 /* PF fragment cached */
-#define	PACKET_TAG_PF_QID			23 /* PF ALTQ queue id */
-#define	PACKET_TAG_PF_TAG			24 /* PF tagged */
+#define	PACKET_TAG_PF				21 /* PF + ALTQ information */
 #define	PACKET_TAG_RTSOCKFAM			25 /* rtsock sa family */
-#define	PACKET_TAG_PF_TRANSLATE_LOCALHOST	26 /* PF translate localhost */
 #define	PACKET_TAG_IPOPTIONS			27 /* Saved IP options */
 #define	PACKET_TAG_CARP                         28 /* CARP info */
 
