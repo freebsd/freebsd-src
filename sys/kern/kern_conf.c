@@ -52,7 +52,8 @@ static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
 struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
-
+static int destroy_dev_sched_cbl(struct cdev *dev,
+    void (*cb)(void *), void *arg);
 static struct cdev *make_dev_credv(int flags,
     struct cdevsw *devsw, int minornr,
     struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
@@ -788,7 +789,7 @@ destroy_dev(struct cdev *dev)
 		destroy_devl(dev);
 		dev_unlock_and_free();
 	} else
-		destroy_dev_sched(dev);
+		destroy_dev_sched_cbl(dev, NULL, NULL);
 }
 
 const char *
@@ -1014,13 +1015,17 @@ destroy_dev_tq(void *ctx, int pending)
 	dev_unlock();
 }
 
-int
-destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
+/*
+ * devmtx shall be locked on entry. devmtx will be unlocked after
+ * function return.
+ */
+static int
+destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 {
 	struct cdev_priv *cp;
-	
+
+	mtx_assert(&devmtx, MA_OWNED);
 	cp = dev->si_priv;
-	dev_lock();
 	if (cp->cdp_flags & CDP_SCHED_DTR) {
 		dev_unlock();
 		return (0);
@@ -1033,6 +1038,13 @@ destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
 	dev_unlock();
 	taskqueue_enqueue(taskqueue_swi_giant, &dev_dtr_task);
 	return (1);
+}
+
+int
+destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg)
+{
+	dev_lock();
+	return (destroy_dev_sched_cbl(dev, cb, arg));
 }
 
 int
