@@ -341,6 +341,18 @@ fcntl(struct thread *td, struct fcntl_args *uap)
 	return (error);
 }
 
+static inline struct file *
+fdtofp(int fd, struct filedesc *fdp)
+{
+	struct file *fp;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+	if ((unsigned)fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[fd]) == NULL)
+		return (NULL);
+	return (fp);
+}
+
 int
 kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 {
@@ -352,46 +364,23 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct vnode *vp;
 	u_int newmin;
 	int error, flg, tmp;
-	int giant_locked;
+	int vfslocked;
 
-	/*
-	 * XXXRW: Some fcntl() calls require Giant -- others don't.  Try to
-	 * avoid grabbing Giant for calls we know don't need it.
-	 */
-	switch (cmd) {
-	case F_DUPFD:
-	case F_GETFD:
-	case F_SETFD:
-	case F_GETFL:
-		giant_locked = 0;
-		break;
-
-	default:
-		giant_locked = 1;
-		mtx_lock(&Giant);
-	}
-
+	vfslocked = 0;
 	error = 0;
 	flg = F_POSIX;
 	p = td->td_proc;
 	fdp = p->p_fd;
 
-	/*
-	 * XXXRW: It could be an exclusive lock is not [always] needed here.
-	 */
-	FILEDESC_XLOCK(fdp);
-	if ((unsigned)fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fd]) == NULL) {
-		FILEDESC_XUNLOCK(fdp);
-		error = EBADF;
-		goto done2;
-	}
-	pop = &fdp->fd_ofileflags[fd];
-
 	switch (cmd) {
 	case F_DUPFD:
-		/* mtx_assert(&Giant, MA_NOTOWNED); */
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
+		FILEDESC_SUNLOCK(fdp);
 		newmin = arg;
 		PROC_LOCK(p);
 		if (newmin >= lim_cur(p, RLIMIT_NOFILE) ||
@@ -405,34 +394,56 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETFD:
-		/* mtx_assert(&Giant, MA_NOTOWNED); */
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
+		pop = &fdp->fd_ofileflags[fd];
 		td->td_retval[0] = (*pop & UF_EXCLOSE) ? FD_CLOEXEC : 0;
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		break;
 
 	case F_SETFD:
-		/* mtx_assert(&Giant, MA_NOTOWNED); */
+		FILEDESC_XLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_XUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
+		pop = &fdp->fd_ofileflags[fd];
 		*pop = (*pop &~ UF_EXCLOSE) |
 		    (arg & FD_CLOEXEC ? UF_EXCLOSE : 0);
 		FILEDESC_XUNLOCK(fdp);
 		break;
 
 	case F_GETFL:
-		/* mtx_assert(&Giant, MA_NOTOWNED); */
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		FILE_LOCK(fp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
 		FILE_UNLOCK(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		break;
 
 	case F_SETFL:
-		mtx_assert(&Giant, MA_OWNED);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		FILE_LOCK(fp);
 		fhold_locked(fp);
 		fp->f_flag &= ~FCNTLFLAGS;
 		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
 		FILE_UNLOCK(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
@@ -454,9 +465,14 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_GETOWN:
-		mtx_assert(&Giant, MA_OWNED);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		fhold(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		error = fo_ioctl(fp, FIOGETOWN, &tmp, td->td_ucred, td);
 		if (error == 0)
 			td->td_retval[0] = tmp;
@@ -464,33 +480,41 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		break;
 
 	case F_SETOWN:
-		mtx_assert(&Giant, MA_OWNED);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		fhold(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		tmp = arg;
 		error = fo_ioctl(fp, FIOSETOWN, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
 		break;
 
 	case F_SETLKW:
-		mtx_assert(&Giant, MA_OWNED);
 		flg |= F_WAIT;
 		/* FALLTHROUGH F_SETLK */
 
 	case F_SETLK:
-		mtx_assert(&Giant, MA_OWNED);
-		if (fp->f_type != DTYPE_VNODE) {
-			FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
 		}
-
+		if (fp->f_type != DTYPE_VNODE) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		flp = (struct flock *)arg;
 		if (flp->l_whence == SEEK_CUR) {
 			if (fp->f_offset < 0 ||
 			    (flp->l_start > 0 &&
 			     fp->f_offset > OFF_MAX - flp->l_start)) {
-				FILEDESC_XUNLOCK(fdp);
+				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
@@ -501,9 +525,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * VOP_ADVLOCK() may block.
 		 */
 		fhold(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		vp = fp->f_vnode;
-
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		switch (flp->l_type) {
 		case F_RDLCK:
 			if ((fp->f_flag & FREAD) == 0) {
@@ -535,33 +559,43 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EINVAL;
 			break;
 		}
+		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = 0;
 		/* Check for race with close */
-		FILEDESC_XLOCK(fdp);
+		FILEDESC_SLOCK(fdp);
 		if ((unsigned) fd >= fdp->fd_nfiles ||
 		    fp != fdp->fd_ofiles[fd]) {
-			FILEDESC_XUNLOCK(fdp);
+			FILEDESC_SUNLOCK(fdp);
 			flp->l_whence = SEEK_SET;
 			flp->l_start = 0;
 			flp->l_len = 0;
 			flp->l_type = F_UNLCK;
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
 					   F_UNLCK, flp, F_POSIX);
+			VFS_UNLOCK_GIANT(vfslocked);
+			vfslocked = 0;
 		} else
-			FILEDESC_XUNLOCK(fdp);
+			FILEDESC_SUNLOCK(fdp);
 		fdrop(fp, td);
 		break;
 
 	case F_GETLK:
-		mtx_assert(&Giant, MA_OWNED);
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
 		if (fp->f_type != DTYPE_VNODE) {
-			FILEDESC_XUNLOCK(fdp);
+			FILEDESC_SUNLOCK(fdp);
 			error = EBADF;
 			break;
 		}
 		flp = (struct flock *)arg;
 		if (flp->l_type != F_RDLCK && flp->l_type != F_WRLCK &&
 		    flp->l_type != F_UNLCK) {
-			FILEDESC_XUNLOCK(fdp);
+			FILEDESC_SUNLOCK(fdp);
 			error = EINVAL;
 			break;
 		}
@@ -570,7 +604,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			    fp->f_offset > OFF_MAX - flp->l_start) ||
 			    (flp->l_start < 0 &&
 			     fp->f_offset < OFF_MIN - flp->l_start)) {
-				FILEDESC_XUNLOCK(fdp);
+				FILEDESC_SUNLOCK(fdp);
 				error = EOVERFLOW;
 				break;
 			}
@@ -580,20 +614,20 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		 * VOP_ADVLOCK() may block.
 		 */
 		fhold(fp);
-		FILEDESC_XUNLOCK(fdp);
+		FILEDESC_SUNLOCK(fdp);
 		vp = fp->f_vnode;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
 		    F_POSIX);
+		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = 0;
 		fdrop(fp, td);
 		break;
 	default:
-		FILEDESC_XUNLOCK(fdp);
 		error = EINVAL;
 		break;
 	}
-done2:
-	if (giant_locked)
-		mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -2174,6 +2208,7 @@ flock(struct thread *td, struct flock_args *uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
+	int vfslocked;
 	int error;
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
@@ -2183,8 +2218,8 @@ flock(struct thread *td, struct flock_args *uap)
 		return (EOPNOTSUPP);
 	}
 
-	mtx_lock(&Giant);
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;
@@ -2211,7 +2246,7 @@ flock(struct thread *td, struct flock_args *uap)
 	    (uap->how & LOCK_NB) ? F_FLOCK : F_FLOCK | F_WAIT);
 done2:
 	fdrop(fp, td);
-	mtx_unlock(&Giant);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 /*
