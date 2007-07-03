@@ -566,8 +566,17 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		m2 = frent->fr_m;
 		pool_put(&pf_frent_pl, frent);
 		pf_nfrents--;
+#ifdef __FreeBSD__
+		m->m_pkthdr.csum_flags &= m2->m_pkthdr.csum_flags;
+		m->m_pkthdr.csum_data += m2->m_pkthdr.csum_data;
+#endif
 		m_cat(m, m2);
 	}
+#ifdef __FreeBSD__
+	while (m->m_pkthdr.csum_data & 0xffff0000)
+		m->m_pkthdr.csum_data = (m->m_pkthdr.csum_data & 0xffff) +
+		    (m->m_pkthdr.csum_data >> 16);
+#endif
 
 	ip->ip_src = (*frag)->fr_src;
 	ip->ip_dst = (*frag)->fr_dst;
