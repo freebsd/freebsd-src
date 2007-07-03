@@ -60,6 +60,7 @@
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
+#include <net/pf_mtag.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -151,6 +152,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	int error, hdrcmplt = 0;
 	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
 	struct ether_header *eh;
+	struct pf_mtag *t;
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
 
@@ -301,7 +303,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	 * reasons and compatibility with the original behavior.
 	 */
 	if ((ifp->if_flags & IFF_SIMPLEX) && loop_copy &&
-	    m_tag_find(m, PACKET_TAG_PF_ROUTED, NULL) == NULL) {
+	    ((t = pf_find_mtag(m)) == NULL || !t->routed)) {
 		int csum_flags = 0;
 
 		if (m->m_pkthdr.csum_flags & CSUM_IP)

@@ -327,15 +327,17 @@ contrib/pf/net/pf.c		optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_if.c		optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_subr.c	optional pf \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_ioctl.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_norm.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
-contrib/pf/net/pf_table.c	optional pf \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_osfp.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_ruleset.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_subr.c	optional pf \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+contrib/pf/net/pf_table.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
 crypto/blowfish/bf_ecb.c	optional ipsec 
@@ -1584,7 +1586,8 @@ net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
 net/if_enc.c			optional enc
-net/if_ethersubr.c		optional ether
+net/if_ethersubr.c		optional ether \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 net/if_faith.c			optional faith
 net/if_fddisubr.c		optional fddi
 net/if_fwsubr.c			optional fwip
@@ -1825,7 +1828,8 @@ netinet/ip_dummynet.c		optional dummynet
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
-netinet/ip_fw2.c		optional ipfirewall
+netinet/ip_fw2.c		optional ipfirewall \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/ip_fw_pfil.c		optional ipfirewall
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
