@@ -1,7 +1,7 @@
 
-                            Less, version 394
+                            Less, version 406
 
-    This is the distribution of less, version 394, released 03 Dec 2005.
+    This is the distribution of less, version 406, released 19 Jun 2007.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -46,6 +46,7 @@ INSTALLATION (Unix systems only):
    --with-editor=program
      Specifies the default editor program used by the "v" command.
      The default is "vi".
+
    --with-regex=lib
      Specifies the regular expression library used by less for pattern
      matching.  The default is "auto", which means the configure program 
@@ -61,6 +62,7 @@ INSTALLATION (Unix systems only):
      Builds a "secure" version of less, with some features disabled
 	 to prevent users from viewing other files, accessing shell
 	 commands, etc.
+
 
 3. It is a good idea to look over the generated Makefile and defines.h
    and make sure they look ok.  If you know of any peculiarities of

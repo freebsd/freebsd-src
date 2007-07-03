@@ -7,10 +7,58 @@
       http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to bug-less@gnu.org.
+  To report bugs, suggestions or comments, send email to 
+  bug-less@gnu.org or markn@greenwoodsoftware.com.
 
 ======================================================================
 
+
+	Major changes between "less" versions 394 and 406
+
+* Allow decimal point in number for % (percent) command.
+
+* Allow decimal point in number for -j option (fraction of screen height).
+
+* Make n command fetch previous pattern from history file on first search.
+
+* Don't rewrite history file if it has not changed.
+
+* Don't move to bottom of screen on first page.
+
+* Don't output extraneous newlines, so copy & pasting lines from the
+  output works better.
+
+* The -c option has been made identical with the -C option.
+
+* Allow "/dev/null" as synomym for "-" in LESSHISTFILE to indicate
+  that no history file should be used.
+
+* Search can now find text which follows a null byte, if the PCRE
+  library is used, or if no-regex searching (ctrl-R) is used.
+
+* Better compatibility with POSIX more specification.
+
+* Make -f work for directories.
+
+* Make "t" cmd traverse tags in the correct order.
+
+* Allow a few binary characters in the input file before warning
+  that the file is binary.
+
+* Don't warn that file is binary if it merely contains ANSI color sequences
+  and -R is in effect.
+
+* Update Unicode character tables.
+
+* Support DESTDIR in Makefile.
+
+* Fix bug when filename contains certain shell metacharacters such as "$".
+
+* Fix bug when resizing the window while waiting for input from a pipe.
+
+* Fix configure bugs.
+
+======================================================================
 
 	Major changes between "less" versions 382 and 394
 
@@ -632,3 +680,6 @@
 * Lesskey files may now include characters after the action as
   extra input to be parsed after the action; for example:
   "toggle-option X" to toggle a specific option X.
+
+
+

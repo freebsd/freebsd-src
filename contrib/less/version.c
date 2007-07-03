@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -668,6 +668,31 @@ v392  10/14/05	Fix line wrapping bug.
 v393  10/19/05	Allow multiple attributes per char; fix bold+underline bug
 		(thanks again to Charles Levert).
 v394  11/8/05	Fix prompt bug; fix compile problem in Windows build.
+-----------------------------------------------------------------
+v395  1/12/07	Update Unicode tables (thanks to Charles Levert);
+		don't chmod if LESSHISTFILE = /dev/null;
+		make -f work for directories; support DESTDIR in Makefile;
+		fix sigset_t detection in configure; 
+		make "t" cmd traverse tags in correct order
+v396  1/13/07	Add compatibility with POSIX more.
+v397  3/21/07	Allow decimal point in number for % command;
+		Allow decimal point in number for -j option;
+		Allow n command to fetch last search pattern from history
+		(thanks to arno).
+v398  3/22/07	Don't rewrite history file if not necessary;
+		fix bug when filenames contain "$".
+v399  3/22/07	Don't move to bottom of screen at startup;
+		don't output extraneous newlines.
+v400  3/23/07	Allow search to find pattern after null byte (PCRE and no-regex)
+		(thanks to Michael Constant).
+-----------------------------------------------------------------
+v401  3/24/07	Minor documentation fixes.
+v402  3/30/07	Fix autoconf bug when memcpy etc are inline;
+		fix bug in terminating number following -j option.
+v403  5/25/07	Fix Windows build.
+v404  6/5/07	Fix display bug with F command and long lines.
+v405  6/17/07	Fix display bug when using -w option.
+v406  6/17/07	Fix secure build.
 */
 
-char version[] = "394";
+char version[] = "406";

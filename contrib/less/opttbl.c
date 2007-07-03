@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2004  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -40,6 +40,7 @@ public int ctldisp;		/* Send control chars to screen untranslated */
 public int force_open;		/* Open the file even if not regular file */
 public int swindow;		/* Size of scrolling window */
 public int jump_sline;		/* Screen line of "jump target" */
+public long jump_sline_fraction = -1;
 public int chopline;		/* Truncate displayed lines at screen width */
 public int no_init;		/* Disable sending ti/te termcap strings */
 public int no_keypad;		/* Disable sending ks/ke termcap strings */
@@ -49,6 +50,7 @@ public int shift_count;		/* Number of positions to shift horizontally */
 public int status_col;		/* Display a status column */
 public int use_lessopen;	/* Use the LESSOPEN filter */
 public int quit_on_intr;	/* Quit on interrupt */
+public int oldbot;		/* Old bottom of screen behavior */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -110,6 +112,7 @@ static struct optname tilde_optname  = { "tilde",                NULL };
 static struct optname query_optname  = { "help",                 NULL };
 static struct optname pound_optname  = { "shift",                NULL };
 static struct optname keypad_optname = { "no-keypad",            NULL };
+static struct optname oldbot_optname = { "old-bot",              NULL };
 
 
 /*
@@ -155,7 +158,7 @@ static struct loption option[] =
 		TRIPLE, OPT_OFF, &top_scroll, NULL,
 		{
 			"Repaint by scrolling from bottom of screen",
-			"Repaint by clearing each line",
+			"Repaint by painting from top of screen",
 			"Repaint by painting from top of screen"
 		}
 	},
@@ -228,10 +231,10 @@ static struct loption option[] =
 		}
 	},
 	{ 'j', &j_optname,
-		NUMBER, 1, &jump_sline, NULL,
+		STRING, 0, NULL, opt_j,
 		{
 			"Target line: ",
-			"Position target at screen line %d",
+			"0123456789.",
 			NULL
 		}
 	},
@@ -426,6 +429,14 @@ static struct loption option[] =
 		{
 			"Use keypad mode",
 			"Don't use keypad mode",
+			NULL
+		}
+	},
+	{ '.', &oldbot_optname,
+		BOOL, OPT_OFF, &oldbot, NULL,
+		{
+			"Use new bottom of screen behavior",
+			"Use old bottom of screen behavior",
 			NULL
 		}
 	},
