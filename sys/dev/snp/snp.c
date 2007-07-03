@@ -616,10 +616,9 @@ snp_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return;
 	i = clone_create(&snpclones, &snp_cdevsw, &u, dev, 0);
 	if (i)
-		*dev = make_dev(&snp_cdevsw, unit2minor(u),
-		     UID_ROOT, GID_WHEEL, 0600, "snp%d", u);
+		*dev = make_dev_credf(MAKEDEV_REF, &snp_cdevsw, unit2minor(u),
+		     NULL, UID_ROOT, GID_WHEEL, 0600, "snp%d", u);
 	if (*dev != NULL) {
-		dev_ref(*dev);
 		(*dev)->si_flags |= SI_CHEAPCLONE;
 	}
 }
@@ -640,7 +639,9 @@ snp_modevent(module_t mod, int type, void *data)
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+		drain_dev_clone_events();
 		clone_cleanup(&snpclones);
+		destroy_dev_drain(&snp_cdevsw);
 		ldisc_deregister(snooplinedisc);
 		break;
 	default:
