@@ -35,6 +35,11 @@
  *
  */
 
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+#endif
+
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
@@ -59,7 +64,11 @@
 # define DPFPRINTF(format, x...)		\
 	if (pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
+#ifdef __FreeBSD__
+#define rs_malloc(x)		malloc(x, M_TEMP, M_NOWAIT)
+#else
 #define rs_malloc(x)		malloc(x, M_TEMP, M_WAITOK)
+#endif
 #define rs_free(x)		free(x, M_TEMP)
 
 #else
@@ -85,6 +94,8 @@
 struct pf_anchor_global	 pf_anchors;
 struct pf_anchor	 pf_main_anchor;
 
+#ifndef __FreeBSD__
+/* XXX: hum? */
 int			 pf_get_ruleset_number(u_int8_t);
 void			 pf_init_ruleset(struct pf_ruleset *);
 int			 pf_anchor_setup(struct pf_rule *,
@@ -92,6 +103,7 @@ int			 pf_anchor_setup(struct pf_rule *,
 int			 pf_anchor_copyout(const struct pf_ruleset *,
 			    const struct pf_rule *, struct pfioc_rule *);
 void			 pf_anchor_remove(struct pf_rule *);
+#endif
 
 static __inline int pf_anchor_compare(struct pf_anchor *, struct pf_anchor *);
 
@@ -184,7 +196,11 @@ pf_find_or_create_ruleset(const char *path)
 {
 	char			*p, *q, *r;
 	struct pf_ruleset	*ruleset;
+#ifdef __FreeBSD__
+	struct pf_anchor	*anchor = NULL, *dup, *parent = NULL;
+#else
 	struct pf_anchor	*anchor, *dup, *parent = NULL;
+#endif
 
 	if (path[0] == 0)
 		return (&pf_main_ruleset);
