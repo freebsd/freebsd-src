@@ -4927,7 +4927,7 @@ sctp_skip_csum_4:
 	} else if (stcb == NULL) {
 		refcount_up = 1;
 	}
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * I very much doubt any of the IPSEC stuff will work but I have no
 	 * idea, so I will leave it in place.

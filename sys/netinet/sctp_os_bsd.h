@@ -74,14 +74,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp_var.h>
 
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
 #endif				/* IPSEC */
 
 #ifdef INET6
 #include <sys/domain.h>
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec6.h>
 #endif
 #include <netinet/ip6.h>

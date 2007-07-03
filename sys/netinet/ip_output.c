@@ -59,10 +59,10 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netinet/ip_ipsec.h>
 #include <netipsec/ipsec.h>
-#endif /* FAST_IPSEC*/
+#endif /* IPSEC*/
 
 #include <machine/in_cksum.h>
 
@@ -412,7 +412,7 @@ again:
 	}
 
 sendit:
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
 	case 1:
 		goto bad;
@@ -425,7 +425,7 @@ sendit:
 	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
 	hlen = ip->ip_hl << 2;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&inet_pfil_hook))
@@ -966,7 +966,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_UNLOCK(inp);
 			break;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		case IP_IPSEC_POLICY:
 		{
 			caddr_t req;
@@ -1000,7 +1000,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			m_freem(m);
 			break;
 		}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 		default:
 			error = ENOPROTOOPT;
@@ -1104,7 +1104,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = inp_getmoptions(inp, sopt);
 			break;
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		case IP_IPSEC_POLICY:
 		{
 			struct mbuf *m = NULL;
@@ -1122,7 +1122,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				m_freem(m);
 			break;
 		}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 		default:
 			error = ENOPROTOOPT;

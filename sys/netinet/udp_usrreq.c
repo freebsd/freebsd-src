@@ -78,7 +78,7 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #endif
 
@@ -495,14 +495,14 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 
 	INP_LOCK_ASSERT(inp);
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		ipsec4stat.in_polvio++;
 		m_freem(n);
 		return;
 	}
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 #ifdef MAC
 	if (mac_check_inpcb_deliver(inp, n) != 0) {
 		m_freem(n);

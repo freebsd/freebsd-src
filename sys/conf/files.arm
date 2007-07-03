@@ -1,7 +1,6 @@
 # $FreeBSD$
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
-crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
-						netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 arm/arm/autoconf.c	standard
 arm/arm/bcopy_page.S	standard
 arm/arm/bcopyinout.S		standard

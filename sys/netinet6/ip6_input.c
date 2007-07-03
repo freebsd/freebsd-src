@@ -101,11 +101,11 @@
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netinet6/ip6_ipsec.h>
 #include <netipsec/ipsec6.h>
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
 
@@ -224,7 +224,7 @@ ip6_input(m)
 
 	GIANT_REQUIRED;			/* XXX for now */
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
 	 * see comment in ah4_input().
@@ -234,7 +234,7 @@ ip6_input(m)
 	m->m_flags &= ~M_AUTHIPHDR;
 	m->m_flags &= ~M_AUTHIPDGM;
 
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 
 	/*
 	 * make sure we don't have onion peering information into m_tag.
@@ -761,7 +761,7 @@ passin:
 			goto bad;
 		}
 
-#ifdef FAST_IPSEC
+#ifdef IPSEC
 		/*
 		 * enforce IPsec policy checking if we are seeing last header.
 		 * note that we do not visit this with protocols with pcb layer
@@ -769,7 +769,7 @@ passin:
 		 */
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
-#endif /* FAST_IPSEC */
+#endif /* IPSEC */
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	return;
