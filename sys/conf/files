@@ -1880,7 +1880,7 @@ netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
 netinet6/ip6_mroute.c		optional mrouting inet6
 netinet6/ip6_output.c		optional inet6
-netinet6/ip6_ipsec.c		optional fast_ipsec
+netinet6/ip6_ipsec.c		optional inet6 fast_ipsec
 netinet6/mld6.c			optional inet6
 netinet6/nd6.c			optional inet6
 netinet6/nd6_nbr.c		optional inet6
