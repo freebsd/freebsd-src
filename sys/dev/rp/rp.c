@@ -573,6 +573,7 @@ static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
 
 static	void	rpbreak(struct tty *, int);
 static	void	rpclose(struct tty *tp);
+static	void	rphardclose(struct tty *tp);
 static	int	rpmodem(struct tty *, int, int);
 static	int	rpparam(struct tty *, struct termios *);
 static	void	rpstart(struct tty *);
@@ -697,7 +698,7 @@ static void rp_handle_port(struct rp_port *rp)
 			if((tp->t_state & TS_CARR_ON)) {
 				(void)ttyld_modem(tp, 0);
 				if(ttyld_modem(tp, 0) == 0) {
-					rpclose(tp);
+					rphardclose(tp);
 				}
 			}
 		}
@@ -936,6 +937,16 @@ static void
 rpclose(struct tty *tp)
 {
 	struct	rp_port	*rp;
+
+	rp = tp->t_sc;
+	rphardclose(tp);
+	device_unbusy(rp->rp_ctlp->dev);
+}
+
+static void
+rphardclose(struct tty *tp)
+{
+	struct	rp_port	*rp;
 	CHANNEL_t	*cp;
 
 	rp = tp->t_sc;
@@ -959,7 +970,6 @@ rpclose(struct tty *tp)
 	tp->t_actout = FALSE;
 	wakeup(&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));
-	device_unbusy(rp->rp_ctlp->dev);
 }
 
 static void
