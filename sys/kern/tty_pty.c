@@ -785,9 +785,8 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 		u += name[4] - 'a' + 10;
 	else
 		return;
-	*dev = make_dev_cred(&ptc_cdevsw, u, cr,
+	*dev = make_dev_credf(MAKEDEV_REF, &ptc_cdevsw, u, cr,
 	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
-	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
 	return;
 }
