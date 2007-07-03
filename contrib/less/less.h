@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -9,6 +9,7 @@
  * contact the author, see the README file.
  */
 
+#define NEWBOT 1
 
 /*
  * Standard include file for "less".
@@ -295,6 +296,10 @@ struct textlist
 #define	EOI		(-1)
 
 #define	READ_INTR	(-2)
+
+/* A fraction is represented by an int n; the fraction is n/NUM_FRAC_DENOM */
+#define NUM_FRAC_DENOM			1000000
+#define NUM_LOG_FRAC_DENOM		6
 
 /* How quiet should we be? */
 #define	NOT_QUIET	0	/* Ring bell at eof and for errors */

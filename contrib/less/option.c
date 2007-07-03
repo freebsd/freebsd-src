@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2004  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -29,6 +29,8 @@ static char *optstring();
 static int flip_triple();
 
 extern int screen_trashed;
+extern int less_is_more;
+extern int quit_at_eof;
 extern char *every_first_cmd;
 
 /* 
@@ -131,6 +133,10 @@ scan_option(s)
 			 */
 			s--;
 			optc = 'z';
+			break;
+		case 'n':
+			if (less_is_more)
+				optc = 'z';
 			break;
 		}
 
@@ -584,6 +590,30 @@ optstring(s, p_str, printopt, validchars)
 }
 
 /*
+ */
+	static int
+num_error(printopt, errp)
+	char *printopt;
+	int *errp;
+{
+	PARG parg;
+
+	if (errp != NULL)
+	{
+		*errp = TRUE;
+		return (-1);
+	}
+	if (printopt != NULL)
+	{
+		parg.p_string = printopt;
+		error("Number is required after %s", &parg);
+	}
+	quit(QUIT_ERROR);
+	/* NOTREACHED */
+	return (-1);
+}
+
+/*
  * Translate a string into a number.
  * Like atoi(), but takes a pointer to a char *, and updates
  * the char * to point after the translated number.
@@ -597,7 +627,6 @@ getnum(sp, printopt, errp)
 	register char *s;
 	register int n;
 	register int neg;
-	PARG parg;
 
 	s = skipsp(*sp);
 	neg = FALSE;
@@ -607,19 +636,7 @@ getnum(sp, printopt, errp)
 		s++;
 	}
 	if (*s < '0' || *s > '9')
-	{
-		if (errp != NULL)
-		{
-			*errp = TRUE;
-			return (-1);
-		}
-		if (printopt != NULL)
-		{
-			parg.p_string = printopt;
-			error("Number is required after %s", &parg);
-		}
-		quit(QUIT_ERROR);
-	}
+		return (num_error(printopt, errp));
 
 	n = 0;
 	while (*s >= '0' && *s <= '9')
@@ -630,4 +647,54 @@ getnum(sp, printopt, errp)
 	if (neg)
 		n = -n;
 	return (n);
+}
+
+/*
+ * Translate a string into a fraction, represented by the part of a
+ * number which would follow a decimal point.
+ * The value of the fraction is returned as parts per NUM_FRAC_DENOM.
+ * That is, if "n" is returned, the fraction intended is n/NUM_FRAC_DENOM.
+ */
+	public long
+getfraction(sp, printopt, errp)
+	char **sp;
+	char *printopt;
+	int *errp;
+{
+	register char *s;
+	long frac = 0;
+	int fraclen = 0;
+
+	s = skipsp(*sp);
+	if (*s < '0' || *s > '9')
+		return (num_error(printopt, errp));
+
+	for ( ;  *s >= '0' && *s <= '9';  s++)
+	{
+		frac = (frac * 10) + (*s - '0');
+		fraclen++;
+	}
+	if (fraclen > NUM_LOG_FRAC_DENOM)
+		while (fraclen-- > NUM_LOG_FRAC_DENOM)
+			frac /= 10;
+	else
+		while (fraclen++ < NUM_LOG_FRAC_DENOM)
+			frac *= 10;
+	*sp = s;
+	if (errp != NULL)
+		*errp = FALSE;
+	return (frac);
+}
+
+
+/*
+ * Get the value of the -e flag.
+ */
+	public int
+get_quit_at_eof()
+{
+	if (!less_is_more)
+		return quit_at_eof;
+	/* When less_is_more is set, the -e flag semantics are different. */
+	return quit_at_eof ? OPT_ON : OPT_ONPLUS;
 }

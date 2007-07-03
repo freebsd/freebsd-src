@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2005  Mark Nudelman
+ * Copyright (C) 1984-2007  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -37,7 +37,6 @@ extern int sc_height;
 extern int secure;
 extern int dohelp;
 extern int any_display;
-extern int less_is_more;
 extern char openquote;
 extern char closequote;
 extern char *prproto[];
@@ -46,6 +45,9 @@ extern char *hproto;
 extern char *wproto;
 extern IFILE curr_ifile;
 extern char version[];
+extern int jump_sline;
+extern int jump_sline_fraction;
+extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
 extern int force_logfile;
@@ -54,7 +56,6 @@ extern int logfile;
 #if TAGS
 public char *tagoption = NULL;
 extern char *tags;
-extern int jump_sline;
 #endif
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color;
@@ -153,6 +154,71 @@ opt_l(type, s)
 		ungetsc(s);
 		break;
 	}
+}
+
+/*
+ * Handlers for -j option.
+ */
+	public void
+opt_j(type, s)
+	int type;
+	char *s;
+{
+	PARG parg;
+	char buf[16];
+	int len;
+	int err;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		if (*s == '.')
+		{
+			s++;
+			jump_sline_fraction = getfraction(&s, "j", &err);
+			if (err)
+				error("Invalid line fraction", NULL_PARG);
+			else
+				calc_jump_sline();
+		} else
+		{
+			int sline = getnum(&s, "j", &err);
+			if (err)
+				error("Invalid line number", NULL_PARG);
+			else
+			{
+				jump_sline = sline;
+				jump_sline_fraction = -1;
+			}
+		}
+		break;
+	case QUERY:
+		if (jump_sline_fraction < 0)
+		{
+			parg.p_int =  jump_sline;
+			error("Position target at screen line %d", &parg);
+		} else
+		{
+
+			sprintf(buf, ".%06d", jump_sline_fraction);
+			len = strlen(buf);
+			while (len > 2 && buf[len-1] == '0')
+				len--;
+			buf[len] = '\0';
+			parg.p_string = buf;
+			error("Position target at screen position %s", &parg);
+		}
+		break;
+	}
+}
+
+	public void
+calc_jump_sline()
+{
+	if (jump_sline_fraction < 0)
+		return;
+	jump_sline = sc_height * jump_sline_fraction / NUM_FRAC_DENOM;
 }
 
 #if USERFILE
@@ -267,7 +333,7 @@ opt_p(type, s)
 		 * In "more" mode, the -p argument is a command,
 		 * not a search string, so we don't need a slash.
 		 */
-		if (!less_is_more);
+		if (!less_is_more)
 			ungetsc("/");
 		break;
 	}
