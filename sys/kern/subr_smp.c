@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <machine/cpu.h>
 #include <machine/smp.h>
 
 #include "opt_sched.h"
@@ -107,7 +108,7 @@ static void (*smp_rv_setup_func)(void *arg);
 static void (*smp_rv_action_func)(void *arg);
 static void (*smp_rv_teardown_func)(void *arg);
 static void *smp_rv_func_arg;
-static volatile int smp_rv_waiters[2];
+static volatile int smp_rv_waiters[3];
 
 /* 
  * Shared mutex to restrict busywaits between smp_rendezvous() and
@@ -238,8 +239,9 @@ stop_cpus(cpumask_t map)
 	ipi_selected(map, IPI_STOP);
 
 	i = 0;
-	while ((atomic_load_acq_int(&stopped_cpus) & map) != map) {
+	while ((stopped_cpus & map) != map) {
 		/* spin */
+		cpu_spinwait();
 		i++;
 #ifdef DIAGNOSTIC
 		if (i == 100000) {
@@ -278,8 +280,8 @@ restart_cpus(cpumask_t map)
 	atomic_store_rel_int(&started_cpus, map);
 
 	/* wait for each to clear its bit */
-	while ((atomic_load_acq_int(&stopped_cpus) & map) != 0)
-		;	/* nothing */
+	while ((stopped_cpus & map) != 0)
+		cpu_spinwait();
 
 	return 1;
 }
@@ -297,20 +299,29 @@ void
 smp_rendezvous_action(void)
 {
 
+	/* Ensure we have up-to-date values. */
+	atomic_add_acq_int(&smp_rv_waiters[0], 1);
+	while (smp_rv_waiters[0] < mp_ncpus)
+		cpu_spinwait();
+
 	/* setup function */
 	if (smp_rv_setup_func != NULL)
 		smp_rv_setup_func(smp_rv_func_arg);
+
 	/* spin on entry rendezvous */
-	atomic_add_int(&smp_rv_waiters[0], 1);
-	while (atomic_load_acq_int(&smp_rv_waiters[0]) < mp_ncpus)
-		;	/* nothing */
+	atomic_add_int(&smp_rv_waiters[1], 1);
+	while (smp_rv_waiters[1] < mp_ncpus)
+		cpu_spinwait();
+
 	/* action function */
 	if (smp_rv_action_func != NULL)
 		smp_rv_action_func(smp_rv_func_arg);
+
 	/* spin on exit rendezvous */
-	atomic_add_int(&smp_rv_waiters[1], 1);
-	while (atomic_load_acq_int(&smp_rv_waiters[1]) < mp_ncpus)
-		;	/* nothing */
+	atomic_add_int(&smp_rv_waiters[2], 1);
+	while (smp_rv_waiters[2] < mp_ncpus)
+		cpu_spinwait();
+
 	/* teardown function */
 	if (smp_rv_teardown_func != NULL)
 		smp_rv_teardown_func(smp_rv_func_arg);
@@ -341,8 +352,9 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rv_action_func = action_func;
 	smp_rv_teardown_func = teardown_func;
 	smp_rv_func_arg = arg;
-	smp_rv_waiters[0] = 0;
 	smp_rv_waiters[1] = 0;
+	smp_rv_waiters[2] = 0;
+	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
 	/* signal other processors, which will enter the IPI with interrupts off */
 	ipi_all_but_self(IPI_RENDEZVOUS);
