@@ -169,4 +169,27 @@ void _malloc_postfork(void);
  */
 extern void (*__cleanup)(void);
 
+/*
+ * Get kern.osreldate to detect ABI revisions.  Explicitly
+ * ignores value of $OSVERSION and caches result.  Prototypes
+ * for the wrapped "new" pad-less syscalls are here for now.
+ */
+extern int __getosreldate(void);
+#include <sys/_types.h>
+/* Without pad */
+extern __off_t	__sys_lseek(int, __off_t, int);
+extern int	__sys_ftruncate(int, __off_t);
+extern int	__sys_truncate(const char *, __off_t);
+extern __ssize_t __sys_pread(int, void *, __size_t, __off_t);
+extern __ssize_t __sys_pwrite(int, const void *, __size_t, __off_t);
+extern void *	__sys_mmap(void *, __size_t, int, int, int, __off_t);
+
+/* With pad */
+extern __off_t	__sys_freebsd6_lseek(int, int, __off_t, int);
+extern int	__sys_freebsd6_ftruncate(int, int, __off_t);
+extern int	__sys_freebsd6_truncate(const char *, int, __off_t);
+extern __ssize_t __sys_freebsd6_pread(int, void *, __size_t, int, __off_t);
+extern __ssize_t __sys_freebsd6_pwrite(int, const void *, __size_t, int, __off_t);
+extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t);
+
 #endif /* _LIBC_PRIVATE_H_ */

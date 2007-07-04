@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include "libc_private.h"
 
 /*
  * This function provides 64-bit offset padding that
@@ -47,5 +48,8 @@ ftruncate(fd, length)
 	off_t	length;
 {
 
-	return(__syscall((quad_t)SYS_ftruncate, fd, 0, length));
+	if (__getosreldate() >= 700051)
+		return(__sys_ftruncate(fd, length));
+	else
+		return(__sys_freebsd6_ftruncate(fd, 0, length));
 }

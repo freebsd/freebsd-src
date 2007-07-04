@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include "libc_private.h"
 
 /*
  * This function provides 64-bit offset padding that
@@ -47,5 +48,9 @@ lseek(fd, offset, whence)
 	off_t	offset;
 	int	whence;
 {
-	return(__syscall((quad_t)SYS_lseek, fd, 0, offset, whence));
+
+	if (__getosreldate() >= 700051)
+		return(__sys_lseek(fd, offset, whence));
+	else
+		return(__sys_freebsd6_lseek(fd, 0, offset, whence));
 }
