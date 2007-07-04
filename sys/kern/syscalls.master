@@ -334,9 +334,10 @@
 				    int a4); }
 ; XXX should be	{ int shmsys(int which, ...); }
 172	AUE_NULL	UNIMPL	nosys
-173	AUE_PREAD	STD	{ ssize_t pread(int fd, void *buf, \
+173	AUE_PREAD	STD	{ ssize_t freebsd6_pread(int fd, void *buf, \
 				    size_t nbyte, int pad, off_t offset); }
-174	AUE_PWRITE	STD	{ ssize_t pwrite(int fd, const void *buf, \
+174	AUE_PWRITE	STD	{ ssize_t freebsd6_pwrite(int fd, \
+				    const void *buf, \
 				    size_t nbyte, int pad, off_t offset); }
 175	AUE_NULL	UNIMPL	nosys
 176	AUE_NTP_ADJTIME	STD	{ int ntp_adjtime(struct timex *tp); }
@@ -367,16 +368,16 @@
 				    __setrlimit_args int
 196	AUE_GETDIRENTRIES	STD	{ int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
-197	AUE_MMAP	STD	{ caddr_t mmap(caddr_t addr, size_t len, \
-				    int prot, int flags, int fd, int pad, \
-				    off_t pos); }
+197	AUE_MMAP	STD	{ caddr_t freebsd6_mmap(caddr_t addr, \
+				    size_t len, int prot, int flags, int fd, \
+				    int pad, off_t pos); }
 198	AUE_NULL	STD	{ int nosys(void); } __syscall \
 				    __syscall_args int
-199	AUE_LSEEK	STD	{ off_t lseek(int fd, int pad, off_t offset, \
-				    int whence); }
-200	AUE_TRUNCATE	STD	{ int truncate(char *path, int pad, \
+199	AUE_LSEEK	STD	{ off_t freebsd6_lseek(int fd, int pad, \
+				    off_t offset, int whence); }
+200	AUE_TRUNCATE	STD	{ int freebsd6_truncate(char *path, int pad, \
 				    off_t length); }
-201	AUE_FTRUNCATE	STD	{ int ftruncate(int fd, int pad, \
+201	AUE_FTRUNCATE	STD	{ int freebsd6_ftruncate(int fd, int pad, \
 				    off_t length); }
 202	AUE_SYSCTL	STD	{ int __sysctl(int *name, u_int namelen, \
 				    void *old, size_t *oldlenp, void *new, \
@@ -835,5 +836,15 @@
 474     AUE_NULL        STD    { int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
 				    struct sockaddr * from, __socklen_t *fromlenaddr, \
 				    struct sctp_sndrcvinfo *sinfo, int *msg_flags); }
+475	AUE_PREAD	STD	{ ssize_t pread(int fd, void *buf, \
+				    size_t nbyte, off_t offset); }
+476	AUE_PWRITE	STD	{ ssize_t pwrite(int fd, const void *buf, \
+				    size_t nbyte, off_t offset); }
+477	AUE_MMAP	STD	{ caddr_t mmap(caddr_t addr, size_t len, \
+				    int prot, int flags, int fd, off_t pos); }
+478	AUE_LSEEK	STD	{ off_t lseek(int fd, off_t offset, \
+				    int whence); }
+479	AUE_TRUNCATE	STD	{ int truncate(char *path, off_t length); }
+480	AUE_FTRUNCATE	STD	{ int ftruncate(int fd, off_t length); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
