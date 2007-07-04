@@ -475,6 +475,24 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	return (mmap(td, &ap));
 }
 
+#ifdef COMPAT_FREEBSD6
+int
+freebsd6_freebsd32_mmap(struct thread *td, struct freebsd6_freebsd32_mmap_args *uap)
+{
+	struct freebsd32_mmap_args ap;
+
+	ap.addr = uap->addr;
+	ap.len = uap->len;
+	ap.prot = uap->prot;
+	ap.flags = uap->flags;
+	ap.fd = uap->fd;
+	ap.poslo = uap->poslo;
+	ap.poshi = uap->poshi;
+
+	return (freebsd32_mmap(td, &ap));
+}
+#endif
+
 struct itimerval32 {
 	struct timeval32 it_interval;
 	struct timeval32 it_value;
@@ -1615,6 +1633,71 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
 	return (ftruncate(td, &ap));
 }
+
+#ifdef COMPAT_FREEBSD6
+/* versions with the 'int pad' argument */
+int
+freebsd6_freebsd32_pread(struct thread *td, struct freebsd6_freebsd32_pread_args *uap)
+{
+	struct pread_args ap;
+
+	ap.fd = uap->fd;
+	ap.buf = uap->buf;
+	ap.nbyte = uap->nbyte;
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	return (pread(td, &ap));
+}
+
+int
+freebsd6_freebsd32_pwrite(struct thread *td, struct freebsd6_freebsd32_pwrite_args *uap)
+{
+	struct pwrite_args ap;
+
+	ap.fd = uap->fd;
+	ap.buf = uap->buf;
+	ap.nbyte = uap->nbyte;
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	return (pwrite(td, &ap));
+}
+
+int
+freebsd6_freebsd32_lseek(struct thread *td, struct freebsd6_freebsd32_lseek_args *uap)
+{
+	int error;
+	struct lseek_args ap;
+	off_t pos;
+
+	ap.fd = uap->fd;
+	ap.offset = (uap->offsetlo | ((off_t)uap->offsethi << 32));
+	ap.whence = uap->whence;
+	error = lseek(td, &ap);
+	/* Expand the quad return into two parts for eax and edx */
+	pos = *(off_t *)(td->td_retval);
+	td->td_retval[0] = pos & 0xffffffff;	/* %eax */
+	td->td_retval[1] = pos >> 32;		/* %edx */
+	return error;
+}
+
+int
+freebsd6_freebsd32_truncate(struct thread *td, struct freebsd6_freebsd32_truncate_args *uap)
+{
+	struct truncate_args ap;
+
+	ap.path = uap->path;
+	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	return (truncate(td, &ap));
+}
+
+int
+freebsd6_freebsd32_ftruncate(struct thread *td, struct freebsd6_freebsd32_ftruncate_args *uap)
+{
+	struct ftruncate_args ap;
+
+	ap.fd = uap->fd;
+	ap.length = (uap->lengthlo | ((off_t)uap->lengthhi << 32));
+	return (ftruncate(td, &ap));
+}
+#endif /* COMPAT_FREEBSD6 */
 
 struct sf_hdtr32 {
 	uint32_t headers;
