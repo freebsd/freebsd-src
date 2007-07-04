@@ -78,8 +78,7 @@ ENTRY(__CONCAT(__sys_,x)) ; \
 	.weak	CNAME(__CONCAT(_,x)) ; \
 	.type	CNAME(__CONCAT(_,x)),@function ; \
 	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)) ; \
-	mov	__CONCAT(SYS_,x), %g1 ; \
-	ta	%xcc, ST_SYSCALL ; \
+	_SYSCALL(x) ; \
 	retl ; \
 	 nop ; \
 	.size	CNAME(__CONCAT(__sys_,x)), . - CNAME(__CONCAT(__sys_,x)) ; \

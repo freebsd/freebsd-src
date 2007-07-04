@@ -46,10 +46,11 @@
 
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
-#define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
+#define	PSEUDO(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); \
+			ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%eax; KERNCALL; ret
+			mov __CONCAT($SYS_,x),%eax; KERNCALL; jb 2b; ret
 
 /* gas messes up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
