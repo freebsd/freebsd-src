@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <i4b/layer4/i4b_l4.h>
 
+#error "Cannot be used until I4B is locked."
+
 #define I4BINGACCT	1		/* enable accounting messages */
 #define	I4BINGACCTINTVL	2		/* accounting msg interval in secs */
 

@@ -731,9 +731,9 @@ DCONS_FORCE_GDB		opt_dcons.h
 NI4BTRC			opt_i4b.h
 NI4BRBCH		opt_i4b.h
 NI4BTEL			opt_i4b.h
-NI4BIPR			opt_i4b.h
-NI4BING			opt_i4b.h
-NI4BISPPP		opt_i4b.h
+#XXXBZ#NI4BIPR			opt_i4b.h
+#XXXBZ#NI4BING			opt_i4b.h
+#XXXBZ#NI4BISPPP		opt_i4b.h
 
 # VFS options
 LOOKUP_SHARED		opt_vfs.h
