@@ -1100,8 +1100,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 			CHN_LOCK(wrch);
 			chn_sync(wrch, 0);
 			CHN_UNLOCK(wrch);
-		} else
-			ret = EINVAL;
+		}
 		break;
 
     	case SNDCTL_DSP_SPEED:
@@ -1446,8 +1445,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 			wrch->flags &= ~CHN_F_NOTRIGGER;
 			chn_start(wrch, 1);
 			CHN_UNLOCK(wrch);
-		} else
-			ret = EINVAL;
+		}
 		break;
 
 	case SNDCTL_DSP_SETDUPLEX:
