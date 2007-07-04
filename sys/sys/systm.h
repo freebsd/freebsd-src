@@ -342,6 +342,8 @@ int root_mounted(void);
 struct unrhdr;
 struct unrhdr *new_unrhdr(int low, int high, struct mtx *mutex);
 void delete_unrhdr(struct unrhdr *uh);
+void clean_unrhdr(struct unrhdr *uh);
+void clean_unrhdrl(struct unrhdr *uh);
 int alloc_unr(struct unrhdr *uh);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
