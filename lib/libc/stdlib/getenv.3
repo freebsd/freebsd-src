@@ -32,7 +32,7 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2006
+.Dd June 20, 2007
 .Dt GETENV 3
 .Os
 .Sh NAME
@@ -50,22 +50,13 @@
 .Ft int
 .Fn setenv "const char *name" "const char *value" "int overwrite"
 .Ft int
-.Fn putenv "const char *string"
-.Ft void
+.Fn putenv "char *string"
+.Ft int
 .Fn unsetenv "const char *name"
 .Sh DESCRIPTION
 These functions set, unset and fetch environment variables from the
 host
 .Em environment list .
-For compatibility with differing environment conventions,
-the given arguments
-.Fa name
-and
-.Fa value
-may be appended and prepended,
-respectively,
-with an equal sign
-.Dq Li \&= .
 .Pp
 The
 .Fn getenv
@@ -97,11 +88,18 @@ to the given
 .Pp
 The
 .Fn putenv
-function takes an argument of the form ``name=value'' and is
-equivalent to:
-.Bd -literal -offset indent
-setenv(name, value, 1);
-.Ed
+function takes an argument of the form ``name=value'' and
+puts it directly into the current environment,
+so altering the argument shall change the environment.
+If the variable
+.Fa name
+does not exist in the list,
+it is inserted with the given
+.Fa value .
+If the variable
+.Fa name
+does exist, it is reset to the given
+.Fa value .
 .Pp
 The
 .Fn unsetenv
@@ -121,15 +119,55 @@ is not in the current environment,
 .Dv NULL
 is returned.
 .Pp
-.Rv -std setenv putenv
+.Rv -std setenv putenv unsetenv
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The function
+.Fn getenv ,
+.Fn setenv
+or
+.Fn unsetenv
+failed because the
+.Fa name
+is a
+.Dv NULL
+pointer, points to an empty string, or points to a string containing an
+.Dq Li \&=
+character.
+.Pp
+The function
+.Fn putenv
+failed because
+.Fa string
+is a
+.Dv NULL
+pointer,
+.Fa string is without an
+.Dq Li \&=
+character or
+.Dq Li \&=
+is the first character in
+.Fa string .
+This does not follow the
+.Tn POSIX
+specification.
 .It Bq Er ENOMEM
 The function
-.Fn setenv
+.Fn setenv ,
+.Fn unsetenv
 or
 .Fn putenv
 failed because they were unable to allocate memory for the environment.
+.It Bq Er EFAULT
+The functions
+.Fn setenv ,
+.Fn unsetenv
+or
+.Fn putenv
+failed to make a valid copy of the environment due to the environment being
+corrupt (i.e., a name without a value).  A warning will be output to stderr with
+information about the issue.
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
@@ -141,6 +179,13 @@ The
 .Fn getenv
 function conforms to
 .St -isoC .
+The
+.Fn setenv ,
+.Fn putenv
+and
+.Fn unsetenv
+functions conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The functions
 .Fn setenv
@@ -152,19 +197,30 @@ The
 .Fn putenv
 function appeared in
 .Bx 4.3 Reno .
+.Pp
+Until
+.Fx 7.0 ,
+.Fn putenv
+would make a copy of 
+.Fa string
+and insert it into the environment using
+.Fn setenv .
+This was changed to use
+.Fa string
+as the memory location of the ``name=value'' pair to follow the
+.Tn POSIX
+specification.
 .Sh BUGS
 Successive calls to
 .Fn setenv
-or
-.Fn putenv
-assigning a differently sized
+that assign a larger-sized
 .Fa value
-to the same
+than any previous value to the same
 .Fa name
 will result in a memory leak.
 The
 .Fx
-semantics for these functions
+semantics for this function
 (namely, that the contents of
 .Fa value
 are copied and that old values remain accessible indefinitely) make this

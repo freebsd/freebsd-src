@@ -289,6 +289,7 @@ void
 setvareq(char *s, int flags)
 {
 	struct var *vp, **vpp;
+	char *p;
 	int len;
 
 	if (aflag)
@@ -319,7 +320,10 @@ setvareq(char *s, int flags)
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
 			if ((vp->flags & VEXPORT) && localevar(s)) {
-				putenv(s);
+				p = strchr(s, '=');
+				*p = '\0';
+				(void) setenv(s, p + 1, 1);
+				*p = '=';
 				(void) setlocale(LC_ALL, "");
 			}
 			INTON;
@@ -335,7 +339,10 @@ setvareq(char *s, int flags)
 	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
-		putenv(s);
+		p = strchr(s, '=');
+		*p = '\0';
+		(void) setenv(s, p + 1, 1);
+		*p = '=';
 		(void) setlocale(LC_ALL, "");
 	}
 	INTON;
@@ -596,7 +603,10 @@ exportcmd(int argc, char **argv)
 
 						vp->flags |= flag;
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-							putenv(vp->text);
+							p = strchr(vp->text, '=');
+							*p = '\0';
+							(void) setenv(vp->text, p + 1, 1);
+							*p = '=';
 							(void) setlocale(LC_ALL, "");
 						}
 						goto found;
