@@ -142,6 +142,20 @@ pread(td, uap)
 	return(error);
 }
 
+int
+freebsd6_pread(td, uap)
+	struct thread *td;
+	struct freebsd6_pread_args *uap;
+{
+	struct pread_args oargs;
+
+	oargs.fd = uap->fd;
+	oargs.buf = uap->buf;
+	oargs.nbyte = uap->nbyte;
+	oargs.offset = uap->offset;
+	return (pread(td, &oargs));
+}
+
 /*
  * Scatter read system call.
  */
@@ -335,6 +349,20 @@ pwrite(td, uap)
 	auio.uio_segflg = UIO_USERSPACE;
 	error = kern_pwritev(td, uap->fd, &auio, uap->offset);
 	return(error);
+}
+
+int
+freebsd6_pwrite(td, uap)
+	struct thread *td;
+	struct freebsd6_pwrite_args *uap;
+{
+	struct pwrite_args oargs;
+
+	oargs.fd = uap->fd;
+	oargs.buf = uap->buf;
+	oargs.nbyte = uap->nbyte;
+	oargs.offset = uap->offset;
+	return (pwrite(td, &oargs));
 }
 
 /*
