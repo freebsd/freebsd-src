@@ -392,6 +392,20 @@ done:
 	return (error);
 }
 
+int
+freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
+{
+	struct mmap_args oargs;
+
+	oargs.addr = uap->addr;
+	oargs.len = uap->len;
+	oargs.prot = uap->prot;
+	oargs.flags = uap->flags;
+	oargs.fd = uap->fd;
+	oargs.pos = uap->pos;
+	return (mmap(td, &oargs));
+}
+
 #ifdef COMPAT_43
 #ifndef _SYS_SYSPROTO_H_
 struct ommap_args {
