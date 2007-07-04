@@ -67,6 +67,7 @@ main(int argc, char **argv)
 	char *altpath, **ep, *p, **parg;
 	char *cleanenv[1];
 	int ch, want_clear;
+	int rtrn;
 
 	altpath = NULL;
 	want_clear = 0;
@@ -105,7 +106,11 @@ main(int argc, char **argv)
 	for (argv += optind; *argv && (p = strchr(*argv, '=')); ++argv) {
 		if (env_verbosity)
 			fprintf(stderr, "#env setenv:\t%s\n", *argv);
-		(void)setenv(*argv, ++p, 1);
+		*p = '\0';
+		rtrn = setenv(*argv, p + 1, 1);
+		*p = '=';
+		if (rtrn == -1)
+			err(EXIT_FAILURE, "setenv %s", *argv);
 	}
 	if (*argv) {
 		if (altpath)

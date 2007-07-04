@@ -301,6 +301,7 @@ free_variables(void)
 void
 pvariable_set(char *var)
 {
+    char *p;
     char tmp[1024];
 
     if (!var)
@@ -312,7 +313,9 @@ pvariable_set(char *var)
     if (index(var, '=') == NULL)
 	msgFatal("Invalid variable format: %s", var);
     strlcat(tmp, var, 1024); 
-    putenv(tmp);
+    p = strchr(tmp, '=');
+    *p = '\0';
+    setenv(tmp, p + 1, 1);
 }
 
 char *
