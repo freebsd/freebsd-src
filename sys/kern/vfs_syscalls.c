@@ -1785,15 +1785,27 @@ olseek(td, uap)
 		off_t offset;
 		int whence;
 	} */ nuap;
-	int error;
 
 	nuap.fd = uap->fd;
 	nuap.offset = uap->offset;
 	nuap.whence = uap->whence;
-	error = lseek(td, &nuap);
-	return (error);
+	return (lseek(td, &nuap));
 }
 #endif /* COMPAT_43 */
+
+/* Version with the 'pad' argument */
+int
+freebsd6_lseek(td, uap)
+	struct thread *td;
+	register struct freebsd6_lseek_args *uap;
+{
+	struct lseek_args ouap;
+
+	ouap.fd = uap->fd;
+	ouap.offset = uap->offset;
+	ouap.whence = uap->whence;
+	return (lseek(td, &ouap));
+}
 
 /*
  * Check access permissions using passed credentials.
@@ -3149,6 +3161,27 @@ oftruncate(td, uap)
 	return (ftruncate(td, &nuap));
 }
 #endif /* COMPAT_43 */
+
+/* Versions with the pad argument */
+int
+freebsd6_truncate(struct thread *td, struct freebsd6_truncate_args *uap)
+{
+	struct truncate_args ouap;
+
+	ouap.path = uap->path;
+	ouap.length = uap->length;
+	return (truncate(td, &ouap));
+}
+
+int
+freebsd6_ftruncate(struct thread *td, struct freebsd6_ftruncate_args *uap)
+{
+	struct ftruncate_args ouap;
+
+	ouap.fd = uap->fd;
+	ouap.length = uap->length;
+	return (ftruncate(td, &ouap));
+}
 
 /*
  * Sync an open file.
