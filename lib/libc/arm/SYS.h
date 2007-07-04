@@ -56,26 +56,19 @@
 	_SYSCALL_NOERROR(x);						\
 	bcs PIC_SYM(CERROR, PLT)
 
-#define SYSCALL_NOERROR(x)						\
-	_SYSCALL_NOERROR(x)
-
 #define SYSCALL(x)							\
 	_SYSCALL(x)
 
-
-#define PSEUDO_NOERROR(x)						\
-	_SYSCALL_NOERROR(x);						\
-	RET
-
 #define PSEUDO(x)							\
-	_SYSCALL(x);							\
+	ENTRY(__CONCAT(__sys_, x));					\
+	.weak _C_LABEL(__CONCAT(_,x));					\
+	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
+	SYSTRAP(x)
+	bcs PIC_SYM(CERROR, PLT)
 	RET
-
-
-#define RSYSCALL_NOERROR(x)						\
-	PSEUDO_NOERROR(x)
 
 #define RSYSCALL(x)							\
-	PSEUDO(x)
+	_SYSCALL(x);							\
+	RET
 
 	.globl  CERROR
