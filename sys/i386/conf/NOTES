@@ -1059,22 +1059,23 @@ options 	NI4BRBCH=4
 device		i4btel
 options 	NI4BTEL=2
 #
+#XXXBZ# IPR and ISPPP are not usable until I4B is locked.
 # network driver for IP over raw HDLC ISDN
-device		i4bipr
-options 	NI4BIPR=4
+#XXXBZ#device		i4bipr
+#XXXBZ#options 	NI4BIPR=4
 # enable VJ header compression detection for ipr i/f
-options 	IPR_VJ
+#XXXBZ#options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
-options 	IPR_LOG=32
+#XXXBZ#options 	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN; requires an equivalent
 # number of sppp device to be configured
-device		i4bisppp
-options 	NI4BISPPP=4
+#XXXBZ#device		i4bisppp
+#XXXBZ#options 	NI4BISPPP=4
 #
 # B-channel interface to the netgraph subsystem
-device		i4bing
-options 	NI4BING=2
+#XXXBZ#device		i4bing
+#XXXBZ#options 	NI4BING=2
 #
 # CAPI driver needed for active ISDN cards (see iavc driver above)
 device		i4bcapi

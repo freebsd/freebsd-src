@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i4b/layer4/i4b_l4.h>
 
-NET_NEEDS_GIANT("i4b_ipr");
+#error "Cannot be used until I4B is locked."
 
 #define I4BIPRMTU	1500		/* regular MTU */
 #define I4BIPRMAXMTU	2000		/* max MTU */

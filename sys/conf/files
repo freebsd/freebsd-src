@@ -1309,11 +1309,11 @@ gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 i4b/driver/i4b_trace.c		optional i4btrc
 i4b/driver/i4b_rbch.c		optional i4brbch
 i4b/driver/i4b_tel.c		optional i4btel
-i4b/driver/i4b_ipr.c		optional i4bipr
+#XXXBZ#i4b/driver/i4b_ipr.c		optional i4bipr
 net/slcompress.c		optional i4bipr | i4bisppp
 i4b/driver/i4b_ctl.c		optional i4bctl
-i4b/driver/i4b_ing.c		optional i4bing
-i4b/driver/i4b_isppp.c		optional i4bisppp
+#XXXBZ#i4b/driver/i4b_ing.c		optional i4bing
+#XXXBZ#i4b/driver/i4b_isppp.c		optional i4bisppp
 #
 # isdn4bsd CAPI driver
 #
