@@ -60,6 +60,7 @@ struct s_addr {
 struct s_subst {
 	int n;					/* Occurrence to subst. */
 	int p;					/* True if p flag */
+	int icase;				/* True if I flag */
 	char *wfile;				/* NULL if no wfile */
 	int wfd;				/* Cached file descriptor */
 	regex_t *re;				/* Regular expression */
