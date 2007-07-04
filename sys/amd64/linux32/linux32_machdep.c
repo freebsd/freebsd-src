@@ -927,7 +927,6 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.len  = linux_args->len;
 	}
 	bsd_args.pos = (off_t)linux_args->pgoff * PAGE_SIZE;
-	bsd_args.pad = 0;
 
 #ifdef DEBUG
 	if (ldebug(mmap))
@@ -1153,7 +1152,6 @@ linux_ftruncate64(struct thread *td, struct linux_ftruncate64_args *args)
 #endif
 
 	sa.fd = args->fd;
-	sa.pad = 0;
 	sa.length = args->length;
 	return ftruncate(td, &sa);
 }
