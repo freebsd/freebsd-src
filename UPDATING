@@ -21,6 +21,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070704:
+        The new IPsec code is now compiled in using the IPSEC option.  The
+	IPSEC option now requires "device crypto" be defined in your kernel
+	configuration.  The FAST_IPSEC kernel option is now deprecated.
+
 20070702:
 	The packet filter (pf) code has been updated to OpenBSD 4.1 Please
 	note the changed syntax - keep state is now on by default.  Also
