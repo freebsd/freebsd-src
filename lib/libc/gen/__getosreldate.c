@@ -1,6 +1,6 @@
-/*
- * Copyright (c) 1992, 1993
- *	The Regents of the University of California.  All rights reserved.
+/*-
+ * Copyright (c) 2007 Peter Wemm
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,29 +24,38 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)truncate.c	8.1 (Berkeley) 6/17/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include "libc_private.h"
+#include <sys/param.h>
+#include <sys/sysctl.h>
 
 /*
- * This function provides 64-bit offset padding that
- * is not supplied by GCC 1.X but is supplied by GCC 2.X.
+ * This is private to libc.  It is intended for wrapping syscall stubs in order
+ * to avoid having to put SIGSYS signal handlers in place to test for presence
+ * of new syscalls.  This caches the result in order to be as quick as possible.
+ *
+ * Use getosreldate(3) for public use as it respects the $OSVERSION environment
+ * variable.
  */
-int
-truncate(path, length)
-	const char	*path;
-	off_t	length;
-{
 
-	if (__getosreldate() >= 700051)
-		return(__sys_truncate(path, length));
-	else
-		return(__sys_freebsd6_truncate(path, 0, length));
+int
+__getosreldate(void)
+{
+	static int osreldate;
+	size_t len;
+	int oid[2];
+	int error, osrel;
+
+	if (osreldate != 0)
+		return (osreldate);
+	
+	oid[0] = CTL_KERN;
+	oid[1] = KERN_OSRELDATE;
+	osrel = 0;
+	len = sizeof(osrel);
+	error = sysctl(oid, 2, &osrel, &len, NULL, 0);
+	if (error == 0 && osrel > 0 && len == sizeof(osrel))
+		osreldate = osrel;
+	return (osreldate);
 }

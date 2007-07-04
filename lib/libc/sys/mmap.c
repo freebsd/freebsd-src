@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include "libc_private.h"
 
 /*
  * This function provides 64-bit offset padding that
@@ -52,6 +53,9 @@ mmap(addr, len, prot, flags, fd, offset)
 	off_t	offset;
 {
 
-	return ((void *)(intptr_t)__syscall((quad_t)SYS_mmap, addr, len, prot,
-	    flags, fd, 0, offset));
+	if (__getosreldate() >= 700051)
+		return (__sys_mmap(addr, len, prot, flags, fd, offset));
+	else
+
+		return (__sys_freebsd6_mmap(addr, len, prot, flags, fd, 0, offset));
 }
