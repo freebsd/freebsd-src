@@ -766,10 +766,11 @@ export(const char *s)
 		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
 		"IFS", "PATH", NULL
 	};
+	char *p;
 	const char **pp;
 	size_t n;
 
-	if (strlen(s) > 1024 || strchr(s, '=') == NULL)
+	if (strlen(s) > 1024 || (p = strchr(s, '=')) == NULL)
 		return (0);
 	if (strncmp(s, "LD_", 3) == 0)
 		return (0);
@@ -778,7 +779,9 @@ export(const char *s)
 		if (s[n] == '=' && strncmp(s, *pp, n) == 0)
 			return (0);
 	}
-	(void)putenv(s);
+	*p = '\0';
+	(void)setenv(s, p + 1, 1);
+	*p = '=';
 	return (1);
 }
 

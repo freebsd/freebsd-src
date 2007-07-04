@@ -135,16 +135,16 @@ main(int argc, char *argv[])
 			fileflag = 1;
 			break;
 		case 'g':
-			putenv("BLOCKSIZE=1G");
+			setenv("BLOCKSIZE", "1G", 1);
 			break;
 		case 'h':
 			humanflag = 1;
 			break;
 		case 'k':
-			putenv("BLOCKSIZE=1K");
+			setenv("BLOCKSIZE", "1K", 1);
 			break;
 		case 'm':
-			putenv("BLOCKSIZE=1M");
+			setenv("BLOCKSIZE", "1M", 1);
 			break;
 		case 'M':
 			memf = optarg;
