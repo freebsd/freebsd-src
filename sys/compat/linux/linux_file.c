@@ -835,7 +835,6 @@ linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 		} */ nuap;
 	   
 	nuap.fd = args->fd;
-	nuap.pad = 0;
 	nuap.length = args->length;
 	return (ftruncate(td, &nuap));
 }
