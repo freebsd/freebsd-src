@@ -50,28 +50,14 @@ ENTRY(__sys_ ## name,0);		/* XXX # of args? */	\
 	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
 	CALLSYS_NOERROR(name)
 
-
 #define RSYSCALL(name)						\
 	SYSCALL(name);						\
 	br.ret.sptk.few rp;					\
 END(__sys_ ## name)
 
-#define RSYSCALL_NOERROR(name)					\
-	SYSCALL_NOERROR(name);					\
-	br.ret.sptk.few rp;					\
-END(__sys_ ## name)
-
-
 #define	PSEUDO(name)						\
 ENTRY(__sys_ ## name,0);	/* XXX # of args? */		\
 	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
 	CALLSYS_ERROR(name);					\
-	br.ret.sptk.few rp;					\
-END(__sys_ ## name);
-
-#define	PSEUDO_NOERROR(name)					\
-ENTRY(__sys_ ## name,0);		/* XXX # of args? */	\
-	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
-	CALLSYS_NOERROR(name);					\
 	br.ret.sptk.few rp;					\
 END(__sys_ ## name);
