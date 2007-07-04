@@ -326,7 +326,7 @@ setsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 	memcpy(&msfr.msfr_group, &psu->ss, psu->ss.ss_len);
 	msfr.msfr_srcs = slist;		/* pointer */
 
-	return (setsockopt(s, level, optname, &msfr, sizeof(msfr)));
+	return (_setsockopt(s, level, optname, &msfr, sizeof(msfr)));
 }
 
 /*
@@ -394,7 +394,7 @@ getsourcefilter(int s, uint32_t interface, struct sockaddr *group,
 	 * of filter entries for the group in msfr.msfr_nsrcs.
 	 */
 	msfr.msfr_srcs = slist;
-	err = getsockopt(s, level, optname, &msfr, &optlen);
+	err = _getsockopt(s, level, optname, &msfr, &optlen);
 	if (err == 0) {
 		*numsrc = msfr.msfr_nsrcs;
 		*fmode = msfr.msfr_fmode;
