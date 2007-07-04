@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070704: I4B 'modules' temporary disconnected
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i4bing.4.gz
+OLD_FILES+=usr/share/man/man4/i4bipr.4.gz
+OLD_FILES+=usr/share/man/man4/i4bisppp.4.gz
+.endif
 # 20070703: pf 4.1 import
 OLD_FILES+=usr/libexec/ftp-proxy
 # 20070701: KAME IPSec removal
