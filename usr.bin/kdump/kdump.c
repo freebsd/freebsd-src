@@ -453,6 +453,19 @@ ktrsyscall(struct ktr_syscall *ktr)
 				msyncflagsname((int)*ip);
 				ip++;
 				narg--;
+#ifdef SYS_freebsd6_mmap
+			} else if (ktr->ktr_code == SYS_freebsd6_mmap) {
+				print_number(ip,narg,c);
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				mmapprotname ((int)*ip);
+				(void)putchar(',');
+				ip++;
+				narg--;
+				mmapflagsname ((int)*ip);
+				ip++;
+				narg--;
+#endif
 			} else if (ktr->ktr_code == SYS_mmap) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
@@ -525,7 +538,8 @@ ktrsyscall(struct ktr_syscall *ktr)
 				sockoptname((int)*ip);
 				ip++;
 				narg--;
-			} else if (ktr->ktr_code == SYS_lseek) {
+#ifdef SYS_freebsd6_lseek
+			} else if (ktr->ktr_code == SYS_freebsd6_lseek) {
 				print_number(ip,narg,c);
 				/* Hidden 'pad' argument, not in lseek(2) */
 				print_number(ip,narg,c);
@@ -534,6 +548,16 @@ ktrsyscall(struct ktr_syscall *ktr)
 				whencename ((int)*ip);
 				ip++;
 				narg--;
+#endif
+			} else if (ktr->ktr_code == SYS_lseek) {
+				print_number(ip,narg,c);
+				/* Hidden 'pad' argument, not in lseek(2) */
+				print_number(ip,narg,c);
+				(void)putchar(',');
+				whencename ((int)*ip);
+				ip++;
+				narg--;
+
 			} else if (ktr->ktr_code == SYS_flock) {
 				print_number(ip,narg,c);
 				(void)putchar(',');
