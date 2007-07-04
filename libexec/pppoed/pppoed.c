@@ -258,7 +258,7 @@ Spawn(const char *prog, const char *acname, const char *provider,
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
   struct ngpppoe_init_data *data;
-  char env[sizeof(HISMACADDR)+18], unknown[14], sessionid[5], *path;
+  char env[18], unknown[14], sessionid[5], *path;
   unsigned char *macaddr;
   const char *msg;
   int ret, slen;
@@ -352,11 +352,11 @@ Spawn(const char *prog, const char *acname, const char *provider,
       /* Put the peer's MAC address in the environment */
       if (sz >= sizeof(struct ether_header)) {
         macaddr = ((struct ether_header *)request)->ether_shost;
-        snprintf(env, sizeof(env), "%s=%x:%x:%x:%x:%x:%x", HISMACADDR,
+        snprintf(env, sizeof(env), "%x:%x:%x:%x:%x:%x",
                  macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4],
                  macaddr[5]);
-        if (putenv(env) != 0)
-          syslog(LOG_INFO, "putenv: cannot set %s: %m", env);
+        if (setenv(HISMACADDR, env, 1) != 0)
+          syslog(LOG_INFO, "setenv: cannot set %s: %m", HISMACADDR);
       }
 
       /* And send our request data to the waiting node */

@@ -564,10 +564,14 @@ static void
 export_pam_environment(void)
 {
 	char	**pp;
+	char	*p;
 
 	for (pp = environ_pam; *pp != NULL; pp++) {
-		if (ok_to_export(*pp))
-			putenv(*pp);
+		if (ok_to_export(*pp)) {
+			p = strchr(*pp, '=');
+			*p = '\0';
+			setenv(*pp, p + 1, 1);
+		}
 		free(*pp);
 	}
 }
