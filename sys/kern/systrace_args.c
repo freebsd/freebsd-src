@@ -927,9 +927,9 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* pread */
+	/* freebsd6_pread */
 	case 173: {
-		struct pread_args *p = params;
+		struct freebsd6_pread_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* void * */
 		uarg[2] = p->nbyte; /* size_t */
@@ -938,9 +938,9 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
-	/* pwrite */
+	/* freebsd6_pwrite */
 	case 174: {
-		struct pwrite_args *p = params;
+		struct freebsd6_pwrite_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* const void * */
 		uarg[2] = p->nbyte; /* size_t */
@@ -1043,9 +1043,9 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* mmap */
+	/* freebsd6_mmap */
 	case 197: {
-		struct mmap_args *p = params;
+		struct freebsd6_mmap_args *p = params;
 		uarg[0] = (intptr_t) p->addr; /* caddr_t */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->prot; /* int */
@@ -1061,9 +1061,9 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* lseek */
+	/* freebsd6_lseek */
 	case 199: {
-		struct lseek_args *p = params;
+		struct freebsd6_lseek_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->pad; /* int */
 		iarg[2] = p->offset; /* off_t */
@@ -1071,18 +1071,18 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* truncate */
+	/* freebsd6_truncate */
 	case 200: {
-		struct truncate_args *p = params;
+		struct freebsd6_truncate_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->pad; /* int */
 		iarg[2] = p->length; /* off_t */
 		*n_args = 3;
 		break;
 	}
-	/* ftruncate */
+	/* freebsd6_ftruncate */
 	case 201: {
-		struct ftruncate_args *p = params;
+		struct freebsd6_ftruncate_args *p = params;
 		iarg[0] = p->fd; /* int */
 		iarg[1] = p->pad; /* int */
 		iarg[2] = p->length; /* off_t */
@@ -2803,6 +2803,63 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
 		uarg[6] = (intptr_t) p->msg_flags; /* int * */
 		*n_args = 7;
+		break;
+	}
+	/* pread */
+	case 475: {
+		struct pread_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->buf; /* void * */
+		uarg[2] = p->nbyte; /* size_t */
+		iarg[3] = p->offset; /* off_t */
+		*n_args = 4;
+		break;
+	}
+	/* pwrite */
+	case 476: {
+		struct pwrite_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->buf; /* const void * */
+		uarg[2] = p->nbyte; /* size_t */
+		iarg[3] = p->offset; /* off_t */
+		*n_args = 4;
+		break;
+	}
+	/* mmap */
+	case 477: {
+		struct mmap_args *p = params;
+		uarg[0] = (intptr_t) p->addr; /* caddr_t */
+		uarg[1] = p->len; /* size_t */
+		iarg[2] = p->prot; /* int */
+		iarg[3] = p->flags; /* int */
+		iarg[4] = p->fd; /* int */
+		iarg[5] = p->pos; /* off_t */
+		*n_args = 6;
+		break;
+	}
+	/* lseek */
+	case 478: {
+		struct lseek_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* off_t */
+		iarg[2] = p->whence; /* int */
+		*n_args = 3;
+		break;
+	}
+	/* truncate */
+	case 479: {
+		struct truncate_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* char * */
+		iarg[1] = p->length; /* off_t */
+		*n_args = 2;
+		break;
+	}
+	/* ftruncate */
+	case 480: {
+		struct ftruncate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->length; /* off_t */
+		*n_args = 2;
 		break;
 	}
 	default:
