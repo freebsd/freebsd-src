@@ -197,6 +197,8 @@ struct unrhdr {
 	u_int			first;	/* items in allocated from start */
 	u_int			last;	/* items free at end */
 	struct mtx		*mtx;
+	TAILQ_HEAD(unrfr,unr)	ppfree;	/* Items to be freed after mtx
+					   lock dropped */
 };
 
 
@@ -281,9 +283,35 @@ new_unr(struct unrhdr *uh, void **p1, void **p2)
 static __inline void
 delete_unr(struct unrhdr *uh, void *ptr)
 {
+	struct unr *up;
 
 	uh->alloc--;
-	Free(ptr);
+	up = ptr;
+	TAILQ_INSERT_TAIL(&uh->ppfree, up, list);
+}
+
+void
+clean_unrhdrl(struct unrhdr *uh)
+{
+	struct unr *up;
+
+	mtx_assert(uh->mtx, MA_OWNED);
+	while ((up = TAILQ_FIRST(&uh->ppfree)) != NULL) {
+		TAILQ_REMOVE(&uh->ppfree, up, list);
+		mtx_unlock(uh->mtx);
+		Free(up);
+		mtx_lock(uh->mtx);
+	}
+
+}
+
+void
+clean_unrhdr(struct unrhdr *uh)
+{
+
+	mtx_lock(uh->mtx);
+	clean_unrhdrl(uh);
+	mtx_unlock(uh->mtx);
 }
 
 /*
@@ -305,6 +333,7 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 	else
 		uh->mtx = &unitmtx;
 	TAILQ_INIT(&uh->head);
+	TAILQ_INIT(&uh->ppfree);
 	uh->low = low;
 	uh->high = high;
 	uh->first = 0;
@@ -320,6 +349,8 @@ delete_unrhdr(struct unrhdr *uh)
 	check_unrhdr(uh, __LINE__);
 	KASSERT(uh->busy == 0, ("unrhdr has %u allocations", uh->busy));
 	KASSERT(uh->alloc == 0, ("UNR memory leak in delete_unrhdr"));
+	KASSERT(TAILQ_FIRST(&uh->ppfree) == NULL,
+	    ("unrhdr has postponed item for free"));
 	Free(uh);
 }
 
@@ -591,6 +622,7 @@ alloc_unr(struct unrhdr *uh)
 
 	mtx_lock(uh->mtx);
 	i = alloc_unrl(uh);
+	clean_unrhdrl(uh);
 	mtx_unlock(uh->mtx);
 	return (i);
 }
@@ -719,6 +751,7 @@ free_unr(struct unrhdr *uh, u_int item)
 	p2 = Malloc(sizeof(struct unr));
 	mtx_lock(uh->mtx);
 	free_unrl(uh, item, &p1, &p2);
+	clean_unrhdrl(uh);
 	mtx_unlock(uh->mtx);
 	if (p1 != NULL)
 		Free(p1);

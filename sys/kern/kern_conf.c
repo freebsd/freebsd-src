@@ -617,6 +617,7 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 	dev->si_mode = mode;
 
 	devfs_create(dev);
+	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 	return (dev);
 }
@@ -703,6 +704,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_end(ap);
 
 	devfs_create(dev);
+	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 	dev_depends(pdev, dev);
 	return (dev);
