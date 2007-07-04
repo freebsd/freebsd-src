@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i4b/layer4/i4b_l4.h>
 
-NET_NEEDS_GIANT("i4b_isppp");
+#error "Cannot be used until I4B is locked."
 
 #define ISPPP_FMT	"isp%d: "
 #define	ISPPP_ARG(sc)	(sc->sc_ifp->if_dunit)

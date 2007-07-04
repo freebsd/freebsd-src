@@ -542,9 +542,9 @@ options 	ELSA_QS1PCI
 #XXX#device	i4bipr
 #XXX#options 	NI4BIPR=4
 # enable VJ header compression detection for ipr i/f
-options 	IPR_VJ
+#XXX#options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
-options 	IPR_LOG=32
+#XXX#options 	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN; requires an equivalent
 # number of sppp device to be configured
