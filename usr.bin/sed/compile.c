@@ -68,7 +68,7 @@ static char	 *compile_addr(char *, struct s_addr *);
 static char	 *compile_ccl(char **, char *);
 static char	 *compile_delimited(char *, char *);
 static char	 *compile_flags(char *, struct s_subst *);
-static char	 *compile_re(char *, regex_t **);
+static regex_t	 *compile_re(char *, int);
 static char	 *compile_subst(char *, struct s_subst *);
 static char	 *compile_text(void);
 static char	 *compile_tr(char *, struct s_tr **);
@@ -157,6 +157,7 @@ compile_stream(struct s_command **link)
 	static char lbuf[_POSIX2_LINE_MAX + 1];	/* To save stack */
 	struct s_command *cmd, *cmd2, *stack;
 	struct s_format *fp;
+	char re[_POSIX2_LINE_MAX + 1];
 	int naddr;				/* Number of addresses */
 
 	stack = 0;
@@ -319,10 +320,14 @@ nonsel:		/* Now parse the command */
 					linenum, fname);
 			if ((cmd->u.s = malloc(sizeof(struct s_subst))) == NULL)
 				err(1, "malloc");
-			p = compile_re(p, &cmd->u.s->re);
+			p = compile_delimited(p, re);
 			if (p == NULL)
 				errx(1,
 				"%lu: %s: unterminated substitute pattern", linenum, fname);
+			if (*re == '\0')
+				cmd->u.s->re = NULL;
+			else
+				cmd->u.s->re = compile_re(re, cmd->u.s->icase);
 			--p;
 			p = compile_subst(p, cmd->u.s);
 			p = compile_flags(p, cmd->u.s);
@@ -422,33 +427,28 @@ compile_ccl(char **sp, char *t)
 }
 
 /*
- * Get a regular expression.  P points to the delimiter of the regular
- * expression; repp points to the address of a regexp pointer.  Newline
- * and delimiter escapes are processed; other escapes are ignored.
- * Returns a pointer to the first character after the final delimiter
- * or NULL in the case of a non terminated regular expression.  The regexp
- * pointer is set to the compiled regular expression.
+ * Compiles the regular expression in RE and returns a pointer to the compiled
+ * regular expression.
  * Cflags are passed to regcomp.
  */
-static char *
-compile_re(char *p, regex_t **repp)
+static regex_t *
+compile_re(char *re, int case_insensitive)
 {
-	int eval;
-	char re[_POSIX2_LINE_MAX + 1];
+	regex_t *rep;
+	int eval, flags;
 
-	p = compile_delimited(p, re);
-	if (p && strlen(re) == 0) {
-		*repp = NULL;
-		return (p);
-	}
-	if ((*repp = malloc(sizeof(regex_t))) == NULL)
+
+	flags = rflags;
+	if (case_insensitive)
+		flags |= REG_ICASE;
+	if ((rep = malloc(sizeof(regex_t))) == NULL)
 		err(1, "malloc");
-	if (p && (eval = regcomp(*repp, re, rflags)) != 0)
+	if (eval = regcomp(rep, re, flags) != 0)
 		errx(1, "%lu: %s: RE error: %s",
-				linenum, fname, strregerror(eval, *repp));
-	if (maxnsub < (*repp)->re_nsub)
-		maxnsub = (*repp)->re_nsub;
-	return (p);
+				linenum, fname, strregerror(eval, rep));
+	if (maxnsub < rep->re_nsub)
+		maxnsub = rep->re_nsub;
+	return (rep);
 }
 
 /*
@@ -554,6 +554,7 @@ compile_flags(char *p, struct s_subst *s)
 	s->p = 0;
 	s->wfile = NULL;
 	s->wfd = -1;
+	s->icase = 0;
 	for (gn = 0;;) {
 		EATSPACE();			/* EXTENSION */
 		switch (*p) {
@@ -570,6 +571,9 @@ compile_flags(char *p, struct s_subst *s)
 			return (p);
 		case 'p':
 			s->p = 1;
+			break;
+		case 'I':
+			s->icase = 1;
 			break;
 		case '1': case '2': case '3':
 		case '4': case '5': case '6':
@@ -758,16 +762,28 @@ compile_text(void)
 static char *
 compile_addr(char *p, struct s_addr *a)
 {
-	char *end;
+	char *end, re[_POSIX2_LINE_MAX + 1];
+	int icase;
+
+	icase = 0;
 
 	switch (*p) {
 	case '\\':				/* Context address */
 		++p;
 		/* FALLTHROUGH */
 	case '/':				/* Context address */
-		p = compile_re(p, &a->u.r);
+		p = compile_delimited(p, re);
 		if (p == NULL)
 			errx(1, "%lu: %s: unterminated regular expression", linenum, fname);
+		/* Check for case insensitive regexp flag */
+		if (*p == 'I') {
+			icase = 1;
+			p++;
+		}
+		if (*re == '\0')
+			a->u.r = NULL;
+		else
+			a->u.r = compile_re(re, icase);
 		a->type = AT_RE;
 		return (p);
 

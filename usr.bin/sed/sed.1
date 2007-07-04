@@ -191,7 +191,10 @@ option was specified);
 .It
 a context address
 that consists of a regular expression preceded and followed by a
-delimiter.
+delimiter. The closing delimiter can also optionally be followed by the 
+.Dq I
+character, to indicate that the regular expression is to be matched
+in a case-insensitive way.
 .El
 .Pp
 A command line with no addresses selects every pattern space.
@@ -490,6 +493,8 @@ Append the pattern space to
 if a replacement was made.
 If the replacement string is identical to that which it replaces, it
 is still considered to have been a replacement.
+.It I
+Match the regular expression in a case-insensitive way.
 .El
 .Pp
 .It [2addr]t [label]
@@ -582,7 +587,10 @@ The
 .Fl E , I , a
 and
 .Fl i
-options are non-standard
+options, as well as the
+.Dq I
+flag to the address regular expression and substitution command are
+non-standard
 .Fx
 extensions and may not be available on other operating systems.
 .Sh HISTORY

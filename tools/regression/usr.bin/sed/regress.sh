@@ -63,6 +63,9 @@ REGRESSION_TEST_FREEFORM(`inplace3', `inplace_test 20,99d')
 REGRESSION_TEST_FREEFORM(`inplace4', `inplace_test "{;{;8,30d;};}"')
 REGRESSION_TEST_FREEFORM(`inplace5', `inplace_test "3x;6G"')
 
+REGRESSION_TEST(`icase1', `sed /SED/Id < regress.in')
+REGRESSION_TEST(`icase2', `sed s/SED/Foo/I < regress.in')
+
 REGRESSION_TEST(`hanoi', `echo ":abcd: : :" | sed -f hanoi.sed')
 REGRESSION_TEST(`math', `echo "4+7*3+2^7/3" | sed -f math.sed')
 
