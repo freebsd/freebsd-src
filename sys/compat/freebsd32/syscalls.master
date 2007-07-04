@@ -303,11 +303,11 @@
 171	AUE_SHMSYS	STD	{ int freebsd32_shmsys(uint32_t which, uint32_t a2, \
 				    uint32_t a3, uint32_t a4); }
 172	AUE_NULL	UNIMPL	nosys
-173	AUE_PREAD	STD	{ ssize_t freebsd32_pread(int fd, void *buf, \
+173	AUE_PREAD	COMPAT6	{ ssize_t freebsd32_pread(int fd, void *buf, \
 				    size_t nbyte, int pad, \
 				    u_int32_t offsetlo, u_int32_t offsethi); }
 ; XXX note - bigendian is different
-174	AUE_PWRITE	STD	{ ssize_t freebsd32_pwrite(int fd, \
+174	AUE_PWRITE	COMPAT6	{ ssize_t freebsd32_pwrite(int fd, \
 				    const void *buf, size_t nbyte, int pad, \
 				    u_int32_t offsetlo, u_int32_t offsethi); }
 ; XXX note - bigendian is different
@@ -343,22 +343,22 @@
 				    __setrlimit_args int
 196	AUE_GETDIRENTRIES	NOPROTO	{ int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
-197	AUE_MMAP	STD 	{ caddr_t freebsd32_mmap(caddr_t addr, \
+197	AUE_MMAP	COMPAT6	{ caddr_t freebsd32_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, u_int32_t poslo, \
 				    u_int32_t poshi); }
 198	AUE_NULL	NOPROTO	{ int nosys(void); } __syscall \
 				    __syscall_args int
 ; XXX note - bigendian is different
-199	AUE_LSEEK	STD	{ off_t freebsd32_lseek(int fd, int pad, \
+199	AUE_LSEEK	COMPAT6	{ off_t freebsd32_lseek(int fd, int pad, \
 				    u_int32_t offsetlo, u_int32_t offsethi, \
 				    int whence); }
 ; XXX note - bigendian is different
-200	AUE_TRUNCATE	STD	{ int freebsd32_truncate(char *path, \
+200	AUE_TRUNCATE	COMPAT6	{ int freebsd32_truncate(char *path, \
 				    int pad, u_int32_t lengthlo, \
 				    u_int32_t lengthhi); }
 ; XXX note - bigendian is different
-201	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, int pad, \
+201	AUE_FTRUNCATE	COMPAT6	{ int freebsd32_ftruncate(int fd, int pad, \
 				    u_int32_t lengthlo, u_int32_t lengthhi); }
 202	AUE_SYSCTL	STD	{ int freebsd32_sysctl(int *name, \
 				    u_int namelen, void *old, \
@@ -778,3 +778,19 @@
 474	AUE_NULL	NOPROTO	{ int sctp_generic_recvmsg(int sd, struct iovec *iov, int iovlen, \
 				    struct sockaddr * from, __socklen_t *fromlenaddr, \
 				    struct sctp_sndrcvinfo *sinfo, int *msg_flags); }
+475	AUE_PREAD	STD	{ ssize_t freebsd32_pread(int fd, \
+				    void *buf,size_t nbyte, \
+				    u_int32_t offsetlo, u_int32_t offsethi); }
+476	AUE_PWRITE	STD	{ ssize_t freebsd32_pwrite(int fd, \
+				    const void *buf, size_t nbyte, \
+				    u_int32_t offsetlo, u_int32_t offsethi); }
+477	AUE_MMAP	STD 	{ caddr_t freebsd32_mmap(caddr_t addr, \
+				    size_t len, int prot, int flags, int fd, \
+				    u_int32_t poslo, u_int32_t poshi); }
+478	AUE_LSEEK	STD	{ off_t freebsd32_lseek(int fd, \
+				    u_int32_t offsetlo, u_int32_t offsethi, \
+				    int whence); }
+479	AUE_TRUNCATE	STD	{ int freebsd32_truncate(char *path, \
+				    u_int32_t lengthlo, u_int32_t lengthhi); }
+480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
+				    u_int32_t lengthlo, u_int32_t lengthhi); }
