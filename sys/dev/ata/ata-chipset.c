@@ -995,7 +995,10 @@ ata_ali_chipinit(device_t dev)
 	/* if we have a memory resource we can likely do AHCI */
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(5);
-	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+
+	/* AHCI mode is correctly supported only on the ALi 5288. */
+	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
+	    (ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE)))
 	    return ata_ahci_chipinit(dev);
 
