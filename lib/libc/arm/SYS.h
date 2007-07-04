@@ -63,8 +63,8 @@
 	ENTRY(__CONCAT(__sys_, x));					\
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	.set _C_LABEL(__CONCAT(_,x)),_C_LABEL(__CONCAT(__sys_,x));	\
-	SYSTRAP(x)
-	bcs PIC_SYM(CERROR, PLT)
+	SYSTRAP(x)							\
+	bcs PIC_SYM(CERROR, PLT)					\
 	RET
 
 #define RSYSCALL(x)							\
