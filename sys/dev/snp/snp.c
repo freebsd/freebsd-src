@@ -118,7 +118,7 @@ static struct clonedevs	  *snpclones;
 static struct tty	*snpdevtotty(struct cdev *dev);
 static void		snp_clone(void *arg, struct ucred *cred, char *name,
 			    int namelen, struct cdev **dev);
-static int		snp_detach(struct snoop *snp);
+static void		snp_detach(void *arg);
 static int		snp_down(struct snoop *snp);
 static int		snp_in(struct snoop *snp, char *buf, int n);
 static int		snp_modevent(module_t mod, int what, void *arg);
@@ -422,11 +422,13 @@ snpopen(struct cdev *dev, int flag, int mode, struct thread *td)
 }
 
 
-static int
-snp_detach(struct snoop *snp)
+static void
+snp_detach(void *arg)
 {
+	struct snoop *snp;
 	struct tty *tp;
 
+	snp = (struct snoop *)arg;
 	snp->snp_base = 0;
 	snp->snp_len = 0;
 
@@ -451,8 +453,6 @@ detach_notty:
 	selwakeuppri(&snp->snp_sel, PZERO + 1);
 	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
 		free(snp, M_SNP);
-
-	return (0);
 }
 
 static int
@@ -466,9 +466,9 @@ snpclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
-	destroy_dev(dev);
+	destroy_dev_sched_cb(dev, snp_detach, snp);
 
-	return (snp_detach(snp));
+	return (0);
 }
 
 static int
@@ -481,8 +481,9 @@ snp_down(struct snoop *snp)
 		snp->snp_blen = SNOOP_MINLEN;
 	}
 	snp->snp_flags |= SNOOP_DOWN;
+	snp_detach(snp);
 
-	return (snp_detach(snp));
+	return (0);
 }
 
 static int
