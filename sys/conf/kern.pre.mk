@@ -90,7 +90,9 @@ CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
+.if ${MACHINE_ARCH} == "amd64"
 WERROR?= -Werror
+.endif
 .endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
