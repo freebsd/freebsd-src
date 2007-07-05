@@ -2072,9 +2072,9 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	size_t size;
 	struct ip *ip;
 #ifdef INET6
-	struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 
-	ip6 = (struct ip6_hdr *)ip6hdr;
+	ip6 = (const struct ip6_hdr *)ip6hdr;
 #endif /* INET6 */
 	ip = (struct ip *)ip4hdr;
 
