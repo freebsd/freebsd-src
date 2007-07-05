@@ -543,8 +543,10 @@ eschan1370_setspeed(kobj_t obj, void *data, uint32_t speed)
 
 	ES_LOCK(es);
 	/* Fixed rate , do nothing. */
-	if (ch->caps.minspeed == ch->caps.maxspeed)
+	if (ch->caps.minspeed == ch->caps.maxspeed) {
+		ES_UNLOCK(es);
 		return (ch->caps.maxspeed);
+	}
 	if (speed < ch->caps.minspeed)
 		speed = ch->caps.minspeed;
 	if (speed > ch->caps.maxspeed)
