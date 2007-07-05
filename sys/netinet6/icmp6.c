@@ -1932,7 +1932,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 				MGET(n, M_DONTWAIT, m->m_type);
 				if (n != NULL) {
 					if (m_dup_pkthdr(n, m, M_NOWAIT)) {
-						bcopy(m->m_data, n->m_data, 
+						bcopy(m->m_data, n->m_data,
 						      m->m_len);
 						n->m_len = m->m_len;
 					} else {
@@ -1983,7 +1983,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 				if (m_dup_pkthdr(n, m, M_NOWAIT)) {
 					bcopy(m->m_data, n->m_data, m->m_len);
 					n->m_len = m->m_len;
-					
+
 					m_freem(m);
 					m = n;
 				} else {

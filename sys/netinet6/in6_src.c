@@ -147,13 +147,13 @@ static struct in6_addrpolicy *match_addrsel_policy __P((struct sockaddr_in6 *));
 		sizeof(ip6stat.ip6s_sources_rule[0])) /* check for safety */ \
 		ip6stat.ip6s_sources_rule[(r)]++; \
 	/* printf("in6_selectsrc: keep %s against %s by %d\n", ia_best ? ip6_sprintf(&ia_best->ia_addr.sin6_addr) : "none", ip6_sprintf(&ia->ia_addr.sin6_addr), (r)); */ \
-	goto next; 		/* XXX: we can't use 'continue' here */ \
+	goto next;		/* XXX: we can't use 'continue' here */ \
 } while(0)
 #define BREAK(r) do { \
 	if ((r) < sizeof(ip6stat.ip6s_sources_rule) / \
 		sizeof(ip6stat.ip6s_sources_rule[0])) /* check for safety */ \
 		ip6stat.ip6s_sources_rule[(r)]++; \
-	goto out; 		/* XXX: we can't use 'break' here */ \
+	goto out;		/* XXX: we can't use 'break' here */ \
 } while(0)
 
 struct in6_addr *

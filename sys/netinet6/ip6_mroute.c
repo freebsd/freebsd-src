@@ -158,7 +158,7 @@ SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
     &mrt6stat, mrt6stat,
     "Multicast Routing Statistics (struct mrt6stat, netinet6/ip6_mroute.h)");
 
-#define NO_RTE_FOUND 	0x1
+#define NO_RTE_FOUND	0x1
 #define RTE_FOUND	0x2
 
 static struct mf6c *mf6ctable[MF6CTBLSIZ];
@@ -200,9 +200,9 @@ extern struct socket *ip_mrouter;
  * by a broken gateway).  Different from IPv4 register_if,
  * these interfaces are linked into the system ifnet list,
  * because per-interface IPv6 statistics are maintained in
- * ifp->if_afdata.  But it does not have any routes point 
+ * ifp->if_afdata.  But it does not have any routes point
  * to them.  I.e., packets can't be sent this way.  They
- * only exist as a placeholder for multicast source 
+ * only exist as a placeholder for multicast source
  * verification.
  */
 static struct ifnet *multicast_register_if6;
@@ -621,8 +621,8 @@ add_m6if(struct mif6ctl *mifcp)
 			if_attach(ifp);
 			multicast_register_if6 = ifp;
 			reg_mif_num = mifcp->mif6c_mifi;
-			/* 
-			 * it is impossible to guess the ifindex of the 
+			/*
+			 * it is impossible to guess the ifindex of the
 			 * register interface.  So mif6c_pifi is automatically
 			 * calculated.
 			 */
@@ -917,11 +917,11 @@ collate(struct timeval *t)
 static int
 del_m6fc(struct mf6cctl *mfccp)
 {
-	struct sockaddr_in6 	origin;
-	struct sockaddr_in6 	mcastgrp;
-	struct mf6c 		*rt;
-	struct mf6c	 	**nptr;
-	u_long 		hash;
+	struct sockaddr_in6	origin;
+	struct sockaddr_in6	mcastgrp;
+	struct mf6c		*rt;
+	struct mf6c		**nptr;
+	u_long		hash;
 	int s;
 
 	origin = mfccp->mf6cc_origin;

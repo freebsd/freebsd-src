@@ -706,7 +706,7 @@ out:
 
 static int
 udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-	  struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp;
 	int error = 0;
@@ -717,7 +717,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	INP_INFO_WLOCK(&udbinfo);
 	INP_LOCK(inp);
 	if (addr) {
-		if (addr->sa_len != sizeof(struct sockaddr_in6)) { 
+		if (addr->sa_len != sizeof(struct sockaddr_in6)) {
 			error = EINVAL;
 			goto bad;
 		}

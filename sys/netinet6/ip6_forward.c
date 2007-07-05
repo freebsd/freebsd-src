@@ -316,10 +316,10 @@ ip6_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	} else {
-		/* 
-		 * In the FAST IPSec case we have already 
+		/*
+		 * In the FAST IPSec case we have already
 		 * re-injected the packet and it has been freed
-		 * by the ipsec_done() function.  So, just clean 
+		 * by the ipsec_done() function.  So, just clean
 		 * up after ourselves.
 		 */
 		m = NULL;
@@ -385,7 +385,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 		dst->sin6_family = AF_INET6;
 		dst->sin6_addr = ip6->ip6_dst;
 
-  		rtalloc((struct route *)&ip6_forward_rt);
+		rtalloc((struct route *)&ip6_forward_rt);
 		if (ip6_forward_rt.ro_rt == 0) {
 			ip6stat.ip6s_noroute++;
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);

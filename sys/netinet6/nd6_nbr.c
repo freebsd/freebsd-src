@@ -207,7 +207,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		struct sockaddr_in6 tsin6;
 		int need_proxy;
 
-		bzero(&tsin6, sizeof tsin6);		
+		bzero(&tsin6, sizeof tsin6);
 		tsin6.sin6_len = sizeof(struct sockaddr_in6);
 		tsin6.sin6_family = AF_INET6;
 		tsin6.sin6_addr = taddr6;
