@@ -412,8 +412,10 @@ recv_frame(struct sbni_softc *sc)
 		    skip_tail(sc, framelen, crc);
 		if (frame_ok)
 			interpret_ack(sc, ack);
-	} else
+	} else {
+		framelen = 0;
 		frame_ok = 0;
+	}
 
 	sbni_outb(sc, CSR0, sbni_inb(sc, CSR0) ^ CT_ZER);
 	if (frame_ok) {
