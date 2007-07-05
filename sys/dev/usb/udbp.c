@@ -294,8 +294,7 @@ udbp_attach(device_t self)
 	for (i = 0 ; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (!ed) {
-			printf("%s: could not read endpoint descriptor\n",
-			       device_get_nameunit(sc->sc_dev));
+			device_printf(self, "could not read endpoint descriptor\n");
 			return ENXIO;
 		}
 
@@ -313,19 +312,18 @@ udbp_attach(device_t self)
 
 	/* Verify that we goething sensible */
 	if (ed_bulkin == NULL || ed_bulkout == NULL) {
-		printf("%s: bulk-in and/or bulk-out endpoint not found\n",
-			device_get_nameunit(sc->sc_dev));
+		device_printf(self, "bulk-in and/or bulk-out endpoint not found\n");
 		return ENXIO;
 	}
 
 	if (ed_bulkin->wMaxPacketSize[0] != ed_bulkout->wMaxPacketSize[0] ||
 	   ed_bulkin->wMaxPacketSize[1] != ed_bulkout->wMaxPacketSize[1]) {
-		printf("%s: bulk-in and bulk-out have different packet sizes %d %d %d %d\n",
-			device_get_nameunit(sc->sc_dev),
-		       ed_bulkin->wMaxPacketSize[0],
-		       ed_bulkout->wMaxPacketSize[0],
-		       ed_bulkin->wMaxPacketSize[1],
-		       ed_bulkout->wMaxPacketSize[1]);
+		device_printf(self,
+		    "bulk-in and bulk-out have different packet sizes %d %d %d %d\n",
+		    ed_bulkin->wMaxPacketSize[0],
+		    ed_bulkout->wMaxPacketSize[0],
+		    ed_bulkin->wMaxPacketSize[1],
+		    ed_bulkout->wMaxPacketSize[1]);
 		return ENXIO;
 	}
 
@@ -360,15 +358,15 @@ udbp_attach(device_t self)
 	err = usbd_open_pipe(iface, sc->sc_bulkin,
 				USBD_EXCLUSIVE_USE, &sc->sc_bulkin_pipe);
 	if (err) {
-		printf("%s: cannot open bulk-in pipe (addr %d)\n",
-			device_get_nameunit(sc->sc_dev), sc->sc_bulkin);
+		device_printf(self, "cannot open bulk-in pipe (addr %d)\n",
+		    sc->sc_bulkin);
 		goto bad;
 	}
 	err = usbd_open_pipe(iface, sc->sc_bulkout,
 				USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 	if (err) {
-		printf("%s: cannot open bulk-out pipe (addr %d)\n",
-			device_get_nameunit(sc->sc_dev), sc->sc_bulkout);
+		device_printf(self, "cannot open bulk-out pipe (addr %d)\n",
+		    sc->sc_bulkout);
 		goto bad;
 	}
 
@@ -572,9 +570,8 @@ udbp_setup_out_transfer(udbp_p sc)
 
 	pktlen = m->m_pkthdr.len;
 	if (pktlen > sc->sc_bulkout_bufferlen) {
-		printf("%s: Packet too large, %d > %d\n",
-			device_get_nameunit(sc->sc_dev), pktlen,
-			sc->sc_bulkout_bufferlen);
+		device_printf(sc->sc_dev, "Packet too large, %d > %d\n",
+		    pktlen, sc->sc_bulkout_bufferlen);
 		return (USBD_IOERROR);
 	}
 
