@@ -51,9 +51,11 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 
-static int	choose_decompressor(struct archive *, const void*, size_t);
-static int	choose_format(struct archive *);
+static void	choose_decompressor(struct archive_read *, const void*, size_t);
+static int	choose_format(struct archive_read *);
+static off_t	dummy_skip(struct archive_read *, off_t);
 
 /*
  * Allocate, initialize and return a struct archive object.
@@ -61,44 +63,45 @@ static int	choose_format(struct archive *);
 struct archive *
 archive_read_new(void)
 {
-	struct archive	*a;
+	struct archive_read *a;
 	unsigned char	*nulls;
 
-	a = (struct archive *)malloc(sizeof(*a));
+	a = (struct archive_read *)malloc(sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	memset(a, 0, sizeof(*a));
-
-	a->user_uid = geteuid();
-	a->magic = ARCHIVE_READ_MAGIC;
+	a->archive.magic = ARCHIVE_READ_MAGIC;
 	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
 
 	a->null_length = 1024;
 	nulls = (unsigned char *)malloc(a->null_length);
 	if (nulls == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate archive object 'nulls' element");
 		free(a);
 		return (NULL);
 	}
 	memset(nulls, 0, a->null_length);
 	a->nulls = nulls;
 
-	a->state = ARCHIVE_STATE_NEW;
+	a->archive.state = ARCHIVE_STATE_NEW;
 	a->entry = archive_entry_new();
 
 	/* We always support uncompressed archives. */
-	archive_read_support_compression_none((struct archive*)a);
+	archive_read_support_compression_none(&a->archive);
 
-	return (a);
+	return (&a->archive);
 }
 
 /*
  * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
 void
-archive_read_extract_set_skip_file(struct archive *a, dev_t d, ino_t i)
+archive_read_extract_set_skip_file(struct archive *_a, dev_t d, ino_t i)
 {
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_extract_set_skip_file");
+	struct archive_read *a = (struct archive_read *)_a;
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
+	    "archive_read_extract_set_skip_file");
 	a->skip_file_dev = d;
 	a->skip_file_ino = i;
 }
@@ -119,18 +122,18 @@ archive_read_open(struct archive *a, void *client_data,
 }
 
 int
-archive_read_open2(struct archive *a, void *client_data,
+archive_read_open2(struct archive *_a, void *client_data,
     archive_open_callback *client_opener,
     archive_read_callback *client_reader,
     archive_skip_callback *client_skipper,
     archive_close_callback *client_closer)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	const void *buffer;
 	ssize_t bytes_read;
-	int high_bidder;
 	int e;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_open");
 
 	if (client_reader == NULL)
 		__archive_errx(1,
@@ -150,22 +153,22 @@ archive_read_open2(struct archive *a, void *client_data,
 
 	/* Open data source. */
 	if (client_opener != NULL) {
-		e =(client_opener)(a, client_data);
+		e =(client_opener)(&a->archive, client_data);
 		if (e != 0) {
 			/* If the open failed, call the closer to clean up. */
 			if (client_closer)
-				(client_closer)(a, client_data);
+				(client_closer)(&a->archive, client_data);
 			return (e);
 		}
 	}
 
-	/* Read first block now for format detection. */
-	bytes_read = (client_reader)(a, client_data, &buffer);
+	/* Read first block now for compress format detection. */
+	bytes_read = (client_reader)(&a->archive, client_data, &buffer);
 
 	if (bytes_read < 0) {
 		/* If the first read fails, close before returning error. */
 		if (client_closer)
-			(client_closer)(a, client_data);
+			(client_closer)(&a->archive, client_data);
 		/* client_reader should have already set error information. */
 		return (ARCHIVE_FATAL);
 	}
@@ -178,15 +181,22 @@ archive_read_open2(struct archive *a, void *client_data,
 	a->client_data = client_data;
 
 	/* Select a decompression routine. */
-	high_bidder = choose_decompressor(a, buffer, bytes_read);
-	if (high_bidder < 0)
+	choose_decompressor(a, buffer, (size_t)bytes_read);
+	if (a->decompressor == NULL)
 		return (ARCHIVE_FATAL);
 
 	/* Initialize decompression routine with the first block of data. */
-	e = (a->decompressors[high_bidder].init)(a, buffer, bytes_read);
+	e = (a->decompressor->init)(a, buffer, (size_t)bytes_read);
 
 	if (e == ARCHIVE_OK)
-		a->state = ARCHIVE_STATE_HEADER;
+		a->archive.state = ARCHIVE_STATE_HEADER;
+
+	/*
+	 * If the decompressor didn't register a skip function, provide a
+	 * dummy compression-layer skip function.
+	 */
+	if (a->decompressor->skip == NULL)
+		a->decompressor->skip = dummy_skip;
 
 	return (e);
 }
@@ -195,32 +205,37 @@ archive_read_open2(struct archive *a, void *client_data,
  * Allow each registered decompression routine to bid on whether it
  * wants to handle this stream.  Return index of winning bidder.
  */
-static int
-choose_decompressor(struct archive *a, const void *buffer, size_t bytes_read)
+static void
+choose_decompressor(struct archive_read *a,
+    const void *buffer, size_t bytes_read)
 {
-	int decompression_slots, i, bid, best_bid, best_bid_slot;
+	int decompression_slots, i, bid, best_bid;
+	struct decompressor_t *decompressor, *best_decompressor;
 
 	decompression_slots = sizeof(a->decompressors) /
 	    sizeof(a->decompressors[0]);
 
-	best_bid = -1;
-	best_bid_slot = -1;
+	best_bid = 0;
+	a->decompressor = NULL;
+	best_decompressor = NULL;
 
+	decompressor = a->decompressors;
 	for (i = 0; i < decompression_slots; i++) {
-		if (a->decompressors[i].bid) {
-			bid = (a->decompressors[i].bid)(buffer, bytes_read);
-			if ((bid > best_bid) || (best_bid_slot < 0)) {
+		if (decompressor->bid) {
+			bid = (decompressor->bid)(buffer, bytes_read);
+			if (bid > best_bid || best_decompressor == NULL) {
 				best_bid = bid;
-				best_bid_slot = i;
+				best_decompressor = decompressor;
 			}
 		}
+		decompressor ++;
 	}
 
 	/*
 	 * There were no bidders; this is a serious programmer error
 	 * and demands a quick and definitive abort.
 	 */
-	if (best_bid_slot < 0)
+	if (best_decompressor == NULL)
 		__archive_errx(1, "No decompressors were registered; you "
 		    "must call at least one "
 		    "archive_read_support_compression_XXX function in order "
@@ -231,40 +246,75 @@ choose_decompressor(struct archive *a, const void *buffer, size_t bytes_read)
 	 * support this stream.
 	 */
 	if (best_bid < 1) {
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unrecognized archive format");
-		return (ARCHIVE_FATAL);
+		return;
 	}
 
-	return (best_bid_slot);
+	/* Record the best decompressor for this stream. */
+	a->decompressor = best_decompressor;
+}
+
+/*
+ * Dummy skip function, for use if the compression layer doesn't provide
+ * one: This code just reads data and discards it.
+ */
+static off_t
+dummy_skip(struct archive_read * a, off_t request)
+{
+	const void * dummy_buffer;
+	ssize_t bytes_read;
+	off_t bytes_skipped;
+
+	for (bytes_skipped = 0; request > 0;) {
+		bytes_read = (a->decompressor->read_ahead)(a, &dummy_buffer, 1);
+		if (bytes_read < 0)
+			return (bytes_read);
+		if (bytes_read == 0) {
+			/* Premature EOF. */
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Truncated input file (need to skip %jd bytes)",
+			    (intmax_t)request);
+			return (ARCHIVE_FATAL);
+		}
+		if (bytes_read > request)
+			bytes_read = (ssize_t)request;
+		(a->decompressor->consume)(a, (size_t)bytes_read);
+		request -= bytes_read;
+		bytes_skipped += bytes_read;
+	}
+
+	return (bytes_skipped);
 }
 
 /*
  * Read header of next entry.
  */
 int
-archive_read_next_header(struct archive *a, struct archive_entry **entryp)
+archive_read_next_header(struct archive *_a, struct archive_entry **entryp)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	struct archive_entry *entry;
 	int slot, ret;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA, "archive_read_next_header");
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    "archive_read_next_header");
 
 	*entryp = NULL;
 	entry = a->entry;
 	archive_entry_clear(entry);
-	archive_string_empty(&a->error_string);
+	archive_clear_error(&a->archive);
 
 	/*
 	 * If client didn't consume entire data, skip any remainder
 	 * (This is especially important for GNU incremental directories.)
 	 */
-	if (a->state == ARCHIVE_STATE_DATA) {
-		ret = archive_read_data_skip(a);
+	if (a->archive.state == ARCHIVE_STATE_DATA) {
+		ret = archive_read_data_skip(&a->archive);
 		if (ret == ARCHIVE_EOF) {
-			archive_set_error(a, EIO, "Premature end-of-file.");
-			a->state = ARCHIVE_STATE_FATAL;
+			archive_set_error(&a->archive, EIO, "Premature end-of-file.");
+			a->archive.state = ARCHIVE_STATE_FATAL;
 			return (ARCHIVE_FATAL);
 		}
 		if (ret != ARCHIVE_OK)
@@ -272,15 +322,14 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	}
 
 	/* Record start-of-header. */
-	a->header_position = a->file_position;
+	a->header_position = a->archive.file_position;
 
 	slot = choose_format(a);
 	if (slot < 0) {
-		a->state = ARCHIVE_STATE_FATAL;
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		return (ARCHIVE_FATAL);
 	}
 	a->format = &(a->formats[slot]);
-	a->pformat_data = &(a->format->format_data);
 	ret = (a->format->read_header)(a, entry);
 
 	/*
@@ -290,18 +339,18 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	 */
 	switch (ret) {
 	case ARCHIVE_EOF:
-		a->state = ARCHIVE_STATE_EOF;
+		a->archive.state = ARCHIVE_STATE_EOF;
 		break;
 	case ARCHIVE_OK:
-		a->state = ARCHIVE_STATE_DATA;
+		a->archive.state = ARCHIVE_STATE_DATA;
 		break;
 	case ARCHIVE_WARN:
-		a->state = ARCHIVE_STATE_DATA;
+		a->archive.state = ARCHIVE_STATE_DATA;
 		break;
 	case ARCHIVE_RETRY:
 		break;
 	case ARCHIVE_FATAL:
-		a->state = ARCHIVE_STATE_FATAL;
+		a->archive.state = ARCHIVE_STATE_FATAL;
 		break;
 	}
 
@@ -316,7 +365,7 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
  * the next entry.  Return index of winning bidder.
  */
 static int
-choose_format(struct archive *a)
+choose_format(struct archive_read *a)
 {
 	int slots;
 	int i;
@@ -331,7 +380,6 @@ choose_format(struct archive *a)
 	a->format = &(a->formats[0]);
 	for (i = 0; i < slots; i++, a->format++) {
 		if (a->format->bid) {
-			a->pformat_data = &(a->format->format_data);
 			bid = (a->format->bid)(a);
 			if (bid == ARCHIVE_FATAL)
 				return (ARCHIVE_FATAL);
@@ -356,7 +404,7 @@ choose_format(struct archive *a)
 	 * can't support this stream.
 	 */
 	if (best_bid < 1) {
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Unrecognized archive format");
 		return (ARCHIVE_FATAL);
 	}
@@ -369,8 +417,11 @@ choose_format(struct archive *a)
  * the last header started.
  */
 int64_t
-archive_read_header_position(struct archive *a)
+archive_read_header_position(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_header_position");
 	return (a->header_position);
 }
 
@@ -386,9 +437,11 @@ archive_read_header_position(struct archive *a)
  * to read a single entry body.
  */
 ssize_t
-archive_read_data(struct archive *a, void *buff, size_t s)
+archive_read_data(struct archive *_a, void *buff, size_t s)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	char	*dest;
+	const void *read_buf;
 	size_t	 bytes_read;
 	size_t	 len;
 	int	 r;
@@ -397,11 +450,11 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 	dest = (char *)buff;
 
 	while (s > 0) {
-		if (a->read_data_remaining <= 0) {
-			r = archive_read_data_block(a,
-			    (const void **)&a->read_data_block,
-			    &a->read_data_remaining,
-			    &a->read_data_offset);
+		if (a->read_data_remaining == 0) {
+			read_buf = a->read_data_block;
+			r = archive_read_data_block(&a->archive, &read_buf,
+			    &a->read_data_remaining, &a->read_data_offset);
+			a->read_data_block = read_buf;
 			if (r == ARCHIVE_EOF)
 				return (bytes_read);
 			/*
@@ -414,7 +467,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 		}
 
 		if (a->read_data_offset < a->read_data_output_offset) {
-			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encountered out-of-order sparse blocks");
 			return (ARCHIVE_RETRY);
 		}
@@ -455,23 +508,42 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 	return (bytes_read);
 }
 
+#if ARCHIVE_API_VERSION < 3
+/*
+ * Obsolete function provided for compatibility only.  Note that the API
+ * of this function doesn't allow the caller to detect if the remaining
+ * data from the archive entry is shorter than the buffer provided, or
+ * even if an error occurred while reading data.
+ */
+int
+archive_read_data_into_buffer(struct archive *a, void *d, ssize_t len)
+{
+
+	archive_read_data(a, d, len);
+	return (ARCHIVE_OK);
+}
+#endif
+
 /*
  * Skip over all remaining data in this entry.
  */
 int
-archive_read_data_skip(struct archive *a)
+archive_read_data_skip(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	int r;
 	const void *buff;
 	size_t size;
 	off_t offset;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_skip");
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_data_skip");
 
 	if (a->format->read_data_skip != NULL)
 		r = (a->format->read_data_skip)(a);
 	else {
-		while ((r = archive_read_data_block(a, &buff, &size, &offset))
+		while ((r = archive_read_data_block(&a->archive,
+			    &buff, &size, &offset))
 		    == ARCHIVE_OK)
 			;
 	}
@@ -479,7 +551,7 @@ archive_read_data_skip(struct archive *a)
 	if (r == ARCHIVE_EOF)
 		r = ARCHIVE_OK;
 
-	a->state = ARCHIVE_STATE_HEADER;
+	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (r);
 }
 
@@ -492,13 +564,15 @@ archive_read_data_skip(struct archive *a)
  * the end of entry is encountered.
  */
 int
-archive_read_data_block(struct archive *a,
+archive_read_data_block(struct archive *_a,
     const void **buff, size_t *size, off_t *offset)
 {
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA, "archive_read_data_block");
+	struct archive_read *a = (struct archive_read *)_a;
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_DATA,
+	    "archive_read_data_block");
 
 	if (a->format->read_data == NULL) {
-		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "Internal error: "
 		    "No format_read_data_block function registered");
 		return (ARCHIVE_FATAL);
@@ -515,22 +589,35 @@ archive_read_data_block(struct archive *a,
  * initialization.
  */
 int
-archive_read_close(struct archive *a)
+archive_read_close(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+	size_t i, n;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_close");
-	a->state = ARCHIVE_STATE_CLOSED;
+	__archive_check_magic(&a->archive, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_ANY, "archive_read_close");
+	a->archive.state = ARCHIVE_STATE_CLOSED;
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
 		r = (a->cleanup_archive_extract)(a);
 
-	/* TODO: Finish the format processing. */
+	/* TODO: Clean up the formatters. */
 
-	/* Close the input machinery. */
-	if (a->compression_finish != NULL) {
-		r1 = (a->compression_finish)(a);
+	/* Clean up the decompressors. */
+	n = sizeof(a->decompressors)/sizeof(a->decompressors[0]);
+	for (i = 0; i < n; i++) {
+		if (a->decompressors[i].finish != NULL) {
+			r1 = (a->decompressors[i].finish)(a);
+			if (r1 < r)
+				r = r1;
+		}
+	}
+
+	/* Close the client stream. */
+	if (a->client_closer != NULL) {
+		r1 = ((a->client_closer)(&a->archive, a->client_data));
 		if (r1 < r)
 			r = r1;
 	}
@@ -541,31 +628,42 @@ archive_read_close(struct archive *a)
 /*
  * Release memory and other resources.
  */
+#if ARCHIVE_API_VERSION > 1
+int
+#else
+/* Temporarily allow library to compile with either 1.x or 2.0 API. */
 void
-archive_read_finish(struct archive *a)
+#endif
+archive_read_finish(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	int i;
 	int slots;
+	int r = ARCHIVE_OK;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_finish");
-	if (a->state != ARCHIVE_STATE_CLOSED)
-		archive_read_close(a);
+	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
+	    "archive_read_finish");
+	if (a->archive.state != ARCHIVE_STATE_CLOSED)
+		r = archive_read_close(&a->archive);
 
 	/* Cleanup format-specific data. */
 	slots = sizeof(a->formats) / sizeof(a->formats[0]);
 	for (i = 0; i < slots; i++) {
-		a->pformat_data = &(a->formats[i].format_data);
+		a->format = &(a->formats[i]);
 		if (a->formats[i].cleanup)
 			(a->formats[i].cleanup)(a);
 	}
 
 	/* Casting a pointer to int allows us to remove 'const.' */
 	free((void *)(uintptr_t)(const void *)a->nulls);
-	archive_string_free(&a->error_string);
+	archive_string_free(&a->archive.error_string);
 	if (a->entry)
 		archive_entry_free(a->entry);
-	a->magic = 0;
+	a->archive.magic = 0;
 	free(a);
+#if ARCHIVE_API_VERSION > 1
+	return (r);
+#endif
 }
 
 /*
@@ -573,17 +671,19 @@ archive_read_finish(struct archive *a)
  * initialization functions.
  */
 int
-__archive_read_register_format(struct archive *a,
+__archive_read_register_format(struct archive_read *a,
     void *format_data,
-    int (*bid)(struct archive *),
-    int (*read_header)(struct archive *, struct archive_entry *),
-    int (*read_data)(struct archive *, const void **, size_t *, off_t *),
-    int (*read_data_skip)(struct archive *),
-    int (*cleanup)(struct archive *))
+    int (*bid)(struct archive_read *),
+    int (*read_header)(struct archive_read *, struct archive_entry *),
+    int (*read_data)(struct archive_read *, const void **, size_t *, off_t *),
+    int (*read_data_skip)(struct archive_read *),
+    int (*cleanup)(struct archive_read *))
 {
 	int i, number_slots;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_format");
+	__archive_check_magic(&a->archive,
+	    ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "__archive_read_register_format");
 
 	number_slots = sizeof(a->formats) / sizeof(a->formats[0]);
 
@@ -596,7 +696,7 @@ __archive_read_register_format(struct archive *a,
 			a->formats[i].read_data = read_data;
 			a->formats[i].read_data_skip = read_data_skip;
 			a->formats[i].cleanup = cleanup;
-			a->formats[i].format_data = format_data;
+			a->formats[i].data = format_data;
 			return (ARCHIVE_OK);
 		}
 	}
@@ -609,27 +709,29 @@ __archive_read_register_format(struct archive *a,
  * Used internally by decompression routines to register their bid and
  * initialization functions.
  */
-int
-__archive_read_register_compression(struct archive *a,
+struct decompressor_t *
+__archive_read_register_compression(struct archive_read *a,
     int (*bid)(const void *, size_t),
-    int (*init)(struct archive *, const void *, size_t))
+    int (*init)(struct archive_read *, const void *, size_t))
 {
 	int i, number_slots;
 
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "__archive_read_register_compression");
+	__archive_check_magic(&a->archive,
+	    ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW,
+	    "__archive_read_register_compression");
 
 	number_slots = sizeof(a->decompressors) / sizeof(a->decompressors[0]);
 
 	for (i = 0; i < number_slots; i++) {
 		if (a->decompressors[i].bid == bid)
-			return (ARCHIVE_OK); /* We've already installed */
+			return (a->decompressors + i);
 		if (a->decompressors[i].bid == NULL) {
 			a->decompressors[i].bid = bid;
 			a->decompressors[i].init = init;
-			return (ARCHIVE_OK);
+			return (a->decompressors + i);
 		}
 	}
 
 	__archive_errx(1, "Not enough slots for compression registration");
-	return (ARCHIVE_FATAL); /* Never actually executed. */
+	return (NULL); /* Never actually executed. */
 }

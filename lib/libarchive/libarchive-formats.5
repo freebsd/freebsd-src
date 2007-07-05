@@ -235,7 +235,20 @@ compressed with the
 .Dq deflate
 algorithm.
 Older zip compression algorithms are not supported.
+.Ss Archive (library) file format
+The Unix archive format (commonly created by the
+.Xr ar 1
+archiver) is a general-purpose format which is
+used almost exclusively for object files to be
+read by the link editor
+.Xr ld 1 .
+The ar format has never been standardised.
+There are two common variants:
+the GNU format derived from SVR4,
+and the BSD format, which first appeared in 4.4BSD.
+Libarchive provides read and write support for both variants.
 .Sh SEE ALSO
+.Xr ar 1 ,
 .Xr cpio 1 ,
 .Xr mkisofs 1 ,
 .Xr shar 1 ,
