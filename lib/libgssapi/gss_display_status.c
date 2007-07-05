@@ -144,11 +144,20 @@ OM_uint32
 gss_display_status(OM_uint32 *minor_status,
     OM_uint32 status_value,
     int status_type,
-    const gss_OID mech_type,
+    const gss_OID input_mech_type,
     OM_uint32 *message_content,
     gss_buffer_t status_string)
 {
 	OM_uint32 major_status;
+	gss_OID mech_type;
+
+	mech_type = input_mech_type;
+	if (mech_type == GSS_C_NO_OID) {
+		_gss_load_mech();
+		mech_type = &SLIST_FIRST(&_gss_mechs)->gm_mech_oid;
+		if (mech_type == NULL)
+			return (GSS_S_BAD_MECH);
+	}
 
 	*minor_status = 0;
 	switch (status_type) {
