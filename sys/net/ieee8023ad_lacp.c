@@ -611,6 +611,56 @@ lacp_port_isactive(struct lagg_port *lgp)
 	return (0);
 }
 
+void
+lacp_req(struct lagg_softc *sc, caddr_t data)
+{
+	struct lacp_opreq *req = (struct lacp_opreq *)data;
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
+	struct lacp_aggregator *la = lsc->lsc_active_aggregator;
+
+	bzero(req, sizeof(struct lacp_opreq));
+	if (la != NULL) {
+		req->actor_prio = ntohs(la->la_actor.lip_systemid.lsi_prio);
+		memcpy(&req->actor_mac, &la->la_actor.lip_systemid.lsi_mac,
+		    ETHER_ADDR_LEN);
+		req->actor_key = ntohs(la->la_actor.lip_key);
+		req->actor_portprio = ntohs(la->la_actor.lip_portid.lpi_prio);
+		req->actor_portno = ntohs(la->la_actor.lip_portid.lpi_portno);
+		req->actor_state = la->la_actor.lip_state;
+
+		req->partner_prio = ntohs(la->la_partner.lip_systemid.lsi_prio);
+		memcpy(&req->partner_mac, &la->la_partner.lip_systemid.lsi_mac,
+		    ETHER_ADDR_LEN);
+		req->partner_key = ntohs(la->la_partner.lip_key);
+		req->partner_portprio = ntohs(la->la_partner.lip_portid.lpi_prio);
+		req->partner_portno = ntohs(la->la_partner.lip_portid.lpi_portno);
+		req->partner_state = la->la_partner.lip_state;
+	}
+}
+
+void
+lacp_portreq(struct lagg_port *lgp, caddr_t data)
+{
+	struct lacp_opreq *req = (struct lacp_opreq *)data;
+	struct lacp_port *lp = LACP_PORT(lgp);
+
+	req->actor_prio = ntohs(lp->lp_actor.lip_systemid.lsi_prio);
+	memcpy(&req->actor_mac, &lp->lp_actor.lip_systemid.lsi_mac,
+	    ETHER_ADDR_LEN);
+	req->actor_key = ntohs(lp->lp_actor.lip_key);
+	req->actor_portprio = ntohs(lp->lp_actor.lip_portid.lpi_prio);
+	req->actor_portno = ntohs(lp->lp_actor.lip_portid.lpi_portno);
+	req->actor_state = lp->lp_actor.lip_state;
+
+	req->partner_prio = ntohs(lp->lp_partner.lip_systemid.lsi_prio);
+	memcpy(&req->partner_mac, &lp->lp_partner.lip_systemid.lsi_mac,
+	    ETHER_ADDR_LEN);
+	req->partner_key = ntohs(lp->lp_partner.lip_key);
+	req->partner_portprio = ntohs(lp->lp_partner.lip_portid.lpi_prio);
+	req->partner_portno = ntohs(lp->lp_partner.lip_portid.lpi_portno);
+	req->partner_state = lp->lp_partner.lip_state;
+}
+
 static void
 lacp_disable_collecting(struct lacp_port *lp)
 {
