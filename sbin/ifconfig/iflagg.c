@@ -29,6 +29,8 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
+char lacpbuf[120];	/* LACP peer '[(a,a,a),(p,p,p)]' */
+
 static void
 setlaggport(const char *val, int d, int s, const struct afswtch *afp)
 {
@@ -79,12 +81,41 @@ setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCSLAGG");
 }
 
+static char *
+lacp_format_mac(const uint8_t *mac, char *buf, size_t buflen)
+{
+	snprintf(buf, buflen, "%02X-%02X-%02X-%02X-%02X-%02X",
+	    (int)mac[0], (int)mac[1], (int)mac[2], (int)mac[3],
+	    (int)mac[4], (int)mac[5]);
+
+	return (buf);
+}
+
+static char *
+lacp_format_peer(struct lacp_opreq *req, const char *sep)
+{
+	char macbuf1[20];
+	char macbuf2[20];
+
+	snprintf(lacpbuf, sizeof(lacpbuf),
+	    "[(%04X,%s,%04X,%04X,%04X),%s(%04X,%s,%04X,%04X,%04X)]",
+	    req->actor_prio,
+	    lacp_format_mac(req->actor_mac, macbuf1, sizeof(macbuf1)),
+	    req->actor_key, req->actor_portprio, req->actor_portno, sep,
+	    req->partner_prio,
+	    lacp_format_mac(req->partner_mac, macbuf2, sizeof(macbuf2)),
+	    req->partner_key, req->partner_portprio, req->partner_portno);
+
+	return(lacpbuf);
+}
+
 static void
 lagg_status(int s)
 {
 	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqport rp, rpbuf[LAGG_MAX_PORTS];
 	struct lagg_reqall ra;
+	struct lacp_opreq *lp;
 	const char *proto = "<unknown>";
 	int i, isport = 0;
 
@@ -102,6 +133,8 @@ lagg_status(int s)
 	ra.ra_port = rpbuf;
 
 	if (ioctl(s, SIOCGLAGG, &ra) == 0) {
+		lp = (struct lacp_opreq *)&ra.ra_lacpreq;
+
 		for (i = 0; i < (sizeof(lpr) / sizeof(lpr[0])); i++) {
 			if (ra.ra_proto == lpr[i].lpr_proto) {
 				proto = lpr[i].lpr_name;
@@ -109,15 +142,24 @@ lagg_status(int s)
 			}
 		}
 
-		printf("\tlagg: laggproto %s", proto);
+		printf("\tlaggproto %s", proto);
 		if (isport)
 			printf(" laggdev %s", rp.rp_ifname);
 		putchar('\n');
+		if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
+			printf("\tlag id: %s\n",
+			    lacp_format_peer(lp, "\n\t\t "));
 
 		for (i = 0; i < ra.ra_ports; i++) {
-			printf("\t\tlaggport %s ", rpbuf[i].rp_portname);
-			printb("", rpbuf[i].rp_flags, LAGG_PORT_BITS);
+			lp = (struct lacp_opreq *)&rpbuf[i].rp_lacpreq;
+			printf("\tlaggport: %s ", rpbuf[i].rp_portname);
+			printb("flags", rpbuf[i].rp_flags, LAGG_PORT_BITS);
+			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
+				printf(" state=%X", lp->actor_state);
 			putchar('\n');
+			if (verbose && ra.ra_proto == LAGG_PROTO_LACP)
+				printf("\t\t%s\n",
+				    lacp_format_peer(lp, "\n\t\t "));
 		}
 
 		if (0 /* XXX */) {
