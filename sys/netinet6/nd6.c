@@ -2324,7 +2324,8 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 			d->rtaddr.sin6_family = AF_INET6;
 			d->rtaddr.sin6_len = sizeof(d->rtaddr);
 			d->rtaddr.sin6_addr = dr->rtaddr;
-			if (error = sa6_recoverscope(&d->rtaddr) != 0)
+			error = sa6_recoverscope(&d->rtaddr);
+			if (error != 0)
 				return (error);
 			d->flags = dr->flags;
 			d->rtlifetime = dr->rtlifetime;
