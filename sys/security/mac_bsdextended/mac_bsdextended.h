@@ -40,10 +40,10 @@
 #define MB_VERSION 2 /* Used to check library and kernel are the same. */
 
 /*
- * Rights that can be represented in mbr_mode.  These have the same values
- * as the V* rights in vnode.h, but in order to avoid sharing user and
- * kernel constants, we define them here.  That will also improve ABI
- * stability if the in-kernel values change.
+ * Rights that can be represented in mbr_mode.  These have the same values as
+ * the V* rights in vnode.h, but in order to avoid sharing user and kernel
+ * constants, we define them here.  That will also improve ABI stability if
+ * the in-kernel values change.
  */
 #define	MBI_EXEC	000100
 #define	MBI_WRITE	000200
