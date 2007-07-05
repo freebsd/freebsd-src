@@ -51,6 +51,12 @@ archive_api_version(void)
 	return (ARCHIVE_API_VERSION);
 }
 
+int
+archive_version_stamp(void)
+{
+	return (ARCHIVE_VERSION_STAMP);
+}
+
 const char *
 archive_version(void)
 {
@@ -118,6 +124,12 @@ archive_position_uncompressed(struct archive *a)
 	return (a->file_position);
 }
 
+void
+archive_clear_error(struct archive *a)
+{
+	archive_string_empty(&a->error_string);
+	a->error = NULL;
+}
 
 void
 archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
@@ -153,6 +165,15 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 	}
 	a->error = a->error_string.s;
 	va_end(ap);
+}
+
+void
+archive_copy_error(struct archive *dest, struct archive *src)
+{
+	dest->archive_error_number = src->archive_error_number;
+
+	archive_string_copy(&dest->error_string, &src->error_string);
+	dest->error = dest->error_string.s;
 }
 
 void

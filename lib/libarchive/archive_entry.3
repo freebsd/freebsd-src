@@ -46,9 +46,13 @@
 .Nm archive_entry_copy_hardlink_w ,
 .Nm archive_entry_copy_pathname_w ,
 .Nm archive_entry_copy_stat ,
+.Nm archive_entry_copy_symlink ,
 .Nm archive_entry_copy_symlink_w ,
 .Nm archive_entry_copy_uname_w ,
 .Nm archive_entry_dev ,
+.Nm archive_entry_devmajor ,
+.Nm archive_entry_devminor ,
+.Nm archive_entry_filetype ,
 .Nm archive_entry_fflags ,
 .Nm archive_entry_fflags_text ,
 .Nm archive_entry_free ,
@@ -59,12 +63,19 @@
 .Nm archive_entry_mode ,
 .Nm archive_entry_mtime ,
 .Nm archive_entry_mtime_nsec ,
+.Nm archive_entry_nlink ,
 .Nm archive_entry_new ,
 .Nm archive_entry_pathname ,
 .Nm archive_entry_pathname_w ,
 .Nm archive_entry_rdev ,
 .Nm archive_entry_rdevmajor ,
 .Nm archive_entry_rdevminor ,
+.Nm archive_entry_set_atime ,
+.Nm archive_entry_set_ctime ,
+.Nm archive_entry_set_dev ,
+.Nm archive_entry_set_devmajor ,
+.Nm archive_entry_set_devminor ,
+.Nm archive_entry_set_filetype ,
 .Nm archive_entry_set_fflags ,
 .Nm archive_entry_set_gid ,
 .Nm archive_entry_set_gname ,
@@ -124,11 +135,19 @@
 .Ft void
 .Fn archive_entry_copy_stat "struct archive_entry *" "const struct stat *"
 .Ft void
+.Fn archive_entry_copy_symlink "struct archive_entry *" "const char *"
+.Ft void
 .Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_uname_w "struct archive_entry *" "const wchar_t *"
 .Ft dev_t
 .Fn archive_entry_dev "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_devmajor "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_devminor "struct archive_entry *"
+.Ft mode_t
+.Fn archive_entry_filetype "struct archive_entry *"
 .Ft void
 .Fn archive_entry_fflags "struct archive_entry *" "unsigned long *set" "unsigned long *clear"
 .Ft const char *
@@ -147,6 +166,8 @@
 .Fn archive_entry_mtime "struct archive_entry *"
 .Ft long
 .Fn archive_entry_mtime_nsec "struct archive_entry *"
+.Ft unsigned int
+.Fn archive_entry_nlink "struct archive_entry *"
 .Ft struct archive_entry *
 .Fn archive_entry_new "void"
 .Ft const char *
@@ -160,6 +181,14 @@
 .Ft dev_t
 .Fn archive_entry_rdevminor "struct archive_entry *"
 .Ft void
+.Fn archive_entry_set_dev "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_devmajor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_devminor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_filetype "struct archive_entry *" "unsigned int"
+.Ft void
 .Fn archive_entry_set_fflags "struct archive_entry *" "unsigned long set" "unsigned long clear"
 .Ft void
 .Fn archive_entry_set_gid "struct archive_entry *" "gid_t"
@@ -168,13 +197,19 @@
 .Ft void
 .Fn archive_entry_set_hardlink "struct archive_entry *" "const char *"
 .Ft void
+.Fn archive_entry_set_ino "struct archive_entry *" "unsigned long"
+.Ft void
 .Fn archive_entry_set_link "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_set_mode "struct archive_entry *" "mode_t"
 .Ft void
 .Fn archive_entry_set_mtime "struct archive_entry *" "time_t" "long nanos"
 .Ft void
+.Fn archive_entry_set_nlink "struct archive_entry *" "unsigned int"
+.Ft void
 .Fn archive_entry_set_pathname "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_rdev "struct archive_entry *" "dev_t"
 .Ft void
 .Fn archive_entry_set_rdevmajor "struct archive_entry *" "dev_t"
 .Ft void

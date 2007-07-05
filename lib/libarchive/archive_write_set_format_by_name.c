@@ -44,7 +44,13 @@ __FBSDID("$FreeBSD$");
 static
 struct { const char *name; int (*setter)(struct archive *); } names[] =
 {
+	{ "arbsd",	archive_write_set_format_ar_bsd },
+	{ "ar",		archive_write_set_format_ar_bsd },
+	{ "argnu",	archive_write_set_format_ar_svr4 },
+	{ "arsvr4",	archive_write_set_format_ar_svr4 },
 	{ "cpio",	archive_write_set_format_cpio },
+	{ "newc",	archive_write_set_format_cpio_newc },
+	{ "odc",	archive_write_set_format_cpio },
 	{ "pax",	archive_write_set_format_pax },
 	{ "posix",	archive_write_set_format_pax },
 	{ "shar",	archive_write_set_format_shar },

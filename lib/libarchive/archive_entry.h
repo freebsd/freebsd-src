@@ -28,7 +28,9 @@
 #ifndef ARCHIVE_ENTRY_H_INCLUDED
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
+#include <sys/types.h>
 #include <stddef.h>  /* for wchar_t */
+#include <time.h>
 #include <unistd.h>
 
 #ifdef __cplusplus
@@ -55,6 +57,17 @@ extern "C" {
 struct archive_entry;
 
 /*
+ * File-type constants.  These are returned from archive_entry_filetype().
+ */
+#define	AE_IFMT		0170000
+#define	AE_IFREG	0100000
+#define	AE_IFLNK	0120000
+#define	AE_IFCHR	0020000
+#define	AE_IFBLK	0060000
+#define	AE_IFDIR	0040000
+#define	AE_IFIFO	0010000
+
+/*
  * Basic object manipulation
  */
 
@@ -73,6 +86,9 @@ long			 archive_entry_atime_nsec(struct archive_entry *);
 time_t			 archive_entry_ctime(struct archive_entry *);
 long			 archive_entry_ctime_nsec(struct archive_entry *);
 dev_t			 archive_entry_dev(struct archive_entry *);
+dev_t			 archive_entry_devmajor(struct archive_entry *);
+dev_t			 archive_entry_devminor(struct archive_entry *);
+mode_t			 archive_entry_filetype(struct archive_entry *);
 void			 archive_entry_fflags(struct archive_entry *,
 			     unsigned long *set, unsigned long *clear);
 const char		*archive_entry_fflags_text(struct archive_entry *);
@@ -85,13 +101,13 @@ ino_t			 archive_entry_ino(struct archive_entry *);
 mode_t			 archive_entry_mode(struct archive_entry *);
 time_t			 archive_entry_mtime(struct archive_entry *);
 long			 archive_entry_mtime_nsec(struct archive_entry *);
+unsigned int		 archive_entry_nlink(struct archive_entry *);
 const char		*archive_entry_pathname(struct archive_entry *);
 const wchar_t		*archive_entry_pathname_w(struct archive_entry *);
 dev_t			 archive_entry_rdev(struct archive_entry *);
 dev_t			 archive_entry_rdevmajor(struct archive_entry *);
 dev_t			 archive_entry_rdevminor(struct archive_entry *);
 int64_t			 archive_entry_size(struct archive_entry *);
-const struct stat	*archive_entry_stat(struct archive_entry *);
 const char		*archive_entry_symlink(struct archive_entry *);
 const wchar_t		*archive_entry_symlink_w(struct archive_entry *);
 uid_t			 archive_entry_uid(struct archive_entry *);
@@ -105,9 +121,12 @@ const wchar_t		*archive_entry_uname_w(struct archive_entry *);
  * In contrast, 'copy' functions do copy the object pointed to.
  */
 
-void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
 void	archive_entry_set_atime(struct archive_entry *, time_t, long);
 void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
+void	archive_entry_set_dev(struct archive_entry *, dev_t);
+void	archive_entry_set_devmajor(struct archive_entry *, dev_t);
+void	archive_entry_set_devminor(struct archive_entry *, dev_t);
+void	archive_entry_set_filetype(struct archive_entry *, unsigned int);
 void	archive_entry_set_fflags(struct archive_entry *,
 	    unsigned long set, unsigned long clear);
 /* Returns pointer to start of first invalid token, or NULL if none. */
@@ -120,20 +139,36 @@ void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_hardlink(struct archive_entry *, const char *);
 void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
+void	archive_entry_set_ino(struct archive_entry *, unsigned long);
 void	archive_entry_set_link(struct archive_entry *, const char *);
 void	archive_entry_set_mode(struct archive_entry *, mode_t);
 void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
+void	archive_entry_set_nlink(struct archive_entry *, unsigned int);
 void	archive_entry_set_pathname(struct archive_entry *, const char *);
 void	archive_entry_copy_pathname(struct archive_entry *, const char *);
 void	archive_entry_copy_pathname_w(struct archive_entry *, const wchar_t *);
+void	archive_entry_set_rdev(struct archive_entry *, dev_t);
 void	archive_entry_set_rdevmajor(struct archive_entry *, dev_t);
 void	archive_entry_set_rdevminor(struct archive_entry *, dev_t);
 void	archive_entry_set_size(struct archive_entry *, int64_t);
 void	archive_entry_set_symlink(struct archive_entry *, const char *);
+void	archive_entry_copy_symlink(struct archive_entry *, const char *);
 void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_uid(struct archive_entry *, uid_t);
 void	archive_entry_set_uname(struct archive_entry *, const char *);
 void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
+
+/*
+ * Routines to bulk copy fields to/from a platform-native "struct
+ * stat."  Libarchive used to just store a struct stat inside of each
+ * archive_entry object, but this created issues when trying to
+ * manipulate archives on systems different than the ones they were
+ * created on.
+ *
+ * TODO: On Linux, provide both stat32 and stat64 versions of these functions.
+ */
+const struct stat	*archive_entry_stat(struct archive_entry *);
+void	archive_entry_copy_stat(struct archive_entry *, const struct stat *);
 
 /*
  * ACL routines.  This used to simply store and return text-format ACL

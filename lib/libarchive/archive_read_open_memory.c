@@ -134,7 +134,7 @@ memory_read_skip(struct archive *a, void *client_data, off_t skip)
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 
 	(void)a; /* UNUSED */
-	if (mine->buffer + skip > mine->end)
+	if (skip > (size_t)(mine->end - mine->buffer))
 		skip = mine->end - mine->buffer;
 	/* Round down to block size. */
 	skip /= mine->read_size;

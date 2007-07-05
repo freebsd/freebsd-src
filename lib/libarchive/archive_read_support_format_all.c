@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 int
 archive_read_support_format_all(struct archive *a)
 {
+	archive_read_support_format_ar(a);
 	archive_read_support_format_cpio(a);
 	archive_read_support_format_empty(a);
 	archive_read_support_format_iso9660(a);

@@ -50,8 +50,8 @@ archive_read_data_into_fd(struct archive *a, int fd)
 {
 	int r;
 	const void *buff;
-	size_t size;
-	ssize_t bytes_to_write, bytes_written, total_written;
+	size_t size, bytes_to_write;
+	ssize_t bytes_written, total_written;
 	off_t offset;
 	off_t output_offset;
 
@@ -80,8 +80,6 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			total_written += bytes_written;
 			p += bytes_written;
 			size -= bytes_written;
-			if (a->extract_progress != NULL)
-				(*a->extract_progress)(a->extract_progress_user_data);
 		}
 	}
 

@@ -36,15 +36,12 @@
 #ifndef ARCHIVE_PLATFORM_H_INCLUDED
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
-#if defined(HAVE_CONFIG_H)
+#if defined(PLATFORM_CONFIG_H)
+/* Use hand-built config.h in environments that need it. */
+#include PLATFORM_CONFIG_H
+#elif defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
 #include "../config.h"
-#elif defined(__FreeBSD__)
-/* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "config_freebsd.h"
-#elif defined(_WIN32)
-/* Win32 can't run the 'configure' script. */
-#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in archive_platform.h.
@@ -68,6 +65,23 @@
 #include <inttypes.h>
 #elif HAVE_STDINT_H
 #include <stdint.h>
+#endif
+
+/* Some platforms lack the standard *_MAX definitions. */
+#if !HAVE_DECL_SIZE_MAX
+#define	SIZE_MAX (~(size_t)0)
+#endif
+#if !HAVE_DECL_UINT32_MAX
+#define	UINT32_MAX (~(uint32_t)0)
+#endif
+#if !HAVE_DECL_UINT64_MAX
+#define	UINT64_MAX (~(uint64_t)0)
+#endif
+#if !HAVE_DECL_INT64_MAX
+#define	INT64_MAX ((int64_t)(UINT64_MAX >> 1))
+#endif
+#if !HAVE_DECL_INT64_MIN
+#define	INT64_MIN ((int64_t)(~INT64_MAX))
 #endif
 
 /*
@@ -106,35 +120,6 @@
 
 #ifndef ARCHIVE_ERRNO_MISC
 #define	ARCHIVE_ERRNO_MISC (-1)
-#endif
-
-/* Select the best way to set/get hi-res timestamps. */
-#if HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
-/* FreeBSD uses "timespec" members. */
-#define	ARCHIVE_STAT_ATIME_NANOS(st)	(st)->st_atimespec.tv_nsec
-#define	ARCHIVE_STAT_CTIME_NANOS(st)	(st)->st_ctimespec.tv_nsec
-#define	ARCHIVE_STAT_MTIME_NANOS(st)	(st)->st_mtimespec.tv_nsec
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atimespec.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctimespec.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtimespec.tv_nsec = (n)
-#else
-#if HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
-/* Linux uses "tim" members. */
-#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	(pstat)->st_atim.tv_nsec
-#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	(pstat)->st_ctim.tv_nsec
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	(pstat)->st_mtim.tv_nsec
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) (st)->st_atim.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) (st)->st_ctim.tv_nsec = (n)
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) (st)->st_mtim.tv_nsec = (n)
-#else
-/* If we can't find a better way, just use stubs. */
-#define	ARCHIVE_STAT_ATIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_CTIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) ((void)(n))
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) ((void)(n))
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) ((void)(n))
-#endif
 #endif
 
 #endif /* !ARCHIVE_H_INCLUDED */
