@@ -57,9 +57,7 @@
  * Destination options header processing.
  */
 int
-dest6_input(mp, offp, proto)
-	struct mbuf **mp;
-	int *offp, proto;
+dest6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	int off = *offp, dstoptlen, optlen;

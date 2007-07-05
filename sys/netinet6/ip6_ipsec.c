@@ -142,7 +142,6 @@ ip6_ipsec_fwd(struct mbuf *m)
  */
 int
 ip6_ipsec_input(struct mbuf *m, int nxt)
-
 {
 #ifdef IPSEC
 	struct m_tag *mtag;

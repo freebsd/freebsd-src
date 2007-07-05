@@ -152,7 +152,6 @@ static u_int32_t randomid(struct randomtab *);
  * Do a fast modular exponation, returned value will be in the range
  * of 0 - (mod-1)
  */
-
 static u_int32_t
 pmod(u_int32_t gen, u_int32_t expo, u_int32_t mod)
 {

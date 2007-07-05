@@ -84,7 +84,6 @@
  * len is a total length of a transport segment.
  * (e.g. TCP header + TCP payload)
  */
-
 int
 in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 {

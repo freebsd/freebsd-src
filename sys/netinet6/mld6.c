@@ -110,7 +110,7 @@ static void mld_timeo(struct in6_multi *);
 static u_long mld_timerresid(struct in6_multi *);
 
 void
-mld6_init()
+mld6_init(void)
 {
 	static u_int8_t hbh_buf[8];
 	struct ip6_hbh *hbh = (struct ip6_hbh *)hbh_buf;
@@ -131,8 +131,7 @@ mld6_init()
 }
 
 static void
-mld_starttimer(in6m)
-	struct in6_multi *in6m;
+mld_starttimer(struct in6_multi *in6m)
 {
 	struct timeval now;
 
@@ -151,8 +150,7 @@ mld_starttimer(in6m)
 }
 
 static void
-mld_stoptimer(in6m)
-	struct in6_multi *in6m;
+mld_stoptimer(struct in6_multi *in6m)
 {
 	if (in6m->in6m_timer == IN6M_TIMER_UNDEF)
 		return;
@@ -162,8 +160,7 @@ mld_stoptimer(in6m)
 }
 
 static void
-mld_timeo(in6m)
-	struct in6_multi *in6m;
+mld_timeo(struct in6_multi *in6m)
 {
 	int s = splnet();
 
@@ -184,8 +181,7 @@ mld_timeo(in6m)
 }
 
 static u_long
-mld_timerresid(in6m)
-	struct in6_multi *in6m;
+mld_timerresid(struct in6_multi *in6m)
 {
 	struct timeval now, diff;
 
@@ -209,8 +205,7 @@ mld_timerresid(in6m)
 }
 
 void
-mld6_start_listening(in6m)
-	struct in6_multi *in6m;
+mld6_start_listening(struct in6_multi *in6m)
 {
 	struct in6_addr all_in6;
 	int s = splnet();
@@ -245,8 +240,7 @@ mld6_start_listening(in6m)
 }
 
 void
-mld6_stop_listening(in6m)
-	struct in6_multi *in6m;
+mld6_stop_listening(struct in6_multi *in6m)
 {
 	struct in6_addr allnode, allrouter;
 
@@ -269,9 +263,7 @@ mld6_stop_listening(in6m)
 }
 
 void
-mld6_input(m, off)
-	struct mbuf *m;
-	int off;
+mld6_input(struct mbuf *m, int off)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct mld_hdr *mldh;
@@ -441,10 +433,7 @@ mld6_input(m, off)
 }
 
 static void
-mld6_sendpkt(in6m, type, dst)
-	struct in6_multi *in6m;
-	int type;
-	const struct in6_addr *dst;
+mld6_sendpkt(struct in6_multi *in6m, int type, const struct in6_addr *dst)
 {
 	struct mbuf *mh, *md;
 	struct mld_hdr *mldh;
@@ -544,10 +533,8 @@ mld6_sendpkt(in6m, type, dst)
  * and the number of source is not 0.
  */
 struct	in6_multi *
-in6_addmulti(maddr6, ifp, errorp, delay)
-	struct in6_addr *maddr6;
-	struct ifnet *ifp;
-	int *errorp, delay;
+in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
+    int *errorp, int delay)
 {
 	struct in6_multi *in6m;
 

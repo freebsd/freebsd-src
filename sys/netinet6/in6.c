@@ -277,9 +277,7 @@ in6_ifremloop(struct ifaddr *ifa)
 }
 
 int
-in6_mask2len(mask, lim0)
-	struct in6_addr *mask;
-	u_char *lim0;
+in6_mask2len(struct in6_addr *mask, u_char *lim0)
 {
 	int x = 0, y;
 	u_char *lim = lim0, *p;
@@ -318,12 +316,8 @@ in6_mask2len(mask, lim0)
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
 int
-in6_control(so, cmd, data, ifp, td)
-	struct	socket *so;
-	u_long cmd;
-	caddr_t	data;
-	struct ifnet *ifp;
-	struct thread *td;
+in6_control(struct socket *so, u_long cmd, caddr_t data,
+    struct ifnet *ifp, struct thread *td)
 {
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
@@ -795,11 +789,8 @@ in6_control(so, cmd, data, ifp, td)
  * XXX: should this be performed under splnet()?
  */
 int
-in6_update_ifa(ifp, ifra, ia, flags)
-	struct ifnet *ifp;
-	struct in6_aliasreq *ifra;
-	struct in6_ifaddr *ia;
-	int flags;
+in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
+    struct in6_ifaddr *ia, int flags)
 {
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct in6_ifaddr *oia;
@@ -1326,8 +1317,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 }
 
 void
-in6_purgeaddr(ifa)
-	struct ifaddr *ifa;
+in6_purgeaddr(struct ifaddr *ifa)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
@@ -1371,9 +1361,7 @@ in6_purgeaddr(ifa)
 }
 
 static void
-in6_unlink_ifa(ia, ifp)
-	struct in6_ifaddr *ia;
-	struct ifnet *ifp;
+in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
 	struct in6_ifaddr *oia;
 	int	s = splnet();
@@ -1426,8 +1414,7 @@ in6_unlink_ifa(ia, ifp)
 }
 
 void
-in6_purgeif(ifp)
-	struct ifnet *ifp;
+in6_purgeif(struct ifnet *ifp)
 {
 	struct ifaddr *ifa, *nifa;
 
@@ -1465,12 +1452,8 @@ in6_purgeif(ifp)
  * address encoding scheme. (see figure on page 8)
  */
 static int
-in6_lifaddr_ioctl(so, cmd, data, ifp, td)
-	struct socket *so;
-	u_long cmd;
-	caddr_t	data;
-	struct ifnet *ifp;
-	struct thread *td;
+in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
+    struct ifnet *ifp, struct thread *td)
 {
 	struct if_laddrreq *iflr = (struct if_laddrreq *)data;
 	struct ifaddr *ifa;
@@ -1703,11 +1686,8 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
  * and routing table entry.
  */
 static int
-in6_ifinit(ifp, ia, sin6, newhost)
-	struct ifnet *ifp;
-	struct in6_ifaddr *ia;
-	struct sockaddr_in6 *sin6;
-	int newhost;
+in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
+    struct sockaddr_in6 *sin6, int newhost)
 {
 	int	error = 0, plen, ifacount = 0;
 	int	s = splimp();
@@ -1811,11 +1791,8 @@ in6_ifinit(ifp, ia, sin6, newhost)
 }
 
 struct in6_multi_mship *
-in6_joingroup(ifp, addr, errorp, delay)
-	struct ifnet *ifp;
-	struct in6_addr *addr;
-	int *errorp;
-	int delay;
+in6_joingroup(struct ifnet *ifp, struct in6_addr *addr,
+    int *errorp, int delay)
 {
 	struct in6_multi_mship *imm;
 
@@ -1834,8 +1811,7 @@ in6_joingroup(ifp, addr, errorp, delay)
 }
 
 int
-in6_leavegroup(imm)
-	struct in6_multi_mship *imm;
+in6_leavegroup(struct in6_multi_mship *imm)
 {
 
 	if (imm->i6mm_maddr)
@@ -1848,9 +1824,7 @@ in6_leavegroup(imm)
  * Find an IPv6 interface link-local address specific to an interface.
  */
 struct in6_ifaddr *
-in6ifa_ifpforlinklocal(ifp, ignoreflags)
-	struct ifnet *ifp;
-	int ignoreflags;
+in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 {
 	struct ifaddr *ifa;
 
@@ -1873,9 +1847,7 @@ in6ifa_ifpforlinklocal(ifp, ignoreflags)
  * find the internet address corresponding to a given interface and address.
  */
 struct in6_ifaddr *
-in6ifa_ifpwithaddr(ifp, addr)
-	struct ifnet *ifp;
-	struct in6_addr *addr;
+in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
@@ -1955,8 +1927,7 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 }
 
 int
-in6_localaddr(in6)
-	struct in6_addr *in6;
+in6_localaddr(struct in6_addr *in6)
 {
 	struct in6_ifaddr *ia;
 
@@ -1974,8 +1945,7 @@ in6_localaddr(in6)
 }
 
 int
-in6_is_addr_deprecated(sa6)
-	struct sockaddr_in6 *sa6;
+in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
 	struct in6_ifaddr *ia;
 
@@ -1996,8 +1966,7 @@ in6_is_addr_deprecated(sa6)
  * hard coding...
  */
 int
-in6_matchlen(src, dst)
-struct in6_addr *src, *dst;
+in6_matchlen(struct in6_addr *src, struct in6_addr *dst)
 {
 	int match = 0;
 	u_char *s = (u_char *)src, *d = (u_char *)dst;
@@ -2017,9 +1986,7 @@ struct in6_addr *src, *dst;
 
 /* XXX: to be scope conscious */
 int
-in6_are_prefix_equal(p1, p2, len)
-	struct in6_addr *p1, *p2;
-	int len;
+in6_are_prefix_equal(struct in6_addr *p1, struct in6_addr *p2, int len)
 {
 	int bytelen, bitlen;
 
@@ -2044,9 +2011,7 @@ in6_are_prefix_equal(p1, p2, len)
 }
 
 void
-in6_prefixlen2mask(maskp, len)
-	struct in6_addr *maskp;
-	int len;
+in6_prefixlen2mask(struct in6_addr *maskp, int len)
 {
 	u_char maskarray[8] = {0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};
 	int bytelen, bitlen, i;
@@ -2072,9 +2037,7 @@ in6_prefixlen2mask(maskp, len)
  * found, return the first valid address from designated IF.
  */
 struct in6_ifaddr *
-in6_ifawithifp(ifp, dst)
-	struct ifnet *ifp;
-	struct in6_addr *dst;
+in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
@@ -2154,8 +2117,7 @@ in6_ifawithifp(ifp, dst)
  * perform DAD when interface becomes IFF_UP.
  */
 void
-in6_if_up(ifp)
-	struct ifnet *ifp;
+in6_if_up(struct ifnet *ifp)
 {
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ia;
@@ -2183,8 +2145,7 @@ in6_if_up(ifp)
 }
 
 int
-in6if_do_dad(ifp)
-	struct ifnet *ifp;
+in6if_do_dad(struct ifnet *ifp)
 {
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
 		return (0);
@@ -2224,7 +2185,7 @@ in6if_do_dad(ifp)
  * to in6_maxmtu.
  */
 void
-in6_setmaxmtu()
+in6_setmaxmtu(void)
 {
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
@@ -2252,8 +2213,7 @@ in6_setmaxmtu()
  * consistent, and those really are as of August 2004.
  */
 int
-in6_if2idlen(ifp)
-	struct ifnet *ifp;
+in6_if2idlen(struct ifnet *ifp)
 {
 	switch (ifp->if_type) {
 	case IFT_ETHER:		/* RFC2464 */
@@ -2304,8 +2264,7 @@ in6_if2idlen(ifp)
 }
 
 void *
-in6_domifattach(ifp)
-	struct ifnet *ifp;
+in6_domifattach(struct ifnet *ifp)
 {
 	struct in6_ifextra *ext;
 
@@ -2327,9 +2286,7 @@ in6_domifattach(ifp)
 }
 
 void
-in6_domifdetach(ifp, aux)
-	struct ifnet *ifp;
-	void *aux;
+in6_domifdetach(struct ifnet *ifp, void *aux)
 {
 	struct in6_ifextra *ext = (struct in6_ifextra *)aux;
 
@@ -2347,6 +2304,7 @@ in6_domifdetach(ifp, aux)
 void
 in6_sin6_2_sin(struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
 {
+
 	bzero(sin, sizeof(*sin));
 	sin->sin_len = sizeof(struct sockaddr_in);
 	sin->sin_family = AF_INET;
