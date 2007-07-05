@@ -280,17 +280,15 @@ ubser_attach(device_t self)
 	err = usbd_do_request_flags(udev, &req, &sc->sc_numser,
 	    USBD_SHORT_XFER_OK, &alen, USBD_DEFAULT_TIMEOUT);
 	if (err) {
-		printf("%s: failed to get number of serials\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(self, "failed to get number of serials\n");
 		goto bad;
 	} else if (alen != 1) {
-		printf("%s: bogus answer on get_numser\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(self, "bogus answer on get_numser\n");
 		goto bad;
 	}
 	if (sc->sc_numser > MAX_SER)
 		sc->sc_numser = MAX_SER;
-	printf("%s: found %i serials\n", device_get_nameunit(sc->sc_dev), sc->sc_numser);
+	device_printf(self, "found %i serials\n", sc->sc_numser);
 
 	sc->sc_port = malloc(sizeof(*sc->sc_port) * sc->sc_numser,
 	    M_USBDEV, M_WAITOK);
@@ -303,8 +301,7 @@ ubser_attach(device_t self)
 	for (i = 0; i < epcount; i++) {
 		ed = usbd_interface2endpoint_descriptor(sc->sc_iface, i);
 		if (ed == NULL) {
-			printf("%s: couldn't get ep %d\n",
-			device_get_nameunit(sc->sc_dev), i);
+			device_printf(self, "couldn't get ep %d\n", i);
 			return ENXIO;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -320,8 +317,7 @@ ubser_attach(device_t self)
 		}
 	}
 	if (sc->sc_bulkin_no == -1 || sc->sc_bulkout_no == -1) {
-		printf("%s: could not find bulk in/out endpoint\n",
-		    device_get_nameunit(sc->sc_dev));
+		device_printf(self, "could not find bulk in/out endpoint\n");
 		sc->sc_dying = 1;
 		goto bad;
 	}
@@ -331,18 +327,16 @@ ubser_attach(device_t self)
 	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkin_no, 0,
 			     &sc->sc_bulkin_pipe);
 	if (err) {
-		printf("%s: open bulk in error (addr %d): %s\n",
-		       device_get_nameunit(sc->sc_dev), sc->sc_bulkin_no,
-		       usbd_errstr(err));
+		device_printf(self, "open bulk in error (addr %d): %s\n",
+		    sc->sc_bulkin_no, usbd_errstr(err));
 		goto fail_0;
 	}
 	/* Bulk-out pipe */
 	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulkout_no,
 			     USBD_EXCLUSIVE_USE, &sc->sc_bulkout_pipe);
 	if (err) {
-		printf("%s: open bulk out error (addr %d): %s\n",
-		       device_get_nameunit(sc->sc_dev), sc->sc_bulkout_no,
-		       usbd_errstr(err));
+		device_printf(self, "open bulk out error (addr %d): %s\n",
+		    sc->sc_bulkout_no, usbd_errstr(err));
 		goto fail_1;
 	}
 
@@ -645,8 +639,8 @@ ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		goto error;
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		printf("%s: ubserwritecb: %s\n",
-		       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
+		device_printf(sc->sc_dev, "ubserwritecb: %s\n",
+		    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
 		/* XXX we should restart after some delay. */
@@ -656,8 +650,8 @@ ubserwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	usbd_get_xfer_status(xfer, NULL, NULL, &cc, NULL);
 	DPRINTF(("ubserwritecb: cc = %d\n", cc));
 	if (cc <= sc->sc_opkthdrlen) {
-		printf("%s: sent size too small, cc = %d\n",
-		       device_get_nameunit(sc->sc_dev), cc);
+		device_printf(sc->sc_dev, "sent size too small, cc = %d\n",
+		    cc);
 		goto error;
 	}
 
@@ -714,8 +708,8 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	int lostcc;
 
 	if (status == USBD_IOERROR) {
-		printf("%s: ubserreadcb: %s - restarting\n",
-		    device_get_nameunit(sc->sc_dev), usbd_errstr(status));
+		device_printf(sc->sc_dev, "ubserreadcb: %s - restarting\n",
+		    usbd_errstr(status));
 		goto resubmit;
 	}
 
@@ -723,8 +717,8 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status != USBD_CANCELLED) {
-			printf("%s: ubserreadcb: %s\n",
-			    device_get_nameunit(sc->sc_dev), usbd_errstr(status));
+			device_printf(sc->sc_dev, "ubserreadcb: %s\n",
+			    usbd_errstr(status));
 		}
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
@@ -738,8 +732,8 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		goto resubmit;
 
 	if (cc > sc->sc_ibufsizepad) {
-		printf("%s: invalid receive data size, %d chars\n",
-		       device_get_nameunit(sc->sc_dev), cc);
+		device_printf(sc->sc_dev, "invalid receive data size, %d chars\n",
+		    cc);
 		goto resubmit;
 	}
 
@@ -773,16 +767,15 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 			ubserstart(tp);
 		}
 		if (lostcc > 0)
-			printf("%s: lost %d chars\n", device_get_nameunit(sc->sc_dev),
-			       lostcc);
+			device_printf(sc->sc_dev, "lost %d chars\n", lostcc);
 	} else {
 		/* Give characters to tty layer. */
 		while (cc > 0) {
 			DPRINTFN(7, ("ubserreadcb: char = 0x%02x\n", *cp));
 			if (ttyld_rint(tp, *cp) == -1) {
 				/* XXX what should we do? */
-				printf("%s: lost %d chars\n",
-				       device_get_nameunit(sc->sc_dev), cc);
+				device_printf(sc->sc_dev, "lost %d chars\n",
+				    cc);
 				break;
 			}
 			cc--;
@@ -793,7 +786,7 @@ ubserreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 resubmit:
 	err = ubserstartread(sc);
 	if (err) {
-		printf("%s: read start failed\n", device_get_nameunit(sc->sc_dev));
+		device_printf(sc->sc_dev, "read start failed\n");
 		/* XXX what should we do now? */
 	}
 
