@@ -116,7 +116,7 @@ __FBSDID("$FreeBSD$");
 
 static u_char isn_secret[32];
 static int isn_last_reseed;
-static u_int32_t isn_offset, isn_offset_old;
+static u_int32_t isn_offset;
 static MD5_CTX isn_ctx;
 
 u_int32_t
