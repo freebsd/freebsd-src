@@ -267,6 +267,7 @@ vendor INFINEON		0x058b	Infineon
 vendor MICREL		0x058d	Micrel
 vendor ALCOR		0x058f	Alcor Micro
 vendor OMRON		0x0590	OMRON
+vendor ZORAN		0x0595	Zoran Microelectronics
 vendor NIIGATA		0x0598	Niigata
 vendor IOMEGA		0x059b	Iomega
 vendor ATREND		0x059c	A-Trend Technology
@@ -428,6 +429,7 @@ vendor MSYSTEMS		0x08ec	M-Systems
 vendor AUTHENTEC	0x08ff	AuthenTec
 vendor AUDIOTECHNICA	0x0909	Audio-Technica
 vendor TRUMPION		0x090a	Trumpion
+vendor FEIYA		0x090c	Feiya
 vendor ALATION		0x0910	Alation
 vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GARMIN		0x091e	Garmin
@@ -498,8 +500,10 @@ vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	ACDC
 vendor ABC		0x0d8c	ABC
 vendor CONCEPTRONIC	0x0d8e	Conceptronic
+vendor SKANHEX		0x0d96	Skanhex Technology, Inc.
 vendor MSI		0x0db0	Micro Star International
 vendor ELCON		0x0db7	ELCON Systemtechnik
+vendor NETAC		0x0dd8	Netac
 vendor SITECOMEU	0x0df6	Sitecom Europe
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
@@ -507,10 +511,12 @@ vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours
 vendor PILOTECH		0x0eaf	Pilotech
 vendor NOVATECH		0x0eb0	NovaTech
+vendor WINMAXGROUP	0x0ed1	WinMaxGroup
 vendor EGALAX		0x0eef	eGalax
 vendor MICROTUNE	0x0f4d	Microtune
 vendor VTECH		0x0f88	VTech
 vendor QUALCOMM2	0x1004	Qualcomm
+vendor DESKNOTE		0x1019	Desknote
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
@@ -686,6 +692,9 @@ product ADDON ATTACHE		0x1300	USB 2.0 Flash Drive
 product ADDON A256MB		0x1400	Attache 256MB USB 2.0 Flash Drive
 product ADDON DISKPRO512	0x1420	USB 2.0 Flash Drive (DANE-ELEC zMate 512MB USB flash drive)
 
+/* Addonics products */
+product ADDONICS2 CABLE_205	0xa001	Cable 205
+
 /* ADS products */
 product ADS UBS10BT		0x0008	UBS-10BT Ethernet
 product ADS UBS10BTX		0x0009	UBS-10BT Ethernet
@@ -710,6 +719,9 @@ product AGFA SNAPSCANE52	0x20fd	SnapScan e52
 
 /* Ain Communication Technology products */
 product AINCOMM AWU2000B	0x1001	AWU2000B Wireless adapter
+
+/* AIPTEK products */
+product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
 
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
@@ -821,7 +833,7 @@ product BELKIN FBT001V		0x0081	FBT001v2 Bluetooth
 product BELKIN FBT003V		0x0084	FBT003v2 Bluetooth
 product BELKIN F5U103		0x0103	F5U103 Serial
 product BELKIN F5U109		0x0109	F5U109 Serial
-product BELKIN SCSI		0x0115	SCSI
+product BELKIN USB2SCSI		0x0115	USB to SCSI
 product BELKIN USB2LAN		0x0121	USB to LAN
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
 product BELKIN F5U237		0x0237	F5U237 USB 2.0 7-Port Hub
@@ -872,8 +884,12 @@ product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 product CATC ANDROMEDA		0x1237	Andromeda hub
 
 /* CASIO products */
+product CASIO QV_DIGICAM	0x1001	QV DigiCam
 product CASIO BE300		0x2002	BE-300 PDA
 product CASIO NAMELAND		0x4001	CASIO Nameland EZ-USB
+
+/* CCYU products */
+product CCYU ED1064		0x2136	EasyDisk ED1064
 
 /* Century products */
 product CENTURY EX35QUAT	0x011e	Century USB Disk Enclosure
@@ -968,6 +984,9 @@ product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
 
+/* Desknote products */
+product DESKNOTE UCR_61S2B	0x0c55	UCR-61S2B
+
 /* Diamond products */
 product DIAMOND RIO500USB	0x0001	Rio 500 USB
 
@@ -1005,6 +1024,9 @@ product DLINK DSB650TX2		0x4102	10/100 ethernet
 product DLINK DSB650		0xabc1	10/100 ethernet
 product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
 product DLINK2 WUA1340		0x3c04	WUA-1340
+
+/* DMI products */
+product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
 
 /* EIZO products */
 product EIZO HUB		0x0000	hub
@@ -1070,6 +1092,8 @@ product EPSON 1270		0x0120	Perfection 1270 scanner
 product EPSON 2480		0x0121	Perfection 2480 scanner
 product EPSON 3590		0x0122	Perfection 3590 scanner
 product EPSON 4990		0x012a	Perfection 4990 Photo scanner
+product EPSON STYLUS_875DC	0x0601	Stylus Photo 875DC Card Reader
+product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
 product EPSON 4200		0x0820	CX4200 MP scanner
@@ -1079,6 +1103,9 @@ product ETEK 1COM		0x8007	Serial
 
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
+
+/* FEIYA products */
+product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 
 /* Fossil, Inc products */
 product FOSSIL WRISTPDA		0x0002	Wrist PDA
@@ -1198,6 +1225,7 @@ product HAUPPAUGE WINTV_USB_FM	0x4d12	WinTV USB FM
 product HAWKING UF100		0x400c	10/100 USB Ethernet
 
 /* Hitachi, Ltd. products */
+product HITACHI DVDCAM_DZ_MV100A	0x0004	DVD-CAM DZ-MV100A Camcorder
 product HITACHI DVDCAM_USB	0x001e	DVDCAM USB HS Interface
 
 /* HP products */
@@ -1220,6 +1248,7 @@ product HP MMKEYB		0x020c	Multimedia keyboard
 product HP 1220C		0x0212	DeskJet 1220C
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
+product HP CDW4E		0x0307	CD-Writer+ CD-4e
 product HP G85XI		0x0311	OfficeJet G85xi
 product HP 1200			0x0317	LaserJet 1200
 product HP 5200C		0x0401	Scanjet 5200C
@@ -1265,6 +1294,7 @@ product INSYSTEM ATAPI		0x0031	ATAPI adapter
 product INSYSTEM ISD110		0x0200	IDE adapter ISD110
 product INSYSTEM ISD105		0x0202	IDE adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
+product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
@@ -1374,6 +1404,10 @@ product KYE FLIGHT2000		0x1004	Flight 2000 joystick
 product KYE VIVIDPRO		0x2001	ColorPage Vivid-Pro scanner
 
 /* Kyocera products */
+product KYOCERA FINECAM_S3X	0x0100	Finecam S3x
+product KYOCERA FINECAM_S4	0x0101	Finecam S4
+product KYOCERA FINECAM_S5	0x0103	Finecam S5
+product KYOCERA FINECAM_L3	0x0105	Finecam L3
 product KYOCERA AHK3001V	0x0203	AH-K3001V
 
 /* LaCie products */
@@ -1382,6 +1416,7 @@ product LACIE CDRW		0xa602	CD R/W
 
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
+product LEXAR CF_READER		0xb002	USB CF Reader
 
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
@@ -1514,15 +1549,21 @@ product MICROTUNE BT_DONGLE	0x1000	Bluetooth USB dongle
 /* Midiman products */
 product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
 
+/* MindsAtWork products */
+product MINDSATWORK WALLET	0x0001	Digital Wallet
+
 /* Minolta Co., Ltd. */
 product MINOLTA 2300		0x4001	Dimage 2300
 product MINOLTA S304		0x4007	Dimage S304
 product MINOLTA X		0x4009	Dimage X
 product MINOLTA 5400		0x400e	Dimage 5400
+product MINOLTA F300		0x4011	Dimage F300
+product MINOLTA E223		0x4017	Dimage E223
 
 /* Mitsumi products */
 product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
+product MITSUMI FDD		0x6901	USB FDD
 
 /* Mobility products */
 product MOBILITY EA		0x0204	Ethernet
@@ -1570,8 +1611,12 @@ product NEC HUB_B		0x55ab	hub
 product NEODIO ND3260		0x3260	8-in-1 Multi-format Flash Controller
 product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
+/* Netac products */
+product NETAC CF_CARD		0x1060	USB-CF-Card
+
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
+product NETCHIP CLIK_40		0xa140	USB Clik! 40
 product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/26x
 
 /* Netgear products */
@@ -1606,7 +1651,15 @@ product OMNIVISION OV511	0x0511	OV511 Camera
 product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 
 /* OnSpec Electronic, Inc. */
+product ONSPEC MDCFE_B_CF_READER	0xa000	MDCFE-B USB CF Reader
+product ONSPEC CFMS_RW		0xa001	SIIG/Datafab Memory Stick+CF Reader/Writer
+product ONSPEC READER		0xa003	Datafab-based Reader
+product ONSPEC CFSM_READER	0xa005	PNY/Datafab CF+SM Reader
+product ONSPEC CFSM_READER2	0xa006	Simple Tech/Datafab CF+SM Reader
+product ONSPEC MDSM_B_READER	0xa103	MDSM-B reader
+product ONSPEC CFSM_COMBO	0xa109	USB to CF + SM Combo (LC1)
 product ONSPEC UCF100		0xa400	FlashLink UCF-100 CompactFlash Reader
+product ONSPEC2 IMAGEMATE_SDDR55	0xa103	ImageMate SDDR55
 
 /* Option products */
 product OPTION VODAFONEMC3G	0x5000	Vodafone Mobile Connect 3G datacard
@@ -1634,6 +1687,7 @@ product PALM ZIRE31		0x0061	Palm Zire 31
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
+product PANASONIC LS120CAM	0x0901	LS-120 Camera
 product PANASONIC KXL840AN	0x0d01	CD-R Drive KXL-840AN
 product PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
@@ -1773,6 +1827,9 @@ product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
 product SAMSUNG I500		0x6601	I500 Palm USB Phone 
 
+/* Samsung Techwin products */
+product SAMSUNG_TECHWIN DIGIMAX_410	0x000a	Digimax 410
+
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
@@ -1806,6 +1863,7 @@ product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
 product SHUTTLE EUSB		0x0001	E-USB Bridge
 product SHUTTLE EUSCSI		0x0002	eUSCSI Bridge
 product SHUTTLE SDDR09		0x0003	ImageMate SDDR09
+product SHUTTLE EUSBCFSM	0x0005	eUSB SmartMedia / CompactFlash Adapter
 product SHUTTLE ZIOMMC		0x0006	eUSB MultiMediaCard Adapter
 product SHUTTLE HIFD		0x0007	Sony Hifd
 product SHUTTLE EUSBATAPI	0x0009	eUSB ATA/ATAPI Adapter
@@ -1861,6 +1919,10 @@ product SITECOMEU ZD1211B	0x9075	ZD1211B
 product SITECOMEU WL172		0x90ac	WL-172
 product SITECOMEU WL113R2	0x9712	WL-113 rev 2
 
+/* Skanhex Technology products */
+product SKANHEX MD_7425		0x410a	MD 7425 Camera
+product SKANHEX SX_520Z		0x5200	SX 520z Camera
+
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet
 product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP ethernet
@@ -1882,11 +1944,15 @@ product SOLIDYEAR KEYBOARD	0x2101	Solid Year USB keyboard
 
 /* SONY products */
 product SONY DSC		0x0010	DSC cameras
+product SONY MS_NW_MS7		0x0025	Memorystick NW-MS7
+product SONY PORTABLE_HDD_V2	0x002b	Portable USB Harddrive V2
 product SONY MSACUS1		0x002d	Memorystick MSAC-US1
 product SONY HANDYCAM		0x002e	Handycam
 product SONY MSC		0x0032	MSC memory stick slot
 product SONY CLIE_35		0x0038	Sony Clie v3.5
+product SONY MS_PEG_N760C	0x0058	PEG N760c Memorystick
 product SONY CLIE_40		0x0066	Sony Clie v4.0
+product SONY MS_MSC_U03		0x0069	Memorystick MSC-U03
 product SONY CLIE_40_MS		0x006d	Sony Clie v4.0 Memory Stick slot
 product SONY CLIE_S360		0x0095	Sony Clie s360
 product SONY CLIE_41_MS		0x0099	Sony Clie v4.1 Memory Stick slot
@@ -1969,13 +2035,16 @@ product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
+product TREK MEMKEY		0x8888	IBM USB Memory Key
 product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 
 /* Tripp-Lite products */
 product TRIPPLITE U209		0x2008	Serial
 
 /* Trumpion products */
+product TRUMPION T33520		0x1001	T33520 USB Flash Card Controller
 product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
+product TRUMPION MP3		0x1200	MP3 player
 
 /* TwinMOS */
 product TWINMOS MDIV		0x1325	Memory Disk IV
@@ -2020,6 +2089,9 @@ product VISIONEER 6200		0x0311	OneTouch 6200
 product VISIONEER 8100		0x0321	OneTouch 8100
 product VISIONEER 8600		0x0331	OneTouch 8600
 
+/* Vivitar products */
+product VIVITAR 35XX		0x0003	Vivicam 35Xx
+
 /* VTech products */
 product VTECH RT2570		0x3012	RT2570
 
@@ -2038,6 +2110,9 @@ product WESTERN MYBOOK		0x0901	MyBook External HDD
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
+
+/* WinMaxGroup products */
+product WINMAXGROUP FLASH64MC	0x6660	USB Flash Disk 64M-C
 
 /* Wistron NeWeb products */
 product WISTRONNEWEB UR055G	0x0711	UR055G
@@ -2079,6 +2154,9 @@ product ZINWELL RT2570		0x0260	RT2570
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
+
+/* Zoran Microelectronics products */
+product ZORAN EX20DSC		0x4343	Digital Camera EX-20 DSC
 
 /* ZyXEL Communication Co. products */
 product ZYXEL OMNI56K		0x1500	Omni 56K Plus
