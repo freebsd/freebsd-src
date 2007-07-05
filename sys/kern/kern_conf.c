@@ -782,16 +782,10 @@ destroy_devl(struct cdev *dev)
 void
 destroy_dev(struct cdev *dev)
 {
-	struct cdevsw *csw;
 
 	dev_lock();
-	csw = dev->si_devsw;
-	if ((csw != NULL && csw->d_purge != NULL) ||
-	    dev->si_threadcount == 0) {
-		destroy_devl(dev);
-		dev_unlock_and_free();
-	} else
-		destroy_dev_sched_cbl(dev, NULL, NULL);
+	destroy_devl(dev);
+	dev_unlock_and_free();
 }
 
 const char *
