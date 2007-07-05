@@ -131,7 +131,7 @@ u_int32_t t, l, r;
 
 void cast_setkey(cast_key* key, u_int8_t* rawkey, int keybytes)
 {
-u_int32_t t[4], z[4], x[4];
+u_int32_t t[4] = {0, 0, 0, 0}, z[4] = {0, 0, 0, 0}, x[4];
 int i;
 
 	/* Set number of rounds to 12 or 16, depending on key length */
