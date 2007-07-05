@@ -405,7 +405,7 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	int             prot;
 	u_long          text_size = 0, data_size = 0, dsize;
 	u_long          text_addr = 0, data_addr = VM_MAXUSER_ADDRESS;
-	u_long          ldexport, ldbase;
+	u_long          ldexport = 0, ldbase = 0;
 	struct pecoff_opthdr *wp;
 	struct coff_scnhdr *sh;
 	struct vmspace *vmspace;
