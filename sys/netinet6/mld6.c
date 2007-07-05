@@ -318,7 +318,7 @@ mld6_input(struct mbuf *m, int off)
 	 *
 	 * In Non-Listener state, we simply don't have a membership record.
 	 * In Delaying Listener state, our timer is running (in6m->in6m_timer)
-	 * In Idle Listener state, our timer is not running 
+	 * In Idle Listener state, our timer is not running
 	 * (in6m->in6m_timer==IN6M_TIMER_UNDEF)
 	 *
 	 * The flag is in6m->in6m_state, it is set to MLD_OTHERLISTENER if
@@ -532,7 +532,7 @@ mld6_sendpkt(struct in6_multi *in6m, int type, const struct in6_addr *dst)
  * Add source addresses to the list also, if upstream router is MLDv2 capable
  * and the number of source is not 0.
  */
-struct	in6_multi *
+struct in6_multi *
 in6_addmulti(struct in6_addr *maddr6, struct ifnet *ifp,
     int *errorp, int delay)
 {

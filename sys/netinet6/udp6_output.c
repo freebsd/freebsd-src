@@ -290,8 +290,8 @@ udp6_output(struct in6pcb *in6p, struct mbuf *m, struct sockaddr *addr6,
 	case AF_INET6:
 		ip6 = mtod(m, struct ip6_hdr *);
 		ip6->ip6_flow	= in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK;
-		ip6->ip6_vfc 	&= ~IPV6_VERSION_MASK;
-		ip6->ip6_vfc 	|= IPV6_VERSION;
+		ip6->ip6_vfc	&= ~IPV6_VERSION_MASK;
+		ip6->ip6_vfc	|= IPV6_VERSION;
 #if 0				/* ip6_plen will be filled in ip6_output. */
 		ip6->ip6_plen	= htons((u_short)plen);
 #endif

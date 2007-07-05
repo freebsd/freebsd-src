@@ -1,6 +1,6 @@
 /*	$FreeBSD$	*/
 /*	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $	*/
-  
+
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -191,8 +191,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				    (so->so_type != SOCK_STREAM ||
 				     IN6_IS_ADDR_UNSPECIFIED(&t->in6p_faddr)) &&
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
-			    	     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
-				     (t->inp_socket->so_options & SO_REUSEPORT) 
+				     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
+				     (t->inp_socket->so_options & SO_REUSEPORT)
 				      == 0) && (so->so_cred->cr_uid !=
 				     t->inp_socket->so_cred->cr_uid))
 					return (EADDRINUSE);
@@ -218,7 +218,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 						lport, wild);
 			if (t && (reuseport & ((t->inp_vflag & INP_TIMEWAIT) ?
-			    intotw(t)->tw_so_options : 
+			    intotw(t)->tw_so_options :
 			    t->inp_socket->so_options)) == 0)
 				return (EADDRINUSE);
 			if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
@@ -229,17 +229,17 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				t = in_pcblookup_local(pcbinfo, sin.sin_addr,
 						       lport, wild);
 				if (t && t->inp_vflag & INP_TIMEWAIT) {
-					if ((reuseport & 
+					if ((reuseport &
 					    intotw(t)->tw_so_options) == 0 &&
 					    (ntohl(t->inp_laddr.s_addr) !=
-					     INADDR_ANY || ((inp->inp_vflag & 
-					     INP_IPV6PROTO) == 
+					     INADDR_ANY || ((inp->inp_vflag &
+					     INP_IPV6PROTO) ==
 					     (t->inp_vflag & INP_IPV6PROTO))))
 						return (EADDRINUSE);
 				}
-				else if (t && 
-				    (reuseport & t->inp_socket->so_options) 
-				    == 0 && (ntohl(t->inp_laddr.s_addr) != 
+				else if (t &&
+				    (reuseport & t->inp_socket->so_options)
+				    == 0 && (ntohl(t->inp_laddr.s_addr) !=
 				    INADDR_ANY || INP_SOCKAF(so) ==
 				     INP_SOCKAF(t->inp_socket)))
 					return (EADDRINUSE);
@@ -425,8 +425,8 @@ in6_pcbfree(struct inpcb *inp)
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
- 	ip6_freepcbopts(inp->in6p_outputopts);
- 	ip6_freemoptions(inp->in6p_moptions);
+	ip6_freepcbopts(inp->in6p_outputopts);
+	ip6_freemoptions(inp->in6p_moptions);
 	/* Check and free IPv4 related resources in case of mapped addr */
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
@@ -605,11 +605,11 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
 	errno = inet6ctlerrmap[cmd];
 	head = pcbinfo->ipi_listhead;
 	INP_INFO_WLOCK(pcbinfo);
- 	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
+	for (inp = LIST_FIRST(head); inp != NULL; inp = ninp) {
 		INP_LOCK(inp);
- 		ninp = LIST_NEXT(inp, inp_list);
+		ninp = LIST_NEXT(inp, inp_list);
 
- 		if ((inp->inp_vflag & INP_IPV6) == 0) {
+		if ((inp->inp_vflag & INP_IPV6) == 0) {
 			INP_UNLOCK(inp);
 			continue;
 		}

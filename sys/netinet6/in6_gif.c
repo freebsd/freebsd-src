@@ -136,16 +136,16 @@ in6_gif_output(struct ifnet *ifp,
 	    }
 #endif
 	case AF_LINK:
- 		proto = IPPROTO_ETHERIP;
- 		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
- 		eiphdr.eip_pad = 0;
- 		/* prepend Ethernet-in-IP header */
- 		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
- 		if (m && m->m_len < sizeof(struct etherip_header))
- 			m = m_pullup(m, sizeof(struct etherip_header));
- 		if (m == NULL)
- 			return ENOBUFS;
- 		bcopy(&eiphdr, mtod(m, struct etherip_header *),
+		proto = IPPROTO_ETHERIP;
+		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
+		eiphdr.eip_pad = 0;
+		/* prepend Ethernet-in-IP header */
+		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
+		if (m && m->m_len < sizeof(struct etherip_header))
+			m = m_pullup(m, sizeof(struct etherip_header));
+		if (m == NULL)
+			return ENOBUFS;
+		bcopy(&eiphdr, mtod(m, struct etherip_header *),
 		    sizeof(struct etherip_header));
 		break;
 
@@ -313,9 +313,9 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 		break;
 	    }
 #endif
- 	case IPPROTO_ETHERIP:
- 		af = AF_LINK;
- 		break;	
+	case IPPROTO_ETHERIP:
+		af = AF_LINK;
+		break;
 
 	default:
 		ip6stat.ip6s_nogif++;

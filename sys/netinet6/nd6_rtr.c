@@ -1089,7 +1089,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		goto end;
 	}
 
- 	/*
+	/*
 	 * 5.5.3 (d).  If the prefix advertised is not equal to the prefix of
 	 * an address configured by stateless autoconfiguration already in the
 	 * list of addresses associated with the interface, and the Valid
@@ -1182,14 +1182,14 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 
 		in6_init_address_ltimes(pr, &lt6_tmp);
 
-  		/*
+		/*
 		 * We need to treat lifetimes for temporary addresses
 		 * differently, according to
 		 * draft-ietf-ipv6-privacy-addrs-v2-01.txt 3.3 (1);
 		 * we only update the lifetimes when they are in the maximum
 		 * intervals.
-  		 */
-  		if ((ifa6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
+		 */
+		if ((ifa6->ia6_flags & IN6_IFF_TEMPORARY) != 0) {
 			u_int32_t maxvltime, maxpltime;
 
 			if (ip6_temp_valid_lifetime >
@@ -1372,15 +1372,15 @@ pfxlist_onlink_check()
 		}
 	}
 	if (pr != NULL || (TAILQ_FIRST(&nd_defrouter) && pfxrtr == NULL)) {
-  		/*
+		/*
 		 * There is at least one prefix that has a reachable router,
 		 * or at least a router which probably does not advertise
 		 * any prefixes.  The latter would be the case when we move
 		 * to a new link where we have a router that does not provide
 		 * prefixes and we configure an address by hand.
-  		 * Detach prefixes which have no reachable advertising
-  		 * router, and attach other prefixes.
-  		 */
+		 * Detach prefixes which have no reachable advertising
+		 * router, and attach other prefixes.
+		 */
 		for (pr = nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
 			/* XXX: a link-local prefix should never be detached */
 			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
@@ -1810,7 +1810,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 
 	ifra.ifra_flags |= IN6_IFF_AUTOCONF; /* obey autoconf */
 
-  	/*
+	/*
 	 * Make sure that we do not have this address already.  This should
 	 * usually not happen, but we can still see this case, e.g., if we
 	 * have manually configured the exact address to be configured.
@@ -1882,7 +1882,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (randid[1] & ~(ifra.ifra_prefixmask.sin6_addr.s6_addr32[3]));
 
-  	/*
+	/*
 	 * in6_get_tmpifid() quite likely provided a unique interface ID.
 	 * However, we may still have a chance to see collision, because
 	 * there may be a time lag between generation of the ID and generation
@@ -1891,7 +1891,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 		    &ifra.ifra_addr.sin6_addr)) {
-  			if (trylimit-- == 0) {
+			if (trylimit-- == 0) {
 				/*
 				 * Give up.  Something strange should have
 				 * happened.
