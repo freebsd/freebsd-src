@@ -436,6 +436,7 @@ int sWriteTxPrioByte(CHANNEL_T *ChP, Byte_t Data)
       le16enc(DWBuf,ChP->TxPrioBuf);   /* data byte address */
 
       DWBuf[2] = Data;		       /* data byte value */
+      DWBuf[3] = 0;		       /* priority buffer pointer */
       rp_writech4(ChP,_INDX_ADDR,le32dec(DWBuf)); /* write it out */
 
       le16enc(DWBuf,ChP->TxPrioCnt);   /* Tx priority count address */
