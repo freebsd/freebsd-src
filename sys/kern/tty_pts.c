@@ -214,8 +214,9 @@ pty_new(void)
  * remains allocated.
  */
 static void
-pty_release(struct pt_desc *pt)
+pty_release(void *v)
 {
+	struct pt_desc *pt = (struct pt_desc *)v;
 
 	mtx_lock(&pt_mtx);
 	KASSERT(pt->pt_ptc_open == 0 && pt->pt_pts_open == 0,
