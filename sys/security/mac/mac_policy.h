@@ -63,6 +63,7 @@
 
 struct acl;
 struct auditinfo;
+struct auditinfo_addr;
 struct bpf_d;
 struct cdev;
 struct componentname;
