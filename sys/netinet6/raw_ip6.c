@@ -737,7 +737,7 @@ rip6_shutdown(struct socket *so)
 
 static int
 rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
-	 struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
 	struct inpcb *inp = sotoinpcb(so);
 	struct sockaddr_in6 tmp;

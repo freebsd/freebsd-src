@@ -317,7 +317,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 	(IN6_IS_ADDR_MULTICAST(a) &&	\
 	 (IPV6_ADDR_MC_SCOPE(a) == IPV6_ADDR_SCOPE_LINKLOCAL))
 #define IN6_IS_ADDR_MC_SITELOCAL(a)	\
-	(IN6_IS_ADDR_MULTICAST(a) && 	\
+	(IN6_IS_ADDR_MULTICAST(a) &&	\
 	 (IPV6_ADDR_MC_SCOPE(a) == IPV6_ADDR_SCOPE_SITELOCAL))
 #define IN6_IS_ADDR_MC_ORGLOCAL(a)	\
 	(IN6_IS_ADDR_MULTICAST(a) &&	\
@@ -333,7 +333,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 	(IN6_IS_ADDR_MULTICAST(a) &&	\
 	 (__IPV6_ADDR_MC_SCOPE(a) == __IPV6_ADDR_SCOPE_LINKLOCAL))
 #define IN6_IS_ADDR_MC_SITELOCAL(a)	\
-	(IN6_IS_ADDR_MULTICAST(a) && 	\
+	(IN6_IS_ADDR_MULTICAST(a) &&	\
 	 (__IPV6_ADDR_MC_SCOPE(a) == __IPV6_ADDR_SCOPE_SITELOCAL))
 #define IN6_IS_ADDR_MC_ORGLOCAL(a)	\
 	(IN6_IS_ADDR_MULTICAST(a) &&	\
@@ -352,9 +352,9 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 	 (IN6_IS_ADDR_MC_LINKLOCAL(a)))
 #define	IN6_IS_SCOPE_EMBED(a)			\
 	((IN6_IS_ADDR_LINKLOCAL(a)) ||		\
-	 (IN6_IS_ADDR_MC_LINKLOCAL(a)) || 	\
+	 (IN6_IS_ADDR_MC_LINKLOCAL(a)) ||	\
 	 (IN6_IS_ADDR_MC_INTFACELOCAL(a)))
-                          
+
 #define IFA6_IS_DEPRECATED(a) \
 	((a)->ia6_lifetime.ia6t_pltime != ND6_INFINITE_LIFETIME && \
 	 (u_int32_t)((time_second - (a)->ia6_updatetime)) > \
@@ -413,7 +413,7 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#ifdef IPSEC 
+#ifdef IPSEC
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
 #endif /* IPSEC */
 

@@ -110,7 +110,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
 	} else {
 		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-					   IP_FORWARDING, &error);   
+					   IP_FORWARDING, &error);
 	}
 	if (sp == NULL) {	/* NB: can happen if error */
 		splx(s);
@@ -161,7 +161,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 		 * done.  If so, then just pass it along.  This tag gets
 		 * set during AH, ESP, etc. input handling, before the
 		 * packet is returned to the ip input queue for delivery.
-		 */ 
+		 */
 		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
 		s = splnet();
 		if (mtag != NULL) {
@@ -169,7 +169,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
 		} else {
 			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-						   IP_FORWARDING, &error);   
+						   IP_FORWARDING, &error);
 		}
 		if (sp != NULL) {
 			/*
@@ -194,12 +194,12 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 /*
  * Called from ip6_output().
  * 1 = drop packet, 0 = continue processing packet,
- * -1 = packet was reinjected and stop processing packet 
- */ 
+ * -1 = packet was reinjected and stop processing packet
+ */
 
 int
 ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-		 struct ifnet **ifp, struct secpolicy **sp)
+    struct ifnet **ifp, struct secpolicy **sp)
 {
 #ifdef IPSEC
 	struct tdb_ident *tdbi;
@@ -221,7 +221,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 
 	/*
 	 * There are four return cases:
-	 *    sp != NULL	 	    apply IPsec policy
+	 *    sp != NULL		    apply IPsec policy
 	 *    sp == NULL, error == 0	    no IPsec handling needed
 	 *    sp == NULL, error == -EINVAL  discard packet w/o error
 	 *    sp == NULL, error != 0	    discard packet, report error

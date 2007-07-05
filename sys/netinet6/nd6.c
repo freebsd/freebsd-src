@@ -507,7 +507,7 @@ nd6_llinfo_timer(void *arg)
 			 * specified as the destination of a p2p interface
 			 * (see in6_ifinit()).  We should not free the entry
 			 * since this is sort of a "static" entry generated
-			 * via interface address configuration. 
+			 * via interface address configuration.
 			 */
 			ln->ln_asked = 0;
 			ln->ln_expire = 0; /* make it permanent */
@@ -1817,7 +1817,7 @@ fail:
 	 *	0	n	y	--	(3)	c   s     s
 	 *	0	y	y	n	(4)	c   s     s
 	 *	0	y	y	y	(5)	c   s     s
-	 *	1	--	n	--	(6) c	c 	c s
+	 *	1	--	n	--	(6) c	c	c s
 	 *	1	--	y	--	(7) c	c   s	c s
 	 *
 	 *					(c=clear s=set)
@@ -2234,7 +2234,7 @@ nd6_storelladdr(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	return (0);
 }
 
-static void 
+static void
 clear_llinfo_pqueue(struct llinfo_nd6 *ln)
 {
 	struct mbuf *m_hold, *m_hold_next;

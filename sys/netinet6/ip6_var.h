@@ -290,7 +290,7 @@ extern int	ip6_rr_prune;		/* router renumbering prefix
 extern int	ip6_mcast_pmtu;		/* enable pMTU discovery for multicast? */
 extern int	ip6_v6only;
 
-extern struct socket *ip6_mrouter; 	/* multicast routing daemon */
+extern struct socket *ip6_mrouter;	/* multicast routing daemon */
 extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
 extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
 extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */

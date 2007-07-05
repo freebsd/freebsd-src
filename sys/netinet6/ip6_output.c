@@ -147,7 +147,7 @@ static int copypktopts __P((struct ip6_pktopts *, struct ip6_pktopts *, int));
     } while (/*CONSTCOND*/ 0)
 
 /*
- * Form a chain of extension headers. 
+ * Form a chain of extension headers.
  * m is the extension header mbuf
  * mp is the previous mbuf in the chain
  * p is the next header
@@ -218,7 +218,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		printf ("ip6 is NULL");
 		goto bad;
 	}
-		
+
 	finaldst = ip6->ip6_dst;
 
 	bzero(&exthdrs, sizeof(exthdrs));
@@ -246,7 +246,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		MAKE_EXTHDR(opt->ip6po_dest2, &exthdrs.ip6e_dest2);
 	}
 
-	/* 
+	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
 	 */
@@ -256,7 +256,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	case 1:                 /* Bad packet */
 		goto freehdrs;
 	case -1:                /* Do IPSec */
-		needipsec = 1;  
+		needipsec = 1;
 	case 0:                 /* No IPSec */
 	default:
 		break;
@@ -268,16 +268,16 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 * Keep the length of the unfragmentable part for fragmentation.
 	 */
 	optlen = 0;
-	if (exthdrs.ip6e_hbh) 
+	if (exthdrs.ip6e_hbh)
 		optlen += exthdrs.ip6e_hbh->m_len;
-	if (exthdrs.ip6e_dest1) 
+	if (exthdrs.ip6e_dest1)
 		optlen += exthdrs.ip6e_dest1->m_len;
-	if (exthdrs.ip6e_rthdr) 
+	if (exthdrs.ip6e_rthdr)
 		optlen += exthdrs.ip6e_rthdr->m_len;
 	unfragpartlen = optlen + sizeof(struct ip6_hdr);
 
 	/* NOTE: we don't add AH/ESP length here. do that later. */
-	if (exthdrs.ip6e_dest2) 
+	if (exthdrs.ip6e_dest2)
 		optlen += exthdrs.ip6e_dest2->m_len;
 
 	/*
@@ -330,7 +330,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	 */
 	u_char *nexthdrp = &ip6->ip6_nxt;
 	mprev = m;
-	
+
 	/*
 	 * we treat dest2 specially.  this makes IPsec processing
 	 * much easier.  the goal here is to make mprev point the
@@ -347,7 +347,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		*mtod(exthdrs.ip6e_dest2, u_char *) = ip6->ip6_nxt;
 		ip6->ip6_nxt = IPPROTO_DSTOPTS;
 	}
-	
+
 	/*
 	 * result: IPv6 hbh dest1 rthdr dest2 payload
 	 * m will point to IPv6 header.  mprev will point to the
@@ -358,24 +358,24 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		   IPPROTO_DSTOPTS);
 	MAKE_CHAIN(exthdrs.ip6e_rthdr, mprev, nexthdrp,
 		   IPPROTO_ROUTING);
-	
+
 #ifdef IPSEC
 	if (!needipsec)
 		goto skip_ipsec2;
-	
+
 	/*
 	 * pointers after IPsec headers are not valid any more.
 	 * other pointers need a great care too.
 	 * (IPsec routines should not mangle mbufs prior to AH/ESP)
 	 */
 	exthdrs.ip6e_dest2 = NULL;
-	
+
 	if (exthdrs.ip6e_rthdr) {
 		rh = mtod(exthdrs.ip6e_rthdr, struct ip6_rthdr *);
 		segleft_org = rh->ip6r_segleft;
 		rh->ip6r_segleft = 0;
 	}
-	
+
 	bzero(&state, sizeof(state));
 	state.m = m;
 	error = ipsec6_output_trans(&state, nexthdrp, mprev, sp, flags,
@@ -401,15 +401,15 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 		}
 		goto bad;
 	} else if (!needipsectun) {
-		/* 
-		 * In the FAST IPSec case we have already 
+		/*
+		 * In the FAST IPSec case we have already
 		 * re-injected the packet and it has been freed
-		 * by the ipsec_done() function.  So, just clean 
+		 * by the ipsec_done() function.  So, just clean
 		 * up after ourselves.
-		 */		
+		 */
 		m = NULL;
 		goto done;
-	}	
+	}
 	if (exthdrs.ip6e_rthdr) {
 		/* ah6_output doesn't modify mbuf chain */
 		rh->ip6r_segleft = segleft_org;
@@ -493,7 +493,7 @@ skip_ipsec2:;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 
 again:
- 	/*
+	/*
 	 * if specified, try to fill in the traffic class field.
 	 * do not override if a non-zero value is already set.
 	 * we check the diffserv field and the ecn field separately.
@@ -568,10 +568,10 @@ again:
 			}
 			goto bad;
 		} else {
-			/* 
-			 * In the FAST IPSec case we have already 
+			/*
+			 * In the FAST IPSec case we have already
 			 * re-injected the packet and it has been freed
-			 * by the ipsec_done() function.  So, just clean 
+			 * by the ipsec_done() function.  So, just clean
 			 * up after ourselves.
 			 */
 			m = NULL;
@@ -1058,11 +1058,11 @@ sendorfree:
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = 0;
 		if (error == 0) {
- 			/* Record statistics for this interface address. */
- 			if (ia) {
- 				ia->ia_ifa.if_opackets++;
- 				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
- 			}
+			/* Record statistics for this interface address. */
+			if (ia) {
+				ia->ia_ifa.if_opackets++;
+				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+			}
 			error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		} else
 			m_freem(m);

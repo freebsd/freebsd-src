@@ -661,7 +661,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			return (error);
 		if ((ia = in6ifa_ifpwithaddr(ifp, &ifra->ifra_addr.sin6_addr))
 		    == NULL) {
-		    	/*
+			/*
 			 * this can happen when the user specify the 0 valid
 			 * lifetime.
 			 */
@@ -1398,7 +1398,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	/*
 	 * Also, if the address being removed is autoconf'ed, call
 	 * pfxlist_onlink_check() since the release might affect the status of
-	 * other (detached) addresses. 
+	 * other (detached) addresses.
 	 */
 	if ((oia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
@@ -1517,7 +1517,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 				return EADDRNOTAVAIL;
 			hostid = IFA_IN6(ifa);
 
-		 	/* prefixlen must be <= 64. */
+			/* prefixlen must be <= 64. */
 			if (64 < iflr->prefixlen)
 				return EINVAL;
 			prefixlen = iflr->prefixlen;
