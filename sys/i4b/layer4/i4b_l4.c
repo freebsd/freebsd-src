@@ -63,7 +63,7 @@ static void i4b_l4_setup_timeout_fix_unit(call_desc_t *cd);
 static void i4b_l4_setup_timeout_var_unit(call_desc_t *cd);
 static time_t i4b_get_idletime(call_desc_t *cd);
 
-#if NI4BISPPP > 0
+#if defined(NI4BISPPP) && (NI4BISPPP > 0)
 extern time_t i4bisppp_idletime(int);
 #endif
 
@@ -621,25 +621,25 @@ i4b_link_bchandrvr(call_desc_t *cd)
 
 	switch(cd->driver)
 	{
-#if NI4BRBCH > 0
+#if defined(NI4BRBCH) && (NI4BRBCH > 0)
 		case BDRV_RBCH:
 			cd->dlt = rbch_ret_linktab(cd->driver_unit);
 			break;
 #endif
 		
-#if NI4BTEL > 0
+#if defined(NI4BTEL) && (NI4BTEL > 0)
 		case BDRV_TEL:
 			cd->dlt = tel_ret_linktab(cd->driver_unit);
 			break;
 #endif
 
-#if NI4BIPR > 0
+#if defined(NI4BIPR) && (NI4BIPR > 0)
 		case BDRV_IPR:
 			cd->dlt = ipr_ret_linktab(cd->driver_unit);
 			break;
 #endif
 
-#if NI4BISPPP > 0
+#if defined(NI4BISPPP) && (NI4BISPPP > 0)
 		case BDRV_ISPPP:
 			cd->dlt = i4bisppp_ret_linktab(cd->driver_unit);
 			break;
@@ -651,7 +651,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if NI4BING > 0
+#if defined(NI4BING) && (NI4BING > 0)
 		case BDRV_ING:
 			cd->dlt = ing_ret_linktab(cd->driver_unit);
 			break;
@@ -675,25 +675,25 @@ i4b_link_bchandrvr(call_desc_t *cd)
 
 	switch(cd->driver)
 	{
-#if NI4BRBCH > 0
+#if defined(NI4BRBCH) && (NI4BRBCH > 0)
 		case BDRV_RBCH:
 			rbch_set_linktab(cd->driver_unit, cd->ilt);
 			break;
 #endif
 
-#if NI4BTEL > 0
+#if defined(NI4BTEL) && (NI4BTEL > 0)
 		case BDRV_TEL:
 			tel_set_linktab(cd->driver_unit, cd->ilt);
 			break;
 #endif
 
-#if NI4BIPR > 0
+#if defined(NI4BIPR) && (NI4BIPR > 0)
 		case BDRV_IPR:
 			ipr_set_linktab(cd->driver_unit, cd->ilt);
 			break;
 #endif
 
-#if NI4BISPPP > 0
+#if defined(NI4BISPPP) && (NI4BISPPP > 0)
 		case BDRV_ISPPP:
 			i4bisppp_set_linktab(cd->driver_unit, cd->ilt);
 			break;
@@ -705,7 +705,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if NI4BING > 0
+#if defined(NI4BING) && (NI4BING > 0)
 		case BDRV_ING:
 			ing_set_linktab(cd->driver_unit, cd->ilt);
 			break;
@@ -794,7 +794,7 @@ static time_t
 i4b_get_idletime(call_desc_t *cd)
 {
 	switch (cd->driver) {
-#if NI4BISPPP > 0
+#if defined(NI4BISPPP) && (NI4BISPPP > 0)
 		case BDRV_ISPPP:
 			return i4bisppp_idletime(cd->driver_unit);
 		break;
