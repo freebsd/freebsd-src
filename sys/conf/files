@@ -336,7 +336,7 @@ contrib/pf/net/pf_osfp.c	optional pf \
 contrib/pf/net/pf_ruleset.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_subr.c	optional pf \
-	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/pf"
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_table.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
