@@ -242,7 +242,9 @@ static const struct uvisor_type uvisor_devs[] = {
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_NX60 }, PALM4 },
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_35 }, PALM35 },
 /*	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_25 }, PALM4 },*/
+/*	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_TH55 }, PALM4 }, */	/* See PR 80935 */
 	{{ USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_TJ37 }, PALM4 },
+	{{ USB_VENDOR_TAPWAVE, USB_PRODUCT_TAPWAVE_ZODIAC }, PALM4 },
 };
 #define uvisor_lookup(v, p) ((const struct uvisor_type *)usb_lookup(uvisor_devs, v, p))
 
@@ -271,7 +273,6 @@ uvisor_attach(device_t self)
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
-	const char *devname;
 	int i;
 	usbd_status err;
 	struct ucom_softc *ucom;
@@ -281,22 +282,20 @@ uvisor_attach(device_t self)
 	ucom->sc_udev = dev;
 	ucom->sc_iface = uaa->iface;
 
-	devname = device_get_nameunit(ucom->sc_dev);
-
 	DPRINTFN(10,("\nuvisor_attach: sc=%p\n", sc));
 
 	/* Move the device into the configured state. */
 	err = usbd_set_config_index(dev, UVISOR_CONFIG_INDEX, 1);
 	if (err) {
-		printf("\n%s: failed to set configuration, err=%s\n",
-		       devname, usbd_errstr(err));
+		device_printf(self, "failed to set configuration, err=%s\n",
+		    usbd_errstr(err));
 		goto bad;
 	}
 
 	err = usbd_device2interface_handle(dev, UVISOR_IFACE_INDEX, &iface);
 	if (err) {
-		printf("\n%s: failed to get interface, err=%s\n",
-		       devname, usbd_errstr(err));
+		device_printf(self, "failed to get interface, err=%s\n",
+		    usbd_errstr(err));
 		goto bad;
 	}
 
@@ -312,8 +311,9 @@ uvisor_attach(device_t self)
 		int addr, dir, attr;
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("%s: could not read endpoint descriptor"
-			       ": %s\n", devname, usbd_errstr(err));
+			device_printf(self,
+			    "could not read endpoint descriptor: %s\n",
+			    usbd_errstr(err));
 			goto bad;
 		}
 
@@ -325,18 +325,16 @@ uvisor_attach(device_t self)
 		else if (dir == UE_DIR_OUT && attr == UE_BULK)
 			ucom->sc_bulkout_no = addr;
 		else {
-			printf("%s: unexpected endpoint\n", devname);
+			device_printf(self, "unexpected endpoint\n");
 			goto bad;
 		}
 	}
 	if (ucom->sc_bulkin_no == -1) {
-		printf("%s: Could not find data bulk in\n",
-		       device_get_nameunit(ucom->sc_dev));
+		device_printf(self, "Could not find data bulk in\n");
 		goto bad;
 	}
 	if (ucom->sc_bulkout_no == -1) {
-		printf("%s: Could not find data bulk out\n",
-		       device_get_nameunit(ucom->sc_dev));
+		device_printf(self, "Could not find data bulk out\n");
 		goto bad;
 	}
 
@@ -358,8 +356,8 @@ uvisor_attach(device_t self)
 		err = uvisor_init(sc);
 
 	if (err) {
-		printf("%s: init failed, %s\n", device_get_nameunit(ucom->sc_dev),
-		       usbd_errstr(err));
+		device_printf(ucom->sc_dev, "init failed, %s\n",
+		    usbd_errstr(err));
 		goto bad;
 	}
 
@@ -447,7 +445,7 @@ uvisor_init(struct uvisor_softc *sc)
 		char *string;
 
 		np = UGETW(coninfo.num_ports);
-		printf("%s: Number of ports: %d\n", device_get_nameunit(sc->sc_ucom.sc_dev), np);
+		device_printf(sc->sc_ucom.sc_dev, "Number of ports: %d\n", np);
 		for (i = 0; i < np; ++i) {
 			switch (coninfo.connections[i].port_function_id) {
 			case UVISOR_FUNCTION_GENERIC:
@@ -466,9 +464,9 @@ uvisor_init(struct uvisor_softc *sc)
 				string = "unknown";
 				break;
 			}
-			printf("%s: port %d, is for %s\n",
-			    device_get_nameunit(sc->sc_ucom.sc_dev), coninfo.connections[i].port,
-			    string);
+			device_printf(sc->sc_ucom.sc_dev,
+			    "port %d, is for %s\n",
+			    coninfo.connections[i].port, string);
 		}
 	}
 #endif
