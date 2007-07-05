@@ -205,7 +205,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 #ifdef IPSEC
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
-	int s;
+	/* XXX int s; */
 	if (sp == NULL)
 		return 1;
 	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
@@ -258,7 +258,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 				 *     done: below.
 				 */
 				KEY_FREESP(sp), sp = NULL;
-				splx(s);
+				/* XXX splx(s); */
 				goto done;
 			}
 		}
