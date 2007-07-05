@@ -2066,7 +2066,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
  */
 char *
 tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
-    void *ip6hdr)
+    const void *ip6hdr)
 {
 	char *s, *sp;
 	size_t size;
