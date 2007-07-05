@@ -276,7 +276,7 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
-	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
+	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_dump.c optional ngatm_ccatm \
@@ -336,7 +336,7 @@ contrib/pf/net/pf_osfp.c	optional pf \
 contrib/pf/net/pf_ruleset.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/net/pf_subr.c	optional pf \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
+	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/pf"
 contrib/pf/net/pf_table.c	optional pf \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/pf/netinet/in4_cksum.c	optional pf inet
