@@ -531,6 +531,7 @@ vendor TSUNAMI		0x1241	Tsunami
 vendor CREATIVE2	0x1292	Creative Labs
 vendor BELKIN2		0x1293	Belkin
 vendor HUAWEI		0x12d1	Huawei Technologies
+vendor TAPWAVE		0x12ef	Tapwave
 vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor DICKSMITH	0x1371	Dick Smith Electronics
@@ -1891,6 +1892,7 @@ product SONY CLIE_S360		0x0095	Sony Clie s360
 product SONY CLIE_41_MS		0x0099	Sony Clie v4.1 Memory Stick slot
 product SONY CLIE_41		0x009a	Sony Clie v4.1
 product SONY CLIE_NX60		0x00da	Sony Clie nx60
+product SONY CLIE_TH55		0x0144	Sony Clie th55
 product SONY CLIE_TJ37		0x0169	Sony Clie tj37
 
 /* Sony Ericsson products */
@@ -1935,6 +1937,9 @@ product SURECOM RT2573		0x31f3	RT2573
 
 /* System TALKS, Inc. */
 product SYSTEMTALKS SGCX2UL	0x1920	SGC-X2UL
+
+/* Tapwave products */
+product TAPWAVE ZODIAC		0x0100	Zodiac
 
 /* Taugagreining products */
 product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
@@ -2029,6 +2034,7 @@ product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
 product WESTERN COMBO		0x0200	Firewire USB Combo
 product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
+product WESTERN MYBOOK		0x0901	MyBook External HDD
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
