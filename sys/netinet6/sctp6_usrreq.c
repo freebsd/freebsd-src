@@ -61,14 +61,8 @@ __FBSDID("$FreeBSD$");
 
 extern struct protosw inetsw[];
 
-
-
-
 int
-sctp6_input(i_pak, offp, proto)
-	struct mbuf **i_pak;
-	int *offp;
-	int proto;
+sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 {
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
@@ -259,11 +253,8 @@ bad:
 
 
 static void
-sctp6_notify_mbuf(struct sctp_inpcb *inp,
-    struct icmp6_hdr *icmp6,
-    struct sctphdr *sh,
-    struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+sctp6_notify_mbuf(struct sctp_inpcb *inp, struct icmp6_hdr *icmp6,
+    struct sctphdr *sh, struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	uint32_t nxtsz;
 
@@ -336,10 +327,7 @@ out:
 
 
 void
-sctp6_ctlinput(cmd, pktdst, d)
-	int cmd;
-	struct sockaddr *pktdst;
-	void *d;
+sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 {
 	struct sctphdr sh;
 	struct ip6ctlparam *ip6cp = NULL;

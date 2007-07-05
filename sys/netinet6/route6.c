@@ -55,10 +55,12 @@ static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,
 
 #endif /* Disable route header processing. */
 
+/*
+ * proto - is unused
+ */
+
 int
-route6_input(mp, offp, proto)
-	struct mbuf **mp;
-	int *offp, proto;	/* proto is unused */
+route6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct ip6_hdr *ip6;
 	struct mbuf *m = *mp;
@@ -143,10 +145,7 @@ route6_input(mp, offp, proto)
  */
 #if 0
 static int
-ip6_rthdr0(m, ip6, rh0)
-	struct mbuf *m;
-	struct ip6_hdr *ip6;
-	struct ip6_rthdr0 *rh0;
+ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 {
 	int addrs, index;
 	struct in6_addr *nextaddr, tmpaddr;
