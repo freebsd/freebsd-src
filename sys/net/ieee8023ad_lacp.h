@@ -270,6 +270,8 @@ int		lacp_port_create(struct lagg_port *);
 void		lacp_port_destroy(struct lagg_port *);
 void		lacp_linkstate(struct lagg_port *);
 int		lacp_port_isactive(struct lagg_port *);
+void		lacp_req(struct lagg_softc *, caddr_t);
+void		lacp_portreq(struct lagg_port *, caddr_t);
 
 /* following constants don't include terminating NUL */
 #define	LACP_MACSTR_MAX		(2*6 + 5)

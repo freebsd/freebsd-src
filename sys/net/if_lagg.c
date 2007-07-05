@@ -686,6 +686,8 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 	strlcpy(rp->rp_portname, lp->lp_ifp->if_xname, sizeof(rp->rp_portname));
 	rp->rp_prio = lp->lp_prio;
 	rp->rp_flags = lp->lp_flags;
+	if (sc->sc_portreq != NULL)
+		(*sc->sc_portreq)(lp, (caddr_t)&rp->rp_psc);
 
 	/* Add protocol specific flags */
 	switch (sc->sc_proto) {
@@ -768,6 +770,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGLAGG:
 		ra->ra_proto = sc->sc_proto;
 		ra->ra_ports = i = 0;
+		if (sc->sc_req != NULL)
+			(*sc->sc_req)(sc, (caddr_t)&ra->ra_psc);
 		lp = SLIST_FIRST(&sc->sc_ports);
 		while (lp && ra->ra_size >=
 		    i + sizeof(struct lagg_reqport)) {
@@ -802,6 +806,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_init = NULL;
 			sc->sc_stop = NULL;
 			sc->sc_lladdr = NULL;
+			sc->sc_req = NULL;
+			sc->sc_portreq = NULL;
 		}
 		if (error != 0)
 			break;
@@ -1532,6 +1538,8 @@ lagg_lacp_attach(struct lagg_softc *sc)
 	sc->sc_init = lacp_init;
 	sc->sc_stop = lacp_stop;
 	sc->sc_lladdr = lagg_lacp_lladdr;
+	sc->sc_req = lacp_req;
+	sc->sc_portreq = lacp_portreq;
 
 	error = lacp_attach(sc);
 	if (error)
