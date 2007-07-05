@@ -257,7 +257,7 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		q6->ip6q_nxtp	= (u_char *)nxtp;
 #endif
 		q6->ip6q_ident	= ip6f->ip6f_ident;
-		q6->ip6q_ttl 	= IPV6_FRAGTTL;
+		q6->ip6q_ttl	= IPV6_FRAGTTL;
 		q6->ip6q_src	= ip6->ip6_src;
 		q6->ip6q_dst	= ip6->ip6_dst;
 		q6->ip6q_ecn	=

@@ -432,7 +432,7 @@ passin:
 	 * Multicast check
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-	  	struct in6_multi *in6m = 0;
+		struct in6_multi *in6m = 0;
 
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
 		/*
@@ -1242,7 +1242,7 @@ ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 
 			default:
 				/*
-			 	 * other cases have been filtered in the above.
+				 * other cases have been filtered in the above.
 				 * none will visit this case.  here we supply
 				 * the code just in case (nxt overwritten or
 				 * other cases).
