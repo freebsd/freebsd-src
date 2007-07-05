@@ -1847,7 +1847,8 @@ ipw_config(struct ipw_softc *sc)
 #ifdef IPW_DEBUG
 	if (ipw_debug > 0) {
 		printf("Setting ESSID to ");
-		ieee80211_print_essid(ic->ic_des_essid, ic->ic_des_esslen);
+		ieee80211_print_essid(ic->ic_des_ssid[0].ssid,
+		    ic->ic_des_ssid[0].len);
 		printf("\n");
 	}
 #endif
