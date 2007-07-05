@@ -95,11 +95,11 @@ static void in6_purgemaddrs __P((struct ifnet *));
  * The goal here is to get an interface identifier that is
  * (1) random enough and (2) does not change across reboot.
  * We currently use MD5(hostname) for it.
+ *
+ * in6 - upper 64bits are preserved
  */
 static int
-get_rand_ifid(ifp, in6)
-	struct ifnet *ifp;
-	struct in6_addr *in6;	/* upper 64bits are preserved */
+get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
@@ -131,15 +131,13 @@ get_rand_ifid(ifp, in6)
 }
 
 static int
-generate_tmp_ifid(seed0, seed1, ret)
-	u_int8_t *seed0, *ret;
-	const u_int8_t *seed1;
+generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 {
 	MD5_CTX ctxt;
 	u_int8_t seed[16], digest[16], nullbuf[8];
 	u_int32_t val32;
 
-	/* If there's no hisotry, start with a random seed. */
+	/* If there's no history, start with a random seed. */
 	bzero(nullbuf, sizeof(nullbuf));
 	if (bcmp(nullbuf, seed0, sizeof(nullbuf)) == 0) {
 		int i;
@@ -214,11 +212,11 @@ generate_tmp_ifid(seed0, seed1, ret)
 /*
  * Get interface identifier for the specified interface.
  * XXX assumes single sockaddr_dl (AF_LINK address) per an interface
+ *
+ * in6 - upper 64bits are preserved
  */
 int
-in6_get_hw_ifid(ifp, in6)
-	struct ifnet *ifp;
-	struct in6_addr *in6;	/* upper 64bits are preserved */
+in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
@@ -347,12 +345,12 @@ found:
  * Get interface identifier for the specified interface.  If it is not
  * available on ifp0, borrow interface identifier from other information
  * sources.
+ *
+ * altifp - secondary EUI64 source
  */
 static int
-get_ifid(ifp0, altifp, in6)
-	struct ifnet *ifp0;
-	struct ifnet *altifp;	/* secondary EUI64 source */
-	struct in6_addr *in6;
+get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
+    struct in6_addr *in6)
 {
 	struct ifnet *ifp;
 
@@ -411,10 +409,11 @@ success:
 	return 0;
 }
 
+/*
+ * altifp - secondary EUI64 source
+ */
 static int
-in6_ifattach_linklocal(ifp, altifp)
-	struct ifnet *ifp;
-	struct ifnet *altifp;	/* secondary EUI64 source */
+in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
@@ -526,9 +525,11 @@ in6_ifattach_linklocal(ifp, altifp)
 	return 0;
 }
 
+/*
+ * ifp - must be IFT_LOOP
+ */
 static int
-in6_ifattach_loopback(ifp)
-	struct ifnet *ifp;	/* must be IFT_LOOP */
+in6_ifattach_loopback(struct ifnet *ifp)
 {
 	struct in6_aliasreq ifra;
 	int error;
@@ -588,11 +589,8 @@ in6_ifattach_loopback(ifp)
  * when ifp == NULL, the caller is responsible for filling scopeid.
  */
 int
-in6_nigroup(ifp, name, namelen, in6)
-	struct ifnet *ifp;
-	const char *name;
-	int namelen;
-	struct in6_addr *in6;
+in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
+    struct in6_addr *in6)
 {
 	const char *p;
 	u_char *q;
@@ -638,11 +636,11 @@ in6_nigroup(ifp, name, namelen, in6)
  * XXX multiple loopback interface needs more care.  for instance,
  * nodelocal address needs to be configured onto only one of them.
  * XXX multiple link-local address case
+ *
+ * altifp - secondary EUI64 source
  */
 void
-in6_ifattach(ifp, altifp)
-	struct ifnet *ifp;
-	struct ifnet *altifp;	/* secondary EUI64 source */
+in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 	struct in6_addr in6;
@@ -724,8 +722,7 @@ statinit:
  * from the ifnet list in bsdi.
  */
 void
-in6_ifdetach(ifp)
-	struct ifnet *ifp;
+in6_ifdetach(struct ifnet *ifp)
 {
 	struct in6_ifaddr *ia, *oia;
 	struct ifaddr *ifa, *next;
@@ -835,11 +832,8 @@ in6_ifdetach(ifp)
 }
 
 int
-in6_get_tmpifid(ifp, retbuf, baseid, generate)
-	struct ifnet *ifp;
-	u_int8_t *retbuf;
-	const u_int8_t *baseid;
-	int generate;
+in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
+    const u_int8_t *baseid, int generate)
 {
 	u_int8_t nullbuf[8];
 	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
@@ -863,8 +857,7 @@ in6_get_tmpifid(ifp, retbuf, baseid, generate)
 }
 
 void
-in6_tmpaddrtimer(ignored_arg)
-	void *ignored_arg;
+in6_tmpaddrtimer(void *ignored_arg)
 {
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
@@ -892,8 +885,7 @@ in6_tmpaddrtimer(ignored_arg)
 }
 
 static void
-in6_purgemaddrs(ifp)
-	struct ifnet *ifp;
+in6_purgemaddrs(struct ifnet *ifp)
 {
 	struct in6_multi *in6m;
 	struct in6_multi *oin6m;

@@ -429,7 +429,7 @@ in6_mtutimo(void *rock)
 
 #if 0
 void
-in6_rtqdrain()
+in6_rtqdrain(void)
 {
 	struct radix_node_head *rnh = rt_tables[AF_INET6];
 	struct rtqk_arg arg;

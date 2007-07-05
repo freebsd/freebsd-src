@@ -108,12 +108,8 @@
 #define udp6s_opackets	udps_opackets
 
 int
-udp6_output(in6p, m, addr6, control, td)
-	struct in6pcb *in6p;
-	struct mbuf *m;
-	struct mbuf *control;
-	struct sockaddr *addr6;
-	struct thread *td;
+udp6_output(struct in6pcb *in6p, struct mbuf *m, struct sockaddr *addr6,
+    struct mbuf *control, struct thread *td)
 {
 	u_int32_t ulen = m->m_pkthdr.len;
 	u_int32_t plen = sizeof(struct udphdr) + ulen;

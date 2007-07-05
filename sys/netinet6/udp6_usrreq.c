@@ -155,9 +155,7 @@ udp6_append(struct inpcb *in6p, struct mbuf *n, int off,
 }
 
 int
-udp6_input(mp, offp, proto)
-	struct mbuf **mp;
-	int *offp, proto;
+udp6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6;
@@ -354,10 +352,7 @@ bad_unlocked:
 }
 
 void
-udp6_ctlinput(cmd, sa, d)
-	int cmd;
-	struct sockaddr *sa;
-	void *d;
+udp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
 	struct udphdr uh;
 	struct ip6_hdr *ip6;

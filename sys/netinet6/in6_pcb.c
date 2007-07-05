@@ -108,10 +108,8 @@
 struct	in6_addr zeroin6_addr;
 
 int
-in6_pcbbind(inp, nam, cred)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct ucred *cred;
+in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
+    struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
@@ -276,12 +274,9 @@ in6_pcbbind(inp, nam, cred)
  *   a bit of a kludge, but cleaning up the internal interfaces would
  *   have forced minor changes in every protocol).
  */
-
 int
-in6_pcbladdr(inp, nam, plocal_addr6)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct in6_addr **plocal_addr6;
+in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
+    struct in6_addr **plocal_addr6)
 {
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
@@ -347,10 +342,8 @@ in6_pcbladdr(inp, nam, plocal_addr6)
  * then pick one.
  */
 int
-in6_pcbconnect(inp, nam, cred)
-	register struct inpcb *inp;
-	struct sockaddr *nam;
-	struct ucred *cred;
+in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
+    struct ucred *cred)
 {
 	struct in6_addr *addr6;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
@@ -395,8 +388,7 @@ in6_pcbconnect(inp, nam, cred)
 }
 
 void
-in6_pcbdisconnect(inp)
-	struct inpcb *inp;
+in6_pcbdisconnect(struct inpcb *inp)
 {
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -446,9 +438,7 @@ in6_pcbfree(struct inpcb *inp)
 }
 
 struct sockaddr *
-in6_sockaddr(port, addr_p)
-	in_port_t port;
-	struct in6_addr *addr_p;
+in6_sockaddr(in_port_t port, struct in6_addr *addr_p)
 {
 	struct sockaddr_in6 *sin6;
 
@@ -464,9 +454,7 @@ in6_sockaddr(port, addr_p)
 }
 
 struct sockaddr *
-in6_v4mapsin6_sockaddr(port, addr_p)
-	in_port_t port;
-	struct in_addr *addr_p;
+in6_v4mapsin6_sockaddr(in_port_t port, struct in_addr *addr_p)
 {
 	struct sockaddr_in sin;
 	struct sockaddr_in6 *sin6_p;
@@ -485,9 +473,7 @@ in6_v4mapsin6_sockaddr(port, addr_p)
 }
 
 int
-in6_getsockaddr(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+in6_getsockaddr(struct socket *so, struct sockaddr **nam)
 {
 	register struct inpcb *inp;
 	struct in6_addr addr;
@@ -506,9 +492,7 @@ in6_getsockaddr(so, nam)
 }
 
 int
-in6_getpeeraddr(so, nam)
-	struct socket *so;
-	struct sockaddr **nam;
+in6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct inpcb *inp;
 	struct in6_addr addr;
@@ -577,14 +561,10 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * any errors for each matching socket.
  */
 void
-in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
-	struct inpcbinfo *pcbinfo;
-	struct sockaddr *dst;
-	const struct sockaddr *src;
-	u_int fport_arg, lport_arg;
-	int cmd;
-	void *cmdarg;
-	struct inpcb *(*notify) __P((struct inpcb *, int));
+in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
+    u_int fport_arg, const struct sockaddr *src, u_int lport_arg,
+    int cmd, void *cmdarg,
+    struct inpcb *(*notify) __P((struct inpcb *, int)))
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *ninp;
@@ -689,11 +669,8 @@ in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
  * Lookup a PCB based on the local address and port.
  */
 struct inpcb *
-in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
-	struct inpcbinfo *pcbinfo;
-	struct in6_addr *laddr;
-	u_int lport_arg;
-	int wild_okay;
+in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
+    u_int lport_arg, int wild_okay)
 {
 	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
@@ -777,9 +754,7 @@ in6_pcblookup_local(pcbinfo, laddr, lport_arg, wild_okay)
 }
 
 void
-in6_pcbpurgeif0(pcbinfo, ifp)
-	struct inpcbinfo *pcbinfo;
-	struct ifnet *ifp;
+in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct in6pcb *in6p;
 	struct ip6_moptions *im6o;
@@ -826,9 +801,9 @@ in6_pcbpurgeif0(pcbinfo, ifp)
  * (by a redirect), time to try a default gateway again.
  */
 void
-in6_losing(in6p)
-	struct inpcb *in6p;
+in6_losing(struct inpcb *in6p)
 {
+
 	/*
 	 * We don't store route pointers in the routing table anymore
 	 */
@@ -840,9 +815,7 @@ in6_losing(in6p)
  * and allocate a (hopefully) better one.
  */
 struct inpcb *
-in6_rtchange(inp, errno)
-	struct inpcb *inp;
-	int errno;
+in6_rtchange(struct inpcb *inp, int errno)
 {
 	/*
 	 * We don't store route pointers in the routing table anymore
@@ -854,12 +827,9 @@ in6_rtchange(inp, errno)
  * Lookup PCB in hash list.
  */
 struct inpcb *
-in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
-	struct inpcbinfo *pcbinfo;
-	struct in6_addr *faddr, *laddr;
-	u_int fport_arg, lport_arg;
-	int wildcard;
-	struct ifnet *ifp;
+in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
+    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg,
+    int wildcard, struct ifnet *ifp)
 {
 	struct inpcbhead *head;
 	register struct inpcb *inp;

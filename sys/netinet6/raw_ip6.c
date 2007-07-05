@@ -132,9 +132,7 @@ int (*mrt6_ioctl)(int, caddr_t);
  * mbuf chain.
  */
 int
-rip6_input(mp, offp, proto)
-	struct	mbuf **mp;
-	int	*offp, proto;
+rip6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
@@ -258,10 +256,7 @@ docontinue:
 }
 
 void
-rip6_ctlinput(cmd, sa, d)
-	int cmd;
-	struct sockaddr *sa;
-	void *d;
+rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
@@ -481,9 +476,7 @@ rip6_output(m, va_alist)
  * Raw IPv6 socket option processing.
  */
 int
-rip6_ctloutput(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 {
 	int error;
 
