@@ -43,8 +43,9 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/netatalk/*.[ch] \
 	${SYS}/netatm/*.[ch] \
 	${SYS}/netinet/*.[ch] \
+	${SYS}/netinet6/*.[ch] \
+	${SYS}/netipsec/*.[ch] \
 	${SYS}/netipx/*.[ch] \
-	${SYS}/netkey/*.[ch] \
 	${SYS}/netnatm/*.[ch] \
 	${SYS}/nfs/*.[ch] \
 	${SYS}/nfsclient/*.[ch] \
@@ -61,8 +62,9 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/netatalk \
 	${SYS}/netatm \
 	${SYS}/netinet \
+	${SYS}/netinet6 \
+	${SYS}/netipsec \
 	${SYS}/netipx \
-	${SYS}/netkey \
 	${SYS}/netnatm \
 	${SYS}/nfs \
 	${SYS}/pci \
