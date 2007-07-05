@@ -423,19 +423,19 @@ i4bioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 
 			switch(mdrsp->driver)
 			{
-#if NI4BIPR > 0
+#if defined(NI4BIPR) && (NI4BIPR > 0)
 				case BDRV_IPR:
 					dlt = ipr_ret_linktab(mdrsp->driver_unit);
 					break;
 #endif					
 
-#if NI4BISPPP > 0
+#if defined(NI4BISPPP) && (NI4BISPPP > 0)
 				case BDRV_ISPPP:
 					dlt = i4bisppp_ret_linktab(mdrsp->driver_unit);
 					break;
 #endif
 
-#if NI4BTEL > 0
+#if defined(NI4BTEL) && (NI4BTEL > 0)
 				case BDRV_TEL:
 					dlt = tel_ret_linktab(mdrsp->driver_unit);
 					break;
@@ -447,7 +447,7 @@ i4bioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 					break;
 #endif
 
-#if NI4BING > 0
+#if defined(NI4BING) && (NI4BING > 0)
 				case BDRV_ING:
 					dlt = ing_ret_linktab(mdrsp->driver_unit);
 					break;
@@ -543,7 +543,7 @@ i4bioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			
 			mui = (msg_updown_ind_t *)data;
 
-#if NI4BIPR > 0
+#if defined(NI4BIPR) && (NI4BIPR > 0)
 			if(mui->driver == BDRV_IPR)
 			{
 				drvr_link_t *dlt;
