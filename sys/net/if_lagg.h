@@ -69,12 +69,34 @@ struct lagg_protos {
  * lagg ioctls.
  */
 
+/*
+ * LACP current operational parameters structure.
+ */
+struct lacp_opreq {
+	uint16_t		actor_prio;
+	uint8_t			actor_mac[ETHER_ADDR_LEN];
+	uint16_t		actor_key;
+	uint16_t		actor_portprio;
+	uint16_t		actor_portno;
+	uint8_t			actor_state;
+	uint16_t		partner_prio;
+	uint8_t			partner_mac[ETHER_ADDR_LEN];
+	uint16_t		partner_key;
+	uint16_t		partner_portprio;
+	uint16_t		partner_portno;
+	uint8_t			partner_state;
+};
+
 /* lagg port settings */
 struct lagg_reqport {
 	char			rp_ifname[IFNAMSIZ];	/* name of the lagg */
 	char			rp_portname[IFNAMSIZ];	/* name of the port */
 	u_int32_t		rp_prio;		/* port priority */
 	u_int32_t		rp_flags;		/* port flags */
+	union {
+		struct lacp_opreq rpsc_lacp;
+	} rp_psc;
+#define rp_lacpreq	rp_psc.rpsc_lacp
 };
 
 #define	SIOCGLAGGPORT		_IOWR('i', 140, struct lagg_reqport)
@@ -89,6 +111,10 @@ struct lagg_reqall {
 	size_t			ra_size;		/* size of buffer */
 	struct lagg_reqport	*ra_port;		/* allocated buffer */
 	int			ra_ports;		/* total port count */
+	union {
+		struct lacp_opreq rpsc_lacp;
+	} ra_psc;
+#define ra_lacpreq	ra_psc.rpsc_lacp
 };
 
 #define	SIOCGLAGG		_IOWR('i', 143, struct lagg_reqall)
@@ -170,6 +196,8 @@ struct lagg_softc {
 	void	(*sc_init)(struct lagg_softc *);
 	void	(*sc_stop)(struct lagg_softc *);
 	void	(*sc_lladdr)(struct lagg_softc *);
+	void	(*sc_req)(struct lagg_softc *, caddr_t);
+	void	(*sc_portreq)(struct lagg_port *, caddr_t);
 };
 
 struct lagg_port {
