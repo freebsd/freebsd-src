@@ -490,12 +490,14 @@ options 	HWPMC_HOOKS		# Other necessary kernel hooks
 # NETWORKING OPTIONS
 
 #
-# Protocol families:
-#  Only the INET (Internet) family is officially supported in FreeBSD.
+# Protocol families
 #
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
-options 	IPSEC			#IP security
+
+# In order to enable IPSEC you MUST also add device crypto to 
+# your kernel configuration
+options 	IPSEC			#IP security (requires device crypto)
 #options 	IPSEC_DEBUG		#debug for IP security
 #
 # Set IPSEC_FILTERGIF to force packets coming through a gif tunnel
