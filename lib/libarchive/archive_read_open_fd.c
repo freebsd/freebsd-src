@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 struct read_fd_data {
 	int	 fd;
 	size_t	 block_size;
+	char	 can_skip;
 	void	*buffer;
 };
 
@@ -77,6 +78,8 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		return (ARCHIVE_FATAL);
 	}
 	mine->fd = fd;
+	/* lseek() hardly ever works, so disable it by default.  See below. */
+	mine->can_skip = 0;
 	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
 }
 
@@ -91,8 +94,18 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 
-	if (S_ISREG(st.st_mode))
+	if (S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+		/*
+		 * Enabling skip here is a performance optimization for
+		 * anything that supports lseek().  On FreeBSD, only
+		 * regular files and raw disk devices support lseek() and
+		 * there's no portable way to determine if a device is
+		 * a raw disk device, so we only enable this optimization
+		 * for regular files.
+		 */
+		mine->can_skip = 1;
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -121,8 +134,14 @@ file_skip(struct archive *a, void *client_data, off_t request)
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	off_t old_offset, new_offset;
 
+	if (!mine->can_skip)
+		return (0);
+
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
+	if (request == 0)
+		return (0);
+
 	/*
 	 * Hurray for lazy evaluation: if the first lseek fails, the second
 	 * one will not be executed.
@@ -130,6 +149,9 @@ file_skip(struct archive *a, void *client_data, off_t request)
 	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) < 0) ||
 	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) < 0))
 	{
+		/* If seek failed once, it will probably fail again. */
+		mine->can_skip = 0;
+
 		if (errno == ESPIPE)
 		{
 			/*

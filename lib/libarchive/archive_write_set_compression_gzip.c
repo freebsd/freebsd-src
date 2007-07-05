@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_write_private.h"
 
 struct private_data {
 	z_stream	 stream;
@@ -63,11 +64,11 @@ struct private_data {
 #define	SET_NEXT_IN(st,src)					\
 	(st)->stream.next_in = (Bytef *)(uintptr_t)(const void *)(src)
 
-static int	archive_compressor_gzip_finish(struct archive *);
-static int	archive_compressor_gzip_init(struct archive *);
-static int	archive_compressor_gzip_write(struct archive *, const void *,
-		    size_t);
-static int	drive_compressor(struct archive *, struct private_data *,
+static int	archive_compressor_gzip_finish(struct archive_write *);
+static int	archive_compressor_gzip_init(struct archive_write *);
+static int	archive_compressor_gzip_write(struct archive_write *,
+		    const void *, size_t);
+static int	drive_compressor(struct archive_write *, struct private_data *,
 		    int finishing);
 
 
@@ -75,12 +76,14 @@ static int	drive_compressor(struct archive *, struct private_data *,
  * Allocate, initialize and return a archive object.
  */
 int
-archive_write_set_compression_gzip(struct archive *a)
+archive_write_set_compression_gzip(struct archive *_a)
 {
-	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, "archive_write_set_compression_gzip");
-	a->compression_init = &archive_compressor_gzip_init;
-	a->compression_code = ARCHIVE_COMPRESSION_GZIP;
-	a->compression_name = "gzip";
+	struct archive_write *a = (struct archive_write *)_a;
+	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_compression_gzip");
+	a->compressor.init = &archive_compressor_gzip_init;
+	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
+	a->archive.compression_name = "gzip";
 	return (ARCHIVE_OK);
 }
 
@@ -88,24 +91,24 @@ archive_write_set_compression_gzip(struct archive *a)
  * Setup callback.
  */
 static int
-archive_compressor_gzip_init(struct archive *a)
+archive_compressor_gzip_init(struct archive_write *a)
 {
 	int ret;
 	struct private_data *state;
 	time_t t;
 
-	a->compression_code = ARCHIVE_COMPRESSION_GZIP;
-	a->compression_name = "gzip";
+	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
+	a->archive.compression_name = "gzip";
 
 	if (a->client_opener != NULL) {
-		ret = (a->client_opener)(a, a->client_data);
+		ret = (a->client_opener)(&a->archive, a->client_data);
 		if (ret != ARCHIVE_OK)
 			return (ret);
 	}
 
 	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
-		archive_set_error(a, ENOMEM,
+		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for compression");
 		return (ARCHIVE_FATAL);
 	}
@@ -116,7 +119,7 @@ archive_compressor_gzip_init(struct archive *a)
 	state->crc = crc32(0L, NULL, 0);
 
 	if (state->compressed == NULL) {
-		archive_set_error(a, ENOMEM,
+		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for compression buffer");
 		free(state);
 		return (ARCHIVE_FATAL);
@@ -140,8 +143,8 @@ archive_compressor_gzip_init(struct archive *a)
 	state->stream.next_out += 10;
 	state->stream.avail_out -= 10;
 
-	a->compression_write = archive_compressor_gzip_write;
-	a->compression_finish = archive_compressor_gzip_finish;
+	a->compressor.write = archive_compressor_gzip_write;
+	a->compressor.finish = archive_compressor_gzip_finish;
 
 	/* Initialize compression library. */
 	ret = deflateInit2(&(state->stream),
@@ -152,12 +155,12 @@ archive_compressor_gzip_init(struct archive *a)
 	    Z_DEFAULT_STRATEGY);
 
 	if (ret == Z_OK) {
-		a->compression_data = state;
+		a->compressor.data = state;
 		return (0);
 	}
 
 	/* Library setup failed: clean up. */
-	archive_set_error(a, ARCHIVE_ERRNO_MISC, "Internal error "
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Internal error "
 	    "initializing compression library");
 	free(state->compressed);
 	free(state);
@@ -165,16 +168,16 @@ archive_compressor_gzip_init(struct archive *a)
 	/* Override the error message if we know what really went wrong. */
 	switch (ret) {
 	case Z_STREAM_ERROR:
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing "
 		    "compression library: invalid setup parameter");
 		break;
 	case Z_MEM_ERROR:
-		archive_set_error(a, ENOMEM, "Internal error initializing "
+		archive_set_error(&a->archive, ENOMEM, "Internal error initializing "
 		    "compression library");
 		break;
 	case Z_VERSION_ERROR:
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing "
 		    "compression library: invalid library version");
 		break;
@@ -187,15 +190,15 @@ archive_compressor_gzip_init(struct archive *a)
  * Write data to the compressed stream.
  */
 static int
-archive_compressor_gzip_write(struct archive *a, const void *buff,
+archive_compressor_gzip_write(struct archive_write *a, const void *buff,
     size_t length)
 {
 	struct private_data *state;
 	int ret;
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -211,7 +214,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 	if ((ret = drive_compressor(a, state, 0)) != ARCHIVE_OK)
 		return (ret);
 
-	a->file_position += length;
+	a->archive.file_position += length;
 	return (ARCHIVE_OK);
 }
 
@@ -220,7 +223,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
  * Finish the compression...
  */
 static int
-archive_compressor_gzip_finish(struct archive *a)
+archive_compressor_gzip_finish(struct archive_write *a)
 {
 	ssize_t block_length, target_block_length, bytes_written;
 	int ret;
@@ -228,10 +231,10 @@ archive_compressor_gzip_finish(struct archive *a)
 	unsigned tocopy;
 	unsigned char trailer[8];
 
-	state = (struct private_data *)a->compression_data;
+	state = (struct private_data *)a->compressor.data;
 	ret = 0;
 	if (a->client_writer == NULL) {
-		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
 		    "This is probably an internal programming error.");
 		ret = ARCHIVE_FATAL;
@@ -280,13 +283,13 @@ archive_compressor_gzip_finish(struct archive *a)
 
 	/* If it overflowed, flush and start a new block. */
 	if (tocopy < 8) {
-		bytes_written = (a->client_writer)(a, a->client_data,
+		bytes_written = (a->client_writer)(&a->archive, a->client_data,
 		    state->compressed, state->compressed_buffer_size);
 		if (bytes_written <= 0) {
 			ret = ARCHIVE_FATAL;
 			goto cleanup;
 		}
-		a->raw_position += bytes_written;
+		a->archive.raw_position += bytes_written;
 		state->stream.next_out = state->compressed;
 		state->stream.avail_out = state->compressed_buffer_size;
 		memcpy(state->stream.next_out, trailer + tocopy, 8-tocopy);
@@ -317,13 +320,13 @@ archive_compressor_gzip_finish(struct archive *a)
 	}
 
 	/* Write the last block */
-	bytes_written = (a->client_writer)(a, a->client_data,
+	bytes_written = (a->client_writer)(&a->archive, a->client_data,
 	    state->compressed, block_length);
 	if (bytes_written <= 0) {
 		ret = ARCHIVE_FATAL;
 		goto cleanup;
 	}
-	a->raw_position += bytes_written;
+	a->archive.raw_position += bytes_written;
 
 	/* Cleanup: shut down compressor, release memory, etc. */
 cleanup:
@@ -331,17 +334,12 @@ cleanup:
 	case Z_OK:
 		break;
 	default:
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Failed to clean up compressor");
 		ret = ARCHIVE_FATAL;
 	}
 	free(state->compressed);
 	free(state);
-
-	/* Close the output */
-	if (a->client_closer != NULL)
-		(a->client_closer)(a, a->client_data);
-
 	return (ret);
 }
 
@@ -353,15 +351,16 @@ cleanup:
  * false) and the end-of-archive case (finishing == true).
  */
 static int
-drive_compressor(struct archive *a, struct private_data *state, int finishing)
+drive_compressor(struct archive_write *a, struct private_data *state, int finishing)
 {
 	ssize_t bytes_written;
 	int ret;
 
 	for (;;) {
 		if (state->stream.avail_out == 0) {
-			bytes_written = (a->client_writer)(a, a->client_data,
-			    state->compressed, state->compressed_buffer_size);
+			bytes_written = (a->client_writer)(&a->archive,
+			    a->client_data, state->compressed,
+			    state->compressed_buffer_size);
 			if (bytes_written <= 0) {
 				/* TODO: Handle this write failure */
 				return (ARCHIVE_FATAL);
@@ -372,7 +371,7 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 				    state->compressed + bytes_written,
 				    state->compressed_buffer_size - bytes_written);
 			}
-			a->raw_position += bytes_written;
+			a->archive.raw_position += bytes_written;
 			state->stream.next_out
 			    = state->compressed +
 			    state->compressed_buffer_size - bytes_written;
@@ -396,7 +395,7 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 			return (ARCHIVE_OK);
 		default:
 			/* Any other return value indicates an error. */
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "GZip compression failed");
 			return (ARCHIVE_FATAL);
 		}

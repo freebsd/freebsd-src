@@ -26,13 +26,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef MAJOR_IN_MKDEV
-#include <sys/mkdev.h>
-#endif
-
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -43,13 +36,11 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 
 struct cpio_bin_header {
 	unsigned char	c_magic[2];
@@ -108,8 +99,8 @@ struct links_entry {
 #define	CPIO_MAGIC   0x13141516
 struct cpio {
 	int			  magic;
-	int			(*read_header)(struct archive *, struct cpio *,
-				     struct stat *, size_t *, size_t *);
+	int			(*read_header)(struct archive_read *, struct cpio *,
+				     struct archive_entry *, size_t *, size_t *);
 	struct links_entry	 *links_head;
 	struct archive_string	  entry_name;
 	struct archive_string	  entry_linkname;
@@ -120,34 +111,34 @@ struct cpio {
 
 static int64_t	atol16(const char *, unsigned);
 static int64_t	atol8(const char *, unsigned);
-static int	archive_read_format_cpio_bid(struct archive *);
-static int	archive_read_format_cpio_cleanup(struct archive *);
-static int	archive_read_format_cpio_read_data(struct archive *,
+static int	archive_read_format_cpio_bid(struct archive_read *);
+static int	archive_read_format_cpio_cleanup(struct archive_read *);
+static int	archive_read_format_cpio_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
-static int	archive_read_format_cpio_read_header(struct archive *,
+static int	archive_read_format_cpio_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	be4(const unsigned char *);
-static int	header_bin_be(struct archive *, struct cpio *, struct stat *,
-		    size_t *, size_t *);
-static int	header_bin_le(struct archive *, struct cpio *, struct stat *,
-		    size_t *, size_t *);
-static int	header_newc(struct archive *, struct cpio *, struct stat *,
-		    size_t *, size_t *);
-static int	header_odc(struct archive *, struct cpio *, struct stat *,
-		    size_t *, size_t *);
+static int	header_bin_be(struct archive_read *, struct cpio *,
+		    struct archive_entry *, size_t *, size_t *);
+static int	header_bin_le(struct archive_read *, struct cpio *,
+		    struct archive_entry *, size_t *, size_t *);
+static int	header_newc(struct archive_read *, struct cpio *,
+		    struct archive_entry *, size_t *, size_t *);
+static int	header_odc(struct archive_read *, struct cpio *,
+		    struct archive_entry *, size_t *, size_t *);
 static int	le4(const unsigned char *);
-static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry,
-		    const struct stat *st);
+static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry);
 
 int
-archive_read_support_format_cpio(struct archive *a)
+archive_read_support_format_cpio(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	struct cpio *cpio;
 	int r;
 
 	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(cpio, 0, sizeof(*cpio));
@@ -168,16 +159,16 @@ archive_read_support_format_cpio(struct archive *a)
 
 
 static int
-archive_read_format_cpio_bid(struct archive *a)
+archive_read_format_cpio_bid(struct archive_read *a)
 {
 	int bid, bytes_read;
 	const void *h;
 	const unsigned char *p;
 	struct cpio *cpio;
 
-	cpio = (struct cpio *)*(a->pformat_data);
+	cpio = (struct cpio *)(a->format->data);
 	bid = 0;
-	bytes_read = (a->compression_read_ahead)(a, &h, 6);
+	bytes_read = (a->decompressor->read_ahead)(a, &h, 6);
 	/* Convert error code into error return. */
 	if (bytes_read < 0)
 		return ((int)bytes_read);
@@ -227,10 +218,9 @@ archive_read_format_cpio_bid(struct archive *a)
 }
 
 static int
-archive_read_format_cpio_read_header(struct archive *a,
+archive_read_format_cpio_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct stat st;
 	struct cpio *cpio;
 	size_t bytes;
 	const void *h;
@@ -238,33 +228,28 @@ archive_read_format_cpio_read_header(struct archive *a,
 	size_t name_pad;
 	int r;
 
-	memset(&st, 0, sizeof(st));
-
-	cpio = (struct cpio *)*(a->pformat_data);
-	r = (cpio->read_header(a, cpio, &st, &namelength, &name_pad));
+	cpio = (struct cpio *)(a->format->data);
+	r = (cpio->read_header(a, cpio, entry, &namelength, &name_pad));
 
 	if (r != ARCHIVE_OK)
 		return (r);
 
-	/* Assign all of the 'stat' fields at once. */
-	archive_entry_copy_stat(entry, &st);
-
 	/* Read name from buffer. */
-	bytes = (a->compression_read_ahead)(a, &h, namelength + name_pad);
+	bytes = (a->decompressor->read_ahead)(a, &h, namelength + name_pad);
 	if (bytes < namelength + name_pad)
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, namelength + name_pad);
+	(a->decompressor->consume)(a, namelength + name_pad);
 	archive_strncpy(&cpio->entry_name, (const char *)h, namelength);
 	archive_entry_set_pathname(entry, cpio->entry_name.s);
 	cpio->entry_offset = 0;
 
 	/* If this is a symlink, read the link contents. */
-	if (S_ISLNK(st.st_mode)) {
-		bytes = (a->compression_read_ahead)(a, &h,
+	if (archive_entry_filetype(entry) == AE_IFLNK) {
+		bytes = (a->decompressor->read_ahead)(a, &h,
 		    cpio->entry_bytes_remaining);
 		if ((off_t)bytes < cpio->entry_bytes_remaining)
 			return (ARCHIVE_FATAL);
-		(a->compression_read_consume)(a, cpio->entry_bytes_remaining);
+		(a->decompressor->consume)(a, cpio->entry_bytes_remaining);
 		archive_strncpy(&cpio->entry_linkname, (const char *)h,
 		    cpio->entry_bytes_remaining);
 		archive_entry_set_symlink(entry, cpio->entry_linkname.s);
@@ -274,26 +259,26 @@ archive_read_format_cpio_read_header(struct archive *a,
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
-	    archive_set_error(a, 0, NULL);
+	    archive_set_error(&a->archive, 0, NULL);
 	    return (ARCHIVE_EOF);
 	}
 
 	/* Detect and record hardlinks to previously-extracted entries. */
-	record_hardlink(cpio, entry, &st);
+	record_hardlink(cpio, entry);
 
 	return (ARCHIVE_OK);
 }
 
 static int
-archive_read_format_cpio_read_data(struct archive *a,
+archive_read_format_cpio_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
 {
 	ssize_t bytes_read;
 	struct cpio *cpio;
 
-	cpio = (struct cpio *)*(a->pformat_data);
+	cpio = (struct cpio *)(a->format->data);
 	if (cpio->entry_bytes_remaining > 0) {
-		bytes_read = (a->compression_read_ahead)(a, buff, 1);
+		bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > cpio->entry_bytes_remaining)
@@ -302,16 +287,16 @@ archive_read_format_cpio_read_data(struct archive *a,
 		*offset = cpio->entry_offset;
 		cpio->entry_offset += bytes_read;
 		cpio->entry_bytes_remaining -= bytes_read;
-		(a->compression_read_consume)(a, bytes_read);
+		(a->decompressor->consume)(a, bytes_read);
 		return (ARCHIVE_OK);
 	} else {
 		while (cpio->entry_padding > 0) {
-			bytes_read = (a->compression_read_ahead)(a, buff, 1);
+			bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
 			if (bytes_read <= 0)
 				return (ARCHIVE_FATAL);
 			if (bytes_read > cpio->entry_padding)
 				bytes_read = cpio->entry_padding;
-			(a->compression_read_consume)(a, bytes_read);
+			(a->decompressor->consume)(a, bytes_read);
 			cpio->entry_padding -= bytes_read;
 		}
 		*buff = NULL;
@@ -322,44 +307,42 @@ archive_read_format_cpio_read_data(struct archive *a,
 }
 
 static int
-header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
-    size_t *namelength, size_t *name_pad)
+header_newc(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_newc_header *header;
 	size_t bytes;
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_newc_header));
+	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_newc_header));
 	if (bytes < sizeof(struct cpio_newc_header))
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, sizeof(struct cpio_newc_header));
+	(a->decompressor->consume)(a, sizeof(struct cpio_newc_header));
 
-	/* Parse out hex fields into struct stat. */
+	/* Parse out hex fields. */
 	header = (const struct cpio_newc_header *)h;
 
 	if (memcmp(header->c_magic, "070701", 6) == 0) {
-		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
-		a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
+		a->archive.archive_format_name = "ASCII cpio (SVR4 with no CRC)";
 	} else if (memcmp(header->c_magic, "070702", 6) == 0) {
-		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
-		a->archive_format_name = "ASCII cpio (SVR4 with CRC)";
+		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
+		a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
 	} else {
 		/* TODO: Abort here? */
 	}
 
-	st->st_dev = makedev(
-		atol16(header->c_devmajor, sizeof(header->c_devmajor)),
-		atol16(header->c_devminor, sizeof(header->c_devminor)));
-	st->st_ino = atol16(header->c_ino, sizeof(header->c_ino));
-	st->st_mode = atol16(header->c_mode, sizeof(header->c_mode));
-	st->st_uid = atol16(header->c_uid, sizeof(header->c_uid));
-	st->st_gid = atol16(header->c_gid, sizeof(header->c_gid));
-	st->st_nlink = atol16(header->c_nlink, sizeof(header->c_nlink));
-	st->st_rdev = makedev(
-		atol16(header->c_rdevmajor, sizeof(header->c_rdevmajor)),
-		atol16(header->c_rdevminor, sizeof(header->c_rdevminor)));
-	st->st_mtime = atol16(header->c_mtime, sizeof(header->c_mtime));
+	archive_entry_set_devmajor(entry, atol16(header->c_devmajor, sizeof(header->c_devmajor)));
+	archive_entry_set_devminor(entry, atol16(header->c_devminor, sizeof(header->c_devminor)));
+	archive_entry_set_ino(entry, atol16(header->c_ino, sizeof(header->c_ino)));
+	archive_entry_set_mode(entry, atol16(header->c_mode, sizeof(header->c_mode)));
+	archive_entry_set_uid(entry, atol16(header->c_uid, sizeof(header->c_uid)));
+	archive_entry_set_gid(entry, atol16(header->c_gid, sizeof(header->c_gid)));
+	archive_entry_set_nlink(entry, atol16(header->c_nlink, sizeof(header->c_nlink)));
+	archive_entry_set_rdevmajor(entry, atol16(header->c_rdevmajor, sizeof(header->c_rdevmajor)));
+	archive_entry_set_rdevminor(entry, atol16(header->c_rdevminor, sizeof(header->c_rdevminor)));
+	archive_entry_set_mtime(entry, atol16(header->c_mtime, sizeof(header->c_mtime)), 0);
 	*namelength = atol16(header->c_namesize, sizeof(header->c_namesize));
 	/* Pad name to 2 more than a multiple of 4. */
 	*name_pad = (2 - *namelength) & 3;
@@ -367,141 +350,139 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
 	 * therefore guaranteed to be big enough for a 33-bit file
-	 * size.  struct stat.st_size may only be 32 bits, so
-	 * assigning there first could lose information.
+	 * size.
 	 */
 	cpio->entry_bytes_remaining =
 	    atol16(header->c_filesize, sizeof(header->c_filesize));
-	st->st_size = cpio->entry_bytes_remaining;
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	/* Pad file contents to a multiple of 4. */
 	cpio->entry_padding = 3 & -cpio->entry_bytes_remaining;
 	return (ARCHIVE_OK);
 }
 
 static int
-header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
-    size_t *namelength, size_t *name_pad)
+header_odc(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_odc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
-	a->archive_format_name = "POSIX octet-oriented cpio";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
+	a->archive.archive_format_name = "POSIX octet-oriented cpio";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_odc_header));
+	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_odc_header));
 	if (bytes < sizeof(struct cpio_odc_header))
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, sizeof(struct cpio_odc_header));
+	(a->decompressor->consume)(a, sizeof(struct cpio_odc_header));
 
-	/* Parse out octal fields into struct stat. */
+	/* Parse out octal fields. */
 	header = (const struct cpio_odc_header *)h;
 
-	st->st_dev = atol8(header->c_dev, sizeof(header->c_dev));
-	st->st_ino = atol8(header->c_ino, sizeof(header->c_ino));
-	st->st_mode = atol8(header->c_mode, sizeof(header->c_mode));
-	st->st_uid = atol8(header->c_uid, sizeof(header->c_uid));
-	st->st_gid = atol8(header->c_gid, sizeof(header->c_gid));
-	st->st_nlink = atol8(header->c_nlink, sizeof(header->c_nlink));
-	st->st_rdev = atol8(header->c_rdev, sizeof(header->c_rdev));
-	st->st_mtime = atol8(header->c_mtime, sizeof(header->c_mtime));
+	archive_entry_set_dev(entry, atol8(header->c_dev, sizeof(header->c_dev)));
+	archive_entry_set_ino(entry, atol8(header->c_ino, sizeof(header->c_ino)));
+	archive_entry_set_mode(entry, atol8(header->c_mode, sizeof(header->c_mode)));
+	archive_entry_set_uid(entry, atol8(header->c_uid, sizeof(header->c_uid)));
+	archive_entry_set_gid(entry, atol8(header->c_gid, sizeof(header->c_gid)));
+	archive_entry_set_nlink(entry, atol8(header->c_nlink, sizeof(header->c_nlink)));
+	archive_entry_set_rdev(entry, atol8(header->c_rdev, sizeof(header->c_rdev)));
+	archive_entry_set_mtime(entry, atol8(header->c_mtime, sizeof(header->c_mtime)), 0);
 	*namelength = atol8(header->c_namesize, sizeof(header->c_namesize));
 	*name_pad = 0; /* No padding of filename. */
 
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
 	 * therefore guaranteed to be big enough for a 33-bit file
-	 * size.  struct stat.st_size may only be 32 bits, so
-	 * assigning there first could lose information.
+	 * size.
 	 */
 	cpio->entry_bytes_remaining =
 	    atol8(header->c_filesize, sizeof(header->c_filesize));
-	st->st_size = cpio->entry_bytes_remaining;
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
 	return (ARCHIVE_OK);
 }
 
 static int
-header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
-    size_t *namelength, size_t *name_pad)
+header_bin_le(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
-	a->archive_format_name = "cpio (little-endian binary)";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
+	a->archive.archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_bin_header));
+	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_bin_header));
 	if (bytes < sizeof(struct cpio_bin_header))
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
+	(a->decompressor->consume)(a, sizeof(struct cpio_bin_header));
 
-	/* Parse out binary fields into struct stat. */
+	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
 
-	st->st_dev = header->c_dev[0] + header->c_dev[1] * 256;
-	st->st_ino = header->c_ino[0] + header->c_ino[1] * 256;
-	st->st_mode = header->c_mode[0] + header->c_mode[1] * 256;
-	st->st_uid = header->c_uid[0] + header->c_uid[1] * 256;
-	st->st_gid = header->c_gid[0] + header->c_gid[1] * 256;
-	st->st_nlink = header->c_nlink[0] + header->c_nlink[1] * 256;
-	st->st_rdev = header->c_rdev[0] + header->c_rdev[1] * 256;
-	st->st_mtime = le4(header->c_mtime);
+	archive_entry_set_dev(entry, header->c_dev[0] + header->c_dev[1] * 256);
+	archive_entry_set_ino(entry, header->c_ino[0] + header->c_ino[1] * 256);
+	archive_entry_set_mode(entry, header->c_mode[0] + header->c_mode[1] * 256);
+	archive_entry_set_uid(entry, header->c_uid[0] + header->c_uid[1] * 256);
+	archive_entry_set_gid(entry, header->c_gid[0] + header->c_gid[1] * 256);
+	archive_entry_set_nlink(entry, header->c_nlink[0] + header->c_nlink[1] * 256);
+	archive_entry_set_rdev(entry, header->c_rdev[0] + header->c_rdev[1] * 256);
+	archive_entry_set_mtime(entry, le4(header->c_mtime), 0);
 	*namelength = header->c_namesize[0] + header->c_namesize[1] * 256;
 	*name_pad = *namelength & 1; /* Pad to even. */
 
 	cpio->entry_bytes_remaining = le4(header->c_filesize);
-	st->st_size = cpio->entry_bytes_remaining;
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
 	return (ARCHIVE_OK);
 }
 
 static int
-header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
-    size_t *namelength, size_t *name_pad)
+header_bin_be(struct archive_read *a, struct cpio *cpio,
+    struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
-	a->archive_format_name = "cpio (big-endian binary)";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
+	a->archive.archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->compression_read_ahead)(a, &h,
+	bytes = (a->decompressor->read_ahead)(a, &h,
 	    sizeof(struct cpio_bin_header));
 	if (bytes < sizeof(struct cpio_bin_header))
 	    return (ARCHIVE_FATAL);
-	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
+	(a->decompressor->consume)(a, sizeof(struct cpio_bin_header));
 
-	/* Parse out binary fields into struct stat. */
+	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
-	st->st_dev = header->c_dev[0] * 256 + header->c_dev[1];
-	st->st_ino = header->c_ino[0] * 256 + header->c_ino[1];
-	st->st_mode = header->c_mode[0] * 256 + header->c_mode[1];
-	st->st_uid = header->c_uid[0] * 256 + header->c_uid[1];
-	st->st_gid = header->c_gid[0] * 256 + header->c_gid[1];
-	st->st_nlink = header->c_nlink[0] * 256 + header->c_nlink[1];
-	st->st_rdev = header->c_rdev[0] * 256 + header->c_rdev[1];
-	st->st_mtime = be4(header->c_mtime);
+	archive_entry_set_dev(entry, header->c_dev[0] * 256 + header->c_dev[1]);
+	archive_entry_set_ino(entry, header->c_ino[0] * 256 + header->c_ino[1]);
+	archive_entry_set_mode(entry, header->c_mode[0] * 256 + header->c_mode[1]);
+	archive_entry_set_uid(entry, header->c_uid[0] * 256 + header->c_uid[1]);
+	archive_entry_set_gid(entry, header->c_gid[0] * 256 + header->c_gid[1]);
+	archive_entry_set_nlink(entry, header->c_nlink[0] * 256 + header->c_nlink[1]);
+	archive_entry_set_rdev(entry, header->c_rdev[0] * 256 + header->c_rdev[1]);
+	archive_entry_set_mtime(entry, be4(header->c_mtime), 0);
 	*namelength = header->c_namesize[0] * 256 + header->c_namesize[1];
 	*name_pad = *namelength & 1; /* Pad to even. */
 
 	cpio->entry_bytes_remaining = be4(header->c_filesize);
-	st->st_size = cpio->entry_bytes_remaining;
+	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = cpio->entry_bytes_remaining & 1; /* Pad to even. */
 	return (ARCHIVE_OK);
 }
 
 static int
-archive_read_format_cpio_cleanup(struct archive *a)
+archive_read_format_cpio_cleanup(struct archive_read *a)
 {
 	struct cpio *cpio;
 
-	cpio = (struct cpio *)*(a->pformat_data);
+	cpio = (struct cpio *)(a->format->data);
         /* Free inode->name map */
         while (cpio->links_head != NULL) {
                 struct links_entry *lp = cpio->links_head->next;
@@ -511,9 +492,9 @@ archive_read_format_cpio_cleanup(struct archive *a)
                 free(cpio->links_head);
                 cpio->links_head = lp;
         }
-
+	archive_string_free(&cpio->entry_name);
 	free(cpio);
-	*(a->pformat_data) = NULL;
+	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -578,17 +559,21 @@ atol16(const char *p, unsigned char_cnt)
 }
 
 static void
-record_hardlink(struct cpio *cpio, struct archive_entry *entry,
-    const struct stat *st)
+record_hardlink(struct cpio *cpio, struct archive_entry *entry)
 {
         struct links_entry      *le;
+	dev_t dev;
+	ino_t ino;
+
+	dev = archive_entry_dev(entry);
+	ino = archive_entry_ino(entry);
 
         /*
          * First look in the list of multiply-linked files.  If we've
          * already dumped it, convert this entry to a hard link entry.
          */
         for (le = cpio->links_head; le; le = le->next) {
-                if (le->dev == st->st_dev && le->ino == st->st_ino) {
+                if (le->dev == dev && le->ino == ino) {
                         archive_entry_set_hardlink(entry, le->name);
 
                         if (--le->links <= 0) {
@@ -613,9 +598,9 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
         le->next = cpio->links_head;
         le->previous = NULL;
         cpio->links_head = le;
-        le->dev = st->st_dev;
-        le->ino = st->st_ino;
-        le->links = st->st_nlink - 1;
+        le->dev = dev;
+        le->ino = ino;
+        le->links = archive_entry_nlink(entry) - 1;
         le->name = strdup(archive_entry_pathname(entry));
 	if (le->name == NULL)
 		__archive_errx(1, "Out of memory adding file to list");
