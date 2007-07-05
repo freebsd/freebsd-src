@@ -32,7 +32,7 @@
 struct vesa_info
 {
     /* mandatory fields */
-    u_int8_t		v_sig[4] __packed;	/* VESA */
+    u_int8_t		v_sig[4];		/* VESA */
     u_int16_t		v_version __packed;	/* ver in BCD */
     u_int32_t		v_oemstr __packed;	/* OEM string */
     u_int32_t		v_flags __packed;	/* flags */
