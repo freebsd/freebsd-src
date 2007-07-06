@@ -26,6 +26,9 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	ulimit.h unistd.h utime.h utmp.h uuid.h varargs.h vis.h wchar.h \
 	wctype.h wordexp.h
 
+I4BHDRS=i4b_cause.h i4b_debug.h i4b_ioctl.h i4b_rbch_ioctl.h \
+	i4b_tel_ioctl.h i4b_trace.h
+
 MHDRS=	float.h floatingpoint.h stdarg.h
 
 PHDRS=	sched.h semaphore.h _semaphore.h
@@ -175,6 +178,13 @@ copies:
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
+.if ${MACHINE_ARCH} == "i386"
+.if ${MK_I4B} != "no"
+	cd ${.CURDIR}/../sys/i4b/include; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${I4BHDRS} \
+	    ${DESTDIR}${INCLUDEDIR}/i4b
+.endif
+.endif
 	cd ${.CURDIR}/../sys/opencrypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -255,6 +265,11 @@ symlinks:
 	for h in rijndael/rijndael.h; do \
 		ln -fs ../../../sys/crypto/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/crypto; \
+	done
+	cd ${.CURDIR}/../sys/i4b/include; \
+	for h in ${I4BHDRS}; do \
+		ln -fs ../../../sys/i4b/include/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/i4b; \
 	done
 	cd ${.CURDIR}/../sys/opencrypto; \
 	for h in *.h; do \
