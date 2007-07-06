@@ -139,9 +139,9 @@ OF_interpret(char *cmd, int nreturns, ...)
 	cell_t status;
 	int i = 0;
 
+	va_start(ap, nreturns);
 	args.nreturns = ++nreturns;
 	args.slot[i++] = (cell_t)cmd;
-	va_start(ap, nreturns);
 	while (i < 1)
 		args.slot[i++] = va_arg(ap, cell_t);
 	if (openfirmware(&args) == -1) {
