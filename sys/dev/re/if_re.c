@@ -1211,10 +1211,10 @@ re_attach(dev)
 		hw_rev++;
 	}
 
-	sc->rl_eewidth = 6;
+	sc->rl_eewidth = RL_9356_ADDR_LEN;
 	re_read_eeprom(sc, (caddr_t)&re_did, 0, 1);
 	if (re_did != 0x8129)
-	        sc->rl_eewidth = 8;
+	        sc->rl_eewidth = RL_9346_ADDR_LEN;
 
 	/*
 	 * Get station address from the EEPROM.

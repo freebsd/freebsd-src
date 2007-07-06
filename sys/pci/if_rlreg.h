@@ -312,6 +312,8 @@
 #define RL_EEMODE_WRITECFG	(0x80|0x40)
 
 /* 9346 EEPROM commands */
+#define RL_9346_ADDR_LEN	6	/* 93C46 1K: 128x16 */
+#define RL_9356_ADDR_LEN	8	/* 93C56 2K: 256x16 */
 
 #define RL_9346_WRITE          0x5
 #define RL_9346_READ           0x6
