@@ -53,7 +53,7 @@
 #endif
 #include <sys/param.h>
 
-#include <machine/i4b_ioctl.h>
+#include <i4b/i4b_ioctl.h>
 
 #define GOOD	0
 #define	ERROR	(-1)

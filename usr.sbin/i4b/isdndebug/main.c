@@ -47,8 +47,8 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
+#include <i4b/i4b_debug.h>
+#include <i4b/i4b_ioctl.h>
 
 char *bin_str(unsigned long val, int length);
 

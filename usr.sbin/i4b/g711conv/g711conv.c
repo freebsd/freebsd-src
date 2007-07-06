@@ -76,7 +76,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <machine/i4b_ioctl.h>
+#include <i4b/i4b_ioctl.h>
 
 /* copy from CCITT G.711 specifications */
 

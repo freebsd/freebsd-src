@@ -68,8 +68,8 @@
 
 #include <net/if_sppp.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_cause.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_cause.h>
 
 #include "config.h"		/* compile time configuration	*/
 #include "pathnames.h"		/* location of files		*/

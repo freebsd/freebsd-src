@@ -62,7 +62,7 @@
 #if defined (__FreeBSD__) || defined(__NetBSD__) || \
     defined (__OpenBSD__) || defined(__bsdi__)
 
-#include <machine/i4b_ioctl.h>
+#include <i4b/i4b_ioctl.h>
 
 #else
 

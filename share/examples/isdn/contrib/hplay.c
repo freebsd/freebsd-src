@@ -29,7 +29,7 @@
 #include <sys/signal.h>
 #include <sys/ioctl.h>
 
-#include <machine/i4b_tel_ioctl.h>
+#include <i4b/i4b_tel_ioctl.h>
 
 #include "proto.h"
 #include "getargs.h"
