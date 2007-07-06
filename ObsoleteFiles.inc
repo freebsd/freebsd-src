@@ -14,6 +14,15 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070705: I4B headers repo-copied to include/i4b/
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/i4b_cause.h
+OLD_FILES+=usr/include/machine/i4b_debug.h
+OLD_FILES+=usr/include/machine/i4b_ioctl.h
+OLD_FILES+=usr/include/machine/i4b_rbch_ioctl.h
+OLD_FILES+=usr/include/machine/i4b_tel_ioctl.h
+OLD_FILES+=usr/include/machine/i4b_trace.h
+.endif
 # 20070704: I4B 'modules' temporary disconnected
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/share/man/man4/i4bing.4.gz
