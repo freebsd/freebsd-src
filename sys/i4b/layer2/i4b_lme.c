@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/if.h>
 
-#include <machine/i4b_debug.h>
+#include <i4b/include/i4b_debug.h>
 
 #include <i4b/layer2/i4b_l2.h>
 
