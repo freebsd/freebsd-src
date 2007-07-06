@@ -36,17 +36,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#ifdef __FreeBSD__
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_rbch_ioctl.h>
-#else
 #ifdef __NetBSD__
 #include <netisdn/i4b_ioctl.h>
 #include <netisdn/i4b_rbch_ioctl.h>
 #else
 #include <i4b/i4b_ioctl.h>
 #include <i4b/i4b_rbch_ioctl.h>
-#endif
 #endif
 #include <stdio.h>
 #include <stdlib.h>

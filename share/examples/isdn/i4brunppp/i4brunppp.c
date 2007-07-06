@@ -59,8 +59,8 @@
 #include <time.h>
 #include <ctype.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_rbch_ioctl.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_rbch_ioctl.h>
 
 #define I4BDEVICE	"/dev/i4b"
 

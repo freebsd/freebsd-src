@@ -47,7 +47,7 @@
 #include<sys/types.h>
 #include<sys/time.h>
 #include<sys/param.h>
-#include<machine/i4b_tel_ioctl.h>
+#include<i4b/i4b_tel_ioctl.h>
 
 // DECL DEFS
 #define BUFLEN 2048

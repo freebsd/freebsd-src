@@ -252,7 +252,7 @@ Debugging control
 (6) the device driver for /dev/i4bctl in conjunction with the userland
     program isdndebug(8) is used to set the debug level for each of the
     layers and several other parts of the system, information how to use
-    this is contained in machine/i4b_debug.h and all parts of the kernel
+    this is contained in i4b/i4b_debug.h and all parts of the kernel
     sources. It is only usable for passive cards.
 
 
@@ -271,7 +271,7 @@ Layer 4
     consisting of "messages" sent to userland and which are read(2) by the
     isdnd. The isdnd in turn sends "messages" to the kernel by using the
     ioctl(2) call. This protocol and the required messages for both
-    directions are documented in the machine/i4b_ioctl.h file and are
+    directions are documented in the i4b/i4b_ioctl.h file and are
     implemented in files i4b_i4bdrv.c and i4b_l4.c, the latter also
     containing much of the Layer 4 interface to the lower layers.
 
