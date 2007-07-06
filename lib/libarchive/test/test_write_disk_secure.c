@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_write_disk_secure)
 {
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("archive_write_disk interface");
+#else
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
@@ -140,4 +143,5 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(S_ISREG(st.st_mode));
 	failure("link_to_dir2/filec: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == 0755);
+#endif
 }

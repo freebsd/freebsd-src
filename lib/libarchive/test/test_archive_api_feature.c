@@ -29,5 +29,23 @@ DEFINE_TEST(test_archive_api_feature)
 {
 	assertEqualInt(ARCHIVE_API_FEATURE, archive_api_feature());
 	assertEqualInt(ARCHIVE_API_VERSION, archive_api_version());
+	/*
+	 * Even though ARCHIVE_VERSION_STAMP only appears in
+	 * archive.h after 1.9.0 and 2.2.3, the macro is synthesized
+	 * in test.h, so this test is always valid.
+	 */
+	assertEqualInt(ARCHIVE_VERSION_STAMP / 1000, ARCHIVE_API_VERSION * 1000 + ARCHIVE_API_FEATURE);
+	/*
+	 * The function, however, isn't always available.  It appeared
+	 * sometime in the middle of 2.2.3, but the synthesized value
+	 * never has a release version, so the following conditional
+	 * exactly determines whether the current library has the
+	 * function.
+	 */
+#if ARCHIVE_VERSION_STAMP / 1000 == 1009 || ARCHIVE_VERSION_STAMP > 2002000
+	assertEqualInt(ARCHIVE_VERSION_STAMP, archive_version_stamp());
+#else
+	skipping("archive_version_stamp()");
+#endif
 	assertEqualString(ARCHIVE_LIBRARY_VERSION, archive_version());
 }

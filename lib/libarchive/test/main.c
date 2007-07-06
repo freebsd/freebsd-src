@@ -38,8 +38,10 @@ __FBSDID("$FreeBSD$");
 static int dump_on_failure = 1;
 /* Default is to print some basic information about each test. */
 static int quiet_flag = 0;
-/* Cumulative count of failures. */
+/* Cumulative count of component failures. */
 static int failures = 0;
+/* Cumulative count of skipped component tests. */
+static int skips = 0;
 
 /*
  * My own implementation of the standard assert() macro emits the
@@ -58,6 +60,19 @@ static int failures = 0;
  */
 static char msg[4096];
 
+
+/* Inform user that we're skipping a test. */
+void
+skipping(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	fprintf(stderr, " *** SKIPPING: ");
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+	++skips;
+}
 
 /* Common handling of failed tests. */
 static void
@@ -202,7 +217,7 @@ static int test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	(*tests[i].func)();
-	return (failures - failures_before);
+	return (failures == failures_before ? 0 : 1);
 }
 
 static void usage(void)
@@ -226,7 +241,7 @@ static void usage(void)
 int main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_succeeded = 0, opt;
+	int i, tests_run = 0, tests_failed = 0, opt;
 	time_t now;
 	char tmpdir[256];
 
@@ -266,13 +281,16 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	printf("Running libarchive tests in: %s\n", tmpdir);
+	if (!quiet_flag) {
+		printf("Running libarchive tests in: %s\n", tmpdir);
+		printf("Exercising %s\n", archive_version());
+	}
 
 	if (argc == 0) {
 		/* Default: Run all tests. */
 		for (i = 0; i < limit; i++) {
-			if (test_run(i, tmpdir) == 0)
-				tests_succeeded++;
+			if (test_run(i, tmpdir))
+				tests_failed++;
 			tests_run++;
 		}
 	} else {
@@ -282,13 +300,16 @@ int main(int argc, char **argv)
 				printf("*** INVALID Test %s\n", *argv);
 				usage();
 			} else {
-				if (test_run(i, tmpdir) == 0)
-					tests_succeeded++;
+				if (test_run(i, tmpdir))
+					tests_failed++;
 				tests_run++;
 			}
 		}
 	}
-
-	printf("%d of %d tests succeeded.\n", tests_succeeded, tests_run);
-	return (tests_succeeded == tests_run ? 0 : 1);
+	printf("\n");
+	printf("%d of %d test groups reported failures\n",
+	    tests_failed, tests_run);
+	printf(" Total of %d individual tests failed.\n", failures);
+	printf(" Total of %d individual tests were skipped.\n", skips);
+	return (tests_failed);
 }

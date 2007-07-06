@@ -30,6 +30,9 @@ char buff2[64];
 
 DEFINE_TEST(test_write_compress_program)
 {
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("archive_write_set_compress_program()");
+#else
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
@@ -93,5 +96,6 @@ DEFINE_TEST(test_write_compress_program)
 	assert(0 == archive_read_finish(a));
 #else
 	archive_read_finish(a);
+#endif
 #endif
 }

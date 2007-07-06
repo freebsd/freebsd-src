@@ -25,6 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+/* The version stamp macro was introduced after cpio write support. */
+#if ARCHIVE_VERSION_STAMP >= 1009000
 static void
 test_format(int	(*set_format)(struct archive *))
 {
@@ -104,9 +106,14 @@ test_format(int	(*set_format)(struct archive *))
 
 	free(buff);
 }
+#endif
 
 DEFINE_TEST(test_write_format_cpio)
 {
+#if ARCHIVE_VERSION_STAMP >= 1009000
 	test_format(archive_write_set_format_cpio);
 	test_format(archive_write_set_format_cpio_newc);
+#else
+	skipping("cpio write support");
+#endif
 }
