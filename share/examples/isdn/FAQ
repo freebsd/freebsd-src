@@ -450,7 +450,7 @@ IEEE488 and ISDN cards often belong in this category.
 8) add the flag value and function prototypes to layer1/i4b_l1.h
 9) add support for NetBSD to layer1/isa_isic.c
 10) add support for attach/probe to layer1/i4b_isic.c
-11) add card type to machine/i4b_ioctl.h and update CARD_TYPEP_MAX
+11) add card type to i4b/i4b_ioctl.h and update CARD_TYPEP_MAX
 12) add an entry to the man page man/isic.4
 
 Produce diffs (please use context diffs, flag "-c" for diff) and send them in.

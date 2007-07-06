@@ -50,8 +50,8 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_tel_ioctl.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_tel_ioctl.h>
 
 static void usage ( void );
 

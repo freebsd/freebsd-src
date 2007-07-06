@@ -50,8 +50,8 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_trace.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_trace.h>
 
 #include "pcause.h"
 
