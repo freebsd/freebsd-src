@@ -46,6 +46,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	cards should be configured using ifconfig(8), see the man page for more
 	information.
 
+20060612:
+	The i386/amd64 GENERIC kernel now defaults to the nfe(4) driver
+	instead of the nve(4) driver. Please update your configuration
+	accordingly.
+
 20070612:
 	By default, /etc/rc.d/sendmail no longer rebuilds the aliases
 	database if it is missing or older than the aliases file.  If
