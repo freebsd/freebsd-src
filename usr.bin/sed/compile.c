@@ -318,19 +318,19 @@ nonsel:		/* Now parse the command */
 				errx(1,
 "%lu: %s: substitute pattern can not be delimited by newline or backslash",
 					linenum, fname);
-			if ((cmd->u.s = malloc(sizeof(struct s_subst))) == NULL)
+			if ((cmd->u.s = calloc(1, sizeof(struct s_subst))) == NULL)
 				err(1, "malloc");
 			p = compile_delimited(p, re);
 			if (p == NULL)
 				errx(1,
 				"%lu: %s: unterminated substitute pattern", linenum, fname);
+			--p;
+			p = compile_subst(p, cmd->u.s);
+			p = compile_flags(p, cmd->u.s);
 			if (*re == '\0')
 				cmd->u.s->re = NULL;
 			else
 				cmd->u.s->re = compile_re(re, cmd->u.s->icase);
-			--p;
-			p = compile_subst(p, cmd->u.s);
-			p = compile_flags(p, cmd->u.s);
 			EATSPACE();
 			if (*p == ';') {
 				p++;
