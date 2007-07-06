@@ -42,6 +42,9 @@ test_filename(const char *prefix, int dlen, int flen)
 	size_t used;
 	size_t prefix_length = 0;
 	int i = 0;
+#if ARCHIVE_VERSION_STAMP < 1009000
+	static int bug_reported_1 = 0, bug_reported_2 = 0, bug_reported_3 = 0;
+#endif
 
 	if (prefix) {
 		strcpy(filename, prefix);
@@ -114,8 +117,14 @@ test_filename(const char *prefix, int dlen, int flen)
 
 	/* Read the file and check the filename. */
 	assertA(0 == archive_read_next_header(a, &ae));
-	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
+#if ARCHIVE_VERSION_STAMP < 1009000
+	if (!bug_reported_3) {
+		skipping("Leading '/' preserved on long filenames");
+		++bug_reported_3;
+	}
+#else
 	assertEqualString(filename, archive_entry_pathname(ae));
+#endif
 	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 
 	/*
@@ -123,16 +132,29 @@ test_filename(const char *prefix, int dlen, int flen)
 	 *
 	 * Both dirs should read back with the same name, since
 	 * tar should add a trailing '/' to any dir that doesn't
-	 * already have one.
+	 * already have one.  We only report the first such failure
+	 * here.
 	 */
 	assertA(0 == archive_read_next_header(a, &ae));
-	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
+#if ARCHIVE_VERSION_STAMP < 1009000
+	if (!bug_reported_2) {
+		skipping("Trailing '/' preserved on dirnames");
+		++bug_reported_2;
+	}
+#else
 	assertEqualString(dirname, archive_entry_pathname(ae));
+#endif
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	assertA(0 == archive_read_next_header(a, &ae));
-	failure("Pathname %d/%d: %s", dlen, flen, archive_entry_pathname(ae));
+#if ARCHIVE_VERSION_STAMP < 1009000
+	if (!bug_reported_1) {
+		skipping("Trailing '/' added to dir names");
+		++bug_reported_1;
+	}
+#else
 	assertEqualString(dirname, archive_entry_pathname(ae));
+#endif
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	/* Verify the end of the archive. */

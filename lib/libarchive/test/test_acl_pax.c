@@ -390,7 +390,12 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 			assert(matched == 1);
 		}
 	}
+#if ARCHIVE_VERSION_STAMP < 1009000
+	/* Known broken before 1.9.0. */
+	skipping("archive_entry_acl_next() exits with ARCHIVE_EOF");
+#else
 	assertEqualInt(ARCHIVE_EOF, r);
+#endif
 	assert((mode & 0777) == (archive_entry_mode(ae) & 0777));
 	failure("Could not find match for ACL "
 	    "(type=%d,permset=%d,tag=%d,qual=%d,name=``%s'')",

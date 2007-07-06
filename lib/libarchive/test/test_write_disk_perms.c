@@ -25,6 +25,8 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if ARCHIVE_VERSION_STAMP >= 1009000
+
 #define UMASK 022
 
 static long _default_gid = -1;
@@ -113,6 +115,7 @@ defaultgid(void)
 	searchgid();
 	return (_default_gid);
 }
+#endif
 
 /*
  * Exercise permission and ownership restores.
@@ -122,6 +125,9 @@ defaultgid(void)
 
 DEFINE_TEST(test_write_disk_perms)
 {
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("archive_write_disk interface");
+#else
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
@@ -390,5 +396,5 @@ DEFINE_TEST(test_write_disk_perms)
 		 * not root, we should not have been able to set that. */
 		assert(st.st_uid == getuid());
 	}
-
+#endif
 }

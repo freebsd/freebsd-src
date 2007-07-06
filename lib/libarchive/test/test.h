@@ -69,6 +69,18 @@
 #endif
 
 /*
+ * ARCHIVE_VERSION_STAMP first appeared in 1.9 and libarchive 2.2.4.
+ * We can approximate it for earlier versions, though.
+ * This is used to disable tests of features not present in the current
+ * version.
+ */
+#ifndef ARCHIVE_VERSION_STAMP
+#define ARCHIVE_VERSION_STAMP	\
+		(ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
+#endif
+
+
+/*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has
  * a line like
  *      DEFINE_TEST(test_function)
@@ -106,6 +118,7 @@
 
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
+void skipping(const char *fmt, ...);
 void test_assert(const char *, int, int, const char *, struct archive *);
 void test_assert_equal_int(const char *, int, int, const char *, int, const char *, struct archive *);
 void test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, struct archive *);

@@ -43,6 +43,9 @@ static unsigned char archive_old[] = {
 204,198,'g',1,'\\',3,213,'A','"',245,141,28,5,'#',8,140,166,159,'Q','0',10,
 'F',193,'(',24,24,0,0,'}','}',226,185,0,10,0,0};
 
+#if ARCHIVE_VERSION_STAMP >= 1009000
+/* libarchive < 1.9 doesn't support these. */
+
 /* GNU tar "0.0" posix format, as written by GNU tar 1.15.1. */
 static unsigned char archive_0_0[] = {
 31,139,8,0,171,221,'l','F',0,3,237,147,193,'N',195,'0',12,134,'s',206,'S',
@@ -95,13 +98,19 @@ static unsigned char archive_1_0[] = {
 132,'k','7',192,204,26,'~','?',12,195,'0',12,'s','y','>',0,244,'|','e',9,
 0,18,0,0};
 
+#endif
+
 static void
 test_data(const char *buff, int buff_size,
     int start_index, int data_index, const char *data)
 {
 	int i;
 
+	failure("This is known broken in libarchive 1.x < 1.9 and 2.x < 2.2");
 	assert(buff_size > data_index - start_index);
+	/* If the above fails, we can't test the actual contents. */
+	if (buff_size < data_index - start_index)
+		return;
 	for (i = 0; i < data_index - start_index; i++)
 		assert(buff[i] == 0);
 	assert(0 == memcmp(buff + (data_index - start_index), data, strlen(data)));
@@ -132,8 +141,13 @@ verify_archive(void *b, size_t l)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_data_block(a, &d, &s, &o));
 	failure("Size returned at EOF must be zero");
 	assertEqualInt(s, 0);
-	failure("Offset at EOF must be same as file size");
+#if ARCHIVE_VERSION_STAMP < 1009000
+	/* libarchive < 1.9 doesn't get this right */
+	skipping("offset of final sparse chunk");
+#else
+	failure("Offset of final empty chunk must be same as file size");
 	assertEqualInt(o, 3145728);
+#endif
 
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
@@ -146,9 +160,26 @@ verify_archive(void *b, size_t l)
 DEFINE_TEST(test_read_format_gtar_sparse)
 {
 	verify_archive(archive_old, sizeof(archive_old));
+
+	/*
+	 * libarchive < 1.9 doesn't support the newer sparse formats
+	 * from GNU tar 1.15 and 1.16.
+	 */
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("read support for GNUtar sparse format 0.0");
+#else
 	verify_archive(archive_0_0, sizeof(archive_0_0));
+#endif
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("read support for GNUtar sparse format 0.1");
+#else
 	verify_archive(archive_0_1, sizeof(archive_0_1));
+#endif
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("read support for GNUtar sparse format 1.0");
+#else
 	verify_archive(archive_1_0, sizeof(archive_1_0));
+#endif
 }
 
 
