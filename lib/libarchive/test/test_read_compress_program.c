@@ -34,6 +34,9 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_compress_program)
 {
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("archive_read_support_compression_program()");
+#else
 	struct archive_entry *ae;
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
@@ -49,6 +52,7 @@ DEFINE_TEST(test_read_compress_program)
 	assert(0 == archive_read_finish(a));
 #else
 	archive_read_finish(a);
+#endif
 #endif
 }
 

@@ -34,6 +34,9 @@ static unsigned char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdd
 
 DEFINE_TEST(test_write_format_ar)
 {
+#if ARCHIVE_VERSION_STAMP < 1009000
+	skipping("ar write support");
+#else
 	struct archive_entry *ae;
 	struct archive* a;
 	size_t used;
@@ -101,7 +104,7 @@ DEFINE_TEST(test_write_format_ar)
 	archive_write_close(a);
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_write_finish(a));
-#elif
+#else
 	archive_write_finish(a);
 #endif
 
@@ -175,7 +178,7 @@ DEFINE_TEST(test_write_format_ar)
 	archive_write_close(a);
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_write_finish(a));
-#elif
+#else
 	archive_write_finish(a);
 #endif
 
@@ -204,5 +207,6 @@ DEFINE_TEST(test_write_format_ar)
 	assert(0 == archive_read_finish(a));
 #else
 	archive_read_finish(a);
+#endif
 #endif
 }
