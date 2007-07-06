@@ -54,8 +54,8 @@
 #include <sys/time.h>
 #include <sys/param.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_tel_ioctl.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_tel_ioctl.h>
 
 /* device file prefixes */
 

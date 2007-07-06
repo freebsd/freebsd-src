@@ -59,8 +59,8 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_trace.h>
+#include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_trace.h>
 
 #include "pcause_1tr6.h"	/* obsolete german national ISDN */
 #include "pcause_q850.h"
