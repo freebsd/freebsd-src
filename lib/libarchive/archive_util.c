@@ -51,6 +51,12 @@ archive_api_version(void)
 	return (ARCHIVE_API_VERSION);
 }
 
+int
+archive_version_stamp(void)
+{
+	return (ARCHIVE_VERSION_STAMP);
+}
+
 const char *
 archive_version(void)
 {
