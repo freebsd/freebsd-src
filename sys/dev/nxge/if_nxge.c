@@ -252,8 +252,8 @@ xge_init_params(xge_hal_device_config_t *dconfig, device_t dev)
 	if(dconfig->fifo.max_frags > (PAGE_SIZE/32)) {
 	    xge_os_printf("fifo_max_frags = %d", dconfig->fifo.max_frags);
 	    xge_os_printf("fifo_max_frags should be <= (PAGE_SIZE / 32) = %d",
-	        (PAGE_SIZE / 32));
-	    xge_os_printf("Using fifo_max_frags = %d", (PAGE_SIZE / 32));
+	        (int)(PAGE_SIZE / 32));
+	    xge_os_printf("Using fifo_max_frags = %d", (int)(PAGE_SIZE / 32));
 	    dconfig->fifo.max_frags = (PAGE_SIZE / 32);
 	}
 
