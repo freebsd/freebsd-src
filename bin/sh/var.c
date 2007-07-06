@@ -278,6 +278,30 @@ localevar(char *s)
 	return 0;
 }
 
+
+/*
+ * Sets/unsets an environment variable from a pointer that may actually be a
+ * pointer into environ where the string should not be manipulated.
+ */
+static void
+change_env(char *s, int set)
+{
+	char *eqp;
+	char *ss;
+
+	ss = savestr(s);
+	if ((eqp = strchr(ss, '=')) != NULL)
+		*eqp = '\0';
+	if (set && eqp != NULL)
+		(void) setenv(ss, eqp + 1, 1);
+	else
+		(void) unsetenv(ss);
+	ckfree(ss);
+
+	return;
+}
+
+
 /*
  * Same as setvar except that the variable and value are passed in
  * the first argument as name=value.  Since the first argument will
@@ -289,7 +313,6 @@ void
 setvareq(char *s, int flags)
 {
 	struct var *vp, **vpp;
-	char *p;
 	int len;
 
 	if (aflag)
@@ -320,10 +343,7 @@ setvareq(char *s, int flags)
 			if (vp == &vmpath || (vp == &vmail && ! mpathset()))
 				chkmail(1);
 			if ((vp->flags & VEXPORT) && localevar(s)) {
-				p = strchr(s, '=');
-				*p = '\0';
-				(void) setenv(s, p + 1, 1);
-				*p = '=';
+				change_env(s, 1);
 				(void) setlocale(LC_ALL, "");
 			}
 			INTON;
@@ -339,10 +359,7 @@ setvareq(char *s, int flags)
 	INTOFF;
 	*vpp = vp;
 	if ((vp->flags & VEXPORT) && localevar(s)) {
-		p = strchr(s, '=');
-		*p = '\0';
-		(void) setenv(s, p + 1, 1);
-		*p = '=';
+		change_env(s, 1);
 		(void) setlocale(LC_ALL, "");
 	}
 	INTON;
@@ -603,10 +620,7 @@ exportcmd(int argc, char **argv)
 
 						vp->flags |= flag;
 						if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-							p = strchr(vp->text, '=');
-							*p = '\0';
-							(void) setenv(vp->text, p + 1, 1);
-							*p = '=';
+							change_env(vp->text, 1);
 							(void) setlocale(LC_ALL, "");
 						}
 						goto found;
@@ -798,7 +812,7 @@ unsetvar(char *s)
 			if (*(strchr(vp->text, '=') + 1) != '\0')
 				setvar(s, nullstr, 0);
 			if ((vp->flags & VEXPORT) && localevar(vp->text)) {
-				unsetenv(s);
+				change_env(s, 0);
 				setlocale(LC_ALL, "");
 			}
 			vp->flags &= ~VEXPORT;
