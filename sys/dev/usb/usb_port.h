@@ -158,11 +158,7 @@ __CONCAT(dname,_attach)(device_t self)
 #define USB_ATTACH_SUCCESS_RETURN	return 0
 
 #define USB_ATTACH_SETUP \
-	do { \
-		sc->sc_dev = self; \
-		device_set_desc_copy(self, devinfo); \
-		device_printf(self, "%s\n", devinfo); \
-	} while (0);
+	sc->sc_dev = self; \
 
 #define USB_DETACH(dname) \
 static int \
