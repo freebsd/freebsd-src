@@ -37,7 +37,7 @@
 #ifndef _I4B_L1L2_H_
 #define _I4B_L1L2_H_
 
-#include <machine/i4b_trace.h>
+#include <i4b/include/i4b_trace.h>
 
 extern struct i4b_l1l2_func i4b_l1l2_func;
 
