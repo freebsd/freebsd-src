@@ -50,31 +50,68 @@ typedef unsigned short mode_t;
 extern "C" {
 #endif
 
+/*
+ * Each of the version identifiers comes as a macro and a function.
+ * The macro identifies the installed header; the function identifies
+ * the library version (which may not be the same if you're using a
+ * dynamically-linked version of the library).
+ */
 
 /*
- * If ARCHIVE_API_VERSION != archive_api_version(), then the library you
- * were linked with is using an incompatible API to the one you were
- * compiled with.  This is almost certainly a fatal problem.
- *
- * ARCHIVE_API_FEATURE is incremented with each significant feature
- * addition, so you can test (at compile or run time) if a particular
- * feature is implemented.  It's no big deal if ARCHIVE_API_FEATURE !=
- * archive_api_feature(), as long as both are high enough to include
- * the features you're relying on.  Specific values of FEATURE are
- * documented here:
+ * Textual name/version of the library, useful for version displays.
+ */
+#define	ARCHIVE_LIBRARY_VERSION	"libarchive @ARCHIVE_VERSION@"
+const char *	archive_version(void);
+
+/*
+ * Major version number: If ARCHIVE_API_VERSION !=
+ * archive_api_version(), then the library you were linked with is
+ * using an incompatible API to the one you were compiled with.  This
+ * is almost certainly a fatal problem.
+ */
+#define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
+int		archive_api_version(void);
+
+/*
+ * Minor version number: ARCHIVE_API_FEATURE is incremented with each
+ * significant feature addition, so you can test (at compile or run
+ * time) if a particular feature is implemented.  It's no big deal if
+ * ARCHIVE_API_FEATURE != archive_api_feature(), as long as both are
+ * high enough to include the features you're relying on.  Specific
+ * values of FEATURE are documented here:
  *
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
  *    3 - open_memory, open_memory2, open_FILE, open_fd available
  *    5 - archive_write_disk interface available
+ *
+ * Unfortunately, this count resets whenever ARCHIVE_API_VERSION changes,
+ * making it awkward to use in practice.  For that reason, it is deprecated
+ * in favor of the more-accurate version stamp below.  It will eventually
+ * be removed.
  */
-#define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
-int		archive_api_version(void);
 #define	ARCHIVE_API_FEATURE	@ARCHIVE_API_MINOR@
 int		archive_api_feature(void);
-/* Textual name/version of the library. */
-#define	ARCHIVE_LIBRARY_VERSION	"libarchive @ARCHIVE_VERSION@"
-const char *	archive_version(void);
+
+/*
+ * The "version stamp" is a single integer that makes it easy to check
+ * the exact version: for version a.b.c, the version stamp is
+ * printf("%d%03d%03d",a,b,c).  For example, version 2.12.108 has
+ * version stamp 2012108.
+ *
+ * This was introduced with libarchive 1.9.0 in the libarchive 1.x family
+ * and libarchive 2.2.4 in the libarchive 2.x family.  The following
+ * may be useful if you really want to do feature detection for earlier
+ * libarchive versions:
+ *
+ * #ifndef ARCHIVE_VERSION_STAMP
+ * #define ARCHIVE_VERSION_STAMP 	\
+ *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
+ * #endif
+ */
+#define ARCHIVE_VERSION_STAMP	@ARCHIVE_VERSION_STAMP@
+int		archive_version_stamp(void);
+
 
 #define	ARCHIVE_BYTES_PER_RECORD	  512
 #define	ARCHIVE_DEFAULT_BYTES_PER_BLOCK	10240

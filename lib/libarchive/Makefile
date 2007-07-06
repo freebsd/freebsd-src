@@ -13,6 +13,9 @@ VERSION= 2.2.3
 
 ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
+ARCHIVE_API_REV!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/.*\.//'
+
+ARCHIVE_VERSION_STAMP!=	printf "%d%03d%03d" ${ARCHIVE_API_MAJOR} ${ARCHIVE_API_MINOR} ${ARCHIVE_API_REV}
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the version number above.
@@ -31,13 +34,14 @@ INCS=	archive.h archive_entry.h
 # Build archive.h from archive.h.in by substituting version information.
 # Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
 archive.h:	archive.h.in Makefile
-	cat ${.CURDIR}/archive.h.in |					\
-		sed 's/@ARCHIVE_VERSION@/${VERSION}/g' | 		\
-		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' |		\
-		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
-		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\
-		sed 's|@ARCHIVE_H_INCLUDE_INTTYPES_H@|#include <inttypes.h>  /* For int64_t */|g' |			\
-		cat > archive.h
+	cat ${.CURDIR}/archive.h.in | sed				\
+		-e 's/@ARCHIVE_VERSION@/${VERSION}/g'	 		\
+		-e 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g'			\
+		-e 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g'	\
+		-e 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g'	\
+		-e 's/@ARCHIVE_VERSION_STAMP@/${ARCHIVE_VERSION_STAMP}/g' \
+		-e 's|@ARCHIVE_H_INCLUDE_INTTYPES_H@|#include <inttypes.h>  /* For int64_t */|g' \
+		> archive.h
 
 # archive.h needs to be cleaned
 CLEANFILES+=	archive.h
