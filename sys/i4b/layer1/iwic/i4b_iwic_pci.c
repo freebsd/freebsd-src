@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_trace.h>
+#include <i4b/include/i4b_ioctl.h>
+#include <i4b/include/i4b_trace.h>
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>

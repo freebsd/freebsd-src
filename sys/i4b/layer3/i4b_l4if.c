@@ -38,9 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#include <machine/i4b_debug.h>
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_cause.h>
+#include <i4b/include/i4b_debug.h>
+#include <i4b/include/i4b_ioctl.h>
+#include <i4b/include/i4b_cause.h>
 
 #include <i4b/include/i4b_l2l3.h>
 #include <i4b/include/i4b_l3l4.h>

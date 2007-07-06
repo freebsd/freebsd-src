@@ -50,9 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <sys/tty.h>
 
-#include <machine/i4b_ioctl.h>
-#include <machine/i4b_tel_ioctl.h>
-#include <machine/i4b_debug.h>
+#include <i4b/include/i4b_ioctl.h>
+#include <i4b/include/i4b_tel_ioctl.h>
+#include <i4b/include/i4b_debug.h>
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
