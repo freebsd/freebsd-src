@@ -85,8 +85,10 @@ int		archive_api_version(void);
  *    3 - open_memory, open_memory2, open_FILE, open_fd available
  *    5 - archive_write_disk interface available
  *
- * This is deprecated in favor of the more-accurate version stamp
- * below.
+ * Unfortunately, this count resets whenever ARCHIVE_API_VERSION changes,
+ * making it awkward to use in practice.  For that reason, it is deprecated
+ * in favor of the more-accurate version stamp below.  It will eventually
+ * be removed.
  */
 #define	ARCHIVE_API_FEATURE	@ARCHIVE_API_MINOR@
 int		archive_api_feature(void);
@@ -96,6 +98,16 @@ int		archive_api_feature(void);
  * the exact version: for version a.b.c, the version stamp is
  * printf("%d%03d%03d",a,b,c).  For example, version 2.12.108 has
  * version stamp 2012108.
+ *
+ * This was introduced with libarchive 1.9.0 in the libarchive 1.x family
+ * and libarchive 2.2.4 in the libarchive 2.x family.  The following
+ * may be useful if you really want to do feature detection for earlier
+ * libarchive versions:
+ *
+ * #ifndef ARCHIVE_VERSION_STAMP
+ * #define ARCHIVE_VERSION_STAMP 	\
+ *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
+ * #endif
  */
 #define ARCHIVE_VERSION_STAMP	@ARCHIVE_VERSION_STAMP@
 int		archive_version_stamp(void);
