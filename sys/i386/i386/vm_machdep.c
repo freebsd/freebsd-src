@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
-#include <sys/refcount.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
@@ -254,7 +253,7 @@ cpu_fork(td1, p2, td2, flags)
 	mtx_lock_spin(&dt_lock);
 	if (mdp2->md_ldt != NULL) {
 		if (flags & RFMEM) {
-			refcount_acquire(&mdp2->md_ldt->ldt_refcnt);
+			mdp2->md_ldt->ldt_refcnt++;
 		} else {
 			mdp2->md_ldt = user_ldt_alloc(mdp2,
 			    mdp2->md_ldt->ldt_len);
