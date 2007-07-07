@@ -15,7 +15,9 @@ ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
 ARCHIVE_API_REV!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/.*\.//'
 
-ARCHIVE_VERSION_STAMP!=	printf "%d%03d%03d" ${ARCHIVE_API_MAJOR} ${ARCHIVE_API_MINOR} ${ARCHIVE_API_REV}
+# Can't use /usr/bin/printf to format the version stamp here, because
+# that's not available during installworld.  Fortunately, awk is.
+ARCHIVE_VERSION_STAMP!=	echo ${ARCHIVE_API_MAJOR} ${ARCHIVE_API_MINOR} ${ARCHIVE_API_REV} | awk '{printf("%d%03d%03d",$$1,$$2,$$3)}'
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the version number above.
