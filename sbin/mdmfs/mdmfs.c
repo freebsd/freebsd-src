@@ -119,7 +119,7 @@ main(int argc, char **argv)
 		compat = true;
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:e:F:f:hi:LlMm:NnO:o:p:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -185,7 +185,7 @@ main(int argc, char **argv)
 			norun = true;
 			break;
 		case 'n':
-			argappend(&newfs_arg, "-n %s", optarg);
+			argappend(&newfs_arg, "-n");
 			break;
 		case 'O':
 			argappend(&newfs_arg, "-o %s", optarg);
@@ -665,15 +665,15 @@ usage(void)
 		name = "mdmfs";
 	if (!compat)
 		fprintf(stderr,
-"usage: %s [-DLlMNSUX] [-a maxcontig [-b block-size] [-c cylinders]\n"
+"usage: %s [-DLlMNnSUX] [-a maxcontig [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
-"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
+"\t[-m percent-free] [-O optimization]\n"
 "\t[-o mount-options] [-p permissions] [-s size] [-w user:group]\n"
 "\tmd-device mount-point\n", name);
 	fprintf(stderr,
-"usage: %s -C [-lNU] [-a maxcontig] [-b block-size] [-c cylinders]\n"
+"usage: %s -C [-lNUn] [-a maxcontig] [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
-"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
+"\t[-m percent-free] [-O optimization]\n"
 "\t[-o mount-options] [-s size] md-device mount-point\n", name);
 	exit(1);
 }
