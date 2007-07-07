@@ -273,14 +273,6 @@ apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
 	return (clone);
 }
 
-/* XXX Kernel should be updated to allow calls to destroy_dev() in close(). */
-static void
-apm_destroy_clone(void *arg)
-{
-
-	destroy_dev((struct cdev *)arg);
-}
-
 static int
 apmopen(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 {
@@ -318,7 +310,7 @@ apmclose(struct cdev *dev, int flag, int fmt, d_thread_t *td)
 	knlist_destroy(&clone->sel_read.si_note);
 	ACPI_UNLOCK(acpi);
 	free(clone, M_APMDEV);
-	AcpiOsExecute(OSL_GPE_HANDLER, apm_destroy_clone, dev);
+	destroy_dev_sched(dev);
 	return (0);
 }
 
