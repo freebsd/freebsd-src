@@ -59,6 +59,7 @@ static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *);
 
 static int	in_addprefix(struct in_ifaddr *, int);
+static void	in_delmulti_locked(register struct in_multi *, int);
 static int	in_scrubprefix(struct in_ifaddr *);
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *,
@@ -990,6 +991,7 @@ in_addmulti(ap, ifp)
 	 * a new record.  Otherwise, we are done.
 	 */
 	if (ifma->ifma_protospec != NULL) {
+		if_delmulti_ent(ifma);	/* We don't need another reference */
 		IN_MULTI_UNLOCK();
 		IFF_UNLOCKGIANT(ifp);
 		return ifma->ifma_protospec;
@@ -998,6 +1000,7 @@ in_addmulti(ap, ifp)
 	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR,
 	    M_NOWAIT | M_ZERO);
 	if (inm == NULL) {
+		if_delmulti_ent(ifma);
 		IN_MULTI_UNLOCK();
 		IFF_UNLOCKGIANT(ifp);
 		return (NULL);
@@ -1018,32 +1021,19 @@ in_addmulti(ap, ifp)
 	return (inm);
 }
 
-/*
- * Delete a multicast address record.
- */
-void
-in_delmulti(inm)
+static void
+in_delmulti_locked(inm, all)
 	register struct in_multi *inm;
-{
-	struct ifnet *ifp;
-
-	ifp = inm->inm_ifp;
-	IFF_LOCKGIANT(ifp);
-	IN_MULTI_LOCK();
-	in_delmulti_locked(inm);
-	IN_MULTI_UNLOCK();
-	IFF_UNLOCKGIANT(ifp);
-}
-
-void
-in_delmulti_locked(inm)
-	register struct in_multi *inm;
+	int all;
 {
 	struct ifmultiaddr *ifma;
 	struct in_multi my_inm;
 
 	ifma = inm->inm_ifma;
 	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
+	if (all)
+		while (ifma->ifma_refcount > 1)
+			if_delmulti_ent(ifma);
 	if (ifma->ifma_refcount == 1) {
 		/*
 		 * No remaining claims to this record; let IGMP know that
@@ -1056,10 +1046,26 @@ in_delmulti_locked(inm)
 		LIST_REMOVE(inm, inm_link);
 		free(inm, M_IPMADDR);
 	}
-	/* XXX - should be separate API for when we have an ifma? */
-	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
+	if_delmulti_ent(ifma);
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
+}
+
+/*
+ * Delete a multicast address record.
+ */
+void
+in_delmulti(inm)
+	register struct in_multi *inm;
+{
+	struct ifnet *ifp;
+
+	ifp = inm->inm_ifp;
+	IFF_LOCKGIANT(ifp);
+	IN_MULTI_LOCK();
+	in_delmulti_locked(inm, 0);
+	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
 }
 
 /*
@@ -1076,7 +1082,7 @@ in_delmulti_ifp(ifp)
 	IN_MULTI_LOCK();
 	LIST_FOREACH_SAFE(inm, &in_multihead, inm_link, oinm) {
 		if (inm->inm_ifp == ifp)
-			in_delmulti_locked(inm);
+			in_delmulti_locked(inm, 1);
 	}
 	IN_MULTI_UNLOCK();
 	IFF_UNLOCKGIANT(ifp);

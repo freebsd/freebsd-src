@@ -628,6 +628,7 @@ int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
+int	if_delmulti_ent(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_down(struct ifnet *);
