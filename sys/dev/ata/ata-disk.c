@@ -72,7 +72,8 @@ ad_probe(device_t dev)
 
     if (!(atadev->param.config & ATA_PROTO_ATAPI) ||
 	(atadev->param.config == ATA_CFA_MAGIC1) ||
-	(atadev->param.config == ATA_CFA_MAGIC2))
+	(atadev->param.config == ATA_CFA_MAGIC2) ||
+	(atadev->param.config == ATA_CFA_MAGIC3))
 	return 0;
     else
 	return ENXIO;
