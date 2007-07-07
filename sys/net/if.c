@@ -2097,20 +2097,17 @@ unlock_out:
 
 /*
  * Remove a reference to a multicast address on this interface.  Yell
- * if the request does not match an existing membership.
+ * if the request does not match an existing membership.  ifma->ifma_ifp
+ * must be locked on entry and will be unlocked on return.
  */
-int
-if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
+static int
+if_delmulti_locked(struct ifmultiaddr *ifma)
 {
-	struct ifmultiaddr *ifma, *ll_ifma;
+	struct ifmultiaddr *ll_ifma;
+	struct sockaddr *sa;
+	struct ifnet *ifp;
 
-	IF_ADDR_LOCK(ifp);
-	ifma = if_findmulti(ifp, sa);
-	if (ifma == NULL) {
-		IF_ADDR_UNLOCK(ifp);
-		return ENOENT;
-	}
-
+	ifp = ifma->ifma_ifp;
 	if (ifma->ifma_refcount > 1) {
 		ifma->ifma_refcount--;
 		IF_ADDR_UNLOCK(ifp);
@@ -2151,6 +2148,30 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	}
 
 	return 0;
+}
+
+int
+if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
+{
+	struct ifmultiaddr *ifma;
+	int error;
+
+	IF_ADDR_LOCK(ifp);
+	if ((ifma = if_findmulti(ifp, sa)) == NULL) {
+		IF_ADDR_UNLOCK(ifp);
+		error = ENOENT;
+	} else
+		error = if_delmulti_locked(ifma);	/* Drops the lock */
+
+	return (error);
+}
+
+int
+if_delmulti_ent(struct ifmultiaddr *ifma)
+{
+
+	IF_ADDR_LOCK(ifma->ifma_ifp);
+	return (if_delmulti_locked(ifma));		/* Drops the lock */
 }
 
 /*
