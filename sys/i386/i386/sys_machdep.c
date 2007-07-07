@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/refcount.h>
 #include <sys/smp.h>
 #include <sys/sysproto.h>
 
@@ -66,14 +65,15 @@ __FBSDID("$FreeBSD$");
 #define NEW_MAX_LD(num)  ((num + LD_PER_PAGE) & ~(LD_PER_PAGE-1))
 #define SIZE_FROM_LARGEST_LD(num) (NEW_MAX_LD(num) << 3)
 
+#ifdef SMP
+#define	NULL_LDT_BASE	((caddr_t)NULL)
 
+static void set_user_ldt_rv(struct vmspace *vmsp);
+#endif
 
 static int i386_set_ldt_data(struct thread *, int start, int num,
 	union descriptor *descs);
 static int i386_ldt_grow(struct thread *td, int len);
-#ifdef SMP
-static void set_user_ldt_rv(struct thread *);
-#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -378,10 +378,12 @@ set_user_ldt(struct mdproc *mdp)
 
 #ifdef SMP
 static void
-set_user_ldt_rv(struct thread *td)
+set_user_ldt_rv(struct vmspace *vmsp)
 {
+	struct thread *td;
 
-	if (td->td_proc != curthread->td_proc)
+	td = curthread;
+	if (vmsp != td->td_proc->p_vmspace)
 		return;
 
 	set_user_ldt(&td->td_proc->p_md);
@@ -408,7 +410,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		FREE(new_ldt, M_SUBPROC);
 		return NULL;
 	}
-	refcount_init(&new_ldt->ldt_refcnt, 1);
+	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
 
 	mtx_lock_spin(&dt_lock);
@@ -446,12 +448,13 @@ user_ldt_free(struct thread *td)
 	}
 
 	mdp->md_ldt = NULL;
-	mtx_unlock_spin(&dt_lock);
-	if (refcount_release(&pldt->ldt_refcnt)) {
+	if (--pldt->ldt_refcnt == 0) {
+		mtx_unlock_spin(&dt_lock);
 		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
 			pldt->ldt_len * sizeof(union descriptor));
 		FREE(pldt, M_SUBPROC);
-	}
+	} else
+		mtx_unlock_spin(&dt_lock);
 }
 
 /*
@@ -690,9 +693,9 @@ static int
 i386_ldt_grow(struct thread *td, int len) 
 {
 	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt;
-	caddr_t old_ldt_base;
-	int old_ldt_len;
+	struct proc_ldt *new_ldt, *pldt;
+	caddr_t old_ldt_base = NULL_LDT_BASE;
+	int old_ldt_len = 0;
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
@@ -703,29 +706,16 @@ i386_ldt_grow(struct thread *td, int len)
 
 	/* Allocate a user ldt. */
 	if ((pldt = mdp->md_ldt) == NULL || len > pldt->ldt_len) {
-		struct proc_ldt *new_ldt;
-
 		new_ldt = user_ldt_alloc(mdp, len);
 		if (new_ldt == NULL)
 			return (ENOMEM);
 		pldt = mdp->md_ldt;
 
 		if (pldt != NULL) {
-			if (new_ldt->ldt_len > pldt->ldt_len) {
-				old_ldt_base = pldt->ldt_base;
-				old_ldt_len = pldt->ldt_len;
-				pldt->ldt_sd = new_ldt->ldt_sd;
-				pldt->ldt_base = new_ldt->ldt_base;
-				pldt->ldt_len = new_ldt->ldt_len;
-				mtx_unlock_spin(&dt_lock);
-				kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
-					old_ldt_len * sizeof(union descriptor));
-				FREE(new_ldt, M_SUBPROC);
-				mtx_lock_spin(&dt_lock);
-			} else {
+			if (new_ldt->ldt_len <= pldt->ldt_len) {
 				/*
-				 * If other threads already did the work,
-				 * do nothing.
+				 * We just lost the race for allocation, so
+				 * free the new object and return.
 				 */
 				mtx_unlock_spin(&dt_lock);
 				kmem_free(kernel_map,
@@ -735,6 +725,16 @@ i386_ldt_grow(struct thread *td, int len)
 				mtx_lock_spin(&dt_lock);
 				return (0);
 			}
+
+			/*
+			 * We have to substitute the current LDT entry for
+			 * curproc with the new one since its size grew.
+			 */
+			old_ldt_base = pldt->ldt_base;
+			old_ldt_len = pldt->ldt_len;
+			pldt->ldt_sd = new_ldt->ldt_sd;
+			pldt->ldt_base = new_ldt->ldt_base;
+			pldt->ldt_len = new_ldt->ldt_len;
 		} else
 			mdp->md_ldt = pldt = new_ldt;
 #ifdef SMP
@@ -746,11 +746,17 @@ i386_ldt_grow(struct thread *td, int len)
 		 */
 		mtx_unlock_spin(&dt_lock);
 		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv,
-		    NULL, td);
-		mtx_lock_spin(&dt_lock);
+		    NULL, td->td_proc->p_vmspace);
 #else
-		set_user_ldt(mdp);
+		set_user_ldt(td);
+		mtx_unlock_spin(&dt_lock);
 #endif
+		if (old_ldt_base != NULL_LDT_BASE) {
+			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
+			    old_ldt_len * sizeof(union descriptor));
+			FREE(new_ldt, M_SUBPROC);
+		}
+		mtx_lock_spin(&dt_lock);
 	}
 	return (0);
 }
