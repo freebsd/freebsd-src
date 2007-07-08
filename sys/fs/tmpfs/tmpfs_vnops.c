@@ -450,6 +450,7 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	vm_page_t m;
 	size_t len;
 	int error = 0;
+	int behind = 0, ahead = 0;
 
 	/* uobj - locked by caller */
 
@@ -468,8 +469,21 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		len = MIN(len, (PAGE_SIZE - d));
 		m = vm_page_grab(uobj, idx, VM_ALLOC_WIRED | VM_ALLOC_ZERO |
 				VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-		if (uio->uio_rw == UIO_READ && m->valid != VM_PAGE_BITS_ALL)
-			vm_page_zero_invalid(m, TRUE);
+		if (m->valid != VM_PAGE_BITS_ALL){
+			if (vm_pager_has_page(uobj, idx, &behind, &ahead)){
+				error = vm_pager_get_pages(uobj, &m, 1, 0);
+				if (error == VM_PAGER_ERROR){
+					printf("vm_pager_get_pages error\n");
+					goto	out;
+				}
+#ifdef DIAGNOSTIC
+				/* XXX */
+				printf("tmpfs gets page from pager\n");
+#endif
+			} else {
+				vm_page_zero_invalid(m, TRUE);
+			}
+		}
 		VM_OBJECT_UNLOCK(uobj);
 		sched_pin();
 		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
@@ -488,6 +502,7 @@ tmpfs_uio_xfer(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
+out:
 	vm_object_pip_subtract(uobj, 1);
 	VM_OBJECT_UNLOCK(uobj);
 	return error;
@@ -680,14 +695,12 @@ tmpfs_link(struct vop_link_args *v)
 
 	int error;
 	struct tmpfs_dirent *de;
-	struct tmpfs_node *dnode;
 	struct tmpfs_node *node;
 
 	MPASS(VOP_ISLOCKED(dvp, cnp->cn_thread));
 	MPASS(cnp->cn_flags & HASBUF);
 	MPASS(dvp != vp); /* XXX When can this be false? */
 
-	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_NODE(vp);
 
 	/* XXX: Why aren't the following two tests done by the caller? */
@@ -753,7 +766,6 @@ tmpfs_rename(struct vop_rename_args *v)
 	char *newname;
 	int error;
 	struct tmpfs_dirent *de;
-	struct tmpfs_mount *tmp;
 	struct tmpfs_node *fdnode;
 	struct tmpfs_node *fnode;
 	struct tmpfs_node *tdnode;
@@ -775,7 +787,6 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out;
 	}
 
-	tmp = VFS_TO_TMPFS(tdvp->v_mount);
 	tdnode = VP_TO_TMPFS_DIR(tdvp);
 
 	/* If source and target are the same file, there is nothing to do. */
