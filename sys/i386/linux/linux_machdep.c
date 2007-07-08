@@ -400,16 +400,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	return (0);
 }
 
-/* XXX move */
-struct l_mmap_argv {
-	l_caddr_t	addr;
-	l_int		len;
-	l_int		prot;
-	l_int		flags;
-	l_int		fd;
-	l_int		pos;
-};
-
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
@@ -427,12 +417,12 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 		    args->flags, args->fd, args->pgoff);
 #endif
 
-	linux_args.addr = (l_caddr_t)args->addr;
+	linux_args.addr = args->addr;
 	linux_args.len = args->len;
 	linux_args.prot = args->prot;
 	linux_args.flags = args->flags;
 	linux_args.fd = args->fd;
-	linux_args.pos = args->pgoff * PAGE_SIZE;
+	linux_args.pgoff = args->pgoff * PAGE_SIZE;
 
 	return (linux_mmap_common(td, &linux_args));
 }
@@ -451,7 +441,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 	if (ldebug(mmap))
 		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
 		    (void *)linux_args.addr, linux_args.len, linux_args.prot,
-		    linux_args.flags, linux_args.fd, linux_args.pos);
+		    linux_args.flags, linux_args.fd, linux_args.pgoff);
 #endif
 
 	return (linux_mmap_common(td, &linux_args));
@@ -495,10 +485,47 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.flags |= MAP_ANON;
 	else
 		bsd_args.flags |= MAP_NOSYNC;
-	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN)
 		bsd_args.flags |= MAP_STACK;
 
-		/* The linux MAP_GROWSDOWN option does not limit auto
+	/*
+	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
+	 * on Linux/i386. We do this to ensure maximum compatibility.
+	 * Linux/ia64 does the same in i386 emulation mode.
+	 */
+	bsd_args.prot = linux_args->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+
+	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
+	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : linux_args->fd;
+	if (bsd_args.fd != -1) {
+		/*
+		 * Linux follows Solaris mmap(2) description:
+		 * The file descriptor fildes is opened with
+		 * read permission, regardless of the
+		 * protection options specified.
+		 */
+
+		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
+			return (error);
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+
+		/* Linux mmap() just fails for O_WRONLY files */
+		if (!(fp->f_flag & FREAD)) {
+			fdrop(fp, td);
+			return (EACCES);
+		}
+
+		fdrop(fp, td);
+	}
+
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+		/* 
+		 * The linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
@@ -519,11 +546,10 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * fixed size of (STACK_SIZE - GUARD_SIZE).
 		 */
 
-		/* This gives us TOS */
-		bsd_args.addr = linux_args->addr + linux_args->len;
-
-		if (bsd_args.addr > p->p_vmspace->vm_maxsaddr) {
-			/* Some linux apps will attempt to mmap
+		if ((caddr_t)PTRIN(linux_args->addr) + linux_args->len >
+		    p->p_vmspace->vm_maxsaddr) {
+			/* 
+			 * Some linux apps will attempt to mmap
 			 * thread stacks near the top of their
 			 * address space.  If their TOS is greater
 			 * than vm_maxsaddr, vm_map_growstack()
@@ -550,51 +576,20 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
-		/* This gives us a new BOS.  If we're using VM_STACK, then
+		/* 
+		 * This gives us a new BOS.  If we're using VM_STACK, then
 		 * mmap will just map the top SGROWSIZ bytes, and let
 		 * the stack grow down to the limit at BOS.  If we're
 		 * not using VM_STACK we map the full stack, since we
 		 * don't have a way to autogrow it.
 		 */
-		bsd_args.addr -= bsd_args.len;
+		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
+		    bsd_args.len;
 	} else {
-		bsd_args.addr = linux_args->addr;
+		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
 		bsd_args.len  = linux_args->len;
 	}
-
-	bsd_args.prot = linux_args->prot;
-	if (linux_args->flags & LINUX_MAP_ANON)
-		bsd_args.fd = -1;
-	else {
-		/*
-		 * Linux follows Solaris mmap(2) description:
-		 * The file descriptor fildes is opened with
-		 * read permission, regardless of the
-		 * protection options specified.
-		 * If PROT_WRITE is specified, the application
-		 * must have opened the file descriptor
-		 * fildes with write permission unless
-		 * MAP_PRIVATE is specified in the flag
-		 * argument as described below.
-		 */
-
-		if ((error = fget(td, linux_args->fd, &fp)) != 0)
-			return (error);
-		if (fp->f_type != DTYPE_VNODE) {
-			fdrop(fp, td);
-			return (EINVAL);
-		}
-
-		/* Linux mmap() just fails for O_WRONLY files */
-		if (! (fp->f_flag & FREAD)) {
-			fdrop(fp, td);
-			return (EACCES);
-		}
-
-		bsd_args.fd = linux_args->fd;
-		fdrop(fp, td);
-	}
-	bsd_args.pos = linux_args->pos;
+	bsd_args.pos = linux_args->pgoff;
 	bsd_args.pad = 0;
 
 #ifdef DEBUG
@@ -611,6 +606,19 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			__func__, error, (u_int)td->td_retval[0]);
 #endif
 	return (error);
+}
+
+int
+linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
+{
+	struct mprotect_args bsd_args;
+
+	bsd_args.addr = uap->addr;
+	bsd_args.len = uap->len;
+	bsd_args.prot = uap->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+	return (mprotect(td, &bsd_args));
 }
 
 int
