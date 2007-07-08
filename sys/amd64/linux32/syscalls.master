@@ -201,7 +201,7 @@
 108	AUE_NULL	MSTD	{ int linux_newfstat(l_uint fd, \
 				    struct l_newstat *buf); }
 109	AUE_NULL	MSTD	{ int linux_uname(void); }
-110	AUE_NULL	UNIMPL	iopl
+110	AUE_NULL	MSTD	{ int linux_iopl(l_ulong level); }
 111	AUE_NULL	MSTD	{ int linux_vhangup(void); }
 112	AUE_NULL	UNIMPL	idle
 113	AUE_NULL	UNIMPL	vm86old
