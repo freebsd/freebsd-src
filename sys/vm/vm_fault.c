@@ -1231,16 +1231,6 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	object = m->object;
 	pindex = m->pindex;
-
-	/*
-	 * we don't fault-ahead for device pager
-	 */
-	if (object->type == OBJT_DEVICE) {
-		*reqpage = 0;
-		marray[0] = m;
-		return 1;
-	}
-
 	cbehind = cahead = 0;
 
 	/*
