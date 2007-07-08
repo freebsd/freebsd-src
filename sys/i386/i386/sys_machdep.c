@@ -64,13 +64,11 @@ __FBSDID("$FreeBSD$");
 #define LD_PER_PAGE 512
 #define NEW_MAX_LD(num)  ((num + LD_PER_PAGE) & ~(LD_PER_PAGE-1))
 #define SIZE_FROM_LARGEST_LD(num) (NEW_MAX_LD(num) << 3)
-
-#ifdef SMP
 #define	NULL_LDT_BASE	((caddr_t)NULL)
 
+#ifdef SMP
 static void set_user_ldt_rv(struct vmspace *vmsp);
 #endif
-
 static int i386_set_ldt_data(struct thread *, int start, int num,
 	union descriptor *descs);
 static int i386_ldt_grow(struct thread *td, int len);
@@ -748,7 +746,7 @@ i386_ldt_grow(struct thread *td, int len)
 		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv,
 		    NULL, td->td_proc->p_vmspace);
 #else
-		set_user_ldt(td);
+		set_user_ldt(&td->td_proc->p_md);
 		mtx_unlock_spin(&dt_lock);
 #endif
 		if (old_ldt_base != NULL_LDT_BASE) {
