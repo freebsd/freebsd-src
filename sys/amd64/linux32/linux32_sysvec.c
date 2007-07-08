@@ -974,7 +974,7 @@ linux32_fixlimit(struct rlimit *rl, int which)
 struct sysentvec elf_linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
-	0xff,
+	0,
 	LINUX_SIGTBLSZ,
 	bsd_to_linux_signal,
 	ELAST + 1,

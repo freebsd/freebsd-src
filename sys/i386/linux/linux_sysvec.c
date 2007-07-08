@@ -797,7 +797,7 @@ exec_linux_setregs(struct thread *td, u_long entry,
 struct sysentvec linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
-	0xff,
+	0,
 	LINUX_SIGTBLSZ,
 	bsd_to_linux_signal,
 	ELAST + 1,
@@ -826,7 +826,7 @@ struct sysentvec linux_sysvec = {
 struct sysentvec elf_linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
-	0xff,
+	0,
 	LINUX_SIGTBLSZ,
 	bsd_to_linux_signal,
 	ELAST + 1,

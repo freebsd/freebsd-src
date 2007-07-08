@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
+#include <sys/unistd.h>
 #include <sys/tty.h>
 #include <sys/vnode.h>
 
@@ -268,7 +269,17 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	struct l_dirent64 linux_dirent64;
 	int buflen, error, eofflag, nbytes, justone;
 	u_long *cookies = NULL, *cookiep;
-	int ncookies;
+	int ncookies, vfslocked;
+
+	nbytes = args->count;
+	if (nbytes == 1) {
+		/* readdir(2) case. Always struct dirent. */
+		if (is64bit)
+			return (EINVAL);
+		nbytes = sizeof(linux_dirent);
+		justone = 1;
+	} else
+		justone = 0;
 
 	if ((error = getvnode(td->td_proc->p_fd, args->fd, &fp)) != 0)
 		return (error);
@@ -279,22 +290,12 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	}
 
 	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (EINVAL);
 	}
-
-	nbytes = args->count;
-	if (nbytes == 1) {
-		/* readdir(2) case. Always struct dirent. */
-		if (is64bit) {
-			fdrop(fp, td);
-			return (EINVAL);
-		}
-		nbytes = sizeof(linux_dirent);
-		justone = 1;
-	} else
-		justone = 0;
 
 	off = fp->f_offset;
 
@@ -448,6 +449,7 @@ out:
 		free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	free(buf, M_TEMP);
 	return (error);
@@ -486,6 +488,10 @@ linux_access(struct thread *td, struct linux_access_args *args)
 {
 	char *path;
 	int error;
+
+	/* linux convention */
+	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
@@ -719,12 +725,28 @@ linux_pread(td, uap)
 	struct linux_pread_args *uap;
 {
 	struct pread_args bsd;
+	struct vnode *vp;
+	int error;
 
 	bsd.fd = uap->fd;
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-	return pread(td, &bsd);
+
+	error = pread(td, &bsd);
+
+	if (error == 0) {
+   	   	/* This seems to violate POSIX but linux does it */
+   	   	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+   		   	return (error);
+		if (vp->v_type == VDIR) {
+   		   	vrele(vp);
+			return (EISDIR);
+		}
+		vrele(vp);
+	}
+
+	return (error);
 }
 
 int
