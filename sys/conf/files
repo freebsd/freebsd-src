@@ -1059,7 +1059,7 @@ fs/hpfs/hpfs_vnops.c		optional hpfs
 fs/msdosfs/msdosfs_conv.c	optional msdosfs
 fs/msdosfs/msdosfs_denode.c	optional msdosfs
 fs/msdosfs/msdosfs_fat.c	optional msdosfs
-fs/msdosfs/msdosfs_fileno.c	optional msdosfs_large
+fs/msdosfs/msdosfs_fileno.c	optional msdosfs
 fs/msdosfs/msdosfs_iconv.c	optional msdosfs_iconv
 fs/msdosfs/msdosfs_lookup.c	optional msdosfs
 fs/msdosfs/msdosfs_vfsops.c	optional msdosfs
