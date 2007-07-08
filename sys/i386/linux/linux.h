@@ -170,6 +170,24 @@ struct l_newstat {
 	l_ulong		__unused5;
 };
 
+struct l_stat {
+	l_ushort	st_dev;
+	l_ulong		st_ino;
+	l_ushort	st_mode;
+	l_ushort	st_nlink;
+	l_ushort	st_uid;
+	l_ushort	st_gid;
+	l_ushort	st_rdev;
+	l_long		st_size;
+	struct l_timespec	st_atimespec;
+	struct l_timespec	st_mtimespec;
+	struct l_timespec	st_ctimespec;
+	l_long		st_blksize;
+	l_long		st_blocks;
+	l_ulong		st_flags;
+	l_ulong		st_gen;
+};
+
 struct l_stat64 {
 	l_ushort	st_dev;
 	u_char		__pad0[10];
@@ -618,6 +636,13 @@ union l_semun {
 #define	LINUX_SO_NO_CHECK	11
 #define	LINUX_SO_PRIORITY	12
 #define	LINUX_SO_LINGER		13
+#define	LINUX_SO_PEERCRED	17
+#define	LINUX_SO_RCVLOWAT	18
+#define	LINUX_SO_SNDLOWAT	19
+#define	LINUX_SO_RCVTIMEO	20
+#define	LINUX_SO_SNDTIMEO	21
+#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_ACCEPTCONN	30
 
 #define	LINUX_IP_TOS		1
 #define	LINUX_IP_TTL		2
@@ -691,4 +716,11 @@ struct l_pollfd {
 	l_short		revents;
 };
 
-#endif /* !_I386_LINUX_LINUX_H_ */
+#define	LINUX_CLOCK_REALTIME		0
+#define	LINUX_CLOCK_MONOTONIC		1
+#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
+#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
+#define	LINUX_CLOCK_REALTIME_HR		4
+#define	LINUX_CLOCK_MONOTONIC_HR	5
+
+#endif /* !_I386_LINUX_H_ */

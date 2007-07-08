@@ -30,10 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef _AMD64_LINUX_LINUX_H_
-#define	_AMD64_LINUX_LINUX_H_
-
-#include <sys/signal.h> /* for sigval union */
+#ifndef _AMD64_LINUX_H_
+#define	_AMD64_LINUX_H_
 
 #include <amd64/linux32/linux32_syscall.h>
 
@@ -197,6 +195,24 @@ struct l_newstat {
 	l_ulong		__unused5;
 } __packed;
 
+struct l_stat {
+	l_ushort	st_dev;
+	l_ulong		st_ino;
+	l_ushort	st_mode;
+	l_ushort	st_nlink;
+	l_ushort	st_uid;
+	l_ushort	st_gid;
+	l_ushort	st_rdev;
+	l_long		st_size;
+	struct l_timespec	st_atimespec;
+	struct l_timespec	st_mtimespec;
+	struct l_timespec	st_ctimespec;
+	l_long		st_blksize;
+	l_long		st_blocks;
+	l_ulong		st_flags;
+	l_ulong		st_gen;
+};
+
 struct l_stat64 {
 	l_ushort	st_dev;
 	u_char		__pad0[10];
@@ -355,11 +371,16 @@ struct l_ucontext {
 	l_uintptr_t	uc_link;
 	l_stack_t	uc_stack;
 	struct l_sigcontext	uc_mcontext;
-        l_sigset_t	uc_sigmask;
+	l_sigset_t	uc_sigmask;
 } __packed;
 
-#define LINUX_SI_MAX_SIZE     128
-#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
+#define	LINUX_SI_MAX_SIZE	128
+#define	LINUX_SI_PAD_SIZE	((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
+
+union l_sigval {
+	l_int		sival_int;
+	l_uintptr_t	sival_ptr;
+};
 
 typedef struct l_siginfo {
 	l_int		lsi_signo;
@@ -381,7 +402,7 @@ typedef struct l_siginfo {
 		struct {
 			l_pid_t		_pid;		/* sender's pid */
 			l_uid16_t	_uid;		/* sender's uid */
-			union sigval _sigval;
+			union l_sigval _sigval;
 		} __packed _rt;
 
 		struct {
@@ -643,6 +664,13 @@ union l_semun {
 #define	LINUX_SO_NO_CHECK	11
 #define	LINUX_SO_PRIORITY	12
 #define	LINUX_SO_LINGER		13
+#define	LINUX_SO_PEERCRED	17
+#define	LINUX_SO_RCVLOWAT	18
+#define	LINUX_SO_SNDLOWAT	19
+#define	LINUX_SO_RCVTIMEO	20
+#define	LINUX_SO_SNDTIMEO	21
+#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_ACCEPTCONN	30
 
 #define	LINUX_IP_TOS		1
 #define	LINUX_IP_TTL		2
@@ -726,5 +754,12 @@ struct l_pollfd {
 	l_short		events;
 	l_short		revents;
 } __packed;
+
+#define	LINUX_CLOCK_REALTIME		0
+#define	LINUX_CLOCK_MONOTONIC		1
+#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
+#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
+#define	LINUX_CLOCK_REALTIME_HR		4
+#define	LINUX_CLOCK_MONOTONIC_HR	5
 
 #endif /* !_AMD64_LINUX_LINUX_H_ */

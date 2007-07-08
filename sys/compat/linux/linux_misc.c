@@ -502,8 +502,8 @@ linux_select(struct thread *td, struct linux_select_args *args)
 		utv.tv_usec = ltv.tv_usec;
 #ifdef DEBUG
 		if (ldebug(select))
-			printf(LMSG("incoming timeout (%ld/%ld)"),
-			    utv.tv_sec, utv.tv_usec);
+			printf(LMSG("incoming timeout (%jd/%ld)"),
+			    (intmax_t)utv.tv_sec, utv.tv_usec);
 #endif
 
 		if (itimerfix(&utv)) {
@@ -559,8 +559,8 @@ linux_select(struct thread *td, struct linux_select_args *args)
 			timevalclear(&utv);
 #ifdef DEBUG
 		if (ldebug(select))
-			printf(LMSG("outgoing timeout (%ld/%ld)"),
-			    utv.tv_sec, utv.tv_usec);
+			printf(LMSG("outgoing timeout (%jd/%ld)"),
+			    (intmax_t)utv.tv_sec, utv.tv_usec);
 #endif
 		ltv.tv_sec = utv.tv_sec;
 		ltv.tv_usec = utv.tv_usec;
@@ -962,10 +962,10 @@ linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 	B2L_ITIMERVAL(&aitv, &ls);
 #ifdef DEBUG
 	if (ldebug(setitimer)) {
-		printf("setitimer: value: sec: %ld, usec: %ld\n",
-		    aitv.it_value.tv_sec, aitv.it_value.tv_usec);
-		printf("setitimer: interval: sec: %ld, usec: %ld\n",
-		    aitv.it_interval.tv_sec, aitv.it_interval.tv_usec);
+		printf("setitimer: value: sec: %jd, usec: %ld\n",
+		    (intmax_t)aitv.it_value.tv_sec, aitv.it_value.tv_usec);
+		printf("setitimer: interval: sec: %jd, usec: %ld\n",
+		    (intmax_t)aitv.it_interval.tv_sec, aitv.it_interval.tv_usec);
 	}
 #endif
 	error = kern_setitimer(td, uap->which, &aitv, &oitv);

@@ -426,8 +426,8 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 	int error, len, lenused;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): getcwd(%p, %ld)\n", (long)td->td_proc->p_pid,
-	       args->buf, (long)args->bufsize);
+	if (ldebug(getcwd))
+		printf(ARGS(getcwd, "%p, %ld"), args->buf, (long)args->bufsize);
 #endif
 
 	len = args->bufsize;
