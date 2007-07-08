@@ -971,12 +971,20 @@ close(td, uap)
 	struct thread *td;
 	struct close_args *uap;
 {
+
+	return (kern_close(td, uap->fd));
+}
+
+int
+kern_close(td, fd)
+	struct thread *td;
+	int fd;
+{
 	struct filedesc *fdp;
 	struct file *fp;
-	int fd, error;
+	int error;
 	int holdleaders;
 
-	fd = uap->fd;
 	error = 0;
 	holdleaders = 0;
 	fdp = td->td_proc->p_fd;
