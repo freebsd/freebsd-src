@@ -31,6 +31,10 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
+static int dsp_mmap_allow_prot_exec = 0;
+SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,
+    &dsp_mmap_allow_prot_exec, 0, "linux mmap compatibility");
+
 #define OLDPCM_IOCTL
 
 static d_open_t dsp_open;
@@ -1080,7 +1084,15 @@ dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 {
 	struct pcm_channel *wrch = NULL, *rdch = NULL, *c;
 
-	if (nprot & PROT_EXEC)
+	/*
+	 * Reject PROT_EXEC by default. It just doesn't makes sense.
+	 * Unfortunately, we have to give up this one due to linux_mmap
+	 * changes.
+	 *
+	 * http://lists.freebsd.org/pipermail/freebsd-emulation/2007-June/003698.html
+	 *
+	 */
+	if ((nprot & PROT_EXEC) && dsp_mmap_allow_prot_exec == 0)
 		return -1;
 
 	getchns(i_dev, &rdch, &wrch, SD_F_PRIO_RD | SD_F_PRIO_WR);
