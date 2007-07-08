@@ -312,7 +312,9 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, struct vnode **vpp,
 loop:
 	if (node->tn_vnode != NULL) {
 		vp = node->tn_vnode;
-		vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (error)
+			return error;
 
 		/*
 		 * Make sure the vnode is still there after
@@ -323,7 +325,6 @@ loop:
 			goto loop;
 		}
 
-		error = 0;
 		goto out;
 	}
 
@@ -385,9 +386,17 @@ loop:
 	}
 
 	vnode_pager_setsize(vp, node->tn_size);
-	insmntque(vp, mp);
-
-	error = 0;
+	error = insmntque(vp, mp);
+	if (error) {
+		node->tn_vnode = NULL;
+		if (node->tn_vpstate & TMPFS_VNODE_WANT) {
+			node->tn_vpstate &= ~TMPFS_VNODE_WANT;
+			TMPFS_NODE_UNLOCK(node);
+			wakeup((caddr_t) &node->tn_vpstate);
+		} else
+			TMPFS_NODE_UNLOCK(node);
+		return error;
+	}
 	node->tn_vnode = vp;
 
 unlock:
@@ -850,32 +859,33 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 	node->tn_size = newsize;
 	vnode_pager_setsize(vp, newsize);
 	if (newsize < oldsize) {
-		size_t zerolen = MIN(round_page(newsize), node->tn_size) - newsize;
-		struct vm_object *uobj = node->tn_reg.tn_aobj;
+		size_t zerolen = round_page(newsize) - newsize;
+		vm_object_t uobj = node->tn_reg.tn_aobj;
 		vm_page_t m;
 
 		/*
 		 * free "backing store"
 		 */
-
+		VM_OBJECT_LOCK(uobj);
 		if (newpages < oldpages) {
-			VM_OBJECT_LOCK(uobj);
 			swap_pager_freespace(uobj,
 						newpages, oldpages - newpages);
-			VM_OBJECT_UNLOCK(uobj);
+			vm_object_page_remove(uobj,
+				OFF_TO_IDX(newsize + PAGE_MASK), 0, FALSE); 
 		}
 
 		/*
 		 * zero out the truncated part of the last page.
 		 */
 
-		 if (zerolen > 0) {
+		if (zerolen > 0) {
 			m = vm_page_grab(uobj, OFF_TO_IDX(newsize),
 					VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 			pmap_zero_page_area(m, PAGE_SIZE - zerolen,
 				zerolen);
 			vm_page_wakeup(m);
-		 }
+		}
+		VM_OBJECT_UNLOCK(uobj);
 
 	}
 
@@ -1225,10 +1235,6 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 void
 tmpfs_update(struct vnode *vp)
 {
-
-	struct tmpfs_node *node;
-
-	node = VP_TO_TMPFS_NODE(vp);
 
 	tmpfs_itimes(vp, NULL, NULL);
 }

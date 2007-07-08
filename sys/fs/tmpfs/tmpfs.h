@@ -467,8 +467,8 @@ TMPFS_PAGES_MAX(struct tmpfs_mount *tmp)
 }
 
 /* Returns the available space for the given file system. */
-#define TMPFS_META_PAGES(tmp) ((tmp)->tm_nodes_inuse * (sizeof(struct tmpfs_node) \
-				+ sizeof(struct tmpfs_dirent))/PAGE_SIZE + 1)
+#define TMPFS_META_PAGES(tmp) (howmany((tmp)->tm_nodes_inuse * (sizeof(struct tmpfs_node) \
+				+ sizeof(struct tmpfs_dirent)), PAGE_SIZE))
 #define TMPFS_FILE_PAGES(tmp) ((tmp)->tm_pages_used)
 
 #define TMPFS_PAGES_AVAIL(tmp) (TMPFS_PAGES_MAX(tmp) > \
@@ -518,26 +518,4 @@ VP_TO_TMPFS_DIR(struct vnode *vp)
 	return node;
 }
 
-/* ---------------------------------------------------------------------
- * USER AND KERNEL DEFINITIONS
- * --------------------------------------------------------------------- */
-
-/*
- * This structure is used to communicate mount parameters between userland
- * and kernel space.
- */
-#define TMPFS_ARGS_VERSION	1
-struct tmpfs_args {
-	int			ta_version;
-
-	/* Size counters. */
-	ino_t			ta_nodes_max;
-	off_t			ta_size_max;
-
-	/* Root node attributes. */
-	uid_t			ta_root_uid;
-	gid_t			ta_root_gid;
-	mode_t			ta_root_mode;
-
-};
 #endif /* _FS_TMPFS_TMPFS_H_ */

@@ -51,6 +51,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -151,6 +152,8 @@ tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 		TMPFS_LOCK(tmp);
 		node->tn_id = tmp->tm_nodes_last++;
 		TMPFS_UNLOCK(tmp);
+		if (node->tn_id == INT_MAX)
+			panic("all avariable id is used.");
 		node->tn_gen = arc4random();
 	} else {
 		node->tn_gen++;
@@ -195,14 +198,23 @@ tmpfs_node_fini(void *mem, int size)
 }
 
 static int
-tmpfs_mount(struct mount *mp, struct thread *l)
+tmpfs_mount(struct mount *mp, struct thread *td)
 {
-	struct tmpfs_args args;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
 	size_t pages, mem_size;
 	ino_t nodes;
 	int error;
+	/* Size counters. */
+	ino_t	nodes_max;
+	off_t	size_max;
+
+	/* Root node attributes. */
+	uid_t	root_uid;
+	gid_t	root_gid;
+	mode_t	root_mode;
+
+	struct vattr	va;
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);
@@ -214,19 +226,28 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 		return EOPNOTSUPP;
 	}
 
-	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &args.ta_root_gid) != 1)
-		args.ta_root_gid = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &args.ta_root_uid) != 1)
-		args.ta_root_uid = 0;
-	if (vfs_scanopt(mp->mnt_optnew, "mode", "%o", &args.ta_root_mode) != 1)
-		args.ta_root_mode = TMPFS_DEFAULT_ROOT_MODE;
-	if(vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &args.ta_nodes_max) != 1)
-		args.ta_nodes_max = 0;
+	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY, td);
+	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
+	VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
+	if (error)
+		return (error);
+
+	if (mp->mnt_cred->cr_ruid != 0 ||
+	    vfs_scanopt(mp->mnt_optnew, "gid", "%d", &root_gid) != 1)
+		root_gid = va.va_gid;
+	if (mp->mnt_cred->cr_ruid != 0 ||
+	    vfs_scanopt(mp->mnt_optnew, "uid", "%d", &root_uid) != 1)
+		root_uid = va.va_uid;
+	if (mp->mnt_cred->cr_ruid != 0 ||
+	    vfs_scanopt(mp->mnt_optnew, "mode", "%o", &root_mode) != 1)
+		root_mode = va.va_mode;
+	if(vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
+		nodes_max = 0;
 
 	if(vfs_scanopt(mp->mnt_optnew,
 			"size",
-			"%qu", &args.ta_size_max) != 1)
-		args.ta_size_max = 0;
+			"%qu", &size_max) != 1)
+		size_max = 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */
@@ -239,17 +260,16 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 	 * allowed to use, based on the maximum size the user passed in
 	 * the mount structure.  A value of zero is treated as if the
 	 * maximum available space was requested. */
-	if (args.ta_size_max < PAGE_SIZE || args.ta_size_max >= SIZE_MAX)
+	if (size_max < PAGE_SIZE || size_max >= SIZE_MAX)
 		pages = SIZE_MAX;
 	else
-		pages = args.ta_size_max / PAGE_SIZE +
-		    (args.ta_size_max % PAGE_SIZE == 0 ? 0 : 1);
+		pages = howmany(size_max, PAGE_SIZE);
 	MPASS(pages > 0);
 
-	if (args.ta_nodes_max <= 3)
+	if (nodes_max <= 3)
 		nodes = 3 + pages * PAGE_SIZE / 1024;
 	else
-		nodes = args.ta_nodes_max;
+		nodes = nodes_max;
 	MPASS(nodes >= 3);
 
 	/* Allocate the tmpfs mount structure and fill it. */
@@ -277,12 +297,12 @@ tmpfs_mount(struct mount *mp, struct thread *l)
 					tmpfs_node_ctor, tmpfs_node_dtor,
 					tmpfs_node_init, tmpfs_node_fini,
 					UMA_ALIGN_PTR,
-					UMA_ZONE_NOFREE);
+					0);
 
 	/* Allocate the root node. */
-	error = tmpfs_alloc_node(tmp, VDIR, args.ta_root_uid,
-	    args.ta_root_gid, args.ta_root_mode & ALLPERMS, NULL, NULL,
-	    VNOVAL, l, &root);
+	error = tmpfs_alloc_node(tmp, VDIR, root_uid,
+	    root_gid, root_mode & ALLPERMS, NULL, NULL,
+	    VNOVAL, td, &root);
 
 	if (error != 0 || root == NULL) {
 	    uma_zdestroy(tmp->tm_node_pool);
@@ -360,6 +380,7 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 
 	mtx_destroy(&tmp->allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
+	MPASS(tmp->tm_nodes_inuse == 0);
 
 	/* Throw away the tmpfs_mount structure. */
 	free(mp->mnt_data, M_TMPFSMNT);
