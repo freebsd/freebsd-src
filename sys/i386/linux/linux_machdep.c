@@ -359,7 +359,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * kernel threads. Unfortunately despite the existence of the
 	 * CLONE_THREAD flag, version of linuxthreads package used in
 	 * most popular distros as of beginning of 2005 doesn't make
-	 * any use of it. Therefore, this detection relay fully on
+	 * any use of it. Therefore, this detection relies on
 	 * empirical observation that linuxthreads sets certain
 	 * combination of flags, so that we can make more or less
 	 * precise detection and notify the FreeBSD kernel that several
@@ -511,7 +511,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * Our mmap with MAP_STACK takes addr as the maximum
 		 * downsize limit on BOS, and as len the max size of
 		 * the region.  It them maps the top SGROWSIZ bytes,
-		 * and autgrows the region down, up to the limit
+		 * and auto grows the region down, up to the limit
 		 * in addr.
 		 *
 		 * If we don't use the MAP_STACK option, the effect
