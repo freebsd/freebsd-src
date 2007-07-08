@@ -150,7 +150,7 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	struct sigaction act, oact, *nsa, *osa;
 	int error, sig;
 
-	if (linux_sig <= 0 || linux_sig > LINUX_NSIG)
+	if (!LINUX_SIG_VALID(linux_sig))
 		return (EINVAL);
 
 	osa = (linux_osa != NULL) ? &oact : NULL;
