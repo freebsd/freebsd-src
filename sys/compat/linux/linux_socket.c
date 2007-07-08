@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -299,6 +300,20 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
+	case LINUX_SO_PEERCRED:
+		return (LOCAL_PEERCRED);
+	case LINUX_SO_RCVLOWAT:
+		return (SO_RCVLOWAT);
+	case LINUX_SO_SNDLOWAT:
+		return (SO_SNDLOWAT);
+	case LINUX_SO_RCVTIMEO:
+		return (SO_RCVTIMEO);
+	case LINUX_SO_SNDTIMEO:
+		return (SO_SNDTIMEO);
+	case LINUX_SO_TIMESTAMP:
+		return (SO_TIMESTAMP);
+	case LINUX_SO_ACCEPTCONN:
+		return (SO_ACCEPTCONN);
 	}
 	return (-1);
 }
@@ -924,9 +939,13 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 		struct sockaddr * __restrict from;
 		socklen_t * __restrict fromlenaddr;
 	} */ bsd_args;
+	size_t len;
 	int error;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
+		return (error);
+
+	if ((error = copyin(PTRIN(linux_args.fromlen), &len, sizeof(size_t))))
 		return (error);
 
 	bsd_args.s = linux_args.s;
@@ -970,6 +989,16 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	error = copyin(PTRIN(linux_args.msg), &msg, sizeof(msg));
 	if (error)
 		return (error);
+
+	/*
+	 * Some Linux applications (ping) define a non-NULL control data
+	 * pointer, but a msg_controllen of 0, which is not allowed in the
+	 * FreeBSD system call interface.  NULL the msg_control pointer in
+	 * order to handle this case.  This should be checked, but allows the
+	 * Linux ping to work.
+	 */
+	if (msg.msg_control != NULL && msg.msg_controllen == 0)
+		msg.msg_control = NULL;
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
 	if (error)
 		return (error);

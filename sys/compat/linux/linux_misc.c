@@ -812,6 +812,12 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		printf(ARGS(waitpid, "%d, %p, %d"),
 		    args->pid, (void *)args->status, args->options);
 #endif
+	/*
+	 * this is necessary because the test in kern_wait doesn't work
+	 * because we mess with the options here
+	 */
+	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
+		return (EINVAL);
 
 	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
@@ -898,11 +904,34 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		printf(ARGS(mknod, "%s, %d, %d"), path, args->mode, args->dev);
 #endif
 
-	if (args->mode & S_IFIFO)
+	switch (args->mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFSOCK:
 		error = kern_mkfifo(td, path, UIO_SYSSPACE, args->mode);
-	else
+		break;
+
+	case S_IFCHR:
+	case S_IFBLK:
 		error = kern_mknod(td, path, UIO_SYSSPACE, args->mode,
 		    args->dev);
+		break;
+
+	case S_IFDIR:
+		error = EPERM;
+		break;
+
+	case 0:
+		args->mode |= S_IFREG;
+		/* FALLTHROUGH */
+	case S_IFREG:
+		error = kern_open(td, path, UIO_SYSSPACE,
+		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
 	LFREEPATH(path);
 	return (error);
 }

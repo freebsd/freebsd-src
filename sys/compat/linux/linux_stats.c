@@ -211,7 +211,8 @@ linux_newlstat(struct thread *td, struct linux_newlstat_args *args)
 #endif
 
 	error = kern_lstat(td, path, UIO_SYSSPACE, &sb);
-	translate_path_major_minor(td, path, &sb);
+	if (!error)
+		translate_path_major_minor(td, path, &sb);
 	LFREEPATH(path);
 	if (error)
 		return (error);
@@ -261,6 +262,7 @@ struct l_statfs {
 #define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
+#define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
@@ -277,6 +279,7 @@ bsd_to_linux_ftype(const char *fstypename)
 		{"nwfs",    LINUX_NCP_SUPER_MAGIC},
 		{"hpfs",    LINUX_HPFS_SUPER_MAGIC},
 		{"coda",    LINUX_CODA_SUPER_MAGIC},
+		{"devfs",   LINUX_DEVFS_SUPER_MAGIC},
 		{NULL,      0L}};
 
 	for (i = 0; b2l_tbl[i].bsd_name != NULL; i++)
@@ -409,18 +412,19 @@ linux_stat64(struct thread *td, struct linux_stat64_args *args)
 #endif
 
 	error = kern_stat(td, filename, UIO_SYSSPACE, &buf);
-	if (!error && strlen(filename) > strlen("/dev/pts/") &&
-	    !strncmp(filename, "/dev/pts/", strlen("/dev/pts/"))
-	    && filename[9] >= '0' && filename[9] <= '9') {
-		/*
-		 * Linux checks major and minors of the slave device to make
-		 * sure it's a pty deivce, so let's make him believe it is.
-		 */
-		buf.st_rdev = (136 << 8);
+	if (!error) {
+		if (strlen(filename) > strlen("/dev/pts/") &&
+		    !strncmp(filename, "/dev/pts/", strlen("/dev/pts/")) &&
+		    filename[9] >= '0' && filename[9] <= '9') {
+			/*
+			 * Linux checks major and minors of the slave device
+			 * to make sure it's a pty deivce, so let's make him
+			 * believe it is.
+			 */
+			buf.st_rdev = (136 << 8);
+		} else
+			translate_path_major_minor(td, filename, &buf);
 	}
-
-	translate_path_major_minor(td, filename, &buf);
-
 	LFREEPATH(filename);
 	if (error)
 		return (error);
@@ -442,7 +446,8 @@ linux_lstat64(struct thread *td, struct linux_lstat64_args *args)
 #endif
 
 	error = kern_lstat(td, filename, UIO_SYSSPACE, &sb);
-	translate_path_major_minor(td, filename, &sb);
+	if (!error)
+		translate_path_major_minor(td, filename, &sb);
 	LFREEPATH(filename);
 	if (error)
 		return (error);
