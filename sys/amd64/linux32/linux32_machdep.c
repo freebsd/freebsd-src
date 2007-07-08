@@ -113,7 +113,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map,
+	args->buf = (char *)kmem_alloc_wait(exec_map,
 	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 	if (args->buf == NULL)
 		return (ENOMEM);
@@ -229,7 +229,7 @@ linux32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 	if (iovcnt > UIO_MAXIOV)
 		return (EINVAL);
 	iovlen = iovcnt * sizeof(struct iovec);
-	uio = malloc(iovlen + sizeof *uio, M_IOV, M_WAITOK);
+	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	iov = (struct iovec *)(uio + 1);
 	for (i = 0; i < iovcnt; i++) {
 		error = copyin(&iovp[i], &iov32, sizeof(struct iovec32));
@@ -673,8 +673,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			 * mmap's return value.
 			 */
 			PROC_LOCK(p);
-			p->p_vmspace->vm_maxsaddr =
-			    (char *)LINUX32_USRSTACK -
+			p->p_vmspace->vm_maxsaddr = (char *)LINUX32_USRSTACK -
 			    lim_cur(p, RLIMIT_STACK);
 			PROC_UNLOCK(p);
 		}
@@ -797,7 +796,7 @@ linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 }
 
 /*
- * Linux has two extra args, restart and oldmask.  We dont use these,
+ * Linux has two extra args, restart and oldmask.  We don't use these,
  * but it seems that "restart" is actually a context pointer that
  * enables the signal to happen with a different register set.
  */

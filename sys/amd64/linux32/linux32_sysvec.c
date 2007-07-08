@@ -399,6 +399,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	td->td_pcb->pcb_ds = _udatasel;
 	load_es(_udatasel);
 	td->td_pcb->pcb_es = _udatasel;
+	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -516,6 +517,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	td->td_pcb->pcb_ds = _udatasel;
 	load_es(_udatasel);
 	td->td_pcb->pcb_es = _udatasel;
+	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }

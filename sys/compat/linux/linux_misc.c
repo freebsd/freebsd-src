@@ -155,7 +155,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.bufferram = 0;
 
 	swap_pager_status(&i, &j);
-	sysinfo.totalswap= i * PAGE_SIZE;
+	sysinfo.totalswap = i * PAGE_SIZE;
 	sysinfo.freeswap = (i - j) * PAGE_SIZE;
 
 	sysinfo.procs = nprocs;
@@ -215,7 +215,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 #endif
 	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (vm_offset_t)args->dsend;
-	tmp.nsize = (char *) new;
+	tmp.nsize = (char *)new;
 	if (((caddr_t)new > vm->vm_daddr) && !obreak(td, &tmp))
 		td->td_retval[0] = (long)new;
 	else
@@ -291,6 +291,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
 	    ((attr.va_mode & 0111) == 0) || (attr.va_type != VREG)) {
+		/* EACCESS is what exec(2) returns. */
 		error = ENOEXEC;
 		goto cleanup;
 	}
@@ -343,10 +344,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	/* Set file/virtual offset based on a.out variant. */
 	switch ((int)(a_out->a_magic & 0xffff)) {
-	case 0413:	/* ZMAGIC */
+	case 0413:			/* ZMAGIC */
 		file_offset = 1024;
 		break;
-	case 0314:	/* QMAGIC */
+	case 0314:			/* QMAGIC */
 		file_offset = 0;
 		break;
 	default:
@@ -446,8 +447,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 			goto cleanup;
 	}
 #ifdef DEBUG
-	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long*)vmaddr)[0],
-	    ((long*)vmaddr)[1]);
+	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long *)vmaddr)[0],
+	    ((long *)vmaddr)[1]);
 #endif
 	if (bss_size != 0) {
 		/* Calculate BSS start address */
@@ -728,6 +729,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 #ifdef __i386__
 	{
 		const char *class;
+
 		switch (cpu_class) {
 		case CPUCLASS_686:
 			class = "i686";
@@ -1047,8 +1049,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
 			ngrp--;
 		}
-	}
-	else
+	} else
 		newcred->cr_ngroups = 1;
 
 	setsugid(p);

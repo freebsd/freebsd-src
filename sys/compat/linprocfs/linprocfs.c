@@ -517,6 +517,7 @@ linprocfs_doversion(PFS_FILL_ARGS)
 static int
 linprocfs_doloadavg(PFS_FILL_ARGS)
 {
+
 	sbuf_printf(sb,
 	    "%d.%02d %d.%02d %d.%02d %d/%d %d\n",
 	    (int)(averunnable.ldavg[0] / averunnable.fscale),
@@ -529,7 +530,6 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    nprocs,			/* number of tasks */
 	    lastpid			/* the last pid */
 	);
-
 	return (0);
 }
 
@@ -858,8 +858,8 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 static int
 linprocfs_doprocenviron(PFS_FILL_ARGS)
 {
-	sbuf_printf(sb, "doprocenviron\n%c", '\0');
 
+	sbuf_printf(sb, "doprocenviron\n%c", '\0');
 	return (0);
 }
 
@@ -937,9 +937,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			ref_count = 0;
 			shadow_count = 0;
 		}
-		
+
 		/*
-	     	 * format:
+		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
 		snprintf(mebuffer, sizeof mebuffer,
@@ -1017,6 +1017,7 @@ linprocfs_doscsidevinfo(PFS_FILL_ARGS)
 static int
 linprocfs_doscsiscsi(PFS_FILL_ARGS)
 {
+
 	return (0);
 }
 
@@ -1046,6 +1047,7 @@ linprocfs_dodevices(PFS_FILL_ARGS)
 static int
 linprocfs_docmdline(PFS_FILL_ARGS)
 {
+
 	sbuf_printf(sb, "BOOT_IMAGE=%s", kernelname);
 	sbuf_printf(sb, " ro root=302\n");
 	return (0);
