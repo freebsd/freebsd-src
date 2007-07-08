@@ -957,18 +957,6 @@ options 	MSDOSFS_ICONV
 options 	NTFS_ICONV
 options 	UDF_ICONV
 
-# Experimental support for large MS-DOS filesystems.
-#
-# WARNING: This uses at least 32 bytes of kernel memory (which is not
-# reclaimed until the FS is unmounted) for each file on disk to map
-# between the 32-bit inode numbers used by VFS and the 64-bit pseudo-inode
-# numbers used internally by msdosfs. This is only safe to use in certain
-# controlled situations (e.g. read-only FS with less than 1 million files).
-# Since the mappings do not persist across unmounts (or reboots), these
-# filesystems are not suitable for exporting through NFS, or any other
-# application that requires fixed inode numbers.
-options 	MSDOSFS_LARGE
-
 
 #####################################################################
 # POSIX P1003.1B
