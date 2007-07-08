@@ -34,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <machine/frame.h>
+#include <machine/psl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -130,7 +133,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	    copystr(fname, args->fname, PATH_MAX, &length) :
 	    copyinstr(fname, args->fname, PATH_MAX, &length);
 	if (error != 0)
-		return (error);
+		goto err_exit;
 
 	/*
 	 * extract arguments first
@@ -139,22 +142,22 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	for (;;) {
 		error = copyin(p32++, &arg, sizeof(arg));
 		if (error)
-			return (error);
+			goto err_exit;
 		if (arg == 0)
 			break;
 		argp = PTRIN(arg);
 		error = copyinstr(argp, args->endp, args->stringspace, &length);
 		if (error) {
 			if (error == ENAMETOOLONG)
-				return (E2BIG);
-			else
-				return (error);
+				error = E2BIG;
+
+			goto err_exit;
 		}
 		args->stringspace -= length;
 		args->endp += length;
 		args->argc++;
 	}
-			
+
 	args->begin_envv = args->endp;
 
 	/*
@@ -165,7 +168,7 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 		for (;;) {
 			error = copyin(p32++, &arg, sizeof(arg));
 			if (error)
-				return (error);
+				goto err_exit;
 			if (arg == 0)
 				break;
 			envp = PTRIN(arg);
@@ -173,9 +176,8 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 			    &length);
 			if (error) {
 				if (error == ENAMETOOLONG)
-					return (E2BIG);
-				else
-					return (error);
+					error = E2BIG;
+				goto err_exit;
 			}
 			args->stringspace -= length;
 			args->endp += length;
@@ -184,6 +186,12 @@ linux_exec_copyin_args(struct image_args *args, char *fname,
 	}
 
 	return (0);
+
+err_exit:
+	kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
+	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
+	args->buf = NULL;
+	return (error);
 }
 
 int
@@ -539,16 +547,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	return (0);
 }
 
-/* XXX move */
-struct l_mmap_argv {
-	l_ulong		addr;
-	l_ulong		len;
-	l_ulong		prot;
-	l_ulong		flags;
-	l_ulong		fd;
-	l_ulong		pgoff;
-};
-
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
@@ -561,8 +559,8 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mmap2))
-		printf(ARGS(mmap2, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)(intptr_t)args->addr, args->len, args->prot,
+		printf(ARGS(mmap2, "0x%08x, %d, %d, 0x%08x, %d, %d"),
+		    args->addr, args->len, args->prot,
 		    args->flags, args->fd, args->pgoff);
 #endif
 
@@ -588,10 +586,9 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(ARGS(mmap, "%p, %d, %d, 0x%08x, %d, %d"),
-		    (void *)(intptr_t)linux_args.addr, linux_args.len,
-		    linux_args.prot, linux_args.flags, linux_args.fd,
-		    linux_args.pgoff);
+		printf(ARGS(mmap, "0x%08x, %d, %d, 0x%08x, %d, %d"),
+		    linux_args.addr, linux_args.len, linux_args.prot,
+		    linux_args.flags, linux_args.fd, linux_args.pgoff);
 #endif
 	if ((linux_args.pgoff % PAGE_SIZE) != 0)
 		return (EINVAL);
@@ -614,9 +611,20 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		off_t pos;
 	} */ bsd_args;
 	int error;
+	struct file *fp;
 
 	error = 0;
 	bsd_args.flags = 0;
+	fp = NULL;
+
+	/*
+	 * Linux mmap(2):
+	 * You must specify exactly one of MAP_SHARED and MAP_PRIVATE
+	 */
+	if (! ((linux_args->flags & LINUX_MAP_SHARED) ^
+	    (linux_args->flags & LINUX_MAP_PRIVATE)))
+		return (EINVAL);
+
 	if (linux_args->flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
 	if (linux_args->flags & LINUX_MAP_PRIVATE)
@@ -627,23 +635,60 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.flags |= MAP_ANON;
 	else
 		bsd_args.flags |= MAP_NOSYNC;
-	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN)
 		bsd_args.flags |= MAP_STACK;
 
-		/* The linux MAP_GROWSDOWN option does not limit auto
+	/*
+	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
+	 * on Linux/i386. We do this to ensure maximum compatibility.
+	 * Linux/ia64 does the same in i386 emulation mode.
+	 */
+	bsd_args.prot = linux_args->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+
+	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
+	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : linux_args->fd;
+	if (bsd_args.fd != -1) {
+		/*
+		 * Linux follows Solaris mmap(2) description:
+		 * The file descriptor fildes is opened with
+		 * read permission, regardless of the
+		 * protection options specified.
+		 */
+
+		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
+			return (error);
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+
+		/* Linux mmap() just fails for O_WRONLY files */
+		if (!(fp->f_flag & FREAD)) {
+			fdrop(fp, td);
+			return (EACCES);
+		}
+
+		fdrop(fp, td);
+	}
+
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+		/*
+		 * The Linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
-		 * limit.  However, linux threads has an implicit internal
+		 * limit.  However, Linux threads has an implicit internal
 		 * limit to stack size of STACK_SIZE.  Its just not
-		 * enforced explicitly in linux.  But, here we impose
+		 * enforced explicitly in Linux.  But, here we impose
 		 * a limit of (STACK_SIZE - GUARD_SIZE) on the stack
 		 * region, since we can do this with our mmap.
 		 *
 		 * Our mmap with MAP_STACK takes addr as the maximum
 		 * downsize limit on BOS, and as len the max size of
-		 * the region.  It them maps the top SGROWSIZ bytes,
-		 * and autgrows the region down, up to the limit
+		 * the region.  It then maps the top SGROWSIZ bytes,
+		 * and auto grows the region down, up to the limit
 		 * in addr.
 		 *
 		 * If we don't use the MAP_STACK option, the effect
@@ -651,13 +696,10 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * fixed size of (STACK_SIZE - GUARD_SIZE).
 		 */
 
-		/* This gives us TOS */
-		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) +
-		    linux_args->len;
-
-		if ((caddr_t)PTRIN(bsd_args.addr) >
+		if ((caddr_t)PTRIN(linux_args->addr) + linux_args->len >
 		    p->p_vmspace->vm_maxsaddr) {
-			/* Some linux apps will attempt to mmap
+			/*
+			 * Some Linux apps will attempt to mmap
 			 * thread stacks near the top of their
 			 * address space.  If their TOS is greater
 			 * than vm_maxsaddr, vm_map_growstack()
@@ -684,28 +726,19 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		else
 			bsd_args.len  = STACK_SIZE - GUARD_SIZE;
 
-		/* This gives us a new BOS.  If we're using VM_STACK, then
+		/*
+		 * This gives us a new BOS.  If we're using VM_STACK, then
 		 * mmap will just map the top SGROWSIZ bytes, and let
 		 * the stack grow down to the limit at BOS.  If we're
 		 * not using VM_STACK we map the full stack, since we
 		 * don't have a way to autogrow it.
 		 */
-		bsd_args.addr -= bsd_args.len;
+		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
+		    bsd_args.len;
 	} else {
 		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
 		bsd_args.len  = linux_args->len;
 	}
-	/*
-	 * XXX i386 Linux always emulator forces PROT_READ on (why?)
-	 * so we do the same. We add PROT_EXEC to work around buggy
-	 * applications (e.g. Java) that take advantage of the fact
-	 * that execute permissions are not enforced by x86 CPUs.
-	 */
-	bsd_args.prot = linux_args->prot | PROT_EXEC | PROT_READ;
-	if (linux_args->flags & LINUX_MAP_ANON)
-		bsd_args.fd = -1;
-	else
-		bsd_args.fd = linux_args->fd;
 	bsd_args.pos = (off_t)linux_args->pgoff * PAGE_SIZE;
 	bsd_args.pad = 0;
 
@@ -723,6 +756,36 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			__func__, error, (u_int)td->td_retval[0]);
 #endif
 	return (error);
+}
+
+int
+linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
+{
+	struct mprotect_args bsd_args;
+
+	bsd_args.addr = uap->addr;
+	bsd_args.len = uap->len;
+	bsd_args.prot = uap->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+	return (mprotect(td, &bsd_args));
+}
+
+int
+linux_iopl(struct thread *td, struct linux_iopl_args *args)
+{
+	int error;
+
+	if (args->level < 0 || args->level > 3)
+		return (EINVAL);
+	if ((error = suser(td)) != 0)
+		return (error);
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
+		return (error);
+	td->td_frame->tf_rflags = (td->td_frame->tf_rflags & ~PSL_IOPL) |
+	    (args->level * (PSL_IOPL / 3));
+
+	return (0);
 }
 
 int
@@ -1001,16 +1064,3 @@ linux_sched_rr_get_interval(struct thread *td,
 	return (copyout(&ts32, uap->interval, sizeof(ts32)));
 }
 
-int
-linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
-{
-	struct mprotect_args bsd_args;
-
-	bsd_args.addr = uap->addr;
-	bsd_args.len = uap->len;
-	bsd_args.prot = uap->prot;
-	/* XXX PROT_READ implies PROT_EXEC; see linux_mmap_common(). */
-	if ((bsd_args.prot & PROT_READ) != 0)
-		bsd_args.prot |= PROT_EXEC;
-	return (mprotect(td, &bsd_args));
-}

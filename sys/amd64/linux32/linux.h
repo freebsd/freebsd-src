@@ -167,12 +167,21 @@ struct l_rusage {
 #define	LINUX_MAP_ANON		0x0020
 #define	LINUX_MAP_GROWSDOWN	0x0100
 
+struct l_mmap_argv {
+	l_uintptr_t	addr;
+	l_size_t	len;
+	l_int		prot;
+	l_int		flags;
+	l_int		fd;
+	l_off_t		pgoff;
+} __packed;
+
 /*
  * stat family of syscalls
  */
 struct l_timespec {
-	l_ulong		tv_sec;
-	l_ulong		tv_nsec;
+	l_time_t	tv_sec;
+	l_long		tv_nsec;
 } __packed;
 
 struct l_newstat {
