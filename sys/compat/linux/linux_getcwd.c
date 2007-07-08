@@ -386,7 +386,7 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 		error = linux_getcwd_scandir(&lvp, &uvp, &bp, bufp, td);
 		if (error)
 			goto out;
-#if DIAGNOSTIC		
+#ifdef DIAGNOSTIC		
 		if (lvp != NULL)
 			panic("getcwd: oops, forgot to null lvp");
 		if (bufp && (bp <= bufp)) {

@@ -6,7 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -28,10 +28,10 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_LINUX_LINUX_H_
-#define	_I386_LINUX_LINUX_H_
+#ifndef _I386_LINUX_H_
+#define	_I386_LINUX_H_
 
-#include <sys/signal.h> /* for sigval union */
+#include <sys/signal.h>	/* for sigval union */
 
 #include <i386/linux/linux_syscall.h>
 
@@ -39,9 +39,9 @@
  * debugging support
  */
 extern u_char linux_debug_map[];
-#define ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
-#define LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
+#define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
+#define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
@@ -126,7 +126,7 @@ struct l___sysctl_args
 #define	LINUX_RLIMIT_NPROC	6
 #define	LINUX_RLIMIT_NOFILE	7
 #define	LINUX_RLIMIT_MEMLOCK	8
-#define	LINUX_RLIMIT_AS		9       /* address space limit */
+#define	LINUX_RLIMIT_AS		9	/* Address space limit */
 
 #define	LINUX_RLIM_NLIMITS	10
 
@@ -263,9 +263,9 @@ struct l_new_utsname {
 #define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
 
 /* sigaltstack */
-#define LINUX_MINSIGSTKSZ	2048
-#define LINUX_SS_ONSTACK	1
-#define LINUX_SS_DISABLE	2
+#define	LINUX_MINSIGSTKSZ	2048
+#define	LINUX_SS_ONSTACK	1
+#define	LINUX_SS_DISABLE	2
 
 int linux_to_bsd_sigaltstack(int lsa);
 int bsd_to_linux_sigaltstack(int bsa);
@@ -328,11 +328,11 @@ struct l_ucontext {
 	void		*uc_link;
 	l_stack_t	uc_stack;
 	struct l_sigcontext	uc_mcontext;
-        l_sigset_t	uc_sigmask;
+	l_sigset_t	uc_sigmask;
 };
 
-#define LINUX_SI_MAX_SIZE     128
-#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
+#define	LINUX_SI_MAX_SIZE	128
+#define	LINUX_SI_PAD_SIZE	((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
 
 typedef struct l_siginfo {
 	l_int		lsi_signo;
@@ -366,41 +366,41 @@ typedef struct l_siginfo {
 		} _sigchld;
 
 		struct {
-			void		*_addr; /* faulting insn/memory ref. */
+			void		*_addr;	/* Faulting insn/memory ref. */
 		} _sigfault;
 
 		struct {
-			l_int		_band;  /* POLL_IN,POLL_OUT,POLL_MSG */
+			l_int		_band;	/* POLL_IN,POLL_OUT,POLL_MSG */
 			l_int		_fd;
 		} _sigpoll;
 	} _sifields;
 } l_siginfo_t;
 
-#define lsi_pid          _sifields._kill._pid
-#define lsi_uid          _sifields._kill._uid
-#define lsi_status       _sifields._sigchld._status
-#define lsi_utime        _sifields._sigchld._utime
-#define lsi_stime        _sifields._sigchld._stime
-#define lsi_value        _sifields._rt._sigval
-#define lsi_int          _sifields._rt._sigval.sival_int
-#define lsi_ptr          _sifields._rt._sigval.sival_ptr
-#define lsi_addr         _sifields._sigfault._addr
-#define lsi_band         _sifields._sigpoll._band
-#define lsi_fd           _sifields._sigpoll._fd
+#define	lsi_pid		_sifields._kill._pid
+#define	lsi_uid		_sifields._kill._uid
+#define	lsi_status	_sifields._sigchld._status
+#define	lsi_utime	_sifields._sigchld._utime
+#define	lsi_stime	_sifields._sigchld._stime
+#define	lsi_value	_sifields._rt._sigval
+#define	lsi_int		_sifields._rt._sigval.sival_int
+#define	lsi_ptr		_sifields._rt._sigval.sival_ptr
+#define	lsi_addr	_sifields._sigfault._addr
+#define	lsi_band	_sifields._sigpoll._band
+#define	lsi_fd		_sifields._sigpoll._fd
 
 struct l_fpreg {
-	u_int16_t significand[4];
-	u_int16_t exponent;
+	u_int16_t	significand[4];
+	u_int16_t	exponent;
 };
 
 struct l_fpxreg {
-	u_int16_t significand[4];
-	u_int16_t exponent;
-	u_int16_t padding[3];
+	u_int16_t	significand[4];
+	u_int16_t	exponent;
+	u_int16_t	padding[3];
 };
 
 struct l_xmmreg {
-	u_int32_t element[4];
+	u_int32_t	element[4];
 };
 
 struct l_fpstate {
@@ -414,13 +414,13 @@ struct l_fpstate {
 	u_int32_t		datasel;
 	struct l_fpreg		_st[8];
 	u_int16_t		status;
-	u_int16_t		magic;  /* 0xffff = regular FPU data */
+	u_int16_t		magic;		/* 0xffff = regular FPU data */
 
 	/* FXSR FPU environment */
-	u_int32_t		_fxsr_env[6]; /* env is ignored */
+	u_int32_t		_fxsr_env[6];	/* env is ignored. */
 	u_int32_t		mxcsr;
 	u_int32_t		reserved;
-	struct l_fpxreg		_fxsr_st[8];  /* reg data is ignored */
+	struct l_fpxreg		_fxsr_st[8];	/* reg data is ignored. */
 	struct l_xmmreg		_xmm[8];
 	u_int32_t		padding[56];
 };
@@ -472,22 +472,23 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 /*
  * open/fcntl flags
  */
-#define	LINUX_O_RDONLY		00
-#define	LINUX_O_WRONLY		01
-#define	LINUX_O_RDWR		02
-#define	LINUX_O_CREAT		0100
-#define	LINUX_O_EXCL		0200
-#define	LINUX_O_NOCTTY		0400
-#define	LINUX_O_TRUNC		01000
-#define	LINUX_O_APPEND		02000
-#define	LINUX_O_NONBLOCK	04000
+#define	LINUX_O_RDONLY		00000000
+#define	LINUX_O_WRONLY		00000001
+#define	LINUX_O_RDWR		00000002
+#define	LINUX_O_ACCMODE		00000003
+#define	LINUX_O_CREAT		00000100
+#define	LINUX_O_EXCL		00000200
+#define	LINUX_O_NOCTTY		00000400
+#define	LINUX_O_TRUNC		00001000
+#define	LINUX_O_APPEND		00002000
+#define	LINUX_O_NONBLOCK	00004000
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
-#define	LINUX_O_SYNC		010000
-#define	LINUX_FASYNC		020000
-#define	LINUX_O_DIRECT		040000	/* direct disk access hint */
-#define	LINUX_O_LARGEFILE	0100000
-#define	LINUX_O_DIRECTORY	0200000	/* must be a directory */
-#define	LINUX_O_NOFOLLOW	0400000	/* don't follow links */
+#define	LINUX_O_SYNC		00010000
+#define	LINUX_FASYNC		00020000
+#define	LINUX_O_DIRECT		00040000	/* Direct disk access hint */
+#define	LINUX_O_LARGEFILE	00100000
+#define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
+#define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
 #define	LINUX_O_NOATIME		01000000
 
 #define	LINUX_F_DUPFD		0
@@ -509,15 +510,17 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
 
+#define	LINUX_AT_FDCWD		-100
+
 /*
  * mount flags
  */
-#define LINUX_MS_RDONLY         0x0001
-#define LINUX_MS_NOSUID         0x0002
-#define LINUX_MS_NODEV          0x0004
-#define LINUX_MS_NOEXEC         0x0008
-#define LINUX_MS_REMOUNT        0x0020
-        
+#define	LINUX_MS_RDONLY		0x0001
+#define	LINUX_MS_NOSUID		0x0002
+#define	LINUX_MS_NODEV		0x0004
+#define	LINUX_MS_NOEXEC		0x0008
+#define	LINUX_MS_REMOUNT	0x0020
+
 /*
  * SystemV IPC defines
  */
@@ -664,7 +667,7 @@ struct l_ifreq {
 	} ifr_ifru;
 };
 
-#define	ifr_name	ifr_ifrn.ifrn_name	/* interface name */
+#define	ifr_name	ifr_ifrn.ifrn_name	/* Interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
 
 /*

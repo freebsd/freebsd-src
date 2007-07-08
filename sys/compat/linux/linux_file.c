@@ -495,6 +495,7 @@ linux_access(struct thread *td, struct linux_access_args *args)
 #endif
 	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
 	LFREEPATH(path);
+
 	return (error);
 }
 

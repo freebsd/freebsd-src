@@ -111,13 +111,17 @@ static int	elf_linux_fixup(register_t **stack_base,
 		    struct image_params *iparams);
 static void	linux_prepsyscall(struct trapframe *tf, int *args, u_int *code,
 		    caddr_t *params);
-static void     linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
+static void	linux_sendsig(sig_t catcher, int sig, sigset_t *mask,
 		    u_long code);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
+ * Reference:
+ *   FreeBSD: src/sys/sys/errno.h
+ *   Linux:   linux-2.6.17.8/include/asm-generic/errno-base.h
+ *            linux-2.6.17.8/include/asm-generic/errno.h
  */
 static int bsd_to_linux_errno[ELAST + 1] = {
 	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
