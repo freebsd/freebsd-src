@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / wrapper functions for libcrypto
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,8 @@
  * See README and COPYING for more details.
  */
 
-#include <string.h>
-#include <sys/types.h>
-
+#include "includes.h"
+#include <openssl/opensslv.h>
 #include <openssl/md4.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
@@ -36,7 +35,7 @@
 void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	MD4_CTX ctx;
-	int i;
+	size_t i;
 
 	MD4_Init(&ctx);
 	for (i = 0; i < num_elem; i++)
@@ -70,7 +69,7 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	MD5_CTX ctx;
-	int i;
+	size_t i;
 
 	MD5_Init(&ctx);
 	for (i = 0; i < num_elem; i++)
@@ -82,7 +81,7 @@ void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	SHA_CTX ctx;
-	int i;
+	size_t i;
 
 	SHA1_Init(&ctx);
 	for (i = 0; i < num_elem; i++)
@@ -91,24 +90,78 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 }
 
 
-void sha1_transform(u8 *state, const u8 data[64])
+static void sha1_transform(u8 *state, const u8 data[64])
 {
 	SHA_CTX context;
-	memset(&context, 0, sizeof(context));
-	memcpy(&context.h0, state, 5 * 4);
+	os_memset(&context, 0, sizeof(context));
+	os_memcpy(&context.h0, state, 5 * 4);
 	SHA1_Transform(&context, data);
-	memcpy(state, &context.h0, 5 * 4);
+	os_memcpy(state, &context.h0, 5 * 4);
+}
+
+
+int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
+{
+	u8 xkey[64];
+	u32 t[5], _t[5];
+	int i, j, m, k;
+	u8 *xpos = x;
+	u32 carry;
+
+	if (seed_len > sizeof(xkey))
+		seed_len = sizeof(xkey);
+
+	/* FIPS 186-2 + change notice 1 */
+
+	os_memcpy(xkey, seed, seed_len);
+	os_memset(xkey + seed_len, 0, 64 - seed_len);
+	t[0] = 0x67452301;
+	t[1] = 0xEFCDAB89;
+	t[2] = 0x98BADCFE;
+	t[3] = 0x10325476;
+	t[4] = 0xC3D2E1F0;
+
+	m = xlen / 40;
+	for (j = 0; j < m; j++) {
+		/* XSEED_j = 0 */
+		for (i = 0; i < 2; i++) {
+			/* XVAL = (XKEY + XSEED_j) mod 2^b */
+
+			/* w_i = G(t, XVAL) */
+			os_memcpy(_t, t, 20);
+			sha1_transform((u8 *) _t, xkey);
+			_t[0] = host_to_be32(_t[0]);
+			_t[1] = host_to_be32(_t[1]);
+			_t[2] = host_to_be32(_t[2]);
+			_t[3] = host_to_be32(_t[3]);
+			_t[4] = host_to_be32(_t[4]);
+			os_memcpy(xpos, _t, 20);
+
+			/* XKEY = (1 + XKEY + w_i) mod 2^b */
+			carry = 1;
+			for (k = 19; k >= 0; k--) {
+				carry += xkey[k] + xpos[k];
+				xkey[k] = carry & 0xff;
+				carry >>= 8;
+			}
+
+			xpos += 20;
+		}
+		/* x_j = w_0|w_1 */
+	}
+
+	return 0;
 }
 
 
 void * aes_encrypt_init(const u8 *key, size_t len)
 {
 	AES_KEY *ak;
-	ak = malloc(sizeof(*ak));
+	ak = os_malloc(sizeof(*ak));
 	if (ak == NULL)
 		return NULL;
 	if (AES_set_encrypt_key(key, 8 * len, ak) < 0) {
-		free(ak);
+		os_free(ak);
 		return NULL;
 	}
 	return ak;
@@ -123,18 +176,18 @@ void aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
 
 void aes_encrypt_deinit(void *ctx)
 {
-	free(ctx);
+	os_free(ctx);
 }
 
 
 void * aes_decrypt_init(const u8 *key, size_t len)
 {
 	AES_KEY *ak;
-	ak = malloc(sizeof(*ak));
+	ak = os_malloc(sizeof(*ak));
 	if (ak == NULL)
 		return NULL;
 	if (AES_set_decrypt_key(key, 8 * len, ak) < 0) {
-		free(ak);
+		os_free(ak);
 		return NULL;
 	}
 	return ak;
@@ -149,6 +202,6 @@ void aes_decrypt(void *ctx, const u8 *crypt, u8 *plain)
 
 void aes_decrypt_deinit(void *ctx)
 {
-	free(ctx);
+	os_free(ctx);
 }
 #endif /* EAP_TLS_FUNCS */

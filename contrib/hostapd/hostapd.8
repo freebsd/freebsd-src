@@ -3,7 +3,7 @@
 hostapd \- IEEE 802.11 AP, IEEE 802.1X/WPA/WPA2/EAP/RADIUS Authenticator
 .SH SYNOPSIS
 .B hostapd
-[-hdBKt] <configuration file(s)>
+[-hdBKtv] [-P <PID file>] <configuration file(s)>
 .SH DESCRIPTION
 This manual page documents briefly the
 .B hostapd
@@ -39,6 +39,9 @@ Show even more debug messages.
 .B \-B
 Run daemon in the background.
 .TP
+.B \-P <PID file>
+Path to PID file.
+.TP
 .B \-K
 Include key data in debug messages.
 .TP
@@ -50,7 +53,7 @@ Show hostapd version.
 .SH SEE ALSO
 .BR hostapd_cli (1).
 .SH AUTHOR
-hostapd was written by Jouni Malinen <jkmaline@cc.hut.fi>. 
+hostapd was written by Jouni Malinen <j@w1.fi>. 
 .PP
 This manual page was written by Faidon Liambotis <faidon@cube.gr>,
 for the Debian project (but may be used by others).
