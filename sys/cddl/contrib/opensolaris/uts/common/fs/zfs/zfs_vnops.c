@@ -3493,7 +3493,7 @@ zfs_freebsd_reclaim(ap)
 		rele = 0;
 	vp->v_data = NULL;
 	ASSERT(vp->v_holdcnt > 1);
-	vdropl(vp);
+	VI_UNLOCK(vp);
 	if (!zp->z_unlinked && rele)
 		VFS_RELE(zfsvfs->z_vfs);
 	return (0);
