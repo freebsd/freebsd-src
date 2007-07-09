@@ -204,6 +204,7 @@ struct rue_softc {
 	char			rue_dying;
 	struct timeval		rue_rx_notice;
 	struct usb_qdat		rue_qdat;
+	struct usb_task		rue_tick_task;
 };
 
 #if defined(__FreeBSD__)
