@@ -857,9 +857,10 @@
 	  adapters, has been added.  For more details, see
 	  &man.mxge.4;.  &merged;</para>
 
-	<para>The &man.nfe.4; driver, an open-source driver for nForce
+	<para>[&arch.amd64;, &arch.i386;] The &man.nfe.4; driver, an open-source driver for nForce
 	  Ethernet devices, has been added, originally from
-	  OpenBSD.</para>
+	  OpenBSD.  This driver has replaced the &man.nve.4; driver in
+	  the <filename>GENERIC</filename> kernel.</para>
 
 	<para>[&arch.arm;] The &man.npe.4; driver, which supports the
 	   Intel XScale Network Processing Engine, has been
@@ -1937,6 +1938,17 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
+
+    <para>The &man.sed.1; utility now supports case-insensitive
+      pattern matching; this feature can be enabled by using
+      the <literal>I</literal> flag after the closing delimiter for a
+      regular expression.</para>
+
+    <para>The behavior of the &man.setenv.3; family of library calls
+      has been changed from the historic BSD API to the
+      behavior mandated by POSIX.  As a result, several base system
+      utility that relied on the old API have been updated to track
+      this change.</para>
 
     <para>The <option>-h</option> flag to &man.setfacl.1; now properly
       sets the ACL on a symbolic link, not the link target.</para>
