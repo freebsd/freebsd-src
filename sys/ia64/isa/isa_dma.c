@@ -331,7 +331,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		printf("isa_dmastart: channel %d busy\n", chan);
 #endif
 
-	if (!dma_tag || !dma_map[chan])
+	if (!dma_tag[chan] || !dma_map[chan])
 		panic("isa_dmastart: called without isa_dma_init");
 
 	dma_busy |= (1 << chan);
