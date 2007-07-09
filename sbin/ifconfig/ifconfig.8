@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2007
+.Dd July 8, 2007
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -600,6 +600,47 @@ modes are only useful when using an authentication service
 (a supplicant for client operation or an authenticator when
 operating as an access point).
 Modes are case insensitive.
+.It Cm bgscan
+Enable background scanning when operating as a station.
+Background scanning is a technique whereby a station associated to
+an access point will temporarily leave the channel to scan for
+neighboring stations.
+This allows a station to maintain a cache of nearby access points
+so that roaming between access points can be done without doing
+a lengthy scan operation.
+Background scanning is done only when a station is not busy and
+any outbound traffic will cancel a scan operation.
+Background scanning should never cause packets to be lost though
+there may be some small latency if outbound traffic interrupts a
+scan operation.
+By default background scanning is enabled if the device is capable.
+To disable background scanning, use
+.Fl bgscan .
+Background scanning is controlled by the
+.Cm bgscanidle
+and
+.Cm bgscanintvl
+parameters.
+Background scanning must be enabled for roaming; this is an artifact
+of the current implementation and may not be required in the future.
+.It Cm bgscanidle Ar idletime
+Set the minimum time a station must be idle (not transmitting or
+receiving frames) before a background scan is initiated.
+The
+.Ar idletime
+parameter is specified in milliseconds.
+By default a station must be idle at least 250 milliseconds before
+a background scan is initiated.
+The idle time may not be set to less than 100 milliseconds.
+.It Cm bgscanintvl Ar interval
+Set the interval at which background scanning is attempted.
+The
+.Ar interval
+parameter is specified in seconds.
+By default a background scanning is considered every 300 seconds (5 minutes).
+The 
+.Ar interval
+may not be set to less than 15 seconds.
 .It Cm bintval Ar interval
 Set the interval at which beacon frames are sent when operating in
 ad-hoc or ap mode.
@@ -698,7 +739,7 @@ or
 (Atheros Static Turbo mode),
 and
 .Cm t
-(Atheros Dynamic Turbo mode, or appendeded to ``st'' and ``dt'').
+(Atheros Dynamic Turbo mode, or appended to ``st'' and ``dt'').
 The full set of channel widths following a '/' are:
 .Cm 5 
 (5MHz aka quarter-rate channel),
@@ -714,6 +755,12 @@ a 40MHz HT channel specification may include the location
 of the extension channel by appending ``+'' or ``-'' for above and below,
 respectively; e.g. ``2437:ht/40+'' specifies 40MHz wide HT operation 
 with the center channel at frequency 2437 and the extension channel above.
+.It Cm doth
+Enable inclusion of an 802.11h country information element in beacon
+frames transmitted when operating as an access point.
+By default 802.11h is enabled if the device is capable.
+To disable 802.11h use
+.Fl doth .
 .It Cm deftxkey Ar index
 Set the default key to use for transmission.
 Typically this is only set when using WEP encryption.
@@ -730,6 +777,23 @@ The
 specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
+.It Cm dturbo
+Enable the use of Atheros Dynamic Turbo mode when communicating with
+another Dynamic Turbo-capable station.
+Dynamic Turbo mode is an Atheros-specific mechanism by which
+stations switch between normal 802.11 operation and a ``boosted''
+mode in which a 40MHz wide channel is used for communication.
+Stations using Dynamic Turbo mode operate boosted only when the
+channel is free of non-dturbo stations; when a non-dturbo station
+is identified on the channel all stations will automatically drop
+back to normal operation.
+By default, Dynamic Turbo mode is not enabled, even if the device is capable.
+Note that turbo mode (dynamic or static) is only allowed on some
+channels depending on the regulatory constraints; use the
+.Cm list chan
+command to identify the channels where turbo mode may be used.
+To disable Dynamic Turbo mode use
+.Fl dturbo .
 .It Cm fragthreshold Ar length
 Set the threshold for which transmitted frames are broken into fragments.
 The
@@ -752,6 +816,19 @@ By default, the SSID is included in beacon frames and
 undirected probe request frames are answered.
 To re-enable the broadcast of the SSID etc., use
 .Fl hidessid .
+.It Cm ff
+Enable the user of Atheros Fast Frames when communicating with
+another Fast Frames-capable station.
+Fast Frames are an encapsulation technique by which two 802.3
+frames are transmitted in a single 802.11 frame.
+This can noticeably improve throughput but requires that the
+receiving station understand how to decapsulate the frame.
+Fast frame use is negotiated using the Atheros 802.11 vendor-specific
+protocol extension so enabling use is safe when communicating with
+non-Atheros devices.
+By default, use of fast frames is enabled if the device is capable.
+To explicitly disable fast frames, use
+.Fl ff .
 .It Cm list active
 Display the list of channels available for use taking into account
 any restrictions set with the
@@ -806,7 +883,7 @@ flag may be used to display long SSIDs.
 This information may be updated automatically by the adaptor
 and/or with a
 .Cm scan
-request.
+request or through background scanning.
 .Cm list ap
 is another way of requesting this information.
 .It Cm list sta
@@ -814,6 +891,7 @@ When operating as an access point display the stations that are
 currently associated.
 When operating in ad-hoc mode display stations identified as
 neighbors in the IBSS.
+When operating in station mode display the access point.
 Capabilities advertised by the stations are described under
 the
 .Cm scan
@@ -828,6 +906,9 @@ Indicates that the station is permitted to send/receive data frames.
 Extended Rate Phy (ERP).
 Indicates that the station is operating in an 802.11g network
 using extended transmit rates.
+.It Li H
+High Throughput (HT).
+Indicates that the station is using MCS to send/receive frames.
 .It Li P
 Power Save.
 Indicates that the station is operating in power save mode.
@@ -857,13 +938,12 @@ When operating as a client, the station will conserve power by
 periodically turning off the radio and listening for
 messages from the access point telling it there are packets waiting.
 The station must then retrieve the packets.
-When operating as an access point, the station must honor power
-save operation of associated clients.
-Not all devices support power save operation, either as a client
-or as an access point.
+Not all devices support power save operation as a client.
+The 802.11 specification requires that all access points support
+power save but some drivers do not.
 Use
 .Fl powersave
-to disable powersave operation.
+to disable powersave operation when operating as a client.
 .It Cm powersavesleep Ar sleep
 Set the desired max powersave sleep time in TU's (1024 usecs).
 By default the max powersave sleep time is 100 TU's.
@@ -878,6 +958,9 @@ and
 .Cm rtscts
 (RTS/CTS).
 Technique names are case insensitive.
+Not all devices support
+.Cm cts
+as a protection technique.
 .It Cm pureg
 When operating as an access point in 802.11g mode allow only
 11g-capable stations to associate (11b-only stations are not
@@ -900,8 +983,81 @@ argument may be one of
 By default, the device is left to handle this if it is
 capable; otherwise, the operating system will automatically
 attempt to reestablish communication.
-Manual mode is mostly useful when an application wants to
-control the selection of an access point.
+Manual mode is used by applications such as
+.Xr wpa_supplicant 8
+that want to control the selection of an access point.
+.It Cm roam:rssi11a Ar rssi
+Set the threshold for controlling roaming when operating in an
+802.11a BSS.
+The
+.Ar rssi
+parameter specifies the receive signal strength in .5 dBm units
+at which roaming should be considered.
+If the current rssi drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+By default
+.Ar rssi
+is set to 7 dBm.
+.It Cm roam:rssi11b Ar rssi
+Set the threshold for controlling roaming when operating in an
+802.11b-only BSS.
+See 
+.Cm roam:rssi11a
+for a description of this parameter.
+By default
+.Ar rssi
+is set to 7 dBm.
+.It Cm roam:rssi11g Ar rssi
+Set the threshold for controlling roaming when operating in a
+(mixed) 802.11g BSS.
+See 
+.Cm roam:rssi11a
+for a description of this parameter.
+By default
+.Ar rssi
+is set to 7 dBm.
+.It Cm roam:rate11a Ar rate
+Set the threshold for controlling roaming when operating in an
+802.11a BSS.
+The
+.Ar rate
+parameter specifies the transmit rate in megabits
+at which roaming should be considered.
+If the current transmit rate drops below this setting and background scanning
+is enabled, then the system will check if a more desirable access point is
+available and switch over to it.
+The current scan cache contents are used if they are considered
+valid according to the
+.Cm scanvalid
+parameter; otherwise a background scan operation is triggered before
+any selection occurs.
+By default
+.Ar rate
+is set to 12 Mb/s.
+.It Cm roam:rate11b Ar rate
+Set the threshold for controlling roaming when operating in an
+802.11b-only BSS.
+See 
+.Cm roam:rate11a
+for a description of this parameter.
+By default
+.Ar rate
+is set to 1 Mb/s.
+.It Cm roam:rate11g Ar rate
+Set the threshold for controlling roaming when operating in a
+(mixed) 802.11g BSS.
+See 
+.Cm roam:rate11a
+for a description of this parameter.
+By default
+.Ar rate
+is set to 5 Mb/s.
 .It Cm rtsthreshold Ar length
 Set the threshold for which
 transmitted frames are preceded by transmission of an
@@ -979,6 +1135,25 @@ Short slot time.
 Indicates that the network is using a short slot time.
 .El
 .Pp
+Interesting information elements captured from the neighboring
+stations are displayed at the end of each row.
+Possible elements are:
+.Cm WME
+(station supports WME),
+.Cm WPA
+(station supports WPA),
+.Cm RSN
+(station supports 802.11i/RSN),
+.Cm HT
+(station supports 802.11n/HT communication),
+.Cm ATH
+(station supoprts Atheros protocol extensions),
+.Cm VEN
+(station supports unknown vendor-specific extensions).
+If the
+.Fl v
+flag is used the information element contents will be shown.
+.Pp
 The
 .Cm list scan
 request can be used to show recent scan results without
@@ -987,6 +1162,19 @@ initiating a new scan.
 The
 .Fl v
 flag may be used to prevent the shortening of long SSIDs.
+.It Cm scanvalid Ar threshold
+Set the maximum time the scan cache contents are considered valid;
+i.e. will be used without first triggering a scan operation to
+refresh the data.
+The
+.Ar threshold
+parameter is specified in seconds and defaults to 60 seconds.
+The minimum setting for
+.Ar threshold
+is 10 seconds.
+One should take care setting this threshold; if it is set too low
+then attempts to roam to another access point may trigger unnecessary
+background scan operations.
 .It Cm stationname Ar name
 Set the name of this station.
 It appears that the station name is not really part of the IEEE 802.11
