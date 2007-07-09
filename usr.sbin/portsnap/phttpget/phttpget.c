@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 static const char *	env_HTTP_PROXY;
 static char *		env_HTTP_PROXY_AUTH;
 static const char *	env_HTTP_USER_AGENT;
+static char *		env_HTTP_TIMEOUT;
 static const char *	proxyport;
 static char *		proxyauth;
 
@@ -124,6 +125,7 @@ readenv(void)
 	char *proxy_auth_userpass, *proxy_auth_userpass64, *p;
 	char *proxy_auth_user = NULL;
 	char *proxy_auth_pass = NULL;
+	long http_timeout;
 
 	env_HTTP_PROXY = getenv("HTTP_PROXY");
 	if (env_HTTP_PROXY == NULL)
@@ -180,6 +182,17 @@ readenv(void)
 	env_HTTP_USER_AGENT = getenv("HTTP_USER_AGENT");
 	if (env_HTTP_USER_AGENT == NULL)
 		env_HTTP_USER_AGENT = "phttpget/0.1";
+
+	env_HTTP_TIMEOUT = getenv("HTTP_TIMEOUT");
+	if (env_HTTP_TIMEOUT != NULL) {
+		http_timeout = strtol(env_HTTP_TIMEOUT, &p, 10);
+		if ((*env_HTTP_TIMEOUT == '\0') || (*p != '\0') ||
+		    (http_timeout < 0))
+			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
+			    env_HTTP_TIMEOUT);
+		else
+			timo.tv_sec = http_timeout;
+	}
 }
 
 static int
@@ -198,7 +211,7 @@ makerequest(char ** buf, char * path, char * server, int connclose)
 	    env_HTTP_PROXY ? server : "",
 	    path, server, env_HTTP_USER_AGENT,
 	    proxyauth ? proxyauth : "",
-	    connclose ? "Connection: Close\r\n" : "");
+	    connclose ? "Connection: Close\r\n" : "Connection: Keep-Alive\r\n");
 	if (buflen == -1)
 		err(1, "asprintf");
 	return(buflen);
@@ -294,6 +307,7 @@ main(int argc, char *argv[])
 	int nreq = 0;		/* Number of next request to send */
 	int nres = 0;		/* Number of next reply to receive */
 	int pipelined = 0;	/* != 0 if connection in pipelined mode. */
+	int keepalive;		/* != 0 if HTTP/1.0 keep-alive rcvd. */
 	int sd = -1;		/* Socket descriptor */
 	int sdflags = 0;	/* Flags on the socket sd */
 	int fd = -1;		/* Descriptor for download target file */
@@ -431,6 +445,7 @@ main(int argc, char *argv[])
 		statuscode = 0;
 		contentlength = -1;
 		chunked = 0;
+		keepalive = 0;
 		do {
 			/* Get a header line */
 			error = readln(sd, resbuf, &resbuflen, &resbufpos);
@@ -484,11 +499,16 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			/* Check for "Connection: close" header */
+			/*
+			 * Check for "Connection: close" or
+			 * "Connection: Keep-Alive" header
+			 */
 			if (strncmp(hln, "Connection:", 11) == 0) {
 				hln += 11;
 				if (strstr(hln, "close") != NULL)
 					pipelined = 0;
+				if (strstr(hln, "Keep-Alive") != NULL)
+					keepalive = 1;
 
 				/* Next header... */
 				continue;
@@ -660,7 +680,7 @@ main(int argc, char *argv[])
 		 * If necessary, clean up this connection so that we
 		 * can start a new one.
 		 */
-		if (pipelined == 0)
+		if (pipelined == 0 && keepalive == 0)
 			goto cleanupconn;
 		continue;
 
