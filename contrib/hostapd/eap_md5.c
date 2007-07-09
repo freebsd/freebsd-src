@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-MD5 server
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,10 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "common.h"
@@ -36,10 +33,9 @@ static void * eap_md5_init(struct eap_sm *sm)
 {
 	struct eap_md5_data *data;
 
-	data = malloc(sizeof(*data));
+	data = wpa_zalloc(sizeof(*data));
 	if (data == NULL)
-		return data;
-	memset(data, 0, sizeof(*data));
+		return NULL;
 	data->state = CONTINUE;
 
 	return data;
@@ -66,8 +62,8 @@ static u8 * eap_md5_buildReq(struct eap_sm *sm, void *priv, int id,
 		return NULL;
 	}
 
-	*reqDataLen = sizeof(*req) + 2 + CHALLENGE_LEN;
-	req = malloc(*reqDataLen);
+	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_MD5, reqDataLen,
+			    1 + CHALLENGE_LEN, EAP_CODE_REQUEST, id, &pos);
 	if (req == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-MD5: Failed to allocate memory for "
 			   "request");
@@ -75,11 +71,6 @@ static u8 * eap_md5_buildReq(struct eap_sm *sm, void *priv, int id,
 		return NULL;
 	}
 
-	req->code = EAP_CODE_REQUEST;
-	req->identifier = id;
-	req->length = htons(*reqDataLen);
-	pos = (u8 *) (req + 1);
-	*pos++ = EAP_TYPE_MD5;
 	*pos++ = CHALLENGE_LEN;
 	memcpy(pos, data->challenge, CHALLENGE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-MD5: Challenge", pos, CHALLENGE_LEN);
@@ -93,23 +84,19 @@ static u8 * eap_md5_buildReq(struct eap_sm *sm, void *priv, int id,
 static Boolean eap_md5_check(struct eap_sm *sm, void *priv,
 			     u8 *respData, size_t respDataLen)
 {
-	struct eap_hdr *resp;
-	u8 *pos;
+	const u8 *pos;
 	size_t len;
 
-	resp = (struct eap_hdr *) respData;
-	pos = (u8 *) (resp + 1);
-	if (respDataLen < sizeof(*resp) + 2 || *pos != EAP_TYPE_MD5 ||
-	    (len = ntohs(resp->length)) > respDataLen) {
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_MD5,
+			       respData, respDataLen, &len);
+	if (pos == NULL || len < 1) {
 		wpa_printf(MSG_INFO, "EAP-MD5: Invalid frame");
 		return TRUE;
 	}
-	pos++;
-	if (*pos != MD5_MAC_LEN ||
-	    sizeof(*resp) + 2 + MD5_MAC_LEN > len) {
+	if (*pos != MD5_MAC_LEN || 1 + MD5_MAC_LEN > len) {
 		wpa_printf(MSG_INFO, "EAP-MD5: Invalid response "
-			   "(response_len=%d respDataLen=%lu",
-			   *pos, (unsigned long) respDataLen);
+			   "(response_len=%d payload_len=%lu",
+			   *pos, (unsigned long) len);
 		return TRUE;
 	}
 
@@ -122,22 +109,28 @@ static void eap_md5_process(struct eap_sm *sm, void *priv,
 {
 	struct eap_md5_data *data = priv;
 	struct eap_hdr *resp;
-	u8 *pos;
+	const u8 *pos;
 	const u8 *addr[3];
-	size_t len[3];
+	size_t len[3], plen;
 	u8 hash[MD5_MAC_LEN];
 
-	if (sm->user == NULL || sm->user->password == NULL) {
-		wpa_printf(MSG_INFO, "EAP-MD5: Password not configured");
+	if (sm->user == NULL || sm->user->password == NULL ||
+	    sm->user->password_hash) {
+		wpa_printf(MSG_INFO, "EAP-MD5: Plaintext password not "
+			   "configured");
 		data->state = FAILURE;
 		return;
 	}
 
-	resp = (struct eap_hdr *) respData;
-	pos = (u8 *) (resp + 1);
-	pos += 2; /* Skip type and len */
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_MD5,
+			       respData, respDataLen, &plen);
+	if (pos == NULL || *pos != MD5_MAC_LEN || plen < 1 + MD5_MAC_LEN)
+		return; /* Should not happen - frame already validated */
+
+	pos++; /* Skip response len */
 	wpa_hexdump(MSG_MSGDUMP, "EAP-MD5: Response", pos, MD5_MAC_LEN);
 
+	resp = (struct eap_hdr *) respData;
 	addr[0] = &resp->identifier;
 	len[0] = 1;
 	addr[1] = sm->user->password;
@@ -170,15 +163,26 @@ static Boolean eap_md5_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
-const struct eap_method eap_method_md5 =
+int eap_server_md5_register(void)
 {
-	.method = EAP_TYPE_MD5,
-	.name = "MD5",
-	.init = eap_md5_init,
-	.reset = eap_md5_reset,
-	.buildReq = eap_md5_buildReq,
-	.check = eap_md5_check,
-	.process = eap_md5_process,
-	.isDone = eap_md5_isDone,
-	.isSuccess = eap_md5_isSuccess,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_IETF, EAP_TYPE_MD5, "MD5");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_md5_init;
+	eap->reset = eap_md5_reset;
+	eap->buildReq = eap_md5_buildReq;
+	eap->check = eap_md5_check;
+	eap->process = eap_md5_process;
+	eap->isDone = eap_md5_isDone;
+	eap->isSuccess = eap_md5_isSuccess;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}

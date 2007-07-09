@@ -2,8 +2,7 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2006, Jouni Malinen <jkmaline@cc.hut.fi> and
-contributors
+Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is dual-licensed under both the GPL version 2 and BSD
@@ -27,13 +26,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (this copy of the license is in COPYING file)
 
 
-Alternatively, this software may be distributed under the terms of BSD
-license:
+Alternatively, this software may be distributed, used, and modified
+under the terms of BSD license:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -92,9 +91,9 @@ Current hardware/software requirements:
 
 	madwifi driver for cards based on Atheros chip set (ar521x)
 	(http://sourceforge.net/projects/madwifi/)
-	Please note that you will need to modify the hostapd Makefile
-	to use correct path for madwifi driver root directory
-	(CFLAGS += -I../head line in Makefile).
+	Please note that you will need to add the correct path for
+	madwifi driver root directory in .config (see defconfig file for
+	an example: CFLAGS += -I<path>)
 
 	Prism54 driver for Intersil/Conexant Prism GT/Duette/Indigo
 	(http://www.prism54.org/)
@@ -157,14 +156,6 @@ User space daemon, hostapd, includes Authenticator functionality. It
 receives 802.1X (EAPOL) frames from the Supplicant using the wlan#ap
 device that is also used with IEEE 802.11 management frames. The
 frames to the Supplicant are sent using the same device.
-
-hostapd includes a minimal colocated Authentication Server for testing
-purposes. It only requests the identity of the Supplicant and
-authorizes any host that is able to send a valid EAP Response
-frame. This can be used for quick testing since it does not require an
-external Authentication Server, but it should not be used for any real
-authentication purposes since no keys are required and anyone can
-authenticate.
 
 The normal configuration of the Authenticator would use an external
 Authentication Server. hostapd supports RADIUS encapsulation of EAP

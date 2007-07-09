@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-Identity
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,10 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "common.h"
@@ -32,10 +29,9 @@ static void * eap_identity_init(struct eap_sm *sm)
 {
 	struct eap_identity_data *data;
 
-	data = malloc(sizeof(*data));
+	data = wpa_zalloc(sizeof(*data));
 	if (data == NULL)
-		return data;
-	memset(data, 0, sizeof(*data));
+		return NULL;
 	data->state = CONTINUE;
 
 	return data;
@@ -61,7 +57,7 @@ static void eap_identity_reset(struct eap_sm *sm, void *priv)
 
 
 static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
-			     size_t *reqDataLen)
+				  size_t *reqDataLen)
 {
 	struct eap_identity_data *data = priv;
 	struct eap_hdr *req;
@@ -76,8 +72,8 @@ static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
 		req_data = NULL;
 		req_data_len = 0;
 	}
-	*reqDataLen = sizeof(*req) + 1 + req_data_len;
-	req = malloc(*reqDataLen);
+	req = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_IDENTITY, reqDataLen,
+			    req_data_len, EAP_CODE_REQUEST, id, &pos);
 	if (req == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-Identity: Failed to allocate "
 			   "memory for request");
@@ -85,11 +81,6 @@ static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
 		return NULL;
 	}
 
-	req->code = EAP_CODE_REQUEST;
-	req->identifier = id;
-	req->length = htons(*reqDataLen);
-	pos = (u8 *) (req + 1);
-	*pos++ = EAP_TYPE_IDENTITY;
 	if (req_data)
 		memcpy(pos, req_data, req_data_len);
 
@@ -100,14 +91,12 @@ static u8 * eap_identity_buildReq(struct eap_sm *sm, void *priv, int id,
 static Boolean eap_identity_check(struct eap_sm *sm, void *priv,
 			     u8 *respData, size_t respDataLen)
 {
-	struct eap_hdr *resp;
-	u8 *pos;
+	const u8 *pos;
 	size_t len;
 
-	resp = (struct eap_hdr *) respData;
-	pos = (u8 *) (resp + 1);
-	if (respDataLen < sizeof(*resp) + 1 || *pos != EAP_TYPE_IDENTITY ||
-	    (len = ntohs(resp->length)) > respDataLen) {
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_IDENTITY,
+			       respData, respDataLen, &len);
+	if (pos == NULL) {
 		wpa_printf(MSG_INFO, "EAP-Identity: Invalid frame");
 		return TRUE;
 	}
@@ -120,9 +109,8 @@ static void eap_identity_process(struct eap_sm *sm, void *priv,
 			    u8 *respData, size_t respDataLen)
 {
 	struct eap_identity_data *data = priv;
-	struct eap_hdr *resp;
-	u8 *pos;
-	int len;
+	const u8 *pos;
+	size_t len;
 
 	if (data->pick_up) {
 		if (eap_identity_check(sm, data, respData, respDataLen)) {
@@ -134,15 +122,11 @@ static void eap_identity_process(struct eap_sm *sm, void *priv,
 		data->pick_up = 0;
 	}
 
-	resp = (struct eap_hdr *) respData;
-	len = ntohs(resp->length);
-	pos = (u8 *) (resp + 1);
-	pos++;
-	len -= sizeof(*resp) + 1;
-	if (len < 0) {
-		data->state = FAILURE;
-		return;
-	}
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_IDENTITY,
+			       respData, respDataLen, &len);
+	if (pos == NULL)
+		return; /* Should not happen - frame already validated */
+
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-Identity: Peer identity", pos, len);
 	free(sm->identity);
 	sm->identity = malloc(len);
@@ -170,16 +154,28 @@ static Boolean eap_identity_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
-const struct eap_method eap_method_identity =
+int eap_server_identity_register(void)
 {
-	.method = EAP_TYPE_IDENTITY,
-	.name = "Identity",
-	.init = eap_identity_init,
-	.initPickUp = eap_identity_initPickUp,
-	.reset = eap_identity_reset,
-	.buildReq = eap_identity_buildReq,
-	.check = eap_identity_check,
-	.process = eap_identity_process,
-	.isDone = eap_identity_isDone,
-	.isSuccess = eap_identity_isSuccess,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_IETF, EAP_TYPE_IDENTITY,
+				      "Identity");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_identity_init;
+	eap->initPickUp = eap_identity_initPickUp;
+	eap->reset = eap_identity_reset;
+	eap->buildReq = eap_identity_buildReq;
+	eap->check = eap_identity_check;
+	eap->process = eap_identity_process;
+	eap->isDone = eap_identity_isDone;
+	eap->isSuccess = eap_identity_isSuccess;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}

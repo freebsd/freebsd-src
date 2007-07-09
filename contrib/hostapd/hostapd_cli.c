@@ -1,6 +1,6 @@
 /*
  * hostapd - command line interface for hostapd daemon
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,11 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
+#include "includes.h"
 #include <dirent.h>
 
 #include "wpa_ctrl.h"
@@ -25,7 +21,7 @@
 
 static const char *hostapd_cli_version =
 "hostapd_cli v" VERSION_STR "\n"
-"Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi> and contributors";
+"Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi> and contributors";
 
 
 static const char *hostapd_cli_license =
@@ -47,7 +43,7 @@ static const char *hostapd_cli_full_license =
 "\n"
 "You should have received a copy of the GNU General Public License\n"
 "along with this program; if not, write to the Free Software\n"
-"Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\n"
+"Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA\n"
 "\n"
 "Alternatively, this software may be distributed under the terms of the\n"
 "BSD license.\n"
@@ -83,8 +79,9 @@ static const char *hostapd_cli_full_license =
 static const char *commands_help =
 "Commands:\n"
 "   mib                  get MIB variables (dot1x, dot11, radius)\n"
-"   sta <addr>           get MIB vatiables for one station\n"
+"   sta <addr>           get MIB variables for one station\n"
 "   all_sta              get MIB variables for all stations\n"
+"   new_sta <addr>       add a new station\n"
 "   help                 show this usage help\n"
 "   interface [ifname]   show interfaces/select interface\n"
 "   level <debug level>  change debug level\n"
@@ -214,6 +211,20 @@ static int hostapd_cli_cmd_sta(struct wpa_ctrl *ctrl, int argc, char *argv[])
 		return -1;
 	}
 	snprintf(buf, sizeof(buf), "STA %s", argv[0]);
+	return wpa_ctrl_command(ctrl, buf);
+}
+
+
+static int hostapd_cli_cmd_new_sta(struct wpa_ctrl *ctrl, int argc,
+				   char *argv[])
+{
+	char buf[64];
+	if (argc != 1) {
+		printf("Invalid 'new_sta' command - exactly one argument, STA "
+		       "address, is required.\n");
+		return -1;
+	}
+	snprintf(buf, sizeof(buf), "NEW_STA %s", argv[0]);
 	return wpa_ctrl_command(ctrl, buf);
 }
 
@@ -365,6 +376,7 @@ static struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	{ "mib", hostapd_cli_cmd_mib },
 	{ "sta", hostapd_cli_cmd_sta },
 	{ "all_sta", hostapd_cli_cmd_all_sta },
+	{ "new_sta", hostapd_cli_cmd_new_sta },
 	{ "help", hostapd_cli_cmd_help },
 	{ "interface", hostapd_cli_cmd_interface },
 	{ "level", hostapd_cli_cmd_level },
@@ -525,6 +537,7 @@ int main(int argc, char *argv[])
 			printf("%s\n", hostapd_cli_version);
 			return 0;
 		case 'i':
+			free(ctrl_ifname);
 			ctrl_ifname = strdup(optarg);
 			break;
 		case 'p':

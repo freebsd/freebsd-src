@@ -1,6 +1,6 @@
 /*
  * RC4 stream cipher
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,7 +12,8 @@
  * See README and COPYING for more details.
  */
 
-#include <stdio.h>
+#include "includes.h"
+
 #include "common.h"
 #include "rc4.h"
 
@@ -35,7 +36,7 @@ void rc4_skip(const u8 *key, size_t keylen, size_t skip,
 {
 	u32 i, j, k;
 	u8 S[256], *pos;
-	int kpos;
+	size_t kpos;
 
 	/* Setup RC4 state */
 	for (i = 0; i < 256; i++)
