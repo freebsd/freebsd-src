@@ -1,6 +1,6 @@
 /*
- * hostapd / EAP-PAX (draft-clancy-eap-pax-04.txt) server
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / EAP-PAX (RFC 4746) server
+ * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,10 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "common.h"
@@ -24,6 +21,11 @@
 
 /*
  * Note: only PAX_STD subprotocol is currently supported
+ *
+ * TODO: Add support with PAX_SEC with the mandatory to implement ciphersuite
+ * (HMAC_SHA1_128, IANA DH Group 14 (2048 bits), RSA-PKCS1-V1_5) and
+ * recommended ciphersuite (HMAC_SHA256_128, IANA DH Group 15 (3072 bits),
+ * RSAES-OAEP).
  */
 
 struct eap_pax_data {
@@ -50,13 +52,12 @@ static void * eap_pax_init(struct eap_sm *sm)
 {
 	struct eap_pax_data *data;
 
-	data = malloc(sizeof(*data));
+	data = wpa_zalloc(sizeof(*data));
 	if (data == NULL)
-		return data;
-	memset(data, 0, sizeof(*data));
+		return NULL;
 	data->state = PAX_STD_1;
 	/*
-	 * TODO: make this configurable once EAP_PAX_MAC_AES_CBC_MAC_128 is
+	 * TODO: make this configurable once EAP_PAX_HMAC_SHA256_128 is
 	 * supported
 	 */
 	data->mac_id = EAP_PAX_MAC_HMAC_SHA1_128;
@@ -160,6 +161,8 @@ static u8 * eap_pax_build_std_3(struct eap_sm *sm,
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: MAC_CK(B, CID)",
 		    pos, EAP_PAX_MAC_LEN);
 	pos += EAP_PAX_MAC_LEN;
+
+	/* Optional ADE could be added here, if needed */
 
 	eap_pax_mac(data->mac_id, data->ick, EAP_PAX_ICK_LEN,
 		    (u8 *) req, *reqDataLen - EAP_PAX_ICV_LEN,
@@ -319,7 +322,7 @@ static void eap_pax_process_std_2(struct eap_sm *sm,
 	pos += EAP_PAX_RAND_LEN;
 	left -= EAP_PAX_RAND_LEN;
 
-	if (left < 2 || 2 + ((pos[0] << 8) | pos[1]) > left) {
+	if (left < 2 || (size_t) 2 + ((pos[0] << 8) | pos[1]) > left) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Too short PAX_STD-2 (CID)");
 		return;
 	}
@@ -331,7 +334,7 @@ static void eap_pax_process_std_2(struct eap_sm *sm,
 			   "CID");
 		return;
 	}
-	memcpy (data->cid, pos + 2, data->cid_len);
+	memcpy(data->cid, pos + 2, data->cid_len);
 	pos += 2 + data->cid_len;
 	left -= 2 + data->cid_len;
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-PAX: CID",
@@ -355,13 +358,18 @@ static void eap_pax_process_std_2(struct eap_sm *sm,
 	}
 
 	for (i = 0;
-	     i < EAP_MAX_METHODS && sm->user->methods[i] != EAP_TYPE_NONE;
+	     i < EAP_MAX_METHODS &&
+		     (sm->user->methods[i].vendor != EAP_VENDOR_IETF ||
+		      sm->user->methods[i].method != EAP_TYPE_NONE);
 	     i++) {
-		if (sm->user->methods[i] == EAP_TYPE_PAX)
+		if (sm->user->methods[i].vendor == EAP_VENDOR_IETF &&
+		    sm->user->methods[i].method == EAP_TYPE_PAX)
 			break;
 	}
 
-	if (sm->user->methods[i] != EAP_TYPE_PAX) {
+	if (i >= EAP_MAX_METHODS ||
+	    sm->user->methods[i].vendor != EAP_VENDOR_IETF ||
+	    sm->user->methods[i].method != EAP_TYPE_PAX) {
 		wpa_hexdump_ascii(MSG_DEBUG,
 				  "EAP-PAX: EAP-PAX not enabled for CID",
 				  (u8 *) data->cid, data->cid_len);
@@ -451,7 +459,8 @@ static void eap_pax_process(struct eap_sm *sm, void *priv,
 	struct eap_pax_hdr *resp;
 
 	if (sm->user == NULL || sm->user->password == NULL) {
-		wpa_printf(MSG_INFO, "EAP-MSCHAPV2: Password not configured");
+		wpa_printf(MSG_INFO, "EAP-PAX: Plaintext password not "
+			   "configured");
 		data->state = FAILURE;
 		return;
 	}
@@ -484,14 +493,36 @@ static u8 * eap_pax_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = malloc(EAP_PAX_MSK_LEN);
+	key = malloc(EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
 
-	*len = EAP_PAX_MSK_LEN;
+	*len = EAP_MSK_LEN;
 	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
 		    "Master Session Key", data->rand.e, 2 * EAP_PAX_RAND_LEN,
-		    EAP_PAX_MSK_LEN, key);
+		    EAP_MSK_LEN, key);
+
+	return key;
+}
+
+
+static u8 * eap_pax_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_pax_data *data = priv;
+	u8 *key;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	key = malloc(EAP_EMSK_LEN);
+	if (key == NULL)
+		return NULL;
+
+	*len = EAP_EMSK_LEN;
+	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
+		    "Extended Master Session Key",
+		    data->rand.e, 2 * EAP_PAX_RAND_LEN,
+		    EAP_EMSK_LEN, key);
 
 	return key;
 }
@@ -504,16 +535,28 @@ static Boolean eap_pax_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
-const struct eap_method eap_method_pax =
+int eap_server_pax_register(void)
 {
-	.method = EAP_TYPE_PAX,
-	.name = "PAX",
-	.init = eap_pax_init,
-	.reset = eap_pax_reset,
-	.buildReq = eap_pax_buildReq,
-	.check = eap_pax_check,
-	.process = eap_pax_process,
-	.isDone = eap_pax_isDone,
-	.getKey = eap_pax_getKey,
-	.isSuccess = eap_pax_isSuccess,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_IETF, EAP_TYPE_PAX, "PAX");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_pax_init;
+	eap->reset = eap_pax_reset;
+	eap->buildReq = eap_pax_buildReq;
+	eap->check = eap_pax_check;
+	eap->process = eap_pax_process;
+	eap->isDone = eap_pax_isDone;
+	eap->getKey = eap_pax_getKey;
+	eap->isSuccess = eap_pax_isSuccess;
+	eap->get_emsk = eap_pax_get_emsk;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}

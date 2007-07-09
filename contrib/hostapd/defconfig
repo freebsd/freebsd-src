@@ -22,6 +22,15 @@ CONFIG_DRIVER_HOSTAP=y
 # Driver interface for Prism54 driver
 #CONFIG_DRIVER_PRISM54=y
 
+# Driver interface for drivers using Devicescape IEEE 802.11 stack
+#CONFIG_DRIVER_DEVICESCAPE=y
+# Currently, driver_devicescape.c build requires some additional parameters
+# to be able to include some of the kernel header files. Following lines can
+# be used to set these (WIRELESS_DEV must point to the root directory of the
+# wireless-dev.git tree).
+#WIRELESS_DEV=/usr/src/wireless-dev
+#CFLAGS += -I$(WIRELESS_DEV)/net/mac80211
+
 # Driver interface for FreeBSD net80211 layer (e.g., Atheros driver)
 #CONFIG_DRIVER_BSD=y
 #CFLAGS += -I/usr/local/include
@@ -32,6 +41,15 @@ CONFIG_IAPP=y
 
 # WPA2/IEEE 802.11i RSN pre-authentication
 CONFIG_RSN_PREAUTH=y
+
+# PeerKey handshake for Station to Station Link (IEEE 802.11e DLS)
+CONFIG_PEERKEY=y
+
+# IEEE 802.11w (management frame protection)
+# This version is an experimental implementation based on IEEE 802.11w/D1.0
+# draft and is subject to change since the standard has not yet been finalized.
+# Driver support is also needed for IEEE 802.11w.
+#CONFIG_IEEE80211W=y
 
 # Integrated EAP server
 CONFIG_EAP=y
@@ -57,11 +75,22 @@ CONFIG_EAP_TTLS=y
 # EAP-SIM for the integrated EAP server
 #CONFIG_EAP_SIM=y
 
+# EAP-AKA for the integrated EAP server
+#CONFIG_EAP_AKA=y
+
 # EAP-PAX for the integrated EAP server
 #CONFIG_EAP_PAX=y
 
 # EAP-PSK for the integrated EAP server (this is _not_ needed for WPA-PSK)
 #CONFIG_EAP_PSK=y
+
+# EAP-SAKE for the integrated EAP server
+#CONFIG_EAP_SAKE=y
+
+# EAP-GPSK for the integrated EAP server
+#CONFIG_EAP_GPSK=y
+# Include support for optional SHA256 cipher suite in EAP-GPSK
+#CONFIG_EAP_GPSK_SHA256=y
 
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)

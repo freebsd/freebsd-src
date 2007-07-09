@@ -1,9 +1,136 @@
 ChangeLog for hostapd
 
-2006-02-08 - v0.4.8
+2007-05-28 - v0.5.8
+	* updated driver_devicescape.c to build with the current
+	  wireless-dev.git tree and net/d80211 changes
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-03.txt)
+	* fixed EAP-MSCHAPv2 server to use a space between S and M parameters
+	  in Success Request [Bug 203]
+	* added support for sending EAP-AKA Notifications in error cases
+	* RADIUS server: added support for processing duplicate messages
+	  (retransmissions from RADIUS client) by replying with the previous
+	  reply
+
+2006-12-31 - v0.5.7
+	* updated EAP-SAKE to RFC 4763 and the IANA-allocated EAP type 48
+	* updated EAP-PSK to use the IANA-allocated EAP type 47
+	* fixed EAP-PSK bit ordering of the Flags field
+	* fixed configuration reloading (SIGHUP) to re-initialize WPA PSKs
+	  by reading wpa_psk_file [Bug 181]
+	* fixed EAP-TTLS AVP parser processing for too short AVP lengths
+	* fixed IPv6 connection to RADIUS accounting server
+
+2006-11-24 - v0.5.6
+	* added support for configuring and controlling multiple BSSes per
+	  radio interface (bss=<ifname> in hostapd.conf); this is only
+	  available with Devicescape and test driver interfaces
+	* fixed PMKSA cache update in the end of successful RSN
+	  pre-authentication
+	* added support for dynamic VLAN configuration (i.e., selecting VLAN-ID
+	  for each STA based on RADIUS Access-Accept attributes); this requires
+	  VLAN support from the kernel driver/802.11 stack and this is
+	  currently only available with Devicescape and test driver interfaces
+	* driver_madwifi: fixed configuration of unencrypted modes (plaintext
+	  and IEEE 802.1X without WEP)
+	* removed STAKey handshake since PeerKey handshake has replaced it in
+	  IEEE 802.11ma and there are no known deployments of STAKey
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-01.txt)
+	* added preliminary implementation of IEEE 802.11w/D1.0 (management
+	  frame protection)
+	  (Note: this requires driver support to work properly.)
+	  (Note2: IEEE 802.11w is an unapproved draft and subject to change.)
+	* hlr_auc_gw: added support for GSM-Milenage (for EAP-SIM)
+	* hlr_auc_gw: added support for reading per-IMSI Milenage keys and
+	  parameters from a text file to make it possible to implement proper
+	  GSM/UMTS authentication server for multiple SIM/USIM cards using
+	  EAP-SIM/EAP-AKA
+	* fixed session timeout processing with drivers that do not use
+	  ieee802_11.c (e.g., madwifi)
+
+2006-08-27 - v0.5.5
+	* added 'hostapd_cli new_sta <addr>' command for adding a new STA into
+	  hostapd (e.g., to initialize wired network authentication based on an
+	  external signal)
+	* fixed hostapd to add PMKID KDE into 4-Way Handshake Message 1 when
+	  using WPA2 even if PMKSA caching is not used
+	* added -P<pid file> argument for hostapd to write the current process
+	  id into a file
+	* added support for RADIUS Authentication Server MIB (RFC 2619)
+
+2006-06-20 - v0.5.4
+	* fixed nt_password_hash build [Bug 144]
+	* added PeerKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS) to replace STAKey handshake
+	* added support for EAP Generalized Pre-Shared Key (EAP-GPSK,
+	  draft-clancy-emu-eap-shared-secret-00.txt)
+	* fixed a segmentation fault when RSN pre-authentication was completed
+	  successfully [Bug 152]
+
+2006-04-27 - v0.5.3
+	* do not build nt_password_hash and hlr_auc_gw by default to avoid
+	  requiring a TLS library for a successful build; these programs can be
+	  build with 'make nt_password_hash' and 'make hlr_auc_gw'
+	* added a new configuration option, eapol_version, that can be used to
+	  set EAPOL version to 1 (default is 2) to work around broken client
+	  implementations that drop EAPOL frames which use version number 2
+	  [Bug 89]
+	* added support for EAP-SAKE (no EAP method number allocated yet, so
+	  this is using the same experimental type 255 as EAP-PSK)
+	* fixed EAP-MSCHAPv2 message length validation
+
+2006-03-19 - v0.5.2
 	* fixed stdarg use in hostapd_logger(): if both stdout and syslog
 	  logging was enabled, hostapd could trigger a segmentation fault in
 	  vsyslog on some CPU -- C library combinations
+	* moved HLR/AuC gateway implementation for EAP-SIM/AKA into an external
+	  program to make it easier to use for implementing real SS7 gateway;
+	  eap_sim_db is not anymore used as a file name for GSM authentication
+	  triplets; instead, it is path to UNIX domain socket that will be used
+	  to communicate with the external gateway program (e.g., hlr_auc_gw)
+	* added example HLR/AuC gateway implementation, hlr_auc_gw, that uses
+	  local information (GSM authentication triplets from a text file and
+	  hardcoded AKA authentication data); this can be used to test EAP-SIM
+	  and EAP-AKA
+	* added Milenage algorithm (example 3GPP AKA algorithm) to hlr_auc_gw
+	  to make it possible to test EAP-AKA with real USIM cards (this is
+	  disabled by default; define AKA_USE_MILENAGE when building hlr_auc_gw
+	  to enable this)
+	* driver_madwifi: added support for getting station RSN IE from
+	  madwifi-ng svn r1453 and newer; this fixes RSN that was apparently
+	  broken with earlier change (r1357) in the driver
+	* changed EAP method registration to use a dynamic list of methods
+	  instead of a static list generated at build time
+	* fixed WPA message 3/4 not to encrypt Key Data field (WPA IE)
+	  [Bug 125]
+	* added ap_max_inactivity configuration parameter
+
+2006-01-29 - v0.5.1
+	* driver_test: added better support for multiple APs and STAs by using
+	  a directory with sockets that include MAC address for each device in
+	  the name (test_socket=DIR:/tmp/test)
+	* added support for EAP expanded type (vendor specific EAP methods)
+
+2005-12-18 - v0.5.0 (beginning of 0.5.x development releases)
+	* added experimental STAKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS); note: this is disabled by default in both
+	  build and runtime configuration (can be enabled with CONFIG_STAKEY=y
+	  and stakey=1)
+	* added support for EAP methods to use callbacks to external programs
+	  by buffering a pending request and processing it after the EAP method
+	  is ready to continue
+	* improved EAP-SIM database interface to allow external request to GSM
+	  HLR/AuC without blocking hostapd process
+	* added support for using EAP-SIM pseudonyms and fast re-authentication
+	* added support for EAP-AKA in the integrated EAP authenticator
+	* added support for matching EAP identity prefixes (e.g., "1"*) in EAP
+	  user database to allow EAP-SIM/AKA selection without extra roundtrip
+	  for EAP-Nak negotiation
+	* added support for storing EAP user password as NtPasswordHash instead
+	  of plaintext password when using MSCHAP or MSCHAPv2 for
+	  authentication (hash:<16-octet hex value>); added nt_password_hash
+	  tool for hashing password to generate NtPasswordHash
 
 2005-11-20 - v0.4.7 (beginning of 0.4.x stable releases)
 	* driver_wired: fixed EAPOL sending to optionally use PAE group address

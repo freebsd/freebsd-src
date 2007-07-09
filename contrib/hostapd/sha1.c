@@ -1,6 +1,6 @@
 /*
  * SHA1 hash implementation and interface functions
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "sha1.h"
@@ -36,9 +34,8 @@ void hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 {
 	unsigned char k_pad[64]; /* padding - key XORd with ipad/opad */
 	unsigned char tk[20];
-	int i;
 	const u8 *_addr[6];
-	size_t _len[6];
+	size_t _len[6], i;
 
 	if (num_elem > 5) {
 		/*
@@ -65,8 +62,8 @@ void hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	 * and text is the data being protected */
 
 	/* start out by storing key in ipad */
-	memset(k_pad, 0, sizeof(k_pad));
-	memcpy(k_pad, key, key_len);
+	os_memset(k_pad, 0, sizeof(k_pad));
+	os_memcpy(k_pad, key, key_len);
 	/* XOR key with ipad values */
 	for (i = 0; i < 64; i++)
 		k_pad[i] ^= 0x36;
@@ -80,8 +77,8 @@ void hmac_sha1_vector(const u8 *key, size_t key_len, size_t num_elem,
 	}
 	sha1_vector(1 + num_elem, _addr, _len, mac);
 
-	memset(k_pad, 0, sizeof(k_pad));
-	memcpy(k_pad, key, key_len);
+	os_memset(k_pad, 0, sizeof(k_pad));
+	os_memcpy(k_pad, key, key_len);
 	/* XOR key with opad values */
 	for (i = 0; i < 64; i++)
 		k_pad[i] ^= 0x5c;
@@ -129,7 +126,7 @@ void sha1_prf(const u8 *key, size_t key_len, const char *label,
 	u8 zero = 0, counter = 0;
 	size_t pos, plen;
 	u8 hash[SHA1_MAC_LEN];
-	size_t label_len = strlen(label);
+	size_t label_len = os_strlen(label);
 	const unsigned char *addr[4];
 	size_t len[4];
 
@@ -152,7 +149,7 @@ void sha1_prf(const u8 *key, size_t key_len, const char *label,
 		} else {
 			hmac_sha1_vector(key, key_len, 4, addr, len,
 					 hash);
-			memcpy(&buf[pos], hash, plen);
+			os_memcpy(&buf[pos], hash, plen);
 			break;
 		}
 		counter++;
@@ -180,7 +177,7 @@ void sha1_t_prf(const u8 *key, size_t key_len, const char *label,
 	unsigned char counter = 0;
 	size_t pos, plen;
 	u8 hash[SHA1_MAC_LEN];
-	size_t label_len = strlen(label);
+	size_t label_len = os_strlen(label);
 	u8 output_len[2];
 	const unsigned char *addr[5];
 	size_t len[5];
@@ -204,10 +201,10 @@ void sha1_t_prf(const u8 *key, size_t key_len, const char *label,
 		plen = buf_len - pos;
 		hmac_sha1_vector(key, key_len, 5, addr, len, hash);
 		if (plen >= SHA1_MAC_LEN) {
-			memcpy(&buf[pos], hash, SHA1_MAC_LEN);
+			os_memcpy(&buf[pos], hash, SHA1_MAC_LEN);
 			pos += SHA1_MAC_LEN;
 		} else {
-			memcpy(&buf[pos], hash, plen);
+			os_memcpy(&buf[pos], hash, plen);
 			break;
 		}
 		len[0] = SHA1_MAC_LEN;
@@ -224,18 +221,19 @@ void sha1_t_prf(const u8 *key, size_t key_len, const char *label,
  * @seed_len: Length of the seed
  * @out: Buffer for the generated pseudo-random key
  * @outlen: Number of bytes of key to generate
-*
+ * Returns: 0 on success, -1 on failure.
+ *
  * This function is used to derive new, cryptographically separate keys from a
  * given key in TLS. This PRF is defined in RFC 2246, Chapter 5.
  */
 int tls_prf(const u8 *secret, size_t secret_len, const char *label,
 	    const u8 *seed, size_t seed_len, u8 *out, size_t outlen)
 {
-	size_t L_S1, L_S2;
+	size_t L_S1, L_S2, i;
 	const u8 *S1, *S2;
 	u8 A_MD5[MD5_MAC_LEN], A_SHA1[SHA1_MAC_LEN];
 	u8 P_MD5[MD5_MAC_LEN], P_SHA1[SHA1_MAC_LEN];
-	int i, MD5_pos, SHA1_pos;
+	int MD5_pos, SHA1_pos;
 	const u8 *MD5_addr[3];
 	size_t MD5_len[3];
 	const unsigned char *SHA1_addr[3];
@@ -247,14 +245,14 @@ int tls_prf(const u8 *secret, size_t secret_len, const char *label,
 	MD5_addr[0] = A_MD5;
 	MD5_len[0] = MD5_MAC_LEN;
 	MD5_addr[1] = (unsigned char *) label;
-	MD5_len[1] = strlen(label);
+	MD5_len[1] = os_strlen(label);
 	MD5_addr[2] = seed;
 	MD5_len[2] = seed_len;
 
 	SHA1_addr[0] = A_SHA1;
 	SHA1_len[0] = SHA1_MAC_LEN;
 	SHA1_addr[1] = (unsigned char *) label;
-	SHA1_len[1] = strlen(label);
+	SHA1_len[1] = os_strlen(label);
 	SHA1_addr[2] = seed;
 	SHA1_len[2] = seed_len;
 
@@ -297,7 +295,7 @@ int tls_prf(const u8 *secret, size_t secret_len, const char *label,
 
 
 static void pbkdf2_sha1_f(const char *passphrase, const char *ssid,
-			  size_t ssid_len, int iterations, int count,
+			  size_t ssid_len, int iterations, unsigned int count,
 			  u8 *digest)
 {
 	unsigned char tmp[SHA1_MAC_LEN], tmp2[SHA1_MAC_LEN];
@@ -305,7 +303,7 @@ static void pbkdf2_sha1_f(const char *passphrase, const char *ssid,
 	unsigned char count_buf[4];
 	const u8 *addr[2];
 	size_t len[2];
-	size_t passphrase_len = strlen(passphrase);
+	size_t passphrase_len = os_strlen(passphrase);
 
 	addr[0] = (u8 *) ssid;
 	len[0] = ssid_len;
@@ -323,12 +321,12 @@ static void pbkdf2_sha1_f(const char *passphrase, const char *ssid,
 	count_buf[2] = (count >> 8) & 0xff;
 	count_buf[3] = count & 0xff;
 	hmac_sha1_vector((u8 *) passphrase, passphrase_len, 2, addr, len, tmp);
-	memcpy(digest, tmp, SHA1_MAC_LEN);
+	os_memcpy(digest, tmp, SHA1_MAC_LEN);
 
 	for (i = 1; i < iterations; i++) {
 		hmac_sha1((u8 *) passphrase, passphrase_len, tmp, SHA1_MAC_LEN,
 			  tmp2);
-		memcpy(tmp, tmp2, SHA1_MAC_LEN);
+		os_memcpy(tmp, tmp2, SHA1_MAC_LEN);
 		for (j = 0; j < SHA1_MAC_LEN; j++)
 			digest[j] ^= tmp2[j];
 	}
@@ -351,7 +349,7 @@ static void pbkdf2_sha1_f(const char *passphrase, const char *ssid,
 void pbkdf2_sha1(const char *passphrase, const char *ssid, size_t ssid_len,
 		 int iterations, u8 *buf, size_t buflen)
 {
-	int count = 0;
+	unsigned int count = 0;
 	unsigned char *pos = buf;
 	size_t left = buflen, plen;
 	unsigned char digest[SHA1_MAC_LEN];
@@ -361,24 +359,28 @@ void pbkdf2_sha1(const char *passphrase, const char *ssid, size_t ssid_len,
 		pbkdf2_sha1_f(passphrase, ssid, ssid_len, iterations, count,
 			      digest);
 		plen = left > SHA1_MAC_LEN ? SHA1_MAC_LEN : left;
-		memcpy(pos, digest, plen);
+		os_memcpy(pos, digest, plen);
 		pos += plen;
 		left -= plen;
 	}
 }
 
 
-#ifndef EAP_TLS_FUNCS
+#ifdef INTERNAL_SHA1
 
-typedef struct {
+struct SHA1Context {
 	u32 state[5];
 	u32 count[2];
 	unsigned char buffer[64];
-} SHA1_CTX;
+};
 
-static void SHA1Init(SHA1_CTX *context);
-static void SHA1Update(SHA1_CTX *context, const void *data, u32 len);
-static void SHA1Final(unsigned char digest[20], SHA1_CTX* context);
+typedef struct SHA1Context SHA1_CTX;
+
+#ifndef CONFIG_CRYPTO_INTERNAL
+static void SHA1Init(struct SHA1Context *context);
+static void SHA1Update(struct SHA1Context *context, const void *data, u32 len);
+static void SHA1Final(unsigned char digest[20], struct SHA1Context *context);
+#endif /* CONFIG_CRYPTO_INTERNAL */
 static void SHA1Transform(u32 state[5], const unsigned char buffer[64]);
 
 
@@ -393,7 +395,7 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 		 u8 *mac)
 {
 	SHA1_CTX ctx;
-	int i;
+	size_t i;
 
 	SHA1Init(&ctx);
 	for (i = 0; i < num_elem; i++)
@@ -402,19 +404,57 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len,
 }
 
 
-/**
- * sha1_transform - Perform one SHA-1 transform step
- * @state: SHA-1 state
- * @data: Input data for the SHA-1 transform
- *
- * This function is used to implement random number generation specified in
- * NIST FIPS Publication 186-2 for EAP-SIM. This PRF uses a function that is
- * similar to SHA-1, but has different message padding and as such, access to
- * just part of the SHA-1 is needed.
- */
-void sha1_transform(u8 *state, const u8 data[64])
+int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 {
-	SHA1Transform((u32 *) state, data);
+	u8 xkey[64];
+	u32 t[5], _t[5];
+	int i, j, m, k;
+	u8 *xpos = x;
+	u32 carry;
+
+	if (seed_len > sizeof(xkey))
+		seed_len = sizeof(xkey);
+
+	/* FIPS 186-2 + change notice 1 */
+
+	os_memcpy(xkey, seed, seed_len);
+	os_memset(xkey + seed_len, 0, 64 - seed_len);
+	t[0] = 0x67452301;
+	t[1] = 0xEFCDAB89;
+	t[2] = 0x98BADCFE;
+	t[3] = 0x10325476;
+	t[4] = 0xC3D2E1F0;
+
+	m = xlen / 40;
+	for (j = 0; j < m; j++) {
+		/* XSEED_j = 0 */
+		for (i = 0; i < 2; i++) {
+			/* XVAL = (XKEY + XSEED_j) mod 2^b */
+
+			/* w_i = G(t, XVAL) */
+			os_memcpy(_t, t, 20);
+			SHA1Transform(_t, xkey);
+			_t[0] = host_to_be32(_t[0]);
+			_t[1] = host_to_be32(_t[1]);
+			_t[2] = host_to_be32(_t[2]);
+			_t[3] = host_to_be32(_t[3]);
+			_t[4] = host_to_be32(_t[4]);
+			os_memcpy(xpos, _t, 20);
+
+			/* XKEY = (1 + XKEY + w_i) mod 2^b */
+			carry = 1;
+			for (k = 19; k >= 0; k--) {
+				carry += xkey[k] + xpos[k];
+				xkey[k] = carry & 0xff;
+				carry >>= 8;
+			}
+
+			xpos += SHA1_MAC_LEN;
+		}
+		/* x_j = w_0|w_1 */
+	}
+
+	return 0;
 }
 
 
@@ -479,11 +519,11 @@ Modified to run on Compaq Alpha hardware.
 
 -----------------
 Modified 4/01
-By Jouni Malinen <jkmaline@cc.hut.fi>
+By Jouni Malinen <j@w1.fi>
 Minor changes to match the coding style used in Dynamics.
 
 Modified September 24, 2004
-By Jouni Malinen <jkmaline@cc.hut.fi>
+By Jouni Malinen <j@w1.fi>
 Fixed alignment issue in SHA1Transform when SHA1HANDSOFF is defined.
 
 */
@@ -557,7 +597,7 @@ static void SHA1Transform(u32 state[5], const unsigned char buffer[64])
 #ifdef SHA1HANDSOFF
 	u32 workspace[16];
 	block = (CHAR64LONG16 *) workspace;
-	memcpy(block, buffer, 64);
+	os_memcpy(block, buffer, 64);
 #else
 	block = (CHAR64LONG16 *) buffer;
 #endif
@@ -597,14 +637,14 @@ static void SHA1Transform(u32 state[5], const unsigned char buffer[64])
 	/* Wipe variables */
 	a = b = c = d = e = 0;
 #ifdef SHA1HANDSOFF
-	memset(block, 0, 64);
+	os_memset(block, 0, 64);
 #endif
 }
 
 
 /* SHA1Init - Initialize new context */
 
-static void SHA1Init(SHA1_CTX* context)
+void SHA1Init(SHA1_CTX* context)
 {
 	/* SHA1 initialization constants */
 	context->state[0] = 0x67452301;
@@ -618,7 +658,7 @@ static void SHA1Init(SHA1_CTX* context)
 
 /* Run your data through this. */
 
-static void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
+void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 {
 	u32 i, j;
 	const unsigned char *data = _data;
@@ -631,7 +671,7 @@ static void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 		context->count[1]++;
 	context->count[1] += (len >> 29);
 	if ((j + len) > 63) {
-		memcpy(&context->buffer[j], data, (i = 64-j));
+		os_memcpy(&context->buffer[j], data, (i = 64-j));
 		SHA1Transform(context->state, context->buffer);
 		for ( ; i + 63 < len; i += 64) {
 			SHA1Transform(context->state, &data[i]);
@@ -639,7 +679,7 @@ static void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 		j = 0;
 	}
 	else i = 0;
-	memcpy(&context->buffer[j], &data[i], len - i);
+	os_memcpy(&context->buffer[j], &data[i], len - i);
 #ifdef VERBOSE
 	SHAPrintContext(context, "after ");
 #endif
@@ -648,7 +688,7 @@ static void SHA1Update(SHA1_CTX* context, const void *_data, u32 len)
 
 /* Add padding and return the message digest. */
 
-static void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
+void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 {
 	u32 i;
 	unsigned char finalcount[8];
@@ -671,324 +711,12 @@ static void SHA1Final(unsigned char digest[20], SHA1_CTX* context)
 	}
 	/* Wipe variables */
 	i = 0;
-	memset(context->buffer, 0, 64);
-	memset(context->state, 0, 20);
-	memset(context->count, 0, 8);
-	memset(finalcount, 0, 8);
+	os_memset(context->buffer, 0, 64);
+	os_memset(context->state, 0, 20);
+	os_memset(context->count, 0, 8);
+	os_memset(finalcount, 0, 8);
 }
 
 /* ===== end - public domain SHA1 implementation ===== */
 
-#endif /* EAP_TLS_FUNCS */
-
-
-#ifdef TEST_MAIN
-
-#include "md5.c"
-
-static int test_eap_fast(void)
-{
-	/* draft-cam-winget-eap-fast-01.txt */
-	const u8 pac_key[] = {
-		0x0B, 0x97, 0x39, 0x0F, 0x37, 0x51, 0x78, 0x09,
-		0x81, 0x1E, 0xFD, 0x9C, 0x6E, 0x65, 0x94, 0x2B,
-		0x63, 0x2C, 0xE9, 0x53, 0x89, 0x38, 0x08, 0xBA,
-		0x36, 0x0B, 0x03, 0x7C, 0xD1, 0x85, 0xE4, 0x14
-	};
-	const u8 seed[] = {
-		0x3F, 0xFB, 0x11, 0xC4, 0x6C, 0xBF, 0xA5, 0x7A,
-		0x54, 0x40, 0xDA, 0xE8, 0x22, 0xD3, 0x11, 0xD3,
-		0xF7, 0x6D, 0xE4, 0x1D, 0xD9, 0x33, 0xE5, 0x93,
-		0x70, 0x97, 0xEB, 0xA9, 0xB3, 0x66, 0xF4, 0x2A,
-		0x00, 0x00, 0x00, 0x02, 0x6A, 0x66, 0x43, 0x2A,
-		0x8D, 0x14, 0x43, 0x2C, 0xEC, 0x58, 0x2D, 0x2F,
-		0xC7, 0x9C, 0x33, 0x64, 0xBA, 0x04, 0xAD, 0x3A,
-		0x52, 0x54, 0xD6, 0xA5, 0x79, 0xAD, 0x1E, 0x00
-	};
-	const u8 master_secret[] = {
-		0x4A, 0x1A, 0x51, 0x2C, 0x01, 0x60, 0xBC, 0x02,
-		0x3C, 0xCF, 0xBC, 0x83, 0x3F, 0x03, 0xBC, 0x64,
-		0x88, 0xC1, 0x31, 0x2F, 0x0B, 0xA9, 0xA2, 0x77,
-		0x16, 0xA8, 0xD8, 0xE8, 0xBD, 0xC9, 0xD2, 0x29,
-		0x38, 0x4B, 0x7A, 0x85, 0xBE, 0x16, 0x4D, 0x27,
-		0x33, 0xD5, 0x24, 0x79, 0x87, 0xB1, 0xC5, 0xA2  
-	};
-	const u8 key_block[] = {
-		0x59, 0x59, 0xBE, 0x8E, 0x41, 0x3A, 0x77, 0x74,
-		0x8B, 0xB2, 0xE5, 0xD3, 0x60, 0xAC, 0x4D, 0x35,
-		0xDF, 0xFB, 0xC8, 0x1E, 0x9C, 0x24, 0x9C, 0x8B,
-		0x0E, 0xC3, 0x1D, 0x72, 0xC8, 0x84, 0x9D, 0x57,
-		0x48, 0x51, 0x2E, 0x45, 0x97, 0x6C, 0x88, 0x70,
-		0xBE, 0x5F, 0x01, 0xD3, 0x64, 0xE7, 0x4C, 0xBB,
-		0x11, 0x24, 0xE3, 0x49, 0xE2, 0x3B, 0xCD, 0xEF,
-		0x7A, 0xB3, 0x05, 0x39, 0x5D, 0x64, 0x8A, 0x44,
-		0x11, 0xB6, 0x69, 0x88, 0x34, 0x2E, 0x8E, 0x29,
-		0xD6, 0x4B, 0x7D, 0x72, 0x17, 0x59, 0x28, 0x05,
-		0xAF, 0xF9, 0xB7, 0xFF, 0x66, 0x6D, 0xA1, 0x96,
-		0x8F, 0x0B, 0x5E, 0x06, 0x46, 0x7A, 0x44, 0x84,
-		0x64, 0xC1, 0xC8, 0x0C, 0x96, 0x44, 0x09, 0x98,
-		0xFF, 0x92, 0xA8, 0xB4, 0xC6, 0x42, 0x28, 0x71
-	};
-	const u8 sks[] = {
-		0xD6, 0x4B, 0x7D, 0x72, 0x17, 0x59, 0x28, 0x05,
-		0xAF, 0xF9, 0xB7, 0xFF, 0x66, 0x6D, 0xA1, 0x96,
-		0x8F, 0x0B, 0x5E, 0x06, 0x46, 0x7A, 0x44, 0x84,
-		0x64, 0xC1, 0xC8, 0x0C, 0x96, 0x44, 0x09, 0x98,
-		0xFF, 0x92, 0xA8, 0xB4, 0xC6, 0x42, 0x28, 0x71
-	};
-	const u8 isk[] = {
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-	};
-	const u8 imck[] = {
-		0x16, 0x15, 0x3C, 0x3F, 0x21, 0x55, 0xEF, 0xD9,
-		0x7F, 0x34, 0xAE, 0xC8, 0x1A, 0x4E, 0x66, 0x80,
-		0x4C, 0xC3, 0x76, 0xF2, 0x8A, 0xA9, 0x6F, 0x96,
-		0xC2, 0x54, 0x5F, 0x8C, 0xAB, 0x65, 0x02, 0xE1,
-		0x18, 0x40, 0x7B, 0x56, 0xBE, 0xEA, 0xA7, 0xC5,
-		0x76, 0x5D, 0x8F, 0x0B, 0xC5, 0x07, 0xC6, 0xB9,
-		0x04, 0xD0, 0x69, 0x56, 0x72, 0x8B, 0x6B, 0xB8,
-		0x15, 0xEC, 0x57, 0x7B
-	};
-	const u8 msk[] = {
-		0x4D, 0x83, 0xA9, 0xBE, 0x6F, 0x8A, 0x74, 0xED,
-		0x6A, 0x02, 0x66, 0x0A, 0x63, 0x4D, 0x2C, 0x33,
-		0xC2, 0xDA, 0x60, 0x15, 0xC6, 0x37, 0x04, 0x51,
-		0x90, 0x38, 0x63, 0xDA, 0x54, 0x3E, 0x14, 0xB9,
-		0x27, 0x99, 0x18, 0x1E, 0x07, 0xBF, 0x0F, 0x5A,
-		0x5E, 0x3C, 0x32, 0x93, 0x80, 0x8C, 0x6C, 0x49,
-		0x67, 0xED, 0x24, 0xFE, 0x45, 0x40, 0xA0, 0x59,
-		0x5E, 0x37, 0xC2, 0xE9, 0xD0, 0x5D, 0x0A, 0xE3
-	};
-	u8 tlv[] = {
-		0x80, 0x0C, 0x00, 0x38, 0x00, 0x01, 0x01, 0x00,
-		0xD8, 0x6A, 0x8C, 0x68, 0x3C, 0x32, 0x31, 0xA8,
-		0x56, 0x63, 0xB6, 0x40, 0x21, 0xFE, 0x21, 0x14,
-		0x4E, 0xE7, 0x54, 0x20, 0x79, 0x2D, 0x42, 0x62,
-		0xC9, 0xBF, 0x53, 0x7F, 0x54, 0xFD, 0xAC, 0x58,
-		0x43, 0x24, 0x6E, 0x30, 0x92, 0x17, 0x6D, 0xCF,
-		0xE6, 0xE0, 0x69, 0xEB, 0x33, 0x61, 0x6A, 0xCC,
-		0x05, 0xC5, 0x5B, 0xB7
-	};
-	const u8 compound_mac[] = {
-		0x43, 0x24, 0x6E, 0x30, 0x92, 0x17, 0x6D, 0xCF,
-		0xE6, 0xE0, 0x69, 0xEB, 0x33, 0x61, 0x6A, 0xCC,
-		0x05, 0xC5, 0x5B, 0xB7
-	};
-	u8 buf[512];
-	const u8 *simck, *cmk;
-	int errors = 0;
-
-	printf("EAP-FAST test cases\n");
-
-	printf("- T-PRF (SHA1) test case / master_secret\n");
-	sha1_t_prf(pac_key, sizeof(pac_key), "PAC to master secret label hash",
-		   seed, sizeof(seed), buf, sizeof(master_secret));
-	if (memcmp(master_secret, buf, sizeof(master_secret)) != 0) {
-		printf("T-PRF test - FAILED!\n");
-		errors++;
-	}
-
-	printf("- PRF (TLS, SHA1/MD5) test case / key_block\n");
-	tls_prf(master_secret, sizeof(master_secret), "key expansion",
-		seed, sizeof(seed), buf, sizeof(key_block));
-	if (memcmp(key_block, buf, sizeof(key_block)) != 0) {
-		printf("PRF test - FAILED!\n");
-		errors++;
-	}
-
-	printf("- T-PRF (SHA1) test case / IMCK\n");
-	sha1_t_prf(sks, sizeof(sks), "Inner Methods Compound Keys",
-		   isk, sizeof(isk), buf, sizeof(imck));
-	if (memcmp(imck, buf, sizeof(imck)) != 0) {
-		printf("T-PRF test - FAILED!\n");
-		errors++;
-	}
-
-	simck = imck;
-	cmk = imck + 40;
-
-	printf("- T-PRF (SHA1) test case / MSK\n");
-	sha1_t_prf(simck, 40, "Session Key Generating Function",
-		   "", 0, buf, sizeof(msk));
-	if (memcmp(msk, buf, sizeof(msk)) != 0) {
-		printf("T-PRF test - FAILED!\n");
-		errors++;
-	}
-
-	printf("- Compound MAC test case\n");
-	memset(tlv + sizeof(tlv) - 20, 0, 20);
-	hmac_sha1(cmk, 20, tlv, sizeof(tlv), tlv + sizeof(tlv) - 20);
-	if (memcmp(tlv + sizeof(tlv) - 20, compound_mac, sizeof(compound_mac))
-	    != 0) {
-		printf("Compound MAC test - FAILED!\n");
-		errors++;
-	}
-
-	return errors;
-}
-
-
-static u8 key0[] =
-{
-	0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
-	0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
-	0x0b, 0x0b, 0x0b, 0x0b
-};
-static u8 data0[] = "Hi There";
-static u8 prf0[] =
-{
-	0xbc, 0xd4, 0xc6, 0x50, 0xb3, 0x0b, 0x96, 0x84,
-	0x95, 0x18, 0x29, 0xe0, 0xd7, 0x5f, 0x9d, 0x54,
-	0xb8, 0x62, 0x17, 0x5e, 0xd9, 0xf0, 0x06, 0x06,
-	0xe1, 0x7d, 0x8d, 0xa3, 0x54, 0x02, 0xff, 0xee,
-	0x75, 0xdf, 0x78, 0xc3, 0xd3, 0x1e, 0x0f, 0x88,
-	0x9f, 0x01, 0x21, 0x20, 0xc0, 0x86, 0x2b, 0xeb,
-	0x67, 0x75, 0x3e, 0x74, 0x39, 0xae, 0x24, 0x2e,
-	0xdb, 0x83, 0x73, 0x69, 0x83, 0x56, 0xcf, 0x5a
-};
-
-static u8 key1[] = "Jefe";
-static u8 data1[] = "what do ya want for nothing?";
-static u8 prf1[] =
-{
-	0x51, 0xf4, 0xde, 0x5b, 0x33, 0xf2, 0x49, 0xad,
-	0xf8, 0x1a, 0xeb, 0x71, 0x3a, 0x3c, 0x20, 0xf4,
-	0xfe, 0x63, 0x14, 0x46, 0xfa, 0xbd, 0xfa, 0x58,
-	0x24, 0x47, 0x59, 0xae, 0x58, 0xef, 0x90, 0x09,
-	0xa9, 0x9a, 0xbf, 0x4e, 0xac, 0x2c, 0xa5, 0xfa,
-	0x87, 0xe6, 0x92, 0xc4, 0x40, 0xeb, 0x40, 0x02,
-	0x3e, 0x7b, 0xab, 0xb2, 0x06, 0xd6, 0x1d, 0xe7,
-	0xb9, 0x2f, 0x41, 0x52, 0x90, 0x92, 0xb8, 0xfc
-};
-
-
-static u8 key2[] =
-{
-	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-	0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
-	0xaa, 0xaa, 0xaa, 0xaa
-};
-static u8 data2[] =
-{
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd, 0xdd,
-	0xdd, 0xdd
-};
-static u8 prf2[] =
-{
-	0xe1, 0xac, 0x54, 0x6e, 0xc4, 0xcb, 0x63, 0x6f,
-	0x99, 0x76, 0x48, 0x7b, 0xe5, 0xc8, 0x6b, 0xe1,
-	0x7a, 0x02, 0x52, 0xca, 0x5d, 0x8d, 0x8d, 0xf1,
-	0x2c, 0xfb, 0x04, 0x73, 0x52, 0x52, 0x49, 0xce,
-	0x9d, 0xd8, 0xd1, 0x77, 0xea, 0xd7, 0x10, 0xbc,
-	0x9b, 0x59, 0x05, 0x47, 0x23, 0x91, 0x07, 0xae,
-	0xf7, 0xb4, 0xab, 0xd4, 0x3d, 0x87, 0xf0, 0xa6,
-	0x8f, 0x1c, 0xbd, 0x9e, 0x2b, 0x6f, 0x76, 0x07
-};
-
-
-struct passphrase_test {
-	char *passphrase;
-	char *ssid;
-	char psk[32];
-};
-
-static struct passphrase_test passphrase_tests[] =
-{
-	{
-		"password",
-		"IEEE",
-		{
-			0xf4, 0x2c, 0x6f, 0xc5, 0x2d, 0xf0, 0xeb, 0xef,
-			0x9e, 0xbb, 0x4b, 0x90, 0xb3, 0x8a, 0x5f, 0x90,
-			0x2e, 0x83, 0xfe, 0x1b, 0x13, 0x5a, 0x70, 0xe2,
-			0x3a, 0xed, 0x76, 0x2e, 0x97, 0x10, 0xa1, 0x2e
-		}
-	},
-	{
-		"ThisIsAPassword",
-		"ThisIsASSID",
-		{
-			0x0d, 0xc0, 0xd6, 0xeb, 0x90, 0x55, 0x5e, 0xd6,
-			0x41, 0x97, 0x56, 0xb9, 0xa1, 0x5e, 0xc3, 0xe3,
-			0x20, 0x9b, 0x63, 0xdf, 0x70, 0x7d, 0xd5, 0x08,
-			0xd1, 0x45, 0x81, 0xf8, 0x98, 0x27, 0x21, 0xaf
-		}
-	},
-	{
-		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-		"ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ",
-		{
-			0xbe, 0xcb, 0x93, 0x86, 0x6b, 0xb8, 0xc3, 0x83,
-			0x2c, 0xb7, 0x77, 0xc2, 0xf5, 0x59, 0x80, 0x7c,
-			0x8c, 0x59, 0xaf, 0xcb, 0x6e, 0xae, 0x73, 0x48,
-			0x85, 0x00, 0x13, 0x00, 0xa9, 0x81, 0xcc, 0x62
-		}
-	},
-};
-
-#define NUM_PASSPHRASE_TESTS \
-(sizeof(passphrase_tests) / sizeof(passphrase_tests[0]))
-
-
-int main(int argc, char *argv[])
-{
-	u8 res[512];
-	int ret = 0, i;
-
-	printf("PRF-SHA1 test cases:\n");
-
-	sha1_prf(key0, sizeof(key0), "prefix", data0, sizeof(data0) - 1,
-		 res, sizeof(prf0));
-	if (memcmp(res, prf0, sizeof(prf0)) == 0)
-		printf("Test case 0 - OK\n");
-	else {
-		printf("Test case 0 - FAILED!\n");
-		ret++;
-	}
-
-	sha1_prf(key1, sizeof(key1) - 1, "prefix", data1, sizeof(data1) - 1,
-		 res, sizeof(prf1));
-	if (memcmp(res, prf1, sizeof(prf1)) == 0)
-		printf("Test case 1 - OK\n");
-	else {
-		printf("Test case 1 - FAILED!\n");
-		ret++;
-	}
-
-	sha1_prf(key2, sizeof(key2), "prefix", data2, sizeof(data2),
-		 res, sizeof(prf2));
-	if (memcmp(res, prf2, sizeof(prf2)) == 0)
-		printf("Test case 2 - OK\n");
-	else {
-		printf("Test case 2 - FAILED!\n");
-		ret++;
-	}
-
-	ret += test_eap_fast();
-
-	printf("PBKDF2-SHA1 Passphrase test cases:\n");
-	for (i = 0; i < NUM_PASSPHRASE_TESTS; i++) {
-		u8 psk[32];
-		struct passphrase_test *test = &passphrase_tests[i];
-		pbkdf2_sha1(test->passphrase,
-			    test->ssid, strlen(test->ssid),
-			    4096, psk, 32);
-		if (memcmp(psk, test->psk, 32) == 0)
-			printf("Test case %d - OK\n", i);
-		else {
-			printf("Test case %d - FAILED!\n", i);
-			ret++;
-		}
-	}
-
-	return ret;
-}
-#endif /* TEST_MAIN */
+#endif /* INTERNAL_SHA1 */

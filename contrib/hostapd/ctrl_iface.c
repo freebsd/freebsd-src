@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / UNIX domain socket -based control interface
- * Copyright (c) 2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / UNIX domain socket -based control interface
+ * Copyright (c) 2004, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,17 +12,12 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+#include "includes.h"
+
+#ifndef CONFIG_NATIVE_WINDOWS
+
 #include <sys/un.h>
-#include <sys/uio.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <netinet/in.h>
 
 #include "hostapd.h"
 #include "eloop.h"
@@ -35,6 +29,7 @@
 #include "ieee802_11.h"
 #include "ctrl_iface.h"
 #include "sta_info.h"
+#include "accounting.h"
 
 
 struct wpa_ctrl_dst {
@@ -52,10 +47,9 @@ static int hostapd_ctrl_iface_attach(struct hostapd_data *hapd,
 {
 	struct wpa_ctrl_dst *dst;
 
-	dst = malloc(sizeof(*dst));
+	dst = wpa_zalloc(sizeof(*dst));
 	if (dst == NULL)
 		return -1;
-	memset(dst, 0, sizeof(*dst));
 	memcpy(&dst->addr, from, sizeof(struct sockaddr_un));
 	dst->addrlen = fromlen;
 	dst->debug_level = MSG_INFO;
@@ -122,20 +116,26 @@ static int hostapd_ctrl_iface_sta_mib(struct hostapd_data *hapd,
 				      struct sta_info *sta,
 				      char *buf, size_t buflen)
 {
-	int len, res;
+	int len, res, ret;
 
 	if (sta == NULL) {
-		return snprintf(buf, buflen, "FAIL\n");
+		ret = snprintf(buf, buflen, "FAIL\n");
+		if (ret < 0 || (size_t) ret >= buflen)
+			return 0;
+		return ret;
 	}
 
 	len = 0;
-	len += snprintf(buf + len, buflen - len, MACSTR "\n",
-			MAC2STR(sta->addr));
+	ret = snprintf(buf + len, buflen - len, MACSTR "\n",
+		       MAC2STR(sta->addr));
+	if (ret < 0 || (size_t) ret >= buflen - len)
+		return len;
+	len += ret;
 
 	res = ieee802_11_get_mib_sta(hapd, sta, buf + len, buflen - len);
 	if (res >= 0)
 		len += res;
-	res = wpa_get_mib_sta(hapd, sta, buf + len, buflen - len);
+	res = wpa_get_mib_sta(sta->wpa_sm, buf + len, buflen - len);
 	if (res >= 0)
 		len += res;
 	res = ieee802_1x_get_mib_sta(hapd, sta, buf + len, buflen - len);
@@ -158,9 +158,14 @@ static int hostapd_ctrl_iface_sta(struct hostapd_data *hapd,
 				  char *buf, size_t buflen)
 {
 	u8 addr[ETH_ALEN];
+	int ret;
 
-	if (hwaddr_aton(txtaddr, addr))
-		return snprintf(buf, buflen, "FAIL\n");
+	if (hwaddr_aton(txtaddr, addr)) {
+		ret = snprintf(buf, buflen, "FAIL\n");
+		if (ret < 0 || (size_t) ret >= buflen)
+			return 0;
+		return ret;
+	}
 	return hostapd_ctrl_iface_sta_mib(hapd, ap_get_sta(hapd, addr),
 					  buf, buflen);
 }
@@ -172,11 +177,43 @@ static int hostapd_ctrl_iface_sta_next(struct hostapd_data *hapd,
 {
 	u8 addr[ETH_ALEN];
 	struct sta_info *sta;
+	int ret;
 
 	if (hwaddr_aton(txtaddr, addr) ||
-	    (sta = ap_get_sta(hapd, addr)) == NULL)
-		return snprintf(buf, buflen, "FAIL\n");
+	    (sta = ap_get_sta(hapd, addr)) == NULL) {
+		ret = snprintf(buf, buflen, "FAIL\n");
+		if (ret < 0 || (size_t) ret >= buflen)
+			return 0;
+		return ret;
+	}		
 	return hostapd_ctrl_iface_sta_mib(hapd, sta->next, buf, buflen);
+}
+
+
+static int hostapd_ctrl_iface_new_sta(struct hostapd_data *hapd,
+				      const char *txtaddr)
+{
+	u8 addr[ETH_ALEN];
+	struct sta_info *sta;
+
+	wpa_printf(MSG_DEBUG, "CTRL_IFACE NEW_STA %s", txtaddr);
+
+	if (hwaddr_aton(txtaddr, addr))
+		return -1;
+
+	sta = ap_get_sta(hapd, addr);
+	if (sta)
+		return 0;
+
+	wpa_printf(MSG_DEBUG, "Add new STA " MACSTR " based on ctrl_iface "
+		   "notification", MAC2STR(addr));
+	sta = ap_sta_add(hapd, addr);
+	if (sta == NULL)
+		return -1;
+
+	hostapd_new_assoc_sta(hapd, sta, 0);
+	accounting_sta_get_id(hapd, sta);
+	return 0;
 }
 
 
@@ -217,7 +254,7 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 	} else if (strcmp(buf, "MIB") == 0) {
 		reply_len = ieee802_11_get_mib(hapd, reply, reply_size);
 		if (reply_len >= 0) {
-			res = wpa_get_mib(hapd, reply + reply_len,
+			res = wpa_get_mib(hapd->wpa_auth, reply + reply_len,
 					  reply_size - reply_len);
 			if (res < 0)
 				reply_len = -1;
@@ -260,6 +297,9 @@ static void hostapd_ctrl_iface_receive(int sock, void *eloop_ctx,
 		if (hostapd_ctrl_iface_level(hapd, &from, fromlen,
 						    buf + 6))
 			reply_len = -1;
+	} else if (strncmp(buf, "NEW_STA ", 8) == 0) {
+		if (hostapd_ctrl_iface_new_sta(hapd, buf + 8))
+			reply_len = -1;
 	} else {
 		memcpy(reply, "UNKNOWN COMMAND\n", 16);
 		reply_len = 16;
@@ -290,6 +330,7 @@ static char * hostapd_ctrl_iface_path(struct hostapd_data *hapd)
 
 	snprintf(buf, len, "%s/%s",
 		 hapd->conf->ctrl_interface, hapd->conf->iface);
+	buf[len - 1] = '\0';
 	return buf;
 }
 
@@ -454,3 +495,5 @@ void hostapd_ctrl_iface_send(struct hostapd_data *hapd, int level,
 		dst = next;
 	}
 }
+
+#endif /* CONFIG_NATIVE_WINDOWS */
