@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / shared MSCHAPV2 helper functions / RFC 2433 / RFC 2759
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "sha1.h"
@@ -26,7 +24,7 @@
 /**
  * challenge_hash - ChallengeHash() - RFC 2759, Sect. 8.2
  * @peer_challenge: 16-octet PeerChallenge (IN)
- * @auth_challenge: 16-octet AuthChallenge (IN)
+ * @auth_challenge: 16-octet AuthenticatorChallenge (IN)
  * @username: 0-to-256-char UserName (IN)
  * @username_len: Length of username
  * @challenge: 8-octet Challenge (OUT)
@@ -47,41 +45,41 @@ static void challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
 	len[2] = username_len;
 
 	sha1_vector(3, addr, len, hash);
-	memcpy(challenge, hash, 8);
+	os_memcpy(challenge, hash, 8);
 }
 
 
 /**
  * nt_password_hash - NtPasswordHash() - RFC 2759, Sect. 8.3
- * @password: 0-to-256-unicode-char Password (IN)
+ * @password: 0-to-256-unicode-char Password (IN; ASCII)
  * @password_len: Length of password
  * @password_hash: 16-octet PasswordHash (OUT)
  */
 void nt_password_hash(const u8 *password, size_t password_len,
 		      u8 *password_hash)
 {
-	u8 *buf;
-	int i;
-	size_t len;
+	u8 buf[512], *pos;
+	size_t i, len;
+
+	if (password_len > 256)
+		return;
 
 	/* Convert password into unicode */
-	buf = malloc(password_len * 2);
-	if (buf == NULL)
-		return;
-	memset(buf, 0, password_len * 2);
-	for (i = 0; i < password_len; i++)
+	for (i = 0; i < password_len; i++) {
 		buf[2 * i] = password[i];
+		buf[2 * i + 1] = 0;
+	}
 
 	len = password_len * 2;
-	md4_vector(1, (const u8 **) &buf, &len, password_hash);
-	free(buf);
+	pos = buf;
+	md4_vector(1, (const u8 **) &pos, &len, password_hash);
 }
 
 
 /**
  * hash_nt_password_hash - HashNtPasswordHash() - RFC 2759, Sect. 8.4
  * @password_hash: 16-octet PasswordHash (IN)
- * @password_hash_hash: 16-octet PaswordHashHash (OUT)
+ * @password_hash_hash: 16-octet PasswordHashHash (OUT)
  */
 void hash_nt_password_hash(const u8 *password_hash, u8 *password_hash_hash)
 {
@@ -104,7 +102,7 @@ void challenge_response(const u8 *challenge, const u8 *password_hash,
 	des_encrypt(challenge, password_hash + 7, response + 8);
 	zpwd[0] = password_hash[14];
 	zpwd[1] = password_hash[15];
-	memset(zpwd + 2, 0, 5);
+	os_memset(zpwd + 2, 0, 5);
 	des_encrypt(challenge, zpwd, response + 16);
 }
 
@@ -115,7 +113,7 @@ void challenge_response(const u8 *challenge, const u8 *password_hash,
  * @peer_hallenge: 16-octet PeerChallenge (IN)
  * @username: 0-to-256-char UserName (IN)
  * @username_len: Length of username
- * @password: 0-to-256-unicode-char Password (IN)
+ * @password: 0-to-256-unicode-char Password (IN; ASCII)
  * @password_len: Length of password
  * @response: 24-octet Response (OUT)
  */
@@ -135,21 +133,44 @@ void generate_nt_response(const u8 *auth_challenge, const u8 *peer_challenge,
 
 
 /**
- * generate_authenticator_response - GenerateAuthenticatorResponse() - RFC 2759, Sect. 8.7
- * @password: 0-to-256-unicode-char Password (IN)
- * @password_len: Length of password
+ * generate_nt_response_pwhash - GenerateNTResponse() - RFC 2759, Sect. 8.1
+ * @auth_challenge: 16-octet AuthenticatorChallenge (IN)
+ * @peer_hallenge: 16-octet PeerChallenge (IN)
+ * @username: 0-to-256-char UserName (IN)
+ * @username_len: Length of username
+ * @password_hash: 16-octet PasswordHash (IN)
+ * @response: 24-octet Response (OUT)
+ */
+void generate_nt_response_pwhash(const u8 *auth_challenge,
+				 const u8 *peer_challenge,
+				 const u8 *username, size_t username_len,
+				 const u8 *password_hash,
+				 u8 *response)
+{
+	u8 challenge[8];
+
+	challenge_hash(peer_challenge, auth_challenge, username, username_len,
+		       challenge);
+	challenge_response(challenge, password_hash, response);
+}
+
+
+/**
+ * generate_authenticator_response_pwhash - GenerateAuthenticatorResponse() - RFC 2759, Sect. 8.7
+ * @password_hash: 16-octet PasswordHash (IN)
  * @nt_response: 24-octet NT-Response (IN)
  * @peer_challenge: 16-octet PeerChallenge (IN)
  * @auth_challenge: 16-octet AuthenticatorChallenge (IN)
  * @username: 0-to-256-char UserName (IN)
  * @username_len: Length of username
- * @response: 42-octet AuthenticatorResponse (OUT)
+ * @response: 20-octet AuthenticatorResponse (OUT) (note: this value is usually
+ * encoded as a 42-octet ASCII string (S=<hexdump of response>)
  */
-void generate_authenticator_response(const u8 *password, size_t password_len,
-				     const u8 *peer_challenge,
-				     const u8 *auth_challenge,
-				     const u8 *username, size_t username_len,
-				     const u8 *nt_response, u8 *response)
+void generate_authenticator_response_pwhash(
+	const u8 *password_hash,
+	const u8 *peer_challenge, const u8 *auth_challenge,
+	const u8 *username, size_t username_len,
+	const u8 *nt_response, u8 *response)
 {
 	static const u8 magic1[39] = {
 		0x4D, 0x61, 0x67, 0x69, 0x63, 0x20, 0x73, 0x65, 0x72, 0x76,
@@ -165,7 +186,7 @@ void generate_authenticator_response(const u8 *password, size_t password_len,
 		0x6E
 	};
 
-	u8 password_hash[16], password_hash_hash[16], challenge[8];
+	u8 password_hash_hash[16], challenge[8];
 	const unsigned char *addr1[3];
 	const size_t len1[3] = { 16, 24, sizeof(magic1) };
 	const unsigned char *addr2[3];
@@ -179,7 +200,6 @@ void generate_authenticator_response(const u8 *password, size_t password_len,
 	addr2[1] = challenge;
 	addr2[2] = magic2;
 
-	nt_password_hash(password, password_len, password_hash);
 	hash_nt_password_hash(password_hash, password_hash_hash);
 	sha1_vector(3, addr1, len1, response);
 
@@ -190,9 +210,36 @@ void generate_authenticator_response(const u8 *password, size_t password_len,
 
 
 /**
+ * generate_authenticator_response - GenerateAuthenticatorResponse() - RFC 2759, Sect. 8.7
+ * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password_len: Length of password
+ * @nt_response: 24-octet NT-Response (IN)
+ * @peer_challenge: 16-octet PeerChallenge (IN)
+ * @auth_challenge: 16-octet AuthenticatorChallenge (IN)
+ * @username: 0-to-256-char UserName (IN)
+ * @username_len: Length of username
+ * @response: 20-octet AuthenticatorResponse (OUT) (note: this value is usually
+ * encoded as a 42-octet ASCII string (S=<hexdump of response>)
+ */
+void generate_authenticator_response(const u8 *password, size_t password_len,
+				     const u8 *peer_challenge,
+				     const u8 *auth_challenge,
+				     const u8 *username, size_t username_len,
+				     const u8 *nt_response, u8 *response)
+{
+	u8 password_hash[16];
+	nt_password_hash(password, password_len, password_hash);
+	generate_authenticator_response_pwhash(password_hash,
+					       peer_challenge, auth_challenge,
+					       username, username_len,
+					       nt_response, response);
+}
+
+
+/**
  * nt_challenge_response - NtChallengeResponse() - RFC 2433, Sect. A.5
  * @challenge: 8-octet Challenge (IN)
- * @password: 0-to-256-unicode-char Password (IN)
+ * @password: 0-to-256-unicode-char Password (IN; ASCII)
  * @password_len: Length of password
  * @response: 24-octet Response (OUT)
  */
@@ -228,7 +275,7 @@ void get_master_key(const u8 *password_hash_hash, const u8 *nt_response,
 	addr[2] = magic1;
 
 	sha1_vector(3, addr, len, hash);
-	memcpy(master_key, hash, 16);
+	os_memcpy(master_key, hash, 16);
 }
 
 
@@ -236,7 +283,7 @@ void get_master_key(const u8 *password_hash_hash, const u8 *nt_response,
  * get_asymetric_start_key - GetAsymetricStartKey() - RFC 3079, Sect. 3.4
  * @master_key: 16-octet MasterKey (IN)
  * @session_key: 8-to-16 octet SessionKey (OUT)
- * @session_key_len: SessionKeyLength (Length of session_key)
+ * @session_key_len: SessionKeyLength (Length of session_key) (IN)
  * @is_send: IsSend (IN, BOOLEAN)
  * @is_server: IsServer (IN, BOOLEAN)
  */
@@ -296,15 +343,15 @@ void get_asymetric_start_key(const u8 *master_key, u8 *session_key,
 
 	if (session_key_len > SHA1_MAC_LEN)
 		session_key_len = SHA1_MAC_LEN;
-	memcpy(session_key, digest, session_key_len);
+	os_memcpy(session_key, digest, session_key_len);
 }
 
 
 #define PWBLOCK_LEN 516
 
 /**
- * encrypt_pw_block_with_password_hash - EncryptPwBlobkWithPasswordHash() - RFC 2759, Sect. 8.10
- * @password: 0-to-256-unicode-char Password (IN)
+ * encrypt_pw_block_with_password_hash - EncryptPwBlockWithPasswordHash() - RFC 2759, Sect. 8.10
+ * @password: 0-to-256-unicode-char Password (IN; ASCII)
  * @password_len: Length of password
  * @password_hash: 16-octet PasswordHash (IN)
  * @pw_block: 516-byte PwBlock (OUT)
@@ -319,10 +366,15 @@ static void encrypt_pw_block_with_password_hash(
 	if (password_len > 256)
 		return;
 
-	memset(pw_block, 0, PWBLOCK_LEN);
+	os_memset(pw_block, 0, PWBLOCK_LEN);
 	offset = (256 - password_len) * 2;
+	os_get_random(pw_block, offset);
 	for (i = 0; i < password_len; i++)
 		pw_block[offset + i * 2] = password[i];
+	/*
+	 * PasswordLength is 4 octets, but since the maximum password length is
+	 * 256, only first two (in little endian byte order) can be non-zero.
+	 */
 	pos = &pw_block[2 * 256];
 	WPA_PUT_LE16(pos, password_len * 2);
 	rc4(pw_block, PWBLOCK_LEN, password_hash, 16);
@@ -331,9 +383,9 @@ static void encrypt_pw_block_with_password_hash(
 
 /**
  * new_password_encrypted_with_old_nt_password_hash - NewPasswordEncryptedWithOldNtPasswordHash() - RFC 2759, Sect. 8.9
- * @new_password: 0-to-256-unicode-char NewPassword (IN)
+ * @new_password: 0-to-256-unicode-char NewPassword (IN; ASCII)
  * @new_password_len: Length of new_password
- * @old_password: 0-to-256-unicode-char OldPassword (IN)
+ * @old_password: 0-to-256-unicode-char OldPassword (IN; ASCII)
  * @old_password_len: Length of old_password
  * @encrypted_pw_block: 516-octet EncryptedPwBlock (OUT)
  */
@@ -367,9 +419,9 @@ static void nt_password_hash_encrypted_with_block(const u8 *password_hash,
 
 /**
  * old_nt_password_hash_encrypted_with_new_nt_password_hash - OldNtPasswordHashEncryptedWithNewNtPasswordHash() - RFC 2759, Sect. 8.12
- * @new_password: 0-to-256-unicode-char NewPassword (IN)
+ * @new_password: 0-to-256-unicode-char NewPassword (IN; ASCII)
  * @new_password_len: Length of new_password
- * @old_password: 0-to-256-unicode-char OldPassword (IN)
+ * @old_password: 0-to-256-unicode-char OldPassword (IN; ASCII)
  * @old_password_len: Length of old_password
  * @encrypted_password_ash: 16-octet EncryptedPasswordHash (OUT)
  */
@@ -386,112 +438,3 @@ void old_nt_password_hash_encrypted_with_new_nt_password_hash(
 					      new_password_hash,
 					      encrypted_password_hash);
 }
-
-
-#ifdef TEST_MAIN_MS_FUNCS
-
-#include "rc4.c"
-
-int main(int argc, char *argv[])
-{
-	/* Test vector from RFC2759 example */
-	u8 *username = "User";
-	u8 *password = "clientPass";
-	u8 auth_challenge[] = {
-		0x5B, 0x5D, 0x7C, 0x7D, 0x7B, 0x3F, 0x2F, 0x3E,
-		0x3C, 0x2C, 0x60, 0x21, 0x32, 0x26, 0x26, 0x28
-	};
-	u8 peer_challenge[] = {
-		0x21, 0x40, 0x23, 0x24, 0x25, 0x5E, 0x26, 0x2A,
-		0x28, 0x29, 0x5F, 0x2B, 0x3A, 0x33, 0x7C, 0x7E
-	};
-	u8 challenge[] = { 0xD0, 0x2E, 0x43, 0x86, 0xBC, 0xE9, 0x12, 0x26 };
-	u8 password_hash[] = {
-		0x44, 0xEB, 0xBA, 0x8D, 0x53, 0x12, 0xB8, 0xD6,
-		0x11, 0x47, 0x44, 0x11, 0xF5, 0x69, 0x89, 0xAE
-	};
-	u8 nt_response[] = {
-		0x82, 0x30, 0x9E, 0xCD, 0x8D, 0x70, 0x8B, 0x5E,
-		0xA0, 0x8F, 0xAA, 0x39, 0x81, 0xCD, 0x83, 0x54,
-		0x42, 0x33, 0x11, 0x4A, 0x3D, 0x85, 0xD6, 0xDF
-	};
-	u8 password_hash_hash[] = {
-		0x41, 0xC0, 0x0C, 0x58, 0x4B, 0xD2, 0xD9, 0x1C,
-		0x40, 0x17, 0xA2, 0xA1, 0x2F, 0xA5, 0x9F, 0x3F
-	};
-	u8 authenticator_response[] = {
-		0x40, 0x7A, 0x55, 0x89, 0x11, 0x5F, 0xD0, 0xD6,
-		0x20, 0x9F, 0x51, 0x0F, 0xE9, 0xC0, 0x45, 0x66,
-		0x93, 0x2C, 0xDA, 0x56
-	};
-	u8 master_key[] = {
-		0xFD, 0xEC, 0xE3, 0x71, 0x7A, 0x8C, 0x83, 0x8C,
-		0xB3, 0x88, 0xE5, 0x27, 0xAE, 0x3C, 0xDD, 0x31
-	};
-	u8 send_start_key[] = {
-		0x8B, 0x7C, 0xDC, 0x14, 0x9B, 0x99, 0x3A, 0x1B,
-		0xA1, 0x18, 0xCB, 0x15, 0x3F, 0x56, 0xDC, 0xCB
-	};
-	u8 buf[32];
-
-	int errors = 0;
-
-	printf("Testing ms_funcs.c\n");
-
-	challenge_hash(peer_challenge, auth_challenge,
-		       username, strlen(username),
-		       buf);
-	if (memcmp(challenge, buf, sizeof(challenge)) != 0) {
-		printf("challenge_hash failed\n");
-		errors++;
-	}
-
-	nt_password_hash(password, strlen(password), buf);
-	if (memcmp(password_hash, buf, sizeof(password_hash)) != 0) {
-		printf("nt_password_hash failed\n");
-		errors++;
-	}
-
-	generate_nt_response(auth_challenge, peer_challenge,
-			     username, strlen(username),
-			     password, strlen(password),
-			     buf);
-	if (memcmp(nt_response, buf, sizeof(nt_response)) != 0) {
-		printf("generate_nt_response failed\n");
-		errors++;
-	}
-
-	hash_nt_password_hash(password_hash, buf);
-	if (memcmp(password_hash_hash, buf, sizeof(password_hash_hash)) != 0) {
-		printf("hash_nt_password_hash failed\n");
-		errors++;
-	}
-
-	generate_authenticator_response(password, strlen(password),
-					peer_challenge, auth_challenge,
-					username, strlen(username),
-					nt_response, buf);
-	if (memcmp(authenticator_response, buf, sizeof(authenticator_response))
-	    != 0) {
-		printf("generate_authenticator_response failed\n");
-		errors++;
-	}
-
-	get_master_key(password_hash_hash, nt_response, buf);
-	if (memcmp(master_key, buf, sizeof(master_key)) != 0) {
-		printf("get_master_key failed\n");
-		errors++;
-	}
-
-	get_asymetric_start_key(master_key, buf, sizeof(send_start_key), 1, 1);
-	if (memcmp(send_start_key, buf, sizeof(send_start_key)) != 0) {
-		printf("get_asymetric_start_key failed\n");
-		errors++;
-	}
-
-	if (errors)
-		printf("FAILED! %d errors\n", errors);
-
-	return errors;
-}
-#endif /* TEST_MAIN_MS_FUNCS */

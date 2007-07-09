@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / Kernel driver communication
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / Kernel driver communication for wired (Ethernet) drivers
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2004, Gunter Burchardt <tira@isx.de>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,16 +13,8 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
+#include "includes.h"
 #include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 
 #ifdef USE_KERNEL_HEADERS
 #include <asm/types.h>
@@ -105,7 +96,8 @@ static void wired_possible_new_sta(struct hostapd_data *hapd, u8 *addr)
 }
 
 
-static void handle_data(struct hostapd_data *hapd, char *buf, size_t len)
+static void handle_data(struct hostapd_data *hapd, unsigned char *buf,
+			size_t len)
 {
 	struct ieee8023_hdr *hdr;
 	u8 *pos, *sa;
@@ -306,8 +298,9 @@ static int wired_init_sockets(struct wired_driver_data *drv)
 }
 
 
-static int wired_send_eapol(void *priv, u8 *addr,
-			    u8 *data, size_t data_len, int encrypt)
+static int wired_send_eapol(void *priv, const u8 *addr,
+			    const u8 *data, size_t data_len, int encrypt,
+			    const u8 *own_addr)
 {
 	struct wired_driver_data *drv = priv;
 	u8 pae_group_addr[ETH_ALEN] = WIRED_EAPOL_MULTICAST_GROUP;
@@ -317,17 +310,16 @@ static int wired_send_eapol(void *priv, u8 *addr,
 	int res;
 
 	len = sizeof(*hdr) + data_len;
-	hdr = malloc(len);
+	hdr = wpa_zalloc(len);
 	if (hdr == NULL) {
 		printf("malloc() failed for wired_send_eapol(len=%lu)\n",
 		       (unsigned long) len);
 		return -1;
 	}
 
-	memset(hdr, 0, len);
 	memcpy(hdr->dest, drv->use_pae_group_addr ? pae_group_addr : addr,
 	       ETH_ALEN);
-	memcpy(hdr->src, drv->hapd->own_addr, ETH_ALEN);
+	memcpy(hdr->src, own_addr, ETH_ALEN);
 	hdr->ethertype = htons(ETH_P_PAE);
 
 	pos = (u8 *) (hdr + 1);
@@ -350,19 +342,20 @@ static int wired_driver_init(struct hostapd_data *hapd)
 {
 	struct wired_driver_data *drv;
 
-	drv = malloc(sizeof(struct wired_driver_data));
+	drv = wpa_zalloc(sizeof(struct wired_driver_data));
 	if (drv == NULL) {
 		printf("Could not allocate memory for wired driver data\n");
 		return -1;
 	}
 
-	memset(drv, 0, sizeof(*drv));
 	drv->ops = wired_driver_ops;
 	drv->hapd = hapd;
 	drv->use_pae_group_addr = hapd->conf->use_pae_group_addr;
 
-	if (wired_init_sockets(drv))
+	if (wired_init_sockets(drv)) {
+		free(drv);
 		return -1;
+	}
 
 	hapd->driver = &drv->ops;
 	return 0;

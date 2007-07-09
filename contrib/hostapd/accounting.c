@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / Accounting
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / RADIUS Accounting
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,18 +12,8 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <signal.h>
+#include "includes.h"
 #include <assert.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
 
 #include "hostapd.h"
 #include "radius.h"
@@ -40,7 +29,13 @@
  * input/output octets and updates Acct-{Input,Output}-Gigawords. */
 #define ACCT_DEFAULT_UPDATE_INTERVAL 300
 
-static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
+/* from ieee802_1x.c */
+const char *radius_mode_txt(struct hostapd_data *hapd);
+int radius_sta_rate(struct hostapd_data *hapd, struct sta_info *sta);
+
+
+static struct radius_msg * accounting_msg(struct hostapd_data *hapd,
+					  struct sta_info *sta,
 					  int status_type)
 {
 	struct radius_msg *msg;
@@ -131,7 +126,7 @@ static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
 	}
 
 	snprintf(buf, sizeof(buf), RADIUS_802_1X_ADDR_FORMAT ":%s",
-		 MAC2STR(hapd->own_addr), hapd->conf->ssid);
+		 MAC2STR(hapd->own_addr), hapd->conf->ssid.ssid);
 	if (!radius_msg_add_attr(msg, RADIUS_ATTR_CALLED_STATION_ID,
 				 (u8 *) buf, strlen(buf))) {
 		printf("Could not add Called-Station-Id\n");
@@ -154,7 +149,10 @@ static struct radius_msg * accounting_msg(hostapd *hapd, struct sta_info *sta,
 			goto fail;
 		}
 
-		snprintf(buf, sizeof(buf), "CONNECT 11Mbps 802.11b");
+		snprintf(buf, sizeof(buf), "CONNECT %d%sMbps %s",
+			 radius_sta_rate(hapd, sta) / 2,
+			 (radius_sta_rate(hapd, sta) & 1) ? ".5" : "",
+			 radius_mode_txt(hapd));
 		if (!radius_msg_add_attr(msg, RADIUS_ATTR_CONNECT_INFO,
 					 (u8 *) buf, strlen(buf))) {
 			printf("Could not add Connect-Info\n");
@@ -211,7 +209,7 @@ static int accounting_sta_update_stats(struct hostapd_data *hapd,
 
 static void accounting_interim_update(void *eloop_ctx, void *timeout_ctx)
 {
-	hostapd *hapd = eloop_ctx;
+	struct hostapd_data *hapd = eloop_ctx;
 	struct sta_info *sta = timeout_ctx;
 	int interval;
 
@@ -229,11 +227,11 @@ static void accounting_interim_update(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-void accounting_sta_start(hostapd *hapd, struct sta_info *sta)
+void accounting_sta_start(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	struct radius_msg *msg;
 	int interval;
-	
+
 	if (sta->acct_session_started)
 		return;
 
@@ -260,7 +258,8 @@ void accounting_sta_start(hostapd *hapd, struct sta_info *sta)
 }
 
 
-void accounting_sta_report(hostapd *hapd, struct sta_info *sta, int stop)
+void accounting_sta_report(struct hostapd_data *hapd, struct sta_info *sta,
+			   int stop)
 {
 	struct radius_msg *msg;
 	int cause = sta->acct_terminate_cause;
@@ -360,14 +359,14 @@ void accounting_sta_report(hostapd *hapd, struct sta_info *sta, int stop)
 }
 
 
-void accounting_sta_interim(hostapd *hapd, struct sta_info *sta)
+void accounting_sta_interim(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	if (sta->acct_session_started)
 		accounting_sta_report(hapd, sta, 0);
 }
 
 
-void accounting_sta_stop(hostapd *hapd, struct sta_info *sta)
+void accounting_sta_stop(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	if (sta->acct_session_started) {
 		accounting_sta_report(hapd, sta, 1);
@@ -435,7 +434,7 @@ static void accounting_report_state(struct hostapd_data *hapd, int on)
 }
 
 
-int accounting_init(hostapd *hapd)
+int accounting_init(struct hostapd_data *hapd)
 {
 	/* Acct-Session-Id should be unique over reboots. If reliable clock is
 	 * not available, this could be replaced with reboot counter, etc. */
@@ -451,7 +450,18 @@ int accounting_init(hostapd *hapd)
 }
 
 
-void accounting_deinit(hostapd *hapd)
+void accounting_deinit(struct hostapd_data *hapd)
 {
 	accounting_report_state(hapd, 0);
+}
+
+
+int accounting_reconfig(struct hostapd_data *hapd,
+			struct hostapd_config *oldconf)
+{
+	if (!hapd->radius_client_reconfigured)
+		return 0;
+
+	accounting_deinit(hapd);
+	return accounting_init(hapd);
 }

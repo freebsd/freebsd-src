@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-PAX shared routines
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP server/peer: EAP-PAX shared routines
+ * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "sha1.h"
@@ -33,7 +31,7 @@
  * @output: Buffer for the derived key
  * Returns: 0 on success, -1 failed
  *
- * draft-clancy-eap-pax-04.txt, chap. 2.5: PAX-KDF-W(X, Y, Z)
+ * RFC 4746, Section 2.6: PAX-KDF-W(X, Y, Z)
  */
 int eap_pax_kdf(u8 mac_id, const u8 *key, size_t key_len,
 		const char *identifier,
@@ -50,12 +48,12 @@ int eap_pax_kdf(u8 mac_id, const u8 *key, size_t key_len,
 	if (identifier == NULL || num_blocks >= 255)
 		return -1;
 
-	/* TODO: add support for EAP_PAX_MAC_AES_CBC_MAC_128 */
+	/* TODO: add support for EAP_PAX_HMAC_SHA256_128 */
 	if (mac_id != EAP_PAX_MAC_HMAC_SHA1_128)
 		return -1;
 
 	addr[0] = (const u8 *) identifier;
-	len[0] = strlen(identifier);
+	len[0] = os_strlen(identifier);
 	addr[1] = entropy;
 	len[1] = entropy_len;
 	addr[2] = &counter;
@@ -66,7 +64,7 @@ int eap_pax_kdf(u8 mac_id, const u8 *key, size_t key_len,
 	for (counter = 1; counter <= (u8) num_blocks; counter++) {
 		size_t clen = left > EAP_PAX_MAC_LEN ? EAP_PAX_MAC_LEN : left;
 		hmac_sha1_vector(key, key_len, 3, addr, len, mac);
-		memcpy(pos, mac, clen);
+		os_memcpy(pos, mac, clen);
 		pos += clen;
 		left -= clen;
 	}
@@ -102,7 +100,7 @@ int eap_pax_mac(u8 mac_id, const u8 *key, size_t key_len,
 	size_t len[3];
 	size_t count;
 
-	/* TODO: add support for EAP_PAX_MAC_AES_CBC_MAC_128 */
+	/* TODO: add support for EAP_PAX_HMAC_SHA256_128 */
 	if (mac_id != EAP_PAX_MAC_HMAC_SHA1_128)
 		return -1;
 
@@ -115,7 +113,7 @@ int eap_pax_mac(u8 mac_id, const u8 *key, size_t key_len,
 
 	count = (data1 ? 1 : 0) + (data2 ? 1 : 0) + (data3 ? 1 : 0);
 	hmac_sha1_vector(key, key_len, count, addr, len, hash);
-	memcpy(mac, hash, EAP_PAX_MAC_LEN);
+	os_memcpy(mac, hash, EAP_PAX_MAC_LEN);
 
 	return 0;
 }

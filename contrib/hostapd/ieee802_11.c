@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / IEEE 802.11 Management
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / IEEE 802.11 Management
+ * Copyright (c) 2002-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,18 +12,17 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
+#include "includes.h"
+
+#ifndef CONFIG_NATIVE_WINDOWS
+
 #include <net/if.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <time.h>
 
 #include "eloop.h"
 #include "hostapd.h"
 #include "ieee802_11.h"
+#include "beacon.h"
+#include "hw_features.h"
 #include "radius.h"
 #include "radius_client.h"
 #include "ieee802_11_auth.h"
@@ -33,39 +31,206 @@
 #include "rc4.h"
 #include "ieee802_1x.h"
 #include "wpa.h"
+#include "wme.h"
+#include "ap_list.h"
 #include "accounting.h"
 #include "driver.h"
-#include "hostap_common.h"
+#include "ieee802_11h.h"
+#include "mlme.h"
 
 
-static u8 * hostapd_eid_supp_rates(hostapd *hapd, u8 *eid)
+u8 * hostapd_eid_supp_rates(struct hostapd_data *hapd, u8 *eid)
 {
 	u8 *pos = eid;
+	int i, num, count;
+
+	if (hapd->iface->current_rates == NULL)
+		return eid;
 
 	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = 4; /* len */
-	*pos++ = 0x82; /* 1 Mbps, base set */
-	*pos++ = 0x84; /* 2 Mbps, base set */
-	*pos++ = 0x0b; /* 5.5 Mbps */
-	*pos++ = 0x16; /* 11 Mbps */
+	num = hapd->iface->num_rates;
+	if (num > 8) {
+		/* rest of the rates are encoded in Extended supported
+		 * rates element */
+		num = 8;
+	}
+
+	*pos++ = num;
+	count = 0;
+	for (i = 0, count = 0; i < hapd->iface->num_rates && count < num;
+	     i++) {
+		count++;
+		*pos = hapd->iface->current_rates[i].rate / 5;
+		if (hapd->iface->current_rates[i].flags & HOSTAPD_RATE_BASIC)
+			*pos |= 0x80;
+		pos++;
+	}
 
 	return pos;
 }
 
 
-static u16 hostapd_own_capab_info(hostapd *hapd)
+u8 * hostapd_eid_ext_supp_rates(struct hostapd_data *hapd, u8 *eid)
+{
+	u8 *pos = eid;
+	int i, num, count;
+
+	if (hapd->iface->current_rates == NULL)
+		return eid;
+
+	num = hapd->iface->num_rates;
+	if (num <= 8)
+		return eid;
+	num -= 8;
+
+	*pos++ = WLAN_EID_EXT_SUPP_RATES;
+	*pos++ = num;
+	count = 0;
+	for (i = 0, count = 0; i < hapd->iface->num_rates && count < num + 8;
+	     i++) {
+		count++;
+		if (count <= 8)
+			continue; /* already in SuppRates IE */
+		*pos = hapd->iface->current_rates[i].rate / 5;
+		if (hapd->iface->current_rates[i].flags & HOSTAPD_RATE_BASIC)
+			*pos |= 0x80;
+		pos++;
+	}
+
+	return pos;
+}
+
+
+u16 hostapd_own_capab_info(struct hostapd_data *hapd, struct sta_info *sta,
+			   int probe)
 {
 	int capab = WLAN_CAPABILITY_ESS;
-	if (hapd->conf->wpa ||
-	    (hapd->conf->ieee802_1x &&
-	     (hapd->conf->default_wep_key_len ||
-	      hapd->conf->individual_wep_key_len)))
+	int privacy;
+
+	if (hapd->iface->num_sta_no_short_preamble == 0 &&
+	    hapd->iconf->preamble == SHORT_PREAMBLE)
+		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+
+	privacy = hapd->conf->ssid.wep.keys_set;
+
+	if (hapd->conf->ieee802_1x &&
+	    (hapd->conf->default_wep_key_len ||
+	     hapd->conf->individual_wep_key_len))
+		privacy = 1;
+
+	if (hapd->conf->wpa)
+		privacy = 1;
+
+	if (sta) {
+		int policy, def_klen;
+		if (probe && sta->ssid_probe) {
+			policy = sta->ssid_probe->security_policy;
+			def_klen = sta->ssid_probe->wep.default_len;
+		} else {
+			policy = sta->ssid->security_policy;
+			def_klen = sta->ssid->wep.default_len;
+		}
+		privacy = policy != SECURITY_PLAINTEXT;
+		if (policy == SECURITY_IEEE_802_1X && def_klen == 0)
+			privacy = 0;
+	}
+
+	if (privacy)
 		capab |= WLAN_CAPABILITY_PRIVACY;
+
+	if (hapd->iface && hapd->iface->current_mode &&
+	    hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211G &&
+	    hapd->iface->num_sta_no_short_slot_time == 0)
+		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
+
+	if (hapd->iface->dfs_enable) 
+		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
+
 	return capab;
 }
 
 
-static const u8 WPA_OUI_TYPE[] = { 0x00, 0x50, 0xf2, 1 };
+#define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
+				* 00:50:F2 */
+
+static int ieee802_11_parse_vendor_specific(struct hostapd_data *hapd,
+					    u8 *pos, size_t elen,
+					    struct ieee802_11_elems *elems,
+					    int show_errors)
+{
+	unsigned int oui;
+
+	/* first 3 bytes in vendor specific information element are the IEEE
+	 * OUI of the vendor. The following byte is used a vendor specific
+	 * sub-type. */
+	if (elen < 4) {
+		if (show_errors) {
+			HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS, "short vendor "
+				      "specific information element ignored "
+				      "(len=%lu)\n", (unsigned long) elen);
+		}
+		return -1;
+	}
+
+	oui = (pos[0] << 16) | (pos[1] << 8) | pos[2];
+	switch (oui) {
+	case OUI_MICROSOFT:
+		/* Microsoft/Wi-Fi information elements are further typed and
+		 * subtyped */
+		switch (pos[3]) {
+		case 1:
+			/* Microsoft OUI (00:50:F2) with OUI Type 1:
+			 * real WPA information element */
+			elems->wpa_ie = pos;
+			elems->wpa_ie_len = elen;
+			break;
+		case WME_OUI_TYPE: /* this is a Wi-Fi WME info. element */
+			if (elen < 5) {
+				HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS,
+					      "short WME information element "
+					      "ignored (len=%lu)\n",
+					      (unsigned long) elen);
+				return -1;
+			}
+			switch (pos[4]) {
+			case WME_OUI_SUBTYPE_INFORMATION_ELEMENT:
+			case WME_OUI_SUBTYPE_PARAMETER_ELEMENT:
+				elems->wme = pos;
+				elems->wme_len = elen;
+				break;
+			case WME_OUI_SUBTYPE_TSPEC_ELEMENT:
+				elems->wme_tspec = pos;
+				elems->wme_tspec_len = elen;
+				break;
+			default:
+				HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS,
+					      "unknown WME information element"
+					      " ignored (subtype=%d "
+					      "len=%lu)\n",
+					      pos[4], (unsigned long) elen);
+				return -1;
+			}
+			break;
+		default:
+			HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS,
+				      "Unknown Microsoft information element "
+				      "ignored (type=%d len=%lu)\n",
+				      pos[3], (unsigned long) elen);
+			return -1;
+		}
+		break;
+
+	default:
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS,
+			      "unknown vendor specific information element "
+			      "ignored (vendor OUI %02x:%02x:%02x len=%lu)\n",
+			      pos[0], pos[1], pos[2], (unsigned long) elen);
+		return -1;
+	}
+
+	return 0;
+}
+
 
 ParseRes ieee802_11_parse_elems(struct hostapd_data *hapd, u8 *start,
 				size_t len,
@@ -92,8 +257,7 @@ ParseRes ieee802_11_parse_elems(struct hostapd_data *hapd, u8 *start,
 					      "failed (id=%d elen=%d "
 					      "left=%lu)\n",
 					      id, elen, (unsigned long) left);
-				if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MINIMAL))
-					hostapd_hexdump("IEs", start, len);
+				wpa_hexdump(MSG_MSGDUMP, "IEs", start, len);
 			}
 			return ParseFailed;
 		}
@@ -131,29 +295,31 @@ ParseRes ieee802_11_parse_elems(struct hostapd_data *hapd, u8 *start,
 			elems->challenge = pos;
 			elems->challenge_len = elen;
 			break;
-		case WLAN_EID_GENERIC:
-			if (elen > 4 && memcmp(pos, WPA_OUI_TYPE, 4) == 0) {
-				elems->wpa_ie = pos;
-				elems->wpa_ie_len = elen;
-			} else if (show_errors) {
-				HOSTAPD_DEBUG(HOSTAPD_DEBUG_EXCESSIVE,
-					      "IEEE 802.11 element parse "
-					      "ignored unknown generic element"
-					      " (id=%d elen=%d OUI:type="
-					      "%02x-%02x-%02x:%d)\n",
-					      id, elen,
-					      elen >= 1 ? pos[0] : 0,
-					      elen >= 2 ? pos[1] : 0,
-					      elen >= 3 ? pos[2] : 0,
-					      elen >= 4 ? pos[3] : 0);
+		case WLAN_EID_ERP_INFO:
+			elems->erp_info = pos;
+			elems->erp_info_len = elen;
+			break;
+		case WLAN_EID_EXT_SUPP_RATES:
+			elems->ext_supp_rates = pos;
+			elems->ext_supp_rates_len = elen;
+			break;
+		case WLAN_EID_VENDOR_SPECIFIC:
+			if (ieee802_11_parse_vendor_specific(hapd, pos, elen,
+							     elems,
+							     show_errors))
 				unknown++;
-			} else {
-				unknown++;
-			}
 			break;
 		case WLAN_EID_RSN:
 			elems->rsn_ie = pos;
 			elems->rsn_ie_len = elen;
+			break;
+		case WLAN_EID_PWR_CAPABILITY:
+			elems->power_cap = pos;
+			elems->power_cap_len = elen;
+			break;
+		case WLAN_EID_SUPPORTED_CHANNELS:
+			elems->supp_channels = pos;
+			elems->supp_channels_len = elen;
 			break;
 		default:
 			unknown++;
@@ -177,7 +343,7 @@ ParseRes ieee802_11_parse_elems(struct hostapd_data *hapd, u8 *start,
 }
 
 
-static void ieee802_11_print_ssid(const u8 *ssid, u8 len)
+void ieee802_11_print_ssid(const u8 *ssid, u8 len)
 {
 	int i;
 	for (i = 0; i < len; i++) {
@@ -189,9 +355,31 @@ static void ieee802_11_print_ssid(const u8 *ssid, u8 len)
 }
 
 
+void ieee802_11_send_deauth(struct hostapd_data *hapd, u8 *addr, u16 reason)
+{
+	struct ieee80211_mgmt mgmt;
+	char buf[30];
+
+	hostapd_logger(hapd, addr, HOSTAPD_MODULE_IEEE80211,
+		       HOSTAPD_LEVEL_DEBUG,
+		       "deauthenticate - reason %d", reason);
+	snprintf(buf, sizeof(buf), "SEND-DEAUTHENTICATE %d", reason);
+	memset(&mgmt, 0, sizeof(mgmt));
+	mgmt.frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+					  WLAN_FC_STYPE_DEAUTH);
+	memcpy(mgmt.da, addr, ETH_ALEN);
+	memcpy(mgmt.sa, hapd->own_addr, ETH_ALEN);
+	memcpy(mgmt.bssid, hapd->own_addr, ETH_ALEN);
+	mgmt.u.deauth.reason_code = host_to_le16(reason);
+	if (hostapd_send_mgmt_frame(hapd, &mgmt, IEEE80211_HDRLEN +
+				    sizeof(mgmt.u.deauth), 0) < 0)
+		perror("ieee802_11_send_deauth: send");
+}
+
+
 static void ieee802_11_sta_authenticate(void *eloop_ctx, void *timeout_ctx)
 {
-	hostapd *hapd = eloop_ctx;
+	struct hostapd_data *hapd = eloop_ctx;
 	struct ieee80211_mgmt mgmt;
 
 	if (hapd->assoc_ap_state == WAIT_BEACON)
@@ -227,7 +415,7 @@ static void ieee802_11_sta_authenticate(void *eloop_ctx, void *timeout_ctx)
 
 static void ieee802_11_sta_associate(void *eloop_ctx, void *timeout_ctx)
 {
-	hostapd *hapd = eloop_ctx;
+	struct hostapd_data *hapd = eloop_ctx;
 	u8 buf[256];
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) buf;
 	u8 *p;
@@ -261,6 +449,7 @@ static void ieee802_11_sta_associate(void *eloop_ctx, void *timeout_ctx)
 	p += hapd->assoc_ap_ssid_len;
 
 	p = hostapd_eid_supp_rates(hapd, p);
+	p = hostapd_eid_ext_supp_rates(hapd, p);
 
 	if (hostapd_send_mgmt_frame(hapd, mgmt, p - (u8 *) mgmt, 0) < 0)
 		perror("ieee802_11_sta_associate: send");
@@ -270,7 +459,7 @@ static void ieee802_11_sta_associate(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-static u16 auth_shared_key(hostapd *hapd, struct sta_info *sta,
+static u16 auth_shared_key(struct hostapd_data *hapd, struct sta_info *sta,
 			   u16 auth_transaction, u8 *challenge, int iswep)
 {
 	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
@@ -284,10 +473,9 @@ static u16 auth_shared_key(hostapd *hapd, struct sta_info *sta,
 			u8 key[8];
 			time_t now;
 			int r;
-			sta->challenge = malloc(WLAN_AUTH_CHALLENGE_LEN);
-			if (!sta->challenge)
+			sta->challenge = wpa_zalloc(WLAN_AUTH_CHALLENGE_LEN);
+			if (sta->challenge == NULL)
 				return WLAN_STATUS_UNSPECIFIED_FAILURE;
-			memset(sta->challenge, 0, WLAN_AUTH_CHALLENGE_LEN);
 
 			now = time(NULL);
 			r = random();
@@ -320,7 +508,7 @@ static u16 auth_shared_key(hostapd *hapd, struct sta_info *sta,
 	 * authentication reply. */
 #else
 	sta->flags |= WLAN_STA_AUTH;
-	wpa_sm_event(hapd, sta, WPA_AUTH);
+	wpa_auth_sm_event(sta->wpa_sm, WPA_AUTH);
 #endif
 	free(sta->challenge);
 	sta->challenge = NULL;
@@ -329,7 +517,8 @@ static u16 auth_shared_key(hostapd *hapd, struct sta_info *sta,
 }
 
 
-static void send_auth_reply(hostapd *hapd, struct ieee80211_mgmt *mgmt,
+static void send_auth_reply(struct hostapd_data *hapd,
+			    struct ieee80211_mgmt *mgmt,
 			    u16 auth_alg, u16 auth_transaction, u16 resp,
 			    u8 *challenge)
 {
@@ -372,7 +561,8 @@ static void send_auth_reply(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 }
 
 
-static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
+static void handle_auth(struct hostapd_data *hapd, struct ieee80211_mgmt *mgmt,
+			size_t len)
 {
 	u16 auth_alg, auth_transaction, status_code;
 	u16 resp = WLAN_STATUS_SUCCESS;
@@ -381,6 +571,7 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 	u16 fc;
 	u8 *challenge = NULL;
 	u32 session_timeout, acct_interim_interval;
+	int vlan_id = 0;
 
 	if (len < IEEE80211_HDRLEN + sizeof(mgmt->u.auth)) {
 		printf("handle_auth - too short payload (len=%lu)\n",
@@ -454,7 +645,7 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 
 	res = hostapd_allowed_address(hapd, mgmt->sa, (u8 *) mgmt, len,
 				      &session_timeout,
-				      &acct_interim_interval);
+				      &acct_interim_interval, &vlan_id);
 	if (res == HOSTAPD_ACL_REJECT) {
 		printf("Station " MACSTR " not allowed to authenticate.\n",
 		       MAC2STR(mgmt->sa));
@@ -476,6 +667,22 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
 		goto fail;
 	}
+
+	if (vlan_id > 0) {
+		if (hostapd_get_vlan_id_ifname(hapd->conf->vlan,
+					       sta->vlan_id) == NULL) {
+			hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_INFO, "Invalid VLAN ID "
+				       "%d received from RADIUS server",
+				       vlan_id);
+			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto fail;
+		}
+		sta->vlan_id = vlan_id;
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_RADIUS,
+			       HOSTAPD_LEVEL_INFO, "VLAN ID %d", sta->vlan_id);
+	}
+
 	sta->flags &= ~WLAN_STA_PREAUTH;
 	ieee802_1x_notify_pre_auth(sta->eapol_sm, 0);
 
@@ -497,12 +704,16 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 		 * authentication reply. */
 #else
 		sta->flags |= WLAN_STA_AUTH;
-		wpa_sm_event(hapd, sta, WPA_AUTH);
+		wpa_auth_sm_event(sta->wpa_sm, WPA_AUTH);
+		sta->auth_alg = WLAN_AUTH_OPEN;
+		mlme_authenticate_indication(hapd, sta);
 #endif
 		break;
 	case WLAN_AUTH_SHARED_KEY:
 		resp = auth_shared_key(hapd, sta, auth_transaction, challenge,
 				       fc & WLAN_FC_ISWEP);
+		sta->auth_alg = WLAN_AUTH_SHARED_KEY;
+		mlme_authenticate_indication(hapd, sta);
 		break;
 	}
 
@@ -512,8 +723,8 @@ static void handle_auth(hostapd *hapd, struct ieee80211_mgmt *mgmt, size_t len)
 }
 
 
-static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
-			 size_t len, int reassoc)
+static void handle_assoc(struct hostapd_data *hapd,
+			 struct ieee80211_mgmt *mgmt, size_t len, int reassoc)
 {
 	u16 capab_info, listen_interval;
 	u16 resp = WLAN_STATUS_SUCCESS;
@@ -572,6 +783,11 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		goto fail;
 	}
 
+	if (reassoc) {
+		memcpy(sta->previous_ap, mgmt->u.reassoc_req.current_ap,
+		       ETH_ALEN);
+	}
+
 	sta->capability = capab_info;
 
 	/* followed by SSID and Supported rates */
@@ -583,8 +799,8 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		goto fail;
 	}
 
-	if (elems.ssid_len != hapd->conf->ssid_len ||
-	    memcmp(elems.ssid, hapd->conf->ssid, elems.ssid_len) != 0) {
+	if (elems.ssid_len != hapd->conf->ssid.ssid_len ||
+	    memcmp(elems.ssid, hapd->conf->ssid.ssid, elems.ssid_len) != 0) {
 		printf("Station " MACSTR " tried to associate with "
 		       "unknown SSID '", MAC2STR(sta->addr));
 		ieee802_11_print_ssid(elems.ssid, elems.ssid_len);
@@ -593,32 +809,56 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		goto fail;
 	}
 
-	if (elems.supp_rates) {
-		if (elems.supp_rates_len > sizeof(sta->supported_rates)) {
-			printf("STA " MACSTR ": Invalid supported rates "
-			       "element length %d\n", MAC2STR(sta->addr),
+	sta->flags &= ~WLAN_STA_WME;
+	if (elems.wme && hapd->conf->wme_enabled) {
+		if (hostapd_eid_wme_valid(hapd, elems.wme, elems.wme_len))
+			hostapd_logger(hapd, sta->addr,
+				       HOSTAPD_MODULE_WPA,
+				       HOSTAPD_LEVEL_DEBUG,
+				       "invalid WME element in association "
+				       "request");
+		else
+			sta->flags |= WLAN_STA_WME;
+	}
+
+	if (!elems.supp_rates) {
+		hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "No supported rates element in AssocReq");
+		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto fail;
+	}
+
+	if (elems.supp_rates_len > sizeof(sta->supported_rates)) {
+		hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "Invalid supported rates element length %d",
 			       elems.supp_rates_len);
+		resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+		goto fail;
+	}
+
+	memset(sta->supported_rates, 0, sizeof(sta->supported_rates));
+	memcpy(sta->supported_rates, elems.supp_rates, elems.supp_rates_len);
+	sta->supported_rates_len = elems.supp_rates_len;
+
+	if (elems.ext_supp_rates) {
+		if (elems.supp_rates_len + elems.ext_supp_rates_len >
+		    sizeof(sta->supported_rates)) {
+			hostapd_logger(hapd, mgmt->sa,
+				       HOSTAPD_MODULE_IEEE80211,
+				       HOSTAPD_LEVEL_DEBUG,
+				       "Invalid supported rates element length"
+				       " %d+%d", elems.supp_rates_len,
+				       elems.ext_supp_rates_len);
 			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
 			goto fail;
 		}
 
-		memset(sta->supported_rates, 0, sizeof(sta->supported_rates));
-		memcpy(sta->supported_rates, elems.supp_rates,
-		       elems.supp_rates_len);
-
-		sta->tx_supp_rates = 0;
-		for (i = 0; i < elems.supp_rates_len; i++) {
-			if ((sta->supported_rates[i] & 0x7f) == 2)
-				sta->tx_supp_rates |= WLAN_RATE_1M;
-			if ((sta->supported_rates[i] & 0x7f) == 4)
-				sta->tx_supp_rates |= WLAN_RATE_2M;
-			if ((sta->supported_rates[i] & 0x7f) == 11)
-				sta->tx_supp_rates |= WLAN_RATE_5M5;
-			if ((sta->supported_rates[i] & 0x7f) == 22)
-				sta->tx_supp_rates |= WLAN_RATE_11M;
-		}
-	} else
-		sta->tx_supp_rates = 0xff;
+		memcpy(sta->supported_rates + elems.supp_rates_len,
+		       elems.ext_supp_rates, elems.ext_supp_rates_len);
+		sta->supported_rates_len += elems.ext_supp_rates_len;
+	}
 
 	if ((hapd->conf->wpa & HOSTAPD_WPA_VERSION_WPA2) && elems.rsn_ie) {
 		wpa_ie = elems.rsn_ie;
@@ -642,28 +882,87 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		int res;
 		wpa_ie -= 2;
 		wpa_ie_len += 2;
-		res = wpa_validate_wpa_ie(hapd, sta, wpa_ie, wpa_ie_len,
-					  elems.rsn_ie ?
-					  HOSTAPD_WPA_VERSION_WPA2 :
-					  HOSTAPD_WPA_VERSION_WPA);
+		if (sta->wpa_sm == NULL)
+			sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,
+							sta->addr);
+		if (sta->wpa_sm == NULL) {
+			printf("Failed to initialize WPA state machine\n");
+			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			goto fail;
+		}
+		res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+					  wpa_ie, wpa_ie_len);
 		if (res == WPA_INVALID_GROUP)
 			resp = WLAN_STATUS_GROUP_CIPHER_NOT_VALID;
 		else if (res == WPA_INVALID_PAIRWISE)
 			resp = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
 		else if (res == WPA_INVALID_AKMP)
 			resp = WLAN_STATUS_AKMP_NOT_VALID;
+		else if (res == WPA_ALLOC_FAIL)
+			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+#ifdef CONFIG_IEEE80211W
+		else if (res == WPA_MGMT_FRAME_PROTECTION_VIOLATION)
+			resp = WLAN_STATUS_UNSPECIFIED_FAILURE; /* FIX */
+		else if (res == WPA_INVALID_MGMT_GROUP_CIPHER)
+			resp = WLAN_STATUS_UNSPECIFIED_FAILURE; /* FIX */
+#endif /* CONFIG_IEEE80211W */
 		else if (res != WPA_IE_OK)
 			resp = WLAN_STATUS_INVALID_IE;
 		if (resp != WLAN_STATUS_SUCCESS)
 			goto fail;
-		free(sta->wpa_ie);
-		sta->wpa_ie = malloc(wpa_ie_len);
-		if (sta->wpa_ie == NULL) {
-			resp = WLAN_STATUS_UNSPECIFIED_FAILURE;
+	}
+
+	if (hapd->iface->dfs_enable &&
+	    hapd->iconf->ieee80211h == SPECT_STRICT_BINDING) {
+		if (hostapd_check_power_cap(hapd, elems.power_cap,
+					    elems.power_cap_len)) {
+			resp = WLAN_STATUS_PWR_CAPABILITY_NOT_VALID;
+			hostapd_logger(hapd, sta->addr,
+				       HOSTAPD_MODULE_IEEE80211,
+				       HOSTAPD_LEVEL_DEBUG,
+				       "Power capabilities of the station not "
+				       "acceptable");
 			goto fail;
 		}
-		sta->wpa_ie_len = wpa_ie_len;
-		memcpy(sta->wpa_ie, wpa_ie, wpa_ie_len);
+	}
+
+	if (hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211G)
+		sta->flags |= WLAN_STA_NONERP;
+	for (i = 0; i < sta->supported_rates_len; i++) {
+		if ((sta->supported_rates[i] & 0x7f) > 22) {
+			sta->flags &= ~WLAN_STA_NONERP;
+			break;
+		}
+	}
+	if (sta->flags & WLAN_STA_NONERP && !sta->nonerp_set) {
+		sta->nonerp_set = 1;
+		hapd->iface->num_sta_non_erp++;
+		if (hapd->iface->num_sta_non_erp == 1)
+			ieee802_11_set_beacons(hapd->iface);
+	}
+
+	if (!(sta->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME) &&
+	    !sta->no_short_slot_time_set) {
+		sta->no_short_slot_time_set = 1;
+		hapd->iface->num_sta_no_short_slot_time++;
+		if (hapd->iface->current_mode->mode ==
+		    HOSTAPD_MODE_IEEE80211G &&
+		    hapd->iface->num_sta_no_short_slot_time == 1)
+			ieee802_11_set_beacons(hapd->iface);
+	}
+
+	if (sta->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+		sta->flags |= WLAN_STA_SHORT_PREAMBLE;
+	else
+		sta->flags &= ~WLAN_STA_SHORT_PREAMBLE;
+
+	if (!(sta->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
+	    !sta->no_short_preamble_set) {
+		sta->no_short_preamble_set = 1;
+		hapd->iface->num_sta_no_short_preamble++;
+		if (hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211G
+		    && hapd->iface->num_sta_no_short_preamble == 1)
+			ieee802_11_set_beacons(hapd->iface);
 	}
 
 	/* get a unique AID */
@@ -723,12 +1022,16 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		u8 *p;
 		send_len += sizeof(mgmt->u.assoc_resp);
 		mgmt->u.assoc_resp.capab_info =
-			host_to_le16(hostapd_own_capab_info(hapd));
+			host_to_le16(hostapd_own_capab_info(hapd, sta, 0));
 		mgmt->u.assoc_resp.status_code = host_to_le16(resp);
 		mgmt->u.assoc_resp.aid = host_to_le16((sta ? sta->aid : 0)
 						      | BIT(14) | BIT(15));
 		/* Supported rates */
 		p = hostapd_eid_supp_rates(hapd, mgmt->u.assoc_resp.variable);
+		/* Extended supported rates */
+		p = hostapd_eid_ext_supp_rates(hapd, p);
+		if (sta->flags & WLAN_STA_WME)
+			p = hostapd_eid_wme(hapd, p);
 		send_len += p - mgmt->u.assoc_resp.variable;
 
 		/* Request TX callback */
@@ -740,8 +1043,8 @@ static void handle_assoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 }
 
 
-static void handle_assoc_resp(hostapd *hapd, struct ieee80211_mgmt *mgmt,
-			      size_t len)
+static void handle_assoc_resp(struct hostapd_data *hapd,
+			      struct ieee80211_mgmt *mgmt, size_t len)
 {
 	u16 status_code, aid;
 
@@ -791,8 +1094,8 @@ static void handle_assoc_resp(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 }
 
 
-static void handle_disassoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
-			    size_t len)
+static void handle_disassoc(struct hostapd_data *hapd,
+			    struct ieee80211_mgmt *mgmt, size_t len)
 {
 	struct sta_info *sta;
 
@@ -828,11 +1131,11 @@ static void handle_disassoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 	}
 
 	sta->flags &= ~WLAN_STA_ASSOC;
-	wpa_sm_event(hapd, sta, WPA_DISASSOC);
+	wpa_auth_sm_event(sta->wpa_sm, WPA_DISASSOC);
 	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_INFO, "disassociated");
 	sta->acct_terminate_cause = RADIUS_ACCT_TERMINATE_CAUSE_USER_REQUEST;
-	ieee802_1x_set_port_enabled(hapd, sta, 0);
+	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
 	/* Stop Accounting and IEEE 802.1X sessions, but leave the STA
 	 * authenticated. */
 	accounting_sta_stop(hapd, sta);
@@ -846,11 +1149,14 @@ static void handle_disassoc(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		eloop_register_timeout(AP_DEAUTH_DELAY, 0, ap_handle_timer,
 				       hapd, sta);
 	}
+
+	mlme_disassociate_indication(
+		hapd, sta, le_to_host16(mgmt->u.disassoc.reason_code));
 }
 
 
-static void handle_deauth(hostapd *hapd, struct ieee80211_mgmt *mgmt,
-			  size_t len)
+static void handle_deauth(struct hostapd_data *hapd,
+			  struct ieee80211_mgmt *mgmt, size_t len)
 {
 	struct sta_info *sta;
 
@@ -885,17 +1191,20 @@ static void handle_deauth(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 	}
 
 	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
-	wpa_sm_event(hapd, sta, WPA_DEAUTH);
+	wpa_auth_sm_event(sta->wpa_sm, WPA_DEAUTH);
 	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_DEBUG, "deauthenticated");
+	mlme_deauthenticate_indication(
+		hapd, sta, le_to_host16(mgmt->u.deauth.reason_code));
 	sta->acct_terminate_cause = RADIUS_ACCT_TERMINATE_CAUSE_USER_REQUEST;
-	ieee802_1x_set_port_enabled(hapd, sta, 0);
+	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
 	ap_free_sta(hapd, sta);
 }
 
 
-static void handle_beacon(hostapd *hapd, struct ieee80211_mgmt *mgmt,
-			  size_t len)
+static void handle_beacon(struct hostapd_data *hapd,
+			  struct ieee80211_mgmt *mgmt, size_t len,
+			  struct hostapd_frame_info *fi)
 {
 	struct ieee802_11_elems elems;
 
@@ -921,6 +1230,8 @@ static void handle_beacon(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		ieee802_11_sta_authenticate(hapd, NULL);
 	}
 
+	ap_list_process_beacon(hapd->iface, mgmt, &elems, fi);
+
 	if (!HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_EXCESSIVE))
 		return;
 
@@ -936,17 +1247,79 @@ static void handle_beacon(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 }
 
 
-void ieee802_11_mgmt(struct hostapd_data *hapd, u8 *buf, size_t len, u16 stype)
+static void handle_action(struct hostapd_data *hapd,
+			  struct ieee80211_mgmt *mgmt, size_t len)
 {
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) buf;
-
-	if (stype == WLAN_FC_STYPE_BEACON) {
-		HOSTAPD_DEBUG(HOSTAPD_DEBUG_EXCESSIVE, "mgmt::beacon\n");
-		handle_beacon(hapd, mgmt, len);
+	if (len < IEEE80211_HDRLEN + 1) {
+		hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "handle_action - too short payload (len=%lu)",
+			       (unsigned long) len);
 		return;
 	}
 
-	if (memcmp(mgmt->bssid, hapd->own_addr, ETH_ALEN) != 0 &&
+	switch (mgmt->u.action.category) {
+	case WME_ACTION_CATEGORY:
+		hostapd_wme_action(hapd, mgmt, len);
+		return;
+	}
+
+	hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+		       HOSTAPD_LEVEL_DEBUG,
+		       "handle_action - unknown action category %d",
+		       mgmt->u.action.category);
+	if (!(mgmt->da[0] & 0x01) && !(mgmt->u.action.category & 0x80) &&
+	    !(mgmt->sa[0] & 0x01)) {
+		/*
+		 * IEEE 802.11-REVma/D9.0 - 7.3.1.11
+		 * Return the Action frame to the source without change
+		 * except that MSB of the Category set to 1.
+		 */
+		wpa_printf(MSG_DEBUG, "IEEE 802.11: Return unknown Action "
+			   "frame back to sender");
+		os_memcpy(mgmt->da, mgmt->sa, ETH_ALEN);
+		os_memcpy(mgmt->sa, hapd->own_addr, ETH_ALEN);
+		os_memcpy(mgmt->bssid, hapd->own_addr, ETH_ALEN);
+		mgmt->u.action.category |= 0x80;
+
+		hostapd_send_mgmt_frame(hapd, mgmt, len, 0);
+	}
+}
+
+
+/**
+ * ieee802_11_mgmt - process incoming IEEE 802.11 management frames
+ * @hapd: hostapd BSS data structure (the BSS to which the management frame was
+ * sent to)
+ * @buf: management frame data (starting from IEEE 802.11 header)
+ * @len: length of frame data in octets
+ * @stype: management frame subtype from frame control field
+ *
+ * Process all incoming IEEE 802.11 management frames. This will be called for
+ * each frame received from the kernel driver through wlan#ap interface. In
+ * addition, it can be called to re-inserted pending frames (e.g., when using
+ * external RADIUS server as an MAC ACL).
+ */
+void ieee802_11_mgmt(struct hostapd_data *hapd, u8 *buf, size_t len, u16 stype,
+		     struct hostapd_frame_info *fi)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) buf;
+	int broadcast;
+
+	if (stype == WLAN_FC_STYPE_BEACON) {
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_EXCESSIVE, "mgmt::beacon\n");
+		handle_beacon(hapd, mgmt, len, fi);
+		return;
+	}
+
+	if (fi && fi->passive_scan)
+		return;
+
+	broadcast = mgmt->bssid[0] == 0xff && mgmt->bssid[1] == 0xff &&
+		mgmt->bssid[2] == 0xff && mgmt->bssid[3] == 0xff &&
+		mgmt->bssid[4] == 0xff && mgmt->bssid[5] == 0xff;
+
+	if (!broadcast && memcmp(mgmt->bssid, hapd->own_addr, ETH_ALEN) != 0 &&
 	    (hapd->assoc_ap_state == DO_NOT_ASSOC ||
 	     memcmp(mgmt->bssid, hapd->conf->assoc_ap_addr, ETH_ALEN) != 0)) {
 		printf("MGMT: BSSID=" MACSTR " not our address\n",
@@ -956,13 +1329,16 @@ void ieee802_11_mgmt(struct hostapd_data *hapd, u8 *buf, size_t len, u16 stype)
 
 
 	if (stype == WLAN_FC_STYPE_PROBE_REQ) {
-		printf("mgmt::probe_req\n");
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MSGDUMPS, "mgmt::probe_req\n");
+		handle_probe_req(hapd, mgmt, len);
 		return;
 	}
 
 	if (memcmp(mgmt->da, hapd->own_addr, ETH_ALEN) != 0) {
-		printf("MGMT: DA=" MACSTR " not our address\n",
-		       MAC2STR(mgmt->da));
+		hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "MGMT: DA=" MACSTR " not our address",
+			       MAC2STR(mgmt->da));
 		return;
 	}
 
@@ -991,14 +1367,21 @@ void ieee802_11_mgmt(struct hostapd_data *hapd, u8 *buf, size_t len, u16 stype)
 		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "mgmt::deauth\n");
 		handle_deauth(hapd, mgmt, len);
 		break;
+	case WLAN_FC_STYPE_ACTION:
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "mgmt::action\n");
+		handle_action(hapd, mgmt, len);
+		break;
 	default:
-		printf("unknown mgmt frame subtype %d\n", stype);
+		hostapd_logger(hapd, mgmt->sa, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_DEBUG,
+			       "unknown mgmt frame subtype %d", stype);
 		break;
 	}
 }
 
 
-static void handle_auth_cb(hostapd *hapd, struct ieee80211_mgmt *mgmt,
+static void handle_auth_cb(struct hostapd_data *hapd,
+			   struct ieee80211_mgmt *mgmt,
 			   size_t len, int ok)
 {
 	u16 auth_alg, auth_transaction, status_code;
@@ -1038,7 +1421,8 @@ static void handle_auth_cb(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 }
 
 
-static void handle_assoc_cb(hostapd *hapd, struct ieee80211_mgmt *mgmt,
+static void handle_assoc_cb(struct hostapd_data *hapd,
+			    struct ieee80211_mgmt *mgmt,
 			    size_t len, int reassoc, int ok)
 {
 	u16 status;
@@ -1089,12 +1473,39 @@ static void handle_assoc_cb(hostapd *hapd, struct ieee80211_mgmt *mgmt,
 		new_assoc = 0;
 	sta->flags |= WLAN_STA_ASSOC;
 
-	if (hostapd_sta_add(hapd, sta->addr, sta->aid, sta->capability,
-			    sta->tx_supp_rates)) {
-		printf("Could not add station to kernel driver.\n");
+	if (reassoc)
+		mlme_reassociate_indication(hapd, sta);
+	else
+		mlme_associate_indication(hapd, sta);
+
+	if (hostapd_sta_add(hapd->conf->iface, hapd, sta->addr, sta->aid,
+			    sta->capability, sta->supported_rates,
+			    sta->supported_rates_len, 0)) {
+		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+			       HOSTAPD_LEVEL_NOTICE,
+			       "Could not add STA to kernel driver");
 	}
 
-	wpa_sm_event(hapd, sta, WPA_ASSOC);
+	if (sta->eapol_sm == NULL) {
+		/*
+		 * This STA does not use RADIUS server for EAP authentication,
+		 * so bind it to the selected VLAN interface now, since the
+		 * interface selection is not going to change anymore.
+		 */
+		ap_sta_bind_vlan(hapd, sta, 0);
+	} else if (sta->vlan_id) {
+		/* VLAN ID already set (e.g., by PMKSA caching), so bind STA */
+		ap_sta_bind_vlan(hapd, sta, 0);
+	}
+	if (sta->flags & WLAN_STA_SHORT_PREAMBLE) {
+		hostapd_sta_set_flags(hapd, sta->addr,
+				      WLAN_STA_SHORT_PREAMBLE, ~0);
+	} else {
+		hostapd_sta_set_flags(hapd, sta->addr,
+				      0, ~WLAN_STA_SHORT_PREAMBLE);
+	}
+
+	wpa_auth_sm_event(sta->wpa_sm, WPA_ASSOC);
 	hostapd_new_assoc_sta(hapd, sta, !new_assoc);
 
 	ieee802_1x_notify_port_enabled(sta->eapol_sm, 1);
@@ -1128,6 +1539,9 @@ void ieee802_11_mgmt_cb(struct hostapd_data *hapd, u8 *buf, size_t len,
 			      "mgmt::reassoc_resp cb\n");
 		handle_assoc_cb(hapd, mgmt, len, 1, ok);
 		break;
+	case WLAN_FC_STYPE_PROBE_RESP:
+		HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "mgmt::proberesp cb\n");
+		break;
 	default:
 		printf("unknown mgmt cb frame subtype %d\n", stype);
 		break;
@@ -1153,11 +1567,10 @@ static void ieee80211_tkip_countermeasures_start(struct hostapd_data *hapd)
 	hostapd_logger(hapd, NULL, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_INFO, "TKIP countermeasures initiated");
 
-	if (hapd->wpa_auth)
-		hapd->wpa_auth->dot11RSNATKIPCounterMeasuresInvoked++;
+	wpa_auth_countermeasures_start(hapd->wpa_auth);
 	hapd->tkip_countermeasures = 1;
 	hostapd_set_countermeasures(hapd, 1);
-	wpa_gtk_rekey(hapd);
+	wpa_gtk_rekey(hapd->wpa_auth);
 	eloop_cancel_timeout(ieee80211_tkip_countermeasures_stop, hapd, NULL);
 	eloop_register_timeout(60, 0, ieee80211_tkip_countermeasures_stop,
 			       hapd, NULL);
@@ -1171,7 +1584,7 @@ static void ieee80211_tkip_countermeasures_start(struct hostapd_data *hapd)
 }
 
 
-void ieee80211_michael_mic_failure(struct hostapd_data *hapd, u8 *addr,
+void ieee80211_michael_mic_failure(struct hostapd_data *hapd, const u8 *addr,
 				   int local)
 {
 	time_t now;
@@ -1179,11 +1592,12 @@ void ieee80211_michael_mic_failure(struct hostapd_data *hapd, u8 *addr,
 	if (addr && local) {
 		struct sta_info *sta = ap_get_sta(hapd, addr);
 		if (sta != NULL) {
-			sta->dot11RSNAStatsTKIPLocalMICFailures++;
+			wpa_auth_sta_local_mic_failure_report(sta->wpa_sm);
 			hostapd_logger(hapd, addr, HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_INFO,
 				       "Michael MIC failure detected in "
 				       "received frame");
+			mlme_michaelmicfailure_indication(hapd, addr);
 		} else {
 			HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
 				      "MLME-MICHAELMICFAILURE.indication "
@@ -1218,3 +1632,5 @@ int ieee802_11_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 	/* TODO */
 	return 0;
 }
+
+#endif /* CONFIG_NATIVE_WINDOWS */

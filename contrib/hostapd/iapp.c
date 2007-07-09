@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / IEEE 802.11F-2003 Inter-Access Point Protocol (IAPP)
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / IEEE 802.11F-2003 Inter-Access Point Protocol (IAPP)
+ * Copyright (c) 2002-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -11,6 +10,11 @@
  * license.
  *
  * See README and COPYING for more details.
+ *
+ * Note: IEEE 802.11F-2003 was a experimental use specification. It has expired
+ * and IEEE has withdrawn it. In other words, it is likely better to look at
+ * using some other mechanism for AP-to-AP communication than extenting the
+ * implementation here.
  */
 
 /* TODO:
@@ -33,15 +37,9 @@
  * - IEEE 802.11 context transfer
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <netinet/in.h>
+#include "includes.h"
 #include <net/if.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #ifdef USE_KERNEL_HEADERS
 #include <linux/if_packet.h>
 #else /* USE_KERNEL_HEADERS */
@@ -53,7 +51,6 @@
 #include "iapp.h"
 #include "eloop.h"
 #include "sta_info.h"
-#include "hostap_common.h"
 
 
 #define IAPP_MULTICAST "224.0.1.178"
@@ -181,7 +178,7 @@ struct iapp_data {
 };
 
 
-static void iapp_send_add(struct iapp_data *iapp, u8 *macaddr, u16 seq_num)
+static void iapp_send_add(struct iapp_data *iapp, u8 *mac_addr, u16 seq_num)
 {
 	char buf[128];
 	struct iapp_hdr *hdr;
@@ -200,7 +197,7 @@ static void iapp_send_add(struct iapp_data *iapp, u8 *macaddr, u16 seq_num)
 	add = (struct iapp_add_notify *) (hdr + 1);
 	add->addr_len = ETH_ALEN;
 	add->reserved = 0;
-	memcpy(add->mac_addr, macaddr, ETH_ALEN);
+	memcpy(add->mac_addr, mac_addr, ETH_ALEN);
 
 	add->seq_num = host_to_be16(seq_num);
 	
@@ -323,8 +320,10 @@ static void iapp_receive_udp(int sock, void *eloop_ctx, void *sock_ctx)
 	fromlen = sizeof(from);
 	len = recvfrom(iapp->udp_sock, buf, sizeof(buf), 0,
 		       (struct sockaddr *) &from, &fromlen);
-	if (len < 0)
+	if (len < 0) {
 		perror("recvfrom");
+		return;
+	}
 
 	if (from.sin_addr.s_addr == iapp->own.s_addr)
 		return; /* ignore own IAPP messages */
@@ -333,9 +332,9 @@ static void iapp_receive_udp(int sock, void *eloop_ctx, void *sock_ctx)
 		       HOSTAPD_LEVEL_DEBUG,
 		       "Received %d byte IAPP frame from %s%s\n",
 		       len, inet_ntoa(from.sin_addr),
-		       len < sizeof(*hdr) ? " (too short)" : "");
+		       len < (int) sizeof(*hdr) ? " (too short)" : "");
 
-	if (len < sizeof(*hdr))
+	if (len < (int) sizeof(*hdr))
 		return;
 
 	hdr = (struct iapp_hdr *) buf;
@@ -387,10 +386,9 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	struct iapp_data *iapp;
 	struct ip_mreqn mreq;
 
-	iapp = malloc(sizeof(*iapp));
+	iapp = wpa_zalloc(sizeof(*iapp));
 	if (iapp == NULL)
 		return NULL;
-	memset(iapp, 0, sizeof(*iapp));
 	iapp->hapd = hapd;
 	iapp->udp_sock = iapp->packet_sock = -1;
 
@@ -459,12 +457,14 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	if (setsockopt(iapp->udp_sock, SOL_IP, IP_ADD_MEMBERSHIP, &mreq,
 		       sizeof(mreq)) < 0) {
 		perror("setsockopt[UDP,IP_ADD_MEMBERSHIP]");
+		iapp_deinit(iapp);
 		return NULL;
 	}
 
 	iapp->packet_sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (iapp->packet_sock < 0) {
 		perror("socket[PF_PACKET,SOCK_RAW]");
+		iapp_deinit(iapp);
 		return NULL;
 	}
 
@@ -474,12 +474,14 @@ struct iapp_data * iapp_init(struct hostapd_data *hapd, const char *iface)
 	if (bind(iapp->packet_sock, (struct sockaddr *) &addr,
 		 sizeof(addr)) < 0) {
 		perror("bind[PACKET]");
+		iapp_deinit(iapp);
 		return NULL;
 	}
 
 	if (eloop_register_read_sock(iapp->udp_sock, iapp_receive_udp,
 				     iapp, NULL)) {
 		printf("Could not register read socket for IAPP.\n");
+		iapp_deinit(iapp);
 		return NULL;
 	}
 
@@ -519,4 +521,24 @@ void iapp_deinit(struct iapp_data *iapp)
 		close(iapp->packet_sock);
 	}
 	free(iapp);
+}
+
+int iapp_reconfig(struct hostapd_data *hapd, struct hostapd_config *oldconf,
+		  struct hostapd_bss_config *oldbss)
+{
+	if (hapd->conf->ieee802_11f != oldbss->ieee802_11f ||
+	    strcmp(hapd->conf->iapp_iface, oldbss->iapp_iface) != 0) {
+
+		iapp_deinit(hapd->iapp);
+		hapd->iapp = NULL;
+
+		if (hapd->conf->ieee802_11f) {
+			hapd->iapp = iapp_init(hapd, hapd->conf->iapp_iface);
+
+			if (hapd->iapp == NULL)
+				return -1;
+		}
+	}
+
+	return 0;
 }
