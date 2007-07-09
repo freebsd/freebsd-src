@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-TLS (RFC 2716)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,10 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "common.h"
@@ -37,10 +34,9 @@ static void * eap_tls_init(struct eap_sm *sm)
 {
 	struct eap_tls_data *data;
 
-	data = malloc(sizeof(*data));
+	data = wpa_zalloc(sizeof(*data));
 	if (data == NULL)
-		return data;
-	memset(data, 0, sizeof(*data));
+		return NULL;
 	data->state = START;
 
 	if (eap_tls_ssl_init(sm, &data->ssl, 1)) {
@@ -134,12 +130,11 @@ static Boolean eap_tls_check(struct eap_sm *sm, void *priv,
 {
 	struct eap_hdr *resp;
 	u8 *pos;
-	size_t len;
 
 	resp = (struct eap_hdr *) respData;
 	pos = (u8 *) (resp + 1);
 	if (respDataLen < sizeof(*resp) + 2 || *pos != EAP_TYPE_TLS ||
-	    (len = ntohs(resp->length)) > respDataLen) {
+	    (ntohs(resp->length)) > respDataLen) {
 		wpa_printf(MSG_INFO, "EAP-TLS: Invalid frame");
 		return TRUE;
 	}
@@ -231,6 +226,38 @@ static u8 * eap_tls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
+static u8 * eap_tls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
+{
+	struct eap_tls_data *data = priv;
+	u8 *eapKeyData, *emsk;
+
+	if (data->state != SUCCESS)
+		return NULL;
+
+	eapKeyData = eap_tls_derive_key(sm, &data->ssl,
+					"client EAP encryption",
+					EAP_TLS_KEY_LEN + EAP_EMSK_LEN);
+	if (eapKeyData) {
+		emsk = malloc(EAP_EMSK_LEN);
+		if (emsk)
+			memcpy(emsk, eapKeyData + EAP_TLS_KEY_LEN,
+			       EAP_EMSK_LEN);
+		free(eapKeyData);
+	} else
+		emsk = NULL;
+
+	if (emsk) {
+		*len = EAP_EMSK_LEN;
+		wpa_hexdump(MSG_DEBUG, "EAP-TLS: Derived EMSK",
+			    emsk, EAP_EMSK_LEN);
+	} else {
+		wpa_printf(MSG_DEBUG, "EAP-TLS: Failed to derive EMSK");
+	}
+
+	return emsk;
+}
+
+
 static Boolean eap_tls_isSuccess(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
@@ -238,16 +265,28 @@ static Boolean eap_tls_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
-const struct eap_method eap_method_tls =
+int eap_server_tls_register(void)
 {
-	.method = EAP_TYPE_TLS,
-	.name = "TLS",
-	.init = eap_tls_init,
-	.reset = eap_tls_reset,
-	.buildReq = eap_tls_buildReq,
-	.check = eap_tls_check,
-	.process = eap_tls_process,
-	.isDone = eap_tls_isDone,
-	.getKey = eap_tls_getKey,
-	.isSuccess = eap_tls_isSuccess,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_IETF, EAP_TYPE_TLS, "TLS");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_tls_init;
+	eap->reset = eap_tls_reset;
+	eap->buildReq = eap_tls_buildReq;
+	eap->check = eap_tls_check;
+	eap->process = eap_tls_process;
+	eap->isDone = eap_tls_isDone;
+	eap->getKey = eap_tls_getKey;
+	eap->isSuccess = eap_tls_isSuccess;
+	eap->get_emsk = eap_tls_get_emsk;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}

@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-SIM/AKA shared routines
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer: EAP-SIM/AKA shared routines
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,16 +23,65 @@
 #define EAP_SIM_K_ENCR_LEN 16
 #define EAP_SIM_KEYING_DATA_LEN 64
 #define EAP_SIM_IV_LEN 16
+#define EAP_SIM_KC_LEN 8
+#define EAP_SIM_SRES_LEN 4
 
 #define GSM_RAND_LEN 16
 
-#define AKA_RAND_LEN 16
-#define AKA_AUTN_LEN 16
+#define EAP_SIM_VERSION 1
 
-void eap_sim_derive_keys(const u8 *mk, u8 *k_encr, u8 *k_aut, u8 *msk);
-void eap_sim_derive_keys_reauth(u16 _counter,
-				const u8 *identity, size_t identity_len,
-				const u8 *nonce_s, const u8 *mk, u8 *msk);
+/* EAP-SIM Subtypes */
+#define EAP_SIM_SUBTYPE_START 10
+#define EAP_SIM_SUBTYPE_CHALLENGE 11
+#define EAP_SIM_SUBTYPE_NOTIFICATION 12
+#define EAP_SIM_SUBTYPE_REAUTHENTICATION 13
+#define EAP_SIM_SUBTYPE_CLIENT_ERROR 14
+
+/* AT_CLIENT_ERROR_CODE error codes */
+#define EAP_SIM_UNABLE_TO_PROCESS_PACKET 0
+#define EAP_SIM_UNSUPPORTED_VERSION 1
+#define EAP_SIM_INSUFFICIENT_NUM_OF_CHAL 2
+#define EAP_SIM_RAND_NOT_FRESH 3
+
+#define EAP_SIM_MAX_FAST_REAUTHS 1000
+
+#define EAP_SIM_MAX_CHAL 3
+
+
+/* EAP-AKA Subtypes */
+#define EAP_AKA_SUBTYPE_CHALLENGE 1
+#define EAP_AKA_SUBTYPE_AUTHENTICATION_REJECT 2
+#define EAP_AKA_SUBTYPE_SYNCHRONIZATION_FAILURE 4
+#define EAP_AKA_SUBTYPE_IDENTITY 5
+#define EAP_AKA_SUBTYPE_NOTIFICATION 12
+#define EAP_AKA_SUBTYPE_REAUTHENTICATION 13
+#define EAP_AKA_SUBTYPE_CLIENT_ERROR 14
+
+/* AT_CLIENT_ERROR_CODE error codes */
+#define EAP_AKA_UNABLE_TO_PROCESS_PACKET 0
+
+#define EAP_AKA_RAND_LEN 16
+#define EAP_AKA_AUTN_LEN 16
+#define EAP_AKA_AUTS_LEN 14
+#define EAP_AKA_RES_MAX_LEN 16
+#define EAP_AKA_IK_LEN 16
+#define EAP_AKA_CK_LEN 16
+#define EAP_AKA_MAX_FAST_REAUTHS 1000
+#define EAP_AKA_MIN_RES_LEN 4
+#define EAP_AKA_MAX_RES_LEN 16
+
+void eap_sim_derive_mk(const u8 *identity, size_t identity_len,
+		       const u8 *nonce_mt, u16 selected_version,
+		       const u8 *ver_list, size_t ver_list_len,
+		       int num_chal, const u8 *kc, u8 *mk);
+void eap_aka_derive_mk(const u8 *identity, size_t identity_len,
+		       const u8 *ik, const u8 *ck, u8 *mk);
+int eap_sim_derive_keys(const u8 *mk, u8 *k_encr, u8 *k_aut, u8 *msk,
+			u8 *emsk);
+int eap_sim_derive_keys_reauth(u16 _counter,
+			       const u8 *identity, size_t identity_len,
+			       const u8 *nonce_s, const u8 *mk, u8 *msk,
+			       u8 *emsk);
 int eap_sim_verify_mac(const u8 *k_aut, const u8 *req, size_t req_len,
 		       const u8 *mac, const u8 *extra, size_t extra_len);
 void eap_sim_add_mac(const u8 *k_aut, u8 *msg, size_t msg_len, u8 *mac,
@@ -42,8 +91,8 @@ void eap_sim_add_mac(const u8 *k_aut, u8 *msg, size_t msg_len, u8 *mac,
 /* EAP-SIM/AKA Attributes (0..127 non-skippable) */
 #define EAP_SIM_AT_RAND 1
 #define EAP_SIM_AT_AUTN 2 /* only AKA */
-#define EAP_SIM_AT_RES 3 /* only AKA, only send */
-#define EAP_SIM_AT_AUTS 4 /* only AKA, only send */
+#define EAP_SIM_AT_RES 3 /* only AKA, only peer->server */
+#define EAP_SIM_AT_AUTS 4 /* only AKA, only peer->server */
 #define EAP_SIM_AT_PADDING 6 /* only encrypted */
 #define EAP_SIM_AT_NONCE_MT 7 /* only SIM, only send */
 #define EAP_SIM_AT_PERMANENT_ID_REQ 10
@@ -81,11 +130,12 @@ enum eap_sim_id_req {
 struct eap_sim_attrs {
 	const u8 *rand, *autn, *mac, *iv, *encr_data, *version_list, *nonce_s;
 	const u8 *next_pseudonym, *next_reauth_id;
-	const u8 *nonce_mt, *identity;
+	const u8 *nonce_mt, *identity, *res, *auts;
 	size_t num_chal, version_list_len, encr_data_len;
-	size_t next_pseudonym_len, next_reauth_id_len, identity_len;
+	size_t next_pseudonym_len, next_reauth_id_len, identity_len, res_len;
 	enum eap_sim_id_req id_req;
 	int notification, counter, selected_version, client_error_code;
+	int counter_too_small;
 };
 
 int eap_sim_parse_attr(const u8 *start, const u8 *end,
