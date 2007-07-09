@@ -74,6 +74,9 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ATI_IXP_BLK_MIN		32
 #define ATI_IXP_BLK_ALIGN	(~(ATI_IXP_BLK_MIN - 1))
 
+#define ATI_IXP_CHN_RUNNING	0x00000001
+#define ATI_IXP_CHN_SUSPEND	0x00000002
+
 struct atiixp_dma_op {
 	volatile uint32_t addr;
 	volatile uint16_t status;
@@ -93,7 +96,8 @@ struct atiixp_chinfo {
 	uint32_t blksz, blkcnt;
 	uint32_t ptr, prevptr;
 	uint32_t fmt;
-	int caps_32bit, dir, active;
+	uint32_t flags;
+	int caps_32bit, dir;
 };
 
 struct atiixp_info {
@@ -654,7 +658,7 @@ atiixp_poll_channel(struct atiixp_chinfo *ch)
 	uint32_t sz, delta;
 	volatile uint32_t ptr;
 
-	if (ch->active == 0)
+	if (!(ch->flags & ATI_IXP_CHN_RUNNING))
 		return (0);
 
 	sz = ch->blksz * ch->blkcnt;
@@ -672,7 +676,8 @@ atiixp_poll_channel(struct atiixp_chinfo *ch)
 	return (1);
 }
 
-#define atiixp_chan_active(sc)	((sc)->pch.active + (sc)->rch.active)
+#define atiixp_chan_active(sc)	(((sc)->pch.flags | (sc)->rch.flags) &	\
+				 ATI_IXP_CHN_RUNNING)
 
 static void
 atiixp_poll_callback(void *arg)
@@ -754,19 +759,19 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 				    atiixp_poll_callback, sc);
 			}
 		}
-		ch->active = 1;
+		ch->flags |= ATI_IXP_CHN_RUNNING;
 		break;
 	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		atiixp_disable_dma(ch);
 		atiixp_flush_dma(ch);
-		ch->active = 0;
+		ch->flags &= ~ATI_IXP_CHN_RUNNING;
 		if (sc->polling != 0) {
 			if (atiixp_chan_active(sc) == 0) {
 				callout_stop(&sc->poll_timer);
 				sc->poll_ticks = 1;
 			} else {
-				if (sc->pch.active != 0)
+				if (sc->pch.flags & ATI_IXP_CHN_RUNNING)
 					ch = &sc->pch;
 				else
 					ch = &sc->rch;
@@ -874,9 +879,11 @@ atiixp_intr(void *p)
 		return;
 	}
 
-	if ((status & ATI_REG_ISR_OUT_STATUS) && sc->pch.active != 0)
+	if ((status & ATI_REG_ISR_OUT_STATUS) &&
+	    (sc->pch.flags & ATI_IXP_CHN_RUNNING))
 		trigger |= 1;
-	if ((status & ATI_REG_ISR_IN_STATUS) && sc->rch.active != 0)
+	if ((status & ATI_REG_ISR_IN_STATUS) &&
+	    (sc->rch.flags & ATI_IXP_CHN_RUNNING))
 		trigger |= 2;
 
 #if 0
@@ -1332,10 +1339,14 @@ atiixp_pci_suspend(device_t dev)
 	atiixp_unlock(sc);
 
 	/* stop everything */
-	if (sc->pch.active != 0)
+	if (sc->pch.flags & ATI_IXP_CHN_RUNNING) {
 		atiixp_chan_trigger(NULL, &sc->pch, PCMTRIG_STOP);
-	if (sc->rch.active != 0)
+		sc->pch.flags |= ATI_IXP_CHN_SUSPEND;
+	}
+	if (sc->rch.flags & ATI_IXP_CHN_RUNNING) {
 		atiixp_chan_trigger(NULL, &sc->rch, PCMTRIG_STOP);
+		sc->rch.flags |= ATI_IXP_CHN_SUSPEND;
+	}
 
 	/* power down aclink and pci bus */
 	atiixp_lock(sc);
@@ -1374,14 +1385,18 @@ atiixp_pci_resume(device_t dev)
 	if (sc->pch.channel != NULL) {
 		if (sc->pch.fmt != 0)
 			atiixp_chan_setformat(NULL, &sc->pch, sc->pch.fmt);
-		if (sc->pch.active != 0)
+		if (sc->pch.flags & ATI_IXP_CHN_SUSPEND) {
+			sc->pch.flags &= ~ATI_IXP_CHN_SUSPEND;
 			atiixp_chan_trigger(NULL, &sc->pch, PCMTRIG_START);
+		}
 	}
 	if (sc->rch.channel != NULL) {
 		if (sc->rch.fmt != 0)
 			atiixp_chan_setformat(NULL, &sc->rch, sc->rch.fmt);
-		if (sc->rch.active != 0)
+		if (sc->rch.flags & ATI_IXP_CHN_SUSPEND) {
+			sc->rch.flags &= ~ATI_IXP_CHN_SUSPEND;
 			atiixp_chan_trigger(NULL, &sc->rch, PCMTRIG_START);
+		}
 	}
 
 	/* enable interrupts */
