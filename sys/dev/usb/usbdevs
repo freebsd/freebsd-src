@@ -242,6 +242,7 @@ vendor FUJIXEROX	0x0550	Fuji Xerox
 vendor VISION		0x0553	VLSI Vision
 vendor ASAHIKASEI	0x0556	Asahi Kasei Microsystems
 vendor ATEN		0x0557	ATEN International
+vendor SAMSUNG2		0x055d	Samsung Electronics
 vendor MUSTEK		0x055f	Mustek Systems
 vendor TELEX		0x0562	Telex Communications
 vendor CHINON		0x0564	Chinon
@@ -285,7 +286,7 @@ vendor RAFI		0x05bd	RAFI
 vendor TYCO		0x05be	Tyco
 vendor KAWASAKI		0x05c1	Kawasaki
 vendor DIGI		0x05c5	Digi International
-vendor QUALCOMM		0x05c6	Qualcomm
+vendor QUALCOMM2	0x05c6	Qualcomm
 vendor QTRONIX		0x05c7	Qtronix
 vendor FOXLINK		0x05c8	Foxlink
 vendor RICOH		0x05ca	Ricoh
@@ -318,6 +319,7 @@ vendor MACALLY		0x0618	Macally
 vendor ACTLABS		0x061c	Act Labs
 vendor ALARIS		0x0620	Alaris
 vendor APEX		0x0624	Apex
+vendor CREATIVE3	0x062a	Creative Labs
 vendor VIVITAR		0x0636	Vivitar
 vendor GUNZE		0x0637	Gunze Electronics USA
 vendor AVISION		0x0638	Avision
@@ -325,7 +327,7 @@ vendor TEAC		0x0644	TEAC
 vendor SGI		0x065e	Silicon Graphics
 vendor SANWASUPPLY	0x0663	Sanwa Supply
 vendor LINKSYS		0x066b	Linksys
-vendor ACERSA		0x066e	Acer
+vendor ACERSA		0x066e	Acer Semiconductor America
 vendor SIGMATEL		0x066f	Sigmatel
 vendor DRAYTEK		0x0675	DrayTek
 vendor AIWA		0x0677	Aiwa
@@ -358,6 +360,7 @@ vendor MCT		0x0711	MCT
 vendor IMATION		0x0718	Imation
 vendor SONYERICSSON	0x0731	Sony Ericsson
 vendor EICON		0x0734	Eicon Networks
+vendor SYNTECH		0x0745	Syntech Information
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
 vendor MIDIMAN		0x0763	Midiman
@@ -408,9 +411,11 @@ vendor SAMSUNG_TECHWIN	0x0839	Samsung Techwin
 vendor ACCTON		0x083a	Accton Technology
 vendor DIAMOND		0x0841	Diamond
 vendor NETGEAR		0x0846	BayNETGEAR
+vendor TOPRE		0x0853	Topre Corporation
 vendor ACTIVEWIRE	0x0854	ActiveWire
 vendor BBELECTRONICS	0x0856	B&B Electronics
 vendor PORTGEAR		0x085a	PortGear
+vendor NETGEAR2		0x0864	Netgear
 vendor SYSTEMTALKS	0x086e	System Talks
 vendor METRICOM		0x0870	Metricom
 vendor ADESSOKBTEK	0x087c	ADESSO/Kbtek America
@@ -442,6 +447,7 @@ vendor YANO		0x094f	Yano
 vendor KINGSTON		0x0951	Kingston Technology
 vendor BLUEWATER	0x0956	BlueWater Systems
 vendor AGILENT		0x0957	Agilent Technologies
+vendor GUDE		0x0959	Gude ADS
 vendor PORTSMITH	0x095a	Portsmith
 vendor ACERW		0x0967	Acer
 vendor ADIRONDACK	0x0976	Adirondack Wire & Cable
@@ -453,6 +459,7 @@ vendor ALTIUS		0x09b3	Altius Solutions
 vendor ARRIS		0x09c1	Arris Interactive
 vendor ACTIVCARD	0x09c3	ACTIVCARD
 vendor ACTISYS		0x09c4	ACTiSYS
+vendor NOVATEL		0x09d7	Novatel Wireless
 vendor AFOURTECH	0x09da	A-FOUR TECH
 vendor AIMEX		0x09dc	AIMEX
 vendor ADDONICS		0x09df	Addonics Technologies
@@ -464,10 +471,13 @@ vendor CSR		0x0a12	Cambridge Silicon Radio
 vendor TREK		0x0a16	Trek Technology
 vendor ASAHIOPTICAL	0x0a17	Asahi Optical
 vendor BOCASYSTEMS	0x0a43	Boca Systems
+vendor SHANTOU		0x0a46	ShanTou
 vendor MEDIAGEAR	0x0a48	MediaGear
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
+vendor IDQUANTIQUE	0x0aba	id Quantique
+vendor ZYDAS		0x0ace	Zydas Technology Corporation
 vendor NEODIO		0x0aec	Neodio
 vendor OPTION		0x0af0	Option
 vendor ASUS		0x0b05	ASUSTeK Computer
@@ -488,13 +498,14 @@ vendor REALTEK		0x0bda	Realtek
 vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
-vendor CHICONY2		0x0c45	Chicony
+vendor MICRODIA		0x0c45	Chicony
 vendor SEALEVEL		0x0c52	Sealevel System
 vendor LUWEN		0x0c76	Luwen
+vendor KYOCERA2		0x0c88	Kyocera Wireless Corp.
 vendor ZCOM		0x0cde	Z-Com
 vendor ATHEROS2		0x0cf3	Atheros Communications
 vendor TANGTOP		0x0d3d	Tangtop
-vendor SMC3		0x0d5c	SMC
+vendor SMC3		0x0d5c	Standard Microsystems
 vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	American Computer & Digital Components
 vendor ABC		0x0d8c	ABC
@@ -504,43 +515,65 @@ vendor MSI		0x0db0	Micro Star International
 vendor ELCON		0x0db7	ELCON Systemtechnik
 vendor NETAC		0x0dd8	Netac
 vendor SITECOMEU	0x0df6	Sitecom Europe
+vendor MOBILEACTION	0x0df7	Mobile Action
+vendor SPEEDDRAGON	0x0e55	Speed Dragon Multimedia
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
 vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours Technology
 vendor PILOTECH		0x0eaf	Pilotech
 vendor NOVATECH		0x0eb0	NovaTech
+vendor ITEGNO		0x0eba	iTegno
 vendor WINMAXGROUP	0x0ed1	WinMaxGroup
+vendor TOD		0x0ede	TOD
 vendor EGALAX		0x0eef	eGalax, Inc.
+vendor AIRPRIME		0x0f3d	AirPrime, Inc.
 vendor MICROTUNE	0x0f4d	Microtune
 vendor VTECH		0x0f88	VTech
-vendor QUALCOMM2	0x1004	Qualcomm
+vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
+vendor RIM		0x0fca	Research In Motion
+vendor DYNASTREAM	0x0fcf	Dynastream Innovations
+vendor QUALCOMM		0x1004	Qualcomm
 vendor DESKNOTE		0x1019	Desknote
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
 vendor MOTOROLA		0x1063	Motorola
 vendor CCYU		0x1065	CCYU Technology
 vendor CURITEL		0x106c	Curitel Communications Inc
+vendor SILABS2		0x10a6	SILABS2
+vendor USI		0x10ab	USI
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
+vendor SILABS		0x10c4	Silicon Labs
+vendor ANALOG		0x1110	Analog Devices
+vendor TENX		0x1130	Ten X Technology, Inc.
+vendor ISSC		0x1131	Integrated System Solution Corp.
 vendor JRC		0x1145	Japan Radio Company
 vendor SPHAIRON		0x114b	Sphairon Access Systems GmbH
 vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
+vendor TOPFIELD		0x11db	Topfield Co., Ltd
 vendor SIEMENS3		0x11f5	Siemens
 vendor PROLIFIC2	0x11f6	Prolific
 vendor TWINMOS		0x126f	TwinMOS
 vendor TSUNAMI		0x1241	Tsunami
+vendor PHEENET		0x124a	Pheenet
+vendor TARGUS		0x1267	Targus
+vendor TWINMOS		0x126f	TwinMOS
+vendor TENDA		0x1286	Tenda
 vendor CREATIVE2	0x1292	Creative Labs
 vendor BELKIN2		0x1293	Belkin Components
+vendor CYBERTAN		0x129b	CyberTAN Technology
 vendor HUAWEI		0x12d1	Huawei Technologies
+vendor ARANEUS		0x12d8	Araneus Information Systems
 vendor TAPWAVE		0x12ef	Tapwave
 vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor DICKSMITH	0x1371	Dick Smith Electronics
 vendor NETGEAR3		0x1385	Netgear
+vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
 vendor NOVATEL		0x1410	Novatel Wireless
@@ -558,6 +591,7 @@ vendor UBLOX		0x1546	U-blox
 vendor PNY		0x154b	PNY
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
+vendor FIBERLINE	0x1582	Fiberline
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -568,8 +602,11 @@ vendor ATHEROS		0x168c	Atheros Communications
 vendor GIGASET		0x1690	Gigaset
 vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor ANYDATA		0x16d5	AnyDATA Corporation
+vendor JABLOTRON	0x16d6	Jablotron
 vendor CMOTECH		0x16d8	CMOTECH Co., Ltd.
 vendor LINKSYS4		0x1737	Linksys
+vendor SENAO		0x1740	Senao
+vendor METAGEEK		0x1781	MetaGeek
 vendor AMIT		0x18c5	AMIT
 vendor QCOM		0x18e8	Qcom
 vendor LINKSYS3		0x1915	Linksys
@@ -583,6 +620,7 @@ vendor NHJ		0x2770	NHJ
 vendor PLANEX		0x2c02	Planex Communications
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor AEI		0x3334	AEI
+vendor HANK		0x3353	Hank Connection
 vendor PQI		0x3538	PQI
 vendor DAISY		0x3579	Daisy Technology
 vendor NI		0x3923	National Instruments
@@ -590,14 +628,22 @@ vendor MICRONET		0x3980	Micronet Communications
 vendor IODATA2		0x40bb	I-O Data
 vendor IRIVER		0x4102	iRiver
 vendor DELL		0x413c	Dell
+vendor WCH		0x4348	QinHeng Electronics
 vendor ACEECA		0x4766	Aceeca
 vendor AVERATEC		0x50c2	Averatec
+vendor SWEEX		0x5173	Sweex
+vendor PROLIFIC2	0x5372	Prolific Technology
 vendor ONSPEC2		0x55aa	OnSpec Electronic Inc.
 vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
 vendor ARKMICRO		0x6547	Arkmicro Technologies Inc.
+vendor 3COM2		0x6891	3Com
 vendor INTEL		0x8086	Intel
+vendor SITECOM2		0x9016	Sitecom
+vendor MOSCHIP		0x9710	MosChip Semiconductor
+vendor 3COM3		0xa727	3Com
 vendor HP2		0xf003	Hewlett Packard
+vendor USRP		0xfffe	GNU Radio USRP
 
 /*
  * List of known products.  Grouped by vendor.
@@ -939,6 +985,10 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
+product CREATIVE NOMAD_IIMG	0x4004	Nomad II MG
+product CREATIVE NOMAD		0x4106	Nomad
+product CREATIVE2 VOIP_BLASTER	0x0258	Voip Blaster
+product CREATIVE3 OPTICAL_MOUSE	0x0001	Notebook Optical Mouse
 
 /* Cambridge Silicon Radio Ltd. products */
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
@@ -1509,6 +1559,9 @@ product MSI RT2573_2		0x6877	RT2573
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
 
+/* Microdia products */
+product MICRODIA TWINKLECAM	0x600d	TwinkleCam USB camera
+
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
 product MICROSOFT INTELLIMOUSE	0x0009	IntelliMouse
@@ -1623,10 +1676,12 @@ product NETGEAR EA101		0x1001	Ethernet
 product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
-product NETGEAR3 WG111T		0x4250	WG111T
-product NETGEAR3 WG111T_NF	0x4251	WG111T (no firmware)
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
+product NETGEAR2 MA101		0x4100	MA101
+product NETGEAR2 MA101B		0x4102	MA101 Rev B
+product NETGEAR3 WG111T		0x4250	WG111T
+product NETGEAR3 WG111T_NF	0x4251	WG111T (no firmware)
 product NETGEAR3 WPN111		0x5f00	WPN111
 product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
 
@@ -1780,9 +1835,9 @@ product QCOM RT2573		0x6196	RT2573
 product QCOM RT2573_2		0x6229	RT2573
 
 /* Qualcomm products */
-product QUALCOMM RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
-product QUALCOMM CDMA_MSM	0x3196	CDMA Technologies MSM modem
-product QUALCOMM2 CDMA_MSM	0x6000	CDMA Technologies MSM phone
+product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
+product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
+product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -1846,6 +1901,9 @@ product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
+
+/* ShanTou products */
+product SHANTOU ST268		0x0268	ST268
 
 /* Shark products */
 product SHARK PA		0x0400	Pocket Adapter
@@ -2028,6 +2086,9 @@ product TI TUSB2046		0x2046	TUSB2046 hub
 
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
+
+/* Topre Corporation products */
+product TOPRE HHKB		0x0100	HHKB Professional
 
 /* Toshiba Corporation products */
 product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
