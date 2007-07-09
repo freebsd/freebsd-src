@@ -1,6 +1,6 @@
 /*
  * hostapd / EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
- * Copyright (c) 2004, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,10 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <netinet/in.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "common.h"
@@ -45,10 +42,9 @@ static void * eap_tlv_init(struct eap_sm *sm)
 {
 	struct eap_tlv_data *data;
 
-	data = malloc(sizeof(*data));
+	data = wpa_zalloc(sizeof(*data));
 	if (data == NULL)
-		return data;
-	memset(data, 0, sizeof(*data));
+		return NULL;
 	data->state = CONTINUE;
 
 	return data;
@@ -103,12 +99,11 @@ static Boolean eap_tlv_check(struct eap_sm *sm, void *priv,
 {
 	struct eap_hdr *resp;
 	u8 *pos;
-	size_t len;
 
 	resp = (struct eap_hdr *) respData;
 	pos = (u8 *) (resp + 1);
 	if (respDataLen < sizeof(*resp) + 1 || *pos != EAP_TYPE_TLV ||
-	    (len = ntohs(resp->length)) > respDataLen) {
+	    (ntohs(resp->length)) > respDataLen) {
 		wpa_printf(MSG_INFO, "EAP-TLV: Invalid frame");
 		return TRUE;
 	}
@@ -123,14 +118,12 @@ static void eap_tlv_process(struct eap_sm *sm, void *priv,
 	struct eap_tlv_data *data = priv;
 	struct eap_hdr *resp;
 	u8 *pos;
-	int len;
 	size_t left;
 	u8 *result_tlv = NULL;
 	size_t result_tlv_len = 0;
 	int tlv_type, mandatory, tlv_len;
 
 	resp = (struct eap_hdr *) respData;
-	len = ntohs(resp->length);
 	pos = (u8 *) (resp + 1);
 
 	/* Parse TLVs */
@@ -145,7 +138,7 @@ static void eap_tlv_process(struct eap_sm *sm, void *priv,
 		tlv_len = ((int) pos[2] << 8) | pos[3];
 		pos += 4;
 		left -= 4;
-		if (tlv_len > left) {
+		if ((size_t) tlv_len > left) {
 			wpa_printf(MSG_DEBUG, "EAP-TLV: TLV underrun "
 				   "(tlv_len=%d left=%lu)", tlv_len,
 				   (unsigned long) left);
@@ -234,15 +227,26 @@ static Boolean eap_tlv_isSuccess(struct eap_sm *sm, void *priv)
 }
 
 
-const struct eap_method eap_method_tlv =
+int eap_server_tlv_register(void)
 {
-	.method = EAP_TYPE_TLV,
-	.name = "TLV",
-	.init = eap_tlv_init,
-	.reset = eap_tlv_reset,
-	.buildReq = eap_tlv_buildReq,
-	.check = eap_tlv_check,
-	.process = eap_tlv_process,
-	.isDone = eap_tlv_isDone,
-	.isSuccess = eap_tlv_isSuccess,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
+				      EAP_VENDOR_IETF, EAP_TYPE_TLV, "TLV");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_tlv_init;
+	eap->reset = eap_tlv_reset;
+	eap->buildReq = eap_tlv_buildReq;
+	eap->check = eap_tlv_check;
+	eap->process = eap_tlv_process;
+	eap->isDone = eap_tlv_isDone;
+	eap->isSuccess = eap_tlv_isSuccess;
+
+	ret = eap_server_method_register(eap);
+	if (ret)
+		eap_server_method_free(eap);
+	return ret;
+}

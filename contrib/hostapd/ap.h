@@ -1,3 +1,17 @@
+/*
+ * hostapd / Station table data structures
+ * Copyright (c) 2002-2004, Jouni Malinen <j@w1.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ */
+
 #ifndef AP_H
 #define AP_H
 
@@ -9,16 +23,13 @@
 #define WLAN_STA_PERM BIT(4)
 #define WLAN_STA_AUTHORIZED BIT(5)
 #define WLAN_STA_PENDING_POLL BIT(6) /* pending activity poll not ACKed */
-#define WLAN_STA_PREAUTH BIT(7)
+#define WLAN_STA_SHORT_PREAMBLE BIT(7)
+#define WLAN_STA_PREAUTH BIT(8)
+#define WLAN_STA_WME BIT(9)
+#define WLAN_STA_NONERP BIT(31)
 
-#define WLAN_RATE_1M BIT(0)
-#define WLAN_RATE_2M BIT(1)
-#define WLAN_RATE_5M5 BIT(2)
-#define WLAN_RATE_11M BIT(3)
-#define WLAN_RATE_COUNT 4
-
-/* Maximum size of Supported Rates info element. IEEE 802.11 has a limit of 8,
- * but some pre-standard IEEE 802.11g products use longer elements. */
+/* Maximum number of supported rates (from both Supported Rates and Extended
+ * Supported Rates IEs). */
 #define WLAN_SUPP_RATES_MAX 32
 
 
@@ -31,7 +42,14 @@ struct sta_info {
 	u16 capability;
 	u16 listen_interval; /* or beacon_int for APs */
 	u8 supported_rates[WLAN_SUPP_RATES_MAX];
-	u8 tx_supp_rates;
+	int supported_rates_len;
+
+	unsigned int nonerp_set:1;
+	unsigned int no_short_slot_time_set:1;
+	unsigned int no_short_preamble_set:1;
+
+	u16 auth_alg;
+	u8 previous_ap[6];
 
 	enum {
 		STA_NULLFUNC = 0, STA_DISASSOC, STA_DEAUTH, STA_REMOVE
@@ -57,26 +75,15 @@ struct sta_info {
 
 	u8 *challenge; /* IEEE 802.11 Shared Key Authentication Challenge */
 
-	int pairwise; /* Pairwise cipher suite, WPA_CIPHER_* */
-	u8 *wpa_ie;
-	size_t wpa_ie_len;
 	struct wpa_state_machine *wpa_sm;
-	enum {
-		WPA_VERSION_NO_WPA = 0 /* WPA not used */,
-		WPA_VERSION_WPA = 1 /* WPA / IEEE 802.11i/D3.0 */,
-		WPA_VERSION_WPA2 = 2 /* WPA2 / IEEE 802.11i */
-	} wpa;
-	int wpa_key_mgmt; /* the selected WPA_KEY_MGMT_* */
-	struct rsn_pmksa_cache *pmksa;
 	struct rsn_preauth_interface *preauth_iface;
-	u8 req_replay_counter[8 /* WPA_REPLAY_COUNTER_LEN */];
-	int req_replay_counter_used;
-	u32 dot11RSNAStatsTKIPLocalMICFailures;
-	u32 dot11RSNAStatsTKIPRemoteMICFailures;
+
+	struct hostapd_ssid *ssid; /* SSID selection based on (Re)AssocReq */
+	struct hostapd_ssid *ssid_probe; /* SSID selection based on ProbeReq */
+
+	int vlan_id;
 };
 
-
-#define MAX_STA_COUNT 1024
 
 /* Maximum number of AIDs to use for STAs; must be 2007 or lower
  * (8802.11 limitation) */
@@ -95,5 +102,10 @@ struct sta_info {
 #define AP_MAX_INACTIVITY (5 * 60)
 #define AP_DISASSOC_DELAY (1)
 #define AP_DEAUTH_DELAY (1)
+/* Number of seconds to keep STA entry with Authenticated flag after it has
+ * been disassociated. */
+#define AP_MAX_INACTIVITY_AFTER_DISASSOC (1 * 30)
+/* Number of seconds to keep STA entry after it has been deauthenticated. */
+#define AP_MAX_INACTIVITY_AFTER_DEAUTH (1 * 5)
 
 #endif /* AP_H */
