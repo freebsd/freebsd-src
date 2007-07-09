@@ -459,7 +459,7 @@ vendor ALTIUS		0x09b3	Altius Solutions
 vendor ARRIS		0x09c1	Arris Interactive
 vendor ACTIVCARD	0x09c3	ACTIVCARD
 vendor ACTISYS		0x09c4	ACTiSYS
-vendor NOVATEL		0x09d7	Novatel Wireless
+vendor NOVATEL2		0x09d7	Novatel Wireless
 vendor AFOURTECH	0x09da	A-FOUR TECH
 vendor AIMEX		0x09dc	AIMEX
 vendor ADDONICS		0x09df	Addonics Technologies
@@ -633,7 +633,6 @@ vendor WCH		0x4348	QinHeng Electronics
 vendor ACEECA		0x4766	Aceeca
 vendor AVERATEC		0x50c2	Averatec
 vendor SWEEX		0x5173	Sweex
-vendor PROLIFIC2	0x5372	Prolific Technology
 vendor ONSPEC2		0x55aa	OnSpec Electronic Inc.
 vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
