@@ -7,13 +7,20 @@ PROG=	hostapd
 SRCS=	hostapd.c eloop.c ieee802_1x.c eapol_sm.c radius.c md5.c rc4.c \
 	common.c ieee802_11.c config.c ieee802_11_auth.c accounting.c \
 	sta_info.c radius_client.c sha1.c wpa.c aes_wrap.c tls_none.c \
-	ctrl_iface.c driver_conf.c l2_packet.c driver_freebsd.c
+	ctrl_iface.c driver_conf.c os_unix.c preauth.c pmksa_cache.c \
+	beacon.c hw_features.c wme.c ap_list.c reconfig.c mlme.c \
+	vlan_init.c ieee802_11h.c l2_packet.c driver_freebsd.c
 CLEANFILES=driver_conf.c
 
 MAN=	hostapd.8 hostapd.conf.5
 
 CFLAGS+= -I${.CURDIR} -I${HOSTAPD_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
+CFLAGS+= -DCONFIG_CTRL_IFACE
+CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
+CFLAGS+= -DINTERNAL_AES
+CFLAGS+= -DINTERNAL_SHA1
+CFLAGS+= -DINTERNAL_MD5
 DPADD+=	${LIBPCAP}
 LDADD+=	-lpcap
 
