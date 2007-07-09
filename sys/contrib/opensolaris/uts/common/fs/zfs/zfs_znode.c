@@ -115,7 +115,6 @@ zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 		ASSERT(error == 0);
 		zp->z_vnode = vp;
 		vp->v_data = (caddr_t)zp;
-		vhold(vp);
 		vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 		vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 	} else {
@@ -601,7 +600,6 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			ASSERT(err == 0);
 			vp = ZTOV(zp);
 			vp->v_data = (caddr_t)zp;
-			vhold(vp);
 			vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 			vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 			vp->v_type = IFTOVT((mode_t)zp->z_phys->zp_mode);
