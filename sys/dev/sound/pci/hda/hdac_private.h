@@ -260,6 +260,9 @@ struct hdac_devinfo {
 	} function;
 };
 
+#define HDAC_CHN_RUNNING	0x00000001
+#define HDAC_CHN_SUSPEND	0x00000002
+
 struct hdac_chan {
 	struct snd_dbuf *b;
 	struct pcm_channel *c;
@@ -270,7 +273,7 @@ struct hdac_chan {
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
 	uint32_t ptr, prevptr, blkcnt, blksz;
 	uint32_t *dmapos;
-	int active;
+	uint32_t flags;
 	int dir;
 	int off;
 	int sid;
@@ -283,6 +286,10 @@ struct hdac_chan {
  *
  * This structure holds the current state of the hdac driver.
  ****************************************************************************/
+
+#define HDAC_F_DMA_NOCACHE	0x00000001
+#define HDAC_F_MSI		0x00000002
+
 struct hdac_softc {
 	device_t	dev;
 	device_t	hdabus;
@@ -294,7 +301,7 @@ struct hdac_softc {
 	struct hdac_irq	irq;
 	uint32_t pci_subvendor;
 
-	int		nocache;
+	uint32_t	flags;
 
 	int		num_iss;
 	int		num_oss;

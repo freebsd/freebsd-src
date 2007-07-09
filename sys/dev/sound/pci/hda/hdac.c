@@ -81,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070702_0046"
+#define HDA_DRV_TEST_REV	"20070710_0047"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -131,9 +131,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Intel */
 #define INTEL_VENDORID		0x8086
 #define HDA_INTEL_82801F	HDA_MODEL_CONSTRUCT(INTEL, 0x2668)
+#define HDA_INTEL_63XXESB	HDA_MODEL_CONSTRUCT(INTEL, 0x269a)
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
 #define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
-#define HDA_INTEL_63XXESB	HDA_MODEL_CONSTRUCT(INTEL, 0x269a)
+#define HDA_INTEL_82801I	HDA_MODEL_CONSTRUCT(INTEL, 0x293e)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
 /* Nvidia */
@@ -398,9 +399,10 @@ static const struct {
 	char		*desc;
 } hdac_devices[] = {
 	{ HDA_INTEL_82801F,  "Intel 82801F" },
+	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB" },
 	{ HDA_INTEL_82801G,  "Intel 82801G" },
 	{ HDA_INTEL_82801H,  "Intel 82801H" },
-	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB" },
+	{ HDA_INTEL_82801I,  "Intel 82801I" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
 	{ HDA_NVIDIA_MCP61A, "NVidia MCP61A" },
@@ -486,6 +488,7 @@ static const struct {
 #define REALTEK_VENDORID	0x10ec
 #define HDA_CODEC_ALC260	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
 #define HDA_CODEC_ALC262	HDA_CODEC_CONSTRUCT(REALTEK, 0x0262)
+#define HDA_CODEC_ALC268	HDA_CODEC_CONSTRUCT(REALTEK, 0x0268)
 #define HDA_CODEC_ALC660	HDA_CODEC_CONSTRUCT(REALTEK, 0x0660)
 #define HDA_CODEC_ALC861	HDA_CODEC_CONSTRUCT(REALTEK, 0x0861)
 #define HDA_CODEC_ALC861VD	HDA_CODEC_CONSTRUCT(REALTEK, 0x0862)
@@ -558,6 +561,7 @@ static const struct {
 } hdac_codecs[] = {
 	{ HDA_CODEC_ALC260,    "Realtek ALC260" },
 	{ HDA_CODEC_ALC262,    "Realtek ALC262" },
+	{ HDA_CODEC_ALC268,    "Realtek ALC268" },
 	{ HDA_CODEC_ALC660,    "Realtek ALC660" },
 	{ HDA_CODEC_ALC861,    "Realtek ALC861" },
 	{ HDA_CODEC_ALC861VD,  "Realtek ALC861-VD" },
@@ -1077,7 +1081,7 @@ hdac_stream_intr(struct hdac_softc *sc, struct hdac_chan *ch)
 	uint32_t res;
 #endif
 
-	if (ch->blkcnt == 0)
+	if (!(ch->flags & HDAC_CHN_RUNNING))
 		return (0);
 
 	/* XXX to be removed */
@@ -1387,7 +1391,8 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	 */
 	result = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO |
-	    ((sc->nocache != 0) ? BUS_DMA_NOCACHE : 0), &dma->dma_map);
+	    ((sc->flags & HDAC_F_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0),
+	    &dma->dma_map);
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%x)\n",
 		    __func__, result);
@@ -1508,6 +1513,16 @@ hdac_irq_alloc(struct hdac_softc *sc)
 
 	irq = &sc->irq;
 	irq->irq_rid = 0x0;
+
+#if __FreeBSD_version >= 602106
+	if ((sc->flags & HDAC_F_MSI) &&
+	    (result = pci_msi_count(sc->dev)) == 1 &&
+	    pci_alloc_msi(sc->dev, &result) == 0)
+		irq->irq_rid = 0x1;
+	else
+#endif
+		sc->flags &= ~HDAC_F_MSI;
+
 	irq->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
 	    &irq->irq_rid, RF_SHAREABLE | RF_ACTIVE);
 	if (irq->irq_res == NULL) {
@@ -1548,8 +1563,13 @@ hdac_irq_free(struct hdac_softc *sc)
 	if (irq->irq_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
 		    irq->irq_res);
+#if __FreeBSD_version >= 602106
+	if ((sc->flags & HDAC_F_MSI) && irq->irq_rid == 0x1)
+		pci_release_msi(sc->dev);
+#endif
 	irq->irq_handle = NULL;
 	irq->irq_res = NULL;
+	irq->irq_rid = 0x0;
 }
 
 /****************************************************************************
@@ -2373,7 +2393,7 @@ hda_poll_channel(struct hdac_chan *ch)
 	uint32_t sz, delta;
 	volatile uint32_t ptr;
 
-	if (ch->active == 0)
+	if (!(ch->flags & HDAC_CHN_RUNNING))
 		return (0);
 
 	sz = ch->blksz * ch->blkcnt;
@@ -2395,7 +2415,8 @@ hda_poll_channel(struct hdac_chan *ch)
 	return (1);
 }
 
-#define hda_chan_active(sc)	((sc)->play.active + (sc)->rec.active)
+#define hda_chan_active(sc)	(((sc)->play.flags | (sc)->rec.flags) &	\
+				 HDAC_CHN_RUNNING)
 
 static void
 hda_poll_callback(void *arg)
@@ -2524,7 +2545,7 @@ hdac_stream_stop(struct hdac_chan *ch)
 	    HDAC_SDCTL_RUN);
 	HDAC_WRITE_1(&sc->mem, ch->off + HDAC_SDCTL0, ctl);
 
-	ch->active = 0;
+	ch->flags &= ~HDAC_CHN_RUNNING;
 
 	if (sc->polling != 0) {
 		int pollticks;
@@ -2533,7 +2554,7 @@ hdac_stream_stop(struct hdac_chan *ch)
 			callout_stop(&sc->poll_hda);
 			sc->poll_ticks = 1;
 		} else {
-			if (sc->play.active != 0)
+			if (sc->play.flags & HDAC_CHN_RUNNING)
 				ch = &sc->play;
 			else
 				ch = &sc->rec;
@@ -2621,7 +2642,7 @@ hdac_stream_start(struct hdac_chan *ch)
 	} 
 	HDAC_WRITE_1(&sc->mem, ch->off + HDAC_SDCTL0, ctl);
 
-	ch->active = 1;
+	ch->flags |= HDAC_CHN_RUNNING;
 }
 
 static void
@@ -2992,7 +3013,8 @@ hdac_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 	}
 
 	if (sndbuf_alloc(ch->b, sc->chan_dmat,
-	    (sc->nocache != 0) ? BUS_DMA_NOCACHE : 0, sc->chan_size) != 0)
+	    (sc->flags & HDAC_F_DMA_NOCACHE) ? BUS_DMA_NOCACHE : 0,
+	    sc->chan_size) != 0)
 		return (NULL);
 
 	return (ch);
@@ -3708,13 +3730,22 @@ hdac_attach(device_t dev)
 		);
 	}
 
+#if __FreeBSD_version >= 602106
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "msi", &i) == 0 && i != 0 &&
+	    pci_msi_count(dev) == 1)
+		sc->flags |= HDAC_F_MSI;
+	else
+#endif
+		sc->flags &= ~HDAC_F_MSI;
+
 #if defined(__i386__) || defined(__amd64__)
-	sc->nocache = 1;
+	sc->flags |= HDAC_F_DMA_NOCACHE;
 
 	if (resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "snoop", &i) == 0 && i != 0) {
 #else
-	sc->nocache = 0;
+	sc->flags &= ~HDAC_F_DMA_NOCACHE;
 #endif
 		/*
 		 * Try to enable PCIe snoop to avoid messing around with
@@ -3729,7 +3760,7 @@ hdac_attach(device_t dev)
 		for (i = 0; i < HDAC_PCIESNOOP_LEN; i++) {
 			if (hdac_pcie_snoop[i].vendor != vendor)
 				continue;
-			sc->nocache = 0;
+			sc->flags &= ~HDAC_F_DMA_NOCACHE;
 			if (hdac_pcie_snoop[i].reg == 0x00)
 				break;
 			v = pci_read_config(dev, hdac_pcie_snoop[i].reg, 1);
@@ -3748,7 +3779,7 @@ hdac_attach(device_t dev)
 					    "snoop!\n");
 				);
 #if defined(__i386__) || defined(__amd64__)
-				sc->nocache = 1;
+				sc->flags |= HDAC_F_DMA_NOCACHE;
 #endif
 			}
 			break;
@@ -3759,7 +3790,8 @@ hdac_attach(device_t dev)
 
 	HDA_BOOTVERBOSE(
 		device_printf(dev, "DMA Coherency: %s / vendor=0x%04x\n",
-		    (sc->nocache == 0) ? "PCIe snoop" : "Uncacheable", vendor);
+		    (sc->flags & HDAC_F_DMA_NOCACHE) ?
+		    "Uncacheable" : "PCIe snoop", vendor);
 	);
 
 	/* Allocate resources */
