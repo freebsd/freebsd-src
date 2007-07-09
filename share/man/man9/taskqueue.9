@@ -160,6 +160,12 @@ as its first argument
 and the value of
 .Va ta_pending
 as its second argument.
+After the function
+.Va ta_func
+returns,
+.Xr wakeup 9
+is called on the task pointer passed to
+.Fn taskqueue_enqueue .
 .Pp
 The
 .Fn taskqueue_drain
