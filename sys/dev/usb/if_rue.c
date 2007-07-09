@@ -142,6 +142,7 @@ static void rue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void rue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void rue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void rue_tick(void *);
+static void rue_tick_task(void *);
 static void rue_rxstart(struct ifnet *);
 static void rue_start(struct ifnet *);
 static int rue_ioctl(struct ifnet *, u_long, caddr_t);
@@ -594,6 +595,8 @@ rue_attach(device_t self)
 		goto error;
 	}
 
+	usb_init_task(&sc->rue_tick_task, rue_tick_task, sc);
+
 	err = usbd_device2interface_handle(uaa->device, RUE_IFACE_IDX, &iface);
 	if (err) {
 		device_printf(sc->rue_dev, "getting interface handle failed\n");
@@ -704,6 +707,7 @@ rue_detach(device_t dev)
 
 	sc->rue_dying = 1;
 	untimeout(rue_tick, sc, sc->rue_stat_ch);
+	usb_rem_task(sc->rue_udev, &sc->rue_tick_task);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -915,6 +919,20 @@ rue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 static void
 rue_tick(void *xsc)
+{
+	struct rue_softc *sc = xsc;
+
+	if (sc == NULL)
+		return;
+	if (sc->rue_dying)
+		return;
+
+	/* Perform periodic stuff in process context */
+	usb_add_task(sc->rue_udev, &sc->rue_tick_task, USB_TASKQ_DRIVER);
+}
+
+static void
+rue_tick_task(void *xsc)
 {
 	struct rue_softc	*sc = xsc;
 	struct ifnet		*ifp;
