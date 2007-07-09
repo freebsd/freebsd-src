@@ -1,7 +1,6 @@
 /*
- * Host AP (software wireless LAN access point) user space daemon for
- * Host AP kernel driver / IEEE 802.1X Authenticator - EAPOL state machine
- * Copyright (c) 2002-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / IEEE 802.1X Authenticator - EAPOL state machine
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,20 +14,21 @@
  * $FreeBSD$
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
+#include "includes.h"
 
 #include "hostapd.h"
 #include "ieee802_1x.h"
 #include "eapol_sm.h"
 #include "eloop.h"
 #include "wpa.h"
+#include "preauth.h"
 #include "sta_info.h"
 #include "eap.h"
+#include "state_machine.h"
+
+#define STATE_MACHINE_DATA struct eapol_state_machine
+#define STATE_MACHINE_DEBUG_PREFIX "IEEE 802.1X"
+#define STATE_MACHINE_ADDR sm->addr
 
 static struct eapol_callbacks eapol_cb;
 
@@ -47,25 +47,6 @@ ieee802_1x_set_sta_authorized(sm->hapd, sm->sta, 0)
 #define abortAuth() ieee802_1x_abort_auth(sm->hapd, sm->sta)
 #define txKey() ieee802_1x_tx_key(sm->hapd, sm->sta)
 #define processKey() do { } while (0)
-
-
-/* Definitions for clarifying state machine implementation */
-#define SM_STATE(machine, state) \
-static void sm_ ## machine ## _ ## state ## _Enter(struct eapol_state_machine \
-*sm)
-
-#define SM_ENTRY(machine, _state, _data) \
-sm->_data.state = machine ## _ ## _state; \
-if (sm->hapd->conf->debug >= HOSTAPD_DEBUG_MINIMAL) \
-	printf("IEEE 802.1X: " MACSTR " " #machine " entering state " #_state \
-		"\n", MAC2STR(sm->addr));
-
-#define SM_ENTER(machine, state) sm_ ## machine ## _ ## state ## _Enter(sm)
-
-#define SM_STEP(machine) \
-static void sm_ ## machine ## _Step(struct eapol_state_machine *sm)
-
-#define SM_STEP_RUN(machine) sm_ ## machine ## _Step(sm)
 
 
 static void eapol_sm_step_run(struct eapol_state_machine *sm);
@@ -117,8 +98,8 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 
 SM_STATE(AUTH_PAE, INITIALIZE)
 {
-	SM_ENTRY(AUTH_PAE, INITIALIZE, auth_pae);
-	sm->auth_pae.portMode = Auto;
+	SM_ENTRY_MA(AUTH_PAE, INITIALIZE, auth_pae);
+	sm->portMode = Auto;
 
 	sm->currentId = 255;
 }
@@ -126,21 +107,21 @@ SM_STATE(AUTH_PAE, INITIALIZE)
 
 SM_STATE(AUTH_PAE, DISCONNECTED)
 {
-	int from_initialize = sm->auth_pae.state == AUTH_PAE_INITIALIZE;
+	int from_initialize = sm->auth_pae_state == AUTH_PAE_INITIALIZE;
 
-	if (sm->auth_pae.eapolLogoff) {
-		if (sm->auth_pae.state == AUTH_PAE_CONNECTING)
-			sm->auth_pae.authEapLogoffsWhileConnecting++;
-		else if (sm->auth_pae.state == AUTH_PAE_AUTHENTICATED)
-			sm->auth_pae.authAuthEapLogoffWhileAuthenticated++;
+	if (sm->eapolLogoff) {
+		if (sm->auth_pae_state == AUTH_PAE_CONNECTING)
+			sm->authEapLogoffsWhileConnecting++;
+		else if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATED)
+			sm->authAuthEapLogoffWhileAuthenticated++;
 	}
 
-	SM_ENTRY(AUTH_PAE, DISCONNECTED, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, DISCONNECTED, auth_pae);
 
 	sm->authPortStatus = Unauthorized;
 	setPortUnauthorized();
-	sm->auth_pae.reAuthCount = 0;
-	sm->auth_pae.eapolLogoff = FALSE;
+	sm->reAuthCount = 0;
+	sm->eapolLogoff = FALSE;
 	if (!from_initialize) {
 		if (sm->flags & EAPOL_SM_PREAUTH)
 			rsn_preauth_finished(sm->hapd, sm->sta, 0);
@@ -152,48 +133,58 @@ SM_STATE(AUTH_PAE, DISCONNECTED)
 
 SM_STATE(AUTH_PAE, RESTART)
 {
-	if (sm->auth_pae.state == AUTH_PAE_AUTHENTICATED) {
+	if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATED) {
 		if (sm->reAuthenticate)
-			sm->auth_pae.authAuthReauthsWhileAuthenticated++;
-		if (sm->auth_pae.eapolStart)
-			sm->auth_pae.authAuthEapStartsWhileAuthenticated++;
-		if (sm->auth_pae.eapolLogoff)
-			sm->auth_pae.authAuthEapLogoffWhileAuthenticated++;
+			sm->authAuthReauthsWhileAuthenticated++;
+		if (sm->eapolStart)
+			sm->authAuthEapStartsWhileAuthenticated++;
+		if (sm->eapolLogoff)
+			sm->authAuthEapLogoffWhileAuthenticated++;
 	}
 
-	SM_ENTRY(AUTH_PAE, RESTART, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, RESTART, auth_pae);
 
-	sm->auth_pae.eapRestart = TRUE;
+	sm->eapRestart = TRUE;
 	ieee802_1x_request_identity(sm->hapd, sm->sta);
 }
 
 
 SM_STATE(AUTH_PAE, CONNECTING)
 {
-	if (sm->auth_pae.state != AUTH_PAE_CONNECTING)
-		sm->auth_pae.authEntersConnecting++;
+	if (sm->auth_pae_state != AUTH_PAE_CONNECTING)
+		sm->authEntersConnecting++;
 
-	SM_ENTRY(AUTH_PAE, CONNECTING, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, CONNECTING, auth_pae);
 
 	sm->reAuthenticate = FALSE;
-	sm->auth_pae.reAuthCount++;
+	sm->reAuthCount++;
 }
 
 
 SM_STATE(AUTH_PAE, HELD)
 {
-	if (sm->auth_pae.state == AUTH_PAE_AUTHENTICATING && sm->authFail)
-		sm->auth_pae.authAuthFailWhileAuthenticating++;
+	if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATING && sm->authFail)
+		sm->authAuthFailWhileAuthenticating++;
 
-	SM_ENTRY(AUTH_PAE, HELD, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, HELD, auth_pae);
 
 	sm->authPortStatus = Unauthorized;
 	setPortUnauthorized();
-	sm->quietWhile = sm->auth_pae.quietPeriod;
-	sm->auth_pae.eapolLogoff = FALSE;
+	sm->quietWhile = sm->quietPeriod;
+	sm->eapolLogoff = FALSE;
 
 	hostapd_logger(sm->hapd, sm->addr, HOSTAPD_MODULE_IEEE8021X,
-		       HOSTAPD_LEVEL_WARNING, "authentication failed");
+		       HOSTAPD_LEVEL_WARNING, "authentication failed - "
+		       "EAP type: %d (%s)",
+		       sm->eap_type_authsrv,
+		       eap_type_text(sm->eap_type_authsrv));
+	if (sm->eap_type_authsrv != sm->eap_type_supp) {
+		hostapd_logger(sm->hapd, sm->addr,
+			       HOSTAPD_MODULE_IEEE8021X, HOSTAPD_LEVEL_INFO,
+			       "Supplicant used different EAP type: %d (%s)",
+			       sm->eap_type_supp,
+			       eap_type_text(sm->eap_type_supp));
+	}
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 0);
 	else
@@ -203,16 +194,24 @@ SM_STATE(AUTH_PAE, HELD)
 
 SM_STATE(AUTH_PAE, AUTHENTICATED)
 {
-	if (sm->auth_pae.state == AUTH_PAE_AUTHENTICATING && sm->authSuccess)
-		sm->auth_pae.authAuthSuccessesWhileAuthenticating++;
+	char *extra = "";
+
+	if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATING && sm->authSuccess)
+		sm->authAuthSuccessesWhileAuthenticating++;
 							
-	SM_ENTRY(AUTH_PAE, AUTHENTICATED, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, AUTHENTICATED, auth_pae);
 
 	sm->authPortStatus = Authorized;
 	setPortAuthorized();
-	sm->auth_pae.reAuthCount = 0;
+	sm->reAuthCount = 0;
+	if (sm->flags & EAPOL_SM_PREAUTH)
+		extra = " (pre-authentication)";
+	else if (wpa_auth_sta_get_pmksa(sm->sta->wpa_sm))
+		extra = " (PMKSA cache)";
 	hostapd_logger(sm->hapd, sm->addr, HOSTAPD_MODULE_IEEE8021X,
-		       HOSTAPD_LEVEL_INFO, "authenticated");
+		       HOSTAPD_LEVEL_INFO, "authenticated - EAP type: %d (%s)"
+		       "%s", sm->eap_type_authsrv,
+		       eap_type_text(sm->eap_type_authsrv), extra);
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		rsn_preauth_finished(sm->hapd, sm->sta, 1);
 	else
@@ -222,14 +221,14 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 
 SM_STATE(AUTH_PAE, AUTHENTICATING)
 {
-	if (sm->auth_pae.state == AUTH_PAE_CONNECTING && sm->rx_identity) {
-		sm->auth_pae.authEntersAuthenticating++;
+	if (sm->auth_pae_state == AUTH_PAE_CONNECTING && sm->rx_identity) {
+		sm->authEntersAuthenticating++;
 		sm->rx_identity = FALSE;
 	}
 
-	SM_ENTRY(AUTH_PAE, AUTHENTICATING, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, AUTHENTICATING, auth_pae);
 
-	sm->auth_pae.eapolStart = FALSE;
+	sm->eapolStart = FALSE;
 	sm->authSuccess = FALSE;
 	sm->authFail = FALSE;
 	sm->authTimeout = FALSE;
@@ -241,16 +240,16 @@ SM_STATE(AUTH_PAE, AUTHENTICATING)
 
 SM_STATE(AUTH_PAE, ABORTING)
 {
-	if (sm->auth_pae.state == AUTH_PAE_AUTHENTICATING) {
+	if (sm->auth_pae_state == AUTH_PAE_AUTHENTICATING) {
 		if (sm->authTimeout)
-			sm->auth_pae.authAuthTimeoutsWhileAuthenticating++;
-		if (sm->auth_pae.eapolStart)
-			sm->auth_pae.authAuthEapStartsWhileAuthenticating++;
-		if (sm->auth_pae.eapolLogoff)
-			sm->auth_pae.authAuthEapLogoffWhileAuthenticating++;
+			sm->authAuthTimeoutsWhileAuthenticating++;
+		if (sm->eapolStart)
+			sm->authAuthEapStartsWhileAuthenticating++;
+		if (sm->eapolLogoff)
+			sm->authAuthEapLogoffWhileAuthenticating++;
 	}
 
-	SM_ENTRY(AUTH_PAE, ABORTING, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, ABORTING, auth_pae);
 
 	sm->authAbort = TRUE;
 	sm->keyRun = FALSE;
@@ -260,44 +259,43 @@ SM_STATE(AUTH_PAE, ABORTING)
 
 SM_STATE(AUTH_PAE, FORCE_AUTH)
 {
-	SM_ENTRY(AUTH_PAE, FORCE_AUTH, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, FORCE_AUTH, auth_pae);
 
 	sm->authPortStatus = Authorized;
 	setPortAuthorized();
-	sm->auth_pae.portMode = ForceAuthorized;
-	sm->auth_pae.eapolStart = FALSE;
+	sm->portMode = ForceAuthorized;
+	sm->eapolStart = FALSE;
 	txCannedSuccess();
 }
 
 
 SM_STATE(AUTH_PAE, FORCE_UNAUTH)
 {
-	SM_ENTRY(AUTH_PAE, FORCE_UNAUTH, auth_pae);
+	SM_ENTRY_MA(AUTH_PAE, FORCE_UNAUTH, auth_pae);
 
 	sm->authPortStatus = Unauthorized;
 	setPortUnauthorized();
-	sm->auth_pae.portMode = ForceUnauthorized;
-	sm->auth_pae.eapolStart = FALSE;
+	sm->portMode = ForceUnauthorized;
+	sm->eapolStart = FALSE;
 	txCannedFail();
 }
 
 
 SM_STEP(AUTH_PAE)
 {
-	if ((sm->portControl == Auto &&
-	     sm->auth_pae.portMode != sm->portControl) ||
+	if ((sm->portControl == Auto && sm->portMode != sm->portControl) ||
 	    sm->initialize || !sm->portEnabled)
 		SM_ENTER(AUTH_PAE, INITIALIZE);
 	else if (sm->portControl == ForceAuthorized &&
-		 sm->auth_pae.portMode != sm->portControl &&
+		 sm->portMode != sm->portControl &&
 		 !(sm->initialize || !sm->portEnabled))
 		SM_ENTER(AUTH_PAE, FORCE_AUTH);
 	else if (sm->portControl == ForceUnauthorized &&
-		 sm->auth_pae.portMode != sm->portControl &&
+		 sm->portMode != sm->portControl &&
 		 !(sm->initialize || !sm->portEnabled))
 		SM_ENTER(AUTH_PAE, FORCE_UNAUTH);
 	else {
-		switch (sm->auth_pae.state) {
+		switch (sm->auth_pae_state) {
 		case AUTH_PAE_INITIALIZE:
 			SM_ENTER(AUTH_PAE, DISCONNECTED);
 			break;
@@ -305,7 +303,7 @@ SM_STEP(AUTH_PAE)
 			SM_ENTER(AUTH_PAE, RESTART);
 			break;
 		case AUTH_PAE_RESTART:
-			if (!sm->auth_pae.eapRestart)
+			if (!sm->eapRestart)
 				SM_ENTER(AUTH_PAE, CONNECTING);
 			break;
 		case AUTH_PAE_HELD:
@@ -313,19 +311,17 @@ SM_STEP(AUTH_PAE)
 				SM_ENTER(AUTH_PAE, RESTART);
 			break;
 		case AUTH_PAE_CONNECTING:
-			if (sm->auth_pae.eapolLogoff ||
-			    sm->auth_pae.reAuthCount > sm->auth_pae.reAuthMax)
+			if (sm->eapolLogoff || sm->reAuthCount > sm->reAuthMax)
 				SM_ENTER(AUTH_PAE, DISCONNECTED);
-			else if ((sm->be_auth.eapReq &&
-				  sm->auth_pae.reAuthCount <=
-				  sm->auth_pae.reAuthMax) ||
+			else if ((sm->eapReq &&
+				  sm->reAuthCount <= sm->reAuthMax) ||
 				 sm->eapSuccess || sm->eapFail)
 				SM_ENTER(AUTH_PAE, AUTHENTICATING);
 			break;
 		case AUTH_PAE_AUTHENTICATED:
-			if (sm->auth_pae.eapolStart || sm->reAuthenticate)
+			if (sm->eapolStart || sm->reAuthenticate)
 				SM_ENTER(AUTH_PAE, RESTART);
-			else if (sm->auth_pae.eapolLogoff || !sm->portValid)
+			else if (sm->eapolLogoff || !sm->portValid)
 				SM_ENTER(AUTH_PAE, DISCONNECTED);
 			break;
 		case AUTH_PAE_AUTHENTICATING:
@@ -334,22 +330,22 @@ SM_STEP(AUTH_PAE)
 			else if (sm->authFail ||
 				 (sm->keyDone && !sm->portValid))
 				SM_ENTER(AUTH_PAE, HELD);
-			else if (sm->auth_pae.eapolStart ||
-				 sm->auth_pae.eapolLogoff || sm->authTimeout)
+			else if (sm->eapolStart || sm->eapolLogoff ||
+				 sm->authTimeout)
 				SM_ENTER(AUTH_PAE, ABORTING);
 			break;
 		case AUTH_PAE_ABORTING:
-			if (sm->auth_pae.eapolLogoff && !sm->authAbort)
+			if (sm->eapolLogoff && !sm->authAbort)
 				SM_ENTER(AUTH_PAE, DISCONNECTED);
-			else if (!sm->auth_pae.eapolLogoff && !sm->authAbort)
+			else if (!sm->eapolLogoff && !sm->authAbort)
 				SM_ENTER(AUTH_PAE, RESTART);
 			break;
 		case AUTH_PAE_FORCE_AUTH:
-			if (sm->auth_pae.eapolStart)
+			if (sm->eapolStart)
 				SM_ENTER(AUTH_PAE, FORCE_AUTH);
 			break;
 		case AUTH_PAE_FORCE_UNAUTH:
-			if (sm->auth_pae.eapolStart)
+			if (sm->eapolStart)
 				SM_ENTER(AUTH_PAE, FORCE_UNAUTH);
 			break;
 		}
@@ -362,21 +358,21 @@ SM_STEP(AUTH_PAE)
 
 SM_STATE(BE_AUTH, INITIALIZE)
 {
-	SM_ENTRY(BE_AUTH, INITIALIZE, be_auth);
+	SM_ENTRY_MA(BE_AUTH, INITIALIZE, be_auth);
 
 	abortAuth();
-	sm->be_auth.eapNoReq = FALSE;
+	sm->eapNoReq = FALSE;
 	sm->authAbort = FALSE;
 }
 
 
 SM_STATE(BE_AUTH, REQUEST)
 {
-	SM_ENTRY(BE_AUTH, REQUEST, be_auth);
+	SM_ENTRY_MA(BE_AUTH, REQUEST, be_auth);
 
 	txReq();
-	sm->be_auth.eapReq = FALSE;
-	sm->be_auth.backendOtherRequestsToSupplicant++;
+	sm->eapReq = FALSE;
+	sm->backendOtherRequestsToSupplicant++;
 
 	/*
 	 * Clearing eapolEap here is not specified in IEEE Std 802.1X-2004, but
@@ -395,21 +391,21 @@ SM_STATE(BE_AUTH, REQUEST)
 
 SM_STATE(BE_AUTH, RESPONSE)
 {
-	SM_ENTRY(BE_AUTH, RESPONSE, be_auth);
+	SM_ENTRY_MA(BE_AUTH, RESPONSE, be_auth);
 
 	sm->authTimeout = FALSE;
 	sm->eapolEap = FALSE;
-	sm->be_auth.eapNoReq = FALSE;
-	sm->aWhile = sm->be_auth.serverTimeout;
-	sm->be_auth.eapResp = TRUE;
+	sm->eapNoReq = FALSE;
+	sm->aWhile = sm->serverTimeout;
+	sm->eapResp = TRUE;
 	sendRespToServer();
-	sm->be_auth.backendResponses++;
+	sm->backendResponses++;
 }
 
 
 SM_STATE(BE_AUTH, SUCCESS)
 {
-	SM_ENTRY(BE_AUTH, SUCCESS, be_auth);
+	SM_ENTRY_MA(BE_AUTH, SUCCESS, be_auth);
 
 	txReq();
 	sm->authSuccess = TRUE;
@@ -419,7 +415,7 @@ SM_STATE(BE_AUTH, SUCCESS)
 
 SM_STATE(BE_AUTH, FAIL)
 {
-	SM_ENTRY(BE_AUTH, FAIL, be_auth);
+	SM_ENTRY_MA(BE_AUTH, FAIL, be_auth);
 
 	/* Note: IEEE 802.1X-REV-d11 has unconditional txReq() here.
 	 * txCannelFail() is used as a workaround for the case where
@@ -435,7 +431,7 @@ SM_STATE(BE_AUTH, FAIL)
 
 SM_STATE(BE_AUTH, TIMEOUT)
 {
-	SM_ENTRY(BE_AUTH, TIMEOUT, be_auth);
+	SM_ENTRY_MA(BE_AUTH, TIMEOUT, be_auth);
 
 	sm->authTimeout = TRUE;
 }
@@ -443,7 +439,7 @@ SM_STATE(BE_AUTH, TIMEOUT)
 
 SM_STATE(BE_AUTH, IDLE)
 {
-	SM_ENTRY(BE_AUTH, IDLE, be_auth);
+	SM_ENTRY_MA(BE_AUTH, IDLE, be_auth);
 
 	sm->authStart = FALSE;
 }
@@ -451,9 +447,9 @@ SM_STATE(BE_AUTH, IDLE)
 
 SM_STATE(BE_AUTH, IGNORE)
 {
-	SM_ENTRY(BE_AUTH, IGNORE, be_auth);
+	SM_ENTRY_MA(BE_AUTH, IGNORE, be_auth);
 
-	sm->be_auth.eapNoReq = FALSE;
+	sm->eapNoReq = FALSE;
 }
 
 
@@ -464,31 +460,31 @@ SM_STEP(BE_AUTH)
 		return;
 	}
 
-	switch (sm->be_auth.state) {
+	switch (sm->be_auth_state) {
 	case BE_AUTH_INITIALIZE:
 		SM_ENTER(BE_AUTH, IDLE);
 		break;
 	case BE_AUTH_REQUEST:
 		if (sm->eapolEap)
 			SM_ENTER(BE_AUTH, RESPONSE);
-		else if (sm->be_auth.eapReq)
+		else if (sm->eapReq)
 			SM_ENTER(BE_AUTH, REQUEST);
 		else if (sm->eapTimeout)
 			SM_ENTER(BE_AUTH, TIMEOUT);
 		break;
 	case BE_AUTH_RESPONSE:
-		if (sm->be_auth.eapNoReq)
+		if (sm->eapNoReq)
 			SM_ENTER(BE_AUTH, IGNORE);
-		if (sm->be_auth.eapReq) {
-			sm->be_auth.backendAccessChallenges++;
+		if (sm->eapReq) {
+			sm->backendAccessChallenges++;
 			SM_ENTER(BE_AUTH, REQUEST);
 		} else if (sm->aWhile == 0)
 			SM_ENTER(BE_AUTH, TIMEOUT);
 		else if (sm->eapFail) {
-			sm->be_auth.backendAuthFails++;
+			sm->backendAuthFails++;
 			SM_ENTER(BE_AUTH, FAIL);
 		} else if (sm->eapSuccess) {
-			sm->be_auth.backendAuthSuccesses++;
+			sm->backendAuthSuccesses++;
 			SM_ENTER(BE_AUTH, SUCCESS);
 		}
 		break;
@@ -504,7 +500,7 @@ SM_STEP(BE_AUTH)
 	case BE_AUTH_IDLE:
 		if (sm->eapFail && sm->authStart)
 			SM_ENTER(BE_AUTH, FAIL);
-		else if (sm->be_auth.eapReq && sm->authStart)
+		else if (sm->eapReq && sm->authStart)
 			SM_ENTER(BE_AUTH, REQUEST);
 		else if (sm->eapSuccess && sm->authStart)
 			SM_ENTER(BE_AUTH, SUCCESS);
@@ -512,7 +508,7 @@ SM_STEP(BE_AUTH)
 	case BE_AUTH_IGNORE:
 		if (sm->eapolEap)
 			SM_ENTER(BE_AUTH, RESPONSE);
-		else if (sm->be_auth.eapReq)
+		else if (sm->eapReq)
 			SM_ENTER(BE_AUTH, REQUEST);
 		else if (sm->eapTimeout)
 			SM_ENTER(BE_AUTH, TIMEOUT);
@@ -526,31 +522,30 @@ SM_STEP(BE_AUTH)
 
 SM_STATE(REAUTH_TIMER, INITIALIZE)
 {
-	SM_ENTRY(REAUTH_TIMER, INITIALIZE, reauth_timer);
+	SM_ENTRY_MA(REAUTH_TIMER, INITIALIZE, reauth_timer);
 
-	sm->reAuthWhen = sm->reauth_timer.reAuthPeriod;
+	sm->reAuthWhen = sm->reAuthPeriod;
 }
 
 
 SM_STATE(REAUTH_TIMER, REAUTHENTICATE)
 {
-	SM_ENTRY(REAUTH_TIMER, REAUTHENTICATE, reauth_timer);
+	SM_ENTRY_MA(REAUTH_TIMER, REAUTHENTICATE, reauth_timer);
 
 	sm->reAuthenticate = TRUE;
-	wpa_sm_event(sm->hapd, sm->sta, WPA_REAUTH_EAPOL);
+	wpa_auth_sm_event(sm->sta->wpa_sm, WPA_REAUTH_EAPOL);
 }
 
 
 SM_STEP(REAUTH_TIMER)
 {
 	if (sm->portControl != Auto || sm->initialize ||
-	    sm->authPortStatus == Unauthorized ||
-	    !sm->reauth_timer.reAuthEnabled) {
+	    sm->authPortStatus == Unauthorized || !sm->reAuthEnabled) {
 		SM_ENTER(REAUTH_TIMER, INITIALIZE);
 		return;
 	}
 
-	switch (sm->reauth_timer.state) {
+	switch (sm->reauth_timer_state) {
 	case REAUTH_TIMER_INITIALIZE:
 		if (sm->reAuthWhen == 0)
 			SM_ENTER(REAUTH_TIMER, REAUTHENTICATE);
@@ -567,13 +562,13 @@ SM_STEP(REAUTH_TIMER)
 
 SM_STATE(AUTH_KEY_TX, NO_KEY_TRANSMIT)
 {
-	SM_ENTRY(AUTH_KEY_TX, NO_KEY_TRANSMIT, auth_key_tx);
+	SM_ENTRY_MA(AUTH_KEY_TX, NO_KEY_TRANSMIT, auth_key_tx);
 }
 
 
 SM_STATE(AUTH_KEY_TX, KEY_TRANSMIT)
 {
-	SM_ENTRY(AUTH_KEY_TX, KEY_TRANSMIT, auth_key_tx);
+	SM_ENTRY_MA(AUTH_KEY_TX, KEY_TRANSMIT, auth_key_tx);
 
 	txKey();
 	sm->keyAvailable = FALSE;
@@ -588,10 +583,10 @@ SM_STEP(AUTH_KEY_TX)
 		return;
 	}
 
-	switch (sm->auth_key_tx.state) {
+	switch (sm->auth_key_tx_state) {
 	case AUTH_KEY_TX_NO_KEY_TRANSMIT:
 		if (sm->keyTxEnabled && sm->keyAvailable && sm->keyRun &&
-		    !sm->sta->wpa)
+		    !wpa_auth_sta_wpa_version(sm->sta->wpa_sm))
 			SM_ENTER(AUTH_KEY_TX, KEY_TRANSMIT);
 		break;
 	case AUTH_KEY_TX_KEY_TRANSMIT:
@@ -609,16 +604,16 @@ SM_STEP(AUTH_KEY_TX)
 
 SM_STATE(KEY_RX, NO_KEY_RECEIVE)
 {
-	SM_ENTRY(KEY_RX, NO_KEY_RECEIVE, key_rx);
+	SM_ENTRY_MA(KEY_RX, NO_KEY_RECEIVE, key_rx);
 }
 
 
 SM_STATE(KEY_RX, KEY_RECEIVE)
 {
-	SM_ENTRY(KEY_RX, KEY_RECEIVE, key_rx);
+	SM_ENTRY_MA(KEY_RX, KEY_RECEIVE, key_rx);
 
 	processKey();
-	sm->key_rx.rxKey = FALSE;
+	sm->rxKey = FALSE;
 }
 
 
@@ -629,13 +624,13 @@ SM_STEP(KEY_RX)
 		return;
 	}
 
-	switch (sm->key_rx.state) {
+	switch (sm->key_rx_state) {
 	case KEY_RX_NO_KEY_RECEIVE:
-		if (sm->key_rx.rxKey)
+		if (sm->rxKey)
 			SM_ENTER(KEY_RX, KEY_RECEIVE);
 		break;
 	case KEY_RX_KEY_RECEIVE:
-		if (sm->key_rx.rxKey)
+		if (sm->rxKey)
 			SM_ENTER(KEY_RX, KEY_RECEIVE);
 		break;
 	}
@@ -647,16 +642,15 @@ SM_STEP(KEY_RX)
 
 SM_STATE(CTRL_DIR, FORCE_BOTH)
 {
-	SM_ENTRY(CTRL_DIR, FORCE_BOTH, ctrl_dir);
-	sm->ctrl_dir.operControlledDirections = Both;
+	SM_ENTRY_MA(CTRL_DIR, FORCE_BOTH, ctrl_dir);
+	sm->operControlledDirections = Both;
 }
 
 
 SM_STATE(CTRL_DIR, IN_OR_BOTH)
 {
-	SM_ENTRY(CTRL_DIR, IN_OR_BOTH, ctrl_dir);
-	sm->ctrl_dir.operControlledDirections =
-		sm->ctrl_dir.adminControlledDirections;
+	SM_ENTRY_MA(CTRL_DIR, IN_OR_BOTH, ctrl_dir);
+	sm->operControlledDirections = sm->adminControlledDirections;
 }
 
 
@@ -667,16 +661,16 @@ SM_STEP(CTRL_DIR)
 		return;
 	}
 
-	switch (sm->ctrl_dir.state) {
+	switch (sm->ctrl_dir_state) {
 	case CTRL_DIR_FORCE_BOTH:
-		if (sm->portEnabled && sm->ctrl_dir.operEdge)
+		if (sm->portEnabled && sm->operEdge)
 			SM_ENTER(CTRL_DIR, IN_OR_BOTH);
 		break;
 	case CTRL_DIR_IN_OR_BOTH:
-		if (sm->ctrl_dir.operControlledDirections !=
-		    sm->ctrl_dir.adminControlledDirections)
+		if (sm->operControlledDirections !=
+		    sm->adminControlledDirections)
 			SM_ENTER(CTRL_DIR, IN_OR_BOTH);
-		if (!sm->portEnabled || !sm->ctrl_dir.operEdge)
+		if (!sm->portEnabled || !sm->operEdge)
 			SM_ENTER(CTRL_DIR, FORCE_BOTH);
 		break;
 	}
@@ -685,16 +679,15 @@ SM_STEP(CTRL_DIR)
 
 
 struct eapol_state_machine *
-eapol_sm_alloc(hostapd *hapd, struct sta_info *sta)
+eapol_sm_alloc(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	struct eapol_state_machine *sm;
 
-	sm = (struct eapol_state_machine *) malloc(sizeof(*sm));
+	sm = wpa_zalloc(sizeof(*sm));
 	if (sm == NULL) {
 		printf("IEEE 802.1X port state allocation failed\n");
 		return NULL;
 	}
-	memset(sm, 0, sizeof(*sm));
 	sm->radius_identifier = -1;
 	memcpy(sm->addr, sta->addr, ETH_ALEN);
 	if (sta->flags & WLAN_STA_PREAUTH)
@@ -704,23 +697,22 @@ eapol_sm_alloc(hostapd *hapd, struct sta_info *sta)
 	sm->sta = sta;
 
 	/* Set default values for state machine constants */
-	sm->auth_pae.state = AUTH_PAE_INITIALIZE;
-	sm->auth_pae.quietPeriod = AUTH_PAE_DEFAULT_quietPeriod;
-	sm->auth_pae.reAuthMax = AUTH_PAE_DEFAULT_reAuthMax;
+	sm->auth_pae_state = AUTH_PAE_INITIALIZE;
+	sm->quietPeriod = AUTH_PAE_DEFAULT_quietPeriod;
+	sm->reAuthMax = AUTH_PAE_DEFAULT_reAuthMax;
 
-	sm->be_auth.state = BE_AUTH_INITIALIZE;
-	sm->be_auth.serverTimeout = BE_AUTH_DEFAULT_serverTimeout;
+	sm->be_auth_state = BE_AUTH_INITIALIZE;
+	sm->serverTimeout = BE_AUTH_DEFAULT_serverTimeout;
 
-	sm->reauth_timer.state = REAUTH_TIMER_INITIALIZE;
-	sm->reauth_timer.reAuthPeriod = hapd->conf->eap_reauth_period;
-	sm->reauth_timer.reAuthEnabled = hapd->conf->eap_reauth_period > 0 ?
-		TRUE : FALSE;
+	sm->reauth_timer_state = REAUTH_TIMER_INITIALIZE;
+	sm->reAuthPeriod = hapd->conf->eap_reauth_period;
+	sm->reAuthEnabled = hapd->conf->eap_reauth_period > 0 ? TRUE : FALSE;
 
-	sm->auth_key_tx.state = AUTH_KEY_TX_NO_KEY_TRANSMIT;
+	sm->auth_key_tx_state = AUTH_KEY_TX_NO_KEY_TRANSMIT;
 
-	sm->key_rx.state = KEY_RX_NO_KEY_RECEIVE;
+	sm->key_rx_state = KEY_RX_NO_KEY_RECEIVE;
 
-	sm->ctrl_dir.state = CTRL_DIR_IN_OR_BOTH;
+	sm->ctrl_dir_state = CTRL_DIR_IN_OR_BOTH;
 
 	sm->portEnabled = FALSE;
 	sm->portControl = Auto;
@@ -781,8 +773,8 @@ static void eapol_sm_step_run(struct eapol_state_machine *sm)
 {
 	struct hostapd_data *hapd = sm->hapd;
 	u8 addr[ETH_ALEN];
-	int prev_auth_pae, prev_be_auth, prev_reauth_timer, prev_auth_key_tx,
-		prev_key_rx, prev_ctrl_dir;
+	unsigned int prev_auth_pae, prev_be_auth, prev_reauth_timer,
+		prev_auth_key_tx, prev_key_rx, prev_ctrl_dir;
 	int max_steps = 100;
 
 	memcpy(addr, sm->sta->addr, ETH_ALEN);
@@ -794,12 +786,12 @@ static void eapol_sm_step_run(struct eapol_state_machine *sm)
 	 * eloop callback.
 	 */
 restart:
-	prev_auth_pae = sm->auth_pae.state;
-	prev_be_auth = sm->be_auth.state;
-	prev_reauth_timer = sm->reauth_timer.state;
-	prev_auth_key_tx = sm->auth_key_tx.state;
-	prev_key_rx = sm->key_rx.state;
-	prev_ctrl_dir = sm->ctrl_dir.state;
+	prev_auth_pae = sm->auth_pae_state;
+	prev_be_auth = sm->be_auth_state;
+	prev_reauth_timer = sm->reauth_timer_state;
+	prev_auth_key_tx = sm->auth_key_tx_state;
+	prev_key_rx = sm->key_rx_state;
+	prev_ctrl_dir = sm->ctrl_dir_state;
 
 	SM_STEP_RUN(AUTH_PAE);
 	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
@@ -813,12 +805,12 @@ restart:
 	if (sm->initializing || eapol_sm_sta_entry_alive(hapd, addr))
 		SM_STEP_RUN(CTRL_DIR);
 
-	if (prev_auth_pae != sm->auth_pae.state ||
-	    prev_be_auth != sm->be_auth.state ||
-	    prev_reauth_timer != sm->reauth_timer.state ||
-	    prev_auth_key_tx != sm->auth_key_tx.state ||
-	    prev_key_rx != sm->key_rx.state ||
-	    prev_ctrl_dir != sm->ctrl_dir.state) {
+	if (prev_auth_pae != sm->auth_pae_state ||
+	    prev_be_auth != sm->be_auth_state ||
+	    prev_reauth_timer != sm->reauth_timer_state ||
+	    prev_auth_key_tx != sm->auth_key_tx_state ||
+	    prev_key_rx != sm->key_rx_state ||
+	    prev_ctrl_dir != sm->ctrl_dir_state) {
 		if (--max_steps > 0)
 			goto restart;
 		/* Re-run from eloop timeout */
@@ -837,7 +829,7 @@ restart:
 	}
 
 	if (eapol_sm_sta_entry_alive(hapd, addr))
-		wpa_sm_notify(sm->hapd, sm->sta);
+		wpa_auth_sm_notify(sm->sta->wpa_sm);
 }
 
 
@@ -1024,22 +1016,21 @@ void eapol_sm_dump_state(FILE *f, const char *prefix,
 		"%s    authAuthReauthsWhileAuthenticated=%d\n"
 		"%s    authAuthEapStartsWhileAuthenticated=%d\n"
 		"%s    authAuthEapLogoffWhileAuthenticated=%d\n",
-		prefix, prefix, auth_pae_state_txt(sm->auth_pae.state), prefix,
-		_SB(sm->auth_pae.eapolLogoff), _SB(sm->auth_pae.eapolStart),
-		_SB(sm->auth_pae.eapRestart), prefix,
-		port_type_txt(sm->auth_pae.portMode), sm->auth_pae.reAuthCount,
-		prefix, sm->auth_pae.quietPeriod, sm->auth_pae.reAuthMax,
-		prefix, sm->auth_pae.authEntersConnecting,
-		prefix, sm->auth_pae.authEapLogoffsWhileConnecting,
-		prefix, sm->auth_pae.authEntersAuthenticating,
-		prefix, sm->auth_pae.authAuthSuccessesWhileAuthenticating,
-		prefix, sm->auth_pae.authAuthTimeoutsWhileAuthenticating,
-		prefix, sm->auth_pae.authAuthFailWhileAuthenticating,
-		prefix, sm->auth_pae.authAuthEapStartsWhileAuthenticating,
-		prefix, sm->auth_pae.authAuthEapLogoffWhileAuthenticating,
-		prefix, sm->auth_pae.authAuthReauthsWhileAuthenticated,
-		prefix, sm->auth_pae.authAuthEapStartsWhileAuthenticated,
-		prefix, sm->auth_pae.authAuthEapLogoffWhileAuthenticated);
+		prefix, prefix, auth_pae_state_txt(sm->auth_pae_state), prefix,
+		_SB(sm->eapolLogoff), _SB(sm->eapolStart), _SB(sm->eapRestart),
+		prefix, port_type_txt(sm->portMode), sm->reAuthCount,
+		prefix, sm->quietPeriod, sm->reAuthMax,
+		prefix, sm->authEntersConnecting,
+		prefix, sm->authEapLogoffsWhileConnecting,
+		prefix, sm->authEntersAuthenticating,
+		prefix, sm->authAuthSuccessesWhileAuthenticating,
+		prefix, sm->authAuthTimeoutsWhileAuthenticating,
+		prefix, sm->authAuthFailWhileAuthenticating,
+		prefix, sm->authAuthEapStartsWhileAuthenticating,
+		prefix, sm->authAuthEapLogoffWhileAuthenticating,
+		prefix, sm->authAuthReauthsWhileAuthenticated,
+		prefix, sm->authAuthEapStartsWhileAuthenticated,
+		prefix, sm->authAuthEapLogoffWhileAuthenticated);
 
 	fprintf(f, "%s  Backend Authentication:\n"
 		"%s    state=%s\n"
@@ -1051,42 +1042,39 @@ void eapol_sm_dump_state(FILE *f, const char *prefix,
 		"%s    backendAuthSuccesses=%d\n"
 		"%s    backendAuthFails=%d\n",
 		prefix, prefix,
-		be_auth_state_txt(sm->be_auth.state),
-		prefix, _SB(sm->be_auth.eapNoReq), _SB(sm->be_auth.eapReq),
-		_SB(sm->be_auth.eapResp),
-		prefix, sm->be_auth.serverTimeout,
-		prefix, sm->be_auth.backendResponses,
-		prefix, sm->be_auth.backendAccessChallenges,
-		prefix, sm->be_auth.backendOtherRequestsToSupplicant,
-		prefix, sm->be_auth.backendAuthSuccesses,
-		prefix, sm->be_auth.backendAuthFails);
+		be_auth_state_txt(sm->be_auth_state),
+		prefix, _SB(sm->eapNoReq), _SB(sm->eapReq), _SB(sm->eapResp),
+		prefix, sm->serverTimeout,
+		prefix, sm->backendResponses,
+		prefix, sm->backendAccessChallenges,
+		prefix, sm->backendOtherRequestsToSupplicant,
+		prefix, sm->backendAuthSuccesses,
+		prefix, sm->backendAuthFails);
 
 	fprintf(f, "%s  Reauthentication Timer:\n"
 		"%s    state=%s\n"
 		"%s    reAuthPeriod=%d reAuthEnabled=%s\n", prefix, prefix,
-		reauth_timer_state_txt(sm->reauth_timer.state), prefix,
-		sm->reauth_timer.reAuthPeriod,
-		_SB(sm->reauth_timer.reAuthEnabled));
+		reauth_timer_state_txt(sm->reauth_timer_state), prefix,
+		sm->reAuthPeriod, _SB(sm->reAuthEnabled));
 
 	fprintf(f, "%s  Authenticator Key Transmit:\n"
 		"%s    state=%s\n", prefix, prefix,
-		auth_key_tx_state_txt(sm->auth_key_tx.state));
+		auth_key_tx_state_txt(sm->auth_key_tx_state));
 
 	fprintf(f, "%s  Key Receive:\n"
 		"%s    state=%s\n"
 		"%s    rxKey=%s\n", prefix, prefix,
-		key_rx_state_txt(sm->key_rx.state),
-		prefix, _SB(sm->key_rx.rxKey));
+		key_rx_state_txt(sm->key_rx_state), prefix, _SB(sm->rxKey));
 
 	fprintf(f, "%s  Controlled Directions:\n"
 		"%s    state=%s\n"
 		"%s    adminControlledDirections=%s "
 		"operControlledDirections=%s\n"
 		"%s    operEdge=%s\n", prefix, prefix,
-		ctrl_dir_state_txt(sm->ctrl_dir.state),
-		prefix, ctrl_dir_txt(sm->ctrl_dir.adminControlledDirections),
-		ctrl_dir_txt(sm->ctrl_dir.operControlledDirections),
-		prefix, _SB(sm->ctrl_dir.operEdge));
+		ctrl_dir_state_txt(sm->ctrl_dir_state),
+		prefix, ctrl_dir_txt(sm->adminControlledDirections),
+		ctrl_dir_txt(sm->operControlledDirections),
+		prefix, _SB(sm->operEdge));
 #undef _SB
 }
 #endif /* HOSTAPD_DUMP_STATE */
@@ -1101,15 +1089,15 @@ static Boolean eapol_sm_get_bool(void *ctx, enum eapol_bool_var variable)
 	case EAPOL_eapSuccess:
 		return sm->eapSuccess;
 	case EAPOL_eapRestart:
-		return sm->auth_pae.eapRestart;
+		return sm->eapRestart;
 	case EAPOL_eapFail:
 		return sm->eapFail;
 	case EAPOL_eapResp:
-		return sm->be_auth.eapResp;
+		return sm->eapResp;
 	case EAPOL_eapReq:
-		return sm->be_auth.eapReq;
+		return sm->eapReq;
 	case EAPOL_eapNoReq:
-		return sm->be_auth.eapNoReq;
+		return sm->eapNoReq;
 	case EAPOL_portEnabled:
 		return sm->portEnabled;
 	case EAPOL_eapTimeout:
@@ -1130,19 +1118,19 @@ static void eapol_sm_set_bool(void *ctx, enum eapol_bool_var variable,
 		sm->eapSuccess = value;
 		break;
 	case EAPOL_eapRestart:
-		sm->auth_pae.eapRestart = value;
+		sm->eapRestart = value;
 		break;
 	case EAPOL_eapFail:
 		sm->eapFail = value;
 		break;
 	case EAPOL_eapResp:
-		sm->be_auth.eapResp = value;
+		sm->eapResp = value;
 		break;
 	case EAPOL_eapReq:
-		sm->be_auth.eapReq = value;
+		sm->eapReq = value;
 		break;
 	case EAPOL_eapNoReq:
-		sm->be_auth.eapNoReq = value;
+		sm->eapNoReq = value;
 		break;
 	case EAPOL_portEnabled:
 		sm->portEnabled = value;
@@ -1216,6 +1204,7 @@ static int eapol_sm_get_eap_user(void *ctx, const u8 *identity,
 {
 	struct eapol_state_machine *sm = ctx;
 	const struct hostapd_eap_user *eap_user;
+	int i, count;
 
 	eap_user = hostapd_get_eap_user(sm->hapd->conf, identity,
 					identity_len, phase2);
@@ -1224,9 +1213,13 @@ static int eapol_sm_get_eap_user(void *ctx, const u8 *identity,
 
 	memset(user, 0, sizeof(*user));
 	user->phase2 = phase2;
-	memcpy(user->methods, eap_user->methods,
-	       EAP_USER_MAX_METHODS > EAP_MAX_METHODS ?
-	       EAP_USER_MAX_METHODS : EAP_MAX_METHODS);
+	count = EAP_USER_MAX_METHODS;
+	if (count > EAP_MAX_METHODS)
+		count = EAP_MAX_METHODS;
+	for (i = 0; i < count; i++) {
+		user->methods[i].vendor = eap_user->methods[i].vendor;
+		user->methods[i].method = eap_user->methods[i].method;
+	}
 
 	if (eap_user->password) {
 		user->password = malloc(eap_user->password_len);
@@ -1259,3 +1252,15 @@ static struct eapol_callbacks eapol_cb =
 	.get_eap_user = eapol_sm_get_eap_user,
 	.get_eap_req_id_text = eapol_sm_get_eap_req_id_text,
 };
+
+
+int eapol_sm_eap_pending_cb(struct eapol_state_machine *sm, void *ctx)
+{
+	if (sm == NULL || ctx != sm->eap)
+		return -1;
+
+	eap_sm_pending_cb(sm->eap);
+	eapol_sm_step(sm);
+
+	return 0;
+}

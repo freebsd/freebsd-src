@@ -1,6 +1,6 @@
 /*
- * hostapd / EAP Standalone Authenticator state machine
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * hostapd / EAP Standalone Authenticator state machine (RFC 4137)
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,103 +14,22 @@
  * $FreeBSD$
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <sys/socket.h>
+#include "includes.h"
 
 #include "hostapd.h"
-#include "eloop.h"
 #include "sta_info.h"
 #include "eap_i.h"
+#include "state_machine.h"
+
+#define STATE_MACHINE_DATA struct eap_sm
+#define STATE_MACHINE_DEBUG_PREFIX "EAP"
 
 #define EAP_MAX_AUTH_ROUNDS 50
-
-extern const struct eap_method eap_method_identity;
-#ifdef EAP_MD5
-extern const struct eap_method eap_method_md5;
-#endif /* EAP_MD5 */
-#ifdef EAP_TLS
-extern const struct eap_method eap_method_tls;
-#endif /* EAP_TLS */
-#ifdef EAP_MSCHAPv2
-extern const struct eap_method eap_method_mschapv2;
-#endif /* EAP_MSCHAPv2 */
-#ifdef EAP_PEAP
-extern const struct eap_method eap_method_peap;
-#endif /* EAP_PEAP */
-#ifdef EAP_TLV
-extern const struct eap_method eap_method_tlv;
-#endif /* EAP_TLV */
-#ifdef EAP_GTC
-extern const struct eap_method eap_method_gtc;
-#endif /* EAP_GTC */
-#ifdef EAP_TTLS
-extern const struct eap_method eap_method_ttls;
-#endif /* EAP_TTLS */
-#ifdef EAP_SIM
-extern const struct eap_method eap_method_sim;
-#endif /* EAP_SIM */
-#ifdef EAP_PAX
-extern const struct eap_method eap_method_pax;
-#endif /* EAP_PAX */
-#ifdef EAP_PSK
-extern const struct eap_method eap_method_psk;
-#endif /* EAP_PSK */
-
-static const struct eap_method *eap_methods[] =
-{
-	&eap_method_identity,
-#ifdef EAP_MD5
-	&eap_method_md5,
-#endif /* EAP_MD5 */
-#ifdef EAP_TLS
-	&eap_method_tls,
-#endif /* EAP_TLS */
-#ifdef EAP_MSCHAPv2
-	&eap_method_mschapv2,
-#endif /* EAP_MSCHAPv2 */
-#ifdef EAP_PEAP
-	&eap_method_peap,
-#endif /* EAP_PEAP */
-#ifdef EAP_TTLS
-	&eap_method_ttls,
-#endif /* EAP_TTLS */
-#ifdef EAP_TLV
-	&eap_method_tlv,
-#endif /* EAP_TLV */
-#ifdef EAP_GTC
-	&eap_method_gtc,
-#endif /* EAP_GTC */
-#ifdef EAP_SIM
-	&eap_method_sim,
-#endif /* EAP_SIM */
-#ifdef EAP_PAX
-	&eap_method_pax,
-#endif /* EAP_PAX */
-#ifdef EAP_PSK
-	&eap_method_psk,
-#endif /* EAP_PSK */
-};
-#define NUM_EAP_METHODS (sizeof(eap_methods) / sizeof(eap_methods[0]))
-
-
-const struct eap_method * eap_sm_get_eap_methods(int method)
-{
-	int i;
-	for (i = 0; i < NUM_EAP_METHODS; i++) {
-		if (eap_methods[i]->method == method)
-			return eap_methods[i];
-	}
-	return NULL;
-}
 
 static void eap_user_free(struct eap_user *user);
 
 
-/* EAP state machines are described in draft-ietf-eap-statemachine-05.txt */
+/* EAP state machines are described in RFC 4137 */
 
 static int eap_sm_calculateTimeout(struct eap_sm *sm, int retransCount,
 				   int eapSRTT, int eapRTTVAR,
@@ -120,32 +39,9 @@ static u8 * eap_sm_buildSuccess(struct eap_sm *sm, int id, size_t *len);
 static u8 * eap_sm_buildFailure(struct eap_sm *sm, int id, size_t *len);
 static int eap_sm_nextId(struct eap_sm *sm, int id);
 static void eap_sm_Policy_update(struct eap_sm *sm, u8 *nak_list, size_t len);
-static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm);
+static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm, int *vendor);
 static int eap_sm_Policy_getDecision(struct eap_sm *sm);
 static Boolean eap_sm_Policy_doPickUp(struct eap_sm *sm, EapType method);
-
-
-/* Definitions for clarifying state machine implementation */
-#define SM_STATE(machine, state) \
-static void sm_ ## machine ## _ ## state ## _Enter(struct eap_sm *sm, \
-	int global)
-
-#define SM_ENTRY(machine, state) \
-if (!global || sm->machine ## _state != machine ## _ ## state) { \
-	sm->changed = TRUE; \
-	wpa_printf(MSG_DEBUG, "EAP: " #machine " entering state " #state); \
-} \
-sm->machine ## _state = machine ## _ ## state;
-
-#define SM_ENTER(machine, state) \
-sm_ ## machine ## _ ## state ## _Enter(sm, 0)
-#define SM_ENTER_GLOBAL(machine, state) \
-sm_ ## machine ## _ ## state ## _Enter(sm, 1)
-
-#define SM_STEP(machine) \
-static void sm_ ## machine ## _Step(struct eap_sm *sm)
-
-#define SM_STEP_RUN(machine) sm_ ## machine ## _Step(sm)
 
 
 static Boolean eapol_get_bool(struct eap_sm *sm, enum eapol_bool_var var)
@@ -179,6 +75,19 @@ static void eapol_set_eapKeyData(struct eap_sm *sm,
 }
 
 
+/**
+ * eap_user_get - Fetch user information from the database
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * @identity: Identity (User-Name) of the user
+ * @identity_len: Length of identity in bytes
+ * @phase2: 0 = EAP phase1 user, 1 = EAP phase2 (tunneled) user
+ * Returns: 0 on success, or -1 on failure
+ *
+ * This function is used to fetch user information for EAP. The user will be
+ * selected based on the specified identity. sm->user and
+ * sm->user_eap_method_index are updated for the new user when a matching user
+ * is found. sm->user can be used to get user information (e.g., password).
+ */
 int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,
 		 int phase2)
 {
@@ -191,10 +100,9 @@ int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,
 	eap_user_free(sm->user);
 	sm->user = NULL;
 
-	user = malloc(sizeof(*user));
+	user = wpa_zalloc(sizeof(*user));
 	if (user == NULL)
 	    return -1;
-	memset(user, 0, sizeof(*user));
 
 	if (sm->eapol_cb->get_eap_user(sm->eapol_ctx, identity,
 				       identity_len, phase2, user) != 0) {
@@ -230,9 +138,11 @@ SM_STATE(EAP, INITIALIZE)
 	/* eapKeyAvailable = FALSE */
 	eapol_set_bool(sm, EAPOL_eapRestart, FALSE);
 
-	/* This is not defined in draft-ietf-eap-statemachine-05.txt, but
-	 * method state needs to be reseted here so that it does not remain in
-	 * success state when re-authentication starts. */
+	/*
+	 * This is not defined in RFC 4137, but method state needs to be
+	 * reseted here so that it does not remain in success state when
+	 * re-authentication starts.
+	 */
 	if (sm->m && sm->eap_method_priv) {
 		sm->m->reset(sm, sm->eap_method_priv);
 		sm->eap_method_priv = NULL;
@@ -249,6 +159,7 @@ SM_STATE(EAP, INITIALIZE)
 		}
 	}
 	sm->num_rounds = 0;
+	sm->method_pending = METHOD_PENDING_NONE;
 }
 
 
@@ -262,7 +173,8 @@ SM_STATE(EAP, PICK_UP_METHOD)
 			sm->m->reset(sm, sm->eap_method_priv);
 			sm->eap_method_priv = NULL;
 		}
-		sm->m = eap_sm_get_eap_methods(sm->currentMethod);
+		sm->m = eap_sm_get_eap_methods(EAP_VENDOR_IETF,
+					       sm->currentMethod);
 		if (sm->m && sm->m->initPickUp) {
 			sm->eap_method_priv = sm->m->initPickUp(sm);
 			if (sm->eap_method_priv == NULL) {
@@ -399,14 +311,21 @@ SM_STATE(EAP, METHOD_RESPONSE)
 
 SM_STATE(EAP, PROPOSE_METHOD)
 {
+	int vendor;
+	EapType type;
+
 	SM_ENTRY(EAP, PROPOSE_METHOD);
 
-	sm->currentMethod = eap_sm_Policy_getNextMethod(sm);
+	type = eap_sm_Policy_getNextMethod(sm, &vendor);
+	if (vendor == EAP_VENDOR_IETF)
+		sm->currentMethod = type;
+	else
+		sm->currentMethod = EAP_TYPE_EXPANDED;
 	if (sm->m && sm->eap_method_priv) {
 		sm->m->reset(sm, sm->eap_method_priv);
 		sm->eap_method_priv = NULL;
 	}
-	sm->m = eap_sm_get_eap_methods(sm->currentMethod);
+	sm->m = eap_sm_get_eap_methods(vendor, type);
 	if (sm->m) {
 		sm->eap_method_priv = sm->m->init(sm);
 		if (sm->eap_method_priv == NULL) {
@@ -536,7 +455,9 @@ SM_STEP(EAP)
 				SM_ENTER(EAP, SELECT_ACTION);
 			else if (sm->rxResp &&
 				 (sm->respMethod == EAP_TYPE_NAK ||
-				  sm->respMethod == EAP_TYPE_EXPANDED_NAK))
+				  (sm->respMethod == EAP_TYPE_EXPANDED &&
+				   sm->respVendor == EAP_VENDOR_IETF &&
+				   sm->respVendorMethod == EAP_TYPE_NAK)))
 				SM_ENTER(EAP, NAK);
 			else
 				SM_ENTER(EAP, PICK_UP_METHOD);
@@ -570,14 +491,25 @@ SM_STEP(EAP)
 	case EAP_RECEIVED:
 		if (sm->rxResp && (sm->respId == sm->currentId) &&
 		    (sm->respMethod == EAP_TYPE_NAK ||
-		     sm->respMethod == EAP_TYPE_EXPANDED_NAK)
+		     (sm->respMethod == EAP_TYPE_EXPANDED &&
+		      sm->respVendor == EAP_VENDOR_IETF &&
+		      sm->respVendorMethod == EAP_TYPE_NAK))
 		    && (sm->methodState == METHOD_PROPOSED))
 			SM_ENTER(EAP, NAK);
 		else if (sm->rxResp && (sm->respId == sm->currentId) &&
-			 (sm->respMethod == sm->currentMethod))
+			 ((sm->respMethod == sm->currentMethod) ||
+			  (sm->respMethod == EAP_TYPE_EXPANDED &&
+			   sm->respVendor == EAP_VENDOR_IETF &&
+			   sm->respVendorMethod == sm->currentMethod)))
 			SM_ENTER(EAP, INTEGRITY_CHECK);
-		else
+		else {
+			wpa_printf(MSG_DEBUG, "EAP: RECEIVED->DISCARD: "
+				   "rxResp=%d respId=%d currentId=%d "
+				   "respMethod=%d currentMethod=%d",
+				   sm->rxResp, sm->respId, sm->currentId,
+				   sm->respMethod, sm->currentMethod);
 			SM_ENTER(EAP, DISCARD);
+		}
 		break;
 	case EAP_DISCARD:
 		SM_ENTER(EAP, IDLE);
@@ -595,13 +527,48 @@ SM_STEP(EAP)
 		SM_ENTER(EAP, SEND_REQUEST);
 		break;
 	case EAP_METHOD_RESPONSE:
+		/*
+		 * Note: Mechanism to allow EAP methods to wait while going
+		 * through pending processing is an extension to RFC 4137
+		 * which only defines the transits to SELECT_ACTION and
+		 * METHOD_REQUEST from this METHOD_RESPONSE state.
+		 */
 		if (sm->methodState == METHOD_END)
 			SM_ENTER(EAP, SELECT_ACTION);
-		else
+		else if (sm->method_pending == METHOD_PENDING_WAIT) {
+			wpa_printf(MSG_DEBUG, "EAP: Method has pending "
+				   "processing - wait before proceeding to "
+				   "METHOD_REQUEST state");
+		} else if (sm->method_pending == METHOD_PENDING_CONT) {
+			wpa_printf(MSG_DEBUG, "EAP: Method has completed "
+				   "pending processing - reprocess pending "
+				   "EAP message");
+			sm->method_pending = METHOD_PENDING_NONE;
+			SM_ENTER(EAP, METHOD_RESPONSE);
+		} else
 			SM_ENTER(EAP, METHOD_REQUEST);
 		break;
 	case EAP_PROPOSE_METHOD:
-		SM_ENTER(EAP, METHOD_REQUEST);
+		/*
+		 * Note: Mechanism to allow EAP methods to wait while going
+		 * through pending processing is an extension to RFC 4137
+		 * which only defines the transit to METHOD_REQUEST from this
+		 * PROPOSE_METHOD state.
+		 */
+		if (sm->method_pending == METHOD_PENDING_WAIT) {
+			wpa_printf(MSG_DEBUG, "EAP: Method has pending "
+				   "processing - wait before proceeding to "
+				   "METHOD_REQUEST state");
+			if (sm->user_eap_method_index > 0)
+				sm->user_eap_method_index--;
+		} else if (sm->method_pending == METHOD_PENDING_CONT) {
+			wpa_printf(MSG_DEBUG, "EAP: Method has completed "
+				   "pending processing - reprocess pending "
+				   "EAP message");
+			sm->method_pending = METHOD_PENDING_NONE;
+			SM_ENTER(EAP, PROPOSE_METHOD);
+		} else
+			SM_ENTER(EAP, METHOD_REQUEST);
 		break;
 	case EAP_NAK:
 		SM_ENTER(EAP, SELECT_ACTION);
@@ -644,6 +611,8 @@ static void eap_sm_parseEapResp(struct eap_sm *sm, u8 *resp, size_t len)
 	sm->rxResp = FALSE;
 	sm->respId = -1;
 	sm->respMethod = EAP_TYPE_NONE;
+	sm->respVendor = EAP_VENDOR_IETF;
+	sm->respVendorMethod = EAP_TYPE_NONE;
 
 	if (resp == NULL || len < sizeof(*hdr))
 		return;
@@ -662,11 +631,26 @@ static void eap_sm_parseEapResp(struct eap_sm *sm, u8 *resp, size_t len)
 	if (hdr->code == EAP_CODE_RESPONSE)
 		sm->rxResp = TRUE;
 
-	if (len > sizeof(*hdr))
-		sm->respMethod = *((u8 *) (hdr + 1));
+	if (plen > sizeof(*hdr)) {
+		u8 *pos = (u8 *) (hdr + 1);
+		sm->respMethod = *pos++;
+		if (sm->respMethod == EAP_TYPE_EXPANDED) {
+			if (plen < sizeof(*hdr) + 8) {
+				wpa_printf(MSG_DEBUG, "EAP: Ignored truncated "
+					   "expanded EAP-Packet (plen=%lu)",
+					   (unsigned long) plen);
+				return;
+			}
+			sm->respVendor = WPA_GET_BE24(pos);
+			pos += 3;
+			sm->respVendorMethod = WPA_GET_BE32(pos);
+		}
+	}
 
 	wpa_printf(MSG_DEBUG, "EAP: parseEapResp: rxResp=%d respId=%d "
-		   "respMethod=%d", sm->rxResp, sm->respId, sm->respMethod);
+		   "respMethod=%u respVendor=%u respVendorMethod=%u",
+		   sm->rxResp, sm->respId, sm->respMethod, sm->respVendor,
+		   sm->respVendorMethod);
 }
 
 
@@ -707,7 +691,7 @@ static u8 * eap_sm_buildFailure(struct eap_sm *sm, int id, size_t *len)
 static int eap_sm_nextId(struct eap_sm *sm, int id)
 {
 	if (id < 0) {
-		/* RFC 3748 Ch 4.1: recommended to initalize Identifier with a
+		/* RFC 3748 Ch 4.1: recommended to initialize Identifier with a
 		 * random number */
 		id = rand() & 0xff;
 		if (id != sm->lastId)
@@ -717,22 +701,40 @@ static int eap_sm_nextId(struct eap_sm *sm, int id)
 }
 
 
+/**
+ * eap_sm_process_nak - Process EAP-Response/Nak
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * @nak_list: Nak list (allowed methods) from the supplicant
+ * @len: Length of nak_list in bytes
+ *
+ * This function is called when EAP-Response/Nak is received from the
+ * supplicant. This can happen for both phase 1 and phase 2 authentications.
+ */
 void eap_sm_process_nak(struct eap_sm *sm, u8 *nak_list, size_t len)
 {
-	int i, j;
+	int i;
+	size_t j;
+
+	if (sm->user == NULL)
+		return;
 
 	wpa_printf(MSG_MSGDUMP, "EAP: processing NAK (current EAP method "
 		   "index %d)", sm->user_eap_method_index);
 
 	wpa_hexdump(MSG_MSGDUMP, "EAP: configured methods",
-		    sm->user->methods, EAP_MAX_METHODS);
+		    (u8 *) sm->user->methods,
+		    EAP_MAX_METHODS * sizeof(sm->user->methods[0]));
 	wpa_hexdump(MSG_MSGDUMP, "EAP: list of methods supported by the peer",
 		    nak_list, len);
 
 	i = sm->user_eap_method_index;
-	while (i < EAP_MAX_METHODS && sm->user->methods[i] != EAP_TYPE_NONE) {
+	while (i < EAP_MAX_METHODS &&
+	       (sm->user->methods[i].vendor != EAP_VENDOR_IETF ||
+		sm->user->methods[i].method != EAP_TYPE_NONE)) {
+		if (sm->user->methods[i].vendor != EAP_VENDOR_IETF)
+			goto not_found;
 		for (j = 0; j < len; j++) {
-			if (nak_list[j] == sm->user->methods[i]) {
+			if (nak_list[j] == sm->user->methods[i].method) {
 				break;
 			}
 		}
@@ -743,14 +745,19 @@ void eap_sm_process_nak(struct eap_sm *sm, u8 *nak_list, size_t len)
 			continue;
 		}
 
+	not_found:
 		/* not found - remove from the list */
 		memmove(&sm->user->methods[i], &sm->user->methods[i + 1],
-			EAP_MAX_METHODS - i - 1);
-		sm->user->methods[EAP_MAX_METHODS - 1] = EAP_TYPE_NONE;
+			(EAP_MAX_METHODS - i - 1) *
+			sizeof(sm->user->methods[0]));
+		sm->user->methods[EAP_MAX_METHODS - 1].vendor =
+			EAP_VENDOR_IETF;
+		sm->user->methods[EAP_MAX_METHODS - 1].method = EAP_TYPE_NONE;
 	}
 
 	wpa_hexdump(MSG_MSGDUMP, "EAP: new list of configured methods",
-		    sm->user->methods, EAP_MAX_METHODS);
+		    (u8 *) sm->user->methods, EAP_MAX_METHODS *
+		    sizeof(sm->user->methods[0]));
 }
 
 
@@ -770,9 +777,10 @@ static void eap_sm_Policy_update(struct eap_sm *sm, u8 *nak_list, size_t len)
 }
 
 
-static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm)
+static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm, int *vendor)
 {
 	EapType next;
+	int idx = sm->user_eap_method_index;
 
 	/* In theory, there should be no problems with starting
 	 * re-authentication with something else than EAP-Request/Identity and
@@ -782,16 +790,21 @@ static EapType eap_sm_Policy_getNextMethod(struct eap_sm *sm)
 	 * Re-auth sets currentId == -1, so that can be used here to select
 	 * whether Identity needs to be requested again. */
 	if (sm->identity == NULL || sm->currentId == -1) {
+		*vendor = EAP_VENDOR_IETF;
 		next = EAP_TYPE_IDENTITY;
 		sm->update_user = TRUE;
-	} else if (sm->user && sm->user_eap_method_index < EAP_MAX_METHODS &&
-		   sm->user->methods[sm->user_eap_method_index] !=
-		   EAP_TYPE_NONE) {
-		next = sm->user->methods[sm->user_eap_method_index++];
+	} else if (sm->user && idx < EAP_MAX_METHODS &&
+		   (sm->user->methods[idx].vendor != EAP_VENDOR_IETF ||
+		    sm->user->methods[idx].method != EAP_TYPE_NONE)) {
+		*vendor = sm->user->methods[idx].vendor;
+		next = sm->user->methods[idx].method;
+		sm->user_eap_method_index++;
 	} else {
+		*vendor = EAP_VENDOR_IETF;
 		next = EAP_TYPE_NONE;
 	}
-	wpa_printf(MSG_DEBUG, "EAP: getNextMethod: type %d", next);
+	wpa_printf(MSG_DEBUG, "EAP: getNextMethod: vendor %d type %d",
+		   *vendor, next);
 	return next;
 }
 
@@ -824,7 +837,10 @@ static int eap_sm_Policy_getDecision(struct eap_sm *sm)
 	}
 
 	if (sm->user && sm->user_eap_method_index < EAP_MAX_METHODS &&
-	    sm->user->methods[sm->user_eap_method_index] != EAP_TYPE_NONE) {
+	    (sm->user->methods[sm->user_eap_method_index].vendor !=
+	     EAP_VENDOR_IETF ||
+	     sm->user->methods[sm->user_eap_method_index].method !=
+	     EAP_TYPE_NONE)) {
 		wpa_printf(MSG_DEBUG, "EAP: getDecision: another method "
 			   "available -> CONTINUE");
 		return DECISION_CONTINUE;
@@ -848,6 +864,15 @@ static Boolean eap_sm_Policy_doPickUp(struct eap_sm *sm, EapType method)
 }
 
 
+/**
+ * eap_sm_step - Step EAP state machine
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * Returns: 1 if EAP state was changed or 0 if not
+ *
+ * This function advances EAP state machine to a new state to match with the
+ * current variables. This should be called whenever variables used by the EAP
+ * state machine have changed.
+ */
 int eap_sm_step(struct eap_sm *sm)
 {
 	int res = 0;
@@ -861,17 +886,14 @@ int eap_sm_step(struct eap_sm *sm)
 }
 
 
-u8 eap_get_type(const char *name)
-{
-	int i;
-	for (i = 0; i < NUM_EAP_METHODS; i++) {
-		if (strcmp(eap_methods[i]->name, name) == 0)
-			return eap_methods[i]->method;
-	}
-	return EAP_TYPE_NONE;
-}
-
-
+/**
+ * eap_set_eapRespData - Set EAP response (eapRespData)
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * @eapRespData: EAP-Response payload from the supplicant
+ * @eapRespDataLen: Length of eapRespData in bytes
+ *
+ * This function is called when an EAP-Response is received from a supplicant.
+ */
 void eap_set_eapRespData(struct eap_sm *sm, const u8 *eapRespData,
 			 size_t eapRespDataLen)
 {
@@ -898,21 +920,29 @@ static void eap_user_free(struct eap_user *user)
 }
 
 
+/**
+ * eap_sm_init - Allocate and initialize EAP state machine
+ * @eapol_ctx: Context data to be used with eapol_cb calls
+ * @eapol_cb: Pointer to EAPOL callback functions
+ * @conf: EAP configuration
+ * Returns: Pointer to the allocated EAP state machine or %NULL on failure
+ *
+ * This function allocates and initializes an EAP state machine.
+ */
 struct eap_sm * eap_sm_init(void *eapol_ctx, struct eapol_callbacks *eapol_cb,
-			    struct eap_config *eap_conf)
+			    struct eap_config *conf)
 {
 	struct eap_sm *sm;
 
-	sm = malloc(sizeof(*sm));
+	sm = wpa_zalloc(sizeof(*sm));
 	if (sm == NULL)
 		return NULL;
-	memset(sm, 0, sizeof(*sm));
 	sm->eapol_ctx = eapol_ctx;
 	sm->eapol_cb = eapol_cb;
 	sm->MaxRetrans = 10;
-	sm->ssl_ctx = eap_conf->ssl_ctx;
-	sm->eap_sim_db_priv = eap_conf->eap_sim_db_priv;
-	sm->backend_auth = eap_conf->backend_auth;
+	sm->ssl_ctx = conf->ssl_ctx;
+	sm->eap_sim_db_priv = conf->eap_sim_db_priv;
+	sm->backend_auth = conf->backend_auth;
 
 	wpa_printf(MSG_DEBUG, "EAP: State machine created");
 
@@ -920,6 +950,13 @@ struct eap_sm * eap_sm_init(void *eapol_ctx, struct eapol_callbacks *eapol_cb,
 }
 
 
+/**
+ * eap_sm_deinit - Deinitialize and free an EAP state machine
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ *
+ * This function deinitializes EAP state machine and frees all allocated
+ * resources.
+ */
 void eap_sm_deinit(struct eap_sm *sm)
 {
 	if (sm == NULL)
@@ -937,10 +974,167 @@ void eap_sm_deinit(struct eap_sm *sm)
 }
 
 
+/**
+ * eap_sm_notify_cached - Notify EAP state machine of cached PMK
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ *
+ * This function is called when PMKSA caching is used to skip EAP
+ * authentication.
+ */
 void eap_sm_notify_cached(struct eap_sm *sm)
 {
 	if (sm == NULL)
 		return;
 
 	sm->EAP_state = EAP_SUCCESS;
+}
+
+
+/**
+ * eap_sm_pending_cb - EAP state machine callback for a pending EAP request
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ *
+ * This function is called when data for a pending EAP-Request is received.
+ */
+void eap_sm_pending_cb(struct eap_sm *sm)
+{
+	if (sm == NULL)
+		return;
+	wpa_printf(MSG_DEBUG, "EAP: Callback for pending request received");
+	if (sm->method_pending == METHOD_PENDING_WAIT)
+		sm->method_pending = METHOD_PENDING_CONT;
+}
+
+
+/**
+ * eap_sm_method_pending - Query whether EAP method is waiting for pending data
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * Returns: 1 if method is waiting for pending data or 0 if not
+ */
+int eap_sm_method_pending(struct eap_sm *sm)
+{
+	if (sm == NULL)
+		return 0;
+	return sm->method_pending == METHOD_PENDING_WAIT;
+}
+
+
+/**
+ * eap_hdr_validate - Validate EAP header
+ * @vendor: Expected EAP Vendor-Id (0 = IETF)
+ * @eap_type: Expected EAP type number
+ * @msg: EAP frame (starting with EAP header)
+ * @msglen: Length of msg
+ * @plen: Pointer to variable to contain the returned payload length
+ * Returns: Pointer to EAP payload (after type field), or %NULL on failure
+ *
+ * This is a helper function for EAP method implementations. This is usually
+ * called in the beginning of struct eap_method::process() function to verify
+ * that the received EAP request packet has a valid header. This function is
+ * able to process both legacy and expanded EAP headers and in most cases, the
+ * caller can just use the returned payload pointer (into *plen) for processing
+ * the payload regardless of whether the packet used the expanded EAP header or
+ * not.
+ */
+const u8 * eap_hdr_validate(int vendor, EapType eap_type,
+			    const u8 *msg, size_t msglen, size_t *plen)
+{
+	const struct eap_hdr *hdr;
+	const u8 *pos;
+	size_t len;
+
+	hdr = (const struct eap_hdr *) msg;
+
+	if (msglen < sizeof(*hdr)) {
+		wpa_printf(MSG_INFO, "EAP: Too short EAP frame");
+		return NULL;
+	}
+
+	len = be_to_host16(hdr->length);
+	if (len < sizeof(*hdr) + 1 || len > msglen) {
+		wpa_printf(MSG_INFO, "EAP: Invalid EAP length");
+		return NULL;
+	}
+
+	pos = (const u8 *) (hdr + 1);
+
+	if (*pos == EAP_TYPE_EXPANDED) {
+		int exp_vendor;
+		u32 exp_type;
+		if (len < sizeof(*hdr) + 8) {
+			wpa_printf(MSG_INFO, "EAP: Invalid expanded EAP "
+				   "length");
+			return NULL;
+		}
+		pos++;
+		exp_vendor = WPA_GET_BE24(pos);
+		pos += 3;
+		exp_type = WPA_GET_BE32(pos);
+		pos += 4;
+		if (exp_vendor != vendor || exp_type != (u32) eap_type) {
+			wpa_printf(MSG_INFO, "EAP: Invalid expanded frame "
+				   "type");
+			return NULL;
+		}
+
+		*plen = len - sizeof(*hdr) - 8;
+		return pos;
+	} else {
+		if (vendor != EAP_VENDOR_IETF || *pos != eap_type) {
+			wpa_printf(MSG_INFO, "EAP: Invalid frame type");
+			return NULL;
+		}
+		*plen = len - sizeof(*hdr) - 1;
+		return pos + 1;
+	}
+}
+
+
+/**
+ * eap_msg_alloc - Allocate a buffer for an EAP message
+ * @vendor: Vendor-Id (0 = IETF)
+ * @type: EAP type
+ * @len: Buffer for returning message length
+ * @payload_len: Payload length in bytes (data after Type)
+ * @code: Message Code (EAP_CODE_*)
+ * @identifier: Identifier
+ * @payload: Pointer to payload pointer that will be set to point to the
+ * beginning of the payload or %NULL if payload pointer is not needed
+ * Returns: Pointer to the allocated message buffer or %NULL on error
+ *
+ * This function can be used to allocate a buffer for an EAP message and fill
+ * in the EAP header. This function is automatically using expanded EAP header
+ * if the selected Vendor-Id is not IETF. In other words, most EAP methods do
+ * not need to separately select which header type to use when using this
+ * function to allocate the message buffers.
+ */
+struct eap_hdr * eap_msg_alloc(int vendor, EapType type, size_t *len,
+			       size_t payload_len, u8 code, u8 identifier,
+			       u8 **payload)
+{
+	struct eap_hdr *hdr;
+	u8 *pos;
+
+	*len = sizeof(struct eap_hdr) + (vendor == EAP_VENDOR_IETF ? 1 : 8) +
+		payload_len;
+	hdr = malloc(*len);
+	if (hdr) {
+		hdr->code = code;
+		hdr->identifier = identifier;
+		hdr->length = host_to_be16(*len);
+		pos = (u8 *) (hdr + 1);
+		if (vendor == EAP_VENDOR_IETF) {
+			*pos++ = type;
+		} else {
+			*pos++ = EAP_TYPE_EXPANDED;
+			WPA_PUT_BE24(pos, vendor);
+			pos += 3;
+			WPA_PUT_BE32(pos, type);
+			pos += 4;
+		}
+		if (payload)
+			*payload = pos;
+	}
+
+	return hdr;
 }
