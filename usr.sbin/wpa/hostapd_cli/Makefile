@@ -9,6 +9,9 @@ WPA_SUPPLICANT_DISTDIR?= ${CONTRIB}/wpa_supplicant
 PROG=	hostapd_cli
 SRCS=	hostapd_cli.c wpa_ctrl.c
 
+CFLAGS+= -DCONFIG_CTRL_IFACE
+CFLAGS+= -DCONFIG_CTRL_IFACE_UNIX
+
 MAN=	hostapd_cli.8
 
 .include <bsd.prog.mk>
