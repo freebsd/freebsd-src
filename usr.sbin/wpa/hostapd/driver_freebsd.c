@@ -55,7 +55,7 @@ struct bsd_driver_data {
 
 static const struct driver_ops bsd_driver_ops;
 
-static int bsd_sta_deauth(void *priv, u8 *addr, int reason_code);
+static int bsd_sta_deauth(void *priv, const u8 *addr, int reason_code);
 
 static int
 set80211var(struct bsd_driver_data *drv, int op, const void *arg, int arg_len)
@@ -130,8 +130,8 @@ bsd_configure_wpa(struct bsd_driver_data *drv)
 {
 	static const char *ciphernames[] =
 	    { "WEP", "TKIP", "AES-OCB", "AES-CCM", "*BAD*", "CKIP", "NONE" };
-	hostapd *hapd = drv->hapd;
-	struct hostapd_config *conf = hapd->conf;
+	struct hostapd_data *hapd = drv->hapd;
+	struct hostapd_bss_config *conf = hapd->conf;
 	int v;
 
 	switch (conf->wpa_group) {
@@ -218,7 +218,7 @@ static int
 bsd_set_iface_flags(void *priv, int dev_up)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ifreq ifr;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
@@ -260,11 +260,11 @@ bsd_set_iface_flags(void *priv, int dev_up)
 }
 
 static int
-bsd_set_ieee8021x(void *priv, int enabled)
+bsd_set_ieee8021x(const char *ifname, void *priv, int enabled)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
-	struct hostapd_config *conf = hapd->conf;
+	struct hostapd_data *hapd = drv->hapd;
+	struct hostapd_bss_config *conf = hapd->conf;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
 		"%s: enabled=%d\n", __func__, enabled);
@@ -294,10 +294,10 @@ bsd_set_ieee8021x(void *priv, int enabled)
 }
 
 static int
-bsd_set_privacy(void *priv, int enabled)
+bsd_set_privacy(const char *ifname, void *priv, int enabled)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
 		"%s: enabled=%d\n", __func__, enabled);
@@ -306,10 +306,10 @@ bsd_set_privacy(void *priv, int enabled)
 }
 
 static int
-bsd_set_sta_authorized(void *priv, u8 *addr, int authorized)
+bsd_set_sta_authorized(void *priv, const u8 *addr, int authorized)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_mlme mlme;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_VERBOSE,
@@ -326,10 +326,21 @@ bsd_set_sta_authorized(void *priv, u8 *addr, int authorized)
 }
 
 static int
-bsd_del_key(void *priv, unsigned char *addr, int key_idx)
+bsd_sta_set_flags(void *priv, const u8 *addr, int flags_or, int flags_and)
+{
+	/* For now, only support setting Authorized flag */
+	if (flags_or & WLAN_STA_AUTHORIZED)
+		return bsd_set_sta_authorized(priv, addr, 1);
+	if (!(flags_and & WLAN_STA_AUTHORIZED))
+		return bsd_set_sta_authorized(priv, addr, 0);
+	return 0;
+}
+
+static int
+bsd_del_key(void *priv, const unsigned char *addr, int key_idx)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_del_key wk;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
@@ -348,12 +359,12 @@ bsd_del_key(void *priv, unsigned char *addr, int key_idx)
 }
 
 static int
-bsd_set_key(void *priv, const char *alg,
-	     unsigned char *addr, int key_idx,
-	     u8 *key, size_t key_len)
+bsd_set_key(const char *ifname, void *priv, const char *alg,
+	    const u8 *addr, int key_idx,
+	    const u8 *key, size_t key_len, int txkey)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_key wk;
 	u_int8_t cipher;
 
@@ -400,10 +411,11 @@ bsd_set_key(void *priv, const char *alg,
 
 
 static int
-bsd_get_seqnum(void *priv, u8 *addr, int idx, u8 *seq)
+bsd_get_seqnum(const char *ifname, void *priv, const u8 *addr, int idx,
+	       u8 *seq)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_key wk;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
@@ -440,7 +452,7 @@ bsd_flush(void *priv)
 
 static int
 bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
-					u8 *addr)
+			 const u8 *addr)
 {
 	struct bsd_driver_data *drv = priv;
 	struct ieee80211req_sta_stats stats;
@@ -457,10 +469,10 @@ bsd_read_sta_driver_data(void *priv, struct hostap_sta_driver_data *data,
 }
 
 static int
-bsd_sta_clear_stats(void *priv, u8 *addr)
+bsd_sta_clear_stats(void *priv, const u8 *addr)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_sta_stats stats;
 	
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "%s: addr=%s\n",
@@ -473,7 +485,7 @@ bsd_sta_clear_stats(void *priv, u8 *addr)
 }
 
 static int
-bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
+bsd_set_opt_ie(const char *ifname, void *priv, const u8 *ie, size_t ie_len)
 {
 	/*
 	 * Do nothing; we setup parameters at startup that define the
@@ -483,10 +495,10 @@ bsd_set_opt_ie(void *priv, const u8 *ie, size_t ie_len)
 }
 
 static int
-bsd_sta_deauth(void *priv, u8 *addr, int reason_code)
+bsd_sta_deauth(void *priv, const u8 *addr, int reason_code)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_mlme mlme;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
@@ -500,10 +512,10 @@ bsd_sta_deauth(void *priv, u8 *addr, int reason_code)
 }
 
 static int
-bsd_sta_disassoc(void *priv, u8 *addr, int reason_code)
+bsd_sta_disassoc(void *priv, const u8 *addr, int reason_code)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct ieee80211req_mlme mlme;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL,
@@ -519,7 +531,7 @@ static int
 bsd_del_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 {
 	struct hostapd_data *hapd = drv->hapd;
-	struct hostapd_config *conf = hapd->conf;
+	struct hostapd_bss_config *conf = hapd->conf;
 	struct sta_info *sta;
 
 	hostapd_logger(hapd, addr, HOSTAPD_MODULE_IEEE80211,
@@ -527,11 +539,11 @@ bsd_del_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 
 	sta = ap_get_sta(hapd, addr);
 	if (sta != NULL) {
-		sta->flags &= ~WLAN_STA_ASSOC;
+		sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
 		if (conf->wpa)
-			wpa_sm_event(hapd, sta, WPA_DISASSOC);
+			wpa_auth_sm_event(sta->wpa_sm, WPA_DISASSOC);
 		sta->acct_terminate_cause = RADIUS_ACCT_TERMINATE_CAUSE_USER_REQUEST;
-		ieee802_1x_set_port_enabled(hapd, sta, 0);
+		ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
 		ap_free_sta(hapd, sta);
 	}
 	return 0;
@@ -541,7 +553,7 @@ static int
 bsd_new_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 {
 	struct hostapd_data *hapd = drv->hapd;
-	struct hostapd_config *conf = hapd->conf;
+	struct hostapd_bss_config *conf = hapd->conf;
 	struct sta_info *sta;
 	struct ieee80211req_wpaie ie;
 	int new_assoc, ielen, res;
@@ -562,35 +574,25 @@ bsd_new_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 			printf("Failed to get WPA/RSN information element.\n");
 			return -1;		/* XXX not right */
 		}
-		ielen = ie.wpa_ie[1];
-		if (ielen == 0) {
+		if (ie.wpa_ie[1] == 0) {
 			printf("No WPA/RSN information element for station!\n");
 			return -1;		/* XXX not right */
 		}
-		ielen += 2;
-		res = wpa_validate_wpa_ie(hapd, sta, ie.wpa_ie, ielen,
-				ie.wpa_ie[0] == WLAN_EID_RSN ?
-				    HOSTAPD_WPA_VERSION_WPA2 :
-				    HOSTAPD_WPA_VERSION_WPA);
+		if (sta->wpa_sm == NULL)
+			sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,
+							sta->addr);
+		if (sta->wpa_sm == NULL) {
+			printf("Failed to initialize WPA state machine\n");
+			return -1;
+		}
+		ielen = 2 + ie.wpa_ie[1];
+		res = wpa_validate_wpa_ie(hapd->wpa_auth, sta->wpa_sm,
+					  ie.wpa_ie, ielen);
 		if (res != WPA_IE_OK) {
 			printf("WPA/RSN information element rejected? "
 				"(res %u)\n", res);
 			return -1;
 		}
-		if (sta->wpa_ie != NULL)
-			free(sta->wpa_ie);
-		sta->wpa_ie = malloc(ielen);
-		if (sta->wpa_ie == NULL) {
-			printf("No memory for WPA/RSN information element!\n");
-			return -1;
-		}
-		memcpy(sta->wpa_ie, ie.wpa_ie, ielen);
-		sta->wpa_ie_len = ielen;
-	} else {
-		if (sta->wpa_ie != NULL)
-			free(sta->wpa_ie);
-		sta->wpa_ie = NULL;
-		sta->wpa_ie_len = 0;
 	}
 
 	/*
@@ -598,16 +600,11 @@ bsd_new_sta(struct bsd_driver_data *drv, u8 addr[IEEE80211_ADDR_LEN])
 	 * kick the authenticator into action.
 	 */
 	new_assoc = (sta->flags & WLAN_STA_ASSOC) == 0;
-	sta->flags |= WLAN_STA_ASSOC;
-	if (new_assoc) {
-		if (conf->wpa)
-			wpa_sm_event(hapd, sta, WPA_ASSOC);
-		hostapd_new_assoc_sta(hapd, sta, !new_assoc);
-	} else {
-		if (conf->wpa)
-			wpa_sm_event(hapd, sta, WPA_REAUTH);
-	}
+	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC;
+	wpa_auth_sm_event(sta->wpa_sm, WPA_ASSOC);
+	hostapd_new_assoc_sta(hapd, sta, !new_assoc);
 	ieee802_1x_notify_port_enabled(sta->eapol_sm, 1);
+
 	return 0;
 }
 
@@ -710,10 +707,11 @@ bsd_wireless_event_deinit(void *priv)
 
 
 static int
-bsd_send_eapol(void *priv, u8 *addr, u8 *data, size_t data_len, int encrypt)
+bsd_send_eapol(void *priv, const u8 *addr, const u8 *data, size_t data_len,
+	       int encrypt, const u8 *own_addr)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	unsigned char buf[3000];
 	unsigned char *bp = buf;
 	struct l2_ethhdr *eth;
@@ -737,12 +735,11 @@ bsd_send_eapol(void *priv, u8 *addr, u8 *data, size_t data_len, int encrypt)
 	}
 	eth = (struct l2_ethhdr *) bp;
 	memcpy(eth->h_dest, addr, ETH_ALEN);
-	memcpy(eth->h_source, drv->hapd->own_addr, ETH_ALEN);
+	memcpy(eth->h_source, own_addr, ETH_ALEN);
 	eth->h_proto = htons(ETH_P_EAPOL);
 	memcpy(eth+1, data, data_len);
 
-	if (HOSTAPD_DEBUG_COND(HOSTAPD_DEBUG_MSGDUMPS))
-		hostapd_hexdump("TX EAPOL", bp, len);
+	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", bp, len);
 
 	status = l2_packet_send(drv->sock_xmit, addr, ETH_P_EAPOL, bp, len);
 
@@ -755,7 +752,7 @@ static void
 handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 {
 	struct bsd_driver_data *drv = ctx;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	struct sta_info *sta;
 
 	sta = ap_get_sta(hapd, src_addr);
@@ -770,10 +767,10 @@ handle_read(void *ctx, const u8 *src_addr, const u8 *buf, size_t len)
 }
 
 static int
-bsd_get_ssid(void *priv, u8 *buf, int len)
+bsd_get_ssid(const char *ifname, void *priv, u8 *buf, int len)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 	int ssid_len = get80211var(priv, IEEE80211_IOC_SSID, buf, len);
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "%s: ssid=\"%.*s\"\n",
@@ -783,10 +780,10 @@ bsd_get_ssid(void *priv, u8 *buf, int len)
 }
 
 static int
-bsd_set_ssid(void *priv, u8 *buf, int len)
+bsd_set_ssid(const char *ifname, void *priv, const u8 *buf, int len)
 {
 	struct bsd_driver_data *drv = priv;
-	hostapd *hapd = drv->hapd;
+	struct hostapd_data *hapd = drv->hapd;
 
 	HOSTAPD_DEBUG(HOSTAPD_DEBUG_MINIMAL, "%s: ssid=\"%.*s\"\n",
 		__func__, len, buf);
@@ -874,7 +871,7 @@ static const struct driver_ops bsd_driver_ops = {
 	.set_generic_elem	= bsd_set_opt_ie,
 	.wireless_event_init	= bsd_wireless_event_init,
 	.wireless_event_deinit	= bsd_wireless_event_deinit,
-	.set_sta_authorized	= bsd_set_sta_authorized,
+	.sta_set_flags		= bsd_sta_set_flags,
 	.read_sta_data		= bsd_read_sta_driver_data,
 	.send_eapol		= bsd_send_eapol,
 	.sta_disassoc		= bsd_sta_disassoc,
