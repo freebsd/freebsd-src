@@ -996,8 +996,16 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 		/*
 		 * Obtain ifp. If no interface address was provided,
-		 * use the interface of the route to the given multicast
-		 * address (usually this is the default route).
+		 * use the interface of the route in the unicast FIB for
+		 * the given multicast destination; usually, this is the
+		 * default route.
+		 * If this lookup fails, attempt to use the first non-loopback
+		 * interface with multicast capability in the system as a
+		 * last resort. The legacy IPv4 ASM API requires that we do
+		 * this in order to allow groups to be joined when the routing
+		 * table has not yet been populated during boot.
+		 * If all of these conditions fail, return EADDRNOTAVAIL, and
+		 * reject the IPv4 multicast join.
 		 */
 		if (mreqs.imr_interface.s_addr != INADDR_ANY) {
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
@@ -1007,16 +1015,23 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			ro.ro_rt = NULL;
 			*(struct sockaddr_in *)&ro.ro_dst = gsa->sin;
 			rtalloc_ign(&ro, RTF_CLONING);
-			if (ro.ro_rt == NULL) {
-#ifdef DIAGNOSTIC
-				printf("%s: no route to %s\n", __func__,
-				    inet_ntoa(gsa->sin.sin_addr));
-#endif
-				return (EADDRNOTAVAIL);
+			if (ro.ro_rt != NULL) {
+				ifp = ro.ro_rt->rt_ifp;
+				KASSERT(ifp != NULL, ("%s: null ifp",
+				    __func__));
+				RTFREE(ro.ro_rt);
+			} else {
+				struct in_ifaddr *ia;
+				struct ifnet *mfp = NULL;
+				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+					mfp = ia->ia_ifp;
+					if (!(mfp->if_flags & IFF_LOOPBACK) &&
+					     (mfp->if_flags & IFF_MULTICAST)) {
+						ifp = mfp;
+						break;
+					}
+				}
 			}
-			ifp = ro.ro_rt->rt_ifp;
-			KASSERT(ifp != NULL, ("%s: null ifp", __func__));
-			RTFREE(ro.ro_rt);
 		}
 #ifdef DIAGNOSTIC
 		if (bootverbose) {
