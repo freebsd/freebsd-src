@@ -769,6 +769,9 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 		*retcluster = start;
 	if (got)
 		*got = count;
+	pmp->pm_nxtfree = start + count;
+	if (pmp->pm_nxtfree > pmp->pm_maxcluster)
+		pmp->pm_nxtfree = CLUST_FIRST;
 	return (0);
 }
 
@@ -806,11 +809,7 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	} else 
 		len = 0;
 
-	/*
-	 * Start at a (pseudo) random place to maximize cluster runs
-	 * under multiple writers.
-	 */
-	newst = random() % (pmp->pm_maxcluster + 1);
+	newst = pmp->pm_nxtfree;
 	foundl = 0;
 
 	for (cn = newst; cn <= pmp->pm_maxcluster;) {
