@@ -255,7 +255,7 @@ dumpheader(struct ktr_header *kth)
 		type = "PSIG";
 		break;
 	case KTR_CSW:
-		type = "CSW";
+		type = "CSW ";
 		break;
 	case KTR_USER:
 		type = "USER";
