@@ -1697,6 +1697,14 @@ vm_page_test_dirty(vm_page_t m)
 
 int so_zerocp_fullpage = 0;
 
+/*
+ *	Replace the given page with a copy.  The copied page assumes
+ *	the portion of the given page's "wire_count" that is not the
+ *	responsibility of this copy-on-write mechanism.
+ *
+ *	The object containing the given page must have a non-zero
+ *	paging-in-progress count and be locked.
+ */
 void
 vm_page_cowfault(vm_page_t m)
 {
@@ -1705,6 +1713,10 @@ vm_page_cowfault(vm_page_t m)
 	vm_pindex_t pindex;
 
 	object = m->object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(object->paging_in_progress != 0,
+	    ("vm_page_cowfault: object %p's paging-in-progress count is zero.",
+	    object)); 
 	pindex = m->pindex;
 
  retry_alloc:
@@ -1717,8 +1729,16 @@ vm_page_cowfault(vm_page_t m)
 		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
 		VM_OBJECT_LOCK(object);
-		vm_page_lock_queues();
-		goto retry_alloc;
+		if (m == vm_page_lookup(object, pindex)) {
+			vm_page_lock_queues();
+			goto retry_alloc;
+		} else {
+			/*
+			 * Page disappeared during the wait.
+			 */
+			vm_page_lock_queues();
+			return;
+		}
 	}
 
 	if (m->cow == 0) {
