@@ -175,7 +175,7 @@ nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 */
 	dev->si_drv1 = NULL;
 	free(sdp, M_NSMBDEV);
-	destroy_dev(dev);
+	destroy_dev_sched(dev);
 	splx(s);
 	return 0;
 }
@@ -349,6 +349,8 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 		if (error)
 			break;
 		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
+		drain_dev_clone_events();
+		destroy_dev_drain(&nsmb_cdevsw);
 		printf("netsmb_dev: unloaded\n");
 		break;
 	    default:
