@@ -1556,6 +1556,9 @@ product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 
+/* MetaGeek products */
+product METAGEEK WISPY		0x083e	MetaGeek Wi-Spy
+
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
 
