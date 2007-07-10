@@ -239,6 +239,8 @@ struct sge_fl {
 struct tx_desc;
 struct tx_sw_desc;
 
+#define TXQ_TRANSMITTING 0x1
+
 struct sge_txq {
 	uint64_t	flags;
 	uint32_t	in_use;
@@ -254,7 +256,9 @@ struct sge_txq {
 	struct tx_sw_desc *sdesc;
 	uint32_t	token;
 	bus_addr_t	phys_addr;
-	struct task     qresume_tsk;
+	struct task     qresume_task;
+	struct task     qreclaim_task;
+	struct port_info *port;
 	uint32_t	cntxt_id;
 	uint64_t	stops;
 	uint64_t	restarts;
