@@ -99,6 +99,7 @@ extern struct inpcbinfo		udbinfo;
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
 extern struct udpstat		udpstat;
+extern int			udp_blackhole;
 extern int			udp_log_in_vain;
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
