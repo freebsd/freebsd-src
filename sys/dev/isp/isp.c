@@ -1682,12 +1682,7 @@ isp_fibre_init(ispsoftc_t *isp)
 			break;
 		}
 		if (IS_2200(isp)) {
-			if (ISP_FW_NEWER_THAN(isp, 1, 17, 0)) {
-				icbp->icb_xfwoptions |= ICBXOPT_RIO_16BIT;
-				icbp->icb_racctimer = 4;
-				icbp->icb_idelaytimer = 8;
-			}
-			icbp->icb_fwoptions |= ICBOPT_FAST_POST;
+			icbp->icb_fwoptions &= ~ICBOPT_FAST_POST;
 		} else {
 			/*
 			 * QLogic recommends that FAST Posting be turned
@@ -6087,7 +6082,7 @@ isp_fastpost_complete(ispsoftc_t *isp, uint16_t fph)
 	}
 	xs = isp_find_xs(isp, fph);
 	if (xs == NULL) {
-		isp_prt(isp, ISP_LOGWARN,
+		isp_prt(isp, ISP_LOGDEBUG1,
 		    "Command for fast post handle 0x%x not found", fph);
 		return;
 	}
