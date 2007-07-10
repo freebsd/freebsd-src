@@ -1613,7 +1613,11 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
+	if (txq->flags & TXQ_TRANSMITTING)
+		return (EINPROGRESS);
+	
 	mtx_lock(&txq->lock);
+	txq->flags |= TXQ_TRANSMITTING;
 	in_use_init = txq->in_use;
 	while ((txq->in_use - in_use_init < txmax) &&
 	    (txq->size > txq->in_use + TX_MAX_DESC)) {
@@ -1651,6 +1655,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 			break;
 		BPF_MTAP(ifp, m);
 	}
+	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
 
 	if (__predict_false(err)) {
@@ -1685,8 +1690,7 @@ cxgb_start_proc(void *arg, int ncount)
 
 	do {
 		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC)
-			taskqueue_enqueue(pi->adapter->tq,
-			    &pi->timer_reclaim_task);
+			taskqueue_enqueue(pi->adapter->tq, &txq->qreclaim_task);
 
 		error = cxgb_start_tx(ifp, TX_START_MAX_DESC);
 	} while (error == 0);
