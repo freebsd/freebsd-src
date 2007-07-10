@@ -414,7 +414,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		if (IS_SCSI(isp)) {
 			break;
 		}
-		if (ifc->loopid < 0 || ifc->loopid >= MAX_FC_TARG) {
+		if (ifc->loopid >= MAX_FC_TARG) {
 			retval = EINVAL;
 			break;
 		}
@@ -726,7 +726,7 @@ create_lun_state(ispsoftc_t *isp, int bus,
 	tstate_t *tptr, *new;
 
 	lun = xpt_path_lun_id(path);
-	if (lun < 0) {
+	if (lun >= ISP_MAX_LUNS(isp)) {
 		return (CAM_LUN_INVALID);
 	}
 	if (is_lun_enabled(isp, bus, lun)) {
@@ -823,7 +823,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 	}
 
 	if ((lun != CAM_LUN_WILDCARD) &&
-	    (lun < 0 || lun >= (lun_id_t) isp->isp_maxluns)) {
+	    (lun >= (lun_id_t) isp->isp_maxluns)) {
 		ccb->ccb_h.status = CAM_LUN_INVALID;
 		return (-1);
 	}
