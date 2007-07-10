@@ -147,25 +147,21 @@ sub previous_revision($)
 sub fetch_mail($)
 {
 	my $msgid = $_[0];
-	my @years = ( "current", "2006", "2005", "2004", "2003", "2002", "2001", "2000", "1999", "1998", "1997", "1996", "1995", "1994" );
 	my $url = "";
 
 	$msgid =~ s/<//;
 	$msgid =~ s/>//;
 	$msgid =~ s/@.*//;
 
-	# XXX - This should go away once my mid.cgi patches hits the doc tree.
-	foreach (@years) {
-		$url = `fetch -q -o - 'http://www.freebsd.org/cgi/mid.cgi?id=$msgid+$_/cvs-all&db=mid' | grep getmsg.cgi | head -n 1`;
-		last if (!($url =~ /^$/));
-	}
+	$url = `fetch -q -o - 'http://www.freebsd.org/cgi/mid.cgi?id=$msgid'| grep getmsg.cgi | head -n 1`;
+
 	if ($url =~ /^$/) {
 		print "No mail found for Message-Id <$msgid>.\n";
 		exit 1;
 	}
-	$url =~ s/.*HREF="(.*)".*/$1+raw/;
 	$url =~ s/.*href="(.*)".*/$1/;
-	$url =~ s/^.*\/cgi/http:\/\/www.freebsd.org\/cgi/;
+	$url =~ s/\n$/\+raw/;
+	$url = "http://www.freebsd.org/cgi/$url";
 	return $url;
 }
 
