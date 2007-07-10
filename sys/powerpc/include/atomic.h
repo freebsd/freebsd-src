@@ -414,7 +414,9 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 
 #define	atomic_cmpset_int	atomic_cmpset_32
 #define	atomic_cmpset_long	atomic_cmpset_32
-#define	atomic_cmpset_ptr	atomic_cmpset_32
+
+#define	atomic_cmpset_ptr(dst, old, new)	\
+    atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
 
 #if 0
 #define	atomic_cmpset_long_long	atomic_cmpset_64
@@ -441,8 +443,11 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
 #define	atomic_cmpset_acq_long	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_long	atomic_cmpset_rel_32
-#define	atomic_cmpset_acq_ptr	atomic_cmpset_acq_32
-#define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_32
+
+#define	atomic_cmpset_acq_ptr(dst, old, new)	\
+    atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define	atomic_cmpset_rel_ptr(dst, old, new)	\
+    atomic_cmpset_rel_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
 
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
