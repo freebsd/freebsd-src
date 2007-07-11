@@ -59,11 +59,13 @@
  */
 #define WI_MAX_DATALEN	512
 
+#if 0
 struct wi_req {
 	u_int16_t	wi_len;
 	u_int16_t	wi_type;
 	u_int16_t	wi_val[WI_MAX_DATALEN];
 };
+#endif
 
 /*
  * Private LTV records (interpreted only by the driver). This is
