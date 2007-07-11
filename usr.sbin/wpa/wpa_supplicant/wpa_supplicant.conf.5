@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2006
+.Dd July 8, 2007
 .Dt WPA_SUPPLICANT.CONF 5
 .Os
 .Sh NAME
@@ -263,6 +263,10 @@ Identity string for EAP.
 .It Va anonymous_identity
 Anonymous identity string for EAP (to be used as the unencrypted identity
 with EAP types that support different tunneled identities; e.g.\& EAP-TTLS).
+.It Va mixed_cell
+Configure whether networks that allow both plaintext and encryption
+are allowed when selecting a BSS from the scan results.
+By default this is set to 0 (disabled).
 .It Va password
 Password string for EAP.
 .It Va ca_cert
