@@ -58,11 +58,6 @@ MTREE+=	BIND.include.dist
 .endif
 .endif
 
-.if !defined(NO_BIND_ETC) && !defined(NO_BIND) && !defined(NO_BIND_MTREE)
-NAMEDB=	PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
-	make-localhost
-.endif
-
 PPPCNF=	ppp.conf
 
 .if defined(NO_SENDMAIL)
@@ -128,6 +123,19 @@ distribution:
 .if !defined(NO_I4B)
 	cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
+
+.if !defined(NO_BIND)
+.if !defined(NO_BIND_MTREE)
+	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
+		set -x; \
+		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
+	fi
+.endif
+.if !defined(NO_BIND_ETC)
+	cd ${.CURDIR}/namedb; ${MAKE} install
+.endif
+.endif
+
 .if !defined(NO_SENDMAIL)
 	cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
@@ -156,18 +164,6 @@ distribution:
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-.if !defined(NO_BIND)
-.if !defined(NO_BIND_ETC) && !defined(NO_BIND_MTREE)
-	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${NAMEDB} ${DESTDIR}/var/named/etc/namedb
-.endif
-.if !defined(NO_BIND_MTREE)
-	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
-		set -x; \
-		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
-	fi
-.endif
-.endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
