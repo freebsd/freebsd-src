@@ -783,7 +783,11 @@ ich_calibrate(void *arg)
 		return;
 	}
 
-	actual_48k_rate = ((uint64_t)ch->blksz * 250000) / wait_us;
+	/* Just in case the timecounter screwed. It is possible, really. */
+	if (wait_us > 0)
+		actual_48k_rate = ((uint64_t)ch->blksz * 250000) / wait_us;
+	else
+		actual_48k_rate = 48000;
 
 	if (actual_48k_rate < 47500 || actual_48k_rate > 48500) {
 		sc->ac97rate = actual_48k_rate;
