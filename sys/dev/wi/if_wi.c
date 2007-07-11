@@ -132,8 +132,10 @@ static void wi_info_intr(struct wi_softc *);
 static int  wi_key_alloc(struct ieee80211com *, const struct ieee80211_key *,
 		ieee80211_keyix *, ieee80211_keyix *);
 
+#if 0
 static int  wi_get_cfg(struct ifnet *, u_long, caddr_t);
 static int  wi_set_cfg(struct ifnet *, u_long, caddr_t);
+#endif
 static int  wi_write_txrate(struct wi_softc *);
 static int  wi_write_wep(struct wi_softc *);
 static int  wi_write_multi(struct wi_softc *);
@@ -156,8 +158,10 @@ static void wi_scan_result(struct wi_softc *, int, int);
 
 static void wi_dump_pkt(struct wi_frame *, struct ieee80211_node *, int rssi);
 
+#if 0
 static int wi_get_debug(struct wi_softc *, struct wi_req *);
 static int wi_set_debug(struct wi_softc *, struct wi_req *);
+#endif
 
 /* support to download firmware for symbol CF card */
 static int wi_symbol_write_firm(struct wi_softc *, const void *, int,
@@ -1232,10 +1236,12 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct wi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 	struct thread *td = curthread;
+#if 0
+	struct ifreq *ifr = (struct ifreq *)data;
 	struct wi_req wreq;
+#endif
 
 	if (sc->wi_gone)
 		return (ENODEV);
@@ -1279,6 +1285,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = wi_write_multi(sc);
 		WI_UNLOCK(sc);
 		break;
+#if 0
 	case SIOCGIFGENERIC:
 		WI_LOCK(sc);
 		error = wi_get_cfg(ifp, cmd, data);
@@ -1312,6 +1319,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = wi_set_debug(sc, &wreq);
 		WI_UNLOCK(sc);
 		break;
+#endif
 	case SIOCG80211:
 		error = wi_ioctl_get(ifp, cmd, data);
 		break;
@@ -2055,6 +2063,7 @@ wi_write_ssid(struct wi_softc *sc, int rid, u_int8_t *buf, int buflen)
 	return wi_write_rid(sc, rid, &ssid, sizeof(ssid));
 }
 
+#if 0
 static int
 wi_get_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
@@ -2472,6 +2481,7 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	return error;
 }
+#endif
 
 static int
 wi_write_txrate(struct wi_softc *sc)
@@ -3229,6 +3239,7 @@ wi_free(device_t dev)
 	return;
 }
 
+#if 0
 static int
 wi_get_debug(struct wi_softc *sc, struct wi_req *wreq)
 {
@@ -3367,6 +3378,7 @@ wi_set_debug(struct wi_softc *sc, struct wi_req *wreq)
 
 	return (error);
 }
+#endif
 
 /*
  * Special routines to download firmware for Symbol CF card.
