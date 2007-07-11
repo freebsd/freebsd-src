@@ -1,7 +1,25 @@
+/*
+ * hostapd / RADIUS message processing
+ * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * Alternatively, this software may be distributed under the terms of BSD
+ * license.
+ *
+ * See README and COPYING for more details.
+ */
+
 #ifndef RADIUS_H
 #define RADIUS_H
 
 /* RFC 2865 - RADIUS */
+
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif /* _MSC_VER */
 
 struct radius_hdr {
 	u8 code;
@@ -9,7 +27,7 @@ struct radius_hdr {
 	u16 length; /* including this header */
 	u8 authenticator[16];
 	/* followed by length-20 octets of attributes */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 enum { RADIUS_CODE_ACCESS_REQUEST = 1,
        RADIUS_CODE_ACCESS_ACCEPT = 2,
@@ -26,7 +44,7 @@ struct radius_attr_hdr {
 	u8 type;
 	u8 length; /* including this header */
 	/* followed by length-2 octets of attribute value */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 #define RADIUS_MAX_ATTR_LEN (255 - sizeof(struct radius_attr_hdr))
 
@@ -60,9 +78,12 @@ enum { RADIUS_ATTR_USER_NAME = 1,
        RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS = 53,
        RADIUS_ATTR_EVENT_TIMESTAMP = 55,
        RADIUS_ATTR_NAS_PORT_TYPE = 61,
+       RADIUS_ATTR_TUNNEL_TYPE = 64,
+       RADIUS_ATTR_TUNNEL_MEDIUM_TYPE = 65,
        RADIUS_ATTR_CONNECT_INFO = 77,
        RADIUS_ATTR_EAP_MESSAGE = 79,
        RADIUS_ATTR_MESSAGE_AUTHENTICATOR = 80,
+       RADIUS_ATTR_TUNNEL_PRIVATE_GROUP_ID = 81,
        RADIUS_ATTR_ACCT_INTERIM_INTERVAL = 85,
        RADIUS_ATTR_NAS_IPV6_ADDRESS = 95
 };
@@ -107,11 +128,25 @@ enum { RADIUS_ATTR_USER_NAME = 1,
 #define RADIUS_ACCT_TERMINATE_CAUSE_USER_ERROR 17
 #define RADIUS_ACCT_TERMINATE_CAUSE_HOST_REQUEST 18
 
+#define RADIUS_TUNNEL_TAGS 32
+
+/* Tunnel-Type */
+#define RADIUS_TUNNEL_TYPE_PPTP 1
+#define RADIUS_TUNNEL_TYPE_L2TP 3
+#define RADIUS_TUNNEL_TYPE_IPIP 7
+#define RADIUS_TUNNEL_TYPE_GRE 10
+#define RADIUS_TUNNEL_TYPE_VLAN 13
+
+/* Tunnel-Medium-Type */
+#define RADIUS_TUNNEL_MEDIUM_TYPE_IPV4 1
+#define RADIUS_TUNNEL_MEDIUM_TYPE_IPV6 2
+#define RADIUS_TUNNEL_MEDIUM_TYPE_802 6
+
 
 struct radius_attr_vendor {
 	u8 vendor_type;
 	u8 vendor_length;
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 #define RADIUS_VENDOR_ID_CISCO 9
 #define RADIUS_CISCO_AV_PAIR 1
@@ -122,6 +157,10 @@ struct radius_attr_vendor {
 enum { RADIUS_VENDOR_ATTR_MS_MPPE_SEND_KEY = 16,
        RADIUS_VENDOR_ATTR_MS_MPPE_RECV_KEY = 17
 };
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 struct radius_ms_mppe_keys {
 	u8 *send;
@@ -182,7 +221,7 @@ int radius_msg_verify_msg_auth(struct radius_msg *msg, const u8 *secret,
 int radius_msg_copy_attr(struct radius_msg *dst, struct radius_msg *src,
 			 u8 type);
 void radius_msg_make_authenticator(struct radius_msg *msg,
-				   u8 *data, size_t len);
+				   const u8 *data, size_t len);
 struct radius_ms_mppe_keys *
 radius_msg_get_ms_keys(struct radius_msg *msg, struct radius_msg *sent_msg,
 		       u8 *secret, size_t secret_len);
@@ -199,6 +238,7 @@ radius_msg_add_attr_user_password(struct radius_msg *msg,
 				  u8 *data, size_t data_len,
 				  u8 *secret, size_t secret_len);
 int radius_msg_get_attr(struct radius_msg *msg, u8 type, u8 *buf, size_t len);
+int radius_msg_get_vlanid(struct radius_msg *msg);
 
 static inline int radius_msg_add_attr_int32(struct radius_msg *msg, u8 type,
 					    u32 value)

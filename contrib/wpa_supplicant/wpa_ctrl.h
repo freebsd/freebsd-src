@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant/hostapd control interface library
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -147,7 +147,7 @@ int wpa_ctrl_recv(struct wpa_ctrl *ctrl, char *reply, size_t *reply_len);
 /**
  * wpa_ctrl_pending - Check whether there are pending event messages
  * @ctrl: Control interface data from wpa_ctrl_open()
- * Returns: Non-zero if there are pending messages
+ * Returns: 1 if there are pending messages, 0 if no, or -1 on error
  *
  * This function will check whether there are any pending control interface
  * message available to be received with wpa_ctrl_recv(). wpa_ctrl_pending() is

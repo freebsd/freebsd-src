@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP state machine functions (RFC 4137)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer state machine functions (RFC 4137)
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,11 +17,16 @@
 
 #include "defs.h"
 #include "eap_defs.h"
+#include "eap_methods.h"
 
 struct eap_sm;
 struct wpa_ssid;
 struct wpa_config_blob;
 
+struct eap_method_type {
+	int vendor;
+	u32 method;
+};
 
 #ifdef IEEE8021X_EAPOL
 
@@ -194,6 +199,18 @@ struct eapol_callbacks {
 	 */
 	const struct wpa_config_blob * (*get_config_blob)(void *ctx,
 							  const char *name);
+
+	/**
+	 * notify_pending - Notify that a pending request can be retried
+	 * @ctx: eapol_ctx from eap_sm_init() call
+	 *
+	 * An EAP method can perform a pending operation (e.g., to get a
+	 * response from an external process). Once the response is available,
+	 * this callback function can be used to request EAPOL state machine to
+	 * retry delivering the previously received (and still unanswered) EAP
+	 * request to EAP state machine.
+	 */
+	void (*notify_pending)(void *ctx);
 };
 
 /**
@@ -229,47 +246,26 @@ int eap_sm_get_status(struct eap_sm *sm, char *buf, size_t buflen,
 		      int verbose);
 u8 * eap_sm_buildIdentity(struct eap_sm *sm, int id, size_t *len,
 			  int encrypted);
-const struct eap_method * eap_sm_get_eap_methods(int method);
-void eap_sm_request_identity(struct eap_sm *sm, struct wpa_ssid *config);
-void eap_sm_request_password(struct eap_sm *sm, struct wpa_ssid *config);
-void eap_sm_request_new_password(struct eap_sm *sm, struct wpa_ssid *config);
-void eap_sm_request_pin(struct eap_sm *sm, struct wpa_ssid *config);
-void eap_sm_request_otp(struct eap_sm *sm, struct wpa_ssid *config,
-			const char *msg, size_t msg_len);
-void eap_sm_request_passphrase(struct eap_sm *sm, struct wpa_ssid *config);
+void eap_sm_request_identity(struct eap_sm *sm);
+void eap_sm_request_password(struct eap_sm *sm);
+void eap_sm_request_new_password(struct eap_sm *sm);
+void eap_sm_request_pin(struct eap_sm *sm);
+void eap_sm_request_otp(struct eap_sm *sm, const char *msg, size_t msg_len);
+void eap_sm_request_passphrase(struct eap_sm *sm);
 void eap_sm_notify_ctrl_attached(struct eap_sm *sm);
-u8 eap_get_type(const char *name);
-const char * eap_get_name(EapType type);
-size_t eap_get_names(char *buf, size_t buflen);
-u8 eap_get_phase2_type(const char *name);
-u8 *eap_get_phase2_types(struct wpa_ssid *config, size_t *count);
+u32 eap_get_phase2_type(const char *name, int *vendor);
+struct eap_method_type * eap_get_phase2_types(struct wpa_ssid *config,
+					      size_t *count);
 void eap_set_fast_reauth(struct eap_sm *sm, int enabled);
 void eap_set_workaround(struct eap_sm *sm, unsigned int workaround);
 void eap_set_force_disabled(struct eap_sm *sm, int disabled);
-struct wpa_ssid * eap_get_config(struct eap_sm *sm);
 int eap_key_available(struct eap_sm *sm);
 void eap_notify_success(struct eap_sm *sm);
 void eap_notify_lower_layer_success(struct eap_sm *sm);
 const u8 * eap_get_eapKeyData(struct eap_sm *sm, size_t *len);
 u8 * eap_get_eapRespData(struct eap_sm *sm, size_t *len);
 void eap_register_scard_ctx(struct eap_sm *sm, void *ctx);
-
-#else /* IEEE8021X_EAPOL */
-
-static inline u8 eap_get_type(const char *name)
-{
-	return EAP_TYPE_NONE;
-}
-
-static inline const char * eap_get_name(EapType type)
-{
-	return NULL;
-}
-
-static inline size_t eap_get_names(char *buf, size_t buflen)
-{
-	return 0;
-}
+void eap_invalidate_cached_session(struct eap_sm *sm);
 
 #endif /* IEEE8021X_EAPOL */
 

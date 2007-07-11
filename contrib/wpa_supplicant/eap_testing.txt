@@ -25,7 +25,7 @@ certificates, and private keys for testing use. Other alternative
 would be to get an evaluation version of the server so that I can
 install it on my own test setup. If you are interested in providing
 either server access or evaluation version, please contact me
-(jkmaline@cc.hut.fi).
+(j@w1.fi).
 
 
 Test matrix
@@ -38,7 +38,7 @@ F) failed
 Cisco ACS ----------------------------------------------------------.
 hostapd --------------------------------------------------------.   |
 Cisco Aironet 1200 AP (local RADIUS server) ----------------.   |   |
-Corriente Elektron -------------------------------------.   |   |   |
+Periodik Labs Elektron ---------------------------------.   |   |   |
 Lucent NavisRadius ---------------------------------.   |   |   |   |
 Interlink RAD-Series ---------------------------.   |   |   |   |   |
 Radiator -----------------------------------.   |   |   |   |   |   |
@@ -60,7 +60,7 @@ EAP-PEAPv0/OTP		-   -   -   -   -   +   -   -   -   -   -   -
 EAP-PEAPv0/MD5		+   -   -   +   +   +   +   +   -   -   +   -
 EAP-PEAPv0/TLS		-   +   -   +   +   +   F   +   -   -   -   -
 EAP-PEAPv1/MSCHAPv2	-   -   +   +   +   +1  +   +5  +8  -   +   +
-EAP-PEAPv1/GTC		-   -   +   +   +   +1  +   +5  -   -   +   +
+EAP-PEAPv1/GTC		-   -   +   +   +   +1  +   +5  +8  -   +   +
 EAP-PEAPv1/OTP		-   -   -   -   -   +1  -   -   -   -   -   -
 EAP-PEAPv1/MD5		-   -   -   +   +   +1  +   +5  -   -   +   -
 EAP-PEAPv1/TLS		-   -   -   +   +   +1  F   +5  -   -   -   -
@@ -68,16 +68,18 @@ EAP-TTLS/CHAP		+   -   +2  +   +   +   +   +   +   -   +   -
 EAP-TTLS/MSCHAP		+   -   +   +   +   +   +   +   +   -   +   -
 EAP-TTLS/MSCHAPv2	+   -   +   +   +   +   +   +   +   -   +   -
 EAP-TTLS/PAP		+   -   +   +   +   +   +   +   +   -   +   -
-EAP-TTLS/EAP-MD5	+   -   +2  +   +   +   +   +   -   -   +   -
+EAP-TTLS/EAP-MD5	+   -   +2  +   +   +   +   +   +   -   +   -
 EAP-TTLS/EAP-GTC	+   -   +2  ?   +   +   +   +   -   -   +   -
 EAP-TTLS/EAP-OTP	-   -   -   -   -   +   -   -   -   -   -   -
 EAP-TTLS/EAP-MSCHAPv2	+   -   +2  +   +   +   +   +   +   -   +   -
 EAP-TTLS/EAP-TLS	-   -   +2  +   F   +   +   +   -   -   -   -
 EAP-SIM			+3  -   -   ?   -   +   -   ?   -   -   +   -
-EAP-AKA			-   -   -   -   -   +   -   -   -   -   -   -
+EAP-AKA			-   -   -   -   -   +   -   -   -   -   +   -
 EAP-PSK			+7  -   -   -   -   -   -   -   -   -   +   -
 EAP-PAX			-   -   -   -   -   -   -   -   -   -   +   -
-EAP-FAST		-   -   -   -   -   -   -   -   -   +   -   +
+EAP-SAKE		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-GPSK		-   -   -   -   -   -   -   -   -   -   +   -
+EAP-FAST		-   -   -   +   -   -   -   -   -   +   -   +
 LEAP			+   -   +   +   +   +   F   +6  -   +   -   +
 
 1) PEAPv1 required new label, "client PEAP encryption" instead of "client EAP
