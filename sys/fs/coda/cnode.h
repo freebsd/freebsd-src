@@ -107,8 +107,6 @@ struct cnode {
     struct vattr	 c_vattr; 	/* attributes */
     char		*c_symlink;	/* pointer to symbolic link */
     u_short		 c_symlen;	/* length of symbolic link */
-    struct cdev		*c_device;	/* associated vnode device */
-    ino_t		 c_inode;	/* associated vnode inode */
     struct cnode	*c_next;	/* links if on NetBSD machine */
 };
 #define	VTOC(vp)	((struct cnode *)(vp)->v_data)

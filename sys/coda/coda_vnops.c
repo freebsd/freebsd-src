@@ -178,9 +178,10 @@ coda_vnodeopstats_init(void)
 }
 		
 /* 
- * coda_open calls Venus to return the device, inode pair of the cache
- * file holding the data. Using iget, coda_open finds the vnode of the
- * cache file, and then opens it.
+ * coda_open calls Venus which returns an open file descriptor the cache
+ * file holding the data. We get the vnode while we are still in the
+ * context of the venus process in coda_psdev.c. This vnode is then
+ * passed back to the caller and opened.
  */
 int
 coda_open(struct vop_open_args *ap)
@@ -199,8 +200,6 @@ coda_open(struct vop_open_args *ap)
 /* locals */
     int error;
     struct vnode *vp;
-    struct cdev *dev;
-    ino_t inode;
 
     MARK_ENTRY(CODA_OPEN_STATS);
 
@@ -216,23 +215,12 @@ coda_open(struct vop_open_args *ap)
 	return(0);
     }
 
-    error = venus_open(vtomi((*vpp)), &cp->c_fid, flag, cred, td->td_proc, &dev, &inode);
-    if (error)
-	return (error);
-    if (!error) {
-	CODADEBUG( CODA_OPEN,myprintf(("open: dev %#lx inode %lu result %d\n",
-				       (u_long)dev2udev(dev), (u_long)inode,
-				       error)); )
-    }
-
-    /* Translate the <device, inode> pair for the cache file into
-       an inode pointer. */
-    error = coda_grab_vnode(dev, inode, &vp);
+    error = venus_open(vtomi((*vpp)), &cp->c_fid, flag, cred, td->td_proc, &vp);
     if (error)
 	return (error);
 
-    /* We get the vnode back locked.  Needs unlocked */
-    VOP_UNLOCK(vp, 0, td);
+    CODADEBUG( CODA_OPEN,myprintf(("open: vp %p result %d\n", vp, error));)
+
     /* Keep a reference until the close comes in. */
     vref(*vpp);                
 
@@ -250,11 +238,6 @@ coda_open(struct vop_open_args *ap)
 	cp->c_owrite++;
 	cp->c_flags &= ~C_VATTR;
     }
-
-    /* Save the <device, inode> pair for the cache file to speed
-       up subsequent page_read's. */
-    cp->c_device = dev;
-    cp->c_inode = inode;
 
     /* Open the cache file. */
     error = VOP_OPEN(vp, flag, cred, td, NULL); 
@@ -290,28 +273,13 @@ coda_close(struct vop_close_args *ap)
 	return(0);
     }
 
-    if (IS_UNMOUNTING(cp)) {
-	if (cp->c_ovp) {
-#ifdef	CODA_VERBOSE
-	    printf("coda_close: destroying container ref %d, ufs vp %p of vp %p/cp %p\n",
-		    vrefcnt(vp), cp->c_ovp, vp, cp);
-#endif
-#ifdef	hmm
-	    vgone(cp->c_ovp);
-#else
-	    VOP_CLOSE(cp->c_ovp, flag, cred, td); /* Do errors matter here? */
-	    vrele(cp->c_ovp);
-#endif
-	} else {
-#ifdef	CODA_VERBOSE
-	    printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
-#endif
-	}
-	return ENODEV;
-    } else {
+    if (cp->c_ovp) {
 	VOP_CLOSE(cp->c_ovp, flag, cred, td); /* Do errors matter here? */
 	vrele(cp->c_ovp);
     }
+#ifdef CODA_VERBOSE
+    else printf("coda_close: NO container vp %p/cp %p\n", vp, cp);
+#endif
 
     if (--cp->c_ocount == 0)
 	cp->c_ovp = NULL;
@@ -319,8 +287,11 @@ coda_close(struct vop_close_args *ap)
     if (flag & FWRITE)                    /* file was opened for write */
 	--cp->c_owrite;
 
-    error = venus_close(vtomi(vp), &cp->c_fid, flag, cred, td->td_proc);
-    vrele(CTOV(cp));
+    if (!IS_UNMOUNTING(cp))
+         error = venus_close(vtomi(vp), &cp->c_fid, flag, cred, td->td_proc);
+    else error = ENODEV;
+
+    vrele(vp);
 
     CODADEBUG(CODA_CLOSE, myprintf(("close: result %d\n",error)); )
     return(error);
@@ -353,12 +324,8 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 /* locals */
     struct cnode *cp = VTOC(vp);
     struct vnode *cfvp = cp->c_ovp;
-    struct proc *p = td->td_proc;
-    struct thread *ltd = td;
-    int igot_internally = 0;
     int opened_internally = 0;
     int error = 0;
-    int iscore = 0;
 
     MARK_ENTRY(CODA_RDWR_STATS);
 
@@ -373,51 +340,19 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
     }
 
     /* 
-     * If file is not already open this must be a page
-     * {read,write} request.  Iget the cache file's inode
-     * pointer if we still have its <device, inode> pair.
-     * Otherwise, we must do an internal open to derive the
-     * pair. 
+     * If file is not already open this must be a page {read,write} request
+     * and we should open it internally.
      */
     if (cfvp == NULL) {
-	/* 
-	 * If we're dumping core, do the internal open. Otherwise
-	 * venus won't have the correct size of the core when
-	 * it's completely written.
-	 */
-	if (p) {
-	    PROC_LOCK(p);
-	    iscore = (p->p_acflag & ACORE);
-	    PROC_UNLOCK(p);
-	}
-	else
-	    ltd = curthread; 
-
-	if (cp->c_inode != 0 && !iscore) {
-	    igot_internally = 1;
-	    error = coda_grab_vnode(cp->c_device, cp->c_inode, &cfvp);
-	    if (error) {
-		MARK_INT_FAIL(CODA_RDWR_STATS);
-		return(error);
-	    }
-	    /* 
-	     * We get the vnode back locked by curthread in both Mach and
-	     * NetBSD.  Needs unlocked 
-	     */
-	    VOP_UNLOCK(cfvp, 0, ltd);
-	}
-	else {
-	    opened_internally = 1;
-	    MARK_INT_GEN(CODA_OPEN_STATS);
-	    error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), 
-			     cred, td, NULL);
-printf("coda_rdwr: Internally Opening %p\n", vp);
-	    if (error) {
+	opened_internally = 1;
+	MARK_INT_GEN(CODA_OPEN_STATS);
+	error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), cred, td, NULL);
+	printf("coda_rdwr: Internally Opening %p\n", vp);
+	if (error) {
 		printf("coda_rdwr: VOP_OPEN on container failed %d\n", error);
 		return (error);
-	    }
-	    cfvp = cp->c_ovp;
 	}
+	cfvp = cp->c_ovp;
     }
 
     /* Have UFS handle the call. */
@@ -1526,7 +1461,7 @@ coda_readdir(struct vop_readdir_args *ap)
 	    opened_internally = 1;
 	    MARK_INT_GEN(CODA_OPEN_STATS);
 	    error = VOP_OPEN(vp, FREAD, cred, td, NULL);
-printf("coda_readdir: Internally Opening %p\n", vp);
+	    printf("coda_readdir: Internally Opening %p\n", vp);
 	    if (error) {
 		printf("coda_readdir: VOP_OPEN on container failed %d\n", error);
 		return (error);
@@ -1675,30 +1610,6 @@ coda_islocked(struct vop_islocked_args *ap)
     ENTRY;
 
     return (vop_stdislocked(ap));
-}
-
-/* How one looks up a vnode given a device/inode pair: */
-int
-coda_grab_vnode(struct cdev *dev, ino_t ino, struct vnode **vpp)
-{
-    /* This is like VFS_VGET() or igetinode()! */
-    int           error;
-    struct mount *mp;
-
-    if (!(mp = devtomp(dev))) {
-	myprintf(("coda_grab_vnode: devtomp(%#lx) returns NULL\n",
-		  (u_long)dev2udev(dev)));
-	return(ENXIO);
-    }
-
-    /* XXX - ensure that nonzero-return means failure */
-    error = VFS_VGET(mp,ino,LK_EXCLUSIVE,vpp);
-    if (error) {
-	myprintf(("coda_grab_vnode: iget/vget(%lx, %lu) returns %p, err %d\n", 
-		  (u_long)dev2udev(dev), (u_long)ino, (void *)*vpp, error));
-	return(ENOENT);
-    }
-    return(0);
 }
 
 void
