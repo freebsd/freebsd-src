@@ -32,6 +32,11 @@
 #define	MPPE_TYPE_40BIT		2
 #define	MPPE_TYPE_128BIT	4
 
+#define	RPI_DEFAULT		1
+#define	RPI_PID			2
+#define	RPI_IFNUM		3
+#define	RPI_TUNNUM		4
+
 struct radius {
   struct fdescriptor desc;	/* We're a sort of (selectable) fdescriptor */
   struct {
@@ -70,6 +75,7 @@ struct radius {
     struct pppTimer timer;	/* for this long */
     int interval;
   } alive;
+  short unsigned int port_id_type;
 };
 
 struct radacct {
