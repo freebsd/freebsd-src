@@ -20,13 +20,15 @@ enum {
     AUTH_WPA2_EAP = 5
 };
 
+#define WPA_GUI_KEY_DATA "[key is configured]"
+
 void NetworkConfig::init()
 {
     wpagui = NULL;
     new_network = false;
 }
 
-void NetworkConfig::paramsFromScanResults(QListViewItem *sel)
+void NetworkConfig::paramsFromScanResults(Q3ListViewItem *sel)
 {
     new_network = true;
 
@@ -172,13 +174,15 @@ void NetworkConfig::addNetwork()
 	setNetworkParam(id, "pairwise", pairwise, false);
 	setNetworkParam(id, "group", "TKIP CCMP WEP104 WEP40", false);
     }
-    if (pskEdit->isEnabled())
+    if (pskEdit->isEnabled() &&
+	strcmp(passwordEdit->text().ascii(), WPA_GUI_KEY_DATA) != 0)
 	setNetworkParam(id, "psk", pskEdit->text().ascii(), psklen != 64);
     if (eapSelect->isEnabled())
 	setNetworkParam(id, "eap", eapSelect->currentText().ascii(), false);
     if (identityEdit->isEnabled())
 	setNetworkParam(id, "identity", identityEdit->text().ascii(), true);
-    if (passwordEdit->isEnabled())
+    if (passwordEdit->isEnabled() &&
+	strcmp(passwordEdit->text().ascii(), WPA_GUI_KEY_DATA) != 0)
 	setNetworkParam(id, "password", passwordEdit->text().ascii(), true);
     if (cacertEdit->isEnabled())
 	setNetworkParam(id, "ca_cert", cacertEdit->text().ascii(), true);
@@ -263,6 +267,8 @@ void NetworkConfig::writeWepKey( int network_id, QLineEdit *edit, int id )
        * with 40, 104, or 128-bit key
        */
     txt = edit->text().ascii();
+    if (strcmp(txt, WPA_GUI_KEY_DATA) == 0)
+	return;
     len = strlen(txt);
     if (len == 0)
 	return;
@@ -283,9 +289,15 @@ void NetworkConfig::writeWepKey( int network_id, QLineEdit *edit, int id )
 }
 
 
+static int key_value_isset(const char *reply, size_t reply_len)
+{
+    return reply_len > 0 && (reply_len < 4 || memcmp(reply, "FAIL", 4) != 0);
+}
+
+
 void NetworkConfig::paramsFromConfig( int network_id )
 {
-    int i;
+    int i, res;
 
     edit_network_id = network_id;
     getEapCapa();
@@ -294,7 +306,7 @@ void NetworkConfig::paramsFromConfig( int network_id )
     size_t reply_len;
     
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d ssid", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
 	reply[0] == '"') {
 	reply[reply_len] = '\0';
@@ -305,7 +317,7 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
     
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d proto", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     int wpa = 0;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0) {
 	reply[reply_len] = '\0';
@@ -317,7 +329,7 @@ void NetworkConfig::paramsFromConfig( int network_id )
 
     int auth = AUTH_NONE, encr = 0;
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d key_mgmt", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0) {
 	reply[reply_len] = '\0';
 	if (strstr(reply, "WPA-EAP"))
@@ -331,7 +343,7 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d pairwise", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0) {
 	reply[reply_len] = '\0';
 	if (strstr(reply, "CCMP"))
@@ -345,18 +357,20 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d psk", network_id);
-    reply_len = sizeof(reply);
-    if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
-	reply[0] == '"') {
+    reply_len = sizeof(reply) - 1;
+    res = wpagui->ctrlRequest(cmd, reply, &reply_len);
+    if (res >= 0 && reply_len >= 2 && reply[0] == '"') {
 	reply[reply_len] = '\0';
 	pos = strchr(reply + 1, '"');
 	if (pos)
 	    *pos = '\0';
 	pskEdit->setText(reply + 1);
+    } else if (res >= 0 && key_value_isset(reply, reply_len)) {
+	pskEdit->setText(WPA_GUI_KEY_DATA);
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d identity", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
 	reply[0] == '"') {
 	reply[reply_len] = '\0';
@@ -367,18 +381,21 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d password", network_id);
-    reply_len = sizeof(reply);
-    if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
+    reply_len = sizeof(reply) - 1;
+    res = wpagui->ctrlRequest(cmd, reply, &reply_len);
+    if (res >= 0 && reply_len >= 2 &&
 	reply[0] == '"') {
 	reply[reply_len] = '\0';
 	pos = strchr(reply + 1, '"');
 	if (pos)
 	    *pos = '\0';
 	passwordEdit->setText(reply + 1);
+    } else if (res >= 0 && key_value_isset(reply, reply_len)) {
+	passwordEdit->setText(WPA_GUI_KEY_DATA);
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d ca_cert", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
 	reply[0] == '"') {
 	reply[reply_len] = '\0';
@@ -389,7 +406,7 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d eap", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 1) {
 	reply[reply_len] = '\0';
 	for (i = 0; i < eapSelect->count(); i++) {
@@ -401,10 +418,26 @@ void NetworkConfig::paramsFromConfig( int network_id )
     }
 
     for (i = 0; i < 4; i++) {
+	QLineEdit *wepEdit;
+	switch (i) {
+	default:
+	case 0:
+	    wepEdit = wep0Edit;
+	    break;
+	case 1:
+	    wepEdit = wep1Edit;
+	    break;
+	case 2:
+	    wepEdit = wep2Edit;
+	    break;
+	case 3:
+	    wepEdit = wep3Edit;
+	    break;
+	}
 	snprintf(cmd, sizeof(cmd), "GET_NETWORK %d wep_key%d", network_id, i);
-	reply_len = sizeof(reply);
-	if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 2 &&
-	    reply[0] == '"') {
+	reply_len = sizeof(reply) - 1;
+	res = wpagui->ctrlRequest(cmd, reply, &reply_len);
+	if (res >= 0 && reply_len >= 2 && reply[0] == '"') {
 	    reply[reply_len] = '\0';
 	    pos = strchr(reply + 1, '"');
 	    if (pos)
@@ -412,25 +445,16 @@ void NetworkConfig::paramsFromConfig( int network_id )
 	    if (auth == AUTH_NONE || auth == AUTH_IEEE8021X)
 		encr = 1;
 
-	    switch (i) {
-	    case 0:
-		wep0Edit->setText(reply + 1);
-		break;
-	    case 1:
-		wep1Edit->setText(reply + 1);
-		break;
-	    case 2:
-		wep2Edit->setText(reply + 1);
-		break;
-	    case 3:
-		wep3Edit->setText(reply + 1);
-		break;
-	    }
+	    wepEdit->setText(reply + 1);
+	} else if (res >= 0 && key_value_isset(reply, reply_len)) {
+	    if (auth == AUTH_NONE || auth == AUTH_IEEE8021X)
+		encr = 1;
+	    wepEdit->setText(WPA_GUI_KEY_DATA);
 	}
     }
 
     snprintf(cmd, sizeof(cmd), "GET_NETWORK %d wep_tx_keyidx", network_id);
-    reply_len = sizeof(reply);
+    reply_len = sizeof(reply) - 1;
     if (wpagui->ctrlRequest(cmd, reply, &reply_len) >= 0 && reply_len >= 1) {
 	reply[reply_len] = '\0';
 	switch (atoi(reply)) {

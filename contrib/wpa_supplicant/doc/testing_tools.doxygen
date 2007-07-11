@@ -47,7 +47,9 @@ The resulting eapol_test binary has following command like options:
 
 \verbatim
 usage:
-eapol_test [-nW] -c<conf> [-a<AS IP>] [-p<AS port>] [-s<AS secret>] [-r<count>]
+eapol_test [-nWS] -c<conf> [-a<AS IP>] [-p<AS port>] [-s<AS secret>] \
+           [-r<count>] [-t<timeout>] [-C<Connect-Info>] \
+           [-M<client MAC address>]
 eapol_test scard
 eapol_test sim <PIN> <num triplets> [debug]
 
@@ -58,7 +60,12 @@ options:
   -s<AS secret> = shared secret with the authentication server, default 'radius'
   -r<count> = number of re-authentications
   -W = wait for a control interface monitor before starting
+  -S = save configuration after authentiation
   -n = no MPPE keys expected
+  -t<timeout> = sets timeout in seconds (default: 30 s)
+  -C<Connect-Info> = RADIUS Connect-Info (default: CONNECT 11Mbps 802.11b)
+  -M<client MAC address> = Set own MAC address (Calling-Station-Id,
+                           default: 02:00:00:00:00:01)
 \endverbatim
 
 

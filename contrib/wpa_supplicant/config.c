@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / Configuration parser and common functions
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,14 +12,11 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "wpa.h"
 #include "sha1.h"
-#include "wpa_supplicant.h"
 #include "eapol_sm.h"
 #include "eap.h"
 #include "l2_packet.h"
@@ -46,9 +43,11 @@ struct parse_data {
 	/* Variable specific parameters for the parser. */
 	void *param1, *param2, *param3, *param4;
 
-	/* 0 = this variable can be included in debug output
+	/* 0 = this variable can be included in debug output and ctrl_iface
 	 * 1 = this variable contains key/private data and it must not be
-	 *     included in debug output unless explicitly requested
+	 *     included in debug output unless explicitly requested. In
+	 *     addition, this variable will not be readable through the
+	 *     ctrl_iface.
 	 */
 	int key_data;
 };
@@ -59,23 +58,23 @@ static char * wpa_config_parse_string(const char *value, size_t *len)
 	if (*value == '"') {
 		char *pos;
 		value++;
-		pos = strchr(value, '"');
+		pos = os_strrchr(value, '"');
 		if (pos == NULL || pos[1] != '\0')
 			return NULL;
 		*pos = '\0';
-		*len = strlen(value);
-		return strdup(value);
+		*len = os_strlen(value);
+		return os_strdup(value);
 	} else {
 		u8 *str;
-		size_t hlen = strlen(value);
-		if (hlen % 1)
+		size_t hlen = os_strlen(value);
+		if (hlen & 1)
 			return NULL;
 		*len = hlen / 2;
-		str = malloc(*len);
+		str = os_malloc(*len);
 		if (str == NULL)
 			return NULL;
 		if (hexstr2bin(value, str, *len)) {
-			free(str);
+			os_free(str);
 			return NULL;
 		}
 		return (char *) str;
@@ -88,35 +87,29 @@ static int wpa_config_parse_str(const struct parse_data *data,
 				int line, const char *value)
 {
 	size_t res_len, *dst_len;
-	char **dst;
+	char **dst, *tmp;
 
-	dst = (char **) (((u8 *) ssid) + (long) data->param1);
-	dst_len = (size_t *) (((u8 *) ssid) + (long) data->param2);
-
-	free(*dst);
-	*dst = wpa_config_parse_string(value, &res_len);
-	if (*dst == NULL) {
+	tmp = wpa_config_parse_string(value, &res_len);
+	if (tmp == NULL) {
 		wpa_printf(MSG_ERROR, "Line %d: failed to parse %s '%s'.",
-			   line, data->name, value);
+			   line, data->name,
+			   data->key_data ? "[KEY DATA REMOVED]" : value);
 		return -1;
 	}
-	if (data->param2)
-		*dst_len = res_len;
 
 	if (data->key_data) {
 		wpa_hexdump_ascii_key(MSG_MSGDUMP, data->name,
-				      (u8 *) *dst, res_len);
+				      (u8 *) tmp, res_len);
 	} else {
 		wpa_hexdump_ascii(MSG_MSGDUMP, data->name,
-				  (u8 *) *dst, res_len);
+				  (u8 *) tmp, res_len);
 	}
 
 	if (data->param3 && res_len < (size_t) data->param3) {
 		wpa_printf(MSG_ERROR, "Line %d: too short %s (len=%lu "
 			   "min_len=%ld)", line, data->name,
 			   (unsigned long) res_len, (long) data->param3);
-		free(*dst);
-		*dst = NULL;
+		os_free(tmp);
 		return -1;
 	}
 
@@ -124,10 +117,16 @@ static int wpa_config_parse_str(const struct parse_data *data,
 		wpa_printf(MSG_ERROR, "Line %d: too long %s (len=%lu "
 			   "max_len=%ld)", line, data->name,
 			   (unsigned long) res_len, (long) data->param4);
-		free(*dst);
-		*dst = NULL;
+		os_free(tmp);
 		return -1;
 	}
+
+	dst = (char **) (((u8 *) ssid) + (long) data->param1);
+	dst_len = (size_t *) (((u8 *) ssid) + (long) data->param2);
+	os_free(*dst);
+	*dst = tmp;
+	if (data->param2)
+		*dst_len = res_len;
 
 	return 0;
 }
@@ -135,7 +134,7 @@ static int wpa_config_parse_str(const struct parse_data *data,
 
 static int is_hex(const u8 *data, size_t len)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < len; i++) {
 		if (data[i] < 32 || data[i] >= 127)
@@ -147,17 +146,15 @@ static int is_hex(const u8 *data, size_t len)
 
 static char * wpa_config_write_string_ascii(const u8 *value, size_t len)
 {
-	int i;
-	char *buf, *pos, *end;
+	char *buf;
 
-	pos = buf = malloc(len + 3);
+	buf = os_malloc(len + 3);
 	if (buf == NULL)
 		return NULL;
-	end = buf + len + 3;
-	pos += snprintf(pos, end - pos, "\"");
-	for (i = 0; i < len; i++)
-		pos += snprintf(pos, end - pos, "%c", value[i]);
-	pos += snprintf(pos, end - pos, "\"");
+	buf[0] = '"';
+	os_memcpy(buf + 1, value, len);
+	buf[len + 1] = '"';
+	buf[len + 2] = '\0';
 
 	return buf;
 }
@@ -165,16 +162,12 @@ static char * wpa_config_write_string_ascii(const u8 *value, size_t len)
 
 static char * wpa_config_write_string_hex(const u8 *value, size_t len)
 {
-	int i;
-	char *buf, *pos, *end;
+	char *buf;
 
-	pos = buf = malloc(2 * len + 1);
+	buf = os_zalloc(2 * len + 1);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 2 * len + 1);
-	end = buf + 2 * len + 1;
-	for (i = 0; i < len; i++)
-		pos += snprintf(pos, end - pos, "%02x", value[i]);
+	wpa_snprintf_hex(buf, 2 * len + 1, value, len);
 
 	return buf;
 }
@@ -205,7 +198,7 @@ static char * wpa_config_write_str(const struct parse_data *data,
 	if (data->param2)
 		len = *((size_t *) (((u8 *) ssid) + (long) data->param2));
 	else
-		len = strlen(*src);
+		len = os_strlen(*src);
 
 	return wpa_config_write_string((const u8 *) *src, len);
 }
@@ -249,10 +242,11 @@ static char * wpa_config_write_int(const struct parse_data *data,
 
 	src = (int *) (((u8 *) ssid) + (long) data->param1);
 
-	value = malloc(20);
+	value = os_malloc(20);
 	if (value == NULL)
 		return NULL;
-	snprintf(value, 20, "%d", *src);
+	os_snprintf(value, 20, "%d", *src);
+	value[20 - 1] = '\0';
 	return value;
 }
 
@@ -280,10 +274,11 @@ static char * wpa_config_write_bssid(const struct parse_data *data,
 	if (!ssid->bssid_set)
 		return NULL;
 
-	value = malloc(20);
+	value = os_malloc(20);
 	if (value == NULL)
 		return NULL;
-	snprintf(value, 20, MACSTR, MAC2STR(ssid->bssid));
+	os_snprintf(value, 20, MACSTR, MAC2STR(ssid->bssid));
+	value[20 - 1] = '\0';
 	return value;
 }
 
@@ -293,14 +288,15 @@ static int wpa_config_parse_psk(const struct parse_data *data,
 				const char *value)
 {
 	if (*value == '"') {
-		char *pos;
+		const char *pos;
 		size_t len;
 
 		value++;
-		pos = strrchr(value, '"');
+		pos = os_strrchr(value, '"');
 		if (pos)
-			*pos = '\0';
-		len = strlen(value);
+			len = pos - value;
+		else
+			len = os_strlen(value);
 		if (len < 8 || len > 63) {
 			wpa_printf(MSG_ERROR, "Line %d: Invalid passphrase "
 				   "length %lu (expected: 8..63) '%s'.",
@@ -309,8 +305,17 @@ static int wpa_config_parse_psk(const struct parse_data *data,
 		}
 		wpa_hexdump_ascii_key(MSG_MSGDUMP, "PSK (ASCII passphrase)",
 				      (u8 *) value, len);
-		ssid->passphrase = strdup(value);
-		return ssid->passphrase == NULL ? -1 : 0;
+		if (ssid->passphrase && os_strlen(ssid->passphrase) == len &&
+		    os_memcmp(ssid->passphrase, value, len) == 0)
+			return 0;
+		ssid->psk_set = 0;
+		os_free(ssid->passphrase);
+		ssid->passphrase = os_malloc(len + 1);
+		if (ssid->passphrase == NULL)
+			return -1;
+		os_memcpy(ssid->passphrase, value, len);
+		ssid->passphrase[len] = '\0';
+		return 0;
 	}
 
 	if (hexstr2bin(value, ssid->psk, PMK_LEN) ||
@@ -319,6 +324,10 @@ static int wpa_config_parse_psk(const struct parse_data *data,
 			   line, value);
 		return -1;
 	}
+
+	os_free(ssid->passphrase);
+	ssid->passphrase = NULL;
+
 	ssid->psk_set = 1;
 	wpa_hexdump_key(MSG_MSGDUMP, "PSK", ssid->psk, PMK_LEN);
 	return 0;
@@ -331,7 +340,7 @@ static char * wpa_config_write_psk(const struct parse_data *data,
 	if (ssid->passphrase)
 		return wpa_config_write_string_ascii(
 			(const u8 *) ssid->passphrase,
-			strlen(ssid->passphrase));
+			os_strlen(ssid->passphrase));
 
 	if (ssid->psk_set)
 		return wpa_config_write_string_hex(ssid->psk, PMK_LEN);
@@ -347,7 +356,7 @@ static int wpa_config_parse_proto(const struct parse_data *data,
 	int val = 0, last, errors = 0;
 	char *start, *end, *buf;
 
-	buf = strdup(value);
+	buf = os_strdup(value);
 	if (buf == NULL)
 		return -1;
 	start = buf;
@@ -362,10 +371,10 @@ static int wpa_config_parse_proto(const struct parse_data *data,
 			end++;
 		last = *end == '\0';
 		*end = '\0';
-		if (strcmp(start, "WPA") == 0)
+		if (os_strcmp(start, "WPA") == 0)
 			val |= WPA_PROTO_WPA;
-		else if (strcmp(start, "RSN") == 0 ||
-			 strcmp(start, "WPA2") == 0)
+		else if (os_strcmp(start, "RSN") == 0 ||
+			 os_strcmp(start, "WPA2") == 0)
 			val |= WPA_PROTO_RSN;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: invalid proto '%s'",
@@ -377,7 +386,7 @@ static int wpa_config_parse_proto(const struct parse_data *data,
 			break;
 		start = end + 1;
 	}
-	free(buf);
+	os_free(buf);
 
 	if (val == 0) {
 		wpa_printf(MSG_ERROR,
@@ -394,22 +403,27 @@ static int wpa_config_parse_proto(const struct parse_data *data,
 static char * wpa_config_write_proto(const struct parse_data *data,
 				     struct wpa_ssid *ssid)
 {
-	int first = 1;
+	int first = 1, ret;
 	char *buf, *pos, *end;
 
-	pos = buf = malloc(10);
+	pos = buf = os_zalloc(10);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 10);
 	end = buf + 10;
 
 	if (ssid->proto & WPA_PROTO_WPA) {
-		pos += snprintf(pos, end - pos, "%sWPA", first ? "" : " ");
+		ret = os_snprintf(pos, end - pos, "%sWPA", first ? "" : " ");
+		if (ret < 0 || ret >= end - pos)
+			return buf;
+		pos += ret;
 		first = 0;
 	}
 
 	if (ssid->proto & WPA_PROTO_RSN) {
-		pos += snprintf(pos, end - pos, "%sRSN", first ? "" : " ");
+		ret = os_snprintf(pos, end - pos, "%sRSN", first ? "" : " ");
+		if (ret < 0 || ret >= end - pos)
+			return buf;
+		pos += ret;
 		first = 0;
 	}
 
@@ -424,7 +438,7 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 	int val = 0, last, errors = 0;
 	char *start, *end, *buf;
 
-	buf = strdup(value);
+	buf = os_strdup(value);
 	if (buf == NULL)
 		return -1;
 	start = buf;
@@ -439,15 +453,15 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 			end++;
 		last = *end == '\0';
 		*end = '\0';
-		if (strcmp(start, "WPA-PSK") == 0)
+		if (os_strcmp(start, "WPA-PSK") == 0)
 			val |= WPA_KEY_MGMT_PSK;
-		else if (strcmp(start, "WPA-EAP") == 0)
+		else if (os_strcmp(start, "WPA-EAP") == 0)
 			val |= WPA_KEY_MGMT_IEEE8021X;
-		else if (strcmp(start, "IEEE8021X") == 0)
+		else if (os_strcmp(start, "IEEE8021X") == 0)
 			val |= WPA_KEY_MGMT_IEEE8021X_NO_WPA;
-		else if (strcmp(start, "NONE") == 0)
+		else if (os_strcmp(start, "NONE") == 0)
 			val |= WPA_KEY_MGMT_NONE;
-		else if (strcmp(start, "WPA-NONE") == 0)
+		else if (os_strcmp(start, "WPA-NONE") == 0)
 			val |= WPA_KEY_MGMT_WPA_NONE;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: invalid key_mgmt '%s'",
@@ -459,7 +473,7 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 			break;
 		start = end + 1;
 	}
-	free(buf);
+	os_free(buf);
 
 	if (val == 0) {
 		wpa_printf(MSG_ERROR,
@@ -476,40 +490,62 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 static char * wpa_config_write_key_mgmt(const struct parse_data *data,
 					struct wpa_ssid *ssid)
 {
-	int first = 1;
 	char *buf, *pos, *end;
+	int ret;
 
-	pos = buf = malloc(50);
+	pos = buf = os_zalloc(50);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 50);
 	end = buf + 50;
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_PSK) {
-		pos += snprintf(pos, end - pos, "%sWPA-PSK", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sWPA-PSK",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_IEEE8021X) {
-		pos += snprintf(pos, end - pos, "%sWPA-EAP", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sWPA-EAP",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_IEEE8021X_NO_WPA) {
-		pos += snprintf(pos, end - pos, "%sIEEE8021X",
-				first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sIEEE8021X",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_NONE) {
-		pos += snprintf(pos, end - pos, "%sNONE", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sNONE",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->key_mgmt & WPA_KEY_MGMT_WPA_NONE) {
-		pos += snprintf(pos, end - pos, "%sWPA-NONE",
-				first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sWPA-NONE",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	return buf;
@@ -521,7 +557,7 @@ static int wpa_config_parse_cipher(int line, const char *value)
 	int val = 0, last;
 	char *start, *end, *buf;
 
-	buf = strdup(value);
+	buf = os_strdup(value);
 	if (buf == NULL)
 		return -1;
 	start = buf;
@@ -536,20 +572,20 @@ static int wpa_config_parse_cipher(int line, const char *value)
 			end++;
 		last = *end == '\0';
 		*end = '\0';
-		if (strcmp(start, "CCMP") == 0)
+		if (os_strcmp(start, "CCMP") == 0)
 			val |= WPA_CIPHER_CCMP;
-		else if (strcmp(start, "TKIP") == 0)
+		else if (os_strcmp(start, "TKIP") == 0)
 			val |= WPA_CIPHER_TKIP;
-		else if (strcmp(start, "WEP104") == 0)
+		else if (os_strcmp(start, "WEP104") == 0)
 			val |= WPA_CIPHER_WEP104;
-		else if (strcmp(start, "WEP40") == 0)
+		else if (os_strcmp(start, "WEP40") == 0)
 			val |= WPA_CIPHER_WEP40;
-		else if (strcmp(start, "NONE") == 0)
+		else if (os_strcmp(start, "NONE") == 0)
 			val |= WPA_CIPHER_NONE;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: invalid cipher '%s'.",
 				   line, start);
-			free(buf);
+			os_free(buf);
 			return -1;
 		}
 
@@ -557,7 +593,7 @@ static int wpa_config_parse_cipher(int line, const char *value)
 			break;
 		start = end + 1;
 	}
-	free(buf);
+	os_free(buf);
 
 	if (val == 0) {
 		wpa_printf(MSG_ERROR, "Line %d: no cipher values configured.",
@@ -570,38 +606,62 @@ static int wpa_config_parse_cipher(int line, const char *value)
 
 static char * wpa_config_write_cipher(int cipher)
 {
-	int first = 1;
 	char *buf, *pos, *end;
+	int ret;
 
-	pos = buf = malloc(50);
+	pos = buf = os_zalloc(50);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 50);
 	end = buf + 50;
 
 	if (cipher & WPA_CIPHER_CCMP) {
-		pos += snprintf(pos, end - pos, "%sCCMP", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sCCMP",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (cipher & WPA_CIPHER_TKIP) {
-		pos += snprintf(pos, end - pos, "%sTKIP", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sTKIP",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (cipher & WPA_CIPHER_WEP104) {
-		pos += snprintf(pos, end - pos, "%sWEP104", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sWEP104",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (cipher & WPA_CIPHER_WEP40) {
-		pos += snprintf(pos, end - pos, "%sWEP40", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sWEP40",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (cipher & WPA_CIPHER_NONE) {
-		pos += snprintf(pos, end - pos, "%sNONE", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sNONE",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	return buf;
@@ -670,7 +730,7 @@ static int wpa_config_parse_auth_alg(const struct parse_data *data,
 	int val = 0, last, errors = 0;
 	char *start, *end, *buf;
 
-	buf = strdup(value);
+	buf = os_strdup(value);
 	if (buf == NULL)
 		return -1;
 	start = buf;
@@ -685,11 +745,11 @@ static int wpa_config_parse_auth_alg(const struct parse_data *data,
 			end++;
 		last = *end == '\0';
 		*end = '\0';
-		if (strcmp(start, "OPEN") == 0)
+		if (os_strcmp(start, "OPEN") == 0)
 			val |= WPA_AUTH_ALG_OPEN;
-		else if (strcmp(start, "SHARED") == 0)
+		else if (os_strcmp(start, "SHARED") == 0)
 			val |= WPA_AUTH_ALG_SHARED;
-		else if (strcmp(start, "LEAP") == 0)
+		else if (os_strcmp(start, "LEAP") == 0)
 			val |= WPA_AUTH_ALG_LEAP;
 		else {
 			wpa_printf(MSG_ERROR, "Line %d: invalid auth_alg '%s'",
@@ -701,7 +761,7 @@ static int wpa_config_parse_auth_alg(const struct parse_data *data,
 			break;
 		start = end + 1;
 	}
-	free(buf);
+	os_free(buf);
 
 	if (val == 0) {
 		wpa_printf(MSG_ERROR,
@@ -718,44 +778,59 @@ static int wpa_config_parse_auth_alg(const struct parse_data *data,
 static char * wpa_config_write_auth_alg(const struct parse_data *data,
 					struct wpa_ssid *ssid)
 {
-	int first = 1;
 	char *buf, *pos, *end;
+	int ret;
 
-	pos = buf = malloc(30);
+	pos = buf = os_zalloc(30);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 30);
 	end = buf + 30;
 
 	if (ssid->auth_alg & WPA_AUTH_ALG_OPEN) {
-		pos += snprintf(pos, end - pos, "%sOPEN", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sOPEN",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->auth_alg & WPA_AUTH_ALG_SHARED) {
-		pos += snprintf(pos, end - pos, "%sSHARED", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sSHARED",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	if (ssid->auth_alg & WPA_AUTH_ALG_LEAP) {
-		pos += snprintf(pos, end - pos, "%sLEAP", first ? "" : " ");
-		first = 0;
+		ret = os_snprintf(pos, end - pos, "%sLEAP",
+				  pos == buf ? "" : " ");
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
 	}
 
 	return buf;
 }
 
 
+#ifdef IEEE8021X_EAPOL
 static int wpa_config_parse_eap(const struct parse_data *data,
 				struct wpa_ssid *ssid, int line,
 				const char *value)
 {
 	int last, errors = 0;
 	char *start, *end, *buf;
-	u8 *methods = NULL, *tmp;
+	struct eap_method_type *methods = NULL, *tmp;
 	size_t num_methods = 0;
 
-	buf = strdup(value);
+	buf = os_strdup(value);
 	if (buf == NULL)
 		return -1;
 	start = buf;
@@ -771,13 +846,17 @@ static int wpa_config_parse_eap(const struct parse_data *data,
 		last = *end == '\0';
 		*end = '\0';
 		tmp = methods;
-		methods = realloc(methods, num_methods + 1);
+		methods = os_realloc(methods,
+				     (num_methods + 1) * sizeof(*methods));
 		if (methods == NULL) {
-			free(tmp);
+			os_free(tmp);
+			os_free(buf);
 			return -1;
 		}
-		methods[num_methods] = eap_get_type(start);
-		if (methods[num_methods] == EAP_TYPE_NONE) {
+		methods[num_methods].method = eap_get_type(
+			start, &methods[num_methods].vendor);
+		if (methods[num_methods].vendor == EAP_VENDOR_IETF &&
+		    methods[num_methods].method == EAP_TYPE_NONE) {
 			wpa_printf(MSG_ERROR, "Line %d: unknown EAP method "
 				   "'%s'", line, start);
 			wpa_printf(MSG_ERROR, "You may need to add support for"
@@ -785,7 +864,8 @@ static int wpa_config_parse_eap(const struct parse_data *data,
 				   "build time configuration.\n"
 				   "See README for more information.");
 			errors++;
-		} else if (methods[num_methods] == EAP_TYPE_LEAP)
+		} else if (methods[num_methods].vendor == EAP_VENDOR_IETF &&
+			   methods[num_methods].method == EAP_TYPE_LEAP)
 			ssid->leap++;
 		else
 			ssid->non_leap++;
@@ -794,18 +874,20 @@ static int wpa_config_parse_eap(const struct parse_data *data,
 			break;
 		start = end + 1;
 	}
-	free(buf);
+	os_free(buf);
 
 	tmp = methods;
-	methods = realloc(methods, num_methods + 1);
+	methods = os_realloc(methods, (num_methods + 1) * sizeof(*methods));
 	if (methods == NULL) {
-		free(tmp);
+		os_free(tmp);
 		return -1;
 	}
-	methods[num_methods] = EAP_TYPE_NONE;
+	methods[num_methods].vendor = EAP_VENDOR_IETF;
+	methods[num_methods].method = EAP_TYPE_NONE;
 	num_methods++;
 
-	wpa_hexdump(MSG_MSGDUMP, "eap methods", methods, num_methods);
+	wpa_hexdump(MSG_MSGDUMP, "eap methods",
+		    (u8 *) methods, num_methods * sizeof(*methods));
 	ssid->eap_methods = methods;
 	return errors ? -1 : 0;
 }
@@ -814,31 +896,37 @@ static int wpa_config_parse_eap(const struct parse_data *data,
 static char * wpa_config_write_eap(const struct parse_data *data,
 				   struct wpa_ssid *ssid)
 {
-	int first = 1;
+	int i, ret;
 	char *buf, *pos, *end;
-	const u8 *eap_methods = ssid->eap_methods;
+	const struct eap_method_type *eap_methods = ssid->eap_methods;
 	const char *name;
 
 	if (eap_methods == NULL)
 		return NULL;
 
-	pos = buf = malloc(100);
+	pos = buf = os_zalloc(100);
 	if (buf == NULL)
 		return NULL;
-	memset(buf, 0, 100);
 	end = buf + 100;
 
-	while (*eap_methods != EAP_TYPE_NONE) {
-		name = eap_get_name(*eap_methods);
-		if (name)
-			pos += snprintf(pos, end - pos, "%s%s",
-					first ? "" : " ", name);
-		first = 0;
-		eap_methods++;
+	for (i = 0; eap_methods[i].vendor != EAP_VENDOR_IETF ||
+		     eap_methods[i].method != EAP_TYPE_NONE; i++) {
+		name = eap_get_name(eap_methods[i].vendor,
+				    eap_methods[i].method);
+		if (name) {
+			ret = os_snprintf(pos, end - pos, "%s%s",
+					  pos == buf ? "" : " ", name);
+			if (ret < 0 || ret >= end - pos)
+				break;
+			pos += ret;
+		}
 	}
+
+	end[-1] = '\0';
 
 	return buf;
 }
+#endif /* IEEE8021X_EAPOL */
 
 
 static int wpa_config_parse_wep_key(u8 *key, size_t *len, int line,
@@ -855,12 +943,12 @@ static int wpa_config_parse_wep_key(u8 *key, size_t *len, int line,
 	if (*len > MAX_WEP_KEY_LEN) {
 		wpa_printf(MSG_ERROR, "Line %d: Too long WEP key %d '%s'.",
 			   line, idx, value);
-		free(buf);
+		os_free(buf);
 		return -1;
 	}
-	memcpy(key, buf, *len);
-	free(buf);
-	snprintf(title, sizeof(title), "wep_key%d", idx);
+	os_memcpy(key, buf, *len);
+	os_free(buf);
+	os_snprintf(title, sizeof(title), "wep_key%d", idx);
 	wpa_hexdump_key(MSG_MSGDUMP, title, key, *len);
 	return 0;
 }
@@ -945,42 +1033,50 @@ static char * wpa_config_write_wep_key3(const struct parse_data *data,
 
 /* Helper macros for network block parser */
 
+#ifdef OFFSET
+#undef OFFSET
+#endif /* OFFSET */
 /* OFFSET: Get offset of a variable within the wpa_ssid structure */
 #define OFFSET(v) ((void *) &((struct wpa_ssid *) 0)->v)
 
 /* STR: Define a string variable for an ASCII string; f = field name */
-#define STR(f) .name = #f, .parser = wpa_config_parse_str, \
-	.writer = wpa_config_write_str, .param1 = OFFSET(f)
+#define _STR(f) #f, wpa_config_parse_str, wpa_config_write_str, OFFSET(f)
+#define STR(f) _STR(f), NULL, NULL, NULL, 0
+#define STR_KEY(f) _STR(f), NULL, NULL, NULL, 1
 
 /* STR_LEN: Define a string variable with a separate variable for storing the
  * data length. Unlike STR(), this can be used to store arbitrary binary data
  * (i.e., even nul termination character). */
-#define STR_LEN(f) STR(f), .param2 = OFFSET(f ## _len)
+#define _STR_LEN(f) _STR(f), OFFSET(f ## _len)
+#define STR_LEN(f) _STR_LEN(f), NULL, NULL, 0
+#define STR_LEN_KEY(f) _STR_LEN(f), NULL, NULL, 1
 
 /* STR_RANGE: Like STR_LEN(), but with minimum and maximum allowed length
  * explicitly specified. */
-#define STR_RANGE(f, min, max) STR_LEN(f), .param3 = (void *) (min), \
-	.param4 = (void *) (max)
+#define _STR_RANGE(f, min, max) _STR_LEN(f), (void *) (min), (void *) (max)
+#define STR_RANGE(f, min, max) _STR_RANGE(f, min, max), 0
+#define STR_RANGE_KEY(f, min, max) _STR_RANGE(f, min, max), 1
 
+#define _INT(f) #f, wpa_config_parse_int, wpa_config_write_int, \
+	OFFSET(f), (void *) 0
 
 /* INT: Define an integer variable */
-#define INT(f) .name = #f, .parser = wpa_config_parse_int, \
-	.writer = wpa_config_write_int, \
-	.param1 = OFFSET(f), .param2 = (void *) 0
+#define INT(f) _INT(f), NULL, NULL, 0
 
-/* INT: Define an integer variable with allowed value range */
-#define INT_RANGE(f, min, max) INT(f), .param3 = (void *) (min), \
-	.param4 = (void *) (max)
+/* INT_RANGE: Define an integer variable with allowed value range */
+#define INT_RANGE(f, min, max) _INT(f), (void *) (min), (void *) (max), 0
 
 /* FUNC: Define a configuration variable that uses a custom function for
  * parsing and writing the value. */
-#define FUNC(f) .name = #f, .parser = wpa_config_parse_ ## f, \
-		.writer = wpa_config_write_ ## f
+#define _FUNC(f) #f, wpa_config_parse_ ## f, wpa_config_write_ ## f, \
+	NULL, NULL, NULL, NULL
+#define FUNC(f) _FUNC(f), 0
+#define FUNC_KEY(f) _FUNC(f), 1
 
 /*
  * Table of network configuration variables. This table is used to parse each
  * network configuration variable, e.g., each line in wpa_supplicant.conf file
- * that is insider a network block.
+ * that is inside a network block.
  *
  * This table is generated using the helper macros defined above and with
  * generous help from the C pre-processor. The field name is stored as a string
@@ -995,31 +1091,33 @@ static char * wpa_config_write_wep_key3(const struct parse_data *data,
  * function (.parser) is then called to parse the actual value of the field.
  *
  * This kind of mechanism makes it easy to add new configuration parameters,
- * since only one line needs to be added into this table and in struct wpa_ssid
- * definitions if the new variable is either a string or integer. More complex
- * types will need to use their own parser and writer functions.
+ * since only one line needs to be added into this table and into the
+ * struct wpa_ssid definition if the new variable is either a string or
+ * integer. More complex types will need to use their own parser and writer
+ * functions.
  */
 static const struct parse_data ssid_fields[] = {
 	{ STR_RANGE(ssid, 0, MAX_SSID_LEN) },
 	{ INT_RANGE(scan_ssid, 0, 1) },
 	{ FUNC(bssid) },
-	{ FUNC(psk), .key_data = 1 },
+	{ FUNC_KEY(psk) },
 	{ FUNC(proto) },
 	{ FUNC(key_mgmt) },
 	{ FUNC(pairwise) },
 	{ FUNC(group) },
 	{ FUNC(auth_alg) },
+#ifdef IEEE8021X_EAPOL
 	{ FUNC(eap) },
 	{ STR_LEN(identity) },
 	{ STR_LEN(anonymous_identity) },
-	{ STR_RANGE(eappsk, EAP_PSK_LEN, EAP_PSK_LEN), .key_data = 1 },
+	{ STR_RANGE_KEY(eappsk, EAP_PSK_LEN_MIN, EAP_PSK_LEN_MAX) },
 	{ STR_LEN(nai) },
-	{ STR_LEN(password), .key_data = 1 },
+	{ STR_LEN_KEY(password) },
 	{ STR(ca_cert) },
 	{ STR(ca_path) },
 	{ STR(client_cert) },
 	{ STR(private_key) },
-	{ STR(private_key_passwd), .key_data = 1 },
+	{ STR_KEY(private_key_passwd) },
 	{ STR(dh_file) },
 	{ STR(subject_match) },
 	{ STR(altsubject_match) },
@@ -1027,44 +1125,64 @@ static const struct parse_data ssid_fields[] = {
 	{ STR(ca_path2) },
 	{ STR(client_cert2) },
 	{ STR(private_key2) },
-	{ STR(private_key2_passwd), .key_data = 1 },
+	{ STR_KEY(private_key2_passwd) },
 	{ STR(dh_file2) },
 	{ STR(subject_match2) },
 	{ STR(altsubject_match2) },
 	{ STR(phase1) },
 	{ STR(phase2) },
 	{ STR(pcsc) },
-	{ STR(pin), .key_data = 1 },
+	{ STR_KEY(pin) },
 	{ STR(engine_id) },
 	{ STR(key_id) },
 	{ INT(engine) },
 	{ INT(eapol_flags) },
-	{ FUNC(wep_key0), .key_data = 1 },
-	{ FUNC(wep_key1), .key_data = 1 },
-	{ FUNC(wep_key2), .key_data = 1 },
-	{ FUNC(wep_key3), .key_data = 1 },
+#endif /* IEEE8021X_EAPOL */
+	{ FUNC_KEY(wep_key0) },
+	{ FUNC_KEY(wep_key1) },
+	{ FUNC_KEY(wep_key2) },
+	{ FUNC_KEY(wep_key3) },
 	{ INT(wep_tx_keyidx) },
 	{ INT(priority) },
+#ifdef IEEE8021X_EAPOL
 	{ INT(eap_workaround) },
 	{ STR(pac_file) },
+	{ INT(fragment_size) },
+#endif /* IEEE8021X_EAPOL */
 	{ INT_RANGE(mode, 0, 1) },
 	{ INT_RANGE(proactive_key_caching, 0, 1) },
 	{ INT_RANGE(disabled, 0, 1) },
+	{ STR(id_str) },
+#ifdef CONFIG_IEEE80211W
+	{ INT_RANGE(ieee80211w, 0, 2) },
+#endif /* CONFIG_IEEE80211W */
+	{ INT_RANGE(peerkey, 0, 1) },
+	{ INT_RANGE(mixed_cell, 0, 1) }
 };
 
 #undef OFFSET
+#undef _STR
 #undef STR
+#undef STR_KEY
+#undef _STR_LEN
 #undef STR_LEN
+#undef STR_LEN_KEY
+#undef _STR_RANGE
 #undef STR_RANGE
+#undef STR_RANGE_KEY
+#undef _INT
 #undef INT
 #undef INT_RANGE
+#undef _FUNC
 #undef FUNC
+#undef FUNC_KEY
 #define NUM_SSID_FIELDS (sizeof(ssid_fields) / sizeof(ssid_fields[0]))
 
 
 /**
  * wpa_config_add_prio_network - Add a network to priority lists
  * @config: Configuration data from wpa_config_read()
+ * @ssid: Pointer to the network configuration to be added to the list
  * Returns: 0 on success, -1 on failure
  *
  * This function is used to add a network block to the priority list of
@@ -1078,6 +1196,10 @@ int wpa_config_add_prio_network(struct wpa_config *config,
 	int prio;
 	struct wpa_ssid *prev, **nlist;
 
+	/*
+	 * Add to an existing priority list if one is available for the
+	 * configured priority level for this network.
+	 */
 	for (prio = 0; prio < config->num_prio; prio++) {
 		prev = config->pssid[prio];
 		if (prev->priority == ssid->priority) {
@@ -1088,9 +1210,9 @@ int wpa_config_add_prio_network(struct wpa_config *config,
 		}
 	}
 
-	/* First network for this priority - add new priority list */
-	nlist = realloc(config->pssid,
-			(config->num_prio + 1) * sizeof(struct wpa_ssid *));
+	/* First network for this priority - add a new priority list */
+	nlist = os_realloc(config->pssid,
+			   (config->num_prio + 1) * sizeof(struct wpa_ssid *));
 	if (nlist == NULL)
 		return -1;
 
@@ -1099,8 +1221,8 @@ int wpa_config_add_prio_network(struct wpa_config *config,
 			break;
 	}
 
-	memmove(&nlist[prio + 1], &nlist[prio],
-		(config->num_prio - prio) * sizeof(struct wpa_ssid *));
+	os_memmove(&nlist[prio + 1], &nlist[prio],
+		   (config->num_prio - prio) * sizeof(struct wpa_ssid *));
 
 	nlist[prio] = ssid;
 	config->num_prio++;
@@ -1124,7 +1246,7 @@ static int wpa_config_update_prio_list(struct wpa_config *config)
 	struct wpa_ssid *ssid;
 	int ret = 0;
 
-	free(config->pssid);
+	os_free(config->pssid);
 	config->pssid = NULL;
 	config->num_prio = 0;
 
@@ -1144,46 +1266,49 @@ static int wpa_config_update_prio_list(struct wpa_config *config)
  * wpa_config_free_ssid - Free network/ssid configuration data
  * @ssid: Configuration data for the network
  *
- * This function frees all resources allocated for the netowkr configuration
+ * This function frees all resources allocated for the network configuration
  * data.
  */
 void wpa_config_free_ssid(struct wpa_ssid *ssid)
 {
-	free(ssid->ssid);
-	free(ssid->passphrase);
-	free(ssid->eap_methods);
-	free(ssid->identity);
-	free(ssid->anonymous_identity);
-	free(ssid->eappsk);
-	free(ssid->nai);
-	free(ssid->password);
-	free(ssid->ca_cert);
-	free(ssid->ca_path);
-	free(ssid->client_cert);
-	free(ssid->private_key);
-	free(ssid->private_key_passwd);
-	free(ssid->dh_file);
-	free(ssid->subject_match);
-	free(ssid->altsubject_match);
-	free(ssid->ca_cert2);
-	free(ssid->ca_path2);
-	free(ssid->client_cert2);
-	free(ssid->private_key2);
-	free(ssid->private_key2_passwd);
-	free(ssid->dh_file2);
-	free(ssid->subject_match2);
-	free(ssid->altsubject_match2);
-	free(ssid->phase1);
-	free(ssid->phase2);
-	free(ssid->pcsc);
-	free(ssid->pin);
-	free(ssid->engine_id);
-	free(ssid->key_id);
-	free(ssid->otp);
-	free(ssid->pending_req_otp);
-	free(ssid->pac_file);
-	free(ssid->new_password);
-	free(ssid);
+	os_free(ssid->ssid);
+	os_free(ssid->passphrase);
+#ifdef IEEE8021X_EAPOL
+	os_free(ssid->eap_methods);
+	os_free(ssid->identity);
+	os_free(ssid->anonymous_identity);
+	os_free(ssid->eappsk);
+	os_free(ssid->nai);
+	os_free(ssid->password);
+	os_free(ssid->ca_cert);
+	os_free(ssid->ca_path);
+	os_free(ssid->client_cert);
+	os_free(ssid->private_key);
+	os_free(ssid->private_key_passwd);
+	os_free(ssid->dh_file);
+	os_free(ssid->subject_match);
+	os_free(ssid->altsubject_match);
+	os_free(ssid->ca_cert2);
+	os_free(ssid->ca_path2);
+	os_free(ssid->client_cert2);
+	os_free(ssid->private_key2);
+	os_free(ssid->private_key2_passwd);
+	os_free(ssid->dh_file2);
+	os_free(ssid->subject_match2);
+	os_free(ssid->altsubject_match2);
+	os_free(ssid->phase1);
+	os_free(ssid->phase2);
+	os_free(ssid->pcsc);
+	os_free(ssid->pin);
+	os_free(ssid->engine_id);
+	os_free(ssid->key_id);
+	os_free(ssid->otp);
+	os_free(ssid->pending_req_otp);
+	os_free(ssid->pac_file);
+	os_free(ssid->new_password);
+#endif /* IEEE8021X_EAPOL */
+	os_free(ssid->id_str);
+	os_free(ssid);
 }
 
 
@@ -1213,37 +1338,43 @@ void wpa_config_free(struct wpa_config *config)
 		wpa_config_free_blob(prevblob);
 	}
 
-	free(config->ctrl_interface);
-	free(config->opensc_engine_path);
-	free(config->pkcs11_engine_path);
-	free(config->pkcs11_module_path);
-	free(config->driver_param);
-	free(config->pssid);
-	free(config);
+	os_free(config->ctrl_interface);
+	os_free(config->ctrl_interface_group);
+	os_free(config->opensc_engine_path);
+	os_free(config->pkcs11_engine_path);
+	os_free(config->pkcs11_module_path);
+	os_free(config->driver_param);
+	os_free(config->pssid);
+	os_free(config);
 }
 
 
+#ifdef IEEE8021X_EAPOL
 /**
  * wpa_config_allowed_eap_method - Check whether EAP method is allowed
- * @ssid: Pointer to a configuration data
+ * @ssid: Pointer to configuration data
+ * @vendor: Vendor-Id for expanded types or 0 = IETF for legacy types
  * @method: EAP type
  * Returns: 1 = allowed EAP method, 0 = not allowed
  */
-int wpa_config_allowed_eap_method(struct wpa_ssid *ssid, int method)
+int wpa_config_allowed_eap_method(struct wpa_ssid *ssid, int vendor,
+				  u32 method)
 {
-	u8 *pos;
+	int i;
+	struct eap_method_type *m;
 
 	if (ssid == NULL || ssid->eap_methods == NULL)
 		return 1;
 
-	pos = ssid->eap_methods;
-	while (*pos != EAP_TYPE_NONE) {
-		if (*pos == method)
+	m = ssid->eap_methods;
+	for (i = 0; m[i].vendor != EAP_VENDOR_IETF ||
+		     m[i].method != EAP_TYPE_NONE; i++) {
+		if (m[i].vendor == vendor && m[i].method == method)
 			return 1;
-		pos++;
 	}
 	return 0;
 }
+#endif /* IEEE8021X_EAPOL */
 
 
 /**
@@ -1287,10 +1418,9 @@ struct wpa_ssid * wpa_config_add_network(struct wpa_config *config)
 	}
 	id++;
 
-	ssid = malloc(sizeof(*ssid));
+	ssid = os_zalloc(sizeof(*ssid));
 	if (ssid == NULL)
 		return NULL;
-	memset(ssid, 0, sizeof(*ssid));
 	ssid->id = id;
 	if (last)
 		last->next = ssid;
@@ -1337,7 +1467,7 @@ int wpa_config_remove_network(struct wpa_config *config, int id)
 
 /**
  * wpa_config_set_network_defaults - Set network default values
- * @ssid: Pointer to a network configuration data
+ * @ssid: Pointer to network configuration data
  */
 void wpa_config_set_network_defaults(struct wpa_ssid *ssid)
 {
@@ -1345,14 +1475,17 @@ void wpa_config_set_network_defaults(struct wpa_ssid *ssid)
 	ssid->pairwise_cipher = DEFAULT_PAIRWISE;
 	ssid->group_cipher = DEFAULT_GROUP;
 	ssid->key_mgmt = DEFAULT_KEY_MGMT;
+#ifdef IEEE8021X_EAPOL
 	ssid->eapol_flags = DEFAULT_EAPOL_FLAGS;
 	ssid->eap_workaround = DEFAULT_EAP_WORKAROUND;
+	ssid->fragment_size = DEFAULT_FRAGMENT_SIZE;
+#endif /* IEEE8021X_EAPOL */
 }
 
 
 /**
  * wpa_config_set - Set a variable in network configuration
- * @ssid: Pointer to a network configuration data
+ * @ssid: Pointer to network configuration data
  * @var: Variable name, e.g., "ssid"
  * @value: Variable value
  * @line: Line number in configuration file or 0 if not used
@@ -1366,14 +1499,15 @@ void wpa_config_set_network_defaults(struct wpa_ssid *ssid)
 int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
 		   int line)
 {
-	int i, ret = 0;
+	size_t i;
+	int ret = 0;
 
 	if (ssid == NULL || var == NULL || value == NULL)
 		return -1;
 
 	for (i = 0; i < NUM_SSID_FIELDS; i++) {
 		const struct parse_data *field = &ssid_fields[i];
-		if (strcmp(var, field->name) != 0)
+		if (os_strcmp(var, field->name) != 0)
 			continue;
 
 		if (field->parser(field, ssid, line, value)) {
@@ -1399,7 +1533,7 @@ int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
 
 /**
  * wpa_config_get - Get a variable in network configuration
- * @ssid: Pointer to a network configuration data
+ * @ssid: Pointer to network configuration data
  * @var: Variable name, e.g., "ssid"
  * Returns: Value of the variable or %NULL on failure
  *
@@ -1411,14 +1545,14 @@ int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
  */
 char * wpa_config_get(struct wpa_ssid *ssid, const char *var)
 {
-	int i;
+	size_t i;
 
 	if (ssid == NULL || var == NULL)
 		return NULL;
 
 	for (i = 0; i < NUM_SSID_FIELDS; i++) {
 		const struct parse_data *field = &ssid_fields[i];
-		if (strcmp(var, field->name) == 0)
+		if (os_strcmp(var, field->name) == 0)
 			return field->writer(field, ssid);
 	}
 
@@ -1427,8 +1561,55 @@ char * wpa_config_get(struct wpa_ssid *ssid, const char *var)
 
 
 /**
+ * wpa_config_get_no_key - Get a variable in network configuration (no keys)
+ * @ssid: Pointer to network configuration data
+ * @var: Variable name, e.g., "ssid"
+ * Returns: Value of the variable or %NULL on failure
+ *
+ * This function can be used to get network configuration variable like
+ * wpa_config_get(). The only difference is that this functions does not expose
+ * key/password material from the configuration. In case a key/password field
+ * is requested, the returned value is an empty string or %NULL if the variable
+ * is not set or "*" if the variable is set (regardless of its value). The
+ * returned value is a copy of the configuration variable in text format, i.e,.
+ * the same format that the text-based configuration file and wpa_config_set()
+ * are using for the value. The caller is responsible for freeing the returned
+ * value.
+ */
+char * wpa_config_get_no_key(struct wpa_ssid *ssid, const char *var)
+{
+	size_t i;
+
+	if (ssid == NULL || var == NULL)
+		return NULL;
+
+	for (i = 0; i < NUM_SSID_FIELDS; i++) {
+		const struct parse_data *field = &ssid_fields[i];
+		if (os_strcmp(var, field->name) == 0) {
+			char *res = field->writer(field, ssid);
+			if (field->key_data) {
+				if (res && res[0]) {
+					wpa_printf(MSG_DEBUG, "Do not allow "
+						   "key_data field to be "
+						   "exposed");
+					os_free(res);
+					return os_strdup("*");
+				}
+
+				os_free(res);
+				return NULL;
+			}
+			return res;
+		}
+	}
+
+	return NULL;
+}
+
+
+/**
  * wpa_config_update_psk - Update WPA PSK based on passphrase and SSID
- * @ssid: Pointer to a network configuration data
+ * @ssid: Pointer to network configuration data
  *
  * This function must be called to update WPA PSK when either SSID or the
  * passphrase has changed for the network configuration.
@@ -1456,7 +1637,7 @@ const struct wpa_config_blob * wpa_config_get_blob(struct wpa_config *config,
 	struct wpa_config_blob *blob = config->blobs;
 
 	while (blob) {
-		if (strcmp(blob->name, name) == 0)
+		if (os_strcmp(blob->name, name) == 0)
 			return blob;
 		blob = blob->next;
 	}
@@ -1488,9 +1669,9 @@ void wpa_config_set_blob(struct wpa_config *config,
 void wpa_config_free_blob(struct wpa_config_blob *blob)
 {
 	if (blob) {
-		free(blob->name);
-		free(blob->data);
-		free(blob);
+		os_free(blob->name);
+		os_free(blob->data);
+		os_free(blob);
 	}
 }
 
@@ -1506,7 +1687,7 @@ int wpa_config_remove_blob(struct wpa_config *config, const char *name)
 	struct wpa_config_blob *pos = config->blobs, *prev = NULL;
 
 	while (pos) {
-		if (strcmp(pos->name, name) == 0) {
+		if (os_strcmp(pos->name, name) == 0) {
 			if (prev)
 				prev->next = pos->next;
 			else
@@ -1534,18 +1715,42 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 {
 	struct wpa_config *config;
 
-	config = malloc(sizeof(*config));
+	config = os_zalloc(sizeof(*config));
 	if (config == NULL)
 		return NULL;
-	memset(config, 0, sizeof(*config));
 	config->eapol_version = DEFAULT_EAPOL_VERSION;
 	config->ap_scan = DEFAULT_AP_SCAN;
 	config->fast_reauth = DEFAULT_FAST_REAUTH;
 
 	if (ctrl_interface)
-		config->ctrl_interface = strdup(ctrl_interface);
+		config->ctrl_interface = os_strdup(ctrl_interface);
 	if (driver_param)
-		config->driver_param = strdup(driver_param);
+		config->driver_param = os_strdup(driver_param);
 
 	return config;
 }
+
+
+#ifndef CONFIG_NO_STDOUT_DEBUG
+/**
+ * wpa_config_debug_dump_networks - Debug dump of configured networks
+ * @config: Configuration data from wpa_config_read()
+ */
+void wpa_config_debug_dump_networks(struct wpa_config *config)
+{
+	int prio;
+	struct wpa_ssid *ssid;
+
+	for (prio = 0; prio < config->num_prio; prio++) {
+		ssid = config->pssid[prio];
+		wpa_printf(MSG_DEBUG, "Priority group %d",
+			   ssid->priority);
+		while (ssid) {
+			wpa_printf(MSG_DEBUG, "   id=%d ssid='%s'",
+				   ssid->id,
+				   wpa_ssid_txt(ssid->ssid, ssid->ssid_len));
+			ssid = ssid->pnext;
+		}
+	}
+}
+#endif /* CONFIG_NO_STDOUT_DEBUG */

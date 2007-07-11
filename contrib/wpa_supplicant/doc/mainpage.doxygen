@@ -13,7 +13,7 @@ give enough information for other developers to understand how
 %wpa_supplicant has been implemented, how it can be modified, how new
 drivers can be supported, and how %wpa_supplicant can be ported to
 other operating systems. If any information is missing, feel free to
-contact Jouni Malinen <jkmaline@cc.hut.fi> for more
+contact Jouni Malinen <j@w1.fi> for more
 information. Contributions as patch files are also very welcome at the
 same address. Please note that %wpa_supplicant is licensed under dual
 license, GPLv2 or BSD at user's choice. All contributions to

@@ -219,6 +219,12 @@ eap_pax.c, eap_pax_common.h, eap_pax_common.c
 eap_psk.c, eap_psk_common.h, eap_psk_common.c
 	EAP-PSK (note: this is not needed for WPA-PSK)
 
+eap_sake.c, eap_sake_common.h, eap_sake_common.c
+	EAP-SAKE
+
+eap_gpsk.c, eap_gpsk_common.h, eap_gpsk_common.c
+	EAP-GPSK
+
 eap_aka.c, eap_fast.c, eap_gtc.c, eap_leap.c, eap_md5.c, eap_mschapv2.c,
 eap_otp.c, eap_peap.c, eap_sim.c, eap_tls.c
 	Other EAP method implementations
