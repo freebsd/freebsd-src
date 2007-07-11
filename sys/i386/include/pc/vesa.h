@@ -32,21 +32,21 @@
 struct vesa_info
 {
     /* mandatory fields */
-    u_int8_t		v_sig[4];		/* VESA */
-    u_int16_t		v_version __packed;	/* ver in BCD */
-    u_int32_t		v_oemstr __packed;	/* OEM string */
-    u_int32_t		v_flags __packed;	/* flags */
+    u_int8_t		v_sig[4];	/* VESA */
+    u_int16_t		v_version;	/* ver in BCD */
+    u_int32_t		v_oemstr;	/* OEM string */
+    u_int32_t		v_flags;	/* flags */
 #define V_DAC8		(1<<0)
 #define V_NONVGA	(1<<1)
 #define V_SNOW		(1<<2)
-    u_int32_t		v_modetable __packed;	/* modes */
-    u_int16_t		v_memsize __packed;	/* in 64K */
+    u_int32_t		v_modetable;	/* modes */
+    u_int16_t		v_memsize;	/* in 64K */
     /* 2.0 */
-    u_int16_t		v_revision __packed;	/* software rev */
-    u_int32_t		v_venderstr __packed;	/* vender */
-    u_int32_t		v_prodstr __packed;	/* product name */
-    u_int32_t		v_revstr __packed;	/* product rev */
-};
+    u_int16_t		v_revision;	/* software rev */
+    u_int32_t		v_venderstr;	/* vender */
+    u_int32_t		v_prodstr;	/* product name */
+    u_int32_t		v_revstr;	/* product rev */
+} __packed;
 
 struct vesa_mode 
 {
