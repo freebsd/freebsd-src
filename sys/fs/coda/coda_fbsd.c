@@ -124,6 +124,7 @@ static void coda_fbsd_clone(arg, cred, name, namelen, dev)
     dev_ref(*dev);
     mnt = malloc(sizeof(struct coda_mntinfo), M_CODA, M_WAITOK|M_ZERO);
     LIST_INSERT_HEAD(&coda_mnttbl, mnt, mi_list);
+    mnt->dev = *dev;
 }
 
 struct coda_mntinfo *
@@ -133,8 +134,8 @@ dev2coda_mntinfo(struct cdev *dev)
 
 	LIST_FOREACH(mnt, &coda_mnttbl, mi_list) {
 		if (mnt->dev == dev)
-			break;
+			return mnt;
 	}
 
-	return mnt;
+	return NULL;
 }
