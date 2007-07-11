@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - Common definitions
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,7 +24,8 @@
 typedef enum { FALSE = 0, TRUE = 1 } Boolean;
 
 
-typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP } wpa_alg;
+typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP,
+	       WPA_ALG_IGTK, WPA_ALG_DHV } wpa_alg;
 typedef enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
 	       CIPHER_WEP104 } wpa_cipher;
 typedef enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
@@ -127,5 +128,13 @@ typedef enum {
 	 */
 	WPA_COMPLETED
 } wpa_states;
+
+#define MLME_SETPROTECTION_PROTECT_TYPE_NONE 0
+#define MLME_SETPROTECTION_PROTECT_TYPE_RX 1
+#define MLME_SETPROTECTION_PROTECT_TYPE_TX 2
+#define MLME_SETPROTECTION_PROTECT_TYPE_RX_TX 3
+
+#define MLME_SETPROTECTION_KEY_TYPE_GROUP 0
+#define MLME_SETPROTECTION_KEY_TYPE_PAIRWISE 1
 
 #endif /* DEFS_H */

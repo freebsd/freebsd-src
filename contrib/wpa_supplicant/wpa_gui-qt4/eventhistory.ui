@@ -1,125 +1,93 @@
-<!DOCTYPE UI><UI version="3.3" stdsetdef="1">
-<class>EventHistory</class>
-<widget class="QDialog">
-    <property name="name">
-        <cstring>EventHistory</cstring>
+<ui version="4.0" stdsetdef="1" >
+  <author></author>
+  <comment></comment>
+  <exportmacro></exportmacro>
+  <class>EventHistory</class>
+  <widget class="QDialog" name="EventHistory" >
+    <property name="geometry" >
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>533</width>
+        <height>285</height>
+      </rect>
     </property>
-    <property name="geometry">
-        <rect>
-            <x>0</x>
-            <y>0</y>
-            <width>533</width>
-            <height>285</height>
-        </rect>
+    <property name="windowTitle" >
+      <string>Event history</string>
     </property>
-    <property name="caption">
-        <string>Event history</string>
-    </property>
-    <vbox>
-        <property name="name">
-            <cstring>unnamed</cstring>
-        </property>
-        <widget class="QListView">
-            <column>
-                <property name="text">
-                    <string>Timestamp</string>
-                </property>
-                <property name="clickable">
-                    <bool>true</bool>
-                </property>
-                <property name="resizable">
-                    <bool>true</bool>
-                </property>
-            </column>
-            <column>
-                <property name="text">
-                    <string>Message</string>
-                </property>
-                <property name="clickable">
-                    <bool>true</bool>
-                </property>
-                <property name="resizable">
-                    <bool>true</bool>
-                </property>
-            </column>
-            <property name="name">
-                <cstring>eventListView</cstring>
+    <layout class="QVBoxLayout" >
+      <item>
+        <widget class="QTableView" name="eventListView" >
+          <property name="sizePolicy" >
+            <sizepolicy>
+              <hsizetype>7</hsizetype>
+              <vsizetype>7</vsizetype>
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+            </sizepolicy>
+          </property>
+          <property name="selectionMode" >
+            <enum>QAbstractItemView::NoSelection</enum>
+          </property>
+          <column>
+            <property name="text" >
+              <string>Timestamp</string>
             </property>
-            <property name="sizePolicy">
-                <sizepolicy>
-                    <hsizetype>7</hsizetype>
-                    <vsizetype>7</vsizetype>
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                </sizepolicy>
+            <property name="clickable" >
+              <bool>true</bool>
             </property>
-            <property name="resizePolicy">
-                <enum>Manual</enum>
+            <property name="resizable" >
+              <bool>true</bool>
             </property>
-            <property name="selectionMode">
-                <enum>NoSelection</enum>
+          </column>
+          <column>
+            <property name="text" >
+              <string>Message</string>
             </property>
-            <property name="resizeMode">
-                <enum>LastColumn</enum>
+            <property name="clickable" >
+              <bool>true</bool>
             </property>
+            <property name="resizable" >
+              <bool>true</bool>
+            </property>
+          </column>
         </widget>
-        <widget class="QLayoutWidget">
-            <property name="name">
-                <cstring>layout30</cstring>
-            </property>
-            <hbox>
-                <property name="name">
-                    <cstring>unnamed</cstring>
-                </property>
-                <spacer>
-                    <property name="name">
-                        <cstring>spacer3</cstring>
-                    </property>
-                    <property name="orientation">
-                        <enum>Horizontal</enum>
-                    </property>
-                    <property name="sizeType">
-                        <enum>Expanding</enum>
-                    </property>
-                    <property name="sizeHint">
-                        <size>
-                            <width>20</width>
-                            <height>20</height>
-                        </size>
-                    </property>
-                </spacer>
-                <widget class="QPushButton">
-                    <property name="name">
-                        <cstring>closeButton</cstring>
-                    </property>
-                    <property name="text">
-                        <string>Close</string>
-                    </property>
-                </widget>
-            </hbox>
-        </widget>
-    </vbox>
-</widget>
-<connections>
-    <connection>
-        <sender>closeButton</sender>
-        <signal>clicked()</signal>
-        <receiver>EventHistory</receiver>
-        <slot>close()</slot>
-    </connection>
-</connections>
-<includes>
-    <include location="local" impldecl="in declaration">wpamsg.h</include>
-    <include location="local" impldecl="in implementation">eventhistory.ui.h</include>
-</includes>
-<slots>
-    <slot>addEvents( WpaMsgList msgs )</slot>
-    <slot>addEvent( WpaMsg msg )</slot>
-</slots>
-<functions>
-    <function access="private" specifier="non virtual">init()</function>
-    <function access="private" specifier="non virtual">destroy()</function>
-</functions>
-<pixmapinproject/>
-<layoutdefaults spacing="6" margin="11"/>
-</UI>
+      </item>
+      <item>
+        <layout class="QHBoxLayout" >
+          <property name="margin" >
+            <number>0</number>
+          </property>
+          <item>
+            <spacer name="spacer3" >
+              <property name="sizeHint" >
+                <size>
+                  <width>20</width>
+                  <height>20</height>
+                </size>
+              </property>
+              <property name="sizeType" >
+                <enum>Expanding</enum>
+              </property>
+              <property name="orientation" >
+                <enum>Horizontal</enum>
+              </property>
+            </spacer>
+          </item>
+          <item>
+            <widget class="QPushButton" name="closeButton" >
+              <property name="text" >
+                <string>Close</string>
+              </property>
+            </widget>
+          </item>
+        </layout>
+      </item>
+    </layout>
+  </widget>
+  <layoutdefault spacing="6" margin="11" />
+  <pixmapfunction>qPixmapFromMimeSource</pixmapfunction>
+  <includes>
+    <include location="local" >wpamsg.h</include>
+  </includes>
+</ui>

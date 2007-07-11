@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant - WPA definitions
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,30 +16,15 @@
 #define WPA_H
 
 #include "defs.h"
+#include "wpa_common.h"
 
+#ifndef BIT
 #define BIT(n) (1 << (n))
-
-struct ieee802_1x_hdr {
-	u8 version;
-	u8 type;
-	u16 length;
-	/* followed by length octets of data */
-} __attribute__ ((packed));
-
-#define EAPOL_VERSION 2
-
-enum { IEEE802_1X_TYPE_EAP_PACKET = 0,
-       IEEE802_1X_TYPE_EAPOL_START = 1,
-       IEEE802_1X_TYPE_EAPOL_LOGOFF = 2,
-       IEEE802_1X_TYPE_EAPOL_KEY = 3,
-       IEEE802_1X_TYPE_EAPOL_ENCAPSULATED_ASF_ALERT = 4
-};
-
-enum { EAPOL_KEY_TYPE_RC4 = 1, EAPOL_KEY_TYPE_RSN = 2,
-       EAPOL_KEY_TYPE_WPA = 254 };
-
+#endif
 
 #define WPA_CAPABILITY_PREAUTH BIT(0)
+#define WPA_CAPABILITY_MGMT_FRAME_PROTECTION BIT(6)
+#define WPA_CAPABILITY_PEERKEY_ENABLED BIT(9)
 
 #define GENERIC_INFO_ELEM 0xdd
 #define RSN_INFO_ELEM 0x30
@@ -95,6 +80,8 @@ struct wpa_sm_ctx {
 	void (*set_config_blob)(void *ctx, struct wpa_config_blob *blob);
 	const struct wpa_config_blob * (*get_config_blob)(void *ctx,
 							  const char *name);
+	int (*mlme_setprotection)(void *ctx, const u8 *addr,
+				  int protection_type, int key_type);
 };
 
 
@@ -105,7 +92,8 @@ enum wpa_sm_conf_params {
 	WPA_PARAM_PROTO,
 	WPA_PARAM_PAIRWISE,
 	WPA_PARAM_GROUP,
-	WPA_PARAM_KEY_MGMT
+	WPA_PARAM_KEY_MGMT,
+	WPA_PARAM_MGMT_GROUP
 };
 
 struct wpa_ie_data {
@@ -116,6 +104,7 @@ struct wpa_ie_data {
 	int capabilities;
 	int num_pmkid;
 	const u8 *pmkid;
+	int mgmt_group_cipher;
 };
 
 #ifndef CONFIG_NO_WPA
@@ -130,7 +119,8 @@ void wpa_sm_set_fast_reauth(struct wpa_sm *sm, int fast_reauth);
 void wpa_sm_set_scard_ctx(struct wpa_sm *sm, void *scard_ctx);
 void wpa_sm_set_config(struct wpa_sm *sm, struct wpa_ssid *config);
 void wpa_sm_set_own_addr(struct wpa_sm *sm, const u8 *addr);
-void wpa_sm_set_ifname(struct wpa_sm *sm, const char *ifname);
+void wpa_sm_set_ifname(struct wpa_sm *sm, const char *ifname,
+		       const char *bridge_ifname);
 void wpa_sm_set_eapol(struct wpa_sm *sm, struct eapol_sm *eapol);
 int wpa_sm_set_assoc_wpa_ie(struct wpa_sm *sm, const u8 *ie, size_t len);
 int wpa_sm_set_assoc_wpa_ie_default(struct wpa_sm *sm, u8 *wpa_ie,
@@ -149,9 +139,12 @@ int wpa_sm_get_status(struct wpa_sm *sm, char *buf, size_t buflen,
 
 void wpa_sm_key_request(struct wpa_sm *sm, int error, int pairwise);
 
+int wpa_sm_stkstart(struct wpa_sm *sm, const u8 *peer);
+
 int wpa_parse_wpa_ie(const u8 *wpa_ie, size_t wpa_ie_len,
 		     struct wpa_ie_data *data);
 
+void wpa_sm_aborted_cached(struct wpa_sm *sm);
 int wpa_sm_rx_eapol(struct wpa_sm *sm, const u8 *src_addr,
 		    const u8 *buf, size_t len);
 int wpa_sm_parse_own_wpa_ie(struct wpa_sm *sm, struct wpa_ie_data *data);
@@ -201,7 +194,8 @@ static inline void wpa_sm_set_own_addr(struct wpa_sm *sm, const u8 *addr)
 {
 }
 
-static inline void wpa_sm_set_ifname(struct wpa_sm *sm, const char *ifname)
+static inline void wpa_sm_set_ifname(struct wpa_sm *sm, const char *ifname,
+				     const char *bridge_ifname)
 {
 }
 
@@ -263,10 +257,19 @@ static inline void wpa_sm_key_request(struct wpa_sm *sm, int error,
 {
 }
 
+static inline int wpa_sm_stkstart(struct wpa_sm *sm, const u8 *peer)
+{
+	return -1;
+}
+
 static inline int wpa_parse_wpa_ie(const u8 *wpa_ie, size_t wpa_ie_len,
 				   struct wpa_ie_data *data)
 {
 	return -1;
+}
+
+static inline void wpa_sm_aborted_cached(struct wpa_sm *sm)
+{
 }
 
 static inline int wpa_sm_rx_eapol(struct wpa_sm *sm, const u8 *src_addr,

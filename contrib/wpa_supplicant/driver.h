@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - driver interface definition
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -128,6 +128,30 @@ struct wpa_driver_associate_params {
 	 * mode - Operation mode (infra/ibss) IEEE80211_MODE_*
 	 */
 	int mode;
+
+	/**
+	 * wep_key - WEP keys for static WEP configuration
+	 */
+	const u8 *wep_key[4];
+
+	/**
+	 * wep_key_len - WEP key length for static WEP configuration
+	 */
+	size_t wep_key_len[4];
+
+	/**
+	 * wep_tx_keyidx - WEP TX key index for static WEP configuration
+	 */
+	int wep_tx_keyidx;
+
+	/**
+	 * mgmt_frame_protection - IEEE 802.11w management frame protection
+	 */
+	enum {
+		NO_MGMT_FRAME_PROTECTION,
+		MGMT_FRAME_PROTECTION_OPTIONAL,
+		MGMT_FRAME_PROTECTION_REQUIRED
+	} mgmt_frame_protection;
 };
 
 /**
@@ -155,7 +179,53 @@ struct wpa_driver_capa {
 /* Driver generated WPA/RSN IE */
 #define WPA_DRIVER_FLAGS_DRIVER_IE	0x00000001
 #define WPA_DRIVER_FLAGS_SET_KEYS_AFTER_ASSOC 0x00000002
+#define WPA_DRIVER_FLAGS_USER_SPACE_MLME 0x00000004
 	unsigned int flags;
+};
+
+
+#define WPA_CHAN_W_SCAN 0x00000001
+#define WPA_CHAN_W_ACTIVE_SCAN 0x00000002
+#define WPA_CHAN_W_IBSS 0x00000004
+
+struct wpa_channel_data {
+	short chan; /* channel number (IEEE 802.11) */
+	short freq; /* frequency in MHz */
+	int flag; /* flag for user space use (WPA_CHAN_*) */
+};
+
+#define WPA_RATE_ERP 0x00000001
+#define WPA_RATE_BASIC 0x00000002
+#define WPA_RATE_PREAMBLE2 0x00000004
+#define WPA_RATE_SUPPORTED 0x00000010
+#define WPA_RATE_OFDM 0x00000020
+#define WPA_RATE_CCK 0x00000040
+#define WPA_RATE_MANDATORY 0x00000100
+
+struct wpa_rate_data {
+	int rate; /* rate in 100 kbps */
+	int flags; /* WPA_RATE_ flags */
+};
+
+typedef enum {
+	WPA_MODE_IEEE80211B,
+	WPA_MODE_IEEE80211G,
+	WPA_MODE_IEEE80211A,
+	NUM_WPA_MODES
+} wpa_hw_mode;
+
+struct wpa_hw_modes {
+	wpa_hw_mode mode;
+	int num_channels;
+	struct wpa_channel_data *channels;
+	int num_rates;
+	struct wpa_rate_data *rates;
+};
+
+
+struct ieee80211_rx_status {
+        int channel;
+        int ssi;
 };
 
 
@@ -230,10 +300,12 @@ struct wpa_driver_ops {
 	 * set_key - Configure encryption key
 	 * @priv: private driver interface data
 	 * @alg: encryption algorithm (%WPA_ALG_NONE, %WPA_ALG_WEP,
-	 *	%WPA_ALG_TKIP, %WPA_ALG_CCMP); %WPA_ALG_NONE clears the key.
+	 *	%WPA_ALG_TKIP, %WPA_ALG_CCMP, %WPA_ALG_IGTK, %WPA_ALG_DHV);
+	 *	%WPA_ALG_NONE clears the key.
 	 * @addr: address of the peer STA or ff:ff:ff:ff:ff:ff for
 	 *	broadcast/default keys
-	 * @key_idx: key index (0..3), usually 0 for unicast keys
+	 * @key_idx: key index (0..3), usually 0 for unicast keys; 0..4095 for
+	 *	IGTK
 	 * @set_tx: configure this key as the default Tx key (only used when
 	 *	driver does not support separate unicast/individual key
 	 * @seq: sequence number/packet number, seq_len octets, the next
@@ -241,11 +313,11 @@ struct wpa_driver_ops {
 	 *	for Rx keys (in most cases, this is only used with broadcast
 	 *	keys and set to zero for unicast keys)
 	 * @seq_len: length of the seq, depends on the algorithm:
-	 *	TKIP: 6 octets, CCMP: 6 octets
+	 *	TKIP: 6 octets, CCMP: 6 octets, IGTK: 6 octets
 	 * @key: key buffer; TKIP: 16-byte temporal key, 8-byte Tx Mic key,
 	 *	8-byte Rx Mic Key
 	 * @key_len: length of the key buffer in octets (WEP: 5 or 13,
-	 *	TKIP: 32, CCMP: 16)
+	 *	TKIP: 32, CCMP: 16, IGTK: 16, DHV: 16)
 	 *
 	 * Returns: 0 on success, -1 on failure
 	 *
@@ -554,6 +626,132 @@ struct wpa_driver_ops {
 	 */
 	int (*send_eapol)(void *priv, const u8 *dest, u16 proto,
 			  const u8 *data, size_t data_len);
+
+	/**
+	 * set_operstate - Sets device operating state to DORMANT or UP
+	 * @priv: private driver interface data
+	 * @state: 0 = dormant, 1 = up
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This is an optional function that can be used on operating systems
+	 * that support a concept of controlling network device state from user
+	 * space applications. This function, if set, gets called with
+	 * state = 1 when authentication has been completed and with state = 0
+	 * when connection is lost.
+	 */
+	int (*set_operstate)(void *priv, int state);
+
+	/**
+	 * mlme_setprotection - MLME-SETPROTECTION.request primitive
+	 * @priv: Private driver interface data
+	 * @addr: Address of the station for which to set protection (may be
+	 * %NULL for group keys)
+	 * @protect_type: MLME_SETPROTECTION_PROTECT_TYPE_*
+	 * @key_type: MLME_SETPROTECTION_KEY_TYPE_*
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This is an optional function that can be used to set the driver to
+	 * require protection for Tx and/or Rx frames. This uses the layer
+	 * interface defined in IEEE 802.11i-2004 clause 10.3.22.1
+	 * (MLME-SETPROTECTION.request). Many drivers do not use explicit
+	 * set protection operation; instead, they set protection implicitly
+	 * based on configured keys.
+	 */
+	int (*mlme_setprotection)(void *priv, const u8 *addr, int protect_type,
+				  int key_type);
+
+	/**
+	 * get_hw_feature_data - Get hardware support data (channels and rates)
+	 * @priv: Private driver interface data
+	 * @num_modes: Variable for returning the number of returned modes
+	 * flags: Variable for returning hardware feature flags
+	 * Returns: Pointer to allocated hardware data on success or %NULL on
+	 * failure. Caller is responsible for freeing this.
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	struct wpa_hw_modes * (*get_hw_feature_data)(void *priv,
+						     u16 *num_modes,
+						     u16 *flags);
+
+	/**
+	 * set_channel - Set channel
+	 * @priv: Private driver interface data
+	 * @phymode: WPA_MODE_IEEE80211B, ..
+	 * @chan: IEEE 802.11 channel number
+	 * @freq: Frequency of the channel in MHz
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	int (*set_channel)(void *priv, wpa_hw_mode phymode, int chan,
+			   int freq);
+
+	/**
+	 * set_ssid - Set SSID
+	 * @priv: Private driver interface data
+	 * @ssid: SSID
+	 * @ssid_len: SSID length
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	int (*set_ssid)(void *priv, const u8 *ssid, size_t ssid_len);
+
+	/**
+	 * set_bssid - Set BSSID
+	 * @priv: Private driver interface data
+	 * @bssid: BSSID
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	int (*set_bssid)(void *priv, const u8 *bssid);
+
+	/**
+	 * send_mlme - Send management frame from MLME
+	 * @priv: Private driver interface data
+	 * @data: IEEE 802.11 management frame with IEEE 802.11 header
+	 * @data_len: Size of the management frame
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	int (*send_mlme)(void *priv, const u8 *data, size_t data_len);
+
+	/**
+	 * mlme_add_sta - Add a STA entry into the driver/netstack
+	 * @priv: Private driver interface data
+	 * @addr: MAC address of the STA (e.g., BSSID of the AP)
+	 * @supp_rates: Supported rate set (from (Re)AssocResp); in IEEE 802.11
+	 * format (one octet per rate, 1 = 0.5 Mbps)
+	 * @supp_rates_len: Number of entries in supp_rates
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant. When the MLME code
+	 * completes association with an AP, this function is called to
+	 * configure the driver/netstack with a STA entry for data frame
+	 * processing (TX rate control, encryption/decryption).
+	 */
+	 int (*mlme_add_sta)(void *priv, const u8 *addr, const u8 *supp_rates,
+			     size_t supp_rates_len);
+
+	/**
+	 * mlme_remove_sta - Remove a STA entry from the driver/netstack
+	 * @priv: Private driver interface data
+	 * @addr: MAC address of the STA (e.g., BSSID of the AP)
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This function is only needed for drivers that export MLME
+	 * (management frame processing) to wpa_supplicant.
+	 */
+	 int (*mlme_remove_sta)(void *priv, const u8 *addr);
 };
 
 #endif /* DRIVER_H */

@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / PC/SC smartcard interface for USIM, GSM SIM
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -26,6 +26,7 @@
 #define SCARD_FILE_GSM_DF	0x7F20
 #define SCARD_FILE_UMTS_DF	0x7F50
 #define SCARD_FILE_GSM_EF_IMSI	0x6F07
+#define SCARD_FILE_EF_DIR	0x2F00
 #define SCARD_FILE_EF_ICCID	0x2FE2
 #define SCARD_FILE_EF_CK	0x6FE1
 #define SCARD_FILE_EF_IK	0x6FE2
@@ -46,10 +47,11 @@ void scard_deinit(struct scard_data *scard);
 
 int scard_set_pin(struct scard_data *scard, const char *pin);
 int scard_get_imsi(struct scard_data *scard, char *imsi, size_t *len);
-int scard_gsm_auth(struct scard_data *scard, unsigned char *rand,
+int scard_gsm_auth(struct scard_data *scard, const unsigned char *_rand,
 		   unsigned char *sres, unsigned char *kc);
-int scard_umts_auth(struct scard_data *scard, unsigned char *rand,
-		    unsigned char *autn, unsigned char *res, size_t *res_len,
+int scard_umts_auth(struct scard_data *scard, const unsigned char *_rand,
+		    const unsigned char *autn,
+		    unsigned char *res, size_t *res_len,
 		    unsigned char *ik, unsigned char *ck, unsigned char *auts);
 
 #else /* PCSC_FUNCS */

@@ -16,6 +16,7 @@
       <arg>-i<replaceable>ifname</replaceable></arg>
       <arg>-c<replaceable>config file</replaceable></arg>
       <arg>-D<replaceable>driver</replaceable></arg>
+      <arg>-P<replaceable>PID_file</replaceable></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
   <refsect1>
@@ -347,6 +348,27 @@
       </varlistentry>
 
       <varlistentry>
+	<term>-P PID_file</term>
+	<listitem>
+	  <para>Path to PID file.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-C ctrl_interface</term>
+	<listitem>
+	  <para>Path to ctrl_interface socket (only used if -c is not).</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-g global ctrl_interface</term>
+	<listitem>
+	  <para>Path to global ctrl_interface socket.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
 	<term>-D driver</term>
 	<listitem>
 	  <para>Driver to use.  See the available options below.</para>
@@ -657,7 +679,7 @@ wpa_supplicant \
     <para>First, make a configuration file, e.g.
     <filename>/etc/wpa_supplicant.conf</filename>, that describes the networks
     you are interested in.  See <citerefentry>
-	<refentrytitle>wpa_supplicant</refentrytitle>
+	<refentrytitle>wpa_supplicant.conf</refentrytitle>
 	<manvolnum>5</manvolnum>
       </citerefentry>
     for details.</para>
@@ -751,7 +773,7 @@ fi
   <refsect1>
     <title>Legal</title>
     <para>wpa_supplicant is copyright (c) 2003-2005,
-    Jouni Malinen <email>jkmaline@cc.hut.fi</email> and
+    Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>
 

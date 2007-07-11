@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-PAX shared routines
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP server/peer: EAP-PAX shared routines
+ * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,6 +15,10 @@
 #ifndef EAP_PAX_COMMON_H
 #define EAP_PAX_COMMON_H
 
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif /* _MSC_VER */
+
 struct eap_pax_hdr {
 	u8 code;
 	u8 identifier;
@@ -26,7 +30,11 @@ struct eap_pax_hdr {
 	u8 dh_group_id;
 	u8 public_key_id;
 	/* Followed by variable length payload and ICV */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 
 /* op_code: */
@@ -45,22 +53,31 @@ enum {
 /* flags: */
 #define EAP_PAX_FLAGS_MF			0x01
 #define EAP_PAX_FLAGS_CE			0x02
+#define EAP_PAX_FLAGS_AI			0x04
 
 /* mac_id: */
 #define EAP_PAX_MAC_HMAC_SHA1_128		0x01
-#define EAP_PAX_MAC_AES_CBC_MAC_128		0x02
+#define EAP_PAX_HMAC_SHA256_128			0x02
 
 /* dh_group_id: */
 #define EAP_PAX_DH_GROUP_NONE			0x00
-#define EAP_PAX_DH_GROUP_3072_MODP		0x01
+#define EAP_PAX_DH_GROUP_2048_MODP		0x01
+#define EAP_PAX_DH_GROUP_3072_MODP		0x02
+#define EAP_PAX_DH_GROUP_NIST_ECC_P_256		0x03
 
 /* public_key_id: */
 #define EAP_PAX_PUBLIC_KEY_NONE			0x00
-#define EAP_PAX_PUBLIC_KEY_RSA_OAEP_2048	0x01
+#define EAP_PAX_PUBLIC_KEY_RSAES_OAEP		0x01
+#define EAP_PAX_PUBLIC_KEY_RSA_PKCS1_V1_5	0x02
+#define EAP_PAX_PUBLIC_KEY_EL_GAMAL_NIST_ECC	0x03
+
+/* ADE type: */
+#define EAP_PAX_ADE_VENDOR_SPECIFIC		0x01
+#define EAP_PAX_ADE_CLIENT_CHANNEL_BINDING	0x02
+#define EAP_PAX_ADE_SERVER_CHANNEL_BINDING	0x03
 
 
 #define EAP_PAX_RAND_LEN 32
-#define EAP_PAX_MSK_LEN 64
 #define EAP_PAX_MAC_LEN 16
 #define EAP_PAX_ICV_LEN 16
 #define EAP_PAX_AK_LEN 16

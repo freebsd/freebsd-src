@@ -1,7 +1,16 @@
 #ifndef WPAMSG_H
 #define WPAMSG_H
 
+class WpaMsg;
+
+#if QT_VERSION >= 0x040000
+#include <QDateTime>
+#include <QLinkedList>
+typedef QLinkedList<WpaMsg> WpaMsgList;
+#else
 #include <qdatetime.h>
+typedef QValueList<WpaMsg> WpaMsgList;
+#endif
 
 class WpaMsg {
 public:
@@ -21,7 +30,5 @@ private:
     int priority;
     QDateTime timestamp;
 };
-
-typedef QValueList<WpaMsg> WpaMsgList;
 
 #endif /* WPAMSG_H */
