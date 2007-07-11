@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-SIM/AKA shared routines
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer: EAP-SIM/AKA shared routines
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,9 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "eap_i.h"
@@ -24,80 +22,98 @@
 #include "eap_sim_common.h"
 
 
-static void eap_sim_prf(const u8 *key, u8 *x, size_t xlen)
+static int eap_sim_prf(const u8 *key, u8 *x, size_t xlen)
 {
-	u8 xkey[64];
-	u32 t[5], _t[5];
-	int i, j, m, k;
-	u8 *xpos = x;
-	u32 carry;
-
-	/* FIPS 186-2 + change notice 1 */
-
-	memcpy(xkey, key, EAP_SIM_MK_LEN);
-	memset(xkey + EAP_SIM_MK_LEN, 0, 64 - EAP_SIM_MK_LEN);
-	t[0] = 0x67452301;
-	t[1] = 0xEFCDAB89;
-	t[2] = 0x98BADCFE;
-	t[3] = 0x10325476;
-	t[4] = 0xC3D2E1F0;
-
-	m = xlen / 40;
-	for (j = 0; j < m; j++) {
-		/* XSEED_j = 0 */
-		for (i = 0; i < 2; i++) {
-			/* XVAL = (XKEY + XSEED_j) mod 2^b */
-
-			/* w_i = G(t, XVAL) */
-			memcpy(_t, t, 20);
-			sha1_transform((u8 *) _t, xkey);
-			_t[0] = host_to_be32(_t[0]);
-			_t[1] = host_to_be32(_t[1]);
-			_t[2] = host_to_be32(_t[2]);
-			_t[3] = host_to_be32(_t[3]);
-			_t[4] = host_to_be32(_t[4]);
-			memcpy(xpos, _t, 20);
-
-			/* XKEY = (1 + XKEY + w_i) mod 2^b */
-			carry = 1;
-			for (k = 19; k >= 0; k--) {
-				carry += xkey[k] + xpos[k];
-				xkey[k] = carry & 0xff;
-				carry >>= 8;
-			}
-
-			xpos += SHA1_MAC_LEN;
-		}
-		/* x_j = w_0|w_1 */
-	}
+	return fips186_2_prf(key, EAP_SIM_MK_LEN, x, xlen);
 }
 
 
-void eap_sim_derive_keys(const u8 *mk, u8 *k_encr, u8 *k_aut, u8 *msk)
+void eap_sim_derive_mk(const u8 *identity, size_t identity_len,
+		       const u8 *nonce_mt, u16 selected_version,
+		       const u8 *ver_list, size_t ver_list_len,
+		       int num_chal, const u8 *kc, u8 *mk)
 {
-	u8 buf[120], *pos;
-	eap_sim_prf(mk, buf, 120);
+	u8 sel_ver[2];
+	const unsigned char *addr[5];
+	size_t len[5];
+
+	addr[0] = identity;
+	len[0] = identity_len;
+	addr[1] = kc;
+	len[1] = num_chal * EAP_SIM_KC_LEN;
+	addr[2] = nonce_mt;
+	len[2] = EAP_SIM_NONCE_MT_LEN;
+	addr[3] = ver_list;
+	len[3] = ver_list_len;
+	addr[4] = sel_ver;
+	len[4] = 2;
+
+	WPA_PUT_BE16(sel_ver, selected_version);
+
+	/* MK = SHA1(Identity|n*Kc|NONCE_MT|Version List|Selected Version) */
+	sha1_vector(5, addr, len, mk);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: MK", mk, EAP_SIM_MK_LEN);
+}
+
+
+void eap_aka_derive_mk(const u8 *identity, size_t identity_len,
+		       const u8 *ik, const u8 *ck, u8 *mk)
+{
+	const u8 *addr[3];
+	size_t len[3];
+
+	addr[0] = identity;
+	len[0] = identity_len;
+	addr[1] = ik;
+	len[1] = EAP_AKA_IK_LEN;
+	addr[2] = ck;
+	len[2] = EAP_AKA_CK_LEN;
+
+	/* MK = SHA1(Identity|IK|CK) */
+	sha1_vector(3, addr, len, mk);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-AKA: IK", ik, EAP_AKA_IK_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-AKA: CK", ck, EAP_AKA_CK_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-AKA: MK", mk, EAP_SIM_MK_LEN);
+}
+
+
+int eap_sim_derive_keys(const u8 *mk, u8 *k_encr, u8 *k_aut, u8 *msk, u8 *emsk)
+{
+	u8 buf[EAP_SIM_K_ENCR_LEN + EAP_SIM_K_AUT_LEN +
+	       EAP_SIM_KEYING_DATA_LEN + EAP_EMSK_LEN], *pos;
+	if (eap_sim_prf(mk, buf, sizeof(buf)) < 0) {
+		wpa_printf(MSG_ERROR, "EAP-SIM: Failed to derive keys");
+		return -1;
+	}
 	pos = buf;
-	memcpy(k_encr, pos, EAP_SIM_K_ENCR_LEN);
+	os_memcpy(k_encr, pos, EAP_SIM_K_ENCR_LEN);
 	pos += EAP_SIM_K_ENCR_LEN;
-	memcpy(k_aut, pos, EAP_SIM_K_AUT_LEN);
+	os_memcpy(k_aut, pos, EAP_SIM_K_AUT_LEN);
 	pos += EAP_SIM_K_AUT_LEN;
-	memcpy(msk, pos, EAP_SIM_KEYING_DATA_LEN);
+	os_memcpy(msk, pos, EAP_SIM_KEYING_DATA_LEN);
+	pos += EAP_SIM_KEYING_DATA_LEN;
+	os_memcpy(emsk, pos, EAP_EMSK_LEN);
 
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: K_encr",
 			k_encr, EAP_SIM_K_ENCR_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: K_aut",
-			k_aut, EAP_SIM_K_ENCR_LEN);
-	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: keying material",
+			k_aut, EAP_SIM_K_AUT_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: keying material (MSK)",
 			msk, EAP_SIM_KEYING_DATA_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-SIM: EMSK", emsk, EAP_EMSK_LEN);
+	os_memset(buf, 0, sizeof(buf));
+
+	return 0;
 }
 
 
-void eap_sim_derive_keys_reauth(u16 _counter,
-				const u8 *identity, size_t identity_len,
-				const u8 *nonce_s, const u8 *mk, u8 *msk)
+int eap_sim_derive_keys_reauth(u16 _counter,
+			       const u8 *identity, size_t identity_len,
+			       const u8 *nonce_s, const u8 *mk, u8 *msk,
+			       u8 *emsk)
 {
 	u8 xkey[SHA1_MAC_LEN];
+	u8 buf[EAP_SIM_KEYING_DATA_LEN + EAP_EMSK_LEN + 32];
 	u8 counter[2];
 	const u8 *addr[4];
 	size_t len[4];
@@ -125,9 +141,22 @@ void eap_sim_derive_keys_reauth(u16 _counter,
 	sha1_vector(4, addr, len, xkey);
 	wpa_hexdump(MSG_DEBUG, "EAP-SIM: XKEY'", xkey, SHA1_MAC_LEN);
 
-	eap_sim_prf(xkey, msk, EAP_SIM_KEYING_DATA_LEN);
-	wpa_hexdump(MSG_DEBUG, "EAP-SIM: keying material",
-		    msk, EAP_SIM_KEYING_DATA_LEN);
+	if (eap_sim_prf(xkey, buf, sizeof(buf)) < 0) {
+		wpa_printf(MSG_ERROR, "EAP-SIM: Failed to derive keys");
+		return -1;
+	}
+	if (msk) {
+		os_memcpy(msk, buf, EAP_SIM_KEYING_DATA_LEN);
+		wpa_hexdump(MSG_DEBUG, "EAP-SIM: keying material (MSK)",
+			    msk, EAP_SIM_KEYING_DATA_LEN);
+	}
+	if (emsk) {
+		os_memcpy(emsk, buf + EAP_SIM_KEYING_DATA_LEN, EAP_EMSK_LEN);
+		wpa_hexdump(MSG_DEBUG, "EAP-SIM: EMSK", emsk, EAP_EMSK_LEN);
+	}
+	os_memset(buf, 0, sizeof(buf));
+
+	return 0;
 }
 
 
@@ -143,7 +172,7 @@ int eap_sim_verify_mac(const u8 *k_aut, const u8 *req, size_t req_len,
 	    mac > req + req_len - EAP_SIM_MAC_LEN)
 		return -1;
 
-	tmp = malloc(req_len);
+	tmp = os_malloc(req_len);
 	if (tmp == NULL)
 		return -1;
 
@@ -153,12 +182,19 @@ int eap_sim_verify_mac(const u8 *k_aut, const u8 *req, size_t req_len,
 	len[1] = extra_len;
 
 	/* HMAC-SHA1-128 */
-	memcpy(tmp, req, req_len);
-	memset(tmp + (mac - req), 0, EAP_SIM_MAC_LEN);
+	os_memcpy(tmp, req, req_len);
+	os_memset(tmp + (mac - req), 0, EAP_SIM_MAC_LEN);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Verify MAC - msg", tmp, req_len);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Verify MAC - extra data",
+		    extra, extra_len);
+	wpa_hexdump_key(MSG_MSGDUMP, "EAP-SIM: Verify MAC - K_aut",
+			k_aut, EAP_SIM_K_AUT_LEN);
 	hmac_sha1_vector(k_aut, EAP_SIM_K_AUT_LEN, 2, addr, len, hmac);
-	free(tmp);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Verify MAC: MAC",
+		    hmac, EAP_SIM_MAC_LEN);
+	os_free(tmp);
 
-	return (memcmp(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
+	return (os_memcmp(hmac, mac, EAP_SIM_MAC_LEN) == 0) ? 0 : 1;
 }
 
 
@@ -175,9 +211,16 @@ void eap_sim_add_mac(const u8 *k_aut, u8 *msg, size_t msg_len, u8 *mac,
 	len[1] = extra_len;
 
 	/* HMAC-SHA1-128 */
-	memset(mac, 0, EAP_SIM_MAC_LEN);
+	os_memset(mac, 0, EAP_SIM_MAC_LEN);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Add MAC - msg", msg, msg_len);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Add MAC - extra data",
+		    extra, extra_len);
+	wpa_hexdump_key(MSG_MSGDUMP, "EAP-SIM: Add MAC - K_aut",
+			k_aut, EAP_SIM_K_AUT_LEN);
 	hmac_sha1_vector(k_aut, EAP_SIM_K_AUT_LEN, 2, addr, len, hmac);
-	memcpy(mac, hmac, EAP_SIM_MAC_LEN);
+	os_memcpy(mac, hmac, EAP_SIM_MAC_LEN);
+	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Add MAC: MAC",
+		    mac, EAP_SIM_MAC_LEN);
 }
 
 
@@ -185,10 +228,9 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 		       struct eap_sim_attrs *attr, int aka, int encr)
 {
 	const u8 *pos = start, *apos;
-	size_t alen, plen;
-	int list_len, i;
+	size_t alen, plen, i, list_len;
 
-	memset(attr, 0, sizeof(*attr));
+	os_memset(attr, 0, sizeof(*attr));
 	attr->id_req = NO_ID_REQ;
 	attr->notification = -1;
 	attr->counter = -1;
@@ -219,7 +261,7 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			apos += 2;
 			alen -= 2;
 			if ((!aka && (alen % GSM_RAND_LEN)) ||
-			    (aka && alen != AKA_RAND_LEN)) {
+			    (aka && alen != EAP_AKA_RAND_LEN)) {
 				wpa_printf(MSG_INFO, "EAP-SIM: Invalid AT_RAND"
 					   " (len %lu)",
 					   (unsigned long) alen);
@@ -237,7 +279,7 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			}
 			apos += 2;
 			alen -= 2;
-			if (alen != AKA_AUTN_LEN) {
+			if (alen != EAP_AKA_AUTN_LEN) {
 				wpa_printf(MSG_INFO, "EAP-AKA: Invalid AT_AUTN"
 					   " (len %lu)",
 					   (unsigned long) alen);
@@ -316,8 +358,9 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			wpa_printf(MSG_DEBUG, "EAP-SIM: AT_VERSION_LIST");
 			if (list_len < 2 || list_len > alen - 2) {
 				wpa_printf(MSG_WARNING, "EAP-SIM: Invalid "
-					   "AT_VERSION_LIST (list_len=%d "
-					   "attr_len=%lu)", list_len,
+					   "AT_VERSION_LIST (list_len=%lu "
+					   "attr_len=%lu)",
+					   (unsigned long) list_len,
 					   (unsigned long) alen);
 				return -1;
 			}
@@ -355,6 +398,22 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			attr->counter = apos[0] * 256 + apos[1];
 			wpa_printf(MSG_DEBUG, "EAP-SIM: (encr) AT_COUNTER %d",
 				   attr->counter);
+			break;
+		case EAP_SIM_AT_COUNTER_TOO_SMALL:
+			if (!encr) {
+				wpa_printf(MSG_ERROR, "EAP-SIM: Unencrypted "
+					   "AT_COUNTER_TOO_SMALL");
+				return -1;
+			}
+			if (alen != 2) {
+				wpa_printf(MSG_INFO, "EAP-SIM: (encr) Invalid "
+					   "AT_COUNTER_TOO_SMALL (alen=%lu)",
+					   (unsigned long) alen);
+				return -1;
+			}
+			wpa_printf(MSG_DEBUG, "EAP-SIM: (encr) "
+				   "AT_COUNTER_TOO_SMALL");
+			attr->counter_too_small = 1;
 			break;
 		case EAP_SIM_AT_NONCE_S:
 			if (!encr) {
@@ -444,6 +503,35 @@ int eap_sim_parse_attr(const u8 *start, const u8 *end,
 			attr->next_reauth_id = pos + 4;
 			attr->next_reauth_id_len = plen;
 			break;
+		case EAP_SIM_AT_RES:
+			wpa_printf(MSG_DEBUG, "EAP-SIM: AT_RES");
+			apos += 2;
+			alen -= 2;
+			if (!aka || alen < EAP_AKA_MIN_RES_LEN ||
+			    alen > EAP_AKA_MAX_RES_LEN) {
+				wpa_printf(MSG_INFO, "EAP-SIM: Invalid AT_RES "
+					   "(len %lu)",
+					   (unsigned long) alen);
+				return -1;
+			}
+			attr->res = apos;
+			attr->res_len = alen;
+			break;
+		case EAP_SIM_AT_AUTS:
+			wpa_printf(MSG_DEBUG, "EAP-AKA: AT_AUTS");
+			if (!aka) {
+				wpa_printf(MSG_DEBUG, "EAP-SIM: "
+					   "Unexpected AT_AUTS");
+				return -1;
+			}
+			if (alen != EAP_AKA_AUTS_LEN) {
+				wpa_printf(MSG_INFO, "EAP-AKA: Invalid AT_AUTS"
+					   " (len %lu)",
+					   (unsigned long) alen);
+				return -1;
+			}
+			attr->auts = apos;
+			break;
 		default:
 			if (pos[0] < 128) {
 				wpa_printf(MSG_INFO, "EAP-SIM: Unrecognized "
@@ -478,10 +566,10 @@ u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
 		return NULL;
 	}
 
-	decrypted = malloc(encr_data_len);
+	decrypted = os_malloc(encr_data_len);
 	if (decrypted == NULL)
 		return NULL;
-	memcpy(decrypted, encr_data, encr_data_len);
+	os_memcpy(decrypted, encr_data, encr_data_len);
 
 	aes_128_cbc_decrypt(k_encr, iv, decrypted, encr_data_len);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-SIM: Decrypted AT_ENCR_DATA",
@@ -491,7 +579,7 @@ u8 * eap_sim_parse_encr(const u8 *k_encr, const u8 *encr_data,
 			       aka, 1)) {
 		wpa_printf(MSG_INFO, "EAP-SIM: (encr) Failed to parse "
 			   "decrypted AT_ENCR_DATA");
-		free(decrypted);
+		os_free(decrypted);
 		return NULL;
 	}
 
@@ -514,17 +602,15 @@ struct eap_sim_msg * eap_sim_msg_init(int code, int id, int type, int subtype)
 	struct eap_hdr *eap;
 	u8 *pos;
 
-	msg = malloc(sizeof(*msg));
+	msg = os_zalloc(sizeof(*msg));
 	if (msg == NULL)
 		return NULL;
-	memset(msg, 0, sizeof(*msg));
 
-	msg->buf = malloc(EAP_SIM_INIT_LEN);
+	msg->buf = os_zalloc(EAP_SIM_INIT_LEN);
 	if (msg->buf == NULL) {
-		free(msg);
+		os_free(msg);
 		return NULL;
 	}
-	memset(msg->buf, 0, EAP_SIM_INIT_LEN);
 	msg->buf_len = EAP_SIM_INIT_LEN;
 	eap = (struct eap_hdr *) msg->buf;
 	eap->code = code;
@@ -561,7 +647,7 @@ u8 * eap_sim_msg_finish(struct eap_sim_msg *msg, size_t *len, const u8 *k_aut,
 
 	*len = msg->used;
 	buf = msg->buf;
-	free(msg);
+	os_free(msg);
 	return buf;
 }
 
@@ -569,8 +655,8 @@ u8 * eap_sim_msg_finish(struct eap_sim_msg *msg, size_t *len, const u8 *k_aut,
 void eap_sim_msg_free(struct eap_sim_msg *msg)
 {
 	if (msg) {
-		free(msg->buf);
-		free(msg);
+		os_free(msg->buf);
+		os_free(msg);
 	}
 }
 
@@ -578,7 +664,7 @@ void eap_sim_msg_free(struct eap_sim_msg *msg)
 static int eap_sim_msg_resize(struct eap_sim_msg *msg, size_t add_len)
 {
 	if (msg->used + add_len > msg->buf_len) {
-		u8 *nbuf = realloc(msg->buf, msg->used + add_len);
+		u8 *nbuf = os_realloc(msg->buf, msg->used + add_len);
 		if (nbuf == NULL)
 			return -1;
 		msg->buf = nbuf;
@@ -605,10 +691,10 @@ u8 * eap_sim_msg_add_full(struct eap_sim_msg *msg, u8 attr,
 	start = pos = msg->buf + msg->used;
 	*pos++ = attr;
 	*pos++ = attr_len / 4;
-	memcpy(pos, data, len);
+	os_memcpy(pos, data, len);
 	if (pad_len) {
 		pos += len;
-		memset(pos, 0, pad_len);
+		os_memset(pos, 0, pad_len);
 	}
 	msg->used += attr_len;
 	return start;
@@ -635,10 +721,10 @@ u8 * eap_sim_msg_add(struct eap_sim_msg *msg, u8 attr, u16 value,
 	WPA_PUT_BE16(pos, value);
 	pos += 2;
 	if (data)
-		memcpy(pos, data, len);
+		os_memcpy(pos, data, len);
 	if (pad_len) {
 		pos += len;
-		memset(pos, 0, pad_len);
+		os_memset(pos, 0, pad_len);
 	}
 	msg->used += attr_len;
 	return start;
@@ -681,7 +767,7 @@ int eap_sim_msg_add_encr_end(struct eap_sim_msg *msg, u8 *k_encr, int attr_pad)
 {
 	size_t encr_len;
 
-	if (k_encr == NULL || msg->iv == 0 || msg->encr == 0)
+	if (msg == NULL || k_encr == NULL || msg->iv == 0 || msg->encr == 0)
 		return -1;
 
 	encr_len = msg->used - msg->encr - 4;
@@ -698,7 +784,7 @@ int eap_sim_msg_add_encr_end(struct eap_sim_msg *msg, u8 *k_encr, int attr_pad)
 		pos = eap_sim_msg_add(msg, attr_pad, 0, NULL, pad_len - 4);
 		if (pos == NULL)
 			return -1;
-		memset(pos + 4, 0, pad_len - 4);
+		os_memset(pos + 4, 0, pad_len - 4);
 		encr_len += pad_len;
 	}
 	wpa_printf(MSG_DEBUG, "   (AT_ENCR_DATA data len %lu)",
@@ -752,43 +838,3 @@ void eap_sim_report_notification(void *msg_ctx, int notification, int aka)
 		}
 	}
 }
-
-
-#ifdef TEST_MAIN_EAP_SIM_COMMON
-static int test_eap_sim_prf(void)
-{
-	/* http://csrc.nist.gov/encryption/dss/Examples-1024bit.pdf */
-	u8 xkey[] = {
-		0xbd, 0x02, 0x9b, 0xbe, 0x7f, 0x51, 0x96, 0x0b,
-		0xcf, 0x9e, 0xdb, 0x2b, 0x61, 0xf0, 0x6f, 0x0f,
-		0xeb, 0x5a, 0x38, 0xb6
-	};
-	u8 w[] = {
-		0x20, 0x70, 0xb3, 0x22, 0x3d, 0xba, 0x37, 0x2f,
-		0xde, 0x1c, 0x0f, 0xfc, 0x7b, 0x2e, 0x3b, 0x49,
-		0x8b, 0x26, 0x06, 0x14, 0x3c, 0x6c, 0x18, 0xba,
-		0xcb, 0x0f, 0x6c, 0x55, 0xba, 0xbb, 0x13, 0x78,
-		0x8e, 0x20, 0xd7, 0x37, 0xa3, 0x27, 0x51, 0x16
-	};
-	u8 buf[40];
-
-	printf("Testing EAP-SIM PRF (FIPS 186-2 + change notice 1)\n");
-	eap_sim_prf(xkey, buf, sizeof(buf));
-	if (memcmp(w, buf, sizeof(w) != 0)) {
-		printf("eap_sim_prf failed\n");
-		return 1;
-	}
-
-	return 0;
-}
-
-
-int main(int argc, char *argv[])
-{
-	int errors = 0;
-
-	errors += test_eap_sim_prf();
-
-	return errors;
-}
-#endif /* TEST_MAIN_EAP_SIM_COMMON */

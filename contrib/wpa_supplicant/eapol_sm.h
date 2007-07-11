@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / EAPOL state machines
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -168,6 +168,12 @@ struct eapol_ctx {
 							  const char *name);
 
 	/**
+	 * aborted_cached - Notify that cached PMK attempt was aborted
+	 * @ctx: Callback context (ctx)
+	 */
+	void (*aborted_cached)(void *ctx);
+
+	/**
 	 * opensc_engine_path - Path to the OpenSSL engine for opensc
 	 *
 	 * This is an OpenSSL specific configuration option for loading OpenSC
@@ -224,6 +230,7 @@ void eapol_sm_notify_ctrl_attached(struct eapol_sm *sm);
 void eapol_sm_notify_ctrl_response(struct eapol_sm *sm);
 void eapol_sm_request_reauth(struct eapol_sm *sm);
 void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm);
+void eapol_sm_invalidate_cached_session(struct eapol_sm *sm);
 #else /* IEEE8021X_EAPOL */
 static inline struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 {
@@ -305,6 +312,9 @@ static inline void eapol_sm_request_reauth(struct eapol_sm *sm)
 {
 }
 static inline void eapol_sm_notify_lower_layer_success(struct eapol_sm *sm)
+{
+}
+static inline void eapol_sm_invalidate_cached_session(struct eapol_sm *sm)
 {
 }
 #endif /* IEEE8021X_EAPOL */

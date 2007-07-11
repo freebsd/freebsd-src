@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / SSL/TLS interface functions for Microsoft Schannel
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,9 +20,7 @@
  * TODO: add support for EAP-TLS (client cert/key conf)
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 #include <windows.h>
 #include <wincrypt.h>
 #include <schannel.h>
@@ -57,7 +55,7 @@ static int schannel_load_lib(struct tls_global *global)
 {
 	INIT_SECURITY_INTERFACE pInitSecurityInterface;
 
-	global->hsecurity = LoadLibrary("Secur32.dll");
+	global->hsecurity = LoadLibrary(TEXT("Secur32.dll"));
 	if (global->hsecurity == NULL) {
 		wpa_printf(MSG_ERROR, "%s: Could not load Secur32.dll - 0x%x",
 			   __func__, (unsigned int) GetLastError());
@@ -93,12 +91,11 @@ void * tls_init(const struct tls_config *conf)
 {
 	struct tls_global *global;
 
-	global = malloc(sizeof(*global));
+	global = os_zalloc(sizeof(*global));
 	if (global == NULL)
 		return NULL;
-	memset(global, 0, sizeof(*global));
 	if (schannel_load_lib(global)) {
-		free(global);
+		os_free(global);
 		return NULL;
 	}
 	return global;
@@ -112,7 +109,7 @@ void tls_deinit(void *ssl_ctx)
 	if (global->my_cert_store)
 		CertCloseStore(global->my_cert_store, 0);
 	FreeLibrary(global->hsecurity);
-	free(global);
+	os_free(global);
 }
 
 
@@ -126,10 +123,9 @@ struct tls_connection * tls_connection_init(void *ssl_ctx)
 {
 	struct tls_connection *conn;
 
-	conn = malloc(sizeof(*conn));
+	conn = os_zalloc(sizeof(*conn));
 	if (conn == NULL)
 		return NULL;
-	memset(conn, 0, sizeof(*conn));
 	conn->start = 1;
 
 	return conn;
@@ -141,7 +137,7 @@ void tls_connection_deinit(void *ssl_ctx, struct tls_connection *conn)
 	if (conn == NULL)
 		return;
 
-	free(conn);
+	os_free(conn);
 }
 
 
@@ -167,7 +163,8 @@ int tls_connection_shutdown(void *ssl_ctx, struct tls_connection *conn)
 }
 
 
-int tls_global_ca_cert(void *_ssl_ctx, const char *ca_cert)
+int tls_global_set_params(void *tls_ctx,
+			  const struct tls_connection_params *params)
 {
 	return -1;
 }
@@ -186,27 +183,18 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 }
 
 
-int tls_global_client_cert(void *_ssl_ctx, const char *client_cert)
-{
-	return -1;
-}
-
-
-int tls_global_private_key(void *_ssl_ctx, const char *private_key,
-			   const char *private_key_passwd)
-{
-	return -1;
-}
-
-
 int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 			    struct tls_keys *keys)
 {
-	if (conn == NULL || keys == NULL || !conn->eap_tls_prf_set)
-		return -1;
+	/* Schannel does not export master secret or client/server random. */
+	return -1;
+}
 
-	memset(keys, 0, sizeof(*keys));
 
+int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
+		       const char *label, int server_random_first,
+		       u8 *out, size_t out_len)
+{
 	/*
 	 * Cannot get master_key from Schannel, but EapKeyBlock can be used to
 	 * generate session keys for EAP-TLS and EAP-PEAPv0. EAP-PEAPv2 and
@@ -215,8 +203,13 @@ int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 	 * and just use Schannel or CryptoAPI for low-level crypto
 	 * functionality..
 	 */
-	keys->eap_tls_prf = conn->eap_tls_prf;
-	keys->eap_tls_prf_len = sizeof(conn->eap_tls_prf);
+
+	if (conn == NULL || !conn->eap_tls_prf_set || server_random_first ||
+	    os_strcmp(label, "client EAP encryption") != 0 ||
+	    out_len > sizeof(conn->eap_tls_prf))
+		return -1;
+
+	os_memcpy(out, conn->eap_tls_prf, out_len);
 
 	return 0;
 }
@@ -248,10 +241,17 @@ static u8 * tls_conn_hs_clienthello(struct tls_global *global,
 	outbuf.pBuffers = outbufs;
 	outbuf.ulVersion = SECBUFFER_VERSION;
 
+#ifdef UNICODE
+	status = global->sspi->InitializeSecurityContextW(
+		&conn->creds, NULL, NULL /* server name */, sspi_flags, 0,
+		SECURITY_NATIVE_DREP, NULL, 0, &conn->context,
+		&outbuf, &sspi_flags_out, &ts_expiry);
+#else /* UNICODE */
 	status = global->sspi->InitializeSecurityContextA(
 		&conn->creds, NULL, NULL /* server name */, sspi_flags, 0,
 		SECURITY_NATIVE_DREP, NULL, 0, &conn->context,
 		&outbuf, &sspi_flags_out, &ts_expiry);
+#endif /* UNICODE */
 	if (status != SEC_I_CONTINUE_NEEDED) {
 		wpa_printf(MSG_ERROR, "%s: InitializeSecurityContextA "
 			   "failed - 0x%x",
@@ -265,10 +265,10 @@ static u8 * tls_conn_hs_clienthello(struct tls_global *global,
 			    outbufs[0].pvBuffer, outbufs[0].cbBuffer);
 		conn->start = 0;
 		*out_len = outbufs[0].cbBuffer;
-		buf = malloc(*out_len);
+		buf = os_malloc(*out_len);
 		if (buf == NULL)
 			return NULL;
-		memcpy(buf, outbufs[0].pvBuffer, *out_len);
+		os_memcpy(buf, outbufs[0].pvBuffer, *out_len);
 		global->sspi->FreeContextBuffer(outbufs[0].pvBuffer);
 		return buf;
 	}
@@ -310,14 +310,16 @@ static int tls_get_eap(struct tls_global *global, struct tls_connection *conn)
 	wpa_hexdump_key(MSG_MSGDUMP, "Schannel - EapKeyBlock - rgbIVs",
 			kb.rgbIVs, sizeof(kb.rgbIVs));
 
-	memcpy(conn->eap_tls_prf, kb.rgbKeys, sizeof(kb.rgbKeys));
+	os_memcpy(conn->eap_tls_prf, kb.rgbKeys, sizeof(kb.rgbKeys));
 	conn->eap_tls_prf_set = 1;
+	return 0;
 }
 
 
 u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 			      const u8 *in_data, size_t in_len,
-			      size_t *out_len)
+			      size_t *out_len, u8 **appl_data,
+			      size_t *appl_data_len)
 {
 	struct tls_global *global = ssl_ctx;
 	DWORD sspi_flags, sspi_flags_out;
@@ -326,6 +328,9 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 	SECURITY_STATUS status;
 	TimeStamp ts_expiry;
 	u8 *out_buf = NULL;
+
+	if (appl_data)
+		*appl_data = NULL;
 
 	if (conn->start) {
 		return tls_conn_hs_clienthello(global, conn, out_len);
@@ -363,12 +368,19 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 	outbuf.pBuffers = outbufs;
 	outbuf.ulVersion = SECBUFFER_VERSION;
 
+#ifdef UNICODE
+	status = global->sspi->InitializeSecurityContextW(
+		&conn->creds, &conn->context, NULL, sspi_flags, 0,
+		SECURITY_NATIVE_DREP, &inbuf, 0, NULL,
+		&outbuf, &sspi_flags_out, &ts_expiry);
+#else /* UNICODE */
 	status = global->sspi->InitializeSecurityContextA(
 		&conn->creds, &conn->context, NULL, sspi_flags, 0,
 		SECURITY_NATIVE_DREP, &inbuf, 0, NULL,
 		&outbuf, &sspi_flags_out, &ts_expiry);
+#endif /* UNICODE */
 
-	wpa_printf(MSG_MSGDUMP, "Schannel: InitializeSecurityContextA -> "
+	wpa_printf(MSG_MSGDUMP, "Schannel: InitializeSecurityContext -> "
 		   "status=%d inlen[0]=%d intype[0]=%d inlen[1]=%d "
 		   "intype[1]=%d outlen[0]=%d",
 		   (int) status, (int) inbufs[0].cbBuffer,
@@ -381,12 +393,14 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 			wpa_hexdump(MSG_MSGDUMP, "SChannel - output",
 				    outbufs[0].pvBuffer, outbufs[0].cbBuffer);
 			*out_len = outbufs[0].cbBuffer;
-			out_buf = malloc(*out_len);
-			if (out_buf == NULL)
-				return NULL;
-			memcpy(out_buf, outbufs[0].pvBuffer, *out_len);
+			out_buf = os_malloc(*out_len);
+			if (out_buf)
+				os_memcpy(out_buf, outbufs[0].pvBuffer,
+					  *out_len);
 			global->sspi->FreeContextBuffer(outbufs[0].pvBuffer);
 			outbufs[0].pvBuffer = NULL;
+			if (out_buf == NULL)
+				return NULL;
 		}
 	}
 
@@ -406,14 +420,20 @@ u8 * tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 
 		/* Need to return something to get final TLS ACK. */
 		if (out_buf == NULL)
-			out_buf = malloc(1);
+			out_buf = os_malloc(1);
 
 		if (inbufs[1].BufferType == SECBUFFER_EXTRA) {
 			wpa_hexdump(MSG_MSGDUMP, "SChannel - Encrypted "
 				    "application data",
 				    inbufs[1].pvBuffer, inbufs[1].cbBuffer);
-			/* FIX: need to fix TLS API to allow this data to be
-			 * passed to the caller */
+			if (appl_data) {
+				*appl_data_len = outbufs[1].cbBuffer;
+				appl_data = os_malloc(*appl_data_len);
+				if (appl_data)
+					os_memcpy(appl_data,
+						  outbufs[1].pvBuffer,
+						  *appl_data_len);
+			}
 			global->sspi->FreeContextBuffer(inbufs[1].pvBuffer);
 			inbufs[1].pvBuffer = NULL;
 		}
@@ -494,12 +514,12 @@ int tls_connection_encrypt(void *ssl_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-	memset(&bufs, 0, sizeof(bufs));
+	os_memset(&bufs, 0, sizeof(bufs));
 	bufs[0].pvBuffer = out_data;
 	bufs[0].cbBuffer = sizes.cbHeader;
 	bufs[0].BufferType = SECBUFFER_STREAM_HEADER;
 
-	memcpy(out_data + sizes.cbHeader, in_data, in_len);
+	os_memcpy(out_data + sizes.cbHeader, in_data, in_len);
 	bufs[1].pvBuffer = out_data + sizes.cbHeader;
 	bufs[1].cbBuffer = in_len;
 	bufs[1].BufferType = SECBUFFER_DATA;
@@ -565,8 +585,8 @@ int tls_connection_decrypt(void *ssl_ctx, struct tls_connection *conn,
 
 	wpa_hexdump(MSG_MSGDUMP, "Schannel: Encrypted data to DecryptMessage",
 		    in_data, in_len);
-	memset(&bufs, 0, sizeof(bufs));
-	memcpy(out_data, in_data, in_len);
+	os_memset(&bufs, 0, sizeof(bufs));
+	os_memcpy(out_data, in_data, in_len);
 	bufs[0].pvBuffer = out_data;
 	bufs[0].cbBuffer = in_len;
 	bufs[0].BufferType = SECBUFFER_DATA;
@@ -618,7 +638,7 @@ int tls_connection_decrypt(void *ssl_ctx, struct tls_connection *conn,
 				   __func__);
 			return -1;
 		}
-		memmove(out_data, bufs[i].pvBuffer, bufs[i].cbBuffer);
+		os_memmove(out_data, bufs[i].pvBuffer, bufs[i].cbBuffer);
 		return bufs[i].cbBuffer;
 	}
 
@@ -634,16 +654,15 @@ int tls_connection_resumed(void *ssl_ctx, struct tls_connection *conn)
 }
 
 
-#ifdef EAP_FAST
 int tls_connection_set_master_key(void *ssl_ctx, struct tls_connection *conn,
 				  const u8 *key, size_t key_len)
 {
 	return -1;
 }
-#endif /* EAP_FAST */
 
 
-int tls_connection_set_anon_dh(void *ssl_ctx, struct tls_connection *conn)
+int tls_connection_set_cipher_list(void *tls_ctx, struct tls_connection *conn,
+				   u8 *ciphers)
 {
 	return -1;
 }
@@ -663,17 +682,12 @@ int tls_connection_enable_workaround(void *ssl_ctx,
 }
 
 
-#ifdef EAP_FAST
-/* ClientHello TLS extensions require a patch to openssl, so this function is
- * commented out unless explicitly needed for EAP-FAST in order to be able to
- * build this file with unmodified openssl. */
 int tls_connection_client_hello_ext(void *ssl_ctx, struct tls_connection *conn,
 				    int ext_type, const u8 *data,
 				    size_t data_len)
 {
 	return -1;
 }
-#endif /* EAP_FAST */
 
 
 int tls_connection_get_failed(void *ssl_ctx, struct tls_connection *conn)
@@ -712,22 +726,29 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 
 	if (global->my_cert_store == NULL &&
-	    (global->my_cert_store = CertOpenSystemStore(0, "MY")) == NULL) {
+	    (global->my_cert_store = CertOpenSystemStore(0, TEXT("MY"))) ==
+	    NULL) {
 		wpa_printf(MSG_ERROR, "%s: CertOpenSystemStore failed - 0x%x",
 			   __func__, (unsigned int) GetLastError());
 		return -1;
 	}
 
-	memset(&conn->schannel_cred, 0, sizeof(conn->schannel_cred));
+	os_memset(&conn->schannel_cred, 0, sizeof(conn->schannel_cred));
 	conn->schannel_cred.dwVersion = SCHANNEL_CRED_VERSION;
 	conn->schannel_cred.grbitEnabledProtocols = SP_PROT_TLS1;
 	algs[0] = CALG_RSA_KEYX;
 	conn->schannel_cred.cSupportedAlgs = 1;
 	conn->schannel_cred.palgSupportedAlgs = algs;
 	conn->schannel_cred.dwFlags |= SCH_CRED_NO_DEFAULT_CREDS;
+#ifdef UNICODE
+	status = global->sspi->AcquireCredentialsHandleW(
+		NULL, UNISP_NAME_W, SECPKG_CRED_OUTBOUND, NULL,
+		&conn->schannel_cred, NULL, NULL, &conn->creds, &ts_expiry);
+#else /* UNICODE */
 	status = global->sspi->AcquireCredentialsHandleA(
 		NULL, UNISP_NAME_A, SECPKG_CRED_OUTBOUND, NULL,
 		&conn->schannel_cred, NULL, NULL, &conn->creds, &ts_expiry);
+#endif /* UNICODE */
 	if (status != SEC_E_OK) {
 		wpa_printf(MSG_DEBUG, "%s: AcquireCredentialsHandleA failed - "
 			   "0x%x", __func__, (unsigned int) status);
@@ -735,4 +756,41 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 	}
 
 	return 0;
+}
+
+
+unsigned int tls_capabilities(void *tls_ctx)
+{
+	return 0;
+}
+
+
+int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
+			  int tls_ia)
+{
+	return -1;
+}
+
+
+int tls_connection_ia_send_phase_finished(void *tls_ctx,
+					  struct tls_connection *conn,
+					  int final,
+					  u8 *out_data, size_t out_len)
+{
+	return -1;
+}
+
+
+int tls_connection_ia_final_phase_finished(void *tls_ctx,
+					   struct tls_connection *conn)
+{
+	return -1;
+}
+
+
+int tls_connection_ia_permute_inner_secret(void *tls_ctx,
+					   struct tls_connection *conn,
+					   const u8 *key, size_t key_len)
+{
+	return -1;
 }

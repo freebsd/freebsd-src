@@ -26,13 +26,13 @@
     <para>Changes to configuration file can be reloaded be sending
     SIGHUP signal to <command>wpa_supplicant</command> ('killall -HUP
     wpa_supplicant'). Similarly, reloading can be triggered with
-    'wpa_cli reconfigure' command.</para>
+    the 'wpa_cli reconfigure' command.</para>
 
     <para>Configuration file can include one or more network blocks,
     e.g., one for each used SSID. wpa_supplicant will automatically
-    select the best betwork based on the order of network blocks in
+    select the best network based on the order of network blocks in
     the configuration file, network security level (WPA/WPA2 is
-    prefered), and signal strength.</para>
+    preferred), and signal strength.</para>
   </refsect1>
 
   <refsect1>

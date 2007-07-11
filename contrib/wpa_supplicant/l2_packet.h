@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - Layer2 packet interface definition
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -42,11 +42,19 @@
  */
 struct l2_packet_data;
 
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif /* _MSC_VER */
+
 struct l2_ethhdr {
 	u8 h_dest[ETH_ALEN];
 	u8 h_source[ETH_ALEN];
 	u16 h_proto;
-} __attribute__ ((packed));
+} STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 /**
  * l2_packet_init - Initialize l2_packet interface

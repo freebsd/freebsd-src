@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / wrapper functions for libgcrypt
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,8 +12,7 @@
  * See README and COPYING for more details.
  */
 
-#include <stdio.h>
-#include <sys/types.h>
+#include "includes.h"
 #include <gcrypt.h>
 
 #include "common.h"
@@ -23,7 +22,7 @@ void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	gcry_md_hd_t hd;
 	unsigned char *p;
-	int i;
+	size_t i;
 
 	if (gcry_md_open(&hd, GCRY_MD_MD4, 0) != GPG_ERR_NO_ERROR)
 		return;
@@ -63,7 +62,7 @@ void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	gcry_md_hd_t hd;
 	unsigned char *p;
-	int i;
+	size_t i;
 
 	if (gcry_md_open(&hd, GCRY_MD_MD5, 0) != GPG_ERR_NO_ERROR)
 		return;
@@ -80,7 +79,7 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
 	gcry_md_hd_t hd;
 	unsigned char *p;
-	int i;
+	size_t i;
 
 	if (gcry_md_open(&hd, GCRY_MD_SHA1, 0) != GPG_ERR_NO_ERROR)
 		return;
@@ -93,9 +92,10 @@ void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 }
 
 
-void sha1_transform(u8 *state, const u8 data[64])
+int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
 {
 	/* FIX: how to do this with libgcrypt? */
+	return -1;
 }
 
 
