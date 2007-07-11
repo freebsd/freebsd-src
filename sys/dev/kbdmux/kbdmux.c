@@ -786,6 +786,9 @@ next_code:
 		case 0x63:	/* wake key */
 			keycode = 0x6f;
 			break;
+		case 0x64:	/* [JP106USB] backslash, underscore */
+			keycode = 0x73;
+			break;
 		default:	/* ignore everything else */
 			goto next_code;
 		}
