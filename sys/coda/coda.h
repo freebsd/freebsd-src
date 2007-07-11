@@ -679,7 +679,7 @@ struct coda_open_by_fd_in {
 struct coda_open_by_fd_out {
     struct coda_out_hdr oh;
     int fd;
-    struct file *fh;
+    struct vnode *vp;
 };
 
 /* coda_open_by_path: */

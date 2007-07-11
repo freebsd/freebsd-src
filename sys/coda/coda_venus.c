@@ -198,30 +198,23 @@ venus_root(void *mdp,
 int
 venus_open(void *mdp, CodaFid *fid, int flag,
 	struct ucred *cred, struct proc *p,
-/*out*/	struct cdev **dev, ino_t *inode)
+/*out*/	struct vnode **vp)
 {
-#if 0
     int cflag;
-    DECL(coda_open);			/* sets Isize & Osize */
-    ALLOC(coda_open);			/* sets inp & outp */
+    DECL(coda_open_by_fd);			/* sets Isize & Osize */
+    ALLOC(coda_open_by_fd);			/* sets inp & outp */
 
     /* send the open to venus. */
-    INIT_IN(&inp->ih, CODA_OPEN, cred, p);
+    INIT_IN(&inp->ih, CODA_OPEN_BY_FD, cred, p);
     inp->Fid = *fid;
     CNV_OFLAG(cflag, flag);
     inp->flags = cflag;
 
     error = coda_call(mdp, Isize, &Osize, (char *)inp);
-    if (!error) {
-	*dev =  findcdev(outp->dev);
-	*inode = outp->inode;
-    }
+    *vp = error ? NULL : outp->vp;
 
-    CODA_FREE(inp, coda_open_size);
+    CODA_FREE(inp, coda_open_by_fd_size);
     return error;
-#else
-    return (EOPNOTSUPP);
-#endif
 }
 
 int
