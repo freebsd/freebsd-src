@@ -95,6 +95,7 @@
 #include "ncp.h"
 #include "bundle.h"
 #include "proto.h"
+#include "iface.h"
 
 #ifndef NODES
 struct mschap_response {
@@ -825,7 +826,7 @@ radius_Destroy(struct radius *r)
 }
 
 static int
-radius_put_physical_details(struct rad_handle *rad, struct physical *p)
+radius_put_physical_details(struct radius *rad, struct physical *p)
 {
   int slot, type;
 
@@ -853,16 +854,32 @@ radius_put_physical_details(struct rad_handle *rad, struct physical *p)
         break;
     }
 
-  if (rad_put_int(rad, RAD_NAS_PORT_TYPE, type) != 0) {
-    log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad));
-    rad_close(rad);
+  if (rad_put_int(rad->cx.rad, RAD_NAS_PORT_TYPE, type) != 0) {
+    log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad->cx.rad));
+    rad_close(rad->cx.rad);
     return 0;
   }
 
-  if ((slot = physical_Slot(p)) >= 0)
-    if (rad_put_int(rad, RAD_NAS_PORT, slot) != 0) {
-      log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad));
-      rad_close(rad);
+  switch (rad->port_id_type) {
+    case RPI_PID:
+      slot = (int)getpid();
+      break;
+    case RPI_IFNUM:
+      slot = p->dl->bundle->iface->index;
+      break;
+    case RPI_TUNNUM:
+      slot = p->dl->bundle->unit;
+      break;
+    case RPI_DEFAULT:
+    default:
+      slot = physical_Slot(p);
+      break;
+  }
+  
+  if (slot >= 0)
+    if (rad_put_int(rad->cx.rad, RAD_NAS_PORT, slot) != 0) {
+      log_Printf(LogERROR, "rad_put: rad_put_int: %s\n", rad_strerror(rad->cx.rad));
+      rad_close(rad->cx.rad);
       return 0;
     }
 
@@ -1031,7 +1048,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     return 0;
   }
 
-  radius_put_physical_details(r->cx.rad, authp->physical);
+  radius_put_physical_details(r, authp->physical);
 
   log_Printf(LogRADIUS, "Radius(auth): %s data sent for %s\n", what, name);
 
@@ -1209,7 +1226,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     }
   }
 
-  radius_put_physical_details(r->cx.rad, dl->physical);
+  radius_put_physical_details(r, dl->physical);
 
   if (rad_put_int(r->cx.rad, RAD_ACCT_STATUS_TYPE, acct_type) != 0 ||
       rad_put_string(r->cx.rad, RAD_ACCT_SESSION_ID, ac->session_id) != 0 ||
