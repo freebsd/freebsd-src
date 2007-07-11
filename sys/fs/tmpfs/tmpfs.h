@@ -288,10 +288,8 @@ struct tmpfs_mount {
 	 * of empty files and then simply removing them. */
 	ino_t			tm_nodes_max;
 
-	/* Number of nodes currently allocated.  This number only grows.
-	 * When it reaches tm_nodes_max, no more new nodes can be allocated.
-	 * Of course, the old, unused ones can be reused. */
-	ino_t			tm_nodes_last;
+	/* unrhdr used to allocate inode numbers */
+	struct unrhdr *		tm_ino_unr;
 
 	/* Number of nodes currently that are in use. */
 	ino_t			tm_nodes_inuse;
