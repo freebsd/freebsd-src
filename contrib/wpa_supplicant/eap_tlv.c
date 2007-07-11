@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer method: EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,31 +12,33 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
-#include "wpa_supplicant.h"
 #include "eap_i.h"
 #include "eap_tlv.h"
 
 
+/**
+ * eap_tlv_build_nak - Build EAP-TLV NAK message
+ * @id: EAP identifier for the header
+ * @nak_type: TLV type (EAP_TLV_*)
+ * @resp_len: Buffer for returning the response length
+ * Returns: Buffer to the allocated EAP-TLV NAK message or %NULL on failure
+ *
+ * This funtion builds an EAP-TLV NAK message. The caller is responsible for
+ * freeing the returned buffer.
+ */
 u8 * eap_tlv_build_nak(int id, u16 nak_type, size_t *resp_len)
 {
 	struct eap_hdr *hdr;
 	u8 *pos;
 
-	*resp_len = sizeof(struct eap_hdr) + 1 + 10;
-	hdr = malloc(*resp_len);
+	hdr = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TLV, resp_len,
+			    10, EAP_CODE_RESPONSE, id, &pos);
 	if (hdr == NULL)
 		return NULL;
 
-	hdr->code = EAP_CODE_RESPONSE;
-	hdr->identifier = id;
-	hdr->length = host_to_be16(*resp_len);
-	pos = (u8 *) (hdr + 1);
-	*pos++ = EAP_TYPE_TLV;
 	*pos++ = 0x80; /* Mandatory */
 	*pos++ = EAP_TLV_NAK_TLV;
 	/* Length */
@@ -54,21 +56,26 @@ u8 * eap_tlv_build_nak(int id, u16 nak_type, size_t *resp_len)
 }
 
 
+/**
+ * eap_tlv_build_result - Build EAP-TLV Result message
+ * @id: EAP identifier for the header
+ * @status: Status (EAP_TLV_RESULT_SUCCESS or EAP_TLV_RESULT_FAILURE)
+ * @resp_len: Buffer for returning the response length
+ * Returns: Buffer to the allocated EAP-TLV Result message or %NULL on failure
+ *
+ * This funtion builds an EAP-TLV Result message. The caller is responsible for
+ * freeing the returned buffer.
+ */
 u8 * eap_tlv_build_result(int id, u16 status, size_t *resp_len)
 {
 	struct eap_hdr *hdr;
 	u8 *pos;
 
-	*resp_len = sizeof(struct eap_hdr) + 1 + 6;
-	hdr = malloc(*resp_len);
+	hdr = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_TLV, resp_len,
+			    6, EAP_CODE_RESPONSE, id, &pos);
 	if (hdr == NULL)
 		return NULL;
 
-	hdr->code = EAP_CODE_RESPONSE;
-	hdr->identifier = id;
-	hdr->length = host_to_be16(*resp_len);
-	pos = (u8 *) (hdr + 1);
-	*pos++ = EAP_TYPE_TLV;
 	*pos++ = 0x80; /* Mandatory */
 	*pos++ = EAP_TLV_RESULT_TLV;
 	/* Length */
@@ -81,14 +88,28 @@ u8 * eap_tlv_build_result(int id, u16 status, size_t *resp_len)
 }
 
 
+/**
+ * eap_tlv_process - Process a received EAP-TLV message and generate a response
+ * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+ * @ret: Return values from EAP request validation and processing
+ * @hdr: EAP-TLV request to be processed. The caller must have validated that
+ * the buffer is large enough to contain full request (hdr->length bytes) and
+ * that the EAP type is EAP_TYPE_TLV.
+ * @resp: Buffer to return a pointer to the allocated response message. This
+ * field should be initialized to %NULL before the call. The value will be
+ * updated if a response message is generated. The caller is responsible for
+ * freeing the allocated message.
+ * @resp_len: Buffer for returning the response length
+ * Returns: 0 on success, -1 on failure
+ */
 int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
 		    const struct eap_hdr *hdr, u8 **resp, size_t *resp_len)
 {
-	size_t left;
+	size_t left, tlv_len;
 	const u8 *pos;
 	const u8 *result_tlv = NULL;
 	size_t result_tlv_len = 0;
-	int tlv_type, mandatory, tlv_len;
+	int tlv_type, mandatory;
 
 	/* Parse TLVs */
 	left = be_to_host16(hdr->length) - sizeof(struct eap_hdr) - 1;
@@ -104,7 +125,8 @@ int eap_tlv_process(struct eap_sm *sm, struct eap_method_ret *ret,
 		left -= 4;
 		if (tlv_len > left) {
 			wpa_printf(MSG_DEBUG, "EAP-TLV: TLV underrun "
-				   "(tlv_len=%d left=%lu)", tlv_len,
+				   "(tlv_len=%lu left=%lu)",
+				   (unsigned long) tlv_len,
 				   (unsigned long) left);
 			return -1;
 		}

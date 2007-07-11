@@ -110,6 +110,8 @@ int WpaGui::openCtrlConnection(const char *ifname)
 {
     char *cfile;
     int flen;
+    char buf[2048], *pos, *pos2;
+    size_t len;
 
     if (ifname) {
 	if (ifname != ctrl_iface) {
@@ -120,13 +122,24 @@ int WpaGui::openCtrlConnection(const char *ifname)
 #ifdef CONFIG_CTRL_IFACE_UDP
 	free(ctrl_iface);
 	ctrl_iface = strdup("udp");
-#else /* CONFIG_CTRL_IFACE_UDP */
+#endif /* CONFIG_CTRL_IFACE_UDP */
+#ifdef CONFIG_CTRL_IFACE_UNIX
 	struct dirent *dent;
 	DIR *dir = opendir(ctrl_iface_dir);
 	free(ctrl_iface);
 	ctrl_iface = NULL;
 	if (dir) {
 	    while ((dent = readdir(dir))) {
+#ifdef _DIRENT_HAVE_D_TYPE
+		/* Skip the file if it is not a socket.
+		 * Also accept DT_UNKNOWN (0) in case
+		 * the C library or underlying file
+		 * system does not support d_type. */
+		if (dent->d_type != DT_SOCK &&
+		    dent->d_type != DT_UNKNOWN)
+		    continue;
+#endif /* _DIRENT_HAVE_D_TYPE */
+
 		if (strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0)
 		    continue;
@@ -136,17 +149,46 @@ int WpaGui::openCtrlConnection(const char *ifname)
 	    }
 	    closedir(dir);
 	}
-#endif /* CONFIG_CTRL_IFACE_UDP */
+#endif /* CONFIG_CTRL_IFACE_UNIX */
+#ifdef CONFIG_CTRL_IFACE_NAMED_PIPE
+	struct wpa_ctrl *ctrl;
+	int ret;
+
+	free(ctrl_iface);
+	ctrl_iface = NULL;
+
+	ctrl = wpa_ctrl_open(NULL);
+	if (ctrl) {
+	    len = sizeof(buf) - 1;
+	    ret = wpa_ctrl_request(ctrl, "INTERFACES", 10, buf, &len, NULL);
+	    if (ret >= 0) {
+		buf[len] = '\0';
+		pos = strchr(buf, '\n');
+		if (pos)
+		    *pos = '\0';
+		ctrl_iface = strdup(buf);
+	    }
+	    wpa_ctrl_close(ctrl);
+	}
+#endif /* CONFIG_CTRL_IFACE_NAMED_PIPE */
     }
     
     if (ctrl_iface == NULL)
 	return -1;
 
+#ifdef CONFIG_CTRL_IFACE_UNIX
     flen = strlen(ctrl_iface_dir) + strlen(ctrl_iface) + 2;
     cfile = (char *) malloc(flen);
     if (cfile == NULL)
 	return -1;
     snprintf(cfile, flen, "%s/%s", ctrl_iface_dir, ctrl_iface);
+#else /* CONFIG_CTRL_IFACE_UNIX */
+    flen = strlen(ctrl_iface) + 1;
+    cfile = (char *) malloc(flen);
+    if (cfile == NULL)
+	return -1;
+    snprintf(cfile, flen, "%s", ctrl_iface);
+#endif /* CONFIG_CTRL_IFACE_UNIX */
 
     if (ctrl_conn) {
 	wpa_ctrl_close(ctrl_conn);
@@ -182,13 +224,32 @@ int WpaGui::openCtrlConnection(const char *ifname)
 	return -1;
     }
 
+#if defined(CONFIG_CTRL_IFACE_UNIX) || defined(CONFIG_CTRL_IFACE_UDP)
     msgNotifier = new QSocketNotifier(wpa_ctrl_get_fd(monitor_conn),
 				      QSocketNotifier::Read, this);
     connect(msgNotifier, SIGNAL(activated(int)), SLOT(receiveMsgs()));
+#endif
 
     adapterSelect->clear();
     adapterSelect->insertItem(ctrl_iface);
     adapterSelect->setCurrentItem(0);
+
+    len = sizeof(buf) - 1;
+    if (wpa_ctrl_request(ctrl_conn, "INTERFACES", 10, buf, &len, NULL) >= 0) {
+	buf[len] = '\0';
+	pos = buf;
+	while (*pos) {
+		pos2 = strchr(pos, '\n');
+		if (pos2)
+			*pos2 = '\0';
+		if (strcmp(pos, ctrl_iface) != 0)
+			adapterSelect->insertItem(pos);
+		if (pos2)
+			pos = pos2 + 1;
+		else
+			break;
+	}
+    }
 
     return 0;
 }
@@ -408,7 +469,7 @@ void WpaGui::helpAbout()
 {
     QMessageBox::about(this, "wpa_gui for wpa_supplicant",
 		       "Copyright (c) 2003-2005,\n"
-		       "Jouni Malinen <jkmaline@cc.hut.fi>\n"
+		       "Jouni Malinen <j@w1.fi>\n"
 		       "and contributors.\n"
 		       "\n"
 		       "This program is free software. You can\n"
@@ -469,6 +530,16 @@ void WpaGui::ping()
     char buf[10];
     size_t len;
     
+#ifdef CONFIG_CTRL_IFACE_NAMED_PIPE
+    /*
+     * QSocketNotifier cannot be used with Windows named pipes, so use a timer
+     * to check for received messages for now. This could be optimized be doing
+     * something specific to named pipes or Windows events, but it is not clear
+     * what would be the best way of doing that in Qt.
+     */
+    receiveMsgs();
+#endif /* CONFIG_CTRL_IFACE_NAMED_PIPE */
+
     if (scanres && !scanres->isVisible()) {
 	delete scanres;
 	scanres = NULL;
@@ -575,7 +646,7 @@ void WpaGui::receiveMsgs()
     char buf[256];
     size_t len;
     
-    while (wpa_ctrl_pending(monitor_conn)) {
+    while (monitor_conn && wpa_ctrl_pending(monitor_conn) > 0) {
 	len = sizeof(buf) - 1;
 	if (wpa_ctrl_recv(monitor_conn, buf, &len) == 0) {
 	    buf[len] = '\0';
@@ -648,4 +719,13 @@ void WpaGui::addNetwork()
     nc->newNetwork();
     nc->show();
     nc->exec();
+}
+
+
+void WpaGui::selectAdapter( const QString & sel )
+{
+    if (openCtrlConnection(sel.ascii()) < 0)
+	printf("Failed to open control connection to wpa_supplicant.\n");
+    updateStatus();
+    updateNetworks();
 }

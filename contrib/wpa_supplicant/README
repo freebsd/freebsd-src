@@ -1,8 +1,7 @@
 WPA Supplicant
 ==============
 
-Copyright (c) 2003-2006, Jouni Malinen <jkmaline@cc.hut.fi> and
-contributors
+Copyright (c) 2003-2007, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is dual-licensed under both the GPL version 2 and BSD
@@ -26,13 +25,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 (this copy of the license is in COPYING file)
 
 
-Alternatively, this software may be distributed under the terms of BSD
-license:
+Alternatively, this software may be distributed, used, and modified
+under the terms of BSD license:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -90,6 +89,8 @@ Supported WPA/IEEE 802.11i features:
   * EAP-AKA
   * EAP-PSK
   * EAP-PAX
+  * EAP-SAKE
+  * EAP-GPSK
   * LEAP (note: requires special support from the driver for IEEE 802.11
 	  authentication)
   (following methods are supported, but since they do not generate keying
@@ -103,6 +104,20 @@ Supported WPA/IEEE 802.11i features:
   * pre-authentication
   * PMKSA caching
 
+Supported TLS/crypto libraries:
+- OpenSSL (default)
+- GnuTLS
+
+Internal TLS/crypto implementation (optional):
+- can be used in place of an external TLS/crypto library
+- TLSv1
+- X.509 certificate processing
+- PKCS #1
+- ASN.1
+- RSA
+- bignum
+- minimal size (ca. 50 kB binary, parts of which are already needed for WPA;
+  TLSv1/X.509/ASN.1/RSA/bignum parts are about 25 kB on x86)
 
 
 Requirements
@@ -114,6 +129,14 @@ Current hardware/software requirements:
 - NetBSD-current
 - Microsoft Windows with WinPcap (at least WinXP, may work with other versions)
 - drivers:
+	Linux drivers that support WPA/WPA2 configuration with the generic
+	Linux wireless extensions (WE-18 or newer). Even though there are
+	number of driver specific interface included in wpa_supplicant, please
+	note that Linux drivers are moving to use generic wireless extensions
+	and driver_wext (-Dwext on wpa_supplicant command line) should be the
+	default option to start with before falling back to driver specific
+	interface.
+
 	Host AP driver for Prism2/2.5/3 (development snapshot/v0.2.x)
 	(http://hostap.epitest.fi/)
 	Driver need to be set in Managed mode ('iwconfig wlan0 mode managed').
@@ -191,18 +214,27 @@ Optional libraries for layer2 packet processing:
 
 These libraries are _not_ used in the default Linux build. Instead,
 internal Linux specific implementation is used. libpcap/libdnet are
-more portable and they can be used by adding CONFIG_DNET_PCAP=y into
+more portable and they can be used by adding CONFIG_L2_PACKET=pcap into
 .config. They may also be selected automatically for other operating
-systems.
+systems. In case of Windows builds, WinPcap is used by default
+(CONFIG_L2_PACKET=winpcap).
 
 
 Optional libraries for EAP-TLS, EAP-PEAP, and EAP-TTLS:
-- openssl (tested with 0.9.7c and 0.9.7d, assumed to work with most
-  relatively recent versions; this is likely to be available with most
-  distributions, http://www.openssl.org/)
+- OpenSSL (tested with 0.9.7c and 0.9.7d, and 0.9.8 versions; assumed to
+  work with most relatively recent versions; this is likely to be
+  available with most distributions, http://www.openssl.org/)
+- GnuTLS
+- internal TLSv1 implementation
 
-This library is only needed when EAP-TLS, EAP-PEAP, or EAP-TTLS
-support is enabled. WPA-PSK mode does not require this or EAPOL/EAP
+TLS options for EAP-FAST:
+- OpenSSL 0.9.8d _with_ openssl-0.9.8d-tls-extensions.patch applied
+  (i.e., the default OpenSSL package does not include support for
+  extensions needed for EAP-FAST)
+- internal TLSv1 implementation
+
+One of these libraries is needed when EAP-TLS, EAP-PEAP, EAP-TTLS, or
+EAP-FAST support is enabled. WPA-PSK mode does not require this or EAPOL/EAP
 implementation. A configuration file, .config, for compilation is
 needed to enable IEEE 802.1X/EAPOL and EAP methods. Note that EAP-MD5,
 EAP-GTC, EAP-OTP, and EAP-MSCHAPV2 cannot be used alone with WPA, so
@@ -321,8 +353,8 @@ select which parts of it will be included. This is done by creating a
 build time configuration file, .config, in the wpa_supplicant root
 directory. Configuration options are text lines using following
 format: CONFIG_<option>=y. Lines starting with # are considered
-comments and are ignored. See defconfig file for example configuration
-and list of available option.
+comments and are ignored. See defconfig file for an example configuration
+and a list of available options and additional notes.
 
 The build time configuration can be used to select only the needed
 features and limit the binary size and requirements for external
@@ -332,8 +364,9 @@ methods (e.g., EAP-TLS, EAP-PEAP, ..) are included.
 
 Following build time configuration options are used to control IEEE
 802.1X/EAPOL and EAP state machines and all EAP methods. Including
-TLS, PEAP, or TTLS will require linking wpa_supplicant with openssl
-library for TLS implementation.
+TLS, PEAP, or TTLS will require linking wpa_supplicant with OpenSSL
+library for TLS implementation. Alternatively, GnuTLS or the internal
+TLSv1 implementation can be used for TLS functionaly.
 
 CONFIG_IEEE8021X_EAPOL=y
 CONFIG_EAP_MD5=y
@@ -346,6 +379,8 @@ CONFIG_EAP_OTP=y
 CONFIG_EAP_SIM=y
 CONFIG_EAP_AKA=y
 CONFIG_EAP_PSK=y
+CONFIG_EAP_SAKE=y
+CONFIG_EAP_GPSK=y
 CONFIG_EAP_PAX=y
 CONFIG_EAP_LEAP=y
 
@@ -354,11 +389,6 @@ authentication algorithm (for EAP-SIM/EAP-AKA). This requires pcsc-lite
 (http://www.linuxnet.com/) for smart card access.
 
 CONFIG_PCSC=y
-
-Following option can be used to replace the native Linux packet socket
-interface with libpcap/libdnet.
-
-CONFIG_DNET_PCAP=y
 
 Following options can be added to .config to select which driver
 interfaces are included. Hermes driver interface needs to be downloaded
@@ -402,6 +432,8 @@ CONFIG_EAP_OTP=y
 CONFIG_EAP_SIM=y
 CONFIG_EAP_AKA=y
 CONFIG_EAP_PSK=y
+CONFIG_EAP_SAKE=y
+CONFIG_EAP_GPSK=y
 CONFIG_EAP_PAX=y
 CONFIG_EAP_LEAP=y
 CONFIG_PCSC=y
@@ -449,19 +481,30 @@ Command line options
 --------------------
 
 usage:
-  wpa_supplicant [-BddehLqqvw] -i<ifname> -c<config file> [-D<driver>] \
-      [-N -i<ifname> -c<conf> [-D<driver>] ...]
+  wpa_supplicant [-BddehLqqvwW] [-P<pid file>] [-g<global ctrl>] \
+        -i<ifname> -c<config file> [-C<ctrl>] [-D<driver>] [-p<driver_param>] \
+        [-b<br_ifname> [-N -i<ifname> -c<conf> [-C<ctrl>] [-D<driver>] \
+        [-p<driver_param>] [-b<br_ifname>] ...]
 
 options:
+  -b = optional bridge interface name
   -B = run daemon in the background
+  -c = Configuration file
+  -C = ctrl_interface parameter (only used if -c is not)
+  -i = interface name
   -d = increase debugging verbosity (-dd even more)
+  -D = driver name
+  -g = global ctrl_interface
   -K = include keys (passwords, etc.) in debug output
   -t = include timestamp in debug messages
   -h = show this help text
   -L = show license (GPL and BSD)
+  -p = driver parameters
+  -P = PID file
   -q = decrease debugging verbosity (-qq even less)
   -v = show version
   -w = wait for interface to be added, if needed
+  -W = wait for a control interface monitor before starting
   -N = start describing new interface
 
 drivers:
@@ -473,7 +516,7 @@ drivers:
   wext = Linux wireless extensions (generic)
   ndiswrapper = Linux ndiswrapper
   broadcom = Broadcom wl.o driver
-  ipw = Intel ipw2100/2200 driver
+  ipw = Intel ipw2100/2200 driver (old; use wext with Linux 2.6.13 or newer)
   wired = wpa_supplicant wired Ethernet driver
   bsd = BSD 802.11 support (Atheros, etc.)
   ndis = Windows NDIS driver
@@ -503,6 +546,13 @@ wpa_supplicant \
 	-c wpa2.conf -i ath0 -D madwifi
 
 
+If the interface is added in a Linux bridge (e.g., br0), the bridge
+interface needs to be configured to wpa_supplicant in addition to the
+main interface:
+
+wpa_supplicant -cw.conf -Dmadwifi -iath0 -bbr0
+
+
 Configuration file
 ------------------
 
@@ -518,7 +568,7 @@ reloading can be triggered with 'wpa_cli reconfigure' command.
 Configuration file can include one or more network blocks, e.g., one
 for each used SSID. wpa_supplicant will automatically select the best
 betwork based on the order of network blocks in the configuration
-file, network security level (WPA/WPA2 is prefered), and signal
+file, network security level (WPA/WPA2 is preferred), and signal
 strength.
 
 Example configuration files for some common configurations:

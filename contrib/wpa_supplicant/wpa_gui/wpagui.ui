@@ -401,6 +401,12 @@
         <receiver>WpaGui</receiver>
         <slot>addNetwork()</slot>
     </connection>
+    <connection>
+        <sender>adapterSelect</sender>
+        <signal>activated(const QString&amp;)</signal>
+        <receiver>WpaGui</receiver>
+        <slot>selectAdapter(const QString&amp;)</slot>
+    </connection>
 </connections>
 <includes>
     <include location="global" impldecl="in declaration">qtimer.h</include>
@@ -451,6 +457,7 @@
     <slot>selectNetwork( const QString &amp; sel )</slot>
     <slot>editNetwork()</slot>
     <slot>addNetwork()</slot>
+    <slot>selectAdapter( const QString &amp; sel )</slot>
 </slots>
 <functions>
     <function access="private" specifier="non virtual">init()</function>

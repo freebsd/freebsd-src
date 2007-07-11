@@ -3,18 +3,19 @@
 
 /*
  * Minimal version of hostapd header files for eapol_test to build
- * radiusclient.c.
+ * radius_client.c.
  */
 
 #include "common.h"
 
-void hostapd_logger(void *ctx, u8 *addr, unsigned int module, int level,
-		    char *fmt, ...) __attribute__ ((format (printf, 5, 6)));
+void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
+		    char *fmt, ...) PRINTF_FORMAT(5, 6);
 
 struct hostapd_ip_addr;
 
 const char * hostapd_ip_txt(const struct hostapd_ip_addr *addr, char *buf,
-			    size_t buflen);;
+			    size_t buflen);
+int hostapd_ip_diff(struct hostapd_ip_addr *a, struct hostapd_ip_addr *b);
 
 enum {
 	HOSTAPD_LEVEL_DEBUG_VERBOSE = 0,

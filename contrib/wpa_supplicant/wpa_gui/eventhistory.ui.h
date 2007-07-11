@@ -31,8 +31,8 @@ void EventHistory::addEvents(WpaMsgList msgs)
 
 void EventHistory::addEvent(WpaMsg msg)
 {
-    QListViewItem *item;
-    item = new QListViewItem(eventListView,
+    Q3ListViewItem *item;
+    item = new Q3ListViewItem(eventListView,
 			     msg.getTimestamp().toString("yyyy-MM-dd hh:mm:ss.zzz"),
 			     msg.getMsg());
     if (item == NULL)

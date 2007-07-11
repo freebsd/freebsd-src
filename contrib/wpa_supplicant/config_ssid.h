@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / Network configuration structures
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,11 +15,18 @@
 #ifndef CONFIG_SSID_H
 #define CONFIG_SSID_H
 
+#ifndef BIT
+#define BIT(n) (1 << (n))
+#endif
+
 #define WPA_CIPHER_NONE BIT(0)
 #define WPA_CIPHER_WEP40 BIT(1)
 #define WPA_CIPHER_WEP104 BIT(2)
 #define WPA_CIPHER_TKIP BIT(3)
 #define WPA_CIPHER_CCMP BIT(4)
+#ifdef CONFIG_IEEE80211W
+#define WPA_CIPHER_AES_128_CMAC BIT(5)
+#endif /* CONFIG_IEEE80211W */
 
 #define WPA_KEY_MGMT_IEEE8021X BIT(0)
 #define WPA_KEY_MGMT_PSK BIT(1)
@@ -36,7 +43,8 @@
 
 #define MAX_SSID_LEN 32
 #define PMK_LEN 32
-#define EAP_PSK_LEN 16
+#define EAP_PSK_LEN_MIN 16
+#define EAP_PSK_LEN_MAX 32
 
 
 #define DEFAULT_EAP_WORKAROUND ((unsigned int) -1)
@@ -47,6 +55,7 @@
 #define DEFAULT_PAIRWISE (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP)
 #define DEFAULT_GROUP (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP | \
 		       WPA_CIPHER_WEP104 | WPA_CIPHER_WEP40)
+#define DEFAULT_FRAGMENT_SIZE 1398
 
 /**
  * struct wpa_ssid - Network configuration data
@@ -191,6 +200,8 @@ struct wpa_ssid {
 	 */
 	int scan_ssid;
 
+#ifdef IEEE8021X_EAPOL
+
 	/**
 	 * identity - EAP Identity
 	 */
@@ -216,19 +227,20 @@ struct wpa_ssid {
 	size_t anonymous_identity_len;
 
 	/**
-	 * eappsk - EAP-PSK pre-shared key
+	 * eappsk - EAP-PSK/PAX/SAKE pre-shared key
 	 */
 	u8 *eappsk;
 
 	/**
-	 * eappsk_len - EAP-PSK pre-shared key length
+	 * eappsk_len - EAP-PSK/PAX/SAKE pre-shared key length
 	 *
-	 * This field is always 16 for the current version of EAP-PSK.
+	 * This field is always 16 for the current version of EAP-PSK/PAX and
+	 * 32 for EAP-SAKE.
 	 */
 	size_t eappsk_len;
 
 	/**
-	 * nai - User NAI (for EAP-PSK)
+	 * nai - User NAI (for EAP-PSK/PAX/SAKE)
 	 */
 	u8 *nai;
 
@@ -263,6 +275,9 @@ struct wpa_ssid {
 	 * On Windows, trusted CA certificates can be loaded from the system
 	 * certificate store by setting this to cert_store://<name>, e.g.,
 	 * ca_cert="cert_store://CA" or ca_cert="cert_store://ROOT".
+	 * Note that when running wpa_supplicant as an application, the user
+	 * certificate store (My user account) is used, whereas computer store
+	 * (Computer account) is used when running wpasvc as a service.
 	 */
 	u8 *ca_cert;
 
@@ -309,6 +324,10 @@ struct wpa_ssid {
 	 *
 	 * For example: private_key="hash://63093aa9c47f56ae88334c7b65a4"
 	 *
+	 * Note that when running wpa_supplicant as an application, the user
+	 * certificate store (My user account) is used, whereas computer store
+	 * (Computer account) is used when running wpasvc as a service.
+	 *
 	 * Alternatively, a named configuration blob can be used by setting
 	 * this to blob://<blob name>.
 	 */
@@ -354,14 +373,16 @@ struct wpa_ssid {
 	/**
 	 * altsubject_match - Constraint for server certificate alt. subject
 	 *
-	 * This substring is matched against the alternative subject name of
-	 * the authentication server certificate. If this string is set, the
-	 * server sertificate is only accepted if it contains this string in an
-	 * alternative subject name extension.
+	 * Semicolon separated string of entries to be matched against the
+	 * alternative subject name of the authentication server certificate.
+	 * If this string is set, the server sertificate is only accepted if it
+	 * contains one of the entries in an alternative subject name
+	 * extension.
 	 *
 	 * altSubjectName string is in following format: TYPE:VALUE
 	 *
-	 * Example: DNS:server.example.com
+	 * Example: EMAIL:server@example.com
+	 * Example: DNS:server.example.com;DNS:server2.example.com
 	 *
 	 * Following types are supported: EMAIL, DNS, URI
 	 */
@@ -465,10 +486,10 @@ struct wpa_ssid {
 	/**
 	 * eap_methods - Allowed EAP methods
 	 *
-	 * Zero (EAP_TYPE_NONE) terminated list of allowed EAP methods or %NULL
-	 * if all methods are accepted.
+	 * (vendor=EAP_VENDOR_IETF,method=EAP_TYPE_NONE) terminated list of
+	 * allowed EAP methods or %NULL if all methods are accepted.
 	 */
-	u8 *eap_methods;
+	struct eap_method_type *eap_methods;
 
 	/**
 	 * phase1 - Phase 1 (outer authentication) parameters
@@ -569,6 +590,8 @@ struct wpa_ssid {
 	 */
 	int eapol_flags;
 
+#endif /* IEEE8021X_EAPOL */
+
 #define NUM_WEP_KEYS 4
 #define MAX_WEP_KEY_LEN 16
 	/**
@@ -600,6 +623,18 @@ struct wpa_ssid {
 	 * authenticator.
 	 */
 	int proactive_key_caching;
+
+	/**
+	 * mixed_cell - Whether mixed cells are allowed
+	 *
+	 * This option can be used to configure whether so called mixed cells,
+	 * i.e., networks that use both plaintext and encryption in the same
+	 * SSID, are allowed. This is disabled (0) by default. Enable by
+	 * setting this to 1.
+	 */
+	int mixed_cell;
+
+#ifdef IEEE8021X_EAPOL
 
 	/**
 	 * otp - One-time-password
@@ -715,6 +750,8 @@ struct wpa_ssid {
 	 */
 	char *pac_file;
 
+#endif /* IEEE8021X_EAPOL */
+
 	/**
 	 * mode - IEEE 802.11 operation mode (Infrastucture/IBSS)
 	 *
@@ -730,6 +767,8 @@ struct wpa_ssid {
 	 * be set (either directly or using ASCII passphrase).
 	 */
 	int mode;
+
+#ifdef IEEE8021X_EAPOL
 
 	/**
 	 * mschapv2_retry - MSCHAPv2 retry in progress
@@ -753,6 +792,8 @@ struct wpa_ssid {
 	 */
 	size_t new_password_len;
 
+#endif /* IEEE8021X_EAPOL */
+
 	/**
 	 * disabled - Whether this network is currently disabled
 	 *
@@ -761,8 +802,58 @@ struct wpa_ssid {
 	 * ctrl_iface, e.g., with wpa_cli or wpa_gui).
 	 */
 	int disabled;
+
+	/**
+	 * peerkey -  Whether PeerKey handshake for direct links is allowed
+	 *
+	 * This is only used when both RSN/WPA2 and IEEE 802.11e (QoS) are
+	 * enabled.
+	 *
+	 * 0 = disabled (default)
+	 * 1 = enabled
+	 */
+	int peerkey;
+
+#ifdef IEEE8021X_EAPOL
+
+	/**
+	 * fragment_size - Maximum EAP fragment size in bytes (default 1398)
+	 *
+	 * This value limits the fragment size for EAP methods that support
+	 * fragmentation (e.g., EAP-TLS and EAP-PEAP). This value should be set
+	 * small enough to make the EAP messages fit in MTU of the network
+	 * interface used for EAPOL. The default value is suitable for most
+	 * cases.
+	 */
+	int fragment_size;
+
+#endif /* IEEE8021X_EAPOL */
+
+	/**
+	 * id_str - Network identifier string for external scripts
+	 *
+	 * This value is passed to external ctrl_iface monitors in
+	 * WPA_EVENT_CONNECTED event and wpa_cli sets this as WPA_ID_STR
+	 * environment variable for action scripts.
+	 */
+	char *id_str;
+
+#ifdef CONFIG_IEEE80211W
+	/**
+	 * ieee80211w - Whether management frame protection is enabled
+	 *
+	 * This value is used to configure policy for management frame
+	 * protection (IEEE 802.11w). 0 = disabled, 1 = optional, 2 = required.
+	 */
+	enum {
+		NO_IEEE80211W = 0,
+		IEEE80211W_OPTIONAL = 1,
+		IEEE80211W_REQUIRED = 2
+	} ieee80211w;
+#endif /* CONFIG_IEEE80211W */
 };
 
-int wpa_config_allowed_eap_method(struct wpa_ssid *ssid, int method);
+int wpa_config_allowed_eap_method(struct wpa_ssid *ssid, int vendor,
+				  u32 method);
 
 #endif /* CONFIG_SSID_H */

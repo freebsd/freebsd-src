@@ -138,6 +138,7 @@ Same as STATUS, but with more verbosity (i.e., more \c variable=value pairs).
 \verbatim
 bssid=02:00:01:02:03:04
 ssid=test network
+id=0
 pairwise_cipher=CCMP
 group_cipher=CCMP
 key_mgmt=WPA-PSK
@@ -368,11 +369,15 @@ CTRL-RSP-PASSWORD-1-secret
 \endverbatim
 
 
-\subsection ctrl_iface_GET_CAPABILITY GET_CAPABILITY <option>
+\subsection ctrl_iface_GET_CAPABILITY GET_CAPABILITY <option> [strict]
 
 Get list of supported functionality (eap, pairwise, group,
 proto). Supported functionality is shown as space separate lists of
 values used in the same format as in %wpa_supplicant configuration.
+If optional argument, 'strict', is added, only the values that the
+driver claims to explicitly support are included. Without this, all
+available capabilities are included if the driver does not provide
+a mechanism for querying capabilities.
 
 Example request/reply pairs:
 
@@ -384,6 +389,10 @@ AKA FAST GTC LEAP MD5 MSCHAPV2 OTP PAX PEAP PSK SIM TLS TTLS
 \verbatim
 GET_CAPABILITY pairwise
 CCMP TKIP NONE
+\endverbatim
+
+\verbatim
+GET_CAPABILITY pairwise strict
 \endverbatim
 
 \verbatim
@@ -404,6 +413,25 @@ RSN WPA
 \verbatim
 GET_CAPABILITY auth_alg
 OPEN SHARED LEAP
+\endverbatim
+
+
+\subsection ctrl_iface_AP_SCAN AP_SCAN <ap_scan value>
+
+Change ap_scan value:
+0 = no scanning,
+1 = %wpa_supplicant requests scans and uses scan results to select the AP,
+2 = %wpa_supplicant does not use scanning and just requests driver to
+associate and take care of AP selection
+
+
+\subsection ctrl_iface_INTERFACES INTERFACES
+
+List configured interfaces.
+
+\verbatim
+wlan0
+eth0
 \endverbatim
 
 */
