@@ -13,6 +13,7 @@ FBSD_1.0 {
     dllockinit;
     dlinfo;
     dl_iterate_phdr;
+    r_debug_state;
     __tls_get_addr;
 };
 
