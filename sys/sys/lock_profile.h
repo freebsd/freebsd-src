@@ -72,6 +72,7 @@ extern struct lock_prof lprof_buf[LPROF_HASH_SIZE];
 #define LPROF_LOCK(hash)        mtx_lock_spin(&lprof_locks[LPROF_LHASH(hash)])
 #define LPROF_UNLOCK(hash)      mtx_unlock_spin(&lprof_locks[LPROF_LHASH(hash)])
 
+#ifdef _KERNEL
 extern struct mtx lprof_locks[LPROF_LOCK_SIZE];
 extern int lock_prof_enable;
 
@@ -145,7 +146,11 @@ static inline void lock_profile_release_lock(struct lock_object *lo)
 		_lock_profile_release_lock(lo);
 }
 
+#endif /* _KERNEL */
+
 #else /* !LOCK_PROFILING */
+
+#ifdef _KERNEL
 static inline void lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart) {;}
 static inline void lock_profile_update_contest_locking(struct lock_object *lo, int contested) {;}
 static inline void lock_profile_release_lock(struct lock_object *lo) {;}
@@ -154,6 +159,8 @@ static inline void lock_profile_obtain_lock_success(struct lock_object *lo, int 
 						    const char *file, int line) {;}
 static inline void lock_profile_object_destroy(struct lock_object *lo) {;}
 static inline void lock_profile_object_init(struct lock_object *lo, struct lock_class *class, const char *name) {;}
+
+#endif /* _KERNEL */
 
 #endif  /* !LOCK_PROFILING */
 
