@@ -2179,7 +2179,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       1.11 to 1.12.</para>
 
     <para><application>BZIP2</application> has been updated from
-      1.0.3 to 1.0.4.</para>
+      1.0.3 to 1.0.4.
+      &merged;</para>
 
     <para>GNU <application>Diffutils</application> has been updated
       from 2.7 to 2.8.7.</para>
