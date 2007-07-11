@@ -6,8 +6,6 @@ BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 PROG=	bzip2
 CFLAGS+= -D_FILE_OFFSET_BITS=64
 
-SUBDIR+= doc
-
 DPADD=	${LIBBZ2}
 LDADD=	-lbz2
 
