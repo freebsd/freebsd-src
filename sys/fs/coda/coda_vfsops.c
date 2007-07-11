@@ -183,13 +183,7 @@ coda_mount(struct mount *vfsp, struct thread *td)
     rootvp = CTOV(cp);
     rootvp->v_vflag |= VV_ROOT;
 	
-/*  cp = make_coda_node(&ctlfid, vfsp, VCHR);
-    The above code seems to cause a loop in the cnode links.
-    I don't totally understand when it happens, it is caught
-    when closing down the system.
- */
-    cp = make_coda_node(&ctlfid, 0, VCHR);
-
+    cp = make_coda_node(&ctlfid, vfsp, VCHR);
     coda_ctlvp = CTOV(cp);
 
     /* Add vfs and rootvp to chain of vfs hanging off mntinfo */
