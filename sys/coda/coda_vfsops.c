@@ -153,18 +153,14 @@ coda_mount(struct mount *vfsp, struct thread *td)
     NDFREE(&ndp, NDF_ONLY_PNBUF);
 
     /*
-     * See if the device table matches our expectations.
-     */
-    if (dev->si_devsw->d_open != vc_nb_open)
-    {
-	MARK_INT_FAIL(CODA_MOUNT_STATS);
-	return(ENXIO);
-    }
-    
-    /*
      * Initialize the mount record and link it to the vfs struct
      */
     mi = dev2coda_mntinfo(dev);
+    if (!mi) {
+	MARK_INT_FAIL(CODA_MOUNT_STATS);
+	printf("Coda mount: %s is not a cfs device\n", from);
+	return(ENXIO);
+    }
     
     if (!VC_OPEN(&mi->mi_vcomm)) {
 	MARK_INT_FAIL(CODA_MOUNT_STATS);
