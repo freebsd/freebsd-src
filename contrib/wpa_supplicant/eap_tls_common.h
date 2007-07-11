@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-TLS/PEAP/TTLS/FAST common functions
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer: EAP-TLS/PEAP/TTLS/FAST common functions
+ * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -30,6 +30,7 @@ struct eap_ssl_data {
 	int phase2;
 	int include_tls_length; /* include TLS length field even if the TLS
 				 * data is not fragmented */
+	int tls_ia; /* Enable TLS/IA */
 
 	struct eap_sm *eap;
 };
@@ -49,16 +50,16 @@ int eap_tls_ssl_init(struct eap_sm *sm, struct eap_ssl_data *data,
 		     struct wpa_ssid *config);
 void eap_tls_ssl_deinit(struct eap_sm *sm, struct eap_ssl_data *data);
 u8 * eap_tls_derive_key(struct eap_sm *sm, struct eap_ssl_data *data,
-			char *label, size_t len);
+			const char *label, size_t len);
 const u8 * eap_tls_data_reassemble(
 	struct eap_sm *sm, struct eap_ssl_data *data, const u8 *in_data,
 	size_t in_len, size_t *out_len, int *need_more_input);
 int eap_tls_process_helper(struct eap_sm *sm, struct eap_ssl_data *data,
-			   int eap_type, int peap_version,
+			   EapType eap_type, int peap_version,
 			   u8 id, const u8 *in_data, size_t in_len,
 			   u8 **out_data, size_t *out_len);
 u8 * eap_tls_build_ack(struct eap_ssl_data *data, size_t *respDataLen, u8 id,
-		       int eap_type, int peap_version);
+		       EapType eap_type, int peap_version);
 int eap_tls_reauth_init(struct eap_sm *sm, struct eap_ssl_data *data);
 int eap_tls_status(struct eap_sm *sm, struct eap_ssl_data *data, char *buf,
 		   size_t buflen, int verbose);

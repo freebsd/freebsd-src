@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-PAX (draft-clancy-eap-pax-04.txt)
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer method: EAP-PAX (RFC 4746)
+ * Copyright (c) 2005-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,13 +12,10 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "eap_i.h"
-#include "wpa_supplicant.h"
 #include "config_ssid.h"
 #include "eap_pax_common.h"
 #include "sha1.h"
@@ -26,6 +23,11 @@
 
 /*
  * Note: only PAX_STD subprotocol is currently supported
+ *
+ * TODO: Add support with PAX_SEC with the mandatory to implement ciphersuite
+ * (HMAC_SHA1_128, IANA DH Group 14 (2048 bits), RSA-PKCS1-V1_5) and
+ * recommended ciphersuite (HMAC_SHA256_128, IANA DH Group 15 (3072 bits),
+ * RSAES-OAEP).
  */
 
 struct eap_pax_data {
@@ -68,22 +70,21 @@ static void * eap_pax_init(struct eap_sm *sm)
 		return NULL;
 	}
 
-	data = malloc(sizeof(*data));
+	data = os_zalloc(sizeof(*data));
 	if (data == NULL)
 		return NULL;
-	memset(data, 0, sizeof(*data));
 	data->state = PAX_INIT;
 
-	data->cid = malloc(config->nai_len);
+	data->cid = os_malloc(config->nai_len);
 	if (data->cid == NULL) {
 		eap_pax_deinit(sm, data);
 		return NULL;
 	}
-	memcpy(data->cid, config->nai, config->nai_len);
+	os_memcpy(data->cid, config->nai, config->nai_len);
 	data->cid_len = config->nai_len;
 
 	if (config->eappsk) {
-		memcpy(data->ak, config->eappsk, EAP_PAX_AK_LEN);
+		os_memcpy(data->ak, config->eappsk, EAP_PAX_AK_LEN);
 	} else {
 		u8 hash[SHA1_MAC_LEN];
 		const unsigned char *addr[1];
@@ -91,7 +92,7 @@ static void * eap_pax_init(struct eap_sm *sm)
 		addr[0] = config->password;
 		len[0] = config->password_len;
 		sha1_vector(1, addr, len, hash);
-		memcpy(data->ak, hash, EAP_PAX_AK_LEN);
+		os_memcpy(data->ak, hash, EAP_PAX_AK_LEN);
 	}
 
 	return data;
@@ -101,8 +102,8 @@ static void * eap_pax_init(struct eap_sm *sm)
 static void eap_pax_deinit(struct eap_sm *sm, void *priv)
 {
 	struct eap_pax_data *data = priv;
-	free(data->cid);
-	free(data);
+	os_free(data->cid);
+	os_free(data);
 }
 
 
@@ -111,7 +112,7 @@ static struct eap_pax_hdr * eap_pax_alloc_resp(const struct eap_pax_hdr *req,
 {
 	struct eap_pax_hdr *resp;
 
-	resp = malloc(resp_len);
+	resp = os_malloc(resp_len);
 	if (resp == NULL)
 		return NULL;
 	resp->code = EAP_CODE_RESPONSE;
@@ -127,7 +128,7 @@ static struct eap_pax_hdr * eap_pax_alloc_resp(const struct eap_pax_hdr *req,
 }
 
 
-static u8 * eap_pax_process_std_1(struct eap_sm *sm, struct eap_pax_data *data,
+static u8 * eap_pax_process_std_1(struct eap_pax_data *data,
 				  struct eap_method_ret *ret,
 				  const u8 *reqData, size_t reqDataLen,
 				  size_t *respDataLen)
@@ -175,7 +176,7 @@ static u8 * eap_pax_process_std_1(struct eap_sm *sm, struct eap_pax_data *data,
 
 	pos += 2;
 	left -= 2;
-	memcpy(data->rand.r.x, pos, EAP_PAX_RAND_LEN);
+	os_memcpy(data->rand.r.x, pos, EAP_PAX_RAND_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: X (server rand)",
 		    data->rand.r.x, EAP_PAX_RAND_LEN);
 	pos += EAP_PAX_RAND_LEN;
@@ -212,14 +213,14 @@ static u8 * eap_pax_process_std_1(struct eap_sm *sm, struct eap_pax_data *data,
 	rpos = (u8 *) (resp + 1);
 	*rpos++ = 0;
 	*rpos++ = EAP_PAX_RAND_LEN;
-	memcpy(rpos, data->rand.r.y, EAP_PAX_RAND_LEN);
+	os_memcpy(rpos, data->rand.r.y, EAP_PAX_RAND_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: B = Y (client rand)",
 		    rpos, EAP_PAX_RAND_LEN);
 	rpos += EAP_PAX_RAND_LEN;
 
 	WPA_PUT_BE16(rpos, data->cid_len);
 	rpos += 2;
-	memcpy(rpos, data->cid, data->cid_len);
+	os_memcpy(rpos, data->cid, data->cid_len);
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-PAX: CID", rpos, data->cid_len);
 	rpos += data->cid_len;
 
@@ -232,6 +233,8 @@ static u8 * eap_pax_process_std_1(struct eap_sm *sm, struct eap_pax_data *data,
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: MAC_CK(A, B, CID)",
 		    rpos, EAP_PAX_MAC_LEN);
 	rpos += EAP_PAX_MAC_LEN;
+
+	/* Optional ADE could be added here, if needed */
 
 	eap_pax_mac(req->mac_id, data->ick, EAP_PAX_ICK_LEN,
 		    (u8 *) resp, *respDataLen - EAP_PAX_ICV_LEN,
@@ -248,7 +251,7 @@ static u8 * eap_pax_process_std_1(struct eap_sm *sm, struct eap_pax_data *data,
 }
 
 
-static u8 * eap_pax_process_std_3(struct eap_sm *sm, struct eap_pax_data *data,
+static u8 * eap_pax_process_std_3(struct eap_pax_data *data,
 				  struct eap_method_ret *ret,
 				  const u8 *reqData, size_t reqDataLen,
 				  size_t *respDataLen)
@@ -300,7 +303,7 @@ static u8 * eap_pax_process_std_3(struct eap_sm *sm, struct eap_pax_data *data,
 	eap_pax_mac(data->mac_id, data->ck, EAP_PAX_CK_LEN,
 		    data->rand.r.y, EAP_PAX_RAND_LEN,
 		    (u8 *) data->cid, data->cid_len, NULL, 0, mac);
-	if (memcmp(pos, mac, EAP_PAX_MAC_LEN) != 0) {
+	if (os_memcmp(pos, mac, EAP_PAX_MAC_LEN) != 0) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Invalid MAC_CK(B, CID) "
 			   "received");
 		wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: expected MAC_CK(B, CID)",
@@ -326,6 +329,9 @@ static u8 * eap_pax_process_std_3(struct eap_sm *sm, struct eap_pax_data *data,
 		return NULL;
 
 	rpos = (u8 *) (resp + 1);
+
+	/* Optional ADE could be added here, if needed */
+
 	eap_pax_mac(data->mac_id, data->ick, EAP_PAX_ICK_LEN,
 		    (u8 *) resp, *respDataLen - EAP_PAX_ICV_LEN,
 		    NULL, 0, NULL, 0, rpos);
@@ -352,7 +358,8 @@ static u8 * eap_pax_process(struct eap_sm *sm, void *priv,
 	size_t len;
 	u16 flen;
 
-	pos = eap_hdr_validate(EAP_TYPE_PAX, reqData, reqDataLen, &len);
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_PAX,
+			       reqData, reqDataLen, &len);
 	if (pos == NULL || len < EAP_PAX_ICV_LEN) {
 		ret->ignore = TRUE;
 		return NULL;
@@ -393,7 +400,7 @@ static u8 * eap_pax_process(struct eap_sm *sm, void *priv,
 		return NULL;
 	}
 
-	/* TODO: add support for EAP_PAX_MAC_AES_CBC_MAC_128 */
+	/* TODO: add support EAP_PAX_HMAC_SHA256_128 */
 	if (req->mac_id != EAP_PAX_MAC_HMAC_SHA1_128) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Unsupported MAC ID 0x%x",
 			   req->mac_id);
@@ -432,7 +439,7 @@ static u8 * eap_pax_process(struct eap_sm *sm, void *priv,
 		eap_pax_mac(req->mac_id, data->ick, EAP_PAX_ICK_LEN,
 			    reqData, flen, NULL, 0, NULL, 0, icvbuf);
 	}
-	if (memcmp(icv, icvbuf, EAP_PAX_ICV_LEN) != 0) {
+	if (os_memcmp(icv, icvbuf, EAP_PAX_ICV_LEN) != 0) {
 		wpa_printf(MSG_DEBUG, "EAP-PAX: invalid ICV - ignoring the "
 			   "message");
 		wpa_hexdump(MSG_MSGDUMP, "EAP-PAX: expected ICV",
@@ -448,11 +455,11 @@ static u8 * eap_pax_process(struct eap_sm *sm, void *priv,
 
 	switch (req->op_code) {
 	case EAP_PAX_OP_STD_1:
-		resp = eap_pax_process_std_1(sm, data, ret, reqData, flen,
+		resp = eap_pax_process_std_1(data, ret, reqData, flen,
 					     respDataLen);
 		break;
 	case EAP_PAX_OP_STD_3:
-		resp = eap_pax_process_std_3(sm, data, ret, reqData, flen,
+		resp = eap_pax_process_std_3(data, ret, reqData, flen,
 					     respDataLen);
 		break;
 	default:
@@ -485,26 +492,60 @@ static u8 * eap_pax_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != PAX_DONE)
 		return NULL;
 
-	key = malloc(EAP_PAX_MSK_LEN);
+	key = os_malloc(EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
 
-	*len = EAP_PAX_MSK_LEN;
+	*len = EAP_MSK_LEN;
 	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
 		    "Master Session Key", data->rand.e, 2 * EAP_PAX_RAND_LEN,
-		    EAP_PAX_MSK_LEN, key);
+		    EAP_MSK_LEN, key);
 
 	return key;
 }
 
 
-const struct eap_method eap_method_pax =
+static u8 * eap_pax_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 {
-	.method = EAP_TYPE_PAX,
-	.name = "PAX",
-	.init = eap_pax_init,
-	.deinit = eap_pax_deinit,
-	.process = eap_pax_process,
-	.isKeyAvailable = eap_pax_isKeyAvailable,
-	.getKey = eap_pax_getKey,
-};
+	struct eap_pax_data *data = priv;
+	u8 *key;
+
+	if (data->state != PAX_DONE)
+		return NULL;
+
+	key = os_malloc(EAP_EMSK_LEN);
+	if (key == NULL)
+		return NULL;
+
+	*len = EAP_EMSK_LEN;
+	eap_pax_kdf(data->mac_id, data->mk, EAP_PAX_MK_LEN,
+		    "Extended Master Session Key",
+		    data->rand.e, 2 * EAP_PAX_RAND_LEN,
+		    EAP_EMSK_LEN, key);
+
+	return key;
+}
+
+
+int eap_peer_pax_register(void)
+{
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
+				    EAP_VENDOR_IETF, EAP_TYPE_PAX, "PAX");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_pax_init;
+	eap->deinit = eap_pax_deinit;
+	eap->process = eap_pax_process;
+	eap->isKeyAvailable = eap_pax_isKeyAvailable;
+	eap->getKey = eap_pax_getKey;
+	eap->get_emsk = eap_pax_get_emsk;
+
+	ret = eap_peer_method_register(eap);
+	if (ret)
+		eap_peer_method_free(eap);
+	return ret;
+}

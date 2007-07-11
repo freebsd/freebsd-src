@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP state machines internal structures (RFC 4137)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer state machines internal structures (RFC 4137)
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -65,6 +65,11 @@ struct eap_method_ret {
  * specific operations. This interface is based on section 4.4 of RFC 4137.
  */
 struct eap_method {
+	/**
+	 * vendor - EAP Vendor-ID (EAP_VENDOR_*) (0 = IETF)
+	 */
+	int vendor;
+
 	/**
 	 * method - EAP type number (EAP_TYPE_*)
 	 */
@@ -205,6 +210,64 @@ struct eap_method {
 	 * that use method specific identity need to implement.
 	 */
 	const u8 * (*get_identity)(struct eap_sm *sm, void *priv, size_t *len);
+
+	/**
+	 * free - Free EAP method data
+	 * @method: Pointer to the method data registered with
+	 * eap_peer_method_register().
+	 *
+	 * This function will be called when the EAP method is being
+	 * unregistered. If the EAP method allocated resources during
+	 * registration (e.g., allocated struct eap_method), they should be
+	 * freed in this function. No other method functions will be called
+	 * after this call. If this function is not defined (i.e., function
+	 * pointer is %NULL), a default handler is used to release the method
+	 * data with free(method). This is suitable for most cases.
+	 */
+	void (*free)(struct eap_method *method);
+
+#define EAP_PEER_METHOD_INTERFACE_VERSION 1
+	/**
+	 * version - Version of the EAP peer method interface
+	 *
+	 * The EAP peer method implementation should set this variable to
+	 * EAP_PEER_METHOD_INTERFACE_VERSION. This is used to verify that the
+	 * EAP method is using supported API version when using dynamically
+	 * loadable EAP methods.
+	 */
+	int version;
+
+	/**
+	 * next - Pointer to the next EAP method
+	 *
+	 * This variable is used internally in the EAP method registration code
+	 * to create a linked list of registered EAP methods.
+	 */
+	struct eap_method *next;
+
+#ifdef CONFIG_DYNAMIC_EAP_METHODS
+	/**
+	 * dl_handle - Handle for the dynamic library
+	 *
+	 * This variable is used internally in the EAP method registration code
+	 * to store a handle for the dynamic library. If the method is linked
+	 * in statically, this is %NULL.
+	 */
+	void *dl_handle;
+#endif /* CONFIG_DYNAMIC_EAP_METHODS */
+
+	/**
+	 * get_emsk - Get EAP method specific keying extended material (EMSK)
+	 * @sm: Pointer to EAP state machine allocated with eap_sm_init()
+	 * @priv: Pointer to private EAP method data from eap_method::init()
+	 * @len: Pointer to a variable to store EMSK length
+	 * Returns: EMSK or %NULL if not available
+	 *
+	 * This function can be used to get the extended keying material from
+	 * the EAP method. The key may already be stored in the method-specific
+	 * private data or this function may derive the key.
+	 */
+	u8 * (*get_emsk)(struct eap_sm *sm, void *priv, size_t *len);
 };
 
 
@@ -231,6 +294,8 @@ struct eap_sm {
 	Boolean rxFailure;
 	int reqId;
 	EapType reqMethod;
+	int reqVendor;
+	u32 reqVendorMethod;
 	Boolean ignore;
 	/* Constants */
 	int ClientTimeout;
@@ -266,15 +331,26 @@ struct eap_sm {
 
 	/* Optional challenges generated in Phase 1 (EAP-FAST) */
 	u8 *peer_challenge, *auth_challenge;
+	int mschapv2_full_key; /* Request full MSCHAPv2 key */
 
 	int num_rounds;
 	int force_disabled;
 };
 
-const u8 * eap_hdr_validate(EapType eap_type, const u8 *msg, size_t msglen,
-			    size_t *plen);
+const u8 * eap_hdr_validate(int vendor, EapType eap_type,
+			    const u8 *msg, size_t msglen, size_t *plen);
+const u8 * eap_get_config_identity(struct eap_sm *sm, size_t *len);
+const u8 * eap_get_config_password(struct eap_sm *sm, size_t *len);
+const u8 * eap_get_config_new_password(struct eap_sm *sm, size_t *len);
+const u8 * eap_get_config_otp(struct eap_sm *sm, size_t *len);
+void eap_clear_config_otp(struct eap_sm *sm);
+struct wpa_ssid * eap_get_config(struct eap_sm *sm);
 void eap_set_config_blob(struct eap_sm *sm, struct wpa_config_blob *blob);
 const struct wpa_config_blob *
 eap_get_config_blob(struct eap_sm *sm, const char *name);
+struct eap_hdr * eap_msg_alloc(int vendor, EapType type, size_t *len,
+			       size_t payload_len, u8 code, u8 identifier,
+			       u8 **payload);
+void eap_notify_pending(struct eap_sm *sm);
 
 #endif /* EAP_I_H */

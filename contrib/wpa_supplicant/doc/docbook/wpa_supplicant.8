@@ -3,13 +3,13 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT" "8" "08 February 2006" "" ""
+.TH "WPA_SUPPLICANT" "8" "28 May 2007" "" ""
 
 .SH NAME
 wpa_supplicant \- Wi-Fi Protected Access client and IEEE 802.1X supplicant
 .SH SYNOPSIS
 
-\fBwpa_supplicant\fR [ \fB-BddehLqqvw\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ]
+\fBwpa_supplicant\fR [ \fB-BddehLqqvw\fR ] [ \fB-i\fIifname\fB\fR ] [ \fB-c\fIconfig file\fB\fR ] [ \fB-D\fIdriver\fB\fR ] [ \fB-P\fIPID_file\fB\fR ]
 
 .SH "OVERVIEW"
 .PP
@@ -260,6 +260,15 @@ Interface to listen on.
 \fB-c filename\fR
 Path to configuration file.
 .TP
+\fB-P PID_file\fR
+Path to PID file.
+.TP
+\fB-C ctrl_interface\fR
+Path to ctrl_interface socket (only used if -c is not).
+.TP
+\fB-g global ctrl_interface\fR
+Path to global ctrl_interface socket.
+.TP
 \fB-D driver\fR
 Driver to use.  See the available options below.
 .TP
@@ -454,7 +463,7 @@ encrypted passwords.
 .PP
 First, make a configuration file, e.g.
 \fI/etc/wpa_supplicant.conf\fR, that describes the networks
-you are interested in.  See \fBwpa_supplicant\fR(5)
+you are interested in.  See \fBwpa_supplicant.conf\fR(5)
 for details.
 .PP
 Once the configuration is ready, you can test whether the
@@ -536,7 +545,7 @@ the AP.
 .SH "LEGAL"
 .PP
 wpa_supplicant is copyright (c) 2003-2005,
-Jouni Malinen <jkmaline@cc.hut.fi> and
+Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.
 .PP

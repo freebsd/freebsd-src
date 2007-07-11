@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer method: EAP-TLV (draft-josefsson-pppext-eap-tls-eap-07.txt)
+ * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,29 +32,33 @@
 
 #define EAP_TLV_TYPE_MANDATORY 0x8000
 
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif /* _MSC_VER */
+
 struct eap_tlv_hdr {
 	u16 tlv_type;
 	u16 length;
-};
+} STRUCT_PACKED;
 
 struct eap_tlv_nak_tlv {
 	u16 tlv_type;
 	u16 length;
 	u32 vendor_id;
 	u16 nak_type;
-} __attribute__((packed));
+} STRUCT_PACKED;
 
 struct eap_tlv_result_tlv {
 	u16 tlv_type;
 	u16 length;
 	u16 status;
-} __attribute__((packed));
+} STRUCT_PACKED;
 
 struct eap_tlv_intermediate_result_tlv {
 	u16 tlv_type;
 	u16 length;
 	u16 status;
-} __attribute__((packed));
+} STRUCT_PACKED;
 
 struct eap_tlv_crypto_binding__tlv {
 	u16 tlv_type;
@@ -65,7 +69,7 @@ struct eap_tlv_crypto_binding__tlv {
 	u8 subtype;
 	u8 nonce[32];
 	u8 compound_mac[20];
-} __attribute__((packed));
+} STRUCT_PACKED;
 
 struct eap_tlv_pac_ack_tlv {
 	u16 tlv_type;
@@ -73,7 +77,11 @@ struct eap_tlv_pac_ack_tlv {
 	u16 pac_type;
 	u16 pac_len;
 	u16 result;
-} __attribute__((packed));
+} STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 #define EAP_TLV_CRYPTO_BINDING_SUBTYPE_REQUEST 0
 #define EAP_TLV_CRYPTO_BINDING_SUBTYPE_RESPONSE 1

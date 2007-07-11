@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_CLI" "8" "08 February 2006" "" ""
+.TH "WPA_CLI" "8" "28 May 2007" "" ""
 
 .SH NAME
 wpa_cli \- WPA command line client
@@ -113,7 +113,14 @@ Run in daemon mode executing the action file
 based on events from wpa_supplicant.  The specified file will
 be executed with the first argument set to interface name and
 second to "CONNECT" or "DISCONNECT" depending on the event.
-This can be used 
+This can be used to execute networking tools required to configure
+the interface.
+
+Additionally, three environmental variables are available to
+the file: WPA_CTRL_DIR, WPA_ID, and WPA_ID_STR. WPA_CTRL_DIR
+contains the absolute path to the ctrl_interface socket. WPA_ID
+contains the unique network_id identifier assigned to the active
+network, and WPA_ID_STR contains the content of the id_str option.
 .TP
 \fB-P file\fR
 Set the location of the PID
@@ -177,7 +184,7 @@ configure pin for an SSID
 \fBotp <network id> <password>\fR
 configure one-time-password for an SSID
 .TP
-\fBbssid *lt;network id> <BSSID>\fR
+\fBbssid <network id> <BSSID>\fR
 set preferred BSSID for an SSID
 .TP
 \fBlist_networks\fR
@@ -194,7 +201,7 @@ exit wpa_cli
 .SH "LEGAL"
 .PP
 wpa_supplicant is copyright (c) 2003-2005,
-Jouni Malinen <jkmaline@cc.hut.fi> and
+Jouni Malinen <j@w1.fi> and
 contributors.
 All Rights Reserved.
 .PP

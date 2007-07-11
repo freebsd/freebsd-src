@@ -6,14 +6,19 @@
 # just setting VARIABLE=n is not disabling that variable.
 #
 # This file is included in Makefile, so variables like CFLAGS and LIBS can also
-# be modified from here. In most cass, these lines should use += in order not
+# be modified from here. In most cases, these lines should use += in order not
 # to override previous values of the variables.
 
 
-# Uncomment following two lines and fix the paths if you have installed openssl
-# in non-default location
+# Uncomment following two lines and fix the paths if you have installed OpenSSL
+# or GnuTLS in non-default location
 #CFLAGS += -I/usr/local/openssl/include
 #LIBS += -L/usr/local/openssl/lib
+
+# Some Red Hat versions seem to include kerberos header files from OpenSSL, but
+# the kerberos files are not in the default include path. Following line can be
+# used to fix build issues on such systems (krb5.h not found).
+#CFLAGS += -I/usr/include/kerberos
 
 # Example configuration for various cross-compilation platforms
 
@@ -86,6 +91,11 @@ CONFIG_DRIVER_WEXT=y
 #CFLAGS += -I/opt/mingw/mingw32/include/ddk
 #LIBS += -L/opt/mingw/mingw32/lib
 #CC=mingw32-gcc
+# By default, driver_ndis uses WinPcap for low-level operations. This can be
+# replaced with the following option which replaces WinPcap calls with NDISUIO.
+# However, this requires that WZC is disabled (net stop wzcsvc) before starting
+# wpa_supplicant.
+# CONFIG_USE_NDISUIO=y
 
 # Driver interface for development testing
 #CONFIG_DRIVER_TEST=y
@@ -97,10 +107,10 @@ CONFIG_DRIVER_WIRED=y
 # included)
 CONFIG_IEEE8021X_EAPOL=y
 
-# EAP-MD5 (automatically included if EAP-TTLS is enabled)
+# EAP-MD5
 CONFIG_EAP_MD5=y
 
-# EAP-MSCHAPv2 (automatically included if EAP-PEAP is enabled)
+# EAP-MSCHAPv2
 CONFIG_EAP_MSCHAPV2=y
 
 # EAP-TLS
@@ -111,6 +121,13 @@ CONFIG_EAP_PEAP=y
 
 # EAP-TTLS
 CONFIG_EAP_TTLS=y
+
+# EAP-FAST
+# Note: Default OpenSSL package does not include support for all the
+# functionality needed for EAP-FAST. If EAP-FAST is enabled with OpenSSL,
+# the OpenSSL library must be patched (openssl-0.9.8d-tls-extensions.patch)
+# to add the needed functions.
+#CONFIG_EAP_FAST=y
 
 # EAP-GTC
 CONFIG_EAP_GTC=y
@@ -133,6 +150,14 @@ CONFIG_EAP_LEAP=y
 # EAP-AKA (enable CONFIG_PCSC, if EAP-AKA is used)
 #CONFIG_EAP_AKA=y
 
+# EAP-SAKE
+#CONFIG_EAP_SAKE=y
+
+# EAP-GPSK
+#CONFIG_EAP_GPSK=y
+# Include support for optional SHA256 cipher suite in EAP-GPSK
+#CONFIG_EAP_GPSK_SHA256=y
+
 # PKCS#12 (PFX) support (used to read private key and certificate file from
 # a file that usually has extension .p12 or .pfx)
 CONFIG_PKCS12=y
@@ -148,11 +173,13 @@ CONFIG_SMARTCARD=y
 # Development testing
 #CONFIG_EAPOL_TEST=y
 
-# Replace native Linux implementation of packet sockets with libdnet/libpcap.
-# This will be automatically set for non-Linux OS.
-#CONFIG_DNET_PCAP=y
-
-# Include control interface for external programs, e.g, wpa_cli
+# Select control interface backend for external programs, e.g, wpa_cli:
+# unix = UNIX domain sockets (default for Linux/*BSD)
+# udp = UDP sockets using localhost (127.0.0.1)
+# named_pipe = Windows Named Pipe (default for Windows)
+# y = use default (backwards compatibility)
+# If this option is commented out, control interface is not included in the
+# build.
 CONFIG_CTRL_IFACE=y
 
 # Include support for GNU Readline and History Libraries in wpa_cli.
@@ -171,6 +198,121 @@ CONFIG_CTRL_IFACE=y
 # 35-50 kB in code size.
 #CONFIG_NO_WPA=y
 
+# Remove WPA2 support. This allows WPA to be used, but removes WPA2 code to
+# save about 1 kB in code size when building only WPA-Personal (no EAP support)
+# or 6 kB if building for WPA-Enterprise.
+#CONFIG_NO_WPA2=y
+
+# Remove AES extra functions. This can be used to reduce code size by about
+# 1.5 kB by removing extra AES modes that are not needed for commonly used
+# client configurations (they are needed for some EAP types).
+#CONFIG_NO_AES_EXTRAS=y
+
 # Select configuration backend:
 # file = text file (e.g., wpa_supplicant.conf)
+# winreg = Windows registry (see win_example.reg for an example)
 CONFIG_BACKEND=file
+
+# Select program entry point implementation:
+# main = UNIX/POSIX like main() function (default)
+# main_winsvc = Windows service (read parameters from registry)
+# main_none = Very basic example (development use only)
+#CONFIG_MAIN=main
+
+# Select wrapper for operatins system and C library specific functions
+# unix = UNIX/POSIX like systems (default)
+# win32 = Windows systems
+# none = Empty template
+#CONFIG_OS=unix
+
+# Select event loop implementation
+# eloop = select() loop (default)
+# eloop_win = Windows events and WaitForMultipleObject() loop
+# eloop_none = Empty template
+#CONFIG_ELOOP=eloop
+
+# Select layer 2 packet implementation
+# linux = Linux packet socket (default)
+# pcap = libpcap/libdnet/WinPcap
+# freebsd = FreeBSD libpcap
+# winpcap = WinPcap with receive thread
+# ndis = Windows NDISUIO (note: requires CONFIG_USE_NDISUIO=y)
+# none = Empty template
+#CONFIG_L2_PACKET=linux
+
+# PeerKey handshake for Station to Station Link (IEEE 802.11e DLS)
+CONFIG_PEERKEY=y
+
+# IEEE 802.11w (management frame protection)
+# This version is an experimental implementation based on IEEE 802.11w/D1.0
+# draft and is subject to change since the standard has not yet been finalized.
+# Driver support is also needed for IEEE 802.11w.
+#CONFIG_IEEE80211W=y
+
+# Select TLS implementation
+# openssl = OpenSSL (default)
+# gnutls = GnuTLS (needed for TLS/IA, see also CONFIG_GNUTLS_EXTRA)
+# internal = Internal TLSv1 implementation (experimental)
+# none = Empty template
+#CONFIG_TLS=openssl
+
+# Whether to enable TLS/IA support, which is required for EAP-TTLSv1.
+# You need CONFIG_TLS=gnutls for this to have any effect. Please note that
+# even though the core GnuTLS library is released under LGPL, this extra
+# library uses GPL and as such, the terms of GPL apply to the combination
+# of wpa_supplicant and GnuTLS if this option is enabled. BSD license may not
+# apply for distribution of the resulting binary.
+#CONFIG_GNUTLS_EXTRA=y
+
+# If CONFIG_TLS=internal is used, additional library and include paths are
+# needed for LibTomMath. Alternatively, an integrated, minimal version of
+# LibTomMath can be used. See beginning of libtommath.c for details on benefits
+# and drawbacks of this option.
+#CONFIG_INTERNAL_LIBTOMMATH=y
+#ifndef CONFIG_INTERNAL_LIBTOMMATH
+#LTM_PATH=/usr/src/libtommath-0.39
+#CFLAGS += -I$(LTM_PATH)
+#LIBS += -L$(LTM_PATH)
+#LIBS_p += -L$(LTM_PATH)
+#endif
+
+# Include NDIS event processing through WMI into wpa_supplicant/wpasvc.
+# This is only for Windows builds and requires WMI-related header files and
+# WbemUuid.Lib from Platform SDK even when building with MinGW.
+#CONFIG_NDIS_EVENTS_INTEGRATED=y
+#PLATFORMSDKLIB="/opt/Program Files/Microsoft Platform SDK/Lib"
+
+# Add support for DBus control interface
+#CONFIG_CTRL_IFACE_DBUS=y
+
+# Add support for loading EAP methods dynamically as shared libraries.
+# When this option is enabled, each EAP method can be either included
+# statically (CONFIG_EAP_<method>=y) or dynamically (CONFIG_EAP_<method>=dyn).
+# Dynamic EAP methods are build as shared objects (eap_*.so) and they need to
+# be loaded in the beginning of the wpa_supplicant configuration file
+# (see load_dynamic_eap parameter in the example file) before being used in
+# the network blocks.
+#
+# Note that some shared parts of EAP methods are included in the main program
+# and in order to be able to use dynamic EAP methods using these parts, the
+# main program must have been build with the EAP method enabled (=y or =dyn).
+# This means that EAP-TLS/PEAP/TTLS/FAST cannot be added as dynamic libraries
+# unless at least one of them was included in the main build to force inclusion
+# of the shared code. Similarly, at least one of EAP-SIM/AKA must be included
+# in the main build to be able to load these methods dynamically.
+#
+# Please also note that using dynamic libraries will increase the total binary
+# size. Thus, it may not be the best option for targets that have limited
+# amount of memory/flash.
+#CONFIG_DYNAMIC_EAP_METHODS=y
+
+# Include client MLME (management frame processing).
+# This can be used to move MLME processing of Devicescape IEEE 802.11 stack
+# into user space.
+#CONFIG_CLIENT_MLME=y
+# Currently, driver_devicescape.c build requires some additional parameters
+# to be able to include some of the kernel header files. Following lines can
+# be used to set these (WIRELESS_DEV must point to the root directory of the
+# wireless-dev.git tree).
+#WIRELESS_DEV=/usr/src/wireless-dev
+#CFLAGS += -I$(WIRELESS_DEV)/net/mac80211

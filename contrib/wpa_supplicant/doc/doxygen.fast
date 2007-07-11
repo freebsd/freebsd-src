@@ -4,7 +4,7 @@
 # Project related configuration options
 #---------------------------------------------------------------------------
 PROJECT_NAME           = wpa_supplicant
-PROJECT_NUMBER         = 0.4.x
+PROJECT_NUMBER         = 0.5.x
 OUTPUT_DIRECTORY       = doc
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English

@@ -141,7 +141,15 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
         based on events from wpa_supplicant.  The specified file will
 	be executed with the first argument set to interface name and
 	second to "CONNECT" or "DISCONNECT" depending on the event.
-	This can be used </para></listitem>
+	This can be used to execute networking tools required to configure
+	the interface.</para>
+
+	<para>Additionally, three environmental variables are available to
+	the file: WPA_CTRL_DIR, WPA_ID, and WPA_ID_STR. WPA_CTRL_DIR
+	contains the absolute path to the ctrl_interface socket. WPA_ID
+	contains the unique network_id identifier assigned to the active
+	network, and WPA_ID_STR contains the content of the id_str option.
+	</para></listitem>
       </varlistentry>
 
       <varlistentry>
@@ -282,7 +290,7 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
       </varlistentry>
 
       <varlistentry>
-	<term>bssid *lt;network id&gt; &lt;BSSID&gt;</term>
+	<term>bssid &lt;network id&gt; &lt;BSSID&gt;</term>
 	<listitem>
 	  <para>set preferred BSSID for an SSID</para>
 	</listitem>
@@ -320,7 +328,7 @@ CTRL-REQ-OTP-2:Challenge 1235663 needed for SSID foobar
   <refsect1>
     <title>Legal</title>
     <para>wpa_supplicant is copyright (c) 2003-2005,
-    Jouni Malinen <email>jkmaline@cc.hut.fi</email> and
+    Jouni Malinen <email>j@w1.fi</email> and
     contributors.
     All Rights Reserved.</para>
 
