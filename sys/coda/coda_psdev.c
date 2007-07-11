@@ -65,6 +65,7 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/filedesc.h>
 
 #include <coda/coda.h>
 #include <coda/cnode.h>
@@ -370,9 +371,29 @@ vc_nb_write(dev, uiop, flag)
     out->unique = seq;
     vmp->vm_outSize	= buf[0];	/* Amount of data transferred? */
     vmp->vm_flags |= VM_WRITE;
+
+    error = 0;
+    if (opcode == CODA_OPEN_BY_FD) {
+	struct coda_open_by_fd_out *tmp = (struct coda_open_by_fd_out *)out;
+	struct file *fp;
+	struct vnode *vp = NULL;
+
+	if (tmp->oh.result == 0) {
+	    error = getvnode(uiop->uio_td->td_proc->p_fd, tmp->fd, &fp);
+	    if (!error) {
+		mtx_lock(&Giant);
+		vp = fp->f_vnode;
+		VREF(vp);
+		fdrop(fp, uiop->uio_td);
+		mtx_unlock(&Giant);
+	    }
+	}
+	tmp->vp = vp;
+    }
+
     wakeup(&vmp->vm_sleep);
     
-    return(0);
+    return(error);
 }
 
 int
