@@ -114,6 +114,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 	nnode->tn_uid = uid;
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
+	nnode->tn_id = alloc_unr(tmp->tm_ino_unr);
 
 	/* Type-specific initialization. */
 	switch (nnode->tn_type) {
@@ -225,6 +226,7 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 		break;
 	}
 
+	free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 
 	TMPFS_LOCK(tmp);
