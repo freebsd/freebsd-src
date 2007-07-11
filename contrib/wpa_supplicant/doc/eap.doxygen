@@ -1,9 +1,10 @@
 /**
 \page eap_module EAP peer implementation
 
-%wpa_supplicant uses a separate code module for EAP peer
-implementation. This module was designed to use only a minimal set of
-direct function calls (mainly, to debug/event functions) in order for
+Extensible Authentication Protocol (EAP) is an authentication framework
+defined in RFC 3748. %wpa_supplicant uses a separate code module for EAP
+peer implementation. This module was designed to use only a minimal set
+of direct function calls (mainly, to debug/event functions) in order for
 it to be usable in other programs. The design of the EAP
 implementation is based loosely on RFC 4137. The state machine is
 defined in this RFC and so is the interface between the peer state
@@ -25,8 +26,9 @@ methods use the same interface between the peer state machine and
 method specific functions. This allows new EAP methods to be added
 without modifying the core EAP state machine implementation.
 
-New EAP methods need to be registered by adding them into build
-(Makefile) and EAP method table in the beginning of eap.c. Each EAP
+New EAP methods need to be registered by adding them into the build
+(Makefile) and the EAP method registration list in the
+eap_peer_register_methods() function of eap_methods.c. Each EAP
 method should use a build-time configuration option, e.g., EAP_TLS, in
 order to make it possible to select which of the methods are included
 in the build.
@@ -35,4 +37,20 @@ EAP methods must implement the interface defined in eap_i.h. struct
 eap_method defines the needed function pointers that each EAP method
 must provide. In addition, the EAP type and name are registered using
 this structure. This interface is based on section 4.4 of RFC 4137.
+
+It is recommended that the EAP methods would use generic helper
+functions, eap_msg_alloc() and eap_hdr_validate() when processing
+messages. This allows code sharing and can avoid missing some of the
+needed validation steps for received packets. In addition, these
+functions make it easier to change between expanded and legacy EAP
+header, if needed.
+
+When adding an EAP method that uses a vendor specific EAP type
+(Expanded Type as defined in RFC 3748, Chapter 5.7), the new method
+must be registered by passing vendor id instead of EAP_VENDOR_IETF to
+eap_peer_method_alloc(). These methods must not try to emulate
+expanded types by registering a legacy EAP method for type 254. See
+eap_vendor_test.c for an example of an EAP method implementation that
+is implemented as an expanded type.
+
 */

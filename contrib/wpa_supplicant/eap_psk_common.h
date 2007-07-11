@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-PSK shared routines
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP server/peer: EAP-PSK shared routines
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,6 @@
 #define EAP_PSK_RAND_LEN 16
 #define EAP_PSK_MAC_LEN 16
 #define EAP_PSK_TEK_LEN 16
-#define EAP_PSK_MSK_LEN 64
 #define EAP_PSK_PSK_LEN 16
 #define EAP_PSK_AK_LEN 16
 #define EAP_PSK_KDK_LEN 16
@@ -29,6 +28,13 @@
 #define EAP_PSK_R_FLAG_DONE_FAILURE 3
 #define EAP_PSK_E_FLAG 0x20
 
+#define EAP_PSK_FLAGS_GET_T(flags) (((flags) & 0xc0) >> 6)
+#define EAP_PSK_FLAGS_SET_T(t) ((u8) (t) << 6)
+
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif /* _MSC_VER */
+
 /* Shared prefix for all EAP-PSK frames */
 struct eap_psk_hdr {
 	u8 code;
@@ -36,7 +42,7 @@ struct eap_psk_hdr {
 	u16 length; /* including code, identifier, and length */
 	u8 type; /* EAP_TYPE_PSK */
 	u8 flags;
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 /* EAP-PSK First Message (AS -> Supplicant) */
 struct eap_psk_hdr_1 {
@@ -47,7 +53,7 @@ struct eap_psk_hdr_1 {
 	u8 flags;
 	u8 rand_s[EAP_PSK_RAND_LEN];
 	/* Followed by variable length ID_S */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 /* EAP-PSK Second Message (Supplicant -> AS) */
 struct eap_psk_hdr_2 {
@@ -60,7 +66,7 @@ struct eap_psk_hdr_2 {
 	u8 rand_p[EAP_PSK_RAND_LEN];
 	u8 mac_p[EAP_PSK_MAC_LEN];
 	/* Followed by variable length ID_P */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 /* EAP-PSK Third Message (AS -> Supplicant) */
 struct eap_psk_hdr_3 {
@@ -72,7 +78,7 @@ struct eap_psk_hdr_3 {
 	u8 rand_s[EAP_PSK_RAND_LEN];
 	u8 mac_s[EAP_PSK_MAC_LEN];
 	/* Followed by variable length PCHANNEL */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
 
 /* EAP-PSK Fourth Message (Supplicant -> AS) */
 struct eap_psk_hdr_4 {
@@ -83,10 +89,15 @@ struct eap_psk_hdr_4 {
 	u8 flags;
 	u8 rand_s[EAP_PSK_RAND_LEN];
 	/* Followed by variable length PCHANNEL */
-} __attribute__ ((packed));
+} STRUCT_PACKED;
+
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif /* _MSC_VER */
 
 
 void eap_psk_key_setup(const u8 *psk, u8 *ak, u8 *kdk);
-void eap_psk_derive_keys(const u8 *kdk, const u8 *rand_p, u8 *tek, u8 *msk);
+void eap_psk_derive_keys(const u8 *kdk, const u8 *rand_p, u8 *tek, u8 *msk,
+			 u8 *emsk);
 
 #endif /* EAP_PSK_COMMON_H */

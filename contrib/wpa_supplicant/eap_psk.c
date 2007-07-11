@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-PSK (draft-bersani-eap-psk-09.txt)
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer method: EAP-PSK (RFC 4764)
+ * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,13 +15,10 @@
  * different from WPA-PSK. This file is not needed for WPA-PSK functionality.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "eap_i.h"
-#include "wpa_supplicant.h"
 #include "config_ssid.h"
 #include "md5.h"
 #include "aes_wrap.h"
@@ -34,7 +31,8 @@ struct eap_psk_data {
 	u8 ak[EAP_PSK_AK_LEN], kdk[EAP_PSK_KDK_LEN], tek[EAP_PSK_TEK_LEN];
 	u8 *id_s, *id_p;
 	size_t id_s_len, id_p_len;
-	u8 key_data[EAP_PSK_MSK_LEN];
+	u8 msk[EAP_MSK_LEN];
+	u8 emsk[EAP_EMSK_LEN];
 };
 
 
@@ -48,24 +46,23 @@ static void * eap_psk_init(struct eap_sm *sm)
 		return NULL;
 	}
 
-	data = malloc(sizeof(*data));
+	data = os_zalloc(sizeof(*data));
 	if (data == NULL)
 		return NULL;
-	memset(data, 0, sizeof(*data));
 	eap_psk_key_setup(config->eappsk, data->ak, data->kdk);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: AK", data->ak, EAP_PSK_AK_LEN);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: KDK", data->kdk, EAP_PSK_KDK_LEN);
 	data->state = PSK_INIT;
 
 	if (config->nai) {
-		data->id_p = malloc(config->nai_len);
+		data->id_p = os_malloc(config->nai_len);
 		if (data->id_p)
-			memcpy(data->id_p, config->nai, config->nai_len);
+			os_memcpy(data->id_p, config->nai, config->nai_len);
 		data->id_p_len = config->nai_len;
 	}
 	if (data->id_p == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PSK: could not get own identity");
-		free(data);
+		os_free(data);
 		return NULL;
 	}
 
@@ -76,13 +73,13 @@ static void * eap_psk_init(struct eap_sm *sm)
 static void eap_psk_deinit(struct eap_sm *sm, void *priv)
 {
 	struct eap_psk_data *data = priv;
-	free(data->id_s);
-	free(data->id_p);
-	free(data);
+	os_free(data->id_s);
+	os_free(data->id_p);
+	os_free(data);
 }
 
 
-static u8 * eap_psk_process_1(struct eap_sm *sm, struct eap_psk_data *data,
+static u8 * eap_psk_process_1(struct eap_psk_data *data,
 			      struct eap_method_ret *ret,
 			      const u8 *reqData, size_t reqDataLen,
 			      size_t *respDataLen)
@@ -107,25 +104,25 @@ static u8 * eap_psk_process_1(struct eap_sm *sm, struct eap_psk_data *data,
 		return NULL;
 	}
 	wpa_printf(MSG_DEBUG, "EAP-PSK: Flags=0x%x", hdr1->flags);
-	if ((hdr1->flags & 0x03) != 0) {
+	if (EAP_PSK_FLAGS_GET_T(hdr1->flags) != 0) {
 		wpa_printf(MSG_INFO, "EAP-PSK: Unexpected T=%d (expected 0)",
-			   hdr1->flags & 0x03);
+			   EAP_PSK_FLAGS_GET_T(hdr1->flags));
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return NULL;
 	}
 	wpa_hexdump(MSG_DEBUG, "EAP-PSK: RAND_S", hdr1->rand_s,
 		    EAP_PSK_RAND_LEN);
-	free(data->id_s);
+	os_free(data->id_s);
 	data->id_s_len = be_to_host16(hdr1->length) - sizeof(*hdr1);
-	data->id_s = malloc(data->id_s_len);
+	data->id_s = os_malloc(data->id_s_len);
 	if (data->id_s == NULL) {
 		wpa_printf(MSG_ERROR, "EAP-PSK: Failed to allocate memory for "
 			   "ID_S (len=%lu)", (unsigned long) data->id_s_len);
 		ret->ignore = TRUE;
 		return NULL;
 	}
-	memcpy(data->id_s, (u8 *) (hdr1 + 1), data->id_s_len);
+	os_memcpy(data->id_s, (u8 *) (hdr1 + 1), data->id_s_len);
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-PSK: ID_S",
 			  data->id_s, data->id_s_len);
 
@@ -136,7 +133,7 @@ static u8 * eap_psk_process_1(struct eap_sm *sm, struct eap_psk_data *data,
 	}
 
 	*respDataLen = sizeof(*hdr2) + data->id_p_len;
-	resp = malloc(*respDataLen);
+	resp = os_malloc(*respDataLen);
 	if (resp == NULL)
 		return NULL;
 	hdr2 = (struct eap_psk_hdr_2 *) resp;
@@ -144,26 +141,26 @@ static u8 * eap_psk_process_1(struct eap_sm *sm, struct eap_psk_data *data,
 	hdr2->identifier = hdr1->identifier;
 	hdr2->length = host_to_be16(*respDataLen);
 	hdr2->type = EAP_TYPE_PSK;
-	hdr2->flags = 1; /* T=1 */
-	memcpy(hdr2->rand_s, hdr1->rand_s, EAP_PSK_RAND_LEN);
-	memcpy(hdr2->rand_p, data->rand_p, EAP_PSK_RAND_LEN);
-	memcpy((u8 *) (hdr2 + 1), data->id_p, data->id_p_len);
+	hdr2->flags = EAP_PSK_FLAGS_SET_T(1); /* T=1 */
+	os_memcpy(hdr2->rand_s, hdr1->rand_s, EAP_PSK_RAND_LEN);
+	os_memcpy(hdr2->rand_p, data->rand_p, EAP_PSK_RAND_LEN);
+	os_memcpy((u8 *) (hdr2 + 1), data->id_p, data->id_p_len);
 	/* MAC_P = OMAC1-AES-128(AK, ID_P||ID_S||RAND_S||RAND_P) */
 	buflen = data->id_p_len + data->id_s_len + 2 * EAP_PSK_RAND_LEN;
-	buf = malloc(buflen);
+	buf = os_malloc(buflen);
 	if (buf == NULL) {
-		free(resp);
+		os_free(resp);
 		return NULL;
 	}
-	memcpy(buf, data->id_p, data->id_p_len);
+	os_memcpy(buf, data->id_p, data->id_p_len);
 	pos = buf + data->id_p_len;
-	memcpy(pos, data->id_s, data->id_s_len);
+	os_memcpy(pos, data->id_s, data->id_s_len);
 	pos += data->id_s_len;
-	memcpy(pos, hdr1->rand_s, EAP_PSK_RAND_LEN);
+	os_memcpy(pos, hdr1->rand_s, EAP_PSK_RAND_LEN);
 	pos += EAP_PSK_RAND_LEN;
-	memcpy(pos, data->rand_p, EAP_PSK_RAND_LEN);
+	os_memcpy(pos, data->rand_p, EAP_PSK_RAND_LEN);
 	omac1_aes_128(data->ak, buf, buflen, hdr2->mac_p);
-	free(buf);
+	os_free(buf);
 	wpa_hexdump(MSG_DEBUG, "EAP-PSK: RAND_P", hdr2->rand_p,
 		    EAP_PSK_RAND_LEN);
 	wpa_hexdump(MSG_DEBUG, "EAP-PSK: MAC_P", hdr2->mac_p, EAP_PSK_MAC_LEN);
@@ -176,7 +173,7 @@ static u8 * eap_psk_process_1(struct eap_sm *sm, struct eap_psk_data *data,
 }
 
 
-static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
+static u8 * eap_psk_process_3(struct eap_psk_data *data,
 			      struct eap_method_ret *ret,
 			      const u8 *reqData, size_t reqDataLen,
 			      size_t *respDataLen)
@@ -205,9 +202,9 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	left -= sizeof(*hdr3);
 	pchannel = (const u8 *) (hdr3 + 1);
 	wpa_printf(MSG_DEBUG, "EAP-PSK: Flags=0x%x", hdr3->flags);
-	if ((hdr3->flags & 0x03) != 2) {
+	if (EAP_PSK_FLAGS_GET_T(hdr3->flags) != 2) {
 		wpa_printf(MSG_INFO, "EAP-PSK: Unexpected T=%d (expected 2)",
-			   hdr3->flags & 0x03);
+			   EAP_PSK_FLAGS_GET_T(hdr3->flags));
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return NULL;
@@ -227,14 +224,14 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 
 	/* MAC_S = OMAC1-AES-128(AK, ID_S||RAND_P) */
 	buflen = data->id_s_len + EAP_PSK_RAND_LEN;
-	buf = malloc(buflen);
+	buf = os_malloc(buflen);
 	if (buf == NULL)
 		return NULL;
-	memcpy(buf, data->id_s, data->id_s_len);
-	memcpy(buf + data->id_s_len, data->rand_p, EAP_PSK_RAND_LEN);
+	os_memcpy(buf, data->id_s, data->id_s_len);
+	os_memcpy(buf + data->id_s_len, data->rand_p, EAP_PSK_RAND_LEN);
 	omac1_aes_128(data->ak, buf, buflen, mac);
-	free(buf);
-	if (memcmp(mac, hdr3->mac_s, EAP_PSK_MAC_LEN) != 0) {
+	os_free(buf);
+	if (os_memcmp(mac, hdr3->mac_s, EAP_PSK_MAC_LEN) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-PSK: Invalid MAC_S in third "
 			   "message");
 		ret->methodState = METHOD_DONE;
@@ -244,13 +241,13 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	wpa_printf(MSG_DEBUG, "EAP-PSK: MAC_S verified successfully");
 
 	eap_psk_derive_keys(data->kdk, data->rand_p, data->tek,
-			    data->key_data);
+			    data->msk, data->emsk);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: TEK", data->tek, EAP_PSK_TEK_LEN);
-	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: MSK", data->key_data,
-			EAP_PSK_MSK_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: MSK", data->msk, EAP_MSK_LEN);
+	wpa_hexdump_key(MSG_DEBUG, "EAP-PSK: EMSK", data->emsk, EAP_EMSK_LEN);
 
-	memset(nonce, 0, 12);
-	memcpy(nonce + 12, pchannel, 4);
+	os_memset(nonce, 0, 12);
+	os_memcpy(nonce + 12, pchannel, 4);
 	pchannel += 4;
 	left -= 4;
 
@@ -265,18 +262,18 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PSK: PCHANNEL - hdr", reqData, 5);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-PSK: PCHANNEL - cipher msg", msg, left);
 
-	decrypted = malloc(left);
+	decrypted = os_malloc(left);
 	if (decrypted == NULL) {
 		ret->methodState = METHOD_DONE;
 		ret->decision = DECISION_FAIL;
 		return NULL;
 	}
-	memcpy(decrypted, msg, left);
+	os_memcpy(decrypted, msg, left);
 
 	if (aes_128_eax_decrypt(data->tek, nonce, sizeof(nonce),
 				reqData, 22, decrypted, left, tag)) {
 		wpa_printf(MSG_WARNING, "EAP-PSK: PCHANNEL decryption failed");
-		free(decrypted);
+		os_free(decrypted);
 		return NULL;
 	}
 	wpa_hexdump(MSG_DEBUG, "EAP-PSK: Decrypted PCHANNEL message",
@@ -300,9 +297,9 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	}
 
 	*respDataLen = sizeof(*hdr4) + 4 + 16 + 1;
-	resp = malloc(*respDataLen + 1);
+	resp = os_malloc(*respDataLen + 1);
 	if (resp == NULL) {
-		free(decrypted);
+		os_free(decrypted);
 		return NULL;
 	}
 	hdr4 = (struct eap_psk_hdr_4 *) resp;
@@ -310,13 +307,13 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	hdr4->identifier = hdr3->identifier;
 	hdr4->length = host_to_be16(*respDataLen);
 	hdr4->type = EAP_TYPE_PSK;
-	hdr4->flags = 3; /* T=3 */
-	memcpy(hdr4->rand_s, hdr3->rand_s, EAP_PSK_RAND_LEN);
+	hdr4->flags = EAP_PSK_FLAGS_SET_T(3); /* T=3 */
+	os_memcpy(hdr4->rand_s, hdr3->rand_s, EAP_PSK_RAND_LEN);
 	rpchannel = (u8 *) (hdr4 + 1);
 
 	/* nonce++ */
 	inc_byte_array(nonce, sizeof(nonce));
-	memcpy(rpchannel, nonce + 12, 4);
+	os_memcpy(rpchannel, nonce + 12, 4);
 
 	data_len = 1;
 	if (decrypted[0] & EAP_PSK_E_FLAG) {
@@ -349,7 +346,7 @@ static u8 * eap_psk_process_3(struct eap_sm *sm, struct eap_psk_data *data,
 	ret->methodState = METHOD_DONE;
 	ret->decision = failed ? DECISION_FAIL : DECISION_UNCOND_SUCC;
 
-	free(decrypted);
+	os_free(decrypted);
 
 	return resp;
 }
@@ -365,7 +362,8 @@ static u8 * eap_psk_process(struct eap_sm *sm, void *priv,
 	u8 *resp = NULL;
 	size_t len;
 
-	pos = eap_hdr_validate(EAP_TYPE_PSK, reqData, reqDataLen, &len);
+	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_PSK,
+			       reqData, reqDataLen, &len);
 	if (pos == NULL) {
 		ret->ignore = TRUE;
 		return NULL;
@@ -379,11 +377,11 @@ static u8 * eap_psk_process(struct eap_sm *sm, void *priv,
 
 	switch (data->state) {
 	case PSK_INIT:
-		resp = eap_psk_process_1(sm, data, ret, reqData, len,
+		resp = eap_psk_process_1(data, ret, reqData, len,
 					 respDataLen);
 		break;
 	case PSK_MAC_SENT:
-		resp = eap_psk_process_3(sm, data, ret, reqData, len,
+		resp = eap_psk_process_3(data, ret, reqData, len,
 					 respDataLen);
 		break;
 	case PSK_DONE:
@@ -416,24 +414,55 @@ static u8 * eap_psk_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != PSK_DONE)
 		return NULL;
 
-	key = malloc(EAP_PSK_MSK_LEN);
+	key = os_malloc(EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
 
-	*len = EAP_PSK_MSK_LEN;
-	memcpy(key, data->key_data, EAP_PSK_MSK_LEN);
+	*len = EAP_MSK_LEN;
+	os_memcpy(key, data->msk, EAP_MSK_LEN);
 
 	return key;
 }
 
 
-const struct eap_method eap_method_psk =
+static u8 * eap_psk_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 {
-	.method = EAP_TYPE_PSK,
-	.name = "PSK",
-	.init = eap_psk_init,
-	.deinit = eap_psk_deinit,
-	.process = eap_psk_process,
-	.isKeyAvailable = eap_psk_isKeyAvailable,
-	.getKey = eap_psk_getKey,
-};
+	struct eap_psk_data *data = priv;
+	u8 *key;
+
+	if (data->state != PSK_DONE)
+		return NULL;
+
+	key = os_malloc(EAP_EMSK_LEN);
+	if (key == NULL)
+		return NULL;
+
+	*len = EAP_EMSK_LEN;
+	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
+
+	return key;
+}
+
+
+int eap_peer_psk_register(void)
+{
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
+				    EAP_VENDOR_IETF, EAP_TYPE_PSK, "PSK");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_psk_init;
+	eap->deinit = eap_psk_deinit;
+	eap->process = eap_psk_process;
+	eap->isKeyAvailable = eap_psk_isKeyAvailable;
+	eap->getKey = eap_psk_getKey;
+	eap->get_emsk = eap_psk_get_emsk;
+
+	ret = eap_peer_method_register(eap);
+	if (ret)
+		eap_peer_method_free(eap);
+	return ret;
+}

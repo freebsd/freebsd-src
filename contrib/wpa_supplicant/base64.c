@@ -1,6 +1,6 @@
 /*
  * Base64 encoding/decoding (RFC1341)
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,12 +12,12 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <string.h>
+#include "includes.h"
 
+#include "os.h"
 #include "base64.h"
 
-static const unsigned char base64_table[64] =
+static const unsigned char base64_table[65] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /**
@@ -43,7 +43,7 @@ unsigned char * base64_encode(const unsigned char *src, size_t len,
 	olen = len * 4 / 3 + 4; /* 3-byte blocks to 4-byte */
 	olen += olen / 72; /* line feeds */
 	olen++; /* nul termination */
-	out = malloc(olen);
+	out = os_malloc(olen);
 	if (out == NULL)
 		return NULL;
 
@@ -104,9 +104,9 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 	unsigned char dtable[256], *out, *pos, in[4], block[4], tmp;
 	size_t i, count, olen;
 
-	memset(dtable, 0x80, 256);
-	for (i = 0; i < sizeof(base64_table); i++)
-		dtable[base64_table[i]] = i;
+	os_memset(dtable, 0x80, 256);
+	for (i = 0; i < sizeof(base64_table) - 1; i++)
+		dtable[base64_table[i]] = (unsigned char) i;
 	dtable['='] = 0;
 
 	count = 0;
@@ -119,7 +119,7 @@ unsigned char * base64_decode(const unsigned char *src, size_t len,
 		return NULL;
 
 	olen = count / 4 * 3;
-	pos = out = malloc(count);
+	pos = out = os_malloc(olen);
 	if (out == NULL)
 		return NULL;
 
@@ -166,19 +166,9 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	f = fopen(argv[2], "r");
-	if (f == NULL)
+	buf = os_readfile(argv[2], &len);
+	if (buf == NULL)
 		return -1;
-	fseek(f, 0, SEEK_END);
-	len = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	buf = malloc(len);
-	if (buf == NULL) {
-		fclose(f);
-		return -1;
-	}
-	fread(buf, 1, len, f);
-	fclose(f);
 
 	if (strcmp(argv[1], "encode") == 0)
 		e = base64_encode(buf, len, &elen);

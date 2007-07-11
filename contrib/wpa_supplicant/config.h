@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / Configuration file structures
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,12 +14,6 @@
 
 #ifndef CONFIG_H
 #define CONFIG_H
-
-#ifdef CONFIG_CTRL_IFACE
-#ifndef CONFIG_CTRL_IFACE_UDP
-#include <grp.h>
-#endif /* CONFIG_CTRL_IFACE_UDP */
-#endif /* CONFIG_CTRL_IFACE */
 
 #define DEFAULT_EAPOL_VERSION 1
 #define DEFAULT_AP_SCAN 1
@@ -128,45 +122,67 @@ struct wpa_config {
 	int ap_scan;
 
 	/**
-	 * ctrl_interface - Directory for UNIX domain sockets
+	 * ctrl_interface - Parameters for the control interface
 	 *
-	 * This variable is used to configure where the UNIX domain sockets
-	 * for the control interface are created. If UDP-based ctrl_iface is
-	 * used, this variable can be set to any string (i.e., %NULL is not
-	 * allowed).
-	 */
-	char *ctrl_interface;
-
-#ifdef CONFIG_CTRL_IFACE
-#ifndef CONFIG_CTRL_IFACE_UDP
-	/**
-	 * ctrl_interface_gid - Group identity for the UNIX domain sockets
+	 * If this is specified, %wpa_supplicant will open a control interface
+	 * that is available for external programs to manage %wpa_supplicant.
+	 * The meaning of this string depends on which control interface
+	 * mechanism is used. For all cases, the existance of this parameter
+	 * in configuration is used to determine whether the control interface
+	 * is enabled.
+	 *
+	 * For UNIX domain sockets (default on Linux and BSD): This is a
+	 * directory that will be created for UNIX domain sockets for listening
+	 * to requests from external programs (CLI/GUI, etc.) for status
+	 * information and configuration. The socket file will be named based
+	 * on the interface name, so multiple %wpa_supplicant processes can be
+	 * run at the same time if more than one interface is used.
+	 * /var/run/wpa_supplicant is the recommended directory for sockets and
+	 * by default, wpa_cli will use it when trying to connect with
+	 * %wpa_supplicant.
 	 *
 	 * Access control for the control interface can be configured
 	 * by setting the directory to allow only members of a group
 	 * to use sockets. This way, it is possible to run
-	 * wpa_supplicant as root (since it needs to change network
+	 * %wpa_supplicant as root (since it needs to change network
 	 * configuration and open raw sockets) and still allow GUI/CLI
 	 * components to be run as non-root users. However, since the
 	 * control interface can be used to change the network
 	 * configuration, this access needs to be protected in many
-	 * cases. By default, wpa_supplicant is configured to use gid
+	 * cases. By default, %wpa_supplicant is configured to use gid
 	 * 0 (root). If you want to allow non-root users to use the
 	 * control interface, add a new group and change this value to
 	 * match with that group. Add users that should have control
 	 * interface access to this group.
-	 */
-	gid_t ctrl_interface_gid;
-#endif /* CONFIG_CTRL_IFACE_UDP */
-	/**
-	 * ctrl_interface_gid_set - Whether ctrl_interface_gid is used
 	 *
-	 * If this variable is zero, ctrl_interface_gid value is not used and
-	 * group will not be changed from the value it got by default
-	 * when the directory or socket was created.
+	 * When configuring both the directory and group, use following format:
+	 * DIR=/var/run/wpa_supplicant GROUP=wheel
+	 * DIR=/var/run/wpa_supplicant GROUP=0
+	 * (group can be either group name or gid)
+	 *
+	 * For UDP connections (default on Windows): The value will be ignored.
+	 * This variable is just used to select that the control interface is
+	 * to be created. The value can be set to, e.g., udp
+	 * (ctrl_interface=udp).
+	 *
+	 * For Windows Named Pipe: This value can be used to set the security
+	 * descriptor for controlling access to the control interface. Security
+	 * descriptor can be set using Security Descriptor String Format (see
+	 * http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/security_descriptor_string_format.asp).
+	 * The descriptor string needs to be prefixed with SDDL=. For example,
+	 * ctrl_interface=SDDL=D: would set an empty DACL (which will reject
+	 * all connections).
 	 */
-	int ctrl_interface_gid_set;
-#endif /* CONFIG_CTRL_IFACE */
+	char *ctrl_interface;
+
+	/**
+	 * ctrl_interface_group - Control interface group (DEPRECATED)
+	 *
+	 * This variable is only used for backwards compatibility. Group for
+	 * UNIX domain sockets should now be specified using GROUP=<group> in
+	 * ctrl_interface variable.
+	 */
+	char *ctrl_interface_group;
 
 	/**
 	 * fast_reauth - EAP fast re-authentication (session resumption)
@@ -257,7 +273,7 @@ struct wpa_config {
 };
 
 
-/* Protypes for common functions from config.c */
+/* Prototypes for common functions from config.c */
 
 void wpa_config_free(struct wpa_config *ssid);
 void wpa_config_free_ssid(struct wpa_ssid *ssid);
@@ -268,6 +284,7 @@ void wpa_config_set_network_defaults(struct wpa_ssid *ssid);
 int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
 		   int line);
 char * wpa_config_get(struct wpa_ssid *ssid, const char *var);
+char * wpa_config_get_no_key(struct wpa_ssid *ssid, const char *var);
 void wpa_config_update_psk(struct wpa_ssid *ssid);
 int wpa_config_add_prio_network(struct wpa_config *config,
 				struct wpa_ssid *ssid);
@@ -280,6 +297,11 @@ void wpa_config_free_blob(struct wpa_config_blob *blob);
 int wpa_config_remove_blob(struct wpa_config *config, const char *name);
 struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 					   const char *driver_param);
+#ifndef CONFIG_NO_STDOUT_DEBUG
+void wpa_config_debug_dump_networks(struct wpa_config *config);
+#else /* CONFIG_NO_STDOUT_DEBUG */
+#define wpa_config_debug_dump_networks(c) do { } while (0)
+#endif /* CONFIG_NO_STDOUT_DEBUG */
 
 
 /* Prototypes for backend specific functions from the selected config_*.c */

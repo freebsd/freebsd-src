@@ -1,32 +1,334 @@
 ChangeLog for wpa_supplicant
 
-2006-02-08 - v0.4.8
-	* fixed PC/SC code to use correct length for GSM AUTH command buffer
-	  and to not use pioRecvPci with SCardTransmit() calls; these were not
-	  causing visible problems with pcsc-lite, but Windows Winscard.dll
-	  refused the previously used parameters; this fixes EAP-SIM and
-	  EAP-AKA authentication using SIM/USIM card under Windows
-	* added support for EAP-FAST key derivation using other ciphers than
-	  RC4-128-SHA for authentication and AES128-SHA for provisioning
-	* fixed EAP-SIM and EAP-AKA pseudonym and fast re-authentication to
-	  decrypt AT_ENCR_DATA attributes correctly
-	* added support for configuring CA certificate as DER file and as a
-	  configuration blob
-	* fixed private key configuration as configuration blob and added
-	  support for using PKCS#12 as a blob
-	* fixed cygwin build
-	* added support for loading trusted CA certificates from Windows
-	  certificate store: ca_cert="cert_store://<name>", where <name> is
-	  likely CA (Intermediate CA certificates) or ROOT (root certificates)
+2007-05-28 - v0.5.8
+	* updated driver_wext.c to build with the current wireless-dev.git tree
+	  and net/d80211 changes
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-03.txt)
+	* fixed 'make install'
+	* fixed EAP-TTLS implementation not to crash on use of freed memory
+	  if TLS library initialization fails
+	* fixed EAP-AKA Notification processing to allow Notification to be
+	  processed after AKA Challenge response has been sent
+
+2006-12-31 - v0.5.7
+	* updated EAP-SAKE to RFC 4763 and the IANA-allocated EAP type 48
+	* updated EAP-PSK to use the IANA-allocated EAP type 47
+	* fixed EAP-PAX key derivation
+	* fixed EAP-PSK bit ordering of the Flags field
+	* fixed EAP-PEAP/TTLS/FAST to use the correct EAP identifier in
+	  tunnelled identity request (previously, the identifier from the outer
+	  method was used, not the tunnelled identifier which could be
+	  different)
+	* fixed EAP-TTLS AVP parser processing for too short AVP lengths
+	* added support for EAP-FAST authentication with inner methods that
+	  generate MSK (e.g., EAP-MSCHAPv2 that was previously only supported
+	  for PAC provisioning)
+	* fixed dbus ctrl_iface to validate message interface before
+	  dispatching to avoid a possible segfault [Bug 190]
+	* fixed PeerKey key derivation to use the correct PRF label
+	* updated Windows binary build to link against OpenSSL 0.9.8d and
+	  added support for EAP-FAST
+
+2006-11-24 - v0.5.6
+	* added experimental, integrated TLSv1 client implementation with the
+	  needed X.509/ASN.1/RSA/bignum processing (this can be enabled by
+	  setting CONFIG_TLS=internal and CONFIG_INTERNAL_LIBTOMMATH=y in
+	  .config); this can be useful, e.g., if the target system does not
+	  have a suitable TLS library and a minimal code size is required
+	  (total size of this internal TLS/crypto code is bit under 50 kB on
+	  x86 and the crypto code is shared by rest of the supplicant so some
+	  of it was already required; TLSv1/X.509/ASN.1/RSA added about 25 kB)
+	* removed STAKey handshake since PeerKey handshake has replaced it in
+	  IEEE 802.11ma and there are no known deployments of STAKey
+	* updated EAP Generalized Pre-Shared Key (EAP-GPSK) to use the latest
+	  draft (draft-ietf-emu-eap-gpsk-01.txt)
+	* added preliminary implementation of IEEE 802.11w/D1.0 (management
+	  frame protection)
+	  (Note: this requires driver support to work properly.)
+	  (Note2: IEEE 802.11w is an unapproved draft and subject to change.)
+	* fixed Windows named pipes ctrl_iface to not stop listening for
+	  commands if client program opens a named pipe and closes it
+	  immediately without sending a command
+	* fixed USIM PIN status determination for the case that PIN is not
+	  needed (this allows EAP-AKA to be used with USIM cards that do not
+	  use PIN)
+	* added support for reading 3G USIM AID from EF_DIR to allow EAP-AKA to
+	  be used with cards that do not support file selection based on
+	  partial AID
+	* added support for matching the subjectAltName of the authentication
+	  server certificate against multiple name components (e.g.,
+	  altsubject_match="DNS:server.example.com;DNS:server2.example.com")
+	* fixed EAP-SIM/AKA key derivation for re-authentication case (only
+	  affects IEEE 802.1X with dynamic WEP keys)
+	* changed ctrl_iface network configuration 'get' operations to not
+	  return password/key material; if these fields are requested, "*"
+	  will be returned if the password/key is set, but the value of the
+	  parameter is not exposed
+
+2006-08-27 - v0.5.5
+	* added support for building Windows version with UNICODE defined
+	  (wide-char functions)
+	* driver_ndis: fixed static WEP configuration to avoid race condition
+	  issues with some NDIS drivers between association and setting WEP
+	  keys
+	* driver_ndis: added validation for IELength value in scan results to
+	  avoid crashes when using buggy NDIS drivers [Bug 165]
+	* fixed Release|Win32 target in the Visual Studio project files
+	  (previously, only Debug|Win32 target was set properly)
+	* changed control interface API call wpa_ctrl_pending() to allow it to
+	  return -1 on error (e.g., connection lost); control interface clients
+	  will need to make sure that they verify that the value is indeed >0
+	  when determining whether there are pending messages
+	* added an alternative control interface backend for Windows targets:
+	  Named Pipe (CONFIG_CTRL_IFACE=named_pipe); this is now the default
+	  control interface mechanism for Windows builds (previously, UDP to
+	  localhost was used)
+	* changed ctrl_interface configuration for UNIX domain sockets:
+	  - deprecated ctrl_interface_group variable (it may be removed in
+	    future versions)
+	  - allow both directory and group be configured with ctrl_interface
+	    in following format: DIR=/var/run/wpa_supplicant GROUP=wheel
+	  - ctrl_interface=/var/run/wpa_supplicant is still supported for the
+	    case when group is not changed
+	* added support for controlling more than one interface per process in
+	  Windows version
+	* added a workaround for a case where the AP is using unknown address
+	  (e.g., MAC address of the wired interface) as the source address for
+	  EAPOL-Key frames; previously, that source address was used as the
+	  destination for EAPOL-Key frames and in key derivation; now, BSSID is
+	  used even if the source address does not match with it
+	  (this resolves an interoperability issue with Thomson SpeedTouch 580)
+	* added a workaround for UDP-based control interface (which was used in
+	  Windows builds before this release) to prevent packets with forged
+	  addresses from being accepted as local control requests
+	* removed ndis_events.cpp and possibility of using external
+	  ndis_events.exe; C version (ndis_events.c) is fully functional and
+	  there is no desire to maintain two separate versions of this
+	  implementation
+	* ndis_events: Changed NDIS event notification design to use WMI to
+	  learn the adapter description through Win32_PnPEntity class; this
+	  should fix some cases where the adapter name was not recognized
+	  correctly (e.g., with some USB WLAN adapters, e.g., Ralink RT2500
+	  USB) [Bug 113]
+	* fixed selection of the first network in ap_scan=2 mode; previously,
+	  wpa_supplicant could get stuck in SCANNING state when only the first
+	  network for enabled (e.g., after 'wpa_cli select_network 0')
+	* winsvc: added support for configuring ctrl_interface parameters in
+	  registry (ctrl_interface string value in
+	  HKLM\SOFTWARE\wpa_supplicant\interfaces\0000 key); this new value is
+	  required to enable control interface (previously, this was hardcoded
+	  to be enabled)
+	* allow wpa_gui subdirectory to be built with both Qt3 and Qt4
+	* converted wpa_gui-qt4 subdirectory to use Qt4 specific project format
+
+2006-06-20 - v0.5.4
+	* fixed build with CONFIG_STAKEY=y [Bug 143]
+	* added support for doing MLME (IEEE 802.11 management frame
+	  processing) in wpa_supplicant when using Devicescape IEEE 802.11
+	  stack (wireless-dev.git tree)
+	* added a new network block configuration option, fragment_size, to
+	  configure the maximum EAP fragment size
+	* driver_ndis: Disable WZC automatically for the selected interface to
+	  avoid conflicts with two programs trying to control the radio; WZC
+	  will be re-enabled (if it was enabled originally) when wpa_supplicant
+	  is terminated
+	* added an experimental TLSv1 client implementation
+	  (CONFIG_TLS=internal) that can be used instead of an external TLS
+	  library, e.g., to reduce total size requirement on systems that do
+	  not include any TLS library by default (this is not yet complete;
+	  basic functionality is there, but certificate validation is not yet
+	  included)
+	* added PeerKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS) to replace STAKey handshake
+	* fixed WPA PSK update through ctrl_iface for the case where the old
+	  PSK was derived from an ASCII passphrase and the new PSK is set as
+	  a raw PSK (hex string)
+	* added new configuration option for identifying which network block
+	  was used (id_str in wpa_supplicant.conf; included on
+	  WPA_EVENT_CONNECT monitor event and as WPA_ID_STR environmental
+	  variable in wpa_cli action scripts; in addition WPA_ID variable is
+	  set to the current unique identifier that wpa_supplicant assigned
+	  automatically for the network and that can be used with
+	  GET_NETWORK/SET_NETWORK ctrl_iface commands)
+	* wpa_cli action script is now called only when the connect/disconnect
+	  status changes or when associating with a different network
+	* fixed configuration parser not to remove CCMP from group cipher list
+	  if WPA-None (adhoc) is used (pairwise=NONE in that case)
+	* fixed integrated NDIS events processing not to hang the process due
+	  to a missed change in eloop_win.c API in v0.5.3 [Bug 155]
+	* added support for EAP Generalized Pre-Shared Key (EAP-GPSK,
+	  draft-clancy-emu-eap-shared-secret-00.txt)
+	* added Microsoft Visual Studio 2005 solution and project files for
+	  build wpa_supplicant for Windows (see vs2005 subdirectory)
+	* eloop_win: fixed unregistration of Windows events
+	* l2_packet_winpcap: fixed a deadlock in deinitializing l2_packet
+	  at the end of RSN pre-authentication and added unregistration of
+	  a Windows event to avoid getting eloop_win stuck with an invalid
+	  handle
+	* driver_ndis: added support for selecting AP based on BSSID
+	* added new environmental variable for wpa_cli action scripts:
+	  WPA_CTRL_DIR is the current control interface directory
+	* driver_ndis: added support for using NDISUIO instead of WinPcap for
+	  OID set/query operations (CONFIG_USE_NDISUIO=y in .config); with new
+	  l2_packet_ndis (CONFIG_L2_PACKET=ndis), this can be used to build
+	  wpa_supplicant without requiring WinPcap; note that using NDISUIO
+	  requires that WZC is disabled (net stop wzcsvc) since NDISUIO allows
+	  only one application to open the device
+	* changed NDIS driver naming to only include device GUID, e.g.,
+	  {7EE3EFE5-C165-472F-986D-F6FBEDFE8C8D}, instead of including WinPcap
+	  specific \Device\NPF_ prefix before the GUID; the prefix is still
+	  allowed for backwards compatibility, but it is not required anymore
+	  when specifying the interface
+	* driver_ndis: re-initialize driver interface is the adapter is removed
+	  and re-inserted [Bug 159]
+	* driver_madwifi: fixed TKIP and CCMP sequence number configuration on
+	  big endian hosts [Bug 146]
+
+2006-04-27 - v0.5.3
+	* fixed EAP-GTC response to include correct user identity when run as
+	  phase 2 method of EAP-FAST (i.e., EAP-FAST did not work in v0.5.2)
+	* driver_ndis: Fixed encryption mode configuration for unencrypted
+	  networks (some NDIS drivers ignored this, but others, e.g., Broadcom,
+	  refused to associate with open networks) [Bug 106]
+	* driver_ndis: use BSSID OID polling to detect when IBSS network is
+	  formed even when ndis_events code is included since some NDIS drivers
+	  do not generate media connect events in IBSS mode
+	* config_winreg: allow global ctrl_interface parameter to be configured
+	  in Windows registry
+	* config_winreg: added support for saving configuration data into
+	  Windows registry
+	* added support for controlling network device operational state
+	  (dormant/up) for Linux 2.6.17 to improve DHCP processing (see
+	  http://www.flamewarmaster.de/software/dhcpclient/ for a DHCP client
+	  that can use this information)
+	* driver_wext: added support for WE-21 change to SSID configuration
+	* driver_wext: fixed privacy configuration for static WEP keys mode
+	  [Bug 140]
+	* added an optional driver_ops callback for MLME-SETPROTECTION.request
+	  primitive
+	* added support for EAP-SAKE (no EAP method number allocated yet, so
+	  this is using the same experimental type 255 as EAP-PSK)
+	* added support for dynamically loading EAP methods (.so files) instead
+	  of requiring them to be statically linked in; this is disabled by
+	  default (see CONFIG_DYNAMIC_EAP_METHODS in defconfig for information
+	  on how to use this)
+
+2006-03-19 - v0.5.2
+	* do not try to use USIM APDUs when initializing PC/SC for SIM card
+	  access for a network that has not enabled EAP-AKA
+	* fixed EAP phase 2 Nak for EAP-{PEAP,TTLS,FAST} (this was broken in
+	  v0.5.1 due to the new support for expanded EAP types)
+	* added support for generating EAP Expanded Nak
+	* try to fetch scan results once before requesting new scan when
+	  starting up in ap_scan=1 mode (this can speed up initial association
+	  a lot with, e.g., madwifi-ng driver)
+	* added support for receiving EAPOL frames from a Linux bridge
+	  interface (-bbr0 on command line)
+	* fixed EAPOL re-authentication for sessions that used PMKSA caching
+	* changed EAP method registration to use a dynamic list of methods
+	  instead of a static list generated at build time
+	* fixed PMKSA cache deinitialization not to use freed memory when
+	  removing PMKSA entries
+	* fixed a memory leak in EAP-TTLS re-authentication
+	* reject WPA/WPA2 message 3/4 if it does not include any valid
+	  WPA/RSN IE
+	* driver_wext: added fallback to use SIOCSIWENCODE for setting auth_alg
+	  if the driver does not support SIOCSIWAUTH
+
+2006-01-29 - v0.5.1
+	* driver_test: added better support for multiple APs and STAs by using
+	  a directory with sockets that include MAC address for each device in
+	  the name (driver_param=test_dir=/tmp/test)
+	* added support for EAP expanded type (vendor specific EAP methods)
+	* added AP_SCAN command into ctrl_iface so that ap_scan configuration
+	  option can be changed if needed
+	* wpa_cli/wpa_gui: skip non-socket files in control directory when
+	  using UNIX domain sockets; this avoids selecting an incorrect
+	  interface (e.g., a PID file could be in this directory, even though
+	  use of this directory for something else than socket files is not
+	  recommended)
 	* fixed TLS library deinitialization after RSN pre-authentication not
 	  to disable TLS library for normal authentication
+	* driver_wext: Remove null-termination from SSID length if the driver
+	  used it; some Linux drivers do this and they were causing problems in
+	  wpa_supplicant not finding matching configuration block. This change
+	  would break a case where the SSID actually ends in '\0', but that is
+	  not likely to happen in real use.
 	* fixed PMKSA cache processing not to trigger deauthentication if the
 	  current PMKSA cache entry is replaced with a valid new entry
 	* fixed PC/SC initialization for ap_scan != 1 modes (this fixes
 	  EAP-SIM and EAP-AKA with real SIM/USIM card when using ap_scan=0 or
 	  ap_scan=2)
-	* do not try to use USIM APDUs when initializing PC/SC for SIM card
-	  access for a network that has not enabled EAP-AKA
+
+2005-12-18 - v0.5.0 (beginning of 0.5.x development releases)
+	* added experimental STAKey handshake implementation for IEEE 802.11e
+	  direct link setup (DLS); note: this is disabled by default in both
+	  build and runtime configuration (can be enabled with CONFIG_STAKEY=y
+	  and stakey=1)
+	* fixed EAP-SIM and EAP-AKA pseudonym and fast re-authentication to
+	  decrypt AT_ENCR_DATA attributes correctly
+	* fixed EAP-AKA to allow resynchronization within the same session
+	* made code closer to ANSI C89 standard to make it easier to port to
+	  other C libraries and compilers
+	* started moving operating system or C library specific functions into
+	  wrapper functions defined in os.h and implemented in os_*.c to make
+	  code more portable
+	* wpa_supplicant can now be built with Microsoft Visual C++
+	  (e.g., with the freely available Toolkit 2003 version or Visual
+	  C++ 2005 Express Edition and Platform SDK); see nmake.mak for an
+	  example makefile for nmake
+	* added support for using Windows registry for command line parameters
+	  (CONFIG_MAIN=main_winsvc) and configuration data
+	  (CONFIG_BACKEND=winreg); see win_example.reg for an example registry
+	  contents; this version can be run both as a Windows service and as a
+	  normal application; 'wpasvc.exe app' to start as applicant,
+	  'wpasvc.exe reg <full path to wpasvc.exe>' to register a service,
+	  'net start wpasvc' to start the service, 'wpasvc.exe unreg' to
+	  unregister a service
+	* made it possible to link ndis_events.exe functionality into
+	  wpa_supplicant.exe by defining CONFIG_NDIS_EVENTS_INTEGRATED
+	* added better support for multiple control interface backends
+	  (CONFIG_CTRL_IFACE option); currently, 'unix' and 'udp' are supported
+	* fixed PC/SC code to use correct length for GSM AUTH command buffer
+	  and to not use pioRecvPci with SCardTransmit() calls; these were not
+	  causing visible problems with pcsc-lite, but Windows Winscard.dll
+	  refused the previously used parameters; this fixes EAP-SIM and
+	  EAP-AKA authentication using SIM/USIM card under Windows
+	* added new event loop implementation for Windows using
+	  WaitForMultipleObject() instead of select() in order to allow waiting
+	  for non-socket objects; this can be selected with
+	  CONFIG_ELOOP=eloop_win in .config
+	* added support for selecting l2_packet implementation in .config
+	  (CONFIG_L2_PACKET; following options are available now: linux, pcap,
+	  winpcap, freebsd, none)
+	* added new l2_packet implementation for WinPcap
+	  (CONFIG_L2_PACKET=winpcap) that uses a separate receive thread to
+	  reduce latency in EAPOL receive processing from about 100 ms to about
+	  3 ms
+	* added support for EAP-FAST key derivation using other ciphers than
+	  RC4-128-SHA for authentication and AES128-SHA for provisioning
+	* added support for configuring CA certificate as DER file and as a
+	  configuration blob
+	* fixed private key configuration as configuration blob and added
+	  support for using PKCS#12 as a blob
+	* tls_gnutls: added support for using PKCS#12 files; added support for
+	  session resumption
+	* added support for loading trusted CA certificates from Windows
+	  certificate store: ca_cert="cert_store://<name>", where <name> is
+	  likely CA (Intermediate CA certificates) or ROOT (root certificates)
+	* added C version of ndis_events.cpp and made it possible to build this
+	  with MinGW so that CONFIG_NDIS_EVENTS_INTEGRATED can be used more
+	  easily on cross-compilation builds
+	* added wpasvc.exe into Windows binary release; this is an alternative
+	  version of wpa_supplicant.exe with configuration backend using
+	  Windows registry and with the entry point designed to run as a
+	  Windows service
+	* integrated ndis_events.exe functionality into wpa_supplicant.exe and
+	  wpasvc.exe and removed this additional tool from the Windows binary
+	  release since it is not needed anymore
+	* load winscard.dll functions dynamically when building with MinGW
+	  since MinGW does not yet include winscard library
 
 2005-11-20 - v0.4.7 (beginning of 0.4.x stable releases)
 	* l2_packet_pcap: fixed wired IEEE 802.1X authentication with libpcap

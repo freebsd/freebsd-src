@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - test code for pre-authentication
- * Copyright (c) 2003-2006, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,15 +15,8 @@
  * Not used in production version.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <string.h>
-#include <signal.h>
-#include <netinet/in.h>
+#include "includes.h"
 #include <assert.h>
-#include <arpa/inet.h>
 
 #include "common.h"
 #include "config.h"
@@ -37,12 +30,13 @@
 #include "ctrl_iface.h"
 #include "pcsc_funcs.h"
 #include "preauth.h"
+#include "pmksa_cache.h"
 
 
 extern int wpa_debug_level;
 extern int wpa_debug_show_keys;
 
-struct wpa_driver_ops *wpa_supplicant_drivers[] = { };
+struct wpa_driver_ops *wpa_supplicant_drivers[] = { NULL };
 
 
 struct preauth_test_data {
@@ -75,7 +69,7 @@ static u8 * wpa_alloc_eapol(const struct wpa_supplicant *wpa_s, u8 type,
 	struct ieee802_1x_hdr *hdr;
 
 	*msg_len = sizeof(*hdr) + data_len;
-	hdr = malloc(*msg_len);
+	hdr = os_malloc(*msg_len);
 	if (hdr == NULL)
 		return NULL;
 
@@ -84,9 +78,9 @@ static u8 * wpa_alloc_eapol(const struct wpa_supplicant *wpa_s, u8 type,
 	hdr->length = htons(data_len);
 
 	if (data)
-		memcpy(hdr + 1, data, data_len);
+		os_memcpy(hdr + 1, data, data_len);
 	else
-		memset(hdr + 1, 0, data_len);
+		os_memset(hdr + 1, 0, data_len);
 
 	if (data_pos)
 		*data_pos = hdr + 1;
@@ -167,6 +161,15 @@ static int wpa_supplicant_set_key(void *wpa_s, wpa_alg alg,
 }
 
 
+static int wpa_supplicant_mlme_setprotection(void *wpa_s, const u8 *addr,
+					     int protection_type,
+					     int key_type)
+{
+	printf("%s - not implemented\n", __func__);
+	return -1;
+}
+
+
 static int wpa_supplicant_add_pmkid(void *wpa_s,
 				    const u8 *bssid, const u8 *pmkid)
 {
@@ -203,10 +206,12 @@ static void test_eapol_clean(struct wpa_supplicant *wpa_s)
 {
 	rsn_preauth_deinit(wpa_s->wpa);
 	pmksa_candidate_free(wpa_s->wpa);
-	pmksa_cache_free(wpa_s->wpa);
 	wpa_sm_deinit(wpa_s->wpa);
 	scard_deinit(wpa_s->scard);
-	wpa_supplicant_ctrl_iface_deinit(wpa_s);
+	if (wpa_s->ctrl_iface) {
+		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+		wpa_s->ctrl_iface = NULL;
+	}
 	wpa_config_free(wpa_s->conf);
 }
 
@@ -240,13 +245,12 @@ static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *ifname)
 	struct l2_packet_data *l2;
 	struct wpa_sm_ctx *ctx;
 
-	memset(&dummy_driver, 0, sizeof(dummy_driver));
+	os_memset(&dummy_driver, 0, sizeof(dummy_driver));
 	wpa_s->driver = &dummy_driver;
 
-	ctx = malloc(sizeof(*ctx));
+	ctx = os_zalloc(sizeof(*ctx));
 	assert(ctx != NULL);
 
-	memset(ctx, 0, sizeof(*ctx));
 	ctx->ctx = wpa_s;
 	ctx->set_state = _wpa_supplicant_set_state;
 	ctx->get_state = _wpa_supplicant_get_state;
@@ -265,13 +269,14 @@ static void wpa_init_conf(struct wpa_supplicant *wpa_s, const char *ifname)
 	ctx->remove_pmkid = wpa_supplicant_remove_pmkid;
 	ctx->set_config_blob = wpa_supplicant_set_config_blob;
 	ctx->get_config_blob = wpa_supplicant_get_config_blob;
+	ctx->mlme_setprotection = wpa_supplicant_mlme_setprotection;
 
 	wpa_s->wpa = wpa_sm_init(ctx);
 	assert(wpa_s->wpa != NULL);
 	wpa_sm_set_param(wpa_s->wpa, WPA_PARAM_PROTO, WPA_PROTO_RSN);
 
-	strncpy(wpa_s->ifname, ifname, sizeof(wpa_s->ifname));
-	wpa_sm_set_ifname(wpa_s->wpa, wpa_s->ifname);
+	os_strncpy(wpa_s->ifname, ifname, sizeof(wpa_s->ifname));
+	wpa_sm_set_ifname(wpa_s->wpa, wpa_s->ifname, NULL);
 
 	l2 = l2_packet_init(wpa_s->ifname, NULL, ETH_P_RSN_PREAUTH, NULL,
 			    NULL, 0);
@@ -301,7 +306,10 @@ int main(int argc, char *argv[])
 	u8 bssid[ETH_ALEN];
 	struct preauth_test_data preauth_test;
 
-	memset(&preauth_test, 0, sizeof(preauth_test));
+	if (os_program_init())
+		return -1;
+
+	os_memset(&preauth_test, 0, sizeof(preauth_test));
 
 	wpa_debug_level = 0;
 	wpa_debug_show_keys = 1;
@@ -317,9 +325,17 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	eloop_init(&wpa_s);
+	if (eap_peer_register_methods()) {
+		wpa_printf(MSG_ERROR, "Failed to register EAP methods");
+		return -1;
+	}
 
-	memset(&wpa_s, 0, sizeof(wpa_s));
+	if (eloop_init(&wpa_s)) {
+		wpa_printf(MSG_ERROR, "Failed to initialize event loop");
+		return -1;
+	}
+
+	os_memset(&wpa_s, 0, sizeof(wpa_s));
 	wpa_s.conf = wpa_config_read(argv[1]);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", argv[1]);
@@ -331,7 +347,8 @@ int main(int argc, char *argv[])
 	}
 
 	wpa_init_conf(&wpa_s, argv[3]);
-	if (wpa_supplicant_ctrl_iface_init(&wpa_s)) {
+	wpa_s.ctrl_iface = wpa_supplicant_ctrl_iface_init(&wpa_s);
+	if (wpa_s.ctrl_iface == NULL) {
 		printf("Failed to initialize control interface '%s'.\n"
 		       "You may have another preauth_test process already "
 		       "running or the file was\n"
@@ -350,20 +367,24 @@ int main(int argc, char *argv[])
 
 	eloop_register_timeout(30, 0, eapol_test_timeout, &preauth_test, NULL);
 	eloop_register_timeout(0, 100000, eapol_test_poll, &wpa_s, NULL);
-	eloop_register_signal(SIGINT, eapol_test_terminate, NULL);
-	eloop_register_signal(SIGTERM, eapol_test_terminate, NULL);
-	eloop_register_signal(SIGHUP, eapol_test_terminate, NULL);
+	eloop_register_signal_terminate(eapol_test_terminate, NULL);
+	eloop_register_signal_reconfig(eapol_test_terminate, NULL);
 	eloop_run();
 
 	if (preauth_test.auth_timed_out)
 		ret = -2;
 	else {
-		ret = pmksa_cache_get(wpa_s.wpa, bssid, NULL) ? 0 : -3;
+		ret = pmksa_cache_set_current(wpa_s.wpa, NULL, bssid, NULL, 0)
+			? 0 : -3;
 	}
 
 	test_eapol_clean(&wpa_s);
 
+	eap_peer_unregister_methods();
+
 	eloop_destroy();
+
+	os_program_deinit();
 
 	return ret;
 }

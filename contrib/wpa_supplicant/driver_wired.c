@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant - wired Ethernet driver interface
- * Copyright (c) 2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,15 +12,15 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
+#include "includes.h"
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netpacket/packet.h>
 #include <net/if.h>
+#ifdef __linux__
+#include <netpacket/packet.h>
+#endif /* __linux__ */
+#ifdef __FreeBSD__
+#include <net/if_dl.h>
+#endif /* __FreeBSD__ */
 
 #include "common.h"
 #include "driver.h"
@@ -39,12 +39,6 @@ struct wpa_driver_wired_data {
 };
 
 
-static int wpa_driver_wired_set_wpa(void *priv, int enabled)
-{
-	return 0;
-}
-
-
 static int wpa_driver_wired_get_ssid(void *priv, u8 *ssid)
 {
 	ssid[0] = 0;
@@ -55,7 +49,7 @@ static int wpa_driver_wired_get_ssid(void *priv, u8 *ssid)
 static int wpa_driver_wired_get_bssid(void *priv, u8 *bssid)
 {
 	/* Report PAE group address as the "BSSID" for wired connection. */
-	memcpy(bssid, pae_group_addr, ETH_ALEN);
+	os_memcpy(bssid, pae_group_addr, ETH_ALEN);
 	return 0;
 }
 
@@ -71,8 +65,8 @@ static int wpa_driver_wired_get_ifflags(const char *ifname, int *flags)
 		return -1;
 	}
 
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t) &ifr) < 0) {
 		perror("ioctl[SIOCGIFFLAGS]");
 		close(s);
@@ -95,8 +89,8 @@ static int wpa_driver_wired_set_ifflags(const char *ifname, int flags)
 		return -1;
 	}
 
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
 	ifr.ifr_flags = flags & 0xffff;
 	if (ioctl(s, SIOCSIFFLAGS, (caddr_t) &ifr) < 0) {
 		perror("ioctl[SIOCSIFFLAGS]");
@@ -119,10 +113,25 @@ static int wpa_driver_wired_multi(const char *ifname, const u8 *addr, int add)
 		return -1;
 	}
 
-	memset(&ifr, 0, sizeof(ifr));
-	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+	os_memset(&ifr, 0, sizeof(ifr));
+	os_strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+#ifdef __linux__
 	ifr.ifr_hwaddr.sa_family = AF_UNSPEC;
-	memcpy(ifr.ifr_hwaddr.sa_data, addr, ETH_ALEN);
+	os_memcpy(ifr.ifr_hwaddr.sa_data, addr, ETH_ALEN);
+#endif /* __linux__ */
+#ifdef __FreeBSD__
+	{
+		struct sockaddr_dl *dlp;
+		dlp = (struct sockaddr_dl *) &ifr.ifr_addr;
+		dlp->sdl_len = sizeof(struct sockaddr_dl);
+		dlp->sdl_family = AF_LINK;
+		dlp->sdl_index = 0;
+		dlp->sdl_nlen = 0;
+		dlp->sdl_alen = ETH_ALEN;
+		dlp->sdl_slen = 0;
+		os_memcpy(LLADDR(dlp), addr, ETH_ALEN); 
+	}
+#endif /* __FreeBSD__ */
 
 	if (ioctl(s, add ? SIOCADDMULTI : SIOCDELMULTI, (caddr_t) &ifr) < 0) {
 		perror("ioctl[SIOC{ADD/DEL}MULTI]");
@@ -143,11 +152,11 @@ static int wpa_driver_wired_membership(struct wpa_driver_wired_data *drv,
 	if (drv->pf_sock == -1)
 		return -1;
 
-	memset(&mreq, 0, sizeof(mreq));
+	os_memset(&mreq, 0, sizeof(mreq));
 	mreq.mr_ifindex = if_nametoindex(drv->ifname);
 	mreq.mr_type = PACKET_MR_MULTICAST;
 	mreq.mr_alen = ETH_ALEN;
-	memcpy(mreq.mr_address, addr, ETH_ALEN);
+	os_memcpy(mreq.mr_address, addr, ETH_ALEN);
 
 	if (setsockopt(drv->pf_sock, SOL_PACKET,
 		       add ? PACKET_ADD_MEMBERSHIP : PACKET_DROP_MEMBERSHIP,
@@ -167,20 +176,19 @@ static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 	struct wpa_driver_wired_data *drv;
 	int flags;
 
-	drv = malloc(sizeof(*drv));
+	drv = os_zalloc(sizeof(*drv));
 	if (drv == NULL)
 		return NULL;
-	memset(drv, 0, sizeof(*drv));
-	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
+	os_strncpy(drv->ifname, ifname, sizeof(drv->ifname));
 	drv->ctx = ctx;
 
 #ifdef __linux__
 	drv->pf_sock = socket(PF_PACKET, SOCK_DGRAM, 0);
 	if (drv->pf_sock < 0)
 		perror("socket(PF_PACKET)");
-#else
+#else /* __linux__ */
 	drv->pf_sock = -1;       
-#endif
+#endif /* __linux__ */
 	
 	if (wpa_driver_wired_get_ifflags(ifname, &flags) == 0 &&
 	    !(flags & IFF_UP) &&
@@ -199,7 +207,7 @@ static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 	} else if (wpa_driver_wired_get_ifflags(ifname, &flags) < 0) {
 		wpa_printf(MSG_INFO, "%s: Could not get interface "
 			   "flags", __func__);
-		free(drv);
+		os_free(drv);
 		return NULL;
 	} else if (flags & IFF_ALLMULTI) {
 		wpa_printf(MSG_DEBUG, "%s: Interface is already configured "
@@ -208,7 +216,7 @@ static void * wpa_driver_wired_init(void *ctx, const char *ifname)
 						flags | IFF_ALLMULTI) < 0) {
 		wpa_printf(MSG_INFO, "%s: Failed to enable allmulti",
 			   __func__);
-		free(drv);
+		os_free(drv);
 		return NULL;
 	} else {
 		wpa_printf(MSG_DEBUG, "%s: Enabled allmulti mode",
@@ -256,14 +264,13 @@ static void wpa_driver_wired_deinit(void *priv)
 	if (drv->pf_sock != -1)
 		close(drv->pf_sock);
 	
-	free(drv);
+	os_free(drv);
 }
 
 
 const struct wpa_driver_ops wpa_driver_wired_ops = {
 	.name = "wired",
 	.desc = "wpa_supplicant wired Ethernet driver",
-	.set_wpa = wpa_driver_wired_set_wpa,
 	.get_ssid = wpa_driver_wired_get_ssid,
 	.get_bssid = wpa_driver_wired_get_bssid,
 	.init = wpa_driver_wired_init,

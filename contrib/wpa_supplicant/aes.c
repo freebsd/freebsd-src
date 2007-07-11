@@ -9,7 +9,7 @@
  *   cost of reduced throughput (quite small difference on Pentium 4,
  *   10-25% when using -O1 or -O2 optimization)
  *
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,6 +20,8 @@
  *
  * See README and COPYING for more details.
  */
+
+#include "includes.h"
 
 /*
  * rijndael-alg-fst.c
@@ -1060,7 +1062,7 @@ void * aes_encrypt_init(const u8 *key, size_t len)
 	u32 *rk;
 	if (len != 16)
 		return NULL;
-	rk = malloc(4 * 44);
+	rk = os_malloc(4 * 44);
 	if (rk == NULL)
 		return NULL;
 	rijndaelKeySetupEnc(rk, key);
@@ -1076,7 +1078,7 @@ void aes_encrypt(void *ctx, const u8 *plain, u8 *crypt)
 
 void aes_encrypt_deinit(void *ctx)
 {
-	free(ctx);
+	os_free(ctx);
 }
 
 
@@ -1085,7 +1087,7 @@ void * aes_decrypt_init(const u8 *key, size_t len)
 	u32 *rk;
 	if (len != 16)
 		return NULL;
-	rk = malloc(4 * 44);
+	rk = os_malloc(4 * 44);
 	if (rk == NULL)
 		return NULL;
 	rijndaelKeySetupDec(rk, key);
@@ -1101,5 +1103,5 @@ void aes_decrypt(void *ctx, const u8 *crypt, u8 *plain)
 
 void aes_decrypt_deinit(void *ctx)
 {
-	free(ctx);
+	os_free(ctx);
 }

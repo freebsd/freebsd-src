@@ -64,7 +64,7 @@ void ScanResults::updateResults()
 	signal = cols.count() > 2 ? cols[2] : "";
 	flags = cols.count() > 3 ? cols[3] : "";
 	ssid = cols.count() > 4 ? cols[4] : "";
-	new QListViewItem(scanResultsView, ssid, bssid, freq, signal, flags);
+	new Q3ListViewItem(scanResultsView, ssid, bssid, freq, signal, flags);
     }
 }
 
@@ -89,7 +89,7 @@ void ScanResults::getResults()
 
 
 
-void ScanResults::bssSelected( QListViewItem * sel )
+void ScanResults::bssSelected( Q3ListViewItem * sel )
 {
     NetworkConfig *nc = new NetworkConfig();
     if (nc == NULL)
@@ -98,4 +98,4 @@ void ScanResults::bssSelected( QListViewItem * sel )
     nc->paramsFromScanResults(sel);
     nc->show();
     nc->exec();
- }
+}

@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant - Exported functions for wpa_supplicant modules
- * Copyright (c) 2003-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * Copyright (c) 2003-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -121,7 +121,18 @@ typedef enum wpa_event_type {
 	 * Driver will be notified about successful pre-authentication with
 	 * struct wpa_driver_ops::add_pmkid() calls.
 	 */
-	EVENT_PMKID_CANDIDATE
+	EVENT_PMKID_CANDIDATE,
+
+	/**
+	 * EVENT_STKSTART - Request STK handshake (MLME-STKSTART.request)
+	 *
+	 * This event can be used to inform wpa_supplicant about desire to set
+	 * up secure direct link connection between two stations as defined in
+	 * IEEE 802.11e with a new PeerKey mechanism that replaced the original
+	 * STAKey negotiation. The caller will need to set peer address for the
+	 * event.
+	 */
+	EVENT_STKSTART
 } wpa_event_type;
 
 
@@ -208,7 +219,7 @@ union wpa_event_data {
 	 * struct interface_status - Data for EVENT_INTERFACE_STATUS
 	 */
 	struct interface_status {
-		char ifname[20];
+		char ifname[100];
 		enum {
 			EVENT_INTERFACE_ADDED, EVENT_INTERFACE_REMOVED
 		} ievent;
@@ -225,6 +236,13 @@ union wpa_event_data {
 		/** Whether RSN IE includes pre-authenticate flag */
 		int preauth;
 	} pmkid_candidate;
+
+	/**
+	 * struct stkstart - Data for EVENT_STKSTART
+	 */
+	struct stkstart {
+		u8 peer[ETH_ALEN];
+	} stkstart;
 };
 
 /**
@@ -239,25 +257,6 @@ union wpa_event_data {
  */
 void wpa_supplicant_event(struct wpa_supplicant *wpa_s, wpa_event_type event,
 			  union wpa_event_data *data);
-
-/**
- * wpa_msg - Conditional printf for default target and ctrl_iface monitors
- * @wpa_s: pointer to wpa_supplicant data; this is the ctx variable registered
- *	with struct wpa_driver_ops::init()
- * @level: priority level (MSG_*) of the message
- * @fmt: printf format string, followed by optional arguments
- *
- * This function is used to print conditional debugging and error messages. The
- * output may be directed to stdout, stderr, and/or syslog based on
- * configuration. This function is like wpa_printf(), but it also sends the
- * same message to all attached ctrl_iface monitors.
- *
- * Note: New line '\n' is added to the end of the text when printing to stdout.
- */
-void wpa_msg(struct wpa_supplicant *wpa_s, int level, char *fmt, ...)
-__attribute__ ((format (printf, 3, 4)));
-
-const char * wpa_ssid_txt(u8 *ssid, size_t ssid_len);
 
 /**
  * wpa_supplicant_rx_eapol - Deliver a received EAPOL frame to wpa_supplicant

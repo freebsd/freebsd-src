@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / EAP-LEAP
- * Copyright (c) 2004-2005, Jouni Malinen <jkmaline@cc.hut.fi>
+ * EAP peer method: LEAP
+ * Copyright (c) 2004-2006, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,14 +12,10 @@
  * See README and COPYING for more details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "includes.h"
 
 #include "common.h"
 #include "eap_i.h"
-#include "wpa_supplicant.h"
-#include "config_ssid.h"
 #include "ms_funcs.h"
 #include "crypto.h"
 
@@ -49,10 +45,9 @@ static void * eap_leap_init(struct eap_sm *sm)
 {
 	struct eap_leap_data *data;
 
-	data = malloc(sizeof(*data));
+	data = os_zalloc(sizeof(*data));
 	if (data == NULL)
 		return NULL;
-	memset(data, 0, sizeof(*data));
 	data->state = LEAP_WAIT_CHALLENGE;
 
 	sm->leap_done = FALSE;
@@ -62,7 +57,7 @@ static void * eap_leap_init(struct eap_sm *sm)
 
 static void eap_leap_deinit(struct eap_sm *sm, void *priv)
 {
-	free(priv);
+	os_free(priv);
 }
 
 
@@ -72,13 +67,18 @@ static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 				     size_t *respDataLen)
 {
 	struct eap_leap_data *data = priv;
-	struct wpa_ssid *config = eap_get_config(sm);
 	const struct eap_hdr *req;
 	struct eap_hdr *resp;
-	const u8 *pos, *challenge;
+	const u8 *pos, *challenge, *identity, *password;
 	u8 challenge_len, *rpos;
+	size_t identity_len, password_len;
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Request");
+
+	identity = eap_get_config_identity(sm, &identity_len);
+	password = eap_get_config_password(sm, &password_len);
+	if (identity == NULL || password == NULL)
+		return NULL;
 
 	req = (const struct eap_hdr *) reqData;
 	pos = (const u8 *) (req + 1);
@@ -103,38 +103,32 @@ static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 	if (challenge_len != LEAP_CHALLENGE_LEN ||
 	    challenge_len > reqDataLen - sizeof(*req) - 4) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: Invalid challenge "
-			   "(challenge_len=%d reqDataLen=%lu",
+			   "(challenge_len=%d reqDataLen=%lu)",
 			   challenge_len, (unsigned long) reqDataLen);
 		ret->ignore = TRUE;
 		return NULL;
 	}
 	challenge = pos;
-	memcpy(data->peer_challenge, challenge, LEAP_CHALLENGE_LEN);
+	os_memcpy(data->peer_challenge, challenge, LEAP_CHALLENGE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Challenge from AP",
 		    challenge, LEAP_CHALLENGE_LEN);
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Generating Challenge Response");
 
-	*respDataLen = sizeof(struct eap_hdr) + 1 + 3 + LEAP_RESPONSE_LEN +
-		config->identity_len;
-	resp = malloc(*respDataLen);
+	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_LEAP, respDataLen,
+			     3 + LEAP_RESPONSE_LEN + identity_len,
+			     EAP_CODE_RESPONSE, req->identifier, &rpos);
 	if (resp == NULL)
 		return NULL;
-	resp->code = EAP_CODE_RESPONSE;
-	resp->identifier = req->identifier;
-	resp->length = host_to_be16(*respDataLen);
-	rpos = (u8 *) (resp + 1);
-	*rpos++ = EAP_TYPE_LEAP;
 	*rpos++ = LEAP_VERSION;
 	*rpos++ = 0; /* unused */
 	*rpos++ = LEAP_RESPONSE_LEN;
-	nt_challenge_response(challenge,
-			      config->password, config->password_len, rpos);
-	memcpy(data->peer_response, rpos, LEAP_RESPONSE_LEN);
+	nt_challenge_response(challenge, password, password_len, rpos);
+	os_memcpy(data->peer_response, rpos, LEAP_RESPONSE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Response",
 		    rpos, LEAP_RESPONSE_LEN);
 	rpos += LEAP_RESPONSE_LEN;
-	memcpy(rpos, config->identity, config->identity_len);
+	os_memcpy(rpos, identity, identity_len);
 
 	data->state = LEAP_WAIT_SUCCESS;
 
@@ -144,16 +138,20 @@ static u8 * eap_leap_process_request(struct eap_sm *sm, void *priv,
 
 static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 				     struct eap_method_ret *ret,
-				     const u8 *reqData, size_t reqDataLen,
-				     size_t *respDataLen)
+				     const u8 *reqData, size_t *respDataLen)
 {
 	struct eap_leap_data *data = priv;
-	struct wpa_ssid *config = eap_get_config(sm);
 	const struct eap_hdr *req;
 	struct eap_hdr *resp;
 	u8 *pos;
+	const u8 *identity;
+	size_t identity_len;
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Success");
+
+	identity = eap_get_config_identity(sm, &identity_len);
+	if (identity == NULL)
+		return NULL;
 
 	if (data->state != LEAP_WAIT_SUCCESS) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: EAP-Success received in "
@@ -164,31 +162,26 @@ static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 
 	req = (const struct eap_hdr *) reqData;
 
-	*respDataLen = sizeof(struct eap_hdr) + 1 + 3 + LEAP_CHALLENGE_LEN +
-		config->identity_len;
-	resp = malloc(*respDataLen);
+	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_LEAP, respDataLen,
+			     3 + LEAP_CHALLENGE_LEN + identity_len,
+			     EAP_CODE_REQUEST, req->identifier, &pos);
 	if (resp == NULL)
 		return NULL;
-	resp->code = EAP_CODE_REQUEST;
-	resp->identifier = req->identifier;
-	resp->length = host_to_be16(*respDataLen);
-	pos = (u8 *) (resp + 1);
-	*pos++ = EAP_TYPE_LEAP;
 	*pos++ = LEAP_VERSION;
 	*pos++ = 0; /* unused */
 	*pos++ = LEAP_CHALLENGE_LEN;
 	if (hostapd_get_rand(pos, LEAP_CHALLENGE_LEN)) {
 		wpa_printf(MSG_WARNING, "EAP-LEAP: Failed to read random data "
 			   "for challenge");
-		free(resp);
+		os_free(resp);
 		ret->ignore = TRUE;
 		return NULL;
 	}
-	memcpy(data->ap_challenge, pos, LEAP_CHALLENGE_LEN);
+	os_memcpy(data->ap_challenge, pos, LEAP_CHALLENGE_LEN);
 	wpa_hexdump(MSG_MSGDUMP, "EAP-LEAP: Challenge to AP/AS", pos,
 		    LEAP_CHALLENGE_LEN);
 	pos += LEAP_CHALLENGE_LEN;
-	memcpy(pos, config->identity, config->identity_len);
+	os_memcpy(pos, identity, identity_len);
 
 	data->state = LEAP_WAIT_RESPONSE;
 
@@ -198,17 +191,20 @@ static u8 * eap_leap_process_success(struct eap_sm *sm, void *priv,
 
 static u8 * eap_leap_process_response(struct eap_sm *sm, void *priv,
 				      struct eap_method_ret *ret,
-				      const u8 *reqData, size_t reqDataLen,
-				      size_t *respDataLen)
+				      const u8 *reqData, size_t reqDataLen)
 {
 	struct eap_leap_data *data = priv;
-	struct wpa_ssid *config = eap_get_config(sm);
 	const struct eap_hdr *resp;
-	const u8 *pos;
+	const u8 *pos, *password;
 	u8 response_len, pw_hash[16], pw_hash_hash[16],
 		expected[LEAP_RESPONSE_LEN];
+	size_t password_len;
 
 	wpa_printf(MSG_DEBUG, "EAP-LEAP: Processing EAP-Response");
+
+	password = eap_get_config_password(sm, &password_len);
+	if (password == NULL)
+		return NULL;
 
 	resp = (const struct eap_hdr *) reqData;
 	pos = (const u8 *) (resp + 1);
@@ -233,7 +229,7 @@ static u8 * eap_leap_process_response(struct eap_sm *sm, void *priv,
 	if (response_len != LEAP_RESPONSE_LEN ||
 	    response_len > reqDataLen - sizeof(*resp) - 4) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: Invalid response "
-			   "(response_len=%d reqDataLen=%lu",
+			   "(response_len=%d reqDataLen=%lu)",
 			   response_len, (unsigned long) reqDataLen);
 		ret->ignore = TRUE;
 		return NULL;
@@ -241,16 +237,16 @@ static u8 * eap_leap_process_response(struct eap_sm *sm, void *priv,
 
 	wpa_hexdump(MSG_DEBUG, "EAP-LEAP: Response from AP",
 		    pos, LEAP_RESPONSE_LEN);
-	memcpy(data->ap_response, pos, LEAP_RESPONSE_LEN);
+	os_memcpy(data->ap_response, pos, LEAP_RESPONSE_LEN);
 
-	nt_password_hash(config->password, config->password_len, pw_hash);
+	nt_password_hash(password, password_len, pw_hash);
 	hash_nt_password_hash(pw_hash, pw_hash_hash);
 	challenge_response(data->ap_challenge, pw_hash_hash, expected);
 
 	ret->methodState = METHOD_DONE;
 	ret->allowNotifications = FALSE;
 
-	if (memcmp(pos, expected, LEAP_RESPONSE_LEN) != 0) {
+	if (os_memcmp(pos, expected, LEAP_RESPONSE_LEN) != 0) {
 		wpa_printf(MSG_WARNING, "EAP-LEAP: AP sent an invalid "
 			   "response - authentication failed");
 		wpa_hexdump(MSG_DEBUG, "EAP-LEAP: Expected response from AP",
@@ -278,13 +274,14 @@ static u8 * eap_leap_process(struct eap_sm *sm, void *priv,
 			     const u8 *reqData, size_t reqDataLen,
 			     size_t *respDataLen)
 {
-	struct wpa_ssid *config = eap_get_config(sm);
 	const struct eap_hdr *eap;
-	size_t len;
+	size_t len, password_len;
+	const u8 *password;
 
-	if (config == NULL || config->password == NULL) {
+	password = eap_get_config_password(sm, &password_len);
+	if (password == NULL) {
 		wpa_printf(MSG_INFO, "EAP-LEAP: Password not configured");
-		eap_sm_request_password(sm, config);
+		eap_sm_request_password(sm);
 		ret->ignore = TRUE;
 		return NULL;
 	}
@@ -310,11 +307,10 @@ static u8 * eap_leap_process(struct eap_sm *sm, void *priv,
 		return eap_leap_process_request(sm, priv, ret, reqData, len,
 						respDataLen);
 	case EAP_CODE_SUCCESS:
-		return eap_leap_process_success(sm, priv, ret, reqData, len,
+		return eap_leap_process_success(sm, priv, ret, reqData,
 						respDataLen);
 	case EAP_CODE_RESPONSE:
-		return eap_leap_process_response(sm, priv, ret, reqData, len,
-						 respDataLen);
+		return eap_leap_process_response(sm, priv, ret, reqData, len);
 	default:
 		wpa_printf(MSG_INFO, "EAP-LEAP: Unexpected EAP code (%d) - "
 			   "ignored", eap->code);
@@ -334,19 +330,22 @@ static Boolean eap_leap_isKeyAvailable(struct eap_sm *sm, void *priv)
 static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 {
 	struct eap_leap_data *data = priv;
-	struct wpa_ssid *config = eap_get_config(sm);
 	u8 *key, pw_hash_hash[16], pw_hash[16];
-	const u8 *addr[5];
-	size_t elen[5];
+	const u8 *addr[5], *password;
+	size_t elen[5], password_len;
 
 	if (data->state != LEAP_DONE)
 		return NULL;
 
-	key = malloc(LEAP_KEY_LEN);
+	password = eap_get_config_password(sm, &password_len);
+	if (password == NULL)
+		return NULL;
+
+	key = os_malloc(LEAP_KEY_LEN);
 	if (key == NULL)
 		return NULL;
 
-	nt_password_hash(config->password, config->password_len, pw_hash);
+	nt_password_hash(password, password_len, pw_hash);
 	hash_nt_password_hash(pw_hash, pw_hash_hash);
 	wpa_hexdump_key(MSG_DEBUG, "EAP-LEAP: pw_hash_hash",
 			pw_hash_hash, 16);
@@ -377,13 +376,24 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 }
 
 
-const struct eap_method eap_method_leap =
+int eap_peer_leap_register(void)
 {
-	.method = EAP_TYPE_LEAP,
-	.name = "LEAP",
-	.init = eap_leap_init,
-	.deinit = eap_leap_deinit,
-	.process = eap_leap_process,
-	.isKeyAvailable = eap_leap_isKeyAvailable,
-	.getKey = eap_leap_getKey,
-};
+	struct eap_method *eap;
+	int ret;
+
+	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
+				    EAP_VENDOR_IETF, EAP_TYPE_LEAP, "LEAP");
+	if (eap == NULL)
+		return -1;
+
+	eap->init = eap_leap_init;
+	eap->deinit = eap_leap_deinit;
+	eap->process = eap_leap_process;
+	eap->isKeyAvailable = eap_leap_isKeyAvailable;
+	eap->getKey = eap_leap_getKey;
+
+	ret = eap_peer_method_register(eap);
+	if (ret)
+		eap_peer_method_free(eap);
+	return ret;
+}
