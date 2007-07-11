@@ -129,6 +129,8 @@ vc_nb_open(dev, flag, mode, td)
 	coda_nc_init();
     
     mnt = dev2coda_mntinfo(dev);
+    KASSERT(mnt, ("Coda: tried to open uninitialized cfs device"));
+
     vcp = &mnt->mi_vcomm;
     if (VC_OPEN(vcp))
 	return(EBUSY);
@@ -154,15 +156,15 @@ vc_nb_close (dev, flag, mode, td)
     register struct vcomm *vcp;
     register struct vmsg *vmp, *nvmp = NULL;
     struct coda_mntinfo *mi;
-    int                 err;
+    int err;
 	
     ENTRY;
 
     mi = dev2coda_mntinfo(dev);
-    vcp = &(mi->mi_vcomm);
-    
-    if (!VC_OPEN(vcp))
-	panic("vcclose: not open");
+    KASSERT(mi, ("Coda: closing unknown cfs device"));
+
+    vcp = &mi->mi_vcomm;
+    KASSERT(VC_OPEN(vcp), ("Coda: closing unopened cfs device"));
     
     /* prevent future operations on this vfs from succeeding by auto-
      * unmounting any vfs mounted via this device. This frees user or
