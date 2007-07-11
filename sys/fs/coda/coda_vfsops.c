@@ -183,7 +183,7 @@ coda_mount(struct mount *vfsp, struct thread *td)
     rootvp = CTOV(cp);
     rootvp->v_vflag |= VV_ROOT;
 	
-    cp = make_coda_node(&ctlfid, vfsp, VCHR);
+    cp = make_coda_node(&ctlfid, vfsp, VREG);
     coda_ctlvp = CTOV(cp);
 
     /* Add vfs and rootvp to chain of vfs hanging off mntinfo */
