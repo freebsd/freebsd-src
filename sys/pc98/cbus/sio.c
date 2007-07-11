@@ -4314,6 +4314,10 @@ pc98_check_if_type(device_t dev, struct siodev *iod)
 		else
 		    iod->irq = irq_tab[0][tmp & 0x07];
 	    }
+	    iod->cmd  = 0;
+	    iod->sts  = 0;
+	    iod->mod  = 0;
+	    iod->ctrl = 0;
 	}
 	if ( iod->irq == -1 ) return -1;
 
