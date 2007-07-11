@@ -326,6 +326,9 @@
     <para><application>BIND</application> has been updated from 9.3.3
       to 9.3.4.</para>
 
+    <para><application>BZIP2</application> has been updated from
+      1.0.3 to 1.0.4.</para>
+
     <para>The GNU version of <application>gzip</application> has been
       replaced with a modified version of gzip ported from NetBSD.</para>
 
