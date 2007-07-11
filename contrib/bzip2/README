@@ -1,33 +1,48 @@
 
-This is the README for bzip2, a block-sorting file compressor, version
-1.0.3.  This version is fully compatible with the previous public
-releases, versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1 and 1.0.2.
+This is the README for bzip2/libzip2.
+This version is fully compatible with the previous public releases.
 
-bzip2-1.0.3 is distributed under a BSD-style license.  For details,
-see the file LICENSE.
+------------------------------------------------------------------
+This file is part of bzip2/libbzip2, a program and library for
+lossless, block-sorting data compression.
+
+bzip2/libbzip2 version 1.0.4 of 20 December 2006
+Copyright (C) 1996-2006 Julian Seward <jseward@bzip.org>
+
+Please read the WARNING, DISCLAIMER and PATENTS sections in this file.
+
+This program is released under the terms of the license contained
+in the file LICENSE.
+------------------------------------------------------------------
 
 Complete documentation is available in Postscript form (manual.ps),
 PDF (manual.pdf) or html (manual.html).  A plain-text version of the
-manual page is available as bzip2.txt.  A statement about Y2K issues
-is now included in the file Y2K_INFO.
+manual page is available as bzip2.txt.
 
 
 HOW TO BUILD -- UNIX
 
-Type `make'.  This builds the library libbz2.a and then the
-programs bzip2 and bzip2recover.  Six self-tests are run.
-If the self-tests complete ok, carry on to installation:
+Type 'make'.  This builds the library libbz2.a and then the programs
+bzip2 and bzip2recover.  Six self-tests are run.  If the self-tests
+complete ok, carry on to installation:
 
-To install in /usr/bin, /usr/lib, /usr/man and /usr/include, type
+To install in /usr/local/bin, /usr/local/lib, /usr/local/man and
+/usr/local/include, type
+
    make install
-To install somewhere else, eg, /xxx/yyy/{bin,lib,man,include}, type 
+
+To install somewhere else, eg, /xxx/yyy/{bin,lib,man,include}, type
+
    make install PREFIX=/xxx/yyy
+
 If you are (justifiably) paranoid and want to see what 'make install'
 is going to do, you can first do
+
    make -n install                      or
    make -n install PREFIX=/xxx/yyy      respectively.
-The -n instructs make to show the commands it would execute, but
-not actually execute them.
+
+The -n instructs make to show the commands it would execute, but not
+actually execute them.
 
 
 HOW TO BUILD -- UNIX, shared library libbz2.so.
@@ -49,23 +64,25 @@ Important note for people upgrading .so's from 0.9.0/0.9.5 to version
 bzCompress to BZ2_bzCompress, to avoid namespace pollution.
 Unfortunately this means that the libbz2.so created by
 Makefile-libbz2_so will not work with any program which used an older
-version of the library.  Sorry.  I do encourage library clients to
-make the effort to upgrade to use version 1.0, since it is both faster
-and more robust than previous versions.
+version of the library.  I do encourage library clients to make the
+effort to upgrade to use version 1.0, since it is both faster and more
+robust than previous versions.
 
 
 HOW TO BUILD -- Windows 95, NT, DOS, Mac, etc.
 
 It's difficult for me to support compilation on all these platforms.
 My approach is to collect binaries for these platforms, and put them
-on the master web page (http://sources.redhat.com/bzip2).  Look there.
-However (FWIW), bzip2-1.0.X is very standard ANSI C and should compile
+on the master web site (http://www.bzip.org).  Look there.  However
+(FWIW), bzip2-1.0.X is very standard ANSI C and should compile
 unmodified with MS Visual C.  If you have difficulties building, you
 might want to read README.COMPILATION.PROBLEMS.
 
 At least using MS Visual C++ 6, you can build from the unmodified
 sources by issuing, in a command shell: 
+
    nmake -f makefile.msc
+
 (you may need to first run the MSVC-provided script VCVARS32.BAT
  so as to set up paths to the MSVC tools correctly).
 
@@ -86,18 +103,19 @@ Please read and be aware of the following:
 
 WARNING:
 
-   This program (attempts to) compress data by performing several
-   non-trivial transformations on it.  Unless you are 100% familiar
-   with *all* the algorithms contained herein, and with the
-   consequences of modifying them, you should NOT meddle with the
-   compression or decompression machinery.  Incorrect changes can and
-   very likely *will* lead to disastrous loss of data.
+   This program and library (attempts to) compress data by 
+   performing several non-trivial transformations on it.  
+   Unless you are 100% familiar with *all* the algorithms 
+   contained herein, and with the consequences of modifying them, 
+   you should NOT meddle with the compression or decompression 
+   machinery.  Incorrect changes can and very likely *will* 
+   lead to disastrous loss of data.
 
 
 DISCLAIMER:
 
    I TAKE NO RESPONSIBILITY FOR ANY LOSS OF DATA ARISING FROM THE
-   USE OF THIS PROGRAM, HOWSOEVER CAUSED.
+   USE OF THIS PROGRAM/LIBRARY, HOWSOEVER CAUSED.
 
    Every compression of a file implies an assumption that the
    compressed file can be decompressed to reproduce the original.
@@ -110,19 +128,18 @@ DISCLAIMER:
    PROGRAM UNLESS YOU ARE PREPARED TO ACCEPT THE POSSIBILITY, HOWEVER
    SMALL, THAT THE DATA WILL NOT BE RECOVERABLE.
 
-   That is not to say this program is inherently unreliable.  Indeed,
-   I very much hope the opposite is true.  bzip2 has been carefully
-   constructed and extensively tested.
+   That is not to say this program is inherently unreliable.  
+   Indeed, I very much hope the opposite is true.  bzip2/libbzip2 
+   has been carefully constructed and extensively tested.
 
 
 PATENTS:
 
-   To the best of my knowledge, bzip2 does not use any patented
-   algorithms.  However, I do not have the resources to carry out
-   a patent search.  Therefore I cannot give any guarantee of the
-   above statement.
+   To the best of my knowledge, bzip2/libbzip2 does not use any 
+   patented algorithms.  However, I do not have the resources 
+   to carry out a patent search.  Therefore I cannot give any 
+   guarantee of the above statement.
 
-End of legalities.
 
 
 WHAT'S NEW IN 0.9.0 (as compared to 0.1pl2) ?
@@ -156,21 +173,23 @@ WHAT'S NEW IN 1.0.3 ?
 
    See the CHANGES file.
 
+WHAT'S NEW IN 1.0.4 ?
+
+   See the CHANGES file.
+
 
 I hope you find bzip2 useful.  Feel free to contact me at
    jseward@bzip.org
 if you have any suggestions or queries.  Many people mailed me with
 comments, suggestions and patches after the releases of bzip-0.15,
-bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1 and
-1.0.2, and the changes in bzip2 are largely a result of this feedback.
-I thank you for your comments.
+bzip-0.21, and bzip2 versions 0.1pl2, 0.9.0, 0.9.5, 1.0.0, 1.0.1,
+1.0.2 and 1.0.3, and the changes in bzip2 are largely a result of this
+feedback.  I thank you for your comments.
 
-At least for the time being, bzip2's "home" is (or can be reached via)
-http://www.bzip.org
+bzip2's "home" is http://www.bzip.org/
 
 Julian Seward
 jseward@bzip.org
-
 Cambridge, UK.
 
 18     July 1996 (version 0.15)
@@ -183,3 +202,4 @@ Cambridge, UK.
  5      May 2000 (bzip2, version 1.0pre8)
 30 December 2001 (bzip2, version 1.0.2pre1)
 15 February 2005 (bzip2, version 1.0.3)
+20 December 2006 (bzip2, version 1.0.4)
