@@ -179,44 +179,44 @@ bmp_splash(video_adapter_t *adp, int on)
 */
 
 typedef struct tagBITMAPFILEHEADER {    /* bmfh */
-    u_short	bfType		__packed;
-    int		bfSize		__packed;
-    u_short	bfReserved1	__packed;
-    u_short	bfReserved2	__packed;
-    int		bfOffBits	__packed;
-} BITMAPFILEHEADER;
+    u_short	bfType;
+    int		bfSize;
+    u_short	bfReserved1;
+    u_short	bfReserved2;
+    int		bfOffBits;
+} __packed BITMAPFILEHEADER;
 
 typedef struct tagBITMAPINFOHEADER {    /* bmih */
-    int		biSize		__packed;
-    int		biWidth		__packed;
-    int		biHeight	__packed;
-    short	biPlanes	__packed;
-    short	biBitCount	__packed;
-    int		biCompression	__packed;
-    int		biSizeImage	__packed;
-    int		biXPelsPerMeter	__packed;
-    int		biYPelsPerMeter	__packed;
-    int		biClrUsed	__packed;
-    int		biClrImportant	__packed;
-} BITMAPINFOHEADER;
+    int		biSize;
+    int		biWidth;
+    int		biHeight;
+    short	biPlanes;
+    short	biBitCount;
+    int		biCompression;
+    int		biSizeImage;
+    int		biXPelsPerMeter;
+    int		biYPelsPerMeter;
+    int		biClrUsed;
+    int		biClrImportant;
+} __packed BITMAPINFOHEADER;
 
 typedef struct tagRGBQUAD {     /* rgbq */
-    u_char	rgbBlue		__packed;
-    u_char	rgbGreen	__packed;
-    u_char	rgbRed		__packed;
-    u_char	rgbReserved	__packed;
-} RGBQUAD;
+    u_char	rgbBlue;
+    u_char	rgbGreen;
+    u_char	rgbRed;
+    u_char	rgbReserved;
+} __packed RGBQUAD;
 
 typedef struct tagBITMAPINFO {  /* bmi */
-    BITMAPINFOHEADER	bmiHeader	__packed;
-    RGBQUAD		bmiColors[256]	__packed;
-} BITMAPINFO;
+    BITMAPINFOHEADER	bmiHeader;
+    RGBQUAD		bmiColors[256];
+} __packed BITMAPINFO;
 
 typedef struct tagBITMAPF
 {
-    BITMAPFILEHEADER	bmfh	__packed;
-    BITMAPINFO		bmfi	__packed;
-} BITMAPF;
+    BITMAPFILEHEADER	bmfh;
+    BITMAPINFO		bmfi;
+} __packed BITMAPF;
 
 #define BI_RGB		0
 #define BI_RLE8		1
