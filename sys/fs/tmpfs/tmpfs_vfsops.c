@@ -146,19 +146,7 @@ tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct tmpfs_node *node = (struct tmpfs_node *)mem;
 
-	if (node->tn_id == 0) {
-		/* if this node structure first time used */
-		struct tmpfs_mount *tmp = (struct tmpfs_mount *)arg;
-		TMPFS_LOCK(tmp);
-		node->tn_id = tmp->tm_nodes_last++;
-		TMPFS_UNLOCK(tmp);
-		if (node->tn_id == INT_MAX)
-			panic("all avariable id is used.");
-		node->tn_gen = arc4random();
-	} else {
-		node->tn_gen++;
-	}
-
+	node->tn_gen++;
 	node->tn_size = 0;
 	node->tn_status = 0;
 	node->tn_flags = 0;
@@ -185,6 +173,7 @@ tmpfs_node_init(void *mem, int size, int flags)
 	node->tn_id = 0;
 
 	mtx_init(&node->tn_interlock, "tmpfs node interlock", NULL, MTX_DEF);
+	node->tn_gen = arc4random();
 
 	return (0);
 }
@@ -278,13 +267,13 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes;
-	tmp->tm_nodes_last = 2;
 	tmp->tm_nodes_inuse = 0;
 	tmp->tm_maxfilesize = get_swpgtotal() * PAGE_SIZE;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
+	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->allnode_lock);
 	tmp->tm_dirent_pool = uma_zcreate(
 					"TMPFS dirent",
 					sizeof(struct tmpfs_dirent),
@@ -307,9 +296,11 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	if (error != 0 || root == NULL) {
 	    uma_zdestroy(tmp->tm_node_pool);
 	    uma_zdestroy(tmp->tm_dirent_pool);
+	    delete_unrhdr(tmp->tm_ino_unr);
 	    free(tmp, M_TMPFSMNT);
 	    return error;
 	}
+	KASSERT(root->tn_id == 2, ("tmpfs root with invalid ino: %d", root->tn_id));
 	tmp->tm_root = root;
 
 	MNT_ILOCK(mp);
@@ -377,6 +368,7 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
+	delete_unrhdr(tmp->tm_ino_unr);
 
 	mtx_destroy(&tmp->allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
