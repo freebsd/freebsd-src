@@ -1344,9 +1344,9 @@ fw_explore_csrblock(struct fw_device *fwdev, int offset, int recur)
 		return (0);
 
 	for (i = 0; i < dir->crc_len; i ++, offset += sizeof(uint32_t)) {
-		if (reg[i].key == CROM_UDIR)
+		if ((reg[i].key & CSRTYPE_MASK) == CSRTYPE_D)
 			recur = 1;
-		else if (reg[i].key == CROM_TEXTLEAF)
+		else if ((reg[i].key & CSRTYPE_MASK) == CSRTYPE_L)
 			recur = 0;
 		else
 			continue;
