@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/endian.h>
 #include <sys/priv.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -50,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
 #endif
+#include <sys/kthread.h>
+#include <sys/taskqueue.h>
 
 
 #include <net/if.h>
@@ -69,8 +72,11 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
+#include <net80211/ieee80211_regdomain.h>
 
+#if __FreeBSD_version < 700046
 #include <dev/wi/if_wavelan_ieee.h>
+#endif
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -82,6 +88,12 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
+
+#ifdef NDIS_DEBUG
+#define DPRINTF(x)	printf x
+#else
+#define DPRINTF(x)
+#endif
 
 MODULE_DEPEND(ndis, ether, 1, 1, 1);
 MODULE_DEPEND(ndis, wlan, 1, 1, 1);
@@ -130,10 +142,21 @@ static void ndis_starttask	(device_object *, void *);
 static void ndis_resettask	(device_object *, void *);
 static void ndis_inputtask	(device_object *, void *);
 static int ndis_ioctl		(struct ifnet *, u_long, caddr_t);
+#if __FreeBSD_version < 700046
 static int ndis_wi_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
+#endif
 static int ndis_80211_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_80211_ioctl_set	(struct ifnet *, u_long, caddr_t);
+static int ndis_newstate	(struct ieee80211com *, enum ieee80211_state,
+	int);
+static void ndis_scan		(void *, int);
+static void ndis_scan_results	(struct ndis_softc *);
+static void ndis_scan_start	(struct ieee80211com *);
+static void ndis_scan_end	(struct ieee80211com *);
+static void ndis_set_channel	(struct ieee80211com *);
+static void ndis_scan_curchan	(struct ieee80211com *, unsigned long);
+static void ndis_scan_mindwell	(struct ieee80211com *);
 static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
 static void ndis_watchdog	(struct ifnet *);
@@ -477,8 +500,8 @@ ndis_attach(dev)
 	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
-	int			error = 0, len;
-	int			i, j;
+	int			error = 0, len, bands = 0;
+	int			i;
 
 	sc = device_get_softc(dev);
 #if __FreeBSD_version < 600031
@@ -680,13 +703,25 @@ ndis_attach(dev)
 		uint32_t		arg;
 		int			r;
 
+#if __FreeBSD_version >= 700000
+		sc->ndis_tq = taskqueue_create("nids_taskq", M_NOWAIT | M_ZERO,
+		    taskqueue_thread_enqueue, &sc->ndis_tq);
+		taskqueue_start_threads(&sc->ndis_tq, 1, PI_NET, "%s taskq",
+		    device_get_nameunit(dev));
+#else
+		sc->ndis_tq = taskqueue_create("ndis_taskq", M_NOWAIT | M_ZERO,
+		    taskqueue_thread_enqueue, &sc->ndis_tq, &sc->sc_tqproc);
+		kthread_create(taskqueue_thread_loop, &sc->ndis_tq, &sc->sc_tqproc,
+		    0, 0, "%s taskq", device_get_nameunit(dev));
+#endif
+		TASK_INIT(&sc->ndis_scantask, 0, ndis_scan, sc);
+
 #if __FreeBSD_version >= 600007
 		ic->ic_ifp = ifp;
 #endif
 	        ic->ic_phytype = IEEE80211_T_DS;
 		ic->ic_opmode = IEEE80211_M_STA;
 		ic->ic_caps = IEEE80211_C_IBSS;
-		ic->ic_state = IEEE80211_S_ASSOC;
 		setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 		len = 0;
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
@@ -706,12 +741,15 @@ ndis_attach(dev)
 			case NDIS_80211_NETTYPE_11FH:
 			case NDIS_80211_NETTYPE_11DS:
 				setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
+				setbit(&bands, IEEE80211_MODE_11B);
 				break;
 			case NDIS_80211_NETTYPE_11OFDM5:
 				setbit(ic->ic_modecaps, IEEE80211_MODE_11A);
+				setbit(&bands, IEEE80211_MODE_11A);
 				break;
 			case NDIS_80211_NETTYPE_11OFDM24:
 				setbit(ic->ic_modecaps, IEEE80211_MODE_11G);
+				setbit(&bands, IEEE80211_MODE_11G);
 				break;
 			default:
 				break;
@@ -817,25 +855,7 @@ nonettypes:
 		}
 #undef SETRATE
 #undef INCRATE
-		ic->ic_nchans = 12;
-		/*
-		 * Taking yet more guesses here.
-		 */
-		for (j = 0, i = 1; i <= 12; i++, j++) {
-			int chanflag = 0;
-
-			if (ic->ic_sup_rates[IEEE80211_MODE_11G].rs_nrates)
-				chanflag |= IEEE80211_CHAN_G;
-			if (i <= 14)
-				chanflag |= IEEE80211_CHAN_B;
-			if (ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates &&
-			    i > 14)
-				chanflag = IEEE80211_CHAN_A;			
-			if (chanflag == 0)
-				break;
-			ic->ic_channels[j].ic_freq = ieee80211_ieee2mhz(i, chanflag);
-			ic->ic_channels[j].ic_flags = chanflag;
-		}
+		ieee80211_init_channels(ic, 0, CTRY_DEFAULT, bands, 0, 1);
 
 		/*
 		 * To test for WPA support, we need to see if we can
@@ -897,8 +917,16 @@ got_crypto:
 		ieee80211_media_init(ic, ieee80211_media_change,
 		    ndis_media_status);
 #endif
+		ic->ic_scan_start = ndis_scan_start;
+		ic->ic_scan_end = ndis_scan_end;
+		ic->ic_set_channel = ndis_set_channel;
+		ic->ic_scan_curchan = ndis_scan_curchan;
+		ic->ic_scan_mindwell = ndis_scan_mindwell;
 		ic->ic_bsschan = IEEE80211_CHAN_ANYC;
 		ic->ic_bss->ni_chan = ic->ic_bsschan;
+		/* override state transition machine */
+		sc->ndis_newstate = ic->ic_newstate;
+		ic->ic_newstate = ndis_newstate;
 #ifdef IEEE80211_F_WPA
 		/* install key handing routines */
 		ic->ic_crypto.cs_key_set = ndis_add_key;
@@ -1021,6 +1049,7 @@ ndis_detach(dev)
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
+	taskqueue_free(sc->ndis_tq);
 #if __FreeBSD_version < 502113
 	sysctl_ctx_free(&sc->ndis_ctx);
 #endif
@@ -1640,7 +1669,7 @@ ndis_ticktask(d, xsc)
 		NDIS_UNLOCK(sc);
 		if (sc->ndis_80211) {
 			ndis_getstate_80211(sc);
-			ic->ic_state = IEEE80211_S_RUN;
+			ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 		}
 		NDIS_LOCK(sc);
 #ifdef LINK_STATE_UP
@@ -1659,7 +1688,7 @@ ndis_ticktask(d, xsc)
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		sc->ndis_link = 0;
 		if (sc->ndis_80211)
-			ic->ic_state = IEEE80211_S_ASSOC;
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 #ifdef LINK_STATE_DOWN
 #if __FreeBSD_version > 600006
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
@@ -1880,6 +1909,7 @@ ndis_init(xsc)
 	void			*xsc;
 {
 	struct ndis_softc	*sc = xsc;
+	struct ieee80211com	*ic = (void *)&sc->ic;
 	struct ifnet		*ifp = sc->ifp;
 	int			i, len, error;
 
@@ -1953,6 +1983,18 @@ ndis_init(xsc)
 	rt_ifmsg(sc->ifp);
 #endif
 #endif /* LINK_STATE_UNKNOWN */
+
+	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
+		/*
+		 * NB: When restarting the adapter clock the state
+		 * machine regardless of the roaming mode; otherwise
+		 * we need to notify user apps so they can manually
+		 * get us going again.
+		 */
+		if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL)
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
+	} else
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -2073,6 +2115,7 @@ ndis_set_cipher(sc, cipher)
 		arg = NDIS_80211_WEPSTAT_ENC3ENABLED;
 	}
 
+	DPRINTF(("Setting cipher to %d\n", arg));
 	save = arg;
 	rval = ndis_set_info(sc, OID_802_11_ENCRYPTION_STATUS, &arg, &len);
 
@@ -2123,8 +2166,10 @@ ndis_set_wpa(sc)
 	w = (struct ieee80211_ie_wpa *)ic->ic_opt_ie;
 
 	/* Check for the right kind of IE. */
-	if (w->wpa_id != IEEE80211_ELEMID_VENDOR)
+	if (w->wpa_id != IEEE80211_ELEMID_VENDOR) {
+		DPRINTF(("Incorrect IE type %d\n", w->wpa_id));
 		return(EINVAL);
+	}
 
 	/* Skip over the ucast cipher OIDs. */
 	pos = (char *)&w->wpa_uciphers[0];
@@ -2148,6 +2193,7 @@ ndis_set_wpa(sc)
 	if (n->ni_val == WPA_ASE_8021X_PSK)
 		arg = NDIS_80211_AUTHMODE_WPAPSK;
 
+	DPRINTF(("Setting WPA auth mode to %d\n", arg));
 	i = sizeof(arg);
 	if (ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &i))
 		return(ENOTSUP);
@@ -2181,6 +2227,7 @@ ndis_setstate_80211(sc)
 	struct ndis_softc	*sc;
 {
 	struct ieee80211com	*ic;
+	struct ieee80211_node	*ni;
 	ndis_80211_ssid		ssid;
 	ndis_80211_macaddr	bssid;
 	ndis_80211_config	config;
@@ -2191,9 +2238,12 @@ ndis_setstate_80211(sc)
 
 	ic = &sc->ic;
 	ifp = sc->ifp;
+	ni = ic->ic_bss;
 
-	if (!NDIS_INITIALIZED(sc))
+	if (!NDIS_INITIALIZED(sc)) {
+		DPRINTF(("%s: NDIS not initialized\n", __func__));
 		return;
+	}
 
 	/* Disassociate and turn off radio. */
 
@@ -2270,6 +2320,7 @@ ndis_setstate_80211(sc)
 		if (ic->ic_bss->ni_authmode == IEEE80211_AUTH_SHARED) {
 			len = sizeof(arg);
 			arg = NDIS_80211_AUTHMODE_SHARED;
+			DPRINTF(("Setting shared auth\n"));
 			ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE,
 			    &arg, &len);
 		}
@@ -2307,6 +2358,7 @@ ndis_setstate_80211(sc)
 				bcopy(ic->ic_nw_keys[i].wk_key,
 				    wep.nw_keydata, wep.nw_length);
 				len = sizeof(wep);
+				DPRINTF(("Setting WEP key %d\n", i));
 				rval = ndis_set_info(sc,
 				    OID_802_11_ADD_WEP, &wep, &len);
 				if (rval)
@@ -2316,6 +2368,7 @@ ndis_setstate_80211(sc)
 			}
 		}
 		if (keys_set) {
+			DPRINTF(("Setting WEP on\n"));
 			arg = NDIS_80211_WEPSTAT_ENABLED;
 			len = sizeof(arg);
 			rval = ndis_set_info(sc,
@@ -2366,6 +2419,7 @@ ndis_setstate_80211(sc)
 	}
 
 	if (arg) {
+		DPRINTF(("Setting network type to %d\n", arg));
 		len = sizeof(arg);
 		rval = ndis_set_info(sc, OID_802_11_NETWORK_TYPE_IN_USE,
 		    &arg, &len);
@@ -2406,6 +2460,7 @@ ndis_setstate_80211(sc)
 			config.nc_length = len;
 			config.nc_fhconfig.ncf_length =
 			    sizeof(ndis_80211_config_fh);
+			DPRINTF(("Setting channel to %ukHz\n", config.nc_dsconfig));
 			rval = ndis_set_info(sc, OID_802_11_CONFIGURATION,
 			    &config, &len);
 			if (rval)
@@ -2434,10 +2489,11 @@ ndis_setstate_80211(sc)
 	len = IEEE80211_ADDR_LEN;
 	if (ic->ic_flags & IEEE80211_F_DESBSSID &&
 	    ic->ic_opmode != IEEE80211_M_IBSS)
-		bcopy(ic->ic_des_bssid, bssid, len);
+		bcopy(ni->ni_bssid, bssid, len);
 	else
 		bcopy(ifp->if_broadcastaddr, bssid, len);
 
+	DPRINTF(("Setting BSSID to %6D\n", &bssid, ":"));
 	rval = ndis_set_info(sc, OID_802_11_BSSID, &bssid, &len);
 	if (rval)
 		device_printf(sc->ndis_dev,
@@ -2445,20 +2501,27 @@ ndis_setstate_80211(sc)
 
 	/* Set SSID -- always do this last. */
 
+#ifdef NDIS_DEBUG
+	printf("Setting ESSID to ");
+	ieee80211_print_essid(ni->ni_essid, ni->ni_esslen);
+	printf("\n");
+#endif
+
 	len = sizeof(ssid);
 	bzero((char *)&ssid, len);
-	ssid.ns_ssidlen = ic->ic_des_ssid[0].len;
+	ssid.ns_ssidlen = ni->ni_esslen;
 	if (ssid.ns_ssidlen == 0) {
 		ssid.ns_ssidlen = 1;
 	} else
-		bcopy(ic->ic_des_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
+		bcopy(ni->ni_essid, ssid.ns_ssid, ssid.ns_ssidlen);
 
 	rval = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
 
 	if (rval)
 		device_printf (sc->ndis_dev, "set ssid failed: %d\n", rval);
 
-	ic->ic_state = IEEE80211_S_ASSOC;
+	if (ic->ic_state == IEEE80211_S_AUTH)
+		ieee80211_new_state(ic, IEEE80211_S_ASSOC, 0);
 
 	return;
 }
@@ -2579,7 +2642,7 @@ ndis_getstate_80211(sc)
 	struct ieee80211com	*ic;
 	ndis_wlan_bssid_ex	*bs;
 	int			rval, len, i = 0;
-	int			chan;
+	int			chanflag;
 	uint32_t		arg;
 	struct ifnet		*ifp;
 
@@ -2589,12 +2652,6 @@ ndis_getstate_80211(sc)
 	if (!NDIS_INITIALIZED(sc))
 		return;
 
-	if (sc->ndis_link)
-		ic->ic_state = IEEE80211_S_RUN;
-	else
-		ic->ic_state = IEEE80211_S_ASSOC;
-
-
 	/*
 	 * If we're associated, retrieve info on the current bssid.
 	 */
@@ -2603,16 +2660,20 @@ ndis_getstate_80211(sc)
 		case NDIS_80211_NETTYPE_11FH:
 		case NDIS_80211_NETTYPE_11DS:
 			ic->ic_curmode = IEEE80211_MODE_11B;
+			chanflag = IEEE80211_CHAN_B;
 			break;
 		case NDIS_80211_NETTYPE_11OFDM5:
 			ic->ic_curmode = IEEE80211_MODE_11A;
+			chanflag = IEEE80211_CHAN_A;
 			break;
 		case NDIS_80211_NETTYPE_11OFDM24:
 			ic->ic_curmode = IEEE80211_MODE_11G;
+			chanflag = IEEE80211_CHAN_G;
 			break;
 		default:
 			device_printf(sc->ndis_dev,
 			    "unknown nettype %d\n", arg);
+			chanflag = 0;
 			break;
 		}
 		IEEE80211_ADDR_COPY(ic->ic_bss->ni_bssid, bs->nwbx_macaddr);
@@ -2673,22 +2734,13 @@ ndis_getstate_80211(sc)
 	 * Use the current association information to reflect
 	 * what channel we're on.
 	 */
-
-	chan = ieee80211_mhz2ieee(bs->nwbx_config.nc_dsconfig / 1000, 0);
-	if (chan < 0 || chan >= IEEE80211_CHAN_MAX) {
-		if (ifp->if_flags & IFF_DEBUG)
-			device_printf(sc->ndis_dev, "current channel "
-			    "(%uMHz) out of bounds\n", 
-			    bs->nwbx_config.nc_dsconfig / 1000);
-		chan = 1;
-	}
-
-	ic->ic_bss->ni_chan = &ic->ic_channels[chan];
-	ic->ic_des_chan = &ic->ic_channels[chan];
-	ic->ic_bsschan = &ic->ic_channels[chan];
-#if __FreeBSD_version >= 600007
-	ic->ic_curchan = &ic->ic_channels[chan];
-#endif
+	ic->ic_curchan = ieee80211_find_channel(ic,
+	    bs->nwbx_config.nc_dsconfig / 1000, chanflag);
+	if (ic->ic_curchan == NULL)
+		ic->ic_curchan = &ic->ic_channels[0];
+	ic->ic_bss->ni_chan = ic->ic_curchan;
+	ic->ic_des_chan = ic->ic_curchan;
+	ic->ic_bsschan = ic->ic_curchan;
 
 	free(bs, M_TEMP);
 
@@ -2945,6 +2997,7 @@ ndis_ioctl(ifp, command, data)
 		NDIS_EVTINC(sc->ndis_evtcidx);
 		NDIS_UNLOCK(sc);
 		break;
+#if __FreeBSD_version < 700046
 	case SIOCGIFGENERIC:
 	case SIOCSIFGENERIC:
 		if (sc->ndis_80211 && NDIS_INITIALIZED(sc)) {
@@ -2956,6 +3009,7 @@ ndis_ioctl(ifp, command, data)
 			error = ENOTTY;
 		if (error != ENOTTY)
 			break;
+#endif
 	default:
 do_80211:
 		sc->ndis_skip = 1;
@@ -2980,6 +3034,7 @@ do_80211:
 	return(error);
 }
 
+#if __FreeBSD_version < 700046
 static int
 ndis_wi_ioctl_get(ifp, command, data)
 	struct ifnet		*ifp;
@@ -3097,19 +3152,13 @@ ndis_wi_ioctl_set(ifp, command, data)
 	}
 	return (error);
 }
+#endif
 
 static int
 ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ndis_softc	*sc;
 	struct ieee80211req	*ireq;
-#ifdef RTM_IEEE80211_SCAN
-	ndis_80211_bssid_list_ex *bl;
-	ndis_wlan_bssid_ex	*wb;
-	struct ieee80211req_scan_result	*sr, *bsr;
-	int			i, j;
-	char			*cp;
-#endif
 	int			error, len;
 	uint16_t		nodename_u[IEEE80211_NWID_LEN + 1];
 	unicode_string		us;
@@ -3122,91 +3171,6 @@ ndis_80211_ioctl_get(struct ifnet *ifp, u_long command, caddr_t data)
 #ifdef IEEE80211_IOC_MLME
 	case IEEE80211_IOC_MLME:
 		error = 0;
-		break;
-#endif
-#ifdef RTM_IEEE80211_SCAN
-	case IEEE80211_IOC_SCAN_RESULTS:
-		len = 0;
-		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
-		if (error != ENOSPC)
-			len = 65536;	
-		bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
-		if (error) {
-			free(bl, M_DEVBUF);
-			break;
-		}
-		sr = bsr = malloc(ireq->i_len, M_DEVBUF, M_NOWAIT | M_ZERO);
-		wb = &bl->nblx_bssid[0];
-		len = 0;
-		for (i = 0; i < bl->nblx_items; i++) {
-			/*
-			 * Check if we have enough space left for this ap.
-			 * Note that the size of the SSID list structure
-		 	 * can vary: the extended structure with info
-			 * elements is only supported by NDIS 5.1 drivers.
-			 */
-			if (wb->nwbx_len > sizeof(ndis_wlan_bssid)) {
-				j = roundup(sizeof(*sr) +
-				    wb->nwbx_ssid.ns_ssidlen +
-				    wb->nwbx_ielen -
-				    sizeof(struct ndis_80211_fixed_ies),
-				    sizeof(uint32_t));
-			} else {
-				j = roundup(sizeof(*sr) +
-				    wb->nwbx_ssid.ns_ssidlen +
-				    sizeof(struct ndis_80211_fixed_ies),
-				    sizeof(uint32_t));
-			}
-			if (len + j > ireq->i_len)
-				break;
-			bcopy(&wb->nwbx_macaddr, &sr->isr_bssid,
-			    sizeof(sr->isr_bssid));
-			if (wb->nwbx_privacy)
-				sr->isr_capinfo |= IEEE80211_CAPINFO_PRIVACY;
-			sr->isr_rssi = wb->nwbx_rssi + 200;
-			sr->isr_freq = wb->nwbx_config.nc_dsconfig / 1000;
-			sr->isr_intval = wb->nwbx_config.nc_beaconperiod;
-			switch (wb->nwbx_netinfra) {
-			case NDIS_80211_NET_INFRA_IBSS:
-				sr->isr_capinfo |= IEEE80211_CAPINFO_IBSS;
-				break;
-			case NDIS_80211_NET_INFRA_BSS:
-				sr->isr_capinfo |= IEEE80211_CAPINFO_ESS;
-				break;
-			}
-			for (j = 0; j < sizeof(sr->isr_rates); j++) {
-				/* XXX - check units */
-				if (wb->nwbx_supportedrates[j] == 0)
-					break;
-				sr->isr_rates[j] =
-				    wb->nwbx_supportedrates[j] & 0x7f;
-			}
-			sr->isr_nrates = j;
-			sr->isr_ssid_len = wb->nwbx_ssid.ns_ssidlen;
-			cp = (char *)sr + sizeof(*sr);
-			bcopy(&wb->nwbx_ssid.ns_ssid, cp, sr->isr_ssid_len);
-			cp += sr->isr_ssid_len;
-			if (wb->nwbx_len > sizeof(ndis_wlan_bssid)) {
-				sr->isr_ie_len = wb->nwbx_ielen
-				    - sizeof(struct ndis_80211_fixed_ies);
-				bcopy((char *)wb->nwbx_ies +
-				    sizeof(struct ndis_80211_fixed_ies),
-				    cp, sr->isr_ie_len);
-			} else {
-			        sr->isr_ie_len = 0;
-			}
-			sr->isr_len = roundup(sizeof(*sr) + sr->isr_ssid_len
-			    + sr->isr_ie_len, sizeof(uint32_t));
-			len += sr->isr_len;
-			sr = (struct ieee80211req_scan_result *)((char *)sr +
-			    sr->isr_len);
-			wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
-		}
-		ireq->i_len = len;
-		error = copyout(bsr, ireq->i_data, len);
-		free(bl, M_DEVBUF);
-		free(bsr, M_DEVBUF);
 		break;
 #endif
 	case IEEE80211_IOC_STATIONNAME:
@@ -3365,21 +3329,10 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 	ireq = (struct ieee80211req *) data;
 
 	switch (ireq->i_type) {
-#ifdef IEEE80211_IOC_MLME
-	case IEEE80211_IOC_MLME:
-	case IEEE80211_IOC_ROAMING:
+#ifdef IEEE80211_IOC_COUNTERMEASURES
 	case IEEE80211_IOC_COUNTERMEASURES:
 	case IEEE80211_IOC_DROPUNENCRYPTED:
 		error = 0;
-		break;
-#endif
-#ifdef RTM_IEEE80211_SCAN
-	case IEEE80211_IOC_SCAN_REQ:
-		len = 0;
-		error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
-		    NULL, &len);
-		tsleep(&error, PPAUSE|PCATCH, "ssidscan", hz * 2);
-		rt_ieee80211msg(ifp, RTM_IEEE80211_SCAN, NULL, 0);
 		break;
 #endif
 	case IEEE80211_IOC_STATIONNAME:
@@ -3466,7 +3419,7 @@ ndis_stop(sc)
 
 	ic = &sc->ic;
 	if (sc->ndis_80211)
-		ic->ic_state = IEEE80211_S_INIT;
+		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 
 	ifp = sc->ifp;
 	untimeout(ndis_tick, sc, sc->ndis_stat_ch);
@@ -3508,3 +3461,187 @@ ndis_shutdown(dev)
 
 	return;
 }
+
+static int
+ndis_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ndis_softc *sc = ifp->if_softc;
+	 enum ieee80211_state ostate;
+
+	DPRINTF(("%s: %s -> %s\n", __func__,
+		ieee80211_state_name[ic->ic_state],
+		ieee80211_state_name[nstate]));
+
+	ostate = ic->ic_state;
+	ic->ic_state = nstate;
+
+	switch (nstate) {
+	/* pass on to net80211 */
+	case IEEE80211_S_INIT:
+	case IEEE80211_S_SCAN:
+		return (sc->ndis_newstate(ic, nstate, arg));
+
+	case IEEE80211_S_ASSOC:
+		if (ostate != IEEE80211_S_AUTH)
+			ndis_setstate_80211(sc);
+		break;
+
+	case IEEE80211_S_AUTH:
+		ndis_setstate_80211(sc);
+		break;
+
+	default:
+		break;
+	}
+	return (0);
+}
+
+static void
+ndis_scan(void *arg, int npending)
+{
+	struct ndis_softc *sc = arg;
+	struct ieee80211com *ic = (void *)&sc->ic;
+	int error, len;
+
+	len = 0;
+	error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
+	    NULL, &len);
+	tsleep(&error, PPAUSE|PCATCH, "ssidscan", hz * 2);
+	ndis_scan_results(sc);
+	ieee80211_scan_done(ic);
+}
+
+static void
+ndis_scan_results(struct ndis_softc *sc)
+{
+	struct ieee80211com *ic = (void *)&sc->ic;
+	ndis_80211_bssid_list_ex *bl;
+	ndis_wlan_bssid_ex	*wb;
+	struct ieee80211_scanparams sp;
+	struct ieee80211_frame wh;
+	int i, j;
+	int error, len, rssi, noise;
+	static long rstamp;
+	uint8_t ssid[2+IEEE80211_NWID_LEN];
+	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
+	uint8_t *frm, *efrm;
+
+	len = 0;
+	noise = -96;
+	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
+	if (error != ENOSPC)
+		len = 65536;
+	bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+	if (error) {
+		free(bl, M_DEVBUF);
+		return;;
+	}
+
+	rstamp++;
+	wb = &bl->nblx_bssid[0];
+	for (i = 0; i < bl->nblx_items; i++) {
+		memset(&sp, 0, sizeof(sp));
+
+		memcpy(wh.i_addr2, wb->nwbx_macaddr, sizeof(wh.i_addr2));
+		memcpy(wh.i_addr3, wb->nwbx_macaddr, sizeof(wh.i_addr3));
+		rssi = (wb->nwbx_rssi - noise) / (-32 - noise) * 100;
+		rssi = max(0, min(rssi, 100));	/* limit 0 <= rssi <= 100 */
+		if (wb->nwbx_privacy)
+			sp.capinfo |= IEEE80211_CAPINFO_PRIVACY;
+		sp.bintval = wb->nwbx_config.nc_beaconperiod;
+		switch (wb->nwbx_netinfra) {
+			case NDIS_80211_NET_INFRA_IBSS:
+				sp.capinfo |= IEEE80211_CAPINFO_IBSS;
+				break;
+			case NDIS_80211_NET_INFRA_BSS:
+				sp.capinfo |= IEEE80211_CAPINFO_ESS;
+				break;
+		}
+		sp.rates = &rates[0];
+		for (j = 0; j < IEEE80211_RATE_MAXSIZE; j++) {
+			/* XXX - check units */
+			if (wb->nwbx_supportedrates[j] == 0)
+				break;
+			rates[2 + j] =
+			wb->nwbx_supportedrates[j] & 0x7f;
+		}
+		rates[1] = j;
+		sp.ssid = (uint8_t *)&ssid[0];
+		memcpy(sp.ssid + 2, &wb->nwbx_ssid.ns_ssid,
+		    wb->nwbx_ssid.ns_ssidlen);
+		sp.ssid[1] = wb->nwbx_ssid.ns_ssidlen;
+
+		sp.bchan = ieee80211_mhz2ieee(
+		    wb->nwbx_config.nc_dsconfig / 1000, 0);
+		sp.curchan = ieee80211_find_channel(ic,
+			ieee80211_ieee2mhz(sp.bchan, IEEE80211_CHAN_B),
+			IEEE80211_CHAN_B);
+		if (sp.curchan == NULL)
+			sp.curchan = &ic->ic_channels[0];
+
+		/* Process extended info from AP */
+		if (wb->nwbx_len > sizeof(ndis_wlan_bssid)) {
+			frm = (uint8_t *)&wb->nwbx_ies;
+			efrm = frm + wb->nwbx_ielen;
+			if (efrm - frm < 12)
+				goto done;
+			sp.tstamp = frm;
+			frm += 8;
+			sp.bintval = le16toh(*(uint16_t *)frm);
+			frm += 2;
+			sp.capinfo = le16toh(*(uint16_t *)frm);
+			frm += 2;
+
+			/* Grab variable length ies */
+			while (efrm - frm > 1) {
+				if (efrm - frm < frm[1] + 2)
+					break;
+				switch (*frm) {
+				case IEEE80211_ELEMID_RSN:
+					sp.rsn = frm;
+					break;
+				}
+				frm += frm[1] + 2;
+			}
+		}
+done:
+		ieee80211_add_scan(ic, &sp, &wh, 0, rssi, noise, rstamp);
+		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
+	}
+}
+
+static void
+ndis_scan_start(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ndis_softc *sc = ifp->if_softc;
+
+	taskqueue_enqueue(sc->ndis_tq, &sc->ndis_scantask);
+}
+
+static void
+ndis_set_channel(struct ieee80211com *ic)
+{
+	/* ignore */
+}
+
+static void
+ndis_scan_curchan(struct ieee80211com *ic, unsigned long maxdwell)
+{
+	/* ignore */
+}
+
+static void
+ndis_scan_mindwell(struct ieee80211com *ic)
+{
+	/* NB: don't try to abort scan; wait for firmware to finish */
+}
+
+static void
+ndis_scan_end(struct ieee80211com *ic)
+{
+	/* ignore */
+}
+
