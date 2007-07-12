@@ -167,6 +167,4 @@ struct fsinfo {
 	u_int8_t fsinxtfree[4];
 	u_int8_t fsifill2[12];
 	u_int8_t fsisig3[4];
-	u_int8_t fsifill3[508];
-	u_int8_t fsisig4[4];
 };
