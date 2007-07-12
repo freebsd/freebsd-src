@@ -99,6 +99,7 @@ struct sysentvec {
 	register_t	*(*sv_copyout_strings)(struct image_params *);
 	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
 	void		(*sv_fixlimit)(struct rlimit *, int);
+	u_long		*sv_maxssiz;
 };
 
 #ifdef _KERNEL

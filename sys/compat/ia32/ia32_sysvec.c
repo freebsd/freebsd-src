@@ -100,6 +100,13 @@ extern struct sysent freebsd32_sysent[];
 
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
+static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxdsiz, CTLFLAG_RW, &ia32_maxdsiz, 0, "");
+static u_long	ia32_maxssiz = IA32_MAXSSIZ;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxssiz, CTLFLAG_RW, &ia32_maxssiz, 0, "");
+static u_long	ia32_maxvmem = IA32_MAXVMEM;
+SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxvmem, CTLFLAG_RW, &ia32_maxvmem, 0, "");
+
 struct sysentvec ia32_freebsd_sysvec = {
 	FREEBSD32_SYS_MAXSYSCALL,
 	freebsd32_sysent,
@@ -126,7 +133,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	VM_PROT_ALL,
 	ia32_copyout_strings,
 	ia32_setregs,
-	ia32_fixlimit
+	ia32_fixlimit,
+	&ia32_maxssiz
 };
 
 
@@ -272,13 +280,6 @@ ia32_copyout_strings(struct image_params *imgp)
 
 	return ((register_t *)stack_base);
 }
-
-static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
-SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxdsiz, CTLFLAG_RW, &ia32_maxdsiz, 0, "");
-static u_long	ia32_maxssiz = IA32_MAXSSIZ;
-SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxssiz, CTLFLAG_RW, &ia32_maxssiz, 0, "");
-static u_long	ia32_maxvmem = IA32_MAXVMEM;
-SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxvmem, CTLFLAG_RW, &ia32_maxvmem, 0, "");
 
 static void
 ia32_fixlimit(struct rlimit *rl, int which)

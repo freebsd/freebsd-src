@@ -657,7 +657,7 @@ kern_setrlimit(td, which, limp)
 	struct plimit *newlim, *oldlim;
 	struct proc *p;
 	register struct rlimit *alimp;
-	rlim_t oldssiz;
+	struct rlimit oldssiz;
 	int error;
 
 	if (which >= RLIM_NLIMITS)
@@ -671,7 +671,7 @@ kern_setrlimit(td, which, limp)
 	if (limp->rlim_max < 0)
 		limp->rlim_max = RLIM_INFINITY;
 
-	oldssiz = 0;
+	oldssiz.rlim_cur = 0;
 	p = td->td_proc;
 	newlim = lim_alloc();
 	PROC_LOCK(p);
@@ -711,7 +711,10 @@ kern_setrlimit(td, which, limp)
 			limp->rlim_cur = maxssiz;
 		if (limp->rlim_max > maxssiz)
 			limp->rlim_max = maxssiz;
-		oldssiz = alimp->rlim_cur;
+		oldssiz = *alimp;
+		if (td->td_proc->p_sysent->sv_fixlimit != NULL)
+			td->td_proc->p_sysent->sv_fixlimit(&oldssiz,
+			    RLIMIT_STACK);
 		break;
 
 	case RLIMIT_NOFILE:
@@ -745,20 +748,21 @@ kern_setrlimit(td, which, limp)
 		 * "rlim_cur" bytes accessible.  If stack limit is going
 		 * up make more accessible, if going down make inaccessible.
 		 */
-		if (limp->rlim_cur != oldssiz) {
+		if (limp->rlim_cur != oldssiz.rlim_cur) {
 			vm_offset_t addr;
 			vm_size_t size;
 			vm_prot_t prot;
 
-			if (limp->rlim_cur > oldssiz) {
+			if (limp->rlim_cur > oldssiz.rlim_cur) {
 				prot = p->p_sysent->sv_stackprot;
-				size = limp->rlim_cur - oldssiz;
+				size = limp->rlim_cur - oldssiz.rlim_cur;
 				addr = p->p_sysent->sv_usrstack -
 				    limp->rlim_cur;
 			} else {
 				prot = VM_PROT_NONE;
-				size = oldssiz - limp->rlim_cur;
-				addr = p->p_sysent->sv_usrstack - oldssiz;
+				size = oldssiz.rlim_cur - limp->rlim_cur;
+				addr = p->p_sysent->sv_usrstack -
+				    oldssiz.rlim_cur;
 			}
 			addr = trunc_page(addr);
 			size = round_page(size);
