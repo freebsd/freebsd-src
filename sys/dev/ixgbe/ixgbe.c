@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "opt_device_polling.h"
 #endif
 
-#include <dev/ixgbe/ixgbe.h>
+#include "ixgbe.h"
 
 /*********************************************************************
  *  Set this to one to display debug statistics
@@ -533,7 +533,7 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFFLAGS (Set Interface Flags)");
 		IXGBE_LOCK(adapter);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				if ((ifp->if_flags ^ adapter->if_flags) &
 				    IFF_PROMISC) {
 					ixgbe_disable_promisc(adapter);
@@ -1630,7 +1630,10 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
-	ifp->if_capabilities |= (IFCAP_HWCSUM | IFCAP_TSO4);
+	if (adapter->msix) /* Don't use CSUM with RSS */
+		ifp->if_capabilities |= IFCAP_TSO4;
+	else
+		ifp->if_capabilities |= (IFCAP_HWCSUM | IFCAP_TSO4);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 
