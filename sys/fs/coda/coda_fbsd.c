@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_vnops.h>
-#include <coda/coda_psdev.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_vnops.h>
+#include <fs/coda/coda_psdev.h>
 
 static struct cdevsw codadevsw = {
 	.d_version =	D_VERSION,

@@ -55,7 +55,7 @@ MALLOC_DECLARE(M_CODA);
 /*
  * tmp below since we need struct queue
  */
-#include <coda/coda_kernel.h>
+#include <fs/coda/coda_kernel.h>
 
 /*
  * Cnode lookup stuff.

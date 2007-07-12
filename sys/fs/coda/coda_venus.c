@@ -41,10 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sx.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_venus.h>
-#include <coda/coda_pioctl.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_venus.h>
+#include <fs/coda/coda_pioctl.h>
 
 #define DECL_NO_IN(name) 				\
     struct coda_in_hdr *inp;				\

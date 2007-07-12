@@ -103,13 +103,6 @@ cam/scsi/scsi_ses.c		optional ses
 cam/scsi/scsi_sg.c		optional sg
 cam/scsi/scsi_targ_bh.c		optional targbh
 cam/scsi/scsi_target.c		optional targ
-coda/coda_fbsd.c		optional vcoda
-coda/coda_namecache.c		optional vcoda
-coda/coda_psdev.c		optional vcoda
-coda/coda_subr.c		optional vcoda
-coda/coda_venus.c		optional vcoda
-coda/coda_vfsops.c		optional vcoda
-coda/coda_vnops.c		optional vcoda
 contrib/altq/altq/altq_cbq.c	optional altq \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 contrib/altq/altq/altq_cdnr.c	optional altq
@@ -1158,6 +1151,13 @@ dev/wi/if_wi_pci.c		optional wi pci
 dev/wl/if_wl.c			optional wl isa
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
+fs/coda/coda_fbsd.c		optional vcoda
+fs/coda/coda_namecache.c		optional vcoda
+fs/coda/coda_psdev.c		optional vcoda
+fs/coda/coda_subr.c		optional vcoda
+fs/coda/coda_venus.c		optional vcoda
+fs/coda/coda_vfsops.c		optional vcoda
+fs/coda/coda_vnops.c		optional vcoda
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_rule.c		standard
