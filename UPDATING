@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070712:	p18	FreeBSD-SA-07:05.libarchive
+	Correct multiple security issues in how libarchive handles
+	corrupt tar archives, including a potentially exploitable
+	buffer overflow.
+
 20070523:	p17	FreeBSD-SA-07:04.file
 	Fix buffer overflow in libmagic(3).
 
