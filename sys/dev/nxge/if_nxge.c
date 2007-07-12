@@ -2246,7 +2246,7 @@ void xge_initialize(device_t dev, xge_hal_channel_reopen_e option)
 	xge_hal_device_enable(hldev);
 
 	/* Get MAC address and update in HAL */
-	ifaddrp             = ifaddr_byindex(ifnetp->if_index);
+	ifaddrp             = ifnetp->if_addr;
 	sockaddrp           = (struct sockaddr_dl *)ifaddrp->ifa_addr;
 	sockaddrp->sdl_type = IFT_ETHER;
 	sockaddrp->sdl_alen = ifnetp->if_addrlen;
