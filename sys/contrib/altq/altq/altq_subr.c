@@ -887,8 +887,8 @@ write_dsfield(m, pktattr, dsfield)
 #define	MACHCLK_SHIFT	8
 
 int machclk_usepcc;
-u_int32_t machclk_freq = 0;
-u_int32_t machclk_per_tick = 0;
+u_int32_t machclk_freq;
+u_int32_t machclk_per_tick;
 
 #ifdef __alpha__
 #ifdef __FreeBSD__
@@ -911,14 +911,14 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
-	machclk_freq = level->total_set.freq * 1000000;
+	init_machclk();
 }
 EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
-    EVENTHANDLER_PRI_ANY);
+    EVENTHANDLER_PRI_LAST);
 #endif /* __FreeBSD_version >= 700035 */
 
-void
-init_machclk(void)
+static void
+init_machclk_setup(void)
 {
 #if (__FreeBSD_version >= 600000)
 	callout_init(&tbr_callout, 0);
@@ -941,6 +941,18 @@ init_machclk(void)
 	    tsc_is_broken))
 		machclk_usepcc = 0;
 #endif
+}
+
+void
+init_machclk(void)
+{
+	static int called;
+
+	/* Call one-time initialization function. */
+	if (!called) {
+		init_machclk_setup();
+		called = 1;
+	}
 
 	if (machclk_usepcc == 0) {
 		/* emulate 256MHz using microtime() */
