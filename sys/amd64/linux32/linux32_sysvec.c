@@ -1023,7 +1023,8 @@ struct sysentvec elf_linux_sysvec = {
 	VM_PROT_ALL,
 	linux_copyout_strings,
 	exec_linux_setregs,
-	linux32_fixlimit
+	linux32_fixlimit,
+	&linux32_maxssiz,
 };
 
 static Elf32_Brandinfo linux_brand = {

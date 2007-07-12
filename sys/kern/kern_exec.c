@@ -894,6 +894,7 @@ exec_new_vmspace(imgp, sv)
 	struct vmspace *vmspace = p->p_vmspace;
 	vm_offset_t stack_addr;
 	vm_map_t map;
+	u_long ssiz;
 
 	imgp->vmspace_destroyed = 1;
 	imgp->sysent = sv;
@@ -919,8 +920,12 @@ exec_new_vmspace(imgp, sv)
 	}
 
 	/* Allocate a new stack */
-	stack_addr = sv->sv_usrstack - maxssiz;
-	error = vm_map_stack(map, stack_addr, (vm_size_t)maxssiz,
+	if (sv->sv_maxssiz != NULL)
+		ssiz = *sv->sv_maxssiz;
+	else
+		ssiz = maxssiz;
+	stack_addr = sv->sv_usrstack - ssiz;
+	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
 	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
 	if (error)
 		return (error);
@@ -928,7 +933,7 @@ exec_new_vmspace(imgp, sv)
 #ifdef __ia64__
 	/* Allocate a new register stack */
 	stack_addr = IA64_BACKINGSTORE;
-	error = vm_map_stack(map, stack_addr, (vm_size_t)maxssiz,
+	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
 	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_UP);
 	if (error)
 		return (error);
@@ -939,7 +944,7 @@ exec_new_vmspace(imgp, sv)
 	 * process stack so we can check the stack rlimit.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - maxssiz;
+	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - ssiz;
 
 	return (0);
 }
