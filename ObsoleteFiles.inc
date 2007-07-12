@@ -59,6 +59,10 @@ OLD_FILES+=sbin/mount_umapfs
 OLD_FILES+=usr/include/fs/umapfs/umap.h
 OLD_FILES+=usr/share/man/man8/mount_umapfs.8.gz
 OLD_DIRS+=usr/include/fs/umapfs
+# 20070618: Removal of the PROTO.localhost* files
+OLD_FILES+=etc/namedb/PROTO.localhost-v6.rev
+OLD_FILES+=etc/namedb/PROTO.localhost.rev
+OLD_FILES+=etc/namedb/make-localhost
 # 20070618: shared library version bump
 OLD_LIBS+=lib/libalias.so.5
 OLD_LIBS+=lib/libbsnmp.so.3
