@@ -85,8 +85,6 @@ static const char *msdosfs_opts[] = {
 	NULL
 };
 
-#define MSDOSFS_DFLTBSIZE       4096
-
 #if 1 /*def PC98*/
 /*
  * XXX - The boot signature formatted by NEC PC-98 DOS looks like a
@@ -423,9 +421,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	 * Read the boot sector of the filesystem, and then check the
 	 * boot signature.  If not a dos boot sector then error out.
 	 *
-	 * NOTE: 2048 is a maximum sector size in current...
+	 * NOTE: 8192 is a magic size that works for ffs.
 	 */
-	error = bread(devvp, 0, 2048, NOCRED, &bp);
+	error = bread(devvp, 0, 8192, NOCRED, &bp);
 	if (error)
 		goto error_exit;
 	bp->b_flags |= B_AGE;
@@ -606,12 +604,12 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 		pmp->pm_maxcluster = clusters - 1;
 	}
 
-
 	if (FAT12(pmp))
-		pmp->pm_fatblocksize = 3 * pmp->pm_BytesPerSec;
+		pmp->pm_fatblocksize = 3 * 512;
 	else
-		pmp->pm_fatblocksize = MSDOSFS_DFLTBSIZE;
-
+		pmp->pm_fatblocksize = PAGE_SIZE;
+	pmp->pm_fatblocksize = roundup(pmp->pm_fatblocksize,
+	    pmp->pm_BytesPerSec);
 	pmp->pm_fatblocksec = pmp->pm_fatblocksize / DEV_BSIZE;
 	pmp->pm_bnshift = ffs(DEV_BSIZE) - 1;
 
