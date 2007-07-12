@@ -552,12 +552,14 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 		ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM | ICH_X_CR_LVBIE | ICH_X_CR_IOCE, 1);
 		ICH_UNLOCK(sc);
 		break;
-
+	case PCMTRIG_STOP:
 	case PCMTRIG_ABORT:
 		ICH_LOCK(sc);
 		ich_resetchan(sc, ch->num);
 		ICH_UNLOCK(sc);
 		ch->run = 0;
+		break;
+	default:
 		break;
 	}
 	return (0);
@@ -809,7 +811,11 @@ ich_calibrate(void *arg)
 		return;
 	}
 
-	actual_48k_rate = ((uint64_t)ch->blksz * 250000) / wait_us;
+	/* Just in case the timecounter screwed. It is possible, really. */
+	if (wait_us > 0)
+		actual_48k_rate = ((uint64_t)ch->blksz * 250000) / wait_us;
+	else
+		actual_48k_rate = 48000;
 
 	if (actual_48k_rate < 47500 || actual_48k_rate > 48500) {
 		sc->ac97rate = actual_48k_rate;
@@ -906,11 +912,7 @@ ich_pci_attach(device_t dev)
 	struct sc_info 		*sc;
 	int			i;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		device_printf(dev, "cannot allocate softc\n");
-		return (ENXIO);
-	}
-
+	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "snd_ich softc");
 	sc->dev = dev;
 
