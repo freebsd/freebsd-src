@@ -143,7 +143,7 @@ static suffixes_t suffixes[] = {
 };
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 
-static	const char	gzip_version[] = "FreeBSD gzip 20070528";
+static	const char	gzip_version[] = "FreeBSD gzip 20070711";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -1806,7 +1806,7 @@ handle_dir(char *dir)
 
 	path_argv[0] = dir;
 	path_argv[1] = 0;
-	fts = fts_open(path_argv, FTS_PHYSICAL, NULL);
+	fts = fts_open(path_argv, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
 	if (fts == NULL) {
 		warn("couldn't fts_open %s", dir);
 		return;
@@ -1824,7 +1824,7 @@ handle_dir(char *dir)
 			maybe_warn("%s", entry->fts_path);
 			continue;
 		case FTS_F:
-			handle_file(entry->fts_name, entry->fts_statp);
+			handle_file(entry->fts_path, entry->fts_statp);
 		}
 	}
 	(void)fts_close(fts);
@@ -1981,8 +1981,10 @@ usage(void)
 
 	fprintf(stderr, "%s\n", gzip_version);
 	fprintf(stderr,
-    "usage: %s [-" OPT_LIST "] [<file> [<file> ...]]\n"
-#ifndef SMALL
+#ifdef SMALL
+    "usage: %s [-" OPT_LIST "] [<file> [<file> ...]]\n",
+#else
+    "usage: %s [-123456789acdfhklLNnqrtVv] [-S .suffix] [<file> [<file> ...]]\n"
     " -1 --fast            fastest (worst) compression\n"
     " -2 .. -8             set compression level\n"
     " -9 --best            best (slowest) compression\n"
@@ -2003,8 +2005,6 @@ usage(void)
     " -t --test            test compressed file\n"
     " -V --version         display program version\n"
     " -v --verbose         print extra statistics\n",
-#else
-    ,
 #endif
 	    getprogname());
 	exit(0);
