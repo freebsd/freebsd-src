@@ -81,8 +81,6 @@ struct sta_entry {
 	uint8_t		se_seen;		/* seen during current scan */
 	uint8_t		se_notseen;		/* not seen in previous scans */
 	uint8_t		se_flags;
-#define	STA_SSID_MATCH	0x01
-#define	STA_BSSID_MATCH	0x02
 	uint32_t	se_avgrssi;		/* LPF rssi state */
 	unsigned long	se_lastupdate;		/* time of last update */
 	unsigned long	se_lastfail;		/* time of last failure */
@@ -105,6 +103,21 @@ struct sta_table {
 };
 
 static void sta_flush_table(struct sta_table *);
+/*
+ * match_bss returns a bitmask describing if an entry is suitable
+ * for use.  If non-zero the entry was deemed not suitable and it's
+ * contents explains why.  The following flags are or'd to to this
+ * mask and can be used to figure out why the entry was rejected.
+ */
+#define	MATCH_CHANNEL	0x001	/* channel mismatch */
+#define	MATCH_CAPINFO	0x002	/* capabilities mismatch, e.g. no ess */
+#define	MATCH_PRIVACY	0x004	/* privacy mismatch */
+#define	MATCH_RATE	0x008	/* rate set mismatch */
+#define	MATCH_SSID	0x010	/* ssid mismatch */
+#define	MATCH_BSSID	0x020	/* bssid mismatch */
+#define	MATCH_FAILS	0x040	/* too many failed auth attempts */
+#define	MATCH_NOTSEEN	0x080	/* not seen in recent scans */
+#define	MATCH_RSSI	0x100	/* rssi deemed too low to use */
 static int match_bss(struct ieee80211com *,
 	const struct ieee80211_scan_state *, struct sta_entry *, int);
 
@@ -637,10 +650,6 @@ sta_compare(const struct sta_entry *a, const struct sta_entry *b)
 	int8_t rssia, rssib;
 	int weight;
 
-	/* desired bssid */
-	PREFER(a->se_flags, b->se_flags, STA_BSSID_MATCH);
-	/* desired ssid */
-	PREFER(a->se_flags, b->se_flags, STA_SSID_MATCH);
 	/* privacy support */
 	PREFER(a->base.se_capinfo, b->base.se_capinfo,
 		IEEE80211_CAPINFO_PRIVACY);
@@ -768,7 +777,7 @@ match_bss(struct ieee80211com *ic,
 
 	fail = 0;
 	if (isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, se->se_chan)))
-		fail |= 0x01;
+		fail |= MATCH_CHANNEL;
 	/*
 	 * NB: normally the desired mode is used to construct
 	 * the channel list, but it's possible for the scan
@@ -779,64 +788,62 @@ match_bss(struct ieee80211com *ic,
 	if (ic->ic_des_mode != IEEE80211_MODE_AUTO &&
 	    (se->se_chan->ic_flags & IEEE80211_CHAN_ALLTURBO) !=
 	    chanflags[ic->ic_des_mode])
-		fail |= 0x01;
+		fail |= MATCH_CHANNEL;
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_IBSS) == 0)
-			fail |= 0x02;
+			fail |= MATCH_CAPINFO;
 	} else {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_ESS) == 0)
-			fail |= 0x02;
+			fail |= MATCH_CAPINFO;
 	}
 	if (ic->ic_flags & IEEE80211_F_PRIVACY) {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_PRIVACY) == 0)
-			fail |= 0x04;
+			fail |= MATCH_PRIVACY;
 	} else {
 		/* XXX does this mean privacy is supported or required? */
 		if (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY)
-			fail |= 0x04;
+			fail |= MATCH_PRIVACY;
 	}
 	rate = check_rate(ic, se);
 	if (rate & IEEE80211_RATE_BASIC)
-		fail |= 0x08;
+		fail |= MATCH_RATE;
 	if (ss->ss_nssid != 0 &&
-	    match_ssid(se->se_ssid, ss->ss_nssid, ss->ss_ssid))
-		se0->se_flags |= STA_SSID_MATCH;
-	else
-		se0->se_flags &= ~STA_SSID_MATCH;
+	    !match_ssid(se->se_ssid, ss->ss_nssid, ss->ss_ssid))
+		fail |= MATCH_SSID;
 	if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
-	    IEEE80211_ADDR_EQ(ic->ic_des_bssid, se->se_bssid))
-		se0->se_flags |= STA_BSSID_MATCH;
-	else
-		se0->se_flags &= ~STA_BSSID_MATCH;
+	    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, se->se_bssid))
+		fail |=  MATCH_BSSID;
 	if (se0->se_fails >= STA_FAILS_MAX)
-		fail |= 0x40;
+		fail |= MATCH_FAILS;
+	/* NB: entries may be present awaiting purge, skip */
 	if (se0->se_notseen >= STA_PURGE_SCANS)
-		fail |= 0x80;
+		fail |= MATCH_NOTSEEN;
 	if (se->se_rssi < STA_RSSI_MIN)
-		fail |= 0x100;
+		fail |= MATCH_RSSI;
 #ifdef IEEE80211_DEBUG
 	if (ieee80211_msg(ic, debug)) {
 		printf(" %c %s",
-		    fail & 0x40 ? '=' : fail & 0x80 ? '^' : fail ? '-' : '+',
-		    ether_sprintf(se->se_macaddr));
+		    fail & MATCH_FAILS ? '=' :
+		    fail & MATCH_NOTSEEN ? '^' :
+		    fail ? '-' : '+', ether_sprintf(se->se_macaddr));
 		printf(" %s%c", ether_sprintf(se->se_bssid),
-		    se0->se_flags & STA_BSSID_MATCH ? '*' : ' ');
+		    fail & MATCH_BSSID ? '!' : ' ');
 		printf(" %3d%c", ieee80211_chan2ieee(ic, se->se_chan),
-			fail & 0x01 ? '!' : ' ');
-		printf(" %+4d%c", se->se_rssi, fail & 0x100 ? '!' : ' ');
+			fail & MATCH_CHANNEL ? '!' : ' ');
+		printf(" %+4d%c", se->se_rssi, fail & MATCH_RSSI ? '!' : ' ');
 		printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
-		    fail & 0x08 ? '!' : ' ');
+		    fail & MATCH_RATE ? '!' : ' ');
 		printf(" %4s%c",
 		    (se->se_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
 		    (se->se_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" :
 		    "????",
-		    fail & 0x02 ? '!' : ' ');
+		    fail & MATCH_CAPINFO ? '!' : ' ');
 		printf(" %3s%c ",
 		    (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY) ?
 		    "wep" : "no",
-		    fail & 0x04 ? '!' : ' ');
+		    fail & MATCH_PRIVACY ? '!' : ' ');
 		ieee80211_print_essid(se->se_ssid+2, se->se_ssid[1]);
-		printf("%s\n", se0->se_flags & STA_SSID_MATCH ? "*" : "");
+		printf("%s\n", fail & MATCH_SSID ? "!" : "");
 	}
 #endif
 	return fail;
