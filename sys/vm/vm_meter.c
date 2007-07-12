@@ -384,13 +384,3 @@ SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_kthreadpages, CTLTYPE_UINT|CTLFLAG_RD,
 
 SYSCTL_INT(_vm_stats_misc, OID_AUTO,
 	zero_page_count, CTLFLAG_RD, &vm_page_zero_count, 0, "");
-#if 0
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	page_mask, CTLFLAG_RD, &page_mask, 0, "");
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	page_shift, CTLFLAG_RD, &page_shift, 0, "");
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	first_page, CTLFLAG_RD, &first_page, 0, "");
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	last_page, CTLFLAG_RD, &last_page, 0, "");
-#endif
