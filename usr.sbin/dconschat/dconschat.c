@@ -1006,6 +1006,9 @@ main(int argc, char **argv)
 	port[0] = 0;	/* stdin/out for console */
 	port[1] = -1;	/* disable gdb port */
 
+	/* default escape char */
+	dc->escape = KEY_TILDE;
+
 	while ((ch = getopt(argc, argv, "a:be:h:rt:u:vwC:G:M:N:RT1")) != -1) {
 		switch(ch) {
 		case 'a':
@@ -1016,7 +1019,7 @@ main(int argc, char **argv)
 			dc->flags |= F_ALT_BREAK;
 			break;
 		case 'e':
-			dc->escape |= optarg[0];
+			dc->escape = optarg[0];
 			break;
 		case 'h':
 			poll_hz = strtoul(optarg, NULL, 0);
