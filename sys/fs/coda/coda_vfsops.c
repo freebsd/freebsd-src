@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_vfsops.h>
-#include <coda/coda_venus.h>
-#include <coda/coda_subr.h>
-#include <coda/coda_opstats.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_vfsops.h>
+#include <fs/coda/coda_venus.h>
+#include <fs/coda/coda_subr.h>
+#include <fs/coda/coda_opstats.h>
 
 MALLOC_DEFINE(M_CODA, "coda", "Various Coda Structures");
 

@@ -67,11 +67,11 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_namecache.h>
-#include <coda/coda_io.h>
-#include <coda/coda_psdev.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_namecache.h>
+#include <fs/coda/coda_io.h>
+#include <fs/coda/coda_psdev.h>
 
 #define CTL_C
 
