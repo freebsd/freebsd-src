@@ -644,14 +644,13 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	if (pmp->pm_fsinfo) {
 		struct fsinfo *fp;
 
-		if ((error = bread(devvp, pmp->pm_fsinfo, fsi_size(pmp),
+		if ((error = bread(devvp, pmp->pm_fsinfo, pmp->pm_bpcluster,
 		    NOCRED, &bp)) != 0)
 			goto error_exit;
 		fp = (struct fsinfo *)bp->b_data;
 		if (!bcmp(fp->fsisig1, "RRaA", 4)
 		    && !bcmp(fp->fsisig2, "rrAa", 4)
-		    && !bcmp(fp->fsisig3, "\0\0\125\252", 4)
-		    && !bcmp(fp->fsisig4, "\0\0\125\252", 4)) {
+		    && !bcmp(fp->fsisig3, "\0\0\125\252", 4)) {
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
 			if (pmp->pm_nxtfree == 0xffffffff)
 				pmp->pm_nxtfree = CLUST_FIRST;

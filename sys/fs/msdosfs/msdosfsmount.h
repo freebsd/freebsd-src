@@ -210,12 +210,6 @@ struct msdosfs_fileno {
 	 ? roottobn((pmp), (dirofs)) \
 	 : cntobn((pmp), (dirclu)))
 
-/*
- * Calculate fsinfo block size
- */
-#define	fsi_size(pmp) \
-	(1024 << ((pmp)->pm_BlkPerSec >> 2))
-
 void msdosfs_fileno_init(struct mount *);
 void msdosfs_fileno_free(struct mount *);
 uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
