@@ -64,14 +64,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_vnops.h>
-#include <coda/coda_venus.h>
-#include <coda/coda_opstats.h>
-#include <coda/coda_subr.h>
-#include <coda/coda_namecache.h>
-#include <coda/coda_pioctl.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_vnops.h>
+#include <fs/coda/coda_venus.h>
+#include <fs/coda/coda_opstats.h>
+#include <fs/coda/coda_subr.h>
+#include <fs/coda/coda_namecache.h>
+#include <fs/coda/coda_pioctl.h>
 
 /* 
  * These flags select various performance enhancements.

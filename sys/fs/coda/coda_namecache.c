@@ -86,12 +86,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_namecache.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_namecache.h>
 
 #ifdef	DEBUG
-#include <coda/coda_vnops.h>
+#include <fs/coda/coda_vnops.h>
 #endif
 
 /* 

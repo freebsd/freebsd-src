@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mount.h>
 
-#include <coda/coda.h>
-#include <coda/cnode.h>
-#include <coda/coda_subr.h>
-#include <coda/coda_namecache.h>
+#include <fs/coda/coda.h>
+#include <fs/coda/cnode.h>
+#include <fs/coda/coda_subr.h>
+#include <fs/coda/coda_namecache.h>
 
 int coda_active = 0;
 int coda_reuse = 0;
