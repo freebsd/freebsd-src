@@ -61,12 +61,8 @@
 #define	LACP_STATE_DEFAULTED	(1<<6)
 #define	LACP_STATE_EXPIRED	(1<<7)
 
-#define LACP_PORT_NTT		0x00000001
-#define LACP_PORT_PROMISC	0x00000004
-#define LACP_PORT_LADDRCHANGED	0x00000008
-#define LACP_PORT_ATTACHED	0x00000010
-#define LACP_PORT_LARVAL	0x00000020
-#define LACP_PORT_DETACHING	0x00000040
+#define	LACP_PORT_NTT		0x00000001
+#define	LACP_PORT_MARK		0x00000002
 
 #define	LACP_STATE_BITS		\
 	"\020"			\
@@ -131,9 +127,9 @@ struct lacp_portid {
 } __packed;
 
 struct lacp_peerinfo {
-	struct lacp_systemid 	lip_systemid;
+	struct lacp_systemid	lip_systemid;
 	uint16_t		lip_key;
-	struct lacp_portid 	lip_portid;
+	struct lacp_portid	lip_portid;
 	uint8_t			lip_state;
 	uint8_t			lip_resv[3];
 } __packed;
@@ -157,7 +153,30 @@ struct lacpdu {
 	uint8_t			ldu_resv[50];
 } __packed;
 
-#define	LACP_TRANSIT_DELAY	1000	/* in msec */
+/*
+ * IEEE802.3ad marker protocol
+ *
+ * protocol (on-wire) definitions.
+ */
+struct lacp_markerinfo {
+	uint16_t		mi_rq_port;
+	uint8_t			mi_rq_system[ETHER_ADDR_LEN];
+	uint32_t		mi_rq_xid;
+	uint8_t			mi_pad[2];
+} __packed;
+
+struct markerdu {
+	struct ether_header	mdu_eh;
+	struct slowprothdr	mdu_sph;
+
+	struct tlvhdr		mdu_tlv;
+	struct lacp_markerinfo	mdu_info;
+	struct tlvhdr		mdu_tlv_term;
+	uint8_t			mdu_resv[90];
+} __packed;
+
+#define	MARKER_TYPE_INFO	0x01
+#define	MARKER_TYPE_RESPONSE	0x02
 
 enum lacp_selected {
 	LACP_UNSELECTED,
@@ -181,8 +200,10 @@ struct lacp_port {
 	struct ifnet		*lp_ifp;
 	struct lacp_peerinfo	lp_partner;
 	struct lacp_peerinfo	lp_actor;
+	struct lacp_markerinfo	lp_marker;
 #define	lp_state	lp_actor.lip_state
 #define	lp_key		lp_actor.lip_key
+#define	lp_systemid	lp_actor.lip_systemid
 	struct timeval		lp_last_lacpdu;
 	int			lp_lacpdu_sent;
 	enum lacp_mux_state	lp_mux_state;
@@ -201,11 +222,11 @@ struct lacp_aggregator {
 	TAILQ_HEAD(, lacp_port)	la_ports; /* distributing ports */
 	struct lacp_peerinfo	la_partner;
 	struct lacp_peerinfo	la_actor;
-	int			la_pending; /* number of ports which is waiting wait_while */
+	int			la_pending; /* number of ports in wait_while */
 };
 
 struct lacp_softc {
-	struct lagg_softc	*lsc_lagg;
+	struct lagg_softc	*lsc_softc;
 	struct lacp_aggregator	*lsc_active_aggregator;
 	TAILQ_HEAD(, lacp_aggregator) lsc_aggregators;
 	boolean_t		lsc_suppress_distributing;
@@ -226,43 +247,17 @@ struct lacp_softc {
 #define	LACP_LONG_TIMEOUT_TIME		(3 * LACP_SLOW_PERIODIC_TIME)
 #define	LACP_CHURN_DETECTION_TIME	(60)
 #define	LACP_AGGREGATE_WAIT_TIME	(2)
-
-/*
-int tlv_check(const void *, size_t, const struct tlvhdr *,
-    const struct tlv_template *, boolean_t);
-*/
-
-/*
- * IEEE802.3ad marker protocol
- *
- * protocol (on-wire) definitions.
- */
-
-struct markerdu {
-	struct ether_header	mdu_eh;
-	struct slowprothdr	mdu_sph;
-
-	struct tlvhdr		mdu_tlv;
-	uint16_t		mdu_rq_port;
-	uint8_t			mdu_rq_system[6];
-	uint8_t			mdu_rq_xid[4];
-	uint8_t			mdu_pad[2];
-
-	struct tlvhdr		mdu_tlv_term;
-	uint8_t			mdu_resv[90];
-} __packed;
-
-#define	MARKER_TYPE_INFO	1
-#define	MARKER_TYPE_RESPONSE	2
+#define	LACP_TRANSIT_DELAY		3000	/* in msec */
 
 #define	LACP_STATE_EQ(s1, s2, mask)	\
 	((((s1) ^ (s2)) & (mask)) == 0)
 
+#define	LACP_SYS_PRI(peer)	(peer).lip_systemid.lsi_prio
+
 #define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
-int 		lacp_input(struct lagg_port *, struct mbuf *);
-int		lacp_marker_input(struct lagg_port *, struct mbuf *);
+void		lacp_input(struct lagg_port *, struct mbuf *);
 struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
 int		lacp_attach(struct lagg_softc *);
 int		lacp_detach(struct lagg_softc *);
@@ -272,6 +267,8 @@ int		lacp_port_create(struct lagg_port *);
 void		lacp_port_destroy(struct lagg_port *);
 void		lacp_linkstate(struct lagg_port *);
 int		lacp_port_isactive(struct lagg_port *);
+void		lacp_req(struct lagg_softc *, caddr_t);
+void		lacp_portreq(struct lagg_port *, caddr_t);
 
 /* following constants don't include terminating NUL */
 #define	LACP_MACSTR_MAX		(2*6 + 5)
