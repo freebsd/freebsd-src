@@ -200,7 +200,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	exit(EXIT_FAILURE);
     }
     if (buf.st_nlink > 1) {
-	syslog(LOG_ERR,"Someboy is trying to run a linked script for job %s",
+	syslog(LOG_ERR,"Somebody is trying to run a linked script for job %s",
 		filename);
 	exit(EXIT_FAILURE);
     }
@@ -289,7 +289,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
         nice(tolower(queue) - 'a');
 	
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
-	    perr("cannot delete saved userids");
+	    perr("cannot init group access list");
 
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("cannot change group");
@@ -327,7 +327,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 	PRIV_START
 
 	if (initgroups(pentry->pw_name,pentry->pw_gid))
-	    perr("cannot delete saved userids");
+	    perr("cannot init group access list");
 
 	if (setgid(gid) < 0 || setegid(pentry->pw_gid) < 0)
 	    perr("cannot change group");
@@ -466,7 +466,7 @@ main(int argc, char *argv[])
 	if ((S_IXUSR & buf.st_mode) && (run_time <=now)) {
 	    if (isupper(queue) && (strcmp(batch_name,dirent->d_name) > 0)) {
 		run_batch = 1;
-		strncpy(batch_name, dirent->d_name, sizeof(batch_name));
+		strlcpy(batch_name, dirent->d_name, sizeof(batch_name));
 		batch_uid = buf.st_uid;
 		batch_gid = buf.st_gid;
 	    }
