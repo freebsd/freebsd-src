@@ -122,7 +122,22 @@ static int i915_initialize(drm_device_t * dev,
 			   drm_i915_private_t * dev_priv,
 			   drm_i915_init_t * init)
 {
+	drm_dma_handle_t *dmah;
+
+	DRM_UNLOCK();
+	dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 
+	    0xffffffff);
+	if (!dmah) {
+		dev->dev_private = (void *)dev_priv;
+		i915_dma_cleanup(dev);
+		DRM_ERROR("Can not allocate hardware status page\n");
+		DRM_LOCK();
+		return DRM_ERR(ENOMEM);
+	}
+	DRM_LOCK();
+
 	memset(dev_priv, 0, sizeof(drm_i915_private_t));
+	dev_priv->status_page_dmah = dmah;
 
 	DRM_GETSAREA();
 	if (!dev_priv->sarea) {
@@ -181,15 +196,6 @@ static int i915_initialize(drm_device_t * dev,
 	dev_priv->allow_batchbuffer = 1;
 
 	/* Program Hardware Status Page */
-	dev_priv->status_page_dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 
-	    0xffffffff);
-
-	if (!dev_priv->status_page_dmah) {
-		dev->dev_private = (void *)dev_priv;
-		i915_dma_cleanup(dev);
-		DRM_ERROR("Can not allocate hardware status page\n");
-		return DRM_ERR(ENOMEM);
-	}
 	dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
 	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
 	
