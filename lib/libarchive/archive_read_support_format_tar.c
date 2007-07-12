@@ -690,7 +690,13 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		}
 	}
 	--tar->header_recursion_depth;
-	return (err);
+	/* We return warnings or success as-is.  Anything else is fatal. */
+	if (err == ARCHIVE_WARN || err == ARCHIVE_OK)
+		return (err);
+	if (err == ARCHIVE_EOF)
+		/* EOF when recursively reading a header is bad. */
+		archive_set_error(&a->archive, EINVAL, "Damaged tar archive");
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -761,32 +767,55 @@ static int
 header_Solaris_ACL(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
-	int err, err2;
-	char *p;
+	const struct archive_entry_header_ustar *header;
+	size_t size;
+	int err;
+	char *acl, *p;
 	wchar_t *wp;
 
+	/*
+	 * read_body_to_string adds a NUL terminator, but we need a little
+	 * more to make sure that we don't overrun acl_text later.
+	 */
+	header = (const struct archive_entry_header_ustar *)h;
+	size = tar_atol(header->size, sizeof(header->size));
 	err = read_body_to_string(a, tar, &(tar->acl_text), h);
-	err2 = tar_read_header(a, tar, entry);
-	err = err_combine(err, err2);
-
-	/* XXX Ensure p doesn't overrun acl_text */
+	if (err != ARCHIVE_OK)
+		return (err);
+	err = tar_read_header(a, tar, entry);
+	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
+		return (err);
 
 	/* Skip leading octal number. */
 	/* XXX TODO: Parse the octal number and sanity-check it. */
-	p = tar->acl_text.s;
-	while (*p != '\0')
+	p = acl = tar->acl_text.s;
+	while (*p != '\0' && p < acl + size)
 		p++;
 	p++;
 
-	wp = (wchar_t *)malloc((strlen(p) + 1) * sizeof(wchar_t));
-	if (wp != NULL) {
-		utf8_decode(wp, p, strlen(p));
-		err2 = __archive_entry_acl_parse_w(entry, wp,
-		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
-		err = err_combine(err, err2);
-		free(wp);
+	if (p >= acl + size) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Malformed Solaris ACL attribute");
+		return(ARCHIVE_WARN);
 	}
 
+	/* Skip leading octal number. */
+	size -= (p - acl);
+	acl = p;
+
+	while (*p != '\0' && p < acl + size)
+		p++;
+
+	wp = (wchar_t *)malloc((p - acl + 1) * sizeof(wchar_t));
+	if (wp == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate work buffer for ACL parsing");
+		return (ARCHIVE_FATAL);
+	}
+	utf8_decode(wp, acl, p - acl);
+	err = __archive_entry_acl_parse_w(entry, wp,
+	    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+	free(wp);
 	return (err);
 }
 
@@ -797,15 +826,17 @@ static int
 header_longlink(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
-	int err, err2;
+	int err;
 
 	err = read_body_to_string(a, tar, &(tar->longlink), h);
-	err2 = tar_read_header(a, tar, entry);
-	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK) {
-		/* Set symlink if symlink already set, else hardlink. */
-		archive_entry_set_link(entry, tar->longlink.s);
-	}
-	return (err_combine(err, err2));
+	if (err != ARCHIVE_OK)
+		return (err);
+	err = tar_read_header(a, tar, entry);
+	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
+		return (err);
+	/* Set symlink if symlink already set, else hardlink. */
+	archive_entry_set_link(entry, tar->longlink.s);
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -815,14 +846,17 @@ static int
 header_longname(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
-	int err, err2;
+	int err;
 
 	err = read_body_to_string(a, tar, &(tar->longname), h);
+	if (err != ARCHIVE_OK)
+		return (err);
 	/* Read and parse "real" header, then override name. */
-	err2 = tar_read_header(a, tar, entry);
-	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK)
-		archive_entry_set_pathname(entry, tar->longname.s);
-	return (err_combine(err, err2));
+	err = tar_read_header(a, tar, entry);
+	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
+		return (err);
+	archive_entry_set_pathname(entry, tar->longname.s);
+	return (ARCHIVE_OK);
 }
 
 
@@ -855,6 +889,11 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	(void)tar; /* UNUSED */
 	header = (const struct archive_entry_header_ustar *)h;
 	size  = tar_atol(header->size, sizeof(header->size));
+	if ((size > 1048576) || (size < 0)) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Special header too large");
+		return (ARCHIVE_FATAL);
+	}
 
 	/* Read the body into the string. */
 	archive_string_ensure(as, size+1);
@@ -862,6 +901,8 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 	dest = as->s;
 	while (padded_size > 0) {
 		bytes_read = (a->decompressor->read_ahead)(a, &src, padded_size);
+		if (bytes_read == 0)
+			return (ARCHIVE_EOF);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > padded_size)
@@ -1052,11 +1093,13 @@ static int
 header_pax_global(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h)
 {
-	int err, err2;
+	int err;
 
 	err = read_body_to_string(a, tar, &(tar->pax_global), h);
-	err2 = tar_read_header(a, tar, entry);
-	return (err_combine(err, err2));
+	if (err != ARCHIVE_OK)
+		return (err);
+	err = tar_read_header(a, tar, entry);
+	return (err);
 }
 
 static int
@@ -1065,10 +1108,14 @@ header_pax_extensions(struct archive_read *a, struct tar *tar,
 {
 	int err, err2;
 
-	read_body_to_string(a, tar, &(tar->pax_header), h);
+	err = read_body_to_string(a, tar, &(tar->pax_header), h);
+	if (err != ARCHIVE_OK)
+		return (err);
 
 	/* Parse the next header. */
 	err = tar_read_header(a, tar, entry);
+	if ((err != ARCHIVE_OK) && (err != ARCHIVE_WARN))
+		return (err);
 
 	/*
 	 * TODO: Parse global/default options into 'entry' struct here
@@ -1165,8 +1212,11 @@ pax_header(struct archive_read *a, struct tar *tar,
 				l--;
 				break;
 			}
-			if (*p < '0' || *p > '9')
-				return (-1);
+			if (*p < '0' || *p > '9') {
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+				    "Ignoring malformed pax extended attributes");
+				return (ARCHIVE_WARN);
+			}
 			line_length *= 10;
 			line_length += *p - '0';
 			if (line_length > 999999) {
@@ -1178,8 +1228,19 @@ pax_header(struct archive_read *a, struct tar *tar,
 			l--;
 		}
 
-		if (line_length > attr_length)
-			return (0);
+		/*
+		 * Parsed length must be no bigger than available data,
+		 * at least 1, and the last character of the line must
+		 * be '\n'.
+		 */
+		if (line_length > attr_length
+		    || line_length < 1
+		    || attr[line_length - 1] != '\n')
+		{
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Ignoring malformed pax extended attribute");
+			return (ARCHIVE_WARN);
+		}
 
 		/* Ensure pax_entry buffer is big enough. */
 		if (tar->pax_entry_length <= line_length) {
@@ -1962,18 +2023,20 @@ readline(struct archive_read *a, struct tar *tar, const char **start)
 		memcpy(tar->line.s + total_size, t, bytes_read);
 		(a->decompressor->consume)(a, bytes_read);
 		total_size += bytes_read;
+		/* If we found '\n', clean up and return. */
+		if (p != NULL) {
+			*start = tar->line.s;
+			return (total_size);
+		}
 		/* Read some more. */
 		bytes_read = (a->decompressor->read_ahead)(a, &t, 1);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		s = t;  /* Start of line? */
 		p = memchr(t, '\n', bytes_read);
-		/* If we found '\n', finish the line. */
+		/* If we found '\n', trim the read. */
 		if (p != NULL) {
 			bytes_read = 1 + ((const char *)p) - s;
-			(a->decompressor->consume)(a, bytes_read);
-			*start = tar->line.s;
-			return (total_size + bytes_read);
 		}
 	}
 }
