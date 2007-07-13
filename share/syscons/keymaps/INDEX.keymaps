@@ -134,6 +134,12 @@ fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 fr.iso.acc.kbd:es:Francés ISO-8859-1 (con acentos)
 fr.iso.acc.kbd:uk:æÒÁÎÃÕÚØËÁ ISO-8859-1 (accent keys)
 
+fr.macbook.acc.kbd:en:French Macbook/Macbook Pro ISO-8859-15 (accent keys)
+fr.macbook.acc.kbd:de:Französisch Macbook/Macbook Pro ISO-8859-15 (mit Aksenten)
+fr.macbook.acc.kbd:fr:Français Macbook/Macbook Pro ISO-8859-15 (accent keys)
+fr.macbook.acc.kbd:pt:Francês Macbook/Macbook Pro ISO-8859-15 (com acentos)
+fr.macbook.acc.kbd:es:Francés Macbook/Macbook Pro ISO-8859-15 (con acentos)
+
 fr.dvorak.kbd:en:French Dvorak-like
 fr.dvorak.kbd:de:Französisch Dvorak
 fr.dvorak.kbd:fr:Français Dvorak
