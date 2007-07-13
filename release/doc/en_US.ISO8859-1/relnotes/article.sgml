@@ -286,6 +286,12 @@
       (and the &man.libmagic.3; library on which it relies) has been
       fixed.  More details can be found in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:04.file.asc">FreeBSD-SA-07:04.file</ulink>. &merged;</para>
+
+    <para>Problems with &man.libarchive.3; and &man.tar.1; handling
+      corrupted &man.tar.5; archive files have been fixed.  More
+      details can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">FreeBSD-SA-07:05.libarchive</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
