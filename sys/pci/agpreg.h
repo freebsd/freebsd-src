@@ -180,11 +180,19 @@
  * Memory mapped register offsets for i810 chipset.
  */
 #define AGP_I810_PGTBL_CTL	0x2020
+/**
+ * This field determines the actual size of the global GTT on the 965
+ * and G33
+ */
+#define AGP_I810_PGTBL_SIZE_MASK	0x0000000e
+#define AGP_I810_PGTBL_SIZE_512KB	(0 << 1)
+#define AGP_I810_PGTBL_SIZE_256KB	(1 << 1)
+#define AGP_I810_PGTBL_SIZE_128KB	(2 << 1)
 #define AGP_I810_DRT		0x3000
 #define AGP_I810_DRT_UNPOPULATED 0x00
 #define AGP_I810_DRT_POPULATED	0x01
 #define AGP_I810_GTT		0x10000
- 
+
 /*
  * Config registers for i830MG device 0
  */
@@ -192,7 +200,7 @@
 #define AGP_I830_GCC1_DEV2		0x08
 #define AGP_I830_GCC1_DEV2_ENABLED	0x00
 #define AGP_I830_GCC1_DEV2_DISABLED	0x08
-#define AGP_I830_GCC1_GMS		0x70
+#define AGP_I830_GCC1_GMS		0xf0 /* Top bit reserved pre-G33 */
 #define AGP_I830_GCC1_GMS_STOLEN_512	0x20
 #define AGP_I830_GCC1_GMS_STOLEN_1024	0x30
 #define AGP_I830_GCC1_GMS_STOLEN_8192	0x40
@@ -242,6 +250,21 @@
 #define AGP_I915_MSAC_GMASIZE		0x02
 #define AGP_I915_MSAC_GMASIZE_128	0x02
 #define AGP_I915_MSAC_GMASIZE_256	0x00
+
+/*
+ * G965 registers
+ */
+#define AGP_I965_GTTMMADR		0x10
+#define AGP_I965_MSAC			0x62
+#define AGP_I965_MSAC_GMASIZE_128	0x00
+#define AGP_I965_MSAC_GMASIZE_256	0x02
+#define AGP_I965_MSAC_GMASIZE_512	0x06
+
+/*
+ * G33 registers
+ */
+#define AGP_G33_GCC1_GMS_STOLEN_128M	0x80
+#define AGP_G33_GCC1_GMS_STOLEN_256M	0x90
 
 /*
  * NVIDIA nForce/nForce2 registers
