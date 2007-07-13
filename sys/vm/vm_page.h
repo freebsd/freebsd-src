@@ -224,17 +224,21 @@ extern struct mtx vm_page_queue_free_mtx;
 #include <vm/vm_param.h>
 
 /*
- * Each pageable resident page falls into one of four lists:
+ * Each pageable resident page falls into one of five lists:
  *
  *	free
  *		Available for allocation now.
- *
- * The following are all LRU sorted:
  *
  *	cache
  *		Almost available for allocation. Still in an
  *		object, but clean and immediately freeable at
  *		non-interrupt times.
+ *
+ *	hold
+ *		Will become free after a pending I/O operation
+ *		completes.
+ *
+ * The following lists are LRU sorted:
  *
  *	inactive
  *		Low activity, candidates for reclamation.
@@ -244,9 +248,6 @@ extern struct mtx vm_page_queue_free_mtx;
  *	active
  *		Pages that are "active" i.e. they have been
  *		recently referenced.
- *
- *	zero
- *		Pages that are really free and have been pre-zeroed
  *
  */
 
