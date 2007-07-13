@@ -26,9 +26,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdarg.h>
 
-#include "emac.h"
 #include "lib.h"
-#include "sd-card.h"
 #include "board.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
@@ -84,8 +82,6 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-unsigned char mac[6] = { 0x42, 0x53, 0x44, 0, 0, 1 };
-
 unsigned dsk_start;
 static char cmd[512];
 static char kname[1024];
@@ -96,7 +92,6 @@ static void load(void);
 static int parse(void);
 static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
-static int drvread(void *, unsigned, unsigned);
 
 #include "ufsread.c"
 
@@ -147,10 +142,6 @@ main(void)
     ino_t ino;
 
     board_init();
-    EMAC_Init();
-    EMAC_SetMACAddress(mac);
-    while (sdcard_init() == 0)
-	printf("Looking for SD card\n");
 
     dmadat = (void *)(0x20000000 + (16 << 20));
     /* Process configuration file */
@@ -179,14 +170,11 @@ main(void)
 	xputchar('\n');
 	autoboot = 0;
 	c = 0;
-	printf("cmd is '%s'\n", cmd);
 	if (parse())
 	    xputchar('\a');
 #ifdef XMODEM_DL
 	else if (*cmd == '*')
-		Update();
-	else if (*cmd == '#')
-		reset();
+	    Update();
 #endif
 	else
 	    load();
@@ -281,14 +269,14 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	dp = (void *)(sec + DOSPARTOFF);
 	for (i = 0; i < NDOSPART; i++) {
 	    if (dp[i].dp_typ == DOSPTYP_386BSD)
-		    break;
+		break;
 	}
 	if (i == NDOSPART)
-		return -1;
+	    return -1;
 	// Although dp_start is aligned within the disk partition structure,
 	// DOSPARTOFF is 446, which is only word (2) aligned, not longword (4)
 	// aligned.  Cope by using memcpy to fetch the start of this partition.
-	memcpy(&dsk_start, &dp[i].dp_start, 4);
+	memcpy(&dsk_start, &dp[1].dp_start, 4);
 	if (drvread(sec, dsk_start + LABELSECTOR, 1))
 		return -1;
 	d = (void *)(sec + LABELOFFSET);
@@ -305,13 +293,4 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	dsk_meta++;
     }
     return drvread(buf, dsk_start + lba, nblk);
-}
-
-static int
-drvread(void *buf, unsigned lba, unsigned nblk)
-{
-    static unsigned c = 0x2d5c7c2f;
-
-    printf("%c\b", c = c << 8 | c >> 24);
-    return (MCI_read((char *)buf, lba << 9, nblk << 9));
 }

@@ -114,7 +114,7 @@ typedef struct {
 /* MII registers definition */
 #define MII_STS_REG	0x01
 #define MII_STS_LINK_STAT	0x04
-#ifdef BOOT_KB920X
+#if defined(BOOT_KB920X) || defined(BOOT_CENTIPAD)
 #define MII_STS2_REG	0x11
 #define MII_STS2_LINK	0x400
 #define MII_STS2_100TX	0x4000
