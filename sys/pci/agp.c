@@ -193,18 +193,36 @@ static u_int agp_max[][2] = {
 };
 #define agp_max_size	(sizeof(agp_max) / sizeof(agp_max[0]))
 
+/**
+ * Sets the PCI resource which represents the AGP aperture.
+ *
+ * If not called, the default AGP aperture resource of AGP_APBASE will
+ * be used.  Must be called before agp_generic_attach().
+ */
+void
+agp_set_aperture_resource(device_t dev, int rid)
+{
+	struct agp_softc *sc = device_get_softc(dev);
+
+	sc->as_aperture_rid = rid;
+}
+
 int
 agp_generic_attach(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
-	int rid, i;
+	int i;
 	u_int memsize;
 
 	/*
-	 * Find and map the aperture.
+	 * Find and map the aperture, RF_SHAREABLE for DRM but not RF_ACTIVE
+	 * because the kernel doesn't need to map it.
 	 */
-	rid = AGP_APBASE;
-	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+	if (sc->as_aperture_rid == 0)
+		sc->as_aperture_rid = AGP_APBASE;
+
+	sc->as_aperture = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->as_aperture_rid, RF_SHAREABLE);
 	if (!sc->as_aperture)
 		return ENOMEM;
 
@@ -249,10 +267,39 @@ agp_generic_detach(device_t dev)
 	struct agp_softc *sc = device_get_softc(dev);
 
 	destroy_dev(sc->as_devnode);
-	bus_release_resource(dev, SYS_RES_MEMORY, AGP_APBASE, sc->as_aperture);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
+	    sc->as_aperture);
 	mtx_destroy(&sc->as_lock);
 	agp_flush_cache();
 	return 0;
+}
+
+/**
+ * Default AGP aperture size detection which simply returns the size of
+ * the aperture's PCI resource.
+ */
+int
+agp_generic_get_aperture(device_t dev)
+{
+	struct agp_softc *sc = device_get_softc(dev);
+
+	return rman_get_size(sc->as_aperture);
+}
+
+/**
+ * Default AGP aperture size setting function, which simply doesn't allow
+ * changes to resource size.
+ */
+int
+agp_generic_set_aperture(device_t dev, u_int32_t aperture)
+{
+	u_int32_t current_aperture;
+
+	current_aperture = AGP_GET_APERTURE(dev);
+	if (current_aperture != aperture)
+		return EINVAL;
+	else
+		return 0;
 }
 
 /*
