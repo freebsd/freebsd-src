@@ -46,7 +46,8 @@ TESTS= \
 
 SRCS= ${TESTS}					\
 	list.h					\
-	main.c
+	main.c					\
+	read_open_memory.c
 
 CLEANFILES+= list.h
 
