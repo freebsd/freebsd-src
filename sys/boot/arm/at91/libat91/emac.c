@@ -380,7 +380,7 @@ AT91F_MII_WritePhy (AT91PS_EMAC pEmac, unsigned char addr, unsigned short s)
 static void
 MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 {
-#if defined(BOOT_TSC) | defined(BOOT_KB920X)
+#if defined(BOOT_TSC) || defined(BOOT_KB920X) || defined(BOOT_CENTIPAD)
 	unsigned short stat2; 
 #endif
 	unsigned update;
@@ -394,7 +394,7 @@ MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 	update |= AT91C_EMAC_SPD;
 	update |= AT91C_EMAC_FD;
 #endif
-#ifdef BOOT_KB920X
+#if defined(BOOT_KB920X) || defined(BOOT_CENTIPAD)
 	stat2 = AT91F_MII_ReadPhy(pEmac, MII_STS2_REG);
 	if (!(stat2 & MII_STS2_LINK))
 		return ;

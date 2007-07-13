@@ -31,8 +31,9 @@ __FBSDID("$FreeBSD$");
 #include "emac.h"
 #include "lib.h"
 #include "board.h"
+#include "sd-card.h"
 
-extern unsigned char mac[];
+unsigned char mac[6] = { 0x42, 0x53, 0x44, 0, 0, 1 };
 
 static void
 MacFromEE()
@@ -40,7 +41,7 @@ MacFromEE()
 	uint32_t sig;
 	sig = 0;
 	ReadEEPROM(12 * 1024, (uint8_t *)&sig, sizeof(sig));
-	if (sig != 0xaa55aa55)
+	if (sig != 0x92021054)
 		return;
 	ReadEEPROM(12 * 1024 + 4, mac, 6);
 	printf("MAC %x:%x:%x:%x:%x:%x\n", mac[0],
@@ -57,4 +58,14 @@ board_init(void)
 {
     InitEEPROM();
     MacFromEE();
+    EMAC_Init();
+    EMAC_SetMACAddress(mac);
+    while (sdcard_init() == 0)
+	printf("Looking for SD card\n");
+}
+
+int
+drvread(void *buf, unsigned lba, unsigned nblk)
+{
+    return (MCI_read((char *)buf, lba << 9, nblk << 9));
 }
