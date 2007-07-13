@@ -40,10 +40,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Driver for 3c990 (Typhoon) Ethernet ASIC
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -265,6 +261,11 @@ txp_attach(dev)
 
 	sc->sc_fwbuf = contigmalloc(32768, M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	if (sc->sc_fwbuf == NULL) {
+		device_printf(dev, "no memory for firmware\n");
+		error = ENXIO;
+		goto fail;
+	}
 	error = txp_download_fw(sc);
 	contigfree(sc->sc_fwbuf, 32768, M_DEVBUF);
 	sc->sc_fwbuf = NULL;
@@ -274,6 +275,11 @@ txp_attach(dev)
 
 	sc->sc_ldata = contigmalloc(sizeof(struct txp_ldata), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	if (sc->sc_ldata == NULL) {
+		device_printf(dev, "no memory for descriptor ring\n");
+		error = ENXIO;
+		goto fail;
+	}
 	bzero(sc->sc_ldata, sizeof(struct txp_ldata));
 
 	if (txp_alloc_rings(sc)) {
