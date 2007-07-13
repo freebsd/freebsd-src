@@ -294,7 +294,7 @@ int main(int argc, char **argv)
 			tests_run++;
 		}
 	} else {
-		while (*(++argv) != NULL) {
+		while (*(argv) != NULL) {
 			i = atoi(*argv);
 			if (**argv < '0' || **argv > '9' || i < 0 || i >= limit) {
 				printf("*** INVALID Test %s\n", *argv);
@@ -304,6 +304,7 @@ int main(int argc, char **argv)
 					tests_failed++;
 				tests_run++;
 			}
+			argv++;
 		}
 	}
 	printf("\n");
