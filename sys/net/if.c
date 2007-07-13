@@ -2202,6 +2202,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 	case IFT_BRIDGE:
+	case IFT_IEEE8023ADLAG:
 		bcopy(lladdr, IFP2ENADDR(ifp), len);
 		/*
 		 * XXX We also need to store the lladdr in LLADDR(sdl),
@@ -2210,7 +2211,6 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		 */
 		/* FALLTHROUGH */
 	case IFT_ARCNET:
-	case IFT_IEEE8023ADLAG:
 		bcopy(lladdr, LLADDR(sdl), len);
 		break;
 	default:
