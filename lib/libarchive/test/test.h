@@ -124,3 +124,6 @@ void test_assert_equal_int(const char *, int, int, const char *, int, const char
 void test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, struct archive *);
 void test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, struct archive *);
 
+/* Special customized read-from-memory interface. */
+int read_open_memory(struct archive *, void *, size_t, size_t);
+int	read_open_memory(struct archive *, void *, size_t, size_t);
