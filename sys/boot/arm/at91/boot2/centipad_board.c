@@ -21,9 +21,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-void Update(void);
-void board_init(void);
-int drvread(void *, unsigned, unsigned);
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+
+#include "emac.h"
+#include "lib.h"
+#include "board.h"
+#include "sd-card.h"
+
+unsigned char mac[6] = { 0x42, 0x53, 0x44, 0, 1, 1 };
+
+static void
+MacFromEE()
+{	
+#if 0
+	uint32_t sig;
+	sig = 0;
+	ReadEEPROM(12 * 1024, (uint8_t *)&sig, sizeof(sig));
+	if (sig != 0x92021054)
+		return;
+	ReadEEPROM(12 * 1024 + 4, mac, 6);
+#endif
+	printf("MAC %x:%x:%x:%x:%x:%x\n", mac[0],
+	  mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+void
+Update(void)
+{
+}
+
+void
+board_init(void)
+{
+    InitEEPROM();
+    MacFromEE();
+    EMAC_Init();
+    EMAC_SetMACAddress(mac);
+    while (sdcard_init() == 0)
+	printf("Looking for SD card\n");
+}
+
+int
+drvread(void *buf, unsigned lba, unsigned nblk)
+{
+    return (MCI_read((char *)buf, lba << 9, nblk << 9));
+}
