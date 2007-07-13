@@ -39,6 +39,14 @@ typedef unsigned short sdram_size_t;
 #define OSC_MAIN_MULT		90
 #endif
 
+#ifdef BOOT_CENTIPAD
+/* The following divisor sets PLLA frequency: e.g. 10/5 * 90 = 180MHz */
+#define OSC_MAIN_FREQ_DIV	5	/* for 10MHz osc */
+#define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS
+typedef unsigned short sdram_size_t;
+#define OSC_MAIN_MULT		90
+#endif
+
 #ifdef BOOT_BWCT
 /* The following divisor sets PLLA frequency: e.g. 16/4 * 45 = 180MHz */
 #define OSC_MAIN_FREQ_DIV	4	/* for 16MHz osc */
