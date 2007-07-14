@@ -60,12 +60,59 @@ static int skips = 0;
  */
 static char msg[4096];
 
+/*
+ * For each test source file, we remember how many times each
+ * failure was reported.
+ */
+static const char *failed_filename;
+static struct line {
+	int line;
+	int count;
+}  failed_lines[1000];
+
+
+/* Count this failure; return the number of previous failures. */
+static int
+previous_failures(const char *filename, int line)
+{
+	int i;
+	int count;
+
+	if (failed_filename == NULL || strcmp(failed_filename, filename) != 0)
+		memset(failed_lines, 0, sizeof(failed_lines));
+	failed_filename = filename;
+
+	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
+		if (failed_lines[i].line == line) {
+			count = failed_lines[i].count;
+			failed_lines[i].count++;
+			return (count);
+		}
+		if (failed_lines[i].line == 0) {
+			failed_lines[i].line = line;
+			failed_lines[i].count = 1;
+			return (0);
+		}
+	}
+}
 
 /* Inform user that we're skipping a test. */
-void
-skipping(const char *fmt, ...)
+static const char *skipped_filename;
+static int skipped_line;
+void skipping_setup(const char *filename, int line)
 {
+	skipped_line = line;
+}
+void
+test_skipping(const char *fmt, ...)
+{
+	int i;
+	int line = skipped_line;
 	va_list ap;
+
+	if (previous_failures(skipped_filename, skipped_line))
+		return;
+
 	va_start(ap, fmt);
 	fprintf(stderr, " *** SKIPPING: ");
 	vfprintf(stderr, fmt, ap);
@@ -76,8 +123,10 @@ skipping(const char *fmt, ...)
 
 /* Common handling of failed tests. */
 static void
-test_failed(struct archive *a)
+test_failed(struct archive *a, int line)
 {
+	int i;
+
 	failures ++;
 
 	if (msg[0] != '\0') {
@@ -93,6 +142,39 @@ test_failed(struct archive *a)
 		*(char *)(NULL) = 0;
 		exit(1);
 	}
+}
+
+/* Summarize repeated failures in the just-completed test file. */
+int
+summarize_comparator(const void *a0, const void *b0)
+{
+	const struct line *a = a0, *b = b0;
+	if (a->line == 0 && b->line == 0)
+		return (0);
+	if (a->line == 0)
+		return (1);
+	if (b->line == 0)
+		return (-1);
+	return (a->line - b->line);
+}
+
+void
+summarize(const char *filename)
+{
+	int i;
+
+	qsort(failed_lines, sizeof(failed_lines)/sizeof(failed_lines[0]),
+	    sizeof(failed_lines[0]), summarize_comparator);
+	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
+		if (failed_lines[i].line == 0)
+			break;
+		if (failed_lines[i].count > 1)
+			fprintf(stderr, "%s:%d: Failed %d times\n",
+			    failed_filename, failed_lines[i].line,
+			    failed_lines[i].count);
+	}
+	/* Clear the failure history for the next file. */
+	memset(failed_lines, 0, sizeof(failed_lines));
 }
 
 /* Set up a message to display only after a test fails. */
@@ -113,9 +195,11 @@ test_assert(const char *file, int line, int value, const char *condition, struct
 		msg[0] = '\0';
 		return;
 	}
+	if (previous_failures(file, line))
+		return;
 	fprintf(stderr, "%s:%d: Assertion failed\n", file, line);
 	fprintf(stderr, "   Condition: %s\n", condition);
-	test_failed(a);
+	test_failed(a, line);
 }
 
 /* assertEqualInt() displays the values of the two integers. */
@@ -127,11 +211,13 @@ test_assert_equal_int(const char *file, int line,
 		msg[0] = '\0';
 		return;
 	}
+	if (previous_failures(file, line))
+		return;
 	fprintf(stderr, "%s:%d: Assertion failed: Ints not equal\n",
 	    file, line);
 	fprintf(stderr, "      %s=%d\n", e1, v1);
 	fprintf(stderr, "      %s=%d\n", e2, v2);
-	test_failed(a);
+	test_failed(a, line);
 }
 
 /* assertEqualString() displays the values of the two strings. */
@@ -150,11 +236,13 @@ test_assert_equal_string(const char *file, int line,
 		msg[0] = '\0';
 		return;
 	}
+	if (previous_failures(file, line))
+		return;
 	fprintf(stderr, "%s:%d: Assertion failed: Strings not equal\n",
 	    file, line);
 	fprintf(stderr, "      %s = \"%s\"\n", e1, v1);
 	fprintf(stderr, "      %s = \"%s\"\n", e2, v2);
-	test_failed(a);
+	test_failed(a, line);
 }
 
 /* assertEqualWString() displays the values of the two strings. */
@@ -168,11 +256,13 @@ test_assert_equal_wstring(const char *file, int line,
 		msg[0] = '\0';
 		return;
 	}
+	if (previous_failures(file, line))
+		return;
 	fprintf(stderr, "%s:%d: Assertion failed: Unicode strings not equal\n",
 	    file, line);
 	fwprintf(stderr, L"      %s = \"%ls\"\n", e1, v1);
 	fwprintf(stderr, L"      %s = \"%ls\"\n", e2, v2);
-	test_failed(a);
+	test_failed(a, line);
 }
 
 /*
@@ -217,6 +307,7 @@ static int test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	(*tests[i].func)();
+	summarize(tests[i].name);
 	return (failures == failures_before ? 0 : 1);
 }
 
