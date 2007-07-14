@@ -474,7 +474,7 @@ ixgb_start_locked(struct ifnet * ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
 #else
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 #endif
 		/* Set timeout in case hardware has problems transmitting */
 		ifp->if_timer = IXGB_TX_TIMEOUT;

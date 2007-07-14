@@ -1360,7 +1360,7 @@ txp_start_locked(ifp)
 
 		ifp->if_timer = 5;
 
-		BPF_MTAP(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 		WRITE_REG(sc, r->r_reg, TXP_IDX2OFFSET(prod));
 	}
 
