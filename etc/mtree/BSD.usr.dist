@@ -187,8 +187,9 @@
             ..
             IPv6
             ..
-            atm
-            ..
+# Disabled in 7.0 as netatm is not MPSAFE.
+#            atm
+#            ..
             bc
             ..
             bootforth

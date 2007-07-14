@@ -659,28 +659,28 @@ dev/flash/at45d.c		optional at45d
 dev/fxp/if_fxp.c		optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
-dev/harp/if_harp.c		optional harp pci
+#dev/harp/if_harp.c		optional harp pci
 dev/hatm/if_hatm.c		optional hatm pci
 dev/hatm/if_hatm_intr.c		optional hatm pci
 dev/hatm/if_hatm_ioctl.c	optional hatm pci
 dev/hatm/if_hatm_rx.c		optional hatm pci
 dev/hatm/if_hatm_tx.c		optional hatm pci
-dev/hfa/fore_buffer.c		optional hfa
-dev/hfa/fore_command.c		optional hfa
-dev/hfa/fore_globals.c		optional hfa
-dev/hfa/fore_if.c		optional hfa
-dev/hfa/fore_init.c		optional hfa
-dev/hfa/fore_intr.c		optional hfa
-dev/hfa/fore_output.c		optional hfa
-dev/hfa/fore_receive.c		optional hfa
-dev/hfa/fore_stats.c		optional hfa
-dev/hfa/fore_timer.c		optional hfa
-dev/hfa/fore_transmit.c		optional hfa
-dev/hfa/fore_vcm.c		optional hfa
-#dev/hfa/hfa_eisa.c		optional hfa eisa
-dev/hfa/hfa_freebsd.c		optional hfa
-dev/hfa/hfa_pci.c		optional hfa pci
-#dev/hfa/hfa_sbus.c		optional hfa sbus
+#dev/hfa/fore_buffer.c		optional hfa
+#dev/hfa/fore_command.c		optional hfa
+#dev/hfa/fore_globals.c		optional hfa
+#dev/hfa/fore_if.c		optional hfa
+#dev/hfa/fore_init.c		optional hfa
+#dev/hfa/fore_intr.c		optional hfa
+#dev/hfa/fore_output.c		optional hfa
+#dev/hfa/fore_receive.c		optional hfa
+#dev/hfa/fore_stats.c		optional hfa
+#dev/hfa/fore_timer.c		optional hfa
+#dev/hfa/fore_transmit.c		optional hfa
+#dev/hfa/fore_vcm.c		optional hfa
+##dev/hfa/hfa_eisa.c		optional hfa eisa
+#dev/hfa/hfa_freebsd.c		optional hfa
+#dev/hfa/hfa_pci.c		optional hfa pci
+##dev/hfa/hfa_sbus.c		optional hfa sbus
 dev/hifn/hifn7751.c		optional hifn
 dev/hme/if_hme.c		optional hme
 dev/hme/if_hme_pci.c		optional hme pci
@@ -1660,88 +1660,92 @@ netatalk/ddp_input.c		optional netatalk
 netatalk/ddp_output.c		optional netatalk
 netatalk/ddp_pcb.c		optional netatalk
 netatalk/ddp_usrreq.c		optional netatalk
-netatm/atm_aal5.c		optional atm_core
-netatm/atm_cm.c			optional atm_core
-netatm/atm_device.c		optional atm_core
-netatm/atm_if.c			optional atm_core
-netatm/atm_proto.c		optional atm_core
-netatm/atm_signal.c		optional atm_core
-netatm/atm_socket.c		optional atm_core
-netatm/atm_subr.c		optional atm_core
-netatm/atm_usrreq.c		optional atm_core
-netatm/ipatm/ipatm_event.c	optional atm_ip atm_core
-netatm/ipatm/ipatm_if.c		optional atm_ip atm_core
-netatm/ipatm/ipatm_input.c	optional atm_ip atm_core
-netatm/ipatm/ipatm_load.c	optional atm_ip atm_core
-netatm/ipatm/ipatm_output.c	optional atm_ip atm_core
-netatm/ipatm/ipatm_usrreq.c	optional atm_ip atm_core
-netatm/ipatm/ipatm_vcm.c	optional atm_ip atm_core
-netatm/sigpvc/sigpvc_if.c	optional atm_sigpvc atm_core
-netatm/sigpvc/sigpvc_subr.c	optional atm_sigpvc atm_core
-netatm/spans/spans_arp.c	optional atm_spans atm_core	\
-	dependency	"spans_xdr.h"
-netatm/spans/spans_cls.c	optional atm_spans atm_core
-netatm/spans/spans_if.c		optional atm_spans atm_core
-netatm/spans/spans_kxdr.c	optional atm_spans atm_core
-netatm/spans/spans_msg.c	optional atm_spans atm_core
-netatm/spans/spans_print.c	optional atm_spans atm_core
-netatm/spans/spans_proto.c	optional atm_spans atm_core
-netatm/spans/spans_subr.c	optional atm_spans atm_core
-netatm/spans/spans_util.c	optional atm_spans atm_core
-spans_xdr.h			optional atm_spans atm_core	\
-	before-depend						\
-	dependency	"$S/netatm/spans/spans_xdr.x"		\
-	compile-with	"rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
-	clean		"spans_xdr.h"				\
-	no-obj no-implicit-rule
-spans_xdr.c			optional atm_spans atm_core	\
-	before-depend						\
-	dependency	"$S/netatm/spans/spans_xdr.x"		\
-	compile-with	"rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
-	clean		"spans_xdr.c"				\
-	no-obj no-implicit-rule local
-spans_xdr.o			optional atm_spans atm_core	\
-	dependency	"$S/netatm/spans/spans_xdr.x"		\
-	compile-with	"${NORMAL_C}"				\
-	no-implicit-rule local
-netatm/uni/q2110_sigaa.c	optional atm_uni atm_core
-netatm/uni/q2110_sigcpcs.c	optional atm_uni atm_core
-netatm/uni/q2110_subr.c		optional atm_uni atm_core
-netatm/uni/qsaal1_sigaa.c	optional atm_uni atm_core
-netatm/uni/qsaal1_sigcpcs.c	optional atm_uni atm_core
-netatm/uni/qsaal1_subr.c	optional atm_uni atm_core
-netatm/uni/sscf_uni.c		optional atm_uni atm_core
-netatm/uni/sscf_uni_lower.c	optional atm_uni atm_core
-netatm/uni/sscf_uni_upper.c	optional atm_uni atm_core
-netatm/uni/sscop.c		optional atm_uni atm_core
-netatm/uni/sscop_lower.c	optional atm_uni atm_core
-netatm/uni/sscop_pdu.c		optional atm_uni atm_core
-netatm/uni/sscop_sigaa.c	optional atm_uni atm_core
-netatm/uni/sscop_sigcpcs.c	optional atm_uni atm_core
-netatm/uni/sscop_subr.c		optional atm_uni atm_core
-netatm/uni/sscop_timer.c	optional atm_uni atm_core
-netatm/uni/sscop_upper.c	optional atm_uni atm_core
-netatm/uni/uni_load.c		optional atm_uni atm_core
-netatm/uni/uniarp.c		optional atm_uni atm_core
-netatm/uni/uniarp_cache.c	optional atm_uni atm_core
-netatm/uni/uniarp_input.c	optional atm_uni atm_core
-netatm/uni/uniarp_output.c	optional atm_uni atm_core
-netatm/uni/uniarp_timer.c	optional atm_uni atm_core
-netatm/uni/uniarp_vcm.c		optional atm_uni atm_core
-netatm/uni/uniip.c		optional atm_uni atm_core
-netatm/uni/unisig_decode.c	optional atm_uni atm_core
-netatm/uni/unisig_encode.c	optional atm_uni atm_core
-netatm/uni/unisig_if.c		optional atm_uni atm_core
-netatm/uni/unisig_mbuf.c	optional atm_uni atm_core
-netatm/uni/unisig_msg.c		optional atm_uni atm_core
-netatm/uni/unisig_print.c	optional atm_uni atm_core
-netatm/uni/unisig_proto.c	optional atm_uni atm_core
-netatm/uni/unisig_sigmgr_state.c optional atm_uni atm_core
-netatm/uni/unisig_subr.c	optional atm_uni atm_core
-netatm/uni/unisig_util.c	optional atm_uni atm_core
-netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
-netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
-netgraph/atm/atmpif/ng_atmpif_harp.c optional netgraph_atm_atmpif
+#
+# netatm has been disconnected from the build until it is MPSAFE, or
+# alternatively, until it is removed.
+#
+#netatm/atm_aal5.c		optional atm_core
+#netatm/atm_cm.c			optional atm_core
+#netatm/atm_device.c		optional atm_core
+#netatm/atm_if.c			optional atm_core
+#netatm/atm_proto.c		optional atm_core
+#netatm/atm_signal.c		optional atm_core
+#netatm/atm_socket.c		optional atm_core
+#netatm/atm_subr.c		optional atm_core
+#netatm/atm_usrreq.c		optional atm_core
+#netatm/ipatm/ipatm_event.c	optional atm_ip atm_core
+#netatm/ipatm/ipatm_if.c		optional atm_ip atm_core
+#netatm/ipatm/ipatm_input.c	optional atm_ip atm_core
+#netatm/ipatm/ipatm_load.c	optional atm_ip atm_core
+#netatm/ipatm/ipatm_output.c	optional atm_ip atm_core
+#netatm/ipatm/ipatm_usrreq.c	optional atm_ip atm_core
+#netatm/ipatm/ipatm_vcm.c	optional atm_ip atm_core
+#netatm/sigpvc/sigpvc_if.c	optional atm_sigpvc atm_core
+#netatm/sigpvc/sigpvc_subr.c	optional atm_sigpvc atm_core
+#netatm/spans/spans_arp.c	optional atm_spans atm_core	\
+#	dependency	"spans_xdr.h"
+#netatm/spans/spans_cls.c	optional atm_spans atm_core
+#netatm/spans/spans_if.c		optional atm_spans atm_core
+#netatm/spans/spans_kxdr.c	optional atm_spans atm_core
+#netatm/spans/spans_msg.c	optional atm_spans atm_core
+#netatm/spans/spans_print.c	optional atm_spans atm_core
+#netatm/spans/spans_proto.c	optional atm_spans atm_core
+#netatm/spans/spans_subr.c	optional atm_spans atm_core
+#netatm/spans/spans_util.c	optional atm_spans atm_core
+#spans_xdr.h			optional atm_spans atm_core	\
+#	before-depend						\
+#	dependency	"$S/netatm/spans/spans_xdr.x"		\
+#	compile-with	"rpcgen -h -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.h" \
+#	clean		"spans_xdr.h"				\
+#	no-obj no-implicit-rule
+#spans_xdr.c			optional atm_spans atm_core	\
+#	before-depend						\
+#	dependency	"$S/netatm/spans/spans_xdr.x"		\
+#	compile-with	"rpcgen -c -C $S/netatm/spans/spans_xdr.x | grep -v rpc/rpc.h > spans_xdr.c" \
+#	clean		"spans_xdr.c"				\
+#	no-obj no-implicit-rule local
+#spans_xdr.o			optional atm_spans atm_core	\
+#	dependency	"$S/netatm/spans/spans_xdr.x"		\
+#	compile-with	"${NORMAL_C}"				\
+#	no-implicit-rule local
+#netatm/uni/q2110_sigaa.c	optional atm_uni atm_core
+#netatm/uni/q2110_sigcpcs.c	optional atm_uni atm_core
+#netatm/uni/q2110_subr.c		optional atm_uni atm_core
+#netatm/uni/qsaal1_sigaa.c	optional atm_uni atm_core
+#netatm/uni/qsaal1_sigcpcs.c	optional atm_uni atm_core
+#netatm/uni/qsaal1_subr.c	optional atm_uni atm_core
+#netatm/uni/sscf_uni.c		optional atm_uni atm_core
+#netatm/uni/sscf_uni_lower.c	optional atm_uni atm_core
+#netatm/uni/sscf_uni_upper.c	optional atm_uni atm_core
+#netatm/uni/sscop.c		optional atm_uni atm_core
+#netatm/uni/sscop_lower.c	optional atm_uni atm_core
+#netatm/uni/sscop_pdu.c		optional atm_uni atm_core
+#netatm/uni/sscop_sigaa.c	optional atm_uni atm_core
+#netatm/uni/sscop_sigcpcs.c	optional atm_uni atm_core
+#netatm/uni/sscop_subr.c		optional atm_uni atm_core
+#netatm/uni/sscop_timer.c	optional atm_uni atm_core
+#netatm/uni/sscop_upper.c	optional atm_uni atm_core
+#netatm/uni/uni_load.c		optional atm_uni atm_core
+#netatm/uni/uniarp.c		optional atm_uni atm_core
+#netatm/uni/uniarp_cache.c	optional atm_uni atm_core
+#netatm/uni/uniarp_input.c	optional atm_uni atm_core
+#netatm/uni/uniarp_output.c	optional atm_uni atm_core
+#netatm/uni/uniarp_timer.c	optional atm_uni atm_core
+#netatm/uni/uniarp_vcm.c		optional atm_uni atm_core
+#netatm/uni/uniip.c		optional atm_uni atm_core
+#netatm/uni/unisig_decode.c	optional atm_uni atm_core
+#netatm/uni/unisig_encode.c	optional atm_uni atm_core
+#netatm/uni/unisig_if.c		optional atm_uni atm_core
+#netatm/uni/unisig_mbuf.c	optional atm_uni atm_core
+#netatm/uni/unisig_msg.c		optional atm_uni atm_core
+#netatm/uni/unisig_print.c	optional atm_uni atm_core
+#netatm/uni/unisig_proto.c	optional atm_uni atm_core
+#netatm/uni/unisig_sigmgr_state.c optional atm_uni atm_core
+#netatm/uni/unisig_subr.c	optional atm_uni atm_core
+#netatm/uni/unisig_util.c	optional atm_uni atm_core
+#netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
+#netgraph/atm/atmpif/ng_atmpif.c	optional netgraph_atm_atmpif
+#netgraph/atm/atmpif/ng_atmpif_harp.c optional netgraph_atm_atmpif
 netgraph/atm/ccatm/ng_ccatm.c	optional ngatm_ccatm \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 netgraph/atm/ng_atm.c		optional ngatm_atm

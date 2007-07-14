@@ -48,7 +48,8 @@ _csu=csu
 .endif
 
 .if ${MK_ATM} != "no"
-_libatm=	libatm
+# Disabled in 7.0 as netatm is not MPSAFE.
+#_libatm=	libatm
 _libngatm=	libngatm
 .endif
 
