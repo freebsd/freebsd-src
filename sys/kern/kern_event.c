@@ -1059,6 +1059,15 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 	int fd;
 	int mflag = waitok ? M_WAITOK : M_NOWAIT;
 
+	/*
+	 * knote locks the KQ and filt_proc calls kqueue_register if _TRACK
+	 * is set.  Return early so we don't assert KQ_NOTOWNED in this
+	 * case.  We have a knote in the hash, so we have the table.
+	 */
+	if ((fops->f_isfd && kq->kq_knlistsize > ident) ||
+	    (!fops->f_isfd && kq->kq_knhashmask != 0))
+		return 0;
+
 	KQ_NOTOWNED(kq);
 
 	if (fops->f_isfd) {

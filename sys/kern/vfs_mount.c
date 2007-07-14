@@ -638,6 +638,10 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags &= ~MNT_ASYNC;
 		else if (strcmp(opt->name, "noatime") == 0)
 			fsflags |= MNT_NOATIME;
+		else if (strcmp(opt->name, "atime") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonoatime", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "noclusterr") == 0)
 			fsflags |= MNT_NOCLUSTERR;
 		else if (strcmp(opt->name, "noclusterw") == 0)
