@@ -205,16 +205,17 @@
     ..
     netatalk
     ..
-    netatm
-        ipatm
-        ..
-        sigpvc
-        ..
-        spans
-        ..
-        uni
-        ..
-    ..
+# Disabled in 7.0 as netatm is not MPSAFE.
+#    netatm
+#        ipatm
+#        ..
+#        sigpvc
+#        ..
+#        spans
+#        ..
+#        uni
+#        ..
+#    ..
     netgraph
         atm
         ..

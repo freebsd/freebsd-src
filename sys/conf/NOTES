@@ -891,6 +891,8 @@ options 	ZERO_COPY_SOCKETS
 #
 # ATM (HARP version) options
 #
+# XXX: These have been disabled in FreeBSD 7.0 as they are not MPSAFE.
+#
 # ATM_CORE includes the base ATM functionality code.  This must be included
 #	for ATM support.
 #
@@ -909,14 +911,14 @@ options 	ZERO_COPY_SOCKETS
 #
 # The `harp' pseudo-driver makes all NATM interface drivers available to HARP.
 #
-options 	ATM_CORE		#core ATM protocol family
-options 	ATM_IP			#IP over ATM support
-options 	ATM_SIGPVC		#SIGPVC signalling manager
-options 	ATM_SPANS		#SPANS signalling manager
-options 	ATM_UNI			#UNI signalling manager
+#options 	ATM_CORE		#core ATM protocol family
+#options 	ATM_IP			#IP over ATM support
+#options 	ATM_SIGPVC		#SIGPVC signalling manager
+#options 	ATM_SPANS		#SPANS signalling manager
+#options 	ATM_UNI			#UNI signalling manager
 
-device		hfa			#FORE PCA-200E ATM PCI
-device		harp			#Pseudo-interface for NATM
+#device		hfa			#FORE PCA-200E ATM PCI
+#device		harp			#Pseudo-interface for NATM
 
 
 #####################################################################

@@ -36,10 +36,11 @@ PHDRS=	sched.h semaphore.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
+LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	netipsec ${_netipx} netnatm ${_netncp} netsmb \
 	nfs nfsclient nfsserver \
 	pccard sys vm
+#LDIRS+=	netatm
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
@@ -49,12 +50,12 @@ LSUBDIRS=	cam/scsi \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/nop geom/raid3 geom/shsec geom/stripe \
-	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
+#LSUBDIRS+=	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni
 
 .if ${MACHINE_ARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram
