@@ -42,10 +42,8 @@ vm_page_t vm_phys_alloc_contig(unsigned long npages,
     vm_paddr_t low, vm_paddr_t high,
     unsigned long alignment, unsigned long boundary);
 vm_page_t vm_phys_alloc_pages(int pool, int order);
-vm_page_t vm_phys_alloc_pages_locked(int pool, int order);
 vm_paddr_t vm_phys_bootstrap_alloc(vm_size_t size, unsigned long alignment);
 void vm_phys_free_pages(vm_page_t m, int order);
-void vm_phys_free_pages_locked(vm_page_t m, int order);
 void vm_phys_init(void);
 boolean_t vm_phys_zero_pages_idle(void);
 

@@ -887,7 +887,7 @@ loop:
 		 * Allocate from the free queue if the number of free pages
 		 * exceeds the minimum for the request class.
 		 */
-		m = vm_phys_alloc_pages_locked(object != NULL ?
+		m = vm_phys_alloc_pages(object != NULL ?
 		    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -913,7 +913,7 @@ loop:
 				mtx_unlock(&vm_page_queue_free_mtx);
 				return (NULL);
 			}
-			m = vm_phys_alloc_pages_locked(object != NULL ?
+			m = vm_phys_alloc_pages(object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 		} else {
 			vm_page_unlock_queues();
@@ -1161,10 +1161,10 @@ vm_page_free_toq(vm_page_t m)
 		m->flags |= PG_FREE;
 		mtx_lock(&vm_page_queue_free_mtx);
 		if ((m->flags & PG_ZERO) != 0) {
-			vm_phys_free_pages_locked(m, 0);
+			vm_phys_free_pages(m, 0);
 			++vm_page_zero_count;
 		} else {
-			vm_phys_free_pages_locked(m, 0);
+			vm_phys_free_pages(m, 0);
 			vm_page_zero_idle_wakeup();
 		}
 		vm_page_free_wakeup();
