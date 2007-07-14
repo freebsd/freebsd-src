@@ -285,30 +285,19 @@ vm_phys_add_page(vm_paddr_t pa)
 	    m, m->order));
 	m->pool = VM_FREEPOOL_DEFAULT;
 	pmap_page_init(m);
+	mtx_lock(&vm_page_queue_free_mtx);
 	vm_phys_free_pages(m, 0);
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
  * Allocate a contiguous, power of two-sized set of physical pages
  * from the free lists.
+ *
+ * The free page queues must be locked.
  */
 vm_page_t
 vm_phys_alloc_pages(int pool, int order)
-{
-	vm_page_t m;
-
-	mtx_lock(&vm_page_queue_free_mtx);
-	m = vm_phys_alloc_pages_locked(pool, order);
-	mtx_unlock(&vm_page_queue_free_mtx);
-	return (m);
-}
-
-/*
- * Allocate a contiguous, power of two-sized set of physical pages
- * from the free lists.
- */
-vm_page_t
-vm_phys_alloc_pages_locked(int pool, int order)
 {
 	struct vm_freelist *fl;
 	struct vm_freelist *alt;
@@ -316,9 +305,9 @@ vm_phys_alloc_pages_locked(int pool, int order)
 	vm_page_t m;
 
 	KASSERT(pool < VM_NFREEPOOL,
-	    ("vm_phys_alloc_pages_locked: pool %d is out of range", pool));
+	    ("vm_phys_alloc_pages: pool %d is out of range", pool));
 	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_alloc_pages_locked: order %d is out of range", order));
+	    ("vm_phys_alloc_pages: order %d is out of range", order));
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	for (flind = 0; flind < vm_nfreelists; flind++) {
 		fl = vm_phys_free_queues[flind][pool];
@@ -417,21 +406,11 @@ vm_phys_paddr_to_segind(vm_paddr_t pa)
 
 /*
  * Free a contiguous, power of two-sized set of physical pages.
+ *
+ * The free page queues must be locked.
  */
 void
 vm_phys_free_pages(vm_page_t m, int order)
-{
-
-	mtx_lock(&vm_page_queue_free_mtx);
-	vm_phys_free_pages_locked(m, order);
-	mtx_unlock(&vm_page_queue_free_mtx);
-}
-
-/*
- * Free a contiguous, power of two-sized set of physical pages.
- */
-void
-vm_phys_free_pages_locked(vm_page_t m, int order)
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
@@ -439,13 +418,13 @@ vm_phys_free_pages_locked(vm_page_t m, int order)
 	vm_page_t m_buddy;
 
 	KASSERT(m->order == VM_NFREEORDER,
-	    ("vm_phys_free_pages_locked: page %p has unexpected order %d",
+	    ("vm_phys_free_pages: page %p has unexpected order %d",
 	    m, m->order));
 	KASSERT(m->pool < VM_NFREEPOOL,
-	    ("vm_phys_free_pages_locked: page %p has unexpected pool %d",
+	    ("vm_phys_free_pages: page %p has unexpected pool %d",
 	    m, m->pool));
 	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_free_pages_locked: order %d is out of range", order));
+	    ("vm_phys_free_pages: order %d is out of range", order));
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	pa = VM_PAGE_TO_PHYS(m);
 	seg = &vm_phys_segs[m->segind];
@@ -518,7 +497,7 @@ vm_phys_zero_pages_idle(void)
 				}
 				cnt_prezero += zeroed;
 				mtx_lock(&vm_page_queue_free_mtx);
-				vm_phys_free_pages_locked(m, q);
+				vm_phys_free_pages(m, q);
 				vm_page_zero_count += zeroed;
 				return (TRUE);
 			}
@@ -649,7 +628,7 @@ done:
 		KASSERT(m->order == VM_NFREEORDER,
 		    ("vm_phys_alloc_contig: page %p has unexpected order %d",
 		    m, m->order));
-		vm_phys_free_pages_locked(m, 0);
+		vm_phys_free_pages(m, 0);
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 	return (m_ret);
