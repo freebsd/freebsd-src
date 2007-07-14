@@ -480,12 +480,12 @@ ZERO_COPY_SOCKETS	opt_zero.h
 TI_PRIVATE_JUMBOS	opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
 
-# ATM (HARP version)
-ATM_CORE		opt_atm.h
-ATM_IP			opt_atm.h
-ATM_SIGPVC		opt_atm.h
-ATM_SPANS		opt_atm.h
-ATM_UNI			opt_atm.h
+# ATM (HARP version) - disabled as not MPSAFE in 7.0
+#ATM_CORE		opt_atm.h
+#ATM_IP			opt_atm.h
+#ATM_SIGPVC		opt_atm.h
+#ATM_SPANS		opt_atm.h
+#ATM_UNI			opt_atm.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.

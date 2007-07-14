@@ -88,7 +88,7 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	${_gem} \
 	geom \
-	harp \
+	${_harp} \
 	hatm \
 	${_hfa} \
 	hifn \
@@ -321,6 +321,11 @@ _vpo=		vpo
 _ufs=		ufs
 .endif
 
+# Disabled in 7.0 as netatm is not MPSAFE.
+#if ${MK_ATM} != "no"
+#_harp=		harp
+#.endif
+
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
@@ -376,7 +381,8 @@ _ep=		ep
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
-_hfa=		hfa
+# Disabled due to non-MPSAFEty in 7.0
+#_hfa=		hfa
 _i2c=		i2c
 _ibcs2=		ibcs2
 _ie=		ie
@@ -437,7 +443,8 @@ _hptiop=	hptiop
 _hptmv=		hptmv
 _ichwd=		ichwd
 _ida=		ida
-_idt=		idt
+# Disabled due to non-MPSAFEty in 7.0
+#_idt=		idt
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
