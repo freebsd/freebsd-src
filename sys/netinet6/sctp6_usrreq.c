@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 #if defined(INET6)
 #include <netipsec/ipsec6.h>
-#endif /* INET6 */
-#endif /* IPSEC */
+#endif				/* INET6 */
+#endif				/* IPSEC */
 
 extern struct protosw inetsw[];
 
@@ -210,7 +210,7 @@ sctp_skip_csum:
 		ipsec6stat.in_polvio++;
 		goto bad;
 	}
-#endif /* IPSEC */
+#endif				/* IPSEC */
 
 	/*
 	 * CONTROL chunk processing

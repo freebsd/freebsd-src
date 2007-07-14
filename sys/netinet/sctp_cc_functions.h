@@ -27,74 +27,81 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_timer.h,v 1.6 2005/03/06 16:04:18 itojun Exp $	 */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_timer_h__
-#define __sctp_timer_h__
+#ifndef __sctp_cc_functions_h__
+#define __sctp_cc_functions_h__
 
 #if defined(_KERNEL)
 
-#define SCTP_RTT_SHIFT 3
-#define SCTP_RTT_VAR_SHIFT 2
-
 void
-sctp_early_fr_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
+sctp_set_initial_cc_param(struct sctp_tcb *stcb,
     struct sctp_nets *net);
 
-struct sctp_nets *
-sctp_find_alternate_net(struct sctp_tcb *,
-    struct sctp_nets *, int mode);
-
-int
-sctp_threshold_management(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, uint16_t);
-
-int
-sctp_t3rxt_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-int
-sctp_t1init_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-int
-sctp_shutdown_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-int
-sctp_heartbeat_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, int);
-
-int sctp_is_hb_timer_running(struct sctp_tcb *stcb);
-int sctp_is_sack_timer_running(struct sctp_tcb *stcb);
-
-int
-sctp_cookie_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+void
+sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
+    struct sctp_association *asoc);
 
 void
-sctp_pathmtu_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-
-int
-sctp_shutdownack_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
-int
-sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net);
-
-int
-sctp_asconf_timer(struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    int accum_moved, int reneged_all, int will_exit);
 
 void
-sctp_autoclose_timer(struct sctp_inpcb *, struct sctp_tcb *,
+sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
     struct sctp_nets *net);
 
-void sctp_audit_retranmission_queue(struct sctp_association *);
+void
+sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
+    struct sctp_association *asoc);
 
-void sctp_iterator_timer(struct sctp_iterator *it);
+void
+sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    int accum_moved, int reneged_all, int will_exit);
 
+void
+sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
+    struct sctp_nets *net);
+
+void
+sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
+    struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
+    uint32_t * bottle_bw, uint32_t * on_queue);
+
+void
+sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
+    struct sctp_nets *net, int burst_limit);
+
+void
+sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb, struct sctp_nets *net);
+
+void
+sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb,
+    struct sctp_nets *net);
+
+void
+sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
+    struct sctp_association *asoc);
+
+void
+sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    int accum_moved, int reneged_all, int will_exit);
+
+void
+sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
+    struct sctp_nets *net);
+
+void
+sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
+    struct sctp_nets *net);
+
+void
+sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
+    struct sctp_tcb *stcb, struct sctp_nets *net);
 
 #endif
 #endif

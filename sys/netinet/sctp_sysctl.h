@@ -399,18 +399,32 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_LOGGING_LEVEL_MAX	0xffffffff
 #define SCTPCTL_LOGGING_LEVEL_DEFAULT	0
 
+/* JRS 5/2107 - CMT PF type flag */
+#define SCTPCTL_CMT_PF			52
+#define SCTPCTL_CMT_PF_DESC		"CMT PF type flag"
+#define SCTPCTL_CMT_PF_MIN		0
+#define SCTPCTL_CMT_PF_MAX		2
+#define SCTPCTL_CMT_PF_DEFAULT		0
+
+/* JRS - default congestion control module sysctl */
+#define SCTPCTL_DEFAULT_CC_MODULE		53
+#define SCTPCTL_DEFAULT_CC_MODULE_DESC		"Default congestion control module"
+#define SCTPCTL_DEFAULT_CC_MODULE_MIN		0
+#define SCTPCTL_DEFAULT_CC_MODULE_MAX		2
+#define SCTPCTL_DEFAULT_CC_MODULE_DEFAULT	0
+
 #ifdef SCTP_DEBUG
 /* debug: Configure debug output */
-#define SCTPCTL_DEBUG		52
+#define SCTPCTL_DEBUG		54
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
 #define SCTPCTL_DEBUG_MIN	0
 #define SCTPCTL_DEBUG_MAX	0xFFFFFFFF
 #define SCTPCTL_DEBUG_DEFAULT	0
 
 
-#define SCTPCTL_MAXID		    52
+#define SCTPCTL_MAXID		    54
 #else
-#define SCTPCTL_MAXID		    51
+#define SCTPCTL_MAXID		    55
 #endif
 
 /*
@@ -447,6 +461,8 @@ __FBSDID("$FreeBSD$");
 	{ "path_rtx_max", CTLTYPE_INT }, \
 	{ "outgoing_streams", CTLTYPE_INT }, \
 	{ "cmt_on_off", CTLTYPE_INT }, \
+	{ "cmt_on_pf", CTLTYPE_INT }, \
+	{ "default_cc_module", CTLTYPE_INT }, \
 	{ "cwnd_maxburst", CTLTYPE_INT }, \
 	{ "early_fast_retran", CTLTYPE_INT }, \
 	{ "deadlock_detect", CTLTYPE_INT }, \
@@ -503,6 +519,8 @@ __FBSDID("$FreeBSD$");
 	{ "path_rtx_max", CTLTYPE_INT }, \
 	{ "outgoing_streams", CTLTYPE_INT }, \
 	{ "cmt_on_off", CTLTYPE_INT }, \
+	{ "cmt_on_pf", CTLTYPE_INT }, \
+	{ "default_cc_module", CTLTYPE_INT }, \
 	{ "cwnd_maxburst", CTLTYPE_INT }, \
 	{ "early_fast_retran", CTLTYPE_INT }, \
 	{ "deadlock_detect", CTLTYPE_INT }, \
@@ -570,6 +588,12 @@ extern uint32_t sctp_path_rtx_max_default;
 extern uint32_t sctp_add_more_threshold;
 extern uint32_t sctp_nr_outgoing_streams_default;
 extern uint32_t sctp_cmt_on_off;
+
+/* JRS 5/21/07 - CMT PF type flag variables  */
+extern uint32_t sctp_cmt_pf;
+
+/* JRS - Variable for the default congestion control module */
+extern uint32_t sctp_default_cc_module;
 extern uint32_t sctp_use_cwnd_based_maxburst;
 extern uint32_t sctp_early_fr;
 extern uint32_t sctp_use_rttvar_cc;

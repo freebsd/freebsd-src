@@ -93,8 +93,11 @@ uint32_t sctp_chunkscale = SCTP_CHUNKQUEUE_SCALE;
 
 uint32_t sctp_cmt_on_off = 0;
 uint32_t sctp_cmt_use_dac = 0;
+uint32_t sctp_cmt_pf = 0;
 uint32_t sctp_max_retran_chunk = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
 
+/* JRS - Variable for default congestion control module */
+uint32_t sctp_default_cc_module = SCTPCTL_DEFAULT_CC_MODULE_DEFAULT;
 
 uint32_t sctp_L2_abc_variable = 1;
 uint32_t sctp_early_fr = 0;
@@ -612,6 +615,14 @@ SYSCTL_UINT(_net_inet_sctp, OID_AUTO, outgoing_streams, CTLFLAG_RW,
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, cmt_on_off, CTLFLAG_RW,
     &sctp_cmt_on_off, 0,
     "CMT ON/OFF flag");
+
+SYSCTL_UINT(_net_inet_sctp, OID_AUTO, cmt_pf, CTLFLAG_RW,
+    &sctp_cmt_pf, 0,
+    "CMT PF type flag");
+
+SYSCTL_UINT(_net_inet_sctp, OID_AUTO, default_cc_module, CTLFLAG_RW,
+    &sctp_default_cc_module, 0,
+    "Default congestion control module");
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, cwnd_maxburst, CTLFLAG_RW,
     &sctp_use_cwnd_based_maxburst, 0,
