@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>/* for sctp_deliver_data() */
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
+#include <netinet/sctp_cc_functions.h>
 
 #define NUMBER_OF_MTU_SIZES 18
 
@@ -854,7 +855,6 @@ sctp_select_a_tag(struct sctp_inpcb *m)
 	return (x);
 }
 
-
 int
 sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
     int for_a_init, uint32_t override_tag, uint32_t vrf_id)
@@ -881,6 +881,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
 	asoc->sctp_cmt_on_off = (uint8_t) sctp_cmt_on_off;
+	/* JRS 5/21/07 - Init CMT PF variables */
+	asoc->sctp_cmt_pf = (uint8_t) sctp_cmt_pf;
 	asoc->sctp_frag_point = m->sctp_frag_point;
 #ifdef INET
 	asoc->default_tos = m->ip_inp.inp.inp_ip_tos;
@@ -1008,6 +1010,69 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->hb_random_idx = 4;
 
 	asoc->sctp_autoclose_ticks = m->sctp_ep.auto_close_time;
+
+	/*
+	 * JRS - Pick the default congestion control module based on the
+	 * sysctl.
+	 */
+	switch (m->sctp_ep.sctp_default_cc_module) {
+		/* JRS - Standard TCP congestion control */
+	case SCTP_CC_RFC2581:
+		{
+			stcb->asoc.congestion_control_module = SCTP_CC_RFC2581;
+			stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_set_initial_cc_param;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_cwnd_update_after_sack;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_cwnd_update_after_fr;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_cwnd_update_after_timeout;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_cwnd_update_after_ecn_echo;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_cwnd_update_after_fr_timer;
+			break;
+		}
+		/* JRS - High Speed TCP congestion control (Floyd) */
+	case SCTP_CC_HSTCP:
+		{
+			stcb->asoc.congestion_control_module = SCTP_CC_HSTCP;
+			stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_set_initial_cc_param;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_hs_cwnd_update_after_sack;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_hs_cwnd_update_after_fr;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_cwnd_update_after_timeout;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_cwnd_update_after_ecn_echo;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_cwnd_update_after_fr_timer;
+			break;
+		}
+		/* JRS - HTCP congestion control */
+	case SCTP_CC_HTCP:
+		{
+			stcb->asoc.congestion_control_module = SCTP_CC_HTCP;
+			stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_htcp_set_initial_cc_param;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_htcp_cwnd_update_after_sack;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_htcp_cwnd_update_after_fr;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_htcp_cwnd_update_after_timeout;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_htcp_cwnd_update_after_ecn_echo;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_htcp_cwnd_update_after_fr_timer;
+			break;
+		}
+		/* JRS - By default, use RFC2581 */
+	default:
+		{
+			stcb->asoc.congestion_control_module = SCTP_CC_RFC2581;
+			stcb->asoc.cc_functions.sctp_set_initial_cc_param = &sctp_set_initial_cc_param;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_sack = &sctp_cwnd_update_after_sack;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr = &sctp_cwnd_update_after_fr;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout = &sctp_cwnd_update_after_timeout;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_ecn_echo = &sctp_cwnd_update_after_ecn_echo;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_packet_dropped = &sctp_cwnd_update_after_packet_dropped;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_output = &sctp_cwnd_update_after_output;
+			stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer = &sctp_cwnd_update_after_fr_timer;
+			break;
+		}
+	}
 
 	/*
 	 * Now the stream parameters, here we allocate space for all streams
@@ -1309,6 +1374,9 @@ sctp_handle_addr_wq(void)
 
 }
 
+int retcode = 0;
+int cur_oerr = 0;
+
 void
 sctp_timeout_handler(void *t)
 {
@@ -1397,6 +1465,15 @@ sctp_timeout_handler(void *t)
 	if (stcb) {
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
+		if ((tmr->type != SCTP_TIMER_TYPE_ASOCKILL) &&
+		    ((stcb->asoc.state == 0) ||
+		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED))) {
+			SCTP_TCB_UNLOCK(stcb);
+			if (inp) {
+				SCTP_INP_DECR_REF(inp);
+			}
+			return;
+		}
 	}
 	/* record in stopped what t-o occured */
 	tmr->stopped_from = tmr->type;
@@ -1451,11 +1528,15 @@ sctp_timeout_handler(void *t)
 		if (stcb->asoc.num_send_timers_up < 0) {
 			stcb->asoc.num_send_timers_up = 0;
 		}
-		if (sctp_t3rxt_timer(inp, stcb, net)) {
+		SCTP_TCB_LOCK_ASSERT(stcb);
+		cur_oerr = stcb->asoc.overall_error_count;
+		retcode = sctp_t3rxt_timer(inp, stcb, net);
+		if (retcode) {
 			/* no need to unlock on tcb its gone */
 
 			goto out_decr;
 		}
+		SCTP_TCB_LOCK_ASSERT(stcb);
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif

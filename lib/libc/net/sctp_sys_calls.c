@@ -549,20 +549,20 @@ sctp_sendmsg(int s,
 sctp_assoc_t
 sctp_getassocid(int sd, struct sockaddr *sa)
 {
-	struct sctp_paddrparams sp;
+	struct sctp_paddrinfo sp;
 	socklen_t siz;
 
 	/* First get the assoc id */
-	siz = sizeof(struct sctp_paddrparams);
+	siz = sizeof(sp);
 	memset(&sp, 0, sizeof(sp));
-	memcpy((caddr_t)&sp.spp_address, sa, sa->sa_len);
+	memcpy((caddr_t)&sp.spinfo_address, sa, sa->sa_len);
 	errno = 0;
 	if (getsockopt(sd, IPPROTO_SCTP,
-	    SCTP_PEER_ADDR_PARAMS, &sp, &siz) != 0) {
+	    SCTP_GET_PEER_ADDR_INFO, &sp, &siz) != 0) {
 		return ((sctp_assoc_t) 0);
 	}
 	/* We depend on the fact that 0 can never be returned */
-	return (sp.spp_assoc_id);
+	return (sp.spinfo_assoc_id);
 }
 
 ssize_t
@@ -585,7 +585,8 @@ sctp_send(int sd, const void *data, size_t len,
 	struct cmsghdr *cmsg;
 
 	if (sinfo == NULL) {
-		return (EINVAL);
+		errno = EINVAL;
+		return (-1);
 	}
 	iov[0].iov_base = (char *)data;
 	iov[0].iov_len = len;
@@ -641,6 +642,11 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 		    msg, msg_len, addrs, l, sinfo, flags));
 	}
 #endif
+
+	if (addrs == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	len = sizeof(int);
 	at = addrs;
 	cnt = 0;
@@ -665,7 +671,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	}
 	buf = malloc(len);
 	if (buf == NULL) {
-		return (ENOMEM);
+		return (-1);
 	}
 	aa = (int *)buf;
 	*aa = cnt;

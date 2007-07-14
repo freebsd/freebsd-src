@@ -1798,7 +1798,7 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					 * cwnd/rto to start as if its a new
 					 * address?
 					 */
-					sctp_set_initial_cc_param(stcb, net);
+					stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
 					net->RTO = 0;
 
 				}

@@ -153,6 +153,8 @@ __attribute__((packed));
 /* CMT ON/OFF socket option */
 #define SCTP_CMT_ON_OFF                 0x00001200
 #define SCTP_CMT_USE_DAC                0x00001201
+/* JRS - Pluggable Congestion Control Socket option */
+#define SCTP_PLUGGABLE_CC				0x00001202
 
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
@@ -237,6 +239,16 @@ __attribute__((packed));
 #define SCTP_LISTEN_FIX			0x0000800c
 /* Debug things that need to be purged */
 #define SCTP_SET_INITIAL_DBG_SEQ	0x00009f00
+
+/* JRS - Supported congestion control modules for pluggable
+ * congestion control
+ */
+/* Standard TCP Congestion Control */
+#define SCTP_CC_RFC2581		0x00000000
+/* High Speed TCP Congestion Control (Floyd) */
+#define SCTP_CC_HSTCP		0x00000001
+/* HTCP Congestion Control */
+#define SCTP_CC_HTCP		0x00000002
 
 
 /* fragment interleave constants
