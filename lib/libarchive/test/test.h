@@ -116,9 +116,19 @@
 #define assertEqualWString(v1,v2)   \
   test_assert_equal_wstring(__FILE__, __LINE__, (v1), #v1, (v2), #v2, NULL)
 
+/*
+ * This would be simple with C99 variadic macros, but I don't want to
+ * require that.  Instead, I insert a function call before each
+ * skipping() call to pass the file and line information down.  Crude,
+ * but effective.
+ */
+#define skipping	\
+  skipping_setup(__FILE__, __LINE__);test_skipping
+
 /* Function declarations.  These are defined in test_utility.c. */
 void failure(const char *fmt, ...);
-void skipping(const char *fmt, ...);
+void skipping_setup(const char *, int);
+void test_skipping(const char *fmt, ...);
 void test_assert(const char *, int, int, const char *, struct archive *);
 void test_assert_equal_int(const char *, int, int, const char *, int, const char *, struct archive *);
 void test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, struct archive *);
