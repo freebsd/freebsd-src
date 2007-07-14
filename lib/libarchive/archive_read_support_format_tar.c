@@ -1000,6 +1000,7 @@ header_common(struct archive_read *a, struct tar *tar,
 			archive_entry_set_size(entry, 0);
 			tar->entry_bytes_remaining = 0;
 		}
+		break;
 	case '2': /* Symlink */
 		archive_entry_set_filetype(entry, AE_IFLNK);
 		archive_entry_set_size(entry, 0);
