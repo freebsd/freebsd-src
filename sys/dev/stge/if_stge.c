@@ -1336,7 +1336,7 @@ stge_start_locked(struct ifnet *ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
 	if (enq > 0) {
