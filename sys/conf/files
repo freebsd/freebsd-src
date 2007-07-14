@@ -1851,6 +1851,7 @@ netinet/raw_ip.c		optional inet
 netinet/sctp_asconf.c		optional inet inet6 sctp
 netinet/sctp_auth.c		optional inet inet6 sctp
 netinet/sctp_bsd_addr.c		optional inet inet6 sctp
+netinet/sctp_cc_functions.c	optional inet inet6 sctp
 netinet/sctp_crc32.c		optional inet inet6 sctp
 netinet/sctp_indata.c		optional inet inet6 sctp
 netinet/sctp_input.c		optional inet inet6 sctp
