@@ -558,14 +558,6 @@ options         SCTP
 # faster.. if you are not debugging don't use.
 options SCTP_DEBUG
 #
-# High speed enables sally floyds HS TCP optioin
-# for congestion control increase, use only in
-# very HS networks and with caution since I doubt
-# it will compete fairly with peers. For the big-bad
-# internet its best NOT to enable.
-#
-options SCTP_HIGH_SPEED
-#
 # This option turns off the CRC32c checksum. Basically
 # You will not be able to talk to anyone else that
 # has not done this. Its more for expermentation to
