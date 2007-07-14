@@ -137,23 +137,11 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 		}
 	}
 	if (cnt) {
-		int old_cwnd;
-
-		old_cwnd = net->cwnd;
-		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
 		/*
-		 * make a small adjustment to cwnd and force to CA.
+		 * JRS - Use the congestion control given in the congestion
+		 * control module
 		 */
-
-		if (net->cwnd > net->mtu)
-			/* drop down one MTU after sending */
-			net->cwnd -= net->mtu;
-		if (net->cwnd < net->ssthresh)
-			/* still in SS move to CA */
-			net->ssthresh = net->cwnd - 1;
-		if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-			sctp_log_cwnd(stcb, net, (old_cwnd - net->cwnd), SCTP_CWND_LOG_FROM_FR);
-		}
+		stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer(inp, stcb, net);
 	} else if (cnt_resend) {
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
 	}
@@ -207,6 +195,26 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
 				if (net == stcb->asoc.primary_destination) {
 					net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
+				}
+				/*
+				 * JRS 5/14/07 - If a destination is
+				 * unreachable, the PF bit is turned off.
+				 * This allows an unambiguous use of the PF
+				 * bit for destinations that are reachable
+				 * but potentially failed. If the
+				 * destination is set to the unreachable
+				 * state, also set the destination to the PF
+				 * state.
+				 */
+				/*
+				 * Add debug message here if destination is
+				 * not in PF state.
+				 */
+				/* Stop any running T3 timers here? */
+				if (sctp_cmt_pf) {
+					net->dest_state &= ~SCTP_ADDR_PF;
+					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
+					    net);
 				}
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
 				    stcb,
@@ -267,18 +275,151 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 struct sctp_nets *
 sctp_find_alternate_net(struct sctp_tcb *stcb,
     struct sctp_nets *net,
-    int highest_ssthresh)
+    int mode)
 {
 	/* Find and return an alternate network if possible */
-	struct sctp_nets *alt, *mnet, *hthresh = NULL;
+	struct sctp_nets *alt, *mnet, *min_errors_net = NULL, *max_cwnd_net = NULL;
 	int once;
-	uint32_t val = 0;
+
+	/* JRS 5/14/07 - Initialize min_errors to an impossible value. */
+	int min_errors = -1;
+	uint32_t max_cwnd = 0;
 
 	if (stcb->asoc.numnets == 1) {
 		/* No others but net */
 		return (TAILQ_FIRST(&stcb->asoc.nets));
 	}
-	if (highest_ssthresh) {
+	/*
+	 * JRS 5/14/07 - If mode is set to 2, use the CMT PF find alternate
+	 * net algorithm. This algorithm chooses the active destination (not
+	 * in PF state) with the largest cwnd value. If all destinations are
+	 * in PF state, unreachable, or unconfirmed, choose the desination
+	 * that is in PF state with the lowest error count. In case of a
+	 * tie, choose the destination that was most recently active.
+	 */
+	if (mode == 2) {
+		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
+			/*
+			 * JRS 5/14/07 - If the destination is unreachable
+			 * or unconfirmed, skip it.
+			 */
+			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
+			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+				continue;
+			}
+			/*
+			 * JRS 5/14/07 -  If the destination is reachable
+			 * but in PF state, compare the error count of the
+			 * destination to the minimum error count seen thus
+			 * far. Store the destination with the lower error
+			 * count.  If the error counts are equal, store the
+			 * destination that was most recently active.
+			 */
+			if (mnet->dest_state & SCTP_ADDR_PF) {
+				/*
+				 * JRS 5/14/07 - If the destination under
+				 * consideration is the current destination,
+				 * work as if the error count is one higher.
+				 * The actual error count will not be
+				 * incremented until later in the t3
+				 * handler.
+				 */
+				if (mnet == net) {
+					if (min_errors == -1) {
+						min_errors = mnet->error_count + 1;
+						min_errors_net = mnet;
+					} else if (mnet->error_count + 1 < min_errors) {
+						min_errors = mnet->error_count + 1;
+						min_errors_net = mnet;
+					} else if (mnet->error_count + 1 == min_errors
+					    && mnet->last_active > min_errors_net->last_active) {
+						min_errors_net = mnet;
+						min_errors = mnet->error_count + 1;
+					}
+					continue;
+				} else {
+					if (min_errors == -1) {
+						min_errors = mnet->error_count;
+						min_errors_net = mnet;
+					} else if (mnet->error_count < min_errors) {
+						min_errors = mnet->error_count;
+						min_errors_net = mnet;
+					} else if (mnet->error_count == min_errors
+					    && mnet->last_active > min_errors_net->last_active) {
+						min_errors_net = mnet;
+						min_errors = mnet->error_count;
+					}
+					continue;
+				}
+			}
+			/*
+			 * JRS 5/14/07 - If the destination is reachable and
+			 * not in PF state, compare the cwnd of the
+			 * destination to the highest cwnd seen thus far.
+			 * Store the destination with the higher cwnd value.
+			 * If the cwnd values are equal, randomly choose one
+			 * of the two destinations.
+			 */
+			if (max_cwnd < mnet->cwnd) {
+				max_cwnd_net = mnet;
+				max_cwnd = mnet->cwnd;
+			} else if (max_cwnd == mnet->cwnd) {
+				uint32_t rndval;
+				uint8_t this_random;
+
+				if (stcb->asoc.hb_random_idx > 3) {
+					rndval = sctp_select_initial_TSN(&stcb->sctp_ep->sctp_ep);
+					memcpy(stcb->asoc.hb_random_values, &rndval, sizeof(stcb->asoc.hb_random_values));
+					this_random = stcb->asoc.hb_random_values[0];
+					stcb->asoc.hb_random_idx++;
+					stcb->asoc.hb_ect_randombit = 0;
+				} else {
+					this_random = stcb->asoc.hb_random_values[stcb->asoc.hb_random_idx];
+					stcb->asoc.hb_random_idx++;
+					stcb->asoc.hb_ect_randombit = 0;
+				}
+				if (this_random % 2 == 1) {
+					max_cwnd_net = mnet;
+					max_cwnd = mnet->cwnd;
+					//Useless ?
+				}
+			}
+		}
+		/*
+		 * JRS 5/14/07 - After all destination have been considered
+		 * as alternates, check to see if there was some active
+		 * destination (not in PF state).  If not, check to see if
+		 * there was some PF destination with the minimum number of
+		 * errors.  If not, return the original destination.  If
+		 * there is a min_errors_net, remove the PF flag from that
+		 * destination, set the cwnd to one or two MTUs, and return
+		 * the destination as an alt. If there was some active
+		 * destination with a highest cwnd, return the destination
+		 * as an alt.
+		 */
+		if (max_cwnd_net == NULL) {
+			if (min_errors_net == NULL) {
+				return (net);
+			}
+			min_errors_net->dest_state &= ~SCTP_ADDR_PF;
+			min_errors_net->cwnd = min_errors_net->mtu * sctp_cmt_pf;
+			if (SCTP_OS_TIMER_PENDING(&min_errors_net->rxt_timer.timer)) {
+				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
+				    stcb, min_errors_net,
+				    SCTP_FROM_SCTP_TIMER + SCTP_LOC_2);
+			}
+			SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to active with %d errors.\n",
+			    min_errors_net, min_errors_net->error_count);
+			return (min_errors_net);
+		} else {
+			return (max_cwnd_net);
+		}
+	}
+	/*
+	 * JRS 5/14/07 - If mode is set to 1, use the CMT policy for
+	 * choosing an alternate net.
+	 */ 
+	else if (mode == 1) {
 		TAILQ_FOREACH(mnet, &stcb->asoc.nets, sctp_next) {
 			if (((mnet->dest_state & SCTP_ADDR_REACHABLE) != SCTP_ADDR_REACHABLE) ||
 			    (mnet->dest_state & SCTP_ADDR_UNCONFIRMED)
@@ -289,10 +430,10 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				 */
 				continue;
 			}
-			if (val < mnet->ssthresh) {
-				hthresh = mnet;
-				val = mnet->ssthresh;
-			} else if (val == mnet->ssthresh) {
+			if (max_cwnd < mnet->cwnd) {
+				max_cwnd_net = mnet;
+				max_cwnd = mnet->cwnd;
+			} else if (max_cwnd == mnet->cwnd) {
 				uint32_t rndval;
 				uint8_t this_random;
 
@@ -309,13 +450,13 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 					stcb->asoc.hb_ect_randombit = 0;
 				}
 				if (this_random % 2) {
-					hthresh = mnet;
-					val = mnet->ssthresh;
+					max_cwnd_net = mnet;
+					max_cwnd = mnet->cwnd;
 				}
 			}
 		}
-		if (hthresh) {
-			return (hthresh);
+		if (max_cwnd_net) {
+			return (max_cwnd_net);
 		}
 	}
 	mnet = net;
@@ -382,6 +523,8 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 	return (alt);
 }
 
+
+
 static void
 sctp_backoff_on_timeout(struct sctp_tcb *stcb,
     struct sctp_nets *net,
@@ -397,20 +540,8 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 	}
 	if ((win_probe == 0) && num_marked) {
 		/* We don't apply penalty to window probe scenarios */
-		int old_cwnd = net->cwnd;
-
-		net->ssthresh = net->cwnd >> 1;
-		if (net->ssthresh < (net->mtu << 1)) {
-			net->ssthresh = (net->mtu << 1);
-		}
-		net->cwnd = net->mtu;
-		/* floor of 1 mtu */
-		if (net->cwnd < net->mtu)
-			net->cwnd = net->mtu;
-		if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-			sctp_log_cwnd(stcb, net, net->cwnd - old_cwnd, SCTP_CWND_LOG_FROM_RTX);
-		}
-		net->partial_bytes_acked = 0;
+		/* JRS - Use the congestion control given in the CC module */
+		stcb->asoc.cc_functions.sctp_cwnd_update_after_timeout(stcb, net);
 	}
 }
 
@@ -437,22 +568,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	uint32_t orig_flight, orig_tf;
 	uint32_t tsnlast, tsnfirst;
 
-	/*
-	 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being used,
-	 * then pick dest with largest ssthresh for any retransmission.
-	 * (iyengar@cis.udel.edu, 2005/08/12)
-	 */
-	if (sctp_cmt_on_off) {
-		alt = sctp_find_alternate_net(stcb, net, 1);
-		/*
-		 * CUCv2: If a different dest is picked for the
-		 * retransmission, then new (rtx-)pseudo_cumack needs to be
-		 * tracked for orig dest. Let CUCv2 track new (rtx-)
-		 * pseudo-cumack always.
-		 */
-		net->find_pseudo_cumack = 1;
-		net->find_rtx_pseudo_cumack = 1;
-	}
+
 	/* none in flight now */
 	audit_tf = 0;
 	fir = 0;
@@ -625,6 +741,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 			SCTP_STAT_INCR(sctps_markedretrans);
 
 			/* reset the TSN for striking and other FR stuff */
+			chk->window_probe = 0;
 			chk->rec.data.doing_fast_retransmit = 0;
 			/* Clear any time so NO RTT is being done */
 			chk->do_rtt = 0;
@@ -820,7 +937,22 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		win_probe = 0;
 	}
 
-	if (sctp_cmt_on_off) {
+	/*
+	 * JRS 5/14/07 - If CMT PF is on and the destination if not already
+	 * in PF state, set the destination to PF state and store the
+	 * current time as the time that the destination was last active. In
+	 * addition, find an alternate destination with PF-based
+	 * find_alt_net().
+	 */
+	if (sctp_cmt_pf) {
+		if ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF) {
+			net->dest_state |= SCTP_ADDR_PF;
+			net->last_active = ticks;
+			SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from active to PF.\n",
+			    net);
+		}
+		alt = sctp_find_alternate_net(stcb, net, 2);
+	} else if (sctp_cmt_on_off) {
 		/*
 		 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being
 		 * used, then pick dest with largest ssthresh for any
@@ -838,7 +970,6 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		net->find_rtx_pseudo_cumack = 1;
 
 	} else {		/* CMT is OFF */
-
 		alt = sctp_find_alternate_net(stcb, net, 0);
 	}
 
@@ -880,7 +1011,8 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 					 * no recent feed back in an RTO or
 					 * more, request a RTT update
 					 */
-					(void)sctp_send_hb(stcb, 1, net);
+					if (sctp_send_hb(stcb, 1, net) < 0)
+						return 1;
 				}
 			}
 		}
@@ -931,6 +1063,14 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
 			}
 		}
+	} else if (sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
+		/*
+		 * JRS 5/14/07 - If the destination hasn't failed completely
+		 * but is in PF state, a PF-heartbeat needs to be sent
+		 * manually.
+		 */
+		if (sctp_send_hb(stcb, 1, net) < 0)
+			return 1;
 	}
 	/*
 	 * Special case for cookie-echo'ed case, we don't do output but must
@@ -1048,9 +1188,9 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 				ph->param_length = htons(SCTP_BUF_LEN(oper));
 				ippp = (uint32_t *) (ph + 1);
-				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_2);
+				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
 			}
-			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_3;
+			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
 			sctp_abort_an_association(inp, stcb, SCTP_INTERNAL_ERROR,
 			    oper);
 		} else {
@@ -1375,6 +1515,8 @@ int
 sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct sctp_nets *net, int cnt_of_unconf)
 {
+	int ret;
+
 	if (net) {
 		if (net->hb_responded == 0) {
 			if (net->ro._s_addr) {
@@ -1422,7 +1564,10 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 						net->src_addr_selected = 0;
 					}
 				}
-				if (sctp_send_hb(stcb, 1, net) == 0) {
+				ret = sctp_send_hb(stcb, 1, net);
+				if (ret < 0)
+					return 1;
+				else if (ret == 0) {
 					break;
 				}
 				if (cnt_sent >= sctp_hb_maxburst)

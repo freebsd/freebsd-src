@@ -1911,6 +1911,13 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	m->sctp_sws_sender = SCTP_SWS_SENDER_DEF;
 	m->sctp_sws_receiver = SCTP_SWS_RECEIVER_DEF;
 	m->max_burst = sctp_max_burst_default;
+	if ((sctp_default_cc_module >= SCTP_CC_RFC2581) &&
+	    (sctp_default_cc_module <= SCTP_CC_HTCP)) {
+		m->sctp_default_cc_module = sctp_default_cc_module;
+	} else {
+		/* sysctl done with invalid value, set to 2581 */
+		m->sctp_default_cc_module = SCTP_CC_RFC2581;
+	}
 	/* number of streams to pre-open on a association */
 	m->pre_open_stream_count = sctp_nr_outgoing_streams_default;
 
@@ -2944,19 +2951,6 @@ sctp_is_address_on_local_host(struct sockaddr *addr, uint32_t vrf_id)
 	}
 }
 
-void
-sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
-{
-	net->cwnd = min((net->mtu * 4), max((2 * net->mtu), SCTP_INITIAL_CWND));
-	/* we always get at LEAST 2 MTU's */
-	if (net->cwnd < (2 * net->mtu)) {
-		net->cwnd = 2 * net->mtu;
-	}
-	net->ssthresh = stcb->asoc.peers_rwnd;
-}
-
-
-
 /*
  * add's a remote endpoint address, done with the INIT/INIT-ACK as well as
  * when a ASCONF arrives that adds it. It will also initialize all the cwnd
@@ -3210,16 +3204,9 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 #endif
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
-	/*
-	 * We take the max of the burst limit times a MTU or the
-	 * INITIAL_CWND. We then limit this to 4 MTU's of sending.
-	 */
-	sctp_set_initial_cc_param(stcb, net);
+	/* JRS - Use the congestion control given in the CC module */
+	stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
 
-
-	if (sctp_logging_level & (SCTP_CWND_MONITOR_ENABLE | SCTP_CWND_LOGGING_ENABLE)) {
-		sctp_log_cwnd(stcb, net, 0, SCTP_CWND_INITIALIZATION);
-	}
 	/*
 	 * CMT: CUC algo - set find_pseudo_cumack to TRUE (1) at beginning
 	 * of assoc (2005/06/27, iyengar@cis.udel.edu)
@@ -3802,19 +3789,14 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		 */
 		sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 		SCTP_TCB_UNLOCK(stcb);
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE))
+			/* nothing around */
+			so = NULL;
 		if (so) {
-			SCTP_INP_RLOCK(inp);
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
-			    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE))
-				/* nothing around */
-				so = NULL;
-			if (so) {
-				/* Wake any reader/writers */
-				sctp_sorwakeup(inp, so);
-				sctp_sowwakeup(inp, so);
-			}
-			SCTP_INP_RUNLOCK(inp);
-
+			/* Wake any reader/writers */
+			sctp_sorwakeup(inp, so);
+			sctp_sowwakeup(inp, so);
 		}
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, stcb, 9);
@@ -4918,6 +4900,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * strange, address is in another
 					 * assoc? straighten out locks.
 					 */
+					SCTP_TCB_UNLOCK(stcb_tmp);
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-12);
@@ -4992,6 +4975,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * strange, address is in another
 					 * assoc? straighten out locks.
 					 */
+					SCTP_TCB_UNLOCK(stcb_tmp);
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-21);

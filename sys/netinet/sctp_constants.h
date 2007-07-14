@@ -83,6 +83,11 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_DEFAULT_VRF_SIZE 4
 
+/* JRS - Values defined for the HTCP algorithm */
+#define ALPHA_BASE	(1<<7)	/* 1.0 with shift << 7 */
+#define BETA_MIN	(1<<6)	/* 0.5 with shift << 7 */
+#define BETA_MAX	102	/* 0.8 with shift << 7 */
+
 /* Places that CWND log can happen from */
 #define SCTP_CWND_LOG_FROM_FR	1
 #define SCTP_CWND_LOG_FROM_RTX	2
@@ -483,6 +488,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_ADDR_DOUBLE_SWITCH		0x100
 #define SCTP_ADDR_UNCONFIRMED		0x200
 #define SCTP_ADDR_REQ_PRIMARY           0x400
+/* JRS 5/13/07 - Added potentially failed state for CMT PF */
+#define SCTP_ADDR_PF            0x800
 #define SCTP_REACHABLE_MASK		0x203
 
 /* bound address types (e.g. valid address types to allow) */

@@ -256,6 +256,7 @@ struct sctp_pcb {
 	uint32_t sctp_sws_sender;
 	uint32_t sctp_sws_receiver;
 
+	uint32_t sctp_default_cc_module;
 	/* authentication related fields */
 	struct sctp_keyhead shared_keys;
 	sctp_auth_chklist_t *local_auth_chunks;
@@ -508,9 +509,6 @@ int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
 void sctp_remove_laddr(struct sctp_laddr *);
 
 void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
-
-void sctp_set_initial_cc_param(struct sctp_tcb *, struct sctp_nets *net);
-
 
 int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, int, int);
 
