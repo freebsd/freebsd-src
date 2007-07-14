@@ -342,16 +342,26 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     trust = !issetugid();
 
     ld_bind_now = getenv(LD_ "BIND_NOW");
-    if (trust) {
-	ld_debug = getenv(LD_ "DEBUG");
-	libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
-	libmap_override = getenv(LD_ "LIBMAP");
-	ld_library_path = getenv(LD_ "LIBRARY_PATH");
-	ld_preload = getenv(LD_ "PRELOAD");
-	dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
-	    (ld_library_path != NULL) || (ld_preload != NULL);
-    } else
-	dangerous_ld_env = 0;
+    /* 
+     * If the process is tainted, then we un-set the dangerous environment
+     * variables.  The process will be marked as tainted until setuid(2)
+     * is called.  If any child process calls setuid(2) we do not want any
+     * future processes to honor the potentially un-safe variables.
+     */
+    if (!trust) {
+        unsetenv(LD_ "PRELOAD");
+        unsetenv(LD_ "LIBMAP");
+        unsetenv(LD_ "LIBRARY_PATH");
+        unsetenv(LD_ "LIBMAP_DISABLE");
+        unsetenv(LD_ "DEBUG");
+    }
+    ld_debug = getenv(LD_ "DEBUG");
+    libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
+    libmap_override = getenv(LD_ "LIBMAP");
+    ld_library_path = getenv(LD_ "LIBRARY_PATH");
+    ld_preload = getenv(LD_ "PRELOAD");
+    dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
+	(ld_library_path != NULL) || (ld_preload != NULL);
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
 
