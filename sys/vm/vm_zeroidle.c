@@ -59,10 +59,6 @@ TUNABLE_INT("vm.idlezero_enable", &idlezero_enable_default);
 static int idlezero_enable = 0;
 SYSCTL_INT(_vm, OID_AUTO, idlezero_enable, CTLFLAG_RW, &idlezero_enable, 0, "");
 
-static int idlezero_maxrun = 16;
-SYSCTL_INT(_vm, OID_AUTO, idlezero_maxrun, CTLFLAG_RW, &idlezero_maxrun, 0, "");
-TUNABLE_INT("vm.idlezero_maxrun", &idlezero_maxrun);
-
 /*
  * Implement the pre-zeroed page mechanism.
  */
