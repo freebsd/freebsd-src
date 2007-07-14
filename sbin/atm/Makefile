@@ -23,9 +23,11 @@
 #	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
 # $FreeBSD$
 
-SUBDIR=	atm \
-	atmconfig \
-	fore_dnld \
-	ilmid
+SUBDIR=	atmconfig
+
+# Disabled in 7.0 as netatm is not MPSAFE.
+#	atm \
+#	fore_dnld \
+#	ilmid
 
 .include <bsd.subdir.mk>
