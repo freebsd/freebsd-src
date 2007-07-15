@@ -235,7 +235,7 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_set_uid(ae, getuid() + 1);
 	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
 	assertA(0 == archive_write_header(a, ae));
-	assertA(ARCHIVE_WARN == archive_write_finish_entry(a));
+	assertEqualInt(ARCHIVE_WARN, archive_write_finish_entry(a));
 
 	/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
 	assert(archive_entry_clear(ae) != NULL);
