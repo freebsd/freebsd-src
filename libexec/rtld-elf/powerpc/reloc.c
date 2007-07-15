@@ -286,8 +286,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
-	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
-	if (cache == MAP_FAILED)
+	if (obj != obj_rtld) {
+		cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON,
+		    -1, 0);
+		if (cache == MAP_FAILED)
+			cache = NULL;
+	} else
 		cache = NULL;
 
 	/*
