@@ -335,6 +335,9 @@
     <para><application>BZIP2</application> has been updated from
       1.0.3 to 1.0.4.</para>
 
+    <para>GNU <application>Diffutils</application> has been updated
+      from 2.7 to 2.8.7.</para>
+
     <para>The GNU version of <application>gzip</application> has been
       replaced with a modified version of gzip ported from NetBSD.</para>
 
