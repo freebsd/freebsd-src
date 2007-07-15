@@ -1711,38 +1711,34 @@ fw_attach_dev(struct firewire_comm *fc)
 static int
 fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
-	u_int i;
+	u_int dst, new_tlabel;
 	struct fw_xfer *txfer;
 	int s;
-	static uint32_t label = 0;
 
+	dst = xfer->send.hdr.mode.hdr.dst & 0x3f;
 	s = splfw();
 	FW_GLOCK(fc);
-	for( i = 0 ; i < 0x40 ; i ++){
-		label = (label + 1) & 0x3f;
-		STAILQ_FOREACH(txfer, &fc->tlabels[label], tlabel)
-			if (txfer->send.hdr.mode.hdr.dst ==
-			    xfer->send.hdr.mode.hdr.dst)
+	new_tlabel = (fc->last_tlabel[dst] + 1) & 0x3f;
+	STAILQ_FOREACH(txfer, &fc->tlabels[new_tlabel], tlabel)
+		if ((txfer->send.hdr.mode.hdr.dst & 0x3f) == dst)
 				break;
-		if(txfer == NULL) {
-			xfer->tl = label;
-			xfer->send.hdr.mode.hdr.tlrt = label << 2;
-			STAILQ_INSERT_TAIL(&fc->tlabels[label], xfer, tlabel);
-			FW_GUNLOCK(fc);
-			splx(s);
-			if (firewire_debug > 1)
-				printf("fw_get_tlabel: dst=%d tl=%d\n",
-				    xfer->send.hdr.mode.hdr.dst, label);
-			/* note: label may be incremanted after unlock */
-			return(xfer->tl);
-		}
+	if(txfer == NULL) {
+		fc->last_tlabel[dst] = new_tlabel;
+		STAILQ_INSERT_TAIL(&fc->tlabels[new_tlabel], xfer, tlabel);
+		FW_GUNLOCK(fc);
+		splx(s);
+		xfer->tl = new_tlabel;
+		xfer->send.hdr.mode.hdr.tlrt = new_tlabel << 2;
+		if (firewire_debug > 1)
+			printf("fw_get_tlabel: dst=%d tl=%d\n", dst, new_tlabel);
+		return (new_tlabel);
 	}
 	FW_GUNLOCK(fc);
 	splx(s);
 
 	if (firewire_debug > 1)
 		printf("fw_get_tlabel: no free tlabel\n");
-	return(-1);
+	return (-1);
 }
 
 static void
