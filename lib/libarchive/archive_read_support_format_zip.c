@@ -302,7 +302,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	archive_string_ensure(&zip->pathname, zip->filename_length);
+	if (archive_string_ensure(&zip->pathname, zip->filename_length) == NULL)
+		__archive_errx(1, "Out of memory");
 	archive_strncpy(&zip->pathname, (const char *)h, zip->filename_length);
 	(a->decompressor->consume)(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
