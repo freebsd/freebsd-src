@@ -217,7 +217,8 @@ atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
 }
 
 void
-atalkprotopr(u_long off __unused, const char *name, int af1 __unused)
+atalkprotopr(u_long off __unused, const char *name, int af1 __unused,
+    int proto __unused)
 {
 	struct ddpcb *this, *next;
 
@@ -266,7 +267,8 @@ atalkprotopr(u_long off __unused, const char *name, int af1 __unused)
  * Dump DDP statistics structure.
  */
 void
-ddp_stats(u_long off __unused, const char *name, int af1 __unused)
+ddp_stats(u_long off __unused, const char *name, int af1 __unused,
+    int proto __unused)
 {
 	struct ddpstat ddpstat;
 

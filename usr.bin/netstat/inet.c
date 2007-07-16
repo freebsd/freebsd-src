@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -90,6 +91,208 @@ void	inetprint (struct in_addr *, int, const char *, int);
 static int udp_done, tcp_done;
 #endif /* INET6 */
 
+static int
+pcblist_sysctl(int proto, char **bufp, int istcp)
+{
+	const char *mibvar;
+	char *buf;
+	size_t len;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		mibvar = "net.inet.tcp.pcblist";
+		break;
+	case IPPROTO_UDP:
+		mibvar = "net.inet.udp.pcblist";
+		break;
+	case IPPROTO_DIVERT:
+		mibvar = "net.inet.divert.pcblist";
+		break;
+	default:
+		mibvar = "net.inet.raw.pcblist";
+		break;
+	}
+
+	len = 0;
+	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
+		if (errno != ENOENT)
+			warn("sysctl: %s", mibvar);
+		return (0);
+	}
+	if ((buf = malloc(len)) == 0) {
+		warnx("malloc %lu bytes", (u_long)len);
+		return (0);
+	}
+	if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {
+		warn("sysctl: %s", mibvar);
+		free(buf);
+		return (0);
+	}
+	*bufp = buf;
+	return (1);
+}
+
+/*
+ * Copied directly from uipc_socket2.c.  We leave out some fields that are in
+ * nested structures that aren't used to avoid extra work.
+ */
+static void
+sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
+{
+	xsb->sb_cc = sb->sb_cc;
+	xsb->sb_hiwat = sb->sb_hiwat;
+	xsb->sb_mbcnt = sb->sb_mbcnt;
+	xsb->sb_mbmax = sb->sb_mbmax;
+	xsb->sb_lowat = sb->sb_lowat;
+	xsb->sb_flags = sb->sb_flags;
+	xsb->sb_timeo = sb->sb_timeo;
+}
+
+int
+sotoxsocket(struct socket *so, struct xsocket *xso)
+{
+	struct protosw proto;
+	struct domain domain;
+
+	bzero(xso, sizeof *xso);
+	xso->xso_len = sizeof *xso;
+	xso->xso_so = so;
+	xso->so_type = so->so_type;
+	xso->so_options = so->so_options;
+	xso->so_linger = so->so_linger;
+	xso->so_state = so->so_state;
+	xso->so_pcb = so->so_pcb;
+	if (kread((uintptr_t)so->so_proto, &proto, sizeof(proto)) != 0)
+		return (-1);
+	xso->xso_protocol = proto.pr_protocol;
+	if (kread((uintptr_t)proto.pr_domain, &domain, sizeof(domain)) != 0)
+		return (-1);
+	xso->xso_family = domain.dom_family;
+	xso->so_qlen = so->so_qlen;
+	xso->so_incqlen = so->so_incqlen;
+	xso->so_qlimit = so->so_qlimit;
+	xso->so_timeo = so->so_timeo;
+	xso->so_error = so->so_error;
+	xso->so_oobmark = so->so_oobmark;
+	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
+	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
+	return (0);
+}
+
+static int
+pcblist_kvm(u_long off, char **bufp, int istcp)
+{
+	struct inpcbinfo pcbinfo;
+	struct inpcbhead listhead;
+	struct inpcb *inp;
+	struct xinpcb xi;
+	struct xinpgen xig;
+	struct xtcpcb xt;
+	struct socket so;
+	struct xsocket *xso;
+	char *buf, *p;
+	size_t len;
+
+	if (off == 0)
+		return (0);
+	kread(off, &pcbinfo, sizeof(pcbinfo));
+	if (istcp)
+		len = 2 * sizeof(xig) +
+		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
+		    sizeof(struct xtcpcb);
+	else
+		len = 2 * sizeof(xig) +
+		    (pcbinfo.ipi_count + pcbinfo.ipi_count / 8) *
+		    sizeof(struct xinpcb);
+	if ((buf = malloc(len)) == 0) {
+		warnx("malloc %lu bytes", (u_long)len);
+		return (0);
+	}
+	p = buf;
+
+#define COPYOUT(obj, size) do {						\
+	if (len < (size)) {						\
+		warnx("buffer size exceeded");				\
+		goto fail;						\
+	}								\
+	bcopy((obj), p, (size));					\
+	len -= (size);							\
+	p += (size);							\
+} while (0)
+
+#define KREAD(off, buf, len) do {					\
+	if (kread((uintptr_t)(off), (buf), (len)) != 0)			\
+		goto fail;						\
+} while (0)
+
+	/* Write out header. */
+	xig.xig_len = sizeof xig;
+	xig.xig_count = pcbinfo.ipi_count;
+	xig.xig_gen = pcbinfo.ipi_gencnt;
+	xig.xig_sogen = 0;
+	COPYOUT(&xig, sizeof xig);
+
+	/* Walk the PCB list. */
+	xt.xt_len = sizeof xt;
+	xi.xi_len = sizeof xi;
+	if (istcp)
+		xso = &xt.xt_socket;
+	else
+		xso = &xi.xi_socket;
+	KREAD(pcbinfo.ipi_listhead, &listhead, sizeof(listhead));
+	LIST_FOREACH(inp, &listhead, inp_list) {
+		if (istcp) {
+			KREAD(inp, &xt.xt_inp, sizeof(*inp));
+			inp = &xt.xt_inp;
+		} else {
+			KREAD(inp, &xi.xi_inp, sizeof(*inp));
+			inp = &xi.xi_inp;
+		}
+
+		if (inp->inp_gencnt > pcbinfo.ipi_gencnt)
+			continue;
+
+		if (istcp) {
+			if (inp->inp_ppcb == NULL)
+				bzero(&xt.xt_tp, sizeof xt.xt_tp);
+			else if (inp->inp_vflag & INP_TIMEWAIT) {
+				bzero(&xt.xt_tp, sizeof xt.xt_tp);
+				xt.xt_tp.t_state = TCPS_TIME_WAIT;
+			} else
+				KREAD(inp->inp_ppcb, &xt.xt_tp,
+				    sizeof xt.xt_tp);
+		}
+		if (inp->inp_socket) {
+			KREAD(inp->inp_socket, &so, sizeof(so));
+			if (sotoxsocket(&so, xso) != 0)
+				goto fail;
+		} else {
+			bzero(xso, sizeof(*xso));
+			if (istcp)
+				xso->xso_protocol = IPPROTO_TCP;
+		}
+		if (istcp)
+			COPYOUT(&xt, sizeof xt);
+		else
+			COPYOUT(&xi, sizeof xi);		
+	}
+
+	/* Reread the pcbinfo and write out the footer. */
+	kread(off, &pcbinfo, sizeof(pcbinfo));
+	xig.xig_count = pcbinfo.ipi_count;
+	xig.xig_gen = pcbinfo.ipi_gencnt;
+	COPYOUT(&xig, sizeof xig);
+	
+	*bufp = buf;
+	return (1);
+
+fail:
+	free(buf);
+	return (0);
+#undef COPYOUT
+#undef KREAD
+}
+
 /*
  * Print a summary of connections related to an Internet
  * protocol.  For TCP, also give state of connection.
@@ -97,18 +300,16 @@ static int udp_done, tcp_done;
  * -a (all) flag is specified.
  */
 void
-protopr(u_long proto,		/* for sysctl version we pass proto # */
-	const char *name, int af1)
+protopr(u_long off, const char *name, int af1, int proto)
 {
 	int istcp;
 	static int first = 1;
 	char *buf;
-	const char *mibvar, *vchar;
+	const char *vchar;
 	struct tcpcb *tp = NULL;
 	struct inpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;
-	size_t len;
 
 	istcp = 0;
 	switch (proto) {
@@ -120,7 +321,6 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 			tcp_done = 1;
 #endif
 		istcp = 1;
-		mibvar = "net.inet.tcp.pcblist";
 		break;
 	case IPPROTO_UDP:
 #ifdef INET6
@@ -129,29 +329,14 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		else
 			udp_done = 1;
 #endif
-		mibvar = "net.inet.udp.pcblist";
-		break;
-	case IPPROTO_DIVERT:
-		mibvar = "net.inet.divert.pcblist";
-		break;
-	default:
-		mibvar = "net.inet.raw.pcblist";
 		break;
 	}
-	len = 0;
-	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
-		if (errno != ENOENT)
-			warn("sysctl: %s", mibvar);
-		return;
-	}
-	if ((buf = malloc(len)) == 0) {
-		warnx("malloc %lu bytes", (u_long)len);
-		return;
-	}
-	if (sysctlbyname(mibvar, buf, &len, 0, 0) < 0) {
-		warn("sysctl: %s", mibvar);
-		free(buf);
-		return;
+	if (live) {
+		if (!pcblist_sysctl(proto, &buf, istcp))
+			return;
+	} else {
+		if (!pcblist_kvm(off, &buf, istcp))
+			return;
 	}
 
 	oxig = xig = (struct xinpgen *)buf;
@@ -168,7 +353,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
-		if (so->xso_protocol != (int)proto)
+		if (so->xso_protocol != proto)
 			continue;
 
 		/* Ignore PCBs which were freed during copyout. */
@@ -347,18 +532,10 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
  * Dump TCP statistics structure.
  */
 void
-tcp_stats(u_long off __unused, const char *name, int af1 __unused)
+tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct tcpstat tcpstat, zerostat;
 	size_t len = sizeof tcpstat;
-	
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.tcp.stats");
-		return;
-	}
 
 #ifdef INET6
 	if (tcp_done != 0)
@@ -366,6 +543,17 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 	else
 		tcp_done = 1;
 #endif
+
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.tcp.stats", &tcpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.tcp.stats");
+			return;
+		}
+	} else
+		kread(off, &tcpstat, len);
 
 	printf ("%s:\n", name);
 
@@ -480,19 +668,11 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump UDP statistics structure.
  */
 void
-udp_stats(u_long off __unused, const char *name, int af1 __unused)
+udp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct udpstat udpstat, zerostat;
 	size_t len = sizeof udpstat;
 	u_long delivered;
-
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.udp.stats", &udpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.udp.stats");
-		return;
-	}
 
 #ifdef INET6
 	if (udp_done != 0)
@@ -500,6 +680,17 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
 	else
 		udp_done = 1;
 #endif
+
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.udp.stats", &udpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.udp.stats");
+			return;
+		}
+	} else
+		kread(off, &udpstat, len);
 
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
@@ -537,18 +728,24 @@ udp_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump CARP statistics structure.
  */
 void
-carp_stats(u_long off __unused, const char *name, int af1 __unused)
+carp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct carpstats carpstat, zerostat;
 	size_t len = sizeof(struct carpstats);
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.carp.stats", &carpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		if (errno != ENOENT)
-			warn("sysctl: net.inet.carp.stats");
-		return;
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.carp.stats", &carpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.carp.stats");
+			return;
+		}
+	} else {
+		if (off == 0)
+			return;
+		kread(off, &carpstat, len);
 	}
 
 	printf("%s:\n", name);
@@ -582,18 +779,21 @@ carp_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump IP statistics structure.
  */
 void
-ip_stats(u_long off __unused, const char *name, int af1 __unused)
+ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ipstat ipstat, zerostat;
 	size_t len = sizeof ipstat;
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.ip.stats", &ipstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.ip.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.ip.stats", &ipstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.ip.stats");
+			return;
+		}
+	} else
+		kread(off, &ipstat, len);
 
 	printf("%s:\n", name);
 
@@ -687,26 +887,23 @@ static	const char *icmpnames[ICMP_MAXTYPE + 1] = {
  * Dump ICMP statistics.
  */
 void
-icmp_stats(u_long off __unused, const char *name, int af1 __unused)
+icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct icmpstat icmpstat, zerostat;
 	int i, first;
-	int mib[4];		/* CTL_NET + PF_INET + IPPROTO_ICMP + req */
 	size_t len;
 
-	mib[0] = CTL_NET;
-	mib[1] = PF_INET;
-	mib[2] = IPPROTO_ICMP;
-	mib[3] = ICMPCTL_STATS;
-
 	len = sizeof icmpstat;
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctl(mib, 4, &icmpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.icmp.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.icmp.stats", &icmpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.icmp.stats");
+			return;
+		}
+	} else
+		kread(off, &icmpstat, len);
 
 	printf("%s:\n", name);
 
@@ -758,30 +955,35 @@ icmp_stats(u_long off __unused, const char *name, int af1 __unused)
 #undef p
 #undef p1a
 #undef p2
-	mib[3] = ICMPCTL_MASKREPL;
-	len = sizeof i;
-	if (sysctl(mib, 4, &i, &len, (void *)0, 0) < 0)
-		return;
-	printf("\tICMP address mask responses are %sabled\n", 
-	       i ? "en" : "dis");
+	if (live) {
+		len = sizeof i;
+		if (sysctlbyname("net.inet.icmp.maskrepl", &i, &len, NULL, 0) <
+		    0)
+			return;
+		printf("\tICMP address mask responses are %sabled\n", 
+		    i ? "en" : "dis");
+	}
 }
 
 /*
  * Dump IGMP statistics structure.
  */
 void
-igmp_stats(u_long off __unused, const char *name, int af1 __unused)
+igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct igmpstat igmpstat, zerostat;
 	size_t len = sizeof igmpstat;
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.igmp.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.igmp.stats");
+			return;
+		}
+	} else
+		kread(off, &igmpstat, len);
 
 	printf("%s:\n", name);
 
@@ -806,18 +1008,25 @@ igmp_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump PIM statistics structure.
  */
 void
-pim_stats(u_long off __unused, const char *name, int af1 __unused)
+pim_stats(u_long off __unused, const char *name, int af1 __unused,
+    int proto __unused)
 {
 	struct pimstat pimstat, zerostat;
 	size_t len = sizeof pimstat;
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.pim.stats", &pimstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		if (errno != ENOENT)
-			warn("sysctl: net.inet.pim.stats");
-		return;
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.pim.stats", &pimstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.pim.stats");
+			return;
+		}
+	} else {
+		if (off == 0)
+			return;
+		kread(off, &pimstat, len);
 	}
 
 	printf("%s:\n", name);

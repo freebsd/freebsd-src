@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 
 #include <netinet/in.h>
 
@@ -141,121 +142,154 @@ static struct nlist nl[] = {
 	{ .n_name = "_carpstats" },
 #define N_PFSYNCSTAT	34
 	{ .n_name = "_pfsyncstats" },
-#define	N_AHSTAT	36
+#define	N_AHSTAT	35
 	{ .n_name = "_ahstat" },
-#define	N_ESPSTAT	37
+#define	N_ESPSTAT	36
 	{ .n_name = "_espstat" },
-#define	N_IPCOMPSTAT	38
+#define	N_IPCOMPSTAT	37
 	{ .n_name = "_ipcompstat" },
+#define	N_TCPSTAT	38
+	{ .n_name = "_tcpstat" },
+#define	N_UDPSTAT	39
+	{ .n_name = "_udpstat" },
+#define	N_IPSTAT	40
+	{ .n_name = "_ipstat" },
+#define	N_ICMPSTAT	41
+	{ .n_name = "_icmpstat" },
+#define	N_IGMPSTAT	42
+	{ .n_name = "_igmpstat" },
+#define	N_PIMSTAT	43
+	{ .n_name = "_pimstat" },
+#define	N_TCBINFO	44
+	{ .n_name = "_tcbinfo" },
+#define	N_UDBINFO	45
+	{ .n_name = "_udbinfo" },
+#define	N_DIVCBINFO	46
+	{ .n_name = "_divcbinfo" },
+#define	N_RIPCBINFO	47
+	{ .n_name = "_ripcbinfo" },
+#define	N_UNP_COUNT	48
+	{ .n_name = "_unp_count" },
+#define	N_UNP_GENCNT	49
+	{ .n_name = "_unp_gencnt" },
+#define	N_UNP_DHEAD	50
+	{ .n_name = "_unp_dhead" },
+#define	N_UNP_SHEAD	51
+	{ .n_name = "_unp_shead" },
+#define	N_RIP6STAT	52
+	{ .n_name = "_rip6stat" },
+#define	N_SCTPSTAT	53
+	{ .n_name = "_sctpstat" },
 	{ .n_name = NULL },
 };
 
 struct protox {
-	u_char	pr_index;		/* index into nlist of cb head */
-	u_char	pr_sindex;		/* index into nlist of stat block */
+	int	pr_index;		/* index into nlist of cb head */
+	int	pr_sindex;		/* index into nlist of stat block */
 	u_char	pr_wanted;		/* 1 if wanted, 0 otherwise */
-	void	(*pr_cblocks)(u_long, const char *, int);
+	void	(*pr_cblocks)(u_long, const char *, int, int);
 					/* control blocks printing routine */
-	void	(*pr_stats)(u_long, const char *, int);
+	void	(*pr_stats)(u_long, const char *, int, int);
 					/* statistics printing routine */
 	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	const char	*pr_name;		/* well-known name */
 	u_long	pr_usesysctl;		/* non-zero if we use sysctl, not kvm */
+	int	pr_protocol;
 } protox[] = {
-	{ -1,		-1,		1,	protopr,
-	  tcp_stats,	NULL,		"tcp",	IPPROTO_TCP },
-	{ -1,		-1,		1,	protopr,
-	  udp_stats,	NULL,		"udp",	IPPROTO_UDP },
+	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
+	  tcp_stats,	NULL,		"tcp",	1,	IPPROTO_TCP },
+	{ N_UDBINFO,	N_UDPSTAT,	1,	protopr,
+	  udp_stats,	NULL,		"udp",	1,	IPPROTO_UDP },
 #ifdef SCTP
-	{ -1,		-1,		1,	sctp_protopr,
-	  sctp_stats,	NULL,		"sctp",	IPPROTO_SCTP },
+	{ -1,		N_SCTPSTAT,	1,	sctp_protopr,
+	  sctp_stats,	NULL,		"sctp",	1,	IPPROTO_SCTP },
 #endif
-	{ -1,		-1,		1,	protopr,
-	  NULL,		NULL,		"divert",IPPROTO_DIVERT },
-	{ -1,		-1,		1,	protopr,
-	  ip_stats,	NULL,		"ip",	IPPROTO_RAW },
-	{ -1,		-1,		1,	protopr,
-	  icmp_stats,	NULL,		"icmp",	IPPROTO_ICMP },
-	{ -1,		-1,		1,	protopr,
-	  igmp_stats,	NULL,		"igmp",	IPPROTO_IGMP },
+	{ N_DIVCBINFO,	-1,		1,	protopr,
+	  NULL,		NULL,		"divert", 1,	IPPROTO_DIVERT },
+	{ N_RIPCBINFO,	N_IPSTAT,	1,	protopr,
+	  ip_stats,	NULL,		"ip",	1,	IPPROTO_RAW },
+	{ N_RIPCBINFO,	N_ICMPSTAT,	1,	protopr,
+	  icmp_stats,	NULL,		"icmp",	1,	IPPROTO_ICMP },
+	{ N_RIPCBINFO,	N_IGMPSTAT,	1,	protopr,
+	  igmp_stats,	NULL,		"igmp",	1,	IPPROTO_IGMP },
 #ifdef IPSEC
 	{ -1,		N_IPSECSTAT,	1,	NULL,	/* keep as compat */
-	  ipsec_stats,	NULL,		"ipsec",	0},
+	  ipsec_stats,	NULL,		"ipsec", 0,	0},
 	{ -1,		N_AHSTAT,	1,	NULL,
-	  ah_stats,	NULL,		"ah",		0},
+	  ah_stats,	NULL,		"ah",	0,	0},
 	{ -1,		N_ESPSTAT,	1,	NULL,
-	  esp_stats,	NULL,		"esp",		0},
+	  esp_stats,	NULL,		"esp",	0,	0},
 	{ -1,		N_IPCOMPSTAT,	1,	NULL,
-	  ipcomp_stats,	NULL,		"ipcomp",	0},
+	  ipcomp_stats,	NULL,		"ipcomp", 0,	0},
 #endif
-	{ -1,		-1,		1,	protopr,
-	  pim_stats,	NULL,		"pim",	IPPROTO_PIM },
-	{ -1,		N_CARPSTAT,	1,	0,
-	  carp_stats,	NULL,		"carp",		0},
-	{ -1,		-1,		1,	NULL,
-	  pfsync_stats,	NULL,		"pfsync",	1},
+	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
+	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
+	{ -1,		N_CARPSTAT,	1,	NULL,
+	  carp_stats,	NULL,		"carp",	1,	0 },
+	{ -1,		N_PFSYNCSTAT,	1,	NULL,
+	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 #ifdef INET6
 struct protox ip6protox[] = {
-	{ -1,		-1,		1,	protopr,
-	  tcp_stats,	NULL,		"tcp",	IPPROTO_TCP },
-	{ -1,		-1,		1,	protopr,
-	  udp_stats,	NULL,		"udp",	IPPROTO_UDP },
-	{ -1,		N_IP6STAT,	1,	protopr,
-	  ip6_stats,	ip6_ifstats,	"ip6",	IPPROTO_RAW },
-	{ -1,		N_ICMP6STAT,	1,	protopr,
-	  icmp6_stats,	icmp6_ifstats,	"icmp6",IPPROTO_ICMPV6 },
+	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
+	  tcp_stats,	NULL,		"tcp",	1,	IPPROTO_TCP },
+	{ N_UDBINFO,	N_UDPSTAT,	1,	protopr,
+	  udp_stats,	NULL,		"udp",	1,	IPPROTO_UDP },
+	{ N_RIPCBINFO,	N_IP6STAT,	1,	protopr,
+	  ip6_stats,	ip6_ifstats,	"ip6",	1,	IPPROTO_RAW },
+	{ N_RIPCBINFO,	N_ICMP6STAT,	1,	protopr,
+	  icmp6_stats,	icmp6_ifstats,	"icmp6", 1,	IPPROTO_ICMPV6 },
 #ifdef IPSEC
 	{ -1,		N_IPSEC6STAT,	1,	NULL,
-	  ipsec_stats,	NULL,		"ipsec6",0 },
+	  ipsec_stats,	NULL,		"ipsec6", 0,	0 },
 #endif
 #ifdef notyet
 	{ -1,		N_PIM6STAT,	1,	NULL,
-	  pim6_stats,	NULL,		"pim6",	0 },
+	  pim6_stats,	NULL,		"pim6",	1,	0 },
 #endif
-	{ -1,		-1,		1,	NULL,
-	  rip6_stats,	NULL,		"rip6",	0 },
+	{ -1,		N_RIP6STAT,	1,	NULL,
+	  rip6_stats,	NULL,		"rip6",	1,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif /*INET6*/
 
 #ifdef IPSEC
 struct protox pfkeyprotox[] = {
 	{ -1,		N_PFKEYSTAT,	1,	NULL,
-	  pfkey_stats,	NULL,		"pfkey", 0 },
+	  pfkey_stats,	NULL,		"pfkey", 0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif
 
 struct protox atalkprotox[] = {
 	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
-	  ddp_stats,	NULL,		"ddp",	0 },
+	  ddp_stats,	NULL,		"ddp",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"ctrl",	0 },
+	  NULL,		NULL,		"ctrl",	0,	0 },
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"data",	0 },
+	  NULL,		NULL,		"data",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 #ifdef IPX
 struct protox ipxprotox[] = {
 	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
-	  ipx_stats,	NULL,		"ipx",	0 },
+	  ipx_stats,	NULL,		"ipx",	0,	0 },
 	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
-	  spx_stats,	NULL,		"spx",	0 },
+	  spx_stats,	NULL,		"spx",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		0,	0 }
+	  NULL,		NULL,		0,	0,	0 }
 };
 #endif
 
@@ -305,6 +339,7 @@ char	*interface;	/* desired i/f for stats, or NULL for all i/fs */
 int	unit;		/* unit number for above */
 
 int	af;		/* address family */
+int	live;		/* true if we are examining a live system */
 
 int
 main(int argc, char *argv[])
@@ -453,16 +488,19 @@ main(int argc, char *argv[])
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (nlistf != NULL || memf != NULL)
+	live = (nlistf == NULL && memf == NULL);
+	if (!live)
 		setgid(getgid());
 
 	if (Bflag) {
+		if (!live)
+			usage();
 		bpf_stats(interface);
 		exit(0);
 	}
 	if (mflag) {
 		if (memf != NULL) {
-			if (kread(0, 0, 0) == 0)
+			if (kread(0, NULL, 0) == 0)
 				mbpr(kvmd, nl[N_MBSTAT].n_value);
 		} else
 			mbpr(NULL, 0);
@@ -482,13 +520,12 @@ main(int argc, char *argv[])
 	 * used for the queries, which is slower.
 	 */
 #endif
+	kread(0, NULL, 0);
 	if (iflag && !sflag) {
-		kread(0, 0, 0);
 		intpr(interval, nl[N_IFNET].n_value, NULL);
 		exit(0);
 	}
 	if (rflag) {
-		kread(0, 0, 0);
 		if (sflag)
 			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
 		else
@@ -496,7 +533,6 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (gflag) {
-		kread(0, 0, 0);
 		if (sflag) {
 			if (af == AF_INET || af == AF_UNSPEC)
 				mrt_stats(nl[N_MRTSTAT].n_value);
@@ -518,7 +554,6 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 
-	kread(0, 0, 0);
 	if (tp) {
 		printproto(tp, tp->pr_name);
 		exit(0);
@@ -538,7 +573,6 @@ main(int argc, char *argv[])
 #endif /*IPSEC*/
 #ifdef IPX
 	if (af == AF_IPX || af == AF_UNSPEC) {
-		kread(0, 0, 0);
 		for (tp = ipxprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 	}
@@ -550,7 +584,8 @@ main(int argc, char *argv[])
 		for (tp = netgraphprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !Lflag && !sflag)
-		unixpr();
+		unixpr(nl[N_UNP_COUNT].n_value, nl[N_UNP_GENCNT].n_value,
+		    nl[N_UNP_DHEAD].n_value, nl[N_UNP_SHEAD].n_value);
 	exit(0);
 }
 
@@ -564,7 +599,7 @@ printproto(tp, name)
 	struct protox *tp;
 	const char *name;
 {
-	void (*pr)(u_long, const char *, int);
+	void (*pr)(u_long, const char *, int, int);
 	u_long off;
 
 	if (sflag) {
@@ -576,17 +611,24 @@ printproto(tp, name)
 				printf("%s: no per-interface stats routine\n",
 				    tp->pr_name);
 			return;
-		}
-		else {
+		} else {
 			pr = tp->pr_stats;
 			if (!pr) {
 				if (pflag)
 					printf("%s: no stats routine\n",
 					    tp->pr_name);
 				return;
-			}
-			off = tp->pr_usesysctl ? tp->pr_usesysctl 
-				: nl[tp->pr_sindex].n_value;
+			}			
+			if (tp->pr_usesysctl && live)
+				off = 0;
+			else if (tp->pr_sindex < 0) {
+				if (pflag)
+					printf(
+				    "%s: stats routine doesn't work on cores\n",
+					    tp->pr_name);
+				return;
+			} else
+				off = nl[tp->pr_sindex].n_value;
 		}
 	} else {
 		pr = tp->pr_cblocks;
@@ -595,28 +637,36 @@ printproto(tp, name)
 				printf("%s: no PCB routine\n", tp->pr_name);
 			return;
 		}
-		off = tp->pr_usesysctl ? tp->pr_usesysctl
-			: nl[tp->pr_index].n_value;
+		if (tp->pr_usesysctl && live)
+			off = 0;
+		else if (tp->pr_index < 0) {
+			if (pflag)
+				printf(
+				    "%s: PCB routine doesn't work on cores\n",
+				    tp->pr_name);
+			return;
+		} else
+			off = nl[tp->pr_index].n_value;
 	}
-	if (pr != NULL && (off || af != AF_UNSPEC))
-		(*pr)(off, name, af);
+	if (pr != NULL && (off || (live && tp->pr_usesysctl) ||
+	    af != AF_UNSPEC))
+		(*pr)(off, name, af, tp->pr_protocol);
 }
 
 /*
  * Read kernel memory, return 0 on success.
  */
 int
-kread(u_long addr, char *buf, int size)
+kread(u_long addr, void *buf, size_t size)
 {
-	if (kvmd == 0) {
-		/*
-		 * XXX.
-		 */
-		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
+	char errbuf[_POSIX2_LINE_MAX];
+
+	if (kvmd == NULL) {
+		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 		setgid(getgid());
 		if (kvmd != NULL) {
 			if (kvm_nlist(kvmd, nl) < 0) {
-				if(nlistf)
+				if (nlistf)
 					errx(1, "%s: kvm_nlist: %s", nlistf,
 					     kvm_geterr(kvmd));
 				else
@@ -624,20 +674,21 @@ kread(u_long addr, char *buf, int size)
 			}
 
 			if (nl[0].n_type == 0) {
-				if(nlistf)
+				if (nlistf)
 					errx(1, "%s: no namelist", nlistf);
 				else
 					errx(1, "no namelist");
 			}
 		} else {
-			warnx("kvm not available");
+			warnx("kvm not available: %s", errbuf);
 			return(-1);
 		}
 	}
 	if (!buf)
 		return (0);
-	if (kvm_read(kvmd, addr, buf, size) != size) {
+	if (kvm_read(kvmd, addr, buf, size) != (ssize_t)size) {
 		warnx("%s", kvm_geterr(kvmd));
+		abort();
 		return (-1);
 	}
 	return (0);
