@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -85,19 +86,22 @@ static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
  * Dump pfsync statistics structure.
  */
 void
-pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
+pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct pfsyncstats pfsyncstat, zerostat;
 	size_t len = sizeof(struct pfsyncstats);
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		if (errno != ENOENT)
-			warn("sysctl: net.inet.pfsync.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.pfsync.stats");
+			return;
+		}
+	} else
+		kread(off, &pfsyncstat, len);
 
 	printf("%s:\n", name);
 

@@ -59,39 +59,41 @@ extern char	*interface; /* desired i/f for stats, or NULL for all i/fs */
 extern int	unit;	/* unit number for above */
 
 extern int	af;	/* address family */
+extern int	live;	/* true if we are examining a live system */
 
-int	kread(u_long addr, char *buf, int size);
+int	kread(u_long addr, void *buf, size_t size);
 const char *plural(uintmax_t);
 const char *plurales(uintmax_t);
 const char *pluralies(uintmax_t);
 
-void	protopr(u_long, const char *, int);
-void	tcp_stats(u_long, const char *, int);
-void	udp_stats(u_long, const char *, int);
+int	sotoxsocket(struct socket *, struct xsocket *);
+void	protopr(u_long, const char *, int, int);
+void	tcp_stats(u_long, const char *, int, int);
+void	udp_stats(u_long, const char *, int, int);
 #ifdef SCTP
-void	sctp_protopr(u_long, const char *, int);
-void	sctp_stats(u_long, const char *, int);
+void	sctp_protopr(u_long, const char *, int, int);
+void	sctp_stats(u_long, const char *, int, int);
 #endif
-void	ip_stats(u_long, const char *, int);
-void	icmp_stats(u_long, const char *, int);
-void	igmp_stats(u_long, const char *, int);
-void	pim_stats(u_long, const char *, int);
-void	carp_stats (u_long, const char *, int);
-void	pfsync_stats (u_long, const char *, int);
+void	ip_stats(u_long, const char *, int, int);
+void	icmp_stats(u_long, const char *, int, int);
+void	igmp_stats(u_long, const char *, int, int);
+void	pim_stats(u_long, const char *, int, int);
+void	carp_stats (u_long, const char *, int, int);
+void	pfsync_stats (u_long, const char *, int, int);
 #ifdef IPSEC
-void	ipsec_stats(u_long, const char *, int);
-void	esp_stats (u_long, const char *, int);
-void	ah_stats (u_long, const char *, int);
-void	ipcomp_stats (u_long, const char *, int);
+void	ipsec_stats(u_long, const char *, int, int);
+void	esp_stats (u_long, const char *, int, int);
+void	ah_stats (u_long, const char *, int, int);
+void	ipcomp_stats (u_long, const char *, int, int);
 #endif
 
 #ifdef INET6
-void	ip6_stats(u_long, const char *, int);
+void	ip6_stats(u_long, const char *, int, int);
 void	ip6_ifstats(char *);
-void	icmp6_stats(u_long, const char *, int);
+void	icmp6_stats(u_long, const char *, int, int);
 void	icmp6_ifstats(char *);
-void	pim6_stats(u_long, const char *, int);
-void	rip6_stats(u_long, const char *, int);
+void	pim6_stats(u_long, const char *, int, int);
+void	rip6_stats(u_long, const char *, int, int);
 void	mroute6pr(u_long, u_long);
 void	mrt6_stats(u_long);
 
@@ -103,7 +105,7 @@ void	inet6print(struct in6_addr *, int, const char *, int);
 #endif /*INET6*/
 
 #ifdef IPSEC
-void	pfkey_stats(u_long, const char *, int);
+void	pfkey_stats(u_long, const char *, int, int);
 #endif
 
 void	mbpr(void *, u_long);
@@ -129,29 +131,29 @@ char	*ipx_print(struct sockaddr *);
 char	*ns_print(struct sockaddr *);
 void	routepr(u_long);
 
-void	ipxprotopr(u_long, const char *, int);
-void	spx_stats(u_long, const char *, int);
-void	ipx_stats(u_long, const char *, int);
-void	ipxerr_stats(u_long, const char *, int);
+void	ipxprotopr(u_long, const char *, int, int);
+void	spx_stats(u_long, const char *, int, int);
+void	ipx_stats(u_long, const char *, int, int);
+void	ipxerr_stats(u_long, const char *, int, int);
 
-void	nsprotopr(u_long, const char *, int);
-void	spp_stats(u_long, const char *, int);
-void	idp_stats(u_long, const char *, int);
-void	nserr_stats(u_long, const char *, int);
+void	nsprotopr(u_long, const char *, int, int);
+void	spp_stats(u_long, const char *, int, int);
+void	idp_stats(u_long, const char *, int, int);
+void	nserr_stats(u_long, const char *, int, int);
 
-void	atalkprotopr(u_long, const char *, int);
-void	ddp_stats(u_long, const char *, int);
+void	atalkprotopr(u_long, const char *, int, int);
+void	ddp_stats(u_long, const char *, int, int);
 
-void	netgraphprotopr(u_long, const char *, int);
+void	netgraphprotopr(u_long, const char *, int, int);
 
-void	unixpr(void);
+void	unixpr(u_long, u_long, u_long, u_long);
 
-void	esis_stats(u_long, const char *, int);
-void	clnp_stats(u_long, const char *, int);
-void	cltp_stats(u_long, const char *, int);
-void	iso_protopr(u_long, const char *, int);
+void	esis_stats(u_long, const char *, int, int);
+void	clnp_stats(u_long, const char *, int, int);
+void	cltp_stats(u_long, const char *, int, int);
+void	iso_protopr(u_long, const char *, int, int);
 void	iso_protopr1(u_long, int);
-void	tp_protopr(u_long, const char *, int);
+void	tp_protopr(u_long, const char *, int, int);
 void	tp_inproto(u_long);
 void	tp_stats(caddr_t, caddr_t);
 
