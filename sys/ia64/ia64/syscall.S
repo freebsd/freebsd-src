@@ -251,10 +251,10 @@ ENTRY_NOPROFILE(epc_syscall, 8)
 	add		sp=-16,r30
 	;;
 }
-{	.mib
+{	.mmi
+	mov		ar.rnat=r19
 	mov		r21=ar.unat
 	add		r31=8,r30
-	nop		0
 	;;
 }
 {	.mib
@@ -561,7 +561,7 @@ epc_syscall_setup_ia32:
 	srlz.d
 	add		r2=gw_ret_ia32-ia64_gateway_page,r2
 	;;
-	mov		ar.rsc=0x0
+	mov		ar.rsc=0
 	mov		b7=r2
 	br.ret.sptk	b7
 	;;
