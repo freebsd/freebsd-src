@@ -62,7 +62,8 @@ static	int first = 1;
 static	int csock = -1;
 
 void
-netgraphprotopr(u_long off, const char *name, int af1 __unused)
+netgraphprotopr(u_long off, const char *name, int af1 __unused,
+    int proto __unused)
 {
 	struct ngpcb *this, *next;
 	struct ngpcb ngpcb;
@@ -80,6 +81,10 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused)
 		const char **pre;
 		struct kld_file_stat ks;
 		int fileid;
+
+		/* Can't do this for core dumps. */
+		if (!live)
+			return;
 
 		/* See if module is loaded */
 		if ((fileid = kldfind(modname)) < 0) {

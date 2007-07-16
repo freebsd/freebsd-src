@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
 #include <err.h>
@@ -80,9 +81,8 @@ mbpr(void *kvmd, u_long mbaddr)
 	int nsfbufs, nsfbufspeak, nsfbufsused;
 	struct mbstat mbstat;
 	size_t mlen;
-	int error, live;
+	int error;
 
-	live = (kvmd == NULL);
 	mtlp = memstat_mtl_alloc();
 	if (mtlp == NULL) {
 		warn("memstat_mtl_alloc");
