@@ -193,7 +193,7 @@ struct protox {
 					/* statistics printing routine */
 	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	const char	*pr_name;		/* well-known name */
-	u_long	pr_usesysctl;		/* non-zero if we use sysctl, not kvm */
+	int	pr_usesysctl;		/* non-zero if we use sysctl, not kvm */
 	int	pr_protocol;
 } protox[] = {
 	{ N_TCBINFO,	N_TCPSTAT,	1,	protopr,
@@ -688,7 +688,6 @@ kread(u_long addr, void *buf, size_t size)
 		return (0);
 	if (kvm_read(kvmd, addr, buf, size) != (ssize_t)size) {
 		warnx("%s", kvm_geterr(kvmd));
-		abort();
 		return (-1);
 	}
 	return (0);
