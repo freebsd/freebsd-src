@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2006
+.Dd July 10, 2007
 .Dt IPMI 4
 .Os
 .Sh NAME
@@ -33,6 +33,42 @@
 .Nd "OpenIPMI compatible IPMI interface driver"
 .Sh SYNOPSIS
 .Cd "device ipmi"
+.Pp
+To manually specify I/O attachment in
+.Pa /boot/device.hints :
+.Cd hint.ipmi.0.at="isa"
+.Cd hint.ipmi.0.port="0xCA2"
+.Cd hint.ipmi.0.spacing="8"
+.Cd hint.ipmi.0.mode="KCS"
+.Pp
+To manually specify memory attachment in
+.Pa /boot/device.hints :
+.Cd hint.ipmi.0.at="isa"
+.Cd hint.ipmi.0.maddr="0xf0000000"
+.Cd hint.ipmi.0.spacing="8"
+.Cd hint.ipmi.0.mode="SMIC"
+.Pp
+Meaning of
+.Ar spacing :
+.Bl -tag -offset indent -compact -width 0x0
+.It 8
+8 bit alignment
+.It 16
+16 bit alignment
+.It 32
+32 bit alignment
+.El
+.Pp
+If the
+.Ar port
+and
+.Ar spacing
+are not specified the interface type default will be used.  Only specify 
+either the
+.Ar port
+for I/O access or
+.Ar maddr
+for memory access.
 .Sh DESCRIPTION
 The
 .Tn IPMI
