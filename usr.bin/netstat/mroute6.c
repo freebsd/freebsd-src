@@ -116,16 +116,14 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	size_t len;
 
 	len = sizeof(mif6table);
-	if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len,
-	    NULL, 0) < 0) {
-		warn("sysctl: net.inet6.ip6.mif6table");
-		if (mifaddr == 0) {
-			printf("No IPv6 multicast forwarding configured in "
-			    "the running system.\n");
+	if (live) {
+		if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len,
+		    NULL, 0) < 0) {
+			warn("sysctl: net.inet6.ip6.mif6table");
 			return;
 		}
+	} else
 		kread(mifaddr, (char *)mif6table, sizeof(mif6table));
-	}
 
 	saved_numeric_addr = numeric_addr;
 	numeric_addr = 1;
@@ -161,21 +159,14 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		printf("\nIPv6 Multicast Interface Table is empty\n");
 
 	len = sizeof(mf6ctable);
-	if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len,
-	    NULL, 0) < 0) {
-		warn("sysctl: net.inet6.ip6.mf6ctable");
-		if (mfcaddr == 0) {
-			printf("No IPv6 multicast forwarding configured in "
-			    "the running system.\n");
+	if (live) {
+		if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len,
+		    NULL, 0) < 0) {
+			warn("sysctl: net.inet6.ip6.mf6ctable");
 			return;
 		}
-		/*
-		 * XXX: Try KVM if the module is neither compiled nor loaded.
-		 * The correct behaviour would be to always use KVM if
-		 * the -M option is specified to netstat(1).
-		 */
+	} else
 		kread(mfcaddr, (char *)mf6ctable, sizeof(mf6ctable));
-	}
 
 	banner_printed = 0;
 
@@ -232,16 +223,15 @@ mrt6_stats(u_long mstaddr)
 	struct mrt6stat mrtstat;
 	size_t len = sizeof mrtstat;
 
-	if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
-	    NULL, 0) < 0) {
-		warn("sysctl: net.inet6.ip6.mrt6stat");
-		if (mstaddr == 0) {
-			printf("No IPv6 multicast forwarding configured in the "
-			    "running system.\n");
+	if (live) {
+		if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
+		    NULL, 0) < 0) {
+			warn("sysctl: net.inet6.ip6.mrt6stat");
 			return;
 		}
+	} else
 		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
-	}
+
 	printf("IPv6 multicast forwarding:\n");
 
 #define	p(f, m) if (mrtstat.f || sflag <= 1) \

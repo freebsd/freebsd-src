@@ -76,6 +76,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 
 #include <netinet/in.h>
 
@@ -116,7 +117,8 @@ pfkey_msgtype_names(int x)
 }
 
 void
-pfkey_stats(u_long off, const char *name, int family __unused)
+pfkey_stats(u_long off, const char *name, int family __unused,
+    int proto __unused)
 {
 	struct pfkeystat pfkeystat;
 	unsigned first, type;

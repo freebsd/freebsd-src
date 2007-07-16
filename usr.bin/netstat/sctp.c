@@ -432,8 +432,8 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
  * protocol.
  */
 void
-sctp_protopr(u_long proto,
-    const char *name, int af1)
+sctp_protopr(u_long off __unused,
+    const char *name, int af1, int proto)
 {
 	char *buf;
 	const char *mibvar = "net.inet.sctp.assoclist";
@@ -511,18 +511,21 @@ sctp_statesprint(uint32_t state)
  * Dump SCTP statistics structure.
  */
 void
-sctp_stats(u_long off __unused, const char *name, int af1 __unused)
+sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct sctpstat sctpstat, zerostat;
 	size_t len = sizeof(sctpstat);
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.sctp.stats", &sctpstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.sctp.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.sctp.stats", &sctpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.sctp.stats");
+			return;
+		}
+	} else
+		kread(off, &sctpstat, len);
 
 	printf ("%s:\n", name);
 
