@@ -95,7 +95,7 @@ struct sge_rspq;
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
-#define TX_START_MAX_DESC (TX_MAX_DESC << 2)    /* maximum number of descriptors
+#define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
@@ -107,7 +107,7 @@ struct sge_rspq;
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
 
-#define L1_CACHE_BYTES 32
+#define L1_CACHE_BYTES 64
 static __inline
 void prefetch(void *x) 
 { 

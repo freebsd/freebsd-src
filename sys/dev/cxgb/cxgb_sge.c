@@ -2040,8 +2040,8 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	
 	TASK_INIT(&q->txq[TXQ_OFLD].qresume_task, 0, restart_offloadq, q);
 	TASK_INIT(&q->txq[TXQ_CTRL].qresume_task, 0, restart_ctrlq, q);
-	TASK_INIT(&q->txq[TXQ_OFLD].qreclaim_task, 0, sge_txq_reclaim_handler, &q->txq[TXQ_ETH]);
-	TASK_INIT(&q->txq[TXQ_CTRL].qreclaim_task, 0, sge_txq_reclaim_handler, &q->txq[TXQ_OFLD]);
+	TASK_INIT(&q->txq[TXQ_ETH].qreclaim_task, 0, sge_txq_reclaim_handler, &q->txq[TXQ_ETH]);
+	TASK_INIT(&q->txq[TXQ_OFLD].qreclaim_task, 0, sge_txq_reclaim_handler, &q->txq[TXQ_OFLD]);
 
 	
 
@@ -2418,12 +2418,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 				ngathered = rx_offload(&adap->tdev, rspq, rspq->m,
 				    offload_mbufs, ngathered);
 			}
-#ifdef notyet			
-			taskqueue_enqueue(adap->tq, &adap->timer_reclaim_task);
-#else			
 			__refill_fl(adap, &qs->fl[0]);
 			__refill_fl(adap, &qs->fl[1]);
-#endif
+
 		}
 		--budget_left;
 	}
