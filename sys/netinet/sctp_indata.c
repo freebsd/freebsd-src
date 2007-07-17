@@ -1611,16 +1611,20 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 */
 	strmseq = ntohs(ch->dp.stream_sequence);
 #ifdef SCTP_ASOCLOG_OF_TSNS
+	SCTP_TCB_LOCK_ASSERT(stcb);
+	if (asoc->tsn_in_at >= SCTP_TSN_LOG_SIZE) {
+		asoc->tsn_in_at = 0;
+		asoc->tsn_in_wrapped = 1;
+	}
 	asoc->in_tsnlog[asoc->tsn_in_at].tsn = tsn;
 	asoc->in_tsnlog[asoc->tsn_in_at].strm = strmno;
 	asoc->in_tsnlog[asoc->tsn_in_at].seq = strmseq;
 	asoc->in_tsnlog[asoc->tsn_in_at].sz = chk_length;
 	asoc->in_tsnlog[asoc->tsn_in_at].flgs = chunk_flags;
+	asoc->in_tsnlog[asoc->tsn_in_at].stcb = (void *)stcb;
+	asoc->in_tsnlog[asoc->tsn_in_at].in_pos = asoc->tsn_in_at;
+	asoc->in_tsnlog[asoc->tsn_in_at].in_out = 1;
 	asoc->tsn_in_at++;
-	if (asoc->tsn_in_at >= SCTP_TSN_LOG_SIZE) {
-		asoc->tsn_in_at = 0;
-		asoc->tsn_in_wrapped = 1;
-	}
 #endif
 	if ((chunk_flags & SCTP_DATA_FIRST_FRAG) &&
 	    (TAILQ_EMPTY(&asoc->resetHead)) &&
@@ -2998,7 +3002,8 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 									    sctp_calculate_rto(stcb,
 									    asoc,
 									    tp1->whoTo,
-									    &tp1->sent_rcv_time);
+									    &tp1->sent_rcv_time,
+									    sctp_align_safe_nocopy);
 									tp1->do_rtt = 0;
 								}
 							}
@@ -3456,7 +3461,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				tp1->no_fr_allowed = 1;
 				alt = tp1->whoTo;
 				/* sa_ignore NO_NULL_CHK */
-				if (sctp_cmt_pf) {
+				if (sctp_cmt_on_off && sctp_cmt_pf) {
 					/*
 					 * JRS 5/18/07 - If CMT PF is on,
 					 * use the PF version of
@@ -3730,7 +3735,6 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 
 	/* First setup this one and get it moved back */
 	tp1->sent = SCTP_DATAGRAM_UNSENT;
-	tp1->window_probe = 0;
 	if (sctp_logging_level & SCTP_FLIGHT_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_WP,
 		    tp1->whoTo->flight_size,
@@ -3752,7 +3756,6 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 		if (chk->sent == SCTP_DATAGRAM_RESEND) {
 			/* Another chunk to move */
 			chk->sent = SCTP_DATAGRAM_UNSENT;
-			chk->window_probe = 0;
 			/* It should not be in flight */
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			TAILQ_INSERT_AFTER(&asoc->send_queue, tp1, chk, sctp_next);
@@ -3781,6 +3784,13 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		    rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
 	}
 	SCTP_TCB_LOCK_ASSERT(stcb);
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	stcb->asoc.cumack_log[stcb->asoc.cumack_log_at] = cumack;
+	stcb->asoc.cumack_log_at++;
+	if (stcb->asoc.cumack_log_at > SCTP_TSN_LOG_SIZE) {
+		stcb->asoc.cumack_log_at = 0;
+	}
+#endif
 	asoc = &stcb->asoc;
 	old_rwnd = asoc->peers_rwnd;
 	if (compare_with_wrap(asoc->last_acked_seq, cumack, MAX_TSN)) {
@@ -3864,103 +3874,101 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			if (compare_with_wrap(cumack, tp1->rec.data.TSN_seq,
 			    MAX_TSN) ||
 			    cumack == tp1->rec.data.TSN_seq) {
-				if (tp1->sent != SCTP_DATAGRAM_UNSENT) {
-					/*
-					 * ECN Nonce: Add the nonce to the
-					 * sender's nonce sum
-					 */
-					asoc->nonce_sum_expect_base += tp1->rec.data.ect_nonce;
-					if (tp1->sent < SCTP_DATAGRAM_ACKED) {
-						/*
-						 * If it is less than ACKED,
-						 * it is now no-longer in
-						 * flight. Higher values may
-						 * occur during marking
-						 */
-						if (tp1->sent < SCTP_DATAGRAM_RESEND) {
-							if (sctp_logging_level & SCTP_FLIGHT_LOGGING_ENABLE) {
-								sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
-								    tp1->whoTo->flight_size,
-								    tp1->book_size,
-								    (uintptr_t) tp1->whoTo,
-								    tp1->rec.data.TSN_seq);
-							}
-							sctp_flight_size_decrease(tp1);
-							sctp_total_flight_decrease(stcb, tp1);
-						}
-						tp1->whoTo->net_ack += tp1->send_size;
-						if (tp1->snd_count < 2) {
-							/*
-							 * True
-							 * non-retransmited
-							 * chunk
-							 */
-							tp1->whoTo->net_ack2 +=
-							    tp1->send_size;
-
-							/* update RTO too? */
-							if (tp1->do_rtt) {
-								tp1->whoTo->RTO =
-								    sctp_calculate_rto(stcb,
-								    asoc, tp1->whoTo,
-								    &tp1->sent_rcv_time);
-								tp1->do_rtt = 0;
-							}
-						}
-						/*
-						 * CMT: CUCv2 algorithm.
-						 * From the cumack'd TSNs,
-						 * for each TSN being acked
-						 * for the first time, set
-						 * the following variables
-						 * for the corresp
-						 * destination.
-						 * new_pseudo_cumack will
-						 * trigger a cwnd update.
-						 * find_(rtx_)pseudo_cumack
-						 * will trigger search for
-						 * the next expected
-						 * (rtx-)pseudo-cumack.
-						 */
-						tp1->whoTo->new_pseudo_cumack = 1;
-						tp1->whoTo->find_pseudo_cumack = 1;
-						tp1->whoTo->find_rtx_pseudo_cumack = 1;
-
-						if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
-							sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.TSN_seq, SCTP_CWND_LOG_FROM_SACK);
-						}
-					}
-					if (tp1->sent == SCTP_DATAGRAM_RESEND) {
-						sctp_ucount_decr(asoc->sent_queue_retran_cnt);
-					}
-					if (tp1->rec.data.chunk_was_revoked) {
-						/* deflate the cwnd */
-						tp1->whoTo->cwnd -= tp1->book_size;
-						tp1->rec.data.chunk_was_revoked = 0;
-					}
-					tp1->sent = SCTP_DATAGRAM_ACKED;
+				if (tp1->sent == SCTP_DATAGRAM_UNSENT) {
+					printf("Warning, an unsent is now acked?\n");
 				}
+				/*
+				 * ECN Nonce: Add the nonce to the sender's
+				 * nonce sum
+				 */
+				asoc->nonce_sum_expect_base += tp1->rec.data.ect_nonce;
+				if (tp1->sent < SCTP_DATAGRAM_ACKED) {
+					/*
+					 * If it is less than ACKED, it is
+					 * now no-longer in flight. Higher
+					 * values may occur during marking
+					 */
+					if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+						if (sctp_logging_level & SCTP_FLIGHT_LOGGING_ENABLE) {
+							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
+							    tp1->whoTo->flight_size,
+							    tp1->book_size,
+							    (uintptr_t) tp1->whoTo,
+							    tp1->rec.data.TSN_seq);
+						}
+						sctp_flight_size_decrease(tp1);
+						sctp_total_flight_decrease(stcb, tp1);
+					}
+					tp1->whoTo->net_ack += tp1->send_size;
+					if (tp1->snd_count < 2) {
+						/*
+						 * True non-retransmited
+						 * chunk
+						 */
+						tp1->whoTo->net_ack2 +=
+						    tp1->send_size;
+
+						/* update RTO too? */
+						if (tp1->do_rtt) {
+							tp1->whoTo->RTO =
+							    sctp_calculate_rto(stcb,
+							    asoc, tp1->whoTo,
+							    &tp1->sent_rcv_time,
+							    sctp_align_safe_nocopy);
+							tp1->do_rtt = 0;
+						}
+					}
+					/*
+					 * CMT: CUCv2 algorithm. From the
+					 * cumack'd TSNs, for each TSN being
+					 * acked for the first time, set the
+					 * following variables for the
+					 * corresp destination.
+					 * new_pseudo_cumack will trigger a
+					 * cwnd update.
+					 * find_(rtx_)pseudo_cumack will
+					 * trigger search for the next
+					 * expected (rtx-)pseudo-cumack.
+					 */
+					tp1->whoTo->new_pseudo_cumack = 1;
+					tp1->whoTo->find_pseudo_cumack = 1;
+					tp1->whoTo->find_rtx_pseudo_cumack = 1;
+
+					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
+						sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.TSN_seq, SCTP_CWND_LOG_FROM_SACK);
+					}
+				}
+				if (tp1->sent == SCTP_DATAGRAM_RESEND) {
+					sctp_ucount_decr(asoc->sent_queue_retran_cnt);
+				}
+				if (tp1->rec.data.chunk_was_revoked) {
+					/* deflate the cwnd */
+					tp1->whoTo->cwnd -= tp1->book_size;
+					tp1->rec.data.chunk_was_revoked = 0;
+				}
+				tp1->sent = SCTP_DATAGRAM_ACKED;
+				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
+				if (tp1->data) {
+					sctp_free_bufspace(stcb, asoc, tp1, 1);
+					sctp_m_freem(tp1->data);
+				}
+				if (sctp_logging_level & SCTP_SACK_LOGGING_ENABLE) {
+					sctp_log_sack(asoc->last_acked_seq,
+					    cumack,
+					    tp1->rec.data.TSN_seq,
+					    0,
+					    0,
+					    SCTP_LOG_FREE_SENT);
+				}
+				tp1->data = NULL;
+				asoc->sent_queue_cnt--;
+				sctp_free_a_chunk(stcb, tp1);
+				tp1 = tp2;
 			} else {
 				break;
 			}
-			TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-			if (tp1->data) {
-				sctp_free_bufspace(stcb, asoc, tp1, 1);
-				sctp_m_freem(tp1->data);
-			}
-			if (sctp_logging_level & SCTP_SACK_LOGGING_ENABLE) {
-				sctp_log_sack(asoc->last_acked_seq,
-				    cumack,
-				    tp1->rec.data.TSN_seq,
-				    0,
-				    0,
-				    SCTP_LOG_FREE_SENT);
-			}
-			tp1->data = NULL;
-			asoc->sent_queue_cnt--;
-			sctp_free_a_chunk(stcb, tp1);
-			tp1 = tp2;
 		}
+
 	}
 	if (stcb->sctp_socket) {
 		SOCKBUF_LOCK(&stcb->sctp_socket->so_snd);
@@ -4268,6 +4276,13 @@ sctp_handle_sack(struct mbuf *m, int offset,
 	SCTP_STAT_INCR(sctps_slowpath_sack);
 	nonce_sum_flag = ch->ch.chunk_flags & SCTP_SACK_NONCE_SUM;
 	cum_ack = last_tsn = ntohl(sack->cum_tsn_ack);
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	stcb->asoc.cumack_log[stcb->asoc.cumack_log_at] = cum_ack;
+	stcb->asoc.cumack_log_at++;
+	if (stcb->asoc.cumack_log_at > SCTP_TSN_LOG_SIZE) {
+		stcb->asoc.cumack_log_at = 0;
+	}
+#endif
 	num_seg = ntohs(sack->num_gap_ack_blks);
 	a_rwnd = rwnd;
 
@@ -4491,7 +4506,8 @@ sctp_handle_sack(struct mbuf *m, int offset,
 							tp1->whoTo->RTO =
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
-							    &tp1->sent_rcv_time);
+							    &tp1->sent_rcv_time,
+							    sctp_align_safe_nocopy);
 							tp1->do_rtt = 0;
 						}
 					}
@@ -4626,15 +4642,11 @@ skip_segments:
 		}
 		if (tp1->sent == SCTP_DATAGRAM_UNSENT) {
 			/* no more sent on list */
-			break;
+			printf("Warning, tp1->sent == %d and its now acked?\n",
+			    tp1->sent);
 		}
 		tp2 = TAILQ_NEXT(tp1, sctp_next);
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-		/*
-		 * Friendlier printf in lieu of panic now that I think its
-		 * fixed
-		 */
-
 		if (tp1->pr_sctp_on) {
 			if (asoc->pr_sctp_cnt != 0)
 				asoc->pr_sctp_cnt--;

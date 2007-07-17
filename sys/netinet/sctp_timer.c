@@ -211,7 +211,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				 * not in PF state.
 				 */
 				/* Stop any running T3 timers here? */
-				if (sctp_cmt_pf) {
+				if (sctp_cmt_on_off && sctp_cmt_pf) {
 					net->dest_state &= ~SCTP_ADDR_PF;
 					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 					    net);
@@ -741,7 +741,6 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 			SCTP_STAT_INCR(sctps_markedretrans);
 
 			/* reset the TSN for striking and other FR stuff */
-			chk->window_probe = 0;
 			chk->rec.data.doing_fast_retransmit = 0;
 			/* Clear any time so NO RTT is being done */
 			chk->do_rtt = 0;
@@ -801,8 +800,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	}
 	if (stcb->asoc.sent_queue_retran_cnt != cnt_mk) {
 #ifdef INVARIANTS
-		SCTP_PRINTF("Local Audit says there are %d for retran asoc cnt:%d\n",
-		    cnt_mk, stcb->asoc.sent_queue_retran_cnt);
+		SCTP_PRINTF("Local Audit says there are %d for retran asoc cnt:%d we marked:%d this time\n",
+		    cnt_mk, stcb->asoc.sent_queue_retran_cnt, num_mk);
 #endif
 #ifndef SCTP_AUDITING_ENABLED
 		stcb->asoc.sent_queue_retran_cnt = cnt_mk;
@@ -944,10 +943,10 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	 * addition, find an alternate destination with PF-based
 	 * find_alt_net().
 	 */
-	if (sctp_cmt_pf) {
+	if (sctp_cmt_on_off && sctp_cmt_pf) {
 		if ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF) {
 			net->dest_state |= SCTP_ADDR_PF;
-			net->last_active = ticks;
+			net->last_active = sctp_get_tick_count();
 			SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from active to PF.\n",
 			    net);
 		}
@@ -1063,7 +1062,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
 			}
 		}
-	} else if (sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
+	} else if (sctp_cmt_on_off && sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
 		/*
 		 * JRS 5/14/07 - If the destination hasn't failed completely
 		 * but is in PF state, a PF-heartbeat needs to be sent

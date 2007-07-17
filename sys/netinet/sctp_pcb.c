@@ -2125,13 +2125,14 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
 
 int
 sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
-    struct sctp_ifa *sctp_ifap, struct thread *p)
+    struct thread *p)
 {
 	/* bind a ep to a socket address */
 	struct sctppcbhead *head;
 	struct sctp_inpcb *inp, *inp_tmp;
 	struct inpcb *ip_inp;
 	int bindall;
+	int prison = 0;
 	uint16_t lport;
 	int error;
 	uint32_t vrf_id;
@@ -2153,6 +2154,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		/* already did a bind, subsequent binds NOT allowed ! */
 		return (EINVAL);
 	}
+	if (jailed(p->td_ucred)) {
+		prison = 1;
+	}
 	if (addr != NULL) {
 		if (addr->sa_family == AF_INET) {
 			struct sockaddr_in *sin;
@@ -2166,7 +2170,15 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 
 			sin = (struct sockaddr_in *)addr;
 			lport = sin->sin_port;
-
+			if (prison) {
+				/*
+				 * For INADDR_ANY and  LOOPBACK the
+				 * prison_ip() call will tranmute the ip
+				 * address to the proper valie.
+				 */
+				if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr))
+					return (EINVAL);
+			}
 			if (sin->sin_addr.s_addr != INADDR_ANY) {
 				bindall = 0;
 			}
@@ -2180,6 +2192,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				return (EINVAL);
 
 			lport = sin6->sin6_port;
+			/*
+			 * Jail checks for IPv6 should go HERE! i.e. add the
+			 * prison_ip() equivilant in this postion to
+			 * transmute the addresses to the proper one jailed.
+			 */
 			if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 				bindall = 0;
 				/* KAME hack: embed scopeid */
@@ -2375,11 +2392,8 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 * zero out the port to find the address! yuck! can't do
 		 * this earlier since need port for sctp_pcb_findep()
 		 */
-		if (sctp_ifap)
-			ifa = sctp_ifap;
-		else
-			ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
-			    vrf_id, 0);
+		ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
+		    vrf_id, 0);
 		if (ifa == NULL) {
 			/* Can't find an interface with that address */
 			SCTP_INP_WUNLOCK(inp);
@@ -3378,7 +3392,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		 * ephemerial bind for you.
 		 */
 		if ((err = sctp_inpcb_bind(inp->sctp_socket,
-		    (struct sockaddr *)NULL, (struct sctp_ifa *)NULL,
+		    (struct sockaddr *)NULL,
 		    (struct thread *)NULL
 		    ))) {
 			/* bind error, probably perm */
@@ -4537,8 +4551,8 @@ sctp_del_local_addr_assoc(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 	inp = stcb->sctp_ep;
 	/* if subset bound and don't allow ASCONF's, can't delete last */
 	if (((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) &&
-	    (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_DO_ASCONF) == 0)) {
-		if (stcb->asoc.numnets < 2) {
+	    sctp_is_feature_off(inp, SCTP_PCB_FLAGS_DO_ASCONF)) {
+		if (stcb->sctp_ep->laddr_count < 2) {
 			/* can't delete last address */
 			return;
 		}
@@ -4823,6 +4837,12 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		/* the assoc was freed? */
 		return (-4);
 	}
+	/*
+	 * peer must explicitly turn this on. This may have been initialized
+	 * to be "on" in order to allow local addr changes while INIT's are
+	 * in flight.
+	 */
+	stcb->asoc.peer_supports_asconf = 0;
 	/* now we must go through each of the params. */
 	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
 	while (phdr) {

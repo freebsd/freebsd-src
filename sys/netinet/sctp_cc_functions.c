@@ -235,7 +235,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if (sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
+			if (sctp_cmt_on_off && sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
 			    SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				net->cwnd = net->mtu * sctp_cmt_pf;
@@ -724,7 +724,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if (sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
+			if (sctp_cmt_on_off && sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
 			    SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				net->cwnd = net->mtu * sctp_cmt_pf;
@@ -1047,7 +1047,7 @@ between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 static inline uint32_t
 htcp_cong_time(struct htcp *ca)
 {
-	return ticks - ca->last_cong;
+	return sctp_get_tick_count() - ca->last_cong;
 }
 
 static inline uint32_t
@@ -1062,7 +1062,7 @@ htcp_reset(struct htcp *ca)
 	ca->undo_last_cong = ca->last_cong;
 	ca->undo_maxRTT = ca->maxRTT;
 	ca->undo_old_maxB = ca->old_maxB;
-	ca->last_cong = ticks;
+	ca->last_cong = sctp_get_tick_count();
 }
 
 #ifdef SCTP_NOT_USED
@@ -1099,7 +1099,7 @@ measure_rtt(struct sctp_tcb *stcb, struct sctp_nets *net)
 static void
 measure_achieved_throughput(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
-	uint32_t now = ticks;
+	uint32_t now = sctp_get_tick_count();
 
 	if (net->fast_retran_ip == 0)
 		net->htcp_ca.bytes_acked = net->net_ack;
@@ -1303,7 +1303,7 @@ htcp_init(struct sctp_tcb *stcb, struct sctp_nets *net)
 	net->htcp_ca.alpha = ALPHA_BASE;
 	net->htcp_ca.beta = BETA_MIN;
 	net->htcp_ca.bytes_acked = net->mtu;
-	net->htcp_ca.last_cong = ticks;
+	net->htcp_ca.last_cong = sctp_get_tick_count();
 }
 
 void
@@ -1419,7 +1419,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 			 * 
 			 * Should we stop any running T3 timer here?
 			 */
-			if (sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
+			if (sctp_cmt_on_off && sctp_cmt_pf && ((net->dest_state & SCTP_ADDR_PF) ==
 			    SCTP_ADDR_PF)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				net->cwnd = net->mtu * sctp_cmt_pf;
@@ -1592,7 +1592,7 @@ sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
 	old_cwnd = net->cwnd;
 
 	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
-	net->htcp_ca.last_cong = ticks;
+	net->htcp_ca.last_cong = sctp_get_tick_count();
 	/*
 	 * make a small adjustment to cwnd and force to CA.
 	 */
