@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003-2007 Chelsio Communications.  All rights reserved.
+ * Copyright (C) 2003-2006 Chelsio Communications.  All rights reserved.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -11,7 +11,6 @@
 
 #ifndef _CXGB3_OFFLOAD_CTL_DEFS_H
 #define _CXGB3_OFFLOAD_CTL_DEFS_H
-
 
 enum {
 	GET_MAX_OUTSTANDING_WR,
@@ -25,9 +24,6 @@ enum {
 	GET_IFF_FROM_MAC,
 	GET_DDP_PARAMS,
 	GET_PORTS,
-	FAILOVER,
-	FAILOVER_DONE,
-	FAILOVER_CLEAR,
 
 	ULP_ISCSI_GET_PARAMS,
 	ULP_ISCSI_SET_PARAMS,
@@ -38,6 +34,14 @@ enum {
 	RDMA_CQ_DISABLE,
 	RDMA_CTRL_QP_SETUP,
 	RDMA_GET_MEM,
+
+	FAILOVER,
+	FAILOVER_DONE,
+	FAILOVER_CLEAR,
+
+	GET_CPUIDX_OF_QSET,
+
+	GET_RX_PAGE_INFO,
 };
 
 /*
@@ -81,7 +85,7 @@ struct ddp_params {
 
 struct adap_ports {
 	unsigned int nports;     /* number of ports on this adapter */
-	struct ifnet *lldevs[4];
+	struct net_device *lldevs[2];
 };
 
 /*
@@ -99,6 +103,14 @@ struct ulp_iscsi_info {
 	unsigned int	max_rxsz;
 	unsigned int	max_txsz;
 	struct pci_dev	*pdev;
+};
+
+/*
+ * Offload TX/RX page information.
+ */
+struct ofld_page_info {
+	unsigned int page_size;  /* Page size, should be a power of 2 */
+	unsigned int num;        /* Number of pages */
 };
 
 /*
