@@ -138,6 +138,7 @@ enum {				/* adapter flags */
 	USING_MSIX	= (1 << 2),
 	QUEUES_BOUND	= (1 << 3),
 	FW_UPTODATE     = (1 << 4),
+	TPS_UPTODATE    = (1 << 5),
 };
 
 
@@ -239,7 +240,7 @@ struct sge_fl {
 struct tx_desc;
 struct tx_sw_desc;
 
-#define TXQ_TRANSMITTING 0x1
+#define TXQ_TRANSMITTING    0x1
 
 struct sge_txq {
 	uint64_t	flags;
@@ -301,6 +302,8 @@ struct sge {
 	struct mtx              reg_lock;
 };
 
+struct filter_info;
+
 struct adapter {
 	device_t		dev;
 	int			flags;
@@ -331,7 +334,11 @@ struct adapter {
 	struct resource		*msix_irq_res[SGE_QSETS];
 	int			msix_irq_rid[SGE_QSETS];
 	void			*msix_intr_tag[SGE_QSETS];
+	uint8_t                 rxpkt_map[8]; /* maps RX_PKT interface values to port ids */
+	uint8_t                 rrss_map[SGE_QSETS]; /* revers RSS map table */
 
+	struct filter_info      *filters;
+	
 	/* Tasks */
 	struct task		ext_intr_task;
 	struct task		slow_intr_task;

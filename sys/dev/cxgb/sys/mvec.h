@@ -134,13 +134,18 @@ m_free_vec(struct mbuf *m)
 		mb_free_ext(m);
 	else
 		uma_zfree(zone_mbuf, m);
+
+	if (n)
+		n->m_flags &= ~M_PKTHDR;
+	
 	return (n);
 }
 
 static __inline void 
 m_freem_vec(struct mbuf *m)
 {
-	while (m != NULL)
+	
+	while (m != NULL) 
 		m = m_free_vec(m);
 }
 
