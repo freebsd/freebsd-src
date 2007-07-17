@@ -69,7 +69,7 @@ uint32_t mb_free_vec_free = 0;
 int      txq_fills = 0;
 int      collapse_mbufs = 0;
 static int recycle_enable = 1;
-
+static int bogus_imm = 0;
 
 /*
  * XXX GC
@@ -292,20 +292,23 @@ sgl_len(unsigned int n)
  *
  *	Return a packet containing the immediate data of the given response.
  */
-static __inline void
-get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl)
+static int
+get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void *cl, uint32_t flags)
 {
-	int len;
-	uint32_t flags = ntohl(resp->flags);       	
+	int len, error;
 	uint8_t sopeop = G_RSPD_SOP_EOP(flags);
-
+	
 	/*
 	 * would be a firmware bug
 	 */
-	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP)
-		return;
-	
 	len = G_RSPD_LEN(ntohl(resp->len_cq));	
+	if (sopeop == RSPQ_NSOP_NEOP || sopeop == RSPQ_SOP) {
+		if (cxgb_debug)
+			device_printf(sc->dev, "unexpected value sopeop=%d flags=0x%x len=%din get_imm_packet\n", sopeop, flags, len);
+		bogus_imm++;
+		return (EINVAL);
+	}
+	error = 0;
 	switch (sopeop) {
 	case RSPQ_SOP_EOP:
 		m->m_len = m->m_pkthdr.len = len; 
@@ -315,7 +318,12 @@ get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m, void 
 		memcpy(cl, resp->imm_data, len); 
 		m_iovappend(m, cl, MSIZE, len, 0); 
 		break;
+	default:
+		bogus_imm++;
+		error = EINVAL;
 	}
+
+	return (error);
 }
 
 
@@ -362,8 +370,11 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 
 		q->polling = adap->params.rev > 0;
 
-		q->coalesce_nsecs = 5000;
-		
+		if (adap->params.nports > 2)
+			q->coalesce_nsecs = 50000;
+		else
+			q->coalesce_nsecs = 5000;
+
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = FL_Q_SIZE;
 		q->jumbo_size = JUMBO_Q_SIZE;
@@ -664,6 +675,35 @@ sge_slow_intr_handler(void *arg, int ncount)
 	t3_slow_intr_handler(sc);
 }
 
+/**
+ *	sge_timer_cb - perform periodic maintenance of an SGE qset
+ *	@data: the SGE queue set to maintain
+ *
+ *	Runs periodically from a timer to perform maintenance of an SGE queue
+ *	set.  It performs two tasks:
+ *
+ *	a) Cleans up any completed Tx descriptors that may still be pending.
+ *	Normal descriptor cleanup happens when new packets are added to a Tx
+ *	queue so this timer is relatively infrequent and does any cleanup only
+ *	if the Tx queue has not seen any new packets in a while.  We make a
+ *	best effort attempt to reclaim descriptors, in that we don't wait
+ *	around if we cannot get a queue's lock (which most likely is because
+ *	someone else is queueing new packets and so will also handle the clean
+ *	up).  Since control queues use immediate data exclusively we don't
+ *	bother cleaning them up here.
+ *
+ *	b) Replenishes Rx queues that have run out due to memory shortage.
+ *	Normally new Rx buffers are added when existing ones are consumed but
+ *	when out of memory a queue can become empty.  We try to add only a few
+ *	buffers here, the queue will be replenished fully as these new buffers
+ *	are used up if memory shortage has subsided.
+ *	
+ *	c) Return coalesced response queue credits in case a response queue is
+ *	starved.
+ *
+ *	d) Ring doorbells for T304 tunnel queues since we have seen doorbell 
+ *	fifo overflows and the FW doesn't implement any recovery scheme yet.
+ */
 static void
 sge_timer_cb(void *arg)
 {
@@ -688,6 +728,17 @@ sge_timer_cb(void *arg)
 				break;
 			}
 		}
+	if (sc->params.nports > 2) {
+		int i;
+
+		for_each_port(sc, i) {
+			struct port_info *pi = &sc->port[i];
+
+			t3_write_reg(sc, A_SG_KDOORBELL, 
+				     F_SELEGRCNTX | 
+				     (FW_TUNNEL_SGEEC_START + pi->first_qset));
+		}
+	}	
 	if (sc->open_device_map != 0) 
 		callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
 }
@@ -920,7 +971,7 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 #endif
 	if (err == EFBIG) {
 		/* Too many segments, try to defrag */
-		m0 = m_defrag(m0, M_NOWAIT);
+		m0 = m_defrag(m0, M_DONTWAIT);
 		if (m0 == NULL) {
 			m_freem(*m);
 			*m = NULL;
@@ -2051,6 +2102,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[1].size = p->jumbo_size;
 
 	q->rspq.gen = 1;
+	q->rspq.cidx = 0;
 	q->rspq.size = p->rspq_size;
 
 	q->txq[TXQ_ETH].stop_thres = nports *
@@ -2211,7 +2263,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	int ret = 0;
 	
 	prefetch(sd->cl);
-	
+
 	fl->credits--;
 	bus_dmamap_sync(fl->entry_tag, sd->map, BUS_DMASYNC_POSTREAD);
 
@@ -2328,7 +2380,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	int ngathered = 0;
 #ifdef DEBUG	
 	static int last_holdoff = 0;
-	if (rspq->holdoff_tmr != last_holdoff) {
+	if (cxgb_debug && rspq->holdoff_tmr != last_holdoff) {
 		printf("next_holdoff=%d\n", rspq->holdoff_tmr);
 		last_holdoff = rspq->holdoff_tmr;
 	}
@@ -2349,26 +2401,31 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
 			struct mbuf *m = NULL;
-			if (cxgb_debug)
-				printf("IMM DATA VALID\n");
-			if (rspq->m == NULL)
-				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
-                        else
-				m = m_gethdr(M_NOWAIT, MT_DATA);
 
-			if (rspq->m == NULL || m == NULL) {
+			if (cxgb_debug)
+				printf("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n", r->rss_hdr.opcode, rspq->cidx);
+			if (rspq->m == NULL)
+				rspq->m = m_gethdr(M_DONTWAIT, MT_DATA);
+                        else
+				m = m_gethdr(M_DONTWAIT, MT_DATA);
+
+			/*
+			 * XXX revisit me
+			 */
+			if (rspq->m == NULL &&  m == NULL) {
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			get_imm_packet(adap, r, rspq->m, m);
+			if (get_imm_packet(adap, r, rspq->m, m, flags))
+				goto skip;
 			eop = 1;
 			rspq->imm_data++;
 		} else if (r->len_cq) {			
 			int drop_thresh = eth ? SGE_RX_DROP_THRES : 0;
 
                         if (rspq->m == NULL)  
-				rspq->m = m_gethdr(M_NOWAIT, MT_DATA);
+				rspq->m = m_gethdr(M_DONTWAIT, MT_DATA);
 			if (rspq->m == NULL) { 
 				log(LOG_WARNING, "failed to get mbuf for packet\n"); 
 				break; 
@@ -2385,7 +2442,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			sleeping |= flags & RSPD_GTS_MASK;
 			handle_rsp_cntrl_info(qs, flags);
 		}
-
+	skip:
 		r++;
 		if (__predict_false(++rspq->cidx == rspq->size)) {
 			rspq->cidx = 0;
@@ -2661,6 +2718,10 @@ t3_add_sysctls(adapter_t *sc)
 	    "txq_overrun",
 	    CTLFLAG_RD, &txq_fills,
 	    0, "#times txq overrun");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "bogus_imm",
+	    CTLFLAG_RD, &bogus_imm,
+	    0, "#times a bogus immediate response was seen");	
 }
 
 /**

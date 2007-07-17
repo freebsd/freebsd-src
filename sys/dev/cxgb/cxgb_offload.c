@@ -272,7 +272,7 @@ cxgb_ulp_iscsi_ctl(adapter_t *adapter, unsigned int req, void *data)
 		t3_write_reg(adapter, A_ULPRX_ISCSI_TAGMASK, uiip->tagmask);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = (EOPNOTSUPP);
 	}
 	return ret;
 }
@@ -315,7 +315,7 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 		struct mc7 *mem;
 
 		if ((t->addr & 7) || (t->len & 7))
-			return -EINVAL;
+			return (EINVAL);
 		if (t->mem_id == MEM_CM)
 			mem = &adapter->cm;
 		else if (t->mem_id == MEM_PMRX)
@@ -323,11 +323,11 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 		else if (t->mem_id == MEM_PMTX)
 			mem = &adapter->pmtx;
 		else
-			return -EINVAL;
+			return (EINVAL);
 
 		ret = t3_mc7_bd_read(mem, t->addr/8, t->len/8, (u64 *)t->buf);
 		if (ret)
-			return ret;
+			return (ret);
 		break;
 	}
 	case RDMA_CQ_SETUP: {
@@ -358,9 +358,9 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 		break;
 	}
 	default:
-		ret = -EOPNOTSUPP;
+		ret = EOPNOTSUPP;
 	}
-	return ret;
+	return (ret);
 }
 
 static int
@@ -439,7 +439,7 @@ cxgb_offload_ctl(struct toedev *tdev, unsigned int req, void *data)
 	case ULP_ISCSI_GET_PARAMS:
 	case ULP_ISCSI_SET_PARAMS:
 		if (!offload_running(adapter))
-			return -EAGAIN;
+			return (EAGAIN);
 		return cxgb_ulp_iscsi_ctl(adapter, req, data);
 	case RDMA_GET_PARAMS:
 	case RDMA_CQ_OP:
@@ -448,10 +448,10 @@ cxgb_offload_ctl(struct toedev *tdev, unsigned int req, void *data)
 	case RDMA_CTRL_QP_SETUP:
 	case RDMA_GET_MEM:
 		if (!offload_running(adapter))
-			return -EAGAIN;
+			return (EAGAIN);
 		return cxgb_rdma_ctl(adapter, req, data);
 	default:
-		return -EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
 	return 0;
 }
@@ -464,8 +464,8 @@ cxgb_offload_ctl(struct toedev *tdev, unsigned int req, void *data)
 static int
 rx_offload_blackhole(struct toedev *dev, struct mbuf **m, int n)
 {
-	CH_ERR(tdev2adap(dev), "%d unexpected offload packets, first data %u\n",
-	    n, ntohl(*mtod(m[0], uint32_t *)));
+	CH_ERR(tdev2adap(dev), "%d unexpected offload packets, first data 0x%x\n",
+	    n, *mtod(m[0], uint32_t *));
 	while (n--)
 		m_freem(m[n]);
 	return 0;
@@ -1308,7 +1308,7 @@ init_tid_tabs(struct tid_info *t, unsigned int ntids,
 
 	t->tid_tab = cxgb_alloc_mem(size);
 	if (!t->tid_tab)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	t->stid_tab = (union listen_entry *)&t->tid_tab[ntids];
 	t->atid_tab = (union active_open_entry *)&t->stid_tab[nstids];
@@ -1598,11 +1598,11 @@ offload_info_proc_setup(struct proc_dir_entry *dir,
 	struct proc_dir_entry *p;
 
 	if (!dir)
-		return -EINVAL;
+		return (EINVAL);
 
 	p = create_proc_read_entry("info", 0, dir, offload_info_read_proc, d);
 	if (!p)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	p->owner = THIS_MODULE;
 	return 0;
