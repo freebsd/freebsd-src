@@ -76,7 +76,7 @@ SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &uraldebug, 0,
 
 #define URAL_RSSI(rssi)					\
 	((rssi) > (RAL_NOISE_FLOOR + RAL_RSSI_CORR) ?	\
-	 ((rssi) - RAL_NOISE_FLOOR + RAL_RSSI_CORR) : 0)
+	 ((rssi) - (RAL_NOISE_FLOOR + RAL_RSSI_CORR)) : 0)
 
 /* various supported device vendors/products */
 static const struct usb_devno ural_devs[] = {
