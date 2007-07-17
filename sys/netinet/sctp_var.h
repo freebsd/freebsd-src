@@ -246,6 +246,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 	stcb->asoc.fslog[stcb->asoc.fs_index].incr = 0; \
 	stcb->asoc.fslog[stcb->asoc.fs_index].decr = 1; \
 	stcb->asoc.fs_index++; \
+        tp1->window_probe = 0; \
 	if (stcb->asoc.total_flight >= tp1->book_size) { \
 		stcb->asoc.total_flight -= tp1->book_size; \
 		if (stcb->asoc.total_flight_count > 0) \

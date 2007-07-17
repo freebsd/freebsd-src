@@ -484,11 +484,14 @@ struct sctp_scoping {
 #define SCTP_TSN_LOG_SIZE 40
 
 struct sctp_tsn_log {
+	void *stcb;
 	uint32_t tsn;
 	uint16_t strm;
 	uint16_t seq;
 	uint16_t sz;
 	uint16_t flgs;
+	uint16_t in_pos;
+	uint16_t in_out;
 };
 
 #define SCTP_FS_SPEC_LOG_SIZE 200
@@ -761,10 +764,13 @@ struct sctp_association {
 	 */
 	struct sctp_tsn_log in_tsnlog[SCTP_TSN_LOG_SIZE];
 	struct sctp_tsn_log out_tsnlog[SCTP_TSN_LOG_SIZE];
+	uint32_t cumack_log[SCTP_TSN_LOG_SIZE];
 	uint16_t tsn_in_at;
 	uint16_t tsn_out_at;
 	uint16_t tsn_in_wrapped;
 	uint16_t tsn_out_wrapped;
+	uint16_t cumack_log_at;
+
 #endif				/* SCTP_ASOCLOG_OF_TSNS */
 #ifdef SCTP_FS_SPEC_LOG
 	struct sctp_fs_spec_log fslog[SCTP_FS_SPEC_LOG_SIZE];
