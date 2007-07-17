@@ -37,6 +37,7 @@
 #include <machine/specialreg.h>
 
 #include "assym.s"
+#include "opt_sched.h"
 
 /*****************************************************************************/
 /* Scheduling                                                                */
@@ -48,6 +49,12 @@
 #define LK	lock ;
 #else
 #define LK
+#endif
+
+#if defined(SCHED_ULE) && defined(SMP)
+#define	SETLK	xchgq
+#else
+#define	SETLK	movq
 #endif
 
 /*
@@ -148,13 +155,7 @@ ENTRY(cpu_switch)
 	movq	%cr3,%rax
 	cmpq	%rcx,%rax			/* Same address space? */
 	jne	swinact
-	movq	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
-	/* Wait for the new thread to become unblocked */
-	movq	$blocked_lock, %rdx
-1:
-	movq	TD_LOCK(%rsi),%rcx
-	cmpq	%rcx, %rdx
-	je	1b
+	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 	jmp	sw1
 swinact:
 	movq	%rcx,%cr3			/* new address space */
@@ -163,21 +164,24 @@ swinact:
 	movq	TD_PROC(%rdi), %rcx		/* oldproc */
 	movq	P_VMSPACE(%rcx), %rcx
 	LK btrl	%eax, VM_PMAP+PM_ACTIVE(%rcx)	/* clear old */
-	movq	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
+	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 swact:
-	/* Wait for the new thread to become unblocked */
-	movq	$blocked_lock, %rdx
-1:
-	movq	TD_LOCK(%rsi),%rcx
-	cmpq	%rcx, %rdx
-	je	1b
-
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
 	movq	P_VMSPACE(%rdx), %rdx
 	LK btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 
 sw1:
+#if defined(SCHED_ULE) && defined(SMP)
+	/* Wait for the new thread to become unblocked */
+	movq	$blocked_lock, %rdx
+1:
+	movq	TD_LOCK(%rsi),%rcx
+	cmpq	%rcx, %rdx
+	pause
+	je	1b
+	lfence
+#endif
 	/*
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
