@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070711: bzip2 1.0.4
+OLD_FILES+=usr/share/info/bzip2.info.gz
 # 20070710: Removal of the PROTO.localhost* files
 OLD_FILES+=etc/namedb/PROTO.localhost-v6.rev
 OLD_FILES+=etc/namedb/PROTO.localhost.rev
