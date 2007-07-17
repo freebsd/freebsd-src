@@ -840,6 +840,14 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
 		PCPU_SET(switchtime, u);
 	}
+	/* Make sure the per-thread stats are current. */
+	FOREACH_THREAD_IN_PROC(p, td) {
+		if (td->td_runtime == 0)
+			continue;
+		thread_lock(td);
+		ruxagg(&p->p_rux, td);
+		thread_unlock(td);
+	}
 	calcru1(p, &p->p_rux, up, sp);
 }
 
