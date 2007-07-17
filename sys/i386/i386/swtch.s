@@ -33,10 +33,27 @@
  */
 
 #include "opt_npx.h"
+#include "opt_sched.h"
 
 #include <machine/asmacros.h>
 
 #include "assym.s"
+
+#if defined(SMP) && defined(SCHED_ULE)
+#define	SETOP		xchgl
+#define	BLOCK_SPIN(reg)							\
+		movl		$blocked_lock,%eax ;			\
+	100: ;								\
+		lock ;							\
+		cmpxchgl	%eax,TD_LOCK(reg) ;			\
+		jne		101f ;					\
+		pause ;							\
+		jmp		100b ;					\
+	101:
+#else
+#define	SETOP		movl
+#define	BLOCK_SPIN(reg)
+#endif
 
 /*****************************************************************************/
 /* Scheduling                                                                */
@@ -91,6 +108,7 @@ ENTRY(cpu_throw)
  * 0(%esp) = ret
  * 4(%esp) = oldtd
  * 8(%esp) = newtd
+ * 12(%esp) = newlock
  */
 ENTRY(cpu_switch)
 
@@ -145,13 +163,14 @@ ENTRY(cpu_switch)
 #endif
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
+	movl	4(%esp),%edi
 	movl	8(%esp),%ecx			/* New thread */
+	movl	12(%esp),%esi			/* New lock */
 #ifdef INVARIANTS
 	testl	%ecx,%ecx			/* no thread? */
 	jz	badsw3				/* no, panic */
 #endif
 	movl	TD_PCB(%ecx),%edx
-	movl	PCPU(CPUID), %esi
 
 	/* switch address space */
 	movl	PCB_CR3(%edx),%eax
@@ -160,11 +179,14 @@ ENTRY(cpu_switch)
 #else
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #endif
-	je	sw1
+	je	sw0
 	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	%ebx,%eax
-	je	sw1
+	je	sw0
 	movl	%eax,%cr3			/* new address space */
+	movl	%esi,%eax
+	movl	PCPU(CPUID),%esi
+	SETOP	%eax,TD_LOCK(%edi)		/* Switchout td_lock */
 
 	/* Release bit from old pmap->pm_active */
 	movl	PCPU(CURPMAP), %ebx
@@ -182,8 +204,12 @@ ENTRY(cpu_switch)
 	lock
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
+	jmp	sw1
 
+sw0:
+	SETOP	%esi,TD_LOCK(%edi)		/* Switchout td_lock */
 sw1:
+	BLOCK_SPIN(%ecx)
 	/*
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
