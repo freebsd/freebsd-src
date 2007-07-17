@@ -1689,8 +1689,8 @@ cxgb_start_proc(void *arg, int ncount)
 	txq = &qs->txq[TXQ_ETH];
 
 	do {
-		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC)
-			taskqueue_enqueue(pi->adapter->tq, &txq->qreclaim_task);
+		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
+			taskqueue_enqueue(pi->tq, &txq->qreclaim_task);
 
 		error = cxgb_start_tx(ifp, TX_START_MAX_DESC);
 	} while (error == 0);
@@ -1707,9 +1707,9 @@ cxgb_start(struct ifnet *ifp)
 	qs = &pi->adapter->sge.qs[pi->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	
-	if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC)
-		taskqueue_enqueue(pi->adapter->tq,
-		    &pi->timer_reclaim_task);
+	if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
+		taskqueue_enqueue(pi->tq,
+		    &txq->qreclaim_task);
 	
 	err = cxgb_start_tx(ifp, TX_START_MAX_DESC);
 	
