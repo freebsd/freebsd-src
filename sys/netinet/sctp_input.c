@@ -406,6 +406,17 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		*abort_no_unlock = 1;
 		return (-1);
 	}
+	/* if the peer doesn't support asconf, flush the asconf queue */
+	if (asoc->peer_supports_asconf == 0) {
+		struct sctp_asconf_addr *aparam;
+
+		while (!TAILQ_EMPTY(&asoc->asconf_queue)) {
+			/* sa_ignore FREED_MEMORY */
+			aparam = TAILQ_FIRST(&asoc->asconf_queue);
+			TAILQ_REMOVE(&asoc->asconf_queue, aparam, next);
+			SCTP_FREE(aparam, SCTP_M_ASC_ADDR);
+		}
+	}
 	stcb->asoc.peer_hmac_id = sctp_negotiate_hmacid(stcb->asoc.peer_hmacs,
 	    stcb->asoc.local_hmacs);
 	if (op_err) {
@@ -427,7 +438,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	    asoc->primary_destination, SCTP_FROM_SCTP_INPUT + SCTP_LOC_4);
 
 	/* calculate the RTO */
-	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered);
+	net->RTO = sctp_calculate_rto(stcb, asoc, net, &asoc->time_entered, sctp_align_safe_nocopy);
 
 	retval = sctp_send_cookie_echo(m, offset, stcb, net);
 	if (retval < 0) {
@@ -555,7 +566,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	 * timer is running, for the destination, stop the timer because a
 	 * PF-heartbeat was received.
 	 */
-	if (sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF) ==
+	if (sctp_cmt_on_off && sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF) ==
 	    SCTP_ADDR_PF) {
 		if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
@@ -568,7 +579,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		    net, net->cwnd);
 	}
 	/* Now lets do a RTO with this */
-	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv);
+	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy);
 }
 
 static void
@@ -1217,7 +1228,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 */
 			net->hb_responded = 1;
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &cookie->time_entered);
+			    &cookie->time_entered, sctp_align_unsafe_makecopy);
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))) {
@@ -1801,7 +1812,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 	if ((netp) && (*netp)) {
 		(*netp)->RTO = sctp_calculate_rto(stcb, asoc, *netp,
-		    &cookie->time_entered);
+		    &cookie->time_entered, sctp_align_unsafe_makecopy);
 	}
 	sctp_send_cookie_ack(stcb);
 	return (stcb);
@@ -2302,7 +2313,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		if (asoc->overall_error_count == 0) {
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-			    &asoc->time_entered);
+			    &asoc->time_entered, sctp_align_safe_nocopy);
 		}
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL);

@@ -918,6 +918,16 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	else
 		asoc->hb_is_disabled = 0;
 
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	asoc->tsn_in_at = 0;
+	asoc->tsn_out_at = 0;
+	asoc->tsn_in_wrapped = 0;
+	asoc->tsn_out_wrapped = 0;
+	asoc->cumack_log_at = 0;
+#endif
+#ifdef SCTP_FS_SPEC_LOG
+	asoc->fs_index = 0;
+#endif
 	asoc->refcnt = 0;
 	asoc->assoc_up_sent = 0;
 	asoc->assoc_id = asoc->my_vtag;
@@ -2565,9 +2575,10 @@ uint32_t
 sctp_calculate_rto(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_nets *net,
-    struct timeval *old)
+    struct timeval *told,
+    int safe)
 {
-	/*
+	/*-
 	 * given an association and the starting time of the current RTT
 	 * period (in value1/value2) return RTO in number of msecs.
 	 */
@@ -2575,8 +2586,19 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	int o_calctime;
 	uint32_t new_rto = 0;
 	int first_measure = 0;
-	struct timeval now;
+	struct timeval now, then, *old;
 
+	/* Copy it out for sparc64 */
+	if (safe == sctp_align_unsafe_makecopy) {
+		old = &then;
+		memcpy(&then, told, sizeof(struct timeval));
+	} else if (safe == sctp_align_safe_nocopy) {
+		old = told;
+	} else {
+		/* error */
+		SCTP_PRINTF("Huh, bad rto calc call\n");
+		return (0);
+	}
 	/************************/
 	/* 1. calculate new RTT */
 	/************************/
@@ -3650,6 +3672,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 void
 sctp_print_out_track_log(struct sctp_tcb *stcb)
 {
+#ifdef NOSIY_PRINTS
 	int i;
 
 	SCTP_PRINTF("Last ep reason:%x\n", stcb->sctp_ep->last_abort_code);
@@ -3704,6 +3727,7 @@ none_in:
 			    stcb->asoc.out_tsnlog[i].sz);
 		}
 	}
+#endif
 }
 
 #endif
@@ -4232,15 +4256,6 @@ get_out:
 		}
 		tail = m;
 	}
-	if (end) {
-		/* message is complete */
-		if (stcb && (control == stcb->asoc.control_pdapi)) {
-			stcb->asoc.control_pdapi = NULL;
-		}
-		control->held_length = 0;
-		control->end_added = 1;
-	}
-	atomic_add_int(&control->length, len);
 	if (control->tail_mbuf) {
 		/* append */
 		SCTP_BUF_NEXT(control->tail_mbuf) = m;
@@ -4254,6 +4269,15 @@ get_out:
 #endif
 		control->data = m;
 		control->tail_mbuf = tail;
+	}
+	atomic_add_int(&control->length, len);
+	if (end) {
+		/* message is complete */
+		if (stcb && (control == stcb->asoc.control_pdapi)) {
+			stcb->asoc.control_pdapi = NULL;
+		}
+		control->held_length = 0;
+		control->end_added = 1;
 	}
 	if (stcb == NULL) {
 		control->do_not_ref_stcb = 1;
@@ -4656,7 +4680,6 @@ sctp_sorecvmsg(struct socket *so,
 	uint32_t rwnd_req = 0;
 	int hold_sblock = 0;
 	int hold_rlock = 0;
-	int alen = 0;
 	int slen = 0;
 	uint32_t held_length = 0;
 	int sockbuf_lock = 0;
@@ -5059,6 +5082,26 @@ found_one:
 			sinfo->sinfo_flags |= SCTP_UNORDERED;
 		}
 	}
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	{
+		int index, newindex;
+		struct sctp_pcbtsn_rlog *entry;
+
+		do {
+			index = inp->readlog_index;
+			newindex = index + 1;
+			if (newindex >= SCTP_READ_LOG_SIZE) {
+				newindex = 0;
+			}
+		} while (atomic_cmpset_int(&inp->readlog_index, index, newindex) == 0);
+		entry = &inp->readlog[index];
+		entry->vtag = control->sinfo_assoc_id;
+		entry->strm = control->sinfo_stream;
+		entry->seq = control->sinfo_ssn;
+		entry->sz = control->length;
+		entry->flgs = control->sinfo_flags;
+	}
+#endif
 	if (fromlen && from) {
 		struct sockaddr *to;
 
@@ -5171,10 +5214,7 @@ get_more_data:
 					embuf = m;
 					copied_so_far += cp_len;
 					freed_so_far += cp_len;
-					alen = atomic_fetchadd_int(&control->length, -(cp_len));
-					if (alen < cp_len) {
-						panic("Control length goes negative?");
-					}
+					atomic_subtract_int(&control->length, cp_len);
 					control->data = sctp_m_free(m);
 					m = control->data;
 					/*
@@ -5228,10 +5268,7 @@ get_more_data:
 						sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb,
 						    SCTP_LOG_SBRESULT, 0);
 					}
-					alen = atomic_fetchadd_int(&control->length, -(cp_len));
-					if (alen < cp_len) {
-						panic("Control length goes negative2?");
-					}
+					atomic_subtract_int(&control->length, cp_len);
 				} else {
 					copied_so_far += cp_len;
 				}
@@ -5895,7 +5932,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
-		*error = sctp_inpcb_bind(so, addr_touse, NULL, p);
+		*error = sctp_inpcb_bind(so, addr_touse, p);
 		return;
 	}
 	/*

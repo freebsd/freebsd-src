@@ -94,15 +94,14 @@ sctp_asconf_get_source_ip(struct mbuf *m, struct sockaddr *sa)
 /*
  * draft-ietf-tsvwg-addip-sctp
  *
- * Address management only currently supported For the bound all case: the asoc
- * local addr list is always a "DO NOT USE" list For the subset bound case:
- * If ASCONFs are allowed: the endpoint local addr list is the usable address
- * list the asoc local addr list is the "DO NOT USE" list If ASCONFs are not
- * allowed: the endpoint local addr list is the default usable list the asoc
- * local addr list is the usable address list
- *
  * An ASCONF parameter queue exists per asoc which holds the pending address
  * operations.  Lists are updated upon receipt of ASCONF-ACK.
+ *
+ * A restricted_addrs list exists per assoc to hold local addresses that are
+ * not (yet) usable by the assoc as a source address.  These addresses are
+ * either pending an ASCONF operation (and exist on the ASCONF parameter
+ * queue), or they are permanently restricted (the peer has returned an
+ * ERROR indication to an ASCONF(ADD), or the peer does not support ASCONF).
  *
  * Deleted addresses are always immediately removed from the lists as they will
  * (shortly) no longer exist in the kernel.  We send ASCONFs as a courtesy,
@@ -110,10 +109,10 @@ sctp_asconf_get_source_ip(struct mbuf *m, struct sockaddr *sa)
  */
 
 /*
- * ASCONF parameter processing response_required: set if a reply is required
- * (eg. SUCCESS_REPORT) returns a mbuf to an "error" response parameter or
- * NULL/"success" if ok FIX: allocating this many mbufs on the fly is pretty
- * inefficient...
+ * ASCONF parameter processing.
+ * response_required: set if a reply is required (eg. SUCCESS_REPORT).
+ * returns a mbuf to an "error" response parameter or NULL/"success" if ok.
+ * FIX: allocating this many mbufs on the fly is pretty inefficient...
  */
 static struct mbuf *
 sctp_asconf_success_response(uint32_t id)
@@ -908,7 +907,8 @@ sctp_asconf_addr_mgmt_ack(struct sctp_tcb *stcb, struct sctp_ifa *addr,
  * for add.  If a duplicate operation is found, ignore the new one.
  */
 static uint32_t
-sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa, uint16_t type)
+sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
+    uint16_t type)
 {
 	struct sctp_asconf_addr *aa, *aa_next;
 	struct sockaddr *sa;
@@ -1223,8 +1223,9 @@ sctp_asconf_process_error(struct sctp_tcb *stcb,
 }
 
 /*
- * process an asconf queue param aparam: parameter to process, will be
- * removed from the queue flag: 1=success, 0=failure
+ * process an asconf queue param.
+ * aparam: parameter to process, will be removed from the queue.
+ * flag: 1=success case, 0=failure case
  */
 static void
 sctp_asconf_process_param_ack(struct sctp_tcb *stcb,
@@ -1432,11 +1433,9 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 			 * < last_error_id, then success else, failure
 			 */
 			if (aa->ap.aph.correlation_id < last_error_id)
-				sctp_asconf_process_param_ack(stcb, aa,
-				    SCTP_SUCCESS_REPORT);
+				sctp_asconf_process_param_ack(stcb, aa, 1);
 			else
-				sctp_asconf_process_param_ack(stcb, aa,
-				    SCTP_ERROR_CAUSE_IND);
+				sctp_asconf_process_param_ack(stcb, aa, 0);
 		} else {
 			/*
 			 * since we always process in order (FIFO queue) if
@@ -1529,13 +1528,6 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 	}
 	/* put this address on the "pending/do not use yet" list */
-	/*
-	 * Note: we do this primarily for the subset bind case We don't have
-	 * scoping flags at the EP level, so we must add link local/site
-	 * local addresses to the EP, then need to "negate" them here.
-	 * Recall that this routine is only called for the subset bound
-	 * w/ASCONF allowed case.
-	 */
 	sctp_add_local_addr_assoc(stcb, ifa, 1);
 	/*
 	 * check address scope if address is out of scope, don't queue
@@ -1824,7 +1816,6 @@ sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					continue;
 				}
 			}
-
 		}
 		/* queue an asconf for this address add/delete */
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF)) {
@@ -2018,8 +2009,8 @@ sctp_find_valid_localaddr_ep(struct sctp_tcb *stcb)
 }
 
 /*
- * builds an ASCONF chunk from queued ASCONF params returns NULL on error (no
- * mbuf, no ASCONF params queued, etc)
+ * builds an ASCONF chunk from queued ASCONF params.
+ * returns NULL on error (no mbuf, no ASCONF params queued, etc).
  */
 struct mbuf *
 sctp_compose_asconf(struct sctp_tcb *stcb, int *retlen)
