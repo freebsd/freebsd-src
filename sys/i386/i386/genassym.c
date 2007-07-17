@@ -81,6 +81,7 @@ ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
+ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
