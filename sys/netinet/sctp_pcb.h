@@ -291,7 +291,7 @@ struct sctp_pcb {
 	struct sctp_timer zero_copy_timer;
 	/* Zero copy app to transport (sendq) read repulse timer */
 	struct sctp_timer zero_copy_sendq_timer;
-	int def_cookie_life;
+	uint32_t def_cookie_life;
 	/* defaults to 0 */
 	int auto_close_time;
 	uint32_t initial_sequence_debug;
@@ -311,6 +311,17 @@ struct sctp_pcb {
 #endif
 
 #define sctp_lport ip_inp.inp.inp_lport
+
+struct sctp_pcbtsn_rlog {
+	uint32_t vtag;
+	uint16_t strm;
+	uint16_t seq;
+	uint16_t sz;
+	uint16_t flgs;
+};
+
+#define SCTP_READ_LOG_SIZE 135	/* we choose the number to make a pcb a page */
+
 
 struct sctp_inpcb {
 	/*-
@@ -378,6 +389,10 @@ struct sctp_inpcb {
 	uint32_t total_recvs;
 	uint32_t last_abort_code;
 	uint32_t total_nospaces;
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	struct sctp_pcbtsn_rlog readlog[SCTP_READ_LOG_SIZE];
+	uint32_t readlog_index;
+#endif
 };
 
 struct sctp_tcb {
@@ -452,7 +467,7 @@ struct sctp_nets *sctp_findnet(struct sctp_tcb *, struct sockaddr *);
 struct sctp_inpcb *sctp_pcb_findep(struct sockaddr *, int, int, uint32_t);
 
 int 
-sctp_inpcb_bind(struct socket *, struct sockaddr *, struct sctp_ifa *,
+sctp_inpcb_bind(struct socket *, struct sockaddr *,
     struct thread *);
 
 struct sctp_tcb *

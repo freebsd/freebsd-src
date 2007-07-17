@@ -292,11 +292,11 @@ __attribute__((packed));
 #define SCTP_CAUSE_PROTOCOL_VIOLATION	0x000d
 
 /* Error causes from draft-ietf-tsvwg-addip-sctp */
-#define SCTP_CAUSE_DELETING_LAST_ADDR	0x0100
-#define SCTP_CAUSE_RESOURCE_SHORTAGE	0x0101
-#define SCTP_CAUSE_DELETING_SRC_ADDR	0x0102
-#define SCTP_CAUSE_ILLEGAL_ASCONF_ACK	0x0103
-#define SCTP_CAUSE_REQUEST_REFUSED	0x0104
+#define SCTP_CAUSE_DELETING_LAST_ADDR	0xa0
+#define SCTP_CAUSE_RESOURCE_SHORTAGE	0xa1
+#define SCTP_CAUSE_DELETING_SRC_ADDR	0xa2
+#define SCTP_CAUSE_ILLEGAL_ASCONF_ACK	0xa3
+#define SCTP_CAUSE_REQUEST_REFUSED	0xa4
 
 /* Error causes from draft-ietf-tsvwg-sctp-auth */
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
@@ -495,6 +495,14 @@ __attribute__((packed));
  * your config.
  */
 #define SCTP_PACKET_LOG_SIZE 65536
+
+/* Maximum delays and such a user can set for options that
+ * take ms.
+ */
+#define SCTP_MAX_SACK_DELAY 500	/* per RFC4960 */
+#define SCTP_MAX_HB_INTERVAL 14400000	/* 4 hours in ms */
+#define SCTP_MAX_COOKIE_LIFE  3600000	/* 1 hour in ms */
+
 
 /* Types of logging/KTR tracing  that can be enabled via the
  * sysctl net.inet.sctp.sctp_logging. You must also enable

@@ -277,7 +277,7 @@ sctp_notify(struct sctp_inpcb *inp,
 				 * not in PF state.
 				 */
 				/* Stop any running T3 timers here? */
-				if (sctp_cmt_pf) {
+				if (sctp_cmt_on_off && sctp_cmt_pf) {
 					net->dest_state &= ~SCTP_ADDR_PF;
 					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 					    net);
@@ -573,7 +573,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp == 0)
 		return EINVAL;
 
-	error = sctp_inpcb_bind(so, addr, NULL, p);
+	error = sctp_inpcb_bind(so, addr, p);
 	return error;
 }
 
@@ -1345,7 +1345,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -2211,24 +2211,26 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 	case SCTP_ASSOCINFO:
 		{
 			struct sctp_assocparams *sasoc;
+			uint32_t oldval;
 
 			SCTP_CHECK_AND_CAST(sasoc, optval, struct sctp_assocparams, *optsize);
 			SCTP_FIND_STCB(inp, stcb, sasoc->sasoc_assoc_id);
 
 			if (stcb) {
+				oldval = sasoc->sasoc_cookie_life;
+				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(stcb->asoc.cookie_life);
 				sasoc->sasoc_asocmaxrxt = stcb->asoc.max_send_times;
 				sasoc->sasoc_number_peer_destinations = stcb->asoc.numnets;
 				sasoc->sasoc_peer_rwnd = stcb->asoc.peers_rwnd;
 				sasoc->sasoc_local_rwnd = stcb->asoc.my_rwnd;
-				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(stcb->asoc.cookie_life);
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
 				SCTP_INP_RLOCK(inp);
+				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(inp->sctp_ep.def_cookie_life);
 				sasoc->sasoc_asocmaxrxt = inp->sctp_ep.max_send_times;
 				sasoc->sasoc_number_peer_destinations = 0;
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = sbspace(&inp->sctp_socket->so_rcv);
-				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(inp->sctp_ep.def_cookie_life);
 				SCTP_INP_RUNLOCK(inp);
 			}
 			*optsize = sizeof(*sasoc);
@@ -2683,6 +2685,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(sack, optval, struct sctp_sack_info, optsize);
 			SCTP_FIND_STCB(inp, stcb, sack->sack_assoc_id);
+			if (sack->sack_delay) {
+				if (sack->sack_delay > SCTP_MAX_SACK_DELAY)
+					sack->sack_delay = SCTP_MAX_SACK_DELAY;
+			}
 			if (stcb) {
 				if (sack->sack_delay) {
 					if (MSEC_TO_TICKS(sack->sack_delay) < 1) {
@@ -3381,9 +3387,11 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				}
 				if (paddrp->spp_flags & SPP_HB_TIME_IS_ZERO)
 					inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = 0;
-				else if (paddrp->spp_hbinterval)
+				else if (paddrp->spp_hbinterval) {
+					if (paddrp->spp_hbinterval > SCTP_MAX_HB_INTERVAL)
+						paddrp->spp_hbinterval = SCTP_MAX_HB_INTERVAL;
 					inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = MSEC_TO_TICKS(paddrp->spp_hbinterval);
-
+				}
 				if (paddrp->spp_flags & SPP_HB_ENABLE) {
 					sctp_feature_off(inp, SCTP_PCB_FLAGS_DONOT_HEARTBEAT);
 
@@ -3454,7 +3462,14 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 
 			SCTP_CHECK_AND_CAST(sasoc, optval, struct sctp_assocparams, optsize);
 			SCTP_FIND_STCB(inp, stcb, sasoc->sasoc_assoc_id);
-
+			if (sasoc->sasoc_cookie_life) {
+				/* boundary check the cookie life */
+				if (sasoc->sasoc_cookie_life < 1000)
+					sasoc->sasoc_cookie_life = 1000;
+				if (sasoc->sasoc_cookie_life > SCTP_MAX_COOKIE_LIFE) {
+					sasoc->sasoc_cookie_life = SCTP_MAX_COOKIE_LIFE;
+				}
+			}
 			if (stcb) {
 				if (sasoc->sasoc_asocmaxrxt)
 					stcb->asoc.max_send_times = sasoc->sasoc_asocmaxrxt;
@@ -3462,9 +3477,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = 0;
 				if (sasoc->sasoc_cookie_life) {
-					if (sasoc->sasoc_cookie_life < 1000)
-						sasoc->sasoc_cookie_life = 1000;
-					stcb->asoc.cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
+					stcb->asoc.cookie_life = sasoc->sasoc_cookie_life;
+
 				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
@@ -3475,8 +3489,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = 0;
 				if (sasoc->sasoc_cookie_life) {
-					if (sasoc->sasoc_cookie_life < 1000)
-						sasoc->sasoc_cookie_life = 1000;
 					inp->sctp_ep.def_cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
 				}
 				SCTP_INP_WUNLOCK(inp);
@@ -3619,9 +3631,33 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_ADD_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
+			int sz;
+			struct thread *td;
+			int prison = 0;
 
+			td = (struct thread *)p;
+			if (jailed(td->td_ucred)) {
+				prison = 1;
+			}
 			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses,
 			    optsize);
+			if (addrs->addr->sa_family == AF_INET) {
+				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
+				if (optsize < sz) {
+					error = EINVAL;
+					break;
+				}
+				if (prison && prison_ip(td->td_ucred, 0, &(((struct sockaddr_in *)(addrs->addr))->sin_addr.s_addr))) {
+					error = EADDRNOTAVAIL;
+				}
+			} else if (addrs->addr->sa_family == AF_INET6) {
+				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
+				if (optsize < sz) {
+					error = EINVAL;
+					break;
+				}
+				/* JAIL XXXX Add else here for V6 */
+			}
 			sctp_bindx_add_address(so, inp, addrs->addr,
 			    addrs->sget_assoc_id, vrf_id,
 			    &error, p);
@@ -3630,8 +3666,32 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_REM_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
+			int sz;
+			struct thread *td;
+			int prison = 0;
 
+			td = (struct thread *)p;
+			if (jailed(td->td_ucred)) {
+				prison = 1;
+			}
 			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses, optsize);
+			if (addrs->addr->sa_family == AF_INET) {
+				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
+				if (optsize < sz) {
+					error = EINVAL;
+					break;
+				}
+				if (prison && prison_ip(td->td_ucred, 0, &(((struct sockaddr_in *)(addrs->addr))->sin_addr.s_addr))) {
+					error = EADDRNOTAVAIL;
+				}
+			} else if (addrs->addr->sa_family == AF_INET6) {
+				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
+				if (optsize < sz) {
+					error = EINVAL;
+					break;
+				}
+				/* JAIL XXXX Add else here for V6 */
+			}
 			sctp_bindx_delete_address(so, inp, addrs->addr,
 			    addrs->sget_assoc_id, vrf_id,
 			    &error);
@@ -3743,7 +3803,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -3854,7 +3914,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		/* We must do a bind. */
 		SOCK_UNLOCK(so);
 		SCTP_INP_RUNLOCK(inp);
-		if ((error = sctp_inpcb_bind(so, NULL, NULL, p))) {
+		if ((error = sctp_inpcb_bind(so, NULL, p))) {
 			/* bind error, probably perm */
 			return (error);
 		}
