@@ -38,8 +38,6 @@ $FreeBSD$
 #endif
 
 enum {
-	MAX_NPORTS = 4,
-	TP_TMR_RES = 200,       /* TP timer resolution in usec */
 	MAX_FRAME_SIZE = 10240, /* max MAC frame size, includes header + FCS */
 	EEPROMSIZE     = 8192,  /* Serial EEPROM size */
 	RSS_TABLE_SIZE = 64,    /* size of RSS lookup and mapping tables */
@@ -48,6 +46,10 @@ enum {
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
 	PROTO_SRAM_LINES = 128, /* size of protocol sram */
+	MAX_NPORTS     = 4,
+	TP_TMR_RES     = 200,
+	TP_SRAM_OFFSET = 4096,	/* TP SRAM content offset in eeprom */
+	TP_SRAM_LEN    = 2112,	/* TP SRAM content offset in eeprom */
 };
 
 #define MAX_RX_COALESCING_LEN 12288U
@@ -72,8 +74,8 @@ enum {                            /* adapter interrupt-maintained statistics */
 
 enum {
 	TP_VERSION_MAJOR	= 1,
-	TP_VERSION_MINOR	= 0,
-	TP_VERSION_MICRO	= 44
+	TP_VERSION_MINOR	= 1,
+	TP_VERSION_MICRO	= 0
 };
 
 #define S_TP_VERSION_MAJOR		16
@@ -96,7 +98,7 @@ enum {
 
 enum {
 	FW_VERSION_MAJOR = 4,
-	FW_VERSION_MINOR = 1,
+	FW_VERSION_MINOR = 5,
 	FW_VERSION_MICRO = 0
 };
 
@@ -393,6 +395,7 @@ enum {					    /* chip revisions */
 	T3_REV_A  = 0,
 	T3_REV_B  = 2,
 	T3_REV_B2 = 3,
+	T3_REV_C  = 4,
 };
 
 struct trace_params {
@@ -467,6 +470,7 @@ struct cmac {
 	unsigned int tx_xcnt;
 	u64 tx_mcnt;
 	unsigned int rx_xcnt;
+	unsigned int rx_ocnt;
 	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
@@ -562,6 +566,9 @@ static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 /* Accumulate MAC statistics every 180 seconds.  For 1G we multiply by 10. */
 #define MAC_STATS_ACCUM_SECS 180
 
+/* The external MAC needs accumulation every 30 seconds */
+#define VSC_STATS_ACCUM_SECS 30
+
 #define XGM_REG(reg_addr, idx) \
 	((reg_addr) + (idx) * (XGMAC0_1_BASE_ADDR - XGMAC0_0_BASE_ADDR))
 
@@ -656,9 +663,10 @@ int t3_seeprom_write(adapter_t *adapter, u32 addr, u32 data);
 int t3_seeprom_wp(adapter_t *adapter, int enable);
 int t3_read_flash(adapter_t *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
+int t3_get_tp_version(adapter_t *adapter, u32 *vers);
 int t3_check_tpsram_version(adapter_t *adapter);
-int t3_check_tpsram(adapter_t *adapter, u8 *tp_ram, unsigned int size);
-int t3_load_fw(adapter_t *adapter, const u8 *fw_data, unsigned int size);
+int t3_check_tpsram(adapter_t *adapter, const u8 *tp_ram, unsigned int size);
+int t3_load_fw(adapter_t *adapter, const const u8 *fw_data, unsigned int size);
 int t3_get_fw_version(adapter_t *adapter, u32 *vers);
 int t3_check_fw_version(adapter_t *adapter);
 int t3_init_hw(adapter_t *adapter, u32 fw_params);
@@ -668,10 +676,11 @@ int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
 void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
+void t3_enable_filters(adapter_t *adap);
 void t3_config_rss(adapter_t *adapter, unsigned int rss_config, const u8 *cpus,
 		   const u16 *rspq);
 int t3_read_rss(adapter_t *adapter, u8 *lkup, u16 *map);
-int t3_set_proto_sram(adapter_t *adap, u8 *data);
+int t3_set_proto_sram(adapter_t *adap, const u8 *data);
 int t3_mps_set_active_ports(adapter_t *adap, unsigned int port_mask);
 void t3_port_failover(adapter_t *adapter, int port);
 void t3_failover_done(adapter_t *adapter, int port);
@@ -753,8 +762,8 @@ int t3_elmr_blk_write(adapter_t *adap, int start, const u32 *vals, int n);
 int t3_elmr_blk_read(adapter_t *adap, int start, u32 *vals, int n);
 int t3_vsc7323_init(adapter_t *adap, int nports);
 int t3_vsc7323_set_speed_fc(adapter_t *adap, int speed, int fc, int port);
-int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port);
 int t3_vsc7323_set_mtu(adapter_t *adap, unsigned int mtu, int port);
+int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port);
 int t3_vsc7323_enable(adapter_t *adap, int port, int which);
 int t3_vsc7323_disable(adapter_t *adap, int port, int which);
 const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac);

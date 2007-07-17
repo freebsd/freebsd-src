@@ -38,8 +38,13 @@ $FreeBSD$
 
 #include <dev/mii/mii.h>
 
+#ifdef CONFIG_DEFINED
+#include <common/cxgb_version.h>
+#include <cxgb_config.h>
+#else
 #include <dev/cxgb/common/cxgb_version.h>
 #include <dev/cxgb/cxgb_config.h>
+#endif
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
@@ -95,8 +100,16 @@ struct sge_rspq;
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
+
+#define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
+
+#if 0
+#define TX_START_MAX_DESC (TX_ETH_Q_SIZE >> 2)  /* maximum number of descriptors */
+#endif
+
 #define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
+
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
 
@@ -159,6 +172,7 @@ static const int debug_flags = DBG_RX;
 
 #define max_t(type, a, b) (type)max((a), (b))
 #define net_device ifnet
+#define cpu_to_be32            htobe32
 
 
 

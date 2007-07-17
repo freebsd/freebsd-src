@@ -31,10 +31,6 @@ $FreeBSD$
 #ifndef T3_CPL_H
 #define T3_CPL_H
 
-#if !defined(__LITTLE_ENDIAN_BITFIELD) && !defined(__BIG_ENDIAN_BITFIELD)
-# include <asm/byteorder.h>
-#endif
-
 enum CPL_opcode {
 	CPL_PASS_OPEN_REQ     = 0x1,
 	CPL_PASS_ACCEPT_RPL   = 0x2,
@@ -133,6 +129,7 @@ enum CPL_error {
 enum {
 	CPL_CONN_POLICY_AUTO = 0,
 	CPL_CONN_POLICY_ASK  = 1,
+	CPL_CONN_POLICY_FILTER = 2,
 	CPL_CONN_POLICY_DENY = 3
 };
 
@@ -259,16 +256,16 @@ struct work_request_hdr {
 /* Applicable to BYPASS WRs only: the uP will added a CPL_BARRIER before
  * and after the BYPASS WR if the ATOMIC bit is set.
  */
-#define S_WR_ATOMIC      16
-#define V_WR_ATOMIC(x)   ((x) << S_WR_ATOMIC)
-#define F_WR_ATOMIC      V_WR_ATOMIC(1U)
+#define S_WR_ATOMIC	16
+#define V_WR_ATOMIC(x)	((x) << S_WR_ATOMIC)
+#define F_WR_ATOMIC	V_WR_ATOMIC(1U)
 
 /* Applicable to BYPASS WRs only: the uP will flush buffered non abort
  * related WRs.
  */
-#define S_WR_FLUSH       17
-#define V_WR_FLUSH(x)    ((x) << S_WR_FLUSH)
-#define F_WR_FLUSH       V_WR_FLUSH(1U)
+#define S_WR_FLUSH	17
+#define V_WR_FLUSH(x)	((x) << S_WR_FLUSH)
+#define F_WR_FLUSH	V_WR_FLUSH(1U)
 
 #define S_WR_DATATYPE    20
 #define V_WR_DATATYPE(x) ((x) << S_WR_DATATYPE)
@@ -414,6 +411,11 @@ struct work_request_hdr {
 #define M_CPU_IDX    0x3F
 #define V_CPU_IDX(x) ((x) << S_CPU_IDX)
 #define G_CPU_IDX(x) (((x) >> S_CPU_IDX) & M_CPU_IDX)
+
+#define S_OPT1_VLAN    6
+#define M_OPT1_VLAN    0xFFF
+#define V_OPT1_VLAN(x) ((x) << S_OPT1_VLAN)
+#define G_OPT1_VLAN(x) (((x) >> S_OPT1_VLAN) & M_OPT1_VLAN)
 
 #define S_MAC_MATCH_VALID    18
 #define V_MAC_MATCH_VALID(x) ((x) << S_MAC_MATCH_VALID)
@@ -808,6 +810,12 @@ struct tx_data_wr {
 	__be32 param;
 };
 
+/* tx_data_wr.flags fields */
+#define S_TX_ACK_PAGES		21
+#define M_TX_ACK_PAGES		0x7
+#define V_TX_ACK_PAGES(x) 	((x) << S_TX_ACK_PAGES)
+#define G_TX_ACK_PAGES(x) 	(((x) >> S_TX_ACK_PAGES) & M_TX_ACK_PAGES)
+
 /* tx_data_wr.param fields */
 #define S_TX_PORT    0
 #define M_TX_PORT    0x7
@@ -1009,7 +1017,7 @@ struct cpl_rx_data_ddp {
 	union {
 		__be32 nxt_seq;
 		__be32 ddp_report;
-	} __U;
+	} u;
 	__be32 ulp_crc;
 	__be32 ddpvld_status;
 };
@@ -1515,7 +1523,7 @@ struct ulp_mem_io {
 	__be32 len;
 };
 
-    /* ulp_mem_io.cmd_lock_addr fields */
+/* ulp_mem_io.cmd_lock_addr fields */
 #define S_ULP_MEMIO_ADDR    0
 #define M_ULP_MEMIO_ADDR    0x7FFFFFF
 #define V_ULP_MEMIO_ADDR(x) ((x) << S_ULP_MEMIO_ADDR)
@@ -1524,7 +1532,7 @@ struct ulp_mem_io {
 #define V_ULP_MEMIO_LOCK(x) ((x) << S_ULP_MEMIO_LOCK)
 #define F_ULP_MEMIO_LOCK    V_ULP_MEMIO_LOCK(1U)
 
-    /* ulp_mem_io.len fields */
+/* ulp_mem_io.len fields */
 #define S_ULP_MEMIO_DATA_LEN    28
 #define M_ULP_MEMIO_DATA_LEN    0xF
 #define V_ULP_MEMIO_DATA_LEN(x) ((x) << S_ULP_MEMIO_DATA_LEN)
@@ -1534,7 +1542,7 @@ struct ulp_txpkt {
 	__be32 len;
 };
 
-    /* ulp_txpkt.cmd_dest fields */
+/* ulp_txpkt.cmd_dest fields */
 #define S_ULP_TXPKT_DEST    24
 #define M_ULP_TXPKT_DEST    0xF
 #define V_ULP_TXPKT_DEST(x) ((x) << S_ULP_TXPKT_DEST)
