@@ -108,6 +108,13 @@
 #define	PMAP_SHPGPERPROC	200
 #endif
 
+/* XXX */
+#include "opt_sched.h"
+#ifndef SCHED_4BSD
+#error "sparc64 only works with SCHED_4BSD which uses a global scheduler lock."
+#endif
+extern struct mtx sched_lock;
+
 /*
  * Virtual and physical address of message buffer.
  */
