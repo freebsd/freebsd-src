@@ -118,7 +118,6 @@ struct lock_class lock_class_mtx_spin = {
  * System-wide mutexes
  */
 struct mtx blocked_lock;
-struct mtx sched_lock;
 struct mtx Giant;
 
 #ifdef LOCK_PROFILING
@@ -775,7 +774,6 @@ mutex_init(void)
 	 * Initialize mutexes.
 	 */
 	mtx_init(&Giant, "Giant", NULL, MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&blocked_lock, "blocked lock", NULL, MTX_SPIN);
 	blocked_lock.mtx_lock = 0xdeadc0de;	/* Always blocked. */
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
