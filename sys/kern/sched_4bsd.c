@@ -101,6 +101,7 @@ struct td_sched {
     ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
 
 static struct td_sched td_sched0;
+struct mtx sched_lock;
 
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
@@ -578,6 +579,7 @@ schedinit(void)
 	thread0.td_sched = &td_sched0;
 	thread0.td_lock = &sched_lock;
 	td_sched0.ts_thread = &thread0;
+	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
 int
