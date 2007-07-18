@@ -473,9 +473,12 @@ _thread_lock_flags(struct thread *td, int opts, const char *file, int line)
 {
 	struct mtx *m;
 	uintptr_t tid;
-	int i;
+	int i, contested;
+	uint64_t waittime;
 
-	i = 0;
+	
+	contested = i = 0;
+	waittime = 0;
 	tid = (uintptr_t)curthread;
 	for (;;) {
 retry:
@@ -488,6 +491,7 @@ retry:
 				m->mtx_recurse++;
 				break;
 			}
+			lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
 			while (m->mtx_lock != MTX_UNOWNED) {
@@ -508,6 +512,8 @@ retry:
 			break;
 		_rel_spin_lock(m);	/* does spinlock_exit() */
 	}
+	lock_profile_obtain_lock_success(&m->lock_object, contested,	
+	    waittime, (file), (line));
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
