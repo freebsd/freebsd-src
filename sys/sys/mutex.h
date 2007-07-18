@@ -355,7 +355,6 @@ extern struct mtx_pool *mtxpool_sleep;
 /*
  * Global locks.
  */
-extern struct mtx sched_lock;
 extern struct mtx Giant;
 extern struct mtx blocked_lock;
 
