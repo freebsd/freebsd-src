@@ -652,6 +652,12 @@ archive_entry_set_gname(struct archive_entry *entry, const char *name)
 }
 
 void
+archive_entry_copy_gname(struct archive_entry *entry, const char *name)
+{
+	aes_copy_mbs(&entry->ae_gname, name);
+}
+
+void
 archive_entry_copy_gname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_gname, name);
@@ -833,6 +839,12 @@ void
 archive_entry_set_uname(struct archive_entry *entry, const char *name)
 {
 	aes_set_mbs(&entry->ae_uname, name);
+}
+
+void
+archive_entry_copy_uname(struct archive_entry *entry, const char *name)
+{
+	aes_copy_mbs(&entry->ae_uname, name);
 }
 
 void
