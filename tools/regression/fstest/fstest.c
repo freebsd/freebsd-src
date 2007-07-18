@@ -530,6 +530,10 @@ set_gids(char *gids)
 		fprintf(stderr, "cannot change groups: %s\n", strerror(errno));
 		exit(1);
 	}
+	if (setegid(gidset[0]) < 0) {
+		fprintf(stderr, "cannot change effective gid: %s\n", strerror(errno));
+		exit(1);
+	}
 	free(gidset);
 }
 
