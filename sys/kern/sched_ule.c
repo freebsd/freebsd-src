@@ -683,6 +683,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 	ts->ts_cpu = cpu;
 	td->td_lock = TDQ_LOCKPTR(to);
 	tdq_add(to, td, SRQ_YIELDING);
+	tdq_notify(ts);
 }
 
 /*
@@ -1657,6 +1658,26 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 }
 
 /*
+ * Add the thread passed as 'newtd' to the run queue before selecting
+ * the next thread to run.  This is only used for KSE.
+ */
+static void
+sched_switchin(struct tdq *tdq, struct thread *td)
+{
+#ifdef SMP
+	spinlock_enter();
+	TDQ_UNLOCK(tdq);
+	thread_lock(td);
+	spinlock_exit();
+	sched_setcpu(td->td_sched, TDQ_ID(tdq), SRQ_YIELDING);
+#else
+	td->td_lock = TDQ_LOCKPTR(tdq);
+#endif
+	tdq_add(tdq, td, SRQ_YIELDING);
+	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
+}
+
+/*
  * Block a thread for switching.  Similar to thread_block() but does not
  * bump the spin count.
  */
@@ -1750,14 +1771,11 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 */
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
 	/*
-	 * If KSE assigned a new thread just add it here and pick the best one.
+	 * If KSE assigned a new thread just add it here and let choosethread
+	 * select the best one.
 	 */
-	if (newtd != NULL) {
-		/* XXX This is bogus.  What if the thread is locked elsewhere? */
-		td->td_lock = TDQ_LOCKPTR(tdq);
-		td->td_sched->ts_cpu = cpuid;
-		tdq_add(tdq, td, SRQ_YIELDING);
-	}
+	if (newtd != NULL)
+		sched_switchin(tdq, newtd);
 	newtd = choosethread();
 	/*
 	 * Call the MD code to switch contexts if necessary.
