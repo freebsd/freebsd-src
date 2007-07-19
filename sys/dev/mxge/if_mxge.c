@@ -124,6 +124,7 @@ static devclass_t mxge_devclass;
 /* Declare ourselves to be a child of the PCI bus.*/
 DRIVER_MODULE(mxge, pci, mxge_driver, mxge_devclass, 0, 0);
 MODULE_DEPEND(mxge, firmware, 1, 1, 1);
+MODULE_DEPEND(mxge, zlib, 1, 1, 1);
 
 static int mxge_load_firmware(mxge_softc_t *sc);
 static int mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data);
@@ -145,6 +146,7 @@ mxge_probe(device_t dev)
 static void
 mxge_enable_wc(mxge_softc_t *sc)
 {
+#if defined(__i386) || defined(__amd64)
 	struct mem_range_desc mrdesc;
 	vm_paddr_t pa;
 	vm_offset_t len;
@@ -152,7 +154,6 @@ mxge_enable_wc(mxge_softc_t *sc)
 
 	sc->wc = 1;
 	len = rman_get_size(sc->mem_res);
-#if defined(__i386) || defined(__amd64)
 	err = pmap_change_attr((vm_offset_t) sc->sram,
 			       len, PAT_WRITE_COMBINING);
 	if (err == 0)
@@ -160,7 +161,6 @@ mxge_enable_wc(mxge_softc_t *sc)
 	else
 		device_printf(sc->dev, "pmap_change_attr failed, %d\n",
 			      err);
-#endif		
 	pa = rman_get_start(sc->mem_res);
 	mrdesc.mr_base = pa;
 	mrdesc.mr_len = len;
@@ -174,6 +174,7 @@ mxge_enable_wc(mxge_softc_t *sc)
 			      "w/c failed for pa 0x%lx, len 0x%lx, err = %d\n",
 			      (unsigned long)pa, (unsigned long)len, err);
 	}
+#endif		
 }
 
 
@@ -423,7 +424,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 }
 #else
 static void
-mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
+mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 {
 	device_printf(sc->dev,
 		      "Nforce 4 chipset on non-x86/amd64!?!?!\n");
@@ -644,62 +645,101 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 
 }
 
+static void *
+z_alloc(void *nil, u_int items, u_int size)
+{
+        void *ptr;
+
+        ptr = malloc(items * size, M_TEMP, M_NOWAIT);
+        return ptr;
+}
+
+static void
+z_free(void *nil, void *ptr)
+{
+        free(ptr, M_TEMP);
+}
+
+
 static int
 mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 {
+	z_stream zs;
+	char *inflate_buffer;
 	const struct firmware *fw;
 	const mcp_gen_header_t *hdr;
 	unsigned hdr_offset;
-	const char *fw_data;
-	union qualhack hack;
 	int status;
 	unsigned int i;
 	char dummy;
-	
+	size_t fw_len;
 
 	fw = firmware_get(sc->fw_name);
-
 	if (fw == NULL) {
 		device_printf(sc->dev, "Could not find firmware image %s\n",
 			      sc->fw_name);
 		return ENOENT;
 	}
-	if (fw->datasize > *limit || 
-	    fw->datasize < MCP_HEADER_PTR_OFFSET + 4) {
-		device_printf(sc->dev, "Firmware image %s too large (%d/%d)\n",
-			      sc->fw_name, (int)fw->datasize, (int) *limit);
-		status = ENOSPC;
-		goto abort_with_fw;
-	}
-	*limit = fw->datasize;
 
-	/* check id */
-	fw_data = (const char *)fw->data;
-	hdr_offset = htobe32(*(const uint32_t *)
-			     (fw_data + MCP_HEADER_PTR_OFFSET));
-	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > fw->datasize) {
-		device_printf(sc->dev, "Bad firmware file");
+
+
+	/* setup zlib and decompress f/w */
+	bzero(&zs, sizeof (zs));
+	zs.zalloc = z_alloc;
+	zs.zfree = z_free;
+	status = inflateInit(&zs);
+	if (status != Z_OK) {
 		status = EIO;
 		goto abort_with_fw;
 	}
-	hdr = (const void*)(fw_data + hdr_offset); 
+
+	/* the uncompressed size is stored as the firmware version,
+	   which would otherwise go unused */
+	fw_len = (size_t) fw->version; 
+	inflate_buffer = malloc(fw_len, M_TEMP, M_NOWAIT);
+	if (inflate_buffer == NULL)
+		goto abort_with_zs;
+	zs.avail_in = fw->datasize;
+	zs.next_in = __DECONST(char *, fw->data);
+	zs.avail_out = fw_len;
+	zs.next_out = inflate_buffer;
+	status = inflate(&zs, Z_FINISH);
+	if (status != Z_STREAM_END) {
+		device_printf(sc->dev, "zlib %d\n", status);
+		status = EIO;
+		goto abort_with_buffer;
+	}
+
+	/* check id */
+	hdr_offset = htobe32(*(const uint32_t *)
+			     (inflate_buffer + MCP_HEADER_PTR_OFFSET));
+	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > fw_len) {
+		device_printf(sc->dev, "Bad firmware file");
+		status = EIO;
+		goto abort_with_buffer;
+	}
+	hdr = (const void*)(inflate_buffer + hdr_offset); 
 
 	status = mxge_validate_firmware(sc, hdr);
 	if (status != 0)
-		goto abort_with_fw;
+		goto abort_with_buffer;
 
-	hack.ro_char = fw_data;
 	/* Copy the inflated firmware to NIC SRAM. */
-	for (i = 0; i < *limit; i += 256) {
+	for (i = 0; i < fw_len; i += 256) {
 		mxge_pio_copy(sc->sram + MXGE_FW_OFFSET + i,
-			      hack.rw_char + i,
-			      min(256U, (unsigned)(*limit - i)));
+			      inflate_buffer + i,
+			      min(256U, (unsigned)(fw_len - i)));
 		mb();
 		dummy = *sc->sram;
 		mb();
 	}
 
+	*limit = fw_len;
 	status = 0;
+abort_with_buffer:
+	free(inflate_buffer, M_TEMP);
+abort_with_zs:
+	inflateEnd(&zs);
 abort_with_fw:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return status;
@@ -3205,7 +3245,6 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 			  &mxge_verbose);	
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
-	printf("%d %d\n", sc->lro_cnt, mxge_lro_cnt);
 	if (sc->lro_cnt != 0)
 		mxge_lro_cnt = sc->lro_cnt;
 
