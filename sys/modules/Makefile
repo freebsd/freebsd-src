@@ -170,7 +170,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
-	${_mxge} \
+	mxge \
 	my \
 	${_ncp} \
 	${_ncv} \
@@ -454,7 +454,6 @@ _iwi=		iwi
 _iwifw=		iwifw
 _ixgb=   	ixgb
 _mly=		mly
-_mxge=		mxge
 _nfe=		nfe
 _nve=		nve
 _nxge=		nxge
@@ -513,7 +512,6 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mly=		mly
-_mxge=		mxge
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
