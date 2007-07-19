@@ -23,4 +23,4 @@
 # an empty database.
 #
 # be careful if you add 'nfs'
-#FILESYSTEMS="ufs" 
+#FILESYSTEMS="ufs ext2fs" 
