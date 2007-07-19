@@ -177,8 +177,6 @@ static int tickincr;
 static int sched_slice;
 static int preempt_thresh = PRI_MIN_KERN;
 
-#define	SCHED_BAL_SECS	2	/* How often we run the rebalance algorithm. */
-
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
  * tdq_lock.  The load and lowpri may be accessed without to avoid excess
@@ -229,14 +227,14 @@ struct tdq_group {
 /*
  * Run-time tunables.
  */
-static int rebalance = 0;
-static int pick_pri = 0;
-static int pick_zero = 0;
+static int rebalance = 1;
+static int balance_secs = 1;
+static int pick_pri = 1;
 static int affinity;
 static int tryself = 1;
-static int tryselfidle = 1;
 static int steal_htt = 0;
-static int steal_idle = 0;
+static int steal_idle = 1;
+static int steal_thresh = 2;
 static int topology = 0;
 
 /*
@@ -514,7 +512,7 @@ sched_balance(void *arg)
 	int cnt;
 	int i;
 
-	callout_reset(&balco, max(hz / 2, random() % (hz * SCHED_BAL_SECS)),
+	callout_reset(&balco, max(hz / 2, random() % (hz * balance_secs)),
 	    sched_balance, NULL);
 	if (smp_started == 0 || rebalance == 0)
 		return;
@@ -547,7 +545,7 @@ sched_balance_groups(void *arg)
 {
 	int i;
 
-	callout_reset(&gbalco, max(hz / 2, random() % (hz * SCHED_BAL_SECS)),
+	callout_reset(&gbalco, max(hz / 2, random() % (hz * balance_secs)),
 	    sched_balance_groups, NULL);
 	if (smp_started == 0 || rebalance == 0)
 		return;
@@ -735,11 +733,11 @@ tdq_idled(struct tdq *tdq)
 			highload = load;
 			highcpu = cpu;
 		}
-		if (highload < 2)
+		if (highload < steal_thresh)
 			break;
 		steal = TDQ_CPU(highcpu);
 		TDQ_LOCK(steal);
-		if (steal->tdq_transferable > 1 &&
+		if (steal->tdq_transferable >= steal_thresh &&
 		    (ts = tdq_steal(steal, 1)) != NULL)
 			goto steal;
 		TDQ_UNLOCK(steal);
@@ -864,11 +862,9 @@ runq_steal(struct runq *rq)
 	struct rqhead *rqh;
 	struct rqbits *rqb;
 	struct td_sched *ts;
-	int first;
 	int word;
 	int bit;
 
-	first = 0;
 	rqb = &rq->rq_status;
 	for (word = 0; word < RQB_LEN; word++) {
 		if (rqb->rqb_bits[word] == 0)
@@ -877,11 +873,9 @@ runq_steal(struct runq *rq)
 			if ((rqb->rqb_bits[word] & (1ul << bit)) == 0)
 				continue;
 			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
-			TAILQ_FOREACH(ts, rqh, ts_procq) {
-				if (first && THREAD_CAN_MIGRATE(ts->ts_thread))
+			TAILQ_FOREACH(ts, rqh, ts_procq)
+				if (THREAD_CAN_MIGRATE(ts->ts_thread))
 					return (ts);
-				first = 1;
-			}
 		}
 	}
 	return (NULL);
@@ -1037,6 +1031,14 @@ sched_pickcpu(struct td_sched *ts, int flags)
 	cpu = self = PCPU_GET(cpuid);
 	if (smp_started == 0)
 		return (self);
+	/*
+	 * Don't migrate a running thread from sched_switch().
+	 */
+	if (flags & SRQ_OURSELF) {
+		CTR1(KTR_ULE, "YIELDING %d",
+		    curthread->td_priority);
+		return (self);
+	}
 	pri = ts->ts_thread->td_priority;
 	cpu = ts->ts_cpu;
 	/*
@@ -1061,41 +1063,21 @@ sched_pickcpu(struct td_sched *ts, int flags)
 		return (ts->ts_cpu);
 	}
 	/*
-	 * Try ourself first; If we're running something lower priority this
-	 * may have some locality with the waking thread and execute faster
-	 * here.
-	 */
-	if (tryself) {
-		/*
-		 * If we're being awoken by an interrupt thread or the waker
-		 * is going right to sleep run here as well.
-		 */
-		if ((TDQ_SELF()->tdq_load <= 1) && (flags & (SRQ_YIELDING) || 
-		    curthread->td_pri_class == PRI_ITHD)) {
-			CTR2(KTR_ULE, "tryself load %d flags %d",
-			    TDQ_SELF()->tdq_load, flags);
-			return (self);
-		}
-	}
-	/*
 	 * Look for an idle group.
 	 */
 	CTR1(KTR_ULE, "tdq_idle %X", tdq_idle);
 	cpu = ffs(tdq_idle);
 	if (cpu)
 		return (--cpu);
-	if (tryselfidle && pri < curthread->td_priority) {
-		CTR1(KTR_ULE, "tryselfidle %d",
+	/*
+	 * If there are no idle cores see if we can run the thread locally.  This may
+	 * improve locality among sleepers and wakers when there is shared data.
+	 */
+	if (tryself && pri < curthread->td_priority) {
+		CTR1(KTR_ULE, "tryself %d",
 		    curthread->td_priority);
 		return (self);
 	}
-	/*
-	 * XXX Under heavy load mysql performs way better if you
-	 * serialize the non-running threads on one cpu.  This is
-	 * a horrible hack.
-	 */
-	if (pick_zero)
-		return (0);
 	/*
  	 * Now search for the cpu running the lowest priority thread with
 	 * the least load.
@@ -2546,19 +2528,19 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW, &preempt_thresh,
 #ifdef SMP
 SYSCTL_INT(_kern_sched, OID_AUTO, pick_pri, CTLFLAG_RW, &pick_pri, 0,
     "Pick the target cpu based on priority rather than load.");
-SYSCTL_INT(_kern_sched, OID_AUTO, pick_zero, CTLFLAG_RW, &pick_zero, 0,
-    "If there are no idle cpus pick cpu0");
 SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
 SYSCTL_INT(_kern_sched, OID_AUTO, tryself, CTLFLAG_RW, &tryself, 0, "");
-SYSCTL_INT(_kern_sched, OID_AUTO, tryselfidle, CTLFLAG_RW,
-    &tryselfidle, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &rebalance, 0,
     "Enables the long-term load balancer");
+SYSCTL_INT(_kern_sched, OID_AUTO, balance_secs, CTLFLAG_RW, &balance_secs, 0,
+    "Average frequence in seconds to run the long-term balancer");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_htt, CTLFLAG_RW, &steal_htt, 0,
     "Steals work from another hyper-threaded core on idle");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
+SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
+    "Minimum load on remote cpu before we'll steal");
 SYSCTL_INT(_kern_sched, OID_AUTO, topology, CTLFLAG_RD, &topology, 0,
     "True when a topology has been specified by the MD code.");
 #endif
