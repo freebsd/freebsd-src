@@ -65,6 +65,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -92,7 +93,9 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip6.h>
+#include <netinet/icmp_var.h>
 #include <netinet/icmp6.h>
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
@@ -107,6 +110,8 @@
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #endif /* IPSEC */
+
+#include <security/mac/mac_framework.h>
 
 /*
  * UDP protocol inplementation.
@@ -133,7 +138,12 @@ udp6_append(struct inpcb *in6p, struct mbuf *n, int off,
 		return;
 	}
 #endif /* IPSEC */
-
+#ifdef MAC
+	if (mac_check_inpcb_deliver(in6p, n) != 0) {
+		m_freem(n);
+		return;
+	}
+#endif
 	opts = NULL;
 	if (in6p->in6p_flags & IN6P_CONTROLOPTS ||
 	    in6p->inp_socket->so_options & SO_TIMESTAMP)
@@ -183,6 +193,12 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 #endif
 
 	udpstat.udps_ipackets++;
+
+	/*
+	 * Destination port of 0 is illegal, based on RFC768.
+	 */
+	if (uh->uh_dport == 0)
+		goto badunlocked;
 
 	plen = ntohs(ip6->ip6_plen) - off + sizeof(*ip6);
 	ulen = ntohs((u_short)uh->uh_ulen);
@@ -234,6 +250,15 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			if ((in6p->inp_vflag & INP_IPV6) == 0)
 				continue;
 			if (in6p->in6p_lport != uh->uh_dport)
+				continue;
+			/*
+			 * XXX: Do not check source port of incoming datagram
+			 * unless inp_connect() has been called to bind the
+			 * fport part of the 4-tuple; the source could be
+			 * trying to talk to us with an ephemeral port.
+			 */
+			if (in6p->inp_fport != 0 &&
+			    in6p->inp_fport != uh->uh_sport)
 				continue;
 			if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr)) {
 				if (!IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr,
@@ -310,6 +335,10 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badheadlocked;
 		}
 		INP_INFO_RUNLOCK(&udbinfo);
+		if (udp_blackhole)
+			goto badunlocked;
+		if (badport_bandlim(BANDLIM_ICMP6_UNREACH) < 0)
+			goto badunlocked;
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		return (IPPROTO_DONE);
 	}
@@ -318,6 +347,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	INP_UNLOCK(in6p);
 	INP_INFO_RUNLOCK(&udbinfo);
 	return (IPPROTO_DONE);
+
 badheadlocked:
 	INP_INFO_RUNLOCK(&udbinfo);
 badunlocked:
@@ -735,7 +765,9 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 		}
 	}
 #endif
-
+#ifdef MAC
+	mac_create_mbuf_from_inpcb(inp, m);
+#endif
 	error = udp6_output(inp, m, addr, control, td);
 out:
 	INP_UNLOCK(inp);
