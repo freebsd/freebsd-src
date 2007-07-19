@@ -2365,12 +2365,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 	 * Bring the priority of a thread up if we want it to get
 	 * killed in this lifetime.
 	 */
-	if (action == SIG_DFL && (prop & SA_KILL)) {
-		if (p->p_nice > 0)
-			sched_nice(td->td_proc, 0);
-		if (td->td_priority > PUSER)
-			sched_prio(td, PUSER);
-	}
+	if (action == SIG_DFL && (prop & SA_KILL) && td->td_priority > PUSER)
+		sched_prio(td, PUSER);
 
 	if (TD_ON_SLEEPQ(td)) {
 		/*
