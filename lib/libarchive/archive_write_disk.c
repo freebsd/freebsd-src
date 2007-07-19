@@ -610,7 +610,10 @@ archive_write_disk_new(void)
 	a->lookup_uid = trivial_lookup_uid;
 	a->lookup_gid = trivial_lookup_gid;
 	a->user_uid = geteuid();
-	archive_string_ensure(&a->path_safe, 64);
+	if (archive_string_ensure(&a->path_safe, 512) == NULL) {
+		free(a);
+		return (NULL);
+	}
 	return (&a->archive);
 }
 
