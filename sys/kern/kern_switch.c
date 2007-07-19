@@ -267,8 +267,7 @@ maybe_preempt(struct thread *td)
 	/*
 	 * Thread is runnable but not yet put on system run queue.
 	 */
-	MPASS(ctd->td_lock == &sched_lock);
-	MPASS(td->td_lock == &sched_lock);
+	MPASS(ctd->td_lock == td->td_lock);
 	MPASS(TD_ON_RUNQ(td));
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
