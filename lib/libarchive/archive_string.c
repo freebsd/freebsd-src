@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 struct archive_string *
 __archive_string_append(struct archive_string *as, const char *p, size_t s)
 {
-	__archive_string_ensure(as, as->length + s + 1);
+	if (__archive_string_ensure(as, as->length + s + 1) == NULL)
+		__archive_errx(1, "Out of memory");
 	memcpy(as->s + as->length, p, s);
 	as->s[as->length + s] = 0;
 	as->length += s;
@@ -54,7 +55,8 @@ __archive_string_append(struct archive_string *as, const char *p, size_t s)
 void
 __archive_string_copy(struct archive_string *dest, struct archive_string *src)
 {
-	__archive_string_ensure(dest, src->length + 1);
+	if (__archive_string_ensure(dest, src->length + 1) == NULL)
+		__archive_errx(1, "Out of memory");
 	memcpy(dest->s, src->s, src->length);
 	dest->length = src->length;
 	dest->s[dest->length] = 0;
@@ -69,6 +71,7 @@ __archive_string_free(struct archive_string *as)
 		free(as->s);
 }
 
+/* Returns NULL on any allocation failure. */
 struct archive_string *
 __archive_string_ensure(struct archive_string *as, size_t s)
 {
@@ -80,10 +83,8 @@ __archive_string_ensure(struct archive_string *as, size_t s)
 	while (as->buffer_length < s)
 		as->buffer_length *= 2;
 	as->s = (char *)realloc(as->s, as->buffer_length);
-	/* TODO: Return null instead and fix up all of our callers to
-	 * handle this correctly. */
 	if (as->s == NULL)
-		__archive_errx(1, "Out of memory");
+		return (NULL);
 	return (as);
 }
 
