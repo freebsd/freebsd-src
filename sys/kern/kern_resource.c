@@ -229,6 +229,9 @@ setpriority(td, uap)
 			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
+			/* Do not bother to check PRS_NEW processes */
+			if (p->p_state == PRS_NEW)
+				continue;
 			PROC_LOCK(p);
 			if (p->p_ucred->cr_uid == uap->who &&
 			    !p_cansee(td, p)) {
