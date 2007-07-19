@@ -888,7 +888,8 @@ badport_bandlim(int which)
 		{ "icmp ping response" },
 		{ "icmp tstamp response" },
 		{ "closed port RST response" },
-		{ "open port RST response" }
+		{ "open port RST response" },
+		{ "icmp6 unreach response" }
 	};
 
 	/*
