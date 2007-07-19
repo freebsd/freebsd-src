@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2004
+.Dd July 19, 2007
 .Dt CONTIGMALLOC 9
 .Os
 .Sh NAME
@@ -77,7 +77,14 @@ behaviour as follows:
 .Bl -tag -width indent
 .It Dv M_ZERO
 Causes the allocated physical memory to be zero filled.
+.It Dv M_NOWAIT
+Causes
+.Fn contigmalloc
+to return
+.Dv NULL
+if the request cannot be immediately fulfilled due to resource shortage.
 .El
+.Pp
 Other flags (if present) are ignored.
 .Pp
 The
@@ -88,10 +95,11 @@ function deallocates memory allocated by a previous call to
 The
 .Fn contigmalloc
 function does not sleep waiting for memory resources to be freed up,
-but instead scans available physical memory a small number of times
-for a suitably sized free address range before giving up.
-Memory allocation is done on a first-fit basis, starting from the
-top of the provided address range.
+but instead actively reclaims pages before giving up.
+However, unless
+.Dv M_NOWAIT
+is specified, it may select a page for reclamation that must first be
+written to backing storage, causing it to sleep.
 .Sh RETURN VALUES
 The
 .Fn contigmalloc
