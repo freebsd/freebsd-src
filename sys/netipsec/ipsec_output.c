@@ -44,6 +44,7 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/pfil.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -362,7 +363,7 @@ ipsec4_process_packet(
 
 #ifdef DEV_ENC
 	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, 2)) != 0)
+	if ((error = ipsec_filter(&m, PFIL_OUT)) != 0)
 		goto bad;
 #endif
 
