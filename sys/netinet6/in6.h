@@ -413,7 +413,7 @@ struct route_in6 {
 #define IPV6_BINDV6ONLY		IPV6_V6ONLY
 #endif
 
-#ifdef IPSEC
+#if 1 /* IPSEC */
 #define IPV6_IPSEC_POLICY	28 /* struct; get/set security policy */
 #endif /* IPSEC */
 
