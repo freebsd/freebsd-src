@@ -812,6 +812,10 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/msk/if_msk.c		optional msk
+dev/mxge/if_mxge.c		optional mxge pci
+dev/mxge/mxge_lro.c		optional mxge pci
+dev/mxge/mxge_eth_z8e.c		optional mxge pci
+dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
@@ -1630,7 +1634,7 @@ net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | ppp | sl | sppp | \
 					 netgraph_sppp
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
-					 ppp_deflate | netgraph_deflate
+					 mxge | ppp_deflate | netgraph_deflate
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan_acl
 net80211/ieee80211_amrr.c	optional wlan_amrr
