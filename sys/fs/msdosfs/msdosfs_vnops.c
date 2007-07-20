@@ -598,6 +598,9 @@ msdosfs_read(ap)
 			error = bread(pmp->pm_devvp, lbn, blsize, NOCRED, &bp);
 		} else if (de_cn2off(pmp, rablock) >= dep->de_FileSize) {
 			error = bread(vp, lbn, blsize, NOCRED, &bp);
+		} else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			error = cluster_read(vp, dep->de_FileSize, lbn, blsize,
+			    NOCRED, on + uio->uio_resid, seqcount, &bp);
 		} else if (seqcount > 1) {
 			rasize = blsize;
 			error = breadn(vp, lbn,
@@ -644,6 +647,7 @@ msdosfs_write(ap)
 	u_long osize;
 	int error = 0;
 	u_long count;
+	int seqcount;
 	daddr_t bn, lastcn;
 	struct buf *bp;
 	int ioflag = ap->a_ioflag;
@@ -729,6 +733,7 @@ msdosfs_write(ap)
 	} else
 		lastcn = de_clcount(pmp, osize) - 1;
 
+	seqcount = ioflag >> IO_SEQSHIFT;
 	do {
 		if (de_cluster(pmp, uio->uio_offset) > lastcn) {
 			error = ENOSPC;
@@ -797,19 +802,31 @@ msdosfs_write(ap)
 			break;
 		}
 
+		/* Prepare for clustered writes in some else clauses. */
+		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+			bp->b_flags |= B_CLUSTEROK;
+
 		/*
 		 * If IO_SYNC, then each buffer is written synchronously.
-		 * Otherwise, if on a
+		 * Otherwise, if we have a severe page deficiency then
+		 * write the buffer asynchronously.  Otherwise, if on a
 		 * cluster boundary then write the buffer asynchronously,
-		 * since we don't expect more writes into this
+		 * combining it with contiguous clusters if permitted and
+		 * possible, since we don't expect more writes into this
 		 * buffer soon.  Otherwise, do a delayed write because we
 		 * expect more writes into this buffer soon.
 		 */
 		if (ioflag & IO_SYNC)
 			(void)bwrite(bp);
-		else if (n + croffset == pmp->pm_bpcluster)
+		else if (vm_page_count_severe() || buf_dirty_count_severe())
 			bawrite(bp);
-		else
+		else if (n + croffset == pmp->pm_bpcluster) {
+			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0)
+				cluster_write(vp, bp, dep->de_FileSize,
+				    seqcount);
+			else
+				bawrite(bp);
+		} else
 			bdwrite(bp);
 		dep->de_flag |= DE_UPDATE;
 	} while (error == 0 && uio->uio_resid > 0);
@@ -1778,10 +1795,12 @@ msdosfs_bmap(ap)
 	} */ *ap;
 {
 	struct denode *dep;
+	struct mount *mp;
 	struct msdosfsmount *pmp;
 	struct vnode *vp;
+	daddr_t runbn;
 	u_long cn;
-	int error;
+	int bnpercn, error, maxio, maxrun, run;
 
 	vp = ap->a_vp;
 	dep = VTODE(vp);
@@ -1798,7 +1817,31 @@ msdosfs_bmap(ap)
 	if (cn != ap->a_bn)
 		return (EFBIG);
 	error = pcbmap(dep, cn, ap->a_bnp, NULL, NULL);
-	return (error);
+	if (error != 0 || (ap->a_runp == NULL && ap->a_runb == NULL))
+		return (error);
+
+	mp = vp->v_mount;
+	maxio = mp->mnt_iosize_max / mp->mnt_stat.f_iosize;
+	bnpercn = de_cn2bn(pmp, 1);
+	if (ap->a_runp != NULL) {
+		maxrun = ulmin(maxio - 1, pmp->pm_maxcluster - cn);
+		for (run = 1; run <= maxrun; run++) {
+			if (pcbmap(dep, cn + run, &runbn, NULL, NULL) != 0 ||
+			    runbn != *ap->a_bnp + run * bnpercn)
+				break;
+		}
+		*ap->a_runp = run - 1;
+	}
+	if (ap->a_runb != NULL) {
+		maxrun = ulmin(maxio - 1, cn);
+		for (run = 1; run < maxrun; run++) {
+			if (pcbmap(dep, cn - run, &runbn, NULL, NULL) != 0 ||
+			    runbn != *ap->a_bnp - run * bnpercn)
+				break;
+		}
+		*ap->a_runb = run - 1;
+	}
+	return (0);
 }
 
 static int
