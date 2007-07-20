@@ -846,9 +846,7 @@ linux_ioperm(struct thread *td, struct linux_ioperm_args *args)
 	iia.start = args->start;
 	iia.length = args->length;
 	iia.enable = args->enable;
-	mtx_lock(&Giant);
 	error = i386_set_ioperm(td, &iia);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -884,10 +882,8 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		ldt.start = 0;
 		ldt.descs = uap->ptr;
 		ldt.num = uap->bytecount / sizeof(union descriptor);
-		mtx_lock(&Giant);
 		error = i386_get_ldt(td, &ldt);
 		td->td_retval[0] *= sizeof(union descriptor);
-		mtx_unlock(&Giant);
 		break;
 	case 0x01: /* write_ldt */
 	case 0x11: /* write_ldt */
@@ -912,9 +908,7 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		desc.sd.sd_xx = 0;
 		desc.sd.sd_def32 = ld.seg_32bit;
 		desc.sd.sd_gran = ld.limit_in_pages;
-		mtx_lock(&Giant);
 		error = i386_set_ldt(td, &ldt, &desc);
-		mtx_unlock(&Giant);
 		break;
 	default:
 		error = EINVAL;
