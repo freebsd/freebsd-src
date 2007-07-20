@@ -579,6 +579,9 @@ msdosfs_read(ap)
 		if (uio->uio_offset >= dep->de_FileSize)
 			break;
 		lbn = de_cluster(pmp, uio->uio_offset);
+		rablock = lbn + 1;
+		blsize = pmp->pm_bpcluster;
+		on = uio->uio_offset & pmp->pm_crbomask;
 		/*
 		 * If we are operating on a directory file then be sure to
 		 * do i/o with the vnode for the filesystem instead of the
@@ -593,23 +596,19 @@ msdosfs_read(ap)
 			} else if (error)
 				break;
 			error = bread(pmp->pm_devvp, lbn, blsize, NOCRED, &bp);
+		} else if (de_cn2off(pmp, rablock) >= dep->de_FileSize) {
+			error = bread(vp, lbn, blsize, NOCRED, &bp);
+		} else if (seqcount > 1) {
+			rasize = blsize;
+			error = breadn(vp, lbn,
+			    blsize, &rablock, &rasize, 1, NOCRED, &bp);
 		} else {
-			blsize = pmp->pm_bpcluster;
-			rablock = lbn + 1;
-			if (seqcount > 1 &&
-			    de_cn2off(pmp, rablock) < dep->de_FileSize) {
-				rasize = pmp->pm_bpcluster;
-				error = breadn(vp, lbn, blsize,
-				    &rablock, &rasize, 1, NOCRED, &bp);
-			} else {
-				error = bread(vp, lbn, blsize, NOCRED, &bp);
-			}
+			error = bread(vp, lbn, blsize, NOCRED, &bp);
 		}
 		if (error) {
 			brelse(bp);
 			break;
 		}
-		on = uio->uio_offset & pmp->pm_crbomask;
 		diff = pmp->pm_bpcluster - on;
 		n = diff > uio->uio_resid ? uio->uio_resid : diff;
 		diff = dep->de_FileSize - uio->uio_offset;
@@ -755,7 +754,7 @@ msdosfs_write(ap)
 			 * then no need to read data from disk.
 			 */
 			bp = getblk(thisvp, bn, pmp->pm_bpcluster, 0, 0, 0);
-			clrbuf(bp);
+			vfs_bio_clrbuf(bp);
 			/*
 			 * Do the bmap now, since pcbmap needs buffers
 			 * for the fat table. (see msdosfs_strategy)
@@ -799,14 +798,15 @@ msdosfs_write(ap)
 		}
 
 		/*
-		 * If they want this synchronous then write it and wait for
-		 * it.  Otherwise, if on a cluster boundary write it
-		 * asynchronously so we can move on to the next block
-		 * without delay.  Otherwise do a delayed write because we
-		 * may want to write somemore into the block later.
+		 * If IO_SYNC, then each buffer is written synchronously.
+		 * Otherwise, if on a
+		 * cluster boundary then write the buffer asynchronously,
+		 * since we don't expect more writes into this
+		 * buffer soon.  Otherwise, do a delayed write because we
+		 * expect more writes into this buffer soon.
 		 */
 		if (ioflag & IO_SYNC)
-			(void) bwrite(bp);
+			(void)bwrite(bp);
 		else if (n + croffset == pmp->pm_bpcluster)
 			bawrite(bp);
 		else
@@ -1755,12 +1755,16 @@ out:
 	return (error);
 }
 
-/*
- * vp  - address of vnode file the file
- * bn  - which cluster we are interested in mapping to a filesystem block number.
- * vpp - returns the vnode for the block special file holding the filesystem
- *	 containing the file of interest
- * bnp - address of where to return the filesystem relative block number
+/*-
+ * a_vp   - pointer to the file's vnode
+ * a_bn   - logical block number within the file (cluster number for us)
+ * a_bop  - where to return the bufobj of the special file containing the fs
+ * a_bnp  - where to return the "physical" block number corresponding to a_bn
+ *          (relative to the special file; units are blocks of size DEV_BSIZE)
+ * a_runp - where to return the "run past" a_bn.  This is the count of logical
+ *          blocks whose physical blocks (together with a_bn's physical block)
+ *          are contiguous.
+ * a_runb - where to return the "run before" a_bn.
  */
 static int
 msdosfs_bmap(ap)
@@ -1773,25 +1777,27 @@ msdosfs_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
-	struct denode *dep = VTODE(ap->a_vp);
-	daddr_t blkno;
+	struct denode *dep;
+	struct msdosfsmount *pmp;
+	struct vnode *vp;
+	u_long cn;
 	int error;
 
+	vp = ap->a_vp;
+	dep = VTODE(vp);
+	pmp = dep->de_pmp;
 	if (ap->a_bop != NULL)
-		*ap->a_bop = &dep->de_pmp->pm_devvp->v_bufobj;
+		*ap->a_bop = &pmp->pm_devvp->v_bufobj;
 	if (ap->a_bnp == NULL)
 		return (0);
-	if (ap->a_runp) {
-		/*
-		 * Sequential clusters should be counted here.
-		 */
+	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
-	}
-	if (ap->a_runb) {
+	if (ap->a_runb != NULL)
 		*ap->a_runb = 0;
-	}
-	error = pcbmap(dep, ap->a_bn, &blkno, 0, 0);
-	*ap->a_bnp = blkno;
+	cn = ap->a_bn;
+	if (cn != ap->a_bn)
+		return (EFBIG);
+	error = pcbmap(dep, cn, ap->a_bnp, NULL, NULL);
 	return (error);
 }
 
