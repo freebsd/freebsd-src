@@ -227,6 +227,7 @@ coda_unmount(vfsp, mntflags, td)
 	printf("coda_unmount: ROOT: vp %p, cp %p\n", mi->mi_rootvp, VTOC(mi->mi_rootvp));
 #endif
 	vrele(mi->mi_rootvp);
+	vrele(coda_ctlvp);
 	active = coda_kill(vfsp, NOT_DOWNCALL);
 	ASSERT_VOP_LOCKED(mi->mi_rootvp, "coda_unmount");
 	mi->mi_rootvp->v_vflag &= ~VV_ROOT;
