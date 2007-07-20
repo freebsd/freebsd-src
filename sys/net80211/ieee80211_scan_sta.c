@@ -376,17 +376,23 @@ add_channels(struct ieee80211com *ic,
 			break;
 
 		c = ieee80211_find_channel(ic, freq[i], modeflags);
-		if (c == NULL || isexcluded(ic, c))
+		if (c != NULL && isexcluded(ic, c))
 			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
 			/*
 			 * XXX special-case 11b/g channels so we select
-			 *     the g channel if both are present.
+			 *     the g channel if both are present or there
+			 *     are only g channels.
 			 */
-			if (IEEE80211_IS_CHAN_B(c) &&
-			    (cg = find11gchannel(ic, i, c->ic_freq)) != NULL)
-				c = cg;
+			if (c == NULL || IEEE80211_IS_CHAN_B(c)) {
+				cg = find11gchannel(ic, i, freq[i]);
+				if (cg != NULL)
+					c = cg;
+			}
 		}
+		if (c == NULL)
+			continue;
+
 		ss->ss_chans[ss->ss_last++] = c;
 	}
 #undef N
