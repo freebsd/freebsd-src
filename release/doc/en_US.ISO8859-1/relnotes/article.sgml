@@ -416,9 +416,14 @@
       performance improvements.</para>
 
     <para>The ULE process scheduler has been revised to improve its
-      behavior, in particular interactivity under load.  This
-      implementation can commonly be referred to as <quote>ULE
-      2.0</quote>.</para>
+      behavior, in particular interactivity under load, for both
+      uniprocessor and multiprocessor machines.  This
+      implementation has commonly been referred to as <quote>ULE
+      3.0</quote>.  (ULE 3.0 was formerly known as SCHED_SMP,
+      which in turn was based on version 2.0 of the ULE scheduler.
+      ULE 2.0 was never a part of any &os; release, however it
+      was the subject of many development, testing, and
+      benchmarking efforts.)</para>
 
     <para>The <literal>SIGCHLD</literal> signal queuing has been
       added.  For each child process whose status has been changed,
@@ -836,6 +841,9 @@
 	  <filename role="package">net/iwi-firmware</filename>
 	  port/package. &merged;</para>
 
+	<para>The ixgbe driver, which supports the Intel 10G PCI-Express
+	  adapter (82598), has been added.</para>
+
 	<para>The &man.le.4; driver, which supports AMD Am7900 LANCE
 	  and Am79C9xx PCnet NICs,
 	  has been added.  While the &man.lnc.4; driver also supports these
@@ -938,6 +946,14 @@
 	  cards, as well as quarter- and half-channel support
 	  for 802.11a. &merged;</para>
 
+	<para>ISDN4BSD, &man.ng.h4.4;, and netatm have been temporarily
+	  disconnected from the build.  These modules all require
+	  the Giant kernel lock for their operation; disconnecting
+	  them allows the removal of the NET_NEEDS_GIANT compatability
+	  shim and allows the &os; network stack to run completely
+	  without the Giant kernel lock.  It is planned to convert
+	  these modules to fine-grained kernel locking and re-connect
+	  them for &os; 7.1-RELEASE.</para>
       </sect4>
     </sect3>
 
