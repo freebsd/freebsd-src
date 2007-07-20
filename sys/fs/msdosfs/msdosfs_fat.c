@@ -1105,7 +1105,7 @@ extendfile(dep, count, bpp, ncp, flags)
 					else
 						bp->b_blkno = blkno;
 				}
-				clrbuf(bp);
+				vfs_bio_clrbuf(bp);
 				if (bpp) {
 					*bpp = bp;
 					bpp = NULL;
