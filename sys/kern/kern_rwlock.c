@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
-#include <sys/lock_profile.h>
+
 #include <machine/cpu.h>
 
 CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
@@ -221,8 +221,10 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
+#ifdef LOCK_PROFILING_SHARED
 	uint64_t waittime = 0;
 	int contested = 0;
+#endif
 	uintptr_t x;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -265,22 +267,22 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			MPASS((x & RW_LOCK_READ_WAITERS) == 0);
 			if (atomic_cmpset_acq_ptr(&rw->rw_lock, x,
 			    x + RW_ONE_READER)) {
+#ifdef LOCK_PROFILING_SHARED
+				if (RW_READERS(x) == 0)
+					lock_profile_obtain_lock_success(
+					    &rw->lock_object, contested,
+					    waittime, file, line);
+#endif
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR4(KTR_LOCK,
 					    "%s: %p succeed %p -> %p", __func__,
 					    rw, (void *)x,
 					    (void *)(x + RW_ONE_READER));
-				if (RW_READERS(x) == 0)
-					lock_profile_obtain_lock_success(
-					    &rw->lock_object, contested, waittime,
-					    file, line);
 				break;
 			}
 			cpu_spinwait();
 			continue;
 		}
-		lock_profile_obtain_lock_failed(&rw->lock_object, &contested,
-		    &waittime);
 
 		/*
 		 * Okay, now it's the hard case.  Some other thread already
@@ -331,6 +333,10 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
+#ifdef LOCK_PROFILING_SHARED
+			lock_profile_obtain_lock_failed(&rw->lock_object,
+			    &contested, &waittime);
+#endif
 			while ((struct thread*)RW_OWNER(rw->rw_lock)== owner &&
 			    TD_IS_RUNNING(owner))
 				cpu_spinwait();
@@ -345,6 +351,10 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
+#ifdef LOCK_PROFILING_SHARED
+		lock_profile_obtain_lock_failed(&rw->lock_object, &contested,
+		    &waittime);
+#endif
 		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
@@ -403,6 +413,9 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		 */
 		KASSERT(!(x & RW_LOCK_READ_WAITERS),
 		    ("%s: waiting readers", __func__));
+#ifdef LOCK_PROFILING_SHARED
+		lock_profile_release_lock(&rw->lock_object);
+#endif
 
 		/*
 		 * If there aren't any waiters for a write lock, then try
@@ -479,7 +492,6 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		turnstile_chain_unlock(&rw->lock_object);
 		break;
 	}
-	lock_profile_release_lock(&rw->lock_object);
 }
 
 /*
@@ -494,7 +506,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 #ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
+	uint64_t waittime = 0;
 	uintptr_t v;
+	int contested = 0;
 
 	if (rw_wlocked(rw)) {
 		KASSERT(rw->lock_object.lo_flags & RW_RECURSE,
@@ -578,6 +592,8 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
+			lock_profile_obtain_lock_failed(&rw->lock_object,
+			    &contested, &waittime);
 			while ((struct thread*)RW_OWNER(rw->rw_lock)== owner &&
 			    TD_IS_RUNNING(owner))
 				cpu_spinwait();
@@ -592,11 +608,15 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
+		lock_profile_obtain_lock_failed(&rw->lock_object, &contested,
+		    &waittime);
 		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
 			    __func__, rw);
 	}
+	lock_profile_obtain_lock_success(&rw->lock_object, contested, waittime,
+	    file, line);
 }
 
 /*
