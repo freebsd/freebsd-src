@@ -1319,6 +1319,8 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 	int s;
 
 	tp = tty_gettp(dev);
+	if (tp->t_state & TS_GONE)
+		return (ENODEV);
 
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
@@ -1333,7 +1335,7 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 		return (EINVAL);
 	}
 
-	kn->kn_hook = (caddr_t)dev;
+	kn->kn_hook = (caddr_t)tp;
 
 	s = spltty();
 	knlist_add(klist, kn, 0);
@@ -1345,7 +1347,7 @@ ttykqfilter(struct cdev *dev, struct knote *kn)
 static void
 filt_ttyrdetach(struct knote *kn)
 {
-	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
+	struct tty *tp = (struct tty *)kn->kn_hook;
 	int s = spltty();
 
 	knlist_remove(&tp->t_rsel.si_note, kn, 0);
@@ -1355,10 +1357,10 @@ filt_ttyrdetach(struct knote *kn)
 static int
 filt_ttyread(struct knote *kn, long hint)
 {
-	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
+	struct tty *tp = (struct tty *)kn->kn_hook;
 
 	kn->kn_data = ttnread(tp);
-	if (ISSET(tp->t_state, TS_ZOMBIE)) {
+	if ((tp->t_state & TS_GONE) || ISSET(tp->t_state, TS_ZOMBIE)) {
 		kn->kn_flags |= EV_EOF;
 		return (1);
 	}
@@ -1368,7 +1370,7 @@ filt_ttyread(struct knote *kn, long hint)
 static void
 filt_ttywdetach(struct knote *kn)
 {
-	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
+	struct tty *tp = (struct tty *)kn->kn_hook;
 	int s = spltty();
 
 	knlist_remove(&tp->t_wsel.si_note, kn, 0);
@@ -1378,10 +1380,10 @@ filt_ttywdetach(struct knote *kn)
 static int
 filt_ttywrite(struct knote *kn, long hint)
 {
-	struct tty *tp = ((struct cdev *)kn->kn_hook)->si_tty;
+	struct tty *tp = (struct tty *)kn->kn_hook;
 
 	kn->kn_data = tp->t_outq.c_cc;
-	if (ISSET(tp->t_state, TS_ZOMBIE))
+	if ((tp->t_state & TS_GONE) || ISSET(tp->t_state, TS_ZOMBIE))
 		return (1);
 	return (kn->kn_data <= tp->t_olowat &&
 	    ISSET(tp->t_state, TS_CONNECTED));
@@ -3015,11 +3017,19 @@ ttygone(struct tty *tp)
 {
 
 	tp->t_state |= TS_GONE;
+	if (SEL_WAITING(&tp->t_rsel))
+		selwakeuppri(&tp->t_rsel, TTIPRI);
+	if (SEL_WAITING(&tp->t_wsel))
+		selwakeuppri(&tp->t_wsel, TTOPRI);
+	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
+		pgsigio(&tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(&tp->t_dtr_wait);
 	wakeup(TSA_CARR_ON(tp));
 	wakeup(TSA_HUP_OR_INPUT(tp));
 	wakeup(TSA_OCOMPLETE(tp));
 	wakeup(TSA_OLOWAT(tp));
+	KNOTE_UNLOCKED(&tp->t_rsel.si_note, 0);
+	KNOTE_UNLOCKED(&tp->t_wsel.si_note, 0);
 	tt_purge(tp);
 }
 
