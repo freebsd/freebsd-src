@@ -132,6 +132,9 @@ run_test -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1\
 	-g FOO
 check_result "0 0 0 0 0 0 0 0 ${BAR}"
 
+run_test -c -s FOO ${BAR} 1 -g FOO -c -s FOO ${NEWBAR} 1 -g FOO
+check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
+
 
 # Unsets.
 run_test -u FOO -g FOO
@@ -151,6 +154,10 @@ check_result "-1 22"
 
 run_test -c -s FOO ${NEWBAR} 1 -g FOO -u FOO -g FOO
 check_result "0 0 ${NEWBAR} 0 0"
+
+run_test -c -u FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO -c -u FOO\
+	-s FOO ${NEWBAR} 1 -g FOO
+check_result "0 0 0 0 ${BAR} 0 0  0 0 0 0 ${NEWBAR}"
 
 
 # Puts.
@@ -180,3 +187,17 @@ check_result "0 0 0 0 0 0"
 
 run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -u FOO
 check_result "0 0 0 0 0 0"
+
+run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -c -g FOO -p FOO=${NEWBAR} -g FOO
+check_result "0 0 0 0  0 0 ${NEWBAR}"
+
+run_test -c -p FOO=${BAR} -g FOO -c -p FOO=${NEWBAR} -g FOO
+check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
+
+
+# environ replacements.
+run_test -r -g FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO
+check_result "${BAR} 0 0 ${BAR} 0 0"
+
+run_test -r -g FOO -u FOO -g FOO -s FOO ${BAR} 1 -g FOO
+check_result "${BAR} 0 0  0 0 ${BAR}"

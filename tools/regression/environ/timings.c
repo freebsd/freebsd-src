@@ -23,7 +23,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include <sys/types.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,43 +66,44 @@ int
 main(int argc, char **argv)
 {
 	int iterations;
-	struct timeval endTime;
-	struct timeval startTime;
+	struct rusage endUsage;
+	struct rusage startUsage;
 
 	/*
 	 * getenv() on the existing environment.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
 		if (getenv(name) == NULL)
 			err(EXIT_FAILURE, "getenv(name)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("getenv(name)", &startTime, &endTime);
+	report_time("getenv(name)", &startUsage.ru_utime, &endUsage.ru_utime);
 
 
 	/*
 	 * setenv() a variable with a large value.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
 		if (setenv(name, value1, 1) == -1)
 			err(EXIT_FAILURE, "setenv(name, value1, 1)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("setenv(name, value1, 1)", &startTime, &endTime);
+	report_time("setenv(name, value1, 1)", &startUsage.ru_utime,
+	    &endUsage.ru_utime);
 
 
 	/*
 	 * getenv() the new variable on the new environment.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
@@ -108,15 +111,15 @@ main(int argc, char **argv)
 		if (getenv(name) == NULL)
 			err(EXIT_FAILURE, "getenv(name)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("getenv(name)", &startTime, &endTime);
+	report_time("getenv(name)", &startUsage.ru_utime, &endUsage.ru_utime);
 
 
 	/*
 	 * getenv() a different variable on the new environment.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
@@ -124,30 +127,31 @@ main(int argc, char **argv)
 		if (getenv(name2) == NULL)
 			err(EXIT_FAILURE, "getenv(name2)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("getenv(name2)", &startTime, &endTime);
+	report_time("getenv(name2)", &startUsage.ru_utime, &endUsage.ru_utime);
 
 
 	/*
 	 * setenv() a variable with a small value.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
 		if (setenv(name, value2, 1) == -1)
 			err(EXIT_FAILURE, "setenv(name, value2, 1)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("setenv(name, value2, 1)", &startTime, &endTime);
+	report_time("setenv(name, value2, 1)", &startUsage.ru_utime,
+	    &endUsage.ru_utime);
 
 
 	/*
 	 * getenv() a different variable on the new environment.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
@@ -155,15 +159,15 @@ main(int argc, char **argv)
 		if (getenv(name2) == NULL)
 			err(EXIT_FAILURE, "getenv(name)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("getenv(name)", &startTime, &endTime);
+	report_time("getenv(name)", &startUsage.ru_utime, &endUsage.ru_utime);
 
 
 	/*
 	 * getenv() a different variable on the new environment.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
@@ -171,24 +175,25 @@ main(int argc, char **argv)
 		if (getenv(name2) == NULL)
 			err(EXIT_FAILURE, "getenv(name2)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("getenv(name2)", &startTime, &endTime);
+	report_time("getenv(name2)", &startUsage.ru_utime, &endUsage.ru_utime);
 
 
 	/*
 	 * putenv() a variable with a small value.
 	 */
-	gettimeofday(&startTime, NULL);
+	getrusage(RUSAGE_SELF, &startUsage);
 
 	/* Iterate over setting variable. */
 	for (iterations = 0; iterations < MaxIterations; iterations++)
 		if (putenv(nameValuePair) == -1)
 			err(EXIT_FAILURE, "putenv(nameValuePair)");
 
-	gettimeofday(&endTime, NULL);
+	getrusage(RUSAGE_SELF, &endUsage);
 
-	report_time("putenv(nameValuePair)", &startTime, &endTime);
+	report_time("putenv(nameValuePair)", &startUsage.ru_utime,
+	    &endUsage.ru_utime);
 
 
 	exit(EXIT_SUCCESS);

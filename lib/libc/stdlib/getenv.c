@@ -36,6 +36,12 @@
 __FBSDID("$FreeBSD$");
 
 
+static const char CorruptEnvFindMsg[] =
+    "environment corrupt; unable to find %.*s";
+static const char CorruptEnvValueMsg[] =
+    "environment corrupt; missing value for %s";
+
+
 /*
  * Standard environ.  environ variable is exposed to entire process.
  *
@@ -43,9 +49,12 @@ __FBSDID("$FreeBSD$");
  *			allows environ to return to as it was before.
  *	environSize:	Number of variables environ can hold.  Can only
  *			increase.
+ *	intEnviron:	Internally-built environ.  Exposed via environ during
+ *			(re)builds of the environment.
  */
 extern char **environ;
 static char **origEnviron;
+static char **intEnviron = NULL;
 static int environSize = 0;
 
 /*
@@ -84,7 +93,7 @@ static int envVarsTotal = 0;
 
 
 /* Deinitialization of new environment. */
-static void __attribute__ ((destructor)) __clean_env(void);
+static void __attribute__ ((destructor)) __clean_env_destructor(void);
 
 
 /*
@@ -173,6 +182,64 @@ __findenv_environ(const char *name, size_t nameLen)
 
 
 /*
+ * Remove variable added by putenv() from variable tracking array.
+ */
+static void
+__remove_putenv(int envNdx)
+{
+	envVarsTotal--;
+	if (envVarsTotal > envNdx)
+		memmove(&(envVars[envNdx]), &(envVars[envNdx + 1]),
+		    (envVarsTotal - envNdx) * sizeof (*envVars));
+	memset(&(envVars[envVarsTotal]), 0, sizeof (*envVars));
+
+	return;
+}
+
+
+/*
+ * Deallocate the environment built from environ as well as environ then set
+ * both to NULL.  Eases debugging of memory leaks.
+ */
+static void
+__clean_env(bool freeVars)
+{
+	int envNdx;
+
+	/* Deallocate environment and environ if created by *env(). */
+	if (envVars != NULL) {
+		for (envNdx = envVarsTotal - 1; envNdx >= 0; envNdx--)
+			/* Free variables or deactivate them. */
+			if (envVars[envNdx].putenv) {
+				if (!freeVars)
+					__remove_putenv(envNdx);
+			} else {
+				if (freeVars)
+					free(envVars[envNdx].name);
+				else
+					envVars[envNdx].active = false;
+			}
+		if (freeVars) {
+			free(envVars);
+			envVars = NULL;
+		} else
+			envActive = 0;
+
+		/* Restore original environ if it has not updated by program. */
+		if (origEnviron != NULL) {
+			if (environ == intEnviron)
+				environ = origEnviron;
+			free(intEnviron);
+			intEnviron = NULL;
+			environSize = 0;
+		}
+	}
+
+	return;
+}
+
+
+/*
  * Using the environment, rebuild the environ array for use by other C library
  * calls that depend upon it.
  */
@@ -187,20 +254,23 @@ __rebuild_environ(int newEnvironSize)
 	/* Resize environ. */
 	if (newEnvironSize > environSize) {
 		tmpEnvironSize = newEnvironSize * 2;
-		tmpEnviron = realloc(environ, sizeof (*environ) *
+		tmpEnviron = realloc(intEnviron, sizeof (*intEnviron) *
 		    (tmpEnvironSize + 1));
 		if (tmpEnviron == NULL)
 			return (-1);
 		environSize = tmpEnvironSize;
-		environ = tmpEnviron;
+		intEnviron = tmpEnviron;
 	}
 	envActive = newEnvironSize;
 
 	/* Assign active variables to environ. */
 	for (envNdx = envVarsTotal - 1, environNdx = 0; envNdx >= 0; envNdx--)
 		if (envVars[envNdx].active)
-			environ[environNdx++] = envVars[envNdx].name;
-	environ[environNdx] = NULL;
+			intEnviron[environNdx++] = envVars[envNdx].name;
+	intEnviron[environNdx] = NULL;
+
+	/* Always set environ which may have been replaced by program. */
+	environ = intEnviron;
 
 	return (0);
 }
@@ -241,15 +311,12 @@ __build_env(void)
 	char **env;
 	int activeNdx;
 	int envNdx;
-	int rtrnVal;
 	int savedErrno;
 	size_t nameLen;
 
 	/* Check for non-existant environment. */
-	if (environ == NULL)
+	if (environ == NULL || environ[0] == NULL)
 		return (0);
-	if (environ[0] == NULL)
-		goto SaveEnviron;
 
 	/* Count environment variables. */
 	for (env = environ, envVarsTotal = 0; *env != NULL; env++)
@@ -274,8 +341,7 @@ __build_env(void)
 			envVars[envNdx].valueSize =
 			    strlen(envVars[envNdx].value);
 		} else {
-			warnx("environment corrupt; missing value for %s",
-			    envVars[envNdx].name);
+			warnx(CorruptEnvValueMsg, envVars[envNdx].name);
 			errno = EFAULT;
 			goto Failure;
 		}
@@ -290,8 +356,7 @@ __build_env(void)
 		activeNdx = envVarsTotal - 1;
 		if (__findenv(envVars[envNdx].name, nameLen, &activeNdx,
 		    false) == NULL) {
-			warnx("environment corrupt; unable to find %.*s",
-			    nameLen, envVars[envNdx].name);
+			warnx(CorruptEnvFindMsg, nameLen, envVars[envNdx].name);
 			errno = EFAULT;
 			goto Failure;
 		}
@@ -299,24 +364,14 @@ __build_env(void)
 	}
 
 	/* Create a new environ. */
-SaveEnviron:
 	origEnviron = environ;
 	environ = NULL;
-	if (envVarsTotal > 0) {
-		rtrnVal = __rebuild_environ(envVarsTotal);
-		if (rtrnVal == -1) {
-			savedErrno = errno;
-			__clean_env();
-			errno = savedErrno;
-		}
-	} else
-		rtrnVal = 0;
-
-	return (rtrnVal);
+	if (__rebuild_environ(envVarsTotal) == 0)
+		return (0);
 
 Failure:
 	savedErrno = errno;
-	__clean_env();
+	__clean_env(true);
 	errno = savedErrno;
 
 	return (-1);
@@ -324,42 +379,12 @@ Failure:
 
 
 /*
- * Remove variable added by putenv() from variable tracking array.
+ * Destructor function with default argument to __clean_env().
  */
 static void
-__remove_putenv(int envNdx)
+__clean_env_destructor(void)
 {
-	memmove(&(envVars[envNdx]), &(envVars[envNdx + 1]),
-	    (envVarsTotal - envNdx) * sizeof (*envVars));
-	envVarsTotal--;
-
-	return;
-}
-
-
-/*
- * Deallocate the environment built from environ as well as environ then set
- * both to NULL.  Eases debugging of memory leaks.
- */
-static void
-__clean_env(void)
-{
-	int envNdx;
-
-	/* Deallocate environment and environ if created by *env(). */
-	if (envVars != NULL) {
-		for (envNdx = 0; envNdx < envVarsTotal; envNdx++)
-			if (!envVars[envNdx].putenv)
-				free(envVars[envNdx].name);
-		free(envVars);
-		envVars = NULL;
-
-		/* Restore original environ. */
-		if (origEnviron != NULL) {
-			free(environ);
-			environ = origEnviron;
-		}
-	}
+	__clean_env(true);
 
 	return;
 }
@@ -380,8 +405,12 @@ getenv(const char *name)
 		return (NULL);
 	}
 
-	/* Find environment variable via environ or rebuilt environment. */
-	if (envVars == NULL)
+	/*
+	 * Find environment variable via environ if no changes have been made
+	 * via a *env() call or environ has been replaced by a running program,
+	 * otherwise, use the rebuilt environment.
+	 */
+	if (envVars == NULL || environ != intEnviron)
 		return (__findenv_environ(name, nameLen));
 	else {
 		envNdx = envVarsTotal - 1;
@@ -395,26 +424,18 @@ getenv(const char *name)
  * older setting has enough room to store the new value, it will be reused.  No
  * previous variables are ever freed here to avoid causing a segmentation fault
  * in a user's code.
+ *
+ * The variables nameLen and valueLen are passed into here to allow the caller
+ * to calculate the length by means besides just strlen().
  */
-int
-setenv(const char *name, const char *value, int overwrite)
+static int
+__setenv(const char *name, size_t nameLen, const char *value, int overwrite)
 {
 	bool reuse;
 	char *env;
 	int envNdx;
 	int newEnvActive;
-	size_t nameLen;
 	size_t valueLen;
-
-	/* Check for malformed name. */
-	if (name == NULL || (nameLen = __strleneq(name)) == 0) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	/* Initialize environment. */
-	if (envVars == NULL && __build_env() == -1)
-		return (-1);
 
 	/* Find existing environment variable large enough to use. */
 	envNdx = envVarsTotal - 1;
@@ -437,7 +458,6 @@ setenv(const char *name, const char *value, int overwrite)
 		/* Entry is large enough to reuse. */
 		else if (envVars[envNdx].valueSize >= valueLen)
 			reuse = true;
-
 	}
 
 	/* Create new variable if none was found of sufficient size. */
@@ -480,7 +500,72 @@ setenv(const char *name, const char *value, int overwrite)
 
 
 /*
- * Insert a "name=value" string into then environment.  Special settings must be
+ * If the program attempts to replace the array of environment variables
+ * (environ) environ, then deactivate all variables and merge in the new list
+ * from environ.
+ */
+static int
+__merge_environ(void)
+{
+	char **env;
+	char *equals;
+
+	/* environ has been replaced.  clean up everything. */
+	if (envVarsTotal > 0 && environ != intEnviron) {
+		/* Deactivate all environment variables. */
+		if (envActive > 0) {
+			origEnviron = NULL;
+			__clean_env(false);
+		}
+
+		/*
+		 * Insert new environ into existing, yet deactivated,
+		 * environment array.
+		 */
+		origEnviron = environ;
+		if (origEnviron != NULL)
+			for (env = origEnviron; *env != NULL; env++) {
+				if ((equals = strchr(*env, '=')) == NULL) {
+					warnx(CorruptEnvValueMsg, *env);
+					errno = EFAULT;
+					return (-1);
+				}
+				if (__setenv(*env, equals - *env, equals + 1,
+				    1) == -1)
+					return (-1);
+			}
+	}
+
+	return (0);
+}
+
+
+/*
+ * The exposed setenv() that peforms a few tests before calling the function
+ * (__setenv()) that does the actual work of inserting a variable into the
+ * environment.
+ */
+int
+setenv(const char *name, const char *value, int overwrite)
+{
+	size_t nameLen;
+
+	/* Check for malformed name. */
+	if (name == NULL || (nameLen = __strleneq(name)) == 0) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	/* Initialize environment. */
+	if (__merge_environ() == -1 || (envVars == NULL && __build_env() == -1))
+		return (-1);
+
+	return (__setenv(name, nameLen, value, overwrite));
+}
+
+
+/*
+ * Insert a "name=value" string into the environment.  Special settings must be
  * made to keep setenv() from reusing this memory block and unsetenv() from
  * allowing it to be tracked.
  */
@@ -500,7 +585,7 @@ putenv(char *string)
 	}
 
 	/* Initialize environment. */
-	if (envVars == NULL && __build_env() == -1)
+	if (__merge_environ() == -1 || (envVars == NULL && __build_env() == -1))
 		return (-1);
 
 	/* Deactivate previous environment variable. */
@@ -552,7 +637,7 @@ unsetenv(const char *name)
 	}
 
 	/* Initialize environment. */
-	if (envVars == NULL && __build_env() == -1)
+	if (__merge_environ() == -1 || (envVars == NULL && __build_env() == -1))
 		return (-1);
 
 	/* Deactivate specified variable. */
