@@ -745,11 +745,6 @@ coda_inactive(struct vop_inactive_args *ap)
     /* We don't need to send inactive to venus - DCS */
     MARK_ENTRY(CODA_INACTIVE_STATS);
 
-    if (IS_CTL_VP(vp)) {
-	MARK_INT_SAT(CODA_INACTIVE_STATS);
-	return 0;
-    }
-
     CODADEBUG(CODA_INACTIVE, myprintf(("in inactive, %s, vfsp %p\n",
 				  coda_f2s(&cp->c_fid), vp->v_mount));)
  
