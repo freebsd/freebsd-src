@@ -34,6 +34,7 @@
 
 #include <sys/_lock.h>
 #include <sys/_rwlock.h>
+#include <sys/lock_profile.h>
 
 #ifdef _KERNEL
 #include <sys/pcpu.h>
@@ -98,18 +99,14 @@
  */
 
 /* Acquire a write lock. */
-#define	__rw_wlock(rw, tid, file, line) do {	\
+#define	__rw_wlock(rw, tid, file, line) do {				\
 	uintptr_t _tid = (uintptr_t)(tid);				\
-	int contested = 0;                                              \
-        uint64_t waitstart = 0;                                         \
 						                        \
-	if (!_rw_write_lock((rw), _tid)) {				\
-		lock_profile_obtain_lock_failed(&(rw)->lock_object,	\
-		    &contested, &waitstart);				\
+	if (!_rw_write_lock((rw), _tid))				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
-	}                                                               \
-	lock_profile_obtain_lock_success(&(rw)->lock_object, contested,	\
-	    waitstart, (file), (line));					\
+	else								\
+		lock_profile_obtain_lock_success(&(rw)->lock_object, 0,	\
+		    0, (file), (line));					\
 } while (0)
 
 /* Release a write lock. */
