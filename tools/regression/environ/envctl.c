@@ -54,17 +54,19 @@ dump_environ(void)
 static void
 usage(const char *program)
 {
-	fprintf(stderr, "Usage:  %s [-DGUcht] [-gu name] [-p name=value] "
+	fprintf(stderr, "Usage:  %s [-CDGUchrt] [-gu name] [-p name=value] "
 	    "[(-S|-s name) value overwrite]\n\n"
 	    "Options:\n"
+	    "  -C\t\t\t\tClear environ variable with NULL pointer\n"
 	    "  -D\t\t\t\tDump environ\n"
 	    "  -G name\t\t\tgetenv(NULL)\n"
 	    "  -S value overwrite\t\tsetenv(NULL, value, overwrite)\n"
 	    "  -U\t\t\t\tunsetenv(NULL)\n"
-	    "  -c\t\t\t\tClear environ variable\n"
+	    "  -c\t\t\t\tClear environ variable with calloc()'d memory\n"
 	    "  -g name\t\t\tgetenv(name)\n"
 	    "  -h\t\t\t\tHelp\n"
 	    "  -p name=value\t\t\tputenv(name=value)\n"
+	    "  -r\t\t\t\treplace environ with { \"FOO=bar\", NULL }\n"
 	    "  -s name value overwrite\tsetenv(name, value, overwrite)\n"
 	    "  -t\t\t\t\tOutput is suitable for testing (no newlines)\n"
 	    "  -u name\t\t\tunsetenv(name)\n",
@@ -77,7 +79,7 @@ usage(const char *program)
 int
 main(int argc, char **argv)
 {
-	char *cleanEnv[] = { NULL };
+	char *staticEnv[] = { "FOO=bar", NULL };
 	char arg;
 	const char *eol = "\n";
 	const char *value;
@@ -87,15 +89,19 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	while ((arg = getopt(argc, argv, "DGS:Ucg:hp:s:tu:")) != -1) {
+	while ((arg = getopt(argc, argv, "CDGS:Ucg:hp:rs:tu:")) != -1) {
 		switch (arg) {
-			case 'D':
-				errno = 0;
-				dump_environ();
+			case 'C':
+				environ = NULL;
 				break;
 
 			case 'c':
-				environ = cleanEnv;
+				environ = calloc(1, sizeof(*environ));
+				break;
+
+			case 'D':
+				errno = 0;
+				dump_environ();
 				break;
 
 			case 'G':
@@ -111,6 +117,10 @@ main(int argc, char **argv)
 			case 'p':
 				errno = 0;
 				printf("%d %d%s", putenv(optarg), errno, eol);
+				break;
+
+			case 'r':
+				environ = staticEnv;
 				break;
 
 			case 'S':
