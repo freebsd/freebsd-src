@@ -360,7 +360,7 @@ firewire_xfer_timeout(void *arg, int pending)
 	STAILQ_INIT(&xfer_timeout);
 
 	s = splfw();
-	FW_GLOCK(fc);
+	mtx_lock(&fc->tlabel_lock);
 	for (i = 0; i < 0x40; i ++) {
 		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if ((xfer->flag & FWXF_SENT) == 0)
@@ -378,7 +378,7 @@ firewire_xfer_timeout(void *arg, int pending)
 			STAILQ_INSERT_TAIL(&xfer_timeout, xfer, tlabel);
 		}
 	}
-	FW_GUNLOCK(fc);
+	mtx_unlock(&fc->tlabel_lock);
 	splx(s);
 	fc->timeout(fc);
 
@@ -430,6 +430,7 @@ firewire_attach(device_t dev)
 	fwdev_makedev(sc);
 
 	mtx_init(&fc->wait_lock, "fwwait", NULL, MTX_DEF);
+	mtx_init(&fc->tlabel_lock, "fwtlabel", NULL, MTX_DEF);
 	CALLOUT_INIT(&fc->timeout_callout);
 	CALLOUT_INIT(&fc->bmr_callout);
 	CALLOUT_INIT(&fc->busprobe_callout);
@@ -527,6 +528,7 @@ firewire_detach(device_t dev)
 	free(fc->speed_map, M_FW);
 	free(fc->crom_src_buf, M_FW);
 
+	mtx_destroy(&fc->tlabel_lock);
 	mtx_destroy(&fc->wait_lock);
 	return(0);
 }
@@ -569,7 +571,9 @@ fw_drain_txq(struct firewire_comm *fc)
 	fw_xferq_drain(fc->ats);
 	for(i = 0; i < fc->nisodma; i++)
 		fw_xferq_drain(fc->it[i]);
+	FW_GUNLOCK(fc);
 
+	mtx_lock(&fc->tlabel_lock);
 	for (i = 0; i < 0x40; i ++)
 		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if (firewire_debug)
@@ -578,7 +582,7 @@ fw_drain_txq(struct firewire_comm *fc)
 			STAILQ_REMOVE_HEAD(&fc->tlabels[i], tlabel);
 			STAILQ_INSERT_TAIL(&xfer_drain, xfer, tlabel);
 		}
-	FW_GUNLOCK(fc);
+	mtx_unlock(&fc->tlabel_lock);
 
 	STAILQ_FOREACH_SAFE(xfer, &xfer_drain, tlabel, txfer)
 		xfer->hand(xfer);	
@@ -1011,7 +1015,7 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		return;
 
 	s = splfw();
-	FW_GLOCK(fc);
+	mtx_lock(&fc->tlabel_lock);
 #if 1	/* make sure the label is allocated */
 	STAILQ_FOREACH(txfer, &fc->tlabels[xfer->tl], tlabel)
 		if(txfer == xfer)
@@ -1023,14 +1027,14 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		fw_dump_hdr(&xfer->send.hdr, "send");
 		fw_dump_hdr(&xfer->recv.hdr, "recv");
 		kdb_backtrace();
-		FW_GUNLOCK(fc);
+		mtx_unlock(&fc->tlabel_lock);
 		splx(s);
 		return;
 	}
 #endif
 
 	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
-	FW_GUNLOCK(fc);
+	mtx_unlock(&fc->tlabel_lock);
 	splx(s);
 	return;
 }
@@ -1045,10 +1049,10 @@ fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel, int tcode)
 	int s = splfw();
 	int req;
 
-	FW_GLOCK(fc);
+	mtx_lock(&fc->tlabel_lock);
 	STAILQ_FOREACH(xfer, &fc->tlabels[tlabel], tlabel)
 		if(xfer->send.hdr.mode.hdr.dst == node) {
-			FW_GUNLOCK(fc);
+			mtx_unlock(&fc->tlabel_lock);
 			splx(s);
 			KASSERT(xfer->tl == tlabel,
 				("xfer->tl 0x%x != 0x%x", xfer->tl, tlabel));
@@ -1065,7 +1069,7 @@ fw_tl2xfer(struct firewire_comm *fc, int node, int tlabel, int tcode)
 				printf("fw_tl2xfer: found tl=%d\n", tlabel);
 			return(xfer);
 		}
-	FW_GUNLOCK(fc);
+	mtx_unlock(&fc->tlabel_lock);
 	if (firewire_debug > 1)
 		printf("fw_tl2xfer: not found tl=%d\n", tlabel);
 	splx(s);
@@ -1717,7 +1721,7 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 
 	dst = xfer->send.hdr.mode.hdr.dst & 0x3f;
 	s = splfw();
-	FW_GLOCK(fc);
+	mtx_lock(&fc->tlabel_lock);
 	new_tlabel = (fc->last_tlabel[dst] + 1) & 0x3f;
 	STAILQ_FOREACH(txfer, &fc->tlabels[new_tlabel], tlabel)
 		if ((txfer->send.hdr.mode.hdr.dst & 0x3f) == dst)
@@ -1725,7 +1729,7 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 	if(txfer == NULL) {
 		fc->last_tlabel[dst] = new_tlabel;
 		STAILQ_INSERT_TAIL(&fc->tlabels[new_tlabel], xfer, tlabel);
-		FW_GUNLOCK(fc);
+		mtx_unlock(&fc->tlabel_lock);
 		splx(s);
 		xfer->tl = new_tlabel;
 		xfer->send.hdr.mode.hdr.tlrt = new_tlabel << 2;
@@ -1733,7 +1737,7 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 			printf("fw_get_tlabel: dst=%d tl=%d\n", dst, new_tlabel);
 		return (new_tlabel);
 	}
-	FW_GUNLOCK(fc);
+	mtx_unlock(&fc->tlabel_lock);
 	splx(s);
 
 	if (firewire_debug > 1)
