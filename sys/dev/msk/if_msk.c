@@ -154,6 +154,8 @@ MODULE_DEPEND(msk, miibus, 1, 1, 1);
 /* Tunables. */
 static int msi_disable = 0;
 TUNABLE_INT("hw.msk.msi_disable", &msi_disable);
+static int legacy_intr = 0;
+TUNABLE_INT("hw.msk.legacy_intr", &legacy_intr);
 
 #define MSK_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
 
@@ -229,6 +231,7 @@ static int msk_attach(device_t);
 static int msk_detach(device_t);
 
 static void msk_tick(void *);
+static void msk_legacy_intr(void *);
 static int msk_intr(void *);
 static void msk_int_task(void *, int);
 static void msk_intr_phy(struct msk_if_softc *);
@@ -1709,6 +1712,8 @@ mskc_attach(device_t dev)
 	 * port cards with separate MSI messages, so for now I disable MSI
 	 * on dual port cards.
 	 */
+	if (legacy_intr != 0)
+		msi_disable = 1;
 	if (msic == 2 && msi_disable == 0 && sc->msk_num_port == 1 &&
 	    pci_alloc_msi(dev, &msic) == 0) {
 		if (msic == 2) {
@@ -1778,18 +1783,25 @@ mskc_attach(device_t dev)
 		goto fail;
 	}
 
-	TASK_INIT(&sc->msk_int_task, 0, msk_int_task, sc);
-	sc->msk_tq = taskqueue_create_fast("msk_taskq", M_WAITOK,
-	    taskqueue_thread_enqueue, &sc->msk_tq);
-	taskqueue_start_threads(&sc->msk_tq, 1, PI_NET, "%s taskq",
-	    device_get_nameunit(sc->msk_dev));
 	/* Hook interrupt last to avoid having to lock softc. */
-	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
-	    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
+	if (legacy_intr)
+		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
+		    INTR_MPSAFE, NULL, msk_legacy_intr, sc,
+		    &sc->msk_intrhand[0]);
+	else {
+		TASK_INIT(&sc->msk_int_task, 0, msk_int_task, sc);
+		sc->msk_tq = taskqueue_create_fast("msk_taskq", M_WAITOK,
+		    taskqueue_thread_enqueue, &sc->msk_tq);
+		taskqueue_start_threads(&sc->msk_tq, 1, PI_NET, "%s taskq",
+		    device_get_nameunit(sc->msk_dev));
+		error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
+		    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
+	}
 
 	if (error != 0) {
 		device_printf(dev, "couldn't set up interrupt handler\n");
-		taskqueue_free(sc->msk_tq);
+		if (legacy_intr == 0)
+			taskqueue_free(sc->msk_tq);
 		sc->msk_tq = NULL;
 		goto fail;
 	}
@@ -1892,7 +1904,7 @@ mskc_detach(device_t dev)
 
 	msk_status_dma_free(sc);
 
-	if (sc->msk_tq != NULL) {
+	if (legacy_intr == 0 && sc->msk_tq != NULL) {
 		taskqueue_drain(sc->msk_tq, &sc->msk_int_task);
 		taskqueue_free(sc->msk_tq);
 		sc->msk_tq = NULL;
@@ -3501,6 +3513,75 @@ msk_handle_events(struct msk_softc *sc)
 		msk_rxput(sc->msk_if[MSK_PORT_B]);
 
 	return (sc->msk_stat_cons != CSR_READ_2(sc, STAT_PUT_IDX));
+}
+
+/* Legacy interrupt handler for shared interrupt. */
+static void
+msk_legacy_intr(void *xsc)
+{
+	struct msk_softc *sc;
+	struct msk_if_softc *sc_if0, *sc_if1;
+	struct ifnet *ifp0, *ifp1;
+	uint32_t status;
+
+	sc = xsc;
+	MSK_LOCK(sc);
+
+	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
+	status = CSR_READ_4(sc, B0_Y2_SP_ISRC2);
+	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	    (status & sc->msk_intrmask) == 0) {
+		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
+		return;
+	}
+
+	sc_if0 = sc->msk_if[MSK_PORT_A];
+	sc_if1 = sc->msk_if[MSK_PORT_B];
+	ifp0 = ifp1 = NULL;
+	if (sc_if0 != NULL)
+		ifp0 = sc_if0->msk_ifp;
+	if (sc_if1 != NULL)
+		ifp1 = sc_if1->msk_ifp;
+
+	if ((status & Y2_IS_IRQ_PHY1) != 0 && sc_if0 != NULL)
+		msk_intr_phy(sc_if0);
+	if ((status & Y2_IS_IRQ_PHY2) != 0 && sc_if1 != NULL)
+		msk_intr_phy(sc_if1);
+	if ((status & Y2_IS_IRQ_MAC1) != 0 && sc_if0 != NULL)
+		msk_intr_gmac(sc_if0);
+	if ((status & Y2_IS_IRQ_MAC2) != 0 && sc_if1 != NULL)
+		msk_intr_gmac(sc_if1);
+	if ((status & (Y2_IS_CHK_RX1 | Y2_IS_CHK_RX2)) != 0) {
+		device_printf(sc->msk_dev, "Rx descriptor error\n");
+		sc->msk_intrmask &= ~(Y2_IS_CHK_RX1 | Y2_IS_CHK_RX2);
+		CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
+		CSR_READ_4(sc, B0_IMSK);
+	}
+        if ((status & (Y2_IS_CHK_TXA1 | Y2_IS_CHK_TXA2)) != 0) {
+		device_printf(sc->msk_dev, "Tx descriptor error\n");
+		sc->msk_intrmask &= ~(Y2_IS_CHK_TXA1 | Y2_IS_CHK_TXA2);
+		CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
+		CSR_READ_4(sc, B0_IMSK);
+	}
+	if ((status & Y2_IS_HW_ERR) != 0)
+		msk_intr_hwerr(sc);
+
+	while (msk_handle_events(sc) != 0)
+		;
+	if ((status & Y2_IS_STAT_BMU) != 0)
+		CSR_WRITE_4(sc, STAT_CTRL, SC_STAT_CLR_IRQ);
+
+	/* Reenable interrupts. */
+	CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
+
+	if (ifp0 != NULL && (ifp0->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	    !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
+		taskqueue_enqueue(taskqueue_fast, &sc_if0->msk_tx_task);
+	if (ifp1 != NULL && (ifp1->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	    !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
+		taskqueue_enqueue(taskqueue_fast, &sc_if1->msk_tx_task);
+
+	MSK_UNLOCK(sc);
 }
 
 static int
