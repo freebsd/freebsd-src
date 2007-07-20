@@ -134,6 +134,7 @@ struct firewire_comm{
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
 	struct fw_xferlist tlabels[0x40];
 	u_char last_tlabel[0x40];
+	struct mtx tlabel_lock;
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
 	u_int  sid_cnt;
