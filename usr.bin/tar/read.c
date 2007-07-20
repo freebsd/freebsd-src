@@ -129,15 +129,15 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			break;
 		if (r < ARCHIVE_OK)
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+		if (r <= ARCHIVE_WARN)
+			bsdtar->return_value = 1;
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */
 			bsdtar_warnc(bsdtar, 0, "Retrying...");
 			continue;
 		}
-		if (r != ARCHIVE_OK) {
-			bsdtar->return_value = 1;
+		if (r == ARCHIVE_FATAL)
 			break;
-		}
 
 		/*
 		 * Exclude entries that are too old.
