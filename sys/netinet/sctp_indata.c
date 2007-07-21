@@ -3474,6 +3474,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					 * use the CMT version of
 					 * find_alt_net()
 					 */
+					/* sa_ignore NO_NULL_CHK */
 					alt = sctp_find_alternate_net(stcb, alt, 1);
 				}
 				if (alt == NULL) {
