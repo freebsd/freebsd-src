@@ -447,8 +447,6 @@ terminfo.5: MKterminfo.sh terminfo.head Caps
 	    ${NCURSES_DIR}/include/Caps ${NCURSES_DIR}/man/terminfo.tail >$@
 
 CLEANFILES+=	terminfo.5
-MANFILTER=      sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g' \
-		    -e 's%@NCURSES_OSPEED@%${NCURSES_OSPEED}%g'
 
 .PATH: ${NCURSES_DIR}/man
 MAN=	\
