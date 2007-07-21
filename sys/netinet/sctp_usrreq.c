@@ -1354,7 +1354,9 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	vrf_id = inp->def_vrf_id;
 
 	/* We are GOOD to go */
-	stcb = sctp_aloc_assoc(inp, sa, 1, &error, 0, vrf_id);
+	stcb = sctp_aloc_assoc(inp, sa, 1, &error, 0, vrf_id,
+	    (struct thread *)p
+	    );
 	if (stcb == NULL) {
 		/* Gak! no memory */
 		goto out_now;
@@ -3631,7 +3633,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_ADD_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			int sz;
+			size_t sz;
 			struct thread *td;
 			int prison = 0;
 
@@ -3666,7 +3668,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_REM_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			int sz;
+			size_t sz;
 			struct thread *td;
 			int prison = 0;
 
@@ -3844,7 +3846,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 	vrf_id = inp->def_vrf_id;
 	/* We are GOOD to go */
-	stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
+	stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id, p);
 	if (stcb == NULL) {
 		/* Gak! no memory */
 		goto out_now;
