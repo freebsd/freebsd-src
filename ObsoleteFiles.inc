@@ -24,12 +24,18 @@ OLD_FILES+=etc/namedb/make-localhost
 OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
 # 20070212: kame.4 removed
 OLD_FILES+=usr/share/man/man4/kame.4.gz
+# 20070127: archive_write_prepare.3 removed
+OLD_FILES+=usr/share/man/man3/archive_write_prepare.3.gz
 # 20061123: uhidev.4 removed
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 # 20060928: kvmdb cleanup script removed
 OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
 # 20060905: demangle.h from contrib/libstdc++/include/ext/
 OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
+# 20060605: man page links removed by OpenBSM 1.0 alpha 6 import
+OLD_FILES+=usr/share/man/man3/au_to_socket.3.gz
+OLD_FILES+=usr/share/man/man3/au_to_socket_ex_128.3.gz
+OLD_FILES+=usr/share/man/man3/au_to_socket_ex_32.3.gz
 # 20051215: rescue/nextboot.sh renamed to rescue/nextboot
 OLD_FILES+=rescue/nextboot.sh
 # 20051029: rc.d/ppp-user renamed to rc.d/ppp for convenience
@@ -48,6 +54,11 @@ OLD_FILES+=usr/share/doc/papers/px.ps.gz
 # 20050721: moved to ports
 OLD_FILES+=usr/sbin/vttest
 OLD_FILES+=usr/share/man/man1/vttest.1.gz
+# 20050617: wpa man pages moved to section 8
+OLD_FILES+=usr/share/man/man1/hostapd.1.gz
+OLD_FILES+=usr/share/man/man1/hostapd_cli.1.gz
+OLD_FILES+=usr/share/man/man1/wpa_cli.1.gz
+OLD_FILES+=usr/share/man/man1/wpa_supplicant.1.gz
 # 20050610: rexecd (insecure by design)
 OLD_FILES+=etc/pam.d/rexecd
 OLD_FILES+=usr/share/man/man8/rexecd.8.gz
@@ -270,6 +281,8 @@ OLD_FILES+=usr/share/man/man1/sasc.1.gz
 OLD_FILES+=usr/share/man/man1/sgsc.1.gz
 OLD_FILES+=usr/share/man/man4/i386/stl.4.gz
 OLD_FILES+=usr/share/man/man8/raidctl.8.gz
+# 20040229: clean_environment() was removed after 3 days
+OLD_FILES+=usr/share/man/man3/clean_environment.3.gz
 .if ${TARGET_ARCH} != "alpha" && ${TARGET_ARCH} != "sparc64"
 # 20040130: libkse renamed to libpthread
 OLD_FILES+=usr/lib/libkse.a
@@ -334,6 +347,7 @@ OLD_FILES+=usr/lib/libskey_p.a
 OLD_FILES+=usr/libexec/tradcpp0
 OLD_FILES+=usr/libexec/cpp0
 # 200304XX: removal of xten
+OLD_FILES+=usr/libexec/xtend
 OLD_FILES+=usr/sbin/xten
 OLD_FILES+=usr/share/man/man1/xten.1.gz
 OLD_FILES+=usr/share/man/man8/xtend.8.gz
