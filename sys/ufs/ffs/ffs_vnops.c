@@ -1178,14 +1178,18 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 {
 	struct inode *ip;
 	struct ufs2_dinode *dp;
+	struct fs *fs;
 	struct uio luio;
 	struct iovec liovec;
 	int easize, error;
 	u_char *eae;
 
 	ip = VTOI(vp);
+	fs = ip->i_fs;
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
+	if ((uoff_t)easize + extra > NXADDR * fs->fs_bsize)
+		return (EFBIG);
 
 	eae = malloc(easize + extra, M_TEMP, M_WAITOK);
 
