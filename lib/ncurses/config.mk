@@ -42,3 +42,13 @@ TERMINFODIR?=	${SHAREDIR}/misc
 ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	AWK=${AWK} sh ${NCURSES_DIR}/include/MKncurses_def.sh \
 	    ${NCURSES_DIR}/include/ncurses_defs > ncurses_def.h
+
+# Manual pages filter
+MANFILTER=	sed -e 's%@TERMINFO@%${TERMINFODIR}/terminfo%g' \
+		    -e 's%@DATADIR@%/usr/share%g' \
+		    -e 's%@NCURSES_OSPEED@%${NCURSES_OSPEED}%g' \
+		    -e 's%@NCURSES_MAJOR@%${NCURSES_MAJOR}%g' \
+		    -e 's%@NCURSES_MINOR@%${NCURSES_MINOR}%g' \
+		    -e 's%@NCURSES_PATCH@%${NCURSES_PATCH}%g' \
+		    -e 's%@TIC@%tic%g' \
+		    -e 's%@INFOCMP@%infocmp%g'
