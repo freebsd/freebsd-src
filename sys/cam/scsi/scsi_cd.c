@@ -1860,14 +1860,17 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	  && (cmd != CDIOCEJECT))
 	 && (IOCGROUP(cmd) == 'c')) {
 		error = cdcheckmedia(periph);
+		if (error != 0) {
+			cam_periph_unhold(periph);
+			cam_periph_unlock(periph);
+			return (error);
+		}
 	}
 	/*
 	 * Drop the lock here so later mallocs can use WAITOK.  The periph
 	 * is essentially locked still with the cam_periph_hold call above.
 	 */
 	cam_periph_unlock(periph);
-	if (error != 0)
-		return (error);
 
 	nocopyout = 0;
 	switch (cmd) {
