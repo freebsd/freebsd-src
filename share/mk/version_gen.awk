@@ -164,12 +164,14 @@ function print_version(v)
 			printf("global:\n");
 		printf("\t%s\n", symbols[v, i]);
 	}
-	if (successors[v] == "") {
-		# This version succeeds no other version.
+
+	version_count--;
+	if (version_count == 0) {
 		printf("local:\n");
 		printf("\t*;\n");
-		printf("};\n");
 	}
+	if (successors[v] == "")
+		printf("};\n");
 	else
 		printf("} %s;\n", successors[v]);
 	printf("\n");
