@@ -10965,7 +10965,9 @@ sctp_lower_sosend(struct socket *so,
 			}
 			/* get an asoc/stcb struct */
 			vrf_id = inp->def_vrf_id;
-			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
+			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id,
+			    p
+			    );
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;

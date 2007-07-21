@@ -2154,7 +2154,11 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		/* already did a bind, subsequent binds NOT allowed ! */
 		return (EINVAL);
 	}
-	if (jailed(p->td_ucred)) {
+#ifdef INVARIANTS
+	if (p == NULL)
+		panic("null proc/thread");
+#endif
+	if (p && jailed(p->td_ucred)) {
 		prison = 1;
 	}
 	if (addr != NULL) {
@@ -3312,8 +3316,12 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
  */
 struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
-    int for_a_init, int *error, uint32_t override_tag, uint32_t vrf_id)
+    int for_a_init, int *error, uint32_t override_tag, uint32_t vrf_id,
+    struct thread *p
+)
 {
+	/* note the p argument is only valid in unbound sockets */
+
 	struct sctp_tcb *stcb;
 	struct sctp_association *asoc;
 	struct sctpasochead *head;
@@ -3393,7 +3401,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		 */
 		if ((err = sctp_inpcb_bind(inp->sctp_socket,
 		    (struct sockaddr *)NULL,
-		    (struct thread *)NULL
+		    p
 		    ))) {
 			/* bind error, probably perm */
 			*error = err;
@@ -4920,7 +4928,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * strange, address is in another
 					 * assoc? straighten out locks.
 					 */
-					SCTP_TCB_UNLOCK(stcb_tmp);
+					if (stcb_tmp)
+						SCTP_TCB_UNLOCK(stcb_tmp);
+
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-12);
@@ -4995,7 +5005,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * strange, address is in another
 					 * assoc? straighten out locks.
 					 */
-					SCTP_TCB_UNLOCK(stcb_tmp);
+					if (stcb_tmp)
+						SCTP_TCB_UNLOCK(stcb_tmp);
+
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-21);
