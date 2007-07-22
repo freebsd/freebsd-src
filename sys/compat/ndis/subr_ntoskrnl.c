@@ -2778,6 +2778,7 @@ ntoskrnl_workitem_thread(arg)
 		KeAcquireSpinLock(&kq->kq_lock, &irql);
 
 		if (kq->kq_exit) {
+			kq->kq_exit = 0;
 			KeReleaseSpinLock(&kq->kq_lock, irql);
 			break;
 		}
@@ -2814,7 +2815,8 @@ ntoskrnl_destroy_workitem_threads(void)
 		kq = wq_queues + i;
 		kq->kq_exit = 1;
 		KeSetEvent(&kq->kq_proc, IO_NO_INCREMENT, FALSE);	
-		tsleep(kq->kq_td->td_proc, PWAIT, "waitiw", 0);
+		while (kq->kq_exit)
+			tsleep(kq->kq_td->td_proc, PWAIT, "waitiw", hz/10);
 	}
 
 	return;
@@ -3842,6 +3844,7 @@ ntoskrnl_dpc_thread(arg)
 		KeAcquireSpinLock(&kq->kq_lock, &irql);
 
 		if (kq->kq_exit) {
+			kq->kq_exit = 0;
 			KeReleaseSpinLock(&kq->kq_lock, irql);
 			break;
 		}
@@ -3891,7 +3894,8 @@ ntoskrnl_destroy_dpc_threads(void)
 		KeInitializeDpc(&dpc, NULL, NULL);
 		KeSetTargetProcessorDpc(&dpc, i);
 		KeInsertQueueDpc(&dpc, NULL, NULL);
-		tsleep(kq->kq_td->td_proc, PWAIT, "dpcw", 0);
+		while (kq->kq_exit)
+			tsleep(kq->kq_td->td_proc, PWAIT, "dpcw", hz/10);
 	}
 
 	return;
