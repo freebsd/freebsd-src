@@ -239,10 +239,8 @@ struct thread {
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-#ifdef KSE
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + t) Upcall structure. */
-#endif
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	u_int		td_slptime;	/* (t) How long completely blocked. */
 	struct rusage	td_ru;		/* (t) rusage information */
@@ -437,7 +435,6 @@ do {									\
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
 
-#ifdef KSE
 /*
  * An upcall is used when returning to userland.  If a thread does not have
  * an upcall on return to userland the thread exports its context and exits.
@@ -455,7 +452,6 @@ struct kse_upcall {
 
 #define	KUF_DOUPCALL	0x00001		/* Do upcall now; don't wait. */
 #define	KUF_EXITING	0x00002		/* Upcall structure is exiting. */
-#endif
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -484,9 +480,7 @@ struct rusage_ext {
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 	TAILQ_HEAD(, thread) p_threads;	/* (j) all threads. */
-#ifdef KSE
 	TAILQ_HEAD(, kse_upcall) p_upcalls; /* (j) All upcalls in the proc. */
-#endif
 	struct mtx	p_slock;	/* process spin lock */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
@@ -551,13 +545,11 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
-#ifdef KSE
 	int		p_numupcalls;	/* (j) Num upcalls. */
 	int		p_upsleeps;	/* (c) Num threads in kse_release(). */
 	struct kse_thr_mailbox *p_completed; /* (c) Completed thread mboxes. */
 	int		p_nextupcall;	/* (n) Next upcall time. */
 	int		p_upquantum;	/* (n) Quantum to schedule an upcall. */
-#endif
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
