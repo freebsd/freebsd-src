@@ -177,18 +177,18 @@ PAM_EXTERN int
 pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
-        const void *tty;
+	const void *tty;
 
-        pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		tty = (const char *)tty + strlen(_PATH_DEV);
 	if (*(const char *)tty == '\0')
 		return (PAM_SERVICE_ERR);
-        if (logout(tty) != 1)
-                syslog(LOG_ERR, "%s(): no utmp record for %s",
+	if (logout(tty) != 1)
+		syslog(LOG_ERR, "%s(): no utmp record for %s",
 		    __func__, (const char *)tty);
-        logwtmp(tty, "", "");
-        return (PAM_SUCCESS);
+	logwtmp(tty, "", "");
+	return (PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_lastlog");
