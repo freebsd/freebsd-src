@@ -140,7 +140,7 @@ acpi_hpet_attach(device_t dev)
 {
 	struct acpi_hpet_softc *sc;
 	int rid;
-	uint32_t val;
+	uint32_t val, val2;
 	uintmax_t freq;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
@@ -163,6 +163,9 @@ acpi_hpet_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Be sure timer is enabled. */
+	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
+
 	/* Read basic statistics about the timer. */
 	val = bus_read_4(sc->mem_res, HPET_OFFSET_PERIOD);
 	freq = (1000000000000000LL + val / 2) / val;
@@ -175,11 +178,22 @@ acpi_hpet_attach(device_t dev)
 		    ((val >> 13) & 1) ? " count_size" : "");
 	}
 
-	/* Be sure it is enabled. */
-	bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 1);
-
 	if (testenv("debug.acpi.hpet_test"))
 		acpi_hpet_test(sc);
+
+	/*
+	 * Don't attach if the timer never increments.  Since the spec
+	 * requires it to be at least 10 MHz, it has to change in 1 us.
+	 */
+	val = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	DELAY(1);
+	val2 = bus_read_4(sc->mem_res, HPET_OFFSET_VALUE);
+	if (val == val2) {
+		device_printf(dev, "HPET never increments, disabling\n");
+		bus_write_4(sc->mem_res, HPET_OFFSET_ENABLE, 0);
+		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
+		return (ENXIO);
+	}
 
 	hpet_timecounter.tc_frequency = freq;
 	hpet_timecounter.tc_priv = sc;
