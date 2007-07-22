@@ -178,8 +178,11 @@ pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 	const void *tty;
+	int pam_err;
 
-	pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	if (pam_err != PAM_SUCCESS)
+		goto err;
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		tty = (const char *)tty + strlen(_PATH_DEV);
 	if (*(const char *)tty == '\0')
@@ -189,6 +192,11 @@ pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
 		    __func__, (const char *)tty);
 	logwtmp(tty, "", "");
 	return (PAM_SUCCESS);
+
+ err:
+	if (openpam_get_option(pamh, "no_fail"))
+		return (PAM_SUCCESS);
+	return (pam_err);
 }
 
 PAM_MODULE_ENTRY("pam_lastlog");
