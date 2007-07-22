@@ -2,8 +2,6 @@
  * Copyright (c) 2005 Apple Computer, Inc.
  * All rights reserved.
  *
- * @APPLE_BSD_LICENSE_HEADER_START@
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,9 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @APPLE_BSD_LICENSE_HEADER_END@
- *
- * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#32
+ * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#34
  * $FreeBSD$
  */
 
@@ -49,11 +45,12 @@
 #define	AUE_NULL		0
 #define	AUE_EXIT		1
 #define	AUE_FORK		2
+#define	AUE_FORKALL		AUE_FORK	/* Solaris-specific. */
 #define	AUE_OPEN		3
 #define	AUE_CREAT		4
 #define	AUE_LINK		5
 #define	AUE_UNLINK		6
-#define	AUE_DELETE		AUE_UNLINK
+#define	AUE_DELETE		AUE_UNLINK	/* Darwin-specific. */
 #define	AUE_EXEC		7
 #define	AUE_CHDIR		8
 #define	AUE_MKNOD		9
@@ -62,7 +59,7 @@
 #define	AUE_UMOUNT		12
 #define	AUE_JUNK		13	/* Solaris-specific. */
 #define	AUE_ACCESS		14
-#define	AUE_CHECKUSERACCESS	AUE_ACCESS
+#define	AUE_CHECKUSERACCESS	AUE_ACCESS	/* Darwin-specific. */
 #define	AUE_KILL		15
 #define	AUE_STAT		16
 #define	AUE_LSTAT		17
@@ -161,7 +158,7 @@
 #define	AUE_SEMOP		110
 #define	AUE_CORE		111	/* Solaris-specific, currently. */
 #define	AUE_CLOSE		112
-#define	AUE_SYSTEMBOOT		113
+#define	AUE_SYSTEMBOOT		113	/* Solaris-specific. */
 #define	AUE_ASYNC_DAEMON_EXIT	114	/* Solaris-specific. */
 #define	AUE_NFSSVC_EXIT		115	/* Solaris-specific. */
 #define	AUE_WRITEL		128	/* Solaris-specific. */
@@ -184,9 +181,14 @@
 #define	AUE_GETKERNSTATE	147	/* Solaris-specific. */
 #define	AUE_SETKERNSTATE	148	/* Solaris-specific. */
 #define	AUE_GETPORTAUDIT	149	/* Solaris-specific. */
-#define	AUE_AUDISTAT		150	/* Solaris-specific. */
+#define	AUE_AUDITSTAT		150	/* Solaris-specific. */
+#define	AUE_REVOKE		151
+#define	AUE_MAC			152	/* Solaris-specific. */
 #define	AUE_ENTERPROM		153	/* Solaris-specific. */
 #define	AUE_EXITPROM		154	/* Solaris-specific. */
+#define	AUE_IFLOAT		155	/* Solaris-specific. */
+#define	AUE_PFLOAT		156	/* Solaris-specific. */
+#define	AUE_UPRIV		157	/* Solaris-specific. */
 #define	AUE_IOCTL		158
 #define	AUE_SOCKET		183
 #define	AUE_SENDTO		184
@@ -198,28 +200,30 @@
 #define	AUE_RECVMSG		190
 #define	AUE_RECVFROM		191
 #define	AUE_READ		192
+#define	AUE_GETDENTS		193
 #define	AUE_LSEEK		194
 #define	AUE_WRITE		195
 #define	AUE_WRITEV		196
 #define	AUE_NFS			197	/* Solaris-specific. */
 #define	AUE_READV		198
-					/* XXXRW: XXX Solaris old stat()? */
+#define	AUE_OSTAT		199	/* Solaris-specific. */
 #define	AUE_SETUID		200	/* XXXRW: Solaris old setuid? */
 #define	AUE_STIME		201	/* XXXRW: Solaris old stime? */
 #define	AUE_UTIME		202	/* XXXRW: Solaris old utime? */
 #define	AUE_NICE		203	/* XXXRW: Solaris old nice? */
-					/* XXXRW: Solaris old setpgrp? */
-#define	AUE_SETGID		205	/* XXXRW: Solaris old setgid? */
-					/* XXXRW: Solaris readl? */
-					/* XXXRW: Solaris readvl()? */
+#define	AUE_OSETPGRP		204	/* Solaris-specific. */
+#define	AUE_SETGID		205
+#define	AUE_READL		206	/* Solaris-specific. */
+#define	AUE_READVL		207	/* Solaris-specific. */
+#define	AUE_FSTAT		208
 #define	AUE_DUP2		209
 #define	AUE_MMAP		210
 #define	AUE_AUDIT		211
-#define	AUE_PRIOCNTLSYS		212
+#define	AUE_PRIOCNTLSYS		212	/* Solaris-specific. */
 #define	AUE_MUNMAP		213
 #define	AUE_SETEGID		214
 #define	AUE_SETEUID		215
-#define	AUE_PUTMSG		216
+#define	AUE_PUTMSG		216	/* Solaris-specific. */
 #define	AUE_GETMSG		217	/* Solaris-specific. */
 #define	AUE_PUTPMSG		218	/* Solaris-specific. */
 #define	AUE_GETPMSG		219	/* Solaris-specific. */
@@ -236,26 +240,27 @@
 #define	AUE_AUDITON_SETCOND	230
 #define	AUE_AUDITON_GETCLASS	231
 #define	AUE_AUDITON_SETCLASS	232
-#define	AUE_UTSSYS		233	/* Solaris-specific. */
+#define	AUE_FUSERS		233	/* Solaris-specific; also UTSSYS? */
 #define	AUE_STATVFS		234
-#define	AUE_XSTAT		235
-#define	AUE_LXSTAT		236
+#define	AUE_XSTAT		235	/* Solaris-specific. */
+#define	AUE_LXSTAT		236	/* Solaris-specific. */
 #define	AUE_LCHOWN		237
 #define	AUE_MEMCNTL		238	/* Solaris-specific. */
 #define	AUE_SYSINFO		239	/* Solaris-specific. */
 #define	AUE_XMKNOD		240	/* Solaris-specific. */
 #define	AUE_FORK1		241
-					/* XXXRW: Solaris modctl()? */
+#define	AUE_MODCTL		242	/* Solaris-specific. */
 #define	AUE_MODLOAD		243
 #define	AUE_MODUNLOAD		244
 #define	AUE_MODCONFIG		245	/* Solaris-specific. */
 #define	AUE_MODADDMAJ		246	/* Solaris-specific. */
-#define	AUE_SOCKACCEPT		247
-#define	AUE_SOCKCONNECT		248
-#define	AUE_SOCKSEND		249
-#define	AUE_SOCKRECEIVE		250
+#define	AUE_SOCKACCEPT		247	/* Solaris-specific. */
+#define	AUE_SOCKCONNECT		248	/* Solaris-specific. */
+#define	AUE_SOCKSEND		249	/* Solaris-specific. */
+#define	AUE_SOCKRECEIVE		250	/* Solaris-specific. */
 #define	AUE_ACLSET		251
 #define	AUE_FACLSET		252
+#define	AUE_DOORFS		253	/* Solaris-specific. */
 #define	AUE_DOORFS_DOOR_CALL	254	/* Solaris-specific. */
 #define	AUE_DOORFS_DOOR_RETURN	255	/* Solaris-specific. */
 #define	AUE_DOORFS_DOOR_CREATE	256	/* Solaris-specific. */
@@ -267,11 +272,42 @@
 #define	AUE_P_ONLINE		262	/* Solaris-specific. */
 #define	AUE_PROCESSOR_BIND	263	/* Solaris-specific. */
 #define	AUE_INST_SYNC		264	/* Solaris-specific. */
-#define	AUE_SOCK_CONFIG		265	/* Solaris-specific. */
+#define	AUE_SOCKCONFIG		265	/* Solaris-specific. */
 #define	AUE_SETAUDIT_ADDR	266
 #define	AUE_GETAUDIT_ADDR	267
+#define	AUE_UMOUNT2		268	/* Solaris-specific. */
+#define	AUE_FSAT		269	/* Solaris-specific. */
+#define	AUE_OPENAT_R		270
+#define	AUE_OPENAT_RC		271
+#define	AUE_OPENAT_RT		272
+#define	AUE_OPENAT_RTC		273
+#define	AUE_OPENAT_W		274
+#define	AUE_OPENAT_WC		275
+#define	AUE_OPENAT_WT		276
+#define	AUE_OPENAT_WTC		277
+#define	AUE_OPENAT_RW		278
+#define	AUE_OPENAT_RWC		279
+#define	AUE_OPENAT_RWT		280
+#define	AUE_OPENAT_RWTC		281
+#define	AUE_RENAMEAT		282
+#define	AUE_FSTATAT		283
+#define	AUE_FCHOWNAT		284
+#define	AUE_FUTIMESAT		285
+#define	AUE_UNLINKAT		286
 #define	AUE_CLOCK_SETTIME	287
 #define	AUE_NTP_ADJTIME		288
+#define	AUE_SETPPRIV		289	/* Solaris-specific. */
+#define	AUE_MODDEVPLCY		290	/* Solaris-specific. */
+#define	AUE_MODADDPRIV		291	/* Solaris-specific. */
+#define	AUE_CRYPTOADM		292	/* Solaris-specific. */
+#define	AUE_CONFIGKSSL		293	/* Solaris-specific. */
+#define	AUE_BRANDSYS		294	/* Solaris-specific. */
+#define	AUE_PF_POLICY_ADDRULE	295	/* Solaris-specific. */
+#define	AUE_PF_POLICY_DELRULE	296	/* Solaris-specific. */
+#define	AUE_PF_POLICY_CLONE	297	/* Solaris-specific. */
+#define	AUE_PF_POLICY_FLIP	298	/* Solaris-specific. */
+#define	AUE_PF_POLICY_FLUSH	299	/* Solaris-specific. */
+#define	AUE_PF_POLICY_ALGS	300	/* Solaris-specific. */
 
 /*
  * Events added for Apple Darwin that potentially collide with future Solaris
@@ -286,30 +322,30 @@
 #define	AUE_DARWIN_PROFILE	305
 #define	AUE_DARWIN_KTRACE	306
 #define	AUE_DARWIN_SETLOGIN	307
-#define	AUE_DARWIN_REBOOT	308	/* XXX: See AUE_REBOOT. */
+#define	AUE_DARWIN_REBOOT	308
 #define	AUE_DARWIN_REVOKE	309
 #define	AUE_DARWIN_UMASK	310
 #define	AUE_DARWIN_MPROTECT	311
-#define	AUE_DARWIN_SETPRIORITY	312	/* XXX: See AUE_SETPRIORITY. */
-#define	AUE_DARWIN_SETTIMEOFDAY	313	/* XXX: See AUE_SETTIMEOFDAY. */
-#define	AUE_DARWIN_FLOCK	314	/* XXX: See AUE_FLOCK. */
+#define	AUE_DARWIN_SETPRIORITY	312
+#define	AUE_DARWIN_SETTIMEOFDAY	313
+#define	AUE_DARWIN_FLOCK	314
 #define	AUE_DARWIN_MKFIFO	315
 #define	AUE_DARWIN_POLL		316
-#define	AUE_DARWIN_SOCKETPAIR	317	/* XXXRW: See AUE_SOCKETPAIR. */
+#define	AUE_DARWIN_SOCKETPAIR	317
 #define	AUE_DARWIN_FUTIMES	318
 #define	AUE_DARWIN_SETSID	319
 #define	AUE_DARWIN_SETPRIVEXEC	320	/* Darwin-specific. */
-#define	AUE_DARWIN_NFSSVC	321	/* XXX: See AUE_NFS_SVC. */
-#define	AUE_DARWIN_GETFH	322	/* XXX: See AUE_NFS_GETFH. */
-#define	AUE_DARWIN_QUOTACTL	323	/* XXX: See AUE_QUOTACTL. */
+#define	AUE_DARWIN_NFSSVC	321
+#define	AUE_DARWIN_GETFH	322
+#define	AUE_DARWIN_QUOTACTL	323
 #define	AUE_DARWIN_ADDPROFILE	324	/* Darwin-specific. */
 #define	AUE_DARWIN_KDEBUGTRACE	325	/* Darwin-specific. */
 #define	AUE_DARWIN_KDBUGTRACE	AUE_KDEBUGTRACE
 #define	AUE_DARWIN_FSTAT	326
 #define	AUE_DARWIN_FPATHCONF	327
 #define	AUE_DARWIN_GETDIRENTRIES	328
-#define	AUE_DARWIN_TRUNCATE	329	/* XXX: See AUE_TRUNCATE. */
-#define	AUE_DARWIN_FTRUNCATE	330	/* XXX: See AUE_FTRUNCATE. */
+#define	AUE_DARWIN_TRUNCATE	329
+#define	AUE_DARWIN_FTRUNCATE	330
 #define	AUE_DARWIN_SYSCTL	331
 #define	AUE_DARWIN_MLOCK	332
 #define	AUE_DARWIN_MUNLOCK	333
@@ -348,6 +384,11 @@
  * These often duplicate events added to the Solaris set by Darwin, but use
  * event identifiers in a higher range in order to avoid colliding with
  * future Solaris additions.
+ *
+ * If an event in this section is later added to Solaris, we prefer the
+ * Solaris event identifier, and add _OPENBSM_ to the OpenBSM-specific
+ * identifier so that old trails can still be processed, but new trails use
+ * the Solaris identifier.
  */
 #define	AUE_GETFSSTAT		43001
 #define	AUE_PTRACE		43002
@@ -356,7 +397,7 @@
 #define	AUE_PROFILE		43005
 #define	AUE_KTRACE		43006
 #define	AUE_SETLOGIN		43007
-#define	AUE_REVOKE		43008
+#define	AUE_OPENBSM_REVOKE	43008	/* Solaris event now preferred. */
 #define	AUE_UMASK		43009
 #define	AUE_MPROTECT		43010
 #define	AUE_MKFIFO		43011
@@ -367,7 +408,7 @@
 #define	AUE_ADDPROFILE		43016	/* Darwin-specific. */
 #define	AUE_KDEBUGTRACE		43017	/* Darwin-specific. */
 #define	AUE_KDBUGTRACE		AUE_KDEBUGTRACE
-#define	AUE_FSTAT		43018
+#define	AUE_OPENBSM_FSTAT	43018	/* Solaris event now preferred. */
 #define	AUE_FPATHCONF		43019
 #define	AUE_GETDIRENTRIES	43020
 #define	AUE_SYSCTL		43021
@@ -497,6 +538,16 @@
 #define	AUE_LISTEN		43140	/* FreeBSD/Darwin/Linux. */
 #define	AUE_MLOCKALL		43141	/* FreeBSD. */
 #define	AUE_MUNLOCKALL		43142	/* FreeBSD. */
+#define	AUE_CLOSEFROM		43143	/* FreeBSD. */
+#define	AUE_FEXECVE		43144	/* FreeBSD. */
+#define	AUE_FACCESSAT		43145	/* FreeBSD. */
+#define	AUE_FCHMODAT		43146	/* FreeBSD. */
+#define	AUE_LINKAT		43147	/* FreeBSD. */
+#define	AUE_MKDIRAT		43148	/* FreeBSD. */
+#define	AUE_MKFIFOAT		43149	/* FreeBSD. */
+#define	AUE_MKNODAT		43150	/* FreeBSD. */
+#define	AUE_READLINKAT		43151	/* FreeBSD. */
+#define	AUE_SYMLINKAT		43152	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
