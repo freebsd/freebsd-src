@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#48 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#49 $
  */
 
 #include <sys/types.h>
@@ -1306,6 +1306,7 @@ print_arg32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		print_delim(fp, del);
 		print_4_bytes(fp, tok->tt.arg32.val, "0x%x");
 		print_delim(fp, del);
+		print_string(fp, tok->tt.arg32.text, tok->tt.arg32.len);
 	}
 }
 
