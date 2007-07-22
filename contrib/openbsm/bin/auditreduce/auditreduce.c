@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#18 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#19 $
  */
 
 /* 
@@ -629,6 +629,7 @@ main(int argc, char **argv)
 				usage("d is exclusive with a and b");
 			}
 			SETOPT(opttochk, OPT_a);
+			bzero(&tm, sizeof(tm));
 			strptime(optarg, "%Y%m%d%H%M%S", &tm);
 			strftime(timestr, sizeof(timestr), "%Y%m%d%H%M%S",
 			    &tm);
@@ -641,6 +642,7 @@ main(int argc, char **argv)
 				usage("d is exclusive with a and b");
 			}
 			SETOPT(opttochk, OPT_b);
+			bzero(&tm, sizeof(tm));
 			strptime(optarg, "%Y%m%d%H%M%S", &tm);
 			strftime(timestr, sizeof(timestr), "%Y%m%d%H%M%S",
 			    &tm);
@@ -661,6 +663,7 @@ main(int argc, char **argv)
 			    OPT_a))
 				usage("'d' is exclusive with 'a' and 'b'");
 			SETOPT(opttochk, OPT_d);
+			bzero(&tm, sizeof(tm));
 			strptime(optarg, "%Y%m%d", &tm);
 			strftime(timestr, sizeof(timestr), "%Y%m%d", &tm);
 			/* fprintf(stderr, "Time converted = %s\n", timestr); */
