@@ -783,6 +783,9 @@ product AINCOMM AWU2000B	0x1001	AWU2000B Wireless adapter
 /* AIPTEK products */
 product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
 
+/* AirPrime products */
+product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
+
 /* AKS products */
 product AKS USBHASP		0x0001	USB-HASP 0.06
 
@@ -860,7 +863,7 @@ product ATEN UC1284		0x2001	Parallel printer
 product ATEN UC10T		0x2002	10Mbps ethernet
 product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
-product ATEN UC210T		0x2000	UC-210T Ethernet
+product ATEN UC210T		0x2009	UC-210T Ethernet
 product ATEN DSB650C		0x4000	DSB-650C
 
 /* Atheros Communications products */
@@ -978,6 +981,7 @@ product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
 /* CMOTECH products */
 product CMOTECH CNU510		0x5141	CMOTECH CDMA Technologies USB modem
 product CMOTECH CNU550		0x5543	CDMA 2000 1xRTT/1xEVDO USB modem
+product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
 
 /* Compaq products */
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
@@ -1473,6 +1477,7 @@ product KYOCERA FINECAM_S4	0x0101	Finecam S4
 product KYOCERA FINECAM_S5	0x0103	Finecam S5
 product KYOCERA FINECAM_L3	0x0105	Finecam L3
 product KYOCERA AHK3001V	0x0203	AH-K3001V
+product KYOCERA2 CDMA_MSM_K	0x17da	Qualcomm Kyocera CDMA Technologies MSM
 
 /* LaCie products */
 product LACIE HD		0xa601	Hard Disk
@@ -1557,7 +1562,7 @@ product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 
 /* MetaGeek products */
-product METAGEEK WISPY		0x083e	MetaGeek Wi-Spy
+product METAGEEK WISPYX		0x083e	MetaGeek Wi-Spy
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
@@ -1639,6 +1644,10 @@ product MITSUMI FDD		0x6901	USB FDD
 product MOBILITY EA		0x0204	Ethernet
 product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
 
+/* MosChip products */
+product MOSCHIP MCS7703		0x7703	MCS7703 Serial Port Adapter
+product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
+
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
@@ -1712,7 +1721,9 @@ product NOVATECH NV902		0x9020	NovaTech NV-902W
 product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
+product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
 product NOVATEL U740		0x1400	Merlin U740
+product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
@@ -1878,7 +1889,8 @@ product RALINK RT2570_3		0x9020	RT2500USB wireless adapter
 product RALINK RT2573_2		0x9021	RT2501USB wireless adapter
 
 /* ReakTek products */
-product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet (GREEN HOUSE)
+/* Green House and CompUSA OEM this part */
+product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 
 /* Roland products */
 product ROLAND UM1		0x0009	UM-1 MIDI I/F
@@ -1959,6 +1971,7 @@ product SIEMENS3 X65		0x0003	X65
 product SIEMENS3 X75		0x0004	X75
 
 /* Sierra Wireless products */
+product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
 
 /* Sigmatel products */
@@ -2097,6 +2110,9 @@ product TEAC FD05PUB		0x0000	FD-05PUB floppy
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
+
+/* Ten X Technology, Inc. */
+product TENX UAUDIO0		0xf211	USB audio headset
 
 /* Texas Intel products */
 product TI UTUSB41		0x1446	UT-USB41 hub
