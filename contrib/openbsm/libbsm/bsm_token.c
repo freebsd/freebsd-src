@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#62 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#63 $
  */
 
 #include <sys/types.h>
@@ -411,7 +411,7 @@ au_to_in_addr_ex(struct in6_addr *internet_addr)
 
 	ADD_U_CHAR(dptr, AUT_IN_ADDR_EX);
 	ADD_U_INT32(dptr, type);
-	ADD_MEM(dptr, internet_addr, 5 * sizeof(uint32_t));
+	ADD_MEM(dptr, internet_addr, 4 * sizeof(uint32_t));
 
 	return (t);
 }

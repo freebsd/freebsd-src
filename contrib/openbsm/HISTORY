@@ -1,3 +1,14 @@
+OpenBSM 1.0 alpha 15
+
+- Fix bug when processing in_addr_ex tokens.
+- Restore the behavior of printing the string/text specified while
+  auditing arg32 tokens.
+- Synchronized audit event list to Solaris, picking up the *at(2) system call
+  definitions, now required for FreeBSD and Linux.  Added additional events
+  for *at(2) system calls not present in Solaris.
+- Bugs in auditreduce(8) fixed allowing partial date strings to be used in
+  filtering events.
+
 OpenBSM 1.0 alpha 14
 
 - Fix endian issues when processing IPv6 addresses for extended subject
@@ -284,4 +295,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#50 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#55 $
