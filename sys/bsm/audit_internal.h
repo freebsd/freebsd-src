@@ -6,8 +6,6 @@
  * This code was developed in part by Robert N. M. Watson, Senior Principal
  * Scientist, SPARTA, Inc.
  *
- * @APPLE_BSD_LICENSE_HEADER_START@
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,9 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @APPLE_BSD_LICENSE_HEADER_END@
- *
- * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_internal.h#16
+ * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_internal.h#18
  * $FreeBSD$
  */
 
