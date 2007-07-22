@@ -445,9 +445,10 @@ rt2661_alloc_tx_ring(struct rt2661_softc *sc, struct rt2661_tx_ring *ring,
 	ring->queued = 0;
 	ring->cur = ring->next = ring->stat = 0;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * RT2661_TX_DESC_SIZE, 1,
-	    count * RT2661_TX_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * RT2661_TX_DESC_SIZE, 1, count * RT2661_TX_DESC_SIZE,
+	    0, NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -476,9 +477,9 @@ rt2661_alloc_tx_ring(struct rt2661_softc *sc, struct rt2661_tx_ring *ring,
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, RT2661_MAX_SCATTER,
-	    MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    RT2661_MAX_SCATTER, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -585,9 +586,10 @@ rt2661_alloc_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring,
 	ring->count = count;
 	ring->cur = ring->next = 0;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * RT2661_RX_DESC_SIZE, 1,
-	    count * RT2661_RX_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * RT2661_RX_DESC_SIZE, 1, count * RT2661_RX_DESC_SIZE,
+	    0, NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -619,9 +621,9 @@ rt2661_alloc_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring,
 	/*
 	 * Pre-allocate Rx buffers and populate Rx ring.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
-	    NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
