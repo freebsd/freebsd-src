@@ -1562,7 +1562,7 @@ product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
 
 /* MetaGeek products */
-product METAGEEK WISPYX		0x083e	MetaGeek Wi-Spy
+product METAGEEK WISPYX		0x083e	MetaGeek Wi-Spy 2.4x
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
