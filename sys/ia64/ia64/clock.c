@@ -142,7 +142,8 @@ inittodr(time_t base)
 	ct.mon = tm.tm_mon;
 	ct.year = tm.tm_year;
 	ct.dow = -1;
-	clock_ct_to_ts(&ct, &ts);
+	if (clock_ct_to_ts(&ct, &ts))
+		printf("Invalid time in clock: check and reset the date!\n");
 	ts.tv_sec += utc_offset();
 
 	/*
