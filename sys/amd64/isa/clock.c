@@ -686,8 +686,7 @@ inittodr(time_t base)
 	return;
 
 wrong_time:
-	printf("Invalid time in real time clock.\n");
-	printf("Check and reset the date immediately!\n");
+	printf("Invalid time in clock: check and reset the date!\n");
 }
 
 /*
