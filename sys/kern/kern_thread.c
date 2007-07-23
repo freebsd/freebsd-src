@@ -550,7 +550,9 @@ thread_unthread(struct thread *td)
 
 	KASSERT((p->p_numthreads == 1), ("Unthreading with >1 threads"));
 #ifdef KSE
+	thread_lock(td);
 	upcall_remove(td);
+	thread_unlock(td);
 	p->p_flag &= ~(P_SA|P_HADTHREADS);
 	td->td_mailbox = NULL;
 	td->td_pflags &= ~(TDP_SA | TDP_CAN_UNBIND);

@@ -870,7 +870,6 @@ void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 /* New in KSE. */
 #ifdef KSE
 void	kse_unlink(struct thread *);
-void	kse_GC(void);
 void	kseinit(void);
 void	upcall_remove(struct thread *td);
 #endif
