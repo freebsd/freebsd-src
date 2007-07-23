@@ -2416,7 +2416,7 @@ mac_mls_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (!mac_mls_dominate_effective(obj, subj))
 		return (EACCES);
 
-	obj = SLOT(dvplabel);
+	obj = SLOT(vplabel);
 	if (!mac_mls_dominate_effective(obj, subj))
 		return (EACCES);
 
