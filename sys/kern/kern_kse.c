@@ -68,9 +68,6 @@ static void thread_alloc_spare(struct thread *td);
 static struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 static struct kse_upcall *upcall_alloc(void);
 static void upcall_free(struct kse_upcall *ku);
-static void upcall_link(struct kse_upcall *ku, struct proc *p);
-static void upcall_unlink(struct kse_upcall *ku);
-static void upcall_stash(struct kse_upcall *ke);
 
 
 struct mtx kse_lock;
@@ -93,30 +90,11 @@ upcall_free(struct kse_upcall *ku)
 }
 
 void
-upcall_link(struct kse_upcall *ku, struct proc *p)
-{
-
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
-	TAILQ_INSERT_TAIL(&p->p_upcalls, ku, ku_link);
-	ku->ku_proc = p;
-}
-
-void
-upcall_unlink(struct kse_upcall *ku)
-{
-	struct proc *p = ku->ku_proc;
-
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
-	KASSERT(ku->ku_owner == NULL, ("%s: have owner", __func__));
-	TAILQ_REMOVE(&p->p_upcalls, ku, ku_link);
-	upcall_stash(ku);
-}
-
-void
 upcall_remove(struct thread *td)
 {
 
 	PROC_SLOCK_ASSERT(td->td_proc, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_upcall != NULL) {
 		/*
 	 	* If we are not a bound thread then decrement the count of
@@ -124,8 +102,12 @@ upcall_remove(struct thread *td)
 	 	*/
 		if (td->td_pflags & TDP_SA) 
 			td->td_proc->p_numupcalls--;
+		mtx_lock_spin(&kse_lock);
 		td->td_upcall->ku_owner = NULL;
-		upcall_unlink(td->td_upcall);
+		TAILQ_REMOVE(&td->td_upcall->ku_proc->p_upcalls, td->td_upcall,
+		    ku_link);
+		TAILQ_INSERT_HEAD(&zombie_upcalls, td->td_upcall, ku_link);
+		mtx_unlock_spin(&kse_lock);
 		td->td_upcall = NULL;
 	}
 }
@@ -157,8 +139,12 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 	struct kse_upcall *ku;
 	int error;
 
-	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
+	thread_lock(td);
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td)) {
+		thread_unlock(td);
 		return (EINVAL);
+	}
+	thread_unlock(td);
 	error = (uap->tmbx == NULL) ? EINVAL : 0;
 	if (!error)
 		error = copyin(uap->tmbx, &tmbx, sizeof(tmbx));
@@ -181,11 +167,11 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 			else
 				ptrace_clear_single_step(td);
 			if (tmbx.tm_dflags & TMDF_SUSPEND) {
-				PROC_SLOCK(td->td_proc);
+				thread_lock(td);
 				/* fuword can block, check again */
 				if (td->td_upcall)
 					ku->ku_flags |= KUF_DOUPCALL;
-				PROC_SUNLOCK(td->td_proc);
+				thread_unlock(td);
 			}
 			_PRELE(td->td_proc);
 		}
@@ -219,8 +205,12 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 
 	p = td->td_proc;
 
-	if (!(p->p_flag & P_SA))
+	PROC_LOCK(p);
+	if (!(p->p_flag & P_SA)) {
+		PROC_UNLOCK(p);
 		return (EINVAL);
+	}
+	PROC_UNLOCK(p);
 
 	switch (uap->cmd) {
 	case KSE_INTR_SENDSIG:
@@ -274,16 +264,18 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 		/* this sub-function is only for bound thread */
 		if (td->td_pflags & TDP_SA)
 			return (EINVAL);
+		thread_lock(td);
 		ku = td->td_upcall;
+		thread_unlock(td);
 		tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 		if (tmbx == NULL || tmbx == (void *)-1)
 			return (EINVAL);
 		flags = 0;
+		PROC_LOCK(p);
 		while ((p->p_flag & P_TRACED) && !(p->p_flag & P_SINGLE_EXIT)) {
 			flags = fuword32(&tmbx->tm_dflags);
 			if (!(flags & TMDF_SUSPEND))
 				break;
-			PROC_LOCK(p);
 			PROC_SLOCK(p);
 			thread_stopped(p);
 			PROC_UNLOCK(p);
@@ -292,7 +284,9 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			PROC_SUNLOCK(p);
 			mi_switch(SW_VOL, NULL);
 			thread_unlock(td);
+			PROC_LOCK(p);
 		}
+		PROC_UNLOCK(p);
 		return (0);
 
 	case KSE_INTR_EXECVE:
@@ -338,9 +332,12 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	/* 
 	 * Ensure that this is only called from the UTS
 	 */
-	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
+	thread_lock(td);
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td)) {
+		thread_unlock(td);
 		return (EINVAL);
-
+	}
+	thread_unlock(td);
 
 	/*
 	 * Calculate the existing non-exiting upcalls in this process.
@@ -384,7 +381,9 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 		psignal(p, SIGSEGV);
 	sigqueue_flush(&td->td_sigqueue);
 	PROC_SLOCK(p);
+	thread_lock(td);
 	upcall_remove(td);
+	thread_unlock(td);
 	if (p->p_numthreads != 1) {
 		thread_stopped(p);
 		thread_exit();
@@ -435,10 +434,13 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	int error;
 
 	p = td->td_proc;
+	thread_lock(td);
 	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td)) {
+		thread_unlock(td);
 		printf("kse_release: called outside of threading. exiting");
 		exit1(td, 0);
 	}
+	thread_unlock(td);
 	if (uap->timeout != NULL) {
 		if ((error = copyin(uap->timeout, &timeout, sizeof(timeout))))
 			return (error);
@@ -508,9 +510,11 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	td2 = NULL;
 	ku = NULL;
 	/* KSE-enabled processes only, please. */
-	if (!(p->p_flag & P_SA))
-		return (EINVAL);
 	PROC_LOCK(p);
+	if (!(p->p_flag & P_SA)) {
+		PROC_UNLOCK(p);
+		return (EINVAL);
+	}
 	PROC_SLOCK(p);
 	if (uap->mbx) {
 		FOREACH_UPCALL_IN_PROC(p, ku) {
@@ -531,10 +535,14 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		PROC_UNLOCK(p);
 		return (ESRCH);
 	}
+	mtx_lock_spin(&kse_lock);
 	if ((td2 = ku->ku_owner) == NULL) {
+		mtx_unlock_spin(&kse_lock);
 		PROC_SUNLOCK(p);
+		PROC_UNLOCK(p);
 		panic("%s: no owner", __func__);
 	} else if (td2->td_kflags & (TDK_KSEREL | TDK_KSERELSIG)) {
+		mtx_unlock_spin(&kse_lock);
 		if (!(td2->td_kflags & TDK_WAKEUP)) {
 			td2->td_kflags |= TDK_WAKEUP;
 			if (td2->td_kflags & TDK_KSEREL)
@@ -544,6 +552,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		}
 	} else {
 		ku->ku_flags |= KUF_DOUPCALL;
+		mtx_unlock_spin(&kse_lock);
 	}
 	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
@@ -582,6 +591,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * suddenly start calling this one
 	 * XXX  maybe...
 	 */
+	PROC_LOCK(p);
 	if ((p->p_flag & (P_SA|P_HADTHREADS)) == P_HADTHREADS) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
@@ -590,6 +600,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		first = 1;
 		p->p_flag |= P_SA|P_HADTHREADS;
 	}
+	PROC_UNLOCK(p);
 
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
@@ -662,7 +673,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * Make the new upcall available to the process.
 	 * It may or may not use it, but it's available.
 	 */
-	upcall_link(newku, p);
+	TAILQ_INSERT_TAIL(&p->p_upcalls, newku, ku_link);
+	newku->ku_proc = p;
 	PROC_UNLOCK(p);
 	if (mbx.km_quantum)
 /* XXX should this be in the thread? */
@@ -786,44 +798,6 @@ kseinit(void)
 }
 
 /*
- * Stash an embarasingly extra upcall into the zombie upcall queue.
- */
-
-void
-upcall_stash(struct kse_upcall *ku)
-{
-	mtx_lock_spin(&kse_lock);
-	TAILQ_INSERT_HEAD(&zombie_upcalls, ku, ku_link);
-	mtx_unlock_spin(&kse_lock);
-}
-
-/*
- * Reap zombie kse resource.
- */
-void
-kse_GC(void)
-{
-	struct kse_upcall *ku_first, *ku_next;
-
-	/*
-	 * Don't even bother to lock if none at this instant,
-	 * we really don't care about the next instant..
-	 */
-	if (!TAILQ_EMPTY(&zombie_upcalls)) {
-		mtx_lock_spin(&kse_lock);
-		ku_first = TAILQ_FIRST(&zombie_upcalls);
-		if (ku_first)
-			TAILQ_INIT(&zombie_upcalls);
-		mtx_unlock_spin(&kse_lock);
-		while (ku_first) {
-			ku_next = TAILQ_NEXT(ku_first, ku_link);
-			upcall_free(ku_first);
-			ku_first = ku_next;
-		}
-	}
-}
-
-/*
  * Store the thread context in the UTS's mailbox.
  * then add the mailbox at the head of a list we are building in user space.
  * The list is anchored in the proc structure.
@@ -885,6 +859,7 @@ thread_export_context(struct thread *td, int willexit)
 		}
 		PROC_LOCK(p);
 		if (mbx == (uintptr_t)p->p_completed) {
+			thread_lock(td);
 			p->p_completed = td->td_mailbox;
 			/*
 			 * The thread context may be taken away by
@@ -893,6 +868,7 @@ thread_export_context(struct thread *td, int willexit)
 			 * use it again in any other places.
 			 */
 			td->td_mailbox = NULL;
+			thread_unlock(td);
 			PROC_UNLOCK(p);
 			break;
 		}
@@ -968,8 +944,12 @@ thread_update_usr_ticks(struct thread *td)
 	caddr_t addr;
 	u_int uticks;
 
-	if (td->td_mailbox == NULL)
+	thread_lock(td);
+	if (td->td_mailbox == NULL) {
+		thread_unlock(td);
 		return (-1);
+	}
+	thread_unlock(td);
 
 	if ((uticks = td->td_uuticks) != 0) {
 		td->td_uuticks = 0;
@@ -1173,7 +1153,9 @@ thread_user_enter(struct thread *td)
 	 * note where our mailbox is.
 	 */
 
+	thread_lock(td);
 	ku = td->td_upcall;
+	thread_unlock(td);
 
 	KASSERT(ku != NULL, ("no upcall owned"));
 	KASSERT(ku->ku_owner == td, ("wrong owner"));
@@ -1200,16 +1182,18 @@ thread_user_enter(struct thread *td)
 		} else {
 			td->td_mailbox = tmbx;
 			td->td_pflags |= TDP_CAN_UNBIND;
+			PROC_LOCK(p);
 			if (__predict_false(p->p_flag & P_TRACED)) {
 				flags = fuword32(&tmbx->tm_dflags);
 				if (flags & TMDF_SUSPEND) {
-					PROC_SLOCK(td->td_proc);
+					thread_lock(td);
 					/* fuword can block, check again */
 					if (td->td_upcall)
 						ku->ku_flags |= KUF_DOUPCALL;
-					PROC_SUNLOCK(td->td_proc);
+					thread_unlock(td);
 				}
 			}
+			PROC_UNLOCK(p);
 		}
 	}
 }
@@ -1249,6 +1233,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	}
 
 	p = td->td_proc;
+	thread_lock(td);
 	ku = td->td_upcall;
 
 	/*
@@ -1258,6 +1243,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * then it can return direct to userland.
 	 */
 	if (TD_CAN_UNBIND(td)) {
+		thread_unlock(td);
 		td->td_pflags &= ~TDP_CAN_UNBIND;
 		if ((td->td_flags & TDF_NEEDSIGCHK) == 0 &&
 		    (p->p_completed == NULL) &&
@@ -1281,6 +1267,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		td->td_pflags |= TDP_UPCALLING;
 	} else if (td->td_mailbox && (ku == NULL)) {
+		thread_unlock(td);
 		thread_export_context(td, 1);
 		PROC_LOCK(p);
 		if (p->p_upsleeps)
@@ -1292,15 +1279,16 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
-	}
+	} else
+		thread_unlock(td);
 
 	KASSERT(ku != NULL, ("upcall is NULL"));
 	KASSERT(TD_CAN_UNBIND(td) == 0, ("can unbind"));
 
+	PROC_LOCK(p);
+	PROC_SLOCK(p);
 	if (p->p_numthreads > max_threads_per_proc) {
 		max_threads_hits++;
-		PROC_LOCK(p);
-		PROC_SLOCK(p);
 		while (p->p_numthreads > max_threads_per_proc) {
 			if (p->p_numupcalls >= max_threads_per_proc)
 				break;
@@ -1309,13 +1297,12 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			    "maxthreads", hz/10) != EWOULDBLOCK) {
 				PROC_SLOCK(p);
 				break;
-			} else {
+			} else
 				PROC_SLOCK(p);
-			}
 		}
-		PROC_SUNLOCK(p);
-		PROC_UNLOCK(p);
 	}
+	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
 
 	if (td->td_pflags & TDP_UPCALLING) {
 		uts_crit = 0;
