@@ -83,24 +83,30 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	size_t len;
 
 	len = sizeof(mfctable);
-	if (sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL, 0) < 0) {
-		warn("sysctl: net.inet.ip.mfctable");
-		/* Compatability with older kernels - candidate for removal */
-		if (mfcaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
-			return;
+	if (!live ||
+	    sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL, 0) < 0) {
+		if (!live) {
+			warn("sysctl: net.inet.ip.mfctable");
+			/* Compatability with older kernels - candidate for removal */
+			if (mfcaddr == 0) {
+				printf("No IPv4 multicast routing compiled into this system.\n");
+				return;
+			}
 		}
 
 		kread(mfcaddr, (char *)mfctable, sizeof(mfctable));
 	}
 
 	len = sizeof(viftable);
-	if (sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL, 0) < 0) {
-		warn("sysctl: net.inet.ip.viftable");
-		/* Compatability with older kernels - candidate for removal */
-		if (vifaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
-			return;
+	if (!live ||
+	    sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL, 0) < 0) {
+		if (!live) {
+			warn("sysctl: net.inet.ip.viftable");
+			/* Compatability with older kernels - candidate for removal */
+			if (vifaddr == 0) {
+				printf("No IPv4 multicast routing compiled into this system.\n");
+				return;
+			}
 		}
 
 		kread(vifaddr, (char *)viftable, sizeof(viftable));
@@ -265,13 +271,15 @@ mrt_stats(u_long mstaddr)
 	struct mrtstat mrtstat;
 	size_t len = sizeof mrtstat;
 
-	if (sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len,
-				NULL, 0) < 0) {
-		warn("sysctl: net.inet.ip.mrtstat");
-		/* Compatability with older kernels - candidate for removal */
-		if (mstaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
-			return;
+	if (!live ||
+	    sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len, NULL, 0) < 0) {
+		if (!live) {
+			warn("sysctl: net.inet.ip.mrtstat");
+			/* Compatability with older kernels - candidate for removal */
+			if (mstaddr == 0) {
+				printf("No IPv4 multicast routing compiled into this system.\n");
+				return;
+			}
 		}
 
 		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));

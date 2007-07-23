@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 
@@ -82,23 +83,25 @@ static void catchalarm(int);
 static int bdg_done;
 static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 #endif
+
 /* print bridge statistics */
 void
-bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
+bdg_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
+    struct bdg_stats s;
+    size_t slen;
     int i;
-    size_t slen ;
-    struct bdg_stats s ;
-    int mib[4] ;
 
     slen = sizeof(s);
-
-    mib[0] = CTL_NET ;
-    mib[1] = PF_LINK ;
-    mib[2] = IFT_ETHER ;
-    mib[3] = PF_BDG ;
-    if (sysctl(mib,4, &s,&slen,NULL,0)==-1)
-	return ; /* no bridging */
+    if (live) {
+	if (sysctlbyname("net.link.ether.bdgstats", &s, &slen, NULL, 0) < 0) {
+	    if (errno != ENOENT)
+		warn("sysctl: net.link.ether.bdgstats");
+	    return;
+	}
+    } else
+	kread(off, &s, slen);
+	    
 #ifdef INET6
     if (bdg_done != 0)
 	return;
@@ -123,24 +126,26 @@ bdg_stats(u_long dummy __unused, const char *name, int af1 __unused)
     }
 }
 
-
 /* 
  * Dump pfsync statistics structure.
  */
 void
-pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
+pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct pfsyncstats pfsyncstat, zerostat;
 	size_t len = sizeof(struct pfsyncstats);
 
-	if (zflag)
-		memset(&zerostat, 0, len);
-	if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
-	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		if (errno != ENOENT)
-			warn("sysctl: net.inet.pfsync.stats");
-		return;
-	}
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.pfsync.stats", &pfsyncstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet.pfsync.stats");
+			return;
+		}
+	} else
+		kread(off, &pfsyncstat, len);
 
 	printf("%s:\n", name);
 
