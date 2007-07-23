@@ -170,9 +170,11 @@ eeprom_attach(device_t dev)
 	}
 
 	if (bootverbose) {
-		mk48txx_gettime(dev, &ts);
-		device_printf(dev, "current time: %ld.%09ld\n", (long)ts.tv_sec,
-		    ts.tv_nsec);
+		if (mk48txx_gettime(dev, &ts) != 0)
+			device_printf(dev, "invalid time");
+		else
+			device_printf(dev, "current time: %ld.%09ld\n",
+			    (long)ts.tv_sec, ts.tv_nsec);
 	}
 
 	return (0);

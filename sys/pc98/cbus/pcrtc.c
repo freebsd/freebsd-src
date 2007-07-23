@@ -638,7 +638,11 @@ inittodr(time_t base)
 	ct.year = bcd2bin(rtc_inb() & 0xff) + 1900;	/* year */
 	if (ct.year < 1995)
 		ct.year += 100;
-	clock_ct_to_ts(&ct, &ts);
+	/* Should we set dow = -1 because some clocks don't set it correctly? */
+	if (clock_ct_to_ts(&ct, &ts)) {
+		printf("Invalid time in clock: check and reset the date!\n");
+		return;
+	}
 	ts.tv_sec += utc_offset();
 	tc_setclock(&ts);
 }
