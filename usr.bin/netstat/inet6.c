@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -361,22 +362,24 @@ static char *srcrule_str[] = {
  * Dump IP6 statistics structure.
  */
 void
-ip6_stats(u_long off __unused, const char *name, int af1 __unused)
+ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ip6stat ip6stat;
 	int first, i;
-	int mib[4];
 	size_t len;
 
-	mib[0] = CTL_NET;
-	mib[1] = PF_INET6;
-	mib[2] = IPPROTO_IPV6;
-	mib[3] = IPV6CTL_STATS;
-
 	len = sizeof ip6stat;
-	memset(&ip6stat, 0, len);
-	if (sysctl(mib, 4, &ip6stat, &len, (void *)0, 0) < 0)
-		return;
+	if (live) {
+		memset(&ip6stat, 0, len);
+		if (sysctlbyname("net.inet6.ip6.stats", &ip6stat, &len, NULL,
+		    0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet6.ip6.stats");
+			return;
+		}
+	} else
+		kread(off, &ip6stat, len);
+
 	printf("%s:\n", name);
 
 #define	p(f, m) if (ip6stat.f || sflag <= 1) \
@@ -840,22 +843,24 @@ static	const char *icmp6names[] = {
  * Dump ICMP6 statistics.
  */
 void
-icmp6_stats(u_long off __unused, const char *name, int af1 __unused)
+icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct icmp6stat icmp6stat;
 	int i, first;
-	int mib[4];
 	size_t len;
 
-	mib[0] = CTL_NET;
-	mib[1] = PF_INET6;
-	mib[2] = IPPROTO_ICMPV6;
-	mib[3] = ICMPV6CTL_STATS;
-
 	len = sizeof icmp6stat;
-	memset(&icmp6stat, 0, len);
-	if (sysctl(mib, 4, &icmp6stat, &len, (void *)0, 0) < 0)
-		return;
+	if (live) {
+		memset(&icmp6stat, 0, len);
+		if (sysctlbyname("net.inet6.icmp6.stats", &icmp6stat, &len,
+		    NULL, 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet6.icmp6.stats");
+			return;
+		}
+	} else
+		kread(off, &icmp6stat, len);
+
 	printf("%s:\n", name);
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
@@ -992,12 +997,10 @@ icmp6_ifstats(char *ifname)
  * Dump PIM statistics structure.
  */
 void
-pim6_stats(u_long off __unused, const char *name, int af1 __unused)
+pim6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct pim6stat pim6stat;
 
-	if (off == 0)
-		return;
 	if (kread(off, (char *)&pim6stat, sizeof(pim6stat)))
 		return;
 	printf("%s:\n", name);
@@ -1018,24 +1021,22 @@ pim6_stats(u_long off __unused, const char *name, int af1 __unused)
  * Dump raw ip6 statistics structure.
  */
 void
-rip6_stats(u_long off __unused, const char *name, int af1 __unused)
+rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct rip6stat rip6stat;
 	u_quad_t delivered;
-	int mib[4];
-	size_t l;
+	size_t len;
 
-	mib[0] = CTL_NET;
-	mib[1] = PF_INET6;
-	mib[2] = IPPROTO_IPV6;
-	mib[3] = IPV6CTL_RIP6STATS;
-	l = sizeof(rip6stat);
-	if (sysctl(mib, 4, &rip6stat, &l, NULL, 0) < 0) {
-		/* Just shut up if the kernel doesn't have ipv6. */
-		if (errno != ENOENT)
-			perror("Warning: sysctl(net.inet6.ip6.rip6stats)");
-		return;
-	}
+	len = sizeof(rip6stat);
+	if (live) {
+		if (sysctlbyname("net.inet6.ip6.rip6stats", &rip6stat, &len,
+		    NULL, 0) < 0) {
+			if (errno != ENOENT)
+				warn("sysctl: net.inet6.ip6.rip6stats");
+			return;
+		}
+	} else
+		kread(off, &rip6stat, len);
 
 	printf("%s:\n", name);
 
