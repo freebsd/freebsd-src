@@ -1912,7 +1912,6 @@ netinet6/raw_ip6.c		optional inet6
 netinet6/route6.c		optional inet6
 netinet6/scope6.c		optional inet6
 netinet6/sctp6_usrreq.c		optional inet6 sctp
-netinet6/udp6_output.c		optional inet6
 netinet6/udp6_usrreq.c		optional inet6
 netipsec/ipsec.c		optional ipsec
 netipsec/ipsec_input.c		optional ipsec
