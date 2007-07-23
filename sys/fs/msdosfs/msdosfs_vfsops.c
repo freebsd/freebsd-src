@@ -279,9 +279,12 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 				return (error);
 			DROP_GIANT();
 			g_topology_lock();
-			g_access(pmp->pm_cp, 0, -1, 0);
+			error = g_access(pmp->pm_cp, 0, -1, 0);
 			g_topology_unlock();
 			PICKUP_GIANT();
+			if (error)
+				return (error);
+
 			/* Now the volume is clean. Mark it. */
 			error = markvoldirty(pmp, 0);
 			if (error && (flags & FORCECLOSE) == 0)
@@ -402,11 +405,11 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
-	ronly = !vfs_getopt(mp->mnt_optnew, "ro", NULL, NULL);
+	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	/* XXX: use VOP_ACCESS to check FS perms */
 	DROP_GIANT();
 	g_topology_lock();
-	error = g_vfs_open(devvp, &cp, "msdos", ronly ? 0 : 1);
+	error = g_vfs_open(devvp, &cp, "msdosfs", ronly ? 0 : 1);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
@@ -444,6 +447,15 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	pmp->pm_mountp = mp;
 	pmp->pm_cp = cp;
 	pmp->pm_bo = bo;
+
+	/*
+	 * Initialize ownerships and permissions, since nothing else will
+	 * initialize them iff we are mounting root.
+	 */
+	pmp->pm_uid = UID_ROOT;
+	pmp->pm_gid = GID_WHEEL;
+	pmp->pm_mask = pmp->pm_dirmask = S_IXUSR | S_IXGRP | S_IXOTH |
+	    S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR;
 
 	/*
 	 * Experimental support for large MS-DOS filesystems.
