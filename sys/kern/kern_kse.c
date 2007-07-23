@@ -67,7 +67,6 @@ static int thread_update_usr_ticks(struct thread *td);
 static void thread_alloc_spare(struct thread *td);
 static struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 static struct kse_upcall *upcall_alloc(void);
-static void upcall_free(struct kse_upcall *ku);
 
 
 struct mtx kse_lock;
@@ -80,13 +79,6 @@ upcall_alloc(void)
 
 	ku = uma_zalloc(upcall_zone, M_WAITOK | M_ZERO);
 	return (ku);
-}
-
-void
-upcall_free(struct kse_upcall *ku)
-{
-
-	uma_zfree(upcall_zone, ku);
 }
 
 void
