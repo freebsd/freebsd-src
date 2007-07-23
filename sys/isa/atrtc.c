@@ -679,8 +679,7 @@ inittodr(time_t base)
 
 	/* Look if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR)) {
-		printf("Invalid time in real time clock.\n");
-		printf("Check and reset the date immediately!\n");
+		printf("Invalid time in clock: check and reset the date!\n");
 		return;
 	}
 
@@ -704,7 +703,11 @@ inittodr(time_t base)
 #else
 	ct.year += 2000;
 #endif
-	clock_ct_to_ts(&ct, &ts);
+	/* Should we set dow = -1 because some clocks don't set it correctly? */
+	if (clock_ct_to_ts(&ct, &ts)) {
+		printf("Invalid time in clock: check and reset the date!\n");
+		return;
+	}
 	ts.tv_sec += utc_offset();
 	tc_setclock(&ts);
 }
