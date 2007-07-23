@@ -268,7 +268,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	mtx_init(&tmp->allnode_lock, "tmpfs allnode lock", NULL, MTX_DEF);
 	tmp->tm_nodes_max = nodes;
 	tmp->tm_nodes_inuse = 0;
-	tmp->tm_maxfilesize = get_swpgtotal() * PAGE_SIZE;
+	tmp->tm_maxfilesize = (cnt.v_page_count + get_swpgtotal()) * PAGE_SIZE;
 	LIST_INIT(&tmp->tm_nodes_used);
 
 	tmp->tm_pages_max = pages;
