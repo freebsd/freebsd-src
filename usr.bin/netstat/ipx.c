@@ -81,7 +81,7 @@ extern char *tcpstates[];
  */
 
 void
-ipxprotopr(u_long off, const char *name, int af1 __unused)
+ipxprotopr(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ipxpcbhead cb;
 	struct ipxpcb *ipxp;
@@ -154,7 +154,7 @@ ipxprotopr(u_long off, const char *name, int af1 __unused)
  * Dump SPX statistics structure.
  */
 void
-spx_stats(u_long off, const char *name, int af1 __unused)
+spx_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct spx_istat spx_istat;
 #define spxstat spx_istat.newstats
@@ -230,7 +230,7 @@ spx_stats(u_long off, const char *name, int af1 __unused)
  * Dump IPX statistics structure.
  */
 void
-ipx_stats(u_long off, const char *name, int af1 __unused)
+ipx_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct ipxstat ipxstat;
 
@@ -273,7 +273,7 @@ static	struct {
  */
 /*ARGSUSED*/
 void
-ipxerr_stats(u_long off, const char *name, int af __unused)
+ipxerr_stats(u_long off, const char *name, int af __unused, int proto __unused)
 {
 	struct ipx_errstat ipx_errstat;
 	int j;
