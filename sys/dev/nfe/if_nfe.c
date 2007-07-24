@@ -108,7 +108,7 @@ static void nfe_init(void *);
 static void nfe_init_locked(void *);
 static void nfe_stop(struct ifnet *);
 static int  nfe_alloc_rx_ring(struct nfe_softc *, struct nfe_rx_ring *);
-static int  nfe_alloc_jrx_ring(struct nfe_softc *, struct nfe_jrx_ring *);
+static void nfe_alloc_jrx_ring(struct nfe_softc *, struct nfe_jrx_ring *);
 static int  nfe_init_rx_ring(struct nfe_softc *, struct nfe_rx_ring *);
 static int  nfe_init_jrx_ring(struct nfe_softc *, struct nfe_jrx_ring *);
 static void nfe_free_rx_ring(struct nfe_softc *, struct nfe_rx_ring *);
@@ -151,8 +151,10 @@ static int nfedebug = 0;
 /* Tunables. */
 static int msi_disable = 0;
 static int msix_disable = 0;
+static int jumbo_disable = 0;
 TUNABLE_INT("hw.nfe.msi_disable", &msi_disable);
 TUNABLE_INT("hw.nfe.msix_disable", &msix_disable);
+TUNABLE_INT("hw.nfe.jumbo_disable", &jumbo_disable);
 
 static device_method_t nfe_methods[] = {
 	/* Device interface */
@@ -513,8 +515,7 @@ nfe_attach(device_t dev)
 	if ((error = nfe_alloc_rx_ring(sc, &sc->rxq)) != 0)
 		goto fail;
 
-	if ((error = nfe_alloc_jrx_ring(sc, &sc->jrxq)) != 0)
-		goto fail;
+	nfe_alloc_jrx_ring(sc, &sc->jrxq);
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1140,7 +1141,7 @@ fail:
 }
 
 
-static int
+static void
 nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 {
 	struct nfe_dmamap_arg ctx;
@@ -1151,7 +1152,12 @@ nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 	int i, error, descsize;
 
 	if ((sc->nfe_flags & NFE_JUMBO_SUP) == 0)
-		return (0);
+		return;
+	if (jumbo_disable != 0) {
+		device_printf(sc->nfe_dev, "disabling jumbo frame support\n");
+		sc->nfe_jumbo_disable = 1;
+		return;
+	}
 
 	if (sc->nfe_flags & NFE_40BIT_ADDR) {
 		desc = ring->jdesc64;
@@ -1301,11 +1307,17 @@ nfe_alloc_jrx_ring(struct nfe_softc *sc, struct nfe_jrx_ring *ring)
 		    jpool_entries);
 	}
 
-	return (0);
+	return;
 
 fail:
+	/*
+	 * Running without jumbo frame support is ok for most cases
+	 * so don't fail on creating dma tag/map for jumbo frame.
+	 */
 	nfe_free_jrx_ring(sc, ring);
-	return (error);
+	device_printf(sc->nfe_dev, "disabling jumbo frame support due to "
+	    "resource shortage\n");
+	sc->nfe_jumbo_disable = 1;
 }
 
 
@@ -1671,7 +1683,10 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		return;
 	}
 
-	nfe_rxeof(sc, count);
+	if (sc->nfe_framesize > MCLBYTES - ETHER_HDR_LEN)
+		nfe_jrxeof(sc, count);
+	else
+		nfe_rxeof(sc, count);
 	nfe_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->nfe_tx_task);
@@ -1746,7 +1761,8 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > NFE_JUMBO_MTU)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
-			if ((sc->nfe_flags & NFE_JUMBO_SUP) == 0 &&
+			if ((((sc->nfe_flags & NFE_JUMBO_SUP) == 0) ||
+			    (sc->nfe_jumbo_disable != 0)) &&
 			    ifr->ifr_mtu > ETHERMTU)
 				error = EINVAL;
 			else {
