@@ -2123,9 +2123,10 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
 
 
 
+/* sctp_ifap is used to bypass normal local address validation checks */
 int
 sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
-    struct thread *p)
+    struct sctp_ifa *sctp_ifap, struct thread *p)
 {
 	/* bind a ep to a socket address */
 	struct sctppcbhead *head;
@@ -2396,8 +2397,17 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 * zero out the port to find the address! yuck! can't do
 		 * this earlier since need port for sctp_pcb_findep()
 		 */
-		ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
-		    vrf_id, 0);
+		if (sctp_ifap != NULL)
+			ifa = sctp_ifap;
+		else {
+			/*
+			 * Note for BSD we hit here always other O/S's will
+			 * pass things in via the sctp_ifap argument
+			 * (Panda).
+			 */
+			ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
+			    vrf_id, 0);
+		}
 		if (ifa == NULL) {
 			/* Can't find an interface with that address */
 			SCTP_INP_WUNLOCK(inp);
@@ -3401,6 +3411,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		 */
 		if ((err = sctp_inpcb_bind(inp->sctp_socket,
 		    (struct sockaddr *)NULL,
+		    (struct sctp_ifa *)NULL,
 		    p
 		    ))) {
 			/* bind error, probably perm */
@@ -4461,13 +4472,12 @@ sctp_del_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 }
 
 /*
- * Add the addr to the TCB local address list For the BOUNDALL or dynamic
- * case, this is a "pending" address list (eg. addresses waiting for an
- * ASCONF-ACK response) For the subset binding, static case, this is a
- * "valid" address list
+ * Add the address to the TCB local address restricted list.
+ * This is a "pending" address list (eg. addresses waiting for an
+ * ASCONF-ACK response) and cannot be used as a valid source address.
  */
 void
-sctp_add_local_addr_assoc(struct sctp_tcb *stcb, struct sctp_ifa *ifa, int restricted_list)
+sctp_add_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 {
 	struct sctp_inpcb *inp;
 	struct sctp_laddr *laddr;
@@ -4538,10 +4548,10 @@ sctp_remove_laddr(struct sctp_laddr *laddr)
 }
 
 /*
- * Remove an address from the TCB local address list
+ * Remove a local address from the TCB local address restricted list
  */
 void
-sctp_del_local_addr_assoc(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
+sctp_del_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 {
 	struct sctp_inpcb *inp;
 	struct sctp_laddr *laddr;

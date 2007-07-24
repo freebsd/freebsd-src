@@ -1301,12 +1301,14 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sctp_nets *alt;
 	struct sctp_tmit_chunk *asconf, *chk;
 
-	/* is this the first send, or a retransmission? */
+	/* is this a first send, or a retransmission? */
 	if (stcb->asoc.asconf_sent == 0) {
 		/* compose a new ASCONF chunk and send it */
 		sctp_send_asconf(stcb, net);
 	} else {
-		/* Retransmission of the existing ASCONF needed... */
+		/*
+		 * Retransmission of the existing ASCONF is needed
+		 */
 
 		/* find the existing ASCONF */
 		TAILQ_FOREACH(asconf, &stcb->asoc.control_send_queue,
@@ -1324,25 +1326,21 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/* Assoc is over */
 			return (1);
 		}
-		/*
-		 * PETER? FIX? How will the following code ever run? If the
-		 * max_send_times is hit, threshold managment will blow away
-		 * the association?
-		 */
 		if (asconf->snd_count > stcb->asoc.max_send_times) {
 			/*
-			 * Something is rotten, peer is not responding to
-			 * ASCONFs but maybe is to data etc.  e.g. it is not
-			 * properly handling the chunk type upper bits Mark
-			 * this peer as ASCONF incapable and cleanup
+			 * Something is rotten: our peer is not responding
+			 * to ASCONFs but apparently is to other chunks.
+			 * i.e. it is not properly handling the chunk type
+			 * upper bits. Mark this peer as ASCONF incapable
+			 * and cleanup.
 			 */
 			SCTPDBG(SCTP_DEBUG_TIMER1, "asconf_timer: Peer has not responded to our repeated ASCONFs\n");
 			sctp_asconf_cleanup(stcb, net);
 			return (0);
 		}
 		/*
-		 * cleared theshold management now lets backoff the address
-		 * & select an alternate
+		 * cleared threshold management, so now backoff the net and
+		 * select an alternate
 		 */
 		sctp_backoff_on_timeout(stcb, asconf->whoTo, 1, 0);
 		alt = sctp_find_alternate_net(stcb, asconf->whoTo, 0);
@@ -1350,7 +1348,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		asconf->whoTo = alt;
 		atomic_add_int(&alt->ref_count, 1);
 
-		/* See if a ECN Echo is also stranded */
+		/* See if an ECN Echo is also stranded */
 		TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 			if ((chk->whoTo == net) &&
 			    (chk->rec.chunk_id.id == SCTP_ECN_ECHO)) {
@@ -1366,7 +1364,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
 			/*
 			 * If the address went un-reachable, we need to move
-			 * to alternates for ALL chk's in queue
+			 * to the alternate for ALL chunks in queue
 			 */
 			sctp_move_all_chunks_to_alt(stcb, net, alt);
 		}
