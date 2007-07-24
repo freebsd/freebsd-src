@@ -573,7 +573,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if (inp == 0)
 		return EINVAL;
 
-	error = sctp_inpcb_bind(so, addr, p);
+	error = sctp_inpcb_bind(so, addr, NULL, p);
 	return error;
 }
 
@@ -1170,7 +1170,6 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 	} else {
 		struct sctp_laddr *laddr;
 
-		/* The list is a NEGATIVE list */
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 			if (stcb) {
 				if (sctp_is_addr_restricted(stcb, laddr->ifa)) {
@@ -1345,7 +1344,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -3479,7 +3478,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_peer_rwnd = 0;
 				sasoc->sasoc_local_rwnd = 0;
 				if (sasoc->sasoc_cookie_life) {
-					stcb->asoc.cookie_life = sasoc->sasoc_cookie_life;
+					stcb->asoc.cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
 
 				}
 				SCTP_TCB_UNLOCK(stcb);
@@ -3805,7 +3804,7 @@ sctp_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
 	    SCTP_PCB_FLAGS_UNBOUND) {
 		/* Bind a ephemeral port */
-		error = sctp_inpcb_bind(so, NULL, p);
+		error = sctp_inpcb_bind(so, NULL, NULL, p);
 		if (error) {
 			goto out_now;
 		}
@@ -3916,7 +3915,7 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		/* We must do a bind. */
 		SOCK_UNLOCK(so);
 		SCTP_INP_RUNLOCK(inp);
-		if ((error = sctp_inpcb_bind(so, NULL, p))) {
+		if ((error = sctp_inpcb_bind(so, NULL, NULL, p))) {
 			/* bind error, probably perm */
 			return (error);
 		}

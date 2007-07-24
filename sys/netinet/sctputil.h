@@ -219,6 +219,8 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
     struct sockaddr *sa, sctp_assoc_t assoc_id,
     uint32_t vrf_id, int *error);
 
+int sctp_local_addr_count(struct sctp_tcb *stcb);
+
 #ifdef SCTP_MBCNT_LOGGING
 void
 sctp_free_bufspace(struct sctp_tcb *, struct sctp_association *,
