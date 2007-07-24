@@ -555,6 +555,14 @@ gotit:
 		_ypbindlist = ysd;
 	}
 
+	/*
+	 * Set low retry timeout to realistically handle UDP packet
+	 * loss for YP packet bursts.
+	 */
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	clnt_control(ysd->dom_client, CLSET_RETRY_TIMEOUT, (char*)&tv);
+
 	if (ypdb != NULL)
 		*ypdb = ysd;
 	return (0);
@@ -822,14 +830,6 @@ again:
 		YPUNLOCK();
 		return (YPERR_DOMAIN);
 	}
-
-	/*
-	 * Set low retry timeout to realistically handle UDP packet
-	 * loss for yp_next packet bursts.
-	 */
-	tv.tv_sec = 1;
-	tv.tv_usec = 0;
-	clnt_control(ysd->dom_client, CLSET_RETRY_TIMEOUT, (char*)&tv);
 
 	tv.tv_sec = _yplib_timeout;
 	tv.tv_usec = 0;
