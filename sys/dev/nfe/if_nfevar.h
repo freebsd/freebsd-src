@@ -103,6 +103,7 @@ struct nfe_softc {
 #define	NFE_PWR_MGMT		0x0010
 #define	NFE_CORRECT_MACADDR	0x0020
 #define	NFE_TX_FLOW_CTRL	0x0040
+	int			nfe_jumbo_disable;
 	uint32_t		rxtxctl;
 	uint8_t			mii_phyaddr;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
