@@ -556,8 +556,10 @@ struct sctp_cc_functions {
 struct sctp_association {
 	/* association state */
 	int state;
+
 	/* queue of pending addrs to add/delete */
 	struct sctp_asconf_addrhead asconf_queue;
+
 	struct timeval time_entered;	/* time we entered state */
 	struct timeval time_last_rcvd;
 	struct timeval time_last_sent;
@@ -567,20 +569,22 @@ struct sctp_association {
 	/* timers and such */
 	struct sctp_timer hb_timer;	/* hb timer */
 	struct sctp_timer dack_timer;	/* Delayed ack timer */
-	struct sctp_timer asconf_timer;	/* Asconf */
+	struct sctp_timer asconf_timer;	/* asconf */
 	struct sctp_timer strreset_timer;	/* stream reset */
-	struct sctp_timer shut_guard_timer;	/* guard */
+	struct sctp_timer shut_guard_timer;	/* shutdown guard */
 	struct sctp_timer autoclose_timer;	/* automatic close timer */
 	struct sctp_timer delayed_event_timer;	/* timer for delayed events */
 
-	/* list of local addresses when add/del in progress */
+	/* list of restricted local addresses */
 	struct sctpladdr sctp_restricted_addrs;
 
-	struct sctpnetlisthead nets;
+	/* last local address pending deletion (waiting for an address add) */
+	struct sctp_ifa *asconf_addr_del_pending;
+
+	struct sctpnetlisthead nets;	/* remote address list */
 
 	/* Free chunk list */
 	struct sctpchunk_listhead free_chunks;
-
 
 	/* Control chunk queue */
 	struct sctpchunk_listhead control_send_queue;
@@ -594,7 +598,6 @@ struct sctp_association {
 	 */
 	struct sctpchunk_listhead sent_queue;
 	struct sctpchunk_listhead send_queue;
-
 
 	/* re-assembly queue for fragmented chunks on the inbound path */
 	struct sctpchunk_listhead reasmqueue;
@@ -617,12 +620,6 @@ struct sctp_association {
 
 	/* If an iterator is looking at me, this is it */
 	struct sctp_iterator *stcb_starting_point_for_iterator;
-
-	/* ASCONF destination address last sent to */
-/*	struct sctp_nets *asconf_last_sent_to;*/
-/* Peter, greppign for the above shows only on strange set
- * I don't think we need it so I have commented it out.
- */
 
 	/* ASCONF save the last ASCONF-ACK so we can resend it if necessary */
 	struct mbuf *last_asconf_ack_sent;
@@ -907,7 +904,8 @@ struct sctp_association {
 	 * lock flag: 0 is ok to send, 1+ (duals as a retran count) is
 	 * awaiting ACK
 	 */
-	uint16_t asconf_sent;	/* possibly removable REM */
+	uint16_t asconf_sent;
+
 	uint16_t mapping_array_size;
 
 	uint16_t last_strm_seq_delivered;
@@ -944,6 +942,7 @@ struct sctp_association {
 	uint8_t hb_random_idx;
 	uint8_t hb_is_disabled;	/* is the hb disabled? */
 	uint8_t default_tos;
+	uint8_t asconf_del_pending;	/* asconf delete last addr pending */
 
 	/* ECN Nonce stuff */
 	uint8_t receiver_nonce_sum;	/* nonce I sum and put in my sack */
