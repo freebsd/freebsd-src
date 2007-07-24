@@ -45,14 +45,15 @@ use of the SCSI protocol over TCP/IP networks,
 the
 .Nm
 program is the userland side of an iSCSI session, see
-iscsi_initiator(4).
+.Xr iscsi_initiator 4 .
 It has 2 modes of operation, if -d (discovery session) is specified,
 it will print out the
 .Em target names
 returned by the target and exit.
-In the second mode, it will, after a succesful login/negotiation, run
+In the second mode, it will, after a successful login/negotiation, run
 in daemon mode, monitoring the connection, and will try to reconnect
-in case of a network/target failure. It will terminate/logout the session
+in case of a network/target failure.
+It will terminate/logout the session
 when a SIGHUP signal is received.
 The flags are as follows:
 .Bl -tag -width variable=value
@@ -65,17 +66,21 @@ and exit.
 .It Fl c Ar file
 a file containing configuration
 .Em key-options ,
-see iscsi.conf(5)
+see
+.Xr iscsi.conf 5
 .It Fl n Ar nickname
 if
 .Sy -c file
 is specified, then search for the block named
 .Em nickname
-in that file, see iscsi.conf(5)
+in that file, see
+.Xr iscsi.conf 5
 .It Fl t Ar target
 is the target's IP address or name
 .It Ar variable Ns = Ns Ar value
-see iscsi.conf(5) for the complete list of variables/options and their
+see
+.Xr iscsi.conf 5
+for the complete list of variables/options and their
 possible values.
 .El
 .Sh EXAMPLES
@@ -87,21 +92,23 @@ with the target and
 print to stdout the list of available targetnames/targetadresses.
 Note: this listing does not necessarily mean availability, since
 depending on the target configuration, a discovery session might
-not need login/access permition, but a 
+not need login/access permission, but a 
 .Em full session
 certainly does.
 .sp
 .Dl iscontrol -c /etc/iscsi.conf -n myiscsi
 .Pp
-will read options from file /etc/iscsi.conf, use the targetaddress
+will read options from
+.Pa /etc/iscsi.conf ,
+use the targetaddress
 found in the block nicknamed myiscsi, login and negotiate
 whatever options are specified, and start an iscsi-session.
 .Sh SEE ALSO
-.Xr iscsi_initiator 4 ,
-.Xr iscsi.conf 5 ,
-.Xr camcontrol 8 ,
 .Xr da 4 ,
-.Xr sa 4
+.Xr iscsi_initiator 4 ,
+.Xr sa 4 ,
+.Xr iscsi.conf 5 ,
+.Xr camcontrol 8
 .Sh STANDARDS
 RFC 3720
 .\"Sh HISTORY
@@ -110,7 +117,7 @@ RFC 3720
 should probably load the iscsi_initiator module if needed.
 .br
 Not all functions/specifications have been implemented yet, noticeably
-missing are the Task Management Funtions.
+missing are the Task Management Functions.
 The error recovery, though not
 .Em fully compliant
 does a brave effort to recover from network disconnects.
