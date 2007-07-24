@@ -47,11 +47,12 @@ iscsi_initiator_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-implements the kernel side of the Internet ISCSI (iSCSI) network
+implements the kernel side of the Internet SCSI (iSCSI) network
 protocol standard, the user land companion is
-.Xr iscontrol 8, and permits access to remote
+.Xr iscontrol 8 ,
+and permits access to remote
 .Em virtual
-SCSI devices via the
+SCSI devices via
 .Xr cam 4 .
 .Sh SYSCTL VARIABLES
 .Bl -tag -width ".Va net.iscsi.n.targeaddress"
@@ -83,21 +84,21 @@ see
 .El
 .Sh FILES
 The 
-.NM 
+.Nm
 driver creates the following:
 .Bl -tag -width ".Pa /dev/iscsi%dxx" -compact
+.Pp
 .It Pa /dev/iscsi
-used to creat new sessions.
+used to create new sessions.
 .It Pa /dev/iscsi%d
 for each new session.
 .El
-.\" .Sh ERRORS
 .Sh SEE ALSO
-.Xr iscontrol 8 ,
 .Xr cam 4 ,
-.Xr camcontrol 8
+.Xr camcontrol 8 ,
+.Xr iscontrol 8
 .Sh STANDARDS
-ISCSI RFC 3720
+iSCSI RFC 3720
 .\" .Sh HISTORY
 .\" .Sh AUTHORS
 .Sh BUGS

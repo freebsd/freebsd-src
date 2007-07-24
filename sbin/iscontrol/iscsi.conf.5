@@ -35,7 +35,8 @@ The file
 .Nm ,
 is read by the
 .Xr iscontrol 8
-program, it contains declarations and parameter/key-options.
+program.
+It contains declarations and parameter/key-options.
 The syntax is very simple,
 .D1 Li variable = value;
 and they can be grouped via a 
@@ -55,13 +56,16 @@ The following are specified in the iSCSI RFC 3720,
 for a full description see sections 11/12 of the RFC.
 .Bl -tag -width MaxConnections
 .It Cm AuthMethod
-current only supported authentication method is CHAP, with
-digest either MD5 or SHA. Default is none.
+currently only supported authentication method is CHAP, with
+digest either MD5 or SHA.
+Default is none.
 .It Cm HeaderDigest
 a 
 .Em digest
 is calculated on the header of all iSCSI PDUs, and
-checked. Only CRC32C is implemented. Default is none.
+checked.
+Only CRC32C is implemented.
+Default is none.
 .It Cm DataDigest
 same as for HeaderDigest, but on the data part of the iSCSI PDU.
 .It Cm MaxConnections
@@ -118,7 +122,7 @@ option.
 .It Cm ErrorRecoveryLevel
 Only level 0 is supported.
 .It Cm SessionType
-either Discovery  or Normal, default is Normal, see the
+either Discovery or Normal, default is Normal, see the
 .Fl d
 flag of
 .Cm iscontrol .
@@ -128,7 +132,7 @@ The following are not specified in the
 .Sy RFC 3720
 .Bl -tag -width sockbufsize
 .It Cm port
-The iscsi port used by the iscsi protocol, defaults to 3260.
+The iSCSI port used by the iSCSI protocol, defaults to 3260.
 .It Cm tags
 Sets the
 .Em tag opening
@@ -137,23 +141,25 @@ to the value specified.
 overrides the compiled value of
 .Sy luns ,
 see 
-.Xr iscsi_initiator 4 . This value can only be reduced.
+.Xr iscsi_initiator 4 .
+This value can only be reduced.
 .It Cm sockbufsize
 sets the receiver and transmitter socket buffer size to
 .Em size,
-in kilobites. The default is 128.
+in kilobytes.
+The default is 128.
 .El
 .sp
 If
-.Em AutheMethod
+.Em AuthMethod
 is set to
 .Cm CHAP ,
 then the following must also be set:
 .Bl -tag -width chapSecret
 .It Cm chapSecret
 this
-.Em shared-secret.
-Can be either an ascci string (e.g. hello world), a hex string (e.g
+.Em shared-secret .
+Can be either an ASCII string (e.g. hello world), a hex string (e.g
 0xababcd0987654321...), or base64 string (eg 0b...)
 .It Cm chapIName
 the chap-name, defaults to
@@ -188,7 +194,7 @@ chaptest {
 }
 .Ed
 .Sh ERRORS
-The parsing is very primitive, so don't expect - at the moment - any
+The parsing is very primitive, so do not expect - at the moment - any
 error messages.
 .Sh SEE ALSO
 .Xr iscsi_initiator 4 ,
