@@ -150,7 +150,7 @@ ttyh0	"/usr/libexec/getty std.9600"	hp2621-nl	on group=dialup	# 457 Evans
 # John's terminal: vt100
 ttyh1	"/usr/libexec/getty std.9600"	vt100	on group=dialup		# 459 Evans
 # terminal emulate/window system
-ttyv0	"/usr/X11R6/bin/xterm -display :0"	xterm	on window="/usr/X11R6/bin/X :0"
+ttyv0	"/usr/local/bin/xterm -display :0"	xterm	on window="/usr/local/bin/X :0"
 # Network pseudo ttys -- don't enable getty
 ttyp0	none	network 	group=pty
 ttyp1	none	network	off	group=pty
