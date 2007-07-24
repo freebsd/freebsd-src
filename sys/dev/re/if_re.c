@@ -160,6 +160,10 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 
 #include <pci/if_rlreg.h>
 
+/* Tunables. */
+static int msi_disable = 0;
+TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+
 #define RE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 /*
@@ -1159,6 +1163,7 @@ re_attach(dev)
 	int			hwrev;
 	u_int16_t		re_did = 0;
 	int			error = 0, rid, i;
+	int			msic, reg;
 
 	sc = device_get_softc(dev);
 	sc->rl_dev = dev;
@@ -1185,15 +1190,45 @@ re_attach(dev)
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
-	/* Allocate interrupt */
-	rid = 0;
-	sc->rl_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	msic = 0;
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		msic = pci_msi_count(dev);
+		if (bootverbose)
+			device_printf(dev, "MSI count : %d\n", msic);
+	}
+	if (msic == RL_MSI_MESSAGES  && msi_disable == 0) {
+		if (pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == RL_MSI_MESSAGES) {
+				device_printf(dev, "Using %d MSI messages\n",
+				    msic);
+				sc->rl_msi = 1;
+		} else
+			pci_release_msi(dev);
+		}
+	}
 
-	if (sc->rl_irq == NULL) {
-		device_printf(dev, "couldn't map interrupt\n");
-		error = ENXIO;
-		goto fail;
+	/* Allocate interrupt */
+	if (sc->rl_msi == 0) {
+		rid = 0;
+		sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+		    RF_SHAREABLE | RF_ACTIVE);
+		if (sc->rl_irq[0] == NULL) {
+			device_printf(dev, "couldn't allocate IRQ resources\n");
+			error = ENXIO;
+			goto fail;
+		}
+	} else {
+		for (i = 0, rid = 1; i < RL_MSI_MESSAGES; i++, rid++) {
+			sc->rl_irq[i] = bus_alloc_resource_any(dev,
+			    SYS_RES_IRQ, &rid, RF_ACTIVE);
+			if (sc->rl_irq[i] == NULL) {
+				device_printf(dev,
+				    "couldn't llocate IRQ resources for "
+				    "message %d\n", rid);
+				error = ENXIO;
+				goto fail;
+			}
+		}
 	}
 
 	/* Reset the adapter. */
@@ -1320,8 +1355,19 @@ re_attach(dev)
 #endif
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE, 
-	    re_intr, NULL, sc, &sc->rl_intrhand);
+	if (sc->rl_msi == 0)
+		error = bus_setup_intr(dev, sc->rl_irq[0],
+		    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
+		    &sc->rl_intrhand[0]);
+	else {
+		for (i = 0; i < RL_MSI_MESSAGES; i++) {
+			error = bus_setup_intr(dev, sc->rl_irq[i],
+			    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
+		    	    &sc->rl_intrhand[i]);
+			if (error != 0)
+				break;
+		}
+	}
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
@@ -1348,7 +1394,7 @@ re_detach(dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
-	int			i;
+	int			i, rid;
 
 	sc = device_get_softc(dev);
 	ifp = sc->rl_ifp;
@@ -1393,12 +1439,31 @@ re_detach(dev)
 	 * stopped here.
 	 */
 
-	if (sc->rl_intrhand)
-		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+	for (i = 0; i < RL_MSI_MESSAGES; i++) {
+		if (sc->rl_intrhand[i] != NULL) {
+			bus_teardown_intr(dev, sc->rl_irq[i],
+			    sc->rl_intrhand[i]);
+			sc->rl_intrhand[i] = NULL;
+		}
+	}
 	if (ifp != NULL)
 		if_free(ifp);
-	if (sc->rl_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
+	if (sc->rl_msi == 0) {
+		if (sc->rl_irq[0] != NULL) {
+			bus_release_resource(dev, SYS_RES_IRQ, 0,
+			    sc->rl_irq[0]);
+			sc->rl_irq[0] = NULL;
+		}
+	} else {
+		for (i = 0, rid = 1; i < RL_MSI_MESSAGES; i++, rid++) {
+			if (sc->rl_irq[i] != NULL) {
+				bus_release_resource(dev, SYS_RES_IRQ, rid,
+				    sc->rl_irq[i]);
+				sc->rl_irq[i] = NULL;
+			}
+		}
+		pci_release_msi(dev);
+	}
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
