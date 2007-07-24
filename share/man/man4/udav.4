@@ -43,6 +43,7 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device ehci"
 .Cd "device uhci"
 .Cd "device ohci"
 .Cd "device usb"
@@ -64,6 +65,8 @@ driver supports the following adapters:
 .Bl -bullet -compact
 .It
 Corega FEther USB-TXC
+.It
+ShanTou ST268 USB NIC
 .El
 .Sh DESCRIPTION
 The
