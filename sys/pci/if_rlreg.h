@@ -664,6 +664,8 @@ struct rl_stats {
 #define RE_RX_DESC_BUFLEN	MCLBYTES
 #endif
 
+#define	RL_MSI_MESSAGES	2
+
 #define RL_ADDR_LO(y)		((uint64_t) (y) & 0xFFFFFFFF)
 #define RL_ADDR_HI(y)		((uint64_t) (y) >> 32)
 
@@ -710,8 +712,8 @@ struct rl_softc {
 	bus_space_tag_t		rl_btag;	/* bus space tag */
 	device_t		rl_dev;
 	struct resource		*rl_res;
-	struct resource		*rl_irq;
-	void			*rl_intrhand;
+	struct resource		*rl_irq[RL_MSI_MESSAGES];
+	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	bus_dma_tag_t		rl_tag;
@@ -742,6 +744,7 @@ struct rl_softc {
 	struct mtx		rl_intlock;
 	int			rl_txstart;
 	int			rl_link;
+	int			rl_msi;
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)

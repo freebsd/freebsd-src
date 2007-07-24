@@ -828,10 +828,10 @@ rl_attach(device_t dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->rl_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
-	if (sc->rl_irq == NULL) {
+	if (sc->rl_irq[0] == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
@@ -971,8 +971,8 @@ rl_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, rl_intr, sc, &sc->rl_intrhand);
+	error = bus_setup_intr(dev, sc->rl_irq[0], INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, rl_intr, sc, &sc->rl_intrhand[0]);
 	if (error) {
 		device_printf(sc->rl_dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
@@ -1022,10 +1022,10 @@ rl_detach(device_t dev)
 		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);
 
-	if (sc->rl_intrhand)
-		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
-	if (sc->rl_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
+	if (sc->rl_intrhand[0])
+		bus_teardown_intr(dev, sc->rl_irq[0], sc->rl_intrhand[0]);
+	if (sc->rl_irq[0])
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq[0]);
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
 
