@@ -41,6 +41,7 @@ SUBDIR=	adjkerntz \
 	init \
 	${_ipf} \
 	ipfw \
+	iscontrol \
 	kldconfig \
 	kldload \
 	kldstat \
