@@ -1441,6 +1441,7 @@ device		ahc
 device		ahd
 device		amd
 device		esp
+device		iscsi_initiator
 device		isp
 hint.isp.0.disable="1"
 hint.isp.0.role="3"
@@ -1505,6 +1506,10 @@ options 	AHD_TMODE_ENABLE
 # The adw driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set.
 options 	ADW_ALLOW_MEMIO
+
+# Options used in dev/iscsi (Software iSCSI stack)
+#
+options		ISCSI_INITIATOR_DEBUG=9
 
 # Options used in dev/isp/ (Qlogic SCSI/FC driver).
 #
