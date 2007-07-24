@@ -258,6 +258,8 @@ static const struct udav_type {
 } udav_devs [] = {
 	/* Corega USB-TXC */
 	{{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_FETHER_USB_TXC }, 0},
+	/* ShanTou ST268 USB NIC */
+	{{ USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ST268 }, 0},
 #if 0
 	/* DAVICOM DM9601 Generic? */
 	/*  XXX: The following ids was obtained from the data sheet. */
