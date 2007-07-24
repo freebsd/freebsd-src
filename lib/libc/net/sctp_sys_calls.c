@@ -240,7 +240,10 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 {
 	struct sctp_getaddresses *gaddrs;
 	struct sockaddr *sa;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
 	int i, sz, argsz;
+	uint16_t sport = 0;
 
 	/* validate the flags */
 	if ((flags != SCTP_BINDX_ADD_ADDR) &&
@@ -260,7 +263,58 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		errno = ENOMEM;
 		return (-1);
 	}
+	/* First pre-screen the addresses */
 	sa = addrs;
+	for (i = 0; i < addrcnt; i++) {
+		sz = sa->sa_len;
+		if (sa->sa_family == AF_INET) {
+			if (sa->sa_len != sizeof(struct sockaddr_in))
+				goto out_error;
+			sin = (struct sockaddr_in *)sa;
+			if (sin->sin_port) {
+				/* non-zero port, check or save */
+				if (sport) {
+					/* Check against our port */
+					if (sport != sin->sin_port) {
+						goto out_error;
+					}
+				} else {
+					/* save off the port */
+					sport = sin->sin_port;
+				}
+			}
+		} else if (sa->sa_family == AF_INET6) {
+			if (sa->sa_len != sizeof(struct sockaddr_in6))
+				goto out_error;
+			sin6 = (struct sockaddr_in6 *)sa;
+			if (sin6->sin6_port) {
+				/* non-zero port, check or save */
+				if (sport) {
+					/* Check against our port */
+					if (sport != sin6->sin6_port) {
+						goto out_error;
+					}
+				} else {
+					/* save off the port */
+					sport = sin6->sin6_port;
+				}
+			}
+		} else {
+			/* invalid address family specified */
+			goto out_error;
+		}
+
+
+	}
+	sa = addrs;
+	/*
+	 * Now if there was a port mentioned, assure that the first address
+	 * has that port to make sure it fails or succeeds correctly.
+	 */
+	if (sport) {
+		sin = (struct sockaddr_in *)sa;
+		sin->sin_port = sport;
+	}
 	for (i = 0; i < addrcnt; i++) {
 		sz = sa->sa_len;
 		if (sa->sa_family == AF_INET) {
@@ -298,7 +352,55 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		errno = EINVAL;
 		return (-1);
 	}
-	*(sctp_assoc_t *) arg = id;
+	switch (opt) {
+	case SCTP_RTOINFO:
+		((struct sctp_rtoinfo *)arg)->srto_assoc_id = id;
+		break;
+	case SCTP_ASSOCINFO:
+		((struct sctp_assocparams *)arg)->sasoc_assoc_id = id;
+		break;
+	case SCTP_DEFAULT_SEND_PARAM:
+		((struct sctp_assocparams *)arg)->sasoc_assoc_id = id;
+		break;
+	case SCTP_SET_PEER_PRIMARY_ADDR:
+		((struct sctp_setpeerprim *)arg)->sspp_assoc_id = id;
+		break;
+	case SCTP_PRIMARY_ADDR:
+		((struct sctp_setprim *)arg)->ssp_assoc_id = id;
+		break;
+	case SCTP_PEER_ADDR_PARAMS:
+		((struct sctp_paddrparams *)arg)->spp_assoc_id = id;
+		break;
+	case SCTP_MAXSEG:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_AUTH_KEY:
+		((struct sctp_authkey *)arg)->sca_assoc_id = id;
+		break;
+	case SCTP_AUTH_ACTIVE_KEY:
+		((struct sctp_authkeyid *)arg)->scact_assoc_id = id;
+		break;
+	case SCTP_DELAYED_SACK:
+		((struct sctp_sack_info *)arg)->sack_assoc_id = id;
+		break;
+	case SCTP_CONTEXT:
+		((struct sctp_assoc_value *)arg)->assoc_id = id;
+		break;
+	case SCTP_STATUS:
+		((struct sctp_status *)arg)->sstat_assoc_id = id;
+		break;
+	case SCTP_GET_PEER_ADDR_INFO:
+		((struct sctp_paddrinfo *)arg)->spinfo_assoc_id = id;
+		break;
+	case SCTP_PEER_AUTH_CHUNKS:
+		((struct sctp_authchunks *)arg)->gauth_assoc_id = id;
+		break;
+	case SCTP_LOCAL_AUTH_CHUNKS:
+		((struct sctp_authchunks *)arg)->gauth_assoc_id = id;
+		break;
+	default:
+		break;
+	}
 	return (getsockopt(sd, IPPROTO_SCTP, opt, arg, size));
 }
 
@@ -628,7 +730,10 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	int add_len, len, no_end_cx = 0;
 	struct sockaddr *at;
 
-
+	if (addrs == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 #ifdef SYS_sctp_generic_sendmsg
 	if (addrcnt < SCTP_SMALL_IOVEC_SIZE) {
 		socklen_t l;
@@ -643,10 +748,6 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	}
 #endif
 
-	if (addrs == NULL) {
-		errno = EINVAL;
-		return (-1);
-	}
 	len = sizeof(int);
 	at = addrs;
 	cnt = 0;

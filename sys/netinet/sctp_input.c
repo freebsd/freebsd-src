@@ -2345,15 +2345,20 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 			    stcb->sctp_ep, stcb, NULL);
 		}
 		/*
-		 * set ASCONF timer if ASCONFs are pending and allowed (eg.
-		 * addresses changed when init/cookie echo in flight)
+		 * send ASCONF if parameters are pending and ASCONFs are
+		 * allowed (eg. addresses changed when init/cookie echo were
+		 * in flight)
 		 */
 		if ((sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_DO_ASCONF)) &&
 		    (stcb->asoc.peer_supports_asconf) &&
 		    (!TAILQ_EMPTY(&stcb->asoc.asconf_queue))) {
+#ifdef SCTP_TIMER_BASED_ASCONF
 			sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
 			    stcb->sctp_ep, stcb,
 			    stcb->asoc.primary_destination);
+#else
+			sctp_send_asconf(stcb, stcb->asoc.primary_destination);
+#endif
 		}
 	}
 	/* Toss the cookie if I can */
