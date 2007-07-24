@@ -127,6 +127,7 @@ SUBDIR=	${_3dfx} \
 	${_ips} \
 	${_ipw} \
 	${_ipwfw} \
+	iscsi \
 	isp \
 	ispfw \
 	${_iwi} \
