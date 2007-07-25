@@ -32,6 +32,29 @@
 #define	NG_NAT_HOOK_IN	"in"
 #define	NG_NAT_HOOK_OUT	"out"
 
+/* Arguments for NGM_NAT_SET_MODE message */
+struct ng_nat_mode {
+	uint32_t	flags;
+	uint32_t	mask;
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_NAT_MODE_INFO {				\
+	  { "flags",	&ng_parse_uint32_type	},	\
+	  { "mask",	&ng_parse_uint32_type	},	\
+	  { NULL }					\
+}
+
+#define NG_NAT_LOG			0x01
+#define NG_NAT_DENY_INCOMING		0x02
+#define NG_NAT_SAME_PORTS		0x04
+#define NG_NAT_UNREGISTERED_ONLY	0x10
+#define NG_NAT_RESET_ON_ADDR_CHANGE	0x20
+#define NG_NAT_PROXY_ONLY		0x40
+#define NG_NAT_REVERSE			0x80
+
 enum {
 	NGM_NAT_SET_IPADDR = 1,
+	NGM_NAT_SET_MODE,
+	NGM_NAT_SET_TARGET,
 };
