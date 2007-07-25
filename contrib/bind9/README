@@ -43,6 +43,11 @@ BIND 9
 		Nominum, Inc.
 
 
+BIND 9.4.1-P1
+
+	BIND 9.4.1-P1 is a security release, containing a fixes for a
+	security bugs in BIND 9.4.1.
+
 BIND 9.4.1
 
 	BIND 9.4.1 is a security release, containing a fix for a

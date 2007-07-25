@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.66 2007/01/29 23:57:20 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.66.10.1 2007/07/09 02:23:16 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -5827,15 +5827,12 @@ options {
 	      <listitem>
 		<para>
 		  Specifies which hosts are allowed to get answers
-		  from the cache. The default is the builtin acls
-		  <command>localnets</command> and
-		  <command>localhost</command>.
-		</para>
-		<para>
-		  The way to set query access to the cache is now
-		  via <command>allow-query-cache</command>.
-		  This differs from earlier versions which used
-		  <command>allow-query</command>.
+		  from the cache.  If <command>allow-query-cache</command>
+		  is not set then <command>allow-recursion</command>
+		  is used if set, otherwise <command>allow-query</command>
+		  is used if set, otherwise the default
+		  (<command>localnets;</command>
+		  <command>localhost;</command>) is used.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -5843,16 +5840,16 @@ options {
             <varlistentry>
               <term><command>allow-recursion</command></term>
               <listitem>
-                <para>
+		<para>
 		  Specifies which hosts are allowed to make recursive
-		  queries through this server. If not specified,
-		  the default is to allow recursive queries from
-		  the builtin acls <command>localnets</command> and
-		  <command>localhost</command>.
-		  Note that disallowing recursive queries for a
-		  host does not prevent the host from retrieving
-		  data that is already in the server's cache.
-                </para>
+		  queries through this server. If
+		  <command>allow-recursion</command> is not set
+		  then <command>allow-query-cache</command> is
+		  used if set, otherwise <command>allow-query</command>
+		  is used if set, otherwise the default
+		  (<command>localnets;</command>
+		  <command>localhost;</command>) is used.
+		</para>
               </listitem>
             </varlistentry>
 
