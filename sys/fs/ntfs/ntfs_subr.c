@@ -889,7 +889,7 @@ ntfs_ntlookupfile(
 	cn_t            cn;	/* VCN in current attribute */
 	caddr_t         rdbuf;	/* Buffer to read directory's blocks  */
 	u_int32_t       blsize;
-	u_int32_t       rdsize;	/* Length of data to read from current block */
+	u_int64_t       rdsize;	/* Length of data to read from current block */
 	struct attr_indexentry *iep;
 	int             error, res, anamelen, fnamelen;
 	const char     *fname,*aname;
@@ -927,7 +927,7 @@ ntfs_ntlookupfile(
 			break;
 		}
 
-	dprintf(("ntfs_ntlookupfile: blksz: %d, rdsz: %d\n", blsize, rdsize));
+	dprintf(("ntfs_ntlookupfile: blksz: %d, rdsz: %jd\n", blsize, rdsize));
 
 	MALLOC(rdbuf, caddr_t, blsize, M_TEMP, M_WAITOK);
 
@@ -1175,7 +1175,7 @@ ntfs_ntreaddir(
 			goto fail;
 		}
 		cpbl = ntfs_btocn(blsize + ntfs_cntob(1) - 1);
-		dprintf(("ntfs_ntreaddir: indexalloc: %d, cpbl: %d\n",
+		dprintf(("ntfs_ntreaddir: indexalloc: %jd, cpbl: %d\n",
 			 iavap->va_datalen, cpbl));
 	} else {
 		dprintf(("ntfs_ntreadidir: w/o BitMap and IndexAllocation\n"));
@@ -1388,7 +1388,7 @@ ntfs_writeattr_plain(
 					ntfs_btocn(off), &vap);
 		if (error)
 			return (error);
-		towrite = min(left, ntfs_cntob(vap->va_vcnend + 1) - off);
+		towrite = MIN(left, ntfs_cntob(vap->va_vcnend + 1) - off);
 		ddprintf(("ntfs_writeattr_plain: o: %d, s: %d (%d - %d)\n",
 			 (u_int32_t) off, (u_int32_t) towrite,
 			 (u_int32_t) vap->va_vcnstart,
@@ -1433,7 +1433,7 @@ ntfs_writentvattr_plain(
 	struct uio *uio)
 {
 	int             error = 0;
-	int             off;
+	off_t           off;
 	int             cnt;
 	cn_t            ccn, ccl, cn, left, cl;
 	caddr_t         data = rdata;
@@ -1483,7 +1483,7 @@ ntfs_writentvattr_plain(
 			 * blocks at the same disk offsets to avoid
 			 * confusing the buffer cache.
 			 */
-			tocopy = min(left, ntfs_cntob(1) - off);
+			tocopy = MIN(left, ntfs_cntob(1) - off);
 			cl = ntfs_btocl(tocopy + off);
 			KASSERT(cl == 1 && tocopy <= ntfs_cntob(1),
 			    ("single cluster limit mistake"));
@@ -1544,7 +1544,7 @@ ntfs_readntvattr_plain(
 	struct uio *uio)
 {
 	int             error = 0;
-	int             off;
+	off_t           off;
 
 	*initp = 0;
 	if (vap->va_flag & NTFS_AF_INRUN) {
@@ -1589,7 +1589,7 @@ ntfs_readntvattr_plain(
 					 * same disk offsets to avoid
 					 * confusing the buffer cache.
 					 */
-					tocopy = min(left,
+					tocopy = MIN(left,
 					    ntfs_cntob(1) - off);
 					cl = ntfs_btocl(tocopy + off);
 					KASSERT(cl == 1 &&
@@ -1628,7 +1628,7 @@ ntfs_readntvattr_plain(
 					ccl -= cl;
 				}
 			} else {
-				tocopy = min(left, ntfs_cntob(ccl) - off);
+				tocopy = MIN(left, ntfs_cntob(ccl) - off);
 				ddprintf(("ntfs_readntvattr_plain: "
 					"hole: ccn: 0x%x ccl: %d, off: %d, " \
 					" len: %d, left: %d\n", 
@@ -1690,7 +1690,7 @@ ntfs_readattr_plain(
 					ntfs_btocn(off), &vap);
 		if (error)
 			return (error);
-		toread = min(left, ntfs_cntob(vap->va_vcnend + 1) - off);
+		toread = MIN(left, ntfs_cntob(vap->va_vcnend + 1) - off);
 		ddprintf(("ntfs_readattr_plain: o: %d, s: %d (%d - %d)\n",
 			 (u_int32_t) off, (u_int32_t) toread,
 			 (u_int32_t) vap->va_vcnstart,
@@ -1775,7 +1775,7 @@ ntfs_readattr(
 			if (error)
 				break;
 
-			tocopy = min(left, ntfs_cntob(NTFS_COMPUNIT_CL) - off);
+			tocopy = MIN(left, ntfs_cntob(NTFS_COMPUNIT_CL) - off);
 
 			if (init == ntfs_cntob(NTFS_COMPUNIT_CL)) {
 				if (uio)
