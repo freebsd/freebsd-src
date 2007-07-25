@@ -138,7 +138,7 @@ ntfs_read(ap)
 	if (uio->uio_offset > fp->f_size)
 		return (0);
 
-	resid = min(uio->uio_resid, fp->f_size - uio->uio_offset);
+	resid = MIN(uio->uio_resid, fp->f_size - uio->uio_offset);
 
 	dprintf((", resid: %d\n", resid));
 
@@ -147,7 +147,7 @@ ntfs_read(ap)
 		cn = ntfs_btocn(uio->uio_offset);
 		off = ntfs_btocnoff(uio->uio_offset);
 
-		toread = min(off + resid, ntfs_cntob(1));
+		toread = MIN(off + resid, ntfs_cntob(1));
 
 		error = bread(vp, cn, ntfs_cntob(1), NOCRED, &bp);
 		if (error) {
@@ -285,7 +285,7 @@ ntfs_strategy(ap)
 		(u_int32_t)bp->b_offset,(u_int32_t)bp->b_blkno,
 		(u_int32_t)bp->b_lblkno));
 
-	dprintf(("strategy: bcount: %d flags: 0x%lx\n", 
+	dprintf(("strategy: bcount: %d flags: 0x%x\n", 
 		(u_int32_t)bp->b_bcount,bp->b_flags));
 
 	if (bp->b_iocmd == BIO_READ) {
@@ -295,7 +295,7 @@ ntfs_strategy(ap)
 			clrbuf(bp);
 			error = 0;
 		} else {
-			toread = min(bp->b_bcount,
+			toread = MIN(bp->b_bcount,
 				 fp->f_size-ntfs_cntob(bp->b_blkno));
 			dprintf(("ntfs_strategy: toread: %d, fsize: %d\n",
 				toread,(u_int32_t)fp->f_size));
@@ -321,7 +321,7 @@ ntfs_strategy(ap)
 			bp->b_error = error = EFBIG;
 			bp->b_ioflags |= BIO_ERROR;
 		} else {
-			towrite = min(bp->b_bcount,
+			towrite = MIN(bp->b_bcount,
 				fp->f_size-ntfs_cntob(bp->b_blkno));
 			dprintf(("ntfs_strategy: towrite: %d, fsize: %d\n",
 				towrite,(u_int32_t)fp->f_size));
@@ -367,7 +367,7 @@ ntfs_write(ap)
 		return (EFBIG);
 	}
 
-	towrite = min(uio->uio_resid, fp->f_size - uio->uio_offset);
+	towrite = MIN(uio->uio_resid, fp->f_size - uio->uio_offset);
 
 	dprintf((", towrite: %d\n",(u_int32_t)towrite));
 
