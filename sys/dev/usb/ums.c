@@ -630,6 +630,14 @@ ums_enable(v)
 
 	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
+	/*
+	 * Force the report (non-boot) protocol.
+	 *
+	 * Mice without boot protocol support may choose not to implement
+	 * Set_Protocol at all; do not check for error.
+	 */
+	usbd_set_protocol(sc->sc_iface, 1);
+
 	/* Set up interrupt pipe. */
 	err = usbd_open_pipe_intr(sc->sc_iface, sc->sc_ep_addr,
 				USBD_SHORT_XFER_OK, &sc->sc_intrpipe, sc,
