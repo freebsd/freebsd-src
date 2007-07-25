@@ -1,4 +1,16 @@
 
+	--- 9.3.4-P1 released ---
+
+2203.	[security]	Query id generation was cryptographically weak.
+			[RT # 16915]
+
+2193.	[port]		win32: BINDInstall.exe is now linked statically.
+			[RT #16906]
+
+2192.	[port]		win32: use vcredist_x86.exe to install Visual
+			Studio's redistributable dlls if building with
+			Visual Stdio 2005 or later.
+
 	--- 9.3.4 released ---
 
 2126.	[security]	Serialise validation of type ANY responses. [RT #16555]
