@@ -787,6 +787,15 @@ ukbd_interrupt(keyboard_t *kbd, void *arg)
 			}
 		}
 		ADDKEY1(key | KEY_PRESS);
+		/*
+		 * If any other key is presently down, force its repeat to be
+		 * well in the future (100s).  This makes the last key to be
+		 * pressed do the autorepeat.
+		 */
+		for (j = 0; j < NKEYCODE; j++) {
+			if (j != i)
+				state->ks_ntime[j] = now + 100 * 1000;
+		}
 	pfound:
 		;
 	}
