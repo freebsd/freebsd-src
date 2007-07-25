@@ -1,4 +1,34 @@
 
+	--- 9.4.1-P1 released ---
+
+2206.	[security]	"allow-query-cache" and "allow-recursion" now
+			cross inherit from each other.
+
+			If allow-query-cache is not set in named.conf then
+			allow-recursion is used if set, otherwise allow-query
+			is used if set, otherwise the default (localnets;
+			localhost;) is used.
+
+			If allow-recursion is not set in named.conf then
+			allow-query-cache is used if set, otherwise allow-query
+			is used if set, otherwise the default (localnets;
+			localhost;) is used.
+
+			[RT #16987]
+	
+2203.	[security]	Query id generation was cryptographically weak.
+			[RT # 16915]
+
+2202.	[security]	The default acls for allow-query-cache and 
+			allow-recursion were not being applied. [RT #16960]
+
+2193.	[port]		win32: BINDInstall.exe is now linked statically.
+			[RT #16906]
+
+2192.	[port]		win32: use vcredist_x86.exe to install Visual
+			Studio's redistributable dlls if building with
+			Visual Stdio 2005 or later.
+
 	--- 9.4.1 released ---
 
 2172.	[bug]		query_addsoa() was being called with a non zone db.
