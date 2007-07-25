@@ -1413,6 +1413,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
         option; the <option>-a</option> option is now used to specify
         the authentication algorithm. &merged;</para>
 
+      <para>The &man.iscsi.initiator.4; driver, a kernel driver for
+	the Internet SCSI (iSCSI) protocol, has been added.  This
+	driver allows access to remote SCSI devices over TCP/IP
+	networks.  The &man.iscontrol.8; userland utility is used
+	to control the operation of the driver.</para>
+
       <para>The scsi_sg driver, which emulates a significant
 	subset of the Linux SCSI SG passthrough device API, has
 	been added.  It is
@@ -2195,7 +2201,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       April 2005 release to the 1 May 2007 release.</para>
 
     <para><application>BIND</application> has been updated from 9.3.1
-      to 9.4.1.</para>
+      to 9.4.1-p1.</para>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
@@ -2280,7 +2286,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       snapshot from OpenBSD as of 20060831.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 14, an implementation of the documented Sun Basic
+      version 1.0 alpha 15, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
       extensions to support the Mac OS X and &os; operating systems
       has been added.  This also includes command line tools for audit
