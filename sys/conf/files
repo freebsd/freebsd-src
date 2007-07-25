@@ -1486,6 +1486,8 @@ net/if_stf.c			optional stf
 net/if_tun.c			optional tun
 net/if_tap.c			optional tap
 net/if_vlan.c			optional vlan
+net/mppcc.c			optional netgraph_mppc_compression
+net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
 net/ppp_deflate.c		optional ppp_deflate
 net/ppp_tty.c			optional ppp
