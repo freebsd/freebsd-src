@@ -120,7 +120,7 @@ static int	compute_sb_data(struct vnode * devvp,
 
 static const char *ext2_opts[] = { "from", "export", "union", "acls", "exec",
     "atime", "union", "suiddir", "multilabel", "symfollow", "clusterr",
-    "clusterw", "force" };
+    "clusterw", "force", NULL };
  
 /*
  * VFS Operations.
