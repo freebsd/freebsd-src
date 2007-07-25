@@ -1100,10 +1100,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				else if (!tcp_timer_active(tp, TT_PERSIST))
 					tcp_timer_activate(tp, TT_REXMT,
 						      tp->t_rxtcur);
-				/*
-				 * NB: sowwakeup_locked() does an
-				 * implicit unlock.
-				 */
 				sowwakeup(so);
 				if (so->so_snd.sb_cc)
 					(void) tcp_output(tp);
@@ -1462,6 +1458,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcpstat.tcps_badrst++;
 					goto drop;
 				}
+				/* FALLTHROUGH */
 			case TCPS_FIN_WAIT_1:
 			case TCPS_FIN_WAIT_2:
 			case TCPS_CLOSE_WAIT:
@@ -2034,6 +2031,7 @@ process_ACK:
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
+		/* NB: sowwakeup_locked() does an implicit unlock. */
 		sowwakeup_locked(so);
 		/* Detect una wraparound. */
 		if ((tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
@@ -2307,7 +2305,7 @@ dodata:							/* XXX */
 		 */
 		case TCPS_SYN_RECEIVED:
 			tp->t_starttime = ticks;
-			/*FALLTHROUGH*/
+			/* FALLTHROUGH */
 		case TCPS_ESTABLISHED:
 			tp->t_state = TCPS_CLOSE_WAIT;
 			break;
