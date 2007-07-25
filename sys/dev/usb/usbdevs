@@ -479,7 +479,7 @@ vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor IDQUANTIQUE	0x0aba	id Quantique
 vendor ZYDAS		0x0ace	Zydas Technology Corporation
 vendor NEODIO		0x0aec	Neodio
-vendor OPTION		0x0af0	Option
+vendor OPTION		0x0af0	Option N.V:
 vendor ASUS		0x0b05	ASUSTeK Computer
 vendor TODOS		0x0b0c	Todos Data System
 vendor SIIG2		0x0b39	SIIG
@@ -735,6 +735,9 @@ product ACTISYS IR2000U		0x0011	ACT-IR2000U FIR
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
 product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 
+/* Adaptec products */
+product ADAPTEC AWN8020		0x0020	AWN-8020 WLAN
+
 /* Addtron products */
 product ADDTRON AWU120		0xff31	AWU-120
 
@@ -778,10 +781,11 @@ product AGFA SNAPSCANE26	0x2097	SnapScan e26
 product AGFA SNAPSCANE52	0x20fd	SnapScan e52
 
 /* Ain Communication Technology products */
-product AINCOMM AWU2000B	0x1001	AWU2000B Wireless adapter
+product AINCOMM AWU2000B	0x1001	AWU2000B Wireless Adapter
 
 /* AIPTEK products */
 product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
+product AIPTEK2 PENCAM_MEGA_1_3 0x504a	PenCam Mega 1.3
 
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
@@ -804,6 +808,9 @@ product ALTEC ASC495		0xff05	ASC495 Speakers
 /* Allied Telesyn International products */
 product ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
 
+/* American Power Conversion products */
+product APC UPS			0x0002	Uninterruptible Power Supply
+
 /* Ambit Microsystems products */
 product AMBIT WLAN		0x0302	WLAN
 product AMBIT NTL_250		0x6098	NTL 250 cable modem
@@ -825,7 +832,10 @@ product AOX USB101		0x0008	Ethernet
 product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
+product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
 product APPLE OPTMOUSE		0x0302	Optical mouse
+product APPLE MIGHTYMOUSE	0x0304	Mighty Mouse
+product APPLE EXT_KBD_HUB	0x1003	Hub in Apple Extended USB Keyboard
 product APPLE SPEAKERS		0x1101	Speakers
 product APPLE IPOD		0x1201	iPod
 product APPLE IPOD2G		0x1202	iPod 2G
@@ -849,18 +859,18 @@ product ASAHIOPTICAL OPTIO330	0x0006	Digital camera
 product ASANTE EA		0x1427	Ethernet
 
 /* ASIX Electronics products */
-product ASIX AX88172		0x1720	10/100 ethernet
+product ASIX AX88172		0x1720	10/100 Ethernet
 product ASIX AX88178		0x1780	AX88178
 product ASIX AX88772		0x7720	AX88772
 
 /* ASUS products */
-product ASUS WL167G		0x1707	WL-167g wireless adapter
+product ASUS WL167G		0x1707	WL-167g Wireless Adapter
 product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
-product ATEN UC10T		0x2002	10Mbps ethernet
+product ATEN UC10T		0x2002	10Mbps Ethernet
 product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
 product ATEN UC210T		0x2009	UC-210T Ethernet
@@ -878,20 +888,23 @@ product ATHEROS2 AR5523_3_NF	0x0006	AR5523 (no firmware)
 
 /* Atmel Comp. products */
 product ATMEL UHB124		0x3301	UHB124 hub
-product ATMEL DWL120		0x7603	DWL-120 Wireless adapter
-product ATMEL BW002		0x7605	BW002 Wireless adapter
+product ATMEL DWL120		0x7603	DWL-120 Wireless Adapter
+product ATMEL BW002		0x7605	BW002 Wireless Adapter
 product ATMEL WL1130USB		0x7613	WL-1130 USB
-product ATMEL AT76C505A		0x7614	AT76c505a Wireless adapter
+product ATMEL AT76C505A		0x7614	AT76c505a Wireless Adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
+
+/* Baltech products */
+product BALTECH CARDREADER	0x9999	Card reader
 
 /* B&B Electronics products */
 product BBELECTRONICS USOTL4	0xAC01	RS-422/485
 
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet*/
-product BELKIN F5D6050		0x0050	F5D6050 802.11b Wireless adapter
+product BELKIN F5D6050		0x0050	F5D6050 802.11b Wireless Adapter
 product BELKIN FBT001V		0x0081	FBT001v2 Bluetooth
 product BELKIN FBT003V		0x0084	FBT003v2 Bluetooth
 product BELKIN F5U103		0x0103	F5U103 Serial
@@ -906,11 +919,11 @@ product BELKIN F6C550AVR	0x0551	F6C550-AVR UPS
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 product BELKIN ZD1211B		0x4050	ZD1211B
 product BELKIN F5D5055		0x5055	F5D5055
-product BELKIN F5D7050		0x7050	F5D7050 wireless adapter
+product BELKIN F5D7050		0x7050	F5D7050 Wireless Adapter
 product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
-product BELKIN F5D7050A		0x705a	F5D7050A wireless adapter
-product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 wireless adapter
-product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 wireless adapter
+product BELKIN F5D7050A		0x705a	F5D7050A Wireless Adapter
+product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 Wireless Adapter
+product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
 
 /* Billionton products */
@@ -941,8 +954,8 @@ product CANON S100		0x3045	PowerShot S100
 product CANON S200		0x3065	PowerShot S200
 
 /* CATC products */
-product CATC NETMATE		0x000a	Netmate ethernet
-product CATC NETMATE2		0x000c	Netmate2 ethernet
+product CATC NETMATE		0x000a	Netmate Ethernet
+product CATC NETMATE2		0x000c	Netmate2 Ethernet
 product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 product CATC ANDROMEDA		0x1237	Andromeda hub
 
@@ -968,12 +981,19 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
+product CHICONY2 TWINKLECAM	0x600d	TwinkleCam USB camera
+
+/* CH Products */
+product CHPRODUCTS PROTHROTTLE	0x00f1	Pro Throttle
+product CHPRODUCTS PROPEDALS	0x00f2	Pro Pedals
+product CHPRODUCTS FIGHTERSTICK 0x00f3	Fighterstick
+product CHPRODUCTS FLIGHTYOKE	0x00ff	Flight Sim Yoke
 
 /* Cisco-Linksys products */
-product CISCOLINKSYS WUSB54G	0x000d	WUSB54G wireless adapter
-product CISCOLINKSYS WUSB54GP	0x0011	WUSB54GP wireless adapter
+product CISCOLINKSYS WUSB54G	0x000d	WUSB54G Wireless Adapter
+product CISCOLINKSYS WUSB54GP	0x0011	WUSB54GP Wireless Adapter
 product CISCOLINKSYS USB200MV2	0x0018	USB200M v2
-product CISCOLINKSYS HU200TS	0x001a	HU200TS wireless adapter
+product CISCOLINKSYS HU200TS	0x001a	HU200TS Wireless Adapter
 product CISCOLINKSYS WUSB54GC	0x0020	WUSB54GC
 product CISCOLINKSYS WUSB54GR	0x0023	WUSB54GR
 product CISCOLINKSYS WUSBF54G	0x0024	WUSBF54G
@@ -987,6 +1007,19 @@ product CMOTECH CDMA_MODEM1	0x6280	CMOTECH CDMA Technologies USB modem
 product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
 product COMPAQ IPAQLINUX	0x505a	iPAQ Linux
+
+/* Composite Corp products looks the same as "TANGTOP" */
+product COMPOSITE USBPS2	0x0001	USB to PS2 Adaptor
+
+/* Conceptronic products */
+product CONCEPTRONIC C11U	0x7100	C11U
+product CONCEPTRONIC WL210	0x7110	WL-210
+product CONCEPTRONIC AR5523_1	0x7801	AR5523
+product CONCEPTRONIC AR5523_1_NF	0x7802	AR5523 (no firmware)
+product CONCEPTRONIC AR5523_2	0x7811	AR5523
+product CONCEPTRONIC AR5523_2_NF	0x7812	AR5523 (no firmware)
+product CONCEPTRONIC2 C54RU	0x3c02	C54RU WLAN
+product CONCEPTRONIC2 C54RU2	0x3c22	C54RU
 
 /* Connectix products */
 product CONNECTIX QUICKCAM	0x0001	QuickCam
@@ -1013,29 +1046,21 @@ product CREATIVE3 OPTICAL_MOUSE	0x0001	Notebook Optical Mouse
 product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
 product CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
 
-/* Conceptronic products */
-product CONCEPTRONIC C11U	0x7100	C11U
-product CONCEPTRONIC WL210	0x7110	WL-210
-product CONCEPTRONIC AR5523_1	0x7801	AR5523
-product CONCEPTRONIC AR5523_1_NF	0x7802	AR5523 (no firmware)
-product CONCEPTRONIC AR5523_2	0x7811	AR5523
-product CONCEPTRONIC AR5523_2_NF	0x7812	AR5523 (no firmware)
-product CONCEPTRONIC2 C54RU	0x3c02	C54RU WLAN
-product CONCEPTRONIC2 C54RU2	0x3c22	C54RU
-
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
 
 /* Curitel products */
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
-product CURITEL PC5740		0x3701	Broadband wireless modem
+product CURITEL PC5740		0x3701	Broadband Wireless modem
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
 product CYPRESS WISPY		0x0bad	MetaGeek Wi-Spy
+product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
+product CYPRESS USBRS232	0x5500	USB-RS232 Interface
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
 
 /* Daisy Technology products */
@@ -1069,8 +1094,8 @@ product DIGI ACCELEPORT8	0x0008	AccelePort USB 8
 
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial*/
-product DLINK DUBE100		0x1a00	10/100 ethernet
-product DLINK DSB650TX4		0x200c	10/100 ethernet
+product DLINK DUBE100		0x1a00	10/100 Ethernet
+product DLINK DSB650TX4		0x200c	10/100 Ethernet
 product DLINK DWL120E		0x3200	DWL-120 rev E
 product DLINK DWL122		0x3700	DWL-122
 product DLINK DWLG120		0x3701	DWL-G120
@@ -1081,15 +1106,15 @@ product DLINK DWLG132		0x3a02	DWL-G132
 product DLINK DWLG132_NF	0x3a03	DWL-G132 (no firmware)
 product DLINK DWLAG122		0x3a04	DWL-AG122
 product DLINK DWLAG122_NF	0x3a05	DWL-AG122 (no firmware)
-product DLINK DWLG122		0x3c00	DWL-G122 b1 wireless adapter
+product DLINK DWLG122		0x3c00	DWL-G122 b1 Wireless Adapter
 product DLINK DUBE100B1		0x3c05	DUB-E100 rev B1
-product DLINK DSB650C		0x4000	10Mbps ethernet
-product DLINK DSB650TX1		0x4001	10/100 ethernet
-product DLINK DSB650TX		0x4002	10/100 ethernet
-product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet
-product DLINK DSB650TX3		0x400b	10/100 ethernet
-product DLINK DSB650TX2		0x4102	10/100 ethernet
-product DLINK DSB650		0xabc1	10/100 ethernet
+product DLINK DSB650C		0x4000	10Mbps Ethernet
+product DLINK DSB650TX1		0x4001	10/100 Ethernet
+product DLINK DSB650TX		0x4002	10/100 Ethernet
+product DLINK DSB650TX_PNA	0x4003	1/10/100 Ethernet
+product DLINK DSB650TX3		0x400b	10/100 Ethernet
+product DLINK DSB650TX2		0x4102	10/100 Ethernet
+product DLINK DSB650		0xabc1	10/100 Ethernet
 product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
 product DLINK2 WUA1340		0x3c04	WUA-1340
 
@@ -1265,7 +1290,7 @@ product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
 product GREENHOUSE KANA21	0x0001	CF-writer with MP3
 
 /* Griffin Technology */
-product GRIFFIN IMATE		0x0405	iMate, ADB adapter
+product GRIFFIN IMATE		0x0405	iMate, ADB Adapter
 
 /* Guillemot Corporation */
 product GUILLEMOT DALEADER	0xa300	DA Leader
@@ -1358,9 +1383,9 @@ product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
 
 /* In-System products */
 product INSYSTEM F5U002		0x0002	Parallel printer
-product INSYSTEM ATAPI		0x0031	ATAPI adapter
-product INSYSTEM ISD110		0x0200	IDE adapter ISD110
-product INSYSTEM ISD105		0x0202	IDE adapter ISD105
+product INSYSTEM ATAPI		0x0031	ATAPI Adapter
+product INSYSTEM ISD110		0x0200	IDE Adapter ISD110
+product INSYSTEM ISD105		0x0202	IDE Adapter ISD105
 product INSYSTEM USBCABLE	0x081a	USB cable
 product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 
@@ -1417,32 +1442,32 @@ product KENSINGTON ORBIT	0x1003	Orbit USB/PS2 trackball
 product KENSINGTON TURBOBALL	0x1005	TurboBall
 
 /* Keyspan products */
-product KEYSPAN USA28_NF	0x0101	USA-28 serial adapter (no firmware)
-product KEYSPAN USA28X_NF	0x0102	USA-28X serial adapter (no firmware)
-product KEYSPAN USA19_NF	0x0103	USA-19 serial adapter (no firmware)
-product KEYSPAN USA18_NF	0x0104	USA-18 serial adapter (no firmware)
-product KEYSPAN USA18X_NF	0x0105	USA-18X serial adapter (no firmware)
-product KEYSPAN USA19W_NF	0x0106	USA-19W serial adapter (no firmware)
-product KEYSPAN USA19		0x0107	USA-19 serial adapter
-product KEYSPAN USA19W		0x0108	USA-19W serial adapter
-product KEYSPAN USA49W_NF	0x0109	USA-49W serial adapter (no firmware)
-product KEYSPAN USA49W		0x010a	USA-49W serial adapter
-product KEYSPAN USA19QI_NF	0x010b	USA-19QI serial adapter (no firmware)
-product KEYSPAN USA19QI		0x010c	USA-19QI serial adapter
-product KEYSPAN USA19Q_NF	0x010d	USA-19Q serial adapter (no firmware)
-product KEYSPAN USA19Q		0x010e	USA-19Q serial adapter
-product KEYSPAN USA28		0x010f	USA-28 serial adapter
-product KEYSPAN USA28XXB	0x0110	USA-28X/XB serial adapter
-product KEYSPAN USA18		0x0111	USA-18 serial adapter
-product KEYSPAN USA18X		0x0112	USA-18X serial adapter
-product KEYSPAN USA28XB_NF	0x0113	USA-28XB serial adapter (no firmware)
-product KEYSPAN USA28XA_NF	0x0114	USA-28XB serial adapter (no firmware)
-product KEYSPAN USA28XA		0x0115	USA-28XA serial adapter
-product KEYSPAN USA18XA_NF	0x0116	USA-18XA serial adapter (no firmware)
-product KEYSPAN USA18XA		0x0117	USA-18XA serial adapter
-product KEYSPAN USA19QW_NF	0x0118	USA-19WQ serial adapter (no firmware)
-product KEYSPAN USA19QW		0x0119	USA-19WQ serial adapter
-product KEYSPAN USA19HA		0x0121	USA-19HS serial adapter
+product KEYSPAN USA28_NF	0x0101	USA-28 serial Adapter (no firmware)
+product KEYSPAN USA28X_NF	0x0102	USA-28X serial Adapter (no firmware)
+product KEYSPAN USA19_NF	0x0103	USA-19 serial Adapter (no firmware)
+product KEYSPAN USA18_NF	0x0104	USA-18 serial Adapter (no firmware)
+product KEYSPAN USA18X_NF	0x0105	USA-18X serial Adapter (no firmware)
+product KEYSPAN USA19W_NF	0x0106	USA-19W serial Adapter (no firmware)
+product KEYSPAN USA19		0x0107	USA-19 serial Adapter
+product KEYSPAN USA19W		0x0108	USA-19W serial Adapter
+product KEYSPAN USA49W_NF	0x0109	USA-49W serial Adapter (no firmware)
+product KEYSPAN USA49W		0x010a	USA-49W serial Adapter
+product KEYSPAN USA19QI_NF	0x010b	USA-19QI serial Adapter (no firmware)
+product KEYSPAN USA19QI		0x010c	USA-19QI serial Adapter
+product KEYSPAN USA19Q_NF	0x010d	USA-19Q serial Adapter (no firmware)
+product KEYSPAN USA19Q		0x010e	USA-19Q serial Adapter
+product KEYSPAN USA28		0x010f	USA-28 serial Adapter
+product KEYSPAN USA28XXB	0x0110	USA-28X/XB serial Adapter
+product KEYSPAN USA18		0x0111	USA-18 serial Adapter
+product KEYSPAN USA18X		0x0112	USA-18X serial Adapter
+product KEYSPAN USA28XB_NF	0x0113	USA-28XB serial Adapter (no firmware)
+product KEYSPAN USA28XA_NF	0x0114	USA-28XB serial Adapter (no firmware)
+product KEYSPAN USA28XA		0x0115	USA-28XA serial Adapter
+product KEYSPAN USA18XA_NF	0x0116	USA-18XA serial Adapter (no firmware)
+product KEYSPAN USA18XA		0x0117	USA-18XA serial Adapter
+product KEYSPAN USA19QW_NF	0x0118	USA-19WQ serial Adapter (no firmware)
+product KEYSPAN USA19QW		0x0119	USA-19WQ serial Adapter
+product KEYSPAN USA19HA		0x0121	USA-19HS serial Adapter
 product KEYSPAN UIA10		0x0201	UIA-10 remote control
 product KEYSPAN UIA11		0x0202	UIA-11 remote control
 
@@ -1451,8 +1476,8 @@ product KINGSTON XX1		0x0008	Ethernet
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
 
 /* Kawasaki products */
-product KLSI DUH3E10BT		0x0008	USB ethernet
-product KLSI DUH3E10BTN		0x0009	USB ethernet
+product KLSI DUH3E10BT		0x0008	USB Ethernet
+product KLSI DUH3E10BTN		0x0009	USB Ethernet
 
 /* Kodak products */
 product KODAK DC220		0x0100	Digital Science DC220
@@ -1498,9 +1523,9 @@ product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
-product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless adapter
-product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 ethernet
-product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 wireless adapter
+product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless Adapter
+product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 Ethernet
+product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 Wireless Adapter
 product LINKSYS4 USB1000	0x0039	USB1000
 
 /* Logitech products */
@@ -1853,7 +1878,7 @@ product PROLIFIC PL2305		0x2305	Parallel printer
 product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 product PROLIFIC PL2501		0x2501	PL2501 Host-Host interface
 product PROLIFIC PHAROS		0xaaa0	Prolific Pharos
-product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial adapter (IODATA USB-RSAQ3)
+product PROLIFIC RSAQ3		0xaaa2	PL2303 Serial Adapter (IODATA USB-RSAQ3)
 product PROLIFIC2 WSIM		0x2001	Willcom WSIM
 
 /* Putercom products */
@@ -1881,12 +1906,12 @@ product RADIOSHACK USBCABLE	0x4026	USB to Serial Cable
 product RAINBOW IKEY2000	0x1200	i-Key 2000
 
 /* Ralink Technology products */
-product RALINK RT2570		0x1706	RT2500USB wireless adapter
-product RALINK RT2570_2		0x2570	RT2500USB wireless adapter
-product RALINK RT2573		0x2573	RT2501USB wireless adapter
-product RALINK RT2671		0x2671	RT2601USB wireless adapter
-product RALINK RT2570_3		0x9020	RT2500USB wireless adapter
-product RALINK RT2573_2		0x9021	RT2501USB wireless adapter
+product RALINK RT2570		0x1706	RT2500USB Wireless Adapter
+product RALINK RT2570_2		0x2570	RT2500USB Wireless Adapter
+product RALINK RT2573		0x2573	RT2501USB Wireless Adapter
+product RALINK RT2671		0x2671	RT2601USB Wireless Adapter
+product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
+product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 
 /* ReakTek products */
 /* Green House and CompUSA OEM this part */
@@ -2012,14 +2037,14 @@ product SKANHEX MD_7425		0x410a	MD 7425 Camera
 product SKANHEX SX_520Z		0x5200	SX 520z Camera
 
 /* SmartBridges products */
-product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet
-product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP ethernet
+product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB Ethernet
+product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Ethernet
 
 /* SMC products */
-product SMC 2102USB		0x0100	10Mbps ethernet
-product SMC 2202USB		0x0200	10/100 ethernet
+product SMC 2102USB		0x0100	10Mbps Ethernet
+product SMC 2202USB		0x0200	10/100 Ethernet
 product SMC 2206USB		0x0201	EZ Connect USB Ethernet
-product SMC 2862WG		0xee13	EZ Connect wireless adapter
+product SMC 2862WG		0xee13	EZ Connect Wireless Adapter
 product SMC2 2020HUB		0x2020	USB Hub
 product SMC3 2662WUSB		0xa002	2662W-AR Wireless
 
