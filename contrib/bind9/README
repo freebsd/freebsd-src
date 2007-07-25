@@ -42,6 +42,10 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
 
+BIND 9.3.4-P1
+
+	BIND 9.3.4-P1 is a security release.
+
 BIND 9.3.4
 
 	BIND 9.3.4 is a security release.
