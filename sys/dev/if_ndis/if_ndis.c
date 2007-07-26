@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/module.h>
 #include <sys/proc.h>
-#if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
-#endif
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 
@@ -89,8 +87,12 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ndis_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
+#define NDIS_DEBUG
 #ifdef NDIS_DEBUG
-#define DPRINTF(x)	printf x
+#define DPRINTF(x)	do { if (ndis_debug > 0) printf x; } while (0)
+int ndis_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, ndis, CTLFLAG_RW, &ndis_debug, 0,
+    "if_ndis debug level");
 #else
 #define DPRINTF(x)
 #endif
@@ -150,6 +152,8 @@ static int ndis_80211_ioctl_get	(struct ifnet *, u_long, caddr_t);
 static int ndis_80211_ioctl_set	(struct ifnet *, u_long, caddr_t);
 static int ndis_newstate	(struct ieee80211com *, enum ieee80211_state,
 	int);
+static int ndis_nettype_chan	(uint32_t);
+static int ndis_nettype_mode	(uint32_t);
 static void ndis_scan		(void *, int);
 static void ndis_scan_results	(struct ndis_softc *);
 static void ndis_scan_start	(struct ieee80211com *);
@@ -487,6 +491,32 @@ ndis_probe_offload(sc)
 	return(0);
 }
 
+static int
+ndis_nettype_chan(uint32_t type)
+{
+	switch (type) {
+	case NDIS_80211_NETTYPE_11FH:		return (IEEE80211_CHAN_FHSS);
+	case NDIS_80211_NETTYPE_11DS:		return (IEEE80211_CHAN_B);
+	case NDIS_80211_NETTYPE_11OFDM5:	return (IEEE80211_CHAN_A);
+	case NDIS_80211_NETTYPE_11OFDM24:	return (IEEE80211_CHAN_G);
+	}
+	DPRINTF(("unknown channel nettype %d\n", type));
+	return (IEEE80211_CHAN_B);	/* Default to 11B chan */
+}
+
+static int
+ndis_nettype_mode(uint32_t type)
+{
+	switch (type) {
+	case NDIS_80211_NETTYPE_11FH:		return (IEEE80211_MODE_FH);
+	case NDIS_80211_NETTYPE_11DS:		return (IEEE80211_MODE_11B);
+	case NDIS_80211_NETTYPE_11OFDM5:	return (IEEE80211_MODE_11A);
+	case NDIS_80211_NETTYPE_11OFDM24:	return (IEEE80211_MODE_11G);
+	}
+	DPRINTF(("unknown mode nettype %d\n", type));
+	return (IEEE80211_MODE_AUTO);
+}
+
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
@@ -500,7 +530,7 @@ ndis_attach(dev)
 	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
-	int			error = 0, len, bands = 0;
+	int			error = 0, len, mode, bands = 0;
 	int			i;
 
 	sc = device_get_softc(dev);
@@ -737,26 +767,21 @@ ndis_attach(dev)
 		}
 
 		for (i = 0; i < ntl->ntl_items; i++) {
-			switch (ntl->ntl_type[i]) {
-			case NDIS_80211_NETTYPE_11FH:
-			case NDIS_80211_NETTYPE_11DS:
-				setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
-				setbit(&bands, IEEE80211_MODE_11B);
-				break;
-			case NDIS_80211_NETTYPE_11OFDM5:
-				setbit(ic->ic_modecaps, IEEE80211_MODE_11A);
-				setbit(&bands, IEEE80211_MODE_11A);
-				break;
-			case NDIS_80211_NETTYPE_11OFDM24:
-				setbit(ic->ic_modecaps, IEEE80211_MODE_11G);
-				setbit(&bands, IEEE80211_MODE_11G);
-				break;
-			default:
-				break;
-			}
+			mode = ndis_nettype_mode(ntl->ntl_type[i]);
+			if (mode) {
+				setbit(ic->ic_modecaps, mode);
+				setbit(&bands, mode);
+			} else
+				device_printf(dev, "Unknown nettype %d\n",
+				    ntl->ntl_type[i]);
 		}
 		free(ntl, M_DEVBUF);
 nonettypes:
+		/* Default to 11b channels if the card did not supply any */
+		if (bands == 0) {
+			setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
+			setbit(&bands, IEEE80211_MODE_11B);
+		}
 		len = sizeof(rates);
 		bzero((char *)&rates, len);
 		r = ndis_get_info(sc, OID_802_11_SUPPORTED_RATES,
@@ -989,6 +1014,8 @@ ndis_detach(dev)
 	} else
 		NDIS_UNLOCK(sc);
 
+	taskqueue_drain(sc->ndis_tq, &sc->ndis_scantask);
+
 	if (sc->ndis_tickitem != NULL)
 		IoFreeWorkItem(sc->ndis_tickitem);
 	if (sc->ndis_startitem != NULL)
@@ -999,6 +1026,7 @@ ndis_detach(dev)
 		IoFreeWorkItem(sc->ndis_inputitem);
 
 	bus_generic_detach(dev);
+	ndis_unload_driver(sc);
 
 	if (sc->ndis_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ndis_irq);
@@ -1031,8 +1059,6 @@ ndis_detach(dev)
 
 	if (sc->ndis_txpool != NULL)
 		NdisFreePacketPool(sc->ndis_txpool);
-
-	ndis_unload_driver(sc);
 
 	/* Destroy the PDO for this device. */
 	
@@ -2652,36 +2678,15 @@ ndis_getstate_80211(sc)
 	if (!NDIS_INITIALIZED(sc))
 		return;
 
-	/*
-	 * If we're associated, retrieve info on the current bssid.
-	 */
-	if ((rval = ndis_get_assoc(sc, &bs)) == 0) {
-		switch(bs->nwbx_nettype) {
-		case NDIS_80211_NETTYPE_11FH:
-		case NDIS_80211_NETTYPE_11DS:
-			ic->ic_curmode = IEEE80211_MODE_11B;
-			chanflag = IEEE80211_CHAN_B;
-			break;
-		case NDIS_80211_NETTYPE_11OFDM5:
-			ic->ic_curmode = IEEE80211_MODE_11A;
-			chanflag = IEEE80211_CHAN_A;
-			break;
-		case NDIS_80211_NETTYPE_11OFDM24:
-			ic->ic_curmode = IEEE80211_MODE_11G;
-			chanflag = IEEE80211_CHAN_G;
-			break;
-		default:
-			device_printf(sc->ndis_dev,
-			    "unknown nettype %d\n", arg);
-			chanflag = 0;
-			break;
-		}
-		IEEE80211_ADDR_COPY(ic->ic_bss->ni_bssid, bs->nwbx_macaddr);
-	} else
+	if ((rval = ndis_get_assoc(sc, &bs)) != 0)
 		return;
 
-	/* Get SSID from current association info. */
+	/* We're associated, retrieve info on the current bssid. */
+	ic->ic_curmode = ndis_nettype_mode(bs->nwbx_nettype);
+	chanflag = ndis_nettype_chan(bs->nwbx_nettype);
+	IEEE80211_ADDR_COPY(ic->ic_bss->ni_bssid, bs->nwbx_macaddr);
 
+	/* Get SSID from current association info. */
 	bcopy(bs->nwbx_ssid.ns_ssid, ic->ic_bss->ni_essid,
 	    bs->nwbx_ssid.ns_ssidlen);
 	ic->ic_bss->ni_esslen = bs->nwbx_ssid.ns_ssidlen;
@@ -2739,7 +2744,6 @@ ndis_getstate_80211(sc)
 	if (ic->ic_curchan == NULL)
 		ic->ic_curchan = &ic->ic_channels[0];
 	ic->ic_bss->ni_chan = ic->ic_curchan;
-	ic->ic_des_chan = ic->ic_curchan;
 	ic->ic_bsschan = ic->ic_curchan;
 
 	free(bs, M_TEMP);
@@ -3502,12 +3506,42 @@ ndis_scan(void *arg, int npending)
 {
 	struct ndis_softc *sc = arg;
 	struct ieee80211com *ic = (void *)&sc->ic;
+	struct ieee80211_scan_state *ss = ic->ic_scan;
+	ndis_80211_ssid ssid;
 	int error, len;
+
+	if (!NDIS_INITIALIZED(sc)) {
+		DPRINTF(("%s: scan aborted\n", __func__));
+		ieee80211_cancel_scan(ic);
+		return;
+	}
+
+	if (ss->ss_nssid != 0) {
+		/* Perform a directed scan */
+		len = sizeof(ssid);
+		bzero((char *)&ssid, len);
+		ssid.ns_ssidlen = ss->ss_ssid[0].len;
+		bcopy(ss->ss_ssid[0].ssid, ssid.ns_ssid, ssid.ns_ssidlen);
+
+		error = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
+		if (error)
+			DPRINTF(("%s: set ESSID failed\n", __func__));
+	}
 
 	len = 0;
 	error = ndis_set_info(sc, OID_802_11_BSSID_LIST_SCAN,
 	    NULL, &len);
-	tsleep(&error, PPAUSE|PCATCH, "ssidscan", hz * 2);
+	if (error) {
+		DPRINTF(("%s: scan command failed\n", __func__));
+		ieee80211_cancel_scan(ic);
+		return;
+	}
+
+	tsleep(&error, PWAIT, "ssidscan", hz * 3);
+	if (!NDIS_INITIALIZED(sc))
+		/* The interface was downed while we were sleeping */
+		return;
+
 	ndis_scan_results(sc);
 	ieee80211_scan_done(ic);
 }
@@ -3521,7 +3555,7 @@ ndis_scan_results(struct ndis_softc *sc)
 	struct ieee80211_scanparams sp;
 	struct ieee80211_frame wh;
 	int i, j;
-	int error, len, rssi, noise;
+	int error, len, rssi, noise, freq, chanflag;
 	static long rstamp;
 	uint8_t ssid[2+IEEE80211_NWID_LEN];
 	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
@@ -3535,10 +3569,12 @@ ndis_scan_results(struct ndis_softc *sc)
 	bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 	if (error) {
+		DPRINTF(("%s: failed to read\n", __func__));
 		free(bl, M_DEVBUF);
 		return;;
 	}
 
+	DPRINTF(("%s: %d results\n", __func__, bl->nblx_items));
 	rstamp++;
 	wb = &bl->nblx_bssid[0];
 	for (i = 0; i < bl->nblx_items; i++) {
@@ -3546,7 +3582,7 @@ ndis_scan_results(struct ndis_softc *sc)
 
 		memcpy(wh.i_addr2, wb->nwbx_macaddr, sizeof(wh.i_addr2));
 		memcpy(wh.i_addr3, wb->nwbx_macaddr, sizeof(wh.i_addr3));
-		rssi = (wb->nwbx_rssi - noise) / (-32 - noise) * 100;
+		rssi = 100 * (wb->nwbx_rssi - noise) / (-32 - noise);
 		rssi = max(0, min(rssi, 100));	/* limit 0 <= rssi <= 100 */
 		if (wb->nwbx_privacy)
 			sp.capinfo |= IEEE80211_CAPINFO_PRIVACY;
@@ -3573,11 +3609,10 @@ ndis_scan_results(struct ndis_softc *sc)
 		    wb->nwbx_ssid.ns_ssidlen);
 		sp.ssid[1] = wb->nwbx_ssid.ns_ssidlen;
 
-		sp.bchan = ieee80211_mhz2ieee(
-		    wb->nwbx_config.nc_dsconfig / 1000, 0);
-		sp.curchan = ieee80211_find_channel(ic,
-			ieee80211_ieee2mhz(sp.bchan, IEEE80211_CHAN_B),
-			IEEE80211_CHAN_B);
+		chanflag = ndis_nettype_chan(wb->nwbx_nettype);
+		freq = wb->nwbx_config.nc_dsconfig / 1000;
+		sp.bchan = ieee80211_mhz2ieee(freq, chanflag);
+		sp.curchan = ieee80211_find_channel(ic, freq, chanflag);
 		if (sp.curchan == NULL)
 			sp.curchan = &ic->ic_channels[0];
 
@@ -3607,9 +3642,13 @@ ndis_scan_results(struct ndis_softc *sc)
 			}
 		}
 done:
+		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
+		    ether_sprintf(wb->nwbx_macaddr), freq, sp.bchan, chanflag,
+		    rssi));
 		ieee80211_add_scan(ic, &sp, &wh, 0, rssi, noise, rstamp);
 		wb = (ndis_wlan_bssid_ex *)((char *)wb + wb->nwbx_len);
 	}
+	free(bl, M_DEVBUF);
 }
 
 static void
