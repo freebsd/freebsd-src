@@ -232,6 +232,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 		VI_LOCK(vp);
 		dev_lock();
 		dev_refl(dev);
+		/* XXX: v_rdev should be protect by vnode lock */
 		vp->v_rdev = dev;
 		KASSERT(vp->v_usecount == 1,
 		    ("%s %d (%d)\n", __func__, __LINE__, vp->v_usecount));
