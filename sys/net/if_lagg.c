@@ -603,15 +603,16 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCGLAGGPORT:
-		LAGG_RLOCK(sc);
 		if (rp->rp_portname[0] == '\0' ||
 		    ifunit(rp->rp_portname) != ifp) {
 			error = EINVAL;
 			break;
 		}
 
-		if (lp->lp_softc != sc) {
+		LAGG_RLOCK(sc);
+		if ((lp = ifp->if_lagg) == NULL || lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_RUNLOCK(sc);
 			break;
 		}
 
@@ -760,30 +761,45 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct lagg_port *lp;
 	struct ifnet *tpif;
 	struct thread *td = curthread;
-	int i, error = 0, unlock = 1;
-
-	LAGG_WLOCK(sc);
+	char *buf, *outbuf;
+	int count, buflen, len, error = 0;
 
 	bzero(&rpbuf, sizeof(rpbuf));
 
 	switch (cmd) {
 	case SIOCGLAGG:
+		LAGG_RLOCK(sc);
+		count = 0;
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			count++;
+		buflen = count * sizeof(struct lagg_reqport);
+		LAGG_RUNLOCK(sc);
+
+		outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+
+		LAGG_RLOCK(sc);
 		ra->ra_proto = sc->sc_proto;
-		ra->ra_ports = i = 0;
 		if (sc->sc_req != NULL)
 			(*sc->sc_req)(sc, (caddr_t)&ra->ra_psc);
-		lp = SLIST_FIRST(&sc->sc_ports);
-		while (lp && ra->ra_size >=
-		    i + sizeof(struct lagg_reqport)) {
-			lagg_port2req(lp, &rpbuf);
-			error = copyout(&rpbuf, (caddr_t)ra->ra_port + i,
-			    sizeof(struct lagg_reqport));
-			if (error)
+
+		count = 0;
+		buf = outbuf;
+		len = min(ra->ra_size, buflen);
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+			if (len < sizeof(rpbuf))
 				break;
-			i += sizeof(struct lagg_reqport);
-			ra->ra_ports++;
-			lp = SLIST_NEXT(lp, lp_entries);
+
+			lagg_port2req(lp, &rpbuf);
+			memcpy(buf, &rpbuf, sizeof(rpbuf));
+			count++;
+			buf += sizeof(rpbuf);
+			len -= sizeof(rpbuf);
 		}
+		LAGG_RUNLOCK(sc);
+		ra->ra_ports = count;
+		ra->ra_size = count * sizeof(rpbuf);
+		error = copyout(outbuf, ra->ra_port, ra->ra_size);
+		free(outbuf, M_TEMP);
 		break;
 	case SIOCSLAGG:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -794,6 +810,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		if (sc->sc_proto != LAGG_PROTO_NONE) {
+			LAGG_WLOCK(sc);
 			error = sc->sc_detach(sc);
 			/* Reset protocol and pointers */
 			sc->sc_proto = LAGG_PROTO_NONE;
@@ -808,20 +825,23 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_lladdr = NULL;
 			sc->sc_req = NULL;
 			sc->sc_portreq = NULL;
+			LAGG_WUNLOCK(sc);
 		}
 		if (error != 0)
 			break;
-		for (i = 0; i < (sizeof(lagg_protos) /
+		for (int i = 0; i < (sizeof(lagg_protos) /
 		    sizeof(lagg_protos[0])); i++) {
 			if (lagg_protos[i].ti_proto == ra->ra_proto) {
 				if (sc->sc_ifflags & IFF_DEBUG)
 					printf("%s: using proto %u\n",
 					    sc->sc_ifname,
 					    lagg_protos[i].ti_proto);
+				LAGG_WLOCK(sc);
 				sc->sc_proto = lagg_protos[i].ti_proto;
 				if (sc->sc_proto != LAGG_PROTO_NONE)
 					error = lagg_protos[i].ti_attach(sc);
-				goto out;
+				LAGG_WUNLOCK(sc);
+				return (error);
 			}
 		}
 		error = EPROTONOSUPPORT;
@@ -833,13 +853,16 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_RLOCK(sc);
 		if ((lp = (struct lagg_port *)tpif->if_lagg) == NULL ||
 		    lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_RUNLOCK(sc);
 			break;
 		}
 
 		lagg_port2req(lp, rp);
+		LAGG_RUNLOCK(sc);
 		break;
 	case SIOCSLAGGPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -850,7 +873,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EINVAL;
 			break;
 		}
+		LAGG_WLOCK(sc);
 		error = lagg_port_create(sc, tpif);
+		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCSLAGGDELPORT:
 		error = priv_check(td, PRIV_NET_LAGG);
@@ -862,19 +887,24 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_WLOCK(sc);
 		if ((lp = (struct lagg_port *)tpif->if_lagg) == NULL ||
 		    lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_WUNLOCK(sc);
 			break;
 		}
 
 		error = lagg_port_destroy(lp, 1);
+		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		/* Set flags on ports too */
+		LAGG_WLOCK(sc);
 		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 			lagg_setflags(lp, 1);
 		}
+		LAGG_WUNLOCK(sc);
 
 		if (!(ifp->if_flags & IFF_UP) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -882,38 +912,32 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked down and it is running,
 			 * then stop and disable it.
 			 */
+			LAGG_WLOCK(sc);
 			lagg_stop(sc);
+			LAGG_WUNLOCK(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
 		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			LAGG_WUNLOCK(sc);
-			unlock = 0;
 			(*ifp->if_init)(sc);
 		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		LAGG_WLOCK(sc);
 		error = lagg_ether_setmulti(sc);
+		LAGG_WUNLOCK(sc);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		LAGG_WUNLOCK(sc);
-		unlock = 0;
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 	default:
-		LAGG_WUNLOCK(sc);
-		unlock = 0;
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
-out:
-	if (unlock)
-		LAGG_WUNLOCK(sc);
 	return (error);
 }
 
