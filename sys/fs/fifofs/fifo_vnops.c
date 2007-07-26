@@ -179,7 +179,7 @@ fifo_open(ap)
 	struct socket *rso, *wso;
 	int error;
 
-	ASSERT_VOP_LOCKED(vp, "fifo_open");
+	ASSERT_VOP_ELOCKED(vp, "fifo_open");
 	if (fp == NULL)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {

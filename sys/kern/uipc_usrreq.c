@@ -463,7 +463,7 @@ restart:
 		goto error;
 	}
 	vp = nd.ni_vp;
-	ASSERT_VOP_LOCKED(vp, "uipc_bind");
+	ASSERT_VOP_ELOCKED(vp, "uipc_bind");
 	soun = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
 
 	UNP_GLOBAL_WLOCK();
