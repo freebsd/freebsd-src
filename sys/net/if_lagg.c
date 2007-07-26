@@ -319,6 +319,7 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 	if (memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
 		return;
 
+	bcopy(lladdr, IFP2ENADDR(ifp), ETHER_ADDR_LEN);
 	bcopy(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
 	/* Let the protocol know the MAC has changed */
 	if (sc->sc_lladdr != NULL)
