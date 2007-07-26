@@ -173,7 +173,8 @@ trap(struct trapframe *frame)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	int i = 0, ucode = 0, type, code;
+	int i = 0, ucode = 0, code;
+	u_int type;
 	register_t addr = 0;
 	vm_offset_t eva;
 	ksiginfo_t ksi;
@@ -793,7 +794,8 @@ trap_fatal(frame, eva)
 	struct trapframe *frame;
 	vm_offset_t eva;
 {
-	int code, type, ss, esp;
+	int code, ss, esp;
+	u_int type;
 	struct soft_segment_descriptor softseg;
 	char *msg;
 
