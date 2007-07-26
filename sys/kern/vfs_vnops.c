@@ -184,7 +184,7 @@ restart:
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKSHARED | LOCKLEAF | MPSAFE | AUDITVNODE1;
+		    LOCKLEAF | MPSAFE | AUDITVNODE1;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
@@ -235,7 +235,7 @@ restart:
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	*flagp = fmode;
-	ASSERT_VOP_LOCKED(vp, "vn_open_cred");
+	ASSERT_VOP_ELOCKED(vp, "vn_open_cred");
 	if (!mpsafe)
 		VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
