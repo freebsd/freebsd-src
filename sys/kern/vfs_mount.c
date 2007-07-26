@@ -1499,8 +1499,8 @@ devfs_fixup(struct thread *td)
 	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp, td);
 	VI_LOCK(dvp);
 	dvp->v_iflag &= ~VI_MOUNT;
-	dvp->v_mountedhere = NULL;
 	VI_UNLOCK(dvp);
+	dvp->v_mountedhere = NULL;
 
 	/* Set up the real rootvnode, and purge the cache */
 	TAILQ_FIRST(&mountlist)->mnt_vnodecovered = NULL;
