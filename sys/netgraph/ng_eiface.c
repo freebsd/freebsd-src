@@ -234,6 +234,12 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 */
 		BPF_MTAP(ifp, m);
 
+		if (ifp->if_flags & IFF_MONITOR) {
+			ifp->if_ipackets++;
+			m_freem(m);
+			continue;
+		}
+
 		/*
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
