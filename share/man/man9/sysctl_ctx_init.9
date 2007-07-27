@@ -135,7 +135,8 @@ in most cases, the programmer specifies
 as the oid number when creating an oid.
 However, during registration of the oid in the tree,
 this number is changed to the first available number
-greater than 99.
+greater than or equal to 
+.Dv CTL_AUTO_START .
 If the first step of context deletion fails,
 re-registration of the oid does not change the already assigned oid number
 (which is different from OID_AUTO).
