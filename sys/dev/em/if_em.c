@@ -2941,8 +2941,13 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
 		goto fail_0;
 	}
 
+#ifdef __arm__
+	error = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dma->dma_map);
+#else
 	error = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
 	    BUS_DMA_NOWAIT, &dma->dma_map);
+#endif
 	if (error) {
 		device_printf(adapter->dev,
 		    "%s: bus_dmamem_alloc(%ju) failed: %d\n",
