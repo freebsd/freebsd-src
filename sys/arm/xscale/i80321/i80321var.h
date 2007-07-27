@@ -45,11 +45,6 @@
 #include <dev/pci/pcivar.h>
 #include <sys/rman.h>
 
-/*
- * There are roughly 32 interrupt sources.
- */
-#define	NIRQ		32
-
 extern struct bus_space i80321_bs_tag;
 
 struct i80321_softc {
