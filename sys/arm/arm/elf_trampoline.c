@@ -48,6 +48,7 @@ extern char kernel_end[];
 extern void *_end;
 
 void __start(void);
+void __startC(void);
 
 #define GZ_HEAD	0xa
 
@@ -66,6 +67,13 @@ void __start(void);
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
+#elif defined(CPU_XSCALE_81342)
+#define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+#endif
+#ifdef CPU_XSCALE_81342
+#define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
+#else
+#define cpu_l2cache_wbinv_all()	
 #endif
 
 
@@ -138,7 +146,7 @@ bzero(void *addr, int count)
 static void arm9_setup(void);
 
 void
-_start(void)
+_startC(void)
 {
 	int physaddr = KERNPHYSADDR;
 	int tmp1;
@@ -207,6 +215,7 @@ _start(void)
 		arm9_setup();
 #endif
 	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 #endif
 	__start();
 }
@@ -520,7 +529,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 extern char func_end[];
 
 
-#define PMAP_DOMAIN_KERNEL	15 /*
+#define PMAP_DOMAIN_KERNEL	0 /*
 				    * Just define it instead of including the
 				    * whole VM headers set.
 				    */
@@ -595,10 +604,11 @@ __start(void)
 		kernel = (char *)&_end;
 		altdst = 4 + load_kernel((unsigned int)kernel, 
 		    (unsigned int)curaddr,
-		    (unsigned int)&func_end , 0);
+		    (unsigned int)&func_end + 800 , 0);
 		if (altdst > dst)
 			dst = altdst;
 		cpu_idcache_wbinv_all();
+		cpu_l2cache_wbinv_all();
 		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
 		    "bic %0, %0, #1\n" /* MMU_ENABLE */
 		    "mcr p15, 0, %0, c1, c0, 0\n"
@@ -616,7 +626,7 @@ __start(void)
 	sp = sp &~3;
 	dst = (void *)(sp + 4);
 	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
-	    (unsigned int)&load_kernel);
+	    (unsigned int)&load_kernel + 800);
 	do_call(dst, kernel, dst + (unsigned int)(&func_end) - 
-	    (unsigned int)(&load_kernel), sp);
+	    (unsigned int)(&load_kernel) + 800, sp);
 }

@@ -66,23 +66,27 @@ SYSTEM_LD_TAIL +=;sed s/" + SIZEOF_HEADERS"// ldscript.$M\
 FILES_CPU_FUNC =	$S/$M/$M/cpufunc_asm_arm7tdmi.S \
 	$S/$M/$M/cpufunc_asm_arm8.S $S/$M/$M/cpufunc_asm_arm9.S \
 	$S/$M/$M/cpufunc_asm_sa1.S $S/$M/$M/cpufunc_asm_arm10.S \
-	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S
+	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S \
+	$S/$M/$M/cpufunc_asm_xscale_c3.S
 trampoline: ${KERNEL_KO}.tramp
 ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\"" >opt_kernname.h 
 	sed s/${KERNVIRTADDR}/${KERNPHYSADDR}/ ldscript.$M > ldscript.$M.tramp
 	sed s/" + SIZEOF_HEADERS"// ldscript.$M.tramp > \
 	ldscript.$M.tramp.noheader
+	echo "#include <machine/asm.h>" >tmphack.S
+	echo "ENTRY(_start)" >>tmphack.S
+	echo "bl _startC" >>tmphack.S
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
 	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
 	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
-	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S ${FILES_CPU_FUNC} \
-	-o ${KERNEL_KO}.tramp
+	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
+	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
-	$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o \
-	${KERNEL_KO}.tramp.noheader 
+	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
+	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 	${KERNEL_KO}.tramp.bin 
 	${OBJCOPY} ${STRIP_FLAGS} ${KERNEL_KO}.tmp 
@@ -95,15 +99,15 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -DKZIP -I. -c $S/kern/inflate.c -o inflate-tramp.o
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
-	-DKZIP $S/$M/$M/elf_trampoline.c inflate-tramp.o $S/$M/$M/inckern.S \
-	${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
+	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
+	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
 	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
-	-DKZIP $S/$M/$M/elf_trampoline.c inflate-tramp.o $S/$M/$M/inckern.S \
-	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
+	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
+	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 	${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
-	inflate-tramp.o
+	inflate-tramp.o tmphack.S
 
 %BEFORE_DEPEND
 
