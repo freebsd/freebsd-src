@@ -2604,13 +2604,6 @@ static int ce_modevent (module_t mod, int type, void *unused)
 #if __FreeBSD_version < 500000
 	dev = makedev (CDEV_MAJOR, 0);
 #endif
-#if __FreeBSD_version >= 501114
-	if (!debug_mpsafenet && ce_mpsafenet) {
-		printf ("WORNING! Network stack is not MPSAFE. "
-			"Turning off debug.ce.mpsafenet.\n");
-		ce_mpsafenet = 0;
-	}
-#endif
 #if __FreeBSD_version >= 502103
 	if (ce_mpsafenet)
 		ce_cdevsw.d_flags &= ~D_NEEDGIANT;
