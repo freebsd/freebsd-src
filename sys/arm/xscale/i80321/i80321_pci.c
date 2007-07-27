@@ -186,7 +186,7 @@ i80321_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 	if (i80321_pci_conf_setup(sc, bus, slot, func, reg & ~3, &addr))
 		return (-1);
 	bus_space_write_4(sc->sc_st, sc->sc_atu_sh, ATU_OCCAR,
-	    addr/* & ~3*/);
+	    addr);
 
 	va = sc->sc_atu_sh;
 	switch (bytes) {
@@ -200,7 +200,7 @@ i80321_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 		err = badaddr_read((void *)(va + ATU_OCCDR), 4, &ret);
 		break;
 	default:
-		printf("i803218_read_config: invalid size %d\n", bytes);
+		printf("i80321_read_config: invalid size %d\n", bytes);
 		ret = -1;
 	}
 	if (err) {
