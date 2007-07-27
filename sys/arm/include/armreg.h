@@ -227,16 +227,21 @@
 #define CPU_CONTROL_VECRELOC	0x00002000 /* V: Vector relocation */
 #define CPU_CONTROL_ROUNDROBIN	0x00004000 /* RR: Predictable replacement */
 #define CPU_CONTROL_V4COMPAT	0x00008000 /* L4: ARMv4 compat LDR R15 etc */
+#define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
 
 /* XScale Auxillary Control Register (CP15 register 1, opcode2 1) */
 #define	XSCALE_AUXCTL_K		0x00000001 /* dis. write buffer coalescing */
 #define	XSCALE_AUXCTL_P		0x00000002 /* ECC protect page table access */
+/* Note: XSCale core 3 uses those for LLR DCcahce attributes */
 #define	XSCALE_AUXCTL_MD_WB_RA	0x00000000 /* mini-D$ wb, read-allocate */
 #define	XSCALE_AUXCTL_MD_WB_RWA	0x00000010 /* mini-D$ wb, read/write-allocate */
 #define	XSCALE_AUXCTL_MD_WT	0x00000020 /* mini-D$ wt, read-allocate */
 #define	XSCALE_AUXCTL_MD_MASK	0x00000030
+
+/* Xscale Core 3 only */
+#define XSCALE_AUXCTL_LLR	0x00000400 /* Enable L2 for LLR Cache */
 
 /* Cache type register definitions */
 #define	CPU_CT_ISIZE(x)		((x) & 0xfff)		/* I$ info */
