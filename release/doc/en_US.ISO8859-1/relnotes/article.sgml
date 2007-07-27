@@ -2266,8 +2266,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       character support.  &merged;</para>
 
     <para><application>hostapd</application>
-      has been updated from version 0.3.9 to version 0.4.8.
-      &merged;</para>
+      has been updated from version 0.3.9 to version 0.5.8.
+      </para>
 
     <para><application>PF</application> has been updated from OpenBSD
       version 3.7 to OpenBSD version 4.1.</para>
@@ -2297,8 +2297,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       <literal>audit</literal> group have been added. &merged;</para>
 
     <para><application>WPA Supplicant</application>
-      has been updated from version 0.3.9 to version 0.4.8.
-      &merged;</para>
+      has been updated from version 0.3.9 to version 0.5.8.
+      </para>
 
     <para><application>zlib</application>
       has been updated from version 1.2.2 to version 1.2.3. &merged;</para>
@@ -2462,7 +2462,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.4.2 to 3.5.6. &merged;</para>
+      updated from 3.4.2 to 3.5.7. &merged;</para>
 
     <para>[&arch.amd64;, &arch.i386;] The supported Linux emulation now uses the
       libraries in the
