@@ -2694,9 +2694,7 @@ void
 if_start(struct ifnet *ifp)
 {
 
-	NET_ASSERT_GIANT();
-
-	if ((ifp->if_flags & IFF_NEEDSGIANT) != 0 && debug_mpsafenet != 0) {
+	if (ifp->if_flags & IFF_NEEDSGIANT) {
 		if (mtx_owned(&Giant))
 			(*(ifp)->if_start)(ifp);
 		else
@@ -2711,11 +2709,6 @@ if_start_deferred(void *context, int pending)
 {
 	struct ifnet *ifp;
 
-	/*
-	 * This code must be entered with Giant, and should never run if
-	 * we're not running with debug.mpsafenet.
-	 */
-	KASSERT(debug_mpsafenet != 0, ("if_start_deferred: debug.mpsafenet"));
 	GIANT_REQUIRED;
 
 	ifp = context;

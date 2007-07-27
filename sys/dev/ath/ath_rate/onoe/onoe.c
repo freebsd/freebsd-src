@@ -478,7 +478,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (osc == NULL)
 		return NULL;
 	osc->arc.arc_space = sizeof(struct onoe_node);
-	callout_init(&osc->timer, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init(&osc->timer, CALLOUT_MPSAFE);
 	ath_rate_sysctlattach(sc);
 
 	return &osc->arc;

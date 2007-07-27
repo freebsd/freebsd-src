@@ -561,16 +561,10 @@ nfssvc_nfsd(struct thread *td)
 			nfsd->nfsd_slp = NULL;
 			nfsrv_slpderef(slp);
 		}
-		KASSERT(!(debug_mpsafenet == 0 && !mtx_owned(&Giant)),
-		    ("nfssvc_nfsd(): debug.mpsafenet=0 && !Giant"));
-		KASSERT(!(debug_mpsafenet == 1 && mtx_owned(&Giant)),
-		    ("nfssvc_nfsd(): debug.mpsafenet=1 && Giant"));
+		mtx_assert(&Giant, MA_NOTOWNED);
 	}
 done:
-	KASSERT(!(debug_mpsafenet == 0 && !mtx_owned(&Giant)),
-	    ("nfssvc_nfsd(): debug.mpsafenet=0 && !Giant"));
-	KASSERT(!(debug_mpsafenet == 1 && mtx_owned(&Giant)),
-	    ("nfssvc_nfsd(): debug.mpsafenet=1 && Giant"));
+	mtx_assert(&Giant, MA_NOTOWNED);
 	TAILQ_REMOVE(&nfsd_head, nfsd, nfsd_chain);
 	splx(s);
 	free((caddr_t)nfsd, M_NFSD);
