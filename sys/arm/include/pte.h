@@ -329,13 +329,13 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * 0 1 0 1 1	N/A	N/A		N/A	N/A		N/A
  * 0 1 1 X X	N/A	N/A		N/A	N/A		N/A
  * 1 X 0 0 0	N	  N		-	N		Y
- * 1 X 0 0 1	Y	  N		-	N		Y
- * 1 X 0 1 0	Y	  N		-	N		Y
- * 1 X 0 1 1	Y	  N		-	Y		Y
+ * 1 X 0 0 1	Y	  N		WB	N		Y
+ * 1 X 0 1 0	Y	  N		WT	N		Y
+ * 1 X 0 1 1	Y	  N		WB	Y		Y
  * 1 X 1 0 0	N	  N		-	Y		Y
- * 1 X 1 0 1	Y	  Y		WT	Y		Y
+ * 1 X 1 0 1	Y	  Y		WB	Y		Y
  * 1 X 1 1 0	Y	  Y		WT	Y		Y
- * 1 X 1 1 1	Y	  Y		WT	Y		Y
+ * 1 X 1 1 1	Y	  Y		WB	Y		Y
  *
  *
  *
