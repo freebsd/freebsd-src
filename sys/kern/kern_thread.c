@@ -299,6 +299,9 @@ thread_reap(void)
 			td_first = td_next;
 		}
 	}
+#ifdef KSE
+	upcall_reap();
+#endif
 }
 
 /*
