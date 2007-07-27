@@ -454,15 +454,19 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 		return (ENOENT);
 	}
 	INP_LOCK(inp);
-	KASSERT(inp->inp_socket != NULL,
-	    ("udp6_getcred: inp_socket == NULL"));
-	/*
-	 * XXXRW: There should be a scoping access control check here.
-	 */
+	if (inp->inp_socket == NULL) {
+		error = ENOENT;
+		goto out;
+	}
+	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
+	if (error)
+		goto out;
 	cru2x(inp->inp_socket->so_cred, &xuc);
+out:
 	INP_UNLOCK(inp);
 	INP_INFO_RUNLOCK(&udbinfo);
-	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
+	if (error == 0)
+		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
 }
 
