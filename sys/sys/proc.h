@@ -871,6 +871,7 @@ void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 #ifdef KSE
 void	kse_unlink(struct thread *);
 void	kseinit(void);
+void	upcall_reap(void);
 void	upcall_remove(struct thread *td);
 #endif
 void	cpu_set_upcall(struct thread *td, struct thread *td0);
