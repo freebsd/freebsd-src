@@ -376,7 +376,9 @@ ufoma_attach(device_t self)
 	}
 	printf("\n");
 
-	if(mad->bType == UMCPC_ACM_TYPE_AB5){
+	if((mad->bType == UMCPC_ACM_TYPE_AB5)
+	   ||(mad->bType == UMCPC_ACM_TYPE_AB6)){
+		/*These does not have data interface*/
 		sc->sc_is_ucom = 0;
 		ufoma_init_pseudo_ucom(sc);
 	}else{
@@ -945,13 +947,17 @@ static int ufoma_init_modem(struct ufoma_softc *sc,struct usb_attach_arg *uaa)
 	id = usbd_get_interface_descriptor(sc->sc_ctl_iface);
 
 	sc->sc_is_ucom = 1;
+
 	cmd = ufoma_get_intconf(cd, id, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
-	sc->sc_cm_cap = cmd->bmCapabilities;
-	acm = ufoma_get_intconf(cd, id, UDESC_CS_INTERFACE, UDESCSUB_CDC_ACM);
-	sc->sc_acm_cap = acm->bmCapabilities;
-	
 	if(cmd == NULL)
 		return -1;
+	sc->sc_cm_cap = cmd->bmCapabilities;
+
+	acm = ufoma_get_intconf(cd, id, UDESC_CS_INTERFACE, UDESCSUB_CDC_ACM);
+	if(acm == NULL)
+		return -1;
+	sc->sc_acm_cap = acm->bmCapabilities;
+	
 	sc->sc_data_iface_no = cmd->bDataInterface;
 	printf("%s: data interface %d, has %sCM over data, has %sbreak\n",
 	    devname, sc->sc_data_iface_no,
