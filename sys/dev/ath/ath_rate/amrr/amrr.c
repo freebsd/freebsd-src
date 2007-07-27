@@ -504,7 +504,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (asc == NULL)
 		return NULL;
 	asc->arc.arc_space = sizeof(struct amrr_node);
-	callout_init(&asc->timer, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init(&asc->timer, CALLOUT_MPSAFE);
 	ath_rate_sysctlattach(sc);
 
 	return &asc->arc;
