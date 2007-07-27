@@ -763,8 +763,12 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 		if (__predict_true(pmap == pmap_kernel())) {
 			(void) pmap_get_pde_pte(pmap, vaddr, &pde, &ptep);
 			if (__predict_false(pmap_pde_section(pde))) {
-				curaddr = (*pde & L1_S_FRAME) |
-				    (vaddr & L1_S_OFFSET);
+				if (*pde & L1_S_SUPERSEC)
+					curaddr = (*pde & L1_SUP_FRAME) |
+					    (vaddr & L1_SUP_OFFSET);
+				else
+					curaddr = (*pde & L1_S_FRAME) |
+					    (vaddr & L1_S_OFFSET);
 				if (*pde & L1_S_CACHE_MASK) {
 					map->flags &=
 					    ~DMAMAP_COHERENT;
@@ -1087,36 +1091,36 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
 
-	if (op & BUS_DMASYNC_PREWRITE)
+	if (op & BUS_DMASYNC_PREWRITE) {
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
+		cpu_l2cache_wb_range((vm_offset_t)buf, len);
+	}
+	if (op & BUS_DMASYNC_PREREAD) {
+		cpu_idcache_wbinv_range((vm_offset_t)buf, len);
+		cpu_l2cache_wbinv_range((vm_offset_t)buf, len);
+	}
 	if (op & BUS_DMASYNC_POSTREAD) {
-		if ((vm_offset_t)buf & arm_dcache_align_mask)
+		if ((vm_offset_t)buf & arm_dcache_align_mask) {
 			memcpy(_tmp_cl, (void *)((vm_offset_t)buf & ~
 			    arm_dcache_align_mask),
-			    (vm_offset_t)buf - ((vm_offset_t)buf &~
-			    arm_dcache_align_mask));
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
-			memcpy(_tmp_cl, (void *)((vm_offset_t)buf & ~
-			    arm_dcache_align_mask),
-			    (vm_offset_t)buf - ((vm_offset_t)buf &~
-			    arm_dcache_align_mask));
-		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
-			memcpy(_tmp_clend, (void *)(((vm_offset_t)buf + len) & ~
-			    arm_dcache_align_mask),
-			    (vm_offset_t)buf +len - (((vm_offset_t)buf + len) &~
-			    arm_dcache_align_mask));
+			    (vm_offset_t)buf & arm_dcache_align_mask);
+		}
+		if (((vm_offset_t)buf + len) & arm_dcache_align_mask) {
+			memcpy(_tmp_clend, (void *)((vm_offset_t)buf + len),
+			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
+			   arm_dcache_align_mask));
+		}
 		cpu_dcache_inv_range((vm_offset_t)buf, len);
+		cpu_l2cache_inv_range((vm_offset_t)buf, len);
+
 		if ((vm_offset_t)buf & arm_dcache_align_mask)
 			memcpy((void *)((vm_offset_t)buf &
-			    ~arm_dcache_align_mask),
-			    _tmp_cl, 
-			    (vm_offset_t)buf - ((vm_offset_t)buf &~
-			    arm_dcache_align_mask));
+			    ~arm_dcache_align_mask), _tmp_cl, 
+			    (vm_offset_t)buf & arm_dcache_align_mask);
 		if (((vm_offset_t)buf + len) & arm_dcache_align_mask)
-			memcpy((void *)(((vm_offset_t)buf + len) & ~
-			    arm_dcache_align_mask), _tmp_clend,
-			    (vm_offset_t)buf +len - (((vm_offset_t)buf + len) &~
-			    arm_dcache_align_mask));
+			memcpy((void *)((vm_offset_t)buf + len), _tmp_clend,
+			    arm_dcache_align - (((vm_offset_t)(buf) + len) &
+			   arm_dcache_align_mask));
 	}
 }
 
@@ -1131,14 +1135,20 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			    (void *)(bpage->vaddr_nocache != 0 ? 
 				     bpage->vaddr_nocache : bpage->vaddr),
 			    bpage->datacount);
-			if (bpage->vaddr_nocache == 0)
+			if (bpage->vaddr_nocache == 0) {
 				cpu_dcache_wb_range(bpage->vaddr,
 				    bpage->datacount);
+				cpu_l2cache_wb_range(bpage->vaddr,
+				    bpage->datacount);
+			}
 		}
 		if (op & BUS_DMASYNC_POSTREAD) {
-			if (bpage->vaddr_nocache == 0)
+			if (bpage->vaddr_nocache == 0) {
 				cpu_dcache_inv_range(bpage->vaddr,
 				    bpage->datacount);
+				cpu_l2cache_inv_range(bpage->vaddr,
+				    bpage->datacount);
+			}
 			bcopy((void *)(bpage->vaddr_nocache != 0 ? 
 	       		    bpage->vaddr_nocache : bpage->vaddr),
 			    (void *)bpage->datavaddr, bpage->datacount);
@@ -1175,10 +1185,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		_bus_dmamap_sync_bp(dmat, map, op);
 	if (map->flags & DMAMAP_COHERENT)
 		return;
-	if ((op && BUS_DMASYNC_POSTREAD) && (map->len >= 2 * PAGE_SIZE)) {
-		cpu_dcache_wbinv_all();
-		return;
-	}
 	CTR3(KTR_BUSDMA, "%s: op %x flags %x", __func__, op, map->flags);
 	switch(map->flags & DMAMAP_TYPE_MASK) {
 	case DMAMAP_LINEAR:
