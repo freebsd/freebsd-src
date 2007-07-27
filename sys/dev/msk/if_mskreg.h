@@ -2184,6 +2184,8 @@ struct msk_stat_desc {
 #define MSK_JUMBO_RX_RING_CNT	MSK_RX_RING_CNT
 #define	MSK_STAT_RING_CNT	((1 + 3) * (MSK_TX_RING_CNT + MSK_RX_RING_CNT))
 #define MSK_MAXTXSEGS		32
+#define	MSK_TSO_MAXSGSIZE	4096
+#define	MSK_TSO_MAXSIZE		65535
 #define	MSK_MAXRXSEGS		32
 
 /*
