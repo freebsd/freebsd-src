@@ -57,6 +57,27 @@ static int last_printed = 0;
 
 void	arm_handler_execute(struct trapframe *, int);
 
+#ifdef INTR_FILTER
+static void
+intr_disab_eoi_src(void *arg)
+{
+	uintptr_t nb;
+
+	nb = (uintptr_t)arg;
+	arm_mask_irq(nb);
+}
+
+static void
+intr_eoi_src(void *arg)
+{
+	uintptr_t nb;
+
+	nb = (uintptr_t)arg;
+	arm_unmask_irq(nb);
+}
+
+#endif
+
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt, 
     void (*hand)(void*), void *arg, int irq, int flags, void **cookiep)
@@ -68,8 +89,14 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 		return;
 	event = intr_events[irq];
 	if (event == NULL) {
+#ifdef INTR_FILTER
+		error = intr_event_create(&event, (void *)irq, 0,
+		    (void (*)(void *))arm_unmask_irq, intr_eoi_src,
+		    intr_disab_eoi_src, "intr%d:", irq);
+#else
 		error = intr_event_create(&event, (void *)irq, 0,
 		    (void (*)(void *))arm_unmask_irq, "intr%d:", irq);
+#endif
 		if (error)
 			return;
 		intr_events[irq] = event;
@@ -102,19 +129,33 @@ void
 arm_handler_execute(struct trapframe *frame, int irqnb)
 {
 	struct intr_event *event;
-	struct intr_handler *ih;
 	struct thread *td = curthread;
+#ifdef INTR_FILTER
+	int i;
+#else
 	int i, thread, ret;
+	struct intr_handler *ih;
+#endif
 
 	PCPU_INC(cnt.v_intr);
 	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
+#ifndef INTR_FILTER
 		arm_mask_irq(i);
+#endif
 		intrcnt[intrcnt_tab[i]]++;
 		event = intr_events[i];
-		if (!event || TAILQ_EMPTY(&event->ie_handlers))
+		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+#ifdef INTR_FILTER
+			arm_mask_irq(i);
+#endif
 			continue;
+		}
 
+#ifdef INTR_FILTER
+		intr_event_handle(event, frame);
+		/* XXX: Log stray IRQs */
+#else
 		/* Execute fast handlers. */
 		ret = 0;
 		thread = 0;
@@ -139,6 +180,7 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 			intr_event_schedule_thread(event);
 		else
 			arm_unmask_irq(i);
+#endif
 	}
 	td->td_intr_nesting_level--;
 }
