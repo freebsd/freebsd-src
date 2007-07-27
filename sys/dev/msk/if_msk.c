@@ -1445,19 +1445,11 @@ msk_attach(device_t dev)
 	 */
 	ifp->if_capabilities = IFCAP_TXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES;
-#if 0
-	/*
-	 * Under certain circumtances, if TSO is active, Yukon II generates
-	 * corrupted IP packets. Disable TSO until we find a working
-	 * workaround or a new silicon revision that doesn't have this
-	 * hardware bug.
-	 */
 	if (sc->msk_hw_id != CHIP_ID_YUKON_EC_U) {
 		/* It seems Yukon EC Ultra doesn't support TSO. */
 		ifp->if_capabilities |= IFCAP_TSO4;
 		ifp->if_hwassist |= CSUM_TSO;
 	}
-#endif
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
 	ifp->if_start = msk_start;
@@ -3821,13 +3813,6 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_CLR_RESET);
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_OPER_INIT);
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_FIFO_OP_ON);
-	/* Increase IPID when hardware generates IP packets in TSO. */
-	if ((ifp->if_hwassist & CSUM_TSO) != 0)
-		CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR),
-		    BMU_TX_IPIDINCR_ON);
-	else
-		CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR),
-		    BMU_TX_IPIDINCR_OFF);
 	CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_WM), MSK_BMU_TX_WM);
 	if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U &&
 	    sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
