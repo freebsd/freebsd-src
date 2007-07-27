@@ -557,14 +557,6 @@ void	 tcp_timer_activate(struct tcpcb *, int, u_int);
 int	 tcp_timer_active(struct tcpcb *, int);
 void	 tcp_trace(short, short, struct tcpcb *, void *, struct tcphdr *, int);
 void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
-void	 syncache_init(void);
-void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
-int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct socket **, struct mbuf *);
-void	 syncache_add(struct in_conninfo *, struct tcpopt *,
-	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
-void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
-void	 syncache_badack(struct in_conninfo *);
 /*
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
  */

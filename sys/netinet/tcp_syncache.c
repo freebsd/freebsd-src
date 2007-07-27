@@ -76,6 +76,7 @@
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_syncache.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -1551,3 +1552,76 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 
 	return (sc);
 }
+
+/*
+ * Returns the current number of syncache entries.  This number
+ * will probably change before you get around to calling 
+ * syncache_pcblist.
+ */
+
+int
+syncache_pcbcount(void)
+{
+	struct syncache_head *sch;
+	int count, i;
+
+	for (count = 0, i = 0; i < tcp_syncache.hashsize; i++) {
+		/* No need to lock for a read. */
+		sch = &tcp_syncache.hashbase[i];
+		count += sch->sch_length;
+	}
+	return count;
+}
+
+/*
+ * Exports the syncache entries to userland so that netstat can display
+ * them alongside the other sockets.  This function is intended to be
+ * called only from tcp_pcblist.
+ *
+ * Due to concurrency on an active system, the number of pcbs exported
+ * may have no relation to max_pcbs.  max_pcbs merely indicates the
+ * amount of space the caller allocated for this function to use.
+ */
+int
+syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
+{
+	struct xtcpcb xt;
+	struct syncache *sc;
+	struct syncache_head *sch;
+	int count, error, i;
+
+	for (count = 0, error = 0, i = 0; i < tcp_syncache.hashsize; i++) {
+		sch = &tcp_syncache.hashbase[i];
+		SCH_LOCK(sch);
+		TAILQ_FOREACH(sc, &sch->sch_bucket, sc_hash) {
+			if (count >= max_pcbs) {
+				SCH_UNLOCK(sch);
+				goto exit;
+			}
+			bzero(&xt, sizeof(xt));
+			xt.xt_len = sizeof(xt);
+			if (sc->sc_inc.inc_isipv6)
+				xt.xt_inp.inp_vflag = INP_IPV6;
+			else
+				xt.xt_inp.inp_vflag = INP_IPV4;
+			bcopy(&sc->sc_inc, &xt.xt_inp.inp_inc, sizeof (struct in_conninfo));
+			xt.xt_tp.t_inpcb = &xt.xt_inp;
+			xt.xt_tp.t_state = TCPS_SYN_RECEIVED;
+			xt.xt_socket.xso_protocol = IPPROTO_TCP;
+			xt.xt_socket.xso_len = sizeof (struct xsocket);
+			xt.xt_socket.so_type = SOCK_STREAM;
+			xt.xt_socket.so_state = SS_ISCONNECTING;
+			error = SYSCTL_OUT(req, &xt, sizeof xt);
+			if (error) {
+				SCH_UNLOCK(sch);
+				goto exit;
+			}
+			count++;
+		}
+		SCH_UNLOCK(sch);
+	}
+exit:
+	*pcbs_exported = count;
+	return error;
+}
+
