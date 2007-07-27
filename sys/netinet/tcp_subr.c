@@ -82,6 +82,7 @@
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_syncache.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -876,7 +877,7 @@ tcp_notify(struct inpcb *inp, int error)
 static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	int error, i, n;
+	int error, i, m, n, pcb_count;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
@@ -886,9 +887,10 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
+		m = syncache_pcbcount();
 		n = tcbinfo.ipi_count;
 		req->oldidx = 2 * (sizeof xig)
-			+ (n + n/8) * sizeof(struct xtcpcb);
+			+ ((m + n) + n/8) * sizeof(struct xtcpcb);
 		return (0);
 	}
 
@@ -903,16 +905,22 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = tcbinfo.ipi_count;
 	INP_INFO_RUNLOCK(&tcbinfo);
 
+	m = syncache_pcbcount();
+
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
-		+ n * sizeof(struct xtcpcb));
+		+ (n + m) * sizeof(struct xtcpcb));
 	if (error != 0)
 		return (error);
 
 	xig.xig_len = sizeof xig;
-	xig.xig_count = n;
+	xig.xig_count = n + m;
 	xig.xig_gen = gencnt;
 	xig.xig_sogen = so_gencnt;
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error)
+		return (error);
+
+	error = syncache_pcblist(req, m, &pcb_count);
 	if (error)
 		return (error);
 
@@ -991,7 +999,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RLOCK(&tcbinfo);
 		xig.xig_gen = tcbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
-		xig.xig_count = tcbinfo.ipi_count;
+		xig.xig_count = tcbinfo.ipi_count + pcb_count;
 		INP_INFO_RUNLOCK(&tcbinfo);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
