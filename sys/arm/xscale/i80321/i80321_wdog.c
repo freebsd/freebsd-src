@@ -68,7 +68,11 @@ static __inline void
 wdtcr_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c7, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c7, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
