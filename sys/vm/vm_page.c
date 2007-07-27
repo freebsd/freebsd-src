@@ -1363,6 +1363,7 @@ vm_page_cache(vm_page_t m)
 	}
 	if (VM_PAGE_INQUEUE1(m, PQ_CACHE))
 		return;
+	cnt.v_tcached++;
 
 	/*
 	 * Remove all pmaps and indicate that the page is not

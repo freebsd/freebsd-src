@@ -329,6 +329,8 @@ SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdwakeups, CTLTYPE_UINT|CTLFLAG_RD,
 	&cnt.v_pdwakeups, 0, vcnt, "IU", "Pagedaemon wakeups");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pdpages, CTLTYPE_UINT|CTLFLAG_RD,
 	&cnt.v_pdpages, 0, vcnt, "IU", "Pagedaemon page scans");
+SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_tcached, CTLTYPE_UINT|CTLFLAG_RD,
+	&cnt.v_tcached, 0, vcnt, "IU", "Total pages cached");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_dfree, CTLTYPE_UINT|CTLFLAG_RD,
 	&cnt.v_dfree, 0, vcnt, "IU", "");
 SYSCTL_PROC(_vm_stats_vm, OID_AUTO, v_pfree, CTLTYPE_UINT|CTLFLAG_RD,
