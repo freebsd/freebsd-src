@@ -374,6 +374,12 @@ identify_arm_cpu(void)
 			printf(" IC disabled");
 		else
 			printf(" IC enabled");
+#ifdef CPU_XSCALE_81342
+		if ((ctrl & CPU_CONTROL_L2_ENABLE) == 0)
+			printf(" L2 disabled");
+		else
+			printf(" L2 enabled");
+#endif
 		break;
 	default:
 		break;
