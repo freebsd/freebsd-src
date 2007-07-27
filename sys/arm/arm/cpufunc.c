@@ -147,6 +147,10 @@ struct cpu_functions arm7tdmi_cpufuncs = {
 
 	arm7tdmi_cache_flushID,		/* idcache_wbinv_all	*/
 	(void *)arm7tdmi_cache_flushID,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -205,6 +209,10 @@ struct cpu_functions arm8_cpufuncs = {
 
 	arm8_cache_purgeID,		/* idcache_wbinv_all	*/
 	(void *)arm8_cache_purgeID,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -262,6 +270,10 @@ struct cpu_functions arm9_cpufuncs = {
 
 	arm9_idcache_wbinv_all,		/* idcache_wbinv_all	*/
 	arm9_idcache_wbinv_range,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -320,6 +332,10 @@ struct cpu_functions arm10_cpufuncs = {
 
 	arm10_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	arm10_idcache_wbinv_range,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -378,6 +394,10 @@ struct cpu_functions sa110_cpufuncs = {
 
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -435,6 +455,10 @@ struct cpu_functions sa11x0_cpufuncs = {
 
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -492,6 +516,10 @@ struct cpu_functions ixp12x0_cpufuncs = {
 
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -552,6 +580,10 @@ struct cpu_functions xscale_cpufuncs = {
 
 	xscale_cache_purgeID,		/* idcache_wbinv_all	*/
 	xscale_cache_purgeID_rng,	/* idcache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_wbinv_all 	*/
+	cpufunc_nullop,			/* l2cache_wbinv_range	*/
+	cpufunc_nullop,			/* l2cache_inv_range	*/
+	cpufunc_nullop,			/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -602,15 +634,19 @@ struct cpu_functions xscalec3_cpufuncs = {
 	/* Cache operations */
 
 	xscalec3_cache_syncI,		/* icache_sync_all	*/
-	xscale_cache_syncI_rng,		/* icache_sync_range	*/
+	xscalec3_cache_syncI_rng,	/* icache_sync_range	*/
 
 	xscalec3_cache_purgeD,		/* dcache_wbinv_all	*/
 	xscalec3_cache_purgeD_rng,	/* dcache_wbinv_range	*/
 	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
 	xscalec3_cache_cleanD_rng,	/* dcache_wb_range	*/
 
-	xscalec3_cache_purgeID,	/* idcache_wbinv_all	*/
+	xscalec3_cache_purgeID,		/* idcache_wbinv_all	*/
 	xscalec3_cache_purgeID_rng,	/* idcache_wbinv_range	*/
+	xscalec3_l2cache_purge,		/* l2cache_wbinv_all	*/
+	xscalec3_l2cache_purge_rng,	/* l2cache_wbinv_range	*/
+	xscalec3_l2cache_flush_rng,	/* l2cache_inv_range	*/
+	xscalec3_l2cache_clean_rng,	/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -1889,9 +1925,7 @@ void
 xscale_setup(args)
 	char *args;
 {
-#ifndef CPU_XSCALE_CORE3
 	uint32_t auxctl;
-#endif
 	int cpuctrl, cpuctrlmask;
 
 	/*
@@ -1911,7 +1945,8 @@ xscale_setup(args)
 		 | CPU_CONTROL_WBUF_ENABLE | CPU_CONTROL_ROM_ENABLE
 		 | CPU_CONTROL_BEND_ENABLE | CPU_CONTROL_AFLT_ENABLE
 		 | CPU_CONTROL_LABT_ENABLE | CPU_CONTROL_BPRD_ENABLE
-		 | CPU_CONTROL_CPCLK | CPU_CONTROL_VECRELOC;
+		 | CPU_CONTROL_CPCLK | CPU_CONTROL_VECRELOC | \
+		 CPU_CONTROL_L2_ENABLE;
 
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
@@ -1925,6 +1960,9 @@ xscale_setup(args)
 
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
+#ifdef CPU_XSCALE_CORE3
+	cpuctrl |= CPU_CONTROL_L2_ENABLE;
+#endif
 
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
@@ -1937,7 +1975,6 @@ xscale_setup(args)
 /*	cpu_control(cpuctrlmask, cpuctrl);*/
 	cpu_control(0xffffffff, cpuctrl);
 
-#ifndef CPU_XSCALE_CORE3
 	/* Make sure write coalescing is turned on */
 	__asm __volatile("mrc p15, 0, %0, c1, c0, 1"
 		: "=r" (auxctl));
@@ -1946,9 +1983,12 @@ xscale_setup(args)
 #else
 	auxctl &= ~XSCALE_AUXCTL_K;
 #endif
+#ifdef CPU_XSCALE_CORE3
+	auxctl |= XSCALE_AUXCTL_LLR;
+	auxctl |= XSCALE_AUXCTL_MD_MASK;
+#endif
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
-#endif
 }
 #endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
 	   CPU_XSCALE_80219 */
