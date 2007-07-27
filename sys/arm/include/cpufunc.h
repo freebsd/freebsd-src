@@ -140,6 +140,10 @@ struct cpu_functions {
 
 	void	(*cf_idcache_wbinv_all)	(void);
 	void	(*cf_idcache_wbinv_range) (vm_offset_t, vm_size_t);
+	void	(*cf_l2cache_wbinv_all) (void);
+	void	(*cf_l2cache_wbinv_range) (vm_offset_t, vm_size_t);
+	void	(*cf_l2cache_inv_range)	  (vm_offset_t, vm_size_t);
+	void	(*cf_l2cache_wb_range)	  (vm_offset_t, vm_size_t);
 
 	/* Other functions */
 
@@ -189,6 +193,10 @@ extern u_int cputype;
 
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
+#define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
+#define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
+#define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
+#define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
 
 #define	cpu_flush_prefetchbuf()	cpufuncs.cf_flush_prefetchbuf()
 #define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
@@ -435,19 +443,22 @@ void	xscale_setup		(char *string);
 
 #ifdef	CPU_XSCALE_81342
 
+void	xscalec3_l2cache_purge	(void);
+void	xscalec3_cache_purgeID	(void);
+void	xscalec3_cache_purgeD	(void);
 void	xscalec3_cache_cleanID	(void);
 void	xscalec3_cache_cleanD	(void);
-
-void	xscalec3_cache_purgeID	(void);
-void	xscalec3_cache_purgeID_E	(u_int entry);
-void	xscalec3_cache_purgeD	(void);
-void	xscalec3_cache_purgeD_E	(u_int entry);
-
 void	xscalec3_cache_syncI	(void);
-void	xscalec3_cache_cleanID_rng (vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
-void	xscalec3_cache_purgeID_rng (vm_offset_t start, vm_size_t end);
+
+void	xscalec3_cache_purgeID_rng 	(vm_offset_t start, vm_size_t end);
 void	xscalec3_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_cleanID_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_syncI_rng	(vm_offset_t start, vm_size_t end);
+
+void	xscalec3_l2cache_flush_rng	(vm_offset_t, vm_size_t);
+void	xscalec3_l2cache_clean_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_l2cache_purge_rng	(vm_offset_t start, vm_size_t end);
 
 
 void	xscalec3_setttb		(u_int ttb);
