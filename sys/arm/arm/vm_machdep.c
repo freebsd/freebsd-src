@@ -118,10 +118,12 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	pcb1 = td1->td_pcb;
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
+#ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 	if (td2->td_altkstack)
 		pmap_use_minicache(td2->td_altkstack, td2->td_altkstack_pages *
 		    PAGE_SIZE);
+#endif
 #endif
 	td2->td_pcb = pcb2;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -338,7 +340,9 @@ cpu_thread_setup(struct thread *td)
 	td->td_frame = (struct trapframe *)
 	    ((u_int)td->td_kstack + USPACE_SVC_STACK_TOP - sizeof(struct pcb)) - 1;
 #ifdef __XSCALE__
+#ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
+#endif
 #endif  
 		
 }
@@ -462,6 +466,14 @@ MALLOC_DEFINE(M_VMSMALLALLOC, "vm_small_alloc", "VM Small alloc data");
 
 vm_offset_t alloc_firstaddr;
 
+#ifdef ARM_HAVE_SUPERSECTIONS
+#define S_FRAME	L1_SUP_FRAME
+#define S_SIZE	L1_SUP_SIZE
+#else
+#define S_FRAME	L1_S_FRAME
+#define S_SIZE	L1_S_SIZE
+#endif
+
 vm_offset_t
 arm_ptovirt(vm_paddr_t pa)
 {
@@ -472,11 +484,11 @@ arm_ptovirt(vm_paddr_t pa)
 	for (i = 0; dump_avail[i + 1]; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
 			break;
-		addr += (dump_avail[i + 1] & L1_S_FRAME) + L1_S_SIZE -
-		    (dump_avail[i] & L1_S_FRAME);
+		addr += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
+		    (dump_avail[i] & S_FRAME);
 	}
 	KASSERT(dump_avail[i + 1] != 0, ("Trying to access invalid physical address"));
-	return (addr + (pa - (dump_avail[i] & L1_S_FRAME)));
+	return (addr + (pa - (dump_avail[i] & S_FRAME)));
 }
 
 void
@@ -492,20 +504,26 @@ arm_init_smallalloc(void)
 	 */
 	   
 	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		to_map += (dump_avail[i + 1] & L1_S_FRAME) + L1_S_SIZE -
-		    (dump_avail[i] & L1_S_FRAME);
+		to_map += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
+		    (dump_avail[i] & S_FRAME);
 	}
 	alloc_firstaddr = mapaddr = KERNBASE - to_map;
 	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		vm_offset_t size = (dump_avail[i + 1] & L1_S_FRAME) +
-		    L1_S_SIZE - (dump_avail[i] & L1_S_FRAME);
+		vm_offset_t size = (dump_avail[i + 1] & S_FRAME) +
+		    S_SIZE - (dump_avail[i] & S_FRAME);
 		vm_offset_t did = 0;
-		while (size > 0 ) {
+		while (size > 0) {
+#ifdef ARM_HAVE_SUPERSECTIONS
+			pmap_kenter_supersection(mapaddr,
+			    (dump_avail[i] & L1_SUP_FRAME) + did, 
+			    SECTION_CACHE);
+#else
 			pmap_kenter_section(mapaddr, 
 			    (dump_avail[i] & L1_S_FRAME) + did, SECTION_CACHE);
-			mapaddr += L1_S_SIZE;
-			did += L1_S_SIZE;
-			size -= L1_S_SIZE;
+#endif
+			mapaddr += S_SIZE;
+			did += S_SIZE;
+			size -= S_SIZE;
 		}
 	}
 }
