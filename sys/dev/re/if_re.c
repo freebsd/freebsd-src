@@ -1202,8 +1202,8 @@ re_attach(dev)
 				device_printf(dev, "Using %d MSI messages\n",
 				    msic);
 				sc->rl_msi = 1;
-		} else
-			pci_release_msi(dev);
+			} else
+				pci_release_msi(dev);
 		}
 	}
 
