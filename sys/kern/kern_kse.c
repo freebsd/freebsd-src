@@ -82,6 +82,23 @@ upcall_alloc(void)
 }
 
 void
+upcall_reap(void)
+{
+	TAILQ_HEAD(, kse_upcall) zupcalls;
+	struct kse_upcall *ku_item, *ku_tmp;
+
+	TAILQ_INIT(&zupcalls);
+	mtx_lock_spin(&kse_lock);
+	if (!TAILQ_EMPTY(&zombie_upcalls)) {
+		TAILQ_CONCAT(&zupcalls, &zombie_upcalls, ku_link);
+		TAILQ_INIT(&zombie_upcalls);
+	}
+	mtx_unlock_spin(&kse_lock);
+	TAILQ_FOREACH_SAFE(ku_item, &zupcalls, ku_link, ku_tmp)
+		uma_zfree(upcall_zone, ku_item);
+}
+
+void
 upcall_remove(struct thread *td)
 {
 
