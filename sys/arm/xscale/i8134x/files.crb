@@ -1,0 +1,2 @@
+# $FreeBSD$
+arm/xscale/i8134x/crb_machdep.c		standard
