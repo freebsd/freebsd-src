@@ -676,8 +676,14 @@ pmap_pte_init_xscale(void)
 	pmap_copy_page_func = pmap_copy_page_generic;
 	pmap_zero_page_func = pmap_zero_page_generic;
 	xscale_use_minidata = 0;
-	pte_l1_s_cache_mode_pt = pte_l2_l_cache_mode_pt =
-	    pte_l2_s_cache_mode_pt = 0;
+	/* Make sure it is L2-cachable */
+    	pte_l1_s_cache_mode |= L1_S_XSCALE_TEX(TEX_XSCALE_T);
+	pte_l1_s_cache_mode_pt = pte_l1_s_cache_mode &~ L1_S_XSCALE_P;
+	pte_l2_l_cache_mode |= L2_XSCALE_L_TEX(TEX_XSCALE_T) ;
+	pte_l2_l_cache_mode_pt = pte_l1_s_cache_mode;
+	pte_l2_s_cache_mode |= L2_XSCALE_T_TEX(TEX_XSCALE_T);
+	pte_l2_s_cache_mode_pt = pte_l2_s_cache_mode;
+
 #else
 	pmap_copy_page_func = pmap_copy_page_xscale;
 	pmap_zero_page_func = pmap_zero_page_xscale;
@@ -2818,33 +2824,35 @@ pmap_remove_pages(pmap_t pmap)
  * Low level mapping routines.....
  ***************************************************/
 
+#ifdef ARM_HAVE_SUPERSECTIONS
 /* Map a super section into the KVA. */
 
 void
 pmap_kenter_supersection(vm_offset_t va, uint64_t pa, int flags)
 {
-	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_OFFSET) |
-	    (((pa >> 32) & 0x8) << 20) | L1_S_PROT(PTE_KERNEL,
+	pd_entry_t pd = L1_S_PROTO | L1_S_SUPERSEC | (pa & L1_SUP_FRAME) |
+	    (((pa >> 32) & 0xf) << 20) | L1_S_PROT(PTE_KERNEL,
 	    VM_PROT_READ|VM_PROT_WRITE) | L1_S_DOM(PMAP_DOMAIN_KERNEL);
 	struct l1_ttable *l1;	
-	vm_offset_t va_end;
+	vm_offset_t va0, va_end;
 
 	KASSERT(((va | pa) & L1_SUP_OFFSET) == 0,
-	    ("Not a valid section mapping"));
+	    ("Not a valid super section mapping"));
 	if (flags & SECTION_CACHE)
 		pd |= pte_l1_s_cache_mode;
 	else if (flags & SECTION_PT)
 		pd |= pte_l1_s_cache_mode_pt;
-	va = va & L1_SUP_OFFSET;
+	va0 = va & L1_SUP_FRAME;
 	va_end = va + L1_SUP_SIZE;
 	SLIST_FOREACH(l1, &l1_list, l1_link) {
+		va = va0;
 		for (; va < va_end; va += L1_S_SIZE) {
 			l1->l1_kva[L1_IDX(va)] = pd;
 			PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
 		}
 	}
-
 }
+#endif
 
 /* Map a section into the KVA. */
 
@@ -3681,7 +3689,11 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 		 * These should only happen for pmap_kernel()
 		 */
 		KASSERT(pm == pmap_kernel(), ("huh"));
-		pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
+		/* XXX: what to do about the bits > 32 ? */
+		if (l1pd & L1_S_SUPERSEC) 
+			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
+		else
+			pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
 	} else {
 		/*
 		 * Note that we can't rely on the validity of the L1
@@ -3744,7 +3756,11 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 		 * These should only happen for pmap_kernel()
 		 */
 		KASSERT(pmap == pmap_kernel(), ("huh"));
-		pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
+		/* XXX: what to do about the bits > 32 ? */
+		if (l1pd & L1_S_SUPERSEC) 
+			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
+		else
+			pa = (l1pd & L1_S_FRAME) | (va & L1_S_OFFSET);
 		if (l1pd & L1_S_PROT_W || (prot & VM_PROT_WRITE) == 0) {
 			m = PHYS_TO_VM_PAGE(pa);
 			vm_page_hold(m);

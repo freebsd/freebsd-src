@@ -264,14 +264,16 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROT_MASK		(L1_S_PROT_U|L1_S_PROT_W)
 
 #define	L1_S_CACHE_MASK_generic	(L1_S_B|L1_S_C)
-#define	L1_S_CACHE_MASK_xscale	(L1_S_B|L1_S_C|L1_S_XSCALE_TEX(TEX_XSCALE_X))
+#define	L1_S_CACHE_MASK_xscale	(L1_S_B|L1_S_C|L1_S_XSCALE_TEX(TEX_XSCALE_X)|\
+    				L1_S_XSCALE_TEX(TEX_XSCALE_T))
 
 #define	L2_L_PROT_U		(L2_AP(AP_U))
 #define	L2_L_PROT_W		(L2_AP(AP_W))
 #define	L2_L_PROT_MASK		(L2_L_PROT_U|L2_L_PROT_W)
 
 #define	L2_L_CACHE_MASK_generic	(L2_B|L2_C)
-#define	L2_L_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_L_TEX(TEX_XSCALE_X))
+#define	L2_L_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_L_TEX(TEX_XSCALE_X) | \
+    				L2_XSCALE_L_TEX(TEX_XSCALE_T))
 
 #define	L2_S_PROT_U_generic	(L2_AP(AP_U))
 #define	L2_S_PROT_W_generic	(L2_AP(AP_W))
@@ -282,7 +284,8 @@ extern int pmap_needs_pte_sync;
 #define	L2_S_PROT_MASK_xscale	(L2_S_PROT_U|L2_S_PROT_W)
 
 #define	L2_S_CACHE_MASK_generic	(L2_B|L2_C)
-#define	L2_S_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_T_TEX(TEX_XSCALE_X))
+#define	L2_S_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_T_TEX(TEX_XSCALE_X)| \
+    				 L2_XSCALE_T_TEX(TEX_XSCALE_X))
 
 #define	L1_S_PROTO_generic	(L1_TYPE_S | L1_S_IMP)
 #define	L1_S_PROTO_xscale	(L1_TYPE_S)
@@ -348,6 +351,9 @@ extern int pmap_needs_pte_sync;
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
 #define	PMAP_NEEDS_PTE_SYNC	1
 #define	PMAP_INCLUDE_PTE_SYNC
+#elif defined(CPU_XSCALE_81342)
+#define PMAP_NEEDS_PTE_SYNC	1
+#define PMAP_INCLUDE_PTE_SYNC
 #elif (ARM_MMU_SA1 == 0)
 #define	PMAP_NEEDS_PTE_SYNC	0
 #endif
@@ -387,14 +393,18 @@ extern int pmap_needs_pte_sync;
 
 #define	PTE_SYNC(pte)							\
 do {									\
-	if (PMAP_NEEDS_PTE_SYNC)					\
+	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
+		cpu_l2cache_wb_range((vm_offset_t)(pte), sizeof(pt_entry_t));\
+	}\
 } while (/*CONSTCOND*/0)
 
 #define	PTE_SYNC_RANGE(pte, cnt)					\
 do {									\
 	if (PMAP_NEEDS_PTE_SYNC) {					\
 		cpu_dcache_wb_range((vm_offset_t)(pte),			\
+		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
+		cpu_l2cache_wb_range((vm_offset_t)(pte), 		\
 		    (cnt) << 2); /* * sizeof(pt_entry_t) */		\
 	}								\
 } while (/*CONSTCOND*/0)
@@ -453,6 +463,10 @@ void	xscale_setup_minidata(vm_offset_t, vm_offset_t, vm_offset_t);
 
 void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #endif /* ARM_MMU_XSCALE == 1 */
+#if defined(CPU_XSCALE_81342)
+#define ARM_HAVE_SUPERSECTIONS
+#endif
+
 #define PTE_KERNEL	0
 #define PTE_USER	1
 #define	l1pte_valid(pde)	((pde) != 0)
@@ -521,7 +535,9 @@ void	pmap_devmap_register(const struct pmap_devmap *);
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2
 void	pmap_kenter_section(vm_offset_t, vm_paddr_t, int flags);
+#ifdef ARM_HAVE_SUPERSECTIONS
 void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
+#endif
 
 extern char *_tmppt;
 
