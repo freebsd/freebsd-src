@@ -61,6 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/i80321reg.h>
 #include <arm/xscale/i80321/i80321var.h>
 
+#ifdef CPU_XSCALE_81342
+#define ICU_INT_TIMER0	(8) /* XXX: Can't include i81342reg.h because 
+			       definitions overrides the ones from i80321reg.h
+			       */
+#endif
 #include <arm/xscale/xscalevar.h>
 
 #include "opt_timer.h"
@@ -76,7 +81,7 @@ static unsigned i80321_timer_get_timecount(struct timecounter *tc);
 
 static uint32_t counts_per_hz;
 
-#ifdef XSCALE_DISABLE_CCNT
+#if defined(XSCALE_DISABLE_CCNT) || defined(CPU_XSCALE_81342) 
 static uint32_t offset;
 static uint32_t last = -1;
 #endif
@@ -93,7 +98,7 @@ static struct timecounter i80321_timer_timecounter = {
 	i80321_timer_get_timecount, /* get_timecount */
 	NULL,			    /* no poll_pps */
 	~0u,			    /* counter_mask */
-#ifdef XSCALE_DISABLE_CCNT
+#if defined(XSCALE_DISABLE_CCNT) || defined(CPU_XSCALE_81342)
 	COUNTS_PER_SEC,
 #else
 	COUNTS_PER_SEC * 3,	 	   /* frequency */
@@ -141,7 +146,11 @@ tmr1_read(void)
 {
 	uint32_t rv;
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mrc p6, 0, %0, c1, c9, 0"
+#else
 	__asm __volatile("mrc p6, 0, %0, c1, c1, 0"
+#endif
 		: "=r" (rv));
 	return (rv);
 }
@@ -150,7 +159,12 @@ static __inline void
 tmr1_write(uint32_t val)
 {
 
+
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c1, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c1, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -160,7 +174,11 @@ tcr1_read(void)
 {
 	uint32_t rv;
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mrc p6, 0, %0, c3, c9, 0"
+#else
 	__asm __volatile("mrc p6, 0, %0, c3, c1, 0"
+#endif
 		: "=r" (rv));
 	return (rv);
 }
@@ -168,7 +186,11 @@ static __inline void
 tcr1_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c3, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c3, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -177,7 +199,11 @@ static __inline void
 trr1_write(uint32_t val)
 {
 
-	__asm __volatile("mcr p6, 1, %0, c5, c1, 0"
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c5, c9, 0"
+#else
+	__asm __volatile("mcr p6, 0, %0, c5, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -187,7 +213,11 @@ tmr0_read(void)
 {
 	uint32_t rv;
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mrc p6, 0, %0, c0, c9, 0"
+#else
 	__asm __volatile("mrc p6, 0, %0, c0, c1, 0"
+#endif
 		: "=r" (rv));
 	return (rv);
 }
@@ -196,7 +226,11 @@ static __inline void
 tmr0_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c0, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c0, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -206,7 +240,11 @@ tcr0_read(void)
 {
 	uint32_t rv;
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mrc p6, 0, %0, c2, c9, 0"
+#else
 	__asm __volatile("mrc p6, 0, %0, c2, c1, 0"
+#endif
 		: "=r" (rv));
 	return (rv);
 }
@@ -214,7 +252,11 @@ static __inline void
 tcr0_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c2, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c2, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -223,7 +265,11 @@ static __inline void
 trr0_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c4, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c4, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -232,7 +278,11 @@ static __inline void
 tisr_write(uint32_t val)
 {
 
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mcr p6, 0, %0, c6, c9, 0"
+#else
 	__asm __volatile("mcr p6, 0, %0, c6, c1, 0"
+#endif
 		:
 		: "r" (val));
 }
@@ -242,14 +292,18 @@ tisr_read(void)
 {
 	int ret;
 	
+#ifdef CPU_XSCALE_81342
+	__asm __volatile("mrc p6, 0, %0, c6, c9, 0" : "=r" (ret));
+#else
 	__asm __volatile("mrc p6, 0, %0, c6, c1, 0" : "=r" (ret));
+#endif
 	return (ret);
 }
 
 static unsigned
 i80321_timer_get_timecount(struct timecounter *tc)
 {
-#ifdef XSCALE_DISABLE_CCNT
+#if defined(XSCALE_DISABLE_CCNT) || defined(CPU_XSCALE_81342)
 	uint32_t cur = tcr0_read();
 
 	if (cur > last && last != -1) {
@@ -331,8 +385,13 @@ cpu_initclocks(void)
 
 	oldirqstate = disable_interrupts(I32_bit);
 
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, ICU_INT_TMR0,
-	    ICU_INT_TMR0, 1, RF_ACTIVE);
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 
+#ifdef CPU_XSCALE_81342
+	    ICU_INT_TIMER0, ICU_INT_TIMER0,
+#else
+	    ICU_INT_TMR0, ICU_INT_TMR0, 
+#endif
+	    1, RF_ACTIVE);
 	if (!irq)
 		panic("Unable to setup the clock irq handler.\n");
 	else
@@ -350,7 +409,7 @@ cpu_initclocks(void)
 	tc_init(&i80321_timer_timecounter);
 	restore_interrupts(oldirqstate);
 	rid = 0;
-#ifndef XSCALE_DISABLE_CCNT
+#if !defined(XSCALE_DISABLE_CCNT) && !defined(CPU_XSCALE_81342)
 	/* Enable the clock count register. */
 	__asm __volatile("mrc p14, 0, %0, c0, c0, 0\n" : "=r" (rid));
 	rid &= ~(1 <<  3);
