@@ -3464,9 +3464,6 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 	int error;
 
 	if (dev->parent != NULL) {
-		if ((flags &~ INTR_ENTROPY) == (INTR_TYPE_NET | INTR_MPSAFE) &&
-		    !debug_mpsafenet)
-			flags &= ~INTR_MPSAFE;
 		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
 		    filter, handler, arg, cookiep);
 		if (error == 0) {

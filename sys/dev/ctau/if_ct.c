@@ -2206,11 +2206,6 @@ static int ct_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
-	if (!debug_mpsafenet && ct_mpsafenet) {
-		printf ("WORNING! Network stack is not MPSAFE. "
-			"Turning off debug.ct.mpsafenet.\n");
-		ct_mpsafenet = 0;
-	}
 	if (ct_mpsafenet)
 		ct_cdevsw.d_flags &= ~D_NEEDGIANT;
 
