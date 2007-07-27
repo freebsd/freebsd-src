@@ -703,7 +703,8 @@ inittodr(time_t base)
 #else
 	ct.year += 2000;
 #endif
-	/* Should we set dow = -1 because some clocks don't set it correctly? */
+	/* Set dow = -1 because some clocks don't set it correctly. */
+	ct.dow = -1;
 	if (clock_ct_to_ts(&ct, &ts)) {
 		printf("Invalid time in clock: check and reset the date!\n");
 		return;
