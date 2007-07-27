@@ -441,6 +441,7 @@ fill_vmmeter(struct vmmeter *vmmp)
 		GET_VM_STATS(vm, v_reactivated);
 		GET_VM_STATS(vm, v_pdwakeups);
 		GET_VM_STATS(vm, v_pdpages);
+		GET_VM_STATS(vm, v_tcached);
 		GET_VM_STATS(vm, v_dfree);
 		GET_VM_STATS(vm, v_pfree);
 		GET_VM_STATS(vm, v_tfree);
@@ -721,6 +722,7 @@ dosum(void)
 	(void)printf("%9u pages affected by  fork()\n", sum.v_forkpages);
 	(void)printf("%9u pages affected by vfork()\n", sum.v_vforkpages);
 	(void)printf("%9u pages affected by rfork()\n", sum.v_rforkpages);
+	(void)printf("%9u pages cached\n", sum.v_tcached);
 	(void)printf("%9u pages freed\n", sum.v_tfree);
 	(void)printf("%9u pages freed by daemon\n", sum.v_dfree);
 	(void)printf("%9u pages freed by exiting processes\n", sum.v_pfree);
