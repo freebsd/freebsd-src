@@ -282,12 +282,12 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_hdrlen = PFSYNC_HDRLEN;
 	pfsync_setmtu(pfsyncif, ETHERMTU);
 #ifdef __FreeBSD__
-	callout_init(&pfsyncif->sc_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&pfsyncif->sc_tmo, CALLOUT_MPSAFE);
 #ifdef PFSYNC_TDB
-	callout_init(&pfsyncif->sc_tdb_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&pfsyncif->sc_tdb_tmo, CALLOUT_MPSAFE);
 #endif
-	callout_init(&pfsyncif->sc_bulk_tmo, NET_CALLOUT_MPSAFE);
-	callout_init(&pfsyncif->sc_bulkfail_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&pfsyncif->sc_bulk_tmo, CALLOUT_MPSAFE);
+	callout_init(&pfsyncif->sc_bulkfail_tmo, CALLOUT_MPSAFE);
 #else
 	timeout_set(&pfsyncif->sc_tmo, pfsync_timeout, pfsyncif);
 	timeout_set(&pfsyncif->sc_tdb_tmo, pfsync_tdb_timeout, pfsyncif);
