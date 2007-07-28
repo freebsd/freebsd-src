@@ -167,7 +167,7 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   iorequest.piod_op = PIOD_READ_D;
   iorequest.piod_offs = (void *)parm_offset;
   iorequest.piod_addr = fsc.args;
-  iorequest.piod_len = nargs * sizeof(unsigned long);
+  iorequest.piod_len = (1+nargs) * sizeof(unsigned long);
   ptrace(PT_IO, cpid, (caddr_t)&iorequest, 0);
   if (iorequest.piod_len == 0)
     return;
