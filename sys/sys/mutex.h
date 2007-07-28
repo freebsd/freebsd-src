@@ -408,7 +408,6 @@ do {									\
 } while (0)
 #define	NET_ASSERT_GIANT() do {						\
 } while (0)
-#define	NET_CALLOUT_MPSAFE	CALLOUT_MPSAFE
 
 struct mtx_args {
 	struct mtx	*ma_mtx;
