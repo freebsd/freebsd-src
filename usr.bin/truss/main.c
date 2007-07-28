@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 #include "extern.h"
 
-#define MAXARGS 5
+#define MAXARGS 6
 
 static void
 usage(void)
