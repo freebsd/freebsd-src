@@ -158,6 +158,8 @@ struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
+static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
+		    int docallout);
 static void	 syncache_timer(void *);
 static void	 syncookie_generate(struct syncache_head *, struct syncache *,
 		    u_int32_t *);
@@ -233,18 +235,6 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 )
 
 #define ENDPTS6_EQ(a, b) (memcmp(a, b, sizeof(*a)) == 0)
-
-#define SYNCACHE_TIMEOUT(sc, sch, co) do {				\
-	(sc)->sc_rxmits++;						\
-	(sc)->sc_rxttime = ticks +					\
-		TCPTV_RTOBASE * tcp_backoff[(sc)->sc_rxmits - 1];	\
-	if ((sch)->sch_nextc > (sc)->sc_rxttime)			\
-		(sch)->sch_nextc = (sc)->sc_rxttime;			\
-	if (!TAILQ_EMPTY(&(sch)->sch_bucket) && !(co))			\
-		callout_reset(&(sch)->sch_timer,			\
-			(sch)->sch_nextc - ticks,			\
-			syncache_timer, (void *)(sch));			\
-} while (0)
 
 #define	SCH_LOCK(sch)		mtx_lock(&(sch)->sch_mtx)
 #define	SCH_UNLOCK(sch)		mtx_unlock(&(sch)->sch_mtx)
@@ -341,7 +331,7 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 	sch->sch_length++;
 
 	/* Reinitialize the bucket row's timer. */
-	SYNCACHE_TIMEOUT(sc, sch, 1);
+	syncache_timeout(sc, sch, 1);
 
 	SCH_UNLOCK(sch);
 
@@ -364,6 +354,22 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 
 	syncache_free(sc);
 	tcp_syncache.cache_count--;
+}
+
+/*
+ * Engage/reengage time on bucket row.
+ */
+static void
+syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
+{
+	sc->sc_rxttime = ticks +
+		TCPTV_RTOBASE * (tcp_backoff[sc->sc_rxmits]);
+	sc->sc_rxmits++;
+	if (sch->sch_nextc > sc->sc_rxttime)
+		sch->sch_nextc = sc->sc_rxttime;
+	if (!TAILQ_EMPTY(&sch->sch_bucket) && docallout)
+		callout_reset(&sch->sch_timer, sch->sch_nextc - ticks,
+		    syncache_timer, (void *)sch);
 }
 
 /*
@@ -391,7 +397,7 @@ syncache_timer(void *xsch)
 		 * then the RST will be sent by the time the remote
 		 * host does the SYN/ACK->ACK.
 		 */
-		if (sc->sc_rxttime >= tick) {
+		if (sc->sc_rxttime > tick) {
 			if (sc->sc_rxttime < sch->sch_nextc)
 				sch->sch_nextc = sc->sc_rxttime;
 			continue;
@@ -399,7 +405,8 @@ syncache_timer(void *xsch)
 
 		if (sc->sc_rxmits > tcp_syncache.rexmt_limit) {
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
-				log(LOG_DEBUG, "%s; %s: Response timeout\n",
+				log(LOG_DEBUG, "%s; %s: Retransmits exhausted, "
+				    "giving up and removing syncache entry\n",
 				    s, __func__);
 				free(s, M_TCPLOG);
 			}
@@ -407,10 +414,16 @@ syncache_timer(void *xsch)
 			tcpstat.tcps_sc_stale++;
 			continue;
 		}
+		if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Response timeout, "
+			    "retransmitting (%u) SYN|ACK\n",
+			    s, __func__, sc->sc_rxmits);
+			free(s, M_TCPLOG);
+		}
 
 		(void) syncache_respond(sc);
 		tcpstat.tcps_sc_retransmitted++;
-		SYNCACHE_TIMEOUT(sc, sch, 0);
+		syncache_timeout(sc, sch, 0);
 	}
 	if (!TAILQ_EMPTY(&(sch)->sch_bucket))
 		callout_reset(&(sch)->sch_timer, (sch)->sch_nextc - tick,
@@ -774,7 +787,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	/*
 	 * If the SYN,ACK was retransmitted, reset cwnd to 1 segment.
 	 */
-	if (sc->sc_rxmits > 1)
+	if (sc->sc_rxmits)
 		tp->snd_cwnd = tp->t_maxseg;
 	tcp_timer_activate(tp, TT_KEEP, tcp_keepinit);
 
@@ -845,7 +858,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 				    "(probably spoofed)\n", s, __func__);
 			goto failed;
 		}
-		tcpstat.tcps_sc_recvcookie++;
 	} else {
 		/* Pull out the entry to unlock the bucket row. */
 		TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
@@ -947,6 +959,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct mbuf *ipopts = NULL;
 	u_int32_t flowtmp;
 	int win, sb_hiwat, ip_ttl, ip_tos, noopt;
+	char *s;
 #ifdef INET6
 	int autoflowlabel = 0;
 #endif
@@ -957,6 +970,8 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_LOCK_ASSERT(inp);			/* listen socket */
+	KASSERT((th->th_flags & (TH_RST|TH_ACK|TH_SYN)) == TH_ACK,
+	    ("%s: unexpected tcp flags", __func__));
 
 	/*
 	 * Combine all so/tp operations very early to drop the INP lock as
@@ -1004,6 +1019,11 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 *
 	 * XXX: should the syncache be re-initialized with the contents
 	 * of the new SYN here (which may have different options?)
+	 *
+	 * XXX: We do not check the sequence number to see if this is a
+	 * real retransmit or a new connection attempt.  The question is
+	 * how to handle such a case; either ignore it as spoofed, or
+	 * drop the current entry and create a new one?
 	 */
 	sc = syncache_lookup(inc, &sch);	/* returns locked entry */
 	SCH_LOCK_ASSERT(sch);
@@ -1035,8 +1055,16 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		KASSERT(sc->sc_label != NULL,
 		    ("%s: label not initialized", __func__));
 #endif
+		/* Retransmit SYN|ACK and reset retransmit count. */
+		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: Reveived duplicate SYN, "
+			    "resetting timer and retransmitting SYN|ACK\n",
+			    s, __func__);
+			free(s, M_TCPLOG);
+		}
 		if (syncache_respond(sc) == 0) {
-			SYNCACHE_TIMEOUT(sc, sch, 1);
+			sc->sc_rxmits = 0;
+			syncache_timeout(sc, sch, 1);
 			tcpstat.tcps_sndacks++;
 			tcpstat.tcps_sndtotal++;
 		}
@@ -1488,6 +1516,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 		sc->sc_tsoff = data - ticks;		/* after XOR */
 	}
 
+	tcpstat.tcps_sc_sendcookie++;
 	return;
 }
 
@@ -1590,6 +1619,7 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 	sc->sc_rxmits = 0;
 	sc->sc_peer_mss = tcp_sc_msstab[mss];
 
+	tcpstat.tcps_sc_recvcookie++;
 	return (sc);
 }
 
