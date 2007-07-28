@@ -133,6 +133,10 @@ int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
     &tcp_do_rfc1323, 0, "Enable rfc1323 (high performance TCP) extensions");
 
+static int	tcp_log_debug = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
+    &tcp_log_debug, 0, "Log errors caused by incoming TCP segments");
+
 static int	tcp_tcbhashsize = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
@@ -2093,6 +2097,10 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 #else
 	    2 * INET_ADDRSTRLEN;
 #endif /* INET6 */
+
+	/* Is logging enabled? */
+	if (tcp_log_debug == 0 && tcp_log_in_vain == 0)
+		return (NULL);
 
 	s = malloc(size, M_TCPLOG, M_ZERO|M_NOWAIT);
 	if (s == NULL)

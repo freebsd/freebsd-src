@@ -57,6 +57,8 @@
 #include <net/if.h>
 #include <net/route.h>
 
+#define TCPSTATES		/* for logging */
+
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -98,7 +100,7 @@ struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
     &tcpstat , tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
-static int tcp_log_in_vain = 0;
+int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
@@ -662,7 +664,7 @@ findpcb:
 		if ((thflags & TH_SYN) == 0) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN is missing, segment rejected\n",
+				    "SYN is missing, segment ignored\n",
 				    s, __func__);
 			tcpstat.tcps_badsyn++;
 			goto dropunlock;
@@ -694,7 +696,7 @@ findpcb:
 		if ((thflags & TH_FIN) && drop_synfin) {
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "SYN|FIN segment rejected (based on "
+				    "SYN|FIN segment ignored (based on "
 				    "sysctl setting)\n", s, __func__);
 			tcpstat.tcps_badsyn++;
                 	goto dropunlock;
@@ -771,7 +773,7 @@ findpcb:
 			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 			    log(LOG_DEBUG, "%s; %s: Listen socket: "
 				"Connection attempt from broad- or multicast "
-				"link layer address rejected\n", s, __func__);
+				"link layer address ignored\n", s, __func__);
 			goto dropunlock;
 		}
 		if (isipv6) {
@@ -781,7 +783,7 @@ findpcb:
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt to/from self "
-					"rejected\n", s, __func__);
+					"ignored\n", s, __func__);
 				goto dropunlock;
 			}
 			if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
@@ -789,7 +791,7 @@ findpcb:
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt from/to multicast "
-					"address rejected\n", s, __func__);
+					"address ignored\n", s, __func__);
 				goto dropunlock;
 			}
 #endif
@@ -799,7 +801,7 @@ findpcb:
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt from/to self "
-					"rejected\n", s, __func__);
+					"ignored\n", s, __func__);
 				goto dropunlock;
 			}
 			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
@@ -809,7 +811,7 @@ findpcb:
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt from/to broad- "
-					"or multicast address rejected\n",
+					"or multicast address ignored\n",
 					s, __func__);
 				goto dropunlock;
 			}
@@ -1566,8 +1568,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((so->so_state & SS_NOFDREF) &&
 	    tp->t_state > TCPS_CLOSE_WAIT && tlen) {
+		char *s;
+
 		KASSERT(headlocked, ("%s: trimthenstep6: tcp_close.3: head "
 		    "not locked", __func__));
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: %s: Received data after socket "
+			    "was closed, sending RST and removing tcpcb\n",
+			    s, __func__, tcpstates[tp->t_state]);
+			free(s, M_TCPLOG);
+		}
 		tp = tcp_close(tp);
 		tcpstat.tcps_rcvafterclose++;
 		rstreason = BANDLIM_UNLIMITED;
