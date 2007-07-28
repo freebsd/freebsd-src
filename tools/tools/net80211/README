@@ -7,7 +7,6 @@ wireless driver.  Everything should work with ath.
 stumbler	view nearby networks using raw packet interface
 w00t		variety of programs that use the raw packet interface
 wesside		WEP frag attack tool using raw packet interface
-wlandebug	manipulate net80211 debug flags symbolically
 wlaninject	inject 802.11 packets using the raw packet interface
 wlanstats	dump net80211 statistics
 wlanwatch	monitor net80211 events via the routing socket
