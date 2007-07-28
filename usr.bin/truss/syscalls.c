@@ -496,13 +496,13 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval, struct trus
   int pid = trussinfo->pid;
   switch (sc->type & ARG_MASK) {
   case Hex:
-    asprintf(&tmp, "0x%lx", args[sc->offset]);
+    asprintf(&tmp, "0x%x", (int)args[sc->offset]);
     break;
   case Octal:
-    asprintf(&tmp, "0%lo", args[sc->offset]);
+    asprintf(&tmp, "0%o", (int)args[sc->offset]);
     break;
   case Int:
-    asprintf(&tmp, "%ld", args[sc->offset]);
+    asprintf(&tmp, "%d", (int)args[sc->offset]);
     break;
   case Name:
     {
