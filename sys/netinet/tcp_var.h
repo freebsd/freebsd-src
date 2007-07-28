@@ -494,6 +494,7 @@ MALLOC_DECLARE(M_TCPLOG);
 extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
 extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
+extern	int tcp_log_in_vain;
 extern	int tcp_mssdflt;	/* XXX */
 extern	int tcp_minmss;
 extern	int tcp_delack_enabled;
