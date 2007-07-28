@@ -72,6 +72,20 @@ static const char rcsid[] =
 #include "extern.h"
 #include "syscall.h"
 
+/* 64-bit alignment on 32-bit platforms. */
+#ifdef __powerpc__
+#define	QUAD_ALIGN	1
+#else
+#define	QUAD_ALIGN	0
+#endif
+
+/* Number of slots needed for a 64-bit argument. */
+#ifdef __LP64__
+#define	QUAD_SLOTS	1
+#else
+#define	QUAD_SLOTS	2
+#endif
+
 /*
  * This should probably be in its own file, sorted alphabetically.
  */
@@ -82,19 +96,13 @@ struct syscall syscalls[] = {
 	{ "readlink", 1, 3,
 	  { { Name, 0 } , { Readlinkres | OUT, 1 }, { Int, 2 }}},
 	{ "lseek", 2, 3,
-#ifdef __LP64__
-	  { { Int, 0 }, {Quad, 2 }, { Whence, 3 }}},
-#else
-	  { { Int, 0 }, {Quad, 2 }, { Whence, 4 }}},
-#endif
+	  { {Int, 0}, {Quad, 1 + QUAD_ALIGN},
+		{Whence, 1 + QUAD_SLOTS + QUAD_ALIGN}}},
 	{ "linux_lseek", 2, 3,
 	  { { Int, 0 }, {Int, 1 }, { Whence, 2 }}},
 	{ "mmap", 2, 6,
-#ifdef __LP64__
-	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 5}}},
-#else
-	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4}, {Quad, 6}}},
-#endif
+	  { {Ptr, 0}, {Int, 1}, {Mprot, 2}, {Mmapflags, 3}, {Int, 4},
+		{Quad, 5 + QUAD_ALIGN}}},
 	{ "mprotect", 1, 3,
 	  { { Ptr, 0 }, {Int, 1}, {Mprot, 2}}},
 	{ "open", 1, 3,
