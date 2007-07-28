@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$OpenBSD: pf.c,v 1.483 2005/03/15 17:38:43 dhartmei Exp $ */
+/*	$OpenBSD: pf.c,v 1.502.2.1 2006/05/02 22:55:52 brad Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -170,6 +170,8 @@ int			 pf_check_threshold(struct pf_threshold *);
 void			 pf_change_ap(struct pf_addr *, u_int16_t *,
 			    u_int16_t *, u_int16_t *, struct pf_addr *,
 			    u_int16_t, u_int8_t, sa_family_t);
+int			 pf_modulate_sack(struct mbuf *, int, struct pf_pdesc *,
+			    struct tcphdr *, struct pf_state_peer *);
 #ifdef INET6
 void			 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
@@ -1482,6 +1484,63 @@ pf_change_a6(struct pf_addr *a, u_int16_t *c, struct pf_addr *an, u_int8_t u)
 	    ao.addr16[7], an->addr16[7], u);
 }
 #endif /* INET6 */
+
+
+/*
+ * Need to modulate the sequence numbers in the TCP SACK option
+ */
+int
+pf_modulate_sack(struct mbuf *m, int off, struct pf_pdesc *pd,
+    struct tcphdr *th, struct pf_state_peer *dst)
+{
+	int hlen = (th->th_off << 2) - sizeof(*th), thoptlen = hlen;
+	u_int8_t opts[MAX_TCPOPTLEN], *opt = opts;
+	int copyback = 0, i, olen;
+	struct sackblk sack;
+
+#define TCPOLEN_SACKLEN	(TCPOLEN_SACK + 2)
+	if (hlen < TCPOLEN_SACKLEN ||
+	    !pf_pull_hdr(m, off + sizeof(*th), opts, hlen, NULL, NULL, pd->af))
+		return 0;
+
+	while (hlen >= TCPOLEN_SACKLEN) {
+		olen = opt[1];
+		switch (*opt) {
+		case TCPOPT_EOL:	/* FALLTHROUGH */
+		case TCPOPT_NOP:
+			opt++;
+			hlen--;
+			break;
+		case TCPOPT_SACK:
+			if (olen > hlen)
+				olen = hlen;
+			if (olen >= TCPOLEN_SACKLEN) {
+				for (i = 2; i + TCPOLEN_SACK <= olen;
+				    i += TCPOLEN_SACK) {
+					memcpy(&sack, &opt[i], sizeof(sack));
+					pf_change_a(&sack.start, &th->th_sum,
+					    htonl(ntohl(sack.start) -
+					    dst->seqdiff), 0);
+					pf_change_a(&sack.end, &th->th_sum,
+					    htonl(ntohl(sack.end) -
+					    dst->seqdiff), 0);
+					memcpy(&opt[i], &sack, sizeof(sack));
+				}
+				copyback = 1;
+			}
+			/* FALLTHROUGH */
+		default:
+			if (olen < 2)
+				olen = 2;
+			hlen -= olen;
+			opt += olen;
+		}
+	}
+
+	if (copyback)
+		m_copyback(m, off + sizeof(*th), thoptlen, opts);
+	return (copyback);
+}
 
 void
 pf_change_icmp(struct pf_addr *ia, u_int16_t *ip, struct pf_addr *oa,
@@ -4576,6 +4635,25 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 	}
 
 	ackskew = dst->seqlo - ack;
+
+
+	/*
+	 * Need to demodulate the sequence numbers in any TCP SACK options
+	 * (Selective ACK). We could optionally validate the SACK values
+	 * against the current ACK window, either forwards or backwards, but
+	 * I'm not confident that SACK has been implemented properly
+	 * everywhere. It wouldn't surprise me if several stacks accidently
+	 * SACK too far backwards of previously ACKed data. There really aren't
+	 * any security implications of bad SACKing unless the target stack
+	 * doesn't validate the option length correctly. Someone trying to
+	 * spoof into a TCP connection won't bother blindly sending SACK
+	 * options anyway.
+	 */
+	if (dst->seqdiff && (th->th_off << 2) > sizeof(struct tcphdr)) {
+		if (pf_modulate_sack(m, off, pd, th, dst))
+			copyback = 1;
+	}
+
 
 #define MAXACKWINDOW (0xffff + 1500)	/* 1500 is an arbitrary fudge factor */
 	if (SEQ_GEQ(src->seqhi, end) &&
