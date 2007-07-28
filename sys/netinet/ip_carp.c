@@ -384,9 +384,9 @@ carp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->sc_imo.imo_max_memberships = IP_MIN_MEMBERSHIPS;
 	sc->sc_imo.imo_multicast_vif = -1;
 
-	callout_init(&sc->sc_ad_tmo, NET_CALLOUT_MPSAFE);
-	callout_init(&sc->sc_md_tmo, NET_CALLOUT_MPSAFE);
-	callout_init(&sc->sc_md6_tmo, NET_CALLOUT_MPSAFE);
+	callout_init(&sc->sc_ad_tmo, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_md_tmo, CALLOUT_MPSAFE);
+	callout_init(&sc->sc_md6_tmo, CALLOUT_MPSAFE);
 	
 	ifp->if_softc = sc;
 	if_initname(ifp, CARP_IFNAME, unit);
