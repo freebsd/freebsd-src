@@ -118,6 +118,9 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   unsigned int regargs;
   struct syscall *sc;
 
+  /* Account for a 64-bit argument with corresponding alignment. */
+  nargs += 2;
+
   cpid = trussinfo->curthread->tid;
 
   clear_fsc();
