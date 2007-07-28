@@ -473,11 +473,39 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 {
 	struct syncache *sc;
 	struct syncache_head *sch;
+	char *s = NULL;
 
 	sc = syncache_lookup(inc, &sch);	/* returns locked sch */
 	SCH_LOCK_ASSERT(sch);
-	if (sc == NULL)
+
+	/*
+	 * Any RST to our SYN|ACK must not carry ACK, SYN or FIN flags.
+	 * See RFC 793 page 65, section SEGMENT ARRIVES.
+	 */
+	if (th->th_flags & (TH_ACK|TH_SYN|TH_FIN)) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: Spurious RST with ACK, SYN or "
+			    "FIN flag set, segment ignored\n", s, __func__);
+		tcpstat.tcps_badrst++;
 		goto done;
+	}
+
+	/*
+	 * No corresponding connection was found in syncache.
+	 * If syncookies are enabled and possibly exclusively
+	 * used, or we are under memory pressure, a valid RST
+	 * may not find a syncache entry.  In that case we're
+	 * done and no SYN|ACK retransmissions will happen.
+	 * Otherwise the the RST was misdirected or spoofed.
+	 */
+	if (sc == NULL) {
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: Spurious RST without matching "
+			    "syncache entry (possibly syncookie only), "
+			    "segment ignored\n", s, __func__);
+		tcpstat.tcps_badrst++;
+		goto done;
+	}
 
 	/*
 	 * If the RST bit is set, check the sequence number to see
@@ -495,9 +523,21 @@ syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 	if (SEQ_GEQ(th->th_seq, sc->sc_irs) &&
 	    SEQ_LEQ(th->th_seq, sc->sc_irs + sc->sc_wnd)) {
 		syncache_drop(sc, sch);
+		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
+			log(LOG_DEBUG, "%s; %s: Our SYN|ACK was rejected, "
+			    "connection attempt aborted by remote endpoint\n",
+			    s, __func__);
 		tcpstat.tcps_sc_reset++;
+	} else if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+		log(LOG_DEBUG, "%s; %s: RST with invalid SEQ %u != IRS %u "
+		    "(+WND %u), segment ignored\n",
+		    s, __func__, th->th_seq, sc->sc_irs, sc->sc_wnd);
+		tcpstat.tcps_badrst++;
 	}
+
 done:
+	if (s != NULL)
+		free(s, M_TCPLOG);
 	SCH_UNLOCK(sch);
 }
 
