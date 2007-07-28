@@ -182,6 +182,7 @@ SUBDIR=	ac \
 	vipw \
 	watch \
 	watchdogd \
+	wlandebug \
 	${_wlconfig} \
 	wpa \
 	${_ypbind} \
