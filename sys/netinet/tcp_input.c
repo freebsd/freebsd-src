@@ -648,24 +648,12 @@ findpcb:
 		 * Our (SYN|ACK) response was rejected.
 		 * Check with syncache and remove entry to prevent
 		 * retransmits.
-		 */
-		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
-			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
-				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "Our SYN|ACK was rejected, connection "
-				    "attempt aborted by remote endpoint\n",
-				    s, __func__);
-			syncache_chkrst(&inc, th);
-			goto dropunlock;
-		}
-		/*
-		 * Spurious RST.  Ignore.
+		 *
+		 * NB: syncache_chkrst does its own logging of failure
+		 * causes.
 		 */
 		if (thflags & TH_RST) {
-			if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
-				log(LOG_DEBUG, "%s; %s: Listen socket: "
-				    "Spurious RST, segment rejected\n",
-				    s, __func__);
+			syncache_chkrst(&inc, th);
 			goto dropunlock;
 		}
 		/*
