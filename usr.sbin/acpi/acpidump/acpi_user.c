@@ -166,6 +166,8 @@ acpi_find_rsd_ptr(void)
 
 	acpi_user_init();
 
+	addr = 0;
+
 	/* Attempt to use kenv or sysctl to find RSD PTR record. */
 	if (kenv(KENV_GET, hint_acpi_0_rsdp, buf, 20) == 0)
 		addr = strtoul(buf, NULL, 0);
