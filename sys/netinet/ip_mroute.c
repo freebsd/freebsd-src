@@ -639,12 +639,12 @@ ip_mrouter_reset(void)
     pim_assert = 0;
     mrt_api_config = 0;
 
-    callout_init(&expire_upcalls_ch, NET_CALLOUT_MPSAFE);
+    callout_init(&expire_upcalls_ch, CALLOUT_MPSAFE);
 
     bw_upcalls_n = 0;
     bzero((caddr_t)bw_meter_timers, sizeof(bw_meter_timers));
-    callout_init(&bw_upcalls_ch, NET_CALLOUT_MPSAFE);
-    callout_init(&bw_meter_ch, NET_CALLOUT_MPSAFE);
+    callout_init(&bw_upcalls_ch, CALLOUT_MPSAFE);
+    callout_init(&bw_meter_ch, CALLOUT_MPSAFE);
 }
 
 static void
