@@ -1573,9 +1573,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		KASSERT(headlocked, ("%s: trimthenstep6: tcp_close.3: head "
 		    "not locked", __func__));
 		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+#ifdef	TCPDEBUG
 			log(LOG_DEBUG, "%s; %s: %s: Received data after socket "
 			    "was closed, sending RST and removing tcpcb\n",
 			    s, __func__, tcpstates[tp->t_state]);
+#else
+			log(LOG_DEBUG, "%s; %s: Received data after socket "
+			    "was closed, sending RST and removing tcpcb\n",
+			    s, __func__);
+#endif
 			free(s, M_TCPLOG);
 		}
 		tp = tcp_close(tp);
