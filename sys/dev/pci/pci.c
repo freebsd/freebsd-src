@@ -3265,6 +3265,14 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
 	if (pci_mapbase(testval) == 0)
 		goto out;
+
+	/*
+	 * Restore the original value of the BAR.  We may have reprogrammed
+	 * the BAR of the low-level console device and when booting verbose,
+	 * we need the console device addressable.
+	 */
+	pci_write_config(child, *rid, map, 4);
+
 	if (PCI_BAR_MEM(testval)) {
 		if (type != SYS_RES_MEMORY) {
 			if (bootverbose)
