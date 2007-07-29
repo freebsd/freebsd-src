@@ -1057,7 +1057,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #endif
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Reveived duplicate SYN, "
+			log(LOG_DEBUG, "%s; %s: Received duplicate SYN, "
 			    "resetting timer and retransmitting SYN|ACK\n",
 			    s, __func__);
 			free(s, M_TCPLOG);
