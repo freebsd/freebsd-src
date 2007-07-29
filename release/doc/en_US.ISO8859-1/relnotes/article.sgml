@@ -946,12 +946,17 @@
 	  cards, as well as quarter- and half-channel support
 	  for 802.11a. &merged;</para>
 
-	<para>ISDN4BSD, &man.ng.h4.4;, and netatm have been temporarily
+	<para>The &os; network stack now runs entirely free of the
+	  Giant kernel lock, and relies solely on the kernel's
+	  fine-grained locking primitives to manage parallelism.  This
+	  significantly improves the network stack's performance on
+	  multi-processor systems; uni-processor systems could also
+	  see performance gains.
+	  ISDN4BSD, &man.ng.h4.4;, and netatm have been temporarily
 	  disconnected from the build.  These modules all require
 	  the Giant kernel lock for their operation; disconnecting
 	  them allows the removal of the NET_NEEDS_GIANT compatability
-	  shim and allows the &os; network stack to run completely
-	  without the Giant kernel lock.  It is planned to convert
+	  shim.  It is planned to convert
 	  these modules to fine-grained kernel locking and re-connect
 	  them for &os; 7.1-RELEASE.</para>
       </sect4>
