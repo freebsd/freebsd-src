@@ -35,6 +35,7 @@
  * $Id: if_tap.c,v 0.21 2000/07/23 21:46:02 max Exp $
  */
 
+#include "opt_compat.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
