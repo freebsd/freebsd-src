@@ -135,6 +135,11 @@ value does not begin with a
 .Ql /
 and is not empty, it is assumed to contain a list of email addresses, and
 the output is mailed to them.
+If
+.Ao Ar basedir Ac Ns Va _show_empty_output
+is set to
+.Dq Li NO ,
+then no mail will be sent if the output was empty.
 .Pp
 If
 .Ao Ar basedir Ac Ns Va _output
