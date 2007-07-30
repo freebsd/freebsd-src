@@ -28,6 +28,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include <opt_xtrace.h>
+
 #include <machine/pte.h>
 #include <assym.s>
 
@@ -37,6 +39,59 @@ __FBSDID("$FreeBSD$");
  * ar.k5 = EPC gateway page
  * ar.k4 = PCPU data
  */
+
+#ifdef EXCEPTION_TRACING
+
+	.data
+	.global xtrace, xhead
+xtrace:	.space	1024*5*8
+xhead:	data8	xtrace
+
+#define	XTRACE(offset)				\
+{	.mmi ;					\
+	mov	r24=ar.itc ;			\
+	mov	r25=cr.iip ;			\
+	mov	r27=offset ;			\
+} ;						\
+{	.mlx ;					\
+	mov	r28=cr.ifa ;			\
+	movl	r29=xhead ;;			\
+} ;						\
+{	.mmi ;					\
+	ld8	r29=[r29] ;;			\
+	st8	[r29]=r24,8 ;			\
+	nop	0 ;;				\
+} ;						\
+{	.mmi ;					\
+	st8	[r29]=r27,8 ;;			\
+	mov	r24=cr.isr ;			\
+	add	r27=8,r29 ;;			\
+} ;						\
+{	.mmi ;					\
+	st8	[r29]=r25,16 ;;			\
+	st8	[r27]=r28,16 ;			\
+	mov	r25=pr ;;			\
+} ;						\
+{	.mlx ;					\
+	st8	[r29]=r24 ;			\
+	movl	r28=xhead ;;			\
+} ;						\
+{	.mii ;					\
+	cmp.eq	p15,p0=r27,r28 ;		\
+	addl	r29=1024*5*8,r0 ;;		\
+(p15)	sub	r27=r28,r29 ;;			\
+} ;						\
+{	.mib ;					\
+	st8	[r28]=r27 ;			\
+	mov	pr=r25,0x1ffff ;		\
+	nop	0 ;;				\
+}
+
+#else
+
+#define	XTRACE(offset)
+
+#endif
 
 	.text
 
@@ -606,7 +661,8 @@ END(exception_restore)
 	.unwabi	@svr4, 'I';			\
 	.save	rp, r0;				\
 	.body;					\
-ivt_##name:
+ivt_##name:					\
+	XTRACE(offset)
 
 #define	IVT_END(name)				\
 	.endp	ivt_##name
