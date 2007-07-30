@@ -1,0 +1,227 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "6.2-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.bugfix; Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; &release.bugfix;,
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os; &release.bugfix;
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os; &release.bugfix;.
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://security.FreeBSD.org/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News and Corrections</title>
+
+    <para>[20070116] The release notes should have mentioned that a
+      separate ISO image has been created with readable documentation
+      files.  It contains renderings of the documention for all
+      supported languages; the last several &os; releases only
+      contained English documents due to space limitations.</para>
+
+    <para>[20070116] Some versions of the release announcement
+      contained an incorrect manual page reference for the GELI disk
+      encryption subsystem.  The correct manual page is
+      &man.geli.8;.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">SA-07:02.bind</ulink></entry>
+	    <entry>9&nbsp;February&nbsp;2007</entry>
+	    <entry><para>Multiple Denial of Service vulnerabilities in &man.named.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:03.ipv6.asc">SA-07:03.ipv6</ulink></entry>
+	    <entry>26&nbsp;April&nbsp;2007</entry>
+	    <entry><para>IPv6 Routing Header 0 is dangerous</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">SA-07:05.libarchive</ulink></entry>
+	    <entry>12&nbsp;July&nbsp;2007</entry>
+	    <entry><para>Errors handling corrupt tar files in &man.libarchive.3;</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+
+  </sect1>
+
+  <sect1 id="known-problems">
+    <title>Known Problems and Solutions</title>
+
+    <para>[20070116] As mentioned in the release notes, the
+      &man.arcmsr.4; driver was updated for &os; &release.bugfix;.
+      Some isolated crash problems were noted after this update,
+      although the driver in general tends to work quite well for
+      many testers, and it seems to be <quote>better</quote> in
+      general in terms of functionality and supported hardware.
+      Users having problems may wish to consider backing out the
+      driver update or installing a version of this driver 
+      <ulink url="ftp://ftp.areca.com.tw/RaidCards/AP_Drivers/FreeBSD/DRIVER/SourceCode/">directly
+      from Areca</ulink>.  Further investigation is continuing into
+      these issues.</para>
+
+    <para>[20070116] &os; &release.bugfix; has been diagnosed with
+      kernel bug related to UNIX-domain sockets.
+      A <ulink url="http://people.FreeBSD.org/~jhb/patches/unp_gc.patch">patch</ulink>
+      for this problem has been committed to HEAD and RELENG_6, and is
+      a candidate for an errata patch to RELENG_6_2 after further
+      testing.</para>
+
+    <para>[20070116, update 20070212] Systems with very heavy network activity have
+      been observed to have some problems with the kernel memory
+      allocator.  Symptoms are processes that get stuck in zonelimit
+      state, or system livelocks.  One partial workaround for this
+      problem is to add the following line
+      to <filename>/boot/loader.conf</filename> and reboot:</para>
+
+    <screen>kern.ipc.nmbclusters="0"</screen>
+
+    <para>Other workarounds have been discussed on the
+      <literal>freebsd-current@</literal>
+      and <literal>freebsd-stable@</literal> mailing lists.</para>
+
+    <para>A bugfix has been committed to HEAD and has been merged to RELENG_6.</para>
+
+    <para>[20070123, updated 20070307 &os; &release.bugfix; does not properly add a
+      host route to the destination of a &man.gif.4; interface
+      configured as an IPv6 point-to-point interface.  This makes it
+      impossible to send traffic across the tunnel.  A workaround is
+      to add the required route manually.  If the &man.gif.4;
+      interface was configured as:</para>
+
+    <screen>&prompt.root; ifconfig gif0 <replaceable>ADDRESS</replaceable>/128 <replaceable>DESTINATION</replaceable></screen>
+
+    <para>then the correct route can be added with this command:</para>
+
+    <screen>&prompt.root; route add -host -inet6 <replaceable>DESTINATION</replaceable> -iface gif0 -llinfo -nostatic</screen>
+
+    <para>A fix for this problem has been committed to HEAD,
+      RELENG_6, and RELENG_6_2.  Further details are given in
+      FreeBSD Errata Notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-07:02.net.asc">EN-07:02.net</ulink>.</para>
+
+    <para>[20070307] Under certain circumstances, a failed &man.jail.8;
+      startup may cause some undesired changes to a host's network
+      interface configuration, due to a bug in the
+      <filename>rc.d/jail</filename> startup script.  This problem has
+      been corrected on HEAD, RELENG_6, and RELENG_6_2, and is
+      documented in FreeBSD Errata Notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-07:03.rc.d_jail.asc">EN-07:03.rc.d_jail</ulink>.</para>
+
+    <para>[20070318] The &man.freebsd-update.8; client included in &os;
+      &release.bugfix; does not properly update SMP kernels.  This
+      bug has been fixed on HEAD, RELENG_6, and RELENG_6_2, as
+      described in FreeBSD Errata Notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-07:05.freebsd-update.asc">EN-07:05.freebsd-update</ulink>.</para>
+
+  </sect1>
+
+</article>
