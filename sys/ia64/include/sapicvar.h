@@ -30,10 +30,11 @@
 #define _MACHINE_SAPICVAR_H_
 
 struct sapic {
-	int		sa_id;		/* I/O SAPIC Id */
-	int		sa_base;	/* ACPI vector base */
-	int		sa_limit;	/* last ACPI vector handled here */
+	struct mtx	sa_mtx;
 	vm_offset_t	sa_registers;	/* virtual address of sapic */
+	u_int		sa_id;		/* I/O SAPIC Id */
+	u_int		sa_base;	/* ACPI vector base */
+	u_int		sa_limit;	/* last ACPI vector handled here */
 };
 
 #define SAPIC_TRIGGER_EDGE	0
@@ -49,12 +50,16 @@ struct sapic {
 #define SAPIC_DELMODE_INIT	5
 #define SAPIC_DELMODE_EXTINT	7
 
-int	sapic_config_intr(int irq, enum intr_trigger, enum intr_polarity);
-struct sapic *sapic_create(int id, int base, uint64_t address);
-int	sapic_enable(int irq, int vector);
-void	sapic_eoi(struct sapic *sa, int vector);
+int	sapic_config_intr(u_int irq, enum intr_trigger, enum intr_polarity);
+struct sapic *sapic_create(u_int id, u_int base, uint64_t address);
+int	sapic_enable(struct sapic *sa, u_int irq, u_int vector);
+void	sapic_eoi(struct sapic *sa, u_int vector);
+struct sapic *sapic_lookup(u_int irq);
+void	sapic_mask(struct sapic *sa, u_int irq);
+void	sapic_unmask(struct sapic *sa, u_int irq);
+
 #ifdef DDB
-void	sapic_print(struct sapic *sa, int input);
+void	sapic_print(struct sapic *sa, u_int irq);
 #endif
 
 #endif /* ! _MACHINE_SAPICVAR_H_ */

@@ -84,7 +84,7 @@ int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_save(struct thread *);
 void	ia64_init(void);
 void	ia64_probe_sapics(void);
-int	interrupt(uint64_t, struct trapframe *);
+int	interrupt(u_int, struct trapframe *);
 void	map_gateway_page(void);
 void	map_pal_code(void);
 void	map_vhpt(uintptr_t);
