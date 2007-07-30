@@ -48,13 +48,8 @@ extern u_int64_t ia64_lapic_address;
 #define IA64_INTERRUPT_BLOCK	\
 	(struct ia64_interrupt_block *)IA64_PHYS_TO_RR6(ia64_lapic_address)
 
-struct sapic;
-
-void ia64_add_sapic(struct sapic *sa);
 int ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
-		    driver_intr_t handler, void *arg, enum intr_type flags,
-		     void **cookiep, volatile long *cntp);
+    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);
 int ia64_teardown_intr(void *cookie);
-void ia64_dispatch_intr(void *frame, unsigned long vector);
 
 #endif /* !_MACHINE_INTR_H_ */

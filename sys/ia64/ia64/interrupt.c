@@ -49,6 +49,7 @@
 #include <sys/mutex.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -76,7 +77,7 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 extern int mp_ipi_test;
 #endif
 
-volatile int mc_expected, mc_received;
+static void ia64_dispatch_intr(void *, u_int);
 
 static void 
 dummy_perf(unsigned long vector, struct trapframe *tf)  
@@ -127,7 +128,7 @@ SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
 int
-interrupt(u_int64_t vector, struct trapframe *tf)
+interrupt(u_int vector, struct trapframe *tf)
 {
 	struct thread *td;
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
@@ -146,7 +147,7 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 	 */
 	if (vector == 0) {
 		vector = ib->ib_inta;
-		printf("ExtINT interrupt: vector=%ld\n", vector);
+		printf("ExtINT interrupt: vector=%u\n", vector);
 		if (vector == 15)
 			goto stray;
 	}
@@ -251,93 +252,115 @@ stray:
 #define IA64_HARDWARE_IRQ_BASE	0x20
 
 struct ia64_intr {
-    struct intr_event	*event; /* interrupt event */
-    volatile long	*cntp;  /* interrupt counter */
+	struct intr_event *event;	/* interrupt event */
+	volatile long *cntp;		/* interrupt counter */
+	struct sapic *sapic;
+	u_int	irq;
 };
 
-static struct mtx ia64_intrs_lock;
 static struct ia64_intr *ia64_intrs[256];
 
-extern struct sapic *ia64_sapics[];
-extern int ia64_sapic_count;
-
 static void
-ithds_init(void *dummy)
+ia64_intr_eoi(void *arg)
 {
+	u_int vector = (uintptr_t)arg;
+	struct ia64_intr *i;
 
-	mtx_init(&ia64_intrs_lock, "intr table", NULL, MTX_SPIN);
+	i = ia64_intrs[vector];
+	if (i != NULL)
+		sapic_eoi(i->sapic, vector);
 }
-SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 
+#ifdef INTR_FILTER
 static void
-ia64_send_eoi(uintptr_t vector)
+ia64_intr_disable(void *arg)
 {
-	int irq, i;
+	u_int vector = (uintptr_t)arg;
+	struct ia64_intr *i;
 
-	irq = vector - IA64_HARDWARE_IRQ_BASE;
-	for (i = 0; i < ia64_sapic_count; i++) {
-		struct sapic *sa = ia64_sapics[i];
-		if (irq >= sa->sa_base && irq <= sa->sa_limit)
-			sapic_eoi(sa, vector);
+	i = ia64_intrs[vector];
+	if (i != NULL) {
+		sapic_eoi(i->sapic, vector);
+		sapic_mask(i->sapic, i->irq);
 	}
 }
+
+static void
+ia64_intr_enable(void *arg)
+{
+	u_int vector = (uintptr_t)arg;
+	struct ia64_intr *i;
+
+	i = ia64_intrs[vector];
+	if (i != NULL)
+		sapic_unmask(i->sapic, i->irq);
+}
+#endif
 
 int
-ia64_setup_intr(const char *name, int irq, driver_filter_t filter, 
-		driver_intr_t handler, void *arg, enum intr_type flags, 
-		void **cookiep, volatile long *cntp)		
+ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep)
 {
 	struct ia64_intr *i;
-	int errcode;
-	intptr_t vector = irq + IA64_HARDWARE_IRQ_BASE;
+	struct sapic *sa;
 	char *intrname;
+	u_int vector;
+	int error;
+
+	/* Get the I/O SAPIC that corresponds to the IRQ. */
+	sa = sapic_lookup(irq);
+	if (sa == NULL)
+		return (EINVAL);
 
 	/*
-	 * XXX - Can we have more than one device on a vector?  If so, we have
-	 * a race condition here that needs to be worked around similar to
-	 * the fashion done in the i386 inthand_add() function.
+	 * XXX - There's a priority implied by the choice of vector.
+	 * We should therefore relate the vector to the interrupt type.
 	 */
-	
-	/* First, check for an existing hash table entry for this vector. */
-	mtx_lock_spin(&ia64_intrs_lock);
-	i = ia64_intrs[vector];
-	mtx_unlock_spin(&ia64_intrs_lock);
+	vector = irq + IA64_HARDWARE_IRQ_BASE;
 
+	i = ia64_intrs[vector];
 	if (i == NULL) {
-		/* None was found, so create an entry. */
 		i = malloc(sizeof(struct ia64_intr), M_DEVBUF, M_NOWAIT);
 		if (i == NULL)
-			return ENOMEM;
-		if (cntp == NULL)
-			i->cntp = intrcnt + irq + INTRCNT_ISA_IRQ;
-		else
-			i->cntp = cntp;
-		if (name != NULL && *name != '\0') {
-			/* XXX needs abstraction. Too error phrone. */
-			intrname = intrnames + (irq + INTRCNT_ISA_IRQ) *
-			    INTRNAME_LEN;
-			memset(intrname, ' ', INTRNAME_LEN - 1);
-			bcopy(name, intrname, strlen(name));
-		}
-		errcode = intr_event_create(&i->event, (void *)vector, 0,
-		    (void (*)(void *))ia64_send_eoi, "intr:");
-		if (errcode) {
+			return (ENOMEM);
+
+#ifdef INTR_FILTER
+		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
+		    0, ia64_intr_enable, ia64_intr_eoi, ia64_intr_disable,
+		    "irq%u:", irq);
+#else
+		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
+		    0, ia64_intr_eoi, "irq%u:", irq);
+#endif
+		if (error) {
 			free(i, M_DEVBUF);
-			return errcode;
+			return (error);
 		}
 
-		mtx_lock_spin(&ia64_intrs_lock);
-		ia64_intrs[vector] = i;
-		mtx_unlock_spin(&ia64_intrs_lock);
+		if (!atomic_cmpset_ptr(&ia64_intrs[vector], NULL, i)) {
+			intr_event_destroy(i->event);
+			free(i, M_DEVBUF);
+			i = ia64_intrs[vector];
+		} else {
+			i->sapic = sa;
+			i->irq = irq;
+
+			i->cntp = intrcnt + irq + INTRCNT_ISA_IRQ;
+			if (name != NULL && *name != '\0') {
+				/* XXX needs abstraction. Too error prone. */
+				intrname = intrnames +
+				    (irq + INTRCNT_ISA_IRQ) * INTRNAME_LEN;
+				memset(intrname, ' ', INTRNAME_LEN - 1);
+				bcopy(name, intrname, strlen(name));
+			}
+
+			sapic_enable(i->sapic, irq, vector);
+		}
 	}
 
-	/* Second, add this handler. */
-	errcode = intr_event_add_handler(i->event, name, filter, handler, arg,
+	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
-	if (errcode)
-		return errcode;
-
-	return (sapic_enable(irq, vector));
+	return (error);
 }
 
 int
@@ -347,27 +370,33 @@ ia64_teardown_intr(void *cookie)
 	return (intr_event_remove_handler(cookie));
 }
 
-void
-ia64_dispatch_intr(void *frame, unsigned long vector)
+static void
+ia64_dispatch_intr(void *frame, u_int vector)
 {
 	struct ia64_intr *i;
 	struct intr_event *ie;			/* our interrupt event */
+#ifndef INTR_FILTER
 	struct intr_handler *ih;
 	int error, thread, ret;
+#endif
 
 	/*
 	 * Find the interrupt thread for this vector.
 	 */
 	i = ia64_intrs[vector];
-	if (i == NULL)
-		return;			/* no event for this vector */
+	KASSERT(i != NULL, ("%s: unassigned vector", __func__));
 
-	if (i->cntp)
-		atomic_add_long(i->cntp, 1);
+	(*i->cntp)++;
 
 	ie = i->event;
-	KASSERT(ie != NULL, ("interrupt vector without an event"));
+	KASSERT(ie != NULL, ("%s: interrupt without event", __func__));
 
+#ifdef INTR_FILTER
+	if (intr_event_handle(ie, frame) != 0) {
+		ia64_intr_disable((void *)(uintptr_t)vector);
+		log(LOG_ERR, "stray irq%u\n", i->irq);
+	}
+#else
 	/*
 	 * As an optimization, if an event has no handlers, don't
 	 * schedule it to run.
@@ -403,37 +432,41 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 
 	if (thread) {
 		error = intr_event_schedule_thread(ie);
-		KASSERT(error == 0, ("got an impossible stray interrupt"));
+		KASSERT(error == 0, ("%s: impossible stray", __func__));
 	} else
-		ia64_send_eoi(vector);
+		ia64_intr_eoi((void *)(uintptr_t)vector);
+#endif
 }
 
 #ifdef DDB
 
 static void
-db_show_vector(int vector)
+db_print_vector(u_int vector, int always)
 {
-	int irq, i;
+	struct ia64_intr *i;
 
-	irq = vector - IA64_HARDWARE_IRQ_BASE;
-	for (i = 0; i < ia64_sapic_count; i++) {
-		struct sapic *sa = ia64_sapics[i];
-		if (irq >= sa->sa_base && irq <= sa->sa_limit)
-			sapic_print(sa, irq - sa->sa_base);
-	}
+	i = ia64_intrs[vector];
+	if (i != NULL) {
+		db_printf("vector %u (%p): ", vector, i);
+		sapic_print(i->sapic, i->irq);
+	} else if (always)
+		db_printf("vector %u: unassigned\n", vector);
 }
 
-DB_SHOW_COMMAND(irq, db_show_irq)
+DB_SHOW_COMMAND(vector, db_show_vector)
 {
-	int vector;
+	u_int vector;
 
 	if (have_addr) {
 		vector = ((addr >> 4) % 16) * 10 + (addr % 16);
-		db_show_vector(vector);
+		if (vector >= 256)
+			db_printf("error: vector %u not in range [0..255]\n",
+			    vector);
+		else
+			db_print_vector(vector, 1);
 	} else {
-		for (vector = IA64_HARDWARE_IRQ_BASE;
-		     vector < IA64_HARDWARE_IRQ_BASE + 64; vector++)
-			db_show_vector(vector);
+		for (vector = 0; vector < 256; vector++)
+			db_print_vector(vector, 0);
 	}
 }
 

@@ -33,6 +33,8 @@
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 
 #include <machine/intr.h>
@@ -67,7 +69,22 @@ struct sapic_rte {
 	u_int64_t	rte_destination_id	:8;
 };
 
-static u_int32_t
+struct sapic *
+sapic_lookup(u_int irq)
+{
+	struct sapic *sa;
+	int i;
+
+	for (i = 0; i < ia64_sapic_count; i++) {
+		sa = ia64_sapics[i];
+		if (irq >= sa->sa_base && irq <= sa->sa_limit)
+			return (sa);
+	}
+
+	return (NULL);
+}
+
+static __inline u_int32_t
 sapic_read(struct sapic *sa, int which)
 {
 	vm_offset_t reg = sa->sa_registers;
@@ -77,7 +94,7 @@ sapic_read(struct sapic *sa, int which)
 	return *(volatile u_int32_t *) (reg + SAPIC_IO_WINDOW);
 }
 
-static void
+static __inline void
 sapic_write(struct sapic *sa, int which, u_int32_t value)
 {
 	vm_offset_t reg = sa->sa_registers;
@@ -88,76 +105,69 @@ sapic_write(struct sapic *sa, int which, u_int32_t value)
 	ia64_mf();
 }
 
-static void
+static __inline void
 sapic_read_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
 	u_int32_t *p = (u_int32_t *) rte;
-	register_t c;
 
-	c = intr_disable();
-	p[0] = sapic_read(sa, SAPIC_RTE_BASE + 2*which);
-	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2*which + 1);
-	intr_restore(c);
+	p[0] = sapic_read(sa, SAPIC_RTE_BASE + 2 * which);
+	p[1] = sapic_read(sa, SAPIC_RTE_BASE + 2 * which + 1);
 }
 
-static void
+static __inline void
 sapic_write_rte(struct sapic *sa, int which, struct sapic_rte *rte)
 {
 	u_int32_t *p = (u_int32_t *) rte;
-	register_t c;
 
-	c = intr_disable();
-	sapic_write(sa, SAPIC_RTE_BASE + 2*which, p[0]);
-	sapic_write(sa, SAPIC_RTE_BASE + 2*which + 1, p[1]);
-	intr_restore(c);
+	sapic_write(sa, SAPIC_RTE_BASE + 2 *which, p[0]);
+	sapic_write(sa, SAPIC_RTE_BASE + 2 *which + 1, p[1]);
 }
 
 int
-sapic_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)
+sapic_config_intr(u_int irq, enum intr_trigger trig, enum intr_polarity pol)
 {
 	struct sapic_rte rte;
 	struct sapic *sa;
-	int i;
 
-	for (i = 0; i < ia64_sapic_count; i++) {
-		sa = ia64_sapics[i];
-		if (irq < sa->sa_base || irq > sa->sa_limit)
-			continue;
+	sa = sapic_lookup(irq);
+	if (sa == NULL)
+		return (EINVAL);
 
-		sapic_read_rte(sa, irq - sa->sa_base, &rte);
-		if (trig != INTR_TRIGGER_CONFORM)
-			rte.rte_trigger_mode = (trig == INTR_TRIGGER_EDGE) ?
-			    SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL;
-		else
-			rte.rte_trigger_mode = (irq < 16) ?
-			    SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL;
-		if (pol != INTR_POLARITY_CONFORM)
-			rte.rte_polarity = (pol == INTR_POLARITY_HIGH) ?
-			    SAPIC_POLARITY_HIGH : SAPIC_POLARITY_LOW;
-		else
-			rte.rte_polarity = (irq < 16) ? SAPIC_POLARITY_HIGH :
-			    SAPIC_POLARITY_LOW;
-		sapic_write_rte(sa, irq - sa->sa_base, &rte);
-		return (0);
-	}
-
-	return (ENOENT);
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	if (trig != INTR_TRIGGER_CONFORM)
+		rte.rte_trigger_mode = (trig == INTR_TRIGGER_EDGE) ?
+		    SAPIC_TRIGGER_EDGE : SAPIC_TRIGGER_LEVEL;
+	else
+		rte.rte_trigger_mode = (irq < 16) ? SAPIC_TRIGGER_EDGE :
+		    SAPIC_TRIGGER_LEVEL;
+	if (pol != INTR_POLARITY_CONFORM)
+		rte.rte_polarity = (pol == INTR_POLARITY_HIGH) ?
+		    SAPIC_POLARITY_HIGH : SAPIC_POLARITY_LOW;
+	else
+		rte.rte_polarity = (irq < 16) ? SAPIC_POLARITY_HIGH :
+		    SAPIC_POLARITY_LOW;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
+	return (0);
 }
 
 struct sapic *
-sapic_create(int id, int base, u_int64_t address)
+sapic_create(u_int id, u_int base, u_int64_t address)
 {
 	struct sapic_rte rte;
 	struct sapic *sa;
-	int i, max;
+	u_int i, max;
 
-	sa = malloc(sizeof(struct sapic), M_SAPIC, M_NOWAIT);
-	if (!sa)
-		return 0;
+	sa = malloc(sizeof(struct sapic), M_SAPIC, M_ZERO | M_NOWAIT);
+	if (sa == NULL)
+		return (NULL);
 
 	sa->sa_id = id;
 	sa->sa_base = base;
 	sa->sa_registers = IA64_PHYS_TO_RR6(address);
+
+	mtx_init(&sa->sa_mtx, "I/O SAPIC lock", NULL, MTX_SPIN);
 
 	max = (sapic_read(sa, SAPIC_VERSION) >> 16) & 0xff;
 	sa->sa_limit = base + max;
@@ -183,37 +193,56 @@ sapic_create(int id, int base, u_int64_t address)
 }
 
 int
-sapic_enable(int irq, int vector)
+sapic_enable(struct sapic *sa, u_int irq, u_int vector)
 {
 	struct sapic_rte rte;
-	struct sapic *sa;
 	uint64_t lid = ia64_get_lid();
-	int i;
 
-	for (i = 0; i < ia64_sapic_count; i++) {
-		sa = ia64_sapics[i];
-		if (irq < sa->sa_base || irq > sa->sa_limit)
-			continue;
-
-		sapic_read_rte(sa, irq - sa->sa_base, &rte);
-		rte.rte_destination_id = (lid >> 24) & 255;
-		rte.rte_destination_eid = (lid >> 16) & 255;
-		rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
-		rte.rte_vector = vector;
-		rte.rte_mask = 0;
-		sapic_write_rte(sa, irq - sa->sa_base, &rte);
-		return (0);
-	}
-	return (ENOENT);
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	rte.rte_destination_id = (lid >> 24) & 255;
+	rte.rte_destination_eid = (lid >> 16) & 255;
+	rte.rte_delivery_mode = SAPIC_DELMODE_LOWPRI;
+	rte.rte_vector = vector;
+	rte.rte_mask = 0;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
+	return (0);
 }
 
 void
-sapic_eoi(struct sapic *sa, int vector)
+sapic_eoi(struct sapic *sa, u_int vector)
 {
 	vm_offset_t reg = sa->sa_registers;
 
-	*(volatile u_int32_t *) (reg + SAPIC_APIC_EOI) = vector;
+	*(volatile u_int32_t *)(reg + SAPIC_APIC_EOI) = vector;
 	ia64_mf();
+}
+
+/* Expected to be called with interrupts disabled. */
+void
+sapic_mask(struct sapic *sa, u_int irq)
+{
+	struct sapic_rte rte;
+
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	rte.rte_mask = 1;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
+}
+
+/* Expected to be called with interrupts disabled. */
+void
+sapic_unmask(struct sapic *sa, u_int irq)
+{
+	struct sapic_rte rte;
+
+	mtx_lock_spin(&sa->sa_mtx);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	rte.rte_mask = 0;
+	sapic_write_rte(sa, irq - sa->sa_base, &rte);
+	mtx_unlock_spin(&sa->sa_mtx);
 }
 
 static int
@@ -233,8 +262,10 @@ sysctl_machdep_apic(SYSCTL_HANDLER_ARGS)
 		sa = ia64_sapics[apic];
 		count = sa->sa_limit - sa->sa_base + 1;
 		for (index = 0; index < count; index++) {
+			mtx_lock_spin(&sa->sa_mtx);
 			sapic_read_rte(sa, index, &rte);
-			if (rte.rte_mask != 0)
+			mtx_unlock_spin(&sa->sa_mtx);
+			if (rte.rte_vector == 0)
 				continue;
 			len = sprintf(buf,
     "    0x%02x %3d: (%02x,%02x): %3d %d %d %s %s %s %s %s\n",
@@ -261,24 +292,22 @@ sysctl_machdep_apic(SYSCTL_HANDLER_ARGS)
 #include <ddb/ddb.h>
 
 void
-sapic_print(struct sapic *sa, int input)
+sapic_print(struct sapic *sa, u_int irq)
 {
 	struct sapic_rte rte;
 
-	sapic_read_rte(sa, input, &rte);
-	if (rte.rte_mask == 0) {
-		db_printf("%3d %d %d %s %s %s %s %s ID=%x EID=%x\n",
-			  rte.rte_vector,
-			  rte.rte_delivery_mode,
-			  rte.rte_destination_mode,
-			  rte.rte_delivery_status ? "DS" : "  ",
-			  rte.rte_polarity ? "low-active " : "high-active",
-			  rte.rte_rirr ? "RIRR" : "    ",
-			  rte.rte_trigger_mode ? "level" : "edge ",
-			  rte.rte_flushen ? "F" : " ",
-			  rte.rte_destination_id,
-			  rte.rte_destination_eid);
-	}
+	db_printf("sapic=%u, irq=%u: ", sa->sa_id, irq);
+	sapic_read_rte(sa, irq - sa->sa_base, &rte);
+	db_printf("%3d %x->%x:%x %d %s %s %s %s %s %s\n", rte.rte_vector,
+	    rte.rte_delivery_mode,
+	    rte.rte_destination_id, rte.rte_destination_eid,
+	    rte.rte_destination_mode,
+	    rte.rte_delivery_status ? "DS" : "  ",
+	    rte.rte_polarity ? "low-active " : "high-active",
+	    rte.rte_rirr ? "RIRR" : "    ",
+	    rte.rte_trigger_mode ? "level" : "edge ",
+	    rte.rte_flushen ? "F" : " ",
+	    rte.rte_mask ? "(masked)" : "");
 }
 
 #endif

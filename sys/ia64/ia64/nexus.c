@@ -447,7 +447,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		return (error);
 
 	error = ia64_setup_intr(device_get_nameunit(child),
-	    rman_get_start(irq), filter, ihand, arg, flags, cookiep, 0);
+	    rman_get_start(irq), filter, ihand, arg, flags, cookiep);
 
 	return (error);
 }
