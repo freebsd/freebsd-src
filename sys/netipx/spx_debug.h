@@ -95,7 +95,6 @@ int	spx_debx;
 #ifdef _KERNEL
 extern char *prurequests[];
 extern char *sanames[];
-extern char *tcpstates[];
 
 void	spx_trace(short act, u_char ostate, struct spxpcb *sp, struct spx *si,
 	    int req);
