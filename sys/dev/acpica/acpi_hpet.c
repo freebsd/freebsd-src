@@ -70,7 +70,7 @@ struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
 	.tc_counter_mask =	~0u,
 	.tc_name =		"HPET",
-	.tc_quality =		2000,
+	.tc_quality =		900,
 };
 
 static u_int
