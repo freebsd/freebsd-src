@@ -90,6 +90,7 @@ ia64_ap_startup(void)
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
 
+	map_vhpt(ap_vhpt);
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
 	    "r" (ap_vhpt + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
 
