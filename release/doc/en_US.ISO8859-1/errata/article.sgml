@@ -213,6 +213,11 @@
 	    <entry><para>IPv6 Routing Header 0 is dangerous</para></entry>
 	  </row>
 
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">SA-07:05.libarchive</ulink></entry>
+	    <entry>12&nbsp;July&nbsp;2007</entry>
+	    <entry><para>Errors handling corrupt tar files in &man.libarchive.3;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
