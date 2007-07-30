@@ -29,6 +29,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <opt_xtrace.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
@@ -604,3 +606,29 @@ stack_save(struct stack *st)
 	 * Can unw_create* sleep?
 	 */
 }
+
+#ifdef EXCEPTION_TRACING
+
+extern long xtrace[];
+extern long *xhead;
+
+DB_COMMAND(xtrace, db_xtrace)
+{
+	long *p;
+
+	p = (*xhead == 0) ? xtrace : xhead;
+
+	db_printf("ITC\t\t IVT\t\t  IIP\t\t   IFA\t\t    ISR\n");
+	if (*p == 0)
+		return;
+
+	do {
+		db_printf("%016lx %016lx %016lx %016lx %016lx\n", p[0], p[1],
+		    p[2], p[3], p[4]);
+		p += 5;
+		if (p == (void *)&xhead)
+			p = xtrace;
+	} while (p != xhead);
+}
+
+#endif
