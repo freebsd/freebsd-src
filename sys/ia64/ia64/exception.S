@@ -416,19 +416,20 @@ END(exception_save)
 ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	rsm		psr.i
-	add		sp=16,sp
-	nop		0
+	add		r3=SIZEOF_TRAPFRAME-16,sp
+	add		r2=SIZEOF_TRAPFRAME,sp
 	;;
 }
 {	.mmi
-	add		r3=SIZEOF_TRAPFRAME-32,sp
-	add		r2=SIZEOF_TRAPFRAME-16,sp
-	add		r8=SIZEOF_SPECIAL+16,sp
+	srlz.d
+	add		r8=SIZEOF_SPECIAL+32,sp
+	nop		0
 	;;
 }
 	// The next load can trap. Let it be...
 	ldf.fill	f15=[r2],-32		// f15
 	ldf.fill	f14=[r3],-32		// f14
+	add		sp=16,sp
 	;;
 	ldf.fill	f13=[r2],-32		// f13
 	ldf.fill	f12=[r3],-32		// f12
@@ -611,7 +612,7 @@ exception_restore_restart:
 {	.mmi
 	mov		cr.ipsr=r24
 	mov		cr.ifs=r26
-	mov		pr=r18,0x1fffe
+	mov		pr=r18,0x1ffff
 	;;
 }
 {	.mmb
@@ -708,15 +709,15 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	ld8	r21=[r18]		// read pte
 	;;
 	itc.i	r21			// insert pte
-	;;
 	mov	pr=r17,0x1ffff
+	;;
 	rfi				// done
 	;;
-1:	ld8	r20=[r20]		// first entry
-	;; 
-	rsm	psr.dt			// turn off data translations
+1:	rsm	psr.dt			// turn off data translations
+	dep	r20=0,r20,61,3		// convert vhpt ptr to physical
 	;;
 	srlz.d				// serialize
+	ld8	r20=[r20]		// first entry
 	;;
 2:	cmp.eq	p15,p0=r0,r20		// done?
 (p15)	br.cond.spnt.few 9f		// bail if done
@@ -751,17 +752,19 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	st8.rel	[r18]=r19		// store new tag
 	;;
 	itc.i	r21			// and place in TLB
+	ssm	psr.dt
 	;; 
+	srlz.d
 	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
-
+	;;
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
 	br.cond.sptk.few 2b		// loop
-
-9:	mov	pr=r17,0x1ffff		// restore predicates
-	ssm	psr.dt
+	;;
+9:	ssm	psr.dt
+	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	srlz.d
 	;; 
@@ -787,15 +790,15 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	ld8	r21=[r18]		// read pte
 	;;
 	itc.d	r21			// insert pte
-	;;
 	mov	pr=r17,0x1ffff
+	;;
 	rfi				// done
 	;;
-1:	ld8	r20=[r20]		// first entry
+1:	rsm	psr.dt			// turn off data translations
+	dep	r20=0,r20,61,3		// convert vhpt ptr to physical
 	;; 
-	rsm	psr.dt			// turn off data translations
-	;;
 	srlz.d				// serialize
+	ld8	r20=[r20]		// first entry
 	;;
 2:	cmp.eq	p15,p0=r0,r20		// done?
 (p15)	br.cond.spnt.few 9f		// bail if done
@@ -830,17 +833,19 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	st8.rel	[r18]=r19		// store new tag
 	;;
 	itc.d	r21			// and place in TLB
+	ssm	psr.dt
 	;; 
+	srlz.d
 	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
-
+	;;
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
 	br.cond.sptk.few 2b		// loop
-
-9:	mov	pr=r17,0x1ffff		// restore predicates
-	ssm	psr.dt
+	;;
+9:	ssm	psr.dt
+	mov	pr=r17,0x1ffff		// restore predicates
 	;;
 	srlz.d
 	;; 
@@ -870,6 +875,7 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 3, cr.ifa)
 IVT_END(Alternate_Instruction_TLB)
@@ -897,6 +903,7 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 4, cr.ifa)
 IVT_END(Alternate_Data_TLB)
@@ -1005,11 +1012,11 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	;; 
 	ld8	r20=[r20]		// bucket head
 	;;
-	ld8	r20=[r20]		// first entry
-	;; 
 	rsm	psr.dt			// turn off data translations
+	dep	r20=0,r20,61,3		// convert vhpt ptr to physical
 	;;
 	srlz.d				// serialize
+	ld8	r20=[r20]		// first entry
 	;;
 1:	cmp.eq	p15,p0=r0,r20		// done?
 (p15)	br.cond.spnt.few 9f		// bail if done
@@ -1049,16 +1056,22 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 	st8.rel	[r18]=r19		// store new tag
 	;;
 	itc.d	r21			// and place in TLB
+	ssm	psr.dt
 	;; 
+	srlz.d
 	mov	pr=r17,0x1ffff		// restore predicates
 	rfi
-
+	;;
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
 	br.cond.sptk.few 1b		// loop
-
-9:	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+9:	ssm	psr.dt
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	srlz.d
+	;;
 	CALL(trap, 8, cr.ifa)			// die horribly
 IVT_END(Dirty_Bit)
 
@@ -1073,11 +1086,11 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	;; 
 	ld8	r20=[r20]		// bucket head
 	;;
-	ld8	r20=[r20]		// first entry
-	;;
 	rsm	psr.dt			// turn off data translations
+	dep	r20=0,r20,61,3		// convert vhpt ptr to physical
 	;;
 	srlz.d				// serialize
+	ld8	r20=[r20]		// first entry
 	;;
 1:	cmp.eq	p15,p0=r0,r20		// done?
 (p15)	br.cond.spnt.few 9f		// bail if done
@@ -1117,16 +1130,22 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 	st8.rel	[r18]=r19		// store new tag
 	;;
 	itc.i	r21			// and place in TLB
+	ssm	psr.dt
 	;; 
+	srlz.d
 	mov	pr=r17,0x1ffff		// restore predicates
 	rfi				// walker will retry the access
-
+	;;
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
 	br.cond.sptk.few 1b		// loop
-
-9:	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+9:	ssm	psr.dt
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	srlz.d
+	;;
 	CALL(trap, 9, cr.ifa)
 IVT_END(Instruction_Access_Bit)
 
@@ -1141,11 +1160,11 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	;;
 	ld8	r20=[r20]		// bucket head
 	;;
-	ld8	r20=[r20]		// first entry
-	;;
 	rsm	psr.dt			// turn off data translations
+	dep	r20=0,r20,61,3		// convert vhpt ptr to physical
 	;;
 	srlz.d				// serialize
+	ld8	r20=[r20]		// first entry
 	;;
 1:	cmp.eq	p15,p0=r0,r20		// done?
 (p15)	br.cond.spnt.few 9f		// bail if done
@@ -1185,16 +1204,22 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 	st8.rel	[r18]=r19		// store new tag
 	;;
 	itc.d	r21			// and place in TLB
+	ssm	psr.dt
 	;; 
+	srlz.d
 	mov	pr=r17,0x1ffff		// restore predicates
 	rfi				// walker will retry the access
-
+	;;
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
 	br.cond.sptk.few 1b		// loop
-
-9:	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+9:	ssm	psr.dt
+	mov	pr=r17,0x1ffff		// restore predicates
+	;;
+	srlz.d
+	;;
 	CALL(trap, 10, cr.ifa)
 IVT_END(Data_Access_Bit)
 
