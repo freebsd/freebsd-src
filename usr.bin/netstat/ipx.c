@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 
+#define TCPSTATES
 #include <netinet/tcp_fsm.h>
 
 #include <netipx/ipx.h>
@@ -71,8 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 
 static char *ipx_prpr (struct ipx_addr *);
-
-extern char *tcpstates[];
 
 /*
  * Print a summary of connections related to a Network Systems
