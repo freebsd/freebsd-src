@@ -87,6 +87,7 @@ void	ia64_probe_sapics(void);
 int	interrupt(uint64_t, struct trapframe *);
 void	map_gateway_page(void);
 void	map_pal_code(void);
+void	map_vhpt(uintptr_t);
 void	os_boot_rendez(void);
 void	os_mca(void);
 int	syscall(struct trapframe *);

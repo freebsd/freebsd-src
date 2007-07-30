@@ -435,6 +435,30 @@ spinlock_exit(void)
 }
 
 void
+map_vhpt(uintptr_t vhpt)
+{
+	pt_entry_t pte;
+	uint64_t psr;
+
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | PTE_AR_RW;
+	pte |= vhpt & PTE_PPN_MASK;
+
+	__asm __volatile("ptr.d %0,%1" :: "r"(vhpt),
+	    "r"(IA64_ID_PAGE_SHIFT<<2));
+
+	__asm __volatile("mov   %0=psr" : "=r"(psr));
+	__asm __volatile("rsm   psr.ic|psr.i");
+	__asm __volatile("srlz.i");
+	__asm __volatile("mov   cr.ifa=%0" :: "r"(vhpt));
+	__asm __volatile("mov   cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
+	__asm __volatile("srlz.d");             /* XXX not needed. */
+	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
+	__asm __volatile("srlz.i");
+}
+
+void
 map_pal_code(void)
 {
 	pt_entry_t pte;
