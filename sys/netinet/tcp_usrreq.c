@@ -87,10 +87,6 @@
 /*
  * TCP protocol interface to socket abstraction.
  */
-#ifdef	TCPDEBUG
-extern	const char *tcpstates[];
-#endif
-
 static int	tcp_attach(struct socket *);
 static int	tcp_connect(struct tcpcb *, struct sockaddr *,
 		    struct thread *td);

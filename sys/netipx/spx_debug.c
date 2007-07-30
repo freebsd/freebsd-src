@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/protosw.h>
 
+#define TCPSTATES		/* for logging */
+
 #include <netinet/in_systm.h>
 #include <netinet/tcp_fsm.h>
 
