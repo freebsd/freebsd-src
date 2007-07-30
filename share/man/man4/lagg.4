@@ -122,6 +122,9 @@ command or using the
 .Va cloned_interfaces
 variable in
 .Xr rc.conf 5 .
+.Pp
+The MTU of the first interface to be added is used as the lagg MTU.
+All additional interfaces are required to have exactly the same value.
 .Sh EXAMPLES
 Create a 802.3ad link aggregation using LACP with two
 .Xr bge 4
