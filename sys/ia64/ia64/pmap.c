@@ -449,6 +449,7 @@ pmap_bootstrap()
 		    size);
 	}
 
+	map_vhpt(pmap_vhpt_base[0]);
 	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
 	    "r" (pmap_vhpt_base[0] + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
 
