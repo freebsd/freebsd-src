@@ -96,7 +96,7 @@ static struct timecounter acpi_timer_timecounter = {
 	0,				/* no default counter_mask */
 	0,				/* no default frequency */
 	"ACPI",				/* name */
-	1000				/* quality */
+	-1				/* quality (chosen later) */
 };
 
 static u_int
@@ -185,9 +185,11 @@ acpi_timer_probe(device_t dev)
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+	acpi_timer_timecounter.tc_quality = 1000;
     } else {
 	acpi_timer_timecounter.tc_name = "ACPI-safe";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
+	acpi_timer_timecounter.tc_quality = 850;
     }
     tc_init(&acpi_timer_timecounter);
 
