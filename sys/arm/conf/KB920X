@@ -93,3 +93,47 @@ device		iicbus
 device		icee
 
 device		bpf
+# USB support
+device          ohci            # OHCI localbus->USB interface
+device          usb             # USB Bus (required)
+#device         udbp            # USB Double Bulk Pipe devices
+device          ugen            # Generic
+device          uhid            # "Human Interface Devices"
+device          ulpt            # Printer
+device          umass           # Disks/Mass storage - Requires scbus and da
+device          ural            # Ralink Technology RT2500USB wireless NICs
+device          rum             # Ralink Technology RT2501USB wireless NICs
+device          urio            # Diamond Rio 500 MP3 player
+device          uscanner        # Scanners
+# USB Ethernet, requires miibus
+device		miibus
+device          aue             # ADMtek USB Ethernet
+device          axe             # ASIX Electronics USB Ethernet
+device          cdce            # Generic USB over Ethernet
+device          cue             # CATC USB Ethernet
+device          kue             # Kawasaki LSI USB Ethernet
+device          rue             # RealTek RTL8150 USB Ethernet
+device		udav
+# usb serial
+device          ucom
+device          uark
+device          ubsa
+device          ubser
+device          uftdi
+device          uipaq
+device          uplcom
+device          uvisor
+device          uvscom
+# SCSI peripherals
+device          scbus           # SCSI bus (required for SCSI)
+device          da              # Direct Access (disks)
+device          cd              # CD
+device          pass            # Passthrough device (direct SCSI access)
+# Wireless NIC cards
+device          wlan            # 802.11 support
+device          wlan_wep        # 802.11 WEP support
+device          wlan_ccmp       # 802.11 CCMP support
+device          wlan_tkip       # 802.11 TKIP support
+device          wlan_amrr       # AMRR transmit rate control algorithm
+device          wlan_scan_ap    # 802.11 AP mode scanning
+device          wlan_scan_sta   # 802.11 STA mode scanning
