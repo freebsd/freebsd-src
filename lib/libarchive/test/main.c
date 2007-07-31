@@ -34,6 +34,12 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+/* Interix doesn't define these in a standard header. */
+#if __INTERIX__
+extern char *optarg;
+extern int optind;
+#endif
+
 /* Default is to crash and try to force a core dump on failure. */
 static int dump_on_failure = 1;
 /* Default is to print some basic information about each test. */
@@ -101,6 +107,7 @@ static const char *skipped_filename;
 static int skipped_line;
 void skipping_setup(const char *filename, int line)
 {
+	skipped_filename = filename;
 	skipped_line = line;
 }
 void
