@@ -6932,7 +6932,6 @@ ahc_timeout(struct scb *scb)
 	struct ahc_softc *ahc;
 
 	ahc = scb->ahc_softc;
-	ahc_lock(ahc);
 	if ((scb->flags & SCB_ACTIVE) != 0) {
 		if ((scb->flags & SCB_TIMEDOUT) == 0) {
 			LIST_INSERT_HEAD(&ahc->timedout_scbs, scb,
@@ -6941,7 +6940,6 @@ ahc_timeout(struct scb *scb)
 		}
 		ahc_wakeup_recovery_thread(ahc);
 	}
-	ahc_unlock(ahc);
 }
 
 /*
