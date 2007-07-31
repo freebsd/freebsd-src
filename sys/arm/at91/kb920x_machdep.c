@@ -165,14 +165,14 @@ static const struct pmap_devmap kb920x_devmap[] = {
 	 * initialization is done. However, the AT91 resource allocation
 	 * system doesn't know how to use pmap_mapdev() yet.
 	 */
-#if 0
+#if 1
 	{
 		/*
 		 * Add the ohci controller, and anything else that might be
 		 * on this chip select for a VA/PA mapping.
 		 */
 		AT91RM92_OHCI_BASE,
-		AT91RM92_OHCI_BASE,
+		AT91RM92_OHCI_PA_BASE,
 		AT91RM92_OHCI_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
