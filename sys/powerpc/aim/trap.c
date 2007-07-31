@@ -433,8 +433,8 @@ syscall(struct trapframe *frame)
 	}
 	switch (error) {
 	case 0:
-		if ((frame->fixreg[0] == SYS___syscall) &&
-		    (code != SYS_lseek)) {
+		if (frame->fixreg[0] == SYS___syscall &&
+		    code != SYS_freebsd6_lseek && code != SYS_lseek) {
 			/*
 			 * 64-bit return, 32-bit syscall. Fixup byte order
 			 */
