@@ -118,15 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 #include "netdb_private.h"
-#include "res_config.h"
 #include "res_private.h"
-#ifdef NS_CACHING
-#include "nscache.h"
-#endif
-
-#ifndef _PATH_HOSTS
-#define	_PATH_HOSTS	"/etc/hosts"
-#endif
 
 #ifndef MAXALIASES
 #define	MAXALIASES	10
@@ -153,7 +145,7 @@ do {									\
 } while (0)
 #define	MAPADDRENABLED(flags) \
 	(((flags) & AI_V4MAPPED) || \
-	 (((flags) & AI_V4MAPPED_CFG) && _mapped_addr_enabled()))
+	 (((flags) & AI_V4MAPPED_CFG)))
 
 union inx_addr {
 	struct in_addr	in_addr;
@@ -202,14 +194,11 @@ struct hp_order {
 
 static struct	 hostent *_hpcopy(struct hostent *, int *);
 static struct	 hostent *_hpaddr(int, const char *, void *, int *);
-static struct	 hostent *_hpmerge(struct hostent *, struct hostent *, int *);
 #ifdef INET6
+static struct	 hostent *_hpmerge(struct hostent *, struct hostent *, int *);
 static struct	 hostent *_hpmapv6(struct hostent *, int *);
 #endif
 static struct	 hostent *_hpsort(struct hostent *, res_state);
-static struct	 hostent *_ghbyname(const char *, int, int, int *);
-static char	*_hgetword(char **);
-static int	 _mapped_addr_enabled(void);
 
 static struct	 hostent *_hpreorder(struct hostent *);
 static int	 get_addrselectpolicy(struct policyhead *);
@@ -221,324 +210,29 @@ static int	 matchlen(struct sockaddr *, struct sockaddr *);
 static int	 comp_dst(const void *, const void *);
 static int	 gai_addr2scopetype(struct sockaddr *);
 
-static FILE	*_files_open(int *);
-static int	 _files_ghbyname(void *, void *, va_list);
-static int	 _files_ghbyaddr(void *, void *, va_list);
-#ifdef YP
-static int	 _nis_ghbyname(void *, void *, va_list);
-static int	 _nis_ghbyaddr(void *, void *, va_list);
-#endif
-static int	 _dns_ghbyname(void *, void *, va_list);
-static int	 _dns_ghbyaddr(void *, void *, va_list);
-static void	 _dns_shent(int) __unused;
-static void	 _dns_ehent(void) __unused;
-#ifdef ICMPNL
-static int	 _icmp_ghbyaddr(void *, void *, va_list);
-#endif /* ICMPNL */
-#ifdef NS_CACHING
-static int ipnode_id_func(char *, size_t *, va_list, void *);
-static int ipnode_marshal_func(char *, size_t *, void *, va_list, void *);
-static int ipnode_unmarshal_func(char *, size_t, void *, va_list, void *);
-#endif
-
-/* Host lookup order if nsswitch.conf is broken or nonexistant */
-static const ns_src default_src[] = {
-	{ NSSRC_FILES, NS_SUCCESS },
-	{ NSSRC_DNS, NS_SUCCESS },
-#ifdef ICMPNL
-#define NSSRC_ICMP "icmp"
-	{ NSSRC_ICMP, NS_SUCCESS },
-#endif
-	{ 0 }
-};
-
-/*
- * Check if kernel supports mapped address.
- *	implementation dependent
- */
-#ifdef __KAME__
-#include <sys/sysctl.h>
-#endif /* __KAME__ */
-
-static int
-_mapped_addr_enabled(void)
-{
-	/* implementation dependent check */
-#if defined(__KAME__) && defined(IPV6CTL_MAPPED_ADDR)
-	int mib[4];
-	size_t len;
-	int val;
-
-	mib[0] = CTL_NET;
-	mib[1] = PF_INET6;
-	mib[2] = IPPROTO_IPV6;
-	mib[3] = IPV6CTL_MAPPED_ADDR;
-	len = sizeof(val);
-	if (sysctl(mib, 4, &val, &len, 0, 0) == 0 && val != 0)
-		return 1;
-#endif /* __KAME__ && IPV6CTL_MAPPED_ADDR */
-	return 0;
-}
-
-#ifdef NS_CACHING
-static int
-ipnode_id_func(char *buffer, size_t *buffer_size, va_list ap,
-    void *cache_mdata)
-{
-	res_state statp;
-	u_long res_options;
-
-	const int op_id = 2;
-	char *name;
-	int af;
-	size_t len;
-	void *src;
-
-	char *p;
-	size_t desired_size, size;
-	enum nss_lookup_type lookup_type;
-	int res = NS_UNAVAIL;
-
-	statp = __res_state();
-	res_options = statp->options & (RES_RECURSE | RES_DEFNAMES |
-	    RES_DNSRCH | RES_NOALIASES | RES_USE_INET6);
-
-	lookup_type = (enum nss_lookup_type)cache_mdata;
-	switch (lookup_type) {
-	case nss_lt_name:
-		name = va_arg(ap, char *);
-		af = va_arg(ap, int);
-
-		size = strlen(name);
-		desired_size = sizeof(res_options) + sizeof(int) +
-		    sizeof(enum nss_lookup_type) + sizeof(int) + size + 1;
-
-		if (desired_size > *buffer_size) {
-			res = NS_RETURN;
-			goto fin;
-		}
-
-		p = buffer;
-		memcpy(p, &res_options, sizeof(res_options));
-		p += sizeof(res_options);
-
-		memcpy(p, &op_id, sizeof(int));
-		p += sizeof(int);
-
-		memcpy(p, &lookup_type, sizeof(enum nss_lookup_type));
-		p += sizeof(enum nss_lookup_type);
-
-		memcpy(p, &af, sizeof(int));
-		p += sizeof(int);
-
-		memcpy(p, name, size + 1);
-
-		res = NS_SUCCESS;
-		break;
-	case nss_lt_id:
-		src = va_arg(ap, void *);
-		len = va_arg(ap, size_t);
-		af = va_arg(ap, int);
-
-		desired_size = sizeof(res_options) + sizeof(int) +
-		    sizeof(enum nss_lookup_type) + sizeof(int) +
-		    sizeof(size_t) + len;
-
-		if (desired_size > *buffer_size) {
-			res = NS_RETURN;
-			goto fin;
-		}
-
-		p = buffer;
-		memcpy(p, &res_options, sizeof(res_options));
-		p += sizeof(res_options);
-
-		memcpy(p, &op_id, sizeof(int));
-		p += sizeof(int);
-
-		memcpy(p, &lookup_type, sizeof(enum nss_lookup_type));
-		p += sizeof(enum nss_lookup_type);
-
-		memcpy(p, &af, sizeof(int));
-		p += sizeof(int);
-
-		memcpy(p, &len, sizeof(size_t));
-		p += sizeof(size_t);
-
-		memcpy(p, src, len);
-
-		res = NS_SUCCESS;
-		break;
-	default:
-		/* should be unreachable */
-		return (NS_UNAVAIL);
-	}
-
-fin:
-	*buffer_size = desired_size;
-	return (res);
-}
-
-static int
-ipnode_marshal_func(char *buffer, size_t *buffer_size, void *retval,
-    va_list ap, void *cache_mdata)
-{
-	struct hostent *ht;
-
-	struct hostent new_ht;
-	size_t desired_size, aliases_size, addr_size, size;
-	char *p, **iter;
-
-	ht = *((struct hostent **)retval);
-
-	desired_size = _ALIGNBYTES + sizeof(struct hostent) + sizeof(char *);
-	if (ht->h_name != NULL)
-		desired_size += strlen(ht->h_name) + 1;
-
-	if (ht->h_aliases != NULL) {
-		aliases_size = 0;
-		for (iter = ht->h_aliases; *iter; ++iter) {
-			desired_size += strlen(*iter) + 1;
-			++aliases_size;
-		}
-
-		desired_size += _ALIGNBYTES +
-		    (aliases_size + 1) * sizeof(char *);
-	}
-
-	if (ht->h_addr_list != NULL) {
-		addr_size = 0;
-		for (iter = ht->h_addr_list; *iter; ++iter)
-			++addr_size;
-
-		desired_size += addr_size * _ALIGN(ht->h_length);
-		desired_size += _ALIGNBYTES + (addr_size + 1) * sizeof(char *);
-	}
-
-	if (desired_size > *buffer_size) {
-		/* this assignment is here for future use */
-		*buffer_size = desired_size;
-		return (NS_RETURN);
-	}
-
-	memcpy(&new_ht, ht, sizeof(struct hostent));
-	memset(buffer, 0, desired_size);
-
-	*buffer_size = desired_size;
-	p = buffer + sizeof(struct hostent) + sizeof(char *);
-	memcpy(buffer + sizeof(struct hostent), &p, sizeof(char *));
-	p = (char *)_ALIGN(p);
-
-	if (new_ht.h_name != NULL) {
-		size = strlen(new_ht.h_name);
-		memcpy(p, new_ht.h_name, size);
-		new_ht.h_name = p;
-		p += size + 1;
-	}
-
-	if (new_ht.h_aliases != NULL) {
-		p = (char *)_ALIGN(p);
-		memcpy(p, new_ht.h_aliases, sizeof(char *) * aliases_size);
-		new_ht.h_aliases = (char **)p;
-		p += sizeof(char *) * (aliases_size + 1);
-
-		for (iter = new_ht.h_aliases; *iter; ++iter) {
-			size = strlen(*iter);
-			memcpy(p, *iter, size);
-			*iter = p;
-			p += size + 1;
-		}
-	}
-
-	if (new_ht.h_addr_list != NULL) {
-		p = (char *)_ALIGN(p);
-		memcpy(p, new_ht.h_addr_list, sizeof(char *) * addr_size);
-		new_ht.h_addr_list = (char **)p;
-		p += sizeof(char *) * (addr_size + 1);
-
-		size = _ALIGN(new_ht.h_length);
-		for (iter = new_ht.h_addr_list; *iter; ++iter) {
-			memcpy(p, *iter, size);
-			*iter = p;
-			p += size + 1;
-		}
-	}
-	memcpy(buffer, &new_ht, sizeof(struct hostent));
-	return (NS_SUCCESS);
-}
-
-static int
-ipnode_unmarshal_func(char *buffer, size_t buffer_size, void *retval,
-    va_list ap, void *cache_mdata)
-{
-	struct hostent new_ht;
-	struct hostent *ht;
-
-	char *p;
-	char **iter;
-	char *orig_buf;
-	int err;
-
-	ht = &new_ht;
-
-	memcpy(ht, buffer, sizeof(struct hostent));
-	memcpy(&p, buffer + sizeof(struct hostent), sizeof(char *));
-
-	orig_buf = buffer + sizeof(struct hostent) + sizeof(char *) +
-	    _ALIGN(p) - (size_t)p;
-	p = (char *)_ALIGN(p);
-
-
-	NS_APPLY_OFFSET(ht->h_name, orig_buf, p, char *);
-	if (ht->h_aliases != NULL) {
-		NS_APPLY_OFFSET(ht->h_aliases, orig_buf, p, char **);
-
-		for (iter = ht->h_aliases; *iter; ++iter)
-			NS_APPLY_OFFSET(*iter, orig_buf, p, char *);
-	}
-
-	if (ht->h_addr_list != NULL) {
-		NS_APPLY_OFFSET(ht->h_addr_list, orig_buf, p, char **);
-
-		for (iter = ht->h_addr_list; *iter; ++iter)
-			NS_APPLY_OFFSET(*iter, orig_buf, p, char *);
-	}
-
-	ht = _hpcopy(ht, &err);
-	if (ht == NULL)
-		return (NS_UNAVAIL);
-
-	*((struct hostent **)retval) = ht;
-	return (NS_SUCCESS);
-}
-#endif
-
 /*
  * Functions defined in RFC2553
  *	getipnodebyname, getipnodebyaddr, freehostent
  */
 
-static struct hostent *
-_ghbyname(const char *name, int af, int flags, int *errp)
+struct hostent *
+getipnodebyname(const char *name, int af, int flags, int *errp)
 {
 	struct hostent *hp;
-	int rval;
+	union inx_addr addrbuf;
+	res_state statp;
+	u_long options;
 
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info =
-	NS_COMMON_CACHE_INFO_INITIALIZER(
-		hosts, (void *)nss_lt_name,
-		ipnode_id_func, ipnode_marshal_func, ipnode_unmarshal_func);
+	switch (af) {
+	case AF_INET:
+#ifdef INET6
+	case AF_INET6:
 #endif
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_files_ghbyname, NULL)
-		{ NSSRC_DNS, _dns_ghbyname, NULL },
-		NS_NIS_CB(_nis_ghbyname, NULL)
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ 0 }
-	};
+		break;
+	default:
+		*errp = NO_RECOVERY;
+		return NULL;
+	}
 
 	if (flags & AI_ADDRCONFIG) {
 		int s;
@@ -554,30 +248,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 		 */
 		_close(s);
 	}
-
-	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyname", default_src,
-			  name, af, errp);
-	return (rval == NS_SUCCESS) ? hp : NULL;
-}
-
-struct hostent *
-getipnodebyname(const char *name, int af, int flags, int *errp)
-{
-	struct hostent *hp;
-	union inx_addr addrbuf;
-	res_state statp;
-
-	switch (af) {
-	case AF_INET:
-#ifdef INET6
-	case AF_INET6:
-#endif
-		break;
-	default:
-		*errp = NO_RECOVERY;
-		return NULL;
-	}
-
+	
 #ifdef INET6
 	/* special case for literal address */
 	if (inet_pton(AF_INET6, name, &addrbuf) == 1) {
@@ -600,6 +271,7 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 		return _hpaddr(af, name, &addrbuf, errp);
 	}
 
+
 	statp = __res_state();
 	if ((statp->options & RES_INIT) == 0) {
 		if (res_ninit(statp) < 0) {
@@ -607,25 +279,36 @@ getipnodebyname(const char *name, int af, int flags, int *errp)
 			return NULL;
 		}
 	}
-
-	*errp = HOST_NOT_FOUND;
-	hp = _ghbyname(name, af, flags, errp);
+	
+	options = statp->options;
+	statp->options &= ~RES_USE_INET6;
+	
+	hp = gethostbyname2(name, af);
+	hp = _hpcopy(hp, errp);
 
 #ifdef INET6
 	if (af == AF_INET6 && ((flags & AI_ALL) || hp == NULL) &&
 	    MAPADDRENABLED(flags)) {
-		struct hostent *hp2 = _ghbyname(name, AF_INET, flags, errp);
+		struct hostent *hp2 = gethostbyname2(name, AF_INET);
 		if (hp == NULL)
-			hp = _hpmapv6(hp2, errp);
+			if (hp2 == NULL)
+				*errp = statp->res_h_errno;
+			else
+				hp = _hpmapv6(hp2, errp);
 		else {
-			if (hp2 && strcmp(hp->h_name, hp2->h_name) != 0) {
-				freehostent(hp2);
-				hp2 = NULL;
+			if (hp2 && strcmp(hp->h_name, hp2->h_name) == 0) {
+				struct hostent *hpb = hp;
+				hp = _hpmerge(hpb, hp2, errp);
+				freehostent(hpb);
 			}
-			hp = _hpmerge(hp, hp2, errp);
 		}
 	}
 #endif
+	
+	if (hp == NULL)
+		*errp = statp->res_h_errno;
+	
+	statp->options = options;
 	return _hpreorder(_hpsort(hp, statp));
 }
 
@@ -633,34 +316,15 @@ struct hostent *
 getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 {
 	struct hostent *hp;
-	int rval;
+	res_state statp;
+	u_long options;
+	
 #ifdef INET6
 	struct in6_addr addrbuf;
 #else
 	struct in_addr addrbuf;
 #endif
-
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info =
-	NS_COMMON_CACHE_INFO_INITIALIZER(
-		hosts, (void *)nss_lt_id,
-		ipnode_id_func, ipnode_marshal_func, ipnode_unmarshal_func);
-#endif
-	static const ns_dtab dtab[] = {
-		NS_FILES_CB(_files_ghbyaddr, NULL)
-		{ NSSRC_DNS, _dns_ghbyaddr, NULL },
-		NS_NIS_CB(_nis_ghbyaddr, NULL)
-#ifdef ICMPNL
-		{ NSSRC_ICMP, _icmp_ghbyaddr, NULL },
-#endif
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ 0 }
-	};
-
-	*errp = HOST_NOT_FOUND;
-
+	
 	switch (af) {
 	case AF_INET:
 		if (len != sizeof(struct in_addr)) {
@@ -700,9 +364,23 @@ getipnodebyaddr(const void *src, size_t len, int af, int *errp)
 		return NULL;
 	}
 
-	rval = _nsdispatch(&hp, dtab, NSDB_HOSTS, "ghbyaddr", default_src,
-			  src, len, af, errp);
-	return (rval == NS_SUCCESS) ? hp : NULL;
+	statp = __res_state();
+	if ((statp->options & RES_INIT) == 0) {
+		if (res_ninit(statp) < 0) {
+			RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+			return NULL;
+		}
+	}
+	
+	options = statp->options;
+	statp->options &= ~RES_USE_INET6;
+
+	hp = gethostbyaddr(src, len, af);
+	if (hp == NULL)
+		*errp = statp->res_h_errno;
+	
+	statp->options = options;	
+	return (_hpcopy(hp, errp));
 }
 
 void
@@ -811,9 +489,10 @@ _hpaddr(int af, const char *name, void *addr, int *errp)
 	hp->h_addr_list = addrs;
 	addrs[0] = (char *)addr;
 	addrs[1] = NULL;
-	return _hpcopy(hp, errp);
+	return (_hpcopy(hp, errp));
 }
 
+#ifdef INET6
 /*
  * _hpmerge: merge 2 hostent structure, arguments will be freed
  */
@@ -828,9 +507,9 @@ _hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp)
 	union inx_addr addrbuf[MAXADDRS];
 
 	if (hp1 == NULL)
-		return hp2;
+		return _hpcopy(hp2, errp);
 	if (hp2 == NULL)
-		return hp1;
+		return _hpcopy(hp1, errp);
 
 #define	HP(i)	(i == 1 ? hp1 : hp2)
 	hp = &hpbuf;
@@ -850,17 +529,14 @@ _hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp)
 		}
 	}
 	aliases[nalias] = NULL;
-#ifdef INET6
 	if (hp1->h_length != hp2->h_length) {
 		hp->h_addrtype = AF_INET6;
 		hp->h_length = sizeof(struct in6_addr);
 	} else {
-#endif
 		hp->h_addrtype = hp1->h_addrtype;
 		hp->h_length = hp1->h_length;
-#ifdef INET6
 	}
-#endif
+
 	hp->h_addr_list = addrs;
 	naddr = 0;
 	for (i = 1; i <= 2; i++) {
@@ -879,11 +555,9 @@ _hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp)
 		}
 	}
 	addrs[naddr] = NULL;
-	hp = _hpcopy(hp, errp);
-	freehostent(hp1);
-	freehostent(hp2);
-	return hp;
+	return (_hpcopy(hp, errp));
 }
+#endif
 
 /*
  * _hpmapv6: convert IPv4 hostent into IPv4-mapped IPv6 addresses
@@ -892,24 +566,17 @@ _hpmerge(struct hostent *hp1, struct hostent *hp2, int *errp)
 static struct hostent *
 _hpmapv6(struct hostent *hp, int *errp)
 {
-	struct hostent *hp6;
+	struct hostent hp6;
 
 	if (hp == NULL)
 		return NULL;
 	if (hp->h_addrtype == AF_INET6)
-		return hp;
+		return _hpcopy(hp, errp);
 
-	/* make dummy hostent to convert IPv6 address */
-	if ((hp6 = (struct hostent *)malloc(sizeof(struct hostent))) == NULL) {
-		*errp = TRY_AGAIN;
-		return NULL;
-	}
-	hp6->h_name = NULL;
-	hp6->h_aliases = NULL;
-	hp6->h_addrtype = AF_INET6;
-	hp6->h_length = sizeof(struct in6_addr);
-	hp6->h_addr_list = NULL;
-	return _hpmerge(hp6, hp, errp);
+	memset(&hp6, 0, sizeof(struct hostent));
+	hp6.h_addrtype = AF_INET6;
+	hp6.h_length = sizeof(struct in6_addr);
+	return _hpmerge(&hp6, hp, errp);
 }
 #endif
 
@@ -963,37 +630,6 @@ _hpsort(struct hostent *hp, res_state statp)
 		}
 	}
 	return hp;
-}
-
-static char *
-_hgetword(char **pp)
-{
-	char c, *p, *ret;
-	const char *sp;
-	static const char sep[] = "# \t\n";
-
-	ret = NULL;
-	for (p = *pp; (c = *p) != '\0'; p++) {
-		for (sp = sep; *sp != '\0'; sp++) {
-			if (c == *sp)
-				break;
-		}
-		if (c == '#')
-			p[1] = '\0';	/* ignore rest of line */
-		if (ret == NULL) {
-			if (*sp == '\0')
-				ret = p;
-		} else {
-			if (*sp != '\0') {
-				*p++ = '\0';
-				break;
-			}
-		}
-	}
-	*pp = p;
-	if (ret == NULL || *ret == '\0')
-		return NULL;
-	return ret;
 }
 
 /*
@@ -1475,954 +1111,3 @@ gai_addr2scopetype(struct sockaddr *sa)
 		return(-1);
 	}
 }
-
-/*
- * FILES (/etc/hosts)
- */
-
-static FILE *
-_files_open(int *errp)
-{
-	FILE *fp;
-	fp = fopen(_PATH_HOSTS, "r");
-	if (fp == NULL)
-		*errp = NO_RECOVERY;
-	return fp;
-}
-
-static int
-_files_ghbyname(void *rval, void *cb_data, va_list ap)
-{
-	const char *name;
-	int af;
-	int *errp;
-	int match, nalias;
-	char *p, *line, *addrstr, *cname;
-	FILE *fp;
-	struct hostent *rethp, *hp, hpbuf;
-	char *aliases[MAXALIASES + 1], *addrs[2];
-	union inx_addr addrbuf;
-	char buf[BUFSIZ];
-
-	name = va_arg(ap, const char *);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	*(struct hostent **)rval = NULL;
-
-	if ((fp = _files_open(errp)) == NULL)
-		return NS_UNAVAIL;
-	rethp = hp = NULL;
-
-	while (fgets(buf, sizeof(buf), fp)) {
-		line = buf;
-		if ((addrstr = _hgetword(&line)) == NULL
-		||  (cname = _hgetword(&line)) == NULL)
-			continue;
-		match = (strcasecmp(cname, name) == 0);
-		nalias = 0;
-		while ((p = _hgetword(&line)) != NULL) {
-			if (!match)
-				match = (strcasecmp(p, name) == 0);
-			if (nalias < MAXALIASES)
-				aliases[nalias++] = p;
-		}
-		if (!match)
-			continue;
-		switch (af) {
-		case AF_INET:
-			if (inet_aton(addrstr, (struct in_addr *)&addrbuf)
-			    != 1) {
-				*errp = NO_DATA;	/* name found */
-				continue;
-			}
-			break;
-#ifdef INET6
-		case AF_INET6:
-			if (inet_pton(af, addrstr, &addrbuf) != 1) {
-				*errp = NO_DATA;	/* name found */
-				continue;
-			}
-			break;
-#endif
-		}
-		hp = &hpbuf;
-		hp->h_name = cname;
-		hp->h_aliases = aliases;
-		aliases[nalias] = NULL;
-		hp->h_addrtype = af;
-		hp->h_length = ADDRLEN(af);
-		hp->h_addr_list = addrs;
-		addrs[0] = (char *)&addrbuf;
-		addrs[1] = NULL;
-		hp = _hpcopy(hp, errp);
-		rethp = _hpmerge(rethp, hp, errp);
-	}
-	fclose(fp);
-	*(struct hostent **)rval = rethp;
-	return (rethp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-}
-
-static int
-_files_ghbyaddr(void *rval, void *cb_data, va_list ap)
-{
-	const void *addr;
-	int addrlen;
-	int af;
-	int *errp;
-	int nalias;
-	char *p, *line;
-	FILE *fp;
-	struct hostent *hp, hpbuf;
-	char *aliases[MAXALIASES + 1], *addrs[2];
-	union inx_addr addrbuf;
-	char buf[BUFSIZ];
-
-	addr = va_arg(ap, const void *);
-	addrlen = va_arg(ap, int);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	*(struct hostent**)rval = NULL;
-
-	if ((fp = _files_open(errp)) == NULL)
-		return NS_UNAVAIL;
-	hp = NULL;
-	while (fgets(buf, sizeof(buf), fp)) {
-		line = buf;
-		if ((p = _hgetword(&line)) == NULL
-		||  (af == AF_INET
-		     ? inet_aton(p, (struct in_addr *)&addrbuf)
-		     : inet_pton(af, p, &addrbuf)) != 1
-		||  memcmp(addr, &addrbuf, addrlen) != 0
-		||  (p = _hgetword(&line)) == NULL)
-			continue;
-		hp = &hpbuf;
-		hp->h_name = p;
-		hp->h_aliases = aliases;
-		nalias = 0;
-		while ((p = _hgetword(&line)) != NULL) {
-			if (nalias < MAXALIASES)
-				aliases[nalias++] = p;
-		}
-		aliases[nalias] = NULL;
-		hp->h_addrtype = af;
-		hp->h_length = addrlen;
-		hp->h_addr_list = addrs;
-		addrs[0] = (char *)&addrbuf;
-		addrs[1] = NULL;
-		hp = _hpcopy(hp, errp);
-		break;
-	}
-	fclose(fp);
-	*(struct hostent **)rval = hp;
-	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-}
-
-#ifdef YP
-/*
- * NIS
- *
- * XXX actually a hack.
- */
-static int
-_nis_ghbyname(void *rval, void *cb_data, va_list ap)
-{
-	const char *name;
-	int af;
-	int *errp;
-	struct hostent *hp = NULL;
-
-	name = va_arg(ap, const char *);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	hp = _gethostbynisname(name, af);
-	if (hp != NULL)
-		hp = _hpcopy(hp, errp);
-
-	*(struct hostent **)rval = hp;
-	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-}
-
-static int
-_nis_ghbyaddr(void *rval, void *cb_data, va_list ap)
-{
-	const void *addr;
-	int addrlen;
-	int af;
-	int *errp;
-	struct hostent *hp = NULL;
-
-	addr = va_arg(ap, const void *);
-	addrlen = va_arg(ap, int);
-	af = va_arg(ap, int);
-
-	hp = _gethostbynisaddr(addr, addrlen, af);
-	if (hp != NULL)
-		hp = _hpcopy(hp, errp);
-	*(struct hostent **)rval = hp;
-	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
-}
-#endif
-
-#define	MAXPACKET	(64*1024)
-
-typedef union {
-	HEADER hdr;
-	u_char buf[MAXPACKET];
-} querybuf;
-
-static struct hostent *getanswer(const querybuf *, int, const char *, int,
-	    struct hostent *, int *);
-
-/*
- * we don't need to take care about sorting, nor IPv4 mapped address here.
- */
-static struct hostent *
-getanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
-    struct hostent *template, int *errp)
-{
-	const HEADER *hp;
-	const u_char *cp;
-	int n;
-	const u_char *eom, *erdata;
-	char *bp, *ep, **ap, **hap;
-	int type, class, ancount, qdcount;
-	int haveanswer, had_error;
-	char tbuf[MAXDNAME];
-	const char *tname;
-	int (*name_ok)(const char *);
-	static char *h_addr_ptrs[MAXADDRS + 1];
-	static char *host_aliases[MAXALIASES];
-	static char hostbuf[8*1024];
-
-#define BOUNDED_INCR(x) \
-	do { \
-		cp += x; \
-		if (cp > eom) { \
-			*errp = NO_RECOVERY; \
-			return (NULL); \
-		} \
-	} while (0)
-
-#define BOUNDS_CHECK(ptr, count) \
-	do { \
-		if ((ptr) + (count) > eom) { \
-			*errp = NO_RECOVERY; \
-			return (NULL); \
-		} \
-	} while (0)
-
-/* XXX do {} while (0) cannot be put here */
-#define DNS_ASSERT(x) \
-	{				\
-		if (!(x)) {		\
-			cp += n;	\
-			continue;	\
-		}			\
-	}
-
-/* XXX do {} while (0) cannot be put here */
-#define DNS_FATAL(x) \
-	{				\
-		if (!(x)) {		\
-			had_error++;	\
-			continue;	\
-		}			\
-	}
-
-	tname = qname;
-	template->h_name = NULL;
-	eom = answer->buf + anslen;
-	switch (qtype) {
-	case T_A:
-	case T_AAAA:
-		name_ok = res_hnok;
-		break;
-	case T_PTR:
-		name_ok = res_dnok;
-		break;
-	default:
-		return (NULL);	/* XXX should be abort(); */
-	}
-	/*
-	 * find first satisfactory answer
-	 */
-	hp = &answer->hdr;
-	ancount = ntohs(hp->ancount);
-	qdcount = ntohs(hp->qdcount);
-	bp = hostbuf;
-	ep = hostbuf + sizeof hostbuf;
-	cp = answer->buf;
-	BOUNDED_INCR(HFIXEDSZ);
-	if (qdcount != 1) {
-		*errp = NO_RECOVERY;
-		return (NULL);
-	}
-	n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
-	if ((n < 0) || !(*name_ok)(bp)) {
-		*errp = NO_RECOVERY;
-		return (NULL);
-	}
-	BOUNDED_INCR(n + QFIXEDSZ);
-	if (qtype == T_A || qtype == T_AAAA) {
-		/* res_send() has already verified that the query name is the
-		 * same as the one we sent; this just gets the expanded name
-		 * (i.e., with the succeeding search-domain tacked on).
-		 */
-		n = strlen(bp) + 1;		/* for the \0 */
-		if (n >= MAXHOSTNAMELEN) {
-			*errp = NO_RECOVERY;
-			return (NULL);
-		}
-		template->h_name = bp;
-		bp += n;
-		/* The qname can be abbreviated, but h_name is now absolute. */
-		qname = template->h_name;
-	}
-	ap = host_aliases;
-	*ap = NULL;
-	template->h_aliases = host_aliases;
-	hap = h_addr_ptrs;
-	*hap = NULL;
-	template->h_addr_list = h_addr_ptrs;
-	haveanswer = 0;
-	had_error = 0;
-	while (ancount-- > 0 && cp < eom && !had_error) {
-		n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
-		DNS_FATAL(n >= 0);
-		DNS_FATAL((*name_ok)(bp));
-		cp += n;			/* name */
-		BOUNDS_CHECK(cp, 3 * INT16SZ + INT32SZ);
-		type = _getshort(cp);
- 		cp += INT16SZ;			/* type */
-		class = _getshort(cp);
- 		cp += INT16SZ + INT32SZ;	/* class, TTL */
-		n = _getshort(cp);
-		cp += INT16SZ;			/* len */
-		BOUNDS_CHECK(cp, n);
-		erdata = cp + n;
-		DNS_ASSERT(class == C_IN);
-		if ((qtype == T_A || qtype == T_AAAA) && type == T_CNAME) {
-			if (ap >= &host_aliases[MAXALIASES-1])
-				continue;
-			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
-			DNS_FATAL(n >= 0);
-			DNS_FATAL((*name_ok)(tbuf));
-			cp += n;
-			if (cp != erdata) {
-				*errp = NO_RECOVERY;
-				return (NULL);
-			}
-			/* Store alias. */
-			*ap++ = bp;
-			n = strlen(bp) + 1;	/* for the \0 */
-			DNS_FATAL(n < MAXHOSTNAMELEN);
-			bp += n;
-			/* Get canonical name. */
-			n = strlen(tbuf) + 1;	/* for the \0 */
-			DNS_FATAL(n <= ep - bp);
-			DNS_FATAL(n < MAXHOSTNAMELEN);
-			strcpy(bp, tbuf);
-			template->h_name = bp;
-			bp += n;
-			continue;
-		}
-		if (qtype == T_PTR && type == T_CNAME) {
-			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
-			if (n < 0 || !res_dnok(tbuf)) {
-				had_error++;
-				continue;
-			}
-			cp += n;
-			if (cp != erdata) {
-				*errp = NO_RECOVERY;
-				return (NULL);
-			}
-			/* Get canonical name. */
-			n = strlen(tbuf) + 1;	/* for the \0 */
-			if (n > ep - bp || n >= MAXHOSTNAMELEN) {
-				had_error++;
-				continue;
-			}
-			strcpy(bp, tbuf);
-			tname = bp;
-			bp += n;
-			continue;
-		}
-		DNS_ASSERT(type == qtype);
-		switch (type) {
-		case T_PTR:
-			DNS_ASSERT(strcasecmp(tname, bp) == 0);
-			n = dn_expand(answer->buf, eom, cp, bp, ep - bp);
-			DNS_FATAL(n >= 0);
-			DNS_FATAL(res_hnok(bp));
-#if MULTI_PTRS_ARE_ALIASES
-			cp += n;
-			if (cp != erdata) {
-				*errp = NO_RECOVERY;
-				return (NULL);
-			}
-			if (!haveanswer)
-				template->h_name = bp;
-			else if (ap < &host_aliases[MAXALIASES-1])
-				*ap++ = bp;
-			else
-				n = -1;
-			if (n != -1) {
-				n = strlen(bp) + 1;	/* for the \0 */
-				if (n >= MAXHOSTNAMELEN) {
-					had_error++;
-					break;
-				}
-				bp += n;
-			}
-			break;
-#else
-			template->h_name = bp;
-			*errp = NETDB_SUCCESS;
-			return (template);
-#endif
-		case T_A:
-		case T_AAAA:
-			DNS_ASSERT(strcasecmp(template->h_name, bp) == 0);
-			DNS_ASSERT(n == template->h_length);
-			if (!haveanswer) {
-				int nn;
-
-				template->h_name = bp;
-				nn = strlen(bp) + 1;	/* for the \0 */
-				bp += nn;
-			}
-			bp = (char *)ALIGN(bp);
-
-			DNS_FATAL(bp + n < ep);
-			DNS_ASSERT(hap < &h_addr_ptrs[MAXADDRS-1]);
-#ifdef FILTER_V4MAPPED
-			if (type == T_AAAA) {
-				struct in6_addr in6;
-				memcpy(&in6, cp, sizeof(in6));
-				DNS_ASSERT(IN6_IS_ADDR_V4MAPPED(&in6) == 0);
-			}
-#endif
-			bcopy(cp, *hap++ = bp, n);
-			bp += n;
-			cp += n;
-			if (cp != erdata) {
-				*errp = NO_RECOVERY;
-				return (NULL);
-			}
-			break;
-		default:
-			abort();
-		}
-		if (!had_error)
-			haveanswer++;
-	}
-	if (haveanswer) {
-		*ap = NULL;
-		*hap = NULL;
-		if (!template->h_name) {
-			n = strlen(qname) + 1;	/* for the \0 */
-			if (n > ep - bp || n >= MAXHOSTNAMELEN)
-				goto no_recovery;
-			strcpy(bp, qname);
-			template->h_name = bp;
-			bp += n;
-		}
-		*errp = NETDB_SUCCESS;
-		return (template);
-	}
- no_recovery:
-	*errp = NO_RECOVERY;
-	return (NULL);
-
-#undef BOUNDED_INCR
-#undef BOUNDS_CHECK
-#undef DNS_ASSERT
-#undef DNS_FATAL
-}
-
-static int
-_dns_ghbyname(void *rval, void *cb_data, va_list ap)
-{
-	const char *name;
-	int af;
-	int *errp;
-	int n;
-	struct hostent *hp;
-	int qtype;
-	struct hostent hbuf;
-	querybuf *buf;
-	res_state statp;
-
-	name = va_arg(ap, const char *);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	statp = __res_state();
-
-	memset(&hbuf, 0, sizeof(hbuf));
-	hbuf.h_addrtype = af;
-	hbuf.h_length = ADDRLEN(af);
-
-	switch (af) {
-#ifdef INET6
-	case AF_INET6:
-		qtype = T_AAAA;
-		break;
-#endif
-	case AF_INET:
-		qtype = T_A;
-		break;
-	default:
-		*errp = NO_RECOVERY;
-		return NS_NOTFOUND;
-	}
-	buf = malloc(sizeof(*buf));
-	if (buf == NULL) {
-		*errp = NETDB_INTERNAL;
-		return NS_UNAVAIL;
-	}
-	n = res_nsearch(statp, name, C_IN, qtype, buf->buf, sizeof(buf->buf));
-	if (n < 0) {
-		free(buf);
-		*errp = statp->res_h_errno;
-		return NS_UNAVAIL;
-	}
-	hp = getanswer(buf, n, name, qtype, &hbuf, errp);
-	free(buf);
-	if (!hp) {
-		*errp = NO_RECOVERY;
-		return NS_NOTFOUND;
-	}
-	*(struct hostent **)rval = _hpcopy(&hbuf, errp);
-	if (*(struct hostent **)rval != NULL)
-		return NS_SUCCESS;
-	else if (*errp == TRY_AGAIN)
-		return NS_TRYAGAIN;
-	else
-		return NS_NOTFOUND;
-}
-
-static int
-_dns_ghbyaddr(void *rval, void *cb_data, va_list ap)
-{
-	const void *addr;
-	int addrlen;
-	int af;
-	int *errp;
-	int n;
-	int err;
-	struct hostent *hp;
-	u_char c, *cp;
-	char *bp;
-	struct hostent hbuf;
-#ifdef INET6
-	static const char hex[] = "0123456789abcdef";
-#endif
-	querybuf *buf;
-	char qbuf[MAXDNAME+1];
-	char *hlist[2];
-#ifdef INET6
-	char *tld6[] = { "ip6.arpa", NULL };
-#endif
-	char *tld4[] = { "in-addr.arpa", NULL };
-	char **tld;
-	res_state statp;
-
-	addr = va_arg(ap, const void *);
-	addrlen = va_arg(ap, int);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	*(struct hostent **)rval = NULL;
-
-#ifdef INET6
-	/* XXX */
-	if (af == AF_INET6 && IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)addr))
-		return NS_NOTFOUND;
-#endif
-
-	switch (af) {
-#ifdef INET6
-	case AF_INET6:
-		tld = tld6;
-		break;
-#endif
-	case AF_INET:
-		tld = tld4;
-		break;
-	default:
-		return NS_NOTFOUND;
-	}
-
-	statp = __res_state();
-	if ((statp->options & RES_INIT) == 0) {
-		if (res_ninit(statp) < 0) {
-			*errp = NETDB_INTERNAL;
-			return NS_UNAVAIL;
-		}
-	}
-	memset(&hbuf, 0, sizeof(hbuf));
-	hbuf.h_name = NULL;
-	hbuf.h_addrtype = af;
-	hbuf.h_length = addrlen;
-
-	buf = malloc(sizeof(*buf));
-	if (buf == NULL) {
-		*errp = NETDB_INTERNAL;
-		return NS_UNAVAIL;
-	}
-	err = NS_SUCCESS;
-	for (/* nothing */; *tld; tld++) {
-		/*
-		 * XXX assumes that MAXDNAME is big enough - error checks
-		 * has been made by callers
-		 */
-		n = 0;
-		bp = qbuf;
-		cp = (u_char *)addr+addrlen-1;
-		switch (af) {
-#ifdef INET6
-		case AF_INET6:
-			for (; n < addrlen; n++, cp--) {
-				c = *cp;
-				*bp++ = hex[c & 0xf];
-				*bp++ = '.';
-				*bp++ = hex[c >> 4];
-				*bp++ = '.';
-			}
-			strcpy(bp, *tld);
-			break;
-#endif
-		case AF_INET:
-			for (; n < addrlen; n++, cp--) {
-				c = *cp;
-				if (c >= 100)
-					*bp++ = '0' + c / 100;
-				if (c >= 10)
-					*bp++ = '0' + (c % 100) / 10;
-				*bp++ = '0' + c % 10;
-				*bp++ = '.';
-			}
-			strcpy(bp, *tld);
-			break;
-		}
-
-		n = res_nquery(statp, qbuf, C_IN, T_PTR, buf->buf,
-		    sizeof buf->buf);
-		if (n < 0) {
-			*errp = statp->res_h_errno;
-			err = NS_UNAVAIL;
-			continue;
-		} else if (n > sizeof(buf->buf)) {
-#if 0
-			errno = ERANGE; /* XXX is it OK to set errno here? */
-#endif
-			*errp = NETDB_INTERNAL;
-			err = NS_UNAVAIL;
-			continue;
-		}
-		hp = getanswer(buf, n, qbuf, T_PTR, &hbuf, errp);
-		if (!hp) {
-			err = NS_NOTFOUND;
-			continue;
-		}
-		free(buf);
-		hbuf.h_addrtype = af;
-		hbuf.h_length = addrlen;
-		hbuf.h_addr_list = hlist;
-		hlist[0] = (char *)addr;
-		hlist[1] = NULL;
-		*(struct hostent **)rval = _hpcopy(&hbuf, errp);
-		return NS_SUCCESS;
-	}
-	free(buf);
-	return err;
-}
-
-static void
-_dns_shent(int stayopen)
-{
-	res_state statp;
-
-	statp = __res_state();
-	if ((statp->options & RES_INIT) == 0) {
-		if (res_ninit(statp) < 0)
-			return;
-	}
-	if (stayopen)
-		statp->options |= RES_STAYOPEN | RES_USEVC;
-}
-
-static void
-_dns_ehent(void)
-{
-	res_state statp;
-
-	statp = __res_state();
-	statp->options &= ~(RES_STAYOPEN | RES_USEVC);
-	res_nclose(statp);
-}
-
-#ifdef ICMPNL
-
-/*
- * experimental:
- *	draft-ietf-ipngwg-icmp-namelookups-09.txt
- *	ifindex is assumed to be encoded in addr.
- */
-#include <sys/uio.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <ctype.h>
-
-#ifndef NI_QTYPE_NODENAME
-#define NI_QTYPE_NODENAME	NI_QTYPE_DNSNAME
-#endif
-
-static char *
-dnsdecode(sp, ep, base, buf, bufsiz)
-	const u_char **sp;
-	const u_char *ep;
-	const u_char *base;	/*base for compressed name*/
-	u_char *buf;
-	size_t bufsiz;
-{
-	int i;
-	const u_char *cp;
-	char cresult[MAXDNAME + 1];
-	const u_char *comp;
-	int l;
-
-	cp = *sp;
-	*buf = '\0';
-
-	if (cp >= ep)
-		return NULL;
-	while (cp < ep) {
-		i = *cp;
-		if (i == 0 || cp != *sp) {
-			if (strlcat(buf, ".", bufsiz) >= bufsiz)
-				return NULL;	/* result overrun */
-		}
-		if (i == 0)
-			break;
-		cp++;
-
-		if ((i & 0xc0) == 0xc0 && cp - base > (i & 0x3f)) {
-			/* DNS compression */
-			if (!base)
-				return NULL;
-
-			comp = base + (i & 0x3f);
-			if (dnsdecode(&comp, cp, base, cresult,
-			    sizeof(cresult)) == NULL)
-				return NULL;
-			if (strlcat(buf, cresult, bufsiz) >= bufsiz)
-				return NULL;	/* result overrun */
-			break;
-		} else if ((i & 0x3f) == i) {
-			if (i > ep - cp)
-				return NULL;	/* source overrun */
-			while (i-- > 0 && cp < ep) {
-				l = snprintf(cresult, sizeof(cresult),
-				    isprint(*cp) ? "%c" : "\\%03o", *cp & 0xff);
-				if (l >= sizeof(cresult) || l < 0)
-					return NULL;
-				if (strlcat(buf, cresult, bufsiz) >= bufsiz)
-					return NULL;	/* result overrun */
-				cp++;
-			}
-		} else
-			return NULL;	/* invalid label */
-	}
-	if (i != 0)
-		return NULL;	/* not terminated */
-	cp++;
-	*sp = cp;
-	return buf;
-}
-
-static char *
-_icmp_nodeinfo_query(const struct in6_addr *addr, int ifindex, char *dnsname)
-{
-	int s;
-	struct icmp6_filter filter;
-	struct msghdr msg;
-	struct cmsghdr *cmsg;
-	struct in6_pktinfo *pkt;
-	char cbuf[256], buf[1024], *cp, *end;
-	int cc;
-	struct icmp6_nodeinfo niq, *nir;
-	struct sockaddr_in6 sin6;
-	struct iovec iov;
-	fd_set s_fds, fds;
-	struct timeval tout;
-	int len;
-	static int pid;
-	u_int32_t r1, r2;
-
-	if (pid == 0)
-		pid = getpid();
-
-	ICMP6_FILTER_SETBLOCKALL(&filter);
-	ICMP6_FILTER_SETPASS(ICMP6_NI_REPLY, &filter);
-
-	FD_ZERO(&s_fds);
-	tout.tv_sec = 0;
-	tout.tv_usec = 500000;	/* 500ms */
-
-	memset(&niq, 0, sizeof(niq));
-	niq.ni_type = ICMP6_NI_QUERY;
-	niq.ni_code = ICMP6_NI_SUBJ_IPV6;
-	niq.ni_qtype = htons(NI_QTYPE_NODENAME);
-	niq.ni_flags = 0;
-	r1 = arc4random();
-	r2 = arc4random();
-	memcpy(&niq.icmp6_ni_nonce[0], &r1, sizeof(r1));
-	memcpy(&niq.icmp6_ni_nonce[4], &r2, sizeof(r2));
-
-	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_addr = *addr;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_name = (caddr_t)&sin6;
-	msg.msg_namelen = sizeof(sin6);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	iov.iov_base = (caddr_t)&niq;
-	iov.iov_len = sizeof(struct icmp6_nodeinfo);
-
-	if (ifindex) {
-		msg.msg_control = cbuf;
-		msg.msg_controllen = sizeof(cbuf);
-		cmsg = CMSG_FIRSTHDR(&msg);
-		cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-		cmsg->cmsg_level = IPPROTO_IPV6;
-		cmsg->cmsg_type = IPV6_PKTINFO;
-		pkt = (struct in6_pktinfo *)&cmsg[1];
-		memset(&pkt->ipi6_addr, 0, sizeof(struct in6_addr));
-		pkt->ipi6_ifindex = ifindex;
-		cmsg = CMSG_NXTHDR(&msg, cmsg);
-		msg.msg_controllen = (char *)cmsg - cbuf;
-	}
-
-	/* XXX: we need root privilege here */
-	if ((s = _socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0)
-		return NULL;
-	(void)_setsockopt(s, IPPROTO_ICMPV6, ICMP6_FILTER,
-			 (char *)&filter, sizeof(filter));
-	cc = _sendmsg(s, &msg, 0);
-	if (cc < 0) {
-		_close(s);
-		return (NULL);
-	}
-	FD_SET(s, &s_fds);
-	for (;;) {
-		fds = s_fds;
-		if (_select(s + 1, &fds, NULL, NULL, &tout) <= 0) {
-			_close(s);
-			return (NULL);
-		}
-		len = sizeof(sin6);
-		cc = _recvfrom(s, buf, sizeof(buf), 0,
-			      (struct sockaddr *)&sin6, &len);
-		if (cc <= 0) {
-			_close(s);
-			return (NULL);
-		}
-		if (cc < sizeof(struct icmp6_hdr))
-			continue;
-		nir = (struct icmp6_nodeinfo *)buf;
-		if (nir->ni_type != ICMP6_NI_REPLY)
-			continue;
-		if (nir->ni_qtype != htons(NI_QTYPE_NODENAME))
-			continue;
-		if (memcmp(nir->icmp6_ni_nonce, niq.icmp6_ni_nonce,
-		    sizeof(nir->icmp6_ni_nonce)) != 0) {
-			continue;
-		}
-		if (nir->ni_code != htons(ICMP6_NI_SUCCESS))
-			continue; /* or should we fail? */
-
-		/* this is an expected reply. */
-		break;
-	}
-	_close(s);
-
-	memset(dnsname, 0, MAXDNAME + 1);
-	cp = (char *)(nir + 1);
-	end = ((char *)nir) + cc;
-	if (end - cp < sizeof(int32_t))	/* for TTL.  we don't use it. */
-		return (NULL);
-	cp += sizeof(int32_t);
-	if (*cp == end - cp - 1) { /* an old version */
-		int nlen;
-
-		cp++;	/* skip length */
-		nlen = end - cp;
-		if (nlen > MAXDNAME)
-			return (NULL); /* XXX: use it anyway? */
-		memcpy(dnsname, cp, nlen);
-	} else {
-		/* XXX: should we use a generic function? */
-		if (dnsdecode((const u_char **)(void *)&cp, end,
-		    (const u_char *)(nir + 1), dnsname, MAXDNAME + 1)
-		    == NULL) {
-			return (NULL); /* bogus name */
-		}
-		/* Name-lookup special handling for truncated name. */
-		if (cp + 1 <= end && !*cp && strlen(dnsname) > 0)
-			dnsname[strlen(dnsname) - 1] = '\0';
-
-		/* There may be other names, but we ignore them. */
-	}
-
-	return (dnsname);
-}
-
-static int
-_icmp_ghbyaddr(void *rval, void *cb_data, va_list ap)
-{
-	const void *addr;
-	int addrlen;
-	int af;
-	int *errp;
-	char *hname;
-	int ifindex = 0;
-	struct in6_addr addr6;
-	char dnsname[MAXDNAME + 1];
-
-	addr = va_arg(ap, const void *);
-	addrlen = va_arg(ap, int);
-	af = va_arg(ap, int);
-	errp = va_arg(ap, int *);
-
-	*(struct hostent **)rval = NULL;
-
-	if (af != AF_INET6 || addrlen != sizeof(addr6)) {
-		/*
-		 * Note: rfc1788 defines Who Are You for IPv4,
-		 * but no one implements it.
-		 */
-		return (NS_NOTFOUND);
-	}
-
-	memcpy(&addr6, addr, addrlen);
-	if (IN6_IS_ADDR_LINKLOCAL(&addr6)) {
-		ifindex = (addr6.s6_addr[2] << 8) | addr6.s6_addr[3];
-		addr6.s6_addr[2] = addr6.s6_addr[3] = 0;
-	}
-
-	if ((hname = _icmp_nodeinfo_query(&addr6, ifindex, dnsname)) == NULL)
-		return (NS_NOTFOUND);
-	*(struct hostent **)rval =_hpaddr(af, hname, &addr6, errp);
-	return (NS_SUCCESS);
-}
-#endif /* ICMPNL */
