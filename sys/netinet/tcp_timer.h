@@ -111,7 +111,7 @@
  * The prior minimum of 1*hz (1 second) badly breaks throughput on any
  * networks faster then a modem that has minor (e.g. 1%) packet loss.
  */
-#define	TCPTV_MIN	( 3 )			/* minimum allowable value */
+#define	TCPTV_MIN	( hz/33 )		/* minimum allowable value */
 #define TCPTV_CPU_VAR	( hz/5 )		/* cpu variance allowed (200ms) */
 #define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
