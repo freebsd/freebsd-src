@@ -28,7 +28,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
@@ -99,6 +101,30 @@ ohci_atmelarm_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_ohci.sc_bus.bdev, &sc->sc_ohci.sc_bus);
 
+	/* Allocate a parent dma tag for DMA maps */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, &sc->sc_ohci.sc_bus.parent_dmatag);
+	if (err) {
+		device_printf(dev, "Could not allocate parent DMA tag (%d)\n",
+		    err);
+		err = ENXIO;
+		goto error;
+	}
+
+	/* Allocate a dma tag for transfer buffers */
+	err = bus_dma_tag_create(sc->sc_ohci.sc_bus.parent_dmatag, 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, USB_DMA_NSEG, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    busdma_lock_mutex, &Giant, &sc->sc_ohci.sc_bus.buffer_dmatag);
+	if (err) {
+		device_printf(dev, "Could not allocate transfer tag (%d)\n",
+		    err);
+		err = ENXIO;
+		goto error;
+	}
+
 	err = bus_setup_intr(dev, sc->sc_ohci.irq_res, INTR_TYPE_BIO, NULL, 
 	    ohci_intr, sc, &sc->sc_ohci.ih);
 	if (err) {
@@ -158,6 +184,12 @@ ohci_atmelarm_detach(device_t dev)
 		bus_teardown_intr(dev, sc->sc_ohci.irq_res, sc->sc_ohci.ih);
 		sc->sc_ohci.ih = NULL;
 	}
+
+	if (sc->sc_ohci.sc_bus.parent_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_ohci.sc_bus.parent_dmatag);
+	if (sc->sc_ohci.sc_bus.buffer_dmatag != NULL)
+		bus_dma_tag_destroy(sc->sc_ohci.sc_bus.buffer_dmatag);
+
 	if (sc->sc_ohci.sc_bus.bdev) {
 		device_delete_child(dev, sc->sc_ohci.sc_bus.bdev);
 		sc->sc_ohci.sc_bus.bdev = NULL;
