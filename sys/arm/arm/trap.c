@@ -943,7 +943,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	case 0: 
 #ifdef __ARMEB__
 		if ((insn & 0x000fffff) == SYS___syscall &&
-		    (code != SYS_lseek)) {
+		    code != SYS_freebsd6_lseek && code != SYS_lseek) {
 			/*
 			 * 64-bit return, 32-bit syscall. Fixup byte order
 			 */ 
