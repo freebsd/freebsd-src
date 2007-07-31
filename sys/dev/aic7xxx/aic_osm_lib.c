@@ -120,9 +120,7 @@ aic_recovery_thread(void *arg)
 		if ((aic->flags & AIC_SHUTDOWN_RECOVERY) != 0)
 			break;
 
-		aic_unlock(aic);
 		aic_recover_commands(aic);
-		aic_lock(aic);
 	}
 	aic->platform_data->recovery_thread = NULL;
 	wakeup(aic->platform_data);
