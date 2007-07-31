@@ -88,7 +88,7 @@ CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || \
-    ${MACHINE_ARCH} == "sparc64"
+    ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
 WERROR?= -Werror
 .endif
 .endif
