@@ -490,6 +490,9 @@ struct flash_spec {
 #define BCE_DRV_PULSE_MB			0x00000010
 #define BCE_DRV_PULSE_SEQ_MASK			 0x00007fff
 
+#define BCE_MB_ARGS_0				0x00000014
+#define BCE_MB_ARGS_1				0x00000018
+
 /* Indicate to the firmware not to go into the
  * OS absent when it is not getting driver pulse.
  * This is used for debugging. */
@@ -4925,10 +4928,19 @@ struct bce_softc
 	/* Provides access to certain firmware statistics. */
 	u32 com_no_buffers;
 
+	/* Mbuf allocation failure counter. */
+	u32	mbuf_alloc_failed;
+
+	/* TX DMA mapping failure counter. */
+	u32 tx_dma_map_failures;
+
 #ifdef BCE_DEBUG
 	/* Track the number of enqueued mbufs. */
 	int	tx_mbuf_alloc;
 	int rx_mbuf_alloc;
+
+	/* Track the distribution buffer segments. */
+	u32 rx_mbuf_segs[BCE_MAX_SEGMENTS+1];
 
 	/* Track how many and what type of interrupts are generated. */
 	u32 interrupts_generated;
@@ -4940,7 +4952,7 @@ struct bce_softc
 	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
 	u32 tx_hi_watermark;			/* Greatest number of tx_bd's used. */
 	u32	tx_full_count;				/* Number of times the TX chain was full. */
-	u32	mbuf_alloc_failed;			/* Mbuf allocation failure counter. */
+	u32	mbuf_sim_alloc_failed;		/* Mbuf simulated allocation failure counter. */
 	u32 l2fhdr_status_errors;
 	u32 unexpected_attentions;
 	u32	lost_status_block_updates;
