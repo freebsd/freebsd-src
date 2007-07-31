@@ -103,6 +103,7 @@
     #include <dev/pci/pcivar.h>
     #include <dev/pci/pcireg.h>
     #define ARCMSR_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF|MTX_RECURSE)
+    #define ARCMSR_LOCK_DESTROY(l)	mtx_destroy(l)
     #define ARCMSR_LOCK_ACQUIRE(l)	mtx_lock(l)
     #define ARCMSR_LOCK_RELEASE(l)	mtx_unlock(l)
     #define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
@@ -113,6 +114,7 @@
     #include <pci/pcivar.h>
     #include <pci/pcireg.h>
     #define ARCMSR_LOCK_INIT(l, s)	simple_lock_init(l)
+    #define ARCMSR_LOCK_DESTROY(l)
     #define ARCMSR_LOCK_ACQUIRE(l)	simple_lock(l)
     #define ARCMSR_LOCK_RELEASE(l)	simple_unlock(l)
     #define ARCMSR_LOCK_TRY(l)		simple_lock_try(l)
@@ -417,7 +419,6 @@ static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
 		bus_dmamap_sync(acb->dm_segs_dmat, srb->dm_segs_dmamap, op);
 		bus_dmamap_unload(acb->dm_segs_dmat, srb->dm_segs_dmamap);
 	}
-	ARCMSR_LOCK_ACQUIRE(&acb->workingQ_done_lock);
 	if(stand_flag==1) {
 		atomic_subtract_int(&acb->srboutstandingcount, 1);
 		if((acb->acb_flags & ACB_F_CAM_DEV_QFRZN) && (
@@ -431,7 +432,6 @@ static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
 	acb->srbworkingQ[acb->workingsrb_doneindex]=srb;
 	acb->workingsrb_doneindex++;
 	acb->workingsrb_doneindex %= ARCMSR_MAX_FREESRB_NUM;
-	ARCMSR_LOCK_RELEASE(&acb->workingQ_done_lock);
 	xpt_done(pccb);
 	return;
 }
@@ -666,6 +666,18 @@ static void arcmsr_poll(struct cam_sim * psim)
 {
 	arcmsr_interrupt(cam_sim_softc(psim));
 	return;
+}
+/*
+**********************************************************************
+**********************************************************************
+*/
+static void arcmsr_intr_handler(void *arg)
+{
+	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)arg;
+
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+	arcmsr_interrupt(acb);
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 }
 /*
 **********************************************************************
@@ -1035,7 +1047,6 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 	struct CommandControlBlock *srb=NULL;
 	u_int32_t workingsrb_startindex, workingsrb_doneindex;
 
-	ARCMSR_LOCK_ACQUIRE(&acb->workingQ_start_lock);
 	workingsrb_doneindex=acb->workingsrb_doneindex;
 	workingsrb_startindex=acb->workingsrb_startindex;
 	srb=acb->srbworkingQ[workingsrb_startindex];
@@ -1046,7 +1057,6 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 	} else {
 		srb=NULL;
 	}
-	ARCMSR_LOCK_RELEASE(&acb->workingQ_start_lock);
 	return(srb);
 }
 /*
@@ -1970,7 +1980,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/	0,
 				/*lockfunc*/	busdma_lock_mutex,
-				/*lockarg*/	&Giant,
+				/*lockarg*/	&acb->qbuffer_lock,
 						&acb->dm_segs_dmat) != 0)
 #else
 	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
@@ -2114,9 +2124,10 @@ static u_int32_t arcmsr_attach(device_t dev)
 		printf("arcmsr%d: cannot allocate softc\n", unit);
 		return (ENOMEM);
 	}
-	bzero(acb, sizeof(struct AdapterControlBlock));
+	ARCMSR_LOCK_INIT(&acb->qbuffer_lock, "arcmsr Q buffer lock");
 	if(arcmsr_initialize(dev)) {
 		printf("arcmsr%d: initialize failure!\n", unit);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		return ENXIO;
 	}
 	/* After setting up the adapter, map our interrupt */
@@ -2124,8 +2135,9 @@ static u_int32_t arcmsr_attach(device_t dev)
 	irqres=bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
 	bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE
-  		, NULL, arcmsr_interrupt, acb, &acb->ih))  {
+  		, NULL, arcmsr_intr_handler, acb, &acb->ih))  {
 		arcmsr_free_resource(acb);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		printf("arcmsr%d: unable to register interrupt handler!\n", unit);
 		return ENXIO;
 	}
@@ -2142,23 +2154,27 @@ static u_int32_t arcmsr_attach(device_t dev)
 	if(devq == NULL) {
 	    arcmsr_free_resource(acb);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		printf("arcmsr%d: cam_simq_alloc failure!\n", unit);
 		return ENXIO;
 	}
 	acb->psim=cam_sim_alloc(arcmsr_action, arcmsr_poll,
-		"arcmsr", acb, unit, &Giant, 1,
+		"arcmsr", acb, unit, &acb->qbuffer_lock, 1,
 		ARCMSR_MAX_OUTSTANDING_CMD, devq);
 	if(acb->psim == NULL) {
 		arcmsr_free_resource(acb);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
 		cam_simq_free(devq);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		printf("arcmsr%d: cam_sim_alloc failure!\n", unit);
 		return ENXIO;
 	}
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	if(xpt_bus_register(acb->psim, dev, 0) != CAM_SUCCESS) {
 		arcmsr_free_resource(acb);
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
 		cam_sim_free(acb->psim, /*free_devq*/TRUE);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		printf("arcmsr%d: xpt_bus_register failure!\n", unit);
 		return ENXIO;
 	}
@@ -2170,12 +2186,10 @@ static u_int32_t arcmsr_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
 		xpt_bus_deregister(cam_sim_path(acb->psim));
 		cam_sim_free(acb->psim, /* free_simq */ TRUE);
+		ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 		printf("arcmsr%d: xpt_create_path failure!\n", unit);
 		return ENXIO;
 	}
-	ARCMSR_LOCK_INIT(&acb->workingQ_done_lock, "arcmsr done working Q lock");
-	ARCMSR_LOCK_INIT(&acb->workingQ_start_lock, "arcmsr start working Q lock");
-	ARCMSR_LOCK_INIT(&acb->qbuffer_lock, "arcmsr Q buffer lock");
 	/*
 	****************************************************
 	*/
@@ -2185,6 +2199,7 @@ static u_int32_t arcmsr_attach(device_t dev)
 	csa.callback=arcmsr_async;
 	csa.callback_arg=acb->psim;
 	xpt_action((union ccb *)&csa);
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 	/* Create the control device.  */
 	acb->ioctl_dev=make_dev(&arcmsr_cdevsw
 		, unit
@@ -2256,6 +2271,7 @@ static void arcmsr_shutdown(device_t dev)
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
 
 	/* stop adapter background rebuild */
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	arcmsr_stop_adapter_bgrb(acb);
 	arcmsr_flush_adapter_cache(acb);
 	/* disable all outbound interrupt */
@@ -2289,6 +2305,7 @@ static void arcmsr_shutdown(device_t dev)
 	atomic_set_int(&acb->srboutstandingcount, 0);
 	acb->workingsrb_doneindex=0;
 	acb->workingsrb_startindex=0;
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 	return;
 }
 /*
@@ -2299,15 +2316,18 @@ static u_int32_t arcmsr_detach(device_t dev)
 {
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)device_get_softc(dev);
 
+	bus_teardown_intr(dev, acb->irqres, acb->ih);
 	arcmsr_shutdown(dev);
 	arcmsr_free_resource(acb);
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), acb->sys_res_arcmsr);
-	bus_teardown_intr(dev, acb->irqres, acb->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, acb->irqres);
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 	xpt_async(AC_LOST_DEVICE, acb->ppath, NULL);
 	xpt_free_path(acb->ppath);
 	xpt_bus_deregister(cam_sim_path(acb->psim));
 	cam_sim_free(acb->psim, TRUE);
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+	ARCMSR_LOCK_DESTROY(&acb->qbuffer_lock);
 	return (0);
 }
 
