@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070801:	p19	FreeBSD-SA-07:06.tcpdump, FreeBSD-SA-07:07.bind
+	Correct a buffer overflow in tcpdump(1). [07:06]
+
+	Correct predictable query ids in named(8). [07:07]
+
 20070712:	p18	FreeBSD-SA-07:05.libarchive
 	Correct multiple security issues in how libarchive handles
 	corrupt tar archives, including a potentially exploitable
