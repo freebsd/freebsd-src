@@ -401,8 +401,13 @@ nmdmmodem(struct tty *tp, int sigon, int sigoff)
 static int
 nmdmclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
+	struct tty *tp = dev->si_tty;
+	int error;
 
-	return (tty_close(dev->si_tty));
+	error = ttyld_close(tp, flag);
+	(void) tty_close(dev->si_tty);
+
+	return (error);
 }
 
 static void
