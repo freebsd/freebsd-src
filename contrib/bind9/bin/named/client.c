@@ -1272,6 +1272,14 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	}
 
 	/*
+	 * Hash the incoming request here as it is after
+	 * dns_dispatch_importrecv().
+	 */
+	dns_dispatch_hash(&client->now, sizeof(client->now));
+	dns_dispatch_hash(isc_buffer_base(buffer),
+			  isc_buffer_usedlength(buffer));
+
+	/*
 	 * It's a request.  Parse it.
 	 */
 	result = dns_message_parse(client->message, buffer, 0);

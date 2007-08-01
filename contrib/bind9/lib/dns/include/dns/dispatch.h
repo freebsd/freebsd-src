@@ -437,6 +437,13 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event);
  * 	event != NULL
  */
 
+void
+dns_dispatch_hash(void *data, size_t len);
+/*%<
+ * Feed 'data' to the dispatch query id generator where 'len' is the size
+ * of 'data'.
+ */
+
 ISC_LANG_ENDDECLS
 
 #endif /* DNS_DISPATCH_H */
