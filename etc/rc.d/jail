@@ -228,7 +228,7 @@ jail_mount_fstab()
 			warn "${_mountpt} has symlink as parent - not mounting from ${jail_fstab}"
 			return
 		fi
-	done <${_fstab}
+	done <${jail_fstab}
 	mount -a -F "${jail_fstab}"
 }
 

@@ -618,6 +618,26 @@ trunc:
 	return -2;
 }
 
+/*
+ * As I remember, some versions of systems have an snprintf() that
+ * returns -1 if the buffer would have overflowed.  If the return
+ * value is negative, set buflen to 0, to indicate that we've filled
+ * the buffer up.
+ *
+ * If the return value is greater than buflen, that means that
+ * the buffer would have overflowed; again, set buflen to 0 in
+ * that case.
+ */
+#define UPDATE_BUF_BUFLEN(buf, buflen, strlen) \
+    if (strlen<0) \
+       	buflen=0; \
+    else if ((u_int)strlen>buflen) \
+        buflen=0; \
+    else { \
+        buflen-=strlen; \
+	buf+=strlen; \
+    }
+
 static int
 decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
 {
@@ -628,11 +648,13 @@ decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
         tlen=plen;
         pptr+=2;
 	TCHECK2(pptr[0],15);
+	buf[0]='\0';
         strlen=snprintf(buf, buflen, "RD: %s, CE-ID: %u, Label-Block Offset: %u, Label Base %u",
                         bgp_vpn_rd_print(pptr),
                         EXTRACT_16BITS(pptr+8),
                         EXTRACT_16BITS(pptr+10),
                         EXTRACT_24BITS(pptr+12)>>4); /* the label is offsetted by 4 bits so lets shift it right */
+        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
         pptr+=15;
         tlen-=15;
 
@@ -648,23 +670,32 @@ decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
 
             switch(tlv_type) {
             case 1:
-                strlen+=snprintf(buf+strlen,buflen-strlen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
-                                 tlv_type,
-                                 tlv_len);
+                if (buflen!=0) {
+                    strlen=snprintf(buf,buflen, "\n\t\tcircuit status vector (%u) length: %u: 0x",
+                                    tlv_type,
+                                    tlv_len);
+                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+                }
                 ttlv_len=ttlv_len/8+1; /* how many bytes do we need to read ? */
                 while (ttlv_len>0) {
                     TCHECK(pptr[0]);
-                    strlen+=snprintf(buf+strlen,buflen-strlen, "%02x",*pptr++);
+                    if (buflen!=0) {
+                        strlen=snprintf(buf,buflen, "%02x",*pptr++);
+                        UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+                    }
                     ttlv_len--;
                 }
                 break;
             default:
-                snprintf(buf+strlen,buflen-strlen, "\n\t\tunknown TLV #%u, length: %u",
-                         tlv_type,
-                         tlv_len);
+                if (buflen!=0) {
+                    strlen=snprintf(buf,buflen, "\n\t\tunknown TLV #%u, length: %u",
+                                    tlv_type,
+                                    tlv_len);
+                    UPDATE_BUF_BUFLEN(buf, buflen, strlen);
+                }
                 break;
             }
-            tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it tright */
+            tlen-=(tlv_len<<3); /* the tlv-length is expressed in bits so lets shift it right */
         }
         return plen+2;
 
