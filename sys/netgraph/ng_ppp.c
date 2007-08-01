@@ -196,7 +196,7 @@ struct ng_ppp_frag {
 /* Per-link private information */
 struct ng_ppp_link {
 	struct ng_ppp_link_conf	conf;		/* link configuration */
-	struct ng_ppp_link_stat	stats;		/* link stats */
+	struct ng_ppp_link_stat64	stats;	/* link stats */
 	hook_p			hook;		/* connection to link data */
 	int32_t			seq;		/* highest rec'd seq# - MSEQ */
 	uint32_t		latency;	/* calculated link latency */
@@ -207,7 +207,7 @@ struct ng_ppp_link {
 /* Total per-node private information */
 struct ng_ppp_private {
 	struct ng_ppp_bund_conf	conf;			/* bundle config */
-	struct ng_ppp_link_stat	bundleStats;		/* bundle stats */
+	struct ng_ppp_link_stat64	bundleStats;	/* bundle stats */
 	struct ng_ppp_link	links[NG_PPP_MAX_LINKS];/* per-link info */
 	int32_t			xseq;			/* next out MP seq # */
 	int32_t			mseq;			/* min links[i].seq */
@@ -383,6 +383,14 @@ static const struct ng_parse_type ng_ppp_stats_type = {
 	&ng_ppp_stats_type_fields
 };
 
+/* Parse type for struct ng_ppp_link_stat64 */
+static const struct ng_parse_struct_field ng_ppp_stats64_type_fields[]
+	= NG_PPP_STATS64_TYPE_INFO;
+static const struct ng_parse_type ng_ppp_stats64_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_stats64_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ppp_cmds[] = {
 	{
@@ -426,6 +434,20 @@ static const struct ng_cmdlist ng_ppp_cmds[] = {
 	  "getclrstats",
 	  &ng_parse_int16_type,
 	  &ng_ppp_stats_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GET_LINK_STATS64,
+	  "getstats64",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats64_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GETCLR_LINK_STATS64,
+	  "getclrstats64",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats64_type
 	},
 	{ 0 }
 };
@@ -617,10 +639,13 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_PPP_GET_LINK_STATS:
 		case NGM_PPP_CLR_LINK_STATS:
 		case NGM_PPP_GETCLR_LINK_STATS:
+		case NGM_PPP_GET_LINK_STATS64:
+		case NGM_PPP_GETCLR_LINK_STATS64:
 		    {
-			struct ng_ppp_link_stat *stats;
+			struct ng_ppp_link_stat64 *stats;
 			uint16_t linkNum;
 
+			/* Process request. */
 			if (msg->header.arglen != sizeof(uint16_t))
 				ERROUT(EINVAL);
 			linkNum = *((uint16_t *) msg->data);
@@ -629,14 +654,38 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 			stats = (linkNum == NG_PPP_BUNDLE_LINKNUM) ?
 			    &priv->bundleStats : &priv->links[linkNum].stats;
-			if (msg->header.cmd != NGM_PPP_CLR_LINK_STATS) {
+
+			/* Make 64bit reply. */
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS64 || 
+			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS64) {
+				NG_MKRESPONSE(resp, msg,
+				    sizeof(struct ng_ppp_link_stat64), M_NOWAIT);
+				if (resp == NULL)
+					ERROUT(ENOMEM);
+				bcopy(stats, resp->data, sizeof(*stats));
+			} else
+			/* Make 32bit reply. */
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS || 
+			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS) {
+				struct ng_ppp_link_stat *rs;
 				NG_MKRESPONSE(resp, msg,
 				    sizeof(struct ng_ppp_link_stat), M_NOWAIT);
 				if (resp == NULL)
 					ERROUT(ENOMEM);
-				bcopy(stats, resp->data, sizeof(*stats));
+				rs = (struct ng_ppp_link_stat *)resp->data;
+				/* Truncate 64->32 bits. */
+				rs->xmitFrames = stats->xmitFrames;
+				rs->xmitOctets = stats->xmitOctets;
+				rs->recvFrames = stats->recvFrames;
+				rs->recvOctets = stats->recvOctets;
+				rs->badProtos = stats->badProtos;
+				rs->runts = stats->runts;
+				rs->dupFragments = stats->dupFragments;
+				rs->dropFragments = stats->dropFragments;
 			}
-			if (msg->header.cmd != NGM_PPP_GET_LINK_STATS)
+			/* Clear stats. */
+			if (msg->header.cmd != NGM_PPP_GET_LINK_STATS &&
+			    msg->header.cmd != NGM_PPP_GET_LINK_STATS64)
 				bzero(stats, sizeof(*stats));
 			break;
 		    }
