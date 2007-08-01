@@ -911,6 +911,10 @@ bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
 				    "(matches both %s and %s)",
 				    p, (*poption)->name, option->name);
 
+			if ((*poption)->has_arg == required_argument
+			    && optarg == NULL)
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Option \"%s\" requires argument", p);
 		} else {
 			opt = '?';
 			/* TODO: Set up a fake 'struct option' for
