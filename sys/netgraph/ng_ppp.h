@@ -48,6 +48,9 @@
 #define NG_PPP_NODE_TYPE	"ppp"
 #define NGM_PPP_COOKIE		940897795
 
+/* 64bit stats presence flag */
+#define NG_PPP_STATS64
+
 /* Maximum number of supported links */
 #define NG_PPP_MAX_LINKS	16
 
@@ -97,6 +100,8 @@ enum {
 	NGM_PPP_GET_LINK_STATS,		/* takes link #, returns stats struct */
 	NGM_PPP_CLR_LINK_STATS,		/* takes link #, clears link stats */
 	NGM_PPP_GETCLR_LINK_STATS,	/* takes link #, returns & clrs stats */
+	NGM_PPP_GET_LINK_STATS64,	/* takes link #, returns stats64 struct */
+	NGM_PPP_GETCLR_LINK_STATS64,	/* takes link #, returns stats64 & clrs */
 };
 
 /* Multi-link sequence number state (for debugging) */
@@ -209,6 +214,31 @@ struct ng_ppp_link_stat {
 	  { "runts",		&ng_parse_uint32_type	},	\
 	  { "dupFragments",	&ng_parse_uint32_type	},	\
 	  { "dropFragments",	&ng_parse_uint32_type	},	\
+	  { NULL }						\
+}
+
+/* Statistics struct for a link (or the bundle if NG_PPP_BUNDLE_LINKNUM) */
+struct ng_ppp_link_stat64 {
+	u_int64_t xmitFrames;		/* xmit frames on link */
+	u_int64_t xmitOctets;		/* xmit octets on link */
+	u_int64_t recvFrames;		/* recv frames on link */
+	u_int64_t recvOctets;		/* recv octets on link */
+	u_int64_t badProtos;		/* frames rec'd with bogus protocol */
+	u_int64_t runts;		/* Too short MP fragments */
+	u_int64_t dupFragments;		/* MP frames with duplicate seq # */
+	u_int64_t dropFragments;	/* MP fragments we had to drop */
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_STATS64_TYPE_INFO	{			\
+	  { "xmitFrames",	&ng_parse_uint64_type	},	\
+	  { "xmitOctets",	&ng_parse_uint64_type	},	\
+	  { "recvFrames",	&ng_parse_uint64_type	},	\
+	  { "recvOctets",	&ng_parse_uint64_type	},	\
+	  { "badProtos",	&ng_parse_uint64_type	},	\
+	  { "runts",		&ng_parse_uint64_type	},	\
+	  { "dupFragments",	&ng_parse_uint64_type	},	\
+	  { "dropFragments",	&ng_parse_uint64_type	},	\
 	  { NULL }						\
 }
 
