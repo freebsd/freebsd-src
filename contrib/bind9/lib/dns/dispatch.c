@@ -20,14 +20,16 @@
 #include <config.h>
 
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include <isc/entropy.h>
-#include <isc/lfsr.h>
 #include <isc/mem.h>
 #include <isc/mutex.h>
 #include <isc/print.h>
 #include <isc/string.h>
 #include <isc/task.h>
+#include <isc/time.h>
 #include <isc/util.h>
 
 #include <dns/acl.h>
@@ -41,13 +43,22 @@
 
 typedef ISC_LIST(dns_dispentry_t)	dns_displist_t;
 
+typedef struct dns_nsid {
+	isc_uint16_t	nsid_state;
+	isc_uint16_t	*nsid_vtable;
+	isc_uint16_t	*nsid_pool;
+	isc_uint16_t	nsid_a1, nsid_a2, nsid_a3;
+	isc_uint16_t	nsid_c1, nsid_c2, nsid_c3;
+	isc_uint16_t	nsid_state2;
+	isc_boolean_t	nsid_usepool;
+} dns_nsid_t;
+
 typedef struct dns_qid {
 	unsigned int	magic;
 	unsigned int	qid_nbuckets;	/* hash table size */
 	unsigned int	qid_increment;	/* id increment on collision */
 	isc_mutex_t	lock;
-	isc_lfsr_t	qid_lfsr1;	/* state generator info */
-	isc_lfsr_t	qid_lfsr2;	/* state generator info */
+	dns_nsid_t	nsid;
 	dns_displist_t	*qid_table;	/* the table itself */
 } dns_qid_t;
 
@@ -156,7 +167,7 @@ static void destroy_disp(isc_task_t *task, isc_event_t *event);
 static void udp_recv(isc_task_t *, isc_event_t *);
 static void tcp_recv(isc_task_t *, isc_event_t *);
 static void startrecv(dns_dispatch_t *);
-static dns_messageid_t dns_randomid(dns_qid_t *);
+static dns_messageid_t dns_randomid(dns_nsid_t *);
 static isc_uint32_t dns_hash(dns_qid_t *, isc_sockaddr_t *, dns_messageid_t);
 static void free_buffer(dns_dispatch_t *disp, void *buf, unsigned int len);
 static void *allocate_udp_buffer(dns_dispatch_t *disp);
@@ -177,8 +188,12 @@ static isc_result_t dispatch_createudp(dns_dispatchmgr_t *mgr,
 static isc_boolean_t destroy_mgr_ok(dns_dispatchmgr_t *mgr);
 static void destroy_mgr(dns_dispatchmgr_t **mgrp);
 static isc_result_t qid_allocate(dns_dispatchmgr_t *mgr, unsigned int buckets,
-				 unsigned int increment, dns_qid_t **qidp);
+				 unsigned int increment, isc_boolean_t usepool,
+				 dns_qid_t **qidp);
 static void qid_destroy(isc_mem_t *mctx, dns_qid_t **qidp);
+static isc_uint16_t nsid_next(dns_nsid_t *nsid);
+static isc_result_t nsid_init(isc_mem_t *mctx, dns_nsid_t *nsid, isc_boolean_t usepool);
+static void nsid_destroy(isc_mem_t *mctx, dns_nsid_t *nsid);
 
 #define LVL(x) ISC_LOG_DEBUG(x)
 
@@ -258,38 +273,16 @@ request_log(dns_dispatch_t *disp, dns_dispentry_t *resp,
 	}
 }
 
-static void
-reseed_lfsr(isc_lfsr_t *lfsr, void *arg)
-{
-	dns_dispatchmgr_t *mgr = arg;
-	isc_result_t result;
-	isc_uint32_t val;
-
-	REQUIRE(VALID_DISPATCHMGR(mgr));
-
-	if (mgr->entropy != NULL) {
-		result = isc_entropy_getdata(mgr->entropy, &val, sizeof(val),
-					     NULL, 0);
-		INSIST(result == ISC_R_SUCCESS);
-		lfsr->count = (val & 0x1f) + 32;
-		lfsr->state = val;
-		return;
-	}
-
-	lfsr->count = (random() & 0x1f) + 32;	/* From 32 to 63 states */
-	lfsr->state = random();
-}
-
 /*
  * Return an unpredictable message ID.
  */
 static dns_messageid_t
-dns_randomid(dns_qid_t *qid) {
+dns_randomid(dns_nsid_t *nsid) {
 	isc_uint32_t id;
 
-	id = isc_lfsr_generate32(&qid->qid_lfsr1, &qid->qid_lfsr2);
+	id = nsid_next(nsid);
 
-	return (dns_messageid_t)(id & 0xFFFF);
+	return ((dns_messageid_t)id);
 }
 
 /*
@@ -629,6 +622,9 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		goto restart;
 	}
 
+	dns_dispatch_hash(&ev->timestamp, sizeof(&ev->timestamp));
+	dns_dispatch_hash(ev->region.base, ev->region.length);
+
 	/* response */
 	bucket = dns_hash(qid, &ev->address, id);
 	LOCK(&qid->lock);
@@ -862,6 +858,8 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		 */
 		goto restart;
 	}
+
+	dns_dispatch_hash(tcpmsg->buffer.base, tcpmsg->buffer.length);
 
 	/*
 	 * Response.
@@ -1246,7 +1244,7 @@ dns_dispatchmgr_setudp(dns_dispatchmgr_t *mgr,
 	isc_mempool_setmaxalloc(mgr->bpool, maxbuffers);
 	isc_mempool_associatelock(mgr->bpool, &mgr->pool_lock);
 
-	result = qid_allocate(mgr, buckets, increment, &mgr->qid);
+	result = qid_allocate(mgr, buckets, increment, ISC_TRUE, &mgr->qid);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
@@ -1392,7 +1390,7 @@ dispatch_find(dns_dispatchmgr_t *mgr, isc_sockaddr_t *local,
 
 static isc_result_t
 qid_allocate(dns_dispatchmgr_t *mgr, unsigned int buckets,
-	     unsigned int increment, dns_qid_t **qidp)
+	     unsigned int increment, isc_boolean_t usepool, dns_qid_t **qidp)
 {
 	dns_qid_t *qid;
 	unsigned int i;
@@ -1413,8 +1411,16 @@ qid_allocate(dns_dispatchmgr_t *mgr, unsigned int buckets,
 		return (ISC_R_NOMEMORY);
 	}
 
+	if (nsid_init(mgr->mctx, &qid->nsid, usepool) != ISC_R_SUCCESS) {
+		isc_mem_put(mgr->mctx, qid->qid_table,
+			    buckets * sizeof(dns_displist_t));
+		isc_mem_put(mgr->mctx, qid, sizeof(*qid));
+		return (ISC_R_NOMEMORY);
+	}
+
 	if (isc_mutex_init(&qid->lock) != ISC_R_SUCCESS) {
 		UNEXPECTED_ERROR(__FILE__, __LINE__, "isc_mutex_init failed");
+		nsid_destroy(mgr->mctx, &qid->nsid);
 		isc_mem_put(mgr->mctx, qid->qid_table,
 			    buckets * sizeof(dns_displist_t));
 		isc_mem_put(mgr->mctx, qid, sizeof(*qid));
@@ -1427,21 +1433,6 @@ qid_allocate(dns_dispatchmgr_t *mgr, unsigned int buckets,
 	qid->qid_nbuckets = buckets;
 	qid->qid_increment = increment;
 	qid->magic = QID_MAGIC;
-
-	/*
-	 * Initialize to a 32-bit LFSR.  Both of these are from Applied
-	 * Cryptography.
-	 *
-	 * lfsr1:
-	 *	x^32 + x^7 + x^5 + x^3 + x^2 + x + 1
-	 *
-	 * lfsr2:
-	 *	x^32 + x^7 + x^6 + x^2 + 1
-	 */
-	isc_lfsr_init(&qid->qid_lfsr1, 0, 32, 0x80000057U,
-		      0, reseed_lfsr, mgr);
-	isc_lfsr_init(&qid->qid_lfsr2, 0, 32, 0x80000062U,
-		      0, reseed_lfsr, mgr);
 	*qidp = qid;
 	return (ISC_R_SUCCESS);
 }
@@ -1457,6 +1448,7 @@ qid_destroy(isc_mem_t *mctx, dns_qid_t **qidp) {
 
 	*qidp = NULL;
 	qid->magic = 0;
+	nsid_destroy(mctx, &qid->nsid);
 	isc_mem_put(mctx, qid->qid_table,
 		    qid->qid_nbuckets * sizeof(dns_displist_t));
 	DESTROYLOCK(&qid->lock);
@@ -1600,7 +1592,7 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
 		return (result);
 	}
 
-	result = qid_allocate(mgr, buckets, increment, &disp->qid);
+	result = qid_allocate(mgr, buckets, increment, ISC_FALSE, &disp->qid);
 	if (result != ISC_R_SUCCESS)
 		goto deallocate_dispatch;
 
@@ -1921,7 +1913,7 @@ dns_dispatch_addresponse(dns_dispatch_t *disp, isc_sockaddr_t *dest,
 	 */
 	qid = DNS_QID(disp);
 	LOCK(&qid->lock);
-	id = dns_randomid(qid);
+	id = dns_randomid(&qid->nsid);
 	bucket = dns_hash(qid, dest, id);
 	ok = ISC_FALSE;
 	for (i = 0; i < 64; i++) {
@@ -2264,3 +2256,409 @@ dns_dispatchmgr_dump(dns_dispatchmgr_t *mgr) {
 	}
 }
 #endif
+
+/*
+ * Allow the user to pick one of two ID randomization algorithms.
+ *
+ * The first algorithm is an adaptation of the sequence shuffling
+ * algorithm discovered by Carter Bays and S. D. Durham [ACM Trans. Math.
+ * Software 2 (1976), 59-64], as documented as Algorithm B in Chapter
+ * 3.2.2 in Volume 2 of Knuth's "The Art of Computer Programming".  We use
+ * a randomly selected linear congruential random number generator with a
+ * modulus of 2^16, whose increment is a randomly picked odd number, and
+ * whose multiplier is picked from a set which meets the following
+ * criteria:
+ *     Is of the form 8*n+5, which ensures "high potency" according to
+ *     principle iii in the summary chapter 3.6.  This form also has a
+ *     gcd(a-1,m) of 4 which is good according to principle iv.
+ *
+ *     Is between 0.01 and 0.99 times the modulus as specified by
+ *     principle iv.
+ *
+ *     Passes the spectral test "with flying colors" (ut >= 1) in
+ *     dimensions 2 through 6 as calculated by Algorithm S in Chapter
+ *     3.3.4 and the ratings calculated by formula 35 in section E.
+ *
+ *     Of the multipliers that pass this test, pick the set that is
+ *     best according to the theoretical bounds of the serial
+ *     correlation test.  This was calculated using a simplified
+ *     version of Knuth's Theorem K in Chapter 3.3.3.
+ *
+ * These criteria may not be important for this use, but we might as well
+ * pick from the best generators since there are so many possible ones and
+ * we don't have that many random bits to do the picking.
+ *
+ * We use a modulus of 2^16 instead of something bigger so that we will
+ * tend to cycle through all the possible IDs before repeating any,
+ * however the shuffling will perturb this somewhat.  Theoretically there
+ * is no minimimum interval between two uses of the same ID, but in
+ * practice it seems to be >64000.
+ *
+ * Our adaptatation  of Algorithm B mixes the hash state which has
+ * captured various random events into the shuffler to perturb the
+ * sequence.
+ *
+ * One disadvantage of this algorithm is that if the generator parameters
+ * were to be guessed, it would be possible to mount a limited brute force
+ * attack on the ID space since the IDs are only shuffled within a limited
+ * range.
+ *
+ * The second algorithm uses the same random number generator to populate
+ * a pool of 65536 IDs.  The hash state is used to pick an ID from a window
+ * of 4096 IDs in this pool, then the chosen ID is swapped with the ID
+ * at the beginning of the window and the window position is advanced.
+ * This means that the interval between uses of the ID will be no less
+ * than 65536-4096.  The ID sequence in the pool will become more random
+ * over time.
+ *
+ * For both algorithms, two more linear congruential random number generators
+ * are selected.  The ID from the first part of algorithm is used to seed
+ * the first of these generators, and its output is used to seed the second.
+ * The strategy is use these generators as 1 to 1 hashes to obfuscate the
+ * properties of the generator used in the first part of either algorithm.
+ *
+ * The first algorithm may be suitable for use in a client resolver since
+ * its memory requirements are fairly low and it's pretty random out of
+ * the box.  It is somewhat succeptible to a limited brute force attack,
+ * so the second algorithm is probably preferable for a longer running
+ * program that issues a large number of queries and has time to randomize
+ * the pool.
+ */
+
+#define NSID_SHUFFLE_TABLE_SIZE 100 /* Suggested by Knuth */
+/*
+ * Pick one of the next 4096 IDs in the pool.
+ * There is a tradeoff here between randomness and how often and ID is reused.
+ */
+#define NSID_LOOKAHEAD 4096     /* Must be a power of 2 */
+#define NSID_SHUFFLE_ONLY 1     /* algorithm 1 */
+#define NSID_USE_POOL 2         /* algorithm 2 */
+#define NSID_HASHSHIFT       3
+#define NSID_HASHROTATE(v) \
+        (((v) << NSID_HASHSHIFT) | ((v) >> ((sizeof(v) * 8) - NSID_HASHSHIFT)))
+
+static isc_uint32_t	nsid_hash_state;
+
+/*
+ * Keep a running hash of various bits of data that we'll use to
+ * stir the ID pool or perturb the ID generator
+ */
+static void
+nsid_hash(void *data, size_t len) {
+	unsigned char *p = data;
+	/*
+	 * Hash function similar to the one we use for hashing names.
+	 * We don't fold case or toss the upper bit here, though.
+	 * This hash doesn't do much interesting when fed binary zeros,
+	 * so there may be a better hash function.
+	 * This function doesn't need to be very strong since we're
+	 * only using it to stir the pool, but it should be reasonably
+	 * fast.
+	 */
+	/*
+	 * We don't care about locking access to nsid_hash_state.
+	 * In fact races make the result even more non deteministic.
+	 */
+	while (len-- > 0U) {
+		nsid_hash_state = NSID_HASHROTATE(nsid_hash_state);
+		nsid_hash_state += *p++;
+	}
+}
+
+/*
+ * Table of good linear congruential multipliers for modulus 2^16
+ * in order of increasing serial correlation bounds (so trim from
+ * the end).
+ */
+static const isc_uint16_t nsid_multiplier_table[] = {
+	17565, 25013, 11733, 19877, 23989, 23997, 24997, 25421,
+	26781, 27413, 35901, 35917, 35973, 36229, 38317, 38437,
+	39941, 40493, 41853, 46317, 50581, 51429, 53453, 53805,
+	11317, 11789, 12045, 12413, 14277, 14821, 14917, 18989,
+	19821, 23005, 23533, 23573, 23693, 27549, 27709, 28461,
+	29365, 35605, 37693, 37757, 38309, 41285, 45261, 47061,
+	47269, 48133, 48597, 50277, 50717, 50757, 50805, 51341,
+	51413, 51581, 51597, 53445, 11493, 14229, 20365, 20653,
+	23485, 25541, 27429, 29421, 30173, 35445, 35653, 36789,
+	36797, 37109, 37157, 37669, 38661, 39773, 40397, 41837,
+	41877, 45293, 47277, 47845, 49853, 51085, 51349, 54085,
+	56933,  8877,  8973,  9885, 11365, 11813, 13581, 13589,
+	13613, 14109, 14317, 15765, 15789, 16925, 17069, 17205,
+	17621, 17941, 19077, 19381, 20245, 22845, 23733, 24869,
+	25453, 27213, 28381, 28965, 29245, 29997, 30733, 30901,
+	34877, 35485, 35613, 36133, 36661, 36917, 38597, 40285,
+	40693, 41413, 41541, 41637, 42053, 42349, 45245, 45469,
+	46493, 48205, 48613, 50861, 51861, 52877, 53933, 54397,
+	55669, 56453, 56965, 58021,  7757,  7781,  8333,  9661,
+	12229, 14373, 14453, 17549, 18141, 19085, 20773, 23701,
+	24205, 24333, 25261, 25317, 27181, 30117, 30477, 34757,
+	34885, 35565, 35885, 36541, 37957, 39733, 39813, 41157,
+	41893, 42317, 46621, 48117, 48181, 49525, 55261, 55389,
+	56845,  7045,  7749,  7965,  8469,  9133,  9549,  9789,
+	10173, 11181, 11285, 12253, 13453, 13533, 13757, 14477,
+	15053, 16901, 17213, 17269, 17525, 17629, 18605, 19013,
+	19829, 19933, 20069, 20093, 23261, 23333, 24949, 25309,
+	27613, 28453, 28709, 29301, 29541, 34165, 34413, 37301,
+	37773, 38045, 38405, 41077, 41781, 41925, 42717, 44437,
+	44525, 44613, 45933, 45941, 47077, 50077, 50893, 52117,
+	 5293, 55069, 55989, 58125, 59205,  6869, 14685, 15453,
+	16821, 17045, 17613, 18437, 21029, 22773, 22909, 25445,
+	25757, 26541, 30709, 30909, 31093, 31149, 37069, 37725,
+	37925, 38949, 39637, 39701, 40765, 40861, 42965, 44813,
+	45077, 45733, 47045, 50093, 52861, 52957, 54181, 56325,
+	56365, 56381, 56877, 57013,  5741, 58101, 58669,  8613,
+	10045, 10261, 10653, 10733, 11461, 12261, 14069, 15877,
+	17757, 21165, 23885, 24701, 26429, 26645, 27925, 28765,
+	29197, 30189, 31293, 39781, 39909, 40365, 41229, 41453,
+	41653, 42165, 42365, 47421, 48029, 48085, 52773,  5573,
+	57037, 57637, 58341, 58357, 58901,  6357,  7789,  9093,
+	10125, 10709, 10765, 11957, 12469, 13437, 13509, 14773,
+	15437, 15773, 17813, 18829, 19565, 20237, 23461, 23685,
+	23725, 23941, 24877, 25461, 26405, 29509, 30285, 35181,
+	37229, 37893, 38565, 40293, 44189, 44581, 45701, 47381,
+	47589, 48557,  4941, 51069,  5165, 52797, 53149,  5341,
+	56301, 56765, 58581, 59493, 59677,  6085,  6349,  8293,
+	 8501,  8517, 11597, 11709, 12589, 12693, 13517, 14909,
+	17397, 18085, 21101, 21269, 22717, 25237, 25661, 29189,
+	30101, 31397, 33933, 34213, 34661, 35533, 36493, 37309,
+	40037,  4189, 42909, 44309, 44357, 44389,  4541, 45461,
+	46445, 48237, 54149, 55301, 55853, 56621, 56717, 56901,
+	 5813, 58437, 12493, 15365, 15989, 17829, 18229, 19341,
+	21013, 21357, 22925, 24885, 26053, 27581, 28221, 28485,
+	30605, 30613, 30789, 35437, 36285, 37189,  3941, 41797,
+	 4269, 42901, 43293, 44645, 45221, 46893,  4893, 50301,
+	50325,  5189, 52109, 53517, 54053, 54485,  5525, 55949,
+	56973, 59069, 59421, 60733, 61253,  6421,  6701,  6709,
+	 7101,  8669, 15797, 19221, 19837, 20133, 20957, 21293,
+	21461, 22461, 29085, 29861, 30869, 34973, 36469, 37565,
+	38125, 38829, 39469, 40061, 40117, 44093, 47429, 48341,
+	50597, 51757,  5541, 57629, 58405, 59621, 59693, 59701,
+	61837,  7061, 10421, 11949, 15405, 20861, 25397, 25509,
+	25893, 26037, 28629, 28869, 29605, 30213, 34205, 35637,
+	36365, 37285,  3773, 39117,  4021, 41061, 42653, 44509,
+	 4461, 44829,  4725,  5125, 52269, 56469, 59085,  5917,
+	60973,  8349, 17725, 18637, 19773, 20293, 21453, 22533,
+	24285, 26333, 26997, 31501, 34541, 34805, 37509, 38477,
+	41333, 44125, 46285, 46997, 47637, 48173,  4925, 50253,
+	50381, 50917, 51205, 51325, 52165, 52229,  5253,  5269,
+	53509, 56253, 56341,  5821, 58373, 60301, 61653, 61973,
+	62373,  8397, 11981, 14341, 14509, 15077, 22261, 22429,
+	24261, 28165, 28685, 30661, 34021, 34445, 39149,  3917,
+	43013, 43317, 44053, 44101,  4533, 49541, 49981,  5277,
+	54477, 56357, 57261, 57765, 58573, 59061, 60197, 61197,
+	62189,  7725,  8477,  9565, 10229, 11437, 14613, 14709,
+	16813, 20029, 20677, 31445,  3165, 31957,  3229, 33541,
+	36645,  3805, 38973,  3965,  4029, 44293, 44557, 46245,
+	48917,  4909, 51749, 53709, 55733, 56445,  5925,  6093,
+	61053, 62637,  8661,  9109, 10821, 11389, 13813, 14325,
+	15501, 16149, 18845, 22669, 26437, 29869, 31837, 33709,
+	33973, 34173,  3677,  3877,  3981, 39885, 42117,  4421,
+	44221, 44245, 44693, 46157, 47309,  5005, 51461, 52037,
+	55333, 55693, 56277, 58949,  6205, 62141, 62469,  6293,
+	10101, 12509, 14029, 17997, 20469, 21149, 25221, 27109,
+	 2773,  2877, 29405, 31493, 31645,  4077, 42005, 42077,
+	42469, 42501, 44013, 48653, 49349,  4997, 50101, 55405,
+	56957, 58037, 59429, 60749, 61797, 62381, 62837,  6605,
+	10541, 23981, 24533,  2701, 27333, 27341, 31197, 33805,
+	 3621, 37381,  3749,  3829, 38533, 42613, 44381, 45901,
+	48517, 51269, 57725, 59461, 60045, 62029, 13805, 14013,
+	15461, 16069, 16157, 18573,  2309, 23501, 28645,  3077,
+	31541, 36357, 36877,  3789, 39429, 39805, 47685, 47949,
+	49413,  5485, 56757, 57549, 57805, 58317, 59549, 62213,
+	62613, 62853, 62933,  8909, 12941, 16677, 20333, 21541,
+	24429, 26077, 26421,  2885, 31269, 33381,  3661, 40925,
+	42925, 45173,  4525,  4709, 53133, 55941, 57413, 57797,
+	62125, 62237, 62733,  6773, 12317, 13197, 16533, 16933,
+	18245,  2213,  2477, 29757, 33293, 35517, 40133, 40749,
+	 4661, 49941, 62757,  7853,  8149,  8573, 11029, 13421,
+	21549, 22709, 22725, 24629,  2469, 26125,  2669, 34253,
+	36709, 41013, 45597, 46637, 52285, 52333, 54685, 59013,
+	60997, 61189, 61981, 62605, 62821,  7077,  7525,  8781,
+	10861, 15277,  2205, 22077, 28517, 28949, 32109, 33493,
+	 4661, 49941, 62757,  7853,  8149,  8573, 11029, 13421,
+	21549, 22709, 22725, 24629,  2469, 26125,  2669, 34253,
+	36709, 41013, 45597, 46637, 52285, 52333, 54685, 59013,
+	60997, 61189, 61981, 62605, 62821,  7077,  7525,  8781,
+	10861, 15277,  2205, 22077, 28517, 28949, 32109, 33493,
+	 3685, 39197, 39869, 42621, 44997, 48565,  5221, 57381,
+	61749, 62317, 63245, 63381, 23149,  2549, 28661, 31653,
+	33885, 36341, 37053, 39517, 42805, 45853, 48997, 59349,
+	60053, 62509, 63069,  6525,  1893, 20181,  2365, 24893,
+	27397, 31357, 32277, 33357, 34437, 36677, 37661, 43469,
+	43917, 50997, 53869,  5653, 13221, 16741, 17893,  2157,
+	28653, 31789, 35301, 35821, 61613, 62245, 12405, 14517,
+	17453, 18421,  3149,  3205, 40341,  4109, 43941, 46869,
+	48837, 50621, 57405, 60509, 62877,  8157, 12933, 12957,
+	16501, 19533,  3461, 36829, 52357, 58189, 58293, 63053,
+	17109,  1933, 32157, 37701, 59005, 61621, 13029, 15085,
+	16493, 32317, 35093,  5061, 51557, 62221, 20765, 24613,
+	 2629, 30861, 33197, 33749, 35365, 37933, 40317, 48045,
+	56229, 61157, 63797,  7917, 17965,  1917,  1973, 20301,
+	 2253, 33157, 58629, 59861, 61085, 63909,  8141,  9221,
+	14757,  1581, 21637, 26557, 33869, 34285, 35733, 40933,
+	42517, 43501, 53653, 61885, 63805,  7141, 21653, 54973,
+	31189, 60061, 60341, 63357, 16045,  2053, 26069, 33997,
+	43901, 54565, 63837,  8949, 17909, 18693, 32349, 33125,
+	37293, 48821, 49053, 51309, 64037,  7117,  1445, 20405,
+	23085, 26269, 26293, 27349, 32381, 33141, 34525, 36461,
+	37581, 43525,  4357, 43877,  5069, 55197, 63965,  9845,
+	12093,  2197,  2229, 32165, 33469, 40981, 42397,  8749,
+	10853,  1453, 18069, 21693, 30573, 36261, 37421, 42533
+};
+
+#define NSID_MULT_TABLE_SIZE \
+        ((sizeof nsid_multiplier_table)/(sizeof nsid_multiplier_table[0]))
+#define NSID_RANGE_MASK (NSID_LOOKAHEAD - 1)
+#define NSID_POOL_MASK 0xFFFF /* used to wrap the pool index */
+#define NSID_SHUFFLE_ONLY 1
+#define NSID_USE_POOL 2
+
+static isc_uint16_t
+nsid_next(dns_nsid_t *nsid) {
+        isc_uint16_t id, compressed_hash;
+	isc_uint16_t j;
+
+        compressed_hash = ((nsid_hash_state >> 16) ^
+			   (nsid_hash_state)) & 0xFFFF;
+
+	if (nsid->nsid_usepool) {
+	        isc_uint16_t pick;
+
+                pick = compressed_hash & NSID_RANGE_MASK;
+		pick = (nsid->nsid_state + pick) & NSID_POOL_MASK;
+                id = nsid->nsid_pool[pick];
+                if (pick != 0) {
+                        /* Swap two IDs to stir the pool */
+                        nsid->nsid_pool[pick] =
+                                nsid->nsid_pool[nsid->nsid_state];
+                        nsid->nsid_pool[nsid->nsid_state] = id;
+                }
+
+                /* increment the base pointer into the pool */
+                if (nsid->nsid_state == 65535)
+                        nsid->nsid_state = 0;
+                else
+                        nsid->nsid_state++;
+	} else {
+		/*
+		 * This is the original Algorithm B
+		 * j = ((u_long) NSID_SHUFFLE_TABLE_SIZE * nsid_state2) >> 16;
+		 *
+		 * We'll perturb it with some random stuff  ...
+		 */
+		j = ((isc_uint32_t) NSID_SHUFFLE_TABLE_SIZE *
+		     (nsid->nsid_state2 ^ compressed_hash)) >> 16;
+		nsid->nsid_state2 = id = nsid->nsid_vtable[j];
+		nsid->nsid_state = (((isc_uint32_t) nsid->nsid_a1 * nsid->nsid_state) +
+				      nsid->nsid_c1) & 0xFFFF;
+		nsid->nsid_vtable[j] = nsid->nsid_state;
+	}
+
+        /* Now lets obfuscate ... */
+        id = (((isc_uint32_t) nsid->nsid_a2 * id) + nsid->nsid_c2) & 0xFFFF;
+        id = (((isc_uint32_t) nsid->nsid_a3 * id) + nsid->nsid_c3) & 0xFFFF;
+
+        return (id);
+}
+
+static isc_result_t
+nsid_init(isc_mem_t *mctx, dns_nsid_t *nsid, isc_boolean_t usepool) {
+        isc_time_t now;
+        pid_t mypid;
+        isc_uint16_t a1ndx, a2ndx, a3ndx, c1ndx, c2ndx, c3ndx;
+        int i;
+
+	isc_time_now(&now);
+        mypid = getpid();
+
+        /* Initialize the state */
+	memset(nsid, 0, sizeof(*nsid));
+        nsid_hash(&now, sizeof now);
+        nsid_hash(&mypid, sizeof mypid);
+
+        /*
+         * Select our random number generators and initial seed.
+         * We could really use more random bits at this point,
+         * but we'll try to make a silk purse out of a sows ear ...
+         */
+        /* generator 1 */
+        a1ndx = ((isc_uint32_t) NSID_MULT_TABLE_SIZE *
+                 (nsid_hash_state & 0xFFFF)) >> 16;
+        nsid->nsid_a1 = nsid_multiplier_table[a1ndx];
+        c1ndx = (nsid_hash_state >> 9) & 0x7FFF;
+        nsid->nsid_c1 = 2 * c1ndx + 1;
+
+        /* generator 2, distinct from 1 */
+        a2ndx = ((isc_uint32_t) (NSID_MULT_TABLE_SIZE - 1) *
+                 ((nsid_hash_state >> 10) & 0xFFFF)) >> 16;
+        if (a2ndx >= a1ndx)
+                a2ndx++;
+        nsid->nsid_a2 = nsid_multiplier_table[a2ndx];
+        c2ndx = nsid_hash_state % 32767;
+        if (c2ndx >= c1ndx)
+                c2ndx++;
+        nsid->nsid_c2 = 2*c2ndx + 1;
+
+        /* generator 3, distinct from 1 and 2 */
+        a3ndx = ((isc_uint32_t) (NSID_MULT_TABLE_SIZE - 2) *
+                 ((nsid_hash_state >> 20) & 0xFFFF)) >> 16;
+        if (a3ndx >= a1ndx || a3ndx >= a2ndx)
+                a3ndx++;
+        if (a3ndx >= a1ndx && a3ndx >= a2ndx)
+                a3ndx++;
+        nsid->nsid_a3 = nsid_multiplier_table[a3ndx];
+        c3ndx = nsid_hash_state % 32766;
+        if (c3ndx >= c1ndx || c3ndx >= c2ndx)
+                c3ndx++;
+        if (c3ndx >= c1ndx && c3ndx >= c2ndx)
+                c3ndx++;
+        nsid->nsid_c3 = 2*c3ndx + 1;
+
+        nsid->nsid_state =
+		((nsid_hash_state >> 16) ^ (nsid_hash_state)) & 0xFFFF;
+
+	nsid->nsid_usepool = usepool;
+	if (nsid->nsid_usepool) {
+                nsid->nsid_pool = isc_mem_get(mctx, 0x10000 * sizeof(isc_uint16_t));
+		if (nsid->nsid_pool == NULL)
+			return (ISC_R_NOMEMORY);
+                for (i = 0; ; i++) {
+                        nsid->nsid_pool[i] = nsid->nsid_state;
+                        nsid->nsid_state =
+				 (((u_long) nsid->nsid_a1 * nsid->nsid_state) +
+				   nsid->nsid_c1) & 0xFFFF;
+                        if (i == 0xFFFF)
+                                break;
+                }
+	} else {
+		nsid->nsid_vtable = isc_mem_get(mctx, NSID_SHUFFLE_TABLE_SIZE *
+						(sizeof(isc_uint16_t)) );
+		if (nsid->nsid_vtable == NULL)
+			return (ISC_R_NOMEMORY);
+
+		for (i = 0; i < NSID_SHUFFLE_TABLE_SIZE; i++) {
+			nsid->nsid_vtable[i] = nsid->nsid_state;
+			nsid->nsid_state =
+				   (((isc_uint32_t) nsid->nsid_a1 * nsid->nsid_state) +
+					 nsid->nsid_c1) & 0xFFFF;
+		}
+		nsid->nsid_state2 = nsid->nsid_state;
+	} 
+	return (ISC_R_SUCCESS);
+}
+
+static void
+nsid_destroy(isc_mem_t *mctx, dns_nsid_t *nsid) {
+	if (nsid->nsid_usepool)
+		isc_mem_put(mctx, nsid->nsid_pool,
+			    0x10000 * sizeof(isc_uint16_t));
+	else
+		isc_mem_put(mctx, nsid->nsid_vtable,
+			    NSID_SHUFFLE_TABLE_SIZE * (sizeof(isc_uint16_t)) );
+	memset(nsid, 0, sizeof(*nsid));
+}
+
+void
+dns_dispatch_hash(void *data, size_t len) {
+	nsid_hash(data, len);
+}
