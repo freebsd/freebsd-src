@@ -1224,8 +1224,10 @@ smbfs_smb_trans2find2(struct smbfs_fctx *ctx)
 		return error;
 	if ((error = md_get_uint16le(mdp, &tw)) != 0)
 		return error;
-	if (ctx->f_ecnt == 0)
+	if (ctx->f_ecnt == 0) {
+		ctx->f_flags |= SMBFS_RDD_EOF | SMBFS_RDD_NOCLOSE;
 		return ENOENT;
+	}
 	ctx->f_rnameofs = tw;
 	mdp = &t2p->t2_rdata;
 	if (mdp->md_top == NULL) {
