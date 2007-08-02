@@ -1914,7 +1914,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = 0;
 		break;
 	case SIOCGAIRONET:
+		AN_UNLOCK(sc);
 		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
+		AN_LOCK(sc);
 		if (error != 0)
 			break;
 #ifdef ANCACHE
@@ -1940,12 +1942,16 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 			break;
 		}
+		AN_UNLOCK(sc);
 		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
+		AN_LOCK(sc);
 		break;
 	case SIOCSAIRONET:
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
+		AN_UNLOCK(sc);
 		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
+		AN_LOCK(sc);
 		if (error != 0)
 			break;
 		an_setdef(sc, &sc->areq);
@@ -1953,7 +1959,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
+		AN_UNLOCK(sc);
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		AN_LOCK(sc);
 		if (error)
 			goto out;
 		mode = l_ioctl.command;
@@ -1969,18 +1977,24 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (!error) {
 			/* copy out the updated command info */
+			AN_UNLOCK(sc);
 			error = copyout(&l_ioctl, ifr->ifr_data, sizeof(l_ioctl));
+			AN_LOCK(sc);
 		}
 		break;
 	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
 		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
+		AN_UNLOCK(sc);
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
+		AN_LOCK(sc);
 		if (error)
 			goto out;
 		l_ioctl.command = 0;
 		error = AIROMAGIC;
+		AN_UNLOCK(sc);
 		(void) copyout(&error, l_ioctl.data, sizeof(error));
+		AN_LOCK(sc);
 	        error = 0;
 		break;
 	case SIOCG80211:
@@ -2030,8 +2044,10 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ireq->i_len = len;
 			bzero(tmpstr, IEEE80211_NWID_LEN);
 			bcopy(tmpptr, tmpstr, len);
+			AN_UNLOCK(sc);
 			error = copyout(tmpstr, ireq->i_data,
 			    IEEE80211_NWID_LEN);
+			AN_LOCK(sc);
 			break;
 		case IEEE80211_IOC_NUMSSIDS:
 			sc->areq.an_len = sizeof(sc->areq);
@@ -2105,7 +2121,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			 */
 			bzero(tmpstr, len);
 			ireq->i_len = len;
+			AN_UNLOCK(sc);
 			error = copyout(tmpstr, ireq->i_data, len);
+			AN_LOCK(sc);
 			break;
 		case IEEE80211_IOC_NUMWEPKEYS:
 			ireq->i_val = 9; /* include home key */
@@ -2183,8 +2201,10 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			tmpptr = config->an_nodename;
 			bzero(tmpstr, IEEE80211_NWID_LEN);
 			bcopy(tmpptr, tmpstr, ireq->i_len);
+			AN_UNLOCK(sc);
 			error = copyout(tmpstr, ireq->i_data,
 			    IEEE80211_NWID_LEN);
+			AN_LOCK(sc);
 			break;
 		case IEEE80211_IOC_CHANNEL:
 			sc->areq.an_type = AN_RID_STATUS;
@@ -2268,9 +2288,11 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				error = EINVAL;
 				break;
 			} else {
+				AN_UNLOCK(sc);
 				error = copyin(ireq->i_data,
 				    ssids->an_entry[ireq->i_val].an_ssid, 
 				    ireq->i_len);
+				AN_LOCK(sc);
 				ssids->an_entry[ireq->i_val].an_len 
 				    = ireq->i_len;
 				break;
@@ -2305,7 +2327,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				error = EINVAL;
 				break;
 			}
+			AN_UNLOCK(sc);
 			error = copyin(ireq->i_data, tmpstr, 13);
+			AN_LOCK(sc);
 			if (error != 0)
 				break;
 			/*
@@ -2387,8 +2411,10 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				break;
 			}
 			bzero(config->an_nodename, 16);
+			AN_UNLOCK(sc);
 			error = copyin(ireq->i_data,
 			    config->an_nodename, ireq->i_len);
+			AN_LOCK(sc);
 			break;
 		case IEEE80211_IOC_CHANNEL:
 			/*
@@ -2430,7 +2456,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			an_setdef(sc, &sc->areq);
 		break;
 	default:
+		AN_UNLOCK(sc);
 		error = ether_ioctl(ifp, command, data);
+		AN_LOCK(sc);
 		break;
 	}
 out:
@@ -3159,6 +3187,7 @@ readrids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 {
 	unsigned short  rid;
 	struct an_softc *sc;
+	int error;
 
 	switch (l_ioctl->command) {
 	case AIROGCAP:
@@ -3210,24 +3239,30 @@ readrids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 
 	l_ioctl->len = sc->areq.an_len - 4;	/* just data */
 
+	AN_UNLOCK(sc);
 	/* the data contains the length at first */
 	if (copyout(&(sc->areq.an_len), l_ioctl->data,
 		    sizeof(sc->areq.an_len))) {
-		return -EFAULT;
+		error = -EFAULT;
+		goto lock_exit;
 	}
 	/* Just copy the data back */
 	if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
 		    l_ioctl->len)) {
-		return -EFAULT;
+		error = -EFAULT;
+		goto lock_exit;
 	}
-	return 0;
+	error = 0;
+lock_exit:
+	AN_LOCK(sc);
+	return (error);
 }
 
 static int
 writerids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 {
 	struct an_softc *sc;
-	int             rid, command;
+	int             rid, command, error;
 
 	sc = ifp->if_softc;
 	rid = 0;
@@ -3269,16 +3304,20 @@ writerids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 		an_read_record(sc, (struct an_ltv_gen *)&sc->areq);
 		l_ioctl->len = sc->areq.an_len - 4;	/* just data */
 
+		AN_UNLOCK(sc);
 		/* the data contains the length at first */
-		if (copyout(&(sc->areq.an_len), l_ioctl->data,
-			    sizeof(sc->areq.an_len))) {
+		error = copyout(&(sc->areq.an_len), l_ioctl->data,
+			    sizeof(sc->areq.an_len));
+		if (error) {
+			AN_LOCK(sc);
 			return -EFAULT;
 		}
 		/* Just copy the data */
-		if (copyout(&(sc->areq.an_val), l_ioctl->data + 2,
-			    l_ioctl->len)) {
+		error = copyout(&(sc->areq.an_val), l_ioctl->data + 2,
+			    l_ioctl->len);
+		AN_LOCK(sc);
+		if (error)
 			return -EFAULT;
-		}
 		return 0;
 		break;
 	case AIROPWEPKEY:
@@ -3304,10 +3343,13 @@ writerids(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 		sc->areq.an_type = rid;
 
 		/* Just copy the data back */
-		if (copyin((l_ioctl->data) + 2, &sc->areq.an_val,
-		       l_ioctl->len)) {
+		AN_UNLOCK(sc);
+		error = copyin((l_ioctl->data) + 2, &sc->areq.an_val,
+		       l_ioctl->len);
+		AN_LOCK(sc);
+		if (error)
 			return -EFAULT;
-		}
+
 		an_cmd(sc, AN_CMD_DISABLE, 0);
 		an_write_record(sc, (struct an_ltv_gen *)&sc->areq);
 		an_cmd(sc, AN_CMD_ENABLE, 0);
@@ -3603,7 +3645,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 			return ENOBUFS;
 		break;
 	case AIROFLSHGCHR:	/* Get char from aux */
+		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		AN_LOCK(sc);
 		if (status)
 			return status;
 		z = *(int *)&sc->areq;
@@ -3612,7 +3656,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 		else
 			return -1;
 	case AIROFLSHPCHR:	/* Send char to card. */
+		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, &sc->areq, l_ioctl->len);
+		AN_LOCK(sc);
 		if (status)
 			return status;
 		z = *(int *)&sc->areq;
@@ -3627,7 +3673,9 @@ flashcard(struct ifnet *ifp, struct aironet_ioctl *l_ioctl)
 			       l_ioctl->len, FLASH_SIZE);
 			return -EINVAL;
 		}
+		AN_UNLOCK(sc);
 		status = copyin(l_ioctl->data, sc->an_flash_buffer, l_ioctl->len);
+		AN_LOCK(sc);
 		if (status)
 			return status;
 
