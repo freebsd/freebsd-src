@@ -53,6 +53,7 @@ jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
+loader [label="Fukang Chen\nloader@FreeBSD.org\n2007/07/30"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2004/03/31"]
 marck [label="Dmitry Morozovsky\nmarck@FreeBSD.org\n2004/08/10"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
@@ -80,6 +81,7 @@ ceri -> simon
 den -> marck
 
 delphij -> chinsan
+delphij -> loader
 
 jesusr -> jcamou
 
