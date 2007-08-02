@@ -186,26 +186,14 @@ void
 mp_topology(void)
 {
 	struct cpu_group *group;
-	u_int regs[4];
-	int logical_cpus;
 	int apic_id;
 	int groups;
 	int cpu;
 
 	/* Build the smp_topology map. */
 	/* Nothing to do if there is no HTT support. */
-	if ((cpu_feature & CPUID_HTT) == 0)
+	if (hyperthreading_cpus <= 1)
 		return;
-	logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-	if (logical_cpus <= 1)
-		return;
-	/* Nothing to do if reported cores are physical cores. */
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 && cpu_high >= 4) {
-		cpuid_count(4, 0, regs);
-		if ((regs[0] & 0x1f) != 0 &&
-		    logical_cpus <= ((regs[0] >> 26) & 0x3f) + 1)
-			return;
-	}
 	group = &mp_groups[0];
 	groups = 1;
 	for (cpu = 0, apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
@@ -215,7 +203,8 @@ mp_topology(void)
 		 * If the current group has members and we're not a logical
 		 * cpu, create a new group.
 		 */
-		if (group->cg_count != 0 && (apic_id % logical_cpus) == 0) {
+		if (group->cg_count != 0 &&
+		    (apic_id % hyperthreading_cpus) == 0) {
 			group++;
 			groups++;
 		}
@@ -420,6 +409,9 @@ cpu_mp_start(void)
 	}
 
 	set_interrupt_apic_ids();
+
+	/* Last, setup the cpu topology now that we have probed CPUs */
+	mp_topology();
 }
 
 
