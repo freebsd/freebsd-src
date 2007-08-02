@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2006
+.Dd August 1, 2007
 .Dt ENC 4
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ The
 .Nm
 interface is a software loopback mechanism that allows hosts or
 firewalls to filter
-.Xr fast_ipsec 4
+.Xr ipsec 4
 traffic using any firewall package that hooks in via the
 .Xr pfil 9
 framework.
@@ -58,7 +58,7 @@ The
 .Nm
 interface allows an administrator
 to see outgoing packets before they have been processed by
-.Xr fast_ipsec 4 ,
+.Xr ipsec 4 ,
 or incoming packets after they have been similarly processed, via
 .Xr tcpdump 1 .
 .Pp
@@ -74,14 +74,15 @@ on the
 interface.
 .Sh EXAMPLES
 To see all outgoing packets before they have been processed via
-.Xr fast_ipsec 4 ,
+.Xr ipsec 4 ,
 or all incoming packets after they have been similarly processed:
 .Pp
 .Dl "tcpdump -i enc0"
 .Sh SEE ALSO
 .Xr tcpdump 1 ,
 .Xr bpf 4 ,
-.Xr fast_ipsec 4 ,
 .Xr ipf 4 ,
 .Xr ipfw 4 ,
-.Xr pf 4
+.Xr ipsec 4 ,
+.Xr pf 4 ,
+.Xr tcpdump 8
