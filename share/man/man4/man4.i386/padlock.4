@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2006
+.Dd August 1, 2007
 .Dt PADLOCK 4 i386
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ there is no hardware acceleration for those algorithms.
 This is only needed so
 .Nm
 can work with
-.Xr fast_ipsec 4 .
+.Xr ipsec 4 .
 .Pp
 The hardware random number generator supplies data for the kernel
 .Xr random 4
@@ -69,8 +69,8 @@ subsystem.
 .Sh SEE ALSO
 .Xr crypt 3 ,
 .Xr crypto 4 ,
-.Xr fast_ipsec 4 ,
 .Xr intro 4 ,
+.Xr ipsec 4 ,
 .Xr random 4 ,
 .Xr crypto 9
 .Sh HISTORY
