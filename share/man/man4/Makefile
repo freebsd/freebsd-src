@@ -76,7 +76,6 @@ MAN=	aac.4 \
 	esp.4 \
 	exca.4 \
 	faith.4 \
-	fast_ipsec.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \

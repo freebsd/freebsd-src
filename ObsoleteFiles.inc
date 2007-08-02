@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070801: fast_ipsec.4 gone
+OLD_FILES+=usr/share/man/man4/fast_ipsec.4.gz
 # 20070715: netatm temporarily disconnected
 OLD_FILES+=rescue/atm
 OLD_FILES+=rescue/fore_dnld
