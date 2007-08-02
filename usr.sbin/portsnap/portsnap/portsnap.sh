@@ -841,6 +841,7 @@ extract_indices() {
 	extract_make_index DESCRIBE.4 INDEX || return 1
 	extract_make_index DESCRIBE.5 INDEX-5 || return 1
 	extract_make_index DESCRIBE.6 INDEX-6 || return 1
+	extract_make_index DESCRIBE.7 INDEX-7 || return 1
 	echo "done."
 }
 
