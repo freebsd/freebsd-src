@@ -292,6 +292,15 @@
       details can be found in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">FreeBSD-SA-07:05.libarchive</ulink>. &merged;</para>
 
+    <para>A buffer overflow in &man.tcpdump.1; has been corrected.
+      More information can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:06.tcpdump.asc">FreeBSD-SA-07:06.tcpdump</ulink>. &merged;</para>
+
+    <para>A bug in &man.named.8;, which could result in an attacker
+      being able to poison a resolver's DNS cache, has been fixed.
+      More details are included in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:07.bind.asc">FreeBSD-SA-07:07.bind</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
