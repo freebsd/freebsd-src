@@ -70,6 +70,7 @@ static int viapm_debug = 0;
 #define VIA_8233_PMU_ID		0x30741106
 #define	VIA_8233A_PMU_ID	0x31471106
 #define	VIA_8235_PMU_ID		0x31771106
+#define	VIA_CX700_PMU_ID	0x83241106
 
 #define VIAPM_INB(port) \
 	((u_char)bus_space_read_1(viapm->st, viapm->sh, port))
@@ -286,6 +287,12 @@ viapm_pro_probe(device_t dev)
 		base_cfgreg = VIAPM_8233_BASE;
 		goto viapro;
 
+	case VIA_CX700_PMU_ID:
+		desc = "VIA CX700 Power Management Unit";
+		viapm->type = VIAPM_TYP_UNKNOWN;
+		base_cfgreg = VIAPM_8233_BASE;
+		goto viapro;
+
 	viapro:
 
 #ifdef VIAPM_BASE_ADDR
@@ -314,7 +321,7 @@ viapm_pro_probe(device_t dev)
 			return ENXIO;
 		}
 
-		if (1 || bootverbose) {
+		if (bootverbose) {
 			device_printf(dev, "SMBus I/O base at 0x%x\n", viapm->base);
 		}
 
@@ -363,7 +370,7 @@ viapm_pro_attach(device_t dev)
 	}
 #endif
 
-	if (1 | bootverbose) {
+	if (bootverbose) {
 		l = pci_read_config(dev, VIAPM_PRO_REVID, 1);
 		device_printf(dev, "SMBus revision code 0x%x\n", l);
 	}
