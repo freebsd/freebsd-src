@@ -374,7 +374,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	int totlen;
 	int needfree = 0, error = 0;
-	u_char *data, buf[256];
+	u_char *data;
 	hinfo_p dhip;
 	hook_p dest;
 	u_int len;
@@ -390,16 +390,22 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 
 	/* Need to put packet in contiguous memory for bpf */
 	if (m->m_next != NULL) {
-		if (totlen > sizeof(buf)) {
+		if (totlen > MHLEN) {
 			MALLOC(data, u_char *, totlen, M_NETGRAPH_BPF, M_NOWAIT);
 			if (data == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOMEM);
 			}
 			needfree = 1;
-		} else
-			data = buf;
-		m_copydata(m, 0, totlen, (caddr_t)data);
+			m_copydata(m, 0, totlen, (caddr_t)data);
+		} else {
+			NGI_M(item) = m = m_pullup(m, totlen);
+			if (m == NULL) {
+				NG_FREE_ITEM(item);
+				return (ENOBUFS);
+			}
+			data = mtod(m, u_char *);
+		}
 	} else
 		data = mtod(m, u_char *);
 
