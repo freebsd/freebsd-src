@@ -192,7 +192,7 @@ critical_exit(void)
 			thread_lock(td);
 			td->td_critnest--;
 			SCHED_STAT_INC(switch_owepreempt);
-			mi_switch(SW_INVOL, NULL);
+			mi_switch(SW_INVOL|SW_PREEMPT, NULL);
 			thread_unlock(td);
 		}
 	} else
