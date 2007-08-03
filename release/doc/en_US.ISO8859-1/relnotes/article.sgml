@@ -1029,6 +1029,17 @@
       <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
 	Spanning Tree Protocol (802.1w). &merged;</para>
 
+      <para>The &man.if.bridge.4; driver now supports a
+	<literal>private</literal> flag on bridge ports;
+	no private port on a bridge can communicate with any
+	other private port.  This functionlity is useful in
+	scenarios such as number of customers VLANs bridged
+	with a server network; it might be desirable to prevent
+	the customer VLANs from communicating with each other
+	but allow all of them to access the server network.  The
+	private flag on a bridge port can be set or cleared via
+	&man.ifconfig.8;.</para>
+
       <para>A hard-coded limit on the number of IPv4 multicast group
         memberships (formerly 20) has been removed.</para>
 
@@ -2093,6 +2104,12 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The <function>wcsdup()</function> function has been
       implemented.  This function is popular in Microsoft and GNU
       systems.</para>
+
+    <para>The &man.wlandebug.8; utility has been added to the main
+      &os; source tree (it previously lived in a tools area).  It
+      provides control over a number of types of debugging output
+      in the &man.wlan.4; module and related drivers, and can be
+      useful for debugging wireless issues.</para>
 
     <para>The &man.wpa.passphrase.8; utility has been added.  It
       generates a 256-bit pre-shared WPA key from an ASCII
