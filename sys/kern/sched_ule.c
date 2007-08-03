@@ -183,7 +183,7 @@ static int preempt_thresh = PRI_MIN_KERN;
  * locking in sched_pickcpu();
  */
 struct tdq {
-	struct mtx	tdq_lock;		/* Protects all fields below. */
+	struct mtx	*tdq_lock;		/* Pointer to group lock. */
 	struct runq	tdq_realtime;		/* real-time run queue. */
 	struct runq	tdq_timeshare;		/* timeshare run queue. */
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
@@ -198,7 +198,6 @@ struct tdq {
 #else
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 #endif
-	char		tdq_name[16];		/* lock name. */
 } __aligned(64);
 
 
@@ -212,13 +211,15 @@ struct tdq {
  * load balancer.
  */
 struct tdq_group {
-	int	tdg_cpus;		/* Count of CPUs in this tdq group. */
-	cpumask_t tdg_cpumask;		/* Mask of cpus in this group. */
-	cpumask_t tdg_idlemask;		/* Idle cpus in this group. */
-	cpumask_t tdg_mask;		/* Bit mask for first cpu. */
-	int	tdg_load;		/* Total load of this group. */
+	struct mtx	tdg_lock;	/* Protects all fields below. */
+	int		tdg_cpus;	/* Count of CPUs in this tdq group. */
+	cpumask_t 	tdg_cpumask;	/* Mask of cpus in this group. */
+	cpumask_t 	tdg_idlemask;	/* Idle cpus in this group. */
+	cpumask_t 	tdg_mask;	/* Bit mask for first cpu. */
+	int		tdg_load;	/* Total load of this group. */
 	int	tdg_transferable;	/* Transferable load of this group. */
 	LIST_HEAD(, tdq) tdg_members;	/* Linked list of all members. */
+	char		tdg_name[16];	/* lock name. */
 } __aligned(64);
 
 #define	SCHED_AFFINITY_DEFAULT	(max(1, hz / 300))
@@ -249,10 +250,12 @@ static struct callout gbalco;
 
 #define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
 #define	TDQ_CPU(x)	(&tdq_cpu[(x)])
-#define	TDQ_ID(x)	((x) - tdq_cpu)
+#define	TDQ_ID(x)	((int)((x) - tdq_cpu))
 #define	TDQ_GROUP(x)	(&tdq_groups[(x)])
+#define	TDG_ID(x)	((int)((x) - tdq_groups))
 #else	/* !SMP */
 static struct tdq	tdq_cpu;
+static struct mtx	tdq_lock;
 
 #define	TDQ_ID(x)	(0)
 #define	TDQ_SELF()	(&tdq_cpu)
@@ -263,7 +266,7 @@ static struct tdq	tdq_cpu;
 #define	TDQ_LOCK(t)		mtx_lock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCK_FLAGS(t, f)	mtx_lock_spin_flags(TDQ_LOCKPTR((t)), (f))
 #define	TDQ_UNLOCK(t)		mtx_unlock_spin(TDQ_LOCKPTR((t)))
-#define	TDQ_LOCKPTR(t)		(&(t)->tdq_lock)
+#define	TDQ_LOCKPTR(t)		((t)->tdq_lock)
 
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
@@ -294,8 +297,10 @@ static void sched_balance_groups(void *);
 static void sched_balance_group(struct tdq_group *);
 static void sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct td_sched *, int, int);
+static inline struct tdq *sched_switchcpu(struct td_sched *, int, int);
 static inline struct mtx *thread_block_switch(struct thread *);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
+static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
 
 #define	THREAD_CAN_MIGRATE(td)	 ((td)->td_pinned == 0)
 #endif
@@ -343,9 +348,8 @@ tdq_print(int cpu)
 
 	tdq = TDQ_CPU(cpu);
 
-	printf("tdq:\n");
+	printf("tdq %d:\n", TDQ_ID(tdq));
 	printf("\tlockptr         %p\n", TDQ_LOCKPTR(tdq));
-	printf("\tlock name       %s\n", tdq->tdq_name);
 	printf("\tload:           %d\n", tdq->tdq_load);
 	printf("\ttimeshare idx:  %d\n", tdq->tdq_idx);
 	printf("\ttimeshare ridx: %d\n", tdq->tdq_ridx);
@@ -357,7 +361,9 @@ tdq_print(int cpu)
 	runq_print(&tdq->tdq_idle);
 #ifdef SMP
 	printf("\tload transferable: %d\n", tdq->tdq_transferable);
-	printf("\tlowest priority: %d\n", tdq->tdq_lowpri);
+	printf("\tlowest priority:   %d\n", tdq->tdq_lowpri);
+	printf("\tgroup:             %d\n", TDG_ID(tdq->tdq_group));
+	printf("\tLock name:         %s\n", tdq->tdq_group->tdg_name);
 #endif
 }
 
@@ -389,7 +395,7 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 		 * This queue contains only priorities between MIN and MAX
 		 * realtime.  Use the whole queue to represent these values.
 		 */
-		if ((flags & SRQ_BORROWING) == 0) {
+		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
 			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
 			/*
@@ -454,7 +460,7 @@ tdq_load_add(struct tdq *tdq, struct td_sched *ts)
 	THREAD_LOCK_ASSERT(ts->ts_thread, MA_OWNED);
 	class = PRI_BASE(ts->ts_thread->td_pri_class);
 	tdq->tdq_load++;
-	CTR2(KTR_SCHED, "cpu %jd load: %d", TDQ_ID(tdq), tdq->tdq_load);
+	CTR2(KTR_SCHED, "cpu %d load: %d", TDQ_ID(tdq), tdq->tdq_load);
 	if (class != PRI_ITHD &&
 	    (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
@@ -484,7 +490,7 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 		tdq->tdq_sysload--;
 #endif
 	KASSERT(tdq->tdq_load != 0,
-	    ("tdq_load_rem: Removing with 0 load on queue %d", (int)TDQ_ID(tdq)));
+	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 	tdq->tdq_load--;
 	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
 	ts->ts_runq = NULL;
@@ -916,6 +922,8 @@ sched_setcpu(struct td_sched *ts, int cpu, int flags)
 	tdq = TDQ_CPU(cpu);
 	td = ts->ts_thread;
 	ts->ts_cpu = cpu;
+
+	/* If the lock matches just return the queue. */
 	if (td->td_lock == TDQ_LOCKPTR(tdq))
 		return (tdq);
 #ifdef notyet
@@ -936,9 +944,7 @@ sched_setcpu(struct td_sched *ts, int cpu, int flags)
 	 */
 	thread_lock_block(td);
 	TDQ_LOCK(tdq);
-	/* Return to sched_switch() with the lock still blocked */
-	if ((flags & SRQ_OURSELF) == 0)
-		thread_lock_unblock(td, TDQ_LOCKPTR(tdq));
+	thread_lock_unblock(td, TDQ_LOCKPTR(tdq));
 	return (tdq);
 }
 
@@ -1129,15 +1135,128 @@ static void
 tdq_setup(struct tdq *tdq)
 {
 
-	snprintf(tdq->tdq_name, sizeof(tdq->tdq_name),
-	    "sched lock %d", (int)TDQ_ID(tdq));
-	mtx_init(&tdq->tdq_lock, tdq->tdq_name, "sched lock",
-	    MTX_SPIN | MTX_RECURSE);
+	if (bootverbose)
+		printf("ULE: setup cpu %d\n", TDQ_ID(tdq));
 	runq_init(&tdq->tdq_realtime);
 	runq_init(&tdq->tdq_timeshare);
 	runq_init(&tdq->tdq_idle);
 	tdq->tdq_load = 0;
 }
+
+#ifdef SMP
+static void
+tdg_setup(struct tdq_group *tdg)
+{
+	if (bootverbose)
+		printf("ULE: setup cpu group %d\n", TDG_ID(tdg));
+	snprintf(tdg->tdg_name, sizeof(tdg->tdg_name),
+	    "sched lock %d", (int)TDG_ID(tdg));
+	mtx_init(&tdg->tdg_lock, tdg->tdg_name, "sched lock",
+	    MTX_SPIN | MTX_RECURSE);
+	LIST_INIT(&tdg->tdg_members);
+	tdg->tdg_load = 0;
+	tdg->tdg_transferable = 0;
+	tdg->tdg_cpus = 0;
+	tdg->tdg_mask = 0;
+	tdg->tdg_cpumask = 0;
+	tdg->tdg_idlemask = 0;
+}
+
+static void
+tdg_add(struct tdq_group *tdg, struct tdq *tdq)
+{
+	if (tdg->tdg_mask == 0)
+		tdg->tdg_mask |= 1 << TDQ_ID(tdq);
+	tdg->tdg_cpumask |= 1 << TDQ_ID(tdq);
+	tdg->tdg_cpus++;
+	tdq->tdq_group = tdg;
+	tdq->tdq_lock = &tdg->tdg_lock;
+	LIST_INSERT_HEAD(&tdg->tdg_members, tdq, tdq_siblings);
+	if (bootverbose)
+		printf("ULE: adding cpu %d to group %d: cpus %d mask 0x%X\n",
+		    TDQ_ID(tdq), TDG_ID(tdg), tdg->tdg_cpus, tdg->tdg_cpumask);
+}
+
+static void
+sched_setup_topology(void)
+{
+	struct tdq_group *tdg;
+	struct cpu_group *cg;
+	int balance_groups;
+	struct tdq *tdq;
+	int i;
+	int j;
+
+	topology = 1;
+	balance_groups = 0;
+	for (i = 0; i < smp_topology->ct_count; i++) {
+		cg = &smp_topology->ct_group[i];
+		tdg = &tdq_groups[i];
+		/*
+		 * Initialize the group.
+		 */
+		tdg_setup(tdg);
+		/*
+		 * Find all of the group members and add them.
+		 */
+		for (j = 0; j < MAXCPU; j++) { 
+			if ((cg->cg_mask & (1 << j)) != 0) {
+				tdq = TDQ_CPU(j);
+				tdq_setup(tdq);
+				tdg_add(tdg, tdq);
+			}
+		}
+		if (tdg->tdg_cpus > 1)
+			balance_groups = 1;
+	}
+	tdg_maxid = smp_topology->ct_count - 1;
+	if (balance_groups)
+		sched_balance_groups(NULL);
+}
+
+static void
+sched_setup_smp(void)
+{
+	struct tdq_group *tdg;
+	struct tdq *tdq;
+	int cpus;
+	int i;
+
+	for (cpus = 0, i = 0; i < MAXCPU; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		tdq = &tdq_cpu[i];
+		tdg = &tdq_groups[i];
+		/*
+		 * Setup a tdq group with one member.
+		 */
+		tdg_setup(tdg);
+		tdq_setup(tdq);
+		tdg_add(tdg, tdq);
+		cpus++;
+	}
+	tdg_maxid = cpus - 1;
+}
+
+/*
+ * Fake a topology with one group containing all CPUs.
+ */
+static void
+sched_fake_topo(void)
+{
+#ifdef SCHED_FAKE_TOPOLOGY
+	static struct cpu_top top;
+	static struct cpu_group group;
+
+	top.ct_count = 1;
+	top.ct_group = &group;
+	group.cg_mask = all_cpus;
+	group.cg_count = mp_ncpus;
+	group.cg_children = 0;
+	smp_topology = &top;
+#endif
+}
+#endif
 
 /*
  * Setup the thread queues and initialize the topology based on MD
@@ -1147,89 +1266,28 @@ static void
 sched_setup(void *dummy)
 {
 	struct tdq *tdq;
+
+	tdq = TDQ_SELF();
 #ifdef SMP
-	int balance_groups;
-	int i;
-
-	balance_groups = 0;
-	/*
-	 * Initialize the tdqs.
-	 */
-	for (i = 0; i < MAXCPU; i++) {
-		tdq = &tdq_cpu[i];
-		tdq_setup(&tdq_cpu[i]);
-	}
-	if (smp_topology == NULL) {
-		struct tdq_group *tdg;
-		int cpus;
-
-		for (cpus = 0, i = 0; i < MAXCPU; i++) {
-			if (CPU_ABSENT(i))
-				continue;
-			tdq = &tdq_cpu[i];
-			tdg = &tdq_groups[cpus];
-			/*
-			 * Setup a tdq group with one member.
-			 */
-			tdq->tdq_transferable = 0;
-			tdq->tdq_group = tdg;
-			tdg->tdg_cpus = 1;
-			tdg->tdg_idlemask = 0;
-			tdg->tdg_cpumask = tdg->tdg_mask = 1 << i;
-			tdg->tdg_load = 0;
-			tdg->tdg_transferable = 0;
-			LIST_INIT(&tdg->tdg_members);
-			LIST_INSERT_HEAD(&tdg->tdg_members, tdq, tdq_siblings);
-			cpus++;
-		}
-		tdg_maxid = cpus - 1;
-	} else {
-		struct tdq_group *tdg;
-		struct cpu_group *cg;
-		int j;
-
-		topology = 1;
-		for (i = 0; i < smp_topology->ct_count; i++) {
-			cg = &smp_topology->ct_group[i];
-			tdg = &tdq_groups[i];
-			/*
-			 * Initialize the group.
-			 */
-			tdg->tdg_idlemask = 0;
-			tdg->tdg_load = 0;
-			tdg->tdg_transferable = 0;
-			tdg->tdg_cpus = cg->cg_count;
-			tdg->tdg_cpumask = cg->cg_mask;
-			LIST_INIT(&tdg->tdg_members);
-			/*
-			 * Find all of the group members and add them.
-			 */
-			for (j = 0; j < MAXCPU; j++) {
-				if ((cg->cg_mask & (1 << j)) != 0) {
-					if (tdg->tdg_mask == 0)
-						tdg->tdg_mask = 1 << j;
-					tdq_cpu[j].tdq_transferable = 0;
-					tdq_cpu[j].tdq_group = tdg;
-					LIST_INSERT_HEAD(&tdg->tdg_members,
-					    &tdq_cpu[j], tdq_siblings);
-				}
-			}
-			if (tdg->tdg_cpus > 1)
-				balance_groups = 1;
-		}
-		tdg_maxid = smp_topology->ct_count - 1;
-	}
 	/*
 	 * Initialize long-term cpu balancing algorithm.
 	 */
 	callout_init(&balco, CALLOUT_MPSAFE);
 	callout_init(&gbalco, CALLOUT_MPSAFE);
+	sched_fake_topo();
+	/*
+	 * Setup tdqs based on a topology configuration or vanilla SMP based
+	 * on mp_maxid.
+	 */
+	if (smp_topology == NULL)
+		sched_setup_smp();
+	else 
+		sched_setup_topology();
 	sched_balance(NULL);
-	if (balance_groups)
-		sched_balance_groups(NULL);
-
 #else
-	tdq_setup(TDQ_SELF());
+	tdq_setup(tdq);
+	mtx_init(&tdq_lock, "sched lock", "sched lock", MTX_SPIN | MTX_RECURSE);
+	tdq->tdq_lock = &tdq_lock;
 #endif
 	/*
 	 * To avoid divide-by-zero, we set realstathz a dummy value
@@ -1240,8 +1298,8 @@ sched_setup(void *dummy)
 	tickincr = 1 << SCHED_TICK_SHIFT;
 
 	/* Add thread0's load since it's running. */
-	tdq = TDQ_SELF();
 	TDQ_LOCK(tdq);
+	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
 	tdq_load_add(tdq, &td_sched0);
 	TDQ_UNLOCK(tdq);
 }
@@ -1441,7 +1499,6 @@ schedinit(void)
 	 */
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
-	thread0.td_lock = TDQ_LOCKPTR(TDQ_SELF());
 	td_sched0.ts_ltick = ticks;
 	td_sched0.ts_ftick = ticks;
 	td_sched0.ts_thread = &thread0;
@@ -1660,6 +1717,42 @@ sched_switchin(struct tdq *tdq, struct thread *td)
 }
 
 /*
+ * Handle migration from sched_switch().  This happens only for
+ * cpu binding.
+ */
+static struct mtx *
+sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
+{
+	struct tdq *tdn;
+
+	tdn = TDQ_CPU(td->td_sched->ts_cpu);
+#ifdef SMP
+	/*
+	 * Do the lock dance required to avoid LOR.  We grab an extra
+	 * spinlock nesting to prevent preemption while we're
+	 * not holding either run-queue lock.
+	 */
+	spinlock_enter();
+	thread_block_switch(td);	/* This releases the lock on tdq. */
+	TDQ_LOCK(tdn);
+	tdq_add(tdn, td, flags);
+	tdq_notify(td->td_sched);
+	/*
+	 * After we unlock tdn the new cpu still can't switch into this
+	 * thread until we've unblocked it in cpu_switch().  The lock
+	 * pointers may match in the case of HTT cores.  Don't unlock here
+	 * or we can deadlock when the other CPU runs the IPI handler.
+	 */
+	if (TDQ_LOCKPTR(tdn) != TDQ_LOCKPTR(tdq)) {
+		TDQ_UNLOCK(tdn);
+		TDQ_LOCK(tdq);
+	}
+	spinlock_exit();
+#endif
+	return (TDQ_LOCKPTR(tdn));
+}
+
+/*
  * Block a thread for switching.  Similar to thread_block() but does not
  * bump the spin count.
  */
@@ -1698,6 +1791,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct tdq *tdq;
 	struct td_sched *ts;
 	struct mtx *mtx;
+	int srqflag;
 	int cpuid;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1705,7 +1799,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	cpuid = PCPU_GET(cpuid);
 	tdq = TDQ_CPU(cpuid);
 	ts = td->td_sched;
-	mtx = TDQ_LOCKPTR(tdq);
+	mtx = td->td_lock;
 #ifdef SMP
 	ts->ts_rltick = ticks;
 	if (newtd && newtd->td_priority < tdq->tdq_lowpri)
@@ -1724,22 +1818,14 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TD_SET_CAN_RUN(td);
 	} else if (TD_IS_RUNNING(td)) {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
-		/* Remove our load so the selection algorithm is not biased. */
 		tdq_load_rem(tdq, ts);
-		sched_add(td, (flags & SW_PREEMPT) ?
+		srqflag = (flags & SW_PREEMPT) ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
-		    SRQ_OURSELF|SRQ_YIELDING);
-		/*
-		 * When migrating we return from sched_add with an extra
-		 * spinlock nesting, the tdq locked, and a blocked thread.
-		 * This is to optimize out an extra block/unblock cycle here.
-		 */
-		if (ts->ts_cpu != cpuid) {
-			mtx = TDQ_LOCKPTR(TDQ_CPU(ts->ts_cpu));
-			mtx_unlock_spin(mtx);
-			TDQ_LOCK(tdq);
-			spinlock_exit();
-		}
+		    SRQ_OURSELF|SRQ_YIELDING;
+		if (ts->ts_cpu == cpuid)
+			tdq_add(tdq, td, srqflag);
+		else
+			mtx = sched_switch_migrate(tdq, td, srqflag);
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
@@ -2358,7 +2444,7 @@ sched_bind(struct thread *td, int cpu)
 {
 	struct td_sched *ts;
 
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED|MA_NOTRECURSED);
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
