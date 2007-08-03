@@ -43,6 +43,7 @@ flopen(const char *path, int flags, ...)
 {
 	int fd, operation, serrno, trunc;
 	struct stat sb, fsb;
+	struct flock lock;
 	mode_t mode;
 
 #ifdef O_EXLOCK
@@ -58,9 +59,11 @@ flopen(const char *path, int flags, ...)
 		va_end(ap);
 	}
 
-	operation = LOCK_EX;
-	if (flags & O_NONBLOCK)
-		operation |= LOCK_NB;
+	lock.l_type = (flags & O_RDONLY) ? F_RDLCK : F_WRLCK;
+	lock.l_start = 0;
+	lock.l_whence = SEEK_SET;
+	lock.l_len = 0;
+	operation = (flags & O_NONBLOCK) ? F_SETLK : F_SETLKW;
 
 	trunc = (flags & O_TRUNC);
 	flags &= ~O_TRUNC;
@@ -69,7 +72,7 @@ flopen(const char *path, int flags, ...)
 		if ((fd = open(path, flags, mode)) == -1)
 			/* non-existent or no access */
 			return (-1);
-		if (flock(fd, operation) == -1) {
+		if (fcntl(fd, operation, &lock) == -1) {
 			/* unsupported or interrupted */
 			serrno = errno;
 			close(fd);
