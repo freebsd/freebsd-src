@@ -31,13 +31,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/stat.h>
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
-#include <err.h>
-#include <errno.h>
+
 #include <libutil.h>
 
 static int _pidfile_remove(struct pidfh *pfh, int freeit);
@@ -207,7 +207,13 @@ pidfile_close(struct pidfh *pfh)
 static int
 _pidfile_remove(struct pidfh *pfh, int freeit)
 {
+	struct flock lock;
 	int error;
+
+	lock.l_type = F_UNLCK;
+	lock.l_start = 0;
+	lock.l_whence = SEEK_SET;
+	lock.l_len = 0;
 
 	error = pidfile_verify(pfh);
 	if (error != 0) {
@@ -217,7 +223,7 @@ _pidfile_remove(struct pidfh *pfh, int freeit)
 
 	if (unlink(pfh->pf_path) == -1)
 		error = errno;
-	if (flock(pfh->pf_fd, LOCK_UN) == -1) {
+	if (fcntl(pfh->pf_fd, F_SETLK, &lock) == -1) {
 		if (error == 0)
 			error = errno;
 	}
