@@ -281,11 +281,17 @@ main(int argc, char **argv)
 		Tflag = 1;
 	}
 
+	/* find out how many devices we have */
+	if ((num_devices = devstat_getnumdevs(kd)) < 0)
+		err(1, "can't get number of devices");
+
 	/*
 	 * Figure out how many devices we should display.
 	 */
 	if (nflag == 0) {
-		if (oflag > 0) {
+		if (xflag > 0)
+			maxshowdevs = num_devices;
+		else if (oflag > 0) {
 			if ((dflag > 0) && (Cflag == 0) && (Tflag == 0))
 				maxshowdevs = 5;
 			else if ((dflag > 0) && (Tflag > 0) && (Cflag == 0))
@@ -299,10 +305,6 @@ main(int argc, char **argv)
 				maxshowdevs = 3;
 		}
 	}
-
-	/* find out how many devices we have */
-	if ((num_devices = devstat_getnumdevs(kd)) < 0)
-		err(1, "can't get number of devices");
 
 	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
 	if (cur.dinfo == NULL)
