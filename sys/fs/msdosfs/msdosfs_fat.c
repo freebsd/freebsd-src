@@ -376,7 +376,7 @@ updatefats(pmp, bp, fatbn)
 				+ ffs(pmp->pm_inusemap[cn / N_INUSEBITS]
 				      ^ (u_int)-1) - 1;
 		}
-		if (bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_bpcluster,
+		if (bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
 		    NOCRED, &bpn) != 0) {
 			/*
 			 * Ignore the error, but turn off FSInfo update for the future.
