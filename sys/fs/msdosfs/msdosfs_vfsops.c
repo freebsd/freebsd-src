@@ -654,7 +654,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	if (pmp->pm_fsinfo) {
 		struct fsinfo *fp;
 
-		if ((error = bread(devvp, pmp->pm_fsinfo, pmp->pm_bpcluster,
+		if ((error = bread(devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
 		    NOCRED, &bp)) != 0)
 			goto error_exit;
 		fp = (struct fsinfo *)bp->b_data;
