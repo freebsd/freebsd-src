@@ -256,6 +256,7 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 
 #define TMPFS_NODE_LOCK(node) mtx_lock(&(node)->tn_interlock)
 #define TMPFS_NODE_UNLOCK(node) mtx_unlock(&(node)->tn_interlock)
+#define        TMPFS_NODE_MTX(node) (&(node)->tn_interlock)
 
 #define TMPFS_VNODE_ALLOCATING	1
 #define TMPFS_VNODE_WANT	2

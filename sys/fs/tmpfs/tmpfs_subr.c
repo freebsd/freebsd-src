@@ -215,9 +215,8 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 		break;
 
 	case VREG:
-		if (node->tn_reg.tn_aobj != NULL) {
+		if (node->tn_reg.tn_aobj != NULL)
 			vm_object_deallocate(node->tn_reg.tn_aobj);
-		}
 		pages = node->tn_reg.tn_aobj_pages;
 		break;
 
@@ -309,11 +308,8 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, struct vnode **vpp,
 	int error;
 	struct vnode *vp;
 
-	vp = NULL;
-
 loop:
-	if (node->tn_vnode != NULL) {
-		vp = node->tn_vnode;
+	if ((vp = node->tn_vnode) != NULL) {
 		error = vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error)
 			return error;
@@ -337,12 +333,16 @@ loop:
 	TMPFS_NODE_LOCK(node);
 	if (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) {
 		node->tn_vpstate |= TMPFS_VNODE_WANT;
-		TMPFS_NODE_UNLOCK(node);
-		(void) tsleep((caddr_t) &node->tn_vpstate, 0, "tmpfs_vplock", 0);
-		goto loop;
-	}
+		error = msleep((caddr_t) &node->tn_vpstate,
+		    TMPFS_NODE_MTX(node), PDROP | PCATCH,
+		    "tmpfs_vplock", 0);
+		if (error)
+			return error;
 
-	node->tn_vpstate |= TMPFS_VNODE_ALLOCATING;
+		goto loop;
+	} else
+		node->tn_vpstate |= TMPFS_VNODE_ALLOCATING;
+	
 	TMPFS_NODE_UNLOCK(node);
 
 	/* Get a new vnode and associate it with our node. */
@@ -367,20 +367,17 @@ loop:
 	case VBLK:
 		/* FALLTHROUGH */
 	case VCHR:
-		break;
-
+		/* FALLTHROUGH */
 	case VDIR:
-		break;
-
-	case VFIFO:
-		vp->v_op = &tmpfs_fifoop_entries;
-		break;
-
+		/* FALLTHROUGH */
 	case VLNK:
 		/* FALLTHROUGH */
 	case VREG:
 		/* FALLTHROUGH */
 	case VSOCK:
+		break;
+	case VFIFO:
+		vp->v_op = &tmpfs_fifoop_entries;
 		break;
 
 	default:
@@ -391,6 +388,7 @@ loop:
 	error = insmntque(vp, mp);
 	if (error) {
 		node->tn_vnode = NULL;
+		TMPFS_NODE_LOCK(node);
 		if (node->tn_vpstate & TMPFS_VNODE_WANT) {
 			node->tn_vpstate &= ~TMPFS_VNODE_WANT;
 			TMPFS_NODE_UNLOCK(node);
@@ -402,8 +400,8 @@ loop:
 	node->tn_vnode = vp;
 
 unlock:
-	MPASS(node->tn_vpstate & TMPFS_VNODE_ALLOCATING);
 	TMPFS_NODE_LOCK(node);
+	MPASS(node->tn_vpstate & TMPFS_VNODE_ALLOCATING);
 	node->tn_vpstate &= ~TMPFS_VNODE_ALLOCATING;
 
 	if (node->tn_vpstate & TMPFS_VNODE_WANT) {
@@ -530,6 +528,7 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 {
 	struct tmpfs_node *dnode;
 
+	ASSERT_VOP_ELOCKED(vp, __func__);
 	dnode = VP_TO_TMPFS_DIR(vp);
 	TAILQ_INSERT_TAIL(&dnode->tn_dir.tn_dirhead, de, td_entries);
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
@@ -549,6 +548,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 {
 	struct tmpfs_node *dnode;
 
+	ASSERT_VOP_ELOCKED(vp, __func__);
 	dnode = VP_TO_TMPFS_DIR(vp);
 
 	if (dnode->tn_dir.tn_readdir_lastp == de) {
@@ -873,7 +873,7 @@ tmpfs_reg_resize(struct vnode *vp, off_t newsize)
 			swap_pager_freespace(uobj,
 						newpages, oldpages - newpages);
 			vm_object_page_remove(uobj,
-				OFF_TO_IDX(newsize + PAGE_MASK), 0, FALSE); 
+				OFF_TO_IDX(newsize + PAGE_MASK), 0, FALSE);
 		}
 
 		/*
