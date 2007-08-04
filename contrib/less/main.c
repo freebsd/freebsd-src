@@ -165,7 +165,7 @@ main(argc, argv)
 		quit(QUIT_OK);
 	}
 
-	if (less_is_more && get_quit_at_eof())
+	if (less_is_more || get_quit_at_eof())
 		no_init = quit_if_one_screen = TRUE;
 
 #if EDITOR
