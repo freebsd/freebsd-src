@@ -91,8 +91,8 @@ ia64_ap_startup(void)
 	ia64_set_k4((intptr_t)pcpup);
 
 	map_vhpt(ap_vhpt);
-	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
-	    "r" (ap_vhpt + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
+	ia64_set_pta(ap_vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
+	ia64_srlz_i();
 
 	ap_awake = 1;
 	ap_delay = 0;
@@ -105,8 +105,6 @@ ia64_ap_startup(void)
 	/* Wait until it's time for us to be unleashed */
 	while (ap_spin)
 		DELAY(0);
-
-	__asm __volatile("ssm psr.i;; srlz.d;;");
 
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -125,10 +123,12 @@ ia64_ap_startup(void)
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
 
-	ia64_set_tpr(0);
-
 	/* kick off the clock on this AP */
 	pcpu_initclock();
+
+	ia64_set_tpr(0);
+	ia64_srlz_d();
+	enable_intr();
 
 	sched_throw(NULL);
 	/* NOTREACHED */
