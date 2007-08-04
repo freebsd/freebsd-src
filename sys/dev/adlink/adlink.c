@@ -119,6 +119,7 @@ static int adlink_intr(void *arg);
 
 static struct cdevsw adlink_cdevsw = {
 	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	adlink_ioctl,
 	.d_mmap =	adlink_mmap,
 	.d_name =	"adlink",
