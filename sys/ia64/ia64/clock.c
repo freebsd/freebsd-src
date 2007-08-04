@@ -72,6 +72,7 @@ pcpu_initclock(void)
 	PCPU_SET(clock, ia64_get_itc());
 	ia64_set_itm(PCPU_GET(clock) + ia64_clock_reload);
 	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
+	ia64_srlz_d();
 }
 
 /*
