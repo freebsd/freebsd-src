@@ -1156,14 +1156,10 @@ Matches all TCP or UDP packets sent by or received for a
 A
 .Ar group
 may be specified by name or number.
-This option should be used only if debug.mpsafenet=0 to avoid possible
-deadlocks due to layering violations in its implementation.
 .It Cm jail Ar prisonID
 Matches all TCP or UDP packets sent by or received for the
 jail whos prison ID is
 .Ar prisonID .
-This option should be used only if debug.mpsafenet=0 to avoid possible
-deadlocks due to layering violations in its implementation.
 .It Cm icmptypes Ar types
 Matches ICMP packets whose ICMP type is in the list
 .Ar types .
@@ -1508,8 +1504,6 @@ Match all TCP or UDP packets sent by or received for a
 A
 .Ar user
 may be matched by name or identification number.
-This option should be used only if debug.mpsafenet=0 to avoid possible
-deadlocks due to layering violations in its implementation.
 .It Cm verrevpath
 For incoming packets,
 a routing table lookup is done on the packet's source address.
@@ -1973,8 +1967,7 @@ thresholds are in bytes (defaults to 1500, must be greater than zero).
 .El
 .Pp
 When used with IPv6 data, dummynet currently has several limitations.
-First, debug.mpsafenet=0 must be set.
-Second, the information necessicary to route link-local packets to an
+Information necessary to route link-local packets to an
 interface is not avalable after processing by dummynet so those packets
 are dropped in the output path.
 Care should be taken to insure that link-local packets are not passed to
@@ -2610,8 +2603,6 @@ Work on
 .Xr dummynet 4
 traffic shaper supported by Akamba Corp.
 .Sh BUGS
-Use of dummynet with IPv6 requires that debug.mpsafenet be set to 0.
-.Pp
 The syntax has grown over the years and sometimes it might be confusing.
 Unfortunately, backward compatibility prevents cleaning up mistakes
 made in the definition of the syntax.
@@ -2654,10 +2645,6 @@ to a TCP connection, and the uid/gid associated with a packet may not
 be as expected if the associated process calls
 .Xr setuid 2
 or similar system calls.
-.Pp
-Rules which use uid, gid or jail based matching should be used only
-if debug.mpsafenet=0 to avoid possible deadlocks due to layering
-violations in its implementation.
 .Pp
 Rule syntax is subject to the command line environment and some patterns
 may need to be escaped with the backslash character
