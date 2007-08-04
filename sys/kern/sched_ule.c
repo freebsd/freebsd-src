@@ -297,7 +297,6 @@ static void sched_balance_groups(void *);
 static void sched_balance_group(struct tdq_group *);
 static void sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct td_sched *, int, int);
-static inline struct tdq *sched_switchcpu(struct td_sched *, int, int);
 static inline struct mtx *thread_block_switch(struct thread *);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
