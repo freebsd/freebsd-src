@@ -449,13 +449,13 @@ map_vhpt(uintptr_t vhpt)
 
 	__asm __volatile("mov   %0=psr" : "=r"(psr));
 	__asm __volatile("rsm   psr.ic|psr.i");
-	__asm __volatile("srlz.i");
-	__asm __volatile("mov   cr.ifa=%0" :: "r"(vhpt));
-	__asm __volatile("mov   cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
+	ia64_srlz_i();
+	ia64_set_ifa(vhpt);
+	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_srlz_d();
 	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
-	__asm __volatile("srlz.d");             /* XXX not needed. */
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
-	__asm __volatile("srlz.i");
+	ia64_srlz_i();
 }
 
 void
@@ -476,15 +476,15 @@ map_pal_code(void)
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
-	__asm __volatile("srlz.i");
-	__asm __volatile("mov	cr.ifa=%0" ::
-	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)));
-	__asm __volatile("mov	cr.itir=%0" :: "r"(IA64_ID_PAGE_SHIFT << 2));
+	ia64_srlz_i();
+	ia64_set_ifa(IA64_PHYS_TO_RR7(ia64_pal_base));
+	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_srlz_d();
 	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(pte));
-	__asm __volatile("srlz.d");		/* XXX not needed. */
+	ia64_srlz_d();
 	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
-	__asm __volatile("srlz.i");
+	ia64_srlz_i();
 }
 
 void
@@ -502,14 +502,15 @@ map_gateway_page(void)
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
-	__asm __volatile("srlz.i");
-	__asm __volatile("mov	cr.ifa=%0" :: "r"(VM_MAX_ADDRESS));
-	__asm __volatile("mov	cr.itir=%0" :: "r"(PAGE_SHIFT << 2));
+	ia64_srlz_i();
+	ia64_set_ifa(VM_MAX_ADDRESS);
+	ia64_set_itir(PAGE_SHIFT << 2);
+	ia64_srlz_d();
 	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
-	__asm __volatile("srlz.d");		/* XXX not needed. */
+	ia64_srlz_d();
 	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
-	__asm __volatile("srlz.i");
+	ia64_srlz_i();
 
 	/* Expose the mapping to userland in ar.k5 */
 	ia64_set_k5(VM_MAX_ADDRESS);
@@ -827,6 +828,7 @@ ia64_init(void)
 #endif
 
 	ia64_set_tpr(0);
+	ia64_srlz_d();
 
 	/*
 	 * Save our current context so that we have a known (maybe even
