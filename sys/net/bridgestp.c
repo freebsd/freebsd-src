@@ -1331,6 +1331,9 @@ bstp_set_port_proto(struct bstp_port *bp, int proto)
 			bstp_timer_stop(&bp->bp_migrate_delay_timer);
 			/* clear unsupported features */
 			bp->bp_operedge = 0;
+			/* STP compat mode only uses 16 bits of the 32 */
+			if (bp->bp_path_cost > 65535)
+				bp->bp_path_cost = 65535;
 			break;
 
 		case BSTP_PROTO_RSTP:
@@ -1617,6 +1620,10 @@ bstp_set_path_cost(struct bstp_port *bp, uint32_t path_cost)
 	if (path_cost > BSTP_MAX_PATH_COST)
 		return (EINVAL);
 
+	/* STP compat mode only uses 16 bits of the 32 */
+	if (bp->bp_protover == BSTP_PROTO_STP && path_cost > 65535)
+		path_cost = 65535;
+
 	BSTP_LOCK(bs);
 
 	if (path_cost == 0) {	/* use auto */
@@ -1700,6 +1707,12 @@ bstp_calc_path_cost(struct bstp_port *bp)
 	/* If the priority has been manually set then retain the value */
 	if (bp->bp_flags & BSTP_PORT_ADMCOST)
 		return bp->bp_path_cost;
+
+	if (ifp->if_link_state == LINK_STATE_DOWN) {
+		/* Recalc when the link comes up again */
+		bp->bp_flags |= BSTP_PORT_PNDCOST;
+		return (BSTP_DEFAULT_PATH_COST);
+	}
 
 	if (ifp->if_baudrate < 1000)
 		return (BSTP_DEFAULT_PATH_COST);
@@ -1807,6 +1820,12 @@ bstp_ifupdstatus(struct bstp_state *bs, struct bstp_port *bp)
 			if (bp->bp_flags & BSTP_PORT_AUTOPTP) {
 				bp->bp_ptp_link =
 				    ifmr.ifm_active & IFM_FDX ? 1 : 0;
+			}
+
+			/* Calc the cost if the link was down previously */
+			if (bp->bp_flags & BSTP_PORT_PNDCOST) {
+				bp->bp_path_cost = bstp_calc_path_cost(bp);
+				bp->bp_flags &= ~BSTP_PORT_PNDCOST;
 			}
 
 			if (bp->bp_role == BSTP_ROLE_DISABLED)
@@ -1999,6 +2018,7 @@ bstp_reinit(struct bstp_state *bs)
 	struct bstp_port *bp;
 	struct ifnet *ifp, *mif;
 	u_char *e_addr;
+	static const u_char llzero[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	BSTP_LOCK_ASSERT(bs);
 
@@ -2012,12 +2032,14 @@ bstp_reinit(struct bstp_state *bs)
 	 * Search through the Ethernet adapters and find the one with the
 	 * lowest value. The adapter which we take the MAC address from does
 	 * not need to be part of the bridge, it just needs to be a unique
-	 * value. It is not possible for mif to be null, at this point we have
-	 * at least one stp port and hence at least one NIC.
+	 * value.
 	 */
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
+			continue;
+
+		if (bstp_addr_cmp(IF_LLADDR(ifp), llzero) == 0)
 			continue;
 
 		if (mif == NULL) {
@@ -2030,6 +2052,12 @@ bstp_reinit(struct bstp_state *bs)
 		}
 	}
 	IFNET_RUNLOCK();
+
+	/* Can only happen if all interfaces have a zero MAC address */
+	if (mif == NULL) {
+		callout_stop(&bs->bs_bstpcallout);
+		return;
+	}
 
 	e_addr = IF_LLADDR(mif);
 	bs->bs_bridge_pv.pv_dbridge_id =
