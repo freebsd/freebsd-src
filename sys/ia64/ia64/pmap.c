@@ -450,8 +450,9 @@ pmap_bootstrap()
 	}
 
 	map_vhpt(pmap_vhpt_base[0]);
-	__asm __volatile("mov cr.pta=%0;; srlz.i;;" ::
-	    "r" (pmap_vhpt_base[0] + (1<<8) + (pmap_vhpt_log2size<<2) + 1));
+	ia64_set_pta(pmap_vhpt_base[0] + (1 << 8) +
+	    (pmap_vhpt_log2size << 2) + 1);
+	ia64_srlz_i();
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
@@ -480,6 +481,7 @@ pmap_bootstrap()
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (IA64_ID_PAGE_SHIFT << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (IA64_ID_PAGE_SHIFT << 2));
+	ia64_srlz_d();
 
 	/*
 	 * Clear out any random TLB entries left over from booting.
@@ -2254,7 +2256,7 @@ pmap_switch(pmap_t pm)
 		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
 	}
 	PCPU_SET(current_pmap, pm);
-	__asm __volatile("srlz.d");
+	ia64_srlz_d();
 
 out:
 	critical_exit();
