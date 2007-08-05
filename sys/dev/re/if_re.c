@@ -1005,6 +1005,7 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 		}
 		cmdstat = segs[i].ds_len;
 		totlen += segs[i].ds_len;
+		d->rl_vlanctl = 0;
 		d->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
 		d->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		if (i == 0)
