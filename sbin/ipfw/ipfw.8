@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2007
+.Dd August 5, 2007
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1251,7 +1251,7 @@ Matches IPv4 packets whose precedence field is equal to
 .It Cm ipsec
 Matches packets that have IPSEC history associated with them
 (i.e., the packet comes encapsulated in IPSEC, the kernel
-has IPSEC support and IPSEC_FILTERGIF option, and can correctly
+has IPSEC support and IPSEC_FILTERTUNNEL option, and can correctly
 decapsulate it).
 .Pp
 Note that specifying

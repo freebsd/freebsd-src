@@ -69,11 +69,11 @@ extern	struct protosw inetsw[];
  * 1 = jump over firewall, 0 = packet goes through firewall.
  */
 int
-ip_ipsec_filtergif(struct mbuf *m)
+ip_ipsec_filtertunnel(struct mbuf *m)
 {
-#if defined(IPSEC) && !defined(IPSEC_FILTERGIF)
+#if defined(IPSEC) && !defined(IPSEC_FILTERTUNNEL)
 	/*
-	 * Bypass packet filtering for packets from a tunnel (gif).
+	 * Bypass packet filtering for packets from a tunnel.
 	 */
 	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
 		return 1;
