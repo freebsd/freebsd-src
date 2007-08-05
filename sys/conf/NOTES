@@ -501,15 +501,15 @@ options 	INET6			#IPv6 communications protocols
 options 	IPSEC			#IP security (requires device crypto)
 #options 	IPSEC_DEBUG		#debug for IP security
 #
-# Set IPSEC_FILTERGIF to force packets coming through a gif tunnel
-# to be processed by any configured packet filtering (ipfw, ipf).
-# The default is that packets coming from a tunnel are _not_ processed;
+# Set IPSEC_FILTERTUNNEL to force packets coming through a tunnel
+# to be processed by any configured packet filtering twice.
+# The default is that packets coming out of a tunnel are _not_ processed;
 # they are assumed trusted.
 #
 # IPSEC history is preserved for such packets, and can be filtered
 # using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
 #
-#options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
+#options 	IPSEC_FILTERTUNNEL	#filter ipsec packets from a tunnel
 
 options 	IPX			#IPX/SPX communications protocols
 
