@@ -160,10 +160,6 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
 		mtx_unlock(&dev_pager_mtx);
 	} else {
-		/*
-		 * Gain a reference to the object.
-		 */
-		vm_object_reference(object);
 		if (pindex > object->size)
 			object->size = pindex;
 	}
