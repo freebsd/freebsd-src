@@ -127,7 +127,6 @@ struct lagg_reqall {
 
 #define	lp_ifname		lp_ifp->if_xname	/* interface name */
 #define	lp_link_state		lp_ifp->if_link_state	/* link state */
-#define	lp_capabilities		lp_ifp->if_capabilities	/* capabilities */
 
 #define	LAGG_PORTACTIVE(_tp)	(					\
 	((_tp)->lp_link_state == LINK_STATE_UP) &&			\
