@@ -459,9 +459,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		sx_xlock(&sw_alloc_sx);
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 
-		if (object != NULL) {
-			vm_object_reference(object);
-		} else {
+		if (object == NULL) {
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
 			object->handle = handle;
 

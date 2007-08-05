@@ -101,10 +101,6 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			    pager_object_list);
 			mtx_unlock(&phys_pager_mtx);
 		} else {
-			/*
-			 * Gain a reference to the object.
-			 */
-			vm_object_reference(object);
 			if (pindex > object->size)
 				object->size = pindex;
 		}
