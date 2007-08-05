@@ -395,7 +395,7 @@ tooshort:
 	/*
 	 * Bypass packet filtering for packets from a tunnel (gif).
 	 */
-	if (ip_ipsec_filtergif(m))
+	if (ip_ipsec_filtertunnel(m))
 		goto passin;
 #endif /* IPSEC */
 

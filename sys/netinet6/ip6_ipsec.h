@@ -32,7 +32,7 @@
 #ifndef _NETINET_IP6_IPSEC_H_
 #define _NETINET_IP6_IPSEC_H_
 
-int	ip6_ipsec_filtergif(struct mbuf *);
+int	ip6_ipsec_filtertunnel(struct mbuf *);
 int	ip6_ipsec_fwd(struct mbuf *);
 int	ip6_ipsec_input(struct mbuf *, int);
 int	ip6_ipsec_mtu(struct mbuf *);
