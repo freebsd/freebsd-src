@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2007
+.Dd August 5, 2007
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd Internet Protocol Security protocol
 .Sh SYNOPSIS
 .Cd "options IPSEC"
-.Cd "options IPSEC_FILTERGIF"
+.Cd "options IPSEC_FILTERTUNNEL"
 .Cd "device crypto"
 .Pp
 .In sys/types.h
@@ -89,7 +89,7 @@ inbound.
 To properly filter on the inner packets of an
 .Nm
 tunnel with firewalls, add
-.Cd "options IPSEC_FILTERGIF"
+.Cd "options IPSEC_FILTERTUNNEL"
 to the kernel configuration file.
 .\"
 .Ss Kernel interface
