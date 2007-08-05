@@ -299,4 +299,8 @@
 #define	PCSR_SECBUS	0x40		/* Secondary bus number register */
 #define	PCSR_SUBBUS	0x41		/* Subordinate bus number register */
 
+/* Width of the physical addresses the IOMMU translates to */
+#define	PSYCHO_IOMMU_BITS	41
+#define	SABRE_IOMMU_BITS	34
+
 #endif /* !_SPARC64_PCI_PSYCHOREG_H_ */

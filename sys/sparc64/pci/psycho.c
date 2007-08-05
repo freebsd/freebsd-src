@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/reboot.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
@@ -65,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/ofw_bus.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
-
-#include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -557,9 +556,15 @@ psycho_attach(device_t dev)
 		 * For the moment, 32KB should be more than enough.
 		 */
 		sc->sc_is = malloc(sizeof(struct iommu_state), M_DEVBUF,
-		    M_NOWAIT);
+		    M_NOWAIT | M_ZERO);
 		if (sc->sc_is == NULL)
 			panic("%s: malloc iommu_state failed", __func__);
+		if (sc->sc_mode == PSYCHO_MODE_SABRE)
+			sc->sc_is->is_pmaxaddr =
+			    IOMMU_MAXADDR(SABRE_IOMMU_BITS);
+		else
+			sc->sc_is->is_pmaxaddr =
+			    IOMMU_MAXADDR(PSYCHO_IOMMU_BITS);
 		sc->sc_is->is_sb[0] = 0;
 		sc->sc_is->is_sb[1] = 0;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
@@ -577,9 +582,9 @@ psycho_attach(device_t dev)
 	sc->sc_pci_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
 	sc->sc_pci_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
 	sc->sc_pci_cfgt = psycho_alloc_bus_tag(sc, PCI_CONFIG_BUS_SPACE);
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0, IOMMU_MAXADDR, ~0,
-	    NULL, NULL, IOMMU_MAXADDR, 0xff, 0xffffffff, 0, NULL, NULL,
-	    &sc->sc_pci_dmat) != 0)
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	    sc->sc_is->is_pmaxaddr, ~0, NULL, NULL, sc->sc_is->is_pmaxaddr,
+	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_pci_dmat) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = sc->sc_is;
@@ -1075,7 +1080,7 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 	 * XXX installing the workaround for an affected device and the
 	 * actual workaround in psycho_intr_stub() should be moved to
 	 * psycho(4)-specific bus_dma_tag_create() and bus_dmamap_sync()
-	 * methods, respectively, once we make use of BUS_GET_DMA_TAG(),
+	 * methods, respectively, once DMA tag creation is newbus'ified,
 	 * so the workaround isn't only applied for interrupt handlers
 	 * but also for polling(4) callbacks.
 	 */

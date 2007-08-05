@@ -136,5 +136,7 @@
 #define	SBR_OBIO_DIAG		0x4808	/* OBIO and misc int state diag reg */
 #define	SBR_STRBUF_DIAG		0x5000	/* Streaming buffer diag regs */
 
-#endif /* _SPARC64_SBUS_SBUSREG_H_ */
+/* Width of the physical addresses the IOMMU translates to */
+#define	SBUS_IOMMU_BITS	41
 
+#endif /* _SPARC64_SBUS_SBUSREG_H_ */
