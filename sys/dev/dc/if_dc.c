@@ -294,7 +294,6 @@ static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
 
 static void dc_dma_map_txbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
-static void dc_dma_map_rxbuf(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -2424,29 +2423,6 @@ dc_list_rx_init(struct dc_softc *sc)
 	return (0);
 }
 
-static void
-dc_dma_map_rxbuf(arg, segs, nseg, mapsize, error)
-	void *arg;
-	bus_dma_segment_t *segs;
-	int nseg;
-	bus_size_t mapsize;
-	int error;
-{
-	struct dc_softc *sc;
-	struct dc_desc *c;
-
-	sc = arg;
-	c = &sc->dc_ldata->dc_rx_list[sc->dc_cdata.dc_rx_cur];
-	if (error) {
-		sc->dc_cdata.dc_rx_err = error;
-		return;
-	}
-
-	KASSERT(nseg == 1, ("wrong number of segments, should be 1"));
-	sc->dc_cdata.dc_rx_err = 0;
-	c->dc_data = htole32(segs->ds_addr);
-}
-
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
@@ -2455,7 +2431,8 @@ dc_newbuf(struct dc_softc *sc, int i, int alloc)
 {
 	struct mbuf *m_new;
 	bus_dmamap_t tmp;
-	int error;
+	bus_dma_segment_t segs[1];
+	int error, nseg;
 
 	if (alloc) {
 		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
@@ -2478,17 +2455,14 @@ dc_newbuf(struct dc_softc *sc, int i, int alloc)
 
 	/* No need to remap the mbuf if we're reusing it. */
 	if (alloc) {
-		sc->dc_cdata.dc_rx_cur = i;
-		error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_sparemap,
-		    m_new, dc_dma_map_rxbuf, sc, 0);
+		error = bus_dmamap_load_mbuf_sg(sc->dc_mtag, sc->dc_sparemap,
+		    m_new, segs, &nseg, 0);
+		KASSERT(nseg == 1, ("wrong number of segments, should be 1"));
 		if (error) {
 			m_freem(m_new);
 			return (error);
 		}
-		if (sc->dc_cdata.dc_rx_err != 0) {
-			m_freem(m_new);
-			return (sc->dc_cdata.dc_rx_err);
-		}
+		sc->dc_ldata->dc_rx_list[i].dc_data = htole32(segs->ds_addr);
 		bus_dmamap_unload(sc->dc_mtag, sc->dc_cdata.dc_rx_map[i]);
 		tmp = sc->dc_cdata.dc_rx_map[i];
 		sc->dc_cdata.dc_rx_map[i] = sc->dc_sparemap;
@@ -2865,12 +2839,11 @@ dc_txeof(struct dc_softc *sc)
 		sc->dc_cdata.dc_tx_cnt--;
 		DC_INC(idx, DC_TX_LIST_CNT);
 	}
+	sc->dc_cdata.dc_tx_cons = idx;
 
-	if (idx != sc->dc_cdata.dc_tx_cons) {
-	    	/* Some buffers have been freed. */
-		sc->dc_cdata.dc_tx_cons = idx;
+	if (DC_TX_LIST_CNT - sc->dc_cdata.dc_tx_cnt > DC_TX_LIST_RSVD)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	}
+
 	if (sc->dc_cdata.dc_tx_cnt == 0)
 		sc->dc_wdog_timer = 0;
 }
@@ -3161,10 +3134,8 @@ dc_dma_map_txbuf(arg, segs, nseg, mapsize, error)
 	int cur, first, frag, i;
 
 	sc = arg;
-	if (error) {
-		sc->dc_cdata.dc_tx_err = error;
+	if (error)
 		return;
-	}
 
 	first = cur = frag = sc->dc_cdata.dc_tx_prod;
 	for (i = 0; i < nseg; i++) {
@@ -3217,7 +3188,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	/*
 	 * If there's no way we can send any packets, return now.
 	 */
-	if (DC_TX_LIST_CNT - sc->dc_cdata.dc_tx_cnt < 6)
+	if (DC_TX_LIST_CNT - sc->dc_cdata.dc_tx_cnt <= DC_TX_LIST_RSVD)
 		return (ENOBUFS);
 
 	/*
@@ -3229,27 +3200,30 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	for (m = *m_head; m != NULL; m = m->m_next)
 		chainlen++;
 
-	if ((chainlen > DC_TX_LIST_CNT / 4) ||
-	    ((DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt)) < 6)) {
+	m = NULL;
+	if ((sc->dc_flags & DC_TX_COALESCE && ((*m_head)->m_next != NULL ||
+	    sc->dc_flags & DC_TX_ALIGN)) || (chainlen > DC_TX_LIST_CNT / 4) ||
+	    (DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt) <=
+	    DC_TX_LIST_RSVD)) {
 		m = m_defrag(*m_head, M_DONTWAIT);
-		if (m == NULL)
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (ENOBUFS);
+		}
 		*m_head = m;
 	}
-
-	/*
-	 * Start packing the mbufs in this chain into
-	 * the fragment pointers. Stop when we run out
-	 * of fragments or hit the end of the mbuf chain.
-	 */
 	idx = sc->dc_cdata.dc_tx_prod;
 	sc->dc_cdata.dc_tx_mapping = *m_head;
 	error = bus_dmamap_load_mbuf(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    *m_head, dc_dma_map_txbuf, sc, 0);
-	if (error)
-		return (error);
-	if (sc->dc_cdata.dc_tx_err != 0)
-		return (sc->dc_cdata.dc_tx_err);
+	if (error != 0 || sc->dc_cdata.dc_tx_err != 0) {
+		if (m != NULL) {
+			m_freem(m);
+			*m_head = NULL;
+		}
+		return (error != 0 ? error : sc->dc_cdata.dc_tx_err);
+	}
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
 	    BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
@@ -3279,7 +3253,7 @@ static void
 dc_start_locked(struct ifnet *ifp)
 {
 	struct dc_softc *sc;
-	struct mbuf *m_head = NULL, *m;
+	struct mbuf *m_head = NULL;
 	unsigned int queued = 0;
 	int idx;
 
@@ -3300,20 +3274,9 @@ dc_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-		if (sc->dc_flags & DC_TX_COALESCE &&
-		    (m_head->m_next != NULL ||
-		     sc->dc_flags & DC_TX_ALIGN)) {
-			m = m_defrag(m_head, M_DONTWAIT);
-			if (m == NULL) {
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				break;
-			} else {
-				m_head = m;
-			}
-		}
-
 		if (dc_encap(sc, &m_head)) {
+			if (m_head == NULL)
+				break;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
