@@ -649,7 +649,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	bp = NULL;
 
 	/*
-	 * Check FSInfo.
+	 * Check the fsinfo sector if we have one.  Silently fix up our
+	 * in-core copy of fp->fsinxtfree if it is unknown (0xffffffff)
+	 * or too large.  Ignore fp->fsinfree for now, since we need to
+	 * read the entire FAT anyway to fill the inuse map.
 	 */
 	if (pmp->pm_fsinfo) {
 		struct fsinfo *fp;
@@ -662,7 +665,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 		    && !bcmp(fp->fsisig2, "rrAa", 4)
 		    && !bcmp(fp->fsisig3, "\0\0\125\252", 4)) {
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
-			if (pmp->pm_nxtfree == 0xffffffff)
+			if (pmp->pm_nxtfree > pmp->pm_maxcluster)
 				pmp->pm_nxtfree = CLUST_FIRST;
 		} else
 			pmp->pm_fsinfo = 0;
@@ -671,15 +674,14 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	}
 
 	/*
-	 * Check and validate (or perhaps invalidate?) the fsinfo structure?
+	 * Finish initializing pmp->pm_nxtfree (just in case the first few
+	 * sectors aren't properly reserved in the FAT).  This completes
+	 * the fixup for fp->fsinxtfree, and fixes up the zero-initialized
+	 * value if there is no fsinfo.  We will use pmp->pm_nxtfree
+	 * internally even if there is no fsinfo.
 	 */
-	if (pmp->pm_fsinfo && pmp->pm_nxtfree > pmp->pm_maxcluster) {
-		printf(
-		"Next free cluster in FSInfo (%lu) exceeds maxcluster (%lu)\n",
-		    pmp->pm_nxtfree, pmp->pm_maxcluster);
-		error = EINVAL;
-		goto error_exit;
-	}
+	if (pmp->pm_nxtfree < CLUST_FIRST)
+		pmp->pm_nxtfree = CLUST_FIRST;
 
 	/*
 	 * Allocate memory for the bitmap of allocated clusters, and then
