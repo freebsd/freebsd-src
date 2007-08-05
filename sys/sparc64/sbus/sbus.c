@@ -112,21 +112,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/pcpu.h>
+#include <sys/queue.h>
 #include <sys/reboot.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
+#include <machine/bus_common.h>
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
-#include <machine/bus_common.h>
-#include <machine/resource.h>
-
-#include <sys/rman.h>
-
 #include <machine/iommuvar.h>
+#include <machine/resource.h>
 
 #include <sparc64/sbus/ofw_sbus.h>
 #include <sparc64/sbus/sbusreg.h>
@@ -380,6 +379,7 @@ sbus_attach(device_t dev)
 	/* initalise the IOMMU */
 
 	/* punch in our copies */
+	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(SBUS_IOMMU_BITS);
 	sc->sc_is.is_bustag = rman_get_bustag(sc->sc_sysio_res);
 	sc->sc_is.is_bushandle = rman_get_bushandle(sc->sc_sysio_res);
 	sc->sc_is.is_iommu = SBR_IOMMU;
@@ -405,9 +405,9 @@ sbus_attach(device_t dev)
 	iommu_init(name, &sc->sc_is, 3, -1, 1);
 
 	/* Create the DMA tag. */
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0, IOMMU_MAXADDR, ~0,
-	    NULL, NULL, IOMMU_MAXADDR, 0xff, 0xffffffff, 0, NULL, NULL,
-	    &sc->sc_cdmatag) != 0)
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
+	    sc->sc_is.is_pmaxaddr, ~0, NULL, NULL, sc->sc_is.is_pmaxaddr,
+	    0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_cdmatag) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;

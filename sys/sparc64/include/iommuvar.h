@@ -40,20 +40,31 @@
 #define	trunc_io_page(x)	trunc_page(x)
 
 /*
+ * LRU queue handling for lazy resource allocation
+ */
+TAILQ_HEAD(iommu_maplruq_head, bus_dmamap);
+
+/*
  * Per-IOMMU state. The parenthesized comments indicate the locking strategy:
- *	i - protected by iommu_mtx.
+ *	i - protected by is_mtx.
  *	r - read-only after initialization.
  *	* - comment refers to pointer target / target hardware registers
  *	    (for bus_addr_t).
- * iommu_map_lruq is also locked by iommu_mtx. Elements of iommu_tsb may only
- * be accessed from functions operating on the map owning the corresponding
- * resource, so the locking the user is required to do to protect the map is
- * sufficient. As soon as the TSBs are divorced, these will be moved into struct
- * iommu_state, and each state struct will get its own lock.
- * iommu_dvma_rman needs to be moved there too, but has its own internal lock.
+ * is_maplruq is also locked by is_mtx. Elements of is_tsb may only be
+ * accessed from functions operating on the map owning the corresponding
+ * resource, so the locking the user is required to do to protect the
+ * map is sufficient.
+ * dm_reslist of all maps are locked by is_mtx as well.
+ * is_dvma_rman has its own internal lock.
  */
 struct iommu_state {
+	struct mtx		is_mtx;
+	struct rman		is_dvma_rman;	/* DVMA space rman */
+	struct iommu_maplruq_head is_maplruq;	/* (i) LRU queue */
+	vm_paddr_t		is_ptsb;	/* (r) TSB physical address */
+	u_int64_t		*is_tsb;	/* (*i) TSB virtual address */
 	int			is_tsbsize;	/* (r) 0 = 8K, ... */
+	u_int64_t		is_pmaxaddr;	/* (r) max. physical address */
 	u_int64_t		is_dvmabase;	/* (r) */
 	int64_t			is_cr;		/* (r) Control reg value */
 
@@ -85,11 +96,9 @@ struct iommu_state {
 	bus_addr_t		is_dva;		/* (r, *r) */
 	/* Tag compare diagnostics access */
 	bus_addr_t		is_dtcmp;	/* (r, *r) */
-
-	STAILQ_ENTRY(iommu_state)	is_link;	/* (r) */
 };
 
-/* interfaces for PCI/SBUS code */
+/* interfaces for PCI/SBus code */
 void iommu_init(char *, struct iommu_state *, int, u_int32_t, int);
 void iommu_reset(struct iommu_state *);
 void iommu_decode_fault(struct iommu_state *, vm_offset_t);

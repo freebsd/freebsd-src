@@ -64,8 +64,7 @@
 #define STRBUF_EN		0x0000000000000001UL
 #define STRBUF_D		0x0000000000000002UL
 
-#define	IOMMU_BITS		34
-#define	IOMMU_MAXADDR		((1UL << IOMMU_BITS) - 1)
+#define	IOMMU_MAXADDR(bits)	((1UL << (bits)) - 1)
 
 /*
  * control register bits
@@ -121,7 +120,7 @@
 /* Accesses to same bus segment? */
 #define	IOTTE_LOCAL		0x0800000000000000UL
 /* Let's assume this is correct */
-#define IOTTE_PAMASK		0x000001ffffffe000UL
+#define IOTTE_PAMASK		0x000007ffffffe000UL
 /* Accesses to cacheable space */
 #define IOTTE_C			0x0000000000000010UL
 /* Writeable */
