@@ -78,7 +78,7 @@ eventhandler_tag	lagg_detach_cookie = NULL;
 static int	lagg_clone_create(struct if_clone *, int);
 static void	lagg_clone_destroy(struct ifnet *);
 static void	lagg_lladdr(struct lagg_softc *, uint8_t *);
-static int	lagg_capabilities(struct lagg_softc *);
+static void	lagg_capabilities(struct lagg_softc *);
 static void	lagg_port_lladdr(struct lagg_port *, uint8_t *);
 static void	lagg_port_setlladdr(void *, int);
 static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
@@ -326,27 +326,32 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 		(*sc->sc_lladdr)(sc);
 }
 
-static int
+static void
 lagg_capabilities(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
-	int cap = ~0, priv;
+	int cap = ~0, ena = ~0;
 
 	LAGG_LOCK_ASSERT(sc);
 
-	/* Preserve private capabilities */
-	priv = sc->sc_capabilities & IFCAP_LAGG_MASK;
-
 	/* Get capabilities from the lagg ports */
-	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-		cap &= lp->lp_capabilities;
-
-	if (sc->sc_ifflags & IFF_DEBUG) {
-		printf("%s: capabilities 0x%08x\n",
-		    sc->sc_ifname, cap == ~0 ? priv : (cap | priv));
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		cap &= lp->lp_ifp->if_capabilities;
+		ena &= lp->lp_ifp->if_capenable;
 	}
+	cap = (cap == ~0 ? 0 : cap);
+	ena = (ena == ~0 ? 0 : ena);
 
-	return (cap == ~0 ? priv : (cap | priv));
+	if (sc->sc_ifp->if_capabilities != cap ||
+	    sc->sc_ifp->if_capenable != ena) {
+		sc->sc_ifp->if_capabilities = cap;
+		sc->sc_ifp->if_capenable = ena;
+		getmicrotime(&sc->sc_ifp->if_lastchange);
+
+		if (sc->sc_ifflags & IFF_DEBUG)
+			if_printf(sc->sc_ifp,
+			    "capabilities 0x%08x enabled 0x%08x\n", cap, ena);
+	}
 }
 
 static void
@@ -447,6 +452,15 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	if (ifp->if_type != IFT_ETHER)
 		return (EPROTONOSUPPORT);
 
+	/* Allow the first Ethernet member to define the MTU */
+	if (SLIST_EMPTY(&sc->sc_ports))
+		sc->sc_ifp->if_mtu = ifp->if_mtu;
+	else if (sc->sc_ifp->if_mtu != ifp->if_mtu) {
+		if_printf(sc->sc_ifp, "invalid MTU for %s\n",
+		    ifp->if_xname);
+		return (EINVAL);
+	}
+
 	if ((lp = malloc(sizeof(struct lagg_port),
 	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
 		return (ENOMEM);
@@ -499,7 +513,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	sc->sc_count++;
 
 	/* Update lagg capabilities */
-	sc->sc_capabilities = lagg_capabilities(sc);
+	lagg_capabilities(sc);
 
 	/* Add multicast addresses and interface flags to this port */
 	lagg_ether_cmdmulti(lp, 1);
@@ -604,7 +618,7 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 	free(lp, M_DEVBUF);
 
 	/* Update lagg capabilities */
-	sc->sc_capabilities = lagg_capabilities(sc);
+	lagg_capabilities(sc);
 
 	return (0);
 }
@@ -624,21 +638,43 @@ lagg_port_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCGLAGGPORT:
-		LAGG_LOCK(sc);
 		if (rp->rp_portname[0] == '\0' ||
 		    ifunit(rp->rp_portname) != ifp) {
 			error = EINVAL;
 			break;
 		}
 
-		if (lp->lp_softc != sc) {
+		LAGG_LOCK(sc);
+		if ((lp = ifp->if_lagg) == NULL || lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_UNLOCK(sc);
 			break;
 		}
 
 		lagg_port2req(lp, rp);
 		LAGG_UNLOCK(sc);
 		break;
+
+	case SIOCSIFCAP:
+		if (lp->lp_ioctl == NULL) {
+			error = EINVAL;
+			break;
+		}
+		error = (*lp->lp_ioctl)(ifp, cmd, data);
+		if (error)
+			break;
+
+		/* Update lagg interface capabilities */
+		LAGG_LOCK(sc);
+		lagg_capabilities(sc);
+		LAGG_UNLOCK(sc);
+		break;
+
+	case SIOCSIFMTU:
+		/* Do not allow the MTU to be changed once joined */
+		error = EINVAL;
+		break;
+
 	default:
 		goto fallback;
 	}
@@ -781,30 +817,45 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct lagg_port *lp;
 	struct ifnet *tpif;
 	struct thread *td = curthread;
-	int i, error = 0, unlock = 1;
-
-	LAGG_LOCK(sc);
+	char *buf, *outbuf;
+	int count, buflen, len, error = 0;
 
 	bzero(&rpbuf, sizeof(rpbuf));
 
 	switch (cmd) {
 	case SIOCGLAGG:
+		LAGG_LOCK(sc);
+		count = 0;
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
+			count++;
+		buflen = count * sizeof(struct lagg_reqport);
+		LAGG_UNLOCK(sc);
+
+		outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+
+		LAGG_LOCK(sc);
 		ra->ra_proto = sc->sc_proto;
-		ra->ra_ports = i = 0;
 		if (sc->sc_req != NULL)
 			(*sc->sc_req)(sc, (caddr_t)&ra->ra_psc);
-		lp = SLIST_FIRST(&sc->sc_ports);
-		while (lp && ra->ra_size >=
-		    i + sizeof(struct lagg_reqport)) {
-			lagg_port2req(lp, &rpbuf);
-			error = copyout(&rpbuf, (caddr_t)ra->ra_port + i,
-			    sizeof(struct lagg_reqport));
-			if (error)
+
+		count = 0;
+		buf = outbuf;
+		len = min(ra->ra_size, buflen);
+		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+			if (len < sizeof(rpbuf))
 				break;
-			i += sizeof(struct lagg_reqport);
-			ra->ra_ports++;
-			lp = SLIST_NEXT(lp, lp_entries);
+
+			lagg_port2req(lp, &rpbuf);
+			memcpy(buf, &rpbuf, sizeof(rpbuf));
+			count++;
+			buf += sizeof(rpbuf);
+			len -= sizeof(rpbuf);
 		}
+		LAGG_UNLOCK(sc);
+		ra->ra_ports = count;
+		ra->ra_size = count * sizeof(rpbuf);
+		error = copyout(outbuf, ra->ra_port, ra->ra_size);
+		free(outbuf, M_TEMP);
 		break;
 	case SIOCSLAGG:
 		error = suser(td);
@@ -815,6 +866,7 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		if (sc->sc_proto != LAGG_PROTO_NONE) {
+			LAGG_LOCK(sc);
 			error = sc->sc_detach(sc);
 			/* Reset protocol and pointers */
 			sc->sc_proto = LAGG_PROTO_NONE;
@@ -829,20 +881,23 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_lladdr = NULL;
 			sc->sc_req = NULL;
 			sc->sc_portreq = NULL;
+			LAGG_UNLOCK(sc);
 		}
 		if (error != 0)
 			break;
-		for (i = 0; i < (sizeof(lagg_protos) /
+		for (int i = 0; i < (sizeof(lagg_protos) /
 		    sizeof(lagg_protos[0])); i++) {
 			if (lagg_protos[i].ti_proto == ra->ra_proto) {
 				if (sc->sc_ifflags & IFF_DEBUG)
 					printf("%s: using proto %u\n",
 					    sc->sc_ifname,
 					    lagg_protos[i].ti_proto);
+				LAGG_LOCK(sc);
 				sc->sc_proto = lagg_protos[i].ti_proto;
 				if (sc->sc_proto != LAGG_PROTO_NONE)
 					error = lagg_protos[i].ti_attach(sc);
-				goto out;
+				LAGG_UNLOCK(sc);
+				return (error);
 			}
 		}
 		error = EPROTONOSUPPORT;
@@ -854,13 +909,16 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_LOCK(sc);
 		if ((lp = (struct lagg_port *)tpif->if_lagg) == NULL ||
 		    lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_UNLOCK(sc);
 			break;
 		}
 
 		lagg_port2req(lp, rp);
+		LAGG_UNLOCK(sc);
 		break;
 	case SIOCSLAGGPORT:
 		error = suser(td);
@@ -871,7 +929,9 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EINVAL;
 			break;
 		}
+		LAGG_LOCK(sc);
 		error = lagg_port_create(sc, tpif);
+		LAGG_UNLOCK(sc);
 		break;
 	case SIOCSLAGGDELPORT:
 		error = suser(td);
@@ -883,19 +943,24 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 
+		LAGG_LOCK(sc);
 		if ((lp = (struct lagg_port *)tpif->if_lagg) == NULL ||
 		    lp->lp_softc != sc) {
 			error = ENOENT;
+			LAGG_UNLOCK(sc);
 			break;
 		}
 
 		error = lagg_port_destroy(lp, 1);
+		LAGG_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		/* Set flags on ports too */
+		LAGG_LOCK(sc);
 		SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
 			lagg_setflags(lp, 1);
 		}
+		LAGG_UNLOCK(sc);
 
 		if (!(ifp->if_flags & IFF_UP) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -903,38 +968,39 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked down and it is running,
 			 * then stop and disable it.
 			 */
+			LAGG_LOCK(sc);
 			lagg_stop(sc);
+			LAGG_UNLOCK(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
 		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			LAGG_UNLOCK(sc);
-			unlock = 0;
 			(*ifp->if_init)(sc);
 		}
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		LAGG_LOCK(sc);
 		error = lagg_ether_setmulti(sc);
+		LAGG_UNLOCK(sc);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		LAGG_UNLOCK(sc);
-		unlock = 0;
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
+
+	case SIOCSIFCAP:
+	case SIOCSIFMTU:
+		/* Do not allow the MTU or caps to be directly changed */
+		error = EINVAL;
+		break;
+
 	default:
-		LAGG_UNLOCK(sc);
-		unlock = 0;
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
-out:
-	if (unlock)
-		LAGG_UNLOCK(sc);
 	return (error);
 }
 
