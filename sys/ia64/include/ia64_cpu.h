@@ -400,7 +400,7 @@ IA64_CR(lrr1)
 static __inline void
 ia64_set_rr(u_int64_t rrbase, u_int64_t v)
 {
-	__asm __volatile("mov rr[%0]=%1;; srlz.d;;"
+	__asm __volatile("mov rr[%0]=%1"
 			 :: "r"(rrbase), "r"(v) : "memory");
 }
 
