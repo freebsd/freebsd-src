@@ -273,7 +273,6 @@ struct ifbpstpconf {
 } while (0)
 #define BRIDGE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define BRIDGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define BRIDGE_LOCKED(_sc)		mtx_owned(&(_sc)->sc_mtx)
 #define BRIDGE_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	BRIDGE_LOCK2REF(_sc, _err)	do {	\
 	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);	\
