@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070806:
+	An incorrect field size in an ioctl struct for if_bridge(4) has been
+	corrected, ifconfig(8) will need to be recompilied.
+
 20070426:
         The ABI breakage in sendmail(8)'s libmilter has been repaired
         so it is no longer necessary to recompile mail filters (aka,
