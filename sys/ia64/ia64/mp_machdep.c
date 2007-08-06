@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -50,7 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/fpu.h>
+#include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pal.h>
@@ -63,8 +66,6 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_PMAP);
 
 void ia64_ap_startup(void);
-
-extern uint64_t ia64_lapic_address;
 
 #define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
 #define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
@@ -86,6 +87,8 @@ static void cpu_mp_unleash(void *);
 void
 ia64_ap_startup(void)
 {
+	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
+	int vector;
 
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
@@ -104,7 +107,7 @@ ia64_ap_startup(void)
 
 	/* Wait until it's time for us to be unleashed */
 	while (ap_spin)
-		DELAY(0);
+		cpu_spinwait();
 
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -119,9 +122,21 @@ ia64_ap_startup(void)
 
 	ap_awake++;
 	while (!smp_started)
-		DELAY(0);
+		cpu_spinwait();
 
 	CTR1(KTR_SMP, "SMP: cpu%d launched", PCPU_GET(cpuid));
+
+	/* Acknowledge and EOI all interrupts. */
+	vector = ia64_get_ivr();
+	while (vector != 15) {
+		ia64_srlz_d();
+		if (vector == 0)
+			vector = (int)ib->ib_inta;
+		ia64_set_eoi(0);
+		ia64_srlz_d();
+		vector = ia64_get_ivr();
+	}
+	ia64_srlz_d();
 
 	/* kick off the clock on this AP */
 	pcpu_initclock();
@@ -278,7 +293,7 @@ cpu_mp_unleash(void *dummy)
 	ap_spin = 0;
 
 	while (ap_awake != smp_cpus)
-		DELAY(0);
+		cpu_spinwait();
 
 	if (smp_cpus != cpus || cpus != mp_ncpus) {
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
