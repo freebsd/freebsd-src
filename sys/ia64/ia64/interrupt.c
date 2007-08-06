@@ -127,33 +127,43 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_debug_clock, OID_AUTO, adjust_ticks, CTLFLAG_RD,
     &adjust_ticks, 0, "Total number of ITC interrupts with adjustment");
 
-int
-interrupt(u_int vector, struct trapframe *tf)
+void
+interrupt(struct trapframe *tf)
 {
 	struct thread *td;
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
 	uint64_t adj, clk, itc;
 	int64_t delta;
+	u_int vector;
 	int count;
-
+	uint8_t inta;
 	ia64_set_fpsr(IA64_FPSR_DEFAULT);
 
 	td = curthread;
 	atomic_add_int(&td->td_intr_nesting_level, 1);
 
+	vector = tf->tf_special.ifa;
+
+ next:
 	/*
 	 * Handle ExtINT interrupts by generating an INTA cycle to
 	 * read the vector.
 	 */
 	if (vector == 0) {
-		vector = ib->ib_inta;
-		printf("ExtINT interrupt: vector=%u\n", vector);
-		if (vector == 15)
+		inta = ib->ib_inta;
+		printf("ExtINT interrupt: vector=%u\n", (int)inta);
+		if (inta == 15) {
+			__asm __volatile("mov cr.eoi = r0;; srlz.d");
 			goto stray;
-	}
+		}
+		vector = (int)inta;
+	} else if (vector == 15)
+		goto stray;
 
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
+
+		itc = ia64_get_itc();
 
 		PCPU_INC(cnt.v_intr);
 #ifdef EVCNT_COUNTERS
@@ -166,8 +176,6 @@ interrupt(u_int vector, struct trapframe *tf)
 		critical_enter();
 
 		adj = PCPU_GET(clockadj);
-		itc = ia64_get_itc();
-		ia64_set_itm(itc + ia64_clock_reload - adj);
 		clk = PCPU_GET(clock);
 		delta = itc - clk;
 		count = 0;
@@ -186,6 +194,7 @@ interrupt(u_int vector, struct trapframe *tf)
 				adjust_ticks++;
 			count++;
 		}
+		ia64_set_itm(itc + ia64_clock_reload - adj);
 		if (count > 0) {
 			adjust_lost += count - 1;
 			if (delta > (ia64_clock_reload >> 3)) {
@@ -200,8 +209,8 @@ interrupt(u_int vector, struct trapframe *tf)
 		}
 		PCPU_SET(clock, clk);
 		PCPU_SET(clockadj, adj);
-
 		critical_exit();
+		ia64_srlz_d();
 
 #ifdef SMP
 	} else if (vector == ipi_vector[IPI_AST]) {
@@ -221,17 +230,14 @@ interrupt(u_int vector, struct trapframe *tf)
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		smp_rendezvous_action();
 	} else if (vector == ipi_vector[IPI_STOP]) {
-		register_t intr;
 		cpumask_t mybit = PCPU_GET(cpumask);
 
-		intr = intr_disable();
 		savectx(PCPU_PTR(pcb));
 		atomic_set_int(&stopped_cpus, mybit);
 		while ((started_cpus & mybit) == 0)
-			/* spin */;
+			cpu_spinwait();
 		atomic_clear_int(&started_cpus, mybit);
 		atomic_clear_int(&stopped_cpus, mybit);
-		intr_restore(intr);
 	} else if (vector == ipi_vector[IPI_TEST]) {
 		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
@@ -241,9 +247,20 @@ interrupt(u_int vector, struct trapframe *tf)
 		ia64_dispatch_intr(tf, vector);
 	}
 
+	__asm __volatile("mov cr.eoi = r0;; srlz.d");
+	vector = ia64_get_ivr();
+	if (vector != 15)
+		goto next;
+
 stray:
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
-	return (TRAPF_USERMODE(tf));
+
+	if (TRAPF_USERMODE(tf)) {
+		enable_intr();
+		userret(td, tf);
+		mtx_assert(&Giant, MA_NOTOWNED);
+		do_ast(tf);
+	}
 }
 
 /*
@@ -271,22 +288,21 @@ ia64_intr_eoi(void *arg)
 		sapic_eoi(i->sapic, vector);
 }
 
-#ifdef INTR_FILTER
 static void
-ia64_intr_disable(void *arg)
+ia64_intr_mask(void *arg)
 {
 	u_int vector = (uintptr_t)arg;
 	struct ia64_intr *i;
 
 	i = ia64_intrs[vector];
 	if (i != NULL) {
-		sapic_eoi(i->sapic, vector);
 		sapic_mask(i->sapic, i->irq);
+		sapic_eoi(i->sapic, vector);
 	}
 }
 
 static void
-ia64_intr_enable(void *arg)
+ia64_intr_unmask(void *arg)
 {
 	u_int vector = (uintptr_t)arg;
 	struct ia64_intr *i;
@@ -295,7 +311,6 @@ ia64_intr_enable(void *arg)
 	if (i != NULL)
 		sapic_unmask(i->sapic, i->irq);
 }
-#endif
 
 int
 ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
@@ -324,14 +339,12 @@ ia64_setup_intr(const char *name, int irq, driver_filter_t filter,
 		if (i == NULL)
 			return (ENOMEM);
 
+		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
+		    0, ia64_intr_unmask,
 #ifdef INTR_FILTER
-		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
-		    0, ia64_intr_enable, ia64_intr_eoi, ia64_intr_disable,
-		    "irq%u:", irq);
-#else
-		error = intr_event_create(&i->event, (void *)(uintptr_t)vector,
-		    0, ia64_intr_eoi, "irq%u:", irq);
+		    ia64_intr_eoi, ia64_intr_mask,
 #endif
+		    "irq%u:", irq);
 		if (error) {
 			free(i, M_DEVBUF);
 			return (error);
@@ -393,7 +406,7 @@ ia64_dispatch_intr(void *frame, u_int vector)
 
 #ifdef INTR_FILTER
 	if (intr_event_handle(ie, frame) != 0) {
-		ia64_intr_disable((void *)(uintptr_t)vector);
+		ia64_intr_mask((void *)(uintptr_t)vector);
 		log(LOG_ERR, "stray irq%u\n", i->irq);
 	}
 #else
@@ -431,6 +444,7 @@ ia64_dispatch_intr(void *frame, u_int vector)
 	critical_exit();
 
 	if (thread) {
+		ia64_intr_mask((void *)(uintptr_t)vector);
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("%s: impossible stray", __func__));
 	} else
