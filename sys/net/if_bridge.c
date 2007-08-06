@@ -240,7 +240,8 @@ static void	bridge_enqueue(struct bridge_softc *, struct ifnet *,
 		    struct mbuf *);
 static void	bridge_rtdelete(struct bridge_softc *, struct ifnet *ifp, int);
 
-static void	bridge_forward(struct bridge_softc *, struct mbuf *m);
+static void	bridge_forward(struct bridge_softc *, struct bridge_iflist *,
+		    struct mbuf *m);
 
 static void	bridge_timer(void *);
 
@@ -1838,9 +1839,10 @@ bridge_start(struct ifnet *ifp)
  *	NOTE: Releases the lock on return.
  */
 static void
-bridge_forward(struct bridge_softc *sc, struct mbuf *m)
+bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
+    struct mbuf *m)
 {
-	struct bridge_iflist *bif;
+	struct bridge_iflist *dbif;
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
 
@@ -1850,19 +1852,8 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	sc->sc_ifp->if_ipackets++;
 	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
 
-	/*
-	 * Look up the bridge_iflist.
-	 */
-	bif = bridge_lookup_member_if(sc, src_if);
-	if (bif == NULL) {
-		/* Interface is not a bridge member (anymore?) */
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
-
-	if ((bif->bif_flags & IFBIF_STP) &&
-	    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
+	if ((sbif->bif_flags & IFBIF_STP) &&
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
 		BRIDGE_UNLOCK(sc);
 		m_freem(m);
 		return;
@@ -1875,7 +1866,7 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	 * address is valid and not multicast, record
 	 * the address.
 	 */
-	if ((bif->bif_flags & IFBIF_LEARNING) != 0 &&
+	if ((sbif->bif_flags & IFBIF_LEARNING) != 0 &&
 	    ETHER_IS_MULTICAST(eh->ether_shost) == 0 &&
 	    (eh->ether_shost[0] == 0 &&
 	     eh->ether_shost[1] == 0 &&
@@ -1884,11 +1875,11 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	     eh->ether_shost[4] == 0 &&
 	     eh->ether_shost[5] == 0) == 0) {
 		(void) bridge_rtupdate(sc, eh->ether_shost,
-		    bif, 0, IFBAF_DYNAMIC);
+		    sbif, 0, IFBAF_DYNAMIC);
 	}
 
-	if ((bif->bif_flags & IFBIF_STP) != 0 &&
-	    bif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING) {
+	if ((sbif->bif_flags & IFBIF_STP) != 0 &&
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING) {
 		m_freem(m);
 		BRIDGE_UNLOCK(sc);
 		return;
@@ -1956,16 +1947,23 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
-	bif = bridge_lookup_member_if(sc, dst_if);
-	if (bif == NULL) {
+	dbif = bridge_lookup_member_if(sc, dst_if);
+	if (dbif == NULL) {
 		/* Not a member of the bridge (anymore?) */
 		BRIDGE_UNLOCK(sc);
 		m_freem(m);
 		return;
 	}
 
-	if ((bif->bif_flags & IFBIF_STP) &&
-	    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
+	/* Private segments can not talk to each other */
+	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE) {
+		BRIDGE_UNLOCK(sc);
+		m_freem(m);
+		return;
+	}
+
+	if ((dbif->bif_flags & IFBIF_STP) &&
+	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
 		BRIDGE_UNLOCK(sc);
 		m_freem(m);
 		return;
@@ -2089,7 +2087,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		}
 
 		/* Perform the bridge forwarding function with the copy. */
-		bridge_forward(sc, mc);
+		bridge_forward(sc, bif, mc);
 
 		/*
 		 * Reinject the mbuf as arriving on the bridge so we have a
@@ -2177,7 +2175,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 #undef GRAB_OUR_PACKETS
 
 	/* Perform the bridge forwarding function. */
-	bridge_forward(sc, m);
+	bridge_forward(sc, bif, m);
 
 	return (NULL);
 }
@@ -2195,10 +2193,12 @@ static void
 bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
     struct mbuf *m, int runfilt)
 {
-	struct bridge_iflist *bif;
+	struct bridge_iflist *dbif, *sbif;
 	struct mbuf *mc;
 	struct ifnet *dst_if;
 	int error = 0, used = 0, i;
+
+	sbif = bridge_lookup_member_if(sc, src_if);
 
 	BRIDGE_LOCK2REF(sc, error);
 	if (error) {
@@ -2218,23 +2218,27 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			goto out;
 	}
 
-	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		dst_if = bif->bif_ifp;
+	LIST_FOREACH(dbif, &sc->sc_iflist, bif_next) {
+		dst_if = dbif->bif_ifp;
 		if (dst_if == src_if)
 			continue;
 
-		if ((bif->bif_flags & IFBIF_STP) &&
-		    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+		/* Private segments can not talk to each other */
+		if (sbif && (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE))
 			continue;
 
-		if ((bif->bif_flags & IFBIF_DISCOVER) == 0 &&
+		if ((dbif->bif_flags & IFBIF_STP) &&
+		    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+			continue;
+
+		if ((dbif->bif_flags & IFBIF_DISCOVER) == 0 &&
 		    (m->m_flags & (M_BCAST|M_MCAST)) == 0)
 			continue;
 
 		if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			continue;
 
-		if (LIST_NEXT(bif, bif_next) == NULL) {
+		if (LIST_NEXT(dbif, bif_next) == NULL) {
 			mc = m;
 			used = 1;
 		} else {
