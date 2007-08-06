@@ -3653,6 +3653,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		sctp_abort_notification(stcb, 0);
 		/* get the assoc vrf id and table id */
 		vrf_id = stcb->asoc.vrf_id;
+		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
 	sctp_send_abort(m, iphlen, sh, vtag, op_err, vrf_id);
 	if (stcb != NULL) {
@@ -3747,6 +3748,8 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			}
 		}
 		return;
+	} else {
+		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
 	vtag = stcb->asoc.peer_vtag;
 	/* notify the ulp */

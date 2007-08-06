@@ -4514,6 +4514,18 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		/* always clear this before beginning a packet */
 		stcb->asoc.authenticated = 0;
 		stcb->asoc.seen_a_sack_this_pkt = 0;
+		if (stcb->asoc.state & SCTP_STATE_WAS_ABORTED) {
+			/*-
+			 * If we hit here, we had a ref count
+			 * up when the assoc was aborted and the
+			 * timer is clearing out the assoc, we should
+			 * NOT respond to any packet.. its OOTB.
+			 */
+			SCTP_TCB_UNLOCK(stcb);
+			sctp_handle_ootb(m, iphlen, offset, sh, inp, NULL,
+			    vrf_id);
+			goto out_now;
+		}
 	}
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */

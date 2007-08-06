@@ -105,7 +105,15 @@ struct sctp_sndrcvinfo {
 };
 
 struct sctp_extrcvinfo {
-	struct sctp_sndrcvinfo sreinfo_sinfo;
+	uint16_t sinfo_stream;
+	uint16_t sinfo_ssn;
+	uint16_t sinfo_flags;
+	uint32_t sinfo_ppid;
+	uint32_t sinfo_context;
+	uint32_t sinfo_timetolive;
+	uint32_t sinfo_tsn;
+	uint32_t sinfo_cumtsn;
+	sctp_assoc_t sinfo_assoc_id;
 	uint16_t sreinfo_next_flags;
 	uint16_t sreinfo_next_stream;
 	uint32_t sreinfo_next_aid;
@@ -504,9 +512,9 @@ struct sctp_hmacalgo {
 #define SCTP_AUTH_HMAC_ID_SHA1		0x0001	/* default, mandatory */
 #define SCTP_AUTH_HMAC_ID_MD5		0x0002	/* deprecated */
 #define SCTP_AUTH_HMAC_ID_SHA256	0x0003
-#define SCTP_AUTH_HMAC_ID_SHA224	0x8001
-#define SCTP_AUTH_HMAC_ID_SHA384	0x8002
-#define SCTP_AUTH_HMAC_ID_SHA512	0x8003
+#define SCTP_AUTH_HMAC_ID_SHA224	0x0004
+#define SCTP_AUTH_HMAC_ID_SHA384	0x0005
+#define SCTP_AUTH_HMAC_ID_SHA512	0x0006
 
 
 /* SCTP_AUTH_ACTIVE_KEY / SCTP_AUTH_DELETE_KEY */
