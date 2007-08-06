@@ -664,6 +664,20 @@ setbridge_timeout(const char *arg, int d, int s, const struct afswtch *afp)
 		err(1, "BRDGSTO %s",  arg);
 }
 
+static void
+setbridge_private(const char *val, int d, int s, const struct afswtch *afp)
+{
+
+	do_bridgeflag(s, val, IFBIF_PRIVATE, 1);
+}
+
+static void
+unsetbridge_private(const char *val, int d, int s, const struct afswtch *afp)
+{
+
+	do_bridgeflag(s, val, IFBIF_PRIVATE, 0);
+}
+
 static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("addm",		setbridge_add),
 	DEF_CMD_ARG("deletem",		setbridge_delete),
@@ -700,6 +714,8 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
+	DEF_CMD_ARG("private",		setbridge_private),
+	DEF_CMD_ARG("-private",		unsetbridge_private),
 };
 static struct afswtch af_bridge = {
 	.af_name	= "af_bridge",

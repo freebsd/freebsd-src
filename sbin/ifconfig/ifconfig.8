@@ -1201,6 +1201,16 @@ address is seen on a different interface.
 Clear the
 .Dq sticky
 attribute on a member interface.
+.It Cm private Ar interface
+Mark an interface as a
+.Dq private
+interface.
+A private interface does not forward any traffic to any other port that is also
+a private interface.
+.It Cm -private Ar interface
+Clear the
+.Dq private
+attribute on a member interface.
 .It Cm span Ar interface
 Add the interface named by
 .Ar interface

@@ -142,9 +142,11 @@ struct ifbreq {
 #define	IFBIF_BSTP_AUTOPTP	0x0100	/* member stp autoptp enabled */
 #define	IFBIF_BSTP_ADMEDGE	0x0200	/* member stp admin edge enabled */
 #define	IFBIF_BSTP_ADMCOST	0x0400	/* member stp admin path cost */
+#define	IFBIF_PRIVATE		0x0800	/* if is a private segment */
 
 #define	IFBIFBITS	"\020\001LEARNING\002DISCOVER\003STP\004SPAN" \
-			"\005STICKY\006EDGE\007AUTOEDGE\010PTP\011AUTOPTP"
+			"\005STICKY\014PRIVATE\006EDGE\007AUTOEDGE\010PTP" \
+			"\011AUTOPTP"
 #define	IFBIFMASK	~(IFBIF_BSTP_EDGE|IFBIF_BSTP_AUTOEDGE|IFBIF_BSTP_PTP| \
 			IFBIF_BSTP_AUTOPTP|IFBIF_BSTP_ADMEDGE| \
 			IFBIF_BSTP_ADMCOST)	/* not saved */
