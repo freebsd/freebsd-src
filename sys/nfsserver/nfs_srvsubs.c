@@ -526,7 +526,6 @@ nfsrv_modevent(module_t mod, int type, void *data)
 	static int registered;
 	int error = 0;
 
-	NET_LOCK_GIANT();
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&nfsd_mtx, "nfsd_mtx", NULL, MTX_DEF);
@@ -577,7 +576,6 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	NET_UNLOCK_GIANT();
 	return error;
 }
 static moduledata_t nfsserver_mod = {

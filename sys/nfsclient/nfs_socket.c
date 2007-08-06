@@ -265,8 +265,6 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
-	NET_LOCK_GIANT();
-
 	if (nmp->nm_sotype == SOCK_STREAM) {
 		mtx_lock(&nmp->nm_mtx);
  		nmp->nm_nfstcpstate.flags |= NFS_TCP_EXPECT_RPCMARKER;
@@ -458,12 +456,10 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	nmp->nm_sent = 0;
 	nmp->nm_timeouts = 0;
 	mtx_unlock(&nmp->nm_mtx);
-	NET_UNLOCK_GIANT();
 	return (0);
 
 bad:
 	nfs_disconnect(nmp);
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -531,8 +527,6 @@ nfs_disconnect(struct nfsmount *nmp)
 {
 	struct socket *so;
 
-	NET_ASSERT_GIANT();
-
 	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_so) {
 		so = nmp->nm_so;
@@ -573,14 +567,12 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 	struct sockaddr *sendnam;
 	int error, error2, soflags, flags;
 
-	NET_LOCK_GIANT();
-
 	KASSERT(rep, ("nfs_send: called with rep == NULL"));
 
 	error = nfs_sigintr(rep->r_nmp, rep, rep->r_td);
 	if (error) {
 		m_freem(top);
-		goto out;
+		return (error);
 	}
 	mtx_lock(&rep->r_nmp->nm_mtx);
 	mtx_lock(&rep->r_mtx);
@@ -589,8 +581,7 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 		mtx_unlock(&rep->r_mtx);
 		mtx_unlock(&rep->r_nmp->nm_mtx);
 		m_freem(top);
-		error = 0;
-		goto out;
+		return (0);
 	}
 	rep->r_flags &= ~R_MUSTRESEND;
 	soflags = rep->r_nmp->nm_soflags;
@@ -644,8 +635,6 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 		if (error != EINTR && error != ERESTART && error != EIO && error != EPIPE)
 			error = 0;
 	}
-out:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -656,8 +645,6 @@ nfs_reply(struct nfsreq *rep)
 	register struct mbuf *m;
 	int error = 0, sotype, slpflag;
 
-	NET_LOCK_GIANT();
-
 	sotype = rep->r_nmp->nm_sotype;
 	/*
 	 * For reliable protocols, lock against other senders/receivers
@@ -666,7 +653,7 @@ nfs_reply(struct nfsreq *rep)
 	if (sotype != SOCK_DGRAM) {
 		error = nfs_sndlock(rep);
 		if (error)
-			goto out;
+			return (error);
 tryagain:
 		mtx_lock(&rep->r_nmp->nm_mtx);
 		mtx_lock(&rep->r_mtx);
@@ -674,15 +661,13 @@ tryagain:
 			mtx_unlock(&rep->r_mtx);
 			mtx_unlock(&rep->r_nmp->nm_mtx);
 			nfs_sndunlock(rep);
-			error = 0;
-			goto out;
+			return (0);
 		}
 		if (rep->r_flags & R_SOFTTERM) {
 			mtx_unlock(&rep->r_mtx);
 			mtx_unlock(&rep->r_nmp->nm_mtx);
 			nfs_sndunlock(rep);
-			error = EINTR;
-			goto out;
+			return (EINTR);
 		}
 		so = rep->r_nmp->nm_so;
 		if (!so || 
@@ -692,7 +677,7 @@ tryagain:
 			error = nfs_reconnect(rep);
 			if (error) {
 				nfs_sndunlock(rep);
-				goto out;
+				return (error);
 			}
 			goto tryagain;
 		}
@@ -706,7 +691,7 @@ tryagain:
 				if (error == EINTR || error == ERESTART ||
 				    (error = nfs_reconnect(rep)) != 0) {
 					nfs_sndunlock(rep);
-					goto out;
+					return (error);
 				}
 				goto tryagain;
 			}
@@ -730,15 +715,13 @@ tryagain:
 			       slpflag | (PZERO - 1), "nfsreq", 0);
 	if (error == EINTR || error == ERESTART) {
 		/* NFS operations aren't restartable. Map ERESTART to EINTR */
-		error = EINTR;
 		mtx_unlock(&rep->r_mtx);
-		goto out;
+		return (EINTR);
 	}
 	if (rep->r_flags & R_SOFTTERM) {
 		/* Request was terminated because we exceeded the retries (soft mount) */
-		error = ETIMEDOUT;
 		mtx_unlock(&rep->r_mtx);
-		goto out;
+		return (ETIMEDOUT);
 	}
 	mtx_unlock(&rep->r_mtx);
 	if (sotype == SOCK_STREAM) {
@@ -750,15 +733,13 @@ tryagain:
 			mtx_unlock(&rep->r_nmp->nm_mtx);	
 			error = nfs_sndlock(rep);
 			if (error)
-				goto out;
+				return (error);
 			goto tryagain;
 		} else {
 			mtx_unlock(&rep->r_mtx);
 			mtx_unlock(&rep->r_nmp->nm_mtx);	
 		}
 	}
-out:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -1475,7 +1456,6 @@ nfs_timer(void *arg)
 				rep->r_flags |= R_PIN_REQ;
 				mtx_unlock(&rep->r_mtx);
 				mtx_unlock(&nfs_reqq_mtx);
-				NET_LOCK_GIANT();
 				if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
 					error = (*so->so_proto->pr_usrreqs->pru_send)
 						(so, 0, m, NULL, NULL, curthread);
@@ -1483,7 +1463,6 @@ nfs_timer(void *arg)
 					error = (*so->so_proto->pr_usrreqs->pru_send)
 						(so, 0, m, nmp->nm_nam, NULL, 
 						 curthread);
-				NET_UNLOCK_GIANT();
 				mtx_lock(&nfs_reqq_mtx);
 				mtx_lock(&nmp->nm_mtx);
 				mtx_lock(&rep->r_mtx);
@@ -1689,7 +1668,6 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
-	int error = 0;
 	
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_sigintr(nmp, rep, td);
@@ -1697,18 +1675,15 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 		mtx_lock(&rep->r_mtx);
 		if (rep->r_flags & R_SOFTTERM) {
 			mtx_unlock(&rep->r_mtx);
-			error = EIO;
-			goto out;
+			return (EIO);
 		} else
 			mtx_unlock(&rep->r_mtx);
 	}
 	/* Terminate all requests while attempting a forced unmount. */
-	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
-		error = EIO;
-		goto out;
-	}
+	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
+		return (EIO);
 	if (!(nmp->nm_flag & NFSMNT_INT))
-		goto out;
+		return (0);
 	if (td == NULL)
 		return (0);
 	p = td->td_proc;
@@ -1725,10 +1700,7 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 		return (EINTR);
 	}
 	PROC_UNLOCK(p);
-
 	return (0);
-out:
-	return(error);
 }
 
 /*

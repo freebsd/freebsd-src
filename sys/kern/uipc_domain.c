@@ -453,8 +453,6 @@ pfslowtimo(void *arg)
 	struct domain *dp;
 	struct protosw *pr;
 
-	NET_ASSERT_GIANT();
-
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_slowtimo)
@@ -467,8 +465,6 @@ pffasttimo(void *arg)
 {
 	struct domain *dp;
 	struct protosw *pr;
-
-	NET_ASSERT_GIANT();
 
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)

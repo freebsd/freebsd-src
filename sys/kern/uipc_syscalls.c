@@ -175,10 +175,8 @@ socket(td, uap)
 	if (error)
 		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
-	NET_LOCK_GIANT();
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
-	NET_UNLOCK_GIANT();
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
@@ -225,25 +223,22 @@ kern_bind(td, fd, sa)
 	struct file *fp;
 	int error;
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
-		goto done2;
+		return (error);
 	so = fp->f_data;
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_bind(td->td_ucred, so, sa);
 	SOCK_UNLOCK(so);
 	if (error)
-		goto done1;
+		goto done;
 #endif
 	error = sobind(so, sa, td);
 #ifdef MAC
-done1:
+done:
 #endif
 	fdrop(fp, td);
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -260,7 +255,6 @@ listen(td, uap)
 	struct file *fp;
 	int error;
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -277,7 +271,6 @@ done:
 #endif
 		fdrop(fp, td);
 	}
-	NET_UNLOCK_GIANT();
 	return(error);
 }
 
@@ -357,10 +350,9 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	}
 
 	fdp = td->td_proc->p_fd;
-	NET_LOCK_GIANT();
 	error = getsock(fdp, s, &headfp, &fflag);
 	if (error)
-		goto done2;
+		return (error);
 	head = headfp->f_data;
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		error = EINVAL;
@@ -491,8 +483,6 @@ done:
 	if (nfp != NULL)
 		fdrop(nfp, td);
 	fdrop(headfp, td);
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -550,10 +540,9 @@ kern_connect(td, fd, sa)
 	int error;
 	int interrupted = 0;
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
-		goto done2;
+		return (error);
 	so = fp->f_data;
 	if (so->so_state & SS_ISCONNECTING) {
 		error = EALREADY;
@@ -595,8 +584,6 @@ bad:
 		error = EINTR;
 done1:
 	fdrop(fp, td);
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -623,11 +610,10 @@ socketpair(td, uap)
 		return (error);
 #endif
 
-	NET_LOCK_GIANT();
 	error = socreate(uap->domain, &so1, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	if (error)
-		goto done2;
+		return (error);
 	error = socreate(uap->domain, &so2, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	if (error)
@@ -670,7 +656,7 @@ socketpair(td, uap)
 		goto free4;
 	fdrop(fp1, td);
 	fdrop(fp2, td);
-	goto done2;
+	return (0);
 free4:
 	fdclose(fdp, fp2, sv[1], td);
 	fdrop(fp2, td);
@@ -683,8 +669,6 @@ free2:
 free1:
 	if (so1 != NULL)
 		(void)soclose(so1);
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -770,10 +754,9 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	struct uio *ktruio = NULL;
 #endif
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error)
-		goto bad2;
+		return (error);
 	so = (struct socket *)fp->f_data;
 
 #ifdef MAC
@@ -826,8 +809,6 @@ kern_sendit(td, s, mp, flags, control, segflg)
 #endif
 bad:
 	fdrop(fp, td);
-bad2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -968,12 +949,9 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	if(controlp != NULL)
 		*controlp = 0;
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
-	if (error) {
-		NET_UNLOCK_GIANT();
+	if (error)
 		return (error);
-	}
 	so = fp->f_data;
 
 #ifdef MAC
@@ -982,7 +960,6 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	SOCK_UNLOCK(so);
 	if (error) {
 		fdrop(fp, td);
-		NET_UNLOCK_GIANT();
 		return (error);
 	}
 #endif
@@ -998,7 +975,6 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
 		if ((auio.uio_resid += iov->iov_len) < 0) {
 			fdrop(fp, td);
-			NET_UNLOCK_GIANT();
 			return (EINVAL);
 		}
 	}
@@ -1094,7 +1070,6 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	}
 out:
 	fdrop(fp, td);
-	NET_UNLOCK_GIANT();
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 
@@ -1285,14 +1260,12 @@ shutdown(td, uap)
 	struct file *fp;
 	int error;
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = soshutdown(so, uap->how);
 		fdrop(fp, td);
 	}
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -1349,14 +1322,12 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 		panic("kern_setsockopt called with bad valseg");
 	}
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
 		error = sosetopt(so, &sopt);
 		fdrop(fp, td);
 	}
-	NET_UNLOCK_GIANT();
 	return(error);
 }
 
@@ -1429,7 +1400,6 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 		panic("kern_getsockopt called with bad valseg");
 	}
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -1437,7 +1407,6 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 		*valsize = sopt.sopt_valsize;
 		fdrop(fp, td);
 	}
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -1492,10 +1461,9 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	if (*alen < 0)
 		return (EINVAL);
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
-		goto done;
+		return (error);
 	so = fp->f_data;
 	*sa = NULL;
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, sa);
@@ -1512,8 +1480,6 @@ bad:
 		free(*sa, M_SONAME);
 		*sa = NULL;
 	}
-done:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -1588,14 +1554,13 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	if (*alen < 0)
 		return (EINVAL);
 
-	NET_LOCK_GIANT();
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
-		goto done2;
+		return (error);
 	so = fp->f_data;
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
 		error = ENOTCONN;
-		goto done1;
+		goto done;
 	}
 	*sa = NULL;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, sa);
@@ -1611,10 +1576,8 @@ bad:
 		free(*sa, M_SONAME);
 		*sa = NULL;
 	}
-done1:
+done:
 	fdrop(fp, td);
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -1822,8 +1785,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
 	int vfslocked;
-
-	NET_LOCK_GIANT();
 
 	/*
 	 * The file descriptor must be a regular file and have a
@@ -2241,8 +2202,6 @@ out:
 		fdrop(sock_fp, td);
 	if (m)
 		m_freem(m);
-
-	NET_UNLOCK_GIANT();
 
 	if (error == ERESTART)
 		error = EINTR;

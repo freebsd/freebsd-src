@@ -408,8 +408,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	char buf[128];
 	char *cp;
 
-	NET_ASSERT_GIANT();
-
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
 #elif defined(NFS_ROOT)

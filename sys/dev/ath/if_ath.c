@@ -888,11 +888,9 @@ ath_bmiss_proc(void *arg, int pending)
 		 * truly a bmiss we'll get another interrupt soon and that'll
 		 * be dispatched up for processing.
 		 */
-		if (tsf - lastrx > bmisstimeout) {
-			NET_LOCK_GIANT();
+		if (tsf - lastrx > bmisstimeout)
 			ieee80211_beacon_miss(ic);
-			NET_UNLOCK_GIANT();
-		} else
+		else
 			sc->sc_stats.ast_bmiss_phantom++;
 	}
 }
@@ -3447,7 +3445,6 @@ ath_rx_proc(void *arg, int npending)
 	int16_t nf;
 	u_int64_t tsf;
 
-	NET_LOCK_GIANT();		/* XXX */
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ngood = 0;
@@ -3715,7 +3712,6 @@ rx_next:
 	    !IFQ_IS_EMPTY(&ifp->if_snd))
 		ath_start(ifp);
 
-	NET_UNLOCK_GIANT();		/* XXX */
 #undef PA2DESC
 }
 
