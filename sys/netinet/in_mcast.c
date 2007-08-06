@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -856,6 +857,16 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	INP_LOCK(inp);
 	imo = inp->inp_moptions;
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM)) {
+		INP_UNLOCK(inp);
+		return (EOPNOTSUPP);
+	}
 
 	error = 0;
 	switch (sopt->sopt_name) {
@@ -1674,6 +1685,16 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	int			 error;
 
 	error = 0;
+
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 * XXX Unlocked read of inp_socket believed OK.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
+		return (EOPNOTSUPP);
 
 	switch (sopt->sopt_name) {
 	case IP_MULTICAST_VIF: {

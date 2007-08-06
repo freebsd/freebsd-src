@@ -61,6 +61,7 @@
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/netisr.h> 
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -305,6 +306,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	struct m_tag *mtag;
 	struct divert_tag *dt;
 	int error = 0;
+	struct mbuf *options;
 
 	/*
 	 * An mbuf may hasn't come from userland, but we pretend
@@ -361,6 +363,8 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
+			INP_UNLOCK(inp);
+			INP_INFO_WUNLOCK(&divcbinfo);
 			m_freem(m);
 		} else {
 			/* Convert fields to host order for ip_output() */
@@ -373,15 +377,46 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 #ifdef MAC
 			mac_create_mbuf_from_inpcb(inp, m);
 #endif
-			error = ip_output(m,
-				    inp->inp_options, NULL,
-				    ((so->so_options & SO_DONTROUTE) ?
-				    IP_ROUTETOIF : 0) |
-				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
-				    inp->inp_moptions, NULL);
+			/*
+			 * Get ready to inject the packet into ip_output().
+			 * Just in case socket options were specified on the
+			 * divert socket, we duplicate them.  This is done
+			 * to avoid having to hold the PCB locks over the call
+			 * to ip_output(), as doing this results in a number of
+			 * lock ordering complexities.
+			 *
+			 * Note that we set the multicast options argument for
+			 * ip_output() to NULL since it should be invariant that
+			 * they are not present.
+			 */
+			KASSERT(inp->inp_moptions == NULL,
+			    ("multicast options set on a divert socket"));
+			options = NULL;
+			/*
+			 * XXXCSJP: It is unclear to me whether or not it makes
+			 * sense for divert sockets to have options.  However,
+			 * for now we will duplicate them with the INP locks
+			 * held so we can use them in ip_output() without
+			 * requring a reference to the pcb.
+			 */
+			if (inp->inp_options != NULL) {
+				options = m_dup(inp->inp_options, M_DONTWAIT);
+				if (options == NULL)
+					error = ENOBUFS;
+			}
+			INP_UNLOCK(inp);
+			INP_INFO_WUNLOCK(&divcbinfo);
+			if (error == ENOBUFS) {
+				m_freem(m);
+				return (error);
+			}
+			error = ip_output(m, options, NULL,
+			    ((so->so_options & SO_DONTROUTE) ?
+			    IP_ROUTETOIF : 0) | IP_ALLOWBROADCAST |
+			    IP_RAWOUTPUT, NULL, NULL);
+			if (options != NULL)
+				m_freem(options);
 		}
-		INP_UNLOCK(inp);
-		INP_INFO_WUNLOCK(&divcbinfo);
 	} else {
 		dt->info |= IP_FW_DIVERT_LOOPBACK_FLAG;
 		if (m->m_pkthdr.rcvif == NULL) {
@@ -406,8 +441,8 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		mac_create_mbuf_from_socket(so, m);
 		SOCK_UNLOCK(so);
 #endif
-		/* Send packet to input processing */
-		ip_input(m);
+		/* Send packet to input processing via netisr */
+		netisr_queue(NETISR_IP, m);
 	}
 
 	return error;
