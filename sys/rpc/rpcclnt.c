@@ -365,11 +365,8 @@ rpcclnt_connect(rpc, td)
 
 	saddr = rpc->rc_name;
 
-	NET_LOCK_GIANT();
 	error = socreate(saddr->sa_family, &rpc->rc_so, rpc->rc_sotype,
 			 rpc->rc_soproto, td->td_ucred, td);
-	NET_UNLOCK_GIANT();
-
 	if (error) {
 		RPCDEBUG("error %d in socreate()", error);
 		RPC_RETURN(error);
@@ -627,10 +624,8 @@ rpcclnt_disconnect(rpc)
 	if (rpc->rc_so) {
 		so = rpc->rc_so;
 		rpc->rc_so = NULL;
-		NET_LOCK_GIANT();
 		soshutdown(so, 2);
 		soclose(so);
-		NET_UNLOCK_GIANT();
 	}
 }
 
@@ -708,10 +703,7 @@ rpcclnt_send(so, nam, top, rep)
 	 * to be conditionally acquired earlier for the stack so has to avoid
 	 * lock order reversals with any locks held over rpcclnt_send().
 	 */
-	NET_LOCK_GIANT();
 	error = sosend(so, sendnam, NULL, top, NULL, flags, td);
-	NET_UNLOCK_GIANT();
-
 	if (error) {
 		if (rep) {
 			log(LOG_INFO, "rpc send error %d for service %s\n", error,
@@ -838,9 +830,7 @@ tryagain:
 #endif
 			do {
 				rcvflg = MSG_WAITALL;
-				NET_LOCK_GIANT();
 				error = soreceive(so, NULL, &auio, NULL, NULL, &rcvflg);
-				NET_UNLOCK_GIANT();
 				if (error == EWOULDBLOCK && rep) {
 					if (rep->r_flags & R_SOFTTERM)
 						RPC_RETURN(EINTR);
@@ -873,9 +863,7 @@ tryagain:
 			auio.uio_resid = len;
 			do {
 				rcvflg = MSG_WAITALL;
-				NET_LOCK_GIANT();
 				error = soreceive(so, NULL, &auio, mp, NULL, &rcvflg);
-				NET_UNLOCK_GIANT();
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (!error && auio.uio_resid > 0) {
@@ -901,9 +889,7 @@ tryagain:
 #endif
 			do {
 				rcvflg = 0;
-				NET_LOCK_GIANT();
 				error = soreceive(so, NULL, &auio, mp, &control, &rcvflg);
-				NET_UNLOCK_GIANT();
 				if (control)
 					m_freem(control);
 				if (error == EWOULDBLOCK && rep) {
@@ -949,9 +935,7 @@ errout:
 
 		do {
 			rcvflg = 0;
-			NET_LOCK_GIANT();
 			error = soreceive(so, getnam, &auio, mp, NULL, &rcvflg);
-			NET_UNLOCK_GIANT();
 			RPCDEBUG("soreceive returns %d", error);
 			if (error == EWOULDBLOCK && (rep->r_flags & R_SOFTTERM)) {
 				RPCDEBUG("wouldblock && softerm -> EINTR");

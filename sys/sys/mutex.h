@@ -396,19 +396,6 @@ do {									\
 	return (_val);							\
 } while (0)
 
-/*
- * With the advent of fine-grained locking, the Giant lock is no longer
- * required around the network stack.  These macros exist for historical
- * reasons, allowing conditional acquisition of Giant based on a debugging
- * setting, and will be removed.
- */
-#define	NET_LOCK_GIANT() do {						\
-} while (0)
-#define	NET_UNLOCK_GIANT() do {						\
-} while (0)
-#define	NET_ASSERT_GIANT() do {						\
-} while (0)
-
 struct mtx_args {
 	struct mtx	*ma_mtx;
 	const char 	*ma_desc;

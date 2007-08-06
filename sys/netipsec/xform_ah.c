@@ -735,8 +735,6 @@ ah_input_cb(struct cryptop *crp)
 	caddr_t ptr;
 	int authsize;
 
-	NET_LOCK_GIANT();
-
 	crd = crp->crp_desc;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
@@ -769,7 +767,6 @@ ah_input_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			error = crypto_dispatch(crp);
-			NET_UNLOCK_GIANT();
 			return error;
 		}
 
@@ -863,7 +860,6 @@ ah_input_cb(struct cryptop *crp)
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
 
 	KEY_FREESAV(&sav);
-	NET_UNLOCK_GIANT();
 	return error;
 bad:
 	if (sav)
@@ -874,7 +870,6 @@ bad:
 		free(tc, M_XDATA);
 	if (crp != NULL)
 		crypto_freereq(crp);
-	NET_UNLOCK_GIANT();
 	return error;
 }
 
@@ -1125,8 +1120,6 @@ ah_output_cb(struct cryptop *crp)
 	caddr_t ptr;
 	int err;
 
-	NET_LOCK_GIANT();
-
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	skip = tc->tc_skip;
@@ -1154,7 +1147,6 @@ ah_output_cb(struct cryptop *crp)
 			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
-			NET_UNLOCK_GIANT();
 			return error;
 		}
 
@@ -1201,7 +1193,6 @@ ah_output_cb(struct cryptop *crp)
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	NET_UNLOCK_GIANT();
 	return err;
 bad:
 	if (sav)
@@ -1211,7 +1202,6 @@ bad:
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	NET_UNLOCK_GIANT();
 	return error;
 }
 

@@ -2098,8 +2098,6 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 	struct file *fp;
 	int error;
 
-	NET_ASSERT_GIANT();
-
 	*spp = NULL;
 	if (fflagp != NULL)
 		*fflagp = 0;
@@ -2129,7 +2127,6 @@ void
 fputsock(struct socket *so)
 {
 
-	NET_ASSERT_GIANT();
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	sorele(so);

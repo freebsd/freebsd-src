@@ -134,7 +134,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)
 		return (error);
-	NET_LOCK_GIANT();
 	NFSD_LOCK();
 	while (nfssvc_sockhead_flag & SLP_INIT) {
 		 nfssvc_sockhead_flag |= SLP_WANTINIT;
@@ -145,12 +144,12 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
-			goto done2;
+			return (error);
 		if ((error = fget(td, nfsdarg.sock, &fp)) != 0)
-			goto done2;
+			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
-			goto done2;
+			return (error);	/* XXXRW: Should be EINVAL? */
 		}
 		/*
 		 * Get the client address for connected sockets.
@@ -162,7 +161,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 					    nfsdarg.namelen);
 			if (error) {
 				fdrop(fp, td);
-				goto done2;
+				return (error);
 			}
 		}
 		error = nfssvc_addsock(fp, nam, td);
@@ -174,8 +173,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	}
 	if (error == EINTR || error == ERESTART)
 		error = 0;
-done2:
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -189,8 +186,6 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 	struct nfssvc_sock *slp;
 	struct socket *so;
 	int error, s;
-
-	NET_ASSERT_GIANT();
 
 	so = fp->f_data;
 #if 0
@@ -304,8 +299,6 @@ nfssvc_nfsd(struct thread *td)
 	int error = 0, cacherep, s, sotype, writes_todo;
 	int procrastinate;
 	u_quad_t cur_usec;
-
-	NET_ASSERT_GIANT();
 
 #ifndef nolint
 	cacherep = RC_DOIT;
@@ -590,7 +583,6 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 	struct nfsrv_rec *rec;
 	int s;
 
-	NET_ASSERT_GIANT();
 	NFSD_LOCK_ASSERT();
 
 	/*
@@ -703,7 +695,6 @@ nfsrv_init(int terminating)
 {
 	struct nfssvc_sock *slp, *nslp;
 
-	NET_ASSERT_GIANT();
 	NFSD_LOCK_ASSERT();
 
 	if (nfssvc_sockhead_flag & SLP_INIT)
