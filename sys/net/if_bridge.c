@@ -665,8 +665,6 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	const struct bridge_control *bc;
 	int error = 0;
 
-	BRIDGE_LOCK(sc);
-
 	switch (cmd) {
 
 	case SIOCADDMULTI:
@@ -711,7 +709,9 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				break;
 		}
 
+		BRIDGE_LOCK(sc);
 		error = (*bc->bc_func)(sc, &args);
+		BRIDGE_UNLOCK(sc);
 		if (error)
 			break;
 
@@ -727,14 +727,15 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked down and it is running,
 			 * then stop and disable it.
 			 */
+			BRIDGE_LOCK(sc);
 			bridge_stop(ifp, 1);
+			BRIDGE_UNLOCK(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
 		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
-			BRIDGE_UNLOCK(sc);
 			(*ifp->if_init)(sc);
 		}
 		break;
@@ -749,13 +750,9 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * drop the lock as ether_ioctl() will call bridge_start() and
 		 * cause the lock to be recursed.
 		 */
-		BRIDGE_UNLOCK(sc);
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-
-	if (BRIDGE_LOCKED(sc))
-		BRIDGE_UNLOCK(sc);
 
 	return (error);
 }
@@ -1103,7 +1100,8 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	struct ifbifconf *bifc = arg;
 	struct bridge_iflist *bif;
 	struct ifbreq breq;
-	int count, len, error = 0;
+	char *buf, *outbuf;
+	int count, buflen, len, error = 0;
 
 	count = 0;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next)
@@ -1111,13 +1109,18 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
 		count++;
 
+	buflen = sizeof(breq) * count;
 	if (bifc->ifbic_len == 0) {
-		bifc->ifbic_len = sizeof(breq) * count;
+		bifc->ifbic_len = buflen;
 		return (0);
 	}
+	BRIDGE_UNLOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+	BRIDGE_LOCK(sc);
 
 	count = 0;
-	len = bifc->ifbic_len;
+	buf = outbuf;
+	len = min(bifc->ifbic_len, buflen);
 	bzero(&breq, sizeof(breq));
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (len < sizeof(breq))
@@ -1129,10 +1132,9 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 		error = bridge_ioctl_gifflags(sc, &breq);
 		if (error)
 			break;
-		error = copyout(&breq, bifc->ifbic_req + count, sizeof(breq));
-		if (error)
-			break;
+		memcpy(buf, &breq, sizeof(breq));
 		count++;
+		buf += sizeof(breq);
 		len -= sizeof(breq);
 	}
 	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next) {
@@ -1143,14 +1145,17 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 		    sizeof(breq.ifbr_ifsname));
 		breq.ifbr_ifsflags = bif->bif_flags;
 		breq.ifbr_portno = bif->bif_ifp->if_index & 0xfff;
-		error = copyout(&breq, bifc->ifbic_req + count, sizeof(breq));
-		if (error)
-			break;
+		memcpy(buf, &breq, sizeof(breq));
 		count++;
+		buf += sizeof(breq);
 		len -= sizeof(breq);
 	}
 
+	BRIDGE_UNLOCK(sc);
 	bifc->ifbic_len = sizeof(breq) * count;
+	error = copyout(outbuf, bifc->ifbic_req, bifc->ifbic_len);
+	BRIDGE_LOCK(sc);
+	free(outbuf, M_TEMP);
 	return (error);
 }
 
@@ -1160,12 +1165,24 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 	struct ifbaconf *bac = arg;
 	struct bridge_rtnode *brt;
 	struct ifbareq bareq;
-	int count = 0, error = 0, len;
+	char *buf, *outbuf;
+	int count, buflen, len, error = 0;
 
 	if (bac->ifbac_len == 0)
 		return (0);
 
-	len = bac->ifbac_len;
+	count = 0;
+	LIST_FOREACH(brt, &sc->sc_rtlist, brt_list)
+		count++;
+	buflen = sizeof(bareq) * count;
+
+	BRIDGE_UNLOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+	BRIDGE_LOCK(sc);
+
+	count = 0;
+	buf = outbuf;
+	len = min(bac->ifbac_len, buflen);
 	bzero(&bareq, sizeof(bareq));
 	LIST_FOREACH(brt, &sc->sc_rtlist, brt_list) {
 		if (len < sizeof(bareq))
@@ -1180,14 +1197,17 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 			bareq.ifba_expire = 0;
 		bareq.ifba_flags = brt->brt_flags;
 
-		error = copyout(&bareq, bac->ifbac_req + count, sizeof(bareq));
-		if (error)
-			goto out;
+		memcpy(buf, &bareq, sizeof(bareq));
 		count++;
+		buf += sizeof(bareq);
 		len -= sizeof(bareq);
 	}
 out:
+	BRIDGE_UNLOCK(sc);
 	bac->ifbac_len = sizeof(bareq) * count;
+	error = copyout(outbuf, bac->ifbac_req, bac->ifbac_len);
+	BRIDGE_LOCK(sc);
+	free(outbuf, M_TEMP);
 	return (error);
 }
 
@@ -1449,7 +1469,8 @@ bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
 	struct bridge_iflist *bif;
 	struct bstp_port *bp;
 	struct ifbpstpreq bpreq;
-	int count, len, error = 0;
+	char *buf, *outbuf;
+	int count, buflen, len, error = 0;
 
 	count = 0;
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
@@ -1457,13 +1478,19 @@ bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
 			count++;
 	}
 
+	buflen = sizeof(bpreq) * count;
 	if (bifstp->ifbpstp_len == 0) {
-		bifstp->ifbpstp_len = sizeof(bpreq) * count;
+		bifstp->ifbpstp_len = buflen;
 		return (0);
 	}
 
+	BRIDGE_UNLOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
+	BRIDGE_LOCK(sc);
+
 	count = 0;
-	len = bifstp->ifbpstp_len;
+	buf = outbuf;
+	len = min(bifstp->ifbpstp_len, buflen);
 	bzero(&bpreq, sizeof(bpreq));
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (len < sizeof(bpreq))
@@ -1480,16 +1507,17 @@ bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
 		bpreq.ifbp_design_bridge = bp->bp_desg_pv.pv_dbridge_id;
 		bpreq.ifbp_design_root = bp->bp_desg_pv.pv_root_id;
 
-		error = copyout(&bpreq, bifstp->ifbpstp_req + count,
-				sizeof(bpreq));
-		if (error != 0)
-			break;
-
+		memcpy(buf, &bpreq, sizeof(bpreq));
 		count++;
+		buf += sizeof(bpreq);
 		len -= sizeof(bpreq);
 	}
 
+	BRIDGE_UNLOCK(sc);
 	bifstp->ifbpstp_len = sizeof(bpreq) * count;
+	error = copyout(outbuf, bifstp->ifbpstp_req, bifstp->ifbpstp_len);
+	BRIDGE_LOCK(sc);
+	free(outbuf, M_TEMP);
 	return (error);
 }
 
