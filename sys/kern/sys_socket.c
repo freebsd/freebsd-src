@@ -73,21 +73,16 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
 	struct socket *so = fp->f_data;
+#ifdef MAC
 	int error;
 
-	NET_LOCK_GIANT();
-#ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_receive(active_cred, so);
 	SOCK_UNLOCK(so);
-	if (error) {
-		NET_UNLOCK_GIANT();
+	if (error)
 		return (error);
-	}
 #endif
-	error = soreceive(so, 0, uio, 0, 0, 0);
-	NET_UNLOCK_GIANT();
-	return (error);
+	return (soreceive(so, 0, uio, 0, 0, 0));
 }
 
 /* ARGSUSED */
@@ -98,15 +93,12 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	struct socket *so = fp->f_data;
 	int error;
 
-	NET_LOCK_GIANT();
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_send(active_cred, so);
 	SOCK_UNLOCK(so);
-	if (error) {
-		NET_UNLOCK_GIANT();
+	if (error)
 		return (error);
-	}
 #endif
 	error = sosend(so, 0, uio, 0, 0, 0, uio->uio_td);
 	if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
@@ -114,7 +106,6 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		psignal(uio->uio_td->td_proc, SIGPIPE);
 		PROC_UNLOCK(uio->uio_td->td_proc);
 	}
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 
@@ -125,9 +116,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	struct socket *so = fp->f_data;
 	int error = 0;
 
-	NET_LOCK_GIANT();
 	switch (cmd) {
-
 	case FIONBIO:
 		SOCK_LOCK(so);
 		if (*(int *)data)
@@ -207,8 +196,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			    (so, cmd, data, 0, td));
 		break;
 	}
-	NET_UNLOCK_GIANT();
-	return(error);
+	return (error);
 }
 
 int
@@ -216,22 +204,16 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	struct socket *so = fp->f_data;
+#ifdef MAC
 	int error;
 
-	NET_LOCK_GIANT();
-#ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_poll(active_cred, so);
 	SOCK_UNLOCK(so);
-	if (error) {
-		NET_UNLOCK_GIANT();
+	if (error)
 		return (error);
-	}
 #endif
-	error = sopoll(so, events, fp->f_cred, td);
-	NET_UNLOCK_GIANT();
-
-	return (error);
+	return (sopoll(so, events, fp->f_cred, td));
 }
 
 int
@@ -239,19 +221,18 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
     struct thread *td)
 {
 	struct socket *so = fp->f_data;
+#ifdef MAC
 	int error;
+#endif
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
-	NET_LOCK_GIANT();
 #ifdef MAC
 	SOCK_LOCK(so);
 	error = mac_check_socket_stat(active_cred, so);
 	SOCK_UNLOCK(so);
-	if (error) {
-		NET_UNLOCK_GIANT();
+	if (error)
 		return (error);
-	}
 #endif
 	/*
 	 * If SBS_CANTRCVMORE is set, but there's still data left in the
@@ -269,9 +250,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	ub->st_size = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
-	error = (*so->so_proto->pr_usrreqs->pru_sense)(so, ub);
-	NET_UNLOCK_GIANT();
-	return (error);
+	return (*so->so_proto->pr_usrreqs->pru_sense)(so, ub);
 }
 
 /*
@@ -287,13 +266,11 @@ soo_close(struct file *fp, struct thread *td)
 	int error = 0;
 	struct socket *so;
 
-	NET_LOCK_GIANT();
 	so = fp->f_data;
 	fp->f_ops = &badfileops;
 	fp->f_data = NULL;
 
 	if (so)
 		error = soclose(so);
-	NET_UNLOCK_GIANT();
 	return (error);
 }

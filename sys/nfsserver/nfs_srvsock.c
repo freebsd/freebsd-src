@@ -413,12 +413,6 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 	struct uio auio;
 	int flags, error;
 
-	/*
-	 * XXXRW: For now, assert Giant here since the NFS server upcall
-	 * will perform socket operations requiring Giant in a non-mpsafe
-	 * kernel.
-	 */
-	NET_ASSERT_GIANT();
 	NFSD_UNLOCK_ASSERT();
 
 	/* XXXRW: Unlocked read. */
@@ -761,7 +755,6 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 	struct sockaddr *sendnam;
 	int error, soflags, flags;
 
-	NET_ASSERT_GIANT();
 	NFSD_UNLOCK_ASSERT();
 
 	soflags = so->so_proto->pr_flags;

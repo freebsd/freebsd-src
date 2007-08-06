@@ -329,7 +329,6 @@ ether_poll(int count)
 {
 	int i;
 
-	NET_LOCK_GIANT();
 	mtx_lock(&poll_mtx);
 
 	if (count > poll_each_burst)
@@ -339,7 +338,6 @@ ether_poll(int count)
 		pr[i].handler(pr[i].ifp, POLL_ONLY, count);
 
 	mtx_unlock(&poll_mtx);
-	NET_UNLOCK_GIANT();
 }
 
 /*
@@ -365,8 +363,6 @@ netisr_pollmore()
 {
 	struct timeval t;
 	int kern_load;
-
-	NET_ASSERT_GIANT();
 
 	mtx_lock(&poll_mtx);
 	phase = 5;
@@ -417,8 +413,6 @@ netisr_poll(void)
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
 
-	NET_ASSERT_GIANT();
-
 	mtx_lock(&poll_mtx);
 	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
@@ -455,8 +449,6 @@ ether_poll_register(poll_handler_t *h, struct ifnet *ifp)
 
 	KASSERT(h != NULL, ("%s: handler is NULL", __func__));
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
-
-	NET_ASSERT_GIANT();
 
 	mtx_lock(&poll_mtx);
 	if (poll_handlers >= POLL_LIST_LEN) {
@@ -504,7 +496,6 @@ ether_poll_deregister(struct ifnet *ifp)
 
 	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
-	NET_ASSERT_GIANT();
 	mtx_lock(&poll_mtx);
 
 	for (i = 0 ; i < poll_handlers ; i++)
@@ -547,7 +538,6 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 
 	polling = val;
 
-	NET_LOCK_GIANT();
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		if (ifp->if_capabilities & IFCAP_POLLING) {
@@ -565,7 +555,6 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 		}
 	}
 	IFNET_RUNLOCK();
-	NET_UNLOCK_GIANT();
 
 	log(LOG_ERR, "kern.polling.enable is deprecated. Use ifconfig(8)");
 

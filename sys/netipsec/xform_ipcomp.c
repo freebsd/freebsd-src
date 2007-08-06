@@ -219,8 +219,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	u_int8_t nproto;
 	caddr_t addr;
 
-	NET_LOCK_GIANT();
-
 	crd = crp->crp_desc;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
@@ -252,7 +250,6 @@ ipcomp_input_cb(struct cryptop *crp)
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
 			error = crypto_dispatch(crp);
-			NET_UNLOCK_GIANT();
 			return error;
 		}
 
@@ -306,7 +303,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, NULL);
 
 	KEY_FREESAV(&sav);
-	NET_UNLOCK_GIANT();
 	return error;
 bad:
 	if (sav)
@@ -317,7 +313,6 @@ bad:
 		free(tc, M_XDATA);
 	if (crp)
 		crypto_freereq(crp);
-	NET_UNLOCK_GIANT();
 	return error;
 }
 
@@ -499,8 +494,6 @@ ipcomp_output_cb(struct cryptop *crp)
 	struct mbuf *m;
 	int error, skip, rlen;
 
-	NET_LOCK_GIANT();
-
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
@@ -528,7 +521,6 @@ ipcomp_output_cb(struct cryptop *crp)
 			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
-			NET_UNLOCK_GIANT();
 			return error;
 		}
 		ipcompstat.ipcomps_noxform++;
@@ -582,7 +574,6 @@ ipcomp_output_cb(struct cryptop *crp)
 	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	NET_UNLOCK_GIANT();
 	return error;
 bad:
 	if (sav)
@@ -592,7 +583,6 @@ bad:
 		m_freem(m);
 	free(tc, M_XDATA);
 	crypto_freereq(crp);
-	NET_UNLOCK_GIANT();
 	return error;
 }
 

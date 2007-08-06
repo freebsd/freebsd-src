@@ -645,16 +645,12 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	BPFD_UNLOCK(d);
 #endif
 
-	NET_LOCK_GIANT();
 	error = (*ifp->if_output)(ifp, m, &dst, NULL);
-	NET_UNLOCK_GIANT();
 
 	if (mc != NULL) {
-		if (error == 0) {
-			NET_LOCK_GIANT();
+		if (error == 0)
 			(*ifp->if_input)(ifp, mc);
-			NET_UNLOCK_GIANT();
-		} else
+		else
 			m_freem(mc);
 	}
 
@@ -776,10 +772,8 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			if (d->bd_bif == NULL)
 				error = EINVAL;
 			else {
-				NET_LOCK_GIANT();
 				ifp = d->bd_bif->bif_ifp;
 				error = (*ifp->if_ioctl)(ifp, cmd, addr);
-				NET_UNLOCK_GIANT();
 			}
 			break;
 		}
@@ -837,9 +831,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			break;
 		}
 		if (d->bd_promisc == 0) {
-			NET_LOCK_GIANT();
 			error = ifpromisc(d->bd_bif->bif_ifp, 1);
-			NET_UNLOCK_GIANT();
 			if (error == 0)
 				d->bd_promisc = 1;
 		}

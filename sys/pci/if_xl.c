@@ -2102,12 +2102,10 @@ xl_rxeof_task(void *arg, int pending)
 {
 	struct xl_softc *sc = (struct xl_softc *)arg;
 
-	NET_LOCK_GIANT();
 	XL_LOCK(sc);
 	if (sc->xl_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		xl_rxeof(sc);
 	XL_UNLOCK(sc);
-	NET_UNLOCK_GIANT();
 }
 
 /*

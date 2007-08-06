@@ -2190,11 +2190,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * We do this to keep the sockets side happy durin
 			 * the sonewcon ONLY.
 			 */
-			NET_LOCK_GIANT();
 			SCTP_TCB_UNLOCK((*stcb));
 			so = sonewconn(oso, 0
 			    );
-			NET_UNLOCK_GIANT();
 			SCTP_INP_WLOCK((*stcb)->sctp_ep);
 			SCTP_TCB_LOCK((*stcb));
 			SCTP_INP_WUNLOCK((*stcb)->sctp_ep);

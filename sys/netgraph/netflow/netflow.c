@@ -616,7 +616,6 @@ export_send(priv_p priv, item_p item, int flags)
 	header->count = htons(header->count);
 
 	if (priv->export != NULL)
-		/* Should also NET_LOCK_GIANT(). */
 		NG_FWD_ITEM_HOOK_FLAGS(error, item, priv->export, flags);
 
 	return (error);

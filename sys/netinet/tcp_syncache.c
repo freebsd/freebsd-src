@@ -613,7 +613,6 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	struct tcpcb *tp;
 	char *s;
 
-	NET_ASSERT_GIANT();
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	/*
