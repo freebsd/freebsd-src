@@ -121,13 +121,13 @@
 struct ifbreq {
 	char		ifbr_ifsname[IFNAMSIZ];	/* member if name */
 	uint32_t	ifbr_ifsflags;		/* member if flags */
-	uint8_t		ifbr_state;		/* member if STP state */
-	uint8_t		ifbr_priority;		/* member if STP priority */
-	uint8_t		ifbr_path_cost;		/* member if STP cost */
-	uint8_t		ifbr_portno;		/* member if port number */
 	uint32_t	ifbr_stpflags;		/* member if STP flags */
+	uint32_t	ifbr_path_cost;		/* member if STP cost */
+	uint8_t		ifbr_portno;		/* member if port number */
+	uint8_t		ifbr_priority;		/* member if STP priority */
 	uint8_t		ifbr_proto;		/* member if STP protocol */
 	uint8_t		ifbr_role;		/* member if STP role */
+	uint8_t		ifbr_state;		/* member if STP state */
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */
