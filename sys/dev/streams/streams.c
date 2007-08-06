@@ -244,9 +244,7 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	  return error;
 	/* An extra reference on `fp' has been held for us by falloc(). */
 
-	NET_LOCK_GIANT();
 	error = socreate(family, &so, type, protocol, td->td_ucred, td);
-	NET_UNLOCK_GIANT();
 	if (error) {
 	   fdclose(fdp, fp, fd, td);
 	   fdrop(fp, td);

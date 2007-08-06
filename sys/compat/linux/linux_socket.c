@@ -670,7 +670,6 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * socket and use the file descriptor reference instead of
 	 * creating a new one.
 	 */
-	NET_LOCK_GIANT();
 	error = fgetsock(td, linux_args.s, &so, &fflag);
 	if (error == 0) {
 		error = EISCONN;
@@ -683,7 +682,6 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 		}
 		fputsock(so);
 	}
-	NET_UNLOCK_GIANT();
 	return (error);
 }
 

@@ -383,7 +383,6 @@ LIBALIAS
 MBUF_STRESS_TEST
 NCP
 NETATALK		opt_atalk.h
-NET_WITH_GIANT		opt_net.h
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
