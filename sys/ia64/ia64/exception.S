@@ -636,22 +636,22 @@ END(exception_restore)
 {	.mib ;					\
 	mov		r17=_ifa_ ;		\
 	mov		r16=ip ;		\
-	br.sptk		exception_save ;	\
+	br.sptk		exception_save ;;	\
 } ;						\
 {	.mmi ;					\
-(p11)	ssm		psr.i ;;		\
-	alloc		r15=ar.pfs,0,0,2,0 ;	\
+	alloc		r15=ar.pfs,0,0,2,0 ;;	\
+(p11)	ssm		psr.i ;			\
 	mov		out0=_n_ ;;		\
 } ;						\
-{	.mfb ;					\
+{	.mib ;					\
+(p11)	srlz.d ;				\
 	add		out1=16,sp ;		\
-	nop		0 ;			\
-	br.call.sptk	rp=_func_ ;		\
+	br.call.sptk	rp=_func_ ;;		\
 } ;						\
 {	.mfb ;					\
 	nop		0 ;			\
 	nop		0 ;			\
-	br.sptk		exception_restore ;	\
+	br.sptk		exception_restore ;;	\
 }
 
 #define	IVT_ENTRY(name, offset)			\
@@ -1233,13 +1233,19 @@ IVT_ENTRY(Break_Instruction, 0x2c00)
 {	.mmi
 	alloc		r15=ar.pfs,0,0,2,0
 	;;
-	flushrs
+(p11)	ssm		psr.i
 	mov		out0=11
 	;;
 }
-{	.mib
-(p11)	ssm		psr.i
+{	.mmi
+	flushrs
+	;;
+(p11)	srlz.d
 	add		out1=16,sp
+}
+{	.mfb
+	nop		0
+	nop		0
 	br.call.sptk	rp=trap
 	;;
 }
@@ -1253,50 +1259,21 @@ IVT_END(Break_Instruction)
 
 IVT_ENTRY(External_Interrupt, 0x3000)
 {	.mib
-	mov		r17=cr.lid	// cr.iim and cr.ifa are undefined.
+	mov		r17=cr.ivr	// Put the vector in the trap frame.
 	mov		r16=ip
 	br.sptk		exception_save
 	;;
 }
-	alloc		r14=ar.pfs,0,0,2,0
-	cmp4.eq		p14,p0=0,r0
-	;;
-1:
-{	.mii
-	mov		out0=cr.ivr	// Get interrupt vector
-	add		out1=16,sp
-	;;
-	cmp.eq		p15,p0=15,out0	// check for spurious vector number
-}
-{	.mbb
-	ssm		psr.i		// re-enable interrupts
-(p15)	br.dpnt.few 2f			// if spurious, we are done
-	br.call.sptk.many rp=interrupt	// call high-level handler
-	;;
-}
-{	.mmi
-	rsm		psr.i		// disable interrupts
-	;;
-	srlz.d
+{	.mfb
+	alloc		r15=ar.pfs,0,0,1,0
 	nop		0
-}
-{	.mmi
-	mov		cr.eoi=r0	// ack the interrupt
-	;;
-	srlz.d
 	nop		0
+	;;
 }
 {	.mfb
-	cmp4.eq		p14,p0=0,r8	// Return to kernel mode?
-	nop		0
-	br.sptk		1b		// loop for more
-	;;
-}
-2:
-{	.mbb
 	add		out0=16,sp
-(p14)	br.sptk		exception_restore
-	br.call.sptk	rp=do_ast
+	nop		0
+	br.call.sptk	rp=interrupt
 	;;
 }
 {	.mfb
