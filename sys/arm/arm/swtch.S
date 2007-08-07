@@ -127,6 +127,8 @@ __FBSDID("$FreeBSD$");
 	.word	_C_LABEL(block_userspace_access)
 .Lcpu_do_powersave:
 	.word	_C_LABEL(cpu_do_powersave)
+.Lblocked_lock:
+	.word	_C_LABEL(blocked_lock)
 ENTRY(cpu_throw)
 	mov	r5, r1
 
@@ -214,6 +216,7 @@ ENTRY(cpu_throw)
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
+	mov	r6, r2 /* Save the mutex */
 
 .Lswitch_resume:
 	/* rem: r0 = old lwp */
@@ -241,10 +244,11 @@ ENTRY(cpu_switch)
 
 	/* Stage two : Save old context */
 
-	/* Get the user structure for the old lwp. */
+	/* Get the user structure for the old thread. */
 	ldr	r2, [r0, #(TD_PCB)]
+	mov	r4, r0 /* Save the old thread. */
 
-	/* Save all the registers in the old lwp's pcb */
+	/* Save all the registers in the old thread's pcb */
 #ifndef __XSCALE__
 	add	r7, r2, #(PCB_R8)
 	stmia	r7, {r8-r13}
@@ -324,8 +328,7 @@ ENTRY(cpu_switch)
 	mov	lr, pc
 	ldr	pc, [r1, #CF_IDCACHE_WBINV_ALL]
 .Lcs_cache_purge_skipped:
-	/* rem: r4 = &block_userspace_access */
-	/* rem: r6 = new lwp */
+	/* rem: r6 = lock */
 	/* rem: r9 = new PCB */
 	/* rem: r10 = old L1 */
 	/* rem: r11 = new L1 */
@@ -389,6 +392,17 @@ ENTRY(cpu_switch)
 
 .Lcs_context_switched:
 
+	/* Release the old thread */
+	str	r6, [r4, #TD_LOCK]
+	ldr	r6, .Lblocked_lock
+	ldr	r3, .Lcurthread
+	ldr	r3, [r3]
+
+1:
+	ldr	r4, [r3, #TD_LOCK]
+	cmp	r4, r6
+	beq	1b
+	
 	/* XXXSCW: Safe to re-enable FIQs here */
 
 	/* rem: r9 = new PCB */
@@ -419,7 +433,7 @@ ENTRY(cpu_switch)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
-	/* rem: r6 = new lwp */
+	/* rem: r6 = lock */
 	/* rem: r7 = new pcb */
 
 #ifdef ARMFPE
@@ -429,7 +443,7 @@ ENTRY(cpu_switch)
 #endif
 
 	/* rem: r5 = new lwp's proc */
-	/* rem: r6 = new lwp */
+	/* rem: r6 = lock */
 	/* rem: r7 = new PCB */
 
 .Lswitch_return:
