@@ -50,21 +50,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/clock.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 static MALLOC_DEFINE(M_MSDOSFSNODE, "msdosfs_node", "MSDOSFS vnode private part");
 

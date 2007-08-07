@@ -28,9 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/iconv.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/mount.h>
-#include <sys/iconv.h>
 
 VFS_DECLARE_ICONV(msdosfs);
