@@ -114,7 +114,7 @@ fatblock(pmp, ofs, bnp, sizep, bop)
 		*sizep = size;
 	if (bop)
 		*bop = ofs % pmp->pm_fatblocksize;
-		pm_fatblocksize = pmp->pm_fatblocksize;
+	pm_fatblocksize = pmp->pm_fatblocksize;
 }
 
 /*
@@ -522,7 +522,7 @@ fatentry(function, pmp, cn, oldcontents, newcontents)
 
 #ifdef	MSDOSFS_DEBUG
 	printf("fatentry(func %d, pmp %p, clust %lu, oldcon %p, newcon %lx)\n",
-	     function, pmp, cn, oldcontents, newcontents);
+	    function, pmp, cn, oldcontents, newcontents);
 #endif
 
 #ifdef DIAGNOSTIC
@@ -717,7 +717,7 @@ chainlength(pmp, start, count)
 			break;
 		map = pmp->pm_inusemap[idx];
 		if (map) {
-			len +=  ffs(map) - 1;
+			len += ffs(map) - 1;
 			break;
 		}
 		len += N_INUSEBITS;
@@ -794,12 +794,12 @@ clusteralloc(pmp, start, count, fillwith, retcluster, got)
 	u_int map;
 
 #ifdef MSDOSFS_DEBUG
-	printf("clusteralloc(): find %lu clusters\n",count);
+	printf("clusteralloc(): find %lu clusters\n", count);
 #endif
 	if (start) {
 		if ((len = chainlength(pmp, start, count)) >= count)
 			return (chainalloc(pmp, start, count, fillwith, retcluster, got));
-	} else 
+	} else
 		len = 0;
 
 	newst = pmp->pm_nxtfree;
@@ -1080,8 +1080,8 @@ extendfile(dep, count, bpp, ncp, flags)
 				 */
 				if (dep->de_Attributes & ATTR_DIRECTORY)
 					bp = getblk(pmp->pm_devvp,
-						    cntobn(pmp, cn++),
-						    pmp->pm_bpcluster, 0, 0, 0);
+					    cntobn(pmp, cn++),
+					    pmp->pm_bpcluster, 0, 0, 0);
 				else {
 					bp = getblk(DETOV(dep),
 					    de_cn2bn(pmp, frcn++),
