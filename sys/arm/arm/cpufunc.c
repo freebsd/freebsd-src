@@ -148,9 +148,9 @@ struct cpu_functions arm7tdmi_cpufuncs = {
 	arm7tdmi_cache_flushID,		/* idcache_wbinv_all	*/
 	(void *)arm7tdmi_cache_flushID,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -210,9 +210,9 @@ struct cpu_functions arm8_cpufuncs = {
 	arm8_cache_purgeID,		/* idcache_wbinv_all	*/
 	(void *)arm8_cache_purgeID,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -271,9 +271,9 @@ struct cpu_functions arm9_cpufuncs = {
 	arm9_idcache_wbinv_all,		/* idcache_wbinv_all	*/
 	arm9_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -333,9 +333,9 @@ struct cpu_functions arm10_cpufuncs = {
 	arm10_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	arm10_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -395,9 +395,9 @@ struct cpu_functions sa110_cpufuncs = {
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -456,9 +456,9 @@ struct cpu_functions sa11x0_cpufuncs = {
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -517,9 +517,9 @@ struct cpu_functions ixp12x0_cpufuncs = {
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -581,9 +581,9 @@ struct cpu_functions xscale_cpufuncs = {
 	xscale_cache_purgeID,		/* idcache_wbinv_all	*/
 	xscale_cache_purgeID_rng,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all 	*/
-	cpufunc_nullop,			/* l2cache_wbinv_range	*/
-	cpufunc_nullop,			/* l2cache_inv_range	*/
-	cpufunc_nullop,			/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
