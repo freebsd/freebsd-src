@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/spr.h>
 #include <machine/sr.h>
 
-void		trap(struct trapframe *);
-
 static void	trap_fatal(struct trapframe *frame);
 static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
