@@ -52,8 +52,6 @@
  * System include files.
  */
 #include <sys/param.h>
-#include <sys/clock.h>
-#include <sys/kernel.h>		/* defines tz */
 #include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/iconv.h>
