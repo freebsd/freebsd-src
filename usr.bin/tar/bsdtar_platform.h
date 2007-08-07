@@ -61,6 +61,7 @@
 #define	HAVE_FNM_LEADING_DIR 1
 #define	HAVE_FTRUNCATE 1
 #define	HAVE_GETOPT_LONG 1
+#define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LANGINFO_H 1
 #define	HAVE_LIBARCHIVE 1
@@ -76,6 +77,7 @@
 #define	HAVE_NL_LANGINFO 1
 #endif
 #define	HAVE_PATHS_H 1
+#define	HAVE_PWD_H 1
 #define	HAVE_SETLOCALE 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
