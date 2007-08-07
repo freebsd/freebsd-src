@@ -563,17 +563,20 @@ msdosfs_read(ap)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct uio *uio = ap->a_uio;
 
-	if (uio->uio_offset < 0)
-		return (EINVAL);
-
-	if ((uoff_t)uio->uio_offset > DOS_FILESIZE_MAX)
-		return (0);
 	/*
 	 * If they didn't ask for any data, then we are done.
 	 */
 	orig_resid = uio->uio_resid;
-	if (orig_resid <= 0)
+	if (orig_resid == 0)
 		return (0);
+
+	/*
+	 * The caller is supposed to ensure that
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 * We don't need to check for large offsets as in ffs because
+	 * dep->de_FileSize <= DOS_FILESIZE_MAX < OFF_MAX, so large
+	 * offsets cannot cause overflow even in theory.
+	 */
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 
@@ -681,11 +684,20 @@ msdosfs_write(ap)
 		panic("msdosfs_write(): bad file type");
 	}
 
-	if (uio->uio_offset < 0)
-		return (EFBIG);
-
+	/*
+	 * This is needed (unlike in ffs_write()) because we extend the
+	 * file outside of the loop but we don't want to extend the file
+	 * for writes of 0 bytes.
+	 */
 	if (uio->uio_resid == 0)
 		return (0);
+
+	/*
+	 * The caller is supposed to ensure that
+	 * uio->uio_offset >= 0 and uio->uio_resid >= 0.
+	 */
+	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
+		return (EFBIG);
 
 	/*
 	 * If they've exceeded their filesize limit, tell them about it.
@@ -700,9 +712,6 @@ msdosfs_write(ap)
 		}
 		PROC_UNLOCK(td->td_proc);
 	}
-
-	if ((uoff_t)uio->uio_offset + uio->uio_resid > DOS_FILESIZE_MAX)
-		return (EFBIG);
 
 	/*
 	 * If the offset we are starting the write at is beyond the end of
