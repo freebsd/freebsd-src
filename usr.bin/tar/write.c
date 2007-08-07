@@ -26,27 +26,57 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#ifdef HAVE_POSIX_ACL
+#endif
+#ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
-#include <fcntl.h>
-#include <fnmatch.h>
-#include <grp.h>
-#include <limits.h>
-#include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#ifdef __linux
+#endif
+#ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>
-#include <sys/ioctl.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#endif
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>	/* for Linux file flags */
+#endif
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+#include <stdio.h>
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
 #include "bsdtar.h"
