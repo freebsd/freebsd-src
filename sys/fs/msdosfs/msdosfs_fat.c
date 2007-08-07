@@ -48,23 +48,17 @@
  * October 1992
  */
 
-/*
- * kernel include files.
- */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/mount.h>		/* to define statfs structure */
-#include <sys/vnode.h>		/* to define vattr structure */
+#include <sys/mount.h>
+#include <sys/vnode.h>
 
-/*
- * msdosfs include files.
- */
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 /*
  * Fat cache stats.
