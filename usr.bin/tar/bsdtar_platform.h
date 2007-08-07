@@ -54,6 +54,7 @@
 #define	HAVE_DIRENT_D_NAMLEN 1
 #define	HAVE_DIRENT_H 1
 #define	HAVE_D_MD_ORDER 1
+#define	HAVE_ERRNO_H 1
 #define	HAVE_FCHDIR 1
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FNMATCH 1
