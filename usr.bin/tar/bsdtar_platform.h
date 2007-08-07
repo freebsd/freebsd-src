@@ -49,15 +49,18 @@
 #define	HAVE_ACL_PERMSET_T 1
 #define	HAVE_ACL_USER 1
 #endif
+#undef	HAVE_ATTR_XATTR_H
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_DIRENT_D_NAMLEN 1
 #define	HAVE_DIRENT_H 1
 #define	HAVE_D_MD_ORDER 1
 #define	HAVE_ERRNO_H 1
+#undef	HAVE_EXT2FS_EXT2_FS_H
 #define	HAVE_FCHDIR 1
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FNMATCH 1
+#define	HAVE_FNMATCH_H 1
 #define	HAVE_FNM_LEADING_DIR 1
 #define	HAVE_FTRUNCATE 1
 #define	HAVE_GETOPT_LONG 1
@@ -68,6 +71,8 @@
 #define	HAVE_LIBBZ2 1
 #define	HAVE_LIBZ 1
 #define	HAVE_LIMITS_H 1
+#undef	HAVE_LINUX_FS_H
+#undef	HAVE_LINUX_EXT2_FS_H
 #define	HAVE_LOCALE_H 1
 #define	HAVE_MALLOC 1
 #define	HAVE_MEMMOVE 1
