@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070807: removal of PowerPC specific header file.
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=usr/include/machine/interruptvar.h
+.endif
 # 20070801: fast_ipsec.4 gone
 OLD_FILES+=usr/share/man/man4/fast_ipsec.4.gz
 # 20070715: netatm temporarily disconnected
