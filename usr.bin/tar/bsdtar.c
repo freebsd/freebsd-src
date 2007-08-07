@@ -60,6 +60,10 @@ struct option {
 
 #include "bsdtar.h"
 
+/*
+ * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
+ * the default tape device for the system.  Pick something reasonable here.
+ */
 #ifdef __linux
 #define	_PATH_DEFTAPE "/dev/st0"
 #endif
@@ -232,9 +236,11 @@ main(int argc, char **argv)
 	/* Default: preserve mod time on extract */
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
 
-	/* Default for root user: preserve ownership on extract. */
-	if (bsdtar->user_uid == 0)
+	/* Defaults for root user: */
+	if (bsdtar->user_uid == 0) {
+		/* --same-owner */
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+	}
 
 	/* Rewrite traditional-style tar arguments, if used. */
 	argv = rewrite_argv(bsdtar, &argc, argv, tar_opts);
@@ -243,6 +249,12 @@ main(int argc, char **argv)
 	bsdtar->argc = argc;
 
 	/* Process all remaining arguments now. */
+	/*
+	 * Comments following each option indicate where that option
+	 * originated:  SUSv2, POSIX, GNU tar, star, etc.  If there's
+	 * no such comment, then I don't know of anyone else who
+	 * implements that option.
+	 */
 	while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
 		switch (opt) {
 		case 'B': /* GNU tar */
@@ -269,7 +281,7 @@ main(int argc, char **argv)
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Couldn't exclude %s\n", optarg);
 			break;
-		case OPTION_FORMAT:
+		case OPTION_FORMAT: /* GNU tar, others */
 			bsdtar->create_format = optarg;
 			break;
 		case 'f': /* SUSv2 */
@@ -288,14 +300,29 @@ main(int argc, char **argv)
 			/* Hack: -h by itself is the "help" command. */
 			possible_help_request = 1;
 			break;
-		case OPTION_HELP:
+		case OPTION_HELP: /* GNU tar, others */
 			long_help(bsdtar);
 			exit(0);
 			break;
 		case 'I': /* GNU tar */
+			/*
+			 * TODO: Allow 'names' to come from an archive,
+			 * not just a text file.  Design a good UI for
+			 * allowing names and mode/owner to be read
+			 * from an archive, with contents coming from
+			 * disk.  This can be used to "refresh" an
+			 * archive or to design archives with special
+			 * permissions without having to create those
+			 * permissions on disk.
+			 */
 			bsdtar->names_from_file = optarg;
 			break;
 		case OPTION_INCLUDE:
+			/*
+			 * Noone else has the @archive extension, so
+			 * noone else needs this to filter entries
+			 * when transforming archives.
+			 */
 			if (include(bsdtar, optarg))
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Failed to add %s to inclusion list",
@@ -339,6 +366,13 @@ main(int argc, char **argv)
 		case 'n': /* GNU tar */
 			bsdtar->option_no_subdirs = 1;
 			break;
+	        /*
+		 * Selecting files by time:
+		 *    --newer-?time='date' Only files newer than 'date'
+		 *    --newer-?time-than='file' Only files newer than time
+		 *         on specified file (useful for incremental backups)
+		 * TODO: Add corresponding "older" options to reverse these.
+		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
 			bsdtar->newer_ctime_sec = get_date(optarg);
 			break;
@@ -384,10 +418,10 @@ main(int argc, char **argv)
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
 			break;
-		case 'o': /* SUSv2 and GNU conflict here */
+		case 'o': /* SUSv2 and GNU conflict here, but not fatally */
 			option_o = 1; /* Record it and resolve it later. */
 			break;
-		case OPTION_ONE_FILE_SYSTEM: /* -l in GNU tar */
+		case OPTION_ONE_FILE_SYSTEM: /* GNU tar */
 			bsdtar->option_dont_traverse_mounts = 1;
 			break;
 #if 0
@@ -436,9 +470,17 @@ main(int argc, char **argv)
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
 			break;
-		case OPTION_VERSION:
+		case OPTION_VERSION: /* GNU convention */
 			version();
 			break;
+#if 0
+		/*
+		 * The -W longopt feature is handled inside of
+		 * bsdtar_getop(), so -W is not available here.
+		 */
+		case 'W': /* Obscure, but useful GNU convention. */
+			break;
+#endif
 		case 'w': /* SUSv2 */
 			bsdtar->option_interactive = 1;
 			break;
@@ -490,11 +532,14 @@ main(int argc, char **argv)
 	/*
 	 * Sanity-check options.
 	 */
+
+	/* If no "real" mode was specified, treat -h as --help. */
 	if ((bsdtar->mode == '\0') && possible_help_request) {
 		long_help(bsdtar);
 		exit(0);
 	}
 
+	/* Otherwise, a mode is required. */
 	if (bsdtar->mode == '\0')
 		bsdtar_errc(bsdtar, 1, 0,
 		    "Must specify one of -c, -r, -t, -u, -x");
