@@ -265,14 +265,12 @@ msdosfs_access(ap)
 	file_mode &= (vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 
 	/*
-	 * Disallow write attempts on read-only filesystems;
-	 * unless the file is a socket, fifo, or a block or
-	 * character device resident on the filesystem.
+	 * Disallow writing to directories and regular files if the
+	 * filesystem is read-only.
 	 */
 	if (mode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
-		case VLNK:
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
@@ -459,20 +457,28 @@ msdosfs_setattr(ap)
 	}
 
 	if (vap->va_size != VNOVAL) {
-		/*
-		 * Disallow write attempts on read-only filesystems;
-		 * unless the file is a socket, fifo, or a block or
-		 * character device resident on the filesystem.
-		 */
 		switch (vp->v_type) {
 		case VDIR:
 			return (EISDIR);
-		case VLNK:
 		case VREG:
+			/*
+			 * Truncation is only supported for regular files,
+			 * Disallow it if the filesystem is read-only.
+			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
 			break;
 		default:
+			/*
+			 * According to POSIX, the result is unspecified
+			 * for file types other than regular files,
+			 * directories and shared memory objects.  We
+			 * don't support any file types except regular
+			 * files and directories in this file system, so
+			 * this (default) case is unreachable and can do
+			 * anything.  Keep falling through to detrunc()
+			 * for now.
+			 */
 			break;
 		}
 		error = detrunc(dep, vap->va_size, 0, cred, ap->a_td);
