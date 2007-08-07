@@ -43,6 +43,9 @@ struct ppc_intr_handler {
 	u_long 		*ih_straycount;
 };
 
+/* XXX temporary. */
+void	ext_intr_install(void (*new_extint)(void));
+
 void	intr_init(void (*)(void), int, void (*)(uintptr_t), void (*)(uintptr_t));
 void	intr_setup(u_int, ih_func_t *, void *, u_int);
 int	inthand_add(const char *, u_int, driver_filter_t *filter, 

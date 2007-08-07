@@ -52,12 +52,12 @@
 #include <machine/db_machdep.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #include <machine/spr.h>
 #include <machine/sr.h>
-#include <machine/interruptvar.h>
 
 void powerpc_interrupt(struct trapframe *);
 
@@ -73,7 +73,6 @@ ext_intr_install(void (*new_extint)(void))
 }
 
 extern void	decr_intr(struct trapframe *);
-extern void	trap(struct trapframe *);
 
 /*
  * A very short dispatch, to try and maximise assembler code use
