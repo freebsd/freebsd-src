@@ -48,14 +48,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 static MALLOC_DEFINE(M_MSDOSFSFILENO, "msdosfs_fileno", "MSDOSFS fileno mapping node");
 
