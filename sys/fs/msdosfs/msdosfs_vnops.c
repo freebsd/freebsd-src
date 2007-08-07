@@ -50,32 +50,32 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/clock.h>
+#include <sys/dirent.h>
 #include <sys/lock.h>
 #include <sys/lockf.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
-#include <sys/stat.h>
-#include <sys/bio.h>
-#include <sys/clock.h>
-#include <sys/buf.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/mount.h>
+#include <sys/resourcevar.h>
+#include <sys/signalvar.h>
+#include <sys/stat.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-#include <sys/dirent.h>
-#include <sys/signalvar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 #define	DOS_FILESIZE_MAX	0xffffffff
 
