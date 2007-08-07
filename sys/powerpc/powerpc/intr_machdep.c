@@ -75,7 +75,6 @@
 #include <sys/proc.h>
 
 #include <machine/frame.h>
-#include <machine/interruptvar.h>
 #include <machine/intr_machdep.h>
 #include <machine/trap.h>
 
