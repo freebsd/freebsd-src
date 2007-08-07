@@ -205,6 +205,7 @@ msdosfs_mknod(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
+
     return (EINVAL);
 }
 
@@ -320,7 +321,7 @@ msdosfs_getattr(ap)
 		    dirsperblk;
 		if (dep->de_dirclust == MSDOSFSROOT)
 			fileid = (uint64_t)roottobn(pmp, 0) * dirsperblk;
-		fileid += (uint64_t)dep->de_diroffset / sizeof(struct direntry);
+		fileid += (uoff_t)dep->de_diroffset / sizeof(struct direntry);
 	}
 
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
@@ -333,7 +334,7 @@ msdosfs_getattr(ap)
 	else
 		mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 	vap->va_mode = mode & 
-		(ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
+	    (ap->a_vp->v_type == VDIR ? pmp->pm_dirmask : pmp->pm_mask);
 	vap->va_uid = pmp->pm_uid;
 	vap->va_gid = pmp->pm_gid;
 	vap->va_nlink = 1;
@@ -466,7 +467,6 @@ msdosfs_setattr(ap)
 		switch (vp->v_type) {
 		case VDIR:
 			return (EISDIR);
-			/* NOT REACHED */
 		case VLNK:
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
@@ -863,11 +863,8 @@ msdosfs_fsync(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	/*
-	 * Flush our dirty buffers.
-	 */
-	vop_stdfsync(ap);
 
+	vop_stdfsync(ap);
 	return (deupdat(VTODE(ap->a_vp), ap->a_waitfor == MNT_WAIT));
 }
 
@@ -997,8 +994,8 @@ msdosfs_rename(ap)
 	/*
 	 * Check for cross-device rename.
 	 */
-	if ((fvp->v_mount != tdvp->v_mount) ||
-	    (tvp && (fvp->v_mount != tvp->v_mount))) {
+	if (fvp->v_mount != tdvp->v_mount ||
+	    (tvp && fvp->v_mount != tvp->v_mount)) {
 		error = EXDEV;
 abortit:
 		if (tdvp == tvp)
@@ -1304,7 +1301,7 @@ static int
 msdosfs_mkdir(ap)
 	struct vop_mkdir_args /* {
 		struct vnode *a_dvp;
-		struvt vnode **a_vpp;
+		struct vnode **a_vpp;
 		struvt componentname *a_cnp;
 		struct vattr *a_vap;
 	} */ *ap;
@@ -1709,7 +1706,8 @@ msdosfs_readdir(ap)
 					    dirsperblk;
 				dirbuf.d_type = DT_DIR;
 			} else {
-				fileno = (uint64_t)offset / sizeof(struct direntry);
+				fileno = (uoff_t)offset /
+				    sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
 			if (pmp->pm_flags & MSDOSFS_LARGEFS) {
