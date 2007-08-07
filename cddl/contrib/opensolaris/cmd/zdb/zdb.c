@@ -1136,7 +1136,15 @@ dump_label(const char *dev)
 		exit(1);
 	}
 
-	psize = statbuf.st_size;
+	if (S_ISCHR(statbuf.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &psize) != 0) {
+			(void) printf("failed to get size '%s': %s\n", dev,
+			    strerror(errno));
+			exit(1);
+		}
+	 } else
+		psize = statbuf.st_size;
+
 	psize = P2ALIGN(psize, (uint64_t)sizeof (vdev_label_t));
 
 	for (l = 0; l < VDEV_LABELS; l++) {
