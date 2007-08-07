@@ -53,10 +53,8 @@
 #include <sys/lockf.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
-#include <sys/kernel.h>
 #include <sys/stat.h>
 #include <sys/bio.h>
-#include <sys/conf.h>
 #include <sys/clock.h>
 #include <sys/buf.h>
 #include <sys/priv.h>
@@ -70,9 +68,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vnode_pager.h>
-
-#include <machine/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/msdosfsmount.h>
