@@ -64,8 +64,6 @@ static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *,
 
 /* list of device pager objects */
 static struct pagerlst dev_pager_object_list;
-/* protect against object creation */
-static struct sx dev_pager_sx;
 /* protect list manipulation */
 static struct mtx dev_pager_mtx;
 
@@ -89,7 +87,6 @@ static void
 dev_pager_init()
 {
 	TAILQ_INIT(&dev_pager_object_list);
-	sx_init(&dev_pager_sx, "dev_pager create");
 	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
 	fakepg_zone = uma_zcreate("DP fakepg", sizeof(struct vm_page),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
@@ -103,7 +100,7 @@ static vm_object_t
 dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
 {
 	struct cdev *dev;
-	vm_object_t object;
+	vm_object_t object, object1;
 	vm_pindex_t pindex;
 	unsigned int npages;
 	vm_paddr_t paddr;
@@ -143,29 +140,42 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	/*
 	 * Lock to prevent object creation race condition.
 	 */
-	sx_xlock(&dev_pager_sx);
+	mtx_lock(&dev_pager_mtx);
 
 	/*
 	 * Look up pager, creating as necessary.
 	 */
+	object1 = NULL;
 	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
 	if (object == NULL) {
 		/*
 		 * Allocate object and associate it with the pager.
 		 */
-		object = vm_object_allocate(OBJT_DEVICE, pindex);
-		object->handle = handle;
-		TAILQ_INIT(&object->un_pager.devp.devp_pglist);
-		mtx_lock(&dev_pager_mtx);
-		TAILQ_INSERT_TAIL(&dev_pager_object_list, object, pager_object_list);
 		mtx_unlock(&dev_pager_mtx);
+		object1 = vm_object_allocate(OBJT_DEVICE, pindex);
+		mtx_lock(&dev_pager_mtx);
+		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
+		if (object != NULL) {
+			/*
+			 * We raced with other thread while allocating object.
+			 */
+			if (pindex > object->size)
+				object->size = pindex;
+		} else {
+			object = object1;
+			object1 = NULL;
+			object->handle = handle;
+			TAILQ_INIT(&object->un_pager.devp.devp_pglist);
+			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
+			    pager_object_list);
+		}
 	} else {
 		if (pindex > object->size)
 			object->size = pindex;
 	}
-
-	sx_xunlock(&dev_pager_sx);
+	mtx_unlock(&dev_pager_mtx);
 	dev_relthread(dev);
+	vm_object_deallocate(object1);
 	return (object);
 }
 
@@ -175,9 +185,11 @@ dev_pager_dealloc(object)
 {
 	vm_page_t m;
 
+	VM_OBJECT_UNLOCK(object);
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
 	mtx_unlock(&dev_pager_mtx);
+	VM_OBJECT_LOCK(object);
 	/*
 	 * Free up our fake pages.
 	 */
