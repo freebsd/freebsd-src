@@ -50,29 +50,29 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/iconv.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/kernel.h>
+#include <sys/stat.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
-#include <sys/buf.h>
-#include <sys/malloc.h>
-#include <sys/stat.h> 				/* defines ALLPERMS */
-#include <sys/iconv.h>
-
-#include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/bootsect.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/msdosfs/direntry.h>
-#include <fs/msdosfs/denode.h>
-#include <fs/msdosfs/fat.h>
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
+
+#include <fs/msdosfs/bootsect.h>
+#include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/denode.h>
+#include <fs/msdosfs/fat.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 /* List of mount options we support */
 static const char *msdosfs_opts[] = {
