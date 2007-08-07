@@ -48,24 +48,18 @@
  * October 1992
  */
 
-/*
- * System include files.
- */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/iconv.h>
-#include <sys/mount.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
+
+#include <fs/msdosfs/bpb.h>
+#include <fs/msdosfs/direntry.h>
+#include <fs/msdosfs/msdosfsmount.h>
 
 extern struct iconv_functions *msdosfs_iconv;
-
-/*
- * MSDOSFS include files.
- */
-#include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/msdosfsmount.h>
-#include <fs/msdosfs/direntry.h>
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
 static u_int16_t dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount *);
