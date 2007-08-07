@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
@@ -55,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
-#include <fs/msdosfs/bootsect.h>
 #include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 
