@@ -1065,8 +1065,10 @@ an_rxeof(struct an_softc *sc)
 					rx_frame.an_rsvd0);
 #endif
 #endif
+				AN_UNLOCK(sc);
 				(*ifp->if_input)(ifp, m);
-			
+				AN_LOCK(sc);
+
 				an_rx_desc.an_valid = 1;
 				an_rx_desc.an_len = AN_RX_BUFFER_SIZE;
 				an_rx_desc.an_done = 0;
