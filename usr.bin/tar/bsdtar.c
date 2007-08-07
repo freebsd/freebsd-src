@@ -139,6 +139,7 @@ enum {
 	OPTION_NEWER_MTIME,
 	OPTION_NEWER_MTIME_THAN,
 	OPTION_NODUMP,
+	OPTION_NO_SAME_OWNER,
 	OPTION_NO_SAME_PERMISSIONS,
 	OPTION_NULL,
 	OPTION_ONE_FILE_SYSTEM,
@@ -188,7 +189,7 @@ static const struct option tar_longopts[] = {
 	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
 	{ "norecurse",          no_argument,       NULL, 'n' },
 	{ "no-recursion",       no_argument,       NULL, 'n' },
-	{ "no-same-owner",	no_argument,	   NULL, 'o' },
+	{ "no-same-owner",	no_argument,	   NULL, OPTION_NO_SAME_OWNER },
 	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
 	{ "null",		no_argument,	   NULL, OPTION_NULL },
 	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
@@ -421,6 +422,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_NODUMP: /* star */
 			bsdtar->option_honor_nodump = 1;
+			break;
+		case OPTION_NO_SAME_OWNER: /* GNU tar */
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_NO_SAME_PERMISSIONS: /* GNU tar */
 			/*
