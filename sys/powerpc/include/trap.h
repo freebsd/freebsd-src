@@ -103,4 +103,11 @@
 #define EXC_ALI_RST(dsisr) ((dsisr >> 5) & 0x1f)   /* source or target */
 #define EXC_ALI_RA(dsisr) (dsisr & 0x1f)
 
+#ifndef LOCORE
+
+struct trapframe;
+void    trap(struct trapframe *);
+
+#endif
+
 #endif	/* _POWERPC_TRAP_H_ */
