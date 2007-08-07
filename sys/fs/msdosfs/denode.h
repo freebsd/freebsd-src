@@ -225,18 +225,18 @@ struct denode {
 #define	DETOV(de)	((de)->de_vnode)
 
 #define	DETIMES(dep, acc, mod, cre) do {				\
-	if ((dep)->de_flag & DE_UPDATE) { 				\
+	if ((dep)->de_flag & DE_UPDATE) {				\
 		(dep)->de_flag |= DE_MODIFIED;				\
 		timespec2fattime((mod), 0, &(dep)->de_MDate,		\
 		    &(dep)->de_MTime, NULL);				\
-		(dep)->de_Attributes |= ATTR_ARCHIVE; 			\
+		(dep)->de_Attributes |= ATTR_ARCHIVE;			\
 	}								\
 	if ((dep)->de_pmp->pm_flags & MSDOSFSMNT_NOWIN95) {		\
 		(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);	\
 		break;							\
 	}								\
 	if ((dep)->de_flag & DE_ACCESS) {				\
-	    	u_int16_t adate;					\
+		u_int16_t adate;					\
 									\
 		timespec2fattime((acc), 0, &adate, NULL, NULL);		\
 		if (adate != (dep)->de_ADate) {				\
@@ -247,7 +247,7 @@ struct denode {
 	if ((dep)->de_flag & DE_CREATE) {				\
 		timespec2fattime((cre), 0, &(dep)->de_CDate,		\
 		    &(dep)->de_CTime, &(dep)->de_CHun);			\
-		    (dep)->de_flag |= DE_MODIFIED;			\
+		(dep)->de_flag |= DE_MODIFIED;				\
 	}								\
 	(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);		\
 } while (0)
