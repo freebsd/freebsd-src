@@ -51,6 +51,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -61,7 +63,6 @@
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
 #include <sys/iconv.h>
-#include <sys/mutex.h>
 
 #include <fs/msdosfs/bpb.h>
 #include <fs/msdosfs/bootsect.h>
