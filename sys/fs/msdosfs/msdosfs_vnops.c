@@ -50,7 +50,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/lockf.h>
+#include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/stat.h>
