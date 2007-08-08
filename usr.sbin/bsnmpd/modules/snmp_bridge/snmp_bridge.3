@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2006
+.Dd August 6, 2007
 .Dt snmp_bridge 3
 .Os
 .Sh NAME
@@ -83,6 +83,9 @@ has been SET already.
 .It Va destroy
 will attempt to remove the interface from the system bridge interface.
 .El
+.It Va begemotBridgeBasePortPrivate
+This object controls a bridge interface flag called PRIVATE where any private
+port can not communicate with another private port.
 .El
 .Sh RESTRICTIONS
 Not all information in the MIBs is currently available in FreeBSD.
