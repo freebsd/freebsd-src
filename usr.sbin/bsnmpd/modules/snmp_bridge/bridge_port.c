@@ -1074,6 +1074,7 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int8_t status, which;
+	const char *bname;
 	struct bridge_port *bp;
 
 	if (time(NULL) - ports_list_age > bridge_get_data_maxage())
@@ -1110,6 +1111,16 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 		    case LEAF_begemotBridgeBasePortStatus:
 			return (bridge_port_set_status(ctx, val, sub));
 
+		    case LEAF_begemotBridgeBasePortPrivate:
+			if ((bp = bridge_port_index_get(&val->var, sub,
+			    status)) == NULL)
+				return (SNMP_ERR_NOSUCHNAME);
+			if ((bname = bridge_if_find_name(bp->sysindex)) == NULL)
+				return (SNMP_ERR_GENERR);
+			ctx->scratch->int1 = bp->priv_set;
+			return (bridge_port_set_private(bname, bp,
+			    val->v.integer));
+
 		    case LEAF_begemotBridgeBasePort:
 		    case LEAF_begemotBridgeBasePortIfIndex:
 		    case LEAF_begemotBridgeBasePortDelayExceededDiscards:
@@ -1124,6 +1135,14 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 			/* FALLTHROUGH */
 		    case LEAF_begemotBridgeBasePortStatus:
 			return (bridge_port_rollback_status(ctx, val, sub));
+		    case LEAF_begemotBridgeBasePortPrivate:
+			if ((bp = bridge_port_index_get(&val->var, sub,
+			    status)) == NULL)
+				return (SNMP_ERR_GENERR);
+			if ((bname = bridge_if_find_name(bp->sysindex)) == NULL)
+				return (SNMP_ERR_GENERR);
+			return (bridge_port_set_private(bname, bp,
+			    ctx->scratch->int1));
 		}
 		return (SNMP_ERR_NOERROR);
 
@@ -1159,6 +1178,10 @@ get:
 
 	    case LEAF_begemotBridgeBasePortStatus:
 		val->v.integer = bp->status;
+		return (SNMP_ERR_NOERROR);
+
+	    case LEAF_begemotBridgeBasePortPrivate:
+		val->v.integer = bp->priv_set;
 		return (SNMP_ERR_NOERROR);
 	}
 
