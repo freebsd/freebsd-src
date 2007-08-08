@@ -200,6 +200,7 @@ typedef TpFdbStatus ENUM (
                   (4 begemotBridgeBasePortDelayExceededDiscards COUNTER GET)
                   (5 begemotBridgeBasePortMtuExceededDiscards COUNTER GET)
                   (6 begemotBridgeBasePortStatus RowStatus GET SET)
+                  (7 begemotBridgeBasePortPrivate TruthValue GET SET)
               ))
             )
             (2 begemotBridgeStp
