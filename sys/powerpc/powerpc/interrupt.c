@@ -82,7 +82,8 @@ extern void	decr_intr(struct trapframe *);
 void
 powerpc_interrupt(struct trapframe *framep)
 {
-        struct thread *td;
+	struct thread *td;
+	register_t ee;
 
 	td = curthread;
 
@@ -100,14 +101,12 @@ powerpc_interrupt(struct trapframe *framep)
 		break;
 
 	default:
-		/*
-		 * Re-enable interrupts and call the generic trap code
-		 */
-#if 0
-		printf("powerpc_interrupt: got trap\n");
-		mtmsr(mfmsr() | PSL_EE);
-		isync();
-#endif
+		/* Re-enable interrupts if applicable. */
+		ee = framep->srr1 & PSL_EE;
+		if (ee != 0) {
+			mtmsr(mfmsr() | ee);
+			isync();
+		}
 		trap(framep);
 	}	        
 }
