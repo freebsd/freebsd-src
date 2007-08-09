@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_PARSER_H__
-#define __CACHED_PARSER_H__
+#ifndef __NSCD_PARSER_H__
+#define __NSCD_PARSER_H__
 
 extern int parse_config_file(struct configuration *,
 	const char *, char const **, int *);

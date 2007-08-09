@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_LOG_H__
-#define __CACHED_LOG_H__
+#ifndef __NSCD_LOG_H__
+#define __NSCD_LOG_H__
 
 #define LOG_MSG_1(sender, msg, ...) __log_msg(1, sender, msg, ##__VA_ARGS__)
 #define LOG_MSG_2(sender, msg, ...) __log_msg(2, sender, msg, ##__VA_ARGS__)

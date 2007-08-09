@@ -25,11 +25,11 @@
 .\" $FreeBSD$
 .\"
 .Dd October 20, 2005
-.Dt CACHED 8
+.Dt NSCD 8
 .Os
 .Sh NAME
-.Nm cached
-.Nd "caching server daemon"
+.Nm nscd
+.Nd "name service caching daemon"
 .Sh SYNOPSIS
 .Nm
 .Op Fl dnst
@@ -82,7 +82,7 @@ lookups by itself.
 To enable this feature, use the
 .Va perform-actual-lookups
 parameter in
-.Xr cached.conf 5 .
+.Xr nscd.conf 5 .
 .Pp
 The
 .Nm
@@ -100,7 +100,7 @@ Forces using only one thread for all processing purposes (it overrides
 the
 .Va threads
 parameter in the
-.Xr cached.conf 5
+.Xr nscd.conf 5
 file).
 .It Fl t
 Trace mode.
@@ -150,16 +150,16 @@ to invalidate the whole cache.
 Only the root can use this option.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /etc/cached.conf" -compact
-.It Pa /etc/cached.conf
+.Bl -tag -width ".Pa /etc/nscd.conf" -compact
+.It Pa /etc/nscd.conf
 The default configuration file.
 .El
 .Sh SEE ALSO
 .Xr nsdispatch 3 ,
-.Xr cached.conf 5 ,
+.Xr nscd.conf 5 ,
 .Xr nsswitch.conf 5
 .Sh AUTHORS
-.An Michael Bushkov Aq bushman@rsu.ru
+.An Michael Bushkov Aq bushman@freebsd.org
 .Sh BUGS
 Please send bug reports and suggestions to
-.Aq bushman@rsu.ru .
+.Aq bushman@freebsd.org .

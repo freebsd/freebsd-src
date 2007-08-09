@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_CACHEPLCS_H__
-#define __CACHED_CACHEPLCS_H__
+#ifndef __NSCD_CACHEPLCS_H__
+#define __NSCD_CACHEPLCS_H__
 
 #include <sys/queue.h>
 #include <sys/time.h>

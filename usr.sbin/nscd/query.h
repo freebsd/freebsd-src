@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_QUERY_H__
-#define __CACHED_QUERY_H__
+#ifndef __NSCD_QUERY_H__
+#define __NSCD_QUERY_H__
 
 #include <sys/types.h>
 #include <stdlib.h>

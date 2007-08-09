@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_MP_RS_QUERY_H__
-#define __CACHED_MP_RS_QUERY_H__
+#ifndef __NSCD_MP_RS_QUERY_H__
+#define __NSCD_MP_RS_QUERY_H__
 
 extern int on_mp_read_session_request_read1(struct query_state *);
 
