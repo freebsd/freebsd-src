@@ -267,12 +267,12 @@ wi_attach(device_t dev)
 	int error;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	ifp->if_softc = sc;
 	if (ifp == NULL) {
 		device_printf(dev, "can not if_alloc\n");
 		wi_free(dev);
 		return (ENOSPC);
 	}
+	ifp->if_softc = sc;
 
 	/*
 	 * NB: no locking is needed here; don't put it here
