@@ -259,7 +259,7 @@ contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
 contrib/ipfilter/netinet/ip_state.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} -Wno-error -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet \
