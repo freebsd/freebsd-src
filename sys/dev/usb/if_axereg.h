@@ -53,9 +53,11 @@
 #define AXE_CMD_LEN(x)	(((x) & 0xF000) >> 12)
 #define AXE_CMD_CMD(x)	((x) & 0x00FF)
 
-#define AXE_CMD_READ_RXTX_SRAM			0x2002
-#define AXE_CMD_WRITE_RX_SRAM			0x0103
-#define AXE_CMD_WRITE_TX_SRAM			0x0104
+#define AXE_172_CMD_READ_RXTX_SRAM		0x2002
+#define AXE_182_CMD_READ_RXTX_SRAM		0x8002
+#define AXE_172_CMD_WRITE_RX_SRAM		0x0103
+#define AXE_172_CMD_WRITE_TX_SRAM		0x0104
+#define AXE_182_CMD_WRITE_RXTX_SRAM		0x8103
 #define AXE_CMD_MII_OPMODE_SW			0x0106
 #define AXE_CMD_MII_READ_REG			0x2007
 #define AXE_CMD_MII_WRITE_REG			0x2108
@@ -68,34 +70,78 @@
 #define AXE_CMD_RXCTL_READ			0x200F
 #define AXE_CMD_RXCTL_WRITE			0x0110
 #define AXE_CMD_READ_IPG012			0x3011
-#define AXE_CMD_WRITE_IPG0			0x0112
-#define AXE_CMD_WRITE_IPG1			0x0113
-#define AXE_CMD_WRITE_IPG2			0x0114
+#define AXE_172_CMD_WRITE_IPG0			0x0112
+#define AXE_172_CMD_WRITE_IPG1			0x0113
+#define AXE_172_CMD_WRITE_IPG2			0x0114
+#define AXE_178_CMD_WRITE_IPG012		0x0112
 #define AXE_CMD_READ_MCAST			0x8015
 #define AXE_CMD_WRITE_MCAST			0x8116
-#define AXE_CMD_READ_NODEID			0x6017
-#define AXE_CMD_WRITE_NODEID			0x6118
+#define AXE_172_CMD_READ_NODEID			0x6017
+#define AXE_172_CMD_WRITE_NODEID		0x6118
+#define AXE_178_CMD_READ_NODEID			0x6013
+#define AXE_178_CMD_WRITE_NODEID		0x6114
 #define AXE_CMD_READ_PHYID			0x2019
-#define AXE_CMD_READ_MEDIA			0x101A
+#define AXE_172_CMD_READ_MEDIA			0x101A
+#define AXE_178_CMD_READ_MEDIA			0x201A
 #define AXE_CMD_WRITE_MEDIA			0x011B
 #define AXE_CMD_READ_MONITOR_MODE		0x101C
 #define AXE_CMD_WRITE_MONITOR_MODE		0x011D
 #define AXE_CMD_READ_GPIO			0x101E
 #define AXE_CMD_WRITE_GPIO			0x011F
+#define AXE_CMD_SW_RESET_REG			0x0120
+#define AXE_CMD_SW_PHY_STATUS			0x0021
+#define AXE_CMD_SW_PHY_SELECT			0x0122
+
+#define AXE_SW_RESET_CLEAR			0x00
+#define AXE_SW_RESET_RR				0x01
+#define AXE_SW_RESET_RT				0x02
+#define AXE_SW_RESET_PRTE			0x04
+#define AXE_SW_RESET_PRL			0x08
+#define AXE_SW_RESET_BZ				0x10
+#define AXE_SW_RESET_IPRL			0x20
+#define AXE_SW_RESET_IPPD			0x40
+
+/* AX88178 documentation says to always write this bit... */
+#define AXE_178_RESET_MAGIC			0x40
+
+#define AXE_178_MEDIA_GMII			0x0001
+#define AXE_MEDIA_FULL_DUPLEX			0x0002
+#define AXE_172_MEDIA_TX_ABORT_ALLOW		0x0004
+/* AX88178 documentation says to always write 1 to reserved bit... */
+#define AXE_178_MEDIA_MAGIC			0x0004
+#define AXE_178_MEDIA_ENCK			0x0008
+#define AXE_172_MEDIA_FLOW_CONTROL_EN		0x0010
+#define AXE_178_MEDIA_RXFLOW_CONTROL_EN		0x0010
+#define AXE_178_MEDIA_TXFLOW_CONTROL_EN		0x0020
+#define AXE_178_MEDIA_JUMBO_EN			0x0040
+#define AXE_178_MEDIA_LTPF_ONLY			0x0080
+#define AXE_178_MEDIA_RX_EN			0x0100
+#define AXE_178_MEDIA_100TX			0x0200
+#define AXE_178_MEDIA_SBP			0x0800
+#define AXE_178_MEDIA_SUPERMAC			0x1000
 
 #define AXE_RXCMD_PROMISC			0x0001
 #define AXE_RXCMD_ALLMULTI			0x0002
-#define AXE_RXCMD_UNICAST			0x0004
+#define AXE_172_RXCMD_UNICAST			0x0004
+#define AXE_178_RXCMD_KEEP_INVALID_CRC		0x0004
 #define AXE_RXCMD_BROADCAST			0x0008
 #define AXE_RXCMD_MULTICAST			0x0010
 #define AXE_RXCMD_ENABLE			0x0080
+#define AXE_178_RXCMD_MFB			0x0300
 
 #define AXE_NOPHY				0xE0
+#define AXE_INTPHY				0x10
 
 #define AXE_TIMEOUT		1000
+#define AXE_172_BUFSZ		1536
+#define AXE_178_MIN_BUFSZ	2048
+#define AXE_178_MAX_BUFSZ	16384
 #define AXE_MIN_FRAMELEN	60
 #define AXE_RX_FRAMES		1
 #define AXE_TX_FRAMES		1
+
+#define AXE_RX_LIST_CNT		1
+#define AXE_TX_LIST_CNT		1
 
 #define AXE_CTL_READ		0x01
 #define AXE_CTL_WRITE		0x02
@@ -134,6 +180,9 @@ struct axe_softc {
 	device_t		axe_dev;
 	usbd_device_handle	axe_udev;
 	usbd_interface_handle	axe_iface;
+	u_int16_t		axe_vendor;
+	u_int16_t		axe_product;
+	u_int16_t		axe_flags;
 	int			axe_ed[AXE_ENDPT_MAX];
 	usbd_pipe_handle	axe_ep[AXE_ENDPT_MAX];
 	int			axe_if_flags;
@@ -148,6 +197,7 @@ struct axe_softc {
 	struct timeval		axe_rx_notice;
 	struct usb_qdat		axe_qdat;
 	struct usb_task		axe_tick_task;
+	u_int			axe_bufsz;
 };
 
 #if 0

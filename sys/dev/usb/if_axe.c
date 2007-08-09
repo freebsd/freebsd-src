@@ -468,7 +468,7 @@ axe_attach(device_t self)
 	/*
 	 * Get station address.
 	 */
-	axe_cmd(sc, AXE_CMD_READ_NODEID, 0, 0, &eaddr);
+	axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, &eaddr);
 
 	/*
 	 * Load IPG values and PHY indexes.
@@ -894,12 +894,12 @@ axe_init(void *xsc)
 	}
 
 	/* Set transmitter IPG values */
-	axe_cmd(sc, AXE_CMD_WRITE_IPG0, 0, sc->axe_ipgs[0], NULL);
-	axe_cmd(sc, AXE_CMD_WRITE_IPG1, 0, sc->axe_ipgs[1], NULL);
-	axe_cmd(sc, AXE_CMD_WRITE_IPG2, 0, sc->axe_ipgs[2], NULL);
+	axe_cmd(sc, AXE_172_CMD_WRITE_IPG0, 0, sc->axe_ipgs[0], NULL);
+	axe_cmd(sc, AXE_172_CMD_WRITE_IPG1, 0, sc->axe_ipgs[1], NULL);
+	axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->axe_ipgs[2], NULL);
 
 	/* Enable receiver, set RX mode */
-	rxmode = AXE_RXCMD_UNICAST|AXE_RXCMD_MULTICAST|AXE_RXCMD_ENABLE;
+	rxmode = AXE_172_RXCMD_UNICAST|AXE_RXCMD_MULTICAST|AXE_RXCMD_ENABLE;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
