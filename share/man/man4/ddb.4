@@ -59,7 +59,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2006
+.Dd August 6, 2007
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -521,6 +521,12 @@ The support of the
 .Cm u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
+.Pp
+.It Ic show Cm sysregs
+Show system registers (e.g.,
+.Li cr0-4
+on i386.)
+Not present on some platforms.
 .Pp
 .It Ic show Cm geom Op Ar addr
 If the

@@ -1587,6 +1587,25 @@ DB_SHOW_COMMAND(idt, db_show_idt)
 		ip++;
 	}
 }
+
+/* Show privileged registers. */
+DB_SHOW_COMMAND(sysregs, db_show_sysregs)
+{
+	uint64_t idtr, gdtr;
+
+	idtr = ridt();
+	db_printf("idtr\t0x%08x/%04x\n",
+	    (u_int)(idtr >> 16), (u_int)idtr & 0xffff);
+	gdtr = rgdt();
+	db_printf("gdtr\t0x%08x/%04x\n",
+	    (u_int)(gdtr >> 16), (u_int)gdtr & 0xffff);
+	db_printf("ldtr\t0x%04x\n", rldt());
+	db_printf("tr\t0x%04x\n", rtr());
+	db_printf("cr0\t0x%08x\n", rcr0());
+	db_printf("cr2\t0x%08x\n", rcr2());
+	db_printf("cr3\t0x%08x\n", rcr3());
+	db_printf("cr4\t0x%08x\n", rcr4());
+}
 #endif
 
 void
