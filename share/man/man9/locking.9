@@ -67,7 +67,8 @@ Lockmanager locks
 .El
 .Pp
 The primitives interact and have a number of rules regarding how
-they can and can not be combined. There are too many for the average
+they can and can not be combined.
+There are too many for the average
 human mind and they keep changing.
 (if you disagree, please write replacement text)  :-)
 .Pp
@@ -85,63 +86,70 @@ You either hold it or you don't.
 If you don't own it then you just spin, waiting for the holder (on
 another CPU) to release it.
 Hopefully they are doing something fast.
-You can not do anything that deschedules the thread while you
+You 
+.Em must not
+do anything that deschedules the thread while you
 are holding a SPIN mutex.
-.Ss Sleep Mutexes
-Basically sleep (regular) mutexes will deschedule the thread if the
+.Ss Mutexes
+Basically (regular) mutexes will deschedule the thread if the
 mutex can not be acquired.
+A non-spin mutex can be considered to be equivalent
+to getting a write lock on an 
+.Em rw_lock
+(see below), and in fact non-spin mutexes and rw_locks may soon become the same thing.
 As in spin mutexes, you either get it or you don't.
-You may call the
+You may only call the
 .Xr sleep 9
-call
+call via
 .Fn msleep
 or the new
 .Fn mtx_sleep
-variant. These will atomically drop the mutex and reacquire it
+variant.
+These will atomically drop the mutex and reacquire it
 as part of waking up.
+This is often however a
+.Em BAD
+idea because it generally relies on you having
+such a good knowledge of all the call graph above you
+and what assumptions it is making that there are a lot
+of ways to make hard-to-find mistakes.
+For example you MUST re-test all the assumptions you made before,
+all the way up the call graph to where you got the lock.
+You can not just assume that mtx_sleep can be inserted anywhere.
+If any caller above you has any mutex or
+rwlock, your sleep, will cause a panic.
+If the sleep only happens rarely it may be years before the 
+bad code path is found.
 .Ss Pool Mutexes
-A variant of SLEEP mutexes where the allocation of the mutex is handled
+A variant of regular mutexes where the allocation of the mutex is handled
 more by the system.
-.Ss Sx_locks
-Shared/exclusive locks are used to protect data that are read far more often
-than they are written.
-Mutexes are inherently more efficient than shared/exclusive locks, so
-shared/exclusive locks should be used prudently.
-A thread may hold a shared or exclusive lock on an
-.Em sx_lock
-lock while sleeping.
-As a result, an
-.Em sx_lock
-lock may not be acquired while holding a mutex.
-Otherwise, if one thread slept while holding an
-.Em sx_lock
-lock while another thread blocked on the same
-.Em sx_lock
-lock after acquiring a mutex, then the second thread would effectively
-end up sleeping while holding a mutex, which is not allowed.
 .Ss Rw_locks
 Reader/writer locks allow shared access to protected data by multiple threads,
 or exclusive access by a single thread.
 The threads with shared access are known as
 .Em readers
-since they only read the protected data.
+since they should only read the protected data.
 A thread with exclusive access is known as a
 .Em writer
-since it can modify protected data.
+since it may modify protected data.
 .Pp
 Although reader/writer locks look very similar to
 .Xr sx 9
-locks, their usage pattern is different.
-Reader/writer locks can be treated as mutexes (see
+(see below) locks, their usage pattern is different.
+Reader/writer locks can be treated as mutexes (see above and
 .Xr mutex 9 )
 with shared/exclusive semantics.
-Unlike
-.Xr sx 9 ,
-an
+More specifically, regular mutexes can be 
+considered to be equivalent to a write-lock on an
+.Em rw_lock.
+In the future this may in fact
+become literally the fact.
+An
 .Em rw_lock
-can be locked while holding a non-spin mutex, and an
-.Em rw_lock
-cannot be held while sleeping.
+can be locked while holding a regular mutex, but 
+can
+.Em not
+be held while sleeping.
 The
 .Em rw_lock
 locks have priority propagation like mutexes, but priority
@@ -150,8 +158,36 @@ This limitation comes from the fact that shared owners
 are anonymous.
 Another important property is that shared holders of
 .Em rw_lock
-can recurse,
-but exclusive locks are not allowed to recurse.
+can recurse, but exclusive locks are not allowed to recurse.
+This ability should not be used lightly and 
+.Em may go away.
+Users of recursion in any locks should be prepared to 
+defend their decision against vigorous criticism.
+.Ss Sx_locks
+Shared/exclusive locks are used to protect data that are read far more often
+than they are written.
+Mutexes are inherently more efficient than shared/exclusive locks, so
+shared/exclusive locks should be used prudently.
+The main reason for using an
+.Em sx_lock
+is that a thread may hold a shared or exclusive lock on an
+.Em sx_lock
+lock while sleeping.
+As a consequence of this however, an
+.Em sx_lock
+lock may not be acquired while holding a mutex.
+The reason for this is that, if one thread slept while holding an
+.Em sx_lock
+lock while another thread blocked on the same
+.Em sx_lock
+lock after acquiring a mutex, then the second thread would effectively
+end up sleeping while holding a mutex, which is not allowed.
+The
+.Em sx_lock
+should be considered to be closely related to
+.Xr sleep 9 .
+In fact it could in some cases be 
+considered a conditional sleep.
 .Ss Turnstiles
 Turnstiles are used to hold a queue of threads blocked on
 non-sleepable locks.
@@ -160,6 +196,7 @@ Turnstiles differ from a sleep queue in that turnstile queue's
 are assigned to a lock held by an owning thread.
 Thus, when one thread is enqueued onto a turnstile, it can lend its
 priority to the owning thread.
+If this sounds confusing, we need to describe it better.
 .Ss Semaphores
 .Ss Condition variables
 Condition variables are used in conjunction with mutexes to wait for
@@ -182,7 +219,7 @@ going away.
 .It
 You can sleep while it has recursed, but other recursive locks cannot.
 .It
-Giant must be locked first.
+Giant must be locked first before other locks.
 .It
 There are places in the kernel that drop Giant and pick it back up
 again.
@@ -249,7 +286,8 @@ while the thread is suspended and will reacquire the
 mutex before the function returns.
 .Pp
 .Ss lockmanager locks
-Largely deprecated. See the
+Largely deprecated.
+See the
 .Xr lock 9
 page for more information.
 I don't know what the downsides are but I'm sure someone will fill in this part.
@@ -269,10 +307,12 @@ one of the synchronization primitives discussed here:
 .El
 .Pp
 .Em *1
-Recursion is defined per lock. Lock order is important.
+Recursion is defined per lock.
+Lock order is important.
 .Pp
 .Em *2
-readers can recurse though writers can not. Lock order is important.
+readers can recurse though writers can not.
+Lock order is important.
 .Pp
 .Em *3
 There are calls atomically release this primitive when going to sleep
@@ -302,6 +342,7 @@ At this time this is a rather easy to remember table.
 .Xr condvar 9 ,
 .Xr lock 9 ,
 .Xr mtx_pool 9 ,
+.Xr mutex 9 ,
 .Xr rwlock 9 ,
 .Xr sema 9 ,
 .Xr sleep 9 ,
