@@ -326,28 +326,28 @@ read_eflags(void)
 	return (ef);
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdmsr(u_int msr)
 {
-	u_int64_t rv;
+	uint64_t rv;
 
 	__asm __volatile("rdmsr" : "=A" (rv) : "c" (msr));
 	return (rv);
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdpmc(u_int pmc)
 {
-	u_int64_t rv;
+	uint64_t rv;
 
 	__asm __volatile("rdpmc" : "=A" (rv) : "c" (pmc));
 	return (rv);
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdtsc(void)
 {
-	u_int64_t rv;
+	uint64_t rv;
 
 	__asm __volatile("rdtsc" : "=A" (rv));
 	return (rv);
@@ -366,7 +366,7 @@ write_eflags(u_int ef)
 }
 
 static __inline void
-wrmsr(u_int msr, u_int64_t newval)
+wrmsr(u_int msr, uint64_t newval)
 {
 	__asm __volatile("wrmsr" : : "A" (newval), "c" (msr));
 }
@@ -456,6 +456,14 @@ rfs(void)
 	return (sel);
 }
 
+static __inline uint64_t
+rgdt(void)
+{
+	uint64_t gdtr;
+	__asm __volatile("sgdt %0" : "=m" (gdtr));
+	return (gdtr);
+}
+
 static __inline u_int
 rgs(void)
 {
@@ -464,12 +472,36 @@ rgs(void)
 	return (sel);
 }
 
+static __inline uint64_t
+ridt(void)
+{
+	uint64_t idtr;
+	__asm __volatile("sidt %0" : "=m" (idtr));
+	return (idtr);
+}
+
+static __inline u_short
+rldt(void)
+{
+	u_short ldtr;
+	__asm __volatile("sldt %0" : "=g" (ldtr));
+	return (ldtr);
+}
+
 static __inline u_int
 rss(void)
 {
 	u_int sel;
 	__asm __volatile("movl %%ss,%0" : "=rm" (sel));
 	return (sel);
+}
+
+static __inline u_short
+rtr(void)
+{
+	u_short tr;
+	__asm __volatile("str %0" : "=g" (tr));
+	return (tr);
 }
 
 static __inline void
@@ -677,8 +709,8 @@ u_int	rcr0(void);
 u_int	rcr2(void);
 u_int	rcr3(void);
 u_int	rcr4(void);
-u_int64_t rdmsr(u_int msr);
-u_int64_t rdpmc(u_int pmc);
+uint64_t rdmsr(u_int msr);
+uint64_t rdpmc(u_int pmc);
 u_int	rdr0(void);
 u_int	rdr1(void);
 u_int	rdr2(void);
@@ -687,13 +719,17 @@ u_int	rdr4(void);
 u_int	rdr5(void);
 u_int	rdr6(void);
 u_int	rdr7(void);
-u_int64_t rdtsc(void);
+uint64_t rdtsc(void);
 u_int	read_eflags(void);
 u_int	rfs(void);
+uint64_t rgdt(void);
 u_int	rgs(void);
+uint64_t ridt(void);
+u_short	rldt(void);
+u_short	rtr(void);
 void	wbinvd(void);
 void	write_eflags(u_int ef);
-void	wrmsr(u_int msr, u_int64_t newval);
+void	wrmsr(u_int msr, uint64_t newval);
 
 #endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
