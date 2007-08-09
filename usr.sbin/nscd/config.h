@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_CONFIG_H__
-#define __CACHED_CONFIG_H__
+#ifndef __NSCD_CONFIG_H__
+#define __NSCD_CONFIG_H__
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -44,8 +44,8 @@
 #define DEFAULT_CACHE_HT_SIZE		257
 
 #define INITIAL_ENTRIES_CAPACITY	8
-#define DEFAULT_SOCKET_PATH		"/var/run/cached"
-#define DEFAULT_PIDFILE_PATH		"/var/run/cached.pid"
+#define DEFAULT_SOCKET_PATH		"/var/run/nscd"
+#define DEFAULT_PIDFILE_PATH		"/var/run/nscd.pid"
 
 #define DEFAULT_POSITIVE_ELEMENTS_SIZE	(2048)
 #define DEFAULT_POSITIVE_LIFETIME 	(3600)

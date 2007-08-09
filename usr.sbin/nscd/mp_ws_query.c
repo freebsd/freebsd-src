@@ -203,7 +203,7 @@ on_mp_write_session_request_process(struct query_state *qstate)
 			"can't write to it", c_mp_ws_request->entry);
 		goto fin;
 	} else {
-#ifdef NS_CACHED_EID_CHECKING
+#ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
 			c_mp_ws_response->error_code = EPERM;
 			goto fin;

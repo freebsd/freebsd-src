@@ -41,17 +41,17 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "debug.h"
-#include "cachedcli.h"
+#include "nscdcli.h"
 #include "protocol.h"
 
-#define DEFAULT_CACHED_IO_TIMEOUT	4
+#define DEFAULT_NSCD_IO_TIMEOUT	4
 
-static int safe_write(struct cached_connection_ *, const void *, size_t);
-static int safe_read(struct cached_connection_ *, void *, size_t);
-static int send_credentials(struct cached_connection_ *, int);
+static int safe_write(struct nscd_connection_ *, const void *, size_t);
+static int safe_read(struct nscd_connection_ *, void *, size_t);
+static int send_credentials(struct nscd_connection_ *, int);
 
 static int
-safe_write(struct cached_connection_ *connection, const void *data,
+safe_write(struct nscd_connection_ *connection, const void *data,
 	size_t data_size)
 {
 	struct kevent eventlist;
@@ -63,7 +63,7 @@ safe_write(struct cached_connection_ *connection, const void *data,
 	if (data_size == 0)
 		return (0);
 
-	timeout.tv_sec = DEFAULT_CACHED_IO_TIMEOUT;
+	timeout.tv_sec = DEFAULT_NSCD_IO_TIMEOUT;
 	timeout.tv_nsec = 0;
 	result = 0;
 	do {
@@ -88,7 +88,7 @@ safe_write(struct cached_connection_ *connection, const void *data,
 }
 
 static int
-safe_read(struct cached_connection_ *connection, void *data, size_t data_size)
+safe_read(struct nscd_connection_ *connection, void *data, size_t data_size)
 {
 	struct kevent eventlist;
 	size_t result;
@@ -99,7 +99,7 @@ safe_read(struct cached_connection_ *connection, void *data, size_t data_size)
 	if (data_size == 0)
 		return (0);
 
-	timeout.tv_sec = DEFAULT_CACHED_IO_TIMEOUT;
+	timeout.tv_sec = DEFAULT_NSCD_IO_TIMEOUT;
 	timeout.tv_nsec = 0;
 	result = 0;
 	do {
@@ -124,7 +124,7 @@ safe_read(struct cached_connection_ *connection, void *data, size_t data_size)
 }
 
 static int
-send_credentials(struct cached_connection_ *connection, int type)
+send_credentials(struct nscd_connection_ *connection, int type)
 {
 	struct kevent eventlist;
 	int nevents;
@@ -173,16 +173,16 @@ send_credentials(struct cached_connection_ *connection, int type)
 	}
 }
 
-struct cached_connection_ *
-open_cached_connection__(struct cached_connection_params const *params)
+struct nscd_connection_ *
+open_nscd_connection__(struct nscd_connection_params const *params)
 {
-	struct cached_connection_ *retval;
+	struct nscd_connection_ *retval;
 	struct kevent eventlist;
 	struct sockaddr_un	client_address;
 	int client_address_len, client_socket;
 	int res;
 
-	TRACE_IN(open_cached_connection);
+	TRACE_IN(open_nscd_connection);
 	assert(params != NULL);
 
 	client_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
@@ -196,14 +196,14 @@ open_cached_connection__(struct cached_connection_params const *params)
 		client_address_len);
 	if (res == -1) {
 		close(client_socket);
-		TRACE_OUT(open_cached_connection);
+		TRACE_OUT(open_nscd_connection);
 		return (NULL);
 	}
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
-	retval = malloc(sizeof(struct cached_connection_));
+	retval = malloc(sizeof(struct nscd_connection_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cached_connection_));
+	memset(retval, 0, sizeof(struct nscd_connection_));
 
 	retval->sockfd = client_socket;
 
@@ -221,33 +221,33 @@ open_cached_connection__(struct cached_connection_params const *params)
 		0, 0, NULL);
 	res = kevent(retval->read_queue, &eventlist, 1, NULL, 0, NULL);
 
-	TRACE_OUT(open_cached_connection);
+	TRACE_OUT(open_nscd_connection);
 	return (retval);
 }
 
 void
-close_cached_connection__(struct cached_connection_ *connection)
+close_nscd_connection__(struct nscd_connection_ *connection)
 {
 
-	TRACE_IN(close_cached_connection);
+	TRACE_IN(close_nscd_connection);
 	assert(connection != NULL);
 
 	close(connection->sockfd);
 	close(connection->read_queue);
 	close(connection->write_queue);
 	free(connection);
-	TRACE_OUT(close_cached_connection);
+	TRACE_OUT(close_nscd_connection);
 }
 
 int
-cached_transform__(struct cached_connection_ *connection,
+nscd_transform__(struct nscd_connection_ *connection,
 	const char *entry_name, int transformation_type)
 {
 	size_t name_size;
 	int error_code;
 	int result;
 
-	TRACE_IN(cached_transform);
+	TRACE_IN(nscd_transform);
 
 	error_code = -1;
 	result = 0;
@@ -279,6 +279,6 @@ cached_transform__(struct cached_connection_ *connection,
 		error_code = -1;
 
 fin:
-	TRACE_OUT(cached_transform);
+	TRACE_OUT(nscd_transform);
 	return (error_code);
 }

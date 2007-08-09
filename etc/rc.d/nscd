@@ -3,30 +3,30 @@
 # $FreeBSD$
 #
 
-# PROVIDE: cached
+# PROVIDE: nscd
 # REQUIRE: DAEMON
 # BEFORE: LOGIN
 
 #
 # Add the following lines to /etc/rc.conf to enable cached:
 #
-# cached_enable="YES"
+# nscd_enable="YES"
 #
-# See cached(8) for flags
+# See nscd(8) for flags
 #
 
 . /etc/rc.subr
 
-name=cached
+name=nscd
 rcvar=`set_rcvar`
 
-command=/usr/sbin/cached
+command=/usr/sbin/nscd
 extra_commands="flush"
 flush_cmd="${command} -I all"
 
-cached_enable=${cached_enable:-"NO"}
-cached_pidfile=${cached_pidfile:-"/var/run/cached.pid"}
-cached_flags=${cached_flags:-""}
+nscd_enable=${nscd_enable:-"NO"}
+nscd_pidfile=${nscd_pidfile:-"/var/run/nscd.pid"}
+nscd_flags=${nscd_flags:-""}
 
 load_rc_config $name
 run_rc_command "$1"

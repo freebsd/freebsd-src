@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_AGENT_H__
-#define __CACHED_AGENT_H__
+#ifndef __NSCD_AGENT_H__
+#define __NSCD_AGENT_H__
 
 /*
  * Agents are used to perform the actual lookups from the caching daemon.
