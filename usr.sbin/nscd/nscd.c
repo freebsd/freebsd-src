@@ -49,19 +49,19 @@ __FBSDID("$FreeBSD$");
 #include "agents/passwd.h"
 #include "agents/group.h"
 #include "agents/services.h"
-#include "cachedcli.h"
 #include "cachelib.h"
 #include "config.h"
 #include "debug.h"
 #include "log.h"
+#include "nscdcli.h"
 #include "parser.h"
 #include "query.h"
 #include "singletons.h"
 
 #ifndef CONFIG_PATH
-#define CONFIG_PATH "/etc/cached.conf"
+#define CONFIG_PATH "/etc/nscd.conf"
 #endif
-#define DEFAULT_CONFIG_PATH	"cached.conf"
+#define DEFAULT_CONFIG_PATH	"nscd.conf"
 
 #define MAX_SOCKET_IO_SIZE	4096
 
@@ -93,7 +93,7 @@ static void
 print_version_info(void)
 {
 	TRACE_IN(print_version_info);
-	printf("cached v0.2 (20 Oct 2005)\nwas developed during SoC 2005\n");
+	printf("nscd v0.2 (20 Oct 2005)\nwas developed during SoC 2005\n");
 	TRACE_OUT(print_version_info);
 }
 
@@ -101,7 +101,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: cached [-dnst] [-i cachename] [-I cachename]\n");
+	    "usage: nscd [-dnst] [-i cachename] [-I cachename]\n");
 	exit(1);
 }
 
@@ -683,8 +683,8 @@ main(int argc, char *argv[])
 		FILE *pidfin = fopen(DEFAULT_PIDFILE_PATH, "r");
 		char pidbuf[256];
 
-		struct cached_connection_params connection_params;
-		cached_connection connection;
+		struct nscd_connection_params connection_params;
+		nscd_connection connection;
 
 		int result;
 
@@ -704,14 +704,14 @@ main(int argc, char *argv[])
 
 
 		memset(&connection_params, 0,
-			sizeof(struct cached_connection_params));
+			sizeof(struct nscd_connection_params));
 		connection_params.socket_path = DEFAULT_SOCKET_PATH;
-		connection = open_cached_connection__(&connection_params);
-		if (connection == INVALID_CACHED_CONNECTION)
+		connection = open_nscd_connection__(&connection_params);
+		if (connection == INVALID_NSCD_CONNECTION)
 			errx(EXIT_FAILURE, "Can't connect to the daemon.");
 
 		if (clear_user_cache_entries != 0) {
-			result = cached_transform__(connection,
+			result = nscd_transform__(connection,
 				user_config_entry_name, TT_USER);
 			if (result != 0)
 				LOG_MSG_1("main",
@@ -727,7 +727,7 @@ main(int argc, char *argv[])
 				errx(EXIT_FAILURE, "Only root can initiate "
 					"global cache transformation.");
 
-			result = cached_transform__(connection,
+			result = nscd_transform__(connection,
 				global_config_entry_name, TT_ALL);
 			if (result != 0)
 				LOG_MSG_1("main",
@@ -739,7 +739,7 @@ main(int argc, char *argv[])
 					"succeeded");
 		}
 
-		close_cached_connection__(connection);
+		close_nscd_connection__(connection);
 
 		free(user_config_entry_name);
 		free(global_config_entry_name);

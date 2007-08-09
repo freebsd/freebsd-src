@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_SINGLETONS_H__
-#define __CACHED_SINGLETONS_H__
+#ifndef __NSCD_SINGLETONS_H__
+#define __NSCD_SINGLETONS_H__
 
 #include "cachelib.h"
 #include "config.h"

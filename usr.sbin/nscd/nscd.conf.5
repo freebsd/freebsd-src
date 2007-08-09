@@ -25,17 +25,17 @@
 .\" $FreeBSD$
 .\"
 .Dd April 30, 2006
-.Dt CACHED.CONF 5
+.Dt NSCD.CONF 5
 .Os
 .Sh NAME
-.Nm cached.conf
-.Nd "caching daemon configuration file"
+.Nm nscd.conf
+.Nd "nscd configuration file"
 .Sh DESCRIPTION
 The
 .Nm
 file
 is used by the
-.Xr cached 8
+.Xr nscd 8
 daemon and is read on its startup.
 Its syntax is mostly similar to the
 .Pa nscd.conf
@@ -114,12 +114,12 @@ When it is exceeded, the policy will be applied.
 The default value is 2048.
 .It Va perform-actual-lookups Oo Ar cachename Oc Op Cm yes | no
 If enabled, the
-.Xr cached 8
+.Xr nscd 8
 does not simply receive and cache the NSS-requests results, but performs
 all the lookups by itself and only returns the responses.
 If this feature is enabled, then for the given
 .Ar cachename
-.Xr cached 8
+.Xr nscd 8
 will act similarly to the NSCD.
 .Pp
 .Sy NOTE :
@@ -135,14 +135,14 @@ You can use the
 .Ql #
 symbol at the beginning of the line for comments.
 .Sh FILES
-.Bl -tag -width ".Pa /etc/cached.conf" -compact
-.It Pa /etc/cached.conf
+.Bl -tag -width ".Pa /etc/nscd.conf" -compact
+.It Pa /etc/nscd.conf
 .El
 .Sh SEE ALSO
-.Xr cached 8
+.Xr nscd 8
 .Sh AUTHORS
 .An Michael Bushkov
-.Aq bushman@rsu.ru
+.Aq bushman@freebsd.org
 .Sh BUGS
 Please send bug reports and suggestions to
-.Aq bushman@rsu.ru .
+.Aq bushman@freebsd.org .

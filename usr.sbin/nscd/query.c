@@ -191,13 +191,13 @@ on_query_startup(struct query_state *qstate)
 	qstate->uid = cred->cmcred_uid;
 	qstate->gid = cred->cmcred_gid;
 
-#if defined(NS_CACHED_EID_CHECKING) || defined(NS_STRICT_CACHED_EID_CHECKING)
+#if defined(NS_NSCD_EID_CHECKING) || defined(NS_STRICT_NSCD_EID_CHECKING)
 /*
  * This check is probably a bit redundant - per-user cache is always separated
  * by the euid/egid pair
  */
 	if (check_query_eids(qstate) != 0) {
-#ifdef NS_STRICT_CACHED_EID_CHECKING
+#ifdef NS_STRICT_NSCD_EID_CHECKING
 		TRACE_OUT(on_query_startup);
 		return (-1);
 #else
@@ -511,7 +511,7 @@ on_negative_write_request_process(struct query_state *qstate)
 			"can't write to it", write_request->entry);
 		goto fin;
 	} else {
-#ifdef NS_CACHED_EID_CHECKING
+#ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
 			write_response->error_code = EPERM;
 			goto fin;
@@ -705,7 +705,7 @@ on_read_request_process(struct query_state *qstate)
 	if (qstate->config_entry->perform_actual_lookups != 0)
 		memset(read_request->cache_key, 0, qstate->eid_str_length);
 	else {
-#ifdef NS_CACHED_EID_CHECKING
+#ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
 		/* if the lookup is not self-performing, we check for clients euid/egid */
 			read_response->error_code = EPERM;

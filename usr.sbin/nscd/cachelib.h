@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_CACHELIB_H__
-#define __CACHED_CACHELIB_H__
+#ifndef __NSCD_CACHELIB_H__
+#define __NSCD_CACHELIB_H__
 
 #include <sys/queue.h>
 #include <sys/time.h>

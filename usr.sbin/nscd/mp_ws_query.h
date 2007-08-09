@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_MP_WS_QUERY_H__
-#define __CACHED_MP_WS_QUERY_H__
+#ifndef __NSCD_MP_WS_QUERY_H__
+#define __NSCD_MP_WS_QUERY_H__
 
 extern int on_mp_write_session_request_read1(struct query_state *);
 extern cache_entry register_new_mp_cache_entry(struct query_state *,

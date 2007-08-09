@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_DEBUG_H__
-#define __CACHED_DEBUG_H__
+#ifndef __NSCD_DEBUG_H__
+#define __NSCD_DEBUG_H__
 
 #define TRACE_WANTED 32
 

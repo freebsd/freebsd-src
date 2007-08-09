@@ -200,7 +200,7 @@ on_mp_read_session_request_process(struct query_state *qstate)
 		dec_cache_entry_name = strdup(
 			qstate->config_entry->mp_cache_params.entry_name);
 	else {
-#ifdef NS_CACHED_EID_CHECKING
+#ifdef NS_NSCD_EID_CHECKING
 		if (check_query_eids(qstate) != 0) {
 			c_mp_rs_response->error_code = EPERM;
 			goto fin;
