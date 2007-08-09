@@ -50,7 +50,7 @@ __log_msg(int level, const char *sender, const char *message, ...)
 	printf("M%d from %s: %s\n", level, sender, fmessage);
 #ifndef NO_SYSLOG
 	if (level == 0)
-		syslog(LOG_INFO, "cached message (from %s): %s", sender,
+		syslog(LOG_INFO, "nscd message (from %s): %s", sender,
 		fmessage);
 #endif
 	free(fmessage);
@@ -72,7 +72,7 @@ __log_err(int level, const char *sender, const char *error, ...)
 
 #ifndef NO_SYSLOG
 	if (level == 0)
-		syslog(LOG_ERR, "cached error (from %s): %s", sender, ferror);
+		syslog(LOG_ERR, "nscd error (from %s): %s", sender, ferror);
 #endif
 	free(ferror);
 }

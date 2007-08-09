@@ -26,32 +26,32 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_CACHEDCLI_H__
-#define __CACHED_CACHEDCLI_H__
+#ifndef __NSCD_NSCDCLI_H__
+#define __NSCD_NSCDCLI_H__
 
-struct cached_connection_params {
+struct nscd_connection_params {
 	char	*socket_path;
 	struct	timeval	timeout;
 };
 
-struct cached_connection_ {
+struct nscd_connection_ {
 	int	sockfd;
 	int read_queue;
 	int write_queue;
 };
 
 /* simple abstractions for not to write "struct" every time */
-typedef struct cached_connection_		*cached_connection;
-typedef struct cached_connection_		*cached_mp_write_session;
-typedef struct cached_connection_		*cached_mp_read_session;
+typedef struct nscd_connection_		*nscd_connection;
+typedef struct nscd_connection_		*nscd_mp_write_session;
+typedef struct nscd_connection_		*nscd_mp_read_session;
 
-#define	INVALID_CACHED_CONNECTION	(NULL)
+#define	INVALID_NSCD_CONNECTION	(NULL)
 
 /* initialization/destruction routines */
-extern	cached_connection	open_cached_connection__(
-	struct cached_connection_params const *);
-extern	void	close_cached_connection__(cached_connection);
+extern	nscd_connection	open_nscd_connection__(
+	struct nscd_connection_params const *);
+extern	void	close_nscd_connection__(nscd_connection);
 
-extern	int cached_transform__(cached_connection, const char *, int);
+extern	int nscd_transform__(nscd_connection, const char *, int);
 
 #endif

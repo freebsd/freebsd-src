@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef __CACHED_PROTOCOL_H__
-#define __CACHED_PROTOCOL_H__
+#ifndef __NSCD_PROTOCOL_H__
+#define __NSCD_PROTOCOL_H__
 
 #include <stdlib.h>
 
