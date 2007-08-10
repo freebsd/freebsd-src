@@ -188,6 +188,12 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 {
 	size_t pages = 0;
 
+#ifdef INVARIANTS
+	TMPFS_NODE_LOCK(node);
+	MPASS(node->tn_vnode == NULL);
+	TMPFS_NODE_UNLOCK(node);
+#endif
+
 	TMPFS_LOCK(tmp);
 	LIST_REMOVE(node, tn_entries);
 	tmp->tm_nodes_inuse--;
@@ -302,15 +308,20 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de,
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, struct vnode **vpp,
-    struct thread *td)
+tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
+    struct vnode **vpp, struct thread *td)
 {
 	int error;
 	struct vnode *vp;
 
 loop:
+	TMPFS_NODE_LOCK(node);
 	if ((vp = node->tn_vnode) != NULL) {
-		error = vget(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		VI_LOCK(vp);
+		TMPFS_NODE_UNLOCK(node);
+		vholdl(vp);
+		error = vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, td);
+		vdrop(vp);
 		if (error)
 			return error;
 
@@ -330,12 +341,11 @@ loop:
 	 * otherwise lock the vp list while we call getnewvnode
 	 * since that can block.
 	 */
-	TMPFS_NODE_LOCK(node);
 	if (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) {
 		node->tn_vpstate |= TMPFS_VNODE_WANT;
 		error = msleep((caddr_t) &node->tn_vpstate,
 		    TMPFS_NODE_MTX(node), PDROP | PCATCH,
-		    "tmpfs_vplock", 0);
+		    "tmpfs_alloc_vp", 0);
 		if (error)
 			return error;
 
@@ -351,7 +361,7 @@ loop:
 		goto unlock;
 	MPASS(vp != NULL);
 
-	error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vn_lock(vp, lkflag | LK_RETRY, td);
 	if (error != 0) {
 		vp->v_data = NULL;
 		vput(vp);
@@ -386,23 +396,15 @@ loop:
 
 	vnode_pager_setsize(vp, node->tn_size);
 	error = insmntque(vp, mp);
-	if (error) {
-		node->tn_vnode = NULL;
-		TMPFS_NODE_LOCK(node);
-		if (node->tn_vpstate & TMPFS_VNODE_WANT) {
-			node->tn_vpstate &= ~TMPFS_VNODE_WANT;
-			TMPFS_NODE_UNLOCK(node);
-			wakeup((caddr_t) &node->tn_vpstate);
-		} else
-			TMPFS_NODE_UNLOCK(node);
-		return error;
-	}
-	node->tn_vnode = vp;
+	if (error)
+		vp = NULL;
 
 unlock:
 	TMPFS_NODE_LOCK(node);
+
 	MPASS(node->tn_vpstate & TMPFS_VNODE_ALLOCATING);
 	node->tn_vpstate &= ~TMPFS_VNODE_ALLOCATING;
+	node->tn_vnode = vp;
 
 	if (node->tn_vpstate & TMPFS_VNODE_WANT) {
 		node->tn_vpstate &= ~TMPFS_VNODE_WANT;
@@ -415,7 +417,11 @@ out:
 	*vpp = vp;
 
 	MPASS(IFF(error == 0, *vpp != NULL && VOP_ISLOCKED(*vpp, td)));
+#ifdef INVARIANTS
+	TMPFS_NODE_LOCK(node);
 	MPASS(*vpp == node->tn_vnode);
+	TMPFS_NODE_UNLOCK(node);
+#endif
 
 	return error;
 }
@@ -433,8 +439,10 @@ tmpfs_free_vp(struct vnode *vp)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
+	TMPFS_NODE_LOCK(node);
 	node->tn_vnode = NULL;
 	vp->v_data = NULL;
+	TMPFS_NODE_UNLOCK(node);
 }
 
 /* --------------------------------------------------------------------- */
@@ -499,7 +507,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	}
 
 	/* Allocate a vnode for the new file. */
-	error = tmpfs_alloc_vp(dvp->v_mount, node, vpp, cnp->cn_thread);
+	error = tmpfs_alloc_vp(dvp->v_mount, node, LK_EXCLUSIVE, vpp,
+	    cnp->cn_thread);
 	if (error != 0) {
 		tmpfs_free_dirent(tmp, de, TRUE);
 		tmpfs_free_node(tmp, node);

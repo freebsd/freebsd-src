@@ -95,12 +95,20 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	    !(cnp->cn_flags & ISDOTDOT)));
 
 	if (cnp->cn_flags & ISDOTDOT) {
+		int ltype = 0;
+
+		ltype = VOP_ISLOCKED(dvp, td);
+		vholdl(dvp);
 		VOP_UNLOCK(dvp, 0, td);
-
 		/* Allocate a new vnode on the matching entry. */
-		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent, vpp, td);
+		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
+		    cnp->cn_lkflags, vpp, td);
 
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, ltype | LK_RETRY, td);
+		if (ltype & LK_INTERLOCK)
+			vdropl(dvp);
+		else
+			vdrop(dvp);
 
 		dnode->tn_dir.tn_parent->tn_lookup_dirent = NULL;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
@@ -160,7 +168,8 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 					goto out;
 
 				/* Allocate a new vnode on the matching entry. */
-				error = tmpfs_alloc_vp(dvp->v_mount, tnode, vpp, td);
+				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
+						cnp->cn_lkflags, vpp, td);
 				if (error != 0)
 					goto out;
 
@@ -174,10 +183,10 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 				}
 				tnode->tn_lookup_dirent = de;
 				cnp->cn_flags |= SAVENAME;
+			} else {
+				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
+						cnp->cn_lkflags, vpp, td);
 			}
-			else
-				error = tmpfs_alloc_vp(dvp->v_mount, tnode, vpp, td);
-
 		}
 	}
 
@@ -478,7 +487,7 @@ lookupvpg:
 		vm_page_wakeup(m);
 		VM_OBJECT_UNLOCK(vobj);
 		return	(error);
-	} 
+	}
 	VM_OBJECT_UNLOCK(vobj);
 nocache:
 	VM_OBJECT_LOCK(tobj);
@@ -886,13 +895,13 @@ tmpfs_rename(struct vop_rename_args *v)
 	struct vnode *tdvp = v->a_tdvp;
 	struct vnode *tvp = v->a_tvp;
 	struct componentname *tcnp = v->a_tcnp;
-	struct tmpfs_node *tnode = 0; /* pacify gcc */
 
 	char *newname;
 	int error;
 	struct tmpfs_dirent *de;
 	struct tmpfs_node *fdnode;
 	struct tmpfs_node *fnode;
+	struct tmpfs_node *tnode;
 	struct tmpfs_node *tdnode;
 
 	MPASS(VOP_ISLOCKED(tdvp, tcnp->cn_thread));
@@ -902,6 +911,7 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
+  	tnode = (tvp == NULL) ? NULL : VP_TO_TMPFS_NODE(tvp);
 	de = fnode->tn_lookup_dirent;
 
 	/* Disallow cross-device renames.
@@ -934,7 +944,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * Kern_rename gurantees the destination to be a directory
 	 * if the source is one. */
 	if (tvp != NULL) {
-		tnode = VP_TO_TMPFS_NODE(tvp);
+		MPASS(tnode != NULL);
 
 		if ((tnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 		    (tdnode->tn_flags & (APPEND | IMMUTABLE))) {
@@ -942,9 +952,20 @@ tmpfs_rename(struct vop_rename_args *v)
 			goto out;
 		}
 
-		if ((de->td_node->tn_type == VDIR) && (tnode->tn_size > 0)) {
-			error = ENOTEMPTY;
+		if (fnode->tn_type == VDIR && tnode->tn_type == VDIR) {
+			if (tnode->tn_size > 0) {
+				error = ENOTEMPTY;
+				goto out;
+			}
+		} else if (fnode->tn_type == VDIR && tnode->tn_type != VDIR) {
+			error = ENOTDIR;
 			goto out;
+		} else if (fnode->tn_type != VDIR && tnode->tn_type == VDIR) {
+			error = EISDIR;
+			goto out;
+		} else {
+			MPASS(fnode->tn_type != VDIR &&
+				tnode->tn_type != VDIR);
 		}
 	}
 

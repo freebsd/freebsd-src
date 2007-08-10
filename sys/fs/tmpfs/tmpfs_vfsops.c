@@ -390,7 +390,7 @@ static int
 tmpfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	int error;
-	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, vpp, td);
+	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, flags, vpp, td);
 
 	if (!error)
 		(*vpp)->v_vflag |= VV_ROOT;
@@ -429,7 +429,10 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 	}
 	TMPFS_UNLOCK(tmp);
 
-	return found ? tmpfs_alloc_vp(mp, node, vpp, curthread) : EINVAL;
+	if (found)
+		return (tmpfs_alloc_vp(mp, node, LK_EXCLUSIVE, vpp, curthread));
+
+	return (EINVAL);
 }
 
 /* --------------------------------------------------------------------- */
