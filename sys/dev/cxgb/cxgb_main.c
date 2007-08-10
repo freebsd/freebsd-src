@@ -509,7 +509,7 @@ cxgb_controller_attach(device_t dev)
 		device_printf(dev, "failed to allocate controller task queue\n");
 		goto out;
 	}
-		
+
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
 	TASK_INIT(&sc->ext_intr_task, 0, cxgb_ext_intr_handler, sc);
@@ -653,7 +653,8 @@ cxgb_free(struct adapter *sc)
 		if (isset(&sc->open_device_map,	OFFLOAD_DEVMAP_BIT))
 			offload_close(&sc->tdev);
 	}
-#endif	
+#endif
+
 	t3_free_sge_resources(sc);
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
@@ -671,8 +672,6 @@ cxgb_free(struct adapter *sc)
 	
 	return;
 }
-
-
 
 static int
 alloc_filters(struct adapter *adap)
@@ -868,7 +867,7 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 		nqsets = sc->port[i].nqsets;
 		for (j = 0; j < nqsets; j++, k++) {
 			struct sge_qset *qs = &sc->sge.qs[k];
-			    
+
 			rid = k + 2;
 			if (cxgb_debug)
 				printf("rid=%d ", rid);
@@ -1049,6 +1048,7 @@ cxgb_port_attach(device_t dev)
 	}	
 	taskqueue_start_threads(&p->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
+	
 	TASK_INIT(&p->start_task, 0, cxgb_start_proc, ifp);
 
 	t3_sge_init_port(p);
@@ -1935,7 +1935,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 				m = m0;
 				m_collapse(m, TX_MAX_SEGS, &m0);
 			} else
-				break;	
+				break;
 		}
 		m = m0;
 		if ((err = t3_encap(p, &m)) != 0)
