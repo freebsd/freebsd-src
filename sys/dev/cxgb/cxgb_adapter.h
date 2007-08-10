@@ -117,7 +117,7 @@ struct port_info {
 #else	
 	struct mtx	lock;
 #endif	
-	int		port;
+	int		port_id;
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	uint8_t		nqsets;
 	uint8_t         first_qset;

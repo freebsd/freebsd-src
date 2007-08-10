@@ -1250,7 +1250,7 @@ cxgb_redirect(struct rtentry *old, struct rtentry *new)
 	}
 
 	/* Add new L2T entry */
-	e = t3_l2t_get(tdev, new, ((struct port_info *)new->rt_ifp->if_softc)->port);
+	e = t3_l2t_get(tdev, new, ((struct port_info *)new->rt_ifp->if_softc)->port_id);
 	if (!e) {
 		log(LOG_ERR, "%s: couldn't allocate new l2t entry!\n",
 		       __FUNCTION__);
