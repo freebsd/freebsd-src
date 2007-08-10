@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void) __dead2;
 static int argtoi(int flag, const char *req, const char *str, int base);
 static int checkfilesys(char *filesys);
+static int chkdoreload(struct statfs *mntp);
 static struct statfs *getmntpt(const char *);
 
 int
@@ -197,7 +198,7 @@ checkfilesys(char *filesys)
 	struct stat snapdir;
 	struct group *grp;
 	ufs2_daddr_t blks;
-	int cylno, ret;
+	int cylno;
 	ino_t files;
 	size_t size;
 
@@ -253,7 +254,9 @@ checkfilesys(char *filesys)
 			}
 			if ((sblock.fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0) {
 				gjournal_check(filesys);
-				exit(0);
+				if (chkdoreload(mntp) == 0)
+					exit(0);
+				exit(4);
 			} else {
 				pfatal("UNEXPECTED INCONSISTENCY, %s\n",
 				    "CANNOT RUN FAST FSCK\n");
@@ -483,29 +486,43 @@ checkfilesys(char *filesys)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
-	if (mntp != NULL) {
-		/*
-		 * We modified a mounted file system.  Do a mount update on
-		 * it unless it is read-write, so we can continue using it
-		 * as safely as possible.
-		 */
-		if (mntp->f_flags & MNT_RDONLY) {
-			args.fspec = 0;
-			args.export.ex_flags = 0;
-			args.export.ex_root = 0;
-			ret = mount("ufs", mntp->f_mntonname,
-			    mntp->f_flags | MNT_UPDATE | MNT_RELOAD, &args);
-			if (ret == 0)
-				return (0);
-			pwarn("mount reload of '%s' failed: %s\n\n",
-			    mntp->f_mntonname, strerror(errno));
-		}
+	if (chkdoreload(mntp) != 0) {
 		if (!fsmodified)
 			return (0);
 		if (!preen)
 			printf("\n***** REBOOT NOW *****\n");
 		sync();
 		return (4);
+	}
+	return (0);
+}
+
+static int
+chkdoreload(struct statfs *mntp)
+{
+	struct ufs_args args;
+
+	if (mntp == NULL)
+		return (0);
+	/*
+	 * We modified a mounted file system.  Do a mount update on
+	 * it unless it is read-write, so we can continue using it
+	 * as safely as possible.
+	 */
+	if (mntp->f_flags & MNT_RDONLY) {
+		memset(&args, 0, sizeof args);
+		/*
+		 * args.fspec = 0;
+		 * args.export.ex_flags = 0;
+		 * args.export.ex_root = 0;
+		 */
+		if (mount("ufs", mntp->f_mntonname,
+		    mntp->f_flags | MNT_UPDATE | MNT_RELOAD, &args) == 0) {
+			return (0);
+		}
+		pwarn("mount reload of '%s' failed: %s\n\n",
+		    mntp->f_mntonname, strerror(errno));
+		return (1);
 	}
 	return (0);
 }
