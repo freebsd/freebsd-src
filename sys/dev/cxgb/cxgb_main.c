@@ -557,7 +557,7 @@ cxgb_controller_attach(device_t dev)
 		sc->port[i].adapter = sc;
 		sc->port[i].nqsets = port_qsets;
 		sc->port[i].first_qset = i*port_qsets;
-		sc->port[i].port = i;
+		sc->port[i].port_id = i;
 		sc->portdev[i] = child;
 		device_set_softc(child, &sc->port[i]);
 	}
@@ -905,7 +905,7 @@ cxgb_port_probe(device_t dev)
 
 	p = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "Port %d %s", p->port, p->port_type->desc);
+	snprintf(buf, sizeof(buf), "Port %d %s", p->port_id, p->port_type->desc);
 	device_set_desc_copy(dev, buf);
 	return (0);
 }
@@ -950,7 +950,7 @@ cxgb_port_attach(device_t dev)
 	p = device_get_softc(dev);
 
 	snprintf(p->lockbuf, PORT_NAME_LEN, "cxgb port lock %d:%d",
-	    device_get_unit(device_get_parent(dev)), p->port);  	
+	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
 
 	/* Allocate an ifnet object and set it up */
@@ -1032,7 +1032,7 @@ cxgb_port_attach(device_t dev)
 	}	
 
 
-	snprintf(p->taskqbuf, TASKQ_NAME_LEN, "cxgb_port_taskq%d", p->port);
+	snprintf(p->taskqbuf, TASKQ_NAME_LEN, "cxgb_port_taskq%d", p->port_id);
 #ifdef TASKQUEUE_CURRENT
 	/* Create a port for handling TX without starvation */
 	p->tq = taskqueue_create(p->taskqbuf, M_NOWAIT,
@@ -1194,7 +1194,6 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 		t3_link_start(&pi->phy, mac, &pi->link_config);
 	}
 }
-
 
 /*
  * Interrupt-context handler for external (PHY) interrupts.
@@ -1704,7 +1703,7 @@ cxgb_init_locked(struct port_info *p)
 		t3_intr_clear(sc);
 		t3_sge_init_adapter(sc);
 	}
-	setbit(&p->adapter->open_device_map, p->port);
+	setbit(&p->adapter->open_device_map, p->port_id);
 	ADAPTER_UNLOCK(p->adapter);
 
 	if (is_offload(sc) && !ofld_disable) {
@@ -1714,10 +1713,10 @@ cxgb_init_locked(struct port_info *p)
 			    "Could not initialize offload capabilities\n");
 	}
 	cxgb_link_start(p);
-	t3_link_changed(sc, p->port);
+	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 	
-	t3_port_intr_enable(sc, p->port);
+	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
 	    cxgb_tick, sc);
@@ -1748,13 +1747,13 @@ cxgb_stop_locked(struct port_info *p)
 	
 	ifp = p->ifp;
 
-	t3_port_intr_disable(p->adapter, p->port);
+	t3_port_intr_disable(p->adapter, p->port_id);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	p->phy.ops->power_down(&p->phy, 1);
 	t3_mac_disable(&p->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 
 	ADAPTER_LOCK(p->adapter);
-	clrbit(&p->adapter->open_device_map, p->port);
+	clrbit(&p->adapter->open_device_map, p->port_id);
 
 	
 	if (p->adapter->open_device_map == 0) {
@@ -2119,7 +2118,7 @@ check_t3b2_mac(struct adapter *adapter)
 			cxgb_set_rxmode(p);
 			t3_link_start(&p->phy, mac, &p->link_config);
 			t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
-			t3_port_intr_enable(adapter, p->port);
+			t3_port_intr_enable(adapter, p->port_id);
 			p->mac.stats.num_resets++;
 		}
 		PORT_UNLOCK(p);
@@ -2527,7 +2526,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 	}
 	case CHELSIO_SET_QSET_NUM: {
 		struct ch_reg *edata = (struct ch_reg *)data;
-		unsigned int port_idx = pi->port;
+		unsigned int port_idx = pi->port_id;
 		
 		if (sc->flags & FULL_INIT_DONE)
 			return (EBUSY);
