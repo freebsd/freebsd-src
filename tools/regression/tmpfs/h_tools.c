@@ -1,4 +1,4 @@
-/*	$NetBSD: h_tools.c,v 1.7 2006/11/09 16:20:06 jmmv Exp $	*/
+/*	$NetBSD: h_tools.c,v 1.8 2007/07/23 15:05:43 jmmv Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
@@ -192,7 +192,12 @@ rename_main(int argc, char **argv)
 	if (argc < 3)
 		return EXIT_FAILURE;
 
-	return rename(argv[1], argv[2]);
+	if (rename(argv[1], argv[2]) == -1) {
+		perror("rename");
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 /* --------------------------------------------------------------------- */
