@@ -1196,7 +1196,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	 * XXX handle checksum, TSO, and VLAN here
 	 *	 
 	 */
-	cntrl = V_TXPKT_INTF(p->port);
+	cntrl = V_TXPKT_INTF(p->port_id);
 
 	/*
 	 * XXX need to add VLAN support for 6.x
