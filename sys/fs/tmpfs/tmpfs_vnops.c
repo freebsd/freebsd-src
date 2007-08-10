@@ -1,7 +1,7 @@
-/*	$NetBSD: tmpfs_vnops.c,v 1.35 2007/01/04 15:42:37 elad Exp $	*/
+/*	$NetBSD: tmpfs_vnops.c,v 1.39 2007/07/23 15:41:01 jmmv Exp $	*/
 
 /*
- * Copyright (c) 2005 The NetBSD Foundation, Inc.
+ * Copyright (c) 2005, 2006 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -98,17 +98,14 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		int ltype = 0;
 
 		ltype = VOP_ISLOCKED(dvp, td);
-		vholdl(dvp);
+		vhold(dvp);
 		VOP_UNLOCK(dvp, 0, td);
 		/* Allocate a new vnode on the matching entry. */
 		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
 		    cnp->cn_lkflags, vpp, td);
 
 		vn_lock(dvp, ltype | LK_RETRY, td);
-		if (ltype & LK_INTERLOCK)
-			vdropl(dvp);
-		else
-			vdrop(dvp);
+		vdrop(dvp);
 
 		dnode->tn_dir.tn_parent->tn_lookup_dirent = NULL;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
@@ -1211,49 +1208,35 @@ tmpfs_readdir(struct vop_readdir_args *v)
 
 	int error;
 	off_t startoff;
-	off_t cnt;
+	off_t cnt = 0;
 	struct tmpfs_node *node;
 
 	/* This operation only makes sense on directory nodes. */
-	if (vp->v_type != VDIR) {
-		error = ENOTDIR;
-		goto out;
-	}
+	if (vp->v_type != VDIR)
+		return ENOTDIR;
 
 	node = VP_TO_TMPFS_DIR(vp);
 
 	startoff = uio->uio_offset;
 
-	cnt = 0;
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOT) {
+	switch (startoff) {
+	case TMPFS_DIRCOOKIE_DOT:
 		error = tmpfs_dir_getdotdent(node, uio);
-		if (error == -1) {
-			error = 0;
-			goto outok;
-		} else if (error != 0)
-			goto outok;
-		cnt++;
-	}
-
-	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT) {
+		if (error == 0)
+			cnt++;
+		break;
+	case TMPFS_DIRCOOKIE_DOTDOT:
 		error = tmpfs_dir_getdotdotdent(node, uio);
-		if (error == -1) {
-			error = 0;
-			goto outok;
-		} else if (error != 0)
-			goto outok;
-		cnt++;
+		if (error == 0)
+			cnt++;
+		break;
+	default:
+		error = tmpfs_dir_getdents(node, uio, &cnt);
+		MPASS(error >= -1);
 	}
 
-	error = tmpfs_dir_getdents(node, uio, &cnt);
 	if (error == -1)
 		error = 0;
-	MPASS(error >= 0);
-
-outok:
-	/* This label assumes that startoff has been
-	 * initialized.  If the compiler didn't spit out warnings, we'd
-	 * simply make this one be 'out' and drop 'outok'. */
 
 	if (eofflag != NULL)
 		*eofflag =
@@ -1283,11 +1266,10 @@ outok:
 					MPASS(de != NULL);
 					de = TAILQ_NEXT(de, td_entries);
 				}
-				if (de == NULL) {
+				if (de == NULL)
 					off = TMPFS_DIRCOOKIE_EOF;
-				} else {
-					off = TMPFS_DIRCOOKIE(de);
-				}
+				else
+					off = tmpfs_dircookie(de);
 			}
 
 			(*cookies)[i] = off;
@@ -1295,7 +1277,6 @@ outok:
 		MPASS(uio->uio_offset == off);
 	}
 
-out:
 	return error;
 }
 

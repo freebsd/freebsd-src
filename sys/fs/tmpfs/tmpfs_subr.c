@@ -1,4 +1,4 @@
-/*	$NetBSD: tmpfs_subr.c,v 1.21 2006/06/07 22:33:39 kardel Exp $	*/
+/*	$NetBSD: tmpfs_subr.c,v 1.35 2007/07/09 21:10:50 ad Exp $	*/
 
 /*
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
@@ -311,7 +311,7 @@ int
 tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
     struct vnode **vpp, struct thread *td)
 {
-	int error;
+	int error = 0;
 	struct vnode *vp;
 
 loop:
@@ -320,10 +320,8 @@ loop:
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
 		vholdl(vp);
-		error = vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, td);
+		(void) vget(vp, lkflag | LK_INTERLOCK | LK_RETRY, td);
 		vdrop(vp);
-		if (error)
-			return error;
 
 		/*
 		 * Make sure the vnode is still there after
@@ -361,13 +359,7 @@ loop:
 		goto unlock;
 	MPASS(vp != NULL);
 
-	error = vn_lock(vp, lkflag | LK_RETRY, td);
-	if (error != 0) {
-		vp->v_data = NULL;
-		vput(vp);
-		vp = NULL;
-		goto unlock;
-	}
+	(void) vn_lock(vp, lkflag | LK_RETRY, td);
 
 	vp->v_data = node;
 	vp->v_type = node->tn_type;
@@ -681,7 +673,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 			if (de == NULL)
 				uio->uio_offset = TMPFS_DIRCOOKIE_EOF;
 			else
-				uio->uio_offset = TMPFS_DIRCOOKIE(de);
+				uio->uio_offset = tmpfs_dircookie(de);
 		}
 	}
 
@@ -706,7 +698,7 @@ tmpfs_dir_lookupbycookie(struct tmpfs_node *node, off_t cookie)
 	}
 
 	TAILQ_FOREACH(de, &node->tn_dir.tn_dirhead, td_entries) {
-		if (TMPFS_DIRCOOKIE(de) == cookie) {
+		if (tmpfs_dircookie(de) == cookie) {
 			break;
 		}
 	}
@@ -814,7 +806,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, off_t *cntp)
 		node->tn_dir.tn_readdir_lastn = 0;
 		node->tn_dir.tn_readdir_lastp = NULL;
 	} else {
-		node->tn_dir.tn_readdir_lastn = uio->uio_offset = TMPFS_DIRCOOKIE(de);
+		node->tn_dir.tn_readdir_lastn = uio->uio_offset = tmpfs_dircookie(de);
 		node->tn_dir.tn_readdir_lastp = de;
 	}
 
