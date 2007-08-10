@@ -1,8 +1,8 @@
 #!/bin/sh
 #
-# $NetBSD: t_mount,v 1.7 2006/11/09 16:20:06 jmmv Exp $
+# $NetBSD: t_mount,v 1.8 2007/07/24 11:29:16 jmmv Exp $
 #
-# Copyright (c) 2005, 2006, 2006 The NetBSD Foundation, Inc.
+# Copyright (c) 2005, 2006, 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
 # This code is derived from software contributed to The NetBSD Foundation
