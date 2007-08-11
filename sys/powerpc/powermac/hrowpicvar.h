@@ -62,16 +62,14 @@
 
 #define  HPIC_1ST_OFFSET  0x10		/* offset to primary reg bank */
 
-
 struct hrowpic_softc {
-	struct		rman sc_rman;		/* resource mgr for IRQs */
-	u_int32_t	sc_irq[HROWPIC_IRQMAX];	/* allocated IRQ flags */
-	u_int32_t	sc_softreg[2];		/* ENABLE reg copy */
-	device_t       	sc_maciodev;		/* macio device */
-	struct resource *sc_memr;		/* macio bus resource */
+	device_t	sc_dev;			/* macio device */
+	struct resource *sc_rres;		/* macio bus resource */
 	bus_space_tag_t sc_bt;			/* macio bus tag/handle */
 	bus_space_handle_t sc_bh;
+	int		sc_rrid;
+	uint32_t	sc_softreg[2];		/* ENABLE reg copy */
+	u_int		sc_vector[HROWPIC_IRQMAX];
 };
-
 
 #endif  /* _POWERPC_POWERMAC_HROWPICVAR_H_ */

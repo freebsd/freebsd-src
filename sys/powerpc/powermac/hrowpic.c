@@ -28,15 +28,9 @@
  */
 
 /*
- *  A driver for the PIC found in the Heathrow/Paddington MacIO chips.
+ * A driver for the PIC found in the Heathrow/Paddington MacIO chips.
  * This was superseded by an OpenPIC in the Keylargo and beyond 
  * MacIO versions.
- *
- *  The device is initially located in the Open Firmware device tree
- * in the earliest stage of the nexus probe. However, no device registers
- * are touched until the actual h/w is probed later on during the
- * MacIO probe. At that point, any interrupt sources that were allocated 
- * prior to this are activated.
  */
 
 #include <sys/param.h>
@@ -45,6 +39,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -60,67 +55,35 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <sys/rman.h>
-
 #include <powerpc/powermac/hrowpicvar.h>
 
 #include "pic_if.h"
 
 /*
- * Device interface.
- */
-static void		hrowpic_identify(driver_t *, device_t);
-static int		hrowpic_probe(device_t);
-static int		hrowpic_attach(device_t);
-
-/*
- * PIC interface.
- */
-static struct resource	*hrowpic_allocate_intr(device_t, device_t, int *,
-                            u_long, u_int);
-static int		hrowpic_setup_intr(device_t, device_t,
-                            struct resource *, int, driver_filter_t, 
-			    driver_intr_t, void *, void **);
-static int		hrowpic_teardown_intr(device_t, device_t,
-                            struct resource *, void *);
-static int		hrowpic_release_intr(device_t dev, device_t, int,
-                            struct resource *res);
-
-/*
  * MacIO interface
  */
-static int	hrowpic_macio_probe(device_t);
-static int	hrowpic_macio_attach(device_t);
+static int	hrowpic_probe(device_t);
+static int	hrowpic_attach(device_t);
 
-/*
- * Local routines
- */
-static void	hrowpic_intr(void);
-static void	hrowpic_ext_enable_irq(uintptr_t);
-static void	hrowpic_ext_disable_irq(uintptr_t);
-static void	hrowpic_toggle_irq(struct hrowpic_softc *sc, int, int);
+static void	hrowpic_dispatch(device_t, struct trapframe *);
+static void	hrowpic_enable(device_t, u_int, u_int);
+static void	hrowpic_eoi(device_t, u_int);
+static void	hrowpic_mask(device_t, u_int);
+static void	hrowpic_unmask(device_t, u_int);
 
-/*
- * Interrupt controller softc. There should only be one.
- */
-static struct hrowpic_softc  *hpicsoftc;
-
-/*
- * Driver methods.
- */
 static device_method_t  hrowpic_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	hrowpic_identify),
 	DEVMETHOD(device_probe,         hrowpic_probe),
 	DEVMETHOD(device_attach,        hrowpic_attach),
 
 	/* PIC interface */
-	DEVMETHOD(pic_allocate_intr,    hrowpic_allocate_intr),
-	DEVMETHOD(pic_setup_intr,       hrowpic_setup_intr),
-	DEVMETHOD(pic_teardown_intr,    hrowpic_teardown_intr),
-	DEVMETHOD(pic_release_intr,     hrowpic_release_intr),
+	DEVMETHOD(pic_dispatch,		hrowpic_dispatch),
+	DEVMETHOD(pic_enable,		hrowpic_enable),
+	DEVMETHOD(pic_eoi,		hrowpic_eoi),
+	DEVMETHOD(pic_mask,		hrowpic_mask),
+	DEVMETHOD(pic_unmask,		hrowpic_unmask),
 
-	{ 0, 0 }
+	{ 0, 0 },
 };
 
 static driver_t hrowpic_driver = {
@@ -131,181 +94,9 @@ static driver_t hrowpic_driver = {
 
 static devclass_t hrowpic_devclass;
 
-DRIVER_MODULE(hrowpic, nexus, hrowpic_driver, hrowpic_devclass, 0, 0);
+DRIVER_MODULE(hrowpic, macio, hrowpic_driver, hrowpic_devclass, 0, 0);
 
-static void
-hrowpic_identify(driver_t *driver, device_t parent)
-{
-	phandle_t chosen, pic;
-	char type[40];
-
-	chosen = OF_finddevice("/chosen");
-	if (chosen == -1)
-		return;
-
-	if (OF_getprop(chosen, "interrupt-controller", &pic, 4) != 4)
-		return;
-
-	OF_getprop(pic, "compatible", type, sizeof(type));
-	if (strcmp(type, "heathrow"))
-		return;
-
-	BUS_ADD_CHILD(parent, 0, "hrowpic", 0);
-}
-
-static int
-hrowpic_probe(device_t dev)
-{
-	char    *name;
-
-	name = nexus_get_name(dev);
-
-	if (strcmp(name, "hrowpic"))
-		return (ENXIO);
-	
-	device_set_desc(dev, "Heathrow interrupt controller");
-	return (0);
-}
-
-static int
-hrowpic_attach(device_t dev)
-{
-	struct hrowpic_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	sc->sc_rman.rm_type = RMAN_ARRAY;
-	sc->sc_rman.rm_descr = device_get_nameunit(dev);
-
-	if (rman_init(&sc->sc_rman) != 0 ||
-	    rman_manage_region(&sc->sc_rman, 0, HROWPIC_IRQMAX-1) != 0) {
-		device_printf(dev, "could not set up resource management");
-		return (ENXIO);
-        }	
-
-	nexus_install_intcntlr(dev);
-	intr_init(hrowpic_intr, HROWPIC_IRQMAX, hrowpic_ext_enable_irq, 
-	    hrowpic_ext_disable_irq);
-
-	KASSERT(hpicsoftc == NULL, ("hrowpic: h/w already probed"));
-	hpicsoftc = sc;
-
-	return (0);
-}
-
-/*
- * PIC interface
- */
-static struct resource *
-hrowpic_allocate_intr(device_t picdev, device_t child, int *rid, u_long intr,
-    u_int flags)
-{
-	struct  hrowpic_softc *sc;
-	struct  resource *rv;
-	int     needactivate;
-
-	sc = device_get_softc(picdev);
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
-
-	rv = rman_reserve_resource(&sc->sc_rman, intr, intr, 1, flags, child);
-	if (rv == NULL) {
-		device_printf(picdev, "interrupt reservation failed for %s\n",
-		    device_get_nameunit(child));
-		return (NULL);
-	}
-	rman_set_rid(rv, *rid);
-	
-	return (rv);
-}
-
-static int
-hrowpic_setup_intr(device_t picdev, device_t child, struct resource *res,
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
-    void **cookiep)
-{
-	struct  hrowpic_softc *sc;
-	u_long start;
-	int error;
-
-	sc = device_get_softc(picdev);
-	start = rman_get_start(res);
-
-	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
-		flags |= INTR_EXCL;
-
-	/*
-	 * We depend here on rman_activate_resource() being idempotent.
-	 */
-	error = rman_activate_resource(res);
-	if (error)
-		return (error);
-
-	error = inthand_add(device_get_nameunit(child), start, filt, intr, arg,
-	    flags, cookiep);
-
-	if (!error) {
-		/*
-		 * Record irq request, and enable if h/w has been probed
-		 */
-		sc->sc_irq[start] = 1;
-		if (sc->sc_memr) {
-			hrowpic_toggle_irq(sc, start, 1);
-		}
-	}
-
-	return (error);
-}
-
-static int
-hrowpic_teardown_intr(device_t picdev, device_t child, struct resource *res,
-    void *ih)
-{
-	int     error;
-
-	error = rman_deactivate_resource(res);
-	if (error)
-		return (error);
-
-	error = inthand_remove(rman_get_start(res), ih);
-
-	return (error);
-}
-
-static int
-hrowpic_release_intr(device_t picdev, device_t child, int rid,
-    struct resource *res)
-{
-	int     error;
-
-	if (rman_get_flags(res) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, SYS_RES_IRQ, rid, res);
-		if (error)
-			return (error);
-	}
-
-	return (rman_release_resource(res));
-}
-
-/*
- * Interrupt interface
- */
-static void
-hrowpic_write_reg(struct hrowpic_softc *sc, u_int reg, u_int bank, 
-    u_int32_t val)
-{
-	if (bank == HPIC_PRIMARY)
-		reg += HPIC_1ST_OFFSET;
-
-	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
-
-	/*
-	 * XXX Issue a read to force the write to complete
-	 */
-	bus_space_read_4(sc->sc_bt, sc->sc_bh, reg);
-}
-
-static u_int32_t
+static uint32_t
 hrowpic_read_reg(struct hrowpic_softc *sc, u_int reg, u_int bank)
 {
 	if (bank == HPIC_PRIMARY)
@@ -315,8 +106,59 @@ hrowpic_read_reg(struct hrowpic_softc *sc, u_int reg, u_int bank)
 }
 
 static void
-hrowpic_clear_all(struct hrowpic_softc *sc)
+hrowpic_write_reg(struct hrowpic_softc *sc, u_int reg, u_int bank,
+    uint32_t val)
 {
+
+	if (bank == HPIC_PRIMARY)
+		reg += HPIC_1ST_OFFSET;
+
+	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
+
+	/* XXX Issue a read to force the write to complete. */
+	bus_space_read_4(sc->sc_bt, sc->sc_bh, reg);
+}
+
+static int
+hrowpic_probe(device_t dev)
+{
+	const char *type = ofw_bus_get_type(dev);
+
+	/*
+	 * OpenPIC cells have a type of "open-pic", so this
+	 * is sufficient to identify a Heathrow cell
+	 */
+	if (strcmp(type, "interrupt-controller") != 0)
+		return (ENXIO);
+
+	/*
+	 * The description was already printed out in the nexus
+	 * probe, so don't do it again here
+	 */
+	device_set_desc(dev, "Heathrow MacIO interrupt controller");
+	return (0);
+}
+
+static int
+hrowpic_attach(device_t dev)
+{
+	struct hrowpic_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
+
+	sc->sc_rrid = 0;
+	sc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rrid,
+	    RF_ACTIVE);
+
+	if (sc->sc_rres == NULL) {
+		device_printf(dev, "Could not alloc mem resource!\n");
+		return (ENXIO);
+	}
+
+	sc->sc_bt = rman_get_bustag(sc->sc_rres);
+	sc->sc_bh = rman_get_bushandle(sc->sc_rres);
+
 	/*
 	 * Disable all interrupt sources and clear outstanding interrupts
 	 */
@@ -324,7 +166,14 @@ hrowpic_clear_all(struct hrowpic_softc *sc)
 	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_PRIMARY, 0xffffffff);
 	hrowpic_write_reg(sc, HPIC_ENABLE, HPIC_SECONDARY, 0);
 	hrowpic_write_reg(sc, HPIC_CLEAR,  HPIC_SECONDARY, 0xffffffff);
+
+	powerpc_register_pic(dev);
+	return (0);
 }
+
+/*
+ * Local routines
+ */
 
 static void
 hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
@@ -349,143 +198,74 @@ hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
 	hrowpic_write_reg(sc, HPIC_ENABLE, roffset, sc->sc_softreg[roffset]);
 }
 
-static void
-hrowpic_intr(void)
-{
-	int irq_lo, irq_hi;
-	int i;
-	struct hrowpic_softc *sc;
-
-	sc = hpicsoftc;
-
-	/*
-	 * Loop through both interrupt sources until they are empty.
-	 * XXX simplistic code, far from optimal.
-	 */
-	do {
-		irq_lo = hrowpic_read_reg(sc, HPIC_STATUS, HPIC_PRIMARY);
-		if (irq_lo) {
-			hrowpic_write_reg(sc, HPIC_CLEAR, HPIC_PRIMARY,
-			    irq_lo);
-			for (i = 0; i < HROWPIC_IRQ_REGNUM; i++) {
-				if (irq_lo & (1 << i)) {
-					/*
-					 * Disable IRQ and call handler
-					 */
-					hrowpic_toggle_irq(sc, i, 0);
-					intr_handle(i);
-				}
-			}
-
-		}
-
-		irq_hi = hrowpic_read_reg(sc, HPIC_STATUS, HPIC_SECONDARY);
-		if (irq_hi) {
-			hrowpic_write_reg(sc, HPIC_CLEAR, HPIC_SECONDARY,
-			    irq_hi);
-			for (i = 0; i < HROWPIC_IRQ_REGNUM; i++) {
-				if (irq_hi & (1 << i)) {
-					/*
-					 * Disable IRQ and call handler
-					 */
-					hrowpic_toggle_irq(sc,
-					    i + HROWPIC_IRQ_REGNUM, 0);
-					intr_handle(i + HROWPIC_IRQ_REGNUM);
-				}
-			}
-		}
-	} while (irq_lo && irq_hi);
-}
-
-static void
-hrowpic_ext_enable_irq(uintptr_t irq)
-{
-	hrowpic_toggle_irq(hpicsoftc, irq, 1);
-}
-
-static void
-hrowpic_ext_disable_irq(uintptr_t irq)
-{
-	hrowpic_toggle_irq(hpicsoftc, irq, 0);
-}
-
-
 /*
- * MacIO interface
+ * PIC I/F methods.
  */
 
-static device_method_t  hrowpic_macio_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,         hrowpic_macio_probe),
-	DEVMETHOD(device_attach,        hrowpic_macio_attach),
-
-	{ 0, 0 },
-};
-
-static driver_t hrowpic_macio_driver = {
-	"hrowpicmacio",
-	hrowpic_macio_methods,
-	0
-};
-
-static devclass_t hrowpic_macio_devclass;
-
-DRIVER_MODULE(hrowpicmacio, macio, hrowpic_macio_driver, 
-    hrowpic_macio_devclass, 0, 0);
-
-static int
-hrowpic_macio_probe(device_t dev)
+static void
+hrowpic_dispatch(device_t dev, struct trapframe *tf)
 {
-        const char *type = ofw_bus_get_type(dev);
+	struct hrowpic_softc *sc;
+	uint64_t mask;
+	uint32_t reg;
+	u_int irq;
 
-	/*
-	 * OpenPIC cells have a type of "open-pic", so this
-	 * is sufficient to identify a Heathrow cell
-	 */
-        if (strcmp(type, "interrupt-controller") != 0)
-                return (ENXIO);
+	sc = device_get_softc(dev);
+	while (1) {
+		mask = hrowpic_read_reg(sc, HPIC_STATUS, HPIC_SECONDARY);
+		reg = hrowpic_read_reg(sc, HPIC_STATUS, HPIC_PRIMARY);
+		mask = (mask << 32) | reg;
+		if (mask == 0)
+			break;
 
-	/*
-	 * The description was already printed out in the nexus
-	 * probe, so don't do it again here
-	 */
-        device_set_desc(dev, "Heathrow MacIO interrupt cell");
-	device_quiet(dev);
-        return (0);
+		irq = 0;
+		while (irq < HROWPIC_IRQMAX) {
+			if (mask & 1)
+				powerpc_dispatch_intr(sc->sc_vector[irq], tf);
+			mask >>= 1;
+			irq++;
+		}
+	}
 }
 
-static int
-hrowpic_macio_attach(device_t dev)
+static void
+hrowpic_enable(device_t dev, u_int irq, u_int vector)
 {
-	struct hrowpic_softc *sc = hpicsoftc;
-	int rid;
-	int i;
+	struct hrowpic_softc *sc;
 
-	KASSERT(sc != NULL, ("pic not nexus-probed\n"));
-	sc->sc_maciodev = dev;
+	sc = device_get_softc(dev);
+	sc->sc_vector[irq] = vector;
+	hrowpic_toggle_irq(sc, irq, 1);
+}
 
-	rid = 0;
-	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
+static void
+hrowpic_eoi(device_t dev __unused, u_int irq __unused)
+{
+	struct hrowpic_softc *sc;
+	int bank;
 
-	if (sc->sc_memr == NULL) {
-		device_printf(dev, "Could not alloc mem resource!\n");
-		return (ENXIO);
-	}
+	sc = device_get_softc(dev);
+	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY ;
+	hrowpic_write_reg(sc, HPIC_CLEAR, bank, 1U << (irq & 0x1f));
+}
 
-	sc->sc_bt = rman_get_bustag(sc->sc_memr);
-	sc->sc_bh = rman_get_bushandle(sc->sc_memr);
+static void
+hrowpic_mask(device_t dev, u_int irq)
+{
+	struct hrowpic_softc *sc;
+	int bank;
 
-	hrowpic_clear_all(sc);
+	sc = device_get_softc(dev);
+	hrowpic_toggle_irq(sc, irq, 0);
+	bank = (irq >= 32) ? HPIC_SECONDARY : HPIC_PRIMARY ;
+	hrowpic_write_reg(sc, HPIC_CLEAR, bank, 1U << (irq & 0x1f));
+}
 
-	/*
-	 * Enable all IRQs that were requested before the h/w
-	 * was probed
-	 */
-	for (i = 0; i < HROWPIC_IRQMAX; i++)
-		if (sc->sc_irq[i]) {
-			hrowpic_toggle_irq(sc, i, 1);
-		}
+static void
+hrowpic_unmask(device_t dev, u_int irq)
+{
+	struct hrowpic_softc *sc;
 
-	return (0);
+	sc = device_get_softc(dev);
+	hrowpic_toggle_irq(sc, irq, 1);
 }

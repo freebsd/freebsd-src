@@ -44,12 +44,6 @@ extern	vm_offset_t	kstack0_phys;
 
 extern	u_long	ns_per_tick;
 
-struct fpreg;
-struct proc;
-struct reg;
-struct cam_sim;
-struct pcicfg;
-
 #if defined(_KERNEL) || defined(_STANDALONE)
 #define	CACHELINESIZE	32
 #endif
@@ -63,5 +57,8 @@ int	mem_valid(vm_offset_t addr, int len);
 void	decr_init(void);
 
 void	cpu_setup(u_int);
+
+struct trapframe;
+void	powerpc_interrupt(struct trapframe *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -49,30 +49,19 @@
 #include <sys/vmmeter.h>
 
 #include <machine/cpu.h>
+#include <machine/clock.h>
 #include <machine/db_machdep.h>
 #include <machine/fpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #include <machine/spr.h>
 #include <machine/sr.h>
 
-void powerpc_interrupt(struct trapframe *);
-
-/*
- * External interrupt install routines
- */
-static void (*powerpc_extintr_handler)(void);
-
-void
-ext_intr_install(void (*new_extint)(void))
-{
-	powerpc_extintr_handler = new_extint;
-}
-
-extern void	decr_intr(struct trapframe *);
+#include "pic_if.h"
 
 /*
  * A very short dispatch, to try and maximise assembler code use
@@ -90,7 +79,7 @@ powerpc_interrupt(struct trapframe *framep)
 	switch (framep->exc) {
 	case EXC_EXI:
 		atomic_add_int(&td->td_intr_nesting_level, 1);
-		(*powerpc_extintr_handler)();
+		PIC_DISPATCH(pic, framep);
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);	
 		break;
 

@@ -33,36 +33,31 @@
 #define OPENPIC_IRQMAX	256	/* h/w allows more */
 
 struct openpic_softc {
-	char		*sc_version;
-	u_int		sc_ncpu;
-	u_int		sc_nirq;
-	int             sc_psim;
-	struct		rman sc_rman;
+	device_t	sc_dev;
+	struct resource	*sc_memr;
 	bus_space_tag_t sc_bt;
 	bus_space_handle_t sc_bh;
-	u_int		sc_hwprobed;
-	u_int		sc_early_done;
-	device_t	sc_altdev;
-	u_char		sc_irqrsv[OPENPIC_IRQMAX]; /* pre-h/w reservation */
+	char		*sc_version;
+	int		sc_rid;
+	u_int		sc_ncpu;
+	u_int		sc_nirq;
+	int		sc_psim;
 };
+
+extern devclass_t openpic_devclass;
 
 /*
  * Bus-independent attach i/f
  */
-int		openpic_early_attach(device_t);
-int		openpic_attach(device_t);
+int	openpic_attach(device_t);
 
 /*
  * PIC interface.
  */
-struct resource	*openpic_allocate_intr(device_t, device_t, int *,
-			    u_long, u_int);
-int		openpic_setup_intr(device_t, device_t,
-			    struct resource *, int, driver_filter_t, 
-			    driver_intr_t, void *, void **);
-int		openpic_teardown_intr(device_t, device_t,
-			    struct resource *, void *);
-int		openpic_release_intr(device_t dev, device_t, int,
-			    struct resource *res);
+void	openpic_dispatch(device_t, struct trapframe *);
+void	openpic_enable(device_t, u_int, u_int);
+void	openpic_eoi(device_t, u_int);
+void	openpic_mask(device_t, u_int);
+void	openpic_unmask(device_t, u_int);
 
 #endif /* _POWERPC_OPENPICVAR_H_ */
