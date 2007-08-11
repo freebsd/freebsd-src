@@ -28,38 +28,32 @@
 #
 
 #include <sys/bus.h>
+#include <machine/frame.h>
 
 INTERFACE pic;
 
-METHOD struct resource * allocate_intr {
+METHOD void dispatch {
 	device_t	dev;
-	device_t	child;
-	int		*rid;
-	u_long		intr;
-	u_int		flags;
+	struct trapframe *tf;
 };
 
-METHOD int setup_intr {
+METHOD void enable {
 	device_t	dev;
-	device_t	child;
-	struct		resource *res;
-	int		flags;
-	driver_filter_t	*filter;
-	driver_intr_t	*intr;
-	void		*arg;
-	void		**cookiep;
+	u_int		irq;
+	u_int		vector;
 };
 
-METHOD int teardown_intr {
+METHOD void eoi {
 	device_t	dev;
-	device_t	child;
-	struct		resource *res;
-	void		*ih;
+	u_int		irq;
 };
 
-METHOD int release_intr {
+METHOD void mask {
 	device_t	dev;
-	device_t	child;
-	int		rid;
-	struct		resource *res;
+	u_int		irq;
+};
+
+METHOD void unmask {
+	device_t	dev;
+	u_int		irq;
 };

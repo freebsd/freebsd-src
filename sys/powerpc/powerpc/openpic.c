@@ -30,6 +30,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/rman.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -41,57 +42,38 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <sys/rman.h>
-
 #include <machine/openpicreg.h>
 #include <machine/openpicvar.h>
 
 #include "pic_if.h"
 
+devclass_t openpic_devclass;
+
 /*
  * Local routines
  */
-static u_int		openpic_read(struct openpic_softc *, int);
-static void		openpic_write(struct openpic_softc *, int, u_int);
-static int		openpic_read_irq(struct openpic_softc *, int);
-static void		openpic_eoi(struct openpic_softc *, int);
-static void		openpic_enable_irq(struct openpic_softc *, int, int);
-static void		openpic_disable_irq(struct openpic_softc *, int);
-static void		openpic_set_priority(struct openpic_softc *, int, int);
-static void		openpic_intr(void);
-static void		openpic_ext_enable_irq(uintptr_t);
-static void		openpic_ext_disable_irq(uintptr_t);
 
-/* XXX This limits us to one openpic */
-static struct	openpic_softc *openpic_softc;
-
-/*
- * Called at nexus-probe time to allow interrupts to be enabled by
- * devices that are probed before the OpenPIC h/w is probed.
- */
-int
-openpic_early_attach(device_t dev)
+static __inline uint32_t
+openpic_read(struct openpic_softc *sc, u_int reg)
 {
-	struct		openpic_softc *sc;
+	return (bus_space_read_4(sc->sc_bt, sc->sc_bh, reg));
+}
 
-	sc = device_get_softc(dev);
-	openpic_softc = sc;
+static __inline void
+openpic_write(struct openpic_softc *sc, u_int reg, uint32_t val)
+{
+	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
+}
 
-	sc->sc_rman.rm_type = RMAN_ARRAY;
-	sc->sc_rman.rm_descr = device_get_nameunit(dev);
+static __inline void
+openpic_set_priority(struct openpic_softc *sc, int cpu, int pri)
+{
+	uint32_t x;
 
-	if (rman_init(&sc->sc_rman) != 0 ||
-	    rman_manage_region(&sc->sc_rman, 0, OPENPIC_IRQMAX-1) != 0) {
-		device_printf(dev, "could not set up resource management");
-		return (ENXIO);
-        }	
-
-	intr_init(openpic_intr, OPENPIC_IRQMAX, openpic_ext_enable_irq, 
-	    openpic_ext_disable_irq);
-
-	sc->sc_early_done = 1;
-
-	return (0);
+	x = openpic_read(sc, OPENPIC_CPU_PRIORITY(cpu));
+	x &= ~OPENPIC_CPU_PRIORITY_MASK;
+	x |= pri;
+	openpic_write(sc, OPENPIC_CPU_PRIORITY(cpu), x);
 }
 
 int
@@ -102,10 +84,19 @@ openpic_attach(device_t dev)
 	u_int32_t x;
 
 	sc = device_get_softc(dev);
-	sc->sc_hwprobed = 1;
+	sc->sc_dev = dev;
 
-	if (!sc->sc_early_done)
-		openpic_early_attach(dev);
+	sc->sc_rid = 0;
+	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+	    RF_ACTIVE);
+
+	if (sc->sc_memr == NULL) {
+		device_printf(dev, "Could not alloc mem resource!\n");
+		return (ENXIO);
+	}
+
+	sc->sc_bt = rman_get_bustag(sc->sc_memr);
+	sc->sc_bh = rman_get_bushandle(sc->sc_memr);
 
 	x = openpic_read(sc, OPENPIC_FEATURE);
 	switch (x & OPENPIC_FEATURE_VERSION_MASK) {
@@ -155,7 +146,7 @@ openpic_attach(device_t dev)
 		openpic_write(sc, OPENPIC_IDEST(irq), 1 << 0);
 
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
-		x = irq;
+		x = irq;		/* irq == vector. */
 		x |= OPENPIC_IMASK;
 		x |= OPENPIC_POLARITY_POSITIVE;
 		x |= OPENPIC_SENSE_LEVEL;
@@ -170,239 +161,78 @@ openpic_attach(device_t dev)
 
 	/* clear all pending interrupts */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
-		openpic_read_irq(sc, 0);
-		openpic_eoi(sc, 0);
+		(void)openpic_read(sc, OPENPIC_IACK(0));
+		openpic_write(sc, OPENPIC_EOI(0), 0);
 	}
 
-	/* enable pre-h/w reserved irqs, disable all others */
-	for (irq = 0; irq < sc->sc_nirq; irq++)
-		if (sc->sc_irqrsv[irq])
-			openpic_enable_irq(sc, irq, IST_LEVEL);
-		else
-			openpic_disable_irq(sc, irq);
+	powerpc_register_pic(dev);
 
 	return (0);
 }
 
 /*
- * PIC interface
+ * PIC I/F methods
  */
 
-struct resource *
-openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
-    u_int flags)
+void
+openpic_dispatch(device_t dev, struct trapframe *tf)
 {
-	struct	openpic_softc *sc;
-	struct	resource *rv;
-	int	needactivate;
+	struct openpic_softc *sc;
+	u_int vector;
 
 	sc = device_get_softc(dev);
-	needactivate = flags & RF_ACTIVE;
-	flags &= ~RF_ACTIVE;
-
-	if (sc->sc_hwprobed && (intr > sc->sc_nirq)) {
-		device_printf(dev, "interrupt reservation %ld out of range\n",
-		    intr);
-		return (NULL);
+	while (1) {
+		vector = openpic_read(sc, OPENPIC_IACK(0));
+		vector &= OPENPIC_VECTOR_MASK;
+		if (vector == 255)
+			break;
+		powerpc_dispatch_intr(vector, tf);
 	}
-
-	rv = rman_reserve_resource(&sc->sc_rman, intr, intr, 1, flags, child);
-	if (rv == NULL) {
-		device_printf(dev, "interrupt reservation failed for %s\n",
-		    device_get_nameunit(child));
-		return (NULL);
-	}
-	rman_set_rid(rv, *rid);
-	if (needactivate) {
-		if (bus_activate_resource(child, SYS_RES_IRQ, *rid, rv) != 0) {
-			device_printf(dev,
-			    "resource activation failed for %s\n",
-			    device_get_nameunit(child));
-			rman_release_resource(rv);
-			return (NULL);
-		}
-	}
-
-	return (rv);
 }
 
-int
-openpic_setup_intr(device_t dev, device_t child, struct resource *res,
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
-    void **cookiep)
+void
+openpic_enable(device_t dev, u_int irq, u_int vector)
 {
-	struct	openpic_softc *sc;
-	u_long	start;
-	int	error;
+	struct openpic_softc *sc;
+	uint32_t x;
 
 	sc = device_get_softc(dev);
-	start = rman_get_start(res);
-
-	if (res == NULL) {
-		device_printf(dev, "null interrupt resource from %s\n",
-		    device_get_nameunit(child));
-		return (EINVAL);
-	}
-
-	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
-		flags |= INTR_EXCL;
-
-	/*
-	 * We depend here on rman_activate_resource() being idempotent.
-	 */
-	error = rman_activate_resource(res);
-	if (error)
-		return (error);
-
-	error = inthand_add(device_get_nameunit(child), start, filt, intr, arg,
-	    flags, cookiep);
-
-	if (sc->sc_hwprobed)
-		openpic_enable_irq(sc, start, IST_LEVEL);
-	else
-		sc->sc_irqrsv[start] = 1;
-
-	return (error);
-}
-
-int
-openpic_teardown_intr(device_t dev, device_t child, struct resource *res,
-    void *ih)
-{
-	int	error;
-
-	error = rman_deactivate_resource(res);
-	if (error)
-		return (error);
-
-	error = inthand_remove(rman_get_start(res), ih);
-
-	return (error);
-}
-
-int
-openpic_release_intr(device_t dev, device_t child, int rid,
-    struct resource *res)
-{
-	int	error;
-
-	if (rman_get_flags(res) & RF_ACTIVE) {
-		error = bus_deactivate_resource(child, SYS_RES_IRQ, rid, res);
-		if (error)
-			return (error);
-	}
-
-	return (rman_release_resource(res));
-}
-
-/*
- * Local routines
- */
-
-static u_int
-openpic_read(struct openpic_softc *sc, int reg)
-{
-	return (bus_space_read_4(sc->sc_bt, sc->sc_bh, reg));
-}
-
-static void
-openpic_write(struct openpic_softc *sc, int reg, u_int val)
-{
-	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
-}
-
-static int
-openpic_read_irq(struct openpic_softc *sc, int cpu)
-{
-	return openpic_read(sc, OPENPIC_IACK(cpu)) & OPENPIC_VECTOR_MASK;
-}
-
-static void
-openpic_eoi(struct openpic_softc *sc, int cpu)
-{
-	openpic_write(sc, OPENPIC_EOI(cpu), 0);
-}
-
-static void
-openpic_enable_irq(struct openpic_softc *sc, int irq, int type)
-{
-	u_int	x;
-
 	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
-	x &= ~(OPENPIC_IMASK | OPENPIC_SENSE_LEVEL | OPENPIC_SENSE_EDGE);
-	if (type == IST_LEVEL)
-		x |= OPENPIC_SENSE_LEVEL;
-	else
-		x |= OPENPIC_SENSE_EDGE;
+	x &= ~(OPENPIC_IMASK | OPENPIC_VECTOR_MASK);
+	x |= vector;
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
 }
 
-static void
-openpic_disable_irq(struct openpic_softc *sc, int irq)
+void
+openpic_eoi(device_t dev, u_int irq __unused)
 {
-	u_int	x;
+	struct openpic_softc *sc;
 
+	sc = device_get_softc(dev);
+	openpic_write(sc, OPENPIC_EOI(0), 0);
+}
+
+void
+openpic_mask(device_t dev, u_int irq)
+{
+	struct openpic_softc *sc;
+	uint32_t x;
+
+	sc = device_get_softc(dev);
 	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
 	x |= OPENPIC_IMASK;
 	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
+	openpic_write(sc, OPENPIC_EOI(0), 0);
 }
 
-static void
-openpic_set_priority(struct openpic_softc *sc, int cpu, int pri)
-{
-	u_int	x;
-
-	x = openpic_read(sc, OPENPIC_CPU_PRIORITY(cpu));
-	x &= ~OPENPIC_CPU_PRIORITY_MASK;
-	x |= pri;
-	openpic_write(sc, OPENPIC_CPU_PRIORITY(cpu), x);
-}
-
-static void
-openpic_intr(void)
+void
+openpic_unmask(device_t dev, u_int irq)
 {
 	struct openpic_softc *sc;
-	int		irq;
-	u_int32_t	msr;
+	uint32_t x;
 
-	sc = openpic_softc;
-	msr = mfmsr();
-
-	irq = openpic_read_irq(sc, 0);
-	if (irq == 255) {
-		return;
-	}
-
-start:
-	openpic_disable_irq(sc, irq);
-	/*mtmsr(msr | PSL_EE);*/
-
-	/* do the interrupt thang */
-	intr_handle(irq);
-
-	mtmsr(msr);
-
-	openpic_eoi(sc, 0);
-
-	irq = openpic_read_irq(sc, 0);
-	if (irq != 255)
-		goto start;
-}
-
-static void
-openpic_ext_enable_irq(uintptr_t irq)
-{
-	if (!openpic_softc->sc_hwprobed)
-		return;
-
-	openpic_enable_irq(openpic_softc, irq, IST_LEVEL);
-}
-
-static void
-openpic_ext_disable_irq(uintptr_t irq)
-{
-	if (!openpic_softc->sc_hwprobed)
-		return;
-
-	openpic_disable_irq(openpic_softc, irq);
+	sc = device_get_softc(dev);
+	x = openpic_read(sc, OPENPIC_SRC_VECTOR(irq));
+	x &= ~OPENPIC_IMASK;
+	openpic_write(sc, OPENPIC_SRC_VECTOR(irq), x);
 }
