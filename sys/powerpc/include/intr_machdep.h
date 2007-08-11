@@ -28,29 +28,18 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
-typedef void	ih_func_t(void *);
+#define	INTR_VECTORS	256
 
-struct intr_event;
+extern device_t pic;
 
-struct ppc_intr_handler {
-	ih_func_t	*ih_func;
-	void		*ih_arg;
-	struct		intr_event *ih_event;
-	u_int		ih_irq;
-	u_int		ih_flags;
-	u_int 		ih_index;
-	u_long 		*ih_count;
-	u_long 		*ih_straycount;
-};
+struct trapframe;
 
-/* XXX temporary. */
-void	ext_intr_install(void (*new_extint)(void));
+void	powerpc_register_pic(device_t);
 
-void	intr_init(void (*)(void), int, void (*)(uintptr_t), void (*)(uintptr_t));
-void	intr_setup(u_int, ih_func_t *, void *, u_int);
-int	inthand_add(const char *, u_int, driver_filter_t *filter, 
-	void (*)(void *), void *, int, void **);
-int	inthand_remove(u_int, void *);
-void	intr_handle(u_int);
+void	powerpc_dispatch_intr(u_int, struct trapframe *);
+int	powerpc_enable_intr(void);
+int	powerpc_setup_intr(const char *, u_int, driver_filter_t,
+    driver_intr_t, void *, enum intr_type, void **);
+int	powerpc_teardown_intr(void *);
 
 #endif /* _MACHINE_INTR_MACHDEP_H_ */
