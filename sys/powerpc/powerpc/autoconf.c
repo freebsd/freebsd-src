@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kernel.h>
 
+#include <machine/intr_machdep.h>
+
 static device_t nexusdev;
 
 static void	configure_first(void *);
@@ -65,9 +67,14 @@ configure(void *dummy)
 static void
 configure_final(void *dummy)
 {
+
 	/*
-	 * Enable device interrupts
+	 * Now that we're guaranteed to have a PIC driver (or we'll never
+	 * have one), program it with all the previously setup interrupts.
 	 */
+	powerpc_enable_intr();
+
+	/* Enable external interrupts. */
 	mtmsr(mfmsr() | PSL_EE | PSL_RI);
 
 	cninit_finish();
