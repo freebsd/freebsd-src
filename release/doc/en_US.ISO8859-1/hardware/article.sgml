@@ -247,9 +247,6 @@
   <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
     configurations are supported.</para>
 
-  <sect3>
-    <title>Supported Devices Overview</title>
-
     <para>Most devices that can be found in or are compatible with
       &arch.ia64; machines are fully supported.  The notable exception
       is the VGA console. The &os; support for VGA consoles is at
@@ -257,7 +254,7 @@
       machines have chipsets that provide sufficient PC legacy
       support. As such &man.syscons.4; can not be enabled and the
       use of a serial console is required.</para>
-  </sect3>
+
 </sect2>
 
 <sect2 id="proc-pc98">
