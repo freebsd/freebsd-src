@@ -28,7 +28,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2002
+.Dd August 13, 2007
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -165,6 +165,8 @@ utility appeared in
 .Bx 4.2 .
 .Sh BUGS
 This utility should work on active file systems.
+To change the root filesystem, the system must be rebooted
+after the filesystem is tuned.
 .\" Take this out and a Unix Daemon will dog your steps from now until
 .\" the time_t's wrap around.
 .Pp
