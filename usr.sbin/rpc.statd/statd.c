@@ -183,9 +183,9 @@ main(int argc, char **argv)
 		 transports[i]);
 	  /* NOTREACHED */
       }
-      init_file("/var/db/statd.status");
       freenetconfigent(nconf);
   }
+  init_file("/var/db/statd.status");
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
   /* protocol assumes that it will run immediately at boot time.	*/
