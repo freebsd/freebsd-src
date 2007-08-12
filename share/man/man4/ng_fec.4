@@ -35,49 +35,55 @@
 .Sh DESCRIPTION
 The
 .Nm fec
-node implements Ethernet port trunking using Cisco Fast EtherChannel protocol.
-Upon creation, node creates a network interface associated with it.
+node implements Ethernet port trunking using the
+.Dq Cisco Fast EtherChannel
+protocol.
+Upon creation, a
+.Nm fec
+node creates a network interface associated with it.
 Interfaces are named
 .Dq Li fec0 ,
 .Dq Li fec1 ,
 etc.
-New node takes first available unit.
+New nodes take the first available unit.
 .Sh HOOKS
 The
 .Nm fec
 node accepts any hooks.
 However it does not use them.
-Under normal operation, node should not have any hooks.
+Under normal operation, a
+.Nm fec
+node should not have any hooks.
 .Sh CONTROL MESSAGES
 Interface membership in the FEC group is configured with the following
 control messages:
 .Bl -tag -width indent
 .It Dv NGM_FEC_ADD_IFACE Pq Dq Li add_iface
 Attach interface to the FEC group.
-Target interface name is passed as a string argument.
+The target interface name is passed as a string argument.
 .It Dv NGM_FEC_DEL_IFACE Pq Dq Li del_iface
 Remove interface from the trunk.
-Target interface name is passed as a string argument.
+The target interface name is passed as a string argument.
 .El
 .Pp
-The following control messages define forwarding method for a node:
+The following control messages define the forwarding method for a node:
 .Bl -tag -width indent
-.It Dv NGM_FEC_MODE_INET Pq Dq Li set_mode_mac
-Forwarding decisions will be made on destination link layer MAC addresses.
-.It Dv NGM_FEC_MODE_MAC Pq Dq Li set_mode_inet
-Forwarding decisions will be made on destination IP addresses.
+.It Dv NGM_FEC_SET_MODE_MAC Pq Dq Li set_mode_mac
+Forwarding decisions will be based on the link-layer MAC address of the destination.
+.It Dv NGM_FEC_SET_MODE_INET Pq Dq Li set_mode_inet
+Forwarding decisions will be based on the IP address of the destination.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message.
 .Sh EXAMPLES
-This example script creates a
+The following example script creates an
 .Nm fec
 node, attaches four Ethernet interfaces to it and
-sets forwarding method based on IP address:
+sets the forwarding method to be IP-address based:
 .Bd -literal -offset indent
-/usr/sbin/ngctl -f- <<-SEQ
+/usr/sbin/ngctl -f- << SEQ
 	mkpeer fec dummy fec
 	msg fec0: add_iface "dc0"
 	msg fec0: add_iface "dc1"
@@ -100,4 +106,4 @@ The
 node was written by
 .An "Bill Paul" Aq wpaul@FreeBSD.org .
 This manual page was written by
-.An "Gleb Smirnoff" .
+.An "Gleb Smirnoff" Aq glebius@FreeBSD.org .
