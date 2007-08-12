@@ -312,9 +312,6 @@
     try it and send a note to the &a.sparc; with your results,
     including which devices work and which do not.</para>
 
-  <sect3>
-    <title>Fully Supported Systems</title>
-
     <para>The following systems are fully supported by &os;.</para>
 
       <itemizedlist>
@@ -397,10 +394,6 @@
           <para>Ultra 80</para>
         </listitem>
       </itemizedlist>
-  </sect3>
-
-  <sect3>
-    <title>Partially Supported Systems</title>
 
     <para>The following systems are partially supported by &os;.  In particular
       the onboard scsi controller in sbus systems is not supported.</para>
@@ -413,10 +406,6 @@
           <para>Enterprise 4500</para>
         </listitem>
       </itemizedlist>
-  </sect3>
-
-  <sect3>
-    <title>Unsupported Systems</title>
 
     <para>The following systems are not supported by &os;.  This may be due
       to lack of processor support (UltraSPARC III), due to a quirk in the
@@ -428,7 +417,6 @@
           <para>All systems containing UltraSPARC III processor(s).</para>
         </listitem>
       </itemizedlist>
-  </sect3>
 </sect2>
 
 </sect1>
