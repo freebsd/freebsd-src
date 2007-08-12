@@ -235,6 +235,24 @@ DEFINE_TEST(test_write_disk_perms)
 	archive_entry_set_uid(ae, getuid() + 1);
 	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
 	assertA(0 == archive_write_header(a, ae));
+	/*
+	 * Because we didn't ask for owner, the failure to
+	 * restore SUID shouldn't return a failure.
+	 * We check below to make sure SUID really wasn't set.
+	 * See more detailed comments below.
+	 */
+	failure("Opportunistic SUID failure shouldn't return error.");
+	assertEqualInt(0, archive_write_finish_entry(a));
+
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "file_bad_suid2");
+	archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0742);
+	archive_entry_set_uid(ae, getuid() + 1);
+	archive_write_disk_set_options(a,
+	    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_OWNER);
+	assertA(0 == archive_write_header(a, ae));
+	/* Owner change should fail here. */
+	failure("Non-opportunistic SUID failure should return error.");
 	assertEqualInt(ARCHIVE_WARN, archive_write_finish_entry(a));
 
 	/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
@@ -254,16 +272,26 @@ DEFINE_TEST(test_write_disk_perms)
 		 */
 		printf("Current user can't test gid restore: must belong to more than one group.\n");
 	} else {
-		/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
+		/*
+		 * Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit
+		 * but without ARCHIVE_EXTRACT_OWNER.
+		 */
 		/*
 		 * This is a weird case: The user has asked for permissions to
 		 * be restored but not asked for ownership to be restored.  As
 		 * a result, the default file creation will create a file with
-		 * the wrong group.  There are two reasonable behaviors: warn
-		 * and drop the SGID bit (the current libarchive behavior) or
-		 * try to set the group.  It is completely wrong to set the
-		 * SGID bit with the wrong group (which is, incidentally,
-		 * exactly what gtar 1.15 does).
+		 * the wrong group.  There are several possible behaviors for
+		 * libarchive in this scenario:
+		 *  = Set the SGID bit.  It is wrong and a security hole to
+		 *    set SGID with the wrong group.  Even POSIX thinks so.
+		 *  = Implicitly set the group.  I don't like this.
+		 *  = drop the SGID bit and warn (the old libarchive behavior)
+		 *  = drop the SGID bit and don't warn (the current libarchive
+		 *    behavior).
+		 * The current behavior sees SGID/SUID restore when you
+		 * don't ask for owner restore as an "opportunistic"
+		 * action.  That is, libarchive should do it if it can,
+		 * but if it can't, it's not an error.
 		 */
 		assert(archive_entry_clear(ae) != NULL);
 		archive_entry_copy_pathname(ae, "file_alt_sgid");
@@ -272,10 +300,13 @@ DEFINE_TEST(test_write_disk_perms)
 		archive_entry_set_gid(ae, altgid());
 		archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
 		assert(0 == archive_write_header(a, ae));
-		failure("Setting SGID bit should not succeed here.");
-		assertEqualIntA(a, ARCHIVE_WARN, archive_write_finish_entry(a));
+		failure("Setting SGID bit should fail because of group mismatch but the failure should be silent because we didn't ask for the group to be set.");
+		assertEqualIntA(a, 0, archive_write_finish_entry(a));
 
-		/* As above, but add _EXTRACT_OWNER. */
+		/*
+		 * As above, but add _EXTRACT_OWNER to verify that it
+		 * does succeed.
+		 */
 		assert(archive_entry_clear(ae) != NULL);
 		archive_entry_copy_pathname(ae, "file_alt_sgid_owner");
 		archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
@@ -303,7 +334,17 @@ DEFINE_TEST(test_write_disk_perms)
 		archive_entry_set_gid(ae, invalidgid());
 		archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
 		assertA(0 == archive_write_header(a, ae));
-		failure("This SGID restore should fail.");
+		failure("This SGID restore should fail without an error.");
+		assertEqualIntA(a, 0, archive_write_finish_entry(a));
+
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_bad_sgid2");
+		archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
+		archive_entry_set_gid(ae, invalidgid());
+		archive_write_disk_set_options(a,
+		    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_OWNER);
+		assertA(0 == archive_write_header(a, ae));
+		failure("This SGID restore should fail with an error.");
 		assertEqualIntA(a, ARCHIVE_WARN, archive_write_finish_entry(a));
 	}
 
@@ -362,6 +403,11 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("file_bad_suid: st.st_mode=%o", st.st_mode);
 	assert((st.st_mode & 07777) == (0742));
 
+	/* SUID bit should NOT have been set here. */
+	assert(0 == stat("file_bad_suid2", &st));
+	failure("file_bad_suid2: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == (0742));
+
 	/* SGID should be set here. */
 	assert(0 == stat("file_perm_sgid", &st));
 	failure("file_perm_sgid: st.st_mode=%o", st.st_mode);
@@ -383,6 +429,10 @@ DEFINE_TEST(test_write_disk_perms)
 		/* SGID should NOT be set here. */
 		assert(0 == stat("file_bad_sgid", &st));
 		failure("file_bad_sgid: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (0742));
+		/* SGID should NOT be set here. */
+		assert(0 == stat("file_bad_sgid2", &st));
+		failure("file_bad_sgid2: st.st_mode=%o", st.st_mode);
 		assert((st.st_mode & 07777) == (0742));
 	}
 
