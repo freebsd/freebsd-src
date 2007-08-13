@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 /* prototypes */
 static void ata_raid_done(struct ata_request *request);
 static void ata_raid_config_changed(struct ar_softc *rdp, int writeback);
-static int ata_raid_status(struct ata_ioc_raid_config *config);
+static int ata_raid_status(struct ata_ioc_raid_status *status);
 static int ata_raid_create(struct ata_ioc_raid_config *config);
 static int ata_raid_delete(int array);
 static int ata_raid_addspare(struct ata_ioc_raid_config *config);
@@ -216,13 +216,14 @@ ata_raid_attach(struct ar_softc *rdp, int writeback)
 static int
 ata_raid_ioctl(u_long cmd, caddr_t data)
 {
+    struct ata_ioc_raid_status *status = (struct ata_ioc_raid_status *)data;
     struct ata_ioc_raid_config *config = (struct ata_ioc_raid_config *)data;
     int *lun = (int *)data;
     int error = EOPNOTSUPP;
 
     switch (cmd) {
     case IOCATARAIDSTATUS:
-	error = ata_raid_status(config);
+	error = ata_raid_status(status);
 	break;
 			
     case IOCATARAIDCREATE:
@@ -929,25 +930,32 @@ ata_raid_config_changed(struct ar_softc *rdp, int writeback)
 }
 
 static int
-ata_raid_status(struct ata_ioc_raid_config *config)
+ata_raid_status(struct ata_ioc_raid_status *status)
 {
     struct ar_softc *rdp;
     int i;
 	
-    if (!(rdp = ata_raid_arrays[config->lun]))
+    if (!(rdp = ata_raid_arrays[status->lun]))
 	return ENXIO;
 	
-    config->type = rdp->type;
-    config->total_disks = rdp->total_disks;
+    status->type = rdp->type;
+    status->total_disks = rdp->total_disks;
     for (i = 0; i < rdp->total_disks; i++ ) {
-	if ((rdp->disks[i].flags & AR_DF_PRESENT) && rdp->disks[i].dev)  
-	    config->disks[i] = device_get_unit(rdp->disks[i].dev);
-	else
-	    config->disks[i] = -1;
+	status->disks[i].state = 0;
+	if ((rdp->disks[i].flags & AR_DF_PRESENT) && rdp->disks[i].dev) {
+	    status->disks[i].lun = device_get_unit(rdp->disks[i].dev);
+	    if (rdp->disks[i].flags & AR_DF_PRESENT)
+		status->disks[i].state |= AR_DISK_PRESENT;
+	    if (rdp->disks[i].flags & AR_DF_ONLINE)
+		status->disks[i].state |= AR_DISK_ONLINE;
+	    if (rdp->disks[i].flags & AR_DF_SPARE)
+		status->disks[i].state |= AR_DISK_SPARE;
+	} else
+	    status->disks[i].lun = -1;
     }
-    config->interleave = rdp->interleave;
-    config->status = rdp->status;
-    config->progress = 100 * rdp->rebuild_lba / rdp->total_sectors;
+    status->interleave = rdp->interleave;
+    status->status = rdp->status;
+    status->progress = 100 * rdp->rebuild_lba / rdp->total_sectors;
     return 0;
 }
 
