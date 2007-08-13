@@ -7,9 +7,8 @@ SUBDIR=	\
 	l2cap	\
 	socket	\
 	bt3c	\
+	h4	\
 	ubt	\
 	ubtbcmfw
-
-# h4 is not MPSAFE. Disconnect for now.
 
 .include <bsd.subdir.mk>

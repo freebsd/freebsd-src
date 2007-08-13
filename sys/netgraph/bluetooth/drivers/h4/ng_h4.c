@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_h4.c,v 1.7 2004/08/23 18:08:15 max Exp $
+ * $Id: ng_h4.c,v 1.10 2005/10/31 17:57:43 max Exp $
  * $FreeBSD$
  * 
  * Based on:
@@ -49,8 +49,11 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
+#include <sys/socket.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <net/if.h>
+#include <net/if_var.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -73,8 +76,6 @@
  *****************************************************************************
  *****************************************************************************/
 
-#error "NET_NEEDS_GIANT"
-
 /* MALLOC define */
 #ifndef NG_SEPARATE_MALLOC
 MALLOC_DEFINE(M_NETGRAPH_H4, "netgraph_h4", "Netgraph Bluetooth H4 node");
@@ -89,7 +90,6 @@ static int	ng_h4_read	(struct tty *, struct uio *, int);
 static int	ng_h4_write	(struct tty *, struct uio *, int);
 static int	ng_h4_input	(int, struct tty *);
 static int	ng_h4_start	(struct tty *);
-static void	ng_h4_start2	(node_p, hook_p, void *, int);
 static int	ng_h4_ioctl	(struct tty *, u_long, caddr_t, 
 					int, struct thread *);
 
@@ -115,8 +115,6 @@ static ng_rcvdata_t		ng_h4_rcvdata;
 static ng_disconnect_t		ng_h4_disconnect;
 
 /* Other stuff */
-static void	ng_h4_timeout		(node_p);
-static void	ng_h4_untimeout		(node_p);
 static void	ng_h4_process_timeout	(node_p, hook_p, void *, int);
 static int	ng_h4_mod_event		(module_t, int, void *);
 
@@ -152,24 +150,20 @@ static int	ng_h4_node = 0;
 static int
 ng_h4_open(struct cdev *dev, struct tty *tp)
 {
+	struct thread	*td = curthread;
 	char		 name[NG_NODESIZ];
 	ng_h4_info_p	 sc = NULL;
-	int		 s, error;
+	int		 error;
 
 	/* Super-user only */
-	error = priv_check(curthread, PRIV_NETGRAPH_TTY); /* XXX */
+	error = priv_check(td, PRIV_NETGRAPH_TTY); /* XXX */
 	if (error != 0)
 		return (error);
 
-	s = splnet(); /* XXX */
-	spltty(); /* XXX */
-
 	/* Initialize private struct */
 	MALLOC(sc, ng_h4_info_p, sizeof(*sc), M_NETGRAPH_H4, M_NOWAIT|M_ZERO);
-	if (sc == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	if (sc == NULL)
+		return (ENOMEM);
 
 	sc->tp = tp;
 	sc->debug = NG_H4_WARN_LEVEL;
@@ -178,15 +172,24 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 	sc->want = 1;
 	sc->got = 0;
 
-	NG_BT_MBUFQ_INIT(&sc->outq, NG_H4_DEFAULTQLEN);
+	mtx_init(&sc->outq.ifq_mtx, "ng_h4 node+queue", NULL, MTX_DEF);
+	IFQ_SET_MAXLEN(&sc->outq, NG_H4_DEFAULTQLEN);
 	ng_callout_init(&sc->timo);
+
+	NG_H4_LOCK(sc);
 
 	/* Setup netgraph node */
 	error = ng_make_node_common(&typestruct, &sc->node);
 	if (error != 0) {
+		NG_H4_UNLOCK(sc);
+
+		printf("%s: Unable to create new node!\n", __func__);
+
+		mtx_destroy(&sc->outq.ifq_mtx);
 		bzero(sc, sizeof(*sc));
 		FREE(sc, M_NETGRAPH_H4);
-		goto out;
+
+		return (error);
 	}
 
 	/* Assign node its name */
@@ -194,11 +197,16 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 
 	error = ng_name_node(sc->node, name);
 	if (error != 0) {
-		NG_H4_ALERT("%s: %s - node name exists?\n", __func__, name);
+		NG_H4_UNLOCK(sc);
+
+		printf("%s: %s - node name exists?\n", __func__, name);
+
 		NG_NODE_UNREF(sc->node);
+		mtx_destroy(&sc->outq.ifq_mtx);
 		bzero(sc, sizeof(*sc));
 		FREE(sc, M_NETGRAPH_H4);
-		goto out;
+
+		return (error);
 	}
 
 	/* Set back pointers */
@@ -218,8 +226,8 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 	clist_alloc_cblocks(&tp->t_rawq, 0, 0);
 	clist_alloc_cblocks(&tp->t_outq,
 		MLEN + NG_H4_HIWATER, MLEN + NG_H4_HIWATER);
-out:
-	splx(s); /* XXX */
+
+	NG_H4_UNLOCK(sc);
 
 	return (error);
 } /* ng_h4_open */
@@ -233,30 +241,23 @@ static int
 ng_h4_close(struct tty *tp, int flag)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
-	int		s;
-
-	s = spltty(); /* XXX */
 
 	ttyflush(tp, FREAD | FWRITE);
 	clist_free_cblocks(&tp->t_outq);
+
 	if (sc != NULL) {
+		NG_H4_LOCK(sc);
+
+		if (callout_pending(&sc->timo))
+			ng_uncallout(&sc->timo, sc->node);
+
 		tp->t_lsc = NULL;
+		sc->dying = 1;
 
-		if (sc->node != NULL) {
-			if (sc->flags & NG_H4_TIMEOUT)
-				ng_h4_untimeout(sc->node);
+		NG_H4_UNLOCK(sc);
 
-			NG_NODE_SET_PRIVATE(sc->node, NULL);
-			ng_rmnode_self(sc->node);
-			sc->node = NULL;
-		}
-
-		NG_BT_MBUFQ_DESTROY(&sc->outq);
-		bzero(sc, sizeof(*sc));
-		FREE(sc, M_NETGRAPH_H4);
+		ng_rmnode_self(sc->node);
 	}
-
-	splx(s); /* XXX */
 
 	return (0);
 } /* ng_h4_close */
@@ -290,9 +291,12 @@ ng_h4_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		struct thread *td)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
-	int		s, error = 0;
+	int		error = 0;
 
-	s = spltty(); /* XXX */
+	if (sc == NULL)
+		return (ENXIO);
+
+	NG_H4_LOCK(sc);
 
 	switch (cmd) {
 	case NGIOCGINFO:
@@ -317,7 +321,7 @@ ng_h4_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		break;
 	}
 
-	splx(s); /* XXX */
+	NG_H4_UNLOCK(sc);
 
 	return (error);
 } /* ng_h4_ioctl */
@@ -336,14 +340,18 @@ ng_h4_input(int c, struct tty *tp)
 	    sc->node == NULL || NG_NODE_NOT_VALID(sc->node))
 		return (0);
 
+	NG_H4_LOCK(sc);
+
 	/* Check for error conditions */
-	if ((sc->tp->t_state & TS_CONNECTED) == 0) {
+	if ((tp->t_state & TS_CONNECTED) == 0) {
 		NG_H4_INFO("%s: %s - no carrier\n", __func__,
 			NG_NODE_NAME(sc->node));
 
 		sc->state = NG_H4_W4_PKT_IND;
 		sc->want = 1;
 		sc->got = 0;
+
+		NG_H4_UNLOCK(sc);
 
 		return (0); /* XXX Loss of synchronization here! */
 	}
@@ -359,6 +367,8 @@ ng_h4_input(int c, struct tty *tp)
 		sc->state = NG_H4_W4_PKT_IND;
 		sc->want = 1;
 		sc->got = 0;
+
+		NG_H4_UNLOCK(sc);
 
 		return (0); /* XXX Loss of synchronization here! */
 	}
@@ -377,6 +387,8 @@ ng_h4_input(int c, struct tty *tp)
 		sc->want = 1;
 		sc->got = 0;
 
+		NG_H4_UNLOCK(sc);
+
 		return (0); /* XXX Loss of synchronization here! */
 	}
 
@@ -385,8 +397,11 @@ ng_h4_input(int c, struct tty *tp)
 	NG_H4_INFO("%s: %s - got char %#x, want=%d, got=%d\n", __func__,
 		NG_NODE_NAME(sc->node), c, sc->want, sc->got);
 
-	if (sc->got < sc->want)
+	if (sc->got < sc->want) {
+		NG_H4_UNLOCK(sc);
+
 		return (0); /* Wait for more */
+	}
 
 	switch (sc->state) {
 	/* Got packet indicator */
@@ -539,6 +554,8 @@ ng_h4_input(int c, struct tty *tp)
 		break;
 	}
 
+	NG_H4_UNLOCK(sc);
+
 	return (0);
 } /* ng_h4_input */
 
@@ -550,46 +567,32 @@ ng_h4_input(int c, struct tty *tp)
 static int
 ng_h4_start(struct tty *tp)
 {
-	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
+	ng_h4_info_p	 sc = (ng_h4_info_p) tp->t_lsc;
+	struct mbuf	*m = NULL;
+	int		 size;
 
 	if (sc == NULL || tp != sc->tp || 
 	    sc->node == NULL || NG_NODE_NOT_VALID(sc->node))
 		return (0);
 
-	return (ng_send_fn(sc->node, NULL, ng_h4_start2, NULL, 0));
-} /* ng_h4_start */
-
-/*
- * Device driver is ready for more output. Part 2. Called (via ng_send_fn) 
- * ng_h4_start() and from ng_h4_rcvdata() when a new mbuf is available for 
- * output.
- */
-
-static void
-ng_h4_start2(node_p node, hook_p hook, void *arg1, int arg2)
-{
-	ng_h4_info_p	 sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
-	struct mbuf	*m = NULL;
-	int		 s, size;
-
-	s = spltty(); /* XXX */
-
 #if 0
-	while (sc->tp->t_outq.c_cc < NG_H4_HIWATER) { /* XXX 2.2 specific ? */
+	while (tp->t_outq.c_cc < NG_H4_HIWATER) { /* XXX 2.2 specific ? */
 #else
 	while (1) {
 #endif
 		/* Remove first mbuf from queue */
-		NG_BT_MBUFQ_DEQUEUE(&sc->outq, m);
+		IF_DEQUEUE(&sc->outq, m);
 		if (m == NULL)
 			break;
 
 		/* Send as much of it as possible */
 		while (m != NULL) {
 			size = m->m_len - b_to_q(mtod(m, u_char *),
-					m->m_len, &sc->tp->t_outq);
+					m->m_len, &tp->t_outq);
 
+			NG_H4_LOCK(sc);
 			NG_H4_STAT_BYTES_SENT(sc->stat, size);
+			NG_H4_UNLOCK(sc);
 
 			m->m_data += size;
 			m->m_len -= size;
@@ -601,12 +604,14 @@ ng_h4_start2(node_p node, hook_p hook, void *arg1, int arg2)
 
 		/* Put remainder of mbuf chain (if any) back on queue */
 		if (m != NULL) {
-			NG_BT_MBUFQ_PREPEND(&sc->outq, m);
+			IF_PREPEND(&sc->outq, m);
 			break;
 		}
 
 		/* Full packet has been sent */
+		NG_H4_LOCK(sc);
 		NG_H4_STAT_PCKTS_SENT(sc->stat);
+		NG_H4_UNLOCK(sc);
 	}
 
 	/* 
@@ -621,11 +626,16 @@ ng_h4_start2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * pty code doesn't call pppstart after it has drained the t_outq.
 	 */
 
-	if (NG_BT_MBUFQ_LEN(&sc->outq) > 0 && (sc->flags & NG_H4_TIMEOUT) == 0)
-		ng_h4_timeout(node);
+	NG_H4_LOCK(sc);
 
-	splx(s); /* XXX */
-} /* ng_h4_start2 */
+	if (!IFQ_IS_EMPTY(&sc->outq) && !callout_pending(&sc->timo))
+		ng_callout(&sc->timo, sc->node, NULL, 1,
+			ng_h4_process_timeout, NULL, 0);
+
+	NG_H4_UNLOCK(sc);
+
+	return (0);
+} /* ng_h4_start */
 
 /*****************************************************************************
  *****************************************************************************
@@ -657,10 +667,15 @@ ng_h4_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_H4_HOOK) != 0)
 		return (EINVAL);
 
-	if (sc->hook != NULL)
-		return (EISCONN);
+	NG_H4_LOCK(sc);
 
+	if (sc->hook != NULL) {
+		NG_H4_UNLOCK(sc);
+		return (EISCONN);
+	}
 	sc->hook = hook;
+
+	NG_H4_UNLOCK(sc);
 
 	return (0);
 } /* ng_h4_newhook */
@@ -674,12 +689,11 @@ ng_h4_connect(hook_p hook)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-	if (hook != sc->hook) {
-		sc->hook = NULL;
-		return (EINVAL);
-	}
+	if (hook != sc->hook)
+		panic("%s: hook != sc->hook\n", __func__);
 
 	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
+	NG_HOOK_FORCE_QUEUE(hook);
 
 	return (0);
 } /* ng_h4_connect */
@@ -695,23 +709,28 @@ ng_h4_disconnect(hook_p hook)
 
 	/*
 	 * We need to check for sc != NULL because we can be called from
-	 * ng_h4_clsoe() via ng_rmnode_self()
+	 * ng_h4_close() via ng_rmnode_self()
 	 */
 
 	if (sc != NULL) {
 		if (hook != sc->hook)
-			return (EINVAL);
+			panic("%s: hook != sc->hook\n", __func__);
+
+		NG_H4_LOCK(sc);
 
 		/* XXX do we have to untimeout and drain out queue? */
-		if (sc->flags & NG_H4_TIMEOUT)
-			ng_h4_untimeout(NG_HOOK_NODE(hook));
+		if (callout_pending(&sc->timo))
+			ng_uncallout(&sc->timo, sc->node);
 
-		NG_BT_MBUFQ_DRAIN(&sc->outq); 
+		_IF_DRAIN(&sc->outq); 
+
 		sc->state = NG_H4_W4_PKT_IND;
 		sc->want = 1;
 		sc->got = 0;
 
 		sc->hook = NULL;
+
+		NG_H4_UNLOCK(sc);
 	}
 
 	return (0);
@@ -726,37 +745,28 @@ static int
 ng_h4_shutdown(node_p node)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
-	char		name[NG_NODESIZ];
 
-	/* Let old node go */
+	NG_H4_LOCK(sc);
+
+	if (!sc->dying) {
+		NG_H4_UNLOCK(sc);
+
+		NG_NODE_REVIVE(node);	/* we will persist */
+
+		return (EOPNOTSUPP);
+	}
+
+	NG_H4_UNLOCK(sc);
+
 	NG_NODE_SET_PRIVATE(node, NULL);
+
+	_IF_DRAIN(&sc->outq);
+
 	NG_NODE_UNREF(node);
+	mtx_destroy(&sc->outq.ifq_mtx);
+	bzero(sc, sizeof(*sc));
+	FREE(sc, M_NETGRAPH_H4);
 
-	/* Check if device was closed */
-	if (sc == NULL)
-		goto out;
-
-	/* Setup new netgraph node */
-	if (ng_make_node_common(&typestruct, &sc->node) != 0) {
-		printf("%s: Unable to create new node!\n", __func__);
-		sc->node = NULL;
-		goto out;
-	}
-
-	/* Assign node its name */
-	snprintf(name, sizeof(name), "%s%d", typestruct.name, ng_h4_node ++);
-
-	if (ng_name_node(sc->node, name) != 0) {
-		printf("%s: %s - node name exists?\n", __func__, name);
-		NG_NODE_UNREF(sc->node);
-		sc->node = NULL;
-		goto out;
-	}
-
-	/* The node has to be a WRITER because data can change node status */
-	NG_NODE_FORCE_WRITER(sc->node);
-	NG_NODE_SET_PRIVATE(sc->node, sc);
-out:
 	return (0);
 } /* ng_h4_shutdown */
 
@@ -769,47 +779,53 @@ static int
 ng_h4_rcvdata(hook_p hook, item_p item)
 {
 	ng_h4_info_p	 sc = (ng_h4_info_p)NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	int		 error = 0;
 	struct mbuf	*m = NULL;
+	int		 qlen;
 
-	if (sc == NULL) {
-		error = EHOSTDOWN;
-		goto out;
-	}
+	if (sc == NULL)
+		return (EHOSTDOWN);
 
-	if (hook != sc->hook) {
-		error = EINVAL;
-		goto out;
-	}
+	if (hook != sc->hook)
+		panic("%s: hook != sc->hook\n", __func__);
 
 	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 
-	if (NG_BT_MBUFQ_FULL(&sc->outq)) {
+	NG_H4_LOCK(sc);
+
+	if (_IF_QFULL(&sc->outq)) {
 		NG_H4_ERR("%s: %s - dropping mbuf, len=%d\n", __func__,
 			NG_NODE_NAME(sc->node), m->m_pkthdr.len);
 
-		NG_BT_MBUFQ_DROP(&sc->outq);
 		NG_H4_STAT_OERROR(sc->stat);
+		_IF_DROP(&sc->outq);
+
+		NG_H4_UNLOCK(sc);
 
 		NG_FREE_M(m);
-		error = ENOBUFS;
-	} else {
-		NG_H4_INFO("%s: %s - queue mbuf, len=%d\n", __func__,
-			NG_NODE_NAME(sc->node), m->m_pkthdr.len);
 
-		NG_BT_MBUFQ_ENQUEUE(&sc->outq, m);
-
-		/*
-		 * We have lock on the node, so we can call ng_h4_start2()
-		 * directly
-		 */
-
-		ng_h4_start2(sc->node, NULL, NULL, 0);
+		return (ENOBUFS);
 	}
-out:
-	NG_FREE_ITEM(item);
 
-	return (error);
+	NG_H4_INFO("%s: %s - queue mbuf, len=%d\n", __func__,
+		NG_NODE_NAME(sc->node), m->m_pkthdr.len);
+
+	_IF_ENQUEUE(&sc->outq, m);
+	qlen = _IF_QLEN(&sc->outq);
+
+	NG_H4_UNLOCK(sc);
+
+	/*
+	 * If qlen > 1, then we should already have a scheduled callout
+	 */
+
+	if (qlen == 1) {
+		mtx_lock(&Giant);
+		ng_h4_start(sc->tp);
+		mtx_unlock(&Giant);
+	}
+
+	return (0);
 } /* ng_h4_rcvdata */
 
 /*
@@ -823,12 +839,11 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	struct ng_mesg	*msg = NULL, *resp = NULL;
 	int		 error = 0;
 
-	if (sc == NULL) {
-		error = EHOSTDOWN;
-		goto out;
-	}
+	if (sc == NULL)
+		return (EHOSTDOWN);
 
 	NGI_GET_MSG(item, msg);
+	NG_H4_LOCK(sc);
 
 	switch (msg->header.typecookie) {
 	case NGM_GENERIC_COOKIE:
@@ -840,17 +855,15 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			else
 				snprintf(resp->data, NG_TEXTRESPONSE,
 					"Hook: %s\n"   \
-					"Flags: %#x\n" \
 					"Debug: %d\n"  \
 					"State: %d\n"  \
 					"Queue: [have:%d,max:%d]\n" \
 					"Input: [got:%d,want:%d]",
 					(sc->hook != NULL)? NG_H4_HOOK : "",
-					sc->flags,
 					sc->debug,
 					sc->state,
-					NG_BT_MBUFQ_LEN(&sc->outq),
-					sc->outq.maxlen,
+					_IF_QLEN(&sc->outq),
+					sc->outq.ifq_maxlen,
 					sc->got,
 					sc->want);
 			break;
@@ -864,7 +877,7 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_H4_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_H4_NODE_RESET:
-			NG_BT_MBUFQ_DRAIN(&sc->outq); 
+			_IF_DRAIN(&sc->outq); 
 			sc->state = NG_H4_W4_PKT_IND;
 			sc->want = 1;
 			sc->got = 0;
@@ -905,7 +918,7 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 			else
 				*((ng_h4_node_qlen_ep *)(resp->data)) = 
-					sc->outq.maxlen;
+					sc->outq.ifq_maxlen;
 			break;
 
 		case NGM_H4_NODE_SET_QLEN:
@@ -914,8 +927,8 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			else if (*((ng_h4_node_qlen_ep *)(msg->data)) <= 0)
 				error = EINVAL;
 			else
-				sc->outq.maxlen =
-					*((ng_h4_node_qlen_ep *)(msg->data));
+				IFQ_SET_MAXLEN(&sc->outq,
+					*((ng_h4_node_qlen_ep *)(msg->data)));
 			break;
 
 		case NGM_H4_NODE_GET_STAT:
@@ -942,38 +955,14 @@ ng_h4_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		error = EINVAL;
 		break;
 	}
-out:
+
+	NG_H4_UNLOCK(sc);
+
 	NG_RESPOND_MSG(error, node, item, resp);
 	NG_FREE_MSG(msg);
 
 	return (error);
 } /* ng_h4_rcvmsg */
-
-/*
- * Set timeout
- */
-
-static void
-ng_h4_timeout(node_p node)
-{
-	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
-
-	ng_callout(&sc->timo, node, NULL, 1, ng_h4_process_timeout, NULL, 0);
-	sc->flags |= NG_H4_TIMEOUT;
-} /* ng_h4_timeout */
-
-/*
- * Unset timeout
- */
-
-static void
-ng_h4_untimeout(node_p node)
-{
-	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
-
-	sc->flags &= ~NG_H4_TIMEOUT;
-	ng_uncallout(&sc->timo, node);
-} /* ng_h4_untimeout */
 
 /*
  * Timeout processing function.
@@ -985,14 +974,9 @@ ng_h4_process_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	ng_h4_info_p	sc = (ng_h4_info_p) NG_NODE_PRIVATE(node);
 
-	sc->flags &= ~NG_H4_TIMEOUT;
-
-	/*
-	 * We can call ng_h4_start2() directly here because we have lock
-	 * on the node.
-	 */
-
-	ng_h4_start2(node, NULL, NULL, 0);
+	mtx_lock(&Giant);
+	ng_h4_start(sc->tp);
+	mtx_unlock(&Giant);
 } /* ng_h4_process_timeout */
 
 /*
@@ -1003,14 +987,15 @@ static int
 ng_h4_mod_event(module_t mod, int event, void *data)
 {
 	static int	ng_h4_ldisc;
-	int		s, error = 0;
-
-	s = spltty(); /* XXX */
+	int		error = 0;
 
 	switch (event) {
 	case MOD_LOAD:
 		/* Register line discipline */
+		mtx_lock(&Giant);
 		ng_h4_ldisc = ldisc_register(H4DISC, &ng_h4_disc);
+		mtx_unlock(&Giant);
+
 		if (ng_h4_ldisc < 0) {
 			printf("%s: can't register H4 line discipline\n",
 				__func__);
@@ -1020,15 +1005,15 @@ ng_h4_mod_event(module_t mod, int event, void *data)
 
 	case MOD_UNLOAD:
 		/* Unregister line discipline */
+		mtx_lock(&Giant);
 		ldisc_deregister(ng_h4_ldisc);
+		mtx_unlock(&Giant);
 		break;
 
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
-
-	splx(s); /* XXX */
 
 	return (error);
 } /* ng_h4_mod_event */
