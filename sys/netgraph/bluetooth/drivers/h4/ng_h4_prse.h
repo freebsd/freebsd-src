@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_h4_prse.h,v 1.1 2002/11/24 19:46:55 max Exp $
+ * $Id: ng_h4_prse.h,v 1.4 2005/10/31 17:57:43 max Exp $
  * $FreeBSD$
  */
 
