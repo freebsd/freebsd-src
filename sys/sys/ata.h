@@ -447,10 +447,26 @@ struct ata_ioc_raid_config {
 	    int                 disks[16];
 };
 
+struct ata_ioc_raid_status {
+	    int                 lun;
+	    int                 type;
+	    int                 interleave;
+	    int                 status;
+	    int                 progress;
+	    int                 total_disks;
+	    struct {
+		    int		state;
+#define AR_DISK_ONLINE			0x01
+#define AR_DISK_PRESENT			0x02
+#define AR_DISK_SPARE			0x04
+		    int		lun;
+	    } disks[16];
+};
+
 /* ATA RAID ioctl calls */
 #define IOCATARAIDCREATE        _IOWR('a', 200, struct ata_ioc_raid_config)
 #define IOCATARAIDDELETE        _IOW('a', 201, int)
-#define IOCATARAIDSTATUS        _IOWR('a', 202, struct ata_ioc_raid_config)
+#define IOCATARAIDSTATUS        _IOWR('a', 202, struct ata_ioc_raid_status)
 #define IOCATARAIDADDSPARE      _IOW('a', 203, struct ata_ioc_raid_config)
 #define IOCATARAIDREBUILD       _IOW('a', 204, int)
 
