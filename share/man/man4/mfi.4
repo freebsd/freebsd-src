@@ -63,6 +63,15 @@ a new driver.
 Older SCSI and SATA MegaRAID cards are supported by
 .Xr amr 4
 and will not work with this driver.
+.Pp
+Two sysctls are provided to tune the
+.Nm
+driver's behavior when a request is made to remove a mounted volume.
+By default the driver will disallow any requests to remove a mounted volume.
+If the sysctl
+.Va dev.mfi.%d.delete_busy_volumes
+is set to 1,
+then the driver will allow mounted volumes to be removed.
 .Sh HARDWARE
 The
 .Nm
@@ -82,6 +91,11 @@ Dell PERC5/i
 array/logical disk interface
 .It Pa /dev/mfi?
 management interface
+.El
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "mfid%d: Unable to delete busy device"
+An attempt was made to remove a mounted volume.
 .El
 .Sh SEE ALSO
 .Xr amr 4 ,
