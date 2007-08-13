@@ -204,6 +204,7 @@ mfi_pci_detach(device_t dev)
 	mtx_lock(&sc->mfi_io_lock);
 	if ((sc->mfi_flags & MFI_FLAGS_OPEN) != 0) {
 		mtx_unlock(&sc->mfi_io_lock);
+		sx_xunlock(&sc->mfi_config_lock);
 		return (EBUSY);
 	}
 	sc->mfi_detaching = 1;
