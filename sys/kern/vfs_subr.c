@@ -2563,7 +2563,8 @@ void
 vn_printf(struct vnode *vp, const char *fmt, ...)
 {
 	va_list ap;
-	char buf[96];
+	char buf[256], buf2[16];
+	u_long flags;
 
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
@@ -2575,17 +2576,54 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	buf[0] = '\0';
 	buf[1] = '\0';
 	if (vp->v_vflag & VV_ROOT)
-		strcat(buf, "|VV_ROOT");
+		strlcat(buf, "|VV_ROOT", sizeof(buf));
+	if (vp->v_vflag & VV_ISTTY)
+		strlcat(buf, "|VV_ISTTY", sizeof(buf));
+	if (vp->v_vflag & VV_NOSYNC)
+		strlcat(buf, "|VV_NOSYNC", sizeof(buf));
+	if (vp->v_vflag & VV_CACHEDLABEL)
+		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
 	if (vp->v_vflag & VV_TEXT)
-		strcat(buf, "|VV_TEXT");
+		strlcat(buf, "|VV_TEXT", sizeof(buf));
+	if (vp->v_vflag & VV_COPYONWRITE)
+		strlcat(buf, "|VV_COPYONWRITE", sizeof(buf));
 	if (vp->v_vflag & VV_SYSTEM)
-		strcat(buf, "|VV_SYSTEM");
+		strlcat(buf, "|VV_SYSTEM", sizeof(buf));
+	if (vp->v_vflag & VV_PROCDEP)
+		strlcat(buf, "|VV_PROCDEP", sizeof(buf));
+	if (vp->v_vflag & VV_NOKNOTE)
+		strlcat(buf, "|VV_NOKNOTE", sizeof(buf));
 	if (vp->v_vflag & VV_DELETED)
-		strcat(buf, "|VV_DELETED");
+		strlcat(buf, "|VV_DELETED", sizeof(buf));
+	if (vp->v_vflag & VV_MD)
+		strlcat(buf, "|VV_MD", sizeof(buf));
+	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC |
+	    VV_CACHEDLABEL | VV_TEXT | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
+	    VV_NOKNOTE | VV_DELETED | VV_MD);
+	if (flags != 0) {
+		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
+		strlcat(buf, buf2, sizeof(buf));
+	}
+	if (vp->v_iflag & VI_MOUNT)
+		strlcat(buf, "|VI_MOUNT", sizeof(buf));
+	if (vp->v_iflag & VI_AGE)
+		strlcat(buf, "|VI_AGE", sizeof(buf));
 	if (vp->v_iflag & VI_DOOMED)
-		strcat(buf, "|VI_DOOMED");
+		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
-		strcat(buf, "|VI_FREE");
+		strlcat(buf, "|VI_FREE", sizeof(buf));
+	if (vp->v_iflag & VI_OBJDIRTY)
+		strlcat(buf, "|VI_OBJDIRTY", sizeof(buf));
+	if (vp->v_iflag & VI_DOINGINACT)
+		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
+	if (vp->v_iflag & VI_OWEINACT)
+		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
+	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
+	    VI_OBJDIRTY | VI_DOINGINACT | VI_OWEINACT);
+	if (flags != 0) {
+		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
+		strlcat(buf, buf2, sizeof(buf));
+	}
 	printf("    flags (%s)\n", buf + 1);
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
