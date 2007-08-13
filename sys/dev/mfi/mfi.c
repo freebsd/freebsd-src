@@ -1779,14 +1779,20 @@ static int
 mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct mfi_softc *sc;
+	int error;
 
 	sc = dev->si_drv1;
 
 	mtx_lock(&sc->mfi_io_lock);
-	sc->mfi_flags |= MFI_FLAGS_OPEN;
+	if (sc->mfi_detaching)
+		error = ENXIO;
+	else {
+		sc->mfi_flags |= MFI_FLAGS_OPEN;
+		error = 0;
+	}
 	mtx_unlock(&sc->mfi_io_lock);
 
-	return (0);
+	return (error);
 }
 
 static int
