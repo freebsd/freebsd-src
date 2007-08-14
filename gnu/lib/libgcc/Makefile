@@ -217,7 +217,7 @@ POBJS +=	${LIB2ADD:R:S/$/.po/}
 #
 # Objects that should be in static library only.
 #
-#SYMS_ST =	${LIB2FUNCS_ST}	${LIB2ADD_ST}
+SYMS_ST =	${LIB2FUNCS_ST}	${LIB2ADD_ST}
 STAT_OBJS_T = 	${SYMS_ST:S/$/.o/}
 STAT_OBJS_P = 	${SYMS_ST:S/$/.po/}
 STATICOBJS  =	${SYMS_ST:S/$/.o/}
