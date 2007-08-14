@@ -129,13 +129,14 @@
 .\" ========================================================================
 .\"
 .IX Title "CPP 1"
-.TH CPP 1 "2006-03-06" "gcc-3.4.6" "GNU"
+.TH CPP 1 "2007-07-19" "gcc-4.2.1" "GNU"
 .SH "NAME"
 cpp \- The C Preprocessor
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 cpp [\fB\-D\fR\fImacro\fR[=\fIdefn\fR]...] [\fB\-U\fR\fImacro\fR]
-    [\fB\-I\fR\fIdir\fR...] [\fB\-W\fR\fIwarn\fR...]
+    [\fB\-I\fR\fIdir\fR...] [\fB\-iquote\fR\fIdir\fR...]
+    [\fB\-W\fR\fIwarn\fR...]
     [\fB\-M\fR|\fB\-MM\fR] [\fB\-MG\fR] [\fB\-MF\fR \fIfilename\fR]
     [\fB\-MP\fR] [\fB\-MQ\fR \fItarget\fR...]
     [\fB\-MT\fR \fItarget\fR...]
@@ -218,7 +219,6 @@ options may \fInot\fR be grouped: \fB\-dM\fR is very different from
 Predefine \fIname\fR as a macro, with definition \f(CW1\fR.
 .IP "\fB\-D\fR \fIname\fR\fB=\fR\fIdefinition\fR" 4
 .IX Item "-D name=definition"
-Predefine \fIname\fR as a macro, with definition \fIdefinition\fR.
 The contents of \fIdefinition\fR are tokenized and processed as if
 they appeared during translation phase three in a \fB#define\fR
 directive.  In particular, the definition will be truncated by
@@ -282,7 +282,6 @@ comment, or whenever a backslash-newline appears in a \fB//\fR comment.
 (Both forms have the same effect.)
 .IP "\fB\-Wtrigraphs\fR" 4
 .IX Item "-Wtrigraphs"
-@anchor{Wtrigraphs}
 Most trigraphs in comments cannot affect the meaning of the program.
 However, a trigraph that would form an escaped newline (\fB??/\fR at
 the end of a line) can, by changing where the comment begins or ends.
@@ -316,7 +315,7 @@ time it is redefined or undefined.
 Built-in macros, macros defined on the command line, and macros
 defined in include files are not warned about.
 .Sp
-\&\fBNote:\fR If a macro is actually used, but only used in skipped
+\&\fINote:\fR If a macro is actually used, but only used in skipped
 conditional blocks, then \s-1CPP\s0 will report it as unused.  To avoid the
 warning in such a case, you might improve the scope of the macro's
 definition by, for example, moving it into the first skipped block.
@@ -397,8 +396,6 @@ This implies that the choice of angle brackets or double quotes in an
 \&\fB#include\fR directive does not in itself determine whether that
 header will appear in \fB\-MM\fR dependency output.  This is a
 slight change in semantics from \s-1GCC\s0 versions 3.0 and earlier.
-.Sp
-@anchor{dashMF}
 .IP "\fB\-MF\fR \fIfile\fR" 4
 .IX Item "-MF file"
 When used with \fB\-M\fR or \fB\-MM\fR, specifies a
@@ -471,8 +468,7 @@ argument but with a suffix of \fI.d\fR, otherwise it take the
 basename of the input file and applies a \fI.d\fR suffix.
 .Sp
 If \fB\-MD\fR is used in conjunction with \fB\-E\fR, any
-\&\fB\-o\fR switch is understood to specify the dependency output file
-(but \f(CW@pxref\fR{dashMF,,\-MF}), but if used without \fB\-E\fR, each \fB\-o\fR
+\&\fB\-o\fR switch is understood to specify the dependency output file, but if used without \fB\-E\fR, each \fB\-o\fR
 is understood to specify a target object file.
 .Sp
 Since \fB\-E\fR is not implied, \fB\-MD\fR can be used to generate
@@ -480,7 +476,7 @@ a dependency output file as a side-effect of the compilation process.
 .IP "\fB\-MMD\fR" 4
 .IX Item "-MMD"
 Like \fB\-MD\fR except mention only user header files, not system
-\&\-header files.
+header files.
 .IP "\fB\-x c\fR" 4
 .IX Item "-x c"
 .PD 0
@@ -500,7 +496,7 @@ extensions for \*(C+ and assembly are also recognized.  If cpp does not
 recognize the extension, it will treat the file as C; this is the most
 generic mode.
 .Sp
-\&\fBNote:\fR Previous versions of cpp accepted a \fB\-lang\fR option
+\&\fINote:\fR Previous versions of cpp accepted a \fB\-lang\fR option
 which selected both the language and the standards conformance level.
 This option has been removed, because it conflicts with the \fB\-l\fR
 option.
@@ -584,6 +580,8 @@ directories are searched for all \fB#include\fR directives.
 .Sp
 In addition, \fB\-I\-\fR inhibits the use of the directory of the current
 file directory as the first search directory for \f(CW\*(C`#include\ "\f(CIfile\f(CW"\*(C'\fR.
+.Sp
+This option has been deprecated.
 .IP "\fB\-nostdinc\fR" 4
 .IX Item "-nostdinc"
 Do not search the standard system directories for header files.
@@ -634,16 +632,34 @@ Append \fIdir\fR to the prefix specified previously with
 \&\fB\-iprefix\fR, and add the resulting directory to the include search
 path.  \fB\-iwithprefixbefore\fR puts it in the same place \fB\-I\fR
 would; \fB\-iwithprefix\fR puts it where \fB\-idirafter\fR would.
+.IP "\fB\-isysroot\fR \fIdir\fR" 4
+.IX Item "-isysroot dir"
+This option is like the \fB\-\-sysroot\fR option, but applies only to
+header files.  See the \fB\-\-sysroot\fR option for more information.
+.IP "\fB\-imultilib\fR \fIdir\fR" 4
+.IX Item "-imultilib dir"
+Use \fIdir\fR as a subdirectory of the directory containing
+target-specific \*(C+ headers.
 .IP "\fB\-isystem\fR \fIdir\fR" 4
 .IX Item "-isystem dir"
 Search \fIdir\fR for header files, after all directories specified by
 \&\fB\-I\fR but before the standard system directories.  Mark it
 as a system directory, so that it gets the same special treatment as
 is applied to the standard system directories.
+.IP "\fB\-iquote\fR \fIdir\fR" 4
+.IX Item "-iquote dir"
+Search \fIdir\fR only for header files requested with
+\&\f(CW\*(C`#include\ "\f(CIfile\f(CW"\*(C'\fR; they are not searched for
+\&\f(CW\*(C`#include\ <\f(CIfile\f(CW>\*(C'\fR, before all directories specified by
+\&\fB\-I\fR and before the standard system directories.
 .IP "\fB\-fdollars\-in\-identifiers\fR" 4
 .IX Item "-fdollars-in-identifiers"
-@anchor{fdollars\-in\-identifiers}
 Accept \fB$\fR in identifiers.
+.IP "\fB\-fextended\-identifiers\fR" 4
+.IX Item "-fextended-identifiers"
+Accept universal character names in identifiers.  This option is
+experimental; in a future version of \s-1GCC\s0, it will be enabled by
+default for C99 and \*(C+.
 .IP "\fB\-fpreprocessed\fR" 4
 .IX Item "-fpreprocessed"
 Indicate to the preprocessor that the input file has already been
@@ -674,17 +690,17 @@ supported by the system's \f(CW\*(C`iconv\*(C'\fR library routine.
 Set the wide execution character set, used for wide string and
 character constants.  The default is \s-1UTF\-32\s0 or \s-1UTF\-16\s0, whichever
 corresponds to the width of \f(CW\*(C`wchar_t\*(C'\fR.  As with
-\&\fB\-ftarget\-charset\fR, \fIcharset\fR can be any encoding supported
+\&\fB\-fexec\-charset\fR, \fIcharset\fR can be any encoding supported
 by the system's \f(CW\*(C`iconv\*(C'\fR library routine; however, you will have
 problems with encodings that do not fit exactly in \f(CW\*(C`wchar_t\*(C'\fR.
 .IP "\fB\-finput\-charset=\fR\fIcharset\fR" 4
 .IX Item "-finput-charset=charset"
 Set the input character set, used for translation from the character
-set of the input file to the source character set used by \s-1GCC\s0. If the
+set of the input file to the source character set used by \s-1GCC\s0.  If the
 locale does not specify, or \s-1GCC\s0 cannot get this information from the
-locale, the default is \s-1UTF\-8\s0. This can be overridden by either the locale
-or this command line option. Currently the command line option takes
-precedence if there's a conflict. \fIcharset\fR can be any encoding
+locale, the default is \s-1UTF\-8\s0.  This can be overridden by either the locale
+or this command line option.  Currently the command line option takes
+precedence if there's a conflict.  \fIcharset\fR can be any encoding
 supported by the system's \f(CW\*(C`iconv\*(C'\fR library routine.
 .IP "\fB\-fworking\-directory\fR" 4
 .IX Item "-fworking-directory"
@@ -892,7 +908,7 @@ main input file is omitted.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
 Copyright (c) 1987, 1989, 1991, 1992, 1993, 1994, 1995, 1996,
-1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
