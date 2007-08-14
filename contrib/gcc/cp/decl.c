@@ -1573,6 +1573,7 @@ duplicate_decls (tree newdecl, tree olddecl, bool newdecl_is_friend)
       DECL_STATIC_DESTRUCTOR (newdecl) |= DECL_STATIC_DESTRUCTOR (olddecl);
       DECL_PURE_VIRTUAL_P (newdecl) |= DECL_PURE_VIRTUAL_P (olddecl);
       DECL_VIRTUAL_P (newdecl) |= DECL_VIRTUAL_P (olddecl);
+      DECL_INVALID_OVERRIDER_P (newdecl) |= DECL_INVALID_OVERRIDER_P (olddecl);
       DECL_THIS_STATIC (newdecl) |= DECL_THIS_STATIC (olddecl);
       if (DECL_OVERLOADED_OPERATOR_P (olddecl) != ERROR_MARK)
 	SET_OVERLOADED_OPERATOR_CODE
@@ -2161,8 +2162,24 @@ redeclaration_error_message (tree newdecl, tree olddecl)
     }
   else if (toplevel_bindings_p () || DECL_NAMESPACE_SCOPE_P (newdecl))
     {
-      /* Objects declared at top level:  */
-      /* If at least one is a reference, it's ok.  */
+      /* The objects have been declared at namespace scope.  If either
+	 is a member of an anonymous union, then this is an invalid
+	 redeclaration.  For example:
+
+	   int i;
+	   union { int i; };
+
+	   is invalid.  */
+      if (DECL_ANON_UNION_VAR_P (newdecl)
+	  || DECL_ANON_UNION_VAR_P (olddecl))
+	return "redeclaration of %q#D";
+      /* If at least one declaration is a reference, there is no
+	 conflict.  For example:
+
+	   int i = 3;
+	   extern int i;
+
+	 is valid.  */
       if (DECL_EXTERNAL (newdecl) || DECL_EXTERNAL (olddecl))
 	return NULL;
       /* Reject two definitions.  */
@@ -5076,6 +5093,36 @@ initialize_artificial_var (tree decl, tree init)
   make_rtl_for_nonlocal_decl (decl, init, /*asmspec=*/NULL);
 }
 
+/* INIT is the initializer for a variable, as represented by the
+   parser.  Returns true iff INIT is value-dependent.  */
+
+static bool
+value_dependent_init_p (tree init)
+{
+  if (TREE_CODE (init) == TREE_LIST)
+    /* A parenthesized initializer, e.g.: int i (3, 2); ? */
+    return any_value_dependent_elements_p (init);
+  else if (TREE_CODE (init) == CONSTRUCTOR)
+  /* A brace-enclosed initializer, e.g.: int i = { 3 }; ? */
+    {
+      VEC(constructor_elt, gc) *elts;
+      size_t nelts;
+      size_t i;
+
+      elts = CONSTRUCTOR_ELTS (init);
+      nelts = VEC_length (constructor_elt, elts);
+      for (i = 0; i < nelts; ++i)
+	if (value_dependent_init_p (VEC_index (constructor_elt,
+					       elts, i)->value))
+	  return true;
+    }
+  else
+    /* It must be a simple expression, e.g., int i = 3;  */
+    return value_dependent_expression_p (init);
+  
+  return false;
+}
+
 /* Finish processing of a declaration;
    install its line number and initial value.
    If the length of an array type is not known before,
@@ -5148,18 +5195,16 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
 	    TREE_CONSTANT (decl) = 1;
 	}
 
-      if (!init
-	  || !DECL_CLASS_SCOPE_P (decl)
-	  || !DECL_INTEGRAL_CONSTANT_VAR_P (decl)
-	  || type_dependent_p
-	  || value_dependent_expression_p (init)
-	     /* Check also if initializer is a value dependent
-		{ integral_constant_expression }.  */
-	  || (TREE_CODE (init) == CONSTRUCTOR
-	      && VEC_length (constructor_elt, CONSTRUCTOR_ELTS (init)) == 1
-	      && value_dependent_expression_p
-		   (VEC_index (constructor_elt,
-			       CONSTRUCTOR_ELTS (init), 0)->value)))
+      /* Generally, initializers in templates are expanded when the
+	 template is instantiated.  But, if DECL is an integral
+	 constant static data member, then it can be used in future
+	 integral constant expressions, and its value must be
+	 available. */
+      if (!(init
+	    && DECL_CLASS_SCOPE_P (decl)
+	    && DECL_INTEGRAL_CONSTANT_VAR_P (decl)
+	    && !type_dependent_p
+	    && !value_dependent_init_p (init)))
 	{
 	  if (init)
 	    DECL_INITIAL (decl) = init;
@@ -5368,7 +5413,18 @@ cp_finish_decl (tree decl, tree init, bool init_const_expr_p,
 	     initializer.  It is not legal to redeclare a static data
 	     member, so this issue does not arise in that case.  */
 	  if (var_definition_p && TREE_STATIC (decl))
-	    expand_static_init (decl, init);
+	    {
+              /* If a TREE_READONLY variable needs initialization
+		 at runtime, it is no longer readonly and we need to
+		 avoid MEM_READONLY_P being set on RTL created for it.  */
+	      if (init)
+		{
+		  if (TREE_READONLY (decl))
+		    TREE_READONLY (decl) = 0;
+		  was_readonly = 0;
+		}
+	      expand_static_init (decl, init);
+	    }
 	}
     }
 
