@@ -160,7 +160,7 @@ AUTO_KEYBOARD_DETECT?= 0
 
 .if !defined(NODOC)
 DIST_DOCS_ARCH_INDEP=	hardware readme relnotes errata
-DIST_DOCS_ARCH_DEP=	installation
+DIST_DOCS_ARCH_DEP=	
 .endif
 
 # Things which without too much trouble can be considered variables
@@ -770,8 +770,6 @@ release.8:
 	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
 	      ${RD}/mfsfd/stand/help/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
 	done
-	@mv ${RD}/mfsfd/stand/help/INSTALLATION.TXT \
-	    ${RD}/mfsfd/stand/help/INSTALL.TXT
 .endif
 	-test -f ${.CURDIR}/install.cfg \
 	    && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
@@ -915,8 +913,6 @@ ftp.1:
 		    ${FD}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${FD}
-	@mv ${FD}/INSTALLATION.TXT ${FD}/INSTALL.TXT
-	@mv ${FD}/INSTALLATION.HTM ${FD}/INSTALL.HTM
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 	touch ${.TARGET}
@@ -974,8 +970,6 @@ cdrom.2:
 	      ${CD_DISC1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
 	done
 	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DISC1}
-	@mv ${CD_DISC1}/INSTALLATION.TXT ${CD_DISC1}/INSTALL.TXT
-	@mv ${CD_DISC1}/INSTALLATION.HTM ${CD_DISC1}/INSTALL.HTM
 .endif
 .if defined(SEPARATE_LIVEFS)
 	@cp -Rp ${CD_LIVEFS}/boot ${CD_DISC1}
