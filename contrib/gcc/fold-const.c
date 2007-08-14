@@ -4450,13 +4450,24 @@ merge_ranges (int *pin_p, tree *plow, tree *phigh, int in0_p, tree low0,
 	{
 	  low = range_successor (high1);
 	  high = high0;
-	  in_p = (low != 0);
+	  in_p = 1;
+	  if (low == 0)
+	    {
+	      /* We are in the weird situation where high0 > high1 but
+		 high1 has no successor.  Punt.  */
+	      return 0;
+	    }
 	}
       else if (! subset || highequal)
 	{
 	  low = low0;
 	  high = range_predecessor (low1);
-	  in_p = (high != 0);
+	  in_p = 1;
+	  if (high == 0)
+	    {
+	      /* low0 < low1 but low1 has no predecessor.  Punt.  */
+	      return 0;
+	    }
 	}
       else
 	return 0;
@@ -4476,7 +4487,12 @@ merge_ranges (int *pin_p, tree *plow, tree *phigh, int in0_p, tree low0,
 	{
 	  low = range_successor (high0);
 	  high = high1;
-	  in_p = (low != 0);
+	  in_p = 1;
+	  if (low == 0)
+	    {
+	      /* high1 > high0 but high0 has no successor.  Punt.  */
+	      return 0;
+	    }
 	}
     }
 
@@ -12634,9 +12650,14 @@ tree_expr_nonnegative_warnv_p (tree t, bool *strict_overflow_p)
       /* ... fall through ...  */
 
     default:
-      if (truth_value_p (TREE_CODE (t)))
-	/* Truth values evaluate to 0 or 1, which is nonnegative.  */
-	return 1;
+      {
+	tree type = TREE_TYPE (t);
+	if ((TYPE_PRECISION (type) != 1 || TYPE_UNSIGNED (type))
+	    && truth_value_p (TREE_CODE (t)))
+	  /* Truth values evaluate to 0 or 1, which is nonnegative unless we
+             have a signed:1 type (where the value is -1 and 0).  */
+	  return true;
+      }
     }
 
   /* We don't know sign of `t', so be conservative and return false.  */
