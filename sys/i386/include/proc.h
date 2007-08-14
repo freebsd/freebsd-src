@@ -49,6 +49,7 @@ struct proc_ldt {
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_flags;	/* (k) */
+	register_t md_fault_addr;	/* (k) */
 };
 
 struct mdproc {
