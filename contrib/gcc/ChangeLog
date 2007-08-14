@@ -1,3 +1,441 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-18  Paolo Bonzini  <bonzini@gnu.org>
+
+	Revert:
+
+	2007-07-09  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR middle-end/32004
+	* function.c (rest_of_match_asm_constraints): Pass PROP_REG_INFO.
+
+	2007-07-06  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR middle-end/32004
+	* function.c (match_asm_constraints_1, rest_of_match_asm_constraints,
+	pass_match_asm_constraints): New.
+	* passes.c (init_optimization_passes): Add new pass.
+	* stmt.c (expand_asm_operands): Set cfun->has_asm_statement.
+	* function.h (struct function): Add has_asm_statement bit.
+	(current_function_has_asm_statement): New.
+	* tree-pass.h (pass_match_asm_constraints): New.
+
+2007-07-16  Paul Brook  <paul@codesourcery.com>
+
+	PR target/32753
+	gcc/
+	* config/arm/cirrus.md (cirrus_arm_movsi_insn): Remove dead insn.
+
+2007-07-10  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	PR target/32538
+	* config/mips/iris6.h (LIBGCC_SPEC): Add libm.
+
+2007-07-09  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR middle-end/32004
+	* function.c (rest_of_match_asm_constraints): Pass PROP_REG_INFO.
+
+2007-07-09  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR tree-optimization/32681
+	* tree-if-conv.c (find_phi_replacement_condition): Use the condition
+	saved in second_edge->aux when first_bb is a loop header.
+
+2007-07-07 Anatoly Sokolov <aesok@post.ru>
+
+	PR target/31331
+	* config/avr/avr.c (avr_naked_function_p): Handle receiving a type
+	rather than a decl. 
+	(avr_attribute_table): Make "naked" attribute apply to function types
+	rather than to decls.
+	(avr_handle_fntype_attribute): New function.
+
+2007-07-06  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR middle-end/32004
+	* function.c (match_asm_constraints_1, rest_of_match_asm_constraints,
+	pass_match_asm_constraints): New.
+	* passes.c (init_optimization_passes): Add new pass.
+	* stmt.c (expand_asm_operands): Set cfun->has_asm_statement.
+	* function.h (struct function): Add has_asm_statement bit.
+	(current_function_has_asm_statement): New.
+	* tree-pass.h (pass_match_asm_constraints): New.
+
+2007-07-06  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR rtl-optimization/32450
+	* function.c (thread_prologue_and_epilogue_insns): Emit blockage insn
+	to ensure that instructions are not moved into the prologue when
+	profiling is on.
+
+2007-07-04  Richard Guenther  <rguenther@suse.de>
+
+	PR tree-optimization/32500
+	* tree-ssa-loop-niter.c (infer_loop_bounds_from_undefined):
+	Only use basic blocks that are always executed to infer loop bounds.
+
+2007-07-04  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR tree-optimization/31966
+	PR tree-optimization/32533
+	* tree-if-conv.c (add_to_dst_predicate_list): Use "edge", not
+	"basic_block" description as its third argument.  Update function
+	calls to get destination bb from "edge" argument.  Save "cond" into
+	aux field of the edge.  Update prototype for changed arguments.
+	(if_convertible_loop_p): Clear aux field of incoming edges if bb
+	contains phi node.
+	(find_phi_replacement_condition): Operate on incoming edges, not
+	on predecessor blocks.  If there is a condition saved in the
+	incoming edge aux field, AND it with incoming bb predicate.
+	Return source bb of the first edge.
+	(clean_predicate_lists): Clean aux field of outgoing node edges.
+	(tree_if_conversion): Do not initialize cond variable. Move
+	variable declaration into the loop.
+	(replace_phi_with_cond_gimple_modify_stmt): Remove unneded
+	initializations of new_stmt, arg0 and arg1 variables.
+
+2007-07-04  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/32506
+	Backport from mainline.
+	* config/sh/sh.md (udivsi3_i1_media): Use target_reg_operand
+	predicate instead of target_operand.
+	(divsi3_i1_media, divsi3_media_2): Likewise.
+
+2007-07-03  Richard Guenther  <rguenther@suse.de>
+
+	Backport from mainline:
+	2006-12-11  Zdenek Dvorak <dvorakz@suse.cz>
+
+	PR rtl-optimization/30113
+	* loop-iv.c (implies_p): Require the mode of the operands to be
+	scalar.
+
+2007-07-03  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	PR target/28307
+	* gthr-posix.h [SUPPORTS_WEAK && GTHREAD_USE_WEAK]
+	(__gthrw_pragma): Provide default definition.
+	(__gthrw2): Use it.
+	* gthr-posix.c (__gthrw_pragma): Define.
+
+2007-07-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libgomp/32468
+	* omp-low.c (check_combined_parallel): New function.
+	(lower_omp_parallel): Call it via walk_stmts, set
+	OMP_PARALLEL_COMBINED if appropriate.
+	(determine_parallel_type): If OMP_FOR resp. OMP_SECTIONS
+	isn't the only statement in WS_ENTRY_BB or OMP_RETURN
+	the only one in PAR_EXIT_BB and not OMP_PARALLEL_COMBINED,
+	don't consider it as combined parallel.
+
+2007-06-30  Alexandre Oliva  <aoliva@redhat.com>
+
+	* dwarf2out.c (dwarf2out_finish): Accept namespaces as context of
+	limbo die nodes.
+
+2007-06-28  Seongbae Park  <seongbae.park@gmail.com>
+
+	* config/arm/arm.c (arm_get_frame_offsets): Set
+	offsets->locals_base to avoid negative stack size.
+	(thumb_expand_prologue): Assert on negative stack size.
+
+2007-06-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/rs6000/rs6000.c (rs6000_function_ok_for_sibcall): Ensure
+	decl is non-external for AIX ABI.
+
+2007-06-28  David Edelsohn  <edelsohn@gnu.org>
+
+	* config/rs6000/predicates.md (current_file_function_operand):
+	Ensure the symbol is non-external for AIX ABI.
+
+2007-06-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/i386.c (ix86_builtins): Add IX86_BUILTIN_VEC_EXT_V16QI.
+	(ix86_init_mmx_sse_builtins): Add __builtin_ia32_vec_ext_v16qi.
+	(ix86_expand_builtin): Handle IX86_BUILTIN_VEC_EXT_V16QI.
+
+2007-06-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR middle-end/32362
+	* omp-low.c (lookup_decl_in_outer_ctx): Don't ICE if t is NULL,
+	but decl is a global var, instead return decl.
+	* gimplify.c (gimplify_adjust_omp_clauses_1): Add shared clauses
+	even for is_global_var decls, if they are private in some outer
+	context.
+
+2007-06-21  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/32389
+	* config/i386/i386.h (enum ix86_stack_slot): Add SLOT_VIRTUAL.
+	* config/i386/i386.c (assign_386_stack_local): Assert that
+	SLOT_VIRTUAL is valid only before virtual regs are instantiated.
+	(ix86_expand_builtin) [IX86_BUILTIN_LDMXCSR, IX86_BUILTIN_STMXCSR]:
+	Use SLOT_VIRTUAL stack slot instead of SLOT_TEMP.
+	* config/i386/i386.md (truncdfsf2, truncxfsf2, truncxfdf2): Ditto.
+
+2007-06-20  Jakub Jelinek  <jakub@redhat.com>
+
+	PR inline-asm/32109
+	* gimplify.c (gimplify_asm_expr): Issue error if type is addressable
+	and !allows_mem.
+
+	PR middle-end/32285
+	* calls.c (precompute_arguments): Also precompute CALL_EXPR arguments
+	if ACCUMULATE_OUTGOING_ARGS.
+
+2007-06-20  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR rtl-optimization/28011
+	Backport from mainline.
+	* reload.c (push_reload): Set dont_share if IN appears in OUT
+	also when IN is a PLUS rtx.
+	(reg_overlap_mentioned_for_reload_p): Return true if X and IN
+	are same PLUS rtx.
+
+2007-06-19  Richard Guenther  <rguenther@suse.de>
+	Michael Matz  <matz@suse.de>
+
+	PR tree-optimization/30252
+	* tree-ssa-structalias.c (solution_set_add): Make sure to
+	preserve all relevant vars.
+	(handle_ptr_arith): Make sure to only handle positive
+	offsets.
+	(push_fields_onto_fieldstack): Create fields for empty
+	bases.
+
+2007-06-19  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/32353
+	* tree-ssa-structalias.c (set_uids_in_ptset): Also handle RESULT_DECL.
+
+2007-06-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* config/sparc/sparc.c (sparc_vis_init_builtins): Retrieve the
+	return mode from the builtin itself.
+	(sparc_fold_builtin): Fix cast of zero constant.
+
+2007-06-15  Diego Novillo  <dnovillo@google.com>
+
+	PR 32327
+	* tree-ssa-operands.c (build_ssa_operands): Initially assume
+	that the statement does not take any addresses.
+
+2007-06-13  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* config/sparc/sparc.c (sparc_override_options): Initialize
+	fpu mask correctly.
+
+2007-06-09  Ian Lance Taylor  <iant@google.com>
+
+	PR tree-optimization/32169
+	* tree-vrp.c (extract_range_from_unary_expr): For NOP_EXPR and
+	CONVERT_EXPR, check whether min and max both converted to an
+	overflow infinity representation.
+
+2007-06-08  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/32163
+	Backport from mainline.
+	* config/sh/sh.md (symGOT_load): Don't schedule insns when
+	the symbol is generated with the stack protector.
+
+2007-06-06  Ian Lance Taylor  <iant@google.com>
+
+	* fold-const.c (merge_ranges): If range_successor or
+	range_predecessor fail, just return 0.
+
+2007-06-05  Ian Lance Taylor  <iant@google.com>
+
+	* tree-vrp.c (compare_values_warnv): Check TREE_NO_WARNING on a
+	PLUS_EXPR or MINUS_EXPR node before setting *strict_overflow_p.
+	(extract_range_from_assert): Set TREE_NO_WARNING when creating an
+	expression.
+	(test_for_singularity): Likewise.
+
+2007-06-04  Ian Lance Taylor  <iant@google.com>
+
+	* tree-vrp.c (adjust_range_with_scev): When loop is not expected
+	to overflow, reduce overflow infinity to regular infinity.
+	(vrp_var_may_overflow): New static function.
+	(vrp_visit_phi_node): Check vrp_var_may_overflow.
+
+2007-05-31  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Backport from mainline:
+	2007-05-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/i386.c (__builtin_ia32_vec_ext_v2df): Mark it
+	with MASK_SSE2.
+	(__builtin_ia32_vec_ext_v2di): Likewise.
+	(__builtin_ia32_vec_ext_v4si): Likewise.
+	(__builtin_ia32_vec_ext_v8hi): Likewise.
+	(__builtin_ia32_vec_set_v8hi): Likewise.
+
+2007-05-31  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	Backport from mainline:
+	2007-05-05  Aurelien Jarno  <aurelien@aurel32.net>
+
+	* config/pa/pa.md: Split tgd_load, tld_load and tie_load
+	into pic and non-pic versions. Mark r19 as used for 
+	tgd_load_pic, tld_load_pic and tie_load_pic. Mark r27 as used 
+	for tgd_load, tld_load and tie_load .
+	* config/pa/pa.c (legitimize_tls_address): Emit pic or non-pic
+	version of tgd_load, tld_load and tie_load depending on the 
+	value of flag_pic.
+
+2007-05-27  Daniel Berlin <dberlin@dberlin.org>
+
+	Fix PR/30052
+	Backport PTA solver from mainline
+
+	* pointer-set.c: Copy from mainline
+	* pointer-set.h: Ditto.
+	* tree-ssa-structalias.c: Copy solver portions from mainline.
+	* Makefile.in (tree-ssa-structalias.o): Update dependencies
+
+2007-05-30  Ralf Wildenhues  <Ralf.Wildenhues@gmx.de>
+
+	* tree-vrp.c (compare_names): Initialize sop.
+
+2007-05-30  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/31769
+	* except.c (duplicate_eh_regions): Clear prev_try if
+	ERT_MUST_NOT_THROW region is inside of ERT_TRY region.
+
+2007-05-28  Andrew Pinski  <andrew_pinski@playstation.sony.com>
+
+	PR tree-opt/32100
+	* fold-const.c (tree_expr_nonnegative_warnv_p): Don't
+	return true when truth_value_p is true and the type
+	is of signed:1.
+
+2007-05-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Backport from mainline:
+	2007-05-25  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/sse.md (*vec_extractv2di_1_sse2): Do not calculate
+	"memory" attribute for "sseishft" type insn without operands[2].
+
+	2007-05-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config/i386/sse.md (*vec_extractv2di_1_sse2): Correct shift.
+
+2007-05-22  Ian Lance Taylor  <iant@google.com>
+
+	* tree-vrp.c (avoid_overflow_infinity): New static function,
+	broken out of set_value_range_to_value.
+	(set_value_range_to_value): Call avoid_overflow_infinity.
+	(extract_range_from_assert): Likewise.
+
+2007-05-23  Chen Liqin  <liqin@sunnorth.com.cn>
+
+	PR target/30987
+	* config/score/misc.md (bitclr_c, bitset_c, bittgl_c): remove.
+	* config/score/predicate.md (const_pow2, const_npow2): remove.
+	* config/score/score.h (ASM_OUTPUT_EXTERNAL): add ASM_OUTPUT_EXTERNAL undef.
+	PR target/30474
+	* config/score/score.c (score_print_operand): makes sure that only lower 
+	bits are used.
+	
+2007-05-21  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/31167
+	Backport from mainline.
+	* config/i386/i386.md (*addti3_1, *addti3_1 splitter): Use
+	x86_64_general_operand as operand[2] predicate.  Remove "iF"
+	from operand constraints and use "e" constraint instead.
+	(*subti3_1, *subti3_1 splitter): Ditto.
+	(*negti2_1, *negti2_1 splitter): Use nonimmediate_operand as
+	operand[1] predicate.
+
+2007-05-21  Uros Bizjak  <ubizjak@gmail.com>
+
+	PR target/30041
+	Backport from mainline.
+	* config/i386/sse.md ("*sse3_movddup"): Use operands[0] and
+	operands[1] in insn constraint.  Correct type attribute to sselog1.
+
+2007-05-20  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/31701
+	Backport from mainline.
+	* config/sh/sh.c (output_stack_adjust): Avoid using the frame
+	register itself to hold the offset constant.  Tell flow the use
+	of r4 and r5 when they are used.
+
+2007-05-20  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/31480
+	Backport from mainline.
+	* config/sh/sh.md (length): Check if prev_nonnote_insn (insn)
+	is null.
+
+2007-05-20  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/31022
+	Backport from mainline.
+	* config/sh/sh.c (sh_adjust_cost): Use the result of single_set
+	instead of PATTERN.
+
+2007-05-20  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	PR target/27405
+	Backport from mainline.
+	* config/sh/sh.md (cmp{eq,gt,gtu}{si,di}_media): Remove.
+	(cmpsi{eq,gt,gtu}{si,di}_media): Rename to
+	cmp{eq,gt,gtu}{si,di}_media.
+	(*cmpne0si_media): Remove.
+	(*movsicc_umin): Adjust gen_cmp*_media call.
+	(unordered): Change the mode of unordered and operands[1] to
+	SImode.
+	(seq): Adjust gen_cmp*_media calls.  Make the mode of
+	a temporary result of compare SImode if needed.  If the mode
+	of operands[0] is DImode, extend the temporary result to DImode.
+	(slt, sle, sgt, sge, sgtu, sltu, sleu, sgue, sne): Likewise.
+	(sunorderd): Change the mode of match_operand and unorderd to
+	SImode.
+	(cmpeq{sf,df}_media): Remove.
+	(cmpsieq{sf,df}_media): Rename to cmpeq{sf,df}_media.
+	(cmp{gt,ge,un}{sf,df}_media): Change the mode of match_operand
+	and compare operation to SImode.
+
+2007-05-18  Joseph Myers  <joseph@codesourcery.com>
+
+	* config/soft-fp/double.h, config/soft-fp/extended.h,
+	config/soft-fp/floatundidf.c, config/soft-fp/floatundisf.c,
+	config/soft-fp/floatunsidf.c, config/soft-fp/floatunsisf.c,
+	config/soft-fp/op-2.h, config/soft-fp/op-4.h,
+	config/soft-fp/op-common.h, config/soft-fp/quad.h: Update from
+	glibc CVS.
+
+2007-05-17  Ian Lance Taylor  <iant@google.com>
+
+	PR tree-optimization/31953
+	* tree-vrp.c (set_value_range_to_value): Add equiv parameter.
+	Change all callers.
+	(set_value_range_to_null): Call set_value_range_to_value.
+	(extract_range_from_comparison): Likewise.
+
+2007-05-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR rtl-optimization/31691
+	* combine.c (simplify_set): Build a new src pattern instead of
+	substituting its operands in the COMPARE case.
+
+2007-05-14  Mark Mitchell  <mark@codesourcery.com>
+
+	* BASE-VER: Set to 4.2.1.
+	* DEV-PHASE: Set to prerelease.
+
 2007-05-13  Release Manager
 
 	* GCC 4.2.0 released.
@@ -307,7 +745,8 @@
 2007-04-03  Stuart Hastings  <stuart@apple.com>
 
 	PR 31281
-	* objc/objc-act.c (next_sjlj_build_catch_list): Delete volatile from rethrow decl.
+	* objc/objc-act.c (next_sjlj_build_catch_list): Delete volatile
+	from rethrow decl.
 	* cse.c (record_jump_equiv): Bail out on CCmode comparisons.
 
 2007-04-03  Jakub Jelinek  <jakub@redhat.com>

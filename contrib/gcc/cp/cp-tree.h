@@ -107,7 +107,7 @@ struct diagnostic_context;
       DECL_IMPLICIT_TYPEDEF_P (in a TYPE_DECL)
    3: DECL_IN_AGGR_P.
    4: DECL_C_BIT_FIELD (in a FIELD_DECL)
-      DECL_VAR_MARKED_P (in a VAR_DECL)
+      DECL_ANON_UNION_VAR_P (in a VAR_DECL)
       DECL_SELF_REFERENCE_P (in a TYPE_DECL)
       DECL_INVALID_OVERRIDER_P (in a FUNCTION_DECL)
    5: DECL_INTERFACE_KNOWN.
@@ -2111,10 +2111,10 @@ extern void decl_shadowed_for_var_insert (tree, tree);
   (DECL_LANG_SPECIFIC (VAR_TEMPL_TYPE_OR_FUNCTION_DECL_CHECK (NODE)) \
    ->decl_flags.u.template_info)
 
-/* For a VAR_DECL, indicates that the variable has been processed.
-   This flag is set and unset throughout the code; it is always
-   used for a temporary purpose.  */
-#define DECL_VAR_MARKED_P(NODE) \
+/* For a VAR_DECL, indicates that the variable is actually a
+   non-static data member of anonymous union that has been promoted to
+   variable status.  */
+#define DECL_ANON_UNION_VAR_P(NODE) \
   (DECL_LANG_FLAG_4 (VAR_DECL_CHECK (NODE)))
 
 /* Template information for a RECORD_TYPE or UNION_TYPE.  */
@@ -2418,14 +2418,21 @@ extern void decl_shadowed_for_var_insert (tree, tree);
 /* [basic.fundamental]
 
    Integral and floating types are collectively called arithmetic
-   types.  Keep these checks in ascending code order.  */
+   types.  
+
+   As a GNU extension, we also accept complex types.
+
+   Keep these checks in ascending code order.  */
 #define ARITHMETIC_TYPE_P(TYPE) \
-  (CP_INTEGRAL_TYPE_P (TYPE) || TREE_CODE (TYPE) == REAL_TYPE)
+  (CP_INTEGRAL_TYPE_P (TYPE) \
+   || TREE_CODE (TYPE) == REAL_TYPE \
+   || TREE_CODE (TYPE) == COMPLEX_TYPE)
 
 /* [basic.types]
 
    Arithmetic types, enumeration types, pointer types, and
    pointer-to-member types, are collectively called scalar types.
+   
    Keep these checks in ascending code order.  */
 #define SCALAR_TYPE_P(TYPE)			\
   (TYPE_PTRMEM_P (TYPE)				\
@@ -4146,6 +4153,7 @@ extern bool dependent_template_id_p		(tree, tree);
 extern bool type_dependent_expression_p		(tree);
 extern bool any_type_dependent_arguments_p      (tree);
 extern bool value_dependent_expression_p	(tree);
+extern bool any_value_dependent_elements_p      (tree);
 extern tree resolve_typename_type		(tree, bool);
 extern tree template_for_substitution		(tree);
 extern tree build_non_dependent_expr		(tree);

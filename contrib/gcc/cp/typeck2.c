@@ -710,7 +710,8 @@ digest_init (tree type, tree init)
     }
 
   /* Handle scalar types (including conversions) and references.  */
-  if (SCALAR_TYPE_P (type) || code == REFERENCE_TYPE)
+  if (TREE_CODE (type) != COMPLEX_TYPE
+      && (SCALAR_TYPE_P (type) || code == REFERENCE_TYPE))
     return convert_for_initialization (0, type, init, LOOKUP_NORMAL,
 				       "initialization", NULL_TREE, 0);
 
@@ -1347,7 +1348,9 @@ build_functional_cast (tree exp, tree parms)
       && !CLASSTYPE_NON_POD_P (type)
       && TYPE_HAS_DEFAULT_CONSTRUCTOR (type))
     {
-      exp = build_constructor (type, NULL);
+      exp = build_zero_init (type, 
+			     /*nelts=*/NULL_TREE,
+			     /*static_storage_p=*/false);
       return get_target_expr (exp);
     }
 
