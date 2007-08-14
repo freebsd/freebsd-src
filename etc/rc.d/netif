@@ -26,7 +26,7 @@
 #
 
 # PROVIDE: netif
-# REQUIRE: atm1 ipfilter mountcritlocal pccard serial sppp sysctl
+# REQUIRE: atm1 cleanvar ipfilter mountcritlocal pccard serial sppp sysctl
 # KEYWORD: nojail
 
 . /etc/rc.subr
