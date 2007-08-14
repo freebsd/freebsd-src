@@ -176,8 +176,8 @@ trap(frame)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	u_int sticks = 0;
-	int i = 0, ucode = 0, type, code;
+	u_int sticks = 0, type;
+	int i = 0, ucode = 0, code;
 	vm_offset_t eva;
 #ifdef POWERFAIL_NMI
 	static int lastalert = 0;
@@ -757,7 +757,8 @@ trap_fatal(frame, eva)
 	struct trapframe *frame;
 	vm_offset_t eva;
 {
-	int code, type, ss, esp;
+	int code, ss, esp;
+	u_int type;
 	struct soft_segment_descriptor softseg;
 	char *msg;
 
