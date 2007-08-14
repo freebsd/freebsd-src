@@ -162,8 +162,8 @@ trap(frame)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	u_int sticks = 0;
-	int i = 0, ucode = 0, type, code;
+	u_int sticks = 0, type;
+	int i = 0, ucode = 0, code;
 
 	PCPU_LAZY_INC(cnt.v_trap);
 	type = frame.tf_trapno;
@@ -589,7 +589,8 @@ trap_fatal(frame, eva)
 	struct trapframe *frame;
 	vm_offset_t eva;
 {
-	int code, type, ss;
+	int code, ss;
+	u_int type;
 	long esp;
 	struct soft_segment_descriptor softseg;
 	char *msg;
