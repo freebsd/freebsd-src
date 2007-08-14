@@ -319,7 +319,7 @@ osendsig(catcher, sig, mask, code)
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = td->td_md.md_fault_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -458,11 +458,11 @@ freebsd4_sendsig(catcher, sig, mask, code)
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
+		sf.sf_si.si_addr = (void *)td->td_md.md_fault_addr;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = td->td_md.md_fault_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -597,11 +597,11 @@ sendsig(catcher, sig, mask, code)
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_addr = (void *)regs->tf_err;
+		sf.sf_si.si_addr = (void *)td->td_md.md_fault_addr;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_siginfo = code;
-		sf.sf_addr = regs->tf_err;
+		sf.sf_addr = td->td_md.md_fault_addr;
 		sf.sf_ahu.sf_handler = catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
@@ -675,7 +675,7 @@ cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 	bzero(si, sizeof(*si));
 	si->si_signo = sig;
 	si->si_code = code;
-	si->si_addr = (void *)td->td_frame->tf_err;
+	si->si_addr = (void *)td->td_md.md_fault_addr;
 	/* XXXKSE fill other fields */
 }
 
