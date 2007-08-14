@@ -2264,7 +2264,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       included in OpenBSD 4.1.  &merged;</para>
 
     <para><application>GCC</application> has been updated from 3.4.4
-      to 4.2.0.</para>
+      to 4.2.1.</para>
 
     <para><application>GNU Readline library</application> has been
       updated from 5.0 to 5.2 patch 2. &merged;</para>
