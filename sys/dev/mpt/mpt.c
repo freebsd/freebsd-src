@@ -1237,6 +1237,7 @@ retry:
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
 		mpt_assign_serno(mpt, req);
+		mpt_callout_init(&req->callout);
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);

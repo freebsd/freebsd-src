@@ -1636,8 +1636,6 @@ out:
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
 		    mpt_timeout, ccb);
-	} else {
-		mpt_req_timeout_init(req);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
@@ -2037,8 +2035,6 @@ out:
 	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
 		mpt_req_timeout(req, (ccb->ccb_h.timeout * hz) / 1000,
 		    mpt_timeout, ccb);
-	} else {
-		mpt_req_timeout_init(req);
 	}
 	if (mpt->verbose > MPT_PRT_DEBUG) {
 		int nc = 0;
