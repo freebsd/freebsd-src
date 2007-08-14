@@ -1,3 +1,70 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-05  Joerg Richter  <joerg.richter@pdv-fs.de>
+
+	PR libstdc++/31957
+	* include/Makefile.am: Work around an AIX sed oddity.
+	* include/Makefile.in: Regenerate.
+
+2007-06-28  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/32509
+	* acinclude.m4 (GLIBCXX_ENABLE_CLOCALE): Carry out the checks
+	involving the de_DE locale only if an auto locale config is
+	used for a target suitable for the gnu locale model.
+	* docs/html/install.html: Update.
+	* configure: Regenerated.
+
+2007-06-26  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* include/ext/throw_allocator.h: Fixes for -fno-exceptions.
+	* testsuite/util/testsuite_shared.cc: Same.
+	* testsuite/util/io/illegal_input_error.hpp: Same.
+	* testsuite/util/io/verified_cmd_line_input.cc: Same.
+
+	* libsupc++/typeinfo (type_info): Correct comment formatting,
+	clarify member access and public interface.
+	* libsupc++/exception: Less compressed comments.
+	* libsupc++/new: Same.
+
+2007-06-08  Paolo Carlini  <pcarlini@suse.de>
+
+	* docs/html/install.html: Adjust consistently with libstdc++/31717.
+
+2007-06-08  Francesco Palagi  <palagi@arcetri.astro.it>
+
+	* include/std/std_fstream.h: Add Table 92 in comment.
+
+2007-06-06  Benjamin Kosnik  <bkoz@redhat.com>
+	    Frank Mori Hess  <frank.hess@nist.gov>
+	
+	* docs/html/debug.html: Correct link.
+
+2007-05-28  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/31717 
+	* acinclude.m4 (GLIBCXX_ENABLE_CLOCALE): Re-organize. Sanity check
+	gnu locale model requests to make sure it will work for the requested
+	target. Add checks for strxfrm_l, strerror_l when in gnu locale,
+	and strerror_r everywhere.
+	* aclocal.m4: Regenerated.
+	* configure: Regenerated.
+	* config.h.in: Regenerated.
+
+2007-05-24  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/ostream.tcc: Do not inhibit implicit instantiation
+	of __ostream_insert here...
+	* include/bits/ostream_insert.h: ... do it here.
+
+2007-05-21  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/31621
+	* acinclude.m4 ([GLIBCXX_CHECK_LINKER_FEATURES]): Use the C compiler.
+	* configure: Regenerate.
+
 2007-05-13  Release Manager
 
 	* GCC 4.2.0 released.
