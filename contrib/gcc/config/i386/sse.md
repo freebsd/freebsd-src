@@ -2055,11 +2055,11 @@
 	    (match_dup 1))
 	  (parallel [(const_int 0)
 		     (const_int 2)])))]
-  "TARGET_SSE3 && !(MEM_P (operands[1]) && MEM_P (operands[2]))"
+  "TARGET_SSE3 && !(MEM_P (operands[0]) && MEM_P (operands[1]))"
   "@
    movddup\t{%1, %0|%0, %1}
    #"
-  [(set_attr "type" "sselog,ssemov")
+  [(set_attr "type" "sselog1,ssemov")
    (set_attr "mode" "V2DF")])
 
 (define_split
@@ -3494,9 +3494,10 @@
   "TARGET_SSE2 && !(MEM_P (operands[0]) && MEM_P (operands[1]))"
   "@
    movhps\t{%1, %0|%0, %1}
-   psrldq\t{$4, %0|%0, 4}
+   psrldq\t{$8, %0|%0, 8}
    movq\t{%H1, %0|%0, %H1}"
   [(set_attr "type" "ssemov,sseishft,ssemov")
+   (set_attr "memory" "*,none,*")
    (set_attr "mode" "V2SF,TI,TI")])
 
 ;; Not sure this is ever used, but it doesn't hurt to have it. -aoliva

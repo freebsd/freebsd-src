@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "GCOV 1"
-.TH GCOV 1 "2006-03-06" "gcc-3.4.6" "GNU"
+.TH GCOV 1 "2007-07-19" "gcc-4.2.1" "GNU"
 .SH "NAME"
 gcov \- coverage testing tool
 .SH "SYNOPSIS"
@@ -222,8 +222,8 @@ and exit without doing any further processing.
 .IP "\fB\-\-all\-blocks\fR" 4
 .IX Item "--all-blocks"
 .PD
-Write individual execution counts for every basic block. Normally gcov
-outputs execution counts only for the main blocks of a line. With this
+Write individual execution counts for every basic block.  Normally gcov
+outputs execution counts only for the main blocks of a line.  With this
 option you can determine if blocks within a single line are not being
 executed.
 .IP "\fB\-b\fR" 4
@@ -234,7 +234,7 @@ executed.
 .PD
 Write branch frequencies to the output file, and write branch summary
 info to the standard output.  This option allows you to see how often
-each branch in your program was taken. Unconditional branches will not
+each branch in your program was taken.  Unconditional branches will not
 be shown, unless the \fB\-u\fR option is given.
 .IP "\fB\-c\fR" 4
 .IX Item "-c"
@@ -262,7 +262,7 @@ header file \fIx.h\fR contains code, and was included in the file
 \&\fIa.c\fR, then running \fBgcov\fR on the file \fIa.c\fR will produce
 an output file called \fIa.c##x.h.gcov\fR instead of \fIx.h.gcov\fR.
 This can be useful if \fIx.h\fR is included in multiple source
-files. If you uses the \fB\-p\fR option, both the including and
+files.  If you use the \fB\-p\fR option, both the including and
 included file names will be complete path names.
 .IP "\fB\-p\fR" 4
 .IX Item "-p"
@@ -271,11 +271,12 @@ included file names will be complete path names.
 .IX Item "--preserve-paths"
 .PD
 Preserve complete path information in the names of generated
-\&\fI.gcov\fR files. Without this option, just the filename component is
-used. With this option, all directories are used, with '/' characters
-translated to '#' characters, '.' directory components removed and '..'
-components renamed to '^'. This is useful if sourcefiles are in several
-different directories. It also affects the \fB\-l\fR option.
+\&\fI.gcov\fR files.  Without this option, just the filename component is
+used.  With this option, all directories are used, with \fB/\fR characters
+translated to \fB#\fR characters, \fI.\fR directory components
+removed and \fI..\fR
+components renamed to \fB^\fR.  This is useful if sourcefiles are in several
+different directories.  It also affects the \fB\-l\fR option.
 .IP "\fB\-f\fR" 4
 .IX Item "-f"
 .PD 0
@@ -292,11 +293,11 @@ Output summaries for each function in addition to the file level summary.
 .IX Item "--object-file file"
 .PD
 Specify either the directory containing the gcov data files, or the
-object path name. The \fI.gcno\fR, and
-\&\fI.gcda\fR data files are searched for using this option. If a directory
+object path name.  The \fI.gcno\fR, and
+\&\fI.gcda\fR data files are searched for using this option.  If a directory
 is specified, the data files are in that directory and named after the
-source file name, without its extension. If a file is specified here,
-the data files are named after that file, without its extension. If this
+source file name, without its extension.  If a file is specified here,
+the data files are named after that file, without its extension.  If this
 option is not supplied, it defaults to the current directory.
 .IP "\fB\-u\fR" 4
 .IX Item "-u"
@@ -304,35 +305,53 @@ option is not supplied, it defaults to the current directory.
 .IP "\fB\-\-unconditional\-branches\fR" 4
 .IX Item "--unconditional-branches"
 .PD
-When branch counts are given, include those of unconditional branches.
+When branch probabilities are given, include those of unconditional branches.
 Unconditional branches are normally not interesting.
 .PP
 \&\fBgcov\fR should be run with the current directory the same as that
-when you invoked the compiler. Otherwise it will not be able to locate
-the source files. \fBgcov\fR produces files called
-\&\fI\fImangledname\fI.gcov\fR in the current directory. These contain
+when you invoked the compiler.  Otherwise it will not be able to locate
+the source files.  \fBgcov\fR produces files called
+\&\fI\fImangledname\fI.gcov\fR in the current directory.  These contain
 the coverage information of the source file they correspond to.
 One \fI.gcov\fR file is produced for each source file containing code,
-which was compiled to produce the data files. The \fImangledname\fR part
+which was compiled to produce the data files.  The \fImangledname\fR part
 of the output file name is usually simply the source file name, but can
 be something more complicated if the \fB\-l\fR or \fB\-p\fR options are
-given. Refer to those options for details.
+given.  Refer to those options for details.
 .PP
-The \fI.gcov\fR files contain the ':' separated fields along with
-program source code. The format is
+The \fI.gcov\fR files contain the \fB:\fR separated fields along with
+program source code.  The format is
 .PP
 .Vb 1
 \&        <execution_count>:<line_number>:<source line text>
 .Ve
 .PP
 Additional block information may succeed each line, when requested by
-command line option. The \fIexecution_count\fR is \fB\-\fR for lines
-containing no code and \fB#####\fR for lines which were never
-executed. Some lines of information at the start have \fIline_number\fR
-of zero.
+command line option.  The \fIexecution_count\fR is \fB\-\fR for lines
+containing no code and \fB#####\fR for lines which were never executed.
+Some lines of information at the start have \fIline_number\fR of zero.
+.PP
+The preamble lines are of the form
+.PP
+.Vb 1
+\&        -:0:<tag>:<value>
+.Ve
+.PP
+The ordering and number of these preamble lines will be augmented as
+\&\fBgcov\fR development progresses \-\-\- do not rely on them remaining
+unchanged.  Use \fItag\fR to locate a particular preamble line.
+.PP
+The additional block information is of the form
+.PP
+.Vb 1
+\&        <tag> <information>
+.Ve
+.PP
+The \fIinformation\fR is human readable, but designed to be simple
+enough for machine parsing too.
 .PP
 When printing percentages, 0% and 100% are only printed when the values
-are \fIexactly\fR 0% and 100% respectively. Other values which would
+are \fIexactly\fR 0% and 100% respectively.  Other values which would
 conventionally be rounded to 0% or 100% are instead printed as the
 nearest non-boundary value.
 .PP
@@ -364,7 +383,7 @@ is what you see when you use the basic \fBgcov\fR facility:
 The file \fItmp.c.gcov\fR contains output from \fBgcov\fR.
 Here is a sample:
 .PP
-.Vb 23
+.Vb 22
 \&                -:    0:Source:tmp.c
 \&                -:    0:Graph:tmp.gcno
 \&                -:    0:Data:tmp.gcda
@@ -373,7 +392,6 @@ Here is a sample:
 \&                -:    1:#include <stdio.h>
 \&                -:    2:
 \&                -:    3:int main (void)
-\&        function main called 1 returned 1 blocks executed 75%
 \&                1:    4:{
 \&                1:    5:  int i, total;
 \&                -:    6:
@@ -393,7 +411,7 @@ Here is a sample:
 When you use the \fB\-a\fR option, you will get individual block
 counts, and the output looks like this:
 .PP
-.Vb 30
+.Vb 29
 \&                -:    0:Source:tmp.c
 \&                -:    0:Graph:tmp.gcno
 \&                -:    0:Data:tmp.gcda
@@ -402,7 +420,6 @@ counts, and the output looks like this:
 \&                -:    1:#include <stdio.h>
 \&                -:    2:
 \&                -:    3:int main (void)
-\&        function main called 1 returned 1 blocks executed 75%
 \&                1:    4:{
 \&                1:    4-block  0
 \&                1:    5:  int i, total;
@@ -427,11 +444,11 @@ counts, and the output looks like this:
 .Ve
 .PP
 In this mode, each basic block is only shown on one line \*(-- the last
-line of the block. A multi-line block will only contribute to the
+line of the block.  A multi-line block will only contribute to the
 execution count of that last line, and other lines will not be shown
 to contain code, unless previous blocks end on those lines.
 The total execution count of a line is shown and subsequent lines show
-the execution counts for individual blocks that end on that line. After each
+the execution counts for individual blocks that end on that line.  After each
 block, the branch and call counts of the block will be shown, if the
 \&\fB\-b\fR option is given.
 .PP
@@ -484,6 +501,10 @@ Here is a sample of a resulting \fItmp.c.gcov\fR file:
 \&                -:   17:}
 .Ve
 .PP
+For each function, a line is printed showing how many times the function
+is called, how many times it returns and what percentage of the
+function's blocks were executed.
+.PP
 For each basic block, a line is printed after the last line of the basic
 block describing the branch or call that ends the basic block.  There can
 be multiple branches and calls listed for a single source line if there
@@ -496,12 +517,12 @@ on the source line.
 For a branch, if it was executed at least once, then a percentage
 indicating the number of times the branch was taken divided by the
 number of times the branch was executed will be printed.  Otherwise, the
-message ``never executed'' is printed.
+message \*(L"never executed\*(R" is printed.
 .PP
 For a call, if it was executed at least once, then a percentage
 indicating the number of times the call returned divided by the number
 of times the call was executed will be printed.  This will usually be
-100%, but may be less for functions call \f(CW\*(C`exit\*(C'\fR or \f(CW\*(C`longjmp\*(C'\fR,
+100%, but may be less for functions that call \f(CW\*(C`exit\*(C'\fR or \f(CW\*(C`longjmp\*(C'\fR,
 and thus may not return every time they are called.
 .PP
 The execution counts are cumulative.  If the example program were
@@ -581,14 +602,14 @@ same source lines, the line counts themselves might seem inconsistent.
 \&\fIgpl\fR\|(7), \fIgfdl\fR\|(7), \fIfsf\-funding\fR\|(7), \fIgcc\fR\|(1) and the Info entry for \fIgcc\fR.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright (c) 1996, 1997, 1999, 2000, 2001, 2002, 2003
+Copyright (c) 1996, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005
 Free Software Foundation, Inc.
 .PP
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the \s-1GNU\s0 Free Documentation License, Version 1.2 or
 any later version published by the Free Software Foundation; with the
-Invariant Sections being ``\s-1GNU\s0 General Public License'' and ``Funding
-Free Software'', the Front-Cover texts being (a) (see below), and with
+Invariant Sections being \*(L"\s-1GNU\s0 General Public License\*(R" and \*(L"Funding
+Free Software\*(R", the Front-Cover texts being (a) (see below), and with
 the Back-Cover Texts being (b) (see below).  A copy of the license is
 included in the \fIgfdl\fR\|(7) man page.
 .PP
