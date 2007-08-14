@@ -1,3 +1,93 @@
+2007-07-19  Release Manager
+
+	* GCC 4.2.1 released.
+
+2007-07-07  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/32232
+	* pt.c (resolve_overloaded_unification): Robustify.  Return a
+	bool, not an int.
+	(type_unification_real): Adjust accordingly.
+
+2007-07-06  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/32245
+	* init.c (build_zero_init): Always build an initializer for
+	non-static storage.
+	* typeck2.c (build_functional_cast): Use build_zero_init.
+
+	PR c++/32251
+	* init.c (build_new_1): Always pass the allocation function to
+	build_op_delete_call.
+	* call.c (build_op_delete_call): Handle operator delete with a
+	variable-argument list.  Do not issue an error when no matching
+	deallocation function is available for a new operator.
+
+	PR c++/31992
+	* cp-tree.h (any_value_dependent_elements_p): Declare it.
+	* decl.c (value_dependent_init_p): New function.
+	(cp_finish_decl): Use it.
+	* pt.c (value_dependent_expression_p): Use
+	any_value_dependent_elements_p.
+	* parser.c (cp_parser_primary_expression): Add comment about
+	treating dependent qualified names as integral
+	constant-expressions.
+
+2007-07-03  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/31338
+	* cp-tree.h (ARITHMETIC_TYPE): Include COMPLEX_TYPE.
+	* typeck.c (type_after_usual_arithmetic_conversions): Adjust, as
+	COMPLEX_TYPE is now an ARITHMETIC_TYPE.
+	* init.c (build_zero_init): Adjust, as
+	COMPLEX_TYPE is now a SCALAR_TYPE.
+	* typeck2.c (digest_init): Allow brace-enclosed initializers for
+	COMPLEX_TYPE, even though that is now a SCALAR_TYPE.
+
+2007-07-03  Richard Guenther  <rguenther@suse.de>
+
+	PR c++/32609
+	* class.c (fixed_type_or_null): Re-lookup the hashtable slot
+	after recursing.
+
+2007-07-02  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/31748
+	* semantics.c (finish_omp_clauses): Use %qD instead of %qE for
+	DECL_P in not a variable and appears more than once error messages.
+
+2007-06-27  Simon Martin  <simartin@users.sourceforge.net>
+
+	PR c++/27492
+	* decl.c (duplicate_decls): Don't reset DECL_INVALID_OVERRIDER_P for
+	function decls.
+
+2007-06-15  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-tree.h (DECL_VAR_MARKED_P): Remove.
+	(DECL_ANON_UNION_VAR_P): New macro.
+	* class.c (fixed_type_or_null): Tidy.  Use a hash table, rather
+	than DECL_VAR_MARKED_P, to keep track of which variables we have
+	seen.
+	* decl.c (redeclaration_error_message): Complain about redeclaring
+	anonymous union members at namespace scope.
+	* decl2.c (build_anon_union_vars): Set DECL_ANON_UNION_VAR_P.
+
+2007-06-08  Dirk Mueller  <dmueller@suse.de>
+
+	PR c++/31809
+	PR c++/31806
+	Backport from mainline:
+	2007-05-31  Jakub Jelinek  <jakub@redhat.com>
+
+	* decl.c (cp_finish_decl): Also clear was_readonly if a static var
+	needs runtime initialization.
+
+	2007-05-30  Jakub Jelinek  <jakub@redhat.com>
+
+	* decl.c (cp_finish_decl): Clear TREE_READONLY flag on TREE_STATIC
+	variables that need runtime initialization.
+
 2007-05-13  Release Manager
 
 	* GCC 4.2.0 released.
