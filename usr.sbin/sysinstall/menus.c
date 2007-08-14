@@ -250,7 +250,6 @@ DMenu MenuIndex = {
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Errata",		"The distribution errata.",	NULL, dmenuDisplayFile, NULL, "ERRATA" },
       { " Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
-      { " Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
       { " Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
       { " Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "RELNOTES" },
       { " Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
@@ -326,8 +325,8 @@ DMenu MenuInitial = {
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
     "option with [SPACE] or [ENTER].  To exit, use [TAB] to move to Exit.", 
-    "Press F1 for Installation Guide",			/* help line */
-    "INSTALL",						/* help file */
+    NULL,
+    NULL,
     { { " Select " },
       { "X Exit Install",	NULL, NULL, dmenuExit },
       { " Usage",	"Quick start - How to use this menu system",	NULL, dmenuDisplayFile, NULL, "usage" },
@@ -362,11 +361,10 @@ DMenu MenuDocumentation = {
       { "1 README",	"A general description of FreeBSD.  Read this!", NULL, dmenuDisplayFile, NULL, "README" },
       { "2 Errata",	"Late-breaking, post-release news.", NULL, dmenuDisplayFile, NULL, "ERRATA" },
       { "3 Hardware",	"The FreeBSD survival guide for PC hardware.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
-      { "4 Install",	"A step-by-step guide to installing FreeBSD.",	NULL, dmenuDisplayFile,	NULL, "INSTALL" },
-      { "5 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
-      { "6 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
-      { "7 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
-      { "8 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
+      { "4 Copyright",	"The FreeBSD Copyright notices.",		NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
+      { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
+      { "6 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
+      { "7 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
       { NULL } },
 };
 
@@ -498,8 +496,8 @@ DMenu MenuMediaCDROM = {
     "FreeBSD distribution.  If you are seeing this menu it is because\n"
     "more than one CD/DVD drive was found on your system.  Please select one\n"
     "of the following CD/DVD drives as your installation drive.",
-    "Press F1 to read the installation guide",
-    "INSTALL",
+    NULL,
+    NULL,
     { { NULL } },
 };
 
@@ -524,8 +522,8 @@ DMenu MenuMediaDOS = {
     "into a \"FREEBSD\" subdirectory on one of your DOS partitions.\n"
     "Otherwise, please select the DOS partition containing the FreeBSD\n"
     "distribution files.",
-    "Press F1 to read the installation guide",
-    "INSTALL",
+    NULL,
+    NULL,
     { { NULL } },
 };
 
@@ -537,7 +535,7 @@ DMenu MenuMediaFTP = {
     "carries more than the base distribution kits. Only Primary sites are\n"
     "guaranteed to carry the full range of possible distributions.",
     "Select a site that's close!",
-    "INSTALL",
+    NULL,
     { { "Main Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org" },
       { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
@@ -892,8 +890,8 @@ DMenu MenuMediaTape = {
     "poor random-access devices, so we extract _everything_ on the tape\n"
     "in one pass).  If you have sufficient space for this, then you should\n"
     "select one of the following tape devices detected on your system.",
-    "Press F1 to read the installation guide",
-    "INSTALL",
+    NULL,
+    NULL,
     { { NULL } },
 };
 
@@ -1296,8 +1294,8 @@ DMenu MenuInstallCustom = {
     "This is the custom installation menu. You may use this menu to specify\n"
     "details on the type of distribution you wish to have, where you wish\n"
     "to install it from and how you wish to allocate disk storage to FreeBSD.",
-    "Press F1 to read the installation guide",
-    "INSTALL",
+    NULL,
+    NULL,
     { { "X Exit",		"Exit this menu (returning to previous)", NULL,	dmenuExit },
       { "2 Options",		"View/Set various installation options", NULL, optionsEditor },
 #ifndef WITH_SLICES
