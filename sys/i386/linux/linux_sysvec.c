@@ -324,7 +324,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Fill in POSIX parts */
 	frame.sf_si.lsi_signo = sig;
 	frame.sf_si.lsi_code = code;
-	frame.sf_si.lsi_addr = (void *)regs->tf_err;
+	frame.sf_si.lsi_addr = (void *)td->td_md.md_fault_addr;
 
 	/*
 	 * Build the signal context to be used by sigreturn.

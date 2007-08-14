@@ -747,7 +747,7 @@ nogo:
 	}
 
 	/* kludge to pass faulting virtual address to sendsig */
-	frame->tf_err = eva;
+	td->td_md.md_fault_addr = eva;
 
 	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
