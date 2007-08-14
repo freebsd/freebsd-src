@@ -844,8 +844,6 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	callout_reset(&(req)->callout, (ticks), (func), (arg));
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
-#define mpt_req_timeout_init(req) \
-	callout_init(&(req)->callout)
 
 #else
 #if 1
@@ -871,8 +869,6 @@ mpt_sleep(struct mpt_softc *mpt, void *ident, int priority,
 	callout_reset(&(req)->callout, (ticks), (func), (arg));
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
-#define mpt_req_timeout_init(req) \
-	callout_init(&(req)->callout, 1)
 
 #else
 
