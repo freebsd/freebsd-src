@@ -1574,8 +1574,8 @@ fetch_warn_eol () {
 	SINCEWARN=`expr ${NOWTIME} - ${LASTWARN}`
 	TIMELEFT=`expr ${EOLTIME} - ${NOWTIME}`
 
-	# Don't warn if the EoL is more than 6 months away
-	if [ ${TIMELEFT} -gt 15768000 ]; then
+	# Don't warn if the EoL is more than 3 months away
+	if [ ${TIMELEFT} -gt 7884000 ]; then
 		return 0
 	fi
 
