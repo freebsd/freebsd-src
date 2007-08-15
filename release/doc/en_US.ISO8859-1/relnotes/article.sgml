@@ -961,7 +961,7 @@
 	  significantly improves the network stack's performance on
 	  multi-processor systems; uni-processor systems could also
 	  see performance gains.
-	  ISDN4BSD, &man.ng.h4.4;, and netatm have been temporarily
+	  ISDN4BSD and netatm have been temporarily
 	  disconnected from the build.  These modules all require
 	  the Giant kernel lock for their operation; disconnecting
 	  them allows the removal of the NET_NEEDS_GIANT compatability
