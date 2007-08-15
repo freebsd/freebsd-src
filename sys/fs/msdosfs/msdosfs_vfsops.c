@@ -77,7 +77,7 @@
 /* List of mount options we support */
 static const char *msdosfs_opts[] = {
 	"from",
-	"atime", "export", "force", "sync",
+	"noatime", "export", "force", "sync",
 	"uid", "gid", "mask", "dirmask",
 	"shortname", "shortnames", "longname", "longnames", "nowin95", "win95",
 	"kiconv", "cs_win", "cs_dos", "cs_local", "large",
