@@ -147,12 +147,12 @@ int	intr_remove_handler(void *cookie);
 void	intr_resume(void);
 void	intr_suspend(void);
 void	intrcnt_add(const char *name, u_long **countp);
-int	msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
-    int *newcount);
+void	nexus_add_irq(u_long irq);
+int	msi_alloc(device_t dev, int count, int maxcount, int *irqs);
 void	msi_init(void);
 int	msi_map(int irq, uint64_t *addr, uint32_t *data);
 int	msi_release(int *irqs, int count);
-int	msix_alloc(device_t dev, int *irq, int *new);
+int	msix_alloc(device_t dev, int *irq);
 int	msix_release(int irq);
 
 #endif	/* !LOCORE */
