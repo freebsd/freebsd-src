@@ -7,7 +7,7 @@
 #
 
 ARCHS=		amd64 ia64 i386 pc98 powerpc sparc64
-MULTITEXTS=	installation
+MULTITEXTS=	
 UNITEXTS=	hardware readme relnotes errata
 
 IMAGEDIR=	.imagedir

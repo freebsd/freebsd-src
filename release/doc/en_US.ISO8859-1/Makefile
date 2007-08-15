@@ -6,7 +6,6 @@ SUBDIR = relnotes
 SUBDIR+= hardware
 SUBDIR+= readme
 SUBDIR+= errata
-SUBDIR+= installation
 
 COMPAT_SYMLINK = en
 
