@@ -573,16 +573,21 @@ nexus_delete_resource(device_t dev, device_t child, int type, int rid)
 	resource_list_delete(rl, type, rid);
 }
 
+/* Called from the MSI code to add new IRQs to the IRQ rman. */
+void
+nexus_add_irq(u_long irq)
+{
+
+	if (rman_manage_region(&irq_rman, irq, irq) != 0)
+		panic("%s: failed", __func__);
+}
+
 #ifdef DEV_APIC
 static int
 nexus_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
-	int error, new;
 
-	error = msix_alloc(dev, irq, &new);
-	if (new)
-		rman_manage_region(&irq_rman, *irq, *irq);
-	return (error);
+	return (msix_alloc(dev, irq));
 }
 
 static int
@@ -595,17 +600,8 @@ nexus_release_msix(device_t pcib, device_t dev, int irq)
 static int
 nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 {
-	int error, i, newirq, newcount;
 
-	/* First alloc the messages. */
-	error = msi_alloc(dev, count, maxcount, irqs, &newirq, &newcount);
-
-	/* Always add any new IRQs to the rman, even on failure. */
-	for (i = 0; i < newcount; i++)
-		rman_manage_region(&irq_rman, irqs[newirq + i],
-		    irqs[newirq + i]);
-
-	return (error);
+	return (msi_alloc(dev, count, maxcount, irqs));
 }
 
 static int
