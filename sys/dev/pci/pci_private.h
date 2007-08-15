@@ -49,6 +49,11 @@ int		pci_read_ivar(device_t dev, device_t child, int which,
 		    uintptr_t *result);
 int		pci_write_ivar(device_t dev, device_t child, int which,
 		    uintptr_t value);
+int		pci_setup_intr(device_t dev, device_t child,
+		    struct resource *irq, int flags, driver_intr_t *intr,
+		    void *arg, void **cookiep);
+int		pci_teardown_intr(device_t dev, device_t child,
+		    struct resource *irq, void *cookie);
 int		pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 int		pci_get_powerstate_method(device_t dev, device_t child);
