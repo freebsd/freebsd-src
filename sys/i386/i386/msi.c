@@ -112,7 +112,7 @@ struct msi_intsrc {
 	u_int msi_count:8;		/* Messages in this group. (g) */
 };
 
-static struct msi_intsrc *msi_create_source(u_int irq);
+static void	msi_create_source(void);
 static void	msi_enable_source(struct intsrc *isrc);
 static void	msi_disable_source(struct intsrc *isrc, int eoi);
 static void	msi_eoi_source(struct intsrc *isrc);
@@ -128,7 +128,8 @@ struct pic msi_pic = { msi_enable_source, msi_disable_source, msi_eoi_source,
 		       NULL, NULL, msi_config_intr, msi_assign_cpu };
 
 static int msi_enabled;
-static struct sx msi_sx;
+static int msi_last_irq;
+static struct mtx msi_lock;
 
 static void
 msi_enable_source(struct intsrc *isrc)
@@ -206,19 +207,29 @@ msi_init(void)
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);
-	sx_init(&msi_sx, "msi");
+	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
 
-struct msi_intsrc *
-msi_create_source(u_int irq)
+void
+msi_create_source(void)
 {
 	struct msi_intsrc *msi;
+	u_int irq;
 
-	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
+	mtx_lock(&msi_lock);
+	if (msi_last_irq >= NUM_MSI_INTS) {
+		mtx_unlock(&msi_lock);
+		return;
+	}
+	irq = msi_last_irq + FIRST_MSI_INT;
+	msi_last_irq++;
+	mtx_unlock(&msi_lock);
+
+	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);	
 	msi->msi_intsrc.is_pic = &msi_pic;
 	msi->msi_irq = irq;
 	intr_register_source(&msi->msi_intsrc);
-	return (msi);
+	nexus_add_irq(irq);
 }
 
 /*
@@ -228,18 +239,16 @@ msi_create_source(u_int irq)
  * and *newcount being the number of new IRQ values added.
  */
 int
-msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
-    int *newcount)
+msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 {
 	struct msi_intsrc *msi, *fsrc;
-	int cnt, i, j, vector;
+	int cnt, i, vector;
 
-	*newirq = 0;
-	*newcount = 0;
 	if (!msi_enabled)
 		return (ENXIO);
 
-	sx_xlock(&msi_sx);
+again:
+	mtx_lock(&msi_lock);
 
 	/* Try to find 'count' free IRQs. */
 	cnt = 0;
@@ -263,20 +272,17 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 	if (cnt < count) {
 		/* If we would exceed the max, give up. */
 		if (i + (count - cnt) > FIRST_MSI_INT + NUM_MSI_INTS) {
-			sx_xunlock(&msi_sx);
+			mtx_unlock(&msi_lock);
 			return (ENXIO);
 		}
+		mtx_unlock(&msi_lock);
 
-		/* We need count - cnt more sources starting at index 'cnt'. */
-		*newirq = cnt;
-		*newcount = count - cnt;
-		for (j = 0; j < *newcount; j++) {
-
-			/* Create a new MSI source and add it to our array. */
-			msi_create_source(i + j);
-			irqs[cnt] = i + j;
+		/* We need count - cnt more sources. */
+		while (cnt < count) {
+			msi_create_source();
 			cnt++;
 		}
+		goto again;
 	}
 
 	/* Ok, we now have the IRQs allocated. */
@@ -285,7 +291,7 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 	/* Allocate 'count' IDT vectors. */
 	vector = apic_alloc_vectors(irqs, count, maxcount);
 	if (vector == 0) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENOSPC);
 	}
 
@@ -304,7 +310,7 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 		msi->msi_intsrc.is_enabled = 0;
 	}
 	fsrc->msi_count = count;
-	sx_xunlock(&msi_sx);
+	mtx_unlock(&msi_lock);
 
 	return (0);
 }
@@ -315,22 +321,22 @@ msi_release(int *irqs, int count)
 	struct msi_intsrc *msi, *first;
 	int i;
 
-	sx_xlock(&msi_sx);
+	mtx_lock(&msi_lock);
 	first = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
 	if (first == NULL) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENOENT);
 	}
 
 	/* Make sure this isn't an MSI-X message. */
 	if (first->msi_msix) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (EINVAL);
 	}
 
 	/* Make sure this message is allocated to a group. */
 	if (first->msi_first == NULL) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENXIO);
 	}
 
@@ -339,7 +345,7 @@ msi_release(int *irqs, int count)
 	 * the entire group.
 	 */
 	if (first->msi_first != first || first->msi_count != count) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (EINVAL);
 	}
 	KASSERT(first->msi_dev != NULL, ("unowned group"));
@@ -362,7 +368,7 @@ msi_release(int *irqs, int count)
 	first->msi_vector = 0;
 	first->msi_count = 0;
 
-	sx_xunlock(&msi_sx);
+	mtx_unlock(&msi_lock);
 	return (0);
 }
 
@@ -371,27 +377,27 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 {
 	struct msi_intsrc *msi;
 
-	sx_slock(&msi_sx);
+	mtx_lock(&msi_lock);
 	msi = (struct msi_intsrc *)intr_lookup_source(irq);
 	if (msi == NULL) {
-		sx_sunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENOENT);
 	}
 
 	/* Make sure this message is allocated to a device. */
 	if (msi->msi_dev == NULL) {
-		sx_sunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENXIO);
 	}
 
 	/*
 	 * If this message isn't an MSI-X message, make sure it's part
-	 * of a gruop, and switch to the first message in the
+	 * of a group, and switch to the first message in the
 	 * group.
 	 */
 	if (!msi->msi_msix) {
 		if (msi->msi_first == NULL) {
-			sx_sunlock(&msi_sx);
+			mtx_unlock(&msi_lock);
 			return (ENXIO);
 		}
 		msi = msi->msi_first;
@@ -399,21 +405,21 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 
 	*addr = INTEL_ADDR(msi);
 	*data = INTEL_DATA(msi);
-	sx_sunlock(&msi_sx);
+	mtx_unlock(&msi_lock);
 	return (0);
 }
 
 int
-msix_alloc(device_t dev, int *irq, int *new)
+msix_alloc(device_t dev, int *irq)
 {
 	struct msi_intsrc *msi;
 	int i, vector;
 
-	*new = 0;
 	if (!msi_enabled)
 		return (ENXIO);
 
-	sx_xlock(&msi_sx);
+again:
+	mtx_lock(&msi_lock);
 
 	/* Find a free IRQ. */
 	for (i = FIRST_MSI_INT; i < FIRST_MSI_INT + NUM_MSI_INTS; i++) {
@@ -423,7 +429,7 @@ msix_alloc(device_t dev, int *irq, int *new)
 		if (msi == NULL)
 			break;
 
-		/* If this is a free one, start or continue a run. */
+		/* Stop at the first free source. */
 		if (msi->msi_dev == NULL)
 			break;
 	}
@@ -432,13 +438,14 @@ msix_alloc(device_t dev, int *irq, int *new)
 	if (msi == NULL) {
 		/* If we would exceed the max, give up. */
 		if (i + 1 > FIRST_MSI_INT + NUM_MSI_INTS) {
-			sx_xunlock(&msi_sx);
+			mtx_unlock(&msi_lock);
 			return (ENXIO);
 		}
+		mtx_unlock(&msi_lock);
 
 		/* Create a new source. */
-		*new = 1;
-		msi = msi_create_source(i);
+		msi_create_source();
+		goto again;
 	}
 
 	/* Allocate an IDT vector. */
@@ -454,7 +461,7 @@ msix_alloc(device_t dev, int *irq, int *new)
 
 	/* XXX: Somewhat gross. */
 	msi->msi_intsrc.is_enabled = 0;
-	sx_xunlock(&msi_sx);
+	mtx_unlock(&msi_lock);
 
 	*irq = i;
 	return (0);
@@ -465,16 +472,16 @@ msix_release(int irq)
 {
 	struct msi_intsrc *msi;
 
-	sx_xlock(&msi_sx);
+	mtx_lock(&msi_lock);
 	msi = (struct msi_intsrc *)intr_lookup_source(irq);
 	if (msi == NULL) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (ENOENT);
 	}
 
 	/* Make sure this is an MSI-X message. */
 	if (!msi->msi_msix) {
-		sx_xunlock(&msi_sx);
+		mtx_unlock(&msi_lock);
 		return (EINVAL);
 	}
 
@@ -486,6 +493,6 @@ msix_release(int irq)
 	msi->msi_vector = 0;
 	msi->msi_msix = 0;
 
-	sx_xunlock(&msi_sx);
+	mtx_unlock(&msi_lock);
 	return (0);
 }
