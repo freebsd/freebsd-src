@@ -137,8 +137,8 @@ static const char *global_opts[] = {
 	"rdonly",
 	"ro",
 	"rw",
-	"suid",
-	"exec",
+	"nosuid",
+	"noexec",
 	"update",
 	NULL
 };
@@ -638,16 +638,40 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags &= ~MNT_ASYNC;
 		else if (strcmp(opt->name, "noatime") == 0)
 			fsflags |= MNT_NOATIME;
+		else if (strcmp(opt->name, "atime") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonoatime", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "noclusterr") == 0)
 			fsflags |= MNT_NOCLUSTERR;
+		else if (strcmp(opt->name, "clusterr") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonoclusterr", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "noclusterw") == 0)
 			fsflags |= MNT_NOCLUSTERW;
+		else if (strcmp(opt->name, "clusterw") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonoclusterw", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "noexec") == 0)
 			fsflags |= MNT_NOEXEC;
+		else if (strcmp(opt->name, "exec") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonoexec", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "nosuid") == 0)
 			fsflags |= MNT_NOSUID;
+		else if (strcmp(opt->name, "suid") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonosuid", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "nosymfollow") == 0)
 			fsflags |= MNT_NOSYMFOLLOW;
+		else if (strcmp(opt->name, "symfollow") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("nonosymfollow", M_MOUNT);
+		}
 		else if (strcmp(opt->name, "noro") == 0) {
 			fsflags &= ~MNT_RDONLY;
 			has_noro = 1;
@@ -1760,26 +1784,47 @@ int
 vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 {
 	struct vfsopt *opt;
-	const char **t, *p;
+	char errmsg[255];
+	const char **t, *p, *q;
+	int ret = 0;
 
 	TAILQ_FOREACH(opt, opts, link) {
 		p = opt->name;
+		q = NULL;
 		if (p[0] == 'n' && p[1] == 'o')
-			p += 2;
-		for(t = global_opts; *t != NULL; t++)
-			if (!strcmp(*t, p))
+			q = p + 2;
+		for(t = global_opts; *t != NULL; t++) {
+			if (strcmp(*t, p) == 0)
 				break;
+			if (q != NULL) {
+				if (strcmp(*t, q) == 0)
+					break;
+			}
+		}
 		if (*t != NULL)
 			continue;
-		for(t = legal; *t != NULL; t++)
-			if (!strcmp(*t, p))
+		for(t = legal; *t != NULL; t++) {
+			if (strcmp(*t, p) == 0)
 				break;
+			if (q != NULL) {
+				if (strcmp(*t, q) == 0)
+					break;
+			}
+		}
 		if (*t != NULL)
 			continue;
-		printf("mount option <%s> is unknown\n", p);
-		return (EINVAL);
+		sprintf(errmsg, "mount option <%s> is unknown", p);
+		printf("%s\n", errmsg);
+		ret = EINVAL;
 	}
-	return (0);
+	if (ret != 0) {
+		TAILQ_FOREACH(opt, opts, link) {
+			if (strcmp(opt->name, "errmsg") == 0) {
+				strncpy((char *)opt->value, errmsg, opt->len);
+			}
+		}
+	}
+	return (ret);
 }
 
 /*

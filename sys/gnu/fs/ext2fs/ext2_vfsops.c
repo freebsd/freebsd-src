@@ -118,8 +118,8 @@ static int	compute_sb_data(struct vnode * devvp,
 		    struct ext2_super_block * es, struct ext2_sb_info * fs);
 
 static const char *ext2_opts[] = { "from", "export", "union", "acls", "exec",
-    "atime", "union", "suiddir", "multilabel", "symfollow", "clusterr",
-    "clusterw", "force", NULL };
+    "noatime", "union", "suiddir", "multilabel", "nosymfollow",
+    "noclusterr", "noclusterw", "force", NULL };
  
 /*
  * VFS Operations.
