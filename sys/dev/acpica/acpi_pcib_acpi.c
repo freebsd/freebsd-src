@@ -76,8 +76,10 @@ static int		acpi_pcib_acpi_route_interrupt(device_t pcib,
 			    device_t dev, int pin);
 static int		acpi_pcib_alloc_msi(device_t pcib, device_t dev,
 			    int count, int maxcount, int *irqs);
+static int		acpi_pcib_map_msi(device_t pcib, device_t dev,
+			    int irq, uint64_t *addr, uint32_t *data);
 static int		acpi_pcib_alloc_msix(device_t pcib, device_t dev,
-			    int index, int *irq);
+			    int *irq);
 static struct resource *acpi_pcib_acpi_alloc_resource(device_t dev,
 			    device_t child, int type, int *rid,
 			    u_long start, u_long end, u_long count,
@@ -110,8 +112,8 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(pcib_alloc_msi,		acpi_pcib_alloc_msi),
     DEVMETHOD(pcib_release_msi,		pcib_release_msi),
     DEVMETHOD(pcib_alloc_msix,		acpi_pcib_alloc_msix),
-    DEVMETHOD(pcib_remap_msix,		pcib_remap_msix),
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
+    DEVMETHOD(pcib_map_msi,		acpi_pcib_map_msi),
 
     {0, 0}
 };
@@ -323,12 +325,22 @@ acpi_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
 }
 
 static int
-acpi_pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+acpi_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
 	device_t bus;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
+}
+
+static int
+acpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
+    uint32_t *data)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
 }
 
 static u_long acpi_host_mem_start = 0x80000000;

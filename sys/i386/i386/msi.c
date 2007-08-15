@@ -99,21 +99,20 @@ static MALLOC_DEFINE(M_MSI, "msi", "PCI MSI");
  * assigned an ID by the system; however, a group will use the ID from
  * the first message.
  *
- * For MSI-X, each message is isolated, and msi_index indicates the
- * index of this message in the device's MSI-X table.
+ * For MSI-X, each message is isolated.
  */
 struct msi_intsrc {
 	struct intsrc msi_intsrc;
 	device_t msi_dev;		/* Owning device. (g) */
 	struct msi_intsrc *msi_first;	/* First source in group. */
 	u_int msi_irq;			/* IRQ cookie. */
-	u_int msi_index;		/* Index of this message. */
 	u_int msi_msix;			/* MSI-X message. */
 	u_int msi_vector:8;		/* IDT vector. */
 	u_int msi_cpu:8;		/* Local APIC ID. (g) */
 	u_int msi_count:8;		/* Messages in this group. (g) */
 };
 
+static struct msi_intsrc *msi_create_source(u_int irq);
 static void	msi_enable_source(struct intsrc *isrc);
 static void	msi_disable_source(struct intsrc *isrc, int eoi);
 static void	msi_eoi_source(struct intsrc *isrc);
@@ -123,16 +122,10 @@ static int	msi_source_pending(struct intsrc *isrc);
 static int	msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
 static void	msi_assign_cpu(struct intsrc *isrc, u_int apic_id);
-static void	msix_enable_intr(struct intsrc *isrc);
-static int	msix_source_pending(struct intsrc *isrc);
-static void	msix_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
 struct pic msi_pic = { msi_enable_source, msi_disable_source, msi_eoi_source,
 		       msi_enable_intr, msi_vector, msi_source_pending,
 		       NULL, NULL, msi_config_intr, msi_assign_cpu };
-struct pic msix_pic = { msi_enable_source, msi_disable_source, msi_eoi_source,
-			msix_enable_intr, msi_vector, msix_source_pending,
-			NULL, NULL, msi_config_intr, msix_assign_cpu };
 
 static int msi_enabled;
 static struct sx msi_sx;
@@ -162,17 +155,6 @@ msi_enable_intr(struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
-	/*
-	 * Since we can only enable the entire group at once, go ahead and
-	 * enable the messages when the first message is given a handler.
-	 * Note that we assume all devices will register a handler for the
-	 * first message.
-	 */
-	if (msi->msi_index == 0) {
-		mtx_lock_spin(&icu_lock);
-		pci_enable_msi(msi->msi_dev, INTEL_ADDR(msi), INTEL_DATA(msi));
-		mtx_unlock_spin(&icu_lock);
-	}
 	apic_enable_vector(msi->msi_vector);
 }
 
@@ -206,49 +188,11 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 
 	msi->msi_cpu = apic_id;
 	if (bootverbose)
-		printf("msi: Assigning MSI IRQ %d to local APIC %u\n",
-		    msi->msi_irq, msi->msi_cpu);
-	mtx_lock_spin(&icu_lock);
+		printf("msi: Assigning %s IRQ %d to local APIC %u\n",
+		    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
+		    msi->msi_cpu);	
 	if (isrc->is_enabled)
-		pci_enable_msi(msi->msi_dev, INTEL_ADDR(msi), INTEL_DATA(msi));
-	mtx_unlock_spin(&icu_lock);
-}
-
-static void
-msix_enable_intr(struct intsrc *isrc)
-{
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
-
-	mtx_lock_spin(&icu_lock);
-	pci_enable_msix(msi->msi_dev, msi->msi_index, INTEL_ADDR(msi),
-	    INTEL_DATA(msi));
-	pci_unmask_msix(msi->msi_dev, msi->msi_index);
-	mtx_unlock_spin(&icu_lock);
-	apic_enable_vector(msi->msi_vector);
-}
-
-static int
-msix_source_pending(struct intsrc *isrc)
-{
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
-
-	return (pci_pending_msix(msi->msi_dev, msi->msi_index));
-}
-
-static void
-msix_assign_cpu(struct intsrc *isrc, u_int apic_id)
-{
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
-
-	msi->msi_cpu = apic_id;
-	if (bootverbose)
-		printf("msi: Assigning MSI-X IRQ %d to local APIC %u\n",
-		    msi->msi_irq, msi->msi_cpu);
-	mtx_lock_spin(&icu_lock);
-	if (isrc->is_enabled)
-		pci_enable_msix(msi->msi_dev, msi->msi_index, INTEL_ADDR(msi),
-		    INTEL_DATA(msi));
-	mtx_unlock_spin(&icu_lock);
+		pci_remap_msi_irq(msi->msi_dev, msi->msi_irq);
 }
 
 void
@@ -262,8 +206,19 @@ msi_init(void)
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);
-	intr_register_pic(&msix_pic);
 	sx_init(&msi_sx, "msi");
+}
+
+struct msi_intsrc *
+msi_create_source(u_int irq)
+{
+	struct msi_intsrc *msi;
+
+	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
+	msi->msi_intsrc.is_pic = &msi_pic;
+	msi->msi_irq = irq;
+	intr_register_source(&msi->msi_intsrc);
+	return (msi);
 }
 
 /*
@@ -317,14 +272,8 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 		*newcount = count - cnt;
 		for (j = 0; j < *newcount; j++) {
 
-			/* Create a new MSI source. */
-			msi = malloc(sizeof(struct msi_intsrc), M_MSI,
-			    M_WAITOK | M_ZERO);
-			msi->msi_intsrc.is_pic = &msi_pic;
-			msi->msi_irq = i + j;
-			intr_register_source(&msi->msi_intsrc);
-
-			/* Add it to our array. */
+			/* Create a new MSI source and add it to our array. */
+			msi_create_source(i + j);
 			irqs[cnt] = i + j;
 			cnt++;
 		}
@@ -344,13 +293,11 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 	fsrc = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
 	for (i = 0; i < count; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
-		msi->msi_intsrc.is_pic = &msi_pic;
 		msi->msi_dev = dev;
 		msi->msi_vector = vector + i;
 		if (bootverbose)
 			printf("msi: routing MSI IRQ %d to vector %u\n",
 			    msi->msi_irq, msi->msi_vector);
-		msi->msi_index = i;
 		msi->msi_first = fsrc;
 
 		/* XXX: Somewhat gross. */
@@ -395,8 +342,6 @@ msi_release(int *irqs, int count)
 		sx_xunlock(&msi_sx);
 		return (EINVAL);
 	}
-	KASSERT(first->msi_index == 0, ("index mismatch"));
-
 	KASSERT(first->msi_dev != NULL, ("unowned group"));
 
 	/* Clear all the extra messages in the group. */
@@ -408,7 +353,6 @@ msi_release(int *irqs, int count)
 		msi->msi_dev = NULL;
 		apic_free_vector(msi->msi_vector, msi->msi_irq);
 		msi->msi_vector = 0;
-		msi->msi_index = 0;
 	}
 
 	/* Clear out the first message. */
@@ -423,7 +367,44 @@ msi_release(int *irqs, int count)
 }
 
 int
-msix_alloc(device_t dev, int index, int *irq, int *new)
+msi_map(int irq, uint64_t *addr, uint32_t *data)
+{
+	struct msi_intsrc *msi;
+
+	sx_slock(&msi_sx);
+	msi = (struct msi_intsrc *)intr_lookup_source(irq);
+	if (msi == NULL) {
+		sx_sunlock(&msi_sx);
+		return (ENOENT);
+	}
+
+	/* Make sure this message is allocated to a device. */
+	if (msi->msi_dev == NULL) {
+		sx_sunlock(&msi_sx);
+		return (ENXIO);
+	}
+
+	/*
+	 * If this message isn't an MSI-X message, make sure it's part
+	 * of a gruop, and switch to the first message in the
+	 * group.
+	 */
+	if (!msi->msi_msix) {
+		if (msi->msi_first == NULL) {
+			sx_sunlock(&msi_sx);
+			return (ENXIO);
+		}
+		msi = msi->msi_first;
+	}
+
+	*addr = INTEL_ADDR(msi);
+	*data = INTEL_DATA(msi);
+	sx_sunlock(&msi_sx);
+	return (0);
+}
+
+int
+msix_alloc(device_t dev, int *irq, int *new)
 {
 	struct msi_intsrc *msi;
 	int i, vector;
@@ -457,11 +438,7 @@ msix_alloc(device_t dev, int index, int *irq, int *new)
 
 		/* Create a new source. */
 		*new = 1;
-		msi = malloc(sizeof(struct msi_intsrc), M_MSI,
-		    M_WAITOK | M_ZERO);
-		msi->msi_intsrc.is_pic = &msix_pic;
-		msi->msi_irq = i;
-		intr_register_source(&msi->msi_intsrc);
+		msi = msi_create_source(i);
 	}
 
 	/* Allocate an IDT vector. */
@@ -471,10 +448,8 @@ msix_alloc(device_t dev, int index, int *irq, int *new)
 		    vector);
 
 	/* Setup source. */
-	msi->msi_intsrc.is_pic = &msix_pic;
 	msi->msi_dev = dev;
 	msi->msi_vector = vector;
-	msi->msi_index = index;
 	msi->msi_msix = 1;
 
 	/* XXX: Somewhat gross. */
@@ -482,30 +457,6 @@ msix_alloc(device_t dev, int index, int *irq, int *new)
 	sx_xunlock(&msi_sx);
 
 	*irq = i;
-	return (0);
-}
-
-int
-msix_remap(int index, int irq)
-{
-	struct msi_intsrc *msi;
-
-	sx_xlock(&msi_sx);
-	msi = (struct msi_intsrc *)intr_lookup_source(irq);
-	if (msi == NULL) {
-		sx_xunlock(&msi_sx);
-		return (ENOENT);
-	}
-
-	/* Make sure this is an MSI-X message. */
-	if (!msi->msi_msix) {
-		sx_xunlock(&msi_sx);
-		return (EINVAL);
-	}
-
-	KASSERT(msi->msi_dev != NULL, ("unowned message"));
-	msi->msi_index = index;
-	sx_xunlock(&msi_sx);
 	return (0);
 }
 
@@ -533,7 +484,6 @@ msix_release(int irq)
 	msi->msi_dev = NULL;
 	apic_free_vector(msi->msi_vector, msi->msi_irq);
 	msi->msi_vector = 0;
-	msi->msi_index = 0;
 	msi->msi_msix = 0;
 
 	sx_xunlock(&msi_sx);
