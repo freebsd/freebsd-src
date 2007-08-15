@@ -446,6 +446,13 @@ device		xrpu
 #
 device		ichwd
 
+#
+# Temperature sensors:
+#
+# coretemp: on-die sensor on Intel Core and newer CPUs
+#
+device		coretemp
+
 #---------------------------------------------------------------------------
 # ISDN4BSD
 #
