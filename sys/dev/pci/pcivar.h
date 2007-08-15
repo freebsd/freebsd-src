@@ -67,18 +67,33 @@ struct pcicfg_msi {
     int		msi_alloc;	/* Number of allocated messages. */
     uint64_t	msi_addr;	/* Contents of address register. */
     uint16_t	msi_data;	/* Contents of data register. */
+    u_int	msi_handlers;
 };
 
 /* Interesting values for PCI MSI-X */
+struct msix_vector {
+    uint64_t	mv_address;	/* Contents of address register. */
+    uint32_t	mv_data;	/* Contents of data register. */
+    int		mv_irq;
+};
+
+struct msix_table_entry {
+    u_int	mte_vector;	/* 1-based index into msix_vectors array. */
+    u_int	mte_handlers;
+};
+
 struct pcicfg_msix {
     uint16_t	msix_ctrl;	/* Message Control */
-    uint8_t	msix_location;	/* Offset of MSI-X capability registers. */
     uint16_t	msix_msgnum;	/* Number of messages */
-    int		msix_alloc;	/* Number of allocated messages. */
+    uint8_t	msix_location;	/* Offset of MSI-X capability registers. */
     uint8_t	msix_table_bar;	/* BAR containing vector table. */
     uint8_t	msix_pba_bar;	/* BAR containing PBA. */
     uint32_t	msix_table_offset;
     uint32_t	msix_pba_offset;
+    int		msix_alloc;	/* Number of allocated vectors. */
+    int		msix_table_len;	/* Length of virtual table. */
+    struct msix_table_entry *msix_table; /* Virtual table. */
+    struct msix_vector *msix_vectors;	/* Array of allocated vectors. */
     struct resource *msix_table_res;	/* Resource containing vector table. */
     struct resource *msix_pba_res;	/* Resource containing PBA. */
 };
@@ -400,13 +415,15 @@ pci_msix_count(device_t dev)
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
 
-/* Used by MD code to program MSI and MSI-X registers. */
-void	pci_enable_msi(device_t dev, uint64_t address, uint16_t data);
-void	pci_enable_msix(device_t dev, u_int index, uint64_t address,
-    uint32_t data);
-void	pci_mask_msix(device_t dev, u_int index);
+/*
+ * Can be used by MD code to request the PCI bus to re-map an MSI or
+ * MSI-X message.
+ */
+int	pci_remap_msi_irq(device_t dev, u_int irq);
+
+/* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);
-void	pci_unmask_msix(device_t dev, u_int index);
+
 int	pci_msi_device_blacklisted(device_t dev);
 
 #endif	/* _SYS_BUS_H_ */
