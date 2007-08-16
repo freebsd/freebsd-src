@@ -478,7 +478,6 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			if (alt->ro._s_addr) {
 				sctp_free_ifa(alt->ro._s_addr);
 				alt->ro._s_addr = NULL;
-
 			}
 			alt->src_addr_selected = 0;
 		}
@@ -967,7 +966,6 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		 */
 		net->find_pseudo_cumack = 1;
 		net->find_rtx_pseudo_cumack = 1;
-
 	} else {		/* CMT is OFF */
 		alt = sctp_find_alternate_net(stcb, net, 0);
 	}
