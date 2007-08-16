@@ -2692,11 +2692,11 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	uint32_t ifn_index;
 	struct sctp_vrf *vrf;
 
-	/*
-	 * For boundall we can use any address in the association. If
-	 * non_asoc_addr_ok is set we can use any address (at least in
-	 * theory). So we look for preferred addresses first. If we find
-	 * one, we use it. Otherwise we next try to get an address on the
+	/*-
+	 * For boundall we can use any address in the association.
+	 * If non_asoc_addr_ok is set we can use any address (at least in
+	 * theory). So we look for preferred addresses first. If we find one,
+	 * we use it. Otherwise we next try to get an address on the
 	 * interface, which we should be able to do (unless non_asoc_addr_ok
 	 * is false and we are routed out that way). In these cases where we
 	 * can't use the address of the interface we go through all the
@@ -2898,43 +2898,51 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
     struct sctp_nets *net,
     int non_asoc_addr_ok, uint32_t vrf_id)
 {
-
 	struct sockaddr_in *to = (struct sockaddr_in *)&ro->ro_dst;
 	struct sockaddr_in6 *to6 = (struct sockaddr_in6 *)&ro->ro_dst;
 	struct sctp_ifa *answer;
 	uint8_t dest_is_priv, dest_is_loop;
 	sa_family_t fam;
 
-	/*
+	/*-
 	 * Rules: - Find the route if needed, cache if I can. - Look at
 	 * interface address in route, Is it in the bound list. If so we
 	 * have the best source. - If not we must rotate amongst the
 	 * addresses.
-	 * 
+	 *
 	 * Cavets and issues
-	 * 
+	 *
 	 * Do we need to pay attention to scope. We can have a private address
 	 * or a global address we are sourcing or sending to. So if we draw
-	 * it out zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-	 * For V4 ------------------------------------------ source     *
-	 * dest  *  result ----------------------------------------- <a>
-	 * Private    *    Global  *	NAT
-	 * ----------------------------------------- <b>  Private    *
-	 * Private *  No problem -----------------------------------------
-	 * <c>  Global     *    Private *  Huh, How will this work?
-	 * ----------------------------------------- <d>  Global     *
-	 * Global  *  No Problem ------------------------------------------
-	 * zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz For V6
-	 * ------------------------------------------ source     *      dest  *
-	 * result ----------------------------------------- <a>  Linklocal  *
-	 * Global  *	----------------------------------------- <b>
-	 * Linklocal  * Linklocal  *  No problem
-	 * ----------------------------------------- <c>  Global     *
-	 * Linklocal  *  Huh, How will this work?
-	 * ----------------------------------------- <d>  Global     *
-	 * Global  *  No Problem ------------------------------------------
+	 * it out
 	 * zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-	 * 
+	 * For V4
+         *------------------------------------------
+	 *      source     *      dest  *  result
+	 * -----------------------------------------
+	 * <a>  Private    *    Global  *  NAT
+	 * -----------------------------------------
+	 * <b>  Private    *    Private *  No problem
+	 * -----------------------------------------
+         * <c>  Global     *    Private *  Huh, How will this work?
+	 * -----------------------------------------
+         * <d>  Global     *    Global  *  No Problem
+         *------------------------------------------
+	 * zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+	 * For V6
+         *------------------------------------------
+	 *      source     *      dest  *  result
+	 * -----------------------------------------
+	 * <a>  Linklocal  *    Global  *
+	 * -----------------------------------------
+	 * <b>  Linklocal  * Linklocal  *  No problem
+	 * -----------------------------------------
+         * <c>  Global     * Linklocal  *  Huh, How will this work?
+	 * -----------------------------------------
+         * <d>  Global     *    Global  *  No Problem
+         *------------------------------------------
+	 * zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+         *
 	 * And then we add to that what happens if there are multiple addresses
 	 * assigned to an interface. Remember the ifa on a ifn is a linked
 	 * list of addresses. So one interface can have more than one IP
@@ -2943,18 +2951,20 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 	 * one is best? And what about NAT's sending P->G may get you a NAT
 	 * translation, or should you select the G thats on the interface in
 	 * preference.
-	 * 
+	 *
 	 * Decisions:
-	 * 
-	 * - count the number of addresses on the interface. - if it is one, no
-	 * problem except case <c>. For <a> we will assume a NAT out there.
+	 *
+	 * - count the number of addresses on the interface.
+         * - if it is one, no problem except case <c>.
+         *   For <a> we will assume a NAT out there.
 	 * - if there are more than one, then we need to worry about scope P
-	 * or G. We should prefer G -> G and P -> P if possible. Then as a
-	 * secondary fall back to mixed types G->P being a last ditch one. -
-	 * The above all works for bound all, but bound specific we need to
-	 * use the same concept but instead only consider the bound
-	 * addresses. If the bound set is NOT assigned to the interface then
-	 * we must use rotation amongst the bound addresses..
+	 *   or G. We should prefer G -> G and P -> P if possible.
+	 *   Then as a secondary fall back to mixed types G->P being a last
+	 *   ditch one.
+         * - The above all works for bound all, but bound specific we need to
+	 *   use the same concept but instead only consider the bound
+	 *   addresses. If the bound set is NOT assigned to the interface then
+	 *   we must use rotation amongst the bound addresses..
 	 */
 	if (ro->ro_rt == NULL) {
 		/*
@@ -11535,7 +11545,6 @@ sctp_lower_sosend(struct socket *so,
 			if ((net->flight_size > net->cwnd) &&
 			    (sctp_cmt_on_off == 0)) {
 				queue_only = 1;
-
 			} else if (asoc->ifp_had_enobuf) {
 				SCTP_STAT_INCR(sctps_ifnomemqueued);
 				if (net->flight_size > (net->mtu * 2)) {
@@ -11624,7 +11633,6 @@ sctp_lower_sosend(struct socket *so,
 						sctp_chunk_output(inp,
 						    stcb,
 						    SCTP_OUTPUT_FROM_USR_SEND);
-
 					}
 				} else {
 					sctp_chunk_output(inp,
@@ -11835,7 +11843,6 @@ skip_out_eof:
 	    (stcb->asoc.total_flight > 0) &&
 	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
 	    ) {
-
 		/*-
 		 * Ok, Nagle is set on and we have data outstanding.
 		 * Don't send anything and let SACKs drive out the
