@@ -2186,16 +2186,13 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				return (m);
 			}
 			oso = (*inp_p)->sctp_socket;
-			/*
-			 * We do this to keep the sockets side happy durin
-			 * the sonewcon ONLY.
-			 */
+			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK((*stcb));
 			so = sonewconn(oso, 0
 			    );
-			SCTP_INP_WLOCK((*stcb)->sctp_ep);
 			SCTP_TCB_LOCK((*stcb));
-			SCTP_INP_WUNLOCK((*stcb)->sctp_ep);
+			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
+
 			if (so == NULL) {
 				struct mbuf *op_err;
 
@@ -3968,7 +3965,6 @@ process_control_chunks:
 					SCTP_TCB_UNLOCK(locked_tcb);
 				}
 				return (NULL);
-
 			}
 			if (netp && *netp) {
 				int abort_flag = 0;
