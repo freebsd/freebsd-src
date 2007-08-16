@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/frame.h>
 
+#include <security/audit/audit.h>
+
 #ifdef COMPAT_IA32
 
 extern struct sysentvec ia32_freebsd_sysvec;
@@ -331,6 +333,59 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 			error = EINVAL;
 		else
 			tdsignal(p, ttd, uap->sig, NULL);
+	}
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+int
+thr_kill2(struct thread *td, struct thr_kill2_args *uap)
+    /* pid_t pid, long id, int sig */
+{
+	struct thread *ttd;
+	struct proc *p;
+	int error;
+
+	AUDIT_ARG(signum, uap->sig);
+
+	if (uap->pid == td->td_proc->p_pid) {
+		p = td->td_proc;
+		PROC_LOCK(p);
+	} else if ((p = pfind(uap->pid)) == NULL) {
+		return (ESRCH);
+	}
+	AUDIT_ARG(process, p);
+
+	error = p_cansignal(td, p, uap->sig);
+	if (error == 0) {
+		if (uap->id == -1) {
+			if (uap->sig != 0 && !_SIG_VALID(uap->sig)) {
+				error = EINVAL;
+			} else {
+				error = ESRCH;
+				FOREACH_THREAD_IN_PROC(p, ttd) {
+					if (ttd != td) {
+						error = 0;
+						if (uap->sig == 0)
+							break;
+						tdsignal(p, ttd, uap->sig, NULL);
+					}
+				}
+			}
+		} else {
+			if (uap->id != td->td_tid)
+				ttd = thread_find(p, uap->id);
+			else
+				ttd = td;
+			if (ttd == NULL)
+				error = ESRCH;
+			else if (uap->sig == 0)
+				;
+			else if (!_SIG_VALID(uap->sig))
+				error = EINVAL;
+			else
+				tdsignal(p, ttd, uap->sig, NULL);
+		}
 	}
 	PROC_UNLOCK(p);
 	return (error);
