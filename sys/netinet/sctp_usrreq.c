@@ -1119,7 +1119,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)sas);
 						((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
 						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
-						actual += sizeof(sizeof(struct sockaddr_in6));
+						actual += sizeof(struct sockaddr_in6);
 					} else {
 						memcpy(sas, sin, sizeof(*sin));
 						((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
@@ -3480,7 +3480,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				sasoc->sasoc_local_rwnd = 0;
 				if (sasoc->sasoc_cookie_life) {
 					stcb->asoc.cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
-
 				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
