@@ -794,3 +794,4 @@
 				    u_int32_t lengthlo, u_int32_t lengthhi); }
 480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
 				    u_int32_t lengthlo, u_int32_t lengthhi); }
+481	AUE_KILL	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
