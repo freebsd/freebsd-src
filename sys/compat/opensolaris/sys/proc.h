@@ -56,6 +56,12 @@ typedef	struct thread	kthread_t;
 typedef struct thread	*kthread_id_t;
 typedef struct proc	proc_t;
 
+#if (KSTACK_PAGES * PAGE_SIZE) < 16384
+#define	ZFS_KSTACK_PAGES	(16384 / PAGE_SIZE)
+#else
+#define	ZFS_KSTACK_PAGES	0
+#endif
+
 static __inline kthread_t *
 thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
     size_t len, proc_t *pp, int state, pri_t pri)
@@ -71,7 +77,8 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(len == 0);
 	ASSERT(state == TS_RUN);
 
-	error = kthread_create(proc, arg, &p, 0, 0, "solthread %p", proc);
+	error = kthread_create(proc, arg, &p, 0, ZFS_KSTACK_PAGES,
+	    "solthread %p", proc);
 	return (error == 0 ? FIRST_THREAD_IN_PROC(p) : NULL);
 }
 
