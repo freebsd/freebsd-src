@@ -143,10 +143,10 @@ EXTHDRS=	algorithm atomicity.h array_allocator.h bitmap_allocator.h \
 		stdio_filebuf.h stdio_sync_filebuf.h functional \
 		hash_map hash_set hash_fun.h hashtable.h iterator \
 		malloc_allocator.h memory mt_allocator.h new_allocator.h \
-		numeric pod_char_traits.h pool_allocator.h rb_tree rope \
-		ropeimpl.h slist throw_allocator.h typelist.h type_traits.h \
-		rc_string_base.h sso_string_base.h vstring.h vstring.tcc \
-		vstring_fwd.h vstring_util.h
+		numeric numeric_traits.h pod_char_traits.h pool_allocator.h \
+		rb_tree rope ropeimpl.h slist throw_allocator.h typelist.h \
+		type_traits.h rc_string_base.h sso_string_base.h vstring.h \
+		vstring.tcc vstring_fwd.h vstring_util.h
 
 EXTHDRS:=	${EXTHDRS:S;^;${SRCDIR}/include/ext/;}
 EXTHDRSDIR=	${CXXINCLUDEDIR}/ext
