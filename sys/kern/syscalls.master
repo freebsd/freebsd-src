@@ -846,5 +846,6 @@
 				    int whence); }
 479	AUE_TRUNCATE	STD	{ int truncate(char *path, off_t length); }
 480	AUE_FTRUNCATE	STD	{ int ftruncate(int fd, off_t length); }
+481	AUE_KILL	STD	{ int thr_kill2(pid_t pid, long id, int sig); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
