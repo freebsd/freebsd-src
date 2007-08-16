@@ -348,4 +348,5 @@ MIASM =  \
 	mmap.o \
 	lseek.o \
 	truncate.o \
-	ftruncate.o
+	ftruncate.o \
+	thr_kill2.o

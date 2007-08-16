@@ -400,4 +400,5 @@
 #define	SYS_lseek	478
 #define	SYS_truncate	479
 #define	SYS_ftruncate	480
-#define	SYS_MAXSYSCALL	481
+#define	SYS_thr_kill2	481
+#define	SYS_MAXSYSCALL	482

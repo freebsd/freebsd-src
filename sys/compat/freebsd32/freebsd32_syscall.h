@@ -337,4 +337,5 @@
 #define	FREEBSD32_SYS_freebsd32_lseek	478
 #define	FREEBSD32_SYS_freebsd32_truncate	479
 #define	FREEBSD32_SYS_freebsd32_ftruncate	480
-#define	FREEBSD32_SYS_MAXSYSCALL	481
+#define	FREEBSD32_SYS_thr_kill2	481
+#define	FREEBSD32_SYS_MAXSYSCALL	482

@@ -519,4 +519,5 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(freebsd32_lseek_args), (sy_call_t *)freebsd32_lseek, AUE_LSEEK, NULL, 0, 0 },	/* 478 = freebsd32_lseek */
 	{ AS(freebsd32_truncate_args), (sy_call_t *)freebsd32_truncate, AUE_TRUNCATE, NULL, 0, 0 },	/* 479 = freebsd32_truncate */
 	{ AS(freebsd32_ftruncate_args), (sy_call_t *)freebsd32_ftruncate, AUE_FTRUNCATE, NULL, 0, 0 },	/* 480 = freebsd32_ftruncate */
+	{ AS(thr_kill2_args), (sy_call_t *)thr_kill2, AUE_KILL, NULL, 0, 0 },	/* 481 = thr_kill2 */
 };
