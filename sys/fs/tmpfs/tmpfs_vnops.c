@@ -1219,21 +1219,24 @@ tmpfs_readdir(struct vop_readdir_args *v)
 
 	startoff = uio->uio_offset;
 
-	switch (startoff) {
-	case TMPFS_DIRCOOKIE_DOT:
+	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOT) {
 		error = tmpfs_dir_getdotdent(node, uio);
-		if (error == 0)
-			cnt++;
-		break;
-	case TMPFS_DIRCOOKIE_DOTDOT:
-		error = tmpfs_dir_getdotdotdent(node, uio);
-		if (error == 0)
-			cnt++;
-		break;
-	default:
-		error = tmpfs_dir_getdents(node, uio, &cnt);
-		MPASS(error >= -1);
+		if (error != 0)
+			goto outok;
+		cnt++;
 	}
+
+	if (uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT) {
+		error = tmpfs_dir_getdotdotdent(node, uio);
+		if (error != 0)
+			goto outok;
+		cnt++;
+	}
+
+	error = tmpfs_dir_getdents(node, uio, &cnt);
+
+outok:
+	MPASS(error >= -1);
 
 	if (error == -1)
 		error = 0;
