@@ -2862,6 +2862,15 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* thr_kill2 */
+	case 481: {
+		struct thr_kill2_args *p = params;
+		iarg[0] = p->pid; /* pid_t */
+		iarg[1] = p->id; /* long */
+		iarg[2] = p->sig; /* int */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
