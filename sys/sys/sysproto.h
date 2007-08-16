@@ -1515,6 +1515,11 @@ struct ftruncate_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char length_l_[PADL_(off_t)]; off_t length; char length_r_[PADR_(off_t)];
 };
+struct thr_kill2_args {
+	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
+	char id_l_[PADL_(long)]; long id; char id_r_[PADR_(long)];
+	char sig_l_[PADL_(int)]; int sig; char sig_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
 int	fork(struct thread *, struct fork_args *);
@@ -1853,6 +1858,7 @@ int	mmap(struct thread *, struct mmap_args *);
 int	lseek(struct thread *, struct lseek_args *);
 int	truncate(struct thread *, struct truncate_args *);
 int	ftruncate(struct thread *, struct ftruncate_args *);
+int	thr_kill2(struct thread *, struct thr_kill2_args *);
 
 #ifdef COMPAT_43
 
@@ -2416,6 +2422,7 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_lseek	AUE_LSEEK
 #define	SYS_AUE_truncate	AUE_TRUNCATE
 #define	SYS_AUE_ftruncate	AUE_FTRUNCATE
+#define	SYS_AUE_thr_kill2	AUE_KILL
 
 #undef PAD_
 #undef PADL_

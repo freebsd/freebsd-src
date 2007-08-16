@@ -488,4 +488,5 @@ const char *syscallnames[] = {
 	"lseek",			/* 478 = lseek */
 	"truncate",			/* 479 = truncate */
 	"ftruncate",			/* 480 = ftruncate */
+	"thr_kill2",			/* 481 = thr_kill2 */
 };
