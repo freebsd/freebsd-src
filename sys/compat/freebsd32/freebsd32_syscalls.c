@@ -488,4 +488,5 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_lseek",			/* 478 = freebsd32_lseek */
 	"freebsd32_truncate",			/* 479 = freebsd32_truncate */
 	"freebsd32_ftruncate",			/* 480 = freebsd32_ftruncate */
+	"thr_kill2",			/* 481 = thr_kill2 */
 };

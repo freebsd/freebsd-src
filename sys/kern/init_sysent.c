@@ -510,4 +510,5 @@ struct sysent sysent[] = {
 	{ AS(lseek_args), (sy_call_t *)lseek, AUE_LSEEK, NULL, 0, 0 },	/* 478 = lseek */
 	{ AS(truncate_args), (sy_call_t *)truncate, AUE_TRUNCATE, NULL, 0, 0 },	/* 479 = truncate */
 	{ AS(ftruncate_args), (sy_call_t *)ftruncate, AUE_FTRUNCATE, NULL, 0, 0 },	/* 480 = ftruncate */
+	{ AS(thr_kill2_args), (sy_call_t *)thr_kill2, AUE_KILL, NULL, 0, 0 },	/* 481 = thr_kill2 */
 };
