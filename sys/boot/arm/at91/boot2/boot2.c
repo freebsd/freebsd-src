@@ -216,7 +216,7 @@ load(void)
 	    return;
     }
     addr = eh.e_entry;
-    ((void(*)(int))addr)(RB_BOOTINFO | (opts & RBX_MASK));
+    ((void(*)(int))addr)(opts & RBX_MASK);
 }
 
 static int
