@@ -149,7 +149,7 @@ union active_open_entry {
 struct tid_info {
 	struct toe_tid_entry *tid_tab;
 	unsigned int ntids;
-	volatile int tids_in_use;
+	volatile unsigned int tids_in_use;
 
 	union listen_entry *stid_tab;
 	unsigned int nstids;

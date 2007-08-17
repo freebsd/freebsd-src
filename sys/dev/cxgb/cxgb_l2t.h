@@ -33,7 +33,18 @@ $FreeBSD$
 
 #include <dev/cxgb/ulp/toecore/toedev.h>
 #include <sys/lock.h>
+
+#if __FreeBSD_version > 700000
 #include <sys/rwlock.h>
+#else
+#define rwlock mtx
+#define rw_wlock(x) mtx_lock((x))
+#define rw_wunlock(x) mtx_unlock((x))
+#define rw_rlock(x) mtx_lock((x))
+#define rw_runlock(x) mtx_unlock((x))
+#define rw_init(x, str) mtx_init((x), (str), NULL, MTX_DEF)
+#define rw_destroy(x) mtx_destroy((x))
+#endif
 
 enum {
 	L2T_STATE_VALID,      /* entry is up to date */
