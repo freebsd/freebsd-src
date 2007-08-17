@@ -427,12 +427,25 @@ wait_for_pids()
 #				returned a zero exit code.
 #
 #	required_dirs	n	If set, check for the existence of the given
-#				directories before running the default
-#				(re)start command.
+#				directories before running a (re)start command.
 #
 #	required_files	n	If set, check for the readability of the given
-#				files before running the default (re)start
-#				command.
+#				files before running a (re)start command.
+#
+#	required_modules n	If set, ensure the given kernel modules are
+#				loaded before running a (re)start command.
+#				The check and possible loads are actually
+#				done after start_precmd so that the modules
+#				aren't loaded in vain, should the precmd
+#				return a non-zero status to indicate a error.
+#				If a word in the list looks like "foo:bar",
+#				"foo" is the KLD file name and "bar" is the
+#				module name.  If a word looks like "foo~bar",
+#				"foo" is the KLD file name and "bar" is a
+#				egrep(1) pattern matching the module name.
+#				Otherwise the module name is assumed to be
+#				the same as the KLD file name, which is most
+#				common.  See load_kld().
 #
 #	required_vars	n	If set, perform checkyesno on each of the
 #				listed variables before running the default
@@ -581,49 +594,31 @@ run_rc_command()
 		if [ "$_elem" != "$rc_arg" ]; then
 			continue
 		fi
-
 					# if there's a custom ${XXX_cmd},
 					# run that instead of the default
 					#
-		eval _cmd=\$${rc_arg}_cmd _precmd=\$${rc_arg}_precmd \
-		    _postcmd=\$${rc_arg}_postcmd
+		eval _cmd=\$${rc_arg}_cmd \
+		     _precmd=\$${rc_arg}_precmd \
+		     _postcmd=\$${rc_arg}_postcmd
+
 		if [ -n "$_cmd" ]; then
-					# if the precmd failed and force
-					# isn't set, exit
-					#
-			if [ -n "$_precmd" ]; then
-				debug "run_rc_command: evaluating ${_precmd}()."
-				eval $_precmd $rc_extra_args
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
-
-			if [ -n "$_cmd" ]; then
-				debug "run_rc_command: evaluating ${_cmd}()."
-				eval $_cmd $rc_extra_args
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
-
-			if [ -n "$_postcmd" ]; then
-				debug "run_rc_command: evaluating ${_postcmd}()."
-				 eval $_postcmd $rc_extra_args
-				_return=$?
-			fi
+			_run_rc_precmd || return 1
+			_run_rc_doit "$_cmd $rc_extra_args" || return 1
+			_run_rc_postcmd
 			return $_return
 		fi
 
 		case "$rc_arg" in	# default operations...
 
 		status)
+			_run_rc_precmd || return 1
 			if [ -n "$rc_pid" ]; then
 				echo "${name} is running as pid $rc_pid."
 			else
 				echo "${name} is not running."
 				return 1
 			fi
+			_run_rc_postcmd
 			;;
 
 		start)
@@ -637,44 +632,7 @@ run_rc_command()
 				return 1
 			fi
 
-					# check for required variables,
-					# directories, and files
-					#
-			for _f in $required_vars; do
-				if ! checkyesno $_f; then
-					warn "\$${_f} is not enabled."
-					if [ -z "$rc_force" ]; then
-						return 1
-					fi
-				fi
-			done
-			for _f in $required_dirs; do
-				if [ ! -d "${_f}/." ]; then
-					warn "${_f} is not a directory."
-					if [ -z "$rc_force" ]; then
-						return 1
-					fi
-				fi
-			done
-			for _f in $required_files; do
-				if [ ! -r "${_f}" ]; then
-					warn "${_f} is not readable."
-					if [ -z "$rc_force" ]; then
-						return 1
-					fi
-				fi
-			done
-
-					# if the precmd failed and force
-					# isn't set, exit
-					#
-			if [ -n "${_precmd}" ]; then
-				debug "run_rc_command: evaluating ${_precmd}()."
-				eval $_precmd
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
+			_run_rc_precmd || return 1
 
 					# setup the full command to run
 					#
@@ -699,106 +657,52 @@ $command $rc_flags $command_args"
 				fi
 			fi
 
-					# run the full command;
-					# if the cmd failed and force
-					# isn't set, exit
+					# run the full command
 					#
-			debug "run_rc_command: _doit: $_doit"
-			eval $_doit
-			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			_run_rc_doit "$_doit" || return 1
 
 					# finally, run postcmd
 					#
-			if [ -n "${_postcmd}" ]; then
-				debug "run_rc_command: evaluating ${_postcmd}()."
-				eval $_postcmd
-			fi
+			_run_rc_postcmd
 			;;
 
 		stop)
 			if [ -z "$rc_pid" ]; then
 				[ -n "$rc_fast" ] && return 0
-				if [ -n "$pidfile" ]; then
-					echo 1>&2 \
-				    "${name} not running? (check $pidfile)."
-				else
-					echo 1>&2 "${name} not running?"
-				fi
+				_run_rc_notrunning
 				return 1
 			fi
 
-					# if the precmd failed and force
-					# isn't set, exit
-					#
-			if [ -n "$_precmd" ]; then
-				eval $_precmd
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
+			_run_rc_precmd || return 1
 
 					# send the signal to stop
 					#
 			echo "Stopping ${name}."
-			_doit="kill -${sig_stop:-TERM} $rc_pid"
-			if [ -n "$_user" ]; then
-				_doit="su -m $_user -c 'sh -c \"$_doit\"'"
-			fi
-
-					# if the stop cmd failed and force
-					# isn't set, exit
-					#
-			eval $_doit
-			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+			_doit=$(_run_rc_killcmd "${sig_stop:-TERM}")
+			_run_rc_doit "$_doit" || return 1
 
 					# wait for the command to exit,
 					# and run postcmd.
 			wait_for_pids $rc_pid
-			if [ -n "$_postcmd" ]; then
-				eval $_postcmd
-				_return=$?
-			fi
+
+			_run_rc_postcmd
 			;;
 
 		reload)
 			if [ -z "$rc_pid" ]; then
-				if [ -n "$pidfile" ]; then
-					echo 1>&2 \
-				    "${name} not running? (check $pidfile)."
-				else
-					echo 1>&2 "${name} not running?"
-				fi
+				_run_rc_notrunning
 				return 1
 			fi
-			echo "Reloading ${name} config files."
-			if [ -n "$_precmd" ]; then
-				eval $_precmd
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
-			_doit="kill -${sig_reload:-HUP} $rc_pid"
-			if [ -n "$_user" ]; then
-				_doit="su -m $_user -c 'sh -c \"$_doit\"'"
-			fi
-			eval $_doit
-			_return=$?
-			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
-			if [ -n "$_postcmd" ]; then
-				eval $_postcmd
-				_return=$?
-			fi
+
+			_run_rc_precmd || return 1
+
+			_doit=$(_run_rc_killcmd "${sig_reload:-HUP}")
+			_run_rc_doit "$_doit" || return 1
+
+			_run_rc_postcmd
 			;;
 
 		restart)
-			if [ -n "$_precmd" ]; then
-				eval $_precmd $rc_extra_args
-				_return=$?
-				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
-				    return 1
-			fi
 					# prevent restart being called more
 					# than once by any given script
 					#
@@ -807,20 +711,23 @@ $command $rc_flags $command_args"
 			fi
 			_rc_restart_done=true
 
-			# run stop in a subshell to keep variables for start
-			( run_rc_command ${_rc_prefix}stop $rc_extra_args )
-			run_rc_command ${_rc_prefix}start $rc_extra_args
+			_run_rc_precmd || return 1
 
-			if [ -n "$_postcmd" ]; then
-				eval $_postcmd $rc_extra_args
-				_return=$?
-			fi
+			# run those in a subshell to keep global variables
+			( run_rc_command ${_rc_prefix}stop $rc_extra_args )
+			( run_rc_command ${_rc_prefix}start $rc_extra_args )
+			_return=$?
+			[ $_return -ne 0 ] && [ -z "$rc_force" ] && return 1
+
+			_run_rc_postcmd
 			;;
 
 		poll)
+			_run_rc_precmd || return 1
 			if [ -n "$rc_pid" ]; then
 				wait_for_pids $rc_pid
 			fi
+			_run_rc_postcmd
 			;;
 
 		rcvar)
@@ -845,6 +752,83 @@ $command $rc_flags $command_args"
 	echo 1>&2 "$0: unknown directive '$rc_arg'."
 	rc_usage $_keywords
 	# not reached
+}
+
+#
+# Helper functions for run_rc_command: common code.
+# They use such global variables besides the exported rc_* ones:
+#
+#	name	       R/W
+#	------------------
+#	_precmd		R
+#	_postcmd	R
+#	_return		W
+#
+_run_rc_precmd()
+{
+	check_required_before "$rc_arg" || return 1
+
+	if [ -n "$_precmd" ]; then
+		debug "run_rc_command: ${rc_arg}_precmd: $_precmd $rc_extra_args"
+		eval "$_precmd $rc_extra_args"
+		_return=$?
+
+		# If precmd failed and force isn't set, request exit.
+		if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then
+			return 1
+		fi
+	fi
+
+	check_required_after "$rc_arg" || return 1
+
+	return 0
+}
+
+_run_rc_postcmd()
+{
+	if [ -n "$_postcmd" ]; then
+		debug "run_rc_command: ${rc_arg}_postcmd: $_postcmd $rc_extra_args"
+		eval "$_postcmd $rc_extra_args"
+		_return=$?
+	fi
+	return 0
+}
+
+_run_rc_doit()
+{
+	debug "run_rc_command: doit: $*"
+	eval "$@"
+	_return=$?
+
+	# If command failed and force isn't set, request exit.
+	if [ $_return -ne 0 ] && [ -z "$rc_force" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+_run_rc_notrunning()
+{
+	local _pidmsg
+
+	if [ -n "$pidfile" ]; then
+		_pidmsg=" (check $pidfile)."
+	else
+		_pidmsg=
+	fi
+	echo 1>&2 "${name} not running?${_pidmsg}"
+}
+
+_run_rc_killcmd()
+{
+	local _cmd
+
+	_cmd="kill -$1 $rc_pid"
+	if [ -n "$_user" ]; then
+		_cmd="su -m ${_user} -c 'sh -c \"${_cmd}\"'"
+	fi
+	echo "$_cmd"
 }
 
 #
@@ -1503,6 +1487,74 @@ find_local_scripts_new () {
 			done
 		fi
 	done
+}
+
+# check_required_{before|after} command
+#	Check for things required by the command before and after its precmd,
+#	respectively.  The two separate functions are needed because some
+#	conditions should prevent precmd from being run while other things
+#	depend on precmd having already been run.
+#
+check_required_before()
+{
+	local _f
+
+	case "$1" in
+	start)
+		for _f in $required_vars; do
+			if ! checkyesno $_f; then
+				warn "\$${_f} is not enabled."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+
+		for _f in $required_dirs; do
+			if [ ! -d "${_f}/." ]; then
+				warn "${_f} is not a directory."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+
+		for _f in $required_files; do
+			if [ ! -r "${_f}" ]; then
+				warn "${_f} is not readable."
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+		;;
+	esac
+
+	return 0
+}
+
+check_required_after()
+{
+	local _f _args
+
+	case "$1" in
+	start)
+		for _f in $required_modules; do
+			case "${_f}" in
+				*~*)	_args="-e ${_f#*~} ${_f%%~*}" ;;
+				*:*)	_args="-m ${_f#*:} ${_f%%:*}" ;;
+				*)	_args="${_f}" ;;
+			esac
+			if ! load_kld ${_args}; then
+				if [ -z "$rc_force" ]; then
+					return 1
+				fi
+			fi
+		done
+		;;
+	esac
+
+	return 0
 }
 
 fi
