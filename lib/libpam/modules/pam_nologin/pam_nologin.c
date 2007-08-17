@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
@@ -56,9 +57,8 @@ __FBSDID("$FreeBSD$");
 
 static char nologin_def[] = _PATH_NOLOGIN;
 
-PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
-    int argc __unused, const char *argv[] __unused)
+static int
+pam_nologin_check(pam_handle_t *pamh, int flags)
 {
 	login_cap_t *lc;
 	struct passwd *pwd;
@@ -128,6 +128,22 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	login_close(lc);
 
 	return (PAM_AUTH_ERR);
+}
+
+PAM_EXTERN int
+pam_sm_authenticate(pam_handle_t *pamh, int flags,
+    int argc __unused, const char *argv[] __unused)
+{
+
+	return (pam_nologin_check(pamh, flags));
+}
+
+PAM_EXTERN int
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
+    int argc __unused, const char *argv[] __unused)
+{
+
+	return (pam_nologin_check(pamh, flags));
 }
 
 PAM_EXTERN int
