@@ -1365,12 +1365,27 @@ fetch_files_prepare () {
 	# Copy all files into /files/.  We only need the unmodified files
 	# for use in patching; but we'll want all of them if the user asks
 	# to rollback the updates later.
-	cut -f 1 -d '|' < $2.hashes |
-	    while read F; do
+	while read LINE; do
+		F=`echo "${LINE}" | cut -f 1 -d '|'`
+		HASH=`echo "${LINE}" | cut -f 2 -d '|'`
+
+		# Skip files we already have.
+		if [ -f files/${HASH}.gz ]; then
+			continue
+		fi
+
+		# Make sure the file hasn't changed.
 		cp "${BASEDIR}/${F}" tmpfile
-		gzip -c < tmpfile > files/`sha256 -q tmpfile`.gz
+		if [ `sha256 -q tmpfile` != ${HASH} ]; then
+			echo
+			echo "File changed while FreeBSD Update running: ${F}"
+			return 1
+		fi
+
+		# Place the file into storage.
+		gzip -c < tmpfile > files/${HASH}.gz
 		rm tmpfile
-	    done
+	done < $2.hashes
 
 	# Produce a list of patches to download
 	sort -k 1,1 -t '|' $3.hashes |
@@ -1559,8 +1574,8 @@ fetch_warn_eol () {
 	SINCEWARN=`expr ${NOWTIME} - ${LASTWARN}`
 	TIMELEFT=`expr ${EOLTIME} - ${NOWTIME}`
 
-	# Don't warn if the EoL is more than 6 months away
-	if [ ${TIMELEFT} -gt 15768000 ]; then
+	# Don't warn if the EoL is more than 3 months away
+	if [ ${TIMELEFT} -gt 7884000 ]; then
 		return 0
 	fi
 
@@ -1665,7 +1680,7 @@ fetch_run () {
 	# Prepare to fetch files: Generate a list of the files we need,
 	# copy the unmodified files we have into /files/, and generate
 	# a list of patches to download.
-	fetch_files_prepare INDEX-OLD INDEX-PRESENT INDEX-NEW
+	fetch_files_prepare INDEX-OLD INDEX-PRESENT INDEX-NEW || return 1
 
 	# Fetch files.
 	fetch_files || return 1
