@@ -7,7 +7,7 @@
 # PROVIDE: nfslocking
 # REQUIRE: nfsserver nfsclient nfsd rpcbind
 # BEFORE:  DAEMON
-# KEYWORD: nojail
+# KEYWORD: nojail nostart
 
 . /etc/rc.subr
 
