@@ -877,15 +877,8 @@ floppies.2:
 
 # Do our last minute floppies directory setup
 floppies.3:
-.if !defined(NODOC)
-	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
-	    ${RD}/floppies/README.TXT
-	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
-	@(cd ${RD}/floppies; sha256 README.TXT *.flp > CHECKSUM.SHA256)
-.else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
 	@(cd ${RD}/floppies; sha256 *.flp > CHECKSUM.SHA256)
-.endif
 	touch ${.TARGET}
 
 #
