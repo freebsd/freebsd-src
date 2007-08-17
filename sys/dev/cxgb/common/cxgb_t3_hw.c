@@ -501,7 +501,7 @@ static struct port_type_info port_types[] = {
 #undef CAPS_10G
 
 #define VPD_ENTRY(name, len) \
-	u8 name##_kword[2]; u8 name##_len; u8 name##_data[len]
+	u8 name##_kword[2]; u8 name##_len; char name##_data[len]
 
 /*
  * Partial EEPROM Vital Product Data structure.  Includes only the ID and
