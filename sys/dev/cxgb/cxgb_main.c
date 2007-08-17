@@ -384,10 +384,12 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, reg, msi_needed, error = 0;
+	int i, reg, error = 0;
 	uint32_t vers;
 	int port_qsets = 1;
-	
+#ifdef MSI_SUPPORTED
+	int msi_needed;
+#endif	
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
@@ -935,6 +937,7 @@ cxgb_makedev(struct port_info *pi)
 /* Don't enable TSO6 yet */
 #define CXGB_CAP_ENABLE (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM |  IFCAP_JUMBO_MTU)
 #define IFCAP_TSO4 0x0
+#define IFCAP_TSO6 0x0
 #define CSUM_TSO   0x0
 #endif
 
@@ -1038,7 +1041,7 @@ cxgb_port_attach(device_t dev)
 	    taskqueue_thread_enqueue, &p->tq);
 #else
 	/* Create a port for handling TX without starvation */
-	p->tq = taskqueue_create_fast(buf, M_NOWAIT,
+	p->tq = taskqueue_create_fast(p->taskqbuf, M_NOWAIT,
 	    taskqueue_thread_enqueue, &p->tq);
 #endif	
 
