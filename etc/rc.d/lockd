@@ -30,34 +30,9 @@ nfslocking_precmd()
 	then
 		force_depend rpcbind || ret=1
 	fi
-
-	if [ $name = "statd" ] 
-	then
-		rc_flags=${rpc_statd_flags}
-	elif [ $name = "lockd" ]
-	then
-		rc_flags=${rpc_lockd_flags}
-	fi
-
+	rc_flags=${rpc_lockd_flags}
 	return ${ret}
 }
 
-start_precmd="nfslocking_precmd"
-stop_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable'
-status_precmd=$stop_precmd
-
-# rpc.statd
-#
-name="statd"
-rcvar=rpc_statd_enable
-command="/usr/sbin/rpc.${name}"
 load_rc_config $name
-run_rc_command "$arg"
-
-# rpc.lockd
-#
-name="lockd"
-rcvar=rpc_lockd_enable
-command="/usr/sbin/rpc.${name}"
-load_rc_config $name
-run_rc_command "$arg"
+run_rc_command $1
