@@ -241,11 +241,10 @@ dcons_check_break(struct dcons_softc *dc, int c)
 #endif
 
 static int
-dcons_os_checkc(struct dcons_softc *dc)
+dcons_os_checkc_nopoll(struct dcons_softc *dc)
 {
 	int c;
 
-	EVENTHANDLER_INVOKE(dcons_poll, 0);
 	if (dg.dma_tag != NULL)
 		bus_dmamap_sync(dg.dma_tag, dg.dma_map, BUS_DMASYNC_POSTREAD);
   
@@ -255,6 +254,13 @@ dcons_os_checkc(struct dcons_softc *dc)
 		bus_dmamap_sync(dg.dma_tag, dg.dma_map, BUS_DMASYNC_PREREAD);
 
 	return (c);
+}
+
+static int
+dcons_os_checkc(struct dcons_softc *dc)
+{
+	EVENTHANDLER_INVOKE(dcons_poll, 0);
+	return (dcons_os_checkc_nopoll(dc));
 }
 
 #if defined(GDB) || !defined(CONS_NODEV)
@@ -408,7 +414,7 @@ dcons_timeout(void *v)
 	for (i = 0; i < DCONS_NPORT; i ++) {
 		dc = &sc[i];
 		tp = ((DEV)dc->dev)->si_tty;
-		while ((c = dcons_os_checkc(dc)) != -1)
+		while ((c = dcons_os_checkc_nopoll(dc)) != -1)
 			if (tp->t_state & TS_ISOPEN)
 #if __FreeBSD_version < 502113
 				(*linesw[tp->t_line].l_rint)(c, tp);
