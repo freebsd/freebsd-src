@@ -1168,8 +1168,8 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	struct sge_txq *txq;
 	struct tx_sw_desc *stx;
 	struct txq_state txqs;
-	unsigned int nsegs, ndesc, flits, cntrl, mlen;
-	int err, tso_info = 0;
+	unsigned int ndesc, flits, cntrl, mlen;
+	int err, nsegs, tso_info = 0;
 
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
@@ -1212,7 +1212,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *) cpl;
 		struct ip *ip;
 		struct tcphdr *tcp;
-		uint8_t *pkthdr, tmp[TCPPKTHDRSIZE]; /* is this too large for the stack? */
+		char *pkthdr, tmp[TCPPKTHDRSIZE]; /* is this too large for the stack? */
 		
 		txd->flit[2] = 0;
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
@@ -1222,7 +1222,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 			pkthdr = &tmp[0];
 			m_copydata(m0, 0, TCPPKTHDRSIZE, pkthdr);
 		} else {
-			pkthdr = mtod(m0, uint8_t *);
+			pkthdr = mtod(m0, char *);
 		}
 
 		if (__predict_false(m0->m_flags & M_VLANTAG)) {
@@ -1792,12 +1792,10 @@ calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
 static int
 ofld_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 {
-	int ret;
-	unsigned int pidx, gen, nsegs;
-	unsigned int ndesc;
+	unsigned int pidx, gen, ndesc;
 	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int i, cleaned;
+	int i, cleaned, ret, nsegs;
 	struct tx_sw_desc *stx = &q->sdesc[q->pidx];
 
 	mtx_lock(&q->lock);

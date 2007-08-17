@@ -310,7 +310,7 @@ struct adapter {
 	TAILQ_ENTRY(adapter)    adapter_entry;
 	
 	/* PCI register resources */
-	uint32_t		regs_rid;
+	int			regs_rid;
 	struct resource		*regs_res;
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;

@@ -128,7 +128,7 @@ struct ch_hw_sched {
 	int8_t   channel;
 	int32_t  kbps;        /* rate in Kbps */
 	int32_t  class_ipg;   /* tenths of nanoseconds */
-	int32_t  flow_ipg;    /* usec */
+	uint32_t flow_ipg;    /* usec */
 };
 
 struct ch_filter_tuple {

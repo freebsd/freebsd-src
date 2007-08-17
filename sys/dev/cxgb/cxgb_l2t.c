@@ -37,8 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#if __FreeBSD_version > 700000
 #include <sys/rwlock.h>
-
+#endif
 
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -58,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #define VLAN_NONE 0xfff
 #define SDL(s) ((struct sockaddr_dl *)s) 
-#define RT_ENADDR(rt)  ((char *)LLADDR(SDL((rt))))
+#define RT_ENADDR(rt)  ((u_char *)LLADDR(SDL((rt))))
 #define rt_expire rt_rmx.rmx_expire 
 
 struct llinfo_arp { 
