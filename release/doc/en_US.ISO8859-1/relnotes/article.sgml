@@ -10,16 +10,6 @@
 <!-- The marker for MFCs. -->
 <!ENTITY merged "[MERGED]">
 
-<!-- Architecture names -->
-<!ENTITY arch.amd64 "amd64">
-<!ENTITY arch.arm "arm">
-<!ENTITY arch.i386 "i386">
-<!ENTITY arch.ia64 "ia64">
-<!ENTITY arch.pc98 "pc98">
-<!ENTITY arch.powerpc "powerpc">
-<!ENTITY arch.sparc64 "sparc64">
-<!ENTITY arch.sun4v "sun4v">
-
 <!ENTITY % include.historic "IGNORE">
 <!ENTITY % no.include.historic "IGNORE">
 ]>
