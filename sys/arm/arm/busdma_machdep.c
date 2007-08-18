@@ -1091,13 +1091,19 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
 
-	if (op & BUS_DMASYNC_PREWRITE) {
+	if ((op & BUS_DMASYNC_PREWRITE) && !(op & BUS_DMASYNC_PREREAD)) {
 		cpu_dcache_wb_range((vm_offset_t)buf, len);
 		cpu_l2cache_wb_range((vm_offset_t)buf, len);
 	}
 	if (op & BUS_DMASYNC_PREREAD) {
-		cpu_idcache_wbinv_range((vm_offset_t)buf, len);
-		cpu_l2cache_wbinv_range((vm_offset_t)buf, len);
+		if ((op & BUS_DMASYNC_PREWRITE) ||
+		    ((((vm_offset_t)(buf) | len) & arm_dcache_align_mask) == 0)) {
+			cpu_dcache_inv_range((vm_offset_t)buf, len);
+			cpu_l2cache_inv_range((vm_offset_t)buf, len);
+		} else {
+		    	cpu_dcache_wbinv_range((vm_offset_t)buf, len);
+	    		cpu_l2cache_wbinv_range((vm_offset_t)buf, len);
+		}
 	}
 	if (op & BUS_DMASYNC_POSTREAD) {
 		if ((vm_offset_t)buf & arm_dcache_align_mask) {
