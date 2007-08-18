@@ -189,6 +189,7 @@ extern int collapse_mbufs;
  * msi = 0: force pin interrupts
  */
 static int msi_allowed = 2;
+
 TUNABLE_INT("hw.cxgb.msi_allowed", &msi_allowed);
 SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "CXGB driver parameters");
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, msi_allowed, CTLFLAG_RDTUN, &msi_allowed, 0,
@@ -224,6 +225,28 @@ enum {
 	MIN_FL_ENTRIES       = 32
 };
 
+struct filter_info {
+	u32 sip;
+	u32 sip_mask;
+	u32 dip;
+	u16 sport;
+	u16 dport;
+	u32 vlan:12;
+	u32 vlan_prio:3;
+	u32 mac_hit:1;
+	u32 mac_idx:4;
+	u32 mac_vld:1;
+	u32 pkt_type:2;
+	u32 report_filter_id:1;
+	u32 pass:1;
+	u32 rss:1;
+	u32 qset:3;
+	u32 locked:1;
+	u32 valid:1;
+};
+
+enum { FILTER_NO_VLAN_PRI = 7 };
+
 #define PORT_MASK ((1 << MAX_NPORTS) - 1)
 
 /* Table for probing the cards.  The desc field isn't actually used */
@@ -246,6 +269,29 @@ struct cxgb_ident {
 	{PCI_VENDOR_ID_CHELSIO, 0x0033, 4, "T3B04"},
 	{0, 0, 0, NULL}
 };
+
+
+static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
+
+static inline char
+t3rev2char(struct adapter *adapter)
+{
+	char rev = 'z';
+
+	switch(adapter->params.rev) {
+	case T3_REV_A:
+		rev = 'a';
+		break;
+	case T3_REV_B:
+	case T3_REV_B2:
+		rev = 'b';
+		break;
+	case T3_REV_C:
+		rev = 'c';
+		break;
+	}
+	return rev;
+}
 
 static struct cxgb_ident *
 cxgb_get_ident(device_t dev)
@@ -298,6 +344,10 @@ cxgb_controller_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+#define FW_FNAME "t3fw%d%d%d"
+#define TPEEPROM_NAME "t3%ctpe%d%d%d"
+#define TPSRAM_NAME "t3%cps%d%d%d"
+
 static int
 upgrade_fw(adapter_t *sc)
 {
@@ -309,7 +359,7 @@ upgrade_fw(adapter_t *sc)
 #endif	
 	int status;
 	
-	snprintf(&buf[0], sizeof(buf), "t3fw%d%d%d", FW_VERSION_MAJOR,
+	snprintf(&buf[0], sizeof(buf), FW_FNAME,  FW_VERSION_MAJOR,
 	    FW_VERSION_MINOR, FW_VERSION_MICRO);
 	
 	fw = firmware_get(buf);
@@ -317,9 +367,12 @@ upgrade_fw(adapter_t *sc)
 	if (fw == NULL) {
 		device_printf(sc->dev, "Could not find firmware image %s\n", buf);
 		return (ENOENT);
-	}
+	} else
+		device_printf(sc->dev, "updating firmware on card with %s\n", buf);
 	status = t3_load_fw(sc, (const uint8_t *)fw->data, fw->datasize);
 
+	device_printf(sc->dev, "firmware update returned %s %d\n", (status == 0) ? "success" : "fail", status);
+	
 	firmware_put(fw, FIRMWARE_UNLOAD);
 
 	return (status);	
@@ -331,14 +384,17 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, reg, msi_needed, error = 0;
+	int i, reg, error = 0;
 	uint32_t vers;
 	int port_qsets = 1;
 	
+#ifdef MSI_SUPPORTED
+	int msi_needed;
+#endif
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
-	msi_needed = 0;
 	
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
@@ -350,7 +406,10 @@ cxgb_controller_attach(device_t dev)
 		pectl = (pectl & ~0x7000) | (5 << 12);
 		pci_write_config(dev, reg + 0x8, pectl, 2);
 	}
-	if (sc->link_width != 0 && sc->link_width <= 4) {
+
+	ai = cxgb_get_adapter_info(dev);
+	if (sc->link_width != 0 && sc->link_width <= 4 &&
+	    (ai->nports0 + ai->nports1) <= 2) {
 		device_printf(sc->dev,
 		    "PCIe x%d Link, expect reduced performance\n",
 		    sc->link_width);
@@ -363,7 +422,7 @@ cxgb_controller_attach(device_t dev)
 	 */
 	sc->regs_rid = PCIR_BAR(0);
 	if ((sc->regs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-		    (int *)&sc->regs_rid, RF_ACTIVE)) == NULL) {
+	    &sc->regs_rid, RF_ACTIVE)) == NULL) {
 		device_printf(dev, "Cannot allocate BAR\n");
 		return (ENXIO);
 	}
@@ -387,7 +446,6 @@ cxgb_controller_attach(device_t dev)
 	sc->bh = rman_get_bushandle(sc->regs_res);
 	sc->mmio_len = rman_get_size(sc->regs_res);
 
-	ai = cxgb_get_adapter_info(dev);
 	if (t3_prep_adapter(sc, ai, 1) < 0) {
 		printf("prep adapter failed\n");
 		error = ENODEV;
@@ -455,12 +513,12 @@ cxgb_controller_attach(device_t dev)
 		device_printf(dev, "failed to allocate controller task queue\n");
 		goto out;
 	}
-		
+
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
 	TASK_INIT(&sc->ext_intr_task, 0, cxgb_ext_intr_handler, sc);
-
 	TASK_INIT(&sc->tick_task, 0, cxgb_tick_handler, sc);
+
 	
 	/* Create a periodic callout for checking adapter status */
 	callout_init(&sc->cxgb_tick_ch, TRUE);
@@ -474,6 +532,17 @@ cxgb_controller_attach(device_t dev)
 		sc->flags &= ~FW_UPTODATE;
 	} else {
 		sc->flags |= FW_UPTODATE;
+	}
+
+	if (t3_check_tpsram_version(sc) != 0) {
+		/*
+		 * Warn user that a firmware update will be attempted in init.
+		 */
+		device_printf(dev, "SRAM needs to be updated to version %c-%d.%d.%d\n",
+		    t3rev2char(sc), TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+		sc->flags &= ~TPS_UPTODATE;
+	} else {
+		sc->flags |= TPS_UPTODATE;
 	}
 	
 	if ((sc->flags & USING_MSIX) && !singleq)
@@ -489,11 +558,11 @@ cxgb_controller_attach(device_t dev)
 			error = EINVAL;
 			goto out;
 		}
-		sc->portdev[i] = child;
 		sc->port[i].adapter = sc;
 		sc->port[i].nqsets = port_qsets;
 		sc->port[i].first_qset = i*port_qsets;
-		sc->port[i].port = i;
+		sc->port[i].port_id = i;
+		sc->portdev[i] = child;
 		device_set_softc(child, &sc->port[i]);
 	}
 	if ((error = bus_generic_attach(dev)) != 0)
@@ -569,12 +638,12 @@ cxgb_free(struct adapter *sc)
 	t3_sge_deinit_sw(sc);
 
 	if (sc->tq != NULL) {
-		taskqueue_drain(sc->tq, &sc->tick_task);	
 		taskqueue_drain(sc->tq, &sc->ext_intr_task);
+		taskqueue_drain(sc->tq, &sc->tick_task);	
 		taskqueue_free(sc->tq);
+	}
 
 	tsleep(&sc, 0, "cxgb unload", hz);
-	}
 	
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		if (sc->portdev[i] != NULL)
@@ -588,8 +657,10 @@ cxgb_free(struct adapter *sc)
 		if (isset(&sc->open_device_map,	OFFLOAD_DEVMAP_BIT))
 			offload_close(&sc->tdev);
 	}
-#endif	
+#endif
+
 	t3_free_sge_resources(sc);
+	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
 	cxgb_offload_exit();
@@ -604,6 +675,111 @@ cxgb_free(struct adapter *sc)
 	ADAPTER_LOCK_DEINIT(sc);
 	
 	return;
+}
+
+static int
+alloc_filters(struct adapter *adap)
+{
+	struct filter_info *p;
+	int nfilters;
+	
+	if ((nfilters = adap->params.mc5.nfilters) == 0)
+		return (0);
+
+	adap->filters = malloc(nfilters*sizeof(struct filter_info),
+	    M_DEVBUF, M_ZERO|M_WAITOK);
+	
+	if (adap->filters == NULL)
+		return (ENOMEM);
+
+	/* Set the default filters, only need to set non-0 fields here. */
+	p = &adap->filters[nfilters - 1];
+	p->vlan = 0xfff;
+	p->vlan_prio = FILTER_NO_VLAN_PRI;
+	p->pass = p->rss = p->valid = p->locked = 1;
+
+	return (0);
+}
+
+static inline void
+set_tcb_field_ulp(struct cpl_set_tcb_field *req,
+    unsigned int tid, unsigned int word,
+    uint64_t mask, uint64_t val)
+{
+	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
+
+	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
+	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
+	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
+	req->reply = V_NO_REPLY(1);
+	req->cpu_idx = 0;
+	req->word = htons(word);
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+}
+
+static int
+set_filter(struct adapter *adap, int id, const struct filter_info *f)
+{
+	int len;
+	struct mbuf *m;
+	struct ulp_txpkt *txpkt;
+	struct work_request_hdr *wr;
+	struct cpl_pass_open_req *oreq;
+	struct cpl_set_tcb_field *sreq;
+
+	len = sizeof(*wr) + sizeof(*oreq) + 2 * sizeof(*sreq);
+	id += t3_mc5_size(&adap->mc5) - adap->params.mc5.nroutes -
+	      adap->params.mc5.nfilters;
+
+	m = m_gethdr(M_TRYWAIT, MT_DATA);
+	wr = mtod(m, struct work_request_hdr *);
+	wr->wr_hi = htonl(V_WR_OP(FW_WROPCODE_BYPASS) | F_WR_ATOMIC);
+	m->m_len = m->m_pkthdr.len = len;
+	
+	oreq = (struct cpl_pass_open_req *)(wr + 1);
+	txpkt = (struct ulp_txpkt *)oreq;
+	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
+	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*oreq) / 8));
+	OPCODE_TID(oreq) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, id));
+	oreq->local_port = htons(f->dport);
+	oreq->peer_port = htons(f->sport);
+	oreq->local_ip = htonl(f->dip);
+	oreq->peer_ip = htonl(f->sip);
+	oreq->peer_netmask = htonl(f->sip_mask);
+	oreq->opt0h = 0;
+	oreq->opt0l = htonl(F_NO_OFFLOAD);
+	oreq->opt1 = htonl(V_MAC_MATCH_VALID(f->mac_vld) |
+			 V_CONN_POLICY(CPL_CONN_POLICY_FILTER) |
+			 V_VLAN_PRI(f->vlan_prio >> 1) |
+			 V_VLAN_PRI_VALID(f->vlan_prio != FILTER_NO_VLAN_PRI) |
+			 V_PKT_TYPE(f->pkt_type) | V_OPT1_VLAN(f->vlan) |
+			 V_MAC_MATCH(f->mac_idx | (f->mac_hit << 4)));
+
+	sreq = (struct cpl_set_tcb_field *)(oreq + 1);
+	set_tcb_field_ulp(sreq, id, 1, 0x1800808000ULL,
+			  (f->report_filter_id << 15) | (1 << 23) |
+			  ((u64)f->pass << 35) | ((u64)!f->rss << 36));
+	set_tcb_field_ulp(sreq + 1, id, 25, 0x3f80000,
+			  (u64)adap->rrss_map[f->qset] << 19);
+	t3_mgmt_tx(adap, m);
+	return 0;
+}
+
+static int
+setup_hw_filters(struct adapter *adap)
+{
+	int i, err;
+
+	if (adap->filters == NULL)
+		return 0;
+
+	t3_enable_filters(adap);
+
+	for (i = err = 0; i < adap->params.mc5.nfilters && !err; i++)
+		if (adap->filters[i].locked)
+			err = set_filter(adap, i, &adap->filters[i]);
+	return err;
 }
 
 /**
@@ -695,7 +871,7 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 		nqsets = sc->port[i].nqsets;
 		for (j = 0; j < nqsets; j++, k++) {
 			struct sge_qset *qs = &sc->sge.qs[k];
-			    
+
 			rid = k + 2;
 			if (cxgb_debug)
 				printf("rid=%d ", rid);
@@ -732,7 +908,7 @@ cxgb_port_probe(device_t dev)
 
 	p = device_get_softc(dev);
 
-	snprintf(buf, sizeof(buf), "Port %d %s", p->port, p->port_type->desc);
+	snprintf(buf, sizeof(buf), "Port %d %s", p->port_id, p->port_type->desc);
 	device_set_desc_copy(dev, buf);
 	return (0);
 }
@@ -743,7 +919,7 @@ cxgb_makedev(struct port_info *pi)
 {
 	
 	pi->port_cdev = make_dev(&cxgb_cdevsw, pi->ifp->if_dunit,
-	    UID_ROOT, GID_WHEEL, 0600, pi->ifp->if_xname);
+	    UID_ROOT, GID_WHEEL, 0600, if_name(pi->ifp));
 	
 	if (pi->port_cdev == NULL)
 		return (ENOMEM);
@@ -763,6 +939,7 @@ cxgb_makedev(struct port_info *pi)
 /* Don't enable TSO6 yet */
 #define CXGB_CAP_ENABLE (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM |  IFCAP_JUMBO_MTU)
 #define IFCAP_TSO4 0x0
+#define IFCAP_TSO6 0x0
 #define CSUM_TSO   0x0
 #endif
 
@@ -777,7 +954,7 @@ cxgb_port_attach(device_t dev)
 	p = device_get_softc(dev);
 
 	snprintf(p->lockbuf, PORT_NAME_LEN, "cxgb port lock %d:%d",
-	    device_get_unit(device_get_parent(dev)), p->port);  	
+	    device_get_unit(device_get_parent(dev)), p->port_id);
 	PORT_LOCK_INIT(p, p->lockbuf);
 
 	/* Allocate an ifnet object and set it up */
@@ -807,11 +984,21 @@ cxgb_port_attach(device_t dev)
 	ifp->if_capabilities |= CXGB_CAP;
 	ifp->if_capenable |= CXGB_CAP_ENABLE;
 	ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP | CSUM_IP | CSUM_TSO);
-	
+	/*
+	 * disable TSO on 4-port - it isn't supported by the firmware yet
+	 */	
+	if (p->adapter->params.nports > 2) {
+		ifp->if_capabilities &= ~(IFCAP_TSO4 | IFCAP_TSO6);
+		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TSO6);
+		ifp->if_hwassist &= ~CSUM_TSO;
+	}
+
 	ether_ifattach(ifp, p->hw_addr);
-#ifdef DEFAULT_JUMBO
-	ifp->if_mtu = 9000;
-#endif	
+	/*
+	 * Only default to jumbo frames on 10GigE
+	 */
+	if (p->adapter->params.nports <= 2)
+		ifp->if_mtu = 9000;
 	if ((err = cxgb_makedev(p)) != 0) {
 		printf("makedev failed %d\n", err);
 		return (err);
@@ -849,7 +1036,7 @@ cxgb_port_attach(device_t dev)
 	}	
 
 
-	snprintf(p->taskqbuf, TASKQ_NAME_LEN, "cxgb_port_taskq%d", p->port);
+	snprintf(p->taskqbuf, TASKQ_NAME_LEN, "cxgb_port_taskq%d", p->port_id);
 #ifdef TASKQUEUE_CURRENT
 	/* Create a port for handling TX without starvation */
 	p->tq = taskqueue_create(p->taskqbuf, M_NOWAIT,
@@ -866,6 +1053,7 @@ cxgb_port_attach(device_t dev)
 	}	
 	taskqueue_start_threads(&p->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(dev));
+	
 	TASK_INIT(&p->start_task, 0, cxgb_start_proc, ifp);
 
 	t3_sge_init_port(p);
@@ -1012,7 +1200,6 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	}
 }
 
-
 /*
  * Interrupt-context handler for external (PHY) interrupts.
  */
@@ -1089,23 +1276,30 @@ static void
 setup_rss(adapter_t *adap)
 {
 	int i;
-	u_int nq0 = adap->port[0].nqsets;
-	u_int nq1 = max((u_int)adap->port[1].nqsets, 1U);
+	u_int nq[2]; 
 	uint8_t cpus[SGE_QSETS + 1];
 	uint16_t rspq_map[RSS_TABLE_SIZE];
-
+	
+	nq[0] = adap->port[0].nqsets;
+	nq[1] = max((u_int)adap->port[1].nqsets, 1U);
+	
 	for (i = 0; i < SGE_QSETS; ++i)
 		cpus[i] = i;
 	cpus[SGE_QSETS] = 0xff;
 
 	for (i = 0; i < RSS_TABLE_SIZE / 2; ++i) {
-		rspq_map[i] = i % nq0;
-		rspq_map[i + RSS_TABLE_SIZE / 2] = (i % nq1) + nq0;
+		rspq_map[i] = nq[0] ? i % nq[0] : 0;
+		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0; 
 	}
+	/* Calculate the reverse RSS map table */
+	for (i = 0; i < RSS_TABLE_SIZE; ++i)
+		if (adap->rrss_map[rspq_map[i]] == 0xff)
+			adap->rrss_map[rspq_map[i]] = i;
 
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
-	    F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN |
-	    V_RRCPLCPUSIZE(6), cpus, rspq_map);
+		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN | F_OFDMAPEN |
+		      F_RRCPLMAPEN | V_RRCPLCPUSIZE(6), cpus, rspq_map);
+
 }
 
 /*
@@ -1175,7 +1369,7 @@ send_pktsched_cmd(struct adapter *adap, int sched, int qidx, int lo,
 	struct mbuf *m;
 	struct mngt_pktsched_wr *req;
 
-	m = m_gethdr(M_NOWAIT, MT_DATA);
+	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m) {	
 		req = mtod(m, struct mngt_pktsched_wr *);
 		req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_MNGT));
@@ -1204,6 +1398,101 @@ bind_qsets(adapter_t *sc)
 	}
 }
 
+static void
+update_tpeeprom(struct adapter *adap)
+{
+	const struct firmware *tpeeprom;
+	char buf[64];
+	uint32_t version;
+	unsigned int major, minor;
+	int ret, len;
+	char rev;
+
+	t3_seeprom_read(adap, TP_SRAM_OFFSET, &version);
+
+	major = G_TP_VERSION_MAJOR(version);
+	minor = G_TP_VERSION_MINOR(version);
+	if (major == TP_VERSION_MAJOR  && minor == TP_VERSION_MINOR)
+		return; 
+
+	rev = t3rev2char(adap);
+
+	snprintf(buf, sizeof(buf), TPEEPROM_NAME, rev,
+		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+
+	tpeeprom = firmware_get(buf);
+	if (tpeeprom == NULL) {
+		device_printf(adap->dev, "could not load TP EEPROM: unable to load %s\n",
+			buf);
+		return;
+	}
+
+	len = tpeeprom->datasize - 4;
+	
+	ret = t3_check_tpsram(adap, tpeeprom->data, tpeeprom->datasize);
+	if (ret)
+		goto release_tpeeprom;
+
+	if (len != TP_SRAM_LEN) {
+		device_printf(adap->dev, "%s length is wrong len=%d expected=%d\n", buf, len, TP_SRAM_LEN);
+		return;
+	}
+	
+	ret = set_eeprom(&adap->port[0], tpeeprom->data, tpeeprom->datasize,
+	    TP_SRAM_OFFSET);
+	
+	if (!ret) {
+		device_printf(adap->dev,
+			"Protocol SRAM image updated in EEPROM to %d.%d.%d\n",
+			 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+	} else 
+		device_printf(adap->dev, "Protocol SRAM image update in EEPROM failed\n");
+
+release_tpeeprom:
+	firmware_put(tpeeprom, FIRMWARE_UNLOAD);
+	
+	return;
+}
+
+static int
+update_tpsram(struct adapter *adap)
+{
+	const struct firmware *tpsram;
+	char buf[64];
+	int ret;
+	char rev;
+
+	rev = t3rev2char(adap);
+	if (!rev)
+		return 0;
+
+	update_tpeeprom(adap);
+
+	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev,
+		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+
+	tpsram = firmware_get(buf);
+	if (tpsram == NULL){
+		device_printf(adap->dev, "could not load TP SRAM: unable to load %s\n",
+			buf);
+		return (EINVAL);
+	} else
+		device_printf(adap->dev, "updating TP SRAM with %s\n", buf);
+	
+	ret = t3_check_tpsram(adap, tpsram->data, tpsram->datasize);
+	if (ret)
+		goto release_tpsram;	
+
+	ret = t3_set_proto_sram(adap, tpsram->data);
+	if (ret)
+		device_printf(adap->dev, "loading protocol SRAM failed\n");
+
+release_tpsram:
+	firmware_put(tpsram, FIRMWARE_UNLOAD);
+	
+	return ret;
+}
+
 /**
  *	cxgb_up - enable the adapter
  *	@adap: adapter being enabled
@@ -1221,11 +1510,11 @@ cxgb_up(struct adapter *sc)
 	if ((sc->flags & FULL_INIT_DONE) == 0) {
 
 		if ((sc->flags & FW_UPTODATE) == 0)
-			err = upgrade_fw(sc);
-
-		if (err)
-			goto out;
-
+			if ((err = upgrade_fw(sc)))
+				goto out;
+		if ((sc->flags & TPS_UPTODATE) == 0)
+			if ((err = update_tpsram(sc)))
+				goto out;
 		err = t3_init_hw(sc, 0);
 		if (err)
 			goto out;
@@ -1236,6 +1525,7 @@ cxgb_up(struct adapter *sc)
 		if (err)
 			goto out;
 
+		alloc_filters(sc);
 		setup_rss(sc);
 		sc->flags |= FULL_INIT_DONE;
 	}
@@ -1252,12 +1542,13 @@ cxgb_up(struct adapter *sc)
 		}
 		device_printf(sc->dev, "allocated irq_res=%p\n", sc->irq_res);
 
-		if ((err = bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
+		if (bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
 			NULL,
 #endif			
-			    sc->cxgb_intr, sc, &sc->intr_tag))) {
-			device_printf(sc->dev, "Cannot set up interrupt %d\n", err);
+			sc->cxgb_intr, sc, &sc->intr_tag)) {
+			device_printf(sc->dev, "Cannot set up interrupt\n");
+			err = EINVAL;
 			goto irq_err;
 		}
 	} else {
@@ -1267,9 +1558,11 @@ cxgb_up(struct adapter *sc)
 	t3_sge_start(sc);
 	t3_intr_enable(sc);
 
-	if ((sc->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX)
+	if ((sc->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX) {
 		bind_qsets(sc);
-	sc->flags |= QUEUES_BOUND;
+		setup_hw_filters(sc);
+		sc->flags |= QUEUES_BOUND;		
+	}
 out:
 	return (err);
 irq_err:
@@ -1333,7 +1626,7 @@ offload_open(struct port_info *pi)
 	if (!adap_up)
 		err = cxgb_up(adapter);
 	ADAPTER_UNLOCK(pi->adapter);
-	if (err < 0)
+	if (err)
 		return (err);
 
 	t3_tp_set_offload_mode(adapter, 1);
@@ -1361,7 +1654,6 @@ out:
 	}
 	return (err);
 }
-
 #ifdef notyet
 static int
 offload_close(struct toedev *tdev)
@@ -1407,7 +1699,7 @@ cxgb_init_locked(struct port_info *p)
 	ifp = p->ifp;
 
 	ADAPTER_LOCK(p->adapter);
-	if ((sc->open_device_map == 0) && ((err = cxgb_up(sc)) < 0)) {
+	if ((sc->open_device_map == 0) && (err = cxgb_up(sc))) {
 		ADAPTER_UNLOCK(p->adapter);
 		cxgb_stop_locked(p);
 		return;
@@ -1416,7 +1708,7 @@ cxgb_init_locked(struct port_info *p)
 		t3_intr_clear(sc);
 		t3_sge_init_adapter(sc);
 	}
-	setbit(&p->adapter->open_device_map, p->port);
+	setbit(&p->adapter->open_device_map, p->port_id);
 	ADAPTER_UNLOCK(p->adapter);
 
 	if (is_offload(sc) && !ofld_disable) {
@@ -1426,18 +1718,16 @@ cxgb_init_locked(struct port_info *p)
 			    "Could not initialize offload capabilities\n");
 	}
 	cxgb_link_start(p);
-	t3_link_changed(sc, p->port);
+	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 	
-	t3_port_intr_enable(sc, p->port);
+	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
 	    cxgb_tick, sc);
 
-	PORT_LOCK(p);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	PORT_UNLOCK(p);
 }
 
 static void
@@ -1462,13 +1752,13 @@ cxgb_stop_locked(struct port_info *p)
 	
 	ifp = p->ifp;
 
-	t3_port_intr_disable(p->adapter, p->port);
+	t3_port_intr_disable(p->adapter, p->port_id);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	p->phy.ops->power_down(&p->phy, 1);
 	t3_mac_disable(&p->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 
 	ADAPTER_LOCK(p->adapter);
-	clrbit(&p->adapter->open_device_map, p->port);
+	clrbit(&p->adapter->open_device_map, p->port_id);
 
 	
 	if (p->adapter->open_device_map == 0) {
@@ -1615,7 +1905,11 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
+	if (txq->flags & TXQ_TRANSMITTING)
+		return (EINPROGRESS);
+	
 	mtx_lock(&txq->lock);
+	txq->flags |= TXQ_TRANSMITTING;
 	in_use_init = txq->in_use;
 	while ((txq->in_use - in_use_init < txmax) &&
 	    (txq->size > txq->in_use + TX_MAX_DESC)) {
@@ -1637,7 +1931,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 			m0->m_flags &= ~M_PKTHDR;
 			m0 = m0->m_next;
 		}
-		M_SANITY(m0, 0);
+		m_sanity(m0, 0);
 		m0 = m;
 #endif
 		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
@@ -1646,13 +1940,14 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 				m = m0;
 				m_collapse(m, TX_MAX_SEGS, &m0);
 			} else
-				break;	
+				break;
 		}
 		m = m0;
 		if ((err = t3_encap(p, &m)) != 0)
 			break;
 		BPF_MTAP(ifp, m);
 	}
+	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
 
 	if (__predict_false(err)) {
@@ -1686,9 +1981,8 @@ cxgb_start_proc(void *arg, int ncount)
 	txq = &qs->txq[TXQ_ETH];
 
 	do {
-		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC)
-			taskqueue_enqueue(pi->adapter->tq,
-			    &pi->timer_reclaim_task);
+		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
+			taskqueue_enqueue(pi->tq, &txq->qreclaim_task);
 
 		error = cxgb_start_tx(ifp, TX_START_MAX_DESC);
 	} while (error == 0);
@@ -1705,9 +1999,9 @@ cxgb_start(struct ifnet *ifp)
 	qs = &pi->adapter->sge.qs[pi->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	
-	if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC)
-		taskqueue_enqueue(pi->adapter->tq,
-		    &pi->timer_reclaim_task);
+	if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
+		taskqueue_enqueue(pi->tq,
+		    &txq->qreclaim_task);
 	
 	err = cxgb_start_tx(ifp, TX_START_MAX_DESC);
 	
@@ -1829,7 +2123,7 @@ check_t3b2_mac(struct adapter *adapter)
 			cxgb_set_rxmode(p);
 			t3_link_start(&p->phy, mac, &p->link_config);
 			t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
-			t3_port_intr_enable(adapter, p->port);
+			t3_port_intr_enable(adapter, p->port_id);
 			p->mac.stats.num_resets++;
 		}
 		PORT_UNLOCK(p);
@@ -1854,8 +2148,8 @@ cxgb_tick_handler(void *arg, int count)
 	adapter_t *sc = (adapter_t *)arg;
 	const struct adapter_params *p = &sc->params;
 
-	if (p->linkpoll_period)
 	ADAPTER_LOCK(sc);
+	if (p->linkpoll_period)
 		check_link_status(sc);
 
 	/*
@@ -1864,9 +2158,169 @@ cxgb_tick_handler(void *arg, int count)
 	 */
 	ADAPTER_UNLOCK(sc);
 
-	if (p->rev == T3_REV_B2)
+	if (p->rev == T3_REV_B2 && p->nports < 4) 
 		check_t3b2_mac(sc);
 }
+
+#if 0
+static void *
+filter_get_idx(struct seq_file *seq, loff_t pos)
+{
+	int i;
+	struct adapter *adap = seq->private;
+	struct filter_info *p = adap->filters;
+
+	if (!p)
+		return NULL;
+
+	for (i = 0; i < adap->params.mc5.nfilters; i++, p++)
+		if (p->valid) {
+			if (!pos)
+				return p;
+			pos--;
+		}
+	return NULL;
+}
+
+static void *filter_get_nxt_idx(struct seq_file *seq, struct filter_info *p)
+{
+	struct adapter *adap = seq->private;
+	struct filter_info *end = &adap->filters[adap->params.mc5.nfilters];
+
+	while (++p < end && !p->valid)
+		;
+	return p < end ? p : NULL;
+}
+
+static void *filter_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	return *pos ? filter_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
+}
+
+static void *filter_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	v = *pos ? filter_get_nxt_idx(seq, v) : filter_get_idx(seq, 0);
+	if (v)
+		++*pos;
+	return v;
+}
+
+static void filter_seq_stop(struct seq_file *seq, void *v)
+{
+}
+
+static int filter_seq_show(struct seq_file *seq, void *v)
+{
+	static const char *pkt_type[] = { "any", "tcp", "udp", "frag" };
+
+	if (v == SEQ_START_TOKEN)
+		seq_puts(seq, "index         SIP              DIP       sport "
+			      "dport VLAN PRI MAC type Q\n");
+	else {
+		char sip[20], dip[20];
+		struct filter_info *f = v;
+		struct adapter *adap = seq->private;
+
+		sprintf(sip, NIPQUAD_FMT "/%-2u", HIPQUAD(f->sip),
+			f->sip_mask ? 33 - ffs(f->sip_mask) : 0);
+		sprintf(dip, NIPQUAD_FMT, HIPQUAD(f->dip));
+		seq_printf(seq, "%5zu %18s %15s ", f - adap->filters, sip, dip);
+		seq_printf(seq, f->sport ? "%5u " : "    * ", f->sport);
+		seq_printf(seq, f->dport ? "%5u " : "    * ", f->dport);
+		seq_printf(seq, f->vlan != 0xfff ? "%4u " : "   * ", f->vlan);
+		seq_printf(seq, f->vlan_prio == FILTER_NO_VLAN_PRI ?
+			   "  * " : "%1u/%1u ", f->vlan_prio, f->vlan_prio | 1);
+		if (!f->mac_vld)
+			seq_printf(seq, "  * ");
+		else if (f->mac_hit)
+			seq_printf(seq, "%3u ", f->mac_idx);
+		else
+			seq_printf(seq, " -1 ");
+		seq_printf(seq, "%4s ", pkt_type[f->pkt_type]);
+		if (!f->pass)
+			seq_printf(seq, "-\n");
+		else if (f->rss)
+			seq_printf(seq, "*\n");
+		else
+			seq_printf(seq, "%1u\n", f->qset);
+	}
+	return 0;
+}
+
+static struct seq_operations filter_seq_ops = {
+	.start = filter_seq_start,
+	.next = filter_seq_next,
+	.stop = filter_seq_stop,
+	.show = filter_seq_show
+};
+
+static int filter_seq_open(struct inode *inode, struct file *file)
+{
+	int rc = seq_open(file, &filter_seq_ops);
+
+	if (!rc) {
+		struct proc_dir_entry *dp = PDE(inode);
+		struct seq_file *seq = file->private_data;
+
+		seq->private = dp->data;
+	}
+	return rc;
+}
+
+static struct file_operations filter_seq_fops = {
+	.owner = THIS_MODULE,
+	.open = filter_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release
+};
+
+#endif
+
+static int
+set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset)
+{
+	uint8_t *buf;
+	int err = 0;
+	u32 aligned_offset, aligned_len, *p;
+	struct adapter *adapter = pi->adapter;
+
+
+	aligned_offset = offset & ~3;
+	aligned_len = (len + (offset & 3) + 3) & ~3;
+
+	if (aligned_offset != offset || aligned_len != len) {
+		buf = malloc(aligned_len, M_DEVBUF, M_WAITOK|M_ZERO);		   
+		if (!buf)
+			return (ENOMEM);
+		err = t3_seeprom_read(adapter, aligned_offset, (u32 *)buf);
+		if (!err && aligned_len > 4)
+			err = t3_seeprom_read(adapter,
+					      aligned_offset + aligned_len - 4,
+					      (u32 *)&buf[aligned_len - 4]);
+		if (err)
+			goto out;
+		memcpy(buf + (offset & 3), data, len);
+	} else
+		buf = (uint8_t *)(uintptr_t)data;
+
+	err = t3_seeprom_wp(adapter, 0);
+	if (err)
+		goto out;
+
+	for (p = (u32 *)buf; !err && aligned_len; aligned_len -= 4, p++) {
+		err = t3_seeprom_write(adapter, aligned_offset, *p);
+		aligned_offset += 4;
+	}
+
+	if (!err)
+		err = t3_seeprom_wp(adapter, 1);
+out:
+	if (buf != data)
+		free(buf, M_DEVBUF);
+	return err;
+}
+
 
 static int
 in_range(int val, int lo, int hi)
@@ -1921,7 +2375,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			if (!mmd)
 				mmd = MDIO_DEV_PCS;
 			else if (mmd > MDIO_DEV_XGXS)
-				return -EINVAL;
+				return (EINVAL);
 
 			error = phy->mdio_read(sc, mid->phy_id & 0x1f, mmd,
 					     mid->reg_num, &val);
@@ -2011,7 +2465,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		struct ch_qset_params *t = (struct ch_qset_params *)data;
 		
 		if (t->qset_idx >= SGE_QSETS)
-			return -EINVAL;
+			return (EINVAL);
 		if (!in_range(t->intr_lat, 0, M_NEWTIMER) ||
 		    !in_range(t->cong_thres, 0, 255) ||
 		    !in_range(t->txq_size[0], MIN_TXQ_ENTRIES,
@@ -2024,13 +2478,13 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		    !in_range(t->fl_size[1], MIN_FL_ENTRIES,
 			      MAX_RX_JUMBO_BUFFERS) ||
 		    !in_range(t->rspq_size, MIN_RSPQ_ENTRIES, MAX_RSPQ_ENTRIES))
-		       return -EINVAL;
+			return (EINVAL);
 		if ((sc->flags & FULL_INIT_DONE) &&
 		    (t->rspq_size >= 0 || t->fl_size[0] >= 0 ||
 		     t->fl_size[1] >= 0 || t->txq_size[0] >= 0 ||
 		     t->txq_size[1] >= 0 || t->txq_size[2] >= 0 ||
 		     t->polling >= 0 || t->cong_thres >= 0))
-			return -EBUSY;
+			return (EBUSY);
 
 		q = &sc->params.sge.qset[t->qset_idx];
 
@@ -2077,7 +2531,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 	}
 	case CHELSIO_SET_QSET_NUM: {
 		struct ch_reg *edata = (struct ch_reg *)data;
-		unsigned int port_idx = pi->port;
+		unsigned int port_idx = pi->port_id;
 		
 		if (sc->flags & FULL_INIT_DONE)
 			return (EBUSY);
@@ -2139,6 +2593,79 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		memcpy(m->mtus, sc->params.mtus, sizeof(m->mtus));
 		m->nmtus = NMTUS;
 		break;
+	}
+	case CHELSIO_SET_FILTER: {
+		struct ch_filter *f = (struct ch_filter *)data;
+		struct filter_info *p;
+		int ret;
+		
+		if (sc->params.mc5.nfilters == 0)
+			return (EOPNOTSUPP);
+		if (!(sc->flags & FULL_INIT_DONE))
+			return (EAGAIN);  /* can still change nfilters */
+		if (sc->filters == NULL)
+			return (ENOMEM);
+
+		if (f->filter_id >= sc->params.mc5.nfilters ||
+		    (f->val.dip && f->mask.dip != 0xffffffff) ||
+		    (f->val.sport && f->mask.sport != 0xffff) ||
+		    (f->val.dport && f->mask.dport != 0xffff) ||
+		    (f->mask.vlan && f->mask.vlan != 0xfff) ||
+		    (f->mask.vlan_prio && f->mask.vlan_prio != 7) ||
+		    (f->mac_addr_idx != 0xffff && f->mac_addr_idx > 15) ||
+		    f->qset >= SGE_QSETS ||
+		    sc->rrss_map[f->qset] >= RSS_TABLE_SIZE)
+			return (EINVAL);
+
+		p = &sc->filters[f->filter_id];
+		if (p->locked)
+			return (EPERM);
+
+		p->sip = f->val.sip;
+		p->sip_mask = f->mask.sip;
+		p->dip = f->val.dip;
+		p->sport = f->val.sport;
+		p->dport = f->val.dport;
+		p->vlan = f->mask.vlan ? f->val.vlan : 0xfff;
+		p->vlan_prio = f->mask.vlan_prio ? (f->val.vlan_prio & 6) :
+						  FILTER_NO_VLAN_PRI;
+		p->mac_hit = f->mac_hit;
+		p->mac_vld = f->mac_addr_idx != 0xffff;
+		p->mac_idx = f->mac_addr_idx;
+		p->pkt_type = f->proto;
+		p->report_filter_id = f->want_filter_id;
+		p->pass = f->pass;
+		p->rss = f->rss;
+		p->qset = f->qset;
+
+		ret = set_filter(sc, f->filter_id, p);
+		if (ret)
+			return ret;
+		p->valid = 1;
+		break;
+	}
+	case CHELSIO_DEL_FILTER: {
+		struct ch_filter *f = (struct ch_filter *)data;
+		struct filter_info *p;
+	
+		if (sc->params.mc5.nfilters == 0)
+			return (EOPNOTSUPP);
+		if (!(sc->flags & FULL_INIT_DONE))
+			return (EAGAIN);  /* can still change nfilters */
+		if (sc->filters == NULL)
+			return (ENOMEM);
+		if (f->filter_id >= sc->params.mc5.nfilters)
+			return (EINVAL);	
+
+		p = &sc->filters[f->filter_id];
+		if (p->locked)
+			return (EPERM);
+		memset(p, 0, sizeof(*p));
+		p->sip_mask = 0xffffffff;
+		p->vlan = 0xfff;
+		p->vlan_prio = FILTER_NO_VLAN_PRI;
+		p->pkt_type = 1;
+		return set_filter(sc, f->filter_id, p);
 	}		
 	case CHELSIO_DEVUP:
 		if (!is_offload(sc))
@@ -2197,6 +2724,8 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 
 		if (!is_offload(sc))
 			return (EOPNOTSUPP);
+		if (!(sc->flags & FULL_INIT_DONE))
+			return (EIO);         /* need MC5 */		
 		return -t3_read_mc5_range(&sc->mc5, t->addr, 1, t->buf);
 		break;
 	}
@@ -2264,7 +2793,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			t3_set_sched_ipg(sc, t->sched, t->class_ipg);
 		if (t->flow_ipg >= 0) {
 			t->flow_ipg *= 1000;     /* us -> ns */
-			t3_set_pace_tbl(sc, (uint32_t *)&t->flow_ipg, t->sched, 1);
+			t3_set_pace_tbl(sc, &t->flow_ipg, t->sched, 1);
 		}
 		if (t->mode >= 0) {
 			int bit = 1 << (S_TX_MOD_TIMER_MODE + t->sched);
