@@ -137,9 +137,6 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 			return (NULL);
 		}
 
-	/*
-	 * Lock to prevent object creation race condition.
-	 */
 	mtx_lock(&dev_pager_mtx);
 
 	/*
