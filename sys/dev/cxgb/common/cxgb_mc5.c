@@ -165,16 +165,26 @@ static int init_mask_data_array(struct mc5 *mc5, u32 mask_array_base,
 			return -1;
 
 	/* Initialize the mask array. */
-	dbgi_wr_data3(adap, 0xffffffff, 0xffffffff, 0xff);
-	for (i = 0; i < size72; i++) {
-		if (i == server_base)   /* entering server or routing region */
-			t3_write_reg(adap, A_MC5_DB_DBGI_REQ_DATA0,
-				     mc5->mode == MC5_MODE_144_BIT ?
-				     0xfffffff9 : 0xfffffffd);
+	for (i = 0; i < server_base; i++) {
+		dbgi_wr_data3(adap, 0x3fffffff, 0xfff80000, 0xff);
+		if (mc5_write(adap, mask_array_base + (i << addr_shift),
+			      write_cmd))
+			return -1;
+		i++;
+		dbgi_wr_data3(adap, 0xffffffff, 0xffffffff, 0xff);
 		if (mc5_write(adap, mask_array_base + (i << addr_shift),
 			      write_cmd))
 			return -1;
 	}
+
+	dbgi_wr_data3(adap,
+		      mc5->mode == MC5_MODE_144_BIT ? 0xfffffff9 : 0xfffffffd,
+		      0xffffffff, 0xff);
+	for (; i < size72; i++)
+		if (mc5_write(adap, mask_array_base + (i << addr_shift),
+			      write_cmd))
+			return -1;
+
 	return 0;
 }
 
@@ -305,17 +315,15 @@ static int init_idt43102(struct mc5 *mc5)
 /* Put MC5 in DBGI mode. */
 static inline void mc5_dbgi_mode_enable(const struct mc5 *mc5)
 {
-	t3_write_reg(mc5->adapter, A_MC5_DB_CONFIG,
-		     V_TMMODE(mc5->mode == MC5_MODE_72_BIT) | F_DBGIEN);
+	t3_set_reg_field(mc5->adapter, A_MC5_DB_CONFIG, F_PRTYEN | F_MBUSEN,
+			 F_DBGIEN);
 }
 
 /* Put MC5 in M-Bus mode. */
 static void mc5_dbgi_mode_disable(const struct mc5 *mc5)
 {
-	t3_write_reg(mc5->adapter, A_MC5_DB_CONFIG,
-		     V_TMMODE(mc5->mode == MC5_MODE_72_BIT) |
-		     V_COMPEN(mc5->mode == MC5_MODE_72_BIT) |
-		     V_PRTYEN(mc5->parity_enabled) | F_MBUSEN);
+	t3_set_reg_field(mc5->adapter, A_MC5_DB_CONFIG, F_DBGIEN,
+			 V_PRTYEN(mc5->parity_enabled) | F_MBUSEN);
 }
 
 /*
@@ -325,9 +333,9 @@ static void mc5_dbgi_mode_disable(const struct mc5 *mc5)
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 		unsigned int nroutes)
 {
-	u32 cfg;
 	int err;
 	unsigned int tcam_size = mc5->tcam_size;
+	unsigned int mode72 = mc5->mode == MC5_MODE_72_BIT;
 	adapter_t *adap = mc5->adapter;
 
 	if (!tcam_size)
@@ -336,10 +344,12 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 	if (nroutes > MAX_ROUTES || nroutes + nservers + nfilters > tcam_size)
 		return -EINVAL;
 
+	if (nfilters && adap->params.rev < T3_REV_C)
+		mc5->parity_enabled = 0;
+
 	/* Reset the TCAM */
-	cfg = t3_read_reg(adap, A_MC5_DB_CONFIG) & ~F_TMMODE;
-	cfg |= V_TMMODE(mc5->mode == MC5_MODE_72_BIT) | F_TMRST;
-	t3_write_reg(adap, A_MC5_DB_CONFIG, cfg);
+	t3_set_reg_field(adap, A_MC5_DB_CONFIG, F_TMMODE | F_COMPEN,
+			 V_COMPEN(mode72) | V_TMMODE(mode72) | F_TMRST);
 	if (t3_wait_op_done(adap, A_MC5_DB_CONFIG, F_TMRDY, 1, 500, 0)) {
 		CH_ERR(adap, "TCAM reset timed out\n");
 		return -1;
@@ -350,8 +360,6 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 		     tcam_size - nroutes - nfilters);
 	t3_write_reg(adap, A_MC5_DB_SERVER_INDEX,
 		     tcam_size - nroutes - nfilters - nservers);
-
-	mc5->parity_enabled = 1;
 
 	/* All the TCAM addresses we access have only the low 32 bits non 0 */
 	t3_write_reg(adap, A_MC5_DB_DBGI_REQ_ADDR1, 0);
@@ -467,6 +475,7 @@ void __devinit t3_mc5_prep(adapter_t *adapter, struct mc5 *mc5, int mode)
 	u32 cfg = t3_read_reg(adapter, A_MC5_DB_CONFIG);
 
 	mc5->adapter = adapter;
+	mc5->parity_enabled = 1;
 	mc5->mode = (unsigned char) mode;
 	mc5->part_type = (unsigned char) G_TMTYPE(cfg);
 	if (cfg & F_TMTYPEHI)

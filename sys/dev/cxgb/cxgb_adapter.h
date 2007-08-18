@@ -117,7 +117,7 @@ struct port_info {
 #else	
 	struct mtx	lock;
 #endif	
-	int		port;
+	int		port_id;
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	uint8_t		nqsets;
 	uint8_t         first_qset;
@@ -138,6 +138,7 @@ enum {				/* adapter flags */
 	USING_MSIX	= (1 << 2),
 	QUEUES_BOUND	= (1 << 3),
 	FW_UPTODATE     = (1 << 4),
+	TPS_UPTODATE    = (1 << 5),
 };
 
 
@@ -239,6 +240,8 @@ struct sge_fl {
 struct tx_desc;
 struct tx_sw_desc;
 
+#define TXQ_TRANSMITTING    0x1
+
 struct sge_txq {
 	uint64_t	flags;
 	uint32_t	in_use;
@@ -254,7 +257,9 @@ struct sge_txq {
 	struct tx_sw_desc *sdesc;
 	uint32_t	token;
 	bus_addr_t	phys_addr;
-	struct task     qresume_tsk;
+	struct task     qresume_task;
+	struct task     qreclaim_task;
+	struct port_info *port;
 	uint32_t	cntxt_id;
 	uint64_t	stops;
 	uint64_t	restarts;
@@ -297,13 +302,15 @@ struct sge {
 	struct mtx              reg_lock;
 };
 
+struct filter_info;
+
 struct adapter {
 	device_t		dev;
 	int			flags;
 	TAILQ_ENTRY(adapter)    adapter_entry;
 	
 	/* PCI register resources */
-	uint32_t		regs_rid;
+	int			regs_rid;
 	struct resource		*regs_res;
 	bus_space_handle_t	bh;
 	bus_space_tag_t		bt;
@@ -327,7 +334,11 @@ struct adapter {
 	struct resource		*msix_irq_res[SGE_QSETS];
 	int			msix_irq_rid[SGE_QSETS];
 	void			*msix_intr_tag[SGE_QSETS];
+	uint8_t                 rxpkt_map[8]; /* maps RX_PKT interface values to port ids */
+	uint8_t                 rrss_map[SGE_QSETS]; /* revers RSS map table */
 
+	struct filter_info      *filters;
+	
 	/* Tasks */
 	struct task		ext_intr_task;
 	struct task		slow_intr_task;
@@ -391,13 +402,13 @@ struct t3_rx_mode {
 #define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
 #define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
 #define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
-#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SX_LOCKED)
+#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
 
 #define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
 #define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
 #define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
 #define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SX_UNLOCKED)
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
 #else
 #define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);

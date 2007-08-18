@@ -66,6 +66,7 @@ enum {
 	CH_SETMIIREGS,
 	CH_SET_FILTER,
 	CH_SET_HW_SCHED,
+	CH_DEL_FILTER,
 };
 
 struct ch_reg {
@@ -127,7 +128,31 @@ struct ch_hw_sched {
 	int8_t   channel;
 	int32_t  kbps;        /* rate in Kbps */
 	int32_t  class_ipg;   /* tenths of nanoseconds */
-	int32_t  flow_ipg;    /* usec */
+	uint32_t flow_ipg;    /* usec */
+};
+
+struct ch_filter_tuple {
+	uint32_t sip;
+	uint32_t dip;
+	uint16_t sport;
+	uint16_t dport;
+	uint16_t vlan:12;
+	uint16_t vlan_prio:3;
+};
+
+struct ch_filter {
+	uint32_t cmd;
+	uint32_t filter_id;
+	struct ch_filter_tuple val;
+	struct ch_filter_tuple mask;
+	uint16_t mac_addr_idx;
+	uint8_t mac_hit:1;
+	uint8_t proto:2;
+
+	uint8_t want_filter_id:1; /* report filter TID instead of RSS hash */
+	uint8_t pass:1;           /* whether to pass or drop packets */
+	uint8_t rss:1;            /* use RSS or specified qset */
+	uint8_t qset;
 };
 
 #ifndef TCB_SIZE
@@ -232,5 +257,7 @@ struct mii_data {
 #define SIOCGMIIREG                 _IOWR('f', CH_GETMIIREGS, struct mii_data)
 #define SIOCSMIIREG                 _IOWR('f', CH_SETMIIREGS, struct mii_data)
 #define CHELSIO_SET_HW_SCHED        _IOWR('f', CH_SET_HW_SCHED, struct ch_hw_sched)
+#define CHELSIO_SET_FILTER          _IOW('f', CH_SET_FILTER, struct ch_filter)
+#define CHELSIO_DEL_FILTER          _IOW('f', CH_DEL_FILTER, struct ch_filter)
 #define CHELSIO_DEVUP               _IO('f', CH_DEVUP)
 #endif

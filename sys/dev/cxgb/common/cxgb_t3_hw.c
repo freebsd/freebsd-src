@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/cxgb_include.h>
 #endif
 
-#define DENTER() printf("entered %s\n", __FUNCTION__);
-#define DEXIT() printf("exiting %s\n", __FUNCTION__);
+#undef msleep
+#define msleep t3_os_sleep
 
 
 /**
@@ -355,7 +355,7 @@ int t3_phy_reset(struct cphy *phy, int mmd, int wait)
 			return err;
 		ctl &= BMCR_RESET;
 		if (ctl)
-			t3_os_sleep(1);
+			msleep(1);
 	} while (ctl && --wait);
 
 	return ctl ? -1 : 0;
@@ -482,7 +482,7 @@ const struct adapter_info *t3_get_adapter_info(unsigned int id)
 #define CAPS_10G (SUPPORTED_10000baseT_Full | SUPPORTED_AUI)
 
 static struct port_type_info port_types[] = {
-	{ NULL, 0, NULL },
+	{ NULL },
 	{ t3_ael1002_phy_prep, CAPS_10G | SUPPORTED_FIBRE,
 	  "10GBASE-XR" },
 	{ t3_vsc8211_phy_prep, CAPS_1G | SUPPORTED_TP | SUPPORTED_IRQ,
@@ -501,7 +501,7 @@ static struct port_type_info port_types[] = {
 #undef CAPS_10G
 
 #define VPD_ENTRY(name, len) \
-	u8 name##_kword[2]; u8 name##_len; u8 name##_data[len]
+	u8 name##_kword[2]; u8 name##_len; char name##_data[len]
 
 /*
  * Partial EEPROM Vital Product Data structure.  Includes only the ID and
@@ -594,7 +594,7 @@ int t3_seeprom_write(adapter_t *adapter, u32 addr, u32 data)
 	t3_os_pci_write_config_2(adapter, base + PCI_VPD_ADDR,
 				 (u16)addr | PCI_VPD_ADDR_F);
 	do {
-		t3_os_sleep(1);
+		msleep(1);
 		t3_os_pci_read_config_2(adapter, base + PCI_VPD_ADDR, &val);
 	} while ((val & PCI_VPD_ADDR_F) && --attempts);
 
@@ -653,11 +653,11 @@ static int get_vpd_params(adapter_t *adapter, struct vpd_params *p)
 			return ret;
 	}
 
-	p->cclk = simple_strtoul((char *)vpd.cclk_data, NULL, 10);
-	p->mclk = simple_strtoul((char *)vpd.mclk_data, NULL, 10);
-	p->uclk = simple_strtoul((char *)vpd.uclk_data, NULL, 10);
-	p->mdc = simple_strtoul((char *)vpd.mdc_data, NULL, 10);
-	p->mem_timing = simple_strtoul((char *)vpd.mt_data, NULL, 10);
+	p->cclk = simple_strtoul(vpd.cclk_data, NULL, 10);
+	p->mclk = simple_strtoul(vpd.mclk_data, NULL, 10);
+	p->uclk = simple_strtoul(vpd.uclk_data, NULL, 10);
+	p->mdc = simple_strtoul(vpd.mdc_data, NULL, 10);
+	p->mem_timing = simple_strtoul(vpd.mt_data, NULL, 10);
 
 	/* Old eeproms didn't have port information */
 	if (adapter->params.rev == 0 && !vpd.port0_data[0]) {
@@ -668,8 +668,8 @@ static int get_vpd_params(adapter_t *adapter, struct vpd_params *p)
 		p->port_type[1] = (u8)hex2int(vpd.port1_data[0]);
 		p->port_type[2] = (u8)hex2int(vpd.port2_data[0]);
 		p->port_type[3] = (u8)hex2int(vpd.port3_data[0]);
-		p->xauicfg[0] = simple_strtoul((char *)vpd.xaui0cfg_data, NULL, 16);
-		p->xauicfg[1] = simple_strtoul((char *)vpd.xaui1cfg_data, NULL, 16);
+		p->xauicfg[0] = simple_strtoul(vpd.xaui0cfg_data, NULL, 16);
+		p->xauicfg[1] = simple_strtoul(vpd.xaui1cfg_data, NULL, 16);
 	}
 
 	for (i = 0; i < 6; i++)
@@ -770,7 +770,7 @@ static int flash_wait_op(adapter_t *adapter, int attempts, int delay)
 		if (--attempts == 0)
 			return -EAGAIN;
 		if (delay)
-			t3_os_sleep(delay);
+			msleep(delay);
 	}
 }
 
@@ -860,10 +860,32 @@ static int t3_write_flash(adapter_t *adapter, unsigned int addr,
 }
 
 /**
+ *	t3_get_tp_version - read the tp sram version
+ *	@adapter: the adapter
+ *	@vers: where to place the version
+ *
+ *	Reads the protocol sram version from sram.
+ */
+int t3_get_tp_version(adapter_t *adapter, u32 *vers)
+{
+	int ret;
+
+	/* Get version loaded in SRAM */
+	t3_write_reg(adapter, A_TP_EMBED_OP_FIELD0, 0);
+	ret = t3_wait_op_done(adapter, A_TP_EMBED_OP_FIELD0,
+			      1, 1, 5, 1);
+	if (ret)
+		return ret;
+	
+	*vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
+
+	return 0;
+}
+
+/**
  *	t3_check_tpsram_version - read the tp sram version
  *	@adapter: the adapter
  *
- *	Reads the protocol sram version from serial eeprom.
  */
 int t3_check_tpsram_version(adapter_t *adapter)
 {
@@ -886,6 +908,9 @@ int t3_check_tpsram_version(adapter_t *adapter)
 	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
 		return 0;
 
+	CH_ERR(adapter, "found wrong TP version (%u.%u), "
+	       "driver needs version %d.%d\n", major, minor,
+	       TP_VERSION_MAJOR, TP_VERSION_MINOR);
 	return -EINVAL;
 }
 
@@ -899,7 +924,7 @@ int t3_check_tpsram_version(adapter_t *adapter)
  *	Checks if an adapter's tp sram is compatible with the driver.
  *	Returns 0 if the versions are compatible, a negative error otherwise.
  */
-int t3_check_tpsram(adapter_t *adapter, u8 *tp_sram, unsigned int size)
+int t3_check_tpsram(adapter_t *adapter, const u8 *tp_sram, unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
@@ -960,8 +985,8 @@ int t3_check_fw_version(adapter_t *adapter)
 		return 0;
 
 	CH_ERR(adapter, "found wrong FW version (%u.%u), "
-	       "driver needs version %d.%d\n", major, minor,
-	       FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	    "driver needs version %d.%d\n", major, minor,
+	    FW_VERSION_MAJOR, FW_VERSION_MINOR);
 	return -EINVAL;
 }
 
@@ -2329,6 +2354,28 @@ void t3_tp_set_offload_mode(adapter_t *adap, int enable)
 				 V_NICMODE(!enable));
 }
 
+static void tp_wr_bits_indirect(adapter_t *adap, unsigned int addr,
+				unsigned int mask, unsigned int val)
+{
+	t3_write_reg(adap, A_TP_PIO_ADDR, addr);
+	val |= t3_read_reg(adap, A_TP_PIO_DATA) & ~mask;
+	t3_write_reg(adap, A_TP_PIO_DATA, val);
+}
+
+/**
+ *	t3_enable_filters - enable the HW filters
+ *	@adap: the adapter
+ *
+ *	Enables the HW filters for NIC traffic.
+ */
+void t3_enable_filters(adapter_t *adap)
+{
+	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_NICMODE, 0);
+	t3_set_reg_field(adap, A_MC5_DB_CONFIG, 0, F_FILTEREN);
+	t3_set_reg_field(adap, A_TP_GLOBAL_CONFIG, 0, V_FIVETUPLELOOKUP(3));
+	tp_wr_bits_indirect(adap, A_TP_INGRESS_CONFIG, 0, F_LOOKUPEVERYPKT);
+}
+
 /**
  *	pm_num_pages - calculate the number of pages of the payload memory
  *	@mem_size: the size of the payload memory
@@ -2422,14 +2469,6 @@ static inline void tp_wr_indirect(adapter_t *adap, unsigned int addr, u32 val)
 	t3_write_reg(adap, A_TP_PIO_DATA, val);
 }
 
-static void tp_wr_bits_indirect(adapter_t *adap, unsigned int addr,
-				unsigned int mask, unsigned int val)
-{
-	t3_write_reg(adap, A_TP_PIO_ADDR, addr);
-	val |= t3_read_reg(adap, A_TP_PIO_DATA) & ~mask;
-	t3_write_reg(adap, A_TP_PIO_DATA, val);
-}
-
 static void tp_config(adapter_t *adap, const struct tp_params *p)
 {
 	t3_write_reg(adap, A_TP_GLOBAL_CONFIG, F_TXPACINGENABLE | F_PATHMTU |
@@ -2459,10 +2498,12 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 
 	if (adap->params.rev > 0) {
 		tp_wr_indirect(adap, A_TP_EGRESS_CONFIG, F_REWRITEFORCETOSIZE);
-		t3_set_reg_field(adap, A_TP_PARA_REG3, F_TXPACEAUTO,
-				 F_TXPACEAUTO);
+		t3_set_reg_field(adap, A_TP_PARA_REG3, 0,
+				 F_TXPACEAUTO | F_TXPACEAUTOSTRICT);
 		t3_set_reg_field(adap, A_TP_PC_CONFIG, F_LOCKTID, F_LOCKTID);
-		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEAUTOSTRICT);
+		tp_wr_indirect(adap, A_TP_VLAN_PRI_MAP, 0xfa50);
+		tp_wr_indirect(adap, A_TP_MAC_MATCH_MAP0, 0xfac688);
+		tp_wr_indirect(adap, A_TP_MAC_MATCH_MAP1, 0xfac688);
 	} else
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEFIXED);
 
@@ -2816,17 +2857,17 @@ static void ulp_config(adapter_t *adap, const struct tp_params *p)
  *
  *	Write the contents of the protocol SRAM.
  */
-int t3_set_proto_sram(adapter_t *adap, u8 *data)
+int t3_set_proto_sram(adapter_t *adap, const u8 *data)
 {
 	int i;
-	u32 *buf = (u32 *)data;
+	u32 *buf = (u32 *)(uintptr_t)data;
 
 	for (i = 0; i < PROTO_SRAM_LINES; i++) {
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, htobe32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, htobe32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, htobe32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, htobe32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, htobe32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, cpu_to_be32(*buf++));
 		
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, i << 1 | 1 << 31);
 		if (t3_wait_op_done(adap, A_TP_EMBED_OP_FIELD0, 1, 1, 5, 1))
@@ -3053,7 +3094,7 @@ static int calibrate_xgm(adapter_t *adapter)
 		for (i = 0; i < 5; ++i) {
 			t3_write_reg(adapter, A_XGM_XAUI_IMP, 0);
 			(void) t3_read_reg(adapter, A_XGM_XAUI_IMP);
-			t3_os_sleep(1);
+			msleep(1);
 			v = t3_read_reg(adapter, A_XGM_XAUI_IMP);
 			if (!(v & (F_XGM_CALFAULT | F_CALBUSY))) {
 				t3_write_reg(adapter, A_XGM_XAUI_IMP,
@@ -3140,12 +3181,12 @@ static int mc7_init(struct mc7 *mc7, unsigned int mc7_clock, int mem_type)
 
 	t3_write_reg(adapter, mc7->offset + A_MC7_CFG, val | F_IFEN);
 	val = t3_read_reg(adapter, mc7->offset + A_MC7_CFG);  /* flush */
-	t3_os_sleep(1);
+	msleep(1);
 
 	if (!slow) {
 		t3_write_reg(adapter, mc7->offset + A_MC7_CAL, F_SGL_CAL_EN);
 		(void) t3_read_reg(adapter, mc7->offset + A_MC7_CAL);
-		t3_os_sleep(1);
+		msleep(1);
 		if (t3_read_reg(adapter, mc7->offset + A_MC7_CAL) &
 		    (F_BUSY | F_SGL_CAL_EN | F_CAL_FAULT)) {
 			CH_ERR(adapter, "%s MC7 calibration timed out\n",
@@ -3211,7 +3252,7 @@ static int mc7_init(struct mc7 *mc7, unsigned int mc7_clock, int mem_type)
 
 	attempts = 50;
 	do {
-		t3_os_sleep(250);
+		msleep(250);
 		val = t3_read_reg(adapter, mc7->offset + A_MC7_BIST_OP);
 	} while ((val & F_BUSY) && --attempts);
 	if (val & F_BUSY) {
@@ -3297,11 +3338,8 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 	else if (calibrate_xgm(adapter))
 		goto out_err;
 
-	if (adapter->params.nports > 2) {
+	if (adapter->params.nports > 2)
 		t3_mac_reset(&adap2pinfo(adapter, 0)->mac);
-		if ((err = t3_vsc7323_init(adapter, adapter->params.nports)))
-		       goto out_err;
-	}
 
 	if (vpd->mclk) {
 		partition_mem(adapter, &adapter->params.tp);
@@ -3341,7 +3379,7 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 	(void) t3_read_reg(adapter, A_CIM_BOOT_CFG);    /* flush */
 
 	do {                          /* wait for uP to initialize */
-		t3_os_sleep(20);
+		msleep(20);
 	} while (t3_read_reg(adapter, A_CIM_HOST_ACC_DATA) && --attempts);
 	if (!attempts) {
 		CH_ERR(adapter, "uP initialization timed out\n");
@@ -3453,7 +3491,6 @@ void mac_prep(struct cmac *mac, adapter_t *adapter, int index)
 {
 	mac->adapter = adapter;
 	mac->multiport = adapter->params.nports > 2;
-
 	if (mac->multiport) {
 		mac->ext_port = (unsigned char)index;
 		mac->nucast = 8;
@@ -3516,7 +3553,7 @@ static int t3_reset_adapter(adapter_t *adapter)
 	 * XXX The delay time should be modified.
 	 */
 	for (i = 0; i < 10; i++) {
-		t3_os_sleep(50);
+		msleep(50);
 		t3_os_pci_read_config_2(adapter, 0x00, &devid);
 		if (devid == 0x1425)
 			break;
@@ -3548,16 +3585,18 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 	adapter->params.chan_map = !!ai->nports0 | (!!ai->nports1 << 1);
 	adapter->params.rev = t3_read_reg(adapter, A_PL_REV);
 	adapter->params.linkpoll_period = 0;
-	adapter->params.stats_update_period = is_10G(adapter) ?
-		MAC_STATS_ACCUM_SECS : (MAC_STATS_ACCUM_SECS * 10);
+	if (adapter->params.nports > 2)
+		adapter->params.stats_update_period = VSC_STATS_ACCUM_SECS;
+	else
+		adapter->params.stats_update_period = is_10G(adapter) ?
+			MAC_STATS_ACCUM_SECS : (MAC_STATS_ACCUM_SECS * 10);
 	adapter->params.pci.vpd_cap_addr =
 		t3_os_find_pci_capability(adapter, PCI_CAP_ID_VPD);
 
 	ret = get_vpd_params(adapter, &adapter->params.vpd);
-	if (ret < 0) {
-		printf("failed to get VPD params\n");
+	if (ret < 0)
 		return ret;
-	}
+
 	if (reset && t3_reset_adapter(adapter))
 		return -1;
 
@@ -3606,24 +3645,18 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 
 	early_hw_init(adapter, ai);
 
+	if (adapter->params.nports > 2 &&
+	    (ret = t3_vsc7323_init(adapter, adapter->params.nports)))
+		return ret;
+
 	for_each_port(adapter, i) {
 		u8 hw_addr[6];
 		struct port_info *p = adap2pinfo(adapter, i);
 
-		while (adapter->params.vpd.port_type[j] == 0) {
+		while (!adapter->params.vpd.port_type[j])
 			++j;
-		}
-		if (adapter->params.vpd.port_type[j] > sizeof(port_types)/sizeof(port_types[0])) {
-			printf("bad port type idx=%d\n", adapter->params.vpd.port_type[j]);
-			printf("port types: ");
-			for (i = 0; i < j; i++)
-				printf("port[%d]=%d  ", i, adapter->params.vpd.port_type[i]);
-			printf("\n");
-			return -1;
-		}
-		
 
-	        p->port_type = &port_types[adapter->params.vpd.port_type[j]];
+		p->port_type = &port_types[adapter->params.vpd.port_type[j]];
 		p->port_type->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
 				       ai->mdio_ops);
 		mac_prep(&p->mac, adapter, j);

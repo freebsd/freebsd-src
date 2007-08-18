@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/cxgb_include.h>
 #endif
 
+#undef msleep
+#define msleep t3_os_sleep
+
 /*
  * # of exact address filters.  The first one is used for the station address,
  * the rest are available for multicast addresses.
@@ -154,7 +157,7 @@ int t3_mac_reset(struct cmac *mac)
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, val);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);  /* flush */
 	if ((val & F_PCS_RESET_) && adap->params.rev) {
-		t3_os_sleep(1);
+		msleep(1);
 		t3b_pcs_reset(mac);
 	}
 
@@ -179,7 +182,7 @@ static int t3b2_mac_reset(struct cmac *mac)
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, F_MAC_RESET_);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);    /* flush */
 
-	t3_os_sleep(10);
+	msleep(10);
 
 	/* Check for xgm Rx fifo empty */
 	if (t3_wait_op_done(adap, A_XGM_RX_MAX_PKT_SIZE_ERR_CNT + oft,
@@ -202,7 +205,7 @@ static int t3b2_mac_reset(struct cmac *mac)
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, val);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);  /* flush */
 	if ((val & F_PCS_RESET_) && adap->params.rev) {
-		t3_os_sleep(1);
+		msleep(1);
 		t3b_pcs_reset(mac);
 	}
 	t3_write_reg(adap, A_XGM_RX_CFG + oft, 
@@ -243,7 +246,6 @@ int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6])
 	set_addr_filter(mac, idx, addr);
 	if (mac->multiport && idx < mac->adapter->params.nports)
 		t3_vsc7323_set_addr(mac->adapter, addr, idx);
-
 	return 0;
 }
 
@@ -425,8 +427,17 @@ int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc)
 
 	if (duplex >= 0 && duplex != DUPLEX_FULL)
 		return -EINVAL;
-	if (mac->multiport)
+	if (mac->multiport) {	
+		val = t3_read_reg(adap, A_XGM_RXFIFO_CFG + oft);
+		val &= ~V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM);
+		val |= V_RXFIFOPAUSEHWM(rx_fifo_hwm(t3_read_reg(adap,
+					A_XGM_RX_MAX_PKT_SIZE + oft)) / 8);
+		t3_write_reg(adap, A_XGM_RXFIFO_CFG + oft, val);
+
+		t3_set_reg_field(adap, A_XGM_TX_CFG + oft, F_TXPAUSEEN,
+			  		F_TXPAUSEEN);
 		return t3_vsc7323_set_speed_fc(adap, speed, fc, mac->ext_port);
+	}
 	if (speed >= 0) {
 		if (speed == SPEED_10)
 			val = V_PORTSPEED(0);
@@ -451,7 +462,7 @@ int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc)
 	t3_write_reg(adap, A_XGM_RXFIFO_CFG + oft, val);
 
 	t3_set_reg_field(adap, A_XGM_TX_CFG + oft, F_TXPAUSEEN,
-			 (fc & PAUSE_RX) ? F_TXPAUSEEN : 0);
+			(fc & PAUSE_RX) ? F_TXPAUSEEN : 0);
 	return 0;
 }
 
@@ -466,11 +477,12 @@ int t3_mac_enable(struct cmac *mac, int which)
 		return t3_vsc7323_enable(adap, mac->ext_port, which);
 
 	if (which & MAC_DIRECTION_TX) {
-		t3_write_reg(adap, A_XGM_TX_CTRL + oft, F_TXEN);
 		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
 		t3_write_reg(adap, A_TP_PIO_DATA, 0xc0ede401);
 		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_MODE);
 		t3_set_reg_field(adap, A_TP_PIO_DATA, 1 << idx, 1 << idx);
+
+		t3_write_reg(adap, A_XGM_TX_CTRL + oft, F_TXEN);
 
 		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CNT_CH0 + idx);
 		mac->tx_mcnt = s->tx_frames;
@@ -493,7 +505,6 @@ int t3_mac_enable(struct cmac *mac, int which)
 
 int t3_mac_disable(struct cmac *mac, int which)
 {
-	int idx = macidx(mac);
 	adapter_t *adap = mac->adapter;
 	int val;
 
@@ -501,17 +512,14 @@ int t3_mac_disable(struct cmac *mac, int which)
 		return t3_vsc7323_disable(adap, mac->ext_port, which);
 
 	if (which & MAC_DIRECTION_TX) {
+		val = t3_read_reg(adap, A_MPS_CFG); 
 		t3_write_reg(adap, A_XGM_TX_CTRL + mac->offset, 0);
-		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
-		t3_write_reg(adap, A_TP_PIO_DATA, 0xc000001f);
-		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_MODE);
-		t3_set_reg_field(adap, A_TP_PIO_DATA, 1 << idx, 1 << idx);
 		mac->txen = 0;
 	}
 	if (which & MAC_DIRECTION_RX) {
 		t3_set_reg_field(mac->adapter, A_XGM_RESET_CTRL + mac->offset,
 				 F_PCS_RESET_, 0);
-		t3_os_sleep(100);
+		msleep(100);
 		t3_write_reg(adap, A_XGM_RX_CTRL + mac->offset, 0);
 		val = F_MAC_RESET_;
 		if (is_10G(adap))
@@ -535,6 +543,13 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	unsigned int rx_mcnt = (unsigned int)s->rx_frames;
 	unsigned int rx_xcnt;
 
+	if (mac->multiport) {
+	  tx_mcnt = t3_read_reg(adap, A_XGM_STAT_TX_FRAME_LOW);
+	  rx_mcnt = t3_read_reg(adap, A_XGM_STAT_RX_FRAMES_LOW);
+	} else {
+	  tx_mcnt = (unsigned int)s->tx_frames;
+	  rx_mcnt = (unsigned int)s->rx_frames;
+	}
 	status = 0;
 	tx_xcnt = 1; /* By default tx_xcnt is making progress*/
 	tx_tcnt = mac->tx_tcnt; /* If tx_mcnt is progressing ignore tx_tcnt*/
@@ -573,15 +588,18 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	}
 
 rxcheck:
-	if (rx_mcnt != mac->rx_mcnt)
+	if (rx_mcnt != mac->rx_mcnt) {
 		rx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_RX_SPI4_SOP_EOP_CNT +
-						mac->offset)));
-	else 
+						mac->offset))) + 
+						(s->rx_fifo_ovfl - mac->rx_ocnt);
+		mac->rx_ocnt = s->rx_fifo_ovfl;
+	} else 
 		goto out;
 
 	if (mac->rx_mcnt != s->rx_frames && rx_xcnt == 0 && mac->rx_xcnt == 0) {
-		status = 2;
+		if (!mac->multiport)
+		  status = 2;
 		goto out;
 	}
 	
@@ -621,6 +639,9 @@ const struct mac_stats *t3_mac_update_stats(struct cmac *mac)
 			     ((u64)RMON_READ(mac, A_XGM_STAT_##reg_hi) << 32)
 
 	u32 v, lo;
+
+	if (mac->multiport)
+		return t3_vsc7323_update_stats(mac);
 
 	RMON_UPDATE64(mac, rx_octets, RX_BYTES_LOW, RX_BYTES_HIGH);
 	RMON_UPDATE64(mac, rx_frames, RX_FRAMES_LOW, RX_FRAMES_HIGH);

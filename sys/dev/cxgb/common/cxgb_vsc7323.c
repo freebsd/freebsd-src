@@ -115,13 +115,16 @@ int t3_vsc7323_init(adapter_t *adap, int nports)
 		{ VSC_REG(2, 0, 0x2f), 0 },
 		{ VSC_REG(2, 0, 0xf),  0xa0010291 },
 		{ VSC_REG(2, 1, 0x2f), 1 },
-		{ VSC_REG(2, 1, 0xf),  0xa0026301 }
+		{ VSC_REG(2, 1, 0xf),  0xa026301 }
 	};
 	static struct addr_val_pair xg_avp[] = {
 		{ VSC_REG(1, 10, 0),    0x600b },
-		{ VSC_REG(1, 10, 2),    0x4000 },
+		{ VSC_REG(1, 10, 1),    0x70600 }, //QUANTA = 96*1024*8/512
+		{ VSC_REG(1, 10, 2),    0x2710 },
 		{ VSC_REG(1, 10, 5),    0x65 },
-		{ VSC_REG(1, 10, 7),    3 },
+		{ VSC_REG(1, 10, 7),    0x23 },
+		{ VSC_REG(1, 10, 0x23), 0x800007bf },
+		{ VSC_REG(1, 10, 0x23), 0x000007bf },
 		{ VSC_REG(1, 10, 0x23), 0x800007bf },
 		{ VSC_REG(1, 10, 0x24), 4 }
 	};
@@ -130,10 +133,9 @@ int t3_vsc7323_init(adapter_t *adap, int nports)
 
 	for (i = 0; i < ARRAY_SIZE(sys_avp); i++)
 		if ((ret = t3_elmr_blk_write(adap, sys_avp[i].reg_addr,
-			    &sys_avp[i].val, 1)))
+					     &sys_avp[i].val, 1)))
 			return ret;
 
-	
 	ing_step = 0xc0 / nports;
 	egr_step = 0x40 / nports;
 	ing_bot = egr_bot = 0;
@@ -141,22 +143,27 @@ int t3_vsc7323_init(adapter_t *adap, int nports)
 //	egr_wm = egr_step * 64;
 
 	/* {ING,EGR}_CONTROL.CLR = 1 here */
-	for (i = 0; i < nports; i++)
-		if ((ret = elmr_write(adap, VSC_REG(2, 0, 0x10 + i),
+	for (i = 0; i < nports; i++) {
+		if (
+		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x10 + i),
 				((ing_bot + ing_step) << 16) | ing_bot)) ||
-		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x50 + i), 0)) ||
+		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x40 + i),
+				0x6000a00)) ||
+		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x50 + i), 1)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 1, 0x10 + i),
 				((egr_bot + egr_step) << 16) | egr_bot)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 1, 0x40 + i),
 				0x2000280)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 1, 0x50 + i), 0)))
 			return ret;
-
+		ing_bot += ing_step;
+		egr_bot += egr_step;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(fifo_avp); i++)
 		if ((ret = t3_elmr_blk_write(adap, fifo_avp[i].reg_addr,
-			    &fifo_avp[i].val, 1)))
-                        return ret;
+					     &fifo_avp[i].val, 1)))
+			return ret;
 
 	for (i = 0; i < ARRAY_SIZE(xg_avp); i++)
 		if ((ret = t3_elmr_blk_write(adap, xg_avp[i].reg_addr,
@@ -198,7 +205,7 @@ int t3_vsc7323_set_speed_fc(adapter_t *adap, int speed, int fc, int port)
 			return r;
 	}
 
-	r = (fc & PAUSE_RX) ? 0x6ffff : 0x2ffff;
+	r = (fc & PAUSE_RX) ? 0x60200 : 0x20200; //QUANTA = 32*1024*8/512
 	if (fc & PAUSE_TX)
 		r |= (1 << 19);
 	return elmr_write(adap, VSC_REG(1, port, 1), r);
@@ -212,12 +219,12 @@ int t3_vsc7323_set_mtu(adapter_t *adap, unsigned int mtu, int port)
 int t3_vsc7323_set_addr(adapter_t *adap, u8 addr[6], int port)
 {
 	int ret;
-	
+
 	ret = elmr_write(adap, VSC_REG(1, port, 3),
-	    (addr[0] << 16) | (addr[1] << 8) | addr[2]);
+			 (addr[0] << 16) | (addr[1] << 8) | addr[2]);
 	if (!ret)
 		ret = elmr_write(adap, VSC_REG(1, port, 4),
-		    (addr[3] << 16) | (addr[4] << 8) | addr[5]);
+				 (addr[3] << 16) | (addr[4] << 8) | addr[5]);
 	return ret;
 }
 

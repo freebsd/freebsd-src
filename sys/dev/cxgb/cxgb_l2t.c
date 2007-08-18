@@ -37,7 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-
+#if __FreeBSD_version > 700000
+#include <sys/rwlock.h>
+#endif
 
 #include <sys/socket.h>
 #include <sys/socketvar.h>

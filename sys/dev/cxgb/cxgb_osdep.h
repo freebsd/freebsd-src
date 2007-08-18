@@ -165,8 +165,12 @@ static const int debug_flags = DBG_RX;
 
 #define max_t(type, a, b) (type)max((a), (b))
 #define net_device ifnet
+#define cpu_to_be32            htobe32
 
 
+#ifndef if_name
+#define if_name(ifp)  (ifp)->if_xname
+#endif
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
