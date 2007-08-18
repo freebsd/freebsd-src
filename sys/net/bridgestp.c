@@ -1688,7 +1688,8 @@ bstp_set_autoptp(struct bstp_port *bp, int set)
 	BSTP_LOCK(bs);
 	if (set) {
 		bp->bp_flags |= BSTP_PORT_AUTOPTP;
-		bstp_ifupdstatus(bs, bp);
+		if (bp->bp_role != BSTP_ROLE_DISABLED)
+			bstp_ifupdstatus(bs, bp);
 	} else
 		bp->bp_flags &= ~BSTP_PORT_AUTOPTP;
 	BSTP_UNLOCK(bs);
@@ -2022,11 +2023,6 @@ bstp_reinit(struct bstp_state *bs)
 
 	BSTP_LOCK_ASSERT(bs);
 
-	if (LIST_EMPTY(&bs->bs_bplist)) {
-		callout_stop(&bs->bs_bstpcallout);
-		return;
-	}
-
 	mif = NULL;
 	/*
 	 * Search through the Ethernet adapters and find the one with the
@@ -2053,8 +2049,17 @@ bstp_reinit(struct bstp_state *bs)
 	}
 	IFNET_RUNLOCK();
 
-	/* Can only happen if all interfaces have a zero MAC address */
-	if (mif == NULL) {
+	if (LIST_EMPTY(&bs->bs_bplist) || mif == NULL) {
+		/* Set the bridge and root id (lower bits) to zero */
+		bs->bs_bridge_pv.pv_dbridge_id =
+		    ((uint64_t)bs->bs_bridge_priority) << 48;
+		bs->bs_bridge_pv.pv_root_id = bs->bs_bridge_pv.pv_dbridge_id;
+		bs->bs_root_pv = bs->bs_bridge_pv;
+		/* Disable any remaining ports, they will have no MAC address */
+		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+			bp->bp_infois = BSTP_INFO_DISABLED;
+			bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
+		}
 		callout_stop(&bs->bs_bstpcallout);
 		return;
 	}
