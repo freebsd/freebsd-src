@@ -22,6 +22,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2006</year>
+      <year>2007</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -52,13 +53,12 @@
       <title>About &os;</title>
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
-	DEC/Compaq/HP Alpha/AXP computers (alpha),
-	AMD64 and Intel EM64T based PC hardware (amd64),
-	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC hardware (i386),
-	Intel Itanium Processor based computers (ia64),
-	NEC PC-9801/9821 series PCs and compatibles (pc98),
-	and &ultrasparc; machines (sparc64).  Versions
-	for the &powerpc; (powerpc), and &mips; (mips)
+	AMD64 and Intel EM64T based PC hardware (&arch.amd64;),
+	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC hardware (&arch.i386;),
+	Intel Itanium Processor based computers (&arch.ia64;),
+	NEC PC-9801/9821 series PCs and compatibles (&arch.pc98;),
+	and &ultrasparc; machines (&arch.sparc64;).  Versions
+	for the &powerpc; (&arch.powerpc;), and &mips; (mips)
 	architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
@@ -163,7 +163,7 @@
 	provides a convenient way to quickly reinstall the system if
 	necessary.  Some distributions include some of the optional,
 	precompiled <quote>packages</quote> from the &os; Ports
-	Collection.</para>
+	Collection, or other extra material.</para>
 
       <para>A list of the CDROM and DVD publishers known to the
 	project are listed in the <ulink
@@ -195,12 +195,12 @@
         URL="&url.articles.hubs;/">Mirroring
         &os;</ulink> article.</para>
 
-      <para>Mirrors generally contain the floppy disk images necessary
-	to begin an installation, as well as the distribution files
-	needed for the install process itself.  Many mirrors also
-	contain the ISO images necessary to create a CDROM of
-	a &os; release.</para>
-
+      <para>Mirrors generally contain the ISO images generally used to
+	create a CDROM of a &os; release.  They usually also contain
+	floppy disk images (for applicable platforms), as well as the
+	files necessary to do an installation over the network.
+	Finally mirrors sites usually contain a set of packages for
+	the most current release.</para>
     </sect2>
   </sect1>
 
@@ -296,8 +296,7 @@
 	provided in various formats.  Most distributions will include
 	both ASCII text (<filename>.TXT</filename>) and HTML
 	(<filename>.HTM</filename>) renditions.  Some distributions
-	may also include other formats such as PostScript
-	(<filename>.PS</filename>) or Portable Document Format
+	may also include other formats such as Portable Document Format
 	(<filename>.PDF</filename>).
 
 	<itemizedlist>
@@ -322,12 +321,6 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>INSTALL.TXT</filename>: Installation
-	      instructions for installing &os; from its distribution
-	      media.</para>
-	  </listitem>
-
-	  <listitem>
 	    <para><filename>ERRATA.TXT</filename>: Release errata.
 	      Late-breaking, post-release information can be found in
 	      this file, which is principally applicable to releases
@@ -338,20 +331,10 @@
 	      created.</para>
 	  </listitem>
 	</itemizedlist>
-
-	<note>
-	  <para>There are various versions of
-	    <filename>INSTALL.TXT</filename>, each containing information
-	    specific to a particular hardware architecture.
-	    The architecture
-	    to which each document applies will be listed in that
-	    document's title.</para>
-	</note>
-
       </para>
 
       <para>On platforms that support &man.sysinstall.8; (currently
-	alpha, &i386;, ia64, pc98, and &sparc64;), these documents are generally available via the
+	&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;, and &arch.sparc64;), these documents are generally available via the
 	Documentation menu during installation.  Once the system is
 	installed, you can revisit this menu by re-running the
 	&man.sysinstall.8; utility.</para>
@@ -403,7 +386,9 @@
 	url="&url.base;/docs.html">&os; Documentation
 	page</ulink> or its mirrors.  If you install the
 	<filename>doc</filename> distribution set, you can use a Web
-	browser to read the Handbook and FAQ locally.</para>
+	browser to read the Handbook and FAQ locally.  In particular,
+	note that the Handbook contains a step-by-step guide to
+	installing &os;.</para>
 
       <para>A number of on-line books and articles, also maintained by
         the &os; Project, cover more-specialized, &os;-related topics.
