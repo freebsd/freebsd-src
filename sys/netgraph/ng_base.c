@@ -1391,11 +1391,14 @@ ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
 	 * Procesing continues in that function in the lock context of
 	 * the other node.
 	 */
-	ng_send_fn(node2, hook2, &ng_con_part2, NULL, 0);
+	if ((error = ng_send_fn(node2, hook2, &ng_con_part2, NULL, 0))) {
+		printf("failed in ng_con_nodes(): %d\n", error);
+		ng_destroy_hook(hook);	/* also zaps peer */
+	}
 
 	NG_HOOK_UNREF(hook);		/* Let each hook go if it wants to */
 	NG_HOOK_UNREF(hook2);
-	return (0);
+	return (error);
 }
 
 /*
