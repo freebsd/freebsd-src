@@ -129,6 +129,9 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
 	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
+	if (*m->m_ext.ref_cnt == 0) 
+	  *m->m_ext.ref_cnt = 1;
+	  
 	m->m_flags |= M_EXT;
 
 }
