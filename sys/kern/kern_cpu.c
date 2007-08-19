@@ -396,7 +396,7 @@ cf_get_method(device_t dev, struct cf_level *level)
 	struct cf_setting *curr_set, set;
 	struct pcpu *pc;
 	device_t *devs;
-	int count, error, i, numdevs;
+	int count, error, i, n, numdevs;
 	uint64_t rate;
 
 	sc = device_get_softc(dev);
@@ -443,10 +443,10 @@ cf_get_method(device_t dev, struct cf_level *level)
 	 * The estimation code below catches this case though.
 	 */
 	CF_MTX_LOCK(&sc->lock);
-	for (i = 0; i < numdevs && curr_set->freq == CPUFREQ_VAL_UNKNOWN; i++) {
-		if (!device_is_attached(devs[i]))
+	for (n = 0; n < numdevs && curr_set->freq == CPUFREQ_VAL_UNKNOWN; n++) {
+		if (!device_is_attached(devs[n]))
 			continue;
-		error = CPUFREQ_DRV_GET(devs[i], &set);
+		error = CPUFREQ_DRV_GET(devs[n], &set);
 		if (error)
 			continue;
 		for (i = 0; i < count; i++) {
