@@ -421,11 +421,7 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
  */
 
 #define MEMO_SHIFT	4	/* 16 bytes minimum memory chunk */
-#ifndef __amd64__
 #define MEMO_PAGE_ORDER	0	/* 1 PAGE  maximum */
-#else
-#define MEMO_PAGE_ORDER	1	/* 2 PAGEs maximum on amd64 */
-#endif
 #if 0
 #define MEMO_FREE_UNUSED	/* Free unused pages immediately */
 #endif
@@ -434,14 +430,8 @@ static void MDELAY(int ms) { while (ms--) UDELAY(1000); }
 #define MEMO_CLUSTER_SIZE	(1UL << MEMO_CLUSTER_SHIFT)
 #define MEMO_CLUSTER_MASK	(MEMO_CLUSTER_SIZE-1)
 
-#ifndef __amd64__
 #define get_pages()		malloc(MEMO_CLUSTER_SIZE, M_DEVBUF, M_NOWAIT)
 #define free_pages(p)		free((p), M_DEVBUF)
-#else
-#define get_pages()		contigmalloc(MEMO_CLUSTER_SIZE, M_DEVBUF, \
-				    0, 0, 1LL << 32, PAGE_SIZE, 1LL << 32)
-#define free_pages(p)		contigfree((p), MEMO_CLUSTER_SIZE, M_DEVBUF)
-#endif
 
 typedef u_long m_addr_t;	/* Enough bits to bit-hack addresses */
 
@@ -675,7 +665,7 @@ static m_addr_t ___dma_getp(m_pool_s *mp)
 			      BUS_DMA_NOWAIT, &vbp->dmamap))
 		goto out_err;
 	bus_dmamap_load(mp->dmat, vbp->dmamap, vaddr,
-			MEMO_CLUSTER_SIZE, getbaddrcb, &baddr, 0);
+			MEMO_CLUSTER_SIZE, getbaddrcb, &baddr, BUS_DMA_NOWAIT);
 	if (baddr) {
 		int hc = VTOB_HASH_CODE(vaddr);
 		vbp->vaddr = (m_addr_t) vaddr;
@@ -735,7 +725,7 @@ static m_pool_s *___cre_dma_pool(bus_dma_tag_t dev_dmat)
 		mp->dev_dmat = dev_dmat;
 		if (!bus_dma_tag_create(dev_dmat, 1, MEMO_CLUSTER_SIZE,
 			       BUS_SPACE_MAXADDR_32BIT,
-			       BUS_SPACE_MAXADDR_32BIT,
+			       BUS_SPACE_MAXADDR,
 			       NULL, NULL, MEMO_CLUSTER_SIZE, 1,
 			       MEMO_CLUSTER_SIZE, 0,
 			       busdma_lock_mutex, &Giant, &mp->dmat)) {
@@ -1592,7 +1582,11 @@ struct sym_hcb {
 	/*
 	 *  Target data.
 	 */
+#ifdef __amd64__
+	struct sym_tcb	*target;
+#else
 	struct sym_tcb	target[SYM_CONF_MAX_TARGET];
+#endif
 
 	/*
 	 *  Target control block bus address array used by the SCRIPT 
@@ -8698,6 +8692,12 @@ sym_pci_attach(device_t dev)
 	np->fw_patch	 = fw->patch;
 	np->fw_name	 = fw->name;
 
+#ifdef __amd64__
+	np->target = sym_calloc_dma(SYM_CONF_MAX_TARGET * sizeof(*(np->target)),
+			"TARGET");
+	if (!np->target)
+		goto attach_failed;
+#endif
 	/*
 	 * Edit its name.
 	 */
@@ -9096,6 +9096,11 @@ static void sym_pci_free(hcb_p np)
 			       "LUNMP");
 #endif 
 	}
+#ifdef __amd64__
+	if (np->target)
+		sym_mfree_dma(np->target,
+			SYM_CONF_MAX_TARGET * sizeof(*(np->target)), "TARGET");
+#endif
 	if (np->targtbl)
 		sym_mfree_dma(np->targtbl, 256, "TARGTBL");
 	if (np->data_dmat)
