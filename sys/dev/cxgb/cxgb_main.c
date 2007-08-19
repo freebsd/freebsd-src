@@ -1921,7 +1921,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 		 */
 		KASSERT((m->m_flags & M_IOVEC) == 0, ("IOVEC set too early"));
 		m0 = m;
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && __FreeBSD_version > 700000
 		/*
 		 * Clean up after net stack sloppiness
 		 * before calling m_sanity

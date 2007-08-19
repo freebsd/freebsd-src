@@ -402,13 +402,20 @@ struct t3_rx_mode {
 #define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
 #define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
 #define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
-#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
 
 #define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
 #define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
 #define ADAPTER_LOCK_INIT(adap, name)      SX_INIT(&(adap)->lock, name)
 #define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
+
+#if __FreeBSD_version > 700000
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap)sx_assert(&(adap)->lock, SA_UNLOCKED)
+#define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
+#else
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) 
+#define PORT_LOCK_ASSERT_OWNED(port) 
+#endif
+
 #else
 #define PORT_LOCK(port)		     mtx_lock(&(port)->lock);
 #define PORT_UNLOCK(port)	     mtx_unlock(&(port)->lock);
