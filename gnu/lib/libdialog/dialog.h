@@ -74,7 +74,7 @@ typedef struct _dmenu_item {
 } dialogMenuItem;
 
 #define VERSION "0.4"
-#define MAX_LEN 2048
+#define MAX_LEN 4096
 
 #ifndef TRUE
 #define TRUE (1)
