@@ -131,25 +131,25 @@ _xfs_param_copyin(struct mount *mp, struct thread *td)
 	args->logbufsize = -1;
 
 	parse_int(mp, "flags", &args->flags, &error);
-	if (error != 0)
+	if (error != 0 && error != ENOENT)
 		return error;
 
 	args->flags |= XFSMNT_32BITINODES;
 
 	parse_int(mp, "sunit", &args->sunit, &error);
-	if (error != 0)
+	if (error != 0 && error != ENOENT)
 		return error;
 
 	parse_int(mp, "swidth", &args->swidth, &error);
-	if (error != 0)
+	if (error != 0 && error != ENOENT)
 		return error;
 
 	parse_int(mp, "logbufs", &args->logbufs, &error);
-	if (error != 0)
+	if (error != 0 && error != ENOENT)
 		return error;
 
 	parse_int(mp, "logbufsize", &args->logbufsize, &error);
-	if (error != 0)
+	if (error != 0 && error != ENOENT)
 		return error;
 
 	fsname = vfs_getopts(mp->mnt_optnew, "from", &error);
