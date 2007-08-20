@@ -227,7 +227,7 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 	const struct cf_setting *set;
 	struct cf_saved_freq *saved_freq, *curr_freq;
 	struct pcpu *pc;
-	int cpu_id, error, i;
+	int error, i;
 
 	sc = device_get_softc(dev);
 	error = 0;
@@ -294,22 +294,17 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 			goto out;
 		}
 
-		/* Bind to the target CPU before switching, if necessary. */
-		cpu_id = PCPU_GET(cpuid);
+		/* Bind to the target CPU before switching. */
 		pc = cpu_get_pcpu(set->dev);
-		if (cpu_id != pc->pc_cpuid) {
-			thread_lock(curthread);
-			sched_bind(curthread, pc->pc_cpuid);
-			thread_unlock(curthread);
-		}
+		thread_lock(curthread);
+		sched_bind(curthread, pc->pc_cpuid);
+		thread_unlock(curthread);
 		CF_DEBUG("setting abs freq %d on %s (cpu %d)\n", set->freq,
 		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
-		if (cpu_id != pc->pc_cpuid) {
-			thread_lock(curthread);
-			sched_unbind(curthread);
-			thread_unlock(curthread);
-		}
+		thread_lock(curthread);
+		sched_unbind(curthread);
+		thread_unlock(curthread);
 		if (error) {
 			goto out;
 		}
@@ -323,22 +318,17 @@ cf_set_method(device_t dev, const struct cf_level *level, int priority)
 			goto out;
 		}
 
-		/* Bind to the target CPU before switching, if necessary. */
-		cpu_id = PCPU_GET(cpuid);
+		/* Bind to the target CPU before switching. */
 		pc = cpu_get_pcpu(set->dev);
-		if (cpu_id != pc->pc_cpuid) {
-			thread_lock(curthread);
-			sched_bind(curthread, pc->pc_cpuid);
-			thread_unlock(curthread);
-		}
+		thread_lock(curthread);
+		sched_bind(curthread, pc->pc_cpuid);
+		thread_unlock(curthread);
 		CF_DEBUG("setting rel freq %d on %s (cpu %d)\n", set->freq,
 		    device_get_nameunit(set->dev), PCPU_GET(cpuid));
 		error = CPUFREQ_DRV_SET(set->dev, set);
-		if (cpu_id != pc->pc_cpuid) {
-			thread_lock(curthread);
-			sched_unbind(curthread);
-			thread_unlock(curthread);
-		}
+		thread_lock(curthread);
+		sched_unbind(curthread);
+		thread_unlock(curthread);
 		if (error) {
 			/* XXX Back out any successful setting? */
 			goto out;
