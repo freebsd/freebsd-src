@@ -360,45 +360,35 @@ runq_findbit(struct runq *rq)
 }
 
 static __inline int
-runq_findbit_from(struct runq *rq, u_char start)
+runq_findbit_from(struct runq *rq, u_char pri)
 {
 	struct rqbits *rqb;
-	int bit;
-	int pri;
+	rqb_word_t mask;
 	int i;
 
+	/*
+	 * Set the mask for the first word so we ignore priorities before 'pri'.
+	 */
+	mask = (rqb_word_t)-1 << (pri & (RQB_BPW - 1));
 	rqb = &rq->rq_status;
-	bit = start & (RQB_BPW -1);
-	pri = 0;
-	CTR1(KTR_RUNQ, "runq_findbit_from: start %d", start);
 again:
-	for (i = RQB_WORD(start); i < RQB_LEN; i++) {
-		CTR3(KTR_RUNQ, "runq_findbit_from: bits %d = %#x bit = %d",
-		    i, rqb->rqb_bits[i], bit);
-		if (rqb->rqb_bits[i]) {
-			if (bit != 0) {
-				for (pri = bit; pri < RQB_BPW; pri++)
-					if (rqb->rqb_bits[i] & (1ul << pri))
-						break;
-				bit = 0;
-				if (pri >= RQB_BPW)
-					continue;
-			} else
-				pri = RQB_FFS(rqb->rqb_bits[i]);
-			pri += (i << RQB_L2BPW);
-			CTR3(KTR_RUNQ, "runq_findbit_from: bits=%#x i=%d pri=%d",
-			    rqb->rqb_bits[i], i, pri);
-			return (pri);
-		}
-		bit = 0;
+	for (i = RQB_WORD(pri); i < RQB_LEN; mask = -1, i++) {
+		mask = rqb->rqb_bits[i] & mask;
+		if (mask == 0)
+			continue;
+		pri = RQB_FFS(mask) + (i << RQB_L2BPW);
+		CTR3(KTR_RUNQ, "runq_findbit_from: bits=%#x i=%d pri=%d",
+		    mask, i, pri);
+		return (pri);
 	}
-	if (start != 0) {
-		CTR0(KTR_RUNQ, "runq_findbit_from: restarting");
-		start = 0;
-		goto again;
-	}
-
-	return (-1);
+	if (pri == 0)
+		return (-1);
+	/*
+	 * Wrap back around to the beginning of the list just once so we
+	 * scan the whole thing.
+	 */
+	pri = 0;
+	goto again;
 }
 
 /*
