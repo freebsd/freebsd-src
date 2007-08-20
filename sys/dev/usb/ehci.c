@@ -321,6 +321,38 @@ Static struct usbd_pipe_methods ehci_device_isoc_methods = {
 	ehci_device_isoc_done,
 };
 
+static usbd_status
+ehci_hcreset(ehci_softc_t *sc)
+{
+	u_int32_t hcr;
+	u_int i;
+
+	EOWRITE4(sc, EHCI_USBCMD, 0);	/* Halt controller */
+	for (i = 0; i < 100; i++) {
+		usb_delay_ms(&sc->sc_bus, 1);
+		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
+		if (hcr)
+			break;
+	}
+	if (!hcr)
+		/*
+		 * Fall through and try reset anyway even though
+		 * Table 2-9 in the EHCI spec says this will result
+		 * in undefined behavior.
+		 */
+		printf("%s: stop timeout\n", USBDEVNAME(sc->sc_bus.bdev));
+
+	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
+	for (i = 0; i < 100; i++) {
+		usb_delay_ms(&sc->sc_bus, 1);
+		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
+		if (!hcr)
+			return (USBD_NORMAL_COMPLETION);
+	}
+	printf("%s: reset timeout\n", USBDEVNAME(sc->sc_bus.bdev));
+	return (USBD_IOERROR);
+}
+
 usbd_status
 ehci_init(ehci_softc_t *sc)
 {
@@ -375,20 +407,9 @@ ehci_init(ehci_softc_t *sc)
 
 	/* Reset the controller */
 	DPRINTF(("%s: resetting\n", USBDEVNAME(sc->sc_bus.bdev)));
-	EOWRITE4(sc, EHCI_USBCMD, 0);	/* Halt controller */
-	usb_delay_ms(&sc->sc_bus, 1);
-	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
-	for (i = 0; i < 100; i++) {
-		usb_delay_ms(&sc->sc_bus, 1);
-		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
-		if (!hcr)
-			break;
-	}
-	if (hcr) {
-		printf("%s: reset timeout\n",
-		    USBDEVNAME(sc->sc_bus.bdev));
-		return (USBD_IOERROR);
-	}
+	err = ehci_hcreset(sc);
+	if (err != USBD_NORMAL_COMPLETION)
+		return (err);
 
 	/* frame list size at default, read back what we got and use that */
 	switch (EHCI_CMD_FLS(EOREAD4(sc, EHCI_USBCMD))) {
@@ -925,8 +946,7 @@ ehci_detach(struct ehci_softc *sc, int flags)
 #endif
 
 	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
-	EOWRITE4(sc, EHCI_USBCMD, 0);
-	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
+	(void) ehci_hcreset(sc);
 	usb_uncallout(sc->sc_tmo_intrlist, ehci_intrlist_timeout, sc);
 	usb_uncallout(sc->sc_tmo_pcd, ehci_pcd_enable, sc);
 
@@ -1114,8 +1134,7 @@ ehci_shutdown(void *v)
 	ehci_softc_t *sc = v;
 
 	DPRINTF(("ehci_shutdown: stopping the HC\n"));
-	EOWRITE4(sc, EHCI_USBCMD, 0);	/* Halt controller */
-	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
+	(void) ehci_hcreset(sc);
 }
 
 usbd_status
