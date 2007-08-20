@@ -1328,6 +1328,12 @@ sched_initticks(void *dummy)
 		incr = 1;
 	tickincr = incr;
 #ifdef SMP
+	/*
+	 * Set steal thresh to log2(mp_ncpu) but no greater than 4.  This
+	 * prevents excess thrashing on large machines and excess idle on
+	 * smaller machines.
+	 */
+	steal_thresh = min(ffs(mp_ncpus) - 1, 4);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 }
