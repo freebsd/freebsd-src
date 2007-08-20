@@ -719,6 +719,7 @@ restart:
 	}
 	AIO_UNLOCK(ki);
 	taskqueue_drain(taskqueue_aiod_bio, &ki->kaio_task);
+	mtx_destroy(&ki->kaio_mtx);
 	uma_zfree(kaio_zone, ki);
 	p->p_aioinfo = NULL;
 }
@@ -837,7 +838,10 @@ aio_process(struct aiocblist *aiocbe)
 	 */
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
-		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, td);
+		if (auio.uio_resid == 0)
+			error = 0;
+		else
+			error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, td);
 	} else {
 		if (fp->f_type == DTYPE_VNODE)
 			bwillwrite();
