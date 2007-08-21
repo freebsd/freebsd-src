@@ -125,18 +125,17 @@ static int i915_initialize(drm_device_t * dev,
 	drm_dma_handle_t *dmah;
 
 	DRM_UNLOCK();
+	memset(dev_priv, 0, sizeof(drm_i915_private_t));
 	dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 
 	    0xffffffff);
+	DRM_LOCK();
 	if (!dmah) {
 		dev->dev_private = (void *)dev_priv;
 		i915_dma_cleanup(dev);
 		DRM_ERROR("Can not allocate hardware status page\n");
-		DRM_LOCK();
 		return DRM_ERR(ENOMEM);
 	}
-	DRM_LOCK();
 
-	memset(dev_priv, 0, sizeof(drm_i915_private_t));
 	dev_priv->status_page_dmah = dmah;
 
 	DRM_GETSAREA();
