@@ -1366,7 +1366,6 @@ aac_alloc_commands(struct aac_softc *sc)
 			      aac_map_command_helper, &fibphys, 0);
 
 	/* initialise constant fields in the command structure */
-	mtx_lock(&sc->aac_io_lock);
 	bzero(fm->aac_fibs, sc->aac_max_fibs_alloc * sc->aac_max_fib_size);
 	for (i = 0; i < sc->aac_max_fibs_alloc; i++) {
 		cm = sc->aac_commands + sc->total_fibs;
@@ -1378,21 +1377,22 @@ aac_alloc_commands(struct aac_softc *sc)
 		cm->cm_index = sc->total_fibs;
 
 		if ((error = bus_dmamap_create(sc->aac_buffer_dmat, 0,
-					       &cm->cm_datamap)) == 0)
-			aac_release_command(cm);
-		else
+					       &cm->cm_datamap)) != 0)
 			break;
+		mtx_lock(&sc->aac_io_lock);
+		aac_release_command(cm);
 		sc->total_fibs++;
+		mtx_unlock(&sc->aac_io_lock);
 	}
 
 	if (i > 0) {
+		mtx_lock(&sc->aac_io_lock);
 		TAILQ_INSERT_TAIL(&sc->aac_fibmap_tqh, fm, fm_link);
 		debug(1, "total_fibs= %d\n", sc->total_fibs);
 		mtx_unlock(&sc->aac_io_lock);
 		return (0);
 	}
 
-	mtx_unlock(&sc->aac_io_lock);
 	bus_dmamap_unload(sc->aac_fib_dmat, fm->aac_fibmap);
 	bus_dmamem_free(sc->aac_fib_dmat, fm->aac_fibs, fm->aac_fibmap);
 	free(fm, M_AACBUF);
@@ -3028,6 +3028,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		aac_add_event(sc, event);
 		msleep(&cm, &sc->aac_io_lock, 0, "sendfib", 0);
 	}
+	mtx_unlock(&sc->aac_io_lock);
 
 	/*
 	 * Fetch the FIB header, then re-copy to get data as well.
@@ -3049,11 +3050,13 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	/*
 	 * Pass the FIB to the controller, wait for it to complete.
 	 */
+	mtx_lock(&sc->aac_io_lock);
 	if ((error = aac_wait_command(cm)) != 0) {
 		device_printf(sc->aac_dev,
 			      "aac_wait_command return %d\n", error);
 		goto out;
 	}
+	mtx_unlock(&sc->aac_io_lock);
 
 	/*
 	 * Copy the FIB and data back out to the caller.
@@ -3065,6 +3068,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 		size = sizeof(struct aac_fib);
 	}
 	error = copyout(cm->cm_fib, ufib, size);
+	mtx_lock(&sc->aac_io_lock);
 
 out:
 	if (cm != NULL) {
