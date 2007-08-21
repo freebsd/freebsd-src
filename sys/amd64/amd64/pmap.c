@@ -1722,7 +1722,7 @@ get_pv_entry(pmap_t pmap, int try)
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
 	static vm_pindex_t colour;
-	int bit, field, page_req;
+	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
 	vm_page_t m;
@@ -1755,8 +1755,7 @@ get_pv_entry(pmap_t pmap, int try)
 		}
 	}
 	/* No free items, allocate another chunk */
-	page_req = try ? VM_ALLOC_NORMAL : VM_ALLOC_SYSTEM; 
-	m = vm_page_alloc(NULL, colour, page_req | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
 	if (m == NULL) {
 		if (try) {
 			pv_entry_count--;
@@ -1775,7 +1774,7 @@ get_pv_entry(pmap_t pmap, int try)
 		PV_STAT(pmap_collect_inactive++);
 		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
 		m = vm_page_alloc(NULL, colour,
-		    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
 		if (m == NULL) {
 			PV_STAT(pmap_collect_active++);
 			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
