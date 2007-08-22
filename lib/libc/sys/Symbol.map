@@ -303,6 +303,7 @@ FBSD_1.0 {
 	thr_create;
 	thr_exit;
 	thr_kill;
+	thr_kill2;
 	thr_new;
 	thr_self;
 	thr_set_name;
@@ -917,6 +918,8 @@ FBSDprivate_1.0 {
 	__sys_thr_exit;
 	_thr_kill;
 	__sys_thr_kill;
+	_thr_kill2;
+	__sys_thr_kill2;
 	_thr_new;
 	__sys_thr_new;
 	_thr_self;
