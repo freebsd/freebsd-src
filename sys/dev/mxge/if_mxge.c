@@ -849,6 +849,9 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 		case MXGEFW_CMD_ERROR_UNALIGNED:
 			err = E2BIG;
 			break;
+		case MXGEFW_CMD_ERROR_BUSY:
+			err = EBUSY;
+			break;
 		default:
 			device_printf(sc->dev, 
 				      "mxge: command %d "
@@ -1278,7 +1281,7 @@ static int
 mxge_change_lro_locked(mxge_softc_t *sc, int lro_cnt)
 {
 	struct ifnet *ifp;
-	int err;
+	int err = 0;
 
 	ifp = sc->ifp;
 	if (lro_cnt == 0) 
@@ -1286,11 +1289,13 @@ mxge_change_lro_locked(mxge_softc_t *sc, int lro_cnt)
 	else
 		ifp->if_capenable |= IFCAP_LRO;
 	sc->lro_cnt = lro_cnt;
-	callout_stop(&sc->co_hdl);
-	mxge_close(sc);
-	err = mxge_open(sc);
-	if (err == 0)
-		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		callout_stop(&sc->co_hdl);
+		mxge_close(sc);
+		err = mxge_open(sc);
+		if (err == 0)
+			callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	}
 	return err;
 }
 
@@ -2366,6 +2371,142 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 	}
 }
 
+static struct mxge_media_type mxge_media_types[] =
+{
+	{IFM_10G_CX4,	0x7f, 		"10GBASE-CX4 (module)"},
+	{IFM_10G_SR, 	(1 << 7),	"10GBASE-SR"},
+	{IFM_10G_LR, 	(1 << 6),	"10GBASE-LR"},
+	{0,		(1 << 5),	"10GBASE-ER"},
+	{0,		(1 << 4),	"10GBASE-LRM"},
+	{0,		(1 << 3),	"10GBASE-SW"},
+	{0,		(1 << 2),	"10GBASE-LW"},
+	{0,		(1 << 1),	"10GBASE-EW"},
+	{0,		(1 << 0),	"Reserved"}
+};
+
+static void
+mxge_set_media(mxge_softc_t *sc, int type)
+{
+	sc->media_flags |= type;
+	ifmedia_add(&sc->media, sc->media_flags, 0, NULL);
+	ifmedia_set(&sc->media, sc->media_flags);
+}
+
+
+/*
+ * Determine the media type for a NIC.  Some XFPs will identify
+ * themselves only when their link is up, so this is initiated via a
+ * link up interrupt.  However, this can potentially take up to
+ * several milliseconds, so it is run via the watchdog routine, rather
+ * than in the interrupt handler itself.   This need only be done
+ * once, not each time the link is up.
+ */
+static void
+mxge_media_probe(mxge_softc_t *sc)
+{
+	mxge_cmd_t cmd;
+	char *ptr;
+	int i, err, ms;
+
+	sc->need_media_probe = 0;
+
+	/* if we've already set a media type, we're done */
+	if (sc->media_flags  != (IFM_ETHER | IFM_AUTO))
+		return;
+
+	/* 
+	 * parse the product code to deterimine the interface type
+	 * (CX4, XFP, Quad Ribbon Fiber) by looking at the character
+	 * after the 3rd dash in the driver's cached copy of the
+	 * EEPROM's product code string.
+	 */
+	ptr = sc->product_code_string;
+	if (ptr == NULL) {
+		device_printf(sc->dev, "Missing product code\n");
+	}
+
+	for (i = 0; i < 3; i++, ptr++) {
+		ptr = strchr(ptr, '-');
+		if (ptr == NULL) {
+			device_printf(sc->dev,
+				      "only %d dashes in PC?!?\n", i);
+			return;
+		}
+	}
+	if (*ptr == 'C') {
+		mxge_set_media(sc, IFM_10G_CX4);
+		return;
+	}
+	else if (*ptr == 'Q') {
+		device_printf(sc->dev, "Quad Ribbon Fiber Media\n");
+		/* FreeBSD has no media type for Quad ribbon fiber */
+		return;
+	}
+
+	if (*ptr != 'R') {
+		device_printf(sc->dev, "Unknown media type: %c\n", *ptr);
+		return;
+	}
+
+	/*
+	 * At this point we know the NIC has an XFP cage, so now we
+	 * try to determine what is in the cage by using the
+	 * firmware's XFP I2C commands to read the XFP 10GbE compilance
+	 * register.  We read just one byte, which may take over
+	 * a millisecond
+	 */
+
+	cmd.data0 = 0;	 /* just fetch 1 byte, not all 256 */
+	cmd.data1 = MXGE_XFP_COMPLIANCE_BYTE; /* the byte we want */
+	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_I2C_READ, &cmd);
+	if (err == MXGEFW_CMD_ERROR_XFP_FAILURE) {
+		device_printf(sc->dev, "failed to read XFP\n");
+	}
+	if (err == MXGEFW_CMD_ERROR_XFP_ABSENT) {
+		device_printf(sc->dev, "Type R with no XFP!?!?\n");
+	}
+	if (err != MXGEFW_CMD_OK) {
+		return;
+	}
+
+	/* now we wait for the data to be cached */
+	cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+	for (ms = 0; (err == EBUSY) && (ms < 50); ms++) {
+		DELAY(1000);
+		cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+	}
+	if (err != MXGEFW_CMD_OK) {
+		device_printf(sc->dev, "failed to read XFP (%d, %dms)\n",
+			      err, ms);
+		return;
+	}
+		
+	if (cmd.data0 == mxge_media_types[0].bitmask) {
+		if (mxge_verbose)
+			device_printf(sc->dev, "XFP:%s\n",
+				      mxge_media_types[0].name);
+		mxge_set_media(sc, IFM_10G_CX4);
+		return;
+	}
+	for (i = 1;
+	     i < sizeof (mxge_media_types) / sizeof (mxge_media_types[0]);
+	     i++) {
+		if (cmd.data0 & mxge_media_types[i].bitmask) {
+			if (mxge_verbose)
+				device_printf(sc->dev, "XFP:%s\n",
+					      mxge_media_types[i].name);
+
+			mxge_set_media(sc, mxge_media_types[i].flag);
+			return;
+		}
+	}
+	device_printf(sc->dev, "XFP media 0x%x unknown\n", cmd.data0);
+
+	return;
+}
+
 static void
 mxge_intr(void *arg)
 {
@@ -2417,6 +2558,7 @@ mxge_intr(void *arg)
 				if (mxge_verbose)
 					device_printf(sc->dev, "link down\n");
 			}
+			sc->need_media_probe = 1;
 		}
 		if (sc->rdma_tags_available !=
 		    be32toh(sc->fw_stats->rdma_tags_available)) {
@@ -2425,7 +2567,12 @@ mxge_intr(void *arg)
 			device_printf(sc->dev, "RDMA timed out! %d tags "
 				      "left\n", sc->rdma_tags_available);
 		}
-		sc->down_cnt += stats->link_down;
+
+		if (stats->link_down) {
+			sc->down_cnt += stats->link_down;
+			sc->link_state = 0;
+			if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+		}
 	}
 
 	/* check to see if we have rx token to pass back */
@@ -3043,16 +3190,27 @@ static void
 mxge_watchdog(mxge_softc_t *sc)
 {
 	mxge_tx_buf_t *tx = &sc->tx;
+	uint32_t rx_pause = be32toh(sc->fw_stats->dropped_pause);
 
 	/* see if we have outstanding transmits, which
 	   have been pending for more than mxge_ticks */
 	if (tx->req != tx->done &&
 	    tx->watchdog_req != tx->watchdog_done &&
-	    tx->done == tx->watchdog_done)
-		mxge_watchdog_reset(sc);
+	    tx->done == tx->watchdog_done) {
+		/* check for pause blocking before resetting */
+		if (tx->watchdog_rx_pause == rx_pause)
+			mxge_watchdog_reset(sc);
+		else
+			device_printf(sc->dev, "Flow control blocking "
+				      "xmits, check link partner\n");
+	}
 
 	tx->watchdog_req = tx->req;
 	tx->watchdog_done = tx->done;
+	tx->watchdog_rx_pause = rx_pause;
+
+	if (sc->need_media_probe)
+		mxge_media_probe(sc);
 }
 
 static void
@@ -3116,9 +3274,9 @@ mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	if (sc == NULL)
 		return;
 	ifmr->ifm_status = IFM_AVALID;
-	ifmr->ifm_status |= sc->fw_stats->link_up ? IFM_ACTIVE : 0;
+	ifmr->ifm_status |= sc->link_state ? IFM_ACTIVE : 0;
 	ifmr->ifm_active = IFM_AUTO | IFM_ETHER;
-	ifmr->ifm_active |= sc->fw_stats->link_up ? IFM_FDX : 0;
+	ifmr->ifm_active |= sc->link_state ? IFM_FDX : 0;
 }
 
 static int
@@ -3424,15 +3582,16 @@ mxge_attach(device_t dev)
         ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_ioctl = mxge_ioctl;
         ifp->if_start = mxge_start;
+	/* Initialise the ifmedia structure */
+	ifmedia_init(&sc->media, 0, mxge_media_change, 
+		     mxge_media_status);
+	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
+	mxge_media_probe(sc);
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to 1500 */
 	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
 		ifp->if_mtu = 9000;
 
-	/* Initialise the ifmedia structure */
-	ifmedia_init(&sc->media, 0, mxge_media_change, 
-		     mxge_media_status);
-	ifmedia_add(&sc->media, IFM_ETHER|IFM_AUTO, 0, NULL);
 	mxge_add_sysctls(sc);
 	return 0;
 
