@@ -16,7 +16,7 @@ options 	UFS_DIRHASH		# Improve performance on big directories
 options 	MD_ROOT			# MD is a potential root device
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_GPT		# GUID Partition Tables.
+options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	COMPAT_43		# Compatible with BSD 4.3 [KEEP THIS!]
 options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	SYSVSHM			# SYSV-style shared memory
