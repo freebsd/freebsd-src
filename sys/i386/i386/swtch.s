@@ -99,6 +99,7 @@ ENTRY(cpu_throw)
 #endif
 	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
 	jmp	sw1
+END(cpu_throw)
 
 /*
  * cpu_switch(old, new)
@@ -348,6 +349,7 @@ badsw3:
 	call	panic
 sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
+END(cpu_switch)
 
 /*
  * savectx(pcb)
@@ -413,3 +415,4 @@ ENTRY(savectx)
 #endif	/* DEV_NPX */
 
 	ret
+END(savectx)
