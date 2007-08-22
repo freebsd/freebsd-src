@@ -81,6 +81,7 @@ ENTRY(cpu_throw)
 	movq	PCB_CR3(%rdx),%rdx
 	movq	%rdx,%cr3			/* new address space */
 	jmp	swact
+END(cpu_throw)
 
 /*
  * cpu_switch(old, new, mtx)
@@ -256,7 +257,8 @@ sw1:
 	movq	%rax,%dr7
 1:
 	ret
-
+END(cpu_switch)
+	
 /*
  * savectx(pcb)
  * Update pcb, saving current processor state.
@@ -314,3 +316,4 @@ ENTRY(savectx)
 	popfq
 
 	ret
+END(savectx)

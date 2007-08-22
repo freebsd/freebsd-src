@@ -69,7 +69,8 @@ ENTRY(bzero)
 	rep
 	stosb
 	ret
-
+END(bzero)
+	
 /* Address: %rdi */
 ENTRY(pagezero)
 	movq	$-PAGE_SIZE,%rdx
@@ -84,6 +85,7 @@ ENTRY(pagezero)
 	jne	1b
 	sfence
 	ret
+END(pagezero)
 
 ENTRY(bcmp)
 	movq	%rdx,%rcx
@@ -101,6 +103,7 @@ ENTRY(bcmp)
 	setne	%al
 	movsbl	%al,%eax
 	ret
+END(bcmp)
 
 /*
  * bcopy(src, dst, cnt)
@@ -144,7 +147,8 @@ ENTRY(bcopy)
 	movsq
 	cld
 	ret
-
+END(bcopy)
+	
 /*
  * Note: memcpy does not support overlapping copies
  */
@@ -159,6 +163,7 @@ ENTRY(memcpy)
 	rep
 	movsb
 	ret
+END(memcpy)
 
 /*
  * pagecopy(%rdi=from, %rsi=to)
@@ -185,6 +190,7 @@ ENTRY(pagecopy)
 	jne	2b
 	sfence
 	ret
+END(pagecopy)
 
 /* fillw(pat, base, cnt) */  
 /*       %rdi,%rsi, %rdx */
@@ -196,6 +202,7 @@ ENTRY(fillw)
 	rep
 	stosw
 	ret
+END(fillw)
 
 /*****************************************************************************/
 /* copyout and fubyte family                                                 */
@@ -267,6 +274,7 @@ copyout_fault:
 	movq	$0,PCB_ONFAULT(%rdx)
 	movq	$EFAULT,%rax
 	ret
+END(copyout)
 
 /*
  * copyin(from_user, to_kernel, len) - MP SAFE
@@ -312,6 +320,7 @@ copyin_fault:
 	movq	$0,PCB_ONFAULT(%rdx)
 	movq	$EFAULT,%rax
 	ret
+END(copyin)
 
 /*
  * casuword32.  Compare and set user integer.  Returns -1 or the current value.
@@ -340,6 +349,7 @@ ENTRY(casuword32)
 	movq	PCPU(CURPCB),%rcx
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(casuword32)
 
 /*
  * casuword.  Compare and set user word.  Returns -1 or the current value.
@@ -369,6 +379,7 @@ ENTRY(casuword)
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(casuword)
 
 /*
  * Fetch (load) a 64-bit word, a 32-bit word, a 16-bit word, or an 8-bit
@@ -388,6 +399,8 @@ ENTRY(fuword)
 	movq	(%rdi),%rax
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(fuword64)	
+END(fuword)
 
 ENTRY(fuword32)
 	movq	PCPU(CURPCB),%rcx
@@ -400,6 +413,7 @@ ENTRY(fuword32)
 	movl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(fuword32)
 
 /*
  * fuswintr() and suswintr() are specialized variants of fuword16() and
@@ -412,6 +426,8 @@ ALTENTRY(suswintr)
 ENTRY(fuswintr)
 	movq	$-1,%rax
 	ret
+END(suswintr)
+END(fuswintr)
 
 ENTRY(fuword16)
 	movq	PCPU(CURPCB),%rcx
@@ -424,6 +440,7 @@ ENTRY(fuword16)
 	movzwl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(fuword16)
 
 ENTRY(fubyte)
 	movq	PCPU(CURPCB),%rcx
@@ -436,6 +453,7 @@ ENTRY(fubyte)
 	movzbl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
 	ret
+END(fubyte)
 
 	ALIGN_TEXT
 fusufault:
@@ -464,6 +482,8 @@ ENTRY(suword)
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
+END(suword64)
+END(suword)
 
 ENTRY(suword32)
 	movq	PCPU(CURPCB),%rcx
@@ -478,6 +498,7 @@ ENTRY(suword32)
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
+END(suword32)
 
 ENTRY(suword16)
 	movq	PCPU(CURPCB),%rcx
@@ -492,6 +513,7 @@ ENTRY(suword16)
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
+END(suword16)
 
 ENTRY(subyte)
 	movq	PCPU(CURPCB),%rcx
@@ -507,6 +529,7 @@ ENTRY(subyte)
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	ret
+END(subyte)
 
 /*
  * copyinstr(from, to, maxlen, int *lencopied) - MP SAFE
@@ -575,7 +598,7 @@ cpystrflt_x:
 	movq	%r8,(%r9)
 1:
 	ret
-
+END(copyinstr)
 
 /*
  * copystr(from, to, maxlen, int *lencopied) - MP SAFE
@@ -612,6 +635,7 @@ ENTRY(copystr)
 	movq	%r8,(%rcx)
 7:
 	ret
+END(copystr)
 
 /*
  * Handling of special amd64 registers and descriptor tables etc
@@ -639,6 +663,7 @@ ENTRY(lgdt)
 	pushq	%rax
 	MEXITCOUNT
 	lretq
+END(lgdt)
 
 /*****************************************************************************/
 /* setjump, longjump                                                         */
@@ -656,6 +681,7 @@ ENTRY(setjmp)
 	movq	%rdx,56(%rdi)			/* save rip */
 	xorl	%eax,%eax			/* return(0); */
 	ret
+END(setjmp)
 
 ENTRY(longjmp)
 	movq	0(%rdi),%rbx			/* restore rbx */
@@ -670,6 +696,7 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
+END(longjmp)
 
 /*
  * Support for BB-profiling (gcc -a).  The kernbb program will extract
