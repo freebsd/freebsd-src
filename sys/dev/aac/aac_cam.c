@@ -571,6 +571,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 		device_printf(sc->aac_dev,"Error %d sending ResetBus command\n",
 		    e);
 		aac_release_sync_fib(sc);
+		mtx_unlock(&sc->aac_io_lock);
 		return (CAM_REQ_ABORTED);
 	}
 
