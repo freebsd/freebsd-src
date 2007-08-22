@@ -105,6 +105,7 @@ typedef struct
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
 	int watchdog_done;		/* cache of done */
+	int watchdog_rx_pause;		/* cache of pause rq recvd */
 } mxge_tx_buf_t;
 
 struct lro_entry;
@@ -190,6 +191,8 @@ typedef struct {
 	int link_width;
 	int max_mtu;
 	int tx_defrag;
+	int media_flags;
+	int need_media_probe;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	char *mac_addr_string;
@@ -204,11 +207,18 @@ typedef struct {
 
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
 #define MXGE_PCI_DEVICE_Z8E 	0x0008
+#define MXGE_XFP_COMPLIANCE_BYTE	131
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
 #define MXGE_LOWPART_TO_U32(X) ((uint32_t)(X))
 
+struct mxge_media_type
+{
+	int flag;
+	uint8_t bitmask;
+	char *name;
+};
 
 /* implement our own memory barriers, since bus_space_barrier
    cannot handle write-combining regions */
