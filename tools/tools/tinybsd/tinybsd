@@ -267,6 +267,7 @@ prework() {
 create_tree() {
 	echo "${TS} Creating directory hierarchy... "
 	mtree -deU -f /etc/mtree/BSD.root.dist -p ${WORKDIR}
+	mtree -deU -f /etc/mtree/BIND.chroot.dist -p ${WORKDIR}
 	mtree -deU -f /etc/mtree/BSD.usr.dist -p ${WORKDIR}/usr
 	mtree -deU -f /etc/mtree/BSD.local.dist -p ${WORKDIR}/usr/local
 	mtree -deU -f /etc/mtree/BSD.var.dist -p ${WORKDIR}/var
