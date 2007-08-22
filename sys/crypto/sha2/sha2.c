@@ -750,7 +750,7 @@ void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 
 void SHA512_Transform(SHA512_CTX* context, const sha2_word64* data) {
 	sha2_word64	a, b, c, d, e, f, g, h, s0, s1;
-	sha2_word64	T1, T2 = 0, *W512 = (sha2_word64*)context->buffer;
+	sha2_word64	T1 = 0, T2 = 0, *W512 = (sha2_word64*)context->buffer;
 	int		j;
 
 	/* Initialize registers with the prev. intermediate value */
