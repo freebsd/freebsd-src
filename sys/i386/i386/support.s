@@ -80,6 +80,7 @@ eintrnames:
 ENTRY(bzero)
 	MEXITCOUNT
 	jmp	*bzero_vector
+END(bzero)
 
 ENTRY(generic_bzero)
 	pushl	%edi
@@ -96,7 +97,8 @@ ENTRY(generic_bzero)
 	stosb
 	popl	%edi
 	ret
-
+END(generic_bzero)	
+	
 #ifdef I486_CPU
 ENTRY(i486_bzero)
 	movl	4(%esp),%edx
@@ -197,6 +199,7 @@ do1:
 	SUPERALIGN_TEXT
 do0:
 	ret
+END(i486_bzero)
 #endif
 
 #if defined(I586_CPU) && defined(DEV_NPX)
@@ -355,6 +358,7 @@ intreg_i586_bzero:
 	stosb
 	popl	%edi
 	ret
+END(i586_bzero)
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 ENTRY(sse2_pagezero)
@@ -371,6 +375,7 @@ ENTRY(sse2_pagezero)
 	sfence
 	popl	%ebx
 	ret
+END(sse2_pagezero)
 
 ENTRY(i686_pagezero)
 	pushl	%edi
@@ -421,6 +426,7 @@ ENTRY(i686_pagezero)
 	popl	%ebx
 	popl	%edi
 	ret
+END(i686_pagezero)
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
@@ -433,6 +439,7 @@ ENTRY(fillw)
 	stosw
 	popl	%edi
 	ret
+END(fillw)
 
 ENTRY(bcopyb)
 	pushl	%esi
@@ -464,10 +471,12 @@ ENTRY(bcopyb)
 	popl	%esi
 	cld
 	ret
+END(bcopyb)
 
 ENTRY(bcopy)
 	MEXITCOUNT
 	jmp	*bcopy_vector
+END(bcopy)
 
 /*
  * generic_bcopy(src, dst, cnt)
@@ -517,6 +526,7 @@ ENTRY(generic_bcopy)
 	popl	%esi
 	cld
 	ret
+END(generic_bcopy)
 
 #if defined(I586_CPU) && defined(DEV_NPX)
 ENTRY(i586_bcopy)
@@ -665,6 +675,7 @@ small_i586_bcopy:
 	popl	%esi
 	cld
 	ret
+END(i586_bcopy)
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
@@ -688,7 +699,7 @@ ENTRY(memcpy)
 	popl	%esi
 	popl	%edi
 	ret
-
+END(memcpy)
 
 /*****************************************************************************/
 /* copyout and fubyte family                                                 */
@@ -714,6 +725,7 @@ ENTRY(memcpy)
 ENTRY(copyout)
 	MEXITCOUNT
 	jmp	*copyout_vector
+END(copyout)
 
 ENTRY(generic_copyout)
 	movl	PCPU(CURPCB),%eax
@@ -773,6 +785,7 @@ done_copyout:
 	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
+END(generic_copyout)
 
 	ALIGN_TEXT
 copyout_fault:
@@ -836,6 +849,7 @@ ENTRY(i586_copyout)
 	call	fastmove
 	addl	$4,%esp
 	jmp	done_copyout
+END(i586_copyout)
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
@@ -844,6 +858,7 @@ ENTRY(i586_copyout)
 ENTRY(copyin)
 	MEXITCOUNT
 	jmp	*copyin_vector
+END(copyin)
 
 ENTRY(generic_copyin)
 	movl	PCPU(CURPCB),%eax
@@ -887,6 +902,7 @@ done_copyin:
 	movl	PCPU(CURPCB),%edx
 	movl	%eax,PCB_ONFAULT(%edx)
 	ret
+END(generic_copyin)
 
 	ALIGN_TEXT
 copyin_fault:
@@ -930,6 +946,7 @@ ENTRY(i586_copyin)
 	call	fastmove
 	addl	$8,%esp
 	jmp	done_copyin
+END(i586_copyin)
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 #if defined(I586_CPU) && defined(DEV_NPX)
@@ -1137,6 +1154,7 @@ fastmove_tail_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
+END(fastmove)
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
@@ -1169,6 +1187,8 @@ ENTRY(casuword)
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
+END(casuword32)
+END(casuword)
 
 /*
  * Fetch (load) a 32-bit word, a 16-bit word, or an 8-bit byte from user
@@ -1187,6 +1207,8 @@ ENTRY(fuword)
 	movl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
+END(fuword32)
+END(fuword)
 
 /*
  * fuswintr() and suswintr() are specialized variants of fuword16() and
@@ -1199,6 +1221,8 @@ ALTENTRY(suswintr)
 ENTRY(fuswintr)
 	movl	$-1,%eax
 	ret
+END(suswintr)
+END(fuswintr)
 
 ENTRY(fuword16)
 	movl	PCPU(CURPCB),%ecx
@@ -1211,6 +1235,7 @@ ENTRY(fuword16)
 	movzwl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
+END(fuword16)
 
 ENTRY(fubyte)
 	movl	PCPU(CURPCB),%ecx
@@ -1223,6 +1248,7 @@ ENTRY(fubyte)
 	movzbl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
+END(fubyte)
 
 	ALIGN_TEXT
 fusufault:
@@ -1252,6 +1278,8 @@ ENTRY(suword)
 	movl	PCPU(CURPCB),%ecx
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
+END(suword32)
+END(suword)
 
 ENTRY(suword16)
 	movl	PCPU(CURPCB),%ecx
@@ -1267,6 +1295,7 @@ ENTRY(suword16)
 	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
+END(suword16)
 
 ENTRY(subyte)
 	movl	PCPU(CURPCB),%ecx
@@ -1282,6 +1311,7 @@ ENTRY(subyte)
 	movl	PCPU(CURPCB),%ecx		/* restore trashed register */
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
+END(subyte)
 
 /*
  * copyinstr(from, to, maxlen, int *lencopied) - MP SAFE
@@ -1354,7 +1384,7 @@ cpystrflt_x:
 	popl	%edi
 	popl	%esi
 	ret
-
+END(copyinstr)
 
 /*
  * copystr(from, to, maxlen, int *lencopied) - MP SAFE
@@ -1396,6 +1426,7 @@ ENTRY(copystr)
 	popl	%edi
 	popl	%esi
 	ret
+END(copystr)
 
 ENTRY(bcmp)
 	pushl	%edi
@@ -1421,7 +1452,7 @@ ENTRY(bcmp)
 	popl	%esi
 	popl	%edi
 	ret
-
+END(bcmp)
 
 /*
  * Handling of special 386 registers and descriptor tables etc
@@ -1451,6 +1482,7 @@ ENTRY(lgdt)
 	movl	$KCSEL,4(%esp)
 	MEXITCOUNT
 	lret
+END(lgdt)
 
 /* ssdtosd(*ssdp,*sdp) */
 ENTRY(ssdtosd)
@@ -1472,6 +1504,7 @@ ENTRY(ssdtosd)
 	movl	%ebx,4(%ecx)
 	popl	%ebx
 	ret
+END(ssdtosd)
 
 /* void reset_dbregs() */
 ENTRY(reset_dbregs)
@@ -1483,6 +1516,7 @@ ENTRY(reset_dbregs)
 	movl    %eax,%dr3
 	movl    %eax,%dr6
 	ret
+END(reset_dbregs)
 
 /*****************************************************************************/
 /* setjump, longjump                                                         */
@@ -1499,6 +1533,7 @@ ENTRY(setjmp)
 	movl	%edx,20(%eax)			/* save eip */
 	xorl	%eax,%eax			/* return(0); */
 	ret
+END(setjmp)
 
 ENTRY(longjmp)
 	movl	4(%esp),%eax
@@ -1512,6 +1547,7 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
+END(longjmp)
 
 /*
  * Support for BB-profiling (gcc -a).  The kernbb program will extract
