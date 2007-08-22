@@ -71,6 +71,7 @@
 
 #define _ENTRY(x)	_START_ENTRY; \
 			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):
+#define	END(x)		.size x, . - x
 
 #ifdef PROF
 #define	ALTENTRY(x)	_ENTRY(x); \

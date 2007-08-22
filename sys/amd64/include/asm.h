@@ -77,6 +77,8 @@
 #define	ENTRY(x)	_ENTRY(x)
 #endif
 
+#define	END(x)		.size x, . - x
+
 #define RCSID(x)	.text; .asciz x
 
 #undef __FBSDID
