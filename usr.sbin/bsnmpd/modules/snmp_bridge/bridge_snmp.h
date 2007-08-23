@@ -106,6 +106,7 @@ struct bridge_port {
 	uint32_t	dly_ex_drops;	/* Drops on output. */
 	uint32_t	dly_mtu_drops;	/* MTU exceeded drops. */
 	int32_t		status;		/* The entry status. */
+	enum TruthValue	priv_set;	/* The private flag. */
 
 	/* dot1dStp subtree objects. */
 	int32_t		path_cost;
@@ -336,6 +337,10 @@ int bridge_port_set_admin_ptp(const char *bif_name, struct bridge_port *bp,
 /* Set admin edge. */
 int bridge_port_set_admin_edge(const char *bif_name, struct bridge_port *bp,
     uint32_t enable);
+
+/* Set 'private' flag. */
+int bridge_port_set_private(const char *bif_name, struct bridge_port *bp,
+    uint32_t priv_set);
 
 /* Add a bridge member port. */
 int bridge_port_addm(struct bridge_port *bp, const char *b_name);
