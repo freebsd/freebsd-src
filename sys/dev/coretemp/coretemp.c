@@ -95,7 +95,7 @@ coretemp_identify(driver_t *driver, device_t parent)
 	/* Make sure we're not being doubly invoked. */
 	if (device_find_child(parent, "coretemp", -1) != NULL)
 		return;
-	
+
 	/* Check that CPUID is supported and the vendor is Intel.*/
 	if (cpu_high == 0 || strcmp(cpu_vendor, "GenuineIntel"))
 		return;
@@ -136,12 +136,12 @@ coretemp_attach(device_t dev)
 	int cpu_model;
 	int cpu_mask;
 
+	sc->sc_dev = dev;
 	pdev = device_get_parent(dev);
-
-	cpu_model  = (cpu_id >> 4) & 15;
+	cpu_model = (cpu_id >> 4) & 15;
 	/* extended model */
 	cpu_model += ((cpu_id >> 16) & 0xf) << 4;
-	cpu_mask   = cpu_id & 15;
+	cpu_mask = cpu_id & 15;
 
 	/*
 	 * Check for errata AE18.
@@ -149,15 +149,13 @@ coretemp_attach(device_t dev)
 	 *  updating upon returning from C3/C4 state."
 	 *
 	 * Adapted from the Linux coretemp driver.
- 	 */
+	 */
 	if (cpu_model == 0xe && cpu_mask < 0xc) {
 		msr = rdmsr(MSR_BIOS_SIGN);
 		msr = msr >> 32;
 		if (msr < 0x39) {
-			device_printf(dev, "This processor behaves "
-			    "erronously regarding to Intel errata "
-			    "AE18.\nPlease update your BIOS or the "
-			    "CPU microcode.\n");
+			device_printf(dev, "not supported (Intel errata "
+			    "AE18), try updating your BIOS\n");
 			return (ENXIO);
 		}
 	}
@@ -168,13 +166,13 @@ coretemp_attach(device_t dev)
 	 * The if-clause for CPUs having the MSR_IA32_EXT_CONFIG was adapted
 	 * from the Linux coretemp driver.
 	 */
-	if ((cpu_model == 0xf && cpu_mask > 3) || cpu_model == 0xe) {
+	sc->sc_tjmax = 100;
+	if ((cpu_model == 0xf && cpu_mask >= 2) || cpu_model == 0xe) {
 		msr = rdmsr(MSR_IA32_EXT_CONFIG);
-		if ((msr >> 30) & 0x1)
+		if (msr & (1 << 30))
 			sc->sc_tjmax = 85;
-	} else
-		sc->sc_tjmax = 100;
-		
+	}
+
 	/*
 	 * Add the "temperature" MIB to dev.cpu.N.
 	 */
@@ -202,9 +200,11 @@ coretemp_detach(device_t dev)
 static int
 coretemp_get_temp(device_t dev)
 {
-	uint64_t temp;
+	uint64_t msr;
+	int temp;
 	int cpu = device_get_unit(dev);
 	struct coretemp_softc *sc = device_get_softc(dev);
+	char stemp[16];
 
 	thread_lock(curthread);
 	sched_bind(curthread, cpu);
@@ -220,40 +220,48 @@ coretemp_get_temp(device_t dev)
 	 * The temperature is computed by subtracting the temperature
 	 * reading by Tj(max).
 	 */
-	temp = rdmsr(MSR_THERM_STATUS);
+	msr = rdmsr(MSR_THERM_STATUS);
+
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
 
 	/*
 	 * Check for Thermal Status and Thermal Status Log.
 	 */
-	if ((temp & 0x3) == 0x3) 
+	if ((msr & 0x3) == 0x3)
 		device_printf(dev, "PROCHOT asserted\n");
-
-	/*
-	 * Check for Critical Temperature Status and Critical
-	 * Temperature Log.
-	 *
-	 * If we reach a critical level, allow devctl(4) to catch this
-	 * and shutdown the system.
-	 */
-	if (((temp >> 4) & 0x3) == 0x3) {
-		device_printf(dev, "Critical Temperature detected.\n"
-		    "Advising system shutdown.\n");
-		devctl_notify("CPU", "coretemp", "temperature",
-		    "notify=0x1");
-	}
 
 	/*
 	 * Bit 31 contains "Reading valid"
 	 */
-	if (((temp >> 31) & 0x1) == 1) {
+	if (((msr >> 31) & 0x1) == 1) {
 		/*
 		 * Starting on bit 16 and ending on bit 22.
 		 */
-		temp = sc->sc_tjmax - ((temp >> 16) & 0x7f);
-		return ((int) temp);
+		temp = sc->sc_tjmax - ((msr >> 16) & 0x7f);
+	} else
+		temp = -1;
+
+	/*
+	 * Check for Critical Temperature Status and Critical
+	 * Temperature Log.
+	 * It doesn't really matter if the current temperature is
+	 * invalid because the "Critical Temperature Log" bit will
+	 * tell us if the Critical Temperature has been reached in
+	 * past. It's not directly related to the current temperature.
+	 *
+	 * If we reach a critical level, allow devctl(4) to catch this
+	 * and shutdown the system.
+	 */
+	if (((msr >> 4) & 0x3) == 0x3) {
+		device_printf(dev, "critical temperature detected, "
+		    "suggest system shutdown\n");
+		snprintf(stemp, sizeof(stemp), "%d", temp);
+		devctl_notify("coretemp", "Thermal", stemp, "notify=0xcc");
 	}
 
-	return (-1);
+	return (temp);
 }
 
 static int
