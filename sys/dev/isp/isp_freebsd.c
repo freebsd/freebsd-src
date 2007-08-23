@@ -2729,11 +2729,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			scsi->valid = CTS_SCSI_VALID_TQ;
 			scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 			fc->valid = CTS_FC_VALID_SPEED;
-			if (fcp->isp_gbspeed == 2) {
-				fc->bitrate = 200000;
-			} else {
-				fc->bitrate = 100000;
-			}
+			fc->bitrate = 100000;
+			if (fcp->isp_gbspeed == 4 || fcp->isp_gbspeed == 2)
+				fc->bitrate *= fcp->isp_gbspeed;
 			if (tgt > 0 && tgt < MAX_FC_TARG) {
 				fcportdb_t *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
@@ -2924,10 +2922,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * what media we're running on top of- but we'll
 			 * look good if we always say 100MB/s.
 			 */
-			if (FCPARAM(isp)->isp_gbspeed == 2)
-				cpi->base_transfer_speed = 200000;
-			else
-				cpi->base_transfer_speed = 100000;
+			cpi->base_transfer_speed = 100000;
+			if (FCPARAM(isp)->isp_gbspeed == 4 ||
+			    FCPARAM(isp)->isp_gbspeed == 2)
+				cpi->base_transfer_speed *=
+				    FCPARAM(isp)->isp_gbspeed;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 #ifdef	CAM_NEW_TRAN_CODE
 			cpi->transport = XPORT_FC;
