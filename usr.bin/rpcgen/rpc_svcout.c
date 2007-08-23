@@ -116,7 +116,7 @@ wrt request */\n\n");
 serviced */\n");
 
 			if (mtflag) {
-				f_print(fout, "mutex_t _svcstate_lock;");
+				f_print(fout, "pthread_mutex_t _svcstate_lock;");
 				f_print(fout, "\t\t\t/* Mutex lock for variable _rpcsvcstate */\n");
 
 			}
@@ -457,11 +457,11 @@ write_program(definition *def, const char *storage)
 
 		if (timerflag) {
 			if (mtflag)
-				f_print(fout, "\tmutex_lock(&_svcstate_lock);\n");
+				f_print(fout, "\tpthread_mutex_lock(&_svcstate_lock);\n");
 
 			f_print(fout, "\t_rpcsvcstate = _SERVING;\n");				
 			if (mtflag)
-				f_print(fout, "\tmutex_unlock(&_svcstate_lock);\n");
+				f_print(fout, "\tpthread_mutex_unlock(&_svcstate_lock);\n");
 		}
 
 		f_print(fout, "\tswitch (%s->rq_proc) {\n", RQSTP);
@@ -615,10 +615,10 @@ print_return(const char *space)
 	else {
 		if (timerflag) {
 			if (mtflag)
-				f_print(fout, "%smutex_lock(&_svcstate_lock);\n", space);
+				f_print(fout, "%spthread_mutex_lock(&_svcstate_lock);\n", space);
 				f_print(fout, "%s_rpcsvcstate = _SERVED;\n", space);
 			if (mtflag)
-				f_print(fout, "%smutex_unlock(&_svcstate_lock);\n", space);
+				f_print(fout, "%spthread_mutex_unlock(&_svcstate_lock);\n", space);
 		}
 		f_print(fout, "%sreturn;\n", space);
 	}
@@ -708,7 +708,7 @@ write_timeout_func(void)
 	f_print(fout, "closedown(int sig)\n");
 	f_print(fout, "{\n");
 	if (mtflag)
-		f_print(fout, "\tmutex_lock(&_svcstate_lock);\n");
+		f_print(fout, "\tpthread_mutex_lock(&_svcstate_lock);\n");
 	f_print(fout, "\tif (_rpcsvcstate == _IDLE) {\n");
 	f_print(fout, "\t\textern fd_set svc_fdset;\n");
 	f_print(fout, "\t\tstatic int size;\n");
@@ -729,7 +729,7 @@ write_timeout_func(void)
 		f_print(fout, "\t\t\tif ((size = rl.rlim_max) == 0) {\n");
 		
 		if (mtflag)
-			f_print(fout, "\t\t\t\tmutex_unlock(&_svcstate_lock);\n");
+			f_print(fout, "\t\t\t\tpthread_mutex_unlock(&_svcstate_lock);\n");
 
 		f_print(fout, "\t\t\t\treturn;\n\t\t\t}\n");
 	} else {
@@ -746,7 +746,7 @@ write_timeout_func(void)
 	f_print(fout, "\tif (_rpcsvcstate == _SERVED)\n");
 	f_print(fout, "\t\t_rpcsvcstate = _IDLE;\n\n");
 	if (mtflag)
-		f_print(fout, "\tmutex_unlock(&_svcstate_lock);\n");
+		f_print(fout, "\tpthread_mutex_unlock(&_svcstate_lock);\n");
 
 	f_print(fout, "\t(void) signal(SIGALRM, closedown);\n");
 	f_print(fout, "\t(void) alarm(_RPCSVC_CLOSEDOWN/2);\n");
