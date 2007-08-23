@@ -624,7 +624,7 @@ s_output(int argc, const char *argv[], const char *infile, const char *define,
 	if (inetdflag || pmflag) {
 		f_print(fout, "#ifdef __cplusplus\n");
 		f_print(fout,
-			"#include <sysent.h> /* getdtablesize, open */\n");
+			"#include <sys/sysent.h> /* getdtablesize, open */\n");
 		f_print(fout, "#endif /* __cplusplus */\n");
 	}
 	if (tirpcflag) {
