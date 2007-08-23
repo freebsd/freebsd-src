@@ -5196,8 +5196,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 				dst = &(*state)->dst;
 			}
 
-			if (src->wscale && dst->wscale &&
-			    !(th.th_flags & TH_SYN))
+			if (src->wscale && dst->wscale)
 				dws = dst->wscale & PF_WSCALE_MASK;
 			else
 				dws = 0;
