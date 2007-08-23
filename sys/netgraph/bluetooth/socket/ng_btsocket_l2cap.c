@@ -2374,7 +2374,7 @@ ng_btsocket_l2cap_listen(struct socket *so, int backlog, struct thread *td)
 		goto out;
 	}
 	if (pcb->psm == 0) {
-		error = EDESTADDRREQ;
+		error = EADDRNOTAVAIL;
 		goto out;
 	}
 	solisten_proto(so, backlog);
