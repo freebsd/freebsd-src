@@ -429,8 +429,7 @@ bridge_set_max_cache(struct bridge_if *bif, int32_t max_cache)
 }
 
 int
-bridge_set_tx_hold_count(struct bridge_if *bif __unused,
-    int32_t tx_hc __unused)
+bridge_set_tx_hold_count(struct bridge_if *bif, int32_t tx_hc)
 {
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
@@ -455,8 +454,7 @@ bridge_set_tx_hold_count(struct bridge_if *bif __unused,
 }
 
 int
-bridge_set_stp_version(struct bridge_if *bif __unused,
-    int32_t stp_proto __unused)
+bridge_set_stp_version(struct bridge_if *bif, int32_t stp_proto)
 {
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
@@ -675,6 +673,11 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 	else
 		bp->span_enable = begemotBridgeBaseSpanEnabled_disabled;
 
+	if (k_info->ifbr_ifsflags & IFBIF_PRIVATE)
+		bp->priv_set = TruthValue_true;
+	else
+		bp->priv_set = TruthValue_false;
+
 	if (k_info->ifbr_ifsflags & IFBIF_BSTP_ADMEDGE)
 		bp->admin_edge = TruthValue_true;
 	else
@@ -840,8 +843,8 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
  * Set the PonitToPoint status of the link administratively.
  */
 int
-bridge_port_set_admin_ptp(const char *bif_name __unused,
-    struct bridge_port *bp __unused, uint32_t admin_ptp __unused)
+bridge_port_set_admin_ptp(const char *bif_name, struct bridge_port *bp,
+    uint32_t admin_ptp)
 {
 	struct ifdrv ifd;
 	struct ifbreq b_req;
@@ -891,8 +894,8 @@ bridge_port_set_admin_ptp(const char *bif_name __unused,
  * Set admin edge.
  */
 int
-bridge_port_set_admin_edge(const char *bif_name __unused,
-    struct bridge_port *bp __unused, uint32_t enable __unused)
+bridge_port_set_admin_edge(const char *bif_name, struct bridge_port *bp,
+    uint32_t enable)
 {
 	struct ifdrv ifd;
 	struct ifbreq b_req;
@@ -930,6 +933,52 @@ bridge_port_set_admin_edge(const char *bif_name __unused,
 
 	return (0);
 }
+
+/*
+ * Set 'private' flag.
+ */
+int
+bridge_port_set_private(const char *bif_name, struct bridge_port *bp,
+    uint32_t priv_set)
+{
+	struct ifdrv ifd;
+	struct ifbreq b_req;
+
+	if (bp->priv_set == priv_set)
+		return (0);
+
+	bzero(&b_req, sizeof(b_req));
+	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
+	ifd.ifd_len = sizeof(b_req);
+	ifd.ifd_data = &b_req;
+	strlcpy(b_req.ifbr_ifsname, bp->p_name, sizeof(b_req.ifbr_ifsname));
+	ifd.ifd_cmd = BRDGGIFFLGS;
+
+	if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "get member %s param: ioctl(BRDGGIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	if (priv_set == TruthValue_true)
+		b_req.ifbr_ifsflags |= IFBIF_PRIVATE;
+	else if (priv_set == TruthValue_false)
+		b_req.ifbr_ifsflags &= ~IFBIF_PRIVATE;
+	else
+		return (SNMP_ERR_WRONG_VALUE);
+
+	ifd.ifd_cmd = BRDGSIFFLGS;
+	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "set member %s param: ioctl(BRDGSIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	bp->priv_set = priv_set;
+
+	return (0);
+}
+
 
 /*
  * Add a bridge member port.

@@ -41,7 +41,7 @@ IMPORTS
 	FROM BEGEMOT-MIB;
 
 begemotBridge MODULE-IDENTITY
-    LAST-UPDATED "200611210000Z"
+    LAST-UPDATED "200708060000Z"
     ORGANIZATION "Sofia University St. Kliment Ohridski"
     CONTACT-INFO
 	    "		Shteryana Shopova
@@ -56,6 +56,10 @@ begemotBridge MODULE-IDENTITY
 	     E-Mail:	syrinx@FreeBSD.org"
     DESCRIPTION
 	    "The Begemot MIB for managing bridge interfaces."
+    REVISION     "200708060000Z"
+    DESCRIPTION
+	     "Third revision adds begemotBridgeBasePortPrivate
+	     object."
     REVISION     "200611210000Z"
     DESCRIPTION
 	     "Second revision adds support for monitoring RSTP
@@ -211,7 +215,8 @@ BegemotBridgeBasePortEntry  ::= SEQUENCE {
     begemotBridgeBaseSpanEnabled		INTEGER,
     begemotBridgeBasePortDelayExceededDiscards	Counter32,
     begemotBridgeBasePortMtuExceededDiscards	Counter32,
-    begemotBridgeBasePortStatus			RowStatus
+    begemotBridgeBasePortStatus			RowStatus,
+    begemotBridgeBasePortPrivate		TruthValue
 }
 
 begemotBridgeBasePort OBJECT-TYPE
@@ -271,6 +276,17 @@ begemotBridgeBasePortStatus OBJECT-TYPE
 	"Used to control addition of member ports to or
 	removal of member ports from a specified bridge."
     ::= { begemotBridgeBasePortEntry 6 }
+
+begemotBridgeBasePortPrivate OBJECT-TYPE
+    SYNTAX		TruthValue
+    MAX-ACCESS		read-write
+    STATUS		current
+    DESCRIPTION
+	"The value of this objects reflects whether the port
+	has a PRIVATE flag set. A port with this flags set
+	can only communicate with ports not having the
+	PRIVATE flag set."
+    ::= { begemotBridgeBasePortEntry 7 }
 
 -- ---------------------------------------------------------- --
 -- the Bridge interface STP table 

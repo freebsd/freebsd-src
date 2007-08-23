@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2006
+.Dd August 6, 2007
 .Dt snmp_bridge 3
 .Os
 .Sh NAME
@@ -63,7 +63,7 @@ index.
 will attempt to create a bridge interface with the name given by the table
 index and set the status of the interface to "active/up".
 .It Va destroy
-will attempt to destory the bridge interface.
+will attempt to destroy the bridge interface.
 .El
 .It Va begemotBridgeBaseSpanEnabled
 A SNMP SET operation on this object is only successfull if the corresponding
@@ -83,6 +83,9 @@ has been SET already.
 .It Va destroy
 will attempt to remove the interface from the system bridge interface.
 .El
+.It Va begemotBridgeBasePortPrivate
+This object controls a bridge interface flag called PRIVATE where any private
+port can not communicate with another private port.
 .El
 .Sh RESTRICTIONS
 Not all information in the MIBs is currently available in FreeBSD.
