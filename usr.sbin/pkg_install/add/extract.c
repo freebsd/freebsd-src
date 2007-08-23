@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #define PUSHOUT(todir) /* push out string */ \
     if (where_count > (int)sizeof(STARTSTRING)-1) { \
-	strcat(where_args, "|/usr/bin/tar --unlink -xpf - -C "); \
+	strcat(where_args, "|/usr/bin/tar --unlink -xpPf - -C "); \
 	strcat(where_args, todir); \
 	if (system(where_args)) { \
 	    cleanup(0); \
