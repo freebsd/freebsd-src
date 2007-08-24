@@ -649,8 +649,8 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #if 0
 	p(sctps_markedretrans, "\t%lu TODO:%sctps_markedretrans\n");
 #endif
-	p(sctps_naglesent, "\t%lu nagle allowed %sending\n");
-	p(sctps_naglequeued, "\t%lu nagle doe%s't allow sending\n");
+	p(sctps_naglesent, "\t%lu RFC813 allowed %sending\n");
+	p(sctps_naglequeued, "\t%lu RFC813 does not allow sending\n");
 	p(sctps_maxburstqueued, "\t%lu max bur%st dosn't allow sending\n");
 	p(sctps_ifnomemqueued, "\t%lu look ahead tell%s us no memory in "
 	    "interface\n");
