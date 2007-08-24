@@ -425,6 +425,13 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		op_err = NULL;
 	}
 	/* extract the cookie and queue it to "echo" it back... */
+	if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+		    stcb->asoc.overall_error_count,
+		    0,
+		    SCTP_FROM_SCTP_INPUT,
+		    __LINE__);
+	}
 	stcb->asoc.overall_error_count = 0;
 	net->error_count = 0;
 
@@ -603,7 +610,8 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	sctp_print_out_track_log(stcb);
 #endif
-	sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
+	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
+	    SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: finished\n");
 }
 
@@ -645,7 +653,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
 		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT)) {
-			asoc->state = SCTP_STATE_SHUTDOWN_RECEIVED;
+			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_RECEIVED);
 			/*
 			 * notify upper layer that peer has initiated a
 			 * shutdown
@@ -680,7 +688,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
-		asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
+		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 
 		/* start SHUTDOWN timer */
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
@@ -739,7 +747,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 	}
 	SCTP_STAT_INCR_COUNTER32(sctps_shutdown);
 	/* free the TCB but first save off the ep */
-	sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
+	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
 	    SCTP_FROM_SCTP_INPUT + SCTP_LOC_10);
 }
 
@@ -866,7 +874,8 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 				    asoc->max_init_times) {
 					sctp_abort_notification(stcb, 0);
 					/* now free the asoc */
-					sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_11);
+					(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
+					    SCTP_FROM_SCTP_INPUT + SCTP_LOC_11);
 					return (-1);
 				}
 				/* blast back to INIT state */
@@ -941,7 +950,6 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
     struct sctp_nets *net, int *abort_no_unlock, uint32_t vrf_id)
 {
 	struct sctp_init_ack *init_ack;
-	int *state;
 	struct mbuf *op_err;
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
@@ -995,8 +1003,7 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		return (-1);
 	}
 	/* process according to association state... */
-	state = &stcb->asoc.state;
-	switch (*state & SCTP_STATE_MASK) {
+	switch (stcb->asoc.state & SCTP_STATE_MASK) {
 	case SCTP_STATE_COOKIE_WAIT:
 		/* this is the expected state for this chunk */
 		/* process the INIT-ACK parameters */
@@ -1020,14 +1027,16 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		}
 		/* update our state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to COOKIE-ECHOED state\n");
-		if (*state & SCTP_STATE_SHUTDOWN_PENDING) {
-			*state = SCTP_STATE_COOKIE_ECHOED |
-			    SCTP_STATE_SHUTDOWN_PENDING;
-		} else {
-			*state = SCTP_STATE_COOKIE_ECHOED;
-		}
+		SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_ECHOED);
 
 		/* reset the RTO calc */
+		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+			    stcb->asoc.overall_error_count,
+			    0,
+			    SCTP_FROM_SCTP_INPUT,
+			    __LINE__);
+		}
 		stcb->asoc.overall_error_count = 0;
 		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
 		/*
@@ -1195,14 +1204,11 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 				SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
 			else
 				SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
+
+			SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 			if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-				asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 				    stcb->sctp_ep, stcb, asoc->primary_destination);
-
-			} else {
-				/* if ok, move to OPEN state */
-				asoc->state = SCTP_STATE_OPEN;
 			}
 			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 			sctp_stop_all_cookie_timers(stcb);
@@ -1381,13 +1387,11 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		} else {
 			SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
 		}
+		SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 
-		} else {
-			asoc->state = SCTP_STATE_OPEN;
 		}
 		sctp_stop_all_cookie_timers(stcb);
 		sctp_toss_old_cookies(stcb, asoc);
@@ -1438,14 +1442,13 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			SCTP_STAT_INCR_GAUGE32(sctps_collisionestab);
 		}
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			asoc->state = SCTP_STATE_OPEN |
-			    SCTP_STATE_SHUTDOWN_PENDING;
+			SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 
 		} else if (!(asoc->state & SCTP_STATE_SHUTDOWN_SENT)) {
 			/* move to OPEN state, if not in SHUTDOWN_SENT */
-			asoc->state = SCTP_STATE_OPEN;
+			SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 		}
 		asoc->pre_open_streams =
 		    ntohs(initack_cp->init.num_outbound_streams);
@@ -1667,7 +1670,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		op_err = sctp_generate_invmanparam(SCTP_CAUSE_OUT_OF_RESC);
 		sctp_abort_association(inp, (struct sctp_tcb *)NULL, m, iphlen,
 		    sh, op_err, vrf_id);
-		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_16);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
@@ -1692,7 +1695,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		retval = 0;
 	if (retval < 0) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
-		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_16);
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_16);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
@@ -1701,7 +1704,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	    init_offset + sizeof(struct sctp_init_chunk), initack_offset, sh,
 	    init_src)) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
-		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_17);
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_17);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
@@ -1722,7 +1725,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 			SCTPDBG(SCTP_DEBUG_AUTH1,
 			    "COOKIE-ECHO: AUTH failed\n");
 			atomic_add_int(&stcb->asoc.refcnt, 1);
-			sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_18);
+			(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_18);
 			atomic_add_int(&stcb->asoc.refcnt, -1);
 			return (NULL);
 		} else {
@@ -1732,12 +1735,10 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	}
 	/* update current state */
 	SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
+	SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 	if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-		asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 		    stcb->sctp_ep, stcb, asoc->primary_destination);
-	} else {
-		asoc->state = SCTP_STATE_OPEN;
 	}
 	sctp_stop_all_cookie_timers(stcb);
 	SCTP_STAT_INCR_COUNTER32(sctps_passiveestab);
@@ -1772,7 +1773,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		    sizeof(sin6->sin6_addr));
 	} else {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
-		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_19);
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_19);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		return (NULL);
 	}
@@ -2201,7 +2202,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				op_err = sctp_generate_invmanparam(SCTP_CAUSE_OUT_OF_RESC);
 				sctp_abort_association(*inp_p, NULL, m, iphlen,
 				    sh, op_err, vrf_id);
-				sctp_free_assoc(*inp_p, *stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_20);
+				(void)sctp_free_assoc(*inp_p, *stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_20);
 				return (NULL);
 			}
 			inp = (struct sctp_inpcb *)so->so_pcb;
@@ -2304,13 +2305,11 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 	if (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED) {
 		/* state change only needed when I am in right state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
+		SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 
-		} else {
-			asoc->state = SCTP_STATE_OPEN;
 		}
 		/* update RTO */
 		SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
@@ -2500,7 +2499,7 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp,
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_22);
 	SCTP_STAT_INCR_COUNTER32(sctps_shutdown);
 	/* free the TCB */
-	sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_23);
+	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_23);
 	return;
 }
 
@@ -3657,6 +3656,13 @@ __attribute__((noinline))
 	    (ch->chunk_type == SCTP_HEARTBEAT_REQUEST)) &&
 	    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
 		/* implied cookie-ack.. we must have lost the ack */
+		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+			    stcb->asoc.overall_error_count,
+			    0,
+			    SCTP_FROM_SCTP_INPUT,
+			    __LINE__);
+		}
 		stcb->asoc.overall_error_count = 0;
 		sctp_handle_cookie_ack((struct sctp_cookie_ack_chunk *)ch, stcb,
 		    *netp);
@@ -3826,7 +3832,7 @@ process_control_chunks:
 					}
 					*offset = length;
 					if (stcb) {
-						sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_27);
+						(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_27);
 					}
 					return (NULL);
 				}
@@ -3927,6 +3933,13 @@ process_control_chunks:
 				    chk_length, *netp);
 
 				/* He's alive so give him credit */
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 			}
 			break;
@@ -3941,6 +3954,13 @@ process_control_chunks:
 				return (NULL);
 			}
 			/* He's alive so give him credit */
+			if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+				sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+				    stcb->asoc.overall_error_count,
+				    0,
+				    SCTP_FROM_SCTP_INPUT,
+				    __LINE__);
+			}
 			stcb->asoc.overall_error_count = 0;
 			SCTP_STAT_INCR(sctps_recvheartbeatack);
 			if (netp && *netp)
@@ -4130,13 +4150,20 @@ process_control_chunks:
 				if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else if (stcb) {
-					sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_27);
+					(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_27);
 					*offset = length;
 					return (NULL);
 				}
 			}
 			/* He's alive so give him credit */
 			if ((stcb) && netp && *netp) {
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_cookie_ack((struct sctp_cookie_ack_chunk *)ch, stcb, *netp);
 			}
@@ -4153,6 +4180,13 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_ecn_echo((struct sctp_ecne_chunk *)ch,
 				    stcb);
@@ -4170,6 +4204,13 @@ process_control_chunks:
 				return (NULL);
 			}
 			if (stcb) {
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_ecn_cwr((struct sctp_cwr_chunk *)ch, stcb);
 			}
@@ -4196,6 +4237,13 @@ process_control_chunks:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_ASCONF\n");
 			/* He's alive so give him credit */
 			if (stcb) {
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_asconf(m, *offset,
 				    (struct sctp_asconf_chunk *)ch, stcb);
@@ -4213,6 +4261,13 @@ process_control_chunks:
 			}
 			if ((stcb) && netp && *netp) {
 				/* He's alive so give him credit */
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_asconf_ack(m, *offset,
 				    (struct sctp_asconf_ack_chunk *)ch, stcb, *netp);
@@ -4233,10 +4288,17 @@ process_control_chunks:
 				int abort_flag = 0;
 
 				stcb->asoc.overall_error_count = 0;
+				if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+					sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+					    stcb->asoc.overall_error_count,
+					    0,
+					    SCTP_FROM_SCTP_INPUT,
+					    __LINE__);
+				}
 				*fwd_tsn_seen = 1;
 				if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 					/* We are not interested anymore */
-					sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_29);
+					(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_29);
 					*offset = length;
 					return (NULL);
 				}
@@ -4246,6 +4308,13 @@ process_control_chunks:
 					*offset = length;
 					return (NULL);
 				} else {
+					if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+						sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+						    stcb->asoc.overall_error_count,
+						    0,
+						    SCTP_FROM_SCTP_INPUT,
+						    __LINE__);
+					}
 					stcb->asoc.overall_error_count = 0;
 				}
 
@@ -4263,7 +4332,7 @@ process_control_chunks:
 			}
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				/* We are not interested anymore */
-				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_30);
+				(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_30);
 				*offset = length;
 				return (NULL);
 			}
@@ -4510,7 +4579,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 		/* always clear this before beginning a packet */
 		stcb->asoc.authenticated = 0;
 		stcb->asoc.seen_a_sack_this_pkt = 0;
-		if (stcb->asoc.state & SCTP_STATE_WAS_ABORTED) {
+		if ((stcb->asoc.state & SCTP_STATE_WAS_ABORTED) ||
+		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED)) {
 			/*-
 			 * If we hit here, we had a ref count
 			 * up when the assoc was aborted and the
@@ -4610,6 +4680,13 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 			 * shows us the cookie-ack was lost. Imply it was
 			 * there.
 			 */
+			if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+				sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+				    stcb->asoc.overall_error_count,
+				    0,
+				    SCTP_FROM_SCTP_INPUT,
+				    __LINE__);
+			}
 			stcb->asoc.overall_error_count = 0;
 			sctp_handle_cookie_ack((struct sctp_cookie_ack_chunk *)ch, stcb, net);
 			break;
@@ -4928,9 +5005,7 @@ sctp_skip_csum_4:
 	}
 	if ((inp) && (refcount_up)) {
 		/* reduce ref-count */
-		SCTP_INP_WLOCK(inp);
 		SCTP_INP_DECR_REF(inp);
-		SCTP_INP_WUNLOCK(inp);
 	}
 	return;
 bad:
@@ -4939,9 +5014,7 @@ bad:
 	}
 	if ((inp) && (refcount_up)) {
 		/* reduce ref-count */
-		SCTP_INP_WLOCK(inp);
 		SCTP_INP_DECR_REF(inp);
-		SCTP_INP_WUNLOCK(inp);
 	}
 	if (m) {
 		sctp_m_freem(m);

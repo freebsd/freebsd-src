@@ -121,6 +121,16 @@ MALLOC_DECLARE(SCTP_M_MVRF);
 MALLOC_DECLARE(SCTP_M_ITER);
 MALLOC_DECLARE(SCTP_M_SOCKOPT);
 
+#if defined(SCTP_LOCAL_TRACE_BUF)
+
+#define SCTP_GET_CYCLECOUNT get_cyclecount()
+#define SCTP_CTR6 sctp_log_trace
+
+#else
+#define SCTP_CTR6 CTR6
+#endif
+
+
 /*
  *
  */
@@ -166,10 +176,17 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #endif
 
 #ifdef SCTP_LTRACE_ERRORS
-#define SCTP_LTRACE_ERR(a, b, c, d) if(sctp_logging_level & SCTP_LTRACE_ERROR_ENABLE) CTR6(KTR_SUBSYS, "SCTP:%d[%d]:%x-%x-%x-%x", SCTP_LOG_ERROR_RET, 0, a, b, c, d)
+#define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err) if(sctp_logging_level & SCTP_LTRACE_ERROR_ENABLE) \
+                                                         printf("mbuf:%p inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+								     m, inp, stcb, net, file, __LINE__, err);
+#define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err) if(sctp_logging_level & SCTP_LTRACE_ERROR_ENABLE) \
+                                                          printf("inp:%p stcb:%p net:%p file:%x line:%d error:%d\n", \
+								     inp, stcb, net, file, __LINE__, err);
 #else
-#define SCTP_LTRACE_ERR(a, b, c, d)
+#define SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, file, err)
+#define SCTP_LTRACE_ERR_RET(inp, stcb, net, file, err)
 #endif
+
 
 /*
  * Local address and interface list handling

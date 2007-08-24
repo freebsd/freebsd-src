@@ -780,7 +780,7 @@ sctp_alloc_authinfo(void)
 		/* out of memory */
 		return (NULL);
 	}
-	bzero(&new_authinfo, sizeof(*new_authinfo));
+	bzero(new_authinfo, sizeof(*new_authinfo));
 	return (new_authinfo);
 }
 
