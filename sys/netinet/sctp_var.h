@@ -167,15 +167,9 @@ extern struct pr_usrreqs sctp_usrreqs;
 	  if (val < SCTP_BUF_LEN((m))) {\
 	     panic("stcb->sb_cc goes negative"); \
 	  } \
-	  val = atomic_fetchadd_int(&(stcb)->asoc.sb_mbcnt,-(MSIZE)); \
+	  val = atomic_fetchadd_int(&(stcb)->asoc.my_rwnd_control_len,-(MSIZE)); \
 	  if (val < MSIZE) { \
 	     panic("asoc->mbcnt goes negative"); \
-	  } \
-	  if (SCTP_BUF_IS_EXTENDED(m)) { \
-		val = atomic_fetchadd_int(&(stcb)->asoc.sb_mbcnt,-(SCTP_BUF_EXTEND_SIZE(m))); \
-		if (val < SCTP_BUF_EXTEND_SIZE(m)) { \
-		   panic("assoc stcb->mbcnt would go negative"); \
-		} \
 	  } \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
@@ -191,9 +185,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 		atomic_add_int(&(sb)->sb_mbcnt,SCTP_BUF_EXTEND_SIZE(m)); \
 	if (stcb) { \
 		atomic_add_int(&(stcb)->asoc.sb_cc,SCTP_BUF_LEN((m))); \
-		atomic_add_int(&(stcb)->asoc.sb_mbcnt, MSIZE); \
-		if (SCTP_BUF_IS_EXTENDED(m)) \
-			atomic_add_int(&(stcb)->asoc.sb_mbcnt,SCTP_BUF_EXTEND_SIZE(m)); \
+		atomic_add_int(&(stcb)->asoc.my_rwnd_control_len, MSIZE); \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
 	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
@@ -290,6 +282,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 } while (0)
 
 #endif
+
 
 struct sctp_nets;
 struct sctp_inpcb;

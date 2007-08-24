@@ -209,8 +209,11 @@ __FBSDID("$FreeBSD$");
 #define SCTP_FLIGHT_LOG_DOWN_PMTU  115
 #define SCTP_SACK_LOG_NORMAL	   116
 #define SCTP_SACK_LOG_EXPRESS	   117
+#define SCTP_MAP_TSN_ENTERS        118
+#define SCTP_THRESHOLD_CLEAR       119
+#define SCTP_THRESHOLD_INCR        120
 
-#define SCTP_LOG_MAX_TYPES 118
+#define SCTP_LOG_MAX_TYPES 121
 /*
  * To turn on various logging, you must first enable 'options KTR' and
  * you might want to bump the entires 'options KTR_ENTRIES=80000'.
@@ -220,6 +223,12 @@ __FBSDID("$FreeBSD$");
  * This gets the compile in place, but you still need to turn the
  * logging flag on too in the sysctl (see in sctp.h).
  */
+
+/* For SCTP only logging */
+#define SCTP_MAX_LOGGING_SIZE 30000
+#define SCTP_TRACE_PARAMS 6
+
+
 #define SCTP_LOG_EVENT_UNKNOWN 0
 #define SCTP_LOG_EVENT_CWND  1
 #define SCTP_LOG_EVENT_BLOCK 2
@@ -480,6 +489,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_STATE_MASK			0x007f
 
 #define SCTP_GET_STATE(asoc)	((asoc)->state & SCTP_STATE_MASK)
+#define SCTP_SET_STATE(asoc, newstate)  ((asoc)->state = ((asoc)->state & ~SCTP_STATE_MASK) |  newstate)
 
 /* SCTP reachability state for each address */
 #define SCTP_ADDR_REACHABLE		0x001
@@ -831,6 +841,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_FROM_SCTP_OUTPUT  0x90000000
 #define SCTP_FROM_SCTP_PEELOFF 0xa0000000
 #define SCTP_FROM_SCTP_PANDA   0xb0000000
+#define SCTP_FROM_SCTP_SYSCTL  0xc0000000
 
 /* Location ID's */
 #define SCTP_LOC_1  0x00000001

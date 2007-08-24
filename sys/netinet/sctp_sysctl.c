@@ -99,6 +99,8 @@ uint32_t sctp_max_retran_chunk = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
 /* JRS - Variable for default congestion control module */
 uint32_t sctp_default_cc_module = SCTPCTL_DEFAULT_CC_MODULE_DEFAULT;
 
+uint32_t sctp_default_frag_interleave = SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DEFAULT;
+
 uint32_t sctp_L2_abc_variable = 1;
 uint32_t sctp_early_fr = 0;
 uint32_t sctp_early_fr_msec = SCTP_MINFR_MSEC_TIMER;
@@ -345,6 +347,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 	}
 	if (req->newptr != USER_ADDR_NULL) {
 		SCTP_INP_INFO_RUNLOCK();
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_SYSCTL, EPERM);
 		return EPERM;
 	}
 	LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
@@ -623,6 +626,11 @@ SYSCTL_UINT(_net_inet_sctp, OID_AUTO, cmt_pf, CTLFLAG_RW,
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, default_cc_module, CTLFLAG_RW,
     &sctp_default_cc_module, 0,
     "Default congestion control module");
+
+
+SYSCTL_UINT(_net_inet_sctp, OID_AUTO, default_frag_interleave, CTLFLAG_RW,
+    &sctp_default_frag_interleave, 0,
+    SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DESC);
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, cwnd_maxburst, CTLFLAG_RW,
     &sctp_use_cwnd_based_maxburst, 0,
