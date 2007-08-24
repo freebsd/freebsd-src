@@ -108,7 +108,9 @@ mfi_disk_attach(device_t dev)
 
 	sectors = ld_info->size;
 	secsize = MFI_SECTOR_LEN;
+	mtx_lock(&sc->ld_controller->mfi_io_lock);
 	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, sc, ld_link);
+	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
 	switch (ld_info->ld_config.params.state) {
 	case MFI_LD_STATE_OFFLINE:
@@ -162,12 +164,21 @@ mfi_disk_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if ((sc->ld_disk->d_flags & DISKFLAG_OPEN) ||
-	    (sc->ld_flags & MFI_DISK_FLAGS_OPEN))
+	mtx_lock(&sc->ld_controller->mfi_io_lock);
+	if (((sc->ld_disk->d_flags & DISKFLAG_OPEN) ||
+	    (sc->ld_flags & MFI_DISK_FLAGS_OPEN)) &&
+	    (sc->ld_controller->mfi_keep_deleted_volumes ||
+	    sc->ld_controller->mfi_detaching)) {
+		mtx_unlock(&sc->ld_controller->mfi_io_lock);
 		return (EBUSY);
+	}
+	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
-	free(sc->ld_info, M_MFIBUF);
 	disk_destroy(sc->ld_disk);
+	mtx_lock(&sc->ld_controller->mfi_io_lock);
+	TAILQ_REMOVE(&sc->ld_controller->mfi_ld_tqh, sc, ld_link);
+	mtx_unlock(&sc->ld_controller->mfi_io_lock);
+	free(sc->ld_info, M_MFIBUF);
 	return (0);
 }
 
@@ -175,13 +186,19 @@ static int
 mfi_disk_open(struct disk *dp)
 {
 	struct mfi_disk *sc;
+	int error;
 
 	sc = dp->d_drv1;
 	mtx_lock(&sc->ld_controller->mfi_io_lock);
-	sc->ld_flags |= MFI_DISK_FLAGS_OPEN;
+	if (sc->ld_flags & MFI_DISK_FLAGS_DISABLED)
+		error = ENXIO;
+	else {
+		sc->ld_flags |= MFI_DISK_FLAGS_OPEN;
+		error = 0;
+	}
 	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -195,6 +212,29 @@ mfi_disk_close(struct disk *dp)
 	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
 	return (0);
+}
+
+int
+mfi_disk_disable(struct mfi_disk *sc)
+{
+
+	mtx_assert(&sc->ld_controller->mfi_io_lock, MA_OWNED);
+	if (sc->ld_flags & MFI_DISK_FLAGS_OPEN) {
+		if (sc->ld_controller->mfi_delete_busy_volumes)
+			return (0);
+		device_printf(sc->ld_dev, "Unable to delete busy device\n");
+		return (EBUSY);
+	}
+	sc->ld_flags |= MFI_DISK_FLAGS_DISABLED;
+	return (0);
+}
+
+void
+mfi_disk_enable(struct mfi_disk *sc)
+{
+
+	mtx_assert(&sc->ld_controller->mfi_io_lock, MA_OWNED);
+	sc->ld_flags &= ~MFI_DISK_FLAGS_DISABLED;
 }
 
 static void
