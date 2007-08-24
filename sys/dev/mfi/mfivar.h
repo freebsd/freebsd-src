@@ -30,6 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/lock.h>
+#include <sys/sx.h>
+
 /*
  * SCSI structures and definitions are used from here, but no linking
  * requirements are made to CAM.
@@ -87,6 +90,7 @@ struct mfi_disk {
 	struct disk	*ld_disk;
 	int		ld_flags;
 #define MFI_DISK_FLAGS_OPEN	0x01
+#define	MFI_DISK_FLAGS_DISABLED	0x02
 };
 
 struct mfi_aen {
@@ -131,6 +135,9 @@ struct mfi_softc {
 	uint32_t			mfi_aen_triggered;
 	uint32_t			mfi_poll_waiting;
 	struct selinfo			mfi_select;
+	int				mfi_delete_busy_volumes;
+	int				mfi_keep_deleted_volumes;
+	int				mfi_detaching;
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
@@ -185,6 +192,7 @@ struct mfi_softc {
 	struct mfi_command *		(* mfi_cam_start)(void *);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
+	struct sx			mfi_config_lock;
 };
 
 extern int mfi_attach(struct mfi_softc *);
@@ -192,6 +200,8 @@ extern void mfi_free(struct mfi_softc *);
 extern int mfi_shutdown(struct mfi_softc *);
 extern void mfi_startio(struct mfi_softc *);
 extern void mfi_disk_complete(struct bio *);
+extern int mfi_disk_disable(struct mfi_disk *);
+extern void mfi_disk_enable(struct mfi_disk *);
 extern int mfi_dump_blocks(struct mfi_softc *, int id, uint64_t, void *, int);
 
 #define MFIQ_ADD(sc, qname)					\

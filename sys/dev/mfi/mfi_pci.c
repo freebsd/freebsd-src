@@ -200,19 +200,24 @@ mfi_pci_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	sx_xlock(&sc->mfi_config_lock);
 	mtx_lock(&sc->mfi_io_lock);
 	if ((sc->mfi_flags & MFI_FLAGS_OPEN) != 0) {
 		mtx_unlock(&sc->mfi_io_lock);
+		sx_xunlock(&sc->mfi_config_lock);
 		return (EBUSY);
 	}
+	sc->mfi_detaching = 1;
+	mtx_unlock(&sc->mfi_io_lock);
 
 	while ((ld = TAILQ_FIRST(&sc->mfi_ld_tqh)) != NULL) {
 		if ((error = device_delete_child(dev, ld->ld_dev)) != 0) {
-			mtx_unlock(&sc->mfi_io_lock);
+			sc->mfi_detaching = 0;
+			sx_xunlock(&sc->mfi_config_lock);
 			return (error);
 		}
-		TAILQ_REMOVE(&sc->mfi_ld_tqh, ld, ld_link);
 	}
+	sx_xunlock(&sc->mfi_config_lock);
 
 	EVENTHANDLER_DEREGISTER(shutdown_final, sc->mfi_eh);
 

@@ -185,6 +185,7 @@ mfi_attach(struct mfi_softc *sc)
 	int frames, unit, max_fw_sge;
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
+	sx_init(&sc->mfi_config_lock, "MFI config");
 	TAILQ_INIT(&sc->mfi_ld_tqh);
 	TAILQ_INIT(&sc->mfi_aen_pids);
 	TAILQ_INIT(&sc->mfi_cam_ccbq);
@@ -393,6 +394,15 @@ mfi_attach(struct mfi_softc *sc)
 		make_dev_alias(sc->mfi_cdev, "megaraid_sas_ioctl_node");
 	if (sc->mfi_cdev != NULL)
 		sc->mfi_cdev->si_drv1 = sc;
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->mfi_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->mfi_dev)),
+	    OID_AUTO, "delete_busy_volumes", CTLFLAG_RW,
+	    &sc->mfi_delete_busy_volumes, 0, "Allow removal of busy volumes");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->mfi_dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->mfi_dev)),
+	    OID_AUTO, "keep_deleted_volumes", CTLFLAG_RW,
+	    &sc->mfi_keep_deleted_volumes, 0,
+	    "Don't detach the mfid device for a busy volume that is deleted");
 
 	device_add_child(sc->mfi_dev, "mfip", -1);
 	bus_generic_attach(sc->mfi_dev);
@@ -750,8 +760,10 @@ mfi_free(struct mfi_softc *sc)
 	if (sc->mfi_parent_dmat != NULL)
 		bus_dma_tag_destroy(sc->mfi_parent_dmat);
 
-	if (mtx_initialized(&sc->mfi_io_lock))
+	if (mtx_initialized(&sc->mfi_io_lock)) {
 		mtx_destroy(&sc->mfi_io_lock);
+		sx_destroy(&sc->mfi_config_lock);
+	}
 
 	return;
 }
@@ -766,9 +778,11 @@ mfi_startup(void *arg)
 	config_intrhook_disestablish(&sc->mfi_ich);
 
 	mfi_enable_intr(sc);
+	sx_xlock(&sc->mfi_config_lock);
 	mtx_lock(&sc->mfi_io_lock);
 	mfi_ldprobe(sc);
 	mtx_unlock(&sc->mfi_io_lock);
+	sx_xunlock(&sc->mfi_config_lock);
 }
 
 static void
@@ -857,8 +871,10 @@ mfi_ldprobe(struct mfi_softc *sc)
 	struct mfi_frame_header *hdr;
 	struct mfi_command *cm = NULL;
 	struct mfi_ld_list *list = NULL;
+	struct mfi_disk *ld;
 	int error, i;
 
+	sx_assert(&sc->mfi_config_lock, SA_XLOCKED);
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_LIST,
@@ -879,8 +895,14 @@ mfi_ldprobe(struct mfi_softc *sc)
 		goto out;
 	}
 
-	for (i = 0; i < list->ld_count; i++)
+	for (i = 0; i < list->ld_count; i++) {
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			if (ld->ld_id == list->ld_list[i].ld.v.target_id)
+				goto skip_add;
+		}
 		mfi_add_ld(sc, list->ld_list[i].ld.v.target_id);
+	skip_add:;
+	}
 out:
 	if (list)
 		free(list, M_MFIBUF);
@@ -1757,14 +1779,20 @@ static int
 mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
 	struct mfi_softc *sc;
+	int error;
 
 	sc = dev->si_drv1;
 
 	mtx_lock(&sc->mfi_io_lock);
-	sc->mfi_flags |= MFI_FLAGS_OPEN;
+	if (sc->mfi_detaching)
+		error = ENXIO;
+	else {
+		sc->mfi_flags |= MFI_FLAGS_OPEN;
+		error = 0;
+	}
 	mtx_unlock(&sc->mfi_io_lock);
 
-	return (0);
+	return (error);
 }
 
 static int
@@ -1790,6 +1818,111 @@ mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
+mfi_config_lock(struct mfi_softc *sc, uint32_t opcode)
+{
+
+	switch (opcode) {
+	case MFI_DCMD_LD_DELETE:
+	case MFI_DCMD_CFG_ADD:
+	case MFI_DCMD_CFG_CLEAR:
+		sx_xlock(&sc->mfi_config_lock);
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+static void
+mfi_config_unlock(struct mfi_softc *sc, int locked)
+{
+
+	if (locked)
+		sx_xunlock(&sc->mfi_config_lock);
+}
+
+/* Perform pre-issue checks on commands from userland and possibly veto them. */
+static int
+mfi_check_command_pre(struct mfi_softc *sc, struct mfi_command *cm)
+{
+	struct mfi_disk *ld, *ld2;
+	int error;
+
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+	error = 0;
+	switch (cm->cm_frame->dcmd.opcode) {
+	case MFI_DCMD_LD_DELETE:
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			if (ld->ld_id == cm->cm_frame->dcmd.mbox[0])
+				break;
+		}
+		if (ld == NULL)
+			error = ENOENT;
+		else
+			error = mfi_disk_disable(ld);
+		break;
+	case MFI_DCMD_CFG_CLEAR:
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			error = mfi_disk_disable(ld);
+			if (error)
+				break;
+		}
+		if (error) {
+			TAILQ_FOREACH(ld2, &sc->mfi_ld_tqh, ld_link) {
+				if (ld2 == ld)
+					break;
+				mfi_disk_enable(ld2);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return (error);
+}
+
+/* Perform post-issue checks on commands from userland. */
+static void
+mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
+{
+	struct mfi_disk *ld, *ldn;
+
+	switch (cm->cm_frame->dcmd.opcode) {
+	case MFI_DCMD_LD_DELETE:
+		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+			if (ld->ld_id == cm->cm_frame->dcmd.mbox[0])
+				break;
+		}
+		KASSERT(ld != NULL, ("volume dissappeared"));
+		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
+			mtx_unlock(&sc->mfi_io_lock);
+			mtx_lock(&Giant);
+			device_delete_child(sc->mfi_dev, ld->ld_dev);
+			mtx_unlock(&Giant);
+			mtx_lock(&sc->mfi_io_lock);
+		} else
+			mfi_disk_enable(ld);
+		break;
+	case MFI_DCMD_CFG_CLEAR:
+		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
+			mtx_unlock(&sc->mfi_io_lock);
+			mtx_lock(&Giant);
+			TAILQ_FOREACH_SAFE(ld, &sc->mfi_ld_tqh, ld_link, ldn) {
+				device_delete_child(sc->mfi_dev, ld->ld_dev);
+			}
+			mtx_unlock(&Giant);
+			mtx_lock(&sc->mfi_io_lock);
+		} else {
+			TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link)
+				mfi_disk_enable(ld);
+		}
+		break;
+	case MFI_DCMD_CFG_ADD:
+		mfi_ldprobe(sc);
+		break;
+	}
+}
+
+static int
 mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
@@ -1801,7 +1934,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	uint8_t *sense_ptr;
 	uint8_t *data = NULL, *temp;
 	int i;
-	int error;
+	int error, locked;
 
 	sc = dev->si_drv1;
 	error = 0;
@@ -1855,6 +1988,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			return (EBUSY);
 		}
 		mtx_unlock(&sc->mfi_io_lock);
+		locked = 0;
 
 		/*
 		 * save off original context since copying from user
@@ -1892,7 +2026,16 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			temp = &temp[ioc->mfi_sgl[i].iov_len];
 		}
 
+		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
+			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
+
 		mtx_lock(&sc->mfi_io_lock);
+		error = mfi_check_command_pre(sc, cm);
+		if (error) {
+			mtx_unlock(&sc->mfi_io_lock);
+			goto out;
+		}
+
 		if ((error = mfi_wait_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed\n");
@@ -1900,6 +2043,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			goto out;
 		}
 
+		mfi_check_command_post(sc, cm);
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
@@ -1929,17 +2073,8 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		}
 
 		ioc->mfi_frame.hdr.cmd_status = cm->cm_frame->header.cmd_status;
-		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
-			switch (cm->cm_frame->dcmd.opcode) {
-			case MFI_DCMD_CFG_CLEAR:
-			case MFI_DCMD_CFG_ADD:
-/*
-				mfi_ldrescan(sc);
-*/
-				break;
-			}
-		}
 out:
+		mfi_config_unlock(sc, locked);
 		if (data)
 			free(data, M_MFIBUF);
 		if (cm) {
@@ -2019,7 +2154,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	uint8_t *data = NULL, *temp;
 	void *temp_convert;
 	int i;
-	int error;
+	int error, locked;
 
 	sc = dev->si_drv1;
 	error = 0;
@@ -2039,6 +2174,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			return (EBUSY);
 		}
 		mtx_unlock(&sc->mfi_io_lock);
+		locked = 0;
 
 		/*
 		 * save off original context since copying from user
@@ -2074,7 +2210,16 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 		}
 
+		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
+			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
+
 		mtx_lock(&sc->mfi_io_lock);
+		error = mfi_check_command_pre(sc, cm);
+		if (error) {
+			mtx_unlock(&sc->mfi_io_lock);
+			goto out;
+		}
+
 		if ((error = mfi_wait_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed\n");
@@ -2082,6 +2227,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			goto out;
 		}
 
+		mfi_check_command_post(sc, cm);
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
@@ -2122,15 +2268,8 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			goto out;
 		}
 
-		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
-			switch (cm->cm_frame->dcmd.opcode) {
-			case MFI_DCMD_CFG_CLEAR:
-			case MFI_DCMD_CFG_ADD:
-				/* mfi_ldrescan(sc); */
-				break;
-			}
-		}
 out:
+		mfi_config_unlock(sc, locked);
 		if (data)
 			free(data, M_MFIBUF);
 		if (cm) {
