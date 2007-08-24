@@ -588,6 +588,10 @@
 	which supports Cronyx Tau-PCI/32 adapters, has been added.
 	&merged;</para>
 
+      <para>[&arch.i386;, &arch.amd64;] The &man.coretemp.4; driver
+	has been added to provide temperature readings on &intel;
+	&core; processors.</para>
+
       <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
         frequency control for the VIA C7-M family of processors.</para> 
 
@@ -2301,7 +2305,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
-      <application>tzdata2006n</application> release. &merged;</para>
+      <application>tzdata2007g</application> release. &merged;</para>
 
     <para><application>tip</application> has been updated to a
       snapshot from OpenBSD as of 20060831.</para>
