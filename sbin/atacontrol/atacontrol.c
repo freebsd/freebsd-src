@@ -528,30 +528,30 @@ main(int argc, char **argv)
 		exit(EX_OK);
 	}
 	if (!strcmp(argv[1], "status") && argc == 3) {
-		struct ata_ioc_raid_config config;
-		int i;
+		struct ata_ioc_raid_status status;
+		int i, lun, state;
 
-		if (!(sscanf(argv[2], "ar%d", &config.lun) == 1)) {
+		if (!(sscanf(argv[2], "ar%d", &status.lun) == 1)) {
 			fprintf(stderr,
 				"atacontrol: Invalid array %s\n", argv[2]);
 			usage();
 		}
-		if (ioctl(fd, IOCATARAIDSTATUS, &config) < 0)
+		if (ioctl(fd, IOCATARAIDSTATUS, &status) < 0)
 			err(1, "ioctl(IOCATARAIDSTATUS)");
 
-		printf("ar%d: ATA ", config.lun);
-		switch (config.type) {
+		printf("ar%d: ATA ", status.lun);
+		switch (status.type) {
 		case AR_RAID0:
-			printf("RAID0 stripesize=%d", config.interleave);
+			printf("RAID0 stripesize=%d", status.interleave);
 			break;
 		case AR_RAID1:
 			printf("RAID1");
 			break;
 		case AR_RAID01:
-			printf("RAID0+1 stripesize=%d", config.interleave);
+			printf("RAID0+1 stripesize=%d", status.interleave);
 			break;
 		case AR_RAID5:
-			printf("RAID5 stripesize=%d", config.interleave);
+			printf("RAID5 stripesize=%d", status.interleave);
 			break;
 		case AR_JBOD:
 			printf("JBOD");
@@ -559,15 +559,8 @@ main(int argc, char **argv)
 			printf("SPAN");
 			break;
 		}
-		printf(" subdisks: ");
-		for (i = 0; i < config.total_disks; i++) {
-			if (config.disks[i] >= 0)
-				printf("ad%d ", config.disks[i]);
-			else
-				printf("DOWN ");
-		}
-		printf("status: ");
-		switch (config.status) {
+		printf(" status: ");
+		switch (status.status) {
 		case AR_READY:
 			printf("READY\n");
 			break;
@@ -576,10 +569,29 @@ main(int argc, char **argv)
 			break;
 		case AR_READY | AR_DEGRADED | AR_REBUILDING:
 			printf("REBUILDING %d%% completed\n",
-				config.progress);
+				status.progress);
 			break;
 		default:
 			printf("BROKEN\n");
+		}
+		printf(" subdisks:\n");
+		for (i = 0; i < status.total_disks; i++) {
+			printf("  %2d ", i);
+			lun = status.disks[i].lun;
+			state = status.disks[i].state;
+			if (lun < 0)
+				printf("---- ");
+			else
+				printf("ad%-2d ", lun);
+			if (state & AR_DISK_ONLINE)
+				printf("ONLINE");
+			else if (state & AR_DISK_SPARE)
+				printf("SPARE");
+			else if (state & AR_DISK_PRESENT)
+				printf("OFFLINE");
+			else
+				printf("MISSING");
+			printf("\n");
 		}
 		exit(EX_OK);
 	}
