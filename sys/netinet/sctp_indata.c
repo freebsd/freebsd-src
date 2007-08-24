@@ -775,7 +775,7 @@ doit_again:
 			 * but should we?
 			 */
 			if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-			    (tsize > stcb->sctp_ep->partial_delivery_point))) {
+			    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
 
 				/*
 				 * Yes, we setup to start reception, by
@@ -1452,7 +1452,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	protocol_id = ch->dp.protocol_id;
 	ordered = ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0);
 	if (sctp_logging_level & SCTP_MAP_LOGGING_ENABLE) {
-		sctp_log_map(0, tsn, asoc->cumulative_tsn, SCTP_MAP_PREPARE_SLIDE);
+		sctp_log_map(tsn, asoc->cumulative_tsn, asoc->highest_tsn_inside_map, SCTP_MAP_TSN_ENTERS);
 	}
 	if (stcb == NULL) {
 		return (0);
@@ -2209,7 +2209,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	 */
 	struct sctp_association *asoc;
 	int i, at;
-	int all_ones, last_all_ones = 0;
+	int last_all_ones = 0;
 	int slide_from, slide_end, lgap, distance;
 	uint32_t old_cumack, old_base, old_highest;
 	unsigned char aux_array[64];
@@ -2231,7 +2231,6 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	 * We could probably improve this a small bit by calculating the
 	 * offset of the current cum-ack as the starting point.
 	 */
-	all_ones = 1;
 	at = 0;
 	for (i = 0; i < stcb->asoc.mapping_array_size; i++) {
 
@@ -2240,7 +2239,6 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 			last_all_ones = 1;
 		} else {
 			/* there is a 0 bit */
-			all_ones = 0;
 			at += sctp_map_lookup_tab[asoc->mapping_array[i]];
 			last_all_ones = 0;
 			break;
@@ -2260,24 +2258,16 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 		asoc->highest_tsn_inside_map = asoc->cumulative_tsn;
 #endif
 	}
-	if (all_ones ||
-	    (asoc->cumulative_tsn == asoc->highest_tsn_inside_map && at >= 8)) {
+	if ((asoc->cumulative_tsn == asoc->highest_tsn_inside_map) && (at >= 8)) {
 		/* The complete array was completed by a single FR */
 		/* higest becomes the cum-ack */
 		int clr;
 
 		asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
 		/* clear the array */
-		if (all_ones)
+		clr = (at >> 3) + 1;
+		if (clr > asoc->mapping_array_size) {
 			clr = asoc->mapping_array_size;
-		else {
-			clr = (at >> 3) + 1;
-			/*
-			 * this should be the allones case but just in case
-			 * :>
-			 */
-			if (clr > asoc->mapping_array_size)
-				clr = asoc->mapping_array_size;
 		}
 		memset(asoc->mapping_array, 0, clr);
 		/* base becomes one ahead of the cum-ack */
@@ -2467,7 +2457,7 @@ doit_again:
 		 * delivery queue and something can be delivered.
 		 */
 		if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-		    (tsize > stcb->sctp_ep->partial_delivery_point))) {
+		    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
 			asoc->fragmented_delivery_inprogress = 1;
 			asoc->tsn_last_delivered = chk->rec.data.TSN_seq - 1;
 			asoc->str_of_pdapi = chk->rec.data.stream_number;
@@ -2722,10 +2712,17 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	}
 	if (num_chunks) {
 		/*
-		 * Did we get data, if so update the time for auto-close and
+		 * Did we get data, if sa update the time for auto-close and
 		 * give peer credit for being alive.
 		 */
 		SCTP_STAT_INCR(sctps_recvpktwithdata);
+		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+			    stcb->asoc.overall_error_count,
+			    0,
+			    SCTP_FROM_SCTP_INDATA,
+			    __LINE__);
+		}
 		stcb->asoc.overall_error_count = 0;
 		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_last_rcvd);
 	}
@@ -3866,6 +3863,13 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 	}
 	asoc->this_sack_highest_gap = cumack;
+	if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+		    stcb->asoc.overall_error_count,
+		    0,
+		    SCTP_FROM_SCTP_INDATA,
+		    __LINE__);
+	}
 	stcb->asoc.overall_error_count = 0;
 	if (compare_with_wrap(cumack, asoc->last_acked_seq, MAX_TSN)) {
 		/* process the new consecutive TSN first */
@@ -4187,7 +4191,7 @@ again:
 				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
-				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
+				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -4202,7 +4206,7 @@ again:
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
+			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 
@@ -4296,6 +4300,13 @@ sctp_handle_sack(struct mbuf *m, int offset,
 	num_dup = ntohs(sack->num_dup_tsns);
 
 	old_rwnd = stcb->asoc.peers_rwnd;
+	if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+		    stcb->asoc.overall_error_count,
+		    0,
+		    SCTP_FROM_SCTP_INDATA,
+		    __LINE__);
+	}
 	stcb->asoc.overall_error_count = 0;
 	asoc = &stcb->asoc;
 	if (sctp_logging_level & SCTP_SACK_LOGGING_ENABLE) {
@@ -4847,7 +4858,7 @@ done_with_it:
 				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
-				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
+				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -4863,7 +4874,7 @@ done_with_it:
 				goto abort_out_now;
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
+			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 
@@ -5254,6 +5265,9 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 
 	if (gap > m_size) {
 		asoc->highest_tsn_inside_map = back_out_htsn;
+		if (sctp_logging_level & SCTP_MAP_LOGGING_ENABLE) {
+			sctp_log_map(0, 0, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
+		}
 		if ((long)gap > sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv)) {
 			struct mbuf *oper;
 

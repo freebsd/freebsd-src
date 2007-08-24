@@ -1140,6 +1140,13 @@ sctp_asconf_queue_add(struct sctp_tcb *stcb, struct sctp_ifa *ifa,
 			net->error_count = 0;
 		}
 		stcb->asoc.overall_error_count = 0;
+		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
+			    stcb->asoc.overall_error_count,
+			    0,
+			    SCTP_FROM_SCTP_ASCONF,
+			    __LINE__);
+		}
 		/* queue in an advisory set primary too */
 		(void)sctp_asconf_queue_mgmt(stcb, ifa, SCTP_SET_PRIM_ADDR);
 		/* let caller know we should send this out immediately */
@@ -2002,7 +2009,7 @@ sctp_asconf_iterator_end(void *ptr, uint32_t val)
  * sa is the sockaddr to ask the peer to set primary to.
  * returns: 0 = completed, -1 = error
  */
-int
+int32_t
 sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 {
 	/* NOTE: we currently don't check the validity of the address! */
@@ -2691,6 +2698,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 	struct sctp_ifa *ifa;
 
 	if (sa->sa_len == 0) {
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EINVAL);
 		return (EINVAL);
 	}
 	if (sctp_ifap) {
@@ -2713,12 +2721,14 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 		    sizeof(struct sctp_asconf_iterator),
 		    SCTP_M_ASC_IT);
 		if (asc == NULL) {
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
 			return (ENOMEM);
 		}
 		wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr,
 		    struct sctp_laddr);
 		if (wi == NULL) {
 			SCTP_FREE(asc, SCTP_M_ASC_IT);
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
 			return (ENOMEM);
 		}
 		if (type == SCTP_ADD_IP_ADDRESS) {
@@ -2730,6 +2740,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 				/* can't delete the last local address */
 				SCTP_FREE(asc, SCTP_M_ASC_IT);
 				SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, wi);
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EINVAL);
 				return (EINVAL);
 			}
 			LIST_FOREACH(laddr, &inp->sctp_addr_list,
@@ -2757,6 +2768,7 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 		    sctp_asconf_iterator_end, inp, 0);
 	} else {
 		/* invalid address! */
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EADDRNOTAVAIL);
 		return (EADDRNOTAVAIL);
 	}
 	return (0);

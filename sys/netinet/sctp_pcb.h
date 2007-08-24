@@ -533,6 +533,7 @@ int sctp_del_remote_addr(struct sctp_tcb *, struct sockaddr *);
 
 void sctp_pcb_init(void);
 
+
 void sctp_add_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 

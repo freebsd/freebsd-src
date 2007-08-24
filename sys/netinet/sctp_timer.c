@@ -234,9 +234,23 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 	if (net) {
 		if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0) {
+			if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+				sctp_misc_ints(SCTP_THRESHOLD_INCR,
+				    stcb->asoc.overall_error_count,
+				    (stcb->asoc.overall_error_count + 1),
+				    SCTP_FROM_SCTP_TIMER,
+				    __LINE__);
+			}
 			stcb->asoc.overall_error_count++;
 		}
 	} else {
+		if (sctp_logging_level & SCTP_THRESHOLD_LOGGING) {
+			sctp_misc_ints(SCTP_THRESHOLD_INCR,
+			    stcb->asoc.overall_error_count,
+			    (stcb->asoc.overall_error_count + 1),
+			    SCTP_FROM_SCTP_TIMER,
+			    __LINE__);
+		}
 		stcb->asoc.overall_error_count++;
 	}
 	SCTPDBG(SCTP_DEBUG_TIMER4, "Overall error count for %p now %d thresh:%u state:%x\n",
@@ -1726,7 +1740,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
-					asoc->state = SCTP_STATE_SHUTDOWN_SENT;
+					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb,
 					    asoc->primary_destination);

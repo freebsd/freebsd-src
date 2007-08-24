@@ -781,13 +781,13 @@ struct sctp_association {
 	uint32_t peers_rwnd;
 	uint32_t my_rwnd;
 	uint32_t my_last_reported_rwnd;
-	uint32_t my_rwnd_control_len;
 	uint32_t sctp_frag_point;
 
 	uint32_t total_output_queue_size;
 
-	uint32_t sb_cc;		/* shadow of sb_cc in one-2-one */
-	uint32_t sb_mbcnt;	/* shadow of sb_mbcnt in one-2-one */
+	uint32_t sb_cc;		/* shadow of sb_cc */
+	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
+					 * control */
 	/* 32 bit nonce stuff */
 	uint32_t nonce_resync_tsn;
 	uint32_t nonce_wait_tsn;
