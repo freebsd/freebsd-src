@@ -663,6 +663,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 			    ether_sprintf(eh.ether_dhost), __func__,
 			    ic->ic_def_txkey);
 			ic->ic_stats.is_tx_nodefkey++;
+			goto bad;
 		}
 	} else
 		key = NULL;
