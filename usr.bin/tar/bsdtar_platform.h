@@ -78,10 +78,10 @@
 #endif
 
 #if HAVE_ACL_GET_PERM
-#define ACL_GET_PERM acl_get_perm
+#define	ACL_GET_PERM acl_get_perm
 #else
 #if HAVE_ACL_GET_PERM_NP
-#define ACL_GET_PERM acl_get_perm_np
+#define	ACL_GET_PERM acl_get_perm_np
 #endif
 #endif
 
