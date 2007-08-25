@@ -117,10 +117,13 @@ struct port_info {
 #else	
 	struct mtx	lock;
 #endif	
-	int		port_id;
-	uint8_t		hw_addr[ETHER_ADDR_LEN];
+	uint8_t		port_id;
+	uint8_t		tx_chan;
+	uint8_t		txpkt_intf;
 	uint8_t		nqsets;
 	uint8_t         first_qset;
+	
+	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	struct taskqueue *tq;
 	struct task     start_task;
 	struct task	timer_reclaim_task;
@@ -396,12 +399,12 @@ struct t3_rx_mode {
 #define ELMR_LOCK(adapter)	mtx_lock(&(adapter)->elmer_lock)
 #define ELMR_UNLOCK(adapter)	mtx_unlock(&(adapter)->elmer_lock)
 
-
 #ifdef USE_SX
 #define PORT_LOCK(port)		     sx_xlock(&(port)->lock);
 #define PORT_UNLOCK(port)	     sx_xunlock(&(port)->lock);
 #define PORT_LOCK_INIT(port, name)   SX_INIT(&(port)->lock, name)
 #define PORT_LOCK_DEINIT(port)       SX_DESTROY(&(port)->lock)
+
 
 #define ADAPTER_LOCK(adap)	           sx_xlock(&(adap)->lock);
 #define ADAPTER_UNLOCK(adap)	           sx_xunlock(&(adap)->lock);
@@ -409,7 +412,7 @@ struct t3_rx_mode {
 #define ADAPTER_LOCK_DEINIT(adap)          SX_DESTROY(&(adap)->lock)
 
 #if __FreeBSD_version > 700000
-#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap)sx_assert(&(adap)->lock, SA_UNLOCKED)
+#define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) sx_assert(&(adap)->lock, SA_UNLOCKED)
 #define PORT_LOCK_ASSERT_OWNED(port) sx_assert(&(port)->lock, SA_LOCKED)
 #else
 #define ADAPTER_LOCK_ASSERT_NOTOWNED(adap) 
@@ -522,7 +525,7 @@ void t3_sge_deinit_sw(adapter_t *);
 
 void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro);
-void t3_rx_eth(struct port_info *p, struct sge_rspq *rq, struct mbuf *m, int ethpad);
+void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
 void t3_lro_flush(adapter_t *adap, struct sge_qset *qs, struct lro_state *state);
 
 void t3_add_sysctls(adapter_t *sc);
