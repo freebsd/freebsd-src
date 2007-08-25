@@ -394,6 +394,8 @@ do_chdir(struct bsdtar *bsdtar)
 /*
  * Handle --strip-components and any future path-rewriting options.
  * Returns non-zero if the pathname should not be extracted.
+ *
+ * TODO: Support pax-style regex path rewrites.
  */
 int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
