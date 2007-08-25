@@ -117,10 +117,13 @@ struct port_info {
 #else	
 	struct mtx	lock;
 #endif	
-	int		port_id;
-	uint8_t		hw_addr[ETHER_ADDR_LEN];
+	uint8_t		port_id;
+	uint8_t		tx_chan;
+	uint8_t		txpkt_intf;
 	uint8_t		nqsets;
 	uint8_t         first_qset;
+	
+	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	struct taskqueue *tq;
 	struct task     start_task;
 	struct task	timer_reclaim_task;
@@ -515,7 +518,7 @@ void t3_sge_deinit_sw(adapter_t *);
 
 void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
     int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro);
-void t3_rx_eth(struct port_info *p, struct sge_rspq *rq, struct mbuf *m, int ethpad);
+void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
 void t3_lro_flush(adapter_t *adap, struct sge_qset *qs, struct lro_state *state);
 
 void t3_add_sysctls(adapter_t *sc);
