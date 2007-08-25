@@ -1253,15 +1253,6 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	pindex = m->pindex;
 
 	/*
-	 * we don't fault-ahead for device pager
-	 */
-	if (object->type == OBJT_DEVICE) {
-		*reqpage = 0;
-		marray[0] = m;
-		return 1;
-	}
-
-	/*
 	 * if the requested page is not available, then give up now
 	 */
 	if (!vm_pager_has_page(object, pindex, &cbehind, &cahead)) {
@@ -1280,17 +1271,6 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	if (rbehind > cbehind) {
 		rbehind = cbehind;
-	}
-
-	/*
-	 * try to do any readahead that we might have free pages for.
-	 */
-	if ((rahead + rbehind) >
-		((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved)) {
-		pagedaemon_wakeup();
-		marray[0] = m;
-		*reqpage = 0;
-		return 1;
 	}
 
 	/*
@@ -1313,21 +1293,24 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 				break;
 		}
 
-		for (i = 0, tpindex = startpindex; tpindex < pindex; i++, tpindex++) {
+		/* tpindex is unsigned; beware of numeric underflow. */
+		for (i = 0, tpindex = pindex - 1; tpindex >= startpindex &&
+		    tpindex < pindex; i++, tpindex--) {
 
 			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
 			if (rtm == NULL) {
-				vm_page_lock_queues();
+				/*
+				 * Shift the allocated pages to the
+				 * beginning of the array.
+				 */
 				for (j = 0; j < i; j++) {
-					vm_page_free(marray[j]);
+					marray[j] = marray[j + tpindex + 1 -
+					    startpindex];
 				}
-				vm_page_unlock_queues();
-				marray[0] = m;
-				*reqpage = 0;
-				return 1;
+				break;
 			}
 
-			marray[i] = rtm;
+			marray[tpindex - startpindex] = rtm;
 		}
 	} else {
 		startpindex = 0;
