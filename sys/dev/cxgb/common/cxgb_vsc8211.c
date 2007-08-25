@@ -248,4 +248,5 @@ void t3_vsc8211_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 			 const struct mdio_ops *mdio_ops)
 {
 	cphy_init(phy, adapter, phy_addr, &vsc8211_ops, mdio_ops);
+	t3_os_sleep(20);       /* PHY needs ~10ms to start responding to MDIO */
 }
