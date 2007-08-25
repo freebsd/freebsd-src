@@ -69,11 +69,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 
-static void	cleanup_security(struct bsdtar *);
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
-static int	security_problem(struct bsdtar *, struct archive_entry *);
 
 void
 tar_mode_t(struct bsdtar *bsdtar)
@@ -216,15 +214,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			}
 			fprintf(out, "\n");
 		} else {
-			/*
-			 * Skip security problems before prompting.
-			 * Otherwise, the user may be confused that a
-			 * file they wanted to extract was
-			 * subsequently skipped.
-			 */
-			if (security_problem(bsdtar, entry))
-				continue;
-
 			if (bsdtar->option_interactive &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;
@@ -265,7 +254,6 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		    archive_format_name(a), archive_compression_name(a));
 
 	archive_read_finish(a);
-	cleanup_security(bsdtar);
 }
 
 
@@ -366,129 +354,4 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		    archive_entry_hardlink(entry));
 	else if (S_ISLNK(st->st_mode)) /* Symbolic link */
 		safe_fprintf(out, " -> %s", archive_entry_symlink(entry));
-}
-
-/*
- * Structure for storing path of last successful security check.
- */
-struct security {
-	char	*path;
-	size_t	 path_size;
-};
-
-/*
- * Check for a variety of security issues.  Fix what we can here,
- * generate warnings as appropriate, return non-zero to prevent
- * this entry from being extracted.
- */
-static int
-security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
-{
-	struct stat st;
-	const char *name, *pn;
-	char *p;
-	int r;
-
-	/* -P option forces us to just accept all pathnames as-is. */
-	if (bsdtar->option_absolute_paths)
-		return (0);
-
-	name = archive_entry_pathname(entry);
-
-	/* Reject any archive entry with '..' as a path element. */
-	pn = name;
-	while (pn != NULL && pn[0] != '\0') {
-		if (pn[0] == '.' && pn[1] == '.' &&
-		    (pn[2] == '\0' || pn[2] == '/')) {
-			bsdtar_warnc(bsdtar, 0,
-			    "Skipping pathname containing ..");
-			bsdtar->return_value = 1;
-			return (1);
-		}
-		pn = strchr(pn, '/');
-		if (pn != NULL)
-			pn++;
-	}
-
-	/*
-	 * Gaurd against symlink tricks.  Reject any archive entry whose
-	 * destination would be altered by a symlink.
-	 */
-	/* XXX TODO: Make this faster by comparing current path to
-	 * prefix of last successful check to avoid duplicate lstat()
-	 * calls. XXX */
-	pn = name;
-	if (bsdtar->security == NULL) {
-		bsdtar->security = malloc(sizeof(*bsdtar->security));
-		if (bsdtar->security == NULL)
-			bsdtar_errc(bsdtar, 1, errno, "No Memory");
-		bsdtar->security->path_size = MAXPATHLEN + 1;
-		bsdtar->security->path = malloc(bsdtar->security->path_size);
-		if (bsdtar->security->path == NULL)
-			bsdtar_errc(bsdtar, 1, errno, "No Memory");
-	}
-	if (strlen(name) >= bsdtar->security->path_size) {
-		free(bsdtar->security->path);
-		while (strlen(name) >= bsdtar->security->path_size)
-			bsdtar->security->path_size *= 2;
-		bsdtar->security->path = malloc(bsdtar->security->path_size);
-		if (bsdtar->security->path == NULL)
-			bsdtar_errc(bsdtar, 1, errno, "No Memory");
-	}
-	p = bsdtar->security->path;
-	while (pn != NULL && pn[0] != '\0') {
-		*p++ = *pn++;
-		while (*pn != '\0' && *pn != '/')
-			*p++ = *pn++;
-		p[0] = '\0';
-		r = lstat(bsdtar->security->path, &st);
-		if (r != 0) {
-			if (errno == ENOENT)
-				break;
-		} else if (S_ISLNK(st.st_mode)) {
-			if (pn[0] == '\0') {
-				/*
-				 * Last element is symlink; remove it
-				 * so we can overwrite it with the
-				 * item being extracted.
-				 */
-				if (!S_ISLNK(archive_entry_mode(entry))) {
-					/*
-					 * Warn only if the symlink is being
-					 * replaced with a non-symlink.
-					 */
-					bsdtar_warnc(bsdtar, 0,
-					    "Removing symlink %s",
-					    bsdtar->security->path);
-				}
-				if (unlink(bsdtar->security->path))
-					bsdtar_errc(bsdtar, 1, errno,
-					    "Unlink failed");
-				/* Symlink gone.  No more problem! */
-				return (0);
-			} else if (bsdtar->option_unlink_first) {
-				/* User asked us to remove problems. */
-				if (unlink(bsdtar->security->path))
-					bsdtar_errc(bsdtar, 1, errno,
-					    "Unlink failed");
-			} else {
-				bsdtar_warnc(bsdtar, 0,
-				    "Cannot extract %s through symlink %s",
-				    name, bsdtar->security->path);
-				bsdtar->return_value = 1;
-				return (1);
-			}
-		}
-	}
-
-	return (0);
-}
-
-static void
-cleanup_security(struct bsdtar *bsdtar)
-{
-	if (bsdtar->security != NULL) {
-		free(bsdtar->security->path);
-		free(bsdtar->security);
-	}
 }
