@@ -270,6 +270,11 @@ main(int argc, char **argv)
 	if (bsdtar->user_uid == 0) {
 		/* --same-owner */
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
+		/* -p */
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_PERM;
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
+		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
 
 	/* Rewrite traditional-style tar arguments, if used. */
@@ -438,12 +443,10 @@ main(int argc, char **argv)
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_NO_SAME_PERMISSIONS: /* GNU tar */
-			/*
-			 * This is always the default in FreeBSD's
-			 * version of GNU tar; it's also the default
-			 * behavior for bsdtar, so treat the
-			 * command-line option as a no-op.
-			 */
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_PERM;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_ACL;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_XATTR;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_FFLAGS;
 			break;
 		case OPTION_NULL: /* GNU tar */
 			bsdtar->option_null++;
