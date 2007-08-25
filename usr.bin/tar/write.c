@@ -896,7 +896,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	 * to inform us that the archive body won't get stored.  In
 	 * that case, just skip the write.
 	 */
-	if (fd >= 0 && archive_entry_size(entry) > 0)
+	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0)
 		if (write_file_data(bsdtar, a, fd))
 			exit(1);
 
