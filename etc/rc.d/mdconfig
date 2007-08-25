@@ -115,6 +115,8 @@ mdconfig_start()
 				fi
 				if [ "${_file}" != "${_file%.uzip}" ]; then
 					load_kld -m g_uzip geom_uzip || return 3
+					# sleep a bit to allow creation of /dev/mdX.uzip
+					sleep 2
 				fi
 			fi
 			if mdconfig -l -u ${_md} >/dev/null 2>&1; then
