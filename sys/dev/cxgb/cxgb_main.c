@@ -113,6 +113,8 @@ static __inline void reg_block_dump(struct adapter *ap, uint8_t *buf, unsigned i
 static void cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf);
 static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
+static void touch_bars(device_t dev);
+
 #ifdef notyet
 static int offload_close(struct toedev *tdev);
 #endif
@@ -412,7 +414,8 @@ cxgb_controller_attach(device_t dev)
 		    "PCIe x%d Link, expect reduced performance\n",
 		    sc->link_width);
 	}
-	
+
+	touch_bars(dev);
 	pci_enable_busmaster(dev);
 	/*
 	 * Allocate the registers and make them available to the driver.
@@ -551,17 +554,23 @@ cxgb_controller_attach(device_t dev)
 	 * will be done in these children.
 	 */	
 	for (i = 0; i < (sc)->params.nports; i++) {
+		struct port_info *pi;
+		
 		if ((child = device_add_child(dev, "cxgb", -1)) == NULL) {
 			device_printf(dev, "failed to add child port\n");
 			error = EINVAL;
 			goto out;
 		}
-		sc->port[i].adapter = sc;
-		sc->port[i].nqsets = port_qsets;
-		sc->port[i].first_qset = i*port_qsets;
-		sc->port[i].port_id = i;
+		pi = &sc->port[i];
+		pi->adapter = sc;
+		pi->nqsets = port_qsets;
+		pi->first_qset = i*port_qsets;
+		pi->port_id = i;
+		pi->tx_chan = i >= ai->nports0;
+		pi->txpkt_intf = pi->tx_chan ? 2 * (i - ai->nports0) + 1 : 2 * i;
+		sc->rxpkt_map[pi->txpkt_intf] = i;
 		sc->portdev[i] = child;
-		device_set_softc(child, &sc->port[i]);
+		device_set_softc(child, pi);
 	}
 	if ((error = bus_generic_attach(dev)) != 0)
 		goto out;
@@ -633,22 +642,25 @@ cxgb_free(struct adapter *sc)
 		    sc->msix_regs_res);
 	}
 	
-	t3_sge_deinit_sw(sc);
-
 	if (sc->tq != NULL) {
 		taskqueue_drain(sc->tq, &sc->ext_intr_task);
 		taskqueue_drain(sc->tq, &sc->tick_task);	
-		taskqueue_free(sc->tq);
-	}
-
-	tsleep(&sc, 0, "cxgb unload", hz);
+	}	
+	t3_sge_deinit_sw(sc);
+	/*
+	 * Wait for last callout
+	 */
 	
+	tsleep(&sc, 0, "cxgb unload", 3*hz);
+
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		if (sc->portdev[i] != NULL)
 			device_delete_child(sc->dev, sc->portdev[i]);
 	}
 		
 	bus_generic_detach(sc->dev);
+	if (sc->tq != NULL) 
+		taskqueue_free(sc->tq);
 #ifdef notyet
 	if (is_offload(sc)) {
 		cxgb_adapter_unofld(sc);
@@ -804,16 +816,19 @@ setup_sge_qsets(adapter_t *sc)
 	else
 		irq_idx = 0;
 
-	for (qset_idx = 0, i = 0; i < (sc)->params.nports; ++i) {
+	for (qset_idx = 0, i = 0; i < (sc)->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 
-		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
+		for (j = 0; j < pi->nqsets; j++, qset_idx++) {
+			printf("allocating qset_idx=%d for port_id=%d\n",
+			    qset_idx, pi->port_id);
 			err = t3_sge_alloc_qset(sc, qset_idx, (sc)->params.nports,
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
 			if (err) {
 				t3_free_sge_resources(sc);
-				device_printf(sc->dev, "t3_sge_alloc_qset failed with %d\n", err);
+				device_printf(sc->dev, "t3_sge_alloc_qset failed with %d\n",
+				    err);
 				return (err);
 			}
 		}
@@ -859,7 +874,7 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 
 	if (bus_setup_intr(sc->dev, sc->irq_res, INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
-			NULL,
+		NULL,
 #endif
 		cxgb_async_intr, sc, &sc->intr_tag)) {
 		device_printf(sc->dev, "Cannot set up interrupt\n");
@@ -881,10 +896,12 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 				return (EINVAL);
 			}
 			sc->msix_irq_rid[k] = rid;
+			printf("setting up interrupt for port=%d\n",
+			    qs->port->port_id);
 			if (bus_setup_intr(sc->dev, sc->msix_irq_res[k],
 			    INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
-			NULL,
+				NULL,
 #endif
 				t3_intr_msix, qs, &sc->msix_intr_tag[k])) {
 				device_printf(sc->dev, "Cannot set up "
@@ -1077,8 +1094,11 @@ cxgb_port_detach(device_t dev)
 		p->tq = NULL;
 	}
 
-	PORT_LOCK_DEINIT(p);
 	ether_ifdetach(p->ifp);
+	/*
+	 * the lock may be acquired in ifdetach
+	 */
+	PORT_LOCK_DEINIT(p);
 	if_free(p->ifp);
 	
 	if (p->port_cdev != NULL)
@@ -1251,7 +1271,8 @@ cxgb_link_start(struct port_info *p)
 	ifp = p->ifp;
 
 	t3_init_rx_mode(&rm, p);
-	t3_mac_reset(mac);
+	if (!mac->multiport)
+		t3_mac_reset(mac);
 	t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	t3_mac_set_address(mac, 0, p->hw_addr);
 	t3_mac_set_rx_mode(mac, &rm);
@@ -1278,13 +1299,16 @@ setup_rss(adapter_t *adap)
 	uint8_t cpus[SGE_QSETS + 1];
 	uint16_t rspq_map[RSS_TABLE_SIZE];
 	
-	nq[0] = adap->port[0].nqsets;
-	nq[1] = max((u_int)adap->port[1].nqsets, 1U);
-	
 	for (i = 0; i < SGE_QSETS; ++i)
 		cpus[i] = i;
 	cpus[SGE_QSETS] = 0xff;
 
+	nq[0] = nq[1] = 0;
+	for_each_port(adap, i) {
+		const struct port_info *pi = adap2pinfo(adap, i);
+
+		nq[pi->tx_chan] += pi->nqsets;
+	}
 	for (i = 0; i < RSS_TABLE_SIZE / 2; ++i) {
 		rspq_map[i] = nq[0] ? i % nq[0] : 0;
 		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0; 
@@ -1534,7 +1558,8 @@ cxgb_up(struct adapter *sc)
 	if ((sc->flags & USING_MSIX) == 0) {
 		if ((sc->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
 		   &sc->irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-			device_printf(sc->dev, "Cannot allocate interrupt rid=%d\n", sc->irq_rid);
+			device_printf(sc->dev, "Cannot allocate interrupt rid=%d\n",
+			    sc->irq_rid);
 			err = EINVAL;
 			goto out;
 		}
@@ -1599,11 +1624,15 @@ cxgb_down_locked(struct adapter *sc)
 	callout_drain(&sc->cxgb_tick_ch);
 	callout_drain(&sc->sge_timer_ch);
 	
-	if (sc->tq != NULL) 
+	if (sc->tq != NULL) {
 		taskqueue_drain(sc->tq, &sc->slow_intr_task);
-	for (i = 0; i < sc->params.nports; i++) 
+		for (i = 0; i < sc->params.nports; i++) 
+			taskqueue_drain(sc->tq, &sc->port[i].timer_reclaim_task);
+	}
+#ifdef notyet	
+
 		if (sc->port[i].tq != NULL)
-			taskqueue_drain(sc->port[i].tq, &sc->port[i].timer_reclaim_task);
+#endif			
 
 }
 
@@ -1718,7 +1747,8 @@ cxgb_init_locked(struct port_info *p)
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
-	
+
+	printf("enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
@@ -1891,7 +1921,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
 	struct mbuf *m0, *m = NULL;
-	int err, in_use_init;
+	int err, in_use_init, qsidx = 0;
 
 	if (!p->link_config.link_ok)
 		return (ENXIO);
@@ -1899,7 +1929,10 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return (ENOBUFS);
 
-	qs = &p->adapter->sge.qs[p->first_qset];
+	if (p->adapter->params.nports <= 2)
+		qsidx = p->first_qset;
+	
+	qs = &p->adapter->sge.qs[qsidx];
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
@@ -2158,6 +2191,24 @@ cxgb_tick_handler(void *arg, int count)
 
 	if (p->rev == T3_REV_B2 && p->nports < 4) 
 		check_t3b2_mac(sc);
+}
+
+static void
+touch_bars(device_t dev)
+{
+	/*
+	 * Don't enable yet
+	 */
+#if !defined(__LP64__) && 0
+	u32 v;
+
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_1, &v);
+	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_1, v);
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_3, &v);
+	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_3, v);
+	pci_read_config_dword(pdev, PCI_BASE_ADDRESS_5, &v);
+	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_5, v);
+#endif
 }
 
 #if 0
