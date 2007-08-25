@@ -1169,7 +1169,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	struct tx_sw_desc *stx;
 	struct txq_state txqs;
 	unsigned int ndesc, flits, cntrl, mlen;
-	int err, nsegs, tso_info = 0;
+	int err, nsegs, tso_info = 0, qsidx = 0;
 
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
@@ -1179,11 +1179,16 @@ t3_encap(struct port_info *p, struct mbuf **m)
 
 	struct tx_desc *txd;
 	struct cpl_tx_pkt *cpl;
-	
-	DPRINTF("t3_encap ");
+       
 	m0 = *m;	
 	sc = p->adapter;
-	qs = &sc->sge.qs[p->first_qset];
+	if (sc->params.nports <= 2)
+		qsidx = p->first_qset;
+	
+	DPRINTF("t3_encap qsidx=%d", qsidx);
+
+	qs = &sc->sge.qs[qsidx];
+
 	txq = &qs->txq[TXQ_ETH];
 	stx = &txq->sdesc[txq->pidx];
 	txd = &txq->desc[txq->pidx];
@@ -1191,12 +1196,12 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	mlen = m0->m_pkthdr.len;
 	cpl->len = htonl(mlen | 0x80000000);
 	
-	DPRINTF("mlen=%d\n", mlen);
+	DPRINTF("mlen=%d pktintf=%d\n", mlen, p->txpkt_intf);
 	/*
 	 * XXX handle checksum, TSO, and VLAN here
 	 *	 
 	 */
-	cntrl = V_TXPKT_INTF(p->port_id);
+	cntrl = V_TXPKT_INTF(p->txpkt_intf);
 
 	/*
 	 * XXX need to add VLAN support for 6.x
@@ -1247,14 +1252,14 @@ t3_encap(struct port_info *p, struct mbuf **m)
 		
 		if (mlen <= WR_LEN - sizeof(*cpl)) {
 			txq_prod(txq, 1, &txqs);
-			txq->sdesc[txqs.pidx].m = m0;
-			m_set_priority(m0, txqs.pidx);
+			txq->sdesc[txqs.pidx].m = NULL;
 			
 			if (m0->m_len == m0->m_pkthdr.len)
 				memcpy(&txd->flit[2], mtod(m0, uint8_t *), mlen);
 			else
 				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
 
+			m_freem(m0);
 			flits = (mlen + 7) / 8 + 2;
 			cpl->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
 					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
@@ -1792,10 +1797,12 @@ calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
 static int
 ofld_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 {
-	unsigned int pidx, gen, ndesc;
+	int ret, nsegs;
+	unsigned int ndesc;
+	unsigned int pidx, gen;
 	struct mbuf *m_vec[TX_CLEAN_MAX_DESC];
 	bus_dma_segment_t segs[TX_MAX_SEGS];
-	int i, cleaned, ret, nsegs;
+	int i, cleaned;
 	struct tx_sw_desc *stx = &q->sdesc[q->pidx];
 
 	mtx_lock(&q->lock);
@@ -2111,7 +2118,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[1].type = EXT_JUMBOP;
 	
 	q->lro.enabled = lro_default;
-	
+
 	mtx_lock(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
 				   q->rspq.phys_addr, q->rspq.size,
@@ -2190,14 +2197,13 @@ err:
 }
 
 void
-t3_rx_eth(struct port_info *pi, struct sge_rspq *rq, struct mbuf *m, int ethpad)
+t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 {
 	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + ethpad);
+	struct port_info *pi = &adap->port[adap->rxpkt_map[cpl->iff]];
 	struct ifnet *ifp = pi->ifp;
 	
 	DPRINTF("rx_eth m=%p m->m_data=%p p->iff=%d\n", m, mtod(m, uint8_t *), cpl->iff);
-	if (&pi->adapter->port[cpl->iff] != pi)
-		panic("bad port index %d m->m_data=%p\n", cpl->iff, mtod(m, uint8_t *));
 
 	if ((ifp->if_capenable & IFCAP_RXCSUM) && !cpl->fragment &&
 	    cpl->csum_valid && cpl->csum == 0xffff) {
@@ -2506,9 +2512,9 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 		printf("next_holdoff=%d\n", rq->next_holdoff);
 		last_holdoff = rq->next_holdoff;
 	}
-
-	t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
-		     V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
+	if (work)
+		t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
+		    V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
 	return work;
 }
 
@@ -2523,10 +2529,9 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 void
 t3b_intr(void *data)
 {
-	uint32_t map;
+	uint32_t i, map;
 	adapter_t *adap = data;
 	struct sge_rspq *q0 = &adap->sge.qs[0].rspq;
-	struct sge_rspq *q1 = &adap->sge.qs[1].rspq;
 	
 	t3_write_reg(adap, A_PL_CLI, 0);
 	map = t3_read_reg(adap, A_SG_DATA_INTR);
@@ -2538,13 +2543,9 @@ t3b_intr(void *data)
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
 	
 	mtx_lock(&q0->lock);
-	
-	if (__predict_true(map & 1))
-		process_responses_gts(adap, q0);
-	
-	if (map & 2)
-		process_responses_gts(adap, q1);
-
+	for_each_port(adap, i)
+	    if (map & (1 << i))
+			process_responses_gts(adap, &adap->sge.qs[i].rspq);
 	mtx_unlock(&q0->lock);
 }
 
@@ -2559,19 +2560,13 @@ t3_intr_msi(void *data)
 {
 	adapter_t *adap = data;
 	struct sge_rspq *q0 = &adap->sge.qs[0].rspq;
-	struct sge_rspq *q1 = &adap->sge.qs[1].rspq;
-	int new_packets = 0;
-
-	mtx_lock(&q0->lock);
-	if (process_responses_gts(adap, q0)) {
-		new_packets = 1;
-	}
-
-	if (adap->params.nports == 2 &&
-	    process_responses_gts(adap, q1)) {
-		new_packets = 1;
-	}
+	int i, new_packets = 0;
 	
+	mtx_lock(&q0->lock);
+
+	for_each_port(adap, i)
+	    if (process_responses_gts(adap, &adap->sge.qs[i].rspq)) 
+		    new_packets = 1;
 	mtx_unlock(&q0->lock);
 	if (new_packets == 0)
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
