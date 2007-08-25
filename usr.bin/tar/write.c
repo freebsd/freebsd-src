@@ -1466,7 +1466,7 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 	if (bsdtar->archive_dir != NULL &&
 	    bsdtar->archive_dir->head != NULL) {
 		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
-			if (strcmp(path, p->name)==0)
+			if (pathcmp(path, p->name)==0)
 				return (p->mtime_sec < st->st_mtime ||
 				    (p->mtime_sec == st->st_mtime &&
 					p->mtime_nsec
@@ -1488,9 +1488,6 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
     time_t mtime_sec, int mtime_nsec)
 {
 	struct archive_dir_entry	*p;
-
-	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
-		path += 2;
 
 	/*
 	 * Search entire list to see if this file has appeared before.

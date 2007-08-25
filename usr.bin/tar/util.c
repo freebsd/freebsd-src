@@ -406,10 +406,6 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		}
 	}
 
-	/* Strip redundant "./" from start of filename. */
-	if (name[0] == '.' && name[1] == '/' && name[2] != '\0')
-		name += 2;
-
 	/* Strip redundant leading '/' characters. */
 	while (name[0] == '/' && name[1] == '/')
 		name++;
@@ -435,4 +431,43 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		free(q);
 	}
 	return (0);
+}
+
+/*
+ * Like strcmp(), but try to be a little more aware of the fact that
+ * we're comparing two paths.  Right now, it just handles leading
+ * "./" and trailing '/' specially, so that "a/b/" == "./a/b"
+ *
+ * TODO: Make this better, so that "./a//b/./c/" == "a/b/c"
+ * TODO: After this works, push it down into libarchive.
+ * TODO: Publish the path normalization routines in libarchive so
+ * that bsdtar can normalize paths and use fast strcmp() instead
+ * of this.
+ */
+
+int
+pathcmp(const char *a, const char *b)
+{
+	/* Skip leading './' */
+	if (a[0] == '.' && a[1] == '/' && a[2] != '\0')
+		a += 2;
+	if (b[0] == '.' && b[1] == '/' && b[2] != '\0')
+		b += 2;
+	/* Find the first difference, or return (0) if none. */
+	while (*a == *b) {
+		if (*a == '\0')
+			return (0);
+		a++;
+		b++;
+	}
+	/*
+	 * If one ends in '/' and the other one doesn't,
+	 * they're the same.
+	 */
+	if (a[0] == '/' && a[1] == '\0' && b[0] == '\0')
+		return (0);
+	if (a[0] == '\0' && b[0] == '/' && b[1] == '\0')
+		return (0);
+	/* They're really different, return the correct sign. */
+	return (*(const unsigned char *)a - *(const unsigned char *)b);
 }
