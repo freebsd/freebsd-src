@@ -23,6 +23,32 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*-
+ * Copyright (c) 2007 LSI Corp.
+ * Copyright (c) 2007 Rajesh Prabhakaran.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #ifndef _MFIVAR_H
 #define _MFIVAR_H
@@ -105,6 +131,8 @@ struct mfi_softc {
 #define MFI_FLAGS_QFRZN		(1<<1)
 #define MFI_FLAGS_OPEN		(1<<2)
 #define MFI_FLAGS_STOP		(1<<3)
+#define MFI_FLAGS_1064R		(1<<4)
+#define MFI_FLAGS_1078		(1<<5)
 
 	struct mfi_hwcomms		*mfi_comms;
 	TAILQ_HEAD(,mfi_command)	mfi_free;
@@ -193,6 +221,12 @@ struct mfi_softc {
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 	struct sx			mfi_config_lock;
+
+	/* Controller type specific interfaces */
+	void	(*mfi_enable_intr)(struct mfi_softc *sc);
+	int32_t	(*mfi_read_fw_status)(struct mfi_softc *sc);
+	int	(*mfi_check_clear_intr)(struct mfi_softc *sc);
+ 	void	(*mfi_issue_cmd)(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
 };
 
 extern int mfi_attach(struct mfi_softc *);
