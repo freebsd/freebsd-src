@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-static daddr_t vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
-					 int *run);
+static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
+    daddr_t *rtaddress, int *run);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
@@ -458,15 +458,11 @@ vnode_pager_setsize(vp, nsize)
  * calculate the linear (byte) disk address of specified virtual
  * file address
  */
-static daddr_t
-vnode_pager_addr(vp, address, run)
-	struct vnode *vp;
-	vm_ooffset_t address;
-	int *run;
+static int
+vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
+    int *run)
 {
-	daddr_t rtaddress;
 	int bsize;
-	daddr_t block;
 	int err;
 	daddr_t vblock;
 	daddr_t voffset;
@@ -481,12 +477,10 @@ vnode_pager_addr(vp, address, run)
 	vblock = address / bsize;
 	voffset = address % bsize;
 
-	err = VOP_BMAP(vp, vblock, NULL, &block, run, NULL);
-
-	if (err || (block == -1))
-		rtaddress = -1;
-	else {
-		rtaddress = block + voffset / DEV_BSIZE;
+	err = VOP_BMAP(vp, vblock, NULL, rtaddress, run, NULL);
+	if (err == 0) {
+		if (*rtaddress != -1)
+			*rtaddress += voffset / DEV_BSIZE;
 		if (run) {
 			*run += 1;
 			*run *= bsize/PAGE_SIZE;
@@ -494,7 +488,7 @@ vnode_pager_addr(vp, address, run)
 		}
 	}
 
-	return rtaddress;
+	return (err);
 }
 
 /*
@@ -534,7 +528,9 @@ vnode_pager_input_smlfs(object, m)
 		if (address >= object->un_pager.vnp.vnp_size) {
 			fileaddr = -1;
 		} else {
-			fileaddr = vnode_pager_addr(vp, address, NULL);
+			error = vnode_pager_addr(vp, address, &fileaddr, NULL);
+			if (error)
+				break;
 		}
 		if (fileaddr != -1) {
 			bp = getpbuf(&vnode_pbuf_freecnt);
@@ -815,8 +811,17 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * calculate the run that includes the required page
 	 */
 	for (first = 0, i = 0; i < count; i = runend) {
-		firstaddr = vnode_pager_addr(vp,
-			IDX_TO_OFF(m[i]->pindex), &runpg);
+		if (vnode_pager_addr(vp, IDX_TO_OFF(m[i]->pindex), &firstaddr,
+		    &runpg) != 0) {
+			VM_OBJECT_LOCK(object);
+			vm_page_lock_queues();
+			for (; i < count; i++)
+				if (i != reqpage)
+					vm_page_free(m[i]);
+			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(object);
+			return (VM_PAGER_ERROR);
+		}
 		if (firstaddr == -1) {
 			VM_OBJECT_LOCK(object);
 			if (i == reqpage && foff < object->un_pager.vnp.vnp_size) {
@@ -863,9 +868,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * to be zero based...
 	 */
 	if (first != 0) {
-		for (i = first; i < count; i++) {
-			m[i - first] = m[i];
-		}
+		m += first;
 		count -= first;
 		reqpage -= first;
 	}
