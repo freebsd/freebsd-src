@@ -210,6 +210,11 @@ static const struct option tar_longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
+/* A basic set of security flags to request from libarchive. */
+#define	SECURITY					\
+	(ARCHIVE_EXTRACT_SECURE_SYMLINKS		\
+	 | ARCHIVE_EXTRACT_SECURE_NODOTDOT)
+
 int
 main(int argc, char **argv)
 {
@@ -257,6 +262,9 @@ main(int argc, char **argv)
 
 	/* Default: preserve mod time on extract */
 	bsdtar->extract_flags = ARCHIVE_EXTRACT_TIME;
+
+	/* Default: Perform basic security checks. */
+	bsdtar->extract_flags |= SECURITY;
 
 	/* Defaults for root user: */
 	if (bsdtar->user_uid == 0) {
@@ -461,6 +469,7 @@ main(int argc, char **argv)
 			break;
 #endif
 		case 'P': /* GNU tar */
+			bsdtar->extract_flags &= ~SECURITY;
 			bsdtar->option_absolute_paths = 1;
 			break;
 		case 'p': /* GNU tar, star */
