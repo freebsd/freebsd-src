@@ -410,12 +410,15 @@ RetryFault:;
 
 			vm_pageq_remove_nowakeup(fs.m);
 
-			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
-				vm_page_activate(fs.m);
-				vm_page_unlock_queues();
-				unlock_and_deallocate(&fs);
-				VM_WAITPFAULT;
-				goto RetryFault;
+			if ((queue - fs.m->pc) == PQ_CACHE) {
+				cnt.v_reactivated++;
+				if (vm_page_count_severe()) {
+					vm_page_activate(fs.m);
+					vm_page_unlock_queues();
+					unlock_and_deallocate(&fs);
+					VM_WAITPFAULT;
+					goto RetryFault;
+				}
 			}
 
 			/*
@@ -1359,6 +1362,6 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 		marray[i] = rtm;
 	}
 
-	/* return number of bytes of pages */
+	/* return number of pages */
 	return i;
 }
