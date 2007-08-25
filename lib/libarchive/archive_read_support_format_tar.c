@@ -72,6 +72,8 @@ static size_t wcslen(const wchar_t *s)
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+#define tar_min(a,b) ((a) < (b) ? (a) : (b))
+
 /*
  * Layout of POSIX 'ustar' tar header.
  */
@@ -172,6 +174,7 @@ static int	archive_block_is_null(const unsigned char *p);
 static char	*base64_decode(const wchar_t *, size_t, size_t *);
 static void	 gnu_add_sparse_entry(struct tar *,
 		    off_t offset, off_t remaining);
+static void	gnu_clear_sparse_list(struct tar *);
 static int	gnu_sparse_old_read(struct archive_read *, struct tar *,
 		    const struct archive_entry_header_gnutar *header);
 static void	gnu_sparse_old_parse(struct tar *,
@@ -211,7 +214,8 @@ static int 	pax_attribute(struct tar *, struct archive_entry *,
 static int 	pax_header(struct archive_read *, struct tar *,
 		    struct archive_entry *, char *attr);
 static void	pax_time(const wchar_t *, int64_t *sec, long *nanos);
-static ssize_t	readline(struct archive_read *, struct tar *, const char **);
+static ssize_t	readline(struct archive_read *, struct tar *, const char **,
+		    ssize_t limit);
 static int	read_body_to_string(struct archive_read *, struct tar *,
 		    struct archive_string *, const void *h);
 static int64_t	tar_atol(const char *, unsigned);
@@ -263,14 +267,9 @@ static int
 archive_read_format_tar_cleanup(struct archive_read *a)
 {
 	struct tar *tar;
-	struct sparse_block *p;
 
 	tar = (struct tar *)(a->format->data);
-	while (tar->sparse_list != NULL) {
-		p = tar->sparse_list;
-		tar->sparse_list = p->next;
-		free(p);
-	}
+	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->acl_text);
 	archive_string_free(&tar->entry_name);
 	archive_string_free(&tar->entry_linkname);
@@ -423,7 +422,6 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	const char *p;
 	int r;
 	size_t l;
-	ssize_t size;
 
 	/* Assign default device/inode values. */
 	archive_entry_set_dev(entry, 1 + default_dev); /* Don't use zero. */
@@ -444,22 +442,6 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	tar->sparse_last = NULL;
 
 	r = tar_read_header(a, tar, entry);
-
-	/*
-	 * Yuck.  See comments for gnu_sparse_10_read for why this
-	 * is here and not in _read_data where it "should" go.
-	 */
-	if (tar->sparse_gnu_pending
-	    && tar->sparse_gnu_major == 1
-	    && tar->sparse_gnu_minor == 0) {
-		tar->sparse_gnu_pending = 0;
-		/* Read initial sparse map. */
-		size = gnu_sparse_10_read(a, tar);
-		if (size < 0)
-			return (size);
-		tar->entry_bytes_remaining -= size;
-		tar->entry_padding += size;
-	}
 
 	/*
 	 * "non-sparse" files are really just sparse files with
@@ -497,11 +479,12 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 	if (tar->sparse_gnu_pending) {
 		if (tar->sparse_gnu_major == 1 && tar->sparse_gnu_minor == 0) {
-			/*
-			 * <sigh> We should parse the sparse data
-			 * here, but have to parse it as part of the
-			 * header because of a bug in GNU tar 1.16.1.
-			 */
+			tar->sparse_gnu_pending = 0;
+			/* Read initial sparse map. */
+			bytes_read = gnu_sparse_10_read(a, tar);
+			tar->entry_bytes_remaining -= bytes_read;
+			if (bytes_read < 0)
+				return (bytes_read);
 		} else {
 			*size = 0;
 			*offset = 0;
@@ -559,7 +542,6 @@ archive_read_format_tar_skip(struct archive_read *a)
 {
 	off_t bytes_skipped;
 	struct tar* tar;
-	struct sparse_block *p;
 
 	tar = (struct tar *)(a->format->data);
 
@@ -577,12 +559,7 @@ archive_read_format_tar_skip(struct archive_read *a)
 	tar->entry_padding = 0;
 
 	/* Free the sparse list. */
-	while (tar->sparse_list != NULL) {
-		p = tar->sparse_list;
-		tar->sparse_list = p->next;
-		free(p);
-	}
-	tar->sparse_last = NULL;
+	gnu_clear_sparse_list(tar);
 
 	return (ARCHIVE_OK);
 }
@@ -1650,6 +1627,19 @@ gnu_add_sparse_entry(struct tar *tar, off_t offset, off_t remaining)
 	p->remaining = remaining;
 }
 
+static void
+gnu_clear_sparse_list(struct tar *tar)
+{
+	struct sparse_block *p;
+
+	while (tar->sparse_list != NULL) {
+		p = tar->sparse_list;
+		tar->sparse_list = p->next;
+		free(p);
+	}
+	tar->sparse_last = NULL;
+}
+
 /*
  * GNU tar old-format sparse data.
  *
@@ -1793,7 +1783,7 @@ gnu_sparse_01_parse(struct tar *tar, const wchar_t *p)
  */
 static int64_t
 gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
-    ssize_t *total_read)
+    ssize_t *remaining)
 {
 	int64_t l, limit, last_digit_limit;
 	const char *p;
@@ -1804,10 +1794,16 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 	limit = INT64_MAX / base;
 	last_digit_limit = INT64_MAX % base;
 
-	bytes_read = readline(a, tar, &p);
-	if (bytes_read <= 0)
-		return (ARCHIVE_FATAL);
-	*total_read += bytes_read;
+	/*
+	 * Skip any lines starting with '#'; GNU tar specs
+	 * don't require this, but they should.
+	 */
+	do {
+		bytes_read = readline(a, tar, &p, tar_min(*remaining, 100));
+		if (bytes_read <= 0)
+			return (ARCHIVE_FATAL);
+		*remaining -= bytes_read;
+	} while (p[0] == '#');
 
 	l = 0;
 	while (bytes_read > 0) {
@@ -1828,32 +1824,39 @@ gnu_sparse_10_atol(struct archive_read *a, struct tar *tar,
 }
 
 /*
- * Returns number of bytes consumed to read the sparse block data.
+ * Returns length (in bytes) of the sparse data description
+ * that was read.
  */
 static ssize_t
 gnu_sparse_10_read(struct archive_read *a, struct tar *tar)
 {
-	ssize_t bytes_read = 0;
+	ssize_t remaining, bytes_read;
 	int entries;
 	off_t offset, size, to_skip;
 
+	/* Clear out the existing sparse list. */
+	gnu_clear_sparse_list(tar);
+
+	remaining = tar->entry_bytes_remaining;
+
 	/* Parse entries. */
-	entries = gnu_sparse_10_atol(a, tar, &bytes_read);
+	entries = gnu_sparse_10_atol(a, tar, &remaining);
 	if (entries < 0)
 		return (ARCHIVE_FATAL);
 	/* Parse the individual entries. */
 	while (entries-- > 0) {
 		/* Parse offset/size */
-		offset = gnu_sparse_10_atol(a, tar, &bytes_read);
+		offset = gnu_sparse_10_atol(a, tar, &remaining);
 		if (offset < 0)
 			return (ARCHIVE_FATAL);
-		size = gnu_sparse_10_atol(a, tar, &bytes_read);
+		size = gnu_sparse_10_atol(a, tar, &remaining);
 		if (size < 0)
 			return (ARCHIVE_FATAL);
 		/* Add a new sparse entry. */
 		gnu_add_sparse_entry(tar, offset, size);
 	}
 	/* Skip rest of block... */
+	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
 	if (to_skip != (a->decompressor->skip)(a, to_skip))
 		return (ARCHIVE_FATAL);
@@ -2004,7 +2007,8 @@ tar_atol256(const char *_p, unsigned char_cnt)
  * when possible.
  */
 static ssize_t
-readline(struct archive_read *a, struct tar *tar, const char **start)
+readline(struct archive_read *a, struct tar *tar, const char **start,
+    ssize_t limit)
 {
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
@@ -2020,12 +2024,24 @@ readline(struct archive_read *a, struct tar *tar, const char **start)
 	/* If we found '\n' in the read buffer, return pointer to that. */
 	if (p != NULL) {
 		bytes_read = 1 + ((const char *)p) - s;
+		if (bytes_read > limit) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Line too long");
+			return (ARCHIVE_FATAL);
+		}
 		(a->decompressor->consume)(a, bytes_read);
 		*start = s;
 		return (bytes_read);
 	}
 	/* Otherwise, we need to accumulate in a line buffer. */
 	for (;;) {
+		if (total_size + bytes_read > limit) {
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Line too long");
+			return (ARCHIVE_FATAL);
+		}
 		if (archive_string_ensure(&tar->line, total_size + bytes_read) == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate working buffer");
