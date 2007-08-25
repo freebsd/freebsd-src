@@ -308,7 +308,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
 	if ((p == NULL) || (*p == '\0')) {
-		sprintf(tmp, "%d ", st->st_uid);
+		sprintf(tmp, "%lu ", (unsigned long)st->st_uid);
 		p = tmp;
 	}
 	w = strlen(p);
@@ -322,7 +322,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		fprintf(out, "%s", p);
 		w = strlen(p);
 	} else {
-		sprintf(tmp, "%d", st->st_gid);
+		sprintf(tmp, "%lu", (unsigned long)st->st_gid);
 		w = strlen(tmp);
 		fprintf(out, "%s", tmp);
 	}
@@ -333,9 +333,9 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	 * If gs_width is too small, grow it.
 	 */
 	if (S_ISCHR(st->st_mode) || S_ISBLK(st->st_mode)) {
-		sprintf(tmp, "%d,%u",
-		    major(st->st_rdev),
-		    (unsigned)minor(st->st_rdev)); /* ls(1) also casts here. */
+		sprintf(tmp, "%lu,%lu",
+		    (unsigned long)major(st->st_rdev),
+		    (unsigned long)minor(st->st_rdev)); /* ls(1) also casts here. */
 	} else {
 		/*
 		 * Note the use of platform-dependent macros to format
