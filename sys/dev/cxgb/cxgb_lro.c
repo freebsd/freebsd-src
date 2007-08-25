@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #else
@@ -198,7 +199,7 @@ lro_flush_session(struct sge_qset *qs, struct t3_lro_session *s, struct mbuf *m)
 	MBUF_HEADER_CHECK(sm);
 	
 	sm->m_flags |= M_LRO;
-	t3_rx_eth(qs->port, &qs->rspq, sm, 2);
+	t3_rx_eth(qs->port->adapter, &qs->rspq, sm, 2);
 	
 	if (m) {
 		s->head = m;
@@ -340,7 +341,6 @@ t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
 	struct ip *ih;
 	struct tcphdr *th; 
 	struct t3_lro_session *s = NULL;
-	struct port_info *pi = qs->port;
 	
 	if (lro == 0)
 		goto no_lro;
@@ -348,9 +348,6 @@ t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
 	if (!can_lro_packet(cpl, rss_csum))
 		goto no_lro;
 	
-	if (&adap->port[cpl->iff] != pi)
-		panic("bad port index %d\n", cpl->iff);
-
 	ih = (struct ip *)(eh + 1);
 	th = (struct tcphdr *)(ih + 1);
 	
@@ -365,9 +362,11 @@ t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
 		if (lro_update_session(s, m)) {
 			lro_flush_session(qs, s, m);
 		}
+#ifdef notyet		
 		if (__predict_false(s->head->m_pkthdr.len + pi->ifp->if_mtu > 65535)) {
 			lro_flush_session(qs, s, NULL);
-		}		
+		}
+#endif		
 	}
 
 	qs->port_stats[SGE_PSTATS_LRO_QUEUED]++;
@@ -379,7 +378,8 @@ no_lro:
 	if (m->m_len == 0 || m->m_pkthdr.len == 0 || (m->m_flags & M_PKTHDR) == 0)
 		DPRINTF("rx_eth_lro mbuf len=%d pktlen=%d flags=0x%x\n",
 		    m->m_len, m->m_pkthdr.len, m->m_flags);
-	t3_rx_eth(pi, rq, m, ethpad);
+
+	t3_rx_eth(adap, rq, m, ethpad);
 }
 
 void
