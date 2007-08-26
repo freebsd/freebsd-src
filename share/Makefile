@@ -23,7 +23,7 @@ SUBDIR=	colldef \
 	tabset \
 	termcap \
 	timedef \
-	zoneinfo
+	${_zoneinfo}
 
 .if !defined(NO_I4B)
 _isdn=		isdn
@@ -39,6 +39,10 @@ _sendmail=	 sendmail
 
 .if !defined(NO_SHAREDOCS)
 _doc=		doc
+.endif
+
+.if !defined(NO_ZONEINFO)
+_zoneinfo=	zoneinfo
 .endif
 
 .include <bsd.subdir.mk>
