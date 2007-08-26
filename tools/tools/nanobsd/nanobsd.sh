@@ -83,6 +83,10 @@ NANO_MEDIASIZE=1000000
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
 
+# 0 -> Leave second image all zeroes so it compresses better.
+# 1 -> Initialize second image with a copy of the first
+NANO_INIT_IMG2=1
+
 # Size of code file system in 512 bytes sectors
 # If zero, size will be as large as possible.
 NANO_CODESIZE=0
@@ -402,7 +406,7 @@ create_i386_diskimage ( ) (
 	( cd ${MNT} && du -k ) > ${MAKEOBJDIRPREFIX}/_.du
 	umount ${MNT}
 
-	if [ $NANO_IMAGES -gt 1 ] ; then
+	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
 		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
@@ -505,8 +509,11 @@ cust_pkg () (
 		# Record how may we have now
 		have=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
 
-		# Attempt to install more
-		chroot ${NANO_WORLDDIR} sh -c 'pkg_add -F Pkg/*' || true
+		# Attempt to install more packages
+		# ...but no more than 200 at a time due to pkg_add's internal
+		# limitations.
+		chroot ${NANO_WORLDDIR} sh -c \
+			'ls Pkg/*tbz | xargs -n 200 pkg_add -F' || true
 
 		# See what that got us
 		now=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
