@@ -23,6 +23,32 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*-
+ * Copyright (c) 2007 LSI Corp.
+ * Copyright (c) 2007 Rajesh Prabhakaran.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -66,7 +92,6 @@ static int	mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
 static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
-static void	mfi_enable_intr(struct mfi_softc *sc);
 static void	mfi_ldprobe(struct mfi_softc *sc);
 static int	mfi_aen_register(struct mfi_softc *sc, int seq, int locale);
 static void	mfi_aen_complete(struct mfi_command *);
@@ -81,7 +106,14 @@ static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
 static void	mfi_timeout(void *);
-
+static void 	mfi_enable_intr_xscale(struct mfi_softc *sc);
+static void 	mfi_enable_intr_ppc(struct mfi_softc *sc);
+static int32_t 	mfi_read_fw_status_xscale(struct mfi_softc *sc);
+static int32_t 	mfi_read_fw_status_ppc(struct mfi_softc *sc);
+static int 	mfi_check_clear_intr_xscale(struct mfi_softc *sc);
+static int 	mfi_check_clear_intr_ppc(struct mfi_softc *sc);
+static void 	mfi_issue_cmd_xscale(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
+static void 	mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt);
 
 SYSCTL_NODE(_hw, OID_AUTO, mfi, CTLFLAG_RD, 0, "MFI driver parameters");
 static int	mfi_event_locale = MFI_EVT_LOCALE_ALL;
@@ -114,17 +146,80 @@ MALLOC_DEFINE(M_MFIBUF, "mfibuf", "Buffers for the MFI driver");
 
 #define MFI_INQ_LENGTH SHORT_INQUIRY_LENGTH
 
+static void
+mfi_enable_intr_xscale(struct mfi_softc *sc)
+{
+	MFI_WRITE4(sc, MFI_OMSK, 0x01);
+}
+
+static void
+mfi_enable_intr_ppc(struct mfi_softc *sc)
+{
+	MFI_WRITE4(sc, MFI_ODCR0, 0xFFFFFFFF);
+	MFI_WRITE4(sc, MFI_OMSK, ~MFI_1078_EIM);
+}
+
+static int32_t
+mfi_read_fw_status_xscale(struct mfi_softc *sc)
+{
+	return MFI_READ4(sc, MFI_OMSG0);
+}
+ 
+static int32_t
+mfi_read_fw_status_ppc(struct mfi_softc *sc)
+{
+	return MFI_READ4(sc, MFI_OSP0);
+}
+
+static int 
+mfi_check_clear_intr_xscale(struct mfi_softc *sc)
+{
+	int32_t status;
+
+	status = MFI_READ4(sc, MFI_OSTS);
+	if ((status & MFI_OSTS_INTR_VALID) == 0)
+		return 1;
+
+	MFI_WRITE4(sc, MFI_OSTS, status);
+	return 0;
+ }
+
+static int 
+mfi_check_clear_intr_ppc(struct mfi_softc *sc)
+{
+	int32_t status;
+
+	status = MFI_READ4(sc, MFI_OSTS);
+	if (!status)
+		return 1; 
+
+	MFI_WRITE4(sc, MFI_ODCR0, status);
+	return 0;
+ }
+
+static void 
+mfi_issue_cmd_xscale(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
+{
+	MFI_WRITE4(sc, MFI_IQP,(bus_add >>3)|frame_cnt);
+}
+  
+static void 
+mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
+{
+	MFI_WRITE4(sc, MFI_IQP, (bus_add |frame_cnt <<1)|1 );
+}
+
 static int
 mfi_transition_firmware(struct mfi_softc *sc)
 {
 	int32_t fw_state, cur_state;
 	int max_wait, i;
 
-	fw_state = MFI_READ4(sc, MFI_OMSG0) & MFI_FWSTATE_MASK;
+	fw_state = sc->mfi_read_fw_status(sc)& MFI_FWSTATE_MASK;
 	while (fw_state != MFI_FWSTATE_READY) {
 		if (bootverbose)
 			device_printf(sc->mfi_dev, "Waiting for firmware to "
-			    "become ready\n");
+			"become ready\n");
 		cur_state = fw_state;
 		switch (fw_state) {
 		case MFI_FWSTATE_FAULT:
@@ -153,7 +248,7 @@ mfi_transition_firmware(struct mfi_softc *sc)
 			return (ENXIO);
 		}
 		for (i = 0; i < (max_wait * 10); i++) {
-			fw_state = MFI_READ4(sc, MFI_OMSG0) & MFI_FWSTATE_MASK;
+			fw_state = sc->mfi_read_fw_status(sc) & MFI_FWSTATE_MASK;
 			if (fw_state == cur_state)
 				DELAY(100000);
 			else
@@ -183,6 +278,7 @@ mfi_attach(struct mfi_softc *sc)
 	uint32_t status;
 	int error, commsz, framessz, sensesz;
 	int frames, unit, max_fw_sge;
+    device_printf(sc->mfi_dev, "Megaraid SAS driver Ver 2.00 \n");
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	sx_init(&sc->mfi_config_lock, "MFI config");
@@ -194,6 +290,20 @@ mfi_attach(struct mfi_softc *sc)
 	mfi_initq_ready(sc);
 	mfi_initq_busy(sc);
 	mfi_initq_bio(sc);
+
+	if (sc->mfi_flags & MFI_FLAGS_1064R) {
+		sc->mfi_enable_intr = mfi_enable_intr_xscale;
+		sc->mfi_read_fw_status = mfi_read_fw_status_xscale;
+		sc->mfi_check_clear_intr = mfi_check_clear_intr_xscale;
+		sc->mfi_issue_cmd = mfi_issue_cmd_xscale;
+	}
+	else {
+		sc->mfi_enable_intr =  mfi_enable_intr_ppc;
+ 		sc->mfi_read_fw_status = mfi_read_fw_status_ppc;
+		sc->mfi_check_clear_intr = mfi_check_clear_intr_ppc;
+		sc->mfi_issue_cmd = mfi_issue_cmd_ppc;
+	}
+
 
 	/* Before we get too far, see if the firmware is working */
 	if ((error = mfi_transition_firmware(sc)) != 0) {
@@ -209,7 +319,7 @@ mfi_attach(struct mfi_softc *sc)
 	 * It would be nice if these constants were available at runtime
 	 * instead of compile time.
 	 */
-	status = MFI_READ4(sc, MFI_OMSG0);
+	status = sc->mfi_read_fw_status(sc);
 	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
 	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
 	sc->mfi_max_sge = min(max_fw_sge, ((MAXPHYS / PAGE_SIZE) + 1));
@@ -777,7 +887,7 @@ mfi_startup(void *arg)
 
 	config_intrhook_disestablish(&sc->mfi_ich);
 
-	mfi_enable_intr(sc);
+	sc->mfi_enable_intr(sc);
 	sx_xlock(&sc->mfi_config_lock);
 	mtx_lock(&sc->mfi_io_lock);
 	mfi_ldprobe(sc);
@@ -790,15 +900,12 @@ mfi_intr(void *arg)
 {
 	struct mfi_softc *sc;
 	struct mfi_command *cm;
-	uint32_t status, pi, ci, context;
+	uint32_t pi, ci, context;
 
 	sc = (struct mfi_softc *)arg;
 
-	status = MFI_READ4(sc, MFI_OSTS);
-	if ((status & MFI_OSTS_INTR_VALID) == 0)
+	if (sc->mfi_check_clear_intr(sc))
 		return;
-
-	MFI_WRITE4(sc, MFI_OSTS, status);
 
 	pi = sc->mfi_comms->hw_pi;
 	ci = sc->mfi_comms->hw_ci;
@@ -856,13 +963,6 @@ mfi_shutdown(struct mfi_softc *sc)
 	mfi_release_command(cm);
 	mtx_unlock(&sc->mfi_io_lock);
 	return (error);
-}
-
-static void
-mfi_enable_intr(struct mfi_softc *sc)
-{
-
-	MFI_WRITE4(sc, MFI_OMSK, 0x01);
 }
 
 static void
@@ -1657,8 +1757,7 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	if (cm->cm_extra_frames > 7)
 		cm->cm_extra_frames = 7;
 
-	MFI_WRITE4(sc, MFI_IQP, (cm->cm_frame_busaddr >> 3) |
-	    cm->cm_extra_frames);
+	sc->mfi_issue_cmd(sc,cm->cm_frame_busaddr,cm->cm_extra_frames);
 
 	if ((cm->cm_flags & MFI_CMD_POLLED) == 0)
 		return (0);
