@@ -4404,7 +4404,8 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 					 * store set number into high word of
 					 * dst->rule pointer.
 					 */
-					bcopy(&(p->rule->set), &dst->rule +
+					bcopy(&(p->rule->set),
+					    (char *)&dst->rule +
 					    sizeof(p->rule->rulenum),
 					    sizeof(p->rule->set));
 					/*
@@ -5042,6 +5043,8 @@ ipfw_destroy(void)
 		reap_rules(reap);
 	IPFW_DYN_LOCK_DESTROY();
 	uma_zdestroy(ipfw_dyn_rule_zone);
+	if (ipfw_dyn_v != NULL)
+		free(ipfw_dyn_v, M_IPFW);
 	IPFW_LOCK_DESTROY(&layer3_chain);
 
 #ifdef INET6
