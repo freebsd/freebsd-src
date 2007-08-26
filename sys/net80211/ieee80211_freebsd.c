@@ -136,6 +136,7 @@ ieee80211_sysctl_detach(struct ieee80211com *ic)
 
 	if (ic->ic_sysctl != NULL) {
 		sysctl_ctx_free(ic->ic_sysctl);
+		FREE(ic->ic_sysctl, M_DEVBUF);
 		ic->ic_sysctl = NULL;
 	}
 }
@@ -214,7 +215,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 			MC_ALIGN(m, len);
 	}
 	if (m != NULL) {
-		m->m_data += sizeof(struct ieee80211_frame);
+		m->m_data += headroom;
 		*frm = m->m_data;
 	}
 	return m;
