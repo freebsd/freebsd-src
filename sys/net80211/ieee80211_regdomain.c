@@ -182,8 +182,10 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
 		}
 	}
 	ie->len = frm - ie->cc;
-	if (ie->len & 1)		/* pad to multiple of 2 */
+	if (ie->len & 1) {		/* Zero pad to multiple of 2 */
 		ie->len++;
+		*frm++ = 0;
+	}
 	return frm;
 #undef CHAN_UNINTERESTING
 }
