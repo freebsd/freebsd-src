@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/mount.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -146,6 +147,9 @@ int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages 
 #if !defined(NO_SWAPPING)
 static int vm_pageout_req_swapout;	/* XXX */
 static int vm_daemon_needed;
+static struct mtx vm_daemon_mtx;
+/* Allow for use by vm_pageout before vm_daemon is initialized. */
+MTX_SYSINIT(vm_daemon, &vm_daemon_mtx, "vm daemon", MTX_DEF);
 #endif
 static int vm_max_launder = 32;
 static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
@@ -207,7 +211,7 @@ int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 #if !defined(NO_SWAPPING)
 static void vm_pageout_map_deactivate_pages(vm_map_t, long);
 static void vm_pageout_object_deactivate_pages(pmap_t, vm_object_t, long);
-static void vm_req_vmdaemon(void);
+static void vm_req_vmdaemon(int req);
 #endif
 static void vm_pageout_page_stats(void);
 
@@ -714,7 +718,6 @@ vm_pageout_scan(int pass)
 	int vnodes_skipped = 0;
 	int maxlaunder;
 
-	mtx_lock(&Giant);
 	/*
 	 * Decrease registered cache sizes.
 	 */
@@ -917,9 +920,9 @@ rescan0:
 			 * pressure where there are insufficient clean pages
 			 * on the inactive queue, we may have to go all out.
 			 */
-			int swap_pageouts_ok;
+			int swap_pageouts_ok, vfslocked = 0;
 			struct vnode *vp = NULL;
-			struct mount *mp;
+			struct mount *mp = NULL;
 
 			if ((object->type != OBJT_SWAP) && (object->type != OBJT_DEFAULT)) {
 				swap_pageouts_ok = 1;
@@ -975,24 +978,24 @@ rescan0:
 			 */
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
-				mp = NULL;
 				if (vp->v_type == VREG &&
 				    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
+					KASSERT(mp == NULL,
+					    ("vm_pageout_scan: mp != NULL"));
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
-					vp = NULL;
 					goto unlock_and_continue;
 				}
 				vm_page_unlock_queues();
-				VI_LOCK(vp);
+				vm_object_reference_locked(object);
 				VM_OBJECT_UNLOCK(object);
-				if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK |
-				    LK_TIMELOCK, curthread)) {
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
+				    curthread)) {
 					VM_OBJECT_LOCK(object);
 					vm_page_lock_queues();
 					++pageout_lock_miss;
-					vn_finished_write(mp);
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					vp = NULL;
@@ -1004,12 +1007,10 @@ rescan0:
 				 * The page might have been moved to another
 				 * queue during potential blocking in vget()
 				 * above.  The page might have been freed and
-				 * reused for another vnode.  The object might
-				 * have been reused for another vnode.
+				 * reused for another vnode.
 				 */
 				if (m->queue != PQ_INACTIVE ||
 				    m->object != object ||
-				    object->handle != vp ||
 				    TAILQ_NEXT(m, pageq) != &marker) {
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
@@ -1018,7 +1019,7 @@ rescan0:
 	
 				/*
 				 * The page may have been busied during the
-				 * blocking in vput();  We don't move the
+				 * blocking in vget().  We don't move the
 				 * page back onto the end of the queue so that
 				 * statistics are more correct if we don't.
 				 */
@@ -1054,9 +1055,12 @@ rescan0:
 			}
 unlock_and_continue:
 			VM_OBJECT_UNLOCK(object);
-			if (vp) {
+			if (mp != NULL) {
 				vm_page_unlock_queues();
-				vput(vp);
+				if (vp != NULL)
+					vput(vp);
+				VFS_UNLOCK_GIANT(vfslocked);
+				vm_object_deallocate(object);
 				vn_finished_write(mp);
 				vm_page_lock_queues();
 			}
@@ -1214,8 +1218,7 @@ unlock_and_continue:
 	if (vm_swap_idle_enabled) {
 		static long lsec;
 		if (time_second != lsec) {
-			vm_pageout_req_swapout |= VM_SWAP_IDLE;
-			vm_req_vmdaemon();
+			vm_req_vmdaemon(VM_SWAP_IDLE);
 			lsec = time_second;
 		}
 	}
@@ -1230,10 +1233,8 @@ unlock_and_continue:
 		if (vnodes_skipped && vm_page_count_min())
 			(void) speedup_syncer();
 #if !defined(NO_SWAPPING)
-		if (vm_swap_enabled && vm_page_count_target()) {
-			vm_req_vmdaemon();
-			vm_pageout_req_swapout |= VM_SWAP_NORMAL;
-		}
+		if (vm_swap_enabled && vm_page_count_target())
+			vm_req_vmdaemon(VM_SWAP_NORMAL);
 #endif
 	}
 
@@ -1323,7 +1324,6 @@ unlock_and_continue:
 			wakeup(&cnt.v_free_count);
 		}
 	}
-	mtx_unlock(&Giant);
 }
 
 /*
@@ -1573,14 +1573,17 @@ pagedaemon_wakeup()
 
 #if !defined(NO_SWAPPING)
 static void
-vm_req_vmdaemon()
+vm_req_vmdaemon(int req)
 {
 	static int lastrun = 0;
 
+	mtx_lock(&vm_daemon_mtx);
+	vm_pageout_req_swapout |= req;
 	if ((ticks > (lastrun + hz)) || (ticks < lastrun)) {
 		wakeup(&vm_daemon_needed);
 		lastrun = ticks;
 	}
+	mtx_unlock(&vm_daemon_mtx);
 }
 
 static void
@@ -1589,15 +1592,17 @@ vm_daemon()
 	struct rlimit rsslim;
 	struct proc *p;
 	struct thread *td;
-	int breakout;
+	int breakout, swapout_flags;
 
-	mtx_lock(&Giant);
 	while (TRUE) {
-		tsleep(&vm_daemon_needed, PPAUSE, "psleep", 0);
-		if (vm_pageout_req_swapout) {
-			swapout_procs(vm_pageout_req_swapout);
-			vm_pageout_req_swapout = 0;
-		}
+		mtx_lock(&vm_daemon_mtx);
+		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", 0);
+		swapout_flags = vm_pageout_req_swapout;
+		vm_pageout_req_swapout = 0;
+		mtx_unlock(&vm_daemon_mtx);
+		if (swapout_flags)
+			swapout_procs(swapout_flags);
+
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
