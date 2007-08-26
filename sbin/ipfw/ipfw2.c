@@ -2575,7 +2575,7 @@ list(int ac, char *av[], int show_counters)
 		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
 			if (use_set) {
 				/* skip rules from another set */
-				bcopy(&d->rule + sizeof(uint16_t),
+				bcopy((char *)&d->rule + sizeof(uint16_t),
 				      &set, sizeof(uint8_t));
 				if (set != use_set - 1)
 					continue;
@@ -2603,7 +2603,7 @@ list(int ac, char *av[], int show_counters)
 			printf("## Dynamic rules (%d):\n", ndyn);
 			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
 				if (use_set) {
-					bcopy(&d->rule + sizeof(uint16_t),
+					bcopy((char *)&d->rule + sizeof(uint16_t),
 					      &set, sizeof(uint8_t));
 					if (set != use_set - 1)
 						continue;
@@ -2660,7 +2660,7 @@ list(int ac, char *av[], int show_counters)
 				if (rulenum > rnum)
 					break;
 				if (use_set) {
-					bcopy(&d->rule + sizeof(uint16_t),
+					bcopy((char *)&d->rule + sizeof(uint16_t),
 					      &set, sizeof(uint8_t));
 					if (set != use_set - 1)
 						continue;
