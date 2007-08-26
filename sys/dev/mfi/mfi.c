@@ -874,7 +874,7 @@ mfi_ldprobe(struct mfi_softc *sc)
 	struct mfi_disk *ld;
 	int error, i;
 
-	sx_assert(&sc->mfi_config_lock, SA_XLOCKED);
+	sx_assert(&sc->mfi_config_lock, SX_XLOCKED);
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_LIST,
