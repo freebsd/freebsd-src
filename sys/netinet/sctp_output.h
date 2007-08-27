@@ -69,7 +69,10 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
     sctp_route_t * ro, struct sctp_nets *net,
     int non_asoc_addr_ok, uint32_t vrf_id);
 
-
+int
+    sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro);
+int
+    sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t * ro);
 
 void sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *);
 
@@ -106,7 +109,7 @@ sctp_send_shutdown_complete2(struct mbuf *, int, struct sctphdr *,
 
 void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *);
 
-void sctp_send_asconf_ack(struct sctp_tcb *, uint32_t);
+void sctp_send_asconf_ack(struct sctp_tcb *);
 
 int sctp_get_frag_point(struct sctp_tcb *, struct sctp_association *);
 

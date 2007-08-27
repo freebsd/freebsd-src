@@ -610,6 +610,7 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	sctp_print_out_track_log(stcb);
 #endif
+	stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
 	    SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_abort: finished\n");
@@ -690,6 +691,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		}
 		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 
+		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net,
+		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
 		/* start SHUTDOWN timer */
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
 		    stcb, net);
@@ -2219,6 +2222,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			    (SCTP_PCB_COPY_FLAGS & (*inp_p)->sctp_flags) |
 			    SCTP_PCB_FLAGS_DONT_WAKE);
 			inp->sctp_features = (*inp_p)->sctp_features;
+
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
@@ -2482,6 +2486,8 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp,
 	/* process according to association state */
 	if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT) {
 		/* unexpected SHUTDOWN-COMPLETE... so ignore... */
+		SCTPDBG(SCTP_DEBUG_INPUT2,
+		    "sctp_handle_shutdown_complete: not in SCTP_STATE_SHUTDOWN_ACK_SENT --- ignore\n");
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
@@ -2499,6 +2505,9 @@ sctp_handle_shutdown_complete(struct sctp_shutdown_complete_chunk *cp,
 	sctp_timer_stop(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_22);
 	SCTP_STAT_INCR_COUNTER32(sctps_shutdown);
 	/* free the TCB */
+	SCTPDBG(SCTP_DEBUG_INPUT2,
+	    "sctp_handle_shutdown_complete: calls free-asoc\n");
+
 	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_INPUT + SCTP_LOC_23);
 	return;
 }
@@ -2721,7 +2730,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 		break;
 	case SCTP_ASCONF_ACK:
 		/* resend last asconf ack */
-		sctp_send_asconf_ack(stcb, 1);
+		sctp_send_asconf_ack(stcb);
 		break;
 	case SCTP_FORWARD_CUM_TSN:
 		send_forward_tsn(stcb, &stcb->asoc);
@@ -3481,6 +3490,7 @@ __attribute__((noinline))
 	int got_auth = 0;
 	uint32_t auth_offset = 0, auth_len = 0;
 	int auth_skipped = 0;
+	int asconf_cnt = 0;
 
 	SCTPDBG(SCTP_DEBUG_INPUT1, "sctp_process_control: iphlen=%u, offset=%u, length=%u stcb:%p\n",
 	    iphlen, *offset, length, stcb);
@@ -3555,18 +3565,35 @@ __attribute__((noinline))
 		 * need to look inside to find the association
 		 */
 		if (ch->chunk_type == SCTP_ASCONF && stcb == NULL) {
+			struct sctp_chunkhdr *asconf_ch = ch;
+			uint32_t asconf_offset = 0, asconf_len = 0;
+
 			/* inp's refcount may be reduced */
 			SCTP_INP_INCR_REF(inp);
 
-			stcb = sctp_findassociation_ep_asconf(m, iphlen,
-			    *offset, sh, &inp, netp);
+			asconf_offset = *offset;
+			do {
+				asconf_len = ntohs(asconf_ch->chunk_length);
+				if (asconf_len < sizeof(struct sctp_asconf_paramhdr))
+					break;
+				stcb = sctp_findassociation_ep_asconf(m, iphlen,
+				    *offset, sh, &inp, netp);
+				if (stcb != NULL)
+					break;
+				asconf_offset += SCTP_SIZE32(asconf_len);
+				asconf_ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, asconf_offset,
+				    sizeof(struct sctp_chunkhdr), chunk_buf);
+			} while (asconf_ch != NULL && asconf_ch->chunk_type == SCTP_ASCONF);
 			if (stcb == NULL) {
 				/*
 				 * reduce inp's refcount if not reduced in
 				 * sctp_findassociation_ep_asconf().
 				 */
 				SCTP_INP_DECR_REF(inp);
+			} else {
+				locked_tcb = stcb;
 			}
+
 			/* now go back and verify any auth chunk to be sure */
 			if (auth_skipped && (stcb != NULL)) {
 				struct sctp_auth_chunk *auth;
@@ -3783,7 +3810,8 @@ process_control_chunks:
 					return (NULL);
 				}
 			}
-			if ((num_chunks > 1) ||
+			if ((chk_length > SCTP_LARGEST_INIT_ACCEPTED) ||
+			    (num_chunks > 1) ||
 			    (sctp_strict_init && (length - *offset > (int)SCTP_SIZE32(chk_length)))) {
 				*offset = length;
 				if (locked_tcb) {
@@ -3878,11 +3906,20 @@ process_control_chunks:
 
 				if ((stcb == NULL) || (chk_length < sizeof(struct sctp_sack_chunk))) {
 					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on sack chunk, too small\n");
+			ignore_sack:
 					*offset = length;
 					if (locked_tcb) {
 						SCTP_TCB_UNLOCK(locked_tcb);
 					}
 					return (NULL);
+				}
+				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_ACK_SENT) {
+					/*-
+					 * If we have sent a shutdown-ack, we will pay no
+					 * attention to a sack sent in to us since
+					 * we don't care anymore.
+					 */
+					goto ignore_sack;
 				}
 				sack = (struct sctp_sack_chunk *)ch;
 				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;
@@ -4246,7 +4283,8 @@ process_control_chunks:
 				}
 				stcb->asoc.overall_error_count = 0;
 				sctp_handle_asconf(m, *offset,
-				    (struct sctp_asconf_chunk *)ch, stcb);
+				    (struct sctp_asconf_chunk *)ch, stcb, asconf_cnt == 0);
+				asconf_cnt++;
 			}
 			break;
 		case SCTP_ASCONF_ACK:
@@ -4466,6 +4504,10 @@ next_chunk:
 			return (NULL);
 		}
 	}			/* while */
+
+	if (asconf_cnt > 0 && stcb != NULL) {
+		sctp_send_asconf_ack(stcb);
+	}
 	return (stcb);
 }
 
@@ -4572,13 +4614,15 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 	sctp_auditing(0, inp, stcb, net);
 #endif
 
-	SCTPDBG(SCTP_DEBUG_INPUT1, "Ok, Common input processing called, m:%p iphlen:%d offset:%d\n",
-	    m, iphlen, offset);
-
+	SCTPDBG(SCTP_DEBUG_INPUT1, "Ok, Common input processing called, m:%p iphlen:%d offset:%d stcb:%p\n",
+	    m, iphlen, offset, stcb);
 	if (stcb) {
 		/* always clear this before beginning a packet */
 		stcb->asoc.authenticated = 0;
 		stcb->asoc.seen_a_sack_this_pkt = 0;
+		SCTPDBG(SCTP_DEBUG_INPUT1, "stcb:%p state:%x\n",
+		    stcb, stcb->asoc.state);
+
 		if ((stcb->asoc.state & SCTP_STATE_WAS_ABORTED) ||
 		    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED)) {
 			/*-
@@ -4770,9 +4814,12 @@ trigger_send:
 	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
 
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue) ||
+	/* For retransmission to new primary destination (by micchie) */
+	    sctp_is_mobility_feature_on(inp, SCTP_MOBILITY_DO_FASTHANDOFF) ||
 	    ((un_sent) &&
 	    (stcb->asoc.peers_rwnd > 0 ||
 	    (stcb->asoc.peers_rwnd <= 0 && stcb->asoc.total_flight == 0)))) {
+		sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
 		SCTPDBG(SCTP_DEBUG_INPUT3, "Calling chunk OUTPUT\n");
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC);
 		SCTPDBG(SCTP_DEBUG_INPUT3, "chunk OUTPUT returns\n");
@@ -4881,43 +4928,34 @@ sctp_input(i_pak, off)
 		goto bad;
 	}
 	/* validate SCTP checksum */
-	if ((sctp_no_csum_on_loopback == 0) || !SCTP_IS_IT_LOOPBACK(m)) {
-		/*
-		 * we do NOT validate things from the loopback if the sysctl
-		 * is set to 1.
-		 */
-		check = sh->checksum;	/* save incoming checksum */
-		if ((check == 0) && (sctp_no_csum_on_loopback)) {
-			/*
-			 * special hook for where we got a local address
-			 * somehow routed across a non IFT_LOOP type
-			 * interface
-			 */
-			if (ip->ip_src.s_addr == ip->ip_dst.s_addr)
-				goto sctp_skip_csum_4;
-		}
-		sh->checksum = 0;	/* prepare for calc */
-		calc_check = sctp_calculate_sum(m, &mlen, iphlen);
-		if (calc_check != check) {
-			SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-			    calc_check, check, m, mlen, iphlen);
-
-			stcb = sctp_findassociation_addr(m, iphlen,
-			    offset - sizeof(*ch),
-			    sh, ch, &inp, &net,
-			    vrf_id);
-			if ((inp) && (stcb)) {
-				sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
-				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR);
-			} else if ((inp != NULL) && (stcb == NULL)) {
-				refcount_up = 1;
-			}
-			SCTP_STAT_INCR(sctps_badsum);
-			SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
-			goto bad;
-		}
-		sh->checksum = calc_check;
+	check = sh->checksum;	/* save incoming checksum */
+	if ((check == 0) && (sctp_no_csum_on_loopback) &&
+	    ((ip->ip_src.s_addr == ip->ip_dst.s_addr) ||
+	    (SCTP_IS_IT_LOOPBACK(m)))
+	    ) {
+		goto sctp_skip_csum_4;
 	}
+	sh->checksum = 0;	/* prepare for calc */
+	calc_check = sctp_calculate_sum(m, &mlen, iphlen);
+	if (calc_check != check) {
+		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
+		    calc_check, check, m, mlen, iphlen);
+
+		stcb = sctp_findassociation_addr(m, iphlen,
+		    offset - sizeof(*ch),
+		    sh, ch, &inp, &net,
+		    vrf_id);
+		if ((inp) && (stcb)) {
+			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
+			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR);
+		} else if ((inp != NULL) && (stcb == NULL)) {
+			refcount_up = 1;
+		}
+		SCTP_STAT_INCR(sctps_badsum);
+		SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
+		goto bad;
+	}
+	sh->checksum = calc_check;
 sctp_skip_csum_4:
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0) {

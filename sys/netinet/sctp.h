@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 /*
  * SCTP protocol - RFC2960.
  */
-
 struct sctphdr {
 	uint16_t src_port;	/* source port */
 	uint16_t dest_port;	/* destination port */
@@ -348,18 +347,6 @@ __attribute__((packed));
 		struct sctp_chunkhdr ch;	/* header from chunk in error */
 	}                             __attribute__((packed));
 
-#define HAVE_SCTP			1
-#define HAVE_KERNEL_SCTP		1
-#define HAVE_SCTP_PRSCTP		1
-#define HAVE_SCTP_ADDIP			1
-#define HAVE_SCTP_CANSET_PRIMARY	1
-#define HAVE_SCTP_SAT_CAPABILITY	1
-#define HAVE_SCTP_MULTIBUF              1
-#define HAVE_SCTP_NOCONNECT             0
-#define HAVE_SCTP_ECN_NONCE             1	/* ECN Nonce option */
-#define HAVE_SCTP_AUTH			1
-#define HAVE_SCTP_EXT_RCVINFO		1
-#define HAVE_SCTP_CONNECTX              1
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
  * can find them.
@@ -484,6 +471,17 @@ __attribute__((packed));
 #define SCTP_PCB_FLAGS_NO_FRAGMENT	0x00100000
 #define SCTP_PCB_FLAGS_EXPLICIT_EOR     0x00400000
 
+/*-
+ * mobility_features parameters (by micchie).Note
+ * these features are applied against the
+ * sctp_mobility_features flags.. not the sctp_features
+ * flags.
+ */
+#define SCTP_MOBILITY_BASE		0x00000001
+#define SCTP_MOBILITY_FASTHANDOFF	0x00000002
+#define SCTP_MOBILITY_DO_FASTHANDOFF	0x00000004
+
+
 #define SCTP_SMALLEST_PMTU 512	/* smallest pmtu allowed when disabling PMTU
 				 * discovery */
 
@@ -535,6 +533,7 @@ __attribute__((packed));
 #define SCTP_LTRACE_ERROR_ENABLE                        0x00800000
 #define SCTP_LAST_PACKET_TRACING                        0x01000000
 #define SCTP_THRESHOLD_LOGGING                          0x02000000
+
 
 
 #endif				/* !_NETINET_SCTP_H_ */

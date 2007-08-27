@@ -569,11 +569,12 @@ sctp_process_asconf_set_primary(struct mbuf *m,
  */
 void
 sctp_handle_asconf(struct mbuf *m, unsigned int offset,
-    struct sctp_asconf_chunk *cp, struct sctp_tcb *stcb)
+    struct sctp_asconf_chunk *cp, struct sctp_tcb *stcb,
+    int first)
 {
 	struct sctp_association *asoc;
 	uint32_t serial_num;
-	struct mbuf *m_ack, *m_result, *m_tail;
+	struct mbuf *n, *m_ack, *m_result, *m_tail;
 	struct sctp_asconf_ack_chunk *ack_cp;
 	struct sctp_asconf_paramhdr *aph, *ack_aph;
 	struct sctp_ipv6addr_param *p_addr;
@@ -582,6 +583,7 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 
 	/* asconf param buffer */
 	uint8_t aparam_buf[SCTP_PARAM_BUFFER_SIZE];
+	struct sctp_asconf_ack *ack, *ack_next;
 
 	/* verify minimum length */
 	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_asconf_chunk)) {
@@ -593,13 +595,12 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 	asoc = &stcb->asoc;
 	serial_num = ntohl(cp->serial_number);
 
-	if (serial_num == asoc->asconf_seq_in) {
+	if (compare_with_wrap(asoc->asconf_seq_in, serial_num, MAX_SEQ) ||
+	    serial_num == asoc->asconf_seq_in) {
 		/* got a duplicate ASCONF */
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "handle_asconf: got duplicate serial number = %xh\n",
 		    serial_num);
-		/* resend last ASCONF-ACK... */
-		sctp_send_asconf_ack(stcb, 1);
 		return;
 	} else if (serial_num != (asoc->asconf_seq_in + 1)) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: incorrect serial number = %xh (expected next = %xh)\n",
@@ -613,10 +614,25 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 	SCTPDBG(SCTP_DEBUG_ASCONF1,
 	    "handle_asconf: asconf_limit=%u, sequence=%xh\n",
 	    asconf_limit, serial_num);
-	if (asoc->last_asconf_ack_sent != NULL) {
-		/* free last ASCONF-ACK message sent */
-		sctp_m_freem(asoc->last_asconf_ack_sent);
-		asoc->last_asconf_ack_sent = NULL;
+
+	if (first) {
+		/* delete old cache */
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: Now processing firstASCONF. Try to delte old cache\n");
+
+		ack = TAILQ_FIRST(&stcb->asoc.asconf_ack_sent);
+		while (ack != NULL) {
+			ack_next = TAILQ_NEXT(ack, next);
+			if (ack->serial_number == serial_num)
+				break;
+			SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf: delete old(%u) < first(%u)\n",
+			    ack->serial_number, serial_num);
+			TAILQ_REMOVE(&stcb->asoc.asconf_ack_sent, ack, next);
+			if (ack->data != NULL) {
+				sctp_m_freem(ack->data);
+			}
+			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_asconf_ack, ack);
+			ack = ack_next;
+		}
 	}
 	m_ack = sctp_get_mbuf_for_msg(sizeof(struct sctp_asconf_ack_chunk), 0,
 	    M_DONTWAIT, 1, MT_DATA);
@@ -761,7 +777,21 @@ sctp_handle_asconf(struct mbuf *m, unsigned int offset,
 send_reply:
 	ack_cp->ch.chunk_length = htons(ack_cp->ch.chunk_length);
 	/* save the ASCONF-ACK reply */
-	asoc->last_asconf_ack_sent = m_ack;
+	ack = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_asconf_ack,
+	    struct sctp_asconf_ack);
+	if (ack == NULL) {
+		sctp_m_freem(m_ack);
+		return;
+	}
+	ack->serial_number = serial_num;
+	ack->last_sent_to = NULL;
+	ack->data = m_ack;
+	n = m_ack;
+	while (n) {
+		ack->len += SCTP_BUF_LEN(n);
+		n = SCTP_BUF_NEXT(n);
+	}
+	TAILQ_INSERT_TAIL(&stcb->asoc.asconf_ack_sent, ack, next);
 
 	/* see if last_control_chunk_from is set properly (use IP src addr) */
 	if (stcb->asoc.last_control_chunk_from == NULL) {
@@ -817,8 +847,6 @@ send_reply:
 #endif
 		}
 	}
-	/* and send it (a new one) out... */
-	sctp_send_asconf_ack(stcb, 0);
 }
 
 /*
@@ -912,6 +940,119 @@ sctp_asconf_nets_cleanup(struct sctp_tcb *stcb, struct sctp_ifn *ifn)
 	}
 }
 
+static int
+    sctp_asconf_queue_mgmt(struct sctp_tcb *, struct sctp_ifa *, uint16_t);
+
+static void
+sctp_net_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *net)
+{
+	struct sctp_tmit_chunk *chk;
+
+	SCTPDBG(SCTP_DEBUG_ASCONF2, "net_immediate_retrans()\n");
+	SCTPDBG(SCTP_DEBUG_ASCONF2, "RTO is %d\n", net->RTO);
+	sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net,
+	    SCTP_FROM_SCTP_TIMER + SCTP_LOC_5);
+	stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
+	net->error_count = 0;
+	TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
+		if (chk->whoTo == net) {
+			chk->sent = SCTP_DATAGRAM_RESEND;
+			sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
+		}
+	}
+}
+
+static void
+sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
+{
+	struct sctp_nets *net;
+	int addrnum, changed;
+
+	/*
+	 * If number of local valid addresses is 1, the valid address is
+	 * probably newly added address.  Several valid addresses in this
+	 * association.  A source address may not be changed.  Additionally,
+	 * they can be configured on a same interface as "alias" addresses.
+	 * (by micchie)
+	 */
+	addrnum = sctp_local_addr_count(stcb);
+	SCTPDBG(SCTP_DEBUG_ASCONF1, "p_check_react(): %d local addresses\n",
+	    addrnum);
+	if (addrnum == 1) {
+		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+			/* clear any cached route and source address */
+			if (net->ro.ro_rt) {
+				RTFREE(net->ro.ro_rt);
+				net->ro.ro_rt = NULL;
+			}
+			if (net->src_addr_selected) {
+				sctp_free_ifa(net->ro._s_addr);
+				net->ro._s_addr = NULL;
+				net->src_addr_selected = 0;
+			}
+			/* Retransmit unacknowledged DATA chunks immediately */
+			if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_FASTHANDOFF)) {
+				sctp_net_immediate_retrans(stcb, net);
+			}
+			/* also, SET PRIMARY is maybe already sent */
+		}
+		return;
+	}
+	/* Multiple local addresses exsist in the association.  */
+	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+		/* clear any cached route and source address */
+		if (net->ro.ro_rt) {
+			RTFREE(net->ro.ro_rt);
+			net->ro.ro_rt = NULL;
+		}
+		if (net->src_addr_selected) {
+			sctp_free_ifa(net->ro._s_addr);
+			net->ro._s_addr = NULL;
+			net->src_addr_selected = 0;
+		}
+		/*
+		 * Check if the nexthop is corresponding to the new address.
+		 * If the new address is corresponding to the current
+		 * nexthop, the path will be changed.  If the new address is
+		 * NOT corresponding to the current nexthop, the path will
+		 * not be changed.
+		 */
+		SCTP_RTALLOC((sctp_route_t *) & net->ro,
+		    stcb->sctp_ep->def_vrf_id);
+		if (net->ro.ro_rt == NULL)
+			continue;
+		//have to be considered...
+
+		    changed = 0;
+		if (net->ro._l_addr.sa.sa_family == AF_INET) {
+			if (sctp_v4src_match_nexthop(newifa, (sctp_route_t *) & net->ro))
+				changed = 1;
+		}
+		if (net->ro._l_addr.sa.sa_family == AF_INET6) {
+			if (sctp_v6src_match_nexthop(
+			    &newifa->address.sin6, (sctp_route_t *) & net->ro))
+				changed = 1;
+		}
+		/*
+		 * if the newly added address does not relate routing
+		 * information, we skip.
+		 */
+		if (changed == 0)
+			continue;
+		/* Retransmit unacknowledged DATA chunks immediately */
+		if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+		    SCTP_MOBILITY_FASTHANDOFF)) {
+			sctp_net_immediate_retrans(stcb, net);
+		}
+		/* Send SET PRIMARY for this new address */
+		if (net == stcb->asoc.primary_destination) {
+			(void)sctp_asconf_queue_mgmt(stcb, newifa,
+			    SCTP_SET_PRIM_ADDR);
+		}
+	}
+}
+
 /*
  * process an ADD/DELETE IP ack from peer.
  * addr: corresponding sctp_ifa to the address being added/deleted.
@@ -935,6 +1076,10 @@ sctp_asconf_addr_mgmt_ack(struct sctp_tcb *stcb, struct sctp_ifa *addr,
 		/* success case, so remove from the restricted list */
 		sctp_del_local_addr_restricted(stcb, addr);
 
+		if (sctp_is_mobility_feature_on(stcb->sctp_ep, SCTP_MOBILITY_BASE)) {
+			sctp_path_check_and_react(stcb, addr);
+			return;
+		}
 		/*
 		 * clear any cached, topologically incorrect source
 		 * addresses
@@ -2054,7 +2199,7 @@ sctp_set_primary_ip_address(struct sctp_ifa *ifa)
 			if (!sctp_asconf_queue_add(stcb, ifa,
 			    SCTP_SET_PRIM_ADDR)) {
 				/* set primary queuing succeeded */
-				SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address: queued on stcb=%p, ",
+				SCTPDBG(SCTP_DEBUG_ASCONF1, ": queued on stcb=%p, ",
 				    stcb);
 				SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &ifa->address.sa);
 				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
