@@ -547,6 +547,16 @@ struct sctp_cc_functions {
 	         struct sctp_tcb *stcb, struct sctp_nets *net);
 };
 
+/* used to save ASCONF-ACK chunks for retransmission */
+TAILQ_HEAD(sctp_asconf_ackhead, sctp_asconf_ack);
+struct sctp_asconf_ack {
+	TAILQ_ENTRY(sctp_asconf_ack) next;
+	uint32_t serial_number;
+	struct sctp_nets *last_sent_to;
+	struct mbuf *data;
+	uint16_t len;
+};
+
 /*
  * Here we have information about each individual association that we track.
  * We probably in production would be more dynamic. But for ease of
@@ -622,7 +632,7 @@ struct sctp_association {
 	struct sctp_iterator *stcb_starting_point_for_iterator;
 
 	/* ASCONF save the last ASCONF-ACK so we can resend it if necessary */
-	struct mbuf *last_asconf_ack_sent;
+	struct sctp_asconf_ackhead asconf_ack_sent;
 
 	/*
 	 * pointer to last stream reset queued to control queue by us with
@@ -870,7 +880,7 @@ struct sctp_association {
 	uint32_t refcnt;
 	uint32_t chunks_on_out_queue;	/* total chunks floating around,
 					 * locked by send socket buffer */
-
+	uint32_t peers_adaptation;
 	uint16_t peer_hmac_id;	/* peer HMAC id to send */
 
 	/*
@@ -1001,6 +1011,8 @@ struct sctp_association {
 	uint8_t saw_sack_with_frags;
 	uint8_t in_restart_hash;
 	uint8_t assoc_up_sent;
+	uint8_t adaptation_needed;
+	uint8_t adaptation_sent;
 	/* CMT variables */
 	uint8_t cmt_dac_pkts_rcvd;
 	uint8_t sctp_cmt_on_off;

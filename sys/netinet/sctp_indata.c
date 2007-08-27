@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 void
 sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
-	uint32_t calc, calc_w_oh;
+	uint32_t calc, calc_save;
 
 	/*
 	 * This is really set wrong with respect to a 1-2-m socket. Since
@@ -94,32 +94,34 @@ sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 		return;
 	}
 	/* what is the overhead of all these rwnd's */
-	calc_w_oh = sctp_sbspace_sub(calc, stcb->asoc.my_rwnd_control_len);
+
+	calc = sctp_sbspace_sub(calc, stcb->asoc.my_rwnd_control_len);
+	calc_save = calc;
+
 	asoc->my_rwnd = calc;
-	if (calc_w_oh == 0) {
-		/*
-		 * If our overhead is greater than the advertised rwnd, we
-		 * clamp the rwnd to 1. This lets us still accept inbound
-		 * segments, but hopefully will shut the sender down when he
-		 * finally gets the message.
-		 */
+	if ((asoc->my_rwnd == 0) &&
+	    (calc < stcb->asoc.my_rwnd_control_len)) {
+		/*-
+		 * If our rwnd == 0 && the overhead is greater than the
+ 		 * data onqueue, we clamp the rwnd to 1. This lets us
+ 		 * still accept inbound segments, but hopefully will shut
+ 		 * the sender down when he finally gets the message. This
+		 * hopefully will gracefully avoid discarding packets.
+ 		 */
 		asoc->my_rwnd = 1;
-	} else {
-		/* SWS threshold */
-		if (asoc->my_rwnd &&
-		    (asoc->my_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
-			/* SWS engaged, tell peer none left */
-			asoc->my_rwnd = 1;
-		}
+	}
+	if (asoc->my_rwnd &&
+	    (asoc->my_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
+		/* SWS engaged, tell peer none left */
+		asoc->my_rwnd = 1;
 	}
 }
 
 /* Calculate what the rwnd would be */
-
 uint32_t
 sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
-	uint32_t calc = 0, calc_w_oh;
+	uint32_t calc = 0, calc_save = 0, result = 0;
 
 	/*
 	 * This is really set wrong with respect to a 1-2-m socket. Since
@@ -153,24 +155,27 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 		return (calc);
 	}
 	/* what is the overhead of all these rwnd's */
-	calc_w_oh = sctp_sbspace_sub(calc, stcb->asoc.my_rwnd_control_len);
-	if (calc_w_oh == 0) {
-		/*
-		 * If our overhead is greater than the advertised rwnd, we
-		 * clamp the rwnd to 1. This lets us still accept inbound
-		 * segments, but hopefully will shut the sender down when he
-		 * finally gets the message.
-		 */
-		calc = 1;
-	} else {
-		/* SWS threshold */
-		if (calc &&
-		    (calc < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
-			/* SWS engaged, tell peer none left */
-			calc = 1;
-		}
+	calc = sctp_sbspace_sub(calc, stcb->asoc.my_rwnd_control_len);
+	calc_save = calc;
+
+	result = calc;
+	if ((result == 0) &&
+	    (calc < stcb->asoc.my_rwnd_control_len)) {
+		/*-
+		 * If our rwnd == 0 && the overhead is greater than the
+ 		 * data onqueue, we clamp the rwnd to 1. This lets us
+ 		 * still accept inbound segments, but hopefully will shut
+ 		 * the sender down when he finally gets the message. This
+		 * hopefully will gracefully avoid discarding packets.
+ 		 */
+		result = 1;
 	}
-	return (calc);
+	if (asoc->my_rwnd &&
+	    (asoc->my_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
+		/* SWS engaged, tell peer none left */
+		result = 1;
+	}
+	return (result);
 }
 
 
@@ -4155,10 +4160,15 @@ again:
 			 */
 			sp = TAILQ_LAST(&((asoc->locked_on_sending)->outqueue),
 			    sctp_streamhead);
-			if ((sp) && (sp->length == 0) && (sp->msg_is_complete == 0)) {
-				asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
-				asoc->locked_on_sending = NULL;
-				asoc->stream_queue_cnt--;
+			if ((sp) && (sp->length == 0)) {
+				/* Let cleanup code purge it */
+				if (sp->msg_is_complete) {
+					asoc->stream_queue_cnt--;
+				} else {
+					asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+					asoc->locked_on_sending = NULL;
+					asoc->stream_queue_cnt--;
+				}
 			}
 		}
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
@@ -4821,10 +4831,14 @@ done_with_it:
 			 */
 			sp = TAILQ_LAST(&((asoc->locked_on_sending)->outqueue),
 			    sctp_streamhead);
-			if ((sp) && (sp->length == 0) && (sp->msg_is_complete == 0)) {
-				asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+			if ((sp) && (sp->length == 0)) {
 				asoc->locked_on_sending = NULL;
-				asoc->stream_queue_cnt--;
+				if (sp->msg_is_complete) {
+					asoc->stream_queue_cnt--;
+				} else {
+					asoc->state |= SCTP_STATE_PARTIAL_MSG_LEFT;
+					asoc->stream_queue_cnt--;
+				}
 			}
 		}
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
@@ -5218,7 +5232,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	 * report where we are.
 	 */
 	struct sctp_association *asoc;
-	uint32_t new_cum_tsn, gap, back_out_htsn;
+	uint32_t new_cum_tsn, gap;
 	unsigned int i, cnt_gone, fwd_sz, cumack_set_flag, m_size;
 	struct sctp_stream_in *strm;
 	struct sctp_tmit_chunk *chk, *at;
@@ -5242,7 +5256,6 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		/* Already got there ... */
 		return;
 	}
-	back_out_htsn = asoc->highest_tsn_inside_map;
 	if (compare_with_wrap(new_cum_tsn, asoc->highest_tsn_inside_map,
 	    MAX_TSN)) {
 		asoc->highest_tsn_inside_map = new_cum_tsn;
@@ -5263,8 +5276,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 		gap = new_cum_tsn + (MAX_TSN - asoc->mapping_array_base_tsn) + 1;
 	}
 
-	if (gap > m_size) {
-		asoc->highest_tsn_inside_map = back_out_htsn;
+	if (gap >= m_size) {
 		if (sctp_logging_level & SCTP_MAP_LOGGING_ENABLE) {
 			sctp_log_map(0, 0, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 		}
@@ -5299,46 +5311,40 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			    SCTP_PEER_FAULTY, oper);
 			return;
 		}
-		if (asoc->highest_tsn_inside_map >
-		    asoc->mapping_array_base_tsn) {
-			gap = asoc->highest_tsn_inside_map -
-			    asoc->mapping_array_base_tsn;
-		} else {
-			gap = asoc->highest_tsn_inside_map +
-			    (MAX_TSN - asoc->mapping_array_base_tsn) + 1;
-		}
 		SCTP_STAT_INCR(sctps_fwdtsn_map_over);
+slide_out:
+		memset(stcb->asoc.mapping_array, 0, stcb->asoc.mapping_array_size);
 		cumack_set_flag = 1;
-	}
-	SCTP_TCB_LOCK_ASSERT(stcb);
-	for (i = 0; i <= gap; i++) {
-		SCTP_SET_TSN_PRESENT(asoc->mapping_array, i);
-	}
-	/*
-	 * Now after marking all, slide thing forward but no sack please.
-	 */
-	sctp_sack_check(stcb, 0, 0, abort_flag);
-	if (*abort_flag)
-		return;
+		asoc->mapping_array_base_tsn = new_cum_tsn + 1;
+		asoc->cumulative_tsn = asoc->highest_tsn_inside_map = new_cum_tsn;
 
-	if (cumack_set_flag) {
-		/*
-		 * fwd-tsn went outside my gap array - not a common
-		 * occurance. Do the same thing we do when a cookie-echo
-		 * arrives.
-		 */
-		asoc->highest_tsn_inside_map = new_cum_tsn - 1;
-		asoc->mapping_array_base_tsn = new_cum_tsn;
-		asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
 		if (sctp_logging_level & SCTP_MAP_LOGGING_ENABLE) {
 			sctp_log_map(0, 3, asoc->highest_tsn_inside_map, SCTP_MAP_SLIDE_RESULT);
 		}
 		asoc->last_echo_tsn = asoc->highest_tsn_inside_map;
+
+	} else {
+		SCTP_TCB_LOCK_ASSERT(stcb);
+		if ((compare_with_wrap(((uint32_t) asoc->cumulative_tsn + gap), asoc->highest_tsn_inside_map, MAX_TSN)) ||
+		    (((uint32_t) asoc->cumulative_tsn + gap) == asoc->highest_tsn_inside_map)) {
+			goto slide_out;
+		} else {
+			for (i = 0; i <= gap; i++) {
+				SCTP_SET_TSN_PRESENT(asoc->mapping_array, i);
+			}
+		}
+		/*
+		 * Now after marking all, slide thing forward but no sack
+		 * please.
+		 */
+		sctp_sack_check(stcb, 0, 0, abort_flag);
+		if (*abort_flag)
+			return;
 	}
+
 	/*************************************************************/
 	/* 2. Clear up re-assembly queue                             */
 	/*************************************************************/
-
 	/*
 	 * First service it if pd-api is up, just in case we can progress it
 	 * forward
@@ -5469,8 +5475,9 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			    sizeof(struct sctp_strseq),
 			    (uint8_t *) & strseqbuf);
 			offset += sizeof(struct sctp_strseq);
-			if (stseq == NULL)
+			if (stseq == NULL) {
 				break;
+			}
 			/* Convert */
 			xx = (unsigned char *)&stseq[i];
 			st = ntohs(stseq[i].stream);
@@ -5479,13 +5486,8 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			stseq[i].sequence = st;
 			/* now process */
 			if (stseq[i].stream >= asoc->streamincnt) {
-				/*
-				 * It is arguable if we should continue.
-				 * Since the peer sent bogus stream info we
-				 * may be in deep trouble.. a return may be
-				 * a better choice?
-				 */
-				continue;
+				/* screwed up streams, stop!  */
+				break;
 			}
 			strm = &asoc->strmin[stseq[i].stream];
 			if (compare_with_wrap(stseq[i].sequence,

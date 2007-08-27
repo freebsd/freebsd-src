@@ -184,6 +184,7 @@ struct sctp_epinfo {
 	sctp_zone_t ipi_zone_chunk;
 	sctp_zone_t ipi_zone_readq;
 	sctp_zone_t ipi_zone_strmoq;
+	sctp_zone_t ipi_zone_asconf_ack;
 
 	struct mtx ipi_ep_mtx;
 	struct mtx it_mtx;
@@ -356,6 +357,7 @@ struct sctp_inpcb {
 	struct socket *sctp_socket;
 	uint32_t sctp_flags;	/* INP state flag set */
 	uint32_t sctp_features;	/* Feature flags */
+	uint32_t sctp_mobility_features;	/* Mobility  Feature flags */
 	struct sctp_pcb sctp_ep;/* SCTP ep data */
 	/* head of the hash of all associations */
 	struct sctpasochead *sctp_tcbhash;

@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_ADDRESS_LIMIT 1080
 
+/* We need at least 2k of space for us, inits
+ * larger than that lets abort.
+ */
+#define SCTP_LARGEST_INIT_ACCEPTED (65535 - 2048)
+
 /* Number of addresses where we just skip the counting */
 #define SCTP_COUNT_LIMIT 40
 
@@ -267,6 +272,20 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_AUTO_ASCONF	1
 #endif
 
+/* default MOBILITY_BASE mode enable(1)/disable(0) value (sysctl) */
+#if defined (__APPLE__) && !defined(SCTP_APPLE_MOBILITY_BASE)
+#define SCTP_DEFAULT_MOBILITY_BASE      0
+#else
+#define SCTP_DEFAULT_MOBILITY_BASE	0
+#endif
+
+/* default MOBILITY_FASTHANDOFF mode enable(1)/disable(0) value (sysctl) */
+#if defined (__APPLE__) && !defined(SCTP_APPLE_MOBILITY_FASTHANDOFF)
+#define SCTP_DEFAULT_MOBILITY_FASTHANDOFF	0
+#else
+#define SCTP_DEFAULT_MOBILITY_FASTHANDOFF	0
+#endif
+
 /*
  * Theshold for rwnd updates, we have to read (sb_hiwat >>
  * SCTP_RWND_HIWAT_SHIFT) before we will look to see if we need to send a
@@ -383,6 +402,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_OUTPUT_FROM_USR_RCVD       13
 #define SCTP_OUTPUT_FROM_COOKIE_ACK     14
 #define SCTP_OUTPUT_FROM_DRAIN          15
+#define SCTP_OUTPUT_FROM_CLOSING        16
 /* SCTP chunk types are moved sctp.h for application (NAT, FW) use */
 
 /* align to 32-bit sizes */
@@ -775,6 +795,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_CHUNK_BUFFER_SIZE	512
 #define SCTP_PARAM_BUFFER_SIZE	512
 
+/* small chunk store for looking at chunk_list in auth */
+#define SCTP_SMALL_CHUNK_STORE 260
+
 #define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 #define SCTP_HOW_MANY_SECRETS	2	/* how many secrets I keep */
 
@@ -803,9 +826,6 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_ASCONF_DELETE_IP	16
 #define SCTP_NOTIFY_ASCONF_SET_PRIMARY	17
 #define SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION 18
-#define SCTP_NOTIFY_ADAPTATION_INDICATION       19
-/* same as above */
-#define SCTP_NOTIFY_ADAPTION_INDICATION         19
 #define SCTP_NOTIFY_INTERFACE_CONFIRMED 20
 #define SCTP_NOTIFY_STR_RESET_RECV      21
 #define SCTP_NOTIFY_STR_RESET_SEND      22
