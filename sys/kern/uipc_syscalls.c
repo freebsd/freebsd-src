@@ -2269,21 +2269,18 @@ sctp_peeloff(td, uap)
 	so->so_state &= ~SS_NOFDREF;
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
-
 	ACCEPT_UNLOCK();
-
-	error = sctp_do_peeloff(head, so, (sctp_assoc_t)uap->name);
-	if (error)
-		goto noconnection;
-	if (head->so_sigio != NULL)
-		fsetown(fgetown(&head->so_sigio), &so->so_sigio);
-
 	FILE_LOCK(nfp);
 	nfp->f_data = so;
 	nfp->f_flag = fflag;
 	nfp->f_type = DTYPE_SOCKET;
 	nfp->f_ops = &socketops;
 	FILE_UNLOCK(nfp);
+	error = sctp_do_peeloff(head, so, (sctp_assoc_t)uap->name);
+	if (error)
+		goto noconnection;
+	if (head->so_sigio != NULL)
+		fsetown(fgetown(&head->so_sigio), &so->so_sigio);
 
 noconnection:
 	/*

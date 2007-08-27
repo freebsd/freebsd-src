@@ -95,6 +95,7 @@ struct sctp_sndrcvinfo {
 	uint16_t sinfo_stream;
 	uint16_t sinfo_ssn;
 	uint16_t sinfo_flags;
+	uint16_t sinfo_pr_policy;
 	uint32_t sinfo_ppid;
 	uint32_t sinfo_context;
 	uint32_t sinfo_timetolive;
@@ -108,6 +109,7 @@ struct sctp_extrcvinfo {
 	uint16_t sinfo_stream;
 	uint16_t sinfo_ssn;
 	uint16_t sinfo_flags;
+	uint16_t sinfo_pr_policy;
 	uint32_t sinfo_ppid;
 	uint32_t sinfo_context;
 	uint32_t sinfo_timetolive;
@@ -144,6 +146,8 @@ struct sctp_snd_all_completes {
 #define SCTP_ADDR_OVER	  0x0800/* Override the primary-address */
 #define SCTP_SENDALL      0x1000/* Send this on all associations */
 #define SCTP_EOR          0x2000/* end of message signal */
+#define SCTP_PR_POLICY_VALID 0x4000	/* pr sctp policy valid */
+
 #define INVALID_SINFO_FLAG(x) (((x) & 0xffffff00 \
                                     & ~(SCTP_EOF | SCTP_ABORT | SCTP_UNORDERED |\
 				        SCTP_ADDR_OVER | SCTP_SENDALL | SCTP_EOR)) != 0)

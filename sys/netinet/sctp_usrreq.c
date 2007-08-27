@@ -583,7 +583,7 @@ sctp_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	return error;
 }
 
-static void
+void
 sctp_close(struct socket *so)
 {
 	struct sctp_inpcb *inp;
@@ -733,7 +733,7 @@ connected_type:
 	}
 }
 
-static int
+int
 sctp_disconnect(struct socket *so)
 {
 	struct sctp_inpcb *inp;
@@ -890,6 +890,8 @@ sctp_disconnect(struct socket *so)
 					SCTP_INP_RUNLOCK(inp);
 					(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_5);
 					return (0);
+				} else {
+					sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING);
 				}
 			}
 			SCTP_TCB_UNLOCK(stcb);
@@ -1023,6 +1025,8 @@ sctp_shutdown(struct socket *so)
 				    SCTP_RESPONSE_TO_USER_REQ,
 				    op_err);
 				goto skip_unlock;
+			} else {
+				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CLOSING);
 			}
 		}
 		SCTP_TCB_UNLOCK(stcb);
