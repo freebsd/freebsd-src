@@ -96,6 +96,12 @@ struct sx_args {
 } while (0)
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+#define	SA_LOCKED		LA_LOCKED
+#define	SA_SLOCKED		LA_SLOCKED
+#define	SA_XLOCKED		LA_XLOCKED
+#define	SA_UNLOCKED		LA_UNLOCKED
+
+/* Backwards compatability. */
 #define	SX_LOCKED		LA_LOCKED
 #define	SX_SLOCKED		LA_SLOCKED
 #define	SX_XLOCKED		LA_XLOCKED
