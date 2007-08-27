@@ -95,6 +95,8 @@ uint32_t sctp_cmt_on_off = 0;
 uint32_t sctp_cmt_use_dac = 0;
 uint32_t sctp_cmt_pf = 0;
 uint32_t sctp_max_retran_chunk = SCTPCTL_MAX_RETRAN_CHUNK_DEFAULT;
+uint32_t sctp_mobility_base = SCTP_DEFAULT_MOBILITY_BASE;
+uint32_t sctp_mobility_fasthandoff = SCTP_DEFAULT_MOBILITY_FASTHANDOFF;
 
 /* JRS - Variable for default congestion control module */
 uint32_t sctp_default_cc_module = SCTPCTL_DEFAULT_CC_MODULE_DEFAULT;
@@ -707,6 +709,16 @@ SYSCTL_INT(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, sctp_logging, CTLFLAG_RW,
     &sctp_logging_level, 0,
     SCTPCTL_LOGGING_LEVEL_DESC);
+
+#if defined(__FreeBSD__) || defined(SCTP_APPLE_MOBILITY_BASE)
+SYSCTL_INT(_net_inet_sctp, OID_AUTO, mobility_base, CTLFLAG_RW,
+    &sctp_mobility_base, 0, "Enable SCTP Mobility");
+#endif
+
+#if defined(__FreeBSD__) || defined(SCTP_APPLE_MOBILITY_FASTHANDOFF)
+SYSCTL_INT(_net_inet_sctp, OID_AUTO, mobility_fasthandoff, CTLFLAG_RW,
+    &sctp_mobility_fasthandoff, 0, "Enable SCTP fast handoff");
+#endif
 
 
 #ifdef SCTP_DEBUG

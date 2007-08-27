@@ -124,42 +124,31 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	/* destination port of 0 is illegal, based on RFC2960. */
 	if (sh->dest_port == 0)
 		goto bad;
-	if ((sctp_no_csum_on_loopback == 0) ||
-	    (!SCTP_IS_IT_LOOPBACK(m))) {
-		/*
-		 * we do NOT validate things from the loopback if the sysctl
-		 * is set to 1.
-		 */
-		check = sh->checksum;	/* save incoming checksum */
-		if ((check == 0) && (sctp_no_csum_on_loopback)) {
-			/*
-			 * special hook for where we got a local address
-			 * somehow routed across a non IFT_LOOP type
-			 * interface
-			 */
-			if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))
-				goto sctp_skip_csum;
-		}
-		sh->checksum = 0;	/* prepare for calc */
-		calc_check = sctp_calculate_sum(m, &mlen, iphlen);
-		if (calc_check != check) {
-			SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
-			    calc_check, check, m, mlen, iphlen);
-			stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
-			    sh, ch, &in6p, &net, vrf_id);
-			/* in6p's ref-count increased && stcb locked */
-			if ((in6p) && (stcb)) {
-				sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
-				sctp_chunk_output((struct sctp_inpcb *)in6p, stcb, 2);
-			} else if ((in6p != NULL) && (stcb == NULL)) {
-				refcount_up = 1;
-			}
-			SCTP_STAT_INCR(sctps_badsum);
-			SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
-			goto bad;
-		}
-		sh->checksum = calc_check;
+	check = sh->checksum;	/* save incoming checksum */
+	if ((check == 0) && (sctp_no_csum_on_loopback) &&
+	    (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))) {
+		goto sctp_skip_csum;
 	}
+	sh->checksum = 0;	/* prepare for calc */
+	calc_check = sctp_calculate_sum(m, &mlen, iphlen);
+	if (calc_check != check) {
+		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
+		    calc_check, check, m, mlen, iphlen);
+		stcb = sctp_findassociation_addr(m, iphlen, offset - sizeof(*ch),
+		    sh, ch, &in6p, &net, vrf_id);
+		/* in6p's ref-count increased && stcb locked */
+		if ((in6p) && (stcb)) {
+			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
+			sctp_chunk_output((struct sctp_inpcb *)in6p, stcb, 2);
+		} else if ((in6p != NULL) && (stcb == NULL)) {
+			refcount_up = 1;
+		}
+		SCTP_STAT_INCR(sctps_badsum);
+		SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
+		goto bad;
+	}
+	sh->checksum = calc_check;
+
 sctp_skip_csum:
 	net = NULL;
 	/*
@@ -653,59 +642,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 static void
 sctp6_close(struct socket *so)
 {
-	struct sctp_inpcb *inp;
-	uint32_t flags;
-
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == 0)
-		return;
-
-	/*
-	 * Inform all the lower layer assoc that we are done.
-	 */
-sctp_must_try_again:
-	flags = inp->sctp_flags;
-#ifdef SCTP_LOG_CLOSING
-	sctp_log_closing(inp, NULL, 17);
-#endif
-	if (((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) &&
-	    (atomic_cmpset_int(&inp->sctp_flags, flags, (flags | SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_CLOSE_IP)))) {
-		if (((so->so_options & SO_LINGER) && (so->so_linger == 0)) ||
-		    (so->so_rcv.sb_cc > 0)) {
-#ifdef SCTP_LOG_CLOSING
-			sctp_log_closing(inp, NULL, 13);
-#endif
-			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT
-			    ,SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
-		} else {
-#ifdef SCTP_LOG_CLOSING
-			sctp_log_closing(inp, NULL, 14);
-#endif
-			sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE,
-			    SCTP_CALLED_AFTER_CMPSET_OFCLOSE);
-		}
-		/*
-		 * The socket is now detached, no matter what the state of
-		 * the SCTP association.
-		 */
-		SOCK_LOCK(so);
-		SCTP_SB_CLEAR(so->so_snd);
-		/*
-		 * same for the rcv ones, they are only here for the
-		 * accounting/select.
-		 */
-		SCTP_SB_CLEAR(so->so_rcv);
-		/* Now null out the reference, we are completely detached. */
-		so->so_pcb = NULL;
-		SOCK_UNLOCK(so);
-	} else {
-		flags = inp->sctp_flags;
-		if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
-			goto sctp_must_try_again;
-		}
-	}
-	return;
-
+	sctp_close(so);
 }
 
 /* This could be made common with sctp_detach() since they are identical */
@@ -714,115 +651,7 @@ static
 int
 sctp6_disconnect(struct socket *so)
 {
-	struct sctp_inpcb *inp;
-
-	inp = (struct sctp_inpcb *)so->so_pcb;
-	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOTCONN);
-		return (ENOTCONN);
-	}
-	SCTP_INP_RLOCK(inp);
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-		if (SCTP_LIST_EMPTY(&inp->sctp_asoc_list)) {
-			/* No connection */
-			SCTP_INP_RUNLOCK(inp);
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ENOTCONN);
-			return (ENOTCONN);
-		} else {
-			int some_on_streamwheel = 0;
-			struct sctp_association *asoc;
-			struct sctp_tcb *stcb;
-
-			stcb = LIST_FIRST(&inp->sctp_asoc_list);
-			if (stcb == NULL) {
-				SCTP_INP_RUNLOCK(inp);
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
-				return (EINVAL);
-			}
-			SCTP_TCB_LOCK(stcb);
-			asoc = &stcb->asoc;
-			if (((so->so_options & SO_LINGER) &&
-			    (so->so_linger == 0)) ||
-			    (so->so_rcv.sb_cc > 0)) {
-				if (SCTP_GET_STATE(asoc) !=
-				    SCTP_STATE_COOKIE_WAIT) {
-					/* Left with Data unread */
-					struct mbuf *op_err;
-
-					op_err = sctp_generate_invmanparam(SCTP_CAUSE_USER_INITIATED_ABT);
-					sctp_send_abort_tcb(stcb, op_err);
-					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
-				}
-				SCTP_INP_RUNLOCK(inp);
-				if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
-				    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-				}
-				if (sctp_free_assoc(inp, stcb, SCTP_DONOT_SETSCOPE,
-				    SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_2) == 0) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				/* No unlock tcb assoc is gone */
-				return (0);
-			}
-			if (!TAILQ_EMPTY(&asoc->out_wheel)) {
-				/* Check to see if some data queued */
-				struct sctp_stream_out *outs;
-
-				TAILQ_FOREACH(outs, &asoc->out_wheel,
-				    next_spoke) {
-					if (!TAILQ_EMPTY(&outs->outqueue)) {
-						some_on_streamwheel = 1;
-						break;
-					}
-				}
-			}
-			if (TAILQ_EMPTY(&asoc->send_queue) &&
-			    TAILQ_EMPTY(&asoc->sent_queue) &&
-			    (some_on_streamwheel == 0)) {
-				/* nothing queued to send, so I'm done... */
-				if ((SCTP_GET_STATE(asoc) !=
-				    SCTP_STATE_SHUTDOWN_SENT) &&
-				    (SCTP_GET_STATE(asoc) !=
-				    SCTP_STATE_SHUTDOWN_ACK_SENT)) {
-					/* only send SHUTDOWN the first time */
-					sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
-					sctp_chunk_output(stcb->sctp_ep, stcb, 1);
-					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
-					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
-						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
-					}
-					SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
-					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
-					    stcb->sctp_ep, stcb,
-					    asoc->primary_destination);
-					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
-					    stcb->sctp_ep, stcb,
-					    asoc->primary_destination);
-				}
-			} else {
-				/*
-				 * we still got (or just got) data to send,
-				 * so set SHUTDOWN_PENDING
-				 */
-				/*
-				 * XXX sockets draft says that MSG_EOF
-				 * should be sent with no data.  currently,
-				 * we will allow user data to be sent first
-				 * and move to SHUTDOWN-PENDING
-				 */
-				asoc->state |= SCTP_STATE_SHUTDOWN_PENDING;
-			}
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_INP_RUNLOCK(inp);
-			return (0);
-		}
-	} else {
-		/* UDP model does not support this */
-		SCTP_INP_RUNLOCK(inp);
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EOPNOTSUPP);
-		return EOPNOTSUPP;
-	}
+	return (sctp_disconnect(so));
 }
 
 

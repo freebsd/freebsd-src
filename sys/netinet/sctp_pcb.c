@@ -1996,11 +1996,13 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	struct sctppcbhead *head;
 	struct sctp_laddr *laddr, *oladdr;
 
+	atomic_add_int(&stcb->asoc.refcnt, 1);
 	SCTP_TCB_UNLOCK(stcb);
 	SCTP_INP_INFO_WLOCK();
 	SCTP_INP_WLOCK(old_inp);
 	SCTP_INP_WLOCK(new_inp);
 	SCTP_TCB_LOCK(stcb);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
 
 	new_inp->sctp_ep.time_of_secret_change =
 	    old_inp->sctp_ep.time_of_secret_change;
@@ -2404,6 +2406,26 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			sctp_feature_on(inp, SCTP_PCB_FLAGS_DO_ASCONF);
 			sctp_feature_on(inp, SCTP_PCB_FLAGS_AUTO_ASCONF);
 		}
+		/*
+		 * set the automatic mobility_base from kernel flag (by
+		 * micchie)
+		 */
+		if (sctp_mobility_base == 0) {
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_BASE);
+		} else {
+			sctp_mobility_feature_on(inp, SCTP_MOBILITY_BASE);
+		}
+		/*
+		 * set the automatic mobility_fasthandoff from kernel flag
+		 * (by micchie)
+		 */
+		if (sctp_mobility_fasthandoff == 0) {
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_FASTHANDOFF);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
+		} else {
+			sctp_mobility_feature_on(inp, SCTP_MOBILITY_FASTHANDOFF);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
+		}
 	} else {
 		/*
 		 * bind specific, make sure flags is off and add a new
@@ -2645,18 +2667,13 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				 * send()/close or connect/send/close. And
 				 * it wants the data to get across first.
 				 */
-				if (asoc->asoc.total_output_queue_size == 0) {
-					/*
-					 * Just abandon things in the front
-					 * states
-					 */
+				/* Just abandon things in the front states */
 
-					if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_NOFORCE,
-					    SCTP_FROM_SCTP_PCB + SCTP_LOC_2) == 0) {
-						cnt_in_sd++;
-					}
-					continue;
+				if (sctp_free_assoc(inp, asoc, SCTP_PCBFREE_NOFORCE,
+				    SCTP_FROM_SCTP_PCB + SCTP_LOC_2) == 0) {
+					cnt_in_sd++;
 				}
+				continue;
 			}
 			/* Disconnect the socket please */
 			asoc->sctp_socket = NULL;
@@ -2721,7 +2738,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					    asoc->asoc.primary_destination);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, asoc->sctp_ep, asoc,
 					    asoc->asoc.primary_destination);
-					sctp_chunk_output(inp, asoc, SCTP_OUTPUT_FROM_SHUT_TMR);
+					sctp_chunk_output(inp, asoc, SCTP_OUTPUT_FROM_CLOSING);
 				}
 			} else {
 				/* mark into shutdown pending */
@@ -2782,6 +2799,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 						cnt_in_sd++;
 					}
 					continue;
+				} else {
+					sctp_chunk_output(inp, asoc, SCTP_OUTPUT_FROM_CLOSING);
 				}
 			}
 			cnt_in_sd++;
@@ -3751,6 +3770,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	struct sctp_laddr *laddr;
 	struct sctp_tmit_chunk *chk;
 	struct sctp_asconf_addr *aparam;
+	struct sctp_asconf_ack *aack;
 	struct sctp_stream_reset_list *liste;
 	struct sctp_queued_to_read *sq;
 	struct sctp_stream_queue_pending *sp;
@@ -4233,9 +4253,16 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		TAILQ_REMOVE(&asoc->asconf_queue, aparam, next);
 		SCTP_FREE(aparam, SCTP_M_ASC_ADDR);
 	}
-	if (asoc->last_asconf_ack_sent != NULL) {
-		sctp_m_freem(asoc->last_asconf_ack_sent);
-		asoc->last_asconf_ack_sent = NULL;
+	while (!TAILQ_EMPTY(&asoc->asconf_ack_sent)) {
+		aack = TAILQ_FIRST(&asoc->asconf_ack_sent);
+		TAILQ_REMOVE(&asoc->asconf_ack_sent, aack, next);
+		if (aack->last_sent_to != NULL) {
+			sctp_free_remote_addr(aack->last_sent_to);
+		}
+		if (aack->data != NULL) {
+			sctp_m_freem(aack->data);
+		}
+		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_asconf_ack, aack);
 	}
 	/* clean up auth stuff */
 	if (asoc->local_hmacs)
@@ -4746,6 +4773,11 @@ sctp_pcb_init()
 	    sizeof(struct sctp_stream_queue_pending),
 	    (sctp_max_number_of_assoc * sctp_chunkscale));
 
+	SCTP_ZONE_INIT(sctppcbinfo.ipi_zone_asconf_ack, "sctp_asconf_ack",
+	    sizeof(struct sctp_asconf_ack),
+	    (sctp_max_number_of_assoc * sctp_chunkscale));
+
+
 	/* Master Lock INIT for info structure */
 	SCTP_INP_INFO_LOCK_INIT();
 	SCTP_STATLOG_INIT_LOCK();
@@ -4830,6 +4862,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	uint8_t hmacs_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_hmac_algo *hmacs = NULL;
 	uint16_t hmacs_len = 0;
+	uint8_t saw_asconf = 0;
+	uint8_t saw_asconf_ack = 0;
 	uint8_t chunks_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_chunk_list *chunks = NULL;
 	uint16_t num_chunks = 0;
@@ -5107,8 +5141,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				    (struct sctp_paramhdr *)&ai, sizeof(ai));
 				aip = (struct sctp_adaptation_layer_indication *)phdr;
 				if (aip) {
-					sctp_ulp_notify(SCTP_NOTIFY_ADAPTATION_INDICATION,
-					    stcb, ntohl(aip->indication), NULL);
+					stcb->asoc.peers_adaptation = ntohl(aip->indication);
+					stcb->asoc.adaptation_needed = 1;
 				}
 			}
 		} else if (ptype == SCTP_SET_PRIM_ADDR) {
@@ -5279,6 +5313,12 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			for (i = 0; i < num_chunks; i++) {
 				(void)sctp_auth_add_chunk(chunks->chunk_types[i],
 				    stcb->asoc.peer_auth_chunks);
+				/* record asconf/asconf-ack if listed */
+				if (chunks->chunk_types[i] == SCTP_ASCONF)
+					saw_asconf = 1;
+				if (chunks->chunk_types[i] == SCTP_ASCONF_ACK)
+					saw_asconf_ack = 1;
+
 			}
 			got_chklist = 1;
 		} else if ((ptype == SCTP_HEARTBEAT_INFO) ||
@@ -5341,6 +5381,9 @@ next_param:
 	    !stcb->asoc.peer_supports_auth) {
 		/* peer supports asconf but not auth? */
 		return (-32);
+	} else if ((stcb->asoc.peer_supports_asconf) && (stcb->asoc.peer_supports_auth) &&
+	    ((saw_asconf == 0) || (saw_asconf_ack == 0))) {
+		return (-33);
 	}
 	/* concatenate the full random key */
 #ifdef SCTP_AUTH_DRAFT_04
@@ -5376,7 +5419,7 @@ next_param:
 #endif
 	else {
 		/* failed to get memory for the key */
-		return (-33);
+		return (-34);
 	}
 	if (stcb->asoc.authinfo.peer_random != NULL)
 		sctp_free_key(stcb->asoc.authinfo.peer_random);

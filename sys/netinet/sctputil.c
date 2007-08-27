@@ -1016,7 +1016,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 
 	TAILQ_INIT(&asoc->nets);
 	TAILQ_INIT(&asoc->pending_reply_queue);
-	asoc->last_asconf_ack_sent = NULL;
+	TAILQ_INIT(&asoc->asconf_ack_sent);
 	/* Setup to fill the hb random cache at first HB */
 	asoc->hb_random_idx = 4;
 
@@ -3128,7 +3128,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 	sai->sai_type = SCTP_ADAPTATION_INDICATION;
 	sai->sai_flags = 0;
 	sai->sai_length = sizeof(struct sctp_adaptation_event);
-	sai->sai_adaptation_ind = error;
+	sai->sai_adaptation_ind = stcb->asoc.peers_adaptation;
 	sai->sai_assoc_id = sctp_get_associd(stcb);
 
 	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_adaptation_event);
@@ -3376,21 +3376,14 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 			return;
 		}
 	}
-	if (stcb && (stcb->asoc.assoc_up_sent == 0) && (notification != SCTP_NOTIFY_ASSOC_UP)) {
-		if ((notification != SCTP_NOTIFY_ASSOC_DOWN) &&
-		    (notification != SCTP_NOTIFY_ASSOC_ABORTED) &&
-		    (notification != SCTP_NOTIFY_SPECIAL_SP_FAIL) &&
-		    (notification != SCTP_NOTIFY_DG_FAIL) &&
-		    (notification != SCTP_NOTIFY_PEER_SHUTDOWN)) {
-			sctp_notify_assoc_change(SCTP_COMM_UP, stcb, 0, NULL);
-			stcb->asoc.assoc_up_sent = 1;
-		}
-	}
 	switch (notification) {
 	case SCTP_NOTIFY_ASSOC_UP:
 		if (stcb->asoc.assoc_up_sent == 0) {
 			sctp_notify_assoc_change(SCTP_COMM_UP, stcb, error, NULL);
 			stcb->asoc.assoc_up_sent = 1;
+		}
+		if (stcb->asoc.adaptation_needed && (stcb->asoc.adaptation_sent == 0)) {
+			sctp_notify_adaptation_layer(stcb, error);
 		}
 		break;
 	case SCTP_NOTIFY_ASSOC_DOWN:
@@ -3430,10 +3423,6 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_DG_FAIL:
 		sctp_notify_send_failed(stcb, error,
 		    (struct sctp_tmit_chunk *)data);
-		break;
-	case SCTP_NOTIFY_ADAPTATION_INDICATION:
-		/* Here the error is the adaptation indication */
-		sctp_notify_adaptation_layer(stcb, error);
 		break;
 	case SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION:
 		{
