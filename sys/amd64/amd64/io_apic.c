@@ -468,7 +468,7 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		intbase = next_ioapic_base;
 		printf("ioapic%u: Assuming intbase of %d\n", io->io_id,
 		    intbase);
-	} else if (intbase != next_ioapic_base)
+	} else if (intbase != next_ioapic_base && bootverbose)
 		printf("ioapic%u: WARNING: intbase %d != expected base %d\n",
 		    io->io_id, intbase, next_ioapic_base);
 	io->io_intbase = intbase;
