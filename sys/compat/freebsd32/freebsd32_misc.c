@@ -135,28 +135,28 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 static void
 copy_statfs(struct statfs *in, struct statfs32 *out)
 {
-	
+
+	statfs_scale_blocks(in, INT32_MAX);
 	bzero(out, sizeof(*out));
 	CP(*in, *out, f_bsize);
-	CP(*in, *out, f_iosize);
+	out->f_iosize = MIN(in->f_iosize, INT32_MAX);
 	CP(*in, *out, f_blocks);
 	CP(*in, *out, f_bfree);
 	CP(*in, *out, f_bavail);
-	CP(*in, *out, f_files);
-	CP(*in, *out, f_ffree);
+	out->f_files = MIN(in->f_files, INT32_MAX);
+	out->f_ffree = MIN(in->f_ffree, INT32_MAX);
 	CP(*in, *out, f_fsid);
 	CP(*in, *out, f_owner);
 	CP(*in, *out, f_type);
 	CP(*in, *out, f_flags);
-	CP(*in, *out, f_flags);
-	CP(*in, *out, f_syncwrites);
-	CP(*in, *out, f_asyncwrites);
+	out->f_syncwrites = MIN(in->f_syncwrites, INT32_MAX);
+	out->f_asyncwrites = MIN(in->f_asyncwrites, INT32_MAX);
 	strlcpy(out->f_fstypename,
 	      in->f_fstypename, MFSNAMELEN);
 	strlcpy(out->f_mntonname,
 	      in->f_mntonname, min(MNAMELEN, FREEBSD4_MNAMELEN));
-	CP(*in, *out, f_syncreads);
-	CP(*in, *out, f_asyncreads);
+	out->f_syncreads = MIN(in->f_syncreads, INT32_MAX);
+	out->f_asyncreads = MIN(in->f_asyncreads, INT32_MAX);
 	strlcpy(out->f_mntfromname,
 	      in->f_mntfromname, min(MNAMELEN, FREEBSD4_MNAMELEN));
 }
