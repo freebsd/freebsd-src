@@ -805,7 +805,7 @@ ng_btsocket_rfcomm_listen(struct socket *so, struct thread *td)
 	if (pcb == NULL)
 		return (EINVAL);
 	if (pcb->channel < 1 || pcb->channel > 30)
-		return (EDESTADDRREQ);
+		return (EADDRNOTAVAIL);
 
 	/*
 	 * XXX FIXME - This is FUBAR. socreate() will call soalloc(1), i.e.
