@@ -1713,3 +1713,24 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 
 	return (error);
 }
+
+/*
+ * XXX: fake one.. waiting for real implementation of affinity mask.
+ */
+int
+linux_sched_getaffinity(struct thread *td,
+    struct linux_sched_getaffinity_args *args)
+{
+	int error;
+	cpumask_t i = ~0;
+
+	if (args->len < sizeof(cpumask_t))
+		return (EINVAL);
+
+	error = copyout(&i, args->user_mask_ptr, sizeof(cpumask_t));
+	if (error)
+		return (EFAULT);
+
+	td->td_retval[0] = sizeof(cpumask_t);
+	return (0);
+}
