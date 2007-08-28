@@ -395,6 +395,10 @@ containing statistics for the corresponding link.
 Here
 .Dv NG_PPP_BUNDLE_LINKNUM
 is a valid link number corresponding to the multi-link bundle.
+.It Dv NGM_PPP_GET_LINK_STATS64
+Same as NGM_PPP_GET_LINK_STATS but returns 
+.Dv "struct ng_ppp_link_stat64"
+containing 64bit counters.
 .It Dv NGM_PPP_CLR_LINK_STATS
 This command takes a two byte link number as an argument and
 clears the statistics for that link.
@@ -402,6 +406,10 @@ clears the statistics for that link.
 Same as
 .Dv NGM_PPP_GET_LINK_STATS ,
 but also atomically clears the statistics as well.
+.It Dv NGM_PPP_GETCLR_LINK_STATS64
+Same as NGM_PPP_GETCLR_LINK_STATS but returns 
+.Dv "struct ng_ppp_link_stat64"
+containing 64bit counters.
 .El
 .Pp
 This node type also accepts the control messages accepted by the

@@ -196,7 +196,7 @@ struct ng_ppp_frag {
 /* Per-link private information */
 struct ng_ppp_link {
 	struct ng_ppp_link_conf	conf;		/* link configuration */
-	struct ng_ppp_link_stat	stats;		/* link stats */
+	struct ng_ppp_link_stat64	stats;	/* link stats */
 	hook_p			hook;		/* connection to link data */
 	int32_t			seq;		/* highest rec'd seq# - MSEQ */
 	uint32_t		latency;	/* calculated link latency */
@@ -207,7 +207,7 @@ struct ng_ppp_link {
 /* Total per-node private information */
 struct ng_ppp_private {
 	struct ng_ppp_bund_conf	conf;			/* bundle config */
-	struct ng_ppp_link_stat	bundleStats;		/* bundle stats */
+	struct ng_ppp_link_stat64	bundleStats;	/* bundle stats */
 	struct ng_ppp_link	links[NG_PPP_MAX_LINKS];/* per-link info */
 	int32_t			xseq;			/* next out MP seq # */
 	int32_t			mseq;			/* min links[i].seq */
@@ -221,6 +221,8 @@ struct ng_ppp_private {
 				frags;
 	int			qlen;			/* fraq queue length */
 	struct callout		fragTimer;		/* fraq queue check */
+	struct mtx		rmtx;			/* recv mutex */
+	struct mtx		xmtx;			/* xmit mutex */
 };
 typedef struct ng_ppp_private *priv_p;
 
@@ -299,7 +301,7 @@ static int	ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto);
 static int	ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto,
 		    uint16_t linkNum);
 static int	ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto,
-		    uint16_t linkNum);
+		    uint16_t linkNum, int plen);
 
 static int	ng_ppp_bypass(node_p node, item_p item, uint16_t proto,
 		    uint16_t linkNum);
@@ -381,6 +383,14 @@ static const struct ng_parse_type ng_ppp_stats_type = {
 	&ng_ppp_stats_type_fields
 };
 
+/* Parse type for struct ng_ppp_link_stat64 */
+static const struct ng_parse_struct_field ng_ppp_stats64_type_fields[]
+	= NG_PPP_STATS64_TYPE_INFO;
+static const struct ng_parse_type ng_ppp_stats64_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_stats64_type_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ppp_cmds[] = {
 	{
@@ -424,6 +434,20 @@ static const struct ng_cmdlist ng_ppp_cmds[] = {
 	  "getclrstats",
 	  &ng_parse_int16_type,
 	  &ng_ppp_stats_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GET_LINK_STATS64,
+	  "getstats64",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats64_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GETCLR_LINK_STATS64,
+	  "getclrstats64",
+	  &ng_parse_int16_type,
+	  &ng_ppp_stats64_type
 	},
 	{ 0 }
 };
@@ -476,6 +500,9 @@ ng_ppp_constructor(node_p node)
 		priv->links[i].seq = MP_NOSEQ;
 	ng_callout_init(&priv->fragTimer);
 
+	mtx_init(&priv->rmtx, "ng_ppp_recv", NULL, MTX_DEF);
+	mtx_init(&priv->xmtx, "ng_ppp_xmit", NULL, MTX_DEF);
+
 	/* Done */
 	return (0);
 }
@@ -514,9 +541,6 @@ ng_ppp_newhook(node_p node, hook_p hook, const char *name)
 		if (priv->links[linkNum].conf.enableLink &&
 		    !priv->conf.enableMultilink && priv->numActiveLinks >= 1)
 			return (ENODEV);
-
-		/* MP recv code is not thread-safe. */
-		NG_HOOK_FORCE_WRITER(hook);
 
 	} else {				/* must be a non-link hook */
 		int i;
@@ -615,10 +639,13 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_PPP_GET_LINK_STATS:
 		case NGM_PPP_CLR_LINK_STATS:
 		case NGM_PPP_GETCLR_LINK_STATS:
+		case NGM_PPP_GET_LINK_STATS64:
+		case NGM_PPP_GETCLR_LINK_STATS64:
 		    {
-			struct ng_ppp_link_stat *stats;
+			struct ng_ppp_link_stat64 *stats;
 			uint16_t linkNum;
 
+			/* Process request. */
 			if (msg->header.arglen != sizeof(uint16_t))
 				ERROUT(EINVAL);
 			linkNum = *((uint16_t *) msg->data);
@@ -627,14 +654,38 @@ ng_ppp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 			stats = (linkNum == NG_PPP_BUNDLE_LINKNUM) ?
 			    &priv->bundleStats : &priv->links[linkNum].stats;
-			if (msg->header.cmd != NGM_PPP_CLR_LINK_STATS) {
+
+			/* Make 64bit reply. */
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS64 || 
+			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS64) {
+				NG_MKRESPONSE(resp, msg,
+				    sizeof(struct ng_ppp_link_stat64), M_NOWAIT);
+				if (resp == NULL)
+					ERROUT(ENOMEM);
+				bcopy(stats, resp->data, sizeof(*stats));
+			} else
+			/* Make 32bit reply. */
+			if (msg->header.cmd == NGM_PPP_GET_LINK_STATS || 
+			    msg->header.cmd == NGM_PPP_GETCLR_LINK_STATS) {
+				struct ng_ppp_link_stat *rs;
 				NG_MKRESPONSE(resp, msg,
 				    sizeof(struct ng_ppp_link_stat), M_NOWAIT);
 				if (resp == NULL)
 					ERROUT(ENOMEM);
-				bcopy(stats, resp->data, sizeof(*stats));
+				rs = (struct ng_ppp_link_stat *)resp->data;
+				/* Truncate 64->32 bits. */
+				rs->xmitFrames = stats->xmitFrames;
+				rs->xmitOctets = stats->xmitOctets;
+				rs->recvFrames = stats->recvFrames;
+				rs->recvOctets = stats->recvOctets;
+				rs->badProtos = stats->badProtos;
+				rs->runts = stats->runts;
+				rs->dupFragments = stats->dupFragments;
+				rs->dropFragments = stats->dropFragments;
 			}
-			if (msg->header.cmd != NGM_PPP_GET_LINK_STATS)
+			/* Clear stats. */
+			if (msg->header.cmd != NGM_PPP_GET_LINK_STATS &&
+			    msg->header.cmd != NGM_PPP_GET_LINK_STATS64)
 				bzero(stats, sizeof(*stats));
 			break;
 		    }
@@ -684,6 +735,8 @@ ng_ppp_shutdown(node_p node)
 
 	/* Take down netgraph node */
 	ng_ppp_frag_reset(node);
+	mtx_destroy(&priv->rmtx);
+	mtx_destroy(&priv->xmtx);
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH_PPP);
 	NG_NODE_SET_PRIVATE(node, NULL);
@@ -812,7 +865,7 @@ ng_ppp_rcvdata_bypass(hook_p hook, item_p item)
 		return (ng_ppp_hcomp_xmit(NG_HOOK_NODE(hook), item, proto));
 	else
 		return (ng_ppp_link_xmit(NG_HOOK_NODE(hook), item, proto,
-		    linkNum));
+		    linkNum, 0));
 }
 
 static int
@@ -1177,10 +1230,6 @@ ng_ppp_crypt_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	/* Stats */
-	priv->bundleStats.recvFrames++;
-	priv->bundleStats.recvOctets += NGI_M(item)->m_pkthdr.len;
-
 	if (proto == PROT_CRYPTD) {
 		if (priv->conf.enableDecryption &&
 		    priv->hooks[HOOK_INDEX_DECRYPT] != NULL) {
@@ -1234,7 +1283,7 @@ ng_ppp_rcvdata_decrypt(hook_p hook, item_p item)
  */
 
 static int
-ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
+ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum, int plen)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_ppp_link *link;
@@ -1244,8 +1293,7 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 
 	/* Check if link correct. */
 	if (linkNum >= NG_PPP_MAX_LINKS) {
-		NG_FREE_ITEM(item);
-		return (ENETDOWN);
+		ERROUT(ENETDOWN);
 	}
 
 	/* Get link pointer (optimization). */
@@ -1253,8 +1301,7 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 
 	/* Check link status (if real). */
 	if (link->hook == NULL) {
-		NG_FREE_ITEM(item);
-		return (ENETDOWN);
+		ERROUT(ENETDOWN);
 	}
 
 	/* Extract mbuf. */
@@ -1264,34 +1311,39 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	mru = link->conf.mru;
 	if (mru != 0 && m->m_pkthdr.len > mru) {
 		NG_FREE_M(m);
-		NG_FREE_ITEM(item);
-		return (EMSGSIZE);
+		ERROUT(EMSGSIZE);
 	}
 
 	/* Prepend protocol number, possibly compressed. */
 	if ((m = ng_ppp_addproto(m, proto, link->conf.enableProtoComp)) ==
 	    NULL) {
-		NG_FREE_ITEM(item);
-		return (ENOBUFS);
+		ERROUT(ENOBUFS);
 	}
 
 	/* Prepend address and control field (unless compressed). */
 	if (proto == PROT_LCP || !link->conf.enableACFComp) {
-		if ((m = ng_ppp_prepend(m, &ng_ppp_acf, 2)) == NULL) {
-			NG_FREE_ITEM(item);
-			return (ENOBUFS);
-		}
+		if ((m = ng_ppp_prepend(m, &ng_ppp_acf, 2)) == NULL)
+			ERROUT(ENOBUFS);
 	}
 
 	/* Deliver frame. */
 	len = m->m_pkthdr.len;
 	NG_FWD_NEW_DATA(error, item, link->hook, m);
 
-	/* Update stats and 'bytes in queue' counter. */
-	if (error == 0) {
-		link->stats.xmitFrames++;
-		link->stats.xmitOctets += len;
+	mtx_lock(&priv->xmtx);
 
+	/* Update link stats. */
+	link->stats.xmitFrames++;
+	link->stats.xmitOctets += len;
+
+	/* Update bundle stats. */
+	if (plen > 0) {
+	    priv->bundleStats.xmitFrames++;
+	    priv->bundleStats.xmitOctets += plen;
+	}
+
+	/* Update 'bytes in queue' counter. */
+	if (error == 0) {
 		/* bytesInQueue and lastWrite required only for mp_strategy. */
 		if (priv->conf.enableMultilink && !priv->allLinksEqual &&
 		    !priv->conf.enableRoundRobin) {
@@ -1305,6 +1357,11 @@ ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 				link->bytesInQueue = 50 * 1600;
 		}
 	}
+	mtx_unlock(&priv->xmtx);
+	return (error);
+
+done:
+	NG_FREE_ITEM(item);
 	return (error);
 }
 
@@ -1321,47 +1378,54 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	struct ng_ppp_link * const link = &priv->links[linkNum];
 	uint16_t proto;
 	struct mbuf *m;
+	int error = 0;
 
 	KASSERT(linkNum < NG_PPP_MAX_LINKS,
 	    ("%s: bogus index 0x%x", __func__, index));
 
 	NGI_GET_M(item, m);
 
+	mtx_lock(&priv->rmtx);
+
 	/* Stats */
 	link->stats.recvFrames++;
 	link->stats.recvOctets += m->m_pkthdr.len;
 
 	/* Strip address and control fields, if present. */
-	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
-		NG_FREE_ITEM(item);
-		return (ENOBUFS);
-	}
+	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
+		ERROUT(ENOBUFS);
 	if (bcmp(mtod(m, uint8_t *), &ng_ppp_acf, 2) == 0)
 		m_adj(m, 2);
 
-	if ((m = ng_ppp_cutproto(m, &proto)) == NULL) {
-		NG_FREE_ITEM(item);
-		return (ENOBUFS);
-	}
+	/* Get protocol number */
+	if ((m = ng_ppp_cutproto(m, &proto)) == NULL)
+		ERROUT(ENOBUFS);
 	NGI_M(item) = m; 	/* Put changed m back into item. */
 
 	if (!PROT_VALID(proto)) {
 		link->stats.badProtos++;
-		NG_FREE_ITEM(item);
-		return (EIO);
+		ERROUT(EIO);
 	}
 
 	/* LCP packets must go directly to bypass. */
-	if (proto >= 0xB000)
+	if (proto >= 0xB000) {
+		mtx_unlock(&priv->rmtx);
 		return (ng_ppp_bypass(node, item, proto, linkNum));
-	
-	if (!link->conf.enableLink) {
-		/* Non-LCP packets are denied on a disabled link. */
-		NG_FREE_ITEM(item);
-		return (ENXIO);
 	}
+	
+	/* Other packets are denied on a disabled link. */
+	if (!link->conf.enableLink)
+		ERROUT(ENXIO);
 
-	return (ng_ppp_mp_recv(node, item, proto, linkNum));
+	/* Proceed to multilink layer. Mutex will be unlocked inside. */
+	error = ng_ppp_mp_recv(node, item, proto, linkNum);
+	mtx_assert(&priv->rmtx, MA_NOTOWNED);
+	return (error);
+
+done:
+	mtx_unlock(&priv->rmtx);
+	NG_FREE_ITEM(item);
+	return (error);
 }
 
 /*
@@ -1429,9 +1493,16 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	struct ng_ppp_frag *qent;
 	int i, diff, inserted;
 	struct mbuf *m;
+	int	error = 0;
 
-	if ((!priv->conf.enableMultilink) || proto != PROT_MP)
+	if ((!priv->conf.enableMultilink) || proto != PROT_MP) {
+		/* Stats */
+		priv->bundleStats.recvFrames++;
+		priv->bundleStats.recvOctets += NGI_M(item)->m_pkthdr.len;
+
+		mtx_unlock(&priv->rmtx);
 		return (ng_ppp_crypt_recv(node, item, proto, linkNum));
+	}
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
@@ -1443,10 +1514,10 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		if (m->m_pkthdr.len < 2) {
 			link->stats.runts++;
 			NG_FREE_M(m);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL)
-			return (ENOBUFS);
+			ERROUT(ENOBUFS);
 
 		shdr = ntohs(*mtod(m, uint16_t *));
 		frag->seq = MP_SHORT_EXTEND(shdr);
@@ -1460,10 +1531,10 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		if (m->m_pkthdr.len < 4) {
 			link->stats.runts++;
 			NG_FREE_M(m);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL)
-			return (ENOBUFS);
+			ERROUT(ENOBUFS);
 
 		lhdr = ntohl(*mtod(m, uint32_t *));
 		frag->seq = MP_LONG_EXTEND(lhdr);
@@ -1480,7 +1551,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	if (diff < 0) {
 		link->stats.dropFragments++;
 		NG_FREE_M(m);
-		return (0);
+		ERROUT(0);
 	}
 
 	/* Update highest received sequence number on this link and MSEQ */
@@ -1497,8 +1568,7 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	MALLOC(frag, struct ng_ppp_frag *, sizeof(*frag), M_NETGRAPH_PPP, M_NOWAIT);
 	if (frag == NULL) {
 		NG_FREE_M(m);
-		ng_ppp_frag_process(node);
-		return (ENOMEM);
+		goto process;
 	}
 	*frag = frag0;
 
@@ -1514,15 +1584,21 @@ ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 			link->stats.dupFragments++;
 			NG_FREE_M(frag->data);
 			FREE(frag, M_NETGRAPH_PPP);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 	}
 	if (!inserted)
 		TAILQ_INSERT_HEAD(&priv->frags, frag, f_qent);
 	priv->qlen++;
 
+process:
 	/* Process the queue */
-	return ng_ppp_frag_process(node);
+	/* NOTE: rmtx will be unlocked for sending time! */
+	error = ng_ppp_frag_process(node);
+
+done:
+	mtx_unlock(&priv->rmtx);
+	return (error);
 }
 
 /************************************************************************
@@ -1729,9 +1805,20 @@ ng_ppp_frag_process(node_p node)
 				NG_FREE_M(m);
 				continue;
 			}
-			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
+			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL) {
+				/* Stats */
+				priv->bundleStats.recvFrames++;
+				priv->bundleStats.recvOctets += 
+				    NGI_M(item)->m_pkthdr.len;
+
+				/* Drop mutex for the sending time.
+				 * Priv may change, but we are ready!
+				 */
+				mtx_unlock(&priv->rmtx);
 				ng_ppp_crypt_recv(node, item, proto,
 					NG_PPP_BUNDLE_LINKNUM);
+				mtx_lock(&priv->rmtx);
+			}
 		}
 	  /* Delete dead fragments and try again */
 	} while (ng_ppp_frag_trim(node) || ng_ppp_frag_drop(node));
@@ -1824,9 +1911,14 @@ ng_ppp_frag_checkstale(node_p node)
 		}
 
 		/* Deliver packet */
-		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
+		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL) {
+			/* Stats */
+			priv->bundleStats.recvFrames++;
+			priv->bundleStats.recvOctets += NGI_M(item)->m_pkthdr.len;
+
 			ng_ppp_crypt_recv(node, item, proto,
 				NG_PPP_BUNDLE_LINKNUM);
+		}
 	}
 }
 
@@ -1860,20 +1952,23 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 	int firstFragment;
 	int activeLinkNum;
 	struct mbuf *m;
+	int	len;
+	int	frags;
+	int32_t	seq;
 
 	/* At least one link must be active */
 	if (priv->numActiveLinks == 0) {
 		NG_FREE_ITEM(item);
 		return (ENETDOWN);
 	}
+	
+	/* Save length for later stats. */
+	len = NGI_M(item)->m_pkthdr.len;
 
-	/* Update stats. */
-	priv->bundleStats.xmitFrames++;
-	priv->bundleStats.xmitOctets += NGI_M(item)->m_pkthdr.len;
-
-	if (!priv->conf.enableMultilink)
+	if (!priv->conf.enableMultilink) {
 		return (ng_ppp_link_xmit(node, item, proto,
-		    priv->activeLinks[0]));
+		    priv->activeLinks[0], len));
+	}
 
 	/* Extract mbuf. */
 	NGI_GET_M(item, m);
@@ -1885,6 +1980,8 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 
 	/* Clear distribution plan */
 	bzero(&distrib, priv->numActiveLinks * sizeof(distrib[0]));
+
+	mtx_lock(&priv->xmtx);
 
 	/* Round-robin strategy */
 	if (priv->conf.enableRoundRobin) {
@@ -1920,6 +2017,29 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 	ng_ppp_mp_strategy(node, m->m_pkthdr.len, distrib);
 
 deliver:
+	/* Estimate fragments count */
+	frags = 0;
+	for (activeLinkNum = priv->numActiveLinks - 1;
+	    activeLinkNum >= 0; activeLinkNum--) {
+		const uint16_t linkNum = priv->activeLinks[activeLinkNum];
+		struct ng_ppp_link *const link = &priv->links[linkNum];
+		
+		frags += (distrib[activeLinkNum] + link->conf.mru - hdr_len - 1) /
+		    (link->conf.mru - hdr_len);
+	}
+	
+	/* Get out initial sequence number */
+	seq = priv->xseq;
+
+	/* Update next sequence number */
+	if (priv->conf.xmitShortSeq) {
+	    priv->xseq = (seq + frags) & MP_SHORT_SEQ_MASK;
+	} else {
+	    priv->xseq = (seq + frags) & MP_LONG_SEQ_MASK;
+	}
+
+	mtx_unlock(&priv->xmtx);
+
 	/* Send alloted portions of frame out on the link(s) */
 	for (firstFragment = 1, activeLinkNum = priv->numActiveLinks - 1;
 	    activeLinkNum >= 0; activeLinkNum--) {
@@ -1955,9 +2075,8 @@ deliver:
 			if (priv->conf.xmitShortSeq) {
 				uint16_t shdr;
 
-				shdr = priv->xseq;
-				priv->xseq =
-				    (priv->xseq + 1) & MP_SHORT_SEQ_MASK;
+				shdr = seq;
+				seq = (seq + 1) & MP_SHORT_SEQ_MASK;
 				if (firstFragment)
 					shdr |= MP_SHORT_FIRST_FLAG;
 				if (lastFragment)
@@ -1967,9 +2086,8 @@ deliver:
 			} else {
 				uint32_t lhdr;
 
-				lhdr = priv->xseq;
-				priv->xseq =
-				    (priv->xseq + 1) & MP_LONG_SEQ_MASK;
+				lhdr = seq;
+				seq = (seq + 1) & MP_LONG_SEQ_MASK;
 				if (firstFragment)
 					lhdr |= MP_LONG_FIRST_FLAG;
 				if (lastFragment)
@@ -1986,7 +2104,7 @@ deliver:
 			/* Send fragment */
 			if ((item = ng_package_data(m2, NG_NOFLAGS)) != NULL) {
 				error = ng_ppp_link_xmit(node, item, PROT_MP,
-					    linkNum);
+					    linkNum, (firstFragment?len:0));
 				if (error != 0) {
 					if (!lastFragment)
 						NG_FREE_M(m);
