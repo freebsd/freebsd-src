@@ -653,6 +653,7 @@ struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, i
 struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
 struct mntarg *mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...);
 struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val, int len);
+void	statfs_scale_blocks(struct statfs *sf, long max_size);
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_mount_destroy(struct mount *);

@@ -206,6 +206,47 @@ quotactl(td, uap)
 }
 
 /*
+ * Used by statfs conversion routines to scale the block size up if
+ * necessary so that all of the block counts are <= 'max_size'.  Note
+ * that 'max_size' should be a bitmask, i.e. 2^n - 1 for some non-zero
+ * value of 'n'.
+ */
+void
+statfs_scale_blocks(struct statfs *sf, long max_size)
+{
+	uint64_t count;
+	int shift;
+
+	KASSERT(powerof2(max_size + 1), ("%s: invalid max_size", __func__));
+
+	/*
+	 * Attempt to scale the block counts to give a more accurate
+	 * overview to userland of the ratio of free space to used
+	 * space.  To do this, find the largest block count and compute
+	 * a divisor that lets it fit into a signed integer <= max_size.
+	 */
+	if (sf->f_bavail < 0)
+		count = -sf->f_bavail;
+	else
+		count = sf->f_bavail;
+	count = MAX(sf->f_blocks, MAX(sf->f_bfree, count));
+	if (count <= max_size)
+		return;
+
+	count >>= flsl(max_size);
+	shift = 0;
+	while (count > 0) {
+		shift++;
+		count >>=1;
+	}
+
+	sf->f_bsize <<= shift;
+	sf->f_blocks >>= shift;
+	sf->f_bfree >>= shift;
+	sf->f_bavail >>= shift;
+}
+
+/*
  * Get filesystem statistics.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -636,12 +677,13 @@ cvtstatfs(nsp, osp)
 	struct ostatfs *osp;
 {
 
+	statfs_scale_blocks(nsp, LONG_MAX);
 	bzero(osp, sizeof(*osp));
-	osp->f_bsize = MIN(nsp->f_bsize, LONG_MAX);
+	osp->f_bsize = nsp->f_bsize;
 	osp->f_iosize = MIN(nsp->f_iosize, LONG_MAX);
-	osp->f_blocks = MIN(nsp->f_blocks, LONG_MAX);
-	osp->f_bfree = MIN(nsp->f_bfree, LONG_MAX);
-	osp->f_bavail = MIN(nsp->f_bavail, LONG_MAX);
+	osp->f_blocks = nsp->f_blocks;
+	osp->f_bfree = nsp->f_bfree;
+	osp->f_bavail = nsp->f_bavail;
 	osp->f_files = MIN(nsp->f_files, LONG_MAX);
 	osp->f_ffree = MIN(nsp->f_ffree, LONG_MAX);
 	osp->f_owner = nsp->f_owner;
