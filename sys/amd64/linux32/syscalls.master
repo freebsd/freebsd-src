@@ -408,7 +408,8 @@
 240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, int val, \
 					struct l_timespec *timeout, void *uaddr2, int val3); }
 241	AUE_NULL	UNIMPL	linux_sched_setaffinity
-242	AUE_NULL	UNIMPL	linux_sched_getaffinity
+242	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \
+					l_ulong *user_mask_ptr); }
 243	AUE_NULL	STD	{ int linux_set_thread_area(struct l_user_desc *desc); }
 244	AUE_NULL	UNIMPL	linux_get_thread_area
 245	AUE_NULL	UNIMPL	linux_io_setup
