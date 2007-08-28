@@ -184,8 +184,8 @@ struct isposinfo {
 	const struct firmware *	fw;
 	union {
 		struct {
-			char wwnn[17];
-			char wwpn[17];
+			char wwnn[19];
+			char wwpn[19];
 		} fc;
 	} sysctl_info;
 #endif
