@@ -865,6 +865,8 @@ product ASIX AX88772		0x7720	AX88772
 
 /* ASUS products */
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
+product ASUS WL159G		0x170c	WL-159g
+product ASUS A9T_WIFI		0x171b	A9T wireless
 product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
 
@@ -1054,6 +1056,9 @@ product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband Wireless modem
 
+/* CyberTAN Technology products */
+product CYBERTAN TG54USB	0x1666	TG54USB
+
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
@@ -1120,6 +1125,9 @@ product DLINK2 WUA1340		0x3c04	WUA-1340
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
+
+/* DrayTek products */
+product DRAYTEK VIGOR550	0x0550	Vigor550
 
 /* EIZO products */
 product EIZO HUB		0x0000	hub
@@ -1199,6 +1207,9 @@ product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
 /* FEIYA products */
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+
+/* Fiberline */
+product FIBERLINE WL430U	0x6003	WL-430U
 
 /* Fossil, Inc products */
 product FOSSIL WRISTPDA		0x0002	Wrist PDA
@@ -1585,6 +1596,7 @@ product MELCO NINWIFI		0x008b	Nintendo Wi-Fi
 product MELCO PCOPRS1		0x00b3	PC-OP-RS1 RemoteStation
 product MELCO SG54HP		0x00d8	WLI-U2-SG54HP
 product MELCO G54HP		0x00d9	WLI-U2-G54HP
+product MELCO KG54L		0x00da	WLI-U2-KG54L
 
 /* MetaGeek products */
 product METAGEEK WISPYX		0x083e	MetaGeek Wi-Spy 2.4x
@@ -1815,6 +1827,7 @@ product PHILIPS HUB		0x0201	hub
 product PHILIPS PCA646VC	0x0303	PCA646VC PC Camera
 product PHILIPS PCVC680K	0x0308	PCVC680K Vesta Pro PC Camera
 product PHILIPS DSS150		0x0471	DSS 150 Digital Speaker System
+product PHILIPS SNU5600		0x1236	SNU5600
 product PHILIPS UM10016		0x1552	ISP 1581 Hi-Speed USB MPEG2 Encoder Reference Kit
 product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
 
@@ -1832,6 +1845,7 @@ product PLANEX2 GWUS54MINI2	0xab50	GW-US54Mini2
 product PLANEX2 GWUS54SG	0xc002	GW-US54SG
 product PLANEX2 GWUS54GZL	0xc007	GW-US54GZL
 product PLANEX2 GWUSMM		0xed02	GW-USMM
+product PLANEX3 GWUS54GZ	0xab10	GW-US54GZ
 product PLANEX3 GU1000T		0xab11	GU-1000T
 product PLANEX3 GWUS54MINI	0xab13	GW-US54Mini
 
@@ -1930,6 +1944,8 @@ product RATOC REXUSB60		0xb000	REX-USB60
 
 /* Sagem products */
 product SAGEM USBSERIAL		0x0027	USB-Serial Controller
+product SAGEM XG760A		0x004a	XG-760A
+product SAGEM XG76NA		0x0062	XG-76NA
 
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
@@ -1956,6 +1972,9 @@ product SANYO SCP4900 		0x0701	Sanyo SCP-4900 USB Phone
 /* ScanLogic products */
 product SCANLOGIC SL11R		0x0002	SL11R IDE Adapter
 product SCANLOGIC 336CX		0x0300	Phantom 336CX - C3 scanner
+
+/* Senao products */
+product SENAO NUB8301		0x2000	NUB-8301
 
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
@@ -2114,6 +2133,9 @@ product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
 product SURECOM RT2570		0x11f3	RT2570
 product SURECOM RT2573		0x31f3	RT2573
 
+/* Sweex products */
+product SWEEX ZD1211		0x1809	ZD1211
+
 /* System TALKS, Inc. */
 product SYSTEMTALKS SGCX2UL	0x1920	SGC-X2UL
 
@@ -2132,6 +2154,11 @@ product TDK BT_DONGLE		0x0309	Bluetooth USB dongle
 
 /* TEAC products */
 product TEAC FD05PUB		0x0000	FD-05PUB floppy
+
+/* Tekram Technology products */
+product TEKRAM QUICKWLAN	0x1630	QuickWLAN
+product TEKRAM ZD1211_1		0x5630	ZD1211
+product TEKRAM ZD1211_2		0x6630	ZD1211
 
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
@@ -2166,6 +2193,7 @@ product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
 product TRUMPION MP3		0x1200	MP3 player
 
 /* TwinMOS */
+product TWINMOS G240		0xa006	G240
 product TWINMOS MDIV		0x1325	Memory Disk IV
 
 /* Ubiquam products */
@@ -2187,11 +2215,16 @@ product UMEDIA TEW444UBEU	0x3006	TEW-444UB EU
 product UMEDIA TEW444UBEU_NF	0x3007	TEW-444UB EU (no firmware)
 product UMEDIA TEW429UB_A	0x300a	TEW-429UB_A
 product UMEDIA TEW429UB		0x300b	TEW-429UB
+product UMEDIA TEW429UBC1	0x300d	TEW-429UB C1
+product UMEDIA ALL0298V2	0x3204	ALL0298 v2
 product UMEDIA AR5523_2		0x3205	AR5523
 product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
+
+/* U.S. Robotics products */
+product USR USR5423		0x0121	USR5423 WLAN
 
 /* VidzMedia products */
 product VIDZMEDIA MONSTERTV	0x4fb1	MonsterTV P2H
@@ -2213,6 +2246,7 @@ product VIVITAR 35XX		0x0003	Vivicam 35Xx
 
 /* VTech products */
 product VTECH RT2570		0x3012	RT2570
+product VTECH ZD1211B		0x3014	ZD1211B
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
@@ -2265,8 +2299,10 @@ product YANO FW800HD		0x05fc	METALWEAR-HDD
 product ZCOM M4Y750		0x0001	M4Y-750
 product ZCOM XI725		0x0002	XI-725/726
 product ZCOM XI735		0x0005	XI-735
+product ZCOM ZD1211		0x0011	ZD1211
 product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
+product ZCOM ZD1211B		0x001a	ZD1211B
 
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
@@ -2277,6 +2313,15 @@ product ZOOM 2986L		0x9700	2986L Fax modem
 /* Zoran Microelectronics products */
 product ZORAN EX20DSC		0x4343	Digital Camera EX-20 DSC
 
+/* Zydas Technology Corporation products */
+product ZYDAS ZD1211		0x1211	ZD1211 WLAN abg 
+product ZYDAS ZD1211B		0x1215	ZD1211B
+
 /* ZyXEL Communication Co. products */
 product ZYXEL OMNI56K		0x1500	Omni 56K Plus
 product ZYXEL 980N		0x2011	Scorpion-980N keyboard
+product ZYXEL ZYAIRG220		0x3401	ZyAIR G-220
+product ZYXEL G200V2		0x3407	G-200 v2
+product ZYXEL AG225H		0x3409	AG-225H
+product ZYXEL M202		0x340a	M-202
+product ZYXEL G220V2		0x340f	G-220 v2
