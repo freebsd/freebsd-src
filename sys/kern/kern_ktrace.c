@@ -444,8 +444,6 @@ void
 ktruserret(struct thread *td)
 {
 
-	if (STAILQ_EMPTY(&td->td_proc->p_ktr))
-		return;
 	ktrace_enter(td);
 	sx_xlock(&ktrace_sx);
 	ktr_drain(td);
