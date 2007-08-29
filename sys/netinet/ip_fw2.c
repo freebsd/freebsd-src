@@ -3077,7 +3077,6 @@ check_body:
 				else
 					at->af = AF_LINK;
 				at->hdr = ip;
-				m_tag_prepend(m, mtag);
 				break;
 			}
 
