@@ -93,6 +93,7 @@ compat/linux/linux_signal.c	optional compat_linux
 compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
+compat/linux/linux_time.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci

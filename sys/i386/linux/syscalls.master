@@ -68,7 +68,7 @@
 				    l_uid16_t uid, l_gid16_t gid); }
 17	AUE_NULL	UNIMPL	break
 18	AUE_NULL	MSTD	{ int linux_stat(char *path, \
-				    struct ostat *up); }
+				    struct linux_stat *up); }
 19	AUE_NULL	MSTD	{ int linux_lseek(l_uint fdes, l_off_t off, \
 				    l_int whence); }
 20	AUE_NULL	MSTD	{ int linux_getpid(void); }
@@ -83,7 +83,7 @@
 				    l_long addr, l_long data); }
 27	AUE_NULL	MSTD	{ int linux_alarm(l_uint secs); }
 28	AUE_NULL	MSTD	{ int linux_fstat(l_uint fd, \
-				    struct ostat *up); }
+				    struct linux_stat *up); }
 29	AUE_NULL	MSTD	{ int linux_pause(void); }
 30	AUE_NULL	MSTD	{ int linux_utime(char *fname, \
 				    struct l_utimbuf *times); }
@@ -139,9 +139,8 @@
 72	AUE_NULL	MSTD	{ int linux_sigsuspend(l_int hist0, \
 				    l_int hist1, l_osigset_t mask); }
 73	AUE_NULL	MSTD	{ int linux_sigpending(l_osigset_t *mask); }
-74	AUE_NULL	MNOPROTO { int osethostname(char *hostname, \
-				    u_int len); } osethostname \
-				    sethostname_args int
+74	AUE_NULL	MSTD	{ int linux_sethostname(char *hostname, \
+				    u_int len); }
 75	AUE_NULL	MSTD	{ int linux_setrlimit(l_uint resource, \
 				    struct l_rlimit *rlim); }
 76	AUE_NULL	MSTD	{ int linux_old_getrlimit(l_uint resource, \
@@ -159,7 +158,8 @@
 82	AUE_NULL	MSTD	{ int linux_old_select( \
 				    struct l_old_select_argv *ptr); }
 83	AUE_NULL	MSTD	{ int linux_symlink(char *path, char *to); }
-84	AUE_NULL	MNOPROTO	{ int ostat(char *path, struct ostat *up); }
+84	AUE_NULL	MSTD	{ int linux_lstat(char *path, \
+				    struct ostat *up); }
 85	AUE_NULL	MSTD	{ int linux_readlink(char *name, char *buf, \
 				    l_int count); }
 86	AUE_NULL	STD	{ int linux_uselib(char *library); }
@@ -172,7 +172,7 @@
 91	AUE_NULL	MNOPROTO	{ int munmap(caddr_t addr, int len); }
 92	AUE_NULL	MSTD	{ int linux_truncate(char *path, \
 				    l_ulong length); }
-93	AUE_NULL	MNOPROTO	{ int oftruncate(int fd, long length); }
+93	AUE_NULL	MSTD	{ int linux_ftruncate(int fd, long length); }
 94	AUE_NULL	MNOPROTO	{ int fchmod(int fd, int mode); }
 95	AUE_NULL	MNOPROTO	{ int fchown(int fd, int uid, int gid); }
 96	AUE_NULL	MSTD	{ int linux_getpriority(int which, int who); }
@@ -280,9 +280,9 @@
 				    l_int policy); }
 161	AUE_NULL	MNOPROTO { int sched_rr_get_interval(l_pid_t pid, \
 				    struct l_timespec *interval); }
-162	AUE_NULL	MNOPROTO { int nanosleep( \
-				    const struct timespec *rqtp, \
-				    struct timespec *rmtp); }
+162	AUE_NULL	MSTD	{ int linux_nanosleep( \
+				    const struct l_timespec *rqtp, \
+				    struct l_timespec *rmtp); }
 163	AUE_NULL	MSTD	{ int linux_mremap(l_ulong addr, \
 				    l_ulong old_len, l_ulong new_len, \
 				    l_ulong flags, l_ulong new_addr); }
@@ -308,8 +308,12 @@
 175	AUE_NULL	MSTD	{ int linux_rt_sigprocmask(l_int how, \
 				    l_sigset_t *mask, l_sigset_t *omask, \
 				    l_size_t sigsetsize); }
-176	AUE_NULL	MSTD	{ int linux_rt_sigpending(void); }
-177	AUE_NULL	MSTD	{ int linux_rt_sigtimedwait(void); }
+176	AUE_NULL	MSTD	{ int linux_rt_sigpending(l_sigset_t *set, \
+				    l_size_t sigsetsize); }
+177	AUE_NULL	MSTD	{ int linux_rt_sigtimedwait(l_sigset_t *mask, \
+				    l_siginfo_t *ptr, \
+				    struct l_timeval *timeout, \
+				    l_size_t sigsetsize); }
 178	AUE_NULL	MSTD	{ int linux_rt_sigqueueinfo(void); }
 179	AUE_NULL	MSTD	{ int linux_rt_sigsuspend( \
 				    l_sigset_t *newset, \
@@ -414,18 +418,79 @@
 251	AUE_NULL	UNIMPL
 252	AUE_NULL	MNOPROTO { void sys_exit(int rval); } exit_group \
 				    sys_exit_args void
-253	AUE_NULL	UNIMPL	linux_lookup_dcookie
-254	AUE_NULL	UNIMPL	linux_epoll_create
-255	AUE_NULL	UNIMPL	linux_epoll_ctl
-256	AUE_NULL	UNIMPL	linux_epoll_wait
-257	AUE_NULL	UNIMPL	linux_remap_file_pages
-258	AUE_NULL	UNIMPL	linux_set_tid_address
-259	AUE_NULL	UNIMPL	linux_timer_create
-260	AUE_NULL	UNIMPL	linux_timer_settime
-261	AUE_NULL	UNIMPL	linux_timer_gettime
-262	AUE_NULL	UNIMPL	linux_timer_getoverrun
-263	AUE_NULL	UNIMPL	linux_timer_delete
-264	AUE_NULL	UNIMPL	linux_clock_settime
-265	AUE_NULL	UNIMPL	linux_clock_gettime
-266	AUE_NULL	UNIMPL	linux_clock_getres
-267	AUE_NULL	UNIMPL	linux_clock_nanosleep
+253	AUE_NULL	MSTD	{ int linux_lookup_dcookie(void); }
+254	AUE_NULL	MSTD	{ int linux_epoll_create(void); }
+255	AUE_NULL	MSTD	{ int linux_epoll_ctl(void); }
+256	AUE_NULL	MSTD	{ int linux_epoll_wait(void); }
+257	AUE_NULL	MSTD	{ int linux_remap_file_pages(void); }
+258	AUE_NULL	MSTD	{ int linux_set_tid_address(int *tidptr); }
+259	AUE_NULL	MSTD	{ int linux_timer_create(clockid_t clock_id, \
+				    struct sigevent *evp, l_timer_t *timerid); }
+260	AUE_NULL	MSTD	{ int linux_timer_settime(l_timer_t timerid, \
+				    const struct itimerspec *new, \
+				    struct itimerspec *old); }
+261	AUE_NULL	MSTD	{ int linux_timer_gettime(l_timer_t timerid, \
+				    struct itimerspec *setting); }
+262	AUE_NULL	MSTD	{ int linux_timer_getoverrun(l_timer_t timerid); }
+263	AUE_NULL	MSTD	{ int linux_timer_delete(l_timer_t timerid); }
+264	AUE_NULL	MSTD	{ int linux_clock_settime(clockid_t which, \
+				    struct l_timespec *tp); }
+265	AUE_NULL	MSTD	{ int linux_clock_gettime(clockid_t which, \
+				    struct l_timespec *tp); }
+266	AUE_NULL	MSTD	{ int linux_clock_getres(clockid_t which, \
+				    struct l_timespec *tp); }
+267	AUE_NULL	MSTD	{ int linux_clock_nanosleep(clockid_t which, \
+				    int flags, struct l_timespec *rqtp, \
+				    struct l_timespec *rmtp); }
+268	AUE_NULL	MSTD	{ int linux_statfs64(char *path, \
+				    struct l_statfs64_buf *buf); }
+269	AUE_NULL	MSTD	{ int linux_fstatfs64(void); }
+270	AUE_NULL	MSTD	{ int linux_tgkill(int tgid, int pid, int sig); }
+271	AUE_NULL	MSTD	{ int linux_utimes(char *fname, \
+				    struct l_timeval *tptr); }
+272	AUE_NULL	MSTD	{ int linux_fadvise64_64(void); }
+273	AUE_NULL	UNIMPL
+274	AUE_NULL	MSTD	{ int linux_mbind(void); }
+275	AUE_NULL	MSTD	{ int linux_get_mempolicy(void); }
+276	AUE_NULL	MSTD	{ int linux_set_mempolicy(void); }
+277	AUE_NULL	MSTD	{ int linux_mq_open(const char *name, int oflag, mode_t mode, \
+				    struct mq_attr *attr); }
+278	AUE_NULL	MSTD	{ int linux_mq_unlink(const char *name); }
+279	AUE_NULL	MSTD	{ int linux_mq_timedsend(l_mqd_t mqd, const char *msg_ptr, \
+				    size_t msg_len, unsigned int msg_prio, const struct \
+				    l_timespec *abs_timeout); }
+280	AUE_NULL	MSTD	{ int linux_mq_timedreceive(l_mqd_t mqd, char *msg_ptr, \
+				    size_t msg_len, unsigned int msg_prio, const struct \
+				    l_timespec *abs_timeout); }
+281	AUE_NULL	MSTD	{ int linux_mq_notify(l_mqd_t mqd, const struct l_timespec *abs_timeout); }
+282	AUE_NULL	MSTD	{ int linux_mq_getsetattr(l_mqd_t mqd, const struct mq_attr *attr, \
+				    struct mq_attr *oattr); }
+283	AUE_NULL	MSTD	{ int linux_kexec_load(void); }
+284	AUE_NULL	MSTD	{ int linux_waitid(void); }
+285	AUE_NULL	UNIMPL
+286	AUE_NULL	MSTD	{ int linux_add_key(void); }
+287	AUE_NULL	MSTD	{ int linux_request_key(void); }
+288	AUE_NULL	MSTD	{ int linux_keyctl(void); }
+289	AUE_NULL	MSTD	{ int linux_ioprio_set(void); }
+290	AUE_NULL	MSTD	{ int linux_ioprio_get(void); }
+291	AUE_NULL	MSTD	{ int linux_inotify_init(void); }
+292	AUE_NULL	MSTD	{ int linux_inotify_add_watch(void); }
+293	AUE_NULL	MSTD	{ int linux_inotify_rm_watch(void); }
+294	AUE_NULL	MSTD	{ int linux_migrate_pages(void); }
+295	AUE_NULL	MSTD	{ int linux_openat(l_int dfd, char *filename, \
+				    l_int flags, l_int mode); }
+296	AUE_NULL	MSTD	{ int linux_mkdirat(void); }
+297	AUE_NULL	MSTD	{ int linux_mknodat(void); }
+298	AUE_NULL	MSTD	{ int linux_fchownat(void); }
+299	AUE_NULL	MSTD	{ int linux_futimesat(void); }
+300	AUE_NULL	MSTD	{ int linux_fstatat64(void); }
+301	AUE_NULL	MSTD	{ int linux_unlinkat(void); }
+302	AUE_NULL	MSTD	{ int linux_renameat(void); }
+303	AUE_NULL	MSTD	{ int linux_linkat(void); }
+304	AUE_NULL	MSTD	{ int linux_symlinkat(void); }
+305	AUE_NULL	MSTD	{ int linux_readlinkat(void); }
+306	AUE_NULL	MSTD	{ int linux_fchmodat(void); }
+307	AUE_NULL	MSTD	{ int linux_faccessat(void); }
+308	AUE_NULL	MSTD	{ int linux_pselect6(void); }
+309	AUE_NULL	MSTD	{ int linux_ppoll(void); }
+310	AUE_NULL	MSTD	{ int linux_unshare(void); }

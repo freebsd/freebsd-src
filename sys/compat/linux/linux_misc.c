@@ -797,6 +797,38 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	LFREEPATH(fname);
 	return (error);
 }
+
+int
+linux_utimes(struct thread *td, struct linux_utimes_args *args)
+{
+	l_timeval ltv[2];
+	struct timeval tv[2], *tvp = NULL;
+	char *fname;
+	int error;
+
+	LCONVPATHEXIST(td, args->fname, &fname);
+
+#ifdef DEBUG
+	if (ldebug(utimes))
+		printf(ARGS(utimes, "%s, *"), fname);
+#endif
+
+	if (args->tptr != NULL) {
+		if ((error = copyin(args->tptr, ltv, sizeof ltv))) {
+			LFREEPATH(fname);
+			return (error);
+		}
+		tv[0].tv_sec = ltv[0].tv_sec;
+		tv[0].tv_usec = ltv[0].tv_usec;
+		tv[1].tv_sec = ltv[1].tv_sec;
+		tv[1].tv_usec = ltv[1].tv_usec;
+		tvp = tv;
+	}
+
+	error = kern_utimes(td, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+	LFREEPATH(fname);
+	return (error);
+}
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 #define __WCLONE 0x80000000
@@ -1468,3 +1500,20 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 	td->td_retval[0] = 20 - td->td_retval[0];
 	return error;
 }
+
+int
+linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
+{
+	int name[2];
+
+#ifdef DEBUG
+	if (ldebug(sethostname))
+		printf(ARGS(sethostname, "*, %i"), args->len);
+#endif
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTNAME;
+	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
+	    args->len, 0, 0));
+}
+
