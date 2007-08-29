@@ -957,7 +957,6 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	struct iwi_softc *sc = ifp->if_softc;
 	int error = 0;
 
-	IWI_LOCK_ASSERT(sc);
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate], sc->flags));
