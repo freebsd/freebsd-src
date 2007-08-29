@@ -238,6 +238,67 @@ linux_newfstat(struct thread *td, struct linux_newfstat_args *args)
 	return (error);
 }
 
+static int
+stat_copyout(struct stat *buf, void *ubuf)
+{
+	struct l_stat lbuf;
+	
+	bzero(&lbuf, sizeof(lbuf));
+	lbuf.st_dev = buf->st_dev;
+	lbuf.st_ino = buf->st_ino;
+	lbuf.st_mode = buf->st_mode;
+	lbuf.st_nlink = buf->st_nlink;
+	lbuf.st_uid = buf->st_uid;
+	lbuf.st_gid = buf->st_gid;
+	lbuf.st_rdev = buf->st_rdev;
+	if (buf->st_size < (quad_t)1 << 32)
+		lbuf.st_size = buf->st_size;
+	else
+		lbuf.st_size = -2;
+	lbuf.st_atime = buf->st_atime;
+	lbuf.st_mtime = buf->st_mtime;
+	lbuf.st_ctime = buf->st_ctime;
+	lbuf.st_blksize = buf->st_blksize;
+	lbuf.st_blocks = buf->st_blocks;
+	lbuf.st_flags = buf->st_flags;
+	lbuf.st_gen = buf->st_gen;
+
+	return (copyout(&lbuf, ubuf, sizeof(lbuf)));
+}
+
+int
+linux_stat(struct thread *td, struct linux_stat_args *args)
+{
+	struct stat buf;
+	int error;
+#ifdef DEBUG
+	if (ldebug(stat))
+	printf(ARGS(stat, "%s, *"), args->path);
+#endif
+	error = kern_stat(td, args->path, UIO_SYSSPACE, &buf);
+	if (error)
+		return (error);
+	translate_path_major_minor(td, args->path, &buf);
+	return(stat_copyout(&buf, args->up));
+}
+
+int
+linux_lstat(struct thread *td, struct linux_lstat_args *args)
+{
+	struct stat buf;
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(lstat))
+	printf(ARGS(lstat, "%s, *"), args->path);
+#endif
+	error = kern_lstat(td, args->path, UIO_SYSSPACE, &buf);
+	if (error)
+		return (error);
+	translate_path_major_minor(td, args->path, &buf);
+	return(stat_copyout(&buf, args->up));
+}
+
 /* XXX - All fields of type l_int are defined as l_long on i386 */
 struct l_statfs {
 	l_int		f_type;
@@ -247,6 +308,19 @@ struct l_statfs {
 	l_int		f_bavail;
 	l_int		f_files;
 	l_int		f_ffree;
+	l_fsid_t	f_fsid;
+	l_int		f_namelen;
+	l_int		f_spare[6];
+};
+
+struct l_statfs64 {
+	l_int		f_type;
+	l_int		f_bsize;
+	uint64_t	f_blocks;
+	uint64_t	f_bfree;
+	uint64_t	f_bavail;
+	uint64_t	f_files;
+	uint64_t	f_ffree;
 	l_fsid_t	f_fsid;
 	l_int		f_namelen;
 	l_int		f_spare[6];
@@ -262,7 +336,7 @@ struct l_statfs {
 #define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
-#define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
+#define LINUX_DEVFS_SUPER_MAGIC	0x1373L
 
 static long
 bsd_to_linux_ftype(const char *fstypename)
@@ -324,6 +398,44 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 	if (error)
 		return (error);
 	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
+}
+
+static void
+bsd_to_linux_statfs64(struct statfs *bsd_statfs, struct l_statfs64 *linux_statfs)
+{
+
+	linux_statfs->f_type = bsd_to_linux_ftype(bsd_statfs->f_fstypename);
+	linux_statfs->f_bsize = bsd_statfs->f_bsize;
+	linux_statfs->f_blocks = bsd_statfs->f_blocks;
+	linux_statfs->f_bfree = bsd_statfs->f_bfree;
+	linux_statfs->f_bavail = bsd_statfs->f_bavail;
+	linux_statfs->f_ffree = bsd_statfs->f_ffree;
+	linux_statfs->f_files = bsd_statfs->f_files;
+	linux_statfs->f_fsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs->f_fsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs->f_namelen = MAXNAMLEN;
+}
+
+int
+linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
+{
+	struct l_statfs64 linux_statfs;
+	struct statfs bsd_statfs;
+	char *path;
+	int error;
+
+	LCONVPATHEXIST(td, args->path, &path);
+
+#ifdef DEBUG
+	if (ldebug(statfs64))
+		printf(ARGS(statfs64, "%s, *"), path);
+#endif
+	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
+	LFREEPATH(path);
+	if (error)
+		return (error);
+	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 

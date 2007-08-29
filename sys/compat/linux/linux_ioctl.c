@@ -2281,6 +2281,29 @@ linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 	return (ENOENT);
 }
 
+
+ /*
+* If we fault in bsd_to_linux_ifreq() then we will fault when we call
+* the native ioctl().  Thus, we don't really need to check the return
+* value of this function.
+*/
+static int
+bsd_to_linux_ifreq(struct ifreq *arg)
+{
+	struct ifreq ifr;
+	size_t ifr_len = sizeof(struct ifreq);
+	int error;
+	
+	if ((error = copyin(arg, &ifr, ifr_len)))
+		return (error);
+	
+	*(u_short *)&ifr.ifr_addr = ifr.ifr_addr.sa_family;
+	
+	error = copyout(&ifr, arg, ifr_len);
+
+	return (error);
+}
+
 /*
  * Socket related ioctls
  */
@@ -2412,8 +2435,9 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	case LINUX_SIOCGIFADDR:
-		args->cmd = OSIOCGIFADDR;
+		args->cmd = SIOCGIFADDR;
 		error = ioctl(td, (struct ioctl_args *)args);
+		bsd_to_linux_ifreq((struct ifreq *)args->arg);
 		break;
 
 	case LINUX_SIOCSIFADDR:
@@ -2423,18 +2447,21 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		break;
 
 	case LINUX_SIOCGIFDSTADDR:
-		args->cmd = OSIOCGIFDSTADDR;
+		args->cmd = SIOCGIFDSTADDR;
 		error = ioctl(td, (struct ioctl_args *)args);
+		bsd_to_linux_ifreq((struct ifreq *)args->arg);
 		break;
 
 	case LINUX_SIOCGIFBRDADDR:
-		args->cmd = OSIOCGIFBRDADDR;
+		args->cmd = SIOCGIFBRDADDR;
 		error = ioctl(td, (struct ioctl_args *)args);
+		bsd_to_linux_ifreq((struct ifreq *)args->arg);
 		break;
 
 	case LINUX_SIOCGIFNETMASK:
-		args->cmd = OSIOCGIFNETMASK;
+		args->cmd = SIOCGIFNETMASK;
 		error = ioctl(td, (struct ioctl_args *)args);
+		bsd_to_linux_ifreq((struct ifreq *)args->arg);
 		break;
 
 	case LINUX_SIOCSIFNETMASK:

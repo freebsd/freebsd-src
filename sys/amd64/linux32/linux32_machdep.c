@@ -983,35 +983,41 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 		microtime(&atv);
 		atv32.tv_sec = atv.tv_sec;
 		atv32.tv_usec = atv.tv_usec;
-		error = copyout(&atv32, uap->tp, sizeof (atv32));
+		error = copyout(&atv32, uap->tp, sizeof(atv32));
 	}
 	if (error == 0 && uap->tzp != NULL) {
 		rtz.tz_minuteswest = tz_minuteswest;
 		rtz.tz_dsttime = tz_dsttime;
-		error = copyout(&rtz, uap->tzp, sizeof (rtz));
+		error = copyout(&rtz, uap->tzp, sizeof(rtz));
 	}
 	return (error);
 }
 
 int
-linux_nanosleep(struct thread *td, struct linux_nanosleep_args *uap)
+linux_settimeofday(struct thread *td, struct linux_settimeofday_args *uap)
 {
-	struct timespec rqt, rmt;
-	struct l_timespec ats32;
+	l_timeval atv32;
+	struct timeval atv, *tvp;
+	struct timezone atz, *tzp;
 	int error;
 
-	error = copyin(uap->rqtp, &ats32, sizeof(ats32));
-	if (error != 0)
-		return (error);
-	rqt.tv_sec = ats32.tv_sec;
-	rqt.tv_nsec = ats32.tv_nsec;
-	error = kern_nanosleep(td, &rqt, &rmt);
-	if (uap->rmtp != NULL) {
-		ats32.tv_sec = rmt.tv_sec;
-		ats32.tv_nsec = rmt.tv_nsec;
-		error = copyout(&ats32, uap->rmtp, sizeof(ats32));
-	}
-	return (error);
+	if (uap->tp) {
+		error = copyin(uap->tp, &atv32, sizeof(atv32));
+		if (error)
+			return (error);
+		atv.tv_sec = atv32.tv_sec;
+		atv.tv_usec = atv32.tv_usec;
+		tvp = &atv;
+	} else
+		tvp = NULL;
+	if (uap->tzp) {
+		error = copyin(uap->tzp, &atz, sizeof(atz));
+		if (error)
+			return (error);
+		tzp = &atz;
+	} else
+		tzp = NULL;
+	return (kern_settimeofday(td, tvp, tzp));
 }
 
 int
