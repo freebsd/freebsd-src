@@ -683,6 +683,21 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 }
 
 int
+linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
+{
+	struct ftruncate_args /* {
+		int fd;
+		int pad;
+		off_t length;
+		} */ nuap;
+	   
+	nuap.fd = args->fd;
+	nuap.pad = 0;
+	nuap.length = args->length;
+	return (ftruncate(td, &nuap));
+}
+
+int
 linux_link(struct thread *td, struct linux_link_args *args)
 {
 	char *path, *to;

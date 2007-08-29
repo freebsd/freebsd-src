@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <i386/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
 
-DUMMY(stat);
 DUMMY(stime);
 DUMMY(fstat);
 DUMMY(olduname);
@@ -70,6 +69,56 @@ DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
 DUMMY(fadvise64);
+DUMMY(set_tid_address);
+DUMMY(lookup_dcookie);
+DUMMY(epoll_create);
+DUMMY(epoll_ctl);
+DUMMY(epoll_wait);
+DUMMY(remap_file_pages);
+DUMMY(fstatfs64);
+DUMMY(tgkill);
+DUMMY(fadvise64_64);
+DUMMY(mbind);
+DUMMY(get_mempolicy);
+DUMMY(set_mempolicy);
+DUMMY(kexec_load);
+DUMMY(waitid);
+DUMMY(add_key);
+DUMMY(request_key);
+DUMMY(keyctl);
+DUMMY(ioprio_set);
+DUMMY(ioprio_get);
+DUMMY(inotify_init);
+DUMMY(inotify_add_watch);
+DUMMY(inotify_rm_watch);
+DUMMY(migrate_pages);
+DUMMY(openat);
+DUMMY(mkdirat);
+DUMMY(mknodat);
+DUMMY(fchownat);
+DUMMY(futimesat);
+DUMMY(fstatat64);
+DUMMY(unlinkat);
+DUMMY(renameat);
+DUMMY(linkat);
+DUMMY(symlinkat);
+DUMMY(readlinkat);
+DUMMY(fchmodat);
+DUMMY(faccessat);
+DUMMY(pselect6);
+DUMMY(ppoll);
+DUMMY(unshare);
+DUMMY(timer_create);
+DUMMY(timer_settime);
+DUMMY(timer_gettime);
+DUMMY(timer_getoverrun);
+DUMMY(timer_delete);
+DUMMY(mq_open);
+DUMMY(mq_unlink);
+DUMMY(mq_timedsend);
+DUMMY(mq_timedreceive);
+DUMMY(mq_notify);
+DUMMY(mq_getsetattr);
 
 #define DUMMY_XATTR(s)						\
 int								\
