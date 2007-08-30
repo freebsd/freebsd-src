@@ -732,4 +732,7 @@ struct l_pollfd {
 #define	LINUX_CLOCK_REALTIME_HR		4
 #define	LINUX_CLOCK_MONOTONIC_HR	5
 
+typedef int l_timer_t;
+typedef int l_mqd_t;
+
 #endif /* !_I386_LINUX_H_ */
