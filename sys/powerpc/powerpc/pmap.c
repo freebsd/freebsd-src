@@ -307,6 +307,8 @@ static struct	pte *pmap_pvo_to_pte(const struct pvo_entry *, int);
 /*
  * Utility routines.
  */
+static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
+			    vm_prot_t, boolean_t);
 static struct		pvo_entry *pmap_rkva_alloc(void);
 static void		pmap_pa_map(struct pvo_entry *, vm_offset_t,
 			    struct pte *, int *);
@@ -757,8 +759,10 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 			struct	vm_page m;
 
 			m.phys_addr = translations[i].om_pa + off;
-			pmap_enter(&ofw_pmap, translations[i].om_va + off, &m,
+			PMAP_LOCK(&ofw_pmap);
+			pmap_enter_locked(&ofw_pmap, translations[i].om_va + off, &m,
 				   VM_PROT_ALL, 1);
+			PMAP_UNLOCK(&ofw_pmap);
 			ofw_mappings++;
 		}
 	}
@@ -977,6 +981,25 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+	pmap_enter_locked(pmap, va, m, prot, wired);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
+}
+
+/*
+ * Map the given physical page at the specified virtual address in the
+ * target pmap with the protection requested.  If specified the page
+ * will be wired down.
+ *
+ * The page queues and pmap must be locked.
+ */
+static void
+pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
+    boolean_t wired)
+{
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
 	vm_page_t	pg;
@@ -997,8 +1020,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		was_exec = 0;
 	}
 	if (pmap_bootstrapped)
-		vm_page_lock_queues();
-	PMAP_LOCK(pmap);
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/* XXX change the pvo head for fake pages */
 	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
@@ -1061,12 +1084,39 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (pg != NULL)
 			pmap_attr_save(pg, PTE_EXEC);
 	}
-	if (pmap_bootstrapped)
-		vm_page_unlock_queues();
 
 	/* XXX syncicache always until problems are sorted */
 	pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
-	PMAP_UNLOCK(pmap);
+}
+
+/*
+ * Maps a sequence of resident pages belonging to the same object.
+ * The sequence begins with the given page m_start.  This page is
+ * mapped at the given virtual address start.  Each subsequent page is
+ * mapped at a virtual address that is offset from start by the same
+ * amount as the page is offset from m_start within the object.  The
+ * last page in the sequence is the page with the largest offset from
+ * m_start that can be mapped at a virtual address less than the given
+ * virtual address end.  Not every virtual page between start and end
+ * is mapped; only those for which a resident page exists with the
+ * corresponding offset from m_start are mapped.
+ */
+void
+pmap_enter_object(pmap_t pm, vm_offset_t start, vm_offset_t end,
+    vm_page_t m_start, vm_prot_t prot)
+{
+	vm_page_t m;
+	vm_pindex_t diff, psize;
+
+	psize = atop(end - start);
+	m = m_start;
+	PMAP_LOCK(pm);
+	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
+		pmap_enter_locked(pm, start + ptoa(diff), m, prot &
+		    (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
+		m = TAILQ_NEXT(m, listq);
+	}
+	PMAP_UNLOCK(pm);
 }
 
 vm_page_t
@@ -1074,15 +1124,10 @@ pmap_enter_quick(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
     vm_page_t mpte)
 {
 
-	vm_page_busy(m);
-	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(m->object);
-	mtx_lock(&Giant);
-	pmap_enter(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE), FALSE);
-	mtx_unlock(&Giant);
-	VM_OBJECT_LOCK(m->object);
-	vm_page_lock_queues();
-	vm_page_wakeup(m);
+	PMAP_LOCK(pm);
+	pmap_enter_locked(pm, va, m, prot & (VM_PROT_READ | VM_PROT_EXECUTE),
+	    FALSE);
+	PMAP_UNLOCK(pm);
 	return (NULL);
 }
 
