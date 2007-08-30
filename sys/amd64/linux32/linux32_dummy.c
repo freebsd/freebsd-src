@@ -105,7 +105,6 @@ DUMMY(faccessat);
 DUMMY(pselect6);
 DUMMY(ppoll);
 DUMMY(unshare);
-DUMMY(tgkill);
 DUMMY(openat);
 
 #define DUMMY_XATTR(s)						\
