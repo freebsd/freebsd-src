@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2006
+.Dd August 30, 2007
 .Dt SUSER 9
 .Os
 .Sh NAME
@@ -37,8 +37,7 @@
 .Nm suser_cred
 .Nd check if credentials have superuser privileges
 .Sh SYNOPSIS
-.In sys/param.h
-.In sys/systm.h
+.In sys/priv.h
 .Ft int
 .Fn suser "struct thread *td"
 .Ft int
