@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -522,9 +523,14 @@ encode_long(long val)
 	int norm_exp;	/* Normalized exponent */
 	int shift;
 
-	KASSERT(val >= 0,  ("encode_long: -ve value %ld", val));
 	if (val == 0)
 		return (0);
+	if (val < 0) {
+		log(LOG_NOTICE,
+		    "encode_long: negative value %ld in accounting record",
+		    val);
+		val = LONG_MAX;
+	}
 	norm_exp = fls(val) - 1;
 	shift = FLT_MANT_DIG - norm_exp - 1;
 #ifdef ACCT_DEBUG
