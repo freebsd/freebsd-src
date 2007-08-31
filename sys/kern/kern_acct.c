@@ -527,7 +527,7 @@ encode_long(long val)
 		return (0);
 	if (val < 0) {
 		log(LOG_NOTICE,
-		    "encode_long: negative value %ld in accounting record",
+		    "encode_long: negative value %ld in accounting record\n",
 		    val);
 		val = LONG_MAX;
 	}
