@@ -797,6 +797,10 @@ OLD_FILES+=sbin/omshell
 OLD_FILES+=usr/share/man/man1/omshell.1.gz
 OLD_FILES+=usr/share/man/man5/dhcp-eval.5.gz
 # 200504XX: ipf tools moved from /usr to /
+OLD_FILES+=rescue/ipfs
+OLD_FILES+=rescue/ipfstat
+OLD_FILES+=rescue/ipmon
+OLD_FILES+=rescue/ipnat
 OLD_FILES+=usr/sbin/ipftest
 OLD_FILES+=usr/sbin/ipresend
 OLD_FILES+=usr/sbin/ipsend
@@ -828,6 +832,7 @@ OLD_FILES+=usr/share/games/fortune/fortunes2.dat
 OLD_FILES+=usr/libexec/getNAME
 # 200411XX: gvinum replaces vinum
 OLD_FILES+=bin/vinum
+OLD_FILES+=rescue/vinum
 OLD_FILES+=sbin/vinum
 OLD_FILES+=usr/share/man/man8/vinum.8.gz
 # 200411XX: libxpg4 removal
