@@ -84,6 +84,7 @@ msdosfs_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
+	struct mbnambuf nb;
 	struct vnode *vdp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
@@ -185,7 +186,7 @@ msdosfs_lookup(ap)
 	 * by cnp->cn_nameptr.
 	 */
 	tdp = NULL;
-	mbnambuf_init();
+	mbnambuf_init(&nb);
 	/*
 	 * The outer loop ranges over the clusters that make up the
 	 * directory.  Note that the root directory is different from all
@@ -225,7 +226,7 @@ msdosfs_lookup(ap)
 				 * Drop memory of previous long matches
 				 */
 				chksum = -1;
-				mbnambuf_init();
+				mbnambuf_init(&nb);
 
 				if (slotcount < wincnt) {
 					slotcount++;
@@ -250,16 +251,15 @@ msdosfs_lookup(ap)
 					if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 						continue;
 
-					chksum = win2unixfn((struct winentry *)dep,
-							    chksum,
-							    pmp);
+					chksum = win2unixfn(&nb,
+					    (struct winentry *)dep, chksum,
+					    pmp);
 					continue;
 				}
 
-				chksum = winChkName((const u_char *)cnp->cn_nameptr,
-						    unlen,
-						    chksum,
-						    pmp);
+				chksum = winChkName(&nb,
+				    (const u_char *)cnp->cn_nameptr, unlen,
+				    chksum, pmp);
 				if (chksum == -2) {
 					chksum = -1;
 					continue;

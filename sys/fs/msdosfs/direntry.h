@@ -133,21 +133,28 @@ struct winentry {
 #define DD_YEAR_SHIFT		9
 
 #ifdef _KERNEL
+struct mbnambuf {
+	size_t	nb_len;
+	int	nb_last_id;
+	char	nb_buf[WIN_MAXLEN + 1];
+};
+
 struct dirent;
 struct msdosfsmount;
 
-char	*mbnambuf_flush(struct dirent *dp);
-void	mbnambuf_init(void);
-void	mbnambuf_write(char *name, int id);
+char	*mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp);
+void	mbnambuf_init(struct mbnambuf *nbp);
+void	mbnambuf_write(struct mbnambuf *nbp, char *name, int id);
 int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 	    struct msdosfsmount *pmp);
 int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	    struct msdosfsmount *pmp);
 int	unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	    int chksum, struct msdosfsmount *pmp);
-int	winChkName(const u_char *un, size_t unlen, int chksum,
+int	winChkName(struct mbnambuf *nbp, const u_char *un, size_t unlen,
+	    int chksum, struct msdosfsmount *pmp);
+int	win2unixfn(struct mbnambuf *nbp, struct winentry *wep, int chksum,
 	    struct msdosfsmount *pmp);
-int	win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
 u_int8_t winChksum(struct direntry *dep);
 int	winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp);
 size_t	winLenFixup(const u_char *un, size_t unlen);
