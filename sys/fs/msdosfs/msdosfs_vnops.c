@@ -1510,6 +1510,7 @@ msdosfs_readdir(ap)
 		u_long **a_cookies;
 	} */ *ap;
 {
+	struct mbnambuf nb;
 	int error = 0;
 	int diff;
 	long n;
@@ -1629,7 +1630,7 @@ msdosfs_readdir(ap)
 		}
 	}
 
-	mbnambuf_init();
+	mbnambuf_init(&nb);
 	off = offset;
 	while (uio->uio_resid > 0) {
 		lbn = de_cluster(pmp, offset - bias);
@@ -1676,7 +1677,7 @@ msdosfs_readdir(ap)
 			 */
 			if (dentp->deName[0] == SLOT_DELETED) {
 				chksum = -1;
-				mbnambuf_init();
+				mbnambuf_init(&nb);
 				continue;
 			}
 
@@ -1686,8 +1687,8 @@ msdosfs_readdir(ap)
 			if (dentp->deAttributes == ATTR_WIN95) {
 				if (pmp->pm_flags & MSDOSFSMNT_SHORTNAME)
 					continue;
-				chksum = win2unixfn((struct winentry *)dentp,
-					chksum, pmp);
+				chksum = win2unixfn(&nb,
+				    (struct winentry *)dentp, chksum, pmp);
 				continue;
 			}
 
@@ -1696,7 +1697,7 @@ msdosfs_readdir(ap)
 			 */
 			if (dentp->deAttributes & ATTR_VOLUME) {
 				chksum = -1;
-				mbnambuf_init();
+				mbnambuf_init(&nb);
 				continue;
 			}
 			/*
@@ -1738,9 +1739,9 @@ msdosfs_readdir(ap)
 					((pmp->pm_flags & MSDOSFSMNT_SHORTNAME) ?
 					(LCASE_BASE | LCASE_EXT) : 0),
 				    pmp);
-				mbnambuf_init();
+				mbnambuf_init(&nb);
 			} else
-				mbnambuf_flush(&dirbuf);
+				mbnambuf_flush(&nb, &dirbuf);
 			chksum = -1;
 			dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
 			if (uio->uio_resid < dirbuf.d_reclen) {

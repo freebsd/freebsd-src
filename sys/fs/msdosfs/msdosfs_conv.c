@@ -52,7 +52,6 @@
 #include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/iconv.h>
-#include <sys/malloc.h>
 #include <sys/mount.h>
 
 #include <fs/msdosfs/bpb.h>
@@ -66,10 +65,6 @@ static u_int16_t dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount
 static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
 static u_int16_t win2unixchr(u_int16_t, struct msdosfsmount *);
 static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
-
-static char	*nambuf_ptr;
-static size_t	nambuf_len;
-static int	nambuf_last_id;
 
 /*
  * 0 - character disallowed in long file name.
@@ -601,7 +596,8 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, chksum, pmp)
+winChkName(nbp, un, unlen, chksum, pmp)
+	struct mbnambuf *nbp;
 	const u_char *un;
 	size_t unlen;
 	int chksum;
@@ -613,9 +609,9 @@ winChkName(un, unlen, chksum, pmp)
 	struct dirent dirbuf;
 
 	/*
-	 * We alread have winentry in mbnambuf
+	 * We already have winentry in *nbp.
 	 */
-	if (!mbnambuf_flush(&dirbuf) || !dirbuf.d_namlen)
+	if (!mbnambuf_flush(nbp, &dirbuf) || dirbuf.d_namlen == 0)
 		return -1;
 
 #ifdef MSDOSFS_DEBUG
@@ -650,7 +646,8 @@ winChkName(un, unlen, chksum, pmp)
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(wep, chksum, pmp)
+win2unixfn(nbp, wep, chksum, pmp)
+	struct mbnambuf *nbp;
 	struct winentry *wep;
 	int chksum;
 	struct msdosfsmount *pmp;
@@ -683,7 +680,7 @@ win2unixfn(wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(name, (wep->weCnt & WIN_CNT) - 1);
+			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -702,7 +699,7 @@ win2unixfn(wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(name, (wep->weCnt & WIN_CNT) - 1);
+			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -721,7 +718,7 @@ win2unixfn(wep, chksum, pmp)
 		switch (code) {
 		case 0:
 			*np = '\0';
-			mbnambuf_write(name, (wep->weCnt & WIN_CNT) - 1);
+			mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
 			return chksum;
 		case '/':
 			*np = '\0';
@@ -736,7 +733,7 @@ win2unixfn(wep, chksum, pmp)
 		cp += 2;
 	}
 	*np = '\0';
-	mbnambuf_write(name, (wep->weCnt & WIN_CNT) - 1);
+	mbnambuf_write(nbp, name, (wep->weCnt & WIN_CNT) - 1);
 	return chksum;
 }
 
@@ -1037,19 +1034,15 @@ unix2winchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *
 }
 
 /*
- * Initialize the temporary concatenation buffer (once) and mark it as
- * empty on subsequent calls.
+ * Initialize the temporary concatenation buffer.
  */
 void
-mbnambuf_init(void)
+mbnambuf_init(struct mbnambuf *nbp)
 {
 
-        if (nambuf_ptr == NULL) { 
-		nambuf_ptr = malloc(MAXNAMLEN + 1, M_MSDOSFSMNT, M_WAITOK);
-		nambuf_ptr[MAXNAMLEN] = '\0';
-	}
-	nambuf_len = 0;
-	nambuf_last_id = -1;
+	nbp->nb_len = 0;
+	nbp->nb_last_id = -1;
+	nbp->nb_buf[sizeof(nbp->nb_buf) - 1] = '\0';
 }
 
 /*
@@ -1062,30 +1055,31 @@ mbnambuf_init(void)
  * WIN_CHARS bytes when they are first encountered.
  */
 void
-mbnambuf_write(char *name, int id)
+mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 {
-	size_t count;
 	char *slot;
+	size_t count, newlen;
 
-	KASSERT(nambuf_len == 0 || id == nambuf_last_id - 1,
-	    ("non-decreasing id, id %d last id %d", id, nambuf_last_id));
+	KASSERT(nbp->nb_len == 0 || id == nbp->nb_last_id - 1,
+	    ("non-decreasing id: id %d, last id %d", id, nbp->nb_last_id));
 
-	/* Store this substring in a WIN_CHAR-aligned slot. */
-	slot = nambuf_ptr + (id * WIN_CHARS);
+	/* Will store this substring in a WIN_CHARS-aligned slot. */
+	slot = &nbp->nb_buf[id * WIN_CHARS];
 	count = strlen(name);
-	if (nambuf_len + count > MAXNAMLEN) {
-		printf("msdosfs: file name %zu too long\n", nambuf_len + count);
+	newlen = nbp->nb_len + count;
+	if (newlen > WIN_MAXLEN || newlen > MAXNAMLEN) {
+		printf("msdosfs: file name length %zu too large\n", newlen);
 		return;
 	}
 
 	/* Shift suffix upwards by the amount length exceeds WIN_CHARS. */
-	if (count > WIN_CHARS && nambuf_len != 0)
-		bcopy(slot + WIN_CHARS, slot + count, nambuf_len);
+	if (count > WIN_CHARS && nbp->nb_len != 0)
+		bcopy(slot + WIN_CHARS, slot + count, nbp->nb_len);
 
 	/* Copy in the substring to its slot and update length so far. */
 	bcopy(name, slot, count);
-	nambuf_len += count;
-	nambuf_last_id = id;
+	nbp->nb_len = newlen;
+	nbp->nb_last_id = id;
 }
 
 /*
@@ -1096,17 +1090,17 @@ mbnambuf_write(char *name, int id)
  * have been written via mbnambuf_write(), the result will be incorrect.
  */
 char *
-mbnambuf_flush(struct dirent *dp)
+mbnambuf_flush(struct mbnambuf *nbp, struct dirent *dp)
 {
 
-	if (nambuf_len > sizeof(dp->d_name) - 1) {
-		mbnambuf_init();
+	if (nbp->nb_len > sizeof(dp->d_name) - 1) {
+		mbnambuf_init(nbp);
 		return (NULL);
 	}
-	bcopy(nambuf_ptr, dp->d_name, nambuf_len);
-	dp->d_name[nambuf_len] = '\0';
-	dp->d_namlen = nambuf_len;
+	bcopy(&nbp->nb_buf[0], dp->d_name, nbp->nb_len);
+	dp->d_name[nbp->nb_len] = '\0';
+	dp->d_namlen = nbp->nb_len;
 
-	mbnambuf_init();
+	mbnambuf_init(nbp);
 	return (dp->d_name);
 }
