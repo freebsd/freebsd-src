@@ -491,7 +491,7 @@ _callout_stop_safe(c, safe)
 	struct	callout *c;
 	int	safe;
 {
-	int use_mtx;
+	int use_mtx, sq_locked;
 
 	if (!safe && c->c_mtx != NULL) {
 #ifdef notyet /* Some callers do not hold Giant for Giant-locked callouts. */
@@ -504,6 +504,8 @@ _callout_stop_safe(c, safe)
 		use_mtx = 0;
 	}
 
+	sq_locked = 0;
+again:
 	mtx_lock_spin(&callout_lock);
 	/*
 	 * If the callout isn't pending, it's not on the queue, so
@@ -521,6 +523,8 @@ _callout_stop_safe(c, safe)
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			mtx_unlock_spin(&callout_lock);
+			if (sq_locked)
+				sleepq_release(&callout_wait);
 			return (0);
 		}
 
@@ -539,20 +543,24 @@ _callout_stop_safe(c, safe)
 				 * a LOR between callout_lock and sleepqueue
 				 * chain spinlocks.  This piece of code
 				 * emulates a msleep_spin() call actually.
+				 *
+				 * If we already have the sleepqueue chain
+				 * locked, then we can safely block.  If we
+				 * don't already have it locked, however,
+				 * we have to drop the callout_lock to lock
+				 * it.  This opens several races, so we
+				 * restart at the beginning once we have
+				 * both locks.  If nothing has changed, then
+				 * we will end up back here with sq_locked
+				 * set.
 				 */
-				mtx_unlock_spin(&callout_lock);
-				sleepq_lock(&callout_wait);
-
-				/*
-				 * Check again the state of curr_callout
-				 * because curthread could have lost the
-				 * race previously won.
-				 */
-				mtx_lock_spin(&callout_lock);
-				if (c != curr_callout) {
-					sleepq_release(&callout_wait);
-					break;
+				if (!sq_locked) {
+					mtx_unlock_spin(&callout_lock);
+					sleepq_lock(&callout_wait);
+					sq_locked = 1;
+					goto again;
 				}
+
 				callout_wait = 1;
 				DROP_GIANT();
 				mtx_unlock_spin(&callout_lock);
@@ -560,6 +568,7 @@ _callout_stop_safe(c, safe)
 				    &callout_lock.lock_object, "codrain",
 				    SLEEPQ_SLEEP, 0);
 				sleepq_wait(&callout_wait);
+				sq_locked = 0;
 
 				/* Reacquire locks previously released. */
 				PICKUP_GIANT();
@@ -577,13 +586,18 @@ _callout_stop_safe(c, safe)
 			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			mtx_unlock_spin(&callout_lock);
+			KASSERT(!sq_locked, ("sleepqueue chain locked"));
 			return (1);
 		}
 		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 		    c, c->c_func, c->c_arg);
 		mtx_unlock_spin(&callout_lock);
+		KASSERT(!sq_locked, ("sleepqueue chain still locked"));
 		return (0);
 	}
+	if (sq_locked)
+		sleepq_release(&callout_wait);
+
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 
 	if (nextsoftcheck == c) {
