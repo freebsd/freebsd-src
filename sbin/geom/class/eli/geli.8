@@ -146,7 +146,8 @@ will make use of it automatically.
 .It
 Supports many cryptographic algorithms (currently
 .Nm AES ,
-.Nm Blowfish
+.Nm Blowfish ,
+.Nm Camellia
 and
 .Nm 3DES ) .
 .It
@@ -227,7 +228,8 @@ If the option is not given, there will be no authentication, only encryption.
 Encryption algorithm to use.
 Currently supported algorithms are:
 .Nm AES ,
-.Nm Blowfish
+.Nm Blowfish ,
+.Nm Camellia
 and
 .Nm 3DES .
 The default is
@@ -260,7 +262,9 @@ If not given, the default key length for the given algorithm is used, which is:
 128 for
 .Nm AES ,
 128 for
-.Nm Blowfish
+.Nm Blowfish ,
+128 for
+.Nm Camellia
 and 192 for
 .Nm 3DES .
 .It Fl s Ar sectorsize
@@ -652,5 +656,9 @@ The
 .Nm
 utility appeared in
 .Fx 6.0 .
+Support for 
+.Nm Camellia
+block cipher is implemented by Yoshisato Yanagisawa in
+.Fx 7.0 .
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
