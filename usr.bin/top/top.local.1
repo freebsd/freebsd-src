@@ -22,13 +22,13 @@ Megabyte
 number of pages active
 .TP
 .B Inact:
-number of pages inactive
+number of dirty inactive pages
 .TP
 .B Wired:
 number of pages wired down, including cached file data pages
 .TP
 .B Cache:
-number of pages used for VM-level disk caching
+number of pages cached (clean inactive pages)
 .TP
 .B Buf:
 number of pages used for BIO-level disk caching
