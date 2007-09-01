@@ -286,6 +286,8 @@ g_eli_str2ealgo(const char *name)
 		return (CRYPTO_AES_CBC);
 	else if (strcasecmp("blowfish", name) == 0)
 		return (CRYPTO_BLF_CBC);
+	else if (strcasecmp("camellia", name) == 0)
+		return (CRYPTO_CAMELLIA_CBC);
 	else if (strcasecmp("3des", name) == 0)
 		return (CRYPTO_3DES_CBC);
 	return (CRYPTO_ALGORITHM_MIN - 1);
@@ -321,6 +323,8 @@ g_eli_algo2str(u_int algo)
 		return ("AES-CBC");
 	case CRYPTO_BLF_CBC:
 		return ("Blowfish-CBC");
+	case CRYPTO_CAMELLIA_CBC:
+		return ("CAMELLIA-CBC");
 	case CRYPTO_3DES_CBC:
 		return ("3DES-CBC");
 	case CRYPTO_MD5_HMAC:
@@ -390,7 +394,8 @@ g_eli_keylen(u_int algo, u_int keylen)
 				keylen = 0;
 		}
 		return (keylen);
-	case CRYPTO_AES_CBC:
+	case CRYPTO_AES_CBC: /* FALLTHROUGH */
+	case CRYPTO_CAMELLIA_CBC:
 		switch (keylen) {
 		case 0:
 			return (128);
