@@ -244,11 +244,13 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 		bh = rman_get_bushandle(r);
-		for (i = 1; i < bh->bsh_ressz; i++)
-			resource_list_release(rl, bus, child, type, rid + i,
-					      bh->bsh_res[i]);
-		if (bh->bsh_res != NULL)
-			free(bh->bsh_res, M_DEVBUF);
+		if (bh != NULL) {
+			for (i = 1; i < bh->bsh_ressz; i++)
+				resource_list_release(rl, bus, child, type,
+						      rid + i, bh->bsh_res[i]);
+			if (bh->bsh_res != NULL)
+				free(bh->bsh_res, M_DEVBUF);
+		}
 	}
 #endif
 	return resource_list_release(rl, bus, child, type, rid, r);
