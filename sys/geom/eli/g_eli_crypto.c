@@ -158,6 +158,21 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	case CRYPTO_BLF_CBC:
 		type = EVP_bf_cbc();
 		break;
+	case CRYPTO_CAMELLIA_CBC:
+		switch (keysize) {
+		case 128:
+			type = EVP_camellia_128_cbc();
+			break;
+		case 192:
+			type = EVP_camellia_192_cbc();
+			break;
+		case 256:
+			type = EVP_camellia_256_cbc();
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
 	case CRYPTO_3DES_CBC:
 		type = EVP_des_ede3_cbc();
 		break;
