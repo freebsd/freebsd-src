@@ -155,9 +155,9 @@ u_long zfs_arc_min;
 TUNABLE_ULONG("vfs.zfs.arc_max", &zfs_arc_max);
 TUNABLE_ULONG("vfs.zfs.arc_min", &zfs_arc_min);
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RD, &zfs_arc_max, 0,
+SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
     "Maximum ARC size");
-SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RD, &zfs_arc_min, 0,
+SYSCTL_ULONG(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
     "Minimum ARC size");
 
 /*
