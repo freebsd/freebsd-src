@@ -1383,7 +1383,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	}
 
 	if (new != NULL) {
-		if (!useracc(new, req.newlen, VM_PROT_READ))
+		if (!useracc(new, newlen, VM_PROT_READ))
 			return (EFAULT);
 		req.newlen = newlen;
 		req.newptr = new;
