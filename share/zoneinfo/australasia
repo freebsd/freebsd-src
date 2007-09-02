@@ -1,4 +1,4 @@
-# @(#)australasia	8.3
+# @(#)australasia	8.8
 # <pre>
 
 # This file also includes Pacific islands.
@@ -29,15 +29,24 @@ Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
 			 9:00	-	CST	1899 May
 			 9:30	Aus	CST
 # Western Australia
+#
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	AW	1974	only	-	Oct	lastSun	2:00s	1:00	-
+Rule	AW	1975	only	-	Mar	Sun>=1	2:00s	0	-
+Rule	AW	1983	only	-	Oct	lastSun	2:00s	1:00	-
+Rule	AW	1984	only	-	Mar	Sun>=1	2:00s	0	-
+Rule	AW	1991	only	-	Nov	17	2:00s	1:00	-
+Rule	AW	1992	only	-	Mar	Sun>=1	2:00s	0	-
+Rule	AW	2006	only	-	Dec	 3	2:00s	1:00	-
+Rule	AW	2007	2009	-	Mar	lastSun	2:00s	0	-
+Rule	AW	2007	2008	-	Oct	lastSun	2:00s	1:00	-
 Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	Aus	WST	1943 Jul
-			 8:00	-	WST	1974 Oct lastSun 2:00s
-			 8:00	1:00	WST	1975 Mar Sun>=1 2:00s
-			 8:00	-	WST	1983 Oct lastSun 2:00s
-			 8:00	1:00	WST	1984 Mar Sun>=1 2:00s
-			 8:00	-	WST	1991 Nov 17 2:00s
-			 8:00	1:00	WST	1992 Mar Sun>=1 2:00s
-			 8:00	-	WST
+			 8:00	AW	WST
+Zone Australia/Eucla	 8:35:28 -	LMT	1895 Dec
+			 8:45	Aus	CWST	1943 Jul
+			 8:45	AW	CWST
+
 # Queensland
 #
 # From Alex Livingston (1996-11-01):
@@ -70,7 +79,7 @@ Zone Australia/Lindeman  9:55:56 -	LMT	1895
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AS	1971	1985	-	Oct	lastSun	2:00s	1:00	-
 Rule	AS	1986	only	-	Oct	19	2:00s	1:00	-
-Rule	AS	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AS	1987	2007	-	Oct	lastSun	2:00s	1:00	-
 Rule	AS	1972	only	-	Feb	27	2:00s	0	-
 Rule	AS	1973	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AS	1986	1989	-	Mar	Sun>=15	2:00s	0	-
@@ -81,7 +90,9 @@ Rule	AS	1993	only	-	Mar	Sun>=1	2:00s	0	-
 Rule	AS	1994	only	-	Mar	Sun>=18	2:00s	0	-
 Rule	AS	1995	2005	-	Mar	lastSun	2:00s	0	-
 Rule	AS	2006	only	-	Apr	Sun>=1	2:00s	0	-
-Rule	AS	2007	max	-	Mar	lastSun	2:00s	0	-
+Rule	AS	2007	only	-	Mar	lastSun	2:00s	0	-
+Rule	AS	2008	max	-	Apr	Sun>=1	2:00s	0	-
+Rule	AS	2008	max	-	Oct	Sun>=1	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:00	-	CST	1899 May
@@ -112,7 +123,8 @@ Rule	AT	1991	2005	-	Mar	lastSun	2:00s	0	-
 Rule	AT	2000	only	-	Aug	lastSun	2:00s	1:00	-
 Rule	AT	2001	max	-	Oct	Sun>=1	2:00s	1:00	-
 Rule	AT	2006	only	-	Apr	Sun>=1	2:00s	0	-
-Rule	AT	2007	max	-	Mar	lastSun	2:00s	0	-
+Rule	AT	2007	only	-	Mar	lastSun	2:00s	0	-
+Rule	AT	2008	max	-	Apr	Sun>=1	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Hobart	9:49:16	-	LMT	1895 Sep
 			10:00	-	EST	1916 Oct 1 2:00
@@ -136,9 +148,11 @@ Rule	AV	1988	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AV	1991	1994	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1995	2005	-	Mar	lastSun	2:00s	0	-
 Rule	AV	2000	only	-	Aug	lastSun	2:00s	1:00	-
-Rule	AV	2001	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AV	2001	2007	-	Oct	lastSun	2:00s	1:00	-
 Rule	AV	2006	only	-	Apr	Sun>=1	2:00s	0	-
-Rule	AV	2007	max	-	Mar	lastSun	2:00s	0	-
+Rule	AV	2007	only	-	Mar	lastSun	2:00s	0	-
+Rule	AV	2008	max	-	Apr	Sun>=1	2:00s	0	-
+Rule	AV	2008	max	-	Oct	Sun>=1	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	Aus	EST	1971
@@ -157,9 +171,11 @@ Rule	AN	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AN	1990	1995	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1996	2005	-	Mar	lastSun	2:00s	0	-
 Rule	AN	2000	only	-	Aug	lastSun	2:00s	1:00	-
-Rule	AN	2001	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AN	2001	2007	-	Oct	lastSun	2:00s	1:00	-
 Rule	AN	2006	only	-	Apr	Sun>=1	2:00s	0	-
-Rule	AN	2007	max	-	Mar	lastSun	2:00s	0	-
+Rule	AN	2007	only	-	Mar	lastSun	2:00s	0	-
+Rule	AN	2008	max	-	Apr	Sun>=1	2:00s	0	-
+Rule	AN	2008	max	-	Oct	Sun>=1	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	Aus	EST	1971
@@ -182,9 +198,11 @@ Rule	LH	1987	1999	-	Oct	lastSun	2:00	0:30	-
 Rule	LH	1990	1995	-	Mar	Sun>=1	2:00	0	-
 Rule	LH	1996	2005	-	Mar	lastSun	2:00	0	-
 Rule	LH	2000	only	-	Aug	lastSun	2:00	0:30	-
-Rule	LH	2001	max	-	Oct	lastSun	2:00	0:30	-
+Rule	LH	2001	2007	-	Oct	lastSun	2:00	0:30	-
 Rule	LH	2006	only	-	Apr	Sun>=1	2:00	0	-
-Rule	LH	2007	max	-	Mar	lastSun	2:00	0	-
+Rule	LH	2007	only	-	Mar	lastSun	2:00	0	-
+Rule	LH	2008	max	-	Apr	Sun>=1	2:00	0	-
+Rule	LH	2008	max	-	Oct	Sun>=1	2:00	0:30	-
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	LH	LHST
@@ -193,16 +211,16 @@ Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 #
 # Ashmore Is, Cartier
 # no indigenous inhabitants; only seasonal caretakers
-# like Australia/Perth, says Turner
+# no times are set
 #
 # Coral Sea Is
 # no indigenous inhabitants; only meteorologists
-# no information
+# no times are set
 #
 # Macquarie
 # permanent occupation (scientific station) since 1948;
 # sealing and penguin oil station operated 1888/1917
-# like Australia/Hobart, says Turner
+# like Australia/Hobart
 
 # Christmas
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -339,10 +357,14 @@ Rule	NZ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
 Rule	Chatham	1976	1989	-	Mar	Sun>=1	2:45s	0	S
 Rule	NZ	1989	only	-	Oct	Sun>=8	2:00s	1:00	D
 Rule	Chatham	1989	only	-	Oct	Sun>=8	2:45s	1:00	D
-Rule	NZ	1990	max	-	Oct	Sun>=1	2:00s	1:00	D
-Rule	Chatham	1990	max	-	Oct	Sun>=1	2:45s	1:00	D
-Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
-Rule	Chatham	1990	max	-	Mar	Sun>=15	2:45s	0	S
+Rule	NZ	1990	2006	-	Oct	Sun>=1	2:00s	1:00	D
+Rule	Chatham	1990	2006	-	Oct	Sun>=1	2:45s	1:00	D
+Rule	NZ	1990	2007	-	Mar	Sun>=15	2:00s	0	S
+Rule	Chatham	1990	2007	-	Mar	Sun>=15	2:45s	0	S
+Rule	NZ	2007	max	-	Sep	lastSun	2:00s	1:00	D
+Rule	Chatham	2007	max	-	Sep	lastSun	2:45s	1:00	D
+Rule	NZ	2008	max	-	Apr	Sun>=1	2:00s	0	S
+Rule	Chatham	2008	max	-	Apr	Sun>=1	2:45s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Auckland	11:39:04 -	LMT	1868 Nov  2
 			11:30	NZ	NZ%sT	1946 Jan  1
@@ -440,11 +462,20 @@ Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 # US minor outlying islands
 
 # Howland, Baker
-# uninhabited since World War II
-# no information; was probably like Pacific/Pago_Pago
+# Howland was mined for guano by American companies 1857-1878 and British
+# 1886-1891; Baker was similar but exact dates are not known.
+# Inhabited by civilians 1935-1942; U.S. military bases 1943-1944;
+# uninhabited thereafter.
+# Howland observed Hawaii Standard Time (UTC-10:30) in 1937;
+# see page 206 of Elgen M. Long and Marie K. Long,
+# Amelia Earhart: the Mystery Solved, Simon & Schuster (2000).
+# So most likely Howland and Baker observed Hawaii Time from 1935
+# until they were abandoned after the war.
 
 # Jarvis
-# uninhabited since 1958
+# Mined for guano by American companies 1857-1879 and British 1883?-1891?.
+# Inhabited by civilians 1935-1942; IGY scientific base 1957-1958;
+# uninhabited thereafter.
 # no information; was probably like Pacific/Kiritimati
 
 # Johnston
@@ -534,6 +565,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #		std dst
 #		LMT	Local Mean Time
 #	  8:00	WST WST	Western Australia
+#	  8:45	CWST CWST Central Western Australia*
 #	  9:00	JST	Japan
 #	  9:30	CST CST	Central Australia
 #	 10:00	EST EST	Eastern Australia
@@ -806,65 +838,59 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # From Arthur David Olson (1992-03-08):
 # The chosen rules the union of the 1971/1972 change and the 1989-1992 changes.
 
+# From Christopher Hunt (2006-11-21), after an advance warning
+# from Jesper Norgaard Welen (2006-11-01):
+# WA are trialing DST for three years.
+# <http://www.parliament.wa.gov.au/parliament/bills.nsf/9A1B183144403DA54825721200088DF1/$File/Bill175-1B.pdf>
+
 # From Rives McDow (2002-04-09):
 # The most interesting region I have found consists of three towns on the
-# southern coast of Australia, population 10 at last report, along with
-# 50,000 sheep, about 100 kilometers long and 40 kilometers into the
-# continent.  The primary town is Madura, with the other towns being
-# Mundrabilla and Eucla.  According to the sheriff of Madura, the
-# residents got tired of having to change the time so often, as they are
-# located in a strip overlapping the border of South Australia and Western
-# Australia.  South Australia observes daylight saving time; Western
+# southern coast....  South Australia observes daylight saving time; Western
 # Australia does not.  The two states are one and a half hours apart.  The
 # residents decided to forget about this nonsense of changing the clock so
 # much and set the local time 20 hours and 45 minutes from the
 # international date line, or right in the middle of the time of South
-# Australia and Western Australia.  As it only affects about 10 people and
-# tourists staying at the Madura Motel, it has never really made as big an
-# impact as Broken Hill.  However, as tourist visiting there or anyone
-# calling the local sheriff will attest, they do keep time in this way.
+# Australia and Western Australia....
 #
 # From Paul Eggert (2002-04-09):
 # This is confirmed by the section entitled
 # "What's the deal with time zones???" in
-# <http://www.earthsci.unimelb.edu.au/~awatkins/null.html>,
-# which says a few other things:
+# <http://www.earthsci.unimelb.edu.au/~awatkins/null.html>.
 #
-# * Border Village, SA also is 45 minutes ahead of Perth.
-# * The locals call this time zone "central W.A. Time" (presumably "CWAT").
-# * The locals also call Western Australia time "Perth time".
+# From Alex Livingston (2006-12-07):
+# ... it was just on four years ago that I drove along the Eyre Highway,
+# which passes through eastern Western Australia close to the southern
+# coast of the continent.
 #
-# It's not clear from context whether everyone in Western Australia
-# knows of this naming convention, or whether it's just the people in
-# this subregion.
-
-# South Australia, Tasmania, Victoria
-
-# From Arthur David Olson (1992-03-08):
-# The rules from version 7.1 follow.
-# There are lots of differences between these rules and
-# the Shepherd et al. rules.  Since the Shepherd et al. rules
-# and Bradley White's newspaper article are in agreement on
-# current DST ending dates, no worries.
+# I paid particular attention to the time kept there. There can be no
+# dispute that UTC+08:45 was considered "the time" from the border
+# village just inside the border with South Australia to as far west
+# as just east of Caiguna. There can also be no dispute that Eucla is
+# the largest population centre in this zone....
 #
-# Rule	Oz	1971	1985	-	Oct	lastSun	2:00	1:00	-
-# Rule	Oz	1986	max	-	Oct	Sun>=18	2:00	1:00	-
-# Rule	Oz	1972	only	-	Feb	27	3:00	0	-
-# Rule	Oz	1973	1986	-	Mar	Sun>=1	3:00	0	-
-# Rule	Oz	1987	max	-	Mar	Sun>=15	3:00	0	-
-# Zone	Australia/Tasmania	10:00	Oz	EST
-# Zone	Australia/South		9:30	Oz	CST
-# Zone	Australia/Victoria	10:00	Oz	EST	1985 Oct lastSun 2:00
-#				10:00	1:00	EST	1986 Mar Sun>=15 3:00
-#				10:00	Oz	EST
+# Now that Western Australia is observing daylight saving, the
+# question arose whether this part of the state would follow suit. I
+# just called the border village and confirmed that indeed they have,
+# meaning that they are now observing UTC+09:45.
+#
+# (2006-12-09):
+# I personally doubt that either experimentation with daylight saving
+# in WA or its introduction in SA had anything to do with the genesis
+# of this time zone.  My hunch is that it's been around since well
+# before 1975.  I remember seeing it noted on road maps decades ago.
 
-# From Robert Elz (1991-03-06):
-# I believe that the current start date for DST is "lastSun" in Oct...
-# that changed Oct 89.  That is, we're back to the
-# original rule, and that rule currently applies in all the states
-# that have dst, incl Qld.  (Certainly it was true in Vic).
-# The file I'm including says that happened in 1988, I think
-# that's incorrect, but I'm not 100% certain.
+# From Paul Eggert (2006-12-15):
+# For lack of better info, assume the tradition dates back to the
+# introduction of standard time in 1895.
+
+
+# southeast Australia
+#
+# From Paul Eggert (2007-07-23):
+# Starting autumn 2008 Victoria, NSW, South Australia, Tasmania and the ACT
+# end DST the first Sunday in April and start DST the first Sunday in October.
+# http://www.theage.com.au/news/national/daylight-savings-to-span-six-months/2007/06/27/1182623966703.html
+
 
 # South Australia
 
@@ -910,6 +936,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # was gazetted in the Government Hansard on Sep 26 1994....
 # start on last Sunday in October and end in last sunday in March.
 
+# From Paul Eggert (2007-07-23):
+# See "southeast Australia" above for 2008 and later.
+
 # Tasmania
 
 # The rules for 1967 through 1991 were reported by George Shepherd
@@ -931,6 +960,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # Sim Alam (2000-07-03) reported a legal citation for the 2000/2001 rules:
 # http://www.thelaw.tas.gov.au/fragview/42++1968+GS3A@EN+2000070300
+
+# From Paul Eggert (2007-07-23):
+# See "southeast Australia" above for 2008 and later.
 
 # Victoria
 
@@ -960,6 +992,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #
 # [1] http://www.hup.harvard.edu/catalog/HEISUN.html
 # [2] http://www.shrine.org.au
+
+# From Paul Eggert (2007-07-23):
+# See "southeast Australia" above for 2008 and later.
 
 # New South Wales
 
@@ -1027,6 +1062,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # The Queensland Premier Peter Beattie is encouraging northern NSW
 # towns to use Queensland time.
 
+# From Paul Eggert (2007-07-23):
+# See "southeast Australia" above for 2008 and later.
+
 # Yancowinna
 
 # From John Mackin (1989-01-04):
@@ -1078,6 +1116,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # For Lord Howe dates we use Shanks & Pottenger through 1989, and
 # Lonergan thereafter.  For times we use Lonergan.
 
+# From Paul Eggert (2007-07-23):
+# See "southeast Australia" above for 2008 and later.
+
 ###############################################################################
 
 # New Zealand
@@ -1121,6 +1162,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # For Chatham, IATA SSIM (1991/1999) gives the NZ rules but with
 # transitions at 2:45 local standard time; this confirms that Chatham
 # is always exactly 45 minutes ahead of Auckland.
+
+# From Colin Sharples (2007-04-30):
+# DST will now start on the last Sunday in September, and end on the
+# first Sunday in April.  The changes take effect this year, meaning
+# that DST will begin on 2007-09-30 2008-04-06.
+# http://www.dia.govt.nz/diawebsite.nsf/wpg_URL/Services-Daylight-Saving-Daylight-saving-to-be-extended
 
 ###############################################################################
 
