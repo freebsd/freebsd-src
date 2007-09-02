@@ -742,8 +742,17 @@
   <sect2 id="wlan">
     <title>Wireless Network Interfaces</title>
 
-    <para>[&arch.i386;] NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
-    ISA/radio LAN cards (&man.wl.4; driver)</para>
+    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet 802.11b wireless adapters (&man.an.4; driver)
+    </para>
+
+    &hwlist.ath;
+
+    &hwlist.awi;
+
+    &hwlist.cnw;
+
+    <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
+    </para>
 
     <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent Technologies WaveLAN/IEEE 802.11b
       wireless network
@@ -752,17 +761,8 @@
       Spectrum24 chipsets (&man.wi.4; driver)
     </para>
 
-    <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet 802.11b wireless adapters (&man.an.4; driver)
-    </para>
-
-    <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
-    </para>
-
-    &hwlist.awi;
-
-    &hwlist.cnw;
-
-    &hwlist.ath;
+    <para>[&arch.i386;] NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
+    ISA/radio LAN cards (&man.wl.4; driver)</para>
 
     &hwlist.zyd;
 
