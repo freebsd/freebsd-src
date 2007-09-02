@@ -415,7 +415,8 @@ MAN=	aac.4 \
 	xe.4 \
 	xl.4 \
 	xpt.4 \
-	zero.4
+	zero.4 \
+	zyd.4
 
 MLINKS=	agp.4 agpgart.4
 MLINKS+=altq.4 ALTQ.4
