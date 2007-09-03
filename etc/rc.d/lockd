@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: lockd
-# REQUIRE: nfsserver nfsclient nfsd rpcbind
+# REQUIRE: nfsserver nfsclient nfsd rpcbind statd
 # BEFORE:  DAEMON
 # KEYWORD: nojail
 
