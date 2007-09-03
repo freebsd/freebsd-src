@@ -336,7 +336,7 @@ struct l_statfs64 {
 #define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
 #define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
 #define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
-#define LINUX_DEVFS_SUPER_MAGIC	0x1373L
+#define	LINUX_DEVFS_SUPER_MAGIC	0x1373L
 
 static long
 bsd_to_linux_ftype(const char *fstypename)

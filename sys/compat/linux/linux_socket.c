@@ -358,6 +358,48 @@ linux_to_bsd_msg_flags(int flags)
 	return ret_flags;
 }
 
+/*
+* If bsd_to_linux_sockaddr() or linux_to_bsd_sockaddr() faults, then the
+* native syscall will fault.  Thus, we don't really need to check the
+* return values for these functions.
+*/
+
+static int
+bsd_to_linux_sockaddr(struct sockaddr *arg)
+{
+	struct sockaddr sa;
+	size_t sa_len = sizeof(struct sockaddr);
+	int error;
+	
+	if ((error = copyin(arg, &sa, sa_len)))
+		return (error);
+	
+	*(u_short *)&sa = sa.sa_family;
+	
+	error = copyout(&sa, arg, sa_len);
+	
+	return (error);
+}
+
+static int
+linux_to_bsd_sockaddr(struct sockaddr *arg, int len)
+{
+	struct sockaddr sa;
+	size_t sa_len = sizeof(struct sockaddr);
+	int error;
+
+	if ((error = copyin(arg, &sa, sa_len)))
+		return (error);
+
+	sa.sa_family = *(sa_family_t *)&sa;
+	sa.sa_len = len;
+
+	error = copyout(&sa, arg, sa_len);
+
+	return (error);
+}
+
+
 static int
 linux_sa_put(struct osockaddr *osa)
 {
@@ -589,7 +631,10 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 	if (error)
 		return (error);
 
-	return (kern_bind(td, linux_args.s, sa));
+	error = kern_bind(td, linux_args.s, sa);
+	if (error == EADDRNOTAVAIL && linux_args.namelen != sizeof(struct sockaddr_in))
+	   	return (EINVAL);
+	return (error);
 }
 
 struct linux_connect_args {
@@ -692,9 +737,6 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 		struct sockaddr * __restrict name;
 		socklen_t * __restrict anamelen;
 	} */ bsd_args;
-	struct close_args /* {
-		int     fd;
-	} */ c_args;
 	int error, fd;
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
@@ -704,14 +746,17 @@ linux_accept(struct thread *td, struct linux_accept_args *args)
 	/* XXX: */
 	bsd_args.name = (struct sockaddr * __restrict)PTRIN(linux_args.addr);
 	bsd_args.anamelen = PTRIN(linux_args.namelen);/* XXX */
-	error = oaccept(td, &bsd_args);
-	if (error)
+	error = accept(td, &bsd_args);
+	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.name);
+	if (error) {
+	   	if (error == EFAULT && linux_args.namelen != sizeof(struct sockaddr_in))
+		   	return (EINVAL);
 		return (error);
+	}
 	if (linux_args.addr) {
 		error = linux_sa_put(PTRIN(linux_args.addr));
 		if (error) {
-			c_args.fd = td->td_retval[0];
-			(void)close(td, &c_args);
+			(void)kern_close(td, td->td_retval[0]);
 			return (error);
 		}
 	}
@@ -751,7 +796,8 @@ linux_getsockname(struct thread *td, struct linux_getsockname_args *args)
 	/* XXX: */
 	bsd_args.asa = (struct sockaddr * __restrict)PTRIN(linux_args.addr);
 	bsd_args.alen = PTRIN(linux_args.namelen);	/* XXX */
-	error = ogetsockname(td, &bsd_args);
+	error = getsockname(td, &bsd_args);
+	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)
 		return (error);
 	error = linux_sa_put(PTRIN(linux_args.addr));
@@ -770,7 +816,7 @@ static int
 linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 {
 	struct linux_getpeername_args linux_args;
-	struct ogetpeername_args /* {
+	struct getpeername_args /* {
 		int fdes;
 		caddr_t asa;
 		int *alen;
@@ -781,9 +827,10 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 		return (error);
 
 	bsd_args.fdes = linux_args.s;
-	bsd_args.asa = (caddr_t)PTRIN(linux_args.addr);
+	bsd_args.asa = (struct sockaddr *)PTRIN(linux_args.addr);
 	bsd_args.alen = (int *)PTRIN(linux_args.namelen);
-	error = ogetpeername(td, &bsd_args);
+	error = getpeername(td, &bsd_args);
+	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)
 		return (error);
 	error = linux_sa_put(PTRIN(linux_args.addr));
@@ -955,7 +1002,11 @@ linux_recvfrom(struct thread *td, struct linux_recvfrom_args *args)
 	/* XXX: */
 	bsd_args.from = (struct sockaddr * __restrict)PTRIN(linux_args.from);
 	bsd_args.fromlenaddr = PTRIN(linux_args.fromlen);/* XXX */
-	error = orecvfrom(td, &bsd_args);
+	
+	linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.from, len);
+	error = recvfrom(td, &bsd_args);
+	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.from);
+	
 	if (error)
 		return (error);
 	if (linux_args.from) {
@@ -1034,10 +1085,19 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
 		return (error);
 
+	if ((error = copyin(PTRIN(args->msg), &msg, sizeof (msg))))
+		return (error);
+
 	bsd_args.s = linux_args.s;
 	bsd_args.msg = PTRIN(linux_args.msg);
 	bsd_args.flags = linux_to_bsd_msg_flags(linux_args.flags);
-	error = recvmsg(td, &bsd_args);
+	if (msg.msg_name) {
+	   	linux_to_bsd_sockaddr((struct sockaddr *)msg.msg_name,
+		      msg.msg_namelen);
+		error = recvmsg(td, &bsd_args);
+		bsd_to_linux_sockaddr((struct sockaddr *)msg.msg_name);
+	} else
+	   	error = recvmsg(td, &bsd_args);
 	if (error)
 		return (error);
 
@@ -1120,12 +1180,21 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		break;
 	}
 	if (name == -1)
-		return (EINVAL);
+		return (ENOPROTOOPT);
 
 	bsd_args.name = name;
 	bsd_args.val = PTRIN(linux_args.optval);
 	bsd_args.valsize = linux_args.optlen;
-	return (setsockopt(td, &bsd_args));
+
+	if (name == IPV6_NEXTHOP) {
+		linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.val,
+			bsd_args.valsize);
+		error = setsockopt(td, &bsd_args);
+		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
+	} else
+		error = setsockopt(td, &bsd_args);
+
+	return (error);
 }
 
 struct linux_getsockopt_args {
@@ -1175,7 +1244,14 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	bsd_args.name = name;
 	bsd_args.val = PTRIN(linux_args.optval);
 	bsd_args.avalsize = PTRIN(linux_args.optlen);
-	return (getsockopt(td, &bsd_args));
+
+	if (name == IPV6_NEXTHOP) {
+		error = getsockopt(td, &bsd_args);
+		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
+	} else
+		error = getsockopt(td, &bsd_args);
+
+	return (error);
 }
 
 int

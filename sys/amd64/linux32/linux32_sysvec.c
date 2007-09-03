@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"
 
-#ifndef COMPAT_43
-#error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
-#endif
 #ifndef COMPAT_IA32
 #error "Unable to compile Linux-emulator due to missing COMPAT_IA32 option!"
 #endif
