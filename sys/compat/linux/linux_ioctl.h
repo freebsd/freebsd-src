@@ -396,6 +396,8 @@
 #define	LINUX_TIOCSBRK		0x5427
 #define	LINUX_TIOCCBRK		0x5428
 
+#define	LINUX_TIOCGPTN		0x5430
+
 #ifdef __alpha__
 #define	LINUX_FIOCLEX		0x6601
 #define	LINUX_FIONCLEX		0x6602

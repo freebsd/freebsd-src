@@ -29,13 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* XXX we use functions that might not exist. */
-#include "opt_compat.h"
-
-#ifndef COMPAT_43
-#error "Unable to compile Linux-emulator due to missing COMPAT_43 option!"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/exec.h>
