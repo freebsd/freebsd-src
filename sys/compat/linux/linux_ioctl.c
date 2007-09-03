@@ -1014,7 +1014,15 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = TIOCCBRK;
 		error = (ioctl(td, (struct ioctl_args *)args));
 		break;
-
+	case LINUX_TIOCGPTN: {
+		int nb;
+		
+		error = fo_ioctl(fp, LINUX_TIOCGPTN, (caddr_t)&nb, td->td_ucred, td);
+		if (!error)
+			error = copyout(&nb, (void *)args->arg,
+			    sizeof(int));
+		break;
+	}
 	default:
 		error = ENOIOCTL;
 		break;
