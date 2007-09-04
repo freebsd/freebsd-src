@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/ktrace.h>
 #include <sys/sx.h>
+#include <sys/condvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>

@@ -99,14 +99,18 @@
  */
 
 /* Acquire a write lock. */
-#define	__rw_wlock(rw, tid, file, line) do {				\
+#define	__rw_wlock(rw, tid, file, line) do {	\
 	uintptr_t _tid = (uintptr_t)(tid);				\
+	/* int contested = 0; XXX: notsup */                                             \
+        /*uint64_t waitstart = 0; XXX: notsup */                                         \
 						                        \
-	if (!_rw_write_lock((rw), _tid))				\
+	if (!_rw_write_lock((rw), _tid)) {				\
+		lock_profile_obtain_lock_failed(&(rw)->lock_object,	\
+		    &contested, &waitstart);				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
-	else								\
-		lock_profile_obtain_lock_success(&(rw)->lock_object, 0,	\
-		    0, (file), (line));					\
+	}                                                               \
+	lock_profile_obtain_lock_success(&(rw)->lock_object, contested,	\
+	    waitstart, (file), (line));					\
 } while (0)
 
 /* Release a write lock. */

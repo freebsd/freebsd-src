@@ -237,7 +237,16 @@ They would be given priorities calculated from the KSEG.
  * When waiting to be run, threads are hung off the KSEGRP in priority order.
  * With N runnable and queued KSEs in the KSEGRP, the first N threads
  * are linked to them. Other threads are not yet assigned.
+ *
+ * We must force at least 16 byte alignment for "struct thread"
+ * because the rwlocks and sxlocks expect to use the bottom bits
+ * of the pointer for bookkeeping information.
+ *
+ * This causes problems for the thread0 data structure because it
+ * may not be properly aligned otherwise.
  */
+#define THREAD_ALIGN	16
+
 struct thread {
 	struct proc	*td_proc;	/* (*) Associated process. */
 	struct ksegrp	*td_ksegrp;	/* (*) Associated KSEG. */
@@ -261,12 +270,14 @@ struct thread {
 	int		td_inhibitors;	/* (j) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
+	int		td_sqqueue;	/* (t) Sleepqueue queue blocked on. */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	short		td_locks;	/* (k) Count of non-spin locks. */
+	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
 	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
 	void		*td_ithd;	/* (n) Unused, kept to preserve ABI. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
@@ -324,7 +335,8 @@ struct thread {
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
-};
+} __attribute__ ((aligned (THREAD_ALIGN)));
+
 
 /*
  * Flags kept in td_flags:

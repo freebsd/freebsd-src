@@ -144,6 +144,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <machine/bus.h>

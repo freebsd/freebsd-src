@@ -76,6 +76,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <net/if.h>

@@ -429,7 +429,7 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
 	else
-		_sx_xlock(&map->lock, file, line);
+		(void) _sx_xlock(&map->lock, 0, file, line);
 	map->timestamp++;
 }
 
@@ -450,7 +450,7 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
 	else
-		_sx_xlock(&map->lock, file, line);
+		(void) _sx_xlock(&map->lock, 0, file, line);
 }
 
 void
