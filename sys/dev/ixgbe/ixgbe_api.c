@@ -32,6 +32,7 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
+
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 
@@ -52,7 +53,7 @@ extern s32 ixgbe_init_shared_code_phy(struct ixgbe_hw *hw);
  **/
 s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 {
-	s32 status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
+	s32 status;
 
 	/*
 	 * Assign generic function pointers before entering adapter-specific
@@ -60,23 +61,53 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 	 */
 	ixgbe_assign_func_pointers_generic(hw);
 
-	if (hw->vendor_id == IXGBE_INTEL_VENDOR_ID) {
-		switch (hw->device_id) {
-		case IXGBE_DEV_ID_82598:
-		case IXGBE_DEV_ID_82598_FPGA:
-		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
-		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
-		case IXGBE_DEV_ID_82598AT_DUAL_PORT:
-			status = ixgbe_init_shared_code_82598(hw);
-			status = ixgbe_init_shared_code_phy(hw);
-			break;
-		default:
-			status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
-			break;
-		}
+	/*
+	 * Set the mac type
+	 */
+	ixgbe_set_mac_type(hw);
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		status = ixgbe_init_shared_code_82598(hw);
+		status = ixgbe_init_shared_code_phy(hw);
+		break;
+	default:
+		status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
+		break;
 	}
 
 	return status;
+}
+
+/**
+ *  ixgbe_set_mac_type - Sets MAC type
+ *  @hw: pointer to the HW structure
+ *
+ *  This function sets the mac type of the adapter based on the
+ *  vendor ID and device ID stored in the hw structure.
+ **/
+s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
+{
+	s32 ret_val = IXGBE_SUCCESS;
+
+	DEBUGFUNC("ixgbe_set_mac_type");
+
+	if (hw->vendor_id == IXGBE_INTEL_VENDOR_ID) {
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
+		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
+		case IXGBE_DEV_ID_82598EB_CX4:
+			hw->mac.type = ixgbe_mac_82598EB;
+			break;
+		default:
+			ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
+			break;
+		}
+	} else {
+		ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
+	}
+
+	return ret_val;
 }
 
 /**
@@ -640,6 +671,35 @@ s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan, u32 vind, bool vlan_on)
 s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 {
 	return ixgbe_call_func(hw, ixgbe_func_setup_fc, (hw, packetbuf_num),
+			       IXGBE_NOT_IMPLEMENTED);
+}
+
+
+/**
+ *  ixgbe_read_analog_reg8 - Reads 8 bit analog register
+ *  @hw: pointer to hardware structure
+ *  @reg: analog register to read
+ *  @val: read value
+ *
+ *  Performs write operation to analog register specified.
+ **/
+s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val)
+{
+	return ixgbe_call_func(hw, ixgbe_func_read_analog_reg8, (hw, reg, val),
+			       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_write_analog_reg8 - Writes 8 bit analog register
+ *  @hw: pointer to hardware structure
+ *  @reg: analog register to write
+ *  @val: value to write
+ *
+ *  Performs write operation to Atlas analog register specified.
+ **/
+s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val)
+{
+	return ixgbe_call_func(hw, ixgbe_func_write_analog_reg8, (hw, reg, val),
 			       IXGBE_NOT_IMPLEMENTED);
 }
 

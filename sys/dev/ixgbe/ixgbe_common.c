@@ -32,6 +32,7 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
+
 #include "ixgbe_common.h"
 #include "ixgbe_api.h"
 
@@ -132,9 +133,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 
 	/* Clear statistics registers */
 	ixgbe_clear_hw_cntrs(hw);
-
-	/* Set up flow control */
-	ixgbe_setup_fc(hw, 0);
 
 	/* Set No Snoop Disable */
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);

@@ -41,11 +41,9 @@
 #define IXGBE_INTEL_VENDOR_ID   0x8086
 
 /* Device IDs */
-#define IXGBE_DEV_ID_82598               0x10B6
-#define IXGBE_DEV_ID_82598_FPGA          0xF0C0
 #define IXGBE_DEV_ID_82598AF_DUAL_PORT   0x10C6
 #define IXGBE_DEV_ID_82598AF_SINGLE_PORT 0x10C7
-#define IXGBE_DEV_ID_82598AT_DUAL_PORT   0x10C8
+#define IXGBE_DEV_ID_82598EB_CX4         0x10DD
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
@@ -280,23 +278,17 @@
 #define IXGBE_DCA_CTRL  0x11074
 
 /* Diagnostic Registers */
-#define IXGBE_RDSTATCTL 0x02C20
-#define IXGBE_RDSTAT(_i) (0x02C00 + ((_i) * 4)) /* 0x02C00-0x02C1C */
-#define IXGBE_RDHMPN    0x02F08
-#define IXGBE_RIC_DW0   0x02F10
-#define IXGBE_RIC_DW1   0x02F14
-#define IXGBE_RIC_DW2   0x02F18
-#define IXGBE_RIC_DW3   0x02F1C
-#define IXGBE_RDPROBE   0x02F20
-#define IXGBE_TDSTATCTL 0x07C20
-#define IXGBE_TDSTAT(_i) (0x07C00 + ((_i) * 4)) /* 0x07C00 - 0x07C1C */
-#define IXGBE_TDHMPN    0x07F08
-#define IXGBE_TIC_DW0   0x07F10
-#define IXGBE_TIC_DW1   0x07F14
-#define IXGBE_TIC_DW2   0x07F18
-#define IXGBE_TIC_DW3   0x07F1C
-#define IXGBE_TDPROBE   0x07F20
-#define IXGBE_TXBUFCTRL 0x0C600
+#define IXGBE_RDSTATCTL   0x02C20
+#define IXGBE_RDSTAT(_i)  (0x02C00 + ((_i) * 4)) /* 0x02C00-0x02C1C */
+#define IXGBE_RDHMPN      0x02F08
+#define IXGBE_RIC_DW(_i)  (0x02F10 + ((_i) * 4))
+#define IXGBE_RDPROBE     0x02F20
+#define IXGBE_TDSTATCTL   0x07C20
+#define IXGBE_TDSTAT(_i)  (0x07C00 + ((_i) * 4)) /* 0x07C00 - 0x07C1C */
+#define IXGBE_TDHMPN      0x07F08
+#define IXGBE_TIC_DW(_i)  (0x07F10 + ((_i) * 4))
+#define IXGBE_TDPROBE     0x07F20
+#define IXGBE_TXBUFCTRL   0x0C600
 #define IXGBE_TXBUFDATA0  0x0C610
 #define IXGBE_TXBUFDATA1  0x0C614
 #define IXGBE_TXBUFDATA2  0x0C618
@@ -393,6 +385,8 @@
 
 #define IXGBE_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
 #define IXGBE_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
+#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* TX Desc writeback RO bit */
+#define IXGBE_DCA_MAX_QUEUES_82598   16 /* DCA regs only on 16 queues */
 
 /* MSCA Bit Masks */
 #define IXGBE_MSCA_NP_ADDR_MASK      0x0000FFFF /* MDI Address (new protocol) */
@@ -415,10 +409,23 @@
 #define IXGBE_MSCA_MDI_IN_PROG_EN    0x80000000 /* MDI in progress enable */
 
 /* MSRWD bit masks */
-#define IXGBE_MSRWD_WRITE_DATA_MASK  0x0000FFFF
-#define IXGBE_MSRWD_WRITE_DATA_SHIFT 0
-#define IXGBE_MSRWD_READ_DATA_MASK   0xFFFF0000
-#define IXGBE_MSRWD_READ_DATA_SHIFT  16
+#define IXGBE_MSRWD_WRITE_DATA_MASK     0x0000FFFF
+#define IXGBE_MSRWD_WRITE_DATA_SHIFT    0
+#define IXGBE_MSRWD_READ_DATA_MASK      0xFFFF0000
+#define IXGBE_MSRWD_READ_DATA_SHIFT     16
+
+/* Atlas registers */
+#define IXGBE_ATLAS_PDN_LPBK    0x24
+#define IXGBE_ATLAS_PDN_10G     0xB
+#define IXGBE_ATLAS_PDN_1G      0xC
+#define IXGBE_ATLAS_PDN_AN      0xD
+
+/* Atlas bit masks */
+#define IXGBE_ATLASCTL_WRITE_CMD        0x00010000
+#define IXGBE_ATLAS_PDN_TX_REG_EN       0x10
+#define IXGBE_ATLAS_PDN_TX_10G_QL_ALL   0xF0
+#define IXGBE_ATLAS_PDN_TX_1G_QL_ALL    0xF0
+#define IXGBE_ATLAS_PDN_TX_AN_QL_ALL    0xF0
 
 /* Device Type definitions for new protocol MDIO commands */
 #define IXGBE_MDIO_PMA_PMD_DEV_TYPE               0x1
@@ -426,6 +433,8 @@
 #define IXGBE_MDIO_PHY_XS_DEV_TYPE                0x4
 #define IXGBE_MDIO_AUTO_NEG_DEV_TYPE              0x7
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE     0x1E   /* Device 30 */
+
+#define IXGBE_MDIO_COMMAND_TIMEOUT     100 /* PHY Timeout for 1 GB mode */
 
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_CONTROL      0x0    /* VS1 Control Reg */
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_STATUS       0x1    /* VS1 Status Reg */
@@ -448,7 +457,6 @@
 #define IXGBE_MAX_PHY_ADDR             32
 
 /* PHY IDs*/
-#define TN1010_PHY_ID    0x00A19410
 #define QT2022_PHY_ID    0x0043A400
 
 /* General purpose Interrupt Enable */
@@ -689,7 +697,29 @@
 #define IXGBE_LINKS_TL_FAULT    0x00001000
 #define IXGBE_LINKS_SIGNAL      0x00000F00
 
-#define IXGBE_AUTO_NEG_TIME     45  /* 4.5 Seconds */
+#define IXGBE_AUTO_NEG_TIME     45 /* 4.5 Seconds */
+
+#define FIBER_LINK_UP_LIMIT     50
+
+/* PCS1GLSTA Bit Masks */
+#define IXGBE_PCS1GLSTA_LINK_OK         1
+#define IXGBE_PCS1GLSTA_SYNK_OK         0x10
+#define IXGBE_PCS1GLSTA_AN_COMPLETE     0x10000
+#define IXGBE_PCS1GLSTA_AN_PAGE_RX      0x20000
+#define IXGBE_PCS1GLSTA_AN_TIMED_OUT    0x40000
+#define IXGBE_PCS1GLSTA_AN_REMOTE_FAULT 0x80000
+#define IXGBE_PCS1GLSTA_AN_ERROR_RWS    0x100000
+
+#define IXGBE_PCS1GANA_SYM_PAUSE        0x80
+#define IXGBE_PCS1GANA_ASM_PAUSE        0x100
+
+/* PCS1GLCTL Bit Masks */
+#define IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN  0x00040000 /* PCS 1G autoneg timeout enable (bit 18) */
+#define IXGBE_PCS1GLCTL_FLV_LINK_UP     1
+#define IXGBE_PCS1GLCTL_FORCE_LINK      0x20
+#define IXGBE_PCS1GLCTL_LOW_LINK_LATCH  0x40
+#define IXGBE_PCS1GLCTL_AN_ENABLE       0x10000
+#define IXGBE_PCS1GLCTL_AN_RESTART      0x20000
 
 /* SW Semaphore Register bitmasks */
 #define IXGBE_SWSM_SMBI 0x00000001 /* Driver Semaphore bit */
@@ -741,6 +771,11 @@
 #define IXGBE_CSR1_CONFIG_PTR   0x0E
 #define IXGBE_FW_PTR            0x0F
 
+/* Legacy EEPROM word offsets */
+#define IXGBE_ISCSI_BOOT_CAPS           0x0033
+#define IXGBE_ISCSI_SETUP_PORT_0        0x0030
+#define IXGBE_ISCSI_SETUP_PORT_1        0x0034
+
 /* EEPROM Commands - SPI */
 #define IXGBE_EEPROM_MAX_RETRY_SPI      5000 /* Max wait 5ms for RDY signal */
 #define IXGBE_EEPROM_STATUS_RDY_SPI     0x01
@@ -783,6 +818,8 @@
 #define IXGBE_PCI_LINK_SPEED      0xF
 #define IXGBE_PCI_LINK_SPEED_2500 0x1
 #define IXGBE_PCI_LINK_SPEED_5000 0x2
+#define IXGBE_PCI_HEADER_TYPE_REGISTER  0x0E
+#define IXGBE_PCI_HEADER_TYPE_MULTIFUNC 0x80
 
 /* Number of 100 microseconds we wait for PCI Express master disable */
 #define IXGBE_PCI_MASTER_DISABLE_TIMEOUT 800
@@ -911,14 +948,15 @@
 #define IXGBE_RXD_CFI_SHIFT     12
 
 /* SRRCTL bit definitions */
-#define IXGBE_SRRCTL_BSIZEPKT_SHIFT 10     /* so many KBs */
-#define IXGBE_SRRCTL_BSIZEPKT_MASK  0x0000007F
-#define IXGBE_SRRCTL_BSIZEHDR_MASK  0x00003F00
-#define IXGBE_SRRCTL_DESCTYPE_LEGACY 0x00000000
+#define IXGBE_SRRCTL_BSIZEPKT_SHIFT     10     /* so many KBs */
+#define IXGBE_SRRCTL_BSIZEPKT_MASK      0x0000007F
+#define IXGBE_SRRCTL_BSIZEHDR_MASK      0x00003F00
+#define IXGBE_SRRCTL_DESCTYPE_LEGACY    0x00000000
 #define IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF 0x02000000
 #define IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT  0x04000000
 #define IXGBE_SRRCTL_DESCTYPE_HDR_REPLICATION_LARGE_PKT 0x08000000
 #define IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS 0x0A000000
+#define IXGBE_SRRCTL_DESCTYPE_MASK      0x0E000000
 
 #define IXGBE_RXDPS_HDRSTAT_HDRSP       0x00008000
 #define IXGBE_RXDPS_HDRSTAT_HDRLEN_MASK 0x000003FF
@@ -1107,6 +1145,7 @@ typedef u32 ixgbe_autoneg_advertised;
 /* Link speed */
 typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_UNKNOWN   0
+#define IXGBE_LINK_SPEED_100_FULL  0x0008
 #define IXGBE_LINK_SPEED_1GB_FULL  0x0020
 #define IXGBE_LINK_SPEED_10GB_FULL 0x0080
 
@@ -1125,7 +1164,6 @@ enum ixgbe_mac_type {
 
 enum ixgbe_phy_type {
 	ixgbe_phy_unknown = 0,
-	ixgbe_phy_tn,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui
 };
@@ -1287,8 +1325,8 @@ struct ixgbe_functions
 	u32 (*ixgbe_func_get_num_of_rx_queues)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_stop_adapter)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_get_bus_info)(struct ixgbe_hw *);
-
-
+	s32 (*ixgbe_func_read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
+	s32 (*ixgbe_func_write_analog_reg8)(struct ixgbe_hw*, u32, u8);
 	/* PHY */
 	s32 (*ixgbe_func_identify_phy)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_reset_phy)(struct ixgbe_hw *);
@@ -1347,6 +1385,8 @@ struct ixgbe_mac_info {
 	u32                 link_attach_type;
 	u32                 link_mode_select;
 	bool                link_settings_loaded;
+	bool                autoneg;
+	bool                autoneg_failed;
 };
 
 struct ixgbe_phy_info {
