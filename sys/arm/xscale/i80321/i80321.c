@@ -213,8 +213,6 @@ i80321_attach(struct i80321_softc *sc)
 		    PCIM_CMD_SERRESPEN;
 		bus_space_write_4(sc->sc_st, sc->sc_atu_sh,
 		    PCIR_COMMAND, preg);
-		preg = bus_space_read_4(sc->sc_st, sc->sc_atu_sh,
-		    PCIR_COMMAND);
 	}
 	/* Initialize the bus space tags. */
 	i80321_io_bs_init(&sc->sc_pci_iot, sc);
