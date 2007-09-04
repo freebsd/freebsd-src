@@ -244,7 +244,7 @@ main(argc, argv)
 		quit(QUIT_OK);
 	}
 
-	if (missing_cap && !know_dumb)
+	if (missing_cap && !know_dumb && !less_is_more)
 		error("WARNING: terminal is not fully functional", NULL_PARG);
 	init_mark();
 	open_getchr();
