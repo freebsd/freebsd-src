@@ -57,14 +57,4 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 				u32 device_type, u16 phy_data);
 
-/* PHY specific */
-s32 ixgbe_setup_tnx_phy_link(struct ixgbe_hw *hw);
-s32 ixgbe_check_tnx_phy_link(struct ixgbe_hw *hw,
-			     ixgbe_link_speed *speed,
-			     bool *link_up);
-s32 ixgbe_setup_tnx_phy_link_speed(struct ixgbe_hw *hw,
-				  ixgbe_link_speed speed,
-				  bool autoneg,
-				  bool autoneg_wait_to_complete);
-
 #endif /* _IXGBE_PHY_H_ */

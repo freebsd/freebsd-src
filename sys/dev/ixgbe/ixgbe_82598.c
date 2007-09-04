@@ -32,6 +32,7 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
+
 #include "ixgbe_type.h"
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
@@ -73,6 +74,10 @@ s32 ixgbe_reset_hw_rev_0_82598(struct ixgbe_hw *hw);
 #endif
 s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw);
 u32 ixgbe_get_num_rx_addrs_82598(struct ixgbe_hw *hw);
+s32 ixgbe_configure_fiber_serdes_fc_82598(struct ixgbe_hw *hw);
+s32 ixgbe_setup_fiber_serdes_link_82598(struct ixgbe_hw *hw);
+s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val);
+s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val);
 
 
 /**
@@ -84,9 +89,6 @@ u32 ixgbe_get_num_rx_addrs_82598(struct ixgbe_hw *hw);
  **/
 s32 ixgbe_init_shared_code_82598(struct ixgbe_hw *hw)
 {
-	/* Set MAC type */
-	hw->mac.type = ixgbe_mac_82598EB;
-
 	/* Assign function pointers */
 	ixgbe_assign_func_pointers_82598(hw);
 
@@ -109,6 +111,10 @@ s32 ixgbe_assign_func_pointers_82598(struct ixgbe_hw *hw)
 			       &ixgbe_get_num_of_tx_queues_82598;
 	hw->func.ixgbe_func_get_num_of_rx_queues =
 			       &ixgbe_get_num_of_rx_queues_82598;
+	hw->func.ixgbe_func_read_analog_reg8 =
+			       &ixgbe_read_analog_reg8_82598;
+	hw->func.ixgbe_func_write_analog_reg8 =
+			       &ixgbe_write_analog_reg8_82598;
 #ifndef NO_82598_A0_SUPPORT
 	if (hw->revision_id == 0) {
 		hw->func.ixgbe_func_reset_hw =
@@ -250,17 +256,10 @@ enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 
 	/* Media type for I82598 is based on device ID */
 	switch (hw->device_id) {
-	case IXGBE_DEV_ID_82598:
-		/* Default device ID is mezzanine card KX/KX4 */
-		media_type = ixgbe_media_type_backplane;
-		break;
-	case IXGBE_DEV_ID_82598_FPGA:
 	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
 	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
+	case IXGBE_DEV_ID_82598EB_CX4:
 		media_type = ixgbe_media_type_fiber;
-		break;
-	case IXGBE_DEV_ID_82598AT_DUAL_PORT:
-		media_type = ixgbe_media_type_copper;
 		break;
 	default:
 		media_type = ixgbe_media_type_unknown;
@@ -278,9 +277,6 @@ enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
  **/
 u32 ixgbe_get_num_of_tx_queues_82598(struct ixgbe_hw *hw)
 {
-	if (hw->device_id == IXGBE_DEV_ID_82598_FPGA)
-		return 8;
-
 	return IXGBE_82598_MAX_TX_QUEUES;
 }
 
@@ -292,9 +288,6 @@ u32 ixgbe_get_num_of_tx_queues_82598(struct ixgbe_hw *hw)
  **/
 u32 ixgbe_get_num_of_rx_queues_82598(struct ixgbe_hw *hw)
 {
-	if (hw->device_id == IXGBE_DEV_ID_82598_FPGA)
-		return 8;
-
 	return IXGBE_82598_MAX_RX_QUEUES;
 }
 
@@ -307,6 +300,8 @@ u32 ixgbe_get_num_of_rx_queues_82598(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
 {
+	ixgbe_link_speed speed;
+	bool link_up;
 	u32 autoc_reg;
 	u32 links_reg;
 	u32 i;
@@ -346,6 +341,22 @@ s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
 		}
 	}
 
+	/*
+	 * We want to save off the original Flow Control configuration just in
+	 * case we get disconnected and then reconnected into a different hub
+	 * or switch with different Flow Control capabilities.
+	 */
+	hw->fc.type = hw->fc.original_type;
+	/*
+	 * Set up the SerDes link if in 1Gb mode, otherwise just set up
+	 * 10Gb flow control.
+	 */
+	ixgbe_check_link(hw, &speed, &link_up);
+	if (speed == IXGBE_LINK_SPEED_1GB_FULL)
+		status = ixgbe_setup_fiber_serdes_link_82598(hw);
+	else
+		ixgbe_setup_fc_generic(hw, 0);
+
 	/* Add delay to filter out noises during initial link setup */
 	msec_delay(50);
 
@@ -377,6 +388,236 @@ s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_configure_fiber_serdes_fc_82598 - Configure fiber flow control
+ *  @hw: pointer to hardware structure
+ *
+ *  Reads PCS registers and sets flow control settings, based on
+ *  link-partner's abilities.
+ **/
+s32 ixgbe_configure_fiber_serdes_fc_82598(struct ixgbe_hw *hw)
+{
+	s32 ret_val = IXGBE_SUCCESS;
+	u32 delay = 300, pcs_anadv_reg, pcs_lpab_reg, pcs_lstat_reg, i;
+
+	DEBUGFUNC("ixgbe_configure_fiber_serdes_fc_82598");
+
+	/* Check that autonegotiation has completed */
+	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
+		/*
+		 * Delay 300msec before reading PCS1GLSTA.  Reading PCS1GLSTA
+		 * before then will sometimes result in AN_COMPLETE not being
+		 * set.
+		 */
+		msec_delay(delay);
+		pcs_lstat_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
+		if (pcs_lstat_reg & IXGBE_PCS1GLSTA_AN_COMPLETE) {
+			if (pcs_lstat_reg & (IXGBE_PCS1GLSTA_LINK_OK)) {
+				if (!(pcs_lstat_reg &
+				    (IXGBE_PCS1GLSTA_AN_TIMED_OUT)))
+					hw->mac.autoneg_failed = 0;
+				else
+					hw->mac.autoneg_failed = 1;
+				break;
+			} else {
+				hw->mac.autoneg_failed = 1;
+				break;
+			}
+		}
+
+		/*
+		 * Increment the delay time by 50ms to wait before reading
+		 * PCS1GLSTA again.
+		 */
+		delay += 50;
+	}
+
+	if (i == FIBER_LINK_UP_LIMIT)
+		hw->mac.autoneg_failed = 1;
+
+	if (hw->mac.autoneg_failed) {
+		/*
+		 * AutoNeg failed to achieve a link, so we will turn
+		 * flow control off.
+		 */
+		hw->fc.type = ixgbe_fc_none;
+		DEBUGOUT("Flow Control = NONE.\n");
+		ret_val = ixgbe_setup_fc_generic(hw, 0);
+		goto out;
+	}
+
+	/*
+	 * Read the AN advertisement and LP ability registers and resolve
+	 * local flow control settings accordingly
+	 */
+	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
+	if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE)) {
+		/*
+		 * Now we need to check if the user selected RX ONLY
+		 * of pause frames.  In this case, we had to advertise
+		 * FULL flow control because we could not advertise RX
+		 * ONLY. Hence, we must now check to see if we need to
+		 * turn OFF  the TRANSMISSION of PAUSE frames.
+		 */
+		if (hw->fc.original_type == ixgbe_fc_full) {
+			hw->fc.type = ixgbe_fc_full;
+			DEBUGOUT("Flow Control = FULL.\n");
+		} else {
+			hw->fc.type = ixgbe_fc_rx_pause;
+			DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+		}
+	} else if (!(pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		  (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		  (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		  (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.type = ixgbe_fc_tx_pause;
+		DEBUGOUT("Flow Control = TX PAUSE frames only.\n");
+	} else if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		  (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		  !(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		  (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.type = ixgbe_fc_rx_pause;
+		DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+	} else if ((hw->fc.original_type == ixgbe_fc_none ||
+		  hw->fc.original_type == ixgbe_fc_tx_pause) ||
+		  hw->fc.strict_ieee) {
+		hw->fc.type = ixgbe_fc_none;
+		DEBUGOUT("Flow Control = NONE.\n");
+	} else {
+		hw->fc.type = ixgbe_fc_rx_pause;
+		DEBUGOUT("Flow Control = RX PAUSE frames only.\n");
+	}
+
+	ret_val = ixgbe_setup_fc_generic(hw, 0);
+	if (ret_val) {
+		DEBUGOUT("Error forcing flow control settings\n");
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  ixgbe_setup_fiber_serdes_link_82598 - Configure fiber serdes link
+ *  @hw: pointer to hardware structure
+ *
+ *  Sets up PCS registers and sets flow control settings, based on
+ *  link-partner's abilities.
+ **/
+s32 ixgbe_setup_fiber_serdes_link_82598(struct ixgbe_hw *hw)
+{
+	u32 reg;
+	s32 ret_val;
+
+	DEBUGFUNC("ixgbe_setup_fiber_serdes_link_82598");
+
+	/*
+	 * 82598 fiber/serdes devices require that flow control be resolved in
+	 * software.  Set up flow control advertisement if autoneg is enabled.
+	 */
+	if (hw->mac.autoneg) {
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+
+		/*
+		 * Check for a software override of the flow control settings,
+		 * and setup the device accordingly.  If auto-negotiation is
+		 * enabled, then software will have to set the "PAUSE" bits to
+		 * the correct value and re-start auto- negotiation.  However,
+		 * if auto-negotiation is disabled, then software will have to
+		 * manually configure flow control.
+		 *
+		 * The possible values of the "fc" parameter are:
+		 * 0:  Flow control is completely disabled
+		 * 1:  Rx flow control is enabled (we can receive pause frames,
+		 *     but not send pause frames).
+		 * 2:  Tx flow control is enabled (we can send pause frames but
+		 *     we do not support receiving pause frames).
+		 * 3:  Both Rx and TX flow control (symmetric) are enabled.
+		 */
+
+		switch (hw->fc.type) {
+		case ixgbe_fc_none:
+			/*
+			 * Flow control completely disabled by a software
+			 * over-ride.
+			 */
+			reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE |
+				IXGBE_PCS1GANA_ASM_PAUSE);
+			break;
+			case ixgbe_fc_rx_pause:
+			/*
+			 * RX Flow control is enabled and TX Flow control is
+			 * disabled by a software over-ride. Since there really
+			 * isn't a way to advertise that we are capable of RX
+			 * Pause ONLY, we will advertise that we support both
+			 * symmetric and asymmetric RX PAUSE.  Later, we will
+			 * disable the adapter's ability to send PAUSE frames.
+			 */
+			reg |= (IXGBE_PCS1GANA_SYM_PAUSE |
+				IXGBE_PCS1GANA_ASM_PAUSE);
+			break;
+		case ixgbe_fc_tx_pause:
+			/*
+			 * TX Flow control is enabled, and RX Flow control is
+			 * disabled, by a software over-ride.
+			 */
+			reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
+			reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+			break;
+		case ixgbe_fc_full:
+			/*
+			 * Flow control (both RX and TX) is enabled by a
+			 * software over-ride.
+			 */
+			reg |= (IXGBE_PCS1GANA_SYM_PAUSE |
+				IXGBE_PCS1GANA_ASM_PAUSE);
+			break;
+		default:
+			DEBUGOUT("Flow control param set incorrectly\n");
+			ret_val = -IXGBE_ERR_CONFIG;
+			goto out;
+			break;
+		}
+
+		IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
+	}
+
+	/*
+	 * New SerDes mode allows for forcing speed or autonegotiating speed
+	 * at 1gb. Autoneg should be default set by most drivers. This is the
+	 * mode that will be compatible with older link partners and switches.
+	 * However, both are supported by the hardware and some drivers/tools.
+	 */
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
+	reg &= ~(IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN);
+
+	if (hw->mac.autoneg) {
+		/* Set PCS register for autoneg */
+		reg |= IXGBE_PCS1GLCTL_AN_ENABLE |      /* Enable Autoneg */
+			IXGBE_PCS1GLCTL_AN_RESTART;     /* Restart autoneg */
+		DEBUGOUT1("Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+	} else {
+		/* Set PCS register for forced speed */
+		reg |= IXGBE_PCS1GLCTL_FLV_LINK_UP |   /* Force link up */
+			IXGBE_PCS1GLCTL_FORCE_LINK;    /* Force Link */
+		DEBUGOUT1("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
+
+	/*
+	 * Configure flow control. If we aren't auto-negotiating,
+	 * just setup the flow control and do not worry about PCS autoneg.
+	 */
+	if (hw->mac.autoneg)
+		ixgbe_configure_fiber_serdes_fc_82598(hw);
+
+out:
 	return IXGBE_SUCCESS;
 }
 
@@ -644,9 +885,35 @@ s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	u32 gheccr;
 	u32 i;
 	u32 autoc;
+	u8  analog_val;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	ixgbe_stop_adapter(hw);
+
+	/*
+	 * Power up the Atlas TX lanes if they are currently powered down.
+	 * Atlas TX lanes are powered down for MAC loopback tests, but
+	 * they are not automatically restored on reset.
+	 */
+	ixgbe_read_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK, &analog_val);
+	if (analog_val & IXGBE_ATLAS_PDN_TX_REG_EN) {
+		/* Enable TX Atlas so packets can be transmitted again */
+		ixgbe_read_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK, &analog_val);
+		analog_val &= ~IXGBE_ATLAS_PDN_TX_REG_EN;
+		ixgbe_write_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK, analog_val);
+
+		ixgbe_read_analog_reg8(hw, IXGBE_ATLAS_PDN_10G, &analog_val);
+		analog_val &= ~ IXGBE_ATLAS_PDN_TX_10G_QL_ALL;
+		ixgbe_write_analog_reg8(hw, IXGBE_ATLAS_PDN_10G, analog_val);
+
+		ixgbe_read_analog_reg8(hw, IXGBE_ATLAS_PDN_1G, &analog_val);
+		analog_val &= ~IXGBE_ATLAS_PDN_TX_1G_QL_ALL;
+		ixgbe_write_analog_reg8(hw, IXGBE_ATLAS_PDN_1G, analog_val);
+
+		ixgbe_read_analog_reg8(hw, IXGBE_ATLAS_PDN_AN, &analog_val);
+		analog_val &= ~IXGBE_ATLAS_PDN_TX_AN_QL_ALL;
+		ixgbe_write_analog_reg8(hw, IXGBE_ATLAS_PDN_AN, analog_val);
+	}
 
 	/* Reset PHY */
 	ixgbe_reset_phy(hw);
@@ -711,6 +978,47 @@ s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	ixgbe_get_mac_addr(hw, hw->mac.perm_addr);
 
 	return status;
+}
+
+/**
+ *  ixgbe_read_analog_reg8_82598 - Reads 8 bit 82598 Atlas analog register
+ *  @hw: pointer to hardware structure
+ *  @reg: analog register to read
+ *  @val: read value
+ *
+ *  Performs write operation to analog register specified.
+ **/
+s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val)
+{
+	u32  atlas_ctl;
+
+	IXGBE_WRITE_REG(hw, IXGBE_ATLASCTL, IXGBE_ATLASCTL_WRITE_CMD | (reg << 8));
+	IXGBE_WRITE_FLUSH(hw);
+	usec_delay(10);
+	atlas_ctl = IXGBE_READ_REG(hw, IXGBE_ATLASCTL);
+	*val = (u8)atlas_ctl;
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_write_analog_reg8_82598 - Writes 8 bit 82598 Atlas analog register
+ *  @hw: pointer to hardware structure
+ *  @reg: atlas register to write
+ *  @val: value to write
+ *
+ *  Performs write operation to Atlas analog register specified.
+ **/
+s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
+{
+	u32  atlas_ctl;
+
+	atlas_ctl = (reg << 8) | val;
+	IXGBE_WRITE_REG(hw, IXGBE_ATLASCTL, atlas_ctl);
+	IXGBE_WRITE_FLUSH(hw);
+	usec_delay(10);
+
+	return IXGBE_SUCCESS;
 }
 
 /**
