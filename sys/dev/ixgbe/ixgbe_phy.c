@@ -32,6 +32,7 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
+
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 #include "ixgbe_phy.h"
@@ -65,24 +66,6 @@ s32 ixgbe_assign_func_pointers_phy(struct ixgbe_hw *hw)
 			    &ixgbe_write_phy_reg_generic;
 	hw->func.ixgbe_func_identify_phy =
 			    &ixgbe_identify_phy_generic;
-
-	if (ixgbe_get_media_type(hw) == ixgbe_media_type_copper) {
-		/* Call PHY identify routine to get the phy type */
-		ixgbe_identify_phy(hw);
-
-		switch (hw->phy.type) {
-		case ixgbe_phy_tn:
-			hw->func.ixgbe_func_setup_phy_link =
-					&ixgbe_setup_tnx_phy_link;
-			hw->func.ixgbe_func_check_phy_link =
-					&ixgbe_check_tnx_phy_link;
-			hw->func.ixgbe_func_setup_phy_link_speed =
-					&ixgbe_setup_tnx_phy_link_speed;
-			break;
-		default:
-			break;
-		}
-	}
 
 	return IXGBE_SUCCESS;
 }
@@ -171,14 +154,9 @@ enum ixgbe_phy_type ixgbe_get_phy_type_from_id(u32 phy_id)
 	enum ixgbe_phy_type phy_type;
 
 	switch (phy_id) {
-	case TN1010_PHY_ID:
-		phy_type = ixgbe_phy_tn;
-		break;
-
 	case QT2022_PHY_ID:
 		phy_type = ixgbe_phy_qt;
 		break;
-
 	default:
 		phy_type = ixgbe_phy_unknown;
 		break;
@@ -213,7 +191,6 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 {
 	u32 command;
 	u32 i;
-	u32 timeout = 10;
 	u32 data;
 	s32 status = IXGBE_SUCCESS;
 	u16 gssr;
@@ -240,7 +217,7 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 		 * The MDI Command bit will clear when the operation is
 		 * complete
 		 */
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
 			usec_delay(10);
 
 			command = IXGBE_READ_REG(hw, IXGBE_MSCA);
@@ -251,7 +228,7 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 		}
 
 		if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-			DEBUGFUNC("PHY address command did not complete.\n");
+			DEBUGOUT("PHY address command did not complete.\n");
 			status = IXGBE_ERR_PHY;
 		}
 
@@ -272,7 +249,7 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 			 * completed. The MDI Command bit will clear when the
 			 * operation is complete
 			 */
-			for (i = 0; i < timeout; i++) {
+			for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
 				usec_delay(10);
 
 				command = IXGBE_READ_REG(hw, IXGBE_MSCA);
@@ -282,7 +259,7 @@ s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 			}
 
 			if ((command & IXGBE_MSCA_MDI_COMMAND) != 0) {
-				DEBUGFUNC("PHY read command didn't complete\n");
+				DEBUGOUT("PHY read command didn't complete\n");
 				status = IXGBE_ERR_PHY;
 			} else {
 				/*
@@ -312,7 +289,6 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 {
 	u32 command;
 	u32 i;
-	u32 timeout = 10;
 	s32 status = IXGBE_SUCCESS;
 	u16 gssr;
 
@@ -341,7 +317,7 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 		 * The MDI Command bit will clear when the operation is
 		 * complete
 		 */
-		for (i = 0; i < timeout; i++) {
+		for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
 			usec_delay(10);
 
 			command = IXGBE_READ_REG(hw, IXGBE_MSCA);
@@ -372,7 +348,7 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
 			 * completed. The MDI Command bit will clear when the
 			 * operation is complete
 			 */
-			for (i = 0; i < timeout; i++) {
+			for (i = 0; i < IXGBE_MDIO_COMMAND_TIMEOUT; i++) {
 				usec_delay(10);
 
 				command = IXGBE_READ_REG(hw, IXGBE_MSCA);
@@ -437,156 +413,3 @@ s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 			       IXGBE_NOT_IMPLEMENTED);
 }
 
-/**
- *  ixgbe_setup_tnx_phy_link - Set and restart autoneg
- *  @hw: pointer to hardware structure
- *
- *  Restart autonegotiation and PHY and waits for completion.
- **/
-s32 ixgbe_setup_tnx_phy_link(struct ixgbe_hw *hw)
-{
-	s32 status = IXGBE_NOT_IMPLEMENTED;
-	u32 time_out;
-	u32 max_time_out = 10;
-	u16 autoneg_speed_selection_register = 0x10;
-	u16 autoneg_restart_mask = 0x0200;
-	u16 autoneg_complete_mask = 0x0020;
-	u16 autoneg_reg = 0;
-
-	/*
-	 * Set advertisement settings in PHY based on autoneg_advertised
-	 * settings. If autoneg_advertised = 0, then advertise default values
-	 * txn devices cannot be "forced" to a autoneg 10G and fail.  But can
-	 * for a 1G.
-	 */
-	ixgbe_read_phy_reg(hw,
-		  autoneg_speed_selection_register,
-		  IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
-		  &autoneg_reg);
-
-	if (hw->phy.autoneg_advertised == IXGBE_LINK_SPEED_1GB_FULL)
-		autoneg_reg &= 0xEFFF; /* 0 in bit 12 is 1G operation */
-	else
-		autoneg_reg |= 0x1000; /* 1 in bit 12 is 10G/1G operation */
-
-	ixgbe_write_phy_reg(hw,
-		  autoneg_speed_selection_register,
-		  IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
-		  autoneg_reg);
-
-
-	/* Restart PHY autonegotiation and wait for completion */
-	ixgbe_read_phy_reg(hw,
-		  IXGBE_MDIO_AUTO_NEG_CONTROL,
-		  IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
-		  &autoneg_reg);
-
-	autoneg_reg |= autoneg_restart_mask;
-
-	ixgbe_write_phy_reg(hw,
-		  IXGBE_MDIO_AUTO_NEG_CONTROL,
-		  IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
-		  autoneg_reg);
-
-	/* Wait for autonegotiation to finish */
-	for (time_out = 0; time_out < max_time_out; time_out++) {
-		usec_delay(10);
-		/* Restart PHY autonegotiation and wait for completion */
-		status = ixgbe_read_phy_reg(hw,
-					    IXGBE_MDIO_AUTO_NEG_STATUS,
-					    IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
-					    &autoneg_reg);
-
-		autoneg_reg &= autoneg_complete_mask;
-		if (autoneg_reg == autoneg_complete_mask) {
-			status = IXGBE_SUCCESS;
-			break;
-		}
-	}
-
-	if (time_out == max_time_out)
-		status = IXGBE_ERR_LINK_SETUP;
-
-	return status;
-}
-
-/**
- *  ixgbe_check_tnx_phy_link - Determine link and speed status
- *  @hw: pointer to hardware structure
- *
- *  Reads the VS1 register to determine if link is up and the current speed for
- *  the PHY.
- **/
-s32 ixgbe_check_tnx_phy_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-			     bool *link_up)
-{
-	s32 status = IXGBE_SUCCESS;
-	u32 time_out;
-	u32 max_time_out = 10;
-	u16 phy_link = 0;
-	u16 phy_speed = 0;
-	u16 phy_data = 0;
-
-	/* Initialize speed and link to default case */
-	*link_up = FALSE;
-	*speed = IXGBE_LINK_SPEED_10GB_FULL;
-
-	/*
-	 * Check current speed and link status of the PHY register.
-	 * This is a vendor specific register and may have to
-	 * be changed for other copper PHYs.
-	 */
-	for (time_out = 0; time_out < max_time_out; time_out++) {
-		usec_delay(10);
-		if (phy_link == IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS) {
-			*link_up = TRUE;
-			if (phy_speed ==
-			    IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS)
-				*speed = IXGBE_LINK_SPEED_1GB_FULL;
-			break;
-		} else {
-			status = ixgbe_read_phy_reg(hw,
-				     IXGBE_MDIO_VENDOR_SPECIFIC_1_STATUS,
-				     IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE,
-				     &phy_data);
-			phy_link = phy_data &
-				IXGBE_MDIO_VENDOR_SPECIFIC_1_LINK_STATUS;
-			phy_speed = phy_data &
-				IXGBE_MDIO_VENDOR_SPECIFIC_1_SPEED_STATUS;
-		}
-	}
-
-	return status;
-}
-
-/**
- *  ixgbe_setup_tnx_phy_link_speed - Sets the auto advertised capabilities
- *  @hw: pointer to hardware structure
- *  @speed: new link speed
- *  @autoneg: TRUE if autonegotiation enabled
- **/
-s32 ixgbe_setup_tnx_phy_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
-				   bool autoneg,
-				   bool autoneg_wait_to_complete)
-{
-	UNREFERENCED_PARAMETER(autoneg);
-	UNREFERENCED_PARAMETER(autoneg_wait_to_complete);
-
-	/*
-	 * Clear autoneg_advertised and set new values based on input link
-	 * speed.
-	 */
-	hw->phy.autoneg_advertised = 0;
-
-	if (speed & IXGBE_LINK_SPEED_10GB_FULL) {
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_10GB_FULL;
-	}
-	if (speed & IXGBE_LINK_SPEED_1GB_FULL) {
-		hw->phy.autoneg_advertised |= IXGBE_LINK_SPEED_1GB_FULL;
-	}
-
-	/* Setup link based on the new speed settings */
-	ixgbe_setup_tnx_phy_link(hw);
-
-	return IXGBE_SUCCESS;
-}
