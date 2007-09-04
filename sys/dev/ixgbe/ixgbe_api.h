@@ -39,6 +39,7 @@
 
 s32 ixgbe_init_shared_code(struct ixgbe_hw *hw);
 
+s32 ixgbe_set_mac_type(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw(struct ixgbe_hw *hw);
 s32 ixgbe_reset_hw(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw(struct ixgbe_hw *hw);
@@ -90,5 +91,7 @@ s32 ixgbe_set_vfta(struct ixgbe_hw *hw, u32 vlan,
 s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
 
 void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr);
+s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val);
+s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val);
 
 #endif /* _IXGBE_API_H_ */

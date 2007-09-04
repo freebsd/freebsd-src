@@ -86,38 +86,34 @@ POSSIBILITY OF SUCH DAMAGE.
 /* Tunables */
 
 /*
-** The number of queues: right now significant performance
-** seems to be gained by using muliple RX queues. The
-** infrastructure for multiple TX is there but its not
-** completely working, dont set greater than 1 for now.
-** OTHER is the vector used for link changes, it also 
-** should only be set to 1.
-*/
-#define IXGBE_TX_QUEUES 1
-#define IXGBE_RX_QUEUES 8
-#define IXGBE_OTHER	1
-
-/*
- * TxDescriptors Valid Range: 64-4096 Default Value: 2048 This value is the
+ * TxDescriptors Valid Range: 64-4096 Default Value: 256 This value is the
  * number of transmit descriptors allocated by the driver. Increasing this
  * value allows the driver to queue more transmits. Each descriptor is 16
- * bytes.
+ * bytes. Performance tests have show the 2K value to be optimal for top
+ * performance.
  */
-#define DEFAULT_TXD	2048
+#define DEFAULT_TXD	256
+#define PERFORM_TXD	2048
 #define MAX_TXD		4096
 #define MIN_TXD		64
 
 /*
- * RxDescriptors Valid Range: 64-4096 Default Value: 2048 This value is the
- * number of receive descriptors allocated by the driver. Increasing this
+ * RxDescriptors Valid Range: 64-4096 Default Value: 256 This value is the
+ * number of receive descriptors allocated for each RX queue. Increasing this
  * value allows the driver to buffer more incoming packets. Each descriptor
- * is 16 bytes.  A receive buffer is also allocated for each descriptor. The
- * maximum MTU size is 16110.
+ * is 16 bytes.  A receive buffer is also allocated for each descriptor. 
  * 
+ * Note: with 8 rings and a dual port card, it is possible to bump up 
+ *	against the system mbuf pool limit, you can tune nmbclusters
+ *	to adjust for this.
  */
-#define DEFAULT_RXD	2048
+#define DEFAULT_RXD	256
+#define PERFORM_RXD	2048
 #define MAX_RXD		4096
 #define MIN_RXD		64
+
+/* Alignment for rings */
+#define DBA_ALIGN	128
 
 /*
  * This parameter controls the maximum no of times the driver will loop in
@@ -138,15 +134,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define IXGBE_TX_OP_THRESHOLD		(adapter->num_tx_desc / 32)
 
 #define IXGBE_MAX_FRAME_SIZE	0x3F00
-#define PERFORMANCE_MTU		9000	/* Best thruput results */
 
-/*
-** This controls the size mbuf pool used, it
-** may ultimately be automatic, but for now its
-** a compile time option. 
-**	- use MCLBYTES for legacy size
-*/
-#define IXGBE_RXBUF		MJUMPAGESIZE
+/* Flow control constants */
+#define IXGBE_FC_PAUSE		0x680
+#define IXGBE_FC_HI		0x20000
+#define IXGBE_FC_LO		0x10000
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -174,13 +166,23 @@ POSSIBILITY OF SUCH DAMAGE.
 /* The number of MSIX messages the 82598 supports */
 #define IXGBE_MSGS			18
 
+/* For 6.X code compatibility */
+#if __FreeBSD_version < 700000
+#define ETHER_BPF_MTAP		BPF_MTAP
+#define CSUM_TSO		0
+#define IFCAP_TSO4		0
+#define FILTER_STRAY
+#define FILTER_HANDLED
+#endif
+
 /*
  * Interrupt Moderation parameters 
  * 	for now we hardcode, later
  *	it would be nice to do dynamic
  */
-#define DEFAULT_ITR	8000	
-#define LINK_ITR	1950	
+#define MAX_IRQ_SEC	8000
+#define DEFAULT_ITR	1000000000/(MAX_IRQ_SEC * 256)
+#define LINK_ITR	1000000000/(1950 * 256)
 
 /*
  * ******************************************************************************
@@ -232,7 +234,6 @@ struct ixgbe_dma_alloc {
 struct tx_ring {
         struct adapter		*adapter;
 	u32			me;
-	struct mtx		mtx;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_dma_alloc	txdma;
 	uint32_t		next_avail_tx_desc;
@@ -250,7 +251,6 @@ struct tx_ring {
 struct rx_ring {
         struct adapter			*adapter;
 	u32				me;
-	struct mtx			mtx;
 	u32				payload;
 	union 	ixgbe_adv_rx_desc	*rx_base;
 	struct ixgbe_dma_alloc		rxdma;
@@ -292,7 +292,12 @@ struct adapter {
 	int		watchdog_timer;
 	int		msix;
 	int		if_flags;
-	struct mtx	mtx;
+	struct mtx	core_mtx;
+	struct mtx	tx_mtx;
+	/* Legacy Fast Intr handling */
+	struct task     link_task;
+	struct task     rxtx_task;
+	struct taskqueue *tq;
 	
 	/* Info about the board itself */
 	uint32_t       part_num;
@@ -337,12 +342,5 @@ struct adapter {
 
 	struct ixgbe_hw_stats stats;
 };
-
-#define IXGBE_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
-#define IXGBE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
-#define IXGBE_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define IXGBE_UNLOCK(_sc)	mtx_unlock(&(_sc)->mtx)
-#define IXGBE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
 
 #endif /* _IXGBE_H_ */
