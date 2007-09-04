@@ -31,13 +31,29 @@
 #ifndef	_SYS__SX_H_
 #define	_SYS__SX_H_
 
+#include <sys/condvar.h>
+
 /*
  * Shared/exclusive lock main structure definition.
+ *
+ * Note, to preserve compatibility we have extra fields from
+ * the previous implementation left over.
  */
 struct sx {
 	struct lock_object	lock_object;
+	/* was: struct mtx *sx_lock; */
 	volatile uintptr_t	sx_lock;
+	/* was: int sx_cnt; */
 	volatile unsigned	sx_recurse;
+	/*
+	 * The following fields are unused but kept to preserve
+	 * sizeof(struct sx) for 6.x compat.
+	 */
+	struct cv       sx_shrd_cv;	/* unused */
+	int             sx_shrd_wcnt;	/* unused */
+	struct cv       sx_excl_cv;	/* unused */
+	int             sx_excl_wcnt;	/* unused */
+	struct thread   *sx_xholder;	/* unused */
 };
 
 #endif	/* !_SYS__SX_H_ */
