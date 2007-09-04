@@ -305,7 +305,7 @@ threadinit(void)
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    UMA_ALIGN_CACHE, 0);
+	    THREAD_ALIGN, 0);
 	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
 	    ksegrp_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_CACHE, 0);

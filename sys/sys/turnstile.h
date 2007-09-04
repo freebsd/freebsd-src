@@ -73,20 +73,43 @@ struct turnstile;
 
 #ifdef _KERNEL
 
+/* Which queue to block on or which queue to wakeup one or more threads from. */
+#define       TS_EXCLUSIVE_QUEUE      0
+#define       TS_SHARED_QUEUE         1
+
+/* The type of lock currently held. */
+#define       TS_EXCLUSIVE_LOCK       TS_EXCLUSIVE_QUEUE
+#define       TS_SHARED_LOCK          TS_SHARED_QUEUE
+
 void	init_turnstiles(void);
 void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
-void	turnstile_broadcast(struct turnstile *);
+#define turnstile_wakeup(turnstile) turnstile_broadcast(turnstile)
+#define	turnstile_broadcast(turnstile) \
+    turnstile_broadcast_queue(turnstile, TS_EXCLUSIVE_QUEUE)
+void	turnstile_broadcast_queue(struct turnstile *, int);
 void	turnstile_claim(struct lock_object *);
-int	turnstile_empty(struct turnstile *);
+void	turnstile_disown(struct turnstile *);
+#define	turnstile_empty(turnstile)  \
+    turnstile_empty_queue(turnstile, TS_EXCLUSIVE_QUEUE);
+int	turnstile_empty_queue(struct turnstile *, int);
 void	turnstile_free(struct turnstile *);
-struct thread *turnstile_head(struct turnstile *);
+#define	turnstile_head(turnstile)   \
+    turnstile_head_queue(turnstile, TS_EXCLUSIVE_QUEUE)
+struct thread *turnstile_head_queue(struct turnstile *, int);
 void	turnstile_lock(struct lock_object *);
 struct turnstile *turnstile_lookup(struct lock_object *);
 void	turnstile_release(struct lock_object *);
-int	turnstile_signal(struct turnstile *);
-void	turnstile_unpend(struct turnstile *);
-void	turnstile_wait(struct lock_object *, struct thread *);
+#define turnstile_signal(turnstile) \
+    turnstile_signal_queue(turnstile, TS_EXCLUSIVE_QUEUE)
+int	turnstile_signal_queue(struct turnstile *, int);
+struct turnstile *turnstile_trywait(struct lock_object *);
+#define	turnstile_unpend(turnstile) \
+    turnstile_unpend_queue(turnstile, TS_EXCLUSIVE_QUEUE);
+void	turnstile_unpend_queue(struct turnstile *, int);
+#define turnstile_wait(lock_object, thread) \
+    turnstile_wait_queue(lock_object, thread, TS_EXCLUSIVE_QUEUE) 
+void	turnstile_wait_queue(struct lock_object *, struct thread *, int);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */

@@ -82,6 +82,12 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
+#include <vm/uma.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 /*
  * Constants for the hash table of sleep queue chains.  These constants are
  * the same ones that 4BSD (and possibly earlier versions of BSD) used.
@@ -94,7 +100,7 @@ __FBSDID("$FreeBSD$");
 #define	SC_SHIFT	8
 #define	SC_HASH(wc)	(((uintptr_t)(wc) >> SC_SHIFT) & SC_MASK)
 #define	SC_LOOKUP(wc)	&sleepq_chains[SC_HASH(wc)]
-
+#define NR_SLEEPQS      2
 /*
  * There two different lists of sleep queues.  Both lists are connected
  * via the sq_hash entries.  The first list is the sleep queue chain list
@@ -114,13 +120,13 @@ __FBSDID("$FreeBSD$");
  *  c - sleep queue chain lock
  */
 struct sleepqueue {
-	TAILQ_HEAD(, thread) sq_blocked;	/* (c) Blocked threads. */
+	TAILQ_HEAD(, thread) sq_blocked[NR_SLEEPQS];	/* (c) Blocked threads. */
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
 	void	*sq_wchan;			/* (c) Wait channel. */
 #ifdef INVARIANTS
 	int	sq_type;			/* (c) Queue type. */
-	struct mtx *sq_lock;			/* (c) Associated lock. */
+	struct mtx *sq_lock;		/* (c) Associated lock. */
 #endif
 };
 
@@ -142,16 +148,22 @@ SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
     0, "maxmimum depth achieved of a single chain");
 #endif
 static struct sleepqueue_chain sleepq_chains[SC_TABLESIZE];
-
-static MALLOC_DEFINE(M_SLEEPQUEUE, "sleep queues", "sleep queues");
+static uma_zone_t sleepq_zone;
 
 /*
  * Prototypes for non-exported routines.
  */
+static int	sleepq_catch_signals(void *wchan);
+static int	sleepq_check_signals(void);
 static int	sleepq_check_timeout(void);
+#ifdef INVARIANTS
+static void	sleepq_dtor(void *mem, int size, void *arg);
+#endif
+static int	sleepq_init(void *mem, int size, int flags);
+static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td,
+		    int pri);
 static void	sleepq_switch(void *wchan);
 static void	sleepq_timeout(void *arg);
-static void	sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri);
 
 /*
  * Early initialization of sleep queues that is called from the sleepinit()
@@ -182,21 +194,24 @@ init_sleepqueues(void)
 		    NULL);
 #endif
 	}
+	sleepq_zone = uma_zcreate("SLEEPQUEUE", sizeof(struct sleepqueue),
+#ifdef INVARIANTS
+	    NULL, sleepq_dtor, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
+#else
+	    NULL, NULL, sleepq_init, NULL, UMA_ALIGN_CACHE, 0);
+#endif
+	
 	thread0.td_sleepqueue = sleepq_alloc();
 }
 
 /*
- * Malloc and initialize a new sleep queue for a new thread.
+ * Get a sleep queue for a new thread.
  */
 struct sleepqueue *
 sleepq_alloc(void)
 {
-	struct sleepqueue *sq;
 
-	sq = malloc(sizeof(struct sleepqueue), M_SLEEPQUEUE, M_WAITOK | M_ZERO);
-	TAILQ_INIT(&sq->sq_blocked);
-	LIST_INIT(&sq->sq_free);
-	return (sq);
+	return (uma_zalloc(sleepq_zone, M_WAITOK));
 }
 
 /*
@@ -206,9 +221,7 @@ void
 sleepq_free(struct sleepqueue *sq)
 {
 
-	MPASS(sq != NULL);
-	MPASS(TAILQ_EMPTY(&sq->sq_blocked));
-	free(sq, M_SLEEPQUEUE);
+	uma_zfree(sleepq_zone, sq);
 }
 
 /*
@@ -262,7 +275,8 @@ sleepq_release(void *wchan)
  * woken up.
  */
 void
-sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
+sleepq_add_queue(void *wchan, struct mtx *lock, const char *wmesg, int flags,
+    int queue)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -273,10 +287,11 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	MPASS(td->td_sleepqueue != NULL);
 	MPASS(wchan != NULL);
+	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 
 	/* If this thread is not allowed to sleep, die a horrible death. */
 	KASSERT(!(td->td_pflags & TDP_NOSLEEPING),
-	    ("trying to sleep while sleeping is prohibited"));
+	    ("Trying sleep, but thread marked as sleeping prohibited"));
 
 	/* Look up the sleep queue associated with the wait channel 'wchan'. */
 	sq = sleepq_lookup(wchan);
@@ -287,6 +302,19 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 	 * into the sleep queue already in use by this wait channel.
 	 */
 	if (sq == NULL) {
+#ifdef INVARIANTS
+		int i;
+
+		sq = td->td_sleepqueue;
+		for (i = 0; i < NR_SLEEPQS; i++)
+			KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
+				("thread's sleep queue %d is not empty", i));
+		KASSERT(LIST_EMPTY(&sq->sq_free),
+		    ("thread's sleep queue has a non-empty free list"));
+		KASSERT(sq->sq_wchan == NULL, ("stale sq_wchan pointer"));
+		sq->sq_lock = lock;
+		sq->sq_type = flags & SLEEPQ_TYPE;
+#endif
 #ifdef SLEEPQUEUE_PROFILING
 		sc->sc_depth++;
 		if (sc->sc_depth > sc->sc_max_depth) {
@@ -297,25 +325,17 @@ sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 #endif
 		sq = td->td_sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
-		KASSERT(TAILQ_EMPTY(&sq->sq_blocked),
-		    ("thread's sleep queue has a non-empty queue"));
-		KASSERT(LIST_EMPTY(&sq->sq_free),
-		    ("thread's sleep queue has a non-empty free list"));
-		KASSERT(sq->sq_wchan == NULL, ("stale sq_wchan pointer"));
 		sq->sq_wchan = wchan;
-#ifdef INVARIANTS
-		sq->sq_lock = lock;
-		sq->sq_type = flags & SLEEPQ_TYPE;
-#endif
 	} else {
 		MPASS(wchan == sq->sq_wchan);
 		MPASS(lock == sq->sq_lock);
 		MPASS((flags & SLEEPQ_TYPE) == sq->sq_type);
 		LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_hash);
 	}
-	TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
+	TAILQ_INSERT_TAIL(&sq->sq_blocked[queue], td, td_slpq);
 	td->td_sleepqueue = NULL;
 	mtx_lock_spin(&sched_lock);
+	td->td_sqqueue = queue;
 	td->td_wchan = wchan;
 	td->td_wmesg = wmesg;
 	if (flags & SLEEPQ_INTERRUPTIBLE) {
@@ -606,12 +626,13 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	MPASS(td != NULL);
 	MPASS(sq->sq_wchan != NULL);
 	MPASS(td->td_wchan == sq->sq_wchan);
+	MPASS(td->td_sqqueue < NR_SLEEPQS && td->td_sqqueue >= 0);
 	sc = SC_LOOKUP(sq->sq_wchan);
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	/* Remove the thread from the queue. */
-	TAILQ_REMOVE(&sq->sq_blocked, td, td_slpq);
+	TAILQ_REMOVE(&sq->sq_blocked[td->td_sqqueue], td, td_slpq);
 
 	/*
 	 * Get a sleep queue for this thread.  If this is the last waiter,
@@ -652,17 +673,51 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	setrunnable(td);
 }
 
+#ifdef INVARIANTS
+/*
+ * UMA zone item deallocator.
+ */
+static void
+sleepq_dtor(void *mem, int size, void *arg)
+{
+	struct sleepqueue *sq;
+	int i;
+
+	sq = mem;
+	for (i = 0; i < NR_SLEEPQS; i++)
+		MPASS(TAILQ_EMPTY(&sq->sq_blocked[i]));
+}
+#endif
+
+/*
+ * UMA zone item initializer.
+ */
+static int
+sleepq_init(void *mem, int size, int flags)
+{
+	struct sleepqueue *sq;
+	int i;
+
+	bzero(mem, size);
+	sq = mem;
+	for (i = 0; i < NR_SLEEPQS; i++)
+		TAILQ_INIT(&sq->sq_blocked[i]);
+	LIST_INIT(&sq->sq_free);
+	return (0);
+}
+
 /*
  * Find the highest priority thread sleeping on a wait channel and resume it.
  */
 void
-sleepq_signal(void *wchan, int flags, int pri)
+sleepq_signal_queue(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
 	struct thread *td, *besttd;
 
 	CTR2(KTR_PROC, "sleepq_signal(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
+	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 	sq = sleepq_lookup(wchan);
 	if (sq == NULL) {
 		sleepq_release(wchan);
@@ -678,7 +733,7 @@ sleepq_signal(void *wchan, int flags, int pri)
 	 * the tail of sleep queues.
 	 */
 	besttd = NULL;
-	TAILQ_FOREACH(td, &sq->sq_blocked, td_slpq) {
+	TAILQ_FOREACH(td, &sq->sq_blocked[queue], td_slpq) {
 		if (besttd == NULL || td->td_priority < besttd->td_priority)
 			besttd = td;
 	}
@@ -693,12 +748,13 @@ sleepq_signal(void *wchan, int flags, int pri)
  * Resume all threads sleeping on a specified wait channel.
  */
 void
-sleepq_broadcast(void *wchan, int flags, int pri)
+sleepq_broadcast_queue(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
 
 	CTR2(KTR_PROC, "sleepq_broadcast(%p, %d)", wchan, flags);
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
+	MPASS((queue >= 0) && (queue < NR_SLEEPQS));
 	sq = sleepq_lookup(wchan);
 	if (sq == NULL) {
 		sleepq_release(wchan);
@@ -709,8 +765,9 @@ sleepq_broadcast(void *wchan, int flags, int pri)
 
 	/* Resume all blocked threads on the sleep queue. */
 	mtx_lock_spin(&sched_lock);
-	while (!TAILQ_EMPTY(&sq->sq_blocked))
-		sleepq_resume_thread(sq, TAILQ_FIRST(&sq->sq_blocked), pri);
+	while (!TAILQ_EMPTY(&sq->sq_blocked[queue]))
+		sleepq_resume_thread(sq, TAILQ_FIRST(&sq->sq_blocked[queue]),
+		    pri);
 	mtx_unlock_spin(&sched_lock);
 	sleepq_release(wchan);
 }
@@ -853,61 +910,3 @@ sleepq_abort(struct thread *td, int intrval)
 	mtx_lock_spin(&sched_lock);
 }
 
-#ifdef DDB
-DB_SHOW_COMMAND(sleepq, db_show_sleepqueue)
-{
-	struct sleepqueue_chain *sc;
-	struct sleepqueue *sq;
-#ifdef INVARIANTS
-	struct lock_object *lock;
-#endif
-	struct thread *td;
-	void *wchan;
-	int i;
-
-	if (!have_addr)
-		return;
-
-	/*
-	 * First, see if there is an active sleep queue for the wait channel
-	 * indicated by the address.
-	 */
-	wchan = (void *)addr;
-	sc = SC_LOOKUP(wchan);
-	LIST_FOREACH(sq, &sc->sc_queues, sq_hash)
-		if (sq->sq_wchan == wchan)
-			goto found;
-
-	/*
-	 * Second, see if there is an active sleep queue at the address
-	 * indicated.
-	 */
-	for (i = 0; i < SC_TABLESIZE; i++)
-		LIST_FOREACH(sq, &sleepq_chains[i].sc_queues, sq_hash) {
-			if (sq == (struct sleepqueue *)addr)
-				goto found;
-		}
-
-	db_printf("Unable to locate a sleep queue via %p\n", (void *)addr);
-	return;
-found:
-	db_printf("Wait channel: %p\n", sq->sq_wchan);
-#ifdef INVARIANTS
-	db_printf("Queue type: %d\n", sq->sq_type);
-	if (sq->sq_lock) {
-		lock = &sq->sq_lock->mtx_object;
-		db_printf("Associated Interlock: %p - (%s) %s\n", lock,
-		    LOCK_CLASS(lock)->lc_name, lock->lo_name);
-	}
-#endif
-	db_printf("Blocked threads:\n");
-	if (TAILQ_EMPTY(&sq->sq_blocked))
-		db_printf("\tempty\n");
-	else
-		TAILQ_FOREACH(td, &sq->sq_blocked, td_slpq) {
-			db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
-			    td->td_tid, td->td_proc->p_pid,
-			    td->td_proc->p_comm);
-		}	
-}
-#endif
