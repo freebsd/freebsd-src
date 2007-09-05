@@ -275,6 +275,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/ray/if_raydbg.h>
 #include <dev/ray/if_rayvar.h>
 
+typedef uint8_t *ieee80211_mgt_beacon_t;
+typedef uint8_t *ieee80211_mgt_auth_t;
+
+#define	IEEE80211_AUTH_ALGORITHM(auth) \
+	((auth)[0] | ((auth)[1] << 8))
+#define	IEEE80211_AUTH_TRANSACTION(auth) \
+	((auth)[2] | ((auth)[3] << 8))
+#define	IEEE80211_AUTH_STATUS(auth) \
+	((auth)[4] | ((auth)[5] << 8))
+
 static MALLOC_DEFINE(M_RAYCOM, "raycom", "Raylink command queue entry");
 /*
  * Prototyping
