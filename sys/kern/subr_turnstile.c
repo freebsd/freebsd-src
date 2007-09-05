@@ -1020,7 +1020,8 @@ found:
 		print_thread(ts->ts_owner, "Lock Owner: ");
 	else
 		db_printf("Lock Owner: none\n");
-	print_queue((struct threadqueue *)&ts->ts_blocked, "Waiters", "\t");
+	print_queue((struct threadqueue *)&ts->ts_blocked[TS_SHARED_QUEUE], "Shared Waiters", "\t");
+	print_queue((struct threadqueue *)&ts->ts_blocked[TS_EXCLUSIVE_QUEUE], "Exclusive Waiters", "\t");
 	print_queue((struct threadqueue *)&ts->ts_pending, "Pending Threads",
 	    "\t");	
 }
@@ -1211,7 +1212,10 @@ print_waiters(struct turnstile *ts, int indent)
 	for (i = 0; i < indent; i++)
 		db_printf(" ");
 	db_printf("lock %p (%s) \"%s\"\n", lock, class->lc_name, lock->lo_name);
-	TAILQ_FOREACH(td, &ts->ts_blocked, td_lockq)
+
+	TAILQ_FOREACH(td, &ts->ts_blocked[TS_EXCLUSIVE_QUEUE], td_lockq)
+		print_waiter(td, indent + 1);
+	TAILQ_FOREACH(td, &ts->ts_blocked[TS_SHARED_QUEUE], td_lockq)
 		print_waiter(td, indent + 1);
 	TAILQ_FOREACH(td, &ts->ts_pending, td_lockq)
 		print_waiter(td, indent + 1);

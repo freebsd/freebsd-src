@@ -997,7 +997,6 @@ sx_chain(struct thread *td, struct thread **ownerp)
 	 * First, we check the lock class.  If that is ok, then we
 	 * compare the lock name against the wait message.
 	 */
-#define LOCK_CLASS(lo)	(lo)->lo_class
 	sx = td->td_wchan;
 	if (LOCK_CLASS(&sx->lock_object) != &lock_class_sx ||
 	    sx->lock_object.lo_name != td->td_wmesg)
