@@ -1072,6 +1072,18 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_xlock.9 \
 	sx.9 sx_xlocked.9 \
 	sx.9 sx_xunlock.9
+MLINKS+=sysctl.9 SYSCTL_DECL.9 \
+	sysctl.9 SYSCTL_INT.9 \
+	sysctl.9 SYSCTL_LONG.9 \
+	sysctl.9 SYSCTL_NODE.9 \
+	sysctl.9 SYSCTL_OPAQUE.9 \
+	sysctl.9 SYSCTL_PROC.9 \
+	sysctl.9 SYSCTL_STRING.9 \
+	sysctl.9 SYSCTL_STRUCT.9 \
+	sysctl.9 SYSCTL_UINT.9 \
+	sysctl.9 SYSCTL_ULONG.9 \
+	sysctl.9 SYSCTL_XINT.9 \
+	sysctl.9 SYSCTL_XLONG.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
