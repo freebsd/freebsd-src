@@ -2300,6 +2300,11 @@ zyd_start(struct ifnet *ifp)
 				break;
 			}
 			IFQ_DEQUEUE(&ifp->if_snd, m0);
+			/*
+			 * Cancel any background scan.
+			 */
+			if (ic->ic_flags & IEEE80211_F_SCAN)
+				ieee80211_cancel_scan(ic);
 
 			if (m0->m_len < sizeof(struct ether_header) &&
 			    !(m0 = m_pullup(m0, sizeof(struct ether_header))))
@@ -2328,6 +2333,7 @@ zyd_start(struct ifnet *ifp)
 		}
 
 		sc->tx_timer = 5;
+		ic->ic_lastdata = ticks;
 		callout_reset(&sc->sc_watchdog_ch, hz, zyd_watchdog, sc);
 	}
 }
