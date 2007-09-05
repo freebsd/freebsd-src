@@ -165,8 +165,10 @@ main(argc, argv)
 		quit(QUIT_OK);
 	}
 
+	if (less_is_more)
+		no_init = TRUE;
 	if (less_is_more && get_quit_at_eof())
-		no_init = quit_if_one_screen = TRUE;
+		quit_if_one_screen = TRUE;
 
 #if EDITOR
 	editor = lgetenv("VISUAL");
@@ -242,7 +244,7 @@ main(argc, argv)
 		quit(QUIT_OK);
 	}
 
-	if (missing_cap && !know_dumb)
+	if (missing_cap && !know_dumb && !less_is_more)
 		error("WARNING: terminal is not fully functional", NULL_PARG);
 	init_mark();
 	open_getchr();
