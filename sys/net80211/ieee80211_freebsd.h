@@ -184,14 +184,19 @@ void	ieee80211_drain_ifq(struct ifqueue *);
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
+
 /* tx path usage */
 #define	M_LINK0		M_PROTO1		/* WEP requested */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
 #define	M_FF		0x20000			/* fast frame */
 #define	M_TXCB		0x40000			/* do tx complete callback */
+#define	M_80211_TX	(0x60000|M_PROTO1|M_WME_AC_MASK|M_PROTO4|M_PROTO5)
+
 /* rx path usage */
 #define	M_AMPDU		M_PROTO1		/* A-MPDU processing done */
+#define	M_WEP		M_PROTO2		/* WEP done by hardware */
+#define	M_80211_RX	(M_AMPDU|M_WEP)
 /*
  * Encode WME access control bits in the PROTO flags.
  * This is safe since it's passed directly in to the
