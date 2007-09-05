@@ -1919,6 +1919,8 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 		else
 			awi_drvstate(sc, AWI_DRV_INFASSOC);
 		break;
+	default:
+		break;
 	}
 
 	if (nstate == IEEE80211_S_INIT) {
@@ -1953,6 +1955,8 @@ awi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 				break;
 			case IEEE80211_S_SCAN:
 				/* scan next */
+				break;
+			default:
 				break;
 			}
 			if (ic->ic_flags & IEEE80211_F_ASCAN)
