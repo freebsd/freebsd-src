@@ -109,7 +109,8 @@ struct ieee80211_channel {
 	int8_t		ic_maxregpower;	/* maximum regulatory tx power in dBm */
 	int8_t		ic_maxpower;	/* maximum tx power in .5 dBm */
 	int8_t		ic_minpower;	/* minimum tx power in .5 dBm */
-	/* NB: hole, to be used for dfs */
+	uint8_t		ic_state;	/* dynamic state */
+	uint8_t		ic_extieee;	/* HT40 extension channel number */
 };
 
 #define	IEEE80211_CHAN_MAX	255
@@ -120,21 +121,26 @@ struct ieee80211_channel {
 
 /* bits 0-3 are for private use by drivers */
 /* channel attributes */
-#define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
-#define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
-#define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
-#define	IEEE80211_CHAN_2GHZ	0x00080	/* 2 GHz spectrum channel. */
-#define	IEEE80211_CHAN_5GHZ	0x00100	/* 5 GHz spectrum channel */
-#define	IEEE80211_CHAN_PASSIVE	0x00200	/* Only passive scan allowed */
-#define	IEEE80211_CHAN_DYN	0x00400	/* Dynamic CCK-OFDM channel */
-#define	IEEE80211_CHAN_GFSK	0x00800	/* GFSK channel (FHSS PHY) */
-#define	IEEE80211_CHAN_GSM	0x01000	/* 900 MHz spectrum channel */
-#define	IEEE80211_CHAN_STURBO	0x02000	/* 11a static turbo channel only */
-#define	IEEE80211_CHAN_HALF	0x04000	/* Half rate channel */
-#define	IEEE80211_CHAN_QUARTER	0x08000	/* Quarter rate channel */
-#define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
-#define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
-#define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
+#define	IEEE80211_CHAN_TURBO	0x00000010 /* Turbo channel */
+#define	IEEE80211_CHAN_CCK	0x00000020 /* CCK channel */
+#define	IEEE80211_CHAN_OFDM	0x00000040 /* OFDM channel */
+#define	IEEE80211_CHAN_2GHZ	0x00000080 /* 2 GHz spectrum channel. */
+#define	IEEE80211_CHAN_5GHZ	0x00000100 /* 5 GHz spectrum channel */
+#define	IEEE80211_CHAN_PASSIVE	0x00000200 /* Only passive scan allowed */
+#define	IEEE80211_CHAN_DYN	0x00000400 /* Dynamic CCK-OFDM channel */
+#define	IEEE80211_CHAN_GFSK	0x00000800 /* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x00001000 /* 900 MHz spectrum channel */
+#define	IEEE80211_CHAN_STURBO	0x00002000 /* 11a static turbo channel only */
+#define	IEEE80211_CHAN_HALF	0x00004000 /* Half rate channel */
+#define	IEEE80211_CHAN_QUARTER	0x00008000 /* Quarter rate channel */
+#define	IEEE80211_CHAN_HT20	0x00010000 /* HT 20 channel */
+#define	IEEE80211_CHAN_HT40U	0x00020000 /* HT 40 channel w/ ext above */
+#define	IEEE80211_CHAN_HT40D	0x00040000 /* HT 40 channel w/ ext below */
+#define	IEEE80211_CHAN_DFS	0x00080000 /* DFS required */
+#define	IEEE80211_CHAN_4MSXMIT	0x00100000 /* 4ms limit on frame length */
+#define	IEEE80211_CHAN_NOADHOC	0x00200000 /* adhoc mode not allowed */
+#define	IEEE80211_CHAN_NOHOSTAP	0x00400000 /* hostap mode not allowed */
+#define	IEEE80211_CHAN_11D	0x00800000 /* 802.11d required */
 
 #define	IEEE80211_CHAN_HT40	(IEEE80211_CHAN_HT40U | IEEE80211_CHAN_HT40D)
 #define	IEEE80211_CHAN_HT	(IEEE80211_CHAN_HT20 | IEEE80211_CHAN_HT40)
@@ -228,8 +234,26 @@ struct ieee80211_channel {
 #define	IEEE80211_IS_CHAN_HTG(_c) \
 	(IEEE80211_IS_CHAN_2GHZ(_c) && \
 	 ((_c)->ic_flags & IEEE80211_CHAN_HT) != 0)
+#define	IEEE80211_IS_CHAN_DFS(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_DFS) != 0)
+#define	IEEE80211_IS_CHAN_NOADHOC(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_NOADHOC) != 0)
+#define	IEEE80211_IS_CHAN_NOHOSTAP(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_NOHOSTAP) != 0)
+#define	IEEE80211_IS_CHAN_11D(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_11D) != 0)
 
 #define	IEEE80211_CHAN2IEEE(_c)		(_c)->ic_ieee
+
+/* dynamic state */
+#define	IEEE80211_CHANSTATE_RADAR	0x01	/* radar detected */
+#define	IEEE80211_CHANSTATE_CACDONE	0x02	/* CAC completed */
+#define	IEEE80211_CHANSTATE_NORADAR	0x10	/* post notify on radar clear */
+
+#define	IEEE80211_IS_CHAN_RADAR(_c) \
+	(((_c)->ic_state & IEEE80211_CHANSTATE_RADAR) != 0)
+#define	IEEE80211_IS_CHAN_CACDONE(_c) \
+	(((_c)->ic_state & IEEE80211_CHANSTATE_CACDONE) != 0)
 
 /* ni_chan encoding for FH phy */
 #define	IEEE80211_FH_CHANMOD	80
