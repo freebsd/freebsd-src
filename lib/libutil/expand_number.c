@@ -68,7 +68,22 @@ expand_number(char *buf, int64_t *num)
 	}
 
 	s = tolower(*endptr);
-	for (i = 0; i < unit[i] != '\0'; i++) {
+	switch (s) {
+	case 'b':
+	case 'k':
+	case 'm':
+	case 'g':
+	case 't':
+	case 'p':
+	case 'e':
+		break;
+	default:
+		/* Unrecognized unit. */
+		errno = EINVAL;
+		return (-1);
+	}
+
+	for (i = 0; unit[i] != '\0'; i++) {
 		if (s == unit[i])
 			break;
 		if ((number < 0 && (number << 10) > number) ||
@@ -77,11 +92,6 @@ expand_number(char *buf, int64_t *num)
 			return (-1);
 		}
 		number <<= 10;
-	}
-	if (unit[i] == '\0') {
-		/* Unrecognized unit. */
-		errno = EINVAL;
-		return (-1);
 	}
 
 	*num = number;
