@@ -1917,6 +1917,11 @@ iwi_start(struct ifnet *ifp)
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 			if (m0 == NULL)
 				break;
+			/*
+			 * Cancel any background scan.
+			 */
+			if (ic->ic_flags & IEEE80211_F_SCAN)
+				ieee80211_cancel_scan(ic);
 
 			if (m0->m_len < sizeof (struct ether_header) &&
 			    (m0 = m_pullup(m0, sizeof (struct ether_header))) == NULL) {
@@ -1978,6 +1983,7 @@ iwi_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
+		ic->ic_lastdata = ticks;
 	}
 
 	IWI_UNLOCK(sc);

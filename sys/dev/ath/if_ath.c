@@ -1579,6 +1579,12 @@ ath_start(struct ifnet *ifp)
 				ATH_TXBUF_UNLOCK(sc);
 				break;
 			}
+			/*
+			 * Cancel any background scan.
+			 */
+			if (ic->ic_flags & IEEE80211_F_SCAN)
+				ieee80211_cancel_scan(ic);
+
 			STAILQ_INIT(&frags);
 			/*
 			 * Find the node for the destination so we can do
@@ -1605,15 +1611,6 @@ ath_start(struct ifnet *ifp)
 				 * the frame back when the time is right.
 				 */
 				ieee80211_pwrsave(ni, m);
-				/*
-				 * If we're in power save mode 'cuz of a bg
-				 * scan cancel it so the traffic can flow.
-				 * The packet we just queued will automatically
-				 * get sent when we drop out of power save.
-				 * XXX locking
-				 */
-				if (ic->ic_flags & IEEE80211_F_SCAN)
-					ieee80211_cancel_scan(ic);
 				goto reclaim;
 			}
 			/* calculate priority so we can find the tx queue */
@@ -1752,6 +1749,7 @@ ath_start(struct ifnet *ifp)
 		}
 
 		ifp->if_timer = 5;
+		ic->ic_lastdata = ticks;
 #if 0
 		/*
 		 * Flush stale frames from the fast-frame staging queue.
