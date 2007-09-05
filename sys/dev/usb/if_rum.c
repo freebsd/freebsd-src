@@ -1406,6 +1406,11 @@ rum_start(struct ifnet *ifp)
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				break;
 			}
+			/*
+			 * Cancel any background scan.
+			 */
+			if (ic->ic_flags & IEEE80211_F_SCAN)
+				ieee80211_cancel_scan(ic);
 
 			if (m0->m_len < sizeof (struct ether_header) &&
 			    !(m0 = m_pullup(m0, sizeof (struct ether_header))))
@@ -1436,6 +1441,7 @@ rum_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
+		ic->ic_lastdata = ticks;
 		callout_reset(&sc->watchdog_ch, hz, rum_watchdog, sc);
 	}
 }
