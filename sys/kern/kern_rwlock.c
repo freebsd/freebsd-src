@@ -448,7 +448,6 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		MPASS(ts != NULL);
 		turnstile_broadcast_queue(ts, TS_EXCLUSIVE_QUEUE);
 		turnstile_unpend_queue(ts, TS_SHARED_LOCK);
-		turnstile_release(&rw->lock_object);
 		break;
 	}
 	lock_profile_release_lock(&rw->lock_object);
@@ -676,7 +675,6 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	turnstile_broadcast_queue(ts, queue);
 	atomic_store_rel_ptr(&rw->rw_lock, v);
 	turnstile_unpend_queue(ts, TS_EXCLUSIVE_LOCK);
-	turnstile_release(&rw->lock_object);
 }
 
 /*
@@ -807,11 +805,12 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 		turnstile_broadcast_queue(ts, TS_SHARED_QUEUE);
 	atomic_store_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) |
 	    (v & RW_LOCK_WRITE_WAITERS));
-	if (v & RW_LOCK_READ_WAITERS)
+	if (v & RW_LOCK_READ_WAITERS) {
 		turnstile_unpend_queue(ts, TS_EXCLUSIVE_LOCK);
-	else if (ts)
+	} else if (ts) {
 		turnstile_disown(ts);
-	turnstile_release(&rw->lock_object);
+		turnstile_release(&rw->lock_object);
+	}
 out:
 	LOCK_LOG_LOCK("WDOWNGRADE", &rw->lock_object, 0, 0, file, line);
 }
