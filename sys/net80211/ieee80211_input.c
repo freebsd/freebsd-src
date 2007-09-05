@@ -2701,7 +2701,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			    ether_sprintf(wh->i_addr2));
 			IEEE80211_SEND_MGMT(ic, ni,
 			    IEEE80211_FC0_SUBTYPE_DEAUTH,
-			    IEEE80211_REASON_RSN_REQUIRED);
+			    IEEE80211_REASON_IE_INVALID);
 			ieee80211_node_leave(ic, ni);
 			ic->ic_stats.is_rx_assoc_badwpaie++;
 			return;

@@ -696,7 +696,7 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
  	htinfo = (const struct ieee80211_ie_htinfo *) ie;
 	ni->ni_htctlchan = htinfo->hi_ctrlchannel;
 	ni->ni_ht2ndchan = SM(htinfo->hi_byte1, IEEE80211_HTINFO_2NDCHAN);
-	w = LE_READ_2(&htinfo->hi_byte23);
+	w = LE_READ_2(&htinfo->hi_byte2);
 	ni->ni_htopmode = SM(w, IEEE80211_HTINFO_OPMODE);
 	w = LE_READ_2(&htinfo->hi_byte45);
 	ni->ni_htstbc = SM(w, IEEE80211_HTINFO_BASIC_STBCMCS);

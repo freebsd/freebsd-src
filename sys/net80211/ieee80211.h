@@ -273,7 +273,7 @@ struct ieee80211_wme_param {
 	uint8_t		param_len;
 	uint8_t		param_oui[3];
 	uint8_t		param_oui_type;
-	uint8_t		param_oui_sybtype;
+	uint8_t		param_oui_subtype;
 	uint8_t		param_version;
 	uint8_t		param_qosInfo;
 #define	WME_QOSINFO_COUNT	0x0f	/* Mask for param count field */
@@ -305,7 +305,7 @@ struct ieee80211_action {
 
 #define	IEEE80211_ACTION_CAT_QOS	0	/* QoS */
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
-#define	IEEE80211_ACTION_CAT_HT		5	/* HT */
+#define	IEEE80211_ACTION_CAT_HT		7	/* HT */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
 #define	IEEE80211_ACTION_HT_MIMOPWRSAVE	1	/* MIMO power save */
@@ -319,11 +319,11 @@ struct ieee80211_action_ht_txchwidth {
 #define	IEEE80211_A_HT_TXCHWIDTH_20	0
 #define	IEEE80211_A_HT_TXCHWIDTH_2040	1
 
-/* HT - MIMO Power Save */
+/* HT - MIMO Power Save (NB: D2.04) */
 struct ieee80211_action_ht_mimopowersave {
 	struct ieee80211_action am_header;
-	uint8_t		am_enable;	
-	uint8_t		am_mode;	
+	uint8_t		am_enable;
+	uint8_t		am_mode;
 } __packed;
 
 /* Block Ack actions */
@@ -462,8 +462,6 @@ struct ieee80211_frame_bar {
  *		octet information[length]
  */
 
-typedef uint8_t *ieee80211_mgt_beacon_t;
-
 #define	IEEE80211_BEACON_INTERVAL(beacon) \
 	((beacon)[8] | ((beacon)[9] << 8))
 #define	IEEE80211_BEACON_CAPABILITY(beacon) \
@@ -477,7 +475,8 @@ typedef uint8_t *ieee80211_mgt_beacon_t;
 #define	IEEE80211_CAPINFO_SHORT_PREAMBLE	0x0020
 #define	IEEE80211_CAPINFO_PBCC			0x0040
 #define	IEEE80211_CAPINFO_CHNL_AGILITY		0x0080
-/* bits 8-9 are reserved */
+#define	IEEE80211_CAPINFO_SPECTRUM_MGMT		0x0100
+/* bit 9 is reserved */
 #define	IEEE80211_CAPINFO_SHORT_SLOTTIME	0x0400
 #define	IEEE80211_CAPINFO_RSN			0x0800
 /* bit 12 is reserved */
@@ -587,9 +586,10 @@ struct ieee80211_ie_htinfo {
 	uint8_t		hi_len;			/* length in bytes */
 	uint8_t		hi_ctrlchannel;		/* primary channel */
 	uint8_t		hi_byte1;		/* ht ie byte 1 */
-	uint16_t	hi_byte23;		/* ht ie bytes 2+3 */
+	uint8_t		hi_byte2;		/* ht ie byte 2 */
+	uint8_t		hi_byte3;		/* ht ie byte 3 */
 	uint16_t	hi_byte45;		/* ht ie bytes 4+5 */
-	uint8_t		hi_basicmcsset[16]; 	/* basic MCS set */
+	uint8_t 	hi_basicmcsset[16]; 	/* basic MCS set */
 } __packed;
 
 /* byte1 */
@@ -615,9 +615,9 @@ struct ieee80211_ie_htinfo {
 #define	IEEE80211_HTINFO_OPMODE		0x03	/* operating mode */
 #define	IEEE80211_HTINFO_OPMODE_S	0
 #define	IEEE80211_HTINFO_OPMODE_PURE	0x00	/* no protection */
-#define	IEEE80211_HTINFO_OPMODE_MIXED	0x01	/* protection required */      	
-#define	IEEE80211_HTINFO_OPMODE_PROTOPT	0x02	/* protection optional */      	
-#define	IEEE80211_HTINFO_OPMODE_TBD	0x03
+#define	IEEE80211_HTINFO_OPMODE_PROTOPT	0x01	/* protection optional */
+#define	IEEE80211_HTINFO_OPMODE_HT20PR	0x02	/* protection for HT20 sta's */
+#define	IEEE80211_HTINFO_OPMODE_MIXED	0x03	/* protection for legacy sta's*/
 #define	IEEE80211_HTINFO_NONGF_PRESENT	0x04	/* non-GF sta's present */
 #define	IEEE80211_HTINFO_TXBL		0x08	/* transmit burst limit */
 #define	IEEE80211_HTINFO_NONHT_PRESENT	0x10	/* non-HT sta's present */
@@ -690,6 +690,17 @@ struct ieee80211_country_ie {
 } __packed;
 
 /*
+ * 802.11h Channel Switch Announcement (CSA).
+ */
+struct ieee80211_csa_ie {
+	uint8_t		csa_ie;		/* IEEE80211_ELEMID_CHANSWITCHANN */
+	uint8_t		csa_len;
+	uint8_t		csa_mode;		/* Channel Switch Mode */
+	uint8_t		csa_newchan;		/* New Channel Number */
+	uint8_t		csa_count;		/* Channel Switch Count */
+} __packed;
+
+/*
  * Atheros advanced capability information element.
  */
 struct ieee80211_ath_ie {
@@ -711,8 +722,7 @@ struct ieee80211_ath_ie {
 	uint8_t		ath_defkeyix[2];
 } __packed;
 
-#define IEEE80211_CHALLENGE_LEN		128
-
+/* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
 #define	IEEE80211_RATE_VAL		0x7f
 
@@ -780,17 +790,11 @@ struct ieee80211_ath_ie {
  *	octet status[2]
  *	octet chal.id
  *	octet chal.length
- *	octet chal.text[253]
+ *	octet chal.text[253]		NB: 1-253 bytes
  */
 
-typedef uint8_t *ieee80211_mgt_auth_t;
-
-#define	IEEE80211_AUTH_ALGORITHM(auth) \
-	((auth)[0] | ((auth)[1] << 8))
-#define	IEEE80211_AUTH_TRANSACTION(auth) \
-	((auth)[2] | ((auth)[3] << 8))
-#define	IEEE80211_AUTH_STATUS(auth) \
-	((auth)[4] | ((auth)[5] << 8))
+/* challenge length for shared key auth */
+#define IEEE80211_CHALLENGE_LEN		128
 
 #define	IEEE80211_AUTH_ALG_OPEN		0x0000
 #define	IEEE80211_AUTH_ALG_SHARED	0x0001
@@ -809,7 +813,11 @@ enum {
 };
 
 /*
- * Reason codes
+ * Reason and status codes.
+ *
+ * Reason codes are used in management frames to indicate why an
+ * action took place (e.g. on disassociation).  Status codes are
+ * used in management frames to indicate the result of an operation.
  *
  * Unlisted codes are reserved
  */
@@ -824,11 +832,20 @@ enum {
 	IEEE80211_REASON_NOT_ASSOCED		= 7,
 	IEEE80211_REASON_ASSOC_LEAVE		= 8,
 	IEEE80211_REASON_ASSOC_NOT_AUTHED	= 9,
-
-	IEEE80211_REASON_RSN_REQUIRED		= 11,
-	IEEE80211_REASON_RSN_INCONSISTENT	= 12,
-	IEEE80211_REASON_IE_INVALID		= 13,
-	IEEE80211_REASON_MIC_FAILURE		= 14,
+	IEEE80211_REASON_DISASSOC_PWRCAP_BAD	= 10,	/* 11h */
+	IEEE80211_REASON_DISASSOC_SUPCHAN_BAD	= 11,	/* 11h */
+	IEEE80211_REASON_IE_INVALID		= 13,	/* 11i */
+	IEEE80211_REASON_MIC_FAILURE		= 14,	/* 11i */
+	IEEE80211_REASON_4WAY_HANDSHAKE_TIMEOUT	= 15,	/* 11i */
+	IEEE80211_REASON_GROUP_KEY_UPDATE_TIMEOUT = 16,	/* 11i */
+	IEEE80211_REASON_IE_IN_4WAY_DIFFERS	= 17,	/* 11i */
+	IEEE80211_REASON_GROUP_CIPHER_INVALID	= 18,	/* 11i */
+	IEEE80211_REASON_PAIRWISE_CIPHER_INVALID= 19,	/* 11i */
+	IEEE80211_REASON_AKMP_INVALID		= 20,	/* 11i */
+	IEEE80211_REASON_UNSUPP_RSN_IE_VERSION	= 21,	/* 11i */
+	IEEE80211_REASON_INVALID_RSN_IE_CAP	= 22,	/* 11i */
+	IEEE80211_REASON_802_1X_AUTH_FAILED	= 23,	/* 11i */
+	IEEE80211_REASON_CIPHER_SUITE_REJECTED	= 24,	/* 11i */
 
 	IEEE80211_STATUS_SUCCESS		= 0,
 	IEEE80211_STATUS_UNSPECIFIED		= 1,
@@ -841,13 +858,21 @@ enum {
 	IEEE80211_STATUS_TIMEOUT		= 16,
 	IEEE80211_STATUS_TOOMANY		= 17,
 	IEEE80211_STATUS_BASIC_RATE		= 18,
-	IEEE80211_STATUS_SP_REQUIRED		= 19,
-	IEEE80211_STATUS_PBCC_REQUIRED		= 20,
-	IEEE80211_STATUS_CA_REQUIRED		= 21,
-	IEEE80211_STATUS_TOO_MANY_STATIONS	= 22,
-	IEEE80211_STATUS_RATES			= 23,
-	IEEE80211_STATUS_SHORTSLOT_REQUIRED	= 25,
-	IEEE80211_STATUS_DSSSOFDM_REQUIRED	= 26,
+	IEEE80211_STATUS_SP_REQUIRED		= 19,	/* 11b */
+	IEEE80211_STATUS_PBCC_REQUIRED		= 20,	/* 11b */
+	IEEE80211_STATUS_CA_REQUIRED		= 21,	/* 11b */
+	IEEE80211_STATUS_SPECMGMT_REQUIRED	= 22,	/* 11h */
+	IEEE80211_STATUS_PWRCAP_REQUIRED	= 23,	/* 11h */
+	IEEE80211_STATUS_SUPCHAN_REQUIRED	= 24,	/* 11h */
+	IEEE80211_STATUS_SHORTSLOT_REQUIRED	= 25,	/* 11g */
+	IEEE80211_STATUS_DSSSOFDM_REQUIRED	= 26,	/* 11g */
+	IEEE80211_STATUS_INVALID_IE		= 40,	/* 11i */
+	IEEE80211_STATUS_GROUP_CIPHER_INVALID	= 41,	/* 11i */
+	IEEE80211_STATUS_PAIRWISE_CIPHER_INVALID = 42,	/* 11i */
+	IEEE80211_STATUS_AKMP_INVALID		= 43,	/* 11i */
+	IEEE80211_STATUS_UNSUPP_RSN_IE_VERSION	= 44,	/* 11i */
+	IEEE80211_STATUS_INVALID_RSN_IE_CAP	= 45,	/* 11i */
+	IEEE80211_STATUS_CIPHER_SUITE_REJECTED	= 46,	/* 11i */
 };
 
 #define	IEEE80211_WEP_KEYLEN		5	/* 40bit */
