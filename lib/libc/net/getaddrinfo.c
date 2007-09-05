@@ -575,11 +575,28 @@ good:
 			 * If the returned entry is for an active connection,
 			 * and the given name is not numeric, reorder the
 			 * list, so that the application would try the list
-			 * in the most efficient order.
+			 * in the most efficient order.  Since the head entry
+			 * of the original list may contain ai_canonname and
+			 * that entry may be moved elsewhere in the new list,
+			 * we keep the pointer and will  restore it in the new
+			 * head entry.  (Note that RFC3493 requires the head
+			 * entry store it when requested by the caller).
 			 */
 			if (hints == NULL || !(hints->ai_flags & AI_PASSIVE)) {
-				if (!numeric)
+				if (!numeric) {
+					char *canonname;
+
+					canonname =
+					    sentinel.ai_next->ai_canonname;
+					sentinel.ai_next->ai_canonname = NULL;
 					(void)reorder(&sentinel);
+					if (sentinel.ai_next->ai_canonname ==
+					    NULL) {
+						sentinel.ai_next->ai_canonname
+						    = canonname;
+					} else if (canonname != NULL)
+						free(canonname);
+				}
 			}
 			*res = sentinel.ai_next;
 			return SUCCESS;
