@@ -393,6 +393,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		} else {
+			/* XXX M_WEP and IEEE80211_F_PRIVACY */
 			key = NULL;
 		}
 
@@ -474,7 +475,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			 * any non-PAE frames received without encryption.
 			 */
 			if ((ic->ic_flags & IEEE80211_F_DROPUNENC) &&
-			    key == NULL &&
+			    (key == NULL && (m->m_flags & M_WEP) == 0) &&
 			    eh->ether_type != htons(ETHERTYPE_PAE)) {
 				/*
 				 * Drop unencrypted frames.
@@ -721,6 +722,9 @@ ieee80211_deliver_data(struct ieee80211com *ic,
 		IEEE80211_NODE_STAT(ni, rx_mcast);
 	} else
 		IEEE80211_NODE_STAT(ni, rx_ucast);
+
+	/* clear driver/net80211 flags before passing up */
+	m->m_flags &= ~M_80211_RX;
 
 	/* perform as a bridge within the AP */
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
