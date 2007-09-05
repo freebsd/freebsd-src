@@ -78,7 +78,10 @@ const char *ieee80211_state_name[IEEE80211_S_MAX] = {
 	"SCAN",		/* IEEE80211_S_SCAN */
 	"AUTH",		/* IEEE80211_S_AUTH */
 	"ASSOC",	/* IEEE80211_S_ASSOC */
-	"RUN"		/* IEEE80211_S_RUN */
+	"CAC",		/* IEEE80211_S_CAC */
+	"RUN",		/* IEEE80211_S_RUN */
+	"CSA",		/* IEEE80211_S_CSA */
+	"SLEEP",	/* IEEE80211_S_SLEEP */
 };
 const char *ieee80211_wme_acnames[] = {
 	"WME_AC_BE",
@@ -1143,6 +1146,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			break;
 		case IEEE80211_S_AUTH:
 			break;
+		default:
+			break;
 		}
 		if (ostate != IEEE80211_S_INIT) {
 			/* NB: optimize INIT -> INIT case */
@@ -1215,6 +1220,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				goto createibss;
 			}
 			break;
+		default:
+			break;
 		}
 		break;
 	case IEEE80211_S_AUTH:
@@ -1257,6 +1264,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				break;
 			}
 			break;
+		default:
+			break;
 		}
 		break;
 	case IEEE80211_S_ASSOC:
@@ -1281,6 +1290,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				    IEEE80211_FC0_SUBTYPE_REASSOC_REQ :
 				    IEEE80211_FC0_SUBTYPE_ASSOC_REQ, 0);
 			}
+			break;
+		default:
 			break;
 		}
 		break;
@@ -1337,6 +1348,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			}
 			if_start(ifp);		/* XXX not authorized yet */
 			break;
+		default:
+			break;
 		}
 		if (ostate != IEEE80211_S_RUN &&
 		    ic->ic_opmode == IEEE80211_M_STA &&
@@ -1376,6 +1389,8 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 		 */
 		callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
 			ieee80211_node_timeout, ic);
+		break;
+	default:
 		break;
 	}
 	return 0;

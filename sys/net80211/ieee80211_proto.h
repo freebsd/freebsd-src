@@ -37,9 +37,12 @@ enum ieee80211_state {
 	IEEE80211_S_SCAN	= 1,	/* scanning */
 	IEEE80211_S_AUTH	= 2,	/* try to authenticate */
 	IEEE80211_S_ASSOC	= 3,	/* try to assoc */
-	IEEE80211_S_RUN		= 4,	/* associated */
+	IEEE80211_S_CAC		= 4,	/* doing channel availability check */
+	IEEE80211_S_RUN		= 5,	/* operational (e.g. associated) */
+	IEEE80211_S_CSA		= 6,	/* channel switch announce pending */
+	IEEE80211_S_SLEEP	= 7,	/* power save */
 };
-#define	IEEE80211_S_MAX		(IEEE80211_S_RUN+1)
+#define	IEEE80211_S_MAX		(IEEE80211_S_SLEEP+1)
 
 #define	IEEE80211_SEND_MGMT(_ic,_ni,_type,_arg) \
 	((*(_ic)->ic_send_mgmt)(_ic, _ni, _type, _arg))

@@ -3009,6 +3009,8 @@ wi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 			memcpy(ni->ni_essid, ssid.wi_ssid, ni->ni_esslen);
 		}
 		return (*sc->sc_newstate)(ic, nstate, arg);
+	default:
+		break;
 	}
 	return 0;
 }
