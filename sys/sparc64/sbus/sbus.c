@@ -153,6 +153,7 @@ struct sbus_rd {
 };
 
 struct sbus_softc {
+	device_t		sc_dev;
 	bus_dma_tag_t		sc_cdmatag;
 	bus_space_tag_t		sc_cbustag;
 	int			sc_clockfreq;	/* clock frequency (in Hz) */
@@ -170,15 +171,6 @@ struct sbus_softc {
 	void			*sc_pf_ihand;
 };
 
-struct sbus_clr {
-	struct sbus_softc	*scl_sc;
-	bus_addr_t		scl_clr;	/* clear register */
-	driver_filter_t		*scl_filter;	/* filter to call */
-	driver_intr_t		*scl_handler;	/* handler to call */
-	void			*scl_arg;	/* argument for the handler */
-	void			*scl_cookie;	/* parent bus int. cookie */
-};
-
 #define	SYSIO_READ8(sc, off) \
 	bus_read_8((sc)->sc_sysio_res, (off))
 #define	SYSIO_WRITE8(sc, off, v) \
@@ -191,7 +183,6 @@ static bus_probe_nomatch_t sbus_probe_nomatch;
 static bus_read_ivar_t sbus_read_ivar;
 static bus_get_resource_list_t sbus_get_resource_list;
 static bus_setup_intr_t sbus_setup_intr;
-static bus_teardown_intr_t sbus_teardown_intr;
 static bus_alloc_resource_t sbus_alloc_resource;
 static bus_release_resource_t sbus_release_resource;
 static bus_activate_resource_t sbus_activate_resource;
@@ -203,8 +194,11 @@ static int sbus_inlist(const char *, const char **);
 static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
     phandle_t);
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
-static driver_filter_t sbus_filter_stub;
-static driver_intr_t sbus_intr_stub;
+static void sbus_intr_enable(void *);
+static void sbus_intr_disable(void *);
+static void sbus_intr_eoi(void *);
+static int sbus_find_intrmap(struct sbus_softc *, u_int, bus_addr_t *,
+    bus_addr_t *);
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
 static driver_intr_t sbus_overtemp;
 static driver_intr_t sbus_pwrfail;
@@ -223,7 +217,7 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	sbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	sbus_read_ivar),
 	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	sbus_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	sbus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	sbus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	sbus_deactivate_resource),
@@ -255,6 +249,18 @@ DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 
 #define	OFW_SBUS_TYPE	"sbus"
 #define	OFW_SBUS_NAME	"sbus"
+
+static const struct intr_controller sbus_ic = {
+	sbus_intr_enable,
+	sbus_intr_disable,
+	sbus_intr_eoi
+};
+
+struct sbus_icarg {
+	struct sbus_softc	*sica_sc;
+	bus_addr_t		sica_map;
+	bus_addr_t		sica_clr;
+};
 
 static const char *sbus_order_first[] = {
 	"auxio",
@@ -294,18 +300,20 @@ sbus_attach(device_t dev)
 {
 	struct sbus_softc *sc;
 	struct sbus_devinfo *sdi;
+	struct sbus_icarg *sica;
 	struct sbus_ranges *range;
 	struct resource *res;
 	struct resource_list *rl;
 	device_t cdev;
-	bus_addr_t phys;
+	bus_addr_t intrclr, intrmap, phys;
 	bus_size_t size;
 	char *name;
+	u_long vec;
 	phandle_t child, node;
-	u_int64_t mr;
 	int clock, i, intr, rid;
 
 	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
 	node = ofw_bus_get_node(dev);
 
 	rid = 0;
@@ -316,7 +324,7 @@ sbus_attach(device_t dev)
 
 	if (OF_getprop(node, "interrupts", &intr, sizeof(intr)) == -1)
 		panic("%s: cannot get IGN", __func__);
-	sc->sc_ign = (intr & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT;
+	sc->sc_ign = INTIGN(intr);
 	sc->sc_cbustag = sbus_alloc_bustag(sc);
 
 	/*
@@ -413,27 +421,54 @@ sbus_attach(device_t dev)
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
 	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
 
+ 	/*
+	 * Hunt through all the interrupt mapping regs and register our
+	 * interrupt controller for the corresponding interrupt vectors.
+	 */
+	for (i = 0; i <= SBUS_MAX_INO; i++) {
+		if (sbus_find_intrmap(sc, i, &intrmap, &intrclr) == 0)
+			continue;
+		sica = malloc(sizeof(*sica), M_DEVBUF, M_NOWAIT);
+		if (sica == NULL)
+			panic("%s: could not allocate interrupt controller "
+			    "argument", __func__);
+		sica->sica_sc = sc;
+		sica->sica_map = intrmap;
+		sica->sica_clr = intrclr;
+#ifdef SBUS_DEBUG
+		device_printf(dev,
+		    "intr map (INO %d, %s) %#lx: %#lx, clr: %#lx\n",
+		    i, (i & INTMAP_OBIO_MASK) == 0 ? "SBus slot" : "OBIO",
+		    (u_long)intrmap, (u_long)SYSIO_READ8(sc, intrmap),
+		    (u_long)intrclr);
+#endif
+		if (intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
+		    &sbus_ic, sica) != 0)
+			panic("%s: could not register interrupt controller "
+			    "for INO %d", __func__, i);
+	}
+
 	/* Enable the over-temperature and power-fail interrupts. */
 	rid = 4;
-	mr = SYSIO_READ8(sc, SBR_THERM_INT_MAP);
 	sc->sc_ot_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_ot_ires == NULL ||
-	    rman_get_start(sc->sc_ot_ires) != INTVEC(mr) ||
+	    INTIGN(vec = rman_get_start(sc->sc_ot_ires)) != sc->sc_ign ||
+	    INTVEC(SYSIO_READ8(sc, SBR_THERM_INT_MAP)) != vec ||
+	    intr_vectors[vec].iv_ic != &sbus_ic ||
 	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC,
 	    NULL, sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
-	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	rid = 3;
-	mr = SYSIO_READ8(sc, SBR_POWER_INT_MAP);
 	sc->sc_pf_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_pf_ires == NULL ||
-	    rman_get_start(sc->sc_pf_ires) != INTVEC(mr) ||
+	    INTIGN(vec = rman_get_start(sc->sc_pf_ires)) != sc->sc_ign ||
+	    INTVEC(SYSIO_READ8(sc, SBR_POWER_INT_MAP)) != vec ||
+	    intr_vectors[vec].iv_ic != &sbus_ic ||
 	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC,
 	    NULL, sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
-	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
 	/* Initialize the counter-timer. */
 	sparc64_counter_init(rman_get_bustag(sc->sc_sysio_res),
@@ -532,8 +567,7 @@ sbus_setup_dinfo(device_t dev, struct sbus_softc *sc, phandle_t node)
 			 */
 			if ((iv & INTMAP_OBIO_MASK) == 0)
 				iv |= slot << 3;
-			/* Set the ign as appropriate. */
-			iv |= sc->sc_ign << INTMAP_IGN_SHIFT;
+			iv = INTMAP_VEC(sc->sc_ign, iv);
 			resource_list_add(&sdi->sdi_rl, SYS_RES_IRQ, i,
 			    iv, iv, 1);
 		}
@@ -624,30 +658,68 @@ sbus_get_resource_list(device_t dev, device_t child)
 	return (&sdi->sdi_rl);
 }
 
-static int
-sbus_filter_stub(void *arg)
+static void
+sbus_intr_enable(void *arg)
 {
-	struct sbus_clr *scl;
-	int res;
+	struct intr_vector *iv = arg;
+	struct sbus_icarg *sica = iv->iv_icarg;
 
-	scl = (struct sbus_clr *)arg;
-	if (scl->scl_filter != NULL) {
-		res = scl->scl_filter(scl->scl_arg);
-		SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
-	} else
-		res = FILTER_SCHEDULE_THREAD;	
-	return (res);
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_map,
+	    INTMAP_ENABLE(iv->iv_vec, iv->iv_mid));
+}
+static void
+sbus_intr_disable(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct sbus_icarg *sica = iv->iv_icarg;
+
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_map, iv->iv_vec);
 }
 
 static void
-sbus_intr_stub(void *arg)
+sbus_intr_eoi(void *arg)
 {
-	struct sbus_clr *scl;
+	struct intr_vector *iv = arg;
+	struct sbus_icarg *sica = iv->iv_icarg;
 
-	scl = (struct sbus_clr *)arg;
-	scl->scl_handler(scl->scl_arg);
-	if (scl->scl_filter == NULL)
-		SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
+	SYSIO_WRITE8(sica->sica_sc, sica->sica_clr, 0);
+}
+
+static int
+sbus_find_intrmap(struct sbus_softc *sc, u_int ino, bus_addr_t *intrmapptr,
+    bus_addr_t *intrclrptr)
+{
+	bus_addr_t intrclr, intrmap;
+	int i;
+
+	if (ino > SBUS_MAX_INO) {
+		device_printf(sc->sc_dev, "out of range INO %d requested\n",
+		    ino);
+		return (0);
+	}
+
+	if ((ino & INTMAP_OBIO_MASK) == 0) {
+		intrmap = SBR_SLOT0_INT_MAP + INTSLOT(ino) * 8;
+		intrclr = SBR_SLOT0_INT_CLR +
+		    (INTSLOT(ino) * 8 * 8) + (INTPRI(ino) * 8);
+	} else {
+		intrclr = 0;
+		for (i = 0, intrmap = SBR_SCSI_INT_MAP;
+		    intrmap <= SBR_RESERVED_INT_MAP; intrmap += 8, i++) {
+			if (INTVEC(SYSIO_READ8(sc, intrmap)) ==
+			    INTMAP_VEC(sc->sc_ign, ino)) {
+				intrclr = SBR_SCSI_INT_CLR + i * 8;
+				break;
+			}
+		}
+		if (intrclr == 0)
+			return (0);
+	}
+	if (intrmapptr != NULL)
+		*intrmapptr = intrmap;
+	if (intrclrptr != NULL)
+		*intrclrptr = intrclr;
+	return (1);
 }
 
 static int
@@ -655,97 +727,20 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct sbus_softc *sc;
-	struct sbus_clr *scl;
-	bus_addr_t intrmapptr, intrclrptr, intrptr;
-	u_int64_t intrmap;
-	u_int32_t inr, slot;
-	int error, i;
-	long vec;
+	u_long vec;
 
-	if (filt != NULL && intr != NULL)
-		return (EINVAL);
 	sc = device_get_softc(dev);
-	scl = (struct sbus_clr *)malloc(sizeof(*scl), M_DEVBUF, M_NOWAIT);
-	if (scl == NULL)
-		return (ENOMEM);
-	intrptr = intrmapptr = intrclrptr = 0;
-	intrmap = 0;
+	/*
+	 * Make sure the vector is fully specified and we registered
+	 * our interrupt controller for it.
+ 	 */
 	vec = rman_get_start(ires);
-	inr = INTVEC(vec);
-	if ((inr & INTMAP_OBIO_MASK) == 0) {
-		/*
-		 * We're in an SBus slot, register the map and clear
-		 * intr registers.
-		 */
-		slot = INTSLOT(vec);
-		intrmapptr = SBR_SLOT0_INT_MAP + slot * 8;
-		intrclrptr = SBR_SLOT0_INT_CLR +
-		    (slot * 8 * 8) + (INTPRI(vec) * 8);
-		/* Enable the interrupt, insert IGN. */
-		intrmap = inr | (sc->sc_ign << INTMAP_IGN_SHIFT);
-	} else {
-		intrptr = SBR_SCSI_INT_MAP;
-		/* Insert IGN */
-		inr |= sc->sc_ign << INTMAP_IGN_SHIFT;
-		for (i = 0; intrptr <= SBR_RESERVED_INT_MAP &&
-		    INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) != inr;
-		    intrptr += 8, i++)
-			;
-		if (INTVEC(intrmap) == inr) {
-			/* Register the map and clear intr registers */
-			intrmapptr = intrptr;
-			intrclrptr = SBR_SCSI_INT_CLR + i * 8;
-			/* Enable the interrupt */
-		} else
-			panic("%s: IRQ not found!", __func__);
-	}
-
-	scl->scl_sc = sc;
-	scl->scl_arg = arg;
-	scl->scl_filter = filt;
-	scl->scl_handler = intr;
-	scl->scl_clr = intrclrptr;
-	/* Disable the interrupt while we fiddle with it */
-	SYSIO_WRITE8(sc, intrmapptr, intrmap & ~INTMAP_V);
-	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    sbus_filter_stub, sbus_intr_stub, scl, cookiep);
-	if (error != 0) {
-		free(scl, M_DEVBUF);
-		return (error);
-	}
-	scl->scl_cookie = *cookiep;
-	*cookiep = scl;
-
-	/*
-	 * Clear the interrupt, it might have been triggered before it was
-	 * set up.
-	 */
-	SYSIO_WRITE8(sc, intrclrptr, 0);
-	/*
-	 * Enable the interrupt and program the target module now we have the
-	 * handler installed.
-	 */
-	SYSIO_WRITE8(sc, intrmapptr, INTMAP_ENABLE(intrmap, PCPU_GET(mid)));
-	return (error);
-}
-
-static int
-sbus_teardown_intr(device_t dev, device_t child, struct resource *vec,
-    void *cookie)
-{
-	struct sbus_clr *scl;
-	int error;
-
-	scl = (struct sbus_clr *)cookie;
-	error = BUS_TEARDOWN_INTR(device_get_parent(dev), child, vec,
-	    scl->scl_cookie);
-	/*
-	 * Don't disable the interrupt for now, so that stray interrupts get
-	 * detected...
-	 */
-	if (error != 0)
-		free(scl, M_DEVBUF);
-	return (error);
+	if (INTIGN(vec) != sc->sc_ign || intr_vectors[vec].iv_ic != &sbus_ic) {
+		device_printf(dev, "invalid interrupt vector 0x%lx\n", vec);
+ 		return (EINVAL);
+ 	}
+	return (bus_generic_setup_intr(dev, child, ires, flags, filt, intr,
+	    arg, cookiep));
 }
 
 static struct resource *
@@ -791,7 +786,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		bh = toffs = tend = 0;
 		schild = child;
 		while (device_get_parent(schild) != bus)
-			schild = device_get_parent(child);
+			schild = device_get_parent(schild);
 		slot = sbus_get_slot(schild);
 		for (i = 0; i < sc->sc_nrange; i++) {
 			if (sc->sc_rd[i].rd_slot != slot ||
@@ -931,7 +926,12 @@ sbus_get_devinfo(device_t bus, device_t child)
 static void
 sbus_overtemp(void *arg)
 {
+	static int shutdown;
 
+	/* As the interrupt is cleared we may be called multiple times. */
+	if (shutdown != 0)
+		return;
+	shutdown++;
 	printf("DANGER: OVER TEMPERATURE detected\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
 }
@@ -940,7 +940,12 @@ sbus_overtemp(void *arg)
 static void
 sbus_pwrfail(void *arg)
 {
+	static int shutdown;
 
+	/* As the interrupt is cleared we may be called multiple times. */
+	if (shutdown != 0)
+		return;
+	shutdown++;
 	printf("Power failure detected\nShutting down NOW.\n");
 	shutdown_nice(0);
 }
