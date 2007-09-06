@@ -491,6 +491,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_COUNTRYCODE	90	/* ISO country code */
 #define	IEEE80211_IOC_LOCATION		91	/* indoor/outdoor/anywhere */
 #define	IEEE80211_IOC_HTCOMPAT		92	/* support pre-D1.10 HT ie's */
+#define	IEEE80211_IOC_INACTIVITY	94	/* sta inactivity handling */
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.
