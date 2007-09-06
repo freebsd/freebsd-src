@@ -333,6 +333,7 @@ struct ieee80211com {
 
 /* ic_flags_ext */
 #define	IEEE80211_FEXT_WDS	 0x00000001	/* CONF: 4 addr allowed */
+#define	IEEE80211_FEXT_INACT	 0x00000002	/* CONF: sta inact handling */
 /* 0x00000006 reserved */
 #define	IEEE80211_FEXT_BGSCAN	 0x00000008	/* STATUS: complete bgscan */
 #define	IEEE80211_FEXT_ERPUPDATE 0x00000200	/* STATUS: update ERP element */
