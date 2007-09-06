@@ -1105,6 +1105,9 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_HTCOMPAT:
 		ireq->i_val = (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT) != 0;
 		break;
+	case IEEE80211_IOC_INACTIVITY:
+		ireq->i_val = (ic->ic_flags_ext & IEEE80211_FEXT_INACT) != 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -2469,6 +2472,12 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 		if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
 		    IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_INACTIVITY:
+		if (ireq->i_val)
+			ic->ic_flags_ext |= IEEE80211_FEXT_INACT;
+		else
+			ic->ic_flags_ext &= ~IEEE80211_FEXT_INACT;
 		break;
 	default:
 		error = EINVAL;
