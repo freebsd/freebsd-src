@@ -51,12 +51,15 @@
 #define	INTMAP_PCISLOT_MASK	0x00000000cLL	/* PCI slot # */
 #define	INTMAP_PCIINT_MASK	0x000000003LL	/* PCI interrupt #A,#B,#C,#D */
 #define	INTMAP_OBIO_MASK	0x000000020LL	/* Onboard device */
+#define	INTIGN(x)		(((x) & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT)
 #define	INTVEC(x)		((x) & INTMAP_INR_MASK)
 #define	INTSLOT(x)		(((x) >> 3) & 0x7)
 #define	INTPRI(x)		((x) & 0x7)
 #define	INTINO(x)		((x) & INTMAP_INO_MASK)
 #define	INTMAP_ENABLE(mr, mid) \
 	(((mr) & ~INTMAP_TID_MASK) | ((mid) << INTMAP_TID_SHIFT) | INTMAP_V)
+#define	INTMAP_VEC(ign, inr) \
+	(((ign) << INTMAP_IGN_SHIFT) | (inr))
 
 /* counter-timer support. */
 void sparc64_counter_init(bus_space_tag_t tag, bus_space_handle_t handle,
