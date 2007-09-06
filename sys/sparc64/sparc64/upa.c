@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #define	 UPA_CFG_ESTAR_SPEED_1_64	0x40
 
 #define	UPA_INO_BASE			0x2a
+#define	UPA_INO_MAX			0x2b
 
 struct upa_regs {
 	uint64_t	phys;
@@ -105,6 +106,8 @@ static bus_probe_nomatch_t upa_probe_nomatch;
 static bus_get_resource_list_t upa_get_resource_list;
 static ofw_bus_get_devinfo_t upa_get_devinfo;
 
+static void upa_intr_enable(void *);
+static void upa_intr_disable(void *);
 static struct upa_devinfo *upa_setup_dinfo(device_t, struct upa_softc *,
     phandle_t, uint32_t);
 static void upa_destroy_dinfo(struct upa_devinfo *);
@@ -148,6 +151,18 @@ static devclass_t upa_devclass;
 DEFINE_CLASS_0(upa, upa_driver, upa_methods, sizeof(struct upa_softc));
 DRIVER_MODULE(upa, nexus, upa_driver, upa_devclass, 0, 0);
 
+static const struct intr_controller upa_ic = {
+	upa_intr_enable,
+	upa_intr_disable,
+	/* The interrupts are pulse type and thus automatically cleared. */
+	NULL
+};
+
+struct upa_icarg {
+	struct upa_softc	*uica_sc;
+	u_int			uica_imr;
+};
+
 static int
 upa_probe(device_t dev)
 {
@@ -166,15 +181,16 @@ static int
 upa_attach(device_t dev)
 {
 	struct upa_devinfo *udi;
+	struct upa_icarg *uica;
 	struct upa_softc *sc;
 	phandle_t child, node;
 	device_t cdev;
 	uint32_t portid;
-	int i, rid;
+	int i, imr, j, rid;
 #if 1
 	device_t *children, schizo;
 	u_long scount, sstart, ucount, ustart;
-	int j, nchildren;
+	int nchildren;
 #endif
 
 	sc = device_get_softc(dev);
@@ -257,17 +273,47 @@ upa_attach(device_t dev)
 #endif
 	}
 
-	if (OF_getprop(node, "portid", &portid, sizeof(portid)) == -1) {
-		device_printf(dev, "could not determine portid\n");
+	if (OF_getprop(node, "portid", &sc->sc_ign, sizeof(sc->sc_ign)) == -1) {
+		device_printf(dev, "could not determine IGN\n");
 		goto fail;
 	}
-	sc->sc_ign = (portid << INTMAP_IGN_SHIFT) & INTMAP_IGN_MASK;
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges", sizeof(*sc->sc_ranges),
 	    (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not determine ranges\n");
 		goto fail;
+	}
+
+ 	/*
+	 * Hunt through all the interrupt mapping regs and register our
+	 * interrupt controller for the corresponding interrupt vectors.
+	 */
+	for (i = UPA_INO_BASE; i <= UPA_INO_MAX; i++) {
+		imr = 0;
+		for (j = UPA_IMR1; j <= UPA_IMR2; j++) {
+			if (INTVEC(UPA_READ(sc, j, 0x0)) ==
+			    INTMAP_VEC(sc->sc_ign, i)) {
+				imr = j;
+				break;
+			}
+		}
+		if (imr == 0)
+			continue;
+		uica = malloc(sizeof(*uica), M_DEVBUF, M_NOWAIT);
+		if (uica == NULL)
+			panic("%s: could not allocate interrupt controller "
+			    "argument", __func__);
+		uica->uica_sc = sc;
+		uica->uica_imr = imr;
+#ifdef UPA_DEBUG
+		device_printf(dev, "intr map (INO %d) IMR%d: %#lx\n",
+		    i, imr, (u_long)UPA_READ(sc, imr, 0x0));
+#endif
+		if (intr_controller_register(INTMAP_VEC(sc->sc_ign, i),
+		    &upa_ic, uica) != 0)
+			panic("%s: could not register interrupt controller "
+			    "for INO %d", __func__, i);
 	}
 
 	/* Make sure the power level is appropriate for normal operation. */
@@ -287,9 +333,7 @@ upa_attach(device_t dev)
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		/*
 		 * The `upa-portid' properties of the children are used as
-		 * index for the interrupt mapping registers. Thus we also
-		 * use it as device unit number in order to save on a unit
-		 * member in the devinfo struct.
+		 * index for the interrupt mapping registers.
 		 * The `upa-portid' properties are also used to make up the
 		 * INOs of the children as the values contained in their
 		 * `interrupts' properties are bogus.
@@ -309,7 +353,7 @@ upa_attach(device_t dev)
 		}
 		if ((udi = upa_setup_dinfo(dev, sc, child, portid)) == NULL)
 			continue;
-		if ((cdev = device_add_child(dev, NULL, portid)) == NULL) {
+		if ((cdev = device_add_child(dev, NULL, -1)) == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 			    udi->udi_obdinfo.obd_name);
 			upa_destroy_dinfo(udi);
@@ -404,42 +448,46 @@ upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 }
 
+static void
+upa_intr_enable(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct upa_icarg *uica = iv->iv_icarg;
+
+	UPA_WRITE(uica->uica_sc, uica->uica_imr, 0x0,
+	    INTMAP_ENABLE(iv->iv_vec, iv->iv_mid));
+	(void)UPA_READ(uica->uica_sc, uica->uica_imr, 0x0);
+}
+
+static void
+upa_intr_disable(void *arg)
+{
+	struct intr_vector *iv = arg;
+	struct upa_icarg *uica = iv->iv_icarg;
+
+	UPA_WRITE(uica->uica_sc, uica->uica_imr, 0x0, iv->iv_vec);
+	(void)UPA_READ(uica->uica_sc, uica->uica_imr, 0x0);
+}
+
 static int
 upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
     driver_filter_t *filt, driver_intr_t *func, void *arg, void **cookiep)
 {
 	struct upa_softc *sc;
-	uint64_t intrmap;
-	u_int imr;
-	int error;
+	u_long vec;
 
 	sc = device_get_softc(dev);
-	imr = device_get_unit(child) == 0 ? UPA_IMR1 : UPA_IMR2;
-	intrmap = UPA_READ(sc, imr, 0x0);
-	if (INTVEC(intrmap) != INTVEC(rman_get_start(ires))) {
-		device_printf(dev,
-		    "invalid interrupt vector (0x%x != 0x%x)\n",
-		    (unsigned int)INTVEC(intrmap),
-		    (unsigned int)INTVEC(rman_get_start(ires)));
-		return (EINVAL);
-	}
-
 	/*
-	 * The interrupts are pulse type and therefore automatically
-	 * cleared. Thus we don't need to use a stub/wrapper like we
-	 * do with the other sun4u host-to-<foo> bridges.
-	 */
-
-	UPA_WRITE(sc, imr, 0x0, intrmap & ~INTMAP_V);
-	(void)UPA_READ(sc, imr, 0x0);
-	error = bus_generic_setup_intr(dev, child, ires, flags, filt,
-	    func, arg, cookiep);
-	if (error != 0)
-		return (error);
-	UPA_WRITE(sc, imr, 0x0, INTMAP_ENABLE(intrmap, PCPU_GET(mid)));
-	(void)UPA_READ(sc, imr, 0x0);
-
-	return (0);
+	 * Make sure the vector is fully specified and we registered
+	 * our interrupt controller for it.
+ 	 */
+	vec = rman_get_start(ires);
+	if (INTIGN(vec) != sc->sc_ign || intr_vectors[vec].iv_ic != &upa_ic) {
+		device_printf(dev, "invalid interrupt vector 0x%lx\n", vec);
+ 		return (EINVAL);
+ 	}
+	return (bus_generic_setup_intr(dev, child, ires, flags, filt, func,
+	    arg, cookiep));
 }
 
 static struct resource_list *
@@ -487,7 +535,7 @@ upa_setup_dinfo(device_t dev, struct upa_softc *sc, phandle_t node,
 		    reg[i].phys + reg[i].size - 1, reg[i].size);
 	free(reg, M_OFWPROP);
 
-	intr = (UPA_INO_BASE + portid) | sc->sc_ign;
+	intr = INTMAP_VEC(sc->sc_ign, (UPA_INO_BASE + portid));
 	resource_list_add(&udi->udi_rl, SYS_RES_IRQ, 0, intr, intr, 1);
 
 	return (udi);
