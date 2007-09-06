@@ -308,6 +308,9 @@
 
     <para>The &man.apm.4; suspend/resume support has been improved.</para>
 
+    <para>The &man.cpufreq.4; CPU frequency control framework is now
+      enabled in the <filename>GENERIC</filename> kernel.</para>
+
     <para>Security event auditing is now supported in the &os; kernel,
       and is enabled by the <literal>AUDIT</literal> kernel
       configuration option.  The option is enabled in the
@@ -315,8 +318,9 @@
       in the &man.audit.4; manual page.</para>
 
     <para>Support for the Camellia block cipher has been added to the
-      &os; kernel.  It can now be specified as a cipher in IPsec.  More
-      information on Camellia can be found in RFC 4132.</para>
+      &os; kernel.  It can now be specified as a cipher in &man.ipsec.4;
+      and &man.geli.8;.  More information on Camellia can be found in
+      RFC 4132.</para>
 
     <para>The <literal>options COMPAT_43</literal> kernel
       configuration option has been deemed unnecessary and has been
@@ -934,6 +938,10 @@
 	  have been included in the <filename>GENERIC</filename>
 	  kernel by default.</para>
 
+	<para>[&arch.amd64;, &arch.i386;] The &man.zyd.4; driver
+	  has been added.  It provides support for ZyDAS ZD1211/ZD1211B USB
+	  IEEE 802.11 b/g wireless network devices.</para>
+
 	<para>The network interface groups feature has been imported
 	  from OpenBSD.  This feature allows an administrator to, for
 	  example, apply firewall rules to an entire group of
@@ -1121,8 +1129,12 @@ pipe tablearg ip from table(1) to any</programlisting>
       <para>The &man.ng.ether.4; Netgraph node no longer overwrites
         the MAC address of outgoing frames by default. &merged;</para>
 
+      <para>The &man.ng.h4.4; Netgraph node is now MPSAFE.</para>
+
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
+
+      <para>The &man.ng.ppp.4; Netgraph node is now MPSAFE.  &merged;</para>
 
       <para>A new &man.ng.pred1.4; Netgraph node type has been added
 	to implement Predictor-1 PPP compression. &merged;</para>
@@ -1536,10 +1548,6 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.bsnmpd.1; utility now supports the Host Resources
       MIB described in RFC 2790.  &merged;</para>
 
-    <para>&man.cached.8; has been added.  It is a daemon that caches
-      the results of nsswitch lookups (such as those to the password,
-      group, and services databases) for improved performance.</para>
-
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
       flag to compare the symbolic link itself rather than the
       file that the link points to. &merged;</para>
@@ -1880,6 +1888,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>These lines need to have the word <literal>auth</literal>
       replaced with the word <literal>account</literal>.</para>
+
+    <para>&man.nscd.8; has been added.  It is a daemon that caches
+      the results of nsswitch lookups (such as those to the password,
+      group, and services databases) for improved performance.</para>
 
     <para>The &man.periodic.8; daily script now supports
       display of the status of &man.gmirror.8;, &man.graid3.8;,
