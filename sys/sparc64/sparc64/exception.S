@@ -2330,18 +2330,12 @@ ENTRY(tl0_intr)
 	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
-	call	critical_enter
-	 nop
-
 	SET(intr_handlers, %l1, %l0)
 	sllx	%l3, IH_SHIFT, %l1
 	ldx	[%l0 + %l1], %l1
 	KASSERT(%l1, "tl0_intr: ih null")
 	call	%l1
 	 add	%sp, CCFSZ + SPOFF, %o0
-
-	call	critical_exit
-	 nop
 
 	/* %l3 contains PIL */
 	SET(intrcnt, %l1, %l2)
@@ -2847,18 +2841,12 @@ ENTRY(tl1_intr)
 	mov	%l5, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
-	call	critical_enter
-	 nop
-
 	SET(intr_handlers, %l5, %l4)
 	sllx	%l7, IH_SHIFT, %l5
 	ldx	[%l4 + %l5], %l5
 	KASSERT(%l5, "tl1_intr: ih null")
 	call	%l5
 	 add	%sp, CCFSZ + SPOFF, %o0
-
-	call	critical_exit
-	 nop
 
 	/* %l7 contains PIL */
 	SET(intrcnt, %l5, %l4)

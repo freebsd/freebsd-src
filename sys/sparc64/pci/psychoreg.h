@@ -205,6 +205,9 @@
 #define	PCR_TAS			0x0028	/* PCI target address space reg (IIi) */
 #define	PCR_STRBUF		0x0800	/* IOMMU streaming buffer registers. */
 
+/* INO defines */
+#define	PSYCHO_MAX_INO		0x3f
+
 /* Device space defines */
 #define	PSYCHO_CONF_SIZE	0x1000000
 #define	PSYCHO_CONF_BUS_SHIFT	16

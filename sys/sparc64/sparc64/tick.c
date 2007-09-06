@@ -107,6 +107,7 @@ tick_hardclock(struct trapframe *tf)
 	 * the past could be written in the worst case, causing hardclock to
 	 * stop.
 	 */
+	critical_enter();
 	adj = PCPU_GET(tickadj);
 	s = intr_disable();
 	tick = rd(tick);
@@ -137,6 +138,7 @@ tick_hardclock(struct trapframe *tf)
 	}
 	PCPU_SET(tickref, ref);
 	PCPU_SET(tickadj, adj);
+	critical_exit();
 }
 
 void
