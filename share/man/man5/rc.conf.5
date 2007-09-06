@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2007
+.Dd September 3, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -830,6 +830,24 @@ Path to
 Empty by default.
 This variable contains additional flags passed to the
 .Xr pflogd 8
+program.
+.It Va ftpproxy_enable
+.Pq Vt bool
+Set to
+.Dq Li NO
+by default.
+Setting this to
+.Dq Li YES
+enables
+.Xr ftp-proxy 8
+which supports the
+.Xr pf 4
+packet filter in translating ftp connections.
+.It Va ftpproxy_flags
+.Pq Vt str
+Empty by default.
+This variable contains additional flags passed to the
+.Xr ftp-proxy 8
 program.
 .It Va pfsync_enable
 .Pq Vt bool
