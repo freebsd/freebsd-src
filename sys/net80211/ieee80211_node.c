@@ -194,6 +194,8 @@ ieee80211_node_authorize(struct ieee80211_node *ni)
 void
 ieee80211_node_unauthorize(struct ieee80211_node *ni)
 {
+	struct ieee80211com *ic = ni->ni_ic;
+
 	ni->ni_flags &= ~IEEE80211_NODE_AUTH;
 	ni->ni_inact_reload = ic->ic_inact_auth;
 	if (ni->ni_inact > ni->ni_inact_reload)
