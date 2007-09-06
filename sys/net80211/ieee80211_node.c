@@ -99,6 +99,8 @@ ieee80211_node_attach(struct ieee80211com *ic)
 
 	/* NB: driver should override */
 	ic->ic_max_aid = IEEE80211_AID_DEF;
+
+	ic->ic_flags_ext |= IEEE80211_FEXT_INACT; /* inactivity processing */
 }
 
 void
@@ -186,12 +188,16 @@ ieee80211_node_authorize(struct ieee80211_node *ni)
 
 	ni->ni_flags |= IEEE80211_NODE_AUTH;
 	ni->ni_inact_reload = ic->ic_inact_run;
+	ni->ni_inact = ni->ni_inact_reload;
 }
 
 void
 ieee80211_node_unauthorize(struct ieee80211_node *ni)
 {
 	ni->ni_flags &= ~IEEE80211_NODE_AUTH;
+	ni->ni_inact_reload = ic->ic_inact_auth;
+	if (ni->ni_inact > ni->ni_inact_reload)
+		ni->ni_inact = ni->ni_inact_reload;
 }
 
 /*
@@ -1468,13 +1474,14 @@ restart:
 			m_freem(ni->ni_rxfrag[0]);
 			ni->ni_rxfrag[0] = NULL;
 		}
+		if (ni->ni_inact > 0)
+			ni->ni_inact--;
 		/*
 		 * Special case ourself; we may be idle for extended periods
 		 * of time and regardless reclaiming our state is wrong.
 		 */
 		if (ni == ic->ic_bss)
 			continue;
-		ni->ni_inact--;
 		if (ni->ni_associd != 0 || isadhoc) {
 			/*
 			 * Age frames on the power save queue.
@@ -1495,8 +1502,9 @@ restart:
 			 *     of); this will get fixed more properly
 			 *     soon with better handling of the rate set.
 			 */
-			if (0 < ni->ni_inact &&
-			    ni->ni_inact <= ic->ic_inact_probe &&
+			if ((ic->ic_flags_ext & IEEE80211_FEXT_INACT) &&
+			    (0 < ni->ni_inact &&
+			     ni->ni_inact <= ic->ic_inact_probe) &&
 			    ni->ni_rates.rs_nrates != 0) {
 				IEEE80211_NOTE(ic,
 				    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE,
@@ -1516,7 +1524,8 @@ restart:
 				goto restart;
 			}
 		}
-		if (ni->ni_inact <= 0) {
+		if ((ic->ic_flags_ext & IEEE80211_FEXT_INACT) &&
+		    ni->ni_inact <= 0) {
 			IEEE80211_NOTE(ic,
 			    IEEE80211_MSG_INACT | IEEE80211_MSG_NODE, ni,
 			    "station timed out due to inactivity "
@@ -1742,8 +1751,6 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ni, newassoc);
-	ni->ni_inact_reload = ic->ic_inact_auth;
-	ni->ni_inact = ni->ni_inact_reload;
 	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_SUCCESS);
 	/* tell the authenticator about new station */
 	if (ic->ic_auth->ia_node_join != NULL)
