@@ -271,6 +271,7 @@ zyd_attachhook(struct zyd_softc *sc)
 static int
 zyd_attach(device_t dev)
 {
+	int error = ENXIO;
 	struct zyd_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	usb_device_descriptor_t* ddesc;
@@ -293,7 +294,7 @@ zyd_attach(device_t dev)
 		device_printf(dev, "device version mismatch: 0x%x "
 		    "(only >= 43.30 supported)\n",
 		    UGETW(ddesc->bcdDevice));
-		return -1;
+		goto bad;
 	}
 
 	ifp->if_softc = sc;
@@ -307,7 +308,12 @@ zyd_attach(device_t dev)
 
 	STAILQ_INIT(&sc->sc_rqh);
 
-	zyd_attachhook(sc);
+	error = zyd_attachhook(sc);
+	if (error != 0) {
+bad:
+		if_free(ifp);
+		return error;
+	}
 
 	return 0;
 }
@@ -332,6 +338,7 @@ zyd_complete_attach(struct zyd_softc *sc)
 	error = usbd_set_config_no(sc->sc_udev, ZYD_CONFIG_NO, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "setting config no failed\n");
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -339,6 +346,7 @@ zyd_complete_attach(struct zyd_softc *sc)
 	    &sc->sc_iface);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "getting interface handle failed\n");
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -522,7 +530,7 @@ zyd_open_pipes(struct zyd_softc *sc)
 	return 0;
 
 fail:	zyd_close_pipes(sc);
-	return error;
+	return ENXIO;
 }
 
 static void
