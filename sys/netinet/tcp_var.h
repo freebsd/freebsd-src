@@ -96,7 +96,11 @@ struct tcpcb {
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
-	struct	tcp_timer *t_timers;	/* retransmit timer */
+	struct	callout *tt_rexmt;	/* retransmit timer */
+	struct	callout *tt_persist;	/* retransmit persistence */
+	struct	callout *tt_keep;	/* keepalive */
+	struct	callout *tt_2msl;	/* 2*msl TIME_WAIT timer */
+	struct	callout *tt_delack;	/* delayed ACK timer */
 
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
