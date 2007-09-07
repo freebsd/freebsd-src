@@ -10,7 +10,7 @@ LANG=nl_NL.ISO8859-15
  * Feestdagen
  */
 01/01	Nieuwjaar
-01/06	Drie koningen
+01/06	Driekoningen
 05/04	Dodenherdenking
 30/04	Koninginendag
 05/05	Bevrijdingsdag
@@ -31,18 +31,22 @@ LANG=nl_NL.ISO8859-15
 Easter-50	Carnival
 Easter-49	Carnival
 Easter-48	Carnival
-Easter-47	Carnival
+Easter-47	Vastenavond
 Easter-46	As woensdag
+Easter-7	Palmzondag
 Easter-3	Witte Donderdag
 Easter-2	Goede vrijdag
+Easter-1	Stille zaterdag
 Easter	Eerste paasdag
 Easter+1	Tweede paasdag
-Easter+40	Hemelvaart
+Easter+40	Hemelvaartsdag
 Easter+50	Pinksteren
 
 /*
  * Misc
  */
+05/SunSecond	Moederdag
+06/SunThird	Vaderdag
 09/TueThird	Prinsjesdag
 
 /*
@@ -50,7 +54,7 @@ Easter+50	Pinksteren
  */
 01/31	Koningin Beatrix (1938)
 04/27	Kroonprins Willem Alexander (1967)
-04/30	Prinses Juliana (RIP)
+04/30	Koningin Juliana (RIP)
 04/30	Mr. Pieter van Vollenhoven (1939)
 05/17	Prinses Maxima (1971)
 06/26	Prinses Alexia
