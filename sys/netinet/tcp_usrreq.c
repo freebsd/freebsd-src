@@ -1743,15 +1743,12 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	   LIST_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
 
 	db_print_indent(indent);
-	db_printf("t_inpcb: %p   t_timers: %p   tt_active: %x\n",
-	    tp->t_inpcb, tp->t_timers, tp->t_timers->tt_active);
+	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
+	    tp->tt_rexmt, tp->tt_persist, tp->tt_keep);
 
 	db_print_indent(indent);
-	db_printf("tt_delack: %i   tt_rexmt: %i   tt_keep: %i   "
-	    "tt_persist: %i   tt_2msl: %i\n",
-	    tp->t_timers->tt_delack, tp->t_timers->tt_rexmt,
-	    tp->t_timers->tt_keep, tp->t_timers->tt_persist,
-	    tp->t_timers->tt_2msl);
+	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", tp->tt_2msl,
+	    tp->tt_delack, tp->t_inpcb);
 
 	db_print_indent(indent);
 	db_printf("t_state: %d (", tp->t_state);
