@@ -754,6 +754,8 @@
     <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
     </para>
 
+    &hwlist.rum;
+
     <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent Technologies WaveLAN/IEEE 802.11b
       wireless network
       adapters and workalikes using the Lucent Hermes, Intersil
