@@ -35,9 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
@@ -115,20 +113,13 @@ int	tcp_maxpersistidle;
 	/* max idle time in persist */
 int	tcp_maxidle;
 
-static void	tcp_timer(void *);
-static int	tcp_timer_delack(struct tcpcb *, struct inpcb *);
-static int	tcp_timer_2msl(struct tcpcb *, struct inpcb *);
-static int	tcp_timer_keep(struct tcpcb *, struct inpcb *);
-static int	tcp_timer_persist(struct tcpcb *, struct inpcb *);
-static int	tcp_timer_rexmt(struct tcpcb *, struct inpcb *);
-
 /*
  * Tcp protocol timeout routine called every 500 ms.
  * Updates timestamps used for TCP
  * causes finite state machine actions if timers expire.
  */
 void
-tcp_slowtimo(void)
+tcp_slowtimo()
 {
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
@@ -149,300 +140,81 @@ static int tcp_timer_race;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, timer_race, CTLFLAG_RD, &tcp_timer_race,
     0, "Count of t_inpcb races on tcp_discardcb");
 
-void
-tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
-{
-	struct inpcb *inp = tp->t_inpcb;
-	struct tcp_timer *tt = tp->t_timers;
-	int tick = ticks;			/* Stable time base. */
-	int next = delta ? tick + delta : 0;
-
-	INP_LOCK_ASSERT(inp);
-
-	CTR6(KTR_NET, "%p %s inp %p active %x delta %i nextc %i",
-	    tp, __func__, inp, tt->tt_active, delta, tt->tt_nextc);
-
-	/* Set new value for timer. */
-	switch(timer_type) {
-	case TT_DELACK:
-		CTR4(KTR_NET, "%p %s TT_DELACK old %i new %i",
-		    tp, __func__, tt->tt_delack, next);
-		tt->tt_delack = next;
-		break;
-	case TT_REXMT:
-		CTR4(KTR_NET, "%p %s TT_REXMT old %i new %i",
-		    tp, __func__, tt->tt_rexmt, next);
-		tt->tt_rexmt = next;
-		break;
-	case TT_PERSIST:
-		CTR4(KTR_NET, "%p %s TT_PERSIST old %i new %i",
-		    tp, __func__, tt->tt_persist, next);
-		tt->tt_persist = next;
-		break;
-	case TT_KEEP:
-		CTR4(KTR_NET, "%p %s TT_KEEP old %i new %i",
-		    tp, __func__, tt->tt_keep, next);
-		tt->tt_keep = next;
-		break;
-	case TT_2MSL:
-		CTR4(KTR_NET, "%p %s TT_2MSL old %i new %i",
-		    tp, __func__, tt->tt_2msl, next);
-		tt->tt_2msl = next;
-		break;
-	case 0:					/* Dummy for timer rescan. */
-		CTR3(KTR_NET, "%p %s timer rescan new %i", tp, __func__, next);
-		break;
-	}
-
-	/* If some other timer is active and is schedules sooner just return. */
-	if (tt->tt_active != timer_type && tt->tt_nextc < next &&
-	    callout_active(&tt->tt_timer))
-		return;
-
-	/* Select next timer to schedule. */
-	tt->tt_nextc = INT_MAX;
-	tt->tt_active = 0;
-	if (tt->tt_delack && tt->tt_delack < tt->tt_nextc) {
-		tt->tt_nextc = tt->tt_delack;
-		tt->tt_active = TT_DELACK;
-	}
-	if (tt->tt_rexmt && tt->tt_rexmt < tt->tt_nextc) {
-		tt->tt_nextc = tt->tt_rexmt;
-		tt->tt_active = TT_REXMT;
-	}
-	if (tt->tt_persist && tt->tt_persist < tt->tt_nextc) {
-		tt->tt_nextc = tt->tt_persist;
-		tt->tt_active = TT_PERSIST;
-	}
-	if (tt->tt_keep && tt->tt_keep < tt->tt_nextc) {
-		tt->tt_nextc = tt->tt_keep;
-		tt->tt_active = TT_KEEP;
-	}
-	if (tt->tt_2msl && tt->tt_2msl < tt->tt_nextc) {
-		tt->tt_nextc = tt->tt_2msl;
-		tt->tt_active = TT_2MSL;
-	}
-
-	/* Rearm callout with new timer if we found one. */
-	if (tt->tt_active) {
-		CTR4(KTR_NET, "%p %s callout_reset active %x nextc in %i",
-		    tp, __func__, tt->tt_active, tt->tt_nextc - tick);
-		callout_reset(&tt->tt_timer,
-		    tt->tt_nextc - tick, tcp_timer, (void *)inp);
-	} else {
-		CTR2(KTR_NET, "%p %s callout_stop", tp, __func__);
-		callout_stop(&tt->tt_timer);
-		tt->tt_nextc = 0;
-	}
-
-	return;
-}
-
-int
-tcp_timer_active(struct tcpcb *tp, int timer_type)
-{
-
-	switch (timer_type) {
-	case TT_DELACK:
-		CTR3(KTR_NET, "%p %s TT_DELACK %i",
-		    tp, __func__, tp->t_timers->tt_delack);
-		return (tp->t_timers->tt_delack ? 1 : 0);
-		break;
-	case TT_REXMT:
-		CTR3(KTR_NET, "%p %s TT_REXMT %i",
-		    tp, __func__, tp->t_timers->tt_rexmt);
-		return (tp->t_timers->tt_rexmt ? 1 : 0);
-		break;
-	case TT_PERSIST:
-		CTR3(KTR_NET, "%p %s TT_PERSIST %i",
-		    tp, __func__, tp->t_timers->tt_persist);
-		return (tp->t_timers->tt_persist ? 1 : 0);
-		break;
-	case TT_KEEP:
-		CTR3(KTR_NET, "%p %s TT_KEEP %i",
-		    tp, __func__, tp->t_timers->tt_keep);
-		return (tp->t_timers->tt_keep ? 1 : 0);
-		break;
-	case TT_2MSL:
-		CTR3(KTR_NET, "%p %s TT_2MSL %i",
-		    tp, __func__, tp->t_timers->tt_2msl);
-		return (tp->t_timers->tt_2msl ? 1 : 0);
-		break;
-	}
-	return (0);
-}
-
-static void
-tcp_timer(void *xinp)
-{
-	struct inpcb *inp = (struct inpcb *)xinp;
-	struct tcpcb *tp = intotcpcb(inp);
-	struct tcp_timer *tt;
-	int tick = ticks;
-	int down, timer;
-
-	/* INP lock was obtained by callout. */
-	INP_LOCK_ASSERT(inp);
-
-	/*
-	 * We've got a couple of race conditions here:
-	 * - The tcpcb was converted into a compressed TW pcb.  All our
-	 *   timers have been stopped while this callout already tried
-	 *   to obtain the inpcb lock.  TW pcbs have their own timers
-	 *   and we just return.
-	 */
-	if (inp->inp_vflag & INP_TIMEWAIT)
-		return;
-	/*
-	 * - The tcpcb was discarded.  All our timers have been stopped
-	 *   while this callout already tried to obtain the inpcb lock
-	 *   and we just return.
-	 */
-	if (tp == NULL)
-		return;
-
-	tt = tp->t_timers;	/* Initialize. */
-	CTR6(KTR_NET, "%p %s inp %p active %x tick %i nextc %i",
-	    tp, __func__, inp, tt->tt_active, tick, tt->tt_nextc);
-
-	/*
-	 * - We may have been waiting on the lock while the tcpcb has
-	 *   been scheduled for destruction.  In this case no active
-	 *   timers remain and we just return.
-	 */
-	if (tt->tt_active == 0)
-		goto done;
-
-	/*
-	 * - The timer was rescheduled while this callout was already
-	 *   waiting on the lock.  This may happen when a packet just
-	 *   came in.  Rescan and reschedule the the timer in case we
-	 *   just turned it off.
-	 */
-	if (tick < tt->tt_nextc)
-		goto rescan;
-
-	/*
-	 * Mark as done.  The active bit in struct callout is not
-	 * automatically cleared.  See callout(9) for more info.
-	 * In tcp_discardcb() we depend on the correctly cleared
-	 * active bit for faster processing.
-	 */
-	callout_deactivate(&tt->tt_timer);
-
-	/* Check which timer has fired and remove this timer activation. */
-	timer = tt->tt_active;
-	tt->tt_active = 0;
-	tt->tt_nextc = 0;
-
-	switch (timer) {
-	case TT_DELACK:
-		CTR2(KTR_NET, "%p %s running TT_DELACK", tp, __func__);
-		tt->tt_delack = 0;
-		down = tcp_timer_delack(tp, inp);	/* down == 0 */
-		break;
-	case TT_REXMT:
-		CTR2(KTR_NET, "%p %s running TT_REXMT", tp, __func__);
-		tt->tt_rexmt = 0;
-		down = tcp_timer_rexmt(tp, inp);
-		break;
-	case TT_PERSIST:
-		CTR2(KTR_NET, "%p %s running TT_PERSIST", tp, __func__);
-		tt->tt_persist = 0;
-		down = tcp_timer_persist(tp, inp);
-		break;
-	case TT_KEEP:
-		CTR2(KTR_NET, "%p %s running TT_KEEP", tp, __func__);
-		tt->tt_keep = 0;
-		down = tcp_timer_keep(tp, inp);
-		break;
-	case TT_2MSL:
-		CTR2(KTR_NET, "%p %s running TT_2MSL", tp, __func__);
-		tt->tt_2msl = 0;
-		down = tcp_timer_2msl(tp, inp);
-		break;
-	default:
-		CTR2(KTR_NET, "%p %s running nothing", tp, __func__);
-		down = 0;
-	}
-
-	CTR4(KTR_NET, "%p %s down %i active %x",
-	    tp, __func__, down, tt->tt_active);
-	/* Do we still exist? */
-	if (down)
-		goto shutdown;
-
-rescan:
-	/* Rescan if no timer was reactivated above. */
-	if (tt->tt_active == 0)
-		tcp_timer_activate(tp, 0, 0);
-
-done:
-	INP_UNLOCK(inp);		/* CALLOUT_RETURNUNLOCKED */
-	return;
-
-shutdown:
-	INP_UNLOCK(inp);		/* Prevent LOR at expense of race. */
-	INP_INFO_WLOCK(&tcbinfo);
-	INP_LOCK(inp);
-
-	/*
-	 * XXX: When our tcpcb went into TIMEWAIT, is gone or no
-	 * longer the one we used to work with we've lost the race.
-	 * This race is inherent in the current socket/inpcb life
-	 * cycle system.
-	 */
-	if ((inp->inp_vflag & INP_TIMEWAIT) || inp->inp_ppcb == NULL ||
-	    inp->inp_ppcb != tp) {
-		CTR3(KTR_NET, "%p %s inp %p lost shutdown race",
-		    tp, __func__, inp);
-		tcp_timer_race++;
-		INP_UNLOCK(inp);	/* CALLOUT_RETURNUNLOCKED */
-		INP_INFO_WUNLOCK(&tcbinfo);
-		return;
-	}
-	KASSERT(tp == inp->inp_ppcb, ("%s: tp changed", __func__));
-
-	/* Shutdown the connection. */
-	switch (down) {
-	case 1:
-		tp = tcp_close(tp);
-		break;
-	case 2:
-		tp = tcp_drop(tp,
-			tp->t_softerror ? tp->t_softerror : ETIMEDOUT);
-		break;
-	}
-	CTR3(KTR_NET, "%p %s inp %p after shutdown", tp, __func__, inp);
-
-	if (tp)
-		INP_UNLOCK(inp);	/* CALLOUT_RETURNUNLOCKED */
-
-	INP_INFO_WUNLOCK(&tcbinfo);
-	return;
-}
-
 /*
  * TCP timer processing.
  */
-static int
-tcp_timer_delack(struct tcpcb *tp, struct inpcb *inp)
+
+void
+tcp_timer_delack(void *xtp)
 {
+	struct tcpcb *tp = xtp;
+	struct inpcb *inp;
+
+	INP_INFO_RLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_delack: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_RUNLOCK(&tcbinfo);
+		return;
+	}
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&tcbinfo);
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_delack)
+	    || !callout_active(tp->tt_delack)) {
+		INP_UNLOCK(inp);
+		return;
+	}
+	callout_deactivate(tp->tt_delack);
 
 	tp->t_flags |= TF_ACKNOW;
 	tcpstat.tcps_delack++;
 	(void) tcp_output(tp);
-	return (0);
+	INP_UNLOCK(inp);
 }
 
-static int
-tcp_timer_2msl(struct tcpcb *tp, struct inpcb *inp)
+void
+tcp_timer_2msl(void *xtp)
 {
+	struct tcpcb *tp = xtp;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
+	/*
+	 * XXXRW: Does this actually happen?
+	 */
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_2msl: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	INP_LOCK(inp);
+	tcp_free_sackholes(tp);
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_2msl) ||
+	    !callout_active(tp->tt_2msl)) {
+		INP_UNLOCK(tp->t_inpcb);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	callout_deactivate(tp->tt_2msl);
 	/*
 	 * 2 MSL timeout in shutdown went off.  If we're closed but
 	 * still waiting for peer to close and connection has been idle
@@ -454,35 +226,62 @@ tcp_timer_2msl(struct tcpcb *tp, struct inpcb *inp)
 	 * Ignore fact that there were recent incoming segments.
 	 */
 	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
-	    tp->t_inpcb->inp_socket && 
+	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 		tcpstat.tcps_finwait2_drops++;
-		return (1);		/* tcp_close */
+		tp = tcp_close(tp);             
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
 		   (ticks - tp->t_rcvtime) <= tcp_maxidle)
-			tcp_timer_activate(tp, TT_2MSL, tcp_keepintvl);
-		else
-			return (1);	/* tcp_close */
-	}
+		       callout_reset(tp->tt_2msl, tcp_keepintvl,
+				     tcp_timer_2msl, tp);
+	       else
+		       tp = tcp_close(tp);
+       }
 
 #ifdef TCPDEBUG
 	if (tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	return (0);
+	if (tp != NULL)
+		INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
-static int
-tcp_timer_keep(struct tcpcb *tp, struct inpcb *inp)
+void
+tcp_timer_keep(void *xtp)
 {
+	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_keep: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	INP_LOCK(inp);
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_keep)
+	    || !callout_active(tp->tt_keep)) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	callout_deactivate(tp->tt_keep);
 	/*
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
@@ -514,30 +313,65 @@ tcp_timer_keep(struct tcpcb *tp, struct inpcb *inp)
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
 			(void) m_free(dtom(t_template));
 		}
-		tcp_timer_activate(tp, TT_KEEP, tcp_keepintvl);
+		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
 	} else
-		tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	return (0);
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
+	return;
 
 dropit:
 	tcpstat.tcps_keepdrops++;
-	return (2);			/* tcp_drop() */
+	tp = tcp_drop(tp, ETIMEDOUT);
+
+#ifdef TCPDEBUG
+	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
+		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
+			  PRU_SLOWTIMO);
+#endif
+	if (tp != NULL)
+		INP_UNLOCK(tp->t_inpcb);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
-static int
-tcp_timer_persist(struct tcpcb *tp, struct inpcb *inp)
+void
+tcp_timer_persist(void *xtp)
 {
+	struct tcpcb *tp = xtp;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_persist: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	INP_LOCK(inp);
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_persist)
+	    || !callout_active(tp->tt_persist)) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	callout_deactivate(tp->tt_persist);
 	/*
 	 * Persistance timer into zero window.
 	 * Force a byte to be output, if possible.
@@ -554,29 +388,59 @@ tcp_timer_persist(struct tcpcb *tp, struct inpcb *inp)
 	    ((ticks - tp->t_rcvtime) >= tcp_maxpersistidle ||
 	     (ticks - tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		tcpstat.tcps_persistdrop++;
-		return (2);		/* tcp_drop() */
+		tp = tcp_drop(tp, ETIMEDOUT);
+		goto out;
 	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	(void) tcp_output(tp);
 	tp->t_flags &= ~TF_FORCEDATA;
 
+out:
 #ifdef TCPDEBUG
 	if (tp != NULL && tp->t_inpcb->inp_socket->so_options & SO_DEBUG)
 		tcp_trace(TA_USER, ostate, tp, NULL, NULL, PRU_SLOWTIMO);
 #endif
-	return (0);
+	if (tp != NULL)
+		INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
-static int
-tcp_timer_rexmt(struct tcpcb *tp, struct inpcb *inp)
+void
+tcp_timer_rexmt(void * xtp)
 {
+	struct tcpcb *tp = xtp;
 	int rexmt;
+	int headlocked;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
+	INP_INFO_WLOCK(&tcbinfo);
+	headlocked = 1;
+	inp = tp->t_inpcb;
+	/*
+	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
+	 * tear-down mean we need it as a work-around for races between
+	 * timers and tcp_discardcb().
+	 *
+	 * KASSERT(inp != NULL, ("tcp_timer_rexmt: inp == NULL"));
+	 */
+	if (inp == NULL) {
+		tcp_timer_race++;
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	INP_LOCK(inp);
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_rexmt)
+	    || !callout_active(tp->tt_rexmt)) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return;
+	}
+	callout_deactivate(tp->tt_rexmt);
 	tcp_free_sackholes(tp);
 	/*
 	 * Retransmission timer went off.  Message has not
@@ -586,8 +450,12 @@ tcp_timer_rexmt(struct tcpcb *tp, struct inpcb *inp)
 	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		tcpstat.tcps_timeoutdrop++;
-		return (2);		/* tcp_drop() */
+		tp = tcp_drop(tp, tp->t_softerror ?
+			      tp->t_softerror : ETIMEDOUT);
+		goto out;
 	}
+	INP_INFO_WUNLOCK(&tcbinfo);
+	headlocked = 0;
 	if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
@@ -602,9 +470,9 @@ tcp_timer_rexmt(struct tcpcb *tp, struct inpcb *inp)
 		tp->snd_ssthresh_prev = tp->snd_ssthresh;
 		tp->snd_recover_prev = tp->snd_recover;
 		if (IN_FASTRECOVERY(tp))
-			tp->t_flags |= TF_WASFRECOVERY;
+		  tp->t_flags |= TF_WASFRECOVERY;
 		else
-			tp->t_flags &= ~TF_WASFRECOVERY;
+		  tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
 	tcpstat.tcps_rexmttimeo++;
@@ -683,10 +551,78 @@ tcp_timer_rexmt(struct tcpcb *tp, struct inpcb *inp)
 	EXIT_FASTRECOVERY(tp);
 	(void) tcp_output(tp);
 
+out:
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
-	return (0);
+	if (tp != NULL)
+		INP_UNLOCK(inp);
+	if (headlocked)
+		INP_INFO_WUNLOCK(&tcbinfo);
+}
+
+void
+tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
+{
+	struct callout *t_callout;
+	void *f_callout;
+
+	switch (timer_type) {
+		case TT_DELACK:
+			t_callout = tp->tt_delack;
+			f_callout = tcp_timer_delack;
+			break;
+		case TT_REXMT:
+			t_callout = tp->tt_rexmt;
+			f_callout = tcp_timer_rexmt;
+			break;
+		case TT_PERSIST:
+			t_callout = tp->tt_persist;
+			f_callout = tcp_timer_persist;
+			break;
+		case TT_KEEP:
+			t_callout = tp->tt_keep;
+			f_callout = tcp_timer_keep;
+			break;
+		case TT_2MSL:
+			t_callout = tp->tt_2msl;
+			f_callout = tcp_timer_2msl;
+			break;
+		default:
+			panic("bad timer_type");
+		}
+	if (delta == 0) {
+		callout_stop(t_callout);
+	} else {
+		callout_reset(t_callout, delta, f_callout, tp);
+	}
+}
+
+int
+tcp_timer_active(struct tcpcb *tp, int timer_type)
+{
+	struct callout *t_callout;
+
+	switch (timer_type) {
+		case TT_DELACK:
+			t_callout = tp->tt_delack;
+			break;
+		case TT_REXMT:
+			t_callout = tp->tt_rexmt;
+			break;
+		case TT_PERSIST:
+			t_callout = tp->tt_persist;
+			break;
+		case TT_KEEP:
+			t_callout = tp->tt_keep;
+			break;
+		case TT_2MSL:
+			t_callout = tp->tt_2msl;
+			break;
+		default:
+			panic("bad timer_type");
+		}
+	return callout_active(t_callout);
 }

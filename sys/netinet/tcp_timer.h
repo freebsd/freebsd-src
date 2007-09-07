@@ -141,21 +141,11 @@ static const char *tcptimers[] =
 
 #ifdef _KERNEL
 
-struct tcp_timer {
-	struct callout	tt_timer;
-	int		tt_nextc;	/* next callout time in time_uptime */
-	int		tt_active;	/* engaged callouts */
 #define TT_DELACK	0x01
 #define TT_REXMT	0x02
 #define TT_PERSIST	0x04
 #define TT_KEEP		0x08
 #define TT_2MSL		0x10
-	int             tt_delack;
-	int             tt_rexmt;
-	int             tt_persist;
-	int             tt_keep;
-	int             tt_2msl;
-};
 
 extern int tcp_keepinit;		/* time to establish connection */
 extern int tcp_keepidle;		/* time before keepalive probes begin */
@@ -173,8 +163,13 @@ extern int tcp_finwait2_timeout;
 extern int tcp_fast_finwait2_recycle;
 
 void	tcp_timer_init(void);
+void	tcp_timer_2msl(void *xtp);
 struct tcptw *
 	tcp_tw_2msl_scan(int _reuse);		/* XXX temporary */
+void	tcp_timer_keep(void *xtp);
+void	tcp_timer_persist(void *xtp);
+void	tcp_timer_rexmt(void *xtp);
+void	tcp_timer_delack(void *xtp);
 
 #endif /* _KERNEL */
 
