@@ -528,7 +528,8 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
-				rt->rt_flags |= RTF_GATEWAY;
+				if (!(rt->rt_flags & RTF_LLINFO))
+					rt->rt_flags |= RTF_GATEWAY;
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
