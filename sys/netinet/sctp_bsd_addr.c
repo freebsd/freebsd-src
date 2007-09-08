@@ -321,7 +321,6 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
 		    ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
-
 	} else if (cmd == RTM_DELETE) {
 
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr, ifa->ifa_ifp->if_index);

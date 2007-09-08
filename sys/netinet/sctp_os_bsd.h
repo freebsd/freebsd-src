@@ -272,6 +272,7 @@ typedef struct callout sctp_os_timer_t;
 
 /* The packed define for 64 bit platforms */
 #define SCTP_PACKED __attribute__((packed))
+#define SCTP_UNUSED __attribute__((unused))
 
 /*
  * Functions
