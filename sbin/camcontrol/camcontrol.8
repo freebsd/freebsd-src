@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999, 2000, 2002, 2005, 2006 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2000, 2002, 2005, 2006, 2007 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,16 @@
 .Op Fl c
 .Op Fl l
 .Op Fl r Ar reporttype
+.Nm
+.Ic readcap
+.Op device id
+.Op generic args
+.Op Fl b
+.Op Fl h
+.Op Fl H
+.Op Fl N
+.Op Fl q
+.Op Fl s
 .Nm
 .Ic start
 .Op device id
@@ -304,6 +314,46 @@ Return all available LUNs.
 .Nm
 will try to print out LUN numbers in a reasonable format.
 It can understand the peripheral, flat, LUN and extended LUN formats.
+.It Ic readcap
+Send the SCSI READ CAPACITY command to the given device and display
+the results.
+If the device is larger than 2TB, the SCSI READ CAPACITY (16) service
+action will be sent to obtain the full size of the device.
+By default,
+.Nm
+will print out the last logical block of the device, and the blocksize of
+the device in bytes.
+To modify the output format, use the following options:
+.Bl -tag -width 5n
+.It Fl b
+Just print out the blocksize, not the last block or device size.
+This cannot be used with
+.Fl N
+or
+.Fl s .
+.It Fl h
+Print out the device size in human readable (base 2, 1K == 1024) format.
+This implies
+.Fl N
+and cannot be used with
+.Fl q
+or
+.Fl b .
+.It Fl H
+Print out the device size in human readable (base 10, 1K == 1000) format.
+.It Fl N
+Print out the number of blocks in the device instead of the last logical
+block.
+.It Fl q
+Quiet, print out the numbers only (separated by a comma if
+.Fl b
+or
+.Fl s
+are not specified).
+.It Fl s
+Print out the last logical block or the size of the device only, and omit
+the blocksize.
+.El
 .It Ic start
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit set.
