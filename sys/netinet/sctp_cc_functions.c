@@ -221,7 +221,7 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_NOT_REACHABLE;
 				net->dest_state |= SCTP_ADDR_REACHABLE;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
-				    SCTP_RECEIVED_SACK, (void *)net);
+				    SCTP_RECEIVED_SACK, (void *)net, SCTP_SO_NOT_LOCKED);
 				/* now was it the primary? if so restore */
 				if (net->dest_state & SCTP_ADDR_WAS_PRIMARY) {
 					(void)sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net);
@@ -710,7 +710,7 @@ sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_NOT_REACHABLE;
 				net->dest_state |= SCTP_ADDR_REACHABLE;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
-				    SCTP_RECEIVED_SACK, (void *)net);
+				    SCTP_RECEIVED_SACK, (void *)net, SCTP_SO_NOT_LOCKED);
 				/* now was it the primary? if so restore */
 				if (net->dest_state & SCTP_ADDR_WAS_PRIMARY) {
 					(void)sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net);
@@ -1011,7 +1011,7 @@ sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
 
 	old_cwnd = net->cwnd;
 
-	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
+	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
 	/*
 	 * make a small adjustment to cwnd and force to CA.
 	 */
@@ -1405,7 +1405,7 @@ sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_NOT_REACHABLE;
 				net->dest_state |= SCTP_ADDR_REACHABLE;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
-				    SCTP_RECEIVED_SACK, (void *)net);
+				    SCTP_RECEIVED_SACK, (void *)net, SCTP_SO_NOT_LOCKED);
 				/* now was it the primary? if so restore */
 				if (net->dest_state & SCTP_ADDR_WAS_PRIMARY) {
 					(void)sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, net);
@@ -1591,7 +1591,7 @@ sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
 
 	old_cwnd = net->cwnd;
 
-	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
+	sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
 	net->htcp_ca.last_cong = sctp_get_tick_count();
 	/*
 	 * make a small adjustment to cwnd and force to CA.

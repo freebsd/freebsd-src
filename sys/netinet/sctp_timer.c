@@ -143,7 +143,7 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 		 */
 		stcb->asoc.cc_functions.sctp_cwnd_update_after_fr_timer(inp, stcb, net);
 	} else if (cnt_resend) {
-		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR);
+		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_EARLY_FR_TMR, SCTP_SO_NOT_LOCKED);
 	}
 	/* Restart it? */
 	if (net->flight_size < net->cwnd) {
@@ -219,7 +219,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
 				    stcb,
 				    SCTP_FAILED_THRESHOLD,
-				    (void *)net);
+				    (void *)net, SCTP_SO_NOT_LOCKED);
 			}
 		}
 		/*********HOLD THIS COMMENT FOR PATCH OF ALTERNATE
@@ -280,7 +280,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
 		}
 		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
-		sctp_abort_an_association(inp, stcb, SCTP_FAILED_THRESHOLD, oper);
+		sctp_abort_an_association(inp, stcb, SCTP_FAILED_THRESHOLD, oper, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	return (0);
@@ -702,7 +702,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
 						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
-						    &stcb->asoc.sent_queue);
+						    &stcb->asoc.sent_queue, SCTP_SO_NOT_LOCKED);
 					}
 				}
 				continue;
@@ -714,7 +714,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
 						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
-						    &stcb->asoc.sent_queue);
+						    &stcb->asoc.sent_queue, SCTP_SO_NOT_LOCKED);
 					}
 				}
 				continue;
@@ -1132,7 +1132,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 		 * complete the rest of its sends.
 		 */
 		stcb->asoc.delayed_connection = 0;
-		sctp_send_initiate(inp, stcb);
+		sctp_send_initiate(inp, stcb, SCTP_SO_NOT_LOCKED);
 		return (0);
 	}
 	if (SCTP_GET_STATE((&stcb->asoc)) != SCTP_STATE_COOKIE_WAIT) {
@@ -1159,7 +1159,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 		}
 	}
 	/* Send out a new init */
-	sctp_send_initiate(inp, stcb);
+	sctp_send_initiate(inp, stcb, SCTP_SO_NOT_LOCKED);
 	return (0);
 }
 
@@ -1203,7 +1203,7 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 			}
 			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
 			sctp_abort_an_association(inp, stcb, SCTP_INTERNAL_ERROR,
-			    oper);
+			    oper, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS
 			panic("Cookie timer expires in wrong state?");
@@ -1501,7 +1501,7 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 	}
 	if (chks_in_queue) {
 		/* call the output queue function */
-		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_T3);
+		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 		if ((TAILQ_EMPTY(&stcb->asoc.send_queue)) &&
 		    (TAILQ_EMPTY(&stcb->asoc.sent_queue))) {
 			/*
@@ -1725,7 +1725,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 			 * queues and know that we are clear to send
 			 * shutdown
 			 */
-			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_AUTOCLOSE_TMR);
+			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_AUTOCLOSE_TMR, SCTP_SO_NOT_LOCKED);
 			/* Are we clean? */
 			if (TAILQ_EMPTY(&asoc->send_queue) &&
 			    TAILQ_EMPTY(&asoc->sent_queue)) {
@@ -1875,7 +1875,7 @@ select_a_new_ep:
 		 * first I must verify that this won't effect things :-0
 		 */
 		if (it->no_chunk_output == 0)
-			sctp_chunk_output(it->inp, it->stcb, SCTP_OUTPUT_FROM_T3);
+			sctp_chunk_output(it->inp, it->stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 
 		SCTP_TCB_UNLOCK(it->stcb);
 next_assoc:
