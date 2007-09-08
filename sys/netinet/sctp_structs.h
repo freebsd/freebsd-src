@@ -584,12 +584,15 @@ struct sctp_association {
 	struct sctp_timer shut_guard_timer;	/* shutdown guard */
 	struct sctp_timer autoclose_timer;	/* automatic close timer */
 	struct sctp_timer delayed_event_timer;	/* timer for delayed events */
+	struct sctp_timer delete_prim_timer;	/* deleting primary dst */
 
 	/* list of restricted local addresses */
 	struct sctpladdr sctp_restricted_addrs;
 
 	/* last local address pending deletion (waiting for an address add) */
 	struct sctp_ifa *asconf_addr_del_pending;
+	/* Deleted primary destination (used to stop timer) */
+	struct sctp_nets *deleted_primary;
 
 	struct sctpnetlisthead nets;	/* remote address list */
 

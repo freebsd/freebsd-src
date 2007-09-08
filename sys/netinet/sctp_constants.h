@@ -471,11 +471,12 @@ __FBSDID("$FreeBSD$");
 #define SCTP_NOTIFY_DATAGRAM_SENT	0x0002
 #define SCTP_FAILED_THRESHOLD		0x0004
 #define SCTP_HEARTBEAT_SUCCESS		0x0008
-#define SCTP_RESPONSE_TO_USER_REQ	0x000f
-#define SCTP_INTERNAL_ERROR		0x0010
-#define SCTP_SHUTDOWN_GUARD_EXPIRES	0x0020
-#define SCTP_RECEIVED_SACK		0x0040
-#define SCTP_PEER_FAULTY		0x0080
+#define SCTP_RESPONSE_TO_USER_REQ	0x0010
+#define SCTP_INTERNAL_ERROR		0x0020
+#define SCTP_SHUTDOWN_GUARD_EXPIRES	0x0040
+#define SCTP_RECEIVED_SACK		0x0080
+#define SCTP_PEER_FAULTY		0x0100
+#define SCTP_ICMP_REFUSED		0x0200
 
 /* bits for TOS field */
 #define SCTP_ECT0_BIT		0x02
@@ -591,8 +592,9 @@ __FBSDID("$FreeBSD$");
 #define SCTP_TIMER_TYPE_ADDR_WQ         19
 #define SCTP_TIMER_TYPE_ZERO_COPY       20
 #define SCTP_TIMER_TYPE_ZCOPY_SENDQ     21
+#define SCTP_TIMER_TYPE_PRIM_DELETED    22
 /* add new timers here - and increment LAST */
-#define SCTP_TIMER_TYPE_LAST            22
+#define SCTP_TIMER_TYPE_LAST            23
 
 #define SCTP_IS_TIMER_TYPE_VALID(t)	(((t) > SCTP_TIMER_TYPE_NONE) && \
 					 ((t) < SCTP_TIMER_TYPE_LAST))
@@ -651,6 +653,7 @@ __FBSDID("$FreeBSD$");
  * not get impacted by the lower bandwidth sending a bunch of 1 byte chunks
  */
 #define SCTP_ASOC_MAX_CHUNKS_ON_QUEUE 512
+
 
 /* The conversion from time to ticks and vice versa is done by rounding
  * upwards. This way we can test in the code the time to be positive and
@@ -1035,6 +1038,12 @@ __FBSDID("$FreeBSD$");
 #define SCTP_SO_LOCKED		1
 #define SCTP_SO_NOT_LOCKED	0
 
+
+/*-
+ * For address locks, do we hold the lock?
+ */
+#define SCTP_ADDR_LOCKED 1
+#define SCTP_ADDR_NOT_LOCKED 0
 
 #define IN4_ISPRIVATE_ADDRESS(a) \
    ((((uint8_t *)&(a)->s_addr)[0] == 10) || \

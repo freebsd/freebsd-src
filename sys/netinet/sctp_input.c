@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/sctp_timer.h>
 
 
 
@@ -547,6 +548,28 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 				 */
 				TAILQ_REMOVE(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
 				TAILQ_INSERT_HEAD(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
+			}
+			/* Mobility adaptation */
+			if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_BASE) ||
+			    sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_FASTHANDOFF)) &&
+			    sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_PRIM_DELETED)) {
+
+				sctp_timer_stop(SCTP_TIMER_TYPE_PRIM_DELETED, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_TIMER + SCTP_LOC_7);
+				if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+				    SCTP_MOBILITY_FASTHANDOFF)) {
+					sctp_assoc_immediate_retrans(stcb,
+					    stcb->asoc.primary_destination);
+				}
+				if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+				    SCTP_MOBILITY_BASE)) {
+					sctp_move_chunks_from_deleted_prim(stcb,
+					    stcb->asoc.primary_destination);
+				}
+				sctp_delete_prim_timer(stcb->sctp_ep, stcb,
+				    stcb->asoc.deleted_primary);
 			}
 		}
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
@@ -1255,13 +1278,24 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 * to get into the OPEN state
 		 */
 		if (ntohl(initack_cp->init.initial_tsn) != asoc->init_seq_number) {
-#ifdef INVARIANTS
-			panic("Case D and non-match seq?");
-#else
-			SCTP_PRINTF("Case D, seq non-match %x vs %x?\n",
-			    ntohl(initack_cp->init.initial_tsn),
-			    asoc->init_seq_number);
-#endif
+			/*-
+			 * Opps, this means that we somehow generated two vtag's
+			 * the same. I.e. we did:
+			 *  Us               Peer
+			 *   <---INIT(tag=a)------
+			 *   ----INIT-ACK(tag=t)-->
+			 *   ----INIT(tag=t)------> *1
+			 *   <---INIT-ACK(tag=a)---
+                         *   <----CE(tag=t)------------- *2
+			 *
+			 * At point *1 we should be generating a different
+			 * tag t'. Which means we would throw away the CE and send
+			 * ours instead. Basically this is case C (throw away side).
+			 */
+			if (how_indx < sizeof(asoc->cookie_how))
+				asoc->cookie_how[how_indx] = 17;
+			return (NULL);
+
 		}
 		switch SCTP_GET_STATE
 			(asoc) {
@@ -2417,6 +2451,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			    (SCTP_PCB_COPY_FLAGS & (*inp_p)->sctp_flags) |
 			    SCTP_PCB_FLAGS_DONT_WAKE);
 			inp->sctp_features = (*inp_p)->sctp_features;
+			inp->sctp_mobility_features = (*inp_p)->sctp_mobility_features;
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
@@ -5101,12 +5136,9 @@ trigger_send:
 	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
 
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue) ||
-	/* For retransmission to new primary destination (by micchie) */
-	    sctp_is_mobility_feature_on(inp, SCTP_MOBILITY_DO_FASTHANDOFF) ||
 	    ((un_sent) &&
 	    (stcb->asoc.peers_rwnd > 0 ||
 	    (stcb->asoc.peers_rwnd <= 0 && stcb->asoc.total_flight == 0)))) {
-		sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
 		SCTPDBG(SCTP_DEBUG_INPUT3, "Calling chunk OUTPUT\n");
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 		SCTPDBG(SCTP_DEBUG_INPUT3, "chunk OUTPUT returns\n");

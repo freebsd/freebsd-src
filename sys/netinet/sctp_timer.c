@@ -1388,6 +1388,24 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	return (0);
 }
 
+/* Mobility adaptation */
+int
+sctp_delete_prim_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
+    struct sctp_nets *net)
+{
+	if (stcb->asoc.deleted_primary == NULL) {
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "delete_prim_timer: deleted_primary is not stored...\n");
+		sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
+		return (0);
+	}
+	SCTPDBG(SCTP_DEBUG_ASCONF1, "delete_prim_timer: finished to keep deleted primary ");
+	SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &stcb->asoc.deleted_primary->ro._l_addr.sa);
+	sctp_free_remote_addr(stcb->asoc.deleted_primary);
+	stcb->asoc.deleted_primary = NULL;
+	sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
+	return (0);
+}
+
 /*
  * For the shutdown and shutdown-ack, we do not keep one around on the
  * control queue. This means we must generate a new one and call the general
