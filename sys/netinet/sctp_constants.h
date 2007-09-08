@@ -1028,6 +1028,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEF_ASOC_RESC_LIMIT 10
 #define SCTP_DEF_SYSTEM_RESC_LIMIT 1000
 
+/*-
+ * defines for socket lock states.
+ * Used by __APPLE__ and SCTP_SO_LOCK_TESTING
+ */
+#define SCTP_SO_LOCKED		1
+#define SCTP_SO_NOT_LOCKED	0
+
 
 #define IN4_ISPRIVATE_ADDRESS(a) \
    ((((uint8_t *)&(a)->s_addr)[0] == 10) || \
