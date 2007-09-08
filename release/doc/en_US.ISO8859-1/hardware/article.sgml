@@ -31,6 +31,17 @@
     <year>2007</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.amd;
+    &tm-attrib.ibm;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.sun;
+    &tm-attrib.general;
+  </legalnotice>
+
 </articleinfo>
 
 <sect1 id="intro">
@@ -56,7 +67,7 @@
   <title>amd64</title>
 
   <para>Since mid-2003 &os;/&arch.amd64; has supported the AMD64
-    (<quote>Hammer</quote>) and Intel EM64T architecture,
+    (<quote>Hammer</quote>) and &intel; EM64T architecture,
     and is now one of the Tier-1 platforms (fully
     supported architecture), which are expected to be Production
     Quality with respects to all aspects of the &os; operating system,
@@ -72,34 +83,34 @@
 
   <itemizedlist>
     <listitem>
-      <para>AMD Athlon64 (<quote>Clawhammer</quote>).</para>
+      <para>&amd.athlon;64 (<quote>Clawhammer</quote>).</para>
     </listitem>
 
     <listitem>
-      <para>AMD Opteron (<quote>Sledgehammer</quote>).</para>
+      <para>&amd.opteron; (<quote>Sledgehammer</quote>).</para>
     </listitem>
 
     <listitem>
-      <para>Intel 64-bit Xeon (<quote>Nacona</quote>).
+      <para>&intel; 64-bit &xeon; (<quote>Nacona</quote>).
 	This processor is fabricated on 90nm process technology, and operates
-	with 2.80 to 3.60 GHz (FSB 800MHz) and Intel E7520/E7525/E7320 chipsets.</para>
+	with 2.80 to 3.60 GHz (FSB 800MHz) and &intel; E7520/E7525/E7320 chipsets.</para>
     </listitem>
 
     <listitem>
-      <para>Intel Pentium 4 Processor supporting Intel EM64T
+      <para>&intel; &pentium; 4 Processor supporting &intel; EM64T
 	(<quote>Prescott</quote>).
 	This is fabricated on 90nm process technology,
 	uses FC-LGA775 package, and operates with 3.20F/3.40F/3.60F GHz
-	and Intel 925X Express chipsets.
+	and &intel; 925X Express chipsets.
 	The corresponding S-Spec numbers are SL7L9, SL7L8, SL7LA, SL7NZ, SL7PZ,
 	and SL7PX.  Note that processors marked as 5xx numbers do not support
 	EM64T.</para>
     </listitem>
   </itemizedlist>
 
-  <para>Intel EM64T is an extended version of IA-32 (x86) and
-    different from Intel IA-64 (Itanium) architecture, which &os;/ia64
-    supports.  Some Intel's old documentation refers to Intel EM64T as
+  <para>&intel; EM64T is an extended version of IA-32 (x86) and
+    different from &intel; IA-64 (Itanium) architecture, which &os;/ia64
+    supports.  Some &intel;'s old documentation refers to &intel; EM64T as
     <quote>64-bit extension technology</quote> or <quote>IA-32e</quote>.</para>
 
   <para>The largest tested
@@ -128,17 +139,17 @@
     list all combinations of equipment supported by &os;.
     Nevertheless, some general guidelines are presented here.</para>
 
-  <para>Almost all i386-compatible processors with a floating point unit
+  <para>Almost all &i386;-compatible processors with a floating point unit
     are supported.  All
-    Intel processors beginning with the 80486 are supported, including
-    the 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
-    Pentium 4, and variants thereof, such as the Xeon and Celeron
-    processors.  All i386-compatible AMD
-    processors are also supported, including the Am486, Am5x86, K5, K6
-    (and variants), Athlon (including Athlon-MP, Athlon-XP, Athlon-4,
-    and Athlon Thunderbird), and Duron processors.  The AMD
+    &intel; processors beginning with the 80486 are supported, including
+    the 80486, &pentium;, &pentium; Pro, &pentium; II, &pentium; III,
+    &pentium; 4, and variants thereof, such as the &xeon; and &celeron;
+    processors.  All &i386;-compatible AMD
+    processors are also supported, including the &am486;, &am5x86;, K5, &amd.k6;
+    (and variants), &amd.athlon; (including Athlon-MP, Athlon-XP, Athlon-4,
+    and Athlon Thunderbird), and &amd.duron; processors.  The AMD
     &Eacute;lan SC520 embedded processor is supported.  The Transmeta
-    Crusoe is recognized and supported, as are i386-compatible
+    Crusoe is recognized and supported, as are &i386;-compatible
     processors from Cyrix and NexGen.</para>
 
   <para>There is a wide variety of motherboards available for this
@@ -153,7 +164,7 @@
     &a.smp; may yield some clues.</para>
 
   <para>&os; will take advantage of HyperThreading (HTT) support on
-    Intel CPUs that support this feature.  A kernel with the
+    &intel; CPUs that support this feature.  A kernel with the
     <literal>options&nbsp;SMP</literal> feature enabled will
     automatically detect the additional logical processors.  The
     default &os; scheduler treats the logical processors the same as
@@ -187,7 +198,7 @@
   <para>Most modern laptops (as well as many desktops) use the
     Advanced Configuration and Power Management (ACPI) standard.  &os;
     supports ACPI via the ACPI Component Architecture reference
-    implementation from Intel, as described in the &man.acpi.4; manual
+    implementation from &intel;, as described in the &man.acpi.4; manual
     page.  The use of ACPI causes instabilities on some machines and it
     may be necessary to disable the ACPI driver, which is normally
     loaded via a kernel module.  This may be accomplished by adding
@@ -217,9 +228,9 @@
 
   <para>Currently supported processors are the
     <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">
-    Itanium</ulink> and the
+    &itanium;</ulink> and the
     <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">
-    Itanium 2</ulink>.</para>
+    &itanium; 2</ulink>.</para>
 
   <para>Supported chipsets include:</para>
    <itemizedlist>
@@ -227,10 +238,10 @@
        <para>HP zx1</para>
      </listitem>
      <listitem>
-       <para>Intel 460GX</para>
+       <para>&intel; 460GX</para>
      </listitem>
      <listitem>
-       <para>Intel E8870</para>
+       <para>&intel; E8870</para>
      </listitem>
    </itemizedlist>
 
@@ -250,9 +261,9 @@
 <sect2 id="proc-pc98">
   <title>pc98</title>
 
-  <para>NEC PC-9801/9821 series with almost all i386-compatible processors,
-    including 80486, Pentium, Pentium Pro, Pentium II, and variants.
-    All i386-compatible processors by AMD, Cyrix, IBM, and IDT
+  <para>NEC PC-9801/9821 series with almost all &i386;-compatible processors,
+    including 80486, &pentium;, &pentium; Pro, &pentium; II, and variants.
+    All &i386;-compatible processors by AMD, Cyrix, IBM, and IDT
     are also supported.</para>
 
   <para>NEC FC-9801/9821 series, and NEC SV-98 series
@@ -289,10 +300,14 @@
   <title>sparc64</title>
 
   <para>This section describes the systems currently known to be supported
-    by &os; on the UltraSPARC platform.  For background information on the
+    by &os; on the &ultrasparc; platform.  For background information on the
     various hardware designs see the <ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</ulink>.</para>
 
   <para>SMP is supported on all systems with more than 1 processor.</para>
+
+  <para>In general, &os;/&arch.sparc64; systems must use serial consoles.
+    While it is possible to boot or install a system using the
+    OpenFirmware console, the console device is not usable.</para>
 
   <para>If you have a system that is not listed here, it may not have
     been tested with &os; &release.current;.  We encourage you to
@@ -303,105 +318,105 @@
 
       <itemizedlist>
         <listitem>
-          <para>Blade 100</para>
+          <para>&sun.blade; 100</para>
         </listitem>
         <listitem>
-          <para>Blade 150</para>
+          <para>&sun.blade; 150</para>
         </listitem>
         <listitem>
-          <para>Enterprise 220R</para>
+          <para>&sun.enterprise; 220R</para>
         </listitem>
         <listitem>
-          <para>Enterprise 250</para>
+          <para>&sun.enterprise; 250</para>
         </listitem>
         <listitem>
-          <para>Enterprise 420R</para>
+          <para>&sun.enterprise; 420R</para>
         </listitem>
 	<listitem>
-	  <para>Enterprise 450</para>
+	  <para>&sun.enterprise; 450</para>
 	</listitem>
         <listitem>
-          <para>Fire V100</para>
+          <para>&sun.fire; V100</para>
         </listitem>
         <listitem>
-          <para>Fire V120</para>
+          <para>&sun.fire; V120</para>
         </listitem>
         <listitem>
-          <para>Netra t1 105</para> 
+          <para>&netra; t1 105</para> 
         </listitem>
         <listitem>
-          <para>Netra T1 AC200/DC200</para> 
+          <para>&netra; T1 AC200/DC200</para> 
         </listitem>
         <listitem>
-          <para>Netra t 1100</para>
+          <para>&netra; t 1100</para>
         </listitem>
         <listitem>
-          <para>Netra t 1120</para>
+          <para>&netra; t 1120</para>
         </listitem>
         <listitem>
-          <para>Netra t 1125</para>
+          <para>&netra; t 1125</para>
         </listitem>
         <listitem>
-          <para>Netra t 1400/1405</para>
+          <para>&netra; t 1400/1405</para>
         </listitem>
         <listitem>
-          <para>Netra 120</para>
+          <para>&netra; 120</para>
         </listitem>
         <listitem>
-          <para>Netra X1</para>
+          <para>&netra; X1</para>
         </listitem>
         <listitem>
-          <para>SPARCEngine Ultra AXi</para>
+          <para>&sparcengine; Ultra AXi</para>
         </listitem>
         <listitem>
-          <para>SPARCEngine Ultra AXmp</para>
+          <para>&sparcengine; Ultra AXmp</para>
         </listitem>
         <listitem>
-          <para>Ultra 1 (serial console)</para>
+          <para>&sun.ultra; 1</para>
         </listitem>
         <listitem>
-          <para>Ultra 1E</para>
+          <para>&sun.ultra; 1E</para>
         </listitem>
         <listitem>
-          <para>Ultra 2</para>
+          <para>&sun.ultra; 2</para>
         </listitem>
         <listitem>
-          <para>Ultra 5</para>
+          <para>&sun.ultra; 5</para>
         </listitem>
         <listitem>
-          <para>Ultra 10</para>
+          <para>&sun.ultra; 10</para>
         </listitem>
         <listitem>
-          <para>Ultra 30</para>
+          <para>&sun.ultra; 30</para>
         </listitem>
         <listitem>
-          <para>Ultra 60</para>
+          <para>&sun.ultra; 60</para>
         </listitem>
         <listitem>
-          <para>Ultra 80</para>
+          <para>&sun.ultra; 80</para>
         </listitem>
       </itemizedlist>
 
     <para>The following systems are partially supported by &os;.  In particular
-      the onboard scsi controller in sbus systems is not supported.</para>
+      the onboard SCSI controller in sbus systems is not supported.</para>
 
       <itemizedlist>
         <listitem>
-          <para>Enterprise 3500</para>
+          <para>&sun.enterprise; 3500</para>
         </listitem>
         <listitem>
-          <para>Enterprise 4500</para>
+          <para>&sun.enterprise; 4500</para>
         </listitem>
       </itemizedlist>
 
     <para>The following systems are not supported by &os;.  This may be due
-      to lack of processor support (UltraSPARC III), due to a quirk in the
+      to lack of processor support (&ultrasparc; III), due to a quirk in the
       system design that makes &os; unstable, or due to lack of support for
       sufficient onboard devices to make &os; generally useful.</para>
 
       <itemizedlist>
         <listitem>
-          <para>All systems containing UltraSPARC III processor(s).</para>
+          <para>All systems containing &ultrasparc; III processor(s).</para>
         </listitem>
       </itemizedlist>
 </sect2>
