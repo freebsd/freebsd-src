@@ -278,77 +278,75 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_CMT_ON_OFF_MAX		1
 #define SCTPCTL_CMT_ON_OFF_DEFAULT	0
 
+/* cmt_use_dac: CMT DAC on/off flag */
+#define SCTPCTL_CMT_USE_DAC		35
+#define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
+#define SCTPCTL_CMT_USE_DAC_MIN		0
+#define SCTPCTL_CMT_USE_DAC_MAX		1
+#define SCTPCTL_CMT_USE_DAC_DEFAULT    	0
+
+/* JRS 5/2107 - CMT PF type flag */
+#define SCTPCTL_CMT_PF			36
+#define SCTPCTL_CMT_PF_DESC		"CMT PF type flag"
+#define SCTPCTL_CMT_PF_MIN		0
+#define SCTPCTL_CMT_PF_MAX		2
+#define SCTPCTL_CMT_PF_DEFAULT		0
+
 /* cwnd_maxburst: Use a CWND adjusting maxburst */
-#define SCTPCTL_CWND_MAXBURST		35
+#define SCTPCTL_CWND_MAXBURST		37
 #define SCTPCTL_CWND_MAXBURST_DESC	"Use a CWND adjusting maxburst"
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
 
 /* early_fast_retran: Early Fast Retransmit with timer */
-#define SCTPCTL_EARLY_FAST_RETRAN	36
+#define SCTPCTL_EARLY_FAST_RETRAN	38
 #define SCTPCTL_EARLY_FAST_RETRAN_DESC	"Early Fast Retransmit with timer"
 #define SCTPCTL_EARLY_FAST_RETRAN_MIN	0
 #define SCTPCTL_EARLY_FAST_RETRAN_MAX	0xFFFFFFFF
 #define SCTPCTL_EARLY_FAST_RETRAN_DEFAULT	0
 
-/* deadlock_detect: SMP Deadlock detection on/off */
-#define SCTPCTL_DEADLOCK_DETECT		37
-#define SCTPCTL_DEADLOCK_DETECT_DESC	"SMP Deadlock detection on/off"
-#define SCTPCTL_DEADLOCK_DETECT_MIN	0
-#define SCTPCTL_DEADLOCK_DETECT_MAX	1
-#define SCTPCTL_DEADLOCK_DETECT_DEFAULT	0
-
 /* early_fast_retran_msec: Early Fast Retransmit minimum timer value */
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC		38
+#define SCTPCTL_EARLY_FAST_RETRAN_MSEC		39
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DESC	"Early Fast Retransmit minimum timer value"
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MIN	0
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MAX	0xFFFFFFFF
 #define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DEFAULT	SCTP_MINFR_MSEC_TIMER
 
 /* asconf_auth_nochk: Disable SCTP ASCONF AUTH requirement */
-#define SCTPCTL_ASCONF_AUTH_NOCHK	39
+#define SCTPCTL_ASCONF_AUTH_NOCHK	40
 #define SCTPCTL_ASCONF_AUTH_NOCHK_DESC	"Disable SCTP ASCONF AUTH requirement"
 #define SCTPCTL_ASCONF_AUTH_NOCHK_MIN	0
 #define SCTPCTL_ASCONF_AUTH_NOCHK_MAX	1
 #define SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT	0
 
 /* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE		40
+#define SCTPCTL_AUTH_DISABLE		41
 #define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
 #define SCTPCTL_AUTH_DISABLE_MIN	0
 #define SCTPCTL_AUTH_DISABLE_MAX	1
 #define SCTPCTL_AUTH_DISABLE_DEFAULT	0
 
 /* nat_friendly: SCTP NAT friendly operation */
-#define SCTPCTL_NAT_FRIENDLY		41
+#define SCTPCTL_NAT_FRIENDLY		42
 #define SCTPCTL_NAT_FRIENDLY_DESC	"SCTP NAT friendly operation"
 #define SCTPCTL_NAT_FRIENDLY_MIN	0
 #define SCTPCTL_NAT_FRIENDLY_MAX	1
 #define SCTPCTL_NAT_FRIENDLY_DEFAULT	1
 
-
-
 /* abc_l_var: SCTP ABC max increase per SACK (L) */
-#define SCTPCTL_ABC_L_VAR		42
+#define SCTPCTL_ABC_L_VAR		43
 #define SCTPCTL_ABC_L_VAR_DESC		"SCTP ABC max increase per SACK (L)"
 #define SCTPCTL_ABC_L_VAR_MIN		0
 #define SCTPCTL_ABC_L_VAR_MAX		0xFFFFFFFF
 #define SCTPCTL_ABC_L_VAR_DEFAULT	1
 
 /* max_chained_mbufs: Default max number of small mbufs on a chain */
-#define SCTPCTL_MAX_CHAINED_MBUFS	43
+#define SCTPCTL_MAX_CHAINED_MBUFS	44
 #define SCTPCTL_MAX_CHAINED_MBUFS_DESC	"Default max number of small mbufs on a chain"
 #define SCTPCTL_MAX_CHAINED_MBUFS_MIN	0
 #define SCTPCTL_MAX_CHAINED_MBUFS_MAX	0xFFFFFFFF
 #define SCTPCTL_MAX_CHAINED_MBUFS_DEFAULT	SCTP_DEFAULT_MBUFS_IN_CHAIN
-
-/* cmt_use_dac: CMT DAC on/off flag */
-#define SCTPCTL_CMT_USE_DAC		44
-#define SCTPCTL_CMT_USE_DAC_DESC	"CMT DAC on/off flag"
-#define SCTPCTL_CMT_USE_DAC_MIN		0
-#define SCTPCTL_CMT_USE_DAC_MAX		1
-#define SCTPCTL_CMT_USE_DAC_DEFAULT    	0
 
 /* do_sctp_drain: Should SCTP respond to the drain calls */
 #define SCTPCTL_DO_SCTP_DRAIN		45
@@ -359,7 +357,7 @@ __FBSDID("$FreeBSD$");
 
 /* hb_max_burst: Confirmation Heartbeat max burst? */
 #define SCTPCTL_HB_MAX_BURST		46
-#define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst?"
+#define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst"
 #define SCTPCTL_HB_MAX_BURST_MIN	1
 #define SCTPCTL_HB_MAX_BURST_MAX	0xFFFFFFFF
 #define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_MAX_BURST
@@ -399,183 +397,43 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_LOGGING_LEVEL_MAX	0xffffffff
 #define SCTPCTL_LOGGING_LEVEL_DEFAULT	0
 
-/* JRS 5/2107 - CMT PF type flag */
-#define SCTPCTL_CMT_PF			52
-#define SCTPCTL_CMT_PF_DESC		"CMT PF type flag"
-#define SCTPCTL_CMT_PF_MIN		0
-#define SCTPCTL_CMT_PF_MAX		2
-#define SCTPCTL_CMT_PF_DEFAULT		0
-
 /* JRS - default congestion control module sysctl */
-#define SCTPCTL_DEFAULT_CC_MODULE		53
+#define SCTPCTL_DEFAULT_CC_MODULE		52
 #define SCTPCTL_DEFAULT_CC_MODULE_DESC		"Default congestion control module"
 #define SCTPCTL_DEFAULT_CC_MODULE_MIN		0
 #define SCTPCTL_DEFAULT_CC_MODULE_MAX		2
 #define SCTPCTL_DEFAULT_CC_MODULE_DEFAULT	0
 
-
 /* RRS - default fragment interleave */
-#define SCTPCTL_DEFAULT_FRAG_INTERLEAVE		54
+#define SCTPCTL_DEFAULT_FRAG_INTERLEAVE		53
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DESC	"Default fragment interleave level"
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MIN	0
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_MAX	2
 #define SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DEFAULT	1
 
 /* mobility_base: Enable SCTP mobility support */
-#define SCTPCTL_MOBILITY_BASE		55
+#define SCTPCTL_MOBILITY_BASE		54
 #define SCTPCTL_MOBILITY_BASE_DESC	"Enable SCTP base mobility"
 #define SCTPCTL_MOBILITY_BASE_MIN	0
 #define SCTPCTL_MOBILITY_BASE_MAX	1
 #define SCTPCTL_MOBILITY_BASE_DEFAULT	SCTP_DEFAULT_MOBILITY_BASE
 
 /* mobility_fasthandoff: Enable SCTP fast handoff support */
-#define SCTPCTL_MOBILITY_FASTHANDOFF		56
+#define SCTPCTL_MOBILITY_FASTHANDOFF		55
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DESC	"Enable SCTP fast handoff"
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MIN	0
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
 
-
-#ifdef SCTP_DEBUG
+#if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
-#define SCTPCTL_DEBUG		57
+#define SCTPCTL_DEBUG		56
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
 #define SCTPCTL_DEBUG_MIN	0
 #define SCTPCTL_DEBUG_MAX	0xFFFFFFFF
 #define SCTPCTL_DEBUG_DEFAULT	0
-
-
-#define SCTPCTL_MAXID		    57
-#else
-#define SCTPCTL_MAXID		    58
 #endif
 
-/*
- * Names for SCTP sysctl objects variables.
- * Must match the OIDs above.
- */
-#ifdef SCTP_DEBUG
-#define SCTPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "sendspace", CTLTYPE_INT }, \
-	{ "recvspace", CTLTYPE_INT }, \
-	{ "autoasconf", CTLTYPE_INT }, \
-	{ "ecn_enable", CTLTYPE_INT }, \
-	{ "ecn_nonce", CTLTYPE_INT }, \
-	{ "strict_sack", CTLTYPE_INT }, \
-	{ "looback_nocsum", CTLTYPE_INT }, \
-	{ "strict_init", CTLTYPE_INT }, \
-	{ "peer_chkoh", CTLTYPE_INT }, \
-	{ "maxburst", CTLTYPE_INT }, \
-	{ "maxchunks", CTLTYPE_INT }, \
-	{ "delayed_sack_time", CTLTYPE_INT }, \
-	{ "sack_freq", CTLTYPE_INT }, \
-	{ "heartbeat_interval", CTLTYPE_INT }, \
-	{ "pmtu_raise_time", CTLTYPE_INT }, \
-	{ "shutdown_guard_time", CTLTYPE_INT }, \
-	{ "secret_lifetime", CTLTYPE_INT }, \
-	{ "rto_max", CTLTYPE_INT }, \
-	{ "rto_min", CTLTYPE_INT }, \
-	{ "rto_initial", CTLTYPE_INT }, \
-	{ "init_rto_max", CTLTYPE_INT }, \
-	{ "valid_cookie_life", CTLTYPE_INT }, \
-	{ "init_rtx_max", CTLTYPE_INT }, \
-	{ "assoc_rtx_max", CTLTYPE_INT }, \
-	{ "path_rtx_max", CTLTYPE_INT }, \
-	{ "outgoing_streams", CTLTYPE_INT }, \
-	{ "cmt_on_off", CTLTYPE_INT }, \
-	{ "cmt_on_pf", CTLTYPE_INT }, \
-	{ "default_cc_module", CTLTYPE_INT }, \
-	{ "cwnd_maxburst", CTLTYPE_INT }, \
-	{ "early_fast_retran", CTLTYPE_INT }, \
-	{ "deadlock_detect", CTLTYPE_INT }, \
-	{ "early_fast_retran_msec", CTLTYPE_INT }, \
-	{ "asconf_auth_nochk", CTLTYPE_INT }, \
-	{ "auth_disable", CTLTYPE_INT }, \
-	{ "nat_friendly", CTLTYPE_INT }, \
-	{ "abc_l_var", CTLTYPE_INT }, \
-	{ "max_mbuf_chain", CTLTYPE_INT }, \
-	{ "cmt_use_dac", CTLTYPE_INT }, \
-	{ "do_sctp_drain", CTLTYPE_INT }, \
-	{ "warm_crc_table", CTLTYPE_INT }, \
-	{ "abort_at_limit", CTLTYPE_INT }, \
-	{ "strict_data_order", CTLTYPE_INT }, \
-	{ "tcbhashsize", CTLTYPE_INT }, \
-	{ "pcbhashsize", CTLTYPE_INT }, \
-	{ "chunkscale", CTLTYPE_INT }, \
-	{ "min_split_point", CTLTYPE_INT }, \
-	{ "add_more_on_output", CTLTYPE_INT }, \
-	{ "sys_resource", CTLTYPE_INT }, \
-	{ "asoc_resource", CTLTYPE_INT }, \
-	{ "min_residual", CTLTYPE_INT }, \
-	{ "max_retran_chunk", CTLTYPE_INT }, \
-	{ "sctp_logging", CTLTYPE_INT }, \
-	{ "frag_interleave", CTLTYPE_INT }, \
-	{ "mobility_base", CTLTYPE_INT }, \
-	{ "mobility_fasthandoff", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-}
-#else
-#define SCTPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "sendspace", CTLTYPE_INT }, \
-	{ "recvspace", CTLTYPE_INT }, \
-	{ "autoasconf", CTLTYPE_INT }, \
-	{ "ecn_enable", CTLTYPE_INT }, \
-	{ "ecn_nonce", CTLTYPE_INT }, \
-	{ "strict_sack", CTLTYPE_INT }, \
-	{ "looback_nocsum", CTLTYPE_INT }, \
-	{ "strict_init", CTLTYPE_INT }, \
-	{ "peer_chkoh", CTLTYPE_INT }, \
-	{ "maxburst", CTLTYPE_INT }, \
-	{ "maxchunks", CTLTYPE_INT }, \
-	{ "delayed_sack_time", CTLTYPE_INT }, \
-	{ "sack_freq", CTLTYPE_INT }, \
-	{ "heartbeat_interval", CTLTYPE_INT }, \
-	{ "pmtu_raise_time", CTLTYPE_INT }, \
-	{ "shutdown_guard_time", CTLTYPE_INT }, \
-	{ "secret_lifetime", CTLTYPE_INT }, \
-	{ "rto_max", CTLTYPE_INT }, \
-	{ "rto_min", CTLTYPE_INT }, \
-	{ "rto_initial", CTLTYPE_INT }, \
-	{ "init_rto_max", CTLTYPE_INT }, \
-	{ "valid_cookie_life", CTLTYPE_INT }, \
-	{ "init_rtx_max", CTLTYPE_INT }, \
-	{ "assoc_rtx_max", CTLTYPE_INT }, \
-	{ "path_rtx_max", CTLTYPE_INT }, \
-	{ "outgoing_streams", CTLTYPE_INT }, \
-	{ "cmt_on_off", CTLTYPE_INT }, \
-	{ "cmt_on_pf", CTLTYPE_INT }, \
-	{ "default_cc_module", CTLTYPE_INT }, \
-	{ "cwnd_maxburst", CTLTYPE_INT }, \
-	{ "early_fast_retran", CTLTYPE_INT }, \
-	{ "deadlock_detect", CTLTYPE_INT }, \
-	{ "early_fast_retran_msec", CTLTYPE_INT }, \
-	{ "asconf_auth_nochk", CTLTYPE_INT }, \
-	{ "auth_disable", CTLTYPE_INT }, \
-	{ "nat_friendly", CTLTYPE_INT }, \
-	{ "abc_l_var", CTLTYPE_INT }, \
-	{ "max_mbuf_chain", CTLTYPE_INT }, \
-	{ "cmt_use_dac", CTLTYPE_INT }, \
-	{ "do_sctp_drain", CTLTYPE_INT }, \
-	{ "warm_crc_table", CTLTYPE_INT }, \
-	{ "abort_at_limit", CTLTYPE_INT }, \
-	{ "strict_data_order", CTLTYPE_INT }, \
-	{ "tcbhashsize", CTLTYPE_INT }, \
-	{ "pcbhashsize", CTLTYPE_INT }, \
-	{ "chunkscale", CTLTYPE_INT }, \
-	{ "min_split_point", CTLTYPE_INT }, \
-	{ "add_more_on_output", CTLTYPE_INT }, \
-	{ "sys_resource", CTLTYPE_INT }, \
-	{ "asoc_resource", CTLTYPE_INT }, \
-	{ "min_residual", CTLTYPE_INT }, \
-	{ "max_retran_chunk", CTLTYPE_INT }, \
-	{ "sctp_logging", CTLTYPE_INT }, \
-	{ "frag_interleave", CTLTYPE_INT }, \
-	{ "mobility_base", CTLTYPE_INT }, \
-	{ "mobility_fasthandoff", CTLTYPE_INT }, \
-}
-#endif
 
 
 #if defined(_KERNEL)
@@ -617,24 +475,18 @@ extern uint32_t sctp_path_rtx_max_default;
 extern uint32_t sctp_add_more_threshold;
 extern uint32_t sctp_nr_outgoing_streams_default;
 extern uint32_t sctp_cmt_on_off;
+extern uint32_t sctp_cmt_use_dac;
 
 /* JRS 5/21/07 - CMT PF type flag variables  */
 extern uint32_t sctp_cmt_pf;
-
-/* JRS - Variable for the default congestion control module */
-extern uint32_t sctp_default_cc_module;
-extern uint32_t sctp_default_frag_interleave;
 extern uint32_t sctp_use_cwnd_based_maxburst;
 extern uint32_t sctp_early_fr;
-extern uint32_t sctp_use_rttvar_cc;
-extern uint32_t sctp_says_check_for_deadlock;
 extern uint32_t sctp_early_fr_msec;
 extern uint32_t sctp_asconf_auth_nochk;
 extern uint32_t sctp_auth_disable;
 extern uint32_t sctp_nat_friendly;
 extern uint32_t sctp_L2_abc_variable;
 extern uint32_t sctp_mbuf_threshold_count;
-extern uint32_t sctp_cmt_use_dac;
 extern uint32_t sctp_do_drain;
 extern uint32_t sctp_hb_maxburst;
 extern uint32_t sctp_abort_if_one_2_one_hits_limit;
@@ -642,6 +494,10 @@ extern uint32_t sctp_strict_data_order;
 extern uint32_t sctp_min_residual;
 extern uint32_t sctp_max_retran_chunk;
 extern uint32_t sctp_logging_level;
+
+/* JRS - Variable for the default congestion control module */
+extern uint32_t sctp_default_cc_module;
+extern uint32_t sctp_default_frag_interleave;
 extern uint32_t sctp_mobility_base;
 extern uint32_t sctp_mobility_fasthandoff;
 
@@ -652,8 +508,7 @@ extern uint32_t sctp_debug_on;
 
 extern struct sctpstat sctpstat;
 
-
-#ifdef SYSCTL_DECL
+#if defined(SYSCTL_DECL)
 SYSCTL_DECL(_net_inet_sctp);
 #endif
 

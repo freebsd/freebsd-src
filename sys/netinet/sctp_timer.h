@@ -87,6 +87,10 @@ int
 sctp_asconf_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *);
 
+int
+sctp_delete_prim_timer(struct sctp_inpcb *, struct sctp_tcb *,
+    struct sctp_nets *);
+
 void
 sctp_autoclose_timer(struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *net);

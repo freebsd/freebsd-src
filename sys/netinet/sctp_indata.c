@@ -375,8 +375,10 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	cntDel = stream_no = 0;
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
 	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
-		/* socket above is long gone */
+		/* socket above is long gone or going.. */
+abandon:
 		asoc->fragmented_delivery_inprogress = 0;
 		chk = TAILQ_FIRST(&asoc->reasmqueue);
 		while (chk) {
@@ -449,12 +451,16 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 				 * is corrupt, or there is a EOM already on
 				 * the mbuf chain.
 				 */
-				if ((stcb->asoc.control_pdapi == NULL) || (stcb->asoc.control_pdapi->tail_mbuf == NULL)) {
-					panic("This should not happen control_pdapi NULL?");
+				if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+					goto abandon;
+				} else {
+					if ((stcb->asoc.control_pdapi == NULL) || (stcb->asoc.control_pdapi->tail_mbuf == NULL)) {
+						panic("This should not happen control_pdapi NULL?");
+					}
+					/* if we did not panic, it was a EOM */
+					panic("Bad chunking ??");
+					return;
 				}
-				/* if we did not panic, it was a EOM */
-				panic("Bad chunking ??");
-				return;
 			}
 			cntDel++;
 		}
@@ -5542,7 +5548,6 @@ slide_out:
 		num_str = fwd_sz / sizeof(struct sctp_strseq);
 		for (i = 0; i < num_str; i++) {
 			uint16_t st;
-			unsigned char *xx;
 
 			stseq = (struct sctp_strseq *)sctp_m_getptr(m, offset,
 			    sizeof(struct sctp_strseq),
@@ -5552,22 +5557,21 @@ slide_out:
 				break;
 			}
 			/* Convert */
-			xx = (unsigned char *)&stseq[i];
-			st = ntohs(stseq[i].stream);
-			stseq[i].stream = st;
-			st = ntohs(stseq[i].sequence);
-			stseq[i].sequence = st;
+			st = ntohs(stseq->stream);
+			stseq->stream = st;
+			st = ntohs(stseq->sequence);
+			stseq->sequence = st;
 			/* now process */
-			if (stseq[i].stream >= asoc->streamincnt) {
+			if (stseq->stream >= asoc->streamincnt) {
 				/* screwed up streams, stop!  */
 				break;
 			}
-			strm = &asoc->strmin[stseq[i].stream];
-			if (compare_with_wrap(stseq[i].sequence,
+			strm = &asoc->strmin[stseq->stream];
+			if (compare_with_wrap(stseq->sequence,
 			    strm->last_sequence_delivered, MAX_SEQ)) {
 				/* Update the sequence number */
 				strm->last_sequence_delivered =
-				    stseq[i].sequence;
+				    stseq->sequence;
 			}
 			/* now kick the stream the new way */
 			sctp_kick_prsctp_reorder_queue(stcb, strm);

@@ -167,6 +167,7 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 	case IFT_ISDNBASIC:
 	case IFT_ISDNPRIMARY:
 	case IFT_PTPSERIAL:
+	case IFT_OTHER:
 	case IFT_PPP:
 	case IFT_LOOP:
 	case IFT_SLIP:
@@ -323,7 +324,10 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 	} else if (cmd == RTM_DELETE) {
 
-		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr, ifa->ifa_ifp->if_index);
+		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
+		    ifa->ifa_ifp->if_index,
+		    ifa->ifa_ifp->if_xname
+		    );
 		/*
 		 * We don't bump refcount here so when it completes the
 		 * final delete will happen.
