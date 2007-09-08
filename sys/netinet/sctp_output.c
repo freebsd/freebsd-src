@@ -2412,6 +2412,10 @@ once_again:
 			/* address has been removed */
 			continue;
 		}
+		if (laddr->action == SCTP_DEL_IP_ADDRESS) {
+			/* address is being deleted */
+			continue;
+		}
 		sifa = sctp_is_ifa_addr_preferred(laddr->ifa, dest_is_loop,
 		    dest_is_priv, fam);
 		if (sifa == NULL)
@@ -2435,6 +2439,10 @@ once_again_too:
 	    laddr = LIST_NEXT(laddr, sctp_nxt_addr)) {
 		if (laddr->ifa == NULL) {
 			/* address has been removed */
+			continue;
+		}
+		if (laddr->action == SCTP_DEL_IP_ADDRESS) {
+			/* address is being deleted */
 			continue;
 		}
 		sifa = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop,
@@ -2547,6 +2555,10 @@ sctp_from_the_top:
 			/* address has been removed */
 			continue;
 		}
+		if (laddr->action == SCTP_DEL_IP_ADDRESS) {
+			/* address is being deleted */
+			continue;
+		}
 		sifa = sctp_is_ifa_addr_preferred(laddr->ifa, dest_is_loop, dest_is_priv, fam);
 		if (sifa == NULL)
 			continue;
@@ -2558,7 +2570,6 @@ sctp_from_the_top:
 		stcb->asoc.last_used_address = laddr;
 		atomic_add_int(&sifa->refcount, 1);
 		return (sifa);
-
 	}
 	if (start_at_beginning == 0) {
 		stcb->asoc.last_used_address = NULL;
@@ -2577,6 +2588,10 @@ sctp_from_the_top2:
 	    laddr = LIST_NEXT(laddr, sctp_nxt_addr)) {
 		if (laddr->ifa == NULL) {
 			/* address has been removed */
+			continue;
+		}
+		if (laddr->action == SCTP_DEL_IP_ADDRESS) {
+			/* address is being deleted */
 			continue;
 		}
 		sifa = sctp_is_ifa_addr_acceptable(laddr->ifa, dest_is_loop,
@@ -3396,10 +3411,14 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 		/* call the routine to select the src address */
 		if (net) {
-			if (net->ro._s_addr && (net->ro._s_addr->localifa_flags & SCTP_BEING_DELETED)) {
+			if (net->ro._s_addr && (net->ro._s_addr->localifa_flags & (SCTP_BEING_DELETED | SCTP_ADDR_IFA_UNUSEABLE))) {
 				sctp_free_ifa(net->ro._s_addr);
 				net->ro._s_addr = NULL;
 				net->src_addr_selected = 0;
+				if (ro->ro_rt) {
+					RTFREE(ro->ro_rt);
+					ro->ro_rt = NULL;
+				}
 			}
 			if (net->src_addr_selected == 0) {
 				if (out_of_asoc_ok) {
@@ -3671,10 +3690,14 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		lsa6_tmp.sin6_len = sizeof(lsa6_tmp);
 		lsa6 = &lsa6_tmp;
 		if (net) {
-			if (net->ro._s_addr && net->ro._s_addr->localifa_flags & SCTP_BEING_DELETED) {
+			if (net->ro._s_addr && (net->ro._s_addr->localifa_flags & (SCTP_BEING_DELETED | SCTP_ADDR_IFA_UNUSEABLE))) {
 				sctp_free_ifa(net->ro._s_addr);
 				net->ro._s_addr = NULL;
 				net->src_addr_selected = 0;
+				if (ro->ro_rt) {
+					RTFREE(ro->ro_rt);
+					ro->ro_rt = NULL;
+				}
 			}
 			if (net->src_addr_selected == 0) {
 				if (out_of_asoc_ok) {
@@ -4922,7 +4945,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		initackm_out->msg.init.initiate_tag = htonl(asoc->my_vtag);
 		initackm_out->msg.init.initial_tsn = htonl(asoc->init_seq_number);
 	} else {
-		uint32_t vtag;
+		uint32_t vtag, itsn;
 
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
@@ -4930,7 +4953,8 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			vtag = sctp_select_a_tag(inp);
 			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
-			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
+			itsn = sctp_select_initial_TSN(&inp->sctp_ep);
+			initackm_out->msg.init.initial_tsn = htonl(itsn);
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
@@ -5978,7 +6002,7 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 			ca->sndlen += SCTP_BUF_LEN(m);
 			m = SCTP_BUF_NEXT(m);
 		}
-		ca->m = m;
+		ca->m = mat;
 	}
 	ret = sctp_initiate_iterator(NULL, sctp_sendall_iterator, NULL,
 	    SCTP_PCB_ANY_FLAGS, SCTP_PCB_ANY_FEATURES,
@@ -6401,6 +6425,7 @@ re_look:
 		/* No chunk memory */
 out_gu:
 		if (send_lock_up) {
+			/* sa_ignore NO_NULL_CHK */
 			SCTP_TCB_SEND_UNLOCK(stcb);
 			send_lock_up = 0;
 		}
@@ -6972,6 +6997,14 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 				net = TAILQ_FIRST(&asoc->nets);
 			}
 
+			/*
+			 * JRI-TODO: CMT-MPI. Simply set the first
+			 * destination (net) to be optimized for the next
+			 * message to be pulled out of the outwheel. 1. peek
+			 * at outwheel 2. If large message, set net =
+			 * highest_cwnd 3. If small message, set net =
+			 * lowest rtt
+			 */
 		} else {
 			net = asoc->primary_destination;
 			if (net == NULL) {
@@ -6980,11 +7013,26 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 			}
 		}
 		start_at = net;
+
 one_more_time:
 		for (; net != NULL; net = TAILQ_NEXT(net, sctp_next)) {
 			net->window_probe = 0;
 			if (old_startat && (old_startat == net)) {
 				break;
+			}
+			/*
+			 * JRI: if dest is unreachable or unconfirmed, do
+			 * not send data to it
+			 */
+			if ((net->dest_state & SCTP_ADDR_NOT_REACHABLE) || (net->dest_state & SCTP_ADDR_UNCONFIRMED)) {
+				continue;
+			}
+			/*
+			 * JRI: if dest is in PF state, do not send data to
+			 * it
+			 */
+			if (sctp_cmt_on_off && sctp_cmt_pf && (net->dest_state & SCTP_ADDR_PF)) {
+				continue;
 			}
 			if ((sctp_cmt_on_off == 0) && (net->ref_count < 2)) {
 				/* nothing can be in queue for this guy */
@@ -6996,9 +7044,9 @@ one_more_time:
 				continue;
 			}
 			/*
-			 * @@@ JRI : this for loop we are in takes in each
-			 * net, if its's got space in cwnd and has data sent
-			 * to it (when CMT is off) then it calls
+			 * JRI : this for loop we are in takes in each net,
+			 * if its's got space in cwnd and has data sent to
+			 * it (when CMT is off) then it calls
 			 * sctp_fill_outqueue for the net. This gets data on
 			 * the send queue for that network.
 			 * 
@@ -7026,6 +7074,7 @@ one_more_time:
 	}
 skip_the_fill_from_streams:
 	*cwnd_full = cwnd_full_ind;
+
 	/* now service each destination and send out what we can for it */
 	/* Nothing to send? */
 	if ((TAILQ_FIRST(&asoc->control_send_queue) == NULL) &&
@@ -8081,8 +8130,6 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 			net = stcb->asoc.last_control_chunk_from;
 	}
 	latest_ack->last_sent_to = net;
-
-	atomic_add_int(&latest_ack->last_sent_to->ref_count, 1);
 
 	TAILQ_FOREACH(ack, &stcb->asoc.asconf_ack_sent, next) {
 		if (ack->data == NULL) {
@@ -9221,6 +9268,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 			a_chk->data = NULL;
 		}
 		sctp_free_a_chunk(stcb, a_chk);
+		/* sa_ignore NO_NULL_CHK */
 		if (stcb->asoc.delayed_ack) {
 			sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
 			    stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_6);
@@ -9916,6 +9964,7 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
 
+	/* sa_ignore NO_NULL_CHK */
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	if (asoc->peer_supports_pktdrop == 0) {
@@ -11131,8 +11180,7 @@ sctp_lower_sosend(struct socket *so,
 			if ((use_rcvinfo) && (srcv) &&
 			    ((srcv->sinfo_flags & SCTP_ABORT) ||
 			    ((srcv->sinfo_flags & SCTP_EOF) &&
-			    (uio) &&
-			    (uio->uio_resid == 0)))) {
+			    (sndlen == 0)))) {
 				/*-
 				 * User asks to abort a non-existant assoc,
 				 * or EOF a non-existant assoc with no data
@@ -11282,7 +11330,11 @@ sctp_lower_sosend(struct socket *so,
 		    (stcb->asoc.chunks_on_out_queue >
 		    sctp_max_chunks_on_queue)) {
 			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EWOULDBLOCK);
-			error = EWOULDBLOCK;
+			if (sndlen > SCTP_SB_LIMIT_SND(so))
+				error = EMSGSIZE;
+			else
+				error = EWOULDBLOCK;
+
 			atomic_add_int(&stcb->sctp_ep->total_nospaces, 1);
 			goto out_unlocked;
 		}
@@ -11402,9 +11454,14 @@ sctp_lower_sosend(struct socket *so,
 			tot_demand = (tot_out + sizeof(struct sctp_paramhdr));
 		} else {
 			/* Must fit in a MTU */
-			if (uio)
-				tot_out = uio->uio_resid;
+			tot_out = sndlen;
 			tot_demand = (tot_out + sizeof(struct sctp_paramhdr));
+			if (tot_demand > SCTP_DEFAULT_ADD_MORE) {
+				/* To big */
+				SCTP_LTRACE_ERR_RET(NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EMSGSIZE);
+				error = EMSGSIZE;
+				goto out;
+			}
 			mm = sctp_get_mbuf_for_msg(tot_demand, 0, M_WAIT, 1, MT_DATA);
 		}
 		if (mm == NULL) {
@@ -11491,10 +11548,19 @@ sctp_lower_sosend(struct socket *so,
 	}
 	/* Unless E_EOR mode is on, we must make a send FIT in one call. */
 	if ((user_marks_eor == 0) &&
-	    (uio->uio_resid > (int)SCTP_SB_LIMIT_SND(stcb->sctp_socket))) {
+	    (sndlen > SCTP_SB_LIMIT_SND(stcb->sctp_socket))) {
 		/* It will NEVER fit */
 		SCTP_LTRACE_ERR_RET(NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EMSGSIZE);
 		error = EMSGSIZE;
+		goto out_unlocked;
+	}
+	if ((uio == NULL) && user_marks_eor) {
+		/*-
+		 * We do not support eeor mode for
+		 * sending with mbuf chains (like sendfile).
+		 */
+		SCTP_LTRACE_ERR_RET(NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+		error = EINVAL;
 		goto out_unlocked;
 	}
 	if (user_marks_eor) {
@@ -11504,7 +11570,7 @@ sctp_lower_sosend(struct socket *so,
 		 * For non-eeor the whole message must fit in
 		 * the socket send buffer.
 		 */
-		local_add_more = uio->uio_resid;
+		local_add_more = sndlen;
 	}
 	len = 0;
 	if (((max_len < local_add_more) &&
@@ -11517,7 +11583,7 @@ sctp_lower_sosend(struct socket *so,
 
 			if (sctp_logging_level & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA,
-				    so, asoc, uio->uio_resid);
+				    so, asoc, sndlen);
 			}
 			be.error = 0;
 			stcb->block_entry = &be;
@@ -11557,7 +11623,7 @@ sctp_lower_sosend(struct socket *so,
 	 * sndlen covers for mbuf case uio_resid covers for the non-mbuf
 	 * case NOTE: uio will be null when top/mbuf is passed
 	 */
-	if ((sndlen == 0) || ((uio) && (uio->uio_resid == 0))) {
+	if (sndlen == 0) {
 		if (srcv->sinfo_flags & SCTP_EOF) {
 			got_all_of_the_send = 1;
 			goto dataless_eof;

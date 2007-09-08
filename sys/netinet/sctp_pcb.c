@@ -296,6 +296,110 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 	sctp_free_ifn(sctp_ifnp);
 }
 
+void
+sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr, const char *if_name, uint32_t ifn_index)
+{
+	struct sctp_vrf *vrf;
+	struct sctp_ifa *sctp_ifap = NULL;
+
+	SCTP_IPI_ADDR_LOCK();
+	vrf = sctp_find_vrf(vrf_id);
+	if (vrf == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find vrf_id:%d\n", vrf_id);
+		goto out;
+
+	}
+	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
+	if (sctp_ifap == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find sctp_ifap for address\n");
+		goto out;
+	}
+	if (sctp_ifap->ifn_p == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "IFA has no IFN - can't mark unuseable\n");
+		goto out;
+	}
+	if (if_name) {
+		int len1, len2;
+
+		len1 = strlen(if_name);
+		len2 = strlen(sctp_ifap->ifn_p->ifn_name);
+		if (len1 != len2) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFN of ifa names different lenght %d vs %d - ignored\n",
+			    len1, len2);
+			goto out;
+		}
+		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) != 0) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFN %s of IFA not the same as %s\n",
+			    sctp_ifap->ifn_p->ifn_name,
+			    if_name);
+			goto out;
+		}
+	} else {
+		if (sctp_ifap->ifn_p->ifn_index != ifn_index) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFA owned by ifn_index:%d down command for ifn_index:%d - ignored\n",
+			    sctp_ifap->ifn_p->ifn_index, ifn_index);
+			goto out;
+		}
+	}
+
+	sctp_ifap->localifa_flags &= (~SCTP_ADDR_VALID);
+	sctp_ifap->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
+out:
+	SCTP_IPI_ADDR_UNLOCK();
+}
+
+void
+sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr, const char *if_name, uint32_t ifn_index)
+{
+	struct sctp_vrf *vrf;
+	struct sctp_ifa *sctp_ifap = NULL;
+
+	SCTP_IPI_ADDR_LOCK();
+	vrf = sctp_find_vrf(vrf_id);
+	if (vrf == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find vrf_id:%d\n", vrf_id);
+		goto out;
+
+	}
+	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
+	if (sctp_ifap == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find sctp_ifap for address\n");
+		goto out;
+	}
+	if (sctp_ifap->ifn_p == NULL) {
+		SCTPDBG(SCTP_DEBUG_PCB1, "IFA has no IFN - can't mark unuseable\n");
+		goto out;
+	}
+	if (if_name) {
+		int len1, len2;
+
+		len1 = strlen(if_name);
+		len2 = strlen(sctp_ifap->ifn_p->ifn_name);
+		if (len1 != len2) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFN of ifa names different lenght %d vs %d - ignored\n",
+			    len1, len2);
+			goto out;
+		}
+		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) != 0) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFN %s of IFA not the same as %s\n",
+			    sctp_ifap->ifn_p->ifn_name,
+			    if_name);
+			goto out;
+		}
+	} else {
+		if (sctp_ifap->ifn_p->ifn_index != ifn_index) {
+			SCTPDBG(SCTP_DEBUG_PCB1, "IFA owned by ifn_index:%d down command for ifn_index:%d - ignored\n",
+			    sctp_ifap->ifn_p->ifn_index, ifn_index);
+			goto out;
+		}
+	}
+
+	sctp_ifap->localifa_flags &= (~SCTP_ADDR_IFA_UNUSEABLE);
+	sctp_ifap->localifa_flags |= SCTP_ADDR_VALID;
+out:
+	SCTP_IPI_ADDR_UNLOCK();
+}
+
 
 struct sctp_ifa *
 sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
@@ -361,7 +465,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		atomic_add_int(&sctppcbinfo.ipi_count_ifns, 1);
 		new_ifn_af = 1;
 	}
-	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, 1);
+	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
 	if (sctp_ifap) {
 		/* Hmm, it already exists? */
 		if ((sctp_ifap->ifn_p) &&
@@ -384,15 +488,19 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		} else {
 			if (sctp_ifap->ifn_p) {
 				/*
-				 * The first IFN gets the address,
-				 * duplicates are ignored.
+				 * The last IFN gets the address, old ones
+				 * are deleted.
 				 */
 				if (new_ifn_af) {
 					/*
 					 * Remove the created one that we
 					 * don't want
 					 */
-					sctp_delete_ifn(sctp_ifnp, 1);
+					sctp_free_ifn(sctp_ifap->ifn_p);
+					if (sctp_ifap->ifn_p->refcount == 1)
+						sctp_delete_ifn(sctp_ifap->ifn_p, 1);
+					sctp_ifap->ifn_p = sctp_ifnp;
+					atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
 				}
 				goto exit_stage_left;
 			} else {
@@ -488,7 +596,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			 */
 			SCTPDBG(SCTP_DEBUG_PCB1, "Lost and address change ???\n");
 			/* Opps, must decrement the count */
-			sctp_del_addr_from_vrf(vrf_id, addr, ifn_index);
+			sctp_del_addr_from_vrf(vrf_id, addr, ifn_index, if_name);
 			return (NULL);
 		}
 		SCTP_INCR_LADDR_COUNT();
@@ -516,7 +624,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 
 void
 sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
-    uint32_t ifn_index)
+    uint32_t ifn_index, const char *if_name)
 {
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap = NULL;
@@ -528,8 +636,51 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 		SCTP_PRINTF("Can't find vrf_id:%d\n", vrf_id);
 		goto out_now;
 	}
-	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, 1);
+	sctp_ifap = sctp_find_ifa_by_addr(addr, vrf->vrf_id, SCTP_ADDR_LOCKED);
 	if (sctp_ifap) {
+		/* Validate the delete */
+		if (sctp_ifap->ifn_p) {
+			int valid = 0;
+
+			/*-
+			 * The name has priority over the ifn_index
+			 * if its given. We do this especially for
+			 * panda who might recycle indexes fast.
+			 */
+			if (if_name) {
+				int len1, len2;
+
+				len1 = min(SCTP_IFNAMSIZ, strlen(if_name));
+				len2 = min(SCTP_IFNAMSIZ, strlen(sctp_ifap->ifn_p->ifn_name));
+				if (len1 && len2 && (len1 == len2)) {
+					/* we can compare them */
+					if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) == 0) {
+						/*
+						 * They match its a correct
+						 * delete
+						 */
+						valid = 1;
+					}
+				}
+			}
+			if (!valid) {
+				/* last ditch check ifn_index */
+				if (ifn_index == sctp_ifap->ifn_p->ifn_index) {
+					valid = 1;
+				}
+			}
+			if (!valid) {
+#ifdef SCTP_DEBUG
+				SCTPDBG(SCTP_DEBUG_PCB1, "Deleting address:");
+				SCTPDBG_ADDR(SCTP_DEBUG_PCB1, addr);
+				SCTPDBG(SCTP_DEBUG_PCB1, "ifn:%d ifname:%s does not match addresses\n",
+				    ifn_index, ((if_name == NULL) ? "NULL" : if_name));
+				SCTPDBG(SCTP_DEBUG_PCB1, "ifn:%d ifname:%s - ignoring delete\n",
+				    sctp_ifap->ifn_p->ifn_index, sctp_ifap->ifn_p->ifn_name);
+#endif
+				return;
+			}
+		}
 		sctp_ifap->localifa_flags &= SCTP_ADDR_VALID;
 		sctp_ifap->localifa_flags |= SCTP_BEING_DELETED;
 		vrf->total_ifa_count--;
@@ -1857,8 +2008,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 		 * unsupported socket type (RAW, etc)- in case we missed it
 		 * in protosw
 		 */
-		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EOPNOTSUPP);
+		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		return (EOPNOTSUPP);
 	}
 	if (sctp_default_frag_interleave == SCTP_FRAG_LEVEL_1) {
@@ -1875,8 +2026,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	    &inp->sctp_hashmark);
 	if (inp->sctp_tcbhash == NULL) {
 		SCTP_PRINTF("Out of SCTP-INPCB->hashinit - no resources\n");
-		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOBUFS);
+		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		return (ENOBUFS);
 	}
 	inp->def_vrf_id = vrf_id;
@@ -2086,6 +2237,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	stcb->asoc.shut_guard_timer.ep = (void *)new_inp;
 	stcb->asoc.autoclose_timer.ep = (void *)new_inp;
 	stcb->asoc.delayed_event_timer.ep = (void *)new_inp;
+	stcb->asoc.delete_prim_timer.ep = (void *)new_inp;
 	/* now what about the nets? */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		net->pmtu_timer.ep = (void *)new_inp;
@@ -2410,8 +2562,10 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 */
 		if (sctp_mobility_base == 0) {
 			sctp_mobility_feature_off(inp, SCTP_MOBILITY_BASE);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
 		} else {
 			sctp_mobility_feature_on(inp, SCTP_MOBILITY_BASE);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
 		}
 		/*
 		 * set the automatic mobility_fasthandoff from kernel flag
@@ -2419,10 +2573,10 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		 */
 		if (sctp_mobility_fasthandoff == 0) {
 			sctp_mobility_feature_off(inp, SCTP_MOBILITY_FASTHANDOFF);
-			sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
 		} else {
 			sctp_mobility_feature_on(inp, SCTP_MOBILITY_FASTHANDOFF);
-			sctp_mobility_feature_off(inp, SCTP_MOBILITY_DO_FASTHANDOFF);
+			sctp_mobility_feature_off(inp, SCTP_MOBILITY_PRIM_DELETED);
 		}
 	} else {
 		/*
@@ -2466,7 +2620,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 			 * (Panda).
 			 */
 			ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
-			    vrf_id, 0);
+			    vrf_id, SCTP_ADDR_NOT_LOCKED);
 		}
 		if (ifa == NULL) {
 			/* Can't find an interface with that address */
@@ -2625,6 +2779,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		 * via the sockets layer.
 		 */
 		inp->sctp_flags &= ~SCTP_PCB_FLAGS_CLOSE_IP;
+		/* socket is gone, so no more wakeups allowed */
+		inp->sctp_flags |= SCTP_PCB_FLAGS_DONT_WAKE;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEINPUT;
+		inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAKEOUTPUT;
 	}
 	sctp_timer_stop(SCTP_TIMER_TYPE_NEWCOOKIE, inp, NULL, NULL,
 	    SCTP_FROM_SCTP_PCB + SCTP_LOC_1);
@@ -3039,7 +3197,7 @@ sctp_is_address_on_local_host(struct sockaddr *addr, uint32_t vrf_id)
 {
 	struct sctp_ifa *sctp_ifa;
 
-	sctp_ifa = sctp_find_ifa_by_addr(addr, vrf_id, 0);
+	sctp_ifa = sctp_find_ifa_by_addr(addr, vrf_id, SCTP_ADDR_NOT_LOCKED);
 	if (sctp_ifa) {
 		return (1);
 	} else {
@@ -3541,6 +3699,8 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	    sctppcbinfo.hashasocmark)];
 	/* put it in the bucket in the vtag hash of assoc's for the system */
 	LIST_INSERT_HEAD(head, stcb, sctp_asocs);
+	sctp_delete_from_timewait(stcb->asoc.my_vtag);
+
 	SCTP_INP_INFO_WUNLOCK();
 
 	if ((err = sctp_add_remote_addr(stcb, firstaddr, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
@@ -3570,6 +3730,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	SCTP_OS_TIMER_INIT(&asoc->shut_guard_timer.timer);
 	SCTP_OS_TIMER_INIT(&asoc->autoclose_timer.timer);
 	SCTP_OS_TIMER_INIT(&asoc->delayed_event_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->delete_prim_timer.timer);
 
 	LIST_INSERT_HEAD(&inp->sctp_asoc_list, stcb, sctp_tcblist);
 	/* now file the port under the hash as well */
@@ -3597,6 +3758,26 @@ sctp_remove_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 		struct sctp_nets *lnet;
 
 		lnet = TAILQ_FIRST(&asoc->nets);
+		/*
+		 * Mobility adaptation Ideally, if deleted destination is
+		 * the primary, it becomes a fast retransmission trigger by
+		 * the subsequent SET PRIMARY. (by micchie)
+		 */
+		if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+		    SCTP_MOBILITY_FASTHANDOFF)) {
+			SCTPDBG(SCTP_DEBUG_ASCONF1, "remove_net: primary dst is deleting\n");
+			if (asoc->deleted_primary != NULL) {
+				SCTPDBG(SCTP_DEBUG_ASCONF1, "remove_net: deleted primary may be already stored\n");
+				goto leave;
+			}
+			asoc->deleted_primary = net;
+			atomic_add_int(&net->ref_count, 1);
+			sctp_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_PRIM_DELETED);
+			sctp_timer_start(SCTP_TIMER_TYPE_PRIM_DELETED,
+			    stcb->sctp_ep, stcb, NULL);
+		}
+leave:
 		/* Try to find a confirmed primary */
 		asoc->primary_destination = sctp_find_alternate_net(stcb, lnet, 0);
 	}
@@ -3652,9 +3833,33 @@ sctp_del_remote_addr(struct sctp_tcb *stcb, struct sockaddr *remaddr)
 	return (-2);
 }
 
+void
+sctp_delete_from_timewait(uint32_t tag)
+{
+	struct sctpvtaghead *chain;
+	struct sctp_tagblock *twait_block;
+	int found = 0;
+	int i;
+
+	chain = &sctppcbinfo.vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
+	if (!SCTP_LIST_EMPTY(chain)) {
+		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
+			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
+				if (twait_block->vtag_block[i].v_tag == tag) {
+					twait_block->vtag_block[i].tv_sec_at_expire = 0;
+					twait_block->vtag_block[i].v_tag = 0;
+					found = 1;
+					break;
+				}
+			}
+			if (found)
+				break;
+		}
+	}
+}
 
 void
-sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag, uint32_t time)
+sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -3843,6 +4048,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	asoc->shut_guard_timer.self = NULL;
 	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 	asoc->delayed_event_timer.self = NULL;
+	/* Mobility adaptation */
+	(void)SCTP_OS_TIMER_STOP(&asoc->delete_prim_timer.timer);
+	asoc->delete_prim_timer.self = NULL;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		(void)SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
 		net->fr_timer.self = NULL;
@@ -3999,7 +4207,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(inp, asoc->my_vtag, SCTP_TIME_WAIT);
+	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_TIME_WAIT);
 
 	/*
 	 * Now restop the timers to be sure - this is paranoia at is finest!
@@ -4246,11 +4454,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_FREE(aparam, SCTP_M_ASC_ADDR);
 	}
 	while (!TAILQ_EMPTY(&asoc->asconf_ack_sent)) {
+		/* sa_ignore FREED_MEMORY */
 		aack = TAILQ_FIRST(&asoc->asconf_ack_sent);
 		TAILQ_REMOVE(&asoc->asconf_ack_sent, aack, next);
-		if (aack->last_sent_to != NULL) {
-			sctp_free_remote_addr(aack->last_sent_to);
-		}
 		if (aack->data != NULL) {
 			sctp_m_freem(aack->data);
 		}
@@ -4696,6 +4902,7 @@ sctp_pcb_init()
 	 * the sctp_init() funciton.
 	 */
 	int i;
+	struct timeval tv;
 
 	if (sctp_pcb_initialized != 0) {
 		/* error I was called twice */
@@ -4704,7 +4911,9 @@ sctp_pcb_init()
 	sctp_pcb_initialized = 1;
 
 	bzero(&sctpstat, sizeof(struct sctpstat));
-	(void)SCTP_GETTIME_TIMEVAL(&sctpstat.sctps_discontinuitytime);
+	(void)SCTP_GETTIME_TIMEVAL(&tv);
+	sctpstat.sctps_discontinuitytime.tv_sec = (uint32_t) tv.tv_sec;
+	sctpstat.sctps_discontinuitytime.tv_usec = (uint32_t) tv.tv_usec;
 	/* init the empty list of (All) Endpoints */
 	LIST_INIT(&sctppcbinfo.listhead);
 
@@ -5542,7 +5751,15 @@ check_time_wait:
 			}
 		}
 	}
-	/* Not found, ok to use the tag */
+	/*-
+	 * Not found, ok to use the tag, add it to the time wait hash
+	 * as well this will prevent two sucessive cookies from getting
+	 * the same tag or two inits sent quickly on multi-processors.
+	 * We only keep the tag for the life of a cookie and when we
+	 * add this tag to the assoc hash we need to purge it from
+	 * the t-wait hash.
+	 */
+	sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life));
 	SCTP_INP_INFO_WUNLOCK();
 	return (1);
 }
