@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2007 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2006
+.Dd September 08, 2007
 .Os
 .Dt ELF_UPDATE 3
 .Sh NAME
@@ -228,6 +228,11 @@ Argument
 .Ar elf
 contained section descriptors that were incorrectly aligned or were
 too small for their data.
+.It Bq Er ELF_E_LAYOUT
+The flag
+.Dv ELF_F_LAYOUT
+was set on the Elf descriptor and the section header table overlapped
+an extent in the object mapped by a section descriptor.
 .It Bq Er ELF_E_MODE
 An
 .Dv ELF_C_WRITE

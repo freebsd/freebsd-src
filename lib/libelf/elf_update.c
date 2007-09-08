@@ -68,7 +68,10 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * Compute the extents of a section, by looking at the.
+ * Compute the extents of a section, by looking at the data
+ * descriptors associated with it.  The function returns zero if an
+ * error was detected.  `*rc' holds the maximum file extent seen so
+ * far.
  */
 static int
 _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
@@ -267,7 +270,7 @@ _libelf_resync_sections(Elf *e, off_t rc)
 {
 	int ec;
 	off_t nrc;
-	size_t sh_type;
+	size_t sh_type, shdr_start, shdr_end;
 	Elf_Scn *s, *ts;
 
 	ec = e->e_class;
@@ -309,6 +312,29 @@ _libelf_resync_sections(Elf *e, off_t rc)
 			}
 		} else
 			rc = s->s_offset + s->s_size;
+	}
+
+	/*
+	 * If the application is controlling file layout, check for an
+	 * overlap between this section's extents and the SHDR table.
+	 */
+	if (e->e_flags & ELF_F_LAYOUT) {
+
+		if (e->e_class == ELFCLASS32)
+			shdr_start = e->e_u.e_elf.e_ehdr.e_ehdr32->e_shoff;
+		else
+			shdr_start = e->e_u.e_elf.e_ehdr.e_ehdr64->e_shoff;
+
+		shdr_end = shdr_start + _libelf_fsize(ELF_T_SHDR, e->e_class,
+		    e->e_version, e->e_u.e_elf.e_nscn);
+
+		STAILQ_FOREACH(s, &e->e_u.e_elf.e_scn, s_next) {
+			if (s->s_offset >= shdr_end ||
+			    s->s_offset + s->s_size <= shdr_start)
+				continue;
+			LIBELF_SET_ERROR(LAYOUT, 0);
+			return ((off_t) -1);
+		}
 	}
 
 	assert(nrc == rc);
@@ -446,18 +472,17 @@ _libelf_resync_elf(Elf *e)
 
 	/*
 	 * Compute the space taken up by the section header table, if
-	 * one is needed.
+	 * one is needed.  If ELF_F_LAYOUT is asserted, the
+	 * application may have placed the section header table in
+	 * between existing sections, so the net size of the file need
+	 * not increase due to the presence of the section header
+	 * table.
 	 */
 	if (shnum) {
 		fsz = _libelf_fsize(ELF_T_SHDR, ec, eh_version, (size_t) 1);
 		align = _libelf_falign(ELF_T_SHDR, ec);
 
 		if (e->e_flags & ELF_F_LAYOUT) {
-			if (rc > shoff) {
-				LIBELF_SET_ERROR(HEADER, 0);
-				return ((off_t) -1);
-			}
-
 			if (shoff % align) {
 				LIBELF_SET_ERROR(LAYOUT, 0);
 				return ((off_t) -1);
@@ -465,7 +490,8 @@ _libelf_resync_elf(Elf *e)
 		} else
 			shoff = roundup(rc, align);
 
-		rc = shoff + fsz * shnum;
+		if (shoff + fsz * shnum > (size_t) rc)
+			rc = shoff + fsz * shnum;
 	} else
 		shoff = 0;
 
@@ -619,7 +645,7 @@ static off_t
 _libelf_write_elf(Elf *e, off_t newsize)
 {
 	int ec;
-	off_t rc;
+	off_t maxrc, rc;
 	size_t fsz, msz, phnum, shnum;
 	uint64_t phoff, shoff;
 	void *ehdr;
@@ -728,16 +754,17 @@ _libelf_write_elf(Elf *e, off_t newsize)
 			goto error;
 
 	/*
-	 * Write out the section header table, if required.
+	 * Write out the section header table, if required.  Note that
+	 * if flag ELF_F_LAYOUT has been set the section header table
+	 * could reside in between byte ranges mapped by section
+	 * descriptors.
 	 */
-
 	if (shnum != 0 && shoff != 0) {
-		assert((unsigned) rc <= shoff);
-
 		if ((uint64_t) rc < shoff)
 			(void) memset(newfile + rc,
 			    LIBELF_PRIVATE(fillchar), shoff - rc);
 
+		maxrc = rc;
 		rc = shoff;
 
 		assert(rc % _libelf_falign(ELF_T_SHDR, ec) == 0);
@@ -763,10 +790,10 @@ _libelf_write_elf(Elf *e, off_t newsize)
 
 			rc += fsz;
 		}
-	}
 
-	/*
-	 */
+		if (maxrc > rc)
+			rc = maxrc;
+	}
 
 	assert(rc == newsize);
 
