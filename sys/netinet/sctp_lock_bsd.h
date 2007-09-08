@@ -375,4 +375,10 @@ extern int sctp_logoff_stuff;
 	        } while (0)
 
 
+#if defined(SCTP_SO_LOCK_TESTING)
+#define SCTP_INP_SO(sctpinp)	(sctpinp)->ip_inp.inp.inp_socket
+#define SCTP_SOCKET_LOCK(so, refcnt)
+#define SCTP_SOCKET_UNLOCK(so, refcnt)
+#endif
+
 #endif

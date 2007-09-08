@@ -139,7 +139,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 		/* in6p's ref-count increased && stcb locked */
 		if ((in6p) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
-			sctp_chunk_output((struct sctp_inpcb *)in6p, stcb, 2);
+			sctp_chunk_output((struct sctp_inpcb *)in6p, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
 		} else if ((in6p != NULL) && (stcb == NULL)) {
 			refcount_up = 1;
 		}
@@ -911,7 +911,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb);
+	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
 	return error;
 }

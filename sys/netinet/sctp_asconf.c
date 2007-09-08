@@ -280,7 +280,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		    aparam_length);
 	} else {
 		/* notify upper layer */
-		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_ADD_IP, stcb, 0, sa);
+		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_ADD_IP, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 		if (response_required) {
 			m_reply =
 			    sctp_asconf_success_response(aph->correlation_id);
@@ -316,7 +316,7 @@ sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 			    (struct sockaddr *)&net->ro._l_addr);
 			/* notify upper layer */
 			sctp_ulp_notify(SCTP_NOTIFY_ASCONF_DELETE_IP, stcb, 0,
-			    (struct sockaddr *)&net->ro._l_addr);
+			    (struct sockaddr *)&net->ro._l_addr, SCTP_SO_NOT_LOCKED);
 		}
 	}
 	return 0;
@@ -451,7 +451,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 			m_reply = sctp_asconf_success_response(aph->correlation_id);
 		}
 		/* notify upper layer */
-		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_DELETE_IP, stcb, 0, sa);
+		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_DELETE_IP, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 	}
 	return m_reply;
 }
@@ -545,7 +545,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "process_asconf_set_primary: primary address set\n");
 		/* notify upper layer */
-		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_SET_PRIMARY, stcb, 0, sa);
+		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_SET_PRIMARY, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 
 		if (response_required) {
 			m_reply = sctp_asconf_success_response(aph->correlation_id);
@@ -1592,7 +1592,7 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 	if (serial_num == (asoc->asconf_seq_out + 1)) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "handle_asconf_ack: got unexpected next serial number! Aborting asoc!\n");
 		sctp_abort_an_association(stcb->sctp_ep, stcb,
-		    SCTP_CAUSE_ILLEGAL_ASCONF_ACK, NULL);
+		    SCTP_CAUSE_ILLEGAL_ASCONF_ACK, NULL, SCTP_SO_NOT_LOCKED);
 		return;
 	}
 	if (serial_num != asoc->asconf_seq_out) {
@@ -2199,7 +2199,7 @@ sctp_set_primary_ip_address(struct sctp_ifa *ifa)
 			if (!sctp_asconf_queue_add(stcb, ifa,
 			    SCTP_SET_PRIM_ADDR)) {
 				/* set primary queuing succeeded */
-				SCTPDBG(SCTP_DEBUG_ASCONF1, ": queued on stcb=%p, ",
+				SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address: queued on stcb=%p, ",
 				    stcb);
 				SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &ifa->address.sa);
 				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {

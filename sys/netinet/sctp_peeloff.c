@@ -60,8 +60,8 @@ sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 	}
 	stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1);
 	if (stcb == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOTCONN);
-		return (ENOTCONN);
+		SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOENT);
+		return (ENOENT);
 	}
 	state = SCTP_GET_STATE((&stcb->asoc));
 	if ((state == SCTP_STATE_EMPTY) ||
@@ -161,26 +161,27 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 		*error = ENOTCONN;
 		return (NULL);
 	}
+	atomic_add_int(&stcb->asoc.refcnt, 1);
+	SCTP_TCB_UNLOCK(stcb);
 	newso = sonewconn(head, SS_ISCONNECTED
 	    );
 	if (newso == NULL) {
 		SCTPDBG(SCTP_DEBUG_PEEL1, "sctp_peeloff:sonewconn failed\n");
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_PEELOFF, ENOMEM);
 		*error = ENOMEM;
-		SCTP_TCB_UNLOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 		return (NULL);
 
 	}
+	SCTP_TCB_LOCK(stcb);
+	atomic_subtract_int(&stcb->asoc.refcnt, 1);
 	n_inp = (struct sctp_inpcb *)newso->so_pcb;
 	SOCK_LOCK(head);
-	SCTP_INP_WLOCK(inp);
-	SCTP_INP_WLOCK(n_inp);
 	n_inp->sctp_flags = (SCTP_PCB_FLAGS_UDPTYPE |
 	    SCTP_PCB_FLAGS_CONNECTED |
 	    SCTP_PCB_FLAGS_IN_TCPPOOL |	/* Turn on Blocking IO */
 	    (SCTP_PCB_COPY_FLAGS & inp->sctp_flags));
 	n_inp->sctp_features = inp->sctp_features;
-	n_inp->sctp_mobility_features = inp->sctp_mobility_features;
 	n_inp->sctp_frag_point = inp->sctp_frag_point;
 	n_inp->partial_delivery_point = inp->partial_delivery_point;
 	n_inp->sctp_context = inp->sctp_context;
@@ -222,8 +223,6 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	 * Now we must move it from one hash table to another and get the
 	 * stcb in the right place.
 	 */
-	SCTP_INP_WUNLOCK(n_inp);
-	SCTP_INP_WUNLOCK(inp);
 	sctp_move_pcb_and_assoc(inp, n_inp, stcb);
 	atomic_add_int(&stcb->asoc.refcnt, 1);
 	SCTP_TCB_UNLOCK(stcb);
@@ -233,6 +232,5 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 	 */
 	sctp_pull_off_control_to_new_inp(inp, n_inp, stcb, M_WAITOK);
 	atomic_subtract_int(&stcb->asoc.refcnt, 1);
-
 	return (newso);
 }
