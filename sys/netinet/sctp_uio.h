@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <netinet/in.h>
 
 typedef uint32_t sctp_assoc_t;
@@ -743,6 +742,11 @@ struct sctp_cwnd_log_req {
 	struct sctp_cwnd_log log[0];
 };
 
+struct sctp_timeval {
+	uint32_t tv_sec;
+	uint32_t tv_usec;
+};
+
 struct sctpstat {
 	/* MIB according to RFC 3873 */
 	uint32_t sctps_currestab;	/* sctpStats  1   (Gauge32) */
@@ -845,6 +849,8 @@ struct sctpstat {
 					 * fired */
 	uint32_t sctps_timoasconf;	/* Number of times an asconf timer
 					 * fired */
+	uint32_t sctps_timodelprim;	/* Number of times a prim_deleted
+					 * timer fired */
 	uint32_t sctps_timoautoclose;	/* Number of times auto close timer
 					 * fired */
 	uint32_t sctps_timoassockill;	/* Number of asoc free timers expired */
@@ -921,7 +927,8 @@ struct sctpstat {
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
 
-	struct timeval sctps_discontinuitytime;	/* sctpStats 18 (TimeStamp) */
+	struct sctp_timeval sctps_discontinuitytime;	/* sctpStats 18
+							 * (TimeStamp) */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)
@@ -984,14 +991,14 @@ struct xsctp_tcb {
 	uint32_t refcnt;
 	uint16_t local_port;	/* sctpAssocEntry 3   */
 	uint16_t remote_port;	/* sctpAssocEntry 4   */
-	struct timeval start_time;	/* sctpAssocEntry 16  */
-	struct timeval discontinuity_time;	/* sctpAssocEntry 17  */
+	struct sctp_timeval start_time;	/* sctpAssocEntry 16  */
+	struct sctp_timeval discontinuity_time;	/* sctpAssocEntry 17  */
 };
 
 struct xsctp_laddr {
 	union sctp_sockstore address;	/* sctpAssocLocalAddrEntry 1/2 */
 	uint32_t last;
-	struct timeval start_time;	/* sctpAssocLocalAddrEntry 3   */
+	struct sctp_timeval start_time;	/* sctpAssocLocalAddrEntry 3   */
 };
 
 struct xsctp_raddr {
@@ -1007,7 +1014,7 @@ struct xsctp_raddr {
 	uint8_t active;		/* sctpAssocLocalRemEntry 3   */
 	uint8_t confirmed;	/* */
 	uint8_t heartbeat_enabled;	/* sctpAssocLocalRemEntry 4   */
-	struct timeval start_time;	/* sctpAssocLocalRemEntry 8   */
+	struct sctp_timeval start_time;	/* sctpAssocLocalRemEntry 8   */
 };
 
 /*

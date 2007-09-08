@@ -223,7 +223,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 
 void
 sctp_notify(struct sctp_inpcb *inp,
-    int error,
+    struct ip *ip,
     struct sctphdr *sh,
     struct sockaddr *to,
     struct sctp_tcb *stcb,
@@ -234,110 +234,103 @@ sctp_notify(struct sctp_inpcb *inp,
 
 #endif
 	/* protection */
+	int reason;
+	struct icmp *icmph;
+
+
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
+		if (stcb)
+			SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
 	/* First job is to verify the vtag matches what I would send */
 	if (ntohl(sh->v_tag) != (stcb->asoc.peer_vtag)) {
+		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	/* FIX ME FIX ME PROTOPT i.e. no SCTP should ALWAYS be an ABORT */
+	icmph = (struct icmp *)((caddr_t)ip - (sizeof(struct icmp) -
+	    sizeof(struct ip)));
+	if (icmph->icmp_type != ICMP_UNREACH) {
+		/* We only care about unreachable */
+		SCTP_TCB_UNLOCK(stcb);
+		return;
+	}
+	if ((icmph->icmp_code == ICMP_UNREACH_NET) ||
+	    (icmph->icmp_code == ICMP_UNREACH_HOST) ||
+	    (icmph->icmp_code == ICMP_UNREACH_NET_UNKNOWN) ||
+	    (icmph->icmp_code == ICMP_UNREACH_HOST_UNKNOWN) ||
+	    (icmph->icmp_code == ICMP_UNREACH_ISOLATED) ||
+	    (icmph->icmp_code == ICMP_UNREACH_NET_PROHIB) ||
+	    (icmph->icmp_code == ICMP_UNREACH_HOST_PROHIB) ||
+	    (icmph->icmp_code == ICMP_UNREACH_FILTER_PROHIB)) {
 
-	if ((error == EHOSTUNREACH) ||	/* Host is not reachable */
-	    (error == EHOSTDOWN) ||	/* Host is down */
-	    (error == ECONNREFUSED) ||	/* Host refused the connection, (not
-					 * an abort?) */
-	    (error == ENOPROTOOPT)	/* SCTP is not present on host */
-	    ) {
 		/*
 		 * Hmm reachablity problems we must examine closely. If its
 		 * not reachable, we may have lost a network. Or if there is
 		 * NO protocol at the other end named SCTP. well we consider
 		 * it a OOTB abort.
 		 */
-		if ((error == EHOSTUNREACH) || (error == EHOSTDOWN)) {
-			if (net->dest_state & SCTP_ADDR_REACHABLE) {
-				/* Ok that destination is NOT reachable */
-				SCTP_PRINTF("ICMP (thresh %d/%d) takes interface %p down\n",
-				    net->error_count,
-				    net->failure_threshold,
-				    net);
+		if (net->dest_state & SCTP_ADDR_REACHABLE) {
+			/* Ok that destination is NOT reachable */
+			SCTP_PRINTF("ICMP (thresh %d/%d) takes interface %p down\n",
+			    net->error_count,
+			    net->failure_threshold,
+			    net);
 
-				net->dest_state &= ~SCTP_ADDR_REACHABLE;
-				net->dest_state |= SCTP_ADDR_NOT_REACHABLE;
-				/*
-				 * JRS 5/14/07 - If a destination is
-				 * unreachable, the PF bit is turned off.
-				 * This allows an unambiguous use of the PF
-				 * bit for destinations that are reachable
-				 * but potentially failed. If the
-				 * destination is set to the unreachable
-				 * state, also set the destination to the PF
-				 * state.
-				 */
-				/*
-				 * Add debug message here if destination is
-				 * not in PF state.
-				 */
-				/* Stop any running T3 timers here? */
-				if (sctp_cmt_on_off && sctp_cmt_pf) {
-					net->dest_state &= ~SCTP_ADDR_PF;
-					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
-					    net);
-				}
-				net->error_count = net->failure_threshold + 1;
-				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-				    stcb, SCTP_FAILED_THRESHOLD,
-				    (void *)net, SCTP_SO_NOT_LOCKED);
-			}
-			if (stcb) {
-				SCTP_TCB_UNLOCK(stcb);
-			}
-		} else {
+			net->dest_state &= ~SCTP_ADDR_REACHABLE;
+			net->dest_state |= SCTP_ADDR_NOT_REACHABLE;
 			/*
-			 * Here the peer is either playing tricks on us,
-			 * including an address that belongs to someone who
-			 * does not support SCTP OR was a userland
-			 * implementation that shutdown and now is dead. In
-			 * either case treat it like a OOTB abort with no
-			 * TCB
+			 * JRS 5/14/07 - If a destination is unreachable,
+			 * the PF bit is turned off.  This allows an
+			 * unambiguous use of the PF bit for destinations
+			 * that are reachable but potentially failed. If the
+			 * destination is set to the unreachable state, also
+			 * set the destination to the PF state.
 			 */
-			sctp_abort_notification(stcb, SCTP_PEER_FAULTY, SCTP_SO_NOT_LOCKED);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			so = SCTP_INP_SO(inp);
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK(stcb);
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-#endif
-			(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			SCTP_SOCKET_UNLOCK(so, 1);
 			/*
-			 * SCTP_TCB_UNLOCK(stcb); MT: I think this is not
-			 * needed.
+			 * Add debug message here if destination is not in
+			 * PF state.
 			 */
-#endif
-			/* no need to unlock here, since the TCB is gone */
+			/* Stop any running T3 timers here? */
+			if (sctp_cmt_on_off && sctp_cmt_pf) {
+				net->dest_state &= ~SCTP_ADDR_PF;
+				SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
+				    net);
+			}
+			net->error_count = net->failure_threshold + 1;
+			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
+			    stcb, SCTP_FAILED_THRESHOLD,
+			    (void *)net, SCTP_SO_NOT_LOCKED);
 		}
+		SCTP_TCB_UNLOCK(stcb);
+	} else if ((icmph->icmp_code == ICMP_UNREACH_PROTOCOL) ||
+	    (icmph->icmp_code == ICMP_UNREACH_PORT)) {
+		/*
+		 * Here the peer is either playing tricks on us, including
+		 * an address that belongs to someone who does not support
+		 * SCTP OR was a userland implementation that shutdown and
+		 * now is dead. In either case treat it like a OOTB abort
+		 * with no TCB
+		 */
+		reason = SCTP_PEER_FAULTY;
+		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		so = SCTP_INP_SO(inp);
+		atomic_add_int(&stcb->asoc.refcnt, 1);
+		SCTP_TCB_UNLOCK(stcb);
+		SCTP_SOCKET_LOCK(so, 1);
+		SCTP_TCB_LOCK(stcb);
+		atomic_subtract_int(&stcb->asoc.refcnt, 1);
+#endif
+		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		SCTP_SOCKET_UNLOCK(so, 1);
+		/* SCTP_TCB_UNLOCK(stcb); MT: I think this is not needed. */
+#endif
+		/* no need to unlock here, since the TCB is gone */
 	} else {
-		/* Send all others to the app */
-		if (stcb) {
-			SCTP_TCB_UNLOCK(stcb);
-		}
-		if (inp->sctp_socket) {
-#ifdef SCTP_LOCK_LOGGING
-			if (sctp_logging_level & SCTP_LOCK_LOGGING_ENABLE) {
-				sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCK);
-			}
-#endif
-			SOCK_LOCK(inp->sctp_socket);
-			inp->sctp_socket->so_error = error;
-			sctp_sowwakeup(inp, inp->sctp_socket);
-			SOCK_UNLOCK(inp->sctp_socket);
-		}
+		SCTP_TCB_UNLOCK(stcb);
 	}
 }
 
@@ -388,14 +381,7 @@ sctp_ctlinput(cmd, sa, vip)
 		    &inp, &net, 1, vrf_id);
 		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
 			if (cmd != PRC_MSGSIZE) {
-				int cm;
-
-				if (cmd == PRC_HOSTDEAD) {
-					cm = EHOSTUNREACH;
-				} else {
-					cm = inetctlerrmap[cmd];
-				}
-				sctp_notify(inp, cm, sh,
+				sctp_notify(inp, ip, sh,
 				    (struct sockaddr *)&to, stcb,
 				    net);
 			} else {
@@ -1070,6 +1056,9 @@ sctp_fill_user_address(struct sockaddr_storage *ss, struct sockaddr *sa)
 
 
 
+/*
+ * NOTE: assumes addr lock is held
+ */
 static size_t
 sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
@@ -1235,12 +1224,17 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
 {
 	size_t size = 0;
 
+	SCTP_IPI_ADDR_LOCK();
 	/* fill up addresses for the endpoint's default vrf */
 	size = sctp_fill_up_addresses_vrf(inp, stcb, limit, sas,
 	    inp->def_vrf_id);
+	SCTP_IPI_ADDR_UNLOCK();
 	return (size);
 }
 
+/*
+ * NOTE: assumes addr lock is held
+ */
 static int
 sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 {
@@ -1297,8 +1291,10 @@ sctp_count_max_addresses(struct sctp_inpcb *inp)
 {
 	int cnt = 0;
 
+	SCTP_IPI_ADDR_LOCK();
 	/* count addresses for the endpoint's default VRF */
 	cnt = sctp_count_max_addresses_vrf(inp, inp->def_vrf_id);
+	SCTP_IPI_ADDR_UNLOCK();
 	return (cnt);
 }
 
@@ -1655,9 +1651,9 @@ flags_out:
 				error = 0;
 			}
 #endif
-			if (error)
+			if (error) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, error);
-
+			}
 			*optsize = sizeof(*av);
 		}
 		break;
@@ -3785,7 +3781,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				struct sctp_ifa *ifa;
 
 				ifa = sctp_find_ifa_by_addr((struct sockaddr *)&sspp->sspp_addr,
-				    stcb->asoc.vrf_id, 0);
+				    stcb->asoc.vrf_id, SCTP_ADDR_NOT_LOCKED);
 				if (ifa == NULL) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;

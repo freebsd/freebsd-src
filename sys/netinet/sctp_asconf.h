@@ -79,6 +79,13 @@ extern void
 sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,
     struct sockaddr *, uint16_t, uint16_t, uint16_t, uint16_t);
 
+extern void
+     sctp_move_chunks_from_deleted_prim(struct sctp_tcb *, struct sctp_nets *);
+extern void
+     sctp_assoc_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
+extern void
+     sctp_net_immediate_retrans(struct sctp_tcb *, struct sctp_nets *);
+
 #endif				/* _KERNEL */
 
 #endif				/* !_NETINET_SCTP_ASCONF_H_ */

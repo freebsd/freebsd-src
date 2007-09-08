@@ -806,7 +806,7 @@ sctp_fill_random_store(struct sctp_pcb *m)
 }
 
 uint32_t
-sctp_select_initial_TSN(struct sctp_pcb *m)
+sctp_select_initial_TSN(struct sctp_pcb *inp)
 {
 	/*
 	 * A true implementation should use random selection process to get
@@ -815,27 +815,36 @@ sctp_select_initial_TSN(struct sctp_pcb *m)
 	 */
 	uint32_t x, *xp;
 	uint8_t *p;
+	int store_at, new_store;
 
-	if (m->initial_sequence_debug != 0) {
+	if (inp->initial_sequence_debug != 0) {
 		uint32_t ret;
 
-		ret = m->initial_sequence_debug;
-		m->initial_sequence_debug++;
+		ret = inp->initial_sequence_debug;
+		inp->initial_sequence_debug++;
 		return (ret);
 	}
-	if ((m->store_at + sizeof(u_long)) > SCTP_SIGNATURE_SIZE) {
-		/* Refill the random store */
-		sctp_fill_random_store(m);
+retry:
+	store_at = inp->store_at;
+	new_store = store_at + sizeof(uint32_t);
+	if (new_store >= (SCTP_SIGNATURE_SIZE - 3)) {
+		new_store = 0;
 	}
-	p = &m->random_store[(int)m->store_at];
+	if (!atomic_cmpset_int(&inp->store_at, store_at, new_store)) {
+		goto retry;
+	}
+	if (new_store == 0) {
+		/* Refill the random store */
+		sctp_fill_random_store(inp);
+	}
+	p = &inp->random_store[store_at];
 	xp = (uint32_t *) p;
 	x = *xp;
-	m->store_at += sizeof(uint32_t);
 	return (x);
 }
 
 uint32_t
-sctp_select_a_tag(struct sctp_inpcb *m)
+sctp_select_a_tag(struct sctp_inpcb *inp)
 {
 	u_long x, not_done;
 	struct timeval now;
@@ -843,12 +852,12 @@ sctp_select_a_tag(struct sctp_inpcb *m)
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	not_done = 1;
 	while (not_done) {
-		x = sctp_select_initial_TSN(&m->sctp_ep);
+		x = sctp_select_initial_TSN(&inp->sctp_ep);
 		if (x == 0) {
 			/* we never use 0 */
 			continue;
 		}
-		if (sctp_is_vtag_good(m, x, &now)) {
+		if (sctp_is_vtag_good(inp, x, &now)) {
 			not_done = 0;
 		}
 	}
@@ -1758,6 +1767,15 @@ sctp_timeout_handler(void *t)
 #endif
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_ASCONF_TMR, SCTP_SO_NOT_LOCKED);
 		break;
+	case SCTP_TIMER_TYPE_PRIM_DELETED:
+		if ((stcb == NULL) || (inp == NULL)) {
+			break;
+		}
+		if (sctp_delete_prim_timer(inp, stcb, net)) {
+			goto out_decr;
+		}
+		SCTP_STAT_INCR(sctps_timodelprim);
+		break;
 
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
 		if ((stcb == NULL) || (inp == NULL)) {
@@ -2152,6 +2170,13 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		tmr = &stcb->asoc.asconf_timer;
 		break;
+	case SCTP_TIMER_TYPE_PRIM_DELETED:
+		if ((stcb == NULL) || (net != NULL)) {
+			return;
+		}
+		to_ticks = MSEC_TO_TICKS(stcb->asoc.initial_rto);
+		tmr = &stcb->asoc.delete_prim_timer;
+		break;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
 		if (stcb == NULL) {
 			return;
@@ -2329,6 +2354,12 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			return;
 		}
 		tmr = &stcb->asoc.asconf_timer;
+		break;
+	case SCTP_TIMER_TYPE_PRIM_DELETED:
+		if (stcb == NULL) {
+			return;
+		}
+		tmr = &stcb->asoc.delete_prim_timer;
 		break;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
 		if (stcb == NULL) {
@@ -5629,6 +5660,11 @@ wait_some_more:
 			SOCKBUF_LOCK(&so->so_rcv);
 			hold_sblock = 1;
 		}
+		if ((copied_so_far) && (control->length == 0) &&
+		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))
+		    ) {
+			goto release;
+		}
 		if (so->so_rcv.sb_cc <= control->held_length) {
 			error = sbwait(&so->so_rcv);
 			if (error) {
@@ -6339,9 +6375,11 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 		ipv4_addr_legal = 1;
 	}
 
+	SCTP_IPI_ADDR_LOCK();
 	vrf = sctp_find_vrf(stcb->asoc.vrf_id);
 	if (vrf == NULL) {
 		/* no vrf, no addresses */
+		SCTP_IPI_ADDR_UNLOCK();
 		return (0);
 	}
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -6417,6 +6455,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 			count++;
 		}
 	}
+	SCTP_IPI_ADDR_UNLOCK();
 	return (count);
 }
 
