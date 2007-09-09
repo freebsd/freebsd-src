@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -29,13 +30,13 @@
  * $FreeBSD$
  */
 
-/*
+/*-
  * Test that raising current resource limits above hard resource limits
- * requires privilege.  There is one privilege check, but two conditions:
+ * requires privilege.  We test three cases:
  *
- * - To raise the current above the maximum.
- *
- * - To raise the maximum.
+ * - Raise the current above the maximum (privileged).
+ * - Raise the current to the maximum (unprivileged).
+ * - Raise the maximum (privileged).
  */
 
 #include <sys/types.h>
@@ -48,90 +49,122 @@
 
 #include "main.h"
 
-void
-priv_proc_setrlimit(void)
+static int initialized;
+static struct rlimit rl_base;
+static struct rlimit rl_lowered;
+
+int
+priv_proc_setrlimit_setup(int asroot, int injail, struct test *test)
 {
-	struct rlimit rl, rl_lower, rl_raise_max, rl_raise_cur;
+
+	if (getrlimit(RLIMIT_DATA, &rl_base) < 0) {
+		warn("priv_proc_setrlimit_setup: getrlimit");
+		return (-1);
+	}
+
+	/*
+	 * Must lower current and limit to make sure there's room to try to
+	 * raise them during tests.  Set current lower than max so we can
+	 * raise it later also.
+	 */
+	rl_lowered = rl_base;
+	rl_lowered.rlim_cur -= 20;
+	rl_lowered.rlim_max -= 10;
+	if (setrlimit(RLIMIT_DATA, &rl_lowered) < 0) {
+		warn("priv_proc_setrlimit_setup: setrlimit");
+		return (-1);
+	}
+	initialized = 1;
+	return (0);
+}
+
+/*
+ * Try increasing the maximum limits on the process, which requires
+ * privilege.
+ */
+void
+priv_proc_setrlimit_raisemax(int asroot, int injail, struct test *test)
+{
+	struct rlimit rl;
 	int error;
 
-	assert_root();
+	rl = rl_lowered;
+	rl.rlim_max = rl_base.rlim_max;
+	error = setrlimit(RLIMIT_DATA, &rl);
+	if (asroot && injail)
+		expect("priv_proc_setrlimit_raisemax(asroot, injail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_proc_setrlimit_raisemax(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_proc_setrlimit_raisemax(!asroot, injail)",
+		    error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_proc_setrlimit_raisemax(!asroot, !injail)",
+		    error, -1, EPERM);
+}
 
-	/*
-	 * To make sure that there is room to raise the resource limit, we
-	 * must first lower it.  Otherwise, if the resource limit is already
-	 * at the global maximum, that complicates matters.  In principle, we
-	 * can bump into privilege failures during setup, but there's not
-	 * much we can do about that.  Keep this prototypical setting around
-	 * as the target to restore to later.
-	 */
-	if (getrlimit(RLIMIT_DATA, &rl) < 0)
-		err(-1, "getrlimit(RLIMIT_DATA)");
+/*
+ * Try setting the current limit to the current maximum, which is allowed
+ * without privilege.
+ */
+void
+priv_proc_setrlimit_raisecur_nopriv(int asroot, int injail,
+    struct test *test)
+{
+	struct rlimit rl;
+	int error;
 
-	/*
-	 * What to lower to before trying to raise.
-	 */
-	rl_lower = rl;
-	rl_lower.rlim_cur -= 10;
-	rl_lower.rlim_max = rl_lower.rlim_cur;
+	rl = rl_lowered;
+	rl.rlim_cur = rl.rlim_max;
+	error = setrlimit(RLIMIT_DATA, &rl);
+	if (asroot && injail)
+		expect("priv_proc_setrlimit_raiscur_nopriv(asroot, injail)",
+		    error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_proc_setrlimit_raisecur_nopriv(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_proc_setrlimit_raisecur_nopriv(!asroot, injail)",
+		    error, 0, 0);
+	if (!asroot && !injail)
+		expect("priv_proc_setrlimit_raisecur_nopriv(!asroot, !injail)",
+		    error, 0, 0);
+}
 
-	/*
-	 * Raise the maximum.
-	 */
-	rl_raise_max = rl;
-	rl_raise_max.rlim_max += 10;
+/*
+ * Try raising the current limits above the maximum, which requires
+ * privilege.
+ */
+void
+priv_proc_setrlimit_raisecur(int asroot, int injail, struct test *test)
+{
+	struct rlimit rl;
+	int error;
 
-	/*
-	 * Raise the current above the maximum.
-	 */
-	rl_raise_cur = rl;
-	rl_raise_cur.rlim_cur += 10;
+	rl = rl_lowered;
+	rl.rlim_cur = rl.rlim_max + 10;
+	error = setrlimit(RLIMIT_DATA, &rl);
+	if (asroot && injail)
+		expect("priv_proc_setrlimit_raisecur(asroot, injail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_proc_setrlimit_raisecur(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_proc_setrlimit_raisecur(!asroot, injail)",
+		    error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_proc_setrlimit_raisecur(!asroot, !injail)",
+		    error, -1, EPERM);
+}
 
-	/*
-	 * Test raising the maximum with privilege.
-	 */
-	if (setrlimit(RLIMIT_DATA, &rl_lower) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, lower) as root");
+void
+priv_proc_setrlimit_cleanup(int asroot, int injail, struct test *test)
+{
 
-	if (setrlimit(RLIMIT_DATA, &rl_raise_max) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, raise_max) as root");
-
-	/*
-	 * Test raising the current above the maximum with privilege.
-	 */
-	if (setrlimit(RLIMIT_DATA, &rl_lower) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, lower) as root");
-
-	if (setrlimit(RLIMIT_DATA, &rl_raise_cur) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, raise_cur) as root");
-
-	/*
-	 * Test raising the maximum without privilege.
-	 */
-	if (setrlimit(RLIMIT_DATA, &rl_lower) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, lower) as root");
-
-	set_euid(UID_OTHER);
-	error = setrlimit(RLIMIT_DATA, &rl_raise_max);
-	if (error == 0)
-		errx(-1,
-		    "setrlimit(RLIMIT_DATA, raise_max) succeeded as !root");
-	if (errno != EPERM)
-		err(-1, "setrlimit(RLIMIT_DATA, raise_max) wrong errno %d "
-		    "as !root", errno);
-
-	/*
-	 * Test raising the current above the maximum without privilege.
-	 */
-	set_euid(UID_ROOT);
-	if (setrlimit(RLIMIT_DATA, &rl_lower) < 0)
-		err(-1, "setrlimit(RLIMIT_DATA, lower) as root");
-	set_euid(UID_OTHER);
-
-	error = setrlimit(RLIMIT_DATA, &rl_raise_cur);
-	if (error == 0)
-		errx(-1,
-		    "setrlimit(RLIMIT_DATA, raise_cur) succeeded as !root");
-	if (errno != EPERM)
-		err(-1, "setrlimit(RLIMIT_DATA, raise_cur) wrong errno %d "
-		    "as !root", errno);
+	if (initialized)
+		(void)setrlimit(RLIMIT_DATA, &rl_base);
+	initialized = 0;
 }

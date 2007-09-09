@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -47,324 +48,212 @@
 
 #include "main.h"
 
-struct test_arguments {
-	int	open_flags;
-	uid_t	proc_uid;
-	gid_t	proc_gid;
-	uid_t	file_uid;
-	gid_t	file_gid;
-};
+static char fpath_none[1024];
+static char fpath_read[1024];
+static char fpath_write[1024];
+static char fpath_readwrite[1024];
 
-/*
- * Rather special-purpose, don't reuse.  Will need updating if anything other
- * than O_RDONLY and O_WRONLY are to be used in tests.
- */
-static const char *
-flags_to_string(int flags)
-{
-
-	switch (flags) {
-	case O_RDONLY:
-		return ("O_RDONLY");
-
-	case O_WRONLY:
-		return ("O_WRONLY");
-
-	default:
-		return ("unknown");
-	}
-}
+static int fpath_none_initialized;
+static int fpath_read_initialized;
+static int fpath_write_initialized;
+static int fpath_readwrite_initialized;
 
 static void
-test_perm(struct test_arguments ta, mode_t file_mode, int expected)
+try_io(const char *label, const char *fpathp, int asroot, int injail, 
+    int flags, int expected_error, int expected_errno)
 {
-	uid_t proc_uid, file_uid;
-	gid_t proc_gid, file_gid;
-	int fd, open_flags;
-	char fpath[1024];
+	int fd;
 
-	proc_uid = ta.proc_uid;
-	proc_gid = ta.proc_gid;
-	file_uid = ta.file_uid;
-	file_gid = ta.file_gid;
-	open_flags = ta.open_flags;
-
-	setup_file(fpath, file_uid, file_gid, file_mode);
-	set_creds(proc_uid, proc_gid);
-
-	fd = open(fpath, open_flags);
-
-	if (expected == 0) {
-		if (fd <= 0) {
-			warn("test_perm(%s, %d, %d, %d, %d, %04o, %d) "
-			    "returned %d instead of %d",
-			    flags_to_string(open_flags), proc_uid, proc_gid,
-			    file_uid, file_gid, file_mode, expected,
-			    errno, expected);
-			restore_creds();
-			(void)unlink(fpath);
-			exit(-1);
-		}
-		close(fd);
+	fd = open(fpathp, flags);
+	if (fd < 0) {
+		if (expected_error != -1)
+			warnx("%s(%s, %s): expected (%d, %d) got (-1, %d)",
+			    label, asroot ? "root" : "!root", injail ? "jail"
+			    : "!jail", expected_error, expected_errno, errno);
 	} else {
-		if (fd >= 0) {
-			warnx("test_perm(%s, %d, %d, %d, %d, %04o, %d)"
-			    " returned 0 instead of %d",
-			    flags_to_string(open_flags), proc_uid, proc_gid,
-			    file_uid, file_gid, file_mode, expected,
-			    expected);
-			close(fd);
-			restore_creds();
-			(void)unlink(fpath);
-			exit(-1);
-		} else if (errno != expected) {
-			warn("test_perm(%s, %d, %d, %d, %d, %04o, %d)"
-			    " returned %d instead of %d",
-			    flags_to_string(open_flags), proc_uid, proc_gid,
-			    file_uid, file_gid, file_mode, expected,
-			    errno, expected);
-			restore_creds();
-			(void)unlink(fpath);
-			exit(-1);
-		}
+		if (expected_error == -1)
+			warnx("%s(%s, %s): expected (%d, %d) got 0", label,
+			    asroot ? "root" : "!root", injail ? "jail" :
+			    "!jail", expected_error, expected_errno);
+		(void)close(fd);
 	}
-
-	restore_creds();
-	(void)unlink(fpath);
 }
 
-static const gid_t gidset[] = { GID_WHEEL };
-
-static void
-preamble(void)
+int
+priv_vfs_readwrite_fowner_setup(int asroot, int injail, struct test *test)
 {
 
-	if (getuid() != UID_ROOT)
-		errx(-1, "must be run as root");
-	if (setgroups(1, gidset) < 0)
-		err(-1, "setgroups(1, {%d})", GID_WHEEL);
+	setup_file("priv_vfs_readwrite_fowner_setup: fpath_none", fpath_none,
+	    asroot ? UID_ROOT : UID_OWNER, GID_OTHER, 0000);	
+	fpath_none_initialized = 1;
+	setup_file("priv_vfs_readwrite_fowner_setup: fpath_read", fpath_read,
+	    asroot ? UID_ROOT : UID_OWNER, GID_OTHER, 0400);
+	fpath_read_initialized = 1;
+	setup_file("priv_vfs_readwrite_fowner_setup: fpath_write",
+	    fpath_write, asroot ? UID_ROOT : UID_OWNER, GID_OTHER, 0200);
+	fpath_write_initialized = 1;
+	setup_file("priv_vfs_readwrite_fowner_setup: fpath_readwrite",
+	    fpath_readwrite, asroot ? UID_ROOT : UID_OWNER, GID_OTHER, 0600);
+	fpath_readwrite_initialized = 1;
+	return (0);
 }
 
-void
-priv_vfs_read(void)
+int
+priv_vfs_readwrite_fgroup_setup(int asroot, int injail, struct test *test)
 {
-	struct test_arguments ta;
 
-	preamble();
+	setup_file("priv_vfs_readwrite_fgroup_setup: fpath_none", fpath_none,
+	    UID_OTHER, asroot ? GID_WHEEL : GID_OWNER, 0000);
+	fpath_none_initialized = 1;
+	setup_file("priv_vfs_readwrite_fgroup_setup: fpath_read", fpath_read,
+	    UID_OTHER, asroot ? GID_WHEEL : GID_OWNER, 0040);
+	fpath_read_initialized = 1;
+	setup_file("priv_vfs_readwrite_fgroup_setup: fpath_write",
+	    fpath_write, UID_OTHER, asroot ? GID_WHEEL : GID_OWNER, 0020);
+	fpath_write_initialized = 1;
+	setup_file("priv_vfs_readwrite_fgroup_setup: fpath_readwrite",
+	    fpath_readwrite, UID_OTHER, asroot ? GID_WHEEL : GID_OWNER,
+	    0060);
+	fpath_readwrite_initialized = 1;
+	return (0);
+}
 
-	ta.open_flags = O_RDONLY;
+int
+priv_vfs_readwrite_fother_setup(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * Privileged user and file owner.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_ROOT;
-	ta.file_gid = GID_WHEEL;
-
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0100, 0);
-	test_perm(ta, 0200, 0);
-	test_perm(ta, 0300, 0);
-	test_perm(ta, 0400, 0);
-	test_perm(ta, 0500, 0);
-	test_perm(ta, 0600, 0);
-	test_perm(ta, 0700, 0);
-
-	/*
-	 * Privileged user and file group.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_WHEEL;
-
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0010, 0);
-	test_perm(ta, 0020, 0);
-	test_perm(ta, 0030, 0);
-	test_perm(ta, 0040, 0);
-	test_perm(ta, 0050, 0);
-	test_perm(ta, 0060, 0);
-	test_perm(ta, 0070, 0);
-
-	/*
-	 * Privileged user and file other.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
-
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0001, 0);
-	test_perm(ta, 0002, 0);
-	test_perm(ta, 0003, 0);
-	test_perm(ta, 0004, 0);
-	test_perm(ta, 0005, 0);
-	test_perm(ta, 0006, 0);
-	test_perm(ta, 0007, 0);
-
-	/*
-	 * Unprivileged user and file owner.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OWNER;
-	ta.proc_gid = GID_OWNER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
-
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0100, EACCES);
-	test_perm(ta, 0200, EACCES);
-	test_perm(ta, 0300, EACCES);
-	test_perm(ta, 0400, 0);
-	test_perm(ta, 0500, 0);
-	test_perm(ta, 0600, 0);
-	test_perm(ta, 0700, 0);
-
-	/*
-	 * Unprivileged user and file group.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OTHER;
-	ta.proc_gid = GID_OWNER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
-
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0010, EACCES);
-	test_perm(ta, 0020, EACCES);
-	test_perm(ta, 0030, EACCES);
-	test_perm(ta, 0040, 0);
-	test_perm(ta, 0050, 0);
-	test_perm(ta, 0060, 0);
-	test_perm(ta, 0070, 0);
-
-	/*
-	 * Unprivileged user and file other.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OTHER;
-	ta.proc_gid = GID_OTHER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
-
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0001, EACCES);
-	test_perm(ta, 0002, EACCES);
-	test_perm(ta, 0003, EACCES);
-	test_perm(ta, 0004, 0);
-	test_perm(ta, 0005, 0);
-	test_perm(ta, 0006, 0);
-	test_perm(ta, 0007, 0);
+	setup_file("priv_vfs_readwrite_fother_setup: fpath_none", fpath_none,
+	    UID_OTHER, GID_OTHER, 0000);
+	fpath_none_initialized = 1;
+	setup_file("priv_vfs_readwrite_fother_setup: fpath_read", fpath_read,
+	    UID_OTHER, GID_OTHER, 0004);
+	fpath_read_initialized = 1;
+	setup_file("priv_vfs_readwrite_fother_setup: fpath_write",
+	    fpath_write, UID_OTHER, GID_OTHER, 0002);
+	fpath_write_initialized = 1;
+	setup_file("priv_vfs_readwrite_fother_setup: fpath_readwrite",
+	    fpath_readwrite, UID_OTHER, GID_OTHER, 0006);
+	fpath_readwrite_initialized = 1;
+	return (0);
 }
 
 void
-priv_vfs_write(void)
+priv_vfs_readwrite_fowner(int asroot, int injail, struct test *test)
 {
-	struct test_arguments ta;
 
-	preamble();
+	try_io("priv_vfs_readwrite_fowner(none, O_RDONLY)", fpath_none,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fowner(none, O_WRONLY)", fpath_none,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fowner(none, O_RDWR)", fpath_none,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	ta.open_flags = O_WRONLY;
+	try_io("priv_vfs_readwrite_fowner(read, O_RDONLY)", fpath_read,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fowner(read, O_WRONLY)", fpath_read,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fowner(read, O_RDWR)", fpath_read,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	/*
-	 * Privileged user and file owner.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_ROOT;
-	ta.file_gid = GID_WHEEL;
+	try_io("priv_vfs_readwrite_fowner(write, O_RDONLY)", fpath_write,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fowner(write, O_WRONLY)", fpath_write,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fowner(write, O_RDWR)", fpath_write,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0100, 0);
-	test_perm(ta, 0200, 0);
-	test_perm(ta, 0300, 0);
-	test_perm(ta, 0400, 0);
-	test_perm(ta, 0500, 0);
-	test_perm(ta, 0600, 0);
-	test_perm(ta, 0700, 0);
+	try_io("priv_vfs_readwrite_fowner(write, O_RDONLY)", fpath_readwrite,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fowner(write, O_WRONLY)", fpath_readwrite,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fowner(write, O_RDWR)", fpath_readwrite,
+	    asroot, injail, O_RDWR, 0, 0);
+}
 
-	/*
-	 * Privileged user and file group.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_WHEEL;
+void
+priv_vfs_readwrite_fgroup(int asroot, int injail, struct test *test)
+{
 
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0010, 0);
-	test_perm(ta, 0020, 0);
-	test_perm(ta, 0030, 0);
-	test_perm(ta, 0040, 0);
-	test_perm(ta, 0050, 0);
-	test_perm(ta, 0060, 0);
-	test_perm(ta, 0070, 0);
+	try_io("priv_vfs_readwrite_fgroup(none, O_RDONLY)", fpath_none,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fgroup(none, O_WRONLY)", fpath_none,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fgroup(none, O_RDWR)", fpath_none,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	/*
-	 * Privileged user and file other.  All tests should pass.
-	 */
-	ta.proc_uid = UID_ROOT;
-	ta.proc_gid = GID_WHEEL;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
+	try_io("priv_vfs_readwrite_fgroup(read, O_RDONLY)", fpath_read,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fgroup(read, O_WRONLY)", fpath_read,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fgroup(read, O_RDWR)", fpath_read,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	test_perm(ta, 0000, 0);
-	test_perm(ta, 0001, 0);
-	test_perm(ta, 0002, 0);
-	test_perm(ta, 0003, 0);
-	test_perm(ta, 0004, 0);
-	test_perm(ta, 0005, 0);
-	test_perm(ta, 0006, 0);
-	test_perm(ta, 0007, 0);
+	try_io("priv_vfs_readwrite_fgroup(write, O_RDONLY)", fpath_write,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fgroup(write, O_WRONLY)", fpath_write,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fgroup(write, O_RDWR)", fpath_write,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	/*
-	 * Unprivileged user and file owner.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OWNER;
-	ta.proc_gid = GID_OWNER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
+	try_io("priv_vfs_readwrite_fgroup(write, O_RDONLY)", fpath_readwrite,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fgroup(write, O_WRONLY)", fpath_readwrite,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fgroup(write, O_RDWR)", fpath_readwrite,
+	    asroot, injail, O_RDWR, 0, 0);
+}
 
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0100, EACCES);
-	test_perm(ta, 0200, 0);
-	test_perm(ta, 0300, 0);
-	test_perm(ta, 0400, EACCES);
-	test_perm(ta, 0500, EACCES);
-	test_perm(ta, 0600, 0);
-	test_perm(ta, 0700, 0);
+void
+priv_vfs_readwrite_fother(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * Unprivileged user and file group.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OTHER;
-	ta.proc_gid = GID_OWNER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
+	try_io("priv_vfs_readwrite_fother(none, O_RDONLY)", fpath_none,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fother(none, O_WRONLY)", fpath_none,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fother(none, O_RDWR)", fpath_none,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0010, EACCES);
-	test_perm(ta, 0020, 0);
-	test_perm(ta, 0030, 0);
-	test_perm(ta, 0040, EACCES);
-	test_perm(ta, 0050, EACCES);
-	test_perm(ta, 0060, 0);
-	test_perm(ta, 0070, 0);
+	try_io("priv_vfs_readwrite_fother(read, O_RDONLY)", fpath_read,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fother(read, O_WRONLY)", fpath_read,
+	    asroot, injail, O_WRONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fother(read, O_RDWR)", fpath_read,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	/*
-	 * Unprivileged user and file other.  Various DAC failures.
-	 */
-	ta.proc_uid = UID_OTHER;
-	ta.proc_gid = GID_OTHER;
-	ta.file_uid = UID_OWNER;
-	ta.file_gid = GID_OWNER;
+	try_io("priv_vfs_readwrite_fother(write, O_RDONLY)", fpath_write,
+	    asroot, injail, O_RDONLY, asroot ? 0 : -1, EACCES);
+	try_io("priv_vfs_readwrite_fother(write, O_WRONLY)", fpath_write,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fother(write, O_RDWR)", fpath_write,
+	    asroot, injail, O_RDWR, asroot ? 0 : -1, EACCES);
 
-	test_perm(ta, 0000, EACCES);
-	test_perm(ta, 0001, EACCES);
-	test_perm(ta, 0002, 0);
-	test_perm(ta, 0003, 0);
-	test_perm(ta, 0004, EACCES);
-	test_perm(ta, 0005, EACCES);
-	test_perm(ta, 0006, 0);
-	test_perm(ta, 0007, 0);
+	try_io("priv_vfs_readwrite_fother(write, O_RDONLY)", fpath_readwrite,
+	    asroot, injail, O_RDONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fother(write, O_WRONLY)", fpath_readwrite,
+	    asroot, injail, O_WRONLY, 0, 0);
+	try_io("priv_vfs_readwrite_fother(write, O_RDWR)", fpath_readwrite,
+	    asroot, injail, O_RDWR, 0, 0);
+}
+
+void
+priv_vfs_readwrite_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_none_initialized) {
+		(void)unlink(fpath_none);
+		fpath_none_initialized = 0;
+	}
+	if (fpath_read_initialized) {
+		(void)unlink(fpath_read);
+		fpath_read_initialized = 0;
+	}
+	if (fpath_write_initialized) {
+		(void)unlink(fpath_write);
+		fpath_write_initialized = 0;
+	}
+	if (fpath_readwrite_initialized) {
+		(void)unlink(fpath_readwrite);
+		fpath_readwrite_initialized = 0;
+	}
 }

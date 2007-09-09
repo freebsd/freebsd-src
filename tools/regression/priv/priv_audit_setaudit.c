@@ -1,10 +1,9 @@
 /*-
- * Copyright (c) 2006 nCircle Network Security, Inc.
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007 Robert M. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
- * Project under contract to nCircle Network Security, Inc.
+ * Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,46 +30,80 @@
  */
 
 /*
- * Test that madvise(..., MADV_PROTECT) requires privilege.
+ * Confirm privilege is required to set process audit properties; we first
+ * query current properties so that the attempted operation is a no-op.
  */
 
 #include <sys/types.h>
-#include <sys/mman.h>
+
+#include <bsm/audit.h>
 
 #include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <stdio.h>
 
 #include "main.h"
 
+static auditinfo_t ai;
+static auditinfo_addr_t aia;
+
 int
-priv_vm_madv_protect_setup(int asroot, int injail, struct test *test)
+priv_audit_setaudit_setup(int asroot, int injail, struct test *test)
 {
+
+	if (getaudit(&ai) < 0) {
+		warn("priv_audit_setaudit_setup: getaudit");
+		return (-1);
+	}
+	if (getaudit_addr(&aia, sizeof(aia)) < 0) {
+		warn("priv_audit_setaudit_setup: getaudit_addr");
+		return (-1);
+	}
 
 	return (0);
 }
 
 void
-priv_vm_madv_protect(int asroot, int injail, struct test *test)
+priv_audit_setaudit(int asroot, int injail, struct test *test)
 {
 	int error;
 
-	error = madvise(NULL, 0, MADV_PROTECT);
+	error = setaudit(&ai);
 	if (asroot && injail)
-		expect("priv_vm_madv_protect(asroot, injail)", error, -1,
-		    EPERM);
+		expect("priv_audit_setaudit(asroot, injail)", error, -1,
+		    ENOSYS);
 	if (asroot && !injail)
-		expect("priv_vm_madv_protect(asroot, !injail", error, 0, 0);
+		expect("priv_audit_setaudit(asroot, !injail)", error, 0, 0);
 	if (!asroot && injail)
-		expect("priv_vm_madv_protect(!asroot, injail", error, -1,
-		    EPERM);
+		expect("priv_audit_setaudit(!asroot, injail)", error, -1,
+		    ENOSYS);
 	if (!asroot && !injail)
-		expect("priv_vm_madv_protect(!asroot, !injail", error, -1,
+		expect("priv_audit_setaudit(!asroot, !injail)", error, -1,
 		    EPERM);
 }
 
 void
-priv_vm_madv_protect_cleanup(int asroot, int injail, struct test *test)
+priv_audit_setaudit_addr(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = setaudit_addr(&aia, sizeof(aia));
+	if (asroot && injail)
+		expect("priv_audit_setaudit_addr(asroot, injail)", error, -1,
+		    ENOSYS);
+	if (asroot && !injail)
+		expect("priv_audit_setaudit_addr(asroot, !injail)", error, 0,
+		    0);
+	if (!asroot && injail)
+		expect("priv_audit_setaudit_addr(!asroot, injail)", error,
+		    -1, ENOSYS);
+	if (!asroot && !injail)
+		expect("priv_audit_setaudit_addr(!asroot, !injail)", error,
+		    -1, EPERM);
+}
+
+void
+priv_audit_setaudit_cleanup(int asroot, int injail, struct test *test)
 {
 
 }

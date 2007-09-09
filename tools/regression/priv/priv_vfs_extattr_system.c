@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -49,48 +50,57 @@
 #define	EA_DATA		"test"
 #define	EA_SIZE		strlen(EA_DATA)
 
-void
-priv_vfs_extattr_system(void)
-{
-	char fpath[1024];
-	int error;
+static char fpath[1024];
+static int fpath_initialized;
 
-	assert_root();
+int
+priv_vfs_extattr_system_setup(int asroot, int injail, struct test *test)
+{
 
 	/*
 	 * Set file perms so that discretionary access control would grant
 	 * write rights on non-system EAs on the file.
 	 */
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0666);
+	setup_file("priv_vfs_extattr_system_setup: fpath", fpath, UID_ROOT,
+	    GID_WHEEL, 0666);
+	fpath_initialized = 1;
+	return (0);
+}
 
-	/*
-	 * Try with privilege.
-	 */
-	if (extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA, EA_SIZE)
-	    < 0) {
-		warn("extattr_set_file(SYSTEM, %s, %s, %d) as root",
-		    EA_NAME, EA_DATA, EA_SIZE);
-		goto out;
-	}
+void
+priv_vfs_extattr_system(int asroot, int injail, struct test *test)
+{
+	ssize_t ret;
+	int error;
 
-	set_euid(UID_OTHER);
+	ret = extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA,
+	    EA_SIZE);
+	if (ret < 0)
+		error = -1;
+	else if (ret == EA_SIZE)
+		error = 0;
+	else
+		err(-1, "priv_vfs_extattr_system: set returned %d", ret);
+	if (asroot && injail)
+		expect("priv_vfs_extattr_system(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_vfs_extattr_system(asroot, !injail)", error, 0,
+		    0);
+	if (!asroot && injail)
+		expect("priv_vfs_extattr_system(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_extattr_system(!asroot, !injail)", error,
+		    -1, EPERM);
+}
 
-	/*
-	 * Try without privilege.
-	 */
-	error = extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA,
-	   EA_SIZE);
-	if (error == 0) {
-		warn("extattr_set_file(SYSTEM, %s, %s, %d) succeeded as !root",
-		    EA_NAME, EA_DATA, EA_SIZE);
-		goto out;
+void
+priv_vfs_extattr_system_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-	if (errno != EPERM) {
-		warn("extattr_set_file(SYSTEM, %s, %s, %d) wrong errno %d "
-		    "as !root", EA_NAME, EA_DATA, EA_SIZE, errno);
-		goto out;
-	}
-out:
-	seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }
