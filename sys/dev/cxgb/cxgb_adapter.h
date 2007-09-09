@@ -213,11 +213,16 @@ struct sge_rspq {
 	bus_addr_t	phys_addr;
 	bus_dma_tag_t	desc_tag;
 	bus_dmamap_t	desc_map;
-	struct mbuf	*m;
+
+	struct t3_mbuf_hdr rspq_mh;
 #define RSPQ_NAME_LEN  32
 	char            lockbuf[RSPQ_NAME_LEN];
 
 };
+
+#ifndef DISABLE_MBUF_IOVEC
+#define rspq_mbuf rspq_mh.mh_head
+#endif
 
 struct rx_desc;
 struct rx_sw_desc;
