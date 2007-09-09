@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -50,114 +51,123 @@
 
 #include "main.h"
 
-static void
-dummy(void)
-{
+static int	childproc_running;
+static pid_t	childproc;
 
-	while (1)
-		sleep(1);
-}
-
-static void
-collect(pid_t test_pid, pid_t dummy_pid)
+int
+priv_sched_setpriority_setup(int asroot, int injail, struct test *test)
 {
-	pid_t pid;
+	int another_uid, need_child;
 
 	/*
-	 * First, collect the main test process.  When it has exited, then
-	 * kill off the dummy process.
+	 * Some tests require a second process with specific credentials.
+	 * Set that up here, and kill in cleanup.
 	 */
-	if (test_pid > 0) {
-		while (1) {
-			pid = waitpid(test_pid, NULL, 0);
-			if (pid == -1)
-				warn("waitpid(%d (test), NULL, 0)", test_pid);
-			if (pid == test_pid)
-				break;
+	need_child = 0;
+	if (test->t_test_func == priv_sched_setpriority_aproc) {
+		need_child = 1;
+		another_uid = 1;
+	}
+	if (test->t_test_func == priv_sched_setpriority_myproc)
+		need_child = 1;
+
+	if (need_child) {
+		childproc = fork();
+		if (childproc < 0) {
+			warn("priv_sched_setup: fork");
+			return (-1);
 		}
+		if (childproc == 0) {
+			if (another_uid) {
+				if (setresuid(UID_THIRD, UID_THIRD,
+				    UID_THIRD) < 0)
+				err(-1, "setresuid(%d)", UID_THIRD);
+			}
+			while (1)
+				sleep(1);
+		}
+		childproc_running = 1;
+		sleep(1);	/* Allow dummy thread to change uids. */
 	}
-
-	if (kill(dummy_pid, SIGKILL) < 0)
-		err(-1, "kill(%d, SIGKILL)", dummy_pid);
-
-	while (1) {
-		pid = waitpid(dummy_pid, NULL, 0);
-		if (pid == -1)
-			warn("waitpid(%d, NULL, 0)", dummy_pid);
-		if (pid == dummy_pid)
-			return;
-	}
-}
-
-static void
-test(pid_t dummy_pid)
-{
-	int error;
-
-	/*
-	 * Tests first as root.
-	 */
-	if (setpriority(PRIO_PROCESS, 0, -1) < 0)
-		err(-1, "setpriority(PRIO_PROCESS, 0, -1) as root");
-
-	if (setpriority(PRIO_PROCESS, dummy_pid, -1) < 0)
-		err(-1, "setpriority(PRIO_PROCESS, %d, -1) as root",
-		    dummy_pid);
-
-	/*
-	 * Then test again as a different credential.
-	 */
-	if (setresuid(UID_OTHER, UID_OTHER, UID_OTHER) < 0)
-		err(-1, "setresuid(%d)", UID_OTHER);
-
-	error = setpriority(PRIO_PROCESS, 0, -2);
-	if (error == 0)
-		errx(-1,
-		    "setpriority(PRIO_PROCESS, 0, -2) succeeded as !root");
-	if (errno != EACCES)
-		err(-1, "setpriority(PRIO_PROCESS, 0, 2) wrong errno %d as "
-		    "!root", errno);
-
-	error = setpriority(PRIO_PROCESS, dummy_pid, -2);
-	if (error == 0)
-		errx(-1,
-		    "setpriority(PRIO_PROCESS, %d, -2) succeeded as !root",
-		    dummy_pid);
-	if (errno != EPERM)
-		err(-1, "setpriority(PRIO_PROCESS, %d, 2) wrong errno %d as "
-		    "!root", dummy_pid, errno);
-
-	exit(0);
+	return (0);
 }
 
 void
-priv_sched_setpriority(void)
+priv_sched_setpriority_curproc(int asroot, int injail, struct test *test)
 {
-	pid_t dummy_pid, test_pid;
+	int error;
 
-	assert_root();
+	error = setpriority(PRIO_PROCESS, 0, -1);
+	if (asroot && injail)
+		expect("priv_sched_setpriority_curproc(asroot, injail)",
+		    error, -1, EACCES);
+	if (asroot && !injail)
+		expect("priv_sched_setpriority_curproc(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_sched_setpriority_curproc(!asroot, injail)",
+		    error, -1, EACCES);
+	if (!asroot && !injail)
+		expect("priv_sched_setpriority_curproc(!asroot, !injail)",
+		    error, -1, EACCES);
+}
 
-	/*
-	 * Set up dummy process, which we will kill before exiting.
-	 */
-	dummy_pid = fork();
-	if (dummy_pid < 0)
-		err(-1, "fork - dummy");
-	if (dummy_pid == 0) {
-		if (setresuid(UID_THIRD, UID_THIRD, UID_THIRD) < 0)
-			err(-1, "setresuid(%d)", UID_THIRD);
-		dummy();
+void
+priv_sched_setpriority_myproc(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = setpriority(PRIO_PROCESS, 0, -1);
+	if (asroot && injail)
+		expect("priv_sched_setpriority_myproc(asroot, injail)",
+		    error, -1, EACCES);
+	if (asroot && !injail)
+		expect("priv_sched_setpriority_myproc(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_sched_setpriority_myproc(!asroot, injail)",
+		    error, -1, EACCES);
+	if (!asroot && !injail)
+		expect("priv_sched_setpriority_myproc(!asroot, !injail)",
+		    error, -1, EACCES);
+}
+
+void
+priv_sched_setpriority_aproc(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = setpriority(PRIO_PROCESS, 0, -1);
+	if (asroot && injail)
+		expect("priv_sched_setpriority_aproc(asroot, injail)",
+		    error, -1, EACCES);
+	if (asroot && !injail)
+		expect("priv_sched_setpriority_aproc(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_sched_setpriority_aproc(!asroot, injail)",
+		    error, -1, EACCES);
+	if (!asroot && !injail)
+		expect("priv_sched_setpriority_aproc(!asroot, !injail)",
+		    error, -1, EACCES);
+}
+
+void
+priv_sched_setpriority_cleanup(int asroot, int injail, struct test *test)
+{
+	pid_t pid;
+
+	if (childproc_running) {
+		(void)kill(childproc, SIGKILL);
+		while (1) {
+			pid = waitpid(childproc, NULL, 0);
+			if (pid == -1)
+				warn("waitpid(%d (test), NULL, 0)",
+				    childproc);
+			if (pid == childproc)
+				break;
+		}
+		childproc_running = 0;
+		childproc = -1;
 	}
-	sleep(1);	/* Allow dummy thread to change uids. */
-
-	test_pid = fork();
-	if (test_pid < 0) {
-		warn("fork - test");
-		collect(-1, dummy_pid);
-		return;
-	}
-	if (test_pid == 0)
-		test(dummy_pid);
-
-	collect(test_pid, dummy_pid);
 }

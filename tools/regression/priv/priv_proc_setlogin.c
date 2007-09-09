@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,10 +31,11 @@
  */
 
 /*
- * Test that privilege is required to call setlogin().  Do so by first
- * querying with getlogin(), then setting the result back using setlogin(),
- * at first with privilege, then without.
+ * Test privileges for setlogin(); first query with getlogin() so that the
+ * result is a no-op, since it affects the entire login session.
  */
+
+#include <sys/param.h>
 
 #include <err.h>
 #include <errno.h>
@@ -41,33 +43,46 @@
 
 #include "main.h"
 
-void
-priv_proc_setlogin(void)
+static int initialized;
+static char *loginname;
+
+int
+priv_proc_setlogin_setup(int asroot, int injail, struct test *test)
 {
-	char *loginname;
+
+	if (initialized)
+		return (0);
+	loginname = getlogin();
+	if (loginname == NULL) {
+		warn("priv_proc_setlogin_setup: getlogin");
+		return (-1);
+	}
+	initialized = 1;
+	return (0);
+}
+
+void
+priv_proc_setlogin(int asroot, int injail, struct test *test)
+{
 	int error;
 
-	assert_root();
-
-	loginname = getlogin();
-	if (loginname == NULL)
-		err(-1, "getlogin");
-
-	/*
-	 * First, with privilege.
-	 */
 	error = setlogin(loginname);
-	if (error)
-		err(-1, "setlogin(%s) as root", loginname);
+	if (asroot && injail)
+		expect("priv_proc_setlogin(asroot, injail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_proc_setlogin(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_proc_setlogin(!sroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_proc_setlogin(!asroot, !injail)", error, -1,
+		    EPERM);
+}
 
-	/*
-	 * Then again, without privilege.
-	 */
-	set_euid(UID_OTHER);
+void
+priv_proc_setlogin_cleanup(int asroot, int injail, struct test *test)
+{
 
-	error = setlogin(loginname);
-	if (error == 0)
-		errx(-1, "setlogin(%s) succeeded as !root", loginname);
-	if (errno != EPERM)
-		err(-1, "setlogin(%s) wrong errno %d", loginname, errno);
+	if (initialized)
+		(void)setlogin(loginname);
 }

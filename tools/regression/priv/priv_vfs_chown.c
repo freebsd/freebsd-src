@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert M. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -50,121 +51,114 @@
 
 #include "main.h"
 
-const gid_t gidset[] = {GID_WHEEL, GID_OWNER};
+static char fpath[1024];
+static int fpath_initialized;
+
+/*
+ * Check that changing the uid of a file requires privilege.
+ */
+int
+priv_vfs_chown_uid_setup(int asroot, int injail, struct test *test)
+{
+
+	setup_file("priv_vfs_chown_uid: fpath", fpath, UID_ROOT, GID_WHEEL,
+	    0600);
+	fpath_initialized = 1;
+	return (0);
+}
 
 void
-priv_vfs_chown(void)
+priv_vfs_chown_uid(int asroot, int injail, struct test *test)
 {
-	char fpath[1024];
 	int error;
 
-	assert_root();
+	error = chown(fpath, UID_OWNER, -1);
+	if (asroot && injail)
+		expect("priv_vfs_chown_uid(root, jail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chown_uid(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_chown_uid(!root, jail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_chown_uid(!root, !jail)", error, -1, EPERM);
+}
+
+/*
+ * Check that changing the gid of a file owned by the user is allowed without
+ * privilege as long as the gid matches the process.
+ */
+int
+priv_vfs_chown_mygid_setup(int asroot, int injail, struct test *test)
+{
 
 	/*
-	 * Before beginning, set up group set for process.  Place in wheel
-	 * and owner groups; don't put in other group so that when we chown
-	 * to the other group, it's as a non-member.
+	 * Create a file with a matching uid to the test process, but not a
+	 * matching gid.
 	 */
-	if (setgroups(2, gidset) < 0)
-		err(-1, "setgroups(2, {%d, %d})", GID_WHEEL, GID_OWNER);
+	setup_file("priv_vfs_chown_mygid: fpath", fpath, asroot ? UID_ROOT :
+	    UID_OWNER, GID_OTHER, 0600);
+	fpath_initialized = 1;
+	return (0);
+}
+
+void
+priv_vfs_chown_mygid(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = chown(fpath, -1, asroot ? GID_WHEEL : GID_OWNER);
+	if (asroot && injail)
+		expect("priv_vfs_chown_mygid(root, jail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chown_mygid(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_chown_mygid(!root, !jail)", error, 0, 0);
+	if (!asroot && !injail)
+		expect("priv_vfs_chown_mygid(!root, !jail)", error, 0, 0);
+}
+
+/*
+ * Check that changing the gid of a file owned by the user is not allowed
+ * without privilege if the gid doesn't match the process.
+ */
+int
+priv_vfs_chown_othergid_setup(int asroot, int injail, struct test *test)
+{
 
 	/*
-	 * In the first pass, confirm that all works as desired with
-	 * privilege.
-	 *
-	 * Check that chown when non-owner works fine.  Do a no-op change to
-	 * avoid other permission checks.  Note that we can't request
-	 * (-1, -1) and get an access control check, we have to request
-	 * specific uid/gid that are not the same.
+	 * Create a file with a matching uid to the test process with a
+	 * matching gid.
 	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	if (chown(fpath, -1, GID_OWNER) < 0) {
-		warn("chown(%s, -1, %d) as root", fpath, GID_OWNER);
-		goto out;
-	}
-	(void)unlink(fpath);
+	setup_file("priv_vfs_chown_othergid: fpath", fpath, asroot ? UID_ROOT
+	    : UID_OWNER, asroot ? GID_WHEEL : GID_OWNER, 0600);
+	fpath_initialized = 1;
+	return (0);
+}
 
-	/*
-	 * Check that chown changing uid works with privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	if (chown(fpath, UID_OTHER, -1) < 0) {
-		warn("chown(%s, %d, -1) as root", fpath, UID_OTHER);
-		goto out;
-	}
-	(void)unlink(fpath);
+void
+priv_vfs_chown_othergid(int asroot, int injail, struct test *test)
+{
+	int error;
 
-	/*
-	 * Check that can change the file group to one we are not a member of
-	 * when running with privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	if (chown(fpath, -1, GID_OTHER) < 0) {
-		warn("chown(%s, -1, %d) as root", fpath, GID_OTHER);
-		goto out;
-	}
-	(void)unlink(fpath);
-
-	/*
-	 * Now, the same again, but without privilege.
-	 *
-	 * Confirm that we can't chown a file we don't own, even as a no-op.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	set_euid(UID_OTHER);
-	error = chown(fpath, -1, GID_OWNER);
-	if (error == 0) {
-		warnx("chown(%s, -1, %d) succeeded as !root, non-owner",
-		    fpath, GID_OWNER);
-		goto out;
-	}
-	if (errno != EPERM) {
-		warn("chown(%s, -1, %d) wrong errno %d as !root, non-owner",
-		    fpath, GID_OWNER, errno);
-		goto out;
-	}
-	set_euid(UID_ROOT);
-	(void)unlink(fpath);
-
-	/*
-	 * Check that we can't change the uid of the file without privilege,
-	 * even though we own the file.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	set_euid(UID_OWNER);
-	error = chown(fpath, UID_OTHER, -1);
-	if (error == 0) {
-		warnx("chown(%s, %d, -1) succeeded as !root", fpath,
-		    UID_OTHER);
-		goto out;
-	}
-	if (errno != EPERM) {
-		warn("chown(%s, %d, -1) wrong errno %d as !root", fpath,
-		    UID_OTHER, errno);
-		goto out;
-	}
-	set_euid(UID_ROOT);
-	(void)unlink(fpath);
-	
-	/*
-	 * Check that can't change the file group to one we are not a member
-	 * of when running without privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600);
-	set_euid(UID_OWNER);
 	error = chown(fpath, -1, GID_OTHER);
-	if (error == 0) {
-		warn("chown(%s, -1, %d) succeeded as !root", fpath, GID_OTHER);
-		goto out;
+	if (asroot && injail)
+		expect("priv_vfs_chown_othergid(root, jail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chown_othergid(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_chown_othergid(!root, !jail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_chown_othergid(!root, !jail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_vfs_chown_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-	if (errno != EPERM) {
-		warn("chown(%s, -1, %d) wrong errno %d as !root", fpath,
-		    errno, GID_OTHER);
-		goto out;
-	}
-	set_euid(UID_ROOT);
-	(void)unlink(fpath);
-out:
-	(void)seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }

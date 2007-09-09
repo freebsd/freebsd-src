@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -43,34 +44,41 @@
 
 #include "main.h"
 
-void
-priv_clock_settime(void)
+static struct timespec	the_time;
+
+int
+priv_clock_settime_setup(int asroot, int injail, struct test *test)
 {
-	struct timespec ts;
+
+	if (clock_gettime(CLOCK_REALTIME, &the_time) < 0) {
+		warn("priv_clock_settime_setup: "
+		    "clock_gettime(CLOCK_REALTIME)");
+		return (-1);
+	}
+	return (0);
+}
+
+void
+priv_clock_settime(int asroot, int injail, struct test *test)
+{
 	int error;
 
-	assert_root();
+	error = clock_settime(CLOCK_REALTIME, &the_time);
+	if (asroot && injail)
+		expect("priv_clock_settime(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_clock_settime(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_clock_settime(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_clock_settime(!asroot, !injail", error, -1,
+		    EPERM);
+}
 
-	/*
-	 * Query time.
-	 */
-	if (clock_gettime(CLOCK_REALTIME, &ts) < 0)
-		err(-1, "clock_gettime");
+void
+priv_clock_settime_cleanup(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * Set with privilege.
-	 */
-	if (clock_settime(CLOCK_REALTIME, &ts) < 0)
-		err(-1, "clock_settime as root");
-
-	/*
-	 * Set without privilege.
-	 */
-	set_euid(UID_OTHER);
-
-	error = clock_settime(CLOCK_REALTIME, &ts);
-	if (error == 0)
-		errx(-1, "clock_settime succeeded as !root");
-	if (errno != EPERM)
-		errx(-1, "clock_settime wrong errno %d as !root", errno);
 }

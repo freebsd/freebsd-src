@@ -1,10 +1,9 @@
 /*-
- * Copyright (c) 2006 nCircle Network Security, Inc.
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007 Robert M. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
- * Project under contract to nCircle Network Security, Inc.
+ * Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,46 +30,56 @@
  */
 
 /*
- * Test that madvise(..., MADV_PROTECT) requires privilege.
+ * Confirm that privilege is required to issue an audit control command via
+ * auditon().  We do a simple policy retrieve.
+ *
+ * XXXRW: It would be a good idea to also test auditctl(), which also tests
+ * PRIV_AUDIT_CONTROL.
  */
 
 #include <sys/types.h>
-#include <sys/mman.h>
+
+#include <bsm/audit.h>
 
 #include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <stdio.h>
 
 #include "main.h"
 
 int
-priv_vm_madv_protect_setup(int asroot, int injail, struct test *test)
+priv_audit_control_setup(int asroot, int injail, struct test *test)
 {
 
+	/*
+	 * XXXRW: It would be nice if we checked for audit being configured
+	 * here.
+	 */
 	return (0);
 }
 
 void
-priv_vm_madv_protect(int asroot, int injail, struct test *test)
+priv_audit_control(int asroot, int injail, struct test *test)
 {
+	long policy;
 	int error;
 
-	error = madvise(NULL, 0, MADV_PROTECT);
+	error = auditon(A_GETPOLICY, &policy, sizeof(policy));
 	if (asroot && injail)
-		expect("priv_vm_madv_protect(asroot, injail)", error, -1,
-		    EPERM);
+		expect("priv_audit_control(asroot, injail)", error, -1,
+		    ENOSYS);
 	if (asroot && !injail)
-		expect("priv_vm_madv_protect(asroot, !injail", error, 0, 0);
+		expect("priv_audit_control(asroot, !injail)", error, 0, 0);
 	if (!asroot && injail)
-		expect("priv_vm_madv_protect(!asroot, injail", error, -1,
-		    EPERM);
+		expect("priv_audit_control(!asroot, injail)", error, -1,
+		    ENOSYS);
 	if (!asroot && !injail)
-		expect("priv_vm_madv_protect(!asroot, !injail", error, -1,
+		expect("priv_audit_control(!asroot, !injail)", error, -1,
 		    EPERM);
 }
 
 void
-priv_vm_madv_protect_cleanup(int asroot, int injail, struct test *test)
+priv_audit_control_cleanup(int asroot, int injail, struct test *test)
 {
 
 }
