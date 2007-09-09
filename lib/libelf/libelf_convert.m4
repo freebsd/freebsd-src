@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Joseph Koshy
+ * Copyright (c) 2006,2007 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -605,15 +605,14 @@ define(`CONV',
   `ifdef(`IGNORE_'$1$2,
     `.$3$2 = NULL',
     `ifdef(`BASE_'$1,
-      `ifdef(`IGNORE_'$1,
-	`.$3$2 = NULL',
-        `.$3$2 = libelf_cvt_$1_$3')',
+      `.$3$2 = libelf_cvt_$1_$3',
       `ifdef(`SIZEDEP_'$1,
         `.$3$2 = libelf_cvt_$1$2_$3',
         `.$3$2 = libelf_cvt$2_$1_$3')')')')
 
 define(`CONVERTER_NAME',
-  `#if	__FreeBSD_version >= $3
+  `ifdef(`IGNORE_'$1,`',
+    `#if	__FreeBSD_version >= $3
     [ELF_T_$1] = {
         CONV($1,32,tof), CONV($1,32,tom),
         CONV($1,64,tof), CONV($1,64,tom) },
