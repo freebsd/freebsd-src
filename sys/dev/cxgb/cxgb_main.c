@@ -688,114 +688,6 @@ cxgb_free(struct adapter *sc)
 	return;
 }
 
-static int
-alloc_filters(struct adapter *adap)
-{
-	struct filter_info *p;
-	int nfilters;
-	
-	if ((nfilters = adap->params.mc5.nfilters) == 0)
-		return (0);
-
-	adap->filters = malloc(nfilters*sizeof(struct filter_info),
-	    M_DEVBUF, M_ZERO|M_WAITOK);
-	
-	if (adap->filters == NULL)
-		return (ENOMEM);
-
-	/* Set the default filters, only need to set non-0 fields here. */
-	p = &adap->filters[nfilters - 1];
-	p->vlan = 0xfff;
-	p->vlan_prio = FILTER_NO_VLAN_PRI;
-	p->pass = p->rss = p->valid = p->locked = 1;
-
-	return (0);
-}
-
-static inline void
-set_tcb_field_ulp(struct cpl_set_tcb_field *req,
-    unsigned int tid, unsigned int word,
-    uint64_t mask, uint64_t val)
-{
-	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
-
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(1);
-	req->cpu_idx = 0;
-	req->word = htons(word);
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-}
-
-static int
-set_filter(struct adapter *adap, int id, const struct filter_info *f)
-{
-	int len;
-	struct mbuf *m;
-	struct ulp_txpkt *txpkt;
-	struct work_request_hdr *wr;
-	struct cpl_pass_open_req *oreq;
-	struct cpl_set_tcb_field *sreq;
-
-	len = sizeof(*wr) + sizeof(*oreq) + 2 * sizeof(*sreq);
-	id += t3_mc5_size(&adap->mc5) - adap->params.mc5.nroutes -
-	      adap->params.mc5.nfilters;
-
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	wr = mtod(m, struct work_request_hdr *);
-	wr->wr_hi = htonl(V_WR_OP(FW_WROPCODE_BYPASS) | F_WR_ATOMIC);
-	m->m_len = m->m_pkthdr.len = len;
-	
-	oreq = (struct cpl_pass_open_req *)(wr + 1);
-	txpkt = (struct ulp_txpkt *)oreq;
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*oreq) / 8));
-	OPCODE_TID(oreq) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, id));
-	oreq->local_port = htons(f->dport);
-	oreq->peer_port = htons(f->sport);
-	oreq->local_ip = htonl(f->dip);
-	oreq->peer_ip = htonl(f->sip);
-	oreq->peer_netmask = htonl(f->sip_mask);
-	oreq->opt0h = 0;
-	oreq->opt0l = htonl(F_NO_OFFLOAD);
-	oreq->opt1 = htonl(V_MAC_MATCH_VALID(f->mac_vld) |
-			 V_CONN_POLICY(CPL_CONN_POLICY_FILTER) |
-			 V_VLAN_PRI(f->vlan_prio >> 1) |
-			 V_VLAN_PRI_VALID(f->vlan_prio != FILTER_NO_VLAN_PRI) |
-			 V_PKT_TYPE(f->pkt_type) | V_OPT1_VLAN(f->vlan) |
-			 V_MAC_MATCH(f->mac_idx | (f->mac_hit << 4)));
-
-	sreq = (struct cpl_set_tcb_field *)(oreq + 1);
-	set_tcb_field_ulp(sreq, id, 1, 0x1800808000ULL,
-			  (f->report_filter_id << 15) | (1 << 23) |
-			  ((u64)f->pass << 35) | ((u64)!f->rss << 36));
-	set_tcb_field_ulp(sreq + 1, id, 25, 0x3f80000,
-			  (u64)adap->rrss_map[f->qset] << 19);
-	t3_mgmt_tx(adap, m);
-	return 0;
-}
-
-static int
-setup_hw_filters(struct adapter *adap)
-{
-	int i, err;
-	
-#ifndef USE_FILTERS
-	return (0);
-#endif	
-	if (adap->filters == NULL)
-		return 0;
-
-	t3_enable_filters(adap);
-
-	for (i = err = 0; i < adap->params.mc5.nfilters && !err; i++)
-		if (adap->filters[i].locked)
-			err = set_filter(adap, i, &adap->filters[i]);
-	return err;
-}
-
 /**
  *	setup_sge_qsets - configure SGE Tx/Rx/response queues
  *	@sc: the controller softc
@@ -1563,7 +1455,6 @@ cxgb_up(struct adapter *sc)
 		if (err)
 			goto out;
 
-		alloc_filters(sc);
 		setup_rss(sc);
 		sc->flags |= FULL_INIT_DONE;
 	}
@@ -1600,7 +1491,6 @@ cxgb_up(struct adapter *sc)
 	if (!(sc->flags & QUEUES_BOUND)) {
 		printf("bind qsets\n");
 		bind_qsets(sc);
-		setup_hw_filters(sc);
 		sc->flags |= QUEUES_BOUND;		
 	}
 out:
@@ -2228,121 +2118,6 @@ touch_bars(device_t dev)
 #endif
 }
 
-#if 0
-static void *
-filter_get_idx(struct seq_file *seq, loff_t pos)
-{
-	int i;
-	struct adapter *adap = seq->private;
-	struct filter_info *p = adap->filters;
-
-	if (!p)
-		return NULL;
-
-	for (i = 0; i < adap->params.mc5.nfilters; i++, p++)
-		if (p->valid) {
-			if (!pos)
-				return p;
-			pos--;
-		}
-	return NULL;
-}
-
-static void *filter_get_nxt_idx(struct seq_file *seq, struct filter_info *p)
-{
-	struct adapter *adap = seq->private;
-	struct filter_info *end = &adap->filters[adap->params.mc5.nfilters];
-
-	while (++p < end && !p->valid)
-		;
-	return p < end ? p : NULL;
-}
-
-static void *filter_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	return *pos ? filter_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
-}
-
-static void *filter_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	v = *pos ? filter_get_nxt_idx(seq, v) : filter_get_idx(seq, 0);
-	if (v)
-		++*pos;
-	return v;
-}
-
-static void filter_seq_stop(struct seq_file *seq, void *v)
-{
-}
-
-static int filter_seq_show(struct seq_file *seq, void *v)
-{
-	static const char *pkt_type[] = { "any", "tcp", "udp", "frag" };
-
-	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "index         SIP              DIP       sport "
-			      "dport VLAN PRI MAC type Q\n");
-	else {
-		char sip[20], dip[20];
-		struct filter_info *f = v;
-		struct adapter *adap = seq->private;
-
-		sprintf(sip, NIPQUAD_FMT "/%-2u", HIPQUAD(f->sip),
-			f->sip_mask ? 33 - ffs(f->sip_mask) : 0);
-		sprintf(dip, NIPQUAD_FMT, HIPQUAD(f->dip));
-		seq_printf(seq, "%5zu %18s %15s ", f - adap->filters, sip, dip);
-		seq_printf(seq, f->sport ? "%5u " : "    * ", f->sport);
-		seq_printf(seq, f->dport ? "%5u " : "    * ", f->dport);
-		seq_printf(seq, f->vlan != 0xfff ? "%4u " : "   * ", f->vlan);
-		seq_printf(seq, f->vlan_prio == FILTER_NO_VLAN_PRI ?
-			   "  * " : "%1u/%1u ", f->vlan_prio, f->vlan_prio | 1);
-		if (!f->mac_vld)
-			seq_printf(seq, "  * ");
-		else if (f->mac_hit)
-			seq_printf(seq, "%3u ", f->mac_idx);
-		else
-			seq_printf(seq, " -1 ");
-		seq_printf(seq, "%4s ", pkt_type[f->pkt_type]);
-		if (!f->pass)
-			seq_printf(seq, "-\n");
-		else if (f->rss)
-			seq_printf(seq, "*\n");
-		else
-			seq_printf(seq, "%1u\n", f->qset);
-	}
-	return 0;
-}
-
-static struct seq_operations filter_seq_ops = {
-	.start = filter_seq_start,
-	.next = filter_seq_next,
-	.stop = filter_seq_stop,
-	.show = filter_seq_show
-};
-
-static int filter_seq_open(struct inode *inode, struct file *file)
-{
-	int rc = seq_open(file, &filter_seq_ops);
-
-	if (!rc) {
-		struct proc_dir_entry *dp = PDE(inode);
-		struct seq_file *seq = file->private_data;
-
-		seq->private = dp->data;
-	}
-	return rc;
-}
-
-static struct file_operations filter_seq_fops = {
-	.owner = THIS_MODULE,
-	.open = filter_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
-
-#endif
-
 static int
 set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset)
 {
@@ -2660,79 +2435,6 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		m->nmtus = NMTUS;
 		break;
 	}
-	case CHELSIO_SET_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;
-		struct filter_info *p;
-		int ret;
-		
-		if (sc->params.mc5.nfilters == 0)
-			return (EOPNOTSUPP);
-		if (!(sc->flags & FULL_INIT_DONE))
-			return (EAGAIN);  /* can still change nfilters */
-		if (sc->filters == NULL)
-			return (ENOMEM);
-
-		if (f->filter_id >= sc->params.mc5.nfilters ||
-		    (f->val.dip && f->mask.dip != 0xffffffff) ||
-		    (f->val.sport && f->mask.sport != 0xffff) ||
-		    (f->val.dport && f->mask.dport != 0xffff) ||
-		    (f->mask.vlan && f->mask.vlan != 0xfff) ||
-		    (f->mask.vlan_prio && f->mask.vlan_prio != 7) ||
-		    (f->mac_addr_idx != 0xffff && f->mac_addr_idx > 15) ||
-		    f->qset >= SGE_QSETS ||
-		    sc->rrss_map[f->qset] >= RSS_TABLE_SIZE)
-			return (EINVAL);
-
-		p = &sc->filters[f->filter_id];
-		if (p->locked)
-			return (EPERM);
-
-		p->sip = f->val.sip;
-		p->sip_mask = f->mask.sip;
-		p->dip = f->val.dip;
-		p->sport = f->val.sport;
-		p->dport = f->val.dport;
-		p->vlan = f->mask.vlan ? f->val.vlan : 0xfff;
-		p->vlan_prio = f->mask.vlan_prio ? (f->val.vlan_prio & 6) :
-						  FILTER_NO_VLAN_PRI;
-		p->mac_hit = f->mac_hit;
-		p->mac_vld = f->mac_addr_idx != 0xffff;
-		p->mac_idx = f->mac_addr_idx;
-		p->pkt_type = f->proto;
-		p->report_filter_id = f->want_filter_id;
-		p->pass = f->pass;
-		p->rss = f->rss;
-		p->qset = f->qset;
-
-		ret = set_filter(sc, f->filter_id, p);
-		if (ret)
-			return ret;
-		p->valid = 1;
-		break;
-	}
-	case CHELSIO_DEL_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;
-		struct filter_info *p;
-	
-		if (sc->params.mc5.nfilters == 0)
-			return (EOPNOTSUPP);
-		if (!(sc->flags & FULL_INIT_DONE))
-			return (EAGAIN);  /* can still change nfilters */
-		if (sc->filters == NULL)
-			return (ENOMEM);
-		if (f->filter_id >= sc->params.mc5.nfilters)
-			return (EINVAL);	
-
-		p = &sc->filters[f->filter_id];
-		if (p->locked)
-			return (EPERM);
-		memset(p, 0, sizeof(*p));
-		p->sip_mask = 0xffffffff;
-		p->vlan = 0xfff;
-		p->vlan_prio = FILTER_NO_VLAN_PRI;
-		p->pkt_type = 1;
-		return set_filter(sc, f->filter_id, p);
-	}		
 	case CHELSIO_DEVUP:
 		if (!is_offload(sc))
 			return (EOPNOTSUPP);
