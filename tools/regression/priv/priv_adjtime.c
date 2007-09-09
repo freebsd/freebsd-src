@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -31,7 +32,8 @@
 
 /*
  * Confirm that privilege is required to invoke adjtime(); first query, then
- * try setting first with, and then without privilege.
+ * try setting with and without privilege.  Hopefully this will not disturb
+ * system time too much.
  */
 
 #include <sys/time.h>
@@ -42,34 +44,41 @@
 
 #include "main.h"
 
-void
-priv_adjtime(void)
+static int		initialized;
+static struct timeval	query_tv;
+
+int
+priv_adjtime_setup(int asroot, int injail, struct test *test)
 {
-	struct timeval tv;
+
+	if (initialized)
+		return (0);
+	if (adjtime(NULL, &query_tv) < 0) {
+		warn("priv_adjtime_setup: adjtime(NULL)");
+		return (-1);
+	}
+	initialized = 1;
+	return (0);
+}
+
+void
+priv_adjtime_set(int asroot, int injail, struct test *test)
+{
 	int error;
 
-	assert_root();
+	error = adjtime(&query_tv, NULL);
+	if (asroot && injail)
+		expect("priv_adjtime(asroot, injail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_adjtime(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_adjtime(!asroot, injail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_adjtime(!asroot, !injail)", error, -1, EPERM);
+}
 
-	/*
-	 * Query time adjustment.
-	 */
-	if (adjtime(NULL, &tv) < 0)
-		err(-1, "adjtime");
+void
+priv_adjtime_cleanup(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * Set with privilege.
-	 */
-	if (adjtime(&tv, NULL) < 0)
-		err(-1, "adjtime as root");
-
-	/*
-	 * Set without privilege.
-	 */
-	set_euid(UID_OTHER);
-
-	error = adjtime(&tv, NULL);
-	if (error == 0)
-		errx(-1, "adjtime succeeded as !root");
-	if (errno != EPERM)
-		errx(-1, "adjtime wrong errno %d as !root", errno);
 }

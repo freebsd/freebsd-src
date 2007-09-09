@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,8 +31,7 @@
  */
 
 /*
- * Test that setting a kernel environment variable requires privilege, by
- * first trying it with privilege, then without.
+ * Test that setting a kernel environment variable requires privilege.
  */
 
 #include <sys/types.h>
@@ -44,25 +44,33 @@
 
 #include "main.h"
 
+int
+priv_kenv_set_setup(int asroot, int injail, struct test *test)
+{
+
+	(void)kenv(KENV_UNSET, KENV_VAR_NAME, NULL, 0);
+	return (0);
+}
+
 void
-priv_kenv_set(void)
+priv_kenv_set(int asroot, int injail, struct test *test)
 {
 	int error;
 
-	assert_root();
+	error = kenv(KENV_SET, KENV_VAR_NAME, KENV_VAR_VALUE, KENV_VAR_LEN);
+	if (asroot && injail)
+		expect("priv_kenv_set(asroot, injail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_kenv_set(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_kenv_set(!asroot, injail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_kenv_set(!asroot, !injail)", error, -1, EPERM);
+}
 
-	error = kenv(KENV_SET, KENV_VAR_NAME, KENV_VAR_VALUE,
-	    strlen(KENV_VAR_VALUE)+1);
-	if (error)
-		err(-1, "kenv(KENV_SET, ...) as root");
+void
+priv_kenv_set_cleanup(int asroot, int injail, struct test *test)
+{
 
-	set_euid(UID_OTHER);
-
-	error = kenv(KENV_SET, KENV_VAR_NAME, KENV_VAR_VALUE,
-	    strlen(KENV_VAR_VALUE)+1);
-	if (error == 0)
-		errx(-1, "kenv(KENV_SET, ...) as !root succeeded");
-	if (errno != EPERM)
-		err(-1, "kenv(KENV_SET, ...) as !root wrong errno %d",
-		    errno);
+	(void)kenv(KENV_UNSET, KENV_VAR_NAME, NULL, 0);
 }

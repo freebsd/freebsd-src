@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,8 +31,7 @@
  */
 
 /*
- * Test that chroot() requires privilege; try with, and without.  Do a no-op
- * chroot() to "/".
+ * Test that chroot() requires privilege--do a no-op chroot() to "/".
  *
  * XXXRW: Would also be good to check fchroot() permission, but that is not
  * exposed via the BSD API.
@@ -43,21 +43,31 @@
 
 #include "main.h"
 
+int
+priv_vfs_chroot_setup(int asroot, int injail, struct test *test)
+{
+
+	return (0);
+}
+
 void
-priv_vfs_chroot(void)
+priv_vfs_chroot(int asroot, int injail, struct test *test)
 {
 	int error;
 
-	assert_root();
-
-	if (chroot("/") < 0)
-		err(-1, "chroot(\"/\") as root");
-
-	set_euid(UID_OTHER);
-
 	error = chroot("/");
-	if (error == 0)
-		errx(-1, "chroot(\"/\") succeeded as !root");
-	if (errno != EPERM)
-		err(-1, "chroot(\"/\") wrong errno %d as !root", errno);
+	if (asroot && injail)
+		expect("priv_vfs_chroot(asroot, injail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chroot(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_chroot(!asroot, injail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_chroot(!asroot, !injail)", error, -1, EPERM);
+}
+
+void
+priv_vfs_chroot_cleanup(int asroot, int injail, struct test *test)
+{
+
 }

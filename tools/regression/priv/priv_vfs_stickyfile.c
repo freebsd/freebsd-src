@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,8 +31,8 @@
  */
 
 /*
- * Check that privilege is required to set the sticky bit on a file, but not
- * a directory.  Try with and without privilege.
+ * Check that privilege is required to set the sticky bit on a file but not a
+ * directory.
  */
 
 #include <sys/stat.h>
@@ -42,99 +43,152 @@
 
 #include "main.h"
 
-static void
-cleanup(const char *fpath, const char *dpath)
+char fpath[1024];
+int fpath_initialized;
+
+char dpath[1024];
+int dpath_initialized;
+
+int
+priv_vfs_stickyfile_dir_fowner_setup(int asroot, int injail,
+    struct test *test)
 {
 
-	(void)seteuid(UID_ROOT);
-	(void)unlink(fpath);
-	if (dpath != NULL)
-		(void)rmdir(dpath);
+	setup_dir("priv_vfs_stickyfile_fowner_setup: dpath", dpath,
+	    UID_OWNER, GID_OWNER, 0700);
+	dpath_initialized = 1;
+	return (0);
+}
+
+int
+priv_vfs_stickyfile_dir_fother_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	setup_dir("priv_vfs_stickyfile_fother_setup: dpath", dpath,
+	    UID_OTHER, GID_OTHER, 0700);
+	dpath_initialized = 1;
+	return (0);
+}
+
+int
+priv_vfs_stickyfile_file_fowner_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	setup_file("priv_vfs_stickyfile_fowner_setup: fpath", fpath,
+	    UID_OWNER, GID_OWNER, 0600);
+	fpath_initialized = 1;
+	return (0);
+}
+
+int
+priv_vfs_stickyfile_file_fother_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	setup_file("priv_vfs_stickyfile_fother_setup: fpath", fpath,
+	    UID_OTHER, GID_OTHER, 0600);
+	fpath_initialized = 1;
+	return (0);
 }
 
 void
-priv_vfs_stickyfile(void)
+priv_vfs_stickyfile_dir_fowner(int asroot, int injail, struct test *test)
 {
-	char fpath[1024] = "/tmp/stickyfile.XXXXXXXXXXX";
-	char dpath[1024] = "/tmp/stickyfile.XXXXXXXXXXX", *dpathp;
-	int error, fd;
+	int error;
 
-	assert_root();
+	error = chmod(dpath, 0700 | S_ISTXT);
+	if (asroot && injail)
+		expect("priv_vfs_stickyfile_dir_fowner(root, jail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_stickyfile_dir_fowner(root, !jail)", error,
+		    0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_stickyfile_dir_fowner(!root, jail)", error,
+		    0, 0);
+	if (!asroot && !injail)
+		expect("priv_vfs_stickyfile_dir_fowner(!root, !jail)", error,
+		    0, 0);
+}
 
-	fd = mkstemp(fpath);
-	if (fd < 0)
-		err(-1, "mkstemp");
+void
+priv_vfs_stickyfile_dir_fother(int asroot, int injail, struct test *test)
+{
+	int error;
 
-	dpathp = mkdtemp(dpath);
-	if (dpathp == NULL) {
-		warn("mkdtemp");
-		goto out;
+	error = chmod(dpath, 0700 | S_ISTXT);
+	if (asroot && injail)
+		expect("priv_vfs_stickyfile_dir_fother(root, jail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_stickyfile_dir_fother(root, !jail)", error,
+		    0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_stickyfile_dir_fother(!root, jail)", error,
+		    -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_stickyfile_dir_fother(!root, !jail)", error,
+		    -1, EPERM);
+}
+
+void
+priv_vfs_stickyfile_file_fowner(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = chmod(fpath, 0600 | S_ISTXT);
+	if (asroot && injail)
+		expect("priv_vfs_stickyfile_file_fowner(root, jail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_stickyfile_file_fowner(root, !jail)", error,
+		    0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_stickyfile_file_fowner(!root, jail)", error,
+		    -1, EFTYPE);
+	if (!asroot && !injail)
+		expect("priv_vfs_stickyfile_file_fowner(!root, !jail)", error,
+		    -1, EFTYPE);
+}
+
+void
+priv_vfs_stickyfile_file_fother(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = chmod(fpath, 0600 | S_ISTXT);
+	if (asroot && injail)
+		expect("priv_vfs_stickyfile_file_fother(root, jail)", error,
+		    0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_stickyfile_file_fother(root, !jail)", error,
+		    0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_stickyfile_file_fother(!root, jail)", error,
+		    -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_stickyfile_file_fother(!root, !jail)", error,
+		    -1, EPERM);
+}
+
+void
+priv_vfs_stickyfile_dir_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (dpath_initialized) {
+		(void)rmdir(dpath);
+		dpath_initialized = 0;
 	}
+}
 
-	/*
-	 * First, with privilege, set and clear the sticky bit on the file
-	 * and directory.
-	 */
-	if (fchmod(fd, 0600 | S_ISTXT) < 0) {
-		warn("fchmod(%s, 0600 | S_ISTXT) on file as root", fpath);
-		goto out;
-	}
+void
+priv_vfs_stickyfile_file_cleanup(int asroot, int injail, struct test *test)
+{
 
-	if (chmod(dpathp, 0700 | S_ISTXT) < 0) {
-		warn("chmod(%s, 0600 | S_ISTXT) on dir as root", dpath);
-		goto out;
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-
-	/*
-	 * Reset to remove sticky bit before changing credential.
-	 */
-	if (fchmod(fd, 0600) < 0) {
-		warn("fchmod(%s, 0600) on file as root", fpath);
-		goto out;
-	}
-
-	if (chmod(dpath, 0700) < 0) {
-		warn("chmod(%s, 0600) on dir as root", dpath);
-		goto out;
-	}
-
-	/*
-	 * Chown the file and directory to target user -- we're checking for
-	 * the specific right to set the sticky bit, not the general right to
-	 * chmod().
-	 */
-	if (fchown(fd, UID_OTHER, -1) < 0) {
-		warn("fchown(%s, %d, -1)", fpath, UID_OTHER);
-		goto out;
-	}
-
-	if (chown(dpath, UID_OTHER, -1) < 0) {
-		warn("chown(%s, %d, -1)", fpath, UID_OTHER);
-		goto out;
-	}
-
-	/*
-	 * Change credential and try again.
-	 */
-	set_euid(UID_OTHER);
-
-	error = fchmod(fd, 0600 | S_ISTXT);
-	if (error == 0) {
-		warnx("fchmod(%s, 0600 | S_ISTXT) succeeded on file as "
-		    "!root", fpath);
-		goto out;
-	}
-	if (errno != EFTYPE) {
-		warn("fchmod(%s, 0600 | S_ISTXT) wrong errno %d as !root",
-		    fpath, errno);
-		goto out;
-	}
-
-	if (chmod(dpathp, 0700 | S_ISTXT) < 0) {
-		warn("chmod(%s, 0600 | S_ISTXT) on dir as !root", dpath);
-		goto out;
-	}
-out:
-	setuid(UID_ROOT);
-	cleanup(fpath, dpathp);
 }

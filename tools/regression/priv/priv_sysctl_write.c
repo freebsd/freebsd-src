@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,9 +31,12 @@
  */
 
 /*
- * Test that sysctls can only be written with privilege by trying first with,
- * then without privilege.  Do this by first reading, then setting the
- * hostname as a no-op.
+ * Two privileges exist for writing sysctls -- one for sysctls writable only
+ * outside of jail (PRIV_SYSCTL_WRITE) and one for those also writable inside
+ * jail (PRIV_SYSCTL_WRITEJAIL).
+ *
+ * Test the prior by attempting to write to kern.domainname, and the latter
+ * by attempting to write to kern.hostname.
  */
 
 #include <sys/types.h>
@@ -46,44 +50,79 @@
 #include "main.h"
 
 #define KERN_HOSTNAME_STRING	"kern.hostname"
+#define	KERN_DOMAINNAME_STRING	"kern.domainname"
 
-void
-priv_sysctl_write(void)
+static char stored_hostname[1024];
+static char stored_domainname[1024];
+
+int
+priv_sysctl_write_setup(int asroot, int injail, struct test *test)
 {
-	char buffer[1024];
 	size_t len;
 	int error;
 
-	assert_root();
-
-	/*
-	 * First query the current value.
-	 */
-	len = sizeof(buffer);
-	error = sysctlbyname(KERN_HOSTNAME_STRING, buffer, &len, NULL, 0);
-	if (error)
-		err(-1, "sysctlbyname(\"%s\") query", KERN_HOSTNAME_STRING);
-
-	/*
-	 * Now try to set with privilege.
-	 */
-	error = sysctlbyname(KERN_HOSTNAME_STRING, NULL, NULL, buffer,
-	    strlen(buffer));
-	if (error)
-		err(-1, "sysctlbyname(\"%s\") set as root",
+	len = sizeof(stored_hostname);
+	error = sysctlbyname(KERN_HOSTNAME_STRING, stored_hostname, &len,
+	    NULL, 0);
+	if (error) {
+		warn("priv_sysctl_write_setup: sysctlbyname(\"%s\")",
 		    KERN_HOSTNAME_STRING);
+		return (-1);
+	}
 
-	/*
-	 * Now without privilege.
-	 */
-	set_euid(UID_OTHER);
+	len = sizeof(stored_hostname);
+	error = sysctlbyname(KERN_DOMAINNAME_STRING, stored_domainname, &len,
+	    NULL, 0);
+	if (error) {
+		warn("priv_sysctl_write_setup: sysctlbyname(\"%s\")",
+		    KERN_DOMAINNAME_STRING);
+		return (-1);
+	}
 
-	error = sysctlbyname(KERN_HOSTNAME_STRING, NULL, NULL, buffer,
-	    strlen(buffer));
-	if (error == 0)
-		errx(-1, "sysctlbyname(\"%s\") succeeded as !root",
-		    KERN_HOSTNAME_STRING);
-	if (errno != EPERM)
-		err(-1, "sysctlbyname(\"%s\") wrong errno %d",
-		    KERN_HOSTNAME_STRING, errno);
+	return (0);
+}
+
+void
+priv_sysctl_write(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = sysctlbyname(KERN_DOMAINNAME_STRING, NULL, NULL,
+	    stored_domainname, strlen(stored_domainname));
+	if (asroot && injail)
+		expect("priv_sysctl_write(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_sysctl_write(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_sysctl_write(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_sysctl_write(!asroot, !injail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_sysctl_writejail(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = sysctlbyname(KERN_HOSTNAME_STRING, NULL, NULL,
+	    stored_hostname, strlen(stored_hostname));
+	if (asroot && injail)
+		expect("priv_sysctl_writejail(asroot, injail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_sysctl_writejail(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_sysctl_writejail(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_sysctl_writejail(!asroot, !injail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_sysctl_write_cleanup(int asroot, int injail, struct test *test)
+{
+
 }
