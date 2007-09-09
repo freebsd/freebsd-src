@@ -1284,7 +1284,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (*addr != trunc_page(*addr))
 			return (EINVAL);
 		fitit = FALSE;
-		(void) vm_map_remove(map, *addr, *addr + size);
 	}
 	/*
 	 * Lookup/allocate object.
@@ -1342,8 +1341,11 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,
 		    docow | MAP_STACK_GROWS_DOWN);
+	else if (fitit)
+		rv = vm_map_find(map, object, foff, addr, size, TRUE,
+				 prot, maxprot, docow);
 	else
-		rv = vm_map_find(map, object, foff, addr, size, fitit,
+		rv = vm_map_fixed(map, object, foff, addr, size,
 				 prot, maxprot, docow);
 
 	if (rv != KERN_SUCCESS) {

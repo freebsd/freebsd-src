@@ -155,6 +155,22 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 #define PROC_VMSPACE_LOCK(p) do { } while (0)
 #define PROC_VMSPACE_UNLOCK(p) do { } while (0)
 
+/*
+ *	VM_MAP_RANGE_CHECK:	[ internal use only ]
+ *
+ *	Asserts that the starting and ending region
+ *	addresses fall within the valid range of the map.
+ */
+#define	VM_MAP_RANGE_CHECK(map, start, end)		\
+		{					\
+		if (start < vm_map_min(map))		\
+			start = vm_map_min(map);	\
+		if (end > vm_map_max(map))		\
+			end = vm_map_max(map);		\
+		if (start > end)			\
+			start = end;			\
+		}
+
 void
 vm_map_startup(void)
 {
@@ -1151,6 +1167,25 @@ found:
 	return (0);
 }
 
+int
+vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr /* IN/OUT */, vm_size_t length, vm_prot_t prot,
+    vm_prot_t max, int cow)
+{
+	vm_offset_t start, end;
+	int result;
+
+	start = *addr;
+	vm_map_lock(map);
+	end = start + length;
+	VM_MAP_RANGE_CHECK(map, start, end);
+	(void) vm_map_delete(map, start, end);
+	result = vm_map_insert(map, object, offset, start, end, prot,
+	    max, cow);
+	vm_map_unlock(map);
+	return (result);
+}
+
 /*
  *	vm_map_find finds an unallocated region in the target address
  *	map with the given length.  The search is defined to be
@@ -1359,22 +1394,6 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 		vm_object_reference(new_entry->object.vm_object);
 	}
 }
-
-/*
- *	VM_MAP_RANGE_CHECK:	[ internal use only ]
- *
- *	Asserts that the starting and ending region
- *	addresses fall within the valid range of the map.
- */
-#define	VM_MAP_RANGE_CHECK(map, start, end)		\
-		{					\
-		if (start < vm_map_min(map))		\
-			start = vm_map_min(map);	\
-		if (end > vm_map_max(map))		\
-			end = vm_map_max(map);		\
-		if (start > end)			\
-			start = end;			\
-		}
 
 /*
  *	vm_map_submap:		[ kernel use only ]
