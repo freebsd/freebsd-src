@@ -174,6 +174,7 @@ struct t3_lro_session {
 	struct mbuf *tail;
 	uint32_t seq;
 	uint16_t ip_len;
+	uint16_t mss;
 	uint16_t vtag;
 	uint8_t npkts;
 };
@@ -510,7 +511,7 @@ void t3_sge_stop(adapter_t *);
 void t3b_intr(void *data);
 void t3_intr_msi(void *data);
 void t3_intr_msix(void *data);
-int t3_encap(struct port_info *, struct mbuf **);
+int t3_encap(struct port_info *, struct mbuf **, int *free);
 
 int t3_sge_init_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
