@@ -43,6 +43,11 @@ enum {
 	ELMR_DATA_LO = 2,
 	ELMR_DATA_HI = 3,
 
+	ELMR_THRES0  = 0xe000,
+	ELMR_BW      = 0xe00c,
+	ELMR_FIFO_SZ = 0xe00d,
+	ELMR_STATS   = 0xf000,
+
 	ELMR_MDIO_ADDR = 10
 };
 
@@ -74,7 +79,7 @@ static int elmr_write(adapter_t *adap, int addr, u32 val)
 
 int t3_elmr_blk_read(adapter_t *adap, int start, u32 *vals, int n)
 {
-	int ret;
+	int i, ret;
 	unsigned int v;
 	const struct mdio_ops *mo = adapter_info(adap)->mdio_ops;
 
@@ -83,9 +88,15 @@ int t3_elmr_blk_read(adapter_t *adap, int start, u32 *vals, int n)
 	ret = mo->write(adap, ELMR_MDIO_ADDR, 0, ELMR_ADDR, start);
 	if (ret)
 		goto out;
-	ret = mo->read(adap, ELMR_MDIO_ADDR, 0, ELMR_STAT, &v);
-	if (ret)
-		goto out;
+
+	for (i = 0; i < 5; i++) {
+		ret = mo->read(adap, ELMR_MDIO_ADDR, 0, ELMR_STAT, &v);
+		if (ret)
+			goto out;
+		if (v == 1)
+			break;
+		udelay(5);
+	}
 	if (v != 1) {
 		ret = -ETIMEDOUT;
 		goto out;
@@ -148,7 +159,7 @@ int t3_vsc7323_init(adapter_t *adap, int nports)
 		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x10 + i),
 				((ing_bot + ing_step) << 16) | ing_bot)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x40 + i),
-				0x6000a00)) ||
+				0x6000bc0)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 0, 0x50 + i), 1)) ||
 		    (ret = elmr_write(adap, VSC_REG(2, 1, 0x10 + i),
 				((egr_bot + egr_step) << 16) | egr_bot)) ||
@@ -175,8 +186,13 @@ int t3_vsc7323_init(adapter_t *adap, int nports)
 		    (ret = elmr_write(adap, VSC_REG(1, i, 5),
 				 (i << 12) | 0x63)) ||
 		    (ret = elmr_write(adap, VSC_REG(1, i, 0xb), 0x96)) ||
-		    (ret = elmr_write(adap, VSC_REG(1, i, 0x15), 0x21)))
+		    (ret = elmr_write(adap, VSC_REG(1, i, 0x15), 0x21)) ||
+		    (ret = elmr_write(adap, ELMR_THRES0 + i, 768)))
 			return ret;
+
+	if ((ret = elmr_write(adap, ELMR_BW, 7)))
+		return ret;
+
 	return ret;
 }
 
@@ -269,6 +285,8 @@ int t3_vsc7323_disable(adapter_t *adap, int port, int which)
 #define NSTATS0 (0x1d - STATS0_START + 1)
 #define NSTATS1 (0x2a - STATS1_START + 1)
 
+#define ELMR_STAT(port, reg) (ELMR_STATS + port * 0x40 + reg)
+
 const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac)
 {
 	int ret;
@@ -276,11 +294,11 @@ const struct mac_stats *t3_vsc7323_update_stats(struct cmac *mac)
 	u32 stats0[NSTATS0], stats1[NSTATS1];
 
 	ret = t3_elmr_blk_read(mac->adapter,
-			       VSC_REG(4, mac->ext_port, STATS0_START),
+			       ELMR_STAT(mac->ext_port, STATS0_START),
 			       stats0, NSTATS0);
 	if (!ret)
 		ret = t3_elmr_blk_read(mac->adapter,
-				       VSC_REG(4, mac->ext_port, STATS1_START),
+				       ELMR_STAT(mac->ext_port, STATS1_START),
 				       stats1, NSTATS1);
 	if (ret)
 		goto out;
