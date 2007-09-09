@@ -49,10 +49,10 @@
 
   <para>This document contains the hardware compatibility notes for
   &os; &release.current;.
-  It lists
-  devices known to work on this platform, as well as some notes on
-  boot-time kernel customization that may be useful when attempting to
-  configure support for new devices.</para>
+  It lists the hardware platforms supported by &os;, as well as the
+  various types of hardware devices (storage controllers, network
+  interfaces, and so on), along with known working instances of these
+  devices.</para>
 
 </sect1>
 
