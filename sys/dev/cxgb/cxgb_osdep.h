@@ -52,6 +52,12 @@ $FreeBSD$
 typedef struct adapter adapter_t;
 struct sge_rspq;
 
+struct t3_mbuf_hdr {
+	struct mbuf *mh_head;
+	struct mbuf *mh_tail;
+};
+
+
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
 		panic("BUG: %s", exp);      \
