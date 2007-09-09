@@ -28,7 +28,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 
 #include <sys/cdefs.h>
-_FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD$");
 
 
 #ifdef CONFIG_DEFINED
