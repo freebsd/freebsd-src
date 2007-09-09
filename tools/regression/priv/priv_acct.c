@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,11 +31,13 @@
  */
 
 /*
- * Test that configuring accounting requires privilege.  First check that
- * accounting is not in use on the system to prevent disrupting the
- * accounting service.  Confirm three different state transitions, both as
- * privileged and non-privileged: disabled to enabled, rotate, and enabled to
- * disabled.
+ * Test that configuring accounting requires privilege.  We test four cases
+ * across {!jail, jail}:
+ *
+ * priv_acct_enable - enable accounting from a disabled state
+ * priv_acct_disable - disable accounting from an enabled state
+ * priv_acct_rotate - rotate the accounting file
+ * priv_acct_noopdisable - disable accounting when already disabled
  */
 
 #include <sys/types.h>
@@ -49,130 +52,127 @@
 #include "main.h"
 
 #define	SYSCTL_NAME	"kern.acct_configured"
-#define	PATH_TEMPLATE	"/tmp/acct.XXXXXXXXXXX"
+
+/*
+ * Actual filenames used across all of the tests.
+ */
+static int	fpath1_initialized;
+static char	fpath1[1024];
+static int	fpath2_initialized;
+static char	fpath2[1024];
+
+int
+priv_acct_setup(int asroot, int injail, struct test *test)
+{
+	size_t len;
+	int i;
+
+	len = sizeof(i);
+	if (sysctlbyname(SYSCTL_NAME, &i, &len, NULL, 0) < 0) {
+		warn("priv_acct_setup: sysctlbyname(%s)", SYSCTL_NAME);
+		return (-1);
+	}
+	if (i != 0) {
+		warnx("sysctlbyname(%s) indicates accounting configured",
+		    SYSCTL_NAME);
+		return (-1);
+	}
+	setup_file("priv_acct_setup: fpath1", fpath1, 0, 0, 0666);
+	fpath1_initialized = 1;
+	setup_file("priv_acct_setup: fpath2", fpath2, 0, 0, 0666);
+	fpath2_initialized = 1;
+
+	if (test->t_test_func == priv_acct_enable ||
+	    test->t_test_func == priv_acct_noopdisable) {
+		if (acct(NULL) != 0) {
+			warn("priv_acct_setup: acct(NULL)");
+			return (-1);
+		}
+	} else if (test->t_test_func == priv_acct_disable ||
+	     test->t_test_func == priv_acct_rotate) {
+		if (acct(fpath1) != 0) {
+			warn("priv_acct_setup: acct(\"%s\")", fpath1);
+			return (-1);
+		}
+	}
+	return (0);
+}
 
 void
-priv_acct(void)
+priv_acct_cleanup(int asroot, int injail, struct test *test)
 {
-	char fpath1[1024] = PATH_TEMPLATE;
-	char fpath2[1024] = PATH_TEMPLATE;
-	int error, fd, i;
-	size_t len;
 
-	assert_root();
-
-	/*
-	 * Check that accounting isn't already configured in the kernel.
-	 */
-	len = sizeof(i);
-	if (sysctlbyname(SYSCTL_NAME, &i, &len, NULL, 0) < 0)
-		err(-1, "sysctlbyname(%s)", SYSCTL_NAME);
-	if (i != 0)
-		errx(-1, "sysctlbyname(%s) indicates accounting configured",
-		    SYSCTL_NAME);
-
-	/*
-	 * Create two temporary files to use as accounting targets.
-	 */
-	fd = mkstemp(fpath1);
-	if (fd < 0)
-		err(-1, "mkstemp");
-	close(fd);
-	fd = mkstemp(fpath2);
-	if (fd < 0) {
-		warn("mkstemp");
-		(void)unlink(fpath1);
-		exit(-1);
-	}
-
-	/*
-	 * Change the permissions on the file so that access control on the
-	 * file doesn't come into play.
-	 */
-	if (chmod(fpath1, 0666) < 0) {
-		warn("chmod(%s, 0666)", fpath1);
-		goto out;
-	}
-
-	if (chmod(fpath2, 0666) < 0) {
-		warn("chmod(%s, 0600)", fpath2);
-		goto out;
-	}
-
-	/*
-	 * Test that privileged can move through entire life cycle.
-	 */
-	if (acct(fpath1) < 0) {
-		warn("acct(NULL -> %s) as root", fpath1);
-		goto out;
-	}
-
-	if (acct(fpath2) < 0) {
-		warn("acct(%s -> %s) as root", fpath1, fpath2);
-		goto out;
-	}
-
-	if (acct(NULL) < 0) {
-		warn("acct(%s -> NULL) as root", fpath1);
-		goto out;
-	}
-
-	/*
-	 * Testing for unprivileged is a bit more tricky, as expect each step
-	 * to fail, so must replay various bits of the setup process as root
-	 * so that each step can be tested as !root.
-	 */
-	set_euid(UID_OTHER);
-	error = acct(fpath1);
-	if (error == 0) {
-		warnx("acct(NULL -> %s) succeeded as !root", fpath1);
-		goto out;
-	}
-	if (errno != EPERM) {
-		warn("acct(NULL -> %s) wrong errno %d as !root", fpath1,
-		    errno);
-		goto out;
-	}
-
-	set_euid(UID_ROOT);
-	if (acct(fpath1) < 0) {
-		err(-1, "acct(NULL -> %s) setup for !root", fpath1);
-		goto out;
-	}
-
-	set_euid(UID_OTHER);
-	error = acct(fpath2);
-	if (error == 0) {
-		warnx("acct(%s -> %s) succeeded as !root", fpath1, fpath2);
-		goto out;
-	}
-	if (errno != EPERM) {
-		warn("acct(%s -> %s) wrong errno %d as !root", fpath1,
-		    fpath2, errno);
-		goto out;
-	}
-
-	set_euid(UID_ROOT);
-	if (acct(fpath2) < 0) {
-		err(-1, "acct(%s -> %s) setup for !root", fpath1, fpath2);
-		goto out;
-	}
-
-	set_euid(UID_OTHER);
-	error = acct(NULL);
-	if (error == 0) {
-		warnx("acct(%s -> NULL) succeeded as !root", fpath2);
-		goto out;
-	}
-	if (errno != EPERM) {
-		warn("acct(%s -> NULL) wrong errno %d as !root", fpath2,
-		    errno);
-		goto out;
-	}
-
-out:
-	(void)seteuid(UID_ROOT);
 	(void)acct(NULL);
-	(void)unlink(fpath1);
-	(void)unlink(fpath2);
+	if (fpath1_initialized) {
+		(void)unlink(fpath1);
+		fpath1_initialized = 0;
+	}
+	if (fpath2_initialized) {
+		(void)unlink(fpath2);
+		fpath2_initialized = 0;
+	}
+}
+
+void
+priv_acct_enable(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = acct(fpath1);
+	if (asroot && injail)
+		expect("priv_acct_enable(root, jail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_acct_enable(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_acct_enable(!root, jail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_acct_enable(!root, !jail)", error, -1, EPERM);
+}
+
+void
+priv_acct_disable(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = acct(NULL);
+	if (asroot && injail)
+		expect("priv_acct_disable(root, jail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_acct_disable(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_acct_disable(!root, jail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_acct_disable(!root, !jail)", error, -1, EPERM);
+}
+
+void
+priv_acct_rotate(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = acct(fpath2);
+	if (asroot && injail)
+		expect("priv_acct_rotate(root, jail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_acct_rotate(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_acct_rotate(!root, jail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_acct_rotate(!root, !jail)", error, -1, EPERM);
+}
+
+void
+priv_acct_noopdisable(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = acct(NULL);
+	if (asroot && injail)
+		expect("priv_acct_noopdisable(root, jail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_acct_noopdisable(root, !jail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_acct_noopdisable(!root, jail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_acct_noopdisable(!root, !jail)", error, -1, EPERM);
 }

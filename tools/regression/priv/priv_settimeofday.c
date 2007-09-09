@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -43,34 +44,40 @@
 
 #include "main.h"
 
-void
-priv_settimeofday(void)
+static struct timeval	now;
+
+int
+priv_settimeofday_setup(int asroot, int injail, struct test *test)
 {
-	struct timeval tv;
+
+	if (gettimeofday(&now, NULL) < 0) {
+		warn("priv_settimeofday_setup: gettimeofday");
+		return (-1);
+	}
+	return (0);
+}
+
+void
+priv_settimeofday(int asroot, int injail, struct test *test)
+{
 	int error;
 
-	assert_root();
+	error = settimeofday(&now, NULL);
+	if (asroot && injail)
+		expect("priv_settimeofday(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_settimeofday(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_settimeofday(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_settimeofday(!asroot, !injail)", error, -1,
+		    EPERM);
+}
 
-	/*
-	 * Query time.
-	 */
-	if (gettimeofday(&tv, NULL) < 0)
-		err(-1, "gettimeofday");
+void
+priv_settimeofday_cleanup(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * Set with privilege.
-	 */
-	if (settimeofday(&tv, NULL) < 0)
-		err(-1, "settimeofday as root");
-
-	/*
-	 * Set without privilege.
-	 */
-	set_euid(UID_OTHER);
-
-	error = settimeofday(&tv, NULL);
-	if (error == 0)
-		errx(-1, "settimeofday succeeded as !root");
-	if (errno != EPERM)
-		errx(-1, "settimeofday wrong errno %d as !root", errno);
 }

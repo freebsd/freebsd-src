@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,9 +31,8 @@
  */
 
 /*
- * Confirm that calls to fhopen() require privilege, trying with, and
- * without.  We create a temporary file and grab the file handle using
- * getfh() before starting.
+ * Confirm that calls to fhopen() require non-jailed priilege.  We create a
+ * temporary file and grab the file handle using getfh() before starting.
  */
 
 #include <sys/param.h>
@@ -45,48 +45,53 @@
 
 #include "main.h"
 
-void
-priv_vfs_fhopen(void)
+static char fpath[1024];
+static int fpath_initialized;
+static fhandle_t fh;
+
+int
+priv_vfs_fhopen_setup(int asroot, int injail, struct test *test)
 {
-	char fpath[1024];
-	fhandle_t fh;
-	int fd;
 
-	assert_root();
-
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0644);
-
+	setup_file("private_vfs_fhopen_setup: fpath", fpath, UID_ROOT,
+	    GID_WHEEL, 0644);
+	fpath_initialized = 1;
 	if (getfh(fpath, &fh) < 0) {
-		warn("getfh(%s)", fpath);
-		goto out;
+		warn("priv_vfs_fhopen_setup: getfh(%s)", fpath);
+		return (-1);
 	}
+	return (0);
+}
 
-	/*
-	 * First, try with privilege.
-	 */
-	fd = fhopen(&fh, O_RDONLY);
-	if (fd < 0) {
-		warn("fhopen(%s) as root", fpath);
-		goto out;
-	}
-	close(fd);
-
-	/*
-	 * Now, without privilege.
-	 */
-	set_euid(UID_OTHER);
+void
+priv_vfs_fhopen(int asroot, int injail, struct test *test)
+{
+	int errno_saved, error, fd;
 
 	fd = fhopen(&fh, O_RDONLY);
 	if (fd >= 0) {
-		warnx("fhopen(%s) succeeded as !root", fpath);
+		error = 0;
+		errno_saved = errno;
 		close(fd);
-		goto out;
+		errno = errno_saved;
+	} else
+		error = -1;
+	if (asroot && injail)
+		expect("priv_vfs_fhopen(asroot, injail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_vfs_fhopen(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_fhopen(!asroot, injail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_fhopen(!asroot, !injail)", error, -1, EPERM);
+}
+
+void
+priv_vfs_fhopen_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-	if (errno != EPERM) {
-		warn("fhopen(%s) wrong errno %d as !root", fpath, errno);
-		goto out;
-	}
-out:
-	seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }

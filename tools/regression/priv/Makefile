@@ -2,21 +2,29 @@
 # $FreeBSD$
 #
 
-PROG=	main
+PROG=	priv
 SRCS=	main.c				\
 	priv_acct.c			\
 	priv_adjtime.c			\
+	priv_audit_control.c		\
+	priv_audit_getaudit.c		\
+	priv_audit_setaudit.c		\
+	priv_audit_submit.c		\
 	priv_clock_settime.c		\
+	priv_cred.c			\
 	priv_io.c			\
 	priv_kenv_set.c			\
 	priv_kenv_unset.c		\
+	priv_msgbuf.c			\
+	priv_netinet_raw.c		\
 	priv_proc_setlogin.c		\
 	priv_proc_setrlimit.c		\
 	priv_sched_rtprio.c		\
 	priv_sched_setpriority.c	\
 	priv_settimeofday.c		\
 	priv_sysctl_write.c		\
-	priv_vfs_admin.c		\
+	priv_vfs_chflags.c		\
+	priv_vfs_chmod.c		\
 	priv_vfs_chown.c		\
 	priv_vfs_chroot.c		\
 	priv_vfs_clearsugid.c		\
@@ -29,11 +37,11 @@ SRCS=	main.c				\
 	priv_vfs_read_write.c		\
 	priv_vfs_setgid.c		\
 	priv_vfs_stickyfile.c		\
-	priv_vm_mlock.c			\
-	priv_vm_munlock.c		\
+	priv_vfs_utimes.c		\
 	priv_vm_madv_protect.c		\
-					\
-	test_utimes.c
+	priv_vm_mlock.c			\
+	priv_vm_munlock.c
+
 NO_MAN=
 WARNS=	3
 

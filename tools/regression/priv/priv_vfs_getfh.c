@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,8 +31,7 @@
  */
 
 /*
- * Check that getfh() requires privilege; run it with, and without,
- * privilege.
+ * Check that getfh() requires non-jailed privilege.
  */
 
 #include <sys/param.h>
@@ -43,36 +43,37 @@
 
 #include "main.h"
 
-void
-priv_vfs_getfh(void)
+static char fpath[1024];
+
+int
+priv_vfs_getfh_setup(int asroot, int injail, struct test *test)
 {
-	char fpath[1024];
+
+	setup_file("priv_vfs_getfh_setup: fpath", fpath, UID_ROOT, GID_WHEEL,
+	    0644);
+	return (0);
+}
+
+void
+priv_vfs_getfh(int asroot, int injail, struct test *test)
+{
 	fhandle_t fh;
 	int error;
 
-	assert_root();
-
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0644);
-
-	if (getfh(fpath, &fh) < 0) {
-		warn("getfh(%s) as root", fpath);
-		goto out;
-	}
-
-	set_euid(UID_OTHER);
-
 	error = getfh(fpath, &fh);
-	if (error == 0) {
-		warnx("getfh(%s) succeeded as !root", fpath);
-		goto out;
-	}
+	if (asroot && injail)
+		expect("priv_vfs_getfh(asroot, injail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_vfs_getfh(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_getfh(!asroot, injail)", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_getfh(!asroot, !injail)", error, -1, EPERM);
+}
 
-	if (errno != EPERM) {
-		warn("getfh(%s) wrong errno %d as !root", fpath, errno);
-		goto out;
-	}
+void
+priv_vfs_getfh_cleanup(int asroot, int injail, struct test *test)
+{
 
-out:
-	(void)seteuid(UID_ROOT);
 	(void)unlink(fpath);
 }

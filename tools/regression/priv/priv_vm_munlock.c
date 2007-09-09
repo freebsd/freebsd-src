@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,8 +31,7 @@
  */
 
 /*
- * Test that munlock() requires privilege by running it first with privilege,
- * then again without.
+ * Test that munlock() requires privilege.
  */
 
 #include <sys/types.h>
@@ -43,22 +43,32 @@
 
 #include "main.h"
 
+int
+priv_vm_munlock_setup(int asroot, int injail, struct test *test)
+{
+
+	return (0);
+}
+
 void
-priv_vm_munlock(void)
+priv_vm_munlock(int asroot, int injail, struct test *test)
 {
 	int error;
 
-	assert_root();
-
 	error = munlock(&error, getpagesize());
-	if (error)
-		err(-1, "munlock as root");
+	if (asroot && injail)
+		expect("priv_vm_munlock(asroot, injail)", error, -1, EPERM);
+	if (asroot && !injail)
+		expect("priv_vm_munlock(asroot, !injail", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vm_munlock(!asroot, injail", error, -1, EPERM);
+	if (!asroot && !injail)
+		expect("priv_vm_munlock(!asroot, !injail", error, -1, EPERM);
+}
 
-	set_euid(UID_OTHER);
 
-	error = munlock(&error, getpagesize());
-	if (error == 0)
-		errx(-1, "munlock as !root succeeded");
-	if (errno != EPERM)
-		err(-1, "munlock as !root wrong errno %d", errno);
+void
+priv_vm_munlock_cleanup(int asroot, int injail, struct test *test)
+{
+
 }

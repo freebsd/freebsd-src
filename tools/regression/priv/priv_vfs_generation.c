@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -33,8 +34,8 @@
  * Confirm that a generation number isn't returned by stat() when not running
  * with privilege.  In order to differentiate between a generation of 0 and
  * a generation not being returned, we have to create a temporary file known
- * to have a non-0 generation.  We try up to 10 times, and then give up,
- * which is non-ideal, but better than not testing for a problem.
+ * to have a non-0 generation.  We try up to MAX_TRIES times, and then give
+ * up, which is non-ideal, but better than not testing for a problem.
  */
 
 #include <sys/stat.h>
@@ -46,68 +47,74 @@
 
 #include "main.h"
 
-/*
- * Can't use setup_file() since the resulting file needs to have specific
- * properties.
- */
-void
-priv_vfs_generation(void)
+static char fpath[1024];
+static int fpath_initialized;
+
+#define	MAX_TRIES	100
+
+int
+priv_vfs_generation_setup(int asroot, int injail, struct test *test)
 {
-	char fpath[1024] = "/tmp/priv.XXXXXXXXXX";
 	struct stat sb;
-	int fd, i;
-
-	assert_root();
+	int i;
 
 	/*
-	 * Create a file with a non-0 generation number.  Try ten times,
-	 * which gives a high chance of succeeds, fail otherwise.  Not ideal,
-	 * since we can't distinguish the file having a generation of 0 from
-	 * not being able to query it for access control reasons.  The perils
-	 * of an API that changes behavior based on lack of privilege rather
-	 * than failing...
+	 * The kernel zeros the generation number field when an unprivileged
+	 * user stats a file.  In order to distinguish the two cases, we
+	 * therefore require a file that we know has a non-zero generation
+	 * number.  We try up to MAX_TRIES times and otherwise fail.
 	 */
-	for (i = 0; i < 10; i++) {
-		fd = mkstemp(fpath);
-		if (fd < 0)
-			err(-1, "mkstemp");
-		if (fstat(fd, &sb) < 0) {
-			warn("fstat(%s)", fpath);
-			close(fd);
-			goto out;
+	for (i = 0; i < MAX_TRIES; i++) {
+		setup_file("priv_vfs_generation_setup: fpath", fpath,
+		    UID_ROOT, GID_WHEEL, 0644);
+		if (stat(fpath, &sb) < 0) {
+			warn("priv_vfs_generation_setup: fstat(%s)", fpath);
+			(void)unlink(fpath);
+			return (-1);
 		}
-		if (sb.st_gen != 0)
-			break;
-		close(fd);
+		if (sb.st_gen != 0) {
+			fpath_initialized = 1;
+			return (0);
+		}
+	}
+	warnx("priv_vfs_generation_setup: unable to create gen file");
+	return (-1);
+}
+
+void
+priv_vfs_generation(int asroot, int injail, struct test *test)
+{
+	struct stat sb;
+	int error;
+
+	error = stat(fpath, &sb);
+	if (error < 0)
+		warn("priv_vfs_generation(asroot, injail) stat");
+
+	if (sb.st_gen == 0) {
+		error = -1;
+		errno = EPERM;
+	} else
+		error = 0;
+	if (asroot && injail)
+		expect("priv_vfs_generation(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_vfs_generation(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_generation(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_generation(!asroot, !injail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_vfs_generation_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_initialized) {
 		(void)unlink(fpath);
-		strcpy(fpath, "/tmp/generation.XXXXXXXXXX");
-		fd = -1;
+		fpath_initialized = 0;
 	}
-	if (fd == -1)
-		errx(-1,
-		    "could not create file with non-0 generation as root");
-	close(fd);
-
-	/*
-	 * We've already tested that fstat() works, but try stat() to be
-	 * consistent between privileged and unprivileged tests.
-	 */
-	if (stat(fpath, &sb) < 0) {
-		warn("stat(%s) as root", fpath);
-		goto out;
-	}
-
-	set_euid(UID_OTHER);
-
-	if (stat(fpath, &sb) < 0) {
-		warn("stat(%s) as !root", fpath);
-		goto out;
-	}
-
-	if (sb.st_gen != 0)
-		warn("stat(%s) returned generation as !root", fpath);
-
-out:
-	(void)seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }

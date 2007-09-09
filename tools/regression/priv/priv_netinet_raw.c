@@ -1,10 +1,9 @@
 /*-
- * Copyright (c) 2006 nCircle Network Security, Inc.
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007 Robert M. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
- * Project under contract to nCircle Network Security, Inc.
+ * Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,46 +30,53 @@
  */
 
 /*
- * Test that madvise(..., MADV_PROTECT) requires privilege.
+ * Confirm that privilege is required to open a raw IP socket, and that this
+ * is not allowed in jail.
  */
 
 #include <sys/types.h>
-#include <sys/mman.h>
+#include <sys/socket.h>
 
 #include <err.h>
 #include <errno.h>
+#include <stdio.h>
 #include <unistd.h>
 
 #include "main.h"
 
 int
-priv_vm_madv_protect_setup(int asroot, int injail, struct test *test)
+priv_netinet_raw_setup(int asroot, int injail, struct test *test)
 {
 
 	return (0);
 }
 
 void
-priv_vm_madv_protect(int asroot, int injail, struct test *test)
+priv_netinet_raw(int asroot, int injail, struct test *test)
 {
-	int error;
+	int error, fd;
 
-	error = madvise(NULL, 0, MADV_PROTECT);
+	fd = socket(PF_INET, SOCK_RAW, 0);
+	if (fd < 0)
+		error = -1;
+	else
+		error = 0;
 	if (asroot && injail)
-		expect("priv_vm_madv_protect(asroot, injail)", error, -1,
-		    EPERM);
+		expect("priv_netinet_raw(asroot, injail)", error, -1, EPERM);
 	if (asroot && !injail)
-		expect("priv_vm_madv_protect(asroot, !injail", error, 0, 0);
+		expect("priv_netinet_raw(asroot, !injail)", error, 0, 0);
 	if (!asroot && injail)
-		expect("priv_vm_madv_protect(!asroot, injail", error, -1,
+		expect("priv_netinet_raw(!asroot, injail)", error, -1,
 		    EPERM);
 	if (!asroot && !injail)
-		expect("priv_vm_madv_protect(!asroot, !injail", error, -1,
-		    EPERM);
+		expect("priv_netinet_raw(!asroot, !injail)", error,
+		    -1, EPERM);
+	if (fd >= 0)
+		(void)close(fd);
 }
 
 void
-priv_vm_madv_protect_cleanup(int asroot, int injail, struct test *test)
+priv_netinet_raw_cleanup(int asroot, int injail, struct test *test)
 {
 
 }

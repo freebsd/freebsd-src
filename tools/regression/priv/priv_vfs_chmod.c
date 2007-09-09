@@ -31,17 +31,17 @@
  */
 
 /*
- * Test that privilege is required to set the sgid bit on a file with a group
- * that isn't in the process credential.  The file uid owner is set to the
- * uid being tested with, as we are not interested in testing privileges
- * associated with file ownership.
+ * Check that we must either be running as root or the owner of the file in
+ * order to modify permissions on the file.
  */
 
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
-#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "main.h"
@@ -50,68 +50,93 @@ static char fpath[1024];
 static int fpath_initialized;
 
 int
-priv_vfs_setgid_fowner_setup(int asroot, int injail, struct test *test)
+priv_vfs_chmod_froot_setup(int asroot, int injail, struct test *test)
 {
 
-	setup_file("priv_vfs_setgid_fowner: fpath", fpath, UID_OWNER,
+	setup_file("priv_vfs_chmod_setup: fpath", fpath, UID_ROOT, GID_WHEEL,
+	    0600);
+	fpath_initialized = 1;
+	return (0);
+}
+
+int
+priv_vfs_chmod_fowner_setup(int asroot, int injail, struct test *test)
+{
+
+	setup_file("priv_vfs_chmod_setup: fpath", fpath, UID_OWNER,
 	    GID_OWNER, 0600);
 	fpath_initialized = 1;
 	return (0);
 }
 
 int
-priv_vfs_setgid_fother_setup(int asroot, int injail, struct test *test)
+priv_vfs_chmod_fother_setup(int asroot, int injail, struct test *test)
 {
 
-	/* NOTE: owner uid, *other* gid. */
-	setup_file("priv_vfs_setgid_forther: fpath", fpath, UID_OWNER,
+	setup_file("priv_vfs_chmod_setup: fpath", fpath, UID_OTHER,
 	    GID_OTHER, 0600);
 	fpath_initialized = 1;
 	return (0);
 }
 
 void
-priv_vfs_setgid_fowner(int asroot, int injail, struct test *test)
+priv_vfs_chmod_froot(int asroot, int injail, struct test *test)
 {
 	int error;
 
-	error = chmod(fpath, 0600 | S_ISGID);
+	error = chmod(fpath, 0640);
 	if (asroot && injail)
-		expect("priv_vfs_setgid_fowner(asroot, injail)", error, 0,
-		    0);
+		expect("priv_vfs_chmod_froot(asroot, injail)", error, 0, 0);
 	if (asroot && !injail)
-		expect("priv_vfs_setgid_fowner(asroot, !injail)", error, 0,
-		    0);
+		expect("priv_vfs_chmod_froot(asroot, !injail)", error, 0, 0);
 	if (!asroot && injail)
-		expect("priv_vfs_setgid_fowner(!asroot, injail)", error, 0,
-		    0);
-	if (!asroot && !injail)
-		expect("priv_vfs_setgid_fowner(!asroot, !injail)", error, 0,
-		    0);
-}
-
-void
-priv_vfs_setgid_fother(int asroot, int injail, struct test *test)
-{
-	int error;
-
-	error = chmod(fpath, 0600 | S_ISGID);
-	if (asroot && injail)
-		expect("priv_vfs_setgid_fother(asroot, injail)", error, 0,
-		    0);
-	if (asroot && !injail)
-		expect("priv_vfs_setgid_fother(asroot, !injail)", error, 0,
-		    0);
-	if (!asroot && injail)
-		expect("priv_vfs_setgid_fother(!asroot, injail)", error, -1,
+		expect("priv_vfs_chmod_froot(!asroot, injail)", error, -1,
 		    EPERM);
 	if (!asroot && !injail)
-		expect("priv_vfs_setgid_fother(!asroot, !injail)", error, -1,
+		expect("priv_vfs_chmod_froot(!asroot, !injail)", error, -1,
 		    EPERM);
 }
 
 void
-priv_vfs_setgid_cleanup(int asroot, int injail, struct test *test)
+priv_vfs_chmod_fowner(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = chmod(fpath, 0640);
+	if (asroot && injail)
+		expect("priv_vfs_chmod_fowner(asroot, injail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chmod_fowner(asroot, !injail)", error, 0,
+		    0);
+	if (!asroot && injail)
+		expect("priv_vfs_chmod_fowner(!asroot, injail)", error, 0,
+		    0);
+	if (!asroot && !injail)
+		expect("priv_vfs_chmod_fowner(!asroot, !injail)", error, 0,
+		    0);
+}
+
+void
+priv_vfs_chmod_fother(int asroot, int injail, struct test *test)
+{
+	int error;
+
+	error = chmod(fpath, 0640);
+	if (asroot && injail)
+		expect("priv_vfs_chmod_fother(asroot, injail)", error, 0, 0);
+	if (asroot && !injail)
+		expect("priv_vfs_chmod_fother(asroot, !injail)", error, 0,
+		    0);
+	if (!asroot && injail)
+		expect("priv_vfs_chmod_fother(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_chmod_fother(!asroot, !injail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_vfs_chmod_cleanup(int asroot, int injail, struct test *test)
 {
 
 	if (fpath_initialized) {

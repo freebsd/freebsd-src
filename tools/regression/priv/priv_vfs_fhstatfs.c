@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -30,9 +31,8 @@
  */
 
 /*
- * Confirm that calls to fhstatfs() require privilege, trying with, and
- * without.  We create a temporary file and grab the file handle using
- * getfh() before starting.
+ * Confirm that calls to fhstatfs() require non-jailed privilege.  We create
+ * a temporary file and grab the file handle using getfh() before starting.
  */
 
 #include <sys/param.h>
@@ -44,46 +44,50 @@
 
 #include "main.h"
 
-void
-priv_vfs_fhstatfs(void)
+static char fpath[1024];
+static int fpath_initialized;
+static fhandle_t fh;
+
+int
+priv_vfs_fhstatfs_setup(int asroot, int injail, struct test *test)
 {
-	char fpath[1024];
+
+	setup_file("priv_vfs_fhstatfs_setup: fpath", fpath, UID_ROOT,
+	    GID_WHEEL, 0644);
+	fpath_initialized = 1;
+	if (getfh(fpath, &fh) < 0) {
+		warn("priv_vfs_fhstatfs_setup: getfh(%s)", fpath);
+		return (-1);
+	}
+	return (0);
+}
+
+void
+priv_vfs_fhstatfs(int asroot, int injail, struct test *test)
+{
 	struct statfs sf;
-	fhandle_t fh;
 	int error;
 
-	assert_root();
-
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0644);
-
-	if (getfh(fpath, &fh) < 0) {
-		warn("getfh(%s)", fpath);
-		goto out;
-	}
-
-	/*
-	 * First, try with privilege.
-	 */
-	if (fhstatfs(&fh, &sf) < 0) {
-		warn("fhstatfs(%s) as root", fpath);
-		goto out;
-	}
-
-	/*
-	 * Now, without privilege.
-	 */
-	set_euid(UID_OTHER);
-
 	error = fhstatfs(&fh, &sf);
-	if (error == 0) {
-		warnx("fhstatfs(%s) succeeded as !root", fpath);
-		goto out;
+	if (asroot && injail)
+		expect("priv_vfs_fhstatfs(asroot, injail)", error, -1,
+		    EPERM);
+	if (asroot && !injail)
+		expect("priv_vfs_fhstatfs(asroot, !injail)", error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_vfs_fhstatfs(!asroot, injail)", error, -1,
+		    EPERM);
+	if (!asroot && !injail)
+		expect("priv_vfs_fhstatfs(!asroot, !injail)", error, -1,
+		    EPERM);
+}
+
+void
+priv_vfs_fhstatfs_cleanup(int asroot, int injail, struct test *test)
+{
+
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-	if (errno != EPERM) {
-		warn("fhstatfs(%s) wrong errno %d as !root", fpath, errno);
-		goto out;
-	}
-out:
-	seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }

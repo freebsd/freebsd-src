@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -31,16 +32,21 @@
 
 /*
  * There are three cases in which the file system will clear the setuid or
- * setgid bits on a file when running as !root:
+ * setgid bits on a file when running unprivileged:
  *
  * - When the file is chown()'d and either of the uid or the gid is changed.
+ *   (currently, only changing the file gid applies, as privilege is required
+ *   to change the uid).
  *
- * - The file is written to succeesfully.
+ * - The file is written to successfully.
  *
  * - An extended attribute of the file is written to successfully.
  *
- * Test each case first as root (that flags aren't cleared), and then as
- * !root, to check they are cleared.
+ * In each case, check that the flags are cleared if unprivileged, and that
+ * they aren't cleared if privileged.
+ *
+ * We can't use expect() as we're looking for side-effects rather than
+ * success/failure of the system call.
  */
 
 #include <sys/types.h>
@@ -55,161 +61,92 @@
 
 #include "main.h"
 
-static const gid_t gidset[] = {GID_WHEEL, GID_OWNER, GID_OTHER};
+static char fpath[1024];
+static int fpath_initialized;
 
 /*
- * Confirm that the setuid bit is set on a file.  Don't return on failure.
+ * If running as root, check that SUID is still set; otherwise, check that it
+ * is not.
  */
 static void
-confirm_setuid(char *fpathp, char *test_case)
+confirm_sugid(char *test_case, int asroot, int injail)
 {
 	struct stat sb;
 
-	if (stat(fpathp, &sb) < 0) {
-		warn("%s stat(%s)", test_case, fpathp);
-		(void)seteuid(UID_ROOT);
-		(void)unlink(fpathp);
-		exit(-1);
+	if (stat(fpath, &sb) < 0) {
+		warn("%s stat(%s)", test_case, fpath);
+		return;
 	}
-	if (!(sb.st_mode & S_ISUID)) {
-		warnx("case %s stat(%s) not setuid", test_case, fpathp);
-		(void)seteuid(UID_ROOT);
-		(void)unlink(fpathp);
-		exit(-1);
+	if (asroot) {
+		if (!(sb.st_mode & S_ISUID))
+			warnx("%s(root, %s): !SUID", test_case, injail ?
+			    "jail" : "!jail");
+	} else {
+		if (sb.st_mode & S_ISUID)
+			warnx("%s(!root, %s): SUID", test_case, injail ?
+			    "jail" : "!jail");
 	}
 }
 
-/*
- * Confirm that the setuid bit is not set on a file.  Don't return on failure.
- */
-static void
-confirm_notsetuid(char *fpathp, char *test_case)
+int
+priv_vfs_clearsugid_setup(int asroot, int injail, struct test *test)
 {
-	struct stat sb;
 
-	if (stat(fpathp, &sb) < 0) {
-		warn("%s stat(%s)", test_case, fpathp);
-		(void)seteuid(UID_ROOT);
-		(void)unlink(fpathp);
-		exit(-1);
-	}
-	if (sb.st_mode & S_ISUID) {
-		warnx("case %s stat(%s) is setuid", test_case, fpathp);
-		(void)seteuid(UID_ROOT);
-		(void)unlink(fpathp);
-		exit(-1);
-	}
+	setup_file("priv_vfs_clearsugid_setup: fpath", fpath, UID_OWNER,
+	    GID_OTHER, 0600 | S_ISUID);
+	fpath_initialized = 1;
+	return (0);
+}
+
+void
+priv_vfs_clearsugid_chgrp(int asroot, int injail, struct test *test)
+{
+
+	if (chown(fpath, -1, asroot ? GID_WHEEL : GID_OWNER) < 0)
+		err(-1, "priv_vfs_clearsugid_chgrp(%s, %s): chrgrp",
+		    asroot ? "root" : "!root", injail ? "jail" : "!jail");
+	confirm_sugid("priv_vfs_clearsugid_chgrp", asroot, injail);
 }
 
 #define	EA_NAMESPACE	EXTATTR_NAMESPACE_USER
 #define	EA_NAME		"clearsugid"
 #define	EA_DATA		"test"
 #define	EA_SIZE		(strlen(EA_DATA))
+
 void
-priv_vfs_clearsugid(void)
+priv_vfs_clearsugid_extattr(int asroot, int injail, struct test *test)
 {
-	char ch, fpath[1024];
+
+	if (extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA, EA_SIZE)
+	    < 0)
+		err(-1,
+		    "priv_vfs_clearsugid_extattr(%s, %s): extattr_set_file",
+		    asroot ? "root" : "!root", injail ? "jail" : "!jail");
+	confirm_sugid("priv_vfs_clearsugid_extattr", asroot, injail);
+}
+
+void
+priv_vfs_clearsugid_write(int asroot, int injail, struct test *test)
+{
 	int fd;
 
-	assert_root();
-
-	/*
-	 * Before starting on work, set up group IDs so that the process can
-	 * change the group ID of the file without privilege, in order to see
-	 * the effects.  That way privilege is only required to maintain the
-	 * setuid bit.  For the chown() test, we change only the group id, as
-	 * that can be done with or without privilege.
-	 */
-	if (setgroups(3, gidset) < 0)
-		err(-1, "setgroups(2, {%d, %d})", GID_WHEEL, GID_OWNER);
-
-	/*
-	 * chown() with privilege.
-	 */
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0600 | S_ISUID);
-	if (chown(fpath, -1, GID_OTHER) < 0)
-		warn("chown(%s, -1, %d) as root", fpath, GID_OTHER);
-	confirm_setuid(fpath, "chown as root");
-	(void)unlink(fpath);
-
-	/*
-	 * write() with privilege.
-	 */
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0600 | S_ISUID);
 	fd = open(fpath, O_RDWR);
-	if (fd < 0) {
-		warn("open(%s) as root", fpath);
-		goto out;
-	}
-	ch = 0;
-	if (write(fd, &ch, sizeof(ch)) < 0) {
-		warn("write(%s) as root", fpath);
-		goto out;
-	}
-	close(fd);
-	confirm_setuid(fpath, "write as root");
-	(void)unlink(fpath);
+	if (fd < 0)
+		err(-1, "priv_vfs_clearsugid_write(%s, %s): open",
+		    asroot ? "root" : "!root", injail ? "jail" : "!jail");
+	if (write(fd, EA_DATA, EA_SIZE) < 0)
+		err(-1, "priv_vfs_clearsugid_write(%s, %s): write",
+		    asroot ? "root" : "!root", injail ? "jail" : "!jail");
+	(void)close(fd);
+	confirm_sugid("priv_vfs_clearsugid_write", asroot, injail);
+}
 
-	/*
-	 * extwrite() with privilege.
-	 */
-	setup_file(fpath, UID_ROOT, GID_WHEEL, 0600 | S_ISUID);
-	if (extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA, EA_SIZE)
-	    < 0) {
-		warn("extattr_set_file(%s, user, %s, %s, %d) as root",
-		    fpath, EA_NAME, EA_DATA, EA_SIZE);
-		goto out;
-	}
-	confirm_setuid(fpath, "extwrite as root");
-	(void)unlink(fpath);
+void
+priv_vfs_clearsugid_cleanup(int asroot, int injail, struct test *test)
+{
 
-	/*
-	 * chown() without privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600 | S_ISUID);
-	set_euid(UID_OWNER);
-	if (chown(fpath, -1, GID_OTHER) < 0)
-		warn("chown(%s, -1, %d) as !root", fpath, GID_OTHER);
-	set_euid(UID_ROOT);
-	confirm_notsetuid(fpath, "chown as !root");
-	(void)unlink(fpath);
-
-	/*
-	 * write() without privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600 | S_ISUID);
-	set_euid(UID_OWNER);
-	fd = open(fpath, O_RDWR);
-	if (fd < 0) {
-		warn("open(%s) as !root", fpath);
-		goto out;
+	if (fpath_initialized) {
+		(void)unlink(fpath);
+		fpath_initialized = 0;
 	}
-	ch = 0;
-	if (write(fd, &ch, sizeof(ch)) < 0) {
-		warn("write(%s) as !root", fpath);
-		goto out;
-	}
-	close(fd);
-	set_euid(UID_ROOT);
-	confirm_notsetuid(fpath, "write as !root");
-	(void)unlink(fpath);
-
-	/*
-	 * extwrite() without privilege.
-	 */
-	setup_file(fpath, UID_OWNER, GID_OWNER, 0600 | S_ISUID);
-	set_euid(UID_OWNER);
-	if (extattr_set_file(fpath, EA_NAMESPACE, EA_NAME, EA_DATA, EA_SIZE)
-	    < 0) {
-		warn("extattr_set_file(%s, user, %s, %s, %d) as !root",
-		    fpath, EA_NAME, EA_DATA, EA_SIZE);
-		goto out;
-	}
-	set_euid(UID_ROOT);
-	confirm_notsetuid(fpath, "extwrite as !root");
-	(void)unlink(fpath);
-
-out:
-	(void)seteuid(UID_ROOT);
-	(void)unlink(fpath);
 }
