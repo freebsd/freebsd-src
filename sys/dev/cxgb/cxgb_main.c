@@ -224,7 +224,8 @@ enum {
 	MIN_TXQ_ENTRIES      = 4,
 	MIN_CTRL_TXQ_ENTRIES = 4,
 	MIN_RSPQ_ENTRIES     = 32,
-	MIN_FL_ENTRIES       = 32
+	MIN_FL_ENTRIES       = 32,
+	MIN_FL_JUMBO_ENTRIES = 32
 };
 
 struct filter_info {
@@ -780,7 +781,10 @@ static int
 setup_hw_filters(struct adapter *adap)
 {
 	int i, err;
-
+	
+#ifndef USE_FILTERS
+	return (0);
+#endif	
 	if (adap->filters == NULL)
 		return 0;
 
@@ -803,7 +807,7 @@ setup_hw_filters(struct adapter *adap)
 static int
 setup_sge_qsets(adapter_t *sc)
 {
-	int i, j, err, irq_idx, qset_idx;
+	int i, j, err, irq_idx = 0, qset_idx = 0;
 	u_int ntxq = SGE_TXQ_PER_SET;
 
 	if ((err = t3_sge_alloc(sc)) != 0) {
@@ -813,15 +817,11 @@ setup_sge_qsets(adapter_t *sc)
 
 	if (sc->params.rev > 0 && !(sc->flags & USING_MSI))
 		irq_idx = -1;
-	else
-		irq_idx = 0;
 
-	for (qset_idx = 0, i = 0; i < (sc)->params.nports; i++) {
+	for (i = 0; i < (sc)->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 
 		for (j = 0; j < pi->nqsets; j++, qset_idx++) {
-			printf("allocating qset_idx=%d for port_id=%d\n",
-			    qset_idx, pi->port_id);
 			err = t3_sge_alloc_qset(sc, qset_idx, (sc)->params.nports,
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
@@ -1111,7 +1111,15 @@ void
 t3_fatal_err(struct adapter *sc)
 {
 	u_int fw_status[4];
-
+	
+	if (sc->flags & FULL_INIT_DONE) {
+		t3_sge_stop(sc);
+		t3_write_reg(sc, A_XGM_TX_CTRL, 0);
+		t3_write_reg(sc, A_XGM_RX_CTRL, 0);
+		t3_write_reg(sc, XGM_REG(A_XGM_TX_CTRL, 1), 0);
+		t3_write_reg(sc, XGM_REG(A_XGM_RX_CTRL, 1), 0);
+		t3_intr_disable(sc);
+	}
 	device_printf(sc->dev,"encountered fatal error, operation suspended\n");
 	if (!t3_cim_ctl_blk_read(sc, 0xa0, 4, fw_status))
 		device_printf(sc->dev, "FW_ status: 0x%x, 0x%x, 0x%x, 0x%x\n",
@@ -1271,7 +1279,7 @@ cxgb_link_start(struct port_info *p)
 	ifp = p->ifp;
 
 	t3_init_rx_mode(&rm, p);
-	if (!mac->multiport)
+	if (!mac->multiport) 
 		t3_mac_reset(mac);
 	t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	t3_mac_set_address(mac, 0, p->hw_addr);
@@ -1298,6 +1306,10 @@ setup_rss(adapter_t *adap)
 	u_int nq[2]; 
 	uint8_t cpus[SGE_QSETS + 1];
 	uint16_t rspq_map[RSS_TABLE_SIZE];
+
+
+	if ((adap->flags & USING_MSIX) == 0)
+		return;
 	
 	for (i = 0; i < SGE_QSETS; ++i)
 		cpus[i] = i;
@@ -1309,9 +1321,11 @@ setup_rss(adapter_t *adap)
 
 		nq[pi->tx_chan] += pi->nqsets;
 	}
+	nq[0] = max(nq[0], 1U);
+	nq[1] = max(nq[1], 1U);
 	for (i = 0; i < RSS_TABLE_SIZE / 2; ++i) {
-		rspq_map[i] = nq[0] ? i % nq[0] : 0;
-		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0; 
+		rspq_map[i] = i % nq[0];
+		rspq_map[i + RSS_TABLE_SIZE / 2] = (i % nq[1]) + nq[0];
 	}
 	/* Calculate the reverse RSS map table */
 	for (i = 0; i < RSS_TABLE_SIZE; ++i)
@@ -1320,7 +1334,7 @@ setup_rss(adapter_t *adap)
 
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
 		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN | F_OFDMAPEN |
-		      F_RRCPLMAPEN | V_RRCPLCPUSIZE(6), cpus, rspq_map);
+		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
 
 }
 
@@ -1414,9 +1428,11 @@ bind_qsets(adapter_t *sc)
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		const struct port_info *pi = adap2pinfo(sc, i);
 
-		for (j = 0; j < pi->nqsets; ++j)
+		for (j = 0; j < pi->nqsets; ++j) {
 			send_pktsched_cmd(sc, 1, pi->first_qset + j, -1,
-					  -1, i);
+					  -1, pi->tx_chan);
+
+		}
 	}
 }
 
@@ -1581,7 +1597,8 @@ cxgb_up(struct adapter *sc)
 	t3_sge_start(sc);
 	t3_intr_enable(sc);
 
-	if ((sc->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX) {
+	if (!(sc->flags & QUEUES_BOUND)) {
+		printf("bind qsets\n");
 		bind_qsets(sc);
 		setup_hw_filters(sc);
 		sc->flags |= QUEUES_BOUND;		
@@ -1748,7 +1765,7 @@ cxgb_init_locked(struct port_info *p)
 	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 
-	printf("enabling interrupts on port=%d\n", p->port_id);
+	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
@@ -1921,7 +1938,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
 	struct mbuf *m0, *m = NULL;
-	int err, in_use_init, qsidx = 0;
+	int err, in_use_init, free;
 
 	if (!p->link_config.link_ok)
 		return (ENXIO);
@@ -1929,10 +1946,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return (ENOBUFS);
 
-	if (p->adapter->params.nports <= 2)
-		qsidx = p->first_qset;
-	
-	qs = &p->adapter->sge.qs[qsidx];
+	qs = &p->adapter->sge.qs[p->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
@@ -1944,6 +1958,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	in_use_init = txq->in_use;
 	while ((txq->in_use - in_use_init < txmax) &&
 	    (txq->size > txq->in_use + TX_MAX_DESC)) {
+		free = 0;
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
@@ -1974,9 +1989,11 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 				break;
 		}
 		m = m0;
-		if ((err = t3_encap(p, &m)) != 0)
+		if ((err = t3_encap(p, &m, &free)) != 0)
 			break;
 		BPF_MTAP(ifp, m);
+		if (free)
+			m_freem(m);
 	}
 	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);

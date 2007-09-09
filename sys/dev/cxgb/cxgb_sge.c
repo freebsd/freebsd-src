@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
-
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -1160,7 +1159,7 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 #define TCPPKTHDRSIZE (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + 20 + 20)
 
 int
-t3_encap(struct port_info *p, struct mbuf **m)
+t3_encap(struct port_info *p, struct mbuf **m, int *free)
 {
 	adapter_t *sc;
 	struct mbuf *m0;
@@ -1169,7 +1168,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	struct tx_sw_desc *stx;
 	struct txq_state txqs;
 	unsigned int ndesc, flits, cntrl, mlen;
-	int err, nsegs, tso_info = 0, qsidx = 0;
+	int err, nsegs, tso_info = 0;
 
 	struct work_request_hdr *wrp;
 	struct tx_sw_desc *txsd;
@@ -1182,12 +1181,12 @@ t3_encap(struct port_info *p, struct mbuf **m)
        
 	m0 = *m;	
 	sc = p->adapter;
-	if (sc->params.nports <= 2)
-		qsidx = p->first_qset;
 	
-	DPRINTF("t3_encap qsidx=%d", qsidx);
+	DPRINTF("t3_encap port_id=%d qsidx=%d ", p->port_id, p->first_qset);
 
-	qs = &sc->sge.qs[qsidx];
+	/* port_id=1 qsid=1 txpkt_intf=2 tx_chan=0 */
+
+	qs = &sc->sge.qs[p->first_qset];
 
 	txq = &qs->txq[TXQ_ETH];
 	stx = &txq->sdesc[txq->pidx];
@@ -1196,7 +1195,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 	mlen = m0->m_pkthdr.len;
 	cpl->len = htonl(mlen | 0x80000000);
 	
-	DPRINTF("mlen=%d pktintf=%d\n", mlen, p->txpkt_intf);
+	DPRINTF("mlen=%d txpkt_intf=%d tx_chan=%d\n", mlen, p->txpkt_intf, p->tx_chan);
 	/*
 	 * XXX handle checksum, TSO, and VLAN here
 	 *	 
@@ -1259,7 +1258,7 @@ t3_encap(struct port_info *p, struct mbuf **m)
 			else
 				m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[2]);
 
-			m_freem(m0);
+			*free = 1;
 			flits = (mlen + 7) / 8 + 2;
 			cpl->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
 					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
@@ -2541,7 +2540,7 @@ t3b_intr(void *data)
 
 	if (__predict_false(map & F_ERRINTR))
 		taskqueue_enqueue(adap->tq, &adap->slow_intr_task);
-	
+
 	mtx_lock(&q0->lock);
 	for_each_port(adap, i)
 	    if (map & (1 << i))
@@ -2561,7 +2560,7 @@ t3_intr_msi(void *data)
 	adapter_t *adap = data;
 	struct sge_rspq *q0 = &adap->sge.qs[0].rspq;
 	int i, new_packets = 0;
-	
+
 	mtx_lock(&q0->lock);
 
 	for_each_port(adap, i)

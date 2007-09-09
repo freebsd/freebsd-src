@@ -28,7 +28,7 @@ POSSIBILITY OF SUCH DAMAGE.
 ***************************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+_FBSDID("$FreeBSD$");
 
 
 #ifdef CONFIG_DEFINED
@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #undef msleep
 #define msleep t3_os_sleep
-
 
 /**
  *	t3_wait_op_done_val - wait until an operation is completed
@@ -515,7 +514,7 @@ struct t3_vpd {
 	u8  vpdr_len[2];
 	VPD_ENTRY(pn, 16);                     /* part number */
 	VPD_ENTRY(ec, 16);                     /* EC level */
-	VPD_ENTRY(sn, 16);                     /* serial number */
+	VPD_ENTRY(sn, SERNUM_LEN);             /* serial number */
 	VPD_ENTRY(na, 12);                     /* MAC address base */
 	VPD_ENTRY(cclk, 6);                    /* core clock */
 	VPD_ENTRY(mclk, 6);                    /* mem clock */
@@ -658,6 +657,7 @@ static int get_vpd_params(adapter_t *adapter, struct vpd_params *p)
 	p->uclk = simple_strtoul(vpd.uclk_data, NULL, 10);
 	p->mdc = simple_strtoul(vpd.mdc_data, NULL, 10);
 	p->mem_timing = simple_strtoul(vpd.mt_data, NULL, 10);
+	memcpy(p->sn, vpd.sn_data, SERNUM_LEN);
 
 	/* Old eeproms didn't have port information */
 	if (adapter->params.rev == 0 && !vpd.port0_data[0]) {
@@ -908,7 +908,7 @@ int t3_check_tpsram_version(adapter_t *adapter)
 	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
 		return 0;
 
-	CH_ERR(adapter, "found wrong TP version (%u.%u), "
+	CH_WARN(adapter, "found wrong TP version (%u.%u), "
 	       "driver needs version %d.%d\n", major, minor,
 	       TP_VERSION_MAJOR, TP_VERSION_MINOR);
 	return -EINVAL;
@@ -984,9 +984,9 @@ int t3_check_fw_version(adapter_t *adapter)
 	    minor == FW_VERSION_MINOR)
 		return 0;
 
-	CH_ERR(adapter, "found wrong FW version (%u.%u), "
-	    "driver needs version %d.%d\n", major, minor,
-	    FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	CH_WARN(adapter, "found wrong FW version (%u.%u), "
+	       "driver needs version %d.%d\n", major, minor,
+	       FW_VERSION_MAJOR, FW_VERSION_MINOR);
 	return -EINVAL;
 }
 
@@ -1072,7 +1072,6 @@ out:
 
 /**
  *	t3_cim_ctl_blk_read - read a block from CIM control region
- *
  *	@adap: the adapter
  *	@addr: the start address within the CIM control region
  *	@n: number of words to read
@@ -1347,6 +1346,10 @@ static void pcie_intr_handler(adapter_t *adapter)
 		{ V_BISTERR(M_BISTERR), "PCI BIST error", -1, 1 },
 		{ 0 }
 	};
+
+	if (t3_read_reg(adapter, A_PCIE_INT_CAUSE) & F_PEXERR)
+		CH_ALERT(adapter, "PEX error code 0x%x\n",
+			 t3_read_reg(adapter, A_PCIE_PEX_ERR));
 
 	if (t3_handle_intr_status(adapter, A_PCIE_INT_CAUSE, PCIE_INTR_MASK,
 				  pcie_intr_info, adapter->irq_stats))
@@ -1646,8 +1649,13 @@ int t3_phy_intr_handler(adapter_t *adapter)
 	return 0;
 }
 
-/*
- * T3 slow path (non-data) interrupt handler.
+/**
+ *	t3_slow_intr_handler - control path interrupt handler
+ *	@adapter: the adapter
+ *
+ *	T3 interrupt handler for non-data interrupt events, e.g., errors.
+ *	The designation 'slow' is because it involves register reads, while
+ *	data interrupts typically don't involve any MMIOs.
  */
 int t3_slow_intr_handler(adapter_t *adapter)
 {
@@ -1803,6 +1811,8 @@ void t3_intr_clear(adapter_t *adapter)
 	for (i = 0; i < ARRAY_SIZE(cause_reg_addr); ++i)
 		t3_write_reg(adapter, cause_reg_addr[i], 0xffffffff);
 
+	if (is_pcie(adapter))
+		t3_write_reg(adapter, A_PCIE_PEX_ERR, 0xffffffff);
 	t3_write_reg(adapter, A_PL_INT_CAUSE0, 0xffffffff);
 	(void) t3_read_reg(adapter, A_PL_INT_CAUSE0);          /* flush */
 }
@@ -1855,6 +1865,8 @@ void t3_port_intr_clear(adapter_t *adapter, int idx)
 	pi->phy.ops->intr_clear(&pi->phy);
 }
 
+#define SG_CONTEXT_CMD_ATTEMPTS 100
+
 /**
  * 	t3_sge_write_context - write an SGE context
  * 	@adapter: the adapter
@@ -1874,7 +1886,7 @@ static int t3_sge_write_context(adapter_t *adapter, unsigned int id,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | type | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2030,7 +2042,8 @@ int t3_sge_init_cqcntxt(adapter_t *adapter, unsigned int id, u64 base_addr,
 	base_addr >>= 32;
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA2,
 		     V_CQ_BASE_HI((u32)base_addr) | V_CQ_RSPQ(rspq) |
-		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode));
+		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode) |
+		     V_CQ_ERR(ovfl_mode));
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA3, V_CQ_CREDITS(credits) |
 		     V_CQ_CREDIT_THRES(credit_thres));
 	return t3_sge_write_context(adapter, id, F_CQ);
@@ -2058,7 +2071,7 @@ int t3_sge_enable_ecntxt(adapter_t *adapter, unsigned int id, int enable)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_EGRESS | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2082,7 +2095,7 @@ int t3_sge_disable_fl(adapter_t *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_FREELIST | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2106,7 +2119,7 @@ int t3_sge_disable_rspcntxt(adapter_t *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_RESPONSEQ | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2130,7 +2143,7 @@ int t3_sge_disable_cqcntxt(adapter_t *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_CQ | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2138,10 +2151,14 @@ int t3_sge_disable_cqcntxt(adapter_t *adapter, unsigned int id)
  *	@adapter: the adapter
  *	@id: the context id
  *	@op: the operation to perform
+ *	@credits: credits to return to the CQ
  *
  *	Perform the selected operation on an SGE completion queue context.
  *	The caller is responsible for ensuring only one context operation
  *	occurs at a time.
+ *
+ *	For most operations the function returns the current HW position in
+ *	the completion queue.
  */
 int t3_sge_cqcntxt_op(adapter_t *adapter, unsigned int id, unsigned int op,
 		      unsigned int credits)
@@ -2155,7 +2172,7 @@ int t3_sge_cqcntxt_op(adapter_t *adapter, unsigned int id, unsigned int op,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD, V_CONTEXT_CMD_OPCODE(op) |
 		     V_CONTEXT(id) | F_CQ);
 	if (t3_wait_op_done_val(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-				0, 5, 1, &val))
+				0, SG_CONTEXT_CMD_ATTEMPTS, 1, &val))
 		return -EIO;
 
 	if (op >= 2 && op < 7) {
@@ -2165,7 +2182,8 @@ int t3_sge_cqcntxt_op(adapter_t *adapter, unsigned int id, unsigned int op,
 		t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 			     V_CONTEXT_CMD_OPCODE(0) | F_CQ | V_CONTEXT(id));
 		if (t3_wait_op_done(adapter, A_SG_CONTEXT_CMD,
-				    F_CONTEXT_CMD_BUSY, 0, 5, 1))
+				    F_CONTEXT_CMD_BUSY, 0,
+				    SG_CONTEXT_CMD_ATTEMPTS, 1))
 			return -EIO;
 		return G_CQ_INDEX(t3_read_reg(adapter, A_SG_CONTEXT_DATA0));
 	}
@@ -2191,7 +2209,7 @@ static int t3_sge_read_context(unsigned int type, adapter_t *adapter,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(0) | type | V_CONTEXT(id));
 	if (t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY, 0,
-			    5, 1))
+			    SG_CONTEXT_CMD_ATTEMPTS, 1))
 		return -EIO;
 	data[0] = t3_read_reg(adapter, A_SG_CONTEXT_DATA0);
 	data[1] = t3_read_reg(adapter, A_SG_CONTEXT_DATA1);
@@ -2354,6 +2372,15 @@ void t3_tp_set_offload_mode(adapter_t *adap, int enable)
 				 V_NICMODE(!enable));
 }
 
+/**
+ *	tp_wr_bits_indirect - set/clear bits in an indirect TP register
+ *	@adap: the adapter
+ *	@addr: the indirect TP register address
+ *	@mask: specifies the field within the register to modify
+ *	@val: new value for the field
+ *
+ *	Sets a field of an indirect TP register to the given value.
+ */
 static void tp_wr_bits_indirect(adapter_t *adap, unsigned int addr,
 				unsigned int mask, unsigned int val)
 {
@@ -2397,7 +2424,7 @@ static inline unsigned int pm_num_pages(unsigned int mem_size,
 	t3_write_reg((adap), A_ ## reg, (start)); \
 	start += size
 
-/*
+/**
  *	partition_mem - partition memory and configure TP memory settings
  *	@adap: the adapter
  *	@p: the TP parameters
@@ -2646,8 +2673,12 @@ static void __devinit init_mtus(unsigned short mtus[])
 	mtus[15] = 9600;
 }
 
-/*
- * Initial congestion control parameters.
+/**
+ *	init_cong_ctrl - initialize congestion control parameters
+ *	@a: the alpha values for congestion control
+ *	@b: the beta values for congestion control
+ *
+ *	Initialize the congestion control parameters.
  */
 static void __devinit init_cong_ctrl(unsigned short *a, unsigned short *b)
 {
@@ -2693,7 +2724,7 @@ static void __devinit init_cong_ctrl(unsigned short *a, unsigned short *b)
  *	t3_load_mtus - write the MTU and congestion control HW tables
  *	@adap: the adapter
  *	@mtus: the unrestricted values for the MTU table
- *	@alphs: the values for the congestion control alpha parameter
+ *	@alpha: the values for the congestion control alpha parameter
  *	@beta: the values for the congestion control beta parameter
  *	@mtu_cap: the maximum permitted effective MTU
  *
@@ -2860,7 +2891,7 @@ static void ulp_config(adapter_t *adap, const struct tp_params *p)
 int t3_set_proto_sram(adapter_t *adap, const u8 *data)
 {
 	int i;
-	u32 *buf = (u32 *)(uintptr_t)data;
+	const u32 *buf = (const u32 *)data;
 
 	for (i = 0; i < PROTO_SRAM_LINES; i++) {
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, cpu_to_be32(*buf++));
@@ -2877,6 +2908,16 @@ int t3_set_proto_sram(adapter_t *adap, const u8 *data)
 }
 #endif
 
+/**
+ *	t3_config_trace_filter - configure one of the tracing filters
+ *	@adapter: the adapter
+ *	@tp: the desired trace filter parameters
+ *	@filter_index: which filter to configure
+ *	@invert: if set non-matching packets are traced instead of matching ones
+ *	@enable: whether to enable or disable the filter
+ *
+ *	Configures one of the tracing filters available in HW.
+ */
 void t3_config_trace_filter(adapter_t *adapter, const struct trace_params *tp,
 			    int filter_index, int invert, int enable)
 {
@@ -3022,6 +3063,13 @@ void t3_get_tx_sched(adapter_t *adap, unsigned int sched, unsigned int *kbps,
 	}
 }
 
+/**
+ *	tp_init - configure TP
+ *	@adap: the adapter
+ *	@p: TP configuration parameters
+ *
+ *	Initializes the TP HW module.
+ */
 static int tp_init(adapter_t *adap, const struct tp_params *p)
 {
 	int busy = 0;
@@ -3043,6 +3091,13 @@ static int tp_init(adapter_t *adap, const struct tp_params *p)
 	return busy;
 }
 
+/**
+ *	t3_mps_set_active_ports - configure port failover
+ *	@adap: the adapter
+ *	@port_mask: bitmap of active ports
+ *
+ *	Sets the active ports according to the supplied bitmap.
+ */
 int t3_mps_set_active_ports(adapter_t *adap, unsigned int port_mask)
 {
 	if (port_mask & ~((1 << adap->params.nports) - 1))
@@ -3052,9 +3107,13 @@ int t3_mps_set_active_ports(adapter_t *adap, unsigned int port_mask)
 	return 0;
 }
 
-/*
- * Perform the bits of HW initialization that are dependent on the Tx
- * channels being used.
+/**
+ * 	chan_init_hw - channel-dependent HW initialization
+ *	@adap: the adapter
+ *	@chan_map: bitmap of Tx channels being used
+ *
+ *	Perform the bits of HW initialization that are dependent on the Tx
+ *	channels being used.
  */
 static void chan_init_hw(adapter_t *adap, unsigned int chan_map)
 {
@@ -3068,6 +3127,11 @@ static void chan_init_hw(adapter_t *adap, unsigned int chan_map)
 					      F_TPTXPORT1EN | F_PORT1ACTIVE));
 		t3_write_reg(adap, A_PM1_TX_CFG,
 			     chan_map == 1 ? 0xffffffff : 0);
+		if (chan_map == 2)
+			t3_write_reg(adap, A_TP_TX_MOD_QUEUE_REQ_MAP,
+				     V_TX_MOD_QUEUE_REQ_MAP(0xff));
+		t3_write_reg(adap, A_TP_TX_MOD_QUE_TABLE, (12 << 16) | 0xd9c8);
+		t3_write_reg(adap, A_TP_TX_MOD_QUE_TABLE, (13 << 16) | 0xfbea);
 	} else {                                             /* two channels */
 		t3_set_reg_field(adap, A_ULPRX_CTL, 0, F_ROUND_ROBIN);
 		t3_set_reg_field(adap, A_ULPTX_CONFIG, 0, F_CFG_RR_ARB);
@@ -3083,6 +3147,8 @@ static void chan_init_hw(adapter_t *adap, unsigned int chan_map)
 		for (i = 0; i < 16; i++)
 			t3_write_reg(adap, A_TP_TX_MOD_QUE_TABLE,
 				     (i << 16) | 0x1010);
+		t3_write_reg(adap, A_TP_TX_MOD_QUE_TABLE, (12 << 16) | 0xba98);
+		t3_write_reg(adap, A_TP_TX_MOD_QUE_TABLE, (13 << 16) | 0xfedc);
 	}
 }
 
@@ -3320,13 +3386,18 @@ static void config_pcie(adapter_t *adap)
 	t3_set_reg_field(adap, A_PCIE_CFG, F_PCIE_CLIDECEN, F_PCIE_CLIDECEN);
 }
 
-/*
- * Initialize and configure T3 HW modules.  This performs the
- * initialization steps that need to be done once after a card is reset.
- * MAC and PHY initialization is handled separarely whenever a port is enabled.
+/**
+ * 	t3_init_hw - initialize and configure T3 HW modules
+ * 	@adapter: the adapter
+ * 	@fw_params: initial parameters to pass to firmware (optional)
  *
- * fw_params are passed to FW and their value is platform dependent.  Only the
- * top 8 bits are available for use, the rest must be 0.
+ *	Initialize and configure T3 HW modules.  This performs the
+ *	initialization steps that need to be done once after a card is reset.
+ *	MAC and PHY initialization is handled separarely whenever a port is
+ *	enabled.
+ *
+ *	@fw_params are passed to FW and their value is platform dependent.
+ *	Only the top 8 bits are available for use, the rest must be 0.
  */
 int t3_init_hw(adapter_t *adapter, u32 fw_params)
 {
@@ -3370,6 +3441,8 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
 
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
+	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
+	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
 
@@ -3433,7 +3506,7 @@ static void __devinit get_pci_mode(adapter_t *adapter, struct pci_params *p)
 /**
  *	init_link_config - initialize a link's SW state
  *	@lc: structure holding the link state
- *	@ai: information about the current card
+ *	@caps: link capabilities
  *
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/duplex/flow-control/autonegotiation
@@ -3508,6 +3581,15 @@ void mac_prep(struct cmac *mac, adapter_t *adapter, int index)
 	}
 }
 
+/**
+ *	early_hw_init - HW initialization done at card detection time
+ *	@adapter: the adapter
+ *	@ai: contains information about the adapter type and properties
+ *
+ *	Perfoms the part of HW initialization that is done early on when the
+ *	driver first detecs the card.  Most of the HW state is initialized
+ *	lazily later on when a port or an offload function are first used.
+ */
 void early_hw_init(adapter_t *adapter, const struct adapter_info *ai)
 {
 	u32 val = V_PORTSPEED(is_10G(adapter) || adapter->params.nports > 2 ?
@@ -3534,9 +3616,11 @@ void early_hw_init(adapter_t *adapter, const struct adapter_info *ai)
 	(void) t3_read_reg(adapter, A_XGM_PORT_CFG);
 }
 
-/*
- * Reset the adapter.  PCIe cards lose their config space during reset, PCI-X
- * ones don't.
+/**
+ *	t3_reset_adapter - reset the adapter
+ *	@adapter: the adapter
+ *
+ * 	Reset the adapter.
  */
 static int t3_reset_adapter(adapter_t *adapter)
 {
@@ -3567,10 +3651,14 @@ static int t3_reset_adapter(adapter_t *adapter)
 	return 0;
 }
 
-/*
- * Initialize adapter SW state for the various HW modules, set initial values
- * for some adapter tunables, take PHYs out of reset, and initialize the MDIO
- * interface.
+/**
+ *	t3_prep_adapter - prepare SW and HW for operation
+ *	@adapter: the adapter
+ *	@ai: contains information about the adapter type and properties
+ *
+ *	Initialize adapter SW state for the various HW modules, set initial
+ *	values for some adapter tunables, take PHYs out of reset, and
+ *	initialize the MDIO interface.
  */
 int __devinit t3_prep_adapter(adapter_t *adapter,
 			      const struct adapter_info *ai, int reset)
