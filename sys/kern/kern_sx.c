@@ -128,6 +128,13 @@ sx_sysinit(void *arg)
 }
 
 void
+sx_init(struct sx *sx, const char *description)
+{
+
+	sx_init_flags(sx, description, 0);
+}
+
+void
 sx_init_flags(struct sx *sx, const char *description, int opts)
 {
 	struct lock_object *lock;

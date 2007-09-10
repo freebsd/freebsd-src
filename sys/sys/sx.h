@@ -96,7 +96,7 @@
  * of the public interface and are wrappered with a macro.
  */
 void	sx_sysinit(void *arg);
-#define	sx_init(sx, desc)	sx_init_flags((sx), (desc), 0)
+void	sx_init(struct sx *sx, const char *description);
 void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
 int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
