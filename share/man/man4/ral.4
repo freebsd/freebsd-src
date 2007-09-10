@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2006
+.Dd September 10, 2007
 .Os
 .Dt RAL 4
 .Sh NAME
@@ -66,95 +66,96 @@ transmission retries.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following adapters:
+driver supports PCI/CardBus wireless adapters based on the Ralink Technology
+RT2500, RT2501, and RT2600 chipsets, including:
 .Pp
 .Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "RT2561S" "CardBus"
 .It Em Card Ta Em MAC/BBP Ta Em Bus
-.It Li "A-Link WL54H" Ta RT2560 Ta PCI
-.It Li "A-Link WL54PC" Ta RT2560 Ta CardBus
-.It Li "AirLink101 AWLC5025" Ta RT2661 Ta CardBus
-.It Li "AirLink101 AWLH5025" Ta RT2661 Ta PCI
-.It Li "Amigo AWI-914W" Ta RT2560 Ta CardBus
-.It Li "Amigo AWI-922W" Ta RT2560 Ta mini-PCI
-.It Li "Amigo AWI-926W" Ta RT2560 Ta PCI
-.It Li "AMIT WL531C" Ta RT2560 Ta CardBus
-.It Li "AMIT WL531P" Ta RT2560 Ta PCI
-.It Li "AOpen AOI-831" Ta RT2560 Ta PCI
-.It Li "ASUS WL-107G" Ta RT2560 Ta CardBus
-.It Li "ASUS WL-130g" Ta RT2560 Ta PCI
-.It Li "Atlantis Land A02-PCI-W54" Ta RT2560 Ta PCI
-.It Li "Atlantis Land A02-PCM-W54" Ta RT2560 Ta CardBus
-.It Li "Belkin F5D7000 v3" Ta RT2560 Ta PCI
-.It Li "Belkin F5D7010 v2" Ta RT2560 Ta CardBus
-.It Li "Billionton MIWLGRL" Ta RT2560 Ta mini-PCI
-.It Li "Canyon CN-WF511" Ta RT2560 Ta PCI
-.It Li "Canyon CN-WF513" Ta RT2560 Ta CardBus
-.It Li "CC&C WL-2102" Ta RT2560 Ta CardBus
-.It Li "CNet CWC-854" Ta RT2560 Ta CardBus
-.It Li "CNet CWP-854" Ta RT2560 Ta PCI
-.It Li "Compex WL54G" Ta RT2560 Ta CardBus
-.It Li "Compex WLP54G" Ta RT2560 Ta PCI
-.It Li "Conceptronic C54RC" Ta RT2560 Ta CardBus
-.It Li "Conceptronic C54Ri" Ta RT2560 Ta PCI
-.It Li "Digitus DN-7001G-RA" Ta RT2560 Ta CardBus
-.It Li "Digitus DN-7006G-RA" Ta RT2560 Ta PCI
-.It Li "E-Tech WGPC02" Ta RT2560 Ta CardBus
-.It Li "E-Tech WGPI02" Ta RT2560 Ta PCI
-.It Li "Edimax EW-7108PCg" Ta RT2560 Ta CardBus
-.It Li "Edimax EW-7128g" Ta RT2560 Ta PCI
-.It Li "Eminent EM3036" Ta RT2560 Ta CardBus
-.It Li "Eminent EM3037" Ta RT2560 Ta PCI
-.It Li "Encore ENLWI-G-RLAM" Ta RT2560 Ta PCI
-.It Li "Encore ENPWI-G-RLAM" Ta RT2560 Ta CardBus
-.It Li "Fiberline WL-400P" Ta RT2560 Ta PCI
-.It Li "Fibreline WL-400X" Ta RT2560 Ta CardBus
-.It Li "Gigabyte GN-WI01GS" Ta RT2561S Ta mini-PCI
-.It Li "Gigabyte GN-WIKG" Ta RT2560 Ta mini-PCI
-.It Li "Gigabyte GN-WMKG" Ta RT2560 Ta CardBus
-.It Li "Gigabyte GN-WP01GS" Ta RT2561S Ta PCI
-.It Li "Gigabyte GN-WPKG" Ta RT2560 Ta PCI
-.It Li "Hawking HWC54GR" Ta RT2560 Ta CardBus
-.It Li "Hawking HWP54GR" Ta RT2560 Ta PCI
-.It Li "iNexQ CR054g-009 (R03)" Ta RT2560 Ta PCI
-.It Li "JAHT WN-4054P" Ta RT2560 Ta CardBus
-.It Li "JAHT WN-4054PCI" Ta RT2560 Ta PCI
-.It Li "LevelOne WNC-0301 v2" Ta RT2560 Ta PCI
-.It Li "LevelOne WPC-0301 v2" Ta RT2560 Ta CardBus
-.It Li "Linksys WMP54G v4" Ta RT2560 Ta PCI
-.It Li "Micronet SP906GK" Ta RT2560 Ta PCI
-.It Li "Micronet SP908GK V3" Ta RT2560 Ta CardBus
-.It Li "Minitar MN54GCB-R" Ta RT2560 Ta CardBus
-.It Li "Minitar MN54GPC-R" Ta RT2560 Ta PCI
-.It Li "MSI CB54G2" Ta RT2560 Ta CardBus
-.It Li "MSI MP54G2" Ta RT2560 Ta mini-PCI
-.It Li "MSI PC54G2" Ta RT2560 Ta PCI
-.It Li "OvisLink EVO-W54PCI" Ta RT2560 Ta PCI
-.It Li "PheeNet HWL-PCIG/RA" Ta RT2560 Ta PCI
-.It Li "Pro-Nets CB80211G" Ta RT2560 Ta CardBus
-.It Li "Pro-Nets PC80211G" Ta RT2560 Ta PCI
-.It Li "Repotec RP-WB7108" Ta RT2560 Ta CardBus
-.It Li "Repotec RP-WP0854" Ta RT2560 Ta PCI
-.It Li "SATech SN-54C" Ta RT2560 Ta CardBus
-.It Li "SATech SN-54P" Ta RT2560 Ta PCI
-.It Li "Sitecom WL-112" Ta RT2560 Ta CardBus
-.It Li "Sitecom WL-115" Ta RT2560 Ta PCI
-.It Li "SMC SMCWCB-GM" Ta RT2661 Ta CardBus
-.It Li "SMC SMCWPCI-GM" Ta RT2661 Ta PCI
-.It Li "SparkLAN WL-685R" Ta RT2560 Ta CardBus
-.It Li "Surecom EP-9321-g" Ta RT2560 Ta PCI
-.It Li "Surecom EP-9321-g1" Ta RT2560 Ta PCI
-.It Li "Surecom EP-9428-g" Ta RT2560 Ta CardBus
-.It Li "Sweex LC500050" Ta RT2560 Ta CardBus
-.It Li "Sweex LC700030" Ta RT2560 Ta PCI
-.It Li "TekComm NE-9321-g" Ta RT2560 Ta PCI
-.It Li "TekComm NE-9428-g" Ta RT2560 Ta CardBus
-.It Li "Unex CR054g-R02" Ta RT2560 Ta PCI
-.It Li "Unex MR054g-R02" Ta RT2560 Ta CardBus
-.It Li "Zinwell ZWX-G160" Ta RT2560 Ta CardBus
-.It Li "Zinwell ZWX-G360" Ta RT2560 Ta mini-PCI
-.It Li "Zinwell ZWX-G361" Ta RT2560 Ta PCI
-.It Li "Zonet ZEW1500" Ta RT2560 Ta CardBus
-.It Li "Zonet ZEW1600" Ta RT2560 Ta PCI
+.It "A-Link WL54H" Ta RT2560 Ta PCI
+.It "A-Link WL54PC" Ta RT2560 Ta CardBus
+.It "AirLink101 AWLC5025" Ta RT2661 Ta CardBus
+.It "AirLink101 AWLH5025" Ta RT2661 Ta PCI
+.It "Amigo AWI-914W" Ta RT2560 Ta CardBus
+.It "Amigo AWI-922W" Ta RT2560 Ta mini-PCI
+.It "Amigo AWI-926W" Ta RT2560 Ta PCI
+.It "AMIT WL531C" Ta RT2560 Ta CardBus
+.It "AMIT WL531P" Ta RT2560 Ta PCI
+.It "AOpen AOI-831" Ta RT2560 Ta PCI
+.It "ASUS WL-107G" Ta RT2560 Ta CardBus
+.It "ASUS WL-130g" Ta RT2560 Ta PCI
+.It "Atlantis Land A02-PCI-W54" Ta RT2560 Ta PCI
+.It "Atlantis Land A02-PCM-W54" Ta RT2560 Ta CardBus
+.It "Belkin F5D7000 v3" Ta RT2560 Ta PCI
+.It "Belkin F5D7010 v2" Ta RT2560 Ta CardBus
+.It "Billionton MIWLGRL" Ta RT2560 Ta mini-PCI
+.It "Canyon CN-WF511" Ta RT2560 Ta PCI
+.It "Canyon CN-WF513" Ta RT2560 Ta CardBus
+.It "CC&C WL-2102" Ta RT2560 Ta CardBus
+.It "CNet CWC-854" Ta RT2560 Ta CardBus
+.It "CNet CWP-854" Ta RT2560 Ta PCI
+.It "Compex WL54G" Ta RT2560 Ta CardBus
+.It "Compex WLP54G" Ta RT2560 Ta PCI
+.It "Conceptronic C54RC" Ta RT2560 Ta CardBus
+.It "Conceptronic C54Ri" Ta RT2560 Ta PCI
+.It "Digitus DN-7001G-RA" Ta RT2560 Ta CardBus
+.It "Digitus DN-7006G-RA" Ta RT2560 Ta PCI
+.It "E-Tech WGPC02" Ta RT2560 Ta CardBus
+.It "E-Tech WGPI02" Ta RT2560 Ta PCI
+.It "Edimax EW-7108PCg" Ta RT2560 Ta CardBus
+.It "Edimax EW-7128g" Ta RT2560 Ta PCI
+.It "Eminent EM3036" Ta RT2560 Ta CardBus
+.It "Eminent EM3037" Ta RT2560 Ta PCI
+.It "Encore ENLWI-G-RLAM" Ta RT2560 Ta PCI
+.It "Encore ENPWI-G-RLAM" Ta RT2560 Ta CardBus
+.It "Fiberline WL-400P" Ta RT2560 Ta PCI
+.It "Fibreline WL-400X" Ta RT2560 Ta CardBus
+.It "Gigabyte GN-WI01GS" Ta RT2561S Ta mini-PCI
+.It "Gigabyte GN-WIKG" Ta RT2560 Ta mini-PCI
+.It "Gigabyte GN-WMKG" Ta RT2560 Ta CardBus
+.It "Gigabyte GN-WP01GS" Ta RT2561S Ta PCI
+.It "Gigabyte GN-WPKG" Ta RT2560 Ta PCI
+.It "Hawking HWC54GR" Ta RT2560 Ta CardBus
+.It "Hawking HWP54GR" Ta RT2560 Ta PCI
+.It "iNexQ CR054g-009 (R03)" Ta RT2560 Ta PCI
+.It "JAHT WN-4054P" Ta RT2560 Ta CardBus
+.It "JAHT WN-4054PCI" Ta RT2560 Ta PCI
+.It "LevelOne WNC-0301 v2" Ta RT2560 Ta PCI
+.It "LevelOne WPC-0301 v2" Ta RT2560 Ta CardBus
+.It "Linksys WMP54G v4" Ta RT2560 Ta PCI
+.It "Micronet SP906GK" Ta RT2560 Ta PCI
+.It "Micronet SP908GK V3" Ta RT2560 Ta CardBus
+.It "Minitar MN54GCB-R" Ta RT2560 Ta CardBus
+.It "Minitar MN54GPC-R" Ta RT2560 Ta PCI
+.It "MSI CB54G2" Ta RT2560 Ta CardBus
+.It "MSI MP54G2" Ta RT2560 Ta mini-PCI
+.It "MSI PC54G2" Ta RT2560 Ta PCI
+.It "OvisLink EVO-W54PCI" Ta RT2560 Ta PCI
+.It "PheeNet HWL-PCIG/RA" Ta RT2560 Ta PCI
+.It "Pro-Nets CB80211G" Ta RT2560 Ta CardBus
+.It "Pro-Nets PC80211G" Ta RT2560 Ta PCI
+.It "Repotec RP-WB7108" Ta RT2560 Ta CardBus
+.It "Repotec RP-WP0854" Ta RT2560 Ta PCI
+.It "SATech SN-54C" Ta RT2560 Ta CardBus
+.It "SATech SN-54P" Ta RT2560 Ta PCI
+.It "Sitecom WL-112" Ta RT2560 Ta CardBus
+.It "Sitecom WL-115" Ta RT2560 Ta PCI
+.It "SMC SMCWCB-GM" Ta RT2661 Ta CardBus
+.It "SMC SMCWPCI-GM" Ta RT2661 Ta PCI
+.It "SparkLAN WL-685R" Ta RT2560 Ta CardBus
+.It "Surecom EP-9321-g" Ta RT2560 Ta PCI
+.It "Surecom EP-9321-g1" Ta RT2560 Ta PCI
+.It "Surecom EP-9428-g" Ta RT2560 Ta CardBus
+.It "Sweex LC500050" Ta RT2560 Ta CardBus
+.It "Sweex LC700030" Ta RT2560 Ta PCI
+.It "TekComm NE-9321-g" Ta RT2560 Ta PCI
+.It "TekComm NE-9428-g" Ta RT2560 Ta CardBus
+.It "Unex CR054g-R02" Ta RT2560 Ta PCI
+.It "Unex MR054g-R02" Ta RT2560 Ta CardBus
+.It "Zinwell ZWX-G160" Ta RT2560 Ta CardBus
+.It "Zinwell ZWX-G360" Ta RT2560 Ta mini-PCI
+.It "Zinwell ZWX-G361" Ta RT2560 Ta PCI
+.It "Zonet ZEW1500" Ta RT2560 Ta CardBus
+.It "Zonet ZEW1600" Ta RT2560 Ta PCI
 .El
 .Pp
 An up to date list can be found at
