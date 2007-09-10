@@ -949,6 +949,39 @@ zfs_freevfs(vfs_t *vfsp)
 	atomic_add_32(&zfs_active_fs_count, -1);
 }
 
+#ifdef __i386__
+static int desiredvnodes_backup;
+#endif
+
+static void
+zfs_vnodes_adjust(void)
+{
+#ifdef __i386__
+	int val;
+
+	desiredvnodes_backup = desiredvnodes;
+
+	/*
+	 * We calculate newdesiredvnodes the same way it is done in
+	 * vntblinit(). If it is equal to desiredvnodes, it means that
+	 * it wasn't tuned by the administrator and we can tune it down.
+	 */
+	val = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
+	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
+	if (desiredvnodes == val)
+		desiredvnodes = (3 * desiredvnodes) / 4;
+#endif
+}
+
+static void
+zfs_vnodes_adjust_back(void)
+{
+
+#ifdef __i386__
+	desiredvnodes = desiredvnodes_backup;
+#endif
+}
+
 void
 zfs_init(void)
 {
@@ -964,6 +997,13 @@ zfs_init(void)
 	 * Initialize znode cache, vnode ops, etc...
 	 */
 	zfs_znode_init();
+
+	/*
+	 * Reduce number of vnodes. Originally number of vnodes is calculated
+	 * with UFS inode in mind. We reduce it here, because it's too big for
+	 * ZFS/i386.
+	 */
+	zfs_vnodes_adjust();
 }
 
 void
@@ -971,6 +1011,7 @@ zfs_fini(void)
 {
 	zfsctl_fini();
 	zfs_znode_fini();
+	zfs_vnodes_adjust_back();
 }
 
 int
