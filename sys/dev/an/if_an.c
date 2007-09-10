@@ -1862,6 +1862,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq		*ifr;
 	struct thread		*td = curthread;
 	struct ieee80211req	*ireq;
+	struct ieee80211_channel	ch;
 	u_int8_t		tmpstr[IEEE80211_NWID_LEN*2];
 	u_int8_t		*tmpptr;
 	struct an_ltv_genconfig	*config;
@@ -2216,6 +2217,22 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				break;
 			}
 			ireq->i_val = status->an_cur_channel;
+			break;
+		 case IEEE80211_IOC_CURCHAN:
+		 	sc->areq.an_type = AN_RID_STATUS;
+		 	if (an_read_record(sc,
+		 	    (struct an_ltv_gen *)&sc->areq)) {
+				error = EINVAL;
+				break;
+			}
+			bzero(&ch, sizeof(ch));
+			ch.ic_freq = ieee80211_ieee2mhz(status->an_cur_channel,
+			    IEEE80211_CHAN_B);
+			ch.ic_flags = IEEE80211_CHAN_B;
+			ch.ic_ieee = status->an_cur_channel;
+			AN_UNLOCK(sc);
+			error = copyout(&ch, ireq->i_data, sizeof(ch));
+			AN_LOCK(sc);
 			break;
 		case IEEE80211_IOC_POWERSAVE:
 			sc->areq.an_type = AN_RID_ACTUALCFG;
