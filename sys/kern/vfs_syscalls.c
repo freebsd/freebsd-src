@@ -1693,7 +1693,7 @@ restart:
 			goto restart;
 		}
 #ifdef MAC
-		error = mac_check_vnode_delete(td->td_ucred, nd.ni_dvp, vp,
+		error = mac_check_vnode_unlink(td->td_ucred, nd.ni_dvp, vp,
 		    &nd.ni_cnd);
 		if (error)
 			goto out;
@@ -3550,7 +3550,7 @@ restart:
 		goto out;
 	}
 #ifdef MAC
-	error = mac_check_vnode_delete(td->td_ucred, nd.ni_dvp, vp,
+	error = mac_check_vnode_unlink(td->td_ucred, nd.ni_dvp, vp,
 	    &nd.ni_cnd);
 	if (error)
 		goto out;
