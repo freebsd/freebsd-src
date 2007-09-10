@@ -448,19 +448,6 @@ findpcb:
 						m->m_pkthdr.rcvif);
 	}
 
-#ifdef IPSEC
-#ifdef INET6
-	if (isipv6 && inp != NULL && ipsec6_in_reject(m, inp)) {
-		ipsec6stat.in_polvio++;
-		goto dropunlock;
-	} else
-#endif /* INET6 */
-	if (inp != NULL && ipsec4_in_reject(m, inp)) {
-		ipsec4stat.in_polvio++;
-		goto dropunlock;
-	}
-#endif /* IPSEC */
-
 	/*
 	 * If the INPCB does not exist then all data in the incoming
 	 * segment is discarded and an appropriate RST is sent back.
@@ -488,6 +475,19 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_LOCK(inp);
+
+#ifdef IPSEC
+#ifdef INET6
+	if (isipv6 && ipsec6_in_reject(m, inp)) {
+		ipsec6stat.in_polvio++;
+		goto dropunlock;
+	} else
+#endif /* INET6 */
+	if (ipsec4_in_reject(m, inp) != 0) {
+		ipsec4stat.in_polvio++;
+		goto dropunlock;
+	}
+#endif /* IPSEC */
 
 	/*
 	 * Check the minimum TTL for socket.
