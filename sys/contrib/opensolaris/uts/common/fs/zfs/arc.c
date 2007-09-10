@@ -1439,7 +1439,7 @@ arc_reclaim_needed(void)
 		return (1);
 #endif
 #else
-	if (kmem_used() > kmem_size() / 2)
+	if (kmem_used() > (kmem_size() * 4) / 5)
 		return (1);
 #endif
 
@@ -2729,7 +2729,7 @@ arc_init(void)
 		arc_c_max = (arc_c * 8) - (1<<30);
 	else
 		arc_c_max = arc_c_min;
-	arc_c_max = MAX(arc_c * 4, arc_c_max);
+	arc_c_max = MAX(arc_c * 6, arc_c_max);
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
