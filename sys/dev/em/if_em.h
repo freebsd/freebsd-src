@@ -181,7 +181,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_SMARTSPEED_DOWNSHIFT         3
 #define EM_SMARTSPEED_MAX               15
 #define EM_MAX_INTR			10
-#define EM_TSO_SEG_SIZE			4096	/* Max dma seg size */
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
