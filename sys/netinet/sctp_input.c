@@ -2513,11 +2513,11 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_TCB_UNLOCK((*stcb));
 			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK((*stcb));
-			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
 #endif
 			soisconnected(so);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+			SCTP_TCB_LOCK((*stcb));
+			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
 			return (m);

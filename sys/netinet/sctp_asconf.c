@@ -1026,13 +1026,12 @@ void
 sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 {
 	int error;
-	struct sctp_tmit_chunk *chk;
+	struct sctp_tmit_chunk *debug_chk;	/* for debug */
 
-	//for debug
-		if (dstnet->dest_state & SCTP_ADDR_UNCONFIRMED) {
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: specified destination is UNCONFIRMED\n");
-			return;
-		}
+	if (dstnet->dest_state & SCTP_ADDR_UNCONFIRMED) {
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: specified destination is UNCONFIRMED\n");
+		return;
+	}
 	if (stcb->asoc.deleted_primary == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: Funny, old primary is not stored\n");
 		return;
@@ -1065,10 +1064,10 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 #endif
 		/* Debug code */
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: calling chunk_output, retran_cnt is %d\n", stcb->asoc.sent_queue_retran_cnt);
-		TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
+		TAILQ_FOREACH(debug_chk, &stcb->asoc.sent_queue, sctp_next) {
 			SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: chk->whoTo is ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &chk->whoTo->ro._l_addr.sa);
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "state is %d\n", chk->sent);
+			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &debug_chk->whoTo->ro._l_addr.sa);
+			SCTPDBG(SCTP_DEBUG_ASCONF1, "state is %d\n", debug_chk->sent);
 		}
 		/* end Debug code */
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
