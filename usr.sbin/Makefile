@@ -1,3 +1,4 @@
+NO_I4B=yes
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
@@ -151,6 +152,7 @@ SUBDIR=	ac \
 	rtsold \
 	rwhod \
 	sa \
+	sade \
 	${_sendmail} \
 	setfmac \
 	setpmac \
