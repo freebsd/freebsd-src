@@ -2450,8 +2450,8 @@ em_identify_hardware(struct adapter *adapter)
 
 	/* Make sure our PCI config space has the necessary stuff set */
 	adapter->hw.bus.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((adapter->hw.bus.pci_cmd_word & PCIM_CMD_BUSMASTEREN) == 0 &&
-	    (adapter->hw.bus.pci_cmd_word & PCIM_CMD_MEMEN)) {
+	if (!((adapter->hw.bus.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
+	    (adapter->hw.bus.pci_cmd_word & PCIM_CMD_MEMEN))) {
 		device_printf(dev, "Memory Access and/or Bus Master bits "
 		    "were not set!\n");
 		adapter->hw.bus.pci_cmd_word |=
@@ -2495,7 +2495,7 @@ em_allocate_pci_resources(struct adapter *adapter)
 	adapter->hw.hw_addr = (uint8_t *)&adapter->osdep.mem_bus_space_handle;
 
 	/* Only older adapters use IO mapping */
-	if ((adapter->hw.mac.type > e1000_82542) &&
+	if ((adapter->hw.mac.type > e1000_82543) &&
 	    (adapter->hw.mac.type < e1000_82571)) {
 		/* Figure our where our IO BAR is ? */
 		for (rid = PCIR_BAR(0); rid < PCIR_CIS;) {
@@ -2557,7 +2557,7 @@ em_allocate_pci_resources(struct adapter *adapter)
                 	rid = 1;
                 	adapter->msi = 1;
 		}
-	} else if (adapter->hw.mac.type > e1000_82571) {
+	} else if (adapter->hw.mac.type >= e1000_82571) {
         	val = pci_msi_count(dev);
         	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
                 	rid = 1;
@@ -3698,7 +3698,7 @@ em_tx_adv_ctx_setup(struct adapter *adapter, struct mbuf *mp)
 			break;
 		case IPPROTO_UDP:
 			if (mp->m_pkthdr.csum_flags & CSUM_UDP)
-				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_UDP;
 			break;
 	}
 
