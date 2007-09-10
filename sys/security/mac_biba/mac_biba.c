@@ -2625,30 +2625,6 @@ mac_biba_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-	struct mac_biba *subj, *obj;
-
-	if (!mac_biba_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(dvplabel);
-
-	if (!mac_biba_dominate_effective(subj, obj))
-		return (EACCES);
-
-	obj = SLOT(vplabel);
-
-	if (!mac_biba_dominate_effective(subj, obj))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
 mac_biba_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
@@ -3187,6 +3163,30 @@ mac_biba_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
+mac_biba_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    struct componentname *cnp)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(dvplabel);
+
+	if (!mac_biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	obj = SLOT(vplabel);
+
+	if (!mac_biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_biba_check_vnode_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
@@ -3389,7 +3389,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_chdir = mac_biba_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_biba_check_vnode_chroot,
 	.mpo_check_vnode_create = mac_biba_check_vnode_create,
-	.mpo_check_vnode_delete = mac_biba_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_biba_check_vnode_deleteacl,
 	.mpo_check_vnode_deleteextattr = mac_biba_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = mac_biba_check_vnode_exec,
@@ -3415,6 +3414,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_setowner = mac_biba_check_vnode_setowner,
 	.mpo_check_vnode_setutimes = mac_biba_check_vnode_setutimes,
 	.mpo_check_vnode_stat = mac_biba_check_vnode_stat,
+	.mpo_check_vnode_unlink = mac_biba_check_vnode_unlink,
 	.mpo_check_vnode_write = mac_biba_check_vnode_write,
 	.mpo_associate_nfsd_label = mac_biba_associate_nfsd_label,
 	.mpo_create_mbuf_from_firewall = mac_biba_create_mbuf_from_firewall,

@@ -391,20 +391,6 @@ mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 int
-mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
-    struct componentname *cnp)
-{
-	int error;
-
-	ASSERT_VOP_LOCKED(dvp, "mac_check_vnode_delete");
-	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_delete");
-
-	MAC_CHECK(check_vnode_delete, cred, dvp, dvp->v_label, vp,
-	    vp->v_label, cnp);
-	return (error);
-}
-
-int
 mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     acl_type_t type)
 {
@@ -737,6 +723,20 @@ mac_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 
 	MAC_CHECK(check_vnode_stat, active_cred, file_cred, vp,
 	    vp->v_label);
+	return (error);
+}
+
+int
+mac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
+    struct componentname *cnp)
+{
+	int error;
+
+	ASSERT_VOP_LOCKED(dvp, "mac_check_vnode_unlink");
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_unlink");
+
+	MAC_CHECK(check_vnode_unlink, cred, dvp, dvp->v_label, vp,
+	    vp->v_label, cnp);
 	return (error);
 }
 

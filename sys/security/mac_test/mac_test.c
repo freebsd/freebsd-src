@@ -2098,21 +2098,6 @@ mac_test_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	return (0);
 }
 
-COUNTER_DECL(check_vnode_delete);
-static int
-mac_test_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(dvplabel, MAGIC_VNODE);
-	LABEL_CHECK(vplabel, MAGIC_VNODE);
-	COUNTER_INC(check_vnode_delete);
-
-	return (0);
-}
-
 COUNTER_DECL(check_vnode_deleteacl);
 static int
 mac_test_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
@@ -2455,6 +2440,21 @@ mac_test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
+COUNTER_DECL(check_vnode_unlink);
+static int
+mac_test_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    struct componentname *cnp)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(dvplabel, MAGIC_VNODE);
+	LABEL_CHECK(vplabel, MAGIC_VNODE);
+	COUNTER_INC(check_vnode_unlink);
+
+	return (0);
+}
+
 COUNTER_DECL(check_vnode_write);
 static int
 mac_test_check_vnode_write(struct ucred *active_cred,
@@ -2656,7 +2656,6 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_vnode_chdir = mac_test_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_test_check_vnode_chroot,
 	.mpo_check_vnode_create = mac_test_check_vnode_create,
-	.mpo_check_vnode_delete = mac_test_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_test_check_vnode_deleteacl,
 	.mpo_check_vnode_deleteextattr = mac_test_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = mac_test_check_vnode_exec,
@@ -2682,6 +2681,7 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_vnode_setowner = mac_test_check_vnode_setowner,
 	.mpo_check_vnode_setutimes = mac_test_check_vnode_setutimes,
 	.mpo_check_vnode_stat = mac_test_check_vnode_stat,
+	.mpo_check_vnode_unlink = mac_test_check_vnode_unlink,
 	.mpo_check_vnode_write = mac_test_check_vnode_write,
 };
 

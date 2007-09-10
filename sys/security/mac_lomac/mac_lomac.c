@@ -2345,30 +2345,6 @@ mac_lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-	struct mac_lomac *subj, *obj;
-
-	if (!mac_lomac_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(dvplabel);
-
-	if (!mac_lomac_subject_dominate(subj, obj))
-		return (EACCES);
-
-	obj = SLOT(vplabel);
-
-	if (!mac_lomac_subject_dominate(subj, obj))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
 mac_lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
@@ -2753,6 +2729,30 @@ mac_lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_lomac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    struct componentname *cnp)
+{
+	struct mac_lomac *subj, *obj;
+
+	if (!mac_lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(dvplabel);
+
+	if (!mac_lomac_subject_dominate(subj, obj))
+		return (EACCES);
+
+	obj = SLOT(vplabel);
+
+	if (!mac_lomac_subject_dominate(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_lomac_check_vnode_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
@@ -2933,7 +2933,6 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_system_sysctl = mac_lomac_check_system_sysctl,
 	.mpo_check_vnode_access = mac_lomac_check_vnode_open,
 	.mpo_check_vnode_create = mac_lomac_check_vnode_create,
-	.mpo_check_vnode_delete = mac_lomac_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_lomac_check_vnode_deleteacl,
 	.mpo_check_vnode_link = mac_lomac_check_vnode_link,
 	.mpo_check_vnode_mmap = mac_lomac_check_vnode_mmap,
@@ -2950,6 +2949,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_check_vnode_setmode = mac_lomac_check_vnode_setmode,
 	.mpo_check_vnode_setowner = mac_lomac_check_vnode_setowner,
 	.mpo_check_vnode_setutimes = mac_lomac_check_vnode_setutimes,
+	.mpo_check_vnode_unlink = mac_lomac_check_vnode_unlink,
 	.mpo_check_vnode_write = mac_lomac_check_vnode_write,
 	.mpo_thread_userret = mac_lomac_thread_userret,
 	.mpo_create_mbuf_from_firewall = mac_lomac_create_mbuf_from_firewall,
