@@ -32,12 +32,11 @@
  */
 
 #include "opt_ipfw.h"
-#include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/domain.h>
 #include <sys/eventhandler.h>
 #include <sys/jail.h>
@@ -54,6 +53,7 @@
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/systm.h>
 
 #include <vm/uma.h>
 
@@ -61,8 +61,8 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #ifdef INET6
@@ -94,11 +94,11 @@
 /*
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp checksums
  * removes the only data integrity mechanism for packets and malformed
- * packets that would otherwise be discarded by bad checksums may cause
- * problems (especially for NFS data blocks).
+ * packets that would otherwise be discarded due to bad checksums, and may
+ * cause problems (especially for NFS data blocks).
  */
-static int	udpcksum = 1;
-SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW, &udpcksum,
+static int	udp_cksum = 1;
+SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW, &udp_cksum,
     0, "");
 
 int	udp_log_in_vain = 0;
@@ -444,7 +444,7 @@ udp_input(struct mbuf *m, int off)
 					 * Check for a multicast source filter
 					 * entry on this socket for this group.
 					 * MCAST_EXCLUDE is the default
-					 * behaviour. It means default accept;
+					 * behaviour.  It means default accept;
 					 * entries, if present, denote sources
 					 * to be excluded from delivery.
 					 */
@@ -579,7 +579,6 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
 	struct ip *ip = vip;
 	struct udphdr *uh;
-	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
 	struct in_addr faddr;
 	struct inpcb *inp;
 
@@ -611,13 +610,14 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		if (inp != NULL) {
 			INP_LOCK(inp);
 			if (inp->inp_socket != NULL) {
-				(*notify)(inp, inetctlerrmap[cmd]);
+				udp_notify(inp, inetctlerrmap[cmd]);
 			}
 			INP_UNLOCK(inp);
 		}
 		INP_INFO_RUNLOCK(&udbinfo);
 	} else
-		in_pcbnotifyall(&udbinfo, faddr, inetctlerrmap[cmd], notify);
+		in_pcbnotifyall(&udbinfo, faddr, inetctlerrmap[cmd],
+		    udp_notify);
 }
 
 static int
@@ -629,7 +629,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	struct xinpgen xig;
 
 	/*
-	 * The process of preparing the TCB list is too time-consuming and
+	 * The process of preparing the PCB list is too time-consuming and
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == 0) {
@@ -770,9 +770,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
-	 * inpcb.  As such, we don't know up front what inpcb locks we will
-	 * need.  Do any work to decide what is needed up front before
-	 * acquiring locks.
+	 * inpcb.  As such, we don't know up front whether we will need the
+	 * pcbinfo lock or not.  Do any work to decide what is needed up
+	 * front before acquiring any locks.
 	 */
 	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {
 		if (control)
@@ -846,7 +846,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 	/*
 	 * If the IP_SENDSRCADDR control message was specified, override the
-	 * source address for this datagram. Its use is invalidated if the
+	 * source address for this datagram.  Its use is invalidated if the
 	 * address thus specified is incomplete or clobbers other inpcbs.
 	 */
 	laddr = inp->inp_laddr;
@@ -951,7 +951,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	/*
 	 * Set up checksum and output datagram.
 	 */
-	if (udpcksum) {
+	if (udp_cksum) {
 		if (inp->inp_flags & INP_ONESBCAST)
 			faddr.s_addr = INADDR_BROADCAST;
 		ui->ui_sum = in_pseudo(ui->ui_src.s_addr, faddr.s_addr,
