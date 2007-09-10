@@ -766,6 +766,12 @@
 
     &hwlist.cnw;
 
+    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI network
+      adapter (&man.ipw.4; driver)</para>
+
+    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2200BG/2915ABG MiniPCI
+      and 2225BG PCI network adapters (&man.iwi.4; driver)</para>
+
     <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
     </para>
 
