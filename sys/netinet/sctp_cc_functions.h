@@ -78,6 +78,15 @@ void
 sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net);
 
+/*
+ * HTCP algorithms are directly taken from
+ * R.N.Shorten, D.J.Leith and are work/outcome from
+ * a Cisco-URP grant to enhance HTCP for satellite
+ * communications. We use the BSD Liscense
+ * granted from his source and have modified his
+ * algorithms to fit within the SCTP BSD framework.
+ */
+
 void
 sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb,
     struct sctp_nets *net);
