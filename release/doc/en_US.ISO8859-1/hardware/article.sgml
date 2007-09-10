@@ -772,10 +772,14 @@
     <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2200BG/2915ABG MiniPCI
       and 2225BG PCI network adapters (&man.iwi.4; driver)</para>
 
+    &hwlist.ral;
+
     <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz wireless adapters (&man.ray.4; driver)
     </para>
 
     &hwlist.rum;
+
+    &hwlist.ural;
 
     <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent Technologies WaveLAN/IEEE 802.11b
       wireless network
