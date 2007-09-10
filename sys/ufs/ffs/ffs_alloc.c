@@ -1073,7 +1073,10 @@ ffs_dirpref(pip)
 	curdirsize = avgndir ? (cgsize - avgbfree * fs->fs_bsize) / avgndir : 0;
 	if (dirsize < curdirsize)
 		dirsize = curdirsize;
-	maxcontigdirs = min((avgbfree * fs->fs_bsize) / dirsize, 255);
+	if (dirsize <= 0)
+		maxcontigdirs = 0;		/* dirsize overflowed */
+	else
+		maxcontigdirs = min((avgbfree * fs->fs_bsize) / dirsize, 255);
 	if (fs->fs_avgfpdir > 0)
 		maxcontigdirs = min(maxcontigdirs,
 				    fs->fs_ipg / fs->fs_avgfpdir);
