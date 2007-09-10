@@ -387,16 +387,21 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, reg, error = 0;
+	int i, error = 0;
 	uint32_t vers;
 	int port_qsets = 1;
 #ifdef MSI_SUPPORTED
-	int msi_needed;
+	int msi_needed, reg;
 #endif	
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
-	
+	ai = cxgb_get_adapter_info(dev);
+
+	/*
+	 * XXX not really related but a recent addition
+	 */
+#ifdef MSI_SUPPORTED	
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk, pectl;
@@ -408,14 +413,13 @@ cxgb_controller_attach(device_t dev)
 		pci_write_config(dev, reg + 0x8, pectl, 2);
 	}
 
-	ai = cxgb_get_adapter_info(dev);
 	if (sc->link_width != 0 && sc->link_width <= 4 &&
 	    (ai->nports0 + ai->nports1) <= 2) {
 		device_printf(sc->dev,
 		    "PCIe x%d Link, expect reduced performance\n",
 		    sc->link_width);
 	}
-
+#endif
 	touch_bars(dev);
 	pci_enable_busmaster(dev);
 	/*
@@ -1331,7 +1335,12 @@ bind_qsets(adapter_t *sc)
 static void
 update_tpeeprom(struct adapter *adap)
 {
+#ifdef FIRMWARE_LATEST
 	const struct firmware *tpeeprom;
+#else
+	struct firmware *tpeeprom;
+#endif
+
 	char buf[64];
 	uint32_t version;
 	unsigned int major, minor;
@@ -1387,7 +1396,11 @@ release_tpeeprom:
 static int
 update_tpsram(struct adapter *adap)
 {
+#ifdef FIRMWARE_LATEST
 	const struct firmware *tpsram;
+#else
+	struct firmware *tpsram;
+#endif	
 	char buf[64];
 	int ret;
 	char rev;
@@ -1827,7 +1840,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
-	struct mbuf *m0, *m = NULL;
+	struct mbuf *m = NULL;
 	int err, in_use_init, free;
 
 	if (!p->link_config.link_ok)
@@ -1856,20 +1869,8 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 		 * Convert chain to M_IOVEC
 		 */
 		KASSERT((m->m_flags & M_IOVEC) == 0, ("IOVEC set too early"));
+#ifdef notyet
 		m0 = m;
-#ifdef INVARIANTS
-		/*
-		 * Clean up after net stack sloppiness
-		 * before calling m_sanity
-		 */
-		m0 = m->m_next;
-		while (m0) {
-			m0->m_flags &= ~M_PKTHDR;
-			m0 = m0->m_next;
-		}
-		m_sanity(m0, 0);
-		m0 = m;
-#endif
 		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
 		    m_collapse(m, TX_MAX_SEGS, &m0) == EFBIG) {
 			if ((m0 = m_defrag(m, M_NOWAIT)) != NULL) {
@@ -1879,6 +1880,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 				break;
 		}
 		m = m0;
+#endif		
 		if ((err = t3_encap(p, &m, &free)) != 0)
 			break;
 		BPF_MTAP(ifp, m);

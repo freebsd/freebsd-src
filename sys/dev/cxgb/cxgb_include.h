@@ -10,8 +10,8 @@
 #include <cxgb_offload.h>
 #include <common/cxgb_regs.h>
 #include <common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/common/cxgb_sge_defs.h>
+#include <common/cxgb_ctl_defs.h>
+#include <common/cxgb_sge_defs.h>
 #include <common/cxgb_firmware_exports.h>
 #include <sys/mvec.h>
 #include <ulp/toecore/toedev.h>
