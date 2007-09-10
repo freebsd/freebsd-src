@@ -102,7 +102,7 @@ static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
 static void	bpf_detachd(struct bpf_d *);
 static void	bpf_freed(struct bpf_d *);
 static void	bpf_mcopy(const void *, void *, size_t);
-static int	bpf_movein(struct uio *, int, int, struct mbuf **,
+static int	bpf_movein(struct uio *, int, struct ifnet *, struct mbuf **,
 		    struct sockaddr *, int *, struct bpf_insn *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
@@ -158,10 +158,11 @@ static struct filterops bpfread_filtops =
 	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
 static int
-bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
+bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
     struct sockaddr *sockp, int *hdrlen, struct bpf_insn *wfilter)
 {
 	const struct ieee80211_bpf_params *p;
+	struct ether_header *eh;
 	struct mbuf *m;
 	int error;
 	int len;
@@ -241,7 +242,7 @@ bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
 
 	len = uio->uio_resid;
 
-	if (len - hlen > mtu)
+	if (len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
 	if ((unsigned)len > MCLBYTES)
@@ -271,6 +272,20 @@ bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
 	if (slen == 0) {
 		error = EPERM;
 		goto bad;
+	}
+
+	/* Check for multicast destination */
+	switch (linktype) {
+	case DLT_EN10MB:
+		eh = mtod(m, struct ether_header *);
+		if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+			if (bcmp(ifp->if_broadcastaddr, eh->ether_dhost,
+			    ETHER_ADDR_LEN) == 0)
+				m->m_flags |= M_BCAST;
+			else
+				m->m_flags |= M_MCAST;
+		}
+		break;
 	}
 
 	/*
@@ -615,7 +630,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	bzero(&dst, sizeof(dst));
 	m = NULL;
 	hlen = 0;
-	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu,
+	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp,
 	    &m, &dst, &hlen, d->bd_wfilter);
 	if (error)
 		return (error);
