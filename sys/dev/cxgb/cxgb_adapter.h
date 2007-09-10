@@ -35,9 +35,6 @@ $FreeBSD$
 #ifndef _CXGB_ADAPTER_H_
 #define _CXGB_ADAPTER_H_
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>

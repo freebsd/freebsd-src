@@ -81,6 +81,9 @@ struct t3_mbuf_hdr {
 #define TSO_SUPPORTED
 #define VLAN_SUPPORTED
 #define TASKQUEUE_CURRENT
+#else
+#define if_name(ifp) (ifp)->if_xname
+#define M_SANITY(m, n)
 #endif
 
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
