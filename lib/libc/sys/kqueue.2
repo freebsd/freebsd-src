@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2006
+.Dd September 6, 2007
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -540,11 +540,6 @@ The
 system and this manual page were written by
 .An Jonathan Lemon Aq jlemon@FreeBSD.org .
 .Sh BUGS
-It is currently not possible to watch a
-.Xr vnode 9
-that resides on anything but
-a UFS file system.
-.Pp
 The
 .Dv EVFILT_NETDEV
 filter is currently only implemented for devices that use the
