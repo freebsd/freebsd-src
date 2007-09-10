@@ -1026,7 +1026,6 @@ void
 sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 {
 	int error;
-	struct sctp_tmit_chunk *debug_chk;	/* for debug */
 
 	if (dstnet->dest_state & SCTP_ADDR_UNCONFIRMED) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: specified destination is UNCONFIRMED\n");
@@ -1062,14 +1061,6 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, stcb->sctp_ep, stcb->asoc.deleted_primary);
 #endif
-		/* Debug code */
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: calling chunk_output, retran_cnt is %d\n", stcb->asoc.sent_queue_retran_cnt);
-		TAILQ_FOREACH(debug_chk, &stcb->asoc.sent_queue, sctp_next) {
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: chk->whoTo is ");
-			SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &debug_chk->whoTo->ro._l_addr.sa);
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "state is %d\n", debug_chk->sent);
-		}
-		/* end Debug code */
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_T3, SCTP_SO_NOT_LOCKED);
 		if ((stcb->asoc.num_send_timers_up == 0) &&
 		    (stcb->asoc.sent_queue_cnt > 0)) {
@@ -1090,7 +1081,6 @@ void
 sctp_net_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_tmit_chunk *chk;
-	int cnt = 0;		/* debug */
 
 	SCTPDBG(SCTP_DEBUG_ASCONF1, "net_immediate_retrans:\n");
 	SCTPDBG(SCTP_DEBUG_ASCONF1, "RTO is %d\n", net->RTO);
@@ -1103,11 +1093,9 @@ sctp_net_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *net)
 			if (chk->sent < SCTP_DATAGRAM_RESEND) {
 				chk->sent = SCTP_DATAGRAM_RESEND;
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
-				cnt++;
 			}
 		}
 	}
-	SCTPDBG(SCTP_DEBUG_ASCONF1, "%d chunks are marked to RESEND, retran_cnt is %d\n", cnt, stcb->asoc.sent_queue_retran_cnt);
 }
 
 static void
@@ -1170,9 +1158,8 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
 		    stcb->sctp_ep->def_vrf_id);
 		if (net->ro.ro_rt == NULL)
 			continue;
-		//have to be considered...
 
-		    changed = 0;
+		changed = 0;
 		if (net->ro._l_addr.sa.sa_family == AF_INET) {
 			if (sctp_v4src_match_nexthop(newifa, (sctp_route_t *) & net->ro))
 				changed = 1;
