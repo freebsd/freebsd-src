@@ -351,8 +351,6 @@ int	mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp);
 int	mac_check_vnode_chroot(struct ucred *cred, struct vnode *dvp);
 int	mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	    struct componentname *cnp, struct vattr *vap);
-int	mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
 int	mac_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
@@ -400,6 +398,8 @@ int	mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
 int	mac_check_vnode_stat(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
+int	mac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_write(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_getsockopt_label(struct ucred *cred, struct socket *so,

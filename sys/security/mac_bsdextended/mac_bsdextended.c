@@ -504,19 +504,6 @@ mac_bsdextended_check_create_vnode(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-	int error;
-
-	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
-	if (error)
-		return (error);
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
 mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
@@ -708,6 +695,19 @@ mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
 	return (mac_bsdextended_check_vp(active_cred, vp, MBI_STAT));
 }
 
+static int
+mac_bsdextended_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    struct componentname *cnp)
+{
+	int error;
+
+	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
+	if (error)
+		return (error);
+	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+}
+
 static struct mac_policy_ops mac_bsdextended_ops =
 {
 	.mpo_destroy = mac_bsdextended_destroy,
@@ -720,7 +720,6 @@ static struct mac_policy_ops mac_bsdextended_ops =
 	.mpo_check_vnode_chdir = mac_bsdextended_check_vnode_chdir,
 	.mpo_check_vnode_chroot = mac_bsdextended_check_vnode_chroot,
 	.mpo_check_vnode_create = mac_bsdextended_check_create_vnode,
-	.mpo_check_vnode_delete = mac_bsdextended_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_bsdextended_check_vnode_deleteacl,
 	.mpo_check_vnode_deleteextattr = mac_bsdextended_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = mac_bsdextended_check_vnode_exec,
@@ -742,6 +741,7 @@ static struct mac_policy_ops mac_bsdextended_ops =
 	.mpo_check_vnode_setowner = mac_bsdextended_check_vnode_setowner,
 	.mpo_check_vnode_setutimes = mac_bsdextended_check_vnode_setutimes,
 	.mpo_check_vnode_stat = mac_bsdextended_check_vnode_stat,
+	.mpo_check_vnode_unlink = mac_bsdextended_check_vnode_unlink,
 };
 
 MAC_POLICY_SET(&mac_bsdextended_ops, mac_bsdextended,

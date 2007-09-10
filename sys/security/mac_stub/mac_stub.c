@@ -1183,15 +1183,6 @@ stub_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-
-	return (0);
-}
-
-static int
 stub_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
@@ -1413,6 +1404,15 @@ stub_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
+stub_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
+    struct componentname *cnp)
+{
+
+	return (0);
+}
+
+static int
 stub_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
@@ -1623,7 +1623,6 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_chdir = stub_check_vnode_chdir,
 	.mpo_check_vnode_chroot = stub_check_vnode_chroot,
 	.mpo_check_vnode_create = stub_check_vnode_create,
-	.mpo_check_vnode_delete = stub_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = stub_check_vnode_deleteacl,
 	.mpo_check_vnode_deleteextattr = stub_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = stub_check_vnode_exec,
@@ -1651,6 +1650,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_setowner = stub_check_vnode_setowner,
 	.mpo_check_vnode_setutimes = stub_check_vnode_setutimes,
 	.mpo_check_vnode_stat = stub_check_vnode_stat,
+	.mpo_check_vnode_unlink = stub_check_vnode_unlink,
 	.mpo_check_vnode_write = stub_check_vnode_write,
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
