@@ -148,7 +148,7 @@ mp_start(void *dummy)
 	    mp_ncpus);
 	cpu_mp_announce();
 }
-SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_SECOND, mp_start, NULL)
+SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_THIRD, mp_start, NULL)
 
 void
 forward_signal(struct thread *td)

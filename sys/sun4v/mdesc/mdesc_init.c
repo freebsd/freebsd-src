@@ -53,7 +53,7 @@ static void mdesc_postvm_init(void *);
  * can kill off all calls to OBP. OBP removal is not in
  * the critical path for sun4v at this time.
  */
-SYSINIT(mdesc_init, SI_SUB_CPU, SI_ORDER_FIRST, mdesc_postvm_init, NULL);
+SYSINIT(mdesc_init, SI_SUB_CPU, SI_ORDER_SECOND, mdesc_postvm_init, NULL);
 
 
 #define UNIMPLEMENTED panic("%s not implemented.", __FUNCTION__)
