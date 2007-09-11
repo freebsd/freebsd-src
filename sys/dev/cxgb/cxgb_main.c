@@ -1202,10 +1202,6 @@ setup_rss(adapter_t *adap)
 	u_int nq[2]; 
 	uint8_t cpus[SGE_QSETS + 1];
 	uint16_t rspq_map[RSS_TABLE_SIZE];
-
-
-	if ((adap->flags & USING_MSIX) == 0)
-		return;
 	
 	for (i = 0; i < SGE_QSETS; ++i)
 		cpus[i] = i;
