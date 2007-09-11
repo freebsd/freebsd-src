@@ -1854,14 +1854,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       utilities have been removed, in favor of the more general
       &man.mount.8; command with a <option>-t</option> option.
       Specifically, these commands are:
-      <command>mount_devfs</command>
-      <command>mount_ext2fs</command>
-      <command>mount_fdescfs</command>
-      <command>mount_linprocfs</command>
-      <command>mount_procfs</command>
-      <command>mount_std</command>
-      <command>mount_linsysfs</command>
-      <command>mount_reiserfs</command>
+      <command>mount_devfs</command>,
+      <command>mount_ext2fs</command>,
+      <command>mount_fdescfs</command>,
+      <command>mount_linprocfs</command>,
+      <command>mount_procfs</command>,
+      <command>mount_std</command>,
+      <command>mount_linsysfs</command>,
+      <command>mount_reiserfs</command>, and
       <command>mount_umapfs</command>.
       </para>
 
