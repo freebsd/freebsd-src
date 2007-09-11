@@ -1065,7 +1065,7 @@ apic_init(void *dummy __unused)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
-SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_FIRST, apic_init, NULL)
+SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL)
 
 /*
  * Setup the I/O APICs.
