@@ -1548,6 +1548,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.bsnmpd.1; utility now supports the Host Resources
       MIB described in RFC 2790.  &merged;</para>
 
+    <para>The &man.camcontrol.8; utility now supports
+      a <command>readcap</command> to display the size of
+      devices.</para>
+
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
       flag to compare the symbolic link itself rather than the
       file that the link points to. &merged;</para>
@@ -1829,7 +1833,8 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       an architecture to pass through to the underlying makefiles.
       &merged;</para>
 
-    <para>The &man.mount.8; <literal>nodev</literal> option has
+    <para>The &man.mount.8; <literal>dev</literal>
+      and <literal>nodev</literal> options have
       been removed.</para>
 
     <para>The &man.mount.8; utility now supports &man.mqueuefs.5;.</para>
@@ -1843,6 +1848,22 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       corresponding <option>-l</option> command-line option to specify
       that these <quote>late</quote> file systems should be
       mounted. &merged;</para>
+
+    <para>A number of the file
+      system-specific <command>mount_<replaceable>*</replaceable></command>
+      utilities have been removed, in favor of the more general
+      &man.mount.8; command with a <option>-t</option> option.
+      Specifically, these commands are:
+      <command>mount_devfs</command>
+      <command>mount_ext2fs</command>
+      <command>mount_fdescfs</command>
+      <command>mount_linprocfs</command>
+      <command>mount_procfs</command>
+      <command>mount_std</command>
+      <command>mount_linsysfs</command>
+      <command>mount_reiserfs</command>
+      <command>mount_umapfs</command>.
+      </para>
 
     <para>The &man.moused.8; daemon now supports an <option>-H</option> flag
       to enable horizontal virtual scrolling similar to the
