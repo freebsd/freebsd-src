@@ -406,7 +406,7 @@ madt_register(void *dummy __unused)
 
 	apic_register_enumerator(&madt_enumerator);
 }
-SYSINIT(madt_register, SI_SUB_CPU - 1, SI_ORDER_FIRST, madt_register, NULL)
+SYSINIT(madt_register, SI_SUB_CPU - 1, SI_ORDER_SECOND, madt_register, NULL)
 
 /*
  * Call the handler routine for each entry in the MADT table.
