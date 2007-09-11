@@ -211,7 +211,8 @@ main(int argc, char *argv[])
 		if (bind(acceptsock, (struct sockaddr *)&ma, sizeof(ma)) < 0)
 			err(1, "Could not bind socket -- channel %d in use?",
 			    channel);
-		listen(acceptsock, 10);
+		if (listen(acceptsock, 10) != 0)
+			err(1, "Could not listen on socket");
 
 		ss = sdp_open_local(NULL);
 		if (ss == NULL)
