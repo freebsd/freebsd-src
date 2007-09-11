@@ -739,6 +739,7 @@ static void
 lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 {
 	struct lagg_softc *sc = lp->lp_softc;
+
 	strlcpy(rp->rp_ifname, sc->sc_ifname, sizeof(rp->rp_ifname));
 	strlcpy(rp->rp_portname, lp->lp_ifp->if_xname, sizeof(rp->rp_portname));
 	rp->rp_prio = lp->lp_prio;
@@ -751,7 +752,10 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 		case LAGG_PROTO_FAILOVER:
 			if (lp == sc->sc_primary)
 				rp->rp_flags |= LAGG_PORT_MASTER;
-			/* FALLTHROUGH */
+			if (lp == lagg_link_active(sc, sc->sc_primary))
+				rp->rp_flags |= LAGG_PORT_ACTIVE;
+			break;
+
 		case LAGG_PROTO_ROUNDROBIN:
 		case LAGG_PROTO_LOADBALANCE:
 		case LAGG_PROTO_ETHERCHANNEL:
