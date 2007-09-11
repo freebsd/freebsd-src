@@ -66,7 +66,6 @@ static struct p_times {
 	struct kinfo_proc *pt_kp;
 } *pt;
 
-static long stime[CPUSTATES];
 static int    fscale;
 static double  lccpu;
 
@@ -92,45 +91,27 @@ void
 showpigs()
 {
 	register int i, j, y, k;
-	float total;
-	int factor;
 	const char *uname, *pname;
 	char pidname[30];
 
 	if (pt == NULL)
 		return;
-	/* Accumulate the percent of cpu per user. */
-	total = 0.0;
-	for (i = 0; i <= nproc; i++) {
-		/* Accumulate the percentage. */
-		total += pt[i].pt_pctcpu;
-	}
 
-	if (total < 1.0)
- 		total = 1.0;
-	factor = 50.0/total;
-
-        qsort(pt, nproc + 1, sizeof (struct p_times), compar);
+	qsort(pt, nproc, sizeof (struct p_times), compar);
 	y = 1;
-	i = nproc + 1;
+	i = nproc;
 	if (i > wnd->_maxy-1)
 		i = wnd->_maxy-1;
 	for (k = 0; i > 0 && pt[k].pt_pctcpu > 0.01; i--, y++, k++) {
-		if (pt[k].pt_kp == NULL) {
-			uname = "";
-			pname = "<idle>";
-		}
-		else {
-			uname = user_from_uid(pt[k].pt_kp->ki_uid, 0);
-			pname = pt[k].pt_kp->ki_comm;
-		}
+		uname = user_from_uid(pt[k].pt_kp->ki_uid, 0);
+		pname = pt[k].pt_kp->ki_comm;
 		wmove(wnd, y, 0);
 		wclrtoeol(wnd);
 		mvwaddstr(wnd, y, 0, uname);
 		snprintf(pidname, sizeof(pidname), "%10.10s", pname);
 		mvwaddstr(wnd, y, 9, pidname);
 		wmove(wnd, y, 20);
-		for (j = pt[k].pt_pctcpu*factor + 0.5; j > 0; j--)
+		for (j = pt[k].pt_pctcpu * 50 + 0.5; j > 0; j--)
 			waddch(wnd, 'X');
 	}
 	wmove(wnd, y, 0); wclrtobot(wnd);
@@ -142,13 +123,6 @@ initpigs()
 	fixpt_t ccpu;
 	size_t len;
 	int err;
-
-	len = sizeof(stime);
-	err = sysctlbyname("kern.cp_time", &stime, &len, NULL, 0);
-	if (err || len != sizeof(stime)) {
-		perror("kern.cp_time");
-		return (0);
-	}
 
 	len = sizeof(ccpu);
 	err = sysctlbyname("kern.ccpu", &ccpu, &len, NULL, 0);
@@ -176,11 +150,7 @@ fetchpigs()
 	float ftime;
 	float *pctp;
 	struct kinfo_proc *kpp;
-	long c_time[CPUSTATES];
-	double t;
 	static int lastnproc = 0;
-	size_t len;
-	int err;
 
 	if ((kpp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nproc)) == NULL) {
 		error("%s", kvm_geterr(kd));
@@ -191,7 +161,7 @@ fetchpigs()
 	if (nproc > lastnproc) {
 		free(pt);
 		if ((pt =
-		    malloc((nproc + 1) * sizeof(struct p_times))) == NULL) {
+		    malloc(nproc * sizeof(struct p_times))) == NULL) {
 			error("Out of memory");
 			die(0);
 		}
@@ -210,24 +180,6 @@ fetchpigs()
 			*pctp = ((double) kpp[i].ki_pctcpu /
 					fscale) / (1.0 - exp(ftime * lccpu));
 	}
-	/*
-	 * and for the imaginary "idle" process
-	 */
-	len = sizeof(c_time);
-	err = sysctlbyname("kern.cp_time", &c_time, &len, NULL, 0);
-	if (err || len != sizeof(c_time)) {
-		perror("kern.cp_time");
-		return;
-	}
-	t = 0;
-	for (i = 0; i < CPUSTATES; i++)
-		t += c_time[i] - stime[i];
-	if (t == 0.0)
-		t = 1.0;
-	pt[nproc].pt_kp = NULL;
-	pt[nproc].pt_pctcpu = (c_time[CP_IDLE] - stime[CP_IDLE]) / t;
-	for (i = 0; i < CPUSTATES; i++)
-		stime[i] = c_time[i];
 }
 
 void
