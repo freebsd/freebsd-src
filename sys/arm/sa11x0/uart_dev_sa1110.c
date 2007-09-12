@@ -97,7 +97,7 @@ sa1110_term(struct uart_bas *bas)
 static void
 sa1110_putc(struct uart_bas *bas, int c)
 {
-	while (!uart_getreg(bas, SACOM_SR1) & SR1_TNF);
+	while (!(uart_getreg(bas, SACOM_SR1) & SR1_TNF));
 	uart_setreg(bas, SACOM_DR, c);
 }
 
@@ -186,7 +186,7 @@ sa1110_bus_transmit(struct uart_softc *sc)
 	uart_setreg(&sc->sc_bas, SACOM_CR3, uart_getreg(&sc->sc_bas, SACOM_CR3)
 	    | CR3_TIE);    
 	for (i = 0; i < sc->sc_txdatasz; i++) {
-		while (!uart_getreg(&sc->sc_bas, SACOM_SR1) & SR1_TNF);
+		while (!(uart_getreg(&sc->sc_bas, SACOM_SR1) & SR1_TNF));
 
 		uart_setreg(&sc->sc_bas, SACOM_DR, sc->sc_txbuf[i]);
 		uart_barrier(&sc->sc_bas);
