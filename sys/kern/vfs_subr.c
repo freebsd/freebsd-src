@@ -1021,7 +1021,7 @@ insmntque1(struct vnode *vp, struct mount *mp,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
 	MNT_ILOCK(mp);
-	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 &&
+	if ((mp->mnt_kern_flag & MNTK_NOINSMNTQ) != 0 &&
 	    mp->mnt_nvnodelistsize == 0) {
 		MNT_IUNLOCK(mp);
 		if (dtr != NULL)
