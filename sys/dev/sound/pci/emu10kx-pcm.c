@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 Cameron Grant <gandalf@vilnya.demon.co.uk>
- * Copyright (c) 2003-2006 Yuriy Tsibizov <yuriy.tsibizov@gfk.ru>
+ * Copyright (c) 2003-2007 Yuriy Tsibizov <yuriy.tsibizov@gfk.ru>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,14 +45,13 @@
 
 #include "mixer_if.h"
 
-#include "opt_emu10kx.h"
 #include <dev/sound/pci/emu10kx.h>
 #include "emu10k1-alsa%diked.h"
 
 struct emu_pcm_pchinfo {
 	int		spd;
 	int		fmt;
-	int		blksz;
+	unsigned int	blksz;
 	int		run;
 	struct emu_voice *master;
 	struct emu_voice *slave;
@@ -65,7 +64,7 @@ struct emu_pcm_pchinfo {
 struct emu_pcm_rchinfo {
 	int		spd;
 	int		fmt;
-	int		blksz;
+	unsigned int	blksz;
 	int		run;
 	uint32_t 	idxreg;
 	uint32_t	basereg;
@@ -77,6 +76,7 @@ struct emu_pcm_rchinfo {
 	struct snd_dbuf	*buffer;
 	struct pcm_channel *channel;
 	struct emu_pcm_info *pcm;
+	int		timer;
 };
 
 /* XXX Hardware playback channels */
@@ -89,7 +89,6 @@ struct emu_pcm_rchinfo {
 struct emu_pcm_info {
 	struct mtx		*lock;
 	device_t		dev;		/* device information */
-	struct snddev_info 	*devinfo;	/* pcm device information */
 	struct emu_sc_info 	*card;
 	struct emu_pcm_pchinfo	pch[MAX_CHANNELS];	/* hardware channels */
 	int			pnum;		/* next free channel number */
@@ -103,6 +102,12 @@ struct emu_pcm_info {
 	int			is_emu10k1;
 	struct ac97_info	*codec;
 	uint32_t 		ac97_state[0x7F];
+	kobj_class_t		ac97_mixerclass;
+	uint32_t		ac97_recdevs;
+	uint32_t		ac97_playdevs;
+	struct snd_mixer	*sm;
+	int			mch_disabled;
+	unsigned int		emu10k1_volcache[2][2];
 };
 
 
@@ -128,6 +133,14 @@ static struct pcmchan_caps emu_reccaps_efx_audigy = {
 	48000*64, 48000*64, emu_rfmt_efx, 0
 };
 
+static int emu_rates_live[] = {
+	48000*32
+};
+
+static int emu_rates_audigy[] = {
+	48000*64
+};
+
 static uint32_t emu_pfmt[] = {
 	AFMT_U8,
 	AFMT_STEREO | AFMT_U8,
@@ -150,27 +163,105 @@ static int emu10k2_adcspeed[9] = {48000, 44100, 32000, 24000, 22050, 16000, 1200
 
 static uint32_t emu_pcm_intr(void *pcm, uint32_t stat);
 
-static const struct emu_dspmix_props {
-	u_int8_t	present;
-} dspmix [SOUND_MIXER_NRDEVICES] = {
-	[SOUND_MIXER_VOLUME] =	{1},
-	[SOUND_MIXER_PCM] =	{1},
+static const struct emu_dspmix_props_k1 {
+	uint8_t	present;
+	uint8_t	recdev;
+	int8_t	input;
+} dspmix_k1 [SOUND_MIXER_NRDEVICES] = {
+	/* no mixer device for ac97 */		/* in0 AC97 */
+	[SOUND_MIXER_DIGITAL1] = {1, 1, 1},	/* in1 CD SPDIF */
+	/* not connected */			/* in2 (zoom) */
+	[SOUND_MIXER_DIGITAL2] = {1, 1, 3},	/* in3 toslink */
+	[SOUND_MIXER_LINE2] =    {1, 1, 4},	/* in4 Line-In2 */
+	[SOUND_MIXER_DIGITAL3] = {1, 1, 5},	/* in5 on-card  SPDIF */
+	[SOUND_MIXER_LINE3] =    {1, 1, 6},	/* in6 AUX2 */
+	/* not connected */			/* in7 */
+};
+static const struct emu_dspmix_props_k2 {
+	uint8_t	present;
+	uint8_t	recdev;
+	int8_t	input;
+} dspmix_k2 [SOUND_MIXER_NRDEVICES] = {
+	[SOUND_MIXER_VOLUME] =	{1, 0, (-1)},
+	[SOUND_MIXER_PCM] =	{1, 0, (-1)},
+
+	/* no mixer device */			/* in0 AC97 */
+	[SOUND_MIXER_DIGITAL1] = {1, 1, 1},	/* in1 CD SPDIF */
+	[SOUND_MIXER_DIGITAL2] = {1, 1, 2},	/* in2 COAX SPDIF */
+	/* not connected */			/* in3 */
+	[SOUND_MIXER_LINE2] =    {1, 1, 4},	/* in4 Line-In2 */
+	[SOUND_MIXER_DIGITAL3] = {1, 1, 5},	/* in5 on-card  SPDIF */
+	[SOUND_MIXER_LINE3] =    {1, 1, 6},	/* in6 AUX2 */
+	/* not connected */			/* in7 */
 };
 
 static int
 emu_dspmixer_init(struct snd_mixer *m)
 {
+	struct emu_pcm_info	*sc;
 	int i;
-	int v;
+	int p, r;
 
-	v = 0;
-	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
-		if (dspmix[i].present)
-			v |= 1 << i;
+	p = 0;
+	r = 0;
+
+	sc = mix_getdevinfo(m);
+
+	if (sc->route == RT_FRONT) {
+		/* create submixer for AC97 codec */
+		if ((sc->ac97_mixerclass != NULL) && (sc->codec != NULL)) {
+			sc->sm = mixer_create(sc->dev, sc->ac97_mixerclass, sc->codec, "ac97");
+			if (sc->sm != NULL) {
+				p = mix_getdevs(sc->sm);
+				r = mix_getrecdevs(sc->sm);
+			}
+		}
+
+		sc->ac97_playdevs = p;
+		sc->ac97_recdevs = r;
 	}
-	mix_setdevs(m, v);
 
-	mix_setrecdevs(m, 0);
+	/* This two are always here */
+	p |= (1 << SOUND_MIXER_PCM);
+	p |= (1 << SOUND_MIXER_VOLUME);
+
+	if (sc->route == RT_FRONT) {
+		if (sc->is_emu10k1) {
+			for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+				if (dspmix_k1[i].present)
+					p |= (1 << i);
+				if (dspmix_k1[i].recdev)
+					r |= (1 << i);
+			}
+		} else {
+			for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+				if (dspmix_k2[i].present)
+					p |= (1 << i);
+				if (dspmix_k2[i].recdev)
+					r |= (1 << i);
+			}
+		}
+	}
+
+	mix_setdevs(m, p);
+	mix_setrecdevs(m, r);
+
+	return (0);
+}
+
+static int
+emu_dspmixer_uninit(struct snd_mixer *m)
+{
+	struct emu_pcm_info	*sc;
+	int err = 0;
+
+	/* drop submixer for AC97 codec */
+	sc = mix_getdevinfo(m);
+	if (sc->sm != NULL)
+		err = mixer_delete(sc->sm);
+		if (err)
+			return (err);
+		sc->sm = NULL;
 	return (0);
 }
 
@@ -184,6 +275,30 @@ emu_dspmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
 		switch (sc->route) {
+		case RT_FRONT:
+			if (sc->sm != NULL)
+				mix_set(sc->sm, dev, left, right);
+			if (sc->mch_disabled) {
+				/* In emu10k1 case PCM volume does not affect
+				   sound routed to rear & center/sub (it is connected
+				   to AC97 codec). Calculate it manually. */
+				/* This really should belong to emu10kx.c */
+				if (sc->is_emu10k1) {
+					sc->emu10k1_volcache[0][0] = left;
+					left = left * sc->emu10k1_volcache[1][0] / 100;
+					sc->emu10k1_volcache[0][1] = right;
+					right = right * sc->emu10k1_volcache[1][1] / 100;
+				}
+
+				emumix_set_volume(sc->card, M_MASTER_REAR_L, left);
+				emumix_set_volume(sc->card, M_MASTER_REAR_R, right);
+				if (!sc->is_emu10k1) {
+					emumix_set_volume(sc->card, M_MASTER_CENTER, (left+right)/2);
+					emumix_set_volume(sc->card, M_MASTER_SUBWOOFER, (left+right)/2);
+					/* XXX side */
+				}
+			} /* mch disabled */
+			break;
 		case RT_REAR:
 			emumix_set_volume(sc->card, M_MASTER_REAR_L, left);
 			emumix_set_volume(sc->card, M_MASTER_REAR_R, right);
@@ -198,6 +313,27 @@ emu_dspmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 		break;
 	case SOUND_MIXER_PCM:
 		switch (sc->route) {
+		case RT_FRONT:
+			if (sc->sm != NULL)
+				mix_set(sc->sm, dev, left, right);
+			if (sc->mch_disabled) {
+				/* See SOUND_MIXER_VOLUME case */
+				if (sc->is_emu10k1) {
+					sc->emu10k1_volcache[1][0] = left;
+					left = left * sc->emu10k1_volcache[0][0] / 100;
+					sc->emu10k1_volcache[1][1] = right;
+					right = right * sc->emu10k1_volcache[0][1] / 100;
+				}
+				emumix_set_volume(sc->card, M_MASTER_REAR_L, left);
+				emumix_set_volume(sc->card, M_MASTER_REAR_R, right);
+
+				if (!sc->is_emu10k1) {
+					emumix_set_volume(sc->card, M_MASTER_CENTER, (left+right)/2);
+					emumix_set_volume(sc->card, M_MASTER_SUBWOOFER, (left+right)/2);
+					/* XXX side */
+				}
+			} /* mch_disabled */
+			break;
 		case RT_REAR:
 			emumix_set_volume(sc->card, M_FX2_REAR_L, left);
 			emumix_set_volume(sc->card, M_FX3_REAR_R, right);
@@ -210,25 +346,159 @@ emu_dspmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 			break;
 		}
 		break;
+	case SOUND_MIXER_DIGITAL1:	/* CD SPDIF, in1 */
+			emumix_set_volume(sc->card, M_IN1_FRONT_L, left);
+			emumix_set_volume(sc->card, M_IN1_FRONT_R, right);
+		break;
+	case SOUND_MIXER_DIGITAL2:
+			if (sc->is_emu10k1) {
+				/* TOSLink, in3 */
+				emumix_set_volume(sc->card, M_IN3_FRONT_L, left);
+				emumix_set_volume(sc->card, M_IN3_FRONT_R, right);
+			} else {
+				/* COAX SPDIF, in2 */
+				emumix_set_volume(sc->card, M_IN2_FRONT_L, left);
+				emumix_set_volume(sc->card, M_IN2_FRONT_R, right);
+			}
+		break;
+	case SOUND_MIXER_LINE2:		/* Line-In2, in4 */
+			emumix_set_volume(sc->card, M_IN4_FRONT_L, left);
+			emumix_set_volume(sc->card, M_IN4_FRONT_R, right);
+		break;
+	case SOUND_MIXER_DIGITAL3:	/* on-card SPDIF, in5 */
+			emumix_set_volume(sc->card, M_IN5_FRONT_L, left);
+			emumix_set_volume(sc->card, M_IN5_FRONT_R, right);
+		break;
+	case SOUND_MIXER_LINE3:		/* AUX2, in6 */
+			emumix_set_volume(sc->card, M_IN6_FRONT_L, left);
+			emumix_set_volume(sc->card, M_IN6_FRONT_R, right);
+		break;
 	default:
-		device_printf(sc->dev, "mixer error: unknown device %d\n", dev);
+		if (sc->sm != NULL) {
+			/* XXX emumix_set_volume is not required here */
+			emumix_set_volume(sc->card, M_IN0_FRONT_L, 100);
+			emumix_set_volume(sc->card, M_IN0_FRONT_R, 100);
+			mix_set(sc->sm, dev, left, right);
+		} else
+			device_printf(sc->dev, "mixer error: unknown device %d\n", dev);
 	}
 	return  (0);
 }
 
 static int
-emu_dspmixer_setrecsrc(struct snd_mixer *m __unused, u_int32_t src __unused)
+emu_dspmixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
-	return (0);
+	struct emu_pcm_info *sc;
+	int i;
+	u_int32_t recmask;
+	int	input[8];
+
+	sc = mix_getdevinfo(m);
+	recmask = 0;
+	for (i=0; i < 8; i++)
+		input[i]=0;
+	
+	if (sc->sm != NULL)
+		if ((src & sc->ac97_recdevs) !=0)
+			if (mix_setrecsrc(sc->sm, src & sc->ac97_recdevs) == 0) {
+				recmask |= (src & sc->ac97_recdevs);
+				/* Recording from AC97 codec.
+				   Enable AC97 route to rec on DSP */
+				input[0] = 1;
+			}
+	if (sc->is_emu10k1) {
+		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+			if (dspmix_k1[i].recdev)
+				if ((src & (1 << i)) == ((uint32_t)1 << i)) {
+				recmask |= (1 << i);
+				/* enable device i */
+				input[dspmix_k1[i].input] = 1;
+				}
+		}
+	} else {
+		for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+			if (dspmix_k2[i].recdev)
+				if ((src & (1 << i)) == ((uint32_t)1 << i)) {
+				recmask |= (1 << i);
+				/* enable device i */
+				input[dspmix_k2[i].input] = 1;
+				}
+		}
+	}
+	emumix_set_volume(sc->card, M_IN0_REC_L, input[0] == 1 ? 100 : 0);
+	emumix_set_volume(sc->card, M_IN0_REC_R, input[0] == 1 ? 100 : 0);
+
+	emumix_set_volume(sc->card, M_IN1_REC_L, input[1] == 1 ? 100 : 0);
+	emumix_set_volume(sc->card, M_IN1_REC_R, input[1] == 1 ? 100 : 0);
+
+	if (!sc->is_emu10k1) {
+		emumix_set_volume(sc->card, M_IN2_REC_L, input[2] == 1 ? 100 : 0);
+		emumix_set_volume(sc->card, M_IN2_REC_R, input[2] == 1 ? 100 : 0);
+	}
+
+	if (sc->is_emu10k1) {
+		emumix_set_volume(sc->card, M_IN3_REC_L, input[3] == 1 ? 100 : 0);
+		emumix_set_volume(sc->card, M_IN3_REC_R, input[3] == 1 ? 100 : 0);
+	}
+
+	emumix_set_volume(sc->card, M_IN4_REC_L, input[4] == 1 ? 100 : 0);
+	emumix_set_volume(sc->card, M_IN4_REC_R, input[4] == 1 ? 100 : 0);
+
+	emumix_set_volume(sc->card, M_IN5_REC_L, input[5] == 1 ? 100 : 0);
+	emumix_set_volume(sc->card, M_IN5_REC_R, input[5] == 1 ? 100 : 0);
+
+	emumix_set_volume(sc->card, M_IN6_REC_L, input[6] == 1 ? 100 : 0);
+	emumix_set_volume(sc->card, M_IN6_REC_R, input[6] == 1 ? 100 : 0);
+	
+	/* XXX check for K1/k2 differences? */
+	if ((src & (1 << SOUND_MIXER_PCM)) == (1 << SOUND_MIXER_PCM)) {
+		emumix_set_volume(sc->card, M_FX0_REC_L, emumix_get_volume(sc->card, M_FX0_FRONT_L));
+		emumix_set_volume(sc->card, M_FX1_REC_R, emumix_get_volume(sc->card, M_FX1_FRONT_R));
+	} else {
+		emumix_set_volume(sc->card, M_FX0_REC_L, 0);
+		emumix_set_volume(sc->card, M_FX1_REC_R, 0);
+	}
+
+	return (recmask);
 }
 
 static kobj_method_t emudspmixer_methods[] = {
 	KOBJMETHOD(mixer_init,		emu_dspmixer_init),
+	KOBJMETHOD(mixer_uninit,	emu_dspmixer_uninit),
 	KOBJMETHOD(mixer_set,		emu_dspmixer_set),
 	KOBJMETHOD(mixer_setrecsrc,	emu_dspmixer_setrecsrc),
 	{ 0, 0 }
 };
 MIXER_DECLARE(emudspmixer);
+
+static int
+emu_efxmixer_init(struct snd_mixer *m)
+{
+	mix_setdevs(m, SOUND_MASK_VOLUME);
+	mix_setrecdevs(m, SOUND_MASK_MONITOR);
+	return (0);
+}
+
+static int
+emu_efxmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
+{
+	if (left + right == 200) return (0);
+	return  (0);
+}
+
+static int
+emu_efxmixer_setrecsrc(struct snd_mixer *m __unused, u_int32_t src __unused)
+{
+	return (SOUND_MASK_MONITOR);
+}
+
+static kobj_method_t emuefxmixer_methods[] = {
+	KOBJMETHOD(mixer_init,		emu_efxmixer_init),
+	KOBJMETHOD(mixer_set,		emu_efxmixer_set),
+	KOBJMETHOD(mixer_setrecsrc,	emu_efxmixer_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(emuefxmixer);
 
 /*
  * AC97 emulation code for Audigy and later cards.
@@ -250,7 +520,7 @@ MIXER_DECLARE(emudspmixer);
 #define	BIT6_TO255(x)	(255-(x)*255/(0x3f))
 #define	V100_TOBIT6(x)	(0x3f*(100-x)/100)
 #define	V100_TOBIT4(x)	(0x0f*(100-x)/100)
-#define	AC97ENCODE(x_muted,x_left,x_right)	(((x_muted&1)<<15) | ((x_left&0x3f)<<8) | (x_right&0x3f))
+#define	AC97ENCODE(x_muted, x_left, x_right)	(((x_muted & 1)<<15) | ((x_left & 0x3f)<<8) | (x_right & 0x3f))
 
 static int
 emu_ac97_read_emulation(struct emu_pcm_info *sc, int regno)
@@ -325,7 +595,9 @@ emu_ac97_write_emulation(struct emu_pcm_info *sc, int regno, uint32_t data)
 	case AC97_REG_RECSEL:
 		/*
 		 * PCM recording source is set to "stereo mix" (labeled "vol"
-		 * in mixer) XXX !I can't remember why!
+		 * in mixer). There is no 'playback' from AC97 codec -
+		 * if you want to hear anything from AC97 you have to _record_
+		 * it. Keep things simple and record "stereo mix".
 		 */
 		data = 0x0505;
 		break;
@@ -414,7 +686,6 @@ emu_k1_recval(int speed)
 	val = 0;
 	while ((val < 7) && (speed < emu10k1_adcspeed[val]))
 		val++;
-	if (val == 6) val=5; /* XXX 8kHz does not work */
 	return (val);
 }
 
@@ -426,7 +697,6 @@ emu_k2_recval(int speed)
 	val = 0;
 	while ((val < 8) && (speed < emu10k2_adcspeed[val]))
 		val++;
-	if (val == 7) val=6; /* XXX 8kHz does not work */
 	return (val);
 }
 
@@ -504,7 +774,7 @@ emupchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 	ch->blksz = blocksize;
 	emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getbps(ch->buffer));
 	snd_mtxunlock(sc->lock);
-	return (blocksize);
+	return (ch->blksz);
 }
 
 static int
@@ -606,10 +876,21 @@ emurchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
 	else {
+		ch->timer = emu_timer_create(sc->card);
 		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
 		emu_wrptr(sc->card, 0, ch->sizereg, 0);	/* off */
 		return (ch);
 	}
+}
+
+static int
+emurchan_free(kobj_t obj __unused, void *c_devinfo)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
+
+	emu_timer_clear(sc->card, ch->timer);
+	return (0);
 }
 
 static int
@@ -639,12 +920,20 @@ static int
 emurchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 {
 	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
 
 	ch->blksz = blocksize;
-	/* If blocksize is less than half of buffer size we will not get
-	interrupt in time and channel will die due to interrupt timeout */
-	if(ch->blksz < (ch->pcm->bufsz / 2))
-		ch->blksz = ch->pcm->bufsz / 2;
+	/*
+	 * If blocksize is less than half of buffer size we will not get
+	 * BUFHALFFULL interrupt in time and channel will need to generate
+	 * (and use) timer interrupts. Otherwise channel will be marked dead.
+	 */
+	if (ch->blksz < (ch->pcm->bufsz / 2)) {
+		emu_timer_set(sc->card, ch->timer, ch->blksz / sndbuf_getbps(ch->buffer));
+		emu_timer_enable(sc->card, ch->timer, 1);
+	} else {
+		emu_timer_enable(sc->card, ch->timer, 0);
+	}
 	return (ch->blksz);
 }
 
@@ -732,6 +1021,7 @@ emurchan_getcaps(kobj_t obj __unused, void *c_devinfo __unused)
 
 static kobj_method_t emurchan_methods[] = {
 	KOBJMETHOD(channel_init, emurchan_init),
+	KOBJMETHOD(channel_free, emurchan_free),
 	KOBJMETHOD(channel_setformat, emurchan_setformat),
 	KOBJMETHOD(channel_setspeed, emurchan_setspeed),
 	KOBJMETHOD(channel_setblocksize, emurchan_setblocksize),
@@ -763,7 +1053,7 @@ emufxrchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct p
 	ch->buffer = b;
 	ch->pcm = sc;
 	ch->channel = c;
-	ch->blksz = sc->bufsz;
+	ch->blksz = sc->bufsz / 2;
 
 	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
@@ -778,7 +1068,7 @@ static int
 emufxrchan_setformat(kobj_t obj __unused, void *c_devinfo __unused, uint32_t format)
 {
 	if (format == AFMT_S16_LE) return (0);
-	return (-1);
+	return (EINVAL);
 }
 
 static int
@@ -796,9 +1086,13 @@ emufxrchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize
 	struct emu_pcm_rchinfo *ch = c_devinfo;
 
 	ch->blksz = blocksize;
-	/* If blocksize is less than half of buffer size we will not get
-	interrupt in time and channel will die due to interrupt timeout */
-	if(ch->blksz < (ch->pcm->bufsz / 2))
+	/*
+	 * XXX If blocksize is less than half of buffer size we will not get
+	 * interrupt in time and channel will die due to interrupt timeout.
+	 * This	should not happen with FX rchan, because it will fill buffer
+	 * very	fast (64K buffer is 0.021seconds on Audigy).
+	 */
+	if (ch->blksz < (ch->pcm->bufsz / 2))
 		ch->blksz = ch->pcm->bufsz / 2;
 	return (ch->blksz);
 }
@@ -839,13 +1133,13 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 		ch->run = 1;
 		emu_wrptr(sc->card, 0, ch->sizereg, sz);
 		ch->ihandle = emu_intr_register(sc->card, ch->irqmask, ch->iprmask, &emu_pcm_intr, sc);
-		/* 
-		 SB Live! is limited to 32 mono channels. Audigy
-		 has 64 mono channels, each of them is selected from
-		 one of two A_FXWC[1|2] registers.
+		/*
+		 * SB Live! is limited to 32 mono channels. Audigy
+		 * has 64 mono channels. Channels are enabled
+		 * by setting a bit in A_FXWC[1|2] registers.
 		 */
 		/* XXX there is no way to demultiplex this streams for now */
-		if(sc->is_emu10k1) {
+		if (sc->is_emu10k1) {
 			emu_wrptr(sc->card, 0, FXWC, 0xffffffff);
 		} else {
 			emu_wrptr(sc->card, 0, A_FXWC1, 0xffffffff);
@@ -856,7 +1150,7 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 		/* FALLTHROUGH */
 	case PCMTRIG_ABORT:
 		ch->run = 0;
-		if(sc->is_emu10k1) {
+		if (sc->is_emu10k1) {
 			emu_wrptr(sc->card, 0, FXWC, 0x0);
 		} else {
 			emu_wrptr(sc->card, 0, A_FXWC1, 0x0);
@@ -895,10 +1189,24 @@ emufxrchan_getcaps(kobj_t obj __unused, void *c_devinfo)
 	struct emu_pcm_rchinfo *ch = c_devinfo;
 	struct emu_pcm_info *sc = ch->pcm;
 
-	if(sc->is_emu10k1)
+	if (sc->is_emu10k1)
 		return (&emu_reccaps_efx_live);
 	return (&emu_reccaps_efx_audigy);
 
+}
+
+static int
+emufxrchan_getrates(kobj_t obj __unused, void *c_devinfo, int **rates)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
+
+	if (sc->is_emu10k1)
+		*rates = emu_rates_live;
+	else
+		*rates = emu_rates_audigy;
+
+	return 1;
 }
 
 static kobj_method_t emufxrchan_methods[] = {
@@ -909,6 +1217,7 @@ static kobj_method_t emufxrchan_methods[] = {
 	KOBJMETHOD(channel_trigger, emufxrchan_trigger),
 	KOBJMETHOD(channel_getptr, emufxrchan_getptr),
 	KOBJMETHOD(channel_getcaps, emufxrchan_getcaps),
+	KOBJMETHOD(channel_getrates, emufxrchan_getrates),
 	{0, 0}
 };
 CHANNEL_DECLARE(emufxrchan);
@@ -923,29 +1232,51 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 
 	ack = 0;
 
+	snd_mtxlock(sc->lock);
+	
 	if (stat & IPR_INTERVALTIMER) {
 		ack |= IPR_INTERVALTIMER;
 		for (i = 0; i < MAX_CHANNELS; i++)
 			if (sc->pch[i].channel) {
-				if (sc->pch[i].run == 1)
+				if (sc->pch[i].run == 1) {
+					snd_mtxunlock(sc->lock);
 					chn_intr(sc->pch[i].channel);
-				else
+					snd_mtxlock(sc->lock);
+				} else
 					emu_timer_enable(sc->card, sc->pch[i].timer, 0);
 			}
+		/* ADC may install timer to get low-latency interrupts */
+		if ((sc->rch_adc.channel) && (sc->rch_adc.run)) {
+			snd_mtxunlock(sc->lock);
+			chn_intr(sc->rch_adc.channel);
+			snd_mtxlock(sc->lock);
+		}
+		/*
+		 * EFX does not use timer, because it will fill
+		 * buffer at least 32x times faster than ADC.
+		 */
 	}
 
 
 	if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
 		ack |= stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL);
-		if (sc->rch_adc.channel)
+		if (sc->rch_adc.channel) {
+			snd_mtxunlock(sc->lock);
 			chn_intr(sc->rch_adc.channel);
+			snd_mtxlock(sc->lock);
+		}
 	}
 
 	if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
 		ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
-		if (sc->rch_efx.channel)
+		if (sc->rch_efx.channel) {
+			snd_mtxunlock(sc->lock);
 			chn_intr(sc->rch_efx.channel);
+			snd_mtxlock(sc->lock);
+		}
 	}
+	snd_mtxunlock(sc->lock);
+
 	return (ack);
 }
 
@@ -1009,7 +1340,7 @@ emu_pcm_attach(device_t dev)
 	unsigned int i;
 	char status[SND_STATUSLEN];
 	uint32_t inte, ipr;
-	uintptr_t route, r, is_emu10k1;
+	uintptr_t route, r, ivar;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->card = (struct emu_sc_info *)(device_get_softc(device_get_parent(dev)));
@@ -1019,11 +1350,14 @@ emu_pcm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10kx softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10kx pcm softc");
 	sc->dev = dev;
 
-	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &is_emu10k1);
-	sc->is_emu10k1 = is_emu10k1 ? 1 : 0;
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &ivar);
+	sc->is_emu10k1 = ivar ? 1 : 0;
+
+	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_MCH_DISABLED, &ivar);
+	sc->mch_disabled = ivar ? 1 : 0;
 
 	sc->codec = NULL;
 
@@ -1041,6 +1375,10 @@ emu_pcm_attach(device_t dev)
 		sc->rt_mono.amounts_right[i] = 0x00;
 	}
 
+	sc->emu10k1_volcache[0][0] = 75;
+	sc->emu10k1_volcache[1][0] = 75;
+	sc->emu10k1_volcache[0][1] = 75;
+	sc->emu10k1_volcache[1][1] = 75;
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	sc->route = route;
 	switch (route) {
@@ -1053,16 +1391,13 @@ emu_pcm_attach(device_t dev)
 			sc->codec = AC97_CREATE(dev, sc, emu_ac97);
 		else
 			sc->codec = AC97_CREATE(dev, sc, emu_eac97);
- 		if (sc->codec == NULL) {
- 			if (mixer_init(dev, &emudspmixer_class, sc)) {
- 				device_printf(dev, "failed to initialize DSP mixer\n");
- 				goto bad;
- 			}
- 		} else
-			if (mixer_init(dev, ac97_getmixerclass(), sc->codec) == -1) {
- 				device_printf(dev, "can't initialize AC97 mixer!\n");
- 				goto bad;
-			}
+		sc->ac97_mixerclass = NULL;
+		if (sc->codec != NULL)
+			sc->ac97_mixerclass = ac97_getmixerclass();
+		if (mixer_init(dev, &emudspmixer_class, sc)) {
+			device_printf(dev, "failed to initialize DSP mixer\n");
+			goto bad;
+		}
 		break;
 	case RT_REAR:
 		sc->rt.amounts_left[2] = 0xff;
@@ -1101,7 +1436,10 @@ emu_pcm_attach(device_t dev)
 		}
 		break;
 	case RT_MCHRECORD:
-			/* XXX add mixer here */
+		if (mixer_init(dev, &emuefxmixer_class, sc)) {
+			device_printf(dev, "failed to initialize EFX mixer\n");
+			goto bad;
+		}
 		break;
 	default:
 		device_printf(dev, "invalid default route\n");
@@ -1109,13 +1447,19 @@ emu_pcm_attach(device_t dev)
 	}
 
 	inte = INTE_INTERVALTIMERENB;
-	ipr = IPR_INTERVALTIMER; /* Used by playback */
+	ipr = IPR_INTERVALTIMER; /* Used by playback & ADC */
 	sc->ihandle = emu_intr_register(sc->card, inte, ipr, &emu_pcm_intr, sc);
 
 	if (emu_pcm_init(sc) == -1) {
 		device_printf(dev, "unable to initialize PCM part of the card\n");
 		goto bad;
 	}
+
+	/* 
+	 * We don't register interrupt handler with snd_setup_intr
+	 * in pcm device. Mark pcm device as MPSAFE manually.
+	 */
+	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
 	/* XXX we should better get number of available channels from parent */
 	if (pcm_register(dev, sc, (route == RT_FRONT) ? MAX_CHANNELS : 1, (route == RT_FRONT) ? 1 : 0)) {
@@ -1172,7 +1516,6 @@ static device_method_t emu_pcm_methods[] = {
 	DEVMETHOD(device_probe, emu_pcm_probe),
 	DEVMETHOD(device_attach, emu_pcm_attach),
 	DEVMETHOD(device_detach, emu_pcm_detach),
-
 	{0, 0}
 };
 
