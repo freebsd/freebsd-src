@@ -761,6 +761,11 @@ bad:
 void
 esp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
+	struct ip6ctlparam *ip6cp = NULL;
+	struct mbuf *m = NULL;
+	struct ip6_hdr *ip6;
+	int off;
+
 	if (sa->sa_family != AF_INET6 ||
 	    sa->sa_len != sizeof(struct sockaddr_in6))
 		return;
@@ -768,10 +773,18 @@ esp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */
-	if (d !=  NULL) {
-		struct ip6ctlparam *ip6cp = (struct ip6ctlparam *)d;
-		struct mbuf *m = ip6cp->ip6c_m;
-		int off = ip6cp->ip6c_off;
+	if (d != NULL) {
+		ip6cp = (struct ip6ctlparam *)d;
+		m = ip6cp->ip6c_m;
+		ip6 = ip6cp->ip6c_ip6;
+		off = ip6cp->ip6c_off;
+	} else {
+		m = NULL;
+		ip6 = NULL;
+		off = 0;	/* calm gcc */
+	}
+
+	if (ip6 != NULL) {
 
 		struct ip6ctlparam ip6cp1;
 
