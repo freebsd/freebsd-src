@@ -749,8 +749,5 @@ XBOX			opt_xbox.h
 # XFS
 XFS
 
-# snd_emu10kx sound driver options
-SND_EMU10KX_MULTICHANNEL	opt_emu10kx.h
-
 # Interrupt filtering
 INTR_FILTER             opt_global.h

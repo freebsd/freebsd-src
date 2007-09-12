@@ -38,7 +38,8 @@
 
 #define	EMUPAGESIZE	4096
 #define	NUM_G		64
-#define	EMU_PLAY_BUFSZ	EMUPAGESIZE*16
+/* XXX some (empty) samples are played when play buffer is > EMUPAGESIZE */
+#define	EMU_PLAY_BUFSZ	EMUPAGESIZE
 /* Recording is limited by EMUPAGESIZE*16=64K buffer */
 #define	EMU_REC_BUFSZ	EMUPAGESIZE*16
 #define	EMU_MAX_BUFSZ	EMUPAGESIZE*16
@@ -48,6 +49,8 @@
 #define	EMU_VAR_FUNC		0
 #define	EMU_VAR_ROUTE		1
 #define	EMU_VAR_ISEMU10K1 	2
+#define	EMU_VAR_MCH_DISABLED 	3
+#define	EMU_VAR_MCH_REC 	4
 
 #define	RT_FRONT		0
 #define	RT_REAR			1

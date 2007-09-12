@@ -2043,7 +2043,6 @@ device		snd_csa
 device		snd_ds1
 device		snd_emu10k1
 device		snd_emu10kx
-options		SND_EMU10KX_MULTICHANNEL
 device		snd_envy24
 device		snd_envy24ht
 device		snd_es137x

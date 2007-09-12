@@ -46,7 +46,6 @@
 #include <dev/sound/midi/mpu401.h>
 #include "mpufoi_if.h"
 
-#include "opt_emu10kx.h"
 #include <dev/sound/pci/emu10kx.h>
 #include "emu10k1-alsa%diked.h"
 
@@ -117,9 +116,8 @@ emu_midi_card_intr(void *p, uint32_t intr_status)
 	if (sc->mpu_intr == NULL) {
 		/* We should read MIDI event to unlock card after
 		 * interrupt. XXX - check, why this happens.  */
-#ifdef	SND_EMU10KX_DEBUG
-		device_printf(sc->dev, "midi interrupt %08x without interrupt handler, force mread!\n", intr_status);
-#endif
+		if (bootverbose)
+			device_printf(sc->dev, "midi interrupt %08x without interrupt handler, force mread!\n", intr_status);
 		(void)emu_mread((void *)(NULL), sc, 0);
 	}
 	return (intr_status); /* Acknowledge everything */
@@ -166,7 +164,7 @@ emu_midi_attach(device_t dev)
 	scp->port = midiinfo->port;
 	scp->card = midiinfo->card;
 
-	mtx_init(&scp->mtx, "emu10kx_midi", NULL, MTX_DEF);
+	mtx_init(&scp->mtx, device_get_nameunit(dev), "midi softc", MTX_DEF);
 
 	if (scp->is_emu10k1) {
 		/* SB Live! - only one MIDI device here */
@@ -192,8 +190,6 @@ emu_midi_attach(device_t dev)
 			ipr_val |= IPR_A_MIDIRECVBUFEMPTY2;
 		}
 	}
-	if (inte_val == 0)
-		return (ENXIO);
 
 	scp->ihandle = emu_intr_register(scp->card, inte_val, ipr_val, &emu_midi_card_intr, scp);
 	/* Init the interface. */
