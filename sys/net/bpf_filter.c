@@ -186,7 +186,7 @@ bpf_filter(pc, p, wirelen, buflen)
 {
 	register u_int32_t A = 0, X = 0;
 	register bpf_u_int32 k;
-	int32_t mem[BPF_MEMWORDS];
+	u_int32_t mem[BPF_MEMWORDS];
 
 	if (pc == 0)
 		/*
