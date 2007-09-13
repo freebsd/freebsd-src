@@ -46,5 +46,13 @@ __P((struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
 	void sctp6_ctlinput __P((int, struct sockaddr *, void *));
 
 
+	extern void sctp6_notify(struct sctp_inpcb *inp,
+         struct icmp6_hdr *icmph,
+         struct sctphdr *sh,
+         struct sockaddr *to,
+         struct sctp_tcb *stcb,
+         struct sctp_nets *net);
+
+
 #endif				/* _KERNEL */
 #endif

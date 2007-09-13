@@ -315,7 +315,7 @@ out:
 }
 
 
-static void
+void
 sctp6_notify(struct sctp_inpcb *inp,
     struct icmp6_hdr *icmph,
     struct sctphdr *sh,

@@ -1771,9 +1771,7 @@ sctp_timeout_handler(void *t)
 		if ((stcb == NULL) || (inp == NULL)) {
 			break;
 		}
-		if (sctp_delete_prim_timer(inp, stcb, net)) {
-			goto out_decr;
-		}
+		sctp_delete_prim_timer(inp, stcb, net);
 		SCTP_STAT_INCR(sctps_timodelprim);
 		break;
 
