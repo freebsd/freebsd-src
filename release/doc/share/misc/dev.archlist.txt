@@ -101,6 +101,7 @@ ohci	i386,pc98,alpha,ia64,amd64,powerpc
 oltr	i386
 pcn	i386,pc98,alpha,ia64,amd64
 pst	i386
+ral	i386,amd64
 rc	i386
 rr232x	i386,amd64
 rue	i386,pc98,amd64
@@ -157,6 +158,7 @@ ulpt	i386,pc98,alpha,amd64,powerpc
 umass	i386,pc98,alpha,amd64,powerpc
 umodem	i386,pc98,amd64
 uplcom	i386,pc98,amd64
+ural	i386,amd64
 urio	i386,pc98,amd64,powerpc
 uscanner	i386,pc98,amd64,powerpc
 uvisor	i386,pc98,amd64
