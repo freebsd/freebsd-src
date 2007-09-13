@@ -136,7 +136,8 @@ static int
 mxge_probe(device_t dev)
 {
   if ((pci_get_vendor(dev) == MXGE_PCI_VENDOR_MYRICOM) &&
-      (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E)) {
+      ((pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E) ||
+       (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E_9))) {
 	  device_set_desc(dev, "Myri10G-PCIE-8A");
 	  return 0;
   }
