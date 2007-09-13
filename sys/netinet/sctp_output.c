@@ -5470,8 +5470,8 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	}
 	if ((stcb->asoc.stream_locked) &&
 	    (stcb->asoc.stream_locked_on != srcv->sinfo_stream)) {
-		SCTP_LTRACE_ERR_RET_PKT(m, NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EAGAIN);
-		error = EAGAIN;
+		SCTP_LTRACE_ERR_RET_PKT(m, NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+		error = EINVAL;
 		goto out_now;
 	}
 	strm = &stcb->asoc.strmout[srcv->sinfo_stream];
@@ -9964,7 +9964,9 @@ sctp_send_packet_dropped(struct sctp_tcb *stcb, struct sctp_nets *net,
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
 
-	/* sa_ignore NO_NULL_CHK */
+	if (!stcb) {
+		return;
+	}
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	if (asoc->peer_supports_pktdrop == 0) {
@@ -11644,8 +11646,8 @@ sctp_lower_sosend(struct socket *so,
 		if ((asoc->stream_locked) &&
 		    (asoc->stream_locked_on != srcv->sinfo_stream)) {
 			SCTP_TCB_SEND_UNLOCK(stcb);
-			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EAGAIN);
-			error = EAGAIN;
+			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+			error = EINVAL;
 			goto out;
 		}
 		SCTP_TCB_SEND_UNLOCK(stcb);
