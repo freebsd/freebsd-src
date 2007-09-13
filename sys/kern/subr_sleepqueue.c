@@ -328,6 +328,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 		MPASS((flags & SLEEPQ_TYPE) == sq->sq_type);
 		LIST_INSERT_HEAD(&sq->sq_free, td->td_sleepqueue, sq_hash);
 	}
+	thread_lock(td);
 	TAILQ_INSERT_TAIL(&sq->sq_blocked[queue], td, td_slpq);
 	td->td_sleepqueue = NULL;
 	td->td_sqqueue = queue;
@@ -337,6 +338,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 		td->td_flags |= TDF_SINTR;
 		td->td_flags &= ~TDF_SLEEPABORT;
 	}
+	thread_unlock(td);
 }
 
 /*
