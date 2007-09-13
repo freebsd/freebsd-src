@@ -3949,6 +3949,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 							    tp1->rec.data.TSN_seq);
 						}
 						sctp_flight_size_decrease(tp1);
+						/* sa_ignore NO_NULL_CHK */
 						sctp_total_flight_decrease(stcb, tp1);
 					}
 					tp1->whoTo->net_ack += tp1->send_size;
@@ -3963,6 +3964,10 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 						/* update RTO too? */
 						if (tp1->do_rtt) {
 							tp1->whoTo->RTO =
+							/*
+							 * sa_ignore
+							 * NO_NULL_CHK
+							 */
 							    sctp_calculate_rto(stcb,
 							    asoc, tp1->whoTo,
 							    &tp1->sent_rcv_time,
@@ -3987,6 +3992,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
 
 					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
+						/* sa_ignore NO_NULL_CHK */
 						sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.TSN_seq, SCTP_CWND_LOG_FROM_SACK);
 					}
 				}
@@ -4001,6 +4007,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 				tp1->sent = SCTP_DATAGRAM_ACKED;
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 				if (tp1->data) {
+					/* sa_ignore NO_NULL_CHK */
 					sctp_free_bufspace(stcb, asoc, tp1, 1);
 					sctp_m_freem(tp1->data);
 				}
@@ -4022,6 +4029,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 
 	}
+	/* sa_ignore NO_NULL_CHK */
 	if (stcb->sctp_socket) {
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		struct socket *so;
@@ -4030,6 +4038,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 
 		SOCKBUF_LOCK(&stcb->sctp_socket->so_snd);
 		if (sctp_logging_level & SCTP_WAKE_LOGGING_ENABLE) {
+			/* sa_ignore NO_NULL_CHK */
 			sctp_wakeup_log(stcb, cumack, 1, SCTP_WAKESND_FROM_SACK);
 		}
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -4745,6 +4754,7 @@ skip_segments:
 			asoc->total_flight = 0;
 		}
 		if (tp1->data) {
+			/* sa_ignore NO_NULL_CHK */
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
 			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
@@ -4767,6 +4777,7 @@ skip_segments:
 	} while (tp1 != NULL);
 
 done_with_it:
+	/* sa_ignore NO_NULL_CHK */
 	if ((wake_him) && (stcb->sctp_socket)) {
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		struct socket *so;
@@ -5574,11 +5585,13 @@ slide_out:
 				    stseq->sequence;
 			}
 			/* now kick the stream the new way */
+			/* sa_ignore NO_NULL_CHK */
 			sctp_kick_prsctp_reorder_queue(stcb, strm);
 		}
 	}
 	if (TAILQ_FIRST(&asoc->reasmqueue)) {
 		/* now lets kick out and check for more fragmented delivery */
+		/* sa_ignore NO_NULL_CHK */
 		sctp_deliver_reasm_check(stcb, &stcb->asoc);
 	}
 }

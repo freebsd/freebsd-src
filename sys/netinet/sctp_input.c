@@ -3142,6 +3142,7 @@ sctp_clean_up_stream_reset(struct sctp_tcb *stcb)
 	}
 	asoc->ctrl_queue_cnt--;
 	sctp_free_a_chunk(stcb, chk);
+	/* sa_ignore NO_NULL_CHK */
 	stcb->asoc.str_reset = NULL;
 }
 
