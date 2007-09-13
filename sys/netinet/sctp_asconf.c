@@ -986,11 +986,9 @@ sctp_move_chunks_from_deleted_prim(struct sctp_tcb *stcb, struct sctp_nets *dst)
 	struct sctp_stream_queue_pending *sp;
 
 	if (dst->dest_state & SCTP_ADDR_UNCONFIRMED) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "move_chunks_from_deleted_prim: specified destination is UNCONFIRMED\n");
 		return;
 	}
 	if (stcb->asoc.deleted_primary == NULL) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "move_chunks_from_deleted_prim: Funny, old primary is not stored\n");
 		return;
 	}
 	asoc = &stcb->asoc;
@@ -1028,19 +1026,16 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 	int error;
 
 	if (dstnet->dest_state & SCTP_ADDR_UNCONFIRMED) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: specified destination is UNCONFIRMED\n");
 		return;
 	}
 	if (stcb->asoc.deleted_primary == NULL) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: Funny, old primary is not stored\n");
 		return;
 	}
 	if (!TAILQ_EMPTY(&stcb->asoc.sent_queue)) {
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "Deleted primary is ");
+		SCTPDBG(SCTP_DEBUG_ASCONF1, "assoc_immediate_retrans: Deleted primary is ");
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &stcb->asoc.deleted_primary->ro._l_addr.sa);
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "Current Primary is ");
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &stcb->asoc.primary_destination->ro._l_addr.sa);
-		SCTPDBG(SCTP_DEBUG_ASCONF1, "Stopping send timer and calling t3rxt_timer\n");
 		sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb,
 		    stcb->asoc.deleted_primary,
 		    SCTP_FROM_SCTP_TIMER + SCTP_LOC_8);
@@ -1053,7 +1048,6 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 		error = sctp_t3rxt_timer(stcb->sctp_ep, stcb,
 		    stcb->asoc.deleted_primary);
 		if (error) {
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "t3rxt_timer error\n");
 			SCTP_INP_DECR_REF(stcb->sctp_ep);
 			return;
 		}
@@ -1082,8 +1076,7 @@ sctp_net_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_tmit_chunk *chk;
 
-	SCTPDBG(SCTP_DEBUG_ASCONF1, "net_immediate_retrans:\n");
-	SCTPDBG(SCTP_DEBUG_ASCONF1, "RTO is %d\n", net->RTO);
+	SCTPDBG(SCTP_DEBUG_ASCONF1, "net_immediate_retrans: RTO is %d\n", net->RTO);
 	sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net,
 	    SCTP_FROM_SCTP_TIMER + SCTP_LOC_5);
 	stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);

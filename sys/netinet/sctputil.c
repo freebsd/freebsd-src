@@ -6459,40 +6459,30 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
 
-struct sctp_dump_log {
-	u_int64_t timestamp;
-	const char *descr;
-	uint32_t subsys;
-	uint32_t params[SCTP_TRACE_PARAMS];
-};
-int sctp_log_index = 0;
-struct sctp_dump_log sctp_log[SCTP_MAX_LOGGING_SIZE];
-
 void
-sctp_log_trace(uint32_t subsys, const char *str, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f)
+sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t e, uint32_t f)
 {
-	int saveindex, newindex;
+	uint32_t saveindex, newindex;
 
 	do {
-		saveindex = sctp_log_index;
+		saveindex = sctp_log.index;
 		if (saveindex >= SCTP_MAX_LOGGING_SIZE) {
 			newindex = 1;
 		} else {
 			newindex = saveindex + 1;
 		}
-	} while (atomic_cmpset_int(&sctp_log_index, saveindex, newindex) == 0);
+	} while (atomic_cmpset_int(&sctp_log.index, saveindex, newindex) == 0);
 	if (saveindex >= SCTP_MAX_LOGGING_SIZE) {
 		saveindex = 0;
 	}
-	sctp_log[saveindex].timestamp = SCTP_GET_CYCLECOUNT;
-	sctp_log[saveindex].subsys = subsys;
-	sctp_log[saveindex].descr = str;
-	sctp_log[saveindex].params[0] = a;
-	sctp_log[saveindex].params[1] = b;
-	sctp_log[saveindex].params[2] = c;
-	sctp_log[saveindex].params[3] = d;
-	sctp_log[saveindex].params[4] = e;
-	sctp_log[saveindex].params[5] = f;
+	sctp_log.entry[saveindex].timestamp = SCTP_GET_CYCLECOUNT;
+	sctp_log.entry[saveindex].subsys = subsys;
+	sctp_log.entry[saveindex].params[0] = a;
+	sctp_log.entry[saveindex].params[1] = b;
+	sctp_log.entry[saveindex].params[2] = c;
+	sctp_log.entry[saveindex].params[3] = d;
+	sctp_log.entry[saveindex].params[4] = e;
+	sctp_log.entry[saveindex].params[5] = f;
 }
 
 #endif
