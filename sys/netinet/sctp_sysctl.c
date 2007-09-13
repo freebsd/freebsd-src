@@ -98,6 +98,10 @@ uint32_t sctp_default_frag_interleave = SCTPCTL_DEFAULT_FRAG_INTERLEAVE_DEFAULT;
 uint32_t sctp_mobility_base = SCTPCTL_MOBILITY_BASE_DEFAULT;
 uint32_t sctp_mobility_fasthandoff = SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT;
 
+#if defined(SCTP_LOCAL_TRACE_BUF)
+struct sctp_log sctp_log;
+
+#endif
 #ifdef SCTP_DEBUG
 uint32_t sctp_debug_on = SCTPCTL_DEBUG_DEFAULT;
 
@@ -759,7 +763,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, max_retran_chunk, CTLTYPE_INT | CTLFLAG_RW
     &sctp_max_retran_chunk, 0, sysctl_sctp_check, "IU",
     SCTPCTL_MAX_RETRAN_CHUNK_DESC);
 
-SYSCTL_PROC(_net_inet_sctp, OID_AUTO, logging, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, log_level, CTLTYPE_INT | CTLFLAG_RW,
     &sctp_logging_level, 0, sysctl_sctp_check, "IU",
     SCTPCTL_LOGGING_LEVEL_DESC);
 
@@ -783,6 +787,12 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, mobility_fasthandoff, CTLTYPE_INT | CTLFLA
     SCTPCTL_MOBILITY_FASTHANDOFF_DESC);
 #endif
 
+#if defined(SCTP_LOCAL_TRACE_BUF)
+SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, log, CTLFLAG_RD,
+    &sctp_log, sctp_log,
+    "SCTP logging (struct sctp_log)");
+#endif
+
 #ifdef SCTP_DEBUG
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_INT | CTLFLAG_RW,
     &sctp_debug_on, 0, sysctl_sctp_check, "IU",
@@ -792,7 +802,7 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_INT | CTLFLAG_RW,
 
 SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
     &sctpstat, sctpstat,
-    "SCTP statistics (struct sctps_stat, netinet/sctp.h");
+    "SCTP statistics (struct sctp_stat)");
 
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_RD,
     0, 0, sctp_assoclist,

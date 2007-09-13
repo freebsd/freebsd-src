@@ -501,6 +501,10 @@ extern uint32_t sctp_default_frag_interleave;
 extern uint32_t sctp_mobility_base;
 extern uint32_t sctp_mobility_fasthandoff;
 
+#if defined(SCTP_LOCAL_TRACE_BUF)
+extern struct sctp_log sctp_log;
+
+#endif
 #if defined(SCTP_DEBUG)
 extern uint32_t sctp_debug_on;
 
