@@ -565,7 +565,7 @@ void
 i8254_init(void)
 {
 
-	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN);
+	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
 	set_timer_freq(timer_freq, hz);
 }
 
