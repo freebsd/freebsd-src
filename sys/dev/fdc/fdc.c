@@ -191,6 +191,7 @@ static struct fd_type *fd_native_types[] = {
 #define	FDO_MOEN3	0x80	/*  motor enable drive 3 */
 
 #define	FDSTS	4	/* NEC 765 Main Status Register (R) */
+#define	FDDSR	4	/* Data Rate Select Register (W) */
 #define	FDDATA	5	/* NEC 765 Data Register (R/W) */
 #define	FDCTL	7	/* Control Register (W) */
 
@@ -344,6 +345,13 @@ fdsts_rd(struct fdc_data *fdc)
 }
 
 static void
+fddsr_wr(struct fdc_data *fdc, u_int8_t v)
+{
+
+	fdregwr(fdc, FDDSR, v);
+}
+
+static void
 fddata_wr(struct fdc_data *fdc, u_int8_t v)
 {
 
@@ -494,11 +502,16 @@ fdc_reset(struct fdc_data *fdc)
 {
 	int i, r[10];
 
-	/* Try a reset, keep motor on */
-	fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
-	DELAY(100);
-	/* enable FDC, but defer interrupts a moment */
-	fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
+	if (fdc->fdct == FDC_ENHANCED) {
+		/* Try a software reset, default precomp, and 500 kb/s */
+		fddsr_wr(fdc, I8207X_DSR_SR);
+	} else {
+		/* Try a hardware reset, keep motor on */
+		fdout_wr(fdc, fdc->fdout & ~(FDO_FRST|FDO_FDMAEN));
+		DELAY(100);
+		/* enable FDC, but defer interrupts a moment */
+		fdout_wr(fdc, fdc->fdout & ~FDO_FDMAEN);
+	}
 	DELAY(100);
 	fdout_wr(fdc, fdc->fdout);
 
@@ -508,7 +521,7 @@ fdc_reset(struct fdc_data *fdc)
 
 	if (fdc->fdct == FDC_ENHANCED) {
 		if (fdc_cmd(fdc, 4,
-		    I8207X_CONFIGURE,
+		    I8207X_CONFIG,
 		    0,
 		    0x40 |			/* Enable Implied Seek */
 		    0x10 |			/* Polling disabled */
@@ -519,7 +532,7 @@ fdc_reset(struct fdc_data *fdc)
 			    " CONFIGURE failed in reset\n");
 		if (debugflags & 1) {
 			if (fdc_cmd(fdc, 1,
-			    0x0e,			/* DUMPREG */
+			    I8207X_DUMPREG,
 			    10, &r[0], &r[1], &r[2], &r[3], &r[4],
 			    &r[5], &r[6], &r[7], &r[8], &r[9]))
 				device_printf(fdc->fdc_dev,
@@ -745,6 +758,9 @@ fdc_worker(struct fdc_data *fdc)
 		(fdc->retry >= retries || (fd->options & FDOPT_NORETRY))) {
 		if ((debugflags & 4))
 			printf("Too many retries (EIO)\n");
+		mtx_lock(&fdc->fdc_mtx);
+		fd->flags |= FD_EMPTY;
+		mtx_unlock(&fdc->fdc_mtx);
 		return (fdc_biodone(fdc, EIO));
 	}
 
@@ -804,7 +820,10 @@ fdc_worker(struct fdc_data *fdc)
 
 	/* Select drive, setup params */
 	fd_select(fd);
-	fdctl_wr(fdc, fd->ft->trans);
+	if (fdc->fdct == FDC_ENHANCED)
+		fddsr_wr(fdc, fd->ft->trans);
+	else
+		fdctl_wr(fdc, fd->ft->trans);
 
 	if (bp->bio_cmd & BIO_PROBE) {
 

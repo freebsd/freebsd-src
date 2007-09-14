@@ -35,12 +35,12 @@
  */
 
 /* Main status register */
-#define NE7_DAB	0x01	/* Diskette drive A is seeking, thus busy */
-#define NE7_DBB	0x02	/* Diskette drive B is seeking, thus busy */
-#define NE7_CB	0x10	/* Diskette Controller Busy */
-#define NE7_NDM	0x20	/* Diskette Controller in Non Dma Mode */
-#define NE7_DIO	0x40	/* Diskette Controller Data register I/O */
-#define NE7_RQM	0x80	/* Diskette Controller ReQuest for Master */
+#define NE7_DAB		0x01	/* Diskette drive A is seeking, thus busy */
+#define NE7_DBB		0x02	/* Diskette drive B is seeking, thus busy */
+#define NE7_CB		0x10	/* Diskette Controller Busy */
+#define NE7_NDM		0x20	/* Diskette Controller in Non Dma Mode */
+#define NE7_DIO		0x40	/* Diskette Controller Data register I/O */
+#define NE7_RQM		0x80	/* Diskette Controller ReQuest for Master */
 
 /* Status register ST0 */
 #define NE7_ST0BITS	"\020\010invld\007abnrml\006seek_cmplt\005equ_chck\004drive_notrdy\003top_head"
@@ -90,6 +90,12 @@
 #define NE7_ST3_HD	0x04	/* upper head select */
 #define NE7_ST3_US	0x03	/* unit select */
 
+/* Data Rate Select Register DSR (enhanced controller) */
+#define I8207X_DSR_SR	0x80	/* software reset */
+#define I8207X_DSR_LP	0x40	/* low power */
+#define I8207X_DSR_PS	0x1c	/* precompensation select */
+#define I8207X_DSR_RS	0x03	/* data rate select */
+
 /* Commands */
 /*
  * the top three bits -- where appropriate -- are set as follows:
@@ -103,21 +109,22 @@
 #define NE7CMD_MFM	0x40	/* same as MT, plus READTRK, READID, FORMAT */
 #define NE7CMD_SK	0x20	/* READ, READDEL, SCAN* */
 
-#define NE7CMD_READTRK	2	/*  read whole track */
-#define NE7CMD_SPECIFY	3	/*  specify drive parameters - requires unit
+#define NE7CMD_READTRK	0x02	/*  read whole track */
+#define NE7CMD_SPECIFY	0x03	/*  specify drive parameters - requires unit
 				 *  parameters byte */
-#define NE7CMD_SENSED	4	/*  sense drive - requires unit select byte */
-#define NE7CMD_WRITE	5	/*  write - requires eight additional bytes */
-#define NE7CMD_READ	6	/*  read - requires eight additional bytes */
-#define NE7CMD_RECAL	7	/*  recalibrate drive - requires
+#define NE7CMD_SENSED	0x04	/*  sense drive - requires unit select byte */
+#define NE7CMD_WRITE	0x05	/*  write - requires eight additional bytes */
+#define NE7CMD_READ	0x06	/*  read - requires eight additional bytes */
+#define NE7CMD_RECAL	0x07	/*  recalibrate drive - requires
 				 *  unit select byte */
-#define NE7CMD_SENSEI	8	/*  sense controller interrupt status */
-#define NE7CMD_WRITEDEL	9	/*  write deleted data */
-#define NE7CMD_READID	0xa	/*  read ID field */
-#define NE7CMD_READDEL	0xc	/*  read deleted data */
-#define NE7CMD_FORMAT	0xd	/*  format - requires five additional bytes */
-#define NE7CMD_SEEK	0xf	/*  seek drive - requires unit select byte
+#define NE7CMD_SENSEI	0x08	/*  sense controller interrupt status */
+#define NE7CMD_WRITEDEL	0x09	/*  write deleted data */
+#define NE7CMD_READID	0x0a	/*  read ID field */
+#define NE7CMD_READDEL	0x0c	/*  read deleted data */
+#define NE7CMD_FORMAT	0x0d	/*  format - requires five additional bytes */
+#define NE7CMD_SEEK	0x0f	/*  seek drive - requires unit select byte
 				 *  and new cyl byte */
+#define NE7CMD_VERSION	0x10	/*  get version */
 #define NE7CMD_SCNEQU	0x11	/*  scan equal */
 #define NE7CMD_SCNLE	0x19	/*  scan less or equal */
 #define NE7CMD_SCNGE	0x1d	/*  scan greater or equal */
@@ -125,9 +132,8 @@
 /*
  * Enhanced controller commands:
  */
-#define NE7CMD_VERSION	0x10	/*  version (ok for all controllers) */
-
-#define I8207X_CONFIGURE 0x13   /*  configure enhanced features */
+#define I8207X_DUMPREG	0x0e	/*  dump internal registers */
+#define I8207X_CONFIG	0x13	/*  configure enhanced features */
 
 /*
  * "specify" definitions
@@ -139,5 +145,5 @@
  * nd  - no DMA flag; PC usually not set (0)
  */
 
-#define NE7_SPEC_1(srt, hut) (((16 - (srt)) << 4) | (((hut) / 16)))
-#define NE7_SPEC_2(hlt, nd)  (((hlt) & 0xFE) | ((nd) & 1))
+#define NE7_SPEC_1(srt, hut)	(((16 - (srt)) << 4) | (((hut) / 16)))
+#define NE7_SPEC_2(hlt, nd)	(((hlt) & 0xFE) | ((nd) & 1))
