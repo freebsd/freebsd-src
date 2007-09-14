@@ -274,7 +274,7 @@ void _lock_profile_release_lock(struct lock_object *lo)
 {
         struct lock_profile_object *l = &lo->lo_profile_obj;
 
-        if (l->lpo_acqtime && !(lo->lo_flags & LO_NOPROFILE)) {
+        if (l->lpo_acqtime) {
                 const char *unknown = "(unknown)";
                 u_int64_t acqtime, now, waittime;
                 struct lock_prof *mpp;
