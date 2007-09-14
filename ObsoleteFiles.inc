@@ -3301,7 +3301,6 @@ OLD_FILES+=usr/share/man/man4/st.4.gz
 OLD_FILES+=usr/share/man/man4/uaudio.4.gz
 OLD_FILES+=usr/share/man/man4/utf2.4.gz
 OLD_FILES+=usr/share/man/man4/vinumdebug.4.gz
-OLD_FILES+=usr/share/man/man5/ar.5.gz
 OLD_FILES+=usr/share/man/man5/disklabel.5.gz
 OLD_FILES+=usr/share/man/man5/dm.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ranlib.5.gz
