@@ -1930,16 +1930,16 @@ nfe_int_task(void *arg, int pending)
 	}
 #endif
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		NFE_UNLOCK(sc);
-		nfe_enable_intr(sc);
-		return;
-	}
-
 	if (r & NFE_IRQ_LINK) {
 		NFE_READ(sc, NFE_PHY_STATUS);
 		NFE_WRITE(sc, NFE_PHY_STATUS, 0xf);
 		DPRINTF(sc, "link state changed\n");
+	}
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		NFE_UNLOCK(sc);
+		nfe_enable_intr(sc);
+		return;
 	}
 
 	domore = 0;
