@@ -159,6 +159,7 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 TTYHOG		opt_tty.h
 VFS_AIO
+VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
 
