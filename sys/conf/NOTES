@@ -401,6 +401,13 @@ options 	ALQ
 options 	KTR_ALQ
 
 #
+# Print information on which SYSINIT mi_startup() is up to.  If DDB is
+# enabled, DDB will be used to look up the name of the function and print
+# that instead of the function pointer.
+#
+options 	VERBOSE_SYSINIT
+
+#
 # The INVARIANTS option is used in a number of source files to enable
 # extra sanity checking of internal structures.  This support is not
 # enabled by default because of the extra time it would take to check
