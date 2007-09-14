@@ -904,8 +904,8 @@ nfe_link_task(void *arg, int pending)
 		txctl &= ~NFE_TX_START;
 		rxctl &= ~NFE_RX_START;
 	}
-	NFE_WRITE(sc, NFE_TX_CTL, NFE_TX_START);
-	NFE_WRITE(sc, NFE_RX_CTL, NFE_RX_START);
+	NFE_WRITE(sc, NFE_TX_CTL, txctl);
+	NFE_WRITE(sc, NFE_RX_CTL, rxctl);
 
 	NFE_UNLOCK(sc);
 }
