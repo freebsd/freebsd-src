@@ -25,8 +25,8 @@ Easter+60	Corpus Christi (11 days after Pentecost)
 11/SunLast	First Sunday of Advent (4th Sunday before Christmas)
 12/SunFirst	First Sunday of Advent (4th Sunday before Christmas)
 12/06	St. Nicholas' Day
-12/24   Christmas eve
-12/25   Christmastide begins: First day of Christmas
-12/26   Second day of Christmas (Boxing Day)
+12/24	Christmas eve
+12/25	Christmastide begins: First day of Christmas
+12/26	Second day of Christmas (Boxing Day)
 
 #endif /* !_calendar_christian_ */

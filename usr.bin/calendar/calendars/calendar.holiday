@@ -30,7 +30,7 @@
 01/19	Confederate Heroes Day in Texas
 01/19	Ethiopian Epiphany in Ethiopia
 01/19	Nameday of Archbishop Makarios in Cyprus
-01/20	Army Day in Mali 
+01/20	Army Day in Mali
 01/20	National Heroes Day in Guinea-Bissau
 01/21	Our Lady of Altagracia in Dominican Republic
 01/23	Feast of St. Ildefonsus
@@ -40,7 +40,7 @@
 01/MonSecond	Adults Day in Japan
 01/MonThird	Lee-Jackson Day in Virginia (3rd Monday)
 01/MonThird	Robert E. Lee's Birthday in Alabama & Mississippi (3rd Monday)
-01/SunThird	Martin Luther King Day in New York (3rd Sunday)
+01/MonThird	Martin Luther King Day in New York (3rd Monday)
 02/01	Chinese New Year Holiday (3 days) in Taiwan
 02/02	Candlemas
 02/04	Independence Commemoration Day in Sri Lanka
@@ -59,11 +59,12 @@
 02/25	National Day in Kuwait
 02/27	Independence Day in Dominican Republic
 03/01	Samil Independence Movement Day in South Korea
-03/01	St. David's Day
+03/01	St. David's Day - Patron Saint of Wales
 03/02	Peasants Day in Burma
 03/02	Texas Independence day
 03/02	Victory of Adowa in Ethiopia
 03/03	Throne Day in Morocco
+03/03	Independence day (Treaty of San Stefano) in Bulgaria
 03/04	Vermont Admission Day (admitted as 14th US state in 1791)
 03/05	Independence Day in Equatorial Guinea
 03/06	Lantern Day, Bejing
@@ -83,7 +84,7 @@
 03/13	National Day in Grenada
 03/16	Black Press Day; first US Black newspaper founded in 1827
 03/17	Evacuation Day in Suffolk County, Massachusetts
-03/17	St. Patrick's Day
+03/17	St. Patrick's Day - one of the Patron Saints of Ireland
 03/19	St. Joseph's Day, observed in Colombia, Costa Rica, Holy See,
 	Liechtenstein,	San Marino, Spain, Venezuela
 03/19	Tree Planting Day in Lestho
@@ -134,15 +135,16 @@
 04/21	Tiradentes in Brazil
 04/22	Arbor Day in Nebraska & Delaware
 04/22	Oklahoma Day in Oklahoma
+04/23	St. George's Day - Patron Saint of England
 04/24	Victory Day in Togo
 04/25	Anniversary of the Revolution in Portugal
 04/25	Anzac Day, observed in Australia, New Zealand, Tonga and Western Samoa
-04/25	Liberation Day in Italy 
+04/25	Liberation Day in Italy
 04/25	National Flag Day in Swaziland
 04/26	Confederate Memorial Day in Florida & Georgia
 04/26	Union Day in Tanzania
 04/27	Independence Day in Togo
-04/29	Day of Green in Japan
+04/29	Showa Day in Japan
 04/30	Queen's Birthday in the Netherlands, the Netherlands Antilles
 04/30	The Workers Day in Uruguay
 04/MonLast	Arbor Day in Wyoming (last Monday)
@@ -153,7 +155,7 @@
 05/01	US Law Day (decl. by Eisenhower)
 05/02	King's Birthday in Lesotho
 05/03	Constitution Memorial Day in Japan
-05/04	National Holiday in Japan
+05/04	Greenery Day in Japan
 05/04	Rhode Island Independence Day
 05/05	Battle of Puebla in Mexico
 05/05	Children's Day in Japan and South Korea
@@ -282,7 +284,6 @@
 07/18	Constitution Day in Uruguay
 07/18	Liberation Day in Nicaragua
 07/19	Martyrs Day in Burma
-07/20	Day of Sea in Japan
 07/20	Independence Day in Colombia
 07/21	National Holiday in Belgium
 07/22	King's Birthday in Swaziland
@@ -303,6 +304,7 @@
 07/29	Olsok Eve in Norway to commemorate Norway's Viking King St. Olav
 07/29	Rain Day in Waynesburg, PA
 07/31	Revolution Day in Congo
+07/MonThird	Day of Sea in Japan
 08/01	Discovery Day in Trinidad and Tobago
 08/01	Emancipation Day in Granada
 08/01	Founding of Asuncion in Paraguay
@@ -360,9 +362,9 @@
 09/03	Independence Day in Qatar
 09/03	Memorial Day in Tunisia
 09/06	Defense of Pakistan Day in Pakistan
+09/06	Unification of Bulgaria
 09/07	Independence Day in Brazil
 09/09	Admission Day in California
-09/09	Anniversary of the Socialist Revolution (2 days) in Bulgaria
 09/09	National Day in North Korea
 09/10	Korean Thanksgiving Day (Chusuk) in South Korea
 09/10	Moon Festival in Taiwan
@@ -433,7 +435,6 @@
 10/12	National Day in Equatorial Guinea and Spain
 10/12	Our Lady Aparecida Day in Brazil
 10/12	Pan American Day in Belize
-10/13	St. Edward's Day - Patron saint of England
 10/14	National Day in Yemen Arab Republic
 10/14	Young People's Day in Zaire
 10/14*	Thanksgiving Day in Canada
@@ -448,7 +449,7 @@
 10/21	Revolution Days (2 days) in Somalia
 10/23	Chulalongkron's Day in Thailand
 10/24	Independence Day in Zambia
-10/24	United Nations Day 
+10/24	United Nations Day
 10/25	Taiwan Restoration Day in Taiwan
 10/25	St. Crispin's day, patron saint of shoemakers
 10/26	Agam Day in Nauru
@@ -473,7 +474,6 @@
 11/04	Flag Day in Panama
 11/04	Will Rogers Day, USA
 11/06	Green March Day in Morocco
-11/07	Anniversary of Great October Revolution in Bulgaria
 11/07	October Revolution Day in Hungary
 11/08	Her Majesty, the Queen's Birthday in Nepal
 11/10	King's Birthday in Bhutan
@@ -512,7 +512,7 @@
 11/30	Independence Day in Barbados and Yemen Democratic Republic
 11/30	National Day in Benin
 11/30	National Heroes Day in Philippines
-11/30	St. Andrew's Day
+11/30	St. Andrew's Day - Patron Saint of Scotland
 11/Wed+3	Day of Prayer and Repentance (Buss- und Bettag) in Federal Republic of Germany
 12/01	Anniversary of the Restoration of Independence in Portugal
 12/01	Union Day in Romania
@@ -549,7 +549,7 @@
 12/26	Boxing Day
 12/26	Feast of Our Theotokos in Greece
 12/26	St. Stephen's Day
-12/26 	Bank Holiday in Canada, Rep. of Ireland, and UK
+12/26	Bank Holiday in Canada, Rep. of Ireland, and UK
 12/27	Bank Holiday in Cayman Islands
 12/27	Constitution Day in North Korea
 12/27	Public Holiday in Lesotho, Zimbabwe

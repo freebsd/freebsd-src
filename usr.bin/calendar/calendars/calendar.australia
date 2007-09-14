@@ -7,6 +7,8 @@
 #ifndef _calendar_australia_
 #define _calendar_australia_
 
+LANG=en_AU.ISO8859-1
+
 /* Australia */
 Jan 26	Australia Day
 Mar/SunLast	Daylight Savings Time ends in ACT, NSW, SA, TAS and VIC.
