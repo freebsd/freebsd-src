@@ -405,6 +405,7 @@ chkquota(fsname, mntpt, qnp)
 	if (qnp->flags & HASGRP)
 		errs += update(mntpt, qnp->grpqfname, GRPQUOTA);
 	close(fi);
+	(void)fflush(stdout);
 	return (errs);
 }
 
