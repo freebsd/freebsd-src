@@ -476,7 +476,7 @@ enable_fifo(fdc_p fdc)
 		 * first byte, and check for an early turn of data directon.
 		 */
 		
-		if (out_fdc(fdc, I8207X_CONFIGURE) < 0)
+		if (out_fdc(fdc, I8207X_CONFIG) < 0)
 			return fdc_err(fdc, "Enable FIFO failed\n");
 		
 		/* If command is invalid, return */
@@ -499,7 +499,7 @@ enable_fifo(fdc_p fdc)
 		return 0;
 	}
 	if (fd_cmd(fdc, 4,
-		   I8207X_CONFIGURE, 0, (fifo_threshold - 1) & 0xf, 0, 0) < 0)
+		   I8207X_CONFIG, 0, (fifo_threshold - 1) & 0xf, 0, 0) < 0)
 		return fdc_err(fdc, "Re-enable FIFO failed\n");
 	return 0;
 }
