@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <sys/copyright.h>
 
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+
 void mi_startup(void);				/* Should be elsewhere */
 
 /* Components of the first process -- never freed. */
@@ -169,6 +172,11 @@ mi_startup(void)
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
 
+#if defined(VERBOSE_SYSINIT)
+	int last;
+	int verbose;
+#endif
+
 	if (sysinit == NULL) {
 		sysinit = SET_BEGIN(sysinit_set);
 		sysinit_end = SET_LIMIT(sysinit_set);
@@ -191,6 +199,14 @@ restart:
 		}
 	}
 
+#if defined(VERBOSE_SYSINIT)
+	last = SI_SUB_COPYRIGHT;
+	verbose = 0;
+#if !defined(DDB)
+	printf("VERBOSE_SYSINIT: DDB not enabled, symbol lookups disabled.\n");
+#endif
+#endif
+
 	/*
 	 * Traverse the (now) ordered list of system initialization tasks.
 	 * Perform each task, and continue on to the next task.
@@ -206,8 +222,37 @@ restart:
 		if ((*sipp)->subsystem == SI_SUB_DONE)
 			continue;
 
+#if defined(VERBOSE_SYSINIT)
+		if ((*sipp)->subsystem > last) {
+			verbose = 1;
+			last = (*sipp)->subsystem;
+			printf("subsystem %x\n", last);
+		}
+		if (verbose) {
+#if defined(DDB)
+			const char *name;
+			c_db_sym_t sym;
+			db_expr_t  offset;
+
+			sym = db_search_symbol((vm_offset_t)(*sipp)->func,
+			    DB_STGY_PROC, &offset);
+			db_symbol_values(sym, &name, NULL);
+			if (name != NULL)
+				printf("   %s(%p)... ", name, (*sipp)->udata);
+			else
+#endif
+				printf("   %p(%p)... ", (*sipp)->func,
+				    (*sipp)->udata);
+		}
+#endif
+
 		/* Call function */
 		(*((*sipp)->func))((*sipp)->udata);
+
+#if defined(VERBOSE_SYSINIT)
+		if (verbose)
+			printf("done.\n");
+#endif
 
 		/* Check off the one we're just done */
 		(*sipp)->subsystem = SI_SUB_DONE;
