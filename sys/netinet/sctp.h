@@ -290,14 +290,14 @@ __attribute__((packed));
 #define SCTP_CAUSE_USER_INITIATED_ABT	0x000c
 #define SCTP_CAUSE_PROTOCOL_VIOLATION	0x000d
 
-/* Error causes from draft-ietf-tsvwg-addip-sctp */
+/* Error causes from RFC5061 */
 #define SCTP_CAUSE_DELETING_LAST_ADDR	0xa0
 #define SCTP_CAUSE_RESOURCE_SHORTAGE	0xa1
 #define SCTP_CAUSE_DELETING_SRC_ADDR	0xa2
 #define SCTP_CAUSE_ILLEGAL_ASCONF_ACK	0xa3
 #define SCTP_CAUSE_REQUEST_REFUSED	0xa4
 
-/* Error causes from draft-ietf-tsvwg-sctp-auth */
+/* Error causes from RFC4895 */
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
 
 /*
@@ -367,11 +367,11 @@ __attribute__((packed));
 #define SCTP_ECN_ECHO		0x0c
 #define SCTP_ECN_CWR		0x0d
 #define SCTP_SHUTDOWN_COMPLETE	0x0e
-/* draft-ietf-tsvwg-sctp-auth */
+/* RFC4895 */
 #define SCTP_AUTHENTICATION     0x0f
 /************0x40 series ***********/
 /************0x80 series ***********/
-/* draft-ietf-tsvwg-addip-sctp */
+/* RFC5061 */
 #define	SCTP_ASCONF_ACK		0x80
 /* draft-ietf-stewart-pktdrpsctp */
 #define SCTP_PACKET_DROPPED	0x81
@@ -383,7 +383,7 @@ __attribute__((packed));
 /************0xc0 series ***********/
 /* RFC3758 */
 #define SCTP_FORWARD_CUM_TSN	0xc0
-/* draft-ietf-tsvwg-addip-sctp */
+/* RFC5061 */
 #define SCTP_ASCONF		0xc1
 
 

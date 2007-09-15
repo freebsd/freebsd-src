@@ -112,7 +112,7 @@ void
 sctp_send_shutdown_complete2(struct mbuf *, int, struct sctphdr *,
     uint32_t);
 
-void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *);
+void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *, int addr_locked);
 
 void sctp_send_asconf_ack(struct sctp_tcb *);
 
