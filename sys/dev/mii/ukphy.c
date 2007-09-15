@@ -149,8 +149,6 @@ ukphy_attach(device_t dev)
 
 	mii->mii_instance++;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
-
 	mii_phy_reset(sc);
 
 	sc->mii_capabilities =
@@ -164,7 +162,7 @@ ukphy_attach(device_t dev)
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	mii_phy_setmedia(sc);
 
-	return(0);
+	return (0);
 }
 
 static int
