@@ -1039,7 +1039,7 @@ ng_ppp_rcvdata_vjc_ip(hook_p hook, item_p item)
 	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (!priv->conf.enableVJCompression) {
+	if (!priv->conf.enableVJDecompression) {
 		NG_FREE_ITEM(item);
 		return (ENXIO);
 	}
