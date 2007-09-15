@@ -447,7 +447,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
-		KASSERT((mt->flags & PG_WRITEABLE) == 0,
+		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
+		    (mt->flags & PG_WRITEABLE) == 0,
 		    ("vm_pageout_flush: page %p is not write protected", mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
