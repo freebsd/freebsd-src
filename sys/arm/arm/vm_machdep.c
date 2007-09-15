@@ -580,9 +580,9 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			return (ret);
 		}
 		if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-			pflags = VM_ALLOC_INTERRUPT;
+			pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
 		else
-			pflags = VM_ALLOC_SYSTEM;
+			pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
 		if (wait & M_ZERO)
 			pflags |= VM_ALLOC_ZERO;
 		for (;;) {
@@ -640,9 +640,9 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 			vm_paddr_t pa = vtophys((vm_offset_t)mem);
 
 			m = PHYS_TO_VM_PAGE(pa);
-			vm_page_lock_queues();
+			m->wire_count--;
 			vm_page_free(m);
-			vm_page_unlock_queues();
+			atomic_subtract_int(&cnt.v_wire_count, 1);
 		}
 	}
 }
