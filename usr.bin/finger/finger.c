@@ -109,7 +109,7 @@ option(int argc, char **argv)
 
 	optind = 1;		/* reset getopt */
 
-	while ((ch = getopt(argc, argv, "46gklmpshoT")) != -1)
+	while ((ch = getopt(argc, argv, "46gklmpsho")) != -1)
 		switch(ch) {
 		case '4':
 			family = AF_INET;
@@ -153,7 +153,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: finger [-46gklmpshoT] [user ...] [user@host ...]\n");
+	    "usage: finger [-46gklmpsho] [user ...] [user@host ...]\n");
 	exit(1);
 }
 
