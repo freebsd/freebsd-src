@@ -83,16 +83,16 @@ static void	gem_cddma_callback(void *, bus_dma_segment_t *, int, int);
 static void	gem_txdma_callback(void *, bus_dma_segment_t *, int,
     bus_size_t, int);
 static void	gem_tick(void *);
-static void	gem_watchdog(struct ifnet *);
+static int	gem_watchdog(struct gem_softc *);
 static void	gem_init(void *);
-static void	gem_init_locked(struct gem_softc *sc);
-static void	gem_init_regs(struct gem_softc *sc);
+static void	gem_init_locked(struct gem_softc *);
+static void	gem_init_regs(struct gem_softc *);
 static int	gem_ringsize(int sz);
 static int	gem_meminit(struct gem_softc *);
 static int	gem_load_txmbuf(struct gem_softc *, struct mbuf *);
 static void	gem_mifinit(struct gem_softc *);
-static int	gem_bitwait(struct gem_softc *sc, bus_addr_t r,
-    u_int32_t clr, u_int32_t set);
+static int	gem_bitwait(struct gem_softc *, bus_addr_t, u_int32_t,
+    u_int32_t);
 static int	gem_reset_rx(struct gem_softc *);
 static int	gem_reset_tx(struct gem_softc *);
 static int	gem_disable_rx(struct gem_softc *);
@@ -153,9 +153,10 @@ gem_attach(sc)
 	gem_reset(sc);
 	GEM_UNLOCK(sc);
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, GEM_NSEGS,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES, GEM_NSEGS, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->sc_pdmatag);
 	if (error)
 		goto fail_ifnet;
 
@@ -267,11 +268,9 @@ gem_attach(sc)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = gem_start;
 	ifp->if_ioctl = gem_ioctl;
-	ifp->if_watchdog = gem_watchdog;
 	ifp->if_init = gem_init;
 	ifp->if_snd.ifq_maxlen = GEM_TXQUEUELEN;
 	/*
@@ -321,7 +320,7 @@ gem_attach(sc)
 	/* Attach the interface. */
 	ether_ifattach(ifp, sc->sc_enaddr);
 
-#if notyet
+#ifdef notyet
 	/*
 	 * Add a suspend hook to make sure we come back up after a
 	 * resume.
@@ -543,6 +542,9 @@ gem_tick(arg)
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 	mii_tick(sc->sc_mii);
 
+	if (gem_watchdog(sc) == EJUSTRETURN)
+		return;
+
 	callout_reset(&sc->sc_tick_ch, hz, gem_tick, sc);
 }
 
@@ -558,7 +560,7 @@ gem_bitwait(sc, r, clr, set)
 
 	for (i = TRIES; i--; DELAY(100)) {
 		reg = bus_space_read_4(sc->sc_bustag, sc->sc_h, r);
-		if ((r & clr) == 0 && (r & set) == set)
+		if ((reg & clr) == 0 && (reg & set) == set)
 			return (1);
 	}
 	return (0);
@@ -656,7 +658,7 @@ gem_stop(ifp, disable)
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
+	sc->sc_wdog_timer = 0;
 }
 
 /*
@@ -685,7 +687,7 @@ gem_reset_rx(sc)
 	/* Finally, reset the ERX */
 	bus_space_write_4(t, h, GEM_RESET, GEM_RESET_RX);
 	/* Wait till it finishes */
-	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_TX, 0)) {
+	if (!gem_bitwait(sc, GEM_RESET, GEM_RESET_RX, 0)) {
 		device_printf(sc->sc_dev, "cannot reset receiver\n");
 		return (1);
 	}
@@ -981,11 +983,11 @@ gem_init_locked(sc)
 	bus_space_write_4(t, h, GEM_RX_KICK, GEM_NRXDESC-4);
 
 	/* Start the one second timer. */
+	sc->sc_wdog_timer = 0;
 	callout_reset(&sc->sc_tick_ch, hz, gem_tick, sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;
 	sc->sc_ifflags = ifp->if_flags;
 }
 
@@ -1222,10 +1224,10 @@ gem_start_locked(ifp)
 #endif
 
 		/* Set a watchdog timer in case the chip flakes out. */
-		ifp->if_timer = 5;
+		sc->sc_wdog_timer = 5;
 #ifdef GEM_DEBUG
 		CTR2(KTR_GEM, "%s: gem_start: watchdog %d",
-			device_get_name(sc->sc_dev), ifp->if_timer);
+		    device_get_name(sc->sc_dev), sc->sc_wdog_timer);
 #endif
 	}
 }
@@ -1354,13 +1356,12 @@ gem_tint(sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		gem_start_locked(ifp);
 
-		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
-			ifp->if_timer = 0;
+		sc->sc_wdog_timer = STAILQ_EMPTY(&sc->sc_txdirtyq) ? 0 : 5;
 	}
 
 #ifdef GEM_DEBUG
 	CTR2(KTR_GEM, "%s: gem_tint: watchdog %d",
-		device_get_name(sc->sc_dev), ifp->if_timer);
+	    device_get_name(sc->sc_dev), sc->sc_wdog_timer);
 #endif
 }
 
@@ -1615,14 +1616,13 @@ gem_intr(v)
 	GEM_UNLOCK(sc);
 }
 
-
-static void
-gem_watchdog(ifp)
-	struct ifnet *ifp;
+static int
+gem_watchdog(sc)
+	struct gem_softc *sc;
 {
-	struct gem_softc *sc = ifp->if_softc;
 
-	GEM_LOCK(sc);
+	GEM_LOCK_ASSERT(sc, MA_OWNED);
+
 #ifdef GEM_DEBUG
 	CTR3(KTR_GEM, "gem_watchdog: GEM_RX_CONFIG %x GEM_MAC_RX_STATUS %x "
 		"GEM_MAC_RX_CONFIG %x",
@@ -1636,12 +1636,15 @@ gem_watchdog(ifp)
 		bus_space_read_4(sc->sc_bustag, sc->sc_h, GEM_MAC_TX_CONFIG));
 #endif
 
+	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
+		return (0);
+
 	device_printf(sc->sc_dev, "device timeout\n");
-	++ifp->if_oerrors;
+	++sc->sc_ifp->if_oerrors;
 
 	/* Try to get more packets going. */
 	gem_init_locked(sc);
-	GEM_UNLOCK(sc);
+	return (EJUSTRETURN);
 }
 
 /*
