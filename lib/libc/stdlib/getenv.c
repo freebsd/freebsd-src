@@ -491,8 +491,8 @@ __setenv(const char *name, size_t nameLen, const char *value, int overwrite)
 	envVars[envNdx].active = true;
 	newEnvActive++;
 
-	/* No need to rebuild environ if the variable was reused. */
-	if (reuse)
+	/* No need to rebuild environ if an active variable was reused. */
+	if (reuse && newEnvActive == envActive)
 		return (0);
 	else
 		return (__rebuild_environ(newEnvActive));
