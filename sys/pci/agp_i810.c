@@ -136,6 +136,8 @@ static const struct agp_i810_match {
 	    "Intel 82865G (865G GMCH) SVGA controller"},
 	{0x25828086, CHIP_I915, 0x00020000,
 	    "Intel 82915G (915G GMCH) SVGA controller"},
+	{0x258A8086, CHIP_I915, 0x00020000,
+	    "Intel E7221 SVGA controller"},
 	{0x25928086, CHIP_I915, 0x00020000,
 	    "Intel 82915GM (915GM GMCH) SVGA controller"},
 	{0x27728086, CHIP_I915, 0x00020000,
