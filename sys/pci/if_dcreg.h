@@ -461,6 +461,7 @@ struct dc_desc {
 #define DC_RX_LIST_CNT		64
 #endif
 #define DC_TX_LIST_CNT		256
+#define DC_TX_LIST_RSVD		5
 #define DC_MIN_FRAMELEN		60
 #define DC_RXLEN		1536
 
@@ -496,8 +497,6 @@ struct dc_chain_data {
 	int			dc_tx_prod;
 	int			dc_tx_cons;
 	int			dc_tx_cnt;
-	int			dc_rx_err;
-	int			dc_rx_cur;
 	int			dc_rx_prod;
 };
 
@@ -752,6 +751,8 @@ struct dc_softc {
 #ifdef SRM_MEDIA
 	int			dc_srm_media;
 #endif
+	struct callout		dc_wdog_ch;
+	int			dc_wdog_timer;
 	struct mtx		dc_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;	/* ... when polling */
