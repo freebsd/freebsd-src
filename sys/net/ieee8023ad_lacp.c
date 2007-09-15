@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/sockio.h>
 #include <machine/stdarg.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -115,6 +118,7 @@ static void	lacp_aggregator_delref(struct lacp_softc *,
 
 /* receive machine */
 
+static void	lacp_dequeue(void *, int);
 static int	lacp_pdu_input(struct lagg_port *, struct mbuf *);
 static int	lacp_marker_input(struct lagg_port *, struct mbuf *);
 static void	lacp_sm_rx(struct lacp_port *, const struct lacpdu *);
@@ -212,6 +216,8 @@ static const lacp_timer_func_t lacp_timer_funcs[LACP_NTIMER] = {
 void
 lacp_input(struct lagg_port *lgp, struct mbuf *m)
 {
+	struct lagg_softc *sc = lgp->lp_softc;
+	struct lacp_softc *lsc = LACP_SOFTC(sc);
 	uint8_t subtype;
 
 	if (m->m_pkthdr.len < sizeof(struct ether_header) + sizeof(subtype)) {
@@ -222,7 +228,8 @@ lacp_input(struct lagg_port *lgp, struct mbuf *m)
 	m_copydata(m, sizeof(struct ether_header), sizeof(subtype), &subtype);
 	switch (subtype) {
 		case SLOWPROTOCOLS_SUBTYPE_LACP:
-			lacp_pdu_input(lgp, m);
+			IF_HANDOFF(&lsc->lsc_queue, m, NULL);
+			taskqueue_enqueue(taskqueue_swi, &lsc->lsc_qtask);
 			break;
 
 		case SLOWPROTOCOLS_SUBTYPE_MARKER:
@@ -236,6 +243,25 @@ lacp_input(struct lagg_port *lgp, struct mbuf *m)
 	}
 }
 
+static void
+lacp_dequeue(void *arg, int pending)
+{
+	struct lacp_softc *lsc = (struct lacp_softc *)arg;
+	struct lagg_softc *sc = lsc->lsc_softc;
+	struct lagg_port *lgp;
+	struct mbuf *m;
+
+	LAGG_WLOCK(sc);
+	for (;;) {
+		IF_DEQUEUE(&lsc->lsc_queue, m);
+		if (m == NULL)
+			break;
+		lgp = m->m_pkthdr.rcvif->if_lagg;
+		lacp_pdu_input(lgp, m);
+	}
+	LAGG_WUNLOCK(sc);
+}
+
 /*
  * lacp_pdu_input: process lacpdu
  */
@@ -246,7 +272,7 @@ lacp_pdu_input(struct lagg_port *lgp, struct mbuf *m)
 	struct lacpdu *du;
 	int error = 0;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if (m->m_pkthdr.len != sizeof(*du)) {
 		goto bad;
@@ -333,7 +359,7 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 	struct lacpdu *du;
 	int error;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -387,7 +413,7 @@ lacp_xmit_marker(struct lacp_port *lp)
 	struct markerdu *mdu;
 	int error;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
@@ -430,7 +456,7 @@ lacp_linkstate(struct lagg_port *lgp)
 	uint8_t old_state;
 	uint16_t old_key;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	bzero((char *)&ifmr, sizeof(ifmr));
 	error = (*ifp->if_ioctl)(ifp, SIOCGIFMEDIA, (caddr_t)&ifmr);
@@ -467,8 +493,10 @@ static void
 lacp_tick(void *arg)
 {
 	struct lacp_softc *lsc = arg;
+	struct lagg_softc *sc = lsc->lsc_softc;
 	struct lacp_port *lp;
 
+	LAGG_WLOCK(sc);
 	LIST_FOREACH(lp, &lsc->lsc_ports, lp_next) {
 		if ((lp->lp_state & LACP_STATE_AGGREGATION) == 0)
 			continue;
@@ -480,6 +508,7 @@ lacp_tick(void *arg)
 		lacp_sm_tx(lp);
 		lacp_sm_ptx_tx_schedule(lp);
 	}
+	LAGG_WUNLOCK(sc);
 	callout_reset(&lsc->lsc_callout, hz, lacp_tick, lsc);
 }
 
@@ -497,7 +526,7 @@ lacp_port_create(struct lagg_port *lgp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	LAGG_LOCK_ASSERT(sc);
+	LAGG_WLOCK_ASSERT(sc);
 
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
@@ -546,7 +575,7 @@ lacp_port_destroy(struct lagg_port *lgp)
 	struct sockaddr_dl sdl;
 	int i, error;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	for (i = 0; i < LACP_NTIMER; i++) {
 		LACP_TIMER_DISARM(lp, i);
@@ -670,7 +699,7 @@ lacp_disable_distributing(struct lacp_port *lp)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if (la == NULL || (lp->lp_state & LACP_STATE_DISTRIBUTING) == 0) {
 		return;
@@ -708,7 +737,7 @@ lacp_enable_distributing(struct lacp_port *lp)
 	char buf[LACP_LAGIDSTR_MAX+1];
 #endif /* defined(LACP_DEBUG) */
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_WLOCK_ASSERT(lgp->lp_softc);
 
 	if ((lp->lp_state & LACP_STATE_DISTRIBUTING) != 0) {
 		return;
@@ -747,7 +776,7 @@ lacp_attach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc;
 
-	LAGG_LOCK_ASSERT(sc);
+	LAGG_WLOCK_ASSERT(sc);
 
 	lsc = malloc(sizeof(struct lacp_softc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
@@ -762,8 +791,12 @@ lacp_attach(struct lagg_softc *sc)
 	TAILQ_INIT(&lsc->lsc_aggregators);
 	LIST_INIT(&lsc->lsc_ports);
 
-	callout_init_mtx(&lsc->lsc_transit_callout, &sc->sc_mtx, 0);
-	callout_init_mtx(&lsc->lsc_callout, &sc->sc_mtx, 0);
+	TASK_INIT(&lsc->lsc_qtask, 0, lacp_dequeue, lsc);
+	mtx_init(&lsc->lsc_queue.ifq_mtx, "lacp queue", NULL, MTX_DEF);
+	lsc->lsc_queue.ifq_maxlen = ifqmaxlen;
+
+	callout_init(&lsc->lsc_transit_callout, CALLOUT_MPSAFE);
+	callout_init(&lsc->lsc_callout, CALLOUT_MPSAFE);
 
 	/* if the lagg is already up then do the same */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -785,6 +818,9 @@ lacp_detach(struct lagg_softc *sc)
 	sc->sc_psc = NULL;
 	callout_drain(&lsc->lsc_transit_callout);
 	callout_drain(&lsc->lsc_callout);
+	taskqueue_drain(taskqueue_swi, &lsc->lsc_qtask);
+	IF_DRAIN(&lsc->lsc_queue);
+	mtx_destroy(&lsc->lsc_queue.ifq_mtx);
 
 	free(lsc, M_DEVBUF);
 	return (0);
@@ -816,7 +852,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	uint32_t hash;
 	int nports;
 
-	LAGG_LOCK_ASSERT(sc);
+	LAGG_RLOCK_ASSERT(sc);
 
 	if (__predict_false(lsc->lsc_suppress_distributing)) {
 		LACP_DPRINTF((NULL, "%s: waiting transit\n", __func__));
@@ -1689,7 +1725,7 @@ lacp_marker_input(struct lagg_port *lgp, struct mbuf *m)
 	int error = 0;
 	int pending = 0;
 
-	LAGG_LOCK_ASSERT(lgp->lp_softc);
+	LAGG_RLOCK_ASSERT(lgp->lp_softc);
 
 	if (m->m_pkthdr.len != sizeof(*mdu)) {
 		goto bad;
