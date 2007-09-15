@@ -159,11 +159,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/smp.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
