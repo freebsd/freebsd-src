@@ -1316,7 +1316,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	/* is this a first send, or a retransmission? */
 	if (stcb->asoc.asconf_sent == 0) {
 		/* compose a new ASCONF chunk and send it */
-		sctp_send_asconf(stcb, net);
+		sctp_send_asconf(stcb, net, SCTP_ADDR_NOT_LOCKED);
 	} else {
 		/*
 		 * Retransmission of the existing ASCONF is needed
