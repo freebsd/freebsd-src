@@ -174,7 +174,7 @@ struct lagg_llq {
 
 struct lagg_softc {
 	struct ifnet			*sc_ifp;	/* virtual interface */
-	struct mtx			sc_mtx;
+	struct rwlock			sc_mtx;
 	int				sc_proto;	/* lagg protocol */
 	u_int				sc_count;	/* number of ports */
 	struct lagg_port		*sc_primary;	/* primary port */
@@ -225,13 +225,14 @@ struct lagg_port {
 	SLIST_ENTRY(lagg_port)		lp_entries;
 };
 
-#define	LAGG_LOCK_INIT(_tr)	mtx_init(&(_tr)->sc_mtx, "if_lagg", NULL, \
-				    MTX_DEF)
-#define	LAGG_LOCK_DESTROY(_tr)	mtx_destroy(&(_tr)->sc_mtx)
-#define	LAGG_LOCK(_tr)		mtx_lock(&(_tr)->sc_mtx)
-#define	LAGG_UNLOCK(_tr)	mtx_unlock(&(_tr)->sc_mtx)
-#define	LAGG_LOCKED(_tr)	mtx_owned(&(_tr)->sc_mtx)
-#define	LAGG_LOCK_ASSERT(_tr)	mtx_assert(&(_tr)->sc_mtx, MA_OWNED)
+#define	LAGG_LOCK_INIT(_sc)	rw_init(&(_sc)->sc_mtx, "if_lagg rwlock")
+#define	LAGG_LOCK_DESTROY(_sc)	rw_destroy(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK(_sc)		rw_rlock(&(_sc)->sc_mtx)
+#define	LAGG_WLOCK(_sc)		rw_wlock(&(_sc)->sc_mtx)
+#define	LAGG_RUNLOCK(_sc)	rw_runlock(&(_sc)->sc_mtx)
+#define	LAGG_WUNLOCK(_sc)	rw_wunlock(&(_sc)->sc_mtx)
+#define	LAGG_RLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_RLOCKED)
+#define	LAGG_WLOCK_ASSERT(_sc)	rw_assert(&(_sc)->sc_mtx, RA_WLOCKED)
 
 extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
