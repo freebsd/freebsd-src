@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/socket.h>
@@ -101,7 +102,7 @@ devclass_t le_devclass;
 static void lance_start(struct ifnet *);
 static void lance_stop(struct lance_softc *);
 static void lance_init(void *);
-static void lance_watchdog(struct ifnet *);
+static void lance_watchdog(void *s);
 static int lance_mediachange(struct ifnet *);
 static void lance_mediastatus(struct ifnet *, struct ifmediareq *);
 static int lance_ioctl(struct ifnet *, u_long, caddr_t);
@@ -119,12 +120,13 @@ lance_config(struct lance_softc *sc, const char* name, int unit)
 	if (ifp == NULL)
 		return (ENOSPC);
 
+	callout_init_mtx(&sc->sc_wdog_ch, &sc->sc_mtx, 0);
+
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
 	if_initname(ifp, name, unit);
 	ifp->if_start = lance_start;
 	ifp->if_ioctl = lance_ioctl;
-	ifp->if_watchdog = lance_watchdog;
 	ifp->if_init = lance_init;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 #ifdef LANCE_REVC_BUG
@@ -213,6 +215,7 @@ lance_detach(struct lance_softc *sc)
 	LE_LOCK(sc);
 	lance_stop(sc);
 	LE_UNLOCK(sc);
+	callout_drain(&sc->sc_wdog_ch);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 }
@@ -257,7 +260,8 @@ lance_stop(struct lance_softc *sc)
 	 * Mark the interface down and cancel the watchdog timer.
 	 */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
+	callout_stop(&sc->sc_wdog_ch);
+	sc->sc_wdog_timer = 0;
 
 	(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_STOP);
 }
@@ -295,6 +299,10 @@ lance_init_locked(struct lance_softc *sc)
 	/* Set the correct byte swapping mode, etc. */
 	(*sc->sc_wrcsr)(sc, LE_CSR3, sc->sc_conf3);
 
+	/* Set the current media. This may require the chip to be stopped. */
+	if (sc->sc_mediachange)
+		(void)(*sc->sc_mediachange)(sc);
+
 	/*
 	 * Update our private copy of the Ethernet address.
 	 * We NEED the copy so we can ensure its alignment!
@@ -318,16 +326,13 @@ lance_init_locked(struct lance_softc *sc)
 		if ((*sc->sc_rdcsr)(sc, LE_CSR0) & LE_C0_IDON)
 			break;
 
-	/* Set the current media. */
-	if (sc->sc_mediachange)
-		(void)(*sc->sc_mediachange)(sc);
-
 	if ((*sc->sc_rdcsr)(sc, LE_CSR0) & LE_C0_IDON) {
 		/* Start the LANCE. */
 		(*sc->sc_wrcsr)(sc, LE_CSR0, LE_C0_INEA | LE_C0_STRT);
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
+		sc->sc_wdog_timer = 0;
+		callout_reset(&sc->sc_wdog_ch, hz, lance_watchdog, sc);
 		(*sc->sc_start_locked)(sc);
 	} else
 		if_printf(ifp, "controller failed to initialize\n");
@@ -434,28 +439,42 @@ lance_get(struct lance_softc *sc, int boff, int totlen)
 }
 
 static void
-lance_watchdog(struct ifnet *ifp)
+lance_watchdog(void *xsc)
 {
-	struct lance_softc *sc = ifp->if_softc;
+	struct lance_softc *sc = (struct lance_softc *)xsc;
+	struct ifnet *ifp = sc->sc_ifp;
 
-	LE_LOCK(sc);
+	LE_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0) {
+		callout_reset(&sc->sc_wdog_ch, hz, lance_watchdog, sc);
+		return;
+	}
+
 	if_printf(ifp, "device timeout\n");
 	++ifp->if_oerrors;
 	lance_init_locked(sc);
-	LE_UNLOCK(sc);
 }
 
 static int
 lance_mediachange(struct ifnet *ifp)
 {
 	struct lance_softc *sc = ifp->if_softc;
-	int error;
 
 	if (sc->sc_mediachange) {
+		/*
+		 * For setting the port in LE_CSR15 the PCnet chips must
+		 * be powered down or stopped and unlike documented may
+		 * not take effect without an initialization. So don't
+		 * invoke (*sc_mediachange) directly here but go through
+		 * lance_init_locked().
+		 */
 		LE_LOCK(sc);
-		error = (*sc->sc_mediachange)(sc);
+		lance_stop(sc);
+		lance_init_locked(sc);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			(*sc->sc_start_locked)(sc);
 		LE_UNLOCK(sc);
-		return (error);
 	}
 	return (0);
 }
