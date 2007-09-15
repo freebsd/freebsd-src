@@ -299,7 +299,8 @@ zyd_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, "zyd", device_get_unit(sc->sc_dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_NEEDSGIANT; /* USB stack is still under Giant lock */
 	ifp->if_init = zyd_init;
 	ifp->if_ioctl = zyd_ioctl;
 	ifp->if_start = zyd_start;
