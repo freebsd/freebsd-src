@@ -1001,6 +1001,7 @@ re_dma_map_desc(arg, segs, nseg, mapsize, error)
 		}
 		cmdstat = segs[i].ds_len;
 		totlen += segs[i].ds_len;
+		d->rl_vlanctl = 0;
 		d->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
 		d->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		if (i == 0)
@@ -1269,14 +1270,10 @@ re_attach(dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_start = re_start;
 	ifp->if_hwassist = RE_CSUM_FEATURES;
-	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
-#ifdef DEVICE_POLLING
-	ifp->if_capabilities |= IFCAP_POLLING;
-#endif
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
@@ -1289,6 +1286,23 @@ re_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
+
+	/* VLAN capability setup */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
+#ifdef IFCAP_VLAN_HWCSUM
+	if (ifp->if_capabilities & IFCAP_HWCSUM)
+		ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+#endif
+	ifp->if_capenable = ifp->if_capabilities;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
+	/*
+	 * Tell the upper layer(s) we support long frames.
+	 * Must appear after the call to ether_ifattach() because
+	 * ether_ifattach() sets ifi_hdrlen to the default value.
+	 */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 #ifdef RE_DIAG
 	/*
@@ -1356,6 +1370,8 @@ re_detach(dev)
 		re_stop(sc);
 		RL_UNLOCK(sc);
 		callout_drain(&sc->rl_stat_callout);
+		taskqueue_drain(taskqueue_fast, &sc->rl_inttask);
+		taskqueue_drain(taskqueue_fast, &sc->rl_txtask);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1388,10 +1404,6 @@ re_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-
-	/* Yield the CPU long enough for any tasks to drain */
-
-        tsleep(sc, PPAUSE, "rewait", hz);
 
 	/* Unload and free the RX DMA ring memory and map */
 
@@ -2563,6 +2575,9 @@ re_ioctl(ifp, command, data)
 		}
 		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_init(sc);
+#ifdef VLAN_CAPABILITIES
+		VLAN_CAPABILITIES(ifp);
+#endif
 	    }
 		break;
 	default:
