@@ -62,7 +62,6 @@ struct callout {
 #define	CALLOUT_PENDING		0x0004 /* callout is waiting for timeout */
 #define	CALLOUT_MPSAFE		0x0008 /* callout handler is mp safe */
 #define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
-#define	CALLOUT_NETGIANT	0x0020 /* XXX: obtain Giant before mutex */
 
 struct callout_handle {
 	struct callout *callout;
