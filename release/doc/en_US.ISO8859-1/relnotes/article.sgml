@@ -1607,6 +1607,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.dump.8; and &man.restore.8; programs now attempt to
       save and restore extended attribute information on files.</para>
 
+    <para>A <application>libelf</application> library implementing
+      the SVR4 &man.elf.3; / &man.gelf.3; API for manipulating ELF files
+      has been added.</para>
+
     <para>The &man.fdisk.8; program now supports a <option>-p</option>
       flag to print the slice table in fdisk configuration format.</para>
 
