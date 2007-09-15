@@ -234,6 +234,8 @@ struct lacp_softc {
 	struct callout		lsc_callout;
 	LIST_HEAD(, lacp_port)	lsc_ports;
 	u_int32_t		lsc_hashkey;
+	struct task		lsc_qtask;
+	struct ifqueue		lsc_queue;	/* pdu input queue */
 };
 
 #define	LACP_TYPE_ACTORINFO	1
