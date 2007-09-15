@@ -130,6 +130,7 @@ struct gem_softc {
 	u_char		sc_enaddr[6];
 	struct callout	sc_tick_ch;	/* tick callout */
 	struct callout	sc_rx_ch;	/* delayed rx callout */
+	int		sc_wdog_timer;	/* watchdog timer */
 
 	/* The following bus handles are to be provided by the bus front-end */
 	bus_space_tag_t	sc_bustag;	/* bus tag */
