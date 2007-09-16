@@ -293,13 +293,10 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 		else
 			clkdiv = (at91_master_clock / ios->clock) / 2;
 	}
-	if (ios->bus_width == bus_width_4 && sc->wire4) {
-		device_printf(sc->dev, "Setting controller bus width to 4\n");
+	if (ios->bus_width == bus_width_4 && sc->wire4)
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) | MCI_SDCR_SDCBUS);
-	} else {
-		device_printf(sc->dev, "Setting controller bus width to 1\n");
+	else
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) & ~MCI_SDCR_SDCBUS);
-	}
 	WR4(sc, MCI_MR, (RD4(sc, MCI_MR) & ~MCI_MR_CLKDIV) | clkdiv);
 #if 0
 	if (sc->vcc_pin) {
