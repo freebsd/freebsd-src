@@ -162,7 +162,6 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	struct at91_pmc_softc *sc = pmc_softc;
 	uint32_t value;
 
-	printf("Turning PLLB %#x %s\n", sc->pllb_init, on ? "on" : "off");
 	if (on) {
 		on = PMC_IER_LOCKB;
 		value = sc->pllb_init;
@@ -172,7 +171,6 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	WR4(sc, CKGR_PLLBR, value);
 	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
 		continue;
-	printf("Done!\n");
 }
 
 static void
@@ -180,7 +178,6 @@ at91_pmc_set_sys_mode(struct at91_pmc_clock *clk, int on)
 {
 	struct at91_pmc_softc *sc = pmc_softc;
 
-	printf("Turning SC %#x %s\n", clk->pmc_mask, on ? "on" : "off");
 	WR4(sc, on ? PMC_SCER : PMC_SCDR, clk->pmc_mask);
 	if (on)
 		while ((RD4(sc, PMC_SCSR) & clk->pmc_mask) != clk->pmc_mask)
@@ -188,7 +185,6 @@ at91_pmc_set_sys_mode(struct at91_pmc_clock *clk, int on)
 	else
 		while ((RD4(sc, PMC_SCSR) & clk->pmc_mask) == clk->pmc_mask)
 			continue;
-	printf("Done SCSR is now: %#x!\n", RD4(sc, PMC_SCSR));
 }
 
 static void
@@ -196,7 +192,6 @@ at91_pmc_set_periph_mode(struct at91_pmc_clock *clk, int on)
 {
 	struct at91_pmc_softc *sc = pmc_softc;
 
-	printf("Turning PC %#x %s\n", clk->pmc_mask, on ? "on" : "off");
 	WR4(sc, on ? PMC_PCER : PMC_PCDR, clk->pmc_mask);
 	if (on)
 		while ((RD4(sc, PMC_PCSR) & clk->pmc_mask) != clk->pmc_mask)
@@ -204,7 +199,6 @@ at91_pmc_set_periph_mode(struct at91_pmc_clock *clk, int on)
 	else
 		while ((RD4(sc, PMC_PCSR) & clk->pmc_mask) == clk->pmc_mask)
 			continue;
-	printf("Done PCSR is now: %#x!\n", RD4(sc, PMC_PCSR));
 }
 
 struct at91_pmc_clock *
@@ -228,7 +222,6 @@ void
 at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 {
 	/* XXX LOCKING? XXX */
-	printf("Enable %s\n", clk->name);
 	if (clk->parent)
 		at91_pmc_clock_enable(clk->parent);
 	if (clk->refcnt++ == 0 && clk->set_mode)
