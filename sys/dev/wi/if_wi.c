@@ -608,7 +608,7 @@ wi_power(struct wi_softc *sc, int why)
 		break;
 	case PWR_RESUME:
 		if (ifp->if_flags & IFF_UP) {
-			wi_init(ifp);
+			wi_init(sc);
 			(void)wi_intr(sc);
 		}
 		break;
@@ -3536,8 +3536,21 @@ wi_set_channel(struct ieee80211com *ic)
 	struct wi_softc *sc = ifp->if_softc;
 
 	WI_LOCK(sc);
-	if (!(sc->sc_flags & WI_FLAGS_SCANNING)) {
+	if (sc->sc_enabled && !(sc->sc_flags & WI_FLAGS_SCANNING)) {
+		DPRINTF(("wi_set_channel: %d (%dMHz)\n",
+		    ieee80211_chan2ieee(ic, ic->ic_curchan),
+		    ic->ic_curchan->ic_freq));
+
 		sc->wi_channel = ic->ic_curchan;
+		wi_write_val(sc, WI_RID_OWN_CHNL,
+		    ieee80211_chan2ieee(ic, ic->ic_curchan));
+
+		if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+		    sc->sc_firmware_type == WI_INTERSIL) {
+			/* XXX: some cards need to be re-enabled */
+			wi_cmd(sc, WI_CMD_DISABLE | WI_PORT0, 0, 0, 0);
+			wi_cmd(sc, WI_CMD_ENABLE | WI_PORT0, 0, 0, 0);
+		}
 	}
 	WI_UNLOCK(sc);
 }
