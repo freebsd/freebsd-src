@@ -82,15 +82,6 @@ is invoked.
 Booting will also be attempted at stage two, if the
 third stage cannot be loaded.
 .Pp
-Make note of the fact that
-.Pa /boot.config
-is read only from the
-.Ql a
-partition.
-As a result, slices which are missing an
-.Ql a
-partition require user intervention during the boot process.
-.Pp
 The remainder of this subsection deals only with the boot blocks.
 The
 .Xr loader 8
@@ -290,13 +281,14 @@ be verbose during device probing (and later).
 .El
 .El
 .Pp
-You may put a BIOS drive number, a controller type, a unit number,
-a partition, a kernel file name, and any valid option in
+Use the
 .Pa /boot.config
-to set defaults.
-Enter them in one line just as you type at the
-.Ql boot:
-prompt.
+file to set the default configuration options for the boot block code.
+See
+.Xr boot.config 5
+for more information about the
+.Pa /boot.config
+file.
 .Sh FILES
 .Bl -tag -width /boot/loader -compact
 .It Pa /boot.config
@@ -353,6 +345,7 @@ is reported by the second-stage bootstrap, it generally means that this
 requirement has not been adhered to.
 .Sh SEE ALSO
 .Xr ddb 4 ,
+.Xr boot.config 5 ,
 .Xr make.conf 5 ,
 .Xr ttys 5 ,
 .Xr boot0cfg 8 ,
