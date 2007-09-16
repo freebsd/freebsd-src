@@ -7,6 +7,7 @@ MAN=	acct.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
 	bluetooth.protocols.5 \
+	${_boot.config.5} \
 	config.5 \
 	core.5 \
 	devfs.5 \
@@ -69,5 +70,9 @@ MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
 MLINKS+=utmp.5 lastlog.5 utmp.5 wtmp.5
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_boot.config.5= boot.config.5
+.endif
 
 .include <bsd.prog.mk>
