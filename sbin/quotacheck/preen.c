@@ -57,7 +57,7 @@ struct part {
 	struct	part *next;		/* forward link of partitions on disk */
 	char	*name;			/* device name */
 	char	*fsname;		/* mounted file system name */
-	long	auxdata;		/* auxiliary data for application */
+	void	*auxdata;		/* auxiliary data for application */
 } *badlist, **badnext = &badlist;
 
 struct disk {
@@ -69,19 +69,20 @@ struct disk {
 
 int	nrun, ndisks;
 
-static void addpart(char *name, char *fsname, long auxdata);
+static void addpart(char *name, char *fsname, void *auxdata);
 static struct disk *finddisk(char *name);
-static int startdisk(struct disk *dk,int (*checkit)(char *, char *, long, int));
+static int startdisk(struct disk *dk,
+    int (*checkit)(char *, char *, void *, int));
 
 int
-checkfstab(int preen, int maxrun, int (*docheck)(struct fstab *),
-    int (*chkit)(char *, char *, long, int))
+checkfstab(int preen, int maxrun, void *(*docheck)(struct fstab *),
+    int (*chkit)(char *, char *, void *, int))
 {
 	struct fstab *fsp;
 	struct disk *dk, *nextdisk;
 	struct part *pt;
 	int ret, pid, retcode, passno, sumstatus, status;
-	long auxdata;
+	void *auxdata;
 	char *name;
 
 	sumstatus = 0;
@@ -92,7 +93,7 @@ checkfstab(int preen, int maxrun, int (*docheck)(struct fstab *),
 			return (8);
 		}
 		while ((fsp = getfsent()) != 0) {
-			if ((auxdata = (*docheck)(fsp)) == 0)
+			if ((auxdata = (*docheck)(fsp)) == NULL)
 				continue;
 			if (preen == 0 ||
 			    (passno == 1 && fsp->fs_passno == 1)) {
@@ -235,7 +236,7 @@ finddisk(char *name)
 }
 
 static void
-addpart(char *name, char *fsname, long auxdata)
+addpart(char *name, char *fsname, void *auxdata)
 {
 	struct disk *dk = finddisk(name);
 	struct part *pt, **ppt = &dk->part;
@@ -265,7 +266,7 @@ addpart(char *name, char *fsname, long auxdata)
 }
 
 static int
-startdisk(struct disk *dk, int (*checkit)(char *, char *, long, int))
+startdisk(struct disk *dk, int (*checkit)(char *, char *, void *, int))
 {
 	struct part *pt = dk->part;
 
