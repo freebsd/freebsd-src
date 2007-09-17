@@ -415,8 +415,7 @@ proc0_init(void *dummy __unused)
 	session0.s_leader = p;
 
 	p->p_sysent = &null_sysvec;
-	p->p_flag = P_SYSTEM;
-	p->p_sflag = PS_INMEM;
+	p->p_flag = P_SYSTEM | P_INMEM;
 	p->p_state = PRS_NORMAL;
 	knlist_init(&p->p_klist, &p->p_mtx, NULL, NULL, NULL);
 	STAILQ_INIT(&p->p_ktr);
@@ -428,6 +427,7 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
+	td->td_flags = TDF_INMEM;
 	p->p_peers = 0;
 	p->p_leader = p;
 
@@ -710,7 +710,7 @@ create_init(const void *udata __unused)
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
 	PROC_LOCK(initproc);
-	initproc->p_flag |= P_SYSTEM;
+	initproc->p_flag |= P_SYSTEM | P_INMEM;
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
@@ -723,9 +723,6 @@ create_init(const void *udata __unused)
 	PROC_UNLOCK(initproc);
 	crfree(oldcred);
 	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
-	PROC_SLOCK(initproc);
-	initproc->p_sflag |= PS_INMEM;
-	PROC_SUNLOCK(initproc);
 	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);
 }
 SYSINIT(init, SI_SUB_CREATE_INIT, SI_ORDER_FIRST, create_init, NULL)

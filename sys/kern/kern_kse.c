@@ -1002,6 +1002,7 @@ thread_alloc_spare(struct thread *td)
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	spare->td_proc = td->td_proc;
 	spare->td_ucred = crhold(td->td_ucred);
+	spare->td_flags = TDF_INMEM;
 }
 
 /*
@@ -1042,7 +1043,6 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
-	td2->td_flags  = 0;
 	td2->td_pflags = TDP_SA|TDP_UPCALLING;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;

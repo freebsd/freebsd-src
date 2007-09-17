@@ -209,7 +209,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_sigcatch = sigacts.ps_sigcatch;
 		}
 #if 0
-		if ((proc.p_sflag & PS_INMEM) && proc.p_stats != NULL) {
+		if ((proc.p_flag & P_INMEM) && proc.p_stats != NULL) {
 			if (KREAD(kd, (u_long)proc.p_stats, &pstats)) {
 				_kvm_err(kd, kd->program,
 				    "can't read stats at %x", proc.p_stats);
@@ -370,7 +370,7 @@ nopgrp:
 		if (proc.p_state != PRS_ZOMBIE) {
 			kp->ki_swtime = proc.p_swtime;
 			kp->ki_flag = proc.p_flag;
-			kp->ki_sflag = proc.p_sflag;
+			kp->ki_sflag = 0;
 			kp->ki_nice = proc.p_nice;
 			kp->ki_traceflag = proc.p_traceflag;
 			if (proc.p_state == PRS_NORMAL) { 

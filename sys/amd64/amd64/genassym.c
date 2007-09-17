@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
-ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));

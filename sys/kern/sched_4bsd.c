@@ -1086,8 +1086,8 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("sched_add: bad thread state"));
-	KASSERT(td->td_proc->p_sflag & PS_INMEM,
-	    ("sched_add: process swapped out"));
+	KASSERT(td->td_flags & TDF_INMEM,
+	    ("sched_add: thread swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
@@ -1155,8 +1155,8 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("sched_add: bad thread state"));
-	KASSERT(td->td_proc->p_sflag & PS_INMEM,
-	    ("sched_add: process swapped out"));
+	KASSERT(td->td_flags & TDF_INMEM,
+	    ("sched_add: thread swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
@@ -1200,8 +1200,8 @@ sched_rem(struct thread *td)
 	struct td_sched *ts;
 
 	ts = td->td_sched;
-	KASSERT(td->td_proc->p_sflag & PS_INMEM,
-	    ("sched_rem: process swapped out"));
+	KASSERT(td->td_flags & TDF_INMEM,
+	    ("sched_rem: thread swapped out"));
 	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1253,8 +1253,8 @@ sched_choose(void)
 		runq_remove(rq, ts);
 		ts->ts_flags |= TSF_DIDRUN;
 
-		KASSERT(ts->ts_thread->td_proc->p_sflag & PS_INMEM,
-		    ("sched_choose: process swapped out"));
+		KASSERT(ts->ts_thread->td_flags & TDF_INMEM,
+		    ("sched_choose: thread swapped out"));
 		return (ts->ts_thread);
 	} 
 	return (PCPU_GET(idlethread));
