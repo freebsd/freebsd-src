@@ -138,17 +138,6 @@ bin_to_size(int index) {
 	return packet_size_bins[index];
 }
 
-static __inline int
-rate_to_ndx(struct sample_node *sn, int rate) {
-	int x = 0;
-	for (x = 0; x < sn->num_rates; x++) {
-		if (sn->rates[x].rate == rate) {
-			return x;
-		}      
-	}
-	return -1;
-}
-
 void
 ath_rate_node_init(struct ath_softc *sc, struct ath_node *an)
 {
@@ -515,10 +504,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 	const struct ath_desc *ds0 = &bf->bf_desc[0];
-	int final_rate, short_tries, long_tries, frame_size;
-	int mrr;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	int short_tries, long_tries, frame_size;
+	int mrr, ndx0, ndx1, ndx2, ndx3;
 
-	final_rate = sc->sc_hwmap[ts->ts_rate &~ HAL_TXSTAT_ALTRATE].ieeerate;
+	ndx0 = rt->rateCodeToIndex[ts->ts_rate &~ HAL_TXSTAT_ALTRATE];
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
 	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
@@ -536,8 +526,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	}
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
-		int ndx = rate_to_ndx(sn, final_rate);
-
 		/*
 		 * Only one rate was used; optimize work.
 		 */
@@ -546,18 +534,18 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     __func__, ether_sprintf(an->an_node.ni_macaddr),
 		     bin_to_size(size_to_bin(frame_size)),
 		     ts->ts_status ? "FAIL" : "OK",
-		     final_rate, short_tries, long_tries);
+		     sn->rates[ndx0].rate, short_tries, long_tries);
 		update_stats(sc, an, frame_size, 
-			     ndx, long_tries,
+			     ndx0, long_tries,
 			     0, 0,
 			     0, 0,
 			     0, 0,
 			     short_tries, long_tries, ts->ts_status);
 	} else {
-		int hwrate0, rate0, tries0, ndx0;
-		int hwrate1, rate1, tries1, ndx1;
-		int hwrate2, rate2, tries2, ndx2;
-		int hwrate3, rate3, tries3, ndx3;
+		int hwrate0, tries0;
+		int hwrate1, tries1;
+		int hwrate2, tries2;
+		int hwrate3, tries3;
 		int finalTSIdx = ts->ts_finaltsi;
 
 		/*
@@ -575,21 +563,17 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			hwrate3 = MS(ds0->ds_ctl3, AR5416_XmitRate3);
 		}
 
-		rate0 = sc->sc_hwmap[hwrate0].ieeerate;
+		ndx0 = rt->rateCodeToIndex[hwrate0];
 		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
-		ndx0 = rate_to_ndx(sn, rate0);
 
-		rate1 = sc->sc_hwmap[hwrate1].ieeerate;
+		ndx1 = rt->rateCodeToIndex[hwrate1];
 		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
-		ndx1 = rate_to_ndx(sn, rate1);
 
-		rate2 = sc->sc_hwmap[hwrate2].ieeerate;
+		ndx2 = rt->rateCodeToIndex[hwrate2];
 		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
-		ndx2 = rate_to_ndx(sn, rate2);
 
-		rate3 = sc->sc_hwmap[hwrate3].ieeerate;
+		ndx3 = rt->rateCodeToIndex[hwrate3];
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
-		ndx3 = rate_to_ndx(sn, rate3);
 
 		DPRINTF(sc, ATH_DEBUG_RATE,
 "%s: %s size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]\n", 
@@ -598,10 +582,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     finalTSIdx,
 		     long_tries, 
 		     ts->ts_status ? "FAIL" : "OK",
-		     rate0, tries0,
-		     rate1, tries1,
-		     rate2, tries2,
-		     rate3, tries3);
+		     sn->rates[ndx0].rate, tries0,
+		     sn->rates[ndx1].rate, tries1,
+		     sn->rates[ndx2].rate, tries2,
+		     sn->rates[ndx3].rate, tries3);
 
 		/*
 		 * NB: series > 0 are not penalized for failure
