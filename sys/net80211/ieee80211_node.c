@@ -76,6 +76,7 @@ static void ieee80211_node_table_init(struct ieee80211com *ic,
 	int inact, int keymaxix);
 static void ieee80211_node_table_reset(struct ieee80211_node_table *);
 static void ieee80211_node_table_cleanup(struct ieee80211_node_table *nt);
+static void ieee80211_erp_timeout(struct ieee80211com *);
 
 MALLOC_DEFINE(M_80211_NODE, "80211node", "802.11 node state");
 
@@ -1571,6 +1572,10 @@ ieee80211_node_timeout(void *arg)
 	ieee80211_scan_timeout(ic);
 	ieee80211_timeout_stations(&ic->ic_sta);
 
+	IEEE80211_LOCK(ic);
+	ieee80211_erp_timeout(ic);
+	IEEE80211_UNLOCK(ic);
+
 	callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
 		ieee80211_node_timeout, ic);
 }
@@ -1637,6 +1642,13 @@ ieee80211_dump_nodes(struct ieee80211_node_table *nt)
 		(ieee80211_iter_func *) ieee80211_dump_node, nt);
 }
 
+void
+ieee80211_notify_erp(struct ieee80211com *ic)
+{
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP)
+		ieee80211_beacon_notify(ic, IEEE80211_BEACON_ERP);
+}
+
 /*
  * Handle a station joining an 11g network.
  */
@@ -1653,9 +1665,9 @@ ieee80211_node_join_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 	 */
 	if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME) == 0) {
 		ic->ic_longslotsta++;
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-		    "[%s] station needs long slot time, count %d\n",
-		    ether_sprintf(ni->ni_macaddr), ic->ic_longslotsta);
+		IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC, ni,
+		    "station needs long slot time, count %d",
+		    ic->ic_longslotsta);
 		/* XXX vap's w/ conflicting needs won't work */
 		if (!IEEE80211_IS_CHAN_108G(ic->ic_bsschan)) {
 			/*
@@ -1673,30 +1685,30 @@ ieee80211_node_join_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 	 */
 	if (!ieee80211_iserp_rateset(ic, &ni->ni_rates)) {
 		ic->ic_nonerpsta++;
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-		    "[%s] station is !ERP, %d non-ERP stations associated\n",
-		    ether_sprintf(ni->ni_macaddr), ic->ic_nonerpsta);
-		/*
-		 * If protection is configured, enable it.
-		 */
-		if (ic->ic_protmode != IEEE80211_PROT_NONE) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-			    "%s: enable use of protection\n", __func__);
-			ic->ic_flags |= IEEE80211_F_USEPROT;
-		}
+		IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC, ni,
+		    "station is !ERP, %d non-ERP stations associated",
+		    ic->ic_nonerpsta);
 		/*
 		 * If station does not support short preamble
 		 * then we must enable use of Barker preamble.
 		 */
 		if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE) == 0) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-			    "[%s] station needs long preamble\n",
-			    ether_sprintf(ni->ni_macaddr));
+			IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC, ni,
+			    "%s", "station needs long preamble");
 			ic->ic_flags |= IEEE80211_F_USEBARKER;
 			ic->ic_flags &= ~IEEE80211_F_SHPREAMBLE;
 		}
-		if (ic->ic_nonerpsta == 1)
-			ic->ic_flags_ext |= IEEE80211_FEXT_ERPUPDATE;
+		/*
+		 * If protection is configured, enable it.
+		 */
+		if (ic->ic_protmode != IEEE80211_PROT_NONE &&
+		    ic->ic_nonerpsta == 1 &&
+		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
+			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
+			    "%s: enable use of protection\n", __func__);
+			ic->ic_flags |= IEEE80211_F_USEPROT;
+			ieee80211_notify_erp(ic);
+		}
 	} else
 		ni->ni_flags |= IEEE80211_NODE_ERP;
 }
@@ -1734,9 +1746,9 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	} else
 		newassoc = 0;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG,
-	    "[%s] station %sassociated at aid %d: %s preamble, %s slot time%s%s%s%s%s\n",
-	    ether_sprintf(ni->ni_macaddr), newassoc ? "" : "re",
+	IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
+	    "station %sassociated at aid %d: %s preamble, %s slot time%s%s%s%s%s",
+	    newassoc ? "" : "re",
 	    IEEE80211_NODE_AID(ni),
 	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
 	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long",
@@ -1760,6 +1772,23 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	ieee80211_notify_node_join(ic, ni, newassoc);
 }
 
+static void
+disable_protection(struct ieee80211com *ic)
+{
+	KASSERT(ic->ic_nonerpsta == 0 &&
+	    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0,
+	   ("%d non ERP stations, flags 0x%x", ic->ic_nonerpsta,
+	   ic->ic_flags_ext));
+
+	ic->ic_flags &= ~IEEE80211_F_USEPROT;
+	/* XXX verify mode? */
+	if (ic->ic_caps & IEEE80211_C_SHPREAMBLE) {
+		ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
+		ic->ic_flags &= ~IEEE80211_F_USEBARKER;
+	}
+	ieee80211_notify_erp(ic);
+}
+
 /*
  * Handle a station leaving an 11g network.
  */
@@ -1778,9 +1807,9 @@ ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 		KASSERT(ic->ic_longslotsta > 0,
 		    ("bogus long slot station count %d", ic->ic_longslotsta));
 		ic->ic_longslotsta--;
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-		    "[%s] long slot time station leaves, count now %d\n",
-		    ether_sprintf(ni->ni_macaddr), ic->ic_longslotsta);
+		IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC, ni,
+		    "long slot time station leaves, count now %d",
+		    ic->ic_longslotsta);
 		if (ic->ic_longslotsta == 0) {
 			/*
 			 * Re-enable use of short slot time if supported
@@ -1802,23 +1831,40 @@ ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 		KASSERT(ic->ic_nonerpsta > 0,
 		    ("bogus non-ERP station count %d", ic->ic_nonerpsta));
 		ic->ic_nonerpsta--;
-		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-		    "[%s] non-ERP station leaves, count now %d\n",
-		    ether_sprintf(ni->ni_macaddr), ic->ic_nonerpsta);
-		if (ic->ic_nonerpsta == 0) {
+		IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC, ni,
+		    "non-ERP station leaves, count now %d%s", ic->ic_nonerpsta,
+		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) ?
+			" (non-ERP sta present)" : "");
+		if (ic->ic_nonerpsta == 0 &&
+		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
 				"%s: disable use of protection\n", __func__);
-			ic->ic_flags &= ~IEEE80211_F_USEPROT;
-			/* XXX verify mode? */
-			if (ic->ic_caps & IEEE80211_C_SHPREAMBLE) {
-				IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
-				    "%s: re-enable use of short preamble\n",
-				    __func__);
-				ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
-				ic->ic_flags &= ~IEEE80211_F_USEBARKER;
-			}
-			ic->ic_flags_ext |= IEEE80211_FEXT_ERPUPDATE;
+			disable_protection(ic);
 		}
+	}
+}
+
+/*
+ * Time out presence of an overlapping bss with non-ERP
+ * stations.  When operating in hostap mode we listen for
+ * beacons from other stations and if we identify a non-ERP
+ * station is present we enable protection.  To identify
+ * when all non-ERP stations are gone we time out this
+ * condition.
+ */
+static void
+ieee80211_erp_timeout(struct ieee80211com *ic)
+{
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	if ((ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) &&
+	    time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
+		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC,
+		    "%s\n", "age out non-ERP sta present on channel");
+		ic->ic_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
+		if (ic->ic_nonerpsta == 0)
+			disable_protection(ic);
 	}
 }
 
@@ -1831,9 +1877,8 @@ ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 	struct ieee80211_node_table *nt = ni->ni_table;
 
-	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG,
-	    "[%s] station with aid %d leaves\n",
-	    ether_sprintf(ni->ni_macaddr), IEEE80211_NODE_AID(ni));
+	IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
+	    "station with aid %d leaves", IEEE80211_NODE_AID(ni));
 
 	KASSERT(ic->ic_opmode != IEEE80211_M_STA,
 		("unexpected operating mode %u", ic->ic_opmode));
