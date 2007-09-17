@@ -539,17 +539,6 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
-	if (m->m_pkthdr.len >
-	    ETHER_MAX_FRAME(ifp, etype, m->m_flags & M_HASFCS)) {
-		if_printf(ifp, "discard oversize frame "
-				"(ether type %x flags %x len %u > max %lu)\n",
-				etype, m->m_flags, m->m_pkthdr.len,
-				ETHER_MAX_FRAME(ifp, etype,
-						m->m_flags & M_HASFCS));
-		ifp->if_ierrors++;
-		m_freem(m);
-		return;
-	}
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
 		ifp->if_ierrors++;
