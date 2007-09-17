@@ -105,6 +105,7 @@ static void		rt2560_tx_intr(struct rt2560_softc *);
 static void		rt2560_prio_intr(struct rt2560_softc *);
 static void		rt2560_decryption_intr(struct rt2560_softc *);
 static void		rt2560_rx_intr(struct rt2560_softc *);
+static void		rt2560_beacon_update(struct ieee80211com *, int item);
 static void		rt2560_beacon_expire(struct rt2560_softc *);
 static void		rt2560_wakeup_expire(struct rt2560_softc *);
 static uint8_t		rt2560_rxrate(struct rt2560_rx_desc *);
@@ -301,6 +302,7 @@ rt2560_attach(device_t dev, int id)
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = rt2560_newstate;
 	ic->ic_raw_xmit = rt2560_raw_xmit;
+	ic->ic_update_beacon = rt2560_beacon_update;
 	ieee80211_media_init(ic, rt2560_media_change, ieee80211_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -780,7 +782,7 @@ rt2560_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ic, ni, &sc->sc_bo);
+			m = ieee80211_beacon_alloc(ni, &sc->sc_bo);
 			if (m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate beacon\n");
@@ -1277,6 +1279,15 @@ rt2560_rx_intr(struct rt2560_softc *sc)
 	RAL_WRITE(sc, RT2560_SECCSR0, RT2560_KICK_DECRYPT);
 }
 
+static void
+rt2560_beacon_update(struct ieee80211com *ic, int item)
+{
+	struct rt2560_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211_beacon_offsets *bo = &sc->sc_bo;
+
+	setbit(bo->bo_flags, item);
+}
+
 /*
  * This function is called periodically in IBSS mode when a new beacon must be
  * sent out.
@@ -1301,7 +1312,7 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 	bus_dmamap_sync(sc->bcnq.data_dmat, data->map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->bcnq.data_dmat, data->map);
 
-	ieee80211_beacon_update(ic, data->ni, &sc->sc_bo, data->m, 1);
+	ieee80211_beacon_update(data->ni, &sc->sc_bo, data->m, 1);
 
 	if (bpf_peers_present(ic->ic_rawbpf))
 		bpf_mtap(ic->ic_rawbpf, data->m);

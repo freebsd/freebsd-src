@@ -2004,9 +2004,10 @@ ieee80211_tx_mgt_cb(struct ieee80211_node *ni, void *arg, int status)
  * Allocate a beacon frame and fillin the appropriate bits.
  */
 struct mbuf *
-ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
+ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	struct ieee80211_beacon_offsets *bo)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
@@ -2103,14 +2104,13 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
 		frm += sizeof(struct ieee80211_tim_ie);
 		bo->bo_tim_len = 1;
 	}
-	bo->bo_trailer = frm;
+	bo->bo_tim_trailer = frm;
 	if (ic->ic_flags & IEEE80211_F_DOTH)
 		frm = ieee80211_add_countryie(frm, ic,
 			ic->ic_countrycode, ic->ic_location);
 	if (ic->ic_flags & IEEE80211_F_WME) {
 		bo->bo_wme = frm;
 		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
-		ic->ic_flags &= ~IEEE80211_F_WMEUPDATE;
 	} else
 		bo->bo_wme = NULL;
 	if (ic->ic_flags & IEEE80211_F_WPA)
@@ -2131,7 +2131,7 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
 		}
 	} else
 		bo->bo_htinfo = NULL;
-	bo->bo_trailer_len = frm - bo->bo_trailer;
+	bo->bo_tim_trailer_len = frm - bo->bo_tim_trailer;
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
@@ -2153,9 +2153,10 @@ ieee80211_beacon_alloc(struct ieee80211com *ic, struct ieee80211_node *ni,
  * Update the dynamic parts of a beacon frame based on the current state.
  */
 int
-ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
+ieee80211_beacon_update(struct ieee80211_node *ni,
 	struct ieee80211_beacon_offsets *bo, struct mbuf *m, int mcast)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
 
@@ -2199,25 +2200,21 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 				wme->wme_hipri_traffic =
 					wme->wme_hipri_switch_hysteresis;
 		}
-		if (ic->ic_flags & IEEE80211_F_WMEUPDATE) {
+		if (isset(bo->bo_flags, IEEE80211_BEACON_WME)) {
 			(void) ieee80211_add_wme_param(bo->bo_wme, wme);
-			ic->ic_flags &= ~IEEE80211_F_WMEUPDATE;
+			clrbit(bo->bo_flags, IEEE80211_BEACON_WME);
 		}
 	}
 
-	if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan)) {
-		struct ieee80211_ie_htinfo *ht =
-		   (struct ieee80211_ie_htinfo *) bo->bo_htinfo;
-		if (IEEE80211_IS_CHAN_HT40(ic->ic_bsschan))
-			ht->hi_byte1 |= IEEE80211_HTINFO_TXWIDTH_2040;
-		else
-			ht->hi_byte1 &= ~IEEE80211_HTINFO_TXWIDTH_2040;
+	if (isset(bo->bo_flags, IEEE80211_BEACON_HTINFO)) {
+		ieee80211_ht_update_beacon(ic, bo);
+		clrbit(bo->bo_flags, IEEE80211_BEACON_HTINFO);
 	}
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {	/* NB: no IBSS support*/
 		struct ieee80211_tim_ie *tie =
 			(struct ieee80211_tim_ie *) bo->bo_tim;
-		if (ic->ic_flags & IEEE80211_F_TIMUPDATE) {
+		if (isset(bo->bo_flags, IEEE80211_BEACON_TIM)) {
 			u_int timlen, timoff, i;
 			/* 
 			 * ATIM/DTIM needs updating.  If it fits in the
@@ -2254,10 +2251,11 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 			if (timlen != bo->bo_tim_len) {
 				/* copy up/down trailer */
 				int adjust = tie->tim_bitmap+timlen
-					   - bo->bo_trailer;
-				ovbcopy(bo->bo_trailer, bo->bo_trailer+adjust,
-					bo->bo_trailer_len);
-				bo->bo_trailer += adjust;
+					   - bo->bo_tim_trailer;
+				ovbcopy(bo->bo_tim_trailer,
+				    bo->bo_tim_trailer+adjust,
+				    bo->bo_tim_trailer_len);
+				bo->bo_tim_trailer += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_erp += adjust;
 				bo->bo_htinfo += adjust;
@@ -2271,7 +2269,7 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 			memcpy(tie->tim_bitmap, ic->ic_tim_bitmap + timoff,
 				bo->bo_tim_len);
 
-			ic->ic_flags &= ~IEEE80211_F_TIMUPDATE;
+			clrbit(bo->bo_flags, IEEE80211_BEACON_TIM);
 
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 				"%s: TIM updated, pending %u, off %u, len %u\n",
@@ -2287,12 +2285,12 @@ ieee80211_beacon_update(struct ieee80211com *ic, struct ieee80211_node *ni,
 			tie->tim_bitctl |= 1;
 		else
 			tie->tim_bitctl &= ~1;
-		if (ic->ic_flags_ext & IEEE80211_FEXT_ERPUPDATE) {
+		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*
 			 * ERP element needs updating.
 			 */
 			(void) ieee80211_add_erp(bo->bo_erp, ic);
-			ic->ic_flags_ext &= ~IEEE80211_FEXT_ERPUPDATE;
+			clrbit(bo->bo_flags, IEEE80211_BEACON_ERP);
 		}
 	}
 	IEEE80211_BEACON_UNLOCK(ic);

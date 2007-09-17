@@ -752,7 +752,7 @@ ural_task(void *xarg)
 
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 		    ic->ic_opmode == IEEE80211_M_IBSS) {
-			m = ieee80211_beacon_alloc(ic, ni, &sc->sc_bo);
+			m = ieee80211_beacon_alloc(ni, &sc->sc_bo);
 			if (m == NULL) {
 				printf("%s: could not allocate beacon\n",
 				    device_get_nameunit(sc->sc_dev));

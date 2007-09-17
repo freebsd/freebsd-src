@@ -93,6 +93,11 @@ const char *ieee80211_wme_acnames[] = {
 
 static int ieee80211_newstate(struct ieee80211com *, enum ieee80211_state, int);
 
+static void
+null_update_beacon(struct ieee80211com *ic, int item)
+{
+}
+
 void
 ieee80211_proto_attach(struct ieee80211com *ic)
 {
@@ -118,6 +123,7 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 
 	/* protocol state change handler */
 	ic->ic_newstate = ieee80211_newstate;
+	ic->ic_update_beacon = null_update_beacon;
 
 	/* initialize management frame handlers */
 	ic->ic_recv_mgmt = ieee80211_recv_mgmt;
@@ -859,7 +865,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211com *ic)
 		 */
 		wme->wme_bssChanParams.cap_info =
 			(wme->wme_bssChanParams.cap_info+1) & WME_QOSINFO_COUNT;
-		ic->ic_flags |= IEEE80211_F_WMEUPDATE;
+		ieee80211_beacon_notify(ic, IEEE80211_BEACON_WME);
 	}
 
 	wme->wme_update(ic);
