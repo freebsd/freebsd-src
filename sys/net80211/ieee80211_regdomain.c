@@ -165,7 +165,7 @@ ieee80211_add_countryie(uint8_t *frm, struct ieee80211com *ic,
 
 		if (isset(chans, c->ic_ieee))		/* suppress dup's */
 			continue;
-		if ((c->ic_flags & skip) == 0)		/* skip band, etc. */
+		if (c->ic_flags & skip)			/* skip band, etc. */
 			continue;
 		setbit(chans, c->ic_ieee);
 		if (c->ic_ieee != nextchan ||
