@@ -197,14 +197,13 @@ logname(KINFO *k, VARENT *ve)
 void
 state(KINFO *k, VARENT *ve)
 {
-	int flag, sflag, tdflags;
+	int flag, tdflags;
 	char *cp;
 	VAR *v;
 	char buf[16];
 
 	v = ve->var;
 	flag = k->ki_p->ki_flag;
-	sflag = k->ki_p->ki_sflag;
 	tdflags = k->ki_p->ki_tdflags;	/* XXXKSE */
 	cp = buf;
 
@@ -242,7 +241,7 @@ state(KINFO *k, VARENT *ve)
 		*cp = '?';
 	}
 	cp++;
-	if (!(sflag & PS_INMEM))
+	if (!(flag & P_INMEM))
 		*cp++ = 'W';
 	if (k->ki_p->ki_nice < NZERO)
 		*cp++ = '<';
@@ -591,7 +590,7 @@ getpcpu(const KINFO *k)
 #define	fxtofl(fixpt)	((double)(fixpt) / fscale)
 
 	/* XXX - I don't like this */
-	if (k->ki_p->ki_swtime == 0 || (k->ki_p->ki_sflag & PS_INMEM) == 0)
+	if (k->ki_p->ki_swtime == 0 || (k->ki_p->ki_flag & P_INMEM) == 0)
 		return (0.0);
 	if (rawcpu)
 		return (100.0 * fxtofl(k->ki_p->ki_pctcpu));
@@ -619,7 +618,7 @@ getpmem(KINFO *k)
 	if (failure)
 		return (0.0);
 
-	if ((k->ki_p->ki_sflag & PS_INMEM) == 0)
+	if ((k->ki_p->ki_flag & P_INMEM) == 0)
 		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	/* XXX don't have info about shared */

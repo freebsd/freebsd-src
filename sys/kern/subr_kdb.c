@@ -400,7 +400,7 @@ kdb_thr_first(void)
 
 	p = LIST_FIRST(&allproc);
 	while (p != NULL) {
-		if (p->p_sflag & PS_INMEM) {
+		if (p->p_flag & P_INMEM) {
 			thr = FIRST_THREAD_IN_PROC(p);
 			if (thr != NULL)
 				return (thr);
@@ -417,7 +417,7 @@ kdb_thr_from_pid(pid_t pid)
 
 	p = LIST_FIRST(&allproc);
 	while (p != NULL) {
-		if (p->p_sflag & PS_INMEM && p->p_pid == pid)
+		if (p->p_flag & P_INMEM && p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));
 		p = LIST_NEXT(p, p_list);
 	}
@@ -446,7 +446,7 @@ kdb_thr_next(struct thread *thr)
 		if (thr != NULL)
 			return (thr);
 		p = LIST_NEXT(p, p_list);
-		if (p != NULL && (p->p_sflag & PS_INMEM))
+		if (p != NULL && (p->p_flag & P_INMEM))
 			thr = FIRST_THREAD_IN_PROC(p);
 	} while (p != NULL);
 	return (NULL);

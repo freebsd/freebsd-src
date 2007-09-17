@@ -1620,7 +1620,7 @@ vm_daemon()
 			 * swapped out set the limit to nothing (will force a
 			 * swap-out.)
 			 */
-			if ((p->p_sflag & PS_INMEM) == 0)
+			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
 			PROC_UNLOCK(p);
 

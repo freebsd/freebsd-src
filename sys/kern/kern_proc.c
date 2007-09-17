@@ -690,14 +690,17 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_ssize = vm->vm_ssize;
 	} else if (p->p_state == PRS_ZOMBIE)
 		kp->ki_stat = SZOMB;
-	kp->ki_sflag = p->p_sflag;
+	if (kp->ki_flag & P_INMEM)
+		kp->ki_sflag = PS_INMEM;
+	else
+		kp->ki_sflag = 0;
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
 	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	PROC_SUNLOCK(p);
-	if ((p->p_sflag & PS_INMEM) && p->p_stats != NULL) {
+	if ((p->p_flag & P_INMEM) && p->p_stats != NULL) {
 		kp->ki_start = p->p_stats->p_start;
 		timevaladd(&kp->ki_start, &boottime);
 		PROC_SLOCK(p);

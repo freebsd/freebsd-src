@@ -675,7 +675,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	hp->remaining--;
 
 	/* get the process's command name */
-	if ((pp->ki_sflag & PS_INMEM) == 0) {
+	if ((pp->ki_flag & P_INMEM) == 0) {
 		/*
 		 * Print swapped processes as <pname>
 		 */

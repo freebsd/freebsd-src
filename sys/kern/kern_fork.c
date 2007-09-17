@@ -493,17 +493,15 @@ again:
 
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
+	td2->td_flags = TDF_INMEM;
 
 	/*
 	 * Duplicate sub-structures as needed.
 	 * Increase reference counts on shared objects.
 	 */
-	p2->p_flag = 0;
+	p2->p_flag = P_INMEM;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-	PROC_SLOCK(p2);
-	p2->p_sflag = PS_INMEM;
-	PROC_SUNLOCK(p2);
 	td2->td_ucred = crhold(p2->p_ucred);
 	pargs_hold(p2->p_args);
 

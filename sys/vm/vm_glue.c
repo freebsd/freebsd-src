@@ -112,7 +112,8 @@ static void scheduler(void *);
 SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL)
 
 #ifndef NO_SWAPPING
-static void swapout(struct proc *);
+static int swapout(struct proc *);
+static void swapclear(struct proc *);
 #endif
 
 
@@ -601,7 +602,7 @@ faultin(p)
 #ifdef NO_SWAPPING
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if ((p->p_sflag & PS_INMEM) == 0)
+	if ((p->p_flag & P_INMEM) == 0)
 		panic("faultin: proc swapped out with NO_SWAPPING!");
 #else /* !NO_SWAPPING */
 	struct thread *td;
@@ -611,36 +612,34 @@ faultin(p)
 	 * If another process is swapping in this process,
 	 * just wait until it finishes.
 	 */
-	if (p->p_sflag & PS_SWAPPINGIN)
-		msleep(&p->p_sflag, &p->p_mtx, PVM, "faultin", 0);
-	else if ((p->p_sflag & PS_INMEM) == 0) {
+	if (p->p_flag & P_SWAPPINGIN) {
+		while (p->p_flag & P_SWAPPINGIN)
+			msleep(&p->p_flag, &p->p_mtx, PVM, "faultin", 0);
+		return;
+	}
+	if ((p->p_flag & P_INMEM) == 0) {
 		/*
 		 * Don't let another thread swap process p out while we are
 		 * busy swapping it in.
 		 */
 		++p->p_lock;
-		PROC_SLOCK(p);
-		p->p_sflag |= PS_SWAPPINGIN;
-		PROC_SUNLOCK(p);
+		p->p_flag |= P_SWAPPINGIN;
 		PROC_UNLOCK(p);
 
+		/*
+		 * We hold no lock here because the list of threads
+		 * can not change while all threads in the process are
+		 * swapped out.
+		 */
 		FOREACH_THREAD_IN_PROC(p, td)
 			vm_thread_swapin(td);
-
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
-		p->p_sflag &= ~PS_SWAPPINGIN;
-		p->p_sflag |= PS_INMEM;
-		FOREACH_THREAD_IN_PROC(p, td) {
-			thread_lock(td);
-			TD_CLR_SWAPPED(td);
-			if (TD_CAN_RUN(td))
-				setrunnable(td);
-			thread_unlock(td);
-		}
+		swapclear(p);
+		p->p_swtime = 0;
 		PROC_SUNLOCK(p);
 
-		wakeup(&p->p_sflag);
+		wakeup(&p->p_flag);
 
 		/* Allow other threads to swap p out now. */
 		--p->p_lock;
@@ -684,7 +683,9 @@ loop:
 	ppri = INT_MIN;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
+		PROC_LOCK(p);
+		if (p->p_flag & (P_SWAPPINGOUT | P_SWAPPINGIN | P_INMEM)) {
+			PROC_UNLOCK(p);
 			continue;
 		}
 		PROC_SLOCK(p);
@@ -697,10 +698,8 @@ loop:
 			thread_lock(td);
 			if (td->td_inhibitors == TDI_SWAPPED) {
 				pri = p->p_swtime + td->td_slptime;
-				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
+				if ((td->td_flags & TDF_SWAPINREQ) == 0)
 					pri -= p->p_nice * 8;
-				}
-
 				/*
 				 * if this thread is higher priority
 				 * and there is enough space, then select
@@ -715,6 +714,7 @@ loop:
 			thread_unlock(td);
 		}
 		PROC_SUNLOCK(p);
+		PROC_UNLOCK(p);
 	}
 	sx_sunlock(&allproc_lock);
 
@@ -738,7 +738,7 @@ loop:
 	 * brought this process in while we traverse all threads.
 	 * Or, this process may even be being swapped out again.
 	 */
-	if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
+	if (p->p_flag & (P_INMEM | P_SWAPPINGOUT | P_SWAPPINGIN)) {
 		PROC_UNLOCK(p);
 		thread_lock(&thread0);
 		proc0_rescan = 0;
@@ -746,19 +746,12 @@ loop:
 		goto loop;
 	}
 
-	PROC_SLOCK(p);
-	p->p_sflag &= ~PS_SWAPINREQ;
-	PROC_SUNLOCK(p);
-
 	/*
 	 * We would like to bring someone in. (only if there is space).
 	 * [What checks the space? ]
 	 */
 	faultin(p);
 	PROC_UNLOCK(p);
-	PROC_SLOCK(p);
-	p->p_swtime = 0;
-	PROC_SUNLOCK(p);
 	thread_lock(&thread0);
 	proc0_rescan = 0;
 	thread_unlock(&thread0);
@@ -804,7 +797,7 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2, CTLFLAG_RW,
 
 /*
  * Swapout is driven by the pageout daemon.  Very simple, we find eligible
- * procs and unwire their u-areas.  We try to always "swap" at least one
+ * procs and swap out their stacks.  We try to always "swap" at least one
  * process in case we need the room for a swapin.
  * If any procs have been sleeping/stopped for at least maxslp seconds,
  * they are swapped.  Else, we swap the longest-sleeping or stopped process,
@@ -829,13 +822,8 @@ retry:
 		 * creation.  It may have no
 		 * address space or lock yet.
 		 */
-		PROC_SLOCK(p);
-		if (p->p_state == PRS_NEW) {
-			PROC_SUNLOCK(p);
+		if (p->p_state == PRS_NEW)
 			continue;
-		}
-		PROC_SUNLOCK(p);
-
 		/*
 		 * An aio daemon switches its
 		 * address space while running.
@@ -844,7 +832,6 @@ retry:
 		 */
 		if ((p->p_flag & P_SYSTEM) != 0)
 			continue;
-
 		/*
 		 * Do not swapout a process that
 		 * is waiting for VM data
@@ -874,7 +861,7 @@ retry:
 		 * skipped because of the if statement above checking 
 		 * for P_SYSTEM
 		 */
-		if ((p->p_sflag & (PS_INMEM|PS_SWAPPINGOUT|PS_SWAPPINGIN)) != PS_INMEM)
+		if ((p->p_flag & (P_INMEM|P_SWAPPINGOUT|P_SWAPPINGIN)) != P_INMEM)
 			goto nextproc2;
 
 		switch (p->p_state) {
@@ -890,15 +877,20 @@ retry:
 			 * Check all the thread groups..
 			 */
 			FOREACH_THREAD_IN_PROC(p, td) {
-				if (PRI_IS_REALTIME(td->td_pri_class))
+				thread_lock(td);
+				if (PRI_IS_REALTIME(td->td_pri_class)) {
+					thread_unlock(td);
 					goto nextproc;
+				}
 
 				/*
 				 * Guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-				if (td->td_slptime < swap_idle_threshold1)
+				if (td->td_slptime < swap_idle_threshold1) {
+					thread_unlock(td);
 					goto nextproc;
+				}
 
 				/*
 				 * Do not swapout a process if it is
@@ -910,8 +902,10 @@ retry:
 				 * swapping out a thread.
 				 */
 				if ((td->td_priority) < PSOCK ||
-				    !thread_safetoswapout(td))
+				    !thread_safetoswapout(td)) {
+					thread_unlock(td);
 					goto nextproc;
+				}
 				/*
 				 * If the system is under memory stress,
 				 * or if we are swapping
@@ -920,11 +914,14 @@ retry:
 				 */
 				if (((action & VM_SWAP_NORMAL) == 0) &&
 				    (((action & VM_SWAP_IDLE) == 0) ||
-				    (td->td_slptime < swap_idle_threshold2)))
+				    (td->td_slptime < swap_idle_threshold2))) {
+					thread_unlock(td);
 					goto nextproc;
+				}
 
 				if (minslptime > td->td_slptime)
 					minslptime = td->td_slptime;
+				thread_unlock(td);
 			}
 
 			/*
@@ -935,8 +932,8 @@ retry:
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (minslptime > swap_idle_threshold2))) {
-				swapout(p);
-				didswap++;
+				if (swapout(p) == 0)
+					didswap++;
 				PROC_SUNLOCK(p);
 				PROC_UNLOCK(p);
 				vm_map_unlock(&vm->vm_map);
@@ -964,13 +961,35 @@ nextproc1:
 }
 
 static void
+swapclear(p)
+	struct proc *p;
+{
+	struct thread *td;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
+		td->td_flags |= TDF_INMEM;
+		td->td_flags &= ~TDF_SWAPINREQ;
+		TD_CLR_SWAPPED(td);
+		if (TD_CAN_RUN(td))
+			setrunnable(td);
+		thread_unlock(td);
+	}
+	p->p_flag &= ~(P_SWAPPINGIN|P_SWAPPINGOUT);
+	p->p_flag |= P_INMEM;
+}
+
+static int
 swapout(p)
 	struct proc *p;
 {
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	mtx_assert(&p->p_slock, MA_OWNED | MA_NOTRECURSED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED | MA_NOTRECURSED);
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);
 #endif
@@ -980,43 +999,46 @@ swapout(p)
 	 * by now.  Assuming that there is only one pageout daemon thread,
 	 * this process should still be in memory.
 	 */
-	KASSERT((p->p_sflag & (PS_INMEM|PS_SWAPPINGOUT|PS_SWAPPINGIN)) == PS_INMEM,
+	KASSERT((p->p_flag & (P_INMEM|P_SWAPPINGOUT|P_SWAPPINGIN)) == P_INMEM,
 		("swapout: lost a swapout race?"));
 
-#if defined(INVARIANTS)
-	/*
-	 * Make sure that all threads are safe to be swapped out.
-	 *
-	 * Alternatively, we could swap out only safe threads.
-	 */
-	FOREACH_THREAD_IN_PROC(p, td) {
-		KASSERT(thread_safetoswapout(td),
-			("swapout: there is a thread not safe for swapout"));
-	}
-#endif /* INVARIANTS */
-	td = FIRST_THREAD_IN_PROC(p);
-	++td->td_ru.ru_nswap;
 	/*
 	 * remember the process resident count
 	 */
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
-
-	p->p_sflag &= ~PS_INMEM;
-	p->p_sflag |= PS_SWAPPINGOUT;
-	PROC_UNLOCK(p);
+	/*
+	 * Check and mark all threads before we proceed.
+	 */
+	p->p_flag &= ~P_INMEM;
+	p->p_flag |= P_SWAPPINGOUT;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
+		if (!thread_safetoswapout(td)) {
+			thread_unlock(td);
+			swapclear(p);
+			return (EBUSY);
+		}
+		td->td_flags &= ~TDF_INMEM;
 		TD_SET_SWAPPED(td);
 		thread_unlock(td);
 	}
+	td = FIRST_THREAD_IN_PROC(p);
+	++td->td_ru.ru_nswap;
 	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
 
+	/*
+	 * This list is stable because all threads are now prevented from
+	 * running.  The list is only modified in the context of a running
+	 * thread in this process.
+	 */
 	FOREACH_THREAD_IN_PROC(p, td)
 		vm_thread_swapout(td);
 
 	PROC_LOCK(p);
+	p->p_flag &= ~P_SWAPPINGOUT;
 	PROC_SLOCK(p);
-	p->p_sflag &= ~PS_SWAPPINGOUT;
 	p->p_swtime = 0;
+	return (0);
 }
 #endif /* !NO_SWAPPING */

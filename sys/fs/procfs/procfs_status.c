@@ -112,7 +112,6 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, "noflags");
 	}
 
-	PROC_SLOCK(p);
 #ifdef KSE
 	if (p->p_flag & P_SA)
 		wmesg = "-kse- ";
@@ -128,9 +127,10 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 			wmesg = "nochan";
 	}
 
-	if (p->p_sflag & PS_INMEM) {
+	if (p->p_flag & P_INMEM) {
 		struct timeval start, ut, st;
 
+		PROC_SLOCK(p);
 		calcru(p, &ut, &st);
 		PROC_SUNLOCK(p);
 		start = p->p_stats->p_start;
@@ -139,10 +139,8 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		    (intmax_t)start.tv_sec, start.tv_usec,
 		    (intmax_t)ut.tv_sec, ut.tv_usec,
 		    (intmax_t)st.tv_sec, st.tv_usec);
-	} else {
-		PROC_SUNLOCK(p);
+	} else
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
-	}
 
 	sbuf_printf(sb, " %s", wmesg);
 
