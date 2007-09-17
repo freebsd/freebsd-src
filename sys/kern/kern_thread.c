@@ -531,7 +531,7 @@ thread_link(struct thread *td, struct proc *p)
 	 */
 	td->td_state    = TDS_INACTIVE;
 	td->td_proc     = p;
-	td->td_flags    = 0;
+	td->td_flags    = TDF_INMEM;
 
 	LIST_INIT(&td->td_contested);
 	sigqueue_init(&td->td_sigqueue, p);

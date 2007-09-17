@@ -104,7 +104,7 @@ struct ptrace_io_desc32 {
 	int error;							\
 									\
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);			\
-	if ((td->td_proc->p_sflag & PS_INMEM) == 0)			\
+	if ((td->td_proc->p_flag & P_INMEM) == 0)			\
 		error = EIO;						\
 	else								\
 		error = (action);					\

@@ -2287,8 +2287,8 @@ tdq_add(struct tdq *tdq, struct thread *td, int flags)
 	    ("sched_add: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("sched_add: bad thread state"));
-	KASSERT(td->td_proc->p_sflag & PS_INMEM,
-	    ("sched_add: process swapped out"));
+	KASSERT(td->td_flags & TDF_INMEM,
+	    ("sched_add: thread swapped out"));
 
 	ts = td->td_sched;
 	class = PRI_BASE(td->td_pri_class);

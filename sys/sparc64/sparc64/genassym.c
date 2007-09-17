@@ -219,7 +219,6 @@ ASSYM(MD_UTRAP, offsetof(struct mdproc, md_utrap));
 ASSYM(P_COMM, offsetof(struct proc, p_comm));
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
-ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));

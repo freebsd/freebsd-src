@@ -463,16 +463,10 @@ mi_switch(int flags, struct thread *newtd)
 void
 setrunnable(struct thread *td)
 {
-	struct proc *p;
 
-	p = td->td_proc;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	switch (p->p_state) {
-	case PRS_ZOMBIE:
-		panic("setrunnable(1)");
-	default:
-		break;
-	}
+	KASSERT(td->td_proc->p_state != PRS_ZOMBIE,
+	    ("setrunnable: pid %d is a zombie", td->td_proc->p_pid));
 	switch (td->td_state) {
 	case TDS_RUNNING:
 	case TDS_RUNQ:
@@ -491,9 +485,9 @@ setrunnable(struct thread *td)
 		printf("state is 0x%x", td->td_state);
 		panic("setrunnable(2)");
 	}
-	if ((p->p_sflag & PS_INMEM) == 0) {
-		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
-			p->p_sflag |= PS_SWAPINREQ;
+	if ((td->td_flags & TDF_INMEM) == 0) {
+		if ((td->td_flags & TDF_SWAPINREQ) == 0) {
+			td->td_flags |= TDF_SWAPINREQ;
 			/*
 			 * due to a LOR between the thread lock and
 			 * the sleepqueue chain locks, use

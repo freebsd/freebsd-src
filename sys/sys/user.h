@@ -207,6 +207,12 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 #define	ki_childstime	ki_rusage_ch.ru_stime
 #define	ki_childutime	ki_rusage_ch.ru_utime
 
+/*
+ *  Legacy PS_ flag.  This moved to p_flag but is maintained for
+ *  compatibility.
+ */
+#define	PS_INMEM	0x00001		/* Loaded into memory. */
+
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */
 #define	KI_SLEADER	0x00000002	/* session leader */

@@ -316,6 +316,7 @@ do {									\
  */
 #define	TDF_BORROWING	0x00000001 /* Thread is borrowing pri from another. */
 #define	TDF_INPANIC	0x00000002 /* Caused a panic, let it drive crashdump. */
+#define	TDF_INMEM	0x00000004 /* Thread's stack is in memory. */
 #define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
@@ -335,12 +336,15 @@ do {									\
 #define	TDF_UNUSED19	0x00080000 /* Thread is sleeping on a umtx. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_DBSUSPEND	0x00200000 /* Thread is suspended by debugger */
-#define	TDF_UNUSED22	0x00400000 /* --available-- */
+#define	TDF_SWAPINREQ	0x00400000 /* Swapin request due to wakeup. */
 #define	TDF_UNUSED23	0x00800000 /* --available-- */
 #define	TDF_SCHED0	0x01000000 /* Reserved for scheduler private use */
 #define	TDF_SCHED1	0x02000000 /* Reserved for scheduler private use */
 #define	TDF_SCHED2	0x04000000 /* Reserved for scheduler private use */
 #define	TDF_SCHED3	0x08000000 /* Reserved for scheduler private use */
+#define	TDF_ALRMPEND	0x10000000 /* Pending SIGVTALRM needs to be posted. */
+#define	TDF_PROFPEND	0x20000000 /* Pending SIGPROF needs to be posted. */
+#define	TDF_MACPEND	0x40000000 /* AST-based MAC event pending. */
 
 /*
  * "Private" flags kept in td_pflags:
@@ -496,7 +500,6 @@ struct proc {
 	 * See the td_ or ke_ versions of the same flags.
 	 */
 	int		p_flag;		/* (c) P_* flags. */
-	int		p_sflag;	/* (j) PS_* flags. */
 	enum {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* threads can be run. */
@@ -618,18 +621,12 @@ struct proc {
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 #define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
+#define	P_INMEM		0x10000000 /* Loaded into memory. */
+#define	P_SWAPPINGOUT	0x20000000 /* Process is being swapped out. */
+#define	P_SWAPPINGIN	0x40000000 /* Process is being swapped in. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
-
-/* These flags are kept in p_sflag and are protected with proc slock. */
-#define	PS_INMEM	0x00001	/* Loaded into memory. */
-#define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
-#define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
-#define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
-#define	PS_SWAPPINGOUT	0x00200	/* Process is being swapped out. */
-#define	PS_SWAPPINGIN	0x04000	/* Process is being swapped in. */
-#define	PS_MACPEND	0x08000	/* AST-based MAC event pending. */
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -743,7 +740,7 @@ MALLOC_DECLARE(M_ZOMBIE);
 	KASSERT(!((p)->p_flag & P_WEXIT) || (p) == curproc,		\
 	    ("PHOLD of exiting process"));				\
 	(p)->p_lock++;							\
-	if (((p)->p_sflag & PS_INMEM) == 0)				\
+	if (((p)->p_flag & P_INMEM) == 0)				\
 		faultin((p));						\
 } while (0)
 #define PROC_ASSERT_HELD(p) do {					\
