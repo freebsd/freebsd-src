@@ -201,34 +201,29 @@ hardclock_cpu(int usermode)
 	struct pstats *pstats;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
-	int ast;
+	int flags;
 
 	/*
 	 * Run current process's virtual and profile time, as needed.
 	 */
 	pstats = p->p_stats;
-	ast = 0;
+	flags = 0;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
 		PROC_SLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
-			p->p_sflag |= PS_ALRMPEND;
-			ast = 1;
-		}
+		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
+			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
 		PROC_SUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
 		PROC_SLOCK(p);
-		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
-			p->p_sflag |= PS_PROFPEND;
-			ast = 1;
-		}
+		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
+			flags |= TDF_PROFPEND | TDF_ASTPENDING;
 		PROC_SUNLOCK(p);
 	}
 	thread_lock(td);
 	sched_tick();
-	if (ast)
-		td->td_flags |= TDF_ASTPENDING;
+	td->td_flags |= flags;
 	thread_unlock(td);
 
 #ifdef	HWPMC_HOOKS

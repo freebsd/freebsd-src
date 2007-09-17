@@ -558,8 +558,8 @@ runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 	struct rqhead *rqh;
 	u_char pri;
 
-	KASSERT(ts->ts_thread->td_proc->p_sflag & PS_INMEM,
-		("runq_remove_idx: process swapped out"));
+	KASSERT(ts->ts_thread->td_flags & TDF_INMEM,
+		("runq_remove_idx: thread swapped out"));
 	pri = ts->ts_rqindex;
 	KASSERT(pri < RQ_NQS, ("runq_remove_idx: Invalid index %d\n", pri));
 	rqh = &rq->rq_queues[pri];

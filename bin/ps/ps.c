@@ -994,13 +994,13 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 	return (s);
 }
 
-#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_sflag & PS_INMEM))
+#define UREADOK(ki)	(forceuread || (ki->ki_p->ki_flag & P_INMEM))
 
 static void
 saveuser(KINFO *ki)
 {
 
-	if (ki->ki_p->ki_sflag & PS_INMEM) {
+	if (ki->ki_p->ki_flag & P_INMEM) {
 		/*
 		 * The u-area might be swapped out, and we can't get
 		 * at it because we have a crashdump and no swap.

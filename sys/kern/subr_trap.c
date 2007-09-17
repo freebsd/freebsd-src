@@ -148,7 +148,6 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-	int sflag;
 	int flags;
 	int sig;
 #if defined(DEV_NPX) && !defined(SMP)
@@ -174,25 +173,17 @@ ast(struct trapframe *framep)
 #endif
 
 	/*
-	 * This updates the p_sflag's for the checks below in one
+	 * This updates the td_flag's for the checks below in one
 	 * "atomic" operation with turning off the astpending flag.
 	 * If another AST is triggered while we are handling the
-	 * AST's saved in sflag, the astpending flag will be set and
+	 * AST's saved in flags, the astpending flag will be set and
 	 * ast() will be called again.
 	 */
-	PROC_SLOCK(p);
-	sflag = p->p_sflag;
-	if (p->p_sflag & (PS_ALRMPEND | PS_PROFPEND))
-		p->p_sflag &= ~(PS_ALRMPEND | PS_PROFPEND);
-#ifdef MAC
-	if (p->p_sflag & PS_MACPEND)
-		p->p_sflag &= ~PS_MACPEND;
-#endif
 	thread_lock(td);
-	PROC_SUNLOCK(p);
 	flags = td->td_flags;
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
-	    TDF_NEEDRESCHED | TDF_INTERRUPT);
+	    TDF_NEEDRESCHED | TDF_INTERRUPT | TDF_ALRMPEND | TDF_PROFPEND |
+	    TDF_MACPEND);
 	thread_unlock(td);
 	PCPU_INC(cnt.v_trap);
 
@@ -210,7 +201,7 @@ ast(struct trapframe *framep)
 		td->td_profil_ticks = 0;
 		td->td_pflags &= ~TDP_OWEUPC;
 	}
-	if (sflag & PS_ALRMPEND) {
+	if (flags & TDF_ALRMPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
 		PROC_UNLOCK(p);
@@ -228,13 +219,13 @@ ast(struct trapframe *framep)
 		}
 	}
 #endif
-	if (sflag & PS_PROFPEND) {
+	if (flags & TDF_PROFPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGPROF);
 		PROC_UNLOCK(p);
 	}
 #ifdef MAC
-	if (sflag & PS_MACPEND)
+	if (flags & TDF_MACPEND)
 		mac_thread_userret(td);
 #endif
 	if (flags & TDF_NEEDRESCHED) {
