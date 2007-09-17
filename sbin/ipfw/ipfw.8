@@ -685,10 +685,14 @@ Divert packets that match this rule to the
 socket bound to port
 .Ar port .
 The search terminates.
-.It Cm fwd | forward Ar ipaddr Ns Op , Ns Ar port
+.It Cm fwd | forward Ar ipaddr | tablearg Ns Op , Ns Ar port
 Change the next-hop on matching packets to
 .Ar ipaddr ,
 which can be an IP address or a host name.
+The next hop can also be supplied by the last table
+looked up for the packet by using the
+.Cm tablearg
+keyword instead of an explicit address.
 The search terminates if this rule matches.
 .Pp
 If
@@ -1589,11 +1593,16 @@ This can significantly reduce number of rules in some configurations.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm pipe , queue, divert, tee, netgraph, ngtee,
+.Cm pipe , queue, divert, tee, netgraph, ngtee, fwd
 action parameters:
 .Cm tag, untag,
 rule options:
 .Cm limit, tagged.
+.Pp
+When used with
+.Cm fwd
+it is possible to supply table entries with values
+that are in the form of IP addresses or hostnames.
 See the
 .Sx EXAMPLES
 Section for example usage of tables and the tablearg keyword.
@@ -2383,6 +2392,15 @@ Then we classify traffic using a single rule:
 .Dl "ipfw table 1 add 192.168.0.2 1"
 .Dl "..."
 .Dl "ipfw pipe tablearg ip from table(1) to any"
+.Pp
+Using the
+.Cm fwd
+action, the table entries may include hostnames and IP addresses.
+.Pp
+.Dl "ipfw table 1 add 192.168.2.0/24 10.23.2.1"
+.Dl "ipfw table 1 add 192.168.0.0/27 router1.dmz"
+.Dl "..."
+.Dl "ipfw add 100 fwd tablearg ip from any to table(1)"
 .Ss SETS OF RULES
 To add a set of rules atomically, e.g.\& set 18:
 .Pp
