@@ -2278,7 +2278,7 @@ rum_prepare_beacon(struct rum_softc *sc)
 	struct mbuf *m0;
 	int rate;
 
-	m0 = ieee80211_beacon_alloc(ic, ic->ic_bss, &sc->sc_bo);
+	m0 = ieee80211_beacon_alloc(ic->ic_bss, &sc->sc_bo);
 	if (m0 == NULL) {
 		return ENOBUFS;
 	}

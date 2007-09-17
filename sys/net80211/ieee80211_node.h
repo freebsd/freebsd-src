@@ -55,6 +55,9 @@
 
 #define	IEEE80211_TRANS_WAIT 	2		/* mgt frame tx timer (secs) */
 
+/* threshold for aging overlapping non-ERP bss */
+#define	IEEE80211_NONERP_PRESENT_AGE	msecs_to_ticks(60*1000)
+
 #define	IEEE80211_NODE_HASHSIZE	32
 /* simple hash is enough for variation of macaddr */
 #define	IEEE80211_NODE_HASH(addr)	\
@@ -306,6 +309,8 @@ void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
 void	ieee80211_dump_node(struct ieee80211_node_table *,
 		struct ieee80211_node *);
 void	ieee80211_dump_nodes(struct ieee80211_node_table *);
+
+void	ieee80211_notify_erp(struct ieee80211com *);
 
 struct ieee80211_node *ieee80211_fakeup_adhoc_node(
 		struct ieee80211_node_table *, const uint8_t macaddr[]);

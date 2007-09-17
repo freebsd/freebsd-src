@@ -175,6 +175,8 @@ struct ieee80211com {
 	uint16_t		ic_nonerpsta;	/* # non-ERP stations */
 	uint16_t		ic_longslotsta;	/* # long slot time stations */
 	uint16_t		ic_sta_assoc;	/* stations associated */
+	uint8_t			ic_curhtprotmode;/* HTINFO bss state */
+	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 
 	struct ifqueue		ic_mgtq;
 	enum ieee80211_state	ic_state;	/* 802.11 state */
@@ -237,6 +239,8 @@ struct ieee80211com {
 				    const struct ieee80211_bpf_params *);
 	/* reset device state after 802.11 parameter/state change */
 	int			(*ic_reset)(struct ifnet *);
+	/* [schedule] beacon frame update */
+	void			(*ic_update_beacon)(struct ieee80211com *, int);
 	/* update device state for 802.11 slot time change */
 	void			(*ic_updateslot)(struct ifnet *);
 	/* new station association callback/notification */
@@ -313,7 +317,6 @@ struct ieee80211com {
 #define	IEEE80211_F_DATAPAD	0x00080000	/* CONF: do alignment pad */
 #define	IEEE80211_F_USEPROT	0x00100000	/* STATUS: protection enabled */
 #define	IEEE80211_F_USEBARKER	0x00200000	/* STATUS: use barker preamble*/
-#define	IEEE80211_F_TIMUPDATE	0x00400000	/* STATUS: update beacon tim */
 #define	IEEE80211_F_WPA1	0x00800000	/* CONF: WPA enabled */
 #define	IEEE80211_F_WPA2	0x01000000	/* CONF: WPA2 enabled */
 #define	IEEE80211_F_WPA		0x01800000	/* CONF: WPA/WPA2 enabled */
@@ -321,7 +324,6 @@ struct ieee80211com {
 #define	IEEE80211_F_COUNTERM	0x04000000	/* CONF: TKIP countermeasures */
 #define	IEEE80211_F_HIDESSID	0x08000000	/* CONF: hide SSID in beacon */
 #define	IEEE80211_F_NOBRIDGE	0x10000000	/* CONF: dis. internal bridge */
-#define	IEEE80211_F_WMEUPDATE	0x20000000	/* STATUS: update beacon wme */
 #define	IEEE80211_F_DOTH	0x40000000	/* CONF: 11h enabled */
 
 /* Atheros protocol-specific flags */
@@ -336,7 +338,7 @@ struct ieee80211com {
 #define	IEEE80211_FEXT_INACT	 0x00000002	/* CONF: sta inact handling */
 /* 0x00000006 reserved */
 #define	IEEE80211_FEXT_BGSCAN	 0x00000008	/* STATUS: complete bgscan */
-#define	IEEE80211_FEXT_ERPUPDATE 0x00000200	/* STATUS: update ERP element */
+#define	IEEE80211_FEXT_NONERP_PR 0x00000200	/* STATUS: non-ERP sta present*/
 #define	IEEE80211_FEXT_SWBMISS	 0x00000400	/* CONF: do bmiss in s/w */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
 #define	IEEE80211_FEXT_HT	 0x00080000	/* CONF: HT supported */
@@ -458,6 +460,16 @@ ieee80211_anyhdrspace(struct ieee80211com *ic, const void *data)
 	if (ic->ic_flags & IEEE80211_F_DATAPAD)
 		size = roundup(size, sizeof(uint32_t));
 	return size;
+}
+
+/*
+ * Notify a driver that beacon state has been updated.
+ */
+static __inline void
+ieee80211_beacon_notify(struct ieee80211com *ic, int what)
+{
+	if (ic->ic_state == IEEE80211_S_RUN)
+		ic->ic_update_beacon(ic, what);
 }
 
 #define	IEEE80211_MSG_11N	0x80000000	/* 11n mode debug */

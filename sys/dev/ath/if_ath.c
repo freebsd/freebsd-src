@@ -124,6 +124,7 @@ static void	ath_setslottime(struct ath_softc *);
 static void	ath_updateslot(struct ifnet *);
 static int	ath_beaconq_setup(struct ath_hal *);
 static int	ath_beacon_alloc(struct ath_softc *, struct ieee80211_node *);
+static void	ath_beacon_update(struct ieee80211com *, int item);
 static void	ath_beacon_setup(struct ath_softc *, struct ath_buf *);
 static void	ath_beacon_proc(void *, int);
 static void	ath_bstuck_proc(void *, int);
@@ -625,6 +626,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_crypto.cs_key_update_begin = ath_key_update_begin;
 	ic->ic_crypto.cs_key_update_end = ath_key_update_end;
 	ic->ic_raw_xmit = ath_raw_xmit;
+	ic->ic_update_beacon = ath_beacon_update;
 	/* complete initialization */
 	ieee80211_media_init(ic, ath_media_change, ieee80211_media_status);
 
@@ -2442,7 +2444,6 @@ ath_beaconq_config(struct ath_softc *sc)
 static int
 ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_buf *bf;
 	struct mbuf *m;
 	int error;
@@ -2458,7 +2459,7 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	 * we assume the mbuf routines will return us something
 	 * with this alignment (perhaps should assert).
 	 */
-	m = ieee80211_beacon_alloc(ic, ni, &sc->sc_boff);
+	m = ieee80211_beacon_alloc(ni, &sc->sc_boff);
 	if (m == NULL) {
 		DPRINTF(sc, ATH_DEBUG_BEACON, "%s: cannot get mbuf\n",
 			__func__);
@@ -2553,6 +2554,15 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 #undef USE_SHPREAMBLE
 }
 
+static void
+ath_beacon_update(struct ieee80211com *ic, int item)
+{
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ieee80211_beacon_offsets *bo = &sc->sc_boff;
+
+	setbit(bo->bo_flags, item);
+}
+
 /*
  * Append the contents of src to dst; both queues
  * are assumed to be locked.
@@ -2626,7 +2636,7 @@ ath_beacon_proc(void *arg, int pending)
 	m = bf->bf_m;
 	nmcastq = sc->sc_mcastq.axq_depth;
 	ncabq = ath_hal_numtxpending(ah, cabq->axq_qnum);
-	if (ieee80211_beacon_update(ic, bf->bf_node, &sc->sc_boff, m, ncabq+nmcastq)) {
+	if (ieee80211_beacon_update(bf->bf_node, &sc->sc_boff, m, ncabq+nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m,
