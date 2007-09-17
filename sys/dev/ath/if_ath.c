@@ -5605,6 +5605,10 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 		break;
 	case IEEE80211_MODE_TURBO_A:
 		rt = ath_hal_getratetable(ah, HAL_MODE_108A);
+#if HAL_ABI_VERSION < 0x07013100
+		if (rt == NULL)		/* XXX bandaid for old hal's */
+			rt = ath_hal_getratetable(ah, HAL_MODE_TURBO);
+#endif
 		break;
 	case IEEE80211_MODE_TURBO_G:
 		rt = ath_hal_getratetable(ah, HAL_MODE_108G);
