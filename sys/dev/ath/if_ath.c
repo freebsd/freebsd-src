@@ -5225,7 +5225,10 @@ ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
 	    HAL_LED_AUTH,	/* IEEE80211_S_AUTH */
 	    HAL_LED_ASSOC, 	/* IEEE80211_S_ASSOC */
+	    HAL_LED_RUN, 	/* IEEE80211_S_CAC */
 	    HAL_LED_RUN, 	/* IEEE80211_S_RUN */
+	    HAL_LED_RUN, 	/* IEEE80211_S_CSA */
+	    HAL_LED_RUN, 	/* IEEE80211_S_SLEEP */
 	};
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: %s -> %s\n", __func__,
