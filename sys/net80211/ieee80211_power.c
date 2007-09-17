@@ -163,7 +163,8 @@ ieee80211_set_tim(struct ieee80211_node *ni, int set)
 			clrbit(ic->ic_tim_bitmap, aid);
 			ic->ic_ps_pending--;
 		}
-		ic->ic_flags |= IEEE80211_F_TIMUPDATE;
+		/* NB: we know ic is in RUN state so no need to check */
+		ic->ic_update_beacon(ic, IEEE80211_BEACON_TIM);
 	}
 	IEEE80211_BEACON_UNLOCK(ic);
 }

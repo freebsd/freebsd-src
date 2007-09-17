@@ -246,20 +246,48 @@ extern	const char *ieee80211_wme_acnames[];
  * can update the frame later w/ minimal overhead.
  */
 struct ieee80211_beacon_offsets {
+	uint8_t		bo_flags[4];	/* update/state flags */
 	uint16_t	*bo_caps;	/* capabilities */
+	uint8_t		*bo_cfp;	/* start of CFParms element */
 	uint8_t		*bo_tim;	/* start of atim/dtim */
 	uint8_t		*bo_wme;	/* start of WME parameters */
-	uint8_t		*bo_trailer;	/* start of fixed-size trailer */
+	uint8_t		*bo_tim_trailer;/* start of fixed-size trailer */
 	uint16_t	bo_tim_len;	/* atim/dtim length in bytes */
-	uint16_t	bo_trailer_len;	/* trailer length in bytes */
+	uint16_t	bo_tim_trailer_len;/* tim trailer length in bytes */
 	uint8_t		*bo_erp;	/* start of ERP element */
 	uint8_t		*bo_htinfo;	/* start of HT info element */
+	uint8_t		*bo_appie;	/* start of AppIE element */
+	uint16_t	bo_appie_len;	/* AppIE length in bytes */
+	uint16_t	bo_csa_trailer_len;;
+	uint8_t		*bo_csa;	/* start of CSA element */
 };
-struct mbuf *ieee80211_beacon_alloc(struct ieee80211com *,
-		struct ieee80211_node *, struct ieee80211_beacon_offsets *);
-int	ieee80211_beacon_update(struct ieee80211com *,
-		struct ieee80211_node *, struct ieee80211_beacon_offsets *,
-		struct mbuf *, int broadcast);
+struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
+		struct ieee80211_beacon_offsets *);
+
+/*
+ * Beacon frame updates are signaled through calls to ic_update_beacon
+ * with one of the IEEE80211_BEACON_* tokens defined below.  For devices
+ * that construct beacon frames on the host this can trigger a rebuild
+ * or defer the processing.  For devices that offload beacon frame
+ * handling this callback can be used to signal a rebuild.  The bo_flags
+ * array in the ieee80211_beacon_offsets structure is intended to record
+ * deferred processing requirements; ieee80211_beacon_update uses the
+ * state to optimize work.  Since this structure is owned by the driver
+ * and not visible to the 802.11 layer drivers must supply an ic_update_beacon
+ * callback that marks the flag bits and schedules (as necessary) an update.
+ */
+enum {
+	IEEE80211_BEACON_CAPS	= 0,	/* capabilities */
+	IEEE80211_BEACON_TIM	= 1,	/* DTIM/ATIM */
+	IEEE80211_BEACON_WME	= 2,
+	IEEE80211_BEACON_ERP	= 3,	/* Extended Rate Phy */
+	IEEE80211_BEACON_HTINFO	= 4,	/* HT Information */
+	IEEE80211_BEACON_APPIE	= 5,	/* Application IE's */
+	IEEE80211_BEACON_CFP	= 6,	/* CFParms */
+	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
+};
+int	ieee80211_beacon_update(struct ieee80211_node *,
+		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);
 
 /*
  * Notification methods called from the 802.11 state machine.

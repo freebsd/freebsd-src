@@ -110,4 +110,7 @@ uint8_t	*ieee80211_add_htcap(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htcap_vendor(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo_vendor(uint8_t *, struct ieee80211_node *);
+struct ieee80211_beacon_offsets;
+void	ieee80211_ht_update_beacon(struct ieee80211com *,
+		struct ieee80211_beacon_offsets *);
 #endif /* _NET80211_IEEE80211_HT_H_ */

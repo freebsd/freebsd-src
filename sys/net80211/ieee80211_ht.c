@@ -136,6 +136,8 @@ ieee80211_ht_attach(struct ieee80211com *ic)
 		ic->ic_flags_ext |= IEEE80211_FEXT_AMSDU_RX;
 		if (ic->ic_htcaps & IEEE80211_HTC_AMSDU)
 			ic->ic_flags_ext |= IEEE80211_FEXT_AMSDU_TX;
+
+		ic->ic_curhtprotmode = IEEE80211_HTINFO_OPMODE_PURE;
 	}
 }
 
@@ -1408,6 +1410,36 @@ ieee80211_set_basic_htrates(uint8_t *frm, const struct ieee80211_htrateset *rs)
 }
 
 /*
+ * Update the HTINFO ie for a beacon frame.
+ */
+void
+ieee80211_ht_update_beacon(struct ieee80211com *ic,
+	struct ieee80211_beacon_offsets *bo)
+{
+#define	PROTMODE	(IEEE80211_HTINFO_OPMODE|IEEE80211_HTINFO_NONHT_PRESENT)
+	struct ieee80211_ie_htinfo *ht =
+	   (struct ieee80211_ie_htinfo *) bo->bo_htinfo;
+
+	/* XXX only update on channel change */
+	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, ic->ic_bsschan);
+	ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PROH;
+	if (IEEE80211_IS_CHAN_HT40U(ic->ic_bsschan))
+		ht->hi_byte1 |= IEEE80211_HTINFO_2NDCHAN_ABOVE;
+	else if (IEEE80211_IS_CHAN_HT40D(ic->ic_bsschan))
+		ht->hi_byte1 |= IEEE80211_HTINFO_2NDCHAN_BELOW;
+	else
+		ht->hi_byte1 |= IEEE80211_HTINFO_2NDCHAN_NONE;
+	if (IEEE80211_IS_CHAN_HT40(ic->ic_bsschan))
+		ht->hi_byte1 |= IEEE80211_HTINFO_TXWIDTH_2040;
+
+	/* protection mode */
+	ht->hi_byte2 = (ht->hi_byte2 &~ PROTMODE) | ic->ic_curhtprotmode;
+
+	/* XXX propagate to vendor ie's */
+#undef PROTMODE
+}
+
+/*
  * Add body of an HTINFO information element.
  */
 static uint8_t *
@@ -1431,9 +1463,7 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 	if (IEEE80211_IS_CHAN_HT40(ic->ic_bsschan))
 		frm[0] |= IEEE80211_HTINFO_TXWIDTH_2040;
 
-	frm[1] = (ic->ic_flags_ext & IEEE80211_FEXT_PUREN) ?
-		IEEE80211_HTINFO_OPMODE_PURE : IEEE80211_HTINFO_OPMODE_MIXED;
-	/* XXX IEEE80211_HTINFO_NONHT_PRESENT */
+	frm[1] = ic->ic_curhtprotmode;
 
 	frm += 5;
 
