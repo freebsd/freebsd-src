@@ -852,6 +852,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	/* check if xmit fragmentation is required */
 	txfrag = (m->m_pkthdr.len > ic->ic_fragthreshold &&
 	    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
+	    (ic->ic_caps & IEEE80211_C_TXFRAG) &&
 	    !isff);		/* NB: don't fragment ff's */
 	if (key != NULL) {
 		/*
