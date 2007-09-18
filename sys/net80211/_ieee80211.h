@@ -288,6 +288,8 @@ struct ieee80211_htrateset {
 	uint8_t			rs_rates[IEEE80211_HTRATE_MAXSIZE];
 };
 
+#define	IEEE80211_RATE_MCS	0x80
+
 /*
  * Roaming state visible to user space.  There are two
  * thresholds that control whether roaming is considered;

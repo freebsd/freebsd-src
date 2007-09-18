@@ -155,7 +155,8 @@ ht_announce(struct ieee80211com *ic, int mode,
 
 	if_printf(ifp, "%s MCS: ", ieee80211_phymode_name[mode]);
 	for (i = 0; i < rs->rs_nrates; i++) {
-		mword = ieee80211_rate2media(ic, rs->rs_rates[i], mode);
+		mword = ieee80211_rate2media(ic,
+		    rs->rs_rates[i] | IEEE80211_RATE_MCS, mode);
 		if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
 			continue;
 		rate = ieee80211_htrates[rs->rs_rates[i]];
