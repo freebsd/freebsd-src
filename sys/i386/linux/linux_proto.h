@@ -806,6 +806,7 @@ struct linux_clock_nanosleep_args {
 };
 struct linux_statfs64_args {
 	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char bufsize_l_[PADL_(size_t)]; size_t bufsize; char bufsize_r_[PADR_(size_t)];
 	char buf_l_[PADL_(struct l_statfs64_buf *)]; struct l_statfs64_buf * buf; char buf_r_[PADR_(struct l_statfs64_buf *)];
 };
 struct linux_fstatfs64_args {
