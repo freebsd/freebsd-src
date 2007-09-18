@@ -708,7 +708,8 @@ node_cleanup(struct ieee80211_node *ni)
 
 	/* NB: preserve ni_table */
 	if (ni->ni_flags & IEEE80211_NODE_PWR_MGT) {
-		ic->ic_ps_sta--;
+		if (ic->ic_opmode != IEEE80211_M_STA)
+			ic->ic_ps_sta--;
 		ni->ni_flags &= ~IEEE80211_NODE_PWR_MGT;
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 		    "[%s] power save mode off, %u sta's in ps mode\n",
