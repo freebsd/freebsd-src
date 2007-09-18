@@ -931,10 +931,6 @@ media_status(enum ieee80211_opmode opmode, const struct ieee80211_channel *chan)
 
 	if (IEEE80211_IS_CHAN_TURBO(chan))
 		status |= IFM_IEEE80211_TURBO;
-	if (IEEE80211_IS_CHAN_HT40U(chan))
-		status |= IFM_IEEE80211_HT40PLUS;
-	if (IEEE80211_IS_CHAN_HT40D(chan))
-		status |= IFM_IEEE80211_HT40MINUS;
 
 	return status;
 }
