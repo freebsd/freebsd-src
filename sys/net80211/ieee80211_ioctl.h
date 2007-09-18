@@ -336,8 +336,9 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_associd;		/* assoc response */
 	uint16_t	isi_txpower;		/* current tx power */
 	uint16_t	isi_vlan;		/* vlan tag */
-	uint16_t	isi_txseqs[17];		/* seq to be transmitted */
-	uint16_t	isi_rxseqs[17];		/* seq previous for qos frames*/
+	/* NB: [IEEE80211_NONQOS_TID] holds seq#'s for non-QoS stations */
+	uint16_t	isi_txseqs[IEEE80211_TID_SIZE];/* tx seq #/TID */
+	uint16_t	isi_rxseqs[IEEE80211_TID_SIZE];/* rx seq#/TID */
 	uint16_t	isi_inact;		/* inactivity timer */
 	/* XXX frag state? */
 	/* variable length IE data */
