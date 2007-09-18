@@ -1993,10 +1993,10 @@ sctp_add_addresses_to_i_ia(struct sctp_inpcb *inp, struct sctp_scoping *scope,
 	uint32_t vrf_id;
 
 	vrf_id = inp->def_vrf_id;
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 		return (m_at);
 	}
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -2146,7 +2146,7 @@ skip_count:
 			}
 		}
 	}
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 	return (m_at);
 }
 
@@ -3056,7 +3056,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 	}
 	SCTPDBG(SCTP_DEBUG_OUTPUT2, "Select source addr for:");
 	SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, (struct sockaddr *)to);
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		/*
 		 * Bound all case
@@ -3064,7 +3064,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 		answer = sctp_choose_boundall(inp, stcb, net, ro, vrf_id,
 		    dest_is_priv, dest_is_loop,
 		    non_asoc_addr_ok, fam);
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 		return (answer);
 	}
 	/*
@@ -3081,7 +3081,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 		    dest_is_priv,
 		    dest_is_loop, fam);
 	}
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 	return (answer);
 }
 

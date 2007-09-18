@@ -1021,7 +1021,7 @@ struct xsctp_raddr {
 #define SCTP_TRACE_PARAMS 6	/* This number MUST be even   */
 
 struct sctp_log_entry {
-	u_int64_t timestamp;
+	uint64_t timestamp;
 	uint32_t subsys;
 	uint32_t padding;
 	uint32_t params[SCTP_TRACE_PARAMS];
