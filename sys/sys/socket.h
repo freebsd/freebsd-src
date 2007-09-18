@@ -210,6 +210,59 @@ struct accept_filter_arg {
 #define	AF_BLUETOOTH	36		/* Bluetooth sockets */
 #define	AF_IEEE80211	37		/* IEEE 802.11 protocol */
 #define	AF_MAX		38
+/*
+ * When allocating a new AF_ constant, please only allocate
+ * even numbered constants for FreeBSD until 134 as odd numbered AF_
+ * constants 39-133 are now reserved for vendors.
+ */
+#define AF_VENDOR00 39
+#define AF_VENDOR01 41
+#define AF_VENDOR02 43
+#define AF_VENDOR03 45
+#define AF_VENDOR04 47
+#define AF_VENDOR05 49
+#define AF_VENDOR06 51
+#define AF_VENDOR07 53
+#define AF_VENDOR08 55
+#define AF_VENDOR09 57
+#define AF_VENDOR10 59
+#define AF_VENDOR11 61
+#define AF_VENDOR12 63
+#define AF_VENDOR13 65
+#define AF_VENDOR14 67
+#define AF_VENDOR15 69
+#define AF_VENDOR16 71
+#define AF_VENDOR17 73
+#define AF_VENDOR18 75
+#define AF_VENDOR19 77
+#define AF_VENDOR20 79
+#define AF_VENDOR21 81
+#define AF_VENDOR22 83
+#define AF_VENDOR23 85
+#define AF_VENDOR24 87
+#define AF_VENDOR25 89
+#define AF_VENDOR26 91
+#define AF_VENDOR27 93
+#define AF_VENDOR28 95
+#define AF_VENDOR29 97
+#define AF_VENDOR30 99
+#define AF_VENDOR31 101
+#define AF_VENDOR32 103
+#define AF_VENDOR33 105
+#define AF_VENDOR34 107
+#define AF_VENDOR35 109
+#define AF_VENDOR36 111
+#define AF_VENDOR37 113
+#define AF_VENDOR38 115
+#define AF_VENDOR39 117
+#define AF_VENDOR40 119
+#define AF_VENDOR41 121
+#define AF_VENDOR42 123
+#define AF_VENDOR43 125
+#define AF_VENDOR44 127
+#define AF_VENDOR45 129
+#define AF_VENDOR46 131
+#define AF_VENDOR47 133
 #endif
 
 /*
