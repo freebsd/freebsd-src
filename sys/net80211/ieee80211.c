@@ -188,6 +188,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 
 	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
 	ic->ic_bsschan = IEEE80211_CHAN_ANYC;
+	ic->ic_prevchan = NULL;
 	/* arbitrarily pick the first channel */
 	ic->ic_curchan = &ic->ic_channels[0];
 
