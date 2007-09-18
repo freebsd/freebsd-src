@@ -186,10 +186,10 @@ struct sctp_epinfo {
 	sctp_zone_t ipi_zone_strmoq;
 	sctp_zone_t ipi_zone_asconf_ack;
 
-	struct mtx ipi_ep_mtx;
+	struct rwlock ipi_ep_mtx;
 	struct mtx it_mtx;
 	struct mtx ipi_iterator_wq_mtx;
-	struct mtx ipi_addr_mtx;
+	struct rwlock ipi_addr_mtx;
 	struct mtx ipi_pktlog_mtx;
 	uint32_t ipi_count_ep;
 
