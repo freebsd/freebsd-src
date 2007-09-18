@@ -75,6 +75,10 @@ OBJS-md+= ${GCC_CPU}-c.o
 # Target specific, C specific object file
 C_TARGET_OBJS=
 
+.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
+.endif
+
 # Language-specific object files for C and Objective C.
 C_AND_OBJC_OBJS = attribs.o c-errors.o c-lex.o c-pragma.o c-decl.o c-typeck.o \
   c-convert.o c-aux-info.o c-common.o c-opts.o c-format.o c-semantics.o \
