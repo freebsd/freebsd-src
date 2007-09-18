@@ -50,31 +50,6 @@ static void create(struct archive_entry *ae, const char *msg)
 	    st.st_mode, archive_entry_mode(ae));
 	assert(st.st_mode == (archive_entry_mode(ae) & ~UMASK));
 }
-
-static void create_reg_file(struct archive_entry *ae, const char *msg)
-{
-	static const char data[]="abcdefghijklmnopqrstuvwxyz";
-	struct archive *ad;
-	struct stat st;
-
-	/* Write the entry to disk. */
-	assert((ad = archive_write_disk_new()) != NULL);
-	failure("%s", msg);
-	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-	assertEqualIntA(ad, sizeof(data), archive_write_data(ad, data, sizeof(data)));
-	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(0, archive_write_finish(ad));
-#else
-	archive_write_finish(ad);
-#endif
-	/* Test the entries on disk. */
-	assert(0 == stat(archive_entry_pathname(ae), &st));
-	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
-	    st.st_mode, archive_entry_mode(ae));
-	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-	assertEqualInt(st.st_size, sizeof(data));
-}
 #endif
 
 DEFINE_TEST(test_write_disk)
@@ -91,7 +66,7 @@ DEFINE_TEST(test_write_disk)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	create_reg_file(ae, "Test creating a regular file");
+	create(ae, "Test creating a regular file");
 	archive_entry_free(ae);
 
 	/* A regular file over an existing file */
