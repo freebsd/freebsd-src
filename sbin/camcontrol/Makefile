@@ -12,8 +12,8 @@ WARNS?= 3
 .else
 WARNS?=	6
 .endif
-DPADD=	${LIBCAM} ${LIBSBUF}
-LDADD=	-lcam -lsbuf
+DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
+LDADD=	-lcam -lsbuf -lutil
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>
