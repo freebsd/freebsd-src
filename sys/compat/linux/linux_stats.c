@@ -306,19 +306,6 @@ struct l_statfs {
 	l_int		f_spare[6];
 };
 
-struct l_statfs64 {
-	l_int		f_type;
-	l_int		f_bsize;
-	uint64_t	f_blocks;
-	uint64_t	f_bfree;
-	uint64_t	f_bavail;
-	uint64_t	f_files;
-	uint64_t	f_ffree;
-	l_fsid_t	f_fsid;
-	l_int		f_namelen;
-	l_int		f_spare[6];
-};
-
 #define	LINUX_CODA_SUPER_MAGIC	0x73757245L
 #define	LINUX_EXT2_SUPER_MAGIC	0xEF53L
 #define	LINUX_HPFS_SUPER_MAGIC	0xf995e849L
@@ -417,6 +404,9 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	struct statfs bsd_statfs;
 	char *path;
 	int error;
+
+	if (args->bufsize != sizeof(struct l_statfs64))
+		return EINVAL;
 
 	LCONVPATHEXIST(td, args->path, &path);
 
