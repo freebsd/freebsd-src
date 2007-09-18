@@ -191,6 +191,11 @@ ieee80211_mgmt_output(struct ieee80211com *ic, struct ieee80211_node *ni,
 			ether_sprintf(wh->i_addr1), __func__);
 		wh->i_fc[1] |= IEEE80211_FC1_WEP;
 	}
+	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+		/* NB: force all management frames to the highest queue */
+		M_WME_SETAC(m, WME_AC_VO);
+	} else
+		M_WME_SETAC(m, WME_AC_BE);
 #ifdef IEEE80211_DEBUG
 	/* avoid printing too many frames */
 	if ((ieee80211_msg_debug(ic) && doprint(ic, type)) ||
@@ -370,6 +375,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	    ic->ic_opmode != IEEE80211_M_WDS)
 		wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
 	m->m_len = m->m_pkthdr.len = sizeof(struct ieee80211_frame);
+	M_WME_SETAC(m, WME_AC_BE);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 
