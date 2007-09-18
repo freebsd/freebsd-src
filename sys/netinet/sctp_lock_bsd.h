@@ -82,33 +82,54 @@ extern int sctp_logoff_stuff;
 #define SCTP_STATLOG_UNLOCK()
 #define SCTP_STATLOG_DESTROY()
 
+#define SCTP_INP_INFO_LOCK_DESTROY() do { \
+        if(rw_wowned(sctppcbinfo.ipi_ep_mtx)) { \
+             rw_wunlock(&sctppcbinfo.ipi_ep_mtx); \
+        } \
+        rw_destroy(sctppcbinfo.ipi_ep_mtx); \
+      }  while (0)
 
 #define SCTP_INP_INFO_LOCK_INIT() \
-        mtx_init(&sctppcbinfo.ipi_ep_mtx, "sctp-info", "inp_info", MTX_DEF)
+        rw_init(&sctppcbinfo.ipi_ep_mtx, "sctp-info");
 
 
 #define SCTP_INP_INFO_RLOCK()	do { 					\
-             mtx_lock(&sctppcbinfo.ipi_ep_mtx);                         \
+             rw_rlock(&sctppcbinfo.ipi_ep_mtx);                         \
 } while (0)
 
 
 #define SCTP_INP_INFO_WLOCK()	do { 					\
-             mtx_lock(&sctppcbinfo.ipi_ep_mtx);                         \
+            rw_wlock(&sctppcbinfo.ipi_ep_mtx);                         \
 } while (0)
+
+
+#define SCTP_INP_INFO_RUNLOCK()		rw_runlock(&sctppcbinfo.ipi_ep_mtx)
+#define SCTP_INP_INFO_WUNLOCK()		rw_wunlock(&sctppcbinfo.ipi_ep_mtx)
 
 
 #define SCTP_IPI_ADDR_INIT() \
-        mtx_init(&sctppcbinfo.ipi_addr_mtx, "sctp-addr", "sctp_addr", MTX_DEF)
+        rw_init(&sctppcbinfo.ipi_addr_mtx, "sctp-addr")
 
-#define SCTP_IPI_ADDR_DESTROY() \
-	mtx_destroy(&sctppcbinfo.ipi_addr_mtx)
+#define SCTP_IPI_ADDR_DESTROY() do  { \
+        if(rw_wowned(sctppcbinfo.ipi_addr_mtx)) { \
+             rw_wunlock(&sctppcbinfo.ipi_addr_mtx); \
+        } \
+	rw_destroy(&sctppcbinfo.ipi_addr_mtx) \
+      }  while (0)
 
-#define SCTP_IPI_ADDR_LOCK()	do { 					\
-             mtx_lock(&sctppcbinfo.ipi_addr_mtx);                         \
+
+
+#define SCTP_IPI_ADDR_RLOCK()	do { 					\
+             rw_rlock(&sctppcbinfo.ipi_addr_mtx);                         \
 } while (0)
 
-#define SCTP_IPI_ADDR_UNLOCK()		mtx_unlock(&sctppcbinfo.ipi_addr_mtx)
+#define SCTP_IPI_ADDR_WLOCK()	do { 					\
+             rw_wlock(&sctppcbinfo.ipi_addr_mtx);                         \
+} while (0)
 
+
+#define SCTP_IPI_ADDR_RUNLOCK()		rw_runlock(&sctppcbinfo.ipi_addr_mtx)
+#define SCTP_IPI_ADDR_WUNLOCK()		rw_wunlock(&sctppcbinfo.ipi_addr_mtx)
 
 
 #define SCTP_IPI_ITERATOR_WQ_INIT() \
@@ -140,8 +161,6 @@ extern int sctp_logoff_stuff;
 
 
 
-#define SCTP_INP_INFO_RUNLOCK()		mtx_unlock(&sctppcbinfo.ipi_ep_mtx)
-#define SCTP_INP_INFO_WUNLOCK()		mtx_unlock(&sctppcbinfo.ipi_ep_mtx)
 
 /*
  * The INP locks we will use for locking an SCTP endpoint, so for example if

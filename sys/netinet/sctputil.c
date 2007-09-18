@@ -336,7 +336,7 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 		sctp_clog.x.lock.inp_lock = SCTP_LOCK_UNKNOWN;
 		sctp_clog.x.lock.create_lock = SCTP_LOCK_UNKNOWN;
 	}
-	sctp_clog.x.lock.info_lock = mtx_owned(&sctppcbinfo.ipi_ep_mtx);
+	sctp_clog.x.lock.info_lock = rw_wowned(&sctppcbinfo.ipi_ep_mtx);
 	if (inp->sctp_socket) {
 		sctp_clog.x.lock.sock_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
@@ -4758,12 +4758,12 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	uint32_t hash_of_addr;
 
 	if (holds_lock == 0)
-		SCTP_IPI_ADDR_LOCK();
+		SCTP_IPI_ADDR_RLOCK();
 
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		if (holds_lock == 0)
-			SCTP_IPI_ADDR_UNLOCK();
+			SCTP_IPI_ADDR_RUNLOCK();
 		return (NULL);
 	}
 	hash_of_addr = sctp_get_ifa_hash_val(addr);
@@ -4771,12 +4771,12 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_addr_hashmark)];
 	if (hash_head == NULL) {
 		SCTP_PRINTF("hash_of_addr:%x mask:%x table:%x - ",
-		    (u_int)hash_of_addr, (u_int)vrf->vrf_addr_hashmark,
-		    (u_int)(hash_of_addr & vrf->vrf_addr_hashmark));
+		    hash_of_addr, (uint32_t) vrf->vrf_addr_hashmark,
+		    (uint32_t) (hash_of_addr & vrf->vrf_addr_hashmark));
 		sctp_print_address(addr);
 		SCTP_PRINTF("No such bucket for address\n");
 		if (holds_lock == 0)
-			SCTP_IPI_ADDR_UNLOCK();
+			SCTP_IPI_ADDR_RUNLOCK();
 
 		return (NULL);
 	}
@@ -4791,7 +4791,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 			    sctp_ifap->address.sin.sin_addr.s_addr) {
 				/* found him. */
 				if (holds_lock == 0)
-					SCTP_IPI_ADDR_UNLOCK();
+					SCTP_IPI_ADDR_RUNLOCK();
 				return (sctp_ifap);
 				break;
 			}
@@ -4800,14 +4800,14 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 			    &sctp_ifap->address.sin6.sin6_addr)) {
 				/* found him. */
 				if (holds_lock == 0)
-					SCTP_IPI_ADDR_UNLOCK();
+					SCTP_IPI_ADDR_RUNLOCK();
 				return (sctp_ifap);
 				break;
 			}
 		}
 	}
 	if (holds_lock == 0)
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 	return (NULL);
 }
 
@@ -6373,11 +6373,11 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 		ipv4_addr_legal = 1;
 	}
 
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(stcb->asoc.vrf_id);
 	if (vrf == NULL) {
 		/* no vrf, no addresses */
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 		return (0);
 	}
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -6453,7 +6453,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 			count++;
 		}
 	}
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 	return (count);
 }
 
