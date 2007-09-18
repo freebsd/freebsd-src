@@ -120,9 +120,10 @@ struct ieee80211_node {
 	uint8_t			*ni_rsn_ie;	/* captured RSN ie */
 	uint8_t			*ni_wme_ie;	/* captured WME ie */
 	uint8_t			*ni_ath_ie;	/* captured Atheros ie */
-#define	IEEE80211_NONQOS_TID	16		/* index for non-QoS sta */
-	uint16_t		ni_txseqs[17];	/* tx seq per-tid */
-	uint16_t		ni_rxseqs[17];	/* rx seq previous per-tid*/
+						/* tx seq per-tid */
+	uint16_t		ni_txseqs[IEEE80211_TID_SIZE];
+						/* rx seq previous per-tid*/
+	uint16_t		ni_rxseqs[IEEE80211_TID_SIZE];
 	uint32_t		ni_rxfragstamp;	/* time stamp of last rx frag */
 	struct mbuf		*ni_rxfrag[3];	/* rx frag reassembly */
 	struct ieee80211_rsnparms ni_rsn;	/* RSN/WPA parameters */
