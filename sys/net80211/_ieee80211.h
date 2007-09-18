@@ -261,6 +261,9 @@ struct ieee80211_channel {
 #define	IEEE80211_FH_CHANSET(chan)	((chan)/IEEE80211_FH_CHANMOD+1)
 #define	IEEE80211_FH_CHANPAT(chan)	((chan)%IEEE80211_FH_CHANMOD)
 
+#define	IEEE80211_TID_SIZE	(WME_NUM_TID+1)	/* WME TID's +1 for non-QoS */
+#define	IEEE80211_NONQOS_TID	WME_NUM_TID	/* index for non-QoS sta */
+
 /*
  * 802.11 rate set.
  */
