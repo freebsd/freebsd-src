@@ -285,13 +285,13 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 		return;
 	}
 	if (hold_addr_lock == 0)
-		SCTP_IPI_ADDR_LOCK();
+		SCTP_IPI_ADDR_WLOCK();
 	LIST_REMOVE(sctp_ifnp, next_bucket);
 	LIST_REMOVE(sctp_ifnp, next_ifn);
 	SCTP_DEREGISTER_INTERFACE(sctp_ifnp->ifn_index,
 	    sctp_ifnp->registered_af);
 	if (hold_addr_lock == 0)
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_WUNLOCK();
 	/* Take away the reference, and possibly free it */
 	sctp_free_ifn(sctp_ifnp);
 }
@@ -302,7 +302,7 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr, const char *if_n
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap = NULL;
 
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find vrf_id:%d\n", vrf_id);
@@ -345,7 +345,7 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr, const char *if_n
 	sctp_ifap->localifa_flags &= (~SCTP_ADDR_VALID);
 	sctp_ifap->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
 out:
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 }
 
 void
@@ -354,7 +354,7 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr, const char *if_nam
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap = NULL;
 
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		SCTPDBG(SCTP_DEBUG_PCB1, "Can't find vrf_id:%d\n", vrf_id);
@@ -397,7 +397,7 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr, const char *if_nam
 	sctp_ifap->localifa_flags &= (~SCTP_ADDR_IFA_UNUSEABLE);
 	sctp_ifap->localifa_flags |= SCTP_ADDR_VALID;
 out:
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 }
 
 
@@ -416,7 +416,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	int new_ifn_af = 0;
 
 	/* How granular do we need the locks to be here? */
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_WLOCK();
 	sctp_ifnp = sctp_find_ifn(ifn, ifn_index);
 	if (sctp_ifnp) {
 		vrf = sctp_ifnp->vrf;
@@ -425,7 +425,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		if (vrf == NULL) {
 			vrf = sctp_allocate_vrf(vrf_id);
 			if (vrf == NULL) {
-				SCTP_IPI_ADDR_UNLOCK();
+				SCTP_IPI_ADDR_WUNLOCK();
 				return (NULL);
 			}
 		}
@@ -435,7 +435,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		 * build one and add it, can't hold lock until after malloc
 		 * done though.
 		 */
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_WUNLOCK();
 		SCTP_MALLOC(sctp_ifnp, struct sctp_ifn *, sizeof(struct sctp_ifn), SCTP_M_IFN);
 		if (sctp_ifnp == NULL) {
 #ifdef INVARIANTS
@@ -459,7 +459,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		}
 		hash_ifn_head = &sctppcbinfo.vrf_ifn_hash[(ifn_index & sctppcbinfo.vrf_ifn_hashmark)];
 		LIST_INIT(&sctp_ifnp->ifalist);
-		SCTP_IPI_ADDR_LOCK();
+		SCTP_IPI_ADDR_WLOCK();
 		LIST_INSERT_HEAD(hash_ifn_head, sctp_ifnp, next_bucket);
 		LIST_INSERT_HEAD(&vrf->ifnlist, sctp_ifnp, next_ifn);
 		atomic_add_int(&sctppcbinfo.ipi_count_ifns, 1);
@@ -480,7 +480,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 				sctp_ifap->ifn_p = sctp_ifnp;
 				atomic_add_int(&sctp_ifap->ifn_p->refcount, 1);
 		exit_stage_left:
-				SCTP_IPI_ADDR_UNLOCK();
+				SCTP_IPI_ADDR_WUNLOCK();
 				return (sctp_ifap);
 			} else {
 				goto exit_stage_left;
@@ -512,7 +512,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			goto exit_stage_left;
 		}
 	}
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_WUNLOCK();
 	SCTP_MALLOC(sctp_ifap, struct sctp_ifa *, sizeof(struct sctp_ifa), SCTP_M_IFA);
 	if (sctp_ifap == NULL) {
 #ifdef INVARIANTS
@@ -567,7 +567,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	    (sctp_ifap->src_is_loop == 0)) {
 		sctp_ifap->src_is_glob = 1;
 	}
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_WLOCK();
 	hash_addr_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_addr_hashmark)];
 	LIST_INSERT_HEAD(hash_addr_head, sctp_ifap, next_bucket);
 	sctp_ifap->refcount = 1;
@@ -579,7 +579,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		SCTP_REGISTER_INTERFACE(ifn_index, new_ifn_af);
 		sctp_ifnp->registered_af = new_ifn_af;
 	}
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_WUNLOCK();
 	if (dynamic_add) {
 		/*
 		 * Bump up the refcount so that when the timer completes it
@@ -629,8 +629,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 	struct sctp_vrf *vrf;
 	struct sctp_ifa *sctp_ifap = NULL;
 
-	SCTP_IPI_ADDR_LOCK();
-
+	SCTP_IPI_ADDR_WLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		SCTP_PRINTF("Can't find vrf_id:%d\n", vrf_id);
@@ -678,6 +677,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 				SCTPDBG(SCTP_DEBUG_PCB1, "ifn:%d ifname:%s - ignoring delete\n",
 				    sctp_ifap->ifn_p->ifn_index, sctp_ifap->ifn_p->ifn_name);
 #endif
+				SCTP_IPI_ADDR_WUNLOCK();
 				return;
 			}
 		}
@@ -724,7 +724,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 #endif
 
 out_now:
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_WUNLOCK();
 	if (sctp_ifap) {
 		struct sctp_laddr *wi;
 
@@ -734,9 +734,9 @@ out_now:
 			 * Gak, what can we do? We have lost an address
 			 * change can you say HOSED?
 			 */
-			SCTPDBG(SCTP_DEBUG_PCB1, "Lost and address change ???\n");
+			SCTPDBG(SCTP_DEBUG_PCB1, "Lost an address change?\n");
 
-			/* Opps, must decrement the count */
+			/* Oops, must decrement the count */
 			sctp_free_ifa(sctp_ifap);
 			return;
 		}

@@ -1529,6 +1529,7 @@ sctp_asconf_queue_sa_delete(struct sctp_tcb *stcb, struct sockaddr *sa)
 	/* delete goes to the back of the queue */
 	TAILQ_INSERT_TAIL(&stcb->asoc.asconf_queue, aa, next);
 
+	/* sa_ignore MEMLEAK {memory is put on the tailq} */
 	return (0);
 }
 
@@ -2270,11 +2271,7 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 	struct sctp_ifa *ifa;
 
 	/* find the ifa for the desired set primary */
-	if (stcb) {
-		vrf_id = stcb->asoc.vrf_id;
-	} else {
-		vrf_id = SCTP_DEFAULT_VRFID;
-	}
+	vrf_id = stcb->asoc.vrf_id;
 	ifa = sctp_find_ifa_by_addr(sa, vrf_id, SCTP_ADDR_NOT_LOCKED);
 	if (ifa == NULL) {
 		/* Invalid address */
@@ -2347,11 +2344,11 @@ sctp_find_valid_localaddr(struct sctp_tcb *stcb, int addr_locked)
 	struct sctp_ifa *sctp_ifa;
 
 	if (addr_locked == SCTP_ADDR_NOT_LOCKED)
-		SCTP_IPI_ADDR_LOCK();
+		SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(stcb->asoc.vrf_id);
 	if (vrf == NULL) {
 		if (addr_locked == SCTP_ADDR_NOT_LOCKED)
-			SCTP_IPI_ADDR_UNLOCK();
+			SCTP_IPI_ADDR_RUNLOCK();
 		return (NULL);
 	}
 	LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
@@ -2378,7 +2375,7 @@ sctp_find_valid_localaddr(struct sctp_tcb *stcb, int addr_locked)
 					continue;
 				/* found a valid local v4 address to use */
 				if (addr_locked == SCTP_ADDR_NOT_LOCKED)
-					SCTP_IPI_ADDR_UNLOCK();
+					SCTP_IPI_ADDR_RUNLOCK();
 				return (&sctp_ifa->address.sa);
 			} else if (sctp_ifa->address.sa.sa_family == AF_INET6 &&
 			    stcb->asoc.ipv6_addr_legal) {
@@ -2401,14 +2398,14 @@ sctp_find_valid_localaddr(struct sctp_tcb *stcb, int addr_locked)
 
 				/* found a valid local v6 address to use */
 				if (addr_locked == SCTP_ADDR_NOT_LOCKED)
-					SCTP_IPI_ADDR_UNLOCK();
+					SCTP_IPI_ADDR_RUNLOCK();
 				return (&sctp_ifa->address.sa);
 			}
 		}
 	}
 	/* no valid addresses found */
 	if (addr_locked == SCTP_ADDR_NOT_LOCKED)
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 	return (NULL);
 }
 
@@ -2907,10 +2904,10 @@ sctp_check_address_list_all(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 	} else {
 		return;
 	}
-	SCTP_IPI_ADDR_LOCK();
+	SCTP_IPI_ADDR_RLOCK();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
-		SCTP_IPI_ADDR_UNLOCK();
+		SCTP_IPI_ADDR_RUNLOCK();
 		return;
 	}
 	/* go through all our known interfaces */
@@ -2935,7 +2932,7 @@ sctp_check_address_list_all(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 			}
 		}		/* end foreach ifa */
 	}			/* end foreach ifn */
-	SCTP_IPI_ADDR_UNLOCK();
+	SCTP_IPI_ADDR_RUNLOCK();
 }
 
 /*
