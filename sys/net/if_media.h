@@ -211,8 +211,6 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_IBSSMASTER 0x00000800	/* Operate as an IBSS master */
 #define	IFM_IEEE80211_TURBO	0x00001000	/* Operate in turbo mode */
 #define	IFM_IEEE80211_MONITOR	0x00002000	/* Operate in monitor mode */
-#define	IFM_IEEE80211_HT40PLUS	0x00004000	/* Operate in 11n HT40+ mode */
-#define	IFM_IEEE80211_HT40MINUS	0x00008000	/* Operate in 11n HT40- mode */
 
 /* operating mode for multi-mode devices */
 #define	IFM_IEEE80211_11A	0x00010000	/* 5Ghz, OFDM mode */
@@ -500,8 +498,6 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_IBSSMASTER, "ibss-master" },			\
 	{ IFM_IEEE80211_TURBO, "turbo" },				\
 	{ IFM_IEEE80211_MONITOR, "monitor" },				\
-	{ IFM_IEEE80211_HT40MINUS, "ht-" },				\
-	{ IFM_IEEE80211_HT40PLUS, "ht+" },				\
 	{ 0, NULL },							\
 }
 
