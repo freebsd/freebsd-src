@@ -444,12 +444,14 @@ _archive_write_data_block(struct archive *_a,
     const void *buff, size_t size, off_t offset)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	ssize_t bytes_written = 0;
+	ssize_t bytes_written = 0, total_written = 0;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
-	if (a->fd < 0)
-		return (ARCHIVE_OK);
+	if (a->fd < 0) {
+		archive_set_error(&a->archive, 0, "File not open");
+		return (ARCHIVE_WARN);
+	}
 	archive_clear_error(&a->archive);
 
 	/* Seek if necessary to the specified offset. */
@@ -470,8 +472,9 @@ _archive_write_data_block(struct archive *_a,
 		}
 		size -= bytes_written;
 		a->offset += bytes_written;
+		total_written += bytes_written;
 	}
-	return (ARCHIVE_OK);
+	return (total_written);
 }
 
 static ssize_t
