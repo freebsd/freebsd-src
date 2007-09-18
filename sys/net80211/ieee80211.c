@@ -1119,14 +1119,16 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 	 * Check 11n rates first for match as an MCS.
 	 */
 	if (mode == IEEE80211_MODE_11NA) {
-		if ((rate & IEEE80211_RATE_BASIC) == 0) {
+		if (rate & IEEE80211_RATE_MCS) {
+			rate &= ~IEEE80211_RATE_MCS;
 			m = findmedia(htrates, N(htrates), rate);
 			if (m != IFM_AUTO)
 				return m | IFM_IEEE80211_11NA;
 		}
 	} else if (mode == IEEE80211_MODE_11NG) {
 		/* NB: 12 is ambiguous, it will be treated as an MCS */
-		if ((rate & IEEE80211_RATE_BASIC) == 0) {
+		if (rate & IEEE80211_RATE_MCS) {
+			rate &= ~IEEE80211_RATE_MCS;
 			m = findmedia(htrates, N(htrates), rate);
 			if (m != IFM_AUTO)
 				return m | IFM_IEEE80211_11NG;
