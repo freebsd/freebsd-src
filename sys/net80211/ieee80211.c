@@ -609,7 +609,8 @@ ieee80211_announce(struct ieee80211com *ic)
 	int i, mode, rate, mword;
 	const struct ieee80211_rateset *rs;
 
-	for (mode = IEEE80211_MODE_AUTO; mode < IEEE80211_MODE_11NA; mode++) {
+	/* NB: skip AUTO since it has no rates */
+	for (mode = IEEE80211_MODE_AUTO+1; mode < IEEE80211_MODE_11NA; mode++) {
 		if (isclr(ic->ic_modecaps, mode))
 			continue;
 		if_printf(ifp, "%s rates: ", ieee80211_phymode_name[mode]);
