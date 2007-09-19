@@ -270,7 +270,6 @@ void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
  */
 union pmap_cache_state *pmap_cache_state;
 
-/* static pt_entry_t *msgbufmap;*/
 struct msgbuf *msgbufp = 0;
 
 extern void bcopy_page(vm_offset_t, vm_offset_t);
