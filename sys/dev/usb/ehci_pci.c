@@ -270,6 +270,7 @@ static int
 ehci_pci_attach(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
+	devclass_t dc;
 	device_t parent;
 	device_t *neighbors;
 	device_t *nbus;
@@ -287,7 +288,7 @@ ehci_pci_attach(device_t self)
 	case PCI_USBREV_1_0:
 	case PCI_USBREV_1_1:
 		sc->sc_bus.usbrev = USBREV_UNKNOWN;
-		printf("pre-2.0 USB rev\n");
+		device_printf(self, "pre-2.0 USB rev\n");
 		return ENXIO;
 	case PCI_USBREV_2_0:
 		sc->sc_bus.usbrev = USBREV_2_0;
@@ -403,6 +404,7 @@ ehci_pci_attach(device_t self)
 		return ENXIO;
 	}
 	ncomp = 0;
+	dc = devclass_find("usb");
 	slot = pci_get_slot(self);
 	function = pci_get_function(self);
 	for (i = 0; i < count; i++) {
@@ -410,9 +412,18 @@ ehci_pci_attach(device_t self)
 			pci_get_function(neighbors[i]) < function) {
 			res = device_get_children(neighbors[i],
 				&nbus, &buscount);
-			if (res != 0 || buscount != 1)
+			if (res != 0)
 				continue;
+			if (buscount != 1) {
+				free(nbus, M_TEMP);
+				continue;
+			}
+			if (device_get_devclass(nbus[0]) != dc) {
+				free(nbus, M_TEMP);
+				continue;
+			}
 			bsc = device_get_softc(nbus[0]);
+			free(nbus, M_TEMP);
 			DPRINTF(("ehci_pci_attach: companion %s\n",
 			    device_get_nameunit(bsc->bdev)));
 			sc->sc_comps[ncomp++] = bsc;
