@@ -55,7 +55,10 @@ fi
 
 # Set some flags for the emultempl scripts.  USE_LIBPATH will
 # be set for any libpath-using emulation.
-      USE_LIBPATH=yes
+if [ "x${host}" = "x${target}" ] ; then
+  NATIVE=yes
+fi
+USE_LIBPATH=yes
 
 # Set the library search path, for libraries named by -lfoo.
 # If LIB_PATH is defined (e.g., by Makefile) and non-empty, it is used.
