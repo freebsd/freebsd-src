@@ -8,7 +8,7 @@ SRCS=	dir.c display.c doc.c dribble.c echo-area.c filesys.c \
 	infomap.c m-x.c man.c nodemenu.c nodes.c search.c session.c \
 	signals.c terminal.c tilde.c variables.c window.c
 
-CFLAGS+= -DINFODIR=\"${INFODIR}:/usr/local/info:/usr/X11R6/info:.\"
+CFLAGS+= -DINFODIR=\"${INFODIR}:/usr/local/info:.\"
 
 DPADD=	${LIBTERMCAP} ${LIBTXI}
 LDADD=	-ltermcap ${LIBTXI}
