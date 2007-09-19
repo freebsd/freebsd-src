@@ -1316,8 +1316,8 @@ options 	TTYHOG=8193
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
-# EISA, MCA, PCI and pccard are self identifying buses, so no hints
-# are needed.
+# EISA, MCA, PCI, CardBus, SD/MMC and pccard are self identifying buses, so
+# no hints are needed.
 
 #
 # Mandatory devices:
@@ -2226,12 +2226,20 @@ device		bktr
 #
 # PC Card/PCMCIA and Cardbus
 #
-# pccbb: pci/cardbus bridge implementing YENTA interface
+# cbb: pci/cardbus bridge implementing YENTA interface
 # pccard: pccard slots
 # cardbus: cardbus slots
 device		cbb
 device		pccard
 device		cardbus
+
+#
+# MMC/SD
+#
+# mmc: mmc bus
+# mmcsd: mmc memory and sd cards.
+#device		mmc
+#device		mmcsd
 
 #
 # SMB bus
