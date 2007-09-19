@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +55,32 @@ usage(void)
 {
 
 	fprintf(stderr, "getfacl [-dhq] [file ...]\n");
+}
+
+static char *
+getuname(uid_t uid)
+{
+	struct passwd *pw;
+	static char uids[10];
+
+	if ((pw = getpwuid(uid)) == NULL) {
+		(void)snprintf(uids, sizeof(uids), "%u", uid);
+		return (uids);
+	} else
+		return (pw->pw_name);
+}
+
+static char *
+getgname(gid_t gid)
+{
+	struct group *gr;
+	static char gids[10];
+
+	if ((gr = getgrgid(gid)) == NULL) {
+		(void)snprintf(gids, sizeof(gids), "%u", gid);
+		return (gids);
+	} else
+		return (gr->gr_name);
 }
 
 /*
@@ -169,8 +197,8 @@ print_acl(char *path, acl_type_t type, int hflag, int qflag)
 		more_than_one++;
 
 	if (!qflag)
-		printf("#file:%s\n#owner:%d\n#group:%d\n", path, sb.st_uid,
-		    sb.st_gid);
+		printf("# file: %s\n# owner: %s\n# group: %s\n", path,
+		    getuname(sb.st_uid), getgname(sb.st_gid));
 
 	if (hflag)
 		acl = acl_get_link_np(path, type);
