@@ -48,16 +48,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 #include <sys/disklabel.h>
 
 #include <ufs/ufs/dinode.h>
-#include <ufs/ufs/ufsmount.h>
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
+#include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
@@ -192,15 +193,22 @@ static int
 checkfilesys(char *filesys)
 {
 	ufs2_daddr_t n_ffree, n_bfree;
-	struct ufs_args args;
 	struct dups *dp;
 	struct statfs *mntp;
 	struct stat snapdir;
 	struct group *grp;
 	ufs2_daddr_t blks;
+	struct iovec *iov;
+	char errmsg[255];
+	int iovlen;
+	int fflags;
 	int cylno;
 	ino_t files;
 	size_t size;
+
+	iov = NULL;
+	iovlen = 0;
+	errmsg[0] = '\0';
 
 	cdevname = filesys;
 	if (debug && preen)
@@ -330,16 +338,27 @@ checkfilesys(char *filesys)
 		if (bkgrdflag) {
 			snprintf(snapname, sizeof snapname,
 			    "%s/.snap/fsck_snapshot", mntp->f_mntonname);
-			memset(&args, 0, sizeof args);
-			args.fspec = snapname;
-			while (mount("ffs", mntp->f_mntonname,
-			    mntp->f_flags | MNT_UPDATE | MNT_SNAPSHOT,
-			    &args) < 0) {
+			fflags = mntp->f_flags;
+			/*
+			 * XXX: Need to kick out MNT_ROOTFS until we fix
+			 * nmount().
+			 */
+			fflags &= ~MNT_ROOTFS;
+			fflags = fflags | MNT_UPDATE | MNT_SNAPSHOT;
+			build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
+			build_iovec(&iov, &iovlen, "from", snapname,
+			    (size_t)-1);
+			build_iovec(&iov, &iovlen, "fspath", mntp->f_mntonname,
+			    (size_t)-1);
+			build_iovec(&iov, &iovlen, "errmsg", errmsg,
+			    sizeof(errmsg));
+
+			while (nmount(iov, iovlen, fflags) < 0) {
 				if (errno == EEXIST && unlink(snapname) == 0)
 					continue;
 				bkgrdflag = 0;
-				pfatal("CANNOT CREATE SNAPSHOT %s: %s\n",
-				    snapname, strerror(errno));
+				pfatal("CANNOT CREATE SNAPSHOT %s: %s %s\n",
+				    snapname, strerror(errno), errmsg);
 				break;
 			}
 			if (bkgrdflag != 0)
@@ -500,28 +519,42 @@ checkfilesys(char *filesys)
 static int
 chkdoreload(struct statfs *mntp)
 {
-	struct ufs_args args;
+	struct iovec *iov;
+	int iovlen;
+	int fflags;
+	char errmsg[255];
 
 	if (mntp == NULL)
 		return (0);
+
+	iov = NULL;
+	iovlen = 0;
+	errmsg[0] = '\0';
+	fflags = mntp->f_flags;
 	/*
 	 * We modified a mounted file system.  Do a mount update on
 	 * it unless it is read-write, so we can continue using it
 	 * as safely as possible.
 	 */
 	if (mntp->f_flags & MNT_RDONLY) {
-		memset(&args, 0, sizeof args);
 		/*
-		 * args.fspec = 0;
-		 * args.export.ex_flags = 0;
-		 * args.export.ex_root = 0;
+		 * XXX: Need to kick out MNT_ROOTFS until we fix
+		 * nmount().
 		 */
-		if (mount("ufs", mntp->f_mntonname,
-		    mntp->f_flags | MNT_UPDATE | MNT_RELOAD, &args) == 0) {
+		fflags &= ~MNT_ROOTFS;
+		fflags = fflags | MNT_UPDATE | MNT_RELOAD;
+		build_iovec(&iov, &iovlen, "fstype", "ffs", 4);
+		build_iovec(&iov, &iovlen, "from", mntp->f_mntfromname,
+		    (size_t)-1);
+		build_iovec(&iov, &iovlen, "fspath", mntp->f_mntonname,
+		    (size_t)-1);
+		build_iovec(&iov, &iovlen, "errmsg", errmsg,
+		    sizeof(errmsg));
+		if (nmount(iov, iovlen, fflags) == 0) {
 			return (0);
 		}
-		pwarn("mount reload of '%s' failed: %s\n\n",
-		    mntp->f_mntonname, strerror(errno));
+		pwarn("mount reload of '%s' failed: %s %s\n\n",
+		    mntp->f_mntonname, strerror(errno), errmsg);
 		return (1);
 	}
 	return (0);
