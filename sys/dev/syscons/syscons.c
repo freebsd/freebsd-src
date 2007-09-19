@@ -1073,8 +1073,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	scp = sc_get_stat(SC_DEV(sc, i));
 	if (scp == scp->sc->cur_scp)
 	    return 0;
-	while ((error=tsleep(&scp->smode, PZERO|PCATCH,
-			     "waitvt", 0)) == ERESTART) ;
+	error = tsleep(&scp->smode, PZERO | PCATCH, "waitvt", 0);
 	return error;
 
     case VT_GETACTIVE:		/* get active vty # */
