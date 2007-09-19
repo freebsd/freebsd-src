@@ -231,8 +231,8 @@ repquota(fs, type, qfpathname)
 	fclose(qf);
 	printf("%*s                 Block  limits                    File  limits\n",
 		max(UT_NAMESIZE,10), " ");
-	printf("User%*s    used     soft     hard  grace     used    soft    hard  grace\n",
-		max(UT_NAMESIZE,10), " ");
+	printf("%s%*s   used     soft     hard  grace     used    soft    hard  grace\n",
+		type == USRQUOTA ? "User " : "Group", max(UT_NAMESIZE,10), " ");
 	for (id = 0; id <= highid[type]; id++) {
 		fup = lookup(id, type);
 		if (fup == 0)
