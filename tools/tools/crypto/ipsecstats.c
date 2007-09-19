@@ -83,7 +83,7 @@ int
 main(int argc, char *argv[])
 {
 #define	STAT(x,fmt)	if (x) printf(fmt "\n", x)
-	struct newipsecstat ips;
+	struct ipsecstat ips;
 	struct ahstat ahs;
 	struct espstat esps;
 	size_t slen;
