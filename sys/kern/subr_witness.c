@@ -406,7 +406,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
 	{ "cy", &lock_class_mtx_spin },
-	{ "descriptor tables", &lock_class_mtx_spin },
 #endif
 #ifdef __sparc64__
 	{ "pcib_mtx", &lock_class_mtx_spin },
@@ -430,22 +429,22 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "entropy harvest mutex", &lock_class_mtx_spin },
 	{ "syscons video lock", &lock_class_mtx_spin },
 	{ "time lock", &lock_class_mtx_spin },
+#ifdef SMP
+	{ "smp rendezvous", &lock_class_mtx_spin },
+#endif
 	/*
 	 * leaf locks
 	 */
-	{ "allpmaps", &lock_class_mtx_spin },
 	{ "icu", &lock_class_mtx_spin },
-#ifdef SMP
-	{ "smp rendezvous", &lock_class_mtx_spin },
-#if defined(__i386__) || defined(__amd64__)
-	{ "tlb", &lock_class_mtx_spin },
-#endif
-#ifdef __sparc64__
+#if defined(SMP) && defined(__sparc64__)
 	{ "ipi", &lock_class_mtx_spin },
 #endif
+#ifdef __i386__
+	{ "allpmaps", &lock_class_mtx_spin },
+	{ "descriptor tables", &lock_class_mtx_spin },
 #endif
 	{ "clk", &lock_class_mtx_spin },
-	{ "mutex profiling lock", &lock_class_mtx_spin },
+	{ "mprof lock", &lock_class_mtx_spin },
 	{ "kse lock", &lock_class_mtx_spin },
 	{ "zombie lock", &lock_class_mtx_spin },
 	{ "ALD Queue", &lock_class_mtx_spin },

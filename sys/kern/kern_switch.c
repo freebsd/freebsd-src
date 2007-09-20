@@ -586,7 +586,6 @@ runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 
 /****** functions that are temporarily here ***********/
 #include <vm/uma.h>
-extern struct mtx kse_zombie_lock;
 
 /*
  *  Allocate scheduler specific per-process resources.
