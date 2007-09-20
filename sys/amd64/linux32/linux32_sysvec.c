@@ -372,6 +372,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_rsp;
 	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
 	frame.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
+	frame.sf_sc.uc_mcontext.sc_cr2    = (u_int32_t)(uintptr_t)ksi->ksi_addr;
 	frame.sf_sc.uc_mcontext.sc_trapno = bsd_to_linux_trapcode(code);
 
 #ifdef DEBUG
@@ -503,6 +504,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_sc.sc_esp_at_signal = regs->tf_rsp;
 	frame.sf_sc.sc_ss     = regs->tf_ss;
 	frame.sf_sc.sc_err    = regs->tf_err;
+	frame.sf_sc.sc_cr2    = (u_int32_t)(uintptr_t)ksi->ksi_addr;
 	frame.sf_sc.sc_trapno = bsd_to_linux_trapcode(code);
 
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
