@@ -101,7 +101,7 @@ setnetpath()
     if ((np_sessionp->nc_handlep = setnetconfig()) == NULL) {
 	free(np_sessionp);
 	syslog (LOG_ERR, "rpc: failed to open " NETCONFIG);
-	return (NULL);
+	goto failed;
     }
     np_sessionp->valid = NP_VALID;
     np_sessionp->ncp_list = NULL;
@@ -110,15 +110,18 @@ setnetpath()
     } else {
 	(void) endnetconfig(np_sessionp->nc_handlep);/* won't need nc session*/
 	np_sessionp->nc_handlep = NULL;
-	if ((np_sessionp->netpath = malloc(strlen(npp)+1)) == NULL) {
-	    free(np_sessionp);
-	    return (NULL);
-	} else {
+	if ((np_sessionp->netpath = malloc(strlen(npp)+1)) == NULL)
+		goto failed;
+	else {
 	    (void) strcpy(np_sessionp->netpath, npp);
 	}
     }
     np_sessionp->netpath_start = np_sessionp->netpath;
     return ((void *)np_sessionp);
+
+failed:
+    free(np_sessionp);
+    return (NULL);
 }
 
 /*

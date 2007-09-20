@@ -384,10 +384,15 @@ getclnthandle(host, nconf, targaddr)
 			return (NULL);
 		} else {
 			struct sockaddr_un sun;
-
-			*targaddr = malloc(sizeof(sun.sun_path));
-			strncpy(*targaddr, _PATH_RPCBINDSOCK,
-			    sizeof(sun.sun_path));
+			if (targaddr) {
+			    *targaddr = malloc(sizeof(sun.sun_path));
+			    if (*targaddr == NULL) {
+				CLNT_DESTROY(client);
+				return (NULL);
+			    }
+			    strncpy(*targaddr, _PATH_RPCBINDSOCK,
+				sizeof(sun.sun_path));
+			}
 			return (client);
 		}
 	} else {
