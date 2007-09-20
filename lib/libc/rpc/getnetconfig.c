@@ -534,6 +534,7 @@ struct netconfig *ncp;	/* where to put results */
 {
     char    *tokenp;	/* for processing tokens */
     char    *lasts;
+    char    **nc_lookups;
 
     nc_error = NC_BADFILE;	/* nearly anything that breaks is for this reason */
     stringp[strlen(stringp)-1] = '\0';	/* get rid of newline */
@@ -599,14 +600,18 @@ struct netconfig *ncp;	/* where to put results */
 
 	if (ncp->nc_lookups != NULL)	/* from last visit */
 	    free(ncp->nc_lookups);
-	/* preallocate one string pointer */
-	ncp->nc_lookups = (char **)malloc(sizeof (char *));
+	ncp->nc_lookups = NULL;
 	ncp->nc_nlookups = 0;
 	while ((cp = tokenp) != NULL) {
+	    if ((nc_lookups = realloc(ncp->nc_lookups,
+		(ncp->nc_nlookups + 1) * sizeof *ncp->nc_lookups)) == NULL) {
+		    free(ncp->nc_lookups);
+		    ncp->nc_lookups = NULL;
+		    return (-1);
+	    }
 	    tokenp = _get_next_token(cp, ',');
-	    ncp->nc_lookups[(size_t)ncp->nc_nlookups++] = cp;
-	    ncp->nc_lookups = (char **)realloc(ncp->nc_lookups,
-		(size_t)(ncp->nc_nlookups+1) *sizeof(char *));	/* for next loop */
+	    ncp->nc_lookups = nc_lookups;
+	    ncp->nc_lookups[ncp->nc_nlookups++] = cp;
 	}
     }
     return (0);
