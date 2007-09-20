@@ -884,11 +884,26 @@ ultimate_source (name, path)
 
  next:
 
+#if HAVE_LIBZ > 0
+  if ((fp = gzopen (ult, "r")) == NULL)
+  {
+    /* check for the compressed version too */
+    strlcat(ult, ".gz", FILENAME_MAX);
+    if ((fp = gzopen (ult, "r")) == NULL)
+      return ult; /* we munged it, but it doesn't exist anyway */
+  }
+#else
   if ((fp = fopen (ult, "r")) == NULL)
     return ult;
+#endif
 
+#if HAVE_LIBZ > 0
+  gzgets (fp, buf, BUFSIZ);
+  gzclose(fp);
+#else
   end = fgets (buf, BUFSIZ, fp);
   fclose(fp);
+#endif
 
   if (!end || strlen (buf) < 5)
     return ult;
