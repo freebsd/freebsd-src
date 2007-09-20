@@ -2510,14 +2510,23 @@ exchange_scr(sc_softc_t *sc)
 void
 sc_puts(scr_stat *scp, u_char *buf, int len)
 {
+    int need_unlock = 0;
+
 #ifdef DEV_SPLASH
     /* make screensaver happy */
     if (!sticky_splash && scp == scp->sc->cur_scp && !sc_saver_keyb_only)
 	run_scrn_saver = FALSE;
 #endif
 
-    if (scp->tsw)
+    if (scp->tsw) {
+	if (!kdb_active && !mtx_owned(&scp->scr_lock)) {
+		need_unlock = 1;
+		mtx_lock_spin(&scp->scr_lock);
+	}
 	(*scp->tsw->te_puts)(scp, buf, len);
+	if (need_unlock)
+		mtx_unlock_spin(&scp->scr_lock);
+    }
 
     if (scp->sc->delayed_next_scr)
 	sc_switch_scr(scp->sc, scp->sc->delayed_next_scr - 1);
@@ -2895,6 +2904,7 @@ scterm(int unit, int flags)
 	(*scp->tsw->te_term)(scp, &scp->ts);
     if (scp->ts != NULL)
 	free(scp->ts, M_DEVBUF);
+    mtx_destroy(&scp->scr_lock);
 
     /* clear the structure */
     if (!(flags & SC_KERNEL_CONSOLE)) {
@@ -3078,6 +3088,8 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->history = NULL;
     scp->history_pos = 0;
     scp->history_size = 0;
+
+    mtx_init(&scp->scr_lock, "scrlock", NULL, MTX_SPIN);
 }
 
 int
