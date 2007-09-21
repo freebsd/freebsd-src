@@ -6,7 +6,7 @@ SHLIB_MAJOR= 5
 SHLIBDIR?= /lib
 
 SRCS=	_secure_path.c auth.c expand_number.c flopen.c fparseln.c \
-	humanize_number.c login.c login_auth.c login_cap.c login_class.c \
+	humanize_number.c kld.c login.c login_auth.c login_cap.c login_class.c \
 	login_crypt.c login_ok.c login_times.c login_tty.c logout.c \
 	logwtmp.c pidfile.c property.c pty.c pw_util.c realhostname.c \
 	stub.c trimdomain.c uucplock.c
@@ -18,12 +18,13 @@ CFLAGS+=-DINET6
 .endif
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../libc/gen/
 
-MAN+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
+MAN+=	kld.3 login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
 	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
 	realhostname_sa.3 trimdomain.3 fparseln.3 humanize_number.3 \
 	pidfile.3 flopen.3 expand_number.3
 MAN+=	login.conf.5 auth.conf.5
+MLINKS+= kld.3 kld_isloaded.3  kld.3 kld_load.3
 MLINKS+= property.3 properties_read.3  property.3 properties_free.3
 MLINKS+= property.3 property_find.3
 MLINKS+= auth.3 auth_getval.3
