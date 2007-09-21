@@ -224,9 +224,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
 		intmax_t number;
 
-		errno = 0;
-		number = strtoimax(val, NULL, 0);
-		if (errno != 0) {
+		if (expand_number(val, &number) == -1) {
 			err(EXIT_FAILURE, "Invalid value for '%c' argument.",
 			    opt->go_char);
 		}
