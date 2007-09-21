@@ -29,7 +29,6 @@
 #include <sys/stat.h>
 
 int	 list(const int);
-void	 mdmaybeload(void);
 int	 query(const int, const int);
 void	 usage(void);
 
@@ -239,7 +238,9 @@ main(int argc, char **argv)
 	}
 	mdio.md_version = MDIOVERSION;
 
-	mdmaybeload();
+	if (!kld_isloaded("g_md") && kld_load("geom_md") == -1)
+		err(1, "failed to load geom_md module");
+
 	fd = open("/dev/" MDCTL_NAME, O_RDWR, 0);
 	if (fd < 0)
 		err(1, "open(/dev/%s)", MDCTL_NAME);
@@ -354,22 +355,4 @@ query(const int fd, const int unit)
 	printf("\n");
 
 	return (0);
-}
-
-void
-mdmaybeload(void)
-{
-	char name1[64], name2[64];
-
-	snprintf(name1, sizeof(name1), "g_%s", MD_NAME);
-	snprintf(name2, sizeof(name2), "geom_%s", MD_NAME);
-	if (modfind(name1) == -1) {
-		/* Not present in kernel, try loading it. */
-		if (kldload(name2) == -1 || modfind(name1) == -1) {
-			if (errno != EEXIST) {
-				errx(EXIT_FAILURE,
-				    "%s module not available!", name2);
-			}
-		}
-	}
 }
