@@ -500,6 +500,7 @@ again:
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
+	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
 	td2->td_ucred = crhold(p2->p_ucred);

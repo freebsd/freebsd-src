@@ -88,7 +88,6 @@ struct td_sched {
 	short		ts_flags;	/* TSF_* flags. */
 	u_char		ts_rqindex;	/* Run queue index. */
 	u_char		ts_cpu;		/* CPU that we have affinity for. */
-	int		ts_slptick;	/* Tick when we went to sleep. */
 	int		ts_slice;	/* Ticks of slice remaining. */
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
@@ -1914,7 +1913,7 @@ sched_sleep(struct thread *td)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
-	td->td_sched->ts_slptick = ticks;
+	td->td_slptick = ticks;
 }
 
 /*
@@ -1933,8 +1932,8 @@ sched_wakeup(struct thread *td)
 	 * If we slept for more than a tick update our interactivity and
 	 * priority.
 	 */
-	slptick = ts->ts_slptick;
-	ts->ts_slptick = 0;
+	slptick = td->td_slptick;
+	td->td_slptick = 0;
 	if (slptick && slptick != ticks) {
 		u_int hzticks;
 
@@ -2435,7 +2434,6 @@ sched_pctcpu(struct thread *td)
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
-	td->td_proc->p_swtime = ts->ts_ltick - ts->ts_ftick;
 	thread_unlock(td);
 
 	return (pctcpu);
@@ -2636,8 +2634,8 @@ SYSCTL_INT(_kern_sched, OID_AUTO, topology, CTLFLAG_RD, &topology, 0,
     "True when a topology has been specified by the MD code.");
 #endif
 
-/* ps compat */
-static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
+/* ps compat.  All cpu percentages from ULE are weighted. */
+static int ccpu = 0.0;
 SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
 
