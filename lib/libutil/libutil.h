@@ -70,6 +70,7 @@ void	clean_environment(const char * const *_white,
 	    const char * const *_more_white);
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
+int	flopen(const char *_path, int _flags, ...);
 void	login(struct utmp *_ut);
 int	login_tty(int _fd);
 int	logout(const char *_line);
@@ -81,6 +82,7 @@ int	forkpty(int *_amaster, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
+int	expand_number(char *_buf, int64_t *_num);
 const char *uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
@@ -94,6 +96,10 @@ int	realhostname(char *host, size_t hsize, const struct in_addr *ip);
 struct sockaddr;
 int	realhostname_sa(char *host, size_t hsize, struct sockaddr *addr,
 			     int addrlen);
+
+int	kld_isloaded(const char *name);
+int	kld_load(const char *name);
+
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
 #endif
@@ -119,6 +125,7 @@ int pidfile_write(struct pidfh *pfh);
 int pidfile_close(struct pidfh *pfh);
 int pidfile_remove(struct pidfh *pfh);
 #endif
+
 __END_DECLS
 
 #define UU_LOCK_INUSE (1)
