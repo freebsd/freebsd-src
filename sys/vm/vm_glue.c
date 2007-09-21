@@ -636,7 +636,7 @@ faultin(p)
 		PROC_LOCK(p);
 		PROC_SLOCK(p);
 		swapclear(p);
-		p->p_swtime = 0;
+		p->p_swtick = ticks;
 		PROC_SUNLOCK(p);
 
 		wakeup(&p->p_flag);
@@ -663,9 +663,11 @@ scheduler(dummy)
 {
 	struct proc *p;
 	struct thread *td;
-	int pri;
 	struct proc *pp;
+	int slptime;
+	int swtime;
 	int ppri;
+	int pri;
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
 	mtx_unlock(&Giant);
@@ -688,6 +690,7 @@ loop:
 			PROC_UNLOCK(p);
 			continue;
 		}
+		swtime = (ticks - p->p_swtick) / hz;
 		PROC_SLOCK(p);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			/*
@@ -697,7 +700,8 @@ loop:
 			 */
 			thread_lock(td);
 			if (td->td_inhibitors == TDI_SWAPPED) {
-				pri = p->p_swtime + td->td_slptime;
+				slptime = (ticks - td->td_slptick) / hz;
+				pri = swtime + slptime;
 				if ((td->td_flags & TDF_SWAPINREQ) == 0)
 					pri -= p->p_nice * 8;
 				/*
@@ -816,6 +820,7 @@ retry:
 	FOREACH_PROC_IN_SYSTEM(p) {
 		struct vmspace *vm;
 		int minslptime = 100000;
+		int slptime;
 		
 		/*
 		 * Watch out for a process in
@@ -882,12 +887,12 @@ retry:
 					thread_unlock(td);
 					goto nextproc;
 				}
-
+				slptime = (ticks - td->td_slptick) / hz;
 				/*
 				 * Guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-				if (td->td_slptime < swap_idle_threshold1) {
+				if (slptime < swap_idle_threshold1) {
 					thread_unlock(td);
 					goto nextproc;
 				}
@@ -914,13 +919,13 @@ retry:
 				 */
 				if (((action & VM_SWAP_NORMAL) == 0) &&
 				    (((action & VM_SWAP_IDLE) == 0) ||
-				    (td->td_slptime < swap_idle_threshold2))) {
+				    (slptime < swap_idle_threshold2))) {
 					thread_unlock(td);
 					goto nextproc;
 				}
 
-				if (minslptime > td->td_slptime)
-					minslptime = td->td_slptime;
+				if (minslptime > slptime)
+					minslptime = slptime;
 				thread_unlock(td);
 			}
 
@@ -1038,7 +1043,7 @@ swapout(p)
 	PROC_LOCK(p);
 	p->p_flag &= ~P_SWAPPINGOUT;
 	PROC_SLOCK(p);
-	p->p_swtime = 0;
+	p->p_swtick = ticks;
 	return (0);
 }
 #endif /* !NO_SWAPPING */
