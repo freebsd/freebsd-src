@@ -2331,7 +2331,7 @@ ricardo-lm	6148/udp   #Ricardo North America License Manager
 sge_qmaster	6444/tcp   #Grid Engine Qmaster Service
 sge_qmaster	6444/udp   #Grid Engine Qmaster Service
 sge_execd	6445/tcp   #Grid Engine Execution Service
-sge_execd	6445/upd   #Grid Engine Execution Service
+sge_execd	6445/udp   #Grid Engine Execution Service
 xdsxdm		6558/tcp
 xdsxdm		6558/udp
 ircd		6667/tcp   #Internet Relay Chat (unoffical)
