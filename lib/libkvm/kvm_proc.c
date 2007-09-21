@@ -85,6 +85,9 @@ __FBSDID("$FreeBSD$");
 #define KREAD(kd, addr, obj) \
 	(kvm_read(kd, addr, (char *)(obj), sizeof(*obj)) != sizeof(*obj))
 
+static int ticks;
+static int hz;
+
 /*
  * Read proc's from memory file into buffer bp, which has space to hold
  * at most maxcnt procs.
@@ -368,7 +371,7 @@ nopgrp:
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
 		if (proc.p_state != PRS_ZOMBIE) {
-			kp->ki_swtime = proc.p_swtime;
+			kp->ki_swtime = (ticks - proc.p_swtick) / hz;
 			kp->ki_flag = proc.p_flag;
 			kp->ki_sflag = 0;
 			kp->ki_nice = proc.p_nice;
@@ -535,12 +538,14 @@ kvm_getprocs(kd, op, arg, cnt)
 liveout:
 		nprocs = size == 0 ? 0 : size / kd->procbase->ki_structsize;
 	} else {
-		struct nlist nl[4], *p;
+		struct nlist nl[6], *p;
 
 		nl[0].n_name = "_nprocs";
 		nl[1].n_name = "_allproc";
 		nl[2].n_name = "_zombproc";
-		nl[3].n_name = 0;
+		nl[3].n_name = "_ticks";
+		nl[4].n_name = "_hz";
+		nl[5].n_name = 0;
 
 		if (kvm_nlist(kd, nl) != 0) {
 			for (p = nl; p->n_type != 0; ++p)
@@ -551,6 +556,14 @@ liveout:
 		}
 		if (KREAD(kd, nl[0].n_value, &nprocs)) {
 			_kvm_err(kd, kd->program, "can't read nprocs");
+			return (0);
+		}
+		if (KREAD(kd, nl[3].n_value, &ticks)) {
+			_kvm_err(kd, kd->program, "can't read ticks");
+			return (0);
+		}
+		if (KREAD(kd, nl[4].n_value, &hz)) {
+			_kvm_err(kd, kd->program, "can't read hz");
 			return (0);
 		}
 		size = nprocs * sizeof(struct kinfo_proc);
