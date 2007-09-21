@@ -694,7 +694,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_sflag = PS_INMEM;
 	else
 		kp->ki_sflag = 0;
-	kp->ki_swtime = p->p_swtime;
+	/* Calculate legacy swtime as seconds since 'swtick'. */
+	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
 	rufetch(p, &kp->ki_rusage);
@@ -812,7 +813,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_kstack = (void *)td->td_kstack;
 	kp->ki_pctcpu = sched_pctcpu(td);
 	kp->ki_estcpu = td->td_estcpu;
-	kp->ki_slptime = td->td_slptime;
+	kp->ki_slptime = (ticks - td->td_slptick) / hz;
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;
 

@@ -242,7 +242,7 @@ struct thread {
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + t) Upcall structure. */
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
-	u_int		td_slptime;	/* (t) How long completely blocked. */
+	u_int		td_slptick;	/* (t) Time at sleep. */
 	struct rusage	td_ru;		/* (t) rusage information */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
 	u_int 		td_pticks;	/* (t) Statclock hits for profiling */
@@ -520,7 +520,7 @@ struct proc {
 #define	p_startzero	p_oppid
 	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
-	u_int		p_swtime;	/* (j) Time swapped in or out. */
+	u_int		p_swtick;	/* (j) Tick when swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
 	struct rusage	p_ru;		/* (a) Exit information. */
 	struct rusage_ext p_rux;	/* (cj) Internal resource usage. */
