@@ -225,7 +225,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 		intmax_t number;
 
 		errno = 0;
-		number = strtoimax(optarg, NULL, 0);
+		number = strtoimax(val, NULL, 0);
 		if (errno != 0) {
 			err(EXIT_FAILURE, "Invalid value for '%c' argument.",
 			    opt->go_char);
@@ -237,7 +237,7 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 
 		gctl_ro_param(req, opt->go_name, sizeof(intmax_t), opt->go_val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-		gctl_ro_param(req, opt->go_name, -1, optarg);
+		gctl_ro_param(req, opt->go_name, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
 		opt->go_val = malloc(sizeof(int));
 		if (opt->go_val == NULL)
