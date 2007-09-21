@@ -84,6 +84,7 @@ struct td_sched {
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
 	int		ts_cpticks;	/* (j) Ticks of cpu time. */
+	int		ts_slptime;	/* (j) Seconds !RUNNING. */
 	struct runq	*ts_runq;	/* runq the thread is currently on */
 };
 
@@ -379,11 +380,6 @@ schedcpu(void)
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_SLOCK(p);
-		/*
-		 * Increment time in/out of memory.  We ignore overflow; with
-		 * 16-bit int's (remember them?) overflow takes 45 days.
-		 */
-		p->p_swtime++;
 		FOREACH_THREAD_IN_PROC(p, td) { 
 			awake = 0;
 			thread_lock(td);
@@ -440,7 +436,7 @@ XXX  this is broken
 
 			 */
 			if (awake) {
-				if (td->td_slptime > 1) {
+				if (ts->ts_slptime > 1) {
 					/*
 					 * In an ideal world, this should not
 					 * happen, because whoever woke us
@@ -452,10 +448,10 @@ XXX  this is broken
 					 */
 					updatepri(td);
 				}
-				td->td_slptime = 0;
+				ts->ts_slptime = 0;
 			} else
-				td->td_slptime++;
-			if (td->td_slptime > 1) {
+				ts->ts_slptime++;
+			if (ts->ts_slptime > 1) {
 				thread_unlock(td);
 				continue;
 			}
@@ -490,16 +486,18 @@ schedcpu_thread(void)
 static void
 updatepri(struct thread *td)
 {
-	register fixpt_t loadfac;
-	register unsigned int newcpu;
+	struct td_sched *ts;
+	fixpt_t loadfac;
+	unsigned int newcpu;
 
+	ts = td->td_sched;
 	loadfac = loadfactor(averunnable.ldavg[0]);
-	if (td->td_slptime > 5 * loadfac)
+	if (ts->ts_slptime > 5 * loadfac)
 		td->td_estcpu = 0;
 	else {
 		newcpu = td->td_estcpu;
-		td->td_slptime--;	/* was incremented in schedcpu() */
-		while (newcpu && --td->td_slptime)
+		ts->ts_slptime--;	/* was incremented in schedcpu() */
+		while (newcpu && --ts->ts_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
 		td->td_estcpu = newcpu;
 	}
@@ -827,7 +825,8 @@ sched_sleep(struct thread *td)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_slptime = 0;
+	td->td_slptick = ticks;
+	td->td_sched->ts_slptime = 0;
 }
 
 void
@@ -939,12 +938,16 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 void
 sched_wakeup(struct thread *td)
 {
+	struct td_sched *ts;
+
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	if (td->td_slptime > 1) {
+	ts = td->td_sched;
+	if (ts->ts_slptime > 1) {
 		updatepri(td);
 		resetpriority(td);
 	}
-	td->td_slptime = 0;
+	td->td_slptick = ticks;
+	ts->ts_slptime = 0;
 	sched_add(td, SRQ_BORING);
 }
 
