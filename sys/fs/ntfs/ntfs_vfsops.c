@@ -261,12 +261,26 @@ ntfs_mountfs(devvp, mp, td)
 	int error, ronly, i, v;
 	struct vnode *vp;
 	struct g_consumer *cp;
+	struct g_provider *pp;
 	char *cs_ntfs, *cs_local;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	DROP_GIANT();
 	g_topology_lock();
-	error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);
+
+	/*
+	 * XXX: Do not allow more than one consumer to open a device
+	 *      associated with a particular GEOM provider.
+	 *      This disables multiple read-only mounts of a device,
+	 *      but it gets rid of panics in vget() when you try to
+	 *      mount the same device more than once.
+	 */
+	pp = g_dev_getprovider(devvp->v_rdev);
+ 	if ((pp != NULL) && ((pp->acr | pp->acw | pp->ace ) != 0)) 
+		error = EPERM;
+	else 
+		error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);
+
 	g_topology_unlock();
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
