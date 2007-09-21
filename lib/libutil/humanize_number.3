@@ -76,16 +76,21 @@ by 1024 until it will.
 In this case, prefix
 .Fa suffix
 with the appropriate SI designator.
+The
+.Fn humanize_number
+function
+follows the traditional computer science conventions rather than the proposed
+SI power of two convention.
 .Pp
 The prefixes are:
-.Bl -column "Prefix" "Description" "Multiplier" -offset indent
-.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier"
-.It Li k Ta No kilo Ta 1024
-.It Li M Ta No mega Ta 1048576
-.It Li G Ta No giga Ta 1073741824
-.It Li T Ta No tera Ta 1099511627776
-.It Li P Ta No peta Ta 1125899906842624
-.It Li E Ta No exa Ta 1152921504606846976
+.Bl -column "Prefix" "Description" "1000000000000000000" -offset indent
+.It Sy "Prefix" Ta Sy "Description" Ta Sy "Multiplier" Ta Sy "Multiplier 1000x"
+.It Li k Ta No kilo Ta 1024 Ta 1000
+.It Li M Ta No mega Ta 1048576 Ta 1000000
+.It Li G Ta No giga Ta 1073741824 Ta 1000000000
+.It Li T Ta No tera Ta 1099511627776 Ta 1000000000000
+.It Li P Ta No peta Ta 1125899906842624 Ta 1000000000000000
+.It Li E Ta No exa Ta 1152921504606846976 Ta 1000000000000000000
 .El
 .Pp
 The
@@ -141,8 +146,12 @@ upon success, or \-1 upon failure.
 If
 .Dv HN_GETSCALE
 is specified, the prefix index number will be returned instead.
+.Sh SEE ALSO
+.Xr expand_number 3
 .Sh HISTORY
 The
 .Fn humanize_number
 function first appeared in
-.Nx 2.0 .
+.Nx 2.0
+and then in
+.Fx 5.3 .
