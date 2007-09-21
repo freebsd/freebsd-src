@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/consio.h>
-#include <sys/linker.h>
-#include <sys/module.h>
 #include <sys/mouse.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -926,38 +924,7 @@ main(int argc, char *argv[])
 static int
 usbmodule(void)
 {
-    struct kld_file_stat fstat;
-    struct module_stat mstat;
-    int fileid, modid;
-    int loaded;
-
-    for (loaded = 0, fileid = kldnext(0); !loaded && fileid > 0;
-	 fileid = kldnext(fileid)) {
-	fstat.version = sizeof(fstat);
-	if (kldstat(fileid, &fstat) < 0)
-	    continue;
-	if (strncmp(fstat.name, "uhub/ums", 8) == 0) {
-	    loaded = 1;
-	    break;
-	}
-	for (modid = kldfirstmod(fileid); modid > 0;
-	     modid = modfnext(modid)) {
-	    mstat.version = sizeof(mstat);
-	    if (modstat(modid, &mstat) < 0)
-		continue;
-	    if (strncmp(mstat.name, "uhub/ums", 8) == 0) {
-		loaded = 1;
-		break;
-	    }
-	}
-    }
-    if (!loaded) {
-	if (kldload("ums") != -1)
-	    return 1;
-	if (errno != EEXIST)
-	    logerr(1, "unable to load USB mouse driver");
-    }
-    return 0;
+    return (kld_isloaded("uhub/ums") || kld_load("ums") != -1);
 }
 
 /*
