@@ -93,8 +93,8 @@ gid_t   gid;
     int     prot;
     const char *table;
 
-    if ((fp = fopen(table = _PATH_FBTAB, "r")) == 0
-    && (fp = fopen(table = _PATH_LOGINDEVPERM, "r")) == 0)
+    if ((fp = fopen(table = _PATH_FBTAB, "r")) == NULL
+    && (fp = fopen(table = _PATH_LOGINDEVPERM, "r")) == NULL)
 	return;
 
     while (fgets(buf, sizeof(buf), fp)) {
