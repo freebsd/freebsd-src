@@ -314,6 +314,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct componentname *cnp;
 {
 	struct namecache *ncp;
+	struct thread *td;
 	u_int32_t hash;
 	int error, ltype;
 
@@ -321,6 +322,7 @@ cache_lookup(dvp, vpp, cnp)
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
+	td = cnp->cn_thread;
 retry:
 	CACHE_LOCK();
 	numcalls++;
@@ -419,18 +421,29 @@ success:
 	if (dvp == *vpp) {   /* lookup on "." */
 		VREF(*vpp);
 		CACHE_UNLOCK();
+		/*
+		 * When we lookup "." we still can be asked to lock it
+		 * differently...
+		 */
+		ltype = cnp->cn_lkflags & (LK_SHARED | LK_EXCLUSIVE);
+		if (ltype == VOP_ISLOCKED(*vpp, td))
+			return (-1);
+		else if (ltype == LK_EXCLUSIVE)
+			vn_lock(*vpp, LK_UPGRADE | LK_RETRY, td);
 		return (-1);
 	}
 	ltype = 0;	/* silence gcc warning */
 	if (cnp->cn_flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(dvp, cnp->cn_thread);
-		VOP_UNLOCK(dvp, 0, cnp->cn_thread);
+		ltype = VOP_ISLOCKED(dvp, td);
+		VOP_UNLOCK(dvp, 0, td);
 	}
 	VI_LOCK(*vpp);
 	CACHE_UNLOCK();
-	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread);
+	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, td);
 	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(dvp, ltype | LK_RETRY, cnp->cn_thread);
+		vn_lock(dvp, ltype | LK_RETRY, td);
+	if ((cnp->cn_flags & ISLASTCN) && (cnp->cn_lkflags & LK_EXCLUSIVE))
+		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	if (error) {
 		*vpp = NULL;
 		goto retry;
