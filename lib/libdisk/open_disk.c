@@ -184,7 +184,8 @@ Int_Open_Disk(const char *name, char *conftxt)
 			b = strsep(&p, " ");
 			o = strtoimax(b, &r, 0);
 			/* APPLE have ty as a string */
-			if ((*r) && (strcmp(t, "APPLE") && strcmp(t, "GPT"))) {
+			if ((*r) && strcmp(t, "APPLE") &&
+			    strcmp(t, "GPT") && strcmp(t, "PART")) {
 				printf("libdisk: Int_Open_Disk(%s): can't parse parameter '%s' in line %d (r='%s')\n",
 					name, a, line, r);
 				break;
@@ -277,7 +278,11 @@ Int_Open_Disk(const char *name, char *conftxt)
 			i = Add_Chunk(d, off, len, n, gpt, 0, 0, b);
 		else if (!strcmp(t, "APPLE"))
 			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
-		else
+		else if (!strcmp(t, "PART")) {
+#ifdef __powerpc__
+			i = Add_Chunk(d, off, len, n, apple, 0, 0, sn);
+#endif
+		} else
 			; /* Ignore unknown classes. */
 	}
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
