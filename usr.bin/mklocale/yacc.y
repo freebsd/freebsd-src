@@ -234,7 +234,7 @@ main(int ac, char *av[])
 	    break;
 	case 'o':
 	    locale_file = optarg;
-	    if ((fp = fopen(locale_file, "w")) == 0)
+	    if ((fp = fopen(locale_file, "w")) == NULL)
 		err(1, "%s", locale_file);
 	    atexit(cleanout);
 	    break;
