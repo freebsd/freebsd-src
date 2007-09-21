@@ -50,6 +50,74 @@ static void create(struct archive_entry *ae, const char *msg)
 	    st.st_mode, archive_entry_mode(ae));
 	assert(st.st_mode == (archive_entry_mode(ae) & ~UMASK));
 }
+
+static void create_reg_file(struct archive_entry *ae, const char *msg)
+{
+	static const char data[]="abcdefghijklmnopqrstuvwxyz";
+	struct archive *ad;
+	struct stat st;
+
+	/* Write the entry to disk. */
+	assert((ad = archive_write_disk_new()) != NULL);
+	failure("%s", msg);
+	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
+	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+#if ARCHIVE_API_VERSION > 1
+	assertEqualInt(0, archive_write_finish(ad));
+#else
+	archive_write_finish(ad);
+#endif
+	/* Test the entries on disk. */
+	assert(0 == stat(archive_entry_pathname(ae), &st));
+	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
+	    st.st_mode, archive_entry_mode(ae));
+	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+	assertEqualInt(st.st_size, sizeof(data));
+}
+
+static void create_reg_file2(struct archive_entry *ae, const char *msg)
+{
+	const int datasize = 100000;
+	char *data;
+	char *compare;
+	struct archive *ad;
+	struct stat st;
+	int i, fd;
+
+	data = malloc(datasize);
+	for (i = 0; i < datasize; i++)
+		data[i] = (char)(i % 256);
+
+	/* Write the entry to disk. */
+	assert((ad = archive_write_disk_new()) != NULL);
+	failure("%s", msg);
+	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
+	for (i = 0; i < datasize - 999; i += 1000) {
+		assertEqualIntA(ad, ARCHIVE_OK,
+		    archive_write_data_block(ad, data + i, 1000, i));
+	}
+	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
+#if ARCHIVE_API_VERSION > 1
+	assertEqualInt(0, archive_write_finish(ad));
+#else
+	archive_write_finish(ad);
+#endif
+	/* Test the entries on disk. */
+	assert(0 == stat(archive_entry_pathname(ae), &st));
+	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
+	    st.st_mode, archive_entry_mode(ae));
+	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
+	assertEqualInt(st.st_size, i);
+
+	compare = malloc(datasize);
+	fd = open(archive_entry_pathname(ae), O_RDONLY);
+	assertEqualInt(datasize, read(fd, compare, datasize));
+	close(fd);
+	assert(memcmp(compare, data, datasize) == 0);
+	free(compare);
+	free(data);
+}
 #endif
 
 DEFINE_TEST(test_write_disk)
@@ -66,7 +134,14 @@ DEFINE_TEST(test_write_disk)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "file");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	create(ae, "Test creating a regular file");
+	create_reg_file(ae, "Test creating a regular file");
+	archive_entry_free(ae);
+
+	/* Another regular file. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file2");
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	create_reg_file2(ae, "Test creating another regular file");
 	archive_entry_free(ae);
 
 	/* A regular file over an existing file */
