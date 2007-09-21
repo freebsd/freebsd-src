@@ -1552,15 +1552,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 			/*
 			 * Bang in a pre-made header, and set the length up
 			 * to be correct. Then send it to the ethernet driver.
-			 * But first correct the length.
 			 */
-			sp->pkt_hdr.ph.length = htons((short)(m->m_pkthdr.len));
 			M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
 			if (m == NULL)
 				LEAVE(ENOBUFS);
 
 			wh = mtod(m, struct pppoe_full_hdr *);
 			bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+			wh->ph.length = htons(m->m_pkthdr.len - sizeof(*wh));
 			NG_FWD_NEW_DATA( error, item, privp->ethernet_hook, m);
 			privp->packets_out++;
 			break;
@@ -1702,23 +1701,6 @@ ng_pppoe_disconnect(hook_p hook)
 		&& ((sp->state == PPPOE_CONNECTED)
 		 || (sp->state == PPPOE_NEWCONNECTED))) {
 			struct mbuf *m;
-			struct pppoe_full_hdr *wh;
-			struct pppoe_tag *tag;
-			int	msglen = strlen(SIGNOFF);
-			int error = 0;
-
-			/* Revert the stored header to DISC/PADT mode. */
-		 	wh = &sp->pkt_hdr;
-			wh->ph.code = PADT_CODE;
-			/*
-			 * Configure ethertype depending on what was used
-			 * during sessions stage.
-			 */
-			if (sp->pkt_hdr.eh.ether_type ==
-			    ETHERTYPE_PPPOE_3COM_SESS)
-				wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
-			else
-				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 			/* Generate a packet of that type. */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1726,15 +1708,31 @@ ng_pppoe_disconnect(hook_p hook)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
 			else {
+				struct pppoe_full_hdr *wh;
+				struct pppoe_tag *tag;
+				int	msglen = strlen(SIGNOFF);
+				int	error = 0;
+
 				m->m_pkthdr.rcvif = NULL;
 				m->m_pkthdr.len = m->m_len = sizeof(*wh);
-				bcopy((caddr_t)wh, mtod(m, caddr_t),
-				    sizeof(*wh));
+				wh = mtod(m, struct pppoe_full_hdr *);
+				bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+
+				/* Revert the stored header to DISC/PADT mode. */
+				wh->ph.code = PADT_CODE;
+				/*
+				 * Configure ethertype depending on what
+				 * was used during sessions stage.
+				 */
+				if (wh->eh.ether_type == 
+				    ETHERTYPE_PPPOE_3COM_SESS)
+					wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
+				else
+					wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 				/*
 				 * Add a General error message and adjust
 				 * sizes.
 				 */
-				wh = mtod(m, struct pppoe_full_hdr *);
 				tag = wh->ph.tag;
 				tag->tag_type = PTT_GEN_ERR;
 				tag->tag_len = htons((u_int16_t)msglen);
