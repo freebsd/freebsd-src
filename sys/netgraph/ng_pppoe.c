@@ -1661,9 +1661,7 @@ ng_pppoe_disconnect(hook_p hook)
 	node_p node = NG_HOOK_NODE(hook);
 	priv_p privp = NG_NODE_PRIVATE(node);
 	sessp	sp;
-	int 	hooks;
 
-	hooks = NG_NODE_NUMHOOKS(node); /* This one already not counted. */
 	if (hook == privp->debug_hook) {
 		privp->debug_hook = NULL;
 	} else if (hook == privp->ethernet_hook) {
@@ -1739,15 +1737,6 @@ ng_pppoe_disconnect(hook_p hook)
 		}
 		free(sp, M_NETGRAPH_PPPOE);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
-
-		/*
-		 * Work out how many session hooks there are.
-		 * Node goes away on last session hook removal.
-		 */
-		if (privp->ethernet_hook)
-			hooks -= 1;
-		if (privp->debug_hook)
-			hooks -= 1;
 	}
 	if ((NG_NODE_NUMHOOKS(node) == 0) &&
 	    (NG_NODE_IS_VALID(node)))
