@@ -206,9 +206,19 @@ Int_Open_Disk(const char *name, char *conftxt)
 			r = strsep(&p, " ");
 			i = strtoimax(r, &s, 0);
 			if (*s) {
-				uuid_from_string(r, &uuid, &status);
-				if (status != uuid_s_ok)
-					abort();
+				status = uuid_s_ok;
+				if (!strcmp(r, "efi"))
+					uuid = _efi;
+				else if (!strcmp(r, "mbr"))
+					uuid = _mbr;
+				else if (!strcmp(r, "freebsd"))
+					uuid = _fbsd;
+				else if (!strcmp(r, "freebsd-swap"))
+					uuid = _swap;
+				else if (!strcmp(r, "freebsd-ufs"))
+					uuid = _ufs;
+				else
+					uuid_from_string(r, &uuid, &status);
 			} else
 				status = uuid_s_invalid_string_uuid;
 			if (!strcmp(q, "o"))
@@ -241,7 +251,8 @@ Int_Open_Disk(const char *name, char *conftxt)
 			}
 		} else if (strcmp(type, "BSD") == 0) {
 			chunk.type = part;
-		} else if (strcmp(type, "GPT") == 0) {
+		} else if (strcmp(type, "GPT") == 0 ||
+		    strcmp(type, "PART") == 0) {
 			chunk.subtype = 0;
 			if (status != uuid_s_ok)
 				abort();
