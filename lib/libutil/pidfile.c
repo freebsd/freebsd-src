@@ -113,8 +113,8 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	 * PID file will be truncated again in pidfile_write(), so
 	 * pidfile_write() can be called multiple times.
 	 */
-	fd = open(pfh->pf_path,
-	    O_WRONLY | O_CREAT | O_EXLOCK | O_TRUNC | O_NONBLOCK, mode);
+	fd = flopen(pfh->pf_path,
+	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
 	if (fd == -1) {
 		if (errno == EWOULDBLOCK && pidptr != NULL) {
 			errno = pidfile_read(pfh->pf_path, pidptr);
