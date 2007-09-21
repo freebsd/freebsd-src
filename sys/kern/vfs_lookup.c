@@ -772,6 +772,14 @@ nextname:
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0, td);
 success:
+	/*
+	 * Because of lookup_shared we may have the vnode shared locked, but
+	 * the caller may want it to be exclusively locked.
+	 */
+	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
+	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
+		vn_lock(dp, LK_UPGRADE | LK_RETRY, td);
+	}
 	if (vfslocked && dvfslocked)
 		VFS_UNLOCK_GIANT(dvfslocked);	/* Only need one */
 	if (vfslocked || dvfslocked)
