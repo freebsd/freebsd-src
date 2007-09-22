@@ -4073,7 +4073,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		panic("pmap_zero_page: page has mappings");
 #endif
 
-	if (_arm_bzero && 
+	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
 
@@ -4114,7 +4114,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
-	if (_arm_bzero && 
+	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
 	mtx_lock(&cmtx);
@@ -4428,7 +4428,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #endif
 
 	cpu_dcache_wbinv_all();
-	if (_arm_memcpy && 
+	if (_arm_memcpy && PAGE_SIZE >= _min_memcpy_size &&
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst), 
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
 		return;
