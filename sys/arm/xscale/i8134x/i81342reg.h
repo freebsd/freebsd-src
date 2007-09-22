@@ -46,6 +46,45 @@
 #define IOP34X_HWADDR		0xffd00000
 #define IOP34X_SIZE		0x100000
 
+#define IOP34X_ADMA0_OFFSET	0x00080000
+#define IOP34X_ADMA1_OFFSET	0x00080200
+#define IOP34X_ADMA2_OFFSET	0x00080400
+#define IOP34X_ADMA_SIZE	0x200
+
+
+/* ADMA Registers */
+#define IOP34X_ADMA_CCR		0x0000 /* Channel Control Register */
+#define IOP34X_ADMA_CSR		0x0004 /* Channel Status Register */
+#define IOP34X_ADMA_DAR		0x0008 /* Descriptor Address Register */
+#define IOP34X_ADMA_IPCR	0x0018 /* Internal Interface Parity Ctrl Reg */
+#define IOP34X_ADMA_NDAR	0x0024 /* Next Descriptor Register */
+#define IOP34X_ADMA_DCR		0x0028 /* Descriptor Control Register */
+
+#define	IOP34X_ADMA_IE		(1 << 0) /* Interrupt enable */
+#define IOP34X_ADMA_TR		(1 << 1) /* Transfert Direction */
+/* 
+ *               Source                   Destination
+ *  00         Host I/O Interface	Local Memory
+ *  01         Local Memory             Host I/O Interface
+ *  10         Internal Bus             Local Memory
+ *  11         Local Memory             Internal Bus
+ */
+#define IOP34X_ADMA_SS		(1 << 3) /* Source selection */
+/* 0000: Data Transfer / CRC / Memory Block Fill */
+#define IOP34X_ADMA_ZRBCE	(1 << 7) /* Zero Result Buffer Check Enable */
+#define IOP34X_ADMA_MBFE	(1 << 8) /* Memory Block Fill Enable */
+#define IOP34X_ADMA_CGE		(1 << 9) /* CRC Generation enable */
+#define IOP34X_ADMA_CTD		(1 << 10) /* CRC Transfer disable */
+#define IOP34X_ADMA_CSFD	(1 << 11) /* CRC Seed fetch disable */
+#define IOP34X_ADMA_SWBE	(1 << 12) /* Status write back enable */
+#define IOP34X_ADMA_ESE		(1 << 13) /* Endian swap enable */
+#define IOP34X_ADMA_PQUTE	(1 << 16) /* P+Q Update Transfer Enable */
+#define IOP34X_ADMA_DXE		(1 << 17) /* Dual XOR Enable */
+#define IOP34X_ADMA_PQTE	(1 << 18) /* P+Q Transfer Enable */
+#define IOP34X_ADMA_PTD		(1 << 19) /* P Transfer Disable */
+#define IOP34X_ADMA_ROE		(1 << 30) /* Relaxed Ordering Enable */
+#define IOP34X_ADMA_NSE		(1 << 31) /* No Snoop Enable */
+
 #define IOP34X_PBBAR0		0x81588 /* PBI Base Address Register 0 */
 #define IOP34X_PBBAR0_ADDRMASK	0xfffff000
 #define IOP34X_PBBAR1		0x81590
