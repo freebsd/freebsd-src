@@ -356,7 +356,8 @@ __build_env(void)
 		activeNdx = envVarsTotal - 1;
 		if (__findenv(envVars[envNdx].name, nameLen, &activeNdx,
 		    false) == NULL) {
-			warnx(CorruptEnvFindMsg, nameLen, envVars[envNdx].name);
+			warnx(CorruptEnvFindMsg, (int)nameLen,
+			    envVars[envNdx].name);
 			errno = EFAULT;
 			goto Failure;
 		}
