@@ -30,7 +30,7 @@
  * performance under load even on uni-processor systems.
  *
  * etymology:
- *   ULE is the last three letters in schedule.  It owes it's name to a
+ *   ULE is the last three letters in schedule.  It owes its name to a
  * generic user created for a scheduling system by Paul Mikesell at
  * Isilon Systems and a general lack of creativity on the part of the author.
  */
@@ -638,6 +638,11 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		move = min(move, transferable);
 		for (i = 0; i < move; i++)
 			tdq_move(high, low);
+		/*
+		 * IPI the target cpu to force it to reschedule with the new
+		 * workload.
+		 */
+		ipi_selected(1 << TDQ_ID(low), IPI_PREEMPT);
 	}
 	TDQ_UNLOCK(high);
 	TDQ_UNLOCK(low);
@@ -685,7 +690,6 @@ tdq_move(struct tdq *from, struct tdq *to)
 	ts->ts_cpu = cpu;
 	td->td_lock = TDQ_LOCKPTR(to);
 	tdq_add(to, td, SRQ_YIELDING);
-	tdq_notify(ts);
 }
 
 /*
@@ -926,7 +930,7 @@ sched_setcpu(struct td_sched *ts, int cpu, int flags)
 		return (tdq);
 #ifdef notyet
 	/*
-	 * If the thread isn't running it's lockptr is a
+	 * If the thread isn't running its lockptr is a
 	 * turnstile or a sleepqueue.  We can just lock_set without
 	 * blocking.
 	 */
@@ -1401,8 +1405,12 @@ sched_priority(struct thread *td)
 	 * Scores greater than this are placed on the normal timeshare queue
 	 * where the priority is partially decided by the most recent cpu
 	 * utilization and the rest is decided by nice value.
+	 *
+	 * The nice value of the process has a linear effect on the calculated
+	 * score.  Negative nice values make it easier for a thread to be
+	 * considered interactive.
 	 */
-	score = sched_interact_score(td);
+	score = sched_interact_score(td) - td->td_proc->p_nice;
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
@@ -2635,7 +2643,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, topology, CTLFLAG_RD, &topology, 0,
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */
-static int ccpu = 0.0;
+static int ccpu = 0;
 SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
 
