@@ -116,18 +116,15 @@
 	ldr	r5, =0xe0000004;	/* Check if there's any RAS */	   \
 	ldr	r3, [r5];						   \
 	cmp	r3, #0;			/* Is the update needed ? */	   \
-	beq	1f;							   \
-	ldr	lr, [r0, #16];						   \
-	ldr	r1, =0xe0000008;					   \
-	ldr	r4, [r1];		/* Get the end of the RAS */	   \
-	mov	r2, #0;			/* Reset the magic addresses */	   \
-	str	r2, [r5];						   \
-	str	r2, [r1];						   \
-	cmp	lr, r3;			/* Were we in the RAS ? */	   \
-	blt	1f;							   \
-	cmp	lr, r4;							   \
-	strlt	r3, [r0, #16];		/* Yes, update the pc */	   \
-	1:								   \
+	ldrgt	lr, [r0, #16];						   \
+	ldrgt	r1, =0xe0000008;					   \
+	ldrgt	r4, [r1];		/* Get the end of the RAS */	   \
+	movgt	r2, #0;			/* Reset the magic addresses */	   \
+	strgt	r2, [r5];						   \
+	strgt	r2, [r1];						   \
+	cmpgt	lr, r3;			/* Were we in the RAS ? */	   \
+	cmpgt	r4, lr;							   \
+	strgt	r3, [r0, #16];		/* Yes, update the pc */	   \
 	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!
 
