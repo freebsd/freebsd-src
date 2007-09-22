@@ -171,6 +171,13 @@ static const struct pmap_devmap iq81342_devmap[] = {
 		    VM_PROT_READ|VM_PROT_WRITE,
 		    PTE_NOCACHE,
 	    },
+	    {
+		    IOP34X_PCE1_VADDR,
+		    IOP34X_PCE1,
+		    IOP34X_PCE1_SIZE,
+		    VM_PROT_READ|VM_PROT_WRITE,
+		    PTE_NOCACHE,
+	    },
 	    {	    
 		    0,
 		    0,

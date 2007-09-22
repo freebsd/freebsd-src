@@ -84,6 +84,8 @@ device		atapifd         # ATAPI floppy drives
 device		atapist         # ATAPI tape drives
 options		ATA_STATIC_ID   # Static device numbering
 
+device		"7seg"
+
 # SCSI Controllers
 
 device		pty

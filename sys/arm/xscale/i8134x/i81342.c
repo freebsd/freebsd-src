@@ -400,6 +400,7 @@ i81342_attach(device_t dev)
 	device_add_child(dev, "iopwdog", 0);
 	device_add_child(dev, "pcib", 0);
 	device_add_child(dev, "pcib", 1);
+	device_add_child(dev, "iqseg", 0);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 	return (0);
