@@ -334,7 +334,7 @@ void
 usage ()
 {
         (void)fprintf(stderr,
-	"usage: locate [-Scims] [-l limit] [-d database] pattern ...\n\n");
+	"usage: locate [-0Scims] [-l limit] [-d database] pattern ...\n\n");
         (void)fprintf(stderr,
 	"default database: `%s' or $LOCATE_PATH\n", _PATH_FCODES);
         exit(1);
