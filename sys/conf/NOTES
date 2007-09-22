@@ -739,9 +739,6 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  The `pflog' device provides the pflog0 interface which logs packets.
 #  The `pfsync' device provides the pfsync0 interface used for
 #   synchronization of firewall state tables (over the net).
-#  The PF_MPSAFE_UGID option enables a special workaround for a LOR with
-#   user/group rules that would otherwise lead to a deadlock.  This has
-#   performance implications and should be used with care.
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -776,7 +773,6 @@ device		if_bridge		#Bridge interface
 device		pf			#PF OpenBSD packet-filter firewall
 device		pflog			#logging support interface for PF
 device		pfsync			#synchronization interface for PF
-options 	PF_MPSAFE_UGID		#Workaround LOR with user/group rules
 device		carp			#Common Address Redundancy Protocol
 device		enc			#IPsec interface
 device		ppp			#Point-to-point protocol
