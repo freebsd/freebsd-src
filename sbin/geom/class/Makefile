@@ -16,5 +16,6 @@ SUBDIR+=part
 SUBDIR+=raid3
 SUBDIR+=shsec
 SUBDIR+=stripe
+SUBDIR+=virstor
 
 .include <bsd.subdir.mk>
