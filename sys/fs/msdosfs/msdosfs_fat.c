@@ -353,22 +353,6 @@ updatefats(pmp, bp, fatbn)
 	 * If we have an FSInfo block, update it.
 	 */
 	if (pmp->pm_fsinfo) {
-		u_long cn = pmp->pm_nxtfree;
-
-		if (pmp->pm_freeclustercount
-		    && (pmp->pm_inusemap[cn / N_INUSEBITS]
-			& (1 << (cn % N_INUSEBITS)))) {
-			/*
-			 * The cluster indicated in FSInfo isn't free
-			 * any longer.  Got get a new free one.
-			 */
-			for (cn = 0; cn < pmp->pm_maxcluster; cn += N_INUSEBITS)
-				if (pmp->pm_inusemap[cn / N_INUSEBITS] != (u_int)-1)
-					break;
-			pmp->pm_nxtfree = cn
-				+ ffs(pmp->pm_inusemap[cn / N_INUSEBITS]
-				      ^ (u_int)-1) - 1;
-		}
 		if (bread(pmp->pm_devvp, pmp->pm_fsinfo, pmp->pm_BytesPerSec,
 		    NOCRED, &bpn) != 0) {
 			/*
