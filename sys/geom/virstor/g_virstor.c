@@ -729,7 +729,7 @@ g_virstor_destroy_geom(struct gctl_req *req __unused, struct g_class *mp,
 		    __func__, error));
 		if (isclean != 1) {
 			LOG_MSG(LVL_ERROR, "ALLOCATION TABLE CORRUPTED FOR %s "
-			    "(%d sectors don't match, max %d allocations)",
+			    "(%d sectors don't match, max %zu allocations)",
 			    sc->geom->name, count,
 			    count * sc->me_per_sector);
 		} else {
