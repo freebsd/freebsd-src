@@ -154,6 +154,7 @@ options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
 options 	GEOM_SUNLABEL		# Sun/Solaris partitioning
 options 	GEOM_UZIP		# Read-only compressed disks
+options 	GEOM_VIRSTOR		# Virtual storage.
 options 	GEOM_VOL		# Volume names from UFS superblock
 options 	GEOM_ZERO		# Performance testing helper.
 
