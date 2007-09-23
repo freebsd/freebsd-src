@@ -607,10 +607,10 @@ stf_checkaddr4(sc, in, inifp)
 			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
 #endif
 			if (rt)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return -1;
 		}
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	return 0;
