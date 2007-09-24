@@ -67,6 +67,9 @@ DBSRC+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
 DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
 
 .if !defined(KERNBUILDDIR)
+.if KTR
+CFLAGS+=-DKTR
+.endif
 .if ACPI_MAX_THREADS
 CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 .endif
