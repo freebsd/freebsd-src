@@ -921,16 +921,7 @@ AcpiAcquireGlobalLock (
 
     if (ACPI_SUCCESS (Status))
     {
-        /*
-         * If this was the first acquisition of the Global Lock by this thread,
-         * create a new handle. Otherwise, return the existing handle.
-         */
-        if (AcpiGbl_GlobalLockMutex->Mutex.AcquisitionDepth == 1)
-        {
-            AcpiGbl_GlobalLockHandle++;
-        }
-
-        /* Return the global lock handle */
+        /* Return the global lock handle (updated in AcpiEvAcquireGlobalLock) */
 
         *Handle = AcpiGbl_GlobalLockHandle;
     }
