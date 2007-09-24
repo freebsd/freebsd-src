@@ -1744,11 +1744,11 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
-	    tp->tt_rexmt, tp->tt_persist, tp->tt_keep);
+	    &tp->t_timers->tt_rexmt, &tp->t_timers->tt_persist, &tp->t_timers->tt_keep);
 
 	db_print_indent(indent);
-	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", tp->tt_2msl,
-	    tp->tt_delack, tp->t_inpcb);
+	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", &tp->t_timers->tt_2msl,
+	    &tp->t_timers->tt_delack, tp->t_inpcb);
 
 	db_print_indent(indent);
 	db_printf("t_state: %d (", tp->t_state);
