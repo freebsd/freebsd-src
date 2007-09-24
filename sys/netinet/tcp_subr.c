@@ -214,8 +214,7 @@ static void	tcp_isn_tick(void *);
  */
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
-	struct	callout tcpcb_mem_rexmt, tcpcb_mem_persist, tcpcb_mem_keep;
-	struct	callout tcpcb_mem_2msl, tcpcb_mem_delack;
+	struct	tcp_timer	tt;
 };
 
 static uma_zone_t tcpcb_zone;
@@ -590,6 +589,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
 	tp->t_maxseg = tp->t_maxopd =
 #ifdef INET6
@@ -598,11 +598,11 @@ tcp_newtcpcb(struct inpcb *inp)
 		tcp_mssdflt;
 
 	/* Set up our timeouts. */
-	callout_init(tp->tt_rexmt = &tm->tcpcb_mem_rexmt, CALLOUT_MPSAFE);
-	callout_init(tp->tt_persist = &tm->tcpcb_mem_persist, CALLOUT_MPSAFE);
-	callout_init(tp->tt_keep = &tm->tcpcb_mem_keep, CALLOUT_MPSAFE);
-	callout_init(tp->tt_2msl = &tm->tcpcb_mem_2msl, CALLOUT_MPSAFE);
-	callout_init(tp->tt_delack = &tm->tcpcb_mem_delack, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_rexmt, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_persist, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_keep, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_2msl, CALLOUT_MPSAFE);
+	callout_init(&tp->t_timers->tt_delack, CALLOUT_MPSAFE);
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
@@ -675,11 +675,11 @@ tcp_discardcb(struct tcpcb *tp)
 	 * Make sure that all of our timers are stopped before we
 	 * delete the PCB.
 	 */
-	callout_stop(tp->tt_rexmt);
-	callout_stop(tp->tt_persist);
-	callout_stop(tp->tt_keep);
-	callout_stop(tp->tt_2msl);
-	callout_stop(tp->tt_delack);
+	callout_stop(&tp->t_timers->tt_rexmt);
+	callout_stop(&tp->t_timers->tt_persist);
+	callout_stop(&tp->t_timers->tt_keep);
+	callout_stop(&tp->t_timers->tt_2msl);
+	callout_stop(&tp->t_timers->tt_delack);
 
 	/*
 	 * If we got enough samples through the srtt filter,
