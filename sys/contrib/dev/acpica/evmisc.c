@@ -568,6 +568,20 @@ AcpiEvAcquireGlobalLock (
     }
 
     /*
+     * Update the global lock handle and check for wraparound. The handle is
+     * only used for the external global lock interfaces, but it is updated
+     * here to properly handle the case where a single thread may acquire the
+     * lock via both the AML and the AcpiAcquireGlobalLock interfaces. The
+     * handle is therefore updated on the first acquire from a given thread
+     * regardless of where the acquisition request originated.
+     */
+    AcpiGbl_GlobalLockHandle++;
+    if (AcpiGbl_GlobalLockHandle == 0)
+    {
+        AcpiGbl_GlobalLockHandle = 1;
+    }
+
+    /*
      * Make sure that a global lock actually exists. If not, just treat
      * the lock as a standard mutex.
      */
