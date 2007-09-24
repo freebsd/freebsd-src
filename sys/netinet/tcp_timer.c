@@ -119,7 +119,7 @@ int	tcp_maxidle;
  * causes finite state machine actions if timers expire.
  */
 void
-tcp_slowtimo()
+tcp_slowtimo(void)
 {
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
@@ -166,12 +166,12 @@ tcp_timer_delack(void *xtp)
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_delack)
-	    || !callout_active(tp->tt_delack)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
+	    || !callout_active(&tp->t_timers->tt_delack)) {
 		INP_UNLOCK(inp);
 		return;
 	}
-	callout_deactivate(tp->tt_delack);
+	callout_deactivate(&tp->t_timers->tt_delack);
 
 	tp->t_flags |= TF_ACKNOW;
 	tcpstat.tcps_delack++;
@@ -208,13 +208,13 @@ tcp_timer_2msl(void *xtp)
 	}
 	INP_LOCK(inp);
 	tcp_free_sackholes(tp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_2msl) ||
-	    !callout_active(tp->tt_2msl)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_2msl) ||
+	    !callout_active(&tp->t_timers->tt_2msl)) {
 		INP_UNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
-	callout_deactivate(tp->tt_2msl);
+	callout_deactivate(&tp->t_timers->tt_2msl);
 	/*
 	 * 2 MSL timeout in shutdown went off.  If we're closed but
 	 * still waiting for peer to close and connection has been idle
@@ -233,7 +233,7 @@ tcp_timer_2msl(void *xtp)
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
 		   (ticks - tp->t_rcvtime) <= tcp_maxidle)
-		       callout_reset(tp->tt_2msl, tcp_keepintvl,
+		       callout_reset(&tp->t_timers->tt_2msl, tcp_keepintvl,
 				     tcp_timer_2msl, tp);
 	       else
 		       tp = tcp_close(tp);
@@ -275,13 +275,13 @@ tcp_timer_keep(void *xtp)
 		return;
 	}
 	INP_LOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_keep)
-	    || !callout_active(tp->tt_keep)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_keep)
+	    || !callout_active(&tp->t_timers->tt_keep)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
-	callout_deactivate(tp->tt_keep);
+	callout_deactivate(&tp->t_timers->tt_keep);
 	/*
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
@@ -313,9 +313,9 @@ tcp_timer_keep(void *xtp)
 				    tp->rcv_nxt, tp->snd_una - 1, 0);
 			(void) m_free(dtom(t_template));
 		}
-		callout_reset(tp->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
+		callout_reset(&tp->t_timers->tt_keep, tcp_keepintvl, tcp_timer_keep, tp);
 	} else
-		callout_reset(tp->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
+		callout_reset(&tp->t_timers->tt_keep, tcp_keepidle, tcp_timer_keep, tp);
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
@@ -365,13 +365,13 @@ tcp_timer_persist(void *xtp)
 		return;
 	}
 	INP_LOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_persist)
-	    || !callout_active(tp->tt_persist)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_persist)
+	    || !callout_active(&tp->t_timers->tt_persist)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
-	callout_deactivate(tp->tt_persist);
+	callout_deactivate(&tp->t_timers->tt_persist);
 	/*
 	 * Persistance timer into zero window.
 	 * Force a byte to be output, if possible.
@@ -434,13 +434,13 @@ tcp_timer_rexmt(void * xtp)
 		return;
 	}
 	INP_LOCK(inp);
-	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(tp->tt_rexmt)
-	    || !callout_active(tp->tt_rexmt)) {
+	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_rexmt)
+	    || !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		return;
 	}
-	callout_deactivate(tp->tt_rexmt);
+	callout_deactivate(&tp->t_timers->tt_rexmt);
 	tcp_free_sackholes(tp);
 	/*
 	 * Retransmission timer went off.  Message has not
@@ -571,23 +571,23 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 
 	switch (timer_type) {
 		case TT_DELACK:
-			t_callout = tp->tt_delack;
+			t_callout = &tp->t_timers->tt_delack;
 			f_callout = tcp_timer_delack;
 			break;
 		case TT_REXMT:
-			t_callout = tp->tt_rexmt;
+			t_callout = &tp->t_timers->tt_rexmt;
 			f_callout = tcp_timer_rexmt;
 			break;
 		case TT_PERSIST:
-			t_callout = tp->tt_persist;
+			t_callout = &tp->t_timers->tt_persist;
 			f_callout = tcp_timer_persist;
 			break;
 		case TT_KEEP:
-			t_callout = tp->tt_keep;
+			t_callout = &tp->t_timers->tt_keep;
 			f_callout = tcp_timer_keep;
 			break;
 		case TT_2MSL:
-			t_callout = tp->tt_2msl;
+			t_callout = &tp->t_timers->tt_2msl;
 			f_callout = tcp_timer_2msl;
 			break;
 		default:
@@ -607,19 +607,19 @@ tcp_timer_active(struct tcpcb *tp, int timer_type)
 
 	switch (timer_type) {
 		case TT_DELACK:
-			t_callout = tp->tt_delack;
+			t_callout = &tp->t_timers->tt_delack;
 			break;
 		case TT_REXMT:
-			t_callout = tp->tt_rexmt;
+			t_callout = &tp->t_timers->tt_rexmt;
 			break;
 		case TT_PERSIST:
-			t_callout = tp->tt_persist;
+			t_callout = &tp->t_timers->tt_persist;
 			break;
 		case TT_KEEP:
-			t_callout = tp->tt_keep;
+			t_callout = &tp->t_timers->tt_keep;
 			break;
 		case TT_2MSL:
-			t_callout = tp->tt_2msl;
+			t_callout = &tp->t_timers->tt_2msl;
 			break;
 		default:
 			panic("bad timer_type");
