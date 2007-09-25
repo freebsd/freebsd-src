@@ -160,27 +160,20 @@ CTASSERT(sizeof(u_long) >= 8);
 #define PQ_NONE		0
 #define	PQ_INACTIVE	1
 #define	PQ_ACTIVE	2
-#define	PQ_CACHE	3
-#define	PQ_HOLD		4
-#define	PQ_COUNT	5
-#define	PQ_MAXCOUNT	5
+#define	PQ_HOLD		3
+#define	PQ_COUNT	4
+#define	PQ_MAXCOUNT	4
 
 /* Returns the real queue a page is on. */
 #define VM_PAGE_GETQUEUE(m)	((m)->queue)
 
 /* Returns the well known queue a page is on. */
-#define VM_PAGE_GETKNOWNQUEUE1(m)	VM_PAGE_GETQUEUE(m)
 #define VM_PAGE_GETKNOWNQUEUE2(m)	VM_PAGE_GETQUEUE(m)
 
-/* Given the real queue number and a page color return the well know queue. */
-#define VM_PAGE_RESOLVEQUEUE(m, q)	(q)
-
 /* Returns true if the page is in the named well known queue. */
-#define VM_PAGE_INQUEUE1(m, q)	(VM_PAGE_GETKNOWNQUEUE1(m) == (q))
 #define VM_PAGE_INQUEUE2(m, q)	(VM_PAGE_GETKNOWNQUEUE2(m) == (q))
 
 /* Sets the queue a page is on. */
-#define VM_PAGE_SETQUEUE1(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 #define VM_PAGE_SETQUEUE2(m, q)	(VM_PAGE_GETQUEUE(m) = (q))
 
 struct vpgqueues {
@@ -201,6 +194,7 @@ extern struct mtx vm_page_queue_free_mtx;
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
  */
+#define	PG_CACHED	0x0001		/* page is cached */
 #define	PG_FREE		0x0002		/* page is free */
 #define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
@@ -230,9 +224,8 @@ extern struct mtx vm_page_queue_free_mtx;
  *		Available for allocation now.
  *
  *	cache
- *		Almost available for allocation. Still in an
- *		object, but clean and immediately freeable at
- *		non-interrupt times.
+ *		Almost available for allocation. Still associated with
+ *		an object, but clean and immediately freeable.
  *
  *	hold
  *		Will become free after a pending I/O operation
@@ -302,6 +295,8 @@ extern struct mtx vm_page_queue_mtx;
 #define	VM_ALLOC_RETRY		0x0080	/* vm_page_grab() only */
 #define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
+#define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
+#define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
 
 void vm_page_flag_set(vm_page_t m, unsigned short bits);
 void vm_page_flag_clear(vm_page_t m, unsigned short bits);
@@ -318,7 +313,6 @@ void vm_page_wakeup(vm_page_t m);
 
 void vm_pageq_init(void);
 void vm_pageq_enqueue(int queue, vm_page_t m);
-void vm_pageq_remove_nowakeup(vm_page_t m);
 void vm_pageq_remove(vm_page_t m);
 void vm_pageq_requeue(vm_page_t m);
 
@@ -326,6 +320,9 @@ void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache (register vm_page_t);
+void vm_page_cache_free(vm_object_t);
+void vm_page_cache_remove(vm_page_t);
+void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
 int vm_page_try_to_free (vm_page_t);
 void vm_page_dontneed (register vm_page_t);
@@ -334,7 +331,6 @@ void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
-vm_page_t vm_page_select_cache(void);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);

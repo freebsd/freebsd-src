@@ -328,8 +328,6 @@ RetryFault:;
 		 */
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			int queue;
-
 			/* 
 			 * check for page-based copy on write.
 			 * We check fs.object == fs.first_object so
@@ -398,20 +396,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			queue = fs.m->queue;
-
-			vm_pageq_remove_nowakeup(fs.m);
-
-			if (VM_PAGE_RESOLVEQUEUE(fs.m, queue) == PQ_CACHE) {
-				cnt.v_reactivated++;
-				if (vm_page_count_severe()) {
-					vm_page_activate(fs.m);
-					vm_page_unlock_queues();
-					unlock_and_deallocate(&fs);
-					VM_WAITPFAULT;
-					goto RetryFault;
-				}
-			}
+			vm_pageq_remove(fs.m);
 			vm_page_unlock_queues();
 
 			/*
@@ -446,6 +431,8 @@ RetryFault:;
 			if (!vm_page_count_severe()) {
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
 				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
+				if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+					break;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
@@ -993,9 +980,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 		    (m->flags & PG_FICTITIOUS) == 0) {
 
 			vm_page_lock_queues();
-			if (!VM_PAGE_INQUEUE1(m, PQ_CACHE))
-				pmap_enter_quick(pmap, addr, m,
-				    entry->protection);
+			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
 		}
 		VM_OBJECT_UNLOCK(lobject);
@@ -1273,7 +1258,8 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 		for (i = 0, tpindex = pindex - 1; tpindex >= startpindex &&
 		    tpindex < pindex; i++, tpindex--) {
 
-			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL |
+			    VM_ALLOC_IFNOTCACHED);
 			if (rtm == NULL) {
 				/*
 				 * Shift the allocated pages to the
@@ -1311,7 +1297,8 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	for (; tpindex < endpindex; i++, tpindex++) {
 
-		rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
+		rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL |
+		    VM_ALLOC_IFNOTCACHED);
 		if (rtm == NULL) {
 			break;
 		}
