@@ -60,8 +60,8 @@ successful
 .Fn connect
 call or after the application has performed a 
 .Fn listen 
-followed by a sucessful 
-.Fn accept
+followed by a successful 
+.Fn accept .
 For a one-to-many (SOCK_SEQPACKET) type socket, an endpoint may call
 .Fn sctp_recvmsg
 after having implicitly started an association via one
@@ -73,7 +73,7 @@ and
 Or, an application may also receive a message after having
 called
 .Fn listen
-with a postive backlog to enable the reception of new associations.
+with a positive backlog to enable the reception of new associations.
 .Pp
 The address of the sender is held in the
 .Fa from
@@ -99,7 +99,9 @@ to be received is bounded by
 If the message is too long to fit in the users
 receive buffer, then the 
 .Fa flags
-argument will NOT have the
+argument will
+.Em not
+have the
 .Dv MSG_EOF
 flag applied.
 If the message is a complete message then
@@ -117,7 +119,9 @@ The
 argument may also hold the value
 .Dv MSG_NOTIFICATION .
 When this
-occurs this indicates that the message received is NOT from
+occurs it indicates that the message received is
+.Em not
+from
 the peer endpoint, but instead is a notification from the
 SCTP stack (see
 .Xr sctp 4
@@ -194,7 +198,9 @@ association.
 The
 .Fa sinfo->sinfo_ssn
 will hold the stream sequence number assigned
-by the peer endpoint if the message is NOT unordered.
+by the peer endpoint if the message is
+.Em not
+unordered.
 For unordered messages this field holds an undefined value.
 .Pp
 The
@@ -203,8 +209,8 @@ holds a transport sequence number (TSN) that was assigned
 to this message by the peer endpoint.
 For messages that fit in or less
 than the path MTU this will be the only TSN assigned.
-Note that for messages that span multiple TSN's this
-value will be one of the TSN's that was used on the
+Note that for messages that span multiple TSNs this
+value will be one of the TSNs that was used on the
 message.
 .Pp
 The
@@ -224,8 +230,7 @@ the use of an address field.
 It is also quite useful in
 setting various socket options on the specific association
 (see 
-.Xr sctp 4
-).
+.Xr sctp 4 ) .
 .Pp
 The 
 .Fa sinfo->info_timetolive
