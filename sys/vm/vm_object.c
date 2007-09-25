@@ -1105,7 +1105,8 @@ shadowlookup:
 			/*
 			 * If the page is cached, reactivate it.
 			 */
-			m = vm_page_alloc(tobject, tpindex, VM_ALLOC_IFCACHED);
+			m = vm_page_alloc(tobject, tpindex, VM_ALLOC_IFCACHED |
+			    VM_ALLOC_NOBUSY);
 		}
 		if (m == NULL) {
 			/*
