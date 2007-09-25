@@ -2898,7 +2898,8 @@ allocbuf(struct buf *bp, int size)
 						VM_WAIT;
 						VM_OBJECT_LOCK(obj);
 					} else {
-						bp->b_flags &= ~B_CACHE;
+						if (m->valid == 0)
+							bp->b_flags &= ~B_CACHE;
 						bp->b_pages[bp->b_npages] = m;
 						++bp->b_npages;
 					}
@@ -2916,20 +2917,13 @@ allocbuf(struct buf *bp, int size)
 				 *  vm_fault->getpages->cluster_read->allocbuf
 				 *
 				 */
-				vm_page_lock_queues();
 				if (vm_page_sleep_if_busy(m, FALSE, "pgtblk"))
 					continue;
 
 				/*
-				 * We have a good page.  Should we wakeup the
-				 * page daemon?
+				 * We have a good page.
 				 */
-				if ((curproc != pageproc) &&
-				    (VM_PAGE_INQUEUE1(m, PQ_CACHE)) &&
-				    ((cnt.v_free_count + cnt.v_cache_count) <
-			 		(cnt.v_free_min + cnt.v_cache_min))) {
-					pagedaemon_wakeup();
-				}
+				vm_page_lock_queues();
 				vm_page_wire(m);
 				vm_page_unlock_queues();
 				bp->b_pages[bp->b_npages] = m;
