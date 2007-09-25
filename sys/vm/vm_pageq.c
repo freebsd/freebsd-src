@@ -56,7 +56,6 @@ vm_pageq_init(void)
 {
 	int i;
 
-	vm_page_queues[PQ_CACHE].cnt = &cnt.v_cache_count;
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
 	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
@@ -94,28 +93,6 @@ vm_pageq_enqueue(int queue, vm_page_t m)
 }
 
 /*
- * vm_pageq_remove_nowakeup:
- *
- * 	vm_page_unqueue() without any wakeup
- *
- *	The queue containing the given page must be locked.
- *	This routine may not block.
- */
-void
-vm_pageq_remove_nowakeup(vm_page_t m)
-{
-	int queue = VM_PAGE_GETQUEUE(m);
-	struct vpgqueues *pq;
-
-	if (queue != PQ_NONE) {
-		pq = &vm_page_queues[queue];
-		VM_PAGE_SETQUEUE2(m, PQ_NONE);
-		TAILQ_REMOVE(&pq->pl, m, pageq);
-		(*pq->cnt)--;
-	}
-}
-
-/*
  * vm_pageq_remove:
  *
  *	Remove a page from its queue.
@@ -134,9 +111,5 @@ vm_pageq_remove(vm_page_t m)
 		pq = &vm_page_queues[queue];
 		TAILQ_REMOVE(&pq->pl, m, pageq);
 		(*pq->cnt)--;
-		if (VM_PAGE_RESOLVEQUEUE(m, queue) == PQ_CACHE) {
-			if (vm_paging_needed())
-				pagedaemon_wakeup();
-		}
 	}
 }

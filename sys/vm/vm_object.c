@@ -170,6 +170,9 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	KASSERT(TAILQ_EMPTY(&object->memq),
 	    ("object %p has resident pages",
 	    object));
+	KASSERT(object->cache == NULL,
+	    ("object %p has cached pages",
+	    object));
 	KASSERT(object->paging_in_progress == 0,
 	    ("object %p paging_in_progress = %d",
 	    object, object->paging_in_progress));
@@ -217,6 +220,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
+	object->cache = NULL;
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
@@ -648,6 +652,9 @@ vm_object_terminate(vm_object_t object)
 	}
 	vm_page_unlock_queues();
 
+	if (__predict_false(object->cache != NULL))
+		vm_page_cache_free(object);
+
 	/*
 	 * Let the pager know object is dead.
 	 */
@@ -732,8 +739,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		while (tscan < tend) {
 			curgeneration = object->generation;
 			p = vm_page_lookup(object, tscan);
-			if (p == NULL || p->valid == 0 ||
-			    VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
+			if (p == NULL || p->valid == 0) {
 				if (--scanlimit == 0)
 					break;
 				++tscan;
@@ -821,8 +827,7 @@ again:
 		pi = p->pindex;
 		if ((p->oflags & VPO_CLEANCHK) == 0 ||
 			(pi < tstart) || (pi >= tend) ||
-			(p->valid == 0) ||
-		    VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
+		    p->valid == 0) {
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
@@ -900,10 +905,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				 (tp->oflags & VPO_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
-			if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
-				tp->oflags &= ~VPO_CLEANCHK;
-				break;
-			}
 			vm_page_test_dirty(tp);
 			if ((tp->dirty & tp->valid) == 0) {
 				tp->oflags &= ~VPO_CLEANCHK;
@@ -928,10 +929,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					 (tp->oflags & VPO_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
-				if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
-					tp->oflags &= ~VPO_CLEANCHK;
-					break;
-				}
 				vm_page_test_dirty(tp);
 				if ((tp->dirty & tp->valid) == 0) {
 					tp->oflags &= ~VPO_CLEANCHK;
@@ -1104,6 +1101,12 @@ shadowlookup:
 			}
 		}
 		m = vm_page_lookup(tobject, tpindex);
+		if (m == NULL && advise == MADV_WILLNEED) {
+			/*
+			 * If the page is cached, reactivate it.
+			 */
+			m = vm_page_alloc(tobject, tpindex, VM_ALLOC_IFCACHED);
+		}
 		if (m == NULL) {
 			/*
 			 * There may be swap even if there is no backing page
@@ -1356,6 +1359,13 @@ retry:
 		 * and new_object's locks are released and reacquired. 
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
+
+		/*
+		 * Transfer any cached pages from orig_object to new_object.
+		 */
+		if (__predict_false(orig_object->cache != NULL))
+			vm_page_cache_transfer(orig_object, offidxstart,
+			    new_object);
 	}
 	VM_OBJECT_UNLOCK(orig_object);
 	TAILQ_FOREACH(m, &new_object->memq, listq)
@@ -1390,8 +1400,8 @@ vm_object_backing_scan(vm_object_t object, int op)
 	 */
 	if (op & OBSC_TEST_ALL_SHADOWED) {
 		/*
-		 * We do not want to have to test for the existence of
-		 * swap pages in the backing object.  XXX but with the
+		 * We do not want to have to test for the existence of cache
+		 * or swap pages in the backing object.  XXX but with the
 		 * new swapper this would be pretty easy to do.
 		 *
 		 * XXX what about anonymous MAP_SHARED memory that hasn't
@@ -1664,6 +1674,12 @@ vm_object_collapse(vm_object_t object)
 				    backing_object,
 				    object,
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
+
+				/*
+				 * Free any cached pages from backing_object.
+				 */
+				if (__predict_false(backing_object->cache != NULL))
+					vm_page_cache_free(backing_object);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.

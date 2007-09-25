@@ -342,8 +342,7 @@ more:
 			ib = 0;
 			break;
 		}
-		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->oflags & VPO_BUSY) || p->busy) {
+		if ((p->oflags & VPO_BUSY) || p->busy) {
 			ib = 0;
 			break;
 		}
@@ -372,8 +371,7 @@ more:
 
 		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
 			break;
-		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->oflags & VPO_BUSY) || p->busy) {
+		if ((p->oflags & VPO_BUSY) || p->busy) {
 			break;
 		}
 		vm_page_test_dirty(p);
@@ -1138,37 +1136,6 @@ unlock_and_continue:
 		}
 		VM_OBJECT_UNLOCK(object);
 		m = next;
-	}
-
-	/*
-	 * We try to maintain some *really* free pages, this allows interrupt
-	 * code to be guaranteed space.  Since both cache and free queues 
-	 * are considered basically 'free', moving pages from cache to free
-	 * does not effect other calculations.
-	 */
-	while (cnt.v_free_count < cnt.v_free_reserved) {
-		TAILQ_FOREACH(m, &vm_page_queues[PQ_CACHE].pl, pageq) {
-			KASSERT(m->dirty == 0,
-			    ("Found dirty cache page %p", m));
-			KASSERT(!pmap_page_is_mapped(m),
-			    ("Found mapped cache page %p", m));
-			KASSERT((m->flags & PG_UNMANAGED) == 0,
-			    ("Found unmanaged cache page %p", m));
-			KASSERT(m->wire_count == 0,
-			    ("Found wired cache page %p", m));
-			if (m->hold_count == 0 && VM_OBJECT_TRYLOCK(object =
-			    m->object)) {
-				KASSERT((m->oflags & VPO_BUSY) == 0 &&
-				    m->busy == 0, ("Found busy cache page %p",
-				    m));
-				vm_page_free(m);
-				VM_OBJECT_UNLOCK(object);
-				cnt.v_dfree++;
-				break;
-			}
-		}
-		if (m == NULL)
-			break;
 	}
 	vm_page_unlock_queues();
 #if !defined(NO_SWAPPING)

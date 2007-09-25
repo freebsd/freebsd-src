@@ -231,8 +231,7 @@ contigmalloc(
 	unsigned long boundary)
 {
 	void * ret;
-	vm_object_t object;
-	vm_page_t m, m_next, pages;
+	vm_page_t pages;
 	unsigned long npgs;
 	int actl, actmax, inactl, inactmax, tries;
 
@@ -257,14 +256,6 @@ again:
 			    vm_contig_launder(PQ_ACTIVE)) {
 				actl++;
 				goto again;
-			}
-			TAILQ_FOREACH_SAFE(m, &vm_page_queues[PQ_CACHE].pl,
-			    pageq, m_next) {
-				if (m->hold_count == 0 &&
-				    VM_OBJECT_TRYLOCK(object = m->object)) {
-					vm_page_free(m);
-					VM_OBJECT_UNLOCK(object);
-				}
 			}
 			vm_page_unlock_queues();
 			tries++;
