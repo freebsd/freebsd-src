@@ -832,7 +832,7 @@ exec_map_first_page(imgp)
 				vm_page_busy(ma[i]);
 			} else {
 				ma[i] = vm_page_alloc(object, i,
-				    VM_ALLOC_NORMAL);
+				    VM_ALLOC_NORMAL | VM_ALLOC_IFNOTCACHED);
 				if (ma[i] == NULL)
 					break;
 			}

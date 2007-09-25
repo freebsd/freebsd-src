@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 
 #include <ddb/ddb.h>
 
@@ -89,7 +90,6 @@ SYSCTL_OID(_vm, OID_AUTO, phys_segs, CTLTYPE_STRING | CTLFLAG_RD,
 
 static void vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind);
 static int vm_phys_paddr_to_segind(vm_paddr_t pa);
-static void vm_phys_set_pool(int pool, vm_page_t m, int order);
 static void vm_phys_split_pages(vm_page_t m, int oind, struct vm_freelist *fl,
     int order);
 
@@ -286,6 +286,7 @@ vm_phys_add_page(vm_paddr_t pa)
 	m->pool = VM_FREEPOOL_DEFAULT;
 	pmap_page_init(m);
 	mtx_lock(&vm_page_queue_free_mtx);
+	cnt.v_free_count++;
 	vm_phys_free_pages(m, 0);
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
@@ -318,7 +319,6 @@ vm_phys_alloc_pages(int pool, int order)
 				fl[oind].lcnt--;
 				m->order = VM_NFREEORDER;
 				vm_phys_split_pages(m, oind, fl, order);
-				cnt.v_free_count -= 1 << order;
 				return (m);
 			}
 		}
@@ -339,7 +339,6 @@ vm_phys_alloc_pages(int pool, int order)
 					m->order = VM_NFREEORDER;
 					vm_phys_set_pool(pool, m, oind);
 					vm_phys_split_pages(m, oind, fl, order);
-					cnt.v_free_count -= 1 << order;
 					return (m);
 				}
 			}
@@ -428,7 +427,6 @@ vm_phys_free_pages(vm_page_t m, int order)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	pa = VM_PAGE_TO_PHYS(m);
 	seg = &vm_phys_segs[m->segind];
-	cnt.v_free_count += 1 << order;
 	while (order < VM_NFREEORDER - 1) {
 		pa_buddy = pa ^ (1 << (PAGE_SHIFT + order));
 		if (pa_buddy < seg->start ||
@@ -456,7 +454,7 @@ vm_phys_free_pages(vm_page_t m, int order)
 /*
  * Set the pool for a contiguous, power of two-sized set of physical pages. 
  */
-static void
+void
 vm_phys_set_pool(int pool, vm_page_t m, int order)
 {
 	vm_page_t m_tmp;
@@ -466,44 +464,113 @@ vm_phys_set_pool(int pool, vm_page_t m, int order)
 }
 
 /*
- * Try to zero one or more physical pages.  Used by an idle priority thread.
+ * Remove the given physical page "m" from the free lists.
+ *
+ * The free page queues must be locked.
+ */
+void
+vm_phys_unfree_page(vm_page_t m)
+{
+	struct vm_freelist *fl;
+	struct vm_phys_seg *seg;
+	vm_paddr_t pa, pa_half;
+	vm_page_t m_set, m_tmp;
+	int order;
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+
+	/*
+	 * First, find the contiguous, power of two-sized set of free
+	 * physical pages containing the given physical page "m" and
+	 * assign it to "m_set".
+	 */
+	seg = &vm_phys_segs[m->segind];
+	for (m_set = m, order = 0; m_set->order == VM_NFREEORDER &&
+	    order < VM_NFREEORDER; ) {
+		order++;
+		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
+		KASSERT(pa >= seg->start && pa < seg->end,
+		    ("vm_phys_unfree_page: paddr %#jx is not within segment %p",
+		    (uintmax_t)pa, seg));
+		m_set = &seg->first_page[atop(pa - seg->start)];
+	}
+	KASSERT(m_set->order >= order, ("vm_phys_unfree_page: page %p's order"
+	    " (%d) is less than expected (%d)", m_set, m_set->order, order));
+	KASSERT(m_set->order < VM_NFREEORDER,
+	    ("vm_phys_unfree_page: page %p has unexpected order %d",
+	    m_set, m_set->order));
+	KASSERT(order < VM_NFREEORDER,
+	    ("vm_phys_unfree_page: order %d is out of range", order));
+
+	/*
+	 * Next, remove "m_set" from the free lists.  Finally, extract
+	 * "m" from "m_set" using an iterative algorithm: While "m_set"
+	 * is larger than a page, shrink "m_set" by returning the half
+	 * of "m_set" that does not contain "m" to the free lists.
+	 */
+	fl = (*seg->free_queues)[m_set->pool];
+	order = m_set->order;
+	TAILQ_REMOVE(&fl[order].pl, m_set, pageq);
+	fl[order].lcnt--;
+	m_set->order = VM_NFREEORDER;
+	while (order > 0) {
+		order--;
+		pa_half = m_set->phys_addr ^ (1 << (PAGE_SHIFT + order));
+		if (m->phys_addr < pa_half)
+			m_tmp = &seg->first_page[atop(pa_half - seg->start)];
+		else {
+			m_tmp = m_set;
+			m_set = &seg->first_page[atop(pa_half - seg->start)];
+		}
+		m_tmp->order = order;
+		TAILQ_INSERT_HEAD(&fl[order].pl, m_tmp, pageq);
+		fl[order].lcnt++;
+	}
+	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
+}
+
+/*
+ * Try to zero one physical page.  Used by an idle priority thread.
  */
 boolean_t
 vm_phys_zero_pages_idle(void)
 {
-	struct vm_freelist *fl;
+	static struct vm_freelist *fl = vm_phys_free_queues[0][0];
+	static int flind, oind, pind;
 	vm_page_t m, m_tmp;
-	int flind, pind, q, zeroed;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	for (flind = 0; flind < vm_nfreelists; flind++) {
-		pind = VM_FREEPOOL_DEFAULT;
-		fl = vm_phys_free_queues[flind][pind];
-		for (q = 0; q < VM_NFREEORDER; q++) {
-			m = TAILQ_FIRST(&fl[q].pl);
-			if (m != NULL && (m->flags & PG_ZERO) == 0) {
-				TAILQ_REMOVE(&fl[q].pl, m, pageq);
-				fl[q].lcnt--;
-				m->order = VM_NFREEORDER;
-				cnt.v_free_count -= 1 << q;
-				mtx_unlock(&vm_page_queue_free_mtx);
-				zeroed = 0;
-				for (m_tmp = m; m_tmp < &m[1 << q]; m_tmp++) {
-					if ((m_tmp->flags & PG_ZERO) == 0) {
-						pmap_zero_page_idle(m_tmp);
-						m_tmp->flags |= PG_ZERO;
-						zeroed++;
-					}
+	for (;;) {
+		TAILQ_FOREACH_REVERSE(m, &fl[oind].pl, pglist, pageq) {
+			for (m_tmp = m; m_tmp < &m[1 << oind]; m_tmp++) {
+				if ((m_tmp->flags & (PG_CACHED | PG_ZERO)) == 0) {
+					vm_phys_unfree_page(m_tmp);
+					cnt.v_free_count--;
+					mtx_unlock(&vm_page_queue_free_mtx);
+					pmap_zero_page_idle(m_tmp);
+					m_tmp->flags |= PG_ZERO;
+					mtx_lock(&vm_page_queue_free_mtx);
+					cnt.v_free_count++;
+					vm_phys_free_pages(m_tmp, 0);
+					vm_page_zero_count++;
+					cnt_prezero++;
+					return (TRUE);
 				}
-				cnt_prezero += zeroed;
-				mtx_lock(&vm_page_queue_free_mtx);
-				vm_phys_free_pages(m, q);
-				vm_page_zero_count += zeroed;
-				return (TRUE);
 			}
 		}
+		oind++;
+		if (oind == VM_NFREEORDER) {
+			oind = 0;
+			pind++;
+			if (pind == VM_NFREEPOOL) {
+				pind = 0;
+				flind++;
+				if (flind == vm_nfreelists)
+					flind = 0;
+			}
+			fl = vm_phys_free_queues[flind][pind];
+		}
 	}
-	return (FALSE);
 }
 
 /*
@@ -522,6 +589,7 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;
+	vm_object_t m_object;
 	vm_paddr_t pa, pa_last, size;
 	vm_page_t m, m_ret;
 	int flind, i, oind, order, pind;
@@ -606,12 +674,19 @@ done:
 		vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m_ret, oind);
 	fl = (*seg->free_queues)[m_ret->pool];
 	vm_phys_split_pages(m_ret, oind, fl, order);
-	cnt.v_free_count -= roundup2(npages, 1 << imin(oind, order));
 	for (i = 0; i < npages; i++) {
 		m = &m_ret[i];
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_phys_alloc_contig: page %p has unexpected queue %d",
 		    m, m->queue));
+		m_object = m->object;
+		if ((m->flags & PG_CACHED) != 0)
+			vm_page_cache_remove(m);
+		else {
+			KASSERT(VM_PAGE_IS_FREE(m),
+			    ("vm_phys_alloc_contig: page %p is not free", m));
+			cnt.v_free_count--;
+		}
 		m->valid = VM_PAGE_BITS_ALL;
 		if (m->flags & PG_ZERO)
 			vm_page_zero_count--;
@@ -622,6 +697,13 @@ done:
 		    ("vm_phys_alloc_contig: page %p was dirty", m));
 		m->wire_count = 0;
 		m->busy = 0;
+		if (m_object != NULL &&
+		    m_object->type == OBJT_VNODE &&
+		    m_object->cache == NULL) {
+			mtx_unlock(&vm_page_queue_free_mtx);
+			vdrop(m_object->handle);
+			mtx_lock(&vm_page_queue_free_mtx);
+		}
 	}
 	for (; i < roundup2(npages, 1 << imin(oind, order)); i++) {
 		m = &m_ret[i];
