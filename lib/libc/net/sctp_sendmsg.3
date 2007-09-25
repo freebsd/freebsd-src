@@ -123,8 +123,7 @@ argument is an opaque 32 bit value that is passed transparently
 through the stack to the peer endpoint.
 It will be available on
 reception of a message (see
-.Xr sctp_recvmsg 2
-).
+.Xr sctp_recvmsg 2 ) .
 Note that the stack passes this value without regard to byte
 order.
 .Pp
@@ -186,15 +185,15 @@ all associations that are under the socket get a copy of the message.
 Note that this mechanism is quite efficent and makes only one actual
 copy of the data which is shared by all the associations for sending.
 .Pp
-The remaining flags are used for the partial reliabilty extension (RFC3758)
+The remaining flags are used for the partial reliability extension (RFC3758)
 and will only be effective if the peer endpoint supports this extension.
-This option specify's what local policy the local endpoint should use
+This option specifies what local policy the local endpoint should use
 in skipping data.
 If none of these options are set, then data is
 never skipped over.
 .Pp
 .Dv SCTP_PR_SCTP_TTL
-Is used to indicate that a time based lifetime is being applied
+is used to indicate that a time based lifetime is being applied
 to the data.
 The
 .Fa timetolive
@@ -248,30 +247,29 @@ field is used only in the event the message cannot be sent.
 This is an opaque
 value that the stack retains and will give to the user when a failed send
 is given if that notification is enabled (see
-.Xr sctp 4
-).
+.Xr sctp 4 ) .
 Normally a user process can use this value to index some application
 specific data structure when a send cannot be fulfilled.
 .Fn sctp_sendmsgx
 is identical to 
 .Fn sctp_sendmsg
-with the exception that it takes a array of sockaddr structures in the
+with the exception that it takes an array of sockaddr structures in the
 argument
 .Fa to
 and adds the additional argument
 .Fa addrcnt
 which specifies how many addresses are in the array.
 This allows a
-caller to implictly setup an association passing multiple addresses
-as if an
+caller to implicitly set up an association passing multiple addresses
+as if
 .Fn sctp_connectx 
-had been called to setup the association.
+had been called to set up the association.
 .Sh RETURN VALUES
 The call returns the number of characters sent, or -1
 if an error occurred.
 .Sh ERRORS
 The
-.Fn sctp_sendmsg 2
+.Fn sctp_sendmsg
 system call
 fail if:
 .Bl -tag -width Er
@@ -322,8 +320,8 @@ is not connected and is a one-to-one style socket.
 .Xr select 2 ,
 .Xr socket 2 ,
 .Xr write 2 ,
-.Xr sendmsg 3 ,
 .Xr sctp_connectx 3 ,
+.Xr sendmsg 3 ,
 .Xr sctp 4
 .Sh BUGS
 Because in the one-to-many style socket the
