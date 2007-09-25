@@ -898,7 +898,7 @@ ultimate_source (name, path)
 #endif
 
 #if HAVE_LIBZ > 0
-  gzgets (fp, buf, BUFSIZ);
+  end = gzgets (fp, buf, BUFSIZ);
   gzclose(fp);
 #else
   end = fgets (buf, BUFSIZ, fp);
