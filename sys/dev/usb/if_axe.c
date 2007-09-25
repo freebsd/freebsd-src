@@ -34,8 +34,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * ASIX Electronics AX88172 USB 2.0 ethernet driver. Used in the
- * LinkSys USB200M and various other adapters.
+ * ASIX Electronics AX88172/AX88178/AX88778 USB 2.0 ethernet driver.
+ * Used in the LinkSys USB200M and various other adapters.
  *
  * Manuals available from:
  * http://www.asix.com.tw/datasheet/mac/Ax88172.PDF
@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -291,13 +292,30 @@ axe_miibus_writereg(device_t dev, int phy, int reg, int val)
 static void
 axe_miibus_statchg(device_t dev)
 {
-#ifdef notdef
 	struct axe_softc	*sc = device_get_softc(dev);
 	struct mii_data		*mii = GET_MII(sc);
-#endif
-	/* doesn't seem to be necessary */
+	int			val, err;
 
-	return;
+	val = (mii->mii_media_active & IFM_GMASK) == IFM_FDX ?
+	    AXE_MEDIA_FULL_DUPLEX : 0;
+	if (sc->axe_flags & (AX178|AX772)) {
+		val |= AXE_178_MEDIA_RX_EN | AXE_178_MEDIA_MAGIC;
+
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_1000_T:
+			val |= AXE_178_MEDIA_GMII | AXE_178_MEDIA_ENCK;
+			break;
+		case IFM_100_TX:
+			val |= AXE_178_MEDIA_100TX;
+			break;
+		case IFM_10_T:
+			/* doesn't need to be handled */
+			break;
+		}
+	}
+	err = axe_cmd(sc, AXE_CMD_WRITE_MEDIA, 0, val, NULL);
+	if (err)
+		device_printf(dev, "media change failed, error %d\n", err);
 }
 
 /*
@@ -377,6 +395,93 @@ axe_setmulti(struct axe_softc *sc)
 }
 
 static void
+axe_ax88178_init(struct axe_softc *sc)
+{
+	int gpio0 = 0, phymode = 0;
+	u_int16_t eeprom;
+
+	axe_cmd(sc, AXE_CMD_SROM_WR_ENABLE, 0, 0, NULL);
+	/* XXX magic */
+	axe_cmd(sc, AXE_CMD_SROM_READ, 0, 0x0017, &eeprom);
+	axe_cmd(sc, AXE_CMD_SROM_WR_DISABLE, 0, 0, NULL);
+
+	/* if EEPROM is invalid we have to use to GPIO0 */
+	if (eeprom == 0xffff) {
+		phymode = 0;
+		gpio0 = 1;
+	} else {
+		phymode = eeprom & 7;
+		gpio0 = (eeprom & 0x80) ? 0 : 1;
+	}
+
+	axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x008c, NULL);
+	usbd_delay_ms(sc->axe_udev, 40);
+	if ((eeprom >> 8) != 1) {
+		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x003c, NULL);
+		usbd_delay_ms(sc->axe_udev, 30);
+
+		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x001c, NULL);
+		usbd_delay_ms(sc->axe_udev, 300);
+
+		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x003c, NULL);
+		usbd_delay_ms(sc->axe_udev, 30);
+	} else {
+		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x0004, NULL);
+		usbd_delay_ms(sc->axe_udev, 30);
+		axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x000c, NULL);
+		usbd_delay_ms(sc->axe_udev, 30);
+	}
+
+	/* soft reset */
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, 0, NULL);
+	usbd_delay_ms(sc->axe_udev, 150);
+	axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
+	    AXE_SW_RESET_PRL | AXE_178_RESET_MAGIC, NULL);
+	usbd_delay_ms(sc->axe_udev, 150);
+	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
+}
+
+static void
+axe_ax88772_init(struct axe_softc *sc)
+{
+	axe_cmd(sc, AXE_CMD_WRITE_GPIO, 0, 0x00b0, NULL);
+	usbd_delay_ms(sc->axe_udev, 40);
+
+	if (sc->axe_phyaddrs[1] == AXE_INTPHY) {
+		/* ask for embedded PHY */
+		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0x01, NULL);
+		usbd_delay_ms(sc->axe_udev, 10);
+
+		/* power down and reset state, pin reset state */
+		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_CLEAR, NULL);
+		usbd_delay_ms(sc->axe_udev, 60);
+
+		/* power down/reset state, pin operating state */
+		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
+		    AXE_SW_RESET_IPPD | AXE_SW_RESET_PRL, NULL);
+		usbd_delay_ms(sc->axe_udev, 150);
+
+		/* power up, reset */
+		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0, AXE_SW_RESET_PRL, NULL);
+
+		/* power up, operating */
+		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
+		    AXE_SW_RESET_IPRL | AXE_SW_RESET_PRL, NULL);
+	} else {
+		/* ask for external PHY */
+		axe_cmd(sc, AXE_CMD_SW_PHY_SELECT, 0, 0x00, NULL);
+		usbd_delay_ms(sc->axe_udev, 10);
+
+		/* power down/reset state, pin operating state */
+		axe_cmd(sc, AXE_CMD_SW_RESET_REG, 0,
+		    AXE_SW_RESET_IPPD | AXE_SW_RESET_PRL, NULL);
+	}
+
+	usbd_delay_ms(sc->axe_udev, 150);
+	axe_cmd(sc, AXE_CMD_RXCTL_WRITE, 0, 0, NULL);
+}
+
+static void
 axe_reset(struct axe_softc *sc)
 {
 	if (sc->axe_dying)
@@ -416,6 +521,7 @@ axe_attach(device_t self)
 {
 	struct axe_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
+	const struct axe_type *type;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;
@@ -424,6 +530,9 @@ axe_attach(device_t self)
 
 	sc->axe_udev = uaa->device;
 	sc->axe_dev = self;
+	type = axe_lookup(uaa->vendor, uaa->product);
+	if (type != NULL)
+		sc->axe_flags = type->axe_flags;
 
 	if (usbd_set_config_no(sc->axe_udev, AXE_CONFIG_NO, 1)) {
 		device_printf(sc->axe_dev, "getting interface handle failed\n");
@@ -437,6 +546,26 @@ axe_attach(device_t self)
 		device_printf(sc->axe_dev, "getting interface handle failed\n");
 		return ENXIO;
 	}
+
+	sc->axe_boundary = 64;
+#if 0
+	if (sc->axe_flags & (AX178|AX772)) {
+		if (sc->axe_udev->speed == USB_SPEED_HIGH) {
+			sc->axe_bufsz = AXE_178_MAX_BUFSZ;
+			sc->axe_boundary = 512;
+		} else
+			sc->axe_bufsz = AXE_178_MIN_BUFSZ;
+	} else
+		sc->axe_bufsz = AXE_172_BUFSZ
+#else
+	sc->axe_bufsz = AXE_172_BUFSZ;
+#endif
+{ /* XXX debug */
+device_printf(sc->axe_dev, "%s, bufsz %d, boundary %d\n",
+	sc->axe_flags & AX178 ? "AX88178" :
+	sc->axe_flags & AX772 ? "AX88772" : "AX88172",
+	sc->axe_bufsz, sc->axe_boundary);
+}
 
 	id = usbd_get_interface_descriptor(sc->axe_iface);
 
@@ -465,16 +594,26 @@ axe_attach(device_t self)
 	AXE_SLEEPLOCK(sc);
 	AXE_LOCK(sc);
 
+	/* We need the PHYID for the init dance in some cases */
+	axe_cmd(sc, AXE_CMD_READ_PHYID, 0, 0, (void *)&sc->axe_phyaddrs);
+
+	if (sc->axe_flags & AX178)
+		axe_ax88178_init(sc);
+	else if (sc->axe_flags & AX772)
+		axe_ax88772_init(sc);
+
 	/*
 	 * Get station address.
 	 */
-	axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, &eaddr);
+	if (sc->axe_flags & (AX178|AX772))
+		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, &eaddr);
+	else
+		axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, &eaddr);
 
 	/*
-	 * Load IPG values and PHY indexes.
+	 * Fetch IPG values.
 	 */
 	axe_cmd(sc, AXE_CMD_READ_IPG012, 0, 0, (void *)&sc->axe_ipgs);
-	axe_cmd(sc, AXE_CMD_READ_PHYID, 0, 0, (void *)&sc->axe_phyaddrs);
 
 	/*
 	 * Work around broken adapters that appear to lie about
@@ -605,7 +744,8 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct ue_chain	*c;
         struct mbuf		*m;
         struct ifnet		*ifp;
-	int			total_len = 0;
+	struct axe_sframe_hdr	hdr;
+	int			total_len = 0, pktlen;
 
 	c = priv;
 	sc = c->ue_sc;
@@ -633,15 +773,36 @@ axe_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 
 	m = c->ue_mbuf;
+	/* XXX don't handle multiple packets in one transfer */
+	if (sc->axe_flags & (AX178|AX772)) {
+		if (total_len < sizeof(hdr)) {
+			ifp->if_ierrors++;
+			goto done;
+		}
+		m_copydata(m, 0, sizeof(hdr), (caddr_t) &hdr);
+		total_len -= sizeof(hdr);
 
-	if (total_len < sizeof(struct ether_header)) {
-		ifp->if_ierrors++;
-		goto done;
+		if ((hdr.len ^ hdr.ilen) != 0xffff) {
+			ifp->if_ierrors++;
+			goto done;
+		}
+		pktlen = le16toh(hdr.len);
+		if (pktlen > total_len) {
+			ifp->if_ierrors++;
+			goto done;
+		}
+		m_adj(m, sizeof(hdr));
+	} else {
+		if (total_len < sizeof(struct ether_header)) {
+			ifp->if_ierrors++;
+			goto done;
+		}
+		pktlen = total_len;
 	}
 
 	ifp->if_ipackets++;
 	m->m_pkthdr.rcvif = (void *)&sc->axe_qdat;
-	m->m_pkthdr.len = m->m_len = total_len;
+	m->m_pkthdr.len = m->m_len = pktlen;
 
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
@@ -768,6 +929,8 @@ axe_encap(struct axe_softc *sc, struct mbuf *m, int idx)
 {
 	struct ue_chain	*c;
 	usbd_status		err;
+	struct axe_sframe_hdr	hdr;
+	int			length;
 
 	c = &sc->axe_cdata.ue_tx_chain[idx];
 
@@ -775,12 +938,30 @@ axe_encap(struct axe_softc *sc, struct mbuf *m, int idx)
 	 * Copy the mbuf data into a contiguous buffer, leaving two
 	 * bytes at the beginning to hold the frame length.
 	 */
-	m_copydata(m, 0, m->m_pkthdr.len, c->ue_buf);
+	if (sc->axe_flags & (AX178|AX772)) {
+		hdr.len = htole16(m->m_pkthdr.len);
+		hdr.ilen = ~hdr.len;
+
+		memcpy(c->ue_buf, &hdr, sizeof(hdr));
+		length = sizeof(hdr);
+
+		m_copydata(m, 0, m->m_pkthdr.len, c->ue_buf + sizeof(hdr));
+		length += m->m_pkthdr.len;
+
+		if ((length % sc->axe_boundary) == 0) {
+			hdr.len = 0;
+			hdr.ilen = 0xffff;
+			memcpy(c->ue_buf + length, &hdr, sizeof(hdr));
+			length += sizeof(hdr);
+		}
+	} else {
+		m_copydata(m, 0, m->m_pkthdr.len, c->ue_buf);
+		length = m->m_pkthdr.len;
+	}
 	c->ue_mbuf = m;
 
 	usbd_setup_xfer(c->ue_xfer, sc->axe_ep[AXE_ENDPT_TX],
-	    c, c->ue_buf, m->m_pkthdr.len, USBD_FORCE_SHORT_XFER,
-	    10000, axe_txeof);
+	    c, c->ue_buf, length, USBD_FORCE_SHORT_XFER, 10000, axe_txeof);
 
 	/* Transmit */
 	err = usbd_transfer(c->ue_xfer);
@@ -894,12 +1075,22 @@ axe_init(void *xsc)
 	}
 
 	/* Set transmitter IPG values */
-	axe_cmd(sc, AXE_172_CMD_WRITE_IPG0, 0, sc->axe_ipgs[0], NULL);
-	axe_cmd(sc, AXE_172_CMD_WRITE_IPG1, 0, sc->axe_ipgs[1], NULL);
-	axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->axe_ipgs[2], NULL);
+	if (sc->axe_flags & (AX178|AX772)) {
+		axe_cmd(sc, AXE_178_CMD_WRITE_IPG012, sc->axe_ipgs[2],
+		    (sc->axe_ipgs[1]<<8) | sc->axe_ipgs[0], NULL);
+	} else {
+		axe_cmd(sc, AXE_172_CMD_WRITE_IPG0, 0, sc->axe_ipgs[0], NULL);
+		axe_cmd(sc, AXE_172_CMD_WRITE_IPG1, 0, sc->axe_ipgs[1], NULL);
+		axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->axe_ipgs[2], NULL);
+	}
 
 	/* Enable receiver, set RX mode */
-	rxmode = AXE_172_RXCMD_UNICAST|AXE_RXCMD_MULTICAST|AXE_RXCMD_ENABLE;
+	rxmode = AXE_RXCMD_MULTICAST|AXE_RXCMD_ENABLE;
+	if (sc->axe_flags & (AX178|AX772)) {
+		if (sc->axe_bufsz == AXE_178_MAX_BUFSZ)
+			rxmode |= AXE_178_RXCMD_MFB_16384;
+	} else
+		rxmode |= AXE_172_RXCMD_UNICAST;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
