@@ -107,8 +107,9 @@
 #define AXE_178_MEDIA_GMII			0x0001
 #define AXE_MEDIA_FULL_DUPLEX			0x0002
 #define AXE_172_MEDIA_TX_ABORT_ALLOW		0x0004
-/* AX88178 documentation says to always write 1 to reserved bit... */
+/* AX88178/88772 documentation says to always write 1 to bit 2 */
 #define AXE_178_MEDIA_MAGIC			0x0004
+/* AX88772 documentation says to always write 0 to bit 3 */
 #define AXE_178_MEDIA_ENCK			0x0008
 #define AXE_172_MEDIA_FLOW_CONTROL_EN		0x0010
 #define AXE_178_MEDIA_RXFLOW_CONTROL_EN		0x0010
@@ -126,8 +127,13 @@
 #define AXE_178_RXCMD_KEEP_INVALID_CRC		0x0004
 #define AXE_RXCMD_BROADCAST			0x0008
 #define AXE_RXCMD_MULTICAST			0x0010
+#define AXE_178_RXCMD_AP			0x0020
 #define AXE_RXCMD_ENABLE			0x0080
-#define AXE_178_RXCMD_MFB			0x0300
+#define AXE_178_RXCMD_MFB			0x0300	/* Max Frame Burst */
+#define AXE_178_RXCMD_MFB_2048			0x0000
+#define AXE_178_RXCMD_MFB_4096			0x0100
+#define AXE_178_RXCMD_MFB_8192			0x0200
+#define AXE_178_RXCMD_MFB_16384			0x0300
 
 #define AXE_NOPHY				0xE0
 #define AXE_INTPHY				0x10
@@ -158,11 +164,17 @@
 #define AXE_ENDPT_INTR		0x2
 #define AXE_ENDPT_MAX		0x3
 
+struct axe_sframe_hdr {
+	uint16_t	len;
+	uint16_t	ilen;
+} __packed;
+
 struct axe_type {
 	struct usb_devno        axe_dev;
 	uint32_t                axe_flags;
-#define AX178   0x0001                /* AX88178 */
-#define AX772   0x0002                /* AX88772 */
+#define	AX172	0x0000		/* AX88172 */
+#define	AX178	0x0001		/* AX88178 */
+#define	AX772	0x0002		/* AX88772 */
 };
 
 #define AXE_INC(x, y)		(x) = (x + 1) % y
@@ -197,7 +209,8 @@ struct axe_softc {
 	struct timeval		axe_rx_notice;
 	struct usb_qdat		axe_qdat;
 	struct usb_task		axe_tick_task;
-	u_int			axe_bufsz;
+	int			axe_bufsz;
+	int			axe_boundary;
 };
 
 #if 0
