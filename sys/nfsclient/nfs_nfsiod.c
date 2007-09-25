@@ -229,9 +229,8 @@ nfssvc_iod(void *instance)
 	 * Main loop
 	 */
 	for (;;) {
-	    while (((nmp = nfs_iodmount[myiod]) == NULL
-		   || !TAILQ_FIRST(&nmp->nm_bufq))
-		   && error == 0) {
+	    while (((nmp = nfs_iodmount[myiod]) == NULL)
+		   || !TAILQ_FIRST(&nmp->nm_bufq)) {
 		if (myiod >= nfs_iodmax)
 			goto finish;
 		if (nmp)
@@ -244,6 +243,17 @@ nfssvc_iod(void *instance)
 		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
 		error = msleep(&nfs_iodwant[myiod], &nfs_iod_mtx, PWAIT | PCATCH,
 		    "-", timo);
+		if (error) {
+			nmp = nfs_iodmount[myiod];
+			/*
+			 * Rechecking the nm_bufq closes a rare race where the 
+			 * nfsiod is woken up at the exact time the idle timeout
+			 * fires
+			 */
+			if (nmp && TAILQ_FIRST(&nmp->nm_bufq))
+				error = 0;
+			break;
+		}
 	    }
 	    if (error)
 		    break;
