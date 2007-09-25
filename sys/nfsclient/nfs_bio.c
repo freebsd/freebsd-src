@@ -1453,6 +1453,13 @@ again:
 			}
 		}
 
+		/* We might have lost our nfsiod */
+		if (nmp->nm_bufqiods == 0) {
+			NFS_DPF(ASYNCIO,
+				("nfs_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
+			goto again;
+		}
+
 		if (bp->b_iocmd == BIO_READ) {
 			if (bp->b_rcred == NOCRED && cred != NOCRED)
 				bp->b_rcred = crhold(cred);
