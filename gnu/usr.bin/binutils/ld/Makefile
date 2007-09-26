@@ -4,6 +4,10 @@
 
 .PATH: ${SRCDIR}/ld
 
+.if ${TARGET_ARCH} == "ia64"
+CFLAGS+= -O1
+.endif
+
 PROG=	ld
 SCRIPTDIR= /usr/libdata/ldscripts
 SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
