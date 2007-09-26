@@ -20,7 +20,6 @@ options		SC_OFWFB		# OFW frame buffer
 # Standard busses
 device		pci
 
-device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		ofwd		# Open Firmware disks
 
 
