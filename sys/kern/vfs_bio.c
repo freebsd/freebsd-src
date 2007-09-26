@@ -467,7 +467,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
-	 * buffers to cover 1/20 of our ram over 64MB.  When auto-sizing
+	 * buffers to cover 1/10 of our ram over 64MB.  When auto-sizing
 	 * the buffer cache we limit the eventual kva reservation to
 	 * maxbcache bytes.
 	 *
