@@ -280,9 +280,7 @@ static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
 static uint16_t
 get_new_sid(node_p node)
 {
-	priv_p privp = NG_NODE_PRIVATE(node);
 	static int pppoe_sid = 10;
-	sessp sp;
 	hook_p	hook;
 	uint16_t val;
 
@@ -299,11 +297,11 @@ restart:
 
 	/* Check it isn't already in use. */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		/* Don't check special hooks. */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
-		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		sessp sp = NG_HOOK_PRIVATE(hook);
+
+		/* Skip any nonsession hook. */
+		if (sp == NULL)
 			continue;
-		sp = NG_HOOK_PRIVATE(hook);
 		if (sp->Session_ID == val)
 			goto restart;
 	}
@@ -446,16 +444,14 @@ make_packet(sessp sp) {
 static hook_p
 pppoe_match_svc(node_p node, const struct pppoe_tag *tag)
 {
-	priv_p privp = NG_NODE_PRIVATE(node);
 	hook_p hook;
 
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		sessp sp = NG_HOOK_PRIVATE(hook);
 		negp neg;
 
-		/* Skip any hook that is debug or ethernet. */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
-		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		/* Skip any nonsession hook. */
+		if (sp == NULL)
 			continue;
 
 		/* Skip any sessions which are not in LISTEN mode. */
@@ -494,7 +490,6 @@ pppoe_match_svc(node_p node, const struct pppoe_tag *tag)
 static int
 pppoe_broadcast_padi(node_p node, struct mbuf *m0)
 {
-	priv_p privp = NG_NODE_PRIVATE(node);
 	hook_p hook;
 	int error = 0;
 
@@ -506,8 +501,7 @@ pppoe_broadcast_padi(node_p node, struct mbuf *m0)
 		 * Go through all listening hooks and
 		 * broadcast the PADI packet up there
 		 */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
-		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		if (sp == NULL)
 			continue;
 
 		if (sp->state != PPPOE_LISTENING)
@@ -530,16 +524,14 @@ pppoe_broadcast_padi(node_p node, struct mbuf *m0)
 static hook_p
 pppoe_find_svc(node_p node, const char *svc_name, int svc_len)
 {
-	priv_p privp = NG_NODE_PRIVATE(node);
 	hook_p	hook;
 
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		sessp sp = NG_HOOK_PRIVATE(hook);
 		negp neg;
 
-		/* Skip any hook that is debug or ethernet. */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
-		    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		/* Skip any nonsession hook. */
+		if (sp == NULL)
 			continue;
 
 		/* Skip any sessions which are not in LISTEN mode. */
@@ -562,8 +554,6 @@ pppoe_find_svc(node_p node, const char *svc_name, int svc_len)
 static hook_p
 pppoe_findsession(node_p node, const struct pppoe_full_hdr *wh)
 {
-	priv_p	privp = NG_NODE_PRIVATE(node);
-	sessp	sp = NULL;
 	hook_p	hook = NULL;
 	uint16_t session = ntohs(wh->ph.sid);
 
@@ -571,18 +561,16 @@ pppoe_findsession(node_p node, const struct pppoe_full_hdr *wh)
 	 * Find matching peer/session combination.
 	 */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		/* don't check special hooks */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
-		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook)) {
+		sessp	sp = NG_HOOK_PRIVATE(hook);
+
+		/* Skip any nonsession hook. */
+		if (sp == NULL)
 			continue;
-		}
-		sp = NG_HOOK_PRIVATE(hook);
-		if ( ( (sp->state == PPPOE_CONNECTED)
-		    || (sp->state == PPPOE_NEWCONNECTED) )
-		&& (sp->Session_ID == session)
-		&& (bcmp(sp->pkt_hdr.eh.ether_dhost,
-		    wh->eh.ether_shost,
-		    ETHER_ADDR_LEN)) == 0) {
+		if (sp->Session_ID == session &&
+		    (sp->state == PPPOE_CONNECTED ||
+		     sp->state == PPPOE_NEWCONNECTED) &&
+		    bcmp(sp->pkt_hdr.eh.ether_dhost,
+		     wh->eh.ether_shost, ETHER_ADDR_LEN) == 0) {
 			break;
 		}
 	}
@@ -594,16 +582,14 @@ pppoe_findsession(node_p node, const struct pppoe_full_hdr *wh)
 static hook_p
 pppoe_finduniq(node_p node, const struct pppoe_tag *tag)
 {
-	priv_p	privp = NG_NODE_PRIVATE(node);
 	hook_p	hook = NULL;
 	union uniq uniq;
 
 	bcopy(tag->tag_data, uniq.bytes, sizeof(void *));
 	/* Cycle through all known hooks. */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
-		/* Don't check special hooks. */
-		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
-		||  (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
+		/* Skip any nonsession hook. */
+		if (NG_HOOK_PRIVATE(hook) == NULL)
 			continue;
 		if (uniq.pointer == NG_HOOK_PRIVATE(hook))
 			break;
@@ -661,10 +647,8 @@ ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 
 	if (strcmp(name, NG_PPPOE_HOOK_ETHERNET) == 0) {
 		privp->ethernet_hook = hook;
-		NG_HOOK_SET_PRIVATE(hook, &privp->ethernet_hook);
 	} else if (strcmp(name, NG_PPPOE_HOOK_DEBUG) == 0) {
 		privp->debug_hook = hook;
-		NG_HOOK_SET_PRIVATE(hook, &privp->debug_hook);
 	} else {
 		/*
 		 * Any other unique name is OK.
@@ -781,11 +765,10 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (hook == NULL)
 				LEAVE(ENOENT);
 
-			if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook) ||
-			    (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook))
-				LEAVE(EINVAL);
-
 			sp = NG_HOOK_PRIVATE(hook);
+
+			if (sp == NULL)
+				LEAVE(EINVAL);
 
 			if (msg->header.cmd == NGM_PPPOE_LISTEN) {
 				/*
@@ -1146,14 +1129,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 	    __func__, node->nd_ID, node, item, hook->hk_name, hook);
 
 	NGI_GET_M(item, m);
-	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
+	if (hook == privp->debug_hook) {
 		/*
 		 * Data from the debug hook gets sent without modification
 		 * straight to the ethernet.
 		 */
 		NG_FWD_ITEM_HOOK( error, item, privp->ethernet_hook);
 	 	privp->packets_out++;
-	} else if (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook) {
+	} else if (hook == privp->ethernet_hook) {
 		/*
 		 * Incoming data.
 		 * Dig out various fields from the packet.
@@ -1552,15 +1535,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 			/*
 			 * Bang in a pre-made header, and set the length up
 			 * to be correct. Then send it to the ethernet driver.
-			 * But first correct the length.
 			 */
-			sp->pkt_hdr.ph.length = htons((short)(m->m_pkthdr.len));
 			M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
 			if (m == NULL)
 				LEAVE(ENOBUFS);
 
 			wh = mtod(m, struct pppoe_full_hdr *);
 			bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+			wh->ph.length = htons(m->m_pkthdr.len - sizeof(*wh));
 			NG_FWD_NEW_DATA( error, item, privp->ethernet_hook, m);
 			privp->packets_out++;
 			break;
@@ -1679,12 +1661,10 @@ ng_pppoe_disconnect(hook_p hook)
 	node_p node = NG_HOOK_NODE(hook);
 	priv_p privp = NG_NODE_PRIVATE(node);
 	sessp	sp;
-	int 	hooks;
 
-	hooks = NG_NODE_NUMHOOKS(node); /* This one already not counted. */
-	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
+	if (hook == privp->debug_hook) {
 		privp->debug_hook = NULL;
-	} else if (NG_HOOK_PRIVATE(hook) == &privp->ethernet_hook) {
+	} else if (hook == privp->ethernet_hook) {
 		privp->ethernet_hook = NULL;
 		if (NG_NODE_IS_VALID(node))
 			ng_rmnode_self(node);
@@ -1702,23 +1682,6 @@ ng_pppoe_disconnect(hook_p hook)
 		&& ((sp->state == PPPOE_CONNECTED)
 		 || (sp->state == PPPOE_NEWCONNECTED))) {
 			struct mbuf *m;
-			struct pppoe_full_hdr *wh;
-			struct pppoe_tag *tag;
-			int	msglen = strlen(SIGNOFF);
-			int error = 0;
-
-			/* Revert the stored header to DISC/PADT mode. */
-		 	wh = &sp->pkt_hdr;
-			wh->ph.code = PADT_CODE;
-			/*
-			 * Configure ethertype depending on what was used
-			 * during sessions stage.
-			 */
-			if (sp->pkt_hdr.eh.ether_type ==
-			    ETHERTYPE_PPPOE_3COM_SESS)
-				wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
-			else
-				wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 
 			/* Generate a packet of that type. */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1726,15 +1689,31 @@ ng_pppoe_disconnect(hook_p hook)
 				log(LOG_NOTICE, "ng_pppoe[%x]: session out of "
 				    "mbufs\n", node->nd_ID);
 			else {
+				struct pppoe_full_hdr *wh;
+				struct pppoe_tag *tag;
+				int	msglen = strlen(SIGNOFF);
+				int	error = 0;
+
 				m->m_pkthdr.rcvif = NULL;
 				m->m_pkthdr.len = m->m_len = sizeof(*wh);
-				bcopy((caddr_t)wh, mtod(m, caddr_t),
-				    sizeof(*wh));
+				wh = mtod(m, struct pppoe_full_hdr *);
+				bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+
+				/* Revert the stored header to DISC/PADT mode. */
+				wh->ph.code = PADT_CODE;
+				/*
+				 * Configure ethertype depending on what
+				 * was used during sessions stage.
+				 */
+				if (wh->eh.ether_type == 
+				    ETHERTYPE_PPPOE_3COM_SESS)
+					wh->eh.ether_type = ETHERTYPE_PPPOE_3COM_DISC;
+				else
+					wh->eh.ether_type = ETHERTYPE_PPPOE_DISC;
 				/*
 				 * Add a General error message and adjust
 				 * sizes.
 				 */
-				wh = mtod(m, struct pppoe_full_hdr *);
 				tag = wh->ph.tag;
 				tag->tag_type = PTT_GEN_ERR;
 				tag->tag_len = htons((u_int16_t)msglen);
@@ -1758,15 +1737,6 @@ ng_pppoe_disconnect(hook_p hook)
 		}
 		free(sp, M_NETGRAPH_PPPOE);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
-
-		/*
-		 * Work out how many session hooks there are.
-		 * Node goes away on last session hook removal.
-		 */
-		if (privp->ethernet_hook)
-			hooks -= 1;
-		if (privp->debug_hook)
-			hooks -= 1;
 	}
 	if ((NG_NODE_NUMHOOKS(node) == 0) &&
 	    (NG_NODE_IS_VALID(node)))
