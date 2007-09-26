@@ -72,7 +72,6 @@ esp	sparc64
 ex	i386,amd64
 fe	i386,pc98,amd64
 fwohci	i386,sparc64,ia64,amd64,powerpc
-gem	sparc64,powerpc
 hifn	i386,pc98,amd64
 hptiop	i386,amd64
 hptmv	i386,amd64
