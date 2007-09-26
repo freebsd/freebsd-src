@@ -87,7 +87,7 @@ SUBDIR=	${_3dfx} \
 	firewire \
 	firmware \
 	fxp \
-	${_gem} \
+	gem \
 	geom \
 	${_harp} \
 	hatm \
@@ -579,7 +579,6 @@ _ath_hal=	ath_hal
 _ath_rate_amrr=	ath_rate_amrr
 _ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
-_gem=		gem
 _powermac_nvram=	powermac_nvram
 _smbfs=		smbfs
 .endif
@@ -592,7 +591,6 @@ _ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
 _auxio=		auxio
 _em=		em
-_gem=		gem
 _i2c=		i2c
 _sound=		sound
 .endif

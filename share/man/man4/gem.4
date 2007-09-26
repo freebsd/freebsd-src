@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2007
+.Dd September 26, 2007
 .Dt GEM 4
 .Os
 .Sh NAME
@@ -74,6 +74,17 @@ Sun ERI 10/100 Mbps Ethernet
 .It
 Sun GEM Gigabit Ethernet
 .El
+.Pp
+The
+following add-on cards are known to work with the
+.Nm
+driver at this time:
+.Pp
+.Bl -bullet -compact
+.It
+Sun Gigabit Ethernet PCI 2.0/3.0 (GBE/P)
+(part no.\& 501-4373)
+.El
 .Sh NOTES
 On sparc64 the
 .Nm
@@ -100,11 +111,7 @@ and the Sun Gigabit Ethernet 2.0/3.0 GBE add-on cards.
 .Sh CAVEATS
 Currently the
 .Nm
-driver fails to attach to Sun Gigabit Ethernet 2.0/3.0 (GBE/P) cards,
-as the SERDES used on these cards is not supported so far.
-The
-.Nm
-driver will also fail to probe and attach to Sun Gigabit Ethernet 2.0/3.0 (GBE/S) cards,
+driver fails to attach to Sun Gigabit Ethernet SBus 2.0/3.0 (GBE/S) cards,
 as no SBus front-end has been written so far.
 .Sh SEE ALSO
 .Xr altq 4 ,
