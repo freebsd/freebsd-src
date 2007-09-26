@@ -19,7 +19,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ipnat ipsec ipxrouted isdnd \
 	jail \
 	kadmind kerberos keyserv kldxref kpasswdd \
-	ldconfig local localpkg lpd \
+	ldconfig local localpkg lockd lpd \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions \
@@ -32,7 +32,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	ramdisk ramdisk-own random rarpd resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
-	serial sppp swap1 \
+	serial sppp statd swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
 	ugidfw usbd \
