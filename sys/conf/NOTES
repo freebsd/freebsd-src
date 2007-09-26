@@ -1766,6 +1766,7 @@ device		miibus
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
 # fxp:  Intel EtherExpress Pro/100B
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
+# gem:  Apple GMAC/Sun ERI/Sun GEM
 # hme:  Sun HME (Happy Meal Ethernet)
 # le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
@@ -1880,6 +1881,7 @@ device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 hint.fxp.0.prefer_iomap="0"
+device		gem		# Apple GMAC/Sun ERI/Sun GEM
 device		hme		# Sun HME (Happy Meal Ethernet)
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
