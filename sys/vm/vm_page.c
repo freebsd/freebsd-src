@@ -794,28 +794,55 @@ vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 }
 
 /*
- *	Convert all of the cached pages belonging to the given object
- *	into free pages.  If the given object has cached pages and is
- *	backed by a vnode, reduce the vnode's hold count.
+ *	Convert all of the given object's cached pages that have a
+ *	pindex within the given range into free pages.  If the value
+ *	zero is given for "end", then the range's upper bound is
+ *	infinity.  If the given object is backed by a vnode and it
+ *	transitions from having one or more cached pages to none, the
+ *	vnode's hold count is reduced. 
  */
 void
-vm_page_cache_free(vm_object_t object)
+vm_page_cache_free(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 {
-	vm_page_t m, root;
+	vm_page_t m, m_next;
 	boolean_t empty;
 
 	mtx_lock(&vm_page_queue_free_mtx);
-	empty = object->cache == NULL;
-	while ((m = object->cache) != NULL) {
-		if (m->left == NULL)
-			root = m->right;
-		else if (m->right == NULL)
-			root = m->left;
+	if (__predict_false(object->cache == NULL)) {
+		mtx_unlock(&vm_page_queue_free_mtx);
+		return;
+	}
+	m = object->cache = vm_page_splay(start, object->cache);
+	if (m->pindex < start) {
+		if (m->right == NULL)
+			m = NULL;
 		else {
-			root = vm_page_splay(m->pindex, m->left);
-			root->right = m->right;
+			m_next = vm_page_splay(start, m->right);
+			m_next->left = m;
+			m->right = NULL;
+			m = object->cache = m_next;
 		}
-		m->object->cache = root;
+	}
+
+	/*
+	 * At this point, "m" is either (1) a reference to the page
+	 * with the least pindex that is greater than or equal to
+	 * "start" or (2) NULL.
+	 */
+	for (; m != NULL && (m->pindex < end || end == 0); m = m_next) {
+		/*
+		 * Find "m"'s successor and remove "m" from the
+		 * object's cache.
+		 */
+		if (m->right == NULL) {
+			object->cache = m->left;
+			m_next = NULL;
+		} else {
+			m_next = vm_page_splay(start, m->right);
+			m_next->left = m->left;
+			object->cache = m_next;
+		}
+		/* Convert "m" to a free page. */
 		m->object = NULL;
 		m->valid = 0;
 		/* Clear PG_CACHED and set PG_FREE. */
@@ -825,8 +852,9 @@ vm_page_cache_free(vm_object_t object)
 		cnt.v_cache_count--;
 		cnt.v_free_count++;
 	}
+	empty = object->cache == NULL;
 	mtx_unlock(&vm_page_queue_free_mtx);
-	if (object->type == OBJT_VNODE && !empty)
+	if (object->type == OBJT_VNODE && empty)
 		vdrop(object->handle);
 }
 

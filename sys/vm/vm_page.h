@@ -320,7 +320,7 @@ void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache (register vm_page_t);
-void vm_page_cache_free(vm_object_t);
+void vm_page_cache_free(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_page_cache_remove(vm_page_t);
 void vm_page_cache_transfer(vm_object_t, vm_pindex_t, vm_object_t);
 int vm_page_try_to_cache (vm_page_t);
