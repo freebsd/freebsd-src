@@ -135,6 +135,7 @@ rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
 rik [label="Roman Kurakin\nrik@FreeBSD.org\n2003/12/18"]
 rink [label="Rink Springer\nrink@FreeBSD.org\n2006/01/16"]
+rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
 rse [label="Ralf S. Engelschall\nrse@FreeBSD.org\n1997/07/31"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
@@ -302,6 +303,7 @@ netchild -> ariff
 njl -> marks
 njl -> philip
 njl -> sepotvin
+njl -> rpaulo
 
 obrien -> benno
 obrien -> groudier
