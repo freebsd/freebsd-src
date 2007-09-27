@@ -137,13 +137,10 @@ sx_init(struct sx *sx, const char *description)
 void
 sx_init_flags(struct sx *sx, const char *description, int opts)
 {
-	struct lock_object *lock;
 	int flags;
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
 	    SX_NOPROFILE | SX_ADAPTIVESPIN)) == 0);
-
-	bzero(sx, sizeof(*sx));
 
 	flags = LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
@@ -156,23 +153,17 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	flags |= opts & (SX_ADAPTIVESPIN | SX_RECURSE);
 	sx->sx_lock = SX_LOCK_UNLOCKED;
 	sx->sx_recurse = 0;
-	lock = &sx->lock_object;
-	lock->lo_class = &lock_class_sx;
-	lock->lo_flags = flags;
-	lock->lo_name = lock->lo_type = description;
-	LOCK_LOG_INIT(lock, opts);
-	WITNESS_INIT(lock);
+	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
 }
 
 void
 sx_destroy(struct sx *sx)
 {
-	LOCK_LOG_DESTROY(&sx->lock_object, 0);
 
 	KASSERT(sx->sx_lock == SX_LOCK_UNLOCKED, ("sx lock still held"));
 	KASSERT(sx->sx_recurse == 0, ("sx lock still recursed"));
 	sx->sx_lock = SX_LOCK_DESTROYED;
-	WITNESS_DESTROY(&sx->lock_object);
+	lock_destroy(&sx->lock_object);
 }
 
 int
@@ -520,11 +511,9 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		 * lock and the exclusive waiters flag is set, we have
 		 * to sleep.
 		 */
-#if 0
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on sleep queue",
 			    __func__, sx);
-#endif
 
 		GIANT_SAVE();
 		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
