@@ -90,32 +90,18 @@ struct turnstile;
 void	init_turnstiles(void);
 void	turnstile_adjust(struct thread *, u_char);
 struct turnstile *turnstile_alloc(void);
-#define turnstile_wakeup(turnstile) turnstile_broadcast(turnstile)
-#define	turnstile_broadcast(turnstile) \
-    turnstile_broadcast_queue(turnstile, TS_EXCLUSIVE_QUEUE)
-void	turnstile_broadcast_queue(struct turnstile *, int);
+void	turnstile_broadcast(struct turnstile *, int);
 void	turnstile_claim(struct lock_object *);
 void	turnstile_disown(struct turnstile *);
-#define	turnstile_empty(turnstile)  \
-    turnstile_empty_queue(turnstile, TS_EXCLUSIVE_QUEUE);
-int	turnstile_empty_queue(struct turnstile *, int);
+int	turnstile_empty(struct turnstile *, int);
 void	turnstile_free(struct turnstile *);
-#define	turnstile_head(turnstile)   \
-    turnstile_head_queue(turnstile, TS_EXCLUSIVE_QUEUE)
-struct thread *turnstile_head_queue(struct turnstile *, int);
+struct thread *turnstile_head(struct turnstile *, int);
 void	turnstile_lock(struct lock_object *);
 struct turnstile *turnstile_lookup(struct lock_object *);
 void	turnstile_release(struct lock_object *);
-#define turnstile_signal(turnstile) \
-    turnstile_signal_queue(turnstile, TS_EXCLUSIVE_QUEUE)
-int	turnstile_signal_queue(struct turnstile *, int);
-struct turnstile *turnstile_trywait(struct lock_object *);
-#define	turnstile_unpend(turnstile) \
-    turnstile_unpend_queue(turnstile, TS_EXCLUSIVE_QUEUE);
-void	turnstile_unpend_queue(struct turnstile *, int);
-#define turnstile_wait(lock_object, thread) \
-    turnstile_wait_queue(lock_object, thread, TS_EXCLUSIVE_QUEUE) 
-void	turnstile_wait_queue(struct lock_object *, struct thread *, int);
+int	turnstile_signal(struct turnstile *, int);
+void	turnstile_unpend(struct turnstile *, int);
+void	turnstile_wait(struct lock_object *, struct thread *, int);
 
 #endif	/* _KERNEL */
 #endif	/* _SYS_TURNSTILE_H_ */

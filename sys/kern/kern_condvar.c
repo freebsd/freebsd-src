@@ -124,7 +124,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -178,7 +178,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	mtx_unlock(mp);
 
 	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
-	    SLEEPQ_INTERRUPTIBLE);
+	    SLEEPQ_INTERRUPTIBLE, 0);
 	rval = sleepq_wait_sig(cvp);
 
 #ifdef KTRACE
@@ -231,7 +231,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
 
@@ -289,7 +289,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock(mp);
 
 	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
-	    SLEEPQ_INTERRUPTIBLE);
+	    SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait_sig(cvp);
 
@@ -318,7 +318,7 @@ cv_signal(struct cv *cvp)
 	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters--;
-		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1);
+		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1, 0);
 	} else
 		sleepq_release(cvp);
 }
@@ -334,7 +334,7 @@ cv_broadcastpri(struct cv *cvp, int pri)
 	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters = 0;
-		sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri);
+		sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri, 0);
 	} else
 		sleepq_release(cvp);
 }

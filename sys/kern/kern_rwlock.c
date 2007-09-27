@@ -310,7 +310,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
-		turnstile_wait_queue(&rw->lock_object, rw_owner(rw),
+		turnstile_wait(&rw->lock_object, rw_owner(rw),
 		    TS_SHARED_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
@@ -440,8 +440,8 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		 */
 		ts = turnstile_lookup(&rw->lock_object);
 		MPASS(ts != NULL);
-		turnstile_broadcast_queue(ts, TS_EXCLUSIVE_QUEUE);
-		turnstile_unpend_queue(ts, TS_SHARED_LOCK);
+		turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
+		turnstile_unpend(ts, TS_SHARED_LOCK);
 		break;
 	}
 	lock_profile_release_lock(&rw->lock_object);
@@ -556,7 +556,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
-		turnstile_wait_queue(&rw->lock_object, rw_owner(rw),
+		turnstile_wait(&rw->lock_object, rw_owner(rw),
 		    TS_EXCLUSIVE_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
@@ -637,7 +637,7 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		queue = TS_SHARED_QUEUE;
 #ifdef ADAPTIVE_RWLOCKS
 		if (rw->rw_lock & RW_LOCK_WRITE_WAITERS &&
-		    !turnstile_empty_queue(ts, TS_EXCLUSIVE_QUEUE))
+		    !turnstile_empty(ts, TS_EXCLUSIVE_QUEUE))
 			v |= RW_LOCK_WRITE_WAITERS;
 #else
 		v |= (rw->rw_lock & RW_LOCK_WRITE_WAITERS);
@@ -651,7 +651,7 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	 * wakeup.  If they are all spinning, then we just need to
 	 * disown the turnstile and return.
 	 */
-	if (turnstile_empty_queue(ts, queue)) {
+	if (turnstile_empty(ts, queue)) {
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p no sleepers 2", __func__, rw);
 		atomic_store_rel_ptr(&rw->rw_lock, v);
@@ -665,9 +665,9 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
 		CTR3(KTR_LOCK, "%s: %p waking up %s waiters", __func__, rw,
 		    queue == TS_SHARED_QUEUE ? "read" : "write");
-	turnstile_broadcast_queue(ts, queue);
+	turnstile_broadcast(ts, queue);
 	atomic_store_rel_ptr(&rw->rw_lock, v);
-	turnstile_unpend_queue(ts, TS_EXCLUSIVE_LOCK);
+	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 }
 
 /*
@@ -786,20 +786,20 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	if (ts == NULL)
 		v &= ~(RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS);
 	else if (v & RW_LOCK_READ_WAITERS &&
-	    turnstile_empty_queue(ts, TS_SHARED_QUEUE))
+	    turnstile_empty(ts, TS_SHARED_QUEUE))
 		v &= ~RW_LOCK_READ_WAITERS;
 	else if (v & RW_LOCK_WRITE_WAITERS &&
-	    turnstile_empty_queue(ts, TS_EXCLUSIVE_QUEUE))
+	    turnstile_empty(ts, TS_EXCLUSIVE_QUEUE))
 		v &= ~RW_LOCK_WRITE_WAITERS;
 #else
 	MPASS(ts != NULL);
 #endif
 	if (v & RW_LOCK_READ_WAITERS)
-		turnstile_broadcast_queue(ts, TS_SHARED_QUEUE);
+		turnstile_broadcast(ts, TS_SHARED_QUEUE);
 	atomic_store_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) |
 	    (v & RW_LOCK_WRITE_WAITERS));
 	if (v & RW_LOCK_READ_WAITERS) {
-		turnstile_unpend_queue(ts, TS_EXCLUSIVE_LOCK);
+		turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 	} else if (ts) {
 		turnstile_disown(ts);
 		turnstile_release(&rw->lock_object);
