@@ -144,13 +144,6 @@ SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
 #endif
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
-
-/* XXX: stats, remove me */
-static u_int turnstile_nullowners;
-SYSCTL_UINT(_debug, OID_AUTO, turnstile_nullowners, CTLFLAG_RD,
-    &turnstile_nullowners, 0, "called with null owner on a shared queue");
-
-
 static uma_zone_t turnstile_zone;
 
 /*
@@ -626,12 +619,10 @@ turnstile_wait_queue(struct lock_object *lock, struct thread *owner, int queue)
 	tc = TC_LOOKUP(lock);
 	mtx_assert(&tc->tc_lock, MA_OWNED);
 	MPASS(td->td_turnstile != NULL);
+	if (queue == TS_SHARED_QUEUE)
+		MPASS(owner != NULL);
 	if (owner)
 		MPASS(owner->td_proc->p_magic == P_MAGIC);
-	/* XXX: stats, remove me */
-	if (!owner && queue == TS_SHARED_QUEUE) {
-		turnstile_nullowners++;
-	}
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
 
 	/* Look up the turnstile associated with the lock 'lock'. */
@@ -714,6 +705,7 @@ turnstile_wait_queue(struct lock_object *lock, struct thread *owner, int queue)
 #endif
 
 	/* Save who we are blocked on and switch. */
+	td->td_tsqueue = queue;
 	td->td_blocked = ts;
 	td->td_lockname = lock->lo_name;
 	TD_SET_LOCK(td);
@@ -747,7 +739,6 @@ turnstile_signal_queue(struct turnstile *ts, int queue)
 
 	MPASS(ts != NULL);
 	MPASS(curthread->td_proc->p_magic == P_MAGIC);
-	MPASS(ts->ts_owner == curthread);
 	tc = TC_LOOKUP(ts->ts_lockobj);
 	mtx_assert(&tc->tc_lock, MA_OWNED);
 	MPASS(ts->ts_owner == curthread ||
@@ -868,12 +859,15 @@ turnstile_unpend_queue(struct turnstile *ts, int owner_type)
 	 * Remove the turnstile from this thread's list of contested locks
 	 * since this thread doesn't own it anymore.  New threads will
 	 * not be blocking on the turnstile until it is claimed by a new
-	 * owner.
+	 * owner.  There might not be a current owner if this is a shared
+	 * lock.
 	 */
-	mtx_lock_spin(&td_contested_lock);
-	ts->ts_owner = NULL;
-	LIST_REMOVE(ts, ts_link);
-	mtx_unlock_spin(&td_contested_lock);
+	if (ts->ts_owner != NULL) {
+		mtx_lock_spin(&td_contested_lock);
+		ts->ts_owner = NULL;
+		LIST_REMOVE(ts, ts_link);
+		mtx_unlock_spin(&td_contested_lock);
+	}
 	critical_enter();
 	mtx_unlock_spin(&tc->tc_lock);
 
@@ -908,6 +902,9 @@ turnstile_unpend_queue(struct turnstile *ts, int owner_type)
 		if (TD_ON_LOCK(td)) {
 			td->td_blocked = NULL;
 			td->td_lockname = NULL;
+#ifdef INVARIANTS
+			td->td_tsqueue = 0xff;
+#endif
 			TD_CLR_LOCK(td);
 			MPASS(TD_CAN_RUN(td));
 			setrunqueue(td, SRQ_BORING);
