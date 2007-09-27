@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_no_adaptive_rwlocks.h"
 
 #include <sys/param.h>
 #include <sys/ktr.h>
@@ -44,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
-#include <sys/lock_profile.h>
+
 #include <machine/cpu.h>
 
 CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
@@ -100,7 +101,6 @@ struct lock_class lock_class_rw = {
 void
 rw_init_flags(struct rwlock *rw, const char *name, int opts)
 {
-	struct lock_object *lock;
 	int flags;
 
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
@@ -117,23 +117,17 @@ rw_init_flags(struct rwlock *rw, const char *name, int opts)
 
 	rw->rw_lock = RW_UNLOCKED;
 	rw->rw_recurse = 0;
-	lock = &rw->lock_object;
-	lock->lo_class = &lock_class_rw;
-	lock->lo_flags = flags;
-	lock->lo_name = lock->lo_type = name;
-	LOCK_LOG_INIT(lock, opts);
-	WITNESS_INIT(lock);
+	lock_init(&rw->lock_object, &lock_class_rw, name, NULL, flags);
 }
 
 void
 rw_destroy(struct rwlock *rw)
 {
 
-	LOCK_LOG_DESTROY(&rw->lock_object, 0);
 	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
 	KASSERT(rw->rw_recurse == 0, ("rw lock still recursed"));
 	rw->rw_lock = RW_DESTROYED;
-	WITNESS_DESTROY(&rw->lock_object);
+	lock_destroy(&rw->lock_object);
 }
 
 void
@@ -291,12 +285,12 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		}
 
 #ifdef ADAPTIVE_RWLOCKS
-		owner = (struct thread *)RW_OWNER(x);
 		/*
 		 * If the owner is running on another CPU, spin until
 		 * the owner stops running or the state of the lock
 		 * changes.
 		 */
+		owner = (struct thread *)RW_OWNER(x);
 		if (TD_IS_RUNNING(owner)) {
 			turnstile_release(&rw->lock_object);
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -461,7 +455,6 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 void
 _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 {
-	//struct turnstile *ts;
 #ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
