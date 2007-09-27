@@ -627,7 +627,7 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	/* Remove the thread from the queue. */
-	TAILQ_REMOVE(&sq->sq_blocked[td->td_sqqueue], td, td_slpq);
+	TAILQ_REMOVE(&sq->sq_blocked[(int)td->td_sqqueue], td, td_slpq);
 
 	/*
 	 * Get a sleep queue for this thread.  If this is the last waiter,
