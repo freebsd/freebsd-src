@@ -653,7 +653,7 @@ vm_object_terminate(vm_object_t object)
 	vm_page_unlock_queues();
 
 	if (__predict_false(object->cache != NULL))
-		vm_page_cache_free(object);
+		vm_page_cache_free(object, 0, 0);
 
 	/*
 	 * Let the pager know object is dead.
@@ -1680,7 +1680,7 @@ vm_object_collapse(vm_object_t object)
 				 * Free any cached pages from backing_object.
 				 */
 				if (__predict_false(backing_object->cache != NULL))
-					vm_page_cache_free(backing_object);
+					vm_page_cache_free(backing_object, 0, 0);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1849,6 +1849,8 @@ again:
 	}
 	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
+	if (__predict_false(object->cache != NULL))
+		vm_page_cache_free(object, start, end);
 }
 
 /*
