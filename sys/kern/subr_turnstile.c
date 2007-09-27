@@ -104,8 +104,9 @@ __FBSDID("$FreeBSD$");
  * when it is attached to a lock.  The second list to use ts_hash is the
  * free list hung off of a turnstile that is attached to a lock.
  *
- * Each turnstile contains two lists of threads.  The ts_blocked list is
- * a linked list of threads blocked on the turnstile's lock.  The
+ * Each turnstile contains three lists of threads.  The two ts_blocked lists
+ * are linked list of threads blocked on the turnstile's lock.  One list is
+ * for exclusive waiters, and the other is for shared waiters.  The
  * ts_pending list is a linked list of threads previously awakened by
  * turnstile_signal() or turnstile_wait() that are waiting to be put on
  * the run queue.
@@ -115,9 +116,8 @@ __FBSDID("$FreeBSD$");
  *  q - td_contested lock
  */
 struct turnstile {
-	/* struct mtx ts_lock;	*/		/* Spin lock for self. */
-	TAILQ_HEAD(, thread) ts_blocked[2];	/* (c + q) Blocked threads. */
-	TAILQ_HEAD(, thread) ts_pending;	/* (c) Pending threads. */
+	struct threadqueue ts_blocked[2];	/* (c + q) Blocked threads. */
+	struct threadqueue ts_pending;		/* (c) Pending threads. */
 	LIST_ENTRY(turnstile) ts_hash;		/* (c) Chain and free list. */
 	LIST_ENTRY(turnstile) ts_link;		/* (q) Contested locks. */
 	LIST_HEAD(, turnstile) ts_free;		/* (c) Free turnstiles. */
@@ -156,6 +156,7 @@ static void	init_turnstile_profiling(void *arg);
 static void	propagate_priority(struct thread *td);
 static int	turnstile_adjust_thread(struct turnstile *ts,
 		    struct thread *td);
+static struct thread *turnstile_first_waiter(struct turnstile *ts);
 static void	turnstile_setowner(struct turnstile *ts, struct thread *owner);
 #ifdef INVARIANTS
 static void	turnstile_dtor(void *mem, int size, void *arg);
@@ -182,9 +183,8 @@ propagate_priority(struct thread *td)
 
 		if (td == NULL) {
 			/*
-			 * This really isn't quite right. Really
-			 * ought to bump priority of thread that
-			 * next acquires the lock.
+			 * This might be a read lock with no owner.  There's
+			 * not much we can do, so just bail.
 			 */
 			return;
 		}
@@ -447,6 +447,8 @@ turnstile_setowner(struct turnstile *ts, struct thread *owner)
 
 	mtx_assert(&td_contested_lock, MA_OWNED);
 	MPASS(ts->ts_owner == NULL);
+
+	/* A shared lock might not have an owner. */
 	if (owner == NULL)
 		return;
 
@@ -667,10 +669,10 @@ turnstile_wait_queue(struct lock_object *lock, struct thread *owner, int queue)
 			TAILQ_INSERT_BEFORE(td1, td, td_lockq);
 		else
 			TAILQ_INSERT_TAIL(&ts->ts_blocked[queue], td, td_lockq);
+		MPASS(owner == ts->ts_owner);
 		mtx_unlock_spin(&td_contested_lock);
 		MPASS(td->td_turnstile != NULL);
 		LIST_INSERT_HEAD(&ts->ts_free, td->td_turnstile, ts_hash);
-		MPASS(owner == ts->ts_owner);
 	}
 	td->td_turnstile = NULL;
 	mtx_unlock_spin(&tc->tc_lock);
@@ -739,10 +741,10 @@ turnstile_signal_queue(struct turnstile *ts, int queue)
 
 	MPASS(ts != NULL);
 	MPASS(curthread->td_proc->p_magic == P_MAGIC);
-	tc = TC_LOOKUP(ts->ts_lockobj);
-	mtx_assert(&tc->tc_lock, MA_OWNED);
 	MPASS(ts->ts_owner == curthread ||
 	    (queue == TS_EXCLUSIVE_QUEUE && ts->ts_owner == NULL));
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
 
 	/*
@@ -791,7 +793,7 @@ turnstile_broadcast_queue(struct turnstile *ts, int queue)
 	MPASS(ts != NULL);
 	MPASS(curthread->td_proc->p_magic == P_MAGIC);
 	MPASS(ts->ts_owner == curthread ||
-		    (queue == TS_EXCLUSIVE_QUEUE && ts->ts_owner == NULL));
+	    (queue == TS_EXCLUSIVE_QUEUE && ts->ts_owner == NULL));
 	tc = TC_LOOKUP(ts->ts_lockobj);
 	mtx_assert(&tc->tc_lock, MA_OWNED);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
@@ -805,7 +807,7 @@ turnstile_broadcast_queue(struct turnstile *ts, int queue)
 
 	/*
 	 * Give a turnstile to each thread.  The last thread gets
-	 * this turnstile.
+	 * this turnstile if the turnstile is empty.
 	 */
 	TAILQ_FOREACH(td, &ts->ts_pending, td_lockq) {
 		if (LIST_EMPTY(&ts->ts_free)) {
@@ -832,7 +834,6 @@ turnstile_unpend_queue(struct turnstile *ts, int owner_type)
 {
 	TAILQ_HEAD( ,thread) pending_threads;
 	struct turnstile_chain *tc;
-	struct turnstile *nts;
 	struct thread *td;
 	u_char cp, pri;
 
@@ -880,8 +881,8 @@ turnstile_unpend_queue(struct turnstile *ts, int owner_type)
 	pri = PRI_MAX;
 	mtx_lock_spin(&sched_lock);
 	mtx_lock_spin(&td_contested_lock);
-	LIST_FOREACH(nts, &td->td_contested, ts_link) {
-		cp = turnstile_first_waiter(nts)->td_priority;
+	LIST_FOREACH(ts, &td->td_contested, ts_link) {
+		cp = turnstile_first_waiter(ts)->td_priority;
 		if (cp < pri)
 			pri = cp;
 	}
@@ -976,11 +977,28 @@ turnstile_head_queue(struct turnstile *ts, int queue)
 	struct turnstile_chain *tc;
 
 	MPASS(ts != NULL);
-	tc = TC_LOOKUP(ts->ts_lockobj);
 	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
+	tc = TC_LOOKUP(ts->ts_lockobj);
 	mtx_assert(&tc->tc_lock, MA_OWNED);
 #endif
 	return (TAILQ_FIRST(&ts->ts_blocked[queue]));
+}
+
+/*
+ * Returns true if a sub-queue of a turnstile is empty.
+ */
+int
+turnstile_empty_queue(struct turnstile *ts, int queue)
+{
+#ifdef INVARIANTS
+	struct turnstile_chain *tc;
+
+	MPASS(ts != NULL);
+	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+#endif
+	return (TAILQ_EMPTY(&ts->ts_blocked[queue]));
 }
 
 #ifdef DDB
@@ -1051,10 +1069,11 @@ found:
 		print_thread(ts->ts_owner, "Lock Owner: ");
 	else
 		db_printf("Lock Owner: none\n");
-	print_queue((struct threadqueue *)&ts->ts_blocked[TS_SHARED_QUEUE], "Shared Waiters", "\t");
-	print_queue((struct threadqueue *)&ts->ts_blocked[TS_EXCLUSIVE_QUEUE], "Exclusive Waiters", "\t");
-	print_queue((struct threadqueue *)&ts->ts_pending, "Pending Threads",
-	    "\t");	
+	print_queue(&ts->ts_blocked[TS_SHARED_QUEUE], "Shared Waiters", "\t");
+	print_queue(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE], "Exclusive Waiters",
+	    "\t");
+	print_queue(&ts->ts_pending, "Pending Threads", "\t");
+	
 }
 
 /*
@@ -1276,20 +1295,3 @@ DB_SHOW_COMMAND(locktree, db_show_locktree)
 		print_waiters(ts, 0);
 }
 #endif
-
-/*
- * Returns true if a turnstile is empty.
- */
-int
-turnstile_empty_queue(struct turnstile *ts, int queue)
-{
-#ifdef INVARIANTS
-	struct turnstile_chain *tc;
-
-	MPASS(ts != NULL);
-	tc = TC_LOOKUP(ts->ts_lockobj);
-	mtx_assert(&tc->tc_lock, MA_OWNED);
-	MPASS(queue == TS_SHARED_QUEUE || queue == TS_EXCLUSIVE_QUEUE);
-#endif
-	return (TAILQ_EMPTY(&ts->ts_blocked[queue]));
-}
