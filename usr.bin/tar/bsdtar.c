@@ -143,6 +143,7 @@ enum {
 	OPTION_NO_SAME_PERMISSIONS,
 	OPTION_NULL,
 	OPTION_ONE_FILE_SYSTEM,
+	OPTION_POSIX,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
 	OPTION_USE_COMPRESS_PROGRAM,
@@ -194,6 +195,7 @@ static const struct option tar_longopts[] = {
 	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
 	{ "null",		no_argument,	   NULL, OPTION_NULL },
 	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
+	{ "posix",		no_argument,	   NULL, OPTION_POSIX },
 	{ "preserve-permissions", no_argument,     NULL, 'p' },
 	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
 	{ "same-permissions",   no_argument,       NULL, 'p' },
@@ -480,6 +482,9 @@ main(int argc, char **argv)
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_ACL;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
+			break;
+		case OPTION_POSIX: /* GNU tar */
+			bsdtar->create_format = "pax";
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
