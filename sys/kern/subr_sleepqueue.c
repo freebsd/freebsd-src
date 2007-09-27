@@ -270,7 +270,7 @@ sleepq_release(void *wchan)
  * woken up.
  */
 void
-sleepq_add_queue(void *wchan, struct mtx *lock, const char *wmesg, int flags,
+sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags,
     int queue)
 {
 	struct sleepqueue_chain *sc;
@@ -705,7 +705,7 @@ sleepq_init(void *mem, int size, int flags)
  * Find the highest priority thread sleeping on a wait channel and resume it.
  */
 void
-sleepq_signal_queue(void *wchan, int flags, int pri, int queue)
+sleepq_signal(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
 	struct thread *td, *besttd;
@@ -743,7 +743,7 @@ sleepq_signal_queue(void *wchan, int flags, int pri, int queue)
  * Resume all threads sleeping on a specified wait channel.
  */
 void
-sleepq_broadcast_queue(void *wchan, int flags, int pri, int queue)
+sleepq_broadcast(void *wchan, int flags, int pri, int queue)
 {
 	struct sleepqueue *sq;
 

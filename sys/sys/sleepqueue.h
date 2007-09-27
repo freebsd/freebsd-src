@@ -90,28 +90,20 @@ struct thread;
 
 void	init_sleepqueues(void);
 void	sleepq_abort(struct thread *td, int intrval);
-void	sleepq_add_queue(void *, struct mtx *, const char *, int, int);
+void	sleepq_add(void *, struct mtx *, const char *, int, int);
 struct sleepqueue *sleepq_alloc(void);
-void	sleepq_broadcast_queue(void *, int, int, int);
+void	sleepq_broadcast(void *, int, int, int);
 void	sleepq_free(struct sleepqueue *);
 void	sleepq_lock(void *);
 struct sleepqueue *sleepq_lookup(void *);
 void	sleepq_release(void *);
 void	sleepq_remove(struct thread *, void *);
-void	sleepq_signal_queue(void *, int, int, int);
+void	sleepq_signal(void *, int, int, int);
 void	sleepq_set_timeout(void *wchan, int timo);
 int	sleepq_timedwait(void *wchan);
 int	sleepq_timedwait_sig(void *wchan);
 void	sleepq_wait(void *);
 int	sleepq_wait_sig(void *wchan);
-
-/* Preserve source compat with 6.x */
-#define sleepq_add(wchan, lock, wmesg, flags)		    \
-    sleepq_add_queue(wchan, lock, wmesg, flags, 0)
-#define sleepq_broadcast(wchan, flags, pri)		     \
-    sleepq_broadcast_queue(wchan, flags, pri, 0)
-#define sleepq_signal(wchan, flags, pri)		    \
-    sleepq_signal_queue(wchan, flags, pri, 0)
 
 #endif	/* _KERNEL */
 #endif	/* !_SYS_SLEEPQUEUE_H_ */
