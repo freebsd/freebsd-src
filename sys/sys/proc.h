@@ -270,14 +270,14 @@ struct thread {
 	int		td_inhibitors;	/* (j) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
-	int		td_sqqueue;	/* (t) Sleepqueue queue blocked on. */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
 	u_char		td_oncpu;	/* (j) Which cpu we are on. */
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	short		td_locks;	/* (k) Count of non-spin locks. */
-	u_char		td_tsqueue;	/* (t) Turnstile queue blocked on. */
+	u_char		td_tsqueue;	/* (j) Turnstile queue blocked on. */
+	char		td_sqqueue;	/* (j) Sleepqueue queue blocked on. */
 	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
 	void		*td_ithd;	/* (n) Unused, kept to preserve ABI. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
@@ -336,7 +336,6 @@ struct thread {
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 } __attribute__ ((aligned (THREAD_ALIGN)));
-
 
 /*
  * Flags kept in td_flags:
