@@ -98,14 +98,6 @@
 #define	IXP425_NPE_B_IMAGEID	0x01000200
 #define	IXP425_NPE_C_IMAGEID	0x02000200
 
-/* For IxNpeMicrocode.c */
-#define IX_NPEDL_NPEIMAGE_NPEA_HSS_PORT_0_CHAN_PORT_0_BYPASS_ATM_MPHY_4_PORT
-#define IX_NPEDL_NPEIMAGE_NPEA_ETH
-#define IX_NPEDL_NPEIMAGE_NPEA_ETH_HSSCHAN_COEXIST
-#define IX_NPEDL_NPEIMAGE_NPEA_HSS_2_PORT_CHAN_PORT_0_BYPASS
-#define IX_NPEDL_NPEIMAGE_NPEB_ETH
-#define IX_NPEDL_NPEIMAGE_NPEC_ETH
-
 struct ixpnpe_softc;
 struct ixpnpe_softc *ixpnpe_attach(device_t);
 void	ixpnpe_detach(struct ixpnpe_softc *);
