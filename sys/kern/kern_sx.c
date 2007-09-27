@@ -368,7 +368,7 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	atomic_store_rel_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) |
 	    (x & SX_LOCK_EXCLUSIVE_WAITERS));
 	if (x & SX_LOCK_SHARED_WAITERS)
-		sleepq_broadcast_queue(&sx->lock_object, SLEEPQ_SX, -1,
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
 		    SQ_SHARED_QUEUE);
 	else
 		sleepq_release(&sx->lock_object);
@@ -518,7 +518,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		GIANT_SAVE();
 		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 		    &waittime);
-		sleepq_add_queue(&sx->lock_object, NULL, sx->lock_object.lo_name,
+		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
 		if (!(opts & SX_INTERRUPTIBLE))
@@ -593,7 +593,7 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		    __func__, sx, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
 	atomic_store_rel_ptr(&sx->sx_lock, x);
-	sleepq_broadcast_queue(&sx->lock_object, SLEEPQ_SX, -1, queue);
+	sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1, queue);
 }
 
 /*
@@ -737,7 +737,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
 		    &waittime);
 #endif
-		sleepq_add_queue(&sx->lock_object, NULL, sx->lock_object.lo_name,
+		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
 		if (!(opts & SX_INTERRUPTIBLE))
@@ -838,7 +838,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p waking up all thread on"
 			    "exclusive queue", __func__, sx);
-		sleepq_broadcast_queue(&sx->lock_object, SLEEPQ_SX, -1,
+		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
 		    SQ_EXCLUSIVE_QUEUE);
 		break;
 	}

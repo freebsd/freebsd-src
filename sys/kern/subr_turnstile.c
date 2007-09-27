@@ -611,7 +611,7 @@ turnstile_claim(struct lock_object *lock)
  * turnstile chain locked and will return with it unlocked.
  */
 void
-turnstile_wait_queue(struct lock_object *lock, struct thread *owner, int queue)
+turnstile_wait(struct lock_object *lock, struct thread *owner, int queue)
 {
 	struct turnstile_chain *tc;
 	struct turnstile *ts;
@@ -733,7 +733,7 @@ turnstile_wait_queue(struct lock_object *lock, struct thread *owner, int queue)
  * pending list.  This must be called with the turnstile chain locked.
  */
 int
-turnstile_signal_queue(struct turnstile *ts, int queue)
+turnstile_signal(struct turnstile *ts, int queue)
 {
 	struct turnstile_chain *tc;
 	struct thread *td;
@@ -784,7 +784,7 @@ turnstile_signal_queue(struct turnstile *ts, int queue)
  * the turnstile chain locked.
  */
 void
-turnstile_broadcast_queue(struct turnstile *ts, int queue)
+turnstile_broadcast(struct turnstile *ts, int queue)
 {
 	struct turnstile_chain *tc;
 	struct turnstile *ts1;
@@ -830,7 +830,7 @@ turnstile_broadcast_queue(struct turnstile *ts, int queue)
  * chain locked.
  */
 void
-turnstile_unpend_queue(struct turnstile *ts, int owner_type)
+turnstile_unpend(struct turnstile *ts, int owner_type)
 {
 	TAILQ_HEAD( ,thread) pending_threads;
 	struct turnstile_chain *tc;
@@ -971,7 +971,7 @@ turnstile_disown(struct turnstile *ts)
  * Return the first thread in a turnstile.
  */
 struct thread *
-turnstile_head_queue(struct turnstile *ts, int queue)
+turnstile_head(struct turnstile *ts, int queue)
 {
 #ifdef INVARIANTS
 	struct turnstile_chain *tc;
@@ -988,7 +988,7 @@ turnstile_head_queue(struct turnstile *ts, int queue)
  * Returns true if a sub-queue of a turnstile is empty.
  */
 int
-turnstile_empty_queue(struct turnstile *ts, int queue)
+turnstile_empty(struct turnstile *ts, int queue)
 {
 #ifdef INVARIANTS
 	struct turnstile_chain *tc;

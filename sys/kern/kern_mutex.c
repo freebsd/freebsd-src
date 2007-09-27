@@ -576,7 +576,8 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		/*
 		 * Block on the turnstile.
 		 */
-		turnstile_wait(&m->mtx_object, mtx_owner(m));
+		turnstile_wait(&m->mtx_object, mtx_owner(m),
+		    TS_EXCLUSIVE_QUEUE);
 	}
 
 #ifdef KTR
@@ -684,13 +685,13 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 #ifndef PREEMPTION
 	/* XXX */
-	td1 = turnstile_head(ts);
+	td1 = turnstile_head(ts, TS_EXCLUSIVE_QUEUE);
 #endif
 #ifdef MUTEX_WAKE_ALL
-	turnstile_broadcast(ts);
+	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 	_release_lock_quick(m);
 #else
-	if (turnstile_signal(ts)) {
+	if (turnstile_signal(ts, TS_EXCLUSIVE_QUEUE)) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p not held", m);
@@ -701,7 +702,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    m);
 	}
 #endif
-	turnstile_unpend(ts);
+	turnstile_unpend(ts, TS_EXCLUSIVE_LOCK);
 
 #ifndef PREEMPTION
 	/*
