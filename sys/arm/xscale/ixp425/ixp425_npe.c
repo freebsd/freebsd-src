@@ -72,10 +72,7 @@ __FBSDID("$FreeBSD$");
  * The code here basically replaces the npeDl and npeMh classes
  * in the Intel Access Library (IAL).
  *
- * NB: Microcode images are loaded with firmware(9).  To
- *     include microcode in a static kernel include the
- *     ixpnpe_fw device.  Otherwise the firmware will be
- *     automatically loaded from the filesystem.
+ * NB: Microcode images comes from ixNpeMicrocode.c
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,9 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
-
-#include <sys/linker.h>
-#include <sys/firmware.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -101,6 +96,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/xscale/ixp425/ixp425_npereg.h>
 #include <arm/xscale/ixp425/ixp425_npevar.h>
+
+#include <arm/xscale/ixp425/IxNpeMicrocode.c>
 
 struct ixpnpe_softc {
     device_t		sc_dev;
@@ -422,7 +419,6 @@ ixpnpe_init(struct ixpnpe_softc *sc, const char *imageName, uint32_t imageId)
 {
     uint32_t imageSize;
     const uint32_t *imageCodePtr;
-    const struct firmware *fw;
     int error;
 
     DPRINTF(sc->sc_dev, "load %s, imageId 0x%08x\n", imageName, imageId);
@@ -441,12 +437,8 @@ ixpnpe_init(struct ixpnpe_softc *sc, const char *imageName, uint32_t imageId)
     if (error != 0)
 	return error;
 
-    fw = firmware_get(imageName);
-    if (fw == NULL)
-	return ENOENT;
-
-    /* Locate desired image in files w/ combined images */
-    error = npe_findimage(sc, fw->data, imageId, &imageCodePtr, &imageSize);
+    error = npe_findimage(sc, IxNpeMicrocode_array, imageId,
+	&imageCodePtr, &imageSize);
     if (error != 0)
 	goto done;
 
@@ -466,7 +458,6 @@ ixpnpe_init(struct ixpnpe_softc *sc, const char *imageName, uint32_t imageId)
     sc->functionalityId = IX_NPEDL_FUNCTIONID_FROM_IMAGEID_GET(imageId);
     mtx_unlock(&sc->sc_mtx);
 done:
-    firmware_put(fw, FIRMWARE_UNLOAD);
     DPRINTF(sc->sc_dev, "%s: error %d\n", __func__, error);
     return error;
 }
@@ -510,7 +501,8 @@ npe_load_ins(struct ixpnpe_softc *sc,
 	return EINVAL;	/* XXX */
     }
     for (i = 0; i < blockSize; i++, npeMemAddress++) {
-	if (npe_ins_write(sc, npeMemAddress, bp->data[i], verify) != 0) {
+	if (npe_ins_write(sc, npeMemAddress, htobe32(bp->data[i]), 
+	    verify) != 0) {
 	    device_printf(sc->sc_dev, "NPE instruction write failed");
 	    return EIO;
 	}
@@ -532,7 +524,8 @@ npe_load_data(struct ixpnpe_softc *sc,
 	return EINVAL;
     }
     for (i = 0; i < blockSize; i++, npeMemAddress++) {
-	if (npe_data_write(sc, npeMemAddress, bp->data[i], verify) != 0) {
+	if (npe_data_write(sc, npeMemAddress, htobe32(bp->data[i]), verify) 
+	    != 0) {
 	    device_printf(sc->sc_dev, "NPE data write failed\n");
 	    return EIO;
 	}
@@ -578,7 +571,7 @@ npe_load_stateinfo(struct ixpnpe_softc *sc,
 	    break;
 	}
 
-	if (npe_ctx_reg_write(sc, cNum, reg, regVal, verify) != 0) {
+	if (npe_ctx_reg_write(sc, cNum, reg, htobe32(regVal), verify) != 0) {
 	    device_printf(sc->sc_dev, "write of state-info to NPE failed\n");
 	    error = EIO;
 	    break;
