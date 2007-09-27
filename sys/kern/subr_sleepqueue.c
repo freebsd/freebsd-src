@@ -70,17 +70,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
-
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 
 #include <vm/uma.h>
 
@@ -910,3 +905,65 @@ sleepq_abort(struct thread *td, int intrval)
 	mtx_lock_spin(&sched_lock);
 }
 
+#ifdef DDB
+DB_SHOW_COMMAND(sleepq, db_show_sleepqueue)
+{
+	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
+#ifdef INVARIANTS
+	struct lock_object *lock;
+#endif
+	struct thread *td;
+	void *wchan;
+	int i;
+
+	if (!have_addr)
+		return;
+
+	/*
+	 * First, see if there is an active sleep queue for the wait channel
+	 * indicated by the address.
+	 */
+	wchan = (void *)addr;
+	sc = SC_LOOKUP(wchan);
+	LIST_FOREACH(sq, &sc->sc_queues, sq_hash)
+		if (sq->sq_wchan == wchan)
+			goto found;
+
+	/*
+	 * Second, see if there is an active sleep queue at the address
+	 * indicated.
+	 */
+	for (i = 0; i < SC_TABLESIZE; i++)
+		LIST_FOREACH(sq, &sleepq_chains[i].sc_queues, sq_hash) {
+			if (sq == (struct sleepqueue *)addr)
+				goto found;
+		}
+
+	db_printf("Unable to locate a sleep queue via %p\n", (void *)addr);
+	return;
+found:
+	db_printf("Wait channel: %p\n", sq->sq_wchan);
+#ifdef INVARIANTS
+	db_printf("Queue type: %d\n", sq->sq_type);
+	if (sq->sq_lock) {
+		lock = &sq->sq_lock->mtx_object;
+		db_printf("Associated Interlock: %p - (%s) %s\n", lock,
+		    LOCK_CLASS(lock)->lc_name, lock->lo_name);
+	}
+#endif
+	db_printf("Blocked threads:\n");
+	for (i = 0; i < NR_SLEEPQS; i++) {
+		db_printf("\nQueue[%d]:\n", i);
+		if (TAILQ_EMPTY(&sq->sq_blocked[i]))
+			db_printf("\tempty\n");
+		else
+			TAILQ_FOREACH(td, &sq->sq_blocked[0],
+				      td_slpq) {
+				db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
+					  td->td_tid, td->td_proc->p_pid,
+					  td->td_proc->p_comm);
+			}
+	}
+}
+#endif
