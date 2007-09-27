@@ -134,7 +134,7 @@ Lunmapped:
 	adds	r1, r1, #-1
 	bhi	2b
 3:
-	ldmia	r4!, {r1,r2,r3}   /* # of sections, PA|attr, VA */
+	ldmia	r4!, {r1,r2,r3}   /* # of sections, VA, PA|attr */
 	cmp	r1, #0
 	adrne	r5, 2b
 	bicne	r5, r5, #0xff000000
