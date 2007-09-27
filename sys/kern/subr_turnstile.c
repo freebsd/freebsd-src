@@ -46,14 +46,14 @@
  * chain.  Each chain contains a spin mutex that protects all of the
  * turnstiles in the chain.
  *
- * Each time a thread is created, a turnstile is malloc'd and attached to
- * that thread.  When a thread blocks on a lock, if it is the first thread
- * to block, it lends its turnstile to the lock.  If the lock already has
- * a turnstile, then it gives its turnstile to the lock's turnstile's free
- * list.  When a thread is woken up, it takes a turnstile from the free list
- * if there are any other waiters.  If it is the only thread blocked on the
- * lock, then it reclaims the turnstile associated with the lock and removes
- * it from the hash table.
+ * Each time a thread is created, a turnstile is allocated from a UMA zone
+ * and attached to that thread.  When a thread blocks on a lock, if it is the
+ * first thread to block, it lends its turnstile to the lock.  If the lock
+ * already has a turnstile, then it gives its turnstile to the lock's
+ * turnstile's free list.  When a thread is woken up, it takes a turnstile from
+ * the free list if there are any other waiters.  If it is the only thread
+ * blocked on the lock, then it reclaims the turnstile associated with the lock
+ * and removes it from the hash table.
  */
 
 #include <sys/cdefs.h>
@@ -67,13 +67,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/turnstile.h>
+
+#include <vm/uma.h>
 
 #ifdef DDB
 #include <sys/kdb.h>
@@ -150,7 +151,7 @@ SYSCTL_UINT(_debug, OID_AUTO, turnstile_nullowners, CTLFLAG_RD,
     &turnstile_nullowners, 0, "called with null owner on a shared queue");
 
 
-static MALLOC_DEFINE(M_TURNSTILE, "turnstiles", "turnstiles");
+static uma_zone_t turnstile_zone;
 
 /*
  * Prototypes for non-exported routines.
@@ -163,6 +164,10 @@ static void	propagate_priority(struct thread *td);
 static int	turnstile_adjust_thread(struct turnstile *ts,
 		    struct thread *td);
 static void	turnstile_setowner(struct turnstile *ts, struct thread *owner);
+#ifdef INVARIANTS
+static void	turnstile_dtor(void *mem, int size, void *arg);
+#endif
+static int	turnstile_init(void *mem, int size, int flags);
 
 /*
  * Walks the chain of turnstiles and their owners to propagate the priority
@@ -385,6 +390,12 @@ static void
 init_turnstile0(void *dummy)
 {
 
+	turnstile_zone = uma_zcreate("TURNSTILE", sizeof(struct turnstile),
+#ifdef INVARIANTS
+	    NULL, turnstile_dtor, turnstile_init, NULL, UMA_ALIGN_CACHE, 0);
+#else
+	    NULL, NULL, turnstile_init, NULL, UMA_ALIGN_CACHE, 0);
+#endif
 	thread0.td_turnstile = turnstile_alloc();
 }
 SYSINIT(turnstile0, SI_SUB_LOCK, SI_ORDER_ANY, init_turnstile0, NULL);
@@ -451,20 +462,47 @@ turnstile_setowner(struct turnstile *ts, struct thread *owner)
 	LIST_INSERT_HEAD(&owner->td_contested, ts, ts_link);
 }
 
+#ifdef INVARIANTS
 /*
- * Malloc a turnstile for a new thread, initialize it and return it.
+ * UMA zone item deallocator.
  */
-struct turnstile *
-turnstile_alloc(void)
+static void
+turnstile_dtor(void *mem, int size, void *arg)
 {
 	struct turnstile *ts;
 
-	ts = malloc(sizeof(struct turnstile), M_TURNSTILE, M_WAITOK | M_ZERO);
+	ts = mem;
+	MPASS(TAILQ_EMPTY(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE]));
+	MPASS(TAILQ_EMPTY(&ts->ts_blocked[TS_SHARED_QUEUE]));
+	MPASS(TAILQ_EMPTY(&ts->ts_pending));
+}
+#endif
+
+/*
+ * UMA zone item initializer.
+ */
+static int
+turnstile_init(void *mem, int size, int flags)
+{
+	struct turnstile *ts;
+
+	bzero(mem, size);
+	ts = mem;
 	TAILQ_INIT(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE]);
 	TAILQ_INIT(&ts->ts_blocked[TS_SHARED_QUEUE]);
 	TAILQ_INIT(&ts->ts_pending);
 	LIST_INIT(&ts->ts_free);
-	return (ts);
+	return (0);
+}
+
+/*
+ * Get a turnstile for a new thread.
+ */
+struct turnstile *
+turnstile_alloc(void)
+{
+
+	return (uma_zalloc(turnstile_zone, M_WAITOK));
 }
 
 /*
@@ -474,11 +512,7 @@ void
 turnstile_free(struct turnstile *ts)
 {
 
-	MPASS(ts != NULL);
-	MPASS(TAILQ_EMPTY(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE]));
-	MPASS(TAILQ_EMPTY(&ts->ts_blocked[TS_SHARED_QUEUE]));
-	MPASS(TAILQ_EMPTY(&ts->ts_pending));
-	free(ts, M_TURNSTILE);
+	uma_zfree(turnstile_zone, ts);
 }
 
 /*
