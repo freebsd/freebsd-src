@@ -104,6 +104,8 @@ device		atadisk         # ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
 
 device		npe		# Network Processing Engine
+device		npe_fw
+device		firmware
 device		qmgr		# Q Manager (required by npe)
 device		miibus		# NB: required by npe
 device		ether
