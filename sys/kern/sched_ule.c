@@ -71,8 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#ifndef PREEMPTION
-#error	"SCHED_ULE requires options PREEMPTION"
+#if !defined(__i386__) && !defined(__amd64__)
+#error "This architecture is not currently compatible with ULE"
 #endif
 
 #define	KTR_ULE	0
@@ -174,7 +174,15 @@ static int sched_interact = SCHED_INTERACT_THRESH;
 static int realstathz;
 static int tickincr;
 static int sched_slice;
+#ifdef PREEMPTION
+#ifdef FULL_PREEMPTION
+static int preempt_thresh = PRI_MAX_IDLE;
+#else
 static int preempt_thresh = PRI_MIN_KERN;
+#endif
+#else 
+static int preempt_thresh = 0;
+#endif
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
