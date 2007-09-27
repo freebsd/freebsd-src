@@ -16,34 +16,9 @@ arm/xscale/ixp425/ixp425_a4x_space.c	optional	uart
 arm/xscale/ixp425/ixp425_a4x_io.S	optional	uart
 dev/uart/uart_dev_ns8250.c		optional	uart
 #
-# NPE-based Ethernet support (requires qmgr also).  Note the
-# firmware images must be downloaded from the Intel web site.
-# The URL seems to change frequently; try this as a starting
-# place:
-#
-# http://www.intel.com/design/network/products/npfamily/download_ixp400.htm
-#
+# NPE-based Ethernet support (requires qmgr also).
 arm/xscale/ixp425/if_npe.c		optional npe
 arm/xscale/ixp425/ixp425_npe.c		optional npe
-ixp425_npe_fw.c				optional npe_fw			\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk IxNpeMicrocode.dat:npe_fw -mnpe -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
-	clean		"ixp425_npe_fw.c"
-#
-# NB: ld encodes the path in the binary symbols generated for the
-#     firmware image so link the file to the object directory to
-#     get known values for reference in the _fw.c file.
-#
-IxNpeMicrocode.fwo			optional npe_fw			\
-	dependency	"IxNpeMicrocode.dat"				\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} IxNpeMicrocode.dat" \
-	no-implicit-rule						\
-	clean		"IxNpeMicrocode.fwo"
-IxNpeMicrocode.dat			optional npe_fw			\
-	dependency	".PHONY"					\
-	compile-with	"if [ -e $S/arm/xscale/ixp425/IxNpeMicrocode.dat ]; then ln -sf $S/arm/xscale/ixp425/IxNpeMicrocode.dat .; else echo 'WARNING, no IxNpeMicrocode.dat file; you must obtain this from the Intel web site'; false; fi" \
-	no-obj no-implicit-rule						\
-	clean		"IxNpeMicrocode.dat"
 #
 # Q-Manager support
 #
