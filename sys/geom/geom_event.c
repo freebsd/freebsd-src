@@ -145,6 +145,8 @@ g_orphan_register(struct g_provider *pp)
 	G_VALID_PROVIDER(pp);
 	g_trace(G_T_TOPOLOGY, "g_orphan_register(%s)", pp->name);
 
+	g_cancel_event(pp);
+
 	wf = pp->flags & G_PF_WITHER;
 	pp->flags &= ~G_PF_WITHER;
 
