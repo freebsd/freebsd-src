@@ -1555,7 +1555,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       MIB described in RFC 2790.  &merged;</para>
 
     <para>The &man.camcontrol.8; utility now supports
-      a <command>readcap</command> to display the size of
+      a <command>readcap</command> command to display the size of
       devices. &merged;</para>
 
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
@@ -1908,7 +1908,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The objformat(1) utility and getobjformat(3) library (the
       last remnants of a.out object file support) have been removed.</para>
 
-    <para>The &man.pam.nologin.8; module no longer provides a
+    <para>The &man.pam.nologin.8; module no longer provides
       an authentication function; instead it now provides an account
       management function.  Third-party files in
       <filename>/usr/local/etc/pam.d</filename> may  
