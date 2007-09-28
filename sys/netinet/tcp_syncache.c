@@ -1323,6 +1323,7 @@ syncookie_generate(struct syncache *sc, u_int32_t *flowid)
 	MD5Final((u_char *)&md5_buffer, &syn_ctx);
 	data ^= (md5_buffer[0] & ~SYNCOOKIE_WNDMASK);
 	*flowid = md5_buffer[1];
+	tcpstat.tcps_sc_sendcookie++;
 	return (data);
 }
 
