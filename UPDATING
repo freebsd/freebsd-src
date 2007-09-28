@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070928:
+        The caching daemon (cached) was renamed to nscd. nscd.conf
+        configuration file should be used instead of cached.conf and
+        nscd_enable, nscd_pidfile and nscd_flags options should be used
+        instead of cached_enable, cached_pidfile and cached_flags in
+        rc.conf.
+
 20070704:
         The new IPsec code is now compiled in using the IPSEC option.  The
 	IPSEC option now requires "device crypto" be defined in your kernel
