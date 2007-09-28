@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 10, 2004
+.Dd August 13, 2007
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -54,11 +54,11 @@
 .Ft void
 .Fn sleepq_abort "struct thread *td"
 .Ft void
-.Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags"
+.Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags" "int queue"
 .Ft struct sleepqueue *
 .Fn sleepq_alloc "void"
 .Ft void
-.Fn sleepq_broadcast "void *wchan" "int flags" "int pri"
+.Fn sleepq_broadcast "void *wchan" "int flags" "int pri" "int queue"
 .Ft int
 .Fn sleepq_calc_signal_retval "int sig"
 .Ft int
@@ -74,7 +74,7 @@
 .Ft void
 .Fn sleepq_remove "struct thread *td" "void *wchan"
 .Ft void
-.Fn sleepq_signal "void *wchan" "int flags" "int pri"
+.Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
 .Ft int
@@ -91,6 +91,8 @@ some condition is met.
 Each queue is associated with a specific wait channel when it is active,
 and only one queue may be associated with a wait channel at any given point
 in time.
+The implementation of each wait channel splits its sleepqueue into 2 sub-queues
+in order to enable some optimizations on threads' wakeups.
 An active queue holds a list of threads that are blocked on the associated
 wait channel.
 Threads that are not blocked on a wait channel have an associated inactive
@@ -172,6 +174,10 @@ The
 .Fa flags
 parameter is a bitmask consisting of the type of sleep queue being slept on
 and zero or more optional flags.
+The
+.Fa queue
+parameter specifies the sub-queue, in which the contending thread will be
+inserted.
 .Pp
 There are currently three types of sleep queues:
 .Pp
@@ -310,6 +316,9 @@ The sleep queue chain associated with argument
 must be locked by a prior call to
 .Fn sleepq_lock
 before calling any of these functions.
+The
+.Fa queue
+argument specifies the sub-queue, from which threads need to be woken up.
 .Pp
 A thread in an interruptible sleep can be interrupted by another thread via
 the
