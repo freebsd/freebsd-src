@@ -32,13 +32,15 @@
 #define _ICHWD_H_
 
 struct ichwd_device {
-	uint16_t		 vendor;
 	uint16_t		 device;
 	char			*desc;
+	unsigned int		 version;
 };
 
 struct ichwd_softc {
 	device_t		 device;
+	device_t		 ich;
+	int                      ich_version;
 
 	int			 active;
 	unsigned int		 timeout;
@@ -52,6 +54,11 @@ struct ichwd_softc {
 	struct resource		*tco_res;
 	bus_space_tag_t		 tco_bst;
 	bus_space_handle_t	 tco_bsh;
+
+	int			 gcs_rid;
+	struct resource		*gcs_res;
+	bus_space_tag_t		 gcs_bst;
+	bus_space_handle_t	 gcs_bsh;
 
 	eventhandler_tag	 ev_tag;
 };
@@ -69,13 +76,26 @@ struct ichwd_softc {
 #define DEVICEID_82801EBR	0x24d0
 #define DEVICEID_6300ESB	0x25a1
 #define DEVICEID_82801FBR	0x2640
-#define DEVICEID_ICH5		0x27b8
+#define DEVICEID_ICH6M		0x2641
+#define DEVICEID_ICH6W		0x2642
+#define DEVICEID_ICH7		0x27b8
+#define DEVICEID_ICH7M		0x27b9
+#define DEVICEID_ICH7MDH	0x27bd
+#define DEVICEID_ICH8		0x2810
+#define DEVICEID_ICH8DH		0x2812
+#define DEVICEID_ICH8DO		0x2814
 
-/* ICH LPC Interface Bridge Registers */
+/* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define ICH_GEN_STA		0xd4
 #define ICH_GEN_STA_NO_REBOOT	0x02
 #define ICH_PMBASE		0x40 /* ACPI base address register */
 #define ICH_PMBASE_MASK		0x7f80 /* bits 7-15 */
+
+/* ICH Chipset Configuration Registers (ICH6 and newer) */
+#define ICH_RCBA		0xf0
+#define ICH_GCS_OFFSET		0x3410
+#define ICH_GCS_SIZE		0x4
+#define ICH_GCS_NO_REBOOT	0x20
 
 /* register names and locations (relative to PMBASE) */
 #define SMI_BASE		0x30 /* base address for SMI registers */
@@ -83,14 +103,18 @@ struct ichwd_softc {
 #define SMI_EN			0x00 /* SMI Control and Enable Register */
 #define SMI_STS			0x04 /* SMI Status Register */
 #define TCO_BASE		0x60 /* base address for TCO registers */
-#define TCO_LEN			0x0a
+#define TCO_LEN			0x20
 #define TCO_RLD			0x00 /* TCO Reload and Current Value */
-#define TCO_TMR			0x01 /* TCO Timer Initial Value */
+#define TCO_TMR1		0x01 /* TCO Timer Initial Value
+					(ICH5 and older, 8 bits) */
+#define TCO_TMR2		0x12 /* TCO Timer Initial Value
+					(ICH6 and newer, 16 bits) */
 #define TCO_DAT_IN		0x02 /* TCO Data In (DO NOT USE) */
 #define TCO_DAT_OUT		0x03 /* TCO Data Out (DO NOT USE) */
 #define TCO1_STS		0x04 /* TCO Status 1 */
 #define TCO2_STS		0x06 /* TCO Status 2 */
 #define TCO1_CNT		0x08 /* TCO Control 1 */
+#define TCO2_CNT		0x08 /* TCO Control 2 */
 
 /* bit definitions for SMI_EN and SMI_STS */
 #define SMI_TCO_EN		0x2000
@@ -112,11 +136,7 @@ struct ichwd_softc {
 #define TCO_TMR_HALT		0x0800 /* clear to enable WDT */
 #define TCO_CNT_PRESERVE	0x0200 /* preserve these bits */
 
-/* approximate length in nanoseconds of one WDT tick */
-#define ICHWD_TICK		1800000000
-
-/* minimum / maximum timeout in WDT ticks */
-#define ICHWD_MIN_TIMEOUT	2
-#define ICHWD_MAX_TIMEOUT	63
+/* approximate length in nanoseconds of one WDT tick (about 0.6 sec) */
+#define ICHWD_TICK		600000000
 
 #endif
