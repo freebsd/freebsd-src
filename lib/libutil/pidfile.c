@@ -46,7 +46,6 @@ static int
 pidfile_verify(struct pidfh *pfh)
 {
 	struct stat sb;
-	int fd;
 
 	if (pfh == NULL || pfh->pf_fd == -1)
 		return (EDOOFUS);
@@ -89,19 +88,19 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 {
 	struct pidfh *pfh;
 	struct stat sb;
-	int error, fd;
+	int error, fd, len;
 
 	pfh = malloc(sizeof(*pfh));
 	if (pfh == NULL)
 		return (NULL);
 
-	if (path == NULL) {
-		snprintf(pfh->pf_path, sizeof(pfh->pf_path), "/var/run/%s.pid",
-		    getprogname());
-	} else {
-		strlcpy(pfh->pf_path, path, sizeof(pfh->pf_path));
-	}
-	if (strlen(pfh->pf_path) == sizeof(pfh->pf_path) - 1) {
+	if (path == NULL)
+		len = snprintf(pfh->pf_path, sizeof(pfh->pf_path),
+		    "/var/run/%s.pid", getprogname());
+	else
+		len = snprintf(pfh->pf_path, sizeof(pfh->pf_path),
+		    "%s", path);
+	if (len >= (int)sizeof(pfh->pf_path)) {
 		free(pfh);
 		errno = ENAMETOOLONG;
 		return (NULL);
@@ -147,7 +146,6 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 int
 pidfile_write(struct pidfh *pfh)
 {
-	struct stat sb;
 	char pidstr[16];
 	int error, fd;
 
