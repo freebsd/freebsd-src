@@ -109,16 +109,22 @@
 #define	CPUID_SS	0x08000000
 #define	CPUID_HTT	0x10000000
 #define	CPUID_TM	0x20000000
-#define	CPUID_B30	0x40000000
+#define	CPUID_IA64	0x40000000
 #define	CPUID_PBE	0x80000000
 
 #define CPUID2_SSE3	0x00000001
 #define CPUID2_MON	0x00000008
 #define CPUID2_DS_CPL	0x00000010
+#define	CPUID2_VMX	0x00000020
+#define	CPUID2_SMX	0x00000040
 #define CPUID2_EST	0x00000080
 #define CPUID2_TM2	0x00000100
-#define CPUID2_CNTXID	0x00000400
+#define	CPUID2_SSSE3	0x00000200
+#define	CPUID2_CNXTID	0x00000400
 #define CPUID2_CX16	0x00002000
+#define	CPUID2_XTPR	0x00004000
+#define	CPUID2_PDCM	0x00008000
+#define	CPUID2_DCA	0x00040000
 
 /*
  * Important bits in the AMD extended cpuid flags
@@ -135,7 +141,10 @@
 
 #define AMDID2_LAHF	0x00000001
 #define AMDID2_CMP	0x00000002
+#define	AMDID2_SVM	0x00000004
+#define	AMDID2_EXT_APIC	0x00000008
 #define AMDID2_CR8	0x00000010
+#define	AMDID2_PREFETCH	0x00000100
 
 /*
  * CPUID instruction 1 ebx info
@@ -170,6 +179,7 @@
 #define MSR_BIOS_SIGN		0x08b
 #define MSR_PERFCTR0		0x0c1
 #define MSR_PERFCTR1		0x0c2
+#define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define MSR_MTRRcap		0x0fe
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
@@ -188,6 +198,7 @@
 #define MSR_THERM_CONTROL	0x19a
 #define MSR_THERM_INTERRUPT	0x19b
 #define MSR_THERM_STATUS	0x19c
+#define	MSR_IA32_MISC_ENABLE	0x1a0
 #define MSR_DEBUGCTLMSR		0x1d9
 #define MSR_LASTBRANCHFROMIP	0x1db
 #define MSR_LASTBRANCHTOIP	0x1dc
@@ -356,7 +367,7 @@
 #define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
-/* X86-64 MSR's */
+/* AMD64 MSR's */
 #define	MSR_EFER	0xc0000080	/* extended features */
 #define	MSR_STAR	0xc0000081	/* legacy mode SYSCALL target/cs/ss */
 #define	MSR_LSTAR	0xc0000082	/* long mode SYSCALL target rip */
