@@ -48,7 +48,7 @@ FILES+=	sshd
 .endif
 
 .if ${MK_NS_CACHING} != "no"
-FILES+= cached
+FILES+= nscd
 .endif
 
 FILESDIR=	/etc/rc.d
