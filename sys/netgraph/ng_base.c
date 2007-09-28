@@ -568,7 +568,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 	} else {
 		/*
 		 * Node has no constructor. We cannot ask for one
-		 * to be made. It must be brought into existance by
+		 * to be made. It must be brought into existence by
 		 * some external agency. The external agency should
 		 * call ng_make_node_common() directly to get the
 		 * netgraph part initialised.
@@ -643,19 +643,19 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 
 /*
  * Forceably start the shutdown process on a node. Either call
- * it's shutdown method, or do the default shutdown if there is
+ * its shutdown method, or do the default shutdown if there is
  * no type-specific method.
  *
- * We can only be called form a shutdown message, so we know we have
+ * We can only be called from a shutdown message, so we know we have
  * a writer lock, and therefore exclusive access. It also means
  * that we should not be on the work queue, but we check anyhow.
  *
  * Persistent node types must have a type-specific method which
- * Allocates a new node in which case, this one is irretrievably going away,
+ * allocates a new node in which case, this one is irretrievably going away,
  * or cleans up anything it needs, and just makes the node valid again,
  * in which case we allow the node to survive.
  *
- * XXX We need to think of how to tell a persistant node that we
+ * XXX We need to think of how to tell a persistent node that we
  * REALLY need to go away because the hardware has gone or we
  * are rebooting.... etc.
  */
@@ -835,7 +835,8 @@ ng_name_node(node_p node, const char *name)
  *
  * Returns the node if found, else NULL.
  * Eventually should add something faster than a sequential search.
- * Note it aquires a reference on the node so you can be sure it's still there.
+ * Note it acquires a reference on the node so you can be sure it's still
+ * there.
  */
 node_p
 ng_name2noderef(node_p here, const char *name)
@@ -901,7 +902,7 @@ ng_decodeidname(const char *name)
 /*
  * Remove a name from a node. This should only be called
  * when shutting down and removing the node.
- * IF we allow name changing this may be more resurected.
+ * IF we allow name changing this may be more resurrected.
  */
 void
 ng_unname(node_p node)
@@ -1096,7 +1097,7 @@ ng_destroy_hook(hook_p hook)
 	if (node->nd_type->disconnect) {
 		/*
 		 * The type handler may elect to destroy the node so don't
-		 * trust its existance after this point. (except
+		 * trust its existence after this point. (except
 		 * that we still hold a reference on it. (which we
 		 * inherrited from the hook we are destroying)
 		 */
@@ -1301,12 +1302,12 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 	NG_HOOK_REF(hook);	/* one for the node */
 	
 	/*
-	 * We now have a symetrical situation, where both hooks have been
+	 * We now have a symmetrical situation, where both hooks have been
 	 * linked to their nodes, the newhook methods have been called
 	 * And the references are all correct. The hooks are still marked
 	 * as invalid, as we have not called the 'connect' methods
 	 * yet.
-	 * We can call the local one immediatly as we have the
+	 * We can call the local one immediately as we have the
 	 * node locked, but we need to queue the remote one.
 	 */
 	if (hook->hk_node->nd_type->connect) {
@@ -1468,7 +1469,7 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 ************************************************************************/
 	
 /* Shut this node down as soon as everyone is clear of it */
-/* Should add arg "immediatly" to jump the queue */
+/* Should add arg "immediately" to jump the queue */
 int
 ng_rmnode_self(node_p node)
 {
@@ -1650,7 +1651,7 @@ ng_path2noderef(node_p here, const char *address,
 	 * We can probably hold up some things by holding
 	 * the nodelist mutex for the time of this
 	 * crawl if we wanted.. At least that way we wouldn't have to
-	 * worry about the nodes dissappearing, but the hooks would still
+	 * worry about the nodes disappearing, but the hooks would still
 	 * be a problem.
 	 */
 	for (cp = path; node != NULL && *cp != '\0'; ) {
@@ -1728,7 +1729,7 @@ ng_path2noderef(node_p here, const char *address,
 * Input queue handling.
 * All activities are submitted to the node via the input queue
 * which implements a multiple-reader/single-writer gate.
-* Items which cannot be handled immeditly are queued.
+* Items which cannot be handled immediately are queued.
 *
 * read-write queue locking inline functions			*
 \***************************************************************/
@@ -2140,7 +2141,7 @@ ng_flush_input_queue(struct ng_queue * ngq)
 	}
 	/*
 	 * Take us off the work queue if we are there.
-	 * We definatly have no work to be done.
+	 * We definately have no work to be done.
 	 */
 	ng_worklist_remove(ngq->q_node);
 	mtx_unlock_spin(&ngq->q_mtx);
@@ -2379,7 +2380,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			if (NG_HOOK_NOT_VALID(hook)) {
 				/*
 				 * The hook has been zapped then we can't
-				 * use it. Immediatly drop its reference.
+				 * use it. Immediately drop its reference.
 				 * The message may not need it.
 				 */
 				NG_HOOK_UNREF(hook);
@@ -3087,7 +3088,7 @@ ngb_mod_event(module_t mod, int event, void *data)
 		    NETISR_MPSAFE);
 		break;
 	case MOD_UNLOAD:
-		/* You cant unload it because an interface may be using it.  */
+		/* You can't unload it because an interface may be using it. */
 		error = EBUSY;
 		break;
 	default:
