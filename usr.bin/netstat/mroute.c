@@ -85,7 +85,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	len = sizeof(mfctable);
 	if (!live ||
 	    sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL, 0) < 0) {
-		if (!live) {
+		if (live) {
 			warn("sysctl: net.inet.ip.mfctable");
 			/* Compatability with older kernels - candidate for removal */
 			if (mfcaddr == 0) {
@@ -100,7 +100,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	len = sizeof(viftable);
 	if (!live ||
 	    sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL, 0) < 0) {
-		if (!live) {
+		if (live) {
 			warn("sysctl: net.inet.ip.viftable");
 			/* Compatability with older kernels - candidate for removal */
 			if (vifaddr == 0) {
@@ -273,7 +273,7 @@ mrt_stats(u_long mstaddr)
 
 	if (!live ||
 	    sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len, NULL, 0) < 0) {
-		if (!live) {
+		if (live) {
 			warn("sysctl: net.inet.ip.mrtstat");
 			/* Compatability with older kernels - candidate for removal */
 			if (mstaddr == 0) {
