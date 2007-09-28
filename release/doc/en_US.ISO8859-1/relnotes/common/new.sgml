@@ -282,6 +282,10 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.camcontrol.8; utility now supports
+      a <command>readcap</command> command to display the size of
+      devices.</para>
+
     <para>A bug in &man.freebsd-update.8;, which caused it not
       to update SMP kernels correctly, has been fixed.</para>
 
