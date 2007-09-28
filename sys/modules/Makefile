@@ -55,6 +55,7 @@ SUBDIR=	${_3dfx} \
 	coda \
 	coda5 \
 	${_coff} \
+	${_coretemp} \
 	${_cp} \
 	${_cpufreq} \
 	${_crypto} \
@@ -348,6 +349,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _ce=		ce
 _coff=		coff
+_coretemp=	coretemp
 _cp=		cp
 _cpufreq=	cpufreq
 _digi=		digi
@@ -460,6 +462,7 @@ _agp=		agp
 _arcmsr=	arcmsr
 _ath_hal=	ath_hal
 _ciss=		ciss
+_coretemp=	coretemp
 _cpufreq=	cpufreq
 _digi=		digi
 _drm=		drm

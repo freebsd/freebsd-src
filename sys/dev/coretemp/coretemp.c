@@ -206,9 +206,9 @@ coretemp_get_temp(device_t dev)
 	struct coretemp_softc *sc = device_get_softc(dev);
 	char stemp[16];
 
-	thread_lock(curthread);
+	mtx_lock_spin(&sched_lock);
 	sched_bind(curthread, cpu);
-	thread_unlock(curthread);
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * The digital temperature reading is located at bit 16
@@ -222,9 +222,9 @@ coretemp_get_temp(device_t dev)
 	 */
 	msr = rdmsr(MSR_THERM_STATUS);
 
-	thread_lock(curthread);
+	mtx_lock_spin(&sched_lock);
 	sched_unbind(curthread);
-	thread_unlock(curthread);
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Check for Thermal Status and Thermal Status Log.
