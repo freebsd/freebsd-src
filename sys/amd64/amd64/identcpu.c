@@ -220,19 +220,19 @@ printcpuinfo(void)
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006VMX"	/* Virtual Machine Extensions */
-				"\007<b6>"
+				"\007SMX"	/* Safer Mode Extensions */
 				"\010EST"	/* Enhanced SpeedStep */
 				"\011TM2"	/* Thermal Monitor 2 */
-				"\012<b9>"
-				"\013CNTX-ID"	/* L1 context ID available */
+				"\012SSSE3"	/* SSSE3 */
+				"\013CNXT-ID"	/* L1 context ID available */
 				"\014<b11>"
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
-				"\017XTPR"	/* Send Task Priority Messages*/
-				"\020<b15>"
+				"\017xTPR"	/* Send Task Priority Messages*/
+				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
 				"\022<b17>"
-				"\023<b18>"
+				"\023DCA"	/* Direct Cache Access */
 				"\024<b19>"
 				"\025<b20>"
 				"\026<b21>"
@@ -307,7 +307,7 @@ printcpuinfo(void)
 				"\006<b5>"
 				"\007<b6>"
 				"\010<b7>"
-				"\011<b8>"
+				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
 				"\012<b9>"
 				"\013<b10>"
 				"\014<b11>"
@@ -335,13 +335,8 @@ printcpuinfo(void)
 			}
 
 			if (cpu_feature & CPUID_HTT && strcmp(cpu_vendor,
-			    "AuthenticAMD") == 0) {
+			    "AuthenticAMD") == 0)
 				cpu_feature &= ~CPUID_HTT;
-				if (bootverbose)
-	    				printf("\nHTT bit cleared - FreeBSD"
-					    " does not have licensing issues"
-					    " requiring it.\n");
-			}
 
 			/*
 			 * If this CPU supports HTT or CMP then mention the
