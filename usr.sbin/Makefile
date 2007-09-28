@@ -27,7 +27,6 @@ SUBDIR=	ac \
 	bsnmpd \
 	${_btxld} \
 	burncd \
-	${_cached} \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -109,6 +108,7 @@ SUBDIR=	ac \
 	ngctl \
 	nghook \
 	nologin \
+	${_nscd} \
 	ntp \
 	${_nvram} \
 	${_ofwdump} \
@@ -275,7 +275,7 @@ _lpr=		lpr
 .if ${MK_NS_CACHING} != "no"
 .if ${MK_LIBTHR} != "no" || \
     (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")
-_cached=	cached
+_nscd=		nscd
 .endif
 .endif
 
