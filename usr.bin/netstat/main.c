@@ -228,7 +228,7 @@ struct protox {
 	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTAT,	1,	NULL,
-	  carp_stats,	NULL,		"carp",		0},
+	  carp_stats,	NULL,		"carp",		1},
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync",	1},
 	{ -1,		-1,		0,	NULL,
