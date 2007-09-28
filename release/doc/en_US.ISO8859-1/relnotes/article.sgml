@@ -1366,6 +1366,12 @@ pipe tablearg ip from table(1) to any</programlisting>
 	utility has been added to control the behavior of disk devices
 	using this feature.</para>
 
+      <para>A new <literal>GEOM_VIRSTOR</literal> class has been added
+	to provide virtual storage devices of arbitrary size with
+	physical devices as backing store.  More information can be
+	found in the manual page for its control utility,
+	&man.gvirstor.8;.</para>
+
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates a very huge provider (41PB) <filename>/dev/gzero</filename>
 	and is mainly useful for performance testing.
@@ -1550,7 +1556,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.camcontrol.8; utility now supports
       a <command>readcap</command> to display the size of
-      devices.</para>
+      devices. &merged;</para>
 
     <para>The &man.cmp.1; utility now supports an <option>-h</option>
       flag to compare the symbolic link itself rather than the
