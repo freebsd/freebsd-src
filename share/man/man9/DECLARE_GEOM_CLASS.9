@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2005
+.Dd August 13, 2007
 .Dt DECLARE_GEOM_CLASS 9
 .Os
 .Sh NAME
@@ -110,7 +110,7 @@ below).
 .Sh EXAMPLES
 Example class declaration.
 .Bd -literal -offset indent
-static struct geom *
+static struct g_geom *
 g_example_taste(struct g_class *mp, struct g_provider *pp,
     int flags __unused)
 {
