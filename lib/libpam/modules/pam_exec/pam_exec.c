@@ -63,8 +63,9 @@ static int
 _pam_exec(pam_handle_t *pamh __unused, int flags __unused,
     int argc, const char *argv[])
 {
-	int childerr, envlen, i, nitems, pam_err, status;
+	int envlen, i, nitems, pam_err, status;
 	char *env, **envlist, **tmp;
+	volatile int childerr;
 	pid_t pid;
 
 	if (argc < 1)
