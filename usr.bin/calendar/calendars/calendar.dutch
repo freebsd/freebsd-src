@@ -11,14 +11,18 @@ LANG=nl_NL.ISO8859-15
  */
 01/01	Nieuwjaar
 01/06	Driekoningen
+04/01	Een April
+04/30	Koninginendag
+05/01	Dag van de Arbeid
 05/04	Dodenherdenking
-30/04	Koninginendag
 05/05	Bevrijdingsdag
+10/04	Dierendag
 11/01	Allerheilingen
 11/02	Allerzielen
+11/11	Sint Maarten
 11/11	Elfde-van-de-elfde
 12/05	Sinterklaas avond
-12/15	Koningkrijksdag
+12/15	Koninkrijksdag
 12/24	Kerstavond
 12/25	Eerste kerstdag
 12/26	Tweede kerstdag
@@ -28,19 +32,21 @@ LANG=nl_NL.ISO8859-15
 /*
  * Pasen gerelateerd
  */
-Easter-50	Carnival
-Easter-49	Carnival
-Easter-48	Carnival
-Easter-47	Vastenavond
-Easter-46	As woensdag
+Easter-50	Carnaval
+Easter-49	Carnaval
+Easter-48	Carnaval (Vette Dinsdag)
+Easter-47	Carnaval (Vastenavond)
+Easter-46	Aswoensdag
 Easter-7	Palmzondag
 Easter-3	Witte Donderdag
 Easter-2	Goede vrijdag
 Easter-1	Stille zaterdag
-Easter	Eerste paasdag
+Easter		Eerste paasdag
 Easter+1	Tweede paasdag
-Easter+40	Hemelvaartsdag
-Easter+50	Pinksteren
+Easter+39	Hemelvaartsdag
+Easter+49	Eerste Pinksterdag
+Easter+50	Tweede Pinksterdag
+Easter+56	Trinitatis
 
 /*
  * Misc
@@ -52,11 +58,21 @@ Easter+50	Pinksteren
 /*
  * Het koningshuis
  */
+01/19	Prinses Margriet (1943)
 01/31	Koningin Beatrix (1938)
+02/17	Prins Willem III (1817 - 1890)
+02/18	Prinses Christina (1947)
+04/10	Prinses Ariane (2007)
+04/19	Prins Hendrik (1876 - 1934)
 04/27	Kroonprins Willem Alexander (1967)
-04/30	Koningin Juliana (RIP)
+04/30	Koningin Juliana (1909 - 2004)
 04/30	Mr. Pieter van Vollenhoven (1939)
 05/17	Prinses Maxima (1971)
-06/26	Prinses Alexia
-12/07	Prinses Amalia (2003)
-
+06/26	Prinses Alexia (2005)
+06/29	Prins Bernhard (1911 - 2004)
+08/05	Prinses Irene (1939)
+08/31	Prinses Wilhelmina (1880 - 1962)
+09/06	Prins Claus (1925 - 2002)
+09/25	Prins Johan Friso (1968)
+10/11	Prins Constantijn (1969)
+12/07	Prinses Catharina-Amalia (2003)
