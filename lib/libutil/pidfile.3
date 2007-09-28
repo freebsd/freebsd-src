@@ -105,14 +105,24 @@ will be set.
 .Rv -std pidfile_write pidfile_close pidfile_remove
 .Sh EXAMPLES
 The following example shows in which order these functions should be used.
+Note that it is safe to pass
+.Dv NULL
+to
+.Fn pidfile_write ,
+.Fn pidfile_remove
+and
+.Fn pidfile_close
+functions.
 .Bd -literal
 struct pidfh *pfh;
 pid_t otherpid, childpid;
 
 pfh = pidfile_open("/var/run/daemon.pid", 0600, &otherpid);
 if (pfh == NULL) {
-	if (errno == EEXIST)
-		errx(EXIT_FAILURE, "Daemon already running, pid: %d.", otherpid);
+	if (errno == EEXIST) {
+		errx(EXIT_FAILURE, "Daemon already running, pid: %jd.",
+		    (intmax_t)otherpid);
+	}
 	/* If we cannot create pidfile from other reasons, only warn. */
 	warn("Cannot open or create pidfile");
 }
@@ -137,7 +147,7 @@ for (;;) {
 		/* Do child work. */
 		break;
 	default:
-		syslog(LOG_INFO, "Child %d started.", childpid);
+		syslog(LOG_INFO, "Child %jd started.", (intmax_t)childpid);
 		break;
 	}
 }
