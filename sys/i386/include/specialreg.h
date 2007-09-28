@@ -37,12 +37,9 @@
  * Bits in 386 special registers:
  */
 #define	CR0_PE	0x00000001	/* Protected mode Enable */
-#define	CR0_MP	0x00000002	/* "Math" Present (NPX or NPX emulator) */
-#define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
+#define	CR0_MP	0x00000002	/* "Math" (fpu) Present */
+#define	CR0_EM	0x00000004	/* EMulate FPU instructions. (trap ESC only) */
 #define	CR0_TS	0x00000008	/* Task Switched (if MP, trap ESC and WAIT) */
-#ifdef notused
-#define	CR0_ET	0x00000010	/* Extension Type (387 (if set) vs 287) */
-#endif
 #define	CR0_PG	0x80000000	/* PaGing enable */
 
 /*
@@ -69,6 +66,11 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+
+/*
+ * Bits in AMD64 special registers.  EFER is 64 bits wide.
+ */
+#define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
 
 /*
  * CPUID instruction features register
@@ -107,6 +109,20 @@
 #define	CPUID_IA64	0x40000000
 #define	CPUID_PBE	0x80000000
 
+#define	CPUID2_SSE3	0x00000001
+#define	CPUID2_MON	0x00000008
+#define	CPUID2_DS_CPL	0x00000010
+#define	CPUID2_VMX	0x00000020
+#define	CPUID2_SMX	0x00000040
+#define	CPUID2_EST	0x00000080
+#define	CPUID2_TM2	0x00000100
+#define	CPUID2_SSSE3	0x00000200
+#define	CPUID2_CNXTID	0x00000400
+#define	CPUID2_CX16	0x00002000
+#define	CPUID2_XTPR	0x00004000
+#define	CPUID2_PDCM	0x00008000
+#define	CPUID2_DCA	0x00040000
+
 /*
  * Important bits in the AMD extended cpuid flags
  */
@@ -122,7 +138,10 @@
 
 #define AMDID2_LAHF	0x00000001
 #define AMDID2_CMP	0x00000002
+#define	AMDID2_SVM	0x00000004
+#define	AMDID2_EXT_APIC	0x00000008
 #define AMDID2_CR8	0x00000010
+#define	AMDID2_PREFETCH	0x00000100
 
 /*
  * CPUID instruction 1 ebx info
@@ -157,6 +176,7 @@
 #define MSR_BIOS_SIGN		0x08b
 #define MSR_PERFCTR0		0x0c1
 #define MSR_PERFCTR1		0x0c2
+#define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define MSR_MTRRcap		0x0fe
 #define	MSR_BBL_CR_ADDR		0x116
 #define	MSR_BBL_CR_DECC		0x118
@@ -175,6 +195,7 @@
 #define MSR_THERM_CONTROL	0x19a
 #define MSR_THERM_INTERRUPT	0x19b
 #define MSR_THERM_STATUS	0x19c
+#define	MSR_IA32_MISC_ENABLE	0x1a0
 #define MSR_DEBUGCTLMSR		0x1d9
 #define MSR_LASTBRANCHFROMIP	0x1db
 #define MSR_LASTBRANCHTOIP	0x1dc
@@ -199,14 +220,14 @@
 #define MSR_MC2_STATUS		0x409
 #define MSR_MC2_ADDR		0x40a
 #define MSR_MC2_MISC		0x40b
-#define MSR_MC4_CTL		0x40c
-#define MSR_MC4_STATUS		0x40d
-#define MSR_MC4_ADDR		0x40e
-#define MSR_MC4_MISC		0x40f
-#define MSR_MC3_CTL		0x410
-#define MSR_MC3_STATUS		0x411
-#define MSR_MC3_ADDR		0x412
-#define MSR_MC3_MISC		0x413
+#define	MSR_MC3_CTL		0x40c
+#define	MSR_MC3_STATUS		0x40d
+#define	MSR_MC3_ADDR		0x40e
+#define	MSR_MC3_MISC		0x40f
+#define	MSR_MC4_CTL		0x410
+#define	MSR_MC4_STATUS		0x411
+#define	MSR_MC4_ADDR		0x412
+#define	MSR_MC4_MISC		0x413
 
 /*
  * Constants related to MSR's.
@@ -406,10 +427,13 @@
 #define	AMD_WT_ALLOC_PRE	0x20000	/* programmable range enable */
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
+/* AMD64 MSR's */
+#define	MSR_EFER	0xc0000080	/* extended features */
+
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
 
-/* VIA ACE crypto featureset: for via_has_xcrypt */
+/* VIA ACE crypto featureset: for via_feature_xcrypt */
 #define VIA_HAS_AES		1	/* cpu has AES */
 #define VIA_HAS_SHA		2	/* cpu has SHA1 & SHA256 */
 #define VIA_HAS_MM		4	/* cpu has RSA instructions */
