@@ -570,8 +570,24 @@ good:
 			 * in the most efficient order.
 			 */
 			if (hints == NULL || !(hints->ai_flags & AI_PASSIVE)) {
-				if (!numeric)
+				if (!numeric) {
+					char *canonname;
+
+					canonname =
+					    sentinel.ai_next->ai_canonname;
+					if (canonname != NULL) {
+						sentinel.ai_next->ai_canonname
+						    = NULL;
+					}
 					(void)reorder(&sentinel);
+					if (sentinel.ai_next->ai_canonname ==
+					    NULL) {
+						sentinel.ai_next->ai_canonname
+						    = canonname;
+					} else {
+						free(canonname);
+					}
+				}
 			}
 			*res = sentinel.ai_next;
 			return SUCCESS;
