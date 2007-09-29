@@ -1567,7 +1567,8 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 						inet_ntoa_r(da, dst);
 					}
 					log(LOG_SECURITY | LOG_DEBUG,
-					    "%s %s:%u -> %s:%u, %s\n",
+					    "ipfw: %d %s %s:%u -> %s:%u, %s\n",
+					    parent->rule->rulenum,
 					    "drop session",
 					    src, (args->f_id.src_port),
 					    dst, (args->f_id.dst_port),
