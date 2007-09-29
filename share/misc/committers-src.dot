@@ -101,11 +101,13 @@ jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??"]
 jkh [label="Jordan K. Hubbard\njkh@FreeBSD.org\n1993/06/12"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
+jkoshy [label="A. Joseph Koshy\njkoshy@FreeBSD.org\n1998/05/13"]
 jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joe [label="Josef Karthauser\njoe@FreeBSD.org\n1999/10/22"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
+kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
@@ -274,6 +276,8 @@ jkh -> joerg
 jkh -> phk
 jkh -> wes
 jkh -> yar
+
+jkoshy -> kaiw
 
 jlemon -> bmilekic
 jlemon -> brooks
