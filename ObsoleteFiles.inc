@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070930: rename of cached to nscd
+OLD_FILES+=etc/rc.d/cached
+OLD_FILES+=usr/sbin/cached
+OLD_FILES+=usr/share/man/man5/cached.conf.5
+OLD_FILES+=usr/share/man/man8/cached.8
 # 20070807: removal of PowerPC specific header file.
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=usr/include/machine/interruptvar.h
