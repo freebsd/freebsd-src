@@ -12,6 +12,11 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
+sunkbdmap.h			optional	sunkbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${SUNKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > sunkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"sunkbdmap.h"
+#
 ukbdmap.h			optional	ukbd_dflt_keymap	\
 	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
 	no-obj no-implicit-rule before-depend				\
