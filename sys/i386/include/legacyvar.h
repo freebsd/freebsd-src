@@ -30,12 +30,14 @@
 #define	_MACHINE_LEGACYVAR_H_
 
 enum legacy_device_ivars {
+	LEGACY_IVAR_PCIDOMAIN,
 	LEGACY_IVAR_PCIBUS
 };
 
 #define LEGACY_ACCESSOR(var, ivar, type)				\
     __BUS_ACCESSOR(legacy, var, LEGACY, ivar, type)
 
+LEGACY_ACCESSOR(pcidomain,		PCIDOMAIN,	uint32_t)
 LEGACY_ACCESSOR(pcibus,			PCIBUS,		uint32_t)
 
 #undef LEGACY_ACCESSOR

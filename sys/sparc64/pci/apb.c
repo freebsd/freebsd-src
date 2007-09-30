@@ -184,6 +184,8 @@ apb_attach(device_t dev)
 	ofw_pcib_gen_setup(dev);
 
 	if (bootverbose) {
+		device_printf(dev, "  domain            %d\n",
+		    sc->sc_bsc.ops_pcib_sc.domain);
 		device_printf(dev, "  secondary bus     %d\n",
 		    sc->sc_bsc.ops_pcib_sc.secbus);
 		device_printf(dev, "  subordinate bus   %d\n",

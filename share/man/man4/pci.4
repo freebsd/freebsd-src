@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 1999
+.Dd September 30, 2007
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -109,7 +109,7 @@ structure consists of the following elements:
 .Bl -tag -width pd_vendor
 .It pc_sel
 .Tn PCI
-bus, slot and function.
+domain, bus, slot and function.
 .It pd_name
 .Tn PCI
 device driver name.
@@ -150,7 +150,7 @@ which consists of the following items:
 .Bl -tag -width pc_subvendor
 .It pc_sel
 .Tn PCI
-bus, slot and function.
+domain, bus, slot and function.
 .It pc_hdr
 .Tn PCI
 header type.
@@ -257,9 +257,10 @@ structure consists of the following fields:
 .It pi_sel
 A
 .Va pcisel
-structure which specifies the bus, slot and function the user would like to
-query.
-If the specific bus is not found, errno will be set to ENODEV and -1 returned from the ioctl.
+structure which specifies the domain, bus, slot and function the user would
+like to query.
+If the specific bus is not found, errno will be set to ENODEV and -1 returned
+from the ioctl.
 .It pi_reg
 The
 .Tn PCI

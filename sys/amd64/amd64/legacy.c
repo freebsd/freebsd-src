@@ -207,6 +207,9 @@ legacy_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	struct legacy_device *atdev = DEVTOAT(child);
 
 	switch (which) {
+	case LEGACY_IVAR_PCIDOMAIN:
+		*result = 0;
+		break;
 	case LEGACY_IVAR_PCIBUS:
 		*result = atdev->lg_pcibus;
 		break;
@@ -223,6 +226,8 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	struct legacy_device *atdev = DEVTOAT(child);
 
 	switch (which) {
+	case LEGACY_IVAR_PCIDOMAIN:
+		return EINVAL;
 	case LEGACY_IVAR_PCIBUS:
 		atdev->lg_pcibus = value;
 		break;

@@ -174,17 +174,19 @@ ofw_pcibus_attach(device_t dev)
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
-	u_int slot, busno, func;
+	u_int busno, domain, func, slot;
 
 	pcib = device_get_parent(dev);
 
+	domain = pcib_get_domain(dev);
 	/*
 	 * Ask the bridge for the bus number - in some cases, we need to
 	 * renumber buses, so the firmware information cannot be trusted.
 	 */
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
-		device_printf(dev, "physical bus=%d\n", busno);
+		device_printf(dev, "domain=%d, physical bus=%d\n",
+		    domain, busno);
 
 	node = ofw_bus_get_node(dev);
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
@@ -192,11 +194,12 @@ ofw_pcibus_attach(device_t dev)
 			continue;
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
-		if (pci_find_bsf(busno, slot, func) != NULL)
+		/* Some OFW device trees contain dupes. */
+		if (pci_find_dbsf(domain, busno, slot, func) != NULL)
 			continue;
 		ofw_pcibus_setup_device(pcib, busno, slot, func);
 		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
-		    busno, slot, func, sizeof(*dinfo));
+		    domain, busno, slot, func, sizeof(*dinfo));
 		if (dinfo == NULL)
 			continue;
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, child) !=

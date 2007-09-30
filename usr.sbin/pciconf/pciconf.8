@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2007
+.Dd September 30, 2007
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -56,9 +56,12 @@ With the
 .Fl l
 option, it lists all devices found by the boot probe in the following format:
 .Bd -literal
-foo0@pci0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 hdr=0x00
-bar0@pci0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 hdr=0x00
-none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
+foo0@pci0:0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 \
+hdr=0x00
+bar0@pci0:0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 \
+hdr=0x00
+none0@pci0:0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 \
+hdr=0x00
 .Ed
 .Pp
 The first column gives the
@@ -139,7 +142,7 @@ except for
 require a
 .Ar selector
 of the form
-.Li pci Ns Va bus Ns \&: Ns Va device
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device
 (optionally followed by
 .Li \&: Ns Va function ) .
 A final colon may be appended and

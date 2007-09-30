@@ -488,6 +488,9 @@ legacy_pcib_read_ivar(device_t dev, device_t child, int which,
 {
 
 	switch (which) {
+	case  PCIB_IVAR_DOMAIN:
+		*result = 0;
+		return 0;
 	case  PCIB_IVAR_BUS:
 		*result = legacy_get_pcibus(dev);
 		return 0;
@@ -501,6 +504,8 @@ legacy_pcib_write_ivar(device_t dev, device_t child, int which,
 {
 
 	switch (which) {
+	case  PCIB_IVAR_DOMAIN:
+		return EINVAL;
 	case  PCIB_IVAR_BUS:
 		legacy_set_pcibus(dev, value);
 		return 0;
