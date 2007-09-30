@@ -223,9 +223,10 @@ pci_enum_devs(int pci_fd, action_t action)
 
 		switch (action) {
 		case PRINT:
-			printf("Bus %02Xh Device %02Xh Function %02Xh: ",
-				p->pc_sel.pc_bus, p->pc_sel.pc_dev,
-				p->pc_sel.pc_func);
+			printf(
+"Domain %04Xh Bus %02Xh Device %02Xh Function %02Xh: ",
+				p->pc_sel.pc_domain, p->pc_sel.pc_bus,
+				p->pc_sel.pc_dev, p->pc_sel.pc_func);
 			printf((romsize ? "%dKB ROM aperture detected."
 					: "No ROM present."), romsize/1024);
 			printf("\r\n");

@@ -275,17 +275,19 @@ acpi_pci_probe(device_t dev)
 static int
 acpi_pci_attach(device_t dev)
 {
-	int busno;
+	int busno, domain;
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
 	 * busses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
-	 * the parent pcib what our bus number is.
+	 * the parent pcib what our domain and bus numbers are.
 	 */
+	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
-		device_printf(dev, "physical bus=%d\n", busno);
+		device_printf(dev, "domain=%d, physical bus=%d\n",
+		    domain, busno);
 
 	/*
 	 * First, PCI devices are added as in the normal PCI bus driver.
@@ -297,7 +299,7 @@ acpi_pci_attach(device_t dev)
 	 * pci_add_children() doesn't find.  We currently just ignore
 	 * these devices.
 	 */
-	pci_add_children(dev, busno, sizeof(struct acpi_pci_devinfo));
+	pci_add_children(dev, domain, busno, sizeof(struct acpi_pci_devinfo));
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
 	    acpi_pci_save_handle, dev, NULL);
 

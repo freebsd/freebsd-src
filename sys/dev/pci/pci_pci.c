@@ -147,6 +147,7 @@ pcib_attach_common(device_t dev)
      * Get current bridge configuration.
      */
     sc->command   = pci_read_config(dev, PCIR_COMMAND, 1);
+    sc->domain    = pci_get_domain(dev);
     sc->secbus    = pci_read_config(dev, PCIR_SECBUS_1, 1);
     sc->subbus    = pci_read_config(dev, PCIR_SUBBUS_1, 1);
     sc->secstat   = pci_read_config(dev, PCIR_SECSTAT_1, 2);
@@ -257,6 +258,7 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 	
     if (bootverbose) {
+	device_printf(dev, "  domain            %d\n", sc->domain);
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
 	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
 	device_printf(dev, "  I/O decode        0x%x-0x%x\n", sc->iobase, sc->iolimit);
@@ -309,6 +311,9 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     struct pcib_softc	*sc = device_get_softc(dev);
     
     switch (which) {
+    case PCIB_IVAR_DOMAIN:
+	*result = sc->domain;
+	return(0);
     case PCIB_IVAR_BUS:
 	*result = sc->secbus;
 	return(0);
@@ -322,9 +327,11 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
     struct pcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
+    case PCIB_IVAR_DOMAIN:
+	return(EINVAL);
     case PCIB_IVAR_BUS:
 	sc->secbus = value;
-	break;
+	return(0);
     }
     return(ENOENT);
 }

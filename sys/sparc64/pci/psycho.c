@@ -1030,6 +1030,9 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	sc = device_get_softc(dev);
 	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		*result = 0;
+		return (0);
 	case PCIB_IVAR_BUS:
 		*result = sc->sc_pci_secbus;
 		return (0);

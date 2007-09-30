@@ -259,6 +259,9 @@ acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     struct acpi_hpcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
+    case PCIB_IVAR_DOMAIN:
+	*result = 0;
+	return (0);
     case PCIB_IVAR_BUS:
 	*result = sc->ap_bus;
 	return (0);
@@ -278,6 +281,8 @@ acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
     struct acpi_hpcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
+    case PCIB_IVAR_DOMAIN:
+	return (EINVAL);
     case PCIB_IVAR_BUS:
 	sc->ap_bus = value;
 	return (0);

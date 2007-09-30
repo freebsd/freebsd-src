@@ -125,6 +125,11 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 		 * comparison.  If the comparison fails, we don't have a
 		 * match, go on to the next item if there is one.
 		 */
+		if (((matches[i].flags & PCI_GETCONF_MATCH_DOMAIN) != 0)
+		 && (match_buf->pc_sel.pc_domain !=
+		 matches[i].pc_sel.pc_domain))
+			continue;
+
 		if (((matches[i].flags & PCI_GETCONF_MATCH_BUS) != 0)
 		 && (match_buf->pc_sel.pc_bus != matches[i].pc_sel.pc_bus))
 			continue;
@@ -388,8 +393,9 @@ getconfexit:
 			 * Look up the grandparent, i.e. the bridge device,
 			 * so that we can issue configuration space cycles.
 			 */
-			pcidev = pci_find_bsf(io->pi_sel.pc_bus,
-			    io->pi_sel.pc_dev, io->pi_sel.pc_func);
+			pcidev = pci_find_dbsf(io->pi_sel.pc_domain,
+			    io->pi_sel.pc_bus, io->pi_sel.pc_dev,
+			    io->pi_sel.pc_func);
 			if (pcidev) {
 				device_t busdev, brdev;
 

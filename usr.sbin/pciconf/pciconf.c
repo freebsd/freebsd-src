@@ -203,13 +203,12 @@ list_devs(int verbose, int caps)
 			return;
 		}
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
-
-			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08x "
+			printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x card=0x%08x "
 			       "chip=0x%08x rev=0x%02x hdr=0x%02x\n",
 			       (p->pd_name && *p->pd_name) ? p->pd_name :
 			       "none",
 			       (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
-			       none_count++,
+			       none_count++, p->pc_sel.pc_domain,
 			       p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			       p->pc_sel.pc_func, (p->pc_class << 16) |
 			       (p->pc_subclass << 8) | p->pc_progif,
@@ -497,6 +496,9 @@ getsel(const char *str)
 
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
+		sel.pc_domain = strtoul(ep, &ep, 0);
+		if (!ep || *ep++ != ':')
+			errx(1, "cannot parse selector %s", str);
 		sel.pc_bus = strtoul(ep, &ep, 0);
 		if (!ep || *ep++ != ':')
 			errx(1, "cannot parse selector %s", str);

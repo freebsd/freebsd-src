@@ -371,6 +371,9 @@ hvpci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	sc = device_get_softc(dev);
 
 	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		*result = 0;
+		return (0);
 	case PCIB_IVAR_BUS:
 		*result = sc->hs_busnum;
 		return (0);
@@ -386,6 +389,8 @@ hvpci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 	sc = device_get_softc(dev);
 	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		return (EINVAL);
 	case PCIB_IVAR_BUS:
 		sc->hs_busnum = value;
 		return (0);

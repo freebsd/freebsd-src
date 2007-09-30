@@ -43,25 +43,27 @@ typedef enum {
 } pci_getconf_status;
 
 typedef enum {
-	PCI_GETCONF_NO_MATCH		= 0x00,
-	PCI_GETCONF_MATCH_BUS		= 0x01,
-	PCI_GETCONF_MATCH_DEV		= 0x02,
-	PCI_GETCONF_MATCH_FUNC		= 0x04,
-	PCI_GETCONF_MATCH_NAME		= 0x08,
-	PCI_GETCONF_MATCH_UNIT		= 0x10,
-	PCI_GETCONF_MATCH_VENDOR	= 0x20,
-	PCI_GETCONF_MATCH_DEVICE	= 0x40,
-	PCI_GETCONF_MATCH_CLASS		= 0x80
+	PCI_GETCONF_NO_MATCH		= 0x0000,
+	PCI_GETCONF_MATCH_DOMAIN	= 0x0001,
+	PCI_GETCONF_MATCH_BUS		= 0x0002,
+	PCI_GETCONF_MATCH_DEV		= 0x0004,
+	PCI_GETCONF_MATCH_FUNC		= 0x0008,
+	PCI_GETCONF_MATCH_NAME		= 0x0010,
+	PCI_GETCONF_MATCH_UNIT		= 0x0020,
+	PCI_GETCONF_MATCH_VENDOR	= 0x0040,
+	PCI_GETCONF_MATCH_DEVICE	= 0x0080,
+	PCI_GETCONF_MATCH_CLASS		= 0x0100
 } pci_getconf_flags;
 
 struct pcisel {
+	u_int32_t	pc_domain;	/* domain number */
 	u_int8_t	pc_bus;		/* bus number */
 	u_int8_t	pc_dev;		/* device on this bus */
 	u_int8_t	pc_func;	/* function on this device */
 };
 
 struct pci_conf {
-	struct pcisel	pc_sel;		/* bus+slot+function */
+	struct pcisel	pc_sel;		/* domain+bus+slot+function */
 	u_int8_t	pc_hdr;		/* PCI header type */
 	u_int16_t	pc_subvendor;	/* card vendor ID */
 	u_int16_t	pc_subdevice;	/* card device ID, assigned by 
@@ -78,7 +80,7 @@ struct pci_conf {
 };
 
 struct pci_match_conf {
-	struct pcisel		pc_sel;		/* bus+slot+function */
+	struct pcisel		pc_sel;		/* domain+bus+slot+function */
 	char			pd_name[PCI_MAXNAMELEN + 1];  /* device name */
 	u_long			pd_unit;	/* Unit number */
 	u_int16_t		pc_vendor;	/* PCI Vendor ID */
@@ -105,7 +107,6 @@ struct pci_io {
 	int		pi_width;	/* width (in bytes) of read or write */
 	u_int32_t	pi_data;	/* data to write or result of read */
 };
-	
 
 #define	PCIOCGETCONF	_IOWR('p', 1, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)

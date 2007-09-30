@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2005
+.Dd September 30, 2007
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nm pci_set_powerstate ,
 .Nm pci_get_powerstate ,
 .Nm pci_find_bsf ,
+.Nm pci_find_dbsf ,
 .Nm pci_find_device
 .Nd PCI bus interface
 .Sh SYNOPSIS
@@ -64,6 +65,8 @@
 .Fn pci_read_config "device_t dev" "int reg" "int width"
 .Ft device_t
 .Fn pci_find_bsf "uint8_t bus" "uint8_t slot" "uint8_t func"
+.Ft device_t
+.Fn pci_find_dbsf "uint32_t domain" "uint8_t bus" "uint8_t slot" "uint8_t func"
 .Ft device_t
 .Fn pci_find_device "uint16_t vendor" "uint16_t device"
 .Sh DESCRIPTION
@@ -189,6 +192,30 @@ The
 function looks up the
 .Vt device_t
 of a PCI device, given its
+.Fa bus ,
+.Fa slot ,
+and
+.Fa func .
+The
+.Fa slot
+number actually refers to the number of the device on the bus,
+which does not necessarily indicate its geographic location
+in terms of a physical slot.
+Note that in case the system has multiple PCI domains,
+the
+.Fn pci_find_bsf
+function only searches the first one.
+Actually, it is equivalent to:
+.Bd -literal -offset indent
+pci_find_dbsf(0, bus, slot, func);
+.Ed
+.Pp
+The
+.Fn pci_find_dbsf
+function looks up the
+.Vt device_t
+of a PCI device, given its
+.Fa domain ,
 .Fa bus ,
 .Fa slot ,
 and
