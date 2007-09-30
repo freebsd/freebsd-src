@@ -63,3 +63,6 @@
 #define	KB_SUN2		2		/* type 2 keyboard */
 #define	KB_SUN3		3		/* type 3 keyboard */
 #define	KB_SUN4		4		/* type 4/5/6 keyboard */
+
+#define	SKBD_KEY_RELEASE	0x80
+#define	SKBD_KEY_CHAR(c)	((c) & 0x7f)
