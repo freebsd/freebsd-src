@@ -162,12 +162,13 @@ cardbus_attach_card(device_t cbdev)
 {
 	device_t brdev = device_get_parent(cbdev);
 	device_t child;
+	int bus, domain, slot, func;
 	int cardattached = 0;
-	int bus, slot, func;
 	int cardbusfunchigh = 0;
 
 	cardbus_detach_card(cbdev); /* detach existing cards */
 	POWER_ENABLE_SOCKET(brdev, cbdev);
+	domain = pcib_get_domain(cbdev);
 	bus = pcib_get_bus(cbdev);
 	slot = 0;
 	/* For each function, set it up and try to attach a driver to it */
@@ -175,7 +176,7 @@ cardbus_attach_card(device_t cbdev)
 		struct cardbus_devinfo *dinfo;
 
 		dinfo = (struct cardbus_devinfo *)
-		    pci_read_device(brdev, bus, slot, func,
+		    pci_read_device(brdev, domain, bus, slot, func,
 			sizeof(struct cardbus_devinfo));
 		if (dinfo == NULL)
 			continue;

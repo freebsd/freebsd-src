@@ -34,6 +34,7 @@
 
 /* some PCI bus constants */
 
+#define	PCI_DOMAINMAX	65535	/* highest supported domain number */
 #define	PCI_BUSMAX	255	/* highest supported bus number */
 #define	PCI_SLOTMAX	31	/* highest supported slot number */
 #define	PCI_FUNCMAX	7	/* highest supported function number */
@@ -146,6 +147,7 @@ typedef struct pcicfg {
     uint8_t	mfdev;		/* multi-function device (from hdrtype reg) */
     uint8_t	nummaps;	/* actual number of PCI maps used */
 
+    uint32_t	domain;		/* PCI domain */
     uint8_t	bus;		/* config space bus address */
     uint8_t	slot;		/* config space slot address */
     uint8_t	func;		/* config space function number */
@@ -227,6 +229,7 @@ enum pci_device_ivars {
     PCI_IVAR_REVID,
     PCI_IVAR_INTPIN,
     PCI_IVAR_IRQ,
+    PCI_IVAR_DOMAIN,
     PCI_IVAR_BUS,
     PCI_IVAR_SLOT,
     PCI_IVAR_FUNCTION,
@@ -255,6 +258,7 @@ PCI_ACCESSOR(progif,		PROGIF,		uint8_t)
 PCI_ACCESSOR(revid,		REVID,		uint8_t)
 PCI_ACCESSOR(intpin,		INTPIN,		uint8_t)
 PCI_ACCESSOR(irq,		IRQ,		uint8_t)
+PCI_ACCESSOR(domain,		DOMAIN,		uint32_t)
 PCI_ACCESSOR(bus,		BUS,		uint8_t)
 PCI_ACCESSOR(slot,		SLOT,		uint8_t)
 PCI_ACCESSOR(function,		FUNCTION,	uint8_t)
@@ -288,12 +292,14 @@ pci_write_config(device_t dev, int reg, uint32_t val, int width)
 
 /*typedef enum pci_device_ivars pcib_device_ivars;*/
 enum pcib_device_ivars {
+	PCIB_IVAR_DOMAIN,
 	PCIB_IVAR_BUS
 };
 
 #define	PCIB_ACCESSOR(var, ivar, type)					 \
     __BUS_ACCESSOR(pcib, var, PCIB, ivar, type)
 
+PCIB_ACCESSOR(domain,		DOMAIN,		uint32_t)
 PCIB_ACCESSOR(bus,		BUS,		uint32_t)
 
 #undef PCIB_ACCESSOR
@@ -442,6 +448,7 @@ pci_msix_count(device_t dev)
 }
 
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
+device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
 
 /*

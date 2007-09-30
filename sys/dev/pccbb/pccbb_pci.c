@@ -316,6 +316,7 @@ cbb_pci_attach(device_t brdev)
 	sc->dev = brdev;
 	sc->cbdev = NULL;
 	sc->exca[0].pccarddev = NULL;
+	sc->domain = pci_get_domain(brdev);
 	sc->secbus = pci_read_config(brdev, PCIR_SECBUS_2, 1);
 	sc->subbus = pci_read_config(brdev, PCIR_SUBBUS_2, 1);
 	sc->pribus = pcib_get_bus(parent);
@@ -346,6 +347,8 @@ cbb_pci_attach(device_t brdev)
 	/*Sysctls*/
 	sctx = device_get_sysctl_ctx(brdev);
 	soid = device_get_sysctl_tree(brdev);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "domain",
+	    CTLFLAG_RD, &sc->domain, 0, "Domain number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
 	    CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
