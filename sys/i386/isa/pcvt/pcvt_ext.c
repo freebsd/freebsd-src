@@ -2590,26 +2590,20 @@ usl_vt_ioctl(struct cdev *dev, int cmd, caddr_t data, int flag, struct thread *t
 		/* sleep until vt switch happened */
 		i = *(int *)data - 1;
 
-		if(i != -1
-		   && (i < 0 || i >= PCVT_NSCREENS))
-			return EINVAL;
-
-		if(i != -1 && current_video_screen == i)
-			return 0;
-
 		if(i == -1)
 			i = minor(dev);
 
+		if(i < 0 || i >= PCVT_NSCREENS)
+			return EINVAL;
+
+		if(current_video_screen == i)
+			return 0;
+
 		{
 			int x = spltty();
-			error = 0;
-			while (current_video_screen != i &&
-			       (error == 0 || error == ERESTART))
-			{
-				vs[i].vt_status |= VT_WAIT_ACT;
-				error = tsleep(&vs[i].smode,
-					       PZERO | PCATCH, "waitvt", 0);
-			}
+			vs[i].vt_status |= VT_WAIT_ACT;
+			error = tsleep(&vs[i].smode,
+				       PZERO | PCATCH, "waitvt", 0);
 			splx(x);
 		}
 		return error;
