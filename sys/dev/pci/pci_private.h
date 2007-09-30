@@ -38,7 +38,8 @@
  */
 DECLARE_CLASS(pci_driver);
 
-void		pci_add_children(device_t dev, int busno, size_t dinfo_size);
+void		pci_add_children(device_t dev, int domain, int busno,
+		    size_t dinfo_size);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 void		pci_add_resources(device_t bus, device_t dev, int force,
 		    uint32_t prefetchmask);
@@ -84,7 +85,7 @@ struct resource	*pci_alloc_resource(device_t dev, device_t child,
 void		pci_delete_resource(device_t dev, device_t child, 
 		    int type, int rid);
 struct resource_list *pci_get_resource_list (device_t dev, device_t child);
-struct pci_devinfo *pci_read_device(device_t pcib, int b, int s, int f,
+struct pci_devinfo *pci_read_device(device_t pcib, int d, int b, int s, int f,
 		    size_t size);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);

@@ -250,8 +250,10 @@ i80321_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct i80321_pci_softc *sc = device_get_softc(dev);
 	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		*result = 0;
+		return (0);
 	case PCIB_IVAR_BUS:
-
 		*result = sc->sc_busno;
 		return (0);
 		
@@ -265,6 +267,8 @@ i80321_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
 	struct i80321_pci_softc * sc = device_get_softc(dev);
 
 	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		return (EINVAL);
 	case PCIB_IVAR_BUS:
 		sc->sc_busno = result;
 		return (0);

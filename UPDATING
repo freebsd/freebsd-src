@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070930:
+	The PCI code has been made aware of PCI domains. This means that
+	the location strings as used by pciconf(8) etc are now in the
+	following format: pci<domain>:<bus>:<device>[:<function>]. It
+	also means that consumers of <sys/pciio.h> potentially need to
+	be recompiled; this includes the hal and xorg-server ports.
+
 20070928:
         The caching daemon (cached) was renamed to nscd. nscd.conf
         configuration file should be used instead of cached.conf and

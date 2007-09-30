@@ -62,6 +62,7 @@ struct cbb_softc {
 	void		*intrhand;
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+	uint32_t	domain;
 	unsigned int	pribus;
 	unsigned int	secbus;
 	unsigned int	subbus;

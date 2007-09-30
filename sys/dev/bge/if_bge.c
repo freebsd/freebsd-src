@@ -2181,13 +2181,14 @@ static int
 bge_has_multiple_ports(struct bge_softc *sc)
 {
 	device_t dev = sc->bge_dev;
-	u_int b, s, f, fscan;
+	u_int b, d, f, fscan, s;
 
+	d = pci_get_domain(dev);
 	b = pci_get_bus(dev);
 	s = pci_get_slot(dev);
 	f = pci_get_function(dev);
 	for (fscan = 0; fscan <= PCI_FUNCMAX; fscan++)
-		if (fscan != f && pci_find_bsf(b, s, fscan) != NULL)
+		if (fscan != f && pci_find_dbsf(d, b, s, fscan) != NULL)
 			return (1);
 	return (0);
 }

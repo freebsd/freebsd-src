@@ -274,15 +274,25 @@ TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
 
-/* Find a device_t by bus/slot/function */
+/* Find a device_t by bus/slot/function in domain 0 */
 
 device_t
 pci_find_bsf(uint8_t bus, uint8_t slot, uint8_t func)
 {
+
+	return (pci_find_dbsf(0, bus, slot, func));
+}
+
+/* Find a device_t by domain/bus/slot/function */
+
+device_t
+pci_find_dbsf(uint32_t domain, uint8_t bus, uint8_t slot, uint8_t func)
+{
 	struct pci_devinfo *dinfo;
 
 	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
-		if ((dinfo->cfg.bus == bus) &&
+		if ((dinfo->cfg.domain == domain) &&
+		    (dinfo->cfg.bus == bus) &&
 		    (dinfo->cfg.slot == slot) &&
 		    (dinfo->cfg.func == func)) {
 			return (dinfo->cfg.dev);
@@ -416,7 +426,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 
 /* read configuration header into pcicfgregs structure */
 struct pci_devinfo *
-pci_read_device(device_t pcib, int b, int s, int f, size_t size)
+pci_read_device(device_t pcib, int d, int b, int s, int f, size_t size)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	pcicfgregs *cfg = NULL;
@@ -434,6 +444,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 
 		cfg = &devlist_entry->cfg;
 
+		cfg->domain		= d;
 		cfg->bus		= b;
 		cfg->slot		= s;
 		cfg->func		= f;
@@ -465,6 +476,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 
 		STAILQ_INSERT_TAIL(devlist_head, devlist_entry, pci_links);
 
+		devlist_entry->conf.pc_sel.pc_domain = cfg->domain;
 		devlist_entry->conf.pc_sel.pc_bus = cfg->bus;
 		devlist_entry->conf.pc_sel.pc_dev = cfg->slot;
 		devlist_entry->conf.pc_sel.pc_func = cfg->func;
@@ -551,9 +563,10 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					    4);
 					if (addr != MSI_INTEL_ADDR_BASE)
 						device_printf(pcib,
-		    "HT Bridge at %d:%d:%d has non-default MSI window 0x%llx\n",
-						    cfg->bus, cfg->slot,
-						    cfg->func, (long long)addr);
+	    "HT Bridge at pci%d:%d:%d:%d has non-default MSI window 0x%llx\n",
+						    cfg->domain, cfg->bus,
+						    cfg->slot, cfg->func,
+						    (long long)addr);
 				}
 
 				/* Enable MSI -> HT mapping. */
@@ -730,9 +743,9 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				if (remain > (0x7f*4 - vrs.off)) {
 					end = 1;
 					printf(
-			    "pci%d:%d:%d: invalid vpd data, remain %#x\n",
-					    cfg->bus, cfg->slot, cfg->func,
-					    remain);
+			    "pci%d:%d:%d:%d: invalid vpd data, remain %#x\n",
+					    cfg->domain, cfg->bus, cfg->slot,
+					    cfg->func, remain);
 				}
 				name = byte & 0x7f;
 			} else {
@@ -797,8 +810,10 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				 * if this happens, we can't trust the rest
 				 * of the VPD.
 				 */
-				printf("pci%d:%d:%d: bad keyword length: %d\n",
-				    cfg->bus, cfg->slot, cfg->func, dflen);
+				printf(
+				    "pci%d:%d:%d:%d: bad keyword length: %d\n",
+				    cfg->domain, cfg->bus, cfg->slot,
+				    cfg->func, dflen);
 				cksumvalid = 0;
 				end = 1;
 				break;
@@ -831,9 +846,9 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 					cksumvalid = 1;
 				else {
 					printf(
-				    "pci%d:%d:%d: bad VPD cksum, remain %hhu\n",
-					    cfg->bus, cfg->slot, cfg->func,
-					    vrs.cksum);
+				"pci%d:%d:%d:%d: bad VPD cksum, remain %hhu\n",
+					    cfg->domain, cfg->bus, cfg->slot,
+					    cfg->func, vrs.cksum);
 					cksumvalid = 0;
 					end = 1;
 					break;
@@ -902,8 +917,9 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			break;
 
 		default:
-			printf("pci%d:%d:%d: invalid state: %d\n",
-			    cfg->bus, cfg->slot, cfg->func, state);
+			printf("pci%d:%d:%d:%d: invalid state: %d\n",
+			    cfg->domain, cfg->bus, cfg->slot, cfg->func,
+			    state);
 			end = 1;
 			break;
 		}
@@ -1947,9 +1963,9 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 
 	if (bootverbose)
 		printf(
-		    "pci%d:%d:%d: Transition from D%d to D%d\n",
-		    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func,
-		    oldstate, state);
+		    "pci%d:%d:%d:%d: Transition from D%d to D%d\n",
+		    dinfo->cfg.domain, dinfo->cfg.bus, dinfo->cfg.slot,
+		    dinfo->cfg.func, oldstate, state);
 
 	PCI_WRITE_CONFIG(dev, child, cfg->pp.pp_status, status, 2);
 	if (delay)
@@ -2105,8 +2121,8 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 
 		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n",
 		    cfg->vendor, cfg->device, cfg->revid);
-		printf("\tbus=%d, slot=%d, func=%d\n",
-		    cfg->bus, cfg->slot, cfg->func);
+		printf("\tdomain=%d, bus=%d, slot=%d, func=%d\n",
+		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		    cfg->baseclass, cfg->subclass, cfg->progif, cfg->hdrtype,
 		    cfg->mfdev);
@@ -2243,7 +2259,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		return (barlen);
 	if ((u_long)base != base) {
 		device_printf(bus,
-		    "pci%d:%d:%d bar %#x too many address bits", b, s, f, reg);
+		    "pci%d:%d:%d:%d bar %#x too many address bits",
+		    pci_get_domain(dev), b, s, f, reg);
 		return (barlen);
 	}
 
@@ -2295,8 +2312,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	if ((u_long)start != start) {
 		/* Wait a minute!  this platform can't do this address. */
 		device_printf(bus,
-		    "pci%d.%d.%x bar %#x start %#jx, too many bits.",
-		    b, s, f, reg, (uintmax_t)start);
+		    "pci%d:%d.%d.%x bar %#x start %#jx, too many bits.",
+		    pci_get_domain(dev), b, s, f, reg, (uintmax_t)start);
 		resource_list_release(rl, bus, dev, type, reg, res);
 		return (barlen);
 	}
@@ -2381,8 +2398,9 @@ pci_assign_interrupt(device_t bus, device_t dev, int force_route)
 
 	/* Let the user override the IRQ with a tunable. */
 	irq = PCI_INVALID_IRQ;
-	snprintf(tunable_name, sizeof(tunable_name), "hw.pci%d.%d.INT%c.irq",
-	    cfg->bus, cfg->slot, cfg->intpin + 'A' - 1);
+	snprintf(tunable_name, sizeof(tunable_name),
+	    "hw.pci%d.%d.%d.INT%c.irq",
+	    cfg->domain, cfg->bus, cfg->slot, cfg->intpin + 'A' - 1);
 	if (TUNABLE_INT_FETCH(tunable_name, &irq) && (irq >= 255 || irq <= 0))
 		irq = PCI_INVALID_IRQ;
 
@@ -2468,7 +2486,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 }
 
 void
-pci_add_children(device_t dev, int busno, size_t dinfo_size)
+pci_add_children(device_t dev, int domain, int busno, size_t dinfo_size)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
@@ -2490,7 +2508,8 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCI_FUNCMAX;
 		for (f = 0; f <= pcifunchigh; f++) {
-			dinfo = pci_read_device(pcib, busno, s, f, dinfo_size);
+			dinfo = pci_read_device(pcib, domain, busno, s, f,
+			    dinfo_size);
 			if (dinfo != NULL) {
 				pci_add_child(dev, dinfo);
 			}
@@ -2524,19 +2543,21 @@ pci_probe(device_t dev)
 static int
 pci_attach(device_t dev)
 {
-	int busno;
+	int busno, domain;
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
 	 * busses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
-	 * the parent pcib what our bus number is.
+	 * the parent pcib what our domain and bus numbers are.
 	 */
+	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
-		device_printf(dev, "physical bus=%d\n", busno);
+		device_printf(dev, "domain=%d, physical bus=%d\n",
+		    domain, busno);
 
-	pci_add_children(dev, busno, sizeof(struct pci_devinfo));
+	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
 
 	return (bus_generic_attach(dev));
 }
@@ -2659,8 +2680,9 @@ pci_driver_added(device_t dev, driver_t *driver)
 		dinfo = device_get_ivars(child);
 		pci_print_verbose(dinfo);
 		if (bootverbose)
-			printf("pci%d:%d:%d: reprobing on driver added\n",
-			    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func);
+			printf("pci%d:%d:%d:%d: reprobing on driver added\n",
+			    dinfo->cfg.domain, dinfo->cfg.bus, dinfo->cfg.slot,
+			    dinfo->cfg.func);
 		pci_cfg_restore(child, dinfo);
 		if (device_probe_and_attach(child) != 0)
 			pci_cfg_save(child, dinfo, 1);
@@ -3126,6 +3148,9 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	case PCI_IVAR_IRQ:
 		*result = cfg->intline;
 		break;
+	case PCI_IVAR_DOMAIN:
+		*result = cfg->domain;
+		break;
 	case PCI_IVAR_BUS:
 		*result = cfg->bus;
 		break;
@@ -3178,6 +3203,7 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case PCI_IVAR_PROGIF:
 	case PCI_IVAR_REVID:
 	case PCI_IVAR_IRQ:
+	case PCI_IVAR_DOMAIN:
 	case PCI_IVAR_BUS:
 	case PCI_IVAR_SLOT:
 	case PCI_IVAR_FUNCTION:
@@ -3224,12 +3250,12 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 			name = device_get_name(dinfo->cfg.dev);
 
 		p = &dinfo->conf;
-		db_printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08x "
+		db_printf("%s%d@pci%d:%d:%d:%d:\tclass=0x%06x card=0x%08x "
 			"chip=0x%08x rev=0x%02x hdr=0x%02x\n",
 			(name && *name) ? name : "none",
 			(name && *name) ? (int)device_get_unit(dinfo->cfg.dev) :
 			none_count++,
-			p->pc_sel.pc_bus, p->pc_sel.pc_dev,
+			p->pc_sel.pc_domain, p->pc_sel.pc_bus, p->pc_sel.pc_dev,
 			p->pc_sel.pc_func, (p->pc_class << 16) |
 			(p->pc_subclass << 8) | p->pc_progif,
 			(p->pc_subdevice << 16) | p->pc_subvendor,
