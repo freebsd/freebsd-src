@@ -260,8 +260,7 @@ _calendar=	calendar
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
-.if ${MK_LIBTHR} != "no" || \
-    (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")   
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 _csup=		csup
 .endif
 .endif

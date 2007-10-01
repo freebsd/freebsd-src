@@ -268,13 +268,16 @@ _ypset=		ypset
 _authpf=	authpf
 .endif
 
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
+_pppctl=	pppctl
+.endif
+
 .if ${MK_LPR} != "no"
 _lpr=		lpr
 .endif
 
 .if ${MK_NS_CACHING} != "no"
-.if ${MK_LIBTHR} != "no" || \
-    (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 _nscd=		nscd
 .endif
 .endif
@@ -313,9 +316,6 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pnpinfo=	pnpinfo
-.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
-.endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -349,9 +349,6 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
-.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
-.endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -363,9 +360,6 @@ _acpi=		acpi
 .endif
 _kgmon=		kgmon
 _mount_smbfs=	mount_smbfs
-.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
-.endif
 _zzz=		zzz
 .endif
 
@@ -377,9 +371,6 @@ _nvram=		nvram
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
-.if ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
-.endif
 .endif
 
 .include <bsd.subdir.mk>
