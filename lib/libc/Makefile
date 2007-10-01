@@ -23,6 +23,7 @@ PRECIOUSLIB=
 #
 # Only link with static libgcc.a (no libgcc_eh.a).
 #
+DPADD+=	${LIBGCC}
 LDFLAGS+= -nodefaultlibs
 LDADD+= -lgcc
 

@@ -40,8 +40,12 @@ PROG=	${PROG_CXX}
 
 # If there are Objective C sources, link with Objective C libraries.
 .if !empty(SRCS:M*.m)
-OBJCLIBS?= -lobjc -lpthread
+.if defined(OBJCLIBS)
 LDADD+=	${OBJCLIBS}
+.else
+DPADD+=	${LIBOBJC} ${LIBPTHREAD}
+LDADD+=	-lobjc -lpthread
+.endif
 .endif
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}

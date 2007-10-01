@@ -120,11 +120,7 @@ MINUSLPAM+=	-lypclnt
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPMC?=	${DESTDIR}${LIBDIR}/libpmc.a
-.if defined(DEFAULT_THREAD_LIB)
-LIBPTHREAD?=	${DESTDIR}${LIBDIR}/${DEFAULT_THREAD_LIB}.a
-.else
-LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libthr.a
-.endif
+LIBPTHREAD?=	${DESTDIR}${LIBDIR}/libpthread.a
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a
