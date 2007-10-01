@@ -330,8 +330,7 @@ _worldtmp:
 .endfor
 .for _dir in \
     lib usr/bin usr/include usr/lib/compat/aout usr/libdata/ldscripts \
-    usr/libexec usr/sbin usr/share/misc \
-    usr/share/snmp/defs usr/share/snmp/mibs
+    usr/libexec usr/sbin usr/share/misc
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
@@ -415,9 +414,7 @@ build32:
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
 .for _dir in \
-    lib lib32 usr/bin usr/include usr/lib32 usr/libdata/ldscripts \
-    usr/libexec usr/sbin usr/share/misc \
-    usr/share/snmp/defs usr/share/snmp/mibs
+    usr/include usr/lib32 usr/share/misc
 	mkdir -p ${LIB32TMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
