@@ -11,7 +11,9 @@ SUBDIR=	libavl \
 
 .if ${MK_ZFS} != "no"
 _libzfs=	libzfs
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 _libzpool=	libzpool
+.endif
 .endif
 
 .include <bsd.subdir.mk>
