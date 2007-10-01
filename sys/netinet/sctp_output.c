@@ -4612,7 +4612,7 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 void
 sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *init_pkt, int iphlen, int offset, struct sctphdr *sh,
-    struct sctp_init_chunk *init_chk, uint32_t vrf_id)
+    struct sctp_init_chunk *init_chk, uint32_t vrf_id, int hold_inp_lock)
 {
 	struct sctp_association *asoc;
 	struct mbuf *m, *m_at, *m_tmp, *m_cookie, *op_err, *mp_last;
@@ -4636,6 +4636,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	int abort_flag, padval;
 	int num_ext;
 	int p_len;
+	struct socket *so;
 
 	if (stcb)
 		asoc = &stcb->asoc;
@@ -4947,6 +4948,9 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	} else {
 		uint32_t vtag, itsn;
 
+		if (hold_inp_lock) {
+			SCTP_INP_RUNLOCK(inp);
+		}
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
@@ -4963,12 +4967,22 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/* get a TSN to use too */
 			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
 		}
+		if (hold_inp_lock) {
+			SCTP_INP_RLOCK(inp);
+		}
 	}
 	/* save away my tag to */
 	stc.my_vtag = initackm_out->msg.init.initiate_tag;
 
 	/* set up some of the credits. */
-	initackm_out->msg.init.a_rwnd = htonl(max(SCTP_SB_LIMIT_RCV(inp->sctp_socket), SCTP_MINIMAL_RWND));
+	so = inp->sctp_socket;
+	if (so == NULL) {
+		/* memory problem */
+		sctp_m_freem(m);
+		return;
+	} else {
+		initackm_out->msg.init.a_rwnd = htonl(max(SCTP_SB_LIMIT_RCV(so), SCTP_MINIMAL_RWND));
+	}
 	/* set what I want */
 	his_limit = ntohs(init_chk->init.num_inbound_streams);
 	/* choose what I want */
@@ -10962,7 +10976,10 @@ sctp_lower_sosend(struct socket *so,
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
 		error = EFAULT;
-		goto out_unlocked;
+		if (i_pak) {
+			SCTP_RELEASE_PKT(i_pak);
+		}
+		return (error);
 	}
 	if ((uio == NULL) && (i_pak == NULL)) {
 		SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
@@ -11193,6 +11210,11 @@ sctp_lower_sosend(struct socket *so,
 			}
 			/* get an asoc/stcb struct */
 			vrf_id = inp->def_vrf_id;
+#ifdef INVARIANTS
+			if (create_lock_applied == 0) {
+				panic("Error, should hold create lock and I don't?");
+			}
+#endif
 			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id,
 			    p
 			    );
@@ -11342,11 +11364,16 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	/* Keep the stcb from being freed under our feet */
-	if (free_cnt_applied)
+	if (free_cnt_applied) {
+#ifdef INVARIANTS
 		panic("refcnt already incremented");
-	atomic_add_int(&stcb->asoc.refcnt, 1);
-	free_cnt_applied = 1;
-
+#else
+		printf("refcnt:1 already incremented?\n");
+#endif
+	} else {
+		atomic_add_int(&stcb->asoc.refcnt, 1);
+		free_cnt_applied = 1;
+	}
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
 		error = ECONNRESET;
