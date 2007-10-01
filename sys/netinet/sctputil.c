@@ -3962,6 +3962,9 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 			break;
 		}
 		switch (ch->chunk_type) {
+		case SCTP_COOKIE_ECHO:
+			/* We hit here only if the assoc is being freed */
+			return;
 		case SCTP_PACKET_DROPPED:
 			/* we don't respond to pkt-dropped */
 			return;
@@ -5265,10 +5268,16 @@ found_one:
 			 * to increment, we need to use the atomic add to
 			 * the refcnt
 			 */
-			if (freecnt_applied)
+			if (freecnt_applied) {
+#ifdef INVARIANTS
 				panic("refcnt already incremented");
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			freecnt_applied = 1;
+#else
+				printf("refcnt already incremented?\n");
+#endif
+			} else {
+				atomic_add_int(&stcb->asoc.refcnt, 1);
+				freecnt_applied = 1;
+			}
 			/*
 			 * Setup to remember how much we have not yet told
 			 * the peer our rwnd has opened up. Note we grab the
