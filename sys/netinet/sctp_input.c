@@ -87,6 +87,12 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_init: handling INIT tcb:%p\n",
 	    stcb);
+	if (stcb == NULL) {
+		SCTP_INP_RLOCK(inp);
+		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+			goto outnow;
+		}
+	}
 	op_err = NULL;
 	init = &cp->init;
 	/* First are we accepting? */
@@ -102,7 +108,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_chunk)) {
 		/* Invalid length */
@@ -111,7 +117,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	/* validate parameters */
 	if (init->initiate_tag == 0) {
@@ -121,7 +127,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	if (ntohl(init->a_rwnd) < SCTP_MIN_RWND) {
 		/* invalid parameter... send abort */
@@ -130,7 +136,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	if (init->num_inbound_streams == 0) {
 		/* protocol error... send abort */
@@ -139,7 +145,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	if (init->num_outbound_streams == 0) {
 		/* protocol error... send abort */
@@ -148,7 +154,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		    vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	init_limit = offset + ntohs(cp->ch.chunk_length);
 	if (sctp_validate_init_auth_params(m, offset + sizeof(*cp),
@@ -157,11 +163,16 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		sctp_abort_association(inp, stcb, m, iphlen, sh, NULL, vrf_id);
 		if (stcb)
 			*abort_no_unlock = 1;
-		return;
+		goto outnow;
 	}
 	/* send an INIT-ACK w/cookie */
 	SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
-	sctp_send_initiate_ack(inp, stcb, m, iphlen, offset, sh, cp, vrf_id);
+	sctp_send_initiate_ack(inp, stcb, m, iphlen, offset, sh, cp, vrf_id,
+	    SCTP_HOLDS_LOCK);
+outnow:
+	if (stcb == NULL) {
+		SCTP_INP_RUNLOCK(inp);
+	}
 }
 
 /*
@@ -495,6 +506,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	struct sockaddr_in6 *sin6;
 	struct sctp_nets *r_net;
 	struct timeval tv;
+	int req_prim = 0;
 
 	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_heartbeat_chunk)) {
 		/* Invalid length */
@@ -549,28 +561,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 				TAILQ_REMOVE(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
 				TAILQ_INSERT_HEAD(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
 			}
-			/* Mobility adaptation */
-			if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
-			    SCTP_MOBILITY_BASE) ||
-			    sctp_is_mobility_feature_on(stcb->sctp_ep,
-			    SCTP_MOBILITY_FASTHANDOFF)) &&
-			    sctp_is_mobility_feature_on(stcb->sctp_ep,
-			    SCTP_MOBILITY_PRIM_DELETED)) {
-
-				sctp_timer_stop(SCTP_TIMER_TYPE_PRIM_DELETED, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_TIMER + SCTP_LOC_7);
-				if (sctp_is_mobility_feature_on(stcb->sctp_ep,
-				    SCTP_MOBILITY_FASTHANDOFF)) {
-					sctp_assoc_immediate_retrans(stcb,
-					    stcb->asoc.primary_destination);
-				}
-				if (sctp_is_mobility_feature_on(stcb->sctp_ep,
-				    SCTP_MOBILITY_BASE)) {
-					sctp_move_chunks_from_deleted_prim(stcb,
-					    stcb->asoc.primary_destination);
-				}
-				sctp_delete_prim_timer(stcb->sctp_ep, stcb,
-				    stcb->asoc.deleted_primary);
-			}
+			req_prim = 1;
 		}
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 		    stcb, 0, (void *)r_net, SCTP_SO_NOT_LOCKED);
@@ -610,6 +601,30 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	}
 	/* Now lets do a RTO with this */
 	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy);
+	/* Mobility adaptation */
+	if (req_prim) {
+		if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
+		    SCTP_MOBILITY_BASE) ||
+		    sctp_is_mobility_feature_on(stcb->sctp_ep,
+		    SCTP_MOBILITY_FASTHANDOFF)) &&
+		    sctp_is_mobility_feature_on(stcb->sctp_ep,
+		    SCTP_MOBILITY_PRIM_DELETED)) {
+
+			sctp_timer_stop(SCTP_TIMER_TYPE_PRIM_DELETED, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_TIMER + SCTP_LOC_7);
+			if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_FASTHANDOFF)) {
+				sctp_assoc_immediate_retrans(stcb,
+				    stcb->asoc.primary_destination);
+			}
+			if (sctp_is_mobility_feature_on(stcb->sctp_ep,
+			    SCTP_MOBILITY_BASE)) {
+				sctp_move_chunks_from_deleted_prim(stcb,
+				    stcb->asoc.primary_destination);
+			}
+			sctp_delete_prim_timer(stcb->sctp_ep, stcb,
+			    stcb->asoc.deleted_primary);
+		}
+	}
 }
 
 static void
@@ -630,6 +645,15 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 	/* notify user of the abort and clean up... */
 	sctp_abort_notification(stcb, 0, SCTP_SO_NOT_LOCKED);
 	/* free the tcb */
+#if defined(SCTP_PANIC_ON_ABORT)
+	printf("stcb:%p state:%d rport:%d net:%p\n",
+	    stcb, stcb->asoc.state, stcb->rport, net);
+	if (!(stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)) {
+		panic("Received an ABORT");
+	} else {
+		printf("No panic its in state %x closed\n", stcb->asoc.state);
+	}
+#endif
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 	if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
 	    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
@@ -1537,7 +1561,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 				SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
 			else
 				SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
-			SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
 			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		} else if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
 			SCTP_STAT_INCR_COUNTER32(sctps_restartestab);
@@ -1548,7 +1571,6 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
-
 		}
 		sctp_stop_all_cookie_timers(stcb);
 		sctp_toss_old_cookies(stcb, asoc);

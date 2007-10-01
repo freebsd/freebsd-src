@@ -2908,6 +2908,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_3);
 				}
 				asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_3;
+#if defined(SCTP_PANIC_ON_ABORT)
+				panic("inpcb_free does an abort");
+#endif
 				sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
 				SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 				if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_OPEN) ||
@@ -2991,6 +2994,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 						*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_5);
 					}
 					asoc->sctp_ep->last_abort_code = SCTP_FROM_SCTP_PCB + SCTP_LOC_5;
+#if defined(SCTP_PANIC_ON_ABORT)
+					panic("inpcb_free does an abort");
+#endif
+
 					sctp_send_abort_tcb(asoc, op_err, SCTP_SO_LOCKED);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 					if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_OPEN) ||
@@ -3822,6 +3829,8 @@ sctp_remove_net(struct sctp_tcb *stcb, struct sctp_nets *net)
 			}
 			asoc->deleted_primary = net;
 			atomic_add_int(&net->ref_count, 1);
+			memset(&net->lastsa, 0, sizeof(net->lastsa));
+			memset(&net->lastsv, 0, sizeof(net->lastsv));
 			sctp_mobility_feature_on(stcb->sctp_ep,
 			    SCTP_MOBILITY_PRIM_DELETED);
 			sctp_timer_start(SCTP_TIMER_TYPE_PRIM_DELETED,

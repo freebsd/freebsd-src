@@ -1571,8 +1571,8 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    asoc->highest_tsn_inside_map, MAX_TSN)) {
 
 			/* Nope not in the valid range dump it */
-			SCTPDBG(SCTP_DEBUG_INDATA1, "My rwnd overrun1:tsn:%lx rwnd %lu sbspace:%ld\n",
-			    (u_long)tsn, (u_long)asoc->my_rwnd,
+			SCTPDBG(SCTP_DEBUG_INDATA1, "My rwnd overrun1:tsn:%x rwnd %x sbspace:%x\n",
+			    tsn, asoc->my_rwnd,
 			    sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv));
 			sctp_set_rwnd(stcb, asoc);
 			if ((asoc->cnt_on_all_streams +
@@ -2325,7 +2325,12 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 		}
 		slide_end = lgap >> 3;
 		if (slide_end < slide_from) {
+#ifdef INVARIANTS
 			panic("impossible slide");
+#else
+			printf("impossible slide?\n");
+			return;
+#endif
 		}
 		distance = (slide_end - slide_from) + 1;
 		if (sctp_logging_level & SCTP_MAP_LOGGING_ENABLE) {
