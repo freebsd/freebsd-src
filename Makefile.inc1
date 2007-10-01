@@ -1027,11 +1027,19 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie lib/libpam lib/${DEFAULT_THREAD_LIB} \
+		lib/libopie lib/libpam ${_default_thread_lib} \
 		lib/libradius lib/libsbuf lib/libtacplus lib/libutil \
 		${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
+
+.if ${MK_LIBTHR} != "no" && ${MK_LIBPTHREAD} != "no"
+_default_thread_lib=	lib/${DEFAULT_THREAD_LIB}
+.elif ${MK_LIBTHR} != "no"
+_default_thread_lib=	lib/libthr
+.elif ${MK_LIBPTHREAD} != "no"
+_default_thread_lib=	lib/libpthread
+.endif
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
 
