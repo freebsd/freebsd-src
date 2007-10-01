@@ -262,7 +262,7 @@ shell_1_csh:
 .if make(shell_1_sh)
 .SHELL: name="sh"
 shell_1_sh:
-	@ps -ax -opid,command | awk '$$1=="'$$$$'" { print $$2 }' | grep -q '^/bin/sh$$'
+	@ps -ax -opid,command | awk '$$1=="'$$$$'" { print $$2 }' | grep -E -q '^(/bin/)?sh$$'
 .endif
 
 .if make(shell_2)
