@@ -16,7 +16,7 @@ CFLAGS+=-DLOGIN_CAP -DPAM
 WFORMAT=0
 
 DPADD=	${LIBPAM} ${LIBUTIL}
-LDADD=	-lpam -lutil
+LDADD=	${MINUSLPAM} -lutil
 
 atrun.8: atrun.man
 	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
