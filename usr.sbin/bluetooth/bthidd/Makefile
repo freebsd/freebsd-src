@@ -11,7 +11,7 @@ CFLAGS+=	-I${.CURDIR}
 WARNS?=		6
 DEBUG_FLAGS=	-g
 
-DPADD=          ${LIBBLUETOOTH} ${LIBSDP}
+DPADD=          ${LIBBLUETOOTH} ${LIBUSBHID}
 LDADD=		-lbluetooth -lusbhid
 
 .include <bsd.prog.mk>
