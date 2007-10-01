@@ -908,7 +908,7 @@ OLD_FILES+=usr/share/man/man8/ktutil.8.gz
 # to be filled in
 #.endif
 
-#.if ${MK_THR} == no
+#.if ${MK_LIBTHR} == no
 # to be filled in
 #.endif
 
