@@ -13,8 +13,7 @@ WARNS?=	3
 NGCTL_NO_LIBEDIT=
 .endif
 
-.if ${MK_LIBTHR} == "no" && \
-    (${MACHINE_ARCH} == "sparc64" || ${MK_LIBPTHREAD} == "no")
+.if ${MK_LIBTHR} == "no" && ${MK_LIBPTHREAD} == "no"
 NGCTL_NO_LIBEDIT=
 .endif
 
