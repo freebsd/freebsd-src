@@ -12,7 +12,7 @@ kernconf.c: kernconf.tmpl
 WARNS?=	6
 CFLAGS+= -I. -I${.CURDIR}
 
-DPADD=	${LIBL}
+DPADD=	${LIBL} ${LIBSBUF}
 LDADD=	-ll -lsbuf
 
 CLEANFILES+=	kernconf.c
