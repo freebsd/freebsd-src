@@ -1892,6 +1892,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
+		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
 		cpu_switch(td, newtd, mtx);
 		/*
 		 * We may return from cpu_switch on a different cpu.  However,
@@ -1900,7 +1901,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		cpuid = PCPU_GET(cpuid);
 		tdq = TDQ_CPU(cpuid);
-		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)td;
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
@@ -2607,6 +2607,7 @@ sched_idletd(void *dummy)
 void
 sched_throw(struct thread *td)
 {
+	struct thread *newtd;
 	struct tdq *tdq;
 
 	tdq = TDQ_SELF();
@@ -2619,9 +2620,11 @@ sched_throw(struct thread *td)
 		tdq_load_rem(tdq, td->td_sched);
 	}
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
+	newtd = choosethread();
+	TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
 	PCPU_SET(switchtime, cpu_ticks());
 	PCPU_SET(switchticks, ticks);
-	cpu_throw(td, choosethread());	/* doesn't return */
+	cpu_throw(td, newtd);		/* doesn't return */
 }
 
 /*
@@ -2646,8 +2649,7 @@ sched_fork_exit(struct thread *td)
 		td->td_lock = TDQ_LOCKPTR(tdq);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 	td->td_oncpu = cpuid;
-	TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)td;
-	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
 }
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0,
