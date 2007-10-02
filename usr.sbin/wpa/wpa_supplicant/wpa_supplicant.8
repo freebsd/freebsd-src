@@ -35,7 +35,6 @@
 .Op Fl BdehLqvw
 .Fl i Ar ifname
 .Fl c Ar config-file
-.Op Fl N i Ar ifname Fl c Ar config-file ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -118,11 +117,6 @@ in the background.
 Include key information in debugging output.
 .It Fl L
 Display the license for this program on the terminal and exit.
-.It Fl N i Ar ifname Fl c Ar config-file ...
-Specify an additional interface and configuration file.
-If multiple interfaces are specified then
-.Nm
-will manage them all with a single process.
 .El
 .Sh SEE ALSO
 .Xr ath 4 ,
