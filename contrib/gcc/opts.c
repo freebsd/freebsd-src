@@ -501,7 +501,10 @@ decode_options (unsigned int argc, const char **argv)
       flag_reorder_functions = 1;
       flag_tree_store_ccp = 1;
       flag_tree_store_copy_prop = 1;
-      flag_tree_vrp = 1;
+      /* XXX: some issues with ports have been traced to -ftree-vrp.
+         So remove it from -O2 and above.  Note that jdk1{5,6} are affected
+         and they build with w/-O3 - so we cannot just move it to -O3. */
+      // flag_tree_vrp = 1;
 
       if (!optimize_size)
 	{
