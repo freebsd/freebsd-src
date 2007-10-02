@@ -260,6 +260,70 @@
 ..
 .
 .
+.\" NS Dx user macro
+.\" NS   print DragonFly
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-macro-name
+.\" NS
+.\" NS local variable:
+.\" NS   doc-str-Dx
+.\" NS   doc-str-Dx1
+.\" NS
+.\" NS width register `Dx' defined in doc-common
+.
+.\" we use the doc-operating-system-DragonFly-* strings defined in doc-common
+.
+.de Dx
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.  ds doc-str-Dx \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]
+.
+.  \" default value if no argument
+.  ds doc-str-Dx1 \*[doc-Tn-font-size]\%DragonFly\*[doc-str-Dx]
+.
+.  if !\n[doc-arg-limit] \
+.    if \n[.$] \{\
+.      ds doc-macro-name Dx
+.      doc-parse-args \$@
+.    \}
+.
+.  if (\n[doc-arg-limit] > \n[doc-arg-ptr]) \{\
+.    nr doc-arg-ptr +1
+.    ie (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
+.      ie \A\*[doc-arg\n[doc-arg-ptr]] \{\
+.        ie d doc-operating-system-DragonFly-\*[doc-arg\n[doc-arg-ptr]] \
+.          as doc-str-Dx1 \~\*[doc-operating-system-DragonFly-\*[doc-arg\n[doc-arg-ptr]]]
+.        el \{\
+.          tmc mdoc warning: .Dx: Unknown DragonFly version
+.          tm1 " `\*[doc-arg\n[doc-arg-ptr]]' (#\n[.c])
+.          as doc-str-Dx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.      \}\}
+.      el \
+.        as doc-str-Dx1 \~\*[doc-arg\n[doc-arg-ptr]]
+.    \}
+.    el \
+.      nr doc-arg-ptr -1
+.  \}
+.
+.  \" replace current argument with result
+.  ds doc-arg\n[doc-arg-ptr] "\*[doc-str-Dx1]
+.  nr doc-type\n[doc-arg-ptr] 2
+.  ds doc-space\n[doc-arg-ptr] "\*[doc-space]
+.
+.  \" recompute space vector for remaining arguments
+.  nr doc-num-args (\n[doc-arg-limit] - \n[doc-arg-ptr])
+.  nr doc-arg-limit \n[doc-arg-ptr]
+.  if \n[doc-num-args] \
+.    doc-parse-space-vector
+.
+.  doc-print-recursive
+..
+.
+.
 .\" NS Fx user macro
 .\" NS   print FreeBSD
 .\" NS
@@ -543,6 +607,12 @@
 .als doc-str-St--isoC-90 doc-str-St--isoC
 .ds doc-str-St--isoC-99        \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1999
 .as doc-str-St--isoC-99        " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^99\*[doc-str-St]\*[Rq])
+.ds doc-str-St--isoC-amd1       \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899/AMD1:1995
+.as doc-str-St--isoC-amd1       " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St], Amendment 1\*[Rq])
+.ds doc-str-St--isoC-tcor1      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899/TCOR1:1994
+.as doc-str-St--isoC-tcor1      " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St], Technical Corrigendum 1\*[Rq])
+.ds doc-str-St--isoC-tcor2      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899/TCOR2:1995
+.as doc-str-St--isoC-tcor2      " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St], Technical Corrigendum 2\*[Rq])
 .
 .\" POSIX Part 1: System API
 .ds doc-str-St--p1003.1        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1
@@ -604,6 +674,8 @@
 .
 .\" Miscellaneous
 .ds doc-str-St--ieee754        \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 754-1985
+.ds doc-str-St--ieee1275-94     \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1275-1994
+.as doc-str-St--ieee1275-94     " (\*[Lq]\*[doc-Tn-font-size]Open Firmware\*[doc-str-St]\*[Rq])
 .ds doc-str-St--iso8802-3      \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 8802-3:1989
 .
 .de St
