@@ -127,7 +127,13 @@ main(int argc, char *argv[])
 
 	(void) signal(SIGHUP, SIG_IGN);
 
-	if (init && daemon(0, 1)) {
+	if (init && daemon(0,
+#ifdef DEBUG
+	    1
+#else
+	    0
+#endif
+	    )) {
 		syslog(LOG_ERR, "daemon: %m");
 		return 1;
 	}
