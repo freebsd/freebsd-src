@@ -1,6 +1,6 @@
 /******************************************************************************
 
-Copyright (c) 2006, Myricom Inc.
+Copyright (c) 2006-2007, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Myricom Inc, nor the names of its
+ 2. Neither the name of the Myricom Inc, nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -80,6 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>		/* for pmap_mapdev() */
 #include <vm/pmap.h>
 
+#if defined(__i386) || defined(__amd64)
+#include <machine/specialreg.h>
+#endif
+
 #include <dev/mxge/mxge_mcp.h>
 #include <dev/mxge/mcp_gen_header.h>
 #include <dev/mxge/if_mxge_var.h>
@@ -91,6 +91,7 @@ static int mxge_intr_coal_delay = 30;
 static int mxge_deassert_wait = 1;
 static int mxge_flow_control = 1;
 static int mxge_verbose = 0;
+static int mxge_lro_cnt = 8;
 static int mxge_ticks;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
@@ -123,15 +124,20 @@ static devclass_t mxge_devclass;
 /* Declare ourselves to be a child of the PCI bus.*/
 DRIVER_MODULE(mxge, pci, mxge_driver, mxge_devclass, 0, 0);
 MODULE_DEPEND(mxge, firmware, 1, 1, 1);
+MODULE_DEPEND(mxge, zlib, 1, 1, 1);
 
 static int mxge_load_firmware(mxge_softc_t *sc);
 static int mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data);
+static int mxge_close(mxge_softc_t *sc);
+static int mxge_open(mxge_softc_t *sc);
+static void mxge_tick(void *arg);
 
 static int
 mxge_probe(device_t dev)
 {
   if ((pci_get_vendor(dev) == MXGE_PCI_VENDOR_MYRICOM) &&
-      (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E)) {
+      ((pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E) ||
+       (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E_9))) {
 	  device_set_desc(dev, "Myri10G-PCIE-8A");
 	  return 0;
   }
@@ -141,13 +147,22 @@ mxge_probe(device_t dev)
 static void
 mxge_enable_wc(mxge_softc_t *sc)
 {
+#if defined(__i386) || defined(__amd64)
 	struct mem_range_desc mrdesc;
 	vm_paddr_t pa;
 	vm_offset_t len;
 	int err, action;
 
-	pa = rman_get_start(sc->mem_res);
+	sc->wc = 1;
 	len = rman_get_size(sc->mem_res);
+	err = pmap_change_attr((vm_offset_t) sc->sram,
+			       len, PAT_WRITE_COMBINING);
+	if (err == 0)
+		return;
+	else
+		device_printf(sc->dev, "pmap_change_attr failed, %d\n",
+			      err);
+	pa = rman_get_start(sc->mem_res);
 	mrdesc.mr_base = pa;
 	mrdesc.mr_len = len;
 	mrdesc.mr_flags = MDF_WRITECOMBINE;
@@ -155,12 +170,12 @@ mxge_enable_wc(mxge_softc_t *sc)
 	strcpy((char *)&mrdesc.mr_owner, "mxge");
 	err = mem_range_attr_set(&mrdesc, &action);
 	if (err != 0) {
+		sc->wc = 0;
 		device_printf(sc->dev, 
 			      "w/c failed for pa 0x%lx, len 0x%lx, err = %d\n",
 			      (unsigned long)pa, (unsigned long)len, err);
-	} else {
-		sc->wc = 1;
 	}
+#endif		
 }
 
 
@@ -410,7 +425,7 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 }
 #else
 static void
-mxge_enable_nvidia_ecrc(mxge_softc_t *sc, device_t pdev)
+mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 {
 	device_printf(sc->dev,
 		      "Nforce 4 chipset on non-x86/amd64!?!?!\n");
@@ -631,62 +646,101 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 
 }
 
+static void *
+z_alloc(void *nil, u_int items, u_int size)
+{
+        void *ptr;
+
+        ptr = malloc(items * size, M_TEMP, M_NOWAIT);
+        return ptr;
+}
+
+static void
+z_free(void *nil, void *ptr)
+{
+        free(ptr, M_TEMP);
+}
+
+
 static int
 mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 {
+	z_stream zs;
+	char *inflate_buffer;
 	const struct firmware *fw;
 	const mcp_gen_header_t *hdr;
 	unsigned hdr_offset;
-	const char *fw_data;
-	union qualhack hack;
 	int status;
 	unsigned int i;
 	char dummy;
-	
+	size_t fw_len;
 
 	fw = firmware_get(sc->fw_name);
-
 	if (fw == NULL) {
 		device_printf(sc->dev, "Could not find firmware image %s\n",
 			      sc->fw_name);
 		return ENOENT;
 	}
-	if (fw->datasize > *limit || 
-	    fw->datasize < MCP_HEADER_PTR_OFFSET + 4) {
-		device_printf(sc->dev, "Firmware image %s too large (%d/%d)\n",
-			      sc->fw_name, (int)fw->datasize, (int) *limit);
-		status = ENOSPC;
-		goto abort_with_fw;
-	}
-	*limit = fw->datasize;
 
-	/* check id */
-	fw_data = (const char *)fw->data;
-	hdr_offset = htobe32(*(const uint32_t *)
-			     (fw_data + MCP_HEADER_PTR_OFFSET));
-	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > fw->datasize) {
-		device_printf(sc->dev, "Bad firmware file");
+
+
+	/* setup zlib and decompress f/w */
+	bzero(&zs, sizeof (zs));
+	zs.zalloc = z_alloc;
+	zs.zfree = z_free;
+	status = inflateInit(&zs);
+	if (status != Z_OK) {
 		status = EIO;
 		goto abort_with_fw;
 	}
-	hdr = (const void*)(fw_data + hdr_offset); 
+
+	/* the uncompressed size is stored as the firmware version,
+	   which would otherwise go unused */
+	fw_len = (size_t) fw->version; 
+	inflate_buffer = malloc(fw_len, M_TEMP, M_NOWAIT);
+	if (inflate_buffer == NULL)
+		goto abort_with_zs;
+	zs.avail_in = fw->datasize;
+	zs.next_in = __DECONST(char *, fw->data);
+	zs.avail_out = fw_len;
+	zs.next_out = inflate_buffer;
+	status = inflate(&zs, Z_FINISH);
+	if (status != Z_STREAM_END) {
+		device_printf(sc->dev, "zlib %d\n", status);
+		status = EIO;
+		goto abort_with_buffer;
+	}
+
+	/* check id */
+	hdr_offset = htobe32(*(const uint32_t *)
+			     (inflate_buffer + MCP_HEADER_PTR_OFFSET));
+	if ((hdr_offset & 3) || hdr_offset + sizeof(*hdr) > fw_len) {
+		device_printf(sc->dev, "Bad firmware file");
+		status = EIO;
+		goto abort_with_buffer;
+	}
+	hdr = (const void*)(inflate_buffer + hdr_offset); 
 
 	status = mxge_validate_firmware(sc, hdr);
 	if (status != 0)
-		goto abort_with_fw;
+		goto abort_with_buffer;
 
-	hack.ro_char = fw_data;
 	/* Copy the inflated firmware to NIC SRAM. */
-	for (i = 0; i < *limit; i += 256) {
+	for (i = 0; i < fw_len; i += 256) {
 		mxge_pio_copy(sc->sram + MXGE_FW_OFFSET + i,
-			      hack.rw_char + i,
-			      min(256U, (unsigned)(*limit - i)));
+			      inflate_buffer + i,
+			      min(256U, (unsigned)(fw_len - i)));
 		mb();
 		dummy = *sc->sram;
 		mb();
 	}
 
+	*limit = fw_len;
 	status = 0;
+abort_with_buffer:
+	free(inflate_buffer, M_TEMP);
+abort_with_zs:
+	inflateEnd(&zs);
 abort_with_fw:
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return status;
@@ -795,6 +849,9 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 			break;
 		case MXGEFW_CMD_ERROR_UNALIGNED:
 			err = E2BIG;
+			break;
+		case MXGEFW_CMD_ERROR_BUSY:
+			err = EBUSY;
 			break;
 		default:
 			device_printf(sc->dev, 
@@ -1222,6 +1279,53 @@ mxge_change_flow_control(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+mxge_change_lro_locked(mxge_softc_t *sc, int lro_cnt)
+{
+	struct ifnet *ifp;
+	int err = 0;
+
+	ifp = sc->ifp;
+	if (lro_cnt == 0) 
+		ifp->if_capenable &= ~IFCAP_LRO;
+	else
+		ifp->if_capenable |= IFCAP_LRO;
+	sc->lro_cnt = lro_cnt;
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		callout_stop(&sc->co_hdl);
+		mxge_close(sc);
+		err = mxge_open(sc);
+		if (err == 0)
+			callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	}
+	return err;
+}
+
+static int
+mxge_change_lro(SYSCTL_HANDLER_ARGS)
+{
+	mxge_softc_t *sc;
+	unsigned int lro_cnt;
+	int err;
+
+	sc = arg1;
+	lro_cnt = sc->lro_cnt;
+	err = sysctl_handle_int(oidp, &lro_cnt, arg2, req);
+	if (err != 0)
+		return err;
+
+	if (lro_cnt == sc->lro_cnt)
+		return 0;
+
+	if (lro_cnt > 128)
+		return EINVAL;
+
+	mtx_lock(&sc->driver_mtx);
+	err = mxge_change_lro_locked(sc, lro_cnt);
+	mtx_unlock(&sc->driver_mtx);
+	return err;
+}
+
+static int
 mxge_handle_be32(SYSCTL_HANDLER_ARGS)
 {
         int err;
@@ -1419,9 +1523,11 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       0, "verbose printing");
 
 	/* lro */
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
-		       "lro_cnt", CTLFLAG_RD, &sc->lro_cnt,
-		       0, "number of lro merge queues");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
+			"lro_cnt",
+			CTLTYPE_INT|CTLFLAG_RW, sc,
+			0, mxge_change_lro,
+			"I", "number of lro merge queues");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "lro_flushed", CTLFLAG_RD, &sc->lro_flushed,
@@ -1853,9 +1959,10 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	/* restore checksum to network byte order; 
 	   later consumers expect this */
 	*csum = htons(*csum);
+
 	/* save the tag */
 	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG, sizeof(u_int),
-			   M_NOWAIT);
+			    M_NOWAIT);
 	if (mtag == NULL)
 		return;
 	m->m_flags |= M_VLANTAG;
@@ -2013,7 +2120,7 @@ mxge_clean_rx_done(mxge_softc_t *sc)
 		rx_done->idx = rx_done->cnt & rx_done->mask;
 
 		/* limit potential for livelock */
-		if (__predict_false(++limit > 2 * rx_done->mask))
+		if (__predict_false(++limit > rx_done->mask / 2))
 			break;
 	}
 	while(!SLIST_EMPTY(&sc->lro_active)) {
@@ -2031,9 +2138,8 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 	mxge_tx_buf_t *tx;
 	struct mbuf *m;
 	bus_dmamap_t map;
-	int idx, limit;
+	int idx;
 
-	limit = 0;
 	tx = &sc->tx;
 	ifp = sc->ifp;
 	while (tx->pkt_done != mcp_idx) {
@@ -2053,10 +2159,6 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 			tx->info[idx].flag = 0;
 			tx->pkt_done++;
 		}
-		/* limit potential for livelock by only handling
-		   2 full tx rings per call */
-		if (__predict_false(++limit >  2 * tx->mask))
-			break;
 	}
 	
 	/* If we have space, clear IFF_OACTIVE to tell the stack that
@@ -2070,6 +2172,142 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 		mxge_start_locked(sc);
 		mtx_unlock(&sc->tx_mtx);
 	}
+}
+
+static struct mxge_media_type mxge_media_types[] =
+{
+	{IFM_10G_CX4,	0x7f, 		"10GBASE-CX4 (module)"},
+	{IFM_10G_SR, 	(1 << 7),	"10GBASE-SR"},
+	{IFM_10G_LR, 	(1 << 6),	"10GBASE-LR"},
+	{0,		(1 << 5),	"10GBASE-ER"},
+	{0,		(1 << 4),	"10GBASE-LRM"},
+	{0,		(1 << 3),	"10GBASE-SW"},
+	{0,		(1 << 2),	"10GBASE-LW"},
+	{0,		(1 << 1),	"10GBASE-EW"},
+	{0,		(1 << 0),	"Reserved"}
+};
+
+static void
+mxge_set_media(mxge_softc_t *sc, int type)
+{
+	sc->media_flags |= type;
+	ifmedia_add(&sc->media, sc->media_flags, 0, NULL);
+	ifmedia_set(&sc->media, sc->media_flags);
+}
+
+
+/*
+ * Determine the media type for a NIC.  Some XFPs will identify
+ * themselves only when their link is up, so this is initiated via a
+ * link up interrupt.  However, this can potentially take up to
+ * several milliseconds, so it is run via the watchdog routine, rather
+ * than in the interrupt handler itself.   This need only be done
+ * once, not each time the link is up.
+ */
+static void
+mxge_media_probe(mxge_softc_t *sc)
+{
+	mxge_cmd_t cmd;
+	char *ptr;
+	int i, err, ms;
+
+	sc->need_media_probe = 0;
+
+	/* if we've already set a media type, we're done */
+	if (sc->media_flags  != (IFM_ETHER | IFM_AUTO))
+		return;
+
+	/* 
+	 * parse the product code to deterimine the interface type
+	 * (CX4, XFP, Quad Ribbon Fiber) by looking at the character
+	 * after the 3rd dash in the driver's cached copy of the
+	 * EEPROM's product code string.
+	 */
+	ptr = sc->product_code_string;
+	if (ptr == NULL) {
+		device_printf(sc->dev, "Missing product code\n");
+	}
+
+	for (i = 0; i < 3; i++, ptr++) {
+		ptr = index(ptr, '-');
+		if (ptr == NULL) {
+			device_printf(sc->dev,
+				      "only %d dashes in PC?!?\n", i);
+			return;
+		}
+	}
+	if (*ptr == 'C') {
+		mxge_set_media(sc, IFM_10G_CX4);
+		return;
+	}
+	else if (*ptr == 'Q') {
+		device_printf(sc->dev, "Quad Ribbon Fiber Media\n");
+		/* FreeBSD has no media type for Quad ribbon fiber */
+		return;
+	}
+
+	if (*ptr != 'R') {
+		device_printf(sc->dev, "Unknown media type: %c\n", *ptr);
+		return;
+	}
+
+	/*
+	 * At this point we know the NIC has an XFP cage, so now we
+	 * try to determine what is in the cage by using the
+	 * firmware's XFP I2C commands to read the XFP 10GbE compilance
+	 * register.  We read just one byte, which may take over
+	 * a millisecond
+	 */
+
+	cmd.data0 = 0;	 /* just fetch 1 byte, not all 256 */
+	cmd.data1 = MXGE_XFP_COMPLIANCE_BYTE; /* the byte we want */
+	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_I2C_READ, &cmd);
+	if (err == MXGEFW_CMD_ERROR_XFP_FAILURE) {
+		device_printf(sc->dev, "failed to read XFP\n");
+	}
+	if (err == MXGEFW_CMD_ERROR_XFP_ABSENT) {
+		device_printf(sc->dev, "Type R with no XFP!?!?\n");
+	}
+	if (err != MXGEFW_CMD_OK) {
+		return;
+	}
+
+	/* now we wait for the data to be cached */
+	cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
+	err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+	for (ms = 0; (err == EBUSY) && (ms < 50); ms++) {
+		DELAY(1000);
+		cmd.data0 = MXGE_XFP_COMPLIANCE_BYTE;
+		err = mxge_send_cmd(sc, MXGEFW_CMD_XFP_BYTE, &cmd);
+	}
+	if (err != MXGEFW_CMD_OK) {
+		device_printf(sc->dev, "failed to read XFP (%d, %dms)\n",
+			      err, ms);
+		return;
+	}
+		
+	if (cmd.data0 == mxge_media_types[0].bitmask) {
+		if (mxge_verbose)
+			device_printf(sc->dev, "XFP:%s\n",
+				      mxge_media_types[0].name);
+		mxge_set_media(sc, IFM_10G_CX4);
+		return;
+	}
+	for (i = 1;
+	     i < sizeof (mxge_media_types) / sizeof (mxge_media_types[0]);
+	     i++) {
+		if (cmd.data0 & mxge_media_types[i].bitmask) {
+			if (mxge_verbose)
+				device_printf(sc->dev, "XFP:%s\n",
+					      mxge_media_types[i].name);
+
+			mxge_set_media(sc, mxge_media_types[i].flag);
+			return;
+		}
+	}
+	device_printf(sc->dev, "XFP media 0x%x unknown\n", cmd.data0);
+
+	return;
 }
 
 static void
@@ -2123,6 +2361,7 @@ mxge_intr(void *arg)
 				if (mxge_verbose)
 					device_printf(sc->dev, "link down\n");
 			}
+			sc->need_media_probe = 1;
 		}
 		if (sc->rdma_tags_available !=
 		    be32toh(sc->fw_stats->rdma_tags_available)) {
@@ -2131,7 +2370,12 @@ mxge_intr(void *arg)
 			device_printf(sc->dev, "RDMA timed out! %d tags "
 				      "left\n", sc->rdma_tags_available);
 		}
-		sc->down_cnt += stats->link_down;
+
+		if (stats->link_down) {
+			sc->down_cnt += stats->link_down;
+			sc->link_state = 0;
+			if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+		}
 	}
 
 	/* check to see if we have rx token to pass back */
@@ -2749,16 +2993,27 @@ static void
 mxge_watchdog(mxge_softc_t *sc)
 {
 	mxge_tx_buf_t *tx = &sc->tx;
+	uint32_t rx_pause = be32toh(sc->fw_stats->dropped_pause);
 
 	/* see if we have outstanding transmits, which
 	   have been pending for more than mxge_ticks */
 	if (tx->req != tx->done &&
 	    tx->watchdog_req != tx->watchdog_done &&
-	    tx->done == tx->watchdog_done)
-		mxge_watchdog_reset(sc);
+	    tx->done == tx->watchdog_done) {
+		/* check for pause blocking before resetting */
+		if (tx->watchdog_rx_pause == rx_pause)
+			mxge_watchdog_reset(sc);
+		else
+			device_printf(sc->dev, "Flow control blocking "
+				      "xmits, check link partner\n");
+	}
 
 	tx->watchdog_req = tx->req;
 	tx->watchdog_done = tx->done;
+	tx->watchdog_rx_pause = rx_pause;
+
+	if (sc->need_media_probe)
+		mxge_media_probe(sc);
 }
 
 static void
@@ -2822,9 +3077,9 @@ mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	if (sc == NULL)
 		return;
 	ifmr->ifm_status = IFM_AVALID;
-	ifmr->ifm_status |= sc->fw_stats->link_up ? IFM_ACTIVE : 0;
+	ifmr->ifm_status |= sc->link_state ? IFM_ACTIVE : 0;
 	ifmr->ifm_active = IFM_AUTO | IFM_ETHER;
-	ifmr->ifm_active |= sc->fw_stats->link_up ? IFM_FDX : 0;
+	ifmr->ifm_active |= sc->link_state ? IFM_FDX : 0;
 }
 
 static int
@@ -2880,8 +3135,9 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~(IFCAP_TXCSUM);
-				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
+				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
+				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
+						      | CSUM_TSO);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
@@ -2928,6 +3184,8 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 			  &mxge_verbose);	
 	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
+	if (sc->lro_cnt != 0)
+		mxge_lro_cnt = sc->lro_cnt;
 
 	if (bootverbose)
 		mxge_verbose = 1;
@@ -3093,23 +3351,26 @@ mxge_attach(device_t dev)
 		device_printf(dev, "MTU limited to %d.  Install "
 			      "latest firmware for 9000 byte jumbo support\n",
 			      sc->max_mtu - ETHER_HDR_LEN);
-	ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
+	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
+	if (sc->lro_cnt == 0)
+		ifp->if_capenable &= ~IFCAP_LRO;
 	sc->csum_flag = 1;
         ifp->if_init = mxge_init;
         ifp->if_softc = sc;
         ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_ioctl = mxge_ioctl;
         ifp->if_start = mxge_start;
+	/* Initialise the ifmedia structure */
+	ifmedia_init(&sc->media, 0, mxge_media_change, 
+		     mxge_media_status);
+	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
+	mxge_media_probe(sc);
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to 1500 */
 	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
 		ifp->if_mtu = 9000;
 
-	/* Initialise the ifmedia structure */
-	ifmedia_init(&sc->media, 0, mxge_media_change, 
-		     mxge_media_status);
-	ifmedia_add(&sc->media, IFM_ETHER|IFM_AUTO, 0, NULL);
 	mxge_add_sysctls(sc);
 	return 0;
 
@@ -3164,7 +3425,6 @@ mxge_detach(device_t dev)
 		pci_release_msi(dev);
 
 	sc->rx_done.entry = NULL;
-	mxge_dma_free(&sc->rx_done.dma);
 	mxge_dma_free(&sc->fw_stats_dma);
 	mxge_dma_free(&sc->dmabench_dma);
 	mxge_dma_free(&sc->zeropad_dma);

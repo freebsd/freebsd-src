@@ -184,6 +184,11 @@ dev/kbd/kbd.c			optional	atkbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/mem/memutil.c		optional	mem
+dev/mxge/if_mxge.c		optional	mxge pci
+dev/mxge/mxge_lro.c		optional	mxge pci
+dev/mxge/mxge_eth_z8e.c		optional	mxge pci
+dev/mxge/mxge_ethp_z8e.c	optional	mxge pci
+net/zlib.c			optional	mxge
 dev/nve/if_nve.c		optional	nve pci
 dev/rr232x/os_bsd.c		optional	rr232x
 dev/rr232x/osm_bsd.c		optional	rr232x
