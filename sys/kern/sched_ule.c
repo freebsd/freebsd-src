@@ -236,11 +236,11 @@ struct tdq_group {
  * Run-time tunables.
  */
 static int rebalance = 1;
-static int balance_secs = 1;
+static int balance_interval = 128;	/* Default set in sched_initticks(). */
 static int pick_pri = 1;
 static int affinity;
 static int tryself = 1;
-static int steal_htt = 0;
+static int steal_htt = 1;
 static int steal_idle = 1;
 static int steal_thresh = 2;
 static int topology = 0;
@@ -252,8 +252,9 @@ static volatile cpumask_t tdq_idle;
 static int tdg_maxid;
 static struct tdq	tdq_cpu[MAXCPU];
 static struct tdq_group tdq_groups[MAXCPU];
-static struct callout balco;
-static struct callout gbalco;
+static struct tdq	*balance_tdq;
+static int balance_group_ticks;
+static int balance_ticks;
 
 #define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
 #define	TDQ_CPU(x)	(&tdq_cpu[(x)])
@@ -296,11 +297,11 @@ static void tdq_add(struct tdq *, struct thread *, int);
 static void tdq_move(struct tdq *, struct tdq *);
 static int tdq_idled(struct tdq *);
 static void tdq_notify(struct td_sched *);
-static struct td_sched *tdq_steal(struct tdq *, int);
+static struct td_sched *tdq_steal(struct tdq *);
 static struct td_sched *runq_steal(struct runq *);
 static int sched_pickcpu(struct td_sched *, int);
-static void sched_balance(void *);
-static void sched_balance_groups(void *);
+static void sched_balance(void);
+static void sched_balance_groups(void);
 static void sched_balance_group(struct tdq_group *);
 static void sched_balance_pair(struct tdq *, struct tdq *);
 static inline struct tdq *sched_setcpu(struct td_sched *, int, int);
@@ -516,18 +517,25 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
  *
  */
 static void
-sched_balance(void *arg)
+sched_balance()
 {
 	struct tdq_group *high;
 	struct tdq_group *low;
 	struct tdq_group *tdg;
+	struct tdq *tdq;
 	int cnt;
 	int i;
 
-	callout_reset(&balco, max(hz / 2, random() % (hz * balance_secs)),
-	    sched_balance, NULL);
+	/*
+	 * Select a random time between .5 * balance_interval and
+	 * 1.5 * balance_interval.
+	 */
+	balance_ticks = max(balance_interval / 2, 1);
+	balance_ticks += random() % balance_interval;
 	if (smp_started == 0 || rebalance == 0)
 		return;
+	tdq = TDQ_SELF();
+	TDQ_UNLOCK(tdq);
 	low = high = NULL;
 	i = random() % (tdg_maxid + 1);
 	for (cnt = 0; cnt <= tdg_maxid; cnt++) {
@@ -547,22 +555,31 @@ sched_balance(void *arg)
 	if (low != NULL && high != NULL && high != low)
 		sched_balance_pair(LIST_FIRST(&high->tdg_members),
 		    LIST_FIRST(&low->tdg_members));
+	TDQ_LOCK(tdq);
 }
 
 /*
  * Balance load between CPUs in a group.  Will only migrate within the group.
  */
 static void
-sched_balance_groups(void *arg)
+sched_balance_groups()
 {
+	struct tdq *tdq;
 	int i;
 
-	callout_reset(&gbalco, max(hz / 2, random() % (hz * balance_secs)),
-	    sched_balance_groups, NULL);
+	/*
+	 * Select a random time between .5 * balance_interval and
+	 * 1.5 * balance_interval.
+	 */
+	balance_group_ticks = max(balance_interval / 2, 1);
+	balance_group_ticks += random() % balance_interval;
 	if (smp_started == 0 || rebalance == 0)
 		return;
+	tdq = TDQ_SELF();
+	TDQ_UNLOCK(tdq);
 	for (i = 0; i <= tdg_maxid; i++)
 		sched_balance_group(TDQ_GROUP(i));
+	TDQ_LOCK(tdq);
 }
 
 /*
@@ -604,6 +621,16 @@ tdq_lock_pair(struct tdq *one, struct tdq *two)
 		TDQ_LOCK(two);
 		TDQ_LOCK_FLAGS(one, MTX_DUPOK);
 	}
+}
+
+/*
+ * Unlock two thread queues.  Order is not important here.
+ */
+static void
+tdq_unlock_pair(struct tdq *one, struct tdq *two)
+{
+	TDQ_UNLOCK(one);
+	TDQ_UNLOCK(two);
 }
 
 /*
@@ -652,8 +679,7 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 */
 		ipi_selected(1 << TDQ_ID(low), IPI_PREEMPT);
 	}
-	TDQ_UNLOCK(high);
-	TDQ_UNLOCK(low);
+	tdq_unlock_pair(high, low);
 	return;
 }
 
@@ -668,9 +694,12 @@ tdq_move(struct tdq *from, struct tdq *to)
 	struct tdq *tdq;
 	int cpu;
 
+	TDQ_LOCK_ASSERT(from, MA_OWNED);
+	TDQ_LOCK_ASSERT(to, MA_OWNED);
+
 	tdq = from;
 	cpu = TDQ_ID(to);
-	ts = tdq_steal(tdq, 1);
+	ts = tdq_steal(tdq);
 	if (ts == NULL) {
 		struct tdq_group *tdg;
 
@@ -678,7 +707,7 @@ tdq_move(struct tdq *from, struct tdq *to)
 		LIST_FOREACH(tdq, &tdg->tdg_members, tdq_siblings) {
 			if (tdq == from || tdq->tdq_transferable == 0)
 				continue;
-			ts = tdq_steal(tdq, 1);
+			ts = tdq_steal(tdq);
 			break;
 		}
 		if (ts == NULL)
@@ -689,10 +718,10 @@ tdq_move(struct tdq *from, struct tdq *to)
 	td = ts->ts_thread;
 	/*
 	 * Although the run queue is locked the thread may be blocked.  Lock
-	 * it to clear this.
+	 * it to clear this and acquire the run-queue lock.
 	 */
 	thread_lock(td);
-	/* Drop recursive lock on from. */
+	/* Drop recursive lock on from acquired via thread_lock(). */
 	TDQ_UNLOCK(from);
 	sched_rem(td);
 	ts->ts_cpu = cpu;
@@ -709,8 +738,6 @@ tdq_idled(struct tdq *tdq)
 {
 	struct tdq_group *tdg;
 	struct tdq *steal;
-	struct td_sched *ts;
-	struct thread *td;
 	int highload;
 	int highcpu;
 	int load;
@@ -721,18 +748,19 @@ tdq_idled(struct tdq *tdq)
 	tdg = tdq->tdq_group;
 	/*
 	 * If we're in a cpu group, try and steal threads from another cpu in
-	 * the group before idling.
+	 * the group before idling.  In a HTT group all cpus share the same
+	 * run-queue lock, however, we still need a recursive lock to
+	 * call tdq_move().
 	 */
 	if (steal_htt && tdg->tdg_cpus > 1 && tdg->tdg_transferable) {
+		TDQ_LOCK(tdq);
 		LIST_FOREACH(steal, &tdg->tdg_members, tdq_siblings) {
 			if (steal == tdq || steal->tdq_transferable == 0)
 				continue;
 			TDQ_LOCK(steal);
-			ts = tdq_steal(steal, 0);
-			if (ts)
-				goto steal;
-			TDQ_UNLOCK(steal);
+			goto steal;
 		}
+		TDQ_UNLOCK(tdq);
 	}
 	for (;;) {
 		if (steal_idle == 0)
@@ -752,25 +780,18 @@ tdq_idled(struct tdq *tdq)
 		if (highload < steal_thresh)
 			break;
 		steal = TDQ_CPU(highcpu);
-		TDQ_LOCK(steal);
-		if (steal->tdq_transferable >= steal_thresh &&
-		    (ts = tdq_steal(steal, 1)) != NULL)
+		tdq_lock_pair(tdq, steal);
+		if (steal->tdq_transferable >= steal_thresh)
 			goto steal;
-		TDQ_UNLOCK(steal);
+		tdq_unlock_pair(tdq, steal);
 		break;
 	}
 	spinlock_exit();
 	return (1);
 steal:
-	td = ts->ts_thread;
-	thread_lock(td);
 	spinlock_exit();
-	MPASS(td->td_lock == TDQ_LOCKPTR(steal));
+	tdq_move(steal, tdq);
 	TDQ_UNLOCK(steal);
-	sched_rem(td);
-	sched_setcpu(ts, PCPU_GET(cpuid), SRQ_YIELDING);
-	tdq_add(tdq, td, SRQ_YIELDING);
-	MPASS(td->td_lock == curthread->td_lock);
 	mi_switch(SW_VOL, NULL);
 	thread_unlock(curthread);
 
@@ -901,7 +922,7 @@ runq_steal(struct runq *rq)
  * Attempt to steal a thread in priority order from a thread queue.
  */
 static struct td_sched *
-tdq_steal(struct tdq *tdq, int stealidle)
+tdq_steal(struct tdq *tdq)
 {
 	struct td_sched *ts;
 
@@ -910,16 +931,12 @@ tdq_steal(struct tdq *tdq, int stealidle)
 		return (ts);
 	if ((ts = runq_steal_from(&tdq->tdq_timeshare, tdq->tdq_ridx)) != NULL)
 		return (ts);
-	if (stealidle)
-		return (runq_steal(&tdq->tdq_idle));
-	return (NULL);
+	return (runq_steal(&tdq->tdq_idle));
 }
 
 /*
  * Sets the thread lock and ts_cpu to match the requested cpu.  Unlocks the
- * current lock and returns with the assigned queue locked.  If this is
- * via sched_switch() we leave the thread in a blocked state as an
- * optimization.
+ * current lock and returns with the assigned queue locked.
  */
 static inline struct tdq *
 sched_setcpu(struct td_sched *ts, int cpu, int flags)
@@ -1086,8 +1103,9 @@ sched_pickcpu(struct td_sched *ts, int flags)
 	if (cpu)
 		return (--cpu);
 	/*
-	 * If there are no idle cores see if we can run the thread locally.  This may
-	 * improve locality among sleepers and wakers when there is shared data.
+	 * If there are no idle cores see if we can run the thread locally.
+	 * This may improve locality among sleepers and wakers when there
+	 * is shared data.
 	 */
 	if (tryself && pri < curthread->td_priority) {
 		CTR1(KTR_ULE, "tryself %d",
@@ -1221,7 +1239,7 @@ sched_setup_topology(void)
 	}
 	tdg_maxid = smp_topology->ct_count - 1;
 	if (balance_groups)
-		sched_balance_groups(NULL);
+		sched_balance_groups();
 }
 
 static void
@@ -1279,11 +1297,6 @@ sched_setup(void *dummy)
 
 	tdq = TDQ_SELF();
 #ifdef SMP
-	/*
-	 * Initialize long-term cpu balancing algorithm.
-	 */
-	callout_init(&balco, CALLOUT_MPSAFE);
-	callout_init(&gbalco, CALLOUT_MPSAFE);
 	sched_fake_topo();
 	/*
 	 * Setup tdqs based on a topology configuration or vanilla SMP based
@@ -1293,7 +1306,8 @@ sched_setup(void *dummy)
 		sched_setup_smp();
 	else 
 		sched_setup_topology();
-	sched_balance(NULL);
+	balance_tdq = tdq;
+	sched_balance();
 #else
 	tdq_setup(tdq);
 	mtx_init(&tdq_lock, "sched lock", "sched lock", MTX_SPIN | MTX_RECURSE);
@@ -1339,6 +1353,11 @@ sched_initticks(void *dummy)
 		incr = 1;
 	tickincr = incr;
 #ifdef SMP
+	/*
+	 * Set the default balance interval now that we know
+	 * what realstathz is.
+	 */
+	balance_interval = realstathz;
 	/*
 	 * Set steal thresh to log2(mp_ncpu) but no greater than 4.  This
 	 * prevents excess thrashing on large machines and excess idle on
@@ -2141,6 +2160,17 @@ sched_clock(struct thread *td)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	tdq = TDQ_SELF();
+#ifdef SMP
+	/*
+	 * We run the long term load balancer infrequently on the first cpu.
+	 */
+	if (balance_tdq == tdq) {
+		if (balance_ticks && --balance_ticks == 0)
+			sched_balance();
+		if (balance_group_ticks && --balance_group_ticks == 0)
+			sched_balance_groups();
+	}
+#endif
 	/*
 	 * Advance the insert index once for each tick to ensure that all
 	 * threads get a chance to run.
@@ -2638,8 +2668,9 @@ SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
 SYSCTL_INT(_kern_sched, OID_AUTO, tryself, CTLFLAG_RW, &tryself, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &rebalance, 0,
     "Enables the long-term load balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance_secs, CTLFLAG_RW, &balance_secs, 0,
-    "Average frequence in seconds to run the long-term balancer");
+SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
+    &balance_interval, 0,
+    "Average frequency in stathz ticks to run the long-term balancer");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_htt, CTLFLAG_RW, &steal_htt, 0,
     "Steals work from another hyper-threaded core on idle");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
