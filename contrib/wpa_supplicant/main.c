@@ -82,7 +82,7 @@ static void usage(void)
 	       "  -N = start describing new interface\n");
 
 	printf("example:\n"
-	       "  wpa_supplicant -Dwext -iwlan0 -c/etc/wpa_supplicant.conf\n");
+	       "  wpa_supplicant -Dbsd -iwlan0 -c/etc/wpa_supplicant.conf\n");
 #endif /* CONFIG_NO_STDOUT_DEBUG */
 }
 
