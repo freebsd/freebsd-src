@@ -58,13 +58,15 @@
 .ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
 .ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
 .
+.\" FreeBSD architectures not found in doc-common
+.ds doc-volume-as-arm      arm
+.
 .\" Default .Os value
 .ds doc-default-operating-system FreeBSD\~6.2
 .
 .\" FreeBSD releases not found in doc-common
-.ds doc-operating-system-FreeBSD-5.5    5.5
 .ds doc-operating-system-FreeBSD-6.2    6.2
-.ds doc-operating-system-FreeBSD-7.0    7.0
+.ds doc-operating-system-FreeBSD-6.3    6.3
 .
 .ec
 .
