@@ -230,6 +230,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #       (requires miibus)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
+# mxge: Myricom Myri-10G 10GbE NIC
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 
 #XXX#	still calls MD i386 kvtop function instead of vtophys etc
@@ -238,6 +239,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #XXX#options 		ED_HPP
 #XXX#options 		ED_SIC
 #XXX#device		lnc
+device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 
 device		ath

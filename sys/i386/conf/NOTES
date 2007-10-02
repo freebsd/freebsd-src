@@ -521,6 +521,7 @@ hint.mse.0.irq="5"
 #       Intel EtherExpress
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
+# mxge: Myricom Myri-10G 10GbE NIC
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
@@ -576,6 +577,7 @@ hint.lnc.0.at="isa"
 hint.lnc.0.port="0x280"
 hint.lnc.0.irq="10"
 hint.lnc.0.drq="0"
+device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sbni
 hint.sbni.0.at="isa"
