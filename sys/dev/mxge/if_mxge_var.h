@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006, Myricom Inc.
+Copyright (c) 2006-2007, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -9,11 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
- 2. Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in the
-    documentation and/or other materials provided with the distribution.
-
- 3. Neither the name of the Myricom Inc, nor the names of its
+ 2. Neither the name of the Myricom Inc, nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -109,6 +105,7 @@ typedef struct
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
 	int watchdog_done;		/* cache of done */
+	int watchdog_rx_pause;		/* cache of pause rq recvd */
 } mxge_tx_buf_t;
 
 struct lro_entry;
@@ -194,6 +191,8 @@ typedef struct {
 	int link_width;
 	int max_mtu;
 	int tx_defrag;
+	int media_flags;
+	int need_media_probe;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	char *mac_addr_string;
@@ -208,11 +207,19 @@ typedef struct {
 
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
 #define MXGE_PCI_DEVICE_Z8E 	0x0008
+#define MXGE_PCI_DEVICE_Z8E_9 	0x0009
+#define MXGE_XFP_COMPLIANCE_BYTE	131
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)
 #define MXGE_LOWPART_TO_U32(X) ((uint32_t)(X))
 
+struct mxge_media_type
+{
+	int flag;
+	uint8_t bitmask;
+	char *name;
+};
 
 /* implement our own memory barriers, since bus_space_barrier
    cannot handle write-combining regions */
@@ -250,9 +257,22 @@ mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 
 void mxge_lro_flush(mxge_softc_t *mgp, struct lro_entry *lro);
 int mxge_lro_rx(mxge_softc_t *mgp, struct mbuf *m_head, uint32_t csum);
-		
 
+#ifndef IFCAP_LRO
+#define IFCAP_LRO 0
+#endif
 
+#ifndef IFCAP_TSO
+#define IFCAP_TSO 0
+#endif
+
+#ifndef IFCAP_TSO4
+#define IFCAP_TSO4 0
+#endif
+
+#ifndef CSUM_TSO
+#define CSUM_TSO 0
+#endif
 /*
   This file uses Myri10GE driver indentation.
 
