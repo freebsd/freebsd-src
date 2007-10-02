@@ -217,15 +217,18 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
 
-	x = sx->sx_lock;
-	KASSERT(x != SX_LOCK_DESTROYED,
-	    ("sx_try_slock() of destroyed sx @ %s:%d", file, line));
-	if ((x & SX_LOCK_SHARED) && atomic_cmpset_acq_ptr(&sx->sx_lock, x,
-	    x + SX_ONE_SHARER)) {
-		LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
-		WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
-		curthread->td_locks++;
-		return (1);
+	for (;;) {
+		x = sx->sx_lock;
+		KASSERT(x != SX_LOCK_DESTROYED,
+		    ("sx_try_slock() of destroyed sx @ %s:%d", file, line));
+		if (!(x & SX_LOCK_SHARED))
+			break;
+		if (atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER)) {
+			LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 1, file, line);
+			WITNESS_LOCK(&sx->lock_object, LOP_TRYLOCK, file, line);
+			curthread->td_locks++;
+			return (1);
+		}
 	}
 
 	LOCK_LOG_TRY("SLOCK", &sx->lock_object, 0, 0, file, line);
