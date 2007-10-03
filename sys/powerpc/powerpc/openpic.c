@@ -212,7 +212,7 @@ openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
 		    device_get_nameunit(child));
 		return (NULL);
 	}
-
+	rman_set_rid(rv, *rid);
 	if (needactivate) {
 		if (bus_activate_resource(child, SYS_RES_IRQ, *rid, rv) != 0) {
 			device_printf(dev,
