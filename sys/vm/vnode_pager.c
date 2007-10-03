@@ -172,7 +172,7 @@ vnode_destroy_vobject(struct vnode *vp)
 	obj = vp->v_object;
 	if (obj == NULL)
 		return;
-	ASSERT_VOP_LOCKED(vp, "vnode_destroy_vobject");
+	ASSERT_VOP_ELOCKED(vp, "vnode_destroy_vobject");
 	VM_OBJECT_LOCK(obj);
 	if (obj->ref_count == 0) {
 		/*
@@ -219,7 +219,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vp = (struct vnode *) handle;
 
-	ASSERT_VOP_LOCKED(vp, "vnode_pager_alloc");
+	ASSERT_VOP_ELOCKED(vp, "vnode_pager_alloc");
 
 	/*
 	 * If the object is being terminated, wait for it to
@@ -277,7 +277,7 @@ vnode_pager_dealloc(object)
 		vm_object_clear_flag(object, OBJ_DISCONNECTWNT);
 		wakeup(object);
 	}
-	ASSERT_VOP_LOCKED(vp, "vnode_pager_dealloc");
+	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
 }

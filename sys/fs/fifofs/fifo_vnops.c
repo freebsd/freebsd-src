@@ -179,7 +179,7 @@ fifo_open(ap)
 	struct file *fp;
 	int error;
 
-	ASSERT_VOP_LOCKED(vp, "fifo_open");
+ 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
 	if (ap->a_fdidx < 0)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
