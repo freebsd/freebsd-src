@@ -72,116 +72,116 @@ __FBSDID("$FreeBSD$");
 
 static struct nlist nl[] = {
 #define	N_IFNET		0
-	{ "_ifnet" },
+	{ .n_name = "_ifnet" },
 #define	N_RTSTAT	1
-	{ "_rtstat" },
+	{ .n_name = "_rtstat" },
 #define N_RTREE		2
-	{ "_rt_tables"},
+	{ .n_name = "_rt_tables"},
 #define N_MRTSTAT	3
-	{ "_mrtstat" },
+	{ .n_name = "_mrtstat" },
 #define N_MFCTABLE	4
-	{ "_mfctable" },
+	{ .n_name = "_mfctable" },
 #define N_VIFTABLE	5
-	{ "_viftable" },
+	{ .n_name = "_viftable" },
 #define N_IPX		6
-	{ "_ipxpcb_list"},
+	{ .n_name = "_ipxpcb_list"},
 #define N_IPXSTAT	7
-	{ "_ipxstat"},
+	{ .n_name = "_ipxstat"},
 #define N_SPXSTAT	8
-	{ "_spx_istat"},
+	{ .n_name = "_spx_istat"},
 #define N_DDPSTAT	9
-	{ "_ddpstat"},
+	{ .n_name = "_ddpstat"},
 #define N_DDPCB		10
-	{ "_ddpcb"},
+	{ .n_name = "_ddpcb"},
 #define N_NGSOCKS	11
-	{ "_ngsocklist"},
+	{ .n_name = "_ngsocklist"},
 #define N_IP6STAT	12
-	{ "_ip6stat" },
+	{ .n_name = "_ip6stat" },
 #define N_ICMP6STAT	13
-	{ "_icmp6stat" },
+	{ .n_name = "_icmp6stat" },
 #define N_IPSECSTAT	14
-	{ "_ipsecstat" },
+	{ .n_name = "_ipsecstat" },
 #define N_IPSEC6STAT	15
-	{ "_ipsec6stat" },
+	{ .n_name = "_ipsec6stat" },
 #define N_PIM6STAT	16
-	{ "_pim6stat" },
+	{ .n_name = "_pim6stat" },
 #define N_MRT6STAT	17
-	{ "_mrt6stat" },
+	{ .n_name = "_mrt6stat" },
 #define N_MF6CTABLE	18
-	{ "_mf6ctable" },
+	{ .n_name = "_mf6ctable" },
 #define N_MIF6TABLE	19
-	{ "_mif6table" },
+	{ .n_name = "_mif6table" },
 #define N_PFKEYSTAT	20
-	{ "_pfkeystat" },
+	{ .n_name = "_pfkeystat" },
 #define N_MBSTAT	21
-	{ "_mbstat" },
+	{ .n_name = "_mbstat" },
 #define N_MBTYPES	22
-	{ "_mbtypes" },
+	{ .n_name = "_mbtypes" },
 #define N_NMBCLUSTERS	23
-	{ "_nmbclusters" },
+	{ .n_name = "_nmbclusters" },
 #define N_NMBUFS	24
-	{ "_nmbufs" },
+	{ .n_name = "_nmbufs" },
 #define	N_MBHI		25
-	{ "_mbuf_hiwm" },
+	{ .n_name = "_mbuf_hiwm" },
 #define	N_CLHI		26
-	{ "_clust_hiwm" },
+	{ .n_name = "_clust_hiwm" },
 #define	N_NCPUS		27
-	{ "_smp_cpus" },
+	{ .n_name = "_smp_cpus" },
 #define	N_PAGESZ	28
-	{ "_pagesize" },
+	{ .n_name = "_pagesize" },
 #define	N_MBPSTAT	29
-	{ "_mb_statpcpu" },
+	{ .n_name = "_mb_statpcpu" },
 #define	N_RTTRASH	30
-	{ "_rttrash" },
+	{ .n_name = "_rttrash" },
 #define	N_MBLO		31
-	{ "_mbuf_lowm" },
+	{ .n_name = "_mbuf_lowm" },
 #define	N_CLLO		32
-	{ "_clust_lowm" },
+	{ .n_name = "_clust_lowm" },
 #define N_CARPSTAT	33
-	{ "_carpstats" },
+	{ .n_name = "_carpstats" },
 #define N_PFSYNCSTAT	34
-	{ "_pfsyncstats" },
+	{ .n_name = "_pfsyncstats" },
 #define	N_FAST_IPSECSTAT 35
-	{ "_newipsecstat" },
+	{ .n_name = "_newipsecstat" },
 #define	N_AHSTAT	36
-	{ "_ahstat" },
+	{ .n_name = "_ahstat" },
 #define	N_ESPSTAT	37
-	{ "_espstat" },
+	{ .n_name = "_espstat" },
 #define	N_IPCOMPSTAT	38
-	{ "_ipcompstat" },
+	{ .n_name = "_ipcompstat" },
 #define	N_TCPSTAT	39
-	{ "_tcpstat" },
+	{ .n_name = "_tcpstat" },
 #define	N_UDPSTAT	40
-	{ "_udpstat" },
+	{ .n_name = "_udpstat" },
 #define	N_IPSTAT	41
-	{ "_ipstat" },
+	{ .n_name = "_ipstat" },
 #define	N_ICMPSTAT	42
-	{ "_icmpstat" },
+	{ .n_name = "_icmpstat" },
 #define	N_IGMPSTAT	43
-	{ "_igmpstat" },
+	{ .n_name = "_igmpstat" },
 #define	N_PIMSTAT	44
-	{ "_pimstat" },
+	{ .n_name = "_pimstat" },
 #define	N_TCBINFO	45
-	{ "_tcbinfo" },
+	{ .n_name = "_tcbinfo" },
 #define	N_UDBINFO	46
-	{ "_udbinfo" },
+	{ .n_name = "_udbinfo" },
 #define	N_DIVCBINFO	47
-	{ "_divcbinfo" },
+	{ .n_name = "_divcbinfo" },
 #define	N_RIPCBINFO	48
-	{ "_ripcbinfo" },
+	{ .n_name = "_ripcbinfo" },
 #define	N_UNP_COUNT	49
-	{ "_unp_count" },
+	{ .n_name = "_unp_count" },
 #define	N_UNP_GENCNT	50
-	{ "_unp_gencnt" },
+	{ .n_name = "_unp_gencnt" },
 #define	N_UNP_DHEAD	51
-	{ "_unp_dhead" },
+	{ .n_name = "_unp_dhead" },
 #define	N_UNP_SHEAD	52
-	{ "_unp_shead" },
+	{ .n_name = "_unp_shead" },
 #define	N_RIP6STAT	53
-	{ "_rip6stat" },
+	{ .n_name = "_rip6stat" },
 #define	N_BDG_STATS	54
-	{ "_bdg_stats" },
-	{ "" },
+	{ .n_name = "_bdg_stats" },
+ 	{ .n_name = NULL },
 };
 
 struct protox {
@@ -211,28 +211,28 @@ struct protox {
 	  igmp_stats,	NULL,		"igmp",	1,	IPPROTO_IGMP },
 #ifdef IPSEC
 	{ -1,		N_IPSECSTAT,	1,	NULL,
-	  ipsec_stats,	NULL,		"ipsec",	0},
+	  ipsec_stats,	NULL,		"ipsec", 0,	0},
 #ifdef FAST_IPSEC
 	{ -1,		N_FAST_IPSECSTAT, 1,	NULL,
-	  ipsec_stats_new, NULL,	"fastipsec",	0},
+	  ipsec_stats_new, NULL,	"fastipsec", 0,	0},
 	{ -1,		N_AHSTAT,	1,	NULL,
-	  ah_stats,	NULL,		"ah",		0},
+	  ah_stats,	NULL,		"ah",	0,	0},
 	{ -1,		N_ESPSTAT,	1,	NULL,
-	  esp_stats,	NULL,		"esp",		0},
+	  esp_stats,	NULL,		"esp",	0,	0},
 	{ -1,		N_IPCOMPSTAT,	1,	NULL,
-	  ipcomp_stats,	NULL,		"ipcomp",	0},
+	  ipcomp_stats,	NULL,		"ipcomp", 0,	0},
 #endif
 #endif
 	{ -1,		N_BDG_STATS,	1,	NULL,
-	  bdg_stats,	NULL,		"bdg",	1 },
+	  bdg_stats,	NULL,		"bdg",	1,	0 },
 	{ N_RIPCBINFO,	N_PIMSTAT,	1,	protopr,
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTAT,	1,	NULL,
-	  carp_stats,	NULL,		"carp",		1},
+	  carp_stats,	NULL,		"carp",	1,	0},
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
-	  pfsync_stats,	NULL,		"pfsync",	1},
+	  pfsync_stats,	NULL,		"pfsync", 1,	0},
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 #ifdef INET6
@@ -247,53 +247,53 @@ struct protox ip6protox[] = {
 	  icmp6_stats,	icmp6_ifstats,	"icmp6", 1,	IPPROTO_ICMPV6 },
 #ifdef IPSEC
 	{ -1,		N_IPSEC6STAT,	1,	NULL,
-	  ipsec_stats,	NULL,		"ipsec6", 0 },
+	  ipsec_stats,	NULL,		"ipsec6", 0,	0 },
 #endif
 #ifdef notyet
 	{ -1,		N_PIM6STAT,	1,	NULL,
-	  pim6_stats,	NULL,		"pim6",	0 },
+	  pim6_stats,	NULL,		"pim6",	0,	0 },
 #endif
 	{ -1,		N_RIP6STAT,	1,	NULL,
-	  rip6_stats,	NULL,		"rip6",	1 },
+	  rip6_stats,	NULL,		"rip6",	1,	0 },
 	{ -1,		N_BDG_STATS,	1,	NULL,
-	  bdg_stats,	NULL,		"bdg",	1 },
+	  bdg_stats,	NULL,		"bdg",	1,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif /*INET6*/
 
 #ifdef IPSEC
 struct protox pfkeyprotox[] = {
 	{ -1,		N_PFKEYSTAT,	1,	NULL,
-	  pfkey_stats,	NULL,		"pfkey", 0 },
+	  pfkey_stats,	NULL,		"pfkey", 0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 #endif
 
 struct protox atalkprotox[] = {
 	{ N_DDPCB,	N_DDPSTAT,	1,	atalkprotopr,
-	  ddp_stats,	NULL,		"ddp",	0 },
+	  ddp_stats,	NULL,		"ddp",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"ctrl",	0 },
+	  NULL,		NULL,		"ctrl",	0,	0 },
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
-	  NULL,		NULL,		"data",	0 },
+	  NULL,		NULL,		"data",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		NULL,	0 }
+	  NULL,		NULL,		NULL,	0,	0 }
 };
 
 struct protox ipxprotox[] = {
 	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
-	  ipx_stats,	NULL,		"ipx",	0 },
+	  ipx_stats,	NULL,		"ipx",	0,	0 },
 	{ N_IPX,	N_SPXSTAT,	1,	ipxprotopr,
-	  spx_stats,	NULL,		"spx",	0 },
+	  spx_stats,	NULL,		"spx",	0,	0 },
 	{ -1,		-1,		0,	NULL,
-	  NULL,		NULL,		0,	0 }
+	  NULL,		NULL,		0,	0,	0 }
 };
 
 struct protox *protoprotox[] = {
@@ -309,8 +309,8 @@ struct protox *protoprotox[] = {
 const char *pluralies(int);
 static void printproto(struct protox *, const char *);
 static void usage(void);
-static struct protox *name2protox(char *);
-static struct protox *knownname(char *);
+static struct protox *name2protox(const char *);
+static struct protox *knownname(const char *);
 
 static kvm_t *kvmd;
 static char *nlistf = NULL, *memf = NULL;
@@ -696,7 +696,7 @@ kread(u_long addr, void *buf, size_t size)
 	}
 	if (!buf)
 		return (0);
-	if (kvm_read(kvmd, addr, buf, size) != size) {
+	if (kvm_read(kvmd, addr, buf, size) != (ssize_t)size) {
 		warnx("%s", kvm_geterr(kvmd));
 		return (-1);
 	}
@@ -725,7 +725,7 @@ pluralies(int n)
  * Find the protox for the given "well-known" name.
  */
 static struct protox *
-knownname(char *name)
+knownname(const char *name)
 {
 	struct protox **tpp, *tp;
 
@@ -740,7 +740,7 @@ knownname(char *name)
  * Find the protox corresponding to name.
  */
 static struct protox *
-name2protox(char *name)
+name2protox(const char *name)
 {
 	struct protox *tp;
 	char **alias;			/* alias from p->aliases */

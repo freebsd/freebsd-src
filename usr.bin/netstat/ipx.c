@@ -338,7 +338,7 @@ ipx_erputil(int z, int c)
 }
 #endif /* IPXERRORMSGS */
 
-static struct sockaddr_ipx ssipx = {AF_IPX};
+static struct sockaddr_ipx ssipx = { .sipx_family = AF_IPX };
 
 static
 char *ipx_prpr(struct ipx_addr *x)
