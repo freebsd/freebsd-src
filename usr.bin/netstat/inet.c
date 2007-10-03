@@ -315,7 +315,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	case IPPROTO_TCP:
 #ifdef INET6
 		if (tcp_done != 0)
-			return (0);
+			return;
 		else
 			tcp_done = 1;
 #endif
@@ -324,7 +324,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	case IPPROTO_UDP:
 #ifdef INET6
 		if (udp_done != 0)
-			return (0);
+			return;
 		else
 			udp_done = 1;
 #endif
