@@ -823,6 +823,7 @@ sbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		    child);
 		if (rv == NULL)
 			return (NULL);
+		rman_set_rid(rv, *rid);
 		rman_set_bustag(rv, sc->sc_cbustag);
 		rman_set_bushandle(rv, bh + rman_get_start(rv));
 		if (needactivate) {

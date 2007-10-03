@@ -365,7 +365,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
 		return 0;
-
+	rman_set_rid(rv, *rid);
 	if (type == SYS_RES_MEMORY) {
 		rman_set_bustag(rv, I386_BUS_SPACE_MEM);
 	} else if (type == SYS_RES_IOPORT) {

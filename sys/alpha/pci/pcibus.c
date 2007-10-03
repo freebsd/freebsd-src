@@ -97,7 +97,12 @@ struct resource *
 alpha_platform_alloc_ide_intr(int chan)
 {
 	int irqs[2] = { 14, 15 };
-	return isa_alloc_intr(0, 0, irqs[chan]);
+	struct resource *rv;
+
+	rv = isa_alloc_intr(0, 0, irqs[chan]);
+	if (rv != NULL)
+		rman_set_rid(rv, *rid);
+	return (rv);
 }
 
 int
@@ -230,9 +235,11 @@ alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 #ifdef DEV_ISA
 		if((start >= ISA_IRQ_OFFSET) &&
 		   (end < ISA_IRQ_OFFSET + ISA_IRQ_LEN)) {
-		  	return isa_alloc_intrs(bus, child,
-					       start - ISA_IRQ_OFFSET,
-					       end - ISA_IRQ_OFFSET);
+		  	rv = isa_alloc_intrs(bus, child,
+			    start - ISA_IRQ_OFFSET, end - ISA_IRQ_OFFSET);
+			if (rv != NULL)
+				rman_set_rid(rv, *rid);
+			return (rv);
 		}
 		else
 #endif
@@ -252,6 +259,7 @@ alpha_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
+	rman_set_rid(rv, *rid);
 	rman_set_bustag(rv, ALPHAPCI_GET_BUSTAG(bus, type));
 	rman_set_bushandle(rv, rv->r_start);
 	switch (type) {
