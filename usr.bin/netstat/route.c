@@ -968,8 +968,10 @@ routename6(struct sockaddr_in6 *sa6)
 	static char line[MAXHOSTNAMELEN];
 	int flag = 0;
 	/* use local variable for safety */
-	struct sockaddr_in6 sa6_local = {AF_INET6, sizeof(sa6_local),};
+	struct sockaddr_in6 sa6_local;
 
+	sa6_local.sin6_family = AF_INET6;
+	sa6_local.sin6_len = sizeof(sa6_local);
 	sa6_local.sin6_addr = sa6->sin6_addr;
 	sa6_local.sin6_scope_id = sa6->sin6_scope_id;
 
