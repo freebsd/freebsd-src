@@ -204,13 +204,13 @@
 .as doc-str-At-v7  " \*[doc-Tn-font-size]AT&T UNIX\*[doc-str-At]
 .ds doc-str-At-V   \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V
 .as doc-str-At-V   " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
-.ds doc-str-At-V.1 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.1
+.ds doc-str-At-V.1 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V Release\~1
 .as doc-str-At-V.1 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
-.ds doc-str-At-V.2 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.2
+.ds doc-str-At-V.2 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V Release\~2
 .as doc-str-At-V.2 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
-.ds doc-str-At-V.3 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.3
+.ds doc-str-At-V.3 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V Release\~3
 .as doc-str-At-V.3 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
-.ds doc-str-At-V.4 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.4
+.ds doc-str-At-V.4 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V Release\~4
 .as doc-str-At-V.4 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
 .
 .de At
