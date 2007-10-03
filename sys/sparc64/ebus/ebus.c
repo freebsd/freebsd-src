@@ -335,6 +335,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		    flags, child);
 		if (res == NULL)
 			return (NULL);
+		rman_set_rid(res, *rid);
 		bt = rman_get_bustag(ri->eri_res);
 		rman_set_bustag(res, bt);
 		rv = bus_space_subregion(bt, rman_get_bushandle(ri->eri_res),
