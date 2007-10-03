@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20071003:	p16	FreeBSD-SA-07:08.openssl
+	Correct a buffer overflow in OpenSSL SSL_get_shared_ciphers().
+
 20070801:	p15	FreeBSD-SA-07:01.jail, FreeBSD-SA-07:06.tcpdump,
 			FreeBSD-SA-07:07.bind
 	Correct a bug in the patch for FreeBSD-SA-07:01.jail. [07:01]
