@@ -26,7 +26,7 @@ and keep them in good working order.
             mkdir /tmp/MTREE
             mtree -deU -f BSD.X.dist -p /tmp/MTREE
             mtree -cdin -k uname,gname,mode -p /tmp/MTREE | \
-		sed -e 's/ *$//' | tail +5 >BSD.X.new
+		sed -e 's/ *$//' >BSD.X.new
             diff -u BSD.X.dist BSD.X.new
             rm -r /tmp/MTREE
 
