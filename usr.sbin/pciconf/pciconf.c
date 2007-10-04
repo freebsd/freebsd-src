@@ -486,6 +486,8 @@ getsel(const char *str)
 	char *ep = strchr(str, '@');
 	char *epbase;
 	struct pcisel sel;
+	unsigned long selarr[4];
+	int i;
 
 	if (ep == NULL)
 		ep = (char *)str;
@@ -496,21 +498,21 @@ getsel(const char *str)
 
 	if (strncmp(ep, "pci", 3) == 0) {
 		ep += 3;
-		sel.pc_domain = strtoul(ep, &ep, 0);
-		if (!ep || *ep++ != ':')
-			errx(1, "cannot parse selector %s", str);
-		sel.pc_bus = strtoul(ep, &ep, 0);
-		if (!ep || *ep++ != ':')
-			errx(1, "cannot parse selector %s", str);
-		sel.pc_dev = strtoul(ep, &ep, 0);
-		if (!ep || *ep != ':') {
+		i = 0;
+		do {
+			selarr[i++] = strtoul(ep, &ep, 10);
+		} while (*ep == ':' && *++ep != '\0' && i < 4);
+
+		if (i > 2)
+			sel.pc_func = selarr[--i];
+		else
 			sel.pc_func = 0;
-		} else {
-			ep++;
-			sel.pc_func = strtoul(ep, &ep, 0);
-		}
-		if (*ep == ':')
-			ep++;
+		sel.pc_dev = selarr[--i];
+		sel.pc_bus = selarr[--i];
+		if (i > 0)
+			sel.pc_domain = selarr[--i];
+		else
+			sel.pc_domain = 0;
 	}
 	if (*ep != '\x0' || ep == epbase)
 		errx(1, "cannot parse selector %s", str);
