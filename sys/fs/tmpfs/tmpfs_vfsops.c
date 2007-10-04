@@ -85,7 +85,7 @@ static int	tmpfs_statfs(struct mount *, struct statfs *, struct thread *);
 /* --------------------------------------------------------------------- */
 
 static const char *tmpfs_opts[] = {
-	"from", "size", "inodes", "uid", "gid", "mode",
+	"from", "size", "inodes", "uid", "gid", "mode", "export",
 	NULL
 };
 
