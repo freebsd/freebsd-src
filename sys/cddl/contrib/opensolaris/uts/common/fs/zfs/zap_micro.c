@@ -209,6 +209,8 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 	winner = dmu_buf_set_user(db, zap, &zap->zap_m.zap_phys, zap_evict);
 
 	if (winner != NULL) {
+		rw_exit(&zap->zap_rwlock);
+		rw_destroy(&zap->zap_rwlock);
 		if (!zap->zap_ismicro)
 			mutex_destroy(&zap->zap_f.zap_num_entries_mtx);
 		kmem_free(zap, sizeof (zap_t));
