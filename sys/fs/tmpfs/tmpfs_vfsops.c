@@ -215,6 +215,9 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 		return EOPNOTSUPP;
 	}
 
+	printf("WARNING: TMPFS is considered to be a highly experimental "
+		"feature in FreeBSD.\n");
+
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY, td);
 	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
 	VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
