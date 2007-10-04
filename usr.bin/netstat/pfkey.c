@@ -88,6 +88,7 @@ static const char rcsid[] =
 #include <netipsec/keysock.h>
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -131,11 +132,11 @@ pfkey_stats(u_long off, const char *name, int af __unused, int proto __unused)
 	kread(off, (char *)&pfkeystat, sizeof(pfkeystat));
 
 #define	p(f, m) if (pfkeystat.f || sflag <= 1) \
-    printf(m, (unsigned long long)pfkeystat.f, plural(pfkeystat.f))
+    printf(m, (uintmax_t)pfkeystat.f, plural(pfkeystat.f))
 
 	/* userland -> kernel */
-	p(out_total, "\t%llu request%s sent from userland\n");
-	p(out_bytes, "\t%llu byte%s sent from userland\n");
+	p(out_total, "\t%ju request%s sent from userland\n");
+	p(out_bytes, "\t%ju byte%s sent from userland\n");
 	for (first = 1, type = 0;
 	     type < sizeof(pfkeystat.out_msgtype)/sizeof(pfkeystat.out_msgtype[0]);
 	     type++) {
@@ -145,22 +146,22 @@ pfkey_stats(u_long off, const char *name, int af __unused, int proto __unused)
 			printf("\thistogram by message type:\n");
 			first = 0;
 		}
-		printf("\t\t%s: %llu\n", pfkey_msgtype_names(type),
-			(unsigned long long)pfkeystat.out_msgtype[type]);
+		printf("\t\t%s: %ju\n", pfkey_msgtype_names(type),
+			(uintmax_t)pfkeystat.out_msgtype[type]);
 	}
-	p(out_invlen, "\t%llu message%s with invalid length field\n");
-	p(out_invver, "\t%llu message%s with invalid version field\n");
-	p(out_invmsgtype, "\t%llu message%s with invalid message type field\n");
-	p(out_tooshort, "\t%llu message%s too short\n");
-	p(out_nomem, "\t%llu message%s with memory allocation failure\n");
-	p(out_dupext, "\t%llu message%s with duplicate extension\n");
-	p(out_invexttype, "\t%llu message%s with invalid extension type\n");
-	p(out_invsatype, "\t%llu message%s with invalid sa type\n");
-	p(out_invaddr, "\t%llu message%s with invalid address extension\n");
+	p(out_invlen, "\t%ju message%s with invalid length field\n");
+	p(out_invver, "\t%ju message%s with invalid version field\n");
+	p(out_invmsgtype, "\t%ju message%s with invalid message type field\n");
+	p(out_tooshort, "\t%ju message%s too short\n");
+	p(out_nomem, "\t%ju message%s with memory allocation failure\n");
+	p(out_dupext, "\t%ju message%s with duplicate extension\n");
+	p(out_invexttype, "\t%ju message%s with invalid extension type\n");
+	p(out_invsatype, "\t%ju message%s with invalid sa type\n");
+	p(out_invaddr, "\t%ju message%s with invalid address extension\n");
 
 	/* kernel -> userland */
-	p(in_total, "\t%llu request%s sent to userland\n");
-	p(in_bytes, "\t%llu byte%s sent to userland\n");
+	p(in_total, "\t%ju request%s sent to userland\n");
+	p(in_bytes, "\t%ju byte%s sent to userland\n");
 	for (first = 1, type = 0;
 	     type < sizeof(pfkeystat.in_msgtype)/sizeof(pfkeystat.in_msgtype[0]);
 	     type++) {
@@ -170,16 +171,16 @@ pfkey_stats(u_long off, const char *name, int af __unused, int proto __unused)
 			printf("\thistogram by message type:\n");
 			first = 0;
 		}
-		printf("\t\t%s: %llu\n", pfkey_msgtype_names(type),
-			(unsigned long long)pfkeystat.in_msgtype[type]);
+		printf("\t\t%s: %ju\n", pfkey_msgtype_names(type),
+			(uintmax_t)pfkeystat.in_msgtype[type]);
 	}
 	p(in_msgtarget[KEY_SENDUP_ONE],
-	    "\t%llu message%s toward single socket\n");
+	    "\t%ju message%s toward single socket\n");
 	p(in_msgtarget[KEY_SENDUP_ALL],
-	    "\t%llu message%s toward all sockets\n");
+	    "\t%ju message%s toward all sockets\n");
 	p(in_msgtarget[KEY_SENDUP_REGISTERED],
-	    "\t%llu message%s toward registered sockets\n");
-	p(in_nomem, "\t%llu message%s with memory allocation failure\n");
+	    "\t%ju message%s toward registered sockets\n");
+	p(in_nomem, "\t%ju message%s with memory allocation failure\n");
 #undef p
 }
 #endif /* IPSEC */

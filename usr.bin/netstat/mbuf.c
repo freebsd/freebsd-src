@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <kvm.h>
 #include <memstat.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,18 +66,18 @@ mbpr(void *kvmd, u_long mbaddr)
 {
 	struct memory_type_list *mtlp;
 	struct memory_type *mtp;
-	u_int64_t mbuf_count, mbuf_bytes, mbuf_free, mbuf_failures, mbuf_size;
-	u_int64_t cluster_count, cluster_bytes, cluster_limit, cluster_free;
-	u_int64_t cluster_failures, cluster_size;
-	u_int64_t packet_count, packet_bytes, packet_free, packet_failures;
-	u_int64_t tag_count, tag_bytes;
-	u_int64_t jumbop_count, jumbop_bytes, jumbop_limit, jumbop_free;
-	u_int64_t jumbop_failures, jumbop_size;
-	u_int64_t jumbo9_count, jumbo9_bytes, jumbo9_limit, jumbo9_free;
-	u_int64_t jumbo9_failures, jumbo9_size;
-	u_int64_t jumbo16_count, jumbo16_bytes, jumbo16_limit, jumbo16_free;
-	u_int64_t jumbo16_failures, jumbo16_size;
-	u_int64_t bytes_inuse, bytes_incache, bytes_total;
+	uintmax_t mbuf_count, mbuf_bytes, mbuf_free, mbuf_failures, mbuf_size;
+	uintmax_t cluster_count, cluster_bytes, cluster_limit, cluster_free;
+	uintmax_t cluster_failures, cluster_size;
+	uintmax_t packet_count, packet_bytes, packet_free, packet_failures;
+	uintmax_t tag_count, tag_bytes;
+	uintmax_t jumbop_count, jumbop_bytes, jumbop_limit, jumbop_free;
+	uintmax_t jumbop_failures, jumbop_size;
+	uintmax_t jumbo9_count, jumbo9_bytes, jumbo9_limit, jumbo9_free;
+	uintmax_t jumbo9_failures, jumbo9_size;
+	uintmax_t jumbo16_count, jumbo16_bytes, jumbo16_limit, jumbo16_free;
+	uintmax_t jumbo16_failures, jumbo16_size;
+	uintmax_t bytes_inuse, bytes_incache, bytes_total;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
 	struct mbstat mbstat;
 	size_t mlen;
@@ -194,36 +195,36 @@ mbpr(void *kvmd, u_long mbaddr)
 	jumbo16_failures = memstat_get_failures(mtp);
 	jumbo16_size = memstat_get_size(mtp);
 
-	printf("%llu/%llu/%llu mbufs in use (current/cache/total)\n",
+	printf("%ju/%ju/%ju mbufs in use (current/cache/total)\n",
 	    mbuf_count + packet_count, mbuf_free + packet_free,
 	    mbuf_count + packet_count + mbuf_free + packet_free);
 
-	printf("%llu/%llu/%llu/%llu mbuf clusters in use "
+	printf("%ju/%ju/%ju/%ju mbuf clusters in use "
 	    "(current/cache/total/max)\n",
 	    cluster_count - packet_free, cluster_free + packet_free,
 	    cluster_count + cluster_free, cluster_limit);
 
-	printf("%llu/%llu mbuf+clusters out of packet secondary zone in use "
+	printf("%ju/%ju mbuf+clusters out of packet secondary zone in use "
 	    "(current/cache)\n",
 	    packet_count, packet_free);
 
-	printf("%llu/%llu/%llu/%llu %lluk (page size) jumbo clusters in use "
+	printf("%ju/%ju/%ju/%ju %juk (page size) jumbo clusters in use "
 	    "(current/cache/total/max)\n",
 	    jumbop_count, jumbop_free, jumbop_count + jumbop_free,
 	    jumbop_limit, jumbop_size / 1024);
 
-	printf("%llu/%llu/%llu/%llu 9k jumbo clusters in use "
+	printf("%ju/%ju/%ju/%ju 9k jumbo clusters in use "
 	    "(current/cache/total/max)\n",
 	    jumbo9_count, jumbo9_free, jumbo9_count + jumbo9_free,
 	    jumbo9_limit);
 
-	printf("%llu/%llu/%llu/%llu 16k jumbo clusters in use "
+	printf("%ju/%ju/%ju/%ju 16k jumbo clusters in use "
 	    "(current/cache/total/max)\n",
 	    jumbo16_count, jumbo16_free, jumbo16_count + jumbo16_free,
 	    jumbo16_limit);
 
 #if 0
-	printf("%llu mbuf tags in use\n", tag_count);
+	printf("%ju mbuf tags in use\n", tag_count);
 #endif
 
 	/*-
@@ -271,16 +272,16 @@ mbpr(void *kvmd, u_long mbaddr)
 	 */
 	bytes_total = bytes_inuse + bytes_incache;
 
-	printf("%lluK/%lluK/%lluK bytes allocated to network "
+	printf("%juK/%juK/%juK bytes allocated to network "
 	    "(current/cache/total)\n", bytes_inuse / 1024,
 	    bytes_incache / 1024, bytes_total / 1024);
 
-	printf("%llu/%llu/%llu requests for mbufs denied (mbufs/clusters/"
+	printf("%ju/%ju/%ju requests for mbufs denied (mbufs/clusters/"
 	    "mbuf+clusters)\n", mbuf_failures, cluster_failures,
 	    packet_failures);
 
-	printf("%llu/%llu/%llu requests for jumbo clusters denied "
-	    "(%lluk/9k/16k)\n", jumbop_failures, jumbo9_failures,
+	printf("%ju/%ju/%ju requests for jumbo clusters denied "
+	    "(%juk/9k/16k)\n", jumbop_failures, jumbo9_failures,
 	    jumbo16_failures, jumbop_size / 1024);
 
 	if (live) {
