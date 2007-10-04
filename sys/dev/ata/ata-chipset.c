@@ -1216,6 +1216,7 @@ ata_amd_ident(device_t dev)
      { ATA_AMD766,  0x00, AMDNVIDIA, AMDCABLE|AMDBUG, ATA_UDMA5, "766" },
      { ATA_AMD768,  0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA5, "768" },
      { ATA_AMD8111, 0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA6, "8111" },
+     { ATA_AMD5536, 0x00, AMDNVIDIA, 0x00,            ATA_UDMA5, "CS5536" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
