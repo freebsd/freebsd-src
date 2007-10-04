@@ -358,6 +358,7 @@ struct ata_connect_task {
 #define ATA_VIA8235             0x31771106
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
+#define ATA_VIA8237S		0x53371106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
