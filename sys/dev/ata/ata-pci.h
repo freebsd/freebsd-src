@@ -86,6 +86,7 @@ struct ata_connect_task {
 #define ATA_AMD766              0x74111022
 #define ATA_AMD768              0x74411022
 #define ATA_AMD8111             0x74691022
+#define ATA_AMD5536             0x209a1022
 
 #define ATA_ACER_LABS_ID        0x10b9
 #define ATA_ALI_1533            0x153310b9
