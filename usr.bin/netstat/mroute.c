@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_mroute.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "netstat.h"
@@ -213,16 +214,16 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The measured values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS)
-		sprintf(s1, "%llu", bw_meter->bm_measured.b_packets);
+		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_measured.b_packets);
 	else
 		sprintf(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES)
-		sprintf(s2, "%llu", bw_meter->bm_measured.b_bytes);
+		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_measured.b_bytes);
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",
-		bw_meter->bm_start_time.tv_sec,
-		bw_meter->bm_start_time.tv_usec,
+		(u_long)bw_meter->bm_start_time.tv_sec,
+		(u_long)bw_meter->bm_start_time.tv_usec,
 		s1, s2);
 	printf("  %-30s", s0);
 
@@ -236,16 +237,16 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 
 	/* The threshold values */
 	if (bw_meter->bm_flags & BW_METER_UNIT_PACKETS)
-		sprintf(s1, "%llu", bw_meter->bm_threshold.b_packets);
+		sprintf(s1, "%ju", (uintmax_t)bw_meter->bm_threshold.b_packets);
 	else
 		sprintf(s1, "?");
 	if (bw_meter->bm_flags & BW_METER_UNIT_BYTES)
-		sprintf(s2, "%llu", bw_meter->bm_threshold.b_bytes);
+		sprintf(s2, "%ju", (uintmax_t)bw_meter->bm_threshold.b_bytes);
 	else
 		sprintf(s2, "?");
 	sprintf(s0, "%lu.%lu|%s|%s",
-		bw_meter->bm_threshold.b_time.tv_sec,
-		bw_meter->bm_threshold.b_time.tv_usec,
+		(u_long)bw_meter->bm_threshold.b_time.tv_sec,
+		(u_long)bw_meter->bm_threshold.b_time.tv_usec,
 		s1, s2);
 	printf("  %-30s", s0);
 
@@ -254,11 +255,15 @@ print_bw_meter(struct bw_meter *bw_meter, int *banner_printed)
 		 &bw_meter->bm_threshold.b_time, &end);
 	if (timercmp(&now, &end, <=)) {
 		timersub(&end, &now, &delta);
-		sprintf(s3, "%lu.%lu", delta.tv_sec, delta.tv_usec);
+		sprintf(s3, "%lu.%lu",
+			(u_long)delta.tv_sec,
+			(u_long)delta.tv_usec);
 	} else {
 		/* Negative time */
 		timersub(&now, &end, &delta);
-		sprintf(s3, "-%lu.%lu", delta.tv_sec, delta.tv_usec);
+		sprintf(s3, "-%lu.%lu",
+			(u_long)delta.tv_sec,
+			(u_long)delta.tv_usec);
 	}
 	printf(" %s", s3);
 

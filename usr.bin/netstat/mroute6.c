@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <stdint.h>
 #include <stdio.h>
 
 #define	KERNEL 1
@@ -140,8 +141,8 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		printf("   %5s", (mifp->m6_flags & MIFF_REGISTER) ?
 		       "reg0" : if_indextoname(ifnet.if_index, ifname));
 
-		printf(" %9llu  %9llu\n", (unsigned long long)mifp->m6_pkt_in,
-		    (unsigned long long)mifp->m6_pkt_out);
+		printf(" %9ju  %9ju\n", (uintmax_t)mifp->m6_pkt_in,
+		    (uintmax_t)mifp->m6_pkt_out);
 	}
 	if (!banner_printed)
 		printf("\nIPv6 Multicast Interface Table is empty\n");
@@ -165,7 +166,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 			       routename6(&mfc.mf6c_origin));
 			printf(" %-*.*s", WID_GRP, WID_GRP,
 			       routename6(&mfc.mf6c_mcastgrp));
-			printf(" %9llu", (unsigned long long)mfc.mf6c_pkt_cnt);
+			printf(" %9ju", (uintmax_t)mfc.mf6c_pkt_cnt);
 
 			for (waitings = 0, rtep = mfc.mf6c_stall; rtep; ) {
 				waitings++;
@@ -209,25 +210,25 @@ mrt6_stats(u_long mstaddr)
 	printf("IPv6 multicast forwarding:\n");
 
 #define	p(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)mrtstat.f, plural(mrtstat.f))
+	printf(m, (uintmax_t)mrtstat.f, plural(mrtstat.f))
 #define	p2(f, m) if (mrtstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)mrtstat.f, plurales(mrtstat.f))
+	printf(m, (uintmax_t)mrtstat.f, plurales(mrtstat.f))
 
-	p(mrt6s_mfc_lookups, "\t%llu multicast forwarding cache lookup%s\n");
-	p2(mrt6s_mfc_misses, "\t%llu multicast forwarding cache miss%s\n");
-	p(mrt6s_upcalls, "\t%llu upcall%s to mrouted\n");
-	p(mrt6s_upq_ovflw, "\t%llu upcall queue overflow%s\n");
+	p(mrt6s_mfc_lookups, "\t%ju multicast forwarding cache lookup%s\n");
+	p2(mrt6s_mfc_misses, "\t%ju multicast forwarding cache miss%s\n");
+	p(mrt6s_upcalls, "\t%ju upcall%s to mrouted\n");
+	p(mrt6s_upq_ovflw, "\t%ju upcall queue overflow%s\n");
 	p(mrt6s_upq_sockfull,
-	    "\t%llu upcall%s dropped due to full socket buffer\n");
-	p(mrt6s_cache_cleanups, "\t%llu cache cleanup%s\n");
-	p(mrt6s_no_route, "\t%llu datagram%s with no route for origin\n");
-	p(mrt6s_bad_tunnel, "\t%llu datagram%s arrived with bad tunneling\n");
-	p(mrt6s_cant_tunnel, "\t%llu datagram%s could not be tunneled\n");
-	p(mrt6s_wrong_if, "\t%llu datagram%s arrived on wrong interface\n");
-	p(mrt6s_drop_sel, "\t%llu datagram%s selectively dropped\n");
+	    "\t%ju upcall%s dropped due to full socket buffer\n");
+	p(mrt6s_cache_cleanups, "\t%ju cache cleanup%s\n");
+	p(mrt6s_no_route, "\t%ju datagram%s with no route for origin\n");
+	p(mrt6s_bad_tunnel, "\t%ju datagram%s arrived with bad tunneling\n");
+	p(mrt6s_cant_tunnel, "\t%ju datagram%s could not be tunneled\n");
+	p(mrt6s_wrong_if, "\t%ju datagram%s arrived on wrong interface\n");
+	p(mrt6s_drop_sel, "\t%ju datagram%s selectively dropped\n");
 	p(mrt6s_q_overflow,
-	    "\t%llu datagram%s dropped due to queue overflow\n");
-	p(mrt6s_pkt2large, "\t%llu datagram%s dropped for being too large\n");
+	    "\t%ju datagram%s dropped due to queue overflow\n");
+	p(mrt6s_pkt2large, "\t%ju datagram%s dropped for being too large\n");
 
 #undef	p2
 #undef	p

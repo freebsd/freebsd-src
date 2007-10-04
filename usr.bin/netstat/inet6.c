@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 
 #include <err.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -76,7 +77,6 @@ __FBSDID("$FreeBSD$");
 struct	socket sockb;
 
 char	*inet6name(struct in6_addr *);
-const char *pluralies(int);
 
 static char ntop_buf[INET6_ADDRSTRLEN];
 
@@ -383,44 +383,44 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (ip6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ip6stat.f, plural(ip6stat.f))
+    printf(m, (uintmax_t)ip6stat.f, plural(ip6stat.f))
 #define	p1a(f, m) if (ip6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ip6stat.f)
+    printf(m, (uintmax_t)ip6stat.f)
 
-	p(ip6s_total, "\t%llu total packet%s received\n");
-	p1a(ip6s_toosmall, "\t%llu with size smaller than minimum\n");
-	p1a(ip6s_tooshort, "\t%llu with data size < data length\n");
-	p1a(ip6s_badoptions, "\t%llu with bad options\n");
-	p1a(ip6s_badvers, "\t%llu with incorrect version number\n");
-	p(ip6s_fragments, "\t%llu fragment%s received\n");
-	p(ip6s_fragdropped, "\t%llu fragment%s dropped (dup or out of space)\n");
-	p(ip6s_fragtimeout, "\t%llu fragment%s dropped after timeout\n");
-	p(ip6s_fragoverflow, "\t%llu fragment%s that exceeded limit\n");
-	p(ip6s_reassembled, "\t%llu packet%s reassembled ok\n");
-	p(ip6s_delivered, "\t%llu packet%s for this host\n");
-	p(ip6s_forward, "\t%llu packet%s forwarded\n");
-	p(ip6s_cantforward, "\t%llu packet%s not forwardable\n");
-	p(ip6s_redirectsent, "\t%llu redirect%s sent\n");
-	p(ip6s_localout, "\t%llu packet%s sent from this host\n");
-	p(ip6s_rawout, "\t%llu packet%s sent with fabricated ip header\n");
-	p(ip6s_odropped, "\t%llu output packet%s dropped due to no bufs, etc.\n");
-	p(ip6s_noroute, "\t%llu output packet%s discarded due to no route\n");
-	p(ip6s_fragmented, "\t%llu output datagram%s fragmented\n");
-	p(ip6s_ofragments, "\t%llu fragment%s created\n");
-	p(ip6s_cantfrag, "\t%llu datagram%s that can't be fragmented\n");
-	p(ip6s_badscope, "\t%llu packet%s that violated scope rules\n");
-	p(ip6s_notmember, "\t%llu multicast packet%s which we don't join\n");
+	p(ip6s_total, "\t%ju total packet%s received\n");
+	p1a(ip6s_toosmall, "\t%ju with size smaller than minimum\n");
+	p1a(ip6s_tooshort, "\t%ju with data size < data length\n");
+	p1a(ip6s_badoptions, "\t%ju with bad options\n");
+	p1a(ip6s_badvers, "\t%ju with incorrect version number\n");
+	p(ip6s_fragments, "\t%ju fragment%s received\n");
+	p(ip6s_fragdropped, "\t%ju fragment%s dropped (dup or out of space)\n");
+	p(ip6s_fragtimeout, "\t%ju fragment%s dropped after timeout\n");
+	p(ip6s_fragoverflow, "\t%ju fragment%s that exceeded limit\n");
+	p(ip6s_reassembled, "\t%ju packet%s reassembled ok\n");
+	p(ip6s_delivered, "\t%ju packet%s for this host\n");
+	p(ip6s_forward, "\t%ju packet%s forwarded\n");
+	p(ip6s_cantforward, "\t%ju packet%s not forwardable\n");
+	p(ip6s_redirectsent, "\t%ju redirect%s sent\n");
+	p(ip6s_localout, "\t%ju packet%s sent from this host\n");
+	p(ip6s_rawout, "\t%ju packet%s sent with fabricated ip header\n");
+	p(ip6s_odropped, "\t%ju output packet%s dropped due to no bufs, etc.\n");
+	p(ip6s_noroute, "\t%ju output packet%s discarded due to no route\n");
+	p(ip6s_fragmented, "\t%ju output datagram%s fragmented\n");
+	p(ip6s_ofragments, "\t%ju fragment%s created\n");
+	p(ip6s_cantfrag, "\t%ju datagram%s that can't be fragmented\n");
+	p(ip6s_badscope, "\t%ju packet%s that violated scope rules\n");
+	p(ip6s_notmember, "\t%ju multicast packet%s which we don't join\n");
 	for (first = 1, i = 0; i < 256; i++)
 		if (ip6stat.ip6s_nxthist[i] != 0) {
 			if (first) {
 				printf("\tInput histogram:\n");
 				first = 0;
 			}
-			printf("\t\t%s: %llu\n", ip6nh[i],
-			    (unsigned long long)ip6stat.ip6s_nxthist[i]);
+			printf("\t\t%s: %ju\n", ip6nh[i],
+			    (uintmax_t)ip6stat.ip6s_nxthist[i]);
 		}
 	printf("\tMbuf statistics:\n");
-	printf("\t\t%llu one mbuf\n", (unsigned long long)ip6stat.ip6s_m1);
+	printf("\t\t%ju one mbuf\n", (uintmax_t)ip6stat.ip6s_m1);
 	for (first = 1, i = 0; i < 32; i++) {
 		char ifbuf[IFNAMSIZ];
 		if (ip6stat.ip6s_m2m[i] != 0) {		
@@ -428,44 +428,44 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 				printf("\t\ttwo or more mbuf:\n");
 				first = 0;
 			}
-			printf("\t\t\t%s= %llu\n",
+			printf("\t\t\t%s= %ju\n",
 			    if_indextoname(i, ifbuf),
-			    (unsigned long long)ip6stat.ip6s_m2m[i]);
+			    (uintmax_t)ip6stat.ip6s_m2m[i]);
 		}
 	}
-	printf("\t\t%llu one ext mbuf\n",
-	    (unsigned long long)ip6stat.ip6s_mext1);
-	printf("\t\t%llu two or more ext mbuf\n",
-	    (unsigned long long)ip6stat.ip6s_mext2m);	
+	printf("\t\t%ju one ext mbuf\n",
+	    (uintmax_t)ip6stat.ip6s_mext1);
+	printf("\t\t%ju two or more ext mbuf\n",
+	    (uintmax_t)ip6stat.ip6s_mext2m);	
 	p(ip6s_exthdrtoolong,
-	    "\t%llu packet%s whose headers are not continuous\n");
-	p(ip6s_nogif, "\t%llu tunneling packet%s that can't find gif\n");
+	    "\t%ju packet%s whose headers are not continuous\n");
+	p(ip6s_nogif, "\t%ju tunneling packet%s that can't find gif\n");
 	p(ip6s_toomanyhdr,
-	    "\t%llu packet%s discarded because of too many headers\n");
+	    "\t%ju packet%s discarded because of too many headers\n");
 
 	/* for debugging source address selection */
 #define PRINT_SCOPESTAT(s,i) do {\
 		switch(i) { /* XXX hardcoding in each case */\
 		case 1:\
-			p(s, "\t\t%llu node-local%s\n");\
+			p(s, "\t\t%ju node-local%s\n");\
 			break;\
 		case 2:\
-			p(s,"\t\t%llu link-local%s\n");\
+			p(s,"\t\t%ju link-local%s\n");\
 			break;\
 		case 5:\
-			p(s,"\t\t%llu site-local%s\n");\
+			p(s,"\t\t%ju site-local%s\n");\
 			break;\
 		case 14:\
-			p(s,"\t\t%llu global%s\n");\
+			p(s,"\t\t%ju global%s\n");\
 			break;\
 		default:\
-			printf("\t\t%llu addresses scope=%x\n",\
-			    (unsigned long long)ip6stat.s, i);\
+			printf("\t\t%ju addresses scope=%x\n",\
+			    (uintmax_t)ip6stat.s, i);\
 		}\
 	} while (0);
 
 	p(ip6s_sources_none,
-	  "\t%llu failure%s of source address selection\n");
+	  "\t%ju failure%s of source address selection\n");
 	for (first = 1, i = 0; i < 16; i++) {
 		if (ip6stat.ip6s_sources_sameif[i]) {
 			if (first) {
@@ -512,12 +512,13 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	}
 
-	p1a(ip6s_forward_cachehit, "\t%llu forward cache hit\n");
-	p1a(ip6s_forward_cachemiss, "\t%llu forward cache miss\n");
+	p1a(ip6s_forward_cachehit, "\t%ju forward cache hit\n");
+	p1a(ip6s_forward_cachemiss, "\t%ju forward cache miss\n");
 	printf("\tSource addresses selection rule applied:\n");
 	for (i = 0; i < 16; i++) {
 		if (ip6stat.ip6s_sources_rule[i])
-			printf("\t\t%llu %s\n", ip6stat.ip6s_sources_rule[i],
+			printf("\t\t%ju %s\n",
+			       (uintmax_t)ip6stat.ip6s_sources_rule[i],
 			       srcrule_str[i]);
 	}
 #undef p
@@ -533,9 +534,9 @@ ip6_ifstats(char *ifname)
 	struct in6_ifreq ifr;
 	int s;
 #define	p(f, m) if (ifr.ifr_ifru.ifru_stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ifr.ifr_ifru.ifru_stat.f, plural(ifr.ifr_ifru.ifru_stat.f))
+    printf(m, (uintmax_t)ifr.ifr_ifru.ifru_stat.f, plural(ifr.ifr_ifru.ifru_stat.f))
 #define	p_5(f, m) if (ifr.ifr_ifru.ifru_stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ip6stat.f)
+    printf(m, (uintmax_t)ip6stat.f)
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		perror("Warning: socket(AF_INET6)");
@@ -550,28 +551,28 @@ ip6_ifstats(char *ifname)
 		goto end;
 	}
 
-	p(ifs6_in_receive, "\t%llu total input datagram%s\n");
-	p(ifs6_in_hdrerr, "\t%llu datagram%s with invalid header received\n");
-	p(ifs6_in_toobig, "\t%llu datagram%s exceeded MTU received\n");
-	p(ifs6_in_noroute, "\t%llu datagram%s with no route received\n");
-	p(ifs6_in_addrerr, "\t%llu datagram%s with invalid dst received\n");
-	p(ifs6_in_protounknown, "\t%llu datagram%s with unknown proto received\n");
-	p(ifs6_in_truncated, "\t%llu truncated datagram%s received\n");
-	p(ifs6_in_discard, "\t%llu input datagram%s discarded\n");
+	p(ifs6_in_receive, "\t%ju total input datagram%s\n");
+	p(ifs6_in_hdrerr, "\t%ju datagram%s with invalid header received\n");
+	p(ifs6_in_toobig, "\t%ju datagram%s exceeded MTU received\n");
+	p(ifs6_in_noroute, "\t%ju datagram%s with no route received\n");
+	p(ifs6_in_addrerr, "\t%ju datagram%s with invalid dst received\n");
+	p(ifs6_in_protounknown, "\t%ju datagram%s with unknown proto received\n");
+	p(ifs6_in_truncated, "\t%ju truncated datagram%s received\n");
+	p(ifs6_in_discard, "\t%ju input datagram%s discarded\n");
 	p(ifs6_in_deliver,
-	  "\t%llu datagram%s delivered to an upper layer protocol\n");
-	p(ifs6_out_forward, "\t%llu datagram%s forwarded to this interface\n");
+	  "\t%ju datagram%s delivered to an upper layer protocol\n");
+	p(ifs6_out_forward, "\t%ju datagram%s forwarded to this interface\n");
 	p(ifs6_out_request,
-	  "\t%llu datagram%s sent from an upper layer protocol\n");
-	p(ifs6_out_discard, "\t%llu total discarded output datagram%s\n");
-	p(ifs6_out_fragok, "\t%llu output datagram%s fragmented\n");
-	p(ifs6_out_fragfail, "\t%llu output datagram%s failed on fragment\n");
-	p(ifs6_out_fragcreat, "\t%llu output datagram%s succeeded on fragment\n");
-	p(ifs6_reass_reqd, "\t%llu incoming datagram%s fragmented\n");
-	p(ifs6_reass_ok, "\t%llu datagram%s reassembled\n");
-	p(ifs6_reass_fail, "\t%llu datagram%s failed on reassembly\n");
-	p(ifs6_in_mcast, "\t%llu multicast datagram%s received\n");
-	p(ifs6_out_mcast, "\t%llu multicast datagram%s sent\n");
+	  "\t%ju datagram%s sent from an upper layer protocol\n");
+	p(ifs6_out_discard, "\t%ju total discarded output datagram%s\n");
+	p(ifs6_out_fragok, "\t%ju output datagram%s fragmented\n");
+	p(ifs6_out_fragfail, "\t%ju output datagram%s failed on fragment\n");
+	p(ifs6_out_fragcreat, "\t%ju output datagram%s succeeded on fragment\n");
+	p(ifs6_reass_reqd, "\t%ju incoming datagram%s fragmented\n");
+	p(ifs6_reass_ok, "\t%ju datagram%s reassembled\n");
+	p(ifs6_reass_fail, "\t%ju datagram%s failed on reassembly\n");
+	p(ifs6_in_mcast, "\t%ju multicast datagram%s received\n");
+	p(ifs6_out_mcast, "\t%ju multicast datagram%s sent\n");
 
   end:
 	close(s);
@@ -864,14 +865,14 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)icmp6stat.f, plural(icmp6stat.f))
-#define p_5(f, m) printf(m, (unsigned long long)icmp6stat.f)
+    printf(m, (uintmax_t)icmp6stat.f, plural(icmp6stat.f))
+#define p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
 
-	p(icp6s_error, "\t%llu call%s to icmp6_error\n");
+	p(icp6s_error, "\t%ju call%s to icmp6_error\n");
 	p(icp6s_canterror,
-	    "\t%llu error%s not generated in response to an icmp6 message\n");
+	    "\t%ju error%s not generated in response to an icmp6 message\n");
 	p(icp6s_toofreq,
-	  "\t%llu error%s not generated because of rate limitation\n");
+	  "\t%ju error%s not generated because of rate limitation\n");
 #define NELEM (int)(sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_outhist[i] != 0) {
@@ -879,14 +880,14 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 				printf("\tOutput histogram:\n");
 				first = 0;
 			}
-			printf("\t\t%s: %llu\n", icmp6names[i],
-			    (unsigned long long)icmp6stat.icp6s_outhist[i]);
+			printf("\t\t%s: %ju\n", icmp6names[i],
+			    (uintmax_t)icmp6stat.icp6s_outhist[i]);
 		}
 #undef NELEM
-	p(icp6s_badcode, "\t%llu message%s with bad code fields\n");
-	p(icp6s_tooshort, "\t%llu message%s < minimum length\n");
-	p(icp6s_checksum, "\t%llu bad checksum%s\n");
-	p(icp6s_badlen, "\t%llu message%s with bad length\n");
+	p(icp6s_badcode, "\t%ju message%s with bad code fields\n");
+	p(icp6s_tooshort, "\t%ju message%s < minimum length\n");
+	p(icp6s_checksum, "\t%ju bad checksum%s\n");
+	p(icp6s_badlen, "\t%ju message%s with bad length\n");
 #define NELEM (int)(sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_inhist[i] != 0) {
@@ -894,34 +895,34 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 				printf("\tInput histogram:\n");
 				first = 0;
 			}
-			printf("\t\t%s: %llu\n", icmp6names[i],
-			    (unsigned long long)icmp6stat.icp6s_inhist[i]);
+			printf("\t\t%s: %ju\n", icmp6names[i],
+			    (uintmax_t)icmp6stat.icp6s_inhist[i]);
 		}
 #undef NELEM
 	printf("\tHistogram of error messages to be generated:\n");
-	p_5(icp6s_odst_unreach_noroute, "\t\t%llu no route\n");
-	p_5(icp6s_odst_unreach_admin, "\t\t%llu administratively prohibited\n");
-	p_5(icp6s_odst_unreach_beyondscope, "\t\t%llu beyond scope\n");
-	p_5(icp6s_odst_unreach_addr, "\t\t%llu address unreachable\n");
-	p_5(icp6s_odst_unreach_noport, "\t\t%llu port unreachable\n");
-	p_5(icp6s_opacket_too_big, "\t\t%llu packet too big\n");
-	p_5(icp6s_otime_exceed_transit, "\t\t%llu time exceed transit\n");
-	p_5(icp6s_otime_exceed_reassembly, "\t\t%llu time exceed reassembly\n");
-	p_5(icp6s_oparamprob_header, "\t\t%llu erroneous header field\n");
-	p_5(icp6s_oparamprob_nextheader, "\t\t%llu unrecognized next header\n");
-	p_5(icp6s_oparamprob_option, "\t\t%llu unrecognized option\n");
-	p_5(icp6s_oredirect, "\t\t%llu redirect\n");
-	p_5(icp6s_ounknown, "\t\t%llu unknown\n");
+	p_5(icp6s_odst_unreach_noroute, "\t\t%ju no route\n");
+	p_5(icp6s_odst_unreach_admin, "\t\t%ju administratively prohibited\n");
+	p_5(icp6s_odst_unreach_beyondscope, "\t\t%ju beyond scope\n");
+	p_5(icp6s_odst_unreach_addr, "\t\t%ju address unreachable\n");
+	p_5(icp6s_odst_unreach_noport, "\t\t%ju port unreachable\n");
+	p_5(icp6s_opacket_too_big, "\t\t%ju packet too big\n");
+	p_5(icp6s_otime_exceed_transit, "\t\t%ju time exceed transit\n");
+	p_5(icp6s_otime_exceed_reassembly, "\t\t%ju time exceed reassembly\n");
+	p_5(icp6s_oparamprob_header, "\t\t%ju erroneous header field\n");
+	p_5(icp6s_oparamprob_nextheader, "\t\t%ju unrecognized next header\n");
+	p_5(icp6s_oparamprob_option, "\t\t%ju unrecognized option\n");
+	p_5(icp6s_oredirect, "\t\t%ju redirect\n");
+	p_5(icp6s_ounknown, "\t\t%ju unknown\n");
 
-	p(icp6s_reflect, "\t%llu message response%s generated\n");
-	p(icp6s_nd_toomanyopt, "\t%llu message%s with too many ND options\n");
-	p(icp6s_nd_badopt, "\t%llu message%s with bad ND options\n");
-	p(icp6s_badns, "\t%llu bad neighbor solicitation message%s\n");
-	p(icp6s_badna, "\t%llu bad neighbor advertisement message%s\n");
-	p(icp6s_badrs, "\t%llu bad router solicitation message%s\n");
-	p(icp6s_badra, "\t%llu bad router advertisement message%s\n");
-	p(icp6s_badredirect, "\t%llu bad redirect message%s\n");
-	p(icp6s_pmtuchg, "\t%llu path MTU change%s\n");
+	p(icp6s_reflect, "\t%ju message response%s generated\n");
+	p(icp6s_nd_toomanyopt, "\t%ju message%s with too many ND options\n");
+	p(icp6s_nd_badopt, "\t%ju message%s with bad ND options\n");
+	p(icp6s_badns, "\t%ju bad neighbor solicitation message%s\n");
+	p(icp6s_badna, "\t%ju bad neighbor advertisement message%s\n");
+	p(icp6s_badrs, "\t%ju bad router solicitation message%s\n");
+	p(icp6s_badra, "\t%ju bad router advertisement message%s\n");
+	p(icp6s_badredirect, "\t%ju bad redirect message%s\n");
+	p(icp6s_pmtuchg, "\t%ju path MTU change%s\n");
 #undef p
 #undef p_5
 }
@@ -935,9 +936,9 @@ icmp6_ifstats(char *ifname)
 	struct in6_ifreq ifr;
 	int s;
 #define	p(f, m) if (ifr.ifr_ifru.ifru_icmp6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ifr.ifr_ifru.ifru_icmp6stat.f, plural(ifr.ifr_ifru.ifru_icmp6stat.f))
+    printf(m, (uintmax_t)ifr.ifr_ifru.ifru_icmp6stat.f, plural(ifr.ifr_ifru.ifru_icmp6stat.f))
 #define	p2(f, m) if (ifr.ifr_ifru.ifru_icmp6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)ifr.ifr_ifru.ifru_icmp6stat.f, pluralies(ifr.ifr_ifru.ifru_icmp6stat.f))
+    printf(m, (uintmax_t)ifr.ifr_ifru.ifru_icmp6stat.f, pluralies(ifr.ifr_ifru.ifru_icmp6stat.f))
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		perror("Warning: socket(AF_INET6)");
@@ -952,41 +953,41 @@ icmp6_ifstats(char *ifname)
 		goto end;
 	}
 
-	p(ifs6_in_msg, "\t%llu total input message%s\n");
-	p(ifs6_in_error, "\t%llu total input error message%s\n"); 
-	p(ifs6_in_dstunreach, "\t%llu input destination unreachable error%s\n");
-	p(ifs6_in_adminprohib, "\t%llu input administratively prohibited error%s\n");
-	p(ifs6_in_timeexceed, "\t%llu input time exceeded error%s\n");
-	p(ifs6_in_paramprob, "\t%llu input parameter problem error%s\n");
-	p(ifs6_in_pkttoobig, "\t%llu input packet too big error%s\n");
-	p(ifs6_in_echo, "\t%llu input echo request%s\n");
-	p2(ifs6_in_echoreply, "\t%llu input echo repl%s\n");
-	p(ifs6_in_routersolicit, "\t%llu input router solicitation%s\n");
-	p(ifs6_in_routeradvert, "\t%llu input router advertisement%s\n");
-	p(ifs6_in_neighborsolicit, "\t%llu input neighbor solicitation%s\n");
-	p(ifs6_in_neighboradvert, "\t%llu input neighbor advertisement%s\n");
-	p(ifs6_in_redirect, "\t%llu input redirect%s\n");
-	p2(ifs6_in_mldquery, "\t%llu input MLD quer%s\n");
-	p(ifs6_in_mldreport, "\t%llu input MLD report%s\n");
-	p(ifs6_in_mlddone, "\t%llu input MLD done%s\n");
+	p(ifs6_in_msg, "\t%ju total input message%s\n");
+	p(ifs6_in_error, "\t%ju total input error message%s\n"); 
+	p(ifs6_in_dstunreach, "\t%ju input destination unreachable error%s\n");
+	p(ifs6_in_adminprohib, "\t%ju input administratively prohibited error%s\n");
+	p(ifs6_in_timeexceed, "\t%ju input time exceeded error%s\n");
+	p(ifs6_in_paramprob, "\t%ju input parameter problem error%s\n");
+	p(ifs6_in_pkttoobig, "\t%ju input packet too big error%s\n");
+	p(ifs6_in_echo, "\t%ju input echo request%s\n");
+	p2(ifs6_in_echoreply, "\t%ju input echo repl%s\n");
+	p(ifs6_in_routersolicit, "\t%ju input router solicitation%s\n");
+	p(ifs6_in_routeradvert, "\t%ju input router advertisement%s\n");
+	p(ifs6_in_neighborsolicit, "\t%ju input neighbor solicitation%s\n");
+	p(ifs6_in_neighboradvert, "\t%ju input neighbor advertisement%s\n");
+	p(ifs6_in_redirect, "\t%ju input redirect%s\n");
+	p2(ifs6_in_mldquery, "\t%ju input MLD quer%s\n");
+	p(ifs6_in_mldreport, "\t%ju input MLD report%s\n");
+	p(ifs6_in_mlddone, "\t%ju input MLD done%s\n");
 
-	p(ifs6_out_msg, "\t%llu total output message%s\n");
-	p(ifs6_out_error, "\t%llu total output error message%s\n");
-	p(ifs6_out_dstunreach, "\t%llu output destination unreachable error%s\n");
-	p(ifs6_out_adminprohib, "\t%llu output administratively prohibited error%s\n");
-	p(ifs6_out_timeexceed, "\t%llu output time exceeded error%s\n");
-	p(ifs6_out_paramprob, "\t%llu output parameter problem error%s\n");
-	p(ifs6_out_pkttoobig, "\t%llu output packet too big error%s\n");
-	p(ifs6_out_echo, "\t%llu output echo request%s\n");
-	p2(ifs6_out_echoreply, "\t%llu output echo repl%s\n");
-	p(ifs6_out_routersolicit, "\t%llu output router solicitation%s\n");
-	p(ifs6_out_routeradvert, "\t%llu output router advertisement%s\n");
-	p(ifs6_out_neighborsolicit, "\t%llu output neighbor solicitation%s\n");
-	p(ifs6_out_neighboradvert, "\t%llu output neighbor advertisement%s\n");
-	p(ifs6_out_redirect, "\t%llu output redirect%s\n");
-	p2(ifs6_out_mldquery, "\t%llu output MLD quer%s\n");
-	p(ifs6_out_mldreport, "\t%llu output MLD report%s\n");
-	p(ifs6_out_mlddone, "\t%llu output MLD done%s\n");
+	p(ifs6_out_msg, "\t%ju total output message%s\n");
+	p(ifs6_out_error, "\t%ju total output error message%s\n");
+	p(ifs6_out_dstunreach, "\t%ju output destination unreachable error%s\n");
+	p(ifs6_out_adminprohib, "\t%ju output administratively prohibited error%s\n");
+	p(ifs6_out_timeexceed, "\t%ju output time exceeded error%s\n");
+	p(ifs6_out_paramprob, "\t%ju output parameter problem error%s\n");
+	p(ifs6_out_pkttoobig, "\t%ju output packet too big error%s\n");
+	p(ifs6_out_echo, "\t%ju output echo request%s\n");
+	p2(ifs6_out_echoreply, "\t%ju output echo repl%s\n");
+	p(ifs6_out_routersolicit, "\t%ju output router solicitation%s\n");
+	p(ifs6_out_routeradvert, "\t%ju output router advertisement%s\n");
+	p(ifs6_out_neighborsolicit, "\t%ju output neighbor solicitation%s\n");
+	p(ifs6_out_neighboradvert, "\t%ju output neighbor advertisement%s\n");
+	p(ifs6_out_redirect, "\t%ju output redirect%s\n");
+	p2(ifs6_out_mldquery, "\t%ju output MLD quer%s\n");
+	p(ifs6_out_mldreport, "\t%ju output MLD report%s\n");
+	p(ifs6_out_mlddone, "\t%ju output MLD done%s\n");
 
   end:
 	close(s);
@@ -1006,14 +1007,14 @@ pim6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (pim6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)pim6stat.f, plural(pim6stat.f))
-	p(pim6s_rcv_total, "\t%llu message%s received\n");
-	p(pim6s_rcv_tooshort, "\t%llu message%s received with too few bytes\n");
-	p(pim6s_rcv_badsum, "\t%llu message%s received with bad checksum\n");
-	p(pim6s_rcv_badversion, "\t%llu message%s received with bad version\n");
-	p(pim6s_rcv_registers, "\t%llu register%s received\n");
-	p(pim6s_rcv_badregisters, "\t%llu bad register%s received\n");
-	p(pim6s_snd_registers, "\t%llu register%s sent\n");
+    printf(m, (uintmax_t)pim6stat.f, plural(pim6stat.f))
+	p(pim6s_rcv_total, "\t%ju message%s received\n");
+	p(pim6s_rcv_tooshort, "\t%ju message%s received with too few bytes\n");
+	p(pim6s_rcv_badsum, "\t%ju message%s received with bad checksum\n");
+	p(pim6s_rcv_badversion, "\t%ju message%s received with bad version\n");
+	p(pim6s_rcv_registers, "\t%ju register%s received\n");
+	p(pim6s_rcv_badregisters, "\t%ju bad register%s received\n");
+	p(pim6s_snd_registers, "\t%ju register%s sent\n");
 #undef p
 }
 
@@ -1041,23 +1042,23 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define	p(f, m) if (rip6stat.f || sflag <= 1) \
-    printf(m, (unsigned long long)rip6stat.f, plural(rip6stat.f))
-	p(rip6s_ipackets, "\t%llu message%s received\n");
-	p(rip6s_isum, "\t%llu checksum calcuration%s on inbound\n");
-	p(rip6s_badsum, "\t%llu message%s with bad checksum\n");
-	p(rip6s_nosock, "\t%llu message%s dropped due to no socket\n");
+    printf(m, (uintmax_t)rip6stat.f, plural(rip6stat.f))
+	p(rip6s_ipackets, "\t%ju message%s received\n");
+	p(rip6s_isum, "\t%ju checksum calcuration%s on inbound\n");
+	p(rip6s_badsum, "\t%ju message%s with bad checksum\n");
+	p(rip6s_nosock, "\t%ju message%s dropped due to no socket\n");
 	p(rip6s_nosockmcast,
-	    "\t%llu multicast message%s dropped due to no socket\n");
+	    "\t%ju multicast message%s dropped due to no socket\n");
 	p(rip6s_fullsock,
-	    "\t%llu message%s dropped due to full socket buffers\n");
+	    "\t%ju message%s dropped due to full socket buffers\n");
 	delivered = rip6stat.rip6s_ipackets -
 		    rip6stat.rip6s_badsum -
 		    rip6stat.rip6s_nosock -
 		    rip6stat.rip6s_nosockmcast -
 		    rip6stat.rip6s_fullsock;
 	if (delivered || sflag <= 1)
-		printf("\t%llu delivered\n", (unsigned long long)delivered);
-	p(rip6s_opackets, "\t%llu datagram%s output\n");
+		printf("\t%ju delivered\n", (uintmax_t)delivered);
+	p(rip6s_opackets, "\t%ju datagram%s output\n");
 #undef p
 }
 
