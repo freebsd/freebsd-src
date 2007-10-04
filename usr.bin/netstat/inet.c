@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <libutil.h>
 #include <netdb.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -745,23 +746,23 @@ carp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("%s:\n", name);
 
 #define p(f, m) if (carpstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)carpstat.f, plural((int)carpstat.f))
+	printf(m, (uintmax_t)carpstat.f, plural(carpstat.f))
 #define p2(f, m) if (carpstat.f || sflag <= 1) \
-	printf(m, (unsigned long long)carpstat.f)
+	printf(m, (uintmax_t)carpstat.f)
 
-	p(carps_ipackets, "\t%llu packet%s received (IPv4)\n");
-	p(carps_ipackets6, "\t%llu packet%s received (IPv6)\n");
-	p(carps_badttl, "\t\t%llu packet%s discarded for wrong TTL\n");
-	p(carps_hdrops, "\t\t%llu packet%s shorter than header\n");
-	p(carps_badsum, "\t\t%llu discarded for bad checksum%s\n");
-	p(carps_badver,	"\t\t%llu discarded packet%s with a bad version\n");
-	p2(carps_badlen, "\t\t%llu discarded because packet too short\n");
-	p2(carps_badauth, "\t\t%llu discarded for bad authentication\n");
-	p2(carps_badvhid, "\t\t%llu discarded for bad vhid\n");
-	p2(carps_badaddrs, "\t\t%llu discarded because of a bad address list\n");
-	p(carps_opackets, "\t%llu packet%s sent (IPv4)\n");
-	p(carps_opackets6, "\t%llu packet%s sent (IPv6)\n");
-	p2(carps_onomem, "\t\t%llu send failed due to mbuf memory error\n");
+	p(carps_ipackets, "\t%ju packet%s received (IPv4)\n");
+	p(carps_ipackets6, "\t%ju packet%s received (IPv6)\n");
+	p(carps_badttl, "\t\t%ju packet%s discarded for wrong TTL\n");
+	p(carps_hdrops, "\t\t%ju packet%s shorter than header\n");
+	p(carps_badsum, "\t\t%ju discarded for bad checksum%s\n");
+	p(carps_badver,	"\t\t%ju discarded packet%s with a bad version\n");
+	p2(carps_badlen, "\t\t%ju discarded because packet too short\n");
+	p2(carps_badauth, "\t\t%ju discarded for bad authentication\n");
+	p2(carps_badvhid, "\t\t%ju discarded for bad vhid\n");
+	p2(carps_badaddrs, "\t\t%ju discarded because of a bad address list\n");
+	p(carps_opackets, "\t%ju packet%s sent (IPv4)\n");
+	p(carps_opackets6, "\t%ju packet%s sent (IPv6)\n");
+	p2(carps_onomem, "\t\t%ju send failed due to mbuf memory error\n");
 #if notyet
 	p(carps_ostates, "\t\t%s state update%s sent\n");
 #endif
@@ -1026,20 +1027,20 @@ pim_stats(u_long off __unused, const char *name, int af1 __unused,
 	printf("%s:\n", name);
 
 #define	p(f, m) if (pimstat.f || sflag <= 1) \
-    printf(m, pimstat.f, plural(pimstat.f))
+    printf(m, (uintmax_t)pimstat.f, plural(pimstat.f))
 #define	py(f, m) if (pimstat.f || sflag <= 1) \
-    printf(m, pimstat.f, pimstat.f != 1 ? "ies" : "y")
-	p(pims_rcv_total_msgs, "\t%llu message%s received\n");
-	p(pims_rcv_total_bytes, "\t%llu byte%s received\n");
-	p(pims_rcv_tooshort, "\t%llu message%s received with too few bytes\n");
-        p(pims_rcv_badsum, "\t%llu message%s received with bad checksum\n");
-	p(pims_rcv_badversion, "\t%llu message%s received with bad version\n");
-	p(pims_rcv_registers_msgs, "\t%llu data register message%s received\n");
-	p(pims_rcv_registers_bytes, "\t%llu data register byte%s received\n");
-	p(pims_rcv_registers_wrongiif, "\t%llu data register message%s received on wrong iif\n");
-	p(pims_rcv_badregisters, "\t%llu bad register%s received\n");
-	p(pims_snd_registers_msgs, "\t%llu data register message%s sent\n");
-	p(pims_snd_registers_bytes, "\t%llu data register byte%s sent\n");
+    printf(m, (uintmax_t)pimstat.f, pimstat.f != 1 ? "ies" : "y")
+	p(pims_rcv_total_msgs, "\t%ju message%s received\n");
+	p(pims_rcv_total_bytes, "\t%ju byte%s received\n");
+	p(pims_rcv_tooshort, "\t%ju message%s received with too few bytes\n");
+        p(pims_rcv_badsum, "\t%ju message%s received with bad checksum\n");
+	p(pims_rcv_badversion, "\t%ju message%s received with bad version\n");
+	p(pims_rcv_registers_msgs, "\t%ju data register message%s received\n");
+	p(pims_rcv_registers_bytes, "\t%ju data register byte%s received\n");
+	p(pims_rcv_registers_wrongiif, "\t%ju data register message%s received on wrong iif\n");
+	p(pims_rcv_badregisters, "\t%ju bad register%s received\n");
+	p(pims_snd_registers_msgs, "\t%ju data register message%s sent\n");
+	p(pims_snd_registers_bytes, "\t%ju data register byte%s sent\n");
 #undef p
 #undef py
 }

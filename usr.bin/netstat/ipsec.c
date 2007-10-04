@@ -116,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipcomp_var.h>
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -205,10 +206,10 @@ ipsec_hist(const u_quad_t *hist, size_t histmax, const struct val2str *name,
 				break;
 		}
 		if (p && p->str) {
-			printf("\t\t%s: %llu\n", p->str, (unsigned long long)hist[proto]);
+			printf("\t\t%s: %ju\n", p->str, (uintmax_t)hist[proto]);
 		} else {
-			printf("\t\t#%ld: %llu\n", (long)proto,
-			    (unsigned long long)hist[proto]);
+			printf("\t\t#%ld: %ju\n", (long)proto,
+			    (uintmax_t)hist[proto]);
 		}
 	}
 }
@@ -217,39 +218,39 @@ static void
 print_ipsecstats(const struct ipsecstat *ipsecstat)
 {
 #define	p(f, m) if (ipsecstat->f || sflag <= 1) \
-    printf(m, (unsigned long long)ipsecstat->f, plural(ipsecstat->f))
+    printf(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
 #define	pes(f, m) if (ipsecstat->f || sflag <= 1) \
-    printf(m, (unsigned long long)ipsecstat->f, plurales(ipsecstat->f))
+    printf(m, (uintmax_t)ipsecstat->f, plurales(ipsecstat->f))
 #define hist(f, n, t) \
     ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
-	p(in_success, "\t%llu inbound packet%s processed successfully\n");
-	p(in_polvio, "\t%llu inbound packet%s violated process security "
+	p(in_success, "\t%ju inbound packet%s processed successfully\n");
+	p(in_polvio, "\t%ju inbound packet%s violated process security "
 	    "policy\n");
-	p(in_nosa, "\t%llu inbound packet%s with no SA available\n");
-	p(in_inval, "\t%llu invalid inbound packet%s\n");
-	p(in_nomem, "\t%llu inbound packet%s failed due to insufficient memory\n");
-	p(in_badspi, "\t%llu inbound packet%s failed getting SPI\n");
-	p(in_ahreplay, "\t%llu inbound packet%s failed on AH replay check\n");
-	p(in_espreplay, "\t%llu inbound packet%s failed on ESP replay check\n");
-	p(in_ahauthsucc, "\t%llu inbound packet%s considered authentic\n");
-	p(in_ahauthfail, "\t%llu inbound packet%s failed on authentication\n");
+	p(in_nosa, "\t%ju inbound packet%s with no SA available\n");
+	p(in_inval, "\t%ju invalid inbound packet%s\n");
+	p(in_nomem, "\t%ju inbound packet%s failed due to insufficient memory\n");
+	p(in_badspi, "\t%ju inbound packet%s failed getting SPI\n");
+	p(in_ahreplay, "\t%ju inbound packet%s failed on AH replay check\n");
+	p(in_espreplay, "\t%ju inbound packet%s failed on ESP replay check\n");
+	p(in_ahauthsucc, "\t%ju inbound packet%s considered authentic\n");
+	p(in_ahauthfail, "\t%ju inbound packet%s failed on authentication\n");
 	hist(ipsecstat->in_ahhist, ipsec_ahnames, "AH input");
 	hist(ipsecstat->in_esphist, ipsec_espnames, "ESP input");
 	hist(ipsecstat->in_comphist, ipsec_compnames, "IPComp input");
 
-	p(out_success, "\t%llu outbound packet%s processed successfully\n");
-	p(out_polvio, "\t%llu outbound packet%s violated process security "
+	p(out_success, "\t%ju outbound packet%s processed successfully\n");
+	p(out_polvio, "\t%ju outbound packet%s violated process security "
 	    "policy\n");
-	p(out_nosa, "\t%llu outbound packet%s with no SA available\n");
-	p(out_inval, "\t%llu invalid outbound packet%s\n");
-	p(out_nomem, "\t%llu outbound packet%s failed due to insufficient memory\n");
-	p(out_noroute, "\t%llu outbound packet%s with no route\n");
+	p(out_nosa, "\t%ju outbound packet%s with no SA available\n");
+	p(out_inval, "\t%ju invalid outbound packet%s\n");
+	p(out_nomem, "\t%ju outbound packet%s failed due to insufficient memory\n");
+	p(out_noroute, "\t%ju outbound packet%s with no route\n");
 	hist(ipsecstat->out_ahhist, ipsec_ahnames, "AH output");
 	hist(ipsecstat->out_esphist, ipsec_espnames, "ESP output");
 	hist(ipsecstat->out_comphist, ipsec_compnames, "IPComp output");
-	p(spdcachelookup, "\t%llu SPD cache lookup%s\n");
-	pes(spdcachemiss, "\t%llu SPD cache miss%s\n");
+	p(spdcachelookup, "\t%ju SPD cache lookup%s\n");
+	pes(spdcachemiss, "\t%ju SPD cache miss%s\n");
 #undef p
 #undef pes
 #undef hist
@@ -354,7 +355,7 @@ print_ahstats(const struct ahstat *ahstat)
 #define	p32(f, m) if (ahstat->f || sflag <= 1) \
     printf("\t%u" m, (unsigned int)ahstat->f, plural(ahstat->f))
 #define	p64(f, m) if (ahstat->f || sflag <= 1) \
-    printf("\t%llu" m, (unsigned long long)ahstat->f, plural(ahstat->f))
+    printf("\t%ju" m, (uintmax_t)ahstat->f, plural(ahstat->f))
 #define hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
@@ -403,7 +404,7 @@ print_espstats(const struct espstat *espstat)
 #define	p32(f, m) if (espstat->f || sflag <= 1) \
     printf("\t%u" m, (unsigned int)espstat->f, plural(espstat->f))
 #define	p64(f, m) if (espstat->f || sflag <= 1) \
-    printf("\t%llu" m, (unsigned long long)espstat->f, plural(espstat->f))
+    printf("\t%ju" m, (uintmax_t)espstat->f, plural(espstat->f))
 #define hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
@@ -453,7 +454,7 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
 #define	p32(f, m) if (ipcompstat->f || sflag <= 1) \
     printf("\t%u" m, (unsigned int)ipcompstat->f, plural(ipcompstat->f))
 #define	p64(f, m) if (ipcompstat->f || sflag <= 1) \
-    printf("\t%llu" m, (unsigned long long)ipcompstat->f, plural(ipcompstat->f))
+    printf("\t%ju" m, (uintmax_t)ipcompstat->f, plural(ipcompstat->f))
 #define hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
