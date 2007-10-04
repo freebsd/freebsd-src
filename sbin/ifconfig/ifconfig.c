@@ -895,21 +895,28 @@ printb(const char *s, unsigned v, const char *bits)
 void
 ifmaybeload(const char *name)
 {
+#define MOD_PREFIX_LEN		3	/* "if_" */
 	struct module_stat mstat;
 	int fileid, modid;
-	char ifkind[35], *dp;
+	char ifkind[IFNAMSIZ + MOD_PREFIX_LEN], ifname[IFNAMSIZ], *dp;
 	const char *cp;
 
 	/* loading suppressed by the user */
 	if (noload)
 		return;
 
+	/* trim the interface number off the end */
+	strlcpy(ifname, name, sizeof(ifname));
+	for (dp = ifname; *dp != 0; dp++)
+		if (isdigit(*dp)) {
+			*dp = 0;
+			break;
+		}
+
 	/* turn interface and unit into module name */
 	strcpy(ifkind, "if_");
-	for (cp = name, dp = ifkind + 3;
-	    (*cp != 0) && !isdigit(*cp); cp++, dp++)
-		*dp = *cp;
-	*dp = 0;
+	strlcpy(ifkind + MOD_PREFIX_LEN, ifname,
+	    sizeof(ifkind) - MOD_PREFIX_LEN);
 
 	/* scan files in kernel */
 	mstat.version = sizeof(struct module_stat);
@@ -926,8 +933,8 @@ ifmaybeload(const char *name)
 				cp = mstat.name;
 			}
 			/* already loaded? */
-			if (strncmp(name, cp, strlen(cp)) == 0 ||
-			    strncmp(ifkind, cp, strlen(cp)) == 0)
+			if (strncmp(ifname, cp, strlen(ifname) + 1) == 0 ||
+			    strncmp(ifkind, cp, strlen(ifkind) + 1) == 0)
 				return;
 		}
 	}
