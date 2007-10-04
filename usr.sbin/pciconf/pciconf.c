@@ -501,7 +501,7 @@ getsel(const char *str)
 		i = 0;
 		do {
 			selarr[i++] = strtoul(ep, &ep, 10);
-		} while (*ep == ':' && *++ep != '\0' && i < 4);
+		} while ((*ep == ':' || *ep == '.') && *++ep != '\0' && i < 4);
 
 		if (i > 2)
 			sel.pc_func = selarr[--i];
