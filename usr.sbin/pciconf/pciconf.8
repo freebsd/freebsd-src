@@ -142,10 +142,12 @@ except for
 require a
 .Ar selector
 of the form
-.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device
-(optionally followed by
-.Li \&: Ns Va function ) .
-A final colon may be appended and
+.Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
+Ns Va function Ns ,
+.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns , or
+.Li pci Ns Va bus Ns \&: Ns Va device Ns .
+In case of an abrigded form, omitted selector components are assumed to be 0.
+An optional leading device name followed by @ and an optional final colon 
 will be ignored; this is so that the first column in the output of
 .Nm
 .Fl l
