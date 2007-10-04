@@ -1266,6 +1266,28 @@ re_attach(dev)
 		goto fail;
 	}
 
+	/* Take PHY out of power down mode. */
+	if (sc->rl_type == RL_8169) {
+		uint32_t rev;
+
+		rev = CSR_READ_4(sc, RL_TXCFG);
+		/* HWVERID 0, 1 and 2 :  bit26-30, bit23 */
+		rev &= 0x7c800000;
+		if (rev != 0) {
+			/* RTL8169S single chip */
+			switch (rev) {
+			case RL_HWREV_8169_8110SB:
+			case RL_HWREV_8169_8110SC:
+			case RL_HWREV_8168_SPIN2:
+				re_gmii_writereg(dev, 1, 0x1f, 0);
+				re_gmii_writereg(dev, 1, 0x0e, 0);
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
