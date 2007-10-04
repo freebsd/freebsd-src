@@ -738,7 +738,7 @@ ata_modify_if_48bit(struct ata_request *request)
 
     atadev->flags &= ~ATA_D_48BIT_ACTIVE;
 
-    if ((request->u.ata.lba >= ATA_MAX_28BIT_LBA ||
+    if (((request->u.ata.lba + request->u.ata.count) >= ATA_MAX_28BIT_LBA ||
 	 request->u.ata.count > 256) &&
 	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
 
