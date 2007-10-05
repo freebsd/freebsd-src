@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_PHY_H_
@@ -73,7 +73,7 @@ s32  e1000_phy_setup_autoneg(struct e1000_hw *hw);
 s32  e1000_read_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data);
-s32  e1000_set_d3_lplu_state_generic(struct e1000_hw *hw, boolean_t active);
+s32  e1000_set_d3_lplu_state_generic(struct e1000_hw *hw, bool active);
 s32  e1000_setup_copper_link_generic(struct e1000_hw *hw);
 s32  e1000_wait_autoneg_generic(struct e1000_hw *hw);
 s32  e1000_write_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 data);
@@ -81,7 +81,7 @@ s32  e1000_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_write_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 data);
 s32  e1000_phy_reset_dsp(struct e1000_hw *hw);
 s32  e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
-                                u32 usec_interval, boolean_t *success);
+                                u32 usec_interval, bool *success);
 s32  e1000_phy_init_script_igp3(struct e1000_hw *hw);
 e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
 #define E1000_MAX_PHY_ADDR                4
@@ -95,17 +95,17 @@ e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
 #define IGP01E1000_PHY_CHANNEL_QUALITY    0x15 /* PHY Channel Quality */
 #define IGP02E1000_PHY_POWER_MGMT         0x19 /* Power Management */
 #define IGP01E1000_PHY_PAGE_SELECT        0x1F /* Page Select */
-#define IGP4_PHY_PAGE_SELECT              22   /* Page Select for IGP 4 */
+#define BM_PHY_PAGE_SELECT                22   /* Page Select for IGP 4 */
 #define IGP_PAGE_SHIFT                    5
 #define PHY_REG_MASK                      0x1F
 
-#define IGP4_WUC_PAGE                     800
-#define IGP4_WUC_ADDRESS_OPCODE           0x11
-#define IGP4_WUC_DATA_OPCODE              0x12
-#define IGP4_WUC_ENABLE_PAGE              769
-#define IGP4_WUC_ENABLE_REG               17
-#define IGP4_WUC_ENABLE_BIT               (1 << 2)
-#define IGP4_WUC_HOST_WU_BIT              (1 << 4)
+#define BM_WUC_PAGE                       800
+#define BM_WUC_ADDRESS_OPCODE             0x11
+#define BM_WUC_DATA_OPCODE                0x12
+#define BM_WUC_ENABLE_PAGE                769
+#define BM_WUC_ENABLE_REG                 17
+#define BM_WUC_ENABLE_BIT                 (1 << 2)
+#define BM_WUC_HOST_WU_BIT                (1 << 4)
 
 #define IGP01E1000_PHY_PCS_INIT_REG       0x00B4
 #define IGP01E1000_PHY_POLARITY_MASK      0x0078
@@ -115,8 +115,8 @@ e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id);
 
 #define IGP01E1000_PSCFR_SMART_SPEED      0x0080
 
-#define IGP01E1000_GMII_FLEX_SPD          0x0010 /* Enable flexible speed
-                                                  * on link-up */
+/* Enable flexible speed on link-up */
+#define IGP01E1000_GMII_FLEX_SPD          0x0010
 #define IGP01E1000_GMII_SPD               0x0020 /* Enable SPD */
 
 #define IGP02E1000_PM_SPD                 0x0001 /* Smart Power Down */

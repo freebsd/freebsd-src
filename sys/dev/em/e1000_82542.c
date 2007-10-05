@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 /* e1000_82542 (rev 1 & 2)
@@ -52,7 +52,7 @@ STATIC s32  e1000_led_off_82542(struct e1000_hw *hw);
 STATIC void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw);
 
 struct e1000_dev_spec_82542 {
-	boolean_t dma_fairness;
+	bool dma_fairness;
 };
 
 /**
@@ -61,8 +61,7 @@ struct e1000_dev_spec_82542 {
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_phy_params_82542(struct e1000_hw *hw)
+STATIC s32 e1000_init_phy_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
@@ -80,8 +79,7 @@ e1000_init_phy_params_82542(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_nvm_params_82542(struct e1000_hw *hw)
+STATIC s32 e1000_init_nvm_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_functions *func = &hw->func;
@@ -110,8 +108,7 @@ e1000_init_nvm_params_82542(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_mac_params_82542(struct e1000_hw *hw)
+STATIC s32 e1000_init_mac_params_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_functions *func = &hw->func;
@@ -120,7 +117,7 @@ e1000_init_mac_params_82542(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_init_mac_params_82542");
 
 	/* Set media type */
-	hw->media_type = e1000_media_type_fiber;
+	hw->phy.media_type = e1000_media_type_fiber;
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
@@ -142,7 +139,7 @@ e1000_init_mac_params_82542(struct e1000_hw *hw)
 	/* check for link */
 	func->check_for_link = e1000_check_for_fiber_link_generic;
 	/* multicast address update */
-	func->mc_addr_list_update = e1000_mc_addr_list_update_generic;
+	func->update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
 	func->write_vfta = e1000_write_vfta_generic;
 	/* clearing VFTA */
@@ -174,8 +171,7 @@ e1000_init_mac_params_82542(struct e1000_hw *hw)
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
  **/
-void
-e1000_init_function_pointers_82542(struct e1000_hw *hw)
+void e1000_init_function_pointers_82542(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_init_function_pointers_82542");
 
@@ -192,8 +188,7 @@ e1000_init_function_pointers_82542(struct e1000_hw *hw)
  *  adaper is attached and stores it in the hw structure.  This is a function
  *  pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_get_bus_info_82542(struct e1000_hw *hw)
+STATIC s32 e1000_get_bus_info_82542(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_get_bus_info_82542");
 
@@ -211,8 +206,7 @@ e1000_get_bus_info_82542(struct e1000_hw *hw)
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_reset_hw_82542(struct e1000_hw *hw)
+STATIC s32 e1000_reset_hw_82542(struct e1000_hw *hw)
 {
 	struct e1000_bus_info *bus = &hw->bus;
 	s32 ret_val = E1000_SUCCESS;
@@ -232,7 +226,8 @@ e1000_reset_hw_82542(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_TCTL, E1000_TCTL_PSP);
 	E1000_WRITE_FLUSH(hw);
 
-	/* Delay to allow any outstanding PCI transactions to complete before
+	/*
+	 * Delay to allow any outstanding PCI transactions to complete before
 	 * resetting the device
 	 */
 	msec_delay(10);
@@ -263,8 +258,7 @@ e1000_reset_hw_82542(struct e1000_hw *hw)
  *  This inits the hardware readying it for operation.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_hw_82542(struct e1000_hw *hw)
+STATIC s32 e1000_init_hw_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_dev_spec_82542 *dev_spec;
@@ -306,7 +300,8 @@ e1000_init_hw_82542(struct e1000_hw *hw)
 	for (i = 0; i < mac->mta_reg_count; i++)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
-	/* Set the PCI priority bit correctly in the CTRL register.  This
+	/*
+	 * Set the PCI priority bit correctly in the CTRL register.  This
 	 * determines if the adapter gives priority to receives, or if it
 	 * gives equal priority to transmits and receives.
 	 */
@@ -318,7 +313,8 @@ e1000_init_hw_82542(struct e1000_hw *hw)
 	/* Setup link and flow control */
 	ret_val = e1000_setup_link_82542(hw);
 
-	/* Clear all of the statistics registers (clear on read).  It is
+	/*
+	 * Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
 	 * is no link.
@@ -339,8 +335,7 @@ e1000_init_hw_82542(struct e1000_hw *hw)
  *  and the transmitter and receiver are not enabled.  This is a function
  *  pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_setup_link_82542(struct e1000_hw *hw)
+STATIC s32 e1000_setup_link_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_functions *func = &hw->func;
@@ -352,25 +347,27 @@ e1000_setup_link_82542(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	mac->fc &= ~e1000_fc_tx_pause;
+	hw->fc.type &= ~e1000_fc_tx_pause;
 
 	if (mac->report_tx_early == 1)
-		mac->fc &= ~e1000_fc_rx_pause;
+		hw->fc.type &= ~e1000_fc_rx_pause;
 
-	/* We want to save off the original Flow Control configuration just in
+	/*
+	 * We want to save off the original Flow Control configuration just in
 	 * case we get disconnected and then reconnected into a different hub
 	 * or switch with different Flow Control capabilities.
 	 */
-	mac->original_fc = mac->fc;
+	hw->fc.original_type = hw->fc.type;
 
-	DEBUGOUT1("After fix-ups FlowControl is now = %x\n", mac->fc);
+	DEBUGOUT1("After fix-ups FlowControl is now = %x\n", hw->fc.type);
 
 	/* Call the necessary subroutine to configure the link. */
 	ret_val = func->setup_physical_interface(hw);
 	if (ret_val)
 		goto out;
 
-	/* Initialize the flow control address, type, and PAUSE timer
+	/*
+	 * Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
 	 * control is disabled, because it does not hurt anything to
 	 * initialize these registers.
@@ -381,7 +378,7 @@ e1000_setup_link_82542(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_FCAH, FLOW_CONTROL_ADDRESS_HIGH);
 	E1000_WRITE_REG(hw, E1000_FCT, FLOW_CONTROL_TYPE);
 
-	E1000_WRITE_REG(hw, E1000_FCTTV, mac->fc_pause_time);
+	E1000_WRITE_REG(hw, E1000_FCTTV, hw->fc.pause_time);
 
 	ret_val = e1000_set_fc_watermarks_generic(hw);
 
@@ -396,8 +393,7 @@ out:
  *  Turns the SW defined LED on.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32
-e1000_led_on_82542(struct e1000_hw *hw)
+STATIC s32 e1000_led_on_82542(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
@@ -417,8 +413,7 @@ e1000_led_on_82542(struct e1000_hw *hw)
  *  Turns the SW defined LED off.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32
-e1000_led_off_82542(struct e1000_hw *hw)
+STATIC s32 e1000_led_off_82542(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
@@ -440,10 +435,10 @@ e1000_led_off_82542(struct e1000_hw *hw)
  *  the name of the register to read and returns the correct offset for
  *  82542 silicon.
  **/
-u32
-e1000_translate_register_82542(u32 reg)
+u32 e1000_translate_register_82542(u32 reg)
 {
-	/* Some of the 82542 registers are located at different
+	/*
+	 * Some of the 82542 registers are located at different
 	 * offsets than they are in newer adapters.
 	 * Despite the difference in location, the registers
 	 * function in the same manner.
@@ -455,34 +450,34 @@ e1000_translate_register_82542(u32 reg)
 	case E1000_RDTR:
 		reg = 0x00108;
 		break;
-	case E1000_RDBAL:
+	case E1000_RDBAL(0):
 		reg = 0x00110;
 		break;
-	case E1000_RDBAH:
+	case E1000_RDBAH(0):
 		reg = 0x00114;
 		break;
-	case E1000_RDLEN:
+	case E1000_RDLEN(0):
 		reg = 0x00118;
 		break;
-	case E1000_RDH:
+	case E1000_RDH(0):
 		reg = 0x00120;
 		break;
-	case E1000_RDT:
+	case E1000_RDT(0):
 		reg = 0x00128;
 		break;
-	case E1000_RDBAL1:
+	case E1000_RDBAL(1):
 		reg = 0x00138;
 		break;
-	case E1000_RDBAH1:
+	case E1000_RDBAH(1):
 		reg = 0x0013C;
 		break;
-	case E1000_RDLEN1:
+	case E1000_RDLEN(1):
 		reg = 0x00140;
 		break;
-	case E1000_RDH1:
+	case E1000_RDH(1):
 		reg = 0x00148;
 		break;
-	case E1000_RDT1:
+	case E1000_RDT(1):
 		reg = 0x00150;
 		break;
 	case E1000_FCRTH:
@@ -494,19 +489,19 @@ e1000_translate_register_82542(u32 reg)
 	case E1000_MTA:
 		reg = 0x00200;
 		break;
-	case E1000_TDBAL:
+	case E1000_TDBAL(0):
 		reg = 0x00420;
 		break;
-	case E1000_TDBAH:
+	case E1000_TDBAH(0):
 		reg = 0x00424;
 		break;
-	case E1000_TDLEN:
+	case E1000_TDLEN(0):
 		reg = 0x00428;
 		break;
-	case E1000_TDH:
+	case E1000_TDH(0):
 		reg = 0x00430;
 		break;
-	case E1000_TDT:
+	case E1000_TDT(0):
 		reg = 0x00438;
 		break;
 	case E1000_TIDV:
@@ -534,8 +529,7 @@ e1000_translate_register_82542(u32 reg)
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
-STATIC void
-e1000_clear_hw_cntrs_82542(struct e1000_hw *hw)
+STATIC void e1000_clear_hw_cntrs_82542(struct e1000_hw *hw)
 {
 	volatile u32 temp;
 

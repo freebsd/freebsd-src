@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_REGS_H_
@@ -58,26 +58,11 @@
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
 #define E1000_IAM      0x000E0  /* Interrupt Acknowledge Auto Mask */
 #define E1000_RCTL     0x00100  /* RX Control - RW */
-#define E1000_RDTR1    0x02820  /* RX Delay Timer (1) - RW */
-#define E1000_RDBAL1   0x02900  /* RX Descriptor Base Address Low (1) - RW */
-#define E1000_RDBAH1   0x02904  /* RX Descriptor Base Address High (1) - RW */
-#define E1000_RDLEN1   0x02908  /* RX Descriptor Length (1) - RW */
-#define E1000_RDH1     0x02910  /* RX Descriptor Head (1) - RW */
-#define E1000_RDT1     0x02918  /* RX Descriptor Tail (1) - RW */
 #define E1000_FCTTV    0x00170  /* Flow Control Transmit Timer Value - RW */
 #define E1000_TXCW     0x00178  /* TX Configuration Word - RW */
 #define E1000_RXCW     0x00180  /* RX Configuration Word - RO */
 #define E1000_EICR     0x01580  /* Ext. Interrupt Cause Read - R/clr */
-#define E1000_EITR0    0x01680  /* Ext. Int. Throttling Rate Vector 0 - RW */
-#define E1000_EITR1    0x01684  /* Ext. Int. Throttling Rate Vector 1 - RW */
-#define E1000_EITR2    0x01688  /* Ext. Int. Throttling Rate Vector 2 - RW */
-#define E1000_EITR3    0x0168C  /* Ext. Int. Throttling Rate Vector 3 - RW */
-#define E1000_EITR4    0x01690  /* Ext. Int. Throttling Rate Vector 4 - RW */
-#define E1000_EITR5    0x01694  /* Ext. Int. Throttling Rate Vector 5 - RW */
-#define E1000_EITR6    0x01698  /* Ext. Int. Throttling Rate Vector 6 - RW */
-#define E1000_EITR7    0x0169C  /* Ext. Int. Throttling Rate Vector 7 - RW */
-#define E1000_EITR8    0x016A0  /* Ext. Int. Throttling Rate Vector 8 - RW */
-#define E1000_EITR9    0x016A4  /* Ext. Int. Throttling Rate Vector 9 - RW */
+#define E1000_EITR(_n) (0x01680 + (0x4 * (_n)))
 #define E1000_EICS     0x01520  /* Ext. Interrupt Cause Set - W0 */
 #define E1000_EIMS     0x01524  /* Ext. Interrupt Mask Set/Read - RW */
 #define E1000_EIMC     0x01528  /* Ext. Interrupt Mask Clear - WO */
@@ -112,73 +97,43 @@
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
 #define E1000_PSRCTL   0x02170  /* Packet Split Receive Control - RW */
-#define E1000_RDFPCQ0  0x02430
-#define E1000_RDFPCQ1  0x02434
-#define E1000_RDFPCQ2  0x02438
-#define E1000_RDFPCQ3  0x0243C
+#define E1000_RDFPCQ(_n)  (0x02430 + (0x4 * (_n)))
 #define E1000_PBRTH    0x02458  /* PB RX Arbitration Threshold - RW */
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
-#define E1000_SRRCTL0  0x0280C
-#define E1000_SRRCTL(_n) (0x280C + (_n << 8)) /* Split and Replication
-                                               * RX Control - RW */
+/* Split and Replication RX Control - RW */
 #define E1000_RDPUMB   0x025CC  /* DMA RX Descriptor uC Mailbox - RW */
 #define E1000_RDPUAD   0x025D0  /* DMA RX Descriptor uC Addr Command - RW */
 #define E1000_RDPUWD   0x025D4  /* DMA RX Descriptor uC Data Write - RW */
 #define E1000_RDPURD   0x025D8  /* DMA RX Descriptor uC Data Read - RW */
 #define E1000_RDPUCTL  0x025DC  /* DMA RX Descriptor uC Control - RW */
-#define E1000_RDBAL    0x02800  /* RX Descriptor Base Address Low - RW */
-#define E1000_RDBAH    0x02804  /* RX Descriptor Base Address High - RW */
-#define E1000_RDLEN    0x02808  /* RX Descriptor Length - RW */
-#define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
-#define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 #define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
-#define E1000_RDBAL0   E1000_RDBAL /* RX Desc Base Address Low (0) - RW */
-#define E1000_RDBAH0   E1000_RDBAH /* RX Desc Base Address High (0) - RW */
-#define E1000_RDLEN0   E1000_RDLEN /* RX Desc Length (0) - RW */
-#define E1000_RDH0     E1000_RDH   /* RX Desc Head (0) - RW */
-#define E1000_RDT0     E1000_RDT   /* RX Desc Tail (0) - RW */
-#define E1000_RDTR0    E1000_RDTR  /* RX Delay Timer (0) - RW */
-#define E1000_RXDCTL   0x02828  /* RX Descriptor Control queue 0 - RW */
-#define E1000_RXDCTL1  0x02928  /* RX Descriptor Control queue 1 - RW */
 #define E1000_RADV     0x0282C  /* RX Interrupt Absolute Delay Timer - RW */
-/* Convenience macros
+/*
+ * Convenience macros
  *
  * Note: "_n" is the queue number of the register to be written to.
  *
  * Example usage:
  * E1000_RDBAL_REG(current_rx_queue)
- *
  */
-#define E1000_RDBAL_REG(_n)   (E1000_RDBAL + (_n << 8))
-#define E1000_RDBAH_REG(_n)   (E1000_RDBAH + (_n << 8))
-#define E1000_RDLEN_REG(_n)   (E1000_RDLEN + (_n << 8))
-#define E1000_RDH_REG(_n)     (E1000_RDH + (_n << 8))
-#define E1000_RDT_REG(_n)     (E1000_RDT + (_n << 8))
-#define E1000_RXDCTL_REG(_n)  (E1000_RXDCTL + (_n << 8))
-#define E1000_TDBAL_REG(_n)   (E1000_TDBAL + (_n << 8))
-#define E1000_TDBAH_REG(_n)   (E1000_TDBAH + (_n << 8))
-#define E1000_TDLEN_REG(_n)   (E1000_TDLEN + (_n << 8))
-#define E1000_TDH_REG(_n)     (E1000_TDH + (_n << 8))
-#define E1000_TDT_REG(_n)     (E1000_TDT + (_n << 8))
-#define E1000_TXDCTL_REG(_n)  (E1000_TXDCTL + (_n << 8))
-#define E1000_TARC_REG(_n)    (E1000_TARC0 + (_n << 8))
+#define E1000_RDBAL(_n)   ((_n) < 4 ? (0x02800 + ((_n) * 0x100)) : (0x0C000 + ((_n) * 0x40)))
+#define E1000_RDBAH(_n)   ((_n) < 4 ? (0x02804 + ((_n) * 0x100)) : (0x0C004 + ((_n) * 0x40)))
+#define E1000_RDLEN(_n)   ((_n) < 4 ? (0x02808 + ((_n) * 0x100)) : (0x0C008 + ((_n) * 0x40)))
+#define E1000_SRRCTL(_n)  ((_n) < 4 ? (0x0280C + ((_n) * 0x100)) : (0x0C00C + ((_n) * 0x40)))
+#define E1000_RDH(_n)     ((_n) < 4 ? (0x02810 + ((_n) * 0x100)) : (0x0C010 + ((_n) * 0x40)))
+#define E1000_RDT(_n)     ((_n) < 4 ? (0x02818 + ((_n) * 0x100)) : (0x0C018 + ((_n) * 0x40)))
+#define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) : (0x0C028 + ((_n) * 0x40)))
+#define E1000_TDBAL(_n)   ((_n) < 4 ? (0x03800 + ((_n) * 0x100)) : (0x0E000 + ((_n) * 0x40)))
+#define E1000_TDBAH(_n)   ((_n) < 4 ? (0x03804 + ((_n) * 0x100)) : (0x0E004 + ((_n) * 0x40)))
+#define E1000_TDLEN(_n)   ((_n) < 4 ? (0x03808 + ((_n) * 0x100)) : (0x0E008 + ((_n) * 0x40)))
+#define E1000_TDH(_n)     ((_n) < 4 ? (0x03810 + ((_n) * 0x100)) : (0x0E010 + ((_n) * 0x40)))
+#define E1000_TDT(_n)     ((_n) < 4 ? (0x03818 + ((_n) * 0x100)) : (0x0E018 + ((_n) * 0x40)))
+#define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) : (0x0E028 + ((_n) * 0x40)))
+#define E1000_TARC(_n)    (0x03840 + (_n << 8))
+#define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
 #define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
-#define E1000_DCA_RXCTRL0    0x02814 /* RX Queue 0 DCA CTRL - RW */
-#define E1000_DCA_RXCTRL1    0x02914 /* RX Queue 1 DCA CTRL - RW */
-#define E1000_RDBAL2         0x02A00 /* RX Descriptor Base Low Queue 2 - RW */
-#define E1000_RDBAH2         0x02A04 /* RX Descriptor Base High Queue 2 - RW */
-#define E1000_RDLEN2         0x02A08 /* RX Descriptor Length Queue 2 - RW */
-#define E1000_RDH2           0x02A10 /* RX Descriptor Head Queue 2 - RW */
-#define E1000_DCA_RXCTRL2    0x02A14 /* RX Queue 2 DCA CTRL - RW */
-#define E1000_RDT2           0x02A18 /* RX Descriptor Tail Queue 2 - RW */
-#define E1000_RXDCTL2        0x02A28 /* RX Descriptor Control queue 2 - RW */
-#define E1000_RDBAL3         0x02B00 /* RX Descriptor Base Low Queue 3 - RW */
-#define E1000_RDBAH3         0x02B04 /* RX Descriptor Base High Queue 3 - RW */
-#define E1000_RDLEN3         0x02B08 /* RX Descriptor Length Queue 3 - RW */
-#define E1000_RDH3           0x02B10 /* RX Descriptor Head Queue 3 - RW */
-#define E1000_DCA_RXCTRL3    0x02B14 /* RX Queue 3 DCA Control - RW */
-#define E1000_RDT3           0x02B18 /* RX Descriptor Tail Queue 3 - RW */
-#define E1000_RXDCTL3        0x02B28 /* RX Descriptor Control Queue 3 - RW */
+#define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) : (0x0E038 + ((_n) * 0x40)))
+#define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) : (0x0E03C + ((_n) * 0x40)))
 #define E1000_RSRPD    0x02C00  /* RX Small Packet Detect - RW */
 #define E1000_RAID     0x02C08  /* Receive Ack Interrupt Delay - RW */
 #define E1000_TXDMAC   0x03000  /* TX DMA Control - RW */
@@ -194,55 +149,9 @@
 #define E1000_TDPURD   0x03588  /* DMA TX Descriptor uC Data  Read  - RW */
 #define E1000_TDPUCTL  0x0358C  /* DMA TX Descriptor uC Control - RW */
 #define E1000_DTXCTL   0x03590  /* DMA TX Control - RW */
-#define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
-#define E1000_TDBAH    0x03804  /* TX Descriptor Base Address High - RW */
-#define E1000_TDLEN    0x03808  /* TX Descriptor Length - RW */
-#define E1000_TDH      0x03810  /* TX Descriptor Head - RW */
-#define E1000_TDT      0x03818  /* TX Descriptor Tail - RW */
-#define E1000_TDBAL0   E1000_TDBAL /* TX Descriptor Base Address Low - RW */
-#define E1000_TDBAH0   E1000_TDBAH /* TX Descriptor Base Address High - RW */
-#define E1000_TDLEN0   E1000_TDLEN /* TX Descriptor Length - RW */
-#define E1000_TDH0     E1000_TDH   /* TX Descriptor Head - RW */
-#define E1000_TDT0     E1000_TDT   /* TX Descriptor Tail - RW */
 #define E1000_TIDV     0x03820  /* TX Interrupt Delay Value - RW */
-#define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
 #define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
-#define E1000_TARC0    0x03840  /* TX Arbitration Count (0) */
-#define E1000_DCA_TXCTRL0     0x03814 /* TX Queue 0 DCA CTRL - RW */
-#define E1000_TDWBAL0         0x03838 /* TX Desc. WB Addr Low Queue 0 - RW */
-#define E1000_TDWBAH0         0x0383C /* TX Desc. WB Addr High Queue 0 - RW */
-#define E1000_DCA_TXCTRL(_n) (E1000_DCA_TXCTRL0 + (_n << 8))
-#define E1000_TDWBAL_REG(_n) (E1000_TDWBAL0 + (_n << 8))
-#define E1000_TDWBAH_REG(_n) (E1000_TDWBAH0 + (_n << 8))
-#define E1000_TDBAL1   0x03900  /* TX Desc Base Address Low (1) - RW */
-#define E1000_TDBAH1   0x03904  /* TX Desc Base Address High (1) - RW */
-#define E1000_TDLEN1   0x03908  /* TX Desc Length (1) - RW */
-#define E1000_TDH1     0x03910  /* TX Desc Head (1) - RW */
-#define E1000_TDT1     0x03918  /* TX Desc Tail (1) - RW */
-#define E1000_TXDCTL1  0x03928  /* TX Descriptor Control (1) - RW */
-#define E1000_TARC1    0x03940  /* TX Arbitration Count (1) */
-#define E1000_DCA_TXCTRL1 0x03914  /* TX Queue 0 DCA CTRL - RW */
-#define E1000_TDWBAL1     0x03938  /* TX Descriptor WB Addr Low Queue 1 - RW */
-#define E1000_TDWBAH1     0x0393C  /* TX Descriptor WB Addr High Queue 1 - RW */
-#define E1000_TDBAL2      0x03A00  /* TX Descriptor Base Low Queue 2 - RW */
-#define E1000_TDBAH2      0x03A04  /* TX Descriptor Base High Queue 2 - RW */
-#define E1000_TDLEN2      0x03A08  /* TX Descriptor Length Queue 2 - RW */
-#define E1000_TDH2        0x03A10  /* TX Descriptor Head Queue 2 - RW */
-#define E1000_DCA_TXCTRL2 0x03A14  /* TX Queue 2 DCA Control - RW */
-#define E1000_TDT2        0x03A18  /* TX Descriptor Tail Queue 2 - RW */
-#define E1000_TXDCTL2     0x03A28  /* TX Descriptor Control 2 - RW */
-#define E1000_TDWBAL2     0x03A38  /* TX Descriptor WB Addr Low Queue 2 - RW */
-#define E1000_TDWBAH2     0x03A3C  /* TX Descriptor WB Addr High Queue 2 - RW */
-#define E1000_TDBAL3      0x03B00  /* TX Descriptor Base Low Queue 3 - RW */
-#define E1000_TDBAH3      0x03B04  /* TX Descriptor Base High Queue 3 - RW */
-#define E1000_TDLEN3      0x03B08  /* TX Descriptor Length Queue 3 - RW */
-#define E1000_TDH3        0x03B10  /* TX Descriptor Head Queue 3 - RW */
-#define E1000_DCA_TXCTRL3 0x03B14  /* TX Queue 3 DCA Control - RW */
-#define E1000_TDT3        0x03B18  /* TX Descriptor Tail Queue 3 - RW */
-#define E1000_TXDCTL3     0x03B28  /* TX Descriptor Control 3 - RW */
-#define E1000_TDWBAL3     0x03B38  /* TX Descriptor WB Addr Low Queue 3 - RW */
-#define E1000_TDWBAH3     0x03B3C  /* TX Descriptor WB Addr High Queue 3 - RW */
 #define E1000_CRCERRS  0x04000  /* CRC Error Count - R/clr */
 #define E1000_ALGNERRC 0x04004  /* Alignment Error Count - R/clr */
 #define E1000_SYMERRS  0x04008  /* Symbol Error Count - R/clr */
@@ -351,6 +260,7 @@
 #define E1000_IP6AT    0x05880  /* IPv6 Address Table - RW Array */
 #define E1000_WUPL     0x05900  /* Wakeup Packet Length - RW */
 #define E1000_WUPM     0x05A00  /* Wakeup Packet Memory - RO A */
+#define E1000_PBACL    0x05B68  /* MSIx PBA Clear - Read/Write 1's to clear */
 #define E1000_FFLT     0x05F00  /* Flexible Filter Length Table - RW Array */
 #define E1000_HOST_IF  0x08800  /* Host Interface */
 #define E1000_FFMT     0x09000  /* Flexible Filter Mask Table - RW Array */
@@ -382,59 +292,14 @@
 #define E1000_IMIR(_i)      (0x05A80 + ((_i) * 4))  /* Immediate Interrupt */
 #define E1000_IMIREXT(_i)   (0x05AA0 + ((_i) * 4))  /* Immediate Interrupt Ext*/
 #define E1000_IMIRVP    0x05AC0 /* Immediate Interrupt RX VLAN Priority - RW */
-#define E1000_MSIXBM0   0x01600 /* MSI-X Allocation Register 0 - RW */
-#define E1000_MSIXBM1   0x01604 /* MSI-X Allocation Register 1 - RW */
-#define E1000_MSIXBM2   0x01608 /* MSI-X Allocation Register 2 - RW */
-#define E1000_MSIXBM3   0x0160C /* MSI-X Allocation Register 3 - RW */
-#define E1000_MSIXBM4   0x01610 /* MSI-X Allocation Register 4 - RW */
-#define E1000_MSIXBM5   0x01614 /* MSI-X Allocation Register 5 - RW */
-#define E1000_MSIXBM6   0x01618 /* MSI-X Allocation Register 6 - RW */
-#define E1000_MSIXBM7   0x0161C /* MSI-X Allocation Register 7 - RW */
-#define E1000_MSIXBM8   0x01620 /* MSI-X Allocation Register 8 - RW */
-#define E1000_MSIXBM9   0x01624 /* MSI-X Allocation Register 9 - RW */
-#define E1000_MSIXTADD0 0x0C000 /* MSI-X Table entry addr low reg 0 - RW */
-#define E1000_MSIXTADD1 0x0C010 /* MSI-X Table entry addr low reg 1 - RW */
-#define E1000_MSIXTADD2 0x0C020 /* MSI-X Table entry addr low reg 2 - RW */
-#define E1000_MSIXTADD3 0x0C030 /* MSI-X Table entry addr low reg 3 - RW */
-#define E1000_MSIXTADD4 0x0C040 /* MSI-X Table entry addr low reg 4 - RW */
-#define E1000_MSIXTADD5 0x0C050 /* MSI-X Table entry addr low reg 5 - RW */
-#define E1000_MSIXTADD6 0x0C060 /* MSI-X Table entry addr low reg 6 - RW */
-#define E1000_MSIXTADD7 0x0C070 /* MSI-X Table entry addr low reg 7 - RW */
-#define E1000_MSIXTADD8 0x0C080 /* MSI-X Table entry addr low reg 8 - RW */
-#define E1000_MSIXTADD9 0x0C090 /* MSI-X Table entry addr low reg 9 - RW */
-#define E1000_MSIXTUADD0 0x0C004 /* MSI-X Table entry addr upper reg 0 - RW */
-#define E1000_MSIXTUADD1 0x0C014 /* MSI-X Table entry addr upper reg 1 - RW */
-#define E1000_MSIXTUADD2 0x0C024 /* MSI-X Table entry addr upper reg 2 - RW */
-#define E1000_MSIXTUADD3 0x0C034 /* MSI-X Table entry addr upper reg 3 - RW */
-#define E1000_MSIXTUADD4 0x0C044 /* MSI-X Table entry addr upper reg 4 - RW */
-#define E1000_MSIXTUADD5 0x0C054 /* MSI-X Table entry addr upper reg 5 - RW */
-#define E1000_MSIXTUADD6 0x0C064 /* MSI-X Table entry addr upper reg 6 - RW */
-#define E1000_MSIXTUADD7 0x0C074 /* MSI-X Table entry addr upper reg 7 - RW */
-#define E1000_MSIXTUADD8 0x0C084 /* MSI-X Table entry addr upper reg 8 - RW */
-#define E1000_MSIXTUADD9 0x0C094 /* MSI-X Table entry addr upper reg 9 - RW */
-#define E1000_MSIXTMSG0 0x0C008 /* MSI-X Table entry message reg 0 - RW */
-#define E1000_MSIXTMSG1 0x0C018 /* MSI-X Table entry message reg 1 - RW */
-#define E1000_MSIXTMSG2 0x0C028 /* MSI-X Table entry message reg 2 - RW */
-#define E1000_MSIXTMSG3 0x0C038 /* MSI-X Table entry message reg 3 - RW */
-#define E1000_MSIXTMSG4 0x0C048 /* MSI-X Table entry message reg 4 - RW */
-#define E1000_MSIXTMSG5 0x0C058 /* MSI-X Table entry message reg 5 - RW */
-#define E1000_MSIXTMSG6 0x0C068 /* MSI-X Table entry message reg 6 - RW */
-#define E1000_MSIXTMSG7 0x0C078 /* MSI-X Table entry message reg 7 - RW */
-#define E1000_MSIXTMSG8 0x0C088 /* MSI-X Table entry message reg 8 - RW */
-#define E1000_MSIXTMSG9 0x0C098 /* MSI-X Table entry message reg 9 - RW */
-#define E1000_MSIXVCTRL0 0x0C00C /* MSI-X Table entry vector ctrl reg 0 - RW */
-#define E1000_MSIXVCTRL1 0x0C01C /* MSI-X Table entry vector ctrl reg 1 - RW */
-#define E1000_MSIXVCTRL2 0x0C02C /* MSI-X Table entry vector ctrl reg 2 - RW */
-#define E1000_MSIXVCTRL3 0x0C03C /* MSI-X Table entry vector ctrl reg 3 - RW */
-#define E1000_MSIXVCTRL4 0x0C04C /* MSI-X Table entry vector ctrl reg 4 - RW */
-#define E1000_MSIXVCTRL5 0x0C05C /* MSI-X Table entry vector ctrl reg 5 - RW */
-#define E1000_MSIXVCTRL6 0x0C06C /* MSI-X Table entry vector ctrl reg 6 - RW */
-#define E1000_MSIXVCTRL7 0x0C07C /* MSI-X Table entry vector ctrl reg 7 - RW */
-#define E1000_MSIXVCTRL8 0x0C08C /* MSI-X Table entry vector ctrl reg 8 - RW */
-#define E1000_MSIXVCTRL9 0x0C09C /* MSI-X Table entry vector ctrl reg 9 - RW */
+#define E1000_MSIXBM(_i)    (0x01600 + ((_i) * 4)) /* MSI-X Allocation Register (_i) - RW */
+#define E1000_MSIXTADD(_i)  (0x0C000 + ((_i) * 0x10)) /* MSI-X Table entry addr low reg 0 - RW */
+#define E1000_MSIXTUADD(_i) (0x0C004 + ((_i) * 0x10)) /* MSI-X Table entry addr upper reg 0 - RW */
+#define E1000_MSIXTMSG(_i)  (0x0C008 + ((_i) * 0x10)) /* MSI-X Table entry message reg 0 - RW */
+#define E1000_MSIXVCTRL(_i) (0x0C00C + ((_i) * 0x10)) /* MSI-X Table entry vector ctrl reg 0 - RW */
 #define E1000_MSIXPBA    0x0E000 /* MSI-X Pending bit array */
-#define E1000_RETA      0x05C00 /* Redirection Table - RW Array */
-#define E1000_RSSRK     0x05C80 /* RSS Random Key - RW Array */
+#define E1000_RETA(_i)  (0x05C00 + ((_i) * 4)) /* Redirection Table - RW Array */
+#define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */
 #define E1000_RSSIM     0x05864 /* RSS Interrupt Mask */
 #define E1000_RSSIR     0x05868 /* RSS Interrupt Request */
 

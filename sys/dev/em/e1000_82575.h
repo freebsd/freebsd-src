@@ -30,13 +30,14 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
 
-/* Receive Address Register Count
+/*
+ * Receive Address Register Count
  * Number of high/low register pairs in the RAR.  The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * These entries are also used for MAC-based filtering.
@@ -116,6 +117,10 @@ struct e1000_adv_context_desc {
 #define E1000_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS          0x0A000000
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION           0x06000000
 #define E1000_SRRCTL_DESCTYPE_HDR_REPLICATION_LARGE_PKT 0x08000000
+#define E1000_SRRCTL_DESCTYPE_MASK                      0x0E000000
+
+#define E1000_SRRCTL_BSIZEPKT_MASK      0x0000007F
+#define E1000_SRRCTL_BSIZEHDR_MASK      0x00003F00
 
 #define E1000_TX_HEAD_WB_ENABLE   0x1
 #define E1000_TX_SEQNUM_WB_ENABLE 0x2
@@ -169,7 +174,7 @@ union e1000_adv_rx_desc {
 			struct {
 				u16 pkt_info;   /* RSS type, Packet type */
 				u16 hdr_info;   /* Split Header,
-				                      * header buffer length */
+				                 * header buffer length */
 			} lo_dword;
 			union {
 				u32 rss;          /* RSS Hash */
@@ -206,6 +211,17 @@ union e1000_adv_rx_desc {
 #define E1000_RXDADV_RSSTYPE_IPV4_UDP    0x00000007
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP    0x00000008
 #define E1000_RXDADV_RSSTYPE_IPV6_UDP_EX 0x00000009
+
+/* RSS Packet Types as indicated in the receive descriptor */
+#define E1000_RXDADV_PKTTYPE_NONE        0x00000000
+#define E1000_RXDADV_PKTTYPE_IPV4        0x00000010 /* IPV4 hdr present */
+#define E1000_RXDADV_PKTTYPE_IPV4_EX     0x00000020 /* IPV4 hdr + extensions */
+#define E1000_RXDADV_PKTTYPE_IPV6        0x00000040 /* IPV6 hdr present */
+#define E1000_RXDADV_PKTTYPE_IPV6_EX     0x00000080 /* IPV6 hdr + extensions */
+#define E1000_RXDADV_PKTTYPE_TCP         0x00000100 /* TCP hdr present */
+#define E1000_RXDADV_PKTTYPE_UDP         0x00000200 /* UDP hdr present */
+#define E1000_RXDADV_PKTTYPE_SCTP        0x00000400 /* SCTP hdr present */
+#define E1000_RXDADV_PKTTYPE_NFS         0x00000800 /* NFS hdr present */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -272,8 +288,8 @@ struct e1000_adv_tx_context_desc {
 /* Additional Transmit Descriptor Control definitions */
 #define E1000_TXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Tx Queue */
 #define E1000_TXDCTL_SWFLSH        0x04000000 /* Tx Desc. write-back flushing */
-#define E1000_TXDCTL_PRIORITY      0x08000000 /* Tx Queue Arbitration Priority
-                                                 0=low, 1=high */
+/* Tx Queue Arbitration Priority 0=low, 1=high */
+#define E1000_TXDCTL_PRIORITY      0x08000000
 
 /* Additional Receive Descriptor Control definitions */
 #define E1000_RXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Rx Queue */
@@ -293,6 +309,6 @@ struct e1000_adv_tx_context_desc {
 
 #define E1000_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
 #define E1000_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
-
+#define E1000_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* TX Desc writeback RO bit */
 
 #endif
