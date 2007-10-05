@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _FREEBSD_OS_H_
@@ -89,6 +89,7 @@ typedef int64_t		s64;
 typedef int32_t		s32;
 typedef int16_t		s16;
 typedef int8_t		s8;
+typedef boolean_t	bool;
 
 struct e1000_osdep
 {
