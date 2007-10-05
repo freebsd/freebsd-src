@@ -855,6 +855,7 @@ MLINKS+=pci.9 pci_disable_busmaster.9 \
 	pci.9 pci_enable_busmaster.9 \
 	pci.9 pci_enable_io.9 \
 	pci.9 pci_find_bsf.9 \
+	pci.9 pci_find_dbsf.9 \
 	pci.9 pci_find_device.9 \
 	pci.9 pci_get_powerstate.9 \
 	pci.9 pci_read_config.9 \
