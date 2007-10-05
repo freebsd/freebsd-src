@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_ICH8LAN_H_
@@ -67,9 +67,8 @@
 
 #define E1000_ICH_FWSM_RSPCIPHY          0x00000040 /* Reset PHY on PCI Reset */
 #define E1000_ICH_FWSM_DISSW             0x10000000 /* FW Disables SW Writes */
-#define E1000_ICH_FWSM_FW_VALID          0x00008000 /* FW established a valid
-                                                     * mode.
-                                                     */
+/* FW established a valid mode */
+#define E1000_ICH_FWSM_FW_VALID          0x00008000
 
 #define E1000_ICH_MNG_IAMT_MODE          0x2
 
@@ -103,10 +102,12 @@
 #define IGP3_VR_CTRL_MODE_SHUTDOWN           0x0200
 #define IGP3_PM_CTRL_FORCE_PWR_DOWN          0x0020
 
-/* Additional interrupts need to be handled for ICH family:
-    DSW = The FW changed the status of the DISSW bit in FWSM
-    PHYINT = The LAN connected device generates an interrupt
-    EPRST = Manageability reset event */
+/*
+ * Additional interrupts need to be handled for ICH family:
+ *  DSW = The FW changed the status of the DISSW bit in FWSM
+ *  PHYINT = The LAN connected device generates an interrupt
+ *  EPRST = Manageability reset event
+ */
 #define IMS_ICH_ENABLE_MASK (\
     E1000_IMS_DSW   | \
     E1000_IMS_PHYINT | \

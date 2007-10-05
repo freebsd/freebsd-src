@@ -30,21 +30,21 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_MANAGE_H_
 #define _E1000_MANAGE_H_
 
-boolean_t e1000_check_mng_mode_generic(struct e1000_hw *hw);
-boolean_t e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw);
-s32       e1000_mng_enable_host_if_generic(struct e1000_hw *hw);
-s32       e1000_mng_host_if_write_generic(struct e1000_hw *hw, u8 *buffer,
-                                          u16 length, u16 offset, u8 *sum);
-s32       e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
-                                     struct e1000_host_mng_command_header *hdr);
-s32       e1000_mng_write_dhcp_info_generic(struct e1000_hw *hw,
-                                            u8 *buffer, u16 length);
+bool e1000_check_mng_mode_generic(struct e1000_hw *hw);
+bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw);
+s32  e1000_mng_enable_host_if_generic(struct e1000_hw *hw);
+s32  e1000_mng_host_if_write_generic(struct e1000_hw *hw, u8 *buffer,
+                                     u16 length, u16 offset, u8 *sum);
+s32  e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
+                                    struct e1000_host_mng_command_header *hdr);
+s32  e1000_mng_write_dhcp_info_generic(struct e1000_hw *hw,
+                                       u8 *buffer, u16 length);
 
 typedef enum {
 	e1000_mng_mode_none = 0,
@@ -76,13 +76,13 @@ typedef enum {
 #define E1000_HI_COMMAND_TIMEOUT             500 /* Process HI command limit */
 
 #define E1000_HICR_EN              0x01  /* Enable bit - RO */
-#define E1000_HICR_C               0x02  /* Driver sets this bit when done
-                                          * to put command in RAM */
+/* Driver sets this bit when done to put command in RAM */
+#define E1000_HICR_C               0x02
 #define E1000_HICR_SV              0x04  /* Status Validity */
 #define E1000_HICR_FW_RESET_ENABLE 0x40
 #define E1000_HICR_FW_RESET        0x80
 
-#define E1000_IAMT_SIGNATURE  0x544D4149 /* Intel(R) Active Management
-                                          * Technology signature */
+/* Intel(R) Active Management Technology signature */
+#define E1000_IAMT_SIGNATURE  0x544D4149
 
 #endif
