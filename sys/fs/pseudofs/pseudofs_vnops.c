@@ -417,7 +417,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
  got_pnode:
 	pfs_assert_not_owned(pd);
 	pfs_assert_not_owned(pn);
-	visible = pfs_visible(curthread, pn, pvd->pvd_pid, NULL);
+	visible = pfs_visible(curthread, pn, pid, NULL);
 	if (!visible) {
 		error = ENOENT;
 		goto failed;
