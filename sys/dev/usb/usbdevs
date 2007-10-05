@@ -1198,6 +1198,8 @@ product EPSON STYLUS_895	0x0602	Stylus Photo 895 Card Reader
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
 product EPSON 4200		0x0820	CX4200 MP scanner
+product EPSON 5000		0x082b  DX-50x0 MFP scanner
+product EPSON 6000		0x082e  DX-60x0 MFP scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
