@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
-#define	NAPICID			32	/* Max number of APIC's */
+#define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
 
 #ifdef PC98
 #define BIOS_BASE		(0xe8000)
@@ -142,7 +142,7 @@ struct pci_route_interrupt_args {
 
 static mpfps_t mpfps;
 static mpcth_t mpct;
-static void *ioapics[NAPICID];
+static void *ioapics[MAX_APIC_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
@@ -359,7 +359,7 @@ mptable_setup_io(void)
 	mptable_parse_ints();
 
 	/* Fourth, we register all the I/O APIC's. */
-	for (i = 0; i < NAPICID; i++)
+	for (i = 0; i <= MAX_APIC_ID; i++)
 		if (ioapics[i] != NULL)
 			ioapic_register(ioapics[i]);
 
@@ -425,8 +425,10 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 		if (proc->cpu_flags & PROCENTRY_FLAG_EN) {
 			lapic_create(proc->apic_id, proc->cpu_flags &
 			    PROCENTRY_FLAG_BP);
-			cpu_mask = (u_int *)arg;
-			*cpu_mask |= (1 << proc->apic_id);
+			if (proc->apic_id < MAX_LAPIC_ID) {
+				cpu_mask = (u_int *)arg;
+				*cpu_mask |= (1ul << proc->apic_id);
+			}
 		}
 		break;
 	}
@@ -513,7 +515,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 		apic = (io_apic_entry_ptr)entry;
 		if (!(apic->apic_flags & IOAPICENTRY_FLAG_EN))
 			break;
-		if (apic->apic_id >= NAPICID)
+		if (apic->apic_id > MAX_APIC_ID)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->apic_id);
 		if (ioapics[apic->apic_id] != NULL)
@@ -662,7 +664,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 			return;
 		}
 	}
-	if (apic_id >= NAPICID) {
+	if (apic_id > MAX_APIC_ID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
@@ -892,7 +894,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * physical processor.  If any of those ID's are
 	 * already in the table, then kill the fixup.
 	 */
-	for (id = 0; id < NAPICID; id++) {
+	for (id = 0; id <= MAX_LAPIC_ID; id++) {
 		if ((id_mask & 1 << id) == 0)
 			continue;
 		/* First, make sure we are on a logical_cpus boundary. */

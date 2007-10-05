@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
-#define	NAPICID			32	/* Max number of APIC's */
+#define	MAX_LAPIC_ID		63	/* Max local APIC ID for HTT fixup */
 
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
@@ -136,7 +136,7 @@ struct pci_route_interrupt_args {
 
 static mpfps_t mpfps;
 static mpcth_t mpct;
-static void *ioapics[NAPICID];
+static void *ioapics[MAX_APIC_ID + 1];
 static bus_datum *busses;
 static int mptable_nioapics, mptable_nbusses, mptable_maxbusid;
 static int pci0 = -1;
@@ -152,7 +152,7 @@ static int	lookup_bus_type(char *name);
 static void	mptable_count_items(void);
 static void	mptable_count_items_handler(u_char *entry, void *arg);
 #ifdef MPTABLE_FORCE_HTT
-static void	mptable_hyperthread_fixup(u_int id_mask);
+static void	mptable_hyperthread_fixup(u_long id_mask);
 #endif
 static void	mptable_parse_apics_and_busses(void);
 static void	mptable_parse_apics_and_busses_handler(u_char *entry,
@@ -294,7 +294,7 @@ found:
 static int
 mptable_probe_cpus(void)
 {
-	u_int cpu_mask;
+	u_long cpu_mask;
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
@@ -354,7 +354,7 @@ mptable_setup_io(void)
 	mptable_parse_ints();
 
 	/* Fourth, we register all the I/O APIC's. */
-	for (i = 0; i < NAPICID; i++)
+	for (i = 0; i <= MAX_APIC_ID; i++)
 		if (ioapics[i] != NULL)
 			ioapic_register(ioapics[i]);
 
@@ -412,7 +412,7 @@ static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
 {
 	proc_entry_ptr proc;
-	u_int *cpu_mask;
+	u_long *cpu_mask;
 
 	switch (*entry) {
 	case MPCT_ENTRY_PROCESSOR:
@@ -420,8 +420,10 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 		if (proc->cpu_flags & PROCENTRY_FLAG_EN) {
 			lapic_create(proc->apic_id, proc->cpu_flags &
 			    PROCENTRY_FLAG_BP);
-			cpu_mask = (u_int *)arg;
-			*cpu_mask |= (1 << proc->apic_id);
+			if (proc->apic_id < MAX_LAPIC_ID) {
+				cpu_mask = (u_long *)arg;
+				*cpu_mask |= (1ul << proc->apic_id);
+			}
 		}
 		break;
 	}
@@ -508,7 +510,7 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 		apic = (io_apic_entry_ptr)entry;
 		if (!(apic->apic_flags & IOAPICENTRY_FLAG_EN))
 			break;
-		if (apic->apic_id >= NAPICID)
+		if (apic->apic_id > MAX_APIC_ID)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->apic_id);
 		if (ioapics[apic->apic_id] != NULL)
@@ -653,7 +655,7 @@ mptable_parse_io_int(int_entry_ptr intr)
 			return;
 		}
 	}
-	if (apic_id >= NAPICID) {
+	if (apic_id > MAX_APIC_ID) {
 		printf("MPTable: Ignoring interrupt entry for ioapic%d\n",
 		    intr->dst_apic_id);
 		return;
@@ -866,7 +868,7 @@ mptable_parse_ints(void)
  * with the number of logical CPU's in the processor.
  */
 static void
-mptable_hyperthread_fixup(u_int id_mask)
+mptable_hyperthread_fixup(u_long id_mask)
 {
 	u_int i, id, logical_cpus;
 
@@ -883,7 +885,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * physical processor.  If any of those ID's are
 	 * already in the table, then kill the fixup.
 	 */
-	for (id = 0; id < NAPICID; id++) {
+	for (id = 0; id <= MAX_LAPIC_ID; id++) {
 		if ((id_mask & 1 << id) == 0)
 			continue;
 		/* First, make sure we are on a logical_cpus boundary. */
@@ -898,7 +900,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * Ok, the ID's checked out, so perform the fixup by
 	 * adding the logical CPUs.
 	 */
-	while ((id = ffs(id_mask)) != 0) {
+	while ((id = ffsl(id_mask)) != 0) {
 		id--;
 		for (i = id + 1; i < id + logical_cpus; i++) {
 			if (bootverbose)

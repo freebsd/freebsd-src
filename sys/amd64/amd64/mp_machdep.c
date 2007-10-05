@@ -133,7 +133,7 @@ struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
-} static cpu_info[MAXCPU];
+} static cpu_info[MAX_APIC_ID + 1];
 static int cpu_apic_ids[MAXCPU];
 
 /* Holds pending bitmap based IPIs per CPU */
@@ -141,6 +141,7 @@ static volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
 
+static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
 static int	start_all_aps(void);
 static int	start_ap(int apic_id);
@@ -178,7 +179,7 @@ mp_topology(void)
 		return;
 	group = &mp_groups[0];
 	groups = 1;
-	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
+	for (cpu = 0, apic_id = 0; apic_id <= MAX_APIC_ID; apic_id++) {
 		if (!cpu_info[apic_id].cpu_present)
 			continue;
 		/*
@@ -225,9 +226,8 @@ void
 cpu_add(u_int apic_id, char boot_cpu)
 {
 
-	if (apic_id >= MAXCPU) {
-		printf("SMP: CPU %d exceeds maximum CPU %d, ignoring\n",
-		    apic_id, MAXCPU - 1);
+	if (apic_id > MAX_APIC_ID) {
+		panic("SMP: APIC ID %d too high", apic_id);
 		return;
 	}
 	KASSERT(cpu_info[apic_id].cpu_present == 0, ("CPU %d added twice",
@@ -240,13 +240,13 @@ cpu_add(u_int apic_id, char boot_cpu)
 		boot_cpu_id = apic_id;
 		cpu_info[apic_id].cpu_bsp = 1;
 	}
-	mp_ncpus++;
-	if (apic_id > mp_maxid)
-		mp_maxid = apic_id;
+	if (mp_ncpus < MAXCPU) {
+		mp_ncpus++;
+		mp_maxid = mp_ncpus -1;
+	}
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
 		    "AP");
-	
 }
 
 void
@@ -265,8 +265,7 @@ cpu_mp_setmaxid(void)
 	else
 		KASSERT(mp_maxid >= mp_ncpus - 1,
 		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));
-		
+			mp_maxid, mp_ncpus));		
 }
 
 int
@@ -344,6 +343,8 @@ cpu_mp_start(void)
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 	cpu_apic_ids[0] = boot_cpu_id;
 
+	assign_cpu_ids();
+
 	/* Start each Application Processor */
 	start_all_aps();
 
@@ -408,7 +409,7 @@ cpu_mp_announce(void)
 
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
-	for (i = 1, x = 0; x < MAXCPU; x++) {
+	for (i = 1, x = 0; x <= MAX_APIC_ID; x++) {
 		if (!cpu_info[x].cpu_present || cpu_info[x].cpu_bsp)
 			continue;
 		if (cpu_info[x].cpu_disabled)
@@ -624,6 +625,48 @@ set_interrupt_apic_ids(void)
 }
 
 /*
+ * Assign logical CPU IDs to local APICs.
+ */
+static void
+assign_cpu_ids(void)
+{
+	u_int i;
+
+	/* Check for explicitly disabled CPUs. */
+	for (i = 0; i <= MAX_APIC_ID; i++) {
+		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
+			continue;
+
+		/* Don't use this CPU if it has been disabled by a tunable. */
+		if (resource_disabled("lapic", i)) {
+			cpu_info[i].cpu_disabled = 1;
+			continue;
+		}
+	}
+
+	/*
+	 * Assign CPU IDs to local APIC IDs and disable any CPUs
+	 * beyond MAXCPU.  CPU 0 has already been assigned to the BSP,
+	 * so we only have to assign IDs for APs.
+	 */
+	mp_ncpus = 1;
+	for (i = 0; i <= MAX_APIC_ID; i++) {
+		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp ||
+		    cpu_info[i].cpu_disabled)
+			continue;
+
+		if (mp_ncpus < MAXCPU) {
+			cpu_apic_ids[mp_ncpus] = i;
+			mp_ncpus++;
+		} else
+			cpu_info[i].cpu_disabled = 1;
+	}
+	KASSERT(mp_maxid >= mp_ncpus - 1,
+	    ("%s: counters out of sync: max %d, count %d", __func__, mp_maxid,
+	    mp_ncpus));		
+}
+
+/*
  * start each AP in our list
  */
 static int
@@ -674,24 +717,8 @@ start_all_aps(void)
 	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
 	/* start each AP */
-	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
-
-		/* Ignore non-existent CPUs and the BSP. */
-		if (!cpu_info[apic_id].cpu_present ||
-		    cpu_info[apic_id].cpu_bsp)
-			continue;
-
-		/* Don't use this CPU if it has been disabled by a tunable. */
-		if (resource_disabled("lapic", apic_id)) {
-			cpu_info[apic_id].cpu_disabled = 1;
-			mp_ncpus--;
-			continue;
-		}
-
-		cpu++;
-
-		/* save APIC ID for this logical ID */
-		cpu_apic_ids[cpu] = apic_id;
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
