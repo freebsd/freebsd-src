@@ -133,7 +133,7 @@ int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
     &tcp_do_rfc1323, 0, "Enable rfc1323 (high performance TCP) extensions");
 
-static int	tcp_log_debug = 1;
+static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
     &tcp_log_debug, 0, "Log errors caused by incoming TCP segments");
 
