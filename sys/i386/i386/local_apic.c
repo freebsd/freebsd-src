@@ -64,13 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-/*
- * We can handle up to 60 APICs via our logical cluster IDs, but currently
- * the physical IDs on Intel processors up to the Pentium 4 are limited to
- * 16.
- */
-#define	MAX_APICID	16
-
 /* Sanity checks on IDT vectors. */
 CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS == APIC_TIMER_INT);
 CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
@@ -113,7 +106,7 @@ struct lapic {
 	u_long la_hard_ticks;
 	u_long la_stat_ticks;
 	u_long la_prof_ticks;
-} static lapics[MAX_APICID];
+} static lapics[MAX_APIC_ID + 1];
 
 /* XXX: should thermal be an NMI? */
 
@@ -238,7 +231,7 @@ lapic_create(u_int apic_id, int boot_cpu)
 {
 	int i;
 
-	if (apic_id >= MAX_APICID) {
+	if (apic_id > MAX_APIC_ID) {
 		printf("APIC: Ignoring local APIC with ID %d\n", apic_id);
 		if (boot_cpu)
 			panic("Can't ignore BSP");
