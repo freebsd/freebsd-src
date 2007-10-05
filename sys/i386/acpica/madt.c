@@ -53,21 +53,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
 
-#define	NIOAPICS		32	/* Max number of I/O APICs */
-#define	NLAPICS			32	/* Max number of local APICs */
-
 typedef	void madt_entry_handler(APIC_HEADER *entry, void *arg);
 
 /* These two arrays are indexed by APIC IDs. */
 struct ioapic_info {
 	void *io_apic;
 	UINT32 io_vector;
-} ioapics[NIOAPICS];
+} ioapics[MAX_APIC_ID + 1];
 
 struct lapic_info {
 	u_int la_enabled:1;
 	u_int la_acpi_id:8;
-} lapics[NLAPICS];
+} lapics[MAX_APIC_ID + 1];
 
 static int madt_found_sci_override;
 static MULTIPLE_APIC_TABLE *madt;
@@ -391,7 +388,7 @@ madt_setup_io(void)
 	}
 
 	/* Third, we register all the I/O APIC's. */
-	for (i = 0; i < NIOAPICS; i++)
+	for (i = 0; i <= MAX_APIC_ID; i++)
 		if (ioapics[i].io_apic != NULL)
 			ioapic_register(ioapics[i].io_apic);
 
@@ -446,7 +443,7 @@ madt_probe_cpus_handler(APIC_HEADER *entry, void *arg)
 			    proc->ProcessorEnabled ? "enabled" : "disabled");
 		if (!proc->ProcessorEnabled)
 			break;
-		if (proc->LocalApicId >= NLAPICS)
+		if (proc->LocalApicId > MAX_APIC_ID)
 			panic("%s: CPU ID %d too high", __func__,
 			    proc->LocalApicId);
 		la = &lapics[proc->LocalApicId];
@@ -475,7 +472,7 @@ madt_parse_apics(APIC_HEADER *entry, void *arg __unused)
 			printf("MADT: Found IO APIC ID %d, Interrupt %d at %p\n",
 			    apic->IoApicId, apic->Interrupt,
 			    (void *)(uintptr_t)apic->Address);
-		if (apic->IoApicId >= NIOAPICS)
+		if (apic->IoApicId > MAX_APIC_ID)
 			panic("%s: I/O APIC ID %d too high", __func__,
 			    apic->IoApicId);
 		if (ioapics[apic->IoApicId].io_apic != NULL)
@@ -543,7 +540,7 @@ madt_find_cpu(u_int acpi_id, u_int *apic_id)
 {
 	int i;
 
-	for (i = 0; i < NLAPICS; i++) {
+	for (i = 0; i <= MAX_APIC_ID; i++) {
 		if (!lapics[i].la_enabled)
 			continue;
 		if (lapics[i].la_acpi_id != acpi_id)
@@ -564,7 +561,7 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	int i, best;
 
 	best = -1;
-	for (i = 0; i < NIOAPICS; i++) {
+	for (i = 0; i <= MAX_APIC_ID; i++) {
 		if (ioapics[i].io_apic == NULL ||
 		    ioapics[i].io_vector > intr)
 			continue;
