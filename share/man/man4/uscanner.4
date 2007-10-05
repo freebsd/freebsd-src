@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd October 5, 2007
 .Dt USCANNER 4
 .Os
 .Sh NAME
@@ -58,8 +58,18 @@ For each scanner attached it will provide an entry like
 .Pa /dev/uscanner0
 in
 .Pa /dev .
-See the SANE home page for the exact configuration of SANE for the
-different scanners.
+User-space programs, e.g. SANE,
+can in turn use the device entry throgh a suitable
+backend driver (see
+.Nm ports/graphics/sane-backends )
+to control the scanner itself.
+.Pp
+In case of multifunction USB devices (e.g. scanner/printer/card reader),
+this driver only attaches to the USB interface that controls
+the scanner; for the other USB interface you need separate drivers, e.g.
+.Nm ulpt ,
+.Nm umass ,
+and so on.
 .Pp
 .Nm usb
 and one of
@@ -68,161 +78,54 @@ or
 .Nm ohci
 must be configured in the kernel as well.
 .Sh HARDWARE
-The following devices are supported by the
-.Nm
-driver:
+Because there is no standard device class for USB scanners, this driver
+will only recognise devices whose USB IDs are explicitly listed in the
+table in the driver itself.
+.Pp
+The following devices are supported to date:
 .Pp
 .Bl -bullet -compact
 .It
-Acer Acerscan 320U
+Acer Acerscan: 320U, 620U, 640U, 640BT, 1240U, C310U;
 .It
-Acer Acerscan 620U
-.It
-Acer Acerscan 640U
-.It
-Acer Acerscan 640BT
-.It
-Acer Acerscan 1240U
-.It
-Acer Acerscan C310U
-.It
-AGFA SnapScan 1212U
-.It
-AGFA SnapScan 1236U
-.It
-AGFA SnapScan e20
-.It
-AGFA SnapScan e25
-.It
-AGFA SnapScan e26
-.It
-AGFA SnapScan e40
-.It
-AGFA SnapScan e50
-.It
-AGFA SnapScan e52
-.It
-AGFA SnapScan Touch
+AGFA SnapScan: 1212U, 1236U, e20, e25, e26, e40, e50, e52, SnapScan Touch;
 .It
 Avision 1200U
 .It
-Canon CanoScan D660U
+Canon CanoScan: D660U, N656U, N676U, N1220U, LIDE 20, LIDE 25, LIDE 30;
 .It
-Canon CanoScan N656U
+Epson Perfection: 610, 636U / 636Photo, 640U, 1200U / 1200Photo,
+1240U / 1240Photo, 1250, 1260, 1270,
+1600, 1640SU, 1650, 1660, 1670,
+2480,
+3200, 3500, 3590,
+4200, 4990;
 .It
-Canon CanoScan N676U
+Epson: GT-8400UF, GT-9300UF, GT-9700F;
 .It
-Canon CanoScan N1220U
+Epson Stylus: Photo RX425, CX3650, DX-5000, DX-5050, DX-6000, DX-6050
+(and possibly more in the CX-5000 and DX-3800..DX-7000 family);
 .It
-Canon CanoScan LIDE 20
+Hewlett Packard: Photosmart S20
 .It
-Canon CanoScan LIDE 25
-.It
-Canon CanoScan LIDE 30
-.It
-Epson Perfection 610
-.It
-Epson Perfection 636U / 636Photo
-.It
-Epson Perfection 640U
-.It
-Epson Perfection 1200U / 1200Photo
-.It
-Epson Perfection 1240U / 1240Photo
-.It
-Epson Perfection 1250
-.It
-Epson Perfection 1260
-.It
-Epson Perfection 1270
-.It
-Epson Expression 1600
-.It
-Epson Perfection 1640SU
-.It
-Epson Perfection 1650
-.It
-Epson Perfection 1660
-.It
-Epson Perfection 1670
-.It
-Epson Perfection 2480
-.It
-Epson Perfection 3200
-.It
-Epson Perfection 3500
-.It
-Epson Perfection 3590
-.It
-Epson Perfection 4200
-.It
-Epson Perfection 4990
-.It
-Epson GT-8400UF
-.It
-Epson GT-9300UF
-.It
-Epson GT-9700F
-.It
-Epson Stylus Photo RX425
-.It
-Epson Stylus CX3650
-.It
-Hewlett Packard Photosmart S20
-.It
-Hewlett Packard Scanjet 2200C
-.It
-Hewlett Packard Scanjet 3300C
-.It
-Hewlett Packard Scanjet 3400CSE
-.It
-Hewlett Packard Scanjet 4100C
-.It
-Hewlett Packard Scanjet 4200C
-.It
-Hewlett Packard Scanjet 4300C
-.It
-Hewlett Packard Scanjet 5200C
-.It
-Hewlett Packard Scanjet 5300C
-.It
-Hewlett Packard Scanjet 5400C
-.It
-Hewlett Packard Scanjet 6200C
-.It
-Hewlett Packard Scanjet 6300C
-.It
-Hewlett Packard Scanjet 8200C
-.It
-Hewlett Packard Scanjet 8250C
-.It
-Hewlett Packard Scanjet 8290C
+Hewlett Packard Scanjet: 2200C,
+3300C, 3400CSE,
+4100C, 4200C, 4300C,
+5200C, 5300C, 5400C,
+6200C, 6300C,
+8200C, 8250C, 8290C;
 .It
 KYE ColorPage Vivid-Pro
 .It
-Microtek Phantom 336CX
+Microtek Phantom: 336CX, C6;
 .It
-Microtek Phantom C6
-.It
-Microtek ScanMaker V6UL
-.It
-Microtek ScanMaker V6USL
-.It
-Microtek ScanMaker X6U
+Microtek ScanMaker: V6UL V6USL, X6U;
 .It
 Minolta 5400
 .It
-Mustek 600 CU
+Mustek: 600 CU, 1200 CU, 1200 UB, 1200 USB;
 .It
-Mustek 1200 CU
-.It
-Mustek 1200 UB
-.It
-Mustek 1200 USB
-.It
-Mustek BearPaw 1200F
-.It
-Mustek BearPaw 1200TA
+Mustek BearPaw: 1200F, 1200TA;
 .It
 NatSemi BearPaw 1200
 .It
@@ -230,63 +133,18 @@ Nikon CoolScan LS40 ED
 .It
 Primax 6200
 .It
-Primax Colorado 1200u
+Primax Colorado: 1200u, 600u, USB 19200, USB 9600;
 .It
-Primax Colorado 600u
-.It
-Primax Colorado USB 19200
-.It
-Primax Colorado USB 9600
-.It
-Primax G2-200
-.It
-Primax G2-300
-.It
-Primax G2-600
-.It
-Primax G2600
-.It
-Primax G2E-300
-.It
-Primax G2E-3002
-.It
-Primax G2E-600
-.It
-Primax G2E600
-.It
-Primax G2X-300
-.It
-Primax G600
-.It
-Primax ReadyScan 636i
+Primax: G2-200, G2-300, G2-600, G2600, G2E-300, G2E-3002, G2E-600, G2E600,
+G2X-300,
+G600,
+ReadyScan 636i;
 .It
 Ultima 1200 UB Plus
 .It
-UMAX Astra 1220U
+UMAX Astra: 1220U, 1236U, 2000U, 2100U, 2200U, 3400;
 .It
-UMAX Astra 1236U
-.It
-UMAX Astra 2000U
-.It
-UMAX Astra 2100U
-.It
-UMAX Astra 2200U
-.It
-UMAX Astra 3400
-.It
-Visioneer OneTouch 3000
-.It
-Visioneer OneTouch 5300
-.It
-Visioneer OneTouch 7600
-.It
-Visioneer OneTouch 6100
-.It
-Visioneer OneTouch 6200
-.It
-Visioneer OneTouch 8100
-.It
-Visioneer OneTouch 8600
+Visioneer OneTouch: 3000, 5300, 7600, 6100, 6200, 8100, 8600;
 .El
 .Sh SEE ALSO
 .Xr ohci 4 ,
