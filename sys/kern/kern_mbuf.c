@@ -339,9 +339,12 @@ static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
 {
 	struct mbuf *m;
+	unsigned long flags; 
 
 	m = (struct mbuf *)mem;
-	if ((m->m_flags & M_PKTHDR) != 0)
+	flags = (unsigned long)arg;
+	
+	if ((flags & MB_NOTAGS) == 0 && (m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
 	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
 #ifdef INVARIANTS
@@ -527,7 +530,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	m->m_len = 0;
 	m->m_flags = (flags | M_EXT);
 	m->m_type = type;
-
+	    
 	if (flags & M_PKTHDR) {
 		m->m_pkthdr.rcvif = NULL;
 		m->m_pkthdr.len = 0;
