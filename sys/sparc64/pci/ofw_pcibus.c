@@ -25,9 +25,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
 
@@ -174,12 +175,14 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 static int
 ofw_pcibus_attach(device_t dev)
 {
-	device_t pcib = device_get_parent(dev);
+	device_t pcib;
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
 	char *cname;
 	u_int slot, busno, func;
+
+	pcib = device_get_parent(dev);
 
 	/*
 	 * Ask the bridge for the bus number - in some cases, we need to
@@ -226,15 +229,14 @@ ofw_pcibus_attach(device_t dev)
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
-	struct ofw_pcibus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->opd_dinfo.cfg;
 	ofw_pci_intr_t intr;
 	int isz;
 
-	isz = OF_getprop(dinfo->opd_node, "interrupts", &intr, sizeof(intr));
+	isz = OF_getprop(ofw_bus_get_node(child), "interrupts", &intr,
+	    sizeof(intr));
 	if (isz != sizeof(intr)) {
 		/* No property; our best guess is the intpin. */
-		intr = cfg->intpin;
+		intr = pci_get_intpin(child);
 	} else if (intr >= 255) {
 		/*
 		 * A fully specified interrupt (including IGN), as present on
