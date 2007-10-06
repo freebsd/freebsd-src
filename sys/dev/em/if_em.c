@@ -1290,11 +1290,16 @@ em_init_locked(struct adapter *adapter)
 	e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	/*
-	 * With 82571 controllers, LAA may be overwritten
-	 * due to controller reset from the other port.
+	 * With the 82571 adapter, RAR[0] may be overwritten
+	 * when the other port is reset, we make a duplicate
+	 * in RAR[14] for that eventuality, this assures
+	 * the interface continues to function.
 	 */
-	if (adapter->hw.mac.type == e1000_82571)
-                e1000_set_laa_state_82571(&adapter->hw, TRUE);
+	if (adapter->hw.mac.type == e1000_82571) {
+		adapter->hw.laa_is_present = 1;
+		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr,
+		    E1000_RAR_ENTRIES - 1);
+	}
 
 	/* Initialize the hardware */
 	if (em_hardware_init(adapter)) {
@@ -1457,6 +1462,8 @@ em_intr(void *arg)
 			adapter->hw.mac.get_link_status = 1;
 			e1000_check_for_link(&adapter->hw);
 			em_update_link_status(adapter);
+			/* Deal with TX cruft when link lost */
+			em_tx_purge(adapter);
 			callout_reset(&adapter->timer, hz,
 			    em_local_timer, adapter);
 		}
@@ -2389,8 +2396,9 @@ em_local_timer(void *arg)
 	em_update_link_status(adapter);
 	em_update_stats_counters(adapter);
 
-	/* Check for 82571 LAA reset by other port */
-	if (e1000_get_laa_state_82571(&adapter->hw) == TRUE)  
+	/* Reset LAA into RAR[0] on 82571 */
+	if ((adapter->hw.mac_type == e1000_82571) &&
+		adapter->hw.laa_is_present)
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -2643,7 +2651,7 @@ em_allocate_intr(struct adapter *adapter)
 	/* We do Legacy setup */
 	if (adapter->int_handler_tag == NULL &&
 	    (error = bus_setup_intr(dev, adapter->res_interrupt,
-	    INTR_TYPE_NET | INTR_MPSAFE, NULL, em_intr, adapter,
+	    INTR_TYPE_NET | INTR_MPSAFE, em_intr, adapter,
 	    &adapter->int_handler_tag)) != 0) {
 		device_printf(dev, "Failed to register interrupt handler");
 		return (error);
