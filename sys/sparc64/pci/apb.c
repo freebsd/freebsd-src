@@ -29,9 +29,10 @@
  * SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/dev/pci/pci_pci.c,v 1.3 2000/12/13
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Support for the Sun APB (Advanced PCI Bridge) PCI-PCI bridge.
@@ -69,8 +70,8 @@
  */
 struct apb_softc {
 	struct ofw_pcib_gen_softc	sc_bsc;
-	u_int8_t	sc_iomap;
-	u_int8_t	sc_memmap;
+	uint8_t		sc_iomap;
+	uint8_t		sc_memmap;
 };
 
 static device_probe_t apb_probe;
@@ -140,7 +141,7 @@ apb_probe(device_t dev)
 }
 
 static void
-apb_map_print(u_int8_t map, u_long scale)
+apb_map_print(uint8_t map, u_long scale)
 {
 	int i, first;
 
@@ -154,7 +155,7 @@ apb_map_print(u_int8_t map, u_long scale)
 }
 
 static int
-apb_checkrange(u_int8_t map, u_long scale, u_long start, u_long end)
+apb_checkrange(uint8_t map, u_long scale, u_long start, u_long end)
 {
 	int i, ei;
 
