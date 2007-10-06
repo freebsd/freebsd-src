@@ -254,6 +254,8 @@ struct mbuf {
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */
 
+#define MB_NOTAGS	0x1UL	/* no tags attached to mbuf */
+
 /*
  * General mbuf allocator statistics structure.
  *
@@ -488,6 +490,14 @@ m_getjcl(int how, short type, int flags, int size)
 		return (NULL);
 	}
 	return (m);
+}
+
+static __inline void
+m_free_fast(struct mbuf *m)
+{
+	KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
+
+	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
 }
 
 static __inline struct mbuf *
