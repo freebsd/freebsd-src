@@ -192,6 +192,7 @@ struct mbuf {
 #define	M_LASTFRAG	0x2000	/* packet is last fragment */
 #define	M_VLANTAG	0x10000	/* ether_vtag is valid */
 #define	M_PROMISC	0x20000	/* packet was not for us */
+#define	M_NOFREE	0x40000	/* do not free mbuf - it is embedded in the cluster */
 
 /*
  * External buffer types: identify ext_buf type.
@@ -507,7 +508,7 @@ m_free(struct mbuf *m)
 
 	if (m->m_flags & M_EXT)
 		mb_free_ext(m);
-	else
+	else if ((m->m_flags & M_NOFREE) == 0)
 		uma_zfree(zone_mbuf, m);
 	return (n);
 }
