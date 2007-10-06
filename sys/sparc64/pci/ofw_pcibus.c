@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/bus_common.h>
-#include <machine/cache.h>
 #include <machine/iommureg.h>
 #include <machine/resource.h>
 
@@ -100,14 +99,10 @@ struct ofw_pcibus_devinfo {
 	phandle_t		opd_node;
 };
 
-struct ofw_pcibus_softc {
-	phandle_t	ops_node;
-};
-
 static devclass_t pci_devclass;
 
-DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods,
-    sizeof(struct ofw_pcibus_softc), pci_driver);
+DEFINE_CLASS_1(pci, ofw_pcibus_driver, ofw_pcibus_methods, 1 /* no softc */,
+    pci_driver);
 DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
@@ -129,40 +124,42 @@ ofw_pcibus_probe(device_t dev)
 static void
 ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 {
-	u_int lat, clnsz;
+	uint32_t reg;
 
 	/*
 	 * Initialize the latency timer register for busmaster devices to work
 	 * properly. This is another task which the firmware does not always
 	 * perform. The Min_Gnt register can be used to compute it's recommended
 	 * value: it contains the desired latency in units of 1/4 us. To
-	 * calculate the correct latency timer value, a bus clock of 33MHz and
-	 * no wait states should be assumed.
+	 * calculate the correct latency timer value, the clock frequency of
+	 * the bus (defaulting to 33Mhz) should be used and no wait states
+	 * should be assumed.
 	 */
-	lat = PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_MINGNT, 1) *
-	    33 / 4;
-	if (lat != 0) {
+	if (OF_getprop(ofw_bus_get_node(bridge), "clock-frequency", &reg,
+	    sizeof(reg)) == -1)
+		reg = 33000000;
+	reg = PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_MINGNT, 1) *
+	    reg / 1000000 / 4;
+	if (reg != 0) {
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge, "device %d/%d/%d: latency timer %d -> "
 		    "%d\n", busno, slot, func,
 		    PCIB_READ_CONFIG(bridge, busno, slot, func,
-			PCIR_LATTIMER, 1), lat);
+			PCIR_LATTIMER, 1), reg);
 #endif /* OFW_PCI_DEBUG */
 		PCIB_WRITE_CONFIG(bridge, busno, slot, func,
-		    PCIR_LATTIMER, min(lat, 255), 1);
+		    PCIR_LATTIMER, min(reg, 255), 1);
 	}
 
 	/*
 	 * Compute a value to write into the cache line size register.
 	 * The role of the streaming cache is unclear in write invalidate
 	 * transfers, so it is made sure that it's line size is always reached.
+	 * Generally, the cache line size is fixed at 64 bytes by Fireplane/
+	 * Safari, JBus and UPA.
 	 */
-	clnsz = max(cache.ec_linesize, STRBUF_LINESZ);
-	KASSERT((clnsz / STRBUF_LINESZ) * STRBUF_LINESZ == clnsz &&
-	    (clnsz / cache.ec_linesize) * cache.ec_linesize == clnsz &&
-	    (clnsz / 4) * 4 == clnsz, ("bogus cache line size %d", clnsz));
 	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
-	    clnsz / 4, 1);
+	    STRBUF_LINESZ / sizeof(uint32_t), 1);
 
 	/*
 	 * The preset in the intline register is usually wrong. Reset it to 255,
