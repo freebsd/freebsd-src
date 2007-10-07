@@ -27,7 +27,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
  */
 
 /*
@@ -35,6 +34,9 @@
  * TODO:
  *	add "inuse/lock" bit (or ref. count) along with valid bit
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_mac.h"

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: ip_ecn.c,v 1.12 2002/01/07 11:34:47 kjc Exp $	*/
 
 /*-
@@ -34,6 +33,9 @@
  * ECN consideration on tunnel ingress/egress operation.
  * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

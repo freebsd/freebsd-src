@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: ip_encap.c,v 1.41 2001/03/15 08:35:08 itojun Exp $	*/
 
 /*-
@@ -56,6 +55,9 @@
  * The code will let you match protocol via src/dst address pair.
  */
 /* XXX is M_NETADDR correct? */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_mrouting.h"
 #include "opt_inet.h"
