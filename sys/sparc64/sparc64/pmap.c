@@ -1765,9 +1765,9 @@ pmap_page_is_mapped(vm_page_t m)
 {
 	struct tte *tp;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) != 0)
 			return (TRUE);

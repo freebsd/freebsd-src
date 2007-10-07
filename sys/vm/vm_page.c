@@ -1086,7 +1086,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		if (req & VM_ALLOC_ZERO)
 			flags = PG_ZERO;
 	}
-	if (object != NULL && object->type == OBJT_PHYS)
+	if (object == NULL || object->type == OBJT_PHYS)
 		flags |= PG_UNMANAGED;
 	m->flags = flags;
 	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
