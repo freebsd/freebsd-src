@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $FreeBSD$
  */
 
 /*
@@ -44,6 +43,9 @@
  *
  * MULTICAST Revision: 3.5.1.4
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_mac.h"
 
