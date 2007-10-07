@@ -51,9 +51,10 @@
  * MROUTING Revision: 3.5
  * and PIM-SMv2 and PIM-DM support, advanced API support,
  * bandwidth metering and signaling
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
