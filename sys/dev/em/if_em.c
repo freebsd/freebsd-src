@@ -1296,7 +1296,7 @@ em_init_locked(struct adapter *adapter)
 	 * the interface continues to function.
 	 */
 	if (adapter->hw.mac.type == e1000_82571) {
-		adapter->hw.laa_is_present = 1;
+		e1000_set_laa_state_82571(&adapter->hw, TRUE);
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr,
 		    E1000_RAR_ENTRIES - 1);
 	}
@@ -2397,8 +2397,7 @@ em_local_timer(void *arg)
 	em_update_stats_counters(adapter);
 
 	/* Reset LAA into RAR[0] on 82571 */
-	if ((adapter->hw.mac_type == e1000_82571) &&
-		adapter->hw.laa_is_present)
+	if (e1000_get_laa_state_82571(&adapter->hw) == TRUE)
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
