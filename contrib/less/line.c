@@ -269,7 +269,7 @@ pshift(shift)
 	while (shifted <= shift && from < curr)
 	{
 		c = linebuf[from];
-		if (c == ESC && ctldisp == OPT_ONPLUS)
+		if (ctldisp == OPT_ONPLUS && IS_CSI_START(c))
 		{
 			/* Keep cumulative effect.  */
 			linebuf[to] = c;
@@ -524,7 +524,7 @@ in_ansi_esc_seq()
 	for (p = &linebuf[curr];  p > linebuf; )
 	{
 		LWCHAR ch = step_char(&p, -1, linebuf);
-		if (ch == ESC)
+		if (IS_CSI_START(ch))
 			return (1);
 		if (!is_ansi_middle(ch))
 			return (0);
@@ -603,13 +603,13 @@ store_char(ch, a, rep, pos)
 			/* Remove whole unrecognized sequence.  */
 			do {
 				--curr;
-			} while (linebuf[curr] != ESC);
+			} while (!IS_CSI_START(linebuf[curr]));
 			return 0;
 		}
 		a = AT_ANSI;	/* Will force re-AT_'ing around it.  */
 		w = 0;
 	}
-	else if (ctldisp == OPT_ONPLUS && ch == ESC)
+	else if (ctldisp == OPT_ONPLUS && IS_CSI_START(ch))
 	{
 		a = AT_ANSI;	/* Will force re-AT_'ing around it.  */
 		w = 0;
@@ -943,7 +943,7 @@ do_append(ch, rep, pos)
 	} else if ((!utf_mode || is_ascii_char(ch)) && control_char((char)ch))
 	{
 	do_control_char:
-		if (ctldisp == OPT_ON || (ctldisp == OPT_ONPLUS && ch == ESC))
+		if (ctldisp == OPT_ON || (ctldisp == OPT_ONPLUS && IS_CSI_START(ch)))
 		{
 			/*
 			 * Output as a normal character.

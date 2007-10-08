@@ -2314,7 +2314,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       4.1.8 to 4.1.23.</para>
 
     <para><application>less</application> has been updated from v381
-      to v406. &merged;</para>
+      to v408.</para>
 
     <para><application>libpcap</application> has been updated from
       0.9.1 to 0.9.4. &merged;</para>
