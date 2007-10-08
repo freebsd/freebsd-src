@@ -567,24 +567,29 @@ get_wchar(p)
 	{
 	case 1:
 	default:
+		/* 0xxxxxxx */
 		return (LWCHAR)
 			(p[0] & 0xFF);
 	case 2:
+		/* 110xxxxx 10xxxxxx */
 		return (LWCHAR) (
 			((p[0] & 0x1F) << 6) |
 			(p[1] & 0x3F));
 	case 3:
+		/* 1110xxxx 10xxxxxx 10xxxxxx */
 		return (LWCHAR) (
 			((p[0] & 0x0F) << 12) |
 			((p[1] & 0x3F) << 6) |
 			(p[2] & 0x3F));
 	case 4:
+		/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		return (LWCHAR) (
 			((p[0] & 0x07) << 18) |
 			((p[1] & 0x3F) << 12) | 
 			((p[2] & 0x3F) << 6) | 
 			(p[3] & 0x3F));
 	case 5:
+		/* 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		return (LWCHAR) (
 			((p[0] & 0x03) << 24) |
 			((p[1] & 0x3F) << 18) | 
@@ -592,6 +597,7 @@ get_wchar(p)
 			((p[3] & 0x3F) << 6) | 
 			(p[4] & 0x3F));
 	case 6:
+		/* 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		return (LWCHAR) (
 			((p[0] & 0x01) << 30) |
 			((p[1] & 0x3F) << 24) | 
@@ -599,6 +605,56 @@ get_wchar(p)
 			((p[3] & 0x3F) << 12) | 
 			((p[4] & 0x3F) << 6) | 
 			(p[5] & 0x3F));
+	}
+}
+
+/*
+ * Store a character into a UTF-8 string.
+ */
+	public void
+put_wchar(pp, ch)
+	char **pp;
+	LWCHAR ch;
+{
+	if (!utf_mode || ch < 0x80) 
+	{
+		/* 0xxxxxxx */
+		*(*pp)++ = (char) ch;
+	} else if (ch < 0x800)
+	{
+		/* 110xxxxx 10xxxxxx */
+		*(*pp)++ = (char) (0xC0 | ((ch >> 6) & 0x1F));
+		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+	} else if (ch < 0x10000)
+	{
+		/* 1110xxxx 10xxxxxx 10xxxxxx */
+		*(*pp)++ = (char) (0xE0 | ((ch >> 12) & 0x0F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+	} else if (ch < 0x200000)
+	{
+		/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
+		*(*pp)++ = (char) (0xF0 | ((ch >> 18) & 0x07));
+		*(*pp)++ = (char) (0x80 | ((ch >> 12) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+	} else if (ch < 0x4000000)
+	{
+		/* 111110xx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
+		*(*pp)++ = (char) (0xF0 | ((ch >> 24) & 0x03));
+		*(*pp)++ = (char) (0x80 | ((ch >> 18) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 12) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
+	} else 
+	{
+		/* 1111110x 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx 10xxxxxx */
+		*(*pp)++ = (char) (0xF0 | ((ch >> 30) & 0x01));
+		*(*pp)++ = (char) (0x80 | ((ch >> 24) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 18) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 12) & 0x3F));
+		*(*pp)++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*(*pp)++ = (char) (0x80 | (ch & 0x3F));
 	}
 }
 
