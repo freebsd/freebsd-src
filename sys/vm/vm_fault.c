@@ -431,14 +431,13 @@ RetryFault:;
 			if (!vm_page_count_severe()) {
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
 				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
-				if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
-					break;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
-			}
+			} else if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+				break;
 		}
 
 readrest:
