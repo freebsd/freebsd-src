@@ -1191,13 +1191,13 @@ ipi_bitmap_handler(struct clockframe frame)
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
 #ifdef IPI_PREEMPTION
-	if (ipi_bitmap & IPI_PREEMPT) {
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
 		*ipi_preempt_counts[cpu]++;
 #endif
 		mtx_lock_spin(&sched_lock);
 		/* Don't preempt the idle thread */
-		if (curthread->td_priority <  PRI_MIN_IDLE) {
+		if (curthread != PCPU_GET(idlethread)) {
 			struct thread *running_thread = curthread;
 			if (running_thread->td_critnest > 1) 
 				running_thread->td_owepreempt = 1;
@@ -1208,7 +1208,7 @@ ipi_bitmap_handler(struct clockframe frame)
 	}
 #endif
 
-	if (ipi_bitmap & IPI_AST) {
+	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
 		*ipi_ast_counts[cpu]++;
 #endif
