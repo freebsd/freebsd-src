@@ -133,16 +133,6 @@ choosethread(void)
 {
 	struct thread *td;
 
-#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
-	if (smp_active == 0 && PCPU_GET(cpuid) != 0) {
-		/* Shutting down, run idlethread on AP's */
-		td = PCPU_GET(idlethread);
-		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
-		TD_SET_RUNNING(td);
-		return (td);
-	}
-#endif
-
 retry:
 	td = sched_choose();
 
@@ -184,7 +174,7 @@ critical_exit(void)
 	td = curthread;
 	KASSERT(td->td_critnest != 0,
 	    ("critical_exit: td_critnest == 0"));
-#ifdef PREEMPTION
+
 	if (td->td_critnest == 1) {
 		td->td_critnest = 0;
 		if (td->td_owepreempt) {
@@ -196,7 +186,6 @@ critical_exit(void)
 			thread_unlock(td);
 		}
 	} else
-#endif
 		td->td_critnest--;
 
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
