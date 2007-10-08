@@ -1324,8 +1324,6 @@ void
 sched_relinquish(struct thread *td)
 {
 	thread_lock(td);
-	if (td->td_pri_class == PRI_TIMESHARE)
-		sched_prio(td, PRI_MAX_TIMESHARE);
 	SCHED_STAT_INC(switch_relinquish);
 	mi_switch(SW_VOL, NULL);
 	thread_unlock(td);
