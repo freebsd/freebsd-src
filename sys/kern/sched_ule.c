@@ -740,9 +740,10 @@ tdq_idled(struct tdq *tdq)
 	struct tdq *steal;
 	int highload;
 	int highcpu;
-	int load;
 	int cpu;
 
+	if (smp_started == 0 || steal_idle == 0)
+		return (1);
 	/* We don't want to be preempted while we're iterating over tdqs */
 	spinlock_enter();
 	tdg = tdq->tdq_group;
@@ -762,29 +763,34 @@ tdq_idled(struct tdq *tdq)
 		}
 		TDQ_UNLOCK(tdq);
 	}
+	/*
+	 * Find the least loaded CPU with a transferable thread and attempt
+	 * to steal it.  We make a lockless pass and then verify that the
+	 * thread is still available after locking.
+	 */
 	for (;;) {
-		if (steal_idle == 0)
-			break;
 		highcpu = 0;
 		highload = 0;
 		for (cpu = 0; cpu <= mp_maxid; cpu++) {
 			if (CPU_ABSENT(cpu))
 				continue;
 			steal = TDQ_CPU(cpu);
-			load = TDQ_CPU(cpu)->tdq_transferable;
-			if (load < highload)
+			if (steal->tdq_transferable == 0)
 				continue;
-			highload = load;
+			if (steal->tdq_load < highload)
+				continue;
+			highload = steal->tdq_load;
 			highcpu = cpu;
 		}
 		if (highload < steal_thresh)
 			break;
 		steal = TDQ_CPU(highcpu);
+		if (steal == tdq)
+			break;
 		tdq_lock_pair(tdq, steal);
-		if (steal->tdq_transferable >= steal_thresh)
+		if (steal->tdq_load >= steal_thresh && steal->tdq_transferable)
 			goto steal;
 		tdq_unlock_pair(tdq, steal);
-		break;
 	}
 	spinlock_exit();
 	return (1);
