@@ -590,10 +590,9 @@ cryptodev_key(struct crypt_kop *kop)
 		return (EINVAL);
 	}
 
-	krp = (struct cryptkop *)malloc(sizeof *krp, M_XDATA, M_WAITOK);
+	krp = (struct cryptkop *)malloc(sizeof *krp, M_XDATA, M_WAITOK|M_ZERO);
 	if (!krp)
 		return (ENOMEM);
-	bzero(krp, sizeof *krp);
 	krp->krp_op = kop->crk_op;
 	krp->krp_status = kop->crk_status;
 	krp->krp_iparams = kop->crk_iparams;
@@ -602,8 +601,12 @@ cryptodev_key(struct crypt_kop *kop)
 	krp->krp_status = 0;
 	krp->krp_callback = (int (*) (struct cryptkop *)) cryptodevkey_cb;
 
-	for (i = 0; i < CRK_MAXPARAM; i++)
+	for (i = 0; i < CRK_MAXPARAM; i++) {
+		if (kop->crk_param[i].crp_nbits > 65536)
+			/* Limit is the same as in OpenBSD */
+			goto fail;
 		krp->krp_param[i].crp_nbits = kop->crk_param[i].crp_nbits;
+	}
 	for (i = 0; i < krp->krp_iparams + krp->krp_oparams; i++) {
 		size = (krp->krp_param[i].crp_nbits + 7) / 8;
 		if (size == 0)
