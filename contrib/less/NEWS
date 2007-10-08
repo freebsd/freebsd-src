@@ -13,6 +13,18 @@
 ======================================================================
 
 
+	Major changes between "less" versions 406 and 408
+
+* Support CSI escape sequences, like SGR escape sequences.
+
+* Fix bug which caused screen to fail to repaint when window is resized.
+
+* Fix bug in using -i and -I flags with non-ASCII text.
+
+* Fix configure bug on systems which don't support langinfo.h.
+
+======================================================================
+
 	Major changes between "less" versions 394 and 406
 
 * Allow decimal point in number for % (percent) command.
