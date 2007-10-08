@@ -6473,6 +6473,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 #include <locale.h>
 #include <ctype.h>
+#include <langinfo.h>
 int
 main ()
 {

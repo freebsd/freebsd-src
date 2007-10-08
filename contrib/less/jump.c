@@ -31,6 +31,7 @@ extern int top_scroll;
 jump_forw()
 {
 	POSITION pos;
+	POSITION end_pos;
 
 	if (ch_end_seek())
 	{
@@ -42,11 +43,17 @@ jump_forw()
 	 * Go back one line from the end of the file
 	 * to get to the beginning of the last line.
 	 */
-	pos = back_line(ch_tell());
+	pos_clear();
+	end_pos = ch_tell();
+	pos = back_line(end_pos);
 	if (pos == NULL_POSITION)
 		jump_loc((POSITION)0, sc_height-1);
 	else
+	{
 		jump_loc(pos, sc_height-1);
+		if (position(sc_height-1) != end_pos)
+			repaint();
+	}
 }
 
 /*
