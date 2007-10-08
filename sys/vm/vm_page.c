@@ -1506,6 +1506,9 @@ vm_page_cache(vm_page_t m)
 	    m->hold_count || m->wire_count) {
 		panic("vm_page_cache: attempting to cache busy page");
 	}
+	pmap_remove_all(m);
+	if (m->dirty != 0)
+		panic("vm_page_cache: page %p is dirty", m);
 	if (m->valid == 0 || object->type == OBJT_DEFAULT) {
 		/*
 		 * Hypothesis: A cache-elgible page belonging to a
@@ -1517,16 +1520,6 @@ vm_page_cache(vm_page_t m)
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_cache: page %p is already cached", m));
 	cnt.v_tcached++;
-
-	/*
-	 * Remove all pmaps and indicate that the page is not
-	 * writeable or mapped.
-	 */
-	pmap_remove_all(m);
-	if (m->dirty != 0) {
-		panic("vm_page_cache: caching a dirty page, pindex: %ld",
-			(long)m->pindex);
-	}
 
 	/*
 	 * Remove the page from the paging queues.
