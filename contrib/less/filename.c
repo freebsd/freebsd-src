@@ -482,7 +482,7 @@ bin_file(f)
 	for (i = 0;  i < n;  i++)
 	{
 		char c = data[i];
-		if (ctldisp == OPT_ONPLUS && c == ESC)
+		if (ctldisp == OPT_ONPLUS && IS_CSI_START(c))
 		{
 			while (++i < n && is_ansi_middle(data[i]))
 				continue;

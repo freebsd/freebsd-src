@@ -56,6 +56,7 @@
 	public int utf_len ();
 	public int is_utf8_well_formed ();
 	public LWCHAR get_wchar ();
+	public void put_wchar ();
 	public LWCHAR step_char ();
 	public int is_composing_char ();
 	public int is_ubin_char ();
