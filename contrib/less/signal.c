@@ -89,6 +89,8 @@ winch(type)
 {
 	LSIGNAL(SIGWINCH, winch);
 	sigs |= S_WINCH;
+	if (reading)
+		intread();
 }
 #else
 #ifdef SIGWIND
