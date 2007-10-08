@@ -241,7 +241,8 @@ int
 sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
 
-	return (ksched_yield(ksched));
+	sched_relinquish(curthread);
+	return 0;
 }
 
 int
