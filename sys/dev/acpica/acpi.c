@@ -509,7 +509,6 @@ acpi_attach(device_t dev)
      * a problem but should be addressed eventually.
      */
     acpi_ec_ecdt_probe(dev);
-    acpi_hpet_table_probe(dev);
 
     /* Bring device objects and regions online. */
     if (ACPI_FAILURE(status = AcpiInitializeObjects(flags))) {
@@ -1594,11 +1593,12 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    /* 
 	     * Create a placeholder device for this node.  Sort the placeholder
 	     * so that the probe/attach passes will run breadth-first.  Orders
-	     * less than 10 are reserved for special objects (i.e., system
-	     * resources).  Larger values are used for all other devices.
+	     * less than ACPI_DEV_BASE_ORDER are reserved for special objects
+	     * (i.e., system resources).  Larger values are used for all other
+	     * devices.
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
-	    order = (level + 1) * 10;
+	    order = (level + 1) * ACPI_DEV_BASE_ORDER;
 	    acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
