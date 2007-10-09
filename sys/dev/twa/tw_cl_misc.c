@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -760,6 +761,12 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		TW_INT8	desc[200];
 
 		tw_osl_memzero(desc, 200);
+
+		/* Skip queue error msgs during 9650SE/9690SA reset */
+		if (((ctlr->device_id != TW_CL_DEVICE_ID_9K_E) &&
+		     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
+		    ((ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) == 0) ||
+		    ((status_reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT) == 0))
 		tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 			0x1302, 0x1, TW_CL_SEVERITY_ERROR_STRING,
@@ -809,7 +816,10 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		}
 
 		if (status_reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT) {
-			if (ctlr->device_id != TW_CL_DEVICE_ID_9K_E)
+			/* Skip queue error msgs during 9650SE/9690SA reset */
+			if (((ctlr->device_id != TW_CL_DEVICE_ID_9K_E) &&
+			     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
+			    ((ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS) == 0))
 				tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
 						   TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 						   0x1305, 0x1, TW_CL_SEVERITY_ERROR_STRING,
