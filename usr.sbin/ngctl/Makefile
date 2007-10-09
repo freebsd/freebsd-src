@@ -13,7 +13,7 @@ WARNS?=	3
 NGCTL_NO_LIBEDIT=
 .endif
 
-.if ${MK_LIBTHR} == "no" && ${MK_LIBPTHREAD} == "no"
+.if ${MK_LIBPTHREAD} == "no" && ${MK_LIBTHR} == "no" && ${MK_LIBKSE}
 NGCTL_NO_LIBEDIT=
 .endif
 

@@ -1,6 +1,4 @@
-/*
- * $FreeBSD$
- */
+/* $FreeBSD$ */
 
 /*
  * Use the same naming scheme as libc.

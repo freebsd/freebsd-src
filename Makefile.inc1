@@ -1030,12 +1030,12 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
 
-.if ${MK_LIBTHR} != "no" && ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBTHR} != "no" && ${MK_LIBKSE} != "no" && ${MK_LIBPTHREAD} != "no"
 _default_thread_lib=	lib/${DEFAULT_THREAD_LIB}
 .elif ${MK_LIBTHR} != "no"
 _default_thread_lib=	lib/libthr
-.elif ${MK_LIBPTHREAD} != "no"
-_default_thread_lib=	lib/libpthread
+.elif ${MK_LIBKSE} != "no"
+_default_thread_lib=	lib/libkse
 .endif
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
