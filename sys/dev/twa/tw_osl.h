@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -52,7 +53,7 @@
 #define TW_OSLI_MAX_NUM_IOS		TW_CL_MAX_SIMULTANEOUS_REQUESTS
 #define TW_OSLI_MAX_NUM_AENS		0x100
 
-//#define TW_OSLI_DEFERRED_INTR_USED
+#define TW_OSLI_DEFERRED_INTR_USED
 
 /* Possible values of req->state. */
 #define TW_OSLI_REQ_STATE_INIT		0x0	/* being initialized */
@@ -143,6 +144,8 @@ struct twa_softc {
 	struct mtx		*io_lock;/* ptr to general purpose lock */
 	struct mtx		q_lock_handle;	/* queue manipulation lock */
 	struct mtx		*q_lock;/* ptr to queue manipulation lock */
+	struct mtx		sim_lock_handle;/* sim lock shared with cam */
+	struct mtx		*sim_lock;/* ptr to sim lock */
 
 #ifdef TW_OSL_DEBUG
 	struct tw_osli_q_stats	q_stats[TW_OSLI_Q_COUNT];/* queue statistics */

@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -54,6 +55,7 @@
 #define TW_CL_DEVICE_ID_9K		0x1002	/* 9000 PCI series device id */
 #define TW_CL_DEVICE_ID_9K_X		0x1003	/* 9000 PCI-X series device id */
 #define TW_CL_DEVICE_ID_9K_E		0x1004  /* 9000 PCIe series device id */
+#define TW_CL_DEVICE_ID_9K_SA		0x1005	/* 9000 PCIe SAS series device id */
 
 #define TW_CL_BAR_TYPE_IO		1	/* I/O base address */
 #define TW_CL_BAR_TYPE_MEM		2	/* memory base address */

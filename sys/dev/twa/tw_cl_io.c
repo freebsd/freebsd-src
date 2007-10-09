@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -178,7 +179,8 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 	tw_osl_get_lock(ctlr_handle, ctlr->io_lock);
 
 	/* For 9650SE first write low 4 bytes */
-	if (ctlr->device_id == TW_CL_DEVICE_ID_9K_E)
+	if ((ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
+	    (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA))
 		tw_osl_write_reg(ctlr_handle,
 				 TWA_COMMAND_QUEUE_OFFSET_LOW,
 				 (TW_UINT32)(req->cmd_pkt_phys + sizeof(struct tw_cl_command_header)), 4);
@@ -220,7 +222,8 @@ tw_cli_submit_cmd(struct tw_cli_req_context *req)
 		req->state = TW_CLI_REQ_STATE_BUSY;
 		tw_cli_req_q_insert_tail(req, TW_CLI_BUSY_Q);
 
-		if (ctlr->device_id == TW_CL_DEVICE_ID_9K_E) {
+		if ((ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
+		    (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA)) {
 			/* Now write the high 4 bytes */
 			tw_osl_write_reg(ctlr_handle, 
 					 TWA_COMMAND_QUEUE_OFFSET_HIGH,
@@ -352,7 +355,10 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 			(TW_UINT8)(TW_CL_SWAP16(req->request_id));
 		if ((sgl_offset =
 			GET_SGL_OFF(cmd_7k->generic.sgl_off__opcode))) {
-			sgl = (((TW_UINT32 *)cmd_7k) + sgl_offset);
+			if (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA)
+				sgl = (((TW_UINT32 *)cmd_7k) + cmd_7k->generic.size);
+			else
+				sgl = (((TW_UINT32 *)cmd_7k) + sgl_offset);
 			cmd_7k->generic.size += pt_req->sgl_entries *
 				((ctlr->flags & TW_CL_64BIT_ADDRESSES) ? 3 : 2);
 		}
@@ -1173,7 +1179,8 @@ tw_cli_soft_reset(struct tw_cli_ctlr_context *ctlr)
 	TW_CLI_SOFT_RESET(ctlr_handle);
 
 	if ((ctlr->device_id == TW_CL_DEVICE_ID_9K_X) ||
-	    (ctlr->device_id == TW_CL_DEVICE_ID_9K_E)) {
+	    (ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
+	    (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA)) {
 		/*
 		 * There's a hardware bug in the G133 ASIC, which can lead to
 		 * PCI parity errors and hangs, if the host accesses any
