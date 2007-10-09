@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20071008:
+	Setting WITHOUT_LIBPTHREAD now means WITHOUT_LIBKSE and
+	WITHOUT_LIBTHR are set.
+
 20070930:
 	The PCI code has been made aware of PCI domains. This means that
 	the location strings as used by pciconf(8) etc are now in the
@@ -145,9 +149,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	which previously had symbol dependencies to FBSD_1.0, will fail
 	because the freshly installed libc will not have them.
 
-	The default threading library has been changed to libthr.  If
-	you wish to have libpthread as your default, use option
-	DEFAULT_THREAD_LIB=libpthread for the buildworld.
+	The default threading library (providing "libpthread") has been
+	changed to libthr.  If you wish to have libkse as your default,
+	use option DEFAULT_THREAD_LIB=libkse for the buildworld.
 
 20070423:
 	The ABI breakage in sendmail(8)'s libmilter has been repaired

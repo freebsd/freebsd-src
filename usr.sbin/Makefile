@@ -268,7 +268,7 @@ _ypset=		ypset
 _authpf=	authpf
 .endif
 
-.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" && (${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no")
 _pppctl=	pppctl
 .endif
 
@@ -277,7 +277,7 @@ _lpr=		lpr
 .endif
 
 .if ${MK_NS_CACHING} != "no"
-.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" && (${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no")
 _nscd=		nscd
 .endif
 .endif
