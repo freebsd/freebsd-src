@@ -192,9 +192,11 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 
 	/*
 	 * If the battery info is in terms of mA, convert to mW by
-	 * multiplying by the design voltage.
+	 * multiplying by the design voltage.  If the design voltage
+	 * is 0 (due to some error reading the battery), skip this
+	 * conversion.
 	 */
-	if (bif->units == ACPI_BIF_UNITS_MA) {
+	if (bif->units == ACPI_BIF_UNITS_MA && bif->dvol != 0) {
 	    bst[i].rate = (bst[i].rate * bif->dvol) / 1000;
 	    bst[i].cap = (bst[i].cap * bif->dvol) / 1000;
 	    bif->lfcap = (bif->lfcap * bif->dvol) / 1000;
