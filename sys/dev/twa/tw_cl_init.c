@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -65,7 +66,8 @@ tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
 	if ((vendor_id == TW_CL_VENDOR_ID) &&
 		((device_id == TW_CL_DEVICE_ID_9K) ||
 		 (device_id == TW_CL_DEVICE_ID_9K_X) ||
-		 (device_id == TW_CL_DEVICE_ID_9K_E)))
+		 (device_id == TW_CL_DEVICE_ID_9K_E) ||
+		 (device_id == TW_CL_DEVICE_ID_9K_SA)))
 		return(TW_CL_TRUE);
 	return(TW_CL_FALSE);
 }
@@ -116,6 +118,7 @@ tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
 
 	case TW_CL_DEVICE_ID_9K_X:
 	case TW_CL_DEVICE_ID_9K_E:
+	case TW_CL_DEVICE_ID_9K_SA:
 		switch(bar_type) {
 		case TW_CL_BAR_TYPE_IO:
 			*bar_num = 2;
@@ -332,7 +335,8 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 	if ((ctlr->flags & TW_CL_64BIT_ADDRESSES) &&
 	    ((ctlr->device_id == TW_CL_DEVICE_ID_9K) ||
 	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_X) ||
-	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_E))) {
+	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_E) ||
+	     (ctlr->device_id == TW_CL_DEVICE_ID_9K_SA))) {
 		ctlr->state |= TW_CLI_CTLR_STATE_G66_WORKAROUND_NEEDED;
 		ctlr->intr_lock = ctlr->io_lock;
 	} else {
