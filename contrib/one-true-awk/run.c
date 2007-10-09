@@ -651,7 +651,7 @@ Cell *relop(Node **a, int n)	/* a[0 < a[1], etc. */
 		j = x->fval - y->fval;
 		i = j<0? -1: (j>0? 1: 0);
 	} else {
-		i = strcmp(getsval(x), getsval(y));
+		i = strcoll(getsval(x), getsval(y));
 	}
 	tempfree(x);
 	tempfree(y);
