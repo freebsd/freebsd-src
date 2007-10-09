@@ -1,5 +1,8 @@
 .\" $FreeBSD$
-Set to not build the
+Set to not build either of the
 .Nm libpthread
-(M:N threading)
-library.
+providing libraries (
+.Nm libthr
+(1:1) &
+.Nm libkse
+(M:N)).

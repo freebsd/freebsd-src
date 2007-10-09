@@ -239,6 +239,7 @@ WITHOUT_${var}=
     KERBEROS \
     LIB32 \
     LIBPTHREAD \
+    LIBKSE \
     LIBTHR \
     LOCALES \
     LPR \
@@ -328,6 +329,7 @@ WITH_IDEA=
     KVM \
     LIB32 \
     LIBPTHREAD \
+    LIBKSE \
     LIBTHR \
     LOCALES \
     LPR \

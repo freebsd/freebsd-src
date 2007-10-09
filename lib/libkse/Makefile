@@ -10,13 +10,13 @@
 
 .include <bsd.own.mk>
 
-.if (${DEFAULT_THREAD_LIB} == "libpthread" || ${MK_LIBTHR} == "no") && \
+.if (${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no") && \
     ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
 .endif
 
 LIB=kse
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 0
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
@@ -26,7 +26,7 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-fno-builtin
 
-# Uncomment this if you want libpthread to contain debug information for
+# Uncomment this if you want libkse to contain debug information for
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
 WARNS?=2
@@ -38,7 +38,7 @@ WARNS?=2
 # Enable extra internal consistancy checks.
 CFLAGS+=-D_PTHREADS_INVARIANTS -Wall
 
-VERSION_MAP=${.CURDIR}/pthread.map
+VERSION_MAP=${.CURDIR}/kse.map
 
 PRECIOUSLIB=
 
@@ -47,7 +47,7 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
-.if ${DEFAULT_THREAD_LIB} == "libpthread" || ${MK_LIBTHR} == "no"
+.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so

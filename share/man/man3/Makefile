@@ -146,7 +146,7 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 SPLAY_RIGHT.3 \
 		tree.3 SPLAY_ROOT.3
 
-.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
+.if ${MK_LIBPTHREAD} != "no" && (${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no")
 PTHREAD_MAN=	pthread.3 \
 		pthread_atfork.3 \
 		pthread_attr.3 \

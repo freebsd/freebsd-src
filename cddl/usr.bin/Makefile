@@ -5,7 +5,7 @@
 SUBDIR=	${_ztest}
 
 .if ${MK_ZFS} != "no"
-.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" && (${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no")
 _ztest=	ztest
 .endif
 .endif
