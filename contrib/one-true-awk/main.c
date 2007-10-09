@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20050424";
+const char	*version = "version 20050424 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
 	const char *fs = NULL;
 
 	setlocale(LC_CTYPE, "");
+	setlocale(LC_COLLATE, "");
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
@@ -79,13 +80,18 @@ int main(int argc, char *argv[])
 				safe = 1;
 			break;
 		case 'f':	/* next argument is program filename */
-			argc--;
-			argv++;
-			if (argc <= 1)
-				FATAL("no program filename");
-			if (npfile >= MAX_PFILE - 1)
-				FATAL("too many -f options"); 
-			pfile[npfile++] = argv[1];
+			if (argv[1][2] != 0) {	/* arg is -fsomething */
+				if (npfile >= MAX_PFILE - 1)
+					FATAL("too many -f options"); 
+				pfile[npfile++] = &argv[1][2];
+			} else {		/* arg is -f something */
+				argc--; argv++;
+				if (argc <= 1)
+					FATAL("no program filename");
+				if (npfile >= MAX_PFILE - 1)
+					FATAL("too many -f options"); 
+				pfile[npfile++] = argv[1];
+			}
 			break;
 		case 'F':	/* set field separator */
 			if (argv[1][2] != 0) {	/* arg is -Fsomething */
@@ -104,8 +110,14 @@ int main(int argc, char *argv[])
 				WARNING("field separator FS is empty");
 			break;
 		case 'v':	/* -v a=1 to be done NOW.  one -v for each */
-			if (argv[1][2] == '\0' && --argc > 1 && isclvar((++argv)[1]))
-				setclvar(argv[1]);
+			if (argv[1][2] != 0) {	/* arg is -vsomething */
+				if (argv[1][2] != 0)
+					setclvar(&argv[1][2]);
+			} else {		/* arg is -v something */
+				argc--; argv++;
+				if (argc > 1 && isclvar(argv[1]))
+					setclvar(argv[1]);
+			}
 			break;
 		case 'm':	/* more memory: -mr=record, -mf=fields */
 				/* no longer supported */
