@@ -239,7 +239,6 @@ WITHOUT_${var}=
     KERBEROS \
     LIB32 \
     LIBPTHREAD \
-    LIBKSE \
     LIBTHR \
     LOCALES \
     LPR \
@@ -424,6 +423,11 @@ MK_KERBEROS:=	no
 
 .if ${MK_IPX} == "no"
 MK_NCP:=	no
+.endif
+
+.if ${MK_LIBPTHREAD} == "no"
+MK_LIBKSE:=	no
+MK_LIBTHR:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"
