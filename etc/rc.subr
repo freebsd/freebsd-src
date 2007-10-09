@@ -923,22 +923,6 @@ load_rc_config()
 		debug "Sourcing /etc/rc.conf.d/${_name}"
 		. /etc/rc.conf.d/"$_name"
 	fi
-
-	# XXX - Deprecated variable name support
-	#
-	case ${OSTYPE} in
-	FreeBSD)
-		[ -n "$portmap_enable" ] && rpcbind_enable="$portmap_enable"
-		[ -n "$portmap_program" ] && rpcbind_program="$portmap_program"
-		[ -n "$portmap_flags" ] && rpcbind_flags="$portmap_flags"
-		[ -n "$single_mountd_enable" ] && mountd_enable="$single_mountd_enable"
-		[ -n "$xntpd_enable" ] && ntpd_enable="$xntpd_enable"
-		[ -n "$xntpd_program" ] && ntpd_program="$xntpd_program"
-		[ -n "$xntpd_flags" ] && ntpd_flags="$xntpd_flags"
-		[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
-		[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
-		;;
-	esac
 }
   
 #
