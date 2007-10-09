@@ -432,8 +432,6 @@ int		acpi_battery_get_battinfo(device_t dev,
 
 /* Embedded controller. */
 void		acpi_ec_ecdt_probe(device_t);
-/* HPET table probe*/
-void		acpi_hpet_table_probe(device_t);
 
 /* AC adapter interface. */
 int		acpi_acad_get_acline(int *);
@@ -448,6 +446,14 @@ int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
 		    int *rid, struct resource **dst, u_int flags);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
+
+/*
+ * Base level for BUS_ADD_CHILD.  Special devices are added at orders less
+ * than this, and normal devices at or above this level.  This keeps the
+ * probe order sorted so that things like sysresource are available before
+ * their children need them.
+ */
+#define	ACPI_DEV_BASE_ORDER	10
 
 /* Default number of task queue threads to start. */
 #ifndef ACPI_MAX_THREADS
