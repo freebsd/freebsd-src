@@ -100,14 +100,12 @@ _libsmb=	libsmb
 _libsmb=	libsmb
 .endif
 
-.if ${MK_LIBPTHREAD} != "no"
 .if ${MK_LIBKSE} != "no"
 _libkse=	libkse
 .endif
 
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
-.endif
 .endif
 
 .if ${MACHINE_ARCH} != "arm"
