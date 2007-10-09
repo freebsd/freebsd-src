@@ -32,6 +32,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -54,8 +55,6 @@
 
 static TW_VOID	twa_action(struct cam_sim *sim, union ccb *ccb);
 static TW_VOID	twa_poll(struct cam_sim *sim);
-static TW_VOID	twa_async(TW_VOID *callback_arg, TW_UINT32 code,
-	struct cam_path *path, TW_VOID *arg);
 static TW_VOID	twa_timeout(TW_VOID *arg);
 static TW_VOID	twa_bus_scan_cb(struct cam_periph *periph, union ccb *ccb);
 
@@ -77,7 +76,6 @@ TW_INT32
 tw_osli_cam_attach(struct twa_softc *sc)
 {
 	struct cam_devq		*devq;
-	struct ccb_setasync	csa;
 	TW_INT32		error;
 
 	tw_osli_dbg_dprintf(3, sc, "entered");
@@ -103,7 +101,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling cam_sim_alloc");
 	sc->sim = cam_sim_alloc(twa_action, twa_poll, "twa", sc,
-			device_get_unit(sc->bus_dev), &Giant,
+			device_get_unit(sc->bus_dev), sc->sim_lock,
 			TW_OSLI_MAX_NUM_IOS - 1, 1, devq);
 	if (sc->sim == NULL) {
 		cam_simq_free(devq);
@@ -120,7 +118,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 	 * Register the bus.
 	 */
 	tw_osli_dbg_dprintf(3, sc, "Calling xpt_bus_register");
-	mtx_lock(&Giant);
+	mtx_lock(sc->sim_lock);
 	if (xpt_bus_register(sc->sim, sc->bus_dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sc->sim, TRUE);
 		sc->sim = NULL; /* so cam_detach will not try to free it */
@@ -130,7 +128,7 @@ tw_osli_cam_attach(struct twa_softc *sc)
 			0x2102,
 			"Failed to register the bus",
 			ENXIO);
-		mtx_unlock(&Giant);
+		mtx_unlock(sc->sim_lock);
 		return(ENXIO);
 	}
 
@@ -148,18 +146,12 @@ tw_osli_cam_attach(struct twa_softc *sc)
 			0x2103,
 			"Failed to create path",
 			ENXIO);
-		mtx_unlock(&Giant);
+		mtx_unlock(sc->sim_lock);
 		return(ENXIO);
 	}
 
 	tw_osli_dbg_dprintf(3, sc, "Calling xpt_setup_ccb");
-	xpt_setup_ccb(&csa.ccb_h, sc->path, 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_FOUND_DEVICE | AC_LOST_DEVICE;
-	csa.callback = twa_async;
-	csa.callback_arg = sc;
-	xpt_action((union ccb *)&csa);
-	mtx_unlock(&Giant);
+	mtx_unlock(sc->sim_lock);
 
 	tw_osli_dbg_dprintf(3, sc, "Calling tw_osli_request_bus_scan");
 	/*
@@ -193,7 +185,16 @@ tw_osli_cam_detach(struct twa_softc *sc)
 {
 	tw_osli_dbg_dprintf(3, sc, "entered");
 
-	mtx_lock(&Giant);
+#ifdef TW_OSLI_DEFERRED_INTR_USED
+	/*  - drain the taskqueue 
+           Ctrl is already went down so, no more enqueuetask will
+           happen . Don't  hold any locks, that task might need.
+ 	*/ 
+
+	taskqueue_drain(taskqueue_fast, &(sc->deferred_intr_callback));
+#endif
+	mtx_lock(sc->sim_lock);
+           
 	if (sc->path)
 		xpt_free_path(sc->path);
 	if (sc->sim) {
@@ -201,7 +202,8 @@ tw_osli_cam_detach(struct twa_softc *sc)
 		/* Passing TRUE to cam_sim_free will free the devq as well. */
 		cam_sim_free(sc->sim, TRUE);
 	}
-	mtx_unlock(&Giant);
+	/* It's ok have 1 hold count while destroying the mutex */
+	mtx_destroy(sc->sim_lock);
 }
 
 
@@ -395,6 +397,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 			"Received Reset Bus request from CAM",
 			" ");
 
+		mtx_unlock(sc->sim_lock);
 		if (tw_cl_reset_ctlr(&sc->ctlr_handle)) {
 			tw_cl_create_event(&(sc->ctlr_handle), TW_CL_TRUE,
 				TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
@@ -406,6 +409,7 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		else
 			ccb_h->status = CAM_REQ_CMP;
 
+		mtx_lock(sc->sim_lock);
 		xpt_done(ccb);
 		break;
 
@@ -521,33 +525,6 @@ twa_poll(struct cam_sim *sim)
 
 
 /*
- * Function name:	twa_async
- * Description:		Driver entry point for CAM to notify driver of special
- *			events.  We don't use this for now.
- *
- * Input:		callback_arg	-- ptr to per ctlr structure
- *			code		-- code associated with the event
- *			path		-- cam path
- *			arg		-- 
- * Output:		None
- * Return value:	0	-- success
- *			non-zero-- failure
- */
-TW_VOID
-twa_async(TW_VOID *callback_arg, TW_UINT32 code, 
-	struct cam_path *path, TW_VOID *arg)
-{
-#ifdef TW_OSL_DEBUG
-	struct twa_softc *sc = (struct twa_softc *)callback_arg;
-#endif /* TW_OSL_DEBUG */
-
-	tw_osli_dbg_dprintf(3, sc, "sc = %p, code = %x, path = %p, arg = %p",
-		sc, code, path, arg);
-}
-
-
-
-/*
  * Function name:	twa_timeout
  * Description:		Driver entry point for being alerted on a request
  *			timing out.
@@ -595,12 +572,18 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	if ((ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK)) == NULL)
 		return(ENOMEM);
 	bzero(ccb, sizeof(union ccb));
-	mtx_lock(&Giant);
+	mtx_lock(sc->sim_lock);
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		free(ccb, M_TEMP);
-		mtx_unlock(&Giant);
+		mtx_unlock(sc->sim_lock);
 		return(EIO);
+	}
+
+	/* Release simq at the end of a reset */
+	if (sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) {
+		xpt_release_simq(sc->sim, 1);
+		sc->state &= ~TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
 	}
 
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
@@ -608,7 +591,7 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 	ccb->ccb_h.cbfcnp = twa_bus_scan_cb;
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	xpt_action(ccb);
-	mtx_unlock(&Giant);
+	mtx_unlock(sc->sim_lock);
 	return(0);
 }
 
@@ -673,10 +656,13 @@ tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
 TW_VOID
 tw_osli_disallow_new_requests(struct twa_softc *sc)
 {
-	mtx_lock(&Giant);
-	xpt_freeze_simq(sc->sim, 1);
-	mtx_unlock(&Giant);
-	sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+	/* Don't double freeze if already frozen */
+	if ((sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) == 0) {
+		mtx_lock(sc->sim_lock);
+		xpt_freeze_simq(sc->sim, 1);
+		mtx_unlock(sc->sim_lock);
+		sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+	}
 }
 
 
@@ -813,7 +799,9 @@ tw_osl_complete_io(struct tw_cl_req_handle *req_handle)
 	}
 
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	mtx_lock(sc->sim_lock);
 	xpt_done(ccb);
+	mtx_unlock(sc->sim_lock);
 	if (! req->error_code)
 		 /* twa_action will free the request otherwise */
 		tw_osli_req_q_insert_tail(req, TW_OSLI_FREE_Q);

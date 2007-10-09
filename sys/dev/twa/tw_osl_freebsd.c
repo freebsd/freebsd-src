@@ -34,6 +34,7 @@
  *
  * Author: Vinod Kashyap
  * Modifications by: Adam Radford
+ * Modifications by: Manjunath Ranganathaiah
  */
 
 
@@ -281,6 +282,8 @@ twa_attach(device_t dev)
 	mtx_init(sc->io_lock, "tw_osl_io_lock", NULL, MTX_SPIN);
 	sc->q_lock = &(sc->q_lock_handle);
 	mtx_init(sc->q_lock, "tw_osl_q_lock", NULL, MTX_SPIN);
+	sc->sim_lock = &(sc->sim_lock_handle);
+	mtx_init(sc->sim_lock, "tw_osl_sim_lock", NULL, MTX_DEF | MTX_RECURSE);
 
 	sysctl_ctx_init(&sc->sysctl_ctxt);
 	sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctxt,
@@ -359,10 +362,11 @@ twa_attach(device_t dev)
 		return(ENXIO);
 	}
 	if ((error = bus_setup_intr(sc->bus_dev, sc->irq_res,
-			INTR_TYPE_CAM,
 #ifdef TW_OSLI_DEFERRED_INTR_USED
+			INTR_TYPE_CAM | INTR_FAST,
 			twa_pci_intr_fast, NULL,
 #else
+			INTR_TYPE_CAM | INTR_MPSAFE,
 			NULL, twa_pci_intr,	    
 #endif 
 			sc, &sc->intr_handle))) {
@@ -877,7 +881,8 @@ twa_pci_intr_fast(TW_VOID *arg)
 
 	tw_osli_dbg_dprintf(10, sc, "entered");
 	if (tw_cl_interrupt(&(sc->ctlr_handle))) {
-		tw_cl_deferred_interrupt(&(sc->ctlr_handle));
+		taskqueue_enqueue_fast(taskqueue_fast,
+			&(sc->deferred_intr_callback));
 		return(FILTER_HANDLED);
 	}
 	return(FILTER_STRAY);
@@ -1051,10 +1056,11 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 			/*
 			 * Don't touch req after a reset.  It (and any
 			 * associated data) will already have been
-			 * freed by the callback.  Just return.
+			 * unmapped by the callback.
 			 */
 			user_buf->driver_pkt.os_status = error;
-			return(ETIMEDOUT);
+			error = ETIMEDOUT;
+			goto fw_passthru_err;
 		}
 		/* 
 		 * Either the request got completed, or we were woken up by a
