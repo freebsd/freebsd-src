@@ -21,7 +21,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-20071008:
+20071009:
 	Setting WITHOUT_LIBPTHREAD now means WITHOUT_LIBKSE and
 	WITHOUT_LIBTHR are set.
 
