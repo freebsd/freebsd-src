@@ -1,3 +1,4 @@
+# $FreeBSD$
 
 Testing pthread_mutex_init
 --------------------------

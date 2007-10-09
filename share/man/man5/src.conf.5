@@ -379,10 +379,10 @@ support.
 On amd64, set to not build 32-bit library set and a
 .Nm ld-elf32.so.1
 runtime linker.
-.It Va WITHOUT_LIBPTHREAD
-.\" from FreeBSD: src/tools/build/options/WITHOUT_LIBPTHREAD,v 1.1 2006/03/21 07:50:50 ru Exp
+.It Va WITHOUT_LIBKSE
+.\" from FreeBSD: src/tools/build/options/WITHOUT_LIBKSE,v 1.1 2006/03/21 07:50:50 obrien Exp
 Set to not build the
-.Nm libpthread
+.Nm libkse
 (M:N threading)
 library.
 .It Va WITHOUT_LIBTHR
@@ -391,6 +391,15 @@ Set to not build the
 .Nm libthr
 (1:1 threading)
 library.
+.It Va WITHOUT_LIBPTHREAD
+.\" from FreeBSD: src/tools/build/options/WITHOUT_LIBPTHREAD,v 1.1 2006/03/21 07:50:50 ru Exp
+Set to not build either of the
+.Nm libpthread
+providing libraries (
+.Nm libthr
+(1:1) &
+.Nm libkse
+(M:N)).
 .It Va WITHOUT_LOCALES
 .\" from FreeBSD: src/tools/build/options/WITHOUT_LOCALES,v 1.1 2006/03/21 07:50:50 ru Exp
 Set to not build localization files; see
