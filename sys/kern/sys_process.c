@@ -779,14 +779,15 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			sx_xunlock(&proctree_lock);
 			proctree_locked = 0;
 		}
-		/* deliver or queue signal */
-		thread_lock(td2);
-		td2->td_flags &= ~TDF_XSIG;
-		thread_unlock(td2);
-		td2->td_xsig = data;
 		p->p_xstat = data;
 		p->p_xthread = NULL;
 		if ((p->p_flag & (P_STOPPED_SIG | P_STOPPED_TRACE)) != 0) {
+			/* deliver or queue signal */
+			thread_lock(td2);
+			td2->td_flags &= ~TDF_XSIG;
+			thread_unlock(td2);
+			td2->td_xsig = data;
+
 			PROC_SLOCK(p);
 			if (req == PT_DETACH) {
 				struct thread *td3;
@@ -809,11 +810,10 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
+		} else {
+			if (data)
+				psignal(p, data);
 		}
-
-		if (data)
-			psignal(p, data);
-
 		break;
 
 	case PT_WRITE_I:
