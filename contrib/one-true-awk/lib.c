@@ -42,7 +42,7 @@ int	fieldssize = RECSIZE;
 Cell	**fldtab;	/* pointers to Cells */
 char	inputFS[100] = " ";
 
-#define	MAXFLD	200
+#define	MAXFLD	2
 int	nfields	= MAXFLD;	/* last allocated slot for $i */
 
 int	donefld;	/* 1 = implies rec broken into fields */
@@ -173,7 +173,7 @@ int getrec(char **pbuf, int *pbufsize, int isrecord)	/* get next input record */
 
 void nextfile(void)
 {
-	if (infile != stdin)
+	if (infile != NULL && infile != stdin)
 		fclose(infile);
 	infile = NULL;
 	argno++;
