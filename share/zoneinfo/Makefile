@@ -6,7 +6,7 @@
 # In a clean directory, unpack the distribution archive and run:
 #
 # $ cvs -d :ext:ncvs.freebsd.org:/home/ncvs import -b 1.1.2 \
-#       src/share/zoneinfo ADO tzdataYYYYt
+#	src/share/zoneinfo ADO tzdataYYYYt
 #
 # where YYYYt is the year and the version of the distribution, for
 # example 2004h.
