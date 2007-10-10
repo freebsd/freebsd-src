@@ -27,10 +27,12 @@ CFLAGS = -O2
 CFLAGS =
 
 CC = gcc -Wall -g -Wwrite-strings
-CC = gcc -fprofile-arcs -ftest-coverage
-		# followed by gcov onefile.c; cat onefile.c.gcov
+CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
 CC = gcc -Wall -g
 CC = cc
+CC = gcc -O4
+CC = gcc -Wall -g
+
 
 YACC = bison -y
 YACC = yacc
@@ -45,7 +47,7 @@ LISTING = awk.h proto.h awkgram.y lex.c b.c main.c maketab.c parse.c \
 	lib.c run.c tran.c missing95.c
 
 SHIP = README FIXES $(SOURCE) ytab[ch].bak makefile makefile.win \
-	vcvars32.bat buildwin.bat mac.code awk.1
+	vcvars32.bat buildwin.bat awk.1
 
 a.out:	ytab.o $(OFILES)
 	$(CC) $(CFLAGS) ytab.o $(OFILES) $(ALLOC)  -lm
@@ -83,4 +85,4 @@ names:
 	@echo $(LISTING)
 
 clean:
-	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov # proctab.c
+	rm -f a.out *.o *.obj maketab maketab.exe *.bb *.bbg *.da *.gcov *.gcno *.gcda # proctab.c

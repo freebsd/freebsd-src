@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20050424 (FreeBSD)";
+const char	*version = "version 20070501 (FreeBSD)";
 
 #define DEBUG
 #include <stdio.h>
@@ -62,14 +62,21 @@ int main(int argc, char *argv[])
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
-		fprintf(stderr, "Usage: %s [-f programfile | 'program'] [-Ffieldsep] [-v var=value] [files]\n", cmdname);
+		fprintf(stderr, 
+		  "usage: %s [-F fs] [-v var=value] [-f progfile | 'prog'] [file ...]\n", 
+		  cmdname);
 		exit(1);
 	}
 	signal(SIGFPE, fpecatch);
 	yyin = NULL;
-	symtab = makesymtab(NSYMTAB);
+	symtab = makesymtab(NSYMTAB/NSYMTAB);
 	while (argc > 1 && argv[1][0] == '-' && argv[1][1] != '\0') {
-		if (strcmp(argv[1], "--") == 0) {	/* explicit end of args */
+		if (strcmp(argv[1],"-version") == 0 || strcmp(argv[1],"--version") == 0) {
+			printf("awk %s\n", version);
+			exit(0);
+			break;
+		}
+		if (strncmp(argv[1], "--", 2) == 0) {	/* explicit end of args */
 			argc--;
 			argv++;
 			break;
@@ -119,19 +126,11 @@ int main(int argc, char *argv[])
 					setclvar(argv[1]);
 			}
 			break;
-		case 'm':	/* more memory: -mr=record, -mf=fields */
-				/* no longer supported */
-			WARNING("obsolete option %s ignored", argv[1]);
-			break;
 		case 'd':
 			dbg = atoi(&argv[1][2]);
 			if (dbg == 0)
 				dbg = 1;
 			printf("awk %s\n", version);
-			break;
-		case 'V':	/* added for exptools "standard" */
-			printf("awk %s\n", version);
-			exit(0);
 			break;
 		default:
 			WARNING("unknown option %s ignored", argv[1]);

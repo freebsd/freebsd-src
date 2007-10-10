@@ -2,7 +2,7 @@
 #include "awk.h"
 #include "ytab.h"
 
-static char *printname[92] = {
+static char *printname[93] = {
 	(char *) "FIRSTTOKEN",	/* 258 */
 	(char *) "PROGRAM",	/* 259 */
 	(char *) "PASTAT",	/* 260 */
@@ -24,81 +24,82 @@ static char *printname[92] = {
 	(char *) "STAR",	/* 276 */
 	(char *) "QUEST",	/* 277 */
 	(char *) "PLUS",	/* 278 */
-	(char *) "AND",	/* 279 */
-	(char *) "BOR",	/* 280 */
-	(char *) "APPEND",	/* 281 */
-	(char *) "EQ",	/* 282 */
-	(char *) "GE",	/* 283 */
-	(char *) "GT",	/* 284 */
-	(char *) "LE",	/* 285 */
-	(char *) "LT",	/* 286 */
-	(char *) "NE",	/* 287 */
-	(char *) "IN",	/* 288 */
-	(char *) "ARG",	/* 289 */
-	(char *) "BLTIN",	/* 290 */
-	(char *) "BREAK",	/* 291 */
-	(char *) "CLOSE",	/* 292 */
-	(char *) "CONTINUE",	/* 293 */
-	(char *) "DELETE",	/* 294 */
-	(char *) "DO",	/* 295 */
-	(char *) "EXIT",	/* 296 */
-	(char *) "FOR",	/* 297 */
-	(char *) "FUNC",	/* 298 */
-	(char *) "SUB",	/* 299 */
-	(char *) "GSUB",	/* 300 */
-	(char *) "IF",	/* 301 */
-	(char *) "INDEX",	/* 302 */
-	(char *) "LSUBSTR",	/* 303 */
-	(char *) "MATCHFCN",	/* 304 */
-	(char *) "NEXT",	/* 305 */
-	(char *) "NEXTFILE",	/* 306 */
-	(char *) "ADD",	/* 307 */
-	(char *) "MINUS",	/* 308 */
-	(char *) "MULT",	/* 309 */
-	(char *) "DIVIDE",	/* 310 */
-	(char *) "MOD",	/* 311 */
-	(char *) "ASSIGN",	/* 312 */
-	(char *) "ASGNOP",	/* 313 */
-	(char *) "ADDEQ",	/* 314 */
-	(char *) "SUBEQ",	/* 315 */
-	(char *) "MULTEQ",	/* 316 */
-	(char *) "DIVEQ",	/* 317 */
-	(char *) "MODEQ",	/* 318 */
-	(char *) "POWEQ",	/* 319 */
-	(char *) "PRINT",	/* 320 */
-	(char *) "PRINTF",	/* 321 */
-	(char *) "SPRINTF",	/* 322 */
-	(char *) "ELSE",	/* 323 */
-	(char *) "INTEST",	/* 324 */
-	(char *) "CONDEXPR",	/* 325 */
-	(char *) "POSTINCR",	/* 326 */
-	(char *) "PREINCR",	/* 327 */
-	(char *) "POSTDECR",	/* 328 */
-	(char *) "PREDECR",	/* 329 */
-	(char *) "VAR",	/* 330 */
-	(char *) "IVAR",	/* 331 */
-	(char *) "VARNF",	/* 332 */
-	(char *) "CALL",	/* 333 */
-	(char *) "NUMBER",	/* 334 */
-	(char *) "STRING",	/* 335 */
-	(char *) "REGEXPR",	/* 336 */
-	(char *) "GETLINE",	/* 337 */
-	(char *) "SUBSTR",	/* 338 */
-	(char *) "SPLIT",	/* 339 */
-	(char *) "RETURN",	/* 340 */
-	(char *) "WHILE",	/* 341 */
-	(char *) "CAT",	/* 342 */
-	(char *) "UMINUS",	/* 343 */
-	(char *) "NOT",	/* 344 */
-	(char *) "POWER",	/* 345 */
-	(char *) "INCR",	/* 346 */
-	(char *) "DECR",	/* 347 */
-	(char *) "INDIRECT",	/* 348 */
-	(char *) "LASTTOKEN",	/* 349 */
+	(char *) "EMPTYRE",	/* 279 */
+	(char *) "AND",	/* 280 */
+	(char *) "BOR",	/* 281 */
+	(char *) "APPEND",	/* 282 */
+	(char *) "EQ",	/* 283 */
+	(char *) "GE",	/* 284 */
+	(char *) "GT",	/* 285 */
+	(char *) "LE",	/* 286 */
+	(char *) "LT",	/* 287 */
+	(char *) "NE",	/* 288 */
+	(char *) "IN",	/* 289 */
+	(char *) "ARG",	/* 290 */
+	(char *) "BLTIN",	/* 291 */
+	(char *) "BREAK",	/* 292 */
+	(char *) "CLOSE",	/* 293 */
+	(char *) "CONTINUE",	/* 294 */
+	(char *) "DELETE",	/* 295 */
+	(char *) "DO",	/* 296 */
+	(char *) "EXIT",	/* 297 */
+	(char *) "FOR",	/* 298 */
+	(char *) "FUNC",	/* 299 */
+	(char *) "SUB",	/* 300 */
+	(char *) "GSUB",	/* 301 */
+	(char *) "IF",	/* 302 */
+	(char *) "INDEX",	/* 303 */
+	(char *) "LSUBSTR",	/* 304 */
+	(char *) "MATCHFCN",	/* 305 */
+	(char *) "NEXT",	/* 306 */
+	(char *) "NEXTFILE",	/* 307 */
+	(char *) "ADD",	/* 308 */
+	(char *) "MINUS",	/* 309 */
+	(char *) "MULT",	/* 310 */
+	(char *) "DIVIDE",	/* 311 */
+	(char *) "MOD",	/* 312 */
+	(char *) "ASSIGN",	/* 313 */
+	(char *) "ASGNOP",	/* 314 */
+	(char *) "ADDEQ",	/* 315 */
+	(char *) "SUBEQ",	/* 316 */
+	(char *) "MULTEQ",	/* 317 */
+	(char *) "DIVEQ",	/* 318 */
+	(char *) "MODEQ",	/* 319 */
+	(char *) "POWEQ",	/* 320 */
+	(char *) "PRINT",	/* 321 */
+	(char *) "PRINTF",	/* 322 */
+	(char *) "SPRINTF",	/* 323 */
+	(char *) "ELSE",	/* 324 */
+	(char *) "INTEST",	/* 325 */
+	(char *) "CONDEXPR",	/* 326 */
+	(char *) "POSTINCR",	/* 327 */
+	(char *) "PREINCR",	/* 328 */
+	(char *) "POSTDECR",	/* 329 */
+	(char *) "PREDECR",	/* 330 */
+	(char *) "VAR",	/* 331 */
+	(char *) "IVAR",	/* 332 */
+	(char *) "VARNF",	/* 333 */
+	(char *) "CALL",	/* 334 */
+	(char *) "NUMBER",	/* 335 */
+	(char *) "STRING",	/* 336 */
+	(char *) "REGEXPR",	/* 337 */
+	(char *) "GETLINE",	/* 338 */
+	(char *) "SUBSTR",	/* 339 */
+	(char *) "SPLIT",	/* 340 */
+	(char *) "RETURN",	/* 341 */
+	(char *) "WHILE",	/* 342 */
+	(char *) "CAT",	/* 343 */
+	(char *) "UMINUS",	/* 344 */
+	(char *) "NOT",	/* 345 */
+	(char *) "POWER",	/* 346 */
+	(char *) "INCR",	/* 347 */
+	(char *) "DECR",	/* 348 */
+	(char *) "INDIRECT",	/* 349 */
+	(char *) "LASTTOKEN",	/* 350 */
 };
 
 
-Cell *(*proctab[92])(Node **, int) = {
+Cell *(*proctab[93])(Node **, int) = {
 	nullproc,	/* FIRSTTOKEN */
 	program,	/* PROGRAM */
 	pastat,	/* PASTAT */
@@ -120,6 +121,7 @@ Cell *(*proctab[92])(Node **, int) = {
 	nullproc,	/* STAR */
 	nullproc,	/* QUEST */
 	nullproc,	/* PLUS */
+	nullproc,	/* EMPTYRE */
 	boolop,	/* AND */
 	boolop,	/* BOR */
 	nullproc,	/* APPEND */
