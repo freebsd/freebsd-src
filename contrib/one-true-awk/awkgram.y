@@ -50,7 +50,7 @@ Node	*arglist = 0;	/* list of args for current function */
 %token	<i>	NL ',' '{' '(' '|' ';' '/' ')' '}' '[' ']'
 %token	<i>	ARRAY
 %token	<i>	MATCH NOTMATCH MATCHOP
-%token	<i>	FINAL DOT ALL CCL NCCL CHAR OR STAR QUEST PLUS
+%token	<i>	FINAL DOT ALL CCL NCCL CHAR OR STAR QUEST PLUS EMPTYRE
 %token	<i>	AND BOR APPEND EQ GE GT LE LT NE IN
 %token	<i>	ARG BLTIN BREAK CLOSE CONTINUE DELETE DO EXIT FOR FUNC 
 %token	<i>	SUB GSUB IF INDEX LSUBSTR MATCHFCN NEXT NEXTFILE

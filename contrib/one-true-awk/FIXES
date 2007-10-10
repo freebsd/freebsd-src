@@ -25,6 +25,50 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+May 1, 2007:
+	fiddle in makefile to fix for BSD make; thanks to igor sobrado.
+
+Mar 31, 2007:
+	fixed some null pointer refs calling adjbuf.
+
+Feb 21, 2007:
+	fixed a bug in matching the null RE in sub and gsub.  thanks to al aho
+	who actually did the fix (in b.c), and to wolfgang seeberg for finding
+	it and providing a very compact test case.
+
+	fixed quotation in b.c; thanks to Hal Pratt and the Princeton Dante
+	Project.
+
+	removed some no-effect asserts in run.c.
+
+	fiddled maketab.c to not complain about bison-generated values.
+
+	removed the obsolete -V argument; fixed --version to print the
+	version and exit.
+
+	fixed wording and an outright error in the usage message; thanks to igor
+	sobrado and jason mcintyre.
+
+	fixed a bug in -d that caused core dump if no program followed.
+
+Jan 1, 2007:
+	dropped mac.code from makefile; there are few non-MacOSX
+	mac's these days.
+
+Jan 17, 2006:
+	system() not flagged as unsafe in the unadvertised -safe option.
+	found it while enhancing tests before shipping the ;login: article.
+	practice what you preach.
+
+	removed the 9-years-obsolete -mr and -mf flags.
+
+	added -version and --version options.
+
+	core dump on linux with BEGIN {nextfile}, now fixed.
+
+	removed some #ifdef's in run.c and lex.c that appear to no 
+	longer be necessary.
+
 Apr 24, 2005:
 	modified lib.c so that values of $0 et al are preserved in the END
 	block, apparently as required by posix.  thanks to havard eidnes
