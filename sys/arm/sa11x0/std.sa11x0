@@ -1,7 +1,0 @@
-#StrongARM SA11x0 common options
-#$FreeBSD$
-files		"../sa11x0/files.sa11x0"
-cpu		CPU_SA1100
-cpu		CPU_SA1110
-makeoptions	KERNPHYSADDR=0xc0000000
-makeoptions	KERNVIRTADDR=0xc0000000

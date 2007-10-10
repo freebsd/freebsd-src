@@ -1,8 +1,0 @@
-# $FreeBSD$
-# fstest configuration file
-
-# Known operating systems: FreeBSD, SunOS, Linux
-os=`uname`
-
-# Known file systems: UFS, ZFS, other
-fs="UFS"

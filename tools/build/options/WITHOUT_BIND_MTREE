@@ -1,8 +1,0 @@
-.\" $FreeBSD$
-Set to avoid running
-.Xr mtree 8
-to create the chroot directory structure under
-.Pa /var/named ,
-and avoid creating an
-.Pa /etc/namedb
-symlink to the chroot directory.

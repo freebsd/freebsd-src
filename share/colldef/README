@@ -1,5 +1,0 @@
-$FreeBSD$
-
-WARNING: For the compatibility sake try to keep collating table backward 
-compatible with ASCII, i.e.  add other symbols to the existent ASCII order.
-

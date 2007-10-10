@@ -1,9 +1,0 @@
-#------------------------------------------------------------
-# Java ByteCode and Mach-O binaries (e.g., Mac OS X) use the
-# same magic number, 0xcafebabe, so they are both handled
-# in the entry called "cafebabe".
-#------------------------------------------------------------
-# Java serialization
-# From Martin Pool (m.pool@pharos.com.au)
-0	beshort		0xaced		Java serialization data
->2	beshort		>0x0004		\b, version %d

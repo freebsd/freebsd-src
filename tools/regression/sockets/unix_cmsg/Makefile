@@ -1,7 +1,0 @@
-# $FreeBSD$
-
-PROG=	unix_cmsg
-NO_MAN=
-WARNS?=	3
-
-.include <bsd.prog.mk>

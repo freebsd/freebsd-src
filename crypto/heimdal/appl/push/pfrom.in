@@ -1,6 +1,0 @@
-#!/bin/sh
-# $Id: pfrom.in,v 1.2 1998/11/24 13:25:47 assar Exp $
-libexecdir=%libexecdir%
-PATH=$libexecdir:$PATH
-export PATH
-push --from $*

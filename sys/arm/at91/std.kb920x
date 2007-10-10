@@ -1,5 +1,0 @@
-#$FreeBSD$
-include "../at91/std.at91"
-files	"../at91/files.kb920x"
-
-options		STARTUP_PAGETABLE_ADDR=0x20800000

@@ -1,9 +1,0 @@
-
-#------------------------------------------------------------------------------
-# chord: file(1) magic for Chord music sheet typesetting utility input files
-#
-# From Philippe De Muyter <phdm@macqel.be>
-# File format is actually free, but many distributed files begin with `{title'
-#
-0	string		{title		Chord text file
-

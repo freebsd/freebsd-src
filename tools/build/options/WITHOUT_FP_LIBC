@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build
-.Nm libc
-without floating-point support.

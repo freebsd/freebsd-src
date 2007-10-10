@@ -1,5 +1,0 @@
-.\" $FreeBSD$
-Set to not install
-programs used for program development,
-compilers, debuggers etc.
-.Sy "The option does not work for build targets."
