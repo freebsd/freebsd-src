@@ -128,6 +128,9 @@ fch_get()
 	POSITION pos;
 	POSITION len;
 
+	if (thisfile == NULL)
+		return (EOI);
+
 	slept = FALSE;
 
 	/*
@@ -416,6 +419,9 @@ ch_seek(pos)
 	BLOCKNUM new_block;
 	POSITION len;
 
+	if (thisfile == NULL)
+		return (0);
+
 	len = ch_length();
 	if (pos < ch_zero() || (len != NULL_POSITION && pos > len))
 		return (1);
@@ -449,6 +455,9 @@ ch_seek(pos)
 ch_end_seek()
 {
 	POSITION len;
+
+	if (thisfile == NULL)
+		return (0);
 
 	if (ch_flags & CH_CANSEEK)
 		ch_fsize = filesize(ch_file);
@@ -503,6 +512,8 @@ ch_beg_seek()
 	public POSITION
 ch_length()
 {
+	if (thisfile == NULL)
+		return (NULL_POSITION);
 	if (ignore_eoi)
 		return (NULL_POSITION);
 	if (ch_flags & CH_HELPFILE)
@@ -516,6 +527,8 @@ ch_length()
 	public POSITION
 ch_tell()
 {
+	if (thisfile == NULL)
+		return (NULL_POSITION);
 	return (ch_block * LBUFSIZE) + ch_offset;
 }
 
@@ -527,6 +540,8 @@ ch_forw_get()
 {
 	register int c;
 
+	if (thisfile == NULL)
+		return (EOI);
 	c = ch_get();
 	if (c == EOI)
 		return (EOI);
@@ -546,6 +561,8 @@ ch_forw_get()
 	public int
 ch_back_get()
 {
+	if (thisfile == NULL)
+		return (EOI);
 	if (ch_offset > 0)
 		ch_offset --;
 	else
@@ -585,6 +602,9 @@ ch_setbufspace(bufspace)
 ch_flush()
 {
 	register struct buf *bp;
+
+	if (thisfile == NULL)
+		return;
 
 	if (!(ch_flags & CH_CANSEEK))
 	{
@@ -769,6 +789,9 @@ ch_close()
 {
 	int keepstate = FALSE;
 
+	if (thisfile == NULL)
+		return;
+
 	if (ch_flags & (CH_CANSEEK|CH_POPENED|CH_HELPFILE))
 	{
 		/*
@@ -807,6 +830,8 @@ ch_close()
 	public int
 ch_getflags()
 {
+	if (thisfile == NULL)
+		return (0);
 	return (ch_flags);
 }
 

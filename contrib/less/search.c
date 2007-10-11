@@ -16,6 +16,7 @@
 
 #include "less.h"
 #include "position.h"
+#include "charset.h"
 
 #define	MINPOS(a,b)	(((a) < (b)) ? (a) : (b))
 #define	MAXPOS(a,b)	(((a) > (b)) ? (a) : (b))
@@ -120,24 +121,31 @@ cvt_text(odst, osrc, lenp, ops)
 	int *lenp;
 	int ops;
 {
-	register char *dst;
-	register char *src;
+	char *dst;
+	char *src;
 	register char *src_end;
+	LWCHAR ch;
 
 	if (lenp != NULL)
 		src_end = osrc + *lenp;
 	else
 		src_end = osrc + strlen(osrc);
 
-	for (src = osrc, dst = odst;  src < src_end;  src++)
+	for (src = osrc, dst = odst;  src < src_end;  )
 	{
-		if ((ops & CVT_TO_LC) && IS_UPPER(*src))
+		ch = step_char(&src, +1, src_end);
+		if ((ops & CVT_TO_LC) && IS_UPPER(ch))
+		{
 			/* Convert uppercase to lowercase. */
-			*dst++ = TO_LOWER(*src);
-		else if ((ops & CVT_BS) && *src == '\b' && dst > odst)
+			put_wchar(&dst, TO_LOWER(ch));
+		} else if ((ops & CVT_BS) && ch == '\b' && dst > odst)
+		{
 			/* Delete BS and preceding char. */
-			dst--;
-		else if ((ops & CVT_ANSI) && *src == ESC)
+			do {
+				dst--;
+			} while (dst > odst &&
+				!IS_ASCII_OCTET(*dst) && !IS_UTF8_LEAD(*dst));
+		} else if ((ops & CVT_ANSI) && IS_CSI_START(ch))
 		{
 			/* Skip to end of ANSI escape sequence. */
 			while (src + 1 != src_end)
@@ -145,7 +153,7 @@ cvt_text(odst, osrc, lenp, ops)
 					break;
 		} else 
 			/* Just copy. */
-			*dst++ = *src;
+			put_wchar(&dst, ch);
 	}
 	if ((ops & CVT_CRLF) && dst > odst && dst[-1] == '\r')
 		dst--;
@@ -182,14 +190,18 @@ get_cvt_ops()
  * Are there any uppercase letters in this string?
  */
 	static int
-is_ucase(s)
-	char *s;
+is_ucase(str)
+	char *str;
 {
-	register char *p;
+	char *str_end = str + strlen(str);
+	LWCHAR ch;
 
-	for (p = s;  *p != '\0';  p++)
-		if (IS_UPPER(*p))
+	while (str < str_end)
+	{
+		ch = step_char(&str, +1, str_end);
+		if (IS_UPPER(ch))
 			return (1);
+	}
 	return (0);
 }
 
@@ -679,7 +691,7 @@ adj_hilite_ansi(cvt_ops, line, line_len, npos)
 	char *line_end = *line + line_len;
 
 	if (cvt_ops & CVT_ANSI)
-		while (**line == ESC)
+		while (IS_CSI_START(**line))
 		{
 			/*
 			 * Found an ESC.  The file position moves
