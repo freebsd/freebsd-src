@@ -304,7 +304,8 @@ fi
 
 AC_MSG_CHECKING(for locale)
 AC_TRY_LINK([#include <locale.h>
-#include <ctype.h>], [setlocale(LC_CTYPE,""); isprint(0); iscntrl(0);],
+#include <ctype.h>
+#include <langinfo.h>], [setlocale(LC_CTYPE,""); isprint(0); iscntrl(0);],
   [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_LOCALE)], [AC_MSG_RESULT(no)])
 AC_MSG_CHECKING(for ctype functions)
 AC_TRY_LINK([
