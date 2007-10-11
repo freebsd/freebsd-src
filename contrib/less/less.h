@@ -150,6 +150,8 @@ void free();
 #define IS_DIGIT(c)	((c) >= '0' && (c) <= '9')
 #endif
 
+#define IS_CSI_START(c)	((c) == ESC || ((unsigned char)(c)) == CSI)
+
 #ifndef NULL
 #define	NULL	0
 #endif
@@ -425,6 +427,7 @@ struct textlist
 #endif /* IS_EBCDIC_HOST */
 
 #define	ESC		CONTROL('[')
+#define	CSI		((unsigned char)'\233')
 
 #if _OSK_MWC32
 #define	LSIGNAL(sig,func)	os9_signal(sig,func)
