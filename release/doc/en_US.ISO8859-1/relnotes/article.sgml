@@ -2314,7 +2314,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       4.1.8 to 4.1.23.</para>
 
     <para><application>less</application> has been updated from v381
-      to v408.</para>
+      to v408. &merged;</para>
 
     <para><application>libpcap</application> has been updated from
       0.9.1 to 0.9.4. &merged;</para>
@@ -2348,7 +2348,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
-      <application>tzdata2007g</application> release. &merged;</para>
+      <application>tzdata2007h</application> release. &merged;</para>
 
     <para><application>tip</application> has been updated to a
       snapshot from OpenBSD as of 20060831.</para>
