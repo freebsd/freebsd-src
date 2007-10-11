@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2007
+.Dd September 17, 2007
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -182,6 +182,13 @@ to enable filtering on the bridge interface, set
 to
 .Li 0
 to disable it.
+.It Va net.link.bridge.pfil_local_phys
+Set to
+.Li 1
+to additionally filter on the physical interface for locally destined packets.
+Set to
+.Li 0
+to disable this feature.
 .It Va net.link.bridge.ipfw
 Set to
 .Li 1
@@ -307,7 +314,9 @@ that are doing IP-forwarding; in some of such cases it is better
 to assign the IP address only to the
 .Nm
 interface and not to the bridge members.
-But your mileage may vary.
+Enabling
+.Va net.link.bridge.pfil_local_phys
+will let you do the additional filtering on the physical interface.
 .Sh EXAMPLES
 The following when placed in the file
 .Pa /etc/rc.conf
