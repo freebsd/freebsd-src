@@ -61,13 +61,6 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	AUDIT			# Security event auditing
 
-# Debugging for use in -current
-options 	KDB			#Enable the kernel debugger
-options 	DDB			#Support DDB
-options 	INVARIANTS		#Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			#Enable checks to detect deadlocks and cycles
-
 # To make an SMP kernel, the next line is needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 
