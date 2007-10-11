@@ -39,6 +39,7 @@
 .Op Fl L
 .Op Fl k
 .Op Fl m
+.Op Fl n
 .Ar interface
 .Op Cm create
 .Op Ar address_family
@@ -1528,6 +1529,13 @@ For example, the values of 802.11 WEP keys will be printed, if accessible to
 the current user.
 This information is not printed by default, as it may be considered
 sensitive.
+.Pp 
+If the network interface driver is not present in the kernel then
+.Nm
+will attempt to load it.
+The
+.Fl n
+flag disables this behavior.
 .Pp
 Only the super-user may modify the configuration of a network interface.
 .Sh NOTES

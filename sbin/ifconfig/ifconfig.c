@@ -89,6 +89,7 @@ int	doalias;
 int	clearaddr;
 int	newaddr = 1;
 int	verbose;
+int	noload;
 
 int	supmedia = 0;
 int	printkeys = 0;		/* Print keying material for interfaces. */
@@ -154,10 +155,10 @@ main(int argc, char *argv[])
 	char options[1024];
 	struct option *p;
 
-	all = downonly = uponly = namesonly = verbose = 0;
+	all = downonly = uponly = namesonly = noload = verbose = 0;
 
 	/* Parse leading line options */
-	strlcpy(options, "adklmuv", sizeof(options));
+	strlcpy(options, "adklmnuv", sizeof(options));
 	for (p = opts; p != NULL; p = p->next)
 		strlcat(options, p->opt, sizeof(options));
 	while ((c = getopt(argc, argv, options)) != -1) {
@@ -176,6 +177,9 @@ main(int argc, char *argv[])
 			break;
 		case 'm':	/* show media choices in status */
 			supmedia = 1;
+			break;
+		case 'n':	/* suppress module loading */
+			noload++;
 			break;
 		case 'u':	/* restrict scan to "up" interfaces */
 			uponly++;
@@ -968,6 +972,10 @@ ifmaybeload(char *name)
 	struct module_stat mstat;
 	int fileid, modid;
 	char ifkind[35], *cp, *dp;
+
+	/* loading suppressed by the user */
+	if (noload)
+		return;
 
 	/* turn interface and unit into module name */
 	strcpy(ifkind, "if_");
