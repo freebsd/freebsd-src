@@ -1966,7 +1966,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 	 * caller can't handle that. 
 	 */
 	if (keg->uk_flags & UMA_ZFLAG_INTERNAL && keg->uk_recurse != 0)
-		if ((zone != slabzone) && (zone != slabrefzone))
+		if (zone != slabzone && zone != slabrefzone && zone != zones)
 			return (NULL);
 
 	slab = NULL;
