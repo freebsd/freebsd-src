@@ -2588,6 +2588,7 @@ em_allocate_pci_resources(struct adapter *adapter)
 	adapter->msi = 0; /* Set defaults */
 	rid = 0x0;
 
+#if __FreeBSD_version > 602111	/* MSI support is present */
 	if (adapter->hw.mac.type >= e1000_82575) {
 		/*
 		 * Setup MSI/X
@@ -2618,6 +2619,7 @@ em_allocate_pci_resources(struct adapter *adapter)
                 	adapter->msi = 1;
         	} 
 	} 
+#endif	/* FreeBSD_version */
 
 	adapter->res_interrupt = bus_alloc_resource_any(dev,
 	    SYS_RES_IRQ, &rid, RF_SHAREABLE | RF_ACTIVE);
@@ -2709,12 +2711,14 @@ em_free_pci_resources(struct adapter *adapter)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    adapter->msi ? 1 : 0, adapter->res_interrupt);
 
+#if __FreeBSD_version > 602111	/* MSI support is present */
 	if (adapter->msix_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    PCIR_BAR(EM_MSIX_BAR), adapter->msix_mem);
 
 	if (adapter->msi)
 		pci_release_msi(dev);
+#endif	/* FreeBSD_version */
 
 	if (adapter->res_memory != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
