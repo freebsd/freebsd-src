@@ -331,6 +331,8 @@ static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
 static int pfil_member = 1; /* run pfil hooks on the member interface */
 static int pfil_ipfw = 0;   /* layer2 filter with ipfw */
 static int pfil_ipfw_arp = 0;   /* layer2 filter with ipfw */
+static int pfil_local_phys = 0; /* run pfil hooks on the physical interface for
+                                   locally destined packets */
 static int log_stp   = 0;   /* log STP state changes */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
@@ -340,6 +342,9 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
     &pfil_member, 0, "Packet filter on the member interface");
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys, CTLFLAG_RW,
+    &pfil_local_phys, 0,
+    "Packet filter on the physical interface for locally destined packets");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RW,
     &log_stp, 0, "Log STP state changes");
 
@@ -2058,6 +2063,21 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	if (memcmp(eh->ether_dhost, IF_LLADDR(bifp),
 	    ETHER_ADDR_LEN) == 0) {
+		/*
+		 * Filter on the physical interface.
+		 */
+		if (pfil_local_phys && (inet_pfil_hook.ph_busy_count >= 0
+#ifdef INET6
+		    || inet6_pfil_hook.ph_busy_count >= 0
+#endif
+		    )) {
+			if (bridge_pfil(&m, NULL, ifp, PFIL_IN) != 0 ||
+			    m == NULL) {
+				BRIDGE_UNLOCK(sc);
+				return (NULL);
+			}
+		}
+
 		/*
 		 * If the packet is for us, set the packets source as the
 		 * bridge, and return the packet back to ether_input for
