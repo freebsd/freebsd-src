@@ -35,8 +35,8 @@ SRCS+=		crtsavres.asm
 TGTOBJS=	crtfastmath.o
 SRCS+=		crtfastmath.c
 .endif
-BEGINSRC?=	crtstuff.c
-ENDSRC?=	crtstuff.c
+BEGINSRC?=	${SRCS:M*.c}
+ENDSRC?=	${SRCS:M*.c}
 
 all: ${OBJS} ${SOBJS} ${TGTOBJS}
 ${OBJS} ${SOBJS}: ${SRCS:M*.h}
