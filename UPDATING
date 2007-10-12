@@ -42,6 +42,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
         instead of cached_enable, cached_pidfile and cached_flags in
         rc.conf.
 
+20070921:
+	The getfacl(1) utility now prints owning user and group name
+	instead of owning uid and gid in the three line comment header.
+	This is the same behavior as getfacl(1) on Solaris and Linux.
+
 20070704:
         The new IPsec code is now compiled in using the IPSEC option.  The
 	IPSEC option now requires "device crypto" be defined in your kernel
