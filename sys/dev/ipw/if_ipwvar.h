@@ -85,12 +85,21 @@ struct ipw_softc {
 
 	struct mtx			sc_mtx;
 	struct task			sc_init_task;
+	struct task			sc_scan_task;
+	struct task			sc_chan_task;
+	struct task			sc_assoc_task;
+	struct task			sc_disassoc_task;
+	struct callout			sc_wdtimer;	/* watchdog timer */
 
 	uint32_t			flags;
 #define IPW_FLAG_FW_INITED		(1 << 0)
 #define IPW_FLAG_INIT_LOCKED		(1 << 1)
 #define IPW_FLAG_HAS_RADIO_SWITCH	(1 << 2)
-#define	IPW_FLAG_FW_WARNED		(1 << 3)
+#define	IPW_FLAG_HACK			(1 << 3)
+#define	IPW_FLAG_SCANNING		(1 << 4)
+#define	IPW_FLAG_ENABLED		(1 << 5)
+#define	IPW_FLAG_BUSY			(1 << 6)
+#define	IPW_FLAG_ASSOCIATED		(1 << 7)
 
 	int				irq_rid;
 	int				mem_rid;
@@ -102,6 +111,7 @@ struct ipw_softc {
 	const struct firmware		*sc_firmware;
 
 	int				sc_tx_timer;
+	int				sc_scan_timer;
 
 	bus_dma_tag_t			tbd_dmat;
 	bus_dma_tag_t			rbd_dmat;
@@ -160,3 +170,18 @@ struct ipw_softc {
 #define sc_txtap	sc_txtapu.th
 	int				sc_txtap_len;
 };
+
+/*
+ * NB.: This models the only instance of async locking in ipw_init_locked
+ *	and must be kept in sync.
+ */
+#define	IPW_LOCK_DECL	int	__waslocked = 0
+#define IPW_LOCK(sc)	do {				\
+	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
+		mtx_lock(&sc->sc_mtx);			\
+} while (0)
+#define IPW_UNLOCK(sc)	do {				\
+	if (!__waslocked)				\
+		mtx_unlock(&sc->sc_mtx);		\
+} while (0)
+#define IPW_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
