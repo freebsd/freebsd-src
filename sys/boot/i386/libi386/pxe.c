@@ -335,8 +335,10 @@ pxe_close(struct open_file *f)
     if (pxe_opens > 0)
 	return(0);
 
+#ifdef LOADER_NFS_SUPPORT
     /* get an NFS filehandle for our root filesystem */
     pxe_setnfshandle(rootpath);
+#endif
 
     if (pxe_sock >= 0) {
 
