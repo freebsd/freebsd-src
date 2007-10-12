@@ -34,7 +34,7 @@
 /* AD1816 register macros */
 
 #define AD1816_ALE	0 	/* indirect reg access 		*/
-#define AD1816_INT	1 	/* interupt status     		*/
+#define AD1816_INT	1 	/* interrupt status		*/
 #define AD1816_LOW	2 	/* indirect low byte   		*/
 #define AD1816_HIGH	3 	/* indirect high byte  		*/
 

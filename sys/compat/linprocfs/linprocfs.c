@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
  *
  * The linux procfs state field displays one of the characters RSDZTW to
  * denote running, sleeping in an interruptible wait, waiting in an
- * uninteruptible disk sleep, a zombie process, process is being traced
+ * uninterruptible disk sleep, a zombie process, process is being traced
  * or stopped, or process is paging respectively.
  *
  * Our struct kinfo_proc contains the variable ki_stat which contains a

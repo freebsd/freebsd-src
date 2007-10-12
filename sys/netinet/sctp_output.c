@@ -11693,7 +11693,7 @@ sctp_lower_sosend(struct socket *so,
 			} else {
 				/*
 				 * Just got locked to this guy in case of an
-				 * interupt.
+				 * interrupt.
 				 */
 				strm->last_msg_incomplete = 1;
 				asoc->stream_locked = 1;
