@@ -102,6 +102,7 @@ int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 struct nfs_reqq	nfs_reqq;
 struct mtx nfs_reqq_mtx;
 struct nfs_bufq	nfs_bufq;
+struct mtx nfs_xid_mtx;
 
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
@@ -187,7 +188,7 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 	 */
 	tl = nfsm_build(u_int32_t *, 8 * NFSX_UNSIGNED);
 
-	mtx_lock(&nfs_reqq_mtx);
+	mtx_lock(&nfs_xid_mtx);
 	/* Get a pretty random xid to start with */
 	if (!nfs_xid)
 		nfs_xid = random();
@@ -199,7 +200,7 @@ nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
 
 	*xidpp = tl;
 	*tl++ = txdr_unsigned(nfs_xid);
-	mtx_unlock(&nfs_reqq_mtx);
+	mtx_unlock(&nfs_xid_mtx);
 	*tl++ = rpc_call;
 	*tl++ = rpc_vers;
 	*tl++ = txdr_unsigned(NFS_PROG);
@@ -424,6 +425,7 @@ nfs_init(struct vfsconf *vfsp)
 	callout_init(&nfs_callout, CALLOUT_MPSAFE);
 	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
 	mtx_init(&nfs_iod_mtx, "NFS iod lock", NULL, MTX_DEF);
+	mtx_init(&nfs_xid_mtx, "NFS xid lock", NULL, MTX_DEF);
 
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 

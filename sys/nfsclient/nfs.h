@@ -293,8 +293,8 @@ int	nfs_mountroot(struct mount *mp, struct thread *td);
 #ifndef NFS4_USE_RPCCLNT
 int	nfs_send(struct socket *, struct sockaddr *, struct mbuf *,
 	    struct nfsreq *);
-int	nfs_sndlock(struct nfsreq *);
-void	nfs_sndunlock(struct nfsreq *);
+int	nfs_connect_lock(struct nfsreq *);
+void	nfs_connect_unlock(struct nfsreq *);
 #endif /* ! NFS4_USE_RPCCLNT */
 
 int	nfs_vinvalbuf(struct vnode *, int, struct thread *, int);
