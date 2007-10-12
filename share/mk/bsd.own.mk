@@ -396,7 +396,17 @@ MK_${var}:=	no
 
 #
 # Force some options off if their dependencies are off.
+# Order is somewhat important.
 #
+.if ${MK_LIBPTHREAD} == "no"
+MK_LIBKSE:=	no
+MK_LIBTHR:=	no
+.endif
+
+.if ${MK_LIBKSE} == "no" && ${MK_LIBTHR} == "no"
+MK_BIND:=	no
+.endif
+
 .if ${MK_BIND} == "no"
 MK_BIND_DNSSEC:= no
 MK_BIND_ETC:=	no
@@ -423,11 +433,6 @@ MK_KERBEROS:=	no
 
 .if ${MK_IPX} == "no"
 MK_NCP:=	no
-.endif
-
-.if ${MK_LIBPTHREAD} == "no"
-MK_LIBKSE:=	no
-MK_LIBTHR:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"
