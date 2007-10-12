@@ -40,7 +40,9 @@ struct nfs_tcp_mountstate {
  	int rpcresid;
 #define NFS_TCP_EXPECT_RPCMARKER 	0x0001 /* Expect to see a RPC/TCP marker next */
 #define NFS_TCP_FORCE_RECONNECT 	0x0002 /* Force a TCP reconnect */
+#define NFS_TCP_WAIT_WRITE_DRAIN 	0x0004 /* Waiting for socket writers to finish */
  	int flags;
+	int sock_send_inprog;
 };
 
 /*
