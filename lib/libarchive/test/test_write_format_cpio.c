@@ -66,6 +66,21 @@ test_format(int	(*set_format)(struct archive *))
 	archive_entry_free(ae);
 	assertA(8 == archive_write_data(a, "12345678", 9));
 
+	/*
+	 * Write a directory to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_mtime(ae, 11, 110);
+	archive_entry_copy_pathname(ae, "dir");
+	archive_entry_set_mode(ae, S_IFDIR | 0755);
+	archive_entry_set_size(ae, 512);
+
+	assertA(0 == archive_write_header(a, ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
+
+
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
 #if ARCHIVE_API_VERSION > 1
@@ -95,8 +110,21 @@ test_format(int	(*set_format)(struct archive *))
 	assertA(8 == archive_read_data(a, filedata, 10));
 	assert(0 == memcmp(filedata, "12345678", 8));
 
+	/*
+	 * Read the dir entry back.
+	 */
+	assertA(0 == archive_read_next_header(a, &ae));
+	assert(11 == archive_entry_mtime(ae));
+	assert(0 == archive_entry_mtime_nsec(ae));
+	assert(0 == archive_entry_atime(ae));
+	assert(0 == archive_entry_ctime(ae));
+	assertEqualString("dir", archive_entry_pathname(ae));
+	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+
 	/* Verify the end of the archive. */
-	assert(1 == archive_read_next_header(a, &ae));
+	assertEqualIntA(a, 1, archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_read_finish(a));
