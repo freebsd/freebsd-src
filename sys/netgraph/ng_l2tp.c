@@ -157,13 +157,11 @@ static ng_rcvmsg_t	ng_l2tp_rcvmsg;
 static ng_shutdown_t	ng_l2tp_shutdown;
 static ng_newhook_t	ng_l2tp_newhook;
 static ng_rcvdata_t	ng_l2tp_rcvdata;
+static ng_rcvdata_t	ng_l2tp_rcvdata_lower;
+static ng_rcvdata_t	ng_l2tp_rcvdata_ctrl;
 static ng_disconnect_t	ng_l2tp_disconnect;
 
 /* Internal functions */
-static int	ng_l2tp_recv_lower(node_p node, item_p item);
-static int	ng_l2tp_recv_ctrl(node_p node, item_p item);
-static int	ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv);
-
 static int	ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns);
 
 static void	ng_l2tp_seq_init(priv_p priv);
@@ -343,6 +341,8 @@ NETGRAPH_INIT(l2tp, &ng_l2tp_typestruct);
 /* Whether to use m_copypacket() or m_dup() */
 #define L2TP_COPY_MBUF		m_copypacket
 
+#define ERROUT(x)	do { error = (x); goto done; } while (0)
+
 /************************************************************************
 			NETGRAPH NODE STUFF
 ************************************************************************/
@@ -387,10 +387,12 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 		if (priv->ctrl != NULL)
 			return (EISCONN);
 		priv->ctrl = hook;
+		NG_HOOK_SET_RCVDATA(hook, ng_l2tp_rcvdata_ctrl);
 	} else if (strcmp(name, NG_L2TP_HOOK_LOWER) == 0) {
 		if (priv->lower != NULL)
 			return (EISCONN);
 		priv->lower = hook;
+		NG_HOOK_SET_RCVDATA(hook, ng_l2tp_rcvdata_lower);
 	} else {
 		static const char hexdig[16] = "0123456789abcdef";
 		u_int16_t session_id;
@@ -655,46 +657,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 }
 
 /*
- * Receive incoming data on a hook.
- */
-static int
-ng_l2tp_rcvdata(hook_p hook, item_p item)
-{
-	const node_p node = NG_HOOK_NODE(hook);
-	const priv_p priv = NG_NODE_PRIVATE(node);
-	int error;
-
-	/* Sanity check */
-	L2TP_SEQ_CHECK(&priv->seq);
-
-	/* If not configured, reject */
-	if (!priv->conf.enabled) {
-		NG_FREE_ITEM(item);
-		return (ENXIO);
-	}
-
-	/* Handle incoming frame from below */
-	if (hook == priv->lower) {
-		error = ng_l2tp_recv_lower(node, item);
-		goto done;
-	}
-
-	/* Handle outgoing control frame */
-	if (hook == priv->ctrl) {
-		error = ng_l2tp_recv_ctrl(node, item);
-		goto done;
-	}
-
-	/* Handle outgoing data frame */
-	error = ng_l2tp_recv_data(node, item, NG_HOOK_PRIVATE(hook));
-
-done:
-	/* Done */
-	L2TP_SEQ_CHECK(&priv->seq);
-	return (error);
-}
-
-/*
  * Destroy node
  */
 static int
@@ -785,12 +747,13 @@ ng_l2tp_reset_session(hook_p hook, void *arg)
  * Handle an incoming frame from below.
  */
 static int
-ng_l2tp_recv_lower(node_p node, item_p item)
+ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 {
 	static const u_int16_t req_bits[2][2] = {
 		{ L2TP_DATA_0BITS, L2TP_DATA_1BITS },
 		{ L2TP_CTRL_0BITS, L2TP_CTRL_1BITS },
 	};
+	const node_p node = NG_HOOK_NODE(h);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	hookpriv_p hpriv = NULL;
 	hook_p hook = NULL;
@@ -802,6 +765,15 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 	int is_ctrl;
 	int error;
 	int len, plen;
+
+	/* Sanity check */
+	L2TP_SEQ_CHECK(&priv->seq);
+
+	/* If not configured, reject */
+	if (!priv->conf.enabled) {
+		NG_FREE_ITEM(item);
+		ERROUT(ENXIO);
+	}
 
 	/* Grab mbuf */
 	NGI_GET_M(item, m);
@@ -818,12 +790,12 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		priv->stats.recvRunts++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 	if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 	hdr = ntohs(*mtod(m, u_int16_t *));
 	m_adj(m, 2);
@@ -835,7 +807,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		priv->stats.recvInvalid++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 	if (m->m_pkthdr.len < 4				/* tunnel, session id */
 	    + (2 * ((hdr & L2TP_HDR_LEN) != 0))		/* length field */
@@ -844,7 +816,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		priv->stats.recvRunts++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 
 	/* Get and validate length field if present */
@@ -852,7 +824,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		len = (u_int16_t)ntohs(*mtod(m, u_int16_t *)) - 4;
 		m_adj(m, 2);
@@ -860,7 +832,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 			priv->stats.recvInvalid++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		if (len < m->m_pkthdr.len)		/* trim extra bytes */
 			m_adj(m, -(m->m_pkthdr.len - len));
@@ -870,7 +842,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 	memcpy(ids, mtod(m, u_int16_t *), 4);
 	m_adj(m, 4);
@@ -881,7 +853,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		priv->stats.recvWrongTunnel++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (EADDRNOTAVAIL);
+		ERROUT(EADDRNOTAVAIL);
 	}
 
 	/* Check session ID (for data packets only) */
@@ -892,7 +864,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 			priv->stats.recvUnknownSID++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
-			return (ENOTCONN);
+			ERROUT(ENOTCONN);
 		}
 		hpriv = NG_HOOK_PRIVATE(hook);
 	}
@@ -902,7 +874,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		memcpy(&ns, &mtod(m, u_int16_t *)[0], 2);
 		ns = ntohs(ns);
@@ -919,7 +891,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		memcpy(&offset, mtod(m, u_int16_t *), 2);
 		offset = ntohs(offset);
@@ -929,7 +901,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 			priv->stats.recvInvalid++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
-			return (EINVAL);
+			ERROUT(EINVAL);
 		}
 		m_adj(m, 2+offset);
 	}
@@ -945,7 +917,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 			priv->stats.recvZLBs++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
-			return (0);
+			ERROUT(0);
 		}
 
 		/*
@@ -958,7 +930,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			NG_FREE_ITEM(item);
-			return (ENOBUFS);
+			ERROUT(ENOBUFS);
 		}
 		memcpy(mtod(m, u_int16_t *), &ids[1], 2);
 
@@ -966,12 +938,12 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		if (ng_l2tp_seq_recv_ns(priv, ns) == -1) {
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
-			return (0);
+			ERROUT(0);
 		}
 
 		/* Deliver packet to upper layers */
 		NG_FWD_NEW_DATA(error, item, priv->ctrl, m);
-		return (error);
+		ERROUT(error);
 	}
 
 	/* Per session packet, account it. */
@@ -989,7 +961,7 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 			NG_FREE_ITEM(item);	/* duplicate or out of order */
 			NG_FREE_M(m);
 			priv->stats.recvDataDrops++;
-			return (0);
+			ERROUT(0);
 		}
 		hpriv->nr = ns + 1;
 	}
@@ -998,11 +970,14 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 	if (m->m_pkthdr.len == 0) {
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (0);
+		ERROUT(0);
 	}
 
 	/* Deliver data */
 	NG_FWD_NEW_DATA(error, item, hook, m);
+done:
+	/* Done */
+	L2TP_SEQ_CHECK(&priv->seq);
 	return (error);
 }
 
@@ -1010,12 +985,23 @@ ng_l2tp_recv_lower(node_p node, item_p item)
  * Handle an outgoing control frame.
  */
 static int
-ng_l2tp_recv_ctrl(node_p node, item_p item)
+ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 {
+	const node_p node = NG_HOOK_NODE(hook);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct l2tp_seq *const seq = &priv->seq;
 	struct mbuf *m;
+	int error;
 	int i;
+
+	/* Sanity check */
+	L2TP_SEQ_CHECK(&priv->seq);
+
+	/* If not configured, reject */
+	if (!priv->conf.enabled) {
+		NG_FREE_ITEM(item);
+		ERROUT(ENXIO);
+	}
 
 	/* Grab mbuf and discard other stuff XXX */
 	NGI_GET_M(item, m);
@@ -1025,14 +1011,14 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	if (m->m_pkthdr.len < 2) {
 		priv->stats.xmitInvalid++;
 		m_freem(m);
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 
 	/* Check max length */
 	if (m->m_pkthdr.len >= 0x10000 - 14) {
 		priv->stats.xmitTooBig++;
 		m_freem(m);
-		return (EOVERFLOW);
+		ERROUT(EOVERFLOW);
 	}
 
 	/* Find next empty slot in transmit queue */
@@ -1040,7 +1026,7 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	if (i == L2TP_MAX_XWIN) {
 		priv->stats.xmitDrops++;
 		m_freem(m);
-		return (ENOBUFS);
+		ERROUT(ENOBUFS);
 	}
 	seq->xwin[i] = m;
 
@@ -1051,7 +1037,7 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 
 	/* If peer's receive window is already full, nothing else to do */
 	if (i >= seq->cwnd)
-		return (0);
+		ERROUT(0);
 
 	/* Start retransmit timer if not already running */
 	if (!callout_active(&seq->rack_timer))
@@ -1061,24 +1047,38 @@ ng_l2tp_recv_ctrl(node_p node, item_p item)
 	/* Copy packet */
 	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL) {
 		priv->stats.memoryFailures++;
-		return (ENOBUFS);
+		ERROUT(ENOBUFS);
 	}
 
 	/* Send packet and increment xmit sequence number */
-	return (ng_l2tp_xmit_ctrl(priv, m, seq->ns++));
+	error = ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
+done:
+	/* Done */
+	L2TP_SEQ_CHECK(&priv->seq);
+	return (error);
 }
 
 /*
  * Handle an outgoing data frame.
  */
 static int
-ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
+ng_l2tp_rcvdata(hook_p hook, item_p item)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	const hookpriv_p hpriv = NG_HOOK_PRIVATE(hook);
 	struct mbuf *m;
 	u_int16_t hdr;
 	int error;
 	int i = 1;
+
+	/* Sanity check */
+	L2TP_SEQ_CHECK(&priv->seq);
+
+	/* If not configured, reject */
+	if (!priv->conf.enabled) {
+		NG_FREE_ITEM(item);
+		ERROUT(ENXIO);
+	}
 
 	/* Get mbuf */
 	NGI_GET_M(item, m);
@@ -1088,7 +1088,7 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 		priv->stats.xmitDataTooBig++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
-		return (EOVERFLOW);
+		ERROUT(EOVERFLOW);
 	}
 
 	/* Prepend L2TP header */
@@ -1099,7 +1099,7 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 	if (m == NULL) {
 		priv->stats.memoryFailures++;
 		NG_FREE_ITEM(item);
-		return (ENOBUFS);
+		ERROUT(ENOBUFS);
 	}
 	hdr = L2TP_DATA_HDR;
 	if (hpriv->conf.include_length) {
@@ -1126,6 +1126,9 @@ ng_l2tp_recv_data(node_p node, item_p item, hookpriv_p hpriv)
 
 	/* Send packet */
 	NG_FWD_NEW_DATA(error, item, priv->lower, m);
+done:
+	/* Done */
+	L2TP_SEQ_CHECK(&priv->seq);
 	return (error);
 }
 
