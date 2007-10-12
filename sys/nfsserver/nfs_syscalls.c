@@ -100,6 +100,8 @@ static int	nfssvc_addsock(struct file *, struct sockaddr *,
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
 static int	nfssvc_nfsd(struct thread *);
 
+extern u_long sb_max_adj;
+
 /*
  * NFS server system calls
  */
@@ -206,10 +208,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
 		}
 	}
 #endif
-	if (so->so_type == SOCK_STREAM)
-		siz = NFS_MAXPACKET + sizeof (u_long);
-	else
-		siz = NFS_MAXPACKET;
+	siz = sb_max_adj;
 	error = soreserve(so, siz, siz);
 	if (error) {
 		if (mynam != NULL)
