@@ -52,6 +52,8 @@ add path 'ttyP*' unhide
 add path 'ttyQ*' unhide
 add path 'ttyR*' unhide
 add path 'ttyS*' unhide
+add path 'pts/*' unhide
+add path 'pty/*' unhide
 add path fd unhide
 add path 'fd/*' unhide
 add path stdin unhide
