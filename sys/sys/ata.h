@@ -157,6 +157,15 @@ struct ata_params {
 #define ATA_SUPPORT_FLUSHCACHE48        0x2000
 
 /*084/087*/ u_int16_t   extension;
+#define ATA_SUPPORT_SMARTTEST		0x0001
+#define ATA_SUPPORT_SMARTLOG		0x0002
+#define ATA_SUPPORT_MEDIASN		0x0004
+#define ATA_SUPPORT_MEDIAPASS		0x0008
+#define ATA_SUPPORT_STREAMING		0x0010
+#define ATA_SUPPORT_GENLOG		0x0020
+#define ATA_SUPPORT_WRITEDMAFUAEXT	0x0040
+#define ATA_SUPPORT_WRITEDMAQFUAEXT	0x0080
+#define ATA_SUPPORT_64BITWWN		0x0100
 	} __packed support, enabled;
 
 /*088*/ u_int16_t       udmamodes;              /* UltraDMA modes */
