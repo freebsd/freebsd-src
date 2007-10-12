@@ -15,12 +15,12 @@ SRCS=   analyze.c context.c diff.c dir.c ed.c ifdef.c io.c \
 # Important for ctype macros!
 CFLAGS+=-funsigned-char
 
+CFLAGS+=-DHAVE_CONFIG_H
+CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 CFLAGS+=-I${DESTDIR}/usr/include/gnu
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
-CFLAGS+=-DHAVE_CONFIG_H
-CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 
 SUBDIR+=doc
 
