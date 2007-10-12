@@ -10,6 +10,13 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S
 
+# Enable PXE TFTP or NFS support, not both.
+.if defined(LOADER_TFTP_SUPPORT)
+CFLAGS+=	-DLOADER_TFTP_SUPPORT
+.else
+CFLAGS+=	-DLOADER_NFS_SUPPORT
+.endif
+
 BOOT_COMCONSOLE_PORT?= 0x3f8
 CFLAGS+=	-DCOMPORT=${BOOT_COMCONSOLE_PORT}
 
