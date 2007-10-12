@@ -170,8 +170,11 @@ struct scsi_mode_sense_6
 #define	SMS_PAGE_CODE 			0x3F
 #define SMS_VENDOR_SPECIFIC_PAGE	0x00
 #define SMS_DISCONNECT_RECONNECT_PAGE	0x02
+#define SMS_CACHE_PAGE			0x08
 #define SMS_PERIPHERAL_DEVICE_PAGE	0x09
 #define SMS_CONTROL_MODE_PAGE		0x0A
+#define SMS_PROTO_SPECIFIC_PAGE		0x19
+#define SMS_INFO_EXCEPTIONS_PAGE	0x1C
 #define SMS_ALL_PAGES_PAGE		0x3F
 #define	SMS_PAGE_CTRL_MASK		0xC0
 #define	SMS_PAGE_CTRL_CURRENT 		0x00
@@ -257,6 +260,8 @@ struct scsi_log_sense
 #define	SLS_ERROR_VERIFY_PAGE		0x05
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
+#define SLS_SELF_TEST_PAGE		0x10
+#define SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
 #define	SLS_PAGE_CTRL_THRESHOLD		0x00
 #define	SLS_PAGE_CTRL_CUMULATIVE	0x40
@@ -327,6 +332,55 @@ struct scsi_control_page {
 #define SCP_EAENP			0x01	/*Error AEN Permission*/
 	u_int8_t reserved;
 	u_int8_t aen_holdoff_period[2];
+};
+
+struct scsi_cache_page {
+	u_int8_t page_code;
+#define SCHP_PAGE_SAVABLE		0x80	/* Page is savable */
+	u_int8_t page_length;
+	u_int8_t cache_flags;
+#define SCHP_FLAGS_WCE			0x04	/* Write Cache Enable */
+#define SCHP_FLAGS_MF			0x02	/* Multiplication factor */
+#define SCHP_FLAGS_RCD			0x01	/* Read Cache Disable */
+	u_int8_t rw_cache_policy;
+	u_int8_t dis_prefetch[2];
+	u_int8_t min_prefetch[2];
+	u_int8_t max_prefetch[2];
+	u_int8_t max_prefetch_ceil[2];
+};
+
+struct scsi_info_exceptions_page {
+	u_int8_t page_code;
+#define SIEP_PAGE_SAVABLE		0x80	/* Page is savable */
+	u_int8_t page_length;
+	u_int8_t info_flags;
+#define SIEP_FLAGS_PERF			0x80
+#define SIEP_FLAGS_EBF			0x20
+#define SIEP_FLAGS_EWASC		0x10
+#define SIEP_FLAGS_DEXCPT		0x08
+#define SIEP_FLAGS_TEST			0x04
+#define SIEP_FLAGS_EBACKERR		0x02
+#define SIEP_FLAGS_LOGERR		0x01
+	u_int8_t mrie;
+	u_int8_t interval_timer[4];
+	u_int8_t report_count[4];
+};
+
+struct scsi_proto_specific_page {
+	u_int8_t page_code;
+#define SPSP_PAGE_SAVABLE		0x80	/* Page is savable */
+	u_int8_t page_length;
+	u_int8_t protocol;
+#define SPSP_PROTO_FC			0x00
+#define SPSP_PROTO_SPI			0x01
+#define SPSP_PROTO_SSA			0x02
+#define SPSP_PROTO_1394			0x03
+#define SPSP_PROTO_RDMA			0x04
+#define SPSP_PROTO_ISCSI		0x05
+#define SPSP_PROTO_SAS			0x06
+#define SPSP_PROTO_ADT			0x07
+#define SPSP_PROTO_ATA			0x08
+#define SPSP_PROTO_NONE			0x0f
 };
 
 struct scsi_reserve
@@ -468,6 +522,47 @@ struct scsi_start_stop_unit
 	u_int8_t control;
 };
 
+struct ata_pass_12 {
+	u_int8_t opcode;
+	u_int8_t protocol;
+#define AP_MULTI	0xe0
+	u_int8_t flags;
+#define AP_T_LEN	0x03
+#define AP_BB		0x04
+#define AP_T_DIR	0x08
+#define AP_CK_COND	0x20
+#define AP_OFFLINE	0x60
+	u_int8_t features;
+	u_int8_t sector_count;
+	u_int8_t lba_low;
+	u_int8_t lba_mid;
+	u_int8_t lba_high;
+	u_int8_t device;
+	u_int8_t command;
+	u_int8_t reserved;
+	u_int8_t control;
+};
+
+struct ata_pass_16 {
+	u_int8_t opcode;
+	u_int8_t protocol;
+#define AP_EXTEND	0x01
+	u_int8_t flags;
+	u_int8_t features_ext;
+	u_int8_t features;
+	u_int8_t sector_count_ext;
+	u_int8_t sector_count;
+	u_int8_t lba_low_ext;
+	u_int8_t lba_low;
+	u_int8_t lba_mid_ext;
+	u_int8_t lba_mid;
+	u_int8_t lba_high_ext;
+	u_int8_t lba_high;
+	u_int8_t device;
+	u_int8_t command;
+	u_int8_t control;
+};
+
 #define SC_SCSI_1 0x01
 #define SC_SCSI_2 0x03
 
@@ -494,6 +589,7 @@ struct scsi_start_stop_unit
 #define WRITE_10		0x2a
 #define POSITION_TO_ELEMENT	0x2b
 #define	SYNCHRONIZE_CACHE	0x35
+#define	READ_DEFECT_DATA_10	0x37
 #define	WRITE_BUFFER            0x3b
 #define	READ_BUFFER             0x3c
 #define	CHANGE_DEFINITION	0x40
@@ -501,10 +597,12 @@ struct scsi_start_stop_unit
 #define	LOG_SENSE		0x4d
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
+#define	ATA_PASS_16		0x85
 #define	READ_16			0x88
 #define	WRITE_16		0x8a
 #define	SERVICE_ACTION_IN	0x9e
 #define	REPORT_LUNS		0xA0
+#define	ATA_PASS_12		0xa1
 #define	MOVE_MEDIUM     	0xa5
 #define	READ_12			0xa8
 #define	WRITE_12		0xaa
@@ -661,6 +759,17 @@ struct scsi_inquiry_data
 
 #define	SID_VENDOR_SPECIFIC_1_SIZE	160
 	u_int8_t vendor_specific1[SID_VENDOR_SPECIFIC_1_SIZE];
+};
+
+struct scsi_vpd_supported_page_list
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define SVPD_SUPPORTED_PAGE_LIST 0x00
+	u_int8_t reserved;
+	u_int8_t length;	/* number of VPD entries */
+#define SVPD_SUPPORTED_PAGES_SIZE	251
+	u_int8_t list[SVPD_SUPPORTED_PAGES_SIZE];
 };
 
 struct scsi_vpd_unit_serial_number
@@ -1231,7 +1340,7 @@ find_mode_page_10(struct scsi_mode_header_10 *mode_header)
 {
 	void *page_start;
 
-	page_start = (void *)((u_int8_t *)&mode_header[1] +
+	page_start = (void *)((u_int8_t *)&mode_header[2] +
 			       scsi_2btoul(mode_header->blk_desc_len));
 
 	return(page_start);
