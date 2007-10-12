@@ -2491,7 +2491,8 @@ ciss_cam_init(struct ciss_softc *sc)
 	if ((sc->ciss_cam_sim[i] = cam_sim_alloc(ciss_cam_action, ciss_cam_poll,
 						 "ciss", sc,
 						 device_get_unit(sc->ciss_dev),
-						 &sc->ciss_mtx, 1,
+						 &sc->ciss_mtx,
+						 sc->ciss_max_requests - 2,
 						 sc->ciss_max_requests - 2,
 						 sc->ciss_cam_devq)) == NULL) {
 	    ciss_printf(sc, "can't allocate CAM SIM for controller %d\n", i);
