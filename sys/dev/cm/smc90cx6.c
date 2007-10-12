@@ -592,7 +592,7 @@ cleanup:
 		sc->sc_rx_act = buffer;
 		sc->sc_intmask |= CM_RI;
 
-		/* this also clears the RI flag interupt: */
+		/* this also clears the RI flag interrupt: */
 		PUTREG(CMCMD, CM_RXBC(buffer));
 		PUTREG(CMSTAT, sc->sc_intmask);
 
@@ -779,7 +779,7 @@ cmintr(arg)
 				 * configured sender)
 				 */
 				log(LOG_WARNING,
-				    "%s: spurious RX interupt or sender 0 "
+				    "%s: spurious RX interrupt or sender 0 "
 				    " (ignored)\n", ifp->if_xname);
 				/*
 				 * restart receiver on same buffer.
@@ -797,7 +797,7 @@ cmintr(arg)
 					/*
 					 * Start receiver on other receive
 					 * buffer. This also clears the RI
-					 * interupt flag.
+					 * interrupt flag.
 					 */
 					PUTREG(CMCMD, CM_RXBC(buffer));
 					/* in RX intr, so mask is ok for RX */

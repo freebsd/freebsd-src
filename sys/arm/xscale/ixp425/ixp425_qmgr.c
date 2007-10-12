@@ -341,7 +341,7 @@ ixpqmgr_qconfig(int qId, int qEntries, int ne, int nf, int srcSel,
 	 */
 	sc->aqmFreeSramAddress += (qi->qSizeInWords * sizeof(uint32_t));
 
-	/* Set the interupt source if this queue is in the range 0-31 */
+	/* Set the interrupt source if this queue is in the range 0-31 */
 	if (qId < IX_QMGR_MIN_QUEUPP_QID)
 	    aqm_srcsel_write(sc, qId, srcSel);
 
@@ -604,7 +604,7 @@ ixpqmgr_notify_enable(int qId, int srcSel)
 	/* Calculate the checkMask and checkValue for this q */
 	aqm_calc_statuscheck(sc, qId, srcSel);
 #endif
-	/* Set the interupt source if this queue is in the range 0-31 */
+	/* Set the interrupt source if this queue is in the range 0-31 */
 	if (qId < IX_QMGR_MIN_QUEUPP_QID)
 	    aqm_srcsel_write(sc, qId, srcSel);
 

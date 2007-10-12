@@ -264,7 +264,7 @@ isic_probe_s08(device_t dev)
 			break;
 	}
 
-	/* register interupt routine */
+	/* register interrupt routine */
 
 	bus_setup_intr(dev, sc->sc_resources.irq,
 			INTR_TYPE_NET,
