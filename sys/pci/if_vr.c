@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/miivar.h>
 
+#include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #define VR_USEIOSPACE
@@ -513,6 +514,7 @@ vr_attach(device_t dev)
 	struct ifnet		*ifp;
 	int			error = 0, rid;
 	struct vr_type		*t;
+	int			pmc;
 
 	sc = device_get_softc(dev);
 	sc->vr_dev = dev;
@@ -591,7 +593,8 @@ vr_attach(device_t dev)
 	 * shuts down. Be sure to kick it in the head to wake it
 	 * up again.
 	 */
-	VR_CLRBIT(sc, VR_STICKHW, (VR_STICKHW_DS0|VR_STICKHW_DS1));
+	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+		VR_CLRBIT(sc, VR_STICKHW, (VR_STICKHW_DS0|VR_STICKHW_DS1));
 
 	/* Reset the adapter. */
 	vr_reset(sc);
