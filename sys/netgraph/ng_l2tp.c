@@ -128,6 +128,7 @@ struct l2tp_seq {
 	struct callout		rack_timer;	/* retransmit timer */
 	struct callout		xack_timer;	/* delayed ack timer */
 	struct mbuf		*xwin[L2TP_MAX_XWIN];	/* transmit window */
+	struct mtx		mtx;			/* seq mutex */
 };
 
 /* Node private data */
@@ -675,6 +676,8 @@ ng_l2tp_shutdown(node_p node)
 	ng_uncallout(&seq->rack_timer, node);
 	ng_uncallout(&seq->xack_timer, node);
 
+	mtx_destroy(&seq->mtx);
+
 	FREE(priv, M_NETGRAPH_L2TP);
 
 	/* Unref node */
@@ -993,6 +996,7 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	struct mbuf *m;
 	int error;
 	int i;
+	u_int16_t	ns;
 
 	/* Sanity check */
 	L2TP_SEQ_CHECK(&priv->seq);
@@ -1021,9 +1025,12 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 		ERROUT(EOVERFLOW);
 	}
 
+	mtx_lock(&seq->mtx);
+
 	/* Find next empty slot in transmit queue */
 	for (i = 0; i < L2TP_MAX_XWIN && seq->xwin[i] != NULL; i++);
 	if (i == L2TP_MAX_XWIN) {
+		mtx_unlock(&seq->mtx);
 		priv->stats.xmitDrops++;
 		m_freem(m);
 		ERROUT(ENOBUFS);
@@ -1031,22 +1038,28 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	seq->xwin[i] = m;
 
 	/* If peer's receive window is already full, nothing else to do */
-	if (i >= seq->cwnd)
+	if (i >= seq->cwnd) {
+		mtx_unlock(&seq->mtx);
 		ERROUT(0);
+	}
 
 	/* Start retransmit timer if not already running */
 	if (!callout_active(&seq->rack_timer))
 		ng_callout(&seq->rack_timer, node, NULL,
 		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
+	
+	ns = seq->ns++;
+	
+	mtx_unlock(&seq->mtx);
 
 	/* Copy packet */
-	if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL) {
+	if ((m = L2TP_COPY_MBUF(m, M_DONTWAIT)) == NULL) {
 		priv->stats.memoryFailures++;
 		ERROUT(ENOBUFS);
 	}
 
 	/* Send packet and increment xmit sequence number */
-	error = ng_l2tp_xmit_ctrl(priv, m, seq->ns++);
+	error = ng_l2tp_xmit_ctrl(priv, m, ns);
 done:
 	/* Done */
 	L2TP_SEQ_CHECK(&priv->seq);
@@ -1164,6 +1177,7 @@ ng_l2tp_seq_init(priv_p priv)
 	seq->ssth = seq->wmax;
 	ng_callout_init(&seq->rack_timer);
 	ng_callout_init(&seq->xack_timer);
+	mtx_init(&seq->mtx, "ng_l2tp", NULL, MTX_DEF);
 	L2TP_SEQ_CHECK(seq);
 }
 
@@ -1249,10 +1263,16 @@ ng_l2tp_seq_reset(priv_p priv)
 	NG_NODE_FOREACH_HOOK(priv->node, ng_l2tp_reset_session, NULL, hook);
 
 	/* Reset node's sequence number state */
-	memset(seq, 0, sizeof(*seq));
-	seq->cwnd = 1;
+	seq->ns = 0;
+	seq->nr = 0;
+	seq->rack = 0;
+	seq->xack = 0;
 	seq->wmax = L2TP_MAX_XWIN;
+	seq->cwnd = 1;
 	seq->ssth = seq->wmax;
+	seq->acks = 0;
+	seq->rexmits = 0;
+	bzero(seq->xwin, sizeof(seq->xwin));
 
 	/* Done */
 	L2TP_SEQ_CHECK(seq);
@@ -1265,14 +1285,20 @@ static void
 ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 {
 	struct l2tp_seq *const seq = &priv->seq;
-	struct mbuf *m;
-	int nack;
-	int i;
+	struct mbuf	*xwin[L2TP_MAX_XWIN];	/* partial local copy */
+	int		nack;
+	int		i, j;
+	uint16_t	ns;
+
+	mtx_lock(&seq->mtx);
 
 	/* Verify peer's ACK is in range */
-	if ((nack = L2TP_SEQ_DIFF(nr, seq->rack)) <= 0)
+	if ((nack = L2TP_SEQ_DIFF(nr, seq->rack)) <= 0) {
+		mtx_unlock(&seq->mtx);
 		return;				/* duplicate ack */
+	}
 	if (L2TP_SEQ_DIFF(nr, seq->ns) > 0) {
+		mtx_unlock(&seq->mtx);
 		priv->stats.recvBadAcks++;	/* ack for packet not sent */
 		return;
 	}
@@ -1324,8 +1350,10 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 		ng_uncallout(&seq->rack_timer, priv->node);
 
 	/* If transmit queue is empty, we're done for now */
-	if (seq->xwin[0] == NULL)
+	if (seq->xwin[0] == NULL) {
+		mtx_unlock(&seq->mtx);
 		return;
+	}
 
 	/* Start restransmit timer again */
 	ng_callout(&seq->rack_timer, priv->node, NULL,
@@ -1333,16 +1361,30 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 
 	/*
 	 * Send more packets, trying to keep peer's receive window full.
+	 * Make copy of everything we need before lock release.
+	 */
+	ns = seq->ns;
+	j = 0;
+	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd
+	    && seq->xwin[i] != NULL) {
+		xwin[j++] = seq->xwin[i];
+		seq->ns++;
+	}
+
+	mtx_unlock(&seq->mtx);
+
+	/*
+	 * Send prepared.
 	 * If there is a memory error, pretend packet was sent, as it
 	 * will get retransmitted later anyway.
 	 */
-	while ((i = L2TP_SEQ_DIFF(seq->ns, seq->rack)) < seq->cwnd
-	    && seq->xwin[i] != NULL) {
-		if ((m = L2TP_COPY_MBUF(seq->xwin[i], M_DONTWAIT)) == NULL)
+	for (i = 0; i < j; i++) {
+		struct mbuf 	*m;
+		if ((m = L2TP_COPY_MBUF(xwin[i], M_DONTWAIT)) == NULL)
 			priv->stats.memoryFailures++;
 		else
-			ng_l2tp_xmit_ctrl(priv, m, seq->ns);
-		seq->ns++;
+			ng_l2tp_xmit_ctrl(priv, m, ns);
+		ns++;
 	}
 }
 
@@ -1371,6 +1413,8 @@ ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
 		return (-1);
 	}
 
+	mtx_lock(&seq->mtx);
+
 	/* Update recv sequence number */
 	seq->nr++;
 
@@ -1378,6 +1422,8 @@ ng_l2tp_seq_recv_ns(priv_p priv, u_int16_t ns)
 	if (!callout_active(&seq->xack_timer))
 		ng_callout(&seq->xack_timer, priv->node, NULL,
 		    L2TP_DELAYED_ACK, ng_l2tp_seq_xack_timeout, NULL, 0);
+
+	mtx_unlock(&seq->mtx);
 
 	/* Accept packet */
 	return (0);
@@ -1473,12 +1519,16 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	u_int16_t session_id = 0;
 	int error;
 
+	mtx_lock(&seq->mtx);
+
 	/* Stop ack timer: we're sending an ack with this packet.
 	   Doing this before to keep state predictable after error. */
 	if (callout_active(&seq->xack_timer))
 		ng_uncallout(&seq->xack_timer, priv->node);
 
 	seq->xack = seq->nr;
+
+	mtx_unlock(&seq->mtx);
 
 	/* If no mbuf passed, send an empty packet (ZLB) */
 	if (m == NULL) {
@@ -1534,12 +1584,15 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 static void
 ng_l2tp_seq_check(struct l2tp_seq *seq)
 {
-	const int self_unack = L2TP_SEQ_DIFF(seq->nr, seq->xack);
-	const int peer_unack = L2TP_SEQ_DIFF(seq->ns, seq->rack);
+	int self_unack, peer_unack;
 	int i;
 
 #define CHECK(p)	KASSERT((p), ("%s: not: %s", __func__, #p))
 
+	mtx_lock(&seq->mtx);
+
+	self_unack = L2TP_SEQ_DIFF(seq->nr, seq->xack);
+	peer_unack = L2TP_SEQ_DIFF(seq->ns, seq->rack);
 	CHECK(seq->wmax <= L2TP_MAX_XWIN);
 	CHECK(seq->cwnd >= 1);
 	CHECK(seq->cwnd <= seq->wmax);
@@ -1558,6 +1611,8 @@ ng_l2tp_seq_check(struct l2tp_seq *seq)
 		CHECK(seq->xwin[i] != NULL);
 	for ( ; i < seq->cwnd; i++)	    /* verify peer's recv window full */
 		CHECK(seq->xwin[i] == NULL);
+
+	mtx_unlock(&seq->mtx);
 
 #undef CHECK
 }
