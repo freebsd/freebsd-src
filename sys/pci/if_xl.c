@@ -2628,7 +2628,7 @@ xl_start_locked(struct ifnet *ifp)
 	 * Place the request for the upload interrupt
 	 * in the last descriptor in the chain. This way, if
 	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
+	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
 	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
@@ -2748,7 +2748,7 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	 * Place the request for the upload interrupt
 	 * in the last descriptor in the chain. This way, if
 	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
+	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
 	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
