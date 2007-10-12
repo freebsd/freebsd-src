@@ -1502,7 +1502,7 @@ wb_start_locked(ifp)
 	 * Place the request for the upload interrupt
 	 * in the last descriptor in the chain. This way, if
 	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
+	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
 	WB_TXCTL(cur_tx) |= WB_TXCTL_FINT;

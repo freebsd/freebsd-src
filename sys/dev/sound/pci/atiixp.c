@@ -902,7 +902,7 @@ atiixp_intr(void *p)
 		detected_codecs = status & CODEC_CHECK_BITS;
 		sc->codec_not_ready_bits |= detected_codecs;
 
-		/* disable detected interupt sources */
+		/* disable detected interrupt sources */
 		enable  = atiixp_rd(sc, ATI_REG_IER);
 		enable &= ~detected_codecs;
 		atiixp_wr(sc, ATI_REG_IER, enable);

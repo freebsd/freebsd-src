@@ -273,10 +273,10 @@ isic_probe_itkix1(device_t dev)
 	printf("done.\n");
 	#endif
 
-	/* register interupt routine */
+	/* register interrupt routine */
 
 	#if defined(ITK_PROBE_DEBUG)
-	printf("Setting up access interupt...");
+	printf("Setting up access interrupt...");
 	#endif
 
 	if (bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL,

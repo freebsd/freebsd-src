@@ -338,7 +338,7 @@ isic_probe_s0163(device_t dev)
 			break;
 	}
 
-	/* register interupt routine */
+	/* register interrupt routine */
 	if (bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL,
 			(void(*)(void *))(isicintr), sc, &ih) != 0)
 	{

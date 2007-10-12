@@ -1069,7 +1069,7 @@ sioprobe(dev, xrid, rclk, noprobe)
 	}
 
 	/*
-	 * Enable the interrupt gate and disable device interupts.  This
+	 * Enable the interrupt gate and disable device interrupts.  This
 	 * should leave the device driving the interrupt line low and
 	 * guarantee an edge trigger if an interrupt can be generated.
 	 */
