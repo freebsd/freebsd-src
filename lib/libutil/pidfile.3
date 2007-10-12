@@ -168,6 +168,10 @@ Specified pidfile's name is too long.
 .It Bq Er EINVAL
 Some process already holds the lock on the given pidfile, but PID read
 from there is invalid.
+.It Bq Er EAGAIN
+Some process already holds the lock on the given pidfile, but the file
+is truncated. Most likely, the existing daemon is writing new PID into
+the file.
 .El
 .Pp
 The
