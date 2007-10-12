@@ -1644,7 +1644,7 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 			sbd->bd->flags |= IPW_BD_FLAG_TX_NOT_LAST_FRAGMENT;
 		}
 
-		DPRINTFN(5, ("sending fragment (%d, %d)\n", i, segs[i].ds_len));
+		DPRINTFN(5, ("sending fragment (%d)\n", i));
 
 		sc->txfree--;
 		sc->txcur = (sc->txcur + 1) % IPW_NTBD;
