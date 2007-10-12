@@ -421,7 +421,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
  got_pnode:
 	if (pn != pd->pn_parent && !pn->pn_parent)
 		pn->pn_parent = pd;
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, NULL)) {
+	if (!pfs_visible(curthread, pn, pid, NULL)) {
 		error = ENOENT;
 		goto failed;
 	}
