@@ -125,8 +125,6 @@ struct l2tp_seq {
 	u_int16_t		ssth;		/* slow start threshold */
 	u_int16_t		acks;		/* # consecutive acks rec'd */
 	u_int16_t		rexmits;	/* # retransmits sent */
-	u_int16_t		max_rexmits;	/* max # retransmits sent */
-	u_int16_t		max_rexmit_to;	/* max retransmit timeout */
 	struct callout		rack_timer;	/* retransmit timer */
 	struct callout		xack_timer;	/* delayed ack timer */
 	struct mbuf		*xwin[L2TP_MAX_XWIN];	/* transmit window */
@@ -1166,8 +1164,6 @@ ng_l2tp_seq_init(priv_p priv)
 	if (seq->wmax > L2TP_MAX_XWIN)
 		seq->wmax = L2TP_MAX_XWIN;
 	seq->ssth = seq->wmax;
-	seq->max_rexmits = priv->conf.rexmit_max;
-	seq->max_rexmit_to = priv->conf.rexmit_max_to;
 	ng_callout_init(&seq->rack_timer);
 	ng_callout_init(&seq->xack_timer);
 	L2TP_SEQ_CHECK(seq);
@@ -1222,10 +1218,6 @@ ng_l2tp_seq_adjust(priv_p priv, const struct ng_l2tp_config *conf)
 	if (new_wmax < seq->wmax)
 		return (EBUSY);
 	seq->wmax = new_wmax;
-
-	/* Update retransmit parameters */
-	seq->max_rexmits = conf->rexmit_max;
-	seq->max_rexmit_to = conf->rexmit_max_to;
 
 	/* Done */
 	return (0);
@@ -1444,13 +1436,13 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	priv->stats.xmitRetransmits++;
 
 	/* Have we reached the retransmit limit? If so, notify owner. */
-	if (seq->rexmits++ >= seq->max_rexmits)
+	if (seq->rexmits++ >= priv->conf.rexmit_max)
 		ng_l2tp_seq_failure(priv);
 
 	/* Restart timer, this time with an increased delay */
 	delay = (seq->rexmits > 12) ? (1 << 12) : (1 << seq->rexmits);
-	if (delay > seq->max_rexmit_to)
-		delay = seq->max_rexmit_to;
+	if (delay > priv->conf.rexmit_max_to)
+		delay = priv->conf.rexmit_max_to;
 	ng_callout(&seq->rack_timer, node, NULL,
 	    hz * delay, ng_l2tp_seq_rack_timeout, NULL, 0);
 
