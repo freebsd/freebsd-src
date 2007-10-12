@@ -106,6 +106,7 @@ int pn;
         siginterrupt(SIGHUP, 1);
         signal (SIGTERM, quit);
         signal (SIGHUP, quit);
+        signal (SIGINT, quit);
 
 	n = write(fd, numbuf, numlen);
 	if (n < 0) { perror(pidfile); quit(23); }
