@@ -115,7 +115,6 @@ IFC_SIMPLE_DECLARE(lagg, 0);
 /* Simple round robin */
 static int	lagg_rr_attach(struct lagg_softc *);
 static int	lagg_rr_detach(struct lagg_softc *);
-static void	lagg_rr_port_destroy(struct lagg_port *);
 static int	lagg_rr_start(struct lagg_softc *, struct mbuf *);
 static struct mbuf *lagg_rr_input(struct lagg_softc *, struct lagg_port *,
 		    struct mbuf *);
@@ -273,8 +272,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
 		lagg_port_destroy(lp, 1);
 	/* Unhook the aggregation protocol */
-	if (sc->sc_detach != NULL)
-		(*sc->sc_detach)(sc);
+	(*sc->sc_detach)(sc);
 
 	LAGG_WUNLOCK(sc);
 
@@ -1124,10 +1122,8 @@ lagg_start(struct ifnet *ifp)
 
 		if (error == 0)
 			ifp->if_opackets++;
-		else {
-			m_freem(m); /* sc_start failed */
+		else
 			ifp->if_oerrors++;
-		}
 	}
 	LAGG_RUNLOCK(sc);
 
@@ -1346,6 +1342,8 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 	int error = 0;
 
 	IFQ_HANDOFF(ifp, m, error);
+	if (error)
+		ifp->if_oerrors++;
 	return (error);
 }
 
@@ -1356,17 +1354,12 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 static int
 lagg_rr_attach(struct lagg_softc *sc)
 {
-	struct lagg_port *lp;
-
 	sc->sc_detach = lagg_rr_detach;
 	sc->sc_start = lagg_rr_start;
 	sc->sc_input = lagg_rr_input;
 	sc->sc_port_create = NULL;
-	sc->sc_port_destroy = lagg_rr_port_destroy;
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
-
-	lp = SLIST_FIRST(&sc->sc_ports);
-	sc->sc_psc = (caddr_t)lp;
+	sc->sc_seq = 0;
 
 	return (0);
 }
@@ -1374,36 +1367,32 @@ lagg_rr_attach(struct lagg_softc *sc)
 static int
 lagg_rr_detach(struct lagg_softc *sc)
 {
-	sc->sc_psc = NULL;
 	return (0);
-}
-
-static void
-lagg_rr_port_destroy(struct lagg_port *lp)
-{
-	struct lagg_softc *sc = lp->lp_softc;
-
-	if (lp == (struct lagg_port *)sc->sc_psc)
-		sc->sc_psc = NULL;
 }
 
 static int
 lagg_rr_start(struct lagg_softc *sc, struct mbuf *m)
 {
-	struct lagg_port *lp = (struct lagg_port *)sc->sc_psc, *lp_next;
-	int error = 0;
+	struct lagg_port *lp;
+	uint32_t p;
 
-	if (lp == NULL && (lp = lagg_link_active(sc, NULL)) == NULL)
+	p = atomic_fetchadd_32(&sc->sc_seq, 1);
+	p %= sc->sc_count;
+	lp = SLIST_FIRST(&sc->sc_ports);
+	while (p--)
+		lp = SLIST_NEXT(lp, lp_entries);
+
+	/*
+	 * Check the port's link state. This will return the next active
+	 * port if the link is down or the port is NULL.
+	 */
+	if ((lp = lagg_link_active(sc, lp)) == NULL) {
+		m_freem(m);
 		return (ENOENT);
+	}
 
 	/* Send mbuf */
-	error = lagg_enqueue(lp->lp_ifp, m);
-
-	/* Get next active port */
-	lp_next = lagg_link_active(sc, SLIST_NEXT(lp, lp_entries));
-	sc->sc_psc = (caddr_t)lp_next;
-
-	return (error);
+	return (lagg_enqueue(lp->lp_ifp, m));
 }
 
 static struct mbuf *
@@ -1445,8 +1434,10 @@ lagg_fail_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp;
 
 	/* Use the master port if active or the next available port */
-	if ((lp = lagg_link_active(sc, sc->sc_primary)) == NULL)
+	if ((lp = lagg_link_active(sc, sc->sc_primary)) == NULL) {
+		m_freem(m);
 		return (ENOENT);
+	}
 
 	/* Send mbuf */
 	return (lagg_enqueue(lp->lp_ifp, m));
@@ -1563,16 +1554,20 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	int idx;
 
 	p = lagg_hashmbuf(m, lb->lb_key);
-	if ((idx = p % sc->sc_count) >= LAGG_MAX_PORTS)
+	if ((idx = p % sc->sc_count) >= LAGG_MAX_PORTS) {
+		m_freem(m);
 		return (EINVAL);
+	}
 	lp = lb->lb_ports[idx];
 
 	/*
 	 * Check the port's link state. This will return the next active
 	 * port if the link is down or the port is NULL.
 	 */
-	if ((lp = lagg_link_active(sc, lp)) == NULL)
+	if ((lp = lagg_link_active(sc, lp)) == NULL) {
+		m_freem(m);
 		return (ENOENT);
+	}
 
 	/* Send mbuf */
 	return (lagg_enqueue(lp->lp_ifp, m));
@@ -1658,8 +1653,10 @@ lagg_lacp_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp;
 
 	lp = lacp_select_tx_port(sc, m);
-	if (lp == NULL)
+	if (lp == NULL) {
+		m_freem(m);
 		return (EBUSY);
+	}
 
 	/* Send mbuf */
 	return (lagg_enqueue(lp->lp_ifp, m));

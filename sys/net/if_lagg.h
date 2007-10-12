@@ -176,6 +176,7 @@ struct lagg_softc {
 	struct lagg_port		*sc_primary;	/* primary port */
 	struct ifmedia			sc_media;	/* media config */
 	caddr_t				sc_psc;		/* protocol data */
+	uint32_t			sc_seq;		/* sequence counter */
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
