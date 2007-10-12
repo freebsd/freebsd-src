@@ -1030,11 +1030,6 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	}
 	seq->xwin[i] = m;
 
-	/* Sanity check receive ack timer state */
-	KASSERT((i == 0) ^ callout_active(&seq->rack_timer),
-	    ("%s: xwin %d full but rack timer %s running",
-	    __func__, i, callout_active(&seq->rack_timer) ? "" : "not "));
-
 	/* If peer's receive window is already full, nothing else to do */
 	if (i >= seq->cwnd)
 		ERROUT(0);
