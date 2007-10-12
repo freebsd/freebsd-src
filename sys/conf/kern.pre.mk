@@ -70,9 +70,6 @@ INCLUDES+= -I$S/dev/twa
 # .. and the same for em
 INCLUDES+= -I$S/dev/em
 
-# .. and the same for em
-INCLUDES+= -I$S/dev/em
-
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
