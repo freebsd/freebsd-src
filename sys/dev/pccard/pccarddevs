@@ -135,6 +135,7 @@ vendor PARALON			0x0183	Paralon Technologies Inc
 vendor KINGSTON			0x0186	Kingston
 vendor MELCO			0x018a	Melco Corporation
 vendor GLOBALVILLAGE		0x018c	Global Village
+vendor SIERRA			0x0192	Sierra
 vendor DAYNA			0x0194	Dayna Corporation
 vendor RAYTHEON			0x01a6	Raytheon
 vendor RACORE			0x01bf	Racore Computer Products
@@ -549,6 +550,12 @@ product SHARP PALDIO611S	0x0000  PALDIO 611S PC CARD
 
 /* Siemens */
 product SIEMENS SS1021		0x0002 Siemens SpeedStream 1021
+
+/* Sierra */
+product SIERRA AC710		0x0710 AC710/AC750/AC850
+product SIERRA A550		0xa550 A550
+product SIERRA A555		0xa555 A555
+product SIERRA A710		0xa710 A710/A750
 
 /* Simple Technology Products */
 product SIMPLETECH COMMUNICATOR288 0x0100 Simple Technology 28.8 Communicator
