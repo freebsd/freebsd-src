@@ -184,7 +184,7 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET;
+		cpi->hba_misc = PIM_NOBUSRESET|PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = MFI_SCSI_MAX_TARGETS;
 		cpi->max_lun = MFI_SCSI_MAX_LUNS;
@@ -195,8 +195,8 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 150000;
-		cpi->transport = XPORT_SPI;
-		cpi->transport_version = 2;
+		cpi->transport = XPORT_SAS;
+		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
@@ -210,20 +210,17 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
-		struct ccb_trans_settings_scsi *scsi =
-		    &ccb->cts.proto_specific.scsi;
-		struct ccb_trans_settings_spi *spi =
-		    &ccb->cts.xport_specific.spi;
+		struct ccb_trans_settings_sas *sas =
+		    &ccb->cts.xport_specific.sas;
 
 		ccb->cts.protocol = PROTO_SCSI;
-		ccb->cts.protocol = SCSI_REV_2;
-		ccb->cts.transport = XPORT_SPI;
-		ccb->cts.transport_version = 2;
-		if (ccb->ccb_h.target_lun != CAM_LUN_WILDCARD) {
-			scsi->valid = CTS_SCSI_VALID_TQ;
-			spi->valid |= CTS_SPI_VALID_DISC;
-		} else
-			scsi->valid = 0;
+		ccb->cts.protocol_version = SCSI_REV_2;
+		ccb->cts.transport = XPORT_SAS;
+		ccb->cts.transport_version = 0;
+
+		sas->valid &= ~CTS_SAS_VALID_SPEED;
+		sas->bitrate = 150000;
+
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -357,7 +354,7 @@ mfip_done(struct mfi_command *cm)
 	{
 		int sense_len;
 
-		ccbh->status = CAM_REQ_CMP_ERR | CAM_AUTOSNS_VALID;
+		ccbh->status = CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 		csio->scsi_status = pt->header.scsi_status;
 		sense_len = min(pt->header.sense_len, sizeof(struct scsi_sense_data));
 		bzero(&csio->sense_data, sizeof(struct scsi_sense_data));
@@ -365,7 +362,7 @@ mfip_done(struct mfi_command *cm)
 		break;
 	}
 	case MFI_STAT_DEVICE_NOT_FOUND:
-		ccbh->status = CAM_DEV_NOT_THERE;
+		ccbh->status = CAM_SEL_TIMEOUT;
 		break;
 	case MFI_STAT_SCSI_IO_FAILED:
 		ccbh->status = CAM_REQ_CMP_ERR;
