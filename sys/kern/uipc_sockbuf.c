@@ -60,8 +60,8 @@ void	(*aio_swake)(struct socket *, struct sockbuf *);
  */
 
 u_long	sb_max = SB_MAX;
-static	u_long sb_max_adj =
-    SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
+u_long sb_max_adj =
+       SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
