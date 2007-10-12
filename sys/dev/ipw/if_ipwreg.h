@@ -88,11 +88,18 @@
 #define IPW_IO_LED_OFF		0x00002000
 #define IPW_IO_RADIO_DISABLED	0x00010000
 
+/* state codes sent by fw on IPW_STATUS_CODE_NEWSTATE interrupt */
+#define IPW_STATE_INITIALIZED		0x0001
+#define IPW_STATE_CC_FOUND		0x0002	/* 802.11d cc received */
 #define IPW_STATE_ASSOCIATED		0x0004
 #define IPW_STATE_ASSOCIATION_LOST	0x0008
+#define IPW_STATE_ASSOCIATION_CHANGED	0x0010	/* assoc params changed? */
 #define IPW_STATE_SCAN_COMPLETE		0x0020
+#define IPW_STATE_PS_ENTER		0x0040	/* entered power-save mode */
+#define IPW_STATE_PS_EXIT		0x0080	/* exited power-save mode */
 #define IPW_STATE_RADIO_DISABLED	0x0100
 #define IPW_STATE_DISABLED		0x0200
+#define IPW_STATE_POWER_DOWN		0x0400	/* ??? */
 #define IPW_STATE_SCANNING		0x0800
 
 /* table1 offsets */
@@ -146,7 +153,9 @@ struct ipw_status {
 	uint8_t		flags;
 #define IPW_STATUS_FLAG_DECRYPTED	0x01
 #define IPW_STATUS_FLAG_WEP_ENCRYPTED	0x02
+#define IPW_STATUS_FLAG_CRC_ERROR	0x04
 	uint8_t		rssi;	/* received signal strength indicator */
+#define	IPW_RSSI_TO_DBM	(-98)		/* XXX fixed nf to convert dBm */
 } __packed;
 
 /* data header */
@@ -190,9 +199,14 @@ struct ipw_cmd {
 #define IPW_CMD_DISABLE				44
 #define IPW_CMD_SET_DESIRED_BSSID		45
 #define IPW_CMD_SET_SCAN_OPTIONS		46
+#define IPW_CMD_SET_SCAN_DWELL_TIME		47
+#define IPW_CMD_SET_SHORT_RETRY			51
+#define IPW_CMD_SET_LONG_RETRY			52
 #define IPW_CMD_PREPARE_POWER_DOWN		58
 #define IPW_CMD_DISABLE_PHY			61
-#define IPW_CMD_SET_SECURITY_INFORMATION	67
+#define IPW_CMD_SET_MSDU_TX_RATES		62
+#define IPW_CMD_SET_SECURITY_INFO		67
+#define IPW_CMD_DISASSOCIATE			68
 #define IPW_CMD_SET_WPA_IE			69
 	uint32_t	subtype;
 	uint32_t	seq;
@@ -204,7 +218,7 @@ struct ipw_cmd {
 
 /* possible values for command IPW_CMD_SET_POWER_MODE */
 #define IPW_POWER_MODE_CAM	0
-#define IPW_POWER_AUTOMATIC	6
+#define IPW_POWER_MODE_AUTO	6
 
 /* possible values for command IPW_CMD_SET_MODE */
 #define IPW_MODE_BSS		0
@@ -241,6 +255,7 @@ struct ipw_security {
 struct ipw_scan_options {
 	uint32_t	flags;
 #define IPW_SCAN_DO_NOT_ASSOCIATE	0x00000001
+#define IPW_SCAN_MIXED_CELL		0x00000002
 #define IPW_SCAN_PASSIVE		0x00000008
 	uint32_t	channels;
 } __packed;
