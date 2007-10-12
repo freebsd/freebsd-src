@@ -12,30 +12,64 @@
 name="ppp"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
-start_precmd="ppp_prestart"
+start_cmd="ppp_start"
 start_postcmd="ppp_poststart"
 
-ppp_prestart()
+ppp_start_profile()
 {
-	# Establish ppp mode.
+	local _ppp_profile _ppp_mode _ppp_nat
+
+	_ppp_profile=$1
+
+	# Check for ppp profile mode override.
 	#
-	if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
-		-a "${ppp_mode}" != "dedicated" \
-		-a "${ppp_mode}" != "background" ]; then
-		ppp_mode="auto"
+	eval _ppp_mode=\$ppp_${_ppp_profile}_mode
+	if [ -z "$_ppp_mode" ]; then
+		_ppp_mode=$ppp_mode
 	fi
 
-	rc_flags="$rc_flags -quiet -${ppp_mode}"
+	# Check for ppp profile nat override.
+	#
+	eval _ppp_nat=\$ppp_${_ppp_profile}_nat
+	if [ -z "$_ppp_nat" ]; then
+		_ppp_nat=$ppp_nat
+	fi
+
+	# Establish ppp mode.
+	#
+	if [ "${_ppp_mode}" != "ddial" -a "${_ppp_mode}" != "direct" \
+		-a "${_ppp_mode}" != "dedicated" \
+		-a "${_ppp_mode}" != "background" ]; then
+		_ppp_mode="auto"
+	fi
+
+	rc_flags="-quiet -${_ppp_mode}"
 
 	# Switch on NAT mode?
 	#
-	case ${ppp_nat} in
+	case ${_ppp_nat} in
 	[Yy][Ee][Ss])
 		rc_flags="$rc_flags -nat"
 		;;
 	esac
 
-	rc_flags="$rc_flags ${ppp_profile}"
+	# Run!
+	#
+	su -m $ppp_user -c "$command ${rc_flags} ${_ppp_profile}"
+}
+
+ppp_start()
+{
+	local _p
+
+	echo -n "Starting PPP profile:"
+
+	for _p in $ppp_profile; do
+		echo -n " $_p"
+		ppp_start_profile $_p
+	done
+
+	echo "."
 }
 
 ppp_poststart()
