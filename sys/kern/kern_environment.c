@@ -439,13 +439,28 @@ getenv_int(const char *name, int *data)
 }
 
 /*
+ * Return an unsigned integer value from an environment variable.
+ */
+int
+getenv_uint(const char *name, unsigned int *data)
+{
+	quad_t tmp;
+	int rval;
+
+	rval = getenv_quad(name, &tmp);
+	if (rval)
+		*data = (unsigned int) tmp;
+	return (rval);
+}
+
+/*
  * Return a long value from an environment variable.
  */
-long
+int
 getenv_long(const char *name, long *data)
 {
 	quad_t tmp;
-	long rval;
+	int rval;
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
@@ -456,11 +471,11 @@ getenv_long(const char *name, long *data)
 /*
  * Return an unsigned long value from an environment variable.
  */
-unsigned long
+int
 getenv_ulong(const char *name, unsigned long *data)
 {
 	quad_t tmp;
-	long rval;
+	int rval;
 
 	rval = getenv_quad(name, &tmp);
 	if (rval)
