@@ -106,7 +106,7 @@ __END_DECLS
 #define	towupper(wc)		__toupper(wc)
 
 #if __BSD_VISIBLE
-#define	iswascii(wc)		(((wc) & ~0x7F) == 0)
+#define	iswascii(wc)		((wc) < 0x80)
 #define	iswhexnumber(wc)	__istype((wc), _CTYPE_X)
 #define	iswideogram(wc)		__istype((wc), _CTYPE_I)
 #define	iswnumber(wc)		__istype((wc), _CTYPE_D)
