@@ -86,19 +86,19 @@ int	isspecial(int);
 #endif
 __END_DECLS
 
-#define	isalnum(c)	__istype((c), _CTYPE_A|_CTYPE_D)
-#define	isalpha(c)	__istype((c), _CTYPE_A)
-#define	iscntrl(c)	__istype((c), _CTYPE_C)
+#define	isalnum(c)	__sbistype((c), _CTYPE_A|_CTYPE_D)
+#define	isalpha(c)	__sbistype((c), _CTYPE_A)
+#define	iscntrl(c)	__sbistype((c), _CTYPE_C)
 #define	isdigit(c)	__isctype((c), _CTYPE_D) /* ANSI -- locale independent */
-#define	isgraph(c)	__istype((c), _CTYPE_G)
-#define	islower(c)	__istype((c), _CTYPE_L)
-#define	isprint(c)	__istype((c), _CTYPE_R)
-#define	ispunct(c)	__istype((c), _CTYPE_P)
-#define	isspace(c)	__istype((c), _CTYPE_S)
-#define	isupper(c)	__istype((c), _CTYPE_U)
+#define	isgraph(c)	__sbistype((c), _CTYPE_G)
+#define	islower(c)	__sbistype((c), _CTYPE_L)
+#define	isprint(c)	__sbistype((c), _CTYPE_R)
+#define	ispunct(c)	__sbistype((c), _CTYPE_P)
+#define	isspace(c)	__sbistype((c), _CTYPE_S)
+#define	isupper(c)	__sbistype((c), _CTYPE_U)
 #define	isxdigit(c)	__isctype((c), _CTYPE_X) /* ANSI -- locale independent */
-#define	tolower(c)	__tolower(c)
-#define	toupper(c)	__toupper(c)
+#define	tolower(c)	__sbtolower(c)
+#define	toupper(c)	__sbtoupper(c)
 
 #if __XSI_VISIBLE
 /*
@@ -112,24 +112,24 @@ __END_DECLS
  *
  * XXX isascii() and toascii() should similarly be undocumented.
  */
-#define	_tolower(c)	__tolower(c)
-#define	_toupper(c)	__toupper(c)
+#define	_tolower(c)	__sbtolower(c)
+#define	_toupper(c)	__sbtoupper(c)
 #define	isascii(c)	(((c) & ~0x7F) == 0)
 #define	toascii(c)	((c) & 0x7F)
 #endif
 
 #if __ISO_C_VISIBLE >= 1999
-#define	isblank(c)	__istype((c), _CTYPE_B)
+#define	isblank(c)	__sbistype((c), _CTYPE_B)
 #endif
 
 #if __BSD_VISIBLE
-#define	digittoint(c)	__maskrune((c), 0xFF)
-#define	ishexnumber(c)	__istype((c), _CTYPE_X)
-#define	isideogram(c)	__istype((c), _CTYPE_I)
-#define	isnumber(c)	__istype((c), _CTYPE_D)
-#define	isphonogram(c)	__istype((c), _CTYPE_Q)
-#define	isrune(c)	__istype((c), 0xFFFFFF00L)
-#define	isspecial(c)	__istype((c), _CTYPE_T)
+#define	digittoint(c)	__sbmaskrune((c), 0xFF)
+#define	ishexnumber(c)	__sbistype((c), _CTYPE_X)
+#define	isideogram(c)	__sbistype((c), _CTYPE_I)
+#define	isnumber(c)	__sbistype((c), _CTYPE_D)
+#define	isphonogram(c)	__sbistype((c), _CTYPE_Q)
+#define	isrune(c)	__sbistype((c), 0xFFFFFF00L)
+#define	isspecial(c)	__sbistype((c), _CTYPE_T)
 #endif
 
 #endif /* !_CTYPE_H_ */
