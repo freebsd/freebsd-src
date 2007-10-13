@@ -81,24 +81,29 @@ __FBSDID("$FreeBSD$");
 static const struct puc_cfg *
 puc_pci_match(device_t dev, const struct puc_cfg *desc)
 {
-	uint16_t device, subdev, subven, vendor;
+	uint16_t vendor, device;
+	uint16_t subvendor, subdevice;
 
 	vendor = pci_get_vendor(dev);
 	device = pci_get_device(dev);
-	while (desc->vendor != 0xffff &&
-	    (desc->vendor != vendor || desc->device != device))
+	subvendor = pci_get_subvendor(dev);
+	subdevice = pci_get_subdevice(dev);
+
+	while (desc->vendor != 0xffff) {
+		if (desc->vendor == vendor && desc->device == device) {
+			/* exact match */
+			if (desc->subvendor == subvendor &&
+		            desc->subdevice == subdevice)
+				return (desc);
+			/* wildcard match */
+			if (desc->subvendor == 0xffff)
+				return (desc);
+		}
 		desc++;
-	if (desc->vendor == 0xffff)
-		return (NULL);
-	if (desc->subvendor == 0xffff)
-		return (desc);
-	subven = pci_get_subvendor(dev);
-	subdev = pci_get_subdevice(dev);
-	while (desc->vendor == vendor && desc->device == device &&
-	    (desc->subvendor != subven || desc->subdevice != subdev))
-		desc++;
-	return ((desc->vendor == vendor && desc->device == device)
-	    ? desc : NULL);
+	}
+
+	/* no match */
+	return (NULL);
 }
 
 static int
