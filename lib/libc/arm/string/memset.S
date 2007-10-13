@@ -103,15 +103,15 @@ ENTRY(memset)
 #ifndef _BZERO
 	orr	r3, r3, r3, lsl #8	/* Extend value to 16-bits */
 #endif
-#ifdef __XSCALE__
-	tst	ip, #0x04		/* Quad-align for Xscale */
+#ifdef _ARM_ARCH_5E
+	tst	ip, #0x04		/* Quad-align for armv5e */
 #else
 	cmp	r1, #0x10
 #endif
 #ifndef _BZERO
 	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
 #endif
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	subne	r1, r1, #0x04		/* Quad-align if necessary */
 	strne	r3, [ip], #0x04
 	cmp	r1, #0x10
@@ -124,7 +124,7 @@ ENTRY(memset)
 	/* Do 128 bytes at a time */
 .Lmemset_loop128:
 	subs	r1, r1, #0x80
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
@@ -167,7 +167,7 @@ ENTRY(memset)
 	/* Do 32 bytes at a time */
 .Lmemset_loop32:
 	subs	r1, r1, #0x20
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
@@ -184,7 +184,7 @@ ENTRY(memset)
 	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
 
 	/* Deal with 16 bytes or more */
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 #else
@@ -202,7 +202,7 @@ ENTRY(memset)
 	bgt	.Lmemset_loop4
 	RETeq			/* Zero length so just exit */
 
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
 	RETeq
