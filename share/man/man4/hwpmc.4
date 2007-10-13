@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2005
+.Dd October 13, 2007
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -564,6 +564,11 @@ PMC allocated with
 and
 .Dv PMC_F_LOG_PROCEXIT
 modifiers.
+.It Bq Er EDOOFUS
+A
+.Dv PMC_OP_PMCSTART
+operation was requested on a system-wide sampling PMC without a log
+file being configured.
 .It Bq Er EEXIST
 A
 .Dv PMC_OP_PMCATTACH
