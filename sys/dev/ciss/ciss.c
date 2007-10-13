@@ -183,6 +183,7 @@ static int	ciss_name_device(struct ciss_softc *sc, int bus, int target);
 
 /* periodic status monitoring */
 static void	ciss_periodic(void *arg);
+static void	ciss_disable_adapter(struct ciss_softc *sc);
 static void	ciss_notify_event(struct ciss_softc *sc);
 static void	ciss_notify_complete(struct ciss_request *cr);
 static int	ciss_notify_abort(struct ciss_softc *sc);
@@ -3068,6 +3069,9 @@ static void
 ciss_periodic(void *arg)
 {
     struct ciss_softc	*sc;
+    struct ciss_request	*cr = NULL;
+    struct ciss_command	*cc = NULL;
+    int			error = 0;
 
     debug_called(1);
 
@@ -3082,12 +3086,32 @@ ciss_periodic(void *arg)
 	      sc->ciss_heartbeat, sc->ciss_heart_attack);
 	if (sc->ciss_heart_attack == 3) {
 	    ciss_printf(sc, "ADAPTER HEARTBEAT FAILED\n");
-	    /* XXX should reset adapter here */
+	    ciss_disable_adapter(sc);
+	    return;
 	}
     } else {
 	sc->ciss_heartbeat = sc->ciss_cfg->heartbeat;
 	sc->ciss_heart_attack = 0;
 	debug(3, "new heartbeat 0x%x", sc->ciss_heartbeat);
+    }
+
+    /*
+     * Send the NOP message and wait for a response.
+     */
+    if ((error = ciss_get_request(sc, &cr)) == 0) {
+	cc = CISS_FIND_COMMAND(cr);
+	cc->cdb.cdb_length = 1;
+	cc->cdb.type = CISS_CDB_TYPE_MESSAGE;
+	cc->cdb.attribute = CISS_CDB_ATTRIBUTE_SIMPLE;
+	cc->cdb.direction = CISS_CDB_DIRECTION_WRITE;
+	cc->cdb.timeout = 0;
+	cc->cdb.cdb[0] = CISS_OPCODE_MESSAGE_NOP;
+
+	if ((error = ciss_synch_request(cr, 10 * 1000)) != 0) {
+	    ciss_printf(sc, "SENDING NOP MESSAGE FAILED\n");
+	}
+
+	ciss_release_request(cr);
     }
 
     /*
@@ -3103,6 +3127,61 @@ ciss_periodic(void *arg)
      * Reschedule.
      */
     callout_reset(&sc->ciss_periodic, CISS_HEARTBEAT_RATE * hz, ciss_periodic, sc);
+}
+
+/************************************************************************
+ * Disable the adapter.
+ *
+ * The all requests in completed queue is failed with hardware error.
+ * This will cause failover in a multipath configuration.
+ */
+static void
+ciss_disable_adapter(struct ciss_softc *sc)
+{
+    struct ciss_request		*cr;
+    struct ciss_command		*cc;
+    struct ciss_error_info	*ce;
+    int				s;
+
+    s = splcam();
+
+    CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc);
+    pci_disable_busmaster(sc->ciss_dev);
+    sc->ciss_flags &= ~CISS_FLAG_RUNNING;
+
+    for (;;) {
+	if ((cr = ciss_dequeue_busy(sc)) == NULL)
+	    break;
+
+	cc = CISS_FIND_COMMAND(cr);
+	ce = (struct ciss_error_info *)&(cc->sg[0]);
+	ce->command_status = CISS_CMD_STATUS_HARDWARE_ERROR;
+	ciss_enqueue_complete(cr);
+    }
+
+    for (;;) {
+	if ((cr = ciss_dequeue_complete(sc)) == NULL)
+	    break;
+    
+	/*
+	 * If the request has a callback, invoke it.
+	 */
+	if (cr->cr_complete != NULL) {
+	    cr->cr_complete(cr);
+	    continue;
+	}
+
+	/*
+	 * If someone is sleeping on this request, wake them up.
+	 */
+	if (cr->cr_flags & CISS_REQ_SLEEP) {
+	    cr->cr_flags &= ~CISS_REQ_SLEEP;
+	    wakeup(cr);
+	    continue;
+	}
+    }
+
+    splx(s);
 }
 
 /************************************************************************
