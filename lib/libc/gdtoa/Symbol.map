@@ -5,38 +5,9 @@
 FBSD_1.0 {
 	/*
 	 * Standard functions from contrib/gdtoa
-	 *   (dtoa is renamed to __dtoa and not exported)
 	 */
-	freedtoa;
-	g_Qfmt;
-	g_ddfmt;
-	g_dfmt;
-	g_ffmt;
-	g_xLfmt;
-	g_xfmt;
-	gdtoa;
-	strtoIQ;
-	strtoId;
-	strtoIdd;
-	strtoIf;
-	strtoIx;
-	strtoIxL;
 	strtod;
-	strtodI;
-	strtodg;
 	strtof;
-	strtopQ;
-	strtopd;
-	strtopdd;
-	strtopf;
-	strtopx;
-	strtopxL;
-	strtorQ;
-	strtord;
-	strtordd;
-	strtorf;
-	strtorx;
-	strtorxL;
 
 	/* FreeBSD additions */
 	strtold;
