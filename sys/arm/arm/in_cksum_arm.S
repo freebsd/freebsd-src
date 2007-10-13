@@ -37,7 +37,7 @@
  */
 
 /*
- * Hand-optimised in_cksum() and in4_cksum() implementations for ARM/Xscale
+ * Hand-optimised in_cksum() and in4_cksum() implementations for ARM/armv5e
  */
 
 #include "opt_inet.h"
@@ -113,7 +113,7 @@ ENTRY(do_cksum)
  */
 /* LINTSTUB: Ignore */
 ASENTRY_NP(L_cksumdata)
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	pld	[r0]			/* Pre-fetch the start of the buffer */
 #endif
 	mov	r2, #0
@@ -147,7 +147,7 @@ ASENTRY_NP(L_cksumdata)
 
 	/* Buffer is now word aligned */
 .Lcksumdata_wordaligned:
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	cmp	r1, #0x04		/* Less than 4 bytes left? */
 	blt	.Lcksumdata_endgame	/* Yup */
 
@@ -202,7 +202,7 @@ ASENTRY_NP(L_cksumdata)
 	adcs	r2, r2, r7
 	adc	r2, r2, #0x00
 
-#else	/* !__XSCALE__ */
+#else	/* !_ARM_ARCH_5E */
 
 	subs	r1, r1, #0x40
 	blt	.Lcksumdata_bigloop_end
@@ -238,7 +238,7 @@ ASENTRY_NP(L_cksumdata)
 	RETeq
 	cmp	r1, #0x20
 
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	ldrged	r4, [r0], #0x08		/* Avoid stalling pld and result */
 	blt	.Lcksumdata_less_than_32
 	pld	[r0, #0x18]
@@ -280,7 +280,7 @@ ASENTRY_NP(L_cksumdata)
 	nop
 
 /*
- * Note: We use ldm here, even on Xscale, since the combined issue/result
+ * Note: We use ldm here, even on armv5e, since the combined issue/result
  * latencies for ldm and ldrd are the same. Using ldm avoids needless #ifdefs.
  */
 	/* At least 24 bytes remaining... */
