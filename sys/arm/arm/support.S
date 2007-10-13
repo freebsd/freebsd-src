@@ -86,13 +86,13 @@ do_memset:
 	/* We are now word aligned */
 .Lmemset_wordaligned:
 	orr	r3, r3, r3, lsl #8	/* Extend value to 16-bits */
-#ifdef __XSCALE__
-	tst	ip, #0x04		/* Quad-align for Xscale */
+#ifdef _ARM_ARCH_5E
+	tst	ip, #0x04		/* Quad-align for armv5e */
 #else
 	cmp	r1, #0x10
 #endif
 	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	subne	r1, r1, #0x04		/* Quad-align if necessary */
 	strne	r3, [ip], #0x04
 	cmp	r1, #0x10
@@ -105,7 +105,7 @@ do_memset:
 	/* Do 128 bytes at a time */
 .Lmemset_loop128:
 	subs	r1, r1, #0x80
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
@@ -148,7 +148,7 @@ do_memset:
 	/* Do 32 bytes at a time */
 .Lmemset_loop32:
 	subs	r1, r1, #0x20
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
@@ -165,7 +165,7 @@ do_memset:
 	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
 
 	/* Deal with 16 bytes or more */
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	strged	r2, [ip], #0x08
 	strged	r2, [ip], #0x08
 #else
@@ -183,7 +183,7 @@ do_memset:
 	bgt	.Lmemset_loop4
 	RETeq			/* Zero length so just exit */
 
-#ifdef __XSCALE__
+#ifdef _ARM_ARCH_5E
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
 	RETeq
@@ -868,7 +868,7 @@ ENTRY(memmove)
 	add	r1, r1, #1
 	b	.Lmemmove_bl4
 
-#if !defined(__XSCALE__)
+#if !defined(_ARM_ARCH_5E)
 ENTRY(memcpy)
 	/* save leaf functions having to store this away */
 	/* Do not check arm_memcpy if we're running from flash */
@@ -2870,7 +2870,7 @@ ENTRY(memcpy)
 	strh	r2, [r0, #0x09]
 	strb	r1, [r0, #0x0b]
 	RET
-#endif /* __XSCALE__ */
+#endif /* _ARM_ARCH_5E */
 
 #ifdef GPROF
 
