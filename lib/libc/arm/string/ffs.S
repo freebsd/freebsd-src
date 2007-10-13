@@ -49,7 +49,7 @@ ENTRY(ffs)
 	/* Standard trick to isolate bottom bit in r0 or 0 if r0 = 0 on entry */
  	rsb     r1, r0, #0
  	ands    r0, r0, r1
-#ifndef __XSCALE__
+#ifndef _ARM_ARCH_5
 	/*
 	 * now r0 has at most one set bit, call this X
 	 * if X = 0, all further instructions are skipped
