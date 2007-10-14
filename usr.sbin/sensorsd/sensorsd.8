@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$OpenBSD: sensorsd.8,v 1.16 2007/08/11 20:45:35 cnst Exp $
 .\"
 .\" Copyright (c) 2003 Henning Brauer <henning@openbsd.org>
@@ -17,14 +16,16 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd August 11, 2007
 .Dt SENSORSD 8
 .Os
 .Sh NAME
 .Nm sensorsd
-.Nd hardware sensors monitor
+.Nd "hardware sensors monitor"
 .Sh SYNOPSIS
-.Nm sensorsd
+.Nm
 .Op Fl d
 .Sh DESCRIPTION
 The
@@ -57,7 +58,7 @@ This file is reloaded upon receiving
 .Dv SIGHUP .
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
 Do not daemonize.
 If this option is specified,
@@ -65,8 +66,8 @@ If this option is specified,
 will run in the foreground.
 .El
 .Sh FILES
-.Bl -tag -width "/etc/sensorsd.conf"
-.It /etc/sensorsd.conf
+.Bl -tag -width ".Pa /etc/sensorsd.conf"
+.It Pa /etc/sensorsd.conf
 Configuration file for
 .Nm .
 .El
@@ -87,7 +88,7 @@ To guard against false reports,
 implements a state dumping mechanism.
 However, this inevitably introduces
 an additional delay in status reporting and command execution,
-e.g. one may notice that
+e.g.\& one may notice that
 .Nm
 makes its initial report about the state of monitored sensors
 not immediately, but either 1 or 2 minutes after it is being started up.
