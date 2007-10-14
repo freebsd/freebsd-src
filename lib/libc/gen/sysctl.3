@@ -309,29 +309,31 @@ The machine dependent architecture type.
 The bytes of real memory.
 .It Li HW_SENSORS
 Third level comprises an array of
-.Li struct sensordev
-structures containing information about devices 
-that may attach hardware monitoring sensors. 
+.Vt "struct sensordev"
+structures containing information about devices
+that may attach hardware monitoring sensors.
 .Pp
 Third, fourth and fifth levels together comprise an array of
-.Li struct sensor
+.Vt "struct sensor"
 structures containing snapshot readings of hardware monitoring sensors.
-In such usage, third level indicates the numerical representation 
-of the sensor device name to which the sensor is attached 
-(device's xname and number shall be matched with the help of 
-.Li struct sensordev
-structure above), 
-fourth level indicates sensor type and 
+In such usage, third level indicates the numerical representation
+of the sensor device name to which the sensor is attached
+(device's
+.Va xname
+and number shall be matched with the help of
+.Vt "struct sensordev"
+structure above),
+fourth level indicates sensor type and
 fifth level is an ordinal sensor number (unique to
 the specified sensor type on the specified sensor device).
 .Pp
 The
-.Sy sensordev
+.Vt sensordev
 and
-.Sy sensor
+.Vt sensor
 structures
 and
-.Sy sensor_type
+.Vt sensor_type
 enumeration
 are defined in
 .In sys/sensors.h .
