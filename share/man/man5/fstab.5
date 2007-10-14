@@ -186,7 +186,9 @@ The sixth field,
 .Pq Fa fs_passno ,
 is used by the
 .Xr fsck 8
-program to determine the order in which file system checks are done
+and
+.Xr quotacheck 8
+programs to determine the order in which file system checks are done
 at reboot time.
 The root file system should be specified with a
 .Fa fs_passno
@@ -199,6 +201,8 @@ same time to utilize parallelism available in the hardware.
 If the sixth field is not present or is zero,
 a value of zero is returned and
 .Xr fsck 8
+and
+.Xr quotacheck 8
 will assume that the file system does not need to be checked.
 .Bd -literal
 #define	FSTAB_RW	"rw"	/* read/write device */
