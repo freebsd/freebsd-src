@@ -101,6 +101,7 @@ to be one of:
 .Ic mbufs ,
 .Ic netstat ,
 .Ic pigs ,
+.Ic sensors ,
 .Ic swap ,
 .Ic tcp ,
 or
@@ -286,6 +287,11 @@ Areas known to the kernel, but not in use are shown as not available.
 .It Ic mbufs
 Display, in the lower window, the number of mbufs allocated
 for particular uses, i.e., data, socket structures, etc.
+.It Ic sensors
+Display, in the lower window,
+the current values of available hardware sensors,
+in a format similar to that of
+.Xr sysctl 8 .
 .It Ic vmstat
 Take over the entire display and show a (rather crowded) compendium
 of statistics related to virtual memory usage, process scheduling,
@@ -607,6 +613,7 @@ For port names.
 .Xr udp 4 ,
 .Xr gstat 8 ,
 .Xr iostat 8 ,
+.Xr sysctl 8 ,
 .Xr vmstat 8
 .Sh HISTORY
 The
