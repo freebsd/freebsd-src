@@ -329,8 +329,8 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	 */
 	error = unionfs_nodeget(mp, ump->um_uppervp, ump->um_lowervp,
 	    NULLVP, &(ump->um_rootvp), NULL, td);
+	vrele(upperrootvp);
 	if (error) {
-		vrele(upperrootvp);
 		free(ump, M_UNIONFSMNT);
 		mp->mnt_data = NULL;
 		return (error);
