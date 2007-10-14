@@ -156,9 +156,9 @@ SUBDIR=	ac \
 	sa \
 	sade \
 	${_sendmail} \
+	sensorsd \
 	setfmac \
 	setpmac \
-	sensorsd \
 	${_sicontrol} \
 	sliplogin \
 	slstat \
