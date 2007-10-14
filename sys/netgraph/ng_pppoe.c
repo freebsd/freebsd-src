@@ -237,8 +237,6 @@ struct sess_con {
 };
 typedef struct sess_con *sessp;
 
-#define	NG_PPPOE_SESSION_NODE(sp) NG_HOOK_NODE(sp->hook)
-
 /*
  * Information we store for each node
  */
@@ -262,7 +260,6 @@ union uniq {
 
 #define	LEAVE(x) do { error = x; goto quit; } while(0)
 static void	pppoe_start(sessp sp);
-static void	ng_pppoe_sendpacket(sessp sp);
 static void	pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2);
 static const	struct pppoe_tag *scan_tags(sessp sp,
 			const struct pppoe_hdr* ph);
@@ -1029,11 +1026,16 @@ quit:
 static void
 pppoe_start(sessp sp)
 {
-	priv_p	privp = NG_NODE_PRIVATE(NG_PPPOE_SESSION_NODE(sp));
+	hook_p	hook = sp->hook;
+	node_p	node = NG_HOOK_NODE(hook);
+	priv_p	privp = NG_NODE_PRIVATE(node);
+	negp	neg = sp->neg;
 	struct {
 		struct pppoe_tag hdr;
 		union	uniq	data;
 	} __packed uniqtag;
+	struct  mbuf *m0;
+	int	error;
 
 	/*
 	 * Kick the state machine into starting up.
@@ -1044,17 +1046,24 @@ pppoe_start(sessp sp)
 	 * Reset the packet header to broadcast. Since we are
 	 * in a client mode use configured ethertype.
 	 */
-	memcpy((void *)&sp->neg->pkt->pkt_header.eh, &privp->eh,
+	memcpy((void *)&neg->pkt->pkt_header.eh, &privp->eh,
 	    sizeof(struct ether_header));
-	sp->neg->pkt->pkt_header.ph.code = PADI_CODE;
+	neg->pkt->pkt_header.ph.code = PADI_CODE;
 	uniqtag.hdr.tag_type = PTT_HOST_UNIQ;
 	uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(uniqtag.data));
 	uniqtag.data.pointer = sp;
 	init_tags(sp);
 	insert_tag(sp, &uniqtag.hdr);
-	insert_tag(sp, &sp->neg->service.hdr);
+	insert_tag(sp, &neg->service.hdr);
 	make_packet(sp);
-	ng_pppoe_sendpacket(sp);
+	/*
+	 * Send packet and prepare to retransmit it after timeout.
+	 */
+	ng_callout(&neg->handle, node, hook, PPPOE_INITIAL_TIMEOUT * hz,
+	    pppoe_ticker, NULL, 0);
+	neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
+	m0 = m_copypacket(neg->m, M_DONTWAIT);
+	NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
 }
 
 static int
@@ -1124,6 +1133,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 		struct pppoe_tag hdr;
 		union	uniq	data;
 	} __packed uniqtag;
+	struct	mbuf 		*m0;
 
 	CTR6(KTR_NET, "%20s: node [%x] (%p) received %p on \"%s\" (%p)",
 	    __func__, node->nd_ID, node, item, hook->hk_name, hook);
@@ -1299,7 +1309,12 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_SREQ;
-				ng_pppoe_sendpacket(sp);
+				ng_callout(&neg->handle, node, sp->hook,
+				    PPPOE_INITIAL_TIMEOUT * hz,
+				    pppoe_ticker, NULL, 0);
+				neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
+				m0 = m_copypacket(neg->m, M_DONTWAIT);
+				NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
 				break;
 			case	PADR_CODE:
 
@@ -1361,7 +1376,11 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
-				ng_pppoe_sendpacket(sp);
+
+				/* Send the PADS without a timeout - we're now connected. */
+				m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+				NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
+
 				/*
 				 * Having sent the last Negotiation header,
 				 * Set up the stored packet header to
@@ -1440,21 +1459,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 				break;
 			case	PADT_CODE:
 				/*
-				 * Send a 'close' message to the controlling
-				 * process (the one that set us up);
-				 * And then tear everything down.
-				 *
 				 * Find matching peer/session combination.
 				 */
 				sendhook = pppoe_findsession(node, wh);
 				if (sendhook == NULL) {
 					LEAVE(ENETUNREACH);
 				}
-				/* send message to creator */
-				/* close hook */
-				if (sendhook) {
-					ng_rmhook_self(sendhook);
-				}
+				/* Disconnect that hook. */
+				ng_rmhook_self(sendhook);
 				break;
 			default:
 				LEAVE(EPFNOSUPPORT);
@@ -1609,7 +1621,14 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 			insert_tag(sp, &uniqtag.hdr);
 			scan_tags(sp, ph);
 			make_packet(sp);
-			ng_pppoe_sendpacket(sp);
+			/*
+			 * Send the offer but if they don't respond
+			 * in PPPOE_OFFER_TIMEOUT seconds, forget about it.
+			 */
+			ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
+			    pppoe_ticker, NULL, 0);
+			m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+			NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
 			break;
 
 		/*
@@ -1789,65 +1808,6 @@ pppoe_ticker(node_p node, hook_p hook, void *arg1, int arg2)
 		/* Timeouts have no meaning in other states. */
 		log(LOG_NOTICE, "ng_pppoe[%x]: unexpected timeout\n",
 		    node->nd_ID);
-	}
-}
-
-
-static void
-ng_pppoe_sendpacket(sessp sp)
-{
-	struct	mbuf *m0 = NULL;
-	hook_p	hook = sp->hook;
-	node_p	node = NG_HOOK_NODE(hook);
-	priv_p	privp = NG_NODE_PRIVATE(node);
-	negp	neg = sp->neg;
-	int	error = 0;
-
-	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
-	switch(sp->state) {
-	case	PPPOE_LISTENING:
-	case	PPPOE_DEAD:
-	case	PPPOE_SNONE:
-	case	PPPOE_CONNECTED:
-		log(LOG_NOTICE, "%s: unexpected state %d\n",
-		    __func__, sp->state);
-		break;
-
-	case	PPPOE_NEWCONNECTED:
-		/* Send the PADS without a timeout - we're now connected. */
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		break;
-
-	case	PPPOE_PRIMED:
-		/* No packet to send, but set up the timeout. */
-		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
-		    pppoe_ticker, NULL, 0);
-		break;
-
-	case	PPPOE_SOFFER:
-		/*
-		 * Send the offer but if they don't respond
-		 * in PPPOE_OFFER_TIMEOUT seconds, forget about it.
-		 */
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
-		    pppoe_ticker, NULL, 0);
-		break;
-
-	case	PPPOE_SINIT:
-	case	PPPOE_SREQ:
-		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-		NG_SEND_DATA_ONLY( error, privp->ethernet_hook, m0);
-		ng_callout(&neg->handle, node, hook, PPPOE_INITIAL_TIMEOUT * hz,
-		    pppoe_ticker, NULL, 0);
-		neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-		break;
-
-	default:
-		error = EINVAL;
-		log(LOG_NOTICE, "%s: bad state %d\n", __func__, sp->state);
 	}
 }
 
