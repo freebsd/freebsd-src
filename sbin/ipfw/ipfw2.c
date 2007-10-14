@@ -632,8 +632,6 @@ print_newports(ipfw_insn_u16 *cmd, int proto, int opcode)
 	int i;
 	char const *sep;
 
-	if (cmd->o.len & F_NOT)
-		printf(" not");
 	if (opcode != 0) {
 		sep = match_value(_port_name, opcode);
 		if (sep == NULL)
@@ -1715,6 +1713,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			show_prerequisites(&flags, HAVE_PROTO|HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
 				printf(" {");
+			if (cmd->len & F_NOT)
+				printf(" not");
 			print_newports((ipfw_insn_u16 *)cmd, proto,
 				(flags & HAVE_OPTIONS) ? cmd->opcode : 0);
 			break;
