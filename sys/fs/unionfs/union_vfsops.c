@@ -287,6 +287,11 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	ump->um_ufile = ufile;
 	ump->um_copymode = copymode;
 
+	MNT_ILOCK(mp);
+	if ((lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE) &&
+	    (upperrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE))
+		mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 	mp->mnt_data = (qaddr_t)ump;
 
 	/*
