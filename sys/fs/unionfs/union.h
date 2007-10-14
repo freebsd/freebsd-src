@@ -72,7 +72,6 @@ struct unionfs_node_status {
 
 /* A cache of vnode references */
 struct unionfs_node {
-	LIST_ENTRY(unionfs_node) un_hash;	/* Hash list */
 	struct vnode   *un_lowervp;		/* lower side vnode */
 	struct vnode   *un_uppervp;		/* upper side vnode */
 	struct vnode   *un_dvp;			/* parent unionfs vnode */
@@ -82,10 +81,12 @@ struct unionfs_node {
 	int		un_flag;		/* unionfs node flag */
 };
 
-/* unionfs node flags */
-#define UNIONFS_CACHED		0x01	/* is cached */
-#define UNIONFS_OPENEXTL	0x02	/* openextattr (lower) */
-#define UNIONFS_OPENEXTU	0x04	/* openextattr (upper) */
+/*
+ * unionfs node flags
+ * It needs the vnode with exclusive lock, when changing the un_flag variable.
+ */
+#define UNIONFS_OPENEXTL	0x01	/* openextattr (lower) */
+#define UNIONFS_OPENEXTU	0x02	/* openextattr (upper) */
 
 #define	MOUNTTOUNIONFSMOUNT(mp) ((struct unionfs_mount *)((mp)->mnt_data))
 #define	VTOUNIONFS(vp) ((struct unionfs_node *)(vp)->v_data)
@@ -94,7 +95,7 @@ struct unionfs_node {
 int unionfs_init(struct vfsconf *vfsp);
 int unionfs_uninit(struct vfsconf *vfsp);
 int unionfs_nodeget(struct mount *mp, struct vnode *uppervp, struct vnode *lowervp, struct vnode *dvp, struct vnode **vpp, struct componentname *cnp, struct thread *td);
-void unionfs_hashrem(struct vnode *vp, struct thread *td);
+void unionfs_noderem(struct vnode *vp, struct thread *td);
 void unionfs_get_node_status(struct unionfs_node *unp, struct thread *td, struct unionfs_node_status **unspp);
 void unionfs_tryrem_node_status(struct unionfs_node *unp, struct thread *td, struct unionfs_node_status *unsp);
 
