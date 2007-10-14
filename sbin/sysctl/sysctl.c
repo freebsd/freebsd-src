@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/sensors.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -408,6 +409,143 @@ S_vmtotal(int l2, void *p)
 }
 
 static int
+S_sensor(int l2, void *p)
+{
+	struct sensor *s = (struct sensor *)p;
+
+	if (l2 != sizeof(*s)) {
+		warnx("S_sensor %d != %d", l2, sizeof(*s));
+		return (1);
+	}
+
+	if (s->flags & SENSOR_FINVALID) {
+		/*
+		 * XXX: with this flag, the node should be entirely ignored,
+		 * but as the magic-based sysctl(8) is not too flexible, we
+		 * simply have to print out that the sensor is invalid.
+		 */
+		printf("invalid");
+		return (0);
+	}
+
+	if (s->flags & SENSOR_FUNKNOWN)
+		printf("unknown");
+	else {
+		switch (s->type) {
+		case SENSOR_TEMP:
+			printf("%.2f degC",
+			    (s->value - 273150000) / 1000000.0);
+			break;
+		case SENSOR_FANRPM:
+			printf("%lld RPM", s->value);
+			break;
+		case SENSOR_VOLTS_DC:
+			printf("%.2f VDC", s->value / 1000000.0);
+			break;
+		case SENSOR_AMPS:
+			printf("%.2f A", s->value / 1000000.0);
+			break;
+		case SENSOR_WATTHOUR:
+			printf("%.2f Wh", s->value / 1000000.0);
+			break;
+		case SENSOR_AMPHOUR:
+			printf("%.2f Ah", s->value / 1000000.0);
+			break;
+		case SENSOR_INDICATOR:
+			printf("%s", s->value ? "On" : "Off");
+			break;
+		case SENSOR_INTEGER:
+			printf("%lld", s->value);
+			break;
+		case SENSOR_PERCENT:
+			printf("%.2f%%", s->value / 1000.0);
+			break;
+		case SENSOR_LUX:
+			printf("%.2f lx", s->value / 1000000.0);
+			break;
+		case SENSOR_DRIVE:
+		{
+			const char *name;
+
+			switch (s->value) {
+			case SENSOR_DRIVE_EMPTY:
+				name = "empty";
+				break;
+			case SENSOR_DRIVE_READY:
+				name = "ready";
+				break;
+			case SENSOR_DRIVE_POWERUP:
+				name = "powering up";
+				break;
+			case SENSOR_DRIVE_ONLINE:
+				name = "online";
+				break;
+			case SENSOR_DRIVE_IDLE:
+				name = "idle";
+				break;
+			case SENSOR_DRIVE_ACTIVE:
+				name = "active";
+				break;
+			case SENSOR_DRIVE_REBUILD:
+				name = "rebuilding";
+				break;
+			case SENSOR_DRIVE_POWERDOWN:
+				name = "powering down";
+				break;
+			case SENSOR_DRIVE_FAIL:
+				name = "failed";
+				break;
+			case SENSOR_DRIVE_PFAIL:
+				name = "degraded";
+				break;
+			default:
+				name = "unknown";
+				break;
+			}
+			printf(name);
+			break;
+		}
+		case SENSOR_TIMEDELTA:
+			printf("%.6f secs", s->value / 1000000000.0);
+			break;
+		default:
+			printf("unknown");
+		}
+	}
+
+	if (s->desc[0] != '\0')
+		printf(" (%s)", s->desc);
+
+	switch (s->status) {
+	case SENSOR_S_UNSPEC:
+		break;
+	case SENSOR_S_OK:
+		printf(", OK");
+		break;
+	case SENSOR_S_WARN:
+		printf(", WARNING");
+		break;
+	case SENSOR_S_CRIT:
+		printf(", CRITICAL");
+		break;
+	case SENSOR_S_UNKNOWN:
+		printf(", UNKNOWN");
+		break;
+	}
+
+	if (s->tv.tv_sec) {
+		time_t t = s->tv.tv_sec;
+		char ct[26];
+
+		ctime_r(&t, ct);
+		ct[19] = '\0';
+		printf(", %s.%03ld", ct, s->tv.tv_usec / 1000);
+	}
+
+	return (0);
+}
+
+static int
 T_dev_t(int l2, void *p)
 {
 	dev_t *d = (dev_t *)p;
@@ -678,6 +816,8 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
+		else if (strcmp(fmt, "S,sensor") == 0)
+			func = S_sensor;
 		else if (strcmp(fmt, "T,dev_t") == 0)
 			func = T_dev_t;
 		else
