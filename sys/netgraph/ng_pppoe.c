@@ -77,6 +77,8 @@ static ng_shutdown_t	ng_pppoe_shutdown;
 static ng_newhook_t	ng_pppoe_newhook;
 static ng_connect_t	ng_pppoe_connect;
 static ng_rcvdata_t	ng_pppoe_rcvdata;
+static ng_rcvdata_t	ng_pppoe_rcvdata_ether;
+static ng_rcvdata_t	ng_pppoe_rcvdata_debug;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
 /* Parse type for struct ngpppoe_init_data */
@@ -644,8 +646,10 @@ ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 
 	if (strcmp(name, NG_PPPOE_HOOK_ETHERNET) == 0) {
 		privp->ethernet_hook = hook;
+		NG_HOOK_SET_RCVDATA(hook, ng_pppoe_rcvdata_ether);
 	} else if (strcmp(name, NG_PPPOE_HOOK_DEBUG) == 0) {
 		privp->debug_hook = hook;
+		NG_HOOK_SET_RCVDATA(hook, ng_pppoe_rcvdata_debug);
 	} else {
 		/*
 		 * Any other unique name is OK.
@@ -1109,12 +1113,158 @@ send_sessionid(sessp sp)
 }
 
 /*
- * Receive data, and do something with it.
- * The caller will never free m, so if we use up this data
- * or abort we must free it.
+ * Receive data from session hook and do something with it.
  */
 static int
 ng_pppoe_rcvdata(hook_p hook, item_p item)
+{
+	node_p			node = NG_HOOK_NODE(hook);
+	const priv_p		privp = NG_NODE_PRIVATE(node);
+	sessp			sp = NG_HOOK_PRIVATE(hook);
+	struct pppoe_full_hdr	*wh;
+	struct mbuf		*m;
+	int			error;
+
+	CTR6(KTR_NET, "%20s: node [%x] (%p) received %p on \"%s\" (%p)",
+	    __func__, node->nd_ID, node, item, hook->hk_name, hook);
+
+	NGI_GET_M(item, m);
+	switch (sp->state) {
+	case	PPPOE_NEWCONNECTED:
+	case	PPPOE_CONNECTED: {
+		static const u_char addrctrl[] = { 0xff, 0x03 };
+
+		/*
+		 * Remove PPP address and control fields, if any.
+		 * For example, ng_ppp(4) always sends LCP packets
+		 * with address and control fields as required by
+		 * generic PPP. PPPoE is an exception to the rule.
+		 */
+		if (m->m_pkthdr.len >= 2) {
+			if (m->m_len < 2 && !(m = m_pullup(m, 2)))
+				LEAVE(ENOBUFS);
+			if (bcmp(mtod(m, u_char *), addrctrl, 2) == 0)
+				m_adj(m, 2);
+		}
+		/*
+		 * Bang in a pre-made header, and set the length up
+		 * to be correct. Then send it to the ethernet driver.
+		 */
+		M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
+		if (m == NULL)
+			LEAVE(ENOBUFS);
+
+		wh = mtod(m, struct pppoe_full_hdr *);
+		bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
+		wh->ph.length = htons(m->m_pkthdr.len - sizeof(*wh));
+		NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m);
+		privp->packets_out++;
+		break;
+		}
+	case	PPPOE_PRIMED: {
+		struct {
+			struct pppoe_tag hdr;
+			union	uniq	data;
+		} __packed 	uniqtag;
+		const struct pppoe_tag	*tag;
+		struct mbuf 	*m0;
+		const struct pppoe_hdr	*ph;
+		negp		neg = sp->neg;
+	        uint16_t	session;
+		uint16_t	length;
+		uint8_t		code;
+
+		/*
+		 * A PADI packet is being returned by the application
+		 * that has set up this hook. This indicates that it
+		 * wants us to offer service.
+		 */
+		if (m->m_len < sizeof(*wh)) {
+			m = m_pullup(m, sizeof(*wh));
+			if (m == NULL)
+				LEAVE(ENOBUFS);
+		}
+		wh = mtod(m, struct pppoe_full_hdr *);
+		ph = &wh->ph;
+		session = ntohs(wh->ph.sid);
+		length = ntohs(wh->ph.length);
+		code = wh->ph.code;
+		/* Use peers mode in session. */
+		neg->pkt->pkt_header.eh.ether_type = wh->eh.ether_type;
+		if (code != PADI_CODE)
+			LEAVE(EINVAL);
+		ng_uncallout(&neg->handle, node);
+
+		/*
+		 * This is the first time we hear
+		 * from the client, so note it's
+		 * unicast address, replacing the
+		 * broadcast address.
+		 */
+		bcopy(wh->eh.ether_shost,
+			neg->pkt->pkt_header.eh.ether_dhost,
+			ETHER_ADDR_LEN);
+		sp->state = PPPOE_SOFFER;
+		neg->timeout = 0;
+		neg->pkt->pkt_header.ph.code = PADO_CODE;
+
+		/*
+		 * Start working out the tags to respond with.
+		 */
+		uniqtag.hdr.tag_type = PTT_AC_COOKIE;
+		uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(sp));
+		uniqtag.data.pointer = sp;
+		init_tags(sp);
+		insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
+		if ((tag = get_tag(ph, PTT_SRV_NAME)))
+			insert_tag(sp, tag);	  /* return service */
+		/*
+		 * If we have a NULL service request
+		 * and have an extra service defined in this hook,
+		 * then also add a tag for the extra service.
+		 * XXX this is a hack. eventually we should be able
+		 * to support advertising many services, not just one
+		 */
+		if (((tag == NULL) || (tag->tag_len == 0)) &&
+		    (neg->service.hdr.tag_len != 0)) {
+			insert_tag(sp, &neg->service.hdr); /* SERVICE */
+		}
+		if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
+			insert_tag(sp, tag); /* returned hostunique */
+		insert_tag(sp, &uniqtag.hdr);
+		scan_tags(sp, ph);
+		make_packet(sp);
+		/*
+		 * Send the offer but if they don't respond
+		 * in PPPOE_OFFER_TIMEOUT seconds, forget about it.
+		 */
+		ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
+		    pppoe_ticker, NULL, 0);
+		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+		NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
+		privp->packets_out++;
+		break;
+		}
+
+	/*
+	 * Packets coming from the hook make no sense
+	 * to sessions in the rest of states. Throw them away.
+	 */
+	default:
+		LEAVE(ENETUNREACH);
+	}
+quit:
+	if (item)
+		NG_FREE_ITEM(item);
+	NG_FREE_M(m);
+	return (error);
+}
+
+/*
+ * Receive data from ether and do something with it.
+ */
+static int
+ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 {
 	node_p			node = NG_HOOK_NODE(hook);
 	const priv_p		privp = NG_NODE_PRIVATE(node);
@@ -1129,527 +1279,378 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 	uint16_t		session;
 	uint16_t		length;
 	uint8_t			code;
-	struct {
-		struct pppoe_tag hdr;
-		union	uniq	data;
-	} __packed uniqtag;
 	struct	mbuf 		*m0;
 
 	CTR6(KTR_NET, "%20s: node [%x] (%p) received %p on \"%s\" (%p)",
 	    __func__, node->nd_ID, node, item, hook->hk_name, hook);
 
 	NGI_GET_M(item, m);
-	if (hook == privp->debug_hook) {
+	/*
+	 * Dig out various fields from the packet.
+	 * Use them to decide where to send it.
+	 */
+	privp->packets_in++;
+	if( m->m_len < sizeof(*wh)) {
+		m = m_pullup(m, sizeof(*wh)); /* Checks length */
+		if (m == NULL) {
+			log(LOG_NOTICE, "ng_pppoe[%x]: couldn't "
+			    "m_pullup(wh)\n", node->nd_ID);
+			LEAVE(ENOBUFS);
+		}
+	}
+	wh = mtod(m, struct pppoe_full_hdr *);
+	length = ntohs(wh->ph.length);
+	switch(wh->eh.ether_type) {
+	case	ETHERTYPE_PPPOE_3COM_DISC: /* fall through */
+	case	ETHERTYPE_PPPOE_DISC:
 		/*
-		 * Data from the debug hook gets sent without modification
-		 * straight to the ethernet.
+		 * We need to try to make sure that the tag area
+		 * is contiguous, or we could wander off the end
+		 * of a buffer and make a mess.
+		 * (Linux wouldn't have this problem).
 		 */
-		NG_FWD_ITEM_HOOK( error, item, privp->ethernet_hook);
-	 	privp->packets_out++;
-	} else if (hook == privp->ethernet_hook) {
-		/*
-		 * Incoming data.
-		 * Dig out various fields from the packet.
-		 * Use them to decide where to send it.
-		 */
-		
- 		privp->packets_in++;
-		if( m->m_len < sizeof(*wh)) {
-			m = m_pullup(m, sizeof(*wh)); /* Checks length */
+		if (m->m_pkthdr.len <= MHLEN) {
+			if( m->m_len < m->m_pkthdr.len) {
+				m = m_pullup(m, m->m_pkthdr.len);
+				if (m == NULL) {
+					log(LOG_NOTICE, "ng_pppoe[%x]: "
+					    "couldn't m_pullup(pkthdr)\n",
+					    node->nd_ID);
+					LEAVE(ENOBUFS);
+				}
+			}
+		}
+		if (m->m_len != m->m_pkthdr.len) {
+			/*
+			 * It's not all in one piece.
+			 * We need to do extra work.
+			 * Put it into a cluster.
+			 */
+			struct mbuf *n;
+			n = m_dup(m, M_DONTWAIT);
+			m_freem(m);
+			m = n;
+			if (m) {
+				/* just check we got a cluster */
+				if (m->m_len != m->m_pkthdr.len) {
+					m_freem(m);
+					m = NULL;
+				}
+			}
 			if (m == NULL) {
-				log(LOG_NOTICE, "ng_pppoe[%x]: couldn't "
-				    "m_pullup(wh)\n", node->nd_ID);
-				LEAVE(ENOBUFS);
+				log(LOG_NOTICE, "ng_pppoe[%x]: packet "
+				    "fragmented\n", node->nd_ID);
+				LEAVE(EMSGSIZE);
 			}
 		}
 		wh = mtod(m, struct pppoe_full_hdr *);
 		length = ntohs(wh->ph.length);
-		switch(wh->eh.ether_type) {
-		case	ETHERTYPE_PPPOE_3COM_DISC: /* fall through */
-		case	ETHERTYPE_PPPOE_DISC:
+		ph = &wh->ph;
+		session = ntohs(wh->ph.sid);
+		code = wh->ph.code;
+
+		switch(code) {
+		case	PADI_CODE:
 			/*
-			 * We need to try to make sure that the tag area
-			 * is contiguous, or we could wander off the end
-			 * of a buffer and make a mess.
-			 * (Linux wouldn't have this problem).
+			 * We are a server:
+			 * Look for a hook with the required service and send
+			 * the ENTIRE packet up there. It should come back to
+			 * a new hook in PRIMED state. Look there for further
+			 * processing.
 			 */
-			if (m->m_pkthdr.len <= MHLEN) {
-				if( m->m_len < m->m_pkthdr.len) {
-					m = m_pullup(m, m->m_pkthdr.len);
-					if (m == NULL) {
-						log(LOG_NOTICE, "ng_pppoe[%x]: "
-						    "couldn't "
-						    "m_pullup(pkthdr)\n",
-						    node->nd_ID);
-						LEAVE(ENOBUFS);
-					}
-				}
+			tag = get_tag(ph, PTT_SRV_NAME);
+			if (tag == NULL) {
+				CTR1(KTR_NET, "%20s: PADI w/o Service-Name",
+				    __func__);
+				LEAVE(ENETUNREACH);
 			}
-			if (m->m_len != m->m_pkthdr.len) {
-				/*
-				 * It's not all in one piece.
-				 * We need to do extra work.
-				 * Put it into a cluster.
-				 */
-				struct mbuf *n;
-				n = m_dup(m, M_DONTWAIT);
-				m_freem(m);
-				m = n;
-				if (m) {
-					/* just check we got a cluster */
-					if (m->m_len != m->m_pkthdr.len) {
-						m_freem(m);
-						m = NULL;
-					}
-				}
-				if (m == NULL) {
-					log(LOG_NOTICE, "ng_pppoe[%x]: packet "
-					    "fragmented\n", node->nd_ID);
-					LEAVE(EMSGSIZE);
-				}
-			}
-			wh = mtod(m, struct pppoe_full_hdr *);
-			length = ntohs(wh->ph.length);
-			ph = &wh->ph;
-			session = ntohs(wh->ph.sid);
-			code = wh->ph.code;
 
-			switch(code) {
-			case	PADI_CODE:
-				/*
-				 * We are a server:
-				 * Look for a hook with the required service
-				 * and send the ENTIRE packet up there.
-				 * It should come back to a new hook in
-				 * PRIMED state. Look there for further
-				 * processing.
-				 */
-				tag = get_tag(ph, PTT_SRV_NAME);
-				if (tag == NULL) {
-					CTR1(KTR_NET,
-					    "%20s: PADI w/o Service-Name",
-					    __func__);
-					LEAVE(ENETUNREACH);
-				}
-
-				/*
-				 * First, try to match Service-Name
-				 * against our listening hooks. If
-				 * no success and we are in D-Link
-				 * compat mode and Service-Name is
-				 * empty, then we broadcast the PADI
-				 * to all listening hooks.
-				 */
-				sendhook = pppoe_match_svc(node, tag);
-				if (sendhook != NULL)
-					NG_FWD_NEW_DATA(error, item,
-					    sendhook, m);
-				else if (privp->flags & COMPAT_DLINK &&
-					 ntohs(tag->tag_len) == 0)
-					error = pppoe_broadcast_padi(node, m);
-				else
-					error = ENETUNREACH;
-				break;
-			case	PADO_CODE:
-				/*
-				 * We are a client:
-				 * Use the host_uniq tag to find the
-				 * hook this is in response to.
-				 * Received #2, now send #3
-				 * For now simply accept the first we receive.
-				 */
-				utag = get_tag(ph, PTT_HOST_UNIQ);
-				if ((utag == NULL)
-				|| (ntohs(utag->tag_len) != sizeof(sp))) {
-					log(LOG_NOTICE, "ng_pppoe[%x]: no host "
-					    "unique field\n", node->nd_ID);
-					LEAVE(ENETUNREACH);
-				}
-
-				sendhook = pppoe_finduniq(node, utag);
-				if (sendhook == NULL) {
-					log(LOG_NOTICE, "ng_pppoe[%x]: no "
-					    "matching session\n", node->nd_ID);
-					LEAVE(ENETUNREACH);
-				}
-
-				/*
-				 * Check the session is in the right state.
-				 * It needs to be in PPPOE_SINIT.
-				 */
-				sp = NG_HOOK_PRIVATE(sendhook);
-				if (sp->state != PPPOE_SINIT) {
-					log(LOG_NOTICE, "ng_pppoe[%x]: session "
-					    "in wrong state\n", node->nd_ID);
-					LEAVE(ENETUNREACH);
-				}
-				neg = sp->neg;
-				ng_uncallout(&neg->handle, node);
-
-				/*
-				 * This is the first time we hear
-				 * from the server, so note it's
-				 * unicast address, replacing the
-				 * broadcast address .
-				 */
-				bcopy(wh->eh.ether_shost,
-					neg->pkt->pkt_header.eh.ether_dhost,
-					ETHER_ADDR_LEN);
-				neg->timeout = 0;
-				neg->pkt->pkt_header.ph.code = PADR_CODE;
-				init_tags(sp);
-				insert_tag(sp, utag);      /* Host Unique */
-				if ((tag = get_tag(ph, PTT_AC_COOKIE)))
-					insert_tag(sp, tag); /* return cookie */
-				if ((tag = get_tag(ph, PTT_AC_NAME))) {	
-					insert_tag(sp, tag); /* return it */
-					send_acname(sp, tag);
-				}
-				insert_tag(sp, &neg->service.hdr); /* Service */
-				scan_tags(sp, ph);
-				make_packet(sp);
-				sp->state = PPPOE_SREQ;
-				ng_callout(&neg->handle, node, sp->hook,
-				    PPPOE_INITIAL_TIMEOUT * hz,
-				    pppoe_ticker, NULL, 0);
-				neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
-				m0 = m_copypacket(neg->m, M_DONTWAIT);
-				NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
-				break;
-			case	PADR_CODE:
-
-				/*
-				 * We are a server:
-				 * Use the ac_cookie tag to find the
-				 * hook this is in response to.
-				 */
-				utag = get_tag(ph, PTT_AC_COOKIE);
-				if ((utag == NULL)
-				|| (ntohs(utag->tag_len) != sizeof(sp))) {
-					LEAVE(ENETUNREACH);
-				}
-
-				sendhook = pppoe_finduniq(node, utag);
-				if (sendhook == NULL) {
-					LEAVE(ENETUNREACH);
-				}
-
-				/*
-				 * Check the session is in the right state.
-				 * It needs to be in PPPOE_SOFFER
-				 * or PPPOE_NEWCONNECTED. If the latter,
-				 * then this is a retry by the client.
-				 * so be nice, and resend.
-				 */
-				sp = NG_HOOK_PRIVATE(sendhook);
-				if (sp->state == PPPOE_NEWCONNECTED) {
-					/*
-					 * Whoa! drop back to resend that
-					 * PADS packet.
-					 * We should still have a copy of it.
-					 */
-					sp->state = PPPOE_SOFFER;
-				}
-				if (sp->state != PPPOE_SOFFER) {
-					LEAVE (ENETUNREACH);
-					break;
-				}
-				neg = sp->neg;
-				ng_uncallout(&neg->handle, node);
-				neg->pkt->pkt_header.ph.code = PADS_CODE;
-				if (sp->Session_ID == 0)
-					neg->pkt->pkt_header.ph.sid =
-					    htons(sp->Session_ID
-						= get_new_sid(node));
-				send_sessionid(sp);
-				neg->timeout = 0;
-				/*
-				 * start working out the tags to respond with.
-				 */
-				init_tags(sp);
-				insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
-				if ((tag = get_tag(ph, PTT_SRV_NAME)))
-					insert_tag(sp, tag);/* return service */
-				if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
-					insert_tag(sp, tag); /* return it */
-				insert_tag(sp, utag);	/* ac_cookie */
-				scan_tags(sp, ph);
-				make_packet(sp);
-				sp->state = PPPOE_NEWCONNECTED;
-
-				/* Send the PADS without a timeout - we're now connected. */
-				m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-				NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
-
-				/*
-				 * Having sent the last Negotiation header,
-				 * Set up the stored packet header to
-				 * be correct for the actual session.
-				 * But keep the negotialtion stuff
-				 * around in case we need to resend this last
-				 * packet. We'll discard it when we move
-				 * from NEWCONNECTED to CONNECTED
-				 */
-				sp->pkt_hdr = neg->pkt->pkt_header;
-				/* Configure ethertype depending on what
-				 * ethertype was used at discovery phase */
-				if (sp->pkt_hdr.eh.ether_type ==
-				    ETHERTYPE_PPPOE_3COM_DISC)
-					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_3COM_SESS;
-				else
-					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_SESS;
-				sp->pkt_hdr.ph.code = 0;
-				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
-				break;
-			case	PADS_CODE:
-				/*
-				 * We are a client:
-				 * Use the host_uniq tag to find the
-				 * hook this is in response to.
-				 * take the session ID and store it away.
-				 * Also make sure the pre-made header is
-				 * correct and set us into Session mode.
-				 */
-				utag = get_tag(ph, PTT_HOST_UNIQ);
-				if ((utag == NULL)
-				|| (ntohs(utag->tag_len) != sizeof(sp))) {
-					LEAVE (ENETUNREACH);
-					break;
-				}
-				sendhook = pppoe_finduniq(node, utag);
-				if (sendhook == NULL) {
-					LEAVE(ENETUNREACH);
-				}
-
-				/*
-				 * Check the session is in the right state.
-				 * It needs to be in PPPOE_SREQ.
-				 */
-				sp = NG_HOOK_PRIVATE(sendhook);
-				if (sp->state != PPPOE_SREQ) {
-					LEAVE(ENETUNREACH);
-				}
-				neg = sp->neg;
-				ng_uncallout(&neg->handle, node);
-				neg->pkt->pkt_header.ph.sid = wh->ph.sid;
-				sp->Session_ID = ntohs(wh->ph.sid);
-				send_sessionid(sp);
-				neg->timeout = 0;
-				sp->state = PPPOE_CONNECTED;
-				/*
-				 * Now we have gone to Connected mode,
-				 * Free all resources needed for
-				 * negotiation.
-				 * Keep a copy of the header we will be using.
-				 */
-				sp->pkt_hdr = neg->pkt->pkt_header;
-				if (privp->flags & COMPAT_3COM)
-					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_3COM_SESS;
-				else
-					sp->pkt_hdr.eh.ether_type
-						= ETHERTYPE_PPPOE_SESS;
-				sp->pkt_hdr.ph.code = 0;
-				m_freem(neg->m);
-				free(sp->neg, M_NETGRAPH_PPPOE);
-				sp->neg = NULL;
-				pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
-				break;
-			case	PADT_CODE:
-				/*
-				 * Find matching peer/session combination.
-				 */
-				sendhook = pppoe_findsession(node, wh);
-				if (sendhook == NULL) {
-					LEAVE(ENETUNREACH);
-				}
-				/* Disconnect that hook. */
-				ng_rmhook_self(sendhook);
-				break;
-			default:
-				LEAVE(EPFNOSUPPORT);
-			}
+			/*
+			 * First, try to match Service-Name against our 
+			 * listening hooks. If no success and we are in D-Link
+			 * compat mode and Service-Name is empty, then we 
+			 * broadcast the PADI to all listening hooks.
+			 */
+			sendhook = pppoe_match_svc(node, tag);
+			if (sendhook != NULL)
+				NG_FWD_NEW_DATA(error, item, sendhook, m);
+			else if (privp->flags & COMPAT_DLINK &&
+				 ntohs(tag->tag_len) == 0)
+				error = pppoe_broadcast_padi(node, m);
+			else
+				error = ENETUNREACH;
 			break;
-		case	ETHERTYPE_PPPOE_3COM_SESS:
-		case	ETHERTYPE_PPPOE_SESS:
+		case	PADO_CODE:
 			/*
-			 * Find matching peer/session combination.
+			 * We are a client:
+			 * Use the host_uniq tag to find the hook this is in
+			 * response to. Received #2, now send #3
+			 * For now simply accept the first we receive.
 			 */
-			sendhook = pppoe_findsession(node, wh);
+			utag = get_tag(ph, PTT_HOST_UNIQ);
+			if ((utag == NULL) ||
+			    (ntohs(utag->tag_len) != sizeof(sp))) {
+				log(LOG_NOTICE, "ng_pppoe[%x]: no host "
+				    "unique field\n", node->nd_ID);
+				LEAVE(ENETUNREACH);
+			}
+
+			sendhook = pppoe_finduniq(node, utag);
 			if (sendhook == NULL) {
-				LEAVE (ENETUNREACH);
-				break;
+				log(LOG_NOTICE, "ng_pppoe[%x]: no "
+				    "matching session\n", node->nd_ID);
+				LEAVE(ENETUNREACH);
 			}
+
+			/*
+			 * Check the session is in the right state.
+			 * It needs to be in PPPOE_SINIT.
+			 */
 			sp = NG_HOOK_PRIVATE(sendhook);
-			m_adj(m, sizeof(*wh));
-			if (m->m_pkthdr.len < length) {
-				/* Packet too short, dump it */
-				LEAVE(EMSGSIZE);
+			if (sp->state != PPPOE_SINIT) {
+				log(LOG_NOTICE, "ng_pppoe[%x]: session "
+				    "in wrong state\n", node->nd_ID);
+				LEAVE(ENETUNREACH);
 			}
-
-			/* Also need to trim excess at the end */
-			if (m->m_pkthdr.len > length) {
-				m_adj(m, -((int)(m->m_pkthdr.len - length)));
-			}
-			if ( sp->state != PPPOE_CONNECTED) {
-				if (sp->state == PPPOE_NEWCONNECTED) {
-					sp->state = PPPOE_CONNECTED;
-					/*
-					 * Now we have gone to Connected mode,
-					 * Free all resources needed for
-					 * negotiation. Be paranoid about
-					 * whether there may be a timeout.
-					 */
-					m_freem(sp->neg->m);
-					ng_uncallout(&sp->neg->handle, node);
-					free(sp->neg, M_NETGRAPH_PPPOE);
-					sp->neg = NULL;
-				} else {
-					LEAVE (ENETUNREACH);
-					break;
-				}
-			}
-			NG_FWD_NEW_DATA( error, item, sendhook, m);
-			break;
-		default:
-			LEAVE(EPFNOSUPPORT);
-		}
-	} else {
-		/*
-		 * Not ethernet or debug hook..
-		 *
-		 * The packet has come in on a normal hook.
-		 * We need to find out what kind of hook,
-		 * So we can decide how to handle it.
-		 * Check the hook's state.
-		 */
-		sp = NG_HOOK_PRIVATE(hook);
-		switch (sp->state) {
-		case	PPPOE_NEWCONNECTED:
-		case	PPPOE_CONNECTED: {
-			static const u_char addrctrl[] = { 0xff, 0x03 };
-			struct pppoe_full_hdr *wh;
-
-			/*
-			 * Remove PPP address and control fields, if any.
-			 * For example, ng_ppp(4) always sends LCP packets
-			 * with address and control fields as required by
-			 * generic PPP. PPPoE is an exception to the rule.
-			 */
-			if (m->m_pkthdr.len >= 2) {
-				if (m->m_len < 2 && !(m = m_pullup(m, 2)))
-					LEAVE(ENOBUFS);
-				if (bcmp(mtod(m, u_char *), addrctrl, 2) == 0)
-					m_adj(m, 2);
-			}
-			/*
-			 * Bang in a pre-made header, and set the length up
-			 * to be correct. Then send it to the ethernet driver.
-			 */
-			M_PREPEND(m, sizeof(*wh), M_DONTWAIT);
-			if (m == NULL)
-				LEAVE(ENOBUFS);
-
-			wh = mtod(m, struct pppoe_full_hdr *);
-			bcopy(&sp->pkt_hdr, wh, sizeof(*wh));
-			wh->ph.length = htons(m->m_pkthdr.len - sizeof(*wh));
-			NG_FWD_NEW_DATA( error, item, privp->ethernet_hook, m);
-			privp->packets_out++;
-			break;
-			}
-		case	PPPOE_PRIMED:
-			/*
-			 * A PADI packet is being returned by the application
-			 * that has set up this hook. This indicates that it
-			 * wants us to offer service.
-			 */
 			neg = sp->neg;
-			if (m->m_len < sizeof(*wh)) {
-				m = m_pullup(m, sizeof(*wh));
-				if (m == NULL)
-					LEAVE(ENOBUFS);
-			}
-			wh = mtod(m, struct pppoe_full_hdr *);
-			ph = &wh->ph;
-			session = ntohs(wh->ph.sid);
-			length = ntohs(wh->ph.length);
-			code = wh->ph.code;
-			/* Use peers mode in session. */
-			neg->pkt->pkt_header.eh.ether_type = wh->eh.ether_type;
-			if (code != PADI_CODE)
-				LEAVE(EINVAL);
 			ng_uncallout(&neg->handle, node);
 
 			/*
 			 * This is the first time we hear
-			 * from the client, so note it's
+			 * from the server, so note it's
 			 * unicast address, replacing the
-			 * broadcast address.
+			 * broadcast address .
 			 */
 			bcopy(wh->eh.ether_shost,
 				neg->pkt->pkt_header.eh.ether_dhost,
 				ETHER_ADDR_LEN);
-			sp->state = PPPOE_SOFFER;
 			neg->timeout = 0;
-			neg->pkt->pkt_header.ph.code = PADO_CODE;
+			neg->pkt->pkt_header.ph.code = PADR_CODE;
+			init_tags(sp);
+			insert_tag(sp, utag);      	/* Host Unique */
+			if ((tag = get_tag(ph, PTT_AC_COOKIE)))
+				insert_tag(sp, tag); 	/* return cookie */
+			if ((tag = get_tag(ph, PTT_AC_NAME))) {	
+				insert_tag(sp, tag); 	/* return it */
+				send_acname(sp, tag);
+			}
+			insert_tag(sp, &neg->service.hdr); /* Service */
+			scan_tags(sp, ph);
+			make_packet(sp);
+			sp->state = PPPOE_SREQ;
+			ng_callout(&neg->handle, node, sp->hook,
+			    PPPOE_INITIAL_TIMEOUT * hz,
+			    pppoe_ticker, NULL, 0);
+			neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
+			m0 = m_copypacket(neg->m, M_DONTWAIT);
+			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
+			break;
+		case	PADR_CODE:
+			/*
+			 * We are a server:
+			 * Use the ac_cookie tag to find the
+			 * hook this is in response to.
+			 */
+			utag = get_tag(ph, PTT_AC_COOKIE);
+			if ((utag == NULL) ||
+			    (ntohs(utag->tag_len) != sizeof(sp))) {
+				LEAVE(ENETUNREACH);
+			}
+
+			sendhook = pppoe_finduniq(node, utag);
+			if (sendhook == NULL)
+				LEAVE(ENETUNREACH);
 
 			/*
-			 * Start working out the tags to respond with.
+			 * Check the session is in the right state.
+			 * It needs to be in PPPOE_SOFFER or PPPOE_NEWCONNECTED.
+			 * If the latter, then this is a retry by the client,
+			 * so be nice, and resend.
 			 */
-			uniqtag.hdr.tag_type = PTT_AC_COOKIE;
-			uniqtag.hdr.tag_len = htons((u_int16_t)sizeof(sp));
-			uniqtag.data.pointer = sp;
+			sp = NG_HOOK_PRIVATE(sendhook);
+			if (sp->state == PPPOE_NEWCONNECTED) {
+				/*
+				 * Whoa! drop back to resend that PADS packet.
+				 * We should still have a copy of it.
+				 */
+				sp->state = PPPOE_SOFFER;
+			}
+			if (sp->state != PPPOE_SOFFER)
+				LEAVE (ENETUNREACH);
+			neg = sp->neg;
+			ng_uncallout(&neg->handle, node);
+			neg->pkt->pkt_header.ph.code = PADS_CODE;
+			if (sp->Session_ID == 0)
+				neg->pkt->pkt_header.ph.sid =
+				    htons(sp->Session_ID
+					= get_new_sid(node));
+			send_sessionid(sp);
+			neg->timeout = 0;
+			/*
+			 * start working out the tags to respond with.
+			 */
 			init_tags(sp);
 			insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
 			if ((tag = get_tag(ph, PTT_SRV_NAME)))
-				insert_tag(sp, tag);	  /* return service */
-			/*
-			 * If we have a NULL service request
-			 * and have an extra service defined in this hook,
-			 * then also add a tag for the extra service.
-			 * XXX this is a hack. eventually we should be able
-			 * to support advertising many services, not just one
-			 */
-			if (((tag == NULL) || (tag->tag_len == 0)) &&
-			    (neg->service.hdr.tag_len != 0)) {
-				insert_tag(sp, &neg->service.hdr); /* SERVICE */
-			}
+				insert_tag(sp, tag);/* return service */
 			if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
-				insert_tag(sp, tag); /* returned hostunique */
-			insert_tag(sp, &uniqtag.hdr);
+				insert_tag(sp, tag); /* return it */
+			insert_tag(sp, utag);	/* ac_cookie */
 			scan_tags(sp, ph);
 			make_packet(sp);
-			/*
-			 * Send the offer but if they don't respond
-			 * in PPPOE_OFFER_TIMEOUT seconds, forget about it.
-			 */
-			ng_callout(&neg->handle, node, hook, PPPOE_OFFER_TIMEOUT * hz,
-			    pppoe_ticker, NULL, 0);
-			m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
-			NG_SEND_DATA_ONLY(error, privp->ethernet_hook, m0);
-			break;
+			sp->state = PPPOE_NEWCONNECTED;
 
-		/*
-		 * Packets coming from the hook make no sense
-		 * to sessions in these states. Throw them away.
-		 */
-		case	PPPOE_SINIT:
-		case	PPPOE_SREQ:
-		case	PPPOE_SOFFER:
-		case	PPPOE_SNONE:
-		case	PPPOE_LISTENING:
-		case	PPPOE_DEAD:
+			/* Send the PADS without a timeout - we're now connected. */
+			m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
+			NG_FWD_NEW_DATA(error, item, privp->ethernet_hook, m0);
+
+			/*
+			 * Having sent the last Negotiation header,
+			 * Set up the stored packet header to be correct for
+			 * the actual session. But keep the negotialtion stuff
+			 * around in case we need to resend this last packet.
+			 * We'll discard it when we move from NEWCONNECTED
+			 * to CONNECTED
+			 */
+			sp->pkt_hdr = neg->pkt->pkt_header;
+			/* Configure ethertype depending on what
+			 * ethertype was used at discovery phase */
+			if (sp->pkt_hdr.eh.ether_type ==
+			    ETHERTYPE_PPPOE_3COM_DISC)
+				sp->pkt_hdr.eh.ether_type
+					= ETHERTYPE_PPPOE_3COM_SESS;
+			else
+				sp->pkt_hdr.eh.ether_type
+					= ETHERTYPE_PPPOE_SESS;
+			sp->pkt_hdr.ph.code = 0;
+			pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
+			break;
+		case	PADS_CODE:
+			/*
+			 * We are a client:
+			 * Use the host_uniq tag to find the hook this is in
+			 * response to. Take the session ID and store it away.
+			 * Also make sure the pre-made header is correct and
+			 * set us into Session mode.
+			 */
+			utag = get_tag(ph, PTT_HOST_UNIQ);
+			if ((utag == NULL) ||
+			    (ntohs(utag->tag_len) != sizeof(sp))) {
+				LEAVE (ENETUNREACH);
+			}
+			sendhook = pppoe_finduniq(node, utag);
+			if (sendhook == NULL)
+				LEAVE(ENETUNREACH);
+
+			/*
+			 * Check the session is in the right state.
+			 * It needs to be in PPPOE_SREQ.
+			 */
+			sp = NG_HOOK_PRIVATE(sendhook);
+			if (sp->state != PPPOE_SREQ)
+				LEAVE(ENETUNREACH);
+			neg = sp->neg;
+			ng_uncallout(&neg->handle, node);
+			neg->pkt->pkt_header.ph.sid = wh->ph.sid;
+			sp->Session_ID = ntohs(wh->ph.sid);
+			send_sessionid(sp);
+			neg->timeout = 0;
+			sp->state = PPPOE_CONNECTED;
+			/*
+			 * Now we have gone to Connected mode,
+			 * Free all resources needed for negotiation.
+			 * Keep a copy of the header we will be using.
+			 */
+			sp->pkt_hdr = neg->pkt->pkt_header;
+			if (privp->flags & COMPAT_3COM)
+				sp->pkt_hdr.eh.ether_type
+					= ETHERTYPE_PPPOE_3COM_SESS;
+			else
+				sp->pkt_hdr.eh.ether_type
+					= ETHERTYPE_PPPOE_SESS;
+			sp->pkt_hdr.ph.code = 0;
+			m_freem(neg->m);
+			free(sp->neg, M_NETGRAPH_PPPOE);
+			sp->neg = NULL;
+			pppoe_send_event(sp, NGM_PPPOE_SUCCESS);
+			break;
+		case	PADT_CODE:
+			/*
+			 * Find matching peer/session combination.
+			 */
+			sendhook = pppoe_findsession(node, wh);
+			if (sendhook == NULL)
+				LEAVE(ENETUNREACH);
+			/* Disconnect that hook. */
+			ng_rmhook_self(sendhook);
+			break;
 		default:
-			LEAVE(ENETUNREACH);
+			LEAVE(EPFNOSUPPORT);
 		}
+		break;
+	case	ETHERTYPE_PPPOE_3COM_SESS:
+	case	ETHERTYPE_PPPOE_SESS:
+		/*
+		 * Find matching peer/session combination.
+		 */
+		sendhook = pppoe_findsession(node, wh);
+		if (sendhook == NULL)
+			LEAVE (ENETUNREACH);
+		sp = NG_HOOK_PRIVATE(sendhook);
+		m_adj(m, sizeof(*wh));
+
+		/* If packet too short, dump it. */
+		if (m->m_pkthdr.len < length)
+			LEAVE(EMSGSIZE);
+		/* Also need to trim excess at the end */
+		if (m->m_pkthdr.len > length) {
+			m_adj(m, -((int)(m->m_pkthdr.len - length)));
+		}
+		if ( sp->state != PPPOE_CONNECTED) {
+			if (sp->state == PPPOE_NEWCONNECTED) {
+				sp->state = PPPOE_CONNECTED;
+				/*
+				 * Now we have gone to Connected mode,
+				 * Free all resources needed for negotiation.
+				 * Be paranoid about whether there may be
+				 * a timeout.
+				 */
+				m_freem(sp->neg->m);
+				ng_uncallout(&sp->neg->handle, node);
+				free(sp->neg, M_NETGRAPH_PPPOE);
+				sp->neg = NULL;
+			} else {
+				LEAVE (ENETUNREACH);
+			}
+		}
+		NG_FWD_NEW_DATA(error, item, sendhook, m);
+		break;
+	default:
+		LEAVE(EPFNOSUPPORT);
 	}
 quit:
 	if (item)
 		NG_FREE_ITEM(item);
 	NG_FREE_M(m);
-	return error;
+	return (error);
+}
+
+/*
+ * Receive data from debug hook and bypass it to ether.
+ */
+static int
+ng_pppoe_rcvdata_debug(hook_p hook, item_p item)
+{
+	node_p		node = NG_HOOK_NODE(hook);
+	const priv_p	privp = NG_NODE_PRIVATE(node);
+	int		error;
+
+	CTR6(KTR_NET, "%20s: node [%x] (%p) received %p on \"%s\" (%p)",
+	    __func__, node->nd_ID, node, item, hook->hk_name, hook);
+
+	NG_FWD_ITEM_HOOK(error, item, privp->ethernet_hook);
+	privp->packets_out++;
+	return (error);
 }
 
 /*
