@@ -88,7 +88,7 @@ static struct lk_lr_table un_llt[] = {
 
 
 static int
-unionfs_lookup(struct vop_lookup_args *ap)
+unionfs_lookup(struct vop_cachedlookup_args *ap)
 {
 	int		iswhiteout;
 	int		lockflag;
@@ -171,7 +171,9 @@ unionfs_lookup(struct vop_lookup_args *ap)
 				vn_lock(dunp->un_dvp, cnp->cn_lkflags | LK_RETRY, td);
 
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-		}
+		} else if (error == ENOENT && (cnflags & MAKEENTRY) &&
+		    nameiop != CREATE)
+			cache_enter(dvp, NULLVP, cnp);
 
 		UNIONFS_INTERNAL_DEBUG("unionfs_lookup: leave (%d)\n", error);
 
@@ -318,11 +320,17 @@ unionfs_lookup(struct vop_lookup_args *ap)
 
 	*(ap->a_vpp) = vp;
 
+	if (cnflags & MAKEENTRY)
+		cache_enter(dvp, vp, cnp);
+
 unionfs_lookup_out:
 	if (uvp != NULLVP)
 		vrele(uvp);
 	if (lvp != NULLVP)
 		vrele(lvp);
+
+	if (error == ENOENT && (cnflags & MAKEENTRY) && nameiop != CREATE)
+		cache_enter(dvp, NULLVP, cnp);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_lookup: leave (%d)\n", error);
 
@@ -1178,6 +1186,13 @@ unionfs_rename(struct vop_rename_args *ap)
 
 	error = VOP_RENAME(rfdvp, rfvp, fcnp, rtdvp, rtvp, tcnp);
 
+	if (error == 0) {
+		if (rtvp != NULLVP && rtvp->v_type == VDIR)
+			cache_purge(tdvp);
+		if (fvp->v_type == VDIR && fdvp != tdvp)
+			cache_purge(fdvp);
+	}
+
 	if (fdvp != rfdvp)
 		vrele(fdvp);
 	if (fvp != rfvp)
@@ -1309,6 +1324,11 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 	}
 	else if (lvp != NULLVP)
 		error = unionfs_mkwhiteout(udvp, cnp, td, unp->un_path);
+
+	if (error == 0) {
+		cache_purge(ap->a_dvp);
+		cache_purge(ap->a_vp);
+	}
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_rmdir: leave (%d)\n", error);
 
@@ -1564,13 +1584,8 @@ unionfs_getwritemount(struct vop_getwritemount_args *ap)
 static int
 unionfs_inactive(struct vop_inactive_args *ap)
 {
-	struct unionfs_node *unp;
-
-	unp = VTOUNIONFS(ap->a_vp);
-
-	if (unp == NULL || !(unp->un_flag & UNIONFS_CACHED))
-		vgone(ap->a_vp);
-
+	ap->a_vp->v_object = NULL;
+	vrecycle(ap->a_vp, ap->a_td);
 	return (0);
 }
 
@@ -1579,7 +1594,7 @@ unionfs_reclaim(struct vop_reclaim_args *ap)
 {
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: enter\n"); */
 
-	unionfs_hashrem(ap->a_vp, ap->a_td);
+	unionfs_noderem(ap->a_vp, ap->a_td);
 
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: leave\n"); */
 
@@ -2240,6 +2255,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_aclcheck =		unionfs_aclcheck,
 	.vop_advlock =		unionfs_advlock,
 	.vop_bmap =		VOP_EOPNOTSUPP,
+	.vop_cachedlookup =	unionfs_lookup,
 	.vop_close =		unionfs_close,
 	.vop_closeextattr =	unionfs_closeextattr,
 	.vop_create =		unionfs_create,
@@ -2255,7 +2271,7 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_link =		unionfs_link,
 	.vop_listextattr =	unionfs_listextattr,
 	.vop_lock1 =		unionfs_lock,
-	.vop_lookup =		unionfs_lookup,
+	.vop_lookup =		vfs_cache_lookup,
 	.vop_mkdir =		unionfs_mkdir,
 	.vop_mknod =		unionfs_mknod,
 	.vop_open =		unionfs_open,
