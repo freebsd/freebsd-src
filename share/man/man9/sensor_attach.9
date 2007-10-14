@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$OpenBSD: sensor_attach.9,v 1.4 2007/03/22 16:55:31 deraadt Exp $
 .\"
 .\" Copyright (c) 2006 Michael Knudsen <mk@openbsd.org>
@@ -25,7 +24,9 @@
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd 19 August 2007
+.\" $FreeBSD$
+.\"
+.Dd August 19, 2007
 .Dt SENSOR_ATTACH 9
 .Os
 .Sh NAME
@@ -42,12 +43,10 @@
 .Fn "sensordev_install" "struct ksensordev *sensdev"
 .Ft void
 .Fn "sensordev_deinstall" "struct ksensordev *sensdev"
-.Pp
 .Ft void
 .Fn "sensor_attach" "struct ksensordev *sensdev" "struct ksensor *sens"
 .Ft void
 .Fn "sensor_detach" "struct ksensordev *sensdev" "struct ksensor *sens"
-.Pp
 .Ft int
 .Fn "sensor_task_register" "void *arg" "void (*func)(void *)" "int period"
 .Ft void
@@ -61,22 +60,30 @@ that are available under the
 .Xr sysctl 8
 tree.
 .Pp
+The
 .Fn sensor_attach
+function
 adds the sensor specified by the
-.Pa sens
+.Fa sens
 argument to the sensor device specified by the
-.Pa sensdev
+.Fa sensdev
 argument.
+The
 .Fn sensor_detach
+function
 can be used to remove sensors previously added by
 .Fn sensor_attach .
 .Pp
+The
 .Fn sensordev_install
+function
 registers the sensor device specified by the
-.Pa sensdev
+.Fa sensdev
 argument so that all sensors that are attached to the device become
 accessible via the sysctl interface.
+The
 .Fn sensordev_deinstall
+function
 can be used to remove sensor devices previously registered by
 .Fn sensordev_install .
 .Pp
@@ -85,7 +92,9 @@ sensor values and updating the sensor struct periodically.
 If the driver needs process context, for example to sleep, it can
 register a task with the sensor framework.
 .Pp
+The
 .Fn sensor_task_register
+function
 is used to register a periodic task to update sensors.
 The
 .Fa func
@@ -99,6 +108,7 @@ parameter is the argument given to the
 function.
 The
 .Fn sensor_task_unregister
+function
 removes all tasks previously registered with
 .Fn sensor_task_register
 with an argument of
@@ -118,7 +128,7 @@ are not compatible with
 includes an implementation that is similar and compatible
 with an earlier version of
 these
-.Va sensor_task
+.Fn sensor_task
 functions that was available from
 .Ox 3.9
 until
@@ -126,8 +136,8 @@ until
 .Pp
 Drivers that only call
 .Fn sensor_task_register
-and don't check its return value are not affected by this
-.Va sensor_task
+and do not check its return value are not affected by this
+.Fn sensor_task
 compatibility notice.
 .Sh SEE ALSO
 .Xr systat 1 ,
@@ -135,6 +145,7 @@ compatibility notice.
 .Xr sensorsd 8 ,
 .Xr sysctl 8
 .Sh HISTORY
+.An -nosplit
 The sensor framework was written by
 .An Alexander Yurchenko Aq grange@openbsd.org
 and first appeared in
@@ -152,4 +163,4 @@ by
 .An Constantine A. Murenin Aq cnst@FreeBSD.org
 as a Google Summer of Code 2007 project,
 and first appeared in
-.Fx 7.XXX.
+.Fx 8.0 .
