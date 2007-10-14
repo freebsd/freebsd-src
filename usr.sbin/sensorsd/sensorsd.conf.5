@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$OpenBSD: sensorsd.conf.5,v 1.18 2007/08/14 17:10:02 cnst Exp $
 .\"
 .\" Copyright (c) 2003 Henning Brauer <henning@openbsd.org>
@@ -16,6 +15,8 @@
 .\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
 .\"
 .Dd August 14, 2007
 .Dt SENSORSD.CONF 5
@@ -35,11 +36,13 @@ is matched by at most one entry in
 which may specify high and low limits,
 and whether sensor status changes provided by the driver should be ignored.
 If the limits are crossed or if the status provided by the driver changes,
-.Xr sensorsd 8 's
+.Xr sensorsd 8 Ap s
 alert functionality is triggered and a command, if specified, is
 executed.
 .Pp
+The
 .Nm
+file
 follows the syntax of configuration databases as documented in
 .Xr getcap 3 .
 Sensors may be specified by their full
@@ -48,14 +51,14 @@ Sensors may be specified by their full
 variable name or by type,
 with the full name taking precedence.
 For example, if an entry
-.Dq hw.sensors.lm0.temp1
+.Va hw.sensors.lm0.temp1
 is not found, then an entry for
-.Dq temp
+.Dq Li temp
 will instead be looked for.
 .Pp
 The following attributes may be used:
 .Pp
-.Bl -tag -width "commandXX" -offset indent -compact
+.Bl -tag -width ".Li command" -offset indent -compact
 .It Li command
 Specify a command to be executed on state change.
 .It Li high
@@ -85,24 +88,26 @@ and simply trigger on status transitions.
 If boundaries are specified nonetheless,
 then they are used in addition to automatic status monitoring,
 unless the
-.Dq istatus
+.Dq Li istatus
 attribute is specified to ignore status values that are provided by the drivers.
 .Pp
 The command is executed when there is any change in sensor state.
 Tokens in the command are substituted as follows:
 .Pp
-.Bl -tag -width Ds -offset indent -compact
-.It %x
-the xname of the device the sensor sits on
-.It %t
+.Bl -tag -width indent -offset indent -compact
+.It Li %x
+the
+.Va xname
+of the device the sensor sits on
+.It Li %t
 the type of sensor
-.It %n
+.It Li %n
 the sensor number
-.It %2
+.It Li %2
 the sensor's current value
-.It %3
+.It Li %3
 the sensor's low limit
-.It %4
+.It Li %4
 the sensor's high limit
 .El
 .Pp
@@ -110,19 +115,21 @@ By default,
 .Xr sensorsd 8
 monitors status changes on all sensors that keep their state.
 This behaviour may be altered by using the
-.Dq istatus
+.Dq Li istatus
 attribute to ignore
 status changes of sensors of a certain type
 or individual sensors.
 .Sh FILES
-.Bl -tag -width "/etc/sensorsd.conf"
-.It /etc/sensorsd.conf
+.Bl -tag -width ".Pa /etc/sensorsd.conf"
+.It Pa /etc/sensorsd.conf
 Configuration file for
 .Xr sensorsd 8 .
 .El
 .Sh EXAMPLES
 In the following configuration file,
-if hw.sensors.ipmi0.temp0 transitions 80C or
+if
+.Va hw.sensors.ipmi0.temp0
+transitions 80C or
 if its status as provided by
 .Xr ipmi 4
 changes, the command
@@ -130,13 +137,16 @@ changes, the command
 will be executed,
 with the sensor type, number and current value passed to it.
 Alerts will be sent
-if hw.sensors.lm0.volt3 transitions to being within or outside
+if
+.Va hw.sensors.lm0.volt3
+transitions to being within or outside
 a range of 4.8V and 5.2V;
-if the speed of the fan attached to hw.sensors.lm0.fan1
+if the speed of the fan attached to
+.Va hw.sensors.lm0.fan1
 transitions to being below or above 1000RPM;
 if any RAID volume drive
 changes its status from, for example,
-.Dq OK ,
+.Dq Li OK ,
 such as in the case of drive failure, rebuild, or a complete failure,
 the command
 .Pa /etc/sensorsd/drive
@@ -169,7 +179,7 @@ The format was altered in
 .Ox 4.1
 to accommodate hierarchical device-based sensor addressing.
 The
-.Dq istatus
+.Dq Li istatus
 attribute was introduced in
 .Ox 4.2 .
 .Sh CAVEATS
