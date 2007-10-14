@@ -135,7 +135,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	gid = 0;
 	udir = 0;
 	ufile = 0;
-	copymode = UNIONFS_TRADITIONAL;	/* default */
+	copymode = UNIONFS_TRANSPARENT;	/* default */
 	ndp = &nd;
 
 	if (mp->mnt_flag & MNT_ROOTFS) {
