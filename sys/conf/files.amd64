@@ -169,6 +169,7 @@ dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional	ipmi
 dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/it/it.c			optional	it isa
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa

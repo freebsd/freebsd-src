@@ -131,6 +131,7 @@ MAN=	aac.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
+	${_it.4} \
 	iwi.4 \
 	ixgb.4 \
 	joy.4 \
@@ -143,6 +144,7 @@ MAN=	aac.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
+	lm.4 \
 	lmc.4 \
 	lo.4 \
 	lp.4 \
@@ -547,6 +549,7 @@ _ichwd.4=	ichwd.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
+_it.4=		it.4
 _ipmi.4=	ipmi.4
 _nfsmb.4=	nfsmb.4
 _nfe.4=		nfe.4

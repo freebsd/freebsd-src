@@ -1,0 +1,104 @@
+.\"	$FreeBSD$
+.\"	$OpenBSD: it.4,v 1.8 2006/09/08 15:09:14 jmc Exp $
+.\"
+.\" Copyright (c) 2003 Julien Bordet <zejames@greygats.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd 13 September 2007
+.Dt IT 4
+.Os
+.Sh NAME
+.Nm it
+.Nd ITE IT8705F/12F/16F and SiS SiS950 Super I/O Hardware Monitor
+.Sh SYNOPSIS
+.Cd "device isa"
+.Cd "device it"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.it.0.at="isa"
+.Cd hint.it.0.port="0x290"
+.Cd hint.it.1.at="isa"
+.Cd hint.it.1.port="0xc00"
+.Cd hint.it.2.at="isa"
+.Cd hint.it.2.port="0xd00"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn IT8705F , IT8712F , IT8716F
+and
+.Tn SiS950
+hardware monitors.
+The values are exposed through the
+.Va HW_SENSORS
+.Xr sysctl 3
+interface.
+.Pp
+Most supported devices possess 15 sensors:
+.Bl -column "Sensor" "Units" "Typical" -offset indent
+.It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
+.It Li "Fan0" Ta "RPM" Ta "CPU Fan"
+.It Li "Fan1" Ta "RPM" Ta "Fan"
+.It Li "Fan2" Ta "RPM" Ta "Fan"
+.It Li "IN0" Ta "uV DC" Ta "Core voltage"
+.It Li "IN1" Ta "uV DC" Ta "Core voltage"
+.It Li "IN2" Ta "uV DC" Ta "+3.3V"
+.It Li "IN3" Ta "uV DC" Ta "+5V"
+.It Li "IN4" Ta "uV DC" Ta "+12V"
+.It Li "IN5" Ta "uV DC" Ta "Unknown"
+.It Li "IN6" Ta "uV DC" Ta "-12V"
+.It Li "IN7" Ta "uV DC" Ta "-5V"
+.It Li "IN8" Ta "uV DC" Ta "VBAT"
+.It Li "Temp" Ta "uK" Ta "Motherboard Temperature"
+.It Li "Temp" Ta "uK" Ta "Motherboard Temperature"
+.It Li "Temp" Ta "uK" Ta "CPU Temperature"
+.El
+.Pp
+For some devices, sensors' names and numbers will be different.
+.Sh SEE ALSO
+.Xr systat 1 ,
+.Xr sysctl 3 ,
+.Xr sensorsd 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Ox 3.4 .
+.Fx
+support was added in
+.Fx 7.XXX .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Julien Bordet Aq zejames@greyhats.org .
+It was ported to
+.Fx
+by
+.An Constantine A. Murenin Aq cnst@FreeBSD.org
+as a part of a Google Summer of Code 2007 project.
+.Sh BUGS
+Interrupt support is unimplemented.
