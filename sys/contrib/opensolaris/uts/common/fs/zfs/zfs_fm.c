@@ -290,7 +290,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	mutex_exit(&spa->spa_errlist_lock);
 
 	sbuf_finish(&sb);
-	ZFS_LOG(1, "%s\n", sbuf_data(&sb));
+	ZFS_LOG(1, "%s", sbuf_data(&sb));
 	devctl_notify("ZFS", spa->spa_name, subclass, sbuf_data(&sb));
 	if (sbuf_overflowed(&sb))
 		printf("ZFS WARNING: sbuf overflowed\n");
