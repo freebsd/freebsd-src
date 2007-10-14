@@ -98,6 +98,10 @@ For behavior of the
 mode, see
 .Sx MASQUERADE MODE
 below.
+.It Sm Cm whiteout No = Cm always | whenneeded Sm
+Specifies whether whiteouts should always be made in the upper layer
+when removing a file or directory or only when it already exists in the
+lower layer.
 .It Cm udir Ns = Ns Ar mode
 Specifies directory mode bits in octal for
 .Cm masquerade
