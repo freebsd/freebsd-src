@@ -60,132 +60,26 @@
 
 #include <fs/unionfs/union.h>
 
-#define	NUNIONFSNODECACHE 32
-
-#define	UNIONFS_NHASH(upper, lower) \
-	(&unionfs_node_hashtbl[(((uintptr_t)upper + (uintptr_t)lower) >> 8) & unionfs_node_hash])
-
-static LIST_HEAD(unionfs_node_hashhead, unionfs_node) *unionfs_node_hashtbl;
-static u_long	unionfs_node_hash;
-struct mtx	unionfs_hashmtx;
-
-static MALLOC_DEFINE(M_UNIONFSHASH, "UNIONFS hash", "UNIONFS hash table");
 MALLOC_DEFINE(M_UNIONFSNODE, "UNIONFS node", "UNIONFS vnode private part");
 MALLOC_DEFINE(M_UNIONFSPATH, "UNIONFS path", "UNIONFS path private part");
 
 /*
- * Initialize cache headers
+ * Initialize
  */
 int 
 unionfs_init(struct vfsconf *vfsp)
 {
 	UNIONFSDEBUG("unionfs_init\n");	/* printed during system boot */
-	unionfs_node_hashtbl = hashinit(NUNIONFSNODECACHE, M_UNIONFSHASH, &unionfs_node_hash);
-	mtx_init(&unionfs_hashmtx, "unionfs", NULL, MTX_DEF);
-
 	return (0);
 }
 
 /*
- * Destroy cache headers
+ * Uninitialize
  */
 int 
 unionfs_uninit(struct vfsconf *vfsp)
 {
-	mtx_destroy(&unionfs_hashmtx);
-	free(unionfs_node_hashtbl, M_UNIONFSHASH);
 	return (0);
-}
-
-/*
- * Return a VREF'ed alias for unionfs vnode if already exists, else 0.
- */
-static struct vnode *
-unionfs_hashget(struct mount *mp, struct vnode *uppervp,
-		struct vnode *lowervp, struct vnode *dvp, char *path,
-		int lkflags, struct thread *td)
-{
-	struct unionfs_node_hashhead *hd;
-	struct unionfs_node *unp;
-	struct vnode   *vp;
-	int error;
-
-	if (lkflags & LK_TYPE_MASK)
-		lkflags |= LK_RETRY;
-	hd = UNIONFS_NHASH(uppervp, lowervp);
-
-	mtx_lock(&unionfs_hashmtx);
-	LIST_FOREACH(unp, hd, un_hash) {
-		if (unp->un_uppervp == uppervp &&
-		    unp->un_lowervp == lowervp &&
-		    unp->un_dvp == dvp &&
-		    UNIONFSTOV(unp)->v_mount == mp &&
-		    (!path || !(unp->un_path) || !strcmp(unp->un_path, path))) {
-			vp = UNIONFSTOV(unp);
-			VI_LOCK(vp);
-			mtx_unlock(&unionfs_hashmtx);
-			/*
-			 * We need to clear the OWEINACT flag here as this
-			 * may lead vget() to try to lock our vnode which is
-			 * already locked via vp.
-			 */
-			vp->v_iflag &= ~VI_OWEINACT;
-			error = vget(vp, LK_INTERLOCK, td);
-			if (error != 0)
-				panic("unionfs_hashget: vget error %d", error);
-			if (lkflags & LK_TYPE_MASK)
-				vn_lock(vp, lkflags, td);
-			return (vp);
-		}
-	}
-
-	mtx_unlock(&unionfs_hashmtx);
-
-	return (NULLVP);
-}
-
-/*
- * Act like unionfs_hashget, but add passed unionfs_node to hash if no existing
- * node found.
- */
-static struct vnode *
-unionfs_hashins(struct mount *mp, struct unionfs_node *uncp,
-		char *path, int lkflags, struct thread *td)
-{
-	struct unionfs_node_hashhead *hd;
-	struct unionfs_node *unp;
-	struct vnode   *vp;
-	int error;
-
-	if (lkflags & LK_TYPE_MASK)
-		lkflags |= LK_RETRY;
-	hd = UNIONFS_NHASH(uncp->un_uppervp, uncp->un_lowervp);
-
-	mtx_lock(&unionfs_hashmtx);
-	LIST_FOREACH(unp, hd, un_hash) {
-		if (unp->un_uppervp == uncp->un_uppervp &&
-		    unp->un_lowervp == uncp->un_lowervp &&
-		    unp->un_dvp == uncp->un_dvp &&
-		    UNIONFSTOV(unp)->v_mount == mp &&
-		    (!path || !(unp->un_path) || !strcmp(unp->un_path, path))) {
-			vp = UNIONFSTOV(unp);
-			VI_LOCK(vp);
-			mtx_unlock(&unionfs_hashmtx);
-			vp->v_iflag &= ~VI_OWEINACT;
-			error = vget(vp, LK_INTERLOCK, td);
-			if (error)
-				panic("unionfs_hashins: vget error %d", error);
-			if (lkflags & LK_TYPE_MASK)
-				vn_lock(vp, lkflags, td);
-			return (vp);
-		}
-	}
-
-	LIST_INSERT_HEAD(hd, uncp, un_hash);
-	uncp->un_flag |= UNIONFS_CACHED;
-	mtx_unlock(&unionfs_hashmtx);
-
-	return (NULLVP);
 }
 
 /*
@@ -210,19 +104,14 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 
 	ump = MOUNTTOUNIONFSMOUNT(mp);
 	lkflags = (cnp ? cnp->cn_lkflags : 0);
-	path = (cnp ? cnp->cn_nameptr : "");
+	path = (cnp ? cnp->cn_nameptr : NULL);
 
 	if (uppervp == NULLVP && lowervp == NULLVP)
 		panic("unionfs_nodeget: upper and lower is null");
 
 	/* If it has no ISLASTCN flag, path check is skipped. */
-	if (!cnp || !(cnp->cn_flags & ISLASTCN))
+	if (cnp && !(cnp->cn_flags & ISLASTCN))
 		path = NULL;
-
-	/* Lookup the hash first. */
-	*vpp = unionfs_hashget(mp, uppervp, lowervp, dvp, path, lkflags, td);
-	if (*vpp != NULLVP)
-		return (0);
 
 	if ((uppervp == NULLVP || ump->um_uppervp != uppervp) ||
 	    (lowervp == NULLVP || ump->um_lowervp != lowervp)) {
@@ -239,7 +128,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("unionfs", mp, &unionfs_vnodeops, &vp);
-	if (error) {
+	if (error != 0) {
 		FREE(unp, M_UNIONFSNODE);
 		return (error);
 	}
@@ -264,9 +153,9 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	else
 		vp->v_vnlock = lowervp->v_vnlock;
 
-	if (cnp) {
+	if (path != NULL) {
 		unp->un_path = (char *)
-		    malloc(cnp->cn_namelen +1, M_UNIONFSPATH, M_WAITOK | M_ZERO);
+		    malloc(cnp->cn_namelen +1, M_UNIONFSPATH, M_WAITOK|M_ZERO);
 		bcopy(cnp->cn_nameptr, unp->un_path, cnp->cn_namelen);
 		unp->un_path[cnp->cn_namelen] = '\0';
 	}
@@ -277,23 +166,6 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	    (lowervp != NULLVP && ump->um_lowervp == lowervp))
 		vp->v_vflag |= VV_ROOT;
 
-	*vpp = unionfs_hashins(mp, unp, path, lkflags, td);
-	if (*vpp != NULLVP) {
-		if (dvp != NULLVP)
-			vrele(dvp);
-		if (uppervp != NULLVP)
-			vrele(uppervp);
-		if (lowervp != NULLVP)
-			vrele(lowervp);
-
-		unp->un_uppervp = NULLVP;
-		unp->un_lowervp = NULLVP;
-		unp->un_dvp = NULLVP;
-		vrele(vp);
-
-		return (0);
-	}
-
 	if (lkflags & LK_TYPE_MASK)
 		vn_lock(vp, lkflags | LK_RETRY, td);
 
@@ -303,10 +175,10 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 }
 
 /*
- * Remove node from hash.
+ * Clean up the unionfs node.
  */
 void
-unionfs_hashrem(struct vnode *vp, struct thread *td)
+unionfs_noderem(struct vnode *vp, struct thread *td)
 {
 	int		vfslocked;
 	struct unionfs_node *unp;
@@ -331,13 +203,6 @@ unionfs_hashrem(struct vnode *vp, struct thread *td)
 		VOP_UNLOCK(lvp, 0, td);
 	if (uvp != NULLVP)
 		VOP_UNLOCK(uvp, 0, td);
-
-	mtx_lock(&unionfs_hashmtx);
-	if (unp->un_flag & UNIONFS_CACHED) {
-		LIST_REMOVE(unp, un_hash);
-		unp->un_flag &= ~UNIONFS_CACHED;
-	}
-	mtx_unlock(&unionfs_hashmtx);
 	vp->v_object = NULL;
 
 	if (lvp != NULLVP) {
@@ -692,16 +557,6 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 	VI_UNLOCK(vp);
 	for (count = 1; count < lockcnt; count++)
 		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY, td);
-
-	/*
-	 * cache update
-	 */
-	mtx_lock(&unionfs_hashmtx);
-	if (unp->un_flag & UNIONFS_CACHED)
-		LIST_REMOVE(unp, un_hash);
-	LIST_INSERT_HEAD(UNIONFS_NHASH(uvp, lvp), unp, un_hash);
-	unp->un_flag |= UNIONFS_CACHED;
-	mtx_unlock(&unionfs_hashmtx);
 }
 
 /*
