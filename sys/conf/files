@@ -758,8 +758,6 @@ dev/le/if_le_pci.c		optional le pci
 dev/le/lance.c			optional le
 dev/led/led.c			standard
 dev/lge/if_lge.c		optional lge
-dev/lm/lm78.c			optional lm
-dev/lm/lm78_isa.c		optional lm isa
 dev/lmc/if_lmc.c		optional lmc
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
@@ -1448,7 +1446,6 @@ kern/kern_prot.c		standard
 kern/kern_resource.c		standard
 kern/kern_rwlock.c		standard
 kern/kern_sema.c		standard
-kern/kern_sensors.c		standard
 kern/kern_shutdown.c		standard
 kern/kern_sig.c			standard
 kern/kern_subr.c		standard

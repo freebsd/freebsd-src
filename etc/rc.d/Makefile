@@ -33,7 +33,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	random rarpd resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
-	sensorsd serial sppp statd swap1 \
+	serial sppp statd swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
 	ugidfw \
