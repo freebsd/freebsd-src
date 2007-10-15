@@ -1,4 +1,3 @@
-.\"	$FreeBSD$
 .\"	$OpenBSD: it.4,v 1.8 2006/09/08 15:09:14 jmc Exp $
 .\"
 .\" Copyright (c) 2003 Julien Bordet <zejames@greygats.org>
@@ -24,12 +23,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd 13 September 2007
+.\" $FreeBSD$
+.\"
+.Dd September 13, 2007
 .Dt IT 4
 .Os
 .Sh NAME
 .Nm it
-.Nd ITE IT8705F/12F/16F and SiS SiS950 Super I/O Hardware Monitor
+.Nd "ITE IT8705F/12F/16F and SiS SiS950 Super I/O Hardware Monitor"
 .Sh SYNOPSIS
 .Cd "device isa"
 .Cd "device it"
@@ -51,12 +52,12 @@ and
 .Tn SiS950
 hardware monitors.
 The values are exposed through the
-.Va HW_SENSORS
+.Dv HW_SENSORS
 .Xr sysctl 3
 interface.
 .Pp
 Most supported devices possess 15 sensors:
-.Bl -column "Sensor" "Units" "Typical" -offset indent
+.Bl -column ".Sy Sensor" ".Sy Units" ".Sy Typical" -offset indent
 .It Sy "Sensor" Ta Sy "Units" Ta Sy "Typical Use"
 .It Li "Fan0" Ta "RPM" Ta "CPU Fan"
 .It Li "Fan1" Ta "RPM" Ta "Fan"
@@ -88,7 +89,7 @@ driver first appeared in
 .Ox 3.4 .
 .Fx
 support was added in
-.Fx 7.XXX .
+.Fx 8.0 .
 .Sh AUTHORS
 .An -nosplit
 The
