@@ -280,10 +280,10 @@ privilege may change the value.
 .It "HW_PHYSMEM	integer	no"
 .It "HW_USERMEM	integer	no"
 .It "HW_PAGESIZE	integer	no"
-.It "HW_FLOATINGPT	integer	no"
+.It "HW_FLOATINGPOINT	integer	no"
 .It "HW_MACHINE_ARCH	string	no"
-.It "HW_REALMEM	integer	no"
-.It "HW_SENSORS	node	not applicable"
+.\".It "HW_DISKNAMES	integer	no"
+.\".It "HW_DISKSTATS	integer	no"
 .El
 .Pp
 .Bl -tag -width 6n
@@ -301,42 +301,12 @@ The bytes of physical memory.
 The bytes of non-kernel memory.
 .It Li HW_PAGESIZE
 The software page size.
-.It Li HW_FLOATINGPT
+.It Li HW_FLOATINGPOINT
 Nonzero if the floating point support is in hardware.
 .It Li HW_MACHINE_ARCH
 The machine dependent architecture type.
-.It Li HW_REALMEM
-The bytes of real memory.
-.It Li HW_SENSORS
-Third level comprises an array of
-.Vt "struct sensordev"
-structures containing information about devices
-that may attach hardware monitoring sensors.
-.Pp
-Third, fourth and fifth levels together comprise an array of
-.Vt "struct sensor"
-structures containing snapshot readings of hardware monitoring sensors.
-In such usage, third level indicates the numerical representation
-of the sensor device name to which the sensor is attached
-(device's
-.Va xname
-and number shall be matched with the help of
-.Vt "struct sensordev"
-structure above),
-fourth level indicates sensor type and
-fifth level is an ordinal sensor number (unique to
-the specified sensor type on the specified sensor device).
-.Pp
-The
-.Vt sensordev
-and
-.Vt sensor
-structures
-and
-.Vt sensor_type
-enumeration
-are defined in
-.In sys/sensors.h .
+.\".It Fa HW_DISKNAMES
+.\".It Fa HW_DISKSTATS
 .El
 .Ss CTL_KERN
 The string and integer information available for the CTL_KERN level

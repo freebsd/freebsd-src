@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2007
+.Dd August 23, 2007
 .Dt CORETEMP 4
 .Os
 .Sh NAME
@@ -51,20 +51,12 @@ The
 driver provides support for the on-die digital thermal sensor present
 in Intel Core and newer CPUs.
 .Pp
-The values are exposed through the
-.Dv HW_SENSORS
-.Xr sysctl 3
-tree.
-For example:
-.Bd -literal -offset indent
-%sysctl hw.sensors
-hw.sensors.cpu0.temp0: 28.00 degC
-hw.sensors.cpu1.temp0: 29.00 degC
-.Ed
+The
+.Nm
+driver reports each core's temperature through a sysctl node in the
+corresponding CPU device's sysctl tree, named
+.Va dev.cpu.%d.temperature .
 .Sh SEE ALSO
-.Xr systat 1 ,
-.Xr sysctl 3 ,
-.Xr sensorsd 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The

@@ -131,7 +131,6 @@ SUBDIR=	${_3dfx} \
 	iscsi \
 	isp \
 	ispfw \
-	${_it} \
 	${_iwi} \
 	${_iwifw} \
 	${_ixgb} \
@@ -147,7 +146,6 @@ SUBDIR=	${_3dfx} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
-	${_lm} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -455,11 +453,9 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
-_it=		it
 _iwi=		iwi
 _iwifw=		iwifw
-_ixgb=		ixgb
-_lm=		lm
+_ixgb=   	ixgb
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -515,12 +511,10 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
-_it=		it
-_ixgb=		ixgb
+_ixgb=   	ixgb
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
-_lm=		lm
 _mly=		mly
 _ndis=		ndis
 _nfe=		nfe
