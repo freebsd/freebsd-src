@@ -578,7 +578,12 @@ distributeworld installworld: installcheck
 	    date echo egrep find grep install-info \
 	    ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
 	    test true uname wc zic; do \
-		cp `which $$prog` ${INSTALLTMP}; \
+		if progpath=`which $$prog`; then \
+			cp $$progpath ${INSTALLTMP}; \
+		else \
+			echo "Required install tool $$prog not found" >&2; \
+			exit 1; \
+		fi; \
 	done
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
 	rm -rf ${INSTALLTMP}
