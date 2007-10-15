@@ -62,8 +62,8 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	cue \
-	cxgb \
 	${_cx} \
+	cxgb \
 	dc \
 	dcons \
 	dcons_crom \
@@ -123,8 +123,8 @@ SUBDIR=	${_3dfx} \
 	ipdivert \
 	${_ipfilter} \
 	ipfw \
-	ip_mroute_mod \
 	${_ipmi} \
+	ip_mroute_mod \
 	${_ips} \
 	${_ipw} \
 	${_ipwfw} \
@@ -188,10 +188,10 @@ SUBDIR=	${_3dfx} \
 	${_nsp} \
 	ntfs \
 	ntfs_iconv \
-	${_nxge} \
 	nullfs \
 	${_nve} \
 	${_nwfs} \
+	${_nxge} \
 	${_oltr} \
 	${_padlock} \
 	patm \
@@ -302,11 +302,11 @@ SUBDIR=	${_3dfx} \
 	wb \
 	${_wi} \
 	wlan \
-	wlan_scan_ap \
-	wlan_scan_sta \
 	wlan_acl \
 	wlan_amrr \
 	wlan_ccmp \
+	wlan_scan_ap \
+	wlan_scan_sta \
 	wlan_tkip \
 	wlan_wep \
 	wlan_xauth \
@@ -424,7 +424,7 @@ _sppp=		sppp
 _sr=		sr
 _stg=		stg
 _streams=	streams
-_tmpfs= 	tmpfs
+_tmpfs=		tmpfs
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -458,7 +458,7 @@ _ipwfw=		ipwfw
 _it=		it
 _iwi=		iwi
 _iwifw=		iwifw
-_ixgb=   	ixgb
+_ixgb=		ixgb
 _lm=		lm
 _mly=		mly
 _nfe=		nfe
@@ -516,7 +516,7 @@ _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
 _it=		it
-_ixgb=   	ixgb
+_ixgb=		ixgb
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -534,7 +534,7 @@ _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _sppp=		sppp
-_tmpfs= 	tmpfs
+_tmpfs=		tmpfs
 _twa=		twa
 _wi=		wi
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -549,9 +549,9 @@ _zfs=		zfs
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
 #_ar=		ar	not 64-bit clean
+_an=		an
 _arcnet=	arcnet
 _asr=		asr
-_an=		an
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
