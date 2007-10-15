@@ -17,7 +17,7 @@ BIN1=	amd.map apmd.conf auth.conf \
 	portsnap.conf pf.conf pf.os phones profile protocols \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
-	rc.subr remote rpc sensorsd.conf services shells \
+	rc.subr remote rpc services shells \
 	snmpd.config sysctl.conf syslog.conf \
 	etc.${MACHINE_ARCH}/ttys \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \

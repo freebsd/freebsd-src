@@ -209,7 +209,6 @@ MAN=	accept_filter.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
-	sensor_attach.9 \
 	sf_buf.9 \
 	signal.9 \
 	sleep.9 \
@@ -976,13 +975,6 @@ MLINKS+=sema.9 sema_destroy.9 \
 	sema.9 sema_trywait.9 \
 	sema.9 sema_value.9 \
 	sema.9 sema_wait.9
-MLINKS+=sensor_attach.9 sensordev_install.9 \
-	sensor_attach.9 sensordev_deinstall.9 \
-	sensor_attach.9 sensor_detach.9 \
-	sensor_attach.9 ksensordev.9 \
-	sensor_attach.9 ksensor.9 \
-	sensor_attach.9 sensor_task_register.9 \
-	sensor_attach.9 sensor_task_unregister.9
 MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_free.9 \
 	sf_buf.9 sf_buf_kva.9 \
