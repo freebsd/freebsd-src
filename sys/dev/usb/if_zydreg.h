@@ -1083,8 +1083,9 @@ struct zyd_notif_retry {
 	(sizeof(struct zyd_plcphdr) + IEEE80211_MIN_LEN + 		\
 	 sizeof(struct zyd_rx_stat))
 #define ZYD_MIN_RXBUFSZ	ZYD_MIN_FRAGSZ
-#define ZYX_MAX_RXBUFSZ	\
-	(sizeof(struct zyd_plcphdr) + MCLBYTES + sizeof(struct zyd_rx_desc))
+#define ZYX_MAX_RXBUFSZ							\
+	((sizeof(struct zyd_plcphdr) + MCLBYTES +			\
+	  sizeof(struct zyd_rx_desc)) * 3)
 
 #define ZYD_CMD_FLAG_READ	(1 << 0)
 
