@@ -13,7 +13,7 @@
 ======================================================================
 
 
-	Major changes between "less" versions 406 and 408
+	Major changes between "less" versions 406 and 409
 
 * Support CSI escape sequences, like SGR escape sequences.
 
@@ -22,6 +22,8 @@
 * Fix bug in using -i and -I flags with non-ASCII text.
 
 * Fix configure bug on systems which don't support langinfo.h.
+
+* Fix crash when searching text containing certain invalid UTF-8 sequences.
 
 ======================================================================
 
@@ -692,6 +694,7 @@
 * Lesskey files may now include characters after the action as
   extra input to be parsed after the action; for example:
   "toggle-option X" to toggle a specific option X.
+
 
 
 
