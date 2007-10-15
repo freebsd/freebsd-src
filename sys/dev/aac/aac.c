@@ -1670,14 +1670,12 @@ aac_check_firmware(struct aac_softc *sc)
 	sc->aac_max_sectors = 128;				/* 64KB */
 	if (sc->flags & AAC_FLAGS_SG_64BIT)
 		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE
-		 - sizeof(struct aac_blockwrite64)
-		 + sizeof(struct aac_sg_table64))
-		 / sizeof(struct aac_sg_table64);
+		 - sizeof(struct aac_blockwrite64))
+		 / sizeof(struct aac_sg_entry64);
 	else
 		sc->aac_sg_tablesize = (AAC_FIB_DATASIZE
-		 - sizeof(struct aac_blockwrite)
-		 + sizeof(struct aac_sg_table))
-		 / sizeof(struct aac_sg_table);
+		 - sizeof(struct aac_blockwrite))
+		 / sizeof(struct aac_sg_entry);
 
 	if (!aac_sync_command(sc, AAC_MONKER_GETCOMMPREF, 0, 0, 0, 0, NULL)) {
 		options = AAC_GET_MAILBOX(sc, 1);
