@@ -293,8 +293,8 @@ MAN=	aac.4 \
 	sched_4bsd.4 \
 	sched_ule.4 \
 	screen.4 \
-	sctp.4 \
 	scsi.4 \
+	sctp.4 \
 	sem.4 \
 	ses.4 \
 	sf.4 \
@@ -324,8 +324,8 @@ MAN=	aac.4 \
 	snd_gusc.4 \
 	snd_hda.4 \
 	snd_ich.4 \
-	snd_maestro.4 \
 	snd_maestro3.4 \
+	snd_maestro.4 \
 	snd_mss.4 \
 	snd_neomagic.4 \
 	snd_sbc.4 \
@@ -533,11 +533,11 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
+MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
-MLINKS+=watchdog.4 SW_WATCHDOG.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
@@ -549,15 +549,15 @@ _ichwd.4=	ichwd.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
-_it.4=		it.4
 _ipmi.4=	ipmi.4
-_nfsmb.4=	nfsmb.4
+_it.4=		it.4
 _nfe.4=		nfe.4
+_nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
 _nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
-_spkr.4=	spkr.4
 _speaker.4=	speaker.4
+_spkr.4=	spkr.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
