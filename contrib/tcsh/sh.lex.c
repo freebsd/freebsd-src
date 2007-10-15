@@ -851,8 +851,7 @@ getsub(struct wordent *en)
 	    return (en);
 	}
 	slhs.len = 0;
-	if (lhsb.s != NULL && lhsb.len != 0)
-	    Strbuf_append(&slhs, lhsb.s);
+	Strbuf_append(&slhs, lhsb.s);
 	Strbuf_terminate(&slhs);
 	if (exclc)
 	    en = dosub(sc, en, global);
