@@ -436,7 +436,7 @@ intsmb_stop(struct intsmb_softc *sc)
 		/* So that it can use device during device probe on SMBus. */
 		return (intsmb_stop_poll(sc));
 
-	error = tsleep(sc, PWAIT | PCATCH, "SMBWAI", hz / 8);
+	error = msleep(sc, &sc->lock, PWAIT | PCATCH, "SMBWAI", hz / 8);
 	if (error == 0) {
 		status = bus_read_1(sc->io_res, PIIX4_SMBHSTSTS);
 		if (!(status & PIIX4_SMBHSTSTAT_BUSY)) {
