@@ -375,7 +375,7 @@ iso_mountfs(devvp, mp, td)
 	brelse(pribp);
 	pribp = NULL;
 
-	mp->mnt_data = (qaddr_t)isomp;
+	mp->mnt_data = isomp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
@@ -488,7 +488,7 @@ out:
 	}
 	if (isomp) {
 		free((caddr_t)isomp, M_ISOFSMNT);
-		mp->mnt_data = (qaddr_t)0;
+		mp->mnt_data = NULL;
 	}
 	return error;
 }
@@ -530,7 +530,7 @@ cd9660_unmount(mp, mntflags, td)
 	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
 	free((caddr_t)isomp, M_ISOFSMNT);
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);

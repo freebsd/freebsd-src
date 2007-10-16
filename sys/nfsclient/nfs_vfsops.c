@@ -850,7 +850,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp = uma_zalloc(nfsmount_zone, M_WAITOK);
 		bzero((caddr_t)nmp, sizeof (struct nfsmount));
 		TAILQ_INIT(&nmp->nm_bufq);
-		mp->mnt_data = (qaddr_t)nmp;
+		mp->mnt_data = nmp;
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
