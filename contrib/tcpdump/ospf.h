@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.16.2.1 2005/08/23 11:16:30 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.16.2.2 2006/12/13 08:24:27 hannes Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -48,6 +48,7 @@
 /* ospf_authtype	*/
 #define	OSPF_AUTH_NONE		0	/* No auth-data */
 #define	OSPF_AUTH_SIMPLE	1	/* Simple password */
+#define OSPF_AUTH_SIMPLE_LEN	8	/* max length of simple authentication */
 #define OSPF_AUTH_MD5		2	/* MD5 authentication */
 #define OSPF_AUTH_MD5_LEN	16	/* length of MD5 authentication */
 

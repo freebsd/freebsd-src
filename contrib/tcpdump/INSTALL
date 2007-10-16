@@ -1,7 +1,11 @@
-@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.63.2.4 2005/09/20 06:05:35 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/INSTALL,v 1.63.2.7 2007/09/14 01:03:12 guy Exp $ (LBL)
 
-If you have not built libpcap, do so first.  See the README
-file in this directory for the ftp location.
+If you have not built libpcap, and your system does not have libpcap
+installed, install libpcap first.  Your system might provide a version
+of libpcap that can be installed; if so, to compile tcpdump you might
+need to install a "developer" version of libpcap as well as the
+"run-time" version.  You can also install tcpdump.org's version of
+libpcap; see the README file in this directory for the ftp location.
 
 You will need an ANSI C compiler to build tcpdump. The configure script
 will abort if your compiler is not ANSI compliant. If this happens, use
@@ -15,20 +19,17 @@ directory), run ./configure (a shell script).  "configure" will
 determine your system attributes and generate an appropriate Makefile
 from Makefile.in.  Now build tcpdump by running "make".
 
-If everything builds ok, su and type "make install". This will install
-tcpdump and the manual entry. By default, tcpdump is installed with
-group execute permissions. The group used depends on your os. In
-addition, BPF packet access is controlled by permissions to
-/dev/bpf0. In any case, DO NOT give untrusted users the capability of
-running tcpdump. Tcpdump can capture any traffic on your net,
-including passwords.
+If everything builds ok, su and type "make install".  This will install
+tcpdump and the manual entry.  Any user will be able to use tcpdump to
+read saved captures.  Whether a user will be able to capture traffic
+depends on the OS and the configuration of the system; see the tcpdump
+man page for details.  DO NOT give untrusted users the ability to
+capture traffic.  If a user can capture traffic, he or she could use
+utilities such as tcpdump to capture any traffic on your net, including
+passwords.
 
 Note that most systems ship tcpdump, but usually an older version.
 Remember to remove or rename the installed binary when upgrading.
-
-If you use Linux, this version of libpcap is known to compile and run
-with 2.0.25 and more modern, and 2.2 and later, kernels.  It is
-guaranteed not to work with 1.X kernels.
 
 If your system is not one which we have tested tcpdump on, you may have
 to modify the configure script and Makefile.in. Please send us patches
@@ -128,7 +129,6 @@ parsenfsfh.c	- Network File System file parser routines
 pcap_dump_ftell.c - pcap_dump_ftell() implementation, in case libpcap
 		doesn't have it
 pcap-missing.h	- declarations of functions possibly missing from libpcap
-pf.h		- OpenBSD PF definitions
 pmap_prot.h	- definitions for ONC RPC portmapper protocol
 ppp.h		- Point to Point Protocol definitions
 print-802_11.c	- IEEE 802.11 printer routines
@@ -243,6 +243,7 @@ tcp.h		- TCP definitions
 tcpdump.1	- manual entry
 tcpdump.c	- main program
 telnet.h	- Telnet definitions
+tftp.h		- TFTP definitions
 timed.h		- BSD time daemon protocol definitions
 token.h		- Token Ring definitions
 udp.h		- UDP definitions

@@ -1,4 +1,92 @@
-$Header: /tcpdump/master/tcpdump/CHANGES,v 1.87.2.11 2005/09/20 06:05:34 guy Exp $
+$Header: /tcpdump/master/tcpdump/CHANGES,v 1.87.2.17 2007/09/13 13:39:44 ken Exp $
+
+Mon.	September 10, 2007.  ken@xelerance.com.  Summary for 0.9.8 tcpdump release
+	Rework ARP printer
+	Rework OSPFv3 printer
+	Add support for Frame-Relay ARP
+	Decode DHCP Option 121 (RFC 3442 Classless Static Route)
+	Decode DHCP Option 249 (MS Classless Static Route) the same as Option 121
+	TLV: Add support for Juniper .pcap extensions
+	Print EGP header in new-world-order style
+	Converted print-isakmp.c to NETDISSECT
+	Moved AF specific stuff into af.h
+	Test subsystem now table driven, and saves outputs and diffs to one place
+        Require <net/pfvar.h> for pf definitions - allows reading of pflog formatted 
+         libpcap files on an OS other than where the file was generated
+
+Wed.	July 23, 2007.  mcr@xelerance.com.  Summary for 0.9.7 tcpdump release
+
+    	NFS: Print unsigned values as such. 
+	RX: parse safely.
+	BGP: fixes for IPv6-less builds.
+	801.1ag: use standard codepoint.
+	use /dev/bpf on systems with such a device.
+	802.11: print QoS data, avoid dissect of no-data frame, ignore padding.
+	smb: make sure that we haven't gone past the end of the captured data.
+	smb: squelch an uninitialized complaint from coverity.
+	NFS: from NetBSD; don't interpret the reply as a possible NFS reply
+		if it got MSG_DENIED.
+	BGP: don't print TLV values that didn't fit, from www.digit-labs.org. 
+	revised INSTALL.txt about libpcap dependancy.
+
+Wed.	April 25, 2007. ken@xelerance.com.  Summary for 3.9.6 tcpdump release
+	Update man page to reflect changes to libpcap
+	Changes to both TCP and IP Printer Output
+	Fix a potential buffer overflow in the 802.11 printer
+	Print basic info about a few more Cisco LAN protocols.
+	mDNS cleanup
+	ICMP MPLS rework of the extension code
+	bugfix: use the correct codepoint for the OSPF simple text auth token
+	 entry, and use safeputs to print the password.
+	Add support in pflog for additional values
+	Add support for OIF RSVP Extensions UNI 1.0 Rev. 2 and additional RSVP objects
+	Add support for the Message-id NACK c-type.
+	Add support for 802.3ah loopback ctrl msg
+	Add support for Multiple-STP as per 802.1s
+	Add support for rapid-SPT as per 802.1w
+	Add support for CFM Link-trace msg, Link-trace-Reply msg, 
+	 Sender-ID tlv, private tlv, port, interface status
+	Add support for unidirectional link detection as per
+	 http://www.ietf.org/internet-drafts/draft-foschiano-udld-02.txt
+	Add support for the olsr protocol as per RFC 3626 plus the LQ 
+	 extensions from olsr.org
+	Add support for variable-length checksum in DCCP, as per section 9 of
+	 RFC 4340.
+	Add support for per-VLAN spanning tree and per-VLAN rapid spanning tree
+	Add support for Multiple-STP as per 802.1s
+	Add support for the cisco propriatry 'dynamic trunking protocol'
+	Add support for the cisco proprietary VTP protocol
+	Update dhcp6 options table as per IETF standardization activities
+
+
+Tue.	September 19, 2006. ken@xelerance.com. Summary for 3.9.5 tcpdump release
+	
+	Fix compiling on AIX (, at end of ENUM)
+	Updated list of DNS RR typecodes
+	Use local Ethernet defs on WIN32
+	Add support for Frame-Relay ARP
+	Fixes for compiling under MSVC++
+	Add support for parsing Juniper .pcap files
+	Add support for FRF.16 Multilink Frame-Relay (DLT_MFR)
+	Rework the OSPFv3 printer
+	Fix printing for 4.4BSD/NetBSD NFS Filehandles
+	Add support for Cisco style NLPID encapsulation
+	Add cisco prop. eigrp related, extended communities
+	Add support for BGP signaled VPLS
+	Cleanup the bootp printer
+	Add support for PPP over Frame-Relay
+	Add some bounds checking to the IP options code, and clean up 
+	 the options output a bit.
+	Add additional modp groups to ISAKMP printer
+	Add support for Address-Withdraw and Label-Withdraw Msgs
+	Add support for the BFD Discriminator TLV
+	Fixes for 64bit compiling
+	Add support for PIMv2 checksum verification
+	Add support for further dissection of the IPCP Compression Option
+	Add support for Cisco's proposed VQP protocol
+	Add basic support for keyed authentication TCP option
+	Lots of minor cosmetic changes to output printers
+
 
 Mon. 	September 19, 2005.  ken@xelerance.com. Summary for 3.9.4 tcpdump release
 	Decoder support for more Juniper link-layer types

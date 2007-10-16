@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45.2.3 2005/07/11 20:24:34 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pim.c,v 1.45.2.4 2006/02/13 01:32:34 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -79,6 +79,15 @@ static struct tok pimv2_hello_option_values[] = {
     { 0, NULL}
 };
 
+#define PIMV2_REGISTER_FLAG_LEN      4
+#define PIMV2_REGISTER_FLAG_BORDER 0x80000000
+#define PIMV2_REGISTER_FLAG_NULL   0x40000000
+
+static struct tok pimv2_register_flag_values[] = {
+    { PIMV2_REGISTER_FLAG_BORDER, "Border" },
+    { PIMV2_REGISTER_FLAG_NULL, "Null" },
+    { 0, NULL}
+};    
 
 /*
  * XXX: We consider a case where IPv6 is not ready yet for portability,
@@ -419,13 +428,13 @@ pim_print(register const u_char *bp, register u_int len)
 	switch (PIM_VER(pim->pim_typever)) {
 	case 2:
             if (!vflag) {
-                printf("PIMv%u, %s, length: %u",
+                printf("PIMv%u, %s, length %u",
                        PIM_VER(pim->pim_typever),
                        tok2str(pimv2_type_values,"Unknown Type",PIM_TYPE(pim->pim_typever)),
                        len);
                 return;
             } else {
-                printf("PIMv%u, length: %u\n\t%s",
+                printf("PIMv%u, length %u\n\t%s",
                        PIM_VER(pim->pim_typever),
                        len,
                        tok2str(pimv2_type_values,"Unknown Type",PIM_TYPE(pim->pim_typever)));
@@ -433,7 +442,7 @@ pim_print(register const u_char *bp, register u_int len)
             }
             break;
 	default:
-		printf("PIMv%u, length: %u",
+		printf("PIMv%u, length %u",
                        PIM_VER(pim->pim_typever),
                        len);
 		break;
@@ -625,6 +634,15 @@ pimv2_print(register const u_char *bp, register u_int len)
 	if (pimv2_addr_len != 0)
 		(void)printf(", RFC2117-encoding");
 
+        printf(", cksum 0x%04x ", EXTRACT_16BITS(&pim->pim_cksum));
+        if (EXTRACT_16BITS(&pim->pim_cksum) == 0) {
+                printf("(unverified)");
+        } else {
+                printf("(%scorrect)",
+                       TTEST2(bp[0], len) &&
+                       in_cksum((const u_short*)bp, len, 0) ? "in" : "" );
+        }
+
 	switch (PIM_TYPE(pim->pim_typever)) {
 	case PIMV2_TYPE_HELLO:
 	    {
@@ -636,7 +654,7 @@ pimv2_print(register const u_char *bp, register u_int len)
 			olen = EXTRACT_16BITS(&bp[2]);
 			TCHECK2(bp[0], 4 + olen);
 
-                        printf("\n\t  %s Option (%u), length: %u, Value: ",
+                        printf("\n\t  %s Option (%u), length %u, Value: ",
                                tok2str( pimv2_hello_option_values,"Unknown",otype),
                                otype,
                                olen);
@@ -729,30 +747,35 @@ pimv2_print(register const u_char *bp, register u_int len)
 	{
 		struct ip *ip;
 
-		if (vflag && bp + 8 <= ep) {
-			(void)printf(" %s%s", bp[4] & 0x80 ? "B" : "",
-				bp[4] & 0x40 ? "N" : "");
-		}
-		bp += 8; len -= 8;
+                if (!TTEST2(*(bp+4), PIMV2_REGISTER_FLAG_LEN))
+                        goto trunc;
 
+                printf(", Flags [ %s ]\n\t",
+                       tok2str(pimv2_register_flag_values,
+                               "none",
+                               EXTRACT_32BITS(bp+4)));
+
+		bp += 8; len -= 8;
 		/* encapsulated multicast packet */
-		if (bp >= ep)
-			break;
 		ip = (struct ip *)bp;
 		switch (IP_V(ip)) {
+                case 0: /* Null header */
+			(void)printf("IP-Null-header %s > %s",
+                                     ipaddr_string(&ip->ip_src),
+                                     ipaddr_string(&ip->ip_dst));
+			break;
+
 		case 4:	/* IPv4 */
-			printf(" ");
 			ip_print(gndo, bp, len);
 			break;
 #ifdef INET6
 		case 6:	/* IPv6 */
-			printf(" ");
 			ip6_print(bp, len);
 			break;
 #endif
-		default:
-			(void)printf(" IP ver %d", IP_V(ip));
-			break;
+                default:
+                        (void)printf("IP ver %d", IP_V(ip));
+                        break;
 		}
 		break;
 	}

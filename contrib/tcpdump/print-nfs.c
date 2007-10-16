@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.106.2.2 2005/05/06 07:57:18 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-nfs.c,v 1.106.2.4 2007/06/15 23:17:40 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -287,8 +287,12 @@ nfsreply_print(register const u_char *bp, u_int length,
 	       register const u_char *bp2)
 {
 	register const struct sunrpc_msg *rp;
-	u_int32_t proc, vers;
+	u_int32_t proc, vers, reply_stat;
 	char srcid[20], dstid[20];	/*fits 32bit*/
+	enum sunrpc_reject_stat rstat;
+	u_int32_t rlow;
+	u_int32_t rhigh;
+	enum sunrpc_auth_stat rwhy;
 
 	nfserr = 0;		/* assume no error */
 	rp = (const struct sunrpc_msg *)bp;
@@ -303,13 +307,83 @@ nfsreply_print(register const u_char *bp, u_int length,
 		    EXTRACT_32BITS(&rp->rm_xid));
 	}
 	print_nfsaddr(bp2, srcid, dstid);
-	(void)printf("reply %s %d",
-	     EXTRACT_32BITS(&rp->rm_reply.rp_stat) == SUNRPC_MSG_ACCEPTED?
-		     "ok":"ERR",
-	     length);
+	reply_stat = EXTRACT_32BITS(&rp->rm_reply.rp_stat);
+	switch (reply_stat) {
 
-	if (xid_map_find(rp, bp2, &proc, &vers) >= 0)
-		interp_reply(rp, proc, vers, length);
+	case SUNRPC_MSG_ACCEPTED:
+		(void)printf("reply ok %u", length);
+		if (xid_map_find(rp, bp2, &proc, &vers) >= 0)
+			interp_reply(rp, proc, vers, length);
+		break;
+
+	case SUNRPC_MSG_DENIED:
+		(void)printf("reply ERR %u: ", length);
+		rstat = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_stat);
+		switch (rstat) {
+
+		case SUNRPC_RPC_MISMATCH:
+			rlow = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.low);
+			rhigh = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_vers.high);
+			(void)printf("RPC Version mismatch (%u-%u)",
+			    rlow, rhigh);
+			break;
+
+		case SUNRPC_AUTH_ERROR:
+			rwhy = EXTRACT_32BITS(&rp->rm_reply.rp_reject.rj_why);
+			(void)printf("Auth ");
+			switch (rwhy) {
+
+			case SUNRPC_AUTH_OK:
+				(void)printf("OK");
+				break;
+
+			case SUNRPC_AUTH_BADCRED:
+				(void)printf("Bogus Credentials (seal broken)");
+				break;
+
+			case SUNRPC_AUTH_REJECTEDCRED:
+				(void)printf("Rejected Credentials (client should begin new session)");
+				break;
+
+			case SUNRPC_AUTH_BADVERF:
+				(void)printf("Bogus Verifier (seal broken)");
+				break;
+
+			case SUNRPC_AUTH_REJECTEDVERF:
+				(void)printf("Verifier expired or was replayed");
+				break;
+
+			case SUNRPC_AUTH_TOOWEAK:
+				(void)printf("Credentials are too weak");
+				break;
+
+			case SUNRPC_AUTH_INVALIDRESP:
+				(void)printf("Bogus response verifier");
+				break;
+
+			case SUNRPC_AUTH_FAILED:
+				(void)printf("Unknown failure");
+				break;
+
+			default:
+				(void)printf("Invalid failure code %u",
+				    (unsigned int)rwhy);
+				break;
+			}
+			break;
+
+		default:
+			(void)printf("Unknown reason for rejecting rpc message %u",
+			    (unsigned int)rstat);
+			break;
+		}
+		break;
+
+	default:
+		(void)printf("reply Unknown rpc response code=%u %u",
+		    reply_stat, length);
+		break;
+	}
 }
 
 /*

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.56.2.3 2005/08/23 11:16:29 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ospf.c,v 1.56.2.4 2006/12/13 08:24:27 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -57,7 +57,7 @@ static struct tok ospf_option_values[] = {
 
 static struct tok ospf_authtype_values[] = {
 	{ OSPF_AUTH_NONE,	"none" },
-	{ OSPF_AUTH_NONE,	"simple" },
+	{ OSPF_AUTH_SIMPLE,	"simple" },
 	{ OSPF_AUTH_MD5,	"MD5" },
 	{ 0,			NULL }
 };
@@ -932,12 +932,8 @@ ospf_print(register const u_char *bp, register u_int length,
 			break;
 
 		case OSPF_AUTH_SIMPLE:
-			if (fn_printn(op->ospf_authdata,
-			    sizeof(op->ospf_authdata), snapend)) {
-				printf("\"");
-				goto trunc;
-			}
-			printf("\"");
+                        printf("\n\tSimple text password: ");
+                        safeputs(op->ospf_authdata, OSPF_AUTH_SIMPLE_LEN);
 			break;
 
 		case OSPF_AUTH_MD5:

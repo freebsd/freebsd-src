@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.16.2.2 2005/07/07 01:24:39 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-sll.c,v 1.16.2.3 2005/11/13 12:13:00 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -148,7 +148,6 @@ sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	 * Is it (gag) an 802.3 encapsulation, or some non-Ethernet
 	 * packet type?
 	 */
-	extracted_ethertype = 0;
 	if (ether_type <= ETHERMTU) {
 		/*
 		 * Yes - what type is it?
@@ -173,6 +172,9 @@ sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 			break;
 
 		default:
+			extracted_ethertype = 0;
+			/*FALLTHROUGH*/
+
 		unknown:
 			/* ether_type not known, print raw packet */
 			if (!eflag)

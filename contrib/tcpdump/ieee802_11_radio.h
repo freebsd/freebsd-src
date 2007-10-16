@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
-/* $NetBSD: ieee80211_radiotap.h,v 1.3 2003/11/16 09:02:42 dyoung Exp $ */
-/* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.1 2004/09/23 21:33:10 dyoung Exp $ */
+/* $NetBSD: ieee802_11_radio.h,v 1.2 2006/02/26 03:04:03 dyoung Exp $ */
+/* $Header: /tcpdump/master/tcpdump/ieee802_11_radio.h,v 1.1.2.1 2006/06/13 22:24:45 guy Exp $ */
 
 /*-
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.
@@ -47,11 +47,11 @@
  * function of...") that I cannot set false expectations for lawyerly
  * readers.
  */
-#ifdef _KERNEL
+#if defined(__KERNEL__) || defined(_KERNEL)
 #ifndef DLT_IEEE802_11_RADIO
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif
-#endif /* _KERNEL */
+#endif /* defined(__KERNEL__) || defined(_KERNEL) */
 
 /* The radio capture header precedes the 802.11 header. */
 struct ieee80211_radiotap_header {
@@ -119,7 +119,7 @@ struct ieee80211_radiotap_header {
  *      RF noise power at the antenna, decibel difference from an
  *      arbitrary, fixed reference point.
  *
- * IEEE80211_RADIOTAP_BARKER_CODE_LOCK  u_int16_t       unitless
+ * IEEE80211_RADIOTAP_LOCK_QUALITY      u_int16_t       unitless
  *
  *      Quality of Barker code lock. Unitless. Monotonically
  *      nondecreasing with "better" lock strength. Called "Signal
@@ -154,6 +154,10 @@ struct ieee80211_radiotap_header {
  *
  *      Unitless indication of the Rx/Tx antenna for this packet.
  *      The first antenna is antenna 0.
+ *
+ * IEEE80211_RADIOTAP_FCS           	u_int32_t       data
+ *
+ *	FCS from frame in network byte order.
  */
 enum ieee80211_radiotap_type {
 	IEEE80211_RADIOTAP_TSFT = 0,
@@ -175,12 +179,14 @@ enum ieee80211_radiotap_type {
 
 #ifndef _KERNEL
 /* Channel flags. */
-#define IEEE80211_CHAN_TURBO    0x0010  /* Turbo channel */
-#define IEEE80211_CHAN_CCK      0x0020  /* CCK channel */
-#define IEEE80211_CHAN_OFDM     0x0040  /* OFDM channel */
-#define IEEE80211_CHAN_2GHZ     0x0080  /* 2 GHz spectrum channel. */
-#define IEEE80211_CHAN_5GHZ     0x0100  /* 5 GHz spectrum channel */
-#define IEEE80211_CHAN_PASSIVE  0x0200  /* Only passive scan allowed */
+#define	IEEE80211_CHAN_TURBO	0x0010	/* Turbo channel */
+#define	IEEE80211_CHAN_CCK	0x0020	/* CCK channel */
+#define	IEEE80211_CHAN_OFDM	0x0040	/* OFDM channel */
+#define	IEEE80211_CHAN_2GHZ	0x0080	/* 2 GHz spectrum channel. */
+#define	IEEE80211_CHAN_5GHZ	0x0100	/* 5 GHz spectrum channel */
+#define	IEEE80211_CHAN_PASSIVE	0x0200	/* Only passive scan allowed */
+#define	IEEE80211_CHAN_DYN	0x0400	/* Dynamic CCK-OFDM channel */
+#define	IEEE80211_CHAN_GFSK	0x0800	/* GFSK channel (FHSS PHY) */
 #endif /* !_KERNEL */
 
 /* For IEEE80211_RADIOTAP_FLAGS */
@@ -197,5 +203,11 @@ enum ieee80211_radiotap_type {
 #define	IEEE80211_RADIOTAP_F_FRAG	0x08	/* sent/received
 						 * with fragmentation
 						 */
+#define	IEEE80211_RADIOTAP_F_FCS	0x10	/* frame includes FCS */
+#define	IEEE80211_RADIOTAP_F_DATAPAD	0x20	/* frame has padding between
+						 * 802.11 header and payload
+						 * (to 32-bit boundary)
+						 */
+#define	IEEE80211_RADIOTAP_F_BADFCS	0x40	/* does not pass FCS check */
 
 #endif /* _NET_IF_IEEE80211RADIOTAP_H_ */

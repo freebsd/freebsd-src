@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.7 2005/09/21 16:50:01 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/tcpdump/configure.in,v 1.188.2.8 2007/09/12 19:48:50 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,7 +6,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.188.2.7 $)
+AC_REVISION($Revision: 1.188.2.8 $)
 AC_PREREQ(2.50)
 AC_INIT(tcpdump.c)
 
@@ -16,6 +16,12 @@ AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 AC_LBL_C_INLINE
 AC_C___ATTRIBUTE__
 AC_CHECK_HEADERS(fcntl.h rpc/rpcent.h netdnet/dnetdb.h)
+AC_CHECK_HEADERS(net/pfvar.h, , , [#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>])
+if test "$ac_cv_header_net_pfvar_h" == yes; then
+	LOCALSRC="print-pflog.c $LOCALSRC"
+fi
 AC_CHECK_HEADERS(netinet/if_ether.h, , , [#include <sys/types.h>
 #include <sys/socket.h>])
 if test "$ac_cv_header_netinet_if_ether_h" != yes; then

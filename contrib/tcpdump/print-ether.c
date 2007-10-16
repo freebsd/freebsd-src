@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.4 2005/07/10 14:47:57 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.95.2.6 2006/02/20 18:15:03 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -47,7 +47,7 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_VMAN,		"VMAN" },
     { ETHERTYPE_PUP,            "PUP" },
     { ETHERTYPE_ARP,            "ARP"},
-    { ETHERTYPE_REVARP ,        "Reverse ARP"},
+    { ETHERTYPE_REVARP,         "Reverse ARP"},
     { ETHERTYPE_NS,             "NS" },
     { ETHERTYPE_SPRITE,         "Sprite" },
     { ETHERTYPE_TRAIL,          "Trail" },
@@ -128,7 +128,6 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 	/*
 	 * Is it (gag) an 802.3 encapsulation?
 	 */
-	extracted_ether_type = 0;
 	if (ether_type <= ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
 		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep),
@@ -243,11 +242,13 @@ ether_encap_print(u_short ether_type, const u_char *p,
 
 		if (llc_print(p, length, caplen, p - 18, p - 12,
 		    extracted_ether_type) == 0) {
-				ether_hdr_print(p - 18, length + 4);
+                        ether_hdr_print(p - 18, length + 4);
+
+                        if (!suppress_default_print) {
+                                default_print(p - 18, caplen + 4);
+                        }
 		}
 
-		if (!suppress_default_print)
-		        default_print(p - 18, caplen + 4);
 
 		return (1);
 
@@ -269,10 +270,11 @@ ether_encap_print(u_short ether_type, const u_char *p,
                 if (llc_print(p, length, caplen, p - 16, p - 10,
                               extracted_ether_type) == 0) {
                     ether_hdr_print(p - 16, length + 2);
-                }
 
-                if (!suppress_default_print)
-                    default_print(p - 16, caplen + 2);
+                    if (!suppress_default_print) {
+                            default_print(p - 16, caplen + 2);
+                    }
+                }
 
                 return (1);
 
