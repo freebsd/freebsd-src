@@ -501,6 +501,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
 	{ "floatingpoint", CTLTYPE_INT }, \
+	{ "machine_arch", CTLTYPE_STRING }, \
 	{ "realmem", CTLTYPE_ULONG }, \
 }
 
