@@ -156,7 +156,6 @@ SUBDIR=	ac \
 	sa \
 	sade \
 	${_sendmail} \
-	sensorsd \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
