@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2007
+.Dd October 16, 2007
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -280,10 +280,11 @@ privilege may change the value.
 .It "HW_PHYSMEM	integer	no"
 .It "HW_USERMEM	integer	no"
 .It "HW_PAGESIZE	integer	no"
-.It "HW_FLOATINGPOINT	integer	no"
-.It "HW_MACHINE_ARCH	string	no"
 .\".It "HW_DISKNAMES	integer	no"
 .\".It "HW_DISKSTATS	integer	no"
+.It "HW_FLOATINGPT	integer	no"
+.It "HW_MACHINE_ARCH	string	no"
+.It "HW_REALMEM	integer	no"
 .El
 .Pp
 .Bl -tag -width 6n
@@ -301,12 +302,14 @@ The bytes of physical memory.
 The bytes of non-kernel memory.
 .It Li HW_PAGESIZE
 The software page size.
-.It Li HW_FLOATINGPOINT
+.\".It Fa HW_DISKNAMES
+.\".It Fa HW_DISKSTATS
+.It Li HW_FLOATINGPT
 Nonzero if the floating point support is in hardware.
 .It Li HW_MACHINE_ARCH
 The machine dependent architecture type.
-.\".It Fa HW_DISKNAMES
-.\".It Fa HW_DISKSTATS
+.It Li HW_REALMEM
+The bytes of real memory.
 .El
 .Ss CTL_KERN
 The string and integer information available for the CTL_KERN level
