@@ -134,6 +134,7 @@ struct pcpu *pcpup = &__pcpu;
 /* Physical and virtual addresses for some global pages */
 
 vm_paddr_t phys_avail[10];
+vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_offset_t physical_pages;
@@ -257,7 +258,7 @@ initarm(void *arg, void *arg2)
 			valloc_pages(kernel_pt_table[loop],
 			    L2_TABLE_SIZE / PAGE_SIZE);
 		} else {
-			kernel_pt_table[loop].pv_pa = freemempos -
+			kernel_pt_table[loop].pv_pa = freemempos +
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_va = 
@@ -265,8 +266,6 @@ initarm(void *arg, void *arg2)
 		}
 		i++;
 	}
-	freemempos -= 2 * PAGE_SIZE;
-
 	freemem_pt = freemempos;
 	freemempos = 0xa0100000;
 	/*
@@ -426,6 +425,14 @@ initarm(void *arg, void *arg2)
 
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
+	/*
+	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
+	 * calling pmap_bootstrap.
+	 */
+	dump_avail[0] = 0xa0000000;
+	dump_avail[1] = 0xa0000000 + memsize;
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
