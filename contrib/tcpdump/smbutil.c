@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.36.2.1 2005/04/21 04:09:58 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/smbutil.c,v 1.36.2.3 2007/07/15 19:08:25 guy Exp $";
 #endif
 
 #include <tcpdump-stdinc.h>
@@ -279,6 +279,7 @@ print_data(const unsigned char *buf, int len)
 	return;
     printf("[%03X] ", i);
     for (i = 0; i < len; /*nothing*/) {
+        TCHECK(buf[i]);
 	printf("%02X ", buf[i] & 0xff);
 	i++;
 	if (i%8 == 0)
@@ -310,6 +311,11 @@ print_data(const unsigned char *buf, int len)
 	    print_asc(&buf[i - n], n);
 	printf("\n");
     }
+    return;
+
+trunc:
+    printf("\n");
+    printf("WARNING: Short packet. Try increasing the snap length\n");
 }
 
 
@@ -744,6 +750,9 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 		TCHECK2(buf[0], 8);
 		t = interpret_long_date(buf);
 		buf += 8;
+		break;
+	    default:
+		t = 0;
 		break;
 	    }
 	    if (t != 0) {

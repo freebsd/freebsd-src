@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.2 2005/09/29 07:40:12 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.4 2007/02/08 07:07:51 guy Exp $ (LBL)
  */
 
 /*
@@ -44,7 +44,7 @@
 #define	LLC_XID		0xaf
 #define	LLC_FRMR	0x87
 
-#define	LLC_S_CMD(is)	(((is) >> 1) & 0x03)
+#define	LLC_S_CMD(is)	(((is) >> 2) & 0x03)
 #define	LLC_RR		0x0001
 #define	LLC_RNR		0x0005
 #define	LLC_REJ		0x0009
@@ -102,6 +102,8 @@
  * PIDs for use with OUI_CISCO.
  */
 #define	PID_CISCO_CDP		0x2000	/* Cisco Discovery Protocol */
+#define	PID_CISCO_VTP		0x2003	/* Cisco VLAN Trunk Protocol */
+#define	PID_CISCO_DTP		0x2004	/* Cisco Dynamic Trunk Protocol */
 
 /*
  * PIDs for use with OUI_RFC2684.

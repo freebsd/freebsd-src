@@ -1,4 +1,4 @@
-@(#) $Header: /tcpdump/master/tcpdump/README,v 1.65 2004/10/12 02:01:59 guy Exp $ (LBL)
+@(#) $Header: /tcpdump/master/tcpdump/README,v 1.65.2.1 2007/09/14 01:03:12 guy Exp $ (LBL)
 
 TCPDUMP 3.9
 Now maintained by "The Tcpdump Group"
@@ -11,10 +11,11 @@ Anonymous CVS is available via:
 	(password "anoncvs")
 	cvs -d :pserver:cvs.tcpdump.org:/tcpdump/master checkout tcpdump
 
-Version 3.9 of TCPDUMP can be retrived with the CVS tag "tcpdump_3_9rel1":
+Version 3.9 of TCPDUMP can be retrieved with the CVS tag "tcpdump_3_9rel1":
 	cvs -d :pserver:cvs.tcpdump.org:/tcpdump/master checkout -r tcpdump_3_9rel1 tcpdump
 
-Please send patches against the master copy to patches@tcpdump.org.
+Please submit patches against the master copy to the tcpdump project on
+sourceforge.net.
 
 formerly from 	Lawrence Berkeley National Laboratory
 		Network Research Group <tcpdump@ee.lbl.gov>
