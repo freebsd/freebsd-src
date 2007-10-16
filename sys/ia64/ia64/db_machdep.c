@@ -410,6 +410,8 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 			db_printf(buf);
 			n++;
 		}
+		if (tmpl[1] == ';')
+			db_printf(" ;;");
 	} else {
 		tmpl = NULL;
 		slot = 2;
