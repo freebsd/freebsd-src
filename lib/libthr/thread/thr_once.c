@@ -64,6 +64,7 @@ once_cancel_handler(void *arg)
 int
 _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 {
+	struct pthread *curthread;
 	int wakeup = 0;
 
 	if (once_control->state == ONCE_DONE)
@@ -78,9 +79,10 @@ _pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 	if (*(volatile int *)&(once_control->state) == ONCE_NEVER_DONE) {
 		once_control->state = ONCE_IN_PROGRESS;
 		_pthread_mutex_unlock(&_thr_once_lock);
-		_pthread_cleanup_push(once_cancel_handler, once_control);
+		curthread = _get_curthread();
+		THR_CLEANUP_PUSH(curthread, once_cancel_handler, once_control);
 		init_routine();
-		_pthread_cleanup_pop(0);
+		THR_CLEANUP_POP(curthread, 0);
 		_pthread_mutex_lock(&_thr_once_lock);
 		once_control->state = ONCE_DONE;
 		wakeup = 1;
