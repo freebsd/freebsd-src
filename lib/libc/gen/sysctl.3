@@ -742,7 +742,7 @@ privilege may change the value.
 .Bl -column "Second level nameXXXXXX" "struct loadavgXXX" -offset indent
 .It Sy "Second level name	Type	Changeable"
 .It "VM_LOADAVG	struct loadavg	no"
-.It "VM_METER	struct vmtotal	no"
+.It "VM_TOTAL	struct vmtotal	no"
 .It "VM_PAGEOUT_ALGORITHM	integer	yes"
 .It "VM_SWAPPING_ENABLED	integer	maybe"
 .It "VM_V_CACHE_MAX	integer	yes"
@@ -759,7 +759,7 @@ privilege may change the value.
 Return the load average history.
 The returned data consists of a
 .Va struct loadavg .
-.It Li VM_METER
+.It Li VM_TOTAL
 Return the system wide virtual memory statistics.
 The returned data consists of a
 .Va struct vmtotal .
