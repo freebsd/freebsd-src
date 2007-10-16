@@ -198,7 +198,7 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
                 error = ENOMEM;
 		goto bad;
         }
-        mp->mnt_data = (qaddr_t)nmp;
+        mp->mnt_data = nmp;
 	nmp->connh = handle;
 	nmp->n_root = NULL;
 	nmp->n_id = nwfsid++;
@@ -263,7 +263,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		if(ncp_conn_free(conn))
 			ncp_conn_unlock(conn, td);
 	}
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 	if (nmp->m.flags & NWFS_MOUNT_HAVE_NLS)
 		free(nmp->m.nls.to_lower, M_NWFSDATA);
 	free(nmp, M_NWFSDATA);

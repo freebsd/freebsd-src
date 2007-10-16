@@ -309,7 +309,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	    (upperrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE))
 		mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
-	mp->mnt_data = (qaddr_t)ump;
+	mp->mnt_data = ump;
 
 	/*
 	 * Copy upper layer's RDONLY flag.

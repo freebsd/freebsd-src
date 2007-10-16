@@ -353,7 +353,7 @@ ntfs_mountfs(devvp, mp, td)
 	else
 		ntfs_u28_init(ntmp, ntmp->ntm_82u, cs_local, cs_ntfs);
 
-	mp->mnt_data = (qaddr_t)ntmp;
+	mp->mnt_data = ntmp;
 
 	dprintf(("ntfs_mountfs(): case-%s,%s uid: %d, gid: %d, mode: %o\n",
 		(ntmp->ntm_flag & NTFS_MFLAG_CASEINS)?"insens.":"sens.",
@@ -521,7 +521,7 @@ ntfs_unmount(
 	dprintf(("ntfs_umount: freeing memory...\n"));
 	ntfs_u28_uninit(ntmp);
 	ntfs_82u_uninit(ntmp);
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);

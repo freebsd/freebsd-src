@@ -188,7 +188,7 @@ smbfs_mount(struct mount *mp, struct thread *td)
 		goto bad;
         }
 	bzero(smp, sizeof(*smp));
-        mp->mnt_data = (qaddr_t)smp;
+        mp->mnt_data = smp;
 	smp->sm_hash = hashinit(desiredvnodes, M_SMBFSHASH, &smp->sm_hashlen);
 	if (smp->sm_hash == NULL)
 		goto bad;
@@ -308,7 +308,7 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (error)
 		return error;
 	smb_share_put(smp->sm_share, &scred);
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 
 	if (smp->sm_hash)
 		free(smp->sm_hash, M_SMBFSHASH);

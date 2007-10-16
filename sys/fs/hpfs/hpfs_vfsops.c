@@ -281,7 +281,7 @@ hpfs_mountfs(devvp, mp, td)
 		goto failed;
 	}
 
-	mp->mnt_data = (qaddr_t)hpmp;
+	mp->mnt_data = hpmp;
 	hpmp->hpm_devvp = devvp;
 	hpmp->hpm_dev = devvp->v_rdev;
 	hpmp->hpm_mp = mp;
@@ -322,7 +322,7 @@ hpfs_mountfs(devvp, mp, td)
 failed:
 	if (bp)
 		brelse (bp);
-	mp->mnt_data = (qaddr_t)NULL;
+	mp->mnt_data = NULL;
 	g_vfs_close(cp, td);
 	return (error);
 }
@@ -359,7 +359,7 @@ hpfs_unmount(
 	dprintf(("hpfs_umount: freeing memory...\n"));
 	hpfs_cpdeinit(hpmp);
 	hpfs_bmdeinit(hpmp);
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);

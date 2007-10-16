@@ -168,7 +168,7 @@ coda_mount(struct mount *vfsp, struct thread *td)
     }
     
     /* No initialization (here) of mi_vcomm! */
-    vfsp->mnt_data = (qaddr_t)mi;
+    vfsp->mnt_data = mi;
     vfs_getnewfsid (vfsp);
 
     mi->mi_vfsp = vfsp;
