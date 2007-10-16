@@ -10,6 +10,7 @@
 /* #undef HAVE_BUGGY_CAST128 */
 
 /* Define if you enable IPv6 support */
+/* See Makefile */
 /* #undef INET6 */
 
 /* Define if you enable support for the libsmi. */
@@ -23,9 +24,6 @@
 
 /* define if your struct __res_state has the nsort member */
 /* #undef HAVE_NEW_RES_STATE */
-
-/* define if <inttypes.h> defines PRI[doxu]64 macros */
-#define INTTYPES_H_DEFINES_FORMATS 1
 
 /*
  * define if struct ether_header.ether_dhost is a struct with ether_addr_octet
@@ -113,17 +111,6 @@
 /* AIX hack. */
 /* #undef _SUN */
 
-/* Workaround for missing sized types */
-/* XXX this should move to the more standard uint*_t */
-/* #undef int8_t */
-/* #undef int16_t */
-/* #undef int32_t */
-/* #undef int64_t */
-/* #undef u_int8_t */
-/* #undef u_int16_t */
-/* #undef u_int32_t */
-/* #undef u_int64_t */
-
 /* Workaround for missing 64-bit formats */
 /* #undef PRId64 */
 /* #undef PRIo64 */
@@ -179,6 +166,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
+/* See Makefile */
 /* #undef HAVE_LIBCRYPTO */
 
 /* Define to 1 if you have the `rpc' library (-lrpc). */
@@ -199,7 +187,12 @@
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
 #define HAVE_NETINET_IF_ETHER_H 1
 
+/* Define to 1 if you have the <net/pfvar.h> header file. */
+/* See Makefile */
+/* #undef HAVE_NET_PFVAR_H */
+
 /* Define to 1 if you have the <openssl/evp.h> header file. */
+/* See Makefile */
 /* #undef HAVE_OPENSSL_EVP_H 1 */
 
 /* Define to 1 if you have the `pcap_breakloop' function. */
@@ -268,6 +261,12 @@
 /* Define to 1 if you have the `strsep' function. */
 #define HAVE_STRSEP 1
 
+/* Define to 1 if the system has the type `struct ether_addr'. */
+/* #undef HAVE_STRUCT_ETHER_ADDR */
+
+/* Define to 1 if you have the <sys/bitypes.h> header file. */
+/* #undef HAVE_SYS_BITYPES_H */
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
 
@@ -310,19 +309,20 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
 
-/* The size of a `char', as computed by sizeof. */
+/* The size of `char', as computed by sizeof. */
 #define SIZEOF_CHAR 1
 
-/* The size of a `int', as computed by sizeof. */
+/* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
 
-/* The size of a `long', as computed by sizeof. */
+/* The size of `long', as computed by sizeof. */
+/* XXX: This is wrong, but possibly unused */
 #define SIZEOF_LONG 4
 
-/* The size of a `long long', as computed by sizeof. */
+/* The size of `long long', as computed by sizeof. */
 #define SIZEOF_LONG_LONG 8
 
-/* The size of a `short', as computed by sizeof. */
+/* The size of `short', as computed by sizeof. */
 #define SIZEOF_SHORT 2
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -333,3 +333,27 @@
 
 /* Define as token for inline if inlining supported */
 #define inline inline
+
+/* Define to `short' if int16_t not defined. */
+/* #undef int16_t */
+
+/* Define to `int' if int32_t not defined. */
+/* #undef int32_t */
+
+/* Define to `long long' if int64_t not defined. */
+/* #undef int64_t */
+
+/* Define to `signed char' if int8_t not defined. */
+/* #undef int8_t */
+
+/* Define to `unsigned short' if u_int16_t not defined. */
+/* #undef u_int16_t */
+
+/* Define to `unsigned int' if u_int32_t not defined. */
+/* #undef u_int32_t */
+
+/* Define to `unsigned long long' if u_int64_t not defined. */
+/* #undef u_int64_t */
+
+/* Define to `unsigned char' if u_int8_t not defined. */
+/* #undef u_int8_t */
