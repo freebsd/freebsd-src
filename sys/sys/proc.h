@@ -277,7 +277,7 @@ struct thread {
 	volatile u_char td_owepreempt;  /* (k*) Preempt on last critical_exit */
 	short		td_locks;	/* (k) Count of non-spin locks. */
 	u_char		td_tsqueue;	/* (j) Turnstile queue blocked on. */
-	char		td_sqqueue;	/* (j) Sleepqueue queue blocked on. */
+	signed char	td_sqqueue;	/* (j) Sleepqueue queue blocked on. */
 	struct turnstile *td_blocked;	/* (j) Lock process is blocked on. */
 	void		*td_ithd;	/* (n) Unused, kept to preserve ABI. */
 	const char	*td_lockname;	/* (j) Name of lock blocked on. */
