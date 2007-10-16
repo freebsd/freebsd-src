@@ -90,15 +90,15 @@
 	{ 0, 0 }, \
 	{ "vmtotal", CTLTYPE_STRUCT }, \
 	{ "loadavg", CTLTYPE_STRUCT }, \
-	{ "v_free_min", CTLTYPE_INT }, \
-	{ "v_free_target", CTLTYPE_INT }, \
-	{ "v_free_reserved", CTLTYPE_INT }, \
-	{ "v_inactive_target", CTLTYPE_INT }, \
-	{ "v_cache_min", CTLTYPE_INT }, \
-	{ "v_cache_max", CTLTYPE_INT }, \
-	{ "v_pageout_free_min", CTLTYPE_INT}, \
+	{ "v_free_min", CTLTYPE_UINT }, \
+	{ "v_free_target", CTLTYPE_UINT }, \
+	{ "v_free_reserved", CTLTYPE_UINT }, \
+	{ "v_inactive_target", CTLTYPE_UINT }, \
+	{ "v_cache_min", CTLTYPE_UINT }, \
+	{ "v_cache_max", CTLTYPE_UINT }, \
+	{ "v_pageout_free_min", CTLTYPE_UINT}, \
 	{ "pageout_algorithm", CTLTYPE_INT}, \
-	{ "swapping_enabled", CTLTYPE_INT},\
+	{ "swap_enabled", CTLTYPE_INT},\
 }
 
 /*
