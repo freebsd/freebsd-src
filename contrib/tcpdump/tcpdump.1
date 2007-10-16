@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167.2.6 2005/09/05 09:14:37 guy Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167.2.11 2007/06/15 20:13:49 guy Exp $ (LBL)
 .\"
 .\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
@@ -105,8 +105,9 @@ tcpdump \- dump traffic on a network
 .ad
 .SH DESCRIPTION
 .LP
-\fITcpdump\fP prints out the headers of packets on a network interface
-that match the boolean \fIexpression\fP.  It can also be run with the
+\fITcpdump\fP prints out a description of the contents of packets on a
+network interface that match the boolean \fIexpression\fP.  It can also
+be run with the
 .B \-w
 flag, which causes it to save the packet data to a file for later
 analysis, and/or with the
@@ -233,7 +234,10 @@ operation, be enabled on that interface.
 .TP
 .B Under BSD (this includes Mac OS X):
 You must have read access to
-.IR /dev/bpf* .
+.I /dev/bpf*
+on systems that don't have a cloning BPF device, or to
+.I /dev/bpf
+on systems that do.
 On BSDs with a devfs (this includes Mac OS X), this might involve more
 than just having somebody with super-user access setting the ownership
 or permissions on the BPF devices - it might involve configuring devfs
@@ -536,7 +540,7 @@ Standard output is used if \fIfile\fR is ``-''.
 .TP
 .B \-W
 Used in conjunction with the 
-.I \-C 
+.B \-C 
 option, this will limit the number
 of files created to the specified number, and begin overwriting files
 from the beginning, thus creating a 'rotating' buffer. 
@@ -545,7 +549,9 @@ the files with enough leading 0s to support the maximum number of
 files, allowing them to sort correctly.
 .TP
 .B \-x
-Print each packet (minus its link level header) in hex.
+When parsing and printing,
+in addition to printing the headers of each packet, print the data of
+each packet (minus its link level header) in hex. 
 The smaller of the entire packet or
 .I snaplen
 bytes will be printed.  Note that this is the entire link-layer
@@ -554,16 +560,22 @@ will also be printed when the higher layer packet is shorter than the
 required padding.
 .TP
 .B \-xx
-Print each packet,
+When parsing and printing,
+in addition to printing the headers of each packet, print the data of
+each packet,
 .I including
 its link level header, in hex.
 .TP
 .B \-X
-Print each packet (minus its link level header) in hex and ASCII.
+When parsing and printing,
+in addition to printing the headers of each packet, print the data of
+each packet (minus its link level header) in hex and ASCII.
 This is very handy for analysing new protocols.
 .TP
 .B \-XX
-Print each packet,
+When parsing and printing,
+in addition to printing the headers of each packet, print the data of
+each packet,
 .I including
 its link level header, in hex and ASCII.
 .TP
@@ -741,8 +753,16 @@ This syntax does not work in IPv6-enabled configuration at this moment.
 .IP "\fBdst net \fInet\fR"
 True if the IPv4/v6 destination address of the packet has a network
 number of \fInet\fP.
-\fINet\fP may be either a name from /etc/networks
-or a network number (see \fInetworks(4)\fP for details).
+\fINet\fP may be either a name from the networks database
+(/etc/networks, etc.) or a network number.
+An IPv4 network number can be written as a dotted quad (e.g., 192.168.1.0),
+dotted triple (e.g., 192.168.1), dotted pair (e.g, 172.16), or single
+number (e.g., 10); the netmask is 255.255.255.255 for a dotted quad
+(which means that it's really a host match), 255.255.255.0 for a dotted
+triple, 255.255.0.0 for a dotted pair, or 255.0.0.0 for a single number.
+An IPv6 network number must be written out fully; the netmask is
+ff:ff:ff:ff:ff:ff:ff:ff, so IPv6 "network" matches are really always
+host matches, and a network match requires a netmask length.
 .IP "\fBsrc net \fInet\fR"
 True if the IPv4/v6 source address of the packet has a network
 number of \fInet\fP.

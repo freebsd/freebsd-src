@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-tftp.c,v 1.37 2003/11/16 09:36:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-tftp.c,v 1.37.2.1 2007/09/14 01:03:12 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,7 +35,6 @@ static const char rcsid[] _U_ =
 #ifdef SEGSIZE
 #undef SEGSIZE					/* SINIX sucks */
 #endif
-#include <arpa/tftp.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +42,7 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 #include "addrtoname.h"
 #include "extract.h"
+#include "tftp.h"
 
 /* op code to string mapping */
 static struct tok op2str[] = {
@@ -51,6 +51,7 @@ static struct tok op2str[] = {
 	{ DATA,		"DATA" },	/* data packet */
 	{ ACK,		"ACK" },	/* acknowledgement */
 	{ ERROR,	"ERROR" },	/* error code */
+	{ OACK,		"OACK" },	/* option acknowledgement */
 	{ 0,		NULL }
 };
 
@@ -97,6 +98,7 @@ tftp_print(register const u_char *bp, u_int length)
 
 	case RRQ:
 	case WRQ:
+	case OACK:
 		/*
 		 * XXX Not all arpa/tftp.h's specify th_stuff as any
 		 * array; use address of th_block instead
@@ -106,11 +108,15 @@ tftp_print(register const u_char *bp, u_int length)
 #else
 		p = (u_char *)&tp->th_block;
 #endif
-		fputs(" \"", stdout);
+		putchar(' ');
+		/* Print filename or first option */
+		if (opcode != OACK)
+			putchar('"');
 		i = fn_print(p, snapend);
-		putchar('"');
+		if (opcode != OACK)
+			putchar('"');
 
-		/* Print the mode and any options */
+		/* Print the mode (RRQ and WRQ only) and any options */
 		while ((p = (const u_char *)strchr((const char *)p, '\0')) != NULL) {
 			if (length <= (u_int)(p - (const u_char *)&tp->th_block))
 				break;
@@ -134,7 +140,7 @@ tftp_print(register const u_char *bp, u_int length)
 	case ERROR:
 		/* Print error code string */
 		TCHECK(tp->th_code);
-		printf(" %s ", tok2str(err2str, "tftp-err-#%d \"",
+		printf(" %s \"", tok2str(err2str, "tftp-err-#%d \"",
 				       EXTRACT_16BITS(&tp->th_code)));
 		/* Print error message string */
 		i = fn_print((const u_char *)tp->th_data, snapend);

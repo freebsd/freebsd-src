@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ip.h,v 1.11 2004/09/27 21:13:10 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ip.h,v 1.11.2.1 2007/09/14 01:30:02 guy Exp $ (LBL) */
 /*
  * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -102,6 +102,7 @@ struct ip {
 
 #define	IPOPT_RR		7		/* record packet route */
 #define	IPOPT_TS		68		/* timestamp */
+#define	IPOPT_RFC1393           82              /* traceroute RFC 1393 */
 #define	IPOPT_SECURITY		130		/* provide s,c,h,tcc */
 #define	IPOPT_LSRR		131		/* loose source route */
 #define	IPOPT_SATID		136		/* satnet id */

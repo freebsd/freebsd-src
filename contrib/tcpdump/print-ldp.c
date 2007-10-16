@@ -16,7 +16,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.6 2005/07/11 20:24:34 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ldp.c,v 1.8.2.10 2007/02/26 13:31:33 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,7 @@ static const char rcsid[] _U_ =
 #include "decode_prefix.h"
 #include "extract.h"
 #include "addrtoname.h"
+#include "af.h"
 
 #include "l2vpn.h"
 
@@ -116,7 +117,7 @@ static const struct tok ldp_msg_values[] = {
     { LDP_MSG_INIT,	             "Initialization" },
     { LDP_MSG_KEEPALIVE,             "Keepalive" },
     { LDP_MSG_ADDRESS,	             "Address" },
-    { LDP_MSG_ADDRESS_WITHDRAW,	     "Address Widthdraw" },
+    { LDP_MSG_ADDRESS_WITHDRAW,	     "Address Withdraw" },
     { LDP_MSG_LABEL_MAPPING,	     "Label Mapping" },
     { LDP_MSG_LABEL_REQUEST,	     "Label Request" },
     { LDP_MSG_LABEL_WITHDRAW,	     "Label Withdraw" },
@@ -214,12 +215,7 @@ static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
     { 0, NULL}
 };
 
-/* RFC1700 address family numbers, same definition in print-bgp.c */
-#define AFNUM_INET	1
-#define AFNUM_INET6	2
-
-#define FALSE 0
-#define TRUE  1
+#define AFNUM_LEN       2 
 
 int ldp_msg_print(register const u_char *);
 int ldp_tlv_print(register const u_char *);
@@ -296,21 +292,24 @@ ldp_tlv_print(register const u_char *tptr) {
 
     case LDP_TLV_ADDRESS_LIST:
 	af = EXTRACT_16BITS(tptr);
-	tptr+=2;
-	printf("\n\t      Adress Family: ");
+	tptr+=AFNUM_LEN;
+        tlv_tlen -= AFNUM_LEN;
+	printf("\n\t      Address Family: ");
 	if (af == AFNUM_INET) {
 	    printf("IPv4, addresses:");
-	    for (i=0; i<(tlv_tlen-2)/4; i++) {
+	    while(tlv_tlen >= sizeof(struct in_addr)) {
 		printf(" %s",ipaddr_string(tptr));
-		tptr+=sizeof(struct in_addr);
+		tlv_tlen-=sizeof(struct in_addr);
+		tptr+=sizeof(struct in_addr);                
 	    }
 	}
 #ifdef INET6
 	else if (af == AFNUM_INET6) {
 	    printf("IPv6, addresses:");
-	    for (i=0; i<(tlv_tlen-2)/16; i++) {
+	    while(tlv_tlen >= sizeof(struct in6_addr)) {
 		printf(" %s",ip6addr_string(tptr));
-		tptr+=sizeof(struct in6_addr);
+		tlv_tlen-=sizeof(struct in6_addr);
+		tptr+=sizeof(struct in6_addr);                
 	    }
 	}
 #endif
@@ -574,6 +573,8 @@ ldp_msg_print(register const u_char *pptr) {
         case LDP_MSG_KEEPALIVE:
         case LDP_MSG_ADDRESS:
         case LDP_MSG_LABEL_MAPPING:
+        case LDP_MSG_ADDRESS_WITHDRAW:
+        case LDP_MSG_LABEL_WITHDRAW:
             while(msg_tlen >= 4) {
                 processed = ldp_tlv_print(msg_tptr);
                 if (processed == 0)
@@ -588,9 +589,7 @@ ldp_msg_print(register const u_char *pptr) {
          *  you are welcome to contribute code ;-)
          */
 
-        case LDP_MSG_ADDRESS_WITHDRAW:
         case LDP_MSG_LABEL_REQUEST:
-        case LDP_MSG_LABEL_WITHDRAW:
         case LDP_MSG_LABEL_RELEASE:
         case LDP_MSG_LABEL_ABORT_REQUEST:
 
