@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bfd.c,v 1.5.2.4 2005/04/28 09:28:47 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bfd.c,v 1.5.2.5 2006/02/02 06:36:37 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -219,7 +219,7 @@ bfd_print(register const u_char *pptr, register u_int len, register u_int port)
                 printf("BFDv%u, %s, State %s, Flags: [%s], length: %u",
                        version,
                        tok2str(bfd_port_values, "unknown (%u)", port),
-                       tok2str(bfd_v1_state_values, "unknown (%u)", bfd_header->flags & 0xc0),
+                       tok2str(bfd_v1_state_values, "unknown (%u)", (bfd_header->flags & 0xc0) >> 6),
                        bittok2str(bfd_v1_flag_values, "none", bfd_header->flags & 0x3f),
                        len);
                 return;

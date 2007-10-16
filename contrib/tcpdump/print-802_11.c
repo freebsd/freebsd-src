@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.5 2005/07/30 21:37:50 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-802_11.c,v 1.31.2.15 2007/07/22 23:14:14 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -46,20 +46,54 @@ static const char rcsid[] _U_ =
 #include "ieee802_11.h"
 #include "ieee802_11_radio.h"
 
+#define PRINT_SSID(p) \
+	switch (p.ssid_status) { \
+	case TRUNCATED: \
+		return 0; \
+	case PRESENT: \
+		printf(" ("); \
+		fn_print(p.ssid.ssid, NULL); \
+		printf(")"); \
+		break; \
+	case NOT_PRESENT: \
+		break; \
+	}
+
 #define PRINT_RATE(_sep, _r, _suf) \
 	printf("%s%2.1f%s", _sep, (.5 * ((_r) & 0x7f)), _suf)
 #define PRINT_RATES(p) \
-do { \
-	int z; \
-	const char *sep = " ["; \
-	for (z = 0; z < p.rates.length ; z++) { \
-		PRINT_RATE(sep, p.rates.rate[z], \
-			(p.rates.rate[z] & 0x80 ? "*" : "")); \
-		sep = " "; \
+	switch (p.rates_status) { \
+	case TRUNCATED: \
+		return 0; \
+	case PRESENT: \
+		do { \
+			int z; \
+			const char *sep = " ["; \
+			for (z = 0; z < p.rates.length ; z++) { \
+				PRINT_RATE(sep, p.rates.rate[z], \
+					(p.rates.rate[z] & 0x80 ? "*" : "")); \
+				sep = " "; \
+			} \
+			if (p.rates.length != 0) \
+				printf(" Mbit]"); \
+		} while (0); \
+		break; \
+	case NOT_PRESENT: \
+		break; \
+	}
+
+#define PRINT_DS_CHANNEL(p) \
+	switch (p.ds_status) { \
+	case TRUNCATED: \
+		return 0; \
+	case PRESENT: \
+		printf(" CH: %u", p.ds.channel); \
+		break; \
+	case NOT_PRESENT: \
+		break; \
 	} \
-	if (p.rates.length != 0) \
-		printf(" Mbit]"); \
-} while (0)
+	printf("%s", \
+	    CAPABILITY_PRIVACY(p.capability_info) ? ", PRIVACY" : "" );
 
 static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
 #define NUM_AUTH_ALGS	(sizeof auth_alg_text / sizeof auth_alg_text[0])
@@ -118,94 +152,141 @@ wep_print(const u_char *p)
 	return 1;
 }
 
-static int
+static void
 parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset)
 {
+	/*
+	 * We haven't seen any elements yet.
+	 */
+	pbody->challenge_status = NOT_PRESENT;
+	pbody->ssid_status = NOT_PRESENT;
+	pbody->rates_status = NOT_PRESENT;
+	pbody->ds_status = NOT_PRESENT;
+	pbody->cf_status = NOT_PRESENT;
+	pbody->tim_status = NOT_PRESENT;
+
 	for (;;) {
 		if (!TTEST2(*(p + offset), 1))
-			return 1;
+			return;
 		switch (*(p + offset)) {
 		case E_SSID:
+			/* Present, possibly truncated */
+			pbody->ssid_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 2))
-				return 0;
+				return;
 			memcpy(&pbody->ssid, p + offset, 2);
 			offset += 2;
-			if (pbody->ssid.length <= 0)
-				break;
-			if (!TTEST2(*(p + offset), pbody->ssid.length))
-				return 0;
-			memcpy(&pbody->ssid.ssid, p + offset,
-			    pbody->ssid.length);
-			offset += pbody->ssid.length;
+			if (pbody->ssid.length != 0) {
+				if (pbody->ssid.length >
+				    sizeof(pbody->ssid.ssid) - 1)
+					return;
+				if (!TTEST2(*(p + offset), pbody->ssid.length))
+					return;
+				memcpy(&pbody->ssid.ssid, p + offset,
+				    pbody->ssid.length);
+				offset += pbody->ssid.length;
+			}
 			pbody->ssid.ssid[pbody->ssid.length] = '\0';
+			/* Present and not truncated */
+			pbody->ssid_status = PRESENT;
 			break;
 		case E_CHALLENGE:
+			/* Present, possibly truncated */
+			pbody->challenge_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 2))
-				return 0;
+				return;
 			memcpy(&pbody->challenge, p + offset, 2);
 			offset += 2;
-			if (pbody->challenge.length <= 0)
-				break;
-			if (!TTEST2(*(p + offset), pbody->challenge.length))
-				return 0;
-			memcpy(&pbody->challenge.text, p + offset,
-			    pbody->challenge.length);
-			offset += pbody->challenge.length;
+			if (pbody->challenge.length != 0) {
+				if (pbody->challenge.length >
+				    sizeof(pbody->challenge.text) - 1)
+					return;
+				if (!TTEST2(*(p + offset), pbody->challenge.length))
+					return;
+				memcpy(&pbody->challenge.text, p + offset,
+				    pbody->challenge.length);
+				offset += pbody->challenge.length;
+			}
 			pbody->challenge.text[pbody->challenge.length] = '\0';
+			/* Present and not truncated */
+			pbody->challenge_status = PRESENT;
 			break;
 		case E_RATES:
+			/* Present, possibly truncated */
+			pbody->rates_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 2))
-				return 0;
+				return;
 			memcpy(&(pbody->rates), p + offset, 2);
 			offset += 2;
-			if (pbody->rates.length <= 0)
-				break;
-			if (!TTEST2(*(p + offset), pbody->rates.length))
-				return 0;
-			memcpy(&pbody->rates.rate, p + offset,
-			    pbody->rates.length);
-			offset += pbody->rates.length;
+			if (pbody->rates.length != 0) {
+				if (pbody->rates.length > sizeof pbody->rates.rate)
+					return;
+				if (!TTEST2(*(p + offset), pbody->rates.length))
+					return;
+				memcpy(&pbody->rates.rate, p + offset,
+				    pbody->rates.length);
+				offset += pbody->rates.length;
+			}
+			/* Present and not truncated */
+			pbody->rates_status = PRESENT;
 			break;
 		case E_DS:
+			/* Present, possibly truncated */
+			pbody->ds_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 3))
-				return 0;
+				return;
 			memcpy(&pbody->ds, p + offset, 3);
 			offset += 3;
+			/* Present and not truncated */
+			pbody->ds_status = PRESENT;
 			break;
 		case E_CF:
+			/* Present, possibly truncated */
+			pbody->cf_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 8))
-				return 0;
+				return;
 			memcpy(&pbody->cf, p + offset, 8);
 			offset += 8;
+			/* Present and not truncated */
+			pbody->cf_status = PRESENT;
 			break;
 		case E_TIM:
+			/* Present, possibly truncated */
+			pbody->tim_status = TRUNCATED;
 			if (!TTEST2(*(p + offset), 2))
-				return 0;
+				return;
 			memcpy(&pbody->tim, p + offset, 2);
 			offset += 2;
 			if (!TTEST2(*(p + offset), 3))
-				return 0;
+				return;
 			memcpy(&pbody->tim.count, p + offset, 3);
 			offset += 3;
 
 			if (pbody->tim.length <= 3)
 				break;
+			if (pbody->tim.length - 3 > sizeof pbody->tim.bitmap)
+				return;
 			if (!TTEST2(*(p + offset), pbody->tim.length - 3))
-				return 0;
+				return;
 			memcpy(pbody->tim.bitmap, p + (pbody->tim.length - 3),
 			    (pbody->tim.length - 3));
 			offset += pbody->tim.length - 3;
+			/* Present and not truncated */
+			pbody->tim_status = PRESENT;
 			break;
 		default:
 #if 0
 			printf("(1) unhandled element_id (%d)  ",
 			    *(p + offset) );
 #endif
+			if (!TTEST2(*(p + offset), 2))
+				return;
+			if (!TTEST2(*(p + offset + 2), *(p + offset + 1)))
+				return;
 			offset += *(p + offset + 1) + 2;
 			break;
 		}
 	}
-	return 1;
 }
 
 /*********************************************************************************
@@ -223,24 +304,20 @@ handle_beacon(const u_char *p)
 	if (!TTEST2(*p, IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN))
 		return 0;
-	memcpy(&pbody.timestamp, p, 8);
+	memcpy(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
 	offset += IEEE802_11_TSTAMP_LEN;
 	pbody.beacon_interval = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_BCNINT_LEN;
 	pbody.capability_info = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_CAPINFO_LEN;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
-	printf(" (");
-	fn_print(pbody.ssid.ssid, NULL);
-	printf(")");
+	PRINT_SSID(pbody);
 	PRINT_RATES(pbody);
-	printf(" %s CH: %u%s",
-	    CAPABILITY_ESS(pbody.capability_info) ? "ESS" : "IBSS",
-	    pbody.ds.channel,
-	    CAPABILITY_PRIVACY(pbody.capability_info) ? ", PRIVACY" : "" );
+	printf(" %s",
+	    CAPABILITY_ESS(pbody.capability_info) ? "ESS" : "IBSS");
+	PRINT_DS_CHANNEL(pbody);
 
 	return 1;
 }
@@ -260,12 +337,9 @@ handle_assoc_request(const u_char *p)
 	pbody.listen_interval = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_LISTENINT_LEN;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
-	printf(" (");
-	fn_print(pbody.ssid.ssid, NULL);
-	printf(")");
+	PRINT_SSID(pbody);
 	PRINT_RATES(pbody);
 	return 1;
 }
@@ -288,8 +362,7 @@ handle_assoc_response(const u_char *p)
 	pbody.aid = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_AID_LEN;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
 	printf(" AID(%x) :%s: %s", ((u_int16_t)(pbody.aid << 2 )) >> 2 ,
 	    CAPABILITY_PRIVACY(pbody.capability_info) ? " PRIVACY " : "",
@@ -318,12 +391,10 @@ handle_reassoc_request(const u_char *p)
 	memcpy(&pbody.ap, p+offset, IEEE802_11_AP_LEN);
 	offset += IEEE802_11_AP_LEN;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
-	printf(" (");
-	fn_print(pbody.ssid.ssid, NULL);
-	printf(") AP : %s", etheraddr_string( pbody.ap ));
+	PRINT_SSID(pbody);
+	printf(" AP : %s", etheraddr_string( pbody.ap ));
 
 	return 1;
 }
@@ -343,12 +414,9 @@ handle_probe_request(const u_char *p)
 
 	memset(&pbody, 0, sizeof(pbody));
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
-	printf(" (");
-	fn_print(pbody.ssid.ssid, NULL);
-	printf(")");
+	PRINT_SSID(pbody);
 	PRINT_RATES(pbody);
 
 	return 1;
@@ -373,15 +441,11 @@ handle_probe_response(const u_char *p)
 	pbody.capability_info = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_CAPINFO_LEN;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
-	printf(" (");
-	fn_print(pbody.ssid.ssid, NULL);
-	printf(") ");
+	PRINT_SSID(pbody);
 	PRINT_RATES(pbody);
-	printf(" CH: %u%s", pbody.ds.channel,
-	    CAPABILITY_PRIVACY(pbody.capability_info) ? ", PRIVACY" : "" );
+	PRINT_DS_CHANNEL(pbody);
 
 	return 1;
 }
@@ -429,8 +493,7 @@ handle_auth(const u_char *p)
 	pbody.status_code = EXTRACT_LE_16BITS(p + offset);
 	offset += 2;
 
-	if (!parse_elements(&pbody, p, offset))
-		return 0;
+	parse_elements(&pbody, p, offset);
 
 	if ((pbody.auth_alg == 1) &&
 	    ((pbody.auth_trans_seq_num == 2) ||
@@ -624,22 +687,23 @@ static void
 data_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
     const u_int8_t **dstp)
 {
-	switch (FC_SUBTYPE(fc)) {
-	case DATA_DATA:
-	case DATA_NODATA:
-		break;
-	case DATA_DATA_CF_ACK:
-	case DATA_NODATA_CF_ACK:
-		printf("CF Ack ");
-		break;
-	case DATA_DATA_CF_POLL:
-	case DATA_NODATA_CF_POLL:
-		printf("CF Poll ");
-		break;
-	case DATA_DATA_CF_ACK_POLL:
-	case DATA_NODATA_CF_ACK_POLL:
-		printf("CF Ack/Poll ");
-		break;
+	u_int subtype = FC_SUBTYPE(fc);
+
+	if (DATA_FRAME_IS_CF_ACK(subtype) || DATA_FRAME_IS_CF_POLL(subtype) ||
+	    DATA_FRAME_IS_QOS(subtype)) {
+		printf("CF ");
+		if (DATA_FRAME_IS_CF_ACK(subtype)) {
+			if (DATA_FRAME_IS_CF_POLL(subtype))
+				printf("Ack/Poll");
+			else
+				printf("Ack");
+		} else {
+			if (DATA_FRAME_IS_CF_POLL(subtype))
+				printf("Poll");
+		}
+		if (DATA_FRAME_IS_QOS(subtype))
+			printf("+QoS");
+		printf(" ");
 	}
 
 #define ADDR1  (p + 4)
@@ -762,6 +826,8 @@ ctrl_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
 static int
 extract_header_length(u_int16_t fc)
 {
+	int len;
+
 	switch (FC_TYPE(fc)) {
 	case T_MGMT:
 		return MGMT_HDRLEN;
@@ -783,7 +849,10 @@ extract_header_length(u_int16_t fc)
 			return 0;
 		}
 	case T_DATA:
-		return (FC_TO_DS(fc) && FC_FROM_DS(fc)) ? 30 : 24;
+		len = (FC_TO_DS(fc) && FC_FROM_DS(fc)) ? 30 : 24;
+		if (DATA_FRAME_IS_QOS(FC_SUBTYPE(fc)))
+			len += 2;
+		return len;
 	default:
 		printf("unknown IEEE802.11 frame type (%d)", FC_TYPE(fc));
 		return 0;
@@ -837,8 +906,12 @@ ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
 	}
 }
 
+#ifndef roundup2
+#define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
+#endif
+
 static u_int
-ieee802_11_print(const u_char *p, u_int length, u_int caplen)
+ieee802_11_print(const u_char *p, u_int length, u_int caplen, int pad)
 {
 	u_int16_t fc;
 	u_int hdrlen;
@@ -852,6 +925,8 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen)
 
 	fc = EXTRACT_LE_16BITS(p);
 	hdrlen = extract_header_length(fc);
+	if (pad)
+		hdrlen = roundup2(hdrlen, 4);
 
 	if (caplen < hdrlen) {
 		printf("[|802.11]");
@@ -882,6 +957,8 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen)
 		}
 		break;
 	case T_DATA:
+		if (DATA_FRAME_IS_NULL(FC_SUBTYPE(fc)))
+			return hdrlen;	/* no-data frame */
 		/* There may be a problem w/ AP not having this bit set */
 		if (FC_WEP(fc)) {
 			if (!wep_print(p)) {
@@ -922,11 +999,11 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen)
 u_int
 ieee802_11_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
-	return ieee802_11_print(p, h->len, h->caplen);
+	return ieee802_11_print(p, h->len, h->caplen, 0);
 }
 
 static int
-print_radiotap_field(struct cpack_state *s, u_int32_t bit)
+print_radiotap_field(struct cpack_state *s, u_int32_t bit, int *pad)
 {
 	union {
 		int8_t		i8;
@@ -940,6 +1017,10 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 
 	switch (bit) {
 	case IEEE80211_RADIOTAP_FLAGS:
+		rc = cpack_uint8(s, &u.u8);
+		if (u.u8 & IEEE80211_RADIOTAP_F_DATAPAD)
+			*pad = 1;
+		break;
 	case IEEE80211_RADIOTAP_RATE:
 	case IEEE80211_RADIOTAP_DB_ANTSIGNAL:
 	case IEEE80211_RADIOTAP_DB_ANTNOISE:
@@ -1029,6 +1110,8 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit)
 			printf("wep ");
 		if (u.u8 & IEEE80211_RADIOTAP_F_FRAG)
 			printf("fragmented ");
+		if (u.u8 & IEEE80211_RADIOTAP_F_BADFCS)
+			printf("bad-fcs ");
 		break;
 	case IEEE80211_RADIOTAP_ANTENNA:
 		printf("antenna %d ", u.u8);
@@ -1060,6 +1143,7 @@ ieee802_11_radio_print(const u_char *p, u_int length, u_int caplen)
 	int bit0;
 	const u_char *iter;
 	u_int len;
+	int pad;
 
 	if (caplen < sizeof(*hdr)) {
 		printf("[|802.11]");
@@ -1093,6 +1177,8 @@ ieee802_11_radio_print(const u_char *p, u_int length, u_int caplen)
 		return caplen;
 	}
 
+	/* Assume no Atheros padding between 802.11 header and body */
+	pad = 0;
 	for (bit0 = 0, presentp = &hdr->it_present; presentp <= last_presentp;
 	     presentp++, bit0 += 32) {
 		for (present = EXTRACT_LE_32BITS(presentp); present;
@@ -1104,12 +1190,12 @@ ieee802_11_radio_print(const u_char *p, u_int length, u_int caplen)
 			bit = (enum ieee80211_radiotap_type)
 			    (bit0 + BITNO_32(present ^ next_present));
 
-			if (print_radiotap_field(&cpacker, bit) != 0)
+			if (print_radiotap_field(&cpacker, bit, &pad) != 0)
 				goto out;
 		}
 	}
 out:
-	return len + ieee802_11_print(p + len, length - len, caplen - len);
+	return len + ieee802_11_print(p + len, length - len, caplen - len, pad);
 #undef BITNO_32
 #undef BITNO_16
 #undef BITNO_8
@@ -1140,7 +1226,7 @@ ieee802_11_avs_radio_print(const u_char *p, u_int length, u_int caplen)
 	}
 
 	return caphdr_len + ieee802_11_print(p + caphdr_len,
-	    length - caphdr_len, caplen - caphdr_len);
+	    length - caphdr_len, caplen - caphdr_len, 0);
 }
 
 #define PRISM_HDR_LEN		144
@@ -1179,7 +1265,7 @@ prism_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	}
 
 	return PRISM_HDR_LEN + ieee802_11_print(p + PRISM_HDR_LEN,
-	    length - PRISM_HDR_LEN, caplen - PRISM_HDR_LEN);
+	    length - PRISM_HDR_LEN, caplen - PRISM_HDR_LEN, 0);
 }
 
 /*

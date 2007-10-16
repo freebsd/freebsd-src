@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53.2.3 2005/07/07 01:24:38 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53.2.4 2007/02/26 13:31:33 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -36,6 +36,7 @@ static const char rcsid[] _U_ =
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "af.h"
 
 #include "ip.h"
 #ifdef INET6
@@ -53,34 +54,6 @@ static const char rcsid[] _U_ =
  * is in network byte order.
  */
 #define	NULL_HDRLEN 4
-
-/*
- * BSD AF_ values.
- *
- * Unfortunately, the BSDs don't all use the same value for AF_INET6,
- * so, because we want to be able to read captures from all of the BSDs,
- * we check for all of them.
- */
-#define BSD_AF_INET		2
-#define BSD_AF_NS		6		/* XEROX NS protocols */
-#define BSD_AF_ISO		7
-#define BSD_AF_APPLETALK	16
-#define BSD_AF_IPX		23
-#define BSD_AF_INET6_BSD	24	/* OpenBSD (and probably NetBSD), BSD/OS */
-#define BSD_AF_INET6_FREEBSD	28
-#define BSD_AF_INET6_DARWIN	30
-
-const struct tok bsd_af_values[] = {
-        { BSD_AF_INET, "IPv4" },
-        { BSD_AF_NS, "NS" },
-        { BSD_AF_ISO, "ISO" },
-        { BSD_AF_APPLETALK, "Appletalk" },
-        { BSD_AF_IPX, "IPX" },
-        { BSD_AF_INET6_BSD, "IPv6" },
-        { BSD_AF_INET6_FREEBSD, "IPv6" },
-        { BSD_AF_INET6_DARWIN, "IPv6" },
-        { 0, NULL}
-};
 
 
 /*
@@ -145,27 +118,27 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 
 	switch (family) {
 
-	case BSD_AF_INET:
+	case BSD_AFNUM_INET:
 		ip_print(gndo, p, length);
 		break;
 
 #ifdef INET6
-	case BSD_AF_INET6_BSD:
-	case BSD_AF_INET6_FREEBSD:
-	case BSD_AF_INET6_DARWIN:
+	case BSD_AFNUM_INET6_BSD:
+	case BSD_AFNUM_INET6_FREEBSD:
+	case BSD_AFNUM_INET6_DARWIN:
 		ip6_print(p, length);
 		break;
 #endif
 
-	case BSD_AF_ISO:
+	case BSD_AFNUM_ISO:
 		isoclns_print(p, length, caplen);
 		break;
 
-	case BSD_AF_APPLETALK:
+	case BSD_AFNUM_APPLETALK:
 		atalk_print(p, length);
 		break;
 
-	case BSD_AF_IPX:
+	case BSD_AFNUM_IPX:
 		ipx_print(p, length);
 		break;
 

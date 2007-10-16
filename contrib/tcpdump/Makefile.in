@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.293.2.3 2005/09/20 06:05:36 guy Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.293.2.7 2007/09/12 19:48:50 guy Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -65,7 +65,7 @@ INSTALL_DATA = @INSTALL_DATA@
 	@rm -f $@
 	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
-CSRC =	addrtoname.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
+CSRC =	addrtoname.c af.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
         nlpid.c l2vpn.c machdep.c parsenfsfh.c \
 	print-802_11.c print-ap1394.c print-ah.c print-arcnet.c \
 	print-aodv.c print-arp.c print-ascii.c print-atalk.c print-atm.c \
@@ -80,8 +80,8 @@ CSRC =	addrtoname.c cpack.c gmpls.c oui.c gmt2local.c ipproto.c \
 	print-l2tp.c print-lane.c print-ldp.c print-llc.c \
         print-lmp.c print-lspping.c \
 	print-lwres.c print-mobile.c print-mpls.c print-msdp.c \
-	print-nfs.c print-ntp.c print-null.c print-ospf.c \
-	print-pflog.c print-pgm.c print-pim.c print-ppp.c print-pppoe.c \
+	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
+	print-pgm.c print-pim.c print-ppp.c print-pppoe.c \
 	print-pptp.c print-radius.c print-raw.c print-rip.c \
 	print-rsvp.c print-rx.c print-sctp.c print-sip.c print-sl.c print-sll.c \
 	print-slow.c print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
@@ -183,19 +183,10 @@ distclean:
 tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
-tar:
+releasetar:
 	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
-	    list="" ; tar="tar chf" ; \
-	    for i in `cat FILES` ; do list="$$list $$name/$$i" ; done; \
-	    echo \
-	    "rm -f ../$$name; ln -s $$dir ../$$name" ; \
-	     rm -f ../$$name; ln -s $$dir ../$$name ; \
-	    echo \
-	    "(cd .. ; $$tar - [lots of files]) | compress > /tmp/$$name.tar.Z" ; \
-	     (cd .. ; $$tar - $$list) | compress > /tmp/$$name.tar.Z ; \
-	    echo \
-	    "rm -f ../$$name" ; \
-	     rm -f ../$$name
+	   list="" ; make distclean; cd ..; mkdir -p n; cd n; ln -s ../$$dir $$name; \
+	   tar -c -z -f $$name.tar.gz $$name/. ;
 
 depend: $(GENSRC)
 	${srcdir}/mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)

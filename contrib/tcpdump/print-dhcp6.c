@@ -32,13 +32,15 @@
  *  RFC3319,
  *  RFC3633,
  *  RFC3646,
- *  draft-ietf-dhc-dhcpv6-opt-timeconfig-03.txt,
- *  draft-ietf-dhc-lifetime-00.txt,
+ *  RFC3898,
+ *  RFC4075,
+ *  RFC4242,
+ *  RFC4280,
  */
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.35 2004/07/06 22:16:03 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.35.2.1 2006/10/25 22:04:36 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -104,8 +106,8 @@ struct dhcp6_relay {
 #define DH6OPT_CLIENTID	1
 #define DH6OPT_SERVERID	2
 #define DH6OPT_IA_NA 3
-#define DH6OPT_IA_TMP 4
-#define DH6OPT_IADDR 5
+#define DH6OPT_IA_TA 4
+#define DH6OPT_IA_ADDR 5
 #define DH6OPT_ORO 6
 #define DH6OPT_PREFERENCE 7
 #  define DH6OPT_PREF_MAX 255
@@ -141,21 +143,18 @@ struct dhcp6_relay {
 #define DH6OPT_DNSNAME 24
 #define DH6OPT_IA_PD 25
 #define DH6OPT_IA_PD_PREFIX 26
-
-/*
- * The old prefix delegation option used in the service specification document
- * (200206xx version) by NTT Communications.
- */
-#define DH6OPT_PREFIX_DELEGATION 30
-#define DH6OPT_PREFIX_INFORMATION 31
-#define DH6OPT_PREFIX_REQUEST 32
-
-/*
- * The following one is an unassigned number.
- * We temporarily use values as of KAME snap 20040322.
- */
-#define DH6OPT_NTP_SERVERS 35
-#define DH6OPT_LIFETIME 36
+#define DH6OPT_NIS_SERVERS 27
+#define DH6OPT_NISP_SERVERS 28
+#define DH6OPT_NIS_NAME 29
+#define DH6OPT_NISP_NAME 30
+#define DH6OPT_NTP_SERVERS 31
+#define DH6OPT_LIFETIME 32
+#define DH6OPT_BCMCS_SERVER_D 33
+#define DH6OPT_BCMCS_SERVER_A 34
+#define DH6OPT_GEOCONF_CIVIC 36
+#define DH6OPT_REMOTE_ID 37
+#define DH6OPT_SUBSCRIBER_ID 38
+#define DH6OPT_CLIENT_FQDN 39
 
 struct dhcp6opt {
 	u_int16_t dh6opt_type;
@@ -170,6 +169,14 @@ struct dhcp6_ia {
 	u_int32_t dh6opt_ia_t1;
 	u_int32_t dh6opt_ia_t2;
 };
+
+struct dhcp6_ia_addr {
+	u_int16_t dh6opt_ia_addr_type;
+	u_int16_t dh6opt_ia_addr_len;
+	struct in6_addr dh6opt_ia_addr_addr;
+	u_int32_t dh6opt_ia_addr_pltime;
+	u_int32_t dh6opt_ia_addr_vltime;
+}  __attribute__ ((__packed__));
 
 struct dhcp6_ia_prefix {
 	u_int16_t dh6opt_ia_prefix_type;
@@ -205,6 +212,10 @@ dhcp6opt_name(int type)
 		return "server ID";
 	case DH6OPT_IA_NA:
 		return "IA_NA";
+	case DH6OPT_IA_TA:
+		return "IA_TA";
+	case DH6OPT_IA_ADDR:
+		return "IA_ADDR";
 	case DH6OPT_ORO:
 		return "option request";
 	case DH6OPT_PREFERENCE:
@@ -241,10 +252,6 @@ dhcp6opt_name(int type)
 		return "DNS";
 	case DH6OPT_DNSNAME:
 		return "DNS name";
-	case DH6OPT_PREFIX_DELEGATION:
-		return "prefix delegation";
-	case DH6OPT_PREFIX_INFORMATION:
-		return "prefix information";
 	case DH6OPT_IA_PD:
 		return "IA_PD";
 	case DH6OPT_IA_PD_PREFIX:
@@ -253,6 +260,26 @@ dhcp6opt_name(int type)
 		return "NTP Server";
 	case DH6OPT_LIFETIME:
 		return "lifetime";
+	case DH6OPT_NIS_SERVERS:
+		return "NIS server";
+	case DH6OPT_NISP_SERVERS:
+		return "NIS+ server";
+	case DH6OPT_NIS_NAME:
+		return "NIS domain name";
+	case DH6OPT_NISP_NAME:
+		return "NIS+ domain name";
+	case DH6OPT_BCMCS_SERVER_D:
+		return "BCMCS domain name";
+	case DH6OPT_BCMCS_SERVER_A:
+		return "BCMCS server";
+	case DH6OPT_GEOCONF_CIVIC:
+		return "Geoconf Civic";
+	case DH6OPT_REMOTE_ID:
+		return "Remote ID";
+	case DH6OPT_SUBSCRIBER_ID:
+		return "Subscriber ID";
+	case DH6OPT_CLIENT_FQDN:
+		return "Client FQDN";
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return(genstr);
@@ -298,9 +325,9 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 	size_t optlen;
 	u_int16_t val16;
 	u_int32_t val32;
-	struct in6_addr addr6;
 	struct dhcp6_ia ia;
 	struct dhcp6_ia_prefix ia_prefix;
+	struct dhcp6_ia_addr ia_addr;
 	struct dhcp6_auth authopt;
 	u_int authinfolen, authrealmlen;
 
@@ -368,6 +395,29 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" type %d)", EXTRACT_16BITS(tp));
 				break;
 			}
+			break;
+		case DH6OPT_IA_ADDR:
+			if (optlen < sizeof(ia_addr) - 4) {
+				printf(" ?)");
+				break;
+			}
+			memcpy(&ia_addr, (u_char *)dh6o, sizeof(ia_addr));
+			printf(" %s",
+			    ip6addr_string(&ia_addr.dh6opt_ia_addr_addr));
+			ia_addr.dh6opt_ia_addr_pltime =
+			    ntohl(ia_addr.dh6opt_ia_addr_pltime);
+			ia_addr.dh6opt_ia_addr_vltime =
+			    ntohl(ia_addr.dh6opt_ia_addr_vltime);
+			printf(" pltime:%lu vltime:%lu",
+			    (unsigned long)ia_addr.dh6opt_ia_addr_pltime,
+			    (unsigned long)ia_addr.dh6opt_ia_addr_vltime);
+			if (optlen > sizeof(ia_addr) - 4) {
+				/* there are sub-options */
+				dhcp6opt_print((u_char *)dh6o +
+				    sizeof(ia_addr),
+				    (u_char *)(dh6o + 1) + optlen);
+			}
+			printf(")");
 			break;
 		case DH6OPT_ORO:
 			if (optlen % 2) {
@@ -526,6 +576,9 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 		case DH6OPT_SIP_SERVER_A:
 		case DH6OPT_DNS:
 		case DH6OPT_NTP_SERVERS:
+		case DH6OPT_NIS_SERVERS:
+		case DH6OPT_NISP_SERVERS:
+		case DH6OPT_BCMCS_SERVER_A:
 			if (optlen % 16) {
 				printf(" ?)");
 				break;
@@ -534,25 +587,6 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			for (i = 0; i < optlen; i += 16)
 				printf(" %s", ip6addr_string(&tp[i]));
 			printf(")");
-			break;
-		case DH6OPT_PREFIX_DELEGATION:
-			dhcp6opt_print((u_char *)(dh6o + 1),
-			    (u_char *)(dh6o + 1) + optlen);
-			printf(")");
-			break;
-		case DH6OPT_PREFIX_INFORMATION:
-			if (optlen % 21)
-				printf(" ?)");
-			memcpy(&addr6, (u_char *)(dh6o + 1) + 5,
-			    sizeof(addr6));
-			printf(" %s/%d", ip6addr_string(&addr6),
-			    (int)*((u_char *)(dh6o + 1) + 4));
-			memcpy(&val32, dh6o + 1, sizeof(val32));
-			val32 = ntohl(val32);
-			if (val32 == DHCP6_DURATITION_INFINITE)
-				printf(" lease-duration: infinite)");
-			else
-				printf(" lease-duration: %u)", val32);
 			break;
 		case DH6OPT_STATUS_CODE:
 			if (optlen < 2) {

@@ -23,7 +23,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/addrtoname.c,v 1.108.2.7 2005/09/29 07:46:45 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/addrtoname.c,v 1.108.2.9 2007/09/14 00:26:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -67,6 +67,10 @@ extern int ether_ntohost(char *, const struct ether_addr *);
 #include "setsignal.h"
 #include "extract.h"
 #include "oui.h"
+
+#ifndef ETHER_ADDR_LEN
+#define ETHER_ADDR_LEN	6
+#endif
 
 /*
  * hash tables for whatever-to-name translations
@@ -511,7 +515,7 @@ linkaddr_string(const u_char *ep, const unsigned int len)
 	register char *cp;
 	register struct enamemem *tp;
 
-	if (len == 6)	/* XXX not totally correct... */
+	if (len == ETHER_ADDR_LEN)	/* XXX not totally correct... */
 		return etheraddr_string(ep);
 
 	tp = lookup_bytestring(ep, len);
