@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm_param.h>
 
@@ -84,6 +85,15 @@ u_long	maxdsiz;			/* max data size */
 u_long	dflssiz;			/* initial stack size limit */
 u_long	maxssiz;			/* max stack size */
 u_long	sgrowsiz;			/* amount to grow stack */
+
+SYSCTL_INT(_kern, OID_AUTO, maxswzone, CTLFLAG_RD, &maxswzone, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, maxbcache, CTLFLAG_RD, &maxbcache, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RD, &maxtsiz, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RD, &dfldsiz, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RD, &maxdsiz, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RD, &dflssiz, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RD, &maxssiz, 0, "");
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RD, &sgrowsiz, 0, "");
 
 /*
  * These have to be allocated somewhere; allocating
