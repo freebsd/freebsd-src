@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81.2.2 2005/07/01 16:13:37 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81.2.6 2007/09/13 17:40:18 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -64,20 +64,12 @@ struct icmp {
 			u_int16_t icd_seq;
 		} ih_idseq;
 		u_int32_t ih_void;
-
-		/* ICMP_UNREACH_NEEDFRAG -- Path MTU Discovery (RFC1191) */
-		struct ih_pmtu {
-			u_int16_t ipm_void;
-			u_int16_t ipm_nextmtu;
-		} ih_pmtu;
 	} icmp_hun;
 #define	icmp_pptr	icmp_hun.ih_pptr
 #define	icmp_gwaddr	icmp_hun.ih_gwaddr
 #define	icmp_id		icmp_hun.ih_idseq.icd_id
 #define	icmp_seq	icmp_hun.ih_idseq.icd_seq
 #define	icmp_void	icmp_hun.ih_void
-#define	icmp_pmvoid	icmp_hun.ih_pmtu.ipm_void
-#define	icmp_nextmtu	icmp_hun.ih_pmtu.ipm_nextmtu
 	union {
 		struct id_ts {
 			u_int32_t its_otime;
@@ -88,12 +80,6 @@ struct icmp {
 			struct ip idi_ip;
 			/* options and then 64 bits of data */
 		} id_ip;
-                struct mpls_ext {
-                    u_int8_t legacy_header[128]; /* extension header starts 128 bytes after ICMP header */
-                    u_int8_t version_res[2];
-                    u_int8_t checksum[2];
-                    u_int8_t data[1];
-                } mpls_ext;
 		u_int32_t id_mask;
 		u_int8_t id_data[1];
 	} icmp_dun;
@@ -103,9 +89,6 @@ struct icmp {
 #define	icmp_ip		icmp_dun.id_ip.idi_ip
 #define	icmp_mask	icmp_dun.id_mask
 #define	icmp_data	icmp_dun.id_data
-#define	icmp_mpls_ext_version	icmp_dun.mpls_ext.version_res
-#define	icmp_mpls_ext_checksum	icmp_dun.mpls_ext.checksum
-#define	icmp_mpls_ext_data	icmp_dun.mpls_ext.data
 };
 
 #define ICMP_MPLS_EXT_EXTRACT_VERSION(x) (((x)&0xf0)>>4) 
@@ -120,7 +103,7 @@ struct icmp {
  * ip header length.
  */
 #define	ICMP_MINLEN	8				/* abs minimum */
-#define ICMP_EXTD_MINLEN (156 - sizeof (struct ip))     /* draft-bonica-icmp-mpls-02 */
+#define ICMP_EXTD_MINLEN (156 - sizeof (struct ip))     /* draft-bonica-internet-icmp-08 */
 #define	ICMP_TSLEN	(8 + 3 * sizeof (u_int32_t))	/* timestamp */
 #define	ICMP_MASKLEN	12				/* address mask */
 #define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
@@ -175,7 +158,9 @@ struct icmp {
 	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 #define	ICMP_MPLS_EXT_TYPE(type) \
-	((type) == ICMP_UNREACH || (type) == ICMP_TIMXCEED)
+	((type) == ICMP_UNREACH || \
+         (type) == ICMP_TIMXCEED || \
+         (type) == ICMP_PARAMPROB)
 /* rfc1700 */
 #ifndef ICMP_UNREACH_NET_UNKNOWN
 #define ICMP_UNREACH_NET_UNKNOWN	6	/* destination net unknown */
@@ -278,7 +263,45 @@ struct id_rdiscovery {
 	u_int32_t ird_pref;
 };
 
-/* draft-bonica-icmp-mpls-02 */
+/*
+ * draft-bonica-internet-icmp-08
+ *
+ * The Destination Unreachable, Time Exceeded
+ * and Parameter Problem messages are slighly changed as per
+ * the above draft. A new Length field gets added to give
+ * the caller an idea about the length of the piggypacked
+ * IP packet before the MPLS extension header starts.
+ *
+ * The Length field represents length of the padded "original datagram"
+ * field  measured in 32-bit words.
+ *
+ * 0                   1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |     Type      |     Code      |          Checksum             |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |     unused    |    Length     |          unused               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |      Internet Header + leading octets of original datagram    |
+ * |                                                               |
+ * |                           //                                  |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+
+struct icmp_ext_t {
+    u_int8_t icmp_type;
+    u_int8_t icmp_code;
+    u_int8_t icmp_checksum[2];
+    u_int8_t icmp_reserved;
+    u_int8_t icmp_length;
+    u_int8_t icmp_reserved2[2];
+    u_int8_t icmp_ext_legacy_header[128]; /* extension header starts 128 bytes after ICMP header */
+    u_int8_t icmp_ext_version_res[2];
+    u_int8_t icmp_ext_checksum[2];
+    u_int8_t icmp_ext_data[1];
+};
+
 struct icmp_mpls_ext_object_header_t {
     u_int8_t length[2];
     u_int8_t class_num;
@@ -314,17 +337,20 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 {
 	char *cp;
 	const struct icmp *dp;
+        const struct icmp_ext_t *ext_dp;
 	const struct ip *ip;
 	const char *str, *fmt;
 	const struct ip *oip;
 	const struct udphdr *ouh;
         const u_int8_t *obj_tptr;
         u_int32_t raw_label;
+        const u_char *snapend_save;
 	const struct icmp_mpls_ext_object_header_t *icmp_mpls_ext_object_header;
 	u_int hlen, dport, mtu, obj_tlen, obj_class_num, obj_ctype;
 	char buf[MAXHOSTNAMELEN + 100];
 
 	dp = (struct icmp *)bp;
+        ext_dp = (struct icmp_ext_t *)bp;
 	ip = (struct ip *)bp2;
 	str = buf;
 
@@ -546,35 +572,61 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 			}
 		}
 	}
+
+        /*
+         * print the remnants of the IP packet.
+         * save the snaplength as this may get overidden in the IP printer.
+         */
 	if (vflag >= 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
 		bp += 8;
 		(void)printf("\n\t");
 		ip = (struct ip *)bp;
 		snaplen = snapend - bp;
+                snapend_save = snapend;
 		ip_print(gndo, bp, EXTRACT_16BITS(&ip->ip_len));
+                snapend = snapend_save;
 	}
 
+        /*
+         * Attempt to decode the MPLS extensions only for some ICMP types.
+         */
         if (vflag >= 1 && plen > ICMP_EXTD_MINLEN && ICMP_MPLS_EXT_TYPE(dp->icmp_type)) {
 
-            TCHECK(*(dp->icmp_mpls_ext_version));
-            printf("\n\tMPLS extension v%u",ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)));
+            TCHECK(*ext_dp);
+
+            /*
+             * Check first if the mpls extension header shows a non-zero length.
+             * If the length field is not set then silently verify the checksum
+             * to check if an extension header is present. This is expedient,
+             * however not all implementations set the length field proper.
+             */
+            if (!ext_dp->icmp_length &&
+                in_cksum((const u_short *)&ext_dp->icmp_ext_version_res,
+                         plen - ICMP_EXTD_MINLEN, 0)) {
+                return;
+            }
+
+            printf("\n\tMPLS extension v%u",
+                   ICMP_MPLS_EXT_EXTRACT_VERSION(*(ext_dp->icmp_ext_version_res)));
             
             /*
              * Sanity checking of the header.
              */
-            if (ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)) != ICMP_MPLS_EXT_VERSION) {
+            if (ICMP_MPLS_EXT_EXTRACT_VERSION(*(ext_dp->icmp_ext_version_res)) !=
+                ICMP_MPLS_EXT_VERSION) {
                 printf(" packet not supported");
                 return;
             }
 
             hlen = plen - ICMP_EXTD_MINLEN;
-            TCHECK2(*(dp->icmp_mpls_ext_checksum), 2);
-            printf(", checksum 0x%04x (unverified), length %u", /* FIXME */
-                   EXTRACT_16BITS(dp->icmp_mpls_ext_checksum),
+            printf(", checksum 0x%04x (%scorrect), length %u",
+                   EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
+                   in_cksum((const u_short *)&ext_dp->icmp_ext_version_res,
+                            plen - ICMP_EXTD_MINLEN, 0) ? "in" : "",
                    hlen);
 
             hlen -= 4; /* subtract common header size */
-            obj_tptr = (u_int8_t *)dp->icmp_mpls_ext_data;
+            obj_tptr = (u_int8_t *)ext_dp->icmp_ext_data;
 
             while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
 
@@ -592,8 +644,12 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
                        obj_tlen);
 
                 hlen-=sizeof(struct icmp_mpls_ext_object_header_t); /* length field includes tlv header */
-                if (obj_tlen < sizeof(struct icmp_mpls_ext_object_header_t))
-                    break;
+
+                /* infinite loop protection */                
+                if ((obj_class_num == 0) ||
+                    (obj_tlen < sizeof(struct icmp_mpls_ext_object_header_t))) {
+                    return;
+                }
                 obj_tlen-=sizeof(struct icmp_mpls_ext_object_header_t);
 
                 switch (obj_class_num) {

@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.133.2.19 2005/09/20 10:15:22 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.133.2.25 2007/03/02 09:20:27 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -477,7 +477,7 @@ static struct tok isis_lsp_istype_values[] = {
     { ISIS_LSP_TYPE_UNUSED0,	"Unused 0x0 (invalid)"},
     { ISIS_LSP_TYPE_LEVEL_1,	"L1 IS"},
     { ISIS_LSP_TYPE_UNUSED2,	"Unused 0x2 (invalid)"},
-    { ISIS_LSP_TYPE_LEVEL_2,	"L1L2 IS"},
+    { ISIS_LSP_TYPE_LEVEL_2,	"L2 IS"},
     { 0, NULL }
 };
 
@@ -1618,7 +1618,11 @@ static int
 isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi) {
 
     char ident_buffer[20];
+#ifdef INET6
     u_int8_t prefix[sizeof(struct in6_addr)]; /* shared copy buffer for IPv4 and IPv6 prefixes */
+#else
+    u_int8_t prefix[sizeof(struct in_addr)]; /* shared copy buffer for IPv4 prefixes */
+#endif
     u_int metric, status_byte, bit_length, byte_length, sublen, processed, subtlvtype, subtlvlen;
 
     if (!TTEST2(*tptr, 4))
@@ -1632,6 +1636,12 @@ isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi
             return (0);
         status_byte=*(tptr++);
         bit_length = status_byte&0x3f;
+        if (bit_length > 32) {
+            printf("%sIPv4 prefix: bad bit length %u",
+                   ident,
+                   bit_length);
+            return (0);
+        }
         processed++;
 #ifdef INET6
     } else if (afi == IPV6) {
@@ -1639,6 +1649,12 @@ isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi
             return (0);
         status_byte=*(tptr++);
         bit_length=*(tptr++);
+        if (bit_length > 128) {
+            printf("%sIPv6 prefix: bad bit length %u",
+                   ident,
+                   bit_length);
+            return (0);
+        }
         processed+=2;
 #endif
     } else
@@ -1648,7 +1664,7 @@ isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi
    
     if (!TTEST2(*tptr, byte_length))
         return (0);
-    memset(prefix, 0, sizeof(struct in6_addr));              /* clear the copy buffer */
+    memset(prefix, 0, sizeof prefix);   /* clear the copy buffer */
     memcpy(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
     tptr+=byte_length;
     processed+=byte_length;
@@ -2094,7 +2110,7 @@ static int isis_print (const u_int8_t *p, u_int length)
                tlv_len);
 
         if (tlv_len == 0) /* something is malformed */
-            break;
+	    continue;
 
         /* now check if we have a decoder otherwise do a hexdump at the end*/
 	switch (tlv_type) {
@@ -2233,13 +2249,14 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
         case ISIS_TLV_MT_IP_REACH:
-	    while (tmp>0) {
-                mt_len = isis_print_mtid(tptr, "\n\t      ");
-                if (mt_len == 0) /* did something go wrong ? */
-                    goto trunctlv;
-                tptr+=mt_len;
-                tmp-=mt_len;
+            mt_len = isis_print_mtid(tptr, "\n\t      ");
+            if (mt_len == 0) { /* did something go wrong ? */
+                goto trunctlv;
+            }
+            tptr+=mt_len;
+            tmp-=mt_len;
 
+            while (tmp>0) {
                 ext_ip_len = isis_print_extd_ip_reach(tptr, "\n\t      ", IPV4);
                 if (ext_ip_len == 0) /* did something go wrong ? */
                     goto trunctlv;
@@ -2260,13 +2277,14 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_MT_IP6_REACH:
-	    while (tmp>0) {
-                mt_len = isis_print_mtid(tptr, "\n\t      ");
-                if (mt_len == 0) /* did something go wrong ? */
-                    goto trunctlv;
-                tptr+=mt_len;
-                tmp-=mt_len;
+            mt_len = isis_print_mtid(tptr, "\n\t      ");
+            if (mt_len == 0) { /* did something go wrong ? */
+                goto trunctlv;
+            }
+            tptr+=mt_len;
+            tmp-=mt_len;
 
+	    while (tmp>0) {
                 ext_ip_len = isis_print_extd_ip_reach(tptr, "\n\t      ", IPV6);
                 if (ext_ip_len == 0) /* did something go wrong ? */
                     goto trunctlv;
@@ -2516,7 +2534,7 @@ static int isis_print (const u_int8_t *p, u_int length)
             if (!TTEST2(*tptr, ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN))
                 goto trunctlv;
 
-            printf(", Remaining holding time %us", EXTRACT_16BITS(tptr+1));
+            printf(", Remaining holding time %us", EXTRACT_16BITS(tptr));
             tptr+=ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN;
             tmp-=ISIS_TLV_RESTART_SIGNALING_HOLDTIMELEN;
 
