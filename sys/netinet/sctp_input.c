@@ -168,7 +168,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 	/* send an INIT-ACK w/cookie */
 	SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
 	sctp_send_initiate_ack(inp, stcb, m, iphlen, offset, sh, cp, vrf_id,
-	    SCTP_HOLDS_LOCK);
+	    ((stcb == NULL) ? SCTP_HOLDS_LOCK : SCTP_NOT_LOCKED));
 outnow:
 	if (stcb == NULL) {
 		SCTP_INP_RUNLOCK(inp);
@@ -739,6 +739,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT) &&
 		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT)) {
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_RECEIVED);
+			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			/*
 			 * notify upper layer that peer has initiated a
 			 * shutdown
@@ -774,7 +775,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
 		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
-
+		SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net,
 		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
 		/* start SHUTDOWN timer */
@@ -4387,51 +4388,31 @@ process_control_chunks:
 			 * closed. We opened and bound.. and are now no
 			 * longer listening.
 			 */
-			if (inp->sctp_socket->so_qlimit == 0) {
-				if ((stcb) && (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-					/*
-					 * special case, is this a retran'd
-					 * COOKIE-ECHO or a restarting assoc
-					 * that is a peeled off or
-					 * one-to-one style socket.
-					 */
-					goto process_cookie_anyway;
-				}
-				sctp_abort_association(inp, stcb, m, iphlen,
-				    sh, NULL, vrf_id);
-				*offset = length;
-				return (NULL);
-			} else if (inp->sctp_socket->so_qlimit) {
-				/* we are accepting so check limits like TCP */
-				if (inp->sctp_socket->so_qlen >=
-				    inp->sctp_socket->so_qlimit) {
-					/* no space */
+
+			if ((stcb == NULL) && (inp->sctp_socket->so_qlen >= inp->sctp_socket->so_qlimit)) {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
+				    (sctp_abort_if_one_2_one_hits_limit)) {
 					struct mbuf *oper;
 					struct sctp_paramhdr *phdr;
 
-					if (sctp_abort_if_one_2_one_hits_limit) {
-						oper = NULL;
-						oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
-						    0, M_DONTWAIT, 1, MT_DATA);
-						if (oper) {
-							SCTP_BUF_LEN(oper) =
-							    sizeof(struct sctp_paramhdr);
-							phdr = mtod(oper,
-							    struct sctp_paramhdr *);
-							phdr->param_type =
-							    htons(SCTP_CAUSE_OUT_OF_RESC);
-							phdr->param_length =
-							    htons(sizeof(struct sctp_paramhdr));
-						}
-						sctp_abort_association(inp, stcb, m,
-						    iphlen, sh, oper, vrf_id);
+					oper = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr),
+					    0, M_DONTWAIT, 1, MT_DATA);
+					if (oper) {
+						SCTP_BUF_LEN(oper) =
+						    sizeof(struct sctp_paramhdr);
+						phdr = mtod(oper,
+						    struct sctp_paramhdr *);
+						phdr->param_type =
+						    htons(SCTP_CAUSE_OUT_OF_RESC);
+						phdr->param_length =
+						    htons(sizeof(struct sctp_paramhdr));
 					}
-					*offset = length;
-					return (NULL);
+					sctp_abort_association(inp, stcb, m,
+					    iphlen, sh, oper, vrf_id);
 				}
-			}
-	process_cookie_anyway:
-			{
+				*offset = length;
+				return (NULL);
+			} else {
 				struct mbuf *ret_buf;
 				struct sctp_inpcb *linp;
 
