@@ -8,7 +8,7 @@
  * the Systems Programming Group of the University of Utah Computer
  * Science Department, and William Jolitz.
  *
- * Redistribution and use in source and binary forms, with or without
+ * Redistribution and use in source and binary :forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
@@ -55,17 +55,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
-#include <vm/vm.h>
-#include <vm/pmap.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
+#include <vm/vm_pageout.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#ifndef ARM_USE_SMALL_ALLOC
 static void     sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 
@@ -96,6 +97,7 @@ static u_int    sf_buf_alloc_want;
  * A lock used to synchronize access to the hash table and free list
  */
 static struct mtx sf_buf_lock;
+#endif
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -141,7 +143,7 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	tf->tf_r1 = 0;
 	pcb2->un_32.pcb32_sp = (u_int)sf;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = 0;
 	td2->td_md.md_tp = *(uint32_t **)ARM_TP_ADDRESS;
@@ -163,6 +165,7 @@ cpu_thread_swapout(struct thread *td)
 void
 sf_buf_free(struct sf_buf *sf)
 {
+#ifndef ARM_USE_SMALL_ALLOC
 	 mtx_lock(&sf_buf_lock);
 	 sf->ref_count--;
 	 if (sf->ref_count == 0) {
@@ -172,11 +175,13 @@ sf_buf_free(struct sf_buf *sf)
 			 wakeup_one(&sf_buf_freelist);
 	 }
 	 mtx_unlock(&sf_buf_lock);				 
+#endif
 }
 
+#ifndef ARM_USE_SMALL_ALLOC
 /*
- *  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- *   */
+ * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
+ */
 static void
 sf_buf_init(void *arg)
 {       
@@ -199,6 +204,7 @@ sf_buf_init(void *arg)
 	sf_buf_alloc_want = 0; 
 	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
 }
+#endif
 
 /*
  * Get an sf_buf from the freelist. Will block if none are available.
@@ -206,6 +212,9 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	return ((struct sf_buf *)m);
+#else
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
 	int error;
@@ -251,7 +260,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 done:
 	mtx_unlock(&sf_buf_lock);
 	return (sf);
-	
+#endif
 }
 
 /*
@@ -279,7 +288,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
 	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
 
-	/* Setup to release sched_lock in fork_exit(). */
+	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
 	td->td_md.md_saved_cspr = 0;
 }
@@ -363,7 +372,7 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 void  
 swi_vm(void *dummy)
 {
-
+	
 	if (busdma_swi_pending)
 		busdma_swi();
 }
@@ -392,7 +401,7 @@ void *
 arm_remap_nocache(void *addr, vm_size_t size)
 {
 	int i, j;
-			
+	
 	size = round_page(size);
 	for (i = 0; i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT),
 	    ARM_TP_ADDRESS); i++) {
@@ -449,12 +458,71 @@ extern uma_zone_t l2zone;
 
 struct mtx smallalloc_mtx;
 
-MALLOC_DEFINE(M_VMSMALLALLOC, "VM Small alloc", "VM Small alloc data");
+MALLOC_DEFINE(M_VMSMALLALLOC, "vm_small_alloc", "VM Small alloc data");
 
-vm_offset_t alloc_curaddr;
 vm_offset_t alloc_firstaddr;
 
-extern int doverbose;
+#ifdef ARM_HAVE_SUPERSECTIONS
+#define S_FRAME	L1_SUP_FRAME
+#define S_SIZE	L1_SUP_SIZE
+#else
+#define S_FRAME	L1_S_FRAME
+#define S_SIZE	L1_S_SIZE
+#endif
+
+vm_offset_t
+arm_ptovirt(vm_paddr_t pa)
+{
+	int i;
+	vm_offset_t addr = alloc_firstaddr;
+
+	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called to early ?"));
+	for (i = 0; dump_avail[i + 1]; i += 2) {
+		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
+			break;
+		addr += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
+		    (dump_avail[i] & S_FRAME);
+	}
+	KASSERT(dump_avail[i + 1] != 0, ("Trying to access invalid physical address"));
+	return (addr + (pa - (dump_avail[i] & S_FRAME)));
+}
+
+void
+arm_init_smallalloc(void)
+{
+	vm_offset_t to_map = 0, mapaddr;
+	int i;
+	
+	/* 
+	 * We need to use dump_avail and not phys_avail, since we want to
+	 * map the whole memory and not just the memory available to the VM
+	 * to be able to do a pa => va association for any address.
+	 */
+	   
+	for (i = 0; dump_avail[i + 1]; i+= 2) {
+		to_map += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
+		    (dump_avail[i] & S_FRAME);
+	}
+	alloc_firstaddr = mapaddr = KERNBASE - to_map;
+	for (i = 0; dump_avail[i + 1]; i+= 2) {
+		vm_offset_t size = (dump_avail[i + 1] & S_FRAME) +
+		    S_SIZE - (dump_avail[i] & S_FRAME);
+		vm_offset_t did = 0;
+		while (size > 0) {
+#ifdef ARM_HAVE_SUPERSECTIONS
+			pmap_kenter_supersection(mapaddr,
+			    (dump_avail[i] & L1_SUP_FRAME) + did, 
+			    SECTION_CACHE);
+#else
+			pmap_kenter_section(mapaddr, 
+			    (dump_avail[i] & L1_S_FRAME) + did, SECTION_CACHE);
+#endif
+			mapaddr += S_SIZE;
+			did += S_SIZE;
+			size -= S_SIZE;
+		}
+	}
+}
 
 void
 arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
@@ -475,53 +543,15 @@ arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
 	}
 }
 
-static void *
-arm_uma_do_alloc(struct arm_small_page **pglist, int bytes, int pagetable)
-{
-	void *ret;
-	vm_page_t page_array = NULL;
-
-	    
-	*pglist = (void *)kmem_malloc(kmem_map, (0x100000 / PAGE_SIZE) *
-	    sizeof(struct arm_small_page), M_WAITOK);
-	if (alloc_curaddr < 0xf0000000) {/* XXX */
-		mtx_lock(&Giant);
-		page_array = vm_page_alloc_contig(0x100000 / PAGE_SIZE,
-		    0, 0xffffffff, 0x100000, 0);
-		mtx_unlock(&Giant);
-	}
-	if (page_array) {
-		vm_paddr_t pa = VM_PAGE_TO_PHYS(page_array);
-		mtx_lock(&smallalloc_mtx);
-		ret = (void*)alloc_curaddr;
-		alloc_curaddr += 0x100000;
-		/* XXX: ARM_TP_ADDRESS should probably be move elsewhere. */
-		if (alloc_curaddr == ARM_TP_ADDRESS)
-			alloc_curaddr += 0x100000;
-		mtx_unlock(&smallalloc_mtx);
-		pmap_kenter_section((vm_offset_t)ret, pa
-		    , pagetable);
-
-		
-	} else {
-		kmem_free(kmem_map, (vm_offset_t)*pglist, 
-		    (0x100000 / PAGE_SIZE) * sizeof(struct arm_small_page));
-		*pglist = NULL;
-		ret = (void *)kmem_malloc(kmem_map, bytes, M_WAITOK);
-	}
-	return (ret);
-}
-
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	void *ret;
-	struct arm_small_page *sp, *tmp;
+	struct arm_small_page *sp;
 	TAILQ_HEAD(,arm_small_page) *head;
-	static int in_alloc;
-	static int in_sleep;
-	int should_wakeup = 0;
-	
+	static vm_pindex_t color;
+	vm_page_t m;
+
 	*flags = UMA_SLAB_PRIV;
 	/*
 	 * For CPUs where we setup page tables as write back, there's no
@@ -533,55 +563,42 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		head = (void *)&pages_normal;
 
 	mtx_lock(&smallalloc_mtx);
-retry:
 	sp = TAILQ_FIRST(head);
 
 	if (!sp) {
-		/* No more free pages, need to alloc more. */
-		if (!(wait & M_WAITOK)) {
-			mtx_unlock(&smallalloc_mtx);
+		int pflags;
+
+		mtx_unlock(&smallalloc_mtx);
+		if (zone == l2zone &&
+		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
 			*flags = UMA_SLAB_KMEM;
-			ret = (void *)kmem_malloc(kmem_map, bytes, wait);
+			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
 			return (ret);
 		}
-		if (in_alloc) {
-			/* Somebody else is already doing the allocation. */
-			in_sleep++;
-			msleep(&in_alloc, &smallalloc_mtx, PWAIT, 
-			    "smallalloc", 0);
-			in_sleep--;
-			goto retry;
-		}		
-		in_alloc = 1;
-		mtx_unlock(&smallalloc_mtx);
-		/* Try to alloc 1MB of contiguous memory. */
-		ret = arm_uma_do_alloc(&sp, bytes, zone == l2zone ?
-		    SECTION_PT : SECTION_CACHE);
-		mtx_lock(&smallalloc_mtx);
-		in_alloc = 0;
-		if (in_sleep)
-			should_wakeup = 1;
-		if (sp) {
-			for (int i = 0; i < (0x100000 / PAGE_SIZE) - 1;
-			    i++) {
-				tmp = &sp[i];
-				tmp->addr = (char *)ret + i * PAGE_SIZE;
-				TAILQ_INSERT_HEAD(head, tmp, pg_list);
-			}
-			ret = (char *)ret + 0x100000 - PAGE_SIZE;
-			TAILQ_INSERT_HEAD(&free_pgdesc, &sp[(0x100000 / (
-			    PAGE_SIZE)) - 1], pg_list);
-		} else
-			*flags = UMA_SLAB_KMEM;
-			
-	} else {
-		sp = TAILQ_FIRST(head);
-		TAILQ_REMOVE(head, sp, pg_list);
-		TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
-		ret = sp->addr;
-	}
-	if (should_wakeup)
-		wakeup(&in_alloc);
+		if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
+			pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
+		else
+			pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
+		if (wait & M_ZERO)
+			pflags |= VM_ALLOC_ZERO;
+		for (;;) {
+			m = vm_page_alloc(NULL, color++, 
+			    pflags | VM_ALLOC_NOOBJ);
+			if (m == NULL) {
+				if (wait & M_NOWAIT)
+					return (NULL);
+				VM_WAIT;
+			} else
+				break;
+		}
+		ret = (void *)arm_ptovirt(VM_PAGE_TO_PHYS(m));
+		if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
+			bzero(ret, PAGE_SIZE);
+		return (ret);
+	}    
+	TAILQ_REMOVE(head, sp, pg_list);
+	TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
+	ret = sp->addr;
 	mtx_unlock(&smallalloc_mtx);
 	if ((wait & M_ZERO))
 		bzero(ret, bytes);
@@ -599,18 +616,30 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	else {
 		struct arm_small_page *sp;
 
-		mtx_lock(&smallalloc_mtx);
-		sp = TAILQ_FIRST(&free_pgdesc);
-		KASSERT(sp != NULL, ("No more free page descriptor ?"));
-		TAILQ_REMOVE(&free_pgdesc, sp, pg_list);
-		sp->addr = mem;
-		pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd, &pt);
-		if ((*pd & pte_l1_s_cache_mask) == pte_l1_s_cache_mode_pt &&
-		    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
-			TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);
-		else
-			TAILQ_INSERT_HEAD(&pages_normal, sp, pg_list);
-		mtx_unlock(&smallalloc_mtx);
+		if ((vm_offset_t)mem >= KERNBASE) {
+			mtx_lock(&smallalloc_mtx);
+			sp = TAILQ_FIRST(&free_pgdesc);
+			KASSERT(sp != NULL, ("No more free page descriptor ?"));
+			TAILQ_REMOVE(&free_pgdesc, sp, pg_list);
+			sp->addr = mem;
+			pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd,
+			    &pt);
+			if ((*pd & pte_l1_s_cache_mask) == 
+			    pte_l1_s_cache_mode_pt &&
+			    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
+				TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);
+			else
+				TAILQ_INSERT_HEAD(&pages_normal, sp, pg_list);
+			mtx_unlock(&smallalloc_mtx);
+		} else {
+			vm_page_t m;
+			vm_paddr_t pa = vtophys((vm_offset_t)mem);
+
+			m = PHYS_TO_VM_PAGE(pa);
+			m->wire_count--;
+			vm_page_free(m);
+			atomic_subtract_int(&cnt.v_wire_count, 1);
+		}
 	}
 }
 
