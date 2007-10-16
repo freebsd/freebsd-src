@@ -117,7 +117,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct thread	*td;
 
-	printf("CTOR %p\n", mem);
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu = NOCPU;
