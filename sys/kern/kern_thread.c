@@ -117,6 +117,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct thread	*td;
 
+	printf("CTOR %p\n", mem);
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_oncpu = NOCPU;
@@ -188,7 +189,7 @@ thread_init(void *mem, int size, int flags)
 {
 	struct thread *td;
 
-	td = (struct thread *)mem;
+	td = (struct thread *)mem;	
 
 	vm_thread_new(td, 0);
 	cpu_thread_setup(td);
@@ -305,7 +306,7 @@ threadinit(void)
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
-	    THREAD_ALIGN, 0);
+	    THREAD_ALIGN - 1, 0);
 	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
 	    ksegrp_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_CACHE, 0);
