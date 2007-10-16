@@ -2429,7 +2429,6 @@ pmap_alloc_specials(vm_offset_t *availp, int pages, vm_offset_t *vap,
 #define PMAP_STATIC_L2_SIZE 16
 #ifdef ARM_USE_SMALL_ALLOC
 extern struct mtx smallalloc_mtx;
-extern vm_offset_t alloc_curaddr;
 extern vm_offset_t alloc_firstaddr;
 #endif
 
@@ -2588,8 +2587,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	mtx_init(&cmtx, "TMP mappins mtx", NULL, MTX_DEF);
 #ifdef ARM_USE_SMALL_ALLOC
 	mtx_init(&smallalloc_mtx, "Small alloc page list", NULL, MTX_DEF);
-	alloc_firstaddr = alloc_curaddr = arm_nocache_startaddr +
-	    ARM_NOCACHE_KVA_SIZE;
+	arm_init_smallalloc();
 #endif
 }
 
@@ -3007,6 +3005,9 @@ pmap_kremove(vm_offset_t va)
 vm_offset_t
 pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	return (arm_ptovirt(start));
+#else
 	vm_offset_t sva = *virt;
 	vm_offset_t va = sva;
 
@@ -3021,6 +3022,7 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
 	}
 	*virt = va;
 	return (sva);
+#endif
 }
 
 static void
@@ -4063,6 +4065,10 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	char *dstpg;
+#endif
+
 #ifdef DEBUG
 	struct vm_page *pg = PHYS_TO_VM_PAGE(phys);
 
@@ -4070,7 +4076,16 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		panic("pmap_zero_page: page has mappings");
 #endif
 
-
+#ifdef ARM_USE_SMALL_ALLOC
+	dstpg = (char *)arm_ptovirt(phys);
+	if (off || size != PAGE_SIZE) {
+		bzero(dstpg + off, size);
+		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
+	} else {
+		bzero_page((vm_offset_t)dstpg);
+		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
+	}
+#else
 	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
@@ -4087,6 +4102,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 	mtx_unlock(&cmtx);
 	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
+#endif
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
@@ -4390,8 +4406,18 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	vm_offset_t srcpg, dstpg;
+#endif
 	cpu_dcache_wbinv_all();
+#ifdef ARM_USE_SMALL_ALLOC
+	srcpg = arm_ptovirt(VM_PAGE_TO_PHYS(src));
+	dstpg = arm_ptovirt(VM_PAGE_TO_PHYS(dst));
+	bcopy_page(srcpg, dstpg);
+	cpu_dcache_wbinv_range(dstpg, PAGE_SIZE);
+#else
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
+#endif
 }
 
 

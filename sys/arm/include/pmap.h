@@ -517,7 +517,8 @@ extern char *_tmppt;
 
 #ifdef ARM_USE_SMALL_ALLOC
 void	arm_add_smallalloc_pages(void *, void *, int, int);
-void 	arm_busy_pages(void);
+vm_offset_t arm_ptovirt(vm_paddr_t);
+void arm_init_smallalloc(void);
 struct arm_small_page {
 	void *addr;
 	TAILQ_ENTRY(arm_small_page) pg_list;
@@ -527,6 +528,8 @@ struct arm_small_page {
 extern vm_offset_t arm_nocache_startaddr;
 void *arm_remap_nocache(void *, vm_size_t);
 void arm_unmap_nocache(void *, vm_size_t);
+
+extern vm_paddr_t dump_avail[];
 
 #endif	/* _KERNEL */
 
