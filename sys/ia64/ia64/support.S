@@ -76,6 +76,7 @@ ENTRY_NOPROFILE(ia64_change_mode, 0)
 	mov	ar.rsc=0		// turn off RSE
 (p6)	mov	r15=7			// RR base for virtual addresses
 (p7)	mov	r15=0			// RR base for physical addresses
+	;;
 	flushrs				// no dirty registers please
 	srlz.i
 	;;
