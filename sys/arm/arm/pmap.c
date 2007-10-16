@@ -4114,9 +4114,23 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 void
 pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 {
+#ifdef ARM_USE_SMALL_ALLOC
+	char *dstpg;
+#endif
+
 	if (_arm_bzero && size >= _min_bzero_size &&
 	    _arm_bzero((void *)(phys + off), size, IS_PHYSICAL) == 0)
 		return;
+#ifdef ARM_USE_SMALL_ALLOC
+	dstpg = (char *)arm_ptovirt(phys);
+	if (off || size != PAGE_SIZE) {
+		bzero(dstpg + off, size);
+		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
+	} else {
+		bzero_page((vm_offset_t)dstpg);
+		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
+	}
+#else
 	mtx_lock(&cmtx);
 	/*
 	 * Hook in the page, zero it, and purge the cache for that
@@ -4134,6 +4148,7 @@ pmap_zero_page_xscale(vm_paddr_t phys, int off, int size)
 		bzero_page(cdstp);
 	mtx_unlock(&cmtx);
 	xscale_cache_clean_minidata();
+#endif
 }
 
 /*
