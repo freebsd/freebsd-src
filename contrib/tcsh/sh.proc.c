@@ -1428,13 +1428,6 @@ pkill(Char **v, int signum)
     pid_t     pid;
     Char *cp, **vp, **globbed;
 
-    pchild_disabled++;
-    cleanup_push(&pchild_disabled, disabled_cleanup);
-    if (setintr) {
-	pintr_disabled++;
-	cleanup_push(&pintr_disabled, disabled_cleanup);
-    }
-
     /* Avoid globbing %?x patterns */
     for (vp = v; vp && *vp; vp++)
 	if (**vp == '%')
@@ -1444,6 +1437,12 @@ pkill(Char **v, int signum)
     globbed = v;
     cleanup_push(globbed, blk_cleanup);
 
+    pchild_disabled++;
+    cleanup_push(&pchild_disabled, disabled_cleanup);
+    if (setintr) {
+	pintr_disabled++;
+	cleanup_push(&pintr_disabled, disabled_cleanup);
+    }
 
     while (v && (cp = *v)) {
 	if (*cp == '%') {
