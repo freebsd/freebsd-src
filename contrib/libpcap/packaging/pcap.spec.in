@@ -1,5 +1,5 @@
 %define prefix   /usr
-%define version 0.9.4
+%define version @VERSION@
 
 Summary: packet capture library
 Name: libpcap
@@ -7,12 +7,12 @@ Version: %version
 Release: 1
 Group: Development/Libraries
 Copyright: BSD
-Source: libpcap-0.9.4.tar.gz
+Source: @NAME@.tar.gz
 BuildRoot: /tmp/%{name}-buildroot
 URL: http://www.tcpdump.org
 
 %description
-Packet-capture library LIBPCAP 0.9.4
+Packet-capture library LIBPCAP @VERSION@
 Now maintained by "The Tcpdump Group"
 See http://www.tcpdump.org
 Please send inquiries/comments/reports to tcpdump-workers@tcpdump.org
@@ -35,9 +35,9 @@ mkdir -p $RPM_BUILD_ROOT/usr/include/net
 mkdir -p $RPM_BUILD_ROOT/usr/man/man3
 make install DESTDIR=$RPM_BUILD_ROOT mandir=/usr/share/man
 cd $RPM_BUILD_ROOT/usr/lib
-V1=`echo 0.9.4 | sed 's/\\.[^\.]*$//g'`
-V2=`echo 0.9.4 | sed 's/\\.[^\.]*\.[^\.]*$//g'`
-ln -sf libpcap.so.0.9.4 libpcap.so.$V1
+V1=`echo @VERSION@ | sed 's/\\.[^\.]*$//g'`
+V2=`echo @VERSION@ | sed 's/\\.[^\.]*\.[^\.]*$//g'`
+ln -sf libpcap.so.@VERSION@ libpcap.so.$V1
 if test "$V2" -ne "$V1"; then
     ln -sf libpcap.so.$V1 libpcap.so.$V2
     ln -sf libpcap.so.$V2 libpcap.so
