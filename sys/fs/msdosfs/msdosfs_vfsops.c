@@ -719,7 +719,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 			goto error_exit;
 		pmp->pm_fmod = 1;
 	}
-	mp->mnt_data = (qaddr_t) pmp;
+	mp->mnt_data =  pmp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
@@ -745,7 +745,7 @@ error_exit:
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
 		free(pmp, M_MSDOSFSMNT);
-		mp->mnt_data = (qaddr_t)0;
+		mp->mnt_data = NULL;
 	}
 	return (error);
 }
@@ -811,7 +811,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		msdosfs_fileno_free(mp);
 	}
 	free(pmp, M_MSDOSFSMNT);
-	mp->mnt_data = (qaddr_t)0;
+	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);

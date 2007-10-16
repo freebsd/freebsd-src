@@ -96,7 +96,7 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	fmp->f_root = rvp;
 	/* XXX -- don't mark as local to work around fts() problems */
 	/*mp->mnt_flag |= MNT_LOCAL;*/
-	mp->mnt_data = (qaddr_t) fmp;
+	mp->mnt_data =  fmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, "fdescfs");
