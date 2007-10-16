@@ -185,7 +185,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
-	mp->mnt_data = (qaddr_t) xmp;
+	mp->mnt_data =  xmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, target);

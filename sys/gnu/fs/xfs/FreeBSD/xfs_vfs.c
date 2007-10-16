@@ -241,7 +241,7 @@ vfs_allocate(struct mount *mp)
 	bhv_head_init(VFS_BHVHEAD(vfsp), "vfs");
 
 	xmp->m_mp = mp;
-	mp->mnt_data = (qaddr_t)xmp;
+	mp->mnt_data = xmp;
 	vfsp->vfs_mp = mp;
 
 	return vfsp;

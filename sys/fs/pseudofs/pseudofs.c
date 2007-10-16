@@ -310,7 +310,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
-	mp->mnt_data = (qaddr_t)pi;
+	mp->mnt_data = pi;
 	vfs_getnewfsid(mp);
 
 	sbp = &mp->mnt_stat;

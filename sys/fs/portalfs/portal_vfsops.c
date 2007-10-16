@@ -156,7 +156,7 @@ portal_mount(struct mount *mp, struct thread *td)
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	mp->mnt_data = (qaddr_t) fmp;
+	mp->mnt_data =  fmp;
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, p);

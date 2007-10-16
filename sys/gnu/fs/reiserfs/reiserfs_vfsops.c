@@ -239,7 +239,7 @@ reiserfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		rmp = NULL;
 	}
 
-	mp->mnt_data  = (qaddr_t)0;
+	mp->mnt_data  = 0;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
@@ -598,7 +598,7 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	else
 		bit_set(&(sbi->s_properties), REISERFS_3_6);
 
-	mp->mnt_data = (qaddr_t)rmp;
+	mp->mnt_data = rmp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
