@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32.2.8 2005/08/23 10:29:42 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32.2.11 2005/11/29 08:57:10 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -42,6 +42,13 @@ static const char rcsid[] _U_ =
 
 static void chdlc_slarp_print(const u_char *, u_int);
 
+const struct tok chdlc_cast_values[] = { 
+    { CHDLC_UNICAST, "unicast" },
+    { CHDLC_BCAST, "bcast" },
+    { 0, NULL}
+};
+
+
 /* Standard CHDLC printer */
 u_int
 chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
@@ -59,58 +66,52 @@ chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 u_int
 chdlc_print(register const u_char *p, u_int length) {
 	u_int proto;
-	const struct ip *ip;
 
 	proto = EXTRACT_16BITS(&p[2]);
 	if (eflag) {
-		switch (p[0]) {
-		case CHDLC_UNICAST:
-			printf("unicast ");
-			break;
-		case CHDLC_BCAST:
-			printf("bcast ");
-			break;
-		default:
-			printf("0x%02x ", p[0]);
-			break;
-		}
-		printf("%d %04x: ", length, proto);
+                printf("%s, ethertype %s (0x%04x), length %u: ",
+                       tok2str(chdlc_cast_values, "0x%02x", p[0]),
+                       tok2str(ethertype_values, "Unknown", proto),
+                       proto,
+                       length);
 	}
 
 	length -= CHDLC_HDRLEN;
-	ip = (const struct ip *)(p + CHDLC_HDRLEN);
+	p += CHDLC_HDRLEN;
+
 	switch (proto) {
 	case ETHERTYPE_IP:
-		ip_print(gndo, (const u_char *)ip, length);
+		ip_print(gndo, p, length);
 		break;
 #ifdef INET6
 	case ETHERTYPE_IPV6:
-		ip6_print((const u_char *)ip, length);
+		ip6_print(p, length);
 		break;
 #endif
 	case CHDLC_TYPE_SLARP:
-		chdlc_slarp_print((const u_char *)ip, length);
+		chdlc_slarp_print(p, length);
 		break;
 #if 0
 	case CHDLC_TYPE_CDP:
-		chdlc_cdp_print((const u_char *)ip, length);
+		chdlc_cdp_print(p, length);
 		break;
 #endif
         case ETHERTYPE_MPLS:
         case ETHERTYPE_MPLS_MULTI:
-                mpls_print((const u_char *)(ip), length);
+                mpls_print(p, length);
 		break;
         case ETHERTYPE_ISO:
                 /* is the fudge byte set ? lets verify by spotting ISO headers */
-                if (*(p+CHDLC_HDRLEN+1) == 0x81 ||
-                    *(p+CHDLC_HDRLEN+1) == 0x82 ||
-                    *(p+CHDLC_HDRLEN+1) == 0x83)
-                    isoclns_print(p+CHDLC_HDRLEN+1, length-1, length-1);
+                if (*(p+1) == 0x81 ||
+                    *(p+1) == 0x82 ||
+                    *(p+1) == 0x83)
+                    isoclns_print(p+1, length-1, length-1);
                 else
-                    isoclns_print(p+CHDLC_HDRLEN, length, length);
+                    isoclns_print(p, length, length);
                 break;
 	default:
-                printf("unknown CHDLC protocol (0x%04x)", proto);
+                if (!eflag)
+                        printf("unknown CHDLC protocol (0x%04x)", proto);
                 break;
 	}
 

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.17.2.2 2005/04/20 21:50:16 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-l2tp.c,v 1.17.2.3 2006/06/23 02:07:27 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -39,14 +39,6 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 static char tstr[] = " [|l2tp]";
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
 
 #define	L2TP_MSGTYPE_SCCRQ	1  /* Start-Control-Connection-Request */
 #define	L2TP_MSGTYPE_SCCRP	2  /* Start-Control-Connection-Reply */
