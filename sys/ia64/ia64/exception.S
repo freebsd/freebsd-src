@@ -729,7 +729,12 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 	cmp.ne	p15,p0=r21,r19		// compare tags
 (p15)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
-	ld8	r21=[r20],8		// read pte
+	ld8	r21=[r20]		// read pte
+	mov	r22=PTE_ACCESSED
+	;;
+	or	r21=r21,r22
+	;;
+	st8	[r20]=r21,8
 	;; 
 	ld8	r22=[r20]		// read rest of pte
 	;;
@@ -810,7 +815,12 @@ IVT_ENTRY(Data_TLB, 0x0800)
 	cmp.ne	p15,p0=r21,r19		// compare tags
 (p15)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
-	ld8	r21=[r20],8		// read pte
+	ld8	r21=[r20]		// read pte
+	mov	r22=PTE_ACCESSED
+	;;
+	or	r21=r21,r22
+	;;
+	st8	[r20]=r21,8
 	;; 
 	ld8	r22=[r20]		// read rest of pte
 	;;
