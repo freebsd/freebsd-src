@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.41.2.2 2005/05/08 20:01:09 guy Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-smb.c,v 1.41.2.4 2007/07/14 22:29:05 guy Exp $";
 #endif
 
 #include <tcpdump-stdinc.h>
@@ -904,8 +904,8 @@ print_smb(const u_char *buf, const u_char *maxbuf)
 
 	printf("\nSMB PACKET: %s (%s) (CHAINED)\n",
 	    fn->name, request ? "REQUEST" : "REPLY");
-	if (newsmboffset < smboffset) {
-	    printf("Bad andX offset: %u < %u\n", newsmboffset, smboffset);
+	if (newsmboffset <= smboffset) {
+	    printf("Bad andX offset: %u <= %u\n", newsmboffset, smboffset);
 	    break;
 	}
 	smboffset = newsmboffset;
