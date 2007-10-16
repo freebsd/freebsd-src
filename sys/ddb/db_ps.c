@@ -295,6 +295,8 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 	db_printf(" proc (pid %d): %p\n", td->td_proc->p_pid, td->td_proc);
 	if (td->td_name[0] != '\0')
 		db_printf(" name: %s\n", td->td_name);
+	db_printf(" stack: %p-%p\n", (void *)td->td_kstack,
+	    (void *)(td->td_kstack + td->td_kstack_pages * PAGE_SIZE - 1));
 	db_printf(" flags: %#x ", td->td_flags);
 	db_printf(" pflags: %#x\n", td->td_pflags);
 	db_printf(" state: ");
