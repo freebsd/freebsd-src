@@ -668,6 +668,7 @@ step_char(pp, dir, limit)
 	char *limit;
 {
 	LWCHAR ch;
+	int len;
 	char *p = *pp;
 
 	if (!utf_mode)
@@ -679,14 +680,15 @@ step_char(pp, dir, limit)
 			ch = (LWCHAR) ((p > limit) ? *--p : 0);
 	} else if (dir > 0)
 	{
-		if (p + utf_len(*p) > limit)
+		len = utf_len(*p);
+		if (p + len > limit)
+		{
 			ch = 0;
-		else
+			p = limit;
+		} else
 		{
 			ch = get_wchar(p);
-			p++;
-			while (IS_UTF8_TRAIL(*p))
-				p++;
+			p += len;
 		}
 	} else
 	{
