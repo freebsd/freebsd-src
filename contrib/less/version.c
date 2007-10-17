@@ -695,6 +695,7 @@ v405  6/17/07	Fix display bug when using -w option.
 v406  6/17/07	Fix secure build.
 v407  8/16/07	Fix bugs; support CSI chars.
 v408  10/1/07	Fix bug in -i with non-ASCII chars.
+v409  10/12/07	Fix crash when viewing text with invalid UTF-8 sequences.
 */
 
-char version[] = "408";
+char version[] = "409";
