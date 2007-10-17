@@ -52,7 +52,9 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 : ${FCODES:=/var/db/locate.database}	 # the database
 : ${SEARCHPATHS:="/"}		# directories to be put in the database
 : ${PRUNEPATHS:="/tmp /usr/tmp /var/tmp /var/db/portsnap"} # unwanted directories
-: ${FILESYSTEMS:="local"}		 # allowed filesystems 
+: ${FILESYSTEMS:="$(lsvfs | tail -n +3 | \
+	egrep -vw "loopback|network|synthetic|read-only|0" | \
+	cut -d " " -f1)"}		# allowed filesystems
 : ${find:=find}
 
 case X"$SEARCHPATHS" in 
