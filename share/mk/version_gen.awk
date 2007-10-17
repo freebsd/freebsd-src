@@ -34,6 +34,8 @@
 #                  version name.
 #   symbols[][] - array index by [version name, symbol index], contains
 #                 names of symbols defined for each version.
+#   names[] - array index is symbol name and value is count,
+#	      used to check for duplicate symbols and warn about them.
 #
 BEGIN {
 	brackets = 0;
@@ -45,10 +47,13 @@ BEGIN {
 		# Strip comments.
 		sub("#.*$", "", $0);
 
-		# Strip trailing spaces.
-		sub(" *$", "", $0);
+		# Strip leading and trailing whitespace.
+		sub("^[ \t]+", "", $0);
+		sub("[ \t]+$", "", $0);
 
-		if (/^[ \t]*[a-zA-Z0-9._]+ *{/) {
+		if (/^[a-zA-Z0-9._]+[ \t]*{$/) {
+			# Strip brace.
+			sub("{", "", $1);
 			brackets++;
 			symver = $1;
 			versions[symver] = 1;
@@ -56,39 +61,56 @@ BEGIN {
 			generated[symver] = 0;
 			version_count++;
 		}
-		else if (/^[ \t]*} *[a-zA-Z0-9._]+ *;/) {
+		else if (/^}[ \t]*[a-zA-Z0-9._]+[ \t]*;$/) {
+			v = $1 != "}" ? $1 : $2;
+			# Strip brace.
+			sub("}", "", v);
 			# Strip semicolon.
-			gsub(";", "", $2);
-			if (symver == "")
-				printf("Unmatched bracket.\n");
-			else if (versions[$2] != 1)
-				printf("File %s: %s has unknown " \
-				    "successor %s\n", vfile, symver, $2);
+			sub(";", "", v);
+			if (symver == "") {
+				printf("File %s: Unmatched bracket.\n",
+				vfile) > stderr;
+				errors++;
+			}
+			else if (versions[v] != 1) {
+				printf("File %s: `%s' has unknown " \
+				    "successor `%s'.\n",
+				    vfile, symver, v) > stderr;
+				errors++;
+			}
 			else
-				successors[symver] = $2;
+				successors[symver] = v;
 			brackets--;
 		}
-		else if (/^[ \t]*};/) {
-			if (symver == "")
+		else if (/^}[ \t]*;$/) {
+			if (symver == "") {
 				printf("File %s: Unmatched bracket.\n",
 				    vfile) > stderr;
+				errors++;
+			}
 			# No successor
 			brackets--;
 		}
-		else if (/^[ \t]*}/) {
-			printf("File %s: Missing ending semi-colon.\n",
+		else if (/^}$/) {
+			printf("File %s: Missing final semicolon.\n",
 			    vfile) > stderr;
+			errors++;
 		}
 		else if (/^$/)
 			;  # Ignore blank lines.
-		else
-			printf("File %s: Unknown directive: %s\n",
+		else {
+			printf("File %s: Unknown directive: `%s'.\n",
 			    vfile, $0) > stderr;
+			errors++;
+		}
 	}
 	brackets = 0;
 }
 
-/.*/ {
+{
+	# Set meaningful filename for diagnostics.
+	filename = FILENAME != "" ? FILENAME : "<stdin>";
+
 	# Delete comments, preceding and trailing whitespace, then
 	# consume blank lines.
 	sub("#.*$", "", $0);
@@ -98,15 +120,18 @@ BEGIN {
 		next;
 }
 
-/^[a-zA-Z0-9._]+ +{$/ {
+/^[a-zA-Z0-9._]+[ \t]*{$/ {
 	# Strip bracket from version name.
 	sub("{", "", $1);
-	if (current_version != "")
+	if (current_version != "") {
 		printf("File %s, line %d: Illegal nesting detected.\n",
-		    FILENAME, FNR) > stderr;
+		    filename, FNR) > stderr;
+		errors++;
+	}
 	else if (versions[$1] == 0) {
 		printf("File %s, line %d: Undefined " \
-		    "library version %s\n", FILENAME, FNR, $1) > stderr;
+		    "library version `%s'.\n", filename, FNR, $1) > stderr;
+		errors++;
 		# Remove this entry from the versions.
 		delete versions[$1];
 	}
@@ -116,20 +141,34 @@ BEGIN {
 	next;
 }
 
-/^[a-zA-Z0-9._]+ *;$/ {
+/^[a-zA-Z0-9._]+[ \t]*;$/ {
+	# Strip semicolon.
+	sub(";", "", $1);
 	if (current_version != "") {
 		count = versions[current_version];
 		versions[current_version]++;
 		symbols[current_version, count] = $1;
+		if (names[$1]++) {
+			printf("File %s, line %d: Duplicated symbol `%s'. " \
+			    "Did you forget to move it to ObsoleteVersions?\n",
+			    filename, FNR, $1) > stderr;
+			errors++;
+		}
+	}
+	else {
+		printf("File %s, line %d: Symbol `%s' outside version scope.\n",
+		    filename, FNR, $1) > stderr;
+		errors++;
 	}
 	next;
 }
 
-/^} *;$/ {
+/^}[ \t]*;$/ {
 	brackets--;
 	if (brackets < 0) {
 		printf("File %s, line %d: Unmatched bracket.\n",
-		    FILENAME, FNR, $1) > stderr;
+		    filename, FNR, $1) > stderr;
+		errors++;
 		brackets = 0;	# Reset
 	}
 	current_version = "";
@@ -137,9 +176,10 @@ BEGIN {
 }
 
 
-/.*/ {
-	printf("File %s, line %d: Unknown directive: '%s'\n",
-	    FILENAME, FNR, $0) > stderr;
+{
+	printf("File %s, line %d: Unknown directive: `%s'.\n",
+	    filename, FNR, $0) > stderr;
+	errors++;
 }
 
 function print_version(v)
@@ -162,7 +202,7 @@ function print_version(v)
 	for (i = 1; i < versions[v]; i++) {
 		if (i == 1)
 			printf("global:\n");
-		printf("\t%s\n", symbols[v, i]);
+		printf("\t%s;\n", symbols[v, i]);
 	}
 
 	version_count--;
@@ -178,7 +218,13 @@ function print_version(v)
 
 	generated[v] = 1;
     }
+
 END {
+	if (errors) {
+		printf("%d errors total.\n", errors) > stderr;
+		exit(1);
+	}
+	# OK, no errors.
 	for (v in versions) {
 		print_version(v);
 	}
