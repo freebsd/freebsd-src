@@ -2821,7 +2821,7 @@ xterm-basic|xterm common (XFree86):\
 	:eA=\E(B\E)0:as=\E(0:ae=\E(B:ml=\El:mu=\Em:up=\E[A:nd=\E[C:\
 	:md=\E[1m:me=\E[m:mr=\E[7m:so=\E[7m:se=\E[27m:us=\E[4m:ue=\E[24m:\
 	:ti=\E[?1049h:te=\E[?1049l:vi=\E[?25l:ve=\E[?25h:\
-	:ut:Co#8:pa#64:op=\E[39;49m:AB=\E[4%dm:AF=\E[3%dm:\
+	:ut:Co#8:pa#64:op=\E[39;49m:AB=\E[4%dm:AF=\E[3%dm:
 
 # The xterm-xfree86 description has all of the features, but is not completely
 # compatible with vt220.  If you are using a Sun or PC keyboard, set the
