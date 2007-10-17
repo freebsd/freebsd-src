@@ -85,6 +85,7 @@ bytes(FILE *fp, off_t off)
 	}
 	if (ferror(fp)) {
 		ierr();
+		free(sp);
 		return 1;
 	}
 
@@ -119,6 +120,8 @@ bytes(FILE *fp, off_t off)
 		if (len)
 			WR(sp, len);
 	}
+
+	free(sp);
 	return 0;
 }
 
@@ -140,7 +143,7 @@ lines(FILE *fp, off_t off)
 		u_int len;
 		char *l;
 	} *llines;
-	int ch;
+	int ch, rc;
 	char *p, *sp;
 	int blen, cnt, recno, wrap;
 
@@ -149,6 +152,7 @@ lines(FILE *fp, off_t off)
 	bzero(llines, off * sizeof(*llines));
 	sp = NULL;
 	blen = cnt = recno = wrap = 0;
+	rc = 0;
 
 	while ((ch = getc(fp)) != EOF) {
 		if (++cnt > blen) {
@@ -175,7 +179,8 @@ lines(FILE *fp, off_t off)
 	}
 	if (ferror(fp)) {
 		ierr();
-		return 1;
+		rc = 1;
+		goto done;
 	}
 	if (cnt) {
 		llines[recno].l = sp;
@@ -199,5 +204,10 @@ lines(FILE *fp, off_t off)
 		for (cnt = 0; cnt < recno; ++cnt)
 			WR(llines[cnt].l, llines[cnt].len);
 	}
-	return 0;
+done:
+	for (cnt = 0; cnt < off; cnt++)
+		free(llines[cnt].l);
+	free(sp);
+	free(llines);
+	return (rc);
 }
