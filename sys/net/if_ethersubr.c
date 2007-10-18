@@ -1249,5 +1249,33 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 	m->m_data -= sizeof(struct ether_header);
 }
 
+struct mbuf *
+ether_vlanencap(struct mbuf *m, int tag)
+{
+	struct ether_vlan_header *evl;
+
+	M_PREPEND(m, ETHER_VLAN_ENCAP_LEN, M_DONTWAIT);
+	if (m == NULL)
+		return (NULL);
+	/* M_PREPEND takes care of m_len, m_pkthdr.len for us */
+
+	if (m->m_len < sizeof(*evl)) {
+		m = m_pullup(m, sizeof(*evl));
+		if (m == NULL)
+			return (NULL);
+	}
+
+	/*
+	 * Transform the Ethernet header into an Ethernet header
+	 * with 802.1Q encapsulation.
+	 */
+	evl = mtod(m, struct ether_vlan_header *);
+	bcopy((char *)evl + ETHER_VLAN_ENCAP_LEN,
+	    (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
+	evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
+	evl->evl_tag = htons(tag);
+	return (m);
+}
+
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);
