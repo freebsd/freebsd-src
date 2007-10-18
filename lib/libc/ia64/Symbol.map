@@ -35,7 +35,6 @@ FBSD_1.0 {
 	vfork;
 	brk;
 	exect;
-	fork;
 	sbrk;
 };
 
@@ -69,7 +68,5 @@ FBSDprivate_1.0 {
 	_end;
 	minbrk;
 	.cerror;
-	__sys_fork;
-	_fork;
 	curbrk;
 };
