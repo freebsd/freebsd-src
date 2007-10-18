@@ -534,7 +534,7 @@ msdosfs_setattr(ap)
 			dep->de_flag |= DE_MODIFIED;
 		}
 	}
-	return (deupdat(dep, 1));
+	return (deupdat(dep, 0));
 }
 
 static int
