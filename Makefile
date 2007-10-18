@@ -147,14 +147,14 @@ cleanworld:
 .if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 .if exists(${BW_CANONICALOBJDIR}/)
 	-rm -rf ${BW_CANONICALOBJDIR}/*
-	chflags -R 0 ${BW_CANONICALOBJDIR}
+	-chflags -R 0 ${BW_CANONICALOBJDIR}
 	rm -rf ${BW_CANONICALOBJDIR}/*
 .endif
 	#   To be safe in this case, fall back to a 'make cleandir'
 	${_+_}@cd ${.CURDIR}; ${_MAKE} cleandir
 .else
 	-rm -rf ${.OBJDIR}/*
-	chflags -R 0 ${.OBJDIR}
+	-chflags -R 0 ${.OBJDIR}
 	rm -rf ${.OBJDIR}/*
 .endif
 
