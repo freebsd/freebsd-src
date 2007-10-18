@@ -98,7 +98,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.8 2006/07/14 06:12:20 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sync.c,v 2.40.2.9 2007/06/02 21:22:28 darrenr Exp $";
 #endif
 
 #define	SYNC_STATETABSZ	256
@@ -301,7 +301,7 @@ struct uio *uio;
 
 		if (uio->uio_resid >= sizeof(sh)) {
 
-			err = UIOMOVE((caddr_t)&sh, sizeof(sh), UIO_WRITE, uio);
+			err = UIOMOVE(&sh, sizeof(sh), UIO_WRITE, uio);
 
 			if (err) {
 				if (ipf_sync_debug > 2)
@@ -373,7 +373,7 @@ struct uio *uio;
 
 		if (uio->uio_resid >= sh.sm_len) {
 
-			err = UIOMOVE((caddr_t)data, sh.sm_len, UIO_WRITE, uio);
+			err = UIOMOVE(data, sh.sm_len, UIO_WRITE, uio);
 
 			if (err) {
 				if (ipf_sync_debug > 2)
@@ -473,7 +473,7 @@ struct uio *uio;
 	READ_ENTER(&ipf_syncstate);
 	while ((sl_tail < sl_idx)  && (uio->uio_resid > sizeof(*sl))) {
 		sl = synclog + sl_tail++;
-		err = UIOMOVE((caddr_t)sl, sizeof(*sl), UIO_READ, uio);
+		err = UIOMOVE(sl, sizeof(*sl), UIO_READ, uio);
 		if (err != 0)
 			break;
 	}
@@ -481,7 +481,7 @@ struct uio *uio;
 	while ((su_tail < su_idx)  && (uio->uio_resid > sizeof(*su))) {
 		su = syncupd + su_tail;
 		su_tail++;
-		err = UIOMOVE((caddr_t)su, sizeof(*su), UIO_READ, uio);
+		err = UIOMOVE(su, sizeof(*su), UIO_READ, uio);
 		if (err != 0)
 			break;
 		if (su->sup_hdr.sm_sl != NULL)

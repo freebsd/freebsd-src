@@ -6,7 +6,7 @@
 # to the original author and the contributors.
 #
 # $FreeBSD$
-# Id: Makefile,v 2.76.2.19 2006/03/17 10:38:38 darrenr Exp $
+# Id: Makefile,v 2.76.2.24 2007/09/26 10:04:03 darrenr Exp $
 #
 SHELL=/bin/sh
 BINDEST=/usr/local/bin
@@ -132,10 +132,7 @@ all:
 	@echo "openbsd	- compile for OpenBSD"
 	@echo "freebsd20	- compile for FreeBSD 2.0, 2.1 or earlier"
 	@echo "freebsd22	- compile for FreeBSD-2.2 or greater"
-	@echo "freebsd3	- compile for FreeBSD-3.x"
-	@echo "freebsd4	- compile for FreeBSD-4.x"
-	@echo "freebsd5 - compile for FreeBSD-5.x"
-	@echo "freebsd6 - compile for FreeBSD-6.x"
+	@echo "freebsd  - compile for all other versions of FreeBSD"
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
@@ -152,6 +149,7 @@ retest:
 	else echo test directory not present, sorry; fi
 
 include:
+	-mkdir -p net netinet
 	if [ ! -f netinet/done ] ; then \
 		(cd netinet; ln -s ../*.h .; ln -s ../ip_*_pxy.c .;); \
 		(cd netinet; ln -s ../ipsend/tcpip.h tcpip.h); \
@@ -166,6 +164,9 @@ include:
 sunos solaris: include
 	MAKE="$(MAKE)" MAKEFLAGS="$(MAKEFLAGS)" BPFILTER=$(BPFILTER) \
 		CC="$(CC)" DEBUG="$(DEBUG)" ./buildsunos
+
+freebsd:
+	make freebsd`uname -r|cut -c1`
 
 freebsd22: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
@@ -351,12 +352,8 @@ sunos4 solaris1:
 	(cd SunOS4; make -f Makefile.ipsend build "CC=$(CC)" TOP=.. $(DEST) $(MFLAGS); cd ..)
 
 sunos5 solaris2: null
-	(cd SunOS5/$(CPUDIR); $(MAKE) build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
+	(cd SunOS5/$(CPUDIR); $(MAKE) build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)"; cd ..)
 	(cd SunOS5/$(CPUDIR); $(MAKE) -f Makefile.ipsend build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
-
-sunos5x86 solaris2x86: null
-	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
-	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
 linux: include
 	(cd Linux; make build LINUX=$(LINUX) TOP=.. "DEBUG=-g" "CC=$(CC)" $(MFLAGS) OBJ=$(CPUDIR) LINUXKERNEL=$(LINUXKERNEL); cd ..)
@@ -374,7 +371,7 @@ install-sunos4: solaris
 	(cd SunOS4; $(MAKE) CPU=$(CPU) TOP=.. install)
 
 install-sunos5: solaris null
-	(cd SunOS5; $(MAKE) CPU=$(CPU) TOP=.. install)
+	(cd SunOS5; $(MAKE) TOP=.. install)
 
 install-aix:
 	(cd AIX/`AIX/cpurev`; make install "TOP=../.." $(MFLAGS); cd ..)
