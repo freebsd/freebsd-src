@@ -35,7 +35,6 @@ FBSD_1.0 {
 	ntohs;
 	brk;
 	exect;
-	pipe;
 	sbrk;
 	vfork;
 };
@@ -52,7 +51,7 @@ FBSDprivate_1.0 {
 	__longjmp;
 	signalcontext;
 	__signalcontext;
-	__syncicache;;
+	__syncicache;
 	_end;
 	.curbrk;
 	.minbrk;
