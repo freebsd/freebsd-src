@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.8.4.6 2007/02/17 12:41:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.8.4.7 2007/09/13 07:19:34 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -30,6 +30,9 @@ typedef int     boolean_t;
 # include <sys/dir.h>
 #endif
 #if !defined(__osf__)
+# ifdef __NetBSD__ 
+#  include <machine/lock.h>
+# endif
 # define _KERNEL
 # define	KERNEL
 # ifdef	ultrix
@@ -385,7 +388,8 @@ struct	in_addr	gwip;
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	tcpcb	*t, tcb;
-	int	fd, nfd, len;
+	int	fd, nfd;
+	socklen_t len;
 
 	printf("Dest. Port: %d\n", ti->ti_dport);
 

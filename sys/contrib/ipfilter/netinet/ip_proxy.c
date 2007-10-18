@@ -104,7 +104,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.20 2007/05/31 12:27:36 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.62.2.21 2007/06/02 21:22:28 darrenr Exp $";
 #endif
 
 static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
@@ -296,7 +296,7 @@ int mode;
 void *ctx;
 {
 	ap_ctl_t ctl;
-	caddr_t ptr;
+	u_char *ptr;
 	int error;
 
 	mode = mode;	/* LINT */
@@ -304,11 +304,13 @@ void *ctx;
 	switch (cmd)
 	{
 	case SIOCPROXY :
-		BCOPYIN(data, &ctl, sizeof(ctl));
+		error = BCOPYIN(data, &ctl, sizeof(ctl));
+		if (error != 0)
+			return EFAULT;
 		ptr = NULL;
 
 		if (ctl.apc_dsize > 0) {
-			KMALLOCS(ptr, caddr_t, ctl.apc_dsize);
+			KMALLOCS(ptr, u_char *, ctl.apc_dsize);
 			if (ptr == NULL)
 				error = ENOMEM;
 			else {
