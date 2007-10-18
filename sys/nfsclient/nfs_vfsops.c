@@ -88,7 +88,7 @@ uma_zone_t nfsmount_zone;
 struct nfsstats	nfsstats;
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "NFS filesystem");
-SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RD,
+SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RW,
 	&nfsstats, nfsstats, "S,nfsstats");
 static int nfs_ip_paranoia = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
