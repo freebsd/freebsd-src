@@ -1,4 +1,4 @@
-/*	$NetBSD: armreg.h,v 1.28 2003/10/31 16:30:15 scw Exp $	*/
+/*	$NetBSD: armreg.h,v 1.37 2007/01/06 00:50:54 christos Exp $	*/
 
 /*-
  * Copyright (c) 1998, 2001 Ben Harris
@@ -40,6 +40,7 @@
 
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
+
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
@@ -65,6 +66,7 @@
 #define CPU_ID_DEC		0x44000000 /* 'D' */
 #define CPU_ID_INTEL		0x69000000 /* 'i' */
 #define	CPU_ID_TI		0x54000000 /* 'T' */
+#define	CPU_ID_FARADAY		0x66000000 /* 'f' */
 
 /* How to decide what format the CPUID is in. */
 #define CPU_ID_ISOLD(x)		(((x) & 0x0000f000) == 0x00000000)
@@ -89,6 +91,8 @@
 #define CPU_ID_ARCH_V5		0x00030000
 #define CPU_ID_ARCH_V5T		0x00040000
 #define CPU_ID_ARCH_V5TE	0x00050000
+#define CPU_ID_ARCH_V5TEJ	0x00060000
+#define CPU_ID_ARCH_V6		0x00070000
 #define CPU_ID_VARIANT_MASK	0x00f00000
 
 /* Next three nybbles are part number */
@@ -118,7 +122,7 @@
 /* ARM7 CPUs -- [15:12] == 7 */
 #define CPU_ID_ARM700		0x41007000 /* XXX This is a guess. */
 #define CPU_ID_ARM710		0x41007100
-#define CPU_ID_ARM7500		0x41027100 /* XXX This is a guess. */
+#define CPU_ID_ARM7500		0x41027100
 #define CPU_ID_ARM710A		0x41047100 /* inc ARM7100 */
 #define CPU_ID_ARM7500FE	0x41077100
 #define CPU_ID_ARM710T		0x41807100
@@ -131,15 +135,20 @@
 #define CPU_ID_ARM920T		0x41129200
 #define CPU_ID_ARM920T_ALT	0x41009200
 #define CPU_ID_ARM922T		0x41029220
+#define CPU_ID_ARM926EJS	0x41069260
 #define CPU_ID_ARM940T		0x41029400 /* XXX no MMU */
 #define CPU_ID_ARM946ES		0x41049460 /* XXX no MMU */
 #define	CPU_ID_ARM966ES		0x41049660 /* XXX no MMU */
 #define	CPU_ID_ARM966ESR1	0x41059660 /* XXX no MMU */
 #define CPU_ID_ARM1020E		0x4115a200 /* (AKA arm10 rev 1) */
 #define CPU_ID_ARM1022ES	0x4105a220
+#define CPU_ID_ARM1026EJS	0x4106a260
+#define CPU_ID_ARM1136JS	0x4107b360
+#define CPU_ID_ARM1136JSR1	0x4117b360
 #define CPU_ID_SA110		0x4401a100
 #define CPU_ID_SA1100		0x4401a110
 #define	CPU_ID_TI925T		0x54029250
+#define	CPU_ID_FA526		0x66015260
 #define CPU_ID_SA1110		0x6901b110
 #define CPU_ID_IXP1200		0x6901c120
 #define CPU_ID_80200		0x69052000
@@ -151,6 +160,7 @@
 #define CPU_ID_PXA210B		0x69052920 /* 3rd version Core */
 #define CPU_ID_PXA250C		0x69052d00 /* 4th version Core */
 #define CPU_ID_PXA210C		0x69052d20 /* 4th version Core */
+#define	CPU_ID_PXA27X		0x69054110
 #define	CPU_ID_80321_400	0x69052420
 #define	CPU_ID_80321_600	0x69052430
 #define	CPU_ID_80321_400_B0	0x69052c20
@@ -304,5 +314,7 @@
 #define INSN_SIZE		4		/* Always 4 bytes */
 #define INSN_COND_MASK		0xf0000000	/* Condition mask */
 #define INSN_COND_AL		0xe0000000	/* Always condition */
+
+#define THUMB_INSN_SIZE		2		/* Some are 4 bytes.  */
 
 #endif /* !MACHINE_ARMREG_H */
