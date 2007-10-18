@@ -34,6 +34,9 @@ _vgen=  ${path}/${VERSION_GEN}
 .endif
 .endif
 .endfor
+.if empty(_vgen)
+.error ${VERSION_GEN} not found in the search path.
+.endif
 
 # Run the symbol maps through the C preprocessor before passing
 # them to the symbol version generator.
