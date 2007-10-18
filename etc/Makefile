@@ -37,7 +37,7 @@ BIN1+=	printcap
 .endif
 
 .if ${MK_NS_CACHING} != "no"
-BIN1+= cached.conf
+BIN1+= nscd.conf
 .endif
 
 .if ${MK_OPENSSH} != "no"
