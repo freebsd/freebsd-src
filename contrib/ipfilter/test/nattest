@@ -5,7 +5,14 @@ else
 	format="-F $2"
 fi
 if [ "$4" != "" ] ; then
-	format="-T $4 $format"
+	case $4 in
+	-*)
+		format="$4 $format"
+		;;
+	*)
+		format="-T $4 $format"
+		;;
+	esac
 fi
 if [ -f /usr/ucb/touch ] ; then
 	TOUCH=/usr/ucb/touch

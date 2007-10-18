@@ -485,13 +485,21 @@ install:
 		cp if_ipl.o /lkm; \
 	fi
 	-if [ -d /modules -a -f ipf.ko ] ; then \
-		cp ipf.ko /modules; \
+		if [ -f /modules/ipl.ko ] ; then \
+			cp ipf.ko /modules/ipl.ko; \
+		else \
+			cp ipf.ko /modules; \
+		fi \
 	fi
 	-if [ -d /modules -a -f ipfrule.ko ] ; then \
 		cp ipfrule.ko /modules; \
 	fi
 	-if [ -d /boot/kernel -a -f ipf.ko ] ; then \
-		cp ipf.ko /boot/kernel; \
+		if [ -f /boot/kernel/ipl.ko ] ; then \
+			cp ipf.ko /boot/kernel/ipl.ko; \
+		else \
+			cp ipf.ko /boot/kernel; \
+		fi \
 	fi
 	-if [ -d /boot/kernel -a -f ipfrule.ko ] ; then \
 		cp ipfrule.ko /boot/kernel; \
