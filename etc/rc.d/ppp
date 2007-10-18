@@ -13,6 +13,7 @@ name="ppp"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_cmd="ppp_start"
+stop_cmd="ppp_stop"
 start_postcmd="ppp_poststart"
 
 ppp_start_profile()
@@ -60,11 +61,16 @@ ppp_start_profile()
 
 ppp_start()
 {
-	local _p
+	local _ppp_profile _p
+
+	_ppp_profile=$*
+	if [ -z "${_ppp_profile}" ]; then
+		_ppp_profile=$ppp_profile
+	fi
 
 	echo -n "Starting PPP profile:"
 
-	for _p in $ppp_profile; do
+	for _p in $_ppp_profile; do
 		echo -n " $_p"
 		ppp_start_profile $_p
 	done
@@ -80,5 +86,32 @@ ppp_poststart()
 	/etc/rc.d/pf resync
 }
 
+ppp_stop_profile() {
+	local _ppp_profile
+
+	_ppp_profile=$1
+
+	/bin/pkill -f "^${command}.*[[:space:]]${_ppp_profile}\$" || \
+		echo -n "(not running)"
+}
+
+ppp_stop() {
+	local _ppp_profile _p
+
+	_ppp_profile=$*
+	if [ -z "${_ppp_profile}" ]; then
+		_ppp_profile=$ppp_profile
+	fi
+
+	echo -n "Stopping PPP profile:"
+
+	for _p in $_ppp_profile; do
+		echo -n " $_p"
+		ppp_stop_profile $_p
+	done
+
+	echo "."
+}
+
 load_rc_config $name
-run_rc_command "$1"
+run_rc_command $*
