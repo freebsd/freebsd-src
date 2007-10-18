@@ -2257,7 +2257,8 @@ product WACOM GRAPHIRE		0x0010	Graphire
 product WACOM GRAPHIRE3_4X5	0x0013	Graphire 3 4x5
 product WACOM INTUOSA5		0x0021	Intuos A5
 product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
-
+/* WCH products*/
+product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
 /* Western Digital products */
 product WESTERN COMBO		0x0200	Firewire USB Combo
 product WESTERN EXTHDD		0x0400	External HDD
