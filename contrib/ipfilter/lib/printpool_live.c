@@ -52,11 +52,12 @@ int opts;
 	while (!last && (ioctl(fd, SIOCLOOKUPITER, &obj) == 0)) {
 		if (entry.ipn_next == NULL)
 			last = 1;
-		entry.ipn_next = top;
-		top = malloc(sizeof(*top));
-		if (top == NULL)
+		node = malloc(sizeof(*top));
+		if (node == NULL)
 			break;
-		bcopy(&entry, top, sizeof(entry));
+		bcopy(&entry, node, sizeof(entry));
+		node->ipn_next = top;
+		top = node;
 	}
 
 	while (top != NULL) {
@@ -74,5 +75,9 @@ int opts;
 
 	if ((opts & OPT_DEBUG) == 0)
 		PRINTF(" };\n");
+
+	if (ioctl(fd, SIOCIPFDELTOK, &iter.ili_key) != 0)
+		perror("SIOCIPFDELTOK");
+
 	return pool->ipo_next;
 }

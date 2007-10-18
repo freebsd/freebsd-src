@@ -32,11 +32,15 @@ else
 fi
  
 if [ ! -f ip_rules.c -o ! -f ip_rules.h ] ; then
-	echo "Please do a build of ipfilter and then run the following"
-	echo "command to build extra files:"
-	echo
-	echo "make ip_rules.c"
-	exit 1
+	echo "Trying to build ip_rules.c and ip_rules.h"
+	make ip_rules.c
+	if [ ! -f ip_rules.c -o ! -f ip_rules.h ] ; then
+		echo "Please do a build of ipfilter and then run the following"
+		echo "command to build extra files:"
+		echo
+		echo "make ip_rules.c"
+		exit 1
+	fi
 fi
 
 echo -n "Installing "
