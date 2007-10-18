@@ -170,22 +170,17 @@ void
 readstats(stp)
 	struct nfsstats *stp;
 {
-	if(deadkernel) {
-		if(kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, stp,
-			    sizeof *stp) < 0) {
+	size_t buflen;
+
+	if (deadkernel) {
+		if (kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, stp,
+			    sizeof(struct nfsstats)) < 0) {
 			err(1, "kvm_read");
 		}
 	} else {
-		int name[3];
-		size_t buflen = sizeof *stp;
-		struct vfsconf vfc;
-
-		if (getvfsbyname("nfs", &vfc) < 0)
-			err(1, "getvfsbyname: NFS not compiled into kernel");
-		name[0] = CTL_VFS;
-		name[1] = vfc.vfc_typenum;
-		name[2] = NFS_NFSSTATS;
-		if (sysctl(name, 3, stp, &buflen, (void *)0, (size_t)0) < 0) {
+		buflen = sizeof(struct nfsstats);
+		if (sysctlbyname("vfs.nfs.nfsstats", stp, &buflen,
+		    (void *)0, (size_t)0) < 0) {
 			err(1, "sysctl");
 		}
 	}
