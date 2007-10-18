@@ -32,7 +32,7 @@
 .\"     From: @(#)nfsstat.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd October 18, 2007
 .Dt NFSSTAT 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl csW
+.Op Fl cszW
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Fl w Ar wait
@@ -80,6 +80,8 @@ Display a shorter summary of
 activity for both the client and server at
 .Ar wait
 second intervals.
+.It Fl z
+Reset statistics after displaying them.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact
