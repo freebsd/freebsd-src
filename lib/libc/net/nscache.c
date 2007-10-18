@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #define NSS_CACHE_BUFFER_INITIAL_SIZE	(1024)
 #define NSS_CACHE_BUFFER_SIZE_LIMIT	(NSS_CACHE_BUFFER_INITIAL_SIZE << 8)
 
-#define CACHED_SOCKET_PATH 		"/var/run/cached"
+#define CACHED_SOCKET_PATH 		"/var/run/nscd"
 
 int
 __nss_cache_handler(void *retval, void *mdata, va_list ap)
