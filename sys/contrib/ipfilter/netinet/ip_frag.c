@@ -100,7 +100,7 @@ extern struct timeout fr_slowtimer_ch;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.77.2.9 2007/05/27 11:13:44 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 2.77.2.12 2007/09/20 12:51:51 darrenr Exp $";
 #endif
 
 
@@ -400,7 +400,7 @@ u_32_t ipid;
 	WRITE_ENTER(&ipf_ipidfrag);
 	fra = ipfr_newfrag(fin, 0, ipfr_ipidtab);
 	if (fra != NULL) {
-		fra->ipfr_data = (void *)ipid;
+		fra->ipfr_data = (void *)((u_long)ipid);
 		*ipfr_ipidtail = fra;
 		fra->ipfr_prev = ipfr_ipidtail;
 		ipfr_ipidtail = &fra->ipfr_next;
@@ -585,7 +585,7 @@ fr_info_t *fin;
 	READ_ENTER(&ipf_ipidfrag);
 	ipf = fr_fraglookup(fin, ipfr_ipidtab);
 	if (ipf != NULL)
-		id = (u_32_t)ipf->ipfr_data;
+		id = (u_32_t)((u_long)ipf->ipfr_data & 0xffffffff);
 	else
 		id = 0xffffffff;
 	RWLOCK_EXIT(&ipf_ipidfrag);
@@ -936,16 +936,16 @@ ipfrwlock_t *lock;
 	} else {
 		bzero(&zero, sizeof(zero));
 		next = &zero;
-		token->ipt_data = (void *)-1;
+		token->ipt_data = NULL;
 	}
 	RWLOCK_EXIT(lock);
 
 	if (frag != NULL) {
-		WRITE_ENTER(lock);
-		frag->ipfr_ref--;
-		if (frag->ipfr_ref <= 0)
-			fr_fragfree(frag);
-		RWLOCK_EXIT(lock);
+#ifdef USE_MUTEXES
+		fr_fragderef(&frag, lock);
+#else
+		fr_fragderef(&frag);
+#endif
 	}
 
 	error = COPYOUT(next, itp->igi_data, sizeof(*next));

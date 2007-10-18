@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.68.2.8 2007/05/11 10:44:14 darrenr Exp $
+ * $Id: ip_state.h,v 2.68.2.10 2007/10/16 09:33:24 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
@@ -24,10 +24,8 @@ struct ipscan;
 # define	IPSTATE_MAX	4013	/* Maximum number of states held */
 #endif
 
-#define	PAIRS(s1,d1,s2,d2)	((((s1) == (s2)) && ((d1) == (d2))) ||\
-				 (((s1) == (d2)) && ((d1) == (s2))))
-#define	IPPAIR(s1,d1,s2,d2)	PAIRS((s1).s_addr, (d1).s_addr, \
-				      (s2).s_addr, (d2).s_addr)
+#define	SEQ_GE(a,b)	((int)((a) - (b)) >= 0)
+#define	SEQ_GT(a,b)	((int)((a) - (b)) > 0)
 
 
 typedef struct ipstate {
