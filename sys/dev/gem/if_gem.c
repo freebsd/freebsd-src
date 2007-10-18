@@ -471,10 +471,12 @@ gem_resume(sc)
 static __inline void
 gem_txcksum(struct gem_softc *sc, struct mbuf *m, uint64_t *cflags)
 {
+	struct mbuf *m0;
 	struct ip *ip;
 	uint64_t offset, offset2;
 	char *p;
 
+	m0 = m;
 	offset = sizeof(struct ip) + ETHER_HDR_LEN;
 	for(; m && m->m_len == 0; m = m->m_next)
 		;
@@ -482,6 +484,7 @@ gem_txcksum(struct gem_softc *sc, struct mbuf *m, uint64_t *cflags)
 		device_printf(sc->sc_dev, "%s: m_len < ETHER_HDR_LEN\n",
 		    __func__);
 		/* checksum will be corrupted */
+		m = m0;
 		goto sendit;
 	}
 	if (m->m_len < ETHER_HDR_LEN + sizeof(uint32_t)) {
@@ -489,12 +492,14 @@ gem_txcksum(struct gem_softc *sc, struct mbuf *m, uint64_t *cflags)
 			device_printf(sc->sc_dev,
 			    "%s: m_len != ETHER_HDR_LEN\n", __func__);
 			/* checksum will be corrupted */
+			m = m0;
 			goto sendit;
 		}
 		for(m = m->m_next; m && m->m_len == 0; m = m->m_next)
 			;
 		if (m == NULL) {
 			/* checksum will be corrupted */
+			m = m0;
 			goto sendit;
 		}
 		ip = mtod(m, struct ip *);
