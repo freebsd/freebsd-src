@@ -76,7 +76,7 @@
 
 /* Mount options that we support. */
 static const char *msdosfs_opts[] = {
-	"noatime",
+	"noatime", "noclusterr", "noclusterw",
 	"export", "force", "from", "sync",
 	"cs_dos", "cs_local", "cs_win", "dirmask",
 	"gid", "kiconv", "large", "longname",
