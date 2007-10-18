@@ -1653,7 +1653,23 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 	for (; m; m = m0) {
 		m0 = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		
+
+		/*
+		 * If underlying interface can not do VLAN tag insertion itself
+		 * then attach a packet tag that holds it.
+		 */
+		if ((m->m_flags & M_VLANTAG) &&
+		    (dst_ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0) {
+			m = ether_vlanencap(m, m->m_pkthdr.ether_vtag);
+			if (m == NULL) {
+				if_printf(dst_ifp,
+				    "unable to prepend VLAN header\n");
+				dst_ifp->if_oerrors++;
+				continue;
+			}
+			m->m_flags &= ~M_VLANTAG;
+		}
+
 		if (err == 0)
 			IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
 	}

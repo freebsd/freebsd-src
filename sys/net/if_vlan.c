@@ -850,40 +850,13 @@ vlan_start(struct ifnet *ifp)
 			m->m_pkthdr.ether_vtag = ifv->ifv_tag;
 			m->m_flags |= M_VLANTAG;
 		} else {
-			struct ether_vlan_header *evl;
-
-			M_PREPEND(m, ifv->ifv_encaplen, M_DONTWAIT);
+			m = ether_vlanencap(m, ifv->ifv_tag);
 			if (m == NULL) {
 				if_printf(ifp,
 				    "unable to prepend VLAN header\n");
 				ifp->if_oerrors++;
 				continue;
 			}
-			/* M_PREPEND takes care of m_len, m_pkthdr.len for us */
-
-			if (m->m_len < sizeof(*evl)) {
-				m = m_pullup(m, sizeof(*evl));
-				if (m == NULL) {
-					if_printf(ifp,
-					    "cannot pullup VLAN header\n");
-					ifp->if_oerrors++;
-					continue;
-				}
-			}
-
-			/*
-			 * Transform the Ethernet header into an Ethernet header
-			 * with 802.1Q encapsulation.
-			 */
-			evl = mtod(m, struct ether_vlan_header *);
-			bcopy((char *)evl + ifv->ifv_encaplen,
-			      (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
-			evl->evl_encap_proto = htons(ifv->ifv_proto);
-			evl->evl_tag = htons(ifv->ifv_tag);
-#ifdef DEBUG
-			printf("%s: %*D\n", __func__, (int)sizeof(*evl),
-			    (unsigned char *)evl, ":");
-#endif
 		}
 
 		/*
