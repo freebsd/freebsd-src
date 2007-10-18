@@ -81,6 +81,7 @@ kvm_t *kd;
 
 static int deadkernel = 0;
 static int widemode = 0;
+static int zflag = 0;
 
 void intpr(int, int);
 void printhdr(int, int);
@@ -92,9 +93,7 @@ char *sperc2(int, int);
 #define DELTA(field)	(nfsstats.field - lastst.field)
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	u_int interval;
 	int clientOnly = -1;
@@ -105,7 +104,7 @@ main(argc, argv)
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "csWM:N:w:")) != -1)
+	while ((ch = getopt(argc, argv, "csWM:N:w:z")) != -1)
 		switch(ch) {
 		case 'M':
 			memf = optarg;
@@ -128,6 +127,9 @@ main(argc, argv)
 			serverOnly = 1;
 			if (clientOnly < 0)
 				clientOnly = 0;
+			break;
+		case 'z':
+			zflag = 1;
 			break;
 		case '?':
 		default:
@@ -171,30 +173,40 @@ main(argc, argv)
  * for dead ones.
  */
 void
-readstats(stp, srvstp)
-	struct nfsstats **stp;
-	struct nfsrvstats **srvstp;
+readstats(struct nfsstats **stp, struct nfsrvstats **srvstp, int zero)
 {
+	union {
+		struct nfsstats client;
+		struct nfsrvstats server;
+	} zerostat;
 	size_t buflen;
 
 	if (deadkernel) {
-		if (kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value, *stp,
-			    sizeof(struct nfsstats)) < 0) {
+		if (*stp != NULL && kvm_read(kd, (u_long)nl[N_NFSSTAT].n_value,
+		    *stp, sizeof(struct nfsstats)) < 0) {
 			*stp = NULL;
 		}
-		if (kvm_read(kd, (u_long)nl[N_NFSRVSTAT].n_value, *srvstp,
-			    sizeof(struct nfsrvstats)) < 0) {
+		if (*srvstp != NULL && kvm_read(kd,
+		    (u_long)nl[N_NFSRVSTAT].n_value, *srvstp,
+		    sizeof(struct nfsrvstats)) < 0) {
 			*srvstp = NULL;
 		}
 	} else {
+		if (zero)
+			bzero(&zerostat, sizeof(zerostat));
 		buflen = sizeof(struct nfsstats);
-		if (sysctlbyname("vfs.nfs.nfsstats", *stp, &buflen,
-		    (void *)0, (size_t)0) < 0) {
+		if (*stp != NULL && sysctlbyname("vfs.nfs.nfsstats", *stp,
+		    &buflen, zero ? &zerostat : NULL, zero ? buflen : 0) < 0) {
+			if (errno != ENOENT)
+				err(1, "sysctl: vfs.nfs.nfsstats");
 			*stp = NULL;
 		}
 		buflen = sizeof(struct nfsrvstats);
-		if (sysctlbyname("vfs.nfsrv.nfsrvstats", *srvstp, &buflen,
-		    (void *)0, (size_t)0) < 0) {
+		if (*srvstp != NULL && sysctlbyname("vfs.nfsrv.nfsrvstats",
+		    *srvstp, &buflen, zero ? &zerostat : NULL,
+		    zero ? buflen : 0) < 0) {
+			if (errno != ENOENT)
+				err(1, "sysctl: vfs.nfsrv.nfsrvstats");
 			*srvstp = NULL;
 		}
 	}
@@ -209,10 +221,20 @@ intpr(int clientOnly, int serverOnly)
 	struct nfsstats nfsstats, *nfsstatsp;
 	struct nfsrvstats nfsrvstats, *nfsrvstatsp;
 
-	nfsstatsp = &nfsstats;
-	nfsrvstatsp = &nfsrvstats;
+	/*
+	 * Only read the stats we are going to display to avoid zeroing
+	 * stats the user didn't request.
+	 */
+	if (clientOnly)
+		nfsstatsp = &nfsstats;
+	else
+		nfsstatsp = NULL;
+	if (serverOnly)
+		nfsrvstatsp = &nfsrvstats;
+	else
+		nfsrvstatsp = NULL;
 
-	readstats(&nfsstatsp, &nfsrvstatsp);
+	readstats(&nfsstatsp, &nfsrvstatsp, zflag);
 
 	if (clientOnly && !nfsstatsp) {
 		printf("Client not present!\n");
@@ -365,7 +387,7 @@ sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 
 	nfsstatsp = &lastst;
 	nfsrvstatsp = &lastsrvst;
-	readstats(&nfsstatsp, &nfsrvstatsp);
+	readstats(&nfsstatsp, &nfsrvstatsp, 0);
 	if (clientOnly && !nfsstatsp) {
 		printf("Client not present!\n");
 		clientOnly = 0;
@@ -379,7 +401,7 @@ sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 	for (;;) {
 		nfsstatsp = &nfsstats;
 		nfsrvstatsp = &nfsrvstats;
-		readstats(&nfsstatsp, &nfsrvstatsp);
+		readstats(&nfsstatsp, &nfsrvstatsp, 0);
 
 		if (--hdrcnt == 0) {
 			printhdr(clientOnly, serverOnly);
@@ -455,10 +477,10 @@ printhdr(int clientOnly, int serverOnly)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-csW] [-M core] [-N system] [-w interval]\n");
+	    "usage: nfsstat [-cszW] [-M core] [-N system] [-w interval]\n");
 	exit(1);
 }
 
