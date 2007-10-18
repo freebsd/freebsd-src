@@ -463,7 +463,7 @@ ommap(td, uap)
 #ifndef _SYS_SYSPROTO_H_
 struct msync_args {
 	void *addr;
-	int len;
+	size_t len;
 	int flags;
 };
 #endif
