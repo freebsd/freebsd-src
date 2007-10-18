@@ -39,7 +39,7 @@
  ***********************************************************************
  */
 
-#ifndef __MD5_INCLUDE__
+#if !defined(__MD5_INCLUDE__) && !defined(_SYS_MD5_H)
 
 #ifndef __P
 # ifdef __STDC__
