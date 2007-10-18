@@ -1250,7 +1250,7 @@ ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 }
 
 struct mbuf *
-ether_vlanencap(struct mbuf *m, int tag)
+ether_vlanencap(struct mbuf *m, uint16_t tag)
 {
 	struct ether_vlan_header *evl;
 
