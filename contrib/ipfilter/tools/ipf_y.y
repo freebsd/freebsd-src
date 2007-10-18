@@ -772,8 +772,20 @@ fromport:
 
 srcportlist:
 	portnum		{ DOREM(fr->fr_scmp = FR_EQUAL; fr->fr_sport = $1;) }
+	| portnum ':' portnum	
+			{ DOREM(fr->fr_scmp = FR_INCRANGE; fr->fr_sport = $1; \
+				fr->fr_stop = $3;) }
+	| portnum YY_RANGE_IN portnum	
+			{ DOREM(fr->fr_scmp = FR_INRANGE; fr->fr_sport = $1; \
+				fr->fr_stop = $3;) }
 	| srcportlist lmore portnum
 			{ DOREM(fr->fr_scmp = FR_EQUAL; fr->fr_sport = $3;) }
+	| srcportlist lmore portnum ':' portnum
+			{ DOREM(fr->fr_scmp = FR_INCRANGE; fr->fr_sport = $3; \
+				fr->fr_stop = $5;) }
+	| srcportlist lmore portnum YY_RANGE_IN portnum
+			{ DOREM(fr->fr_scmp = FR_INRANGE; fr->fr_sport = $3; \
+				fr->fr_stop = $5;) }
 	;
 
 dstobject:
@@ -838,8 +850,20 @@ toport:
 
 dstportlist:
 	portnum		{ DOREM(fr->fr_dcmp = FR_EQUAL; fr->fr_dport = $1;) }
+	| portnum ':' portnum	
+			{ DOREM(fr->fr_dcmp = FR_INCRANGE; fr->fr_dport = $1; \
+				fr->fr_dtop = $3;) }
+	| portnum YY_RANGE_IN portnum	
+			{ DOREM(fr->fr_dcmp = FR_INRANGE; fr->fr_dport = $1; \
+				fr->fr_dtop = $3;) }
 	| dstportlist lmore portnum
 			{ DOREM(fr->fr_dcmp = FR_EQUAL; fr->fr_dport = $3;) }
+	| dstportlist lmore portnum ':' portnum
+			{ DOREM(fr->fr_dcmp = FR_INCRANGE; fr->fr_dport = $3; \
+				fr->fr_dtop = $5;) }
+	| dstportlist lmore portnum YY_RANGE_IN portnum
+			{ DOREM(fr->fr_dcmp = FR_INRANGE; fr->fr_dport = $3; \
+				fr->fr_dtop = $5;) }
 	;
 
 addr:	pool '/' YY_NUMBER		{ pooled = 1;
