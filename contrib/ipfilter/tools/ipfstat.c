@@ -69,7 +69,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.23 2007/05/31 13:13:02 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.25 2007/06/30 09:48:50 darrenr Exp $";
 #endif
 
 #ifdef __hpux
@@ -1118,7 +1118,7 @@ ips_stat_t *ipsp;
 		PRINTF("\t%u%% hash efficiency\n", ipsp->iss_active ?
 			(u_int)(ipsp->iss_inuse * 100 / ipsp->iss_active) : 0);
 
-		minlen = ipsp->iss_max;
+		minlen = ipsp->iss_inuse;
 		totallen = 0;
 		maxlen = 0;
 
@@ -1126,7 +1126,7 @@ ips_stat_t *ipsp;
 			if (buckets[i] > maxlen)
 				maxlen = buckets[i];
 			if (buckets[i] < minlen)
-					minlen = buckets[i];
+				minlen = buckets[i];
 			totallen += buckets[i];
 		}
 
@@ -1809,7 +1809,7 @@ int *port;
 			*port = -1;
 		} else if (!sscanf(comma + 1, "%d", port) ||
 			   (*port < 0) || (*port > 65535)) {
-			fprintf(stderr, "Invalid port specfication in %s\n",
+			fprintf(stderr, "Invalid port specification in %s\n",
 				argument);
 			free(s);
 			exit(-2);
@@ -1821,6 +1821,7 @@ int *port;
 	/* get ip address */
 	if (!strcasecmp(s, "any")) {
 		ip->in4.s_addr = INADDR_ANY;
+		ok = 1;
 #ifdef	USE_INET6
 		ip->in6 = in6addr_any;
 	} else if (use_inet6 && inet_pton(AF_INET6, s, &ip->in6)) {
