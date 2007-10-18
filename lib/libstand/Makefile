@@ -22,6 +22,9 @@ CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mno-sse3
 .endif
+.if ${MACHINE} == "pc98"
+CFLAGS+=	-Os
+.endif
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif

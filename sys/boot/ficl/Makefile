@@ -18,7 +18,7 @@ CFLAGS+=	-mno-sse3
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE} == "pc98"
-CFLAGS+=	-DPC98
+CFLAGS+=	-Os -DPC98
 .endif
 .if HAVE_PNP
 CFLAGS+=	-DHAVE_PNP
