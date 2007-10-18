@@ -34,12 +34,12 @@
 #                  version name.
 #   symbols[][] - array index by [version name, symbol index], contains
 #                 names of symbols defined for each version.
-#   names[] - array index is symbol name and value is count,
+#   names[] - array index is symbol name and value is its first version seen,
 #	      used to check for duplicate symbols and warn about them.
 #
 BEGIN {
 	brackets = 0;
-	errors = 0;
+	errors = warns = 0;
 	version_count = 0;
 	current_version = "";
 	stderr = "/dev/stderr";
@@ -148,12 +148,30 @@ BEGIN {
 		count = versions[current_version];
 		versions[current_version]++;
 		symbols[current_version, count] = $1;
-		if (names[$1]++) {
-			printf("File %s, line %d: Duplicated symbol `%s'. " \
+		if ($1 in names && names[$1] != current_version) {
+			#
+			# A graver case when a dup symbol appears under
+			# different versions in the map.  That can result
+			# in subtle problems with the library later.
+			#
+			printf("File %s, line %d: Duplicated symbol `%s' " \
+			    "in version `%s', first seen in `%s'. " \
 			    "Did you forget to move it to ObsoleteVersions?\n",
-			    filename, FNR, $1) > stderr;
+			    filename, FNR, $1,
+			    current_version, names[$1]) > stderr;
 			errors++;
 		}
+		else if (names[$1] == current_version) {
+			#
+			# A harmless case: a dup symbol with the same version.
+			#
+			printf("File %s, line %d: warning: " \
+			    "Duplicated symbol `%s' in version `%s'.\n",
+			    filename, FNR, $1, current_version) > stderr;
+			warns++;
+		}
+		else
+			names[$1] = current_version;
 	}
 	else {
 		printf("File %s, line %d: Symbol `%s' outside version scope.\n",
@@ -221,7 +239,7 @@ function print_version(v)
 
 END {
 	if (errors) {
-		printf("%d errors total.\n", errors) > stderr;
+		printf("%d error(s) total.\n", errors) > stderr;
 		exit(1);
 	}
 	# OK, no errors.
