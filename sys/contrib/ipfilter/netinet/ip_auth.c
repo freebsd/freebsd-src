@@ -117,7 +117,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.73.2.20 2007/05/29 13:48:54 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.73.2.24 2007/09/09 11:32:04 darrenr Exp $";
 #endif
 
 
@@ -324,16 +324,10 @@ fr_info_t *fin;
 		return 0;
 
 	WRITE_ENTER(&ipf_auth);
-	if (fr_authstart > fr_authend) {
+	if (((fr_authend + 1) % fr_authsize) == fr_authstart) {
 		fr_authstats.fas_nospace++;
 		RWLOCK_EXIT(&ipf_auth);
 		return 0;
-	} else {
-		if (fr_authused == fr_authsize) {
-			fr_authstats.fas_nospace++;
-			RWLOCK_EXIT(&ipf_auth);
-			return 0;
-		}
 	}
 
 	fr_authstats.fas_added++;
@@ -370,10 +364,12 @@ fr_info_t *fin;
 	}
 #endif
 #if SOLARIS && defined(_KERNEL)
-	COPYIFNAME(fin->fin_ifp, fra->fra_info.fin_ifname);
+	COPYIFNAME(fin->fin_v, fin->fin_ifp, fra->fra_info.fin_ifname);
 	m->b_rptr -= qpi->qpi_off;
 	fr_authpkts[i] = *(mblk_t **)fin->fin_mp;
+# if !defined(_INET_IP_STACK_H)
 	fra->fra_q = qpi->qpi_q;	/* The queue can disappear! */
+# endif
 	fra->fra_m = *fin->fin_mp;
 	fra->fra_info.fin_mp = &fra->fra_m;
 	cv_signal(&ipfauthwait);
@@ -444,7 +440,7 @@ void *ctx;
 			error = EPERM;
 			break;
 		}
-		fr_lock(data, &fr_auth_lock);
+		error = fr_lock(data, &fr_auth_lock);
 		break;
 
 	case SIOCATHST:
@@ -712,15 +708,15 @@ int fr_authflush()
 
 /* ------------------------------------------------------------------------ */
 /* Function:    fr_auth_waiting                                             */
-/* Returns:     int - number of packets in the auth queue                   */
+/* Returns:     int - 0 = no pakcets wiating, 1 = packets waiting.          */
 /* Parameters:  None                                                        */
 /*                                                                          */
-/* Returns the numbers of packets queued up, waiting to be processed with   */
-/* a pair of SIOCAUTHW and SIOCAUTHR calls.                                 */
+/* Simple truth check to see if there are any packets waiting in the auth   */
+/* queue.                                                                   */
 /* ------------------------------------------------------------------------ */
 int fr_auth_waiting()
 {
-	return (fr_authnext != fr_authend) && fr_authpkts[fr_authnext];
+	return (fr_authused != 0);
 }
 
 
@@ -857,7 +853,13 @@ fr_authioctlloop:
 	 * is a packet waiting to be delt with in the fr_authpkts array.  We
 	 * copy as much of that out to user space as requested.
 	 */
-	if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
+	if (fr_authused > 0) {
+		while (fr_authpkts[fr_authnext] == NULL) {
+			fr_authnext++;
+			if (fr_authnext == fr_authsize)
+				fr_authnext = 0;
+		}
+
 		error = fr_outobj(data, &fr_auth[fr_authnext], IPFOBJ_FRAUTH);
 		if (error != 0)
 			return error;
@@ -884,8 +886,6 @@ fr_authioctlloop:
 			}
 		}
 		RWLOCK_EXIT(&ipf_auth);
-		if (error != 0)
-			return error;
 
 		SPL_NET(s);
 		WRITE_ENTER(&ipf_auth);
