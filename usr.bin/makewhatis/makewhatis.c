@@ -726,6 +726,8 @@ process_page(struct page_info *page, char *section_dir)
 		case STATE_MANSTYLE:
 			if (strncmp(line, ".SH", 3) == 0)
 				break;
+			if (strncmp(line, ".SS", 3) == 0)
+				break;
 			trim_rhs(line);
 			if (strcmp(line, ".") == 0)
 				continue;
