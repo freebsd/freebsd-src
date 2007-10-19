@@ -86,10 +86,10 @@ rm_mail() {
 		    echo -n " mailspool"
 		rm ${MAILSPOOL}/$login
 	fi
-	if [ -f ${MAILSPOOL}/${login}.pop ]; then
-		verbose && echo -n " ${MAILSPOOL}/${login}.pop" ||
+	if [ -f ${MAILSPOOL}/.${login}.pop ]; then
+		verbose && echo -n " ${MAILSPOOL}/.${login}.pop" ||
 		    echo -n " pop3"
-		rm ${MAILSPOOL}/${login}.pop
+		rm ${MAILSPOOL}/.${login}.pop
 	fi
 	verbose && echo '.'
 }
