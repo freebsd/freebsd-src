@@ -179,8 +179,8 @@ static struct _s_x f_iptos[] = {
 	{ "throughput",	IPTOS_THROUGHPUT},
 	{ "reliability", IPTOS_RELIABILITY},
 	{ "mincost",	IPTOS_MINCOST},
-	{ "congestion",	IPTOS_CE},
-	{ "ecntransport", IPTOS_ECT},
+	{ "congestion",	IPTOS_ECN_CE},
+	{ "ecntransport", IPTOS_ECN_ECT0},
 	{ "ip tos option", 0},
 	{ NULL,	0 }
 };
