@@ -3272,9 +3272,17 @@ dumpitem(item_p item, char *file, int line)
 		printf(" - retaddr[%d]:\n", _NGI_RETADDR(item));
 		break;
 	case NGQF_FN:
+		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
+			_NGI_FN(item),
+			_NGI_NODE(item),
+			_NGI_HOOK(item),
+			item->body.fn.fn_arg1,
+			item->body.fn.fn_arg2,
+			item->body.fn.fn_arg2);
+		break;
 	case NGQF_FN2:
 		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
-			item->body.fn.fn_fn,
+			_NGI_FN2(item),
 			_NGI_NODE(item),
 			_NGI_HOOK(item),
 			item->body.fn.fn_arg1,
