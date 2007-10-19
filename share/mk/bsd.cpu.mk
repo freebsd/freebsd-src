@@ -103,7 +103,9 @@ _ICC_CPUCFLAGS =
 _CPUCFLAGS = -march=${CPUTYPE}
 . elif ${MACHINE_ARCH} == "arm"
 .  if ${CPUTYPE} == "xscale"
-_CPUCFLAGS = -mcpu=xscale
+#XXX: gcc doesn't seem to like -mcpu=xscale, and dies while rebuilding itself
+#_CPUCFLAGS = -mcpu=xscale
+_CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
