@@ -206,7 +206,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>IPFilter</application> has been updated from
+      4.1.23 to 4.1.28.</para>
 
   </sect2>
 
