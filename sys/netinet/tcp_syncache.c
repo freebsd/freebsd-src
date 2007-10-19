@@ -1139,17 +1139,28 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			int wscale = 0;
 
 			/*
-			 * Compute proper scaling value from buffer space.
-			 * Leave enough room for the socket buffer to grow
-			 * with auto sizing.  This allows us to scale the
-			 * receive buffer over a wide range while not losing
-			 * any efficiency or fine granularity.
+			 * Pick the smallest possible scaling factor that
+			 * will still allow us to scale up to sb_max, aka
+			 * kern.ipc.maxsockbuf.
+			 *
+			 * We do this because there are broken firewalls that
+			 * will corrupt the window scale option, leading to
+			 * the other endpoint believing that our advertised
+			 * window is unscaled.  At scale factors larger than
+			 * 5 the unscaled window will drop below 1500 bytes,
+			 * leading to serious problems when traversing these
+			 * broken firewalls.
+			 *
+			 * With the default maxsockbuf of 256K, a scale factor
+			 * of 3 will be chosen by this algorithm.  Those who
+			 * choose a larger maxsockbuf should watch out
+			 * for the compatiblity problems mentioned above.
 			 *
 			 * RFC1323: The Window field in a SYN (i.e., a <SYN>
 			 * or <SYN,ACK>) segment itself is never scaled.
 			 */
 			while (wscale < TCP_MAX_WINSHIFT &&
-			    (0x1 << wscale) < tcp_minmss)
+			    (TCP_MAXWIN << wscale) < sb_max)
 				wscale++;
 			sc->sc_requested_r_scale = wscale;
 			sc->sc_requested_s_scale = to->to_wscale;
