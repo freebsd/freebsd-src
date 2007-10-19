@@ -59,6 +59,7 @@
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/refcount.h>
 
 #include <net/netisr.h>
 
@@ -196,10 +197,10 @@ static int	ng_apply_item(node_p node, item_p item, int rw);
 static void	ng_flush_input_queue(struct ng_queue * ngq);
 static void	ng_setisr(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
-static int	ng_con_nodes(node_p node, const char *name, node_p node2,
-							const char *name2);
-static void	ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2);
-static void	ng_con_part3(node_p node, hook_p hook, void *arg1, int arg2);
+static int	ng_con_nodes(item_p item, node_p node, const char *name,
+		    node_p node2, const char *name2);
+static int	ng_con_part2(node_p node, item_p item, hook_p hook);
+static int	ng_con_part3(node_p node, item_p item, hook_p hook);
 static int	ng_mkpeer(node_p node, const char *name,
 						const char *name2, char *type);
 
@@ -362,6 +363,7 @@ static	ng_ID_t nextID = 1;
 #define CHECK_DATA_MBUF(m)
 #endif
 
+#define ERROUT(x)	do { error = (x); goto done; } while (0)
 
 /************************************************************************
 	Parse type definitions for generic messages
@@ -1229,9 +1231,10 @@ ng_findtype(const char *typename)
 /*
  * Connect two nodes using the specified hooks, using queued functions.
  */
-static void
-ng_con_part3(node_p node, hook_p hook, void *arg1, int arg2)
+static int
+ng_con_part3(node_p node, item_p item, hook_p hook)
 {
+	int	error = 0;
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1251,13 +1254,13 @@ ng_con_part3(node_p node, hook_p hook, void *arg1, int arg2)
 		 * Since we know it's been destroyed, and it's our caller
 		 * that holds the references, just return.
 		 */
-		return ;
+		ERROUT(ENOENT);
 	}
 	if (hook->hk_node->nd_type->connect) {
-		if ((*hook->hk_node->nd_type->connect) (hook)) {
+		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
 			ng_destroy_hook(hook);	/* also zaps peer */
 			printf("failed in ng_con_part3()\n");
-			return ;
+			ERROUT(error);
 		}
 	}
 	/*
@@ -1266,13 +1269,16 @@ ng_con_part3(node_p node, hook_p hook, void *arg1, int arg2)
 	 * should only set flags on hooks we have locked under our node.
 	 */
 	hook->hk_flags &= ~HK_INVALID;
-	return ;
+done:
+	NG_FREE_ITEM(item);
+	return (error);
 }
 
-static void
-ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
+static int
+ng_con_part2(node_p node, item_p item, hook_p hook)
 {
-	hook_p peer;
+	hook_p	peer;
+	int	error = 0;
 
 	/*
 	 * When we run, we know that the node 'node' is locked for us.
@@ -1288,7 +1294,7 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 		TRAP_ERROR();
 		ng_destroy_hook(hook); /* should destroy peer too */
 		printf("failed in ng_con_part2()\n");
-		return ;
+		ERROUT(EEXIST);
 	}
 	/*
 	 * Check if the node type code has something to say about it
@@ -1297,10 +1303,11 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * The peer hook will also be destroyed.
 	 */
 	if (node->nd_type->newhook != NULL) {
-		if ((*node->nd_type->newhook)(node, hook, hook->hk_name)) {
+		if ((error = (*node->nd_type->newhook)(node, hook,
+		    hook->hk_name))) {
 			ng_destroy_hook(hook); /* should destroy peer too */
 			printf("failed in ng_con_part2()\n");
-			return ;
+			ERROUT(error);
 		}
 	}
 
@@ -1324,10 +1331,10 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * node locked, but we need to queue the remote one.
 	 */
 	if (hook->hk_node->nd_type->connect) {
-		if ((*hook->hk_node->nd_type->connect) (hook)) {
+		if ((error = (*hook->hk_node->nd_type->connect) (hook))) {
 			ng_destroy_hook(hook);	/* also zaps peer */
 			printf("failed in ng_con_part2(A)\n");
-			return ;
+			ERROUT(error);
 		}
 	}
 
@@ -1340,17 +1347,21 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
 		mtx_unlock(&ng_topo_mtx);
 		printf("failed in ng_con_part2(B)\n");
 		ng_destroy_hook(hook);
-		return ;
+		ERROUT(ENOENT);
 	}
 	mtx_unlock(&ng_topo_mtx);
 
-	if (ng_send_fn(peer->hk_node, peer, &ng_con_part3, arg1, arg2)) {
+	if ((error = ng_send_fn2_fwd(item, peer->hk_node, peer,
+	    &ng_con_part3, NULL, 0))) {
 		printf("failed in ng_con_part2(C)\n");
 		ng_destroy_hook(hook);	/* also zaps peer */
-		return ;
+		return (error);		/* item was consumed. */
 	}
 	hook->hk_flags &= ~HK_INVALID; /* need both to be able to work */
-	return ;
+	return (0);			/* item was consumed. */
+done:
+	NG_FREE_ITEM(item);
+	return (error);
 }
 
 /*
@@ -1358,7 +1369,8 @@ ng_con_part2(node_p node, hook_p hook, void *arg1, int arg2)
  * currently locked, as we are only called from an NGM_CONNECT message.
  */
 static int
-ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
+ng_con_nodes(item_p item, node_p node, const char *name,
+    node_p node2, const char *name2)
 {
 	int	error;
 	hook_p	hook;
@@ -1391,7 +1403,8 @@ ng_con_nodes(node_p node, const char *name, node_p node2, const char *name2)
 	 * Procesing continues in that function in the lock context of
 	 * the other node.
 	 */
-	if ((error = ng_send_fn(node2, hook2, &ng_con_part2, NULL, 0))) {
+	if ((error = ng_send_fn2_cont(item, node2, hook2,
+	    &ng_con_part2, NULL, 0))) {
 		printf("failed in ng_con_nodes(): %d\n", error);
 		ng_destroy_hook(hook);	/* also zaps peer */
 	}
@@ -2220,9 +2233,9 @@ ng_flush_input_queue(struct ng_queue * ngq)
 		NG_QUEUE_UNLOCK(ngq);
 
 		/* If the item is supplying a callback, call it with an error */
-		if (item->apply != NULL) {
-			(item->apply)(item->context, ENOENT);
-			item->apply = NULL;
+		if (item->apply != NULL &&
+		    refcount_release(&item->apply->refs)) {
+			(*item->apply->apply)(item->apply->context, ENOENT);
 		}
 		NG_FREE_ITEM(item);
 		NG_QUEUE_LOCK(ngq);
@@ -2244,6 +2257,7 @@ ng_flush_input_queue(struct ng_queue * ngq)
  * Common:
  *    reference to destination node.
  *    Reference to destination rcv hook if relevant.
+ *    apply pointer must be or NULL or reference valid struct ng_apply_info.
  * Data:
  *    pointer to mbuf
  * Control_Message:
@@ -2260,27 +2274,34 @@ ng_flush_input_queue(struct ng_queue * ngq)
 int
 ng_snd_item(item_p item, int flags)
 {
-	hook_p hook = NGI_HOOK(item);
-	node_p node = NGI_NODE(item);
+	hook_p hook;
+	node_p node;
 	int queue, rw;
-	struct ng_queue * ngq = &node->nd_input_queue;
+	struct ng_queue *ngq;
 	int error = 0;
-
-#ifdef	NETGRAPH_DEBUG
-	_ngi_check(item, __FILE__, __LINE__);
-#endif
-
-	queue = (flags & NG_QUEUE) ? 1 : 0;
 
 	if (item == NULL) {
 		TRAP_ERROR();
 		return (EINVAL);	/* failed to get queue element */
 	}
+
+#ifdef	NETGRAPH_DEBUG
+	_ngi_check(item, __FILE__, __LINE__);
+#endif
+
+	if (item->apply)
+		refcount_acquire(&item->apply->refs);
+
+	hook = NGI_HOOK(item);
+	node = NGI_NODE(item);
+	ngq = &node->nd_input_queue;
 	if (node == NULL) {
-		NG_FREE_ITEM(item);
 		TRAP_ERROR();
-		return (EINVAL);	/* No address */
+		ERROUT(EINVAL);	/* No address */
 	}
+
+	queue = (flags & NG_QUEUE) ? 1 : 0;
+
 	switch(item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
 		/*
@@ -2295,18 +2316,16 @@ ng_snd_item(item_p item, int flags)
 		 * to each other
 		 */
 		if (NGI_M(item) == NULL)
-			return (EINVAL);
+			ERROUT(EINVAL);
 
 		CHECK_DATA_MBUF(NGI_M(item));
 		if (hook == NULL) {
-			NG_FREE_ITEM(item);
 			TRAP_ERROR();
-			return(EINVAL);
+			ERROUT(EINVAL);
 		}
 		if ((NG_HOOK_NOT_VALID(hook))
 		|| (NG_NODE_NOT_VALID(NG_HOOK_NODE(hook)))) {
-			NG_FREE_ITEM(item);
-			return (ENOTCONN);
+			ERROUT(ENOTCONN);
 		}
 		if ((hook->hk_flags & HK_QUEUE)) {
 			queue = 1;
@@ -2325,11 +2344,11 @@ ng_snd_item(item_p item, int flags)
 		}
 		break;
 	case NGQF_FN:
+	case NGQF_FN2:
 		break;
 	default:
-		NG_FREE_ITEM(item);
 		TRAP_ERROR();
-		return (EINVAL);
+		ERROUT(EINVAL);
 	}
 	switch(item->el_flags & NGQF_RW) {
 	case NGQF_READER:
@@ -2406,12 +2425,22 @@ ng_snd_item(item_p item, int flags)
 	NG_QUEUE_UNLOCK(ngq);
 
 	return (error);
+
+done:
+	/* Apply callback. */
+	if (item->apply != NULL &&
+	    refcount_release(&item->apply->refs)) {
+		(*item->apply->apply)(item->apply->context, error);
+	}
+	NG_FREE_ITEM(item);
+	return (error);
 }
 
 /*
  * We have an item that was possibly queued somewhere.
  * It should contain all the information needed
  * to run it on the appropriate node/hook.
+ * If there is apply pointer and we own the last reference, call apply().
  */
 static int
 ng_apply_item(node_p node, item_p item, int rw)
@@ -2420,24 +2449,14 @@ ng_apply_item(node_p node, item_p item, int rw)
 	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
-	ng_apply_t *apply = NULL;
-	void	*context = NULL;
+	struct ng_apply_info *apply;
 
 	NGI_GET_HOOK(item, hook); /* clears stored hook */
 #ifdef	NETGRAPH_DEBUG
 	_ngi_check(item, __FILE__, __LINE__);
 #endif
 
-	/*
-	 * If the item has an "apply" callback, store it.
-	 * Clear item's callback immediately, to avoid an extra call if
-	 * the item is reused by the destination node.
-	 */
-	if (item->apply != NULL) {
-		apply = item->apply;
-		context = item->context;
-		item->apply = NULL;
-	}
+	apply = item->apply;
 
 	switch (item->el_flags & NGQF_TYPE) {
 	case NGQF_DATA:
@@ -2538,7 +2557,23 @@ ng_apply_item(node_p node, item_p item, int rw)
 		(*NGI_FN(item))(node, hook, NGI_ARG1(item), NGI_ARG2(item));
 		NG_FREE_ITEM(item);
 		break;
-		
+	case NGQF_FN2:
+		/*
+		 *  We have to implicitly trust the hook,
+		 * as some of these are used for system purposes
+		 * where the hook is invalid. In the case of
+		 * the shutdown message we allow it to hit
+		 * even if the node is invalid.
+		 */
+		if ((NG_NODE_NOT_VALID(node))
+		&& (NGI_FN(item) != &ng_rmnode)) {
+			TRAP_ERROR();
+			error = EINVAL;
+			NG_FREE_ITEM(item);
+			break;
+		}
+		error = (*NGI_FN2(item))(node, item, hook);
+		break;
 	}
 	/*
 	 * We held references on some of the resources
@@ -2556,8 +2591,10 @@ ng_apply_item(node_p node, item_p item, int rw)
 	}
 
 	/* Apply callback. */
-	if (apply != NULL)
-		(*apply)(context, error);
+	if (apply != NULL &&
+	    refcount_release(&apply->refs)) {
+		(*apply->apply)(apply->context, error);
+	}
 
 	return (error);
 }
@@ -2615,7 +2652,8 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		error = ng_path2noderef(here, con->path, &node2, NULL);
 		if (error)
 			break;
-		error = ng_con_nodes(here, con->ourhook, node2, con->peerhook);
+		error = ng_con_nodes(item, here, con->ourhook,
+		    node2, con->peerhook);
 		NG_NODE_UNREF(node2);
 		break;
 	    }
@@ -3037,8 +3075,6 @@ ng_getqblk(int flags)
 void
 ng_free_item(item_p item)
 {
-	KASSERT(item->apply == NULL, ("%s: leaking apply callback", __func__));
-
 	/*
 	 * The item may hold resources on it's own. We need to free
 	 * these before we can free the item. What they are depends upon
@@ -3056,11 +3092,11 @@ ng_free_item(item_p item)
 		NG_FREE_MSG(_NGI_MSG(item));
 		break;
 	case NGQF_FN:
+	case NGQF_FN2:
 		/* nothing to free really, */
 		_NGI_FN(item) = NULL;
 		_NGI_ARG1(item) = NULL;
 		_NGI_ARG2(item) = 0;
-	case NGQF_UNDEF:
 		break;
 	}
 	/* If we still have a node or hook referenced... */
@@ -3236,6 +3272,7 @@ dumpitem(item_p item, char *file, int line)
 		printf(" - retaddr[%d]:\n", _NGI_RETADDR(item));
 		break;
 	case NGQF_FN:
+	case NGQF_FN2:
 		printf(" - fn@%p (%p, %p, %p, %d (%x))\n",
 			item->body.fn.fn_fn,
 			_NGI_NODE(item),
@@ -3244,8 +3281,6 @@ dumpitem(item_p item, char *file, int line)
 			item->body.fn.fn_arg2,
 			item->body.fn.fn_arg2);
 		break;
-	case NGQF_UNDEF:
-		printf(" - UNDEFINED!\n");
 	}
 	if (line) {
 		printf(" problem discovered at file %s, line %d\n", file, line);
@@ -3645,6 +3680,10 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
 	return (item);
 }
 
+/*
+ * Send ng_item_fn function call to the specified node.
+ */
+
 int
 ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 	int flags)
@@ -3662,6 +3701,84 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 		NGI_SET_HOOK(item, hook);
 	}
 	NGI_FN(item) = fn;
+	NGI_ARG1(item) = arg1;
+	NGI_ARG2(item) = arg2;
+	return(ng_snd_item(item, flags));
+}
+
+/*
+ * Send ng_item_fn2 function call to the specified.
+ */
+
+int
+ng_send_fn21(node_p node, hook_p hook, ng_item_fn2 *fn, void * arg1, int arg2,
+	int flags)
+{
+	item_p item;
+
+	if ((item = ng_getqblk(flags)) == NULL) {
+		return (ENOMEM);
+	}
+	item->el_flags = NGQF_FN2 | NGQF_WRITER;
+	NG_NODE_REF(node); /* and one for the item */
+	NGI_SET_NODE(item, node);
+	if (hook) {
+		NG_HOOK_REF(hook);
+		NGI_SET_HOOK(item, hook);
+	}
+	NGI_FN2(item) = fn;
+	NGI_ARG1(item) = arg1;
+	NGI_ARG2(item) = arg2;
+	return(ng_snd_item(item, flags));
+}
+
+/*
+ * Send ng_item_fn2 function call to the specified node
+ * with copying apply pointer from specified item.
+ * Passed item left untouched.
+ */
+
+int
+ng_send_fn21_cont(item_p pitem, node_p node, hook_p hook,
+    ng_item_fn2 *fn, void * arg1, int arg2, int flags)
+{
+	item_p item;
+
+	if ((item = ng_getqblk(flags)) == NULL) {
+		return (ENOMEM);
+	}
+	item->el_flags = NGQF_FN2 | NGQF_WRITER;
+	NG_NODE_REF(node); /* and one for the item */
+	NGI_SET_NODE(item, node);
+	if (hook) {
+		NG_HOOK_REF(hook);
+		NGI_SET_HOOK(item, hook);
+	}
+	NGI_FN2(item) = fn;
+	NGI_ARG1(item) = arg1;
+	NGI_ARG2(item) = arg2;
+	item->apply = pitem->apply;
+	return(ng_snd_item(item, flags));
+}
+
+/*
+ * Send ng_item_fn2 function call to the specified node
+ * reusing item including apply pointer.
+ * Passed item is consumed.
+ */
+
+int
+ng_send_fn21_fwd(item_p item, node_p node, hook_p hook,
+    ng_item_fn2 *fn, void * arg1, int arg2, int flags)
+{
+	item->el_flags = NGQF_FN2 | NGQF_WRITER;
+	NG_NODE_REF(node); /* and one for the item */
+	NGI_SET_NODE(item, node);
+	if (hook) {
+		NG_HOOK_REF(hook);
+		NGI_SET_HOOK(item, hook);
+	}
+	NGI_FN2(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
 	return(ng_snd_item(item, flags));
