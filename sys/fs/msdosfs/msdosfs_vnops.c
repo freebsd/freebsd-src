@@ -1265,8 +1265,9 @@ abortit:
 		putushort(dotdotp->deStartCluster, dp->de_StartCluster);
 		if (FAT32(pmp))
 			putushort(dotdotp->deHighClust, dp->de_StartCluster >> 16);
-		error = bwrite(bp);
-		if (error) {
+		if (fvp->v_mount->mnt_flag & MNT_ASYNC)
+			bdwrite(bp);
+		else if ((error = bwrite(bp)) != 0) {
 			/* XXX should downgrade to ro here, fs is corrupt */
 			VOP_UNLOCK(fvp, 0, td);
 			goto bad;
@@ -1390,8 +1391,9 @@ msdosfs_mkdir(ap)
 		putushort(denp[1].deHighClust, pdep->de_StartCluster >> 16);
 	}
 
-	error = bwrite(bp);
-	if (error)
+	if (ap->a_dvp->v_mount->mnt_flag & MNT_ASYNC)
+		bdwrite(bp);
+	else if ((error = bwrite(bp)) != 0)
 		goto bad;
 
 	/*
