@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.23.2.1 2005/07/07 01:24:37 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lane.c,v 1.23.2.2 2005/11/13 12:12:59 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -134,7 +134,6 @@ lane_print(const u_char *p, u_int length, u_int caplen)
 	/*
 	 * Is it (gag) an 802.3 encapsulation?
 	 */
-	extracted_ethertype = 0;
 	if (ether_type <= ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
 		if (llc_print(p, length, caplen, ep->h_source, ep->h_dest,

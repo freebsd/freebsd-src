@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005 The TCPDUMP project
+ * Copyright (c) 1998-2007 The TCPDUMP project
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
@@ -17,7 +17,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rsvp.c,v 1.33.2.8 2005/09/22 14:52:40 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rsvp.c,v 1.33.2.15 2007/09/13 17:33:54 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,6 +35,7 @@ static const char rcsid[] _U_ =
 #include "addrtoname.h"
 #include "ethertype.h"
 #include "gmpls.h"
+#include "af.h"
 
 /*
  * RFC 2205 common header
@@ -134,9 +135,9 @@ static const struct tok rsvp_header_flag_values[] = {
 #define	RSVP_OBJ_ERO                20  /* rfc3209 */
 #define	RSVP_OBJ_RRO                21  /* rfc3209 */
 #define	RSVP_OBJ_HELLO              22  /* rfc3209 */
-#define	RSVP_OBJ_MESSAGE_ID         23
-#define	RSVP_OBJ_MESSAGE_ID_ACK     24
-#define	RSVP_OBJ_MESSAGE_ID_LIST    25
+#define	RSVP_OBJ_MESSAGE_ID         23  /* rfc2961 */
+#define	RSVP_OBJ_MESSAGE_ID_ACK     24  /* rfc2961 */
+#define	RSVP_OBJ_MESSAGE_ID_LIST    25  /* rfc2961 */
 #define	RSVP_OBJ_RECOVERY_LABEL     34  /* rfc3473 */
 #define	RSVP_OBJ_UPSTREAM_LABEL     35  /* rfc3473 */
 #define	RSVP_OBJ_LABEL_SET          36  /* rfc3473 */
@@ -152,6 +153,7 @@ static const struct tok rsvp_header_flag_values[] = {
 #define	RSVP_OBJ_PROPERTIES         204 /* juniper proprietary */
 #define	RSVP_OBJ_FASTREROUTE        205 /* draft-ietf-mpls-rsvp-lsp-fastreroute-07 */
 #define	RSVP_OBJ_SESSION_ATTRIBUTE  207 /* rfc3209 */
+#define RSVP_OBJ_GENERALIZED_UNI    229 /* OIF RSVP extensions UNI 1.0 Signaling, Rel. 2 */
 #define RSVP_OBJ_CALL_ID            230 /* rfc3474 */
 #define RSVP_OBJ_CALL_OPS           236 /* rfc3474 */
 
@@ -189,6 +191,7 @@ static const struct tok rsvp_obj_values[] = {
     { RSVP_OBJ_PROPERTIES,         "Properties" },
     { RSVP_OBJ_FASTREROUTE,        "Fast Re-Route" },
     { RSVP_OBJ_SESSION_ATTRIBUTE,  "Session Attribute" },
+    { RSVP_OBJ_GENERALIZED_UNI,    "Generalized UNI" },
     { RSVP_OBJ_CALL_ID,            "Call-ID" },
     { RSVP_OBJ_CALL_OPS,           "Call Capability" },
     { RSVP_OBJ_RESTART_CAPABILITY, "Restart Capability" },
@@ -202,6 +205,7 @@ static const struct tok rsvp_obj_values[] = {
 #define	RSVP_CTYPE_IPV6        2
 #define	RSVP_CTYPE_TUNNEL_IPV4 7
 #define	RSVP_CTYPE_TUNNEL_IPV6 8
+#define	RSVP_CTYPE_UNI_IPV4    11 /* OIF RSVP extensions UNI 1.0 Signaling Rel. 2 */
 #define RSVP_CTYPE_1           1
 #define RSVP_CTYPE_2           2
 #define RSVP_CTYPE_3           3
@@ -234,11 +238,13 @@ static const struct tok rsvp_ctype_values[] = {
     { 256*RSVP_OBJ_SESSION+RSVP_CTYPE_IPV4,	             "IPv4" },
     { 256*RSVP_OBJ_SESSION+RSVP_CTYPE_IPV6,	             "IPv6" },
     { 256*RSVP_OBJ_SESSION+RSVP_CTYPE_TUNNEL_IPV4,           "Tunnel IPv4" },
+    { 256*RSVP_OBJ_SESSION+RSVP_CTYPE_UNI_IPV4,              "UNI IPv4" },
     { 256*RSVP_OBJ_SENDER_TEMPLATE+RSVP_CTYPE_IPV4,          "IPv4" },
     { 256*RSVP_OBJ_SENDER_TEMPLATE+RSVP_CTYPE_IPV6,          "IPv6" },
     { 256*RSVP_OBJ_SENDER_TEMPLATE+RSVP_CTYPE_TUNNEL_IPV4,   "Tunnel IPv4" },
     { 256*RSVP_OBJ_MESSAGE_ID+RSVP_CTYPE_1,                  "1" },
-    { 256*RSVP_OBJ_MESSAGE_ID_ACK+RSVP_CTYPE_1,              "1" },
+    { 256*RSVP_OBJ_MESSAGE_ID_ACK+RSVP_CTYPE_1,              "Message id ack" },
+    { 256*RSVP_OBJ_MESSAGE_ID_ACK+RSVP_CTYPE_2,              "Message id nack" },
     { 256*RSVP_OBJ_MESSAGE_ID_LIST+RSVP_CTYPE_1,             "1" },
     { 256*RSVP_OBJ_STYLE+RSVP_CTYPE_1,                       "1" },
     { 256*RSVP_OBJ_HELLO+RSVP_CTYPE_1,                       "Hello Request" },
@@ -271,8 +277,11 @@ static const struct tok rsvp_ctype_values[] = {
     { 256*RSVP_OBJ_FASTREROUTE+RSVP_CTYPE_1,                 "1" }, /* new style */
     { 256*RSVP_OBJ_DETOUR+RSVP_CTYPE_TUNNEL_IPV4,            "Tunnel IPv4" },
     { 256*RSVP_OBJ_PROPERTIES+RSVP_CTYPE_1,                  "1" },
+    { 256*RSVP_OBJ_ADMIN_STATUS+RSVP_CTYPE_1,                "1" },
     { 256*RSVP_OBJ_CLASSTYPE+RSVP_CTYPE_1,                   "1" },
     { 256*RSVP_OBJ_CLASSTYPE_OLD+RSVP_CTYPE_1,               "1" },
+    { 256*RSVP_OBJ_LABEL_SET+RSVP_CTYPE_1,                   "1" },
+    { 256*RSVP_OBJ_GENERALIZED_UNI+RSVP_CTYPE_1,             "1" },
     { 0, NULL}
 };
 
@@ -416,9 +425,44 @@ static struct tok rsvp_obj_error_code_diffserv_te_values[] = {
    { 0, NULL}
 };
 
-#define FALSE 0
-#define TRUE  1
+/* rfc3473 / rfc 3471 */
+static const struct tok rsvp_obj_admin_status_flag_values[] = {
+    { 0x80000000, "Reflect" },
+    { 0x00000004, "Testing" },
+    { 0x00000002, "Admin-down" },
+    { 0x00000001, "Delete-in-progress" },
+    { 0, NULL}
+};
 
+/* label set actions - rfc3471 */
+#define LABEL_SET_INCLUSIVE_LIST  0
+#define LABEL_SET_EXCLUSIVE_LIST  1
+#define LABEL_SET_INCLUSIVE_RANGE 2
+#define LABEL_SET_EXCLUSIVE_RANGE 3
+
+static const struct tok rsvp_obj_label_set_action_values[] = {
+    { LABEL_SET_INCLUSIVE_LIST, "Inclusive list" },
+    { LABEL_SET_EXCLUSIVE_LIST, "Exclusive list" },
+    { LABEL_SET_INCLUSIVE_RANGE, "Inclusive range" },
+    { LABEL_SET_EXCLUSIVE_RANGE, "Exclusive range" },
+    { 0, NULL}
+};
+
+/* OIF RSVP extensions UNI 1.0 Signaling, release 2 */
+#define RSVP_GEN_UNI_SUBOBJ_SOURCE_TNA_ADDRESS	    1
+#define RSVP_GEN_UNI_SUBOBJ_DESTINATION_TNA_ADDRESS 2
+#define RSVP_GEN_UNI_SUBOBJ_DIVERSITY		    3
+#define RSVP_GEN_UNI_SUBOBJ_EGRESS_LABEL            4
+#define RSVP_GEN_UNI_SUBOBJ_SERVICE_LEVEL           5
+
+static const struct tok rsvp_obj_generalized_uni_values[] = {
+    { RSVP_GEN_UNI_SUBOBJ_SOURCE_TNA_ADDRESS, "Source TNA address" },
+    { RSVP_GEN_UNI_SUBOBJ_DESTINATION_TNA_ADDRESS, "Destination TNA address" },
+    { RSVP_GEN_UNI_SUBOBJ_DIVERSITY, "Diversity" },
+    { RSVP_GEN_UNI_SUBOBJ_EGRESS_LABEL, "Egress label" },
+    { RSVP_GEN_UNI_SUBOBJ_SERVICE_LEVEL, "Service level" },
+    { 0, NULL}
+};
 
 static int rsvp_intserv_print(const u_char *, u_short);
 
@@ -587,6 +631,8 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
     } bw;
     u_int8_t namelen;
 
+    u_int action, subchannel;
+
     while(tlen>=sizeof(struct rsvp_object_header)) {
         /* did we capture enough for fully decoding the object header ? */
         if (!TTEST2(*tptr, sizeof(struct rsvp_object_header)))
@@ -684,6 +730,7 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                 break;
 #endif
             case RSVP_CTYPE_TUNNEL_IPV4:
+            case RSVP_CTYPE_UNI_IPV4:
                 if (obj_tlen < 12)
                     return -1;
                 printf("%s  IPv4 Tunnel EndPoint: %s, Tunnel ID: 0x%04x, Extended Tunnel ID: %s",
@@ -900,7 +947,7 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                 obj_tptr+=12;
                 break;
             case RSVP_CTYPE_4:
-                if (obj_tlen < 8)
+                if (obj_tlen < 4)
                     return-1;
                 printf("%s  LSP Encoding Type: %s (%u)",
                        ident,
@@ -918,8 +965,8 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                                "Unknown",
                                EXTRACT_16BITS(obj_tptr+2)),
 		       EXTRACT_16BITS(obj_tptr+2));
-                obj_tlen-=8;
-                obj_tptr+=8;
+                obj_tlen-=4;
+                obj_tptr+=4;
                 break;
             default:
                 hexdump=TRUE;
@@ -1019,6 +1066,106 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
                 obj_tlen-=4+*(obj_tptr+3);
                 obj_tptr+=4+*(obj_tptr+3);
                 break;
+            default:
+                hexdump=TRUE;
+            }
+            break;
+
+	case RSVP_OBJ_GENERALIZED_UNI:
+            switch(rsvp_obj_ctype) {
+		int subobj_type,af,subobj_len,total_subobj_len;
+
+            case RSVP_CTYPE_1: 
+
+                if (obj_tlen < 4)
+                    return-1;
+
+		/* read variable length subobjects */
+		total_subobj_len = obj_tlen;
+                while(total_subobj_len > 0) {
+                    subobj_len  = EXTRACT_16BITS(obj_tptr);
+                    subobj_type = (EXTRACT_16BITS(obj_tptr+2))>>8;
+                    af = (EXTRACT_16BITS(obj_tptr+2))&0x00FF;
+
+                    printf("%s  Subobject Type: %s (%u), AF: %s (%u), length: %u",
+                           ident,
+                           tok2str(rsvp_obj_generalized_uni_values, "Unknown", subobj_type),
+                           subobj_type,
+                           tok2str(af_values, "Unknown", af), af,
+                           subobj_len);
+
+                    switch(subobj_type) {
+                    case RSVP_GEN_UNI_SUBOBJ_SOURCE_TNA_ADDRESS:
+                    case RSVP_GEN_UNI_SUBOBJ_DESTINATION_TNA_ADDRESS:
+
+                        switch(af) {
+                        case AFNUM_INET:
+                            if (subobj_len < 8)
+                                return -1;
+                            printf("%s    UNI IPv4 TNA address: %s",
+                                   ident, ipaddr_string(obj_tptr+4));
+                            break;
+#ifdef INET6
+                        case AFNUM_INET6:
+                            if (subobj_len < 20)
+                                return -1;
+                            printf("%s    UNI IPv6 TNA address: %s",
+                                   ident, ip6addr_string(obj_tptr+4));
+                            break;
+#endif
+                        case AFNUM_NSAP:
+                            if (subobj_len) {
+                                /* unless we have a TLV parser lets just hexdump */
+                                hexdump=TRUE;
+                            }
+                            break;
+                        }
+                        break;
+
+                    case RSVP_GEN_UNI_SUBOBJ_DIVERSITY:
+                        if (subobj_len) {
+                            /* unless we have a TLV parser lets just hexdump */
+                            hexdump=TRUE;
+                        }
+                        break;
+
+                    case RSVP_GEN_UNI_SUBOBJ_EGRESS_LABEL:
+                        if (subobj_len < 16) {
+                            return -1;
+                        }
+
+                        printf("%s    U-bit: %x, Label type: %u, Logical port id: %u, Label: %u",
+                               ident,
+                               ((EXTRACT_32BITS(obj_tptr+4))>>31),
+                               ((EXTRACT_32BITS(obj_tptr+4))&0xFF),
+                               EXTRACT_32BITS(obj_tptr+8),
+                               EXTRACT_32BITS(obj_tptr+12));
+                        break;
+
+                    case RSVP_GEN_UNI_SUBOBJ_SERVICE_LEVEL:
+                        if (subobj_len < 8) {
+                            return -1;
+                        }
+
+                        printf("%s    Service level: %u",
+                               ident, (EXTRACT_32BITS(obj_tptr+4))>>24);
+                        break;
+
+                    default:
+                        hexdump=TRUE;
+                        break;
+                    }
+                    total_subobj_len-=subobj_len;
+                    obj_tptr+=subobj_len;
+                    obj_tlen+=subobj_len;
+		}
+
+                if (total_subobj_len) {
+                    /* unless we have a TLV parser lets just hexdump */
+                    hexdump=TRUE;
+                }
+                break;
+
             default:
                 hexdump=TRUE;
             }
@@ -1358,6 +1505,7 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
         case RSVP_OBJ_MESSAGE_ID_LIST:
             switch(rsvp_obj_ctype) {
             case RSVP_CTYPE_1:
+            case RSVP_CTYPE_2:
                 if (obj_tlen < 8)
                     return-1;
                 printf("%s  Flags [0x%02x], epoch: %u",
@@ -1410,6 +1558,66 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
             }
             break;           
 
+        case RSVP_OBJ_ADMIN_STATUS:
+            switch(rsvp_obj_ctype) {
+            case RSVP_CTYPE_1: 
+                if (obj_tlen < 4)
+                    return-1;
+                printf("%s  Flags [%s]", ident,
+                       bittok2str(rsvp_obj_admin_status_flag_values, "none",
+                                  EXTRACT_32BITS(obj_tptr)));
+                obj_tlen-=4;
+                obj_tptr+=4;
+                break;
+            default:
+                hexdump=TRUE;
+            }
+            break;
+
+        case RSVP_OBJ_LABEL_SET:
+            switch(rsvp_obj_ctype) {
+            case RSVP_CTYPE_1: 
+                if (obj_tlen < 4)
+                    return-1;
+                action = (EXTRACT_16BITS(obj_tptr)>>8);
+
+                printf("%s  Action: %s (%u), Label type: %u", ident,
+                       tok2str(rsvp_obj_label_set_action_values, "Unknown", action),
+                       action, ((EXTRACT_32BITS(obj_tptr) & 0x7F)));
+
+                switch (action) {
+                case LABEL_SET_INCLUSIVE_RANGE:
+                case LABEL_SET_EXCLUSIVE_RANGE: /* fall through */
+
+		    /* only a couple of subchannels are expected */
+		    if (obj_tlen < 12)
+			return -1;
+		    printf("%s  Start range: %u, End range: %u", ident,
+                           EXTRACT_32BITS(obj_tptr+4),
+                           EXTRACT_32BITS(obj_tptr+8));
+		    obj_tlen-=12;
+		    obj_tptr+=12;
+                    break;
+
+                default:
+                    obj_tlen-=4;
+                    obj_tptr+=4;
+                    subchannel = 1;
+                    while(obj_tlen >= 4 ) {
+                        printf("%s  Subchannel #%u: %u", ident, subchannel,
+                               EXTRACT_32BITS(obj_tptr));
+                        obj_tptr+=4;
+                        obj_tlen-=4;
+                        subchannel++;
+                    }
+                    break;
+                }
+                break;
+
+            default:
+                hexdump=TRUE;
+            }
+
         /*
          *  FIXME those are the defined objects that lack a decoder
          *  you are welcome to contribute code ;-)
@@ -1417,7 +1625,6 @@ rsvp_obj_print (const u_char *tptr, const char *ident, u_int tlen) {
 
         case RSVP_OBJ_SCOPE:
         case RSVP_OBJ_POLICY_DATA:
-        case RSVP_OBJ_LABEL_SET:
         case RSVP_OBJ_ACCEPT_LABEL_SET:
         case RSVP_OBJ_PROTECTION:
         default:

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.47.2.3 2005/09/20 06:05:38 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip6.c,v 1.47.2.5 2007/09/21 07:07:52 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -95,7 +95,7 @@ ip6_print(register const u_char *bp, register u_int length)
 		(void)printf("flowlabel 0x%05x, ", flow & 0x000fffff);
 #endif
 
-            (void)printf("hlim %u, next-header: %s (%u), length: %u) ",
+            (void)printf("hlim %u, next-header %s (%u) payload length: %u) ",
                          ip6->ip6_hlim,
                          tok2str(ipproto_values,"unknown",ip6->ip6_nxt),
                          ip6->ip6_nxt,
@@ -227,7 +227,7 @@ ip6_print(register const u_char *bp, register u_int length)
 			return;
 
 		default:
-			(void)printf("ip-proto-%d %d", ip6->ip6_nxt, len);
+			(void)printf("ip-proto-%d %d", nh, len);
 			return;
 		}
 	}

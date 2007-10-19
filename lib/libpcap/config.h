@@ -14,8 +14,17 @@
 /* Enable optimizer debugging */
 /* #undef BDEBUG */
 
+/* define if you have a cloning BPF device */
+/* #undef HAVE_CLONING_BPF */
+
 /* define if you have the DAG API */
 /* #undef HAVE_DAG_API */
+
+/* define if you have dag_get_erf_types() */
+/* #undef HAVE_DAG_GET_ERF_TYPES */
+
+/* define if you have streams capable DAG API */
+/* #undef HAVE_DAG_STREAMS_API */
 
 /* Define to 1 if you have the declaration of `ether_hostton', and to 0 if you
    don't. */
@@ -27,8 +36,8 @@
 /* Define to 1 if you have the `ether_hostton' function. */
 #define HAVE_ETHER_HOSTTON 1
 
-/* on HP-UX 10.20 */
-/* #undef HAVE_HPUX10_20 */
+/* on HP-UX 10.20 or later */
+/* #undef HAVE_HPUX10_20_OR_LATER */
 
 /* on HP-UX 9.x */
 /* #undef HAVE_HPUX9 */
@@ -51,11 +60,21 @@
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
 #define HAVE_NETINET_IF_ETHER_H 1
 
+/* Define to 1 if you have the <net/pfvar.h> header file. */
+/* See Makefile */
+/* #undef HAVE_NET_PFVAR_H */
+
 /* if there's an os_proto.h */
 /* #undef HAVE_OS_PROTO_H */
 
+/* Define to 1 if you have the <paths.h> header file. */
+#define HAVE_PATHS_H 1
+
 /* define if you have a /proc/net/dev */
 /* #undef HAVE_PROC_NET_DEV */
+
+/* define if you have a Septel API */
+/* #undef HAVE_SEPTEL_API */
 
 /* Define to 1 if you have the `snprintf' function. */
 #define HAVE_SNPRINTF 1
@@ -86,6 +105,9 @@
 
 /* Define to 1 if you have the `strlcpy' function. */
 #define HAVE_STRLCPY 1
+
+/* Define to 1 if the system has the type `struct ether_addr'. */
+/* #undef HAVE_STRUCT_ETHER_ADDR */
 
 /* Define to 1 if you have the <sys/bufmod.h> header file. */
 /* #undef HAVE_SYS_BUFMOD_H */
