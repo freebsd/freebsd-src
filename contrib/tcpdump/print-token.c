@@ -27,7 +27,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.25.2.1 2005/07/07 01:24:40 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-token.c,v 1.25.2.2 2005/11/13 12:13:01 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -155,7 +155,6 @@ token_print(const u_char *p, u_int length, u_int caplen)
 	caplen -= hdr_len;
 
 	/* Frame Control field determines interpretation of packet */
-	extracted_ethertype = 0;
 	if (FRAME_TYPE(trp) == TOKEN_FC_LLC) {
 		/* Try to print the LLC-layer header & higher layers */
 		if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr),

@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-lspping.c,v 1.12.2.3 2005/05/03 08:12:31 hannes Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-lspping.c,v 1.12.2.6 2006/06/23 02:07:27 hannes Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -79,8 +79,6 @@ struct lspping_common_header {
 };
 
 #define LSPPING_VERSION            1
-#define FALSE 0
-#define TRUE  1
 
 static const struct tok lspping_msg_type_values[] = {
     { 1, "MPLS Echo Request"},
@@ -137,6 +135,8 @@ struct lspping_tlv_header {
 #define	LSPPING_TLV_DOWNSTREAM_MAPPING    2
 #define	LSPPING_TLV_PAD                   3
 #define	LSPPING_TLV_ERROR_CODE            4
+#define	LSPPING_TLV_BFD_DISCRIMINATOR     15 /* draft-ietf-bfd-mpls-02 */
+#define LSPPING_TLV_BFD_DISCRIMINATOR_LEN 4
 #define	LSPPING_TLV_VENDOR_PRIVATE        0xfc00
 
 static const struct tok lspping_tlv_values[] = {
@@ -144,6 +144,7 @@ static const struct tok lspping_tlv_values[] = {
     { LSPPING_TLV_DOWNSTREAM_MAPPING, "Downstream Mapping" },
     { LSPPING_TLV_PAD, "Pad" },
     { LSPPING_TLV_ERROR_CODE, "Error Code" },
+    { LSPPING_TLV_BFD_DISCRIMINATOR, "BFD Discriminator" },
     { LSPPING_TLV_VENDOR_PRIVATE, "Vendor Enterprise Code" },
     { 0, NULL}
 };
@@ -832,6 +833,12 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
             break;
 
+        case LSPPING_TLV_BFD_DISCRIMINATOR:
+            tptr += sizeof(struct lspping_tlv_header);
+            if (!TTEST2(*tptr, LSPPING_TLV_BFD_DISCRIMINATOR_LEN))
+                goto trunc;
+            printf("\n\t    BFD Discriminator 0x%08x", EXTRACT_32BITS(tptr));
+            break;
             /*
              *  FIXME those are the defined TLVs that lack a decoder
              *  you are welcome to contribute code ;-)

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34.2.6 2005/08/13 22:29:47 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34.2.24 2007/09/19 02:52:12 guy Exp $ (LBL)
  */
 
 /*
@@ -132,7 +132,7 @@ struct bpf_version {
 #define DLT_AX25	3	/* Amateur Radio AX.25 */
 #define DLT_PRONET	4	/* Proteon ProNET Token Ring */
 #define DLT_CHAOS	5	/* Chaos */
-#define DLT_IEEE802	6	/* IEEE 802 Networks */
+#define DLT_IEEE802	6	/* 802.5 Token Ring */
 #define DLT_ARCNET	7	/* ARCNET, with BSD-style header */
 #define DLT_SLIP	8	/* Serial Line IP */
 #define DLT_PPP		9	/* Point-to-point Protocol */
@@ -246,12 +246,14 @@ struct bpf_version {
  * OpenBSD DLT_LOOP, for loopback devices; it's like DLT_NULL, except
  * that the AF_ type in the link-layer header is in network byte order.
  *
- * OpenBSD defines it as 12, but that collides with DLT_RAW, so we
- * define it as 108 here.  If OpenBSD picks up this file, it should
- * define DLT_LOOP as 12 in its version, as per the comment above -
- * and should not use 108 as a DLT_ value.
+ * DLT_LOOP is 12 in OpenBSD, but that's DLT_RAW in other OSes, so
+ * we don't use 12 for it in OSes other than OpenBSD.
  */
+#ifdef __OpenBSD__
+#define DLT_LOOP	12
+#else
 #define DLT_LOOP	108
+#endif
 
 /*
  * Encapsulated packets for IPsec; DLT_ENC is 13 in OpenBSD, but that's
@@ -604,6 +606,141 @@ struct bpf_version {
 #define DLT_JUNIPER_PPP         179
 #define DLT_JUNIPER_FRELAY      180
 #define DLT_JUNIPER_CHDLC       181
+
+/*
+ * Multi Link Frame Relay (FRF.16)
+ */
+#define DLT_MFR                 182
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The DLT_ is used for internal communication with a
+ * voice Adapter Card (PIC)
+ */
+#define DLT_JUNIPER_VP          183
+
+/*
+ * Arinc 429 frames.
+ * DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
+ * Every frame contains a 32bit A429 label.
+ * More documentation on Arinc 429 can be found at
+ * http://www.condoreng.com/support/downloads/tutorials/ARINCTutorial.pdf
+ */
+#define DLT_A429                184
+
+/*
+ * Arinc 653 Interpartition Communication messages.
+ * DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
+ * Please refer to the A653-1 standard for more information.
+ */
+#define DLT_A653_ICM            185
+
+/*
+ * USB packets, beginning with a USB setup header; requested by
+ * Paolo Abeni <paolo.abeni@email.it>.
+ */
+#define DLT_USB			186
+
+/*
+ * Bluetooth HCI UART transport layer (part H:4); requested by
+ * Paolo Abeni.
+ */
+#define DLT_BLUETOOTH_HCI_H4	187
+
+/*
+ * IEEE 802.16 MAC Common Part Sublayer; requested by Maria Cruz
+ * <cruz_petagay@bah.com>.
+ */
+#define DLT_IEEE802_16_MAC_CPS	188
+
+/*
+ * USB packets, beginning with a Linux USB header; requested by
+ * Paolo Abeni <paolo.abeni@email.it>.
+ */
+#define DLT_USB_LINUX		189
+
+/*
+ * Controller Area Network (CAN) v. 2.0B packets.
+ * DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
+ * Used to dump CAN packets coming from a CAN Vector board.
+ * More documentation on the CAN v2.0B frames can be found at
+ * http://www.can-cia.org/downloads/?269
+ */
+#define DLT_CAN20B              190
+
+/*
+ * IEEE 802.15.4, with address fields padded, as is done by Linux
+ * drivers; requested by Juergen Schimmer.
+ */
+#define DLT_IEEE802_15_4_LINUX	191
+
+/*
+ * Per Packet Information encapsulated packets.
+ * DLT_ requested by Gianluca Varenni <gianluca.varenni@cacetech.com>.
+ */
+#define DLT_PPI			192
+
+/*
+ * Header for 802.16 MAC Common Part Sublayer plus a radiotap radio header;
+ * requested by Charles Clancy.
+ */
+#define DLT_IEEE802_16_MAC_CPS_RADIO	193
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The DLT_ is used for internal communication with a
+ * integrated service module (ISM).
+ */
+#define DLT_JUNIPER_ISM         194
+
+/*
+ * IEEE 802.15.4, exactly as it appears in the spec (no padding, no
+ * nothing); requested by Mikko Saarnivala <mikko.saarnivala@sensinode.com>.
+ */
+#define DLT_IEEE802_15_4	195
+
+/*
+ * Various link-layer types, with a pseudo-header, for SITA
+ * (http://www.sita.aero/); requested by Fulko Hew (fulko.hew@gmail.com).
+ */
+#define DLT_SITA		196
+
+/*
+ * Various link-layer types, with a pseudo-header, for Endace DAG cards;
+ * encapsulates Endace ERF records.  Requested by Stephen Donnelly
+ * <stephen@endace.com>.
+ */
+#define DLT_ERF			197
+
+/*
+ * Special header prepended to Ethernet packets when capturing from a
+ * u10 Networks board.  Requested by Phil Mulholland
+ * <phil@u10networks.com>.
+ */
+#define DLT_RAIF1		198
+
+/*
+ * IPMB packet for IPMI, beginning with the I2C slave address, followed
+ * by the netFn and LUN, etc..  Requested by Chanthy Toeung
+ * <chanthy.toeung@ca.kontron.com>.
+ */
+#define DLT_IPMB		199
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The DLT_ is used for capturing data on a secure tunnel interface.
+ */
+#define DLT_JUNIPER_ST          200
+
+/*
+ * Bluetooth HCI UART transport layer (part H:4), with pseudo-header
+ * that includes direction information; requested by Paolo Abeni.
+ */
+#define DLT_BLUETOOTH_HCI_H4_WITH_PHDR	201
+
 
 /*
  * The instruction encodings.

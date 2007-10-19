@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-	"@(#)$Header: /tcpdump/master/tcpdump/print-fr.c,v 1.32.2.12 2005/08/23 03:15:51 guy Exp $ (LBL)";
+	"@(#)$Header: /tcpdump/master/tcpdump/print-fr.c,v 1.32.2.15 2006/02/01 14:39:56 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -113,6 +113,8 @@ static int parse_q922_addr(const u_char *p, u_int *dlci, u_int *sdlcore,
 
         flags[0] = p[0] & 0x02; /* populate the first flag fields */
         flags[1] = p[1] & 0x0c;
+        flags[2] = 0;           /* clear the rest of the flags */
+        flags[3] = 0;
 
 	if (p[1] & FR_EA_BIT)
 		return 0;	/* 2-byte Q.922 address */
@@ -304,6 +306,10 @@ fr_print(register const u_char *p, u_int length)
                 frf15_print(p, length);
                 break;
 
+        case NLPID_PPP:
+                ppp_print(p, length);
+                break;
+
 	default:
 		if (!eflag)
                     fr_hdr_print(length + hdr_len, addr_len,
@@ -319,6 +325,24 @@ fr_print(register const u_char *p, u_int length)
         return 0;
 
 }
+
+u_int
+mfr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+	register u_int length = h->len;
+	register u_int caplen = h->caplen;
+
+        TCHECK2(*p, 2); /* minimum frame header length */
+
+        if ((length = mfr_print(p, length)) == 0)
+            return (0);
+        else
+            return length;
+ trunc:
+        printf("[|mfr]");
+        return caplen;
+}
+
 
 #define MFR_CTRL_MSG_ADD_LINK        1
 #define MFR_CTRL_MSG_ADD_LINK_ACK    2
