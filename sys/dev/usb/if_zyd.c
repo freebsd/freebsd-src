@@ -1527,7 +1527,7 @@ zyd_hw_init(struct zyd_softc *sc)
 	if (sc->mac_rev == ZYD_ZD1211) {
 		zyd_write32(sc, ZYD_MAC_RETRY, 0x00000002);
 	} else {
-		zyd_write32(sc, ZYD_MAC_RETRY, 0x02020202);
+		zyd_write32(sc, ZYD_MACB_MAX_RETRY, 0x02020202);
 		zyd_write32(sc, ZYD_MACB_TXPWR_CTL4, 0x007f003f);
 		zyd_write32(sc, ZYD_MACB_TXPWR_CTL3, 0x007f003f);
 		zyd_write32(sc, ZYD_MACB_TXPWR_CTL2, 0x003f001f);
