@@ -793,7 +793,6 @@ mpt_read_config_info_sas(struct mpt_softc *mpt)
 			break;
 	}
 	mpt->sas_portinfo = portinfo;
-	free(portinfo, M_DEVBUF);
 	return (0);
 }
 
