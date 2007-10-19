@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.108.2.4 2005/06/18 23:56:40 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.108.2.6 2005/12/05 11:40:36 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -298,6 +298,20 @@ struct tok ipcpopt_values[] = {
 	{ 0,		  NULL }
 };
 
+#define IPCPOPT_IPCOMP_HDRCOMP 0x61  /* rfc3544 */
+#define IPCPOPT_IPCOMP_MINLEN    14
+
+struct tok ipcpopt_compproto_values[] = {
+        { PPP_VJC, "VJ-Comp" },
+        { IPCPOPT_IPCOMP_HDRCOMP, "IP Header Compression" },
+	{ 0,		  NULL }
+};
+
+struct tok ipcpopt_compproto_subopt_values[] = {
+        { 1, "RTP-Compression" },
+        { 2, "Enhanced RTP-Compression" },
+	{ 0,		  NULL }
+};
 
 /* IP6CP Config Options */
 #define IP6CP_IFID      1
@@ -533,8 +547,9 @@ handle_ctrl_proto(u_int proto, const u_char *pptr, int length)
 		printf("\n\t  Magic-Num 0x%08x", EXTRACT_32BITS(tptr));
 		/* XXX: need to decode Data? - hexdump for now */
                 if (len > 8) {
-                        printf("\n\t  Data");
-                        print_unknown_data(tptr+4,"\n\t    ",len-4);
+                        printf("\n\t  -----trailing data-----");
+                        TCHECK2(tptr[4], len-8);
+                        print_unknown_data(tptr+4,"\n\t  ",len-8);
                 }
 		break;
 	case CPCODES_ID:
@@ -966,6 +981,7 @@ static int
 print_ipcp_config_options(const u_char *p, int length)
 {
 	int len, opt;
+        u_int compproto, ipcomp_subopttotallen, ipcomp_subopt, ipcomp_suboptlen;
 
 	if (length < 2)
 		return 0;
@@ -1000,11 +1016,62 @@ print_ipcp_config_options(const u_char *p, int length)
 		if (len < 4)
 			goto invlen;
 		TCHECK2(*(p + 2), 2);
-		if (EXTRACT_16BITS(p + 2) == PPP_VJC) {
-			printf("VJ-Comp");
+                compproto = EXTRACT_16BITS(p+2);
+
+                printf("%s (0x%02x):",
+                       tok2str(ipcpopt_compproto_values,"Unknown",compproto),
+                       compproto);
+
+		switch (compproto) {
+                case PPP_VJC:
 			/* XXX: VJ-Comp parameters should be decoded */
-		} else
-			printf("unknown-comp-proto %04x", EXTRACT_16BITS(p + 2));
+                        break;
+                case IPCPOPT_IPCOMP_HDRCOMP:
+                        if (len < IPCPOPT_IPCOMP_MINLEN)
+                                goto invlen;
+
+                        TCHECK2(*(p + 2), IPCPOPT_IPCOMP_MINLEN);
+                        printf("\n\t    TCP Space %u, non-TCP Space %u" \
+                               ", maxPeriod %u, maxTime %u, maxHdr %u",
+                               EXTRACT_16BITS(p+4),
+                               EXTRACT_16BITS(p+6),
+                               EXTRACT_16BITS(p+8),
+                               EXTRACT_16BITS(p+10),
+                               EXTRACT_16BITS(p+12));
+
+                        /* suboptions present ? */
+                        if (len > IPCPOPT_IPCOMP_MINLEN) {
+                                ipcomp_subopttotallen = len - IPCPOPT_IPCOMP_MINLEN;
+                                p += IPCPOPT_IPCOMP_MINLEN;
+                                
+                                printf("\n\t      Suboptions, length %u", ipcomp_subopttotallen);
+
+                                while (ipcomp_subopttotallen >= 2) {
+                                        TCHECK2(*p, 2);
+                                        ipcomp_subopt = *p;
+                                        ipcomp_suboptlen = *(p+1);
+                                        
+                                        /* sanity check */
+                                        if (ipcomp_subopt == 0 ||
+                                            ipcomp_suboptlen == 0 )
+                                                break;
+
+                                        /* XXX: just display the suboptions for now */
+                                        printf("\n\t\t%s Suboption #%u, length %u",
+                                               tok2str(ipcpopt_compproto_subopt_values,
+                                                       "Unknown",
+                                                       ipcomp_subopt),
+                                               ipcomp_subopt,
+                                               ipcomp_suboptlen);
+
+                                        ipcomp_subopttotallen -= ipcomp_suboptlen;
+                                        p += ipcomp_suboptlen;
+                                }
+                        }
+                        break;
+                default:
+                        break;
+		}
 		break;
 
 	case IPCPOPT_ADDR:     /* those options share the same format - fall through */

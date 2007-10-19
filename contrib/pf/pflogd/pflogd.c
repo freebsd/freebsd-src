@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#ifdef __FreeBSD__
+#include <net/bpf.h>	/* BIOCLOCK */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

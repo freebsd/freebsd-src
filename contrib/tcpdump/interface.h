@@ -18,9 +18,8 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *
- * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.244.2.18 2005/09/29 07:46:45 hannes Exp $ (LBL)
  * $FreeBSD$
+ * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.244.2.21 2007/03/28 07:45:46 hannes Exp $ (LBL)
  */
 
 #ifndef tcpdump_interface_h
@@ -110,6 +109,10 @@ extern char *strsep(char **, const char *);
 #endif
 #endif
 
+#ifndef MIN
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
+
 extern char *program_name;	/* used to generate self-identifying messages */
 
 extern int32_t thiszone;	/* seconds offset from gmt to local time */
@@ -154,7 +157,7 @@ extern char *read_infile(char *);
 extern char *copy_argv(char **);
 
 extern void safeputchar(int);
-extern void safeputs(const char *);
+extern void safeputs(const char *, int);
 
 extern const char *isonsap_string(const u_char *, register u_int);
 extern const char *protoid_string(const u_char *);
@@ -204,6 +207,7 @@ extern u_int token_if_print(const struct pcap_pkthdr *, const u_char *);
 extern void fddi_print(const u_char *, u_int, u_int);
 extern u_int fddi_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int fr_if_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int mfr_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int fr_print(register const u_char *, u_int);
 extern u_int mfr_print(register const u_char *, u_int);
 extern u_int ieee802_11_if_print(const struct pcap_pkthdr *, const u_char *);
@@ -228,6 +232,7 @@ extern void ns_print(const u_char *, u_int, int);
 extern void ntp_print(const u_char *, u_int);
 extern u_int null_if_print(const struct pcap_pkthdr *, const u_char *);
 extern void ospf_print(const u_char *, u_int, const u_char *);
+extern void olsr_print (const u_char *, u_int);
 extern void pimv1_print(const u_char *, u_int);
 extern void cisco_autorp_print(const u_char *, u_int);
 extern void rsvp_print(const u_char *, u_int);

@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.15 2003/07/01 19:16:06 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/bootp.h,v 1.15.4.3 2007/08/21 22:02:08 guy Exp $ (LBL) */
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1048.
  *
@@ -161,6 +161,9 @@ struct bootp {
 #define	TAG_NS_SEARCH		((u_int8_t) 117)
 /* RFC 3011 */
 #define	TAG_IP4_SUBNET_SELECT	((u_int8_t) 118)
+/* RFC 3442 */
+#define TAG_CLASSLESS_STATIC_RT	((u_int8_t) 121)
+#define TAG_CLASSLESS_STA_RT_MS	((u_int8_t) 249)
 /* ftp://ftp.isi.edu/.../assignments/bootp-dhcp-extensions */
 #define	TAG_USER_CLASS		((u_int8_t)  77)
 #define	TAG_SLP_NAMING_AUTH	((u_int8_t)  80)
@@ -218,3 +221,10 @@ struct cmu_vend {
 
 /* v_flags values */
 #define VF_SMASK	1	/* Subnet mask field contains valid data */
+
+/* RFC 4702 DHCP Client FQDN Option */
+
+#define CLIENT_FQDN_FLAGS_S	0x01
+#define CLIENT_FQDN_FLAGS_O	0x02
+#define CLIENT_FQDN_FLAGS_E	0x04
+#define CLIENT_FQDN_FLAGS_N	0x08

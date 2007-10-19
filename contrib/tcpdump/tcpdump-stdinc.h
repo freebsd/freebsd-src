@@ -29,9 +29,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12.2.4 2005/07/09 21:19:45 risso Exp $ (LBL)
- *
  * $FreeBSD$
+ * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.12.2.5 2006/06/23 02:07:27 hannes Exp $ (LBL)
  */
 
 /*
@@ -147,6 +146,14 @@ typedef char* caddr_t;
 
 #ifndef INET_ADDRSTRLEN
 #define INET_ADDRSTRLEN 16
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
 #endif
 
 #endif /* tcpdump_stdinc_h */
