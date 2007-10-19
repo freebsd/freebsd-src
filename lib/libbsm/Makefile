@@ -151,6 +151,8 @@ MLINKS=	libbsm.3 bsm.3							\
 	au_user.3 getauusernam.3					\
 	au_user.3 getauusernam_R.3					\
 	au_user.3 au_user_mask.3					\
-	au_user.3 getfauditflags.3
+	au_user.3 getfauditflags.3					\
+	getaudit.2 getaudit_addr.2					\
+	setaudit.2 setaudit_addr.2
 
 .include <bsd.lib.mk>
