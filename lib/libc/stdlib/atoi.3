@@ -59,10 +59,6 @@ It is equivalent to:
 .Bd -literal -offset indent
 (int)strtol(nptr, (char **)NULL, 10);
 .Ed
-.Sh IMPLEMENTATION NOTES
-The
-.Fn atoi
-function is not thread-safe and also not async-cancel safe.
 .Pp
 The
 .Fn atoi
