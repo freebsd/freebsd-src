@@ -8,7 +8,6 @@
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -83,17 +82,4 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
-}
-
-/*
- * PowerPC-specific ddb commands:
- */
-DB_COMMAND(reboot, db_reboot)
-{
-	cpu_reset();
-}
-
-DB_COMMAND(halt, db_halt)
-{
-	cpu_halt();
 }
