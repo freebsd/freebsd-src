@@ -1800,7 +1800,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->resident_page_count == 0)
-		return;
+		goto skipmemq;
 
 	/*
 	 * Since physically-backed objects do not use managed pages, we can't
@@ -1849,6 +1849,7 @@ again:
 	}
 	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
+skipmemq:
 	if (__predict_false(object->cache != NULL))
 		vm_page_cache_free(object, start, end);
 }
