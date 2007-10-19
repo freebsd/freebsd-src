@@ -148,12 +148,17 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	format_hex(pathlength, &h.c_namesize, sizeof(h.c_namesize));
 	format_hex(0, &h.c_checksum, sizeof(h.c_checksum));
 
+	/* Non-regular files don't store bodies. */
+	if (archive_entry_filetype(entry) != AE_IFREG)
+		archive_entry_set_size(entry, 0);
+
 	/* Symlinks get the link written as the body of the entry. */
 	p = archive_entry_symlink(entry);
 	if (p != NULL  &&  *p != '\0')
 		format_hex(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
 	else
-		format_hex(archive_entry_size(entry), &h.c_filesize, sizeof(h.c_filesize));
+		format_hex(archive_entry_size(entry),
+		    &h.c_filesize, sizeof(h.c_filesize));
 
 	ret = (a->compressor.write)(a, &h, sizeof(h));
 	if (ret != ARCHIVE_OK)
