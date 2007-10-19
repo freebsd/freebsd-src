@@ -324,12 +324,12 @@
 ; 169 is initialized by the SYSVSEM code if present or loaded
 169	AUE_SEMSYS	NOSTD	{ int semsys(int which, int a2, int a3, \
 				    int a4, int a5); }
-; 169 is initialized by the SYSVMSG code if present or loaded
 ; XXX should be	{ int semsys(int which, ...); }
+; 170 is initialized by the SYSVMSG code if present or loaded
 170	AUE_MSGSYS	NOSTD	{ int msgsys(int which, int a2, int a3, \
 				    int a4, int a5, int a6); }
-; 169 is initialized by the SYSVSHM code if present or loaded
 ; XXX should be	{ int msgsys(int which, ...); }
+; 171 is initialized by the SYSVSHM code if present or loaded
 171	AUE_SHMSYS	NOSTD	{ int shmsys(int which, int a2, int a3, \
 				    int a4); }
 ; XXX should be	{ int shmsys(int which, ...); }
