@@ -82,11 +82,6 @@ CTASSERT(sizeof (struct ip) == 20);
 #define	IPTOS_THROUGHPUT	0x08
 #define	IPTOS_RELIABILITY	0x04
 #define	IPTOS_MINCOST		0x02
-#if 1
-/* ECN RFC3168 obsoletes RFC2481, and these will be deprecated soon. */
-#define	IPTOS_CE		0x01
-#define	IPTOS_ECT		0x02
-#endif
 
 /*
  * Definitions for IP precedence (also in ip_tos) (hopefully unused).
