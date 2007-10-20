@@ -173,7 +173,7 @@ g_hvd_init(struct g_class *mp __unused)
 	sc->hvd_sectorsize = HVD_BLOCKSIZE;
 	sc->hvd_fwsectors = 0;
 	sc->hvd_fwheads = 0;
-	error = kthread_create(hvd_kthread, sc, &sc->hvd_procp, 0, 0,
+	error = kproc_create(hvd_kthread, sc, &sc->hvd_procp, 0, 0,
 		     "hvd0");
         if (error != 0) {
 		free(sc, M_DEVBUF);

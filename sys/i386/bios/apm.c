@@ -754,7 +754,7 @@ apm_event_thread(void *arg)
 		mtx_unlock(&sc->mtx);
 	}
 	sc->running = 0;
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /* enable APM BIOS */
@@ -770,7 +770,7 @@ apm_event_enable(void)
 
 	/* Start the thread */
 	sc->active = 1;
-	if (kthread_create(apm_event_thread, sc, &sc->event_thread, 0, 0,
+	if (kproc_create(apm_event_thread, sc, &sc->event_thread, 0, 0,
 	    "apm worker"))
 		panic("Cannot create apm worker thread");
 

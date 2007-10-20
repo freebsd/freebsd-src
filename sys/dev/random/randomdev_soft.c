@@ -181,7 +181,7 @@ random_yarrow_init(void)
 	mtx_init(&harvest_mtx, "entropy harvest mutex", NULL, MTX_SPIN);
 
 	/* Start the hash/reseed thread */
-	error = kthread_create(random_kthread, NULL,
+	error = kproc_create(random_kthread, NULL,
 	    &random_kthread_proc, RFHIGHPID, 0, "yarrow");
 	if (error != 0)
 		panic("Cannot create entropy maintenance thread.");

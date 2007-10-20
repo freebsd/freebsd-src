@@ -1122,7 +1122,7 @@ aio_daemon(void *_id)
 						    mycp->p_vmspace->vm_refcnt);
 					}
 #endif
-					kthread_exit(0);
+					kproc_exit(0);
 				}
 			}
 		}
@@ -1143,7 +1143,7 @@ aio_newproc(int *start)
 	int id;
 
 	id = alloc_unr(aiod_unr);
-	error = kthread_create(aio_daemon, (void *)(intptr_t)id, &p,
+	error = kproc_create(aio_daemon, (void *)(intptr_t)id, &p,
 		RFNOWAIT, 0, "aiod%d", id);
 	if (error == 0) {
 		/*

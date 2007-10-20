@@ -2146,7 +2146,7 @@ try_switch:
 				sc->sc_worker = NULL;
 				wakeup(&sc->sc_worker);
 				mtx_unlock(&sc->sc_mtx);
-				kthread_exit(0);
+				kproc_exit(0);
 			}
 sleep:
 			g_journal_wait(sc, last_write);
@@ -2381,7 +2381,7 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		callout_drain(&sc->sc_callout);
 	}
 
-	error = kthread_create(g_journal_worker, sc, &sc->sc_worker, 0, 0,
+	error = kproc_create(g_journal_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_journal %s", sc->sc_name);
 	if (error != 0) {
 		GJ_DEBUG(0, "Cannot create worker thread for %s.journal.",
@@ -2766,7 +2766,7 @@ g_journal_init(struct g_class *mp)
 	    g_journal_lowmem, mp, EVENTHANDLER_PRI_FIRST);
 	if (g_journal_event_lowmem == NULL)
 		GJ_DEBUG(0, "Warning! Cannot register lowmem event.");
-	error = kthread_create(g_journal_switcher, mp, NULL, 0, 0,
+	error = kproc_create(g_journal_switcher, mp, NULL, 0, 0,
 	    "g_journal switcher");
 	KASSERT(error == 0, ("Cannot create switcher thread."));
 }
@@ -3025,7 +3025,7 @@ g_journal_switcher(void *arg)
 			g_journal_switcher_state = GJ_SWITCHER_DIED;
 			GJ_DEBUG(1, "Switcher exiting.");
 			wakeup(&g_journal_switcher_state);
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 		if (error == 0 && g_journal_sync_requested == 0) {
 			GJ_DEBUG(1, "Out of cache, force switch (used=%u "

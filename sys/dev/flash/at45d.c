@@ -181,7 +181,7 @@ at45d_delayed_attach(void *xsc)
 	sc->disk->d_unit = device_get_unit(sc->dev);
 	disk_create(sc->disk, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
-	kthread_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
+	kproc_create(&at45d_task, sc, &sc->p, 0, 0, "task: at45d flash");
 
 	config_intrhook_disestablish(&sc->config_intrhook);
 }

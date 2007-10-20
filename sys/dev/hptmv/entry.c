@@ -2396,7 +2396,7 @@ static void hpt_worker_thread(void)
 #endif
 */
 	#if (__FreeBSD_version >= 500043)
-		kthread_suspend_check(curproc);
+		kproc_suspend_check(curproc);
 	#else 
 		kproc_suspend_loop(curproc);
 	#endif

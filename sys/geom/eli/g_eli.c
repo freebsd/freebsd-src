@@ -352,7 +352,7 @@ g_eli_worker(void *arg)
 				    curthread->td_proc->p_comm);
 				wakeup(&sc->sc_workers);
 				mtx_unlock(&sc->sc_queue_mtx);
-				kthread_exit(0);
+				kproc_exit(0);
 			}
 			msleep(sc, &sc->sc_queue_mtx, PRIBIO | PDROP,
 			    "geli:w", 0);
@@ -682,7 +682,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 			goto failed;
 		}
 
-		error = kthread_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
+		error = kproc_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
 		    "g_eli[%u] %s", i, bpp->name);
 		if (error != 0) {
 			crypto_freesession(wr->w_sid);

@@ -3988,7 +3988,7 @@ mpt_recovery_thread(void *arg)
 	mpt->recovery_thread = NULL;
 	wakeup(&mpt->recovery_thread);
 	MPT_UNLOCK(mpt);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 static int

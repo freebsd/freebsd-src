@@ -526,7 +526,7 @@ nfs4_daemon(void *arg)
 			nfs4_daemonproc = NULL;
 			mtx_unlock(&Giant);
 			/*printf("nfsv4 renewd exiting\n");*/
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 		tsleep(&nfs4_daemonproc, PVFS, "nfs4", 2 * hz);
 	}
@@ -644,7 +644,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	/* Start renewd if it isn't already running */
 	if (nfs4_daemonproc == NULL)
-		kthread_create(nfs4_daemon, crdup(cred), &nfs4_daemonproc,
+		kproc_create(nfs4_daemon, crdup(cred), &nfs4_daemonproc,
 			       (RFPROC|RFMEM), 0, "nfs4rd");
 
 	return (0);

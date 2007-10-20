@@ -134,7 +134,7 @@ mmcsd_attach(device_t dev)
 	bioq_init(&sc->bio_queue);
 
 	sc->running = 1;
-	kthread_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
 
 	return (0);
 }
@@ -284,7 +284,7 @@ mmcsd_task(void *arg)
 	wakeup(sc);
 	MMCSD_UNLOCK(sc);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 static device_method_t mmcsd_methods[] = {

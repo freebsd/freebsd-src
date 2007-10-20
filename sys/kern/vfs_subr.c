@@ -726,7 +726,7 @@ vnlru_proc(void)
 	    SHUTDOWN_PRI_FIRST);
 
 	for (;;) {
-		kthread_suspend_check(p);
+		kproc_suspend_check(p);
 		mtx_lock(&vnode_free_list_mtx);
 		if (freevnodes > wantfreevnodes)
 			vnlru_free(freevnodes - wantfreevnodes);
@@ -1688,7 +1688,7 @@ sched_sync(void)
 		if (syncer_state == SYNCER_FINAL_DELAY &&
 		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
-			kthread_suspend_check(td->td_proc);
+			kproc_suspend_check(td->td_proc);
 			mtx_lock(&sync_mtx);
 		}
 		net_worklist_len = syncer_worklist_len - sync_vnode_count;
