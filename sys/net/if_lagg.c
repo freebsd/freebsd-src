@@ -1113,7 +1113,7 @@ lagg_start(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 
-		BPF_MTAP(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 
 		if (sc->sc_proto != LAGG_PROTO_NONE)
 			error = (*sc->sc_start)(sc, m);
@@ -1145,7 +1145,7 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	LAGG_RLOCK(sc);
-	BPF_MTAP(scifp, m);
+	ETHER_BPF_MTAP(scifp, m);
 
 	m = (*sc->sc_input)(sc, lp, m);
 
