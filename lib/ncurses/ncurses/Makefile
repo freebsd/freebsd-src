@@ -280,7 +280,7 @@ INCS=		${HEADERS} ${SRCHDRS}
 INCSLINKS=	curses.h ${INCLUDEDIR}/ncurses.h
 .endif
 
-.if !defined(NO_INSTALLLIB)
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libcurses${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermcap${LIB_SUFFIX}.a
 SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermlib${LIB_SUFFIX}.a
