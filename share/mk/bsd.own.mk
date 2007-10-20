@@ -188,6 +188,7 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
+    INSTALLLIB \
     MAN \
     PROFILE
 .if defined(NO_${var})
@@ -322,6 +323,7 @@ WITH_IDEA=
     I4B \
     INET6 \
     INFO \
+    INSTALLLIB \
     IPFILTER \
     IPX \
     KERBEROS \
