@@ -251,11 +251,11 @@ isp_attach(ispsoftc_t *isp)
 		isp_callout_init(&isp->isp_osinfo.gdt);
 		ISP_UNLOCK(isp);
 #if __FreeBSD_version >= 500000  
-		if (kthread_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
+		if (kproc_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
 		    RFHIGHPID, 0, "%s: fc_thrd",
 		    device_get_nameunit(isp->isp_dev)))
 #else
-		if (kthread_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
+		if (kproc_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
 		    "%s: fc_thrd", device_get_nameunit(isp->isp_dev)))
 #endif
 		{

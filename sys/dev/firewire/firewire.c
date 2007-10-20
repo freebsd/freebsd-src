@@ -440,7 +440,7 @@ firewire_attach(device_t dev)
 			(void *)firewire_watchdog, (void *)sc->fc);
 
 	/* create thread */
-	kthread_create(fw_bus_probe_thread, (void *)fc, &fc->probe_thread,
+	kproc_create(fw_bus_probe_thread, (void *)fc, &fc->probe_thread,
 		0, 0, "fw%d_probe", unit);
 
 	/* Locate our children */
@@ -1661,7 +1661,7 @@ fw_bus_probe_thread(void *arg)
 		msleep((void *)fc, &fc->wait_lock, PWAIT|PCATCH, "-", 0);
 	}
 	mtx_unlock(&fc->wait_lock);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*

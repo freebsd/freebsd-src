@@ -239,7 +239,7 @@ g_multipath_kt(void *arg)
 	}
 	mtx_unlock(&gmtbq_mtx);
 	wakeup(&g_multipath_kt_state);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 
@@ -421,7 +421,7 @@ g_multipath_init(struct g_class *mp)
 {
 	bioq_init(&gmtbq);
 	mtx_init(&gmtbq_mtx, "gmtbq", NULL, MTX_DEF);
-	if (kthread_create(g_multipath_kt, mp, NULL, 0, 0, "g_mp_kt") == 0) {
+	if (kproc_create(g_multipath_kt, mp, NULL, 0, 0, "g_mp_kt") == 0) {
 		g_multipath_kt_state = GKT_RUN;
 	}
 }

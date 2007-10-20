@@ -332,11 +332,11 @@ cbb_detach(device_t brdev)
 	cbb_set(sc, CBB_SOCKET_EVENT, 0xffffffff);
 
 	/*
-	 * Wait for the thread to die.  kthread_exit will do a wakeup
+	 * Wait for the thread to die.  kproc_exit will do a wakeup
 	 * on the event thread's struct thread * so that we know it is
 	 * safe to proceed.  IF the thread is running, set the please
 	 * die flag and wait for it to comply.  Since the wakeup on
-	 * the event thread happens only in kthread_exit, we don't
+	 * the event thread happens only in kproc_exit, we don't
 	 * need to loop here.
 	 */
 	bus_teardown_intr(brdev, sc->irq_res, sc->intrhand);
@@ -529,7 +529,7 @@ cbb_event_thread(void *arg)
 	DEVPRINTF((sc->dev, "Thread terminating\n"));
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
 	mtx_unlock(&sc->mtx);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /************************************************************************/

@@ -668,7 +668,7 @@ smb_iod_thread(void *arg)
 		tsleep(&iod->iod_flags, PWAIT, "90idle", iod->iod_sleeptimo);
 	}
 /*	mtx_lock(&Giant, MTX_DEF);*/
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 int
@@ -689,7 +689,7 @@ smb_iod_create(struct smb_vc *vcp)
 	TAILQ_INIT(&iod->iod_rqlist);
 	smb_sl_init(&iod->iod_evlock, "90evl");
 	STAILQ_INIT(&iod->iod_evlist);
-	error = kthread_create(smb_iod_thread, iod, &iod->iod_p,
+	error = kproc_create(smb_iod_thread, iod, &iod->iod_p,
 	    RFNOWAIT, 0, "smbiod%d", iod->iod_id);
 	if (error) {
 		SMBERROR("can't start smbiod: %d", error);

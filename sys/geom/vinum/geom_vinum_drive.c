@@ -80,7 +80,7 @@ gv_config_new_drive(struct gv_drive *d)
 	d->bqueue = g_malloc(sizeof(struct bio_queue_head), M_WAITOK | M_ZERO);
 	bioq_init(d->bqueue);
 	mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
-	kthread_create(gv_drive_worker, d, NULL, 0, 0, "gv_d %s", d->name);
+	kproc_create(gv_drive_worker, d, NULL, 0, 0, "gv_d %s", d->name);
 	d->flags |= GV_DRIVE_THREAD_ACTIVE;
 }
 
@@ -373,7 +373,7 @@ gv_drive_worker(void *arg)
 	mtx_unlock(&d->bqueue_mtx);
 	d->flags |= GV_DRIVE_THREAD_DEAD;
 
-	kthread_exit(ENXIO);
+	kproc_exit(ENXIO);
 }
 
 
@@ -509,7 +509,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			mtx_init(&d->bqueue_mtx, "gv_drive", NULL, MTX_DEF);
 
 		if (!(d->flags & GV_DRIVE_THREAD_ACTIVE)) {
-			kthread_create(gv_drive_worker, d, NULL, 0, 0,
+			kproc_create(gv_drive_worker, d, NULL, 0, 0,
 			    "gv_d %s", d->name);
 			d->flags |= GV_DRIVE_THREAD_ACTIVE;
 		}

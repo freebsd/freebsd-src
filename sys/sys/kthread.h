@@ -44,11 +44,11 @@ struct kproc_desc {
 
 void	kproc_shutdown(void *, int);
 void	kproc_start(const void *);
-int     kthread_create(void (*)(void *), void *, struct proc **,
+int     kproc_create(void (*)(void *), void *, struct proc **,
 	    int flags, int pages, const char *, ...) __printflike(6, 7);
-void    kthread_exit(int) __dead2;
-int	kthread_resume(struct proc *); /* XXXKSE */
-int	kthread_suspend(struct proc *, int); /* XXXKSE */
-void	kthread_suspend_check(struct proc *); /* XXXKSE */
+void    kproc_exit(int) __dead2;
+int	kproc_resume(struct proc *); /* XXXKSE */
+int	kproc_suspend(struct proc *, int); /* XXXKSE */
+void	kproc_suspend_check(struct proc *); /* XXXKSE */
 
 #endif /* !_SYS_KTHREAD_H_ */

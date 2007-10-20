@@ -149,7 +149,7 @@ gv_vol_worker(void *arg)
 	v->flags |= GV_VOL_THREAD_DEAD;
 	wakeup(v);
 
-	kthread_exit(ENXIO);
+	kproc_exit(ENXIO);
 }
 
 static void
@@ -369,7 +369,7 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		mtx_init(&v->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 
 	if (!(v->flags & GV_VOL_THREAD_ACTIVE)) {
-		kthread_create(gv_vol_worker, v, NULL, 0, 0, "gv_v %s",
+		kproc_create(gv_vol_worker, v, NULL, 0, 0, "gv_v %s",
 		    v->name);
 		v->flags |= GV_VOL_THREAD_ACTIVE;
 	}

@@ -207,7 +207,7 @@ vdev_geom_worker(void *arg)
 				ctx->gc_state = 2;
 				wakeup_one(&ctx->gc_state);
 				mtx_unlock(&ctx->gc_queue_mtx);
-				kthread_exit(0);
+				kproc_exit(0);
 			}
 			msleep(&ctx->gc_queue, &ctx->gc_queue_mtx,
 			    PRIBIO | PDROP, "vgeom:io", 0);
@@ -440,7 +440,7 @@ next:
 
 	vd->vdev_tsd = ctx;
 
-	kthread_create(vdev_geom_worker, ctx, NULL, 0, 0, "vdev:worker %s",
+	kproc_create(vdev_geom_worker, ctx, NULL, 0, 0, "vdev:worker %s",
 	    pp->name);
 
 	return (0);

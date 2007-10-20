@@ -1815,7 +1815,7 @@ g_mirror_worker(void *arg)
 				if (g_mirror_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_MIRROR_DEBUG(1, "Thread exiting.");
-					kthread_exit(0);
+					kproc_exit(0);
 				}
 			}
 			G_MIRROR_DEBUG(5, "%s: I'm here 1.", __func__);
@@ -1839,7 +1839,7 @@ g_mirror_worker(void *arg)
 				if (g_mirror_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_MIRROR_DEBUG(1, "Thread exiting.");
-					kthread_exit(0);
+					kproc_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
 			}
@@ -2890,7 +2890,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	gp->orphan = g_mirror_orphan;
 	sc->sc_sync.ds_geom = gp;
 	sc->sc_sync.ds_ndisks = 0;
-	error = kthread_create(g_mirror_worker, sc, &sc->sc_worker, 0, 0,
+	error = kproc_create(g_mirror_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_mirror %s", md->md_name);
 	if (error != 0) {
 		G_MIRROR_DEBUG(1, "Cannot create kernel thread for %s.",

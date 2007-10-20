@@ -279,11 +279,11 @@ iwi_attach(device_t dev)
 #else
 	sc->sc_tq = taskqueue_create("iwi_taskq", M_NOWAIT | M_ZERO,
 		taskqueue_thread_enqueue, &sc->sc_tq, &sc->sc_tqproc);
-	kthread_create(taskqueue_thread_loop, &sc->sc_tq, &sc->sc_tqproc,
+	kproc_create(taskqueue_thread_loop, &sc->sc_tq, &sc->sc_tqproc,
 		0, 0, "%s taskq", device_get_nameunit(dev));
 	sc->sc_tq2 = taskqueue_create("iwi_taskq2", M_NOWAIT | M_ZERO,
 		taskqueue_thread_enqueue, &sc->sc_tq2, &sc->sc_tqproc);
-	kthread_create(taskqueue_thread_loop, &sc->sc_tq2, &sc->sc_tqproc,
+	kproc_create(taskqueue_thread_loop, &sc->sc_tq2, &sc->sc_tqproc,
 		0, 0, "%s taskq2", device_get_nameunit(dev));
 #endif
 	TASK_INIT(&sc->sc_radiontask, 0, iwi_radio_on, sc);

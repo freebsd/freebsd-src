@@ -106,7 +106,7 @@ sctp_startup_iterator(void)
 {
 	int ret;
 
-	ret = kthread_create(sctp_iterator_thread,
+	ret = kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
 	    &sctppcbinfo.thread_proc,
 	    RFPROC,

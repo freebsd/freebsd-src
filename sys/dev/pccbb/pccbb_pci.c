@@ -434,7 +434,7 @@ cbb_pci_attach(device_t brdev)
 		cbb_print_config(brdev);
 
 	/* Start the thread */
-	if (kthread_create(cbb_event_thread, sc, &sc->event_thread, 0, 0,
+	if (kproc_create(cbb_event_thread, sc, &sc->event_thread, 0, 0,
 	    "%s event thread", device_get_nameunit(brdev))) {
 		device_printf(brdev, "unable to create event thread.\n");
 		panic("cbb_create_event_thread");

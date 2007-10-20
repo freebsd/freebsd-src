@@ -83,10 +83,10 @@ typedef struct thread *usb_proc_ptr;
 #define uio_procp uio_td
 
 #define usb_kthread_create1(f, s, p, a0, a1) \
-		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
+		kproc_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
 #define usb_kthread_create2(f, s, p, a0) \
-		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0))
-#define usb_kthread_create	kthread_create
+		kproc_create((f), (s), (p), RFHIGHPID, 0, (a0))
+#define usb_kthread_create	kproc_create
 
 #define	config_pending_incr()
 #define	config_pending_decr()
