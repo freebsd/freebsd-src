@@ -591,8 +591,6 @@ void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
-void	vfs_add_vnodeops(const void *);
-void	vfs_rm_vnodeops(const void *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
