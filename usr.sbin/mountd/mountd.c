@@ -161,6 +161,7 @@ int	check_dirpath(char *);
 int	check_options(struct dirlist *);
 int	checkmask(struct sockaddr *sa);
 int	chk_host(struct dirlist *, struct sockaddr *, int *, int *);
+void	create_service(struct netconfig *nconf);
 void	del_mlist(char *hostp, char *dirp);
 struct dirlist *dirp_search(struct dirlist *, char *);
 int	do_mount(struct exportlist *, struct grouplist *, int,
@@ -207,6 +208,7 @@ struct mountlist *mlhead;
 struct grouplist *grphead;
 char *exnames_default[2] = { _PATH_EXPORTS, NULL };
 char **exnames;
+char **hosts = NULL;
 struct xucred def_anon = {
 	XUCRED_VERSION,
 	(uid_t)-2,
@@ -216,9 +218,13 @@ struct xucred def_anon = {
 };
 int force_v2 = 0;
 int resvport_only = 1;
+int nhosts = 0;
 int dir_only = 1;
 int dolog = 0;
 int got_sighup = 0;
+int xcreated = 0;
+
+char *svcport_str = NULL;
 
 int opt_flags;
 static int have_v6 = 1;
@@ -256,21 +262,13 @@ main(argc, argv)
 	char **argv;
 {
 	fd_set readfds;
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-	char *endptr;
-	SVCXPRT *udptransp, *tcptransp, *udp6transp, *tcp6transp;
-	struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
+	struct netconfig *nconf;
+	char *endptr, **hosts_bak;
+	void *nc_handle;
 	pid_t otherpid;
-	int udpsock, tcpsock, udp6sock, tcp6sock;
-	int xcreated = 0, s;
+	in_port_t svcport;
+	int c, k, s;
 	int maxrec = RPC_MAXDATASIZE;
-	int one = 1;
-	int c, r;
-	in_port_t svcport = 0;
-
-	udp6conf = tcp6conf = NULL;
-	udp6sock = tcp6sock = 0;
 
 	/* Check that another mountd isn't already running. */
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
@@ -291,7 +289,7 @@ main(argc, argv)
 			errx(1, "NFS server is not available or loadable");
 	}
 
-	while ((c = getopt(argc, argv, "2dlnp:r")) != -1)
+	while ((c = getopt(argc, argv, "2dh:lnp:r")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -314,6 +312,28 @@ main(argc, argv)
 			if (endptr == NULL || *endptr != '\0' ||
 			    svcport == 0 || svcport >= IPPORT_MAX)
 				usage();
+			svcport_str = strdup(optarg);
+			break;
+		case 'h':
+			++nhosts;
+			hosts_bak = hosts;
+			hosts_bak = realloc(hosts, nhosts * sizeof(char *));
+			if (hosts_bak == NULL) {
+				if (hosts != NULL) {
+					for (k = 0; k < nhosts; k++) 
+						free(hosts[k]);
+					free(hosts);
+					out_of_mem();
+				}
+			}
+			hosts = hosts_bak;
+			hosts[nhosts - 1] = strdup(optarg);
+			if (hosts[nhosts - 1] == NULL) {
+				for (k = 0; k < (nhosts - 1); k++) 
+					free(hosts[k]);
+				free(hosts);
+				out_of_mem();
+			}
 			break;
 		default:
 			usage();
@@ -349,36 +369,8 @@ main(argc, argv)
 
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
 	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
-	udpsock  = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	tcpsock  = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	udpconf  = getnetconfigent("udp");
-	tcpconf  = getnetconfigent("tcp");
-
 	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
-	if (!have_v6)
-		goto skip_v6;
-	udp6sock = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-	tcp6sock = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-	/*
-	 * We're doing host-based access checks here, so don't allow
-	 * v4-in-v6 to confuse things. The kernel will disable it
-	 * by default on NFS sockets too.
-	 */
-	if (udp6sock != -1 && setsockopt(udp6sock, IPPROTO_IPV6,
-		IPV6_V6ONLY, &one, sizeof one) < 0) {
-		syslog(LOG_ERR, "can't disable v4-in-v6 on UDP socket");
-		exit(1);
-	}
-	if (tcp6sock != -1 && setsockopt(tcp6sock, IPPROTO_IPV6,
-		IPV6_V6ONLY, &one, sizeof one) < 0) {
-		syslog(LOG_ERR, "can't disable v4-in-v6 on TCP socket");
-		exit(1);
-	}
-	udp6conf = getnetconfigent("udp6");
-	tcp6conf = getnetconfigent("tcp6");
-
-skip_v6:
 	if (!resvport_only) {
 		if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
 		    &resvport_only, sizeof(resvport_only)) != 0 &&
@@ -387,129 +379,60 @@ skip_v6:
 			exit(1);
 		}
 	}
-	if (svcport != 0) {
-		bzero(&sin, sizeof(struct sockaddr_in));
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_family = AF_INET;
-		sin.sin_port = htons(svcport);
 
-		bzero(&sin6, sizeof(struct sockaddr_in6));
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_port = htons(svcport);
-	}
-	if (udpsock != -1 && udpconf != NULL) {
-		if (svcport != 0) {
-			r = bindresvport(udpsock, &sin);
-			if (r != 0) {
-				syslog(LOG_ERR, "bindresvport: %m");
-				exit(1);
+	/*
+	 * If no hosts were specified, add a wildcard entry to bind to
+	 * INADDR_ANY. Otherwise make sure 127.0.0.1 and ::1 are added to the
+	 * list.
+	 */
+	if (nhosts == 0) {
+		hosts = malloc(sizeof(char**));
+		if (hosts == NULL)
+			out_of_mem();
+		hosts[0] = "*";
+		nhosts = 1;
+	} else {
+		hosts_bak = hosts;
+		if (have_v6) {
+			hosts_bak = realloc(hosts, (nhosts + 2) *
+			    sizeof(char *));
+			if (hosts_bak == NULL) {
+				for (k = 0; k < nhosts; k++)
+					free(hosts[k]);
+		    		free(hosts);
+		    		out_of_mem();
+			} else
+				hosts = hosts_bak;
+			nhosts += 2;
+			hosts[nhosts - 2] = "::1";
+		} else {
+			hosts_bak = realloc(hosts, (nhosts + 1) * sizeof(char *));
+			if (hosts_bak == NULL) {
+				for (k = 0; k < nhosts; k++)
+					free(hosts[k]);
+				free(hosts);
+				out_of_mem();
+			} else {
+				nhosts += 1;
+				hosts = hosts_bak;
 			}
-		} else
-			(void)bindresvport(udpsock, NULL);
-		udptransp = svc_dg_create(udpsock, 0, 0);
-		if (udptransp != NULL) {
-			if (!svc_reg(udptransp, RPCPROG_MNT, RPCMNT_VER1,
-			    mntsrv, udpconf))
-				syslog(LOG_WARNING, "can't register UDP RPCMNT_VER1 service");
-			else
-				xcreated++;
-			if (!force_v2) {
-				if (!svc_reg(udptransp, RPCPROG_MNT, RPCMNT_VER3,
-				    mntsrv, udpconf))
-					syslog(LOG_WARNING, "can't register UDP RPCMNT_VER3 service");
-				else
-					xcreated++;
-			}
-		} else
-			syslog(LOG_WARNING, "can't create UDP services");
+		}
 
+		hosts[nhosts - 1] = "127.0.0.1";
 	}
-	if (tcpsock != -1 && tcpconf != NULL) {
-		if (svcport != 0) {
-			r = bindresvport(tcpsock, &sin);
-			if (r != 0) {
-				syslog(LOG_ERR, "bindresvport: %m");
-				exit(1);
-			}
-		} else
-			(void)bindresvport(tcpsock, NULL);
-		listen(tcpsock, SOMAXCONN);
-		tcptransp = svc_vc_create(tcpsock, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-		if (tcptransp != NULL) {
-			if (!svc_reg(tcptransp, RPCPROG_MNT, RPCMNT_VER1,
-			    mntsrv, tcpconf))
-				syslog(LOG_WARNING, "can't register TCP RPCMNT_VER1 service");
-			else
-				xcreated++;
-			if (!force_v2) {
-				if (!svc_reg(tcptransp, RPCPROG_MNT, RPCMNT_VER3,
-				    mntsrv, tcpconf))
-					syslog(LOG_WARNING, "can't register TCP RPCMNT_VER3 service");
-				else
-					xcreated++;
-			}
-		} else
-			syslog(LOG_WARNING, "can't create TCP service");
 
+	nc_handle = setnetconfig();
+	while ((nconf = getnetconfig(nc_handle))) {
+		if (nconf->nc_flag & NC_VISIBLE) {
+			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
+			    "inet6") == 0) {
+				/* DO NOTHING */
+			} else
+				create_service(nconf);
+		}
 	}
-	if (have_v6 && udp6sock != -1 && udp6conf != NULL) {
-		if (svcport != 0) {
-			r = bindresvport_sa(udp6sock,
-			    (struct sockaddr *)&sin6);
-			if (r != 0) {
-				syslog(LOG_ERR, "bindresvport_sa: %m");
-				exit(1);
-			}
-		} else
-			(void)bindresvport_sa(udp6sock, NULL);
-		udp6transp = svc_dg_create(udp6sock, 0, 0);
-		if (udp6transp != NULL) {
-			if (!svc_reg(udp6transp, RPCPROG_MNT, RPCMNT_VER1,
-			    mntsrv, udp6conf))
-				syslog(LOG_WARNING, "can't register UDP6 RPCMNT_VER1 service");
-			else
-				xcreated++;
-			if (!force_v2) {
-				if (!svc_reg(udp6transp, RPCPROG_MNT, RPCMNT_VER3,
-				    mntsrv, udp6conf))
-					syslog(LOG_WARNING, "can't register UDP6 RPCMNT_VER3 service");
-				else
-					xcreated++;
-			}
-		} else
-			syslog(LOG_WARNING, "can't create UDP6 service");
+	endnetconfig(nc_handle);
 
-	}
-	if (have_v6 && tcp6sock != -1 && tcp6conf != NULL) {
-		if (svcport != 0) {
-			r = bindresvport_sa(tcp6sock,
-			    (struct sockaddr *)&sin6);
-			if (r != 0) {
-				syslog(LOG_ERR, "bindresvport_sa: %m");
-				exit(1);
-			}
-		} else
-			(void)bindresvport_sa(tcp6sock, NULL);
-		listen(tcp6sock, SOMAXCONN);
-		tcp6transp = svc_vc_create(tcp6sock, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-		if (tcp6transp != NULL) {
-			if (!svc_reg(tcp6transp, RPCPROG_MNT, RPCMNT_VER1,
-			    mntsrv, tcp6conf))
-				syslog(LOG_WARNING, "can't register TCP6 RPCMNT_VER1 service");
-			else
-				xcreated++;
-			if (!force_v2) {
-				if (!svc_reg(tcp6transp, RPCPROG_MNT, RPCMNT_VER3,
-				    mntsrv, tcp6conf))
-					syslog(LOG_WARNING, "can't register TCP6 RPCMNT_VER3 service");
-					else
-						xcreated++;
-				}
-		} else
-			syslog(LOG_WARNING, "can't create TCP6 service");
-
-	}
 	if (xcreated == 0) {
 		syslog(LOG_ERR, "could not create any services");
 		exit(1);
@@ -534,6 +457,245 @@ skip_v6:
 			svc_getreqset(&readfds);
 		}
 	}
+} 
+
+/*
+ * This routine creates and binds sockets on the appropriate
+ * addresses. It gets called one time for each transport and
+ * registrates the service with rpcbind on that trasport.
+ */
+void
+create_service(struct netconfig *nconf)
+{
+	struct addrinfo hints, *res = NULL;
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
+	struct __rpc_sockinfo si;
+	struct netbuf servaddr;
+	SVCXPRT	*transp = NULL;
+	int aicode;
+	int fd;
+	int nhostsbak;
+	int one = 1;
+	int r;
+	int registered = 0;
+	u_int32_t host_addr[4];  /* IPv4 or IPv6 */
+
+	if ((nconf->nc_semantics != NC_TPI_CLTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS) &&
+	    (nconf->nc_semantics != NC_TPI_COTS_ORD))
+		return;	/* not my type */
+
+	/*
+	 * XXX - using RPC library internal functions.
+	 */
+	if (!__rpc_nconf2sockinfo(nconf, &si)) {
+		syslog(LOG_ERR, "cannot get information for %s",
+		    nconf->nc_netid);
+		return;
+	}
+
+	/* Get mountd's address on this transport */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = si.si_af;
+	hints.ai_socktype = si.si_socktype;
+	hints.ai_protocol = si.si_proto;
+
+	/*
+	 * Bind to specific IPs if asked to
+	 */
+	nhostsbak = nhosts;
+	while (nhostsbak > 0) {
+		--nhostsbak;
+		/*	
+		 * XXX - using RPC library internal functions.
+		 */
+		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
+			int non_fatal = 0;
+	    		if (errno == EPROTONOSUPPORT &&
+			    nconf->nc_semantics != NC_TPI_CLTS) 
+				non_fatal = 1;
+				
+			syslog(non_fatal ? LOG_DEBUG : LOG_ERR, 
+			    "cannot create socket for %s", nconf->nc_netid);
+	    		return;
+		}
+
+		switch (hints.ai_family) {
+		case AF_INET:
+			if (inet_pton(AF_INET, hosts[nhostsbak],
+			    host_addr) == 1) {
+				hints.ai_flags &= AI_NUMERICHOST;
+			} else {
+				/*
+				 * Skip if we have an AF_INET6 address.
+				 */
+				if (inet_pton(AF_INET6, hosts[nhostsbak],
+				    host_addr) == 1) {
+					close(fd);
+					continue;
+				}
+			}
+			break;
+		case AF_INET6:
+			if (inet_pton(AF_INET6, hosts[nhostsbak],
+			    host_addr) == 1) {
+				hints.ai_flags &= AI_NUMERICHOST;
+			} else {
+				/*
+				 * Skip if we have an AF_INET address.
+				 */
+				if (inet_pton(AF_INET, hosts[nhostsbak],
+				    host_addr) == 1) {
+					close(fd);
+					continue;
+				}
+			}
+
+			/*
+			 * We're doing host-based access checks here, so don't
+			 * allow v4-in-v6 to confuse things. The kernel will
+			 * disable it by default on NFS sockets too.
+			 */
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &one,
+			    sizeof one) < 0) {
+				syslog(LOG_ERR,
+				    "can't disable v4-in-v6 on IPv6 socket");
+				exit(1);
+			}
+			break;
+		default:
+			break;
+		}
+
+		/*
+		 * If no hosts were specified, just bind to INADDR_ANY
+		 */
+		if (strcmp("*", hosts[nhostsbak]) == 0) {
+			if (svcport_str == NULL) {
+				res = malloc(sizeof(struct addrinfo));
+				if (res == NULL) 
+					out_of_mem();
+				res->ai_flags = hints.ai_flags;
+				res->ai_family = hints.ai_family;
+				res->ai_protocol = hints.ai_protocol;
+				switch (res->ai_family) {
+				case AF_INET:
+					sin = malloc(sizeof(struct sockaddr_in));
+					if (sin == NULL) 
+						out_of_mem();
+					sin->sin_family = AF_INET;
+					sin->sin_port = htons(0);
+					sin->sin_addr.s_addr = htonl(INADDR_ANY);
+					res->ai_addr = (struct sockaddr*) sin;
+					res->ai_addrlen = (socklen_t)
+					    sizeof(res->ai_addr);
+					break;
+				case AF_INET6:
+					sin6 = malloc(sizeof(struct sockaddr_in6));
+					if (res->ai_addr == NULL)
+						out_of_mem();
+					sin6->sin6_family = AF_INET6;
+					sin6->sin6_port = htons(0);
+					sin6->sin6_addr = in6addr_any;
+					res->ai_addr = (struct sockaddr*) sin6;
+					res->ai_addrlen = (socklen_t)
+					    sizeof(res->ai_addr);
+						break;
+				default:
+					break;
+				}
+			} else { 
+				if ((aicode = getaddrinfo(NULL, svcport_str,
+				    &hints, &res)) != 0) {
+					syslog(LOG_ERR,
+					    "cannot get local address for %s: %s",
+					    nconf->nc_netid,
+					    gai_strerror(aicode));
+					continue;
+				}
+			}
+		} else {
+			if ((aicode = getaddrinfo(hosts[nhostsbak], svcport_str,
+			    &hints, &res)) != 0) {
+				syslog(LOG_ERR,
+				    "cannot get local address for %s: %s",
+				    nconf->nc_netid, gai_strerror(aicode));
+				continue;
+			}
+		}
+
+		r = bindresvport_sa(fd, res->ai_addr);
+		if (r != 0) {
+			syslog(LOG_ERR, "bindresvport_sa: %m");
+			exit(1);
+		}
+
+		if (nconf->nc_semantics != NC_TPI_CLTS)
+			listen(fd, SOMAXCONN);
+
+		if (nconf->nc_semantics == NC_TPI_CLTS )
+			transp = svc_dg_create(fd, 0, 0);
+		else 
+			transp = svc_vc_create(fd, RPC_MAXDATASIZE,
+			    RPC_MAXDATASIZE);
+
+		if (transp != (SVCXPRT *) NULL) {
+			if (!svc_reg(transp, RPCPROG_MNT, RPCMNT_VER1, mntsrv,
+			    NULL)) 
+				syslog(LOG_ERR,
+				    "can't register %s RPCMNT_VER1 service",
+				    nconf->nc_netid);
+			if (!force_v2) {
+				if (!svc_reg(transp, RPCPROG_MNT, RPCMNT_VER3,
+				    mntsrv, NULL)) 
+					syslog(LOG_ERR,
+					    "can't register %s RPCMNT_VER3 service",
+					    nconf->nc_netid);
+			}
+		} else 
+			syslog(LOG_WARNING, "can't create %s services",
+			    nconf->nc_netid);
+
+		if (registered == 0) {
+			registered = 1;
+			memset(&hints, 0, sizeof hints);
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = si.si_af;
+			hints.ai_socktype = si.si_socktype;
+			hints.ai_protocol = si.si_proto;
+
+			if (svcport_str == NULL) {
+				svcport_str = malloc(NI_MAXSERV * sizeof(char));
+				if (svcport_str == NULL)
+					out_of_mem();
+
+				if (getnameinfo(res->ai_addr,
+				    res->ai_addr->sa_len, NULL, NI_MAXHOST,
+				    svcport_str, NI_MAXSERV * sizeof(char),
+				    NI_NUMERICHOST | NI_NUMERICSERV))
+					errx(1, "Cannot get port number");
+			}
+
+			if((aicode = getaddrinfo(NULL, svcport_str, &hints,
+			    &res)) != 0) {
+				syslog(LOG_ERR, "cannot get local address: %s",
+				    gai_strerror(aicode));
+				exit(1);
+			}
+
+			servaddr.buf = malloc(res->ai_addrlen);
+			memcpy(servaddr.buf, res->ai_addr, res->ai_addrlen);
+			servaddr.len = res->ai_addrlen;
+
+			rpcb_set(RPCPROG_MNT, RPCMNT_VER1, nconf, &servaddr);
+			rpcb_set(RPCPROG_MNT, RPCMNT_VER3, nconf, &servaddr);
+
+			xcreated++;
+			freeaddrinfo(res);
+		}
+	} /* end while */
 }
 
 static void
@@ -541,7 +703,7 @@ usage()
 {
 	fprintf(stderr,
 		"usage: mountd [-2] [-d] [-l] [-n] [-p <port>] [-r] "
-		"[export_file ...]\n");
+		"[-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
 
