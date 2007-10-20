@@ -92,9 +92,12 @@ static __inline u_short
 in_addword(u_short sum, u_short b)
 {
 	/* __volatile is necessary because the condition codes are used. */
-	__asm __volatile ("addw %1, %0" : "+r" (sum) : "r" (b));
-	__asm __volatile ("adcw $0, %0" : "+r" (sum));
-
+	__asm __volatile (
+		"addw %1, %0\n"
+		"adcw $0, %0"
+		: "+r" (sum)
+		: "r" (b)
+	);
 	return (sum);
 }
 
@@ -102,10 +105,14 @@ static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
 	/* __volatile is necessary because the condition codes are used. */
-	__asm __volatile ("addl %1, %0" : "+r" (sum) : "g" (b));
-	__asm __volatile ("adcl %1, %0" : "+r" (sum) : "g" (c));
-	__asm __volatile ("adcl $0, %0" : "+r" (sum));
-
+	__asm __volatile (
+		"addl %1, %0\n"
+		"adcl %2, %0\n"
+		"adcl $0, %0"
+		: "+r" (sum)
+		: "g" (b),
+		  "g" (c)
+	);
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
 		sum -= 0xffff;
