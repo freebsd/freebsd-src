@@ -2058,7 +2058,7 @@ buf_daemon()
 		bd_request = 0;
 		mtx_unlock(&bdlock);
 
-		kthread_suspend_check(bufdaemonproc);
+		kproc_suspend_check(bufdaemonproc);
 
 		/*
 		 * Do the flush.  Limit the amount of in-transit I/O we

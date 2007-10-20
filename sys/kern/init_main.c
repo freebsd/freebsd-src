@@ -691,7 +691,7 @@ start_init(void *dummy)
 }
 
 /*
- * Like kthread_create(), but runs in it's own address space.
+ * Like kproc_create(), but runs in it's own address space.
  * We do this early to reserve pid 1.
  *
  * Note special case - do not make it runnable yet.  Other work

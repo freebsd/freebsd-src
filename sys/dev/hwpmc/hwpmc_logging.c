@@ -362,7 +362,7 @@ pmclog_loop(void *arg)
 
 	crfree(ownercred);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*
@@ -566,7 +566,7 @@ pmclog_configure_log(struct pmc_owner *po, int logfd)
 
 	/* mark process as owning a log file */
 	po->po_flags |= PMC_PO_OWNS_LOGFILE;
-	error = kthread_create(pmclog_loop, po, &po->po_kthread,
+	error = kproc_create(pmclog_loop, po, &po->po_kthread,
 	    RFHIGHPID, 0, "hwpmc: proc(%d)", p->p_pid);
 	if (error)
 		goto error;

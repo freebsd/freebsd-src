@@ -741,7 +741,7 @@ ndis_attach(dev)
 #else
 		sc->ndis_tq = taskqueue_create("ndis_taskq", M_NOWAIT | M_ZERO,
 		    taskqueue_thread_enqueue, &sc->ndis_tq, &sc->sc_tqproc);
-		kthread_create(taskqueue_thread_loop, &sc->ndis_tq, &sc->sc_tqproc,
+		kproc_create(taskqueue_thread_loop, &sc->ndis_tq, &sc->sc_tqproc,
 		    0, 0, "%s taskq", device_get_nameunit(dev));
 #endif
 		TASK_INIT(&sc->ndis_scantask, 0, ndis_scan, sc);

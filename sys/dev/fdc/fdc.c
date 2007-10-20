@@ -1207,7 +1207,7 @@ fdc_thread(void *arg)
 	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
 	mtx_unlock(&fdc->fdc_mtx);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*
@@ -1795,7 +1795,7 @@ fdc_attach(device_t dev)
 	fdout_wr(fdc, fdc->fdout = 0);
 	bioq_init(&fdc->head);
 
-	kthread_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
+	kproc_create(fdc_thread, fdc, &fdc->fdc_thread, 0, 0,
 	    "fdc%d", device_get_unit(dev));
 
 	settle = hz / 8;

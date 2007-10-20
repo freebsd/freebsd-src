@@ -1562,7 +1562,7 @@ xpt_init(void *dummy)
 	}
 
 	/* fire up rescan thread */
-	if (kthread_create(xpt_scanner_thread, NULL, NULL, 0, 0, "xpt_thrd")) {
+	if (kproc_create(xpt_scanner_thread, NULL, NULL, 0, 0, "xpt_thrd")) {
 		printf("xpt_init: failed to create rescan thread\n");
 	}
 	/* Install our software interrupt handlers */

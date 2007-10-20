@@ -348,14 +348,14 @@ ssif_loop(void *arg)
 		IPMI_LOCK(sc);
 	}
 	IPMI_UNLOCK(sc);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 static int
 ssif_startup(struct ipmi_softc *sc)
 {
 
-	return (kthread_create(ssif_loop, sc, &sc->ipmi_kthread, 0, 0,
+	return (kproc_create(ssif_loop, sc, &sc->ipmi_kthread, 0, 0,
 	    "%s: ssif", device_get_nameunit(sc->ipmi_dev)));
 }
 

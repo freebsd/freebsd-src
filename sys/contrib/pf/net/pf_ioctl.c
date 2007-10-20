@@ -386,7 +386,7 @@ pfattach(void)
 	/* XXX do our best to avoid a conflict */
 	pf_status.hostid = arc4random();
 
-	if (kthread_create(pf_purge_thread, NULL, NULL, 0, 0, "pfpurge"))
+	if (kproc_create(pf_purge_thread, NULL, NULL, 0, 0, "pfpurge"))
 		return (ENXIO);
 
 	return (error);
@@ -464,13 +464,13 @@ pfattach(int num)
 	pf_status.hostid = arc4random();
 
 	/* require process context to purge states, so perform in a thread */
-	kthread_create_deferred(pf_thread_create, NULL);
+	kproc_create_deferred(pf_thread_create, NULL);
 }
 
 void
 pf_thread_create(void *v)
 {
-	if (kthread_create(pf_purge_thread, NULL, NULL, "pfpurge"))
+	if (kproc_create(pf_purge_thread, NULL, NULL, "pfpurge"))
 		panic("pfpurge thread");
 }
 

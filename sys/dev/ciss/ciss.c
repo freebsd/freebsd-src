@@ -3807,7 +3807,7 @@ ciss_notify_thread(void *arg)
 #if __FreeBSD_version >= 500000
     mtx_unlock(&sc->ciss_mtx);
 #endif
-    kthread_exit(0);
+    kproc_exit(0);
 }
 
 /************************************************************************
@@ -3818,11 +3818,11 @@ ciss_spawn_notify_thread(struct ciss_softc *sc)
 {
 
 #if __FreeBSD_version > 500005
-    if (kthread_create((void(*)(void *))ciss_notify_thread, sc,
+    if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
 		       &sc->ciss_notify_thread, 0, 0, "ciss_notify%d",
 		       device_get_unit(sc->ciss_dev)))
 #else
-    if (kthread_create((void(*)(void *))ciss_notify_thread, sc,
+    if (kproc_create((void(*)(void *))ciss_notify_thread, sc,
 		       &sc->ciss_notify_thread, "ciss_notify%d",
 		       device_get_unit(sc->ciss_dev)))
 #endif

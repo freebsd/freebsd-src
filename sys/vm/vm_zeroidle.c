@@ -147,7 +147,7 @@ pagezero_start(void __unused *arg)
 	int error;
 	struct thread *td;
 
-	error = kthread_create(vm_pagezero, NULL, &pagezero_proc, RFSTOPPED, 0,
+	error = kproc_create(vm_pagezero, NULL, &pagezero_proc, RFSTOPPED, 0,
 	    "pagezero");
 	if (error)
 		panic("pagezero_start: error %d\n", error);

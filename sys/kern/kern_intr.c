@@ -337,10 +337,10 @@ ithread_create(const char *name)
 
 	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
 
-	error = kthread_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
+	error = kproc_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
 	    0, "%s", name);
 	if (error)
-		panic("kthread_create() failed with %d", error);
+		panic("kproc_create() failed with %d", error);
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
@@ -362,10 +362,10 @@ ithread_create(const char *name, struct intr_handler *ih)
 
 	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
 
-	error = kthread_create(ithread_loop, ih, &p, RFSTOPPED | RFHIGHPID,
+	error = kproc_create(ithread_loop, ih, &p, RFSTOPPED | RFHIGHPID,
 	    0, "%s", name);
 	if (error)
-		panic("kthread_create() failed with %d", error);
+		panic("kproc_create() failed with %d", error);
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
@@ -1102,7 +1102,7 @@ ithread_loop(void *arg)
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, p->p_comm);
 			free(ithd, M_ITHREAD);
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 
 		/*
@@ -1173,7 +1173,7 @@ ithread_loop(void *arg)
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, p->p_comm);
 			free(ithd, M_ITHREAD);
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 
 		/*

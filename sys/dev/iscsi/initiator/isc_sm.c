@@ -587,7 +587,7 @@ ism_proc(void *vp)
      sdebug(3, "terminated");
 
      wakeup(sp);
-     kthread_exit(0);
+     kproc_exit(0);
 }
 
 #if 0
@@ -782,5 +782,5 @@ ism_start(isc_session_t *sp)
 
      sp->flags |= ISC_SM_RUN;
 
-     return kthread_create(ism_proc, sp, &sp->stp, 0, 0, "ism_%d", sp->sid);
+     return kproc_create(ism_proc, sp, &sp->stp, 0, 0, "ism_%d", sp->sid);
 }

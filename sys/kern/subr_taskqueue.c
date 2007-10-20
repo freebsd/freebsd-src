@@ -336,14 +336,14 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 
 	for (i = 0; i < count; i++) {
 		if (count == 1)
-			error = kthread_create(taskqueue_thread_loop, tqp,
+			error = kproc_create(taskqueue_thread_loop, tqp,
 			    &tq->tq_pproc[i], RFSTOPPED, 0, ktname);
 		else
-			error = kthread_create(taskqueue_thread_loop, tqp,
+			error = kproc_create(taskqueue_thread_loop, tqp,
 			    &tq->tq_pproc[i], RFSTOPPED, 0, "%s_%d", ktname, i);
 		if (error) {
 			/* should be ok to continue, taskqueue_free will dtrt */
-			printf("%s: kthread_create(%s): error %d",
+			printf("%s: kproc_create(%s): error %d",
 				__func__, ktname, error);
 			tq->tq_pproc[i] = NULL;		/* paranoid */
 		} else
@@ -379,7 +379,7 @@ taskqueue_thread_loop(void *arg)
 	tq->tq_pcount--;
 	wakeup_one(tq->tq_pproc);
 	TQ_UNLOCK(tq);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 void

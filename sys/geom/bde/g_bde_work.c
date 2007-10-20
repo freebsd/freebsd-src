@@ -664,7 +664,7 @@ g_bde_worker(void *arg)
 	mtx_unlock(&sc->worklist_mutex);
 	sc->dead = 2;
 	wakeup(sc);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*

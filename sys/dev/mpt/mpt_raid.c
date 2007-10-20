@@ -722,7 +722,7 @@ mpt_raid_thread(void *arg)
 	mpt->raid_thread = NULL;
 	wakeup(&mpt->raid_thread);
 	MPT_UNLOCK(mpt);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 #if 0

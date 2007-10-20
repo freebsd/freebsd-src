@@ -169,7 +169,7 @@ g_ofwd_init(struct g_class *mp __unused)
 	sc->ofwd_sectorsize = OFWD_BLOCKSIZE;
 	sc->ofwd_fwsectors = 0;
 	sc->ofwd_fwheads = 0;
-	error = kthread_create(ofwd_kthread, sc, &sc->ofwd_procp, 0, 0,
+	error = kproc_create(ofwd_kthread, sc, &sc->ofwd_procp, 0, 0,
 		     "ofwd0");
         if (error != 0) {
 		free(sc, M_DEVBUF);

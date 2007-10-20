@@ -988,7 +988,7 @@ pf_purge_thread(void *v)
 			sx_sunlock(&pf_consistency_lock);
 			PF_UNLOCK();
 			wakeup(pf_purge_thread);
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 #endif
 		s = splsoftnet();

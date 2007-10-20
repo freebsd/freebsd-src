@@ -348,7 +348,7 @@ gv_sync(struct gv_volume *v)
 		sync->from = up;
 		sync->to = p;
 		sync->syncsize = GV_DFLT_SYNCSIZE;
-		kthread_create(gv_sync_td, sync, NULL, 0, 0, "gv_sync '%s'",
+		kproc_create(gv_sync_td, sync, NULL, 0, 0, "gv_sync '%s'",
 		    p->name);
 	}
 
@@ -371,7 +371,7 @@ gv_rebuild_plex(struct gv_plex *p)
 	sync->to = p;
 	sync->syncsize = GV_DFLT_SYNCSIZE;
 
-	kthread_create(gv_rebuild_td, sync, NULL, 0, 0, "gv_rebuild %s",
+	kproc_create(gv_rebuild_td, sync, NULL, 0, 0, "gv_rebuild %s",
 	    p->name);
 
 	return (0);
@@ -389,7 +389,7 @@ gv_init_plex(struct gv_plex *p)
 			return (EINPROGRESS);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
 		s->init_size = GV_DFLT_SYNCSIZE;
-		kthread_create(gv_init_td, s, NULL, 0, 0, "gv_init %s",
+		kproc_create(gv_init_td, s, NULL, 0, 0, "gv_init %s",
 		    s->name);
 	}
 
@@ -422,7 +422,7 @@ gv_rebuild_td(void *arg)
 		g_topology_unlock();
 		printf("GEOM_VINUM: rebuild of %s failed to access consumer: "
 		    "%d\n", p->name, error);
-		kthread_exit(error);
+		kproc_exit(error);
 	}
 	g_topology_unlock();
 
@@ -480,7 +480,7 @@ gv_rebuild_td(void *arg)
 		printf("GEOM_VINUM: rebuild of %s finished\n", p->name);
 
 	g_free(sync);
-	kthread_exit(error);
+	kproc_exit(error);
 }
 
 void
@@ -511,7 +511,7 @@ gv_sync_td(void *arg)
 		printf("GEOM_VINUM: sync from '%s' failed to access "
 		    "consumer: %d\n", sync->from->name, error);
 		g_free(sync);
-		kthread_exit(error);
+		kproc_exit(error);
 	}
 	error = g_access(to, 0, 1, 0);
 	if (error) {
@@ -520,7 +520,7 @@ gv_sync_td(void *arg)
 		printf("GEOM_VINUM: sync to '%s' failed to access "
 		    "consumer: %d\n", p->name, error);
 		g_free(sync);
-		kthread_exit(error);
+		kproc_exit(error);
 	}
 	g_topology_unlock();
 
@@ -593,7 +593,7 @@ gv_sync_td(void *arg)
 	p->synced = 0;
 
 	g_free(sync);
-	kthread_exit(error);
+	kproc_exit(error);
 }
 
 void
@@ -632,7 +632,7 @@ gv_init_td(void *arg)
 		g_topology_unlock();
 		printf("GEOM_VINUM: subdisk '%s' init: failed to access "
 		    "consumer; error: %d\n", s->name, error);
-		kthread_exit(error);
+		kproc_exit(error);
 	}
 	g_topology_unlock();
 
@@ -667,5 +667,5 @@ gv_init_td(void *arg)
 		printf("GEOM_VINUM: subdisk '%s' init: finished successfully\n",
 		    s->name);
 	}
-	kthread_exit(error);
+	kproc_exit(error);
 }

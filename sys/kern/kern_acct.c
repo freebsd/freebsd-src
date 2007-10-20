@@ -283,7 +283,7 @@ acct(struct thread *td, struct acct_args *uap)
 		 * than one, but if so the extras will commit suicide as
 		 * soon as they start up.
 		 */
-		error = kthread_create(acct_thread, NULL, NULL, 0, 0,
+		error = kproc_create(acct_thread, NULL, NULL, 0, 0,
 		    "accounting");
 		if (error) {
 			vfslocked = VFS_LOCK_GIANT(acct_vp->v_mount);
@@ -625,7 +625,7 @@ acct_thread(void *dummy)
 	sx_xlock(&acct_sx);
 	if (acct_state & ACCT_RUNNING) {
 		sx_xunlock(&acct_sx);
-		kthread_exit(0);
+		kproc_exit(0);
 	}
 	acct_state |= ACCT_RUNNING;
 
@@ -652,5 +652,5 @@ acct_thread(void *dummy)
 	 */
 	acct_state = 0;
 	sx_xunlock(&acct_sx);
-	kthread_exit(0);
+	kproc_exit(0);
 }

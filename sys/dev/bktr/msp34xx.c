@@ -899,7 +899,7 @@ done:
 	wakeup(&msp->kthread);
 	mtx_unlock(&Giant);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1126,7 +1126,7 @@ done:
 	wakeup(&msp->kthread);
 	mtx_unlock(&Giant);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 int msp_attach(bktr_ptr_t bktr)
@@ -1197,11 +1197,11 @@ int msp_attach(bktr_ptr_t bktr)
 	}
 
 	/* startup control thread */
-	err = kthread_create(msp->simple ? msp3410d_thread : msp3400c_thread,
+	err = kproc_create(msp->simple ? msp3410d_thread : msp3400c_thread,
 			     bktr, &msp->kthread, (RFFDG | RFPROC), 0,
 			     msp->threaddesc);
 	if (err) {
-		printf("%s: Error returned by kthread_create: %d", bktr_name(bktr), err);
+		printf("%s: Error returned by kproc_create: %d", bktr_name(bktr), err);
 		free(msp->threaddesc, M_DEVBUF);
 		free(msp, M_DEVBUF);
 		bktr->msp3400c_info = NULL;
