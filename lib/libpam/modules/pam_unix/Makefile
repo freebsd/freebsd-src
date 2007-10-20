@@ -35,6 +35,7 @@
 # $FreeBSD$
 
 NO_PROFILE=
+NO_INSTALLLIB=
 .include <bsd.own.mk>
 
 LIB=	pam_unix

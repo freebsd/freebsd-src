@@ -235,7 +235,7 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
-.if defined(LIB) && !empty(LIB) && !defined(NO_INSTALLLIB)
+.if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
 .endif
