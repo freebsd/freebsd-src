@@ -539,7 +539,7 @@ isc_soc(void *vp)
 
      mtx_unlock(&sp->io_mtx);
 
-     kthread_exit(0);
+     kproc_exit(0);
 }
 
 void
@@ -572,5 +572,5 @@ isc_start_receiver(isc_session_t *sp)
      debug_called(8);
 
      sp->flags |= ISC_CON_RUN;
-     kthread_create(isc_soc, sp, &sp->soc_proc, 0, 0, "iscsi%d", sp->sid);
+     kproc_create(isc_soc, sp, &sp->soc_proc, 0, 0, "iscsi%d", sp->sid);
 }

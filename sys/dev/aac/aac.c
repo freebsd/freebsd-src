@@ -354,7 +354,7 @@ aac_attach(struct aac_softc *sc)
 	sc->aac_dev_t->si_drv1 = sc;
 
 	/* Create the AIF thread */
-	if (kthread_create((void(*)(void *))aac_command_thread, sc,
+	if (kproc_create((void(*)(void *))aac_command_thread, sc,
 		   &sc->aifthread, 0, 0, "aac%daif", unit))
 		panic("Could not create AIF thread\n");
 
@@ -990,7 +990,7 @@ aac_command_thread(struct aac_softc *sc)
 	mtx_unlock(&sc->aac_io_lock);
 	wakeup(sc->aac_dev);
 
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*

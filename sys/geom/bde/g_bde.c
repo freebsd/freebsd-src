@@ -183,7 +183,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		TAILQ_INIT(&sc->worklist);
 		mtx_init(&sc->worklist_mutex, "g_bde_worklist", NULL, MTX_DEF);
 		/* XXX: error check */
-		kthread_create(g_bde_worker, gp, &sc->thread, 0, 0,
+		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
 		pp = g_new_providerf(gp, gp->name);
 #if 0

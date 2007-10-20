@@ -177,7 +177,7 @@ nfs_nfsiodnew(void)
 	if (newiod == -1)
 		return (-1);
 	mtx_unlock(&nfs_iod_mtx);
-	error = kthread_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
+	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
 	    0, "nfsiod %d", newiod);
 	mtx_lock(&nfs_iod_mtx);
 	if (error)
@@ -309,7 +309,7 @@ finish:
 		wakeup(&nfs_numasync);
 	mtx_unlock(&nfs_iod_mtx);
 	if ((error == 0) || (error == EWOULDBLOCK))
-		kthread_exit(0);
+		kproc_exit(0);
 	/* Abnormal termination */
-	kthread_exit(1);
+	kproc_exit(1);
 }

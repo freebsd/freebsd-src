@@ -701,7 +701,7 @@ md_kthread(void *arg)
 		if (sc->flags & MD_SHUTDOWN) {
 			sc->flags |= MD_EXITING;
 			mtx_unlock(&sc->queue_mtx);
-			kthread_exit(0);
+			kproc_exit(0);
 		}
 		bp = bioq_takefirst(&sc->bio_queue);
 		if (!bp) {
@@ -765,7 +765,7 @@ mdnew(int unit, int *errp, enum md_types type)
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
-	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
+	error = kproc_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
 	if (error == 0)
 		return (sc);
 	LIST_REMOVE(sc, list);

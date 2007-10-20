@@ -125,7 +125,7 @@ aic_recovery_thread(void *arg)
 	aic->platform_data->recovery_thread = NULL;
 	wakeup(aic->platform_data);
 	aic_unlock(aic);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 void

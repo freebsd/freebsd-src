@@ -301,7 +301,7 @@ acpi_tz_attach(device_t dev)
     sc->tz_event = EVENTHANDLER_REGISTER(power_profile_change,
 	acpi_tz_power_profile, sc, 0);
     if (acpi_tz_proc == NULL) {
-	error = kthread_create(acpi_tz_thread, NULL, &acpi_tz_proc,
+	error = kproc_create(acpi_tz_thread, NULL, &acpi_tz_proc,
 	    RFHIGHPID, 0, "acpi_thermal");
 	if (error != 0) {
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);
@@ -1088,7 +1088,7 @@ acpi_tz_cooling_thread(void *arg)
     ACPI_LOCK(thermal);
     sc->tz_cooling_proc_running = FALSE;
     ACPI_UNLOCK(thermal);
-    kthread_exit(0);
+    kproc_exit(0);
 }
 
 /*
@@ -1121,7 +1121,7 @@ acpi_tz_cooling_thread_start(struct acpi_tz_softc *sc)
     if (sc->tz_cooling_proc == NULL) {
 	snprintf(name, sizeof(name), "acpi_cooling%d",
 	    device_get_unit(sc->tz_dev));
-	error = kthread_create(acpi_tz_cooling_thread, sc,
+	error = kproc_create(acpi_tz_cooling_thread, sc,
 	    &sc->tz_cooling_proc, RFHIGHPID, 0, name);
 	if (error != 0) {
 	    device_printf(sc->tz_dev, "could not create thread - %d", error);

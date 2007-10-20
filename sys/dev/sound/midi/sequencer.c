@@ -461,7 +461,7 @@ done:
 	mtx_unlock(&scp->seq_lock);
 	mtx_lock(&Giant);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*
@@ -576,7 +576,7 @@ seq_addunit(void)
 	 * TODO: Add to list of sequencers this module provides
 	 */
 
-	ret = kthread_create(seq_eventthread, scp, NULL, RFHIGHPID, 0,
+	ret = kproc_create(seq_eventthread, scp, NULL, RFHIGHPID, 0,
 	    "sequencer %02d", scp->unit);
 
 	if (ret)

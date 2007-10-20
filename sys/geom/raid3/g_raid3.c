@@ -2064,7 +2064,7 @@ g_raid3_worker(void *arg)
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_RAID3_DEBUG(1, "Thread exiting.");
-					kthread_exit(0);
+					kproc_exit(0);
 				}
 			}
 			G_RAID3_DEBUG(5, "%s: I'm here 1.", __func__);
@@ -2088,7 +2088,7 @@ g_raid3_worker(void *arg)
 				if (g_raid3_try_destroy(sc)) {
 					curthread->td_pflags &= ~TDP_GEOM;
 					G_RAID3_DEBUG(1, "Thread exiting.");
-					kthread_exit(0);
+					kproc_exit(0);
 				}
 				mtx_lock(&sc->sc_queue_mtx);
 			}
@@ -3170,7 +3170,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 		    sc->sc_zones[G_RAID3_ZONE_4K].sz_failed = 0;
 	}
 
-	error = kthread_create(g_raid3_worker, sc, &sc->sc_worker, 0, 0,
+	error = kproc_create(g_raid3_worker, sc, &sc->sc_worker, 0, 0,
 	    "g_raid3 %s", md->md_name);
 	if (error != 0) {
 		G_RAID3_DEBUG(1, "Cannot create kernel thread for %s.",

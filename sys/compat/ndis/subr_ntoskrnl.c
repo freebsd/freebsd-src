@@ -316,7 +316,7 @@ ntoskrnl_libinit()
 		kq = kq_queues + i;
 		kq->kq_cpu = i;
 		sprintf(name, "Windows DPC %d", i);
-		error = kthread_create(ntoskrnl_dpc_thread, kq, &p,
+		error = kproc_create(ntoskrnl_dpc_thread, kq, &p,
 		    RFHIGHPID, NDIS_KSTACK_PAGES, name);
 		if (error)
 			panic("failed to launch DPC thread");
@@ -329,7 +329,7 @@ ntoskrnl_libinit()
         for (i = 0; i < WORKITEM_THREADS; i++) {
 		kq = wq_queues + i;
 		sprintf(name, "Windows Workitem %d", i);
-		error = kthread_create(ntoskrnl_workitem_thread, kq, &p,
+		error = kproc_create(ntoskrnl_workitem_thread, kq, &p,
                     RFHIGHPID, NDIS_KSTACK_PAGES, name);
 		if (error)
 			panic("failed to launch workitem thread");
@@ -2801,7 +2801,7 @@ ntoskrnl_workitem_thread(arg)
 #if __FreeBSD_version < 502113
         mtx_lock(&Giant);
 #endif
-        kthread_exit(0);
+        kproc_exit(0);
         return; /* notreached */
 }
 
@@ -3519,7 +3519,7 @@ PsCreateSystemThread(handle, reqaccess, objattrs, phandle,
 	tc->tc_thrfunc = thrfunc;
 
 	sprintf(tname, "windows kthread %d", ntoskrnl_kth);
-	error = kthread_create(ntoskrnl_thrfunc, tc, &p,
+	error = kproc_create(ntoskrnl_thrfunc, tc, &p,
 	    RFHIGHPID, NDIS_KSTACK_PAGES, tname);
 
 	if (error) {
@@ -3562,7 +3562,7 @@ PsTerminateSystemThread(status)
 #if __FreeBSD_version < 502113
 	mtx_lock(&Giant);
 #endif
-	kthread_exit(0);
+	kproc_exit(0);
 	return(0);	/* notreached */
 }
 
@@ -3871,7 +3871,7 @@ ntoskrnl_dpc_thread(arg)
 #if __FreeBSD_version < 502113
         mtx_lock(&Giant);
 #endif
-        kthread_exit(0);
+        kproc_exit(0);
         return; /* notreached */
 }
 

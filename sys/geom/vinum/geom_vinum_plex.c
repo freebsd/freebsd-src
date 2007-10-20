@@ -332,7 +332,7 @@ gv_plex_worker(void *arg)
 	p->flags |= GV_PLEX_THREAD_DEAD;
 	wakeup(p);
 
-	kthread_exit(ENXIO);
+	kproc_exit(ENXIO);
 }
 
 static int
@@ -783,7 +783,7 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (mtx_initialized(&p->bqueue_mtx) == 0)
 			mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 		if (!(p->flags & GV_PLEX_THREAD_ACTIVE)) {
-			kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
+			kproc_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
 			    p->name);
 			p->flags |= GV_PLEX_THREAD_ACTIVE;
 		}
@@ -807,7 +807,7 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    M_WAITOK | M_ZERO);
 		bioq_init(p->wqueue);
 		mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
-		kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
+		kproc_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
 		    p->name);
 		p->flags |= GV_PLEX_THREAD_ACTIVE;
 

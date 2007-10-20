@@ -56,7 +56,7 @@ kproc_start(udata)
 	const struct kproc_desc	*kp = udata;
 	int error;
 
-	error = kthread_create((void (*)(void *))kp->func, NULL,
+	error = kproc_create((void (*)(void *))kp->func, NULL,
 		    kp->global_procpp, 0, 0, "%s", kp->arg0);
 	if (error)
 		panic("kproc_start: %s: error %d", kp->arg0, error);
@@ -73,7 +73,7 @@ kproc_start(udata)
  * fmt and following will be *printf'd into (*newpp)->p_comm (for ps, etc.).
  */
 int
-kthread_create(void (*func)(void *), void *arg,
+kproc_create(void (*func)(void *), void *arg,
     struct proc **newpp, int flags, int pages, const char *fmt, ...)
 {
 	int error;
@@ -82,7 +82,7 @@ kthread_create(void (*func)(void *), void *arg,
 	struct proc *p2;
 
 	if (!proc0.p_stats)
-		panic("kthread_create called too soon");
+		panic("kproc_create called too soon");
 
 	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
 	    pages, &p2);
@@ -122,7 +122,7 @@ kthread_create(void (*func)(void *), void *arg,
 }
 
 void
-kthread_exit(int ecode)
+kproc_exit(int ecode)
 {
 	struct thread *td;
 	struct proc *p;
@@ -154,7 +154,7 @@ kthread_exit(int ecode)
  * Participation is voluntary.
  */
 int
-kthread_suspend(struct proc *p, int timo)
+kproc_suspend(struct proc *p, int timo)
 {
 	/*
 	 * Make sure this is indeed a system process and we can safely
@@ -171,7 +171,7 @@ kthread_suspend(struct proc *p, int timo)
 }
 
 int
-kthread_resume(struct proc *p)
+kproc_resume(struct proc *p)
 {
 	/*
 	 * Make sure this is indeed a system process and we can safely
@@ -189,7 +189,7 @@ kthread_resume(struct proc *p)
 }
 
 void
-kthread_suspend_check(struct proc *p)
+kproc_suspend_check(struct proc *p)
 {
 	PROC_LOCK(p);
 	while (SIGISMEMBER(p->p_siglist, SIGSTOP)) {

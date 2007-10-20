@@ -216,7 +216,7 @@ crypto_init(void)
 		goto bad;
 	}
 
-	error = kthread_create((void (*)(void *)) crypto_proc, NULL,
+	error = kproc_create((void (*)(void *)) crypto_proc, NULL,
 		    &cryptoproc, 0, 0, "crypto");
 	if (error) {
 		printf("crypto_init: cannot start crypto thread; error %d",
@@ -224,7 +224,7 @@ crypto_init(void)
 		goto bad;
 	}
 
-	error = kthread_create((void (*)(void *)) crypto_ret_proc, NULL,
+	error = kproc_create((void (*)(void *)) crypto_ret_proc, NULL,
 		    &cryptoretproc, 0, 0, "crypto returns");
 	if (error) {
 		printf("crypto_init: cannot start cryptoret thread; error %d",
@@ -1222,7 +1222,7 @@ crypto_finis(void *chan)
 	CRYPTO_DRIVER_LOCK();
 	wakeup_one(chan);
 	CRYPTO_DRIVER_UNLOCK();
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 /*

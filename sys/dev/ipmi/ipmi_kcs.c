@@ -466,14 +466,14 @@ kcs_loop(void *arg)
 		ipmi_complete_request(sc, req);
 	}
 	IPMI_UNLOCK(sc);
-	kthread_exit(0);
+	kproc_exit(0);
 }
 
 static int
 kcs_startup(struct ipmi_softc *sc)
 {
 
-	return (kthread_create(kcs_loop, sc, &sc->ipmi_kthread, 0, 0, "%s: kcs",
+	return (kproc_create(kcs_loop, sc, &sc->ipmi_kthread, 0, 0, "%s: kcs",
 	    device_get_nameunit(sc->ipmi_dev)));
 }
 

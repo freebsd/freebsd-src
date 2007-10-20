@@ -728,7 +728,7 @@ softdep_flush(void)
 	td->td_pflags |= TDP_NORUNNINGBUF;
 
 	for (;;) {	
-		kthread_suspend_check(softdepproc);
+		kproc_suspend_check(softdepproc);
 		vfslocked = VFS_LOCK_GIANT((struct mount *)NULL);
 		ACQUIRE_LOCK(&lk);
 		/*
