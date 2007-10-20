@@ -1867,7 +1867,7 @@ bridge_start(struct ifnet *ifp)
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
 			break;
-		BPF_MTAP(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 
 		eh = mtod(m, struct ether_header *);
 		dst_if = NULL;
@@ -1975,7 +1975,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * firewall issues on the bridge.
 	 */
 	if (dst_if != NULL || (m->m_flags & (M_BCAST | M_MCAST)) == 0)
-		BPF_MTAP(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 
 	/* run the packet filter */
 	if (PFIL_HOOKED(&inet_pfil_hook)
@@ -2073,7 +2073,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if ((bifp->if_flags & IFF_MONITOR) != 0) {
 		m->m_pkthdr.rcvif  = bifp;
-		BPF_MTAP(bifp, m);
+		ETHER_BPF_MTAP(bifp, m);
 		bifp->if_ipackets++;
 		bifp->if_ibytes += m->m_pkthdr.len;
 		m_freem(m);
@@ -2118,7 +2118,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 		/* Mark the packet as arriving on the bridge interface */
 		m->m_pkthdr.rcvif = bifp;
-		BPF_MTAP(bifp, m);
+		ETHER_BPF_MTAP(bifp, m);
 		bifp->if_ipackets++;
 
 		BRIDGE_UNLOCK(sc);
