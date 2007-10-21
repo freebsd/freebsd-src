@@ -124,6 +124,7 @@ static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
+static struct uuid gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
@@ -307,6 +308,11 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM);
 	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_freebsd_vinum;
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
+	if (!strcasecmp(type, alias)) {
+		*uuid = gpt_uuid_freebsd_zfs;
 		return (0);
 	}
 	alias = g_part_alias_name(G_PART_ALIAS_MBR);
@@ -600,6 +606,8 @@ g_part_gpt_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
 	if (EQUUID(type, &gpt_uuid_freebsd_vinum))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
+	if (EQUUID(type, &gpt_uuid_freebsd_zfs))
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
 	if (EQUUID(type, &gpt_uuid_mbr))
 		return (g_part_alias_name(G_PART_ALIAS_MBR));
 	buf[0] = '!';

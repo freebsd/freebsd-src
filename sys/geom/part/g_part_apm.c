@@ -131,6 +131,11 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 		strcpy(buf, APM_ENT_TYPE_FREEBSD_VINUM);
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
+	if (!strcasecmp(type, alias)) {
+		strcpy(buf, APM_ENT_TYPE_FREEBSD_ZFS);
+		return (0);
+	}
 	return (EINVAL);
 }
 
@@ -358,6 +363,8 @@ g_part_apm_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
 	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_VINUM))
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
+	if (!strcmp(type, APM_ENT_TYPE_FREEBSD_ZFS))
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
 	buf[0] = '!';
 	len = MIN(sizeof(entry->ent.ent_type), bufsz - 2);
 	bcopy(type, buf + 1, len);
