@@ -47,8 +47,8 @@ void	kproc_start(const void *);
 int     kproc_create(void (*)(void *), void *, struct proc **,
 	    int flags, int pages, const char *, ...) __printflike(6, 7);
 void    kproc_exit(int) __dead2;
-int	kproc_resume(struct proc *); /* XXXKSE */
-int	kproc_suspend(struct proc *, int); /* XXXKSE */
-void	kproc_suspend_check(struct proc *); /* XXXKSE */
+int	kproc_resume(struct proc *);
+int	kproc_suspend(struct proc *, int);
+void	kproc_suspend_check(struct proc *);
 
 #endif /* !_SYS_KTHREAD_H_ */
