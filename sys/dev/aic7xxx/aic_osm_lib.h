@@ -126,11 +126,16 @@ aic_wakeup_recovery_thread(struct aic_softc *aic)
 
 /****************************** Kernel Threads ********************************/
 #if __FreeBSD_version > 500005
+#if __FreeBSD_version > 800001
 #define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #else
 #define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kproc_create(func, farg, proc_ptr, fmtstr, arg)
+	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
+#endif
+#else
+#define	aic_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
+	kthread_create(func, farg, proc_ptr, fmtstr, arg)
 #endif
 
 /******************************* Bus Space/DMA ********************************/
