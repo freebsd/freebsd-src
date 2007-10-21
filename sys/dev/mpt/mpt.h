@@ -272,11 +272,16 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 
 /**************************** Kernel Thread Support ***************************/
 #if __FreeBSD_version > 500005
+#if __FreeBSD_version > 800001
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
 	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
 #else
 #define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kproc_create(func, farg, proc_ptr, fmtstr, arg)
+	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
+#endif
+#else
+#define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
+	kthread_create(func, farg, proc_ptr, fmtstr, arg)
 #endif
 
 /****************************** Timer Facilities ******************************/
