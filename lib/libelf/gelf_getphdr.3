@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2007 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2006
+.Dd October 21, 2007
 .Os
 .Dt GELF_GETPHDR 3
 .Sh NAME
@@ -57,10 +57,9 @@ and
 descriptors respectively.
 These descriptors are described in
 .Xr elf 5 .
-The number of entries in this array is specified by the
-.Va e_phnum
-field of the executable header for ELF descriptor
-.Ar elf .
+The number of entries in this array may be determined using the
+.Xr elf_getphnum 3
+function.
 .Pp
 Function
 .Fn gelf_getphdr
@@ -134,6 +133,7 @@ was of an unsupported version.
 .Xr elf64_getehdr 3 ,
 .Xr elf64_newphdr 3 ,
 .Xr elf_flagphdr 3 ,
+.Xr elf_getphnum 3 ,
 .Xr gelf 3 ,
 .Xr gelf_getehdr 3 ,
 .Xr gelf_newphdr 3 ,
