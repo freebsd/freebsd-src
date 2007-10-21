@@ -69,6 +69,7 @@ struct g_part_alias_list {
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
 	{ "freebsd-ufs", G_PART_ALIAS_FREEBSD_UFS },
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
+	{ "freebsd-zfs", G_PART_ALIAS_FREEBSD_ZFS },
 	{ "mbr", G_PART_ALIAS_MBR }
 };
 
