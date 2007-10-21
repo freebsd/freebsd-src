@@ -37,6 +37,13 @@
 .Nm kthread_suspend ,
 .Nm kthread_suspend_check
 .Nd kernel threads
+.Pp
+.Em WARNING WARNING WARNING.. these functions have been renamed. See
+.Xr kproc 9 .
+.Pp
+These functions will return in almost identical form but will create actual 
+kernel threads. In their old form they created kernel
+.Em PROCESSES .
 .Sh SYNOPSIS
 .In sys/kthread.h
 .Ft void
