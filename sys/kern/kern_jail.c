@@ -684,6 +684,7 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_FCHROOT:
 	case PRIV_VFS_LINK:
 	case PRIV_VFS_SETGID:
+	case PRIV_VFS_STAT:
 	case PRIV_VFS_STICKYFILE:
 		return (0);
 
