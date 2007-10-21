@@ -21,6 +21,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20071020:
+	The misnamed kthread_create() and friends have been renamed
+	to kproc_create() etc. Many of the callers already
+	used kproc_start()..
+	I will return kthread_create() and friends in a while
+	with implementations that actually create threads, not procs.
+	Renaming corresponds with version 800002.
+
 20071010:
 	RELENG_7 branched.
 
