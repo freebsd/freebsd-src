@@ -88,7 +88,7 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "show", 0, gpart_show, G_NULL_OPTS, "[geom ...]", NULL },
+	{ "show", 0, gpart_show, G_NULL_OPTS, NULL, "[geom ...]" },
 	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
 	G_CMD_SENTINEL
 };
