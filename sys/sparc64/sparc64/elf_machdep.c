@@ -36,8 +36,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: NetBSD: mdreloc.c,v 1.5 2001/04/25 12:24:51 kleink Exp
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -58,7 +60,7 @@
 
 #include "linker_if.h"
 
-struct sysentvec elf64_freebsd_sysvec = {
+static struct sysentvec elf64_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
 	sysent,
 	0,
@@ -147,7 +149,7 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
 #define _RF_U		0x04000000		/* Unaligned */
 #define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
 #define _RF_RS(s)	( (s) & 0xff)		/* right shift */
-static int reloc_target_flags[] = {
+static const int reloc_target_flags[] = {
 	0,							/* NONE */
 	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* RELOC_8 */
 	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* RELOC_16 */
@@ -231,7 +233,7 @@ static const char *reloc_names[] = {
 #define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
 #define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
-static long reloc_target_bitmask[] = {
+static const long reloc_target_bitmask[] = {
 #define _BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
 	_BM(8), _BM(16), _BM(32),	/* RELOC_8, _16, _32 */
@@ -247,7 +249,7 @@ static long reloc_target_bitmask[] = {
 	_BM(22), _BM(10),		/* _HIPLT22, LOPLT10 */
 	_BM(32), _BM(22), _BM(10),	/* _PCPLT32, _PCPLT22, _PCPLT10 */
 	_BM(10), _BM(11), -1,		/* _10, _11, _64 */
-	_BM(10), _BM(22),		/* _OLO10, _HH22 */
+	_BM(13), _BM(22),		/* _OLO10, _HH22 */
 	_BM(10), _BM(22),		/* _HM10, _LM22 */
 	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
 	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
@@ -273,7 +275,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		return (-1);
 
 	rela = (const Elf_Rela *)data;
-	if (ELF_R_TYPE(rela->r_info) != R_SPARC_RELATIVE)
+	if (ELF64_R_TYPE_ID(rela->r_info) != R_SPARC_RELATIVE)
 		return (-1);
 
 	value = rela->r_addend + (Elf_Addr)lf->address;
@@ -303,14 +305,15 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	rela = (const Elf_Rela *)data;
 	where = (Elf_Addr *)(relocbase + rela->r_offset);
 	where32 = (Elf_Word *)where;
-	rtype = ELF_R_TYPE(rela->r_info);
+	rtype = ELF64_R_TYPE_ID(rela->r_info);
 	symidx = ELF_R_SYM(rela->r_info);
 
 	if (rtype == R_SPARC_NONE || rtype == R_SPARC_RELATIVE)
 		return (0);
 
 	if (rtype == R_SPARC_JMP_SLOT || rtype == R_SPARC_COPY ||
-	    rtype >= (sizeof(reloc_target_bitmask)/sizeof(long)))
+	    rtype >= sizeof(reloc_target_bitmask) /
+	    sizeof(*reloc_target_bitmask))
 		return (-1);
 
 	if (RELOC_UNALIGNED(rtype))
@@ -324,6 +327,9 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 			return (-1);
 		value += addr;
 	}
+
+	if (rtype == R_SPARC_OLO10)
+		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
 
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;

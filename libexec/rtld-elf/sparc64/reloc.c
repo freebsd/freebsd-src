@@ -35,9 +35,10 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -73,7 +74,7 @@
 #define _RF_U		0x04000000		/* Unaligned */
 #define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
 #define _RF_RS(s)	( (s) & 0xff)		/* right shift */
-static int reloc_target_flags[] = {
+static const int reloc_target_flags[] = {
 	0,							/* NONE */
 	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* RELOC_8 */
 	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* RELOC_16 */
@@ -157,7 +158,7 @@ static const char *reloc_names[] = {
 #define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
 #define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
-static long reloc_target_bitmask[] = {
+static const long reloc_target_bitmask[] = {
 #define _BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
 	_BM(8), _BM(16), _BM(32),	/* RELOC_8, _16, _32 */
@@ -173,7 +174,7 @@ static long reloc_target_bitmask[] = {
 	_BM(22), _BM(10),		/* _HIPLT22, LOPLT10 */
 	_BM(32), _BM(22), _BM(10),	/* _PCPLT32, _PCPLT22, _PCPLT10 */
 	_BM(10), _BM(11), -1,		/* _10, _11, _64 */
-	_BM(10), _BM(22),		/* _OLO10, _HH22 */
+	_BM(13), _BM(22),		/* _OLO10, _HH22 */
 	_BM(10), _BM(22),		/* _HM10, _LM22 */
 	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
 	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
@@ -296,7 +297,7 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 	defobj = NULL;
 	def = NULL;
 
-	type = ELF_R_TYPE(rela->r_info);
+	type = ELF64_R_TYPE_ID(rela->r_info);
 	if (type == R_SPARC_NONE)
 		return (0);
 
@@ -311,7 +312,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 	/*
 	 * Note: R_SPARC_UA16 must be numerically largest relocation type.
 	 */
-	if (type > R_SPARC_UA16)
+	if (type >= sizeof(reloc_target_bitmask) /
+	    sizeof(*reloc_target_bitmask))
 		return (-1);
 
 	value = rela->r_addend;
@@ -341,6 +343,9 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache)
 		/* Add in the symbol's absolute address */
 		value += (Elf_Addr)(defobj->relocbase + def->st_value);
 	}
+
+	if (type == R_SPARC_OLO10)
+		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
 
 	if (RELOC_PC_RELATIVE(type))
 		value -= (Elf_Addr)where;
@@ -411,7 +416,7 @@ reloc_plt(Obj_Entry *obj)
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		if (rela->r_addend == 0)
 			continue;
-		assert(ELF_R_TYPE(rela->r_info) == R_SPARC_JMP_SLOT);
+		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    true, NULL);
@@ -455,7 +460,7 @@ reloc_jmpslots(Obj_Entry *obj)
 
 	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
-		assert(ELF_R_TYPE(rela->r_info) == R_SPARC_JMP_SLOT);
+		assert(ELF64_R_TYPE_ID(rela->r_info) == R_SPARC_JMP_SLOT);
 		where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    true, NULL);
