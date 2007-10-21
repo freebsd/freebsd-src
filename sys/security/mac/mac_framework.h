@@ -183,7 +183,7 @@ void	mac_create_sysv_shm(struct ucred *cred,
 /*
  * Labeling event operations: POSIX (global/inter-process) semaphores.
  */
-void 	mac_create_posix_sem(struct ucred *cred, struct ksem *ksemptr);
+void 	mac_create_posix_sem(struct ucred *cred, struct ksem *ks);
 
 /*
  * Labeling event operations: network objects.
@@ -289,12 +289,12 @@ int	mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_read(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp);
 int	mac_check_pipe_write(struct ucred *cred, struct pipepair *pp);
-int	mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr);
-int	mac_check_posix_sem_getvalue(struct ucred *cred,struct ksem *ksemptr);
-int	mac_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr);
-int	mac_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr);
-int	mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr);
-int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr);
+int	mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks);
+int	mac_check_posix_sem_getvalue(struct ucred *cred,struct ksem *ks);
+int	mac_check_posix_sem_open(struct ucred *cred, struct ksem *ks);
+int	mac_check_posix_sem_post(struct ucred *cred, struct ksem *ks);
+int	mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks);
+int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ks);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *p);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *p);
 int	mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai);
