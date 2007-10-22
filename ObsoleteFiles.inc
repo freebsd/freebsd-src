@@ -579,11 +579,17 @@ OLD_FILES+=usr/share/man/man4/kame.4.gz
 # 20070201: remove libmytinfo link
 OLD_FILES+=usr/lib/libmytinfo.a
 OLD_FILES+=usr/lib/libmytinfo.so
-OLD_FILES+=usr/lib/libmytinfo_p.a   
+OLD_FILES+=usr/lib/libmytinfo_p.a
+OLD_FILES+=usr/lib/libmytinfow.a
+OLD_FILES+=usr/lib/libmytinfow.so
+OLD_FILES+=usr/lib/libmytinfow_p.a
 .if ${TARGET_ARCH} == "amd64"
 OLD_FILES+=usr/lib32/libmytinfo.a
 OLD_FILES+=usr/lib32/libmytinfo.so
 OLD_FILES+=usr/lib32/libmytinfo_p.a
+OLD_FILES+=usr/lib32/libmytinfow.a
+OLD_FILES+=usr/lib32/libmytinfow.so
+OLD_FILES+=usr/lib32/libmytinfow_p.a
 .endif
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
