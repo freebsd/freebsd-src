@@ -60,9 +60,9 @@ static void printfile(int fileid, int verbose)
     if (kldstat(fileid, &stat) < 0)
 	warn("can't stat file id %d", fileid);
     else
-	printf("%2d %4d %p %-8jx %s\n",
+	printf("%2d %4d %p %-8jx %s (%s)\n",
 	       stat.id, stat.refs, stat.address, (uintmax_t)stat.size, 
-	       stat.name);
+	       stat.name, stat.pathname);
 
     if (verbose) {
 	printf("\tContains modules:\n");
