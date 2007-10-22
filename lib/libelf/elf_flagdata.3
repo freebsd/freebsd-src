@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2006,2007 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2006
+.Dd October 22, 2007
 .Os
 .Dt ELF_FLAGDATA 3
 .Sh NAME
@@ -51,7 +51,7 @@
 .Ft "unsigned int"
 .Fn elf_flagshdr "Elf_Scn *scn" "Elf_Cmd cmd" "unsigned int flags"
 .Sh DESCRIPTION
-These functions are used to query, set or reset flag bits on data
+These functions are used to query, set or reset flags on data
 structures associated with an ELF file.
 .Pp
 Arguments
@@ -59,7 +59,7 @@ Arguments
 .Ar elf
 and
 .Ar scn
-denote the data structures whose status bits need to be changed.
+denote the data structures whose flags need to be changed.
 These values are allowed to be NULL to simplify error handling in
 application code.
 .Pp
@@ -70,16 +70,16 @@ may have the following values:
 .It Dv ELF_C_CLR
 The argument
 .Ar flags
-specifies the bits to be cleared.
+specifies the flags to be cleared.
 .It Dv ELF_C_SET
 The argument
 .Ar flags
-specifies the bits to be set.
+specifies the flags to be set.
 .El
 .Pp
 The argument
 .Ar flags
-is allowed to have the following bits set:
+is allowed to have the following flags set:
 .Bl -tag -width ELF_F_LAYOUT
 .It Dv ELF_F_DIRTY
 Mark the associated data structure as needing to be written back
@@ -111,7 +111,7 @@ Using a value of zero for argument
 will return the current set of flags for the data structure being
 queried.
 .Sh RETURN VALUES
-These functions return the updated bits is successful, and zero if
+These functions return the updated flags is successful, and zero if
 an error is detected.
 .Sh ERRORS
 These functions may fail with the following errors:
@@ -123,7 +123,7 @@ argument.
 .It Bq Er ELF_E_ARGUMENT
 Argument
 .Ar flags
-had unsupported flag bits set.
+had unsupported flags set.
 .It Bq Er ELF_E_ARGUMENT
 The argument
 .Ar elf
