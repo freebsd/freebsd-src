@@ -873,6 +873,7 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
+	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 
 	if (ovp == NULLVP)
@@ -897,6 +898,7 @@ unionfs_poll(struct vop_poll_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
+	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
 	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 
 	if (ovp == NULLVP)
@@ -915,6 +917,7 @@ unionfs_fsync(struct vop_fsync_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
+	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
 
 	if (ovp == NULLVP)
 		return (EBADF);
@@ -1858,7 +1861,8 @@ unionfs_advlock(struct vop_advlock_args *ap)
 			unsp->uns_upper_opencnt++;
 			VOP_CLOSE(unp->un_lowervp, unsp->uns_lower_openmode, td->td_ucred, td);
 			unsp->uns_lower_opencnt--;
-		}
+		} else
+			unionfs_tryrem_node_status(unp, td, unsp);
 	}
 
 	VOP_UNLOCK(vp, 0, td);
