@@ -1197,18 +1197,18 @@ unionfs_rename(struct vop_rename_args *ap)
 		vrele(fdvp);
 	if (fvp != rfvp)
 		vrele(fvp);
+	if (ltdvp != NULLVP)
+		VOP_UNLOCK(ltdvp, 0, td);
 	if (tdvp != rtdvp)
 		vrele(tdvp);
+	if (ltvp != NULLVP)
+		VOP_UNLOCK(ltvp, 0, td);
 	if (tvp != rtvp && tvp != NULLVP) {
 		if (rtvp == NULLVP)
 			vput(tvp);
 		else
 			vrele(tvp);
 	}
-	if (ltdvp != NULLVP)
-		VOP_UNLOCK(ltdvp, 0, td);
-	if (ltvp != NULLVP)
-		VOP_UNLOCK(ltvp, 0, td);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_rename: leave (%d)\n", error);
 
