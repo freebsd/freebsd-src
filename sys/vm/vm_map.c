@@ -2204,7 +2204,8 @@ vm_map_sync(
 	/*
 	 * Make a first pass to check for user-wired memory and holes.
 	 */
-	for (current = entry; current->start < end; current = current->next) {
+	for (current = entry; current != &map->header && current->start < end;
+	    current = current->next) {
 		if (invalidate && (current->eflags & MAP_ENTRY_USER_WIRED)) {
 			vm_map_unlock_read(map);
 			return (KERN_INVALID_ARGUMENT);
@@ -2224,7 +2225,8 @@ vm_map_sync(
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
 	 */
-	for (current = entry; current->start < end; current = current->next) {
+	for (current = entry; current != &map->header && current->start < end;
+	    current = current->next) {
 		offset = current->offset + (start - current->start);
 		size = (end <= current->end ? end : current->end) - start;
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
