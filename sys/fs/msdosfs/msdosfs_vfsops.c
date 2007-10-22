@@ -251,8 +251,6 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 * read/write; if there is no device name, that's all we do.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		int ro_to_rw = 0;
-
 		pmp = VFSTOMSDOSFS(mp);
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
 			/*
@@ -276,18 +274,37 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			error = vflush(mp, 0, flags, td);
 			if (error)
 				return (error);
+
+			/*
+			 * Now the volume is clean.  Mark it so while the
+			 * device is still rw.
+			 */
+			error = markvoldirty(pmp, 0);
+			if (error) {
+				(void)markvoldirty(pmp, 1);
+				return (error);
+			}
+
+			/* Downgrade the device from rw to ro. */
 			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(pmp->pm_cp, 0, -1, 0);
 			g_topology_unlock();
 			PICKUP_GIANT();
-			if (error)
+			if (error) {
+				(void)markvoldirty(pmp, 1);
 				return (error);
+			}
 
-			/* Now the volume is clean. Mark it. */
-			error = markvoldirty(pmp, 0);
-			if (error && (flags & FORCECLOSE) == 0)
-				return (error);
+			/*
+			 * Backing out after an error was painful in the
+			 * above.  Now we are committed to succeeding.
+			 */
+			pmp->pm_fmod = 0;
+			pmp->pm_flags |= MSDOSFSMNT_RONLY;
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 		} else if ((pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    !vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			/*
@@ -313,18 +330,16 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			if (error)
 				return (error);
 
-			ro_to_rw = 1;
-		}
-		vfs_flagopt(mp->mnt_optnew, "ro",
-		    &pmp->pm_flags, MSDOSFSMNT_RONLY);
-		vfs_flagopt(mp->mnt_optnew, "ro",
-		    &mp->mnt_flag, MNT_RDONLY);
+			pmp->pm_fmod = 1;
+			pmp->pm_flags &= ~MSDOSFSMNT_RONLY;
+			MNT_ILOCK(mp);
+			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 
-		if (ro_to_rw) {
 			/* Now that the volume is modifiable, mark it dirty. */
 			error = markvoldirty(pmp, 1);
 			if (error)
-				return (error);
+				return (error); 
 		}
 	}
 	/*
@@ -715,9 +730,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	if (ronly)
 		pmp->pm_flags |= MSDOSFSMNT_RONLY;
 	else {
-		/* Mark the volume dirty while it is mounted read/write. */
-		if ((error = markvoldirty(pmp, 1)) != 0)
+		if ((error = markvoldirty(pmp, 1)) != 0) {
+			(void)markvoldirty(pmp, 0);
 			goto error_exit;
+		}
 		pmp->pm_fmod = 1;
 	}
 	mp->mnt_data =  pmp;
@@ -767,6 +783,13 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (error)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
+	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
+		error = markvoldirty(pmp, 0);
+		if (error) {
+			(void)markvoldirty(pmp, 1);
+			return (error);
+		}
+	}
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		if (pmp->pm_w2u)
 			msdosfs_iconv->close(pmp->pm_w2u);
@@ -778,12 +801,6 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 			msdosfs_iconv->close(pmp->pm_u2d);
 	}
 
-	/* If the volume was mounted read/write, mark it clean now. */
-	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
-		error = markvoldirty(pmp, 0);
-		if (error && (flags & FORCECLOSE) == 0)
-			return (error);
-	}
 #ifdef MSDOSFS_DEBUG
 	{
 		struct vnode *vp = pmp->pm_devvp;
@@ -808,15 +825,14 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
-	if (pmp->pm_flags & MSDOSFS_LARGEFS) {
+	if (pmp->pm_flags & MSDOSFS_LARGEFS)
 		msdosfs_fileno_free(mp);
-	}
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	return (error);
+	return (0);
 }
 
 static int
