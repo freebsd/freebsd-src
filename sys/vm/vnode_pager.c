@@ -426,6 +426,10 @@ vnode_pager_setsize(vp, nsize)
 			if (m->dirty != 0)
 				m->dirty = VM_PAGE_BITS_ALL;
 			vm_page_unlock_queues();
+		} else if ((nsize & PAGE_MASK) &&
+		    __predict_false(object->cache != NULL)) {
+			vm_page_cache_free(object, OFF_TO_IDX(nsize),
+			    nobjsize);
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;
