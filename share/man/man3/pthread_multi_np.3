@@ -53,13 +53,6 @@ The
 function switches the process to a multi-threaded mode.
 The semantics of this function is similar to
 .Xr pthread_resume_all_np 3 .
-.Sh IMPLEMENTATION NOTES
-The
-.Fn pthread_single_np
-function is only available in
-.Lb libpthread .
-This function is not implemented in
-.Lb libthr .
 .Sh RETURN VALUES
 The
 .Fn pthread_multi_np
