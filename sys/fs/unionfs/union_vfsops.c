@@ -123,6 +123,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	u_short		udir;
 	u_short		ufile;
 	unionfs_copymode copymode;
+	unionfs_whitemode whitemode;
 	struct componentname fakecn;
 	struct nameidata nd, *ndp;
 	struct vattr	va;
@@ -136,6 +137,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	udir = 0;
 	ufile = 0;
 	copymode = UNIONFS_TRANSPARENT;	/* default */
+	whitemode = UNIONFS_WHITE_ALWAYS;
 	ndp = &nd;
 
 	if (mp->mnt_flag & MNT_ROOTFS) {
@@ -237,6 +239,20 @@ unionfs_domount(struct mount *mp, struct thread *td)
 				return (EINVAL);
 			}
 		}
+		if (vfs_getopt(mp->mnt_optnew, "whiteout", (void **)&tmp,
+		    NULL) == 0) {
+			if (tmp == NULL) {
+				vfs_mount_error(mp, "Invalid whiteout mode");
+				return (EINVAL);
+			} else if (strcasecmp(tmp, "always") == 0)
+				whitemode = UNIONFS_WHITE_ALWAYS;
+			else if (strcasecmp(tmp, "whenneeded") == 0)
+				whitemode = UNIONFS_WHITE_WHENNEEDED;
+			else {
+				vfs_mount_error(mp, "Invalid whiteout mode");
+				return (EINVAL);
+			}
+		}
 	}
 	/* If copymode is UNIONFS_TRADITIONAL, uid/gid is mounted user. */
 	if (copymode == UNIONFS_TRADITIONAL) {
@@ -286,6 +302,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	ump->um_udir = udir;
 	ump->um_ufile = ufile;
 	ump->um_copymode = copymode;
+	ump->um_whitemode = whitemode;
 
 	MNT_ILOCK(mp);
 	if ((lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE) &&
