@@ -494,6 +494,7 @@ vendor ASIX		0x0b95	ASIX Electronics
 vendor O2MICRO		0x0b97	O2 Micro, Inc.
 vendor USR		0x0baf	U.S. Robotics
 vendor AMBIT		0x0bb2	Ambit Microsystems
+vendor HTC		0x0bb4	HTC
 vendor REALTEK		0x0bda	Realtek
 vendor ADDONICS2	0x0bf6	Addonics Technology
 vendor AGATE		0x0c08	Agate Technologies
@@ -1378,6 +1379,9 @@ product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
+
+/* HTC products */
+product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
