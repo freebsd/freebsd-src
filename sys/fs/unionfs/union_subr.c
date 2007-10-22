@@ -1110,6 +1110,12 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		return (0);
 
 	/* open vnode */
+#ifdef MAC
+	if ((error = mac_check_vnode_open(cred, vp, VEXEC|VREAD)) != 0)
+		return (error);
+#endif
+	if ((error = VOP_ACCESS(vp, VEXEC|VREAD, cred, td)) != 0)
+		return (error);
 	if ((error = VOP_OPEN(vp, FREAD, cred, td, NULL)) != 0)
 		return (error);
 
