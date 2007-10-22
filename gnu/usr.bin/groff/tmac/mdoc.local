@@ -48,6 +48,7 @@
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
 .ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
 .ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
+.ds doc-str-Lb-libkse      N:M Threading Library (libkse, \-lkse)
 .ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
 .ds doc-str-Lb-libmemstat  Kernel Memory Allocator Statistics Library (libmemstat, \-lmemstat)
 .ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
