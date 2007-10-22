@@ -1388,41 +1388,41 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	/* check opaque */
 	if (uvp != NULLVP && lvp != NULLVP) {
 		if ((error = VOP_GETATTR(uvp, &va, ap->a_cred, td)) != 0)
-			return (error);
+			goto unionfs_readdir_exit;
 		if (va.va_flags & OPAQUE)
 			lvp = NULLVP;
 	}
 
+	/* check the open count. unionfs needs to open before readdir. */
 	if (VOP_ISLOCKED(ap->a_vp, td) != LK_EXCLUSIVE) {
 		vn_lock(ap->a_vp, LK_UPGRADE | LK_RETRY, td);
 		locked = 1;
 	}
-	unionfs_get_node_status(unp, curthread, &unsp);
+	unionfs_get_node_status(unp, td, &unsp);
+	if ((uvp != NULLVP && unsp->uns_upper_opencnt <= 0) ||
+	    (lvp != NULLVP && unsp->uns_lower_opencnt <= 0)) {
+		unionfs_tryrem_node_status(unp, td, unsp);
+		error = EBADF;
+	}
 	if (locked == 1)
 		vn_lock(ap->a_vp, LK_DOWNGRADE | LK_RETRY, td);
+	if (error != 0)
+		goto unionfs_readdir_exit;
 
 	/* upper only */
 	if (uvp != NULLVP && lvp == NULLVP) {
-		if (unsp->uns_upper_opencnt <= 0)
-			error = EBADF;
-		else {
-			error = VOP_READDIR(uvp, uio, ap->a_cred, ap->a_eofflag,
-			    ap->a_ncookies, ap->a_cookies);
-			unsp->uns_readdir_status = 0;
-		}
+		error = VOP_READDIR(uvp, uio, ap->a_cred, ap->a_eofflag,
+		    ap->a_ncookies, ap->a_cookies);
+		unsp->uns_readdir_status = 0;
 
 		goto unionfs_readdir_exit;
 	}
 
 	/* lower only */
 	if (uvp == NULLVP && lvp != NULLVP) {
-		if (unsp->uns_lower_opencnt <= 0)
-			error = EBADF;
-		else {
-			error = VOP_READDIR(lvp, uio, ap->a_cred, ap->a_eofflag,
-			    ap->a_ncookies, ap->a_cookies);
-			unsp->uns_readdir_status = 2;
-		}
+		error = VOP_READDIR(lvp, uio, ap->a_cred, ap->a_eofflag,
+		    ap->a_ncookies, ap->a_cookies);
+		unsp->uns_readdir_status = 2;
 
 		goto unionfs_readdir_exit;
 	}
@@ -1430,11 +1430,6 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * readdir upper and lower
 	 */
-	if (unsp->uns_lower_opencnt <= 0 || unsp->uns_upper_opencnt <= 0) {
-		error = EBADF;
-		goto unionfs_readdir_exit;
-	}
-
 	if (uio->uio_offset == 0)
 		unsp->uns_readdir_status = 0;
 
@@ -1443,10 +1438,8 @@ unionfs_readdir(struct vop_readdir_args *ap)
 		error = VOP_READDIR(uvp, uio, ap->a_cred, &eofflag,
 				    ap->a_ncookies, ap->a_cookies);
 
-		if (error != 0 || eofflag == 0) {
-			UNIONFS_INTERNAL_DEBUG("unionfs_readdir: leave (%d)\n", error);
-			return (error);
-		}
+		if (error != 0 || eofflag == 0)
+			goto unionfs_readdir_exit;
 		unsp->uns_readdir_status = 1;
 
 		/*
@@ -1455,10 +1448,8 @@ unionfs_readdir(struct vop_readdir_args *ap)
 		 * size of DIRBLKSIZ equals DEV_BSIZE.
 		 * (see: ufs/ufs/ufs_vnops.c ufs_readdir func , ufs/ufs/dir.h)
 		 */
-		if (uio->uio_resid <= (uio->uio_resid & (DEV_BSIZE -1))) {
-			UNIONFS_INTERNAL_DEBUG("unionfs_readdir: leave (%d)\n", error);
-			return (0);
-		}
+		if (uio->uio_resid <= (uio->uio_resid & (DEV_BSIZE -1)))
+			goto unionfs_readdir_exit;
 
 		/*
 		 * backup cookies
@@ -1508,6 +1499,9 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	}
 
 unionfs_readdir_exit:
+	if (error != 0 && ap->a_eofflag != NULL)
+		*(ap->a_eofflag) = 1;
+
 	UNIONFS_INTERNAL_DEBUG("unionfs_readdir: leave (%d)\n", error);
 
 	return (error);
