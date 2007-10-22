@@ -33,7 +33,6 @@
 .Nd "manipulate a barrier attribute object"
 .Sh LIBRARY
 .Lb libpthread
-.Lb libthr
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
@@ -125,7 +124,7 @@ is not one of the allowed values.
 The
 .Fn pthread_barrierattr_*
 functions first appeared in
-.Lb libpthread
+.Lb libkse
 in
 .Fx 5.2 ,
 and in
@@ -140,7 +139,7 @@ does not fully conform to
 because the process-shared attribute is ignored in
 .Lb libthr ,
 and in
-.Lb libpthread ;
+.Lb libkse ;
 if any value other than
 .Dv PTHREAD_PROCESSES_PRIVATE
 is specified in a call to
