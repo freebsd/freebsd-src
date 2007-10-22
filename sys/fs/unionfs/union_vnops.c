@@ -1450,6 +1450,8 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	/*
 	 * readdir upper and lower
 	 */
+	KASSERT(uvp != NULLVP, ("unionfs_readdir: null upper vp"));
+	KASSERT(lvp != NULLVP, ("unionfs_readdir: null lower vp"));
 	if (uio->uio_offset == 0)
 		unsp->uns_readdir_status = 0;
 
