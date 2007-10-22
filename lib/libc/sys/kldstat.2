@@ -128,3 +128,7 @@ The
 .Nm kld
 interface first appeared in
 .Fx 3.0 .
+.Sh BUGS
+The pathname many not be accurate if the file system mounts have
+changed since the module was loaded, or if this function is called
+within a chrooted environment.
