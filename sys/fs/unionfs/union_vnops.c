@@ -1647,6 +1647,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 	int		flags;
 	int		revlock;
 	int		uhold;
+	struct mount   *mp;
 	struct unionfs_mount *ump;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
@@ -1666,15 +1667,23 @@ unionfs_lock(struct vop_lock1_args *ap)
 	if ((revlock = unionfs_get_llt_revlock(flags)) == 0)
 		panic("unknown lock type: 0x%x", flags & LK_TYPE_MASK);
 
-	if (!(flags & LK_INTERLOCK))
+	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 
-	ump = MOUNTTOUNIONFSMOUNT(vp->v_mount);
+	mp = vp->v_mount;
+	if (mp == NULL)
+		goto unionfs_lock_null_vnode;
+
+	ump = MOUNTTOUNIONFSMOUNT(mp);
 	unp = VTOUNIONFS(vp);
-	if (NULL == unp)
+	if (ump == NULL || unp == NULL)
 		goto unionfs_lock_null_vnode;
 	lvp = unp->un_lowervp;
 	uvp = unp->un_uppervp;
+
+	if ((mp->mnt_kern_flag & MNTK_MPSAFE) != 0 &&
+	    (vp->v_iflag & VI_OWEINACT) != 0)
+		flags |= LK_NOWAIT;
 
 	/*
 	 * Sometimes, lower or upper is already exclusive locked.
@@ -1697,9 +1706,9 @@ unionfs_lock(struct vop_lock1_args *ap)
 		VI_LOCK(vp);
 		unp = VTOUNIONFS(vp);
 		if (unp == NULL) {
-			if (error == 0) 
-				VOP_UNLOCK(lvp, 0, td);
 			VI_UNLOCK(vp);
+			if (error == 0)
+				VOP_UNLOCK(lvp, 0, td);
 			vdrop(lvp);
 			return (vop_stdlock(ap));
 		}
@@ -1719,23 +1728,30 @@ unionfs_lock(struct vop_lock1_args *ap)
 		VI_LOCK(vp);
 		unp = VTOUNIONFS(vp);
 		if (unp == NULL) {
+			VI_UNLOCK(vp);
 			if (error == 0) {
 				VOP_UNLOCK(uvp, 0, td);
 				if (lvp != NULLVP)
 					VOP_UNLOCK(lvp, 0, td);
 			}
-			VI_UNLOCK(vp);
 			if (lvp != NULLVP)
 				vdrop(lvp);
 			vdrop(uvp);
 			return (vop_stdlock(ap));
 		}
 
-		if (error != 0 && lvp != NULLVP)
-			vn_lock(lvp, revlock | LK_RETRY, td);
+		if (error != 0 && lvp != NULLVP) {
+			VI_UNLOCK(vp);
+			if ((revlock & LK_TYPE_MASK) == LK_RELEASE)
+				VOP_UNLOCK(lvp, revlock, td);
+			else
+				vn_lock(lvp, revlock | LK_RETRY, td);
+			goto unionfs_lock_abort;
+		}
 	}
 
 	VI_UNLOCK(vp);
+unionfs_lock_abort:
 	if (lvp != NULLVP)
 		vdrop(lvp);
 	if (uhold != 0)
@@ -1766,7 +1782,7 @@ unionfs_unlock(struct vop_unlock_args *ap)
 	flags = ap->a_flags | LK_RELEASE;
 	vp = ap->a_vp;
 
-	if (flags & LK_INTERLOCK)
+	if ((flags & LK_INTERLOCK) != 0)
 		mtxlkflag = 1;
 	else if (mtx_owned(VI_MTX(vp)) == 0) {
 		VI_LOCK(vp);
@@ -1988,21 +2004,25 @@ unionfs_openextattr(struct vop_openextattr_args *ap)
 	int		error;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
+	struct vnode   *tvp;
 
-	unp = VTOUNIONFS(ap->a_vp);
-	vp = (unp->un_uppervp != NULLVP ? unp->un_uppervp : unp->un_lowervp);
+	vp = ap->a_vp;
+	unp = VTOUNIONFS(vp);
+	tvp = (unp->un_uppervp != NULLVP ? unp->un_uppervp : unp->un_lowervp);
 
-	if ((vp == unp->un_uppervp && (unp->un_flag & UNIONFS_OPENEXTU)) ||
-	    (vp == unp->un_lowervp && (unp->un_flag & UNIONFS_OPENEXTL)))
+	if ((tvp == unp->un_uppervp && (unp->un_flag & UNIONFS_OPENEXTU)) ||
+	    (tvp == unp->un_lowervp && (unp->un_flag & UNIONFS_OPENEXTL)))
 		return (EBUSY);
 
-	error = VOP_OPENEXTATTR(vp, ap->a_cred, ap->a_td);
+	error = VOP_OPENEXTATTR(tvp, ap->a_cred, ap->a_td);
 
 	if (error == 0) {
-		if (vp == unp->un_uppervp)
+		vn_lock(vp, LK_UPGRADE | LK_RETRY, ap->a_td);
+		if (tvp == unp->un_uppervp)
 			unp->un_flag |= UNIONFS_OPENEXTU;
 		else
 			unp->un_flag |= UNIONFS_OPENEXTL;
+		vn_lock(vp, LK_DOWNGRADE | LK_RETRY, ap->a_td);
 	}
 
 	return (error);
@@ -2014,25 +2034,29 @@ unionfs_closeextattr(struct vop_closeextattr_args *ap)
 	int		error;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
+	struct vnode   *tvp;
 
-	unp = VTOUNIONFS(ap->a_vp);
-	vp = NULLVP;
+	vp = ap->a_vp;
+	unp = VTOUNIONFS(vp);
+	tvp = NULLVP;
 
 	if (unp->un_flag & UNIONFS_OPENEXTU)
-		vp = unp->un_uppervp;
+		tvp = unp->un_uppervp;
 	else if (unp->un_flag & UNIONFS_OPENEXTL)
-		vp = unp->un_lowervp;
+		tvp = unp->un_lowervp;
 
-	if (vp == NULLVP)
+	if (tvp == NULLVP)
 		return (EOPNOTSUPP);
 
-	error = VOP_CLOSEEXTATTR(vp, ap->a_commit, ap->a_cred, ap->a_td);
+	error = VOP_CLOSEEXTATTR(tvp, ap->a_commit, ap->a_cred, ap->a_td);
 
 	if (error == 0) {
-		if (vp == unp->un_uppervp)
+		vn_lock(vp, LK_UPGRADE | LK_RETRY, ap->a_td);
+		if (tvp == unp->un_uppervp)
 			unp->un_flag &= ~UNIONFS_OPENEXTU;
 		else
 			unp->un_flag &= ~UNIONFS_OPENEXTL;
+		vn_lock(vp, LK_DOWNGRADE | LK_RETRY, ap->a_td);
 	}
 
 	return (error);
