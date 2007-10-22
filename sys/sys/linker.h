@@ -73,6 +73,7 @@ struct linker_file {
 #define LINKER_FILE_LINKED	0x1	/* file has been fully linked */
     TAILQ_ENTRY(linker_file) link;	/* list of all loaded files */
     char*		filename;	/* file which was loaded */
+    char*		pathname;	/* file name with full path */
     int			id;		/* unique id */
     caddr_t		address;	/* load address */
     size_t		size;		/* size of file */
@@ -81,6 +82,18 @@ struct linker_file {
     STAILQ_HEAD(, common_symbol) common; /* list of common symbols */
     TAILQ_HEAD(, module) modules;	/* modules in this file */
     TAILQ_ENTRY(linker_file) loaded;	/* preload dependency support */
+    int			loadcnt;	/* load counter value */
+
+    /*
+     * Function Boundary Tracing (FBT) or Statically Defined Tracing (SDT)
+     * fields.
+     */
+    int			nenabled;	/* number of enabled probes. */
+    int			fbt_nentries;	/* number of fbt entries created. */
+    void		*sdt_probes;
+    int			sdt_nentries;
+    size_t		sdt_nprobes;
+    size_t		sdt_size;
 };
 
 /*
@@ -245,6 +258,18 @@ int elf_cpu_unload_file(linker_file_t);
 #define ELF_RELOC_REL	1
 #define ELF_RELOC_RELA	2
 
+/*
+ * This is version 1 of the KLD file status structure. It is identified
+ * by it's _size_ in the version field.
+ */
+struct kld_file_stat_1 {
+    int		version;	/* set to sizeof(linker_file_stat) */
+    char        name[MAXPATHLEN];
+    int		refs;
+    int		id;
+    caddr_t	address;	/* load address */
+    size_t	size;		/* size in bytes */
+};
 #endif /* _KERNEL */
 
 struct kld_file_stat {
@@ -254,6 +279,7 @@ struct kld_file_stat {
     int		id;
     caddr_t	address;	/* load address */
     size_t	size;		/* size in bytes */
+    char        pathname[MAXPATHLEN];
 };
 
 struct kld_sym_lookup {
