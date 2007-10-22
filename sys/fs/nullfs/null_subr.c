@@ -298,6 +298,7 @@ null_checkvp(vp, fil, lno)
 	char *fil;
 	int lno;
 {
+	int interlock = 0;
 	struct null_node *a = VTONULL(vp);
 #ifdef notyet
 	/*
@@ -321,6 +322,10 @@ null_checkvp(vp, fil, lno)
 		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic("null_checkvp");
 	}
+	if (mtx_owned(VI_MTX(vp)) != 0) {
+		VI_UNLOCK(vp);
+		interlock = 1;
+	}
 	if (vrefcnt(a->null_lowervp) < 1) {
 		int i; u_long *p;
 		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
@@ -331,6 +336,8 @@ null_checkvp(vp, fil, lno)
 		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic ("null with unref'ed lowervp");
 	};
+	if (interlock != 0)
+		VI_LOCK(vp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",
 	        NULLTOV(a), vrefcnt(NULLTOV(a)),
