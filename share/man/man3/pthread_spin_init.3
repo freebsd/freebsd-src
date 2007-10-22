@@ -32,7 +32,6 @@
 .Nd "initialize or destroy a spin lock"
 .Sh LIBRARY
 .Lb libpthread
-.Lb libthr
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
@@ -115,7 +114,7 @@ The
 and
 .Fn pthread_spin_destroy
 functions first appeared in
-.Lb libpthread
+.Lb libkse
 in
 .Fx 5.2 ,
 and in
@@ -132,7 +131,7 @@ because the
 argument is ignored in
 .Lb libthr ,
 and in
-.Lb libpthread
+.Lb libkse
 if any value other than
 .Dv PTHREAD_PROCESSES_PRIVATE
 is specified, it returns
