@@ -61,7 +61,7 @@ int
 iswascii(wc)
 	wint_t wc;
 {
-	return (wc < 0x80);
+	return ((wc & ~0x7F) == 0);
 }
 
 #undef iswblank
