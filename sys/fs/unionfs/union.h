@@ -45,11 +45,18 @@ typedef enum _unionfs_copymode {
 	UNIONFS_MASQUERADE
 } unionfs_copymode;
 
+/* whiteout policy of upper layer */
+typedef enum _unionfs_whitemode {
+       UNIONFS_WHITE_ALWAYS = 0,
+       UNIONFS_WHITE_WHENNEEDED
+} unionfs_whitemode;
+
 struct unionfs_mount {
 	struct vnode   *um_lowervp;	/* VREFed once */
 	struct vnode   *um_uppervp;	/* VREFed once */
 	struct vnode   *um_rootvp;	/* ROOT vnode */
 	unionfs_copymode um_copymode;
+	unionfs_whitemode um_whitemode;
 	uid_t		um_uid;
 	gid_t		um_gid;
 	u_short		um_udir;
