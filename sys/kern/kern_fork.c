@@ -208,7 +208,8 @@ fork1(td, flags, pages, procp)
 	 * certain parts of a process from itself.
 	 */
 	if ((flags & RFPROC) == 0) {
-		if ((p1->p_flag & P_HADTHREADS) &&
+#if 0 /* XXX no other OS tries to do this */
+		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 		    (flags & (RFCFDG | RFFDG))) {
 			PROC_LOCK(p1);
 			if (thread_single(SINGLE_BOUNDARY)) {
@@ -217,6 +218,7 @@ fork1(td, flags, pages, procp)
 			}
 			PROC_UNLOCK(p1);
 		}
+#endif
 
 		vm_forkproc(td, NULL, NULL, flags);
 
@@ -236,32 +238,37 @@ fork1(td, flags, pages, procp)
 		if (flags & RFFDG) 
 			fdunshare(p1, td);
 
-		if ((p1->p_flag & P_HADTHREADS) &&
+#if 0 /* XXX no other OS tries to do this */
+		if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 		    (flags & (RFCFDG | RFFDG))) {
 			PROC_LOCK(p1);
 			thread_single_end();
 			PROC_UNLOCK(p1);
 		}
+#endif
 		*procp = NULL;
 		return (0);
 	}
 
+#if 0 /* XXX no other OS tries to do this */
 	/*
 	 * Note 1:1 allows for forking with one thread coming out on the
 	 * other side with the expectation that the process is about to
 	 * exec.
 	 */
-	if (p1->p_flag & P_HADTHREADS) {
+	if ((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) {
 		/*
+		 * Systems processes don't need this.
 		 * Idle the other threads for a second.
 		 * Since the user space is copied, it must remain stable.
 		 * In addition, all threads (from the user perspective)
 		 * need to either be suspended or in the kernel,
 		 * where they will try restart in the parent and will
 		 * be aborted in the child.
+		 * keep threadds at the boundary there.
 		 */
 		PROC_LOCK(p1);
-		if (thread_single(SINGLE_NO_EXIT)) {
+		if (thread_single(SINGLE_BOUNDARY)) {
 			/* Abort. Someone else is single threading before us. */
 			PROC_UNLOCK(p1);
 			return (ERESTART);
@@ -273,6 +280,7 @@ fork1(td, flags, pages, procp)
 		 * (or other safe places if we think of any).
 		 */
 	}
+#endif
 
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
@@ -721,15 +729,17 @@ again:
 		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
 
+#if 0 /* XXX no other OS tries to do this */
 	/*
 	 * If other threads are waiting, let them continue now.
 	 */
-	if (p1->p_flag & P_HADTHREADS) {
+	if ((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);
 	}
 
+#endif
 	/*
 	 * Return child proc pointer to parent.
 	 */
