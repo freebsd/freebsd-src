@@ -365,8 +365,10 @@ init_transport(struct netconfig *nconf)
 			 * Skip if we have an AF_INET6 adress.
 			 */
 			if (inet_pton(AF_INET6,
-			    hosts[nhostsbak], host_addr) == 1)
+			    hosts[nhostsbak], host_addr) == 1) {
+			    close(fd);
 			    continue;
+			}
 		    }
 		    break;
 		case AF_INET6:
@@ -378,8 +380,10 @@ init_transport(struct netconfig *nconf)
 			 * Skip if we have an AF_INET adress.
 			 */
 			if (inet_pton(AF_INET, hosts[nhostsbak],
-			    host_addr) == 1)
-			    continue;
+			    host_addr) == 1) {
+				close(fd);
+				continue;
+			}
 		    }
 		    if (setsockopt(fd, IPPROTO_IPV6,
 			IPV6_V6ONLY, &on, sizeof on) < 0) {
