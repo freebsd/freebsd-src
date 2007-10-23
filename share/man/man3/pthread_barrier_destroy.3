@@ -32,7 +32,6 @@
 .Nd "destroy, initialize or wait on a barrier object"
 .Sh LIBRARY
 .Lb libpthread
-.Lb libthr
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
@@ -77,7 +76,7 @@ argument to
 Once the threads have been released the barrier will be reset.
 .Sh IMPLEMENTATION NOTES
 In both
-.Lb libpthread
+.Lb libkse
 and
 .Lb libthr
 the
@@ -150,7 +149,7 @@ The
 and
 .Fn pthread_barrier_wait
 functions first appeared in
-.Lb libpthread
+.Lb libkse
 in
 .Fx 5.2 ,
 and in
