@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 11, 2005
+.Dd October 19, 2007
 .Os
 .Dt LIBTHR 3
 .Sh NAME
 .Nm libthr
-.Nd "alternative POSIX threads library"
+.Nd "1:1 POSIX threads library"
 .Sh LIBRARY
 .Lb libthr
 .Sh SYNOPSIS
@@ -37,22 +37,14 @@
 .Sh DESCRIPTION
 The
 .Nm
-library provides an alternative 1:1 implementation of the
+library provides a 1:1 implementation of the
 .Xr pthread 3
 library interfaces for application threading.
-While applications may be linked directly against
-.Nm ,
-system administrators are offered maximum flexibility by linking against
-.Xr pthread 3 ,
-as they can then use
-.Xr libmap.conf 5
-to select the threading implementation on a per-application basis.
-.Pp
-The
-.Nm
-library
+It
 has been optimized for use by applications expecting system scope thread
-semantics, and can provide significant performance improvements.
+semantics, and can provide significant performance improvements
+compared to
+.Lb libkse .
 .Sh SEE ALSO
 .Xr pthread 3
 .Sh AUTHORS
