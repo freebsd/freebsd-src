@@ -940,6 +940,7 @@ unionfs_remove(struct vop_remove_args *ap)
 	int		error;
 	struct unionfs_node *dunp;
 	struct unionfs_node *unp;
+	struct unionfs_mount *ump;
 	struct vnode   *udvp;
 	struct vnode   *uvp;
 	struct vnode   *lvp;
@@ -961,7 +962,9 @@ unionfs_remove(struct vop_remove_args *ap)
 		return (EROFS);
 
 	if (uvp != NULLVP) {
-		cnp->cn_flags |= DOWHITEOUT;
+		ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
+		if (ump->um_whitemode == UNIONFS_WHITE_ALWAYS || lvp != NULLVP)
+			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_REMOVE(udvp, uvp, cnp);
 	} else if (lvp != NULLVP)
 		error = unionfs_mkwhiteout(udvp, cnp, td, unp->un_path);
@@ -1291,6 +1294,7 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 	int		error;
 	struct unionfs_node *dunp;
 	struct unionfs_node *unp;
+	struct unionfs_mount *ump;
 	struct componentname *cnp;
 	struct thread  *td;
 	struct vnode   *udvp;
@@ -1320,7 +1324,9 @@ unionfs_rmdir(struct vop_rmdir_args *ap)
 			if (error != 0)
 				return (error);
 		}
-		cnp->cn_flags |= DOWHITEOUT;
+		ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
+		if (ump->um_whitemode == UNIONFS_WHITE_ALWAYS || lvp != NULLVP)
+			cnp->cn_flags |= DOWHITEOUT;
 		error = VOP_RMDIR(udvp, uvp, cnp);
 	}
 	else if (lvp != NULLVP)
