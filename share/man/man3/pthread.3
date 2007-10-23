@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2004
+.Dd October 19, 2007
 .Dt PTHREAD 3
 .Os
 .Sh NAME
@@ -38,7 +38,6 @@
 .Nd POSIX thread functions
 .Sh LIBRARY
 .Lb libpthread
-.Lb libthr
 .Sh SYNOPSIS
 .In pthread.h
 .Sh DESCRIPTION
@@ -467,13 +466,13 @@ stack and optionally invoke it.
 Push the specified cancellation cleanup handler onto the calling thread's
 cancellation stack.
 .El
-.Sh INSTALLATION
+.Sh IMPLEMENTATION NOTES
 The current
 .Fx
 POSIX thread implementation is built in two libraries,
-.Lb libpthread ,
+.Lb libthr ,
 and
-.Lb libthr .
+.Lb libkse .
 They contain both thread-safe versions of
 .Lb libc
 functions and the thread functions.
