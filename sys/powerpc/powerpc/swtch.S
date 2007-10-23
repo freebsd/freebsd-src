@@ -67,13 +67,17 @@
 #include <machine/asm.h>
 
 /*
- * void cpu_switch(struct thread *old, struct thread *new)
+ * void cpu_switch(struct thread *old,
+ *		   struct thread *new,
+ *		   struct mutex *mtx); 
  *
  * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
-	lwz	%r5,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
+	stw	%r5,TD_LOCK(%r3)	/* ULE:	update old thread's lock */
+					/* XXX needs to change for MP */
 
+	lwz	%r5,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
 	mr	%r12,%r2	
 	stmw	%r12,PCB_CONTEXT(%r5)	/* Save the non-volatile GP regs.
 					   These can now be used for scratch */

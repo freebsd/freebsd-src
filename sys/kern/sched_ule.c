@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if !defined(__i386__) && !defined(__amd64__) && !defined(__arm__)
+#if !defined(__i386__) && !defined(__amd64__) && !defined(__powerpc__) && !defined(__arm__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
