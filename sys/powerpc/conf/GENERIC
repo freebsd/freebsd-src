@@ -30,7 +30,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 
-options 	SCHED_4BSD		#4BSD scheduler
+options		SCHED_ULE		#ULE scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	SCTP			#Stream Control Transmission Protocol
