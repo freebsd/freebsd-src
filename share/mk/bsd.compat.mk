@@ -32,7 +32,7 @@
 .for old in ${oldnew:C/:.*//}
 .for new in ${oldnew:C/.*://}
 .if defined(${old}) && !defined(${new})
-.warning ${old} is deprecated in favor of ${new}
+.warning ${old} is deprecated in favour of ${new}
 ${new}=	${${old}}
 .endif
 .endfor
