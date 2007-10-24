@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
+extern int __mb_sb_limit;
+
 static size_t	_MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict,
 		    size_t, mbstate_t * __restrict);
 static int	_MSKanji_mbsinit(const mbstate_t *);
@@ -66,6 +68,7 @@ _MSKanji_init(_RuneLocale *rl)
 	__mbsinit = _MSKanji_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 2;
+	__mb_sb_limit = 256;
 	return (0);
 }
 

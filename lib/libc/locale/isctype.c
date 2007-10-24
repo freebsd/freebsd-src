@@ -48,7 +48,7 @@ int
 digittoint(c)
 	int c;
 {
-	return (__maskrune(c, 0xFF));
+	return (__sbmaskrune(c, 0xFF));
 }
 
 #undef isalnum
@@ -56,7 +56,7 @@ int
 isalnum(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_A|_CTYPE_D));
+	return (__sbistype(c, _CTYPE_A|_CTYPE_D));
 }
 
 #undef isalpha
@@ -64,7 +64,7 @@ int
 isalpha(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_A));
+	return (__sbistype(c, _CTYPE_A));
 }
 
 #undef isascii
@@ -80,7 +80,7 @@ int
 isblank(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_B));
+	return (__sbistype(c, _CTYPE_B));
 }
 
 #undef iscntrl
@@ -88,7 +88,7 @@ int
 iscntrl(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_C));
+	return (__sbistype(c, _CTYPE_C));
 }
 
 #undef isdigit
@@ -104,7 +104,7 @@ int
 isgraph(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_G));
+	return (__sbistype(c, _CTYPE_G));
 }
 
 #undef ishexnumber 
@@ -112,7 +112,7 @@ int
 ishexnumber(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_X));
+	return (__sbistype(c, _CTYPE_X));
 }
 
 #undef isideogram
@@ -120,7 +120,7 @@ int
 isideogram(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_I));
+	return (__sbistype(c, _CTYPE_I));
 }
 
 #undef islower
@@ -128,7 +128,7 @@ int
 islower(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_L));
+	return (__sbistype(c, _CTYPE_L));
 }
 
 #undef isnumber
@@ -136,7 +136,7 @@ int
 isnumber(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_D));
+	return (__sbistype(c, _CTYPE_D));
 }
 
 #undef isphonogram	
@@ -144,7 +144,7 @@ int
 isphonogram(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_Q));
+	return (__sbistype(c, _CTYPE_Q));
 }
 
 #undef isprint
@@ -152,7 +152,7 @@ int
 isprint(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_R));
+	return (__sbistype(c, _CTYPE_R));
 }
 
 #undef ispunct
@@ -160,7 +160,7 @@ int
 ispunct(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_P));
+	return (__sbistype(c, _CTYPE_P));
 }
 
 #undef isrune
@@ -168,7 +168,7 @@ int
 isrune(c)
 	int c;
 {
-	return (__istype(c, 0xFFFFFF00L));
+	return (__sbistype(c, 0xFFFFFF00L));
 }
 
 #undef isspace
@@ -176,7 +176,7 @@ int
 isspace(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_S));
+	return (__sbistype(c, _CTYPE_S));
 }
 
 #undef isspecial
@@ -184,7 +184,7 @@ int
 isspecial(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_T));
+	return (__sbistype(c, _CTYPE_T));
 }
 
 #undef isupper
@@ -192,7 +192,7 @@ int
 isupper(c)
 	int c;
 {
-	return (__istype(c, _CTYPE_U));
+	return (__sbistype(c, _CTYPE_U));
 }
 
 #undef isxdigit
@@ -216,7 +216,7 @@ int
 tolower(c)
 	int c;
 {
-        return (__tolower(c));
+	return (__sbtolower(c));
 }
 
 #undef toupper
@@ -224,6 +224,6 @@ int
 toupper(c)
 	int c;
 {
-        return (__toupper(c));
+	return (__sbtoupper(c));
 }
 
