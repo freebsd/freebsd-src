@@ -41,9 +41,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/disklabel.h>
 #include <sys/diskmbr.h>
+#include <sys/gpt.h>
 #include <machine/bootinfo.h>
 
 #include <stdarg.h>
+#include <uuid.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
@@ -66,6 +68,13 @@ __FBSDID("$FreeBSD$");
 # define DEBUG(fmt, args...)
 #endif
 
+struct gpt_part {
+    int		gp_index;
+    uuid_t	gp_type;
+    uint64_t	gp_start;
+    uint64_t	gp_end;
+};
+
 struct open_disk {
     int			od_dkunit;		/* disk unit number */
     int			od_unit;		/* BIOS unit number */
@@ -81,10 +90,25 @@ struct open_disk {
 #define BD_FLOPPY		0x0004
 #define BD_LABELOK		0x0008
 #define BD_PARTTABOK		0x0010
-    struct disklabel		od_disklabel;
-    int				od_nslices;	/* slice count */
-    struct dos_partition	od_slicetab[NEXTDOSPART];
+#define	BD_GPTOK		0x0020
+    union {
+	struct {
+	    struct disklabel		mbr_disklabel;
+	    int				mbr_nslices;	/* slice count */
+	    struct dos_partition	mbr_slicetab[NEXTDOSPART];
+	} _mbr;
+	struct {
+	    int				gpt_nparts;		
+	    struct gpt_part		*gpt_partitions;
+	} _gpt;
+    } _data;
 };
+
+#define	od_disklabel		_data._mbr.mbr_disklabel
+#define	od_nslices		_data._mbr.mbr_nslices
+#define	od_slicetab		_data._mbr.mbr_slicetab
+#define	od_nparts		_data._gpt.gpt_nparts
+#define	od_partitions		_data._gpt.gpt_partitions
 
 /*
  * List of BIOS devices, translation from disk unit number to
@@ -106,6 +130,8 @@ static int	bd_write(struct open_disk *od, daddr_t dblk, int blks,
 
 static int	bd_int13probe(struct bdinfo *bd);
 
+static void	bd_printgptpart(struct open_disk *od, struct gpt_part *gp,
+		    char *prefix, int verbose);
 static void	bd_printslice(struct open_disk *od, struct dos_partition *dp,
 		    char *prefix, int verbose);
 static void	bd_printbsdslice(struct open_disk *od, daddr_t offset,
@@ -134,8 +160,11 @@ struct devsw biosdisk = {
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
 static void	bd_closedisk(struct open_disk *od);
+static int	bd_open_mbr(struct open_disk *od, struct i386_devdesc *dev);
 static int	bd_bestslice(struct open_disk *od);
 static void	bd_checkextended(struct open_disk *od, int slicenum);
+static int	bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev);
+static struct gpt_part *bd_best_gptpart(struct open_disk *od);
 
 /*
  * Translate between BIOS device numbers and our private unit numbers.
@@ -257,8 +286,16 @@ bd_print(int verbose)
 	
 	if (!bd_opendisk(&od, &dev)) {
 
+	    /* Do we have a GPT table? */
+	    if (od->od_flags & BD_GPTOK) {
+		for (j = 0; j < od->od_nparts; j++) {
+		    sprintf(line, "      disk%dp%d", i,
+			od->od_partitions[j].gp_index);
+		    bd_printgptpart(od, &od->od_partitions[j], line, verbose);
+		}
+
 	    /* Do we have a partition table? */
-	    if (od->od_flags & BD_PARTTABOK) {
+	    } else if (od->od_flags & BD_PARTTABOK) {
 		dptr = &od->od_slicetab[0];
 
 		/* Check for a "dedicated" disk */
@@ -277,6 +314,59 @@ bd_print(int verbose)
 	    bd_closedisk(od);
 	}
     }
+}
+
+static uuid_t efi = GPT_ENT_TYPE_EFI;
+static uuid_t freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static uuid_t freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
+static uuid_t freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
+static uuid_t freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
+static uuid_t ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
+
+static void
+bd_printgptpart(struct open_disk *od, struct gpt_part *gp, char *prefix,
+    int verbose)
+{
+    char stats[80];
+    char line[96];
+    uint64_t size;
+    char unit;
+
+    if (verbose) {
+	size = (gp->gp_end + 1 - gp->gp_start) / 2048;
+	unit = 'M';
+	if (size >= 10240000) {
+	    size /= 1048576;
+	    unit = 'T';
+	} else if (size >= 10000) {
+	    size /= 1024;
+	    unit = 'G';
+	}
+	sprintf(stats, " %.6ld%cB", (long)size, unit);
+    } else
+	stats[0] = '\0';
+
+    if (uuid_equal(&gp->gp_type, &efi, NULL))
+	sprintf(line, "%s: EFI%s\n", prefix, stats);
+    else if (uuid_equal(&gp->gp_type, &ms_basic_data, NULL))
+	sprintf(line, "%s: FAT/NTFS%s\n", prefix, stats);
+    else if (uuid_equal(&gp->gp_type, &freebsd_boot, NULL))
+	sprintf(line, "%s: FreeBSD boot%s\n", prefix, stats);
+    else if (uuid_equal(&gp->gp_type, &freebsd_ufs, NULL))
+	sprintf(line, "%s: FreeBSD UFS%s\n", prefix, stats);
+    else if (uuid_equal(&gp->gp_type, &freebsd_zfs, NULL))
+	sprintf(line, "%s: FreeBSD ZFS%s\n", prefix, stats);
+    else if (uuid_equal(&gp->gp_type, &freebsd_swap, NULL))
+	sprintf(line, "%s: FreeBSD swap%s\n", prefix, stats);
+    else
+	sprintf(line, "%s: %08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x%s\n",
+	    gp->gp_type.time_low, gp->gp_type.time_mid,
+	    gp->gp_type.time_hi_and_version,
+	    gp->gp_type.clock_seq_hi_and_reserved, gp->gp_type.clock_seq_low,
+	    gp->gp_type.node[0], gp->gp_type.node[1], gp->gp_type.node[2],
+	    gp->gp_type.node[3], gp->gp_type.node[4], gp->gp_type.node[5],
+	    stats);
+    pager_output(line);
 }
 
 /*
@@ -447,12 +537,8 @@ bd_open(struct open_file *f, ...)
 static int
 bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 {
-    struct dos_partition	*dptr;
-    struct disklabel		*lp;
     struct open_disk		*od;
-    int				sector, slice, i;
     int				error;
-    char			buf[BUFSIZE];
 
     if (dev->d_unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -470,11 +556,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     od->od_unit = bdinfo[od->od_dkunit].bd_unit;
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
-    od->od_nslices = 0;
     error = 0;
-    DEBUG("open '%s', unit 0x%x slice %d partition %c",
+    DEBUG("open '%s', unit 0x%x slice %d partition %d",
 	     i386_fmtdev(dev), dev->d_unit, 
-	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition + 'a');
+	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition);
 
     /* Get geometry for this open (removable device may have changed) */
     if (bd_getgeom(od)) {
@@ -482,6 +567,29 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	error = ENXIO;
 	goto out;
     }
+
+    /* Determine disk layout. */
+    error = bd_open_gpt(od, dev);
+    if (error)
+	error = bd_open_mbr(od, dev);
+    
+ out:
+    if (error) {
+	free(od);
+    } else {
+	*odp = od;	/* return the open disk */
+    }
+    return(error);
+}
+
+static int
+bd_open_mbr(struct open_disk *od, struct i386_devdesc *dev)
+{
+    struct dos_partition	*dptr;
+    struct disklabel		*lp;
+    int				sector, slice, i;
+    int				error;
+    char			buf[BUFSIZE];
 
     /*
      * Following calculations attempt to determine the correct value
@@ -492,10 +600,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     /*
      * Find the slice in the DOS slice table.
      */
+    od->od_nslices = 0;
     if (bd_read(od, 0, 1, buf)) {
 	DEBUG("error reading MBR");
-	error = EIO;
-	goto out;
+	return (EIO);
     }
 
     /* 
@@ -505,8 +613,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
 	    DEBUG("no slice table/MBR (no magic)");
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
 	}
 	sector = 0;
 	goto unsliced;		/* may be a floppy */
@@ -536,8 +643,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
         slice = dev->d_kind.biosdisk.slice - 1;
         if (slice >= od->od_nslices) {
             DEBUG("slice %d not found", slice);
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
         }
     }
 
@@ -555,8 +661,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     if (dev->d_kind.biosdisk.slice == 0) {
 	slice = bd_bestslice(od);
         if (slice == -1) {
-	    error = ENOENT;
-            goto out;
+	    return (ENOENT);
         }
         dev->d_kind.biosdisk.slice = slice;
     }
@@ -590,8 +695,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	
 	if (bd_read(od, sector + LABELSECTOR, 1, buf)) {
 	    DEBUG("error reading disklabel");
-	    error = EIO;
-	    goto out;
+	    return (EIO);
 	}
 	DEBUG("copy %d bytes of label from %p to %p", sizeof(struct disklabel), buf + LABELOFFSET, &od->od_disklabel);
 	bcopy(buf + LABELOFFSET, &od->od_disklabel, sizeof(struct disklabel));
@@ -600,15 +704,12 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 
 	if (lp->d_magic != DISKMAGIC) {
 	    DEBUG("no disklabel");
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
 	}
 	if (dev->d_kind.biosdisk.partition >= lp->d_npartitions) {
 	    DEBUG("partition '%c' exceeds partitions in table (a-'%c')",
 		  'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
-	    error = EPART;
-	    goto out;
-
+	    return (EPART);
 	}
 
 #ifdef DISK_DEBUG
@@ -623,14 +724,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 		lp->d_partitions[RAW_PART].p_offset +
 		sector;
     }
-    
- out:
-    if (error) {
-	free(od);
-    } else {
-	*odp = od;	/* return the open disk */
-    }
-    return(error);
+    return (0);
 }
 
 static void
@@ -739,7 +833,183 @@ bd_bestslice(struct open_disk *od)
 	}
 	return (prefslice);
 }
- 
+
+static int
+bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev)
+{
+    struct dos_partition *dp;
+    struct gpt_hdr *hdr;
+    struct gpt_ent *ent;
+    struct gpt_part *gp;
+    int	entries_per_sec, error, i, part;
+    daddr_t lba, elba;
+    char gpt[BIOSDISK_SECSIZE], tbl[BIOSDISK_SECSIZE];
+
+    /*
+     * Following calculations attempt to determine the correct value
+     * for d->od_boff by looking for the slice and partition specified,
+     * or searching for reasonable defaults.
+     */
+    error = 0;
+
+    /* First, read the MBR and see if we have a PMBR. */
+    if (bd_read(od, 0, 1, tbl)) {
+	DEBUG("error reading MBR");
+	return (EIO);
+    }
+
+    /* Check the slice table magic. */
+    if (((u_char)tbl[0x1fe] != 0x55) || ((u_char)tbl[0x1ff] != 0xaa))
+	return (ENXIO);
+
+    /* Check for GPT slice. */
+    part = 0;
+    dp = (struct dos_partition *)(tbl + DOSPARTOFF);
+    for (i = 0; i < NDOSPART; i++) {
+	if (dp[i].dp_typ == 0xee)
+	    part++;
+	else if (dp[i].dp_typ != 0x00)
+	    return (EINVAL);
+    }
+    if (part != 1)
+	return (EINVAL);
+
+    /* Read primary GPT table header. */
+    if (bd_read(od, 1, 1, gpt)) {
+	DEBUG("error reading GPT header");
+	return (EIO);
+    }
+    hdr = (struct gpt_hdr *)gpt;
+    if (bcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0 ||
+	hdr->hdr_lba_self != 1 || hdr->hdr_revision < 0x00010000 ||
+	hdr->hdr_entsz < sizeof(*ent) ||
+	BIOSDISK_SECSIZE % hdr->hdr_entsz != 0) {
+	DEBUG("Invalid GPT header\n");
+	return (EINVAL);
+    }
+
+    /* Now walk the partition table to count the number of valid partitions. */
+    part = 0;
+    entries_per_sec = BIOSDISK_SECSIZE / hdr->hdr_entsz;
+    elba = hdr->hdr_lba_table + hdr->hdr_entries / entries_per_sec;
+    for (lba = hdr->hdr_lba_table; lba < elba; lba++) {
+	if (bd_read(od, lba, 1, tbl)) {
+	    DEBUG("error reading GPT table");
+	    return (EIO);
+	}
+	for (i = 0; i < entries_per_sec; i++) {
+	    ent = (struct gpt_ent *)(tbl + i * hdr->hdr_entsz);
+	    if (uuid_is_nil(&ent->ent_type, NULL) || ent->ent_lba_start == 0 ||
+		ent->ent_lba_end < ent->ent_lba_start)
+		continue;
+	    part++;
+	}
+    }
+
+    /* Save the important information about all the valid partitions. */
+    od->od_nparts = part;
+    if (part != 0) {
+	od->od_partitions = malloc(part * sizeof(struct gpt_part));
+	part = 0;	
+	for (lba = hdr->hdr_lba_table; lba < elba; lba++) {
+	    if (bd_read(od, lba, 1, tbl)) {
+		DEBUG("error reading GPT table");
+		error = EIO;
+		goto out;
+	    }
+	    for (i = 0; i < entries_per_sec; i++) {
+		ent = (struct gpt_ent *)(tbl + i * hdr->hdr_entsz);
+		if (uuid_is_nil(&ent->ent_type, NULL) ||
+		    ent->ent_lba_start == 0 ||
+		    ent->ent_lba_end < ent->ent_lba_start)
+		    continue;
+		od->od_partitions[part].gp_index = (lba - hdr->hdr_lba_table) *
+		    entries_per_sec + i + 1;
+		od->od_partitions[part].gp_type = ent->ent_type;
+		od->od_partitions[part].gp_start = ent->ent_lba_start;
+		od->od_partitions[part].gp_end = ent->ent_lba_end;
+		part++;
+	    }
+	}
+    }
+    od->od_flags |= BD_GPTOK;
+
+    /* Is this a request for the whole disk? */
+    if (dev->d_kind.biosdisk.slice < 0) {
+	od->od_boff = 0;
+	return (0);
+    }
+
+    /*
+     * If a partition number was supplied, then the user is trying to use
+     * an MBR address rather than a GPT address, so fail.
+     */
+    if (dev->d_kind.biosdisk.partition != 0xff) {
+	error = ENOENT;
+	goto out;
+    }
+
+    /* If a slice number was supplied but not found, this is an error. */
+    gp = NULL;
+    if (dev->d_kind.biosdisk.slice > 0) {
+	for (i = 0; i < od->od_nparts; i++) {
+	    if (od->od_partitions[i].gp_index == dev->d_kind.biosdisk.slice) {
+		gp = &od->od_partitions[i];
+		break;
+	    }
+	}
+	if (gp == NULL) {
+            DEBUG("partition %d not found", dev->d_kind.biosdisk.slice);
+	    error = ENOENT;
+	    goto out;
+        }
+    }
+
+    /* Try to auto-detect the best partition. */
+    if (dev->d_kind.biosdisk.slice == 0) {
+	gp = bd_best_gptpart(od);
+	if (gp == NULL) {
+	    error = ENOENT;
+	    goto out;
+	}
+	dev->d_kind.biosdisk.slice = gp->gp_index;
+    }
+    od->od_boff = gp->gp_start;
+
+out:
+    if (error)
+	free(od->od_partitions);
+    return (error);
+}
+
+static struct gpt_part *
+bd_best_gptpart(struct open_disk *od)
+{
+    struct gpt_part *gp, *prefpart;
+    int i, pref, preflevel;
+	
+    prefpart = NULL;
+    preflevel = PREF_NONE;
+
+    gp = od->od_partitions;
+    for (i = 0; i < od->od_nparts; i++, gp++) {
+	/* Windows. XXX: Also Linux. */
+	if (uuid_equal(&gp->gp_type, &ms_basic_data, NULL))
+	    pref = PREF_DOS;
+	/* FreeBSD */
+	else if (uuid_equal(&gp->gp_type, &freebsd_ufs, NULL) ||
+	    uuid_equal(&gp->gp_type, &freebsd_zfs, NULL))
+	    pref = PREF_FBSD;
+	else
+	    pref = PREF_NONE;
+	if (pref < preflevel) {
+	    preflevel = pref;
+	    prefpart = gp;
+	}
+    }
+    return (prefpart);
+}
+
 static int 
 bd_close(struct open_file *f)
 {
@@ -758,6 +1028,8 @@ bd_closedisk(struct open_disk *od)
     if (od->od_flags & BD_FLOPPY)
 	delay(3000000);
 #endif
+    if (od->od_flags & BD_GPTOK)
+	free(od->od_partitions);
     free(od);
 }
 
