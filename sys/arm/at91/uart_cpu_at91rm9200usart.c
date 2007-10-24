@@ -62,8 +62,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.chan = 0;
 	di->bas.bst = &at91_bs_tag;
 	/* 
-	 * XXX: Not pretty, but will work because we map VA == PA early
-	 * for the last 1MB of memory.
+	 * XXX: Not pretty, but will work because we map the needed addresses
+	 * early.
 	 */
 #ifdef SKYEYE_WORKAROUNDS
 	di->bas.bsh = AT91RM92_BASE + AT91RM92_USART0_BASE;
