@@ -89,24 +89,3 @@ nodevice	ath_rate_sample	# SampleRate tx rate control for ath
 nodevice	awi
 nodevice	ral
 nodevice	wi
-
-nodevice	uhci
-nodevice	ohci
-nodevice	ehci
-nodevice	usb
-nodevice	ugen
-nodevice	uhid
-nodevice	ukbd
-nodevice	ulpt
-nodevice	umass
-nodevice	ums
-nodevice	ural
-nodevice	urio
-nodevice	rum
-nodevice	uscanner
-nodevice	aue
-nodevice	axe
-nodevice	cdce
-nodevice	cue
-nodevice	kue
-nodevice	rue
