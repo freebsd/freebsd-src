@@ -540,7 +540,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	m->m_data += max_linkhdr;
 
 #ifdef MAC
-	mac_create_mbuf_from_inpcb(inp, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
 
 #ifdef INET6

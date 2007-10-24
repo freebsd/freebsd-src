@@ -1,11 +1,15 @@
 /*-
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,12 +62,12 @@ mac_sysv_msgmsg_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_sysv_msgmsg_label, label);
+	MAC_PERFORM(sysvmsg_init_label, label);
 	return (label);
 }
 
 void
-mac_init_sysv_msgmsg(struct msg *msgptr)
+mac_sysvmsg_init(struct msg *msgptr)
 {
 
 	msgptr->label = mac_sysv_msgmsg_label_alloc();
@@ -75,12 +79,12 @@ mac_sysv_msgqueue_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_sysv_msgqueue_label, label);
+	MAC_PERFORM(sysvmsq_init_label, label);
 	return (label);
 }
 
 void
-mac_init_sysv_msgqueue(struct msqid_kernel *msqkptr)
+mac_sysvmsq_init(struct msqid_kernel *msqkptr)
 {
 
 	msqkptr->label = mac_sysv_msgqueue_label_alloc();
@@ -90,12 +94,12 @@ static void
 mac_sysv_msgmsg_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_sysv_msgmsg_label, label);
+	MAC_PERFORM(sysvmsg_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_sysv_msgmsg(struct msg *msgptr)
+mac_sysvmsg_destroy(struct msg *msgptr)
 {
 
 	mac_sysv_msgmsg_label_free(msgptr->label);
@@ -106,12 +110,12 @@ static void
 mac_sysv_msgqueue_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_sysv_msgqueue_label, label);
+	MAC_PERFORM(sysvmsq_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_sysv_msgqueue(struct msqid_kernel *msqkptr)
+mac_sysvmsq_destroy(struct msqid_kernel *msqkptr)
 {
 
 	mac_sysv_msgqueue_label_free(msqkptr->label);
@@ -119,104 +123,104 @@ mac_destroy_sysv_msgqueue(struct msqid_kernel *msqkptr)
 }
 
 void
-mac_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+mac_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct msg *msgptr)
 {
 
-	MAC_PERFORM(create_sysv_msgmsg, cred, msqkptr, msqkptr->label,
+	MAC_PERFORM(sysvmsg_create, cred, msqkptr, msqkptr->label,
 		msgptr, msgptr->label);
 }
 
 void
-mac_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr)
+mac_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 
-	MAC_PERFORM(create_sysv_msgqueue, cred, msqkptr, msqkptr->label);
+	MAC_PERFORM(sysvmsq_create, cred, msqkptr, msqkptr->label);
 }
 
 void
-mac_cleanup_sysv_msgmsg(struct msg *msgptr)
+mac_sysvmsg_cleanup(struct msg *msgptr)
 {
 
-	MAC_PERFORM(cleanup_sysv_msgmsg, msgptr->label);
+	MAC_PERFORM(sysvmsg_cleanup, msgptr->label);
 }
 
 void
-mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr)
+mac_sysvmsq_cleanup(struct msqid_kernel *msqkptr)
 {
 
-	MAC_PERFORM(cleanup_sysv_msgqueue, msqkptr->label);
+	MAC_PERFORM(sysvmsq_cleanup, msqkptr->label);
 }
 
 int
-mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+mac_sysvmsq_check_msgmsq(struct ucred *cred, struct msg *msgptr,
 	struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msgmsq, cred,  msgptr, msgptr->label, msqkptr,
-	    msqkptr->label);
+	MAC_CHECK(sysvmsq_check_msgmsq, cred,  msgptr, msgptr->label,
+	    msqkptr, msqkptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr)
+mac_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msgrcv, cred, msgptr, msgptr->label);
+	MAC_CHECK(sysvmsq_check_msgrcv, cred, msgptr, msgptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr)
+mac_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msgrmid, cred,  msgptr, msgptr->label);
+	MAC_CHECK(sysvmsq_check_msgrmid, cred,  msgptr, msgptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
+mac_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msqget, cred, msqkptr, msqkptr->label);
+	MAC_CHECK(sysvmsq_check_msqget, cred, msqkptr, msqkptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
+mac_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msqsnd, cred, msqkptr, msqkptr->label);
+	MAC_CHECK(sysvmsq_check_msqsnd, cred, msqkptr, msqkptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
+mac_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msqrcv, cred, msqkptr, msqkptr->label);
+	MAC_CHECK(sysvmsq_check_msqrcv, cred, msqkptr, msqkptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+mac_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
     int cmd)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_msqctl, cred, msqkptr, msqkptr->label, cmd);
+	MAC_CHECK(sysvmsq_check_msqctl, cred, msqkptr, msqkptr->label, cmd);
 
 	return (error);
 }

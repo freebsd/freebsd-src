@@ -846,7 +846,7 @@ send:
 	SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
-	mac_create_mbuf_from_inpcb(tp->t_inpcb, m);
+	mac_inpcb_create_mbuf(tp->t_inpcb, m);
 #endif
 #ifdef INET6
 	if (isipv6) {

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
- * Copyright (c) 2005 SPARTA, Inc.
+ * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -163,7 +163,7 @@ stub_internalize_label(struct label *label, char *element_name,
  * a lot like file system objects.
  */
 static void
-stub_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
+stub_devfs_vnode_associate(struct mount *mp, struct label *mplabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vplabel)
 {
@@ -171,7 +171,7 @@ stub_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
 }
 
 static int
-stub_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
+stub_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -179,7 +179,7 @@ stub_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 }
 
 static void
-stub_associate_vnode_singlelabel(struct mount *mp,
+stub_vnode_associate_singlelabel(struct mount *mp,
     struct label *mplabel, struct vnode *vp, struct label *vplabel)
 {
 
@@ -192,21 +192,21 @@ stub_associate_nfsd_label(struct ucred *cred)
 }
 
 static void
-stub_create_devfs_device(struct ucred *cred, struct mount *mp,
+stub_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 
 }
 
 static void
-stub_create_devfs_directory(struct mount *mp, char *dirname,
+stub_devfs_create_directory(struct mount *mp, char *dirname,
     int dirnamelen, struct devfs_dirent *de, struct label *delabel)
 {
 
 }
 
 static void
-stub_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+stub_devfs_create_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
     struct label *delabel)
 {
@@ -214,7 +214,7 @@ stub_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 }
 
 static int
-stub_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+stub_vnode_create_extattr(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct vnode *dvp, struct label *dvplabel,
     struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
@@ -223,21 +223,21 @@ stub_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 }
 
 static void
-stub_create_mount(struct ucred *cred, struct mount *mp,
+stub_mount_create(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 
 }
 
 static void
-stub_relabel_vnode(struct ucred *cred, struct vnode *vp,
+stub_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *label)
 {
 
 }
 
 static int
-stub_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+stub_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *intlabel)
 {
 
@@ -245,7 +245,7 @@ stub_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-stub_update_devfs(struct mount *mp, struct devfs_dirent *de,
+stub_devfs_update(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 
@@ -255,63 +255,63 @@ stub_update_devfs(struct mount *mp, struct devfs_dirent *de,
  * Labeling event operations: IPC object.
  */
 static void
-stub_create_mbuf_from_socket(struct socket *so, struct label *solabel,
+stub_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_create_socket(struct ucred *cred, struct socket *so,
+stub_socket_create(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
 }
 
 static void
-stub_create_pipe(struct ucred *cred, struct pipepair *pp,
+stub_pipe_create(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 
 }
 
 static void
-stub_create_posix_sem(struct ucred *cred, struct ksem *ks,
+stub_posixsem_create(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
 }
 
 static void
-stub_create_socket_from_socket(struct socket *oldso,
-    struct label *oldsolabel, struct socket *newso, struct label *newsolabel)
+stub_socket_newconn(struct socket *oldso, struct label *oldsolabel,
+    struct socket *newso, struct label *newsolabel)
 {
 
 }
 
 static void
-stub_relabel_socket(struct ucred *cred, struct socket *so,
+stub_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
 }
 
 static void
-stub_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+stub_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 
 }
 
 static void
-stub_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
+stub_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 
 }
 
 static void
-stub_set_socket_peer_from_socket(struct socket *oldso,
+stub_socketpeer_set_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
@@ -322,34 +322,34 @@ stub_set_socket_peer_from_socket(struct socket *oldso,
  * Labeling event operations: network objects.
  */
 static void
-stub_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
+stub_bpfdesc_create(struct ucred *cred, struct bpf_d *d,
     struct label *dlabel)
 {
 
 }
 
 static void
-stub_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+stub_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_create_fragment(struct mbuf *m, struct label *mlabel, struct mbuf *frag,
+stub_netinet_fragment(struct mbuf *m, struct label *mlabel, struct mbuf *frag,
     struct label *fraglabel)
 {
 
 }
 
 static void
-stub_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
+stub_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 {
 
 }
 
 static void
-stub_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+stub_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
@@ -362,42 +362,42 @@ stub_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 }
 
 static void
-stub_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
 {
 
 }
 
 static void
-stub_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqlabel)
 {
 
 }
 
 static void
-stub_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
+stub_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 
 }
 
 static void
-stub_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
+stub_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmalabel)
 {
 
 }
 
 static void
-stub_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+stub_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
 }
 
 static void
-stub_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+stub_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -418,21 +418,21 @@ stub_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
 }
 
 static void
-stub_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
+stub_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
+stub_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
+stub_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
     struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
     struct label *mnewlabel)
 {
@@ -440,20 +440,20 @@ stub_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-stub_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
+stub_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
     struct mbuf *mnew, struct label *mnewlabel)
 {
 
 }
 
 static void
-stub_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
+stub_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static int
-stub_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+stub_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
@@ -461,26 +461,26 @@ stub_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 }
 
 static void
-stub_reflect_mbuf_icmp(struct mbuf *m, struct label *mlabel)
+stub_netinet_icmp_reply(struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_reflect_mbuf_tcp(struct mbuf *m, struct label *mlabel)
+stub_netinet_tcp_reply(struct mbuf *m, struct label *mlabel)
 {
 
 }
 
 static void
-stub_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
+stub_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 
 }
 
 static void
-stub_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+stub_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
@@ -497,7 +497,7 @@ stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  * Labeling event operations: processes.
  */
 static void
-stub_execve_transition(struct ucred *old, struct ucred *new,
+stub_vnode_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -505,7 +505,7 @@ stub_execve_transition(struct ucred *old, struct ucred *new,
 }
 
 static int
-stub_execve_will_transition(struct ucred *old, struct vnode *vp,
+stub_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -514,19 +514,19 @@ stub_execve_will_transition(struct ucred *old, struct vnode *vp,
 }
 
 static void
-stub_create_proc0(struct ucred *cred)
+stub_proc_create_swapper(struct ucred *cred)
 {
 
 }
 
 static void
-stub_create_proc1(struct ucred *cred)
+stub_proc_create_init(struct ucred *cred)
 {
 
 }
 
 static void
-stub_relabel_cred(struct ucred *cred, struct label *newlabel)
+stub_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
 }
@@ -541,25 +541,25 @@ stub_thread_userret(struct thread *td)
  * Label cleanup/flush operations
  */
 static void
-stub_cleanup_sysv_msgmsg(struct label *msglabel)
+stub_sysvmsg_cleanup(struct label *msglabel)
 {
 
 }
 
 static void
-stub_cleanup_sysv_msgqueue(struct label *msqlabel)
+stub_sysvmsq_cleanup(struct label *msqlabel)
 {
 
 }
 
 static void
-stub_cleanup_sysv_sem(struct label *semalabel)
+stub_sysvsem_cleanup(struct label *semalabel)
 {
 
 }
 
 static void
-stub_cleanup_sysv_shm(struct label *shmlabel)
+stub_sysvshm_cleanup(struct label *shmlabel)
 {
 
 }
@@ -568,7 +568,7 @@ stub_cleanup_sysv_shm(struct label *shmlabel)
  * Access control checks.
  */
 static int
-stub_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+stub_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 
@@ -576,21 +576,21 @@ stub_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
 }
 
 static int
-stub_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+stub_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+stub_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
 	return (0);
 }
 
 static int
-stub_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+stub_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 
@@ -598,7 +598,7 @@ stub_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 }
 
 static int
-stub_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+stub_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -606,7 +606,7 @@ stub_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static int
-stub_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+stub_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -614,7 +614,7 @@ stub_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
-stub_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+stub_sysvmsq_check_msgmsq(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
@@ -623,7 +623,7 @@ stub_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
 }
 
 static int
-stub_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
+stub_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 
@@ -632,7 +632,7 @@ stub_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
 
 
 static int
-stub_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
+stub_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 
@@ -641,7 +641,7 @@ stub_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
 
 
 static int
-stub_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -650,7 +650,7 @@ stub_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 
 static int
-stub_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -658,7 +658,7 @@ stub_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static int
-stub_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -667,7 +667,7 @@ stub_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 
 static int
-stub_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+stub_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel, int cmd)
 {
 
@@ -676,7 +676,7 @@ stub_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 
 static int
-stub_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
+stub_sysvsem_check_semctl(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel, int cmd)
 {
 
@@ -684,7 +684,7 @@ stub_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 }
 
 static int
-stub_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
+stub_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel)
 {
 
@@ -693,7 +693,7 @@ stub_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
 
 
 static int
-stub_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
+stub_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel, size_t accesstype)
 {
 
@@ -701,7 +701,7 @@ stub_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
 }
 
 static int
-stub_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+stub_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int shmflg)
 {
 
@@ -709,7 +709,7 @@ stub_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-stub_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+stub_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int cmd)
 {
 
@@ -717,7 +717,7 @@ stub_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-stub_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
+stub_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel)
 {
 
@@ -726,7 +726,7 @@ stub_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 
 static int
-stub_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+stub_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int shmflg)
 {
 
@@ -734,35 +734,35 @@ stub_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-stub_check_kenv_dump(struct ucred *cred)
+stub_kenv_check_dump(struct ucred *cred)
 {
 
 	return (0);
 }
 
 static int
-stub_check_kenv_get(struct ucred *cred, char *name)
+stub_kenv_check_get(struct ucred *cred, char *name)
 {
 
 	return (0);
 }
 
 static int
-stub_check_kenv_set(struct ucred *cred, char *name, char *value)
+stub_kenv_check_set(struct ucred *cred, char *name, char *value)
 {
 
 	return (0);
 }
 
 static int
-stub_check_kenv_unset(struct ucred *cred, char *name)
+stub_kenv_check_unset(struct ucred *cred, char *name)
 {
 
 	return (0);
 }
 
 static int
-stub_check_kld_load(struct ucred *cred, struct vnode *vp,
+stub_kld_check_load(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -770,14 +770,14 @@ stub_check_kld_load(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_kld_stat(struct ucred *cred)
+stub_kld_check_stat(struct ucred *cred)
 {
 
 	return (0);
 }
 
 static int
-stub_check_mount_stat(struct ucred *cred, struct mount *mp,
+stub_mount_check_stat(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 
@@ -785,7 +785,7 @@ stub_check_mount_stat(struct ucred *cred, struct mount *mp,
 }
 
 static int
-stub_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -793,7 +793,7 @@ stub_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 
@@ -801,7 +801,7 @@ stub_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_pipe_read(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_read(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 
@@ -809,7 +809,7 @@ stub_check_pipe_read(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 
@@ -817,7 +817,7 @@ stub_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 
@@ -825,7 +825,7 @@ stub_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_pipe_write(struct ucred *cred, struct pipepair *pp,
+stub_pipe_check_write(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 
@@ -833,7 +833,7 @@ stub_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_destroy(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -841,7 +841,7 @@ stub_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -849,7 +849,7 @@ stub_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_posix_sem_open(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_open(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -857,7 +857,7 @@ stub_check_posix_sem_open(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_posix_sem_post(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_post(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -865,7 +865,7 @@ stub_check_posix_sem_post(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_unlink(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -873,7 +873,7 @@ stub_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_posix_sem_wait(struct ucred *cred, struct ksem *ks,
+stub_posixsem_check_wait(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -881,84 +881,84 @@ stub_check_posix_sem_wait(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-stub_check_proc_debug(struct ucred *cred, struct proc *p)
+stub_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_sched(struct ucred *cred, struct proc *p)
+stub_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
+stub_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_wait(struct ucred *cred, struct proc *p)
+stub_proc_check_wait(struct ucred *cred, struct proc *p)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
+stub_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+stub_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setauid(struct ucred *cred, uid_t auid)
+stub_proc_check_setauid(struct ucred *cred, uid_t auid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setuid(struct ucred *cred, uid_t uid)
+stub_proc_check_setuid(struct ucred *cred, uid_t uid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_seteuid(struct ucred *cred, uid_t euid)
+stub_proc_check_seteuid(struct ucred *cred, uid_t euid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setgid(struct ucred *cred, gid_t gid)
+stub_proc_check_setgid(struct ucred *cred, gid_t gid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setegid(struct ucred *cred, gid_t egid)
+stub_proc_check_setegid(struct ucred *cred, gid_t egid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setgroups(struct ucred *cred, int ngroups,
+stub_proc_check_setgroups(struct ucred *cred, int ngroups,
 	gid_t *gidset)
 {
 
@@ -966,21 +966,21 @@ stub_check_proc_setgroups(struct ucred *cred, int ngroups,
 }
 
 static int
-stub_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+stub_proc_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+stub_proc_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
 {
 
 	return (0);
 }
 
 static int
-stub_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+stub_proc_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
 	uid_t suid)
 {
 
@@ -988,7 +988,7 @@ stub_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
 }
 
 static int
-stub_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+stub_proc_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 	gid_t sgid)
 {
 
@@ -996,7 +996,7 @@ stub_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 }
 
 static int
-stub_check_socket_accept(struct ucred *cred, struct socket *so,
+stub_socket_check_accept(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1004,7 +1004,7 @@ stub_check_socket_accept(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_bind(struct ucred *cred, struct socket *so,
+stub_socket_check_bind(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
@@ -1012,7 +1012,7 @@ stub_check_socket_bind(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_connect(struct ucred *cred, struct socket *so,
+stub_socket_check_connect(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
@@ -1020,14 +1020,14 @@ stub_check_socket_connect(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_create(struct ucred *cred, int domain, int type, int proto)
+stub_socket_check_create(struct ucred *cred, int domain, int type, int proto)
 {
 
 	return (0);
 }
 
 static int
-stub_check_socket_deliver(struct socket *so, struct label *solabel,
+stub_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -1035,7 +1035,7 @@ stub_check_socket_deliver(struct socket *so, struct label *solabel,
 }
 
 static int
-stub_check_socket_listen(struct ucred *cred, struct socket *so,
+stub_socket_check_listen(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1043,7 +1043,7 @@ stub_check_socket_listen(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_poll(struct ucred *cred, struct socket *so,
+stub_socket_check_poll(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1051,7 +1051,7 @@ stub_check_socket_poll(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_receive(struct ucred *cred, struct socket *so,
+stub_socket_check_receive(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1059,14 +1059,14 @@ stub_check_socket_receive(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_relabel(struct ucred *cred, struct socket *so,
+stub_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
 	return (0);
 }
 static int
-stub_check_socket_send(struct ucred *cred, struct socket *so,
+stub_socket_check_send(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1074,7 +1074,7 @@ stub_check_socket_send(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_stat(struct ucred *cred, struct socket *so,
+stub_socket_check_stat(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1082,7 +1082,7 @@ stub_check_socket_stat(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_socket_visible(struct ucred *cred, struct socket *so,
+stub_socket_check_visible(struct ucred *cred, struct socket *so,
    struct label *solabel)
 {
 
@@ -1090,7 +1090,7 @@ stub_check_socket_visible(struct ucred *cred, struct socket *so,
 }
 
 static int
-stub_check_system_acct(struct ucred *cred, struct vnode *vp,
+stub_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1098,14 +1098,14 @@ stub_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_audit(struct ucred *cred, void *record, int length)
+stub_system_check_audit(struct ucred *cred, void *record, int length)
 {
 
 	return (0);
 }
 
 static int
-stub_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+stub_system_check_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1113,21 +1113,21 @@ stub_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_auditon(struct ucred *cred, int cmd)
+stub_system_check_auditon(struct ucred *cred, int cmd)
 {
 
 	return (0);
 }
 
 static int
-stub_check_system_reboot(struct ucred *cred, int how)
+stub_system_check_reboot(struct ucred *cred, int how)
 {
 
 	return (0);
 }
 
 static int
-stub_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+stub_system_check_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1135,7 +1135,7 @@ stub_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_swapon(struct ucred *cred, struct vnode *vp,
+stub_system_check_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1143,7 +1143,7 @@ stub_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+stub_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
 {
 
@@ -1151,7 +1151,7 @@ stub_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 }
 
 static int
-stub_check_vnode_access(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -1159,7 +1159,7 @@ stub_check_vnode_access(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -1167,7 +1167,7 @@ stub_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -1175,7 +1175,7 @@ stub_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 
@@ -1183,7 +1183,7 @@ stub_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -1191,7 +1191,7 @@ stub_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name)
 {
 
@@ -1199,7 +1199,7 @@ stub_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -1208,7 +1208,7 @@ stub_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -1216,7 +1216,7 @@ stub_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -1225,7 +1225,7 @@ stub_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -1234,7 +1234,7 @@ stub_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace)
 {
 
@@ -1242,7 +1242,7 @@ stub_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp)
 {
 
@@ -1250,7 +1250,7 @@ stub_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot, int flags)
 {
 
@@ -1258,14 +1258,14 @@ stub_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-stub_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int *prot)
 {
 
 }
 
 static int
-stub_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot)
 {
 
@@ -1273,7 +1273,7 @@ stub_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_open(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -1281,7 +1281,7 @@ stub_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+stub_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -1289,7 +1289,7 @@ stub_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-stub_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+stub_vnode_check_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -1297,7 +1297,7 @@ stub_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-stub_check_vnode_readdir(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_readdir(struct ucred *cred, struct vnode *vp,
     struct label *dvplabel)
 {
 
@@ -1305,7 +1305,7 @@ stub_check_vnode_readdir(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_readlink(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1313,7 +1313,7 @@ stub_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 
@@ -1321,7 +1321,7 @@ stub_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -1330,7 +1330,7 @@ stub_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
@@ -1339,7 +1339,7 @@ stub_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1347,7 +1347,7 @@ stub_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 
@@ -1355,7 +1355,7 @@ stub_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -1364,7 +1364,7 @@ stub_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 
@@ -1372,7 +1372,7 @@ stub_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 
@@ -1380,7 +1380,7 @@ stub_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 
@@ -1388,7 +1388,7 @@ stub_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+stub_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec mtime)
 {
 
@@ -1396,7 +1396,7 @@ stub_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-stub_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+stub_vnode_check_stat(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -1404,7 +1404,7 @@ stub_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-stub_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+stub_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -1413,7 +1413,7 @@ stub_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-stub_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
+stub_vnode_check_write(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -1439,219 +1439,219 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_destroy = stub_destroy,
 	.mpo_init = stub_init,
 	.mpo_syscall = stub_syscall,
-	.mpo_init_bpfdesc_label = stub_init_label,
-	.mpo_init_cred_label = stub_init_label,
-	.mpo_init_devfs_label = stub_init_label,
-	.mpo_init_ifnet_label = stub_init_label,
-	.mpo_init_inpcb_label = stub_init_label_waitcheck,
-	.mpo_init_sysv_msgmsg_label = stub_init_label,
-	.mpo_init_sysv_msgqueue_label = stub_init_label,
-	.mpo_init_sysv_sem_label = stub_init_label,
-	.mpo_init_sysv_shm_label = stub_init_label,
-	.mpo_init_ipq_label = stub_init_label_waitcheck,
-	.mpo_init_mbuf_label = stub_init_label_waitcheck,
-	.mpo_init_mount_label = stub_init_label,
-	.mpo_init_pipe_label = stub_init_label,
-	.mpo_init_posix_sem_label = stub_init_label,
-	.mpo_init_socket_label = stub_init_label_waitcheck,
-	.mpo_init_socket_peer_label = stub_init_label_waitcheck,
-	.mpo_init_vnode_label = stub_init_label,
-	.mpo_destroy_bpfdesc_label = stub_destroy_label,
-	.mpo_destroy_cred_label = stub_destroy_label,
-	.mpo_destroy_devfs_label = stub_destroy_label,
-	.mpo_destroy_ifnet_label = stub_destroy_label,
-	.mpo_destroy_inpcb_label = stub_destroy_label,
-	.mpo_destroy_sysv_msgmsg_label = stub_destroy_label,
-	.mpo_destroy_sysv_msgqueue_label = stub_destroy_label,
-	.mpo_destroy_sysv_sem_label = stub_destroy_label,
-	.mpo_destroy_sysv_shm_label = stub_destroy_label,
-	.mpo_destroy_ipq_label = stub_destroy_label,
-	.mpo_destroy_mbuf_label = stub_destroy_label,
-	.mpo_destroy_mount_label = stub_destroy_label,
-	.mpo_destroy_pipe_label = stub_destroy_label,
-	.mpo_destroy_posix_sem_label = stub_destroy_label,
-	.mpo_destroy_socket_label = stub_destroy_label,
-	.mpo_destroy_socket_peer_label = stub_destroy_label,
-	.mpo_destroy_vnode_label = stub_destroy_label,
-	.mpo_copy_cred_label = stub_copy_label,
-	.mpo_copy_ifnet_label = stub_copy_label,
-	.mpo_copy_mbuf_label = stub_copy_label,
-	.mpo_copy_pipe_label = stub_copy_label,
-	.mpo_copy_socket_label = stub_copy_label,
-	.mpo_copy_vnode_label = stub_copy_label,
-	.mpo_externalize_cred_label = stub_externalize_label,
-	.mpo_externalize_ifnet_label = stub_externalize_label,
-	.mpo_externalize_pipe_label = stub_externalize_label,
-	.mpo_externalize_socket_label = stub_externalize_label,
-	.mpo_externalize_socket_peer_label = stub_externalize_label,
-	.mpo_externalize_vnode_label = stub_externalize_label,
-	.mpo_internalize_cred_label = stub_internalize_label,
-	.mpo_internalize_ifnet_label = stub_internalize_label,
-	.mpo_internalize_pipe_label = stub_internalize_label,
-	.mpo_internalize_socket_label = stub_internalize_label,
-	.mpo_internalize_vnode_label = stub_internalize_label,
-	.mpo_associate_vnode_devfs = stub_associate_vnode_devfs,
-	.mpo_associate_vnode_extattr = stub_associate_vnode_extattr,
+	.mpo_bpfdesc_init_label = stub_init_label,
+	.mpo_cred_init_label = stub_init_label,
+	.mpo_devfs_init_label = stub_init_label,
+	.mpo_ifnet_init_label = stub_init_label,
+	.mpo_inpcb_init_label = stub_init_label_waitcheck,
+	.mpo_sysvmsg_init_label = stub_init_label,
+	.mpo_sysvmsq_init_label = stub_init_label,
+	.mpo_sysvsem_init_label = stub_init_label,
+	.mpo_sysvshm_init_label = stub_init_label,
+	.mpo_ipq_init_label = stub_init_label_waitcheck,
+	.mpo_mbuf_init_label = stub_init_label_waitcheck,
+	.mpo_mount_init_label = stub_init_label,
+	.mpo_pipe_init_label = stub_init_label,
+	.mpo_posixsem_init_label = stub_init_label,
+	.mpo_socket_init_label = stub_init_label_waitcheck,
+	.mpo_socketpeer_init_label = stub_init_label_waitcheck,
+	.mpo_vnode_init_label = stub_init_label,
+	.mpo_bpfdesc_destroy_label = stub_destroy_label,
+	.mpo_cred_destroy_label = stub_destroy_label,
+	.mpo_devfs_destroy_label = stub_destroy_label,
+	.mpo_ifnet_destroy_label = stub_destroy_label,
+	.mpo_inpcb_destroy_label = stub_destroy_label,
+	.mpo_sysvmsg_destroy_label = stub_destroy_label,
+	.mpo_sysvmsq_destroy_label = stub_destroy_label,
+	.mpo_sysvsem_destroy_label = stub_destroy_label,
+	.mpo_sysvshm_destroy_label = stub_destroy_label,
+	.mpo_ipq_destroy_label = stub_destroy_label,
+	.mpo_mbuf_destroy_label = stub_destroy_label,
+	.mpo_mount_destroy_label = stub_destroy_label,
+	.mpo_pipe_destroy_label = stub_destroy_label,
+	.mpo_posixsem_destroy_label = stub_destroy_label,
+	.mpo_socket_destroy_label = stub_destroy_label,
+	.mpo_socketpeer_destroy_label = stub_destroy_label,
+	.mpo_vnode_destroy_label = stub_destroy_label,
+	.mpo_cred_copy_label = stub_copy_label,
+	.mpo_ifnet_copy_label = stub_copy_label,
+	.mpo_mbuf_copy_label = stub_copy_label,
+	.mpo_pipe_copy_label = stub_copy_label,
+	.mpo_socket_copy_label = stub_copy_label,
+	.mpo_vnode_copy_label = stub_copy_label,
+	.mpo_cred_externalize_label = stub_externalize_label,
+	.mpo_ifnet_externalize_label = stub_externalize_label,
+	.mpo_pipe_externalize_label = stub_externalize_label,
+	.mpo_socket_externalize_label = stub_externalize_label,
+	.mpo_socketpeer_externalize_label = stub_externalize_label,
+	.mpo_vnode_externalize_label = stub_externalize_label,
+	.mpo_cred_internalize_label = stub_internalize_label,
+	.mpo_ifnet_internalize_label = stub_internalize_label,
+	.mpo_pipe_internalize_label = stub_internalize_label,
+	.mpo_socket_internalize_label = stub_internalize_label,
+	.mpo_vnode_internalize_label = stub_internalize_label,
+	.mpo_devfs_vnode_associate = stub_devfs_vnode_associate,
+	.mpo_vnode_associate_extattr = stub_vnode_associate_extattr,
 	.mpo_associate_nfsd_label = stub_associate_nfsd_label,
-	.mpo_associate_vnode_singlelabel = stub_associate_vnode_singlelabel,
-	.mpo_create_devfs_device = stub_create_devfs_device,
-	.mpo_create_devfs_directory = stub_create_devfs_directory,
-	.mpo_create_devfs_symlink = stub_create_devfs_symlink,
-	.mpo_create_sysv_msgmsg = stub_create_sysv_msgmsg,
-	.mpo_create_sysv_msgqueue = stub_create_sysv_msgqueue,
-	.mpo_create_sysv_sem = stub_create_sysv_sem,
-	.mpo_create_sysv_shm = stub_create_sysv_shm,
-	.mpo_create_vnode_extattr = stub_create_vnode_extattr,
-	.mpo_create_mount = stub_create_mount,
-	.mpo_relabel_vnode = stub_relabel_vnode,
-	.mpo_setlabel_vnode_extattr = stub_setlabel_vnode_extattr,
-	.mpo_update_devfs = stub_update_devfs,
-	.mpo_create_mbuf_from_socket = stub_create_mbuf_from_socket,
-	.mpo_create_pipe = stub_create_pipe,
-	.mpo_create_posix_sem = stub_create_posix_sem,
-	.mpo_create_socket = stub_create_socket,
-	.mpo_create_socket_from_socket = stub_create_socket_from_socket,
-	.mpo_relabel_pipe = stub_relabel_pipe,
-	.mpo_relabel_socket = stub_relabel_socket,
-	.mpo_set_socket_peer_from_mbuf = stub_set_socket_peer_from_mbuf,
-	.mpo_set_socket_peer_from_socket = stub_set_socket_peer_from_socket,
-	.mpo_create_bpfdesc = stub_create_bpfdesc,
-	.mpo_create_ifnet = stub_create_ifnet,
-	.mpo_create_inpcb_from_socket = stub_create_inpcb_from_socket,
-	.mpo_create_ipq = stub_create_ipq,
-	.mpo_create_datagram_from_ipq = stub_create_datagram_from_ipq,
-	.mpo_create_fragment = stub_create_fragment,
-	.mpo_create_mbuf_from_inpcb = stub_create_mbuf_from_inpcb,
+	.mpo_vnode_associate_singlelabel = stub_vnode_associate_singlelabel,
+	.mpo_devfs_create_device = stub_devfs_create_device,
+	.mpo_devfs_create_directory = stub_devfs_create_directory,
+	.mpo_devfs_create_symlink = stub_devfs_create_symlink,
+	.mpo_sysvmsg_create = stub_sysvmsg_create,
+	.mpo_sysvmsq_create = stub_sysvmsq_create,
+	.mpo_sysvsem_create = stub_sysvsem_create,
+	.mpo_sysvshm_create = stub_sysvshm_create,
+	.mpo_vnode_create_extattr = stub_vnode_create_extattr,
+	.mpo_mount_create = stub_mount_create,
+	.mpo_vnode_relabel = stub_vnode_relabel,
+	.mpo_vnode_setlabel_extattr = stub_vnode_setlabel_extattr,
+	.mpo_devfs_update = stub_devfs_update,
+	.mpo_socket_create_mbuf = stub_socket_create_mbuf,
+	.mpo_pipe_create = stub_pipe_create,
+	.mpo_posixsem_create = stub_posixsem_create,
+	.mpo_socket_create = stub_socket_create,
+	.mpo_socket_newconn = stub_socket_newconn,
+	.mpo_pipe_relabel = stub_pipe_relabel,
+	.mpo_socket_relabel = stub_socket_relabel,
+	.mpo_socketpeer_set_from_mbuf = stub_socketpeer_set_from_mbuf,
+	.mpo_socketpeer_set_from_socket = stub_socketpeer_set_from_socket,
+	.mpo_bpfdesc_create = stub_bpfdesc_create,
+	.mpo_ifnet_create = stub_ifnet_create,
+	.mpo_inpcb_create = stub_inpcb_create,
+	.mpo_ipq_create = stub_ipq_create,
+	.mpo_ipq_reassemble = stub_ipq_reassemble,
+	.mpo_netinet_fragment = stub_netinet_fragment,
+	.mpo_inpcb_create_mbuf = stub_inpcb_create_mbuf,
 	.mpo_create_mbuf_linklayer = stub_create_mbuf_linklayer,
-	.mpo_create_mbuf_from_bpfdesc = stub_create_mbuf_from_bpfdesc,
-	.mpo_create_mbuf_from_ifnet = stub_create_mbuf_from_ifnet,
-	.mpo_create_mbuf_multicast_encap = stub_create_mbuf_multicast_encap,
-	.mpo_create_mbuf_netlayer = stub_create_mbuf_netlayer,
-	.mpo_create_mbuf_from_firewall = stub_create_mbuf_from_firewall,
-	.mpo_fragment_match = stub_fragment_match,
-	.mpo_reflect_mbuf_icmp = stub_reflect_mbuf_icmp,
-	.mpo_reflect_mbuf_tcp = stub_reflect_mbuf_tcp,
-	.mpo_relabel_ifnet = stub_relabel_ifnet,
-	.mpo_update_ipq = stub_update_ipq,
+	.mpo_bpfdesc_create_mbuf = stub_bpfdesc_create_mbuf,
+	.mpo_ifnet_create_mbuf = stub_ifnet_create_mbuf,
+	.mpo_mbuf_create_multicast_encap = stub_mbuf_create_multicast_encap,
+	.mpo_mbuf_create_netlayer = stub_mbuf_create_netlayer,
+	.mpo_mbuf_create_from_firewall = stub_mbuf_create_from_firewall,
+	.mpo_ipq_match = stub_ipq_match,
+	.mpo_netinet_icmp_reply = stub_netinet_icmp_reply,
+	.mpo_netinet_tcp_reply = stub_netinet_tcp_reply,
+	.mpo_ifnet_relabel = stub_ifnet_relabel,
+	.mpo_ipq_update = stub_ipq_update,
 	.mpo_inpcb_sosetlabel = stub_inpcb_sosetlabel,
-	.mpo_execve_transition = stub_execve_transition,
-	.mpo_execve_will_transition = stub_execve_will_transition,
-	.mpo_create_proc0 = stub_create_proc0,
-	.mpo_create_proc1 = stub_create_proc1,
-	.mpo_relabel_cred = stub_relabel_cred,
+	.mpo_vnode_execve_transition = stub_vnode_execve_transition,
+	.mpo_vnode_execve_will_transition = stub_vnode_execve_will_transition,
+	.mpo_proc_create_swapper = stub_proc_create_swapper,
+	.mpo_proc_create_init = stub_proc_create_init,
+	.mpo_cred_relabel= stub_cred_relabel,
 	.mpo_thread_userret = stub_thread_userret,
-	.mpo_cleanup_sysv_msgmsg = stub_cleanup_sysv_msgmsg,
-	.mpo_cleanup_sysv_msgqueue = stub_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sem = stub_cleanup_sysv_sem,
-	.mpo_cleanup_sysv_shm = stub_cleanup_sysv_shm,
-	.mpo_check_bpfdesc_receive = stub_check_bpfdesc_receive,
-	.mpo_check_cred_relabel = stub_check_cred_relabel,
-	.mpo_check_cred_visible = stub_check_cred_visible,
-	.mpo_check_ifnet_relabel = stub_check_ifnet_relabel,
-	.mpo_check_ifnet_transmit = stub_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = stub_check_inpcb_deliver,
-	.mpo_check_sysv_msgmsq = stub_check_sysv_msgmsq,
-	.mpo_check_sysv_msgrcv = stub_check_sysv_msgrcv,
-	.mpo_check_sysv_msgrmid = stub_check_sysv_msgrmid,
-	.mpo_check_sysv_msqget = stub_check_sysv_msqget,
-	.mpo_check_sysv_msqsnd = stub_check_sysv_msqsnd,
-	.mpo_check_sysv_msqrcv = stub_check_sysv_msqrcv,
-	.mpo_check_sysv_msqctl = stub_check_sysv_msqctl,
-	.mpo_check_sysv_semctl = stub_check_sysv_semctl,
-	.mpo_check_sysv_semget = stub_check_sysv_semget,
-	.mpo_check_sysv_semop = stub_check_sysv_semop,
-	.mpo_check_sysv_shmat = stub_check_sysv_shmat,
-	.mpo_check_sysv_shmctl = stub_check_sysv_shmctl,
-	.mpo_check_sysv_shmdt = stub_check_sysv_shmdt,
-	.mpo_check_sysv_shmget = stub_check_sysv_shmget,
-	.mpo_check_kenv_dump = stub_check_kenv_dump,
-	.mpo_check_kenv_get = stub_check_kenv_get,
-	.mpo_check_kenv_set = stub_check_kenv_set,
-	.mpo_check_kenv_unset = stub_check_kenv_unset,
-	.mpo_check_kld_load = stub_check_kld_load,
-	.mpo_check_kld_stat = stub_check_kld_stat,
-	.mpo_check_mount_stat = stub_check_mount_stat,
-	.mpo_check_pipe_ioctl = stub_check_pipe_ioctl,
-	.mpo_check_pipe_poll = stub_check_pipe_poll,
-	.mpo_check_pipe_read = stub_check_pipe_read,
-	.mpo_check_pipe_relabel = stub_check_pipe_relabel,
-	.mpo_check_pipe_stat = stub_check_pipe_stat,
-	.mpo_check_pipe_write = stub_check_pipe_write,
-	.mpo_check_posix_sem_destroy = stub_check_posix_sem_destroy,
-	.mpo_check_posix_sem_getvalue = stub_check_posix_sem_getvalue,
-	.mpo_check_posix_sem_open = stub_check_posix_sem_open,
-	.mpo_check_posix_sem_post = stub_check_posix_sem_post,
-	.mpo_check_posix_sem_unlink = stub_check_posix_sem_unlink,
-	.mpo_check_posix_sem_wait = stub_check_posix_sem_wait,
-	.mpo_check_proc_debug = stub_check_proc_debug,
-	.mpo_check_proc_sched = stub_check_proc_sched,
-	.mpo_check_proc_setaudit = stub_check_proc_setaudit,
-	.mpo_check_proc_setaudit_addr = stub_check_proc_setaudit_addr,
-	.mpo_check_proc_setauid = stub_check_proc_setauid,
-	.mpo_check_proc_setuid = stub_check_proc_setuid,
-	.mpo_check_proc_seteuid = stub_check_proc_seteuid,
-	.mpo_check_proc_setgid = stub_check_proc_setgid,
-	.mpo_check_proc_setegid = stub_check_proc_setegid,
-	.mpo_check_proc_setgroups = stub_check_proc_setgroups,
-	.mpo_check_proc_setreuid = stub_check_proc_setreuid,
-	.mpo_check_proc_setregid = stub_check_proc_setregid,
-	.mpo_check_proc_setresuid = stub_check_proc_setresuid,
-	.mpo_check_proc_setresgid = stub_check_proc_setresgid,
-	.mpo_check_proc_signal = stub_check_proc_signal,
-	.mpo_check_proc_wait = stub_check_proc_wait,
-	.mpo_check_socket_accept = stub_check_socket_accept,
-	.mpo_check_socket_bind = stub_check_socket_bind,
-	.mpo_check_socket_connect = stub_check_socket_connect,
-	.mpo_check_socket_create = stub_check_socket_create,
-	.mpo_check_socket_deliver = stub_check_socket_deliver,
-	.mpo_check_socket_listen = stub_check_socket_listen,
-	.mpo_check_socket_poll = stub_check_socket_poll,
-	.mpo_check_socket_receive = stub_check_socket_receive,
-	.mpo_check_socket_relabel = stub_check_socket_relabel,
-	.mpo_check_socket_send = stub_check_socket_send,
-	.mpo_check_socket_stat = stub_check_socket_stat,
-	.mpo_check_socket_visible = stub_check_socket_visible,
-	.mpo_check_system_acct = stub_check_system_acct,
-	.mpo_check_system_audit = stub_check_system_audit,
-	.mpo_check_system_auditctl = stub_check_system_auditctl,
-	.mpo_check_system_auditon = stub_check_system_auditon,
-	.mpo_check_system_reboot = stub_check_system_reboot,
-	.mpo_check_system_swapoff = stub_check_system_swapoff,
-	.mpo_check_system_swapon = stub_check_system_swapon,
-	.mpo_check_system_sysctl = stub_check_system_sysctl,
-	.mpo_check_vnode_access = stub_check_vnode_access,
-	.mpo_check_vnode_chdir = stub_check_vnode_chdir,
-	.mpo_check_vnode_chroot = stub_check_vnode_chroot,
-	.mpo_check_vnode_create = stub_check_vnode_create,
-	.mpo_check_vnode_deleteacl = stub_check_vnode_deleteacl,
-	.mpo_check_vnode_deleteextattr = stub_check_vnode_deleteextattr,
-	.mpo_check_vnode_exec = stub_check_vnode_exec,
-	.mpo_check_vnode_getacl = stub_check_vnode_getacl,
-	.mpo_check_vnode_getextattr = stub_check_vnode_getextattr,
-	.mpo_check_vnode_link = stub_check_vnode_link,
-	.mpo_check_vnode_listextattr = stub_check_vnode_listextattr,
-	.mpo_check_vnode_lookup = stub_check_vnode_lookup,
-	.mpo_check_vnode_mmap = stub_check_vnode_mmap,
-	.mpo_check_vnode_mmap_downgrade = stub_check_vnode_mmap_downgrade,
-	.mpo_check_vnode_mprotect = stub_check_vnode_mprotect,
-	.mpo_check_vnode_open = stub_check_vnode_open,
-	.mpo_check_vnode_poll = stub_check_vnode_poll,
-	.mpo_check_vnode_read = stub_check_vnode_read,
-	.mpo_check_vnode_readdir = stub_check_vnode_readdir,
-	.mpo_check_vnode_readlink = stub_check_vnode_readlink,
-	.mpo_check_vnode_relabel = stub_check_vnode_relabel,
-	.mpo_check_vnode_rename_from = stub_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = stub_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = stub_check_vnode_revoke,
-	.mpo_check_vnode_setacl = stub_check_vnode_setacl,
-	.mpo_check_vnode_setextattr = stub_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = stub_check_vnode_setflags,
-	.mpo_check_vnode_setmode = stub_check_vnode_setmode,
-	.mpo_check_vnode_setowner = stub_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = stub_check_vnode_setutimes,
-	.mpo_check_vnode_stat = stub_check_vnode_stat,
-	.mpo_check_vnode_unlink = stub_check_vnode_unlink,
-	.mpo_check_vnode_write = stub_check_vnode_write,
+	.mpo_sysvmsg_cleanup = stub_sysvmsg_cleanup,
+	.mpo_sysvmsq_cleanup = stub_sysvmsq_cleanup,
+	.mpo_sysvsem_cleanup = stub_sysvsem_cleanup,
+	.mpo_sysvshm_cleanup = stub_sysvshm_cleanup,
+	.mpo_bpfdesc_check_receive = stub_bpfdesc_check_receive,
+	.mpo_cred_check_relabel = stub_cred_check_relabel,
+	.mpo_cred_check_visible = stub_cred_check_visible,
+	.mpo_ifnet_check_relabel = stub_ifnet_check_relabel,
+	.mpo_ifnet_check_transmit = stub_ifnet_check_transmit,
+	.mpo_inpcb_check_deliver = stub_inpcb_check_deliver,
+	.mpo_sysvmsq_check_msgmsq = stub_sysvmsq_check_msgmsq,
+	.mpo_sysvmsq_check_msgrcv = stub_sysvmsq_check_msgrcv,
+	.mpo_sysvmsq_check_msgrmid = stub_sysvmsq_check_msgrmid,
+	.mpo_sysvmsq_check_msqget = stub_sysvmsq_check_msqget,
+	.mpo_sysvmsq_check_msqsnd = stub_sysvmsq_check_msqsnd,
+	.mpo_sysvmsq_check_msqrcv = stub_sysvmsq_check_msqrcv,
+	.mpo_sysvmsq_check_msqctl = stub_sysvmsq_check_msqctl,
+	.mpo_sysvsem_check_semctl = stub_sysvsem_check_semctl,
+	.mpo_sysvsem_check_semget = stub_sysvsem_check_semget,
+	.mpo_sysvsem_check_semop = stub_sysvsem_check_semop,
+	.mpo_sysvshm_check_shmat = stub_sysvshm_check_shmat,
+	.mpo_sysvshm_check_shmctl = stub_sysvshm_check_shmctl,
+	.mpo_sysvshm_check_shmdt = stub_sysvshm_check_shmdt,
+	.mpo_sysvshm_check_shmget = stub_sysvshm_check_shmget,
+	.mpo_kenv_check_dump = stub_kenv_check_dump,
+	.mpo_kenv_check_get = stub_kenv_check_get,
+	.mpo_kenv_check_set = stub_kenv_check_set,
+	.mpo_kenv_check_unset = stub_kenv_check_unset,
+	.mpo_kld_check_load = stub_kld_check_load,
+	.mpo_kld_check_stat = stub_kld_check_stat,
+	.mpo_mount_check_stat = stub_mount_check_stat,
+	.mpo_pipe_check_ioctl = stub_pipe_check_ioctl,
+	.mpo_pipe_check_poll = stub_pipe_check_poll,
+	.mpo_pipe_check_read = stub_pipe_check_read,
+	.mpo_pipe_check_relabel = stub_pipe_check_relabel,
+	.mpo_pipe_check_stat = stub_pipe_check_stat,
+	.mpo_pipe_check_write = stub_pipe_check_write,
+	.mpo_posixsem_check_destroy = stub_posixsem_check_destroy,
+	.mpo_posixsem_check_getvalue = stub_posixsem_check_getvalue,
+	.mpo_posixsem_check_open = stub_posixsem_check_open,
+	.mpo_posixsem_check_post = stub_posixsem_check_post,
+	.mpo_posixsem_check_unlink = stub_posixsem_check_unlink,
+	.mpo_posixsem_check_wait = stub_posixsem_check_wait,
+	.mpo_proc_check_debug = stub_proc_check_debug,
+	.mpo_proc_check_sched = stub_proc_check_sched,
+	.mpo_proc_check_setaudit = stub_proc_check_setaudit,
+	.mpo_proc_check_setaudit_addr = stub_proc_check_setaudit_addr,
+	.mpo_proc_check_setauid = stub_proc_check_setauid,
+	.mpo_proc_check_setuid = stub_proc_check_setuid,
+	.mpo_proc_check_seteuid = stub_proc_check_seteuid,
+	.mpo_proc_check_setgid = stub_proc_check_setgid,
+	.mpo_proc_check_setegid = stub_proc_check_setegid,
+	.mpo_proc_check_setgroups = stub_proc_check_setgroups,
+	.mpo_proc_check_setreuid = stub_proc_check_setreuid,
+	.mpo_proc_check_setregid = stub_proc_check_setregid,
+	.mpo_proc_check_setresuid = stub_proc_check_setresuid,
+	.mpo_proc_check_setresgid = stub_proc_check_setresgid,
+	.mpo_proc_check_signal = stub_proc_check_signal,
+	.mpo_proc_check_wait = stub_proc_check_wait,
+	.mpo_socket_check_accept = stub_socket_check_accept,
+	.mpo_socket_check_bind = stub_socket_check_bind,
+	.mpo_socket_check_connect = stub_socket_check_connect,
+	.mpo_socket_check_create = stub_socket_check_create,
+	.mpo_socket_check_deliver = stub_socket_check_deliver,
+	.mpo_socket_check_listen = stub_socket_check_listen,
+	.mpo_socket_check_poll = stub_socket_check_poll,
+	.mpo_socket_check_receive = stub_socket_check_receive,
+	.mpo_socket_check_relabel = stub_socket_check_relabel,
+	.mpo_socket_check_send = stub_socket_check_send,
+	.mpo_socket_check_stat = stub_socket_check_stat,
+	.mpo_socket_check_visible = stub_socket_check_visible,
+	.mpo_system_check_acct = stub_system_check_acct,
+	.mpo_system_check_audit = stub_system_check_audit,
+	.mpo_system_check_auditctl = stub_system_check_auditctl,
+	.mpo_system_check_auditon = stub_system_check_auditon,
+	.mpo_system_check_reboot = stub_system_check_reboot,
+	.mpo_system_check_swapoff = stub_system_check_swapoff,
+	.mpo_system_check_swapon = stub_system_check_swapon,
+	.mpo_system_check_sysctl = stub_system_check_sysctl,
+	.mpo_vnode_check_access = stub_vnode_check_access,
+	.mpo_vnode_check_chdir = stub_vnode_check_chdir,
+	.mpo_vnode_check_chroot = stub_vnode_check_chroot,
+	.mpo_vnode_check_create = stub_vnode_check_create,
+	.mpo_vnode_check_deleteacl = stub_vnode_check_deleteacl,
+	.mpo_vnode_check_deleteextattr = stub_vnode_check_deleteextattr,
+	.mpo_vnode_check_exec = stub_vnode_check_exec,
+	.mpo_vnode_check_getacl = stub_vnode_check_getacl,
+	.mpo_vnode_check_getextattr = stub_vnode_check_getextattr,
+	.mpo_vnode_check_link = stub_vnode_check_link,
+	.mpo_vnode_check_listextattr = stub_vnode_check_listextattr,
+	.mpo_vnode_check_lookup = stub_vnode_check_lookup,
+	.mpo_vnode_check_mmap = stub_vnode_check_mmap,
+	.mpo_vnode_check_mmap_downgrade = stub_vnode_check_mmap_downgrade,
+	.mpo_vnode_check_mprotect = stub_vnode_check_mprotect,
+	.mpo_vnode_check_open = stub_vnode_check_open,
+	.mpo_vnode_check_poll = stub_vnode_check_poll,
+	.mpo_vnode_check_read = stub_vnode_check_read,
+	.mpo_vnode_check_readdir = stub_vnode_check_readdir,
+	.mpo_vnode_check_readlink = stub_vnode_check_readlink,
+	.mpo_vnode_check_relabel = stub_vnode_check_relabel,
+	.mpo_vnode_check_rename_from = stub_vnode_check_rename_from,
+	.mpo_vnode_check_rename_to = stub_vnode_check_rename_to,
+	.mpo_vnode_check_revoke = stub_vnode_check_revoke,
+	.mpo_vnode_check_setacl = stub_vnode_check_setacl,
+	.mpo_vnode_check_setextattr = stub_vnode_check_setextattr,
+	.mpo_vnode_check_setflags = stub_vnode_check_setflags,
+	.mpo_vnode_check_setmode = stub_vnode_check_setmode,
+	.mpo_vnode_check_setowner = stub_vnode_check_setowner,
+	.mpo_vnode_check_setutimes = stub_vnode_check_setutimes,
+	.mpo_vnode_check_stat = stub_vnode_check_stat,
+	.mpo_vnode_check_unlink = stub_vnode_check_unlink,
+	.mpo_vnode_check_write = stub_vnode_check_write,
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
 	.mpo_init_syncache_label = stub_init_label_waitcheck,

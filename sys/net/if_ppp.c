@@ -815,7 +815,7 @@ pppoutput(ifp, m0, dst, rtp)
     int len;
 
 #ifdef MAC
-    error = mac_check_ifnet_transmit(ifp, m0);
+    error = mac_ifnet_check_transmit(ifp, m0);
     if (error)
 	goto bad;
 #endif
@@ -1231,7 +1231,7 @@ pppintr()
 	    if (m == NULL)
 		break;
 #ifdef MAC
-	    mac_create_mbuf_from_ifnet(PPP2IFP(sc), m);
+	    mac_ifnet_create_mbuf(PPP2IFP(sc), m);
 #endif
 	    ppp_inproc(sc, m);
 	}
@@ -1509,7 +1509,7 @@ ppp_inproc(sc, m)
 	    }
 	}
 #ifdef MAC
-	mac_copy_mbuf(m, mp);
+	mac_mbuf_copy(m, mp);
 #endif
 	cp = mtod(mp, u_char *);
 	cp[0] = adrs;
@@ -1563,7 +1563,7 @@ ppp_inproc(sc, m)
 	MGETHDR(mp, M_DONTWAIT, MT_DATA);
 	if (mp != NULL) {
 #ifdef MAC
-	    mac_copy_mbuf(m, mp);
+	    mac_mbuf_copy(m, mp);
 #endif
 	    m_copydata(m, 0, ilen, mtod(mp, caddr_t));
 	    m_freem(m);

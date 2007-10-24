@@ -121,7 +121,7 @@ fddi_output(ifp, m, dst, rt0)
 	struct fddi_header *fh;
 
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
@@ -407,7 +407,7 @@ fddi_input(ifp, m)
 	}
 
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 
 	/*

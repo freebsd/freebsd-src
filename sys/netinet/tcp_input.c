@@ -534,7 +534,7 @@ findpcb:
 
 #ifdef MAC
 	INP_LOCK_ASSERT(inp);
-	if (mac_check_inpcb_deliver(inp, m))
+	if (mac_inpcb_check_deliver(inp, m))
 		goto dropunlock;
 #endif
 	so = inp->inp_socket;
@@ -1278,7 +1278,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			soisconnected(so);
 #ifdef MAC
 			SOCK_LOCK(so);
-			mac_set_socket_peer_from_mbuf(m, so);
+			mac_socketpeer_set_from_mbuf(m, so);
 			SOCK_UNLOCK(so);
 #endif
 			/* Do window scaling on this connection? */

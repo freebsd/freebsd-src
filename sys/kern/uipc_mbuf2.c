@@ -309,7 +309,7 @@ m_tag_free_default(struct m_tag *t)
 {
 #ifdef MAC
 	if (t->m_tag_id == PACKET_TAG_MACLABEL)
-		mac_destroy_mbuf_tag(t);
+		mac_mbuf_tag_destroy(t);
 #endif
 	free(t, M_PACKET_TAGS);
 }
@@ -413,11 +413,11 @@ m_tag_copy(struct m_tag *t, int how)
 	 * special from the mbuf code?
 	 */
 	if (t->m_tag_id == PACKET_TAG_MACLABEL) {
-		if (mac_init_mbuf_tag(p, how) != 0) {
+		if (mac_mbuf_tag_init(p, how) != 0) {
 			m_tag_free(p);
 			return (NULL);
 		}
-		mac_copy_mbuf_tag(t, p);
+		mac_mbuf_tag_copy(t, p);
 	} else
 #endif
 		bcopy(t + 1, p + 1, t->m_tag_len); /* Copy the data */

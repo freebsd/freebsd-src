@@ -791,7 +791,7 @@ loop:
 			 */
 			vm_waitproc(p);
 #ifdef MAC
-			mac_destroy_proc(p);
+			mac_proc_destroy(p);
 #endif
 			KASSERT(FIRST_THREAD_IN_PROC(p),
 			    ("kern_wait: no residual thread!"));

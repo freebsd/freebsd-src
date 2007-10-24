@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -11,6 +12,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -74,9 +78,9 @@ mac_inpcb_label_alloc(int flag)
 	label = mac_labelzone_alloc(flag);
 	if (label == NULL)
 		return (NULL);
-	MAC_CHECK(init_inpcb_label, label, flag);
+	MAC_CHECK(inpcb_init_label, label, flag);
 	if (error) {
-		MAC_PERFORM(destroy_inpcb_label, label);
+		MAC_PERFORM(inpcb_destroy_label, label);
 		mac_labelzone_free(label);
 		return (NULL);
 	}
@@ -84,7 +88,7 @@ mac_inpcb_label_alloc(int flag)
 }
 
 int
-mac_init_inpcb(struct inpcb *inp, int flag)
+mac_inpcb_init(struct inpcb *inp, int flag)
 {
 
 	inp->inp_label = mac_inpcb_label_alloc(flag);
@@ -103,9 +107,9 @@ mac_ipq_label_alloc(int flag)
 	if (label == NULL)
 		return (NULL);
 
-	MAC_CHECK(init_ipq_label, label, flag);
+	MAC_CHECK(ipq_init_label, label, flag);
 	if (error) {
-		MAC_PERFORM(destroy_ipq_label, label);
+		MAC_PERFORM(ipq_destroy_label, label);
 		mac_labelzone_free(label);
 		return (NULL);
 	}
@@ -113,7 +117,7 @@ mac_ipq_label_alloc(int flag)
 }
 
 int
-mac_init_ipq(struct ipq *ipq, int flag)
+mac_ipq_init(struct ipq *ipq, int flag)
 {
 
 	ipq->ipq_label = mac_ipq_label_alloc(flag);
@@ -126,12 +130,12 @@ static void
 mac_inpcb_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_inpcb_label, label);
+	MAC_PERFORM(inpcb_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_inpcb(struct inpcb *inp)
+mac_inpcb_destroy(struct inpcb *inp)
 {
 
 	mac_inpcb_label_free(inp->inp_label);
@@ -142,12 +146,12 @@ static void
 mac_ipq_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_ipq_label, label);
+	MAC_PERFORM(ipq_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_ipq(struct ipq *ipq)
+mac_ipq_destroy(struct ipq *ipq)
 {
 
 	mac_ipq_label_free(ipq->ipq_label);
@@ -155,57 +159,56 @@ mac_destroy_ipq(struct ipq *ipq)
 }
 
 void
-mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp)
+mac_inpcb_create(struct socket *so, struct inpcb *inp)
 {
 
-	MAC_PERFORM(create_inpcb_from_socket, so, so->so_label, inp,
-	    inp->inp_label);
+	MAC_PERFORM(inpcb_create, so, so->so_label, inp, inp->inp_label);
 }
 
 void
-mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *m)
+mac_ipq_reassemble(struct ipq *ipq, struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_datagram_from_ipq, ipq, ipq->ipq_label, m, label);
+	MAC_PERFORM(ipq_reassemble, ipq, ipq->ipq_label, m, label);
 }
 
 void
-mac_create_fragment(struct mbuf *m, struct mbuf *frag)
+mac_netinet_fragment(struct mbuf *m, struct mbuf *frag)
 {
 	struct label *mlabel, *fraglabel;
 
 	mlabel = mac_mbuf_to_label(m);
 	fraglabel = mac_mbuf_to_label(frag);
 
-	MAC_PERFORM(create_fragment, m, mlabel, frag, fraglabel);
+	MAC_PERFORM(netinet_fragment, m, mlabel, frag, fraglabel);
 }
 
 void
-mac_create_ipq(struct mbuf *m, struct ipq *ipq)
+mac_ipq_create(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_ipq, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(ipq_create, m, label, ipq, ipq->ipq_label);
 }
 
 void
-mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m)
+mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m)
 {
 	struct label *mlabel;
 
 	INP_LOCK_ASSERT(inp);
 	mlabel = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_mbuf_from_inpcb, inp, inp->inp_label, m, mlabel);
+	MAC_PERFORM(inpcb_create_mbuf, inp, inp->inp_label, m, mlabel);
 }
 
 int
-mac_fragment_match(struct mbuf *m, struct ipq *ipq)
+mac_ipq_match(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 	int result;
@@ -213,43 +216,43 @@ mac_fragment_match(struct mbuf *m, struct ipq *ipq)
 	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN(fragment_match, &&, m, label, ipq, ipq->ipq_label);
+	MAC_BOOLEAN(ipq_match, &&, m, label, ipq, ipq->ipq_label);
 
 	return (result);
 }
 
 void
-mac_reflect_mbuf_icmp(struct mbuf *m)
+mac_netinet_icmp_reply(struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(reflect_mbuf_icmp, m, label);
+	MAC_PERFORM(netinet_icmp_reply, m, label);
 }
 
 void
-mac_reflect_mbuf_tcp(struct mbuf *m)
+mac_netinet_tcp_reply(struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(reflect_mbuf_tcp, m, label);
+	MAC_PERFORM(netinet_tcp_reply, m, label);
 }
 
 void
-mac_update_ipq(struct mbuf *m, struct ipq *ipq)
+mac_ipq_update(struct mbuf *m, struct ipq *ipq)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(update_ipq, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(ipq_update, m, label, ipq, ipq->ipq_label);
 }
 
 int
-mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m)
+mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 {
 	struct label *label;
 	int error;
@@ -258,7 +261,7 @@ mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m)
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_CHECK(check_inpcb_deliver, inp, inp->inp_label, m, label);
+	MAC_CHECK(inpcb_check_deliver, inp, inp->inp_label, m, label);
 
 	return (error);
 }
@@ -273,13 +276,13 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 }
 
 void
-mac_create_mbuf_from_firewall(struct mbuf *m)
+mac_mbuf_create_from_firewall(struct mbuf *m)
 {
 	struct label *label;
 
 	M_ASSERTPKTHDR(m);
 	label = mac_mbuf_to_label(m);
-	MAC_PERFORM(create_mbuf_from_firewall, m, label);
+	MAC_PERFORM(mbuf_create_from_firewall, m, label);
 }
 
 /*

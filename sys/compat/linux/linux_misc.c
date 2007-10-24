@@ -301,7 +301,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * than vn_open().
 	 */
 #ifdef MAC
-	error = mac_check_vnode_open(td->td_ucred, vp, FREAD);
+	error = mac_vnode_check_open(td->td_ucred, vp, FREAD);
 	if (error)
 		goto cleanup;
 #endif

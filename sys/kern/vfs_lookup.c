@@ -252,7 +252,7 @@ namei(struct nameidata *ndp)
 		}
 #ifdef MAC
 		if ((cnp->cn_flags & NOMACCHECK) == 0) {
-			error = mac_check_vnode_readlink(td->td_ucred,
+			error = mac_vnode_check_readlink(td->td_ucred,
 			    ndp->ni_vp);
 			if (error)
 				break;
@@ -556,7 +556,7 @@ dirloop:
 unionlookup:
 #ifdef MAC
 	if ((cnp->cn_flags & NOMACCHECK) == 0) {
-		error = mac_check_vnode_lookup(td->td_ucred, dp, cnp);
+		error = mac_vnode_check_lookup(td->td_ucred, dp, cnp);
 		if (error)
 			goto bad;
 	}

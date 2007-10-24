@@ -439,7 +439,7 @@ interpret:
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 #ifdef MAC
 		interplabel = mac_vnode_label_alloc();
-		mac_copy_vnode_label(ndp->ni_vp->v_label, interplabel);
+		mac_vnode_copy_label(ndp->ni_vp->v_label, interplabel);
 #endif
 		vput(ndp->ni_vp);
 		vm_object_deallocate(imgp->object);
@@ -550,7 +550,7 @@ interpret:
 	credential_changing |= (attr.va_mode & VSGID) && oldcred->cr_gid !=
 	    attr.va_gid;
 #ifdef MAC
-	will_transition = mac_execve_will_transition(oldcred, imgp->vp,
+	will_transition = mac_vnode_execve_will_transition(oldcred, imgp->vp,
 	    interplabel, imgp);
 	credential_changing |= will_transition;
 #endif
@@ -604,7 +604,7 @@ interpret:
 			change_egid(newcred, attr.va_gid);
 #ifdef MAC
 		if (will_transition) {
-			mac_execve_transition(oldcred, newcred, imgp->vp,
+			mac_vnode_execve_transition(oldcred, newcred, imgp->vp,
 			    interplabel, imgp);
 		}
 #endif
@@ -1191,7 +1191,7 @@ exec_check_permissions(imgp)
 		return (error);
 
 #ifdef MAC
-	error = mac_check_vnode_exec(td->td_ucred, imgp->vp, imgp);
+	error = mac_vnode_check_exec(td->td_ucred, imgp->vp, imgp);
 	if (error)
 		return (error);
 #endif

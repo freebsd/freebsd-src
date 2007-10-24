@@ -187,11 +187,11 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 #ifdef MAC
-	error = mac_init_inpcb(inp, M_NOWAIT);
+	error = mac_inpcb_init(inp, M_NOWAIT);
 	if (error != 0)
 		goto out;
 	SOCK_LOCK(so);
-	mac_create_inpcb_from_socket(so, inp);
+	mac_inpcb_create(so, inp);
 	SOCK_UNLOCK(so);
 #endif
 
@@ -725,7 +725,7 @@ in_pcbfree(struct inpcb *inp)
 	inp->inp_vflag = 0;
 	
 #ifdef MAC
-	mac_destroy_inpcb(inp);
+	mac_inpcb_destroy(inp);
 #endif
 	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);

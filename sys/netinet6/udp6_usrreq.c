@@ -138,7 +138,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	}
 #endif /* IPSEC */
 #ifdef MAC
-	if (mac_check_inpcb_deliver(inp, n) != 0) {
+	if (mac_inpcb_check_deliver(inp, n) != 0) {
 		m_freem(n);
 		return;
 	}
@@ -990,7 +990,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	}
 #endif
 #ifdef MAC
-	mac_create_mbuf_from_inpcb(inp, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
 	error = udp6_output(inp, m, addr, control, td);
 out:

@@ -360,7 +360,7 @@ gif_output(ifp, m, dst, rt)
 	u_int32_t af;
 
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
 		m_freem(m);
 		goto end;
@@ -479,7 +479,7 @@ gif_input(m, af, ifp)
 	m->m_pkthdr.rcvif = ifp;
 
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 
 	if (bpf_peers_present(ifp->if_bpf)) {

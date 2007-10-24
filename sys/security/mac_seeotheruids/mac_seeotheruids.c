@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -122,14 +126,14 @@ mac_seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-mac_seeotheruids_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+mac_seeotheruids_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
 	return (mac_seeotheruids_check(cr1, cr2));
 }
 
 static int
-mac_seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
+mac_seeotheruids_proc_check_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 
@@ -137,21 +141,21 @@ mac_seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
 }
 
 static int
-mac_seeotheruids_check_proc_sched(struct ucred *cred, struct proc *p)
+mac_seeotheruids_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 
 	return (mac_seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_proc_debug(struct ucred *cred, struct proc *p)
+mac_seeotheruids_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 
 	return (mac_seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
+mac_seeotheruids_socket_check_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -160,11 +164,11 @@ mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
 
 static struct mac_policy_ops mac_seeotheruids_ops =
 {
-	.mpo_check_cred_visible = mac_seeotheruids_check_cred_visible,
-	.mpo_check_proc_debug = mac_seeotheruids_check_proc_debug,
-	.mpo_check_proc_sched = mac_seeotheruids_check_proc_sched,
-	.mpo_check_proc_signal = mac_seeotheruids_check_proc_signal,
-	.mpo_check_socket_visible = mac_seeotheruids_check_socket_visible,
+	.mpo_cred_check_visible = mac_seeotheruids_cred_check_visible,
+	.mpo_proc_check_debug = mac_seeotheruids_proc_check_debug,
+	.mpo_proc_check_sched = mac_seeotheruids_proc_check_sched,
+	.mpo_proc_check_signal = mac_seeotheruids_proc_check_signal,
+	.mpo_socket_check_visible = mac_seeotheruids_socket_check_visible,
 };
 
 MAC_POLICY_SET(&mac_seeotheruids_ops, mac_seeotheruids,
