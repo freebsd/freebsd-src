@@ -873,6 +873,8 @@ main(argc, argv)
 				if ((i = packet_ok(&rcvmhdr, cc, seq))) {
 					if (!IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
 					    &lastaddr)) {
+						if (probe > 0)
+							fputs("\n   ", stdout);
 						print(&rcvmhdr, cc);
 						lastaddr = Rcv.sin6_addr;
 					}
