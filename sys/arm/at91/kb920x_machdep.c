@@ -283,10 +283,10 @@ initarm(void *arg, void *arg2)
 	i += 2;
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE;
+	fake_preload[i++] = KERNVIRTADDR;
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE;
+	fake_preload[i++] = (uint32_t)&end - KERNVIRTADDR;
 #ifdef DDB
 	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
 		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
