@@ -160,7 +160,7 @@ reboot(struct thread *td, struct reboot_args *uap)
 
 	error = 0;
 #ifdef MAC
-	error = mac_check_system_reboot(td->td_ucred, uap->opt);
+	error = mac_system_check_reboot(td->td_ucred, uap->opt);
 #endif
 	if (error == 0)
 		error = priv_check(td, PRIV_REBOOT);

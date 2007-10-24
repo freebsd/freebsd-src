@@ -285,7 +285,7 @@ fork1(td, flags, pages, procp)
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
 #ifdef MAC
-	mac_init_proc(newproc);
+	mac_proc_init(newproc);
 #endif
 	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
 	STAILQ_INIT(&newproc->p_ktr);
@@ -752,7 +752,7 @@ fail:
 		    td->td_ucred->cr_ruid);
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
-	mac_destroy_proc(newproc);
+	mac_proc_destroy(newproc);
 #endif
 	uma_zfree(proc_zone, newproc);
 	if (p1->p_flag & P_HADTHREADS) {

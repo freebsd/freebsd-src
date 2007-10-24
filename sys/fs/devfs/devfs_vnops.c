@@ -262,7 +262,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 		return (ENOENT);
 	}
 #ifdef MAC
-	mac_associate_vnode_devfs(mp, de, vp);
+	mac_devfs_vnode_associate(mp, de, vp);
 #endif
 	sx_xunlock(&dmp->dm_lock);
 	*vpp = vp;
@@ -1233,8 +1233,8 @@ devfs_setlabel(struct vop_setlabel_args *ap)
 	vp = ap->a_vp;
 	de = vp->v_data;
 
-	mac_relabel_vnode(ap->a_cred, vp, ap->a_label);
-	mac_update_devfs(vp->v_mount, de, vp);
+	mac_vnode_relabel(ap->a_cred, vp, ap->a_label);
+	mac_devfs_update(vp->v_mount, de, vp);
 
 	return (0);
 }
@@ -1275,7 +1275,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	bcopy(ap->a_target, de->de_symlink, i);
 	sx_xlock(&dmp->dm_lock);
 #ifdef MAC
-	mac_create_devfs_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
+	mac_devfs_create_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	return (devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td));

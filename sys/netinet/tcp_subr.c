@@ -525,13 +525,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		 * label of the response to reflect the socket label.
 		 */
 		INP_LOCK_ASSERT(inp);
-		mac_create_mbuf_from_inpcb(inp, m);
+		mac_inpcb_create_mbuf(inp, m);
 	} else {
 		/*
 		 * Packet is not associated with a socket, so possibly
 		 * update the label in place.
 		 */
-		mac_reflect_mbuf_tcp(m);
+		mac_netinet_tcp_reply(m);
 	}
 #endif
 	nth->th_seq = htonl(seq);

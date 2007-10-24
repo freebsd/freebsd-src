@@ -180,7 +180,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	cnt = nbytes;
 
 #ifdef MAC
-	error = mac_check_vnode_setextattr(td->td_ucred, vp, attrnamespace,
+	error = mac_vnode_check_setextattr(td->td_ucred, vp, attrnamespace,
 	    attrname, &auio);
 	if (error)
 		goto done;
@@ -358,7 +358,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		sizep = &size;
 
 #ifdef MAC
-	error = mac_check_vnode_getextattr(td->td_ucred, vp, attrnamespace,
+	error = mac_vnode_check_getextattr(td->td_ucred, vp, attrnamespace,
 	    attrname, &auio);
 	if (error)
 		goto done;
@@ -512,7 +512,7 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 #ifdef MAC
-	error = mac_check_vnode_deleteextattr(td->td_ucred, vp, attrnamespace,
+	error = mac_vnode_check_deleteextattr(td->td_ucred, vp, attrnamespace,
 	    attrname);
 	if (error)
 		goto done;
@@ -676,7 +676,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		sizep = &size;
 
 #ifdef MAC
-	error = mac_check_vnode_listextattr(td->td_ucred, vp, attrnamespace);
+	error = mac_vnode_check_listextattr(td->td_ucred, vp, attrnamespace);
 	if (error)
 		goto done;
 #endif

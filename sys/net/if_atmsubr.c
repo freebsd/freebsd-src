@@ -134,7 +134,7 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 	u_int32_t atm_flags;
 
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
@@ -261,7 +261,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 		return;
 	}
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 	ifp->if_ibytes += m->m_pkthdr.len;
 

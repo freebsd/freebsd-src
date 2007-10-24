@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -15,6 +16,9 @@
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
  * Project under contract to nCircle Network Security, Inc.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -118,30 +122,30 @@ void		 mac_pipe_label_free(struct label *label);
 struct label	*mac_socket_label_alloc(int flag);
 void		 mac_socket_label_free(struct label *label);
 
-int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
-int	mac_externalize_cred_label(struct label *label, char *elements,
+int	mac_cred_check_relabel(struct ucred *cred, struct label *newlabel);
+int	mac_cred_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
-int	mac_internalize_cred_label(struct label *label, char *string);
-void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
+int	mac_cred_internalize_label(struct label *label, char *string);
+void	mac_cred_relabel(struct ucred *cred, struct label *newlabel);
 
 struct label	*mac_mbuf_to_label(struct mbuf *m);
 
-void	mac_copy_pipe_label(struct label *src, struct label *dest);
-int	mac_externalize_pipe_label(struct label *label, char *elements,
+void	mac_pipe_copy_label(struct label *src, struct label *dest);
+int	mac_pipe_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
-int	mac_internalize_pipe_label(struct label *label, char *string);
+int	mac_pipe_internalize_label(struct label *label, char *string);
 
 int	mac_socket_label_set(struct ucred *cred, struct socket *so,
 	    struct label *label);
-void	mac_copy_socket_label(struct label *src, struct label *dest);
-int	mac_externalize_socket_label(struct label *label, char *elements,
+void	mac_socket_copy_label(struct label *src, struct label *dest);
+int	mac_socket_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
-int	mac_internalize_socket_label(struct label *label, char *string);
+int	mac_socket_internalize_label(struct label *label, char *string);
 
-int	mac_externalize_vnode_label(struct label *label, char *elements,
+int	mac_vnode_externalize_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
-int	mac_internalize_vnode_label(struct label *label, char *string);
-void	mac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_internalize_label(struct label *label, char *string);
+void	mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 	    int *prot);
 int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	    struct ucred *cred);
@@ -263,7 +267,7 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(externalize_ ## type ## _label, label,	\
+		MAC_CHECK(type ## _externalize_label, label,		\
 		    element_name, &sb, &claimed);			\
 		if (error)						\
 			break;						\
@@ -299,7 +303,7 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(internalize_ ## type ## _label, label,	\
+		MAC_CHECK(type ## _internalize_label, label,		\
 		    element_name, element_data, &claimed);		\
 		if (error)						\
 			break;						\

@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -115,21 +119,21 @@ mac_partition_internalize_label(struct label *label, char *element_name,
 }
 
 static void
-mac_partition_create_proc0(struct ucred *cred)
+mac_partition_proc_create_swapper(struct ucred *cred)
 {
 
 	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
-mac_partition_create_proc1(struct ucred *cred)
+mac_partition_proc_create_init(struct ucred *cred)
 {
 
 	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
-mac_partition_relabel_cred(struct ucred *cred, struct label *newlabel)
+mac_partition_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
 	if (SLOT(newlabel) != 0)
@@ -153,7 +157,7 @@ label_on_label(struct label *subject, struct label *object)
 }
 
 static int
-mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+mac_partition_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 	int error;
 
@@ -174,7 +178,7 @@ mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+mac_partition_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
@@ -184,7 +188,7 @@ mac_partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-mac_partition_check_proc_debug(struct ucred *cred, struct proc *p)
+mac_partition_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
@@ -194,7 +198,7 @@ mac_partition_check_proc_debug(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_partition_check_proc_sched(struct ucred *cred, struct proc *p)
+mac_partition_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
@@ -204,7 +208,7 @@ mac_partition_check_proc_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_partition_check_proc_signal(struct ucred *cred, struct proc *p,
+mac_partition_proc_check_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 	int error;
@@ -215,7 +219,7 @@ mac_partition_check_proc_signal(struct ucred *cred, struct proc *p,
 }
 
 static int
-mac_partition_check_socket_visible(struct ucred *cred, struct socket *so,
+mac_partition_socket_check_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	int error;
@@ -226,7 +230,7 @@ mac_partition_check_socket_visible(struct ucred *cred, struct socket *so,
 }
 
 static int
-mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+mac_partition_vnode_check_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -246,21 +250,21 @@ mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 
 static struct mac_policy_ops mac_partition_ops =
 {
-	.mpo_init_cred_label = mac_partition_init_label,
-	.mpo_destroy_cred_label = mac_partition_destroy_label,
-	.mpo_copy_cred_label = mac_partition_copy_label,
-	.mpo_externalize_cred_label = mac_partition_externalize_label,
-	.mpo_internalize_cred_label = mac_partition_internalize_label,
-	.mpo_create_proc0 = mac_partition_create_proc0,
-	.mpo_create_proc1 = mac_partition_create_proc1,
-	.mpo_relabel_cred = mac_partition_relabel_cred,
-	.mpo_check_cred_relabel = mac_partition_check_cred_relabel,
-	.mpo_check_cred_visible = mac_partition_check_cred_visible,
-	.mpo_check_proc_debug = mac_partition_check_proc_debug,
-	.mpo_check_proc_sched = mac_partition_check_proc_sched,
-	.mpo_check_proc_signal = mac_partition_check_proc_signal,
-	.mpo_check_socket_visible = mac_partition_check_socket_visible,
-	.mpo_check_vnode_exec = mac_partition_check_vnode_exec,
+	.mpo_cred_init_label = mac_partition_init_label,
+	.mpo_cred_destroy_label = mac_partition_destroy_label,
+	.mpo_cred_copy_label = mac_partition_copy_label,
+	.mpo_cred_externalize_label = mac_partition_externalize_label,
+	.mpo_cred_internalize_label = mac_partition_internalize_label,
+	.mpo_proc_create_swapper = mac_partition_proc_create_swapper,
+	.mpo_proc_create_init = mac_partition_proc_create_init,
+	.mpo_cred_relabel = mac_partition_cred_relabel,
+	.mpo_cred_check_relabel = mac_partition_cred_check_relabel,
+	.mpo_cred_check_visible = mac_partition_cred_check_visible,
+	.mpo_proc_check_debug = mac_partition_proc_check_debug,
+	.mpo_proc_check_sched = mac_partition_proc_check_sched,
+	.mpo_proc_check_signal = mac_partition_proc_check_signal,
+	.mpo_socket_check_visible = mac_partition_socket_check_visible,
+	.mpo_vnode_check_exec = mac_partition_vnode_check_exec,
 };
 
 MAC_POLICY_SET(&mac_partition_ops, mac_partition, "TrustedBSD MAC/Partition",

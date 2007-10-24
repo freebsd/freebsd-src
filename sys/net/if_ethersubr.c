@@ -157,7 +157,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	int hlen;	/* link layer header length */
 
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error)
 		senderr(error);
 #endif
@@ -570,7 +570,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	 * Tag the mbuf with an appropriate MAC label before any other
 	 * consumers can get to it.
 	 */
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 
 	/*

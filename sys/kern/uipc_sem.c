@@ -215,8 +215,8 @@ sem_create(struct thread *td, const char *name, struct ksem **ksret,
 	cv_init(&ret->ks_cv, "sem");
 	LIST_INIT(&ret->ks_users);
 #ifdef MAC
-	mac_init_posix_sem(ret);
-	mac_create_posix_sem(uc, ret);
+	mac_posixsem_init(ret);
+	mac_posixsem_create(uc, ret);
 #endif
 	if (name != NULL)
 		sem_enter(td->td_proc, ret);
@@ -381,7 +381,7 @@ kern_sem_open(struct thread *td, int dir, const char *name, int oflag,
 		}
 	} else {
 #ifdef MAC
-		error = mac_check_posix_sem_open(td->td_ucred, ks);
+		error = mac_posixsem_check_open(td->td_ucred, ks);
 		if (error)
 			goto err_open;
 #endif
@@ -540,7 +540,7 @@ kern_sem_unlink(struct thread *td, const char *name)
 	ks = sem_lookup_byname(name);
 	if (ks != NULL) {
 #ifdef MAC
-		error = mac_check_posix_sem_unlink(td->td_ucred, ks);
+		error = mac_posixsem_check_unlink(td->td_ucred, ks);
 		if (error) {
 			mtx_unlock(&sem_lock);
 			return (error);
@@ -614,7 +614,7 @@ kern_sem_post(struct thread *td, semid_t id)
 		goto err;
 	}
 #ifdef MAC
-	error = mac_check_posix_sem_post(td->td_ucred, ks);
+	error = mac_posixsem_check_post(td->td_ucred, ks);
 	if (error)
 		goto err;
 #endif
@@ -709,7 +709,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 		goto err;
 	}
 #ifdef MAC
-	error = mac_check_posix_sem_wait(td->td_ucred, ks);
+	error = mac_posixsem_check_wait(td->td_ucred, ks);
 	if (error) {
 		DP(("kern_sem_wait mac failed\n"));
 		goto err;
@@ -772,7 +772,7 @@ ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 		return (EINVAL);
 	}
 #ifdef MAC
-	error = mac_check_posix_sem_getvalue(td->td_ucred, ks);
+	error = mac_posixsem_check_getvalue(td->td_ucred, ks);
 	if (error) {
 		mtx_unlock(&sem_lock);
 		return (error);
@@ -804,7 +804,7 @@ ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 		goto err;
 	}
 #ifdef MAC
-	error = mac_check_posix_sem_destroy(td->td_ucred, ks);
+	error = mac_posixsem_check_destroy(td->td_ucred, ks);
 	if (error)
 		goto err;
 #endif

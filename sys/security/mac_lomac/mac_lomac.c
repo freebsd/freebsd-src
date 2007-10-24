@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * the Security Research Division of Network Associates, Inc. under
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -631,7 +635,7 @@ mac_lomac_init_label_waitcheck(struct label *label, int flag)
 }
 
 static void
-mac_lomac_init_proc_label(struct label *label)
+mac_lomac_proc_init_label(struct label *label)
 {
 
 	PSLOT_SET(label, malloc(sizeof(struct mac_lomac_proc), M_MACLOMAC,
@@ -648,7 +652,7 @@ mac_lomac_destroy_label(struct label *label)
 }
 
 static void
-mac_lomac_destroy_proc_label(struct label *label)
+mac_lomac_proc_destroy_label(struct label *label)
 {
 
 	mtx_destroy(&PSLOT(label)->mtx);
@@ -901,7 +905,7 @@ mac_lomac_copy_label(struct label *src, struct label *dest)
  * a lot like file system objects.
  */
 static void
-mac_lomac_create_devfs_device(struct ucred *cred, struct mount *mp,
+mac_lomac_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_lomac *mac_lomac;
@@ -924,7 +928,7 @@ mac_lomac_create_devfs_device(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_lomac_create_devfs_directory(struct mount *mp, char *dirname,
+mac_lomac_devfs_create_directory(struct mount *mp, char *dirname,
     int dirnamelen, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_lomac *mac_lomac;
@@ -934,7 +938,7 @@ mac_lomac_create_devfs_directory(struct mount *mp, char *dirname,
 }
 
 static void
-mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+mac_lomac_devfs_create_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
     struct label *delabel)
 {
@@ -947,7 +951,7 @@ mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
+mac_lomac_mount_create(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -958,7 +962,7 @@ mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -970,7 +974,7 @@ mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
+mac_lomac_devfs_update(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -982,7 +986,7 @@ mac_lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
 }
 
 static void
-mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
+mac_lomac_devfs_vnode_associate(struct mount *mp, struct label *mplabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vplabel)
 {
@@ -995,7 +999,7 @@ mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
 }
 
 static int
-mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
+mac_lomac_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac temp, *source, *dest;
@@ -1018,7 +1022,7 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 
 	if (buflen != sizeof(temp)) {
 		if (buflen != sizeof(temp) - sizeof(temp.ml_auxsingle)) {
-			printf("mac_lomac_associate_vnode_extattr: bad size %d\n",
+			printf("mac_lomac_vnode_associate_extattr: bad size %d\n",
 			    buflen);
 			return (EPERM);
 		}
@@ -1029,11 +1033,11 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 		    buflen, (char *)&temp, curthread);
 	}
 	if (mac_lomac_valid(&temp) != 0) {
-		printf("mac_lomac_associate_vnode_extattr: invalid\n");
+		printf("mac_lomac_vnode_associate_extattr: invalid\n");
 		return (EPERM);
 	}
 	if ((temp.ml_flags & MAC_LOMAC_FLAGS_BOTH) != MAC_LOMAC_FLAG_SINGLE) {
-		printf("mac_lomac_associate_vnode_extattr: not single\n");
+		printf("mac_lomac_vnode_associate_extattr: not single\n");
 		return (EPERM);
 	}
 
@@ -1042,7 +1046,7 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 }
 
 static void
-mac_lomac_associate_vnode_singlelabel(struct mount *mp,
+mac_lomac_vnode_associate_singlelabel(struct mount *mp,
     struct label *mplabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1054,7 +1058,7 @@ mac_lomac_associate_vnode_singlelabel(struct mount *mp,
 }
 
 static int
-mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+mac_lomac_vnode_create_extattr(struct ucred *cred, struct mount *mp,
     struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
     struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
@@ -1084,7 +1088,7 @@ mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *intlabel)
 {
 	struct mac_lomac *source, temp;
@@ -1108,7 +1112,7 @@ mac_lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
  * Labeling event operations: IPC object.
  */
 static void
-mac_lomac_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+mac_lomac_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1120,7 +1124,7 @@ mac_lomac_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
-mac_lomac_create_mbuf_from_socket(struct socket *so, struct label *solabel,
+mac_lomac_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1132,7 +1136,7 @@ mac_lomac_create_mbuf_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
-mac_lomac_create_socket(struct ucred *cred, struct socket *so,
+mac_lomac_socket_create(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1144,7 +1148,7 @@ mac_lomac_create_socket(struct ucred *cred, struct socket *so,
 }
 
 static void
-mac_lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_create(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1156,8 +1160,8 @@ mac_lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_lomac_create_socket_from_socket(struct socket *oldso,
-    struct label *oldsolabel, struct socket *newso, struct label *newsolabel)
+mac_lomac_socket_newconn(struct socket *oldso, struct label *oldsolabel,
+    struct socket *newso, struct label *newsolabel)
 {
 	struct mac_lomac *source, *dest;
 
@@ -1168,7 +1172,7 @@ mac_lomac_create_socket_from_socket(struct socket *oldso,
 }
 
 static void
-mac_lomac_relabel_socket(struct ucred *cred, struct socket *so,
+mac_lomac_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1180,7 +1184,7 @@ mac_lomac_relabel_socket(struct ucred *cred, struct socket *so,
 }
 
 static void
-mac_lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1192,7 +1196,7 @@ mac_lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_lomac_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
+mac_lomac_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1207,7 +1211,7 @@ mac_lomac_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
  * Labeling event operations: network objects.
  */
 static void
-mac_lomac_set_socket_peer_from_socket(struct socket *oldso,
+mac_lomac_socketpeer_set_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
@@ -1220,7 +1224,7 @@ mac_lomac_set_socket_peer_from_socket(struct socket *oldso,
 }
 
 static void
-mac_lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
+mac_lomac_bpfdesc_create(struct ucred *cred, struct bpf_d *d,
     struct label *dlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1232,7 +1236,7 @@ mac_lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
 }
 
 static void
-mac_lomac_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
+mac_lomac_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 {
 	char tifname[IFNAMSIZ], *p, *q;
 	char tiflist[sizeof(trusted_interfaces)];
@@ -1290,7 +1294,7 @@ set:
 }
 
 static void
-mac_lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+mac_lomac_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1302,7 +1306,7 @@ mac_lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 }
 
 static void
-mac_lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+mac_lomac_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1315,7 +1319,7 @@ mac_lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
 }
 
 static void
-mac_lomac_create_fragment(struct mbuf *m, struct label *mlabel,
+mac_lomac_netinet_fragment(struct mbuf *m, struct label *mlabel,
     struct mbuf *frag, struct label *fraglabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1327,7 +1331,7 @@ mac_lomac_create_fragment(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_lomac_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+mac_lomac_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1350,7 +1354,7 @@ mac_lomac_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
-mac_lomac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
+mac_lomac_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1362,7 +1366,7 @@ mac_lomac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
 }
 
 static void
-mac_lomac_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
+mac_lomac_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1374,7 +1378,7 @@ mac_lomac_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
-mac_lomac_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
+mac_lomac_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
     struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
     struct label *mnewlabel)
 {
@@ -1387,7 +1391,7 @@ mac_lomac_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
+mac_lomac_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
     struct mbuf *mnew, struct label *mnewlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1399,8 +1403,8 @@ mac_lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
 }
 
 static int
-mac_lomac_fragment_match(struct mbuf *m, struct label *mlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+mac_lomac_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
 {
 	struct mac_lomac *a, *b;
 
@@ -1411,7 +1415,7 @@ mac_lomac_fragment_match(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
+mac_lomac_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1423,7 +1427,7 @@ mac_lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-mac_lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+mac_lomac_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
@@ -1464,7 +1468,7 @@ mac_lomac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
 }
 
 static void
-mac_lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
+mac_lomac_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
 
@@ -1478,7 +1482,7 @@ mac_lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
  * Labeling event operations: processes.
  */
 static void
-mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
+mac_lomac_vnode_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -1514,7 +1518,7 @@ mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
 }
 
 static int
-mac_lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
+mac_lomac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -1534,7 +1538,7 @@ mac_lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
 }
 
 static void
-mac_lomac_create_proc0(struct ucred *cred)
+mac_lomac_proc_create_swapper(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
@@ -1546,7 +1550,7 @@ mac_lomac_create_proc0(struct ucred *cred)
 }
 
 static void
-mac_lomac_create_proc1(struct ucred *cred)
+mac_lomac_proc_create_init(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
@@ -1558,7 +1562,7 @@ mac_lomac_create_proc1(struct ucred *cred)
 }
 
 static void
-mac_lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
+mac_lomac_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
 
@@ -1572,7 +1576,7 @@ mac_lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
  * Access control checks.
  */
 static int
-mac_lomac_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+mac_lomac_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 	struct mac_lomac *a, *b;
@@ -1589,7 +1593,7 @@ mac_lomac_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
 }
 
 static int
-mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+mac_lomac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_lomac *subj, *new;
 	int error;
@@ -1655,7 +1659,7 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_lomac_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+mac_lomac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -1673,7 +1677,7 @@ mac_lomac_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+mac_lomac_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *new;
@@ -1730,7 +1734,7 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 }
 
 static int
-mac_lomac_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+mac_lomac_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *i;
@@ -1745,7 +1749,7 @@ mac_lomac_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static int
-mac_lomac_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+mac_lomac_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *i;
@@ -1760,7 +1764,7 @@ mac_lomac_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
-mac_lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
+mac_lomac_kld_check_load(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -1781,7 +1785,7 @@ mac_lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1794,7 +1798,7 @@ mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_pipe_read(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_check_read(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -1812,7 +1816,7 @@ mac_lomac_check_pipe_read(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *obj, *new;
@@ -1863,7 +1867,7 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_pipe_write(struct ucred *cred, struct pipepair *pp,
+mac_lomac_pipe_check_write(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -1881,7 +1885,7 @@ mac_lomac_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_proc_debug(struct ucred *cred, struct proc *p)
+mac_lomac_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -1901,7 +1905,7 @@ mac_lomac_check_proc_debug(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_lomac_check_proc_sched(struct ucred *cred, struct proc *p)
+mac_lomac_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -1921,7 +1925,7 @@ mac_lomac_check_proc_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_lomac_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
+mac_lomac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -1941,7 +1945,7 @@ mac_lomac_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 }
 
 static int
-mac_lomac_check_socket_deliver(struct socket *so, struct label *solabel,
+mac_lomac_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *s;
@@ -1956,7 +1960,7 @@ mac_lomac_check_socket_deliver(struct socket *so, struct label *solabel,
 }
 
 static int
-mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
+mac_lomac_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *obj, *new;
@@ -2007,7 +2011,7 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
 }
 
 static int
-mac_lomac_check_socket_visible(struct ucred *cred, struct socket *so,
+mac_lomac_socket_check_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2215,7 +2219,7 @@ mac_lomac_priv_check(struct ucred *cred, int priv)
 
 
 static int
-mac_lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
+mac_lomac_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2236,7 +2240,7 @@ mac_lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+mac_lomac_system_check_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2257,7 +2261,7 @@ mac_lomac_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+mac_lomac_system_check_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj;
@@ -2274,7 +2278,7 @@ mac_lomac_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
+mac_lomac_system_check_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2295,7 +2299,7 @@ mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+mac_lomac_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
 {
 	struct mac_lomac *subj;
@@ -2323,7 +2327,7 @@ mac_lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 }
 
 static int
-mac_lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+mac_lomac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 	struct mac_lomac *subj, *obj;
@@ -2344,7 +2348,7 @@ mac_lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 	struct mac_lomac *subj, *obj;
@@ -2362,7 +2366,7 @@ mac_lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+mac_lomac_vnode_check_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2386,7 +2390,7 @@ mac_lomac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot, int flags)
 {
 	struct mac_lomac *subj, *obj;
@@ -2414,7 +2418,7 @@ mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, /* XXX vm_prot_t */ int *prot)
 {
 	struct mac_lomac *subj, *obj;
@@ -2434,7 +2438,7 @@ mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 	struct mac_lomac *subj, *obj;
@@ -2455,7 +2459,7 @@ mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+mac_lomac_vnode_check_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2473,7 +2477,7 @@ mac_lomac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_lomac *old, *new, *subj;
@@ -2549,7 +2553,7 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+mac_lomac_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2573,7 +2577,7 @@ mac_lomac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+mac_lomac_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
@@ -2599,7 +2603,7 @@ mac_lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2617,7 +2621,7 @@ mac_lomac_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 	struct mac_lomac *subj, *obj;
@@ -2635,7 +2639,7 @@ mac_lomac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -2656,7 +2660,7 @@ mac_lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 	struct mac_lomac *subj, *obj;
@@ -2674,7 +2678,7 @@ mac_lomac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 	struct mac_lomac *subj, *obj;
@@ -2692,7 +2696,7 @@ mac_lomac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 	struct mac_lomac *subj, *obj;
@@ -2710,7 +2714,7 @@ mac_lomac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+mac_lomac_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec mtime)
 {
 	struct mac_lomac *subj, *obj;
@@ -2728,7 +2732,7 @@ mac_lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+mac_lomac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2752,7 +2756,7 @@ mac_lomac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_write(struct ucred *active_cred,
+mac_lomac_vnode_check_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
@@ -2818,140 +2822,141 @@ mac_lomac_thread_userret(struct thread *td)
 static struct mac_policy_ops mac_lomac_ops =
 {
 	.mpo_init = mac_lomac_init,
-	.mpo_init_bpfdesc_label = mac_lomac_init_label,
-	.mpo_init_cred_label = mac_lomac_init_label,
-	.mpo_init_devfs_label = mac_lomac_init_label,
-	.mpo_init_ifnet_label = mac_lomac_init_label,
+	.mpo_bpfdesc_init_label = mac_lomac_init_label,
+	.mpo_cred_init_label = mac_lomac_init_label,
+	.mpo_devfs_init_label = mac_lomac_init_label,
+	.mpo_ifnet_init_label = mac_lomac_init_label,
 	.mpo_init_syncache_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_inpcb_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_ipq_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_mbuf_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_mount_label = mac_lomac_init_label,
-	.mpo_init_pipe_label = mac_lomac_init_label,
-	.mpo_init_proc_label = mac_lomac_init_proc_label,
-	.mpo_init_socket_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_socket_peer_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_vnode_label = mac_lomac_init_label,
+	.mpo_inpcb_init_label = mac_lomac_init_label_waitcheck,
+	.mpo_ipq_init_label = mac_lomac_init_label_waitcheck,
+	.mpo_mbuf_init_label = mac_lomac_init_label_waitcheck,
+	.mpo_mount_init_label = mac_lomac_init_label,
+	.mpo_pipe_init_label = mac_lomac_init_label,
+	.mpo_proc_init_label = mac_lomac_proc_init_label,
+	.mpo_socket_init_label = mac_lomac_init_label_waitcheck,
+	.mpo_socketpeer_init_label = mac_lomac_init_label_waitcheck,
+	.mpo_vnode_init_label = mac_lomac_init_label,
 	.mpo_init_syncache_from_inpcb = mac_lomac_init_syncache_from_inpcb,
-	.mpo_destroy_bpfdesc_label = mac_lomac_destroy_label,
-	.mpo_destroy_cred_label = mac_lomac_destroy_label,
-	.mpo_destroy_devfs_label = mac_lomac_destroy_label,
-	.mpo_destroy_ifnet_label = mac_lomac_destroy_label,
-	.mpo_destroy_inpcb_label = mac_lomac_destroy_label,
-	.mpo_destroy_ipq_label = mac_lomac_destroy_label,
-	.mpo_destroy_mbuf_label = mac_lomac_destroy_label,
-	.mpo_destroy_mount_label = mac_lomac_destroy_label,
-	.mpo_destroy_pipe_label = mac_lomac_destroy_label,
-	.mpo_destroy_proc_label = mac_lomac_destroy_proc_label,
+	.mpo_bpfdesc_destroy_label = mac_lomac_destroy_label,
+	.mpo_cred_destroy_label = mac_lomac_destroy_label,
+	.mpo_devfs_destroy_label = mac_lomac_destroy_label,
+	.mpo_ifnet_destroy_label = mac_lomac_destroy_label,
+	.mpo_inpcb_destroy_label = mac_lomac_destroy_label,
+	.mpo_ipq_destroy_label = mac_lomac_destroy_label,
+	.mpo_mbuf_destroy_label = mac_lomac_destroy_label,
+	.mpo_mount_destroy_label = mac_lomac_destroy_label,
+	.mpo_pipe_destroy_label = mac_lomac_destroy_label,
+	.mpo_proc_destroy_label = mac_lomac_proc_destroy_label,
 	.mpo_destroy_syncache_label = mac_lomac_destroy_label,
-	.mpo_destroy_socket_label = mac_lomac_destroy_label,
-	.mpo_destroy_socket_peer_label = mac_lomac_destroy_label,
-	.mpo_destroy_vnode_label = mac_lomac_destroy_label,
-	.mpo_copy_cred_label = mac_lomac_copy_label,
-	.mpo_copy_ifnet_label = mac_lomac_copy_label,
-	.mpo_copy_mbuf_label = mac_lomac_copy_label,
-	.mpo_copy_pipe_label = mac_lomac_copy_label,
-	.mpo_copy_socket_label = mac_lomac_copy_label,
-	.mpo_copy_vnode_label = mac_lomac_copy_label,
-	.mpo_externalize_cred_label = mac_lomac_externalize_label,
-	.mpo_externalize_ifnet_label = mac_lomac_externalize_label,
-	.mpo_externalize_pipe_label = mac_lomac_externalize_label,
-	.mpo_externalize_socket_label = mac_lomac_externalize_label,
-	.mpo_externalize_socket_peer_label = mac_lomac_externalize_label,
-	.mpo_externalize_vnode_label = mac_lomac_externalize_label,
-	.mpo_internalize_cred_label = mac_lomac_internalize_label,
-	.mpo_internalize_ifnet_label = mac_lomac_internalize_label,
-	.mpo_internalize_pipe_label = mac_lomac_internalize_label,
-	.mpo_internalize_socket_label = mac_lomac_internalize_label,
-	.mpo_internalize_vnode_label = mac_lomac_internalize_label,
-	.mpo_create_devfs_device = mac_lomac_create_devfs_device,
-	.mpo_create_devfs_directory = mac_lomac_create_devfs_directory,
-	.mpo_create_devfs_symlink = mac_lomac_create_devfs_symlink,
-	.mpo_create_mount = mac_lomac_create_mount,
-	.mpo_relabel_vnode = mac_lomac_relabel_vnode,
-	.mpo_update_devfs = mac_lomac_update_devfs,
-	.mpo_associate_vnode_devfs = mac_lomac_associate_vnode_devfs,
-	.mpo_associate_vnode_extattr = mac_lomac_associate_vnode_extattr,
-	.mpo_associate_vnode_singlelabel =
-	    mac_lomac_associate_vnode_singlelabel,
-	.mpo_create_vnode_extattr = mac_lomac_create_vnode_extattr,
-	.mpo_setlabel_vnode_extattr = mac_lomac_setlabel_vnode_extattr,
-	.mpo_create_mbuf_from_socket = mac_lomac_create_mbuf_from_socket,
+	.mpo_socket_destroy_label = mac_lomac_destroy_label,
+	.mpo_socketpeer_destroy_label = mac_lomac_destroy_label,
+	.mpo_vnode_destroy_label = mac_lomac_destroy_label,
+	.mpo_cred_copy_label = mac_lomac_copy_label,
+	.mpo_ifnet_copy_label = mac_lomac_copy_label,
+	.mpo_mbuf_copy_label = mac_lomac_copy_label,
+	.mpo_pipe_copy_label = mac_lomac_copy_label,
+	.mpo_socket_copy_label = mac_lomac_copy_label,
+	.mpo_vnode_copy_label = mac_lomac_copy_label,
+	.mpo_cred_externalize_label = mac_lomac_externalize_label,
+	.mpo_ifnet_externalize_label = mac_lomac_externalize_label,
+	.mpo_pipe_externalize_label = mac_lomac_externalize_label,
+	.mpo_socket_externalize_label = mac_lomac_externalize_label,
+	.mpo_socketpeer_externalize_label = mac_lomac_externalize_label,
+	.mpo_vnode_externalize_label = mac_lomac_externalize_label,
+	.mpo_cred_internalize_label = mac_lomac_internalize_label,
+	.mpo_ifnet_internalize_label = mac_lomac_internalize_label,
+	.mpo_pipe_internalize_label = mac_lomac_internalize_label,
+	.mpo_socket_internalize_label = mac_lomac_internalize_label,
+	.mpo_vnode_internalize_label = mac_lomac_internalize_label,
+	.mpo_devfs_create_device = mac_lomac_devfs_create_device,
+	.mpo_devfs_create_directory = mac_lomac_devfs_create_directory,
+	.mpo_devfs_create_symlink = mac_lomac_devfs_create_symlink,
+	.mpo_mount_create = mac_lomac_mount_create,
+	.mpo_vnode_relabel = mac_lomac_vnode_relabel,
+	.mpo_devfs_update = mac_lomac_devfs_update,
+	.mpo_devfs_vnode_associate = mac_lomac_devfs_vnode_associate,
+	.mpo_vnode_associate_extattr = mac_lomac_vnode_associate_extattr,
+	.mpo_vnode_associate_singlelabel =
+	    mac_lomac_vnode_associate_singlelabel,
+	.mpo_vnode_create_extattr = mac_lomac_vnode_create_extattr,
+	.mpo_vnode_setlabel_extattr = mac_lomac_vnode_setlabel_extattr,
+	.mpo_socket_create_mbuf = mac_lomac_socket_create_mbuf,
 	.mpo_create_mbuf_from_syncache = mac_lomac_create_mbuf_from_syncache,
-	.mpo_create_pipe = mac_lomac_create_pipe,
-	.mpo_create_socket = mac_lomac_create_socket,
-	.mpo_create_socket_from_socket = mac_lomac_create_socket_from_socket,
-	.mpo_relabel_pipe = mac_lomac_relabel_pipe,
-	.mpo_relabel_socket = mac_lomac_relabel_socket,
-	.mpo_set_socket_peer_from_mbuf = mac_lomac_set_socket_peer_from_mbuf,
-	.mpo_set_socket_peer_from_socket =
-	    mac_lomac_set_socket_peer_from_socket,
-	.mpo_create_bpfdesc = mac_lomac_create_bpfdesc,
-	.mpo_create_datagram_from_ipq = mac_lomac_create_datagram_from_ipq,
-	.mpo_create_fragment = mac_lomac_create_fragment,
-	.mpo_create_ifnet = mac_lomac_create_ifnet,
-	.mpo_create_inpcb_from_socket = mac_lomac_create_inpcb_from_socket,
-	.mpo_create_ipq = mac_lomac_create_ipq,
-	.mpo_create_mbuf_from_inpcb = mac_lomac_create_mbuf_from_inpcb,
+	.mpo_pipe_create = mac_lomac_pipe_create,
+	.mpo_socket_create = mac_lomac_socket_create,
+	.mpo_socket_newconn = mac_lomac_socket_newconn,
+	.mpo_pipe_relabel = mac_lomac_pipe_relabel,
+	.mpo_socket_relabel = mac_lomac_socket_relabel,
+	.mpo_socketpeer_set_from_mbuf = mac_lomac_socketpeer_set_from_mbuf,
+	.mpo_socketpeer_set_from_socket =
+	    mac_lomac_socketpeer_set_from_socket,
+	.mpo_bpfdesc_create = mac_lomac_bpfdesc_create,
+	.mpo_ipq_reassemble = mac_lomac_ipq_reassemble,
+	.mpo_netinet_fragment = mac_lomac_netinet_fragment,
+	.mpo_ifnet_create = mac_lomac_ifnet_create,
+	.mpo_inpcb_create = mac_lomac_inpcb_create,
+	.mpo_ipq_create = mac_lomac_ipq_create,
+	.mpo_inpcb_create_mbuf = mac_lomac_inpcb_create_mbuf,
 	.mpo_create_mbuf_linklayer = mac_lomac_create_mbuf_linklayer,
-	.mpo_create_mbuf_from_bpfdesc = mac_lomac_create_mbuf_from_bpfdesc,
-	.mpo_create_mbuf_from_ifnet = mac_lomac_create_mbuf_from_ifnet,
-	.mpo_create_mbuf_multicast_encap =
-	    mac_lomac_create_mbuf_multicast_encap,
-	.mpo_create_mbuf_netlayer = mac_lomac_create_mbuf_netlayer,
-	.mpo_fragment_match = mac_lomac_fragment_match,
-	.mpo_relabel_ifnet = mac_lomac_relabel_ifnet,
-	.mpo_update_ipq = mac_lomac_update_ipq,
+	.mpo_bpfdesc_create_mbuf = mac_lomac_bpfdesc_create_mbuf,
+	.mpo_ifnet_create_mbuf = mac_lomac_ifnet_create_mbuf,
+	.mpo_mbuf_create_multicast_encap =
+	    mac_lomac_mbuf_create_multicast_encap,
+	.mpo_mbuf_create_netlayer = mac_lomac_mbuf_create_netlayer,
+	.mpo_ipq_match = mac_lomac_ipq_match,
+	.mpo_ifnet_relabel = mac_lomac_ifnet_relabel,
+	.mpo_ipq_update = mac_lomac_ipq_update,
 	.mpo_inpcb_sosetlabel = mac_lomac_inpcb_sosetlabel,
-	.mpo_execve_transition = mac_lomac_execve_transition,
-	.mpo_execve_will_transition = mac_lomac_execve_will_transition,
-	.mpo_create_proc0 = mac_lomac_create_proc0,
-	.mpo_create_proc1 = mac_lomac_create_proc1,
-	.mpo_relabel_cred = mac_lomac_relabel_cred,
-	.mpo_check_bpfdesc_receive = mac_lomac_check_bpfdesc_receive,
-	.mpo_check_cred_relabel = mac_lomac_check_cred_relabel,
-	.mpo_check_cred_visible = mac_lomac_check_cred_visible,
-	.mpo_check_ifnet_relabel = mac_lomac_check_ifnet_relabel,
-	.mpo_check_ifnet_transmit = mac_lomac_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_lomac_check_inpcb_deliver,
-	.mpo_check_kld_load = mac_lomac_check_kld_load,
-	.mpo_check_pipe_ioctl = mac_lomac_check_pipe_ioctl,
-	.mpo_check_pipe_read = mac_lomac_check_pipe_read,
-	.mpo_check_pipe_relabel = mac_lomac_check_pipe_relabel,
-	.mpo_check_pipe_write = mac_lomac_check_pipe_write,
-	.mpo_check_proc_debug = mac_lomac_check_proc_debug,
-	.mpo_check_proc_sched = mac_lomac_check_proc_sched,
-	.mpo_check_proc_signal = mac_lomac_check_proc_signal,
-	.mpo_check_socket_deliver = mac_lomac_check_socket_deliver,
-	.mpo_check_socket_relabel = mac_lomac_check_socket_relabel,
-	.mpo_check_socket_visible = mac_lomac_check_socket_visible,
-	.mpo_check_system_acct = mac_lomac_check_system_acct,
-	.mpo_check_system_auditctl = mac_lomac_check_system_auditctl,
-	.mpo_check_system_swapoff = mac_lomac_check_system_swapoff,
-	.mpo_check_system_swapon = mac_lomac_check_system_swapon,
-	.mpo_check_system_sysctl = mac_lomac_check_system_sysctl,
-	.mpo_check_vnode_access = mac_lomac_check_vnode_open,
-	.mpo_check_vnode_create = mac_lomac_check_vnode_create,
-	.mpo_check_vnode_deleteacl = mac_lomac_check_vnode_deleteacl,
-	.mpo_check_vnode_link = mac_lomac_check_vnode_link,
-	.mpo_check_vnode_mmap = mac_lomac_check_vnode_mmap,
-	.mpo_check_vnode_mmap_downgrade = mac_lomac_check_vnode_mmap_downgrade,
-	.mpo_check_vnode_open = mac_lomac_check_vnode_open,
-	.mpo_check_vnode_read = mac_lomac_check_vnode_read,
-	.mpo_check_vnode_relabel = mac_lomac_check_vnode_relabel,
-	.mpo_check_vnode_rename_from = mac_lomac_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_lomac_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_lomac_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_lomac_check_vnode_setacl,
-	.mpo_check_vnode_setextattr = mac_lomac_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_lomac_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_lomac_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_lomac_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_lomac_check_vnode_setutimes,
-	.mpo_check_vnode_unlink = mac_lomac_check_vnode_unlink,
-	.mpo_check_vnode_write = mac_lomac_check_vnode_write,
+	.mpo_vnode_execve_transition = mac_lomac_vnode_execve_transition,
+	.mpo_vnode_execve_will_transition =
+	    mac_lomac_vnode_execve_will_transition,
+	.mpo_proc_create_swapper = mac_lomac_proc_create_swapper,
+	.mpo_proc_create_init = mac_lomac_proc_create_init,
+	.mpo_cred_relabel = mac_lomac_cred_relabel,
+	.mpo_bpfdesc_check_receive = mac_lomac_bpfdesc_check_receive,
+	.mpo_cred_check_relabel = mac_lomac_cred_check_relabel,
+	.mpo_cred_check_visible = mac_lomac_cred_check_visible,
+	.mpo_ifnet_check_relabel = mac_lomac_ifnet_check_relabel,
+	.mpo_ifnet_check_transmit = mac_lomac_ifnet_check_transmit,
+	.mpo_inpcb_check_deliver = mac_lomac_inpcb_check_deliver,
+	.mpo_kld_check_load = mac_lomac_kld_check_load,
+	.mpo_pipe_check_ioctl = mac_lomac_pipe_check_ioctl,
+	.mpo_pipe_check_read = mac_lomac_pipe_check_read,
+	.mpo_pipe_check_relabel = mac_lomac_pipe_check_relabel,
+	.mpo_pipe_check_write = mac_lomac_pipe_check_write,
+	.mpo_proc_check_debug = mac_lomac_proc_check_debug,
+	.mpo_proc_check_sched = mac_lomac_proc_check_sched,
+	.mpo_proc_check_signal = mac_lomac_proc_check_signal,
+	.mpo_socket_check_deliver = mac_lomac_socket_check_deliver,
+	.mpo_socket_check_relabel = mac_lomac_socket_check_relabel,
+	.mpo_socket_check_visible = mac_lomac_socket_check_visible,
+	.mpo_system_check_acct = mac_lomac_system_check_acct,
+	.mpo_system_check_auditctl = mac_lomac_system_check_auditctl,
+	.mpo_system_check_swapoff = mac_lomac_system_check_swapoff,
+	.mpo_system_check_swapon = mac_lomac_system_check_swapon,
+	.mpo_system_check_sysctl = mac_lomac_system_check_sysctl,
+	.mpo_vnode_check_access = mac_lomac_vnode_check_open,
+	.mpo_vnode_check_create = mac_lomac_vnode_check_create,
+	.mpo_vnode_check_deleteacl = mac_lomac_vnode_check_deleteacl,
+	.mpo_vnode_check_link = mac_lomac_vnode_check_link,
+	.mpo_vnode_check_mmap = mac_lomac_vnode_check_mmap,
+	.mpo_vnode_check_mmap_downgrade = mac_lomac_vnode_check_mmap_downgrade,
+	.mpo_vnode_check_open = mac_lomac_vnode_check_open,
+	.mpo_vnode_check_read = mac_lomac_vnode_check_read,
+	.mpo_vnode_check_relabel = mac_lomac_vnode_check_relabel,
+	.mpo_vnode_check_rename_from = mac_lomac_vnode_check_rename_from,
+	.mpo_vnode_check_rename_to = mac_lomac_vnode_check_rename_to,
+	.mpo_vnode_check_revoke = mac_lomac_vnode_check_revoke,
+	.mpo_vnode_check_setacl = mac_lomac_vnode_check_setacl,
+	.mpo_vnode_check_setextattr = mac_lomac_vnode_check_setextattr,
+	.mpo_vnode_check_setflags = mac_lomac_vnode_check_setflags,
+	.mpo_vnode_check_setmode = mac_lomac_vnode_check_setmode,
+	.mpo_vnode_check_setowner = mac_lomac_vnode_check_setowner,
+	.mpo_vnode_check_setutimes = mac_lomac_vnode_check_setutimes,
+	.mpo_vnode_check_unlink = mac_lomac_vnode_check_unlink,
+	.mpo_vnode_check_write = mac_lomac_vnode_check_write,
 	.mpo_thread_userret = mac_lomac_thread_userret,
-	.mpo_create_mbuf_from_firewall = mac_lomac_create_mbuf_from_firewall,
+	.mpo_mbuf_create_from_firewall = mac_lomac_mbuf_create_from_firewall,
 	.mpo_priv_check = mac_lomac_priv_check,
 };
 

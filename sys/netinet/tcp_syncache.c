@@ -640,7 +640,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	}
 #ifdef MAC
 	SOCK_LOCK(so);
-	mac_set_socket_peer_from_mbuf(m, so);
+	mac_socketpeer_set_from_mbuf(m, so);
 	SOCK_UNLOCK(so);
 #endif
 

@@ -323,11 +323,11 @@ pipe(td, uap)
 #ifdef MAC
 	/*
 	 * The MAC label is shared between the connected endpoints.  As a
-	 * result mac_init_pipe() and mac_create_pipe() are called once
+	 * result mac_pipe_init() and mac_pipe_create() are called once
 	 * for the pair, and not on the endpoints.
 	 */
-	mac_init_pipe(pp);
-	mac_create_pipe(td->td_ucred, pp);
+	mac_pipe_init(pp);
+	mac_pipe_create(td->td_ucred, pp);
 #endif
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
@@ -576,7 +576,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 		goto unlocked_error;
 
 #ifdef MAC
-	error = mac_check_pipe_read(active_cred, rpipe->pipe_pair);
+	error = mac_pipe_check_read(active_cred, rpipe->pipe_pair);
 	if (error)
 		goto locked_error;
 #endif
@@ -986,7 +986,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		return (EPIPE);
 	}
 #ifdef MAC
-	error = mac_check_pipe_write(active_cred, wpipe->pipe_pair);
+	error = mac_pipe_check_write(active_cred, wpipe->pipe_pair);
 	if (error) {
 		pipeunlock(wpipe);
 		PIPE_UNLOCK(rpipe);
@@ -1252,7 +1252,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	PIPE_LOCK(mpipe);
 
 #ifdef MAC
-	error = mac_check_pipe_ioctl(active_cred, mpipe->pipe_pair, cmd, data);
+	error = mac_pipe_check_ioctl(active_cred, mpipe->pipe_pair, cmd, data);
 	if (error) {
 		PIPE_UNLOCK(mpipe);
 		return (error);
@@ -1326,7 +1326,7 @@ pipe_poll(fp, events, active_cred, td)
 	wpipe = rpipe->pipe_peer;
 	PIPE_LOCK(rpipe);
 #ifdef MAC
-	error = mac_check_pipe_poll(active_cred, rpipe->pipe_pair);
+	error = mac_pipe_check_poll(active_cred, rpipe->pipe_pair);
 	if (error)
 		goto locked_error;
 #endif
@@ -1382,7 +1382,7 @@ pipe_stat(fp, ub, active_cred, td)
 	int error;
 
 	PIPE_LOCK(pipe);
-	error = mac_check_pipe_stat(active_cred, pipe->pipe_pair);
+	error = mac_pipe_check_stat(active_cred, pipe->pipe_pair);
 	PIPE_UNLOCK(pipe);
 	if (error)
 		return (error);
@@ -1511,7 +1511,7 @@ pipeclose(cpipe)
 	if (ppipe->pipe_present == 0) {
 		PIPE_UNLOCK(cpipe);
 #ifdef MAC
-		mac_destroy_pipe(pp);
+		mac_pipe_destroy(pp);
 #endif
 		uma_zfree(pipe_zone, cpipe->pipe_pair);
 	} else

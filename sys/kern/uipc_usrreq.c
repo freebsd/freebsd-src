@@ -449,7 +449,7 @@ restart:
 	vattr.va_type = VSOCK;
 	vattr.va_mode = (ACCESSPERMS & ~td->td_proc->p_fd->fd_cmask);
 #ifdef MAC
-	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
 #endif
 	if (error == 0) {
@@ -1159,7 +1159,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto bad;
 	}
 #ifdef MAC
-	error = mac_check_vnode_open(td->td_ucred, vp, VWRITE | VREAD);
+	error = mac_vnode_check_open(td->td_ucred, vp, VWRITE | VREAD);
 	if (error)
 		goto bad;
 #endif
@@ -1236,8 +1236,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		UNP_PCB_UNLOCK(unp);
 #ifdef MAC
 		SOCK_LOCK(so);
-		mac_set_socket_peer_from_socket(so, so3);
-		mac_set_socket_peer_from_socket(so3, so);
+		mac_socketpeer_set_from_socket(so, so3);
+		mac_socketpeer_set_from_socket(so3, so);
 		SOCK_UNLOCK(so);
 #endif
 

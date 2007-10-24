@@ -995,7 +995,7 @@ kldfind(struct thread *td, struct kldfind_args *uap)
 	int error;
 
 #ifdef MAC
-	error = mac_check_kld_stat(td->td_ucred);
+	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
@@ -1026,7 +1026,7 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 	int error = 0;
 
 #ifdef MAC
-	error = mac_check_kld_stat(td->td_ucred);
+	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
@@ -1076,7 +1076,7 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 		return (EINVAL);
 
 #ifdef MAC
-	error = mac_check_kld_stat(td->td_ucred);
+	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
@@ -1119,7 +1119,7 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 	int error = 0;
 
 #ifdef MAC
-	error = mac_check_kld_stat(td->td_ucred);
+	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
@@ -1151,7 +1151,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 	int error = 0;
 
 #ifdef MAC
-	error = mac_check_kld_stat(td->td_ucred);
+	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
@@ -1997,7 +1997,7 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	int error;
 
 #ifdef MAC
-	error = mac_check_kld_stat(req->td->td_ucred);
+	error = mac_kld_check_stat(req->td->td_ucred);
 	if (error)
 		return (error);
 #endif

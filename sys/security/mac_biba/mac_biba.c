@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Research, the Security Research Division of McAfee, Inc. under
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -783,7 +787,7 @@ mac_biba_copy_label(struct label *src, struct label *dest)
  * a lot like file system objects.
  */
 static void
-mac_biba_create_devfs_device(struct ucred *cred, struct mount *mp,
+mac_biba_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_biba *mac_biba;
@@ -805,7 +809,7 @@ mac_biba_create_devfs_device(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_biba_create_devfs_directory(struct mount *mp, char *dirname,
+mac_biba_devfs_create_directory(struct mount *mp, char *dirname,
     int dirnamelen, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_biba *mac_biba;
@@ -815,7 +819,7 @@ mac_biba_create_devfs_directory(struct mount *mp, char *dirname,
 }
 
 static void
-mac_biba_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+mac_biba_devfs_create_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
     struct label *delabel)
 {
@@ -828,7 +832,7 @@ mac_biba_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_biba_create_mount(struct ucred *cred, struct mount *mp,
+mac_biba_mount_create(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 	struct mac_biba *source, *dest;
@@ -839,7 +843,7 @@ mac_biba_create_mount(struct ucred *cred, struct mount *mp,
 }
 
 static void
-mac_biba_relabel_vnode(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -851,7 +855,7 @@ mac_biba_relabel_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_biba_update_devfs(struct mount *mp, struct devfs_dirent *de,
+mac_biba_devfs_update(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *source, *dest;
@@ -863,7 +867,7 @@ mac_biba_update_devfs(struct mount *mp, struct devfs_dirent *de,
 }
 
 static void
-mac_biba_associate_vnode_devfs(struct mount *mp, struct label *mntlabel,
+mac_biba_devfs_vnode_associate(struct mount *mp, struct label *mntlabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vplabel)
 {
@@ -876,7 +880,7 @@ mac_biba_associate_vnode_devfs(struct mount *mp, struct label *mntlabel,
 }
 
 static int
-mac_biba_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
+mac_biba_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba temp, *source, *dest;
@@ -898,16 +902,16 @@ mac_biba_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 		return (error);
 
 	if (buflen != sizeof(temp)) {
-		printf("mac_biba_associate_vnode_extattr: bad size %d\n",
+		printf("mac_biba_vnode_associate_extattr: bad size %d\n",
 		    buflen);
 		return (EPERM);
 	}
 	if (mac_biba_valid(&temp) != 0) {
-		printf("mac_biba_associate_vnode_extattr: invalid\n");
+		printf("mac_biba_vnode_associate_extattr: invalid\n");
 		return (EPERM);
 	}
 	if ((temp.mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_EFFECTIVE) {
-		printf("mac_biba_associate_vnode_extattr: not effective\n");
+		printf("mac_biba_vnode_associate_extattr: not effective\n");
 		return (EPERM);
 	}
 
@@ -916,7 +920,7 @@ mac_biba_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 }
 
 static void
-mac_biba_associate_vnode_singlelabel(struct mount *mp,
+mac_biba_vnode_associate_singlelabel(struct mount *mp,
     struct label *mplabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *source, *dest;
@@ -928,7 +932,7 @@ mac_biba_associate_vnode_singlelabel(struct mount *mp,
 }
 
 static int
-mac_biba_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+mac_biba_vnode_create_extattr(struct ucred *cred, struct mount *mp,
     struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
     struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
@@ -951,7 +955,7 @@ mac_biba_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_biba_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *intlabel)
 {
 	struct mac_biba *source, temp;
@@ -976,7 +980,7 @@ mac_biba_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
  * Labeling event operations: IPC object.
  */
 static void
-mac_biba_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+mac_biba_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 	struct mac_biba *source, *dest;
@@ -988,7 +992,7 @@ mac_biba_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
-mac_biba_create_mbuf_from_socket(struct socket *so, struct label *solabel,
+mac_biba_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1000,7 +1004,7 @@ mac_biba_create_mbuf_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
-mac_biba_create_socket(struct ucred *cred, struct socket *so,
+mac_biba_socket_create(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_biba *source, *dest;
@@ -1012,7 +1016,7 @@ mac_biba_create_socket(struct ucred *cred, struct socket *so,
 }
 
 static void
-mac_biba_create_pipe(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_create(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_biba *source, *dest;
@@ -1024,7 +1028,7 @@ mac_biba_create_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_biba_create_posix_sem(struct ucred *cred, struct ksem *ks,
+mac_biba_posixsem_create(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 	struct mac_biba *source, *dest;
@@ -1036,8 +1040,8 @@ mac_biba_create_posix_sem(struct ucred *cred, struct ksem *ks,
 }
 
 static void
-mac_biba_create_socket_from_socket(struct socket *oldso,
-    struct label *oldsolabel, struct socket *newso, struct label *newsolabel)
+mac_biba_socket_newconn(struct socket *oldso, struct label *oldsolabel,
+    struct socket *newso, struct label *newsolabel)
 {
 	struct mac_biba *source, *dest;
 
@@ -1048,7 +1052,7 @@ mac_biba_create_socket_from_socket(struct socket *oldso,
 }
 
 static void
-mac_biba_relabel_socket(struct ucred *cred, struct socket *so,
+mac_biba_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1060,7 +1064,7 @@ mac_biba_relabel_socket(struct ucred *cred, struct socket *so,
 }
 
 static void
-mac_biba_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1072,7 +1076,7 @@ mac_biba_relabel_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_biba_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
+mac_biba_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1087,7 +1091,7 @@ mac_biba_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
  * Labeling event operations: System V IPC objects.
  */
 static void
-mac_biba_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+mac_biba_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
 {
 	struct mac_biba *source, *dest;
@@ -1100,7 +1104,7 @@ mac_biba_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static void
-mac_biba_create_sysv_msgqueue(struct ucred *cred,
+mac_biba_sysvmsq_create(struct ucred *cred,
     struct msqid_kernel *msqkptr, struct label *msqlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1112,7 +1116,7 @@ mac_biba_create_sysv_msgqueue(struct ucred *cred,
 }
 
 static void
-mac_biba_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
+mac_biba_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 	struct mac_biba *source, *dest;
@@ -1124,7 +1128,7 @@ mac_biba_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
 }
 
 static void
-mac_biba_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
+mac_biba_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1139,7 +1143,7 @@ mac_biba_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
  * Labeling event operations: network objects.
  */
 static void
-mac_biba_set_socket_peer_from_socket(struct socket *oldso,
+mac_biba_socketpeer_set_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
@@ -1152,7 +1156,7 @@ mac_biba_set_socket_peer_from_socket(struct socket *oldso,
 }
 
 static void
-mac_biba_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
+mac_biba_bpfdesc_create(struct ucred *cred, struct bpf_d *d,
     struct label *dlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1164,7 +1168,7 @@ mac_biba_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
 }
 
 static void
-mac_biba_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
+mac_biba_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 {
 	char tifname[IFNAMSIZ], *p, *q;
 	char tiflist[sizeof(trusted_interfaces)];
@@ -1221,7 +1225,7 @@ set:
 }
 
 static void
-mac_biba_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+mac_biba_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1233,7 +1237,7 @@ mac_biba_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 }
 
 static void
-mac_biba_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+mac_biba_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1246,7 +1250,7 @@ mac_biba_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
 }
 
 static void
-mac_biba_create_fragment(struct mbuf *m, struct label *mlabel,
+mac_biba_netinet_fragment(struct mbuf *m, struct label *mlabel,
     struct mbuf *frag, struct label *fraglabel)
 {
 	struct mac_biba *source, *dest;
@@ -1258,7 +1262,7 @@ mac_biba_create_fragment(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_biba_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+mac_biba_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1281,7 +1285,7 @@ mac_biba_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
-mac_biba_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
+mac_biba_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1293,7 +1297,7 @@ mac_biba_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
 }
 
 static void
-mac_biba_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
+mac_biba_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1305,7 +1309,7 @@ mac_biba_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
-mac_biba_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
+mac_biba_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
     struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
     struct label *mnewlabel)
 {
@@ -1318,7 +1322,7 @@ mac_biba_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_biba_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
+mac_biba_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
     struct mbuf *newm, struct label *mnewlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1330,8 +1334,8 @@ mac_biba_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
 }
 
 static int
-mac_biba_fragment_match(struct mbuf *m, struct label *mlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+mac_biba_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
 {
 	struct mac_biba *a, *b;
 
@@ -1342,7 +1346,7 @@ mac_biba_fragment_match(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-mac_biba_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
+mac_biba_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -1354,7 +1358,7 @@ mac_biba_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-mac_biba_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+mac_biba_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
@@ -1374,7 +1378,7 @@ mac_biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-mac_biba_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
+mac_biba_mbuf_create_from_firewall(struct mbuf *m, struct label *label)
 {
 	struct mac_biba *dest;
 
@@ -1388,7 +1392,7 @@ mac_biba_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
  * Labeling event operations: processes.
  */
 static void
-mac_biba_create_proc0(struct ucred *cred)
+mac_biba_proc_create_swapper(struct ucred *cred)
 {
 	struct mac_biba *dest;
 
@@ -1400,7 +1404,7 @@ mac_biba_create_proc0(struct ucred *cred)
 }
 
 static void
-mac_biba_create_proc1(struct ucred *cred)
+mac_biba_proc_create_init(struct ucred *cred)
 {
 	struct mac_biba *dest;
 
@@ -1412,7 +1416,7 @@ mac_biba_create_proc1(struct ucred *cred)
 }
 
 static void
-mac_biba_relabel_cred(struct ucred *cred, struct label *newlabel)
+mac_biba_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
 
@@ -1426,28 +1430,28 @@ mac_biba_relabel_cred(struct ucred *cred, struct label *newlabel)
  * Label cleanup/flush operations
  */
 static void
-mac_biba_cleanup_sysv_msgmsg(struct label *msglabel)
+mac_biba_sysvmsg_cleanup(struct label *msglabel)
 {
 
 	bzero(SLOT(msglabel), sizeof(struct mac_biba));
 }
 
 static void
-mac_biba_cleanup_sysv_msgqueue(struct label *msqlabel)
+mac_biba_sysvmsq_cleanup(struct label *msqlabel)
 {
 
 	bzero(SLOT(msqlabel), sizeof(struct mac_biba));
 }
 
 static void
-mac_biba_cleanup_sysv_sem(struct label *semalabel)
+mac_biba_sysvsem_cleanup(struct label *semalabel)
 {
 
 	bzero(SLOT(semalabel), sizeof(struct mac_biba));
 }
 
 static void
-mac_biba_cleanup_sysv_shm(struct label *shmlabel)
+mac_biba_sysvshm_cleanup(struct label *shmlabel)
 {
 	bzero(SLOT(shmlabel), sizeof(struct mac_biba));
 }
@@ -1456,7 +1460,7 @@ mac_biba_cleanup_sysv_shm(struct label *shmlabel)
  * Access control checks.
  */
 static int
-mac_biba_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+mac_biba_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 	struct mac_biba *a, *b;
@@ -1473,7 +1477,7 @@ mac_biba_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
 }
 
 static int
-mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+mac_biba_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_biba *subj, *new;
 	int error;
@@ -1535,7 +1539,7 @@ mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_biba_check_cred_visible(struct ucred *u1, struct ucred *u2)
+mac_biba_cred_check_visible(struct ucred *u1, struct ucred *u2)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1553,7 +1557,7 @@ mac_biba_check_cred_visible(struct ucred *u1, struct ucred *u2)
 }
 
 static int
-mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+mac_biba_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *new;
@@ -1581,7 +1585,7 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 }
 
 static int
-mac_biba_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+mac_biba_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *p, *i;
@@ -1596,7 +1600,7 @@ mac_biba_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static int
-mac_biba_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+mac_biba_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *p, *i;
@@ -1611,7 +1615,7 @@ mac_biba_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
-mac_biba_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
+mac_biba_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1629,7 +1633,7 @@ mac_biba_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
 }
 
 static int
-mac_biba_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
+mac_biba_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1647,8 +1651,8 @@ mac_biba_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
 }
 
 static int
-mac_biba_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
+mac_biba_sysvmsq_check_msqget(struct ucred *cred,
+    struct msqid_kernel *msqkptr, struct label *msqklabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1665,8 +1669,8 @@ mac_biba_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static int
-mac_biba_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
+mac_biba_sysvmsq_check_msqsnd(struct ucred *cred,
+    struct msqid_kernel *msqkptr, struct label *msqklabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1683,8 +1687,8 @@ mac_biba_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static int
-mac_biba_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
+mac_biba_sysvmsq_check_msqrcv(struct ucred *cred,
+    struct msqid_kernel *msqkptr, struct label *msqklabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1702,8 +1706,8 @@ mac_biba_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 
 static int
-mac_biba_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel, int cmd)
+mac_biba_sysvmsq_check_msqctl(struct ucred *cred,
+    struct msqid_kernel *msqkptr, struct label *msqklabel, int cmd)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1733,8 +1737,8 @@ mac_biba_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 }
 
 static int
-mac_biba_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel, int cmd)
+mac_biba_sysvsem_check_semctl(struct ucred *cred,
+    struct semid_kernel *semakptr, struct label *semaklabel, int cmd)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1771,8 +1775,8 @@ mac_biba_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 }
 
 static int
-mac_biba_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel)
+mac_biba_sysvsem_check_semget(struct ucred *cred,
+    struct semid_kernel *semakptr, struct label *semaklabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1790,8 +1794,9 @@ mac_biba_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
 
 
 static int
-mac_biba_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel, size_t accesstype)
+mac_biba_sysvsem_check_semop(struct ucred *cred,
+    struct semid_kernel *semakptr, struct label *semaklabel,
+    size_t accesstype)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1813,8 +1818,8 @@ mac_biba_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
 }
 
 static int
-mac_biba_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int shmflg)
+mac_biba_sysvshm_check_shmat(struct ucred *cred,
+    struct shmid_kernel *shmsegptr, struct label *shmseglabel, int shmflg)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1835,8 +1840,8 @@ mac_biba_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-mac_biba_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int cmd)
+mac_biba_sysvshm_check_shmctl(struct ucred *cred,
+    struct shmid_kernel *shmsegptr, struct label *shmseglabel, int cmd)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1867,8 +1872,8 @@ mac_biba_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-mac_biba_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int shmflg)
+mac_biba_sysvshm_check_shmget(struct ucred *cred,
+    struct shmid_kernel *shmsegptr, struct label *shmseglabel, int shmflg)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1885,7 +1890,7 @@ mac_biba_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static int
-mac_biba_check_kld_load(struct ucred *cred, struct vnode *vp,
+mac_biba_kld_check_load(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1908,7 +1913,7 @@ mac_biba_check_kld_load(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
+mac_biba_mount_check_stat(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1926,7 +1931,7 @@ mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
 }
 
 static int
-mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1939,7 +1944,7 @@ mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1957,7 +1962,7 @@ mac_biba_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_pipe_read(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_read(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -1975,7 +1980,7 @@ mac_biba_check_pipe_read(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
@@ -2026,7 +2031,7 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2044,7 +2049,7 @@ mac_biba_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_pipe_write(struct ucred *cred, struct pipepair *pp,
+mac_biba_pipe_check_write(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2062,7 +2067,7 @@ mac_biba_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ks,
+mac_biba_posixsem_check_write(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2080,7 +2085,7 @@ mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-mac_biba_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ks,
+mac_biba_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2098,7 +2103,7 @@ mac_biba_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ks,
 }
 
 static int
-mac_biba_check_proc_debug(struct ucred *cred, struct proc *p)
+mac_biba_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2118,7 +2123,7 @@ mac_biba_check_proc_debug(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_biba_check_proc_sched(struct ucred *cred, struct proc *p)
+mac_biba_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2138,7 +2143,7 @@ mac_biba_check_proc_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_biba_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
+mac_biba_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2158,7 +2163,7 @@ mac_biba_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 }
 
 static int
-mac_biba_check_socket_deliver(struct socket *so, struct label *solabel,
+mac_biba_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *p, *s;
@@ -2173,7 +2178,7 @@ mac_biba_check_socket_deliver(struct socket *so, struct label *solabel,
 }
 
 static int
-mac_biba_check_socket_relabel(struct ucred *cred, struct socket *so,
+mac_biba_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_biba *subj, *obj, *new;
@@ -2224,7 +2229,7 @@ mac_biba_check_socket_relabel(struct ucred *cred, struct socket *so,
 }
 
 static int
-mac_biba_check_socket_visible(struct ucred *cred, struct socket *so,
+mac_biba_socket_check_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2431,7 +2436,7 @@ mac_biba_priv_check(struct ucred *cred, int priv)
 }
 
 static int
-mac_biba_check_system_acct(struct ucred *cred, struct vnode *vp,
+mac_biba_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2457,7 +2462,7 @@ mac_biba_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+mac_biba_system_check_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2483,7 +2488,7 @@ mac_biba_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_system_auditon(struct ucred *cred, int cmd)
+mac_biba_system_check_auditon(struct ucred *cred, int cmd)
 {
 	struct mac_biba *subj;
 	int error;
@@ -2501,7 +2506,7 @@ mac_biba_check_system_auditon(struct ucred *cred, int cmd)
 }
 
 static int
-mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
+mac_biba_system_check_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2524,7 +2529,7 @@ mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+mac_biba_system_check_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 	struct mac_biba *subj;
@@ -2543,7 +2548,7 @@ mac_biba_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+mac_biba_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
 {
 	struct mac_biba *subj;
@@ -2571,7 +2576,7 @@ mac_biba_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 }
 
 static int
-mac_biba_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2589,7 +2594,7 @@ mac_biba_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2607,7 +2612,7 @@ mac_biba_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 	struct mac_biba *subj, *obj;
@@ -2625,7 +2630,7 @@ mac_biba_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 	struct mac_biba *subj, *obj;
@@ -2643,7 +2648,7 @@ mac_biba_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_biba *subj, *obj;
@@ -2661,7 +2666,7 @@ mac_biba_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -2693,7 +2698,7 @@ mac_biba_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 	struct mac_biba *subj, *obj;
@@ -2711,7 +2716,7 @@ mac_biba_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -2730,7 +2735,7 @@ mac_biba_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2754,7 +2759,7 @@ mac_biba_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace)
 {
 	struct mac_biba *subj, *obj;
@@ -2772,7 +2777,7 @@ mac_biba_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp)
 {
 	struct mac_biba *subj, *obj;
@@ -2790,7 +2795,7 @@ mac_biba_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot, int flags)
 {
 	struct mac_biba *subj, *obj;
@@ -2818,7 +2823,7 @@ mac_biba_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_open(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 	struct mac_biba *subj, *obj;
@@ -2843,7 +2848,7 @@ mac_biba_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+mac_biba_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2861,7 +2866,7 @@ mac_biba_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-mac_biba_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+mac_biba_vnode_check_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2879,7 +2884,7 @@ mac_biba_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-mac_biba_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2897,7 +2902,7 @@ mac_biba_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_readlink(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -2915,7 +2920,7 @@ mac_biba_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_biba *old, *new, *subj;
@@ -2966,7 +2971,7 @@ mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2990,7 +2995,7 @@ mac_biba_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
@@ -3016,7 +3021,7 @@ mac_biba_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -3034,7 +3039,7 @@ mac_biba_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 	struct mac_biba *subj, *obj;
@@ -3052,7 +3057,7 @@ mac_biba_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -3073,7 +3078,7 @@ mac_biba_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 	struct mac_biba *subj, *obj;
@@ -3091,7 +3096,7 @@ mac_biba_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 	struct mac_biba *subj, *obj;
@@ -3109,7 +3114,7 @@ mac_biba_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 	struct mac_biba *subj, *obj;
@@ -3127,7 +3132,7 @@ mac_biba_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+mac_biba_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec mtime)
 {
 	struct mac_biba *subj, *obj;
@@ -3145,7 +3150,7 @@ mac_biba_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_biba_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+mac_biba_vnode_check_stat(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -3163,7 +3168,7 @@ mac_biba_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 static int
-mac_biba_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+mac_biba_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -3187,7 +3192,7 @@ mac_biba_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_biba_check_vnode_write(struct ucred *active_cred,
+mac_biba_vnode_check_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_biba *subj, *obj;
@@ -3239,185 +3244,185 @@ mac_biba_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
 static struct mac_policy_ops mac_biba_ops =
 {
 	.mpo_init = mac_biba_init,
-	.mpo_init_bpfdesc_label = mac_biba_init_label,
-	.mpo_init_cred_label = mac_biba_init_label,
-	.mpo_init_devfs_label = mac_biba_init_label,
-	.mpo_init_ifnet_label = mac_biba_init_label,
-	.mpo_init_inpcb_label = mac_biba_init_label_waitcheck,
+	.mpo_bpfdesc_init_label = mac_biba_init_label,
+	.mpo_cred_init_label = mac_biba_init_label,
+	.mpo_devfs_init_label = mac_biba_init_label,
+	.mpo_ifnet_init_label = mac_biba_init_label,
+	.mpo_inpcb_init_label = mac_biba_init_label_waitcheck,
 	.mpo_init_syncache_label = mac_biba_init_label_waitcheck,
-	.mpo_init_sysv_msgmsg_label = mac_biba_init_label,
-	.mpo_init_sysv_msgqueue_label = mac_biba_init_label,
-	.mpo_init_sysv_sem_label = mac_biba_init_label,
-	.mpo_init_sysv_shm_label = mac_biba_init_label,
-	.mpo_init_ipq_label = mac_biba_init_label_waitcheck,
-	.mpo_init_mbuf_label = mac_biba_init_label_waitcheck,
-	.mpo_init_mount_label = mac_biba_init_label,
-	.mpo_init_pipe_label = mac_biba_init_label,
-	.mpo_init_posix_sem_label = mac_biba_init_label,
-	.mpo_init_socket_label = mac_biba_init_label_waitcheck,
-	.mpo_init_socket_peer_label = mac_biba_init_label_waitcheck,
+	.mpo_sysvmsg_init_label = mac_biba_init_label,
+	.mpo_sysvmsq_init_label = mac_biba_init_label,
+	.mpo_sysvsem_init_label = mac_biba_init_label,
+	.mpo_sysvshm_init_label = mac_biba_init_label,
+	.mpo_ipq_init_label = mac_biba_init_label_waitcheck,
+	.mpo_mbuf_init_label = mac_biba_init_label_waitcheck,
+	.mpo_mount_init_label = mac_biba_init_label,
+	.mpo_pipe_init_label = mac_biba_init_label,
+	.mpo_posixsem_init_label = mac_biba_init_label,
+	.mpo_socket_init_label = mac_biba_init_label_waitcheck,
+	.mpo_socketpeer_init_label = mac_biba_init_label_waitcheck,
 	.mpo_init_syncache_from_inpcb = mac_biba_init_syncache_from_inpcb,
-	.mpo_init_vnode_label = mac_biba_init_label,
-	.mpo_destroy_bpfdesc_label = mac_biba_destroy_label,
-	.mpo_destroy_cred_label = mac_biba_destroy_label,
-	.mpo_destroy_devfs_label = mac_biba_destroy_label,
-	.mpo_destroy_ifnet_label = mac_biba_destroy_label,
-	.mpo_destroy_inpcb_label = mac_biba_destroy_label,
+	.mpo_vnode_init_label = mac_biba_init_label,
+	.mpo_bpfdesc_destroy_label = mac_biba_destroy_label,
+	.mpo_cred_destroy_label = mac_biba_destroy_label,
+	.mpo_devfs_destroy_label = mac_biba_destroy_label,
+	.mpo_ifnet_destroy_label = mac_biba_destroy_label,
+	.mpo_inpcb_destroy_label = mac_biba_destroy_label,
 	.mpo_destroy_syncache_label = mac_biba_destroy_label,
-	.mpo_destroy_sysv_msgmsg_label = mac_biba_destroy_label,
-	.mpo_destroy_sysv_msgqueue_label = mac_biba_destroy_label,
-	.mpo_destroy_sysv_sem_label = mac_biba_destroy_label,
-	.mpo_destroy_sysv_shm_label = mac_biba_destroy_label,
-	.mpo_destroy_ipq_label = mac_biba_destroy_label,
-	.mpo_destroy_mbuf_label = mac_biba_destroy_label,
-	.mpo_destroy_mount_label = mac_biba_destroy_label,
-	.mpo_destroy_pipe_label = mac_biba_destroy_label,
-	.mpo_destroy_posix_sem_label = mac_biba_destroy_label,
-	.mpo_destroy_socket_label = mac_biba_destroy_label,
-	.mpo_destroy_socket_peer_label = mac_biba_destroy_label,
-	.mpo_destroy_vnode_label = mac_biba_destroy_label,
-	.mpo_copy_cred_label = mac_biba_copy_label,
-	.mpo_copy_ifnet_label = mac_biba_copy_label,
-	.mpo_copy_mbuf_label = mac_biba_copy_label,
-	.mpo_copy_pipe_label = mac_biba_copy_label,
-	.mpo_copy_socket_label = mac_biba_copy_label,
-	.mpo_copy_vnode_label = mac_biba_copy_label,
-	.mpo_externalize_cred_label = mac_biba_externalize_label,
-	.mpo_externalize_ifnet_label = mac_biba_externalize_label,
-	.mpo_externalize_pipe_label = mac_biba_externalize_label,
-	.mpo_externalize_socket_label = mac_biba_externalize_label,
-	.mpo_externalize_socket_peer_label = mac_biba_externalize_label,
-	.mpo_externalize_vnode_label = mac_biba_externalize_label,
-	.mpo_internalize_cred_label = mac_biba_internalize_label,
-	.mpo_internalize_ifnet_label = mac_biba_internalize_label,
-	.mpo_internalize_pipe_label = mac_biba_internalize_label,
-	.mpo_internalize_socket_label = mac_biba_internalize_label,
-	.mpo_internalize_vnode_label = mac_biba_internalize_label,
-	.mpo_create_devfs_device = mac_biba_create_devfs_device,
-	.mpo_create_devfs_directory = mac_biba_create_devfs_directory,
-	.mpo_create_devfs_symlink = mac_biba_create_devfs_symlink,
-	.mpo_create_mount = mac_biba_create_mount,
-	.mpo_relabel_vnode = mac_biba_relabel_vnode,
-	.mpo_update_devfs = mac_biba_update_devfs,
-	.mpo_associate_vnode_devfs = mac_biba_associate_vnode_devfs,
-	.mpo_associate_vnode_extattr = mac_biba_associate_vnode_extattr,
-	.mpo_associate_vnode_singlelabel = mac_biba_associate_vnode_singlelabel,
-	.mpo_create_vnode_extattr = mac_biba_create_vnode_extattr,
-	.mpo_setlabel_vnode_extattr = mac_biba_setlabel_vnode_extattr,
-	.mpo_create_mbuf_from_socket = mac_biba_create_mbuf_from_socket,
+	.mpo_sysvmsg_destroy_label = mac_biba_destroy_label,
+	.mpo_sysvmsq_destroy_label = mac_biba_destroy_label,
+	.mpo_sysvsem_destroy_label = mac_biba_destroy_label,
+	.mpo_sysvshm_destroy_label = mac_biba_destroy_label,
+	.mpo_ipq_destroy_label = mac_biba_destroy_label,
+	.mpo_mbuf_destroy_label = mac_biba_destroy_label,
+	.mpo_mount_destroy_label = mac_biba_destroy_label,
+	.mpo_pipe_destroy_label = mac_biba_destroy_label,
+	.mpo_posixsem_destroy_label = mac_biba_destroy_label,
+	.mpo_socket_destroy_label = mac_biba_destroy_label,
+	.mpo_socketpeer_destroy_label = mac_biba_destroy_label,
+	.mpo_vnode_destroy_label = mac_biba_destroy_label,
+	.mpo_cred_copy_label = mac_biba_copy_label,
+	.mpo_ifnet_copy_label = mac_biba_copy_label,
+	.mpo_mbuf_copy_label = mac_biba_copy_label,
+	.mpo_pipe_copy_label = mac_biba_copy_label,
+	.mpo_socket_copy_label = mac_biba_copy_label,
+	.mpo_vnode_copy_label = mac_biba_copy_label,
+	.mpo_cred_externalize_label = mac_biba_externalize_label,
+	.mpo_ifnet_externalize_label = mac_biba_externalize_label,
+	.mpo_pipe_externalize_label = mac_biba_externalize_label,
+	.mpo_socket_externalize_label = mac_biba_externalize_label,
+	.mpo_socketpeer_externalize_label = mac_biba_externalize_label,
+	.mpo_vnode_externalize_label = mac_biba_externalize_label,
+	.mpo_cred_internalize_label = mac_biba_internalize_label,
+	.mpo_ifnet_internalize_label = mac_biba_internalize_label,
+	.mpo_pipe_internalize_label = mac_biba_internalize_label,
+	.mpo_socket_internalize_label = mac_biba_internalize_label,
+	.mpo_vnode_internalize_label = mac_biba_internalize_label,
+	.mpo_devfs_create_device = mac_biba_devfs_create_device,
+	.mpo_devfs_create_directory = mac_biba_devfs_create_directory,
+	.mpo_devfs_create_symlink = mac_biba_devfs_create_symlink,
+	.mpo_mount_create = mac_biba_mount_create,
+	.mpo_vnode_relabel = mac_biba_vnode_relabel,
+	.mpo_devfs_update = mac_biba_devfs_update,
+	.mpo_devfs_vnode_associate = mac_biba_devfs_vnode_associate,
+	.mpo_vnode_associate_extattr = mac_biba_vnode_associate_extattr,
+	.mpo_vnode_associate_singlelabel = mac_biba_vnode_associate_singlelabel,
+	.mpo_vnode_create_extattr = mac_biba_vnode_create_extattr,
+	.mpo_vnode_setlabel_extattr = mac_biba_vnode_setlabel_extattr,
+	.mpo_socket_create_mbuf = mac_biba_socket_create_mbuf,
 	.mpo_create_mbuf_from_syncache = mac_biba_create_mbuf_from_syncache,
-	.mpo_create_pipe = mac_biba_create_pipe,
-	.mpo_create_posix_sem = mac_biba_create_posix_sem,
-	.mpo_create_socket = mac_biba_create_socket,
-	.mpo_create_socket_from_socket = mac_biba_create_socket_from_socket,
-	.mpo_relabel_pipe = mac_biba_relabel_pipe,
-	.mpo_relabel_socket = mac_biba_relabel_socket,
-	.mpo_set_socket_peer_from_mbuf = mac_biba_set_socket_peer_from_mbuf,
-	.mpo_set_socket_peer_from_socket = mac_biba_set_socket_peer_from_socket,
-	.mpo_create_bpfdesc = mac_biba_create_bpfdesc,
-	.mpo_create_datagram_from_ipq = mac_biba_create_datagram_from_ipq,
-	.mpo_create_fragment = mac_biba_create_fragment,
-	.mpo_create_ifnet = mac_biba_create_ifnet,
-	.mpo_create_inpcb_from_socket = mac_biba_create_inpcb_from_socket,
-	.mpo_create_sysv_msgmsg = mac_biba_create_sysv_msgmsg,
-	.mpo_create_sysv_msgqueue = mac_biba_create_sysv_msgqueue,
-	.mpo_create_sysv_sem = mac_biba_create_sysv_sem,
-	.mpo_create_sysv_shm = mac_biba_create_sysv_shm,
-	.mpo_create_ipq = mac_biba_create_ipq,
-	.mpo_create_mbuf_from_inpcb = mac_biba_create_mbuf_from_inpcb,
+	.mpo_pipe_create = mac_biba_pipe_create,
+	.mpo_posixsem_create = mac_biba_posixsem_create,
+	.mpo_socket_create = mac_biba_socket_create,
+	.mpo_socket_newconn = mac_biba_socket_newconn,
+	.mpo_pipe_relabel = mac_biba_pipe_relabel,
+	.mpo_socket_relabel = mac_biba_socket_relabel,
+	.mpo_socketpeer_set_from_mbuf = mac_biba_socketpeer_set_from_mbuf,
+	.mpo_socketpeer_set_from_socket = mac_biba_socketpeer_set_from_socket,
+	.mpo_bpfdesc_create = mac_biba_bpfdesc_create,
+	.mpo_ipq_reassemble = mac_biba_ipq_reassemble,
+	.mpo_netinet_fragment = mac_biba_netinet_fragment,
+	.mpo_ifnet_create = mac_biba_ifnet_create,
+	.mpo_inpcb_create = mac_biba_inpcb_create,
+	.mpo_sysvmsg_create = mac_biba_sysvmsg_create,
+	.mpo_sysvmsq_create = mac_biba_sysvmsq_create,
+	.mpo_sysvsem_create = mac_biba_sysvsem_create,
+	.mpo_sysvshm_create = mac_biba_sysvshm_create,
+	.mpo_ipq_create = mac_biba_ipq_create,
+	.mpo_inpcb_create_mbuf = mac_biba_inpcb_create_mbuf,
 	.mpo_create_mbuf_linklayer = mac_biba_create_mbuf_linklayer,
-	.mpo_create_mbuf_from_bpfdesc = mac_biba_create_mbuf_from_bpfdesc,
-	.mpo_create_mbuf_from_ifnet = mac_biba_create_mbuf_from_ifnet,
-	.mpo_create_mbuf_multicast_encap = mac_biba_create_mbuf_multicast_encap,
-	.mpo_create_mbuf_netlayer = mac_biba_create_mbuf_netlayer,
-	.mpo_fragment_match = mac_biba_fragment_match,
-	.mpo_relabel_ifnet = mac_biba_relabel_ifnet,
-	.mpo_update_ipq = mac_biba_update_ipq,
+	.mpo_bpfdesc_create_mbuf = mac_biba_bpfdesc_create_mbuf,
+	.mpo_ifnet_create_mbuf = mac_biba_ifnet_create_mbuf,
+	.mpo_mbuf_create_multicast_encap = mac_biba_mbuf_create_multicast_encap,
+	.mpo_mbuf_create_netlayer = mac_biba_mbuf_create_netlayer,
+	.mpo_ipq_match = mac_biba_ipq_match,
+	.mpo_ifnet_relabel = mac_biba_ifnet_relabel,
+	.mpo_ipq_update = mac_biba_ipq_update,
 	.mpo_inpcb_sosetlabel = mac_biba_inpcb_sosetlabel,
-	.mpo_create_proc0 = mac_biba_create_proc0,
-	.mpo_create_proc1 = mac_biba_create_proc1,
-	.mpo_relabel_cred = mac_biba_relabel_cred,
-	.mpo_cleanup_sysv_msgmsg = mac_biba_cleanup_sysv_msgmsg,
-	.mpo_cleanup_sysv_msgqueue = mac_biba_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sem = mac_biba_cleanup_sysv_sem,
-	.mpo_cleanup_sysv_shm = mac_biba_cleanup_sysv_shm,
-	.mpo_check_bpfdesc_receive = mac_biba_check_bpfdesc_receive,
-	.mpo_check_cred_relabel = mac_biba_check_cred_relabel,
-	.mpo_check_cred_visible = mac_biba_check_cred_visible,
-	.mpo_check_ifnet_relabel = mac_biba_check_ifnet_relabel,
-	.mpo_check_ifnet_transmit = mac_biba_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_biba_check_inpcb_deliver,
-	.mpo_check_sysv_msgrcv = mac_biba_check_sysv_msgrcv,
-	.mpo_check_sysv_msgrmid = mac_biba_check_sysv_msgrmid,
-	.mpo_check_sysv_msqget = mac_biba_check_sysv_msqget,
-	.mpo_check_sysv_msqsnd = mac_biba_check_sysv_msqsnd,
-	.mpo_check_sysv_msqrcv = mac_biba_check_sysv_msqrcv,
-	.mpo_check_sysv_msqctl = mac_biba_check_sysv_msqctl,
-	.mpo_check_sysv_semctl = mac_biba_check_sysv_semctl,
-	.mpo_check_sysv_semget = mac_biba_check_sysv_semget,
-	.mpo_check_sysv_semop = mac_biba_check_sysv_semop,
-	.mpo_check_sysv_shmat = mac_biba_check_sysv_shmat,
-	.mpo_check_sysv_shmctl = mac_biba_check_sysv_shmctl,
-	.mpo_check_sysv_shmget = mac_biba_check_sysv_shmget,
-	.mpo_check_kld_load = mac_biba_check_kld_load,
-	.mpo_check_mount_stat = mac_biba_check_mount_stat,
-	.mpo_check_pipe_ioctl = mac_biba_check_pipe_ioctl,
-	.mpo_check_pipe_poll = mac_biba_check_pipe_poll,
-	.mpo_check_pipe_read = mac_biba_check_pipe_read,
-	.mpo_check_pipe_relabel = mac_biba_check_pipe_relabel,
-	.mpo_check_pipe_stat = mac_biba_check_pipe_stat,
-	.mpo_check_pipe_write = mac_biba_check_pipe_write,
-	.mpo_check_posix_sem_destroy = mac_biba_check_posix_sem_write,
-	.mpo_check_posix_sem_getvalue = mac_biba_check_posix_sem_rdonly,
-	.mpo_check_posix_sem_open = mac_biba_check_posix_sem_write,
-	.mpo_check_posix_sem_post = mac_biba_check_posix_sem_write,
-	.mpo_check_posix_sem_unlink = mac_biba_check_posix_sem_write,
-	.mpo_check_posix_sem_wait = mac_biba_check_posix_sem_write,
-	.mpo_check_proc_debug = mac_biba_check_proc_debug,
-	.mpo_check_proc_sched = mac_biba_check_proc_sched,
-	.mpo_check_proc_signal = mac_biba_check_proc_signal,
-	.mpo_check_socket_deliver = mac_biba_check_socket_deliver,
-	.mpo_check_socket_relabel = mac_biba_check_socket_relabel,
-	.mpo_check_socket_visible = mac_biba_check_socket_visible,
-	.mpo_check_system_acct = mac_biba_check_system_acct,
-	.mpo_check_system_auditctl = mac_biba_check_system_auditctl,
-	.mpo_check_system_auditon = mac_biba_check_system_auditon,
-	.mpo_check_system_swapon = mac_biba_check_system_swapon,
-	.mpo_check_system_swapoff = mac_biba_check_system_swapoff,
-	.mpo_check_system_sysctl = mac_biba_check_system_sysctl,
-	.mpo_check_vnode_access = mac_biba_check_vnode_open,
-	.mpo_check_vnode_chdir = mac_biba_check_vnode_chdir,
-	.mpo_check_vnode_chroot = mac_biba_check_vnode_chroot,
-	.mpo_check_vnode_create = mac_biba_check_vnode_create,
-	.mpo_check_vnode_deleteacl = mac_biba_check_vnode_deleteacl,
-	.mpo_check_vnode_deleteextattr = mac_biba_check_vnode_deleteextattr,
-	.mpo_check_vnode_exec = mac_biba_check_vnode_exec,
-	.mpo_check_vnode_getacl = mac_biba_check_vnode_getacl,
-	.mpo_check_vnode_getextattr = mac_biba_check_vnode_getextattr,
-	.mpo_check_vnode_link = mac_biba_check_vnode_link,
-	.mpo_check_vnode_listextattr = mac_biba_check_vnode_listextattr,
-	.mpo_check_vnode_lookup = mac_biba_check_vnode_lookup,
-	.mpo_check_vnode_mmap = mac_biba_check_vnode_mmap,
-	.mpo_check_vnode_open = mac_biba_check_vnode_open,
-	.mpo_check_vnode_poll = mac_biba_check_vnode_poll,
-	.mpo_check_vnode_read = mac_biba_check_vnode_read,
-	.mpo_check_vnode_readdir = mac_biba_check_vnode_readdir,
-	.mpo_check_vnode_readlink = mac_biba_check_vnode_readlink,
-	.mpo_check_vnode_relabel = mac_biba_check_vnode_relabel,
-	.mpo_check_vnode_rename_from = mac_biba_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_biba_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_biba_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_biba_check_vnode_setacl,
-	.mpo_check_vnode_setextattr = mac_biba_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_biba_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_biba_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_biba_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_biba_check_vnode_setutimes,
-	.mpo_check_vnode_stat = mac_biba_check_vnode_stat,
-	.mpo_check_vnode_unlink = mac_biba_check_vnode_unlink,
-	.mpo_check_vnode_write = mac_biba_check_vnode_write,
+	.mpo_proc_create_swapper = mac_biba_proc_create_swapper,
+	.mpo_proc_create_init = mac_biba_proc_create_init,
+	.mpo_cred_relabel = mac_biba_cred_relabel,
+	.mpo_sysvmsg_cleanup = mac_biba_sysvmsg_cleanup,
+	.mpo_sysvmsq_cleanup = mac_biba_sysvmsq_cleanup,
+	.mpo_sysvsem_cleanup = mac_biba_sysvsem_cleanup,
+	.mpo_sysvshm_cleanup = mac_biba_sysvshm_cleanup,
+	.mpo_bpfdesc_check_receive = mac_biba_bpfdesc_check_receive,
+	.mpo_cred_check_relabel = mac_biba_cred_check_relabel,
+	.mpo_cred_check_visible = mac_biba_cred_check_visible,
+	.mpo_ifnet_check_relabel = mac_biba_ifnet_check_relabel,
+	.mpo_ifnet_check_transmit = mac_biba_ifnet_check_transmit,
+	.mpo_inpcb_check_deliver = mac_biba_inpcb_check_deliver,
+	.mpo_sysvmsq_check_msgrcv = mac_biba_sysvmsq_check_msgrcv,
+	.mpo_sysvmsq_check_msgrmid = mac_biba_sysvmsq_check_msgrmid,
+	.mpo_sysvmsq_check_msqget = mac_biba_sysvmsq_check_msqget,
+	.mpo_sysvmsq_check_msqsnd = mac_biba_sysvmsq_check_msqsnd,
+	.mpo_sysvmsq_check_msqrcv = mac_biba_sysvmsq_check_msqrcv,
+	.mpo_sysvmsq_check_msqctl = mac_biba_sysvmsq_check_msqctl,
+	.mpo_sysvsem_check_semctl = mac_biba_sysvsem_check_semctl,
+	.mpo_sysvsem_check_semget = mac_biba_sysvsem_check_semget,
+	.mpo_sysvsem_check_semop = mac_biba_sysvsem_check_semop,
+	.mpo_sysvshm_check_shmat = mac_biba_sysvshm_check_shmat,
+	.mpo_sysvshm_check_shmctl = mac_biba_sysvshm_check_shmctl,
+	.mpo_sysvshm_check_shmget = mac_biba_sysvshm_check_shmget,
+	.mpo_kld_check_load = mac_biba_kld_check_load,
+	.mpo_mount_check_stat = mac_biba_mount_check_stat,
+	.mpo_pipe_check_ioctl = mac_biba_pipe_check_ioctl,
+	.mpo_pipe_check_poll = mac_biba_pipe_check_poll,
+	.mpo_pipe_check_read = mac_biba_pipe_check_read,
+	.mpo_pipe_check_relabel = mac_biba_pipe_check_relabel,
+	.mpo_pipe_check_stat = mac_biba_pipe_check_stat,
+	.mpo_pipe_check_write = mac_biba_pipe_check_write,
+	.mpo_posixsem_check_destroy = mac_biba_posixsem_check_write,
+	.mpo_posixsem_check_getvalue = mac_biba_posixsem_check_rdonly,
+	.mpo_posixsem_check_open = mac_biba_posixsem_check_write,
+	.mpo_posixsem_check_post = mac_biba_posixsem_check_write,
+	.mpo_posixsem_check_unlink = mac_biba_posixsem_check_write,
+	.mpo_posixsem_check_wait = mac_biba_posixsem_check_write,
+	.mpo_proc_check_debug = mac_biba_proc_check_debug,
+	.mpo_proc_check_sched = mac_biba_proc_check_sched,
+	.mpo_proc_check_signal = mac_biba_proc_check_signal,
+	.mpo_socket_check_deliver = mac_biba_socket_check_deliver,
+	.mpo_socket_check_relabel = mac_biba_socket_check_relabel,
+	.mpo_socket_check_visible = mac_biba_socket_check_visible,
+	.mpo_system_check_acct = mac_biba_system_check_acct,
+	.mpo_system_check_auditctl = mac_biba_system_check_auditctl,
+	.mpo_system_check_auditon = mac_biba_system_check_auditon,
+	.mpo_system_check_swapon = mac_biba_system_check_swapon,
+	.mpo_system_check_swapoff = mac_biba_system_check_swapoff,
+	.mpo_system_check_sysctl = mac_biba_system_check_sysctl,
+	.mpo_vnode_check_access = mac_biba_vnode_check_open,
+	.mpo_vnode_check_chdir = mac_biba_vnode_check_chdir,
+	.mpo_vnode_check_chroot = mac_biba_vnode_check_chroot,
+	.mpo_vnode_check_create = mac_biba_vnode_check_create,
+	.mpo_vnode_check_deleteacl = mac_biba_vnode_check_deleteacl,
+	.mpo_vnode_check_deleteextattr = mac_biba_vnode_check_deleteextattr,
+	.mpo_vnode_check_exec = mac_biba_vnode_check_exec,
+	.mpo_vnode_check_getacl = mac_biba_vnode_check_getacl,
+	.mpo_vnode_check_getextattr = mac_biba_vnode_check_getextattr,
+	.mpo_vnode_check_link = mac_biba_vnode_check_link,
+	.mpo_vnode_check_listextattr = mac_biba_vnode_check_listextattr,
+	.mpo_vnode_check_lookup = mac_biba_vnode_check_lookup,
+	.mpo_vnode_check_mmap = mac_biba_vnode_check_mmap,
+	.mpo_vnode_check_open = mac_biba_vnode_check_open,
+	.mpo_vnode_check_poll = mac_biba_vnode_check_poll,
+	.mpo_vnode_check_read = mac_biba_vnode_check_read,
+	.mpo_vnode_check_readdir = mac_biba_vnode_check_readdir,
+	.mpo_vnode_check_readlink = mac_biba_vnode_check_readlink,
+	.mpo_vnode_check_relabel = mac_biba_vnode_check_relabel,
+	.mpo_vnode_check_rename_from = mac_biba_vnode_check_rename_from,
+	.mpo_vnode_check_rename_to = mac_biba_vnode_check_rename_to,
+	.mpo_vnode_check_revoke = mac_biba_vnode_check_revoke,
+	.mpo_vnode_check_setacl = mac_biba_vnode_check_setacl,
+	.mpo_vnode_check_setextattr = mac_biba_vnode_check_setextattr,
+	.mpo_vnode_check_setflags = mac_biba_vnode_check_setflags,
+	.mpo_vnode_check_setmode = mac_biba_vnode_check_setmode,
+	.mpo_vnode_check_setowner = mac_biba_vnode_check_setowner,
+	.mpo_vnode_check_setutimes = mac_biba_vnode_check_setutimes,
+	.mpo_vnode_check_stat = mac_biba_vnode_check_stat,
+	.mpo_vnode_check_unlink = mac_biba_vnode_check_unlink,
+	.mpo_vnode_check_write = mac_biba_vnode_check_write,
 	.mpo_associate_nfsd_label = mac_biba_associate_nfsd_label,
-	.mpo_create_mbuf_from_firewall = mac_biba_create_mbuf_from_firewall,
+	.mpo_mbuf_create_from_firewall = mac_biba_mbuf_create_from_firewall,
 	.mpo_priv_check = mac_biba_priv_check,
 };
 

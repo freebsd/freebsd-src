@@ -293,7 +293,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)
 		goto out;
 #endif
@@ -378,7 +378,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		goto out;
 	}
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)
 		goto out;
 #endif
@@ -470,7 +470,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			continue;
 		}
 #ifdef MAC
-		if (mac_check_mount_stat(td->td_ucred, mp) != 0) {
+		if (mac_mount_check_stat(td->td_ucred, mp) != 0) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -891,7 +891,7 @@ chroot(td, uap)
 	if ((error = change_dir(nd.ni_vp, td)) != 0)
 		goto e_vunlock;
 #ifdef MAC
-	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp)))
+	if ((error = mac_vnode_check_chroot(td->td_ucred, nd.ni_vp)))
 		goto e_vunlock;
 #endif
 	VOP_UNLOCK(nd.ni_vp, 0, td);
@@ -923,7 +923,7 @@ change_dir(vp, td)
 	if (vp->v_type != VDIR)
 		return (ENOTDIR);
 #ifdef MAC
-	error = mac_check_vnode_chdir(td->td_ucred, vp);
+	error = mac_vnode_check_chdir(td->td_ucred, vp);
 	if (error)
 		return (error);
 #endif
@@ -933,8 +933,8 @@ change_dir(vp, td)
 
 /*
  * Common routine for kern_chroot() and jail_attach().  The caller is
- * responsible for invoking priv_check() and mac_check_chroot() to authorize
- * this operation.
+ * responsible for invoking priv_check() and mac_vnode_check_chroot() to
+ * authorize this operation.
  */
 int
 change_root(vp, td)
@@ -1103,7 +1103,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		vat.va_size = 0;
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
-		error = mac_check_vnode_write(td->td_ucred, fp->f_cred, vp);
+		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
 #endif
 			error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
@@ -1258,7 +1258,7 @@ restart:
 	}
 #ifdef MAC
 	if (error == 0 && !whiteout)
-		error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp,
+		error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp,
 		    &nd.ni_cnd, &vattr);
 #endif
 	if (!error) {
@@ -1341,7 +1341,7 @@ restart:
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
 	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
-	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
 	if (error)
 		goto out;
@@ -1467,7 +1467,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 			error = can_hardlink(vp, td, td->td_ucred);
 			if (error == 0)
 #ifdef MAC
-				error = mac_check_vnode_link(td->td_ucred,
+				error = mac_vnode_check_link(td->td_ucred,
 				    nd.ni_dvp, vp, &nd.ni_cnd);
 			if (error == 0)
 #endif
@@ -1555,7 +1555,7 @@ restart:
 	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	vattr.va_type = VLNK;
-	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
 	if (error)
 		goto out2;
@@ -1693,7 +1693,7 @@ restart:
 			goto restart;
 		}
 #ifdef MAC
-		error = mac_check_vnode_unlink(td->td_ucred, nd.ni_dvp, vp,
+		error = mac_vnode_check_unlink(td->td_ucred, nd.ni_dvp, vp,
 		    &nd.ni_cnd);
 		if (error)
 			goto out;
@@ -1872,7 +1872,7 @@ vn_access(vp, user_flags, cred, td)
 		if (user_flags & X_OK)
 			flags |= VEXEC;
 #ifdef MAC
-		error = mac_check_vnode_access(cred, vp, flags);
+		error = mac_vnode_check_access(cred, vp, flags);
 		if (error)
 			return (error);
 #endif
@@ -2341,7 +2341,7 @@ kern_readlink(struct thread *td, char *path, enum uio_seg pathseg, char *buf,
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 #ifdef MAC
-	error = mac_check_vnode_readlink(td->td_ucred, vp);
+	error = mac_vnode_check_readlink(td->td_ucred, vp);
 	if (error) {
 		vput(vp);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -2400,7 +2400,7 @@ setfflags(td, vp, flags)
 	VATTR_NULL(&vattr);
 	vattr.va_flags = flags;
 #ifdef MAC
-	error = mac_check_vnode_setflags(td->td_ucred, vp, vattr.va_flags);
+	error = mac_vnode_check_setflags(td->td_ucred, vp, vattr.va_flags);
 	if (error == 0)
 #endif
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
@@ -2528,7 +2528,7 @@ setfmode(td, vp, mode)
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
 #ifdef MAC
-	error = mac_check_vnode_setmode(td->td_ucred, vp, vattr.va_mode);
+	error = mac_vnode_check_setmode(td->td_ucred, vp, vattr.va_mode);
 	if (error == 0)
 #endif
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
@@ -2670,7 +2670,7 @@ setfown(td, vp, uid, gid)
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
 #ifdef MAC
-	error = mac_check_vnode_setowner(td->td_ucred, vp, vattr.va_uid,
+	error = mac_vnode_check_setowner(td->td_ucred, vp, vattr.va_uid,
 	    vattr.va_gid);
 	if (error == 0)
 #endif
@@ -2873,7 +2873,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 	if (nullflag)
 		vattr.va_vaflags |= VA_UTIMES_NULL;
 #ifdef MAC
-	error = mac_check_vnode_setutimes(td->td_ucred, vp, vattr.va_atime,
+	error = mac_vnode_check_setutimes(td->td_ucred, vp, vattr.va_atime,
 	    vattr.va_mtime);
 #endif
 	if (error == 0)
@@ -3069,7 +3069,7 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 #ifdef MAC
-	else if ((error = mac_check_vnode_write(td->td_ucred, NOCRED, vp))) {
+	else if ((error = mac_vnode_check_write(td->td_ucred, NOCRED, vp))) {
 	}
 #endif
 	else if ((error = vn_writechk(vp)) == 0 &&
@@ -3129,7 +3129,7 @@ ftruncate(td, uap)
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 #ifdef MAC
-	else if ((error = mac_check_vnode_write(td->td_ucred, fp->f_cred,
+	else if ((error = mac_vnode_check_write(td->td_ucred, fp->f_cred,
 	    vp))) {
 	}
 #endif
@@ -3315,7 +3315,7 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 	fvfslocked = NDHASGIANT(&fromnd);
 	tvfslocked = 0;
 #ifdef MAC
-	error = mac_check_vnode_rename_from(td->td_ucred, fromnd.ni_dvp,
+	error = mac_vnode_check_rename_from(td->td_ucred, fromnd.ni_dvp,
 	    fromnd.ni_vp, &fromnd.ni_cnd);
 	VOP_UNLOCK(fromnd.ni_dvp, 0, td);
 	if (fromnd.ni_dvp != fromnd.ni_vp)
@@ -3366,7 +3366,7 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 		error = -1;
 #ifdef MAC
 	else
-		error = mac_check_vnode_rename_to(td->td_ucred, tdvp,
+		error = mac_vnode_check_rename_to(td->td_ucred, tdvp,
 		    tond.ni_vp, fromnd.ni_dvp == tdvp, &tond.ni_cnd);
 #endif
 out:
@@ -3476,7 +3476,7 @@ restart:
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
-	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
 	if (error)
 		goto out;
@@ -3550,7 +3550,7 @@ restart:
 		goto out;
 	}
 #ifdef MAC
-	error = mac_check_vnode_unlink(td->td_ucred, nd.ni_dvp, vp,
+	error = mac_vnode_check_unlink(td->td_ucred, nd.ni_dvp, vp,
 	    &nd.ni_cnd);
 	if (error)
 		goto out;
@@ -3641,7 +3641,7 @@ unionread:
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error) {
 		VOP_UNLOCK(vp, 0, td);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -3785,7 +3785,7 @@ unionread:
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error == 0)
 #endif
 		error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL,
@@ -3903,7 +3903,7 @@ revoke(td, uap)
 		goto out;
 	}
 #ifdef MAC
-	error = mac_check_vnode_revoke(td->td_ucred, vp);
+	error = mac_vnode_check_revoke(td->td_ucred, vp);
 	if (error)
 		goto out;
 #endif
@@ -4126,7 +4126,7 @@ fhopen(td, uap)
 	if (fmode & O_APPEND)
 		mode |= VAPPEND;
 #ifdef MAC
-	error = mac_check_vnode_open(td->td_ucred, vp, mode);
+	error = mac_vnode_check_open(td->td_ucred, vp, mode);
 	if (error)
 		goto bad;
 #endif
@@ -4148,7 +4148,7 @@ fhopen(td, uap)
 		 * We don't yet have fp->f_cred, so use td->td_ucred, which
 		 * should be right.
 		 */
-		error = mac_check_vnode_write(td->td_ucred, td->td_ucred, vp);
+		error = mac_vnode_check_write(td->td_ucred, td->td_ucred, vp);
 		if (error == 0) {
 #endif
 			VATTR_NULL(vap);
@@ -4337,7 +4337,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	if (error)
 		goto out;
 #ifdef MAC
-	error = mac_check_mount_stat(td->td_ucred, mp);
+	error = mac_mount_check_stat(td->td_ucred, mp);
 	if (error)
 		goto out;
 #endif

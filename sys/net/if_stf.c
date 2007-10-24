@@ -406,7 +406,7 @@ stf_output(ifp, m, dst, rt)
 #ifdef MAC
 	int error;
 
-	error = mac_check_ifnet_transmit(ifp, m);
+	error = mac_ifnet_check_transmit(ifp, m);
 	if (error) {
 		m_freem(m);
 		return (error);
@@ -674,7 +674,7 @@ in_stf_input(m, off)
 	ifp = STF2IFP(sc);
 
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 
 	/*

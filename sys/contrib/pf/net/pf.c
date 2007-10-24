@@ -1818,9 +1818,9 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 #ifdef __FreeBSD__
 #ifdef MAC
 	if (replyto)
-		mac_create_mbuf_netlayer(replyto, m);
+		mac_mbuf_create_netlayer(replyto, m);
 	else
-		mac_create_mbuf_from_firewall(m);
+		mac_mbuf_create_from_firewall(m);
 #else
 	(void)replyto;
 #endif

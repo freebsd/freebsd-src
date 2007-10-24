@@ -776,7 +776,7 @@ ip_reass(struct mbuf *m)
 		    ip->ip_src.s_addr == fp->ipq_src.s_addr &&
 		    ip->ip_dst.s_addr == fp->ipq_dst.s_addr &&
 #ifdef MAC
-		    mac_fragment_match(m, fp) &&
+		    mac_ipq_match(m, fp) &&
 #endif
 		    ip->ip_p == fp->ipq_p)
 			goto found;
@@ -852,12 +852,12 @@ found:
 		if (fp == NULL)
 			goto dropfrag;
 #ifdef MAC
-		if (mac_init_ipq(fp, M_NOWAIT) != 0) {
+		if (mac_ipq_init(fp, M_NOWAIT) != 0) {
 			uma_zfree(ipq_zone, fp);
 			fp = NULL;
 			goto dropfrag;
 		}
-		mac_create_ipq(m, fp);
+		mac_ipq_create(m, fp);
 #endif
 		TAILQ_INSERT_HEAD(head, fp, ipq_list);
 		nipq++;
@@ -873,7 +873,7 @@ found:
 	} else {
 		fp->ipq_nfrags++;
 #ifdef MAC
-		mac_update_ipq(m, fp);
+		mac_ipq_update(m, fp);
 #endif
 	}
 
@@ -1015,8 +1015,8 @@ found:
 	m->m_pkthdr.csum_data =
 	    (m->m_pkthdr.csum_data & 0xffff) + (m->m_pkthdr.csum_data >> 16);
 #ifdef MAC
-	mac_create_datagram_from_ipq(fp, m);
-	mac_destroy_ipq(fp);
+	mac_ipq_reassemble(fp, m);
+	mac_ipq_destroy(fp);
 #endif
 
 	/*

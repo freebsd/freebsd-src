@@ -300,7 +300,7 @@ alq_doio(struct alq *alq)
 	 * XXX: VOP_WRITE error checks are ignored.
 	 */
 #ifdef MAC
-	if (mac_check_vnode_write(alq->aq_cred, NOCRED, vp) == 0)
+	if (mac_vnode_check_write(alq->aq_cred, NOCRED, vp) == 0)
 #endif
 		VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);
 	VOP_UNLOCK(vp, 0, td);

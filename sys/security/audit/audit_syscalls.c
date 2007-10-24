@@ -114,7 +114,7 @@ audit(struct thread *td, struct audit_args *uap)
 	}
 
 #ifdef MAC
-	error = mac_check_system_audit(td->td_ucred, rec, uap->length);
+	error = mac_system_check_audit(td->td_ucred, rec, uap->length);
 	if (error)
 		goto free_out;
 #endif
@@ -166,7 +166,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 	AUDIT_ARG(cmd, uap->cmd);
 
 #ifdef MAC
-	error = mac_check_system_auditon(td->td_ucred, uap->cmd);
+	error = mac_system_check_auditon(td->td_ucred, uap->cmd);
 	if (error)
 		return (error);
 #endif
@@ -470,7 +470,7 @@ setauid(struct thread *td, struct setauid_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_check_proc_setauid(oldcred, id);
+	error = mac_proc_check_setauid(oldcred, id);
 	if (error)
 		goto fail;
 #endif
@@ -533,7 +533,7 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_check_proc_setaudit(oldcred, &ai);
+	error = mac_proc_check_setaudit(oldcred, &ai);
 	if (error)
 		goto fail;
 #endif
@@ -596,7 +596,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	oldcred = td->td_proc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	error = mac_check_proc_setaudit_addr(oldcred, &aia);
+	error = mac_proc_check_setaudit_addr(oldcred, &aia);
 	if (error)
 		goto fail;
 #endif
@@ -655,7 +655,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 #ifdef MAC
-	error = mac_check_system_auditctl(td->td_ucred, vp);
+	error = mac_system_check_auditctl(td->td_ucred, vp);
 	VOP_UNLOCK(vp, 0, td);
 	if (error) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);

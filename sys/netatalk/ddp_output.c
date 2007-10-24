@@ -54,7 +54,7 @@ ddp_output(struct mbuf *m, struct socket *so)
 
 #ifdef MAC
 	SOCK_LOCK(so);
-	mac_create_mbuf_from_socket(so, m);
+	mac_socket_create_mbuf(so, m);
 	SOCK_UNLOCK(so);
 #endif
 
@@ -200,7 +200,7 @@ ddp_route(struct mbuf *m, struct route *ro)
 			return (ENOBUFS);
 		}
 #ifdef MAC
-		mac_copy_mbuf(m, m0);
+		mac_mbuf_copy(m, m0);
 #endif
 		m0->m_next = m;
 		/* XXX perhaps we ought to align the header? */
