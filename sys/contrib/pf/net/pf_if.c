@@ -731,6 +731,9 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 {
 	struct pfi_kif	*p, *nextp;
 	int		 s, n = 0;
+#ifdef __FreeBSD__
+	int		 error;
+#endif
 
 	s = splsoftnet();
 	for (p = RB_MIN(pfi_ifhead, &pfi_ifs); p; p = nextp) {
@@ -741,7 +744,12 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 			if (!p->pfik_tzero)
 				p->pfik_tzero = time_second;
 			pfi_kif_ref(p, PFI_KIF_REF_RULE);
+#ifdef __FreeBSD__
+			PF_COPYOUT(p, buf++, sizeof(*buf), error);
+			if (error) {
+#else
 			if (copyout(p, buf++, sizeof(*buf))) {
+#endif
 				pfi_kif_unref(p, PFI_KIF_REF_RULE);
 				splx(s);
 				return (EFAULT);
