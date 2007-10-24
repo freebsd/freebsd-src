@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
+extern int __mb_sb_limit;
+
 static size_t	_GB2312_mbrtowc(wchar_t * __restrict, const char * __restrict,
 		    size_t, mbstate_t * __restrict);
 static int	_GB2312_mbsinit(const mbstate_t *);
@@ -55,6 +57,7 @@ _GB2312_init(_RuneLocale *rl)
 	__wcrtomb = _GB2312_wcrtomb;
 	__mbsinit = _GB2312_mbsinit;
 	__mb_cur_max = 2;
+	__mb_sb_limit = 128;
 	return (0);
 }
 
