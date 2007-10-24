@@ -482,7 +482,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setuid(p, oldcred, uid);
+	error = mac_proc_check_setuid(p, oldcred, uid);
 	if (error)
 		goto fail;
 #endif
@@ -594,7 +594,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_seteuid(p, oldcred, euid);
+	error = mac_proc_check_seteuid(p, oldcred, euid);
 	if (error)
 		goto fail;
 #endif
@@ -647,7 +647,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setgid(p, oldcred, gid);
+	error = mac_proc_check_setgid(p, oldcred, gid);
 	if (error)
 		goto fail;
 #endif
@@ -746,7 +746,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setegid(p, oldcred, egid);
+	error = mac_proc_check_setegid(p, oldcred, egid);
 	if (error)
 		goto fail;
 #endif
@@ -808,7 +808,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setgroups(p, oldcred, ngrp, groups);
+	error = mac_proc_check_setgroups(p, oldcred, ngrp, groups);
 	if (error)
 		goto fail;
 #endif
@@ -873,7 +873,7 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setreuid(p, oldcred, ruid, euid);
+	error = mac_proc_check_setreuid(p, oldcred, ruid, euid);
 	if (error)
 		goto fail;
 #endif
@@ -938,7 +938,7 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setregid(p, oldcred, rgid, egid);
+	error = mac_proc_check_setregid(p, oldcred, rgid, egid);
 	if (error)
 		goto fail;
 #endif
@@ -1009,7 +1009,7 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setresuid(p, oldcred, ruid, euid, suid);
+	error = mac_proc_check_setresuid(p, oldcred, ruid, euid, suid);
 	if (error)
 		goto fail;
 #endif
@@ -1086,7 +1086,7 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	oldcred = p->p_ucred;
 
 #ifdef MAC
-	error = mac_check_proc_setresgid(p, oldcred, rgid, egid, sgid);
+	error = mac_proc_check_setresgid(p, oldcred, rgid, egid, sgid);
 	if (error)
 		goto fail;
 #endif
@@ -1369,7 +1369,7 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 	if ((error = prison_check(u1, u2)))
 		return (error);
 #ifdef MAC
-	if ((error = mac_check_cred_visible(u1, u2)))
+	if ((error = mac_cred_check_visible(u1, u2)))
 		return (error);
 #endif
 	if ((error = cr_seeotheruids(u1, u2)))
@@ -1430,7 +1430,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	if (error)
 		return (error);
 #ifdef MAC
-	if ((error = mac_check_proc_signal(cred, proc, signum)))
+	if ((error = mac_proc_check_signal(cred, proc, signum)))
 		return (error);
 #endif
 	if ((error = cr_seeotheruids(cred, proc->p_ucred)))
@@ -1547,7 +1547,7 @@ p_cansched(struct thread *td, struct proc *p)
 	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
-	if ((error = mac_check_proc_sched(td->td_ucred, p)))
+	if ((error = mac_proc_check_sched(td->td_ucred, p)))
 		return (error);
 #endif
 	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
@@ -1604,7 +1604,7 @@ p_candebug(struct thread *td, struct proc *p)
 	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
-	if ((error = mac_check_proc_debug(td->td_ucred, p)))
+	if ((error = mac_proc_check_debug(td->td_ucred, p)))
 		return (error);
 #endif
 	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
@@ -1691,7 +1691,7 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 		return (ENOENT);
 #ifdef MAC
 	SOCK_LOCK(so);
-	error = mac_check_socket_visible(cred, so);
+	error = mac_socket_check_visible(cred, so);
 	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
@@ -1723,7 +1723,7 @@ p_canwait(struct thread *td, struct proc *p)
 	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
-	if ((error = mac_check_proc_wait(td->td_ucred, p)))
+	if ((error = mac_proc_check_wait(td->td_ucred, p)))
 		return (error);
 #endif
 #if 0
@@ -1749,7 +1749,7 @@ crget(void)
 	audit_cred_init(cr);
 #endif
 #ifdef MAC
-	mac_init_cred(cr);
+	mac_cred_init(cr);
 #endif
 	return (cr);
 }
@@ -1793,7 +1793,7 @@ crfree(struct ucred *cr)
 		audit_cred_destroy(cr);
 #endif
 #ifdef MAC
-		mac_destroy_cred(cr);
+		mac_cred_destroy(cr);
 #endif
 		FREE(cr, M_CRED);
 	}
@@ -1828,7 +1828,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	audit_cred_copy(src, dest);
 #endif
 #ifdef MAC
-	mac_copy_cred(src, dest);
+	mac_cred_copy(src, dest);
 #endif
 }
 

@@ -206,7 +206,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	}
 #endif /* IPSEC */
 #ifdef MAC
-	if (mac_check_inpcb_deliver(inp, n) != 0) {
+	if (mac_inpcb_check_deliver(inp, n) != 0) {
 		m_freem(n);
 		return;
 	}
@@ -843,7 +843,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	INP_LOCK(inp);
 
 #ifdef MAC
-	mac_create_mbuf_from_inpcb(inp, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
 
 	/*

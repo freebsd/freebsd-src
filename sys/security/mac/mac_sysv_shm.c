@@ -1,11 +1,15 @@
 /*-
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,12 +62,12 @@ mac_sysv_shm_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_sysv_shm_label, label);
+	MAC_PERFORM(sysvshm_init_label, label);
 	return (label);
 }
 
 void
-mac_init_sysv_shm(struct shmid_kernel *shmsegptr)
+mac_sysvshm_init(struct shmid_kernel *shmsegptr)
 {
 
 	shmsegptr->label = mac_sysv_shm_label_alloc();
@@ -73,12 +77,12 @@ static void
 mac_sysv_shm_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_sysv_shm_label, label);
+	MAC_PERFORM(sysvshm_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
 void
-mac_destroy_sysv_shm(struct shmid_kernel *shmsegptr)
+mac_sysvshm_destroy(struct shmid_kernel *shmsegptr)
 {
 
 	mac_sysv_shm_label_free(shmsegptr->label);
@@ -86,60 +90,60 @@ mac_destroy_sysv_shm(struct shmid_kernel *shmsegptr)
 }
 
 void
-mac_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr)
+mac_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr)
 {
 
-	MAC_PERFORM(create_sysv_shm, cred, shmsegptr, shmsegptr->label);
+	MAC_PERFORM(sysvshm_create, cred, shmsegptr, shmsegptr->label);
 }
 
 void
-mac_cleanup_sysv_shm(struct shmid_kernel *shmsegptr)
+mac_sysvshm_cleanup(struct shmid_kernel *shmsegptr)
 {
 
-	MAC_PERFORM(cleanup_sysv_shm, shmsegptr->label);
+	MAC_PERFORM(sysvshm_cleanup, shmsegptr->label);
 }
 
 int
-mac_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+mac_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
     int shmflg)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_shmat, cred, shmsegptr, shmsegptr->label,
+	MAC_CHECK(sysvshm_check_shmat, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
 
 	return (error);
 }
 
 int
-mac_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+mac_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
     int cmd)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_shmctl, cred, shmsegptr, shmsegptr->label,
+	MAC_CHECK(sysvshm_check_shmctl, cred, shmsegptr, shmsegptr->label,
 	    cmd);
 
 	return (error);
 }
 
 int
-mac_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
+mac_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_shmdt, cred, shmsegptr, shmsegptr->label);
+	MAC_CHECK(sysvshm_check_shmdt, cred, shmsegptr, shmsegptr->label);
 
 	return (error);
 }
 
 int
-mac_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+mac_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
     int shmflg)
 {
 	int error;
 
-	MAC_CHECK(check_sysv_shmget, cred, shmsegptr, shmsegptr->label,
+	MAC_CHECK(sysvshm_check_shmget, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
 
 	return (error);

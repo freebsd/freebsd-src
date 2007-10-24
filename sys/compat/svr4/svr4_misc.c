@@ -296,7 +296,7 @@ again:
 	}
 
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error)
 		goto out;
 #endif
@@ -461,7 +461,7 @@ again:
 	auio.uio_offset = off;
 
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error)
 		goto out;
 #endif
@@ -625,7 +625,7 @@ svr4_sys_fchroot(td, uap)
 	if (error)
 		goto fail;
 #ifdef MAC
-	error = mac_check_vnode_chroot(td->td_ucred, vp);
+	error = mac_vnode_check_chroot(td->td_ucred, vp);
 	if (error)
 		goto fail;
 #endif

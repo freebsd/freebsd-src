@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Tom Rhodes
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -11,6 +12,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -440,7 +444,7 @@ mac_bsdextended_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 }
 
 static int
-mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -448,7 +452,7 @@ mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_system_check_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -456,7 +460,7 @@ mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_system_check_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -464,7 +468,7 @@ mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_system_check_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -472,7 +476,7 @@ mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_access(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -480,7 +484,7 @@ mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -488,7 +492,7 @@ mac_bsdextended_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -504,7 +508,7 @@ mac_bsdextended_check_create_vnode(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -512,7 +516,7 @@ mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred,
+mac_bsdextended_vnode_check_deleteextattr(struct ucred *cred,
     struct vnode *vp, struct label *vplabel, int attrnamespace,
     const char *name)
 {
@@ -521,7 +525,7 @@ mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred,
 }
 
 static int
-mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -530,7 +534,7 @@ mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -538,7 +542,7 @@ mac_bsdextended_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -547,7 +551,7 @@ mac_bsdextended_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *label,
     struct componentname *cnp)
 {
@@ -563,7 +567,7 @@ mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace)
 {
 
@@ -571,7 +575,7 @@ mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp)
 {
 
@@ -579,7 +583,7 @@ mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -587,7 +591,7 @@ mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -595,7 +599,7 @@ mac_bsdextended_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_readdlink(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -603,7 +607,7 @@ mac_bsdextended_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -616,7 +620,7 @@ mac_bsdextended_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
@@ -631,7 +635,7 @@ mac_bsdextended_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_bsdextended_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -647,7 +651,7 @@ mac_bsdextended_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -656,7 +660,7 @@ mac_bsdextended_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 
@@ -664,7 +668,7 @@ mac_bsdextended_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 
@@ -672,7 +676,7 @@ mac_bsdextended_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 
@@ -680,7 +684,7 @@ mac_bsdextended_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+mac_bsdextended_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec utime)
 {
 
@@ -688,7 +692,7 @@ mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
+mac_bsdextended_vnode_check_stat(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 
@@ -696,7 +700,7 @@ mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
 }
 
 static int
-mac_bsdextended_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+mac_bsdextended_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -712,36 +716,36 @@ static struct mac_policy_ops mac_bsdextended_ops =
 {
 	.mpo_destroy = mac_bsdextended_destroy,
 	.mpo_init = mac_bsdextended_init,
-	.mpo_check_system_acct = mac_bsdextended_check_system_acct,
-	.mpo_check_system_auditctl = mac_bsdextended_check_system_auditctl,
-	.mpo_check_system_swapoff = mac_bsdextended_check_system_swapoff,
-	.mpo_check_system_swapon = mac_bsdextended_check_system_swapon,
-	.mpo_check_vnode_access = mac_bsdextended_check_vnode_access,
-	.mpo_check_vnode_chdir = mac_bsdextended_check_vnode_chdir,
-	.mpo_check_vnode_chroot = mac_bsdextended_check_vnode_chroot,
-	.mpo_check_vnode_create = mac_bsdextended_check_create_vnode,
-	.mpo_check_vnode_deleteacl = mac_bsdextended_check_vnode_deleteacl,
-	.mpo_check_vnode_deleteextattr = mac_bsdextended_check_vnode_deleteextattr,
-	.mpo_check_vnode_exec = mac_bsdextended_check_vnode_exec,
-	.mpo_check_vnode_getacl = mac_bsdextended_check_vnode_getacl,
-	.mpo_check_vnode_getextattr = mac_bsdextended_check_vnode_getextattr,
-	.mpo_check_vnode_link = mac_bsdextended_check_vnode_link,
-	.mpo_check_vnode_listextattr = mac_bsdextended_check_vnode_listextattr,
-	.mpo_check_vnode_lookup = mac_bsdextended_check_vnode_lookup,
-	.mpo_check_vnode_open = mac_bsdextended_check_vnode_open,
-	.mpo_check_vnode_readdir = mac_bsdextended_check_vnode_readdir,
-	.mpo_check_vnode_readlink = mac_bsdextended_check_vnode_readdlink,
-	.mpo_check_vnode_rename_from = mac_bsdextended_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_bsdextended_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_bsdextended_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_bsdextended_check_setacl_vnode,
-	.mpo_check_vnode_setextattr = mac_bsdextended_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_bsdextended_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_bsdextended_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_bsdextended_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_bsdextended_check_vnode_setutimes,
-	.mpo_check_vnode_stat = mac_bsdextended_check_vnode_stat,
-	.mpo_check_vnode_unlink = mac_bsdextended_check_vnode_unlink,
+	.mpo_system_check_acct = mac_bsdextended_system_check_acct,
+	.mpo_system_check_auditctl = mac_bsdextended_system_check_auditctl,
+	.mpo_system_check_swapoff = mac_bsdextended_system_check_swapoff,
+	.mpo_system_check_swapon = mac_bsdextended_system_check_swapon,
+	.mpo_vnode_check_access = mac_bsdextended_vnode_check_access,
+	.mpo_vnode_check_chdir = mac_bsdextended_vnode_check_chdir,
+	.mpo_vnode_check_chroot = mac_bsdextended_vnode_check_chroot,
+	.mpo_vnode_check_create = mac_bsdextended_check_create_vnode,
+	.mpo_vnode_check_deleteacl = mac_bsdextended_vnode_check_deleteacl,
+	.mpo_vnode_check_deleteextattr = mac_bsdextended_vnode_check_deleteextattr,
+	.mpo_vnode_check_exec = mac_bsdextended_vnode_check_exec,
+	.mpo_vnode_check_getacl = mac_bsdextended_vnode_check_getacl,
+	.mpo_vnode_check_getextattr = mac_bsdextended_vnode_check_getextattr,
+	.mpo_vnode_check_link = mac_bsdextended_vnode_check_link,
+	.mpo_vnode_check_listextattr = mac_bsdextended_vnode_check_listextattr,
+	.mpo_vnode_check_lookup = mac_bsdextended_vnode_check_lookup,
+	.mpo_vnode_check_open = mac_bsdextended_vnode_check_open,
+	.mpo_vnode_check_readdir = mac_bsdextended_vnode_check_readdir,
+	.mpo_vnode_check_readlink = mac_bsdextended_vnode_check_readdlink,
+	.mpo_vnode_check_rename_from = mac_bsdextended_vnode_check_rename_from,
+	.mpo_vnode_check_rename_to = mac_bsdextended_vnode_check_rename_to,
+	.mpo_vnode_check_revoke = mac_bsdextended_vnode_check_revoke,
+	.mpo_vnode_check_setacl = mac_bsdextended_check_setacl_vnode,
+	.mpo_vnode_check_setextattr = mac_bsdextended_vnode_check_setextattr,
+	.mpo_vnode_check_setflags = mac_bsdextended_vnode_check_setflags,
+	.mpo_vnode_check_setmode = mac_bsdextended_vnode_check_setmode,
+	.mpo_vnode_check_setowner = mac_bsdextended_vnode_check_setowner,
+	.mpo_vnode_check_setutimes = mac_bsdextended_vnode_check_setutimes,
+	.mpo_vnode_check_stat = mac_bsdextended_vnode_check_stat,
+	.mpo_vnode_check_unlink = mac_bsdextended_vnode_check_unlink,
 };
 
 MAC_POLICY_SET(&mac_bsdextended_ops, mac_bsdextended,

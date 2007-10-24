@@ -966,7 +966,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 
 	/* open vnode */
 #ifdef MAC
-	if ((error = mac_check_vnode_open(cred, vp, VEXEC|VREAD)) != 0)
+	if ((error = mac_vnode_check_open(cred, vp, VEXEC|VREAD)) != 0)
 		return (error);
 #endif
 	if ((error = VOP_ACCESS(vp, VEXEC|VREAD, cred, td)) != 0)
@@ -980,7 +980,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 	uio.uio_offset = 0;
 
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, lvp);
+	error = mac_vnode_check_readdir(td->td_ucred, lvp);
 #endif
 	while (!error && !eofflag) {
 		iov.iov_base = buf;

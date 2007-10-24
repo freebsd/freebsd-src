@@ -1,11 +1,15 @@
 /*-
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -430,7 +434,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
  * the source port is left up to the IP stack to determine automatically.
  */
 static int
-check_socket_bind(struct ucred *cred, struct socket *so,
+socket_check_bind(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 	struct sockaddr_in *sin;
@@ -482,7 +486,7 @@ static struct mac_policy_ops mac_portacl_ops =
 {
 	.mpo_destroy = destroy,
 	.mpo_init = init,
-	.mpo_check_socket_bind = check_socket_bind,
+	.mpo_socket_check_bind = socket_check_bind,
 };
 
 MAC_POLICY_SET(&mac_portacl_ops, trustedbsd_mac_portacl,

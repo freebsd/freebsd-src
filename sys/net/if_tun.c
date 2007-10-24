@@ -579,7 +579,7 @@ tunoutput(
 	TUNDEBUG (ifp, "tunoutput\n");
 
 #ifdef MAC
-	error = mac_check_ifnet_transmit(ifp, m0);
+	error = mac_ifnet_check_transmit(ifp, m0);
 	if (error) {
 		m_freem(m0);
 		return (error);
@@ -875,7 +875,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	m->m_pkthdr.rcvif = ifp;
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
+	mac_ifnet_create_mbuf(ifp, m);
 #endif
 
 	/* Could be unlocked read? */

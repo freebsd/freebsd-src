@@ -218,7 +218,7 @@ acct(struct thread *td, struct acct_args *uap)
 		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 #ifdef MAC
-		error = mac_check_system_acct(td->td_ucred, nd.ni_vp);
+		error = mac_system_check_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
@@ -235,7 +235,7 @@ acct(struct thread *td, struct acct_args *uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 #ifdef MAC
 	} else {
-		error = mac_check_system_acct(td->td_ucred, NULL);
+		error = mac_system_check_acct(td->td_ucred, NULL);
 		if (error)
 			return (error);
 #endif

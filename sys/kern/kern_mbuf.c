@@ -323,7 +323,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
-		error = mac_init_mbuf(m, how);
+		error = mac_mbuf_init(m, how);
 		if (error)
 			return (error);
 #endif
@@ -543,7 +543,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
-		error = mac_init_mbuf(m, how);
+		error = mac_mbuf_init(m, how);
 		if (error)
 			return (error);
 #endif

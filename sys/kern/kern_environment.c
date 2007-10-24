@@ -95,7 +95,7 @@ kenv(td, uap)
 	error = 0;
 	if (uap->what == KENV_DUMP) {
 #ifdef MAC
-		error = mac_check_kenv_dump(td->td_ucred);
+		error = mac_kenv_check_dump(td->td_ucred);
 		if (error)
 			return (error);
 #endif
@@ -148,7 +148,7 @@ kenv(td, uap)
 	switch (uap->what) {
 	case KENV_GET:
 #ifdef MAC
-		error = mac_check_kenv_get(td->td_ucred, name);
+		error = mac_kenv_check_get(td->td_ucred, name);
 		if (error)
 			goto done;
 #endif
@@ -181,7 +181,7 @@ kenv(td, uap)
 			goto done;
 		}
 #ifdef MAC
-		error = mac_check_kenv_set(td->td_ucred, name, value);
+		error = mac_kenv_check_set(td->td_ucred, name, value);
 		if (error == 0)
 #endif
 			setenv(name, value);
@@ -189,7 +189,7 @@ kenv(td, uap)
 		break;
 	case KENV_UNSET:
 #ifdef MAC
-		error = mac_check_kenv_unset(td->td_ucred, name);
+		error = mac_kenv_check_unset(td->td_ucred, name);
 		if (error)
 			goto done;
 #endif

@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -9,6 +10,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -79,7 +83,7 @@ SYSCTL_INT(_security_mac_ifoff, OID_AUTO, bpfrecv_enabled, CTLFLAG_RW,
 TUNABLE_INT("security.mac.ifoff.bpfrecv.enabled", &mac_ifoff_bpfrecv_enabled);
 
 static int
-check_ifnet_outgoing(struct ifnet *ifp)
+ifnet_check_outgoing(struct ifnet *ifp)
 {
 
 	if (!mac_ifoff_enabled)
@@ -95,7 +99,7 @@ check_ifnet_outgoing(struct ifnet *ifp)
 }
 
 static int
-check_ifnet_incoming(struct ifnet *ifp, int viabpf)
+ifnet_check_incoming(struct ifnet *ifp, int viabpf)
 {
 	if (!mac_ifoff_enabled)
 		return (0);
@@ -113,51 +117,51 @@ check_ifnet_incoming(struct ifnet *ifp, int viabpf)
 }
 
 static int
-mac_ifoff_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+mac_ifoff_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 
-	return (check_ifnet_incoming(ifp, 1));
+	return (ifnet_check_incoming(ifp, 1));
 }
 
 static int
-mac_ifoff_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+mac_ifoff_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
-	return (check_ifnet_outgoing(ifp));
+	return (ifnet_check_outgoing(ifp));
 }
 
 static int
-mac_ifoff_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+mac_ifoff_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 	M_ASSERTPKTHDR(m);
 	if (m->m_pkthdr.rcvif != NULL)
-		return (check_ifnet_incoming(m->m_pkthdr.rcvif, 0));
+		return (ifnet_check_incoming(m->m_pkthdr.rcvif, 0));
 
 	return (0);
 }
 
 static int
-mac_ifoff_check_socket_deliver(struct socket *so, struct label *solabel,
+mac_ifoff_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
 	M_ASSERTPKTHDR(m);
 	if (m->m_pkthdr.rcvif != NULL)
-		return (check_ifnet_incoming(m->m_pkthdr.rcvif, 0));
+		return (ifnet_check_incoming(m->m_pkthdr.rcvif, 0));
 
 	return (0);
 }
 
 static struct mac_policy_ops mac_ifoff_ops =
 {
-	.mpo_check_bpfdesc_receive = mac_ifoff_check_bpfdesc_receive,
-	.mpo_check_ifnet_transmit = mac_ifoff_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_ifoff_check_inpcb_deliver,
-	.mpo_check_socket_deliver = mac_ifoff_check_socket_deliver,
+	.mpo_bpfdesc_check_receive = mac_ifoff_bpfdesc_check_receive,
+	.mpo_ifnet_check_transmit = mac_ifoff_ifnet_check_transmit,
+	.mpo_inpcb_check_deliver = mac_ifoff_inpcb_check_deliver,
+	.mpo_socket_check_deliver = mac_ifoff_socket_check_deliver,
 };
 
 MAC_POLICY_SET(&mac_ifoff_ops, mac_ifoff, "TrustedBSD MAC/ifoff",

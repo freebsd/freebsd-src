@@ -811,7 +811,7 @@ vdestroy(struct vnode *vp)
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
 	VI_UNLOCK(vp);
 #ifdef MAC
-	mac_destroy_vnode(vp);
+	mac_vnode_destroy(vp);
 #endif
 	if (vp->v_pollinfo != NULL) {
 		knlist_destroy(&vp->v_pollinfo->vpi_selinfo.si_note);
@@ -955,9 +955,9 @@ alloc:
 	v_incr_usecount(vp);
 	vp->v_data = 0;
 #ifdef MAC
-	mac_init_vnode(vp);
+	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
-		mac_associate_vnode_singlelabel(mp, vp);
+		mac_vnode_associate_singlelabel(mp, vp);
 	else if (mp == NULL)
 		printf("NULL mp in getnewvnode()\n");
 #endif

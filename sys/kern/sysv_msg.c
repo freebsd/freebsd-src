@@ -224,7 +224,7 @@ msginit()
 			msghdrs[i-1].msg_next = &msghdrs[i];
 		msghdrs[i].msg_next = NULL;
 #ifdef MAC
-		mac_init_sysv_msgmsg(&msghdrs[i]);
+		mac_sysvmsg_init(&msghdrs[i]);
 #endif
     	}
 	free_msghdrs = &msghdrs[0];
@@ -237,7 +237,7 @@ msginit()
 		msqids[i].u.msg_perm.seq = 0;	/* reset to a known value */
 		msqids[i].u.msg_perm.mode = 0;
 #ifdef MAC
-		mac_init_sysv_msgqueue(&msqids[i]);
+		mac_sysvmsq_init(&msqids[i]);
 #endif
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
@@ -269,9 +269,9 @@ msgunload()
 
 #ifdef MAC
 	for (i = 0; i < msginfo.msgtql; i++)
-		mac_destroy_sysv_msgmsg(&msghdrs[i]);
+		mac_sysvmsg_destroy(&msghdrs[i]);
 	for (msqid = 0; msqid < msginfo.msgmni; msqid++)
-		mac_destroy_sysv_msgqueue(&msqids[msqid]);
+		mac_sysvmsq_destroy(&msqids[msqid]);
 #endif
 	free(msgpool, M_MSG);
 	free(msgmaps, M_MSG);
@@ -369,7 +369,7 @@ msg_freehdr(msghdr)
 	msghdr->msg_next = free_msghdrs;
 	free_msghdrs = msghdr;
 #ifdef MAC
-	mac_cleanup_sysv_msgmsg(msghdr);
+	mac_sysvmsg_cleanup(msghdr);
 #endif
 }
 
@@ -435,7 +435,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		goto done2;
 	}
 #ifdef MAC
-	error = mac_check_sysv_msqctl(td->td_ucred, msqkptr, cmd);
+	error = mac_sysvmsq_check_msqctl(td->td_ucred, msqkptr, cmd);
 	if (error != 0)
 		goto done2;
 #endif
@@ -463,7 +463,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		 */
 		for (msghdr = msqkptr->u.msg_first; msghdr != NULL;
 		    msghdr = msghdr->msg_next) {
-			error = mac_check_sysv_msgrmid(td->td_ucred, msghdr);
+			error = mac_sysvmsq_check_msgrmid(td->td_ucred, msghdr);
 			if (error != 0)
 				goto done2;
 		}
@@ -490,7 +490,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		msqkptr->u.msg_qbytes = 0;	/* Mark it as free */
 
 #ifdef MAC
-		mac_cleanup_sysv_msgqueue(msqkptr);
+		mac_sysvmsq_cleanup(msqkptr);
 #endif
 
 		wakeup(msqkptr);
@@ -589,7 +589,7 @@ msgget(td, uap)
 				goto done2;
 			}
 #ifdef MAC
-			error = mac_check_sysv_msqget(cred, msqkptr);
+			error = mac_sysvmsq_check_msqget(cred, msqkptr);
 			if (error != 0)
 				goto done2;
 #endif
@@ -636,7 +636,7 @@ msgget(td, uap)
 		msqkptr->u.msg_rtime = 0;
 		msqkptr->u.msg_ctime = time_second;
 #ifdef MAC
-		mac_create_sysv_msgqueue(cred, msqkptr);
+		mac_sysvmsq_create(cred, msqkptr);
 #endif
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
@@ -705,7 +705,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	}
 
 #ifdef MAC
-	error = mac_check_sysv_msqsnd(td->td_ucred, msqkptr);
+	error = mac_sysvmsq_check_msqsnd(td->td_ucred, msqkptr);
 	if (error != 0)
 		goto done2;
 #endif
@@ -830,11 +830,11 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	msghdr->msg_type = mtype;
 #ifdef MAC
 	/*
-	 * XXXMAC: Should the mac_check_sysv_msgmsq check follow here
+	 * XXXMAC: Should the mac_sysvmsq_check_msgmsq check follow here
 	 * immediately?  Or, should it be checked just before the msg is
 	 * enqueued in the msgq (as it is done now)?
 	 */
-	mac_create_sysv_msgmsg(td->td_ucred, msqkptr, msghdr);
+	mac_sysvmsg_create(td->td_ucred, msqkptr, msghdr);
 #endif
 
 	/*
@@ -928,14 +928,14 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	 * Note: Since the task/thread allocates the msghdr and usually
 	 * primes it with its own MAC label, for a majority of policies, it
 	 * won't be necessary to check whether the msghdr has access
-	 * permissions to the msgq.  The mac_check_sysv_msqsnd check would
+	 * permissions to the msgq.  The mac_sysvmsq_check_msqsnd check would
 	 * suffice in that case.  However, this hook may be required where
 	 * individual policies derive a non-identical label for the msghdr
 	 * from the current thread label and may want to check the msghdr
 	 * enqueue permissions, along with read/write permissions to the
 	 * msgq.
 	 */
-	error = mac_check_sysv_msgmsq(td->td_ucred, msghdr, msqkptr);
+	error = mac_sysvmsq_check_msgmsq(td->td_ucred, msghdr, msqkptr);
 	if (error != 0) {
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
@@ -1042,7 +1042,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	}
 
 #ifdef MAC
-	error = mac_check_sysv_msqrcv(td->td_ucred, msqkptr);
+	error = mac_sysvmsq_check_msqrcv(td->td_ucred, msqkptr);
 	if (error != 0)
 		goto done2;
 #endif
@@ -1061,7 +1061,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 					goto done2;
 				}
 #ifdef MAC
-				error = mac_check_sysv_msgrcv(td->td_ucred,
+				error = mac_sysvmsq_check_msgrcv(td->td_ucred,
 				    msghdr);
 				if (error != 0)
 					goto done2;
@@ -1106,7 +1106,7 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 						goto done2;
 					}
 #ifdef MAC
-					error = mac_check_sysv_msgrcv(
+					error = mac_sysvmsq_check_msgrcv(
 					    td->td_ucred, msghdr);
 					if (error != 0)
 						goto done2;

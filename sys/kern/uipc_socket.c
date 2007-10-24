@@ -267,7 +267,7 @@ soalloc(void)
 	if (so == NULL)
 		return (NULL);
 #ifdef MAC
-	if (mac_init_socket(so, M_NOWAIT) != 0) {
+	if (mac_socket_init(so, M_NOWAIT) != 0) {
 		uma_zfree(socket_zone, so);
 		return (NULL);
 	}
@@ -312,7 +312,7 @@ sodealloc(struct socket *so)
 		do_setopt_accept_filter(so, NULL);
 #endif
 #ifdef MAC
-	mac_destroy_socket(so);
+	mac_socket_destroy(so);
 #endif
 	crfree(so->so_cred);
 	sx_destroy(&so->so_snd.sb_sx);
@@ -362,7 +362,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	so->so_cred = crhold(cred);
 	so->so_proto = prp;
 #ifdef MAC
-	mac_create_socket(cred, so);
+	mac_socket_create(cred, so);
 #endif
 	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),
 	    NULL, NULL, NULL);
@@ -429,7 +429,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
 	SOCK_LOCK(head);
-	mac_create_socket_from_socket(head, so);
+	mac_socket_newconn(head, so);
 	SOCK_UNLOCK(head);
 #endif
 	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv),

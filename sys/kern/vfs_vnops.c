@@ -148,7 +148,7 @@ restart:
 				goto restart;
 			}
 #ifdef MAC
-			error = mac_check_vnode_create(cred, ndp->ni_dvp,
+			error = mac_vnode_check_create(cred, ndp->ni_dvp,
 			    &ndp->ni_cnd, vap);
 			if (error == 0) {
 #endif
@@ -213,7 +213,7 @@ restart:
 	if (fmode & O_APPEND)
 		mode |= VAPPEND;
 #ifdef MAC
-	error = mac_check_vnode_open(cred, vp, mode);
+	error = mac_vnode_check_open(cred, vp, mode);
 	if (error)
 		goto bad;
 #endif
@@ -387,10 +387,10 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 #ifdef MAC
 	if ((ioflg & IO_NOMACCHECK) == 0) {
 		if (rw == UIO_READ)
-			error = mac_check_vnode_read(active_cred, file_cred,
+			error = mac_vnode_check_read(active_cred, file_cred,
 			    vp);
 		else
-			error = mac_check_vnode_write(active_cred, file_cred,
+			error = mac_vnode_check_write(active_cred, file_cred,
 			    vp);
 	}
 #endif
@@ -520,7 +520,7 @@ vn_read(fp, uio, active_cred, flags, td)
 	ioflag |= sequential_heuristic(uio, fp);
 
 #ifdef MAC
-	error = mac_check_vnode_read(active_cred, fp->f_cred, vp);
+	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
 	if (error == 0)
 #endif
 		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
@@ -580,7 +580,7 @@ vn_write(fp, uio, active_cred, flags, td)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
 #ifdef MAC
-	error = mac_check_vnode_write(active_cred, fp->f_cred, vp);
+	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
 	if (error == 0)
 #endif
 		error = VOP_WRITE(vp, uio, ioflag, fp->f_cred);
@@ -635,7 +635,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	u_short mode;
 
 #ifdef MAC
-	error = mac_check_vnode_stat(active_cred, file_cred, vp);
+	error = mac_vnode_check_stat(active_cred, file_cred, vp);
 	if (error)
 		return (error);
 #endif
@@ -783,7 +783,7 @@ vn_poll(fp, events, active_cred, td)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_check_vnode_poll(active_cred, fp->f_cred, vp);
+	error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0, td);
 	if (!error)
 #endif

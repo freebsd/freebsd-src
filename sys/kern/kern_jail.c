@@ -258,7 +258,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	if ((error = change_dir(pr->pr_root, td)) != 0)
 		goto e_unlock;
 #ifdef MAC
-	if ((error = mac_check_vnode_chroot(td->td_ucred, pr->pr_root)))
+	if ((error = mac_vnode_check_chroot(td->td_ucred, pr->pr_root)))
 		goto e_unlock;
 #endif
 	VOP_UNLOCK(pr->pr_root, 0, td);

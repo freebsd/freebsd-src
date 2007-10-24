@@ -1545,7 +1545,7 @@ ufs_mkdir(ap)
 		goto bad;
 #ifdef MAC
 	if (dvp->v_mount->mnt_flag & MNT_MULTILABEL) {
-		error = mac_create_vnode_extattr(cnp->cn_cred, dvp->v_mount,
+		error = mac_vnode_create_extattr(cnp->cn_cred, dvp->v_mount,
 		    dvp, tvp, cnp);
 		if (error)
 			goto bad;
@@ -2382,7 +2382,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		goto bad;
 #ifdef MAC
 	if (dvp->v_mount->mnt_flag & MNT_MULTILABEL) {
-		error = mac_create_vnode_extattr(cnp->cn_cred, dvp->v_mount,
+		error = mac_vnode_create_extattr(cnp->cn_cred, dvp->v_mount,
 		    dvp, tvp, cnp);
 		if (error)
 			goto bad;

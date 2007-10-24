@@ -416,8 +416,8 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	d->bd_direction = BPF_D_INOUT;
 	d->bd_pid = td->td_proc->p_pid;
 #ifdef MAC
-	mac_init_bpfdesc(d);
-	mac_create_bpfdesc(td->td_ucred, d);
+	mac_bpfdesc_init(d);
+	mac_bpfdesc_create(td->td_ucred, d);
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
@@ -448,7 +448,7 @@ bpfclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mtx_unlock(&bpf_mtx);
 	selwakeuppri(&d->bd_sel, PRINET);
 #ifdef MAC
-	mac_destroy_bpfdesc(d);
+	mac_bpfdesc_destroy(d);
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
 	bpf_freed(d);
@@ -656,9 +656,9 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 #ifdef MAC
 	BPFD_LOCK(d);
-	mac_create_mbuf_from_bpfdesc(d, m);
+	mac_bpfdesc_create_mbuf(d, m);
 	if (mc != NULL)
-		mac_create_mbuf_from_bpfdesc(d, mc);
+		mac_bpfdesc_create_mbuf(d, mc);
 	BPFD_UNLOCK(d);
 #endif
 
@@ -1299,7 +1299,7 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 				gottime = 1;
 			}
 #ifdef MAC
-			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
+			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, pkt, pktlen, slen, bcopy, &tv);
 		}
@@ -1378,7 +1378,7 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 				gottime = 1;
 			}
 #ifdef MAC
-			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
+			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)m, pktlen, slen,
 				    bpf_mcopy, &tv);
@@ -1433,7 +1433,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 				gottime = 1;
 			}
 #ifdef MAC
-			if (mac_check_bpfdesc_receive(d, bp->bif_ifp) == 0)
+			if (mac_bpfdesc_check_receive(d, bp->bif_ifp) == 0)
 #endif
 				catchpacket(d, (u_char *)&mb, pktlen, slen,
 				    bpf_mcopy, &tv);

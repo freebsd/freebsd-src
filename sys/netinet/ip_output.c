@@ -733,7 +733,7 @@ smart_frag_failure:
 		m->m_pkthdr.len = mhlen + len;
 		m->m_pkthdr.rcvif = NULL;
 #ifdef MAC
-		mac_create_fragment(m0, m);
+		mac_netinet_fragment(m0, m);
 #endif
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons(mhip->ip_off);

@@ -245,7 +245,7 @@ seminit(void)
 		sema[i].u.sem_perm.mode = 0;
 		sema[i].u.sem_perm.seq = 0;
 #ifdef MAC
-		mac_init_sysv_sem(&sema[i]);
+		mac_sysvsem_init(&sema[i]);
 #endif
 	}
 	for (i = 0; i < seminfo.semmni; i++)
@@ -271,7 +271,7 @@ semunload(void)
 	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
 #ifdef MAC
 	for (i = 0; i < seminfo.semmni; i++)
-		mac_destroy_sysv_sem(&sema[i]);
+		mac_sysvsem_destroy(&sema[i]);
 #endif
 	free(sem, M_SEM);
 	free(sema, M_SEM);
@@ -639,7 +639,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
 #ifdef MAC
-		error = mac_check_sysv_semctl(cred, semakptr, cmd);
+		error = mac_sysvsem_check_semctl(cred, semakptr, cmd);
 		if (error != 0)
 			goto done2;
 #endif
@@ -657,7 +657,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	sema_mtxp = &sema_mtx[semidx];
 	mtx_lock(sema_mtxp);
 #ifdef MAC
-	error = mac_check_sysv_semctl(cred, semakptr, cmd);
+	error = mac_sysvsem_check_semctl(cred, semakptr, cmd);
 	if (error != 0)
 		goto done2;
 #endif
@@ -683,7 +683,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		}
 		semakptr->u.sem_perm.mode = 0;
 #ifdef MAC
-		mac_cleanup_sysv_sem(semakptr);
+		mac_sysvsem_cleanup(semakptr);
 #endif
 		SEMUNDO_LOCK();
 		semundo_clear(semidx, -1);
@@ -906,7 +906,7 @@ semget(td, uap)
 				goto done2;
 			}
 #ifdef MAC
-			error = mac_check_sysv_semget(cred, &sema[semid]);
+			error = mac_sysvsem_check_semget(cred, &sema[semid]);
 			if (error != 0)
 				goto done2;
 #endif
@@ -955,7 +955,7 @@ semget(td, uap)
 		bzero(sema[semid].u.sem_base,
 		    sizeof(sema[semid].u.sem_base[0])*nsems);
 #ifdef MAC
-		mac_create_sysv_sem(cred, &sema[semid]);
+		mac_sysvsem_create(cred, &sema[semid]);
 #endif
 		DPRINTF(("sembase = %p, next = %p\n",
 		    sema[semid].u.sem_base, &sem[semtot]));
@@ -1063,7 +1063,7 @@ semop(td, uap)
 		goto done2;
 	}
 #ifdef MAC
-	error = mac_check_sysv_semop(td->td_ucred, semakptr, j);
+	error = mac_sysvsem_check_semop(td->td_ucred, semakptr, j);
 	if (error != 0)
 		goto done2;
 #endif
