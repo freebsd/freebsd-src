@@ -170,7 +170,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	 * On successful return, *uvpp will be locked
 	 */
 #ifdef MAC
-	error = mac_check_vnode_lookup(td->td_ucred, lvp, &cn);
+	error = mac_vnode_check_lookup(td->td_ucred, lvp, &cn);
 	if (error == 0)
 #endif
 		error = VOP_LOOKUP(lvp, uvpp, &cn);
@@ -216,7 +216,7 @@ unionread:
 		eofflag = 0;
 
 #ifdef MAC
-		error = mac_check_vnode_readdir(td->td_ucred, uvp);
+		error = mac_vnode_check_readdir(td->td_ucred, uvp);
 		if (error == 0)
 #endif /* MAC */
 			error = VOP_READDIR(uvp, &uio, td->td_ucred, &eofflag,

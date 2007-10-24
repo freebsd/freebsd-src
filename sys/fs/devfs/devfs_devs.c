@@ -182,7 +182,7 @@ devfs_newdirent(char *name, int namelen)
 	de->de_links = 1;
 	de->de_holdcnt = 1;
 #ifdef MAC
-	mac_init_devfs(de);
+	mac_devfs_init(de);
 #endif
 	return (de);
 }
@@ -226,7 +226,7 @@ devfs_vmkdir(struct devfs_mount *dmp, char *name, int namelen, struct devfs_dire
 	}
 
 #ifdef MAC
-	mac_create_devfs_directory(dmp->dm_mount, name, namelen, dd);
+	mac_devfs_create_directory(dmp->dm_mount, name, namelen, dd);
 #endif
 	return (dd);
 }
@@ -274,7 +274,7 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 		de->de_symlink = NULL;
 	}
 #ifdef MAC
-	mac_destroy_devfs(de);
+	mac_devfs_destroy(de);
 #endif
 	if (de->de_inode > DEVFS_ROOTINO) {
 		free_unr(devfs_inos, de->de_inode);
@@ -452,7 +452,7 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 		de->de_inode = cdp->cdp_inode;
 		de->de_cdp = cdp;
 #ifdef MAC
-		mac_create_devfs_device(cdp->cdp_c.si_cred, dm->dm_mount,
+		mac_devfs_create_device(cdp->cdp_c.si_cred, dm->dm_mount,
 		    &cdp->cdp_c, de);
 #endif
 		de->de_dir = dd;

@@ -255,7 +255,7 @@ shm_deallocate_segment(shmseg)
 	shm_nused--;
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
 #ifdef MAC
-	mac_cleanup_sysv_shm(shmseg);
+	mac_sysvshm_cleanup(shmseg);
 #endif
 }
 
@@ -322,7 +322,7 @@ shmdt(td, uap)
 	}
 #ifdef MAC
 	shmsegptr = &shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
-	error = mac_check_sysv_shmdt(td->td_ucred, shmsegptr);
+	error = mac_sysvshm_check_shmdt(td->td_ucred, shmsegptr);
 	if (error != 0)
 		goto done2;
 #endif
@@ -377,7 +377,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	if (error)
 		goto done2;
 #ifdef MAC
-	error = mac_check_sysv_shmat(td->td_ucred, shmseg, shmflg);
+	error = mac_sysvshm_check_shmat(td->td_ucred, shmseg, shmflg);
 	if (error != 0)
 		goto done2;
 #endif
@@ -492,7 +492,7 @@ oshmctl(td, uap)
 		if (error)
 			goto done2;
 #ifdef MAC
-		error = mac_check_sysv_shmctl(td->td_ucred, shmseg, uap->cmd);
+		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
 		if (error != 0)
 			goto done2;
 #endif
@@ -575,7 +575,7 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 		goto done2;
 	}
 #ifdef MAC
-	error = mac_check_sysv_shmctl(td->td_ucred, shmseg, cmd);
+	error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, cmd);
 	if (error != 0)
 		goto done2;
 #endif
@@ -701,7 +701,7 @@ shmget_existing(td, uap, mode, segnum)
 	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return (EEXIST);
 #ifdef MAC
-	error = mac_check_sysv_shmget(td->td_ucred, shmseg, uap->shmflg);
+	error = mac_sysvshm_check_shmget(td->td_ucred, shmseg, uap->shmflg);
 	if (error != 0)
 		return (error);
 #endif
@@ -779,7 +779,7 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;
 	shmseg->u.shm_atime = shmseg->u.shm_dtime = 0;
 #ifdef MAC
-	mac_create_sysv_shm(cred, shmseg);
+	mac_sysvshm_create(cred, shmseg);
 #endif
 	shmseg->u.shm_ctime = time_second;
 	shm_committed += btoc(size);
@@ -911,7 +911,7 @@ shmrealloc(void)
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;
 #ifdef MAC
-		mac_init_sysv_shm(&shmsegs[i]);
+		mac_sysvshm_init(&shmsegs[i]);
 #endif
 	}
 	free(shmsegs, M_SHM);
@@ -943,7 +943,7 @@ shminit()
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;
 #ifdef MAC
-		mac_init_sysv_shm(&shmsegs[i]);
+		mac_sysvshm_init(&shmsegs[i]);
 #endif
 	}
 	shm_last_free = 0;
@@ -965,7 +965,7 @@ shmunload()
 
 #ifdef MAC
 	for (i = 0; i < shmalloced; i++)
-		mac_destroy_sysv_shm(&shmsegs[i]);
+		mac_sysvshm_destroy(&shmsegs[i]);
 #endif
 	free(shmsegs, M_SHM);
 	shmexit_hook = NULL;

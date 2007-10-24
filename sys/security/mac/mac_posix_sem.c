@@ -1,11 +1,14 @@
 /*-
- * Copyright (c) 2003-2005 SPARTA, Inc.
+ * Copyright (c) 2003-2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,100 +51,100 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_policy.h>
 
 static struct label *
-mac_posix_sem_label_alloc(void)
+mac_posixsem_label_alloc(void)
 {
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(init_posix_sem_label, label);
+	MAC_PERFORM(posixsem_init_label, label);
 	return (label);
 }
 
 void
-mac_init_posix_sem(struct ksem *ks)
+mac_posixsem_init(struct ksem *ks)
 {
 
-	ks->ks_label = mac_posix_sem_label_alloc();
+	ks->ks_label = mac_posixsem_label_alloc();
 }
 
 static void
-mac_posix_sem_label_free(struct label *label)
+mac_posixsem_label_free(struct label *label)
 {
 
-	MAC_PERFORM(destroy_posix_sem_label, label);
+	MAC_PERFORM(posixsem_destroy_label, label);
 }
 
 void
-mac_destroy_posix_sem(struct ksem *ks)
+mac_posixsem_destroy(struct ksem *ks)
 {
 
-	mac_posix_sem_label_free(ks->ks_label);
+	mac_posixsem_label_free(ks->ks_label);
 	ks->ks_label = NULL;
 }
 
 void
-mac_create_posix_sem(struct ucred *cred, struct ksem *ks)
+mac_posixsem_create(struct ucred *cred, struct ksem *ks)
 {
 
-	MAC_PERFORM(create_posix_sem, cred, ks, ks->ks_label);
+	MAC_PERFORM(posixsem_create, cred, ks, ks->ks_label);
 }
 
 int
-mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_destroy(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_destroy, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_destroy, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_open(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_open, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_open, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_getvalue, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_getvalue, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_post(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_post(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_post, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_post, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_unlink, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_unlink, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ks)
+mac_posixsem_check_wait(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_wait, cred, ks, ks->ks_label);
+	MAC_CHECK(posixsem_check_wait, cred, ks, ks->ks_label);
 
 	return (error);
 }

@@ -478,8 +478,8 @@ if_attach(struct ifnet *ifp)
 	ifp->if_data.ifi_datalen = sizeof(struct if_data);
 
 #ifdef MAC
-	mac_init_ifnet(ifp);
-	mac_create_ifnet(ifp);
+	mac_ifnet_init(ifp);
+	mac_ifnet_create(ifp);
 #endif
 
 	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw,
@@ -758,7 +758,7 @@ if_detach(struct ifnet *ifp)
 	IF_AFDATA_UNLOCK(ifp);
 
 #ifdef MAC
-	mac_destroy_ifnet(ifp);
+	mac_ifnet_destroy(ifp);
 #endif /* MAC */
 	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
 	knlist_clear(&ifp->if_klist, 0);
@@ -1534,7 +1534,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 #ifdef MAC
 	case SIOCGIFMAC:
-		error = mac_ioctl_ifnet_get(td->td_ucred, ifr, ifp);
+		error = mac_ifnet_ioctl_get(td->td_ucred, ifr, ifp);
 		break;
 #endif
 
@@ -1610,7 +1610,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 #ifdef MAC
 	case SIOCSIFMAC:
-		error = mac_ioctl_ifnet_set(td->td_ucred, ifr, ifp);
+		error = mac_ifnet_ioctl_set(td->td_ucred, ifr, ifp);
 		break;
 #endif
 

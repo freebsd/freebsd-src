@@ -881,7 +881,7 @@ bsd_decompress(state, cmp, dmpp)
     wptr = mtod(dmp, u_char *);
     space = M_TRAILINGSPACE(dmp) - PPP_HDRLEN + 1;
 #ifdef MAC
-    mac_copy_mbuf(cmp, dmp);
+    mac_mbuf_copy(cmp, dmp);
 #endif
 
     /*

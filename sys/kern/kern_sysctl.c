@@ -1298,7 +1298,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		arg2 = oid->oid_arg2;
 	}
 #ifdef MAC
-	error = mac_check_system_sysctl(req->td->td_ucred, oid, arg1, arg2,
+	error = mac_system_check_sysctl(req->td->td_ucred, oid, arg1, arg2,
 	    req);
 	if (error != 0)
 		return (error);

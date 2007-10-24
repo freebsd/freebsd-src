@@ -1203,7 +1203,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		goto done;
 	}
 #ifdef MAC
-	error = mac_check_vnode_mmap(td->td_ucred, vp, prot, flags);
+	error = mac_vnode_check_mmap(td->td_ucred, vp, prot, flags);
 	if (error != 0)
 		goto done;
 #endif

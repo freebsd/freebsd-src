@@ -411,7 +411,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 
 #ifdef MAC
 	SOCK_LOCK(ddp->ddp_socket);
-	if (mac_check_socket_deliver(ddp->ddp_socket, m) != 0) {
+	if (mac_socket_check_deliver(ddp->ddp_socket, m) != 0) {
 		SOCK_UNLOCK(ddp->ddp_socket);
 		goto out;
 	}

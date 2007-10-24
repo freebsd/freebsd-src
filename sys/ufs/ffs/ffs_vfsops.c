@@ -1464,7 +1464,7 @@ ffs_vget(mp, ino, flags, vpp)
 		 * multi-label, attempt to perform a label association
 		 * from the extended attributes on the inode.
 		 */
-		error = mac_associate_vnode_extattr(mp, vp);
+		error = mac_vnode_associate_extattr(mp, vp);
 		if (error) {
 			/* ufs_inactive will release ip->i_devvp ref. */
 			vput(vp);

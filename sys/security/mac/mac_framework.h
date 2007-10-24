@@ -90,44 +90,44 @@ struct vop_setlabel_args;
 /*
  * Kernel functions to manage and evaluate labels.
  */
-void	mac_init_bpfdesc(struct bpf_d *);
-void	mac_init_cred(struct ucred *);
-void	mac_init_devfs(struct devfs_dirent *);
-void	mac_init_ifnet(struct ifnet *);
-int	mac_init_inpcb(struct inpcb *, int);
-void	mac_init_sysv_msgmsg(struct msg *);
-void	mac_init_sysv_msgqueue(struct msqid_kernel *);
-void	mac_init_sysv_sem(struct semid_kernel *);
-void	mac_init_sysv_shm(struct shmid_kernel *);
-int	mac_init_ipq(struct ipq *, int);
-int	mac_init_socket(struct socket *, int);
-void	mac_init_pipe(struct pipepair *);
-void	mac_init_posix_sem(struct ksem *);
-int	mac_init_mbuf(struct mbuf *, int);
-int	mac_init_mbuf_tag(struct m_tag *, int);
-void	mac_init_mount(struct mount *);
-void	mac_init_proc(struct proc *);
-void	mac_init_vnode(struct vnode *);
-void	mac_copy_mbuf(struct mbuf *, struct mbuf *);
-void	mac_copy_mbuf_tag(struct m_tag *, struct m_tag *);
-void	mac_copy_vnode_label(struct label *, struct label *);
-void	mac_destroy_bpfdesc(struct bpf_d *);
-void	mac_destroy_cred(struct ucred *);
-void	mac_destroy_devfs(struct devfs_dirent *);
-void	mac_destroy_ifnet(struct ifnet *);
-void	mac_destroy_inpcb(struct inpcb *);
-void	mac_destroy_sysv_msgmsg(struct msg *);
-void	mac_destroy_sysv_msgqueue(struct msqid_kernel *);
-void	mac_destroy_sysv_sem(struct semid_kernel *);
-void	mac_destroy_sysv_shm(struct shmid_kernel *);
-void	mac_destroy_ipq(struct ipq *);
-void	mac_destroy_socket(struct socket *);
-void	mac_destroy_pipe(struct pipepair *);
-void	mac_destroy_posix_sem(struct ksem *);
-void	mac_destroy_proc(struct proc *);
-void	mac_destroy_mbuf_tag(struct m_tag *);
-void	mac_destroy_mount(struct mount *);
-void	mac_destroy_vnode(struct vnode *);
+void	mac_bpfdesc_init(struct bpf_d *);
+void	mac_cred_init(struct ucred *);
+void	mac_devfs_init(struct devfs_dirent *);
+void	mac_ifnet_init(struct ifnet *);
+int	mac_inpcb_init(struct inpcb *, int);
+void	mac_sysvmsg_init(struct msg *);
+void	mac_sysvmsq_init(struct msqid_kernel *);
+void	mac_sysvsem_init(struct semid_kernel *);
+void	mac_sysvshm_init(struct shmid_kernel *);
+int	mac_ipq_init(struct ipq *, int);
+int	mac_socket_init(struct socket *, int);
+void	mac_pipe_init(struct pipepair *);
+void	mac_posixsem_init(struct ksem *);
+int	mac_mbuf_init(struct mbuf *, int);
+int	mac_mbuf_tag_init(struct m_tag *, int);
+void	mac_mount_init(struct mount *);
+void	mac_proc_init(struct proc *);
+void	mac_vnode_init(struct vnode *);
+void	mac_mbuf_copy(struct mbuf *, struct mbuf *);
+void	mac_mbuf_tag_copy(struct m_tag *, struct m_tag *);
+void	mac_vnode_copy_label(struct label *, struct label *);
+void	mac_bpfdesc_destroy(struct bpf_d *);
+void	mac_cred_destroy(struct ucred *);
+void	mac_devfs_destroy(struct devfs_dirent *);
+void	mac_ifnet_destroy(struct ifnet *);
+void	mac_inpcb_destroy(struct inpcb *);
+void	mac_sysvmsg_destroy(struct msg *);
+void	mac_sysvmsq_destroy(struct msqid_kernel *);
+void	mac_sysvsem_destroy(struct semid_kernel *);
+void	mac_sysvshm_destroy(struct shmid_kernel *);
+void	mac_ipq_destroy(struct ipq *);
+void	mac_socket_destroy(struct socket *);
+void	mac_pipe_destroy(struct pipepair *);
+void	mac_posixsem_destroy(struct ksem *);
+void	mac_proc_destroy(struct proc *);
+void	mac_mbuf_tag_destroy(struct m_tag *);
+void	mac_mount_destroy(struct mount *);
+void	mac_vnode_destroy(struct vnode *);
 
 struct label	*mac_cred_label_alloc(void);
 void		 mac_cred_label_free(struct label *);
@@ -138,75 +138,73 @@ void		 mac_vnode_label_free(struct label *);
  * Labeling event operations: file system objects, and things that look a lot
  * like file system objects.
  */
-void	mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
+void	mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
-int	mac_associate_vnode_extattr(struct mount *mp, struct vnode *vp);
-void	mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp);
-void	mac_create_devfs_device(struct ucred *cred, struct mount *mp,
+int	mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp);
+void	mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp);
+void	mac_devfs_create_device(struct ucred *cred, struct mount *mp,
 	    struct cdev *dev, struct devfs_dirent *de);
-void	mac_create_devfs_directory(struct mount *mp, char *dirname,
+void	mac_devfs_create_directory(struct mount *mp, char *dirname,
 	    int dirnamelen, struct devfs_dirent *de);
-void	mac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+void	mac_devfs_create_symlink(struct ucred *cred, struct mount *mp,
 	    struct devfs_dirent *dd, struct devfs_dirent *de);
-int	mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+int	mac_vnode_create_extattr(struct ucred *cred, struct mount *mp,
 	    struct vnode *dvp, struct vnode *vp, struct componentname *cnp);
-void	mac_create_mount(struct ucred *cred, struct mount *mp);
-void	mac_relabel_vnode(struct ucred *cred, struct vnode *vp,
+void	mac_mount_create(struct ucred *cred, struct mount *mp);
+void	mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
-void	mac_update_devfs(struct mount *mp, struct devfs_dirent *de,
+void	mac_devfs_update(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 
 /*
  * Labeling event operations: IPC objects.
  */
-void	mac_create_mbuf_from_socket(struct socket *so, struct mbuf *m);
-void	mac_create_socket(struct ucred *cred, struct socket *so);
-void	mac_create_socket_from_socket(struct socket *oldso,
+void	mac_socket_create_mbuf(struct socket *so, struct mbuf *m);
+void	mac_socket_create(struct ucred *cred, struct socket *so);
+void	mac_socket_newconn(struct socket *oldso, struct socket *newso);
+void	mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so);
+void	mac_socketpeer_set_from_socket(struct socket *oldso,
 	    struct socket *newso);
-void	mac_set_socket_peer_from_mbuf(struct mbuf *m, struct socket *so);
-void	mac_set_socket_peer_from_socket(struct socket *oldso,
-	    struct socket *newso);
-void	mac_create_pipe(struct ucred *cred, struct pipepair *pp);
+void	mac_pipe_create(struct ucred *cred, struct pipepair *pp);
 
 /*
  * Labeling event operations: System V IPC primitives
  */
-void	mac_create_sysv_msgmsg(struct ucred *cred,
-	    struct msqid_kernel *msqkptr, struct msg *msgptr);
-void	mac_create_sysv_msgqueue(struct ucred *cred,
-	    struct msqid_kernel *msqkptr);
-void	mac_create_sysv_sem(struct ucred *cred,
+void	mac_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
+	    struct msg *msgptr);
+void	mac_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr);
+void	mac_sysvsem_create(struct ucred *cred,
 	    struct semid_kernel *semakptr);
-void	mac_create_sysv_shm(struct ucred *cred,
+void	mac_sysvshm_create(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr);
 
 /*
  * Labeling event operations: POSIX (global/inter-process) semaphores.
  */
-void 	mac_create_posix_sem(struct ucred *cred, struct ksem *ks);
+void 	mac_posixsem_create(struct ucred *cred, struct ksem *ks);
 
 /*
  * Labeling event operations: network objects.
  */
-void	mac_create_bpfdesc(struct ucred *cred, struct bpf_d *d);
-void	mac_create_ifnet(struct ifnet *ifp);
-void	mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp);
-void	mac_create_ipq(struct mbuf *m, struct ipq *ipq);
-void	mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *m);
-void	mac_create_fragment(struct mbuf *m, struct mbuf *frag);
-void	mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m);
+void	mac_bpfdesc_create(struct ucred *cred, struct bpf_d *d);
+void	mac_ifnet_create(struct ifnet *ifp);
+void	mac_inpcb_create(struct socket *so, struct inpcb *inp);
+void	mac_ipq_create(struct mbuf *m, struct ipq *ipq);
+void	mac_ipq_reassemble(struct ipq *ipq, struct mbuf *m);
+void	mac_netinet_fragment(struct mbuf *m, struct mbuf *frag);
+void	mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m);
 void	mac_create_mbuf_linklayer(struct ifnet *ifp, struct mbuf *m);
-void	mac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct mbuf *m);
-void	mac_create_mbuf_from_ifnet(struct ifnet *ifp, struct mbuf *m);
-void	mac_create_mbuf_multicast_encap(struct mbuf *m, struct ifnet *ifp,
+void	mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m);
+void	mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m);
+void	mac_mbuf_create_multicast_encap(struct mbuf *m, struct ifnet *ifp,
 	    struct mbuf *mnew);
-void	mac_create_mbuf_netlayer(struct mbuf *m, struct mbuf *mnew);
-int	mac_fragment_match(struct mbuf *m, struct ipq *ipq);
-void	mac_reflect_mbuf_icmp(struct mbuf *m);
-void	mac_reflect_mbuf_tcp(struct mbuf *m);
-void	mac_update_ipq(struct mbuf *m, struct ipq *ipq);
+void	mac_mbuf_create_netlayer(struct mbuf *m, struct mbuf *mnew);
+int	mac_ipq_match(struct mbuf *m, struct ipq *ipq);
+void	mac_netinet_icmp_reply(struct mbuf *m);
+void	mac_netinet_tcp_reply(struct mbuf *m);
+void	mac_ipq_update(struct mbuf *m, struct ipq *ipq);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
-void	mac_create_mbuf_from_firewall(struct mbuf *m);
+void	mac_mbuf_create_from_firewall(struct mbuf *m);
 void	mac_destroy_syncache(struct label **l);
 int	mac_init_syncache(struct label **l);
 void	mac_init_syncache_from_inpcb(struct label *l, struct inpcb *inp);
@@ -215,16 +213,17 @@ void	mac_create_mbuf_from_syncache(struct label *l, struct mbuf *m);
 /*
  * Labeling event operations: processes.
  */
-void	mac_copy_cred(struct ucred *cr1, struct ucred *cr2);
+void	mac_cred_copy(struct ucred *cr1, struct ucred *cr2);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
-void	mac_execve_transition(struct ucred *oldcred, struct ucred *newcred,
+void	mac_vnode_execve_transition(struct ucred *oldcred,
+	    struct ucred *newcred, struct vnode *vp,
+	    struct label *interpvnodelabel, struct image_params *imgp);
+int	mac_vnode_execve_will_transition(struct ucred *cred,
 	    struct vnode *vp, struct label *interpvnodelabel,
 	    struct image_params *imgp);
-int	mac_execve_will_transition(struct ucred *cred, struct vnode *vp,
-	    struct label *interpvnodelabel, struct image_params *imgp);
-void	mac_create_proc0(struct ucred *cred);
-void	mac_create_proc1(struct ucred *cred);
+void	mac_proc_create_swapper(struct ucred *cred);
+void	mac_proc_create_init(struct ucred *cred);
 void	mac_thread_userret(struct thread *td);
 
 /*
@@ -238,177 +237,177 @@ void	mac_thread_userret(struct thread *td);
  * XXXRW: These object methods are inconsistent with the life cycles of other
  * objects, and likely should be revised to be more consistent.
  */
-void	mac_cleanup_sysv_msgmsg(struct msg *msgptr);
-void	mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr);
-void	mac_cleanup_sysv_sem(struct semid_kernel *semakptr);
-void	mac_cleanup_sysv_shm(struct shmid_kernel *shmsegptr);
+void	mac_sysvmsg_cleanup(struct msg *msgptr);
+void	mac_sysvmsq_cleanup(struct msqid_kernel *msqkptr);
+void	mac_sysvsem_cleanup(struct semid_kernel *semakptr);
+void	mac_sysvshm_cleanup(struct shmid_kernel *shmsegptr);
 
 /*
  * Access control checks.
  */
-int	mac_check_bpfdesc_receive(struct bpf_d *d, struct ifnet *ifp);
-int	mac_check_cred_visible(struct ucred *cr1, struct ucred *cr2);
-int	mac_check_ifnet_transmit(struct ifnet *ifp, struct mbuf *m);
-int	mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m);
-int	mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+int	mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp);
+int	mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2);
+int	mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m);
+int	mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m);
+int	mac_sysvmsq_check_msgmsq(struct ucred *cred, struct msg *msgptr,
 	    struct msqid_kernel *msqkptr);
-int	mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr);
-int	mac_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr);
-int	mac_check_sysv_msqget(struct ucred *cred,
+int	mac_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr);
+int	mac_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr);
+int	mac_sysvmsq_check_msqget(struct ucred *cred,
 	    struct msqid_kernel *msqkptr);
-int	mac_check_sysv_msqsnd(struct ucred *cred,
+int	mac_sysvmsq_check_msqsnd(struct ucred *cred,
 	    struct msqid_kernel *msqkptr);
-int	mac_check_sysv_msqrcv(struct ucred *cred,
+int	mac_sysvmsq_check_msqrcv(struct ucred *cred,
 	    struct msqid_kernel *msqkptr);
-int	mac_check_sysv_msqctl(struct ucred *cred,
+int	mac_sysvmsq_check_msqctl(struct ucred *cred,
 	    struct msqid_kernel *msqkptr, int cmd);
-int	mac_check_sysv_semctl(struct ucred *cred,
+int	mac_sysvsem_check_semctl(struct ucred *cred,
 	    struct semid_kernel *semakptr, int cmd);
-int	mac_check_sysv_semget(struct ucred *cred,
+int	mac_sysvsem_check_semget(struct ucred *cred,
 	   struct semid_kernel *semakptr);
-int	mac_check_sysv_semop(struct ucred *cred,struct semid_kernel *semakptr,
-	    size_t accesstype);
-int	mac_check_sysv_shmat(struct ucred *cred,
+int	mac_sysvsem_check_semop(struct ucred *cred,
+	    struct semid_kernel *semakptr, size_t accesstype);
+int	mac_sysvshm_check_shmat(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr, int shmflg);
-int	mac_check_sysv_shmctl(struct ucred *cred,
+int	mac_sysvshm_check_shmctl(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr, int cmd);
-int	mac_check_sysv_shmdt(struct ucred *cred,
+int	mac_sysvshm_check_shmdt(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr);
-int	mac_check_sysv_shmget(struct ucred *cred,
+int	mac_sysvshm_check_shmget(struct ucred *cred,
 	    struct shmid_kernel *shmsegptr, int shmflg);
-int	mac_check_kenv_dump(struct ucred *cred);
-int	mac_check_kenv_get(struct ucred *cred, char *name);
-int	mac_check_kenv_set(struct ucred *cred, char *name, char *value);
-int	mac_check_kenv_unset(struct ucred *cred, char *name);
-int	mac_check_kld_load(struct ucred *cred, struct vnode *vp);
-int	mac_check_kld_stat(struct ucred *cred);
-int	mac_check_mount_stat(struct ucred *cred, struct mount *mp);
-int	mac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+int	mac_kenv_check_dump(struct ucred *cred);
+int	mac_kenv_check_get(struct ucred *cred, char *name);
+int	mac_kenv_check_set(struct ucred *cred, char *name, char *value);
+int	mac_kenv_check_unset(struct ucred *cred, char *name);
+int	mac_kld_check_load(struct ucred *cred, struct vnode *vp);
+int	mac_kld_check_stat(struct ucred *cred);
+int	mac_mount_check_stat(struct ucred *cred, struct mount *mp);
+int	mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 	    unsigned long cmd, void *data);
-int	mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp);
-int	mac_check_pipe_read(struct ucred *cred, struct pipepair *pp);
-int	mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp);
-int	mac_check_pipe_write(struct ucred *cred, struct pipepair *pp);
-int	mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks);
-int	mac_check_posix_sem_getvalue(struct ucred *cred,struct ksem *ks);
-int	mac_check_posix_sem_open(struct ucred *cred, struct ksem *ks);
-int	mac_check_posix_sem_post(struct ucred *cred, struct ksem *ks);
-int	mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks);
-int	mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ks);
-int	mac_check_proc_debug(struct ucred *cred, struct proc *p);
-int	mac_check_proc_sched(struct ucred *cred, struct proc *p);
-int	mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai);
-int	mac_check_proc_setaudit_addr(struct ucred *cred,
+int	mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp);
+int	mac_pipe_check_read(struct ucred *cred, struct pipepair *pp);
+int	mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp);
+int	mac_pipe_check_write(struct ucred *cred, struct pipepair *pp);
+int	mac_posixsem_check_destroy(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_getvalue(struct ucred *cred,struct ksem *ks);
+int	mac_posixsem_check_open(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_post(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_unlink(struct ucred *cred, struct ksem *ks);
+int	mac_posixsem_check_wait(struct ucred *cred, struct ksem *ks);
+int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
+int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
+int	mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai);
+int	mac_proc_check_setaudit_addr(struct ucred *cred,
 	    struct auditinfo_addr *aia);
-int	mac_check_proc_setauid(struct ucred *cred, uid_t auid);
-int	mac_check_proc_setuid(struct proc *p,  struct ucred *cred,
+int	mac_proc_check_setauid(struct ucred *cred, uid_t auid);
+int	mac_proc_check_setuid(struct proc *p,  struct ucred *cred,
 	    uid_t uid);
-int	mac_check_proc_seteuid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_seteuid(struct proc *p, struct ucred *cred,
 	    uid_t euid);
-int	mac_check_proc_setgid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setgid(struct proc *p, struct ucred *cred,
 	    gid_t gid);
-int	mac_check_proc_setegid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setegid(struct proc *p, struct ucred *cred,
 	    gid_t egid);
-int	mac_check_proc_setgroups(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setgroups(struct proc *p, struct ucred *cred,
 	    int ngroups, gid_t *gidset);
-int	mac_check_proc_setreuid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setreuid(struct proc *p, struct ucred *cred,
 	    uid_t ruid, uid_t euid);
-int	mac_check_proc_setregid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setregid(struct proc *p, struct ucred *cred,
 	    gid_t rgid, gid_t egid);
-int	mac_check_proc_setresuid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setresuid(struct proc *p, struct ucred *cred,
 	    uid_t ruid, uid_t euid, uid_t suid);
-int	mac_check_proc_setresgid(struct proc *p, struct ucred *cred,
+int	mac_proc_check_setresgid(struct proc *p, struct ucred *cred,
 	    gid_t rgid, gid_t egid, gid_t sgid);
-int	mac_check_proc_signal(struct ucred *cred, struct proc *p,
+int	mac_proc_check_signal(struct ucred *cred, struct proc *p,
 	    int signum);
-int	mac_check_proc_wait(struct ucred *cred, struct proc *p);
-int	mac_check_socket_accept(struct ucred *cred, struct socket *so);
-int	mac_check_socket_bind(struct ucred *cred, struct socket *so,
+int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
+int	mac_socket_check_accept(struct ucred *cred, struct socket *so);
+int	mac_socket_check_bind(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sa);
-int	mac_check_socket_connect(struct ucred *cred, struct socket *so,
+int	mac_socket_check_connect(struct ucred *cred, struct socket *so,
 	    struct sockaddr *sa);
-int	mac_check_socket_create(struct ucred *cred, int domain, int type,
+int	mac_socket_check_create(struct ucred *cred, int domain, int type,
 	    int proto);
-int	mac_check_socket_deliver(struct socket *so, struct mbuf *m);
-int	mac_check_socket_listen(struct ucred *cred, struct socket *so);
-int	mac_check_socket_poll(struct ucred *cred, struct socket *so);
-int	mac_check_socket_receive(struct ucred *cred, struct socket *so);
-int	mac_check_socket_send(struct ucred *cred, struct socket *so);
-int	mac_check_socket_stat(struct ucred *cred, struct socket *so);
-int	mac_check_socket_visible(struct ucred *cred, struct socket *so);
-int	mac_check_system_acct(struct ucred *cred, struct vnode *vp);
-int	mac_check_system_audit(struct ucred *cred, void *record, int length);
-int	mac_check_system_auditctl(struct ucred *cred, struct vnode *vp);
-int	mac_check_system_auditon(struct ucred *cred, int cmd);
-int	mac_check_system_reboot(struct ucred *cred, int howto);
-int	mac_check_system_swapon(struct ucred *cred, struct vnode *vp);
-int	mac_check_system_swapoff(struct ucred *cred, struct vnode *vp);
-int	mac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+int	mac_socket_check_deliver(struct socket *so, struct mbuf *m);
+int	mac_socket_check_listen(struct ucred *cred, struct socket *so);
+int	mac_socket_check_poll(struct ucred *cred, struct socket *so);
+int	mac_socket_check_receive(struct ucred *cred, struct socket *so);
+int	mac_socket_check_send(struct ucred *cred, struct socket *so);
+int	mac_socket_check_stat(struct ucred *cred, struct socket *so);
+int	mac_socket_check_visible(struct ucred *cred, struct socket *so);
+int	mac_system_check_acct(struct ucred *cred, struct vnode *vp);
+int	mac_system_check_audit(struct ucred *cred, void *record, int length);
+int	mac_system_check_auditctl(struct ucred *cred, struct vnode *vp);
+int	mac_system_check_auditon(struct ucred *cred, int cmd);
+int	mac_system_check_reboot(struct ucred *cred, int howto);
+int	mac_system_check_swapon(struct ucred *cred, struct vnode *vp);
+int	mac_system_check_swapoff(struct ucred *cred, struct vnode *vp);
+int	mac_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 	    void *arg1, int arg2, struct sysctl_req *req);
-int	mac_check_vnode_access(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_access(struct ucred *cred, struct vnode *vp,
 	    int acc_mode);
-int	mac_check_vnode_chdir(struct ucred *cred, struct vnode *dvp);
-int	mac_check_vnode_chroot(struct ucred *cred, struct vnode *dvp);
-int	mac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp);
+int	mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp);
+int	mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
 	    struct componentname *cnp, struct vattr *vap);
-int	mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
-int	mac_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace, const char *name);
-int	mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_exec(struct ucred *cred, struct vnode *vp,
 	    struct image_params *imgp);
-int	mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
-int	mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace, const char *name, struct uio *uio);
-int	mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_link(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
-int	mac_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace);
-int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
-int	mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp, int prot,
+int	mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
 	    int flags);
-int	mac_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
-int	mac_check_vnode_open(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	    int acc_mode);
-int	mac_check_vnode_poll(struct ucred *active_cred,
+int	mac_vnode_check_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
-int	mac_check_vnode_read(struct ucred *active_cred,
+int	mac_vnode_check_read(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
-int	mac_check_vnode_readdir(struct ucred *cred, struct vnode *vp);
-int	mac_check_vnode_readlink(struct ucred *cred, struct vnode *vp);
-int	mac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_readdir(struct ucred *cred, struct vnode *vp);
+int	mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp);
+int	mac_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
-int	mac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, int samedir, struct componentname *cnp);
-int	mac_check_vnode_revoke(struct ucred *cred, struct vnode *vp);
-int	mac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_revoke(struct ucred *cred, struct vnode *vp);
+int	mac_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type, struct acl *acl);
-int	mac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace, const char *name, struct uio *uio);
-int	mac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
 	    u_long flags);
-int	mac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
 	    mode_t mode);
-int	mac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
 	    uid_t uid, gid_t gid);
-int	mac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
 	    struct timespec atime, struct timespec mtime);
-int	mac_check_vnode_stat(struct ucred *active_cred,
+int	mac_vnode_check_stat(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
-int	mac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+int	mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
-int	mac_check_vnode_write(struct ucred *active_cred,
+int	mac_vnode_check_write(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_getsockopt_label(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
 int	mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);
-int	mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
+int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
-int	mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
+int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 int	mac_setsockopt_label(struct ucred *cred, struct socket *so,
 	    struct mac *extmac);

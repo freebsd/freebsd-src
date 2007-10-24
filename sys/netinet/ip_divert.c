@@ -376,7 +376,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			ipstat.ips_rawout++;			/* XXX */
 
 #ifdef MAC
-			mac_create_mbuf_from_inpcb(inp, m);
+			mac_inpcb_create_mbuf(inp, m);
 #endif
 			/*
 			 * Get ready to inject the packet into ip_output().
@@ -439,7 +439,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 		}
 #ifdef MAC
 		SOCK_LOCK(so);
-		mac_create_mbuf_from_socket(so, m);
+		mac_socket_create_mbuf(so, m);
 		SOCK_UNLOCK(so);
 #endif
 		/* Send packet to input processing via netisr */

@@ -164,7 +164,7 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 	}
 #endif /* IPSEC */
 #ifdef MAC
-	if (!policyfail && mac_check_inpcb_deliver(last, n) != 0)
+	if (!policyfail && mac_inpcb_check_deliver(last, n) != 0)
 		policyfail = 1;
 #endif
 	/* Check the minimum TTL for socket. */
@@ -330,7 +330,7 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		flags |= IP_SENDONES;
 
 #ifdef MAC
-	mac_create_mbuf_from_inpcb(inp, m);
+	mac_inpcb_create_mbuf(inp, m);
 #endif
 
 	error = ip_output(m, inp->inp_options, NULL, flags,

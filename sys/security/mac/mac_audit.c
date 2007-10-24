@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
  * TrustedBSD Project.
@@ -10,6 +11,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -46,66 +50,66 @@
 #include <security/mac/mac_policy.h>
 
 int
-mac_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
+mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 	int error;
 
-	MAC_CHECK(check_proc_setaudit, cred, ai);
+	MAC_CHECK(proc_check_setaudit, cred, ai);
 
 	return (error);
 }
 
 int
-mac_check_proc_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+mac_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
 {
 	int error;
 
-	MAC_CHECK(check_proc_setaudit_addr, cred, aia);
+	MAC_CHECK(proc_check_setaudit_addr, cred, aia);
 
 	return (error);
 }
 
 int
-mac_check_proc_setauid(struct ucred *cred, uid_t auid)
+mac_proc_check_setauid(struct ucred *cred, uid_t auid)
 {
 	int error;
 
-	MAC_CHECK(check_proc_setauid, cred, auid);
+	MAC_CHECK(proc_check_setauid, cred, auid);
 
 	return (error);
 }
 
 int
-mac_check_system_audit(struct ucred *cred, void *record, int length)
+mac_system_check_audit(struct ucred *cred, void *record, int length)
 {
 	int error;
 
-	MAC_CHECK(check_system_audit, cred, record, length);
+	MAC_CHECK(system_check_audit, cred, record, length);
 
 	return (error);
 }
 
 int
-mac_check_system_auditctl(struct ucred *cred, struct vnode *vp)
+mac_system_check_auditctl(struct ucred *cred, struct vnode *vp)
 {
 	int error;
 	struct label *vl;
 
-	ASSERT_VOP_LOCKED(vp, "mac_check_system_auditctl");
+	ASSERT_VOP_LOCKED(vp, "mac_system_check_auditctl");
 
 	vl = (vp != NULL) ? vp->v_label : NULL;
 
-	MAC_CHECK(check_system_auditctl, cred, vp, vl);
+	MAC_CHECK(system_check_auditctl, cred, vp, vl);
 
 	return (error);
 }
 
 int
-mac_check_system_auditon(struct ucred *cred, int cmd)
+mac_system_check_auditon(struct ucred *cred, int cmd)
 {
 	int error;
 
-	MAC_CHECK(check_system_auditon, cred, cmd);
+	MAC_CHECK(system_check_auditon, cred, cmd);
 
 	return (error);
 }

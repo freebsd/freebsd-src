@@ -374,7 +374,7 @@ again:
 	}
 
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error)
 		goto out;
 #endif
@@ -536,7 +536,7 @@ again:
 	}
 
 #ifdef MAC
-	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	error = mac_vnode_check_readdir(td->td_ucred, vp);
 	if (error)
 		goto out;
 #endif

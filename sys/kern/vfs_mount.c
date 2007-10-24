@@ -488,8 +488,8 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
 #ifdef MAC
-	mac_init_mount(mp);
-	mac_create_mount(td->td_ucred, mp);
+	mac_mount_init(mp);
+	mac_mount_create(td->td_ucred, mp);
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
 	return (mp);
@@ -567,7 +567,7 @@ vfs_mount_destroy(struct mount *mp)
 	mp->mnt_secondary_writes = -1000;
 	MNT_IUNLOCK(mp);
 #ifdef MAC
-	mac_destroy_mount(mp);
+	mac_mount_destroy(mp);
 #endif
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
