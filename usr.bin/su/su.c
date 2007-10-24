@@ -469,9 +469,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		}
-		child_pgrp = getpgid(child_pid);
-		if (tcgetpgrp(STDERR_FILENO) == child_pgrp)
-			tcsetpgrp(STDERR_FILENO, getpgrp());
+		tcsetpgrp(STDERR_FILENO, getpgrp());
 		if (pid == -1)
 			err(1, "waitpid");
 		PAM_END();
