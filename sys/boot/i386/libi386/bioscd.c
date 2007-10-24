@@ -350,7 +350,7 @@ bc_getdev(struct i386_devdesc *dev)
     unit = 0;	/* XXX */
 
     /* XXX: Assume partition 'a'. */
-    rootdev = MAKEBOOTDEV(major, 0, 0, unit, 0);
+    rootdev = MAKEBOOTDEV(major, 0, unit, 0);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
 }
