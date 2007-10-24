@@ -597,12 +597,12 @@ ate_get_mac(struct ate_softc *sc, u_char *eaddr)
 	high =  RD4(sc, ETH_SA1H);
 	if ((low | (high & 0xffff)) == 0)
 		return (ENXIO);
-	eaddr[0] = (high >> 8) & 0xff;
-	eaddr[1] = high & 0xff;
-	eaddr[2] = (low >> 24) & 0xff;
-	eaddr[3] = (low >> 16) & 0xff;
-	eaddr[4] = (low >> 8) & 0xff;
-	eaddr[5] = low & 0xff;
+	eaddr[0] = low & 0xff;
+	eaddr[1] = (low >> 8) & 0xff;
+	eaddr[2] = (low >> 16) & 0xff;
+	eaddr[3] = (low >> 24) & 0xff;
+	eaddr[4] = high & 0xff;
+	eaddr[5] = (high >> 8) & 0xff;
 	return (0);
 }
 
