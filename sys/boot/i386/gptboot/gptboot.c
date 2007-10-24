@@ -17,8 +17,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
-#include <sys/diskmbr.h>
+#include <sys/gpt.h>
 #include <sys/dirent.h>
 #include <sys/reboot.h>
 
@@ -31,7 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
-#include "boot2.h"
 #include "lib.h"
 
 #define IO_KEYBOARD	1
@@ -99,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 extern uint32_t _end;
 
+static const uuid_t freebsd_ufs_uuid = GPT_ENT_TYPE_FREEBSD_UFS;
 static const char optstr[NOPT] = "DhaCcdgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
@@ -124,9 +123,8 @@ static struct dsk {
     unsigned drive;
     unsigned type;
     unsigned unit;
-    unsigned slice;
-    unsigned part;
-    unsigned start;
+    int part;
+    daddr_t start;
     int init;
 } dsk;
 static char cmd[512];
@@ -137,20 +135,21 @@ static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
+static int bcmp(const void *, const void *, size_t);
 static void load(void);
 static int parse(void);
 static int xfsread(ino_t, void *, size_t);
-static int dskread(void *, unsigned, unsigned);
+static int dskread(void *, daddr_t, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
+static void memcpy(void *, const void *, int);
 static uint32_t memsize(void);
-static int drvread(void *, unsigned, unsigned);
+static int drvread(void *, daddr_t, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-static void memcpy(void *, const void *, int);
 static void
 memcpy(void *dst, const void *src, int len)
 {
@@ -168,6 +167,7 @@ strcmp(const char *s1, const char *s2)
     return (unsigned char)*s1 - (unsigned char)*s2;
 }
 
+#define GPTBOOT
 #include "ufsread.c"
 
 static inline int
@@ -239,7 +239,7 @@ main(void)
     dsk.drive = *(uint8_t *)PTOV(ARGS);
     dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
     dsk.unit = dsk.drive & DRV_MASK;
-    dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
+    dsk.part = -1;
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
     bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
@@ -280,10 +280,10 @@ main(void)
     for (;;) {
 	if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    printf("\nFreeBSD/i386 boot\n"
-		   "Default: %u:%s(%u,%c)%s\n"
+		   "Default: %u:%s(%up%u)%s\n"
 		   "boot: ",
 		   dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-		   'a' + dsk.part, kname);
+		   dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
 	if (!autoboot || keyhit(5*SECOND))
@@ -395,12 +395,12 @@ load(void)
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
-	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.slice, dsk.unit, dsk.part),
+	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.part + 1, dsk.unit, 0xff),
 	   0, 0, 0, VTOP(&bootinfo));
 }
 
 static int
-parse()
+parse(void)
 {
     char *arg = cmd;
     char *ep, *p, *q;
@@ -467,19 +467,16 @@ parse()
 		if (arg[1] != ',' || dsk.unit > 9)
 		    return -1;
 		arg += 2;
-		dsk.slice = WHOLE_DISK_SLICE;
+		dsk.part = -1;
 		if (arg[1] == ',') {
-		    dsk.slice = *arg - '0' + 1;
-		    if (dsk.slice > NDOSPART)
+		    dsk.part = *arg - '0';
+		    if (dsk.part < 1 || dsk.part > 9)
 			return -1;
 		    arg += 2;
 		}
-		if (arg[1] != ')')
+		if (arg[0] != ')')
 		    return -1;
-		dsk.part = *arg - 'a';
-		if (dsk.part > 7)
-		    return (-1);
-		arg += 2;
+		arg++;
 		if (drv == -1)
 		    drv = dsk.unit;
 		dsk.drive = (dsk.type <= TYPE_MAXHARD
@@ -498,63 +495,87 @@ parse()
 }
 
 static int
-dskread(void *buf, unsigned lba, unsigned nblk)
+dskread(void *buf, daddr_t lba, unsigned nblk)
 {
-    struct dos_partition *dp;
-    struct disklabel *d;
+    struct gpt_hdr hdr;
+    struct gpt_ent *ent;
     char *sec;
-    unsigned sl, i;
+    daddr_t slba, elba;
+    int part, entries_per_sec;
 
     if (!dsk_meta) {
+	/* Read and verify GPT. */
 	sec = dmadat->secbuf;
 	dsk.start = 0;
-	if (drvread(sec, DOSBBSECTOR, 1))
+	if (drvread(sec, 1, 1))
 	    return -1;
-	dp = (void *)(sec + DOSPARTOFF);
-	sl = dsk.slice;
-	if (sl < BASE_SLICE) {
-	    for (i = 0; i < NDOSPART; i++)
-		if (dp[i].dp_typ == DOSPTYP_386BSD &&
-		    (dp[i].dp_flag & 0x80 || sl < BASE_SLICE)) {
-		    sl = BASE_SLICE + i;
-		    if (dp[i].dp_flag & 0x80 ||
-			dsk.slice == COMPATIBILITY_SLICE)
+	memcpy(&hdr, sec, sizeof(hdr));
+	if (bcmp(hdr.hdr_sig, GPT_HDR_SIG, sizeof(hdr.hdr_sig)) != 0 ||
+	    hdr.hdr_lba_self != 1 || hdr.hdr_revision < 0x00010000 ||
+	    hdr.hdr_entsz < sizeof(*ent) || DEV_BSIZE % hdr.hdr_entsz != 0) {
+	    printf("Invalid GPT header\n");
+	    return -1;
+	}
+
+	/* XXX: CRC check? */
+
+	/*
+	 * If the partition isn't specified, then search for the first UFS
+	 * partition and hope it is /.  Perhaps we should be using an OS
+	 * flag in the GPT entry to mark / partitions.
+	 *
+	 * If the partition is specified, then figure out the LBA for the
+	 * sector containing that partition index and load it.
+	 */
+	entries_per_sec = DEV_BSIZE / hdr.hdr_entsz;
+	if (dsk.part == -1) {
+	    slba = hdr.hdr_lba_table;
+	    elba = slba + hdr.hdr_entries / entries_per_sec;
+	    while (slba < elba && dsk.part == -1) {
+		if (drvread(sec, slba, 1))
+		    return -1;
+		for (part = 0; part < entries_per_sec; part++) {
+		    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
+		    if (bcmp(&ent->ent_type, &freebsd_ufs_uuid,
+			sizeof(uuid_t)) == 0) {
+			dsk.part = (slba - hdr.hdr_lba_table) *
+			    entries_per_sec + part + 1;
+			dsk.start = ent->ent_lba_start;
 			break;
+		    }
 		}
-	    if (dsk.slice == WHOLE_DISK_SLICE)
-		dsk.slice = sl;
-	}
-	if (sl != WHOLE_DISK_SLICE) {
-	    if (sl != COMPATIBILITY_SLICE)
-		dp += sl - BASE_SLICE;
-	    if (dp->dp_typ != DOSPTYP_386BSD) {
-		printf("Invalid %s\n", "slice");
-		return -1;
+		slba++;
 	    }
-	    dsk.start = dp->dp_start;
-	}
-	if (drvread(sec, dsk.start + LABELSECTOR, 1))
-		return -1;
-	d = (void *)(sec + LABELOFFSET);
-	if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
-	    if (dsk.part != RAW_PART) {
-		printf("Invalid %s\n", "label");
+	    if (dsk.part == -1) {
+		printf("No UFS partition was found\n");
 		return -1;
 	    }
 	} else {
-	    if (!dsk.init) {
-		if (d->d_type == DTYPE_SCSI)
-		    dsk.type = TYPE_DA;
-		dsk.init++;
-	    }
-	    if (dsk.part >= d->d_npartitions ||
-		!d->d_partitions[dsk.part].p_size) {
-		printf("Invalid %s\n", "partition");
+	    if (dsk.part > hdr.hdr_entries) {
+		printf("Invalid partition index\n");
 		return -1;
 	    }
-	    dsk.start += d->d_partitions[dsk.part].p_offset;
-	    dsk.start -= d->d_partitions[RAW_PART].p_offset;
+	    slba = hdr.hdr_lba_table + (dsk.part - 1) / entries_per_sec;
+	    if (drvread(sec, slba, 1))
+		return -1;
+	    part = (dsk.part - 1) % entries_per_sec;
+	    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
+	    if (bcmp(&ent->ent_type, &freebsd_ufs_uuid, sizeof(uuid_t)) != 0) {
+		printf("Specified partition is not UFS\n");
+		return -1;
+	    }
+	    dsk.start = ent->ent_lba_start;
 	}
+	/*
+	 * XXX: No way to detect SCSI vs. ATA currently.
+	 */
+#if 0
+	if (!dsk.init) {
+	    if (d->d_type == DTYPE_SCSI)
+		dsk.type = TYPE_DA;
+	    dsk.init++;
+	}
+#endif
     }
     return drvread(buf, dsk.start + lba, nblk);
 }
@@ -606,21 +627,46 @@ putchar(int c)
 }
 
 static int
-drvread(void *buf, unsigned lba, unsigned nblk)
+bcmp(const void *b1, const void *b2, size_t length)
+{
+    const char *p1 = b1, *p2 = b2;
+
+    if (length == 0)
+	return (0);
+    do {
+	if (*p1++ != *p2++)
+	    break;
+    } while (--length);
+    return (length);
+}
+
+static struct {
+	uint16_t len;
+	uint16_t count;
+	uint16_t seg;
+	uint16_t off;
+	uint64_t lba;
+} packet;
+
+static int
+drvread(void *buf, daddr_t lba, unsigned nblk)
 {
     static unsigned c = 0x2d5c7c2f;
 
     if (!OPT_CHECK(RBX_QUIET))
 	printf("%c\b", c = c << 8 | c >> 24);
-    v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
-    v86.addr = XREADORG;		/* call to xread in boot1 */
-    v86.es = VTOPSEG(buf);
-    v86.eax = lba;
-    v86.ebx = VTOPOFF(buf);
-    v86.ecx = lba >> 16;
-    v86.edx = nblk << 8 | dsk.drive;
-    v86int();
+    packet.len = 0x10;
+    packet.count = nblk;
+    packet.seg = VTOPOFF(buf);
+    packet.off = VTOPSEG(buf);
+    packet.lba = lba;
     v86.ctl = V86_FLAGS;
+    v86.addr = 0x13;
+    v86.eax = 0x4200;
+    v86.edx = dsk.drive;
+    v86.ds = VTOPSEG(&packet);
+    v86.esi = VTOPOFF(&packet);
+    v86int();
     if (V86_CY(v86.efl)) {
 	printf("error %u lba %u\n", v86.eax >> 8 & 0xff, lba);
 	return -1;

@@ -72,6 +72,10 @@ SRCS+=	ashldi3.c ashrdi3.c
 SRCS+=	syncicache.c
 .endif
 
+# uuid functions from libc
+.PATH: ${.CURDIR}/../libc/uuid
+SRCS+= uuid_equal.c uuid_is_nil.c
+
 # _setjmp/_longjmp
 .if ${MACHINE_ARCH} == "amd64"
 .PATH: ${.CURDIR}/i386
