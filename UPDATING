@@ -21,6 +21,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20071024:
+	It has been decided that it is desirable to provide ABI
+	backwards compatibility to the FreeBSD 4/5/6 versions of the
+	PCIOCGETCONF, PCIOCREAD and PCIOCWRITE IOCTLs, which was
+	broken with the introduction of PCI domain support (see the
+	20070930 entry). Unfortunately, this required the ABI of
+	PCIOCGETCONF to be broken again in order to be able to
+	provide backwards compatibility to the old version of that
+	IOCTL. Thus consumers of PCIOCGETCONF have to be recompiled
+	again. As for prominent ports this affects neither pciutils
+	nor xorg-server this time, the hal port needs to be rebuilt
+	however.
+
 20071020:
 	The misnamed kthread_create() and friends have been renamed
 	to kproc_create() etc. Many of the callers already
