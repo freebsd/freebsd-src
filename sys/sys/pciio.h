@@ -108,7 +108,7 @@ struct pci_io {
 	u_int32_t	pi_data;	/* data to write or result of read */
 };
 
-#define	PCIOCGETCONF	_IOWR('p', 1, struct pci_conf_io)
+#define	PCIOCGETCONF	_IOWR('p', 5, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
 #define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)

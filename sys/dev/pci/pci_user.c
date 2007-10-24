@@ -169,32 +169,178 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 	return(1);
 }
 
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+
+typedef enum {
+	PCI_GETCONF_NO_MATCH_OLD	= 0x00,
+	PCI_GETCONF_MATCH_BUS_OLD	= 0x01,
+	PCI_GETCONF_MATCH_DEV_OLD	= 0x02,
+	PCI_GETCONF_MATCH_FUNC_OLD	= 0x04,
+	PCI_GETCONF_MATCH_NAME_OLD	= 0x08,
+	PCI_GETCONF_MATCH_UNIT_OLD	= 0x10,
+	PCI_GETCONF_MATCH_VENDOR_OLD	= 0x20,
+	PCI_GETCONF_MATCH_DEVICE_OLD	= 0x40,
+	PCI_GETCONF_MATCH_CLASS_OLD	= 0x80
+} pci_getconf_flags_old;
+
+struct pcisel_old {
+	u_int8_t	pc_bus;		/* bus number */
+	u_int8_t	pc_dev;		/* device on this bus */
+	u_int8_t	pc_func;	/* function on this device */
+};
+
+struct pci_conf_old {
+	struct pcisel_old pc_sel;	/* bus+slot+function */
+	u_int8_t	pc_hdr;		/* PCI header type */
+	u_int16_t	pc_subvendor;	/* card vendor ID */
+	u_int16_t	pc_subdevice;	/* card device ID, assigned by
+					   card vendor */
+	u_int16_t	pc_vendor;	/* chip vendor ID */
+	u_int16_t	pc_device;	/* chip device ID, assigned by
+					   chip vendor */
+	u_int8_t	pc_class;	/* chip PCI class */
+	u_int8_t	pc_subclass;	/* chip PCI subclass */
+	u_int8_t	pc_progif;	/* chip PCI programming interface */
+	u_int8_t	pc_revid;	/* chip revision ID */
+	char		pd_name[PCI_MAXNAMELEN + 1];  /* device name */
+	u_long		pd_unit;	/* device unit number */
+};
+
+struct pci_match_conf_old {
+	struct pcisel_old	pc_sel;		/* bus+slot+function */
+	char			pd_name[PCI_MAXNAMELEN + 1];  /* device name */
+	u_long			pd_unit;	/* Unit number */
+	u_int16_t		pc_vendor;	/* PCI Vendor ID */
+	u_int16_t		pc_device;	/* PCI Device ID */
+	u_int8_t		pc_class;	/* PCI class */
+	pci_getconf_flags	flags;		/* Matching expression */
+};
+
+struct pci_io_old {
+	struct pcisel_old pi_sel;	/* device to operate on */
+	int		pi_reg;		/* configuration register to examine */
+	int		pi_width;	/* width (in bytes) of read or write */
+	u_int32_t	pi_data;	/* data to write or result of read */
+};
+
+#define	PCIOCGETCONF_OLD	_IOWR('p', 1, struct pci_conf_io)
+#define	PCIOCREAD_OLD		_IOWR('p', 2, struct pci_io_old)
+#define	PCIOCWRITE_OLD		_IOWR('p', 3, struct pci_io_old)
+
+static int	pci_conf_match_old(struct pci_match_conf_old *matches,
+		    int num_matches, struct pci_conf *match_buf);
+
+static int
+pci_conf_match_old(struct pci_match_conf_old *matches, int num_matches,
+    struct pci_conf *match_buf)
+{
+	int i;
+
+	if ((matches == NULL) || (match_buf == NULL) || (num_matches <= 0))
+		return(1);
+
+	for (i = 0; i < num_matches; i++) {
+		if (match_buf->pc_sel.pc_domain != 0)
+			continue;
+
+		/*
+		 * I'm not sure why someone would do this...but...
+		 */
+		if (matches[i].flags == PCI_GETCONF_NO_MATCH_OLD)
+			continue;
+
+		/*
+		 * Look at each of the match flags.  If it's set, do the
+		 * comparison.  If the comparison fails, we don't have a
+		 * match, go on to the next item if there is one.
+		 */
+		if (((matches[i].flags & PCI_GETCONF_MATCH_BUS_OLD) != 0)
+		 && (match_buf->pc_sel.pc_bus != matches[i].pc_sel.pc_bus))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_DEV_OLD) != 0)
+		 && (match_buf->pc_sel.pc_dev != matches[i].pc_sel.pc_dev))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_FUNC_OLD) != 0)
+		 && (match_buf->pc_sel.pc_func != matches[i].pc_sel.pc_func))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_VENDOR_OLD) != 0)
+		 && (match_buf->pc_vendor != matches[i].pc_vendor))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_DEVICE_OLD) != 0)
+		 && (match_buf->pc_device != matches[i].pc_device))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_CLASS_OLD) != 0)
+		 && (match_buf->pc_class != matches[i].pc_class))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_UNIT_OLD) != 0)
+		 && (match_buf->pd_unit != matches[i].pd_unit))
+			continue;
+
+		if (((matches[i].flags & PCI_GETCONF_MATCH_NAME_OLD) != 0)
+		 && (strncmp(matches[i].pd_name, match_buf->pd_name,
+			     sizeof(match_buf->pd_name)) != 0))
+			continue;
+
+		return(0);
+	}
+
+	return(1);
+}
+
+#endif
+
 static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	device_t pcidev;
-	struct pci_io *io;
+	device_t pcidev, brdev;
+	void *confdata;
 	const char *name;
-	int error;
+	struct devlist *devlist_head;
+	struct pci_conf_io *cio;
+	struct pci_devinfo *dinfo;
+	struct pci_io *io;
+	struct pci_match_conf *pattern_buf;
+	size_t confsz, iolen, pbufsz;
+	int error, ionum, i, num_patterns;
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+	struct pci_conf_old conf_old;
+	struct pci_io iodata;
+	struct pci_io_old *io_old;
+	struct pci_match_conf_old *pattern_buf_old;
 
+	io_old = NULL;
+	pattern_buf_old = NULL;
+
+	if (!(flag & FWRITE) &&
+	    (cmd != PCIOCGETCONF && cmd != PCIOCGETCONF_OLD))
+		return EPERM;
+#else
 	if (!(flag & FWRITE) && cmd != PCIOCGETCONF)
 		return EPERM;
+#endif
 
 	switch(cmd) {
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+	case PCIOCGETCONF_OLD:
+		/* FALLTHROUGH */
+#endif
 	case PCIOCGETCONF:
-		{
-		struct pci_devinfo *dinfo;
-		struct pci_conf_io *cio;
-		struct devlist *devlist_head;
-		struct pci_match_conf *pattern_buf;
-		int num_patterns;
-		size_t iolen;
-		int ionum, i;
-
 		cio = (struct pci_conf_io *)data;
 
+		pattern_buf = NULL;
 		num_patterns = 0;
 		dinfo = NULL;
+
+		cio->num_matches = 0;
 
 		/*
 		 * If the user specified an offset into the device list,
@@ -204,7 +350,6 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 */
 		if ((cio->offset != 0)
 		 && (cio->generation != pci_generation)){
-			cio->num_matches = 0;	
 			cio->status = PCI_GETCONF_LIST_CHANGED;
 			error = 0;
 			break;
@@ -215,7 +360,6 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * past the end of our list.
 		 */
 		if (cio->offset >= pci_numdevs) {
-			cio->num_matches = 0;
 			cio->status = PCI_GETCONF_LAST_DEVICE;
 			error = 0;
 			break;
@@ -230,15 +374,21 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * multiple of sizeof(struct pci_conf) in case the user
 		 * didn't specify a multiple of that size.
 		 */
-		iolen = min(cio->match_buf_len - 
-			    (cio->match_buf_len % sizeof(struct pci_conf)),
-			    pci_numdevs * sizeof(struct pci_conf));
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+		if (cmd == PCIOCGETCONF_OLD)
+			confsz = sizeof(struct pci_conf_old);
+		else
+#endif
+			confsz = sizeof(struct pci_conf);
+		iolen = min(cio->match_buf_len - (cio->match_buf_len % confsz),
+		    pci_numdevs * confsz);
 
 		/*
 		 * Since we know that iolen is a multiple of the size of
 		 * the pciconf union, it's okay to do this.
 		 */
-		ionum = iolen / sizeof(struct pci_conf);
+		ionum = iolen / confsz;
 
 		/*
 		 * If this test is true, the user wants the pci_conf
@@ -259,11 +409,16 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			 * it's far more likely to just catch folks that
 			 * updated their kernel but not their userland.
 			 */
-			if ((cio->num_patterns *
-			    sizeof(struct pci_match_conf)) != cio->pat_buf_len){
-				/* The user made a mistake, return an error*/
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+			if (cmd == PCIOCGETCONF_OLD)
+				pbufsz = sizeof(struct pci_match_conf_old);
+			else
+#endif
+				pbufsz = sizeof(struct pci_match_conf);
+			if (cio->num_patterns * pbufsz != cio->pat_buf_len) {
+				/* The user made a mistake, return an error. */
 				cio->status = PCI_GETCONF_ERROR;
-				cio->num_matches = 0;
 				error = EINVAL;
 				break;
 			}
@@ -271,27 +426,35 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			/*
 			 * Allocate a buffer to hold the patterns.
 			 */
-			pattern_buf = malloc(cio->pat_buf_len, M_TEMP,
-					     M_WAITOK);
-			error = copyin(cio->patterns, pattern_buf,
-				       cio->pat_buf_len);
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+			if (cmd == PCIOCGETCONF_OLD) {
+				pattern_buf_old = malloc(cio->pat_buf_len,
+				    M_TEMP, M_WAITOK);
+				error = copyin(cio->patterns,
+				    pattern_buf_old, cio->pat_buf_len);
+			} else
+#endif
+			{
+				pattern_buf = malloc(cio->pat_buf_len, M_TEMP,
+				    M_WAITOK);
+				error = copyin(cio->patterns, pattern_buf,
+				    cio->pat_buf_len);
+			}
 			if (error != 0) {
 				error = EINVAL;
 				goto getconfexit;
 			}
 			num_patterns = cio->num_patterns;
-
 		} else if ((cio->num_patterns > 0)
 			|| (cio->pat_buf_len > 0)) {
 			/*
 			 * The user made a mistake, spit out an error.
 			 */
 			cio->status = PCI_GETCONF_ERROR;
-			cio->num_matches = 0;
 			error = EINVAL;
 			break;
-		} else
-			pattern_buf = NULL;
+		}
 
 		/*
 		 * Go through the list of devices and copy out the devices
@@ -318,10 +481,21 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					device_get_unit(dinfo->cfg.dev);
 			}
 
-			if ((pattern_buf == NULL) ||
-			    (pci_conf_match(pattern_buf, num_patterns,
-					    &dinfo->conf) == 0)) {
-
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+			if ((cmd == PCIOCGETCONF_OLD &&
+			    (pattern_buf_old == NULL ||
+			    pci_conf_match_old(pattern_buf_old, num_patterns,
+			    &dinfo->conf) == 0)) ||
+			    (cmd == PCIOCGETCONF &&
+			    (pattern_buf == NULL ||
+			    pci_conf_match(pattern_buf, num_patterns,
+			    &dinfo->conf) == 0))) {
+#else
+			if (pattern_buf == NULL ||
+			    pci_conf_match(pattern_buf, num_patterns,
+			    &dinfo->conf) == 0) {
+#endif
 				/*
 				 * If we've filled up the user's buffer,
 				 * break out at this point.  Since we've
@@ -333,12 +507,50 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				if (cio->num_matches >= ionum)
 					break;
 
-				/* only if can copy it out do we count it */
-				if (!(error = copyout(&dinfo->conf,
-				    &cio->matches[cio->num_matches],
-				    sizeof(struct pci_conf)))) {
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+				if (cmd == PCIOCGETCONF_OLD) {
+					conf_old.pc_sel.pc_bus =
+					    dinfo->conf.pc_sel.pc_bus;
+					conf_old.pc_sel.pc_dev =
+					    dinfo->conf.pc_sel.pc_dev;
+					conf_old.pc_sel.pc_func =
+					    dinfo->conf.pc_sel.pc_func;
+					conf_old.pc_hdr = dinfo->conf.pc_hdr;
+					conf_old.pc_subvendor =
+					    dinfo->conf.pc_subvendor;
+					conf_old.pc_subdevice =
+					    dinfo->conf.pc_subdevice;
+					conf_old.pc_vendor =
+					    dinfo->conf.pc_vendor;
+					conf_old.pc_device =
+					    dinfo->conf.pc_device;
+					conf_old.pc_class =
+					    dinfo->conf.pc_class;
+					conf_old.pc_subclass =
+					    dinfo->conf.pc_subclass;
+					conf_old.pc_progif =
+					    dinfo->conf.pc_progif;
+					conf_old.pc_revid =
+					    dinfo->conf.pc_revid;
+					conf_old.pd_name[0] = '\0';
+					conf_old.pd_unit = 0;
+					if (name) {
+						strncpy(conf_old.pd_name, name,
+						    sizeof(conf_old.pd_name));
+						conf_old.
+						    pd_name[PCI_MAXNAMELEN] = 0;
+						conf_old.pd_unit =
+						    dinfo->conf.pd_unit;
+					}
+					confdata = &conf_old;
+				} else
+#endif
+					confdata = &dinfo->conf;
+				/* Only if we can copy it out do we count it. */
+				if (!(error = copyout(confdata,
+				    &cio->matches[cio->num_matches], confsz)))
 					cio->num_matches++;
-				}
 			}
 		}
 
@@ -353,7 +565,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * another ioctl call with offset != 0.
 		 */
 		cio->generation = pci_generation;
-		
+
 		/*
 		 * If this is the last device, inform the user so he won't
 		 * bother asking for more devices.  If dinfo isn't NULL, we
@@ -368,10 +580,29 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 getconfexit:
 		if (pattern_buf != NULL)
 			free(pattern_buf, M_TEMP);
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+		if (pattern_buf_old != NULL)
+			free(pattern_buf_old, M_TEMP);
+#endif
 
 		break;
-		}
 
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+	case PCIOCREAD_OLD:
+	case PCIOCWRITE_OLD:
+		io_old = (struct pci_io_old *)data;
+		iodata.pi_sel.pc_domain = 0;
+		iodata.pi_sel.pc_bus = io_old->pi_sel.pc_bus;
+		iodata.pi_sel.pc_dev = io_old->pi_sel.pc_dev;
+		iodata.pi_sel.pc_func = io_old->pi_sel.pc_func;
+		iodata.pi_reg = io_old->pi_reg;
+		iodata.pi_width = io_old->pi_width;
+		iodata.pi_data = io_old->pi_data;
+		data = (caddr_t)&iodata;
+		/* FALLTHROUGH */
+#endif
 	case PCIOCREAD:
 	case PCIOCWRITE:
 		io = (struct pci_io *)data;
@@ -380,10 +611,9 @@ getconfexit:
 		case 2:
 		case 1:
 			/* Make sure register is in bounds and aligned. */
-			if ((cmd == PCIOCREAD || cmd == PCIOCWRITE) &&
-			    (io->pi_reg < 0 ||
+			if (io->pi_reg < 0 ||
 			    io->pi_reg + io->pi_width > PCI_REGMAX + 1 ||
-			    io->pi_reg & (io->pi_width - 1))) {
+			    io->pi_reg & (io->pi_width - 1)) {
 				error = EINVAL;
 				break;
 			}
@@ -397,12 +627,15 @@ getconfexit:
 			    io->pi_sel.pc_bus, io->pi_sel.pc_dev,
 			    io->pi_sel.pc_func);
 			if (pcidev) {
-				device_t busdev, brdev;
+				brdev = device_get_parent(
+				    device_get_parent(pcidev));
 
-				busdev = device_get_parent(pcidev);
-				brdev = device_get_parent(busdev);
-
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+				if (cmd == PCIOCWRITE || cmd == PCIOCWRITE_OLD)
+#else
 				if (cmd == PCIOCWRITE)
+#endif
 					PCIB_WRITE_CONFIG(brdev,
 							  io->pi_sel.pc_bus,
 							  io->pi_sel.pc_dev,
@@ -410,6 +643,17 @@ getconfexit:
 							  io->pi_reg,
 							  io->pi_data,
 							  io->pi_width);
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6)
+				else if (cmd == PCIOCREAD_OLD)
+					io_old->pi_data =
+						PCIB_READ_CONFIG(brdev,
+							  io->pi_sel.pc_bus,
+							  io->pi_sel.pc_dev,
+							  io->pi_sel.pc_func,
+							  io->pi_reg,
+							  io->pi_width);
+#endif
 				else
 					io->pi_data =
 						PCIB_READ_CONFIG(brdev,
@@ -421,8 +665,8 @@ getconfexit:
 				error = 0;
 			} else {
 #ifdef COMPAT_FREEBSD4
-				if (cmd == PCIOCREAD) {
-					io->pi_data = -1;
+				if (cmd == PCIOCREAD_OLD) {
+					io_old->pi_data = -1;
 					error = 0;
 				} else
 #endif
