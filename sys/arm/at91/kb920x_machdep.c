@@ -367,7 +367,7 @@ initarm(void *arg, void *arg2)
 	for (i = 0; i < KERNEL_PT_KERN_NUM; i++)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x100000,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
-	pmap_map_chunk(l1pagetable, KERNBASE, KERNPHYSADDR,
+	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
@@ -464,8 +464,8 @@ initarm(void *arg, void *arg2)
 	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
 	 * calling pmap_bootstrap.
 	 */
-	dump_avail[0] = KERNPHYSADDR;
-	dump_avail[1] = KERNPHYSADDR + memsize;
+	dump_avail[0] = PHYSADDR;
+	dump_avail[1] = PHYSADDR + memsize;
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 					
@@ -478,10 +478,14 @@ initarm(void *arg, void *arg2)
 	
 	i = 0;
 	
-	phys_avail[0] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[1] = KERNPHYSADDR + memsize;
-	phys_avail[2] = 0;
-	phys_avail[3] = 0;
+#if PHYSADDR != KERNPHYSADDR
+	phys_avail[i++] = PHYSADDR;
+	phys_avail[i++] = KERNPHYSADDR;
+#endif
+	phys_avail[i++] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
+	phys_avail[i++] = KERNPHYSADDR + memsize;
+	phys_avail[i++] = 0;
+	phys_avail[i++] = 0;
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
