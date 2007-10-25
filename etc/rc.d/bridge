@@ -35,7 +35,7 @@
 name="bridge"
 start_cmd="bridge_start"
 stop_cmd="bridge_stop"
-_cmd=""
+cmd=""
 
 glob_int () {
 	case "$1" in
@@ -52,7 +52,7 @@ bridge_test () {
 	if [ -n "${interfaces}" ]; then
 		for i in ${interfaces}; do
 			if glob_int $iface $i ; then
-				ifconfig $bridge $_cmd $iface > /dev/null 2>&1
+				ifconfig $bridge $cmd $iface > /dev/null 2>&1
 				return
 			fi
 		done
@@ -62,13 +62,13 @@ bridge_test () {
 autobridge()
 {
 	if [ -n "${autobridge_interfaces}" ]; then
-		if [ -z "$_iflist" ]; then
+		if [ -z "$iflist" ]; then
 			# We're operating as a general network start routine.
-			_iflist="`list_net_interfaces`"
+			iflist="`list_net_interfaces`"
 		fi
 
 		for br in ${autobridge_interfaces}; do
-			for i in $_iflist; do
+			for i in $iflist; do
 				bridge_test $br $i
 			done
 		done
@@ -77,17 +77,17 @@ autobridge()
 
 bridge_start()
 {
-	_cmd="addm"
+	cmd="addm"
 	autobridge
 }
 
 bridge_stop()
 {
-	_cmd="deletem"
+	cmd="deletem"
 	autobridge
 }
 
-_iflist=$2
+iflist=$2
 
 load_rc_config $name
 run_rc_command "$1"

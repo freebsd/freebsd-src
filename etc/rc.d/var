@@ -36,7 +36,7 @@ name="var"
 
 load_rc_config $name
 
-_populate_var()
+populate_var()
 {
 	/usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var > /dev/null
 	case ${sendmail_enable} in
@@ -73,7 +73,7 @@ esac
 # in realistic diskless setups, we're probably ok.
 case "${populate_var}" in
 [Yy][Ee][Ss])
-	_populate_var
+	populate_var
 	;;
 [Nn][Oo])
 	exit 0
@@ -82,7 +82,7 @@ case "${populate_var}" in
 	if [ -d /var/run -a -d /var/db -a -d /var/empty ] ; then
 		true
 	elif [ -x /usr/sbin/mtree ] ; then
-		_populate_var
+		populate_var
 	else
 		# We need mtree to populate /var so try mounting /usr.
 		# If this does not work, we can not boot so it is OK to
@@ -91,7 +91,7 @@ case "${populate_var}" in
 		if [ ! -x /usr/sbin/mtree ] ; then
 			exit 1
 		else
-			_populate_var
+			populate_var
 		fi
 	fi
 	;;
