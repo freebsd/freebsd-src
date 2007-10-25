@@ -2109,7 +2109,7 @@ fwohci_poll(struct firewire_comm *fc, int quick, int count)
 			return;
 	}
 	s = splfw();
-	fwohci_intr_body(sc, stat, count);
+	fwohci_intr_body(sc, stat, -1 /* XXX count */);
 	splx(s);
 }
 
