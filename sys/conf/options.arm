@@ -4,6 +4,7 @@ ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARMFPE			opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_USE_SMALL_ALLOC	opt_global.h
+AT91C_MASTER_CLOCK	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_SA1100		opt_global.h
 CPU_SA1110		opt_global.h
