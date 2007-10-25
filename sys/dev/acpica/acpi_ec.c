@@ -155,6 +155,7 @@ struct acpi_ec_softc {
     int			ec_burstactive;
     int			ec_sci_pend;
     u_int		ec_gencount;
+    int			ec_suspending;
 };
 
 /*
@@ -234,6 +235,8 @@ static ACPI_STATUS	EcWrite(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
 static int		acpi_ec_probe(device_t dev);
 static int		acpi_ec_attach(device_t dev);
+static int		acpi_ec_suspend(device_t dev);
+static int		acpi_ec_resume(device_t dev);
 static int		acpi_ec_shutdown(device_t dev);
 static int		acpi_ec_read_method(device_t dev, u_int addr,
 				ACPI_INTEGER *val, int width);
@@ -244,6 +247,8 @@ static device_method_t acpi_ec_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_ec_probe),
     DEVMETHOD(device_attach,	acpi_ec_attach),
+    DEVMETHOD(device_suspend,	acpi_ec_suspend),
+    DEVMETHOD(device_resume,	acpi_ec_resume),
     DEVMETHOD(device_shutdown,	acpi_ec_shutdown),
 
     /* Embedded controller interface */
@@ -463,6 +468,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpebit = params->gpe_bit;
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
+    sc->ec_suspending = 0;
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
@@ -540,6 +546,31 @@ error:
 	bus_release_resource(sc->ec_dev, SYS_RES_IOPORT, sc->ec_data_rid,
 			     sc->ec_data_res);
     return (ENXIO);
+}
+
+static int
+acpi_ec_suspend(device_t dev)
+{
+    struct acpi_ec_softc	*sc;
+
+    /* Disable the GPE so we don't get EC events during shutdown. */
+    sc = device_get_softc(dev);
+    sc->ec_suspending = 1;
+    return (0);
+
+}
+
+
+static int
+acpi_ec_resume(device_t dev)
+{
+    struct acpi_ec_softc	*sc;
+
+    /* Disable the GPE so we don't get EC events during shutdown. */
+    sc = device_get_softc(dev);
+    sc->ec_suspending = 0;
+    return (0);
+
 }
 
 static int
@@ -786,7 +817,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 
     ACPI_SERIAL_ASSERT(ec);
     Status = AE_NO_HARDWARE_RESPONSE;
-
+    int need_suspend = cold || rebooting || ec_polled_mode || sc->ec_suspending;
     /*
      * The main CPU should be much faster than the EC.  So the status should
      * be "not ready" when we start waiting.  But if the main CPU is really
@@ -799,7 +830,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
      * the status checking loop, hopefully to allow the EC to go to work
      * and produce a non-stale status.
      */
-    if (cold || rebooting || ec_polled_mode) {
+    if (need_suspend) {
 	static int	once;
 
 	if (EcCheckStatus(sc, "pre-check", Event) == AE_OK) {
@@ -813,7 +844,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
     }
 
     /* Wait for event by polling or GPE (interrupt). */
-    if (cold || rebooting || ec_polled_mode) {
+    if (need_suspend) {
 	count = (ec_timeout * 1000) / EC_POLL_DELAY;
 	if (count == 0)
 	    count = 1;
