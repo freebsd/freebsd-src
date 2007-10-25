@@ -218,9 +218,9 @@ int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
 void	mac_vnode_execve_transition(struct ucred *oldcred,
 	    struct ucred *newcred, struct vnode *vp,
-	    struct label *interpvnodelabel, struct image_params *imgp);
+	    struct label *interpvplabel, struct image_params *imgp);
 int	mac_vnode_execve_will_transition(struct ucred *cred,
-	    struct vnode *vp, struct label *interpvnodelabel,
+	    struct vnode *vp, struct label *interpvplabel,
 	    struct image_params *imgp);
 void	mac_proc_create_swapper(struct ucred *cred);
 void	mac_proc_create_init(struct ucred *cred);

@@ -321,19 +321,18 @@ mac_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
 
 void
 mac_vnode_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct label *interpvnodelabel,
-    struct image_params *imgp)
+    struct vnode *vp, struct label *interpvplabel, struct image_params *imgp)
 {
 
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_execve_transition");
 
 	MAC_PERFORM(vnode_execve_transition, old, new, vp, vp->v_label,
-	    interpvnodelabel, imgp, imgp->execlabel);
+	    interpvplabel, imgp, imgp->execlabel);
 }
 
 int
 mac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct label *interpvnodelabel, struct image_params *imgp)
+    struct label *interpvplabel, struct image_params *imgp)
 {
 	int result;
 
@@ -341,7 +340,7 @@ mac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
 
 	result = 0;
 	MAC_BOOLEAN(vnode_execve_will_transition, ||, old, vp, vp->v_label,
-	    interpvnodelabel, imgp, imgp->execlabel);
+	    interpvplabel, imgp, imgp->execlabel);
 
 	return (result);
 }
@@ -494,8 +493,8 @@ mac_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
 }
 
 int
-mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
-    int prot, int flags)
+mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
+    int flags)
 {
 	int error;
 
@@ -506,7 +505,8 @@ mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 void
-mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp, int *prot)
+mac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+    int *prot)
 {
 	int result = *prot;
 
@@ -728,8 +728,8 @@ mac_vnode_check_stat(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 int
-mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp, struct vnode *vp,
-    struct componentname *cnp)
+mac_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
+    struct vnode *vp, struct componentname *cnp)
 {
 	int error;
 
@@ -756,7 +756,8 @@ mac_vnode_check_write(struct ucred *active_cred, struct ucred *file_cred,
 }
 
 void
-mac_vnode_relabel(struct ucred *cred, struct vnode *vp, struct label *newlabel)
+mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
+    struct label *newlabel)
 {
 
 	MAC_PERFORM(vnode_relabel, cred, vp, vp->v_label, newlabel);
@@ -806,9 +807,9 @@ mac_devfs_create_directory(struct mount *mp, char *dirname, int dirnamelen,
 }
 
 /*
- * Implementation of VOP_SETLABEL() that relies on extended attributes
- * to store label data.  Can be referenced by filesystems supporting
- * extended attributes.
+ * Implementation of VOP_SETLABEL() that relies on extended attributes to
+ * store label data.  Can be referenced by filesystems supporting extended
+ * attributes.
  */
 int
 vop_stdsetlabel_ea(struct vop_setlabel_args *ap)
@@ -862,8 +863,8 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	 * VADMIN provides the opportunity for the filesystem to make
 	 * decisions about who is and is not able to modify labels and
 	 * protections on files.  This might not be right.  We can't assume
-	 * VOP_SETLABEL() will do it, because we might implement that as
-	 * part of vop_stdsetlabel_ea().
+	 * VOP_SETLABEL() will do it, because we might implement that as part
+	 * of vop_stdsetlabel_ea().
 	 */
 	error = VOP_ACCESS(vp, VADMIN, cred, curthread);
 	if (error)
