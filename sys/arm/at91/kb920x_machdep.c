@@ -483,7 +483,7 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = KERNPHYSADDR;
 #endif
 	phys_avail[i++] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[i++] = KERNPHYSADDR + memsize;
+	phys_avail[i++] = PHYSADDR + memsize;
 	phys_avail[i++] = 0;
 	phys_avail[i++] = 0;
 	/* Do basic tuning, hz etc */
