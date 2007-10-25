@@ -40,6 +40,7 @@
 #
 
 : ${rcvar_manpage:='rc.conf(5)'}
+: ${RC_PID:=$$}; export RC_PID
 
 #
 #	Operating System dependent/independent variables
@@ -159,6 +160,27 @@ reverse_list()
 		_revlist="$_revfile $_revlist"
 	done
 	echo $_revlist
+}
+
+# stop_boot always
+#	If booting directly to multiuser or $always is enabled,
+#	send SIGTERM to the parent (/etc/rc) to abort the boot.
+#	Otherwise just exit.
+#
+stop_boot()
+{
+	local always
+
+	if [ -n "$1" ] && checkyesno $1; then
+		always=true
+	else
+		always=false
+	fi
+	if [ "$autoboot" = yes -o "$always" = true ]; then
+		echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
+		kill -TERM ${RC_PID}
+	fi
+	exit 1
 }
 
 #

@@ -26,15 +26,7 @@ ipsec_prestart()
 {
 	if [ ! -f "$ipsec_file" ]; then
 		warn "$ipsec_file not readable; ipsec start aborted."
-			#
-			# If booting directly to multiuser, send SIGTERM to
-			# the parent (/etc/rc) to abort the boot
-			#
-		if [ "$autoboot" = yes ]; then
-			echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
-			kill -TERM $$
-			exit 1
-		fi
+		stop_boot
 		return 1
 	fi
 	return 0
