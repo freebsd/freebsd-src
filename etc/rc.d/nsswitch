@@ -82,6 +82,8 @@ EOF
 
 generate_host_conf()
 {
+    local _cont _sources
+
     nsswitch_conf=$1; shift;
     host_conf=$1; shift;
 

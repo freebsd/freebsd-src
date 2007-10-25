@@ -45,8 +45,8 @@ bootconf_start()
 	done
 	echo
 	master=$$
-	_DUMMY=/etc/passwd
-	conf=${_DUMMY}
+	DUMMY=/etc/passwd
+	conf=${DUMMY}
 	while [ ! -d /etc/etc.$conf/. ]; do
 		trap "conf=$default; echo; echo Using default of $conf" ALRM
 		echo -n "Which configuration [$default] ? "
@@ -57,7 +57,7 @@ bootconf_start()
 			conf=$default
 		fi
 		if [ ! -d /etc/etc.$conf/. ]; then
-			conf=${_DUMMY}
+			conf=${DUMMY}
 		fi
 	done
 

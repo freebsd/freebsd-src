@@ -17,7 +17,7 @@ stop_cmd=":"
 
 ldconfig_start()
 {
-	local _files
+	local _files _ins
 
 	_ins=
 	ldconfig=${ldconfig_command}

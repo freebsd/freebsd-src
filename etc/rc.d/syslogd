@@ -18,12 +18,14 @@ required_files="/etc/syslog.conf"
 start_precmd="syslogd_precmd"
 extra_commands="reload"
 
-_sockfile="/var/run/syslogd.sockets"
+sockfile="/var/run/syslogd.sockets"
 evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
 altlog_proglist="named"
 
 syslogd_precmd()
 {
+	local _l _ldir
+
 	#	Transitional symlink for old binaries
 	#
 	if [ ! -L /dev/log ]; then
@@ -33,7 +35,7 @@ syslogd_precmd()
 
 	#	Create default list of syslog sockets to watch
 	#
-	( umask 022 ; > $_sockfile )
+	( umask 022 ; > $sockfile )
 
 	#	If running named(8) or ntpd(8) chrooted, added appropriate
 	#	syslog socket to list of sockets to watch.
@@ -41,7 +43,7 @@ syslogd_precmd()
 	for _l in $altlog_proglist; do
 		eval _ldir=\$${_l}_chrootdir
 		if checkyesno `set_rcvar $_l` && [ -n "$_ldir" ]; then
-			echo "${_ldir}/var/run/log" >> $_sockfile
+			echo "${_ldir}/var/run/log" >> $sockfile
 		fi
 	done
 
@@ -49,8 +51,8 @@ syslogd_precmd()
 	#	internal copy of $syslogd_flags to force use of specific
 	#	syslogd sockets.
 	#
-	if [ -s $_sockfile ]; then
-		echo "/var/run/log" >> $_sockfile
+	if [ -s $sockfile ]; then
+		echo "/var/run/log" >> $sockfile
 		eval $evalargs
 	fi
 
@@ -59,8 +61,10 @@ syslogd_precmd()
 
 set_socketlist()
 {
+	local _s _socketargs
+
 	_socketargs=
-	for _s in `cat $_sockfile | tr '\n' ' '` ; do
+	for _s in `cat $sockfile | tr '\n' ' '` ; do
 		_socketargs="-l $_s $_socketargs"
 	done
 	echo $_socketargs
