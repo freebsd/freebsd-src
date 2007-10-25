@@ -13,6 +13,7 @@
 name="mountd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
 required_files="/etc/exports"
 start_precmd="mountd_precmd"
 extra_commands="reload"
