@@ -1434,7 +1434,7 @@ stub_priv_grant(struct ucred *cred, int priv)
 	return (EPERM);
 }
 
-static struct mac_policy_ops mac_stub_ops =
+static struct mac_policy_ops stub_ops =
 {
 	.mpo_destroy = stub_destroy,
 	.mpo_init = stub_init,
@@ -1660,5 +1660,5 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_mbuf_from_syncache = stub_create_mbuf_from_syncache,
 };
 
-MAC_POLICY_SET(&mac_stub_ops, mac_stub, "TrustedBSD MAC/Stub",
+MAC_POLICY_SET(&stub_ops, mac_stub, "TrustedBSD MAC/Stub",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);
