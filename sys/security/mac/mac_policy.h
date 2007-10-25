@@ -607,7 +607,7 @@ typedef int	(*mpo_vnode_check_unlink_t)(struct ucred *cred,
 typedef int	(*mpo_vnode_check_write_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *vplabel);
-typedef void	(*mpo_associate_nfsd_label_t)(struct ucred *cred);
+typedef void	(*mpo_proc_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
 
@@ -765,6 +765,7 @@ struct mac_policy_ops {
 	mpo_vnode_execve_will_transition_t	mpo_vnode_execve_will_transition;
 	mpo_proc_create_swapper_t		mpo_proc_create_swapper;
 	mpo_proc_create_init_t			mpo_proc_create_init;
+	mpo_proc_associate_nfsd_t		mpo_proc_associate_nfsd;
 	mpo_cred_relabel_t			mpo_cred_relabel;
 	mpo_placeholder_t			_mpo_placeholder6;
 	mpo_thread_userret_t			mpo_thread_userret;
@@ -898,7 +899,6 @@ struct mac_policy_ops {
 	mpo_vnode_check_stat_t			mpo_vnode_check_stat;
 	mpo_vnode_check_unlink_t		mpo_vnode_check_unlink;
 	mpo_vnode_check_write_t			mpo_vnode_check_write;
-	mpo_associate_nfsd_label_t		mpo_associate_nfsd_label;
 	mpo_mbuf_create_from_firewall_t		mpo_mbuf_create_from_firewall;
 	mpo_init_syncache_label_t		mpo_init_syncache_label;
 	mpo_destroy_syncache_label_t		mpo_destroy_syncache_label;
