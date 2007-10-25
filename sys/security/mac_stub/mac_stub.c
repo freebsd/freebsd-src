@@ -179,8 +179,8 @@ stub_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
 }
 
 static void
-stub_vnode_associate_singlelabel(struct mount *mp,
-    struct label *mplabel, struct vnode *vp, struct label *vplabel)
+stub_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
+    struct vnode *vp, struct label *vplabel)
 {
 
 }
@@ -411,7 +411,7 @@ stub_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
 }
 
 static void
-stub_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
+stub_create_mbuf_linklayer(struct ifnet *ifp, struct label *iflpabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -498,7 +498,7 @@ stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  */
 static void
 stub_vnode_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct label *vplabel, struct label *interpvnodelabel,
+    struct vnode *vp, struct label *vplabel, struct label *interpvplabel,
     struct image_params *imgp, struct label *execlabel)
 {
 
@@ -506,7 +506,7 @@ stub_vnode_execve_transition(struct ucred *old, struct ucred *new,
 
 static int
 stub_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct label *vplabel, struct label *interpvnodelabel,
+    struct label *vplabel, struct label *interpvplabel,
     struct image_params *imgp, struct label *execlabel)
 {
 

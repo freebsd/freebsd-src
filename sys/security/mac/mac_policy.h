@@ -339,12 +339,12 @@ typedef void	(*mpo_create_mbuf_from_syncache_t)(struct label *sc_label,
  */
 typedef void	(*mpo_vnode_execve_transition_t)(struct ucred *old,
 		    struct ucred *new, struct vnode *vp,
-		    struct label *vplabel, struct label *interpvnodelabel,
+		    struct label *vplabel, struct label *interpvplabel,
 		    struct image_params *imgp, struct label *execlabel);
 typedef int	(*mpo_vnode_execve_will_transition_t)(struct ucred *old,
 		    struct vnode *vp, struct label *vplabel,
-		    struct label *interpvnodelabel,
-		    struct image_params *imgp, struct label *execlabel);
+		    struct label *interpvplabel, struct image_params *imgp,
+		    struct label *execlabel);
 typedef void	(*mpo_proc_create_swapper_t)(struct ucred *cred);
 typedef void	(*mpo_proc_create_init_t)(struct ucred *cred);
 typedef void	(*mpo_cred_relabel_t)(struct ucred *cred,
