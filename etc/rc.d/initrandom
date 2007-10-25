@@ -53,7 +53,7 @@ initrandom_start()
 		# harvesting rate.
 		# Entropy below is not great, but better than nothing.
 		# This unblocks the generator at startup
-		( ps -fauxww; sysctl -a; date; df -ib; dmesg; ps -fauxww; ) \
+		( ps -fauxww; sysctl -a; date; df -ib; dmesg; ps -fauxww ) \
 		    | dd of=/dev/random bs=8k 2>/dev/null
 		cat /bin/ls | dd of=/dev/random bs=8k 2>/dev/null
 
