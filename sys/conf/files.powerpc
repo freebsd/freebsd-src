@@ -9,7 +9,7 @@
 #
 #
 
-font.h                          optional        sc            \
+font.h				optional	sc			\
         compile-with    "uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
@@ -100,8 +100,8 @@ libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 
-powerpc/powerpc/mem.c		optional mem
-powerpc/powerpc/mp_machdep.c	optional smp
+powerpc/powerpc/mem.c		optional	mem
+powerpc/powerpc/mp_machdep.c	optional	smp
 
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
@@ -116,10 +116,10 @@ powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/uninorth.c	optional	powermac pci
 
-powerpc/psim/iobus.c 		optional psim
-powerpc/psim/ata_iobus.c	optional ata psim
-powerpc/psim/openpic_iobus.c	optional psim
-powerpc/psim/uart_iobus.c	optional uart psim
+powerpc/psim/iobus.c 		optional	psim
+powerpc/psim/ata_iobus.c	optional	ata psim
+powerpc/psim/openpic_iobus.c	optional	psim
+powerpc/psim/uart_iobus.c	optional	uart psim
 
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 
