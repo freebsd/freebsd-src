@@ -40,7 +40,7 @@ char	*fields;
 int	fieldssize = RECSIZE;
 
 Cell	**fldtab;	/* pointers to Cells */
-char	inputFS[10] = " ";
+char	inputFS[100] = " ";
 
 #define	MAXFLD	2
 int	nfields	= MAXFLD;	/* last allocated slot for $i */
@@ -58,7 +58,7 @@ static Cell dollar1 = { OCELL, CFLD, NULL, "", 0.0, FLD|STR|DONTFREE };
 void recinit(unsigned int n)
 {
 	if ( (record = (char *) malloc(n)) == NULL
-	  || (fields = (char *) malloc(n)) == NULL
+	  || (fields = (char *) malloc(n+1)) == NULL
 	  || (fldtab = (Cell **) malloc((nfields+1) * sizeof(Cell *))) == NULL
 	  || (fldtab[0] = (Cell *) malloc(sizeof(Cell))) == NULL )
 		FATAL("out of space for $0 and fields");
