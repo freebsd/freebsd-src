@@ -79,8 +79,8 @@ EMAC_SetMACAddress(unsigned char mac[6])
 	pPMC->PMC_PCER = ((unsigned) 1 << AT91C_ID_EMAC);
 
 	memcpy(localMACAddr, mac, 6);
-	localMAClow = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
-	localMAChigh = (mac[0] << 8) | mac[1];
+	localMAClow = (mac[3] << 24) | (mac[2] << 16) | (mac[1] << 8) | mac[0];
+	localMAChigh = (mac[5] << 8) | mac[4];
 	localMACSet = 1;
 
 	AT91C_BASE_PMC->PMC_PCER = 1u << AT91C_ID_EMAC;
