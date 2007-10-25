@@ -136,6 +136,7 @@ struct devsw biosdisk = {
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
 static void	bd_closedisk(struct open_disk *od);
+static int	bd_open_pc98(struct open_disk *od, struct i386_devdesc *dev);
 static int	bd_bestslice(struct open_disk *od);
 static void	bd_checkextended(struct open_disk *od, int slicenum);
 
@@ -378,12 +379,8 @@ bd_open(struct open_file *f, ...)
 static int
 bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 {
-    struct pc98_partition	*dptr;
-    struct disklabel		*lp;
     struct open_disk		*od;
-    int				sector, slice, i;
     int				error;
-    char			buf[BUFSIZE];
 
     if (dev->d_unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -401,11 +398,10 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     od->od_unit = bdinfo[od->od_dkunit].bd_unit;
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
-    od->od_nslices = 0;
     error = 0;
-    DEBUG("open '%s', unit 0x%x slice %d partition %c",
+    DEBUG("open '%s', unit 0x%x slice %d partition %d",
 	     i386_fmtdev(dev), dev->d_unit, 
-	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition + 'a');
+	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition);
 
     /* Get geometry for this open (removable device may have changed) */
     if (bd_getgeom(od)) {
@@ -413,6 +409,26 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	error = ENXIO;
 	goto out;
     }
+
+    /* Determine disk layout. */
+    error = bd_open_pc98(od, dev);
+    
+ out:
+    if (error) {
+	free(od);
+    } else {
+	*odp = od;	/* return the open disk */
+    }
+    return(error);
+}
+
+static int
+bd_open_pc98(struct open_disk *od, struct i386_devdesc *dev)
+{
+    struct pc98_partition	*dptr;
+    struct disklabel		*lp;
+    int				sector, slice, i;
+    char			buf[BUFSIZE];
 
     /*
      * Following calculations attempt to determine the correct value
@@ -423,14 +439,14 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     /*
      * Find the slice in the DOS slice table.
      */
+    od->od_nslices = 0;
     if (od->od_flags & BD_FLOPPY) {
 	sector = 0;
 	goto unsliced;
     }
     if (bd_read(od, 0, 1, buf)) {
 	DEBUG("error reading MBR");
-	error = EIO;
-	goto out;
+	return (EIO);
     }
 
     /* 
@@ -440,16 +456,14 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
 	    DEBUG("no slice table/MBR (no magic)");
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
 	}
 	sector = 0;
 	goto unsliced;		/* may be a floppy */
     }
     if (bd_read(od, 1, 1, buf)) {
 	DEBUG("error reading MBR");
-	error = EIO;
-	goto out;
+	return (EIO);
     }
 
     /*
@@ -474,8 +488,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
         slice = dev->d_kind.biosdisk.slice - 1;
         if (slice >= od->od_nslices) {
             DEBUG("slice %d not found", slice);
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
         }
     }
 
@@ -483,8 +496,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     if (dev->d_kind.biosdisk.slice == 0) {
 	slice = bd_bestslice(od);
         if (slice == -1) {
-	    error = ENOENT;
-            goto out;
+	    return (ENOENT);
         }
         dev->d_kind.biosdisk.slice = slice;
     }
@@ -524,8 +536,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	
 	if (bd_read(od, sector + LABELSECTOR, 1, buf)) {
 	    DEBUG("error reading disklabel");
-	    error = EIO;
-	    goto out;
+	    return (EIO);
 	}
 	DEBUG("copy %d bytes of label from %p to %p", sizeof(struct disklabel), buf + LABELOFFSET, &od->od_disklabel);
 	bcopy(buf + LABELOFFSET, &od->od_disklabel, sizeof(struct disklabel));
@@ -534,15 +545,12 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 
 	if (lp->d_magic != DISKMAGIC) {
 	    DEBUG("no disklabel");
-	    error = ENOENT;
-	    goto out;
+	    return (ENOENT);
 	}
 	if (dev->d_kind.biosdisk.partition >= lp->d_npartitions) {
 	    DEBUG("partition '%c' exceeds partitions in table (a-'%c')",
 		  'a' + dev->d_kind.biosdisk.partition, 'a' + lp->d_npartitions);
-	    error = EPART;
-	    goto out;
-
+	    return (EPART);
 	}
 
 #ifdef DISK_DEBUG
@@ -557,14 +565,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 		lp->d_partitions[RAW_PART].p_offset +
 		sector;
     }
-    
- out:
-    if (error) {
-	free(od);
-    } else {
-	*odp = od;	/* return the open disk */
-    }
-    return(error);
+    return (0);
 }
 
 /*
