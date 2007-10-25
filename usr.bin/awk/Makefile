@@ -29,7 +29,7 @@ CLEANFILES+=	nawk.1
 nawk.1: awk.1
 	cat ${.ALLSRC} > ${.TARGET}
 
-.for f in b.c lib.c main.c run.c tran.c
+.for f in b.c main.c run.c
 ${f}: ${AWKSRC}/${f} ${.CURDIR}/${f}.diff
 	patch -s -b .orig -o ${.TARGET} < ${.CURDIR}/${f}.diff ${AWKSRC}/${f}
 CLEANFILES+= ${f}
