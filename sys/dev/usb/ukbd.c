@@ -598,14 +598,20 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	if (!KBD_IS_INITIALIZED(kbd) && !(flags & KB_CONF_PROBE_ONLY)) {
 		if (KBD_HAS_DEVICE(kbd)
 		    && init_keyboard((ukbd_state_t *)kbd->kb_data,
-				     &kbd->kb_type, kbd->kb_flags))
+				     &kbd->kb_type, kbd->kb_flags)) {
+			kbd->kb_flags = 0;
+			/* XXX: Missing free()'s */
 			return ENXIO;
+		}
 		ukbd_ioctl(kbd, KDSETLED, (caddr_t)&(state->ks_state));
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
-		if (kbd_register(kbd) < 0)
+		if (kbd_register(kbd) < 0) {
+			kbd->kb_flags = 0;
+			/* XXX: Missing free()'s */
 			return ENXIO;
+		}
 		if (ukbd_enable_intr(kbd, TRUE, (usbd_intr_t *)data[1]) == 0)
 			ukbd_timeout((void *)kbd);
 		KBD_CONFIG_DONE(kbd);
