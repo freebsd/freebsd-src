@@ -38,13 +38,13 @@ sparc64/sparc64/clock.c		standard
 sparc64/sparc64/counter.c	standard
 sparc64/sparc64/db_disasm.c	optional	ddb
 sun4v/sun4v/db_interface.c	optional	ddb
-sun4v/sun4v/db_trace.c	optional	ddb
+sun4v/sun4v/db_trace.c		optional	ddb
 sun4v/sun4v/db_hwwatch.c	optional	ddb
 sun4v/sun4v/dump_machdep.c	standard
 sparc64/sparc64/elf_machdep.c	standard
-sun4v/sun4v/exception.S	standard	no-obj
+sun4v/sun4v/exception.S		standard	no-obj
 sparc64/sparc64/gdb_machdep.c	optional	gdb
-sun4v/sun4v/hv_pci.c	optional	pci
+sun4v/sun4v/hv_pci.c		optional	pci
 sun4v/sun4v/trap_trace.S	optional	trap_tracing
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
@@ -52,26 +52,26 @@ sparc64/pci/ofw_pcibus.c	optional	pci
 sparc64/pci/ofw_pci_if.m	optional	pci
 
 # XXX hvcons should be optional
-sun4v/sun4v/hvcons.c	standard	
-sun4v/sun4v/hcall.S	standard
-sun4v/sun4v/hviommu.c	standard
+sun4v/sun4v/hvcons.c		standard
+sun4v/sun4v/hcall.S		standard
+sun4v/sun4v/hviommu.c		standard
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
-sun4v/sun4v/interrupt.S	standard	no-obj
+sun4v/sun4v/interrupt.S		standard	no-obj
 sun4v/sun4v/intr_machdep.c	standard
-sun4v/sun4v/locore.S	standard	no-obj
-sun4v/sun4v/machdep.c	standard
+sun4v/sun4v/locore.S		standard	no-obj
+sun4v/sun4v/machdep.c		standard
 sparc64/sparc64/mem.c		optional	mem
 sun4v/sun4v/mp_exception.S	optional	smp
-sun4v/sun4v/mp_locore.S	optional	smp
+sun4v/sun4v/mp_locore.S		optional	smp
 sun4v/sun4v/mp_machdep.c	optional	smp
 sun4v/sun4v/nexus.c		standard
-sun4v/cddl/t1_copy.S	standard
+sun4v/cddl/t1_copy.S		standard
 sparc64/sparc64/ofw_bus.c	standard
 sparc64/sparc64/ofw_machdep.c	standard
 sun4v/sun4v/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine
-sparc64/sparc64/rwindow.c		standard
+sparc64/sparc64/rwindow.c	standard
 sun4v/sun4v/rtc.c		standard
 sun4v/sun4v/simdisk.c		optional	simulator
 sun4v/sun4v/support.S		standard
@@ -101,4 +101,4 @@ sun4v/cddl/mdesc/mdesc_findnodeprop.c	standard
 sun4v/cddl/mdesc/mdesc_rootnode.c	standard
 sun4v/cddl/mdesc/mdesc_scandag.c	standard
 sun4v/mdesc/mdesc_vdevfindnode.c	standard
-sun4v/mdesc/mdesc_vdevfindval.c		standard
+sun4v/mdesc/mdesc_vdevfindval.c	standard
