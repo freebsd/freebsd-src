@@ -1305,7 +1305,7 @@ mls_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
 }
 
 static void
-mls_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+mls_syncache_create(struct label *label, struct inpcb *inp)
 {
 	struct mac_mls *source, *dest;
 
@@ -1316,7 +1316,7 @@ mls_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 }
 
 static void
-mls_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+mls_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
     struct label *mlabel)
 {
 	struct mac_mls *source, *dest;
@@ -2866,7 +2866,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_devfs_init_label = mls_init_label,
 	.mpo_ifnet_init_label = mls_init_label,
 	.mpo_inpcb_init_label = mls_init_label_waitcheck,
-	.mpo_init_syncache_label = mls_init_label_waitcheck,
+	.mpo_syncache_init_label = mls_init_label_waitcheck,
 	.mpo_sysvmsg_init_label = mls_init_label,
 	.mpo_sysvmsq_init_label = mls_init_label,
 	.mpo_sysvsem_init_label = mls_init_label,
@@ -2884,7 +2884,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_devfs_destroy_label = mls_destroy_label,
 	.mpo_ifnet_destroy_label = mls_destroy_label,
 	.mpo_inpcb_destroy_label = mls_destroy_label,
-	.mpo_destroy_syncache_label = mls_destroy_label,
+	.mpo_syncache_destroy_label = mls_destroy_label,
 	.mpo_sysvmsg_destroy_label = mls_destroy_label,
 	.mpo_sysvmsq_destroy_label = mls_destroy_label,
 	.mpo_sysvsem_destroy_label = mls_destroy_label,
@@ -2926,7 +2926,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_create_extattr = mls_vnode_create_extattr,
 	.mpo_vnode_setlabel_extattr = mls_vnode_setlabel_extattr,
 	.mpo_socket_create_mbuf = mls_socket_create_mbuf,
-	.mpo_create_mbuf_from_syncache = mls_create_mbuf_from_syncache,
+	.mpo_syncache_create_mbuf = mls_syncache_create_mbuf,
 	.mpo_pipe_create = mls_pipe_create,
 	.mpo_posixsem_create = mls_posixsem_create,
 	.mpo_socket_create = mls_socket_create,
@@ -2940,7 +2940,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_netinet_fragment = mls_netinet_fragment,
 	.mpo_ifnet_create = mls_ifnet_create,
 	.mpo_inpcb_create = mls_inpcb_create,
-	.mpo_init_syncache_from_inpcb = mls_init_syncache_from_inpcb,
+	.mpo_syncache_create = mls_syncache_create,
 	.mpo_ipq_create = mls_ipq_create,
 	.mpo_sysvmsg_create = mls_sysvmsg_create,
 	.mpo_sysvmsq_create = mls_sysvmsq_create,
