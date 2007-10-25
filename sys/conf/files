@@ -920,12 +920,12 @@ dev/rp/rp_isa.c			optional rp isa
 dev/rp/rp_pci.c			optional rp pci
 dev/safe/safe.c			optional safe
 dev/sbsh/if_sbsh.c		optional sbsh
-dev/scc/scc_if.m		optional	scc
-dev/scc/scc_bfe_ebus.c		optional	scc ebus
-dev/scc/scc_bfe_sbus.c		optional	scc fhc | scc sbus
-dev/scc/scc_core.c		optional	scc
-dev/scc/scc_dev_sab82532.c	optional	scc
-dev/scc/scc_dev_z8530.c		optional	scc
+dev/scc/scc_if.m		optional scc
+dev/scc/scc_bfe_ebus.c		optional scc ebus
+dev/scc/scc_bfe_sbus.c		optional scc fhc | scc sbus
+dev/scc/scc_core.c		optional scc
+dev/scc/scc_dev_sab82532.c	optional scc
+dev/scc/scc_dev_z8530.c		optional scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/si/si.c			optional si
@@ -1074,24 +1074,24 @@ dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tx/if_tx.c			optional tx
 dev/txp/if_txp.c		optional txp
-dev/uart/uart_bus_acpi.c	optional	uart acpi
-#dev/uart/uart_bus_cbus.c	optional	uart cbus
-dev/uart/uart_bus_ebus.c	optional	uart ebus
-dev/uart/uart_bus_isa.c		optional	uart isa
-dev/uart/uart_bus_pccard.c	optional	uart pccard
-dev/uart/uart_bus_pci.c		optional	uart pci
-dev/uart/uart_bus_puc.c		optional	uart puc
-dev/uart/uart_bus_scc.c		optional	uart scc
-dev/uart/uart_core.c		optional	uart
-dev/uart/uart_dbg.c		optional	uart gdb
-dev/uart/uart_dev_ns8250.c	optional	uart uart_ns8250
-dev/uart/uart_dev_sab82532.c	optional	uart uart_sab82532
-dev/uart/uart_dev_sab82532.c	optional	uart scc
-dev/uart/uart_dev_z8530.c	optional	uart uart_z8530
-dev/uart/uart_dev_z8530.c	optional	uart scc
-dev/uart/uart_if.m		optional	uart
-dev/uart/uart_subr.c		optional	uart
-dev/uart/uart_tty.c		optional	uart
+dev/uart/uart_bus_acpi.c	optional uart acpi
+#dev/uart/uart_bus_cbus.c	optional uart cbus
+dev/uart/uart_bus_ebus.c	optional uart ebus
+dev/uart/uart_bus_isa.c		optional uart isa
+dev/uart/uart_bus_pccard.c	optional uart pccard
+dev/uart/uart_bus_pci.c		optional uart pci
+dev/uart/uart_bus_puc.c		optional uart puc
+dev/uart/uart_bus_scc.c		optional uart scc
+dev/uart/uart_core.c		optional uart
+dev/uart/uart_dbg.c		optional uart gdb
+dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
+dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_z8530.c	optional uart uart_z8530
+dev/uart/uart_dev_z8530.c	optional uart scc
+dev/uart/uart_if.m		optional uart
+dev/uart/uart_subr.c		optional uart
+dev/uart/uart_tty.c		optional uart
 dev/ubsec/ubsec.c		optional ubsec
 #
 # USB support
@@ -1162,7 +1162,7 @@ dev/wl/if_wl.c			optional wl isa
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 fs/coda/coda_fbsd.c		optional vcoda
-fs/coda/coda_namecache.c		optional vcoda
+fs/coda/coda_namecache.c	optional vcoda
 fs/coda/coda_psdev.c		optional vcoda
 fs/coda/coda_subr.c		optional vcoda
 fs/coda/coda_venus.c		optional vcoda
@@ -1308,15 +1308,15 @@ geom/zero/g_zero.c		optional geom_zero
 gnu/fs/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
 gnu/fs/ext2fs/ext2_balloc.c	optional ext2fs
-gnu/fs/ext2fs/ext2_bmap.c		optional ext2fs
-gnu/fs/ext2fs/ext2_inode.c		optional ext2fs
+gnu/fs/ext2fs/ext2_bmap.c	optional ext2fs
+gnu/fs/ext2fs/ext2_inode.c	optional ext2fs
 gnu/fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
 gnu/fs/ext2fs/ext2_linux_balloc.c	optional ext2fs
 gnu/fs/ext2fs/ext2_linux_ialloc.c	optional ext2fs
 gnu/fs/ext2fs/ext2_lookup.c	optional ext2fs
-gnu/fs/ext2fs/ext2_subr.c		optional ext2fs
+gnu/fs/ext2fs/ext2_subr.c	optional ext2fs
 gnu/fs/ext2fs/ext2_vfsops.c	optional ext2fs
-gnu/fs/ext2fs/ext2_vnops.c		optional ext2fs
+gnu/fs/ext2fs/ext2_vnops.c	optional ext2fs
 gnu/fs/reiserfs/reiserfs_hashes.c	optional reiserfs \
 	warning "kernel contains GPL contaminated ReiserFS filesystem"
 gnu/fs/reiserfs/reiserfs_inode.c	optional reiserfs

@@ -60,7 +60,7 @@ opt_ah.h			optional	ath_hal			\
 nvenetlib.o			optional	nve pci			\
 	dependency	"$S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu"	\
 	compile-with	"uudecode $S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
- 	no-implicit-rule
+	no-implicit-rule
 #
 os+%DIKED-nve.h		optional	nve pci			\
 	dependency	"$S/contrib/dev/nve/os.h"			\
