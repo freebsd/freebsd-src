@@ -8,6 +8,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20071024:
+	A breakage was introduced in libc. Until a proper fix is committed,
+	do not upgrade your world. Otherwise, it will break during
+	installworld stage. It can be recovered by
+
+	- reboot to single user mode, make sure you use /rescue/sh
+	  instead of /bin/sh
+	- use /rescue/chflags to remove schg flag on /lib/libc.so.6
+	- use /rescue/cp to copy libc.so.6 from /usr/obj to /lib/libc.so.6
+	- continue installworld, you should be fine now
+
 20070806:
 	An incorrect field size in an ioctl struct for if_bridge(4) has been
 	corrected, ifconfig(8) will need to be recompilied.
