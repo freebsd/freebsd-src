@@ -224,6 +224,7 @@ int	mac_vnode_execve_will_transition(struct ucred *cred,
 	    struct image_params *imgp);
 void	mac_proc_create_swapper(struct ucred *cred);
 void	mac_proc_create_init(struct ucred *cred);
+void	mac_proc_associate_nfsd(struct ucred *cred);
 void	mac_thread_userret(struct thread *td);
 
 /*
@@ -414,7 +415,6 @@ int	mac_setsockopt_label(struct ucred *cred, struct socket *so,
 int	mac_pipe_label_set(struct ucred *cred, struct pipepair *pp,
 	    struct label *label);
 void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
-void	mac_associate_nfsd_label(struct ucred *cred);
 int	mac_priv_check(struct ucred *cred, int priv);
 int	mac_priv_grant(struct ucred *cred, int priv);
 

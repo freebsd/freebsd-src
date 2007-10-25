@@ -192,6 +192,22 @@ mac_proc_create_init(struct ucred *cred)
 	MAC_PERFORM(proc_create_init, cred);
 }
 
+/*
+ * When a thread becomes an NFS server daemon, its credential may need to be
+ * updated to reflect this so that policies can recognize when file system
+ * operations originate from the network.
+ *
+ * At some point, it would be desirable if the credential used for each NFS
+ * RPC could be set based on the RPC context (i.e., source system, etc) to
+ * provide more fine-grained access control.
+ */
+void
+mac_proc_associate_nfsd(struct ucred *cred)
+{
+
+	MAC_PERFORM(proc_associate_nfsd, cred);
+}
+
 void
 mac_thread_userret(struct thread *td)
 {

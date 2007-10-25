@@ -1410,6 +1410,17 @@ biba_proc_create_init(struct ucred *cred)
 }
 
 static void
+biba_proc_associate_nfsd(struct ucred *cred)
+{
+	struct mac_biba *label;
+
+	label = SLOT(cred->cr_label);
+	biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
+	biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
+	    0, NULL);
+}
+
+static void
 biba_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
@@ -3200,17 +3211,6 @@ biba_vnode_check_write(struct ucred *active_cred,
 }
 
 static void
-biba_associate_nfsd_label(struct ucred *cred)
-{
-	struct mac_biba *label;
-
-	label = SLOT(cred->cr_label);
-	biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
-	biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
-	    0, NULL);
-}
-
-static void
 biba_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 {
 	struct mac_biba *source, *dest;
@@ -3331,6 +3331,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_inpcb_sosetlabel = biba_inpcb_sosetlabel,
 	.mpo_proc_create_swapper = biba_proc_create_swapper,
 	.mpo_proc_create_init = biba_proc_create_init,
+	.mpo_proc_associate_nfsd = biba_proc_associate_nfsd,
 	.mpo_cred_relabel = biba_cred_relabel,
 	.mpo_sysvmsg_cleanup = biba_sysvmsg_cleanup,
 	.mpo_sysvmsq_cleanup = biba_sysvmsq_cleanup,
@@ -3411,7 +3412,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_vnode_check_stat = biba_vnode_check_stat,
 	.mpo_vnode_check_unlink = biba_vnode_check_unlink,
 	.mpo_vnode_check_write = biba_vnode_check_write,
-	.mpo_associate_nfsd_label = biba_associate_nfsd_label,
 	.mpo_mbuf_create_from_firewall = biba_mbuf_create_from_firewall,
 	.mpo_priv_check = biba_priv_check,
 };
