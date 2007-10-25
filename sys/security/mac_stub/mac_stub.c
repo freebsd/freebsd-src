@@ -186,12 +186,6 @@ stub_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
 }
 
 static void
-stub_associate_nfsd_label(struct ucred *cred)
-{
-
-}
-
-static void
 stub_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
@@ -521,6 +515,12 @@ stub_proc_create_swapper(struct ucred *cred)
 
 static void
 stub_proc_create_init(struct ucred *cred)
+{
+
+}
+
+static void
+stub_proc_associate_nfsd(struct ucred *cred)
 {
 
 }
@@ -1492,7 +1492,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_vnode_internalize_label = stub_internalize_label,
 	.mpo_devfs_vnode_associate = stub_devfs_vnode_associate,
 	.mpo_vnode_associate_extattr = stub_vnode_associate_extattr,
-	.mpo_associate_nfsd_label = stub_associate_nfsd_label,
 	.mpo_vnode_associate_singlelabel = stub_vnode_associate_singlelabel,
 	.mpo_devfs_create_device = stub_devfs_create_device,
 	.mpo_devfs_create_directory = stub_devfs_create_directory,
@@ -1538,6 +1537,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_vnode_execve_will_transition = stub_vnode_execve_will_transition,
 	.mpo_proc_create_swapper = stub_proc_create_swapper,
 	.mpo_proc_create_init = stub_proc_create_init,
+	.mpo_proc_associate_nfsd = stub_proc_associate_nfsd,
 	.mpo_cred_relabel= stub_cred_relabel,
 	.mpo_thread_userret = stub_thread_userret,
 	.mpo_sysvmsg_cleanup = stub_sysvmsg_cleanup,

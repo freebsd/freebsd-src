@@ -1355,6 +1355,17 @@ mls_proc_create_init(struct ucred *cred)
 }
 
 static void
+mls_proc_associate_nfsd(struct ucred *cred) 
+{
+	struct mac_mls *label;
+
+	label = SLOT(cred->cr_label);
+	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
+static void
 mls_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_mls *source, *dest;
@@ -2847,17 +2858,6 @@ mls_vnode_check_write(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
-static void
-mls_associate_nfsd_label(struct ucred *cred) 
-{
-	struct mac_mls *label;
-
-	label = SLOT(cred->cr_label);
-	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
 static struct mac_policy_ops mls_ops =
 {
 	.mpo_init = mls_init,
@@ -2958,6 +2958,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_inpcb_sosetlabel = mls_inpcb_sosetlabel,
 	.mpo_proc_create_swapper = mls_proc_create_swapper,
 	.mpo_proc_create_init = mls_proc_create_init,
+	.mpo_proc_associate_nfsd = mls_proc_associate_nfsd,
 	.mpo_cred_relabel = mls_cred_relabel,
 	.mpo_sysvmsg_cleanup = mls_sysvmsg_cleanup,
 	.mpo_sysvmsq_cleanup = mls_sysvmsq_cleanup,
@@ -3034,7 +3035,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_check_stat = mls_vnode_check_stat,
 	.mpo_vnode_check_unlink = mls_vnode_check_unlink,
 	.mpo_vnode_check_write = mls_vnode_check_write,
-	.mpo_associate_nfsd_label = mls_associate_nfsd_label,
 	.mpo_mbuf_create_from_firewall = mls_mbuf_create_from_firewall,
 };
 

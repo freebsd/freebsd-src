@@ -361,7 +361,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		nd->nd_cr->cr_groups[0] = nd->nd_cr->cr_rgid =
 		    nd->nd_cr->cr_svgid = fxdr_unsigned(gid_t, *tl++);
 #ifdef MAC
-		mac_associate_nfsd_label(nd->nd_cr);
+		mac_proc_associate_nfsd(nd->nd_cr);
 #endif
 		len = fxdr_unsigned(int, *tl);
 		if (len < 0 || len > RPCAUTH_UNIXGIDS) {
