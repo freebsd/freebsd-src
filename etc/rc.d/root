@@ -25,7 +25,7 @@ root_start()
 	*)
 		if ! mount -uw /; then
 			echo 'Mounting root filesystem rw failed, startup aborted'
-			/bin/kill -QUIT $$
+			stop_boot true
 		fi
 		;;
 	esac

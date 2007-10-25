@@ -14,17 +14,6 @@ name="fsck"
 start_cmd="fsck_start"
 stop_cmd=":"
 
-stop_boot()
-{
-	#	Terminate the process (which may include the parent /etc/rc)
-	#	if booting directly to multiuser mode.
-	#
-	if [ "$autoboot" = yes ]; then
-		kill -TERM $$
-	fi
-	exit 1
-}
-
 fsck_start()
 {
 	if [ "$autoboot" = no ]; then
