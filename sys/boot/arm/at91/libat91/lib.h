@@ -34,7 +34,7 @@ void printf(const char *fmt,...);
 
 /* The following function write eeprom at ee_addr using data 	*/
 /*  from data_add for size bytes.				*/
-int ReadEEPROM(unsigned eeoff, char *data_addr, unsigned size);
+int ReadEEPROM(unsigned eeoff, unsigned char *data_addr, unsigned size);
 void WriteEEPROM(unsigned eeoff, char *data_addr, unsigned size);
 void InitEEPROM(void);
 

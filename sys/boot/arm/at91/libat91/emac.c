@@ -199,7 +199,7 @@ TFTP_RequestFile(char *filename)
  * .KB_C_FN_DEFINITION_END
  */
 static void
-TFTP_ACK_Data(char *data, unsigned short block_num, unsigned short len)
+TFTP_ACK_Data(unsigned char *data, unsigned short block_num, unsigned short len)
 {
 	tftp_header_t	tftpHeader;
 
