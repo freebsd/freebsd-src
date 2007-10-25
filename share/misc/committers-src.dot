@@ -113,6 +113,7 @@ kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
+lulf [label="Ulf Lilleengen\nlulf@FreeBSD.org\n2007/10/24"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
@@ -292,6 +293,8 @@ julian -> davidxu
 julian -> archie
 julian -> adrian
 
+kib -> lulf
+
 mdodd -> jake
 
 mlaier -> benjsc
@@ -321,6 +324,8 @@ peter -> ps
 
 philip -> jls
 philip -> matteo
+
+pjd -> lulf
 
 ru -> ceri
 ru -> cjc
