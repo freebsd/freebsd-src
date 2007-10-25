@@ -350,7 +350,7 @@ stub_inpcb_create(struct socket *so, struct label *solabel,
 }
 
 static void
-stub_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+stub_syncache_create(struct label *label, struct inpcb *inp)
 {
 
 }
@@ -398,7 +398,7 @@ stub_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-stub_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+stub_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
     struct label *mlabel)
 {
 
@@ -1654,10 +1654,10 @@ static struct mac_policy_ops stub_ops =
 	.mpo_vnode_check_write = stub_vnode_check_write,
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
-	.mpo_init_syncache_label = stub_init_label_waitcheck,
-	.mpo_destroy_syncache_label = stub_destroy_label,
-	.mpo_init_syncache_from_inpcb = stub_init_syncache_from_inpcb,
-	.mpo_create_mbuf_from_syncache = stub_create_mbuf_from_syncache,
+	.mpo_syncache_init_label = stub_init_label_waitcheck,
+	.mpo_syncache_destroy_label = stub_destroy_label,
+	.mpo_syncache_create = stub_syncache_create,
+	.mpo_syncache_create_mbuf= stub_syncache_create_mbuf,
 };
 
 MAC_POLICY_SET(&stub_ops, mac_stub, "TrustedBSD MAC/Stub",

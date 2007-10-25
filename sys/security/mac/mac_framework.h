@@ -205,10 +205,10 @@ void	mac_netinet_tcp_reply(struct mbuf *m);
 void	mac_ipq_update(struct mbuf *m, struct ipq *ipq);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
 void	mac_mbuf_create_from_firewall(struct mbuf *m);
-void	mac_destroy_syncache(struct label **l);
-int	mac_init_syncache(struct label **l);
-void	mac_init_syncache_from_inpcb(struct label *l, struct inpcb *inp);
-void	mac_create_mbuf_from_syncache(struct label *l, struct mbuf *m);
+void	mac_syncache_destroy(struct label **l);
+int	mac_syncache_init(struct label **l);
+void	mac_syncache_create(struct label *l, struct inpcb *inp);
+void	mac_syncache_create_mbuf(struct label *l, struct mbuf *m);
 
 /*
  * Labeling event operations: processes.

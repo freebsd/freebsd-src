@@ -3211,7 +3211,7 @@ biba_vnode_check_write(struct ucred *active_cred,
 }
 
 static void
-biba_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+biba_syncache_create(struct label *label, struct inpcb *inp)
 {
 	struct mac_biba *source, *dest;
 
@@ -3221,7 +3221,7 @@ biba_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 }
 
 static void
-biba_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+biba_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
     struct label *mlabel)
 {
 	struct mac_biba *source, *dest;
@@ -3239,7 +3239,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_devfs_init_label = biba_init_label,
 	.mpo_ifnet_init_label = biba_init_label,
 	.mpo_inpcb_init_label = biba_init_label_waitcheck,
-	.mpo_init_syncache_label = biba_init_label_waitcheck,
+	.mpo_syncache_init_label = biba_init_label_waitcheck,
 	.mpo_sysvmsg_init_label = biba_init_label,
 	.mpo_sysvmsq_init_label = biba_init_label,
 	.mpo_sysvsem_init_label = biba_init_label,
@@ -3251,14 +3251,14 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_posixsem_init_label = biba_init_label,
 	.mpo_socket_init_label = biba_init_label_waitcheck,
 	.mpo_socketpeer_init_label = biba_init_label_waitcheck,
-	.mpo_init_syncache_from_inpcb = biba_init_syncache_from_inpcb,
+	.mpo_syncache_create = biba_syncache_create,
 	.mpo_vnode_init_label = biba_init_label,
 	.mpo_bpfdesc_destroy_label = biba_destroy_label,
 	.mpo_cred_destroy_label = biba_destroy_label,
 	.mpo_devfs_destroy_label = biba_destroy_label,
 	.mpo_ifnet_destroy_label = biba_destroy_label,
 	.mpo_inpcb_destroy_label = biba_destroy_label,
-	.mpo_destroy_syncache_label = biba_destroy_label,
+	.mpo_syncache_destroy_label = biba_destroy_label,
 	.mpo_sysvmsg_destroy_label = biba_destroy_label,
 	.mpo_sysvmsq_destroy_label = biba_destroy_label,
 	.mpo_sysvsem_destroy_label = biba_destroy_label,
@@ -3300,7 +3300,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_vnode_create_extattr = biba_vnode_create_extattr,
 	.mpo_vnode_setlabel_extattr = biba_vnode_setlabel_extattr,
 	.mpo_socket_create_mbuf = biba_socket_create_mbuf,
-	.mpo_create_mbuf_from_syncache = biba_create_mbuf_from_syncache,
+	.mpo_syncache_create_mbuf = biba_syncache_create_mbuf,
 	.mpo_pipe_create = biba_pipe_create,
 	.mpo_posixsem_create = biba_posixsem_create,
 	.mpo_socket_create = biba_socket_create,
