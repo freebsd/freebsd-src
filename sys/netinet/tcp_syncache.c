@@ -250,7 +250,7 @@ syncache_free(struct syncache *sc)
 	if (sc->sc_ipopts)
 		(void) m_free(sc->sc_ipopts);
 #ifdef MAC
-	mac_destroy_syncache(&sc->sc_label);
+	mac_syncache_destroy(&sc->sc_label);
 #endif
 
 	uma_zfree(tcp_syncache.zone, sc);
@@ -995,12 +995,12 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	tp = NULL;
 
 #ifdef MAC
-	if (mac_init_syncache(&maclabel) != 0) {
+	if (mac_syncache_init(&maclabel) != 0) {
 		INP_UNLOCK(inp);
 		INP_INFO_WUNLOCK(&tcbinfo);
 		goto done;
 	} else
-		mac_init_syncache_from_inpcb(maclabel, inp);
+		mac_syncache_create(maclabel, inp);
 #endif
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
@@ -1051,7 +1051,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 * storage, free it up.  The syncache entry will already
 		 * have an initialized label we can use.
 		 */
-		mac_destroy_syncache(&maclabel);
+		mac_syncache_destroy(&maclabel);
 		KASSERT(sc->sc_label != NULL,
 		    ("%s: label not initialized", __func__));
 #endif
@@ -1219,7 +1219,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 done:
 #ifdef MAC
 	if (sc == &scs)
-		mac_destroy_syncache(&maclabel);
+		mac_syncache_destroy(&maclabel);
 #endif
 	*lsop = NULL;
 	m_freem(m);
@@ -1260,7 +1260,7 @@ syncache_respond(struct syncache *sc)
 	if (m == NULL)
 		return (ENOBUFS);
 #ifdef MAC
-	mac_create_mbuf_from_syncache(sc->sc_label, m);
+	mac_syncache_create_mbuf(sc->sc_label, m);
 #endif
 	m->m_data += max_linkhdr;
 	m->m_len = tlen;
