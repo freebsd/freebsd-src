@@ -1251,6 +1251,8 @@ bd_io(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest, int write)
 		result = bd_edd_io(od, dblk, x, xp, write);
 	    else
 		result = bd_chs_io(od, dblk, x, xp, write);
+	    if (result == 0)
+		break;
 	}
 
 	if (write)
