@@ -14,9 +14,9 @@ name=moused
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_cmd="moused_start"
-_pidprefix="/var/run/moused"
-pidfile="${_pidprefix}.pid"
-_pidarg=
+pidprefix="/var/run/moused"
+pidfile="${pidprefix}.pid"
+pidarg=
 load_rc_config $name
 
 # Set the pid file and variable name. The second argument, if it exists, is
@@ -25,8 +25,8 @@ load_rc_config $name
 if [ -n "$2" ]; then
 	eval moused_$2_enable=\${moused_$2_enable-${moused_nondefault_enable}}
 	rcvar=`set_rcvar moused_$2`
-	pidfile="${_pidprefix}.$2.pid"
-	_pidarg="-I $pidfile"
+	pidfile="${pidprefix}.$2.pid"
+	pidarg="-I $pidfile"
 fi
 
 moused_start()
@@ -53,20 +53,20 @@ moused_start()
 	fi
 
 	echo -n "Starting ${ms} moused:"
-	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${_pidarg}
+	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
 
-	_mousechar_arg=
+	mousechar_arg=
 	case ${mousechar_start} in
 	[Nn][Oo] | '')
 		;;
 	*)
 		echo -n ' mousechar_start'
-		_mousechar_arg="-M ${mousechar_start}"
+		mousechar_arg="-M ${mousechar_start}"
 		;;
 	esac
 
 	for ttyv in /dev/ttyv* ; do
-		vidcontrol < ${ttyv} ${_mousechar_arg} -m on
+		vidcontrol < ${ttyv} ${mousechar_arg} -m on
 	done
 	echo '.'
 }

@@ -38,15 +38,15 @@ stop_cmd="network_stop"
 cloneup_cmd="clone_up"
 clonedown_cmd="clone_down"
 extra_commands="cloneup clonedown"
-_cmdifn=
+cmdifn=
 
 network_start()
 {
 	# Set the list of interfaces to work on.
 	#
-	_cmdifn=$*
+	cmdifn=$*
 
-	if [ -z "$_cmdifn" ]; then
+	if [ -z "$cmdifn" ]; then
 		#
 		# We're operating as a general network start routine.
 		#
@@ -71,8 +71,8 @@ network_start()
 		# Resync ipfilter
 		/etc/rc.d/ipfilter resync
 	fi
-	if [ -f /etc/rc.d/bridge -a -n "$_cmdifn" ] ; then
-		/etc/rc.d/bridge start $_cmdifn
+	if [ -f /etc/rc.d/bridge -a -n "$cmdifn" ] ; then
+		/etc/rc.d/bridge start $cmdifn
 	fi
 }
 
@@ -80,7 +80,7 @@ network_stop()
 {
 	# Set the list of interfaces to work on.
 	#
-	_cmdifn=$*
+	cmdifn=$*
 
 	echo -n "Stopping network:"
 
@@ -98,6 +98,8 @@ network_stop()
 #	configured interface(s).
 network_common()
 {
+	local _cooked_list _fail _func _verbose
+
 	_func=
 	_verbose=
 
@@ -111,15 +113,16 @@ network_common()
 	# Set the scope of the command (all interfaces or just one).
 	#
 	_cooked_list=
-	if [ -n "$_cmdifn" ]; then
+	if [ -n "$cmdifn" ]; then
 		# Don't check that the interfaces exist.  We need to run
 		# the down code even when the interface doesn't exist to
 		# kill off wpa_supplicant.
-		_cooked_list="$_cmdifn"
+		_cooked_list="$cmdifn"
 	else
 		_cooked_list="`list_net_interfaces`"
 	fi
 
+	_fail=
 	for ifn in ${_cooked_list}; do
 		if ${_func} ${ifn} ; then
 			eval showstat_$ifn=1

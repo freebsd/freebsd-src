@@ -15,6 +15,8 @@ start_precmd="rpc_ypupdated_precmd"
 
 rpc_ypupdated_precmd()
 {
+	local _domain
+
 	if ! checkyesno rpcbind_enable  && \
 	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
 	then
