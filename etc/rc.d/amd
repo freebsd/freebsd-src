@@ -47,7 +47,7 @@ amd_precmd()
 		;;
 	*)
 		rc_flags="-p ${rc_flags}"
-		command_args=" > /var/run/amd.pid 2> /dev/null"
+		command_args="> /var/run/amd.pid 2> /dev/null"
 		;;
 	esac
 	return 0
