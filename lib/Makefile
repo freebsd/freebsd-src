@@ -5,6 +5,7 @@
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
+# libc must be built before all other shared libraries
 # libcom_err must be built before libkrb5 and libpam.
 # libcrypt must be built before libkrb5 and libpam.
 # libkvm must be built before libdevstat.
@@ -22,10 +23,10 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libbsm libcom_err libcrypt libkvm msun libmd ncurses \
+SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libkvm msun libmd ncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
 	${_libypclnt} libalias libarchive ${_libatm} \
-	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
+	libbegemot ${_libbluetooth} libbsnmp libbz2 ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libftpio libgeom ${_libgpib} \
 	${_libio} libipsec \
