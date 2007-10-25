@@ -817,7 +817,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
 
     ACPI_SERIAL_ASSERT(ec);
     Status = AE_NO_HARDWARE_RESPONSE;
-    int need_suspend = cold || rebooting || ec_polled_mode || sc->ec_suspending;
+    int need_poll = cold || rebooting || ec_polled_mode || sc->ec_suspending;
     /*
      * The main CPU should be much faster than the EC.  So the status should
      * be "not ready" when we start waiting.  But if the main CPU is really
@@ -830,7 +830,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
      * the status checking loop, hopefully to allow the EC to go to work
      * and produce a non-stale status.
      */
-    if (need_suspend) {
+    if (need_poll) {
 	static int	once;
 
 	if (EcCheckStatus(sc, "pre-check", Event) == AE_OK) {
@@ -844,7 +844,7 @@ EcWaitEvent(struct acpi_ec_softc *sc, EC_EVENT Event, u_int gen_count)
     }
 
     /* Wait for event by polling or GPE (interrupt). */
-    if (need_suspend) {
+    if (need_poll) {
 	count = (ec_timeout * 1000) / EC_POLL_DELAY;
 	if (count == 0)
 	    count = 1;
