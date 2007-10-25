@@ -1483,7 +1483,7 @@ mac_lomac_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
  */
 static void
 mac_lomac_vnode_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct label *vplabel, struct label *interpvnodelabel,
+    struct vnode *vp, struct label *vplabel, struct label *interpvplabel,
     struct image_params *imgp, struct label *execlabel)
 {
 	struct mac_lomac *source, *dest, *obj, *robj;
@@ -1491,7 +1491,7 @@ mac_lomac_vnode_execve_transition(struct ucred *old, struct ucred *new,
 	source = SLOT(old->cr_label);
 	dest = SLOT(new->cr_label);
 	obj = SLOT(vplabel);
-	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
+	robj = interpvplabel != NULL ? SLOT(interpvplabel) : obj;
 
 	mac_lomac_copy(source, dest);
 	/*
@@ -1519,7 +1519,7 @@ mac_lomac_vnode_execve_transition(struct ucred *old, struct ucred *new,
 
 static int
 mac_lomac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
-    struct label *vplabel, struct label *interpvnodelabel,
+    struct label *vplabel, struct label *interpvplabel,
     struct image_params *imgp, struct label *execlabel)
 {
 	struct mac_lomac *subj, *obj, *robj;
@@ -1529,7 +1529,7 @@ mac_lomac_vnode_execve_will_transition(struct ucred *old, struct vnode *vp,
 
 	subj = SLOT(old->cr_label);
 	obj = SLOT(vplabel);
-	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
+	robj = interpvplabel != NULL ? SLOT(interpvplabel) : obj;
 
 	return ((robj->ml_flags & MAC_LOMAC_FLAG_AUX &&
 	    !mac_lomac_dominate_element(&robj->ml_auxsingle, &subj->ml_single)

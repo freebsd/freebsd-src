@@ -874,10 +874,10 @@ mac_test_netinet_fragment(struct mbuf *datagram, struct label *datagramlabel,
 
 COUNTER_DECL(ifnet_create);
 static void
-mac_test_ifnet_create(struct ifnet *ifnet, struct label *ifnetlabel)
+mac_test_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 {
 
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	COUNTER_INC(ifnet_create);
 }
 
@@ -957,11 +957,11 @@ mac_test_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 
 COUNTER_DECL(create_mbuf_linklayer);
 static void
-mac_test_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
+mac_test_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
 
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
 	COUNTER_INC(create_mbuf_linklayer);
 }
@@ -979,11 +979,11 @@ mac_test_bpfdesc_create_mbuf(struct bpf_d *bpf_d, struct label *bpflabel,
 
 COUNTER_DECL(ifnet_create_mbuf);
 static void
-mac_test_ifnet_create_mbuf(struct ifnet *ifnet, struct label *ifnetlabel,
+mac_test_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
 	COUNTER_INC(ifnet_create_mbuf);
 }
@@ -991,12 +991,12 @@ mac_test_ifnet_create_mbuf(struct ifnet *ifnet, struct label *ifnetlabel,
 COUNTER_DECL(mbuf_create_multicast_encap);
 static void
 mac_test_mbuf_create_multicast_encap(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct ifnet *ifnet, struct label *ifnetlabel,
+    struct label *oldmbuflabel, struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *newmbuf, struct label *newmbuflabel)
 {
 
 	LABEL_CHECK(oldmbuflabel, MAGIC_MBUF);
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(newmbuflabel, MAGIC_MBUF);
 	COUNTER_INC(mbuf_create_multicast_encap);
 }
@@ -1046,12 +1046,12 @@ mac_test_netinet_tcp_reply(struct mbuf *m, struct label *mlabel)
 
 COUNTER_DECL(ifnet_relabel);
 static void
-mac_test_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
-    struct label *ifnetlabel, struct label *newlabel)
+mac_test_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+    struct label *ifplabel, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(newlabel, MAGIC_IFNET);
 	COUNTER_INC(ifnet_relabel);
 }
@@ -1194,11 +1194,11 @@ mac_test_sysvshm_cleanup(struct label *shmlabel)
 COUNTER_DECL(bpfdesc_check_receive);
 static int
 mac_test_bpfdesc_check_receive(struct bpf_d *bpf_d, struct label *bpflabel,
-    struct ifnet *ifnet, struct label *ifnetlabel)
+    struct ifnet *ifp, struct label *ifplabel)
 {
 
 	LABEL_CHECK(bpflabel, MAGIC_BPF);
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	COUNTER_INC(bpfdesc_check_receive);
 
 	return (0);
@@ -1230,12 +1230,12 @@ mac_test_cred_check_visible(struct ucred *u1, struct ucred *u2)
 
 COUNTER_DECL(ifnet_check_relabel);
 static int
-mac_test_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifnet,
-    struct label *ifnetlabel, struct label *newlabel)
+mac_test_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
+    struct label *ifplabel, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(newlabel, MAGIC_IFNET);
 	COUNTER_INC(ifnet_check_relabel);
 
@@ -1244,11 +1244,11 @@ mac_test_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifnet,
 
 COUNTER_DECL(ifnet_check_transmit);
 static int
-mac_test_ifnet_check_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
+mac_test_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
-	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
 	COUNTER_INC(ifnet_check_transmit);
 
