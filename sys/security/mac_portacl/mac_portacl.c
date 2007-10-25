@@ -48,15 +48,15 @@
  * out-going connections where the process hasn't explicitly selected a port:
  * these are automatically selected by the IP stack.
  *
- * To use this module, security.mac.enforce_socket must be enabled, and
- * you will probably want to twiddle the net.inet sysctl listed above.
- * Then use sysctl(8) to modify the rules string:
+ * To use this module, security.mac.enforce_socket must be enabled, and you
+ * will probably want to twiddle the net.inet sysctl listed above.  Then use
+ * sysctl(8) to modify the rules string:
  *
  * # sysctl security.mac.portacl.rules="uid:425:tcp:80,uid:425:tcp:79"
  *
- * This ruleset, for example, permits uid 425 to bind TCP ports 80 (http)
- * and 79 (finger).  User names and group names can't be used directly
- * because the kernel only knows about uids and gids.
+ * This ruleset, for example, permits uid 425 to bind TCP ports 80 (http) and
+ * 79 (finger).  User names and group names can't be used directly because
+ * the kernel only knows about uids and gids.
  */
 
 #include <sys/param.h>
@@ -86,30 +86,30 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, portacl, CTLFLAG_RW, 0,
     "TrustedBSD mac_portacl policy controls");
 
-static int	mac_portacl_enabled = 1;
+static int	portacl_enabled = 1;
 SYSCTL_INT(_security_mac_portacl, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_portacl_enabled, 0, "Enforce portacl policy");
-TUNABLE_INT("security.mac.portacl.enabled", &mac_portacl_enabled);
+    &portacl_enabled, 0, "Enforce portacl policy");
+TUNABLE_INT("security.mac.portacl.enabled", &portacl_enabled);
 
-static int	mac_portacl_suser_exempt = 1;
+static int	portacl_suser_exempt = 1;
 SYSCTL_INT(_security_mac_portacl, OID_AUTO, suser_exempt, CTLFLAG_RW,
-    &mac_portacl_suser_exempt, 0, "Privilege permits binding of any port");
+    &portacl_suser_exempt, 0, "Privilege permits binding of any port");
 TUNABLE_INT("security.mac.portacl.suser_exempt",
-    &mac_portacl_suser_exempt);
+    &portacl_suser_exempt);
 
-static int	mac_portacl_autoport_exempt = 1;
+static int	portacl_autoport_exempt = 1;
 SYSCTL_INT(_security_mac_portacl, OID_AUTO, autoport_exempt, CTLFLAG_RW,
-    &mac_portacl_autoport_exempt, 0, "Allow automatic allocation through "
+    &portacl_autoport_exempt, 0, "Allow automatic allocation through "
     "binding port 0 if not IP_PORTRANGELOW");
 TUNABLE_INT("security.mac.portacl.autoport_exempt",
-    &mac_portacl_autoport_exempt);
+    &portacl_autoport_exempt);
 
-static int	mac_portacl_port_high = 1023;
+static int	portacl_port_high = 1023;
 SYSCTL_INT(_security_mac_portacl, OID_AUTO, port_high, CTLFLAG_RW,
-    &mac_portacl_port_high, 0, "Highest port to enforce for");
-TUNABLE_INT("security.mac.portacl.port_high", &mac_portacl_port_high);
+    &portacl_port_high, 0, "Highest port to enforce for");
+TUNABLE_INT("security.mac.portacl.port_high", &portacl_port_high);
 
-MALLOC_DEFINE(M_PORTACL, "mac_portacl_rule", "Rules for mac_portacl");
+MALLOC_DEFINE(M_PORTACL, "portacl_rule", "Rules for mac_portacl");
 
 #define	MAC_RULE_STRING_LEN	1024
 
@@ -389,7 +389,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
 	    cred->cr_uid, family, type, port);
 #endif
 
-	if (port > mac_portacl_port_high)
+	if (port > portacl_port_high)
 		return (0);
 
 	error = EPERM;
@@ -422,7 +422,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
 	}
 	mtx_unlock(&rule_mtx);
 
-	if (error != 0 && mac_portacl_suser_exempt != 0)
+	if (error != 0 && portacl_suser_exempt != 0)
 		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
 
 	return (error);
@@ -443,7 +443,7 @@ socket_check_bind(struct ucred *cred, struct socket *so,
 	u_int16_t port;
 
 	/* Only run if we are enabled. */
-	if (mac_portacl_enabled == 0)
+	if (portacl_enabled == 0)
 		return (0);
 
 	/* Only interested in IPv4 and IPv6 sockets. */
@@ -473,7 +473,7 @@ socket_check_bind(struct ucred *cred, struct socket *so,
 	 * flag exempts port 0 allocation from rule checking as long as a low
 	 * port isn't required.
 	 */
-	if (mac_portacl_autoport_exempt && port == 0) {
+	if (portacl_autoport_exempt && port == 0) {
 		inp = sotoinpcb(so);
 		if ((inp->inp_flags & INP_LOWPORT) == 0)
 			return (0);
@@ -482,12 +482,12 @@ socket_check_bind(struct ucred *cred, struct socket *so,
 	return (rules_check(cred, family, type, port));
 }
 
-static struct mac_policy_ops mac_portacl_ops =
+static struct mac_policy_ops portacl_ops =
 {
 	.mpo_destroy = destroy,
 	.mpo_init = init,
 	.mpo_socket_check_bind = socket_check_bind,
 };
 
-MAC_POLICY_SET(&mac_portacl_ops, trustedbsd_mac_portacl,
-    "TrustedBSD MAC/portacl", MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+MAC_POLICY_SET(&portacl_ops, mac_portacl, "TrustedBSD MAC/portacl",
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
