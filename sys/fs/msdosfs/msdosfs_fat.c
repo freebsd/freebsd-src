@@ -72,8 +72,6 @@ static int fc_bmapcalls;		/* # of times pcbmap was called		 */
 static int fc_lmdistance[LMMAX];/* counters for how far off the last
 				 * cluster mapped entry was. */
 static int fc_largedistance;	/* off by more than LMMAX		 */
-static int fc_wherefrom, fc_whereto, fc_lastclust;
-static int pm_fatblocksize;
 
 static int	chainalloc(struct msdosfsmount *pmp, u_long start,
 		    u_long count, u_long fillwith, u_long *retcluster,
@@ -114,7 +112,6 @@ fatblock(pmp, ofs, bnp, sizep, bop)
 		*sizep = size;
 	if (bop)
 		*bop = ofs % pmp->pm_fatblocksize;
-	pm_fatblocksize = pmp->pm_fatblocksize;
 }
 
 /*
@@ -206,12 +203,9 @@ pcbmap(dep, findcn, bnp, cnp, sp)
 	 */
 	i = 0;
 	fc_lookup(dep, findcn, &i, &cn);
-	if ((bn = findcn - i) >= LMMAX) {
+	if ((bn = findcn - i) >= LMMAX)
 		fc_largedistance++;
-		fc_wherefrom = i;
-		fc_whereto = findcn;
-		fc_lastclust = dep->de_fc[FC_LASTFC].fc_frcn;
-	} else
+	else
 		fc_lmdistance[bn]++;
 
 	/*
@@ -1007,7 +1001,10 @@ extendfile(dep, count, bpp, ncp, flags)
 			return (error);
 	}
 
-	fc_last_to_nexttolast(dep);
+	dep->de_fc[FC_NEXTTOLASTFC].fc_frcn =
+	    dep->de_fc[FC_LASTFC].fc_frcn;
+	dep->de_fc[FC_NEXTTOLASTFC].fc_fsrcn =
+	    dep->de_fc[FC_LASTFC].fc_fsrcn;
 	while (count > 0) {
 		/*
 		 * Allocate a new cluster chain and cat onto the end of the
