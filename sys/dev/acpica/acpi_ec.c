@@ -468,7 +468,7 @@ acpi_ec_attach(device_t dev)
     sc->ec_gpebit = params->gpe_bit;
     sc->ec_gpehandle = params->gpe_handle;
     sc->ec_uid = params->uid;
-    sc->ec_suspending = 0;
+    sc->ec_suspending = FALSE;
     free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
@@ -553,22 +553,19 @@ acpi_ec_suspend(device_t dev)
 {
     struct acpi_ec_softc	*sc;
 
-    /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
-    sc->ec_suspending = 1;
+    sc->ec_suspending = TRUE;
     return (0);
 
 }
-
 
 static int
 acpi_ec_resume(device_t dev)
 {
     struct acpi_ec_softc	*sc;
 
-    /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
-    sc->ec_suspending = 0;
+    sc->ec_suspending = FALSE;
     return (0);
 
 }
