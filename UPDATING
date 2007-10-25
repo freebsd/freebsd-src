@@ -9,9 +9,9 @@ Items affecting the ports and packages system can be found in
 portupgrade.
 
 20071024:
-	A breakage was introduced in libc. Until a proper fix is committed,
-	do not upgrade your world. Otherwise, it will break during
-	installworld stage. It can be recovered by
+	A breakage was introduced in libc and fixed later. Make sure
+	you have lib/Makefile rev 1.205.2.4. If it already breaks your
+	world, you can recover it by
 
 	- reboot to single user mode, make sure you use /rescue/sh
 	  instead of /bin/sh
