@@ -1477,6 +1477,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			asoc->dup_tsns[asoc->numduptsns] = tsn;
 			asoc->numduptsns++;
 		}
+		asoc->send_sack = 1;
 		return (0);
 	}
 	/* Calculate the number of TSN's between the base and this TSN */
@@ -1571,9 +1572,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    asoc->highest_tsn_inside_map, MAX_TSN)) {
 
 			/* Nope not in the valid range dump it */
-			SCTPDBG(SCTP_DEBUG_INDATA1, "My rwnd overrun1:tsn:%x rwnd %x sbspace:%x\n",
-			    tsn, asoc->my_rwnd,
-			    sctp_sbspace(&stcb->asoc, &stcb->sctp_socket->so_rcv));
 			sctp_set_rwnd(stcb, asoc);
 			if ((asoc->cnt_on_all_streams +
 			    asoc->cnt_on_reasm_queue +
@@ -2774,6 +2772,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	    (stcb->asoc.mapping_array[0] != 0xff)) {
 		if ((stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) ||
 		    (stcb->asoc.delayed_ack == 0) ||
+		    (stcb->asoc.numduptsns) ||
 		    (stcb->asoc.send_sack == 1)) {
 			if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
 				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
@@ -4279,6 +4278,7 @@ again:
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
 				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
+				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -4294,6 +4294,7 @@ again:
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
+			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 
@@ -4970,6 +4971,7 @@ done_with_it:
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
 				SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_SENT);
+				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -4986,6 +4988,7 @@ done_with_it:
 			}
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
+			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 

@@ -934,6 +934,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->tsn_in_wrapped = 0;
 	asoc->tsn_out_wrapped = 0;
 	asoc->cumack_log_at = 0;
+	asoc->cumack_log_atsnt = 0;
 #endif
 #ifdef SCTP_FS_SPEC_LOG
 	asoc->fs_index = 0;
@@ -3911,6 +3912,9 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0)
 		sctp_abort_notification(stcb, error, so_locked);
 	/* notify the peer */
+#if defined(SCTP_PANIC_ON_ABORT)
+	panic("aborting an association");
+#endif
 	sctp_send_abort_tcb(stcb, op_err, so_locked);
 	SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 	if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
