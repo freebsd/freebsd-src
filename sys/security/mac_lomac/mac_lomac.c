@@ -1436,7 +1436,7 @@ lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-lomac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+lomac_syncache_create(struct label *label, struct inpcb *inp)
 {
 	struct mac_lomac *source, *dest;
 
@@ -1446,7 +1446,7 @@ lomac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 }
 
 static void
-lomac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+lomac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
     struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -2809,7 +2809,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_cred_init_label = lomac_init_label,
 	.mpo_devfs_init_label = lomac_init_label,
 	.mpo_ifnet_init_label = lomac_init_label,
-	.mpo_init_syncache_label = lomac_init_label_waitcheck,
+	.mpo_syncache_init_label = lomac_init_label_waitcheck,
 	.mpo_inpcb_init_label = lomac_init_label_waitcheck,
 	.mpo_ipq_init_label = lomac_init_label_waitcheck,
 	.mpo_mbuf_init_label = lomac_init_label_waitcheck,
@@ -2819,7 +2819,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_socket_init_label = lomac_init_label_waitcheck,
 	.mpo_socketpeer_init_label = lomac_init_label_waitcheck,
 	.mpo_vnode_init_label = lomac_init_label,
-	.mpo_init_syncache_from_inpcb = lomac_init_syncache_from_inpcb,
+	.mpo_syncache_create = lomac_syncache_create,
 	.mpo_bpfdesc_destroy_label = lomac_destroy_label,
 	.mpo_cred_destroy_label = lomac_destroy_label,
 	.mpo_devfs_destroy_label = lomac_destroy_label,
@@ -2830,7 +2830,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_mount_destroy_label = lomac_destroy_label,
 	.mpo_pipe_destroy_label = lomac_destroy_label,
 	.mpo_proc_destroy_label = lomac_proc_destroy_label,
-	.mpo_destroy_syncache_label = lomac_destroy_label,
+	.mpo_syncache_destroy_label = lomac_destroy_label,
 	.mpo_socket_destroy_label = lomac_destroy_label,
 	.mpo_socketpeer_destroy_label = lomac_destroy_label,
 	.mpo_vnode_destroy_label = lomac_destroy_label,
@@ -2863,7 +2863,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_vnode_create_extattr = lomac_vnode_create_extattr,
 	.mpo_vnode_setlabel_extattr = lomac_vnode_setlabel_extattr,
 	.mpo_socket_create_mbuf = lomac_socket_create_mbuf,
-	.mpo_create_mbuf_from_syncache = lomac_create_mbuf_from_syncache,
+	.mpo_syncache_create_mbuf = lomac_syncache_create_mbuf,
 	.mpo_pipe_create = lomac_pipe_create,
 	.mpo_socket_create = lomac_socket_create,
 	.mpo_socket_newconn = lomac_socket_newconn,

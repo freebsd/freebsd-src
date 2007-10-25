@@ -295,16 +295,16 @@ mac_mbuf_create_from_firewall(struct mbuf *m)
  * the syncache code might create.
  */
 void
-mac_destroy_syncache(struct label **label)
+mac_syncache_destroy(struct label **label)
 {
 
-	MAC_PERFORM(destroy_syncache_label, *label);
+	MAC_PERFORM(syncache_destroy_label, *label);
 	mac_labelzone_free(*label);
 	*label = NULL;
 }
 
 int
-mac_init_syncache(struct label **label)
+mac_syncache_init(struct label **label)
 {
 	int error;
 
@@ -317,24 +317,24 @@ mac_init_syncache(struct label **label)
 	 * MAC_CHECK instead of the typical MAC_PERFORM so we can propagate
 	 * allocation failures back to the syncache code.
 	 */
-	MAC_CHECK(init_syncache_label, *label, M_NOWAIT);
+	MAC_CHECK(syncache_init_label, *label, M_NOWAIT);
 	return (error);
 }
 
 void
-mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+mac_syncache_create(struct label *label, struct inpcb *inp)
 {
 
 	INP_LOCK_ASSERT(inp);
-	MAC_PERFORM(init_syncache_from_inpcb, label, inp);
+	MAC_PERFORM(syncache_create, label, inp);
 }
 
 void
-mac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m)
+mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 {
 	struct label *mlabel;
 
 	M_ASSERTPKTHDR(m);
 	mlabel = mac_mbuf_to_label(m);
-	MAC_PERFORM(create_mbuf_from_syncache, sc_label, m, mlabel);
+	MAC_PERFORM(syncache_create_mbuf, sc_label, m, mlabel);
 }

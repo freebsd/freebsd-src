@@ -328,11 +328,11 @@ typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 
 typedef	void	(*mpo_mbuf_create_from_firewall_t)(struct mbuf *m,
 		    struct label *label);
-typedef void	(*mpo_destroy_syncache_label_t)(struct label *label);
-typedef int	(*mpo_init_syncache_label_t)(struct label *label, int flag);
-typedef void	(*mpo_init_syncache_from_inpcb_t)(struct label *label,
+typedef void	(*mpo_syncache_destroy_label_t)(struct label *label);
+typedef int	(*mpo_syncache_init_label_t)(struct label *label, int flag);
+typedef void	(*mpo_syncache_create_t)(struct label *label,
 		    struct inpcb *inp);
-typedef void	(*mpo_create_mbuf_from_syncache_t)(struct label *sc_label,
+typedef void	(*mpo_syncache_create_mbuf_t)(struct label *sc_label,
 		    struct mbuf *m, struct label *mlabel);
 /*
  * Labeling event operations: processes.
@@ -900,10 +900,10 @@ struct mac_policy_ops {
 	mpo_vnode_check_unlink_t		mpo_vnode_check_unlink;
 	mpo_vnode_check_write_t			mpo_vnode_check_write;
 	mpo_mbuf_create_from_firewall_t		mpo_mbuf_create_from_firewall;
-	mpo_init_syncache_label_t		mpo_init_syncache_label;
-	mpo_destroy_syncache_label_t		mpo_destroy_syncache_label;
-	mpo_init_syncache_from_inpcb_t		mpo_init_syncache_from_inpcb;
-	mpo_create_mbuf_from_syncache_t		mpo_create_mbuf_from_syncache;
+	mpo_syncache_init_label_t		mpo_syncache_init_label;
+	mpo_syncache_destroy_label_t		mpo_syncache_destroy_label;
+	mpo_syncache_create_t			mpo_syncache_create;
+	mpo_syncache_create_mbuf_t		mpo_syncache_create_mbuf;
 	mpo_priv_check_t			mpo_priv_check;
 	mpo_priv_grant_t			mpo_priv_grant;
 };
