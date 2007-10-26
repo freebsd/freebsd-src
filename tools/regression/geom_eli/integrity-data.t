@@ -24,7 +24,7 @@ for cipher in aes:0 aes:128 aes:192 aes:256 \
 
 			dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-			geli init -a $aalgo -e $ealgo -l $keylen -P -K $keyfile -s $secsize md${no}
+			geli init -a $aalgo -e $ealgo -l $keylen -P -K $keyfile -s $secsize md${no} 2>/dev/null
 			geli attach -p -k $keyfile md${no}
 
 			dd if=/dev/random of=/dev/md${no}.eli bs=${secsize} count=1 >/dev/null 2>&1

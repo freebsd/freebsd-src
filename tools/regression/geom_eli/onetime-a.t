@@ -21,7 +21,7 @@ for cipher in aes:0 aes:128 aes:192 aes:256 \
 			rnd=`mktemp /tmp/$base.XXXXXX` || exit 1
 			mdconfig -a -t malloc -s `expr $secsize \* $sectors + 512`b -u $no || exit 1
 
-			geli onetime -a $aalgo -e $ealgo -l $keylen -s $secsize md${no}
+			geli onetime -a $aalgo -e $ealgo -l $keylen -s $secsize md${no} 2>/dev/null
 
 			secs=`diskinfo /dev/md${no}.eli | awk '{print $4}'`
 
