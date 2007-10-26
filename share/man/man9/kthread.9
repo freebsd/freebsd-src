@@ -29,40 +29,35 @@
 .Dt KTHREAD 9
 .Os
 .Sh NAME
-.Nm kproc_start ,
-.Nm kproc_shutdown ,
-.Nm kthread_create ,
+.Nm kthread_start ,
+.Nm kthread_shutdown ,
+.Nm kthread_add ,
 .Nm kthread_exit ,
 .Nm kthread_resume ,
 .Nm kthread_suspend ,
 .Nm kthread_suspend_check
 .Nd kernel threads
 .Pp
-.Em WARNING WARNING WARNING.. these functions have been renamed. See
-.Xr kproc 9 .
-.Pp
-These functions will return in almost identical form but will create actual 
-kernel threads. In their old form they created kernel
 .Em PROCESSES .
 .Sh SYNOPSIS
 .In sys/kthread.h
 .Ft void
-.Fn kproc_start "const void *udata"
+.Fn kthread_start "const void *udata"
 .Ft void
-.Fn kproc_shutdown "void *arg" "int howto"
+.Fn kthread_shutdown "void *arg" "int howto"
 .Ft int
-.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "int flags" "int pages" "const char *fmt" "..."
+.Fn kthread_add "void (*func)(void *)" "void *arg" "struct proc *procp" "struct thread **newtdpp" "int flags" "int pages" "const char *fmt" "..."
 .Ft void
-.Fn kthread_exit "int ecode"
+.Fn kthread_exit "void"
 .Ft int
-.Fn kthread_resume "struct proc *p"
+.Fn kthread_resume "struct thread *td"
 .Ft int
-.Fn kthread_suspend "struct proc *p" "int timo"
+.Fn kthread_suspend "struct thread *td" "int timo"
 .Ft void
-.Fn kthread_suspend_check "struct proc *p"
+.Fn kthread_suspend_check "struct thread *td"
 .Sh DESCRIPTION
 The function
-.Fn kproc_start
+.Fn kthread_start
 is used to start
 .Dq internal
 daemons such as bufdaemon, pagedaemon, vmdaemon, and the syncer and is intended
@@ -71,43 +66,45 @@ to be called from
 The
 .Fa udata
 argument is actually a pointer to a
-.Li struct kproc_desc
+.Li struct kthread_desc
 which describes the kernel thread that should be created:
 .Bd -literal -offset indent
-struct kproc_desc {
+struct kthread_desc {
         char            *arg0;
         void            (*func)(void);
-        struct proc     **global_procpp;
+        struct thread     **global_threadpp;
 };
 .Ed
 .Pp
 The structure members are used by
-.Fn kproc_start
+.Fn kthread_start
 as follows:
-.Bl -tag -width "global_procpp" -offset indent
+.Bl -tag -width "global_threadpp" -offset indent
 .It Va arg0
-String to be used for the name of the process.
+String to be used for the name of the thread.
 This string will be copied into the
-.Va p_comm
-member of the new process'
-.Li struct proc .
+.Va td_name
+member of the new threads'
+.Li struct thread .
 .It Va func
 The main function for this kernel process to run.
-.It Va global_procpp
+.It Va global_threadpp
 A pointer to a
-.Li struct proc
-pointer that should be updated to point to the newly created process' process
+.Li struct thread
+pointer that should be updated to point to the newly created thread' thread
 structure.
 If this variable is
 .Dv NULL ,
-then it is ignored.
+then it is ignored. The thread will be a subthread of proc0 (PID 0).
 .El
 .Pp
 The
-.Fn kthread_create
+.Fn kthread_add
 function is used to create a kernel thread.
-The new thread shares its address space with process 0, the swapper process,
-and runs in kernel mode only.
+The new thread runs in kernel mode only. It is added to the
+process specified by the
+.Fa procp
+argument, or if that is NULL, to proc0.
 The
 .Fa func
 argument specifies the function that the thread should execute.
@@ -117,10 +114,10 @@ argument is an arbitrary pointer that is passed in as the only argument to
 .Fa func
 when it is called by the new process.
 The
-.Fa newpp
+.Fa newtdp
 pointer points to a
-.Li struct proc
-pointer that is to be updated to point to the newly created process.
+.Li struct thread
+pointer that is to be updated to point to the newly created thread.
 If this argument is
 .Dv NULL ,
 then it is ignored.
@@ -136,9 +133,9 @@ The rest of the arguments form a
 .Xr printf 9
 argument list that is used to build the name of the new thread and is stored
 in the
-.Va p_comm
+.Va td_name
 member of the new thread's
-.Li struct proc .
+.Li struct thread .
 .Pp
 The
 .Fn kthread_exit
@@ -146,13 +143,6 @@ function is used to terminate kernel threads.
 It should be called by the main function of the kernel thread rather than
 letting the main function return to its caller.
 The
-.Fa ecode
-argument specifies the exit status of the thread.
-While exiting, the function
-.Xr exit1 9
-will initiate a call to
-.Xr wakeup 9
-on the thread handle.
 .Pp
 The
 .Fn kthread_resume ,
@@ -164,7 +154,7 @@ During the main loop of its execution, a kernel thread that wishes to allow
 itself to be suspended should call
 .Fn kthread_suspend_check
 passing in
-.Va curproc
+.Va curthread
 as the only argument.
 This function checks to see if the kernel thread has been asked to suspend.
 If it has, it will
@@ -175,9 +165,9 @@ kernel thread to continue.
 The other two functions are used to notify a kernel thread of a suspend or
 resume request.
 The
-.Fa p
+.Fa td
 argument points to the
-.Li struct proc
+.Li struct thread
 of the kernel thread to suspend or resume.
 For
 .Fn kthread_suspend ,
@@ -187,7 +177,7 @@ argument specifies a timeout to wait for the kernel thread to acknowledge the
 suspend request and suspend itself.
 .Pp
 The
-.Fn kproc_shutdown
+.Fn kthread_shutdown
 function is meant to be registered as a shutdown event for kernel threads that
 need to be suspended voluntarily during system shutdown so as not to interfere
 with system shutdown activities.
@@ -195,31 +185,31 @@ The actual suspension of the kernel thread is done with
 .Fn kthread_suspend .
 .Sh RETURN VALUES
 The
-.Fn kthread_create ,
+.Fn kthread_add ,
 .Fn kthread_resume ,
 and
 .Fn kthread_suspend
 functions return zero on success and non-zero on failure.
 .Sh EXAMPLES
 This example demonstrates the use of a
-.Li struct kproc_desc
+.Li struct kthread_desc
 and the functions
-.Fn kproc_start ,
-.Fn kproc_shutdown ,
+.Fn kthread_start ,
+.Fn kthread_shutdown ,
 and
 .Fn kthread_suspend_check
 to run the
 .Dq bufdaemon
 process.
 .Bd -literal -offset indent
-static struct proc *bufdaemonproc;
+static struct thread *bufdaemonthread;
 
-static struct kproc_desc buf_kp = {
+static struct kthread_desc buf_kp = {
 	"bufdaemon",
 	buf_daemon,
-	&bufdaemonproc
+	&bufdaemonthread
 };
-SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start,
+SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kthread_start,
     &buf_kp)
 
 static void
@@ -229,11 +219,11 @@ buf_daemon()
 	/*
 	 * This process needs to be suspended prior to shutdown sync.
 	 */
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown,
-	    bufdaemonproc, SHUTDOWN_PRI_LAST);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, kthread_shutdown,
+	    bufdaemonthread, SHUTDOWN_PRI_LAST);
 	...
 	for (;;) {
-		kthread_suspend_check(bufdaemonproc);
+		kthread_suspend_check(bufdaemonthread);
 		...
 	}
 }
@@ -247,7 +237,7 @@ functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
-.Fa p
+.Fa td
 argument does not reference a kernel thread.
 .El
 .Pp
@@ -271,16 +261,19 @@ parameter.
 .El
 .Sh SEE ALSO
 .Xr rfork 2 ,
+.Xr kproc 9 ,
 .Xr exit1 9 ,
 .Xr SYSINIT 9 ,
 .Xr wakeup 9
 .Sh HISTORY
 The
-.Fn kproc_start
+.Fn kthread_start
 function first appeared in
-.Fx 2.2 .
+.Fx 2.2 
+where it created a whole process. It was converted to create threads in 
+.Fx 8.0 .
 The
-.Fn kproc_shutdown ,
+.Fn kthread_shutdown ,
 .Fn kthread_create ,
 .Fn kthread_exit ,
 .Fn kthread_resume ,
@@ -288,11 +281,23 @@ The
 and
 .Fn kthread_suspend_check
 functions were introduced in
-.Fx 4.0 .
+.Fx 4.0 
+and were converted to treads in 
+.Fx 8.0 .
+The 
+.Fn kthread_create
+call was renamed to kthread_add in
+.Fx 8.0 .
+The old functionality of creating a kernel process was renamed 
+to 
+.Fn kproc_create
+(and friends).
+See
+.Xr kproc 9
 Prior to
 .Fx 5.0 ,
 the
-.Fn kproc_shutdown ,
+.Fn kthread_shutdown ,
 .Fn kthread_resume ,
 .Fn kthread_suspend ,
 and
