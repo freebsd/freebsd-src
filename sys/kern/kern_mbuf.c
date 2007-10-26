@@ -343,11 +343,11 @@ mb_dtor_mbuf(void *mem, int size, void *arg)
 
 	m = (struct mbuf *)mem;
 	flags = (unsigned long)arg;
-	
+
 	if ((flags & MB_NOTAGS) == 0 && (m->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(m, NULL);
 	KASSERT((m->m_flags & M_EXT) == 0, ("%s: M_EXT set", __func__));
-	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));	
+	KASSERT((m->m_flags & M_NOFREE) == 0, ("%s: M_NOFREE set", __func__));
 #ifdef INVARIANTS
 	trash_dtor(mem, size, arg);
 #endif
@@ -377,13 +377,15 @@ mb_dtor_pack(void *mem, int size, void *arg)
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
 	/*
-	 * If there are processes blocked on zone_clust, waiting for pages to be freed up,
-	 * cause them to be woken up by draining the packet zone. We are exposed to a race here 
-	 * (in the check for the UMA_ZFLAG_FULL) where we might miss the flag set, but that is 
-	 * deliberate. We don't want to acquire the zone lock for every mbuf free.
+	 * If there are processes blocked on zone_clust, waiting for pages
+	 * to be freed up, * cause them to be woken up by draining the
+	 * packet zone.  We are exposed to a race here * (in the check for
+	 * the UMA_ZFLAG_FULL) where we might miss the flag set, but that
+	 * is deliberate. We don't want to acquire the zone lock for every
+	 * mbuf free.
 	 */
- 	if (uma_zone_exhausted_nolock(zone_clust))
- 		zone_drain(zone_pack);
+	if (uma_zone_exhausted_nolock(zone_clust))
+		zone_drain(zone_pack);
 }
 
 /*
@@ -401,7 +403,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 	u_int *refcnt;
 	int type;
 	uma_zone_t zone;
-	
+
 #ifdef INVARIANTS
 	trash_ctor(mem, size, arg, how);
 #endif
@@ -431,7 +433,7 @@ mb_ctor_clust(void *mem, int size, void *arg, int how)
 
 	m = (struct mbuf *)arg;
 	refcnt = uma_find_refcnt(zone, mem);
-	*refcnt = 1;			
+	*refcnt = 1;
 	if (m != NULL) {
 		m->m_ext.ext_buf = (caddr_t)mem;
 		m->m_data = m->m_ext.ext_buf;
@@ -531,7 +533,7 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 	m->m_len = 0;
 	m->m_flags = (flags | M_EXT);
 	m->m_type = type;
-	    
+
 	if (flags & M_PKTHDR) {
 		m->m_pkthdr.rcvif = NULL;
 		m->m_pkthdr.len = 0;
