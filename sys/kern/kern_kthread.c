@@ -254,7 +254,10 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		p = &proc0;
 		oldtd = &thread0;
 	} else {
-		oldtd = FIRST_THREAD_IN_PROC(p);
+		if (p == &proc0)
+			oldtd = &thread0;
+		else
+			oldtd = FIRST_THREAD_IN_PROC(p);
 	}
 
 	/* Initialize our td  */
@@ -315,7 +318,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 }
 
 void
-kthread_exit(int ecode)
+kthread_exit(void)
 {
 	thread_exit();
 }
