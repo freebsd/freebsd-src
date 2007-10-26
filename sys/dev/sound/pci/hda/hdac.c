@@ -81,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070710_0047"
+#define HDA_DRV_TEST_REV	"20071020_0048"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -190,6 +190,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HP_XW4300_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x3013)
 #define HP_3010_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x3010)
 #define HP_DV5000_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30a5)
+#define HP_DC7700_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x2802)
 #define HP_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0xffff)
 /* What is wrong with XN 2563 anyway? (Got the picture ?) */
 #define HP_NX6325_SUBVENDORX	0x103c30b0
@@ -239,6 +240,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Lenovo */
 #define LENOVO_VENDORID		0x17aa
 #define LENOVO_3KN100_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x2066)
+#define LENOVO_TCA55_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0x1015)
 #define LENOVO_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LENOVO, 0xffff)
 
 /* Samsung */
@@ -266,7 +268,13 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Fujitsu Siemens */
 #define FS_VENDORID		0x1734
 #define FS_PA1510_SUBVENDOR	HDA_MODEL_CONSTRUCT(FS, 0x10b8)
+#define FS_SI1848_SUBVENDOR	HDA_MODEL_CONSTRUCT(FS, 0x10cd)
 #define FS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(FS, 0xffff)
+
+/* Fujitsu Limited */
+#define FL_VENDORID		0x10cf
+#define FL_S7020D_SUBVENDOR	HDA_MODEL_CONSTRUCT(FL, 0x1326)
+#define FL_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(FL, 0xffff)
 
 /* Toshiba */
 #define TOSHIBA_VENDORID	0x1179
@@ -276,7 +284,13 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Micro-Star International (MSI) */
 #define MSI_VENDORID		0x1462
 #define MSI_MS1034_SUBVENDOR	HDA_MODEL_CONSTRUCT(MSI, 0x0349)
+#define MSI_MS034A_SUBVENDOR	HDA_MODEL_CONSTRUCT(MSI, 0x034a)
 #define MSI_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(MSI, 0xffff)
+
+/* Giga-Byte Technology */
+#define GB_VENDORID		0x1458
+#define GB_G33S2H_SUBVENDOR	HDA_MODEL_CONSTRUCT(GB, 0xa022)
+#define GP_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(GB, 0xffff)
 
 /* Uniwill ? */
 #define UNIWILL_VENDORID	0x1584
@@ -641,14 +655,16 @@ static const struct {
 	    0, 0, -1, 17, { 16, -1 }, 16 },
 	/* { HP_XW4300_SUBVENDOR, HDA_CODEC_ALC260, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 21, { 16, 17, -1 }, -1 } */
-	/*{ HP_3010_SUBVENDOR,  HDA_CODEC_ALC260, HDAC_HP_SWITCH_DEBUG,
-	    0, 1, 0, 16, { 15, 18, 19, 20, 21, -1 }, -1 },*/
+	/* { HP_3010_SUBVENDOR,  HDA_CODEC_ALC260, HDAC_HP_SWITCH_DEBUG,
+	    0, 1, 0, 16, { 15, 18, 19, 20, 21, -1 }, -1 }, */
 	{ HP_NX7400_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, -1 }, 5 },
 	{ HP_NX6310_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, -1 }, 5 },
 	{ HP_NX6325_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, -1 }, 5 },
+	/* { HP_DC7700_SUBVENDOR, HDA_CODEC_ALC262, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 21, { 22, 27, -1 }, -1 }, */
 	{ TOSHIBA_U200_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, -1 }, -1 },
 	{ DELL_D820_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
@@ -661,6 +677,8 @@ static const struct {
 	    0, 0, -1, 10, { 13, -1 }, -1 },
 	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL,
 	    1, 0, -1, 26, { 27, -1 }, -1 },
+	/* { LENOVO_TCA55_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 26, { 27, 28, 29, 30, -1 }, -1 }, */
 	{ LG_LW20_SUBVENDOR, HDA_CODEC_ALC880, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 27, { 20, -1 }, -1 },
 	{ ACER_A5050_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
@@ -671,6 +689,12 @@ static const struct {
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 	{ MSI_MS1034_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 27, -1 }, -1 },
+	{ MSI_MS034A_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 20, { 27, -1 }, -1 },
+	{ FS_SI1848_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 20, { 21, -1 }, -1 },
+	{ FL_S7020D_SUBVENDOR, HDA_CODEC_ALC260, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 20, { 16, -1 }, -1 },
 	/*
 	 * All models that at least come from the same vendor with
 	 * simmilar codec.
@@ -683,9 +707,9 @@ static const struct {
 	    0, 0, -1, 6, { 5, -1 }, -1 },
 	{ DELL_ALL_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
 	    0, 0, -1, 13, { 14, -1 }, -1 },
+#if 0
 	{ LENOVO_ALL_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL,
 	    1, 0, -1, 26, { 27, -1 }, -1 },
-#if 0
 	{ ACER_ALL_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 #endif
@@ -724,7 +748,7 @@ static void	hdac_corb_init(struct hdac_softc *);
 static void	hdac_rirb_init(struct hdac_softc *);
 static void	hdac_corb_start(struct hdac_softc *);
 static void	hdac_rirb_start(struct hdac_softc *);
-static void	hdac_scan_codecs(struct hdac_softc *);
+static void	hdac_scan_codecs(struct hdac_softc *, int);
 static int	hdac_probe_codec(struct hdac_codec *);
 static struct	hdac_devinfo *hdac_probe_function(struct hdac_codec *, nid_t);
 static void	hdac_add_child(struct hdac_softc *, struct hdac_devinfo *);
@@ -1730,19 +1754,24 @@ hdac_rirb_start(struct hdac_softc *sc)
 
 
 /****************************************************************************
- * void hdac_scan_codecs(struct hdac_softc *)
+ * void hdac_scan_codecs(struct hdac_softc *, int)
  *
- * Scan the bus for available codecs.
+ * Scan the bus for available codecs, starting with num.
  ****************************************************************************/
 static void
-hdac_scan_codecs(struct hdac_softc *sc)
+hdac_scan_codecs(struct hdac_softc *sc, int num)
 {
 	struct hdac_codec *codec;
 	int i;
 	uint16_t statests;
 
+	if (num < 0)
+		num = 0;
+	if (num >= HDAC_CODEC_MAX)
+		num = HDAC_CODEC_MAX - 1;
+
 	statests = HDAC_READ_2(&sc->mem, HDAC_STATESTS);
-	for (i = 0; i < HDAC_CODEC_MAX; i++) {
+	for (i = num; i < HDAC_CODEC_MAX; i++) {
 		if (HDAC_STATESTS_SDIWAKE(statests, i)) {
 			/* We have found a codec. */
 			codec = (struct hdac_codec *)malloc(sizeof(*codec),
@@ -2035,7 +2064,8 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			break;
 		}
 	} else if (id == HDA_CODEC_ALC883 &&
-	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor)) {
+	    (sc->pci_subvendor == MSI_MS034A_SUBVENDOR ||
+	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor))) {
 		switch (nid) {
 		case 25:
 			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
@@ -4252,6 +4282,20 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			}
 		}
 		break;
+	case HDA_CODEC_ALC262:
+		if (subvendor == HP_DC7700_SUBVENDOR) {
+			ctl = hdac_audio_ctl_amp_get(devinfo, 22, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_SPEAKER;
+				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+			ctl = hdac_audio_ctl_amp_get(devinfo, 27, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_SPEAKER;
+				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+		}
+		break;
 	case HDA_CODEC_ALC861:
 		ctl = hdac_audio_ctl_amp_get(devinfo, 21, 2, 1);
 		if (ctl != NULL)
@@ -6049,7 +6093,7 @@ hdac_attach2(void *arg)
 	struct hdac_widget *w;
 	struct hdac_audio_ctl *ctl;
 	uint32_t quirks_on, quirks_off;
-	int pcnt, rcnt;
+	int pcnt, rcnt, codec_index;
 	int i;
 	char status[SND_STATUSLEN];
 	device_t *devlist = NULL;
@@ -6064,6 +6108,18 @@ hdac_attach2(void *arg)
 		device_printf(sc->dev, "HDA_DEBUG: HDA Config: on=0x%08x off=0x%08x\n",
 		    quirks_on, quirks_off);
 	);
+
+	if (resource_int_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "codec_index", &codec_index) != 0) {
+		switch (sc->pci_subvendor) {
+		case GB_G33S2H_SUBVENDOR:
+			codec_index = 2;
+			break;
+		default:
+			codec_index = 0;
+			break;
+		}
+	}
 
 	hdac_lock(sc);
 
@@ -6096,9 +6152,11 @@ hdac_attach2(void *arg)
 	DELAY(1000);
 
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "HDA_DEBUG: Scanning HDA codecs...\n");
+		device_printf(sc->dev,
+		    "HDA_DEBUG: Scanning HDA codecs [start index=%d] ...\n",
+		    codec_index);
 	);
-	hdac_scan_codecs(sc);
+	hdac_scan_codecs(sc, codec_index);
 
 	device_get_children(sc->dev, &devlist, &devcount);
 	for (i = 0; devlist != NULL && i < devcount; i++) {
