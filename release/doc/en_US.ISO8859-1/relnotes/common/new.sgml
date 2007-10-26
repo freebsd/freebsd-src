@@ -326,6 +326,11 @@
  	<varname>sendmail_rebuild_aliases</varname> to "NO" to turn off
  	that functionality.</para>
 
+     <para>The <filename>/etc/rc.d/nfslocking</filename> script
+	has been deprecated and will be removed in a future release.
+	It has been replaced by the <filename>/etc/rc.d/lockd</filename> and
+	<filename>/etc/rc.d/statd</filename> scripts.</para>
+
     </sect3>
 
   </sect2>
