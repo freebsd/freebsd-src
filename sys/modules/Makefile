@@ -188,6 +188,7 @@ SUBDIR=	${_3dfx} \
 	ntfs_iconv \
 	nullfs \
 	${_nve} \
+	${_nvram} \
 	${_nwfs} \
 	${_nxge} \
 	${_oltr} \
@@ -202,7 +203,6 @@ SUBDIR=	${_3dfx} \
 	plip \
 	${_pmc} \
 	portalfs \
-	${_powermac_nvram} \
 	ppbus \
 	ppc \
 	ppi \
@@ -399,6 +399,7 @@ _mse=		mse
 _ncp=		ncp
 .endif
 _ncv=		ncv
+_nvram=		nvram
 _ndis=		ndis
 _nsp=		nsp
 .if ${MK_NCP} != "no"
@@ -519,6 +520,7 @@ _mly=		mly
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
+_nvram=		nvram
 _nxge=		nxge
 _pccard=	pccard
 _rr232x=	rr232x
@@ -579,7 +581,7 @@ _ath_hal=	ath_hal
 _ath_rate_amrr=	ath_rate_amrr
 _ath_rate_onoe=	ath_rate_onoe
 _ath_rate_sample=ath_rate_sample
-_powermac_nvram=	powermac_nvram
+_nvram=		powermac_nvram
 _smbfs=		smbfs
 .endif
 

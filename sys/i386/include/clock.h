@@ -31,7 +31,8 @@ void	i8254_init(void);
 
 int	acquire_timer2(int mode);
 int	release_timer2(void);
-int	rtcin(int val);
+int	rtcin(int reg);
+void	writertc(int reg, unsigned char val);
 int	sysbeep(int pitch, int period);
 void	timer_restore(void);
 void	init_TSC(void);
