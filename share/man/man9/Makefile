@@ -603,8 +603,8 @@ MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_strn.9 \
 	hash.9 hash32_strne.9
 MLINKS+=hashinit.9 hashdestroy.9 \
-	hashinit.9 phashinit.9 \
-	hashinit.9 hashinit_flags.9
+	hashinit.9 hashinit_flags.9 \
+	hashinit.9 phashinit.9
 MLINKS+=ieee80211.9 ieee80211_attach.9 \
 	ieee80211.9 ieee80211_chan2ieee.9 \
 	ieee80211.9 ieee80211_chan2mode.9 \
@@ -1034,8 +1034,8 @@ MLINKS+=socket.9 sobind.9 \
 	socket.9 socreate.9 \
 	socket.9 sogetopt.9 \
 	socket.9 soreceive.9 \
-	socket.9 sosetopt.9 \
 	socket.9 sosend.9 \
+	socket.9 sosetopt.9 \
 	socket.9 soshutdown.9
 MLINKS+=spl.9 spl0.9 \
 	spl.9 splbio.9 \
@@ -1061,13 +1061,13 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_downgrade.9 \
 	sx.9 sx_init.9 \
 	sx.9 sx_init_flags.9 \
+	sx.9 sx_sleep.9 \
 	sx.9 sx_slock.9 \
 	sx.9 sx_sunlock.9 \
 	sx.9 SX_SYSINIT.9 \
 	sx.9 sx_try_slock.9 \
 	sx.9 sx_try_upgrade.9 \
 	sx.9 sx_try_xlock.9 \
-	sx.9 sx_sleep.9 \
 	sx.9 sx_unlock.9 \
 	sx.9 sx_xholder.9 \
 	sx.9 sx_xlock.9 \
@@ -1190,11 +1190,11 @@ MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
 	vfsconf.9 vfs_unregister.9
-MLINKS+=vfs_getopt.9 vfs_getopts.9 \
+MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
+	vfs_getopt.9 vfs_filteropt.9 \
 	vfs_getopt.9 vfs_flagopt.9 \
-	vfs_getopt.9 vfs_scanopt.9 \
-	vfs_getopt.9 vfs_copyopt.9 \
-	vfs_getopt.9 vfs_filteropt.9
+	vfs_getopt.9 vfs_getopts.9 \
+	vfs_getopt.9 vfs_scanopt.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \
