@@ -66,7 +66,8 @@ ata_legacy(device_t dev)
 	    (!pci_read_config(dev, PCIR_BAR(0), 4) &&
 	     !pci_read_config(dev, PCIR_BAR(1), 4) &&
 	     !pci_read_config(dev, PCIR_BAR(2), 4) &&
-	     !pci_read_config(dev, PCIR_BAR(3), 4)));
+	     !pci_read_config(dev, PCIR_BAR(3), 4) &&
+	     !pci_read_config(dev, PCIR_BAR(5), 4)));
 }
 
 int
