@@ -323,7 +323,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr *tip,
 	ah = mtod(m, struct arphdr *);
 	bzero((caddr_t)ah, m->m_len);
 #ifdef MAC
-	mac_create_mbuf_linklayer(ifp, m);
+	mac_mbuf_create_linklayer(ifp, m);
 #endif
 	ah->ar_pro = htons(ETHERTYPE_IP);
 	ah->ar_hln = ifp->if_addrlen;		/* hardware address length */

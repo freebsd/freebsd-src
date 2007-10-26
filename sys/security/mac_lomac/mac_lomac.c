@@ -1332,7 +1332,7 @@ lomac_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-lomac_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
+lomac_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
@@ -1457,7 +1457,7 @@ lomac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
 }
 
 static void
-lomac_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
+lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
 
@@ -2878,7 +2878,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_inpcb_create = lomac_inpcb_create,
 	.mpo_ipq_create = lomac_ipq_create,
 	.mpo_inpcb_create_mbuf = lomac_inpcb_create_mbuf,
-	.mpo_create_mbuf_linklayer = lomac_create_mbuf_linklayer,
+	.mpo_mbuf_create_linklayer = lomac_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = lomac_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = lomac_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = lomac_mbuf_create_multicast_encap,
@@ -2936,7 +2936,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_vnode_check_unlink = lomac_vnode_check_unlink,
 	.mpo_vnode_check_write = lomac_vnode_check_write,
 	.mpo_thread_userret = lomac_thread_userret,
-	.mpo_mbuf_create_from_firewall = lomac_mbuf_create_from_firewall,
+	.mpo_netinet_firewall_send = lomac_netinet_firewall_send,
 	.mpo_priv_check = lomac_priv_check,
 };
 

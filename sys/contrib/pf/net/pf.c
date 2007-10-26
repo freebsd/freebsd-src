@@ -1820,7 +1820,7 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 	if (replyto)
 		mac_mbuf_create_netlayer(replyto, m);
 	else
-		mac_mbuf_create_from_firewall(m);
+		mac_netinet_firewall_send(m);
 #else
 	(void)replyto;
 #endif

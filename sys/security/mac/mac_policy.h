@@ -221,9 +221,7 @@ typedef int	(*mpo_kld_check_stat_t)(struct ucred *cred);
 
 typedef void	(*mpo_mbuf_copy_label_t)(struct label *src,
 		    struct label *dest);
-typedef	void	(*mpo_mbuf_create_from_firewall_t)(struct mbuf *m,
-		    struct label *label);
-typedef void	(*mpo_create_mbuf_linklayer_t)(struct ifnet *ifp,
+typedef void	(*mpo_mbuf_create_linklayer_t)(struct ifnet *ifp,
 		    struct label *ifplabel, struct mbuf *m,
 		    struct label *mlabel);
 typedef void	(*mpo_mbuf_create_multicast_encap_t)(struct mbuf *m,
@@ -243,6 +241,8 @@ typedef void	(*mpo_mount_create_t)(struct ucred *cred, struct mount *mp,
 typedef void	(*mpo_mount_destroy_label_t)(struct label *label);
 typedef void	(*mpo_mount_init_label_t)(struct label *label);
 
+typedef	void	(*mpo_netinet_firewall_send_t)(struct mbuf *m,
+		    struct label *mlabel);
 typedef void	(*mpo_netinet_fragment_t)(struct mbuf *m,
 		    struct label *mlabel, struct mbuf *frag,
 		    struct label *fraglabel);
@@ -678,8 +678,7 @@ struct mac_policy_ops {
 	mpo_kld_check_stat_t			mpo_kld_check_stat;
 
 	mpo_mbuf_copy_label_t			mpo_mbuf_copy_label;
-	mpo_mbuf_create_from_firewall_t		mpo_mbuf_create_from_firewall;
-	mpo_create_mbuf_linklayer_t		mpo_create_mbuf_linklayer;
+	mpo_mbuf_create_linklayer_t		mpo_mbuf_create_linklayer;
 	mpo_mbuf_create_multicast_encap_t	mpo_mbuf_create_multicast_encap;
 	mpo_mbuf_create_netlayer_t		mpo_mbuf_create_netlayer;
 	mpo_mbuf_destroy_label_t		mpo_mbuf_destroy_label;
@@ -690,6 +689,7 @@ struct mac_policy_ops {
 	mpo_mount_destroy_label_t		mpo_mount_destroy_label;
 	mpo_mount_init_label_t			mpo_mount_init_label;
 
+	mpo_netinet_firewall_send_t		mpo_netinet_firewall_send;
 	mpo_netinet_fragment_t			mpo_netinet_fragment;
 	mpo_netinet_icmp_reply_t		mpo_netinet_icmp_reply;
 	mpo_netinet_tcp_reply_t			mpo_netinet_tcp_reply;
