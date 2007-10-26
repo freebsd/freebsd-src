@@ -1621,7 +1621,7 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 	if (replyto != NULL)
 		mac_mbuf_create_netlayer(replyto, m);
 	else
-		mac_mbuf_create_from_firewall(m);
+		mac_netinet_firewall_send(m);
 #else
 	(void)replyto;		/* don't warn about unused arg */
 #endif

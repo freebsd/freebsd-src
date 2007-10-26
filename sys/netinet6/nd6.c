@@ -2114,7 +2114,7 @@ again:
 	}
 
 #ifdef MAC
-	mac_create_mbuf_linklayer(ifp, m);
+	mac_mbuf_create_linklayer(ifp, m);
 #endif
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
