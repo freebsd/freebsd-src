@@ -310,14 +310,14 @@ mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m)
 }
 
 void
-mac_create_mbuf_linklayer(struct ifnet *ifp, struct mbuf *m)
+mac_mbuf_create_linklayer(struct ifnet *ifp, struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
 	MAC_IFNET_LOCK(ifp);
-	MAC_PERFORM(create_mbuf_linklayer, ifp, ifp->if_label, m, label);
+	MAC_PERFORM(mbuf_create_linklayer, ifp, ifp->if_label, m, label);
 	MAC_IFNET_UNLOCK(ifp);
 }
 

@@ -276,13 +276,13 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 }
 
 void
-mac_mbuf_create_from_firewall(struct mbuf *m)
+mac_netinet_firewall_send(struct mbuf *m)
 {
 	struct label *label;
 
 	M_ASSERTPKTHDR(m);
 	label = mac_mbuf_to_label(m);
-	MAC_PERFORM(mbuf_create_from_firewall, m, label);
+	MAC_PERFORM(netinet_firewall_send, m, label);
 }
 
 /*
