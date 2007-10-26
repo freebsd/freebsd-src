@@ -48,10 +48,10 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
-#if (defined(__i386__) && !defined(GPTBOOT)) || defined(__arm__)
+#ifdef UFS_SMALL_CGBASE
 /* XXX: Revert to old (broken for over 1.5Tb filesystems) version of cgbase
-   (see sys/ufs/ffs/fs.h rev 1.39) so that i386 boot loader (boot2) can
-   support both UFS1 and UFS2 again. */
+   (see sys/ufs/ffs/fs.h rev 1.39) so that small boot loaders (e.g. boot2) can
+   support both UFS1 and UFS2. */
 #undef cgbase
 #define cgbase(fs, c)   ((ufs2_daddr_t)((fs)->fs_fpg * (c)))
 #endif
