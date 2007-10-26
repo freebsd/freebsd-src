@@ -15,6 +15,7 @@ device		npx
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
 device		io		# I/O device
+device		nvram		# Access to rtc cmos via /dev/nvram
 
 # UART chips on this platform
 device		uart_ns8250
