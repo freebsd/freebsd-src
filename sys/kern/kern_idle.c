@@ -60,27 +60,25 @@ idle_setup(void *dummy)
 
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		error = kproc_create(sched_idletd, NULL, &p,
-		    RFSTOPPED | RFHIGHPID, 0, "idle: cpu%d", pc->pc_cpuid);
-		pc->pc_idlethread = FIRST_THREAD_IN_PROC(p);
-#else
-		error = kproc_create(sched_idletd, NULL, &p,
-		    RFSTOPPED | RFHIGHPID, 0, "idle");
-		PCPU_SET(idlethread, FIRST_THREAD_IN_PROC(p));
 #endif
+		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
+		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle: cpu%d", pc->pc_cpuid);
+#ifdef SMP
+		pc->pc_idlethread = td;
+#else
+		PCPU_SET(idlethread, td);
+#endif
+		p = td->td_proc;
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);
 
-		PROC_LOCK(p);
 		p->p_flag |= P_NOLOAD;
-		td = FIRST_THREAD_IN_PROC(p);
 		thread_lock(td);
 		TD_SET_CAN_RUN(td);
 		td->td_flags |= TDF_IDLETD;
 		sched_class(td, PRI_IDLE);
 		sched_prio(td, PRI_MAX_IDLE);
 		thread_unlock(td);
-		PROC_UNLOCK(p);
 #ifdef SMP
 	}
 #endif

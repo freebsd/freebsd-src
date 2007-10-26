@@ -427,12 +427,13 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
-	td->td_flags = TDF_INMEM;
+	td->td_flags = TDF_INMEM|TDP_KTHREAD;
 	p->p_peers = 0;
 	p->p_leader = p;
 
 
-	bcopy("swapper", p->p_comm, sizeof ("swapper"));
+	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
+	strncpy(td->td_name, "swapper", sizeof (td->td_name));
 
 	callout_init(&p->p_itcallout, CALLOUT_MPSAFE);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);

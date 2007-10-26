@@ -322,7 +322,7 @@ do {									\
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
 #define	TDF_SELECT	0x00000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
-#define	TDF_UNUSEDx100	0x00000100 /* --available-- */
+#define	TDF_KTH_SUSP	0x00000100 /* kthread is suspended */
 #define	TDF_UBORROWING	0x00000200 /* Thread is borrowing user pri. */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
@@ -348,7 +348,7 @@ do {									\
 
 /*
  * "Private" flags kept in td_pflags:
- * These are only accessed by curthread and thus need no locking.
+ * These are only written by curthread and thus need no locking.
  */
 #define	TDP_OLDMASK	0x00000001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x00000002 /* Thread is currently in KTR code. */
@@ -371,6 +371,7 @@ do {									\
 #define	TDP_NORUNNINGBUF 0x00040000 /* Ignore runningbufspace check */
 #define	TDP_WAKEUP	0x00080000 /* Don't sleep in umtx cond_wait */
 #define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
+#define	TDP_KTHREAD	0x00200000 /* This is an official kernel thread */
 
 /*
  * Reasons that the current thread can not be run yet.

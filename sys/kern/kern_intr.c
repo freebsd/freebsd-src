@@ -80,6 +80,7 @@ struct	intr_event *clk_intr_event;
 struct	intr_event *tty_intr_event;
 void	*softclock_ih;
 void	*vm_ih;
+struct proc *intrproc;
 
 static MALLOC_DEFINE(M_ITHREAD, "ithread", "Interrupt Threads");
 
@@ -171,8 +172,7 @@ ithread_update(struct intr_thread *ithd)
 		pri = TAILQ_FIRST(&ie->ie_handlers)->ih_pri;
 
 	/* Update name and priority. */
-	strlcpy(td->td_proc->p_comm, ie->ie_fullname,
-	    sizeof(td->td_proc->p_comm));
+	strlcpy(td->td_name, ie->ie_fullname, sizeof(td->td_name));
 	thread_lock(td);
 	sched_prio(td, pri);
 	thread_unlock(td);
@@ -332,16 +332,15 @@ ithread_create(const char *name)
 {
 	struct intr_thread *ithd;
 	struct thread *td;
-	struct proc *p;
 	int error;
 
 	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
 
-	error = kproc_create(ithread_loop, ithd, &p, RFSTOPPED | RFHIGHPID,
-	    0, "%s", name);
+	error = kproc_kthread_add(ithread_loop, ithd, &intrproc,
+		    &td, RFSTOPPED | RFHIGHPID,
+	    	    0, "interd", "%s", name);
 	if (error)
 		panic("kproc_create() failed with %d", error);
-	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	TD_SET_IWAIT(td);
@@ -357,16 +356,15 @@ ithread_create(const char *name, struct intr_handler *ih)
 {
 	struct intr_thread *ithd;
 	struct thread *td;
-	struct proc *p;
 	int error;
 
 	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
 
-	error = kproc_create(ithread_loop, ih, &p, RFSTOPPED | RFHIGHPID,
-	    0, "%s", name);
+	error = kproc_kthread_create(ithread_loop, ih, &intrproc,
+		    &td, RFSTOPPED | RFHIGHPID,
+	    	    0, "interd", "%s", name);
 	if (error)
 		panic("kproc_create() failed with %d", error);
-	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	thread_lock(td);
 	sched_class(td, PRI_ITHD);
 	TD_SET_IWAIT(td);
@@ -688,7 +686,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 	 */
 	if (harvest.interrupt && ie->ie_flags & IE_ENTROPY) {
 		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
-		    p->p_pid, p->p_comm);
+		    p->p_pid, td->td_name);
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
@@ -706,12 +704,12 @@ intr_event_schedule_thread(struct intr_event *ie)
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
-		    p->p_comm);
+		    td->td_name);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
-		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
+		    __func__, p->p_pid, td->td_name, it->it_need, td->td_state);
 	}
 	thread_unlock(td);
 
@@ -842,7 +840,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	 */
 	if (harvest.interrupt && ie->ie_flags & IE_ENTROPY) {
 		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
-		    p->p_pid, p->p_comm);
+		    p->p_pid, td->td_name);
 		entropy.event = (uintptr_t)ie;
 		entropy.td = ctd;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
@@ -860,12 +858,12 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
-		    p->p_comm);
+		    th->th_name);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
-		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
+		    __func__, p->p_pid, td->td_name, it->it_need, td->td_state);
 	}
 	thread_unlock(td);
 
@@ -1100,9 +1098,9 @@ ithread_loop(void *arg)
 		 */
 		if (ithd->it_flags & IT_DEAD) {
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
-			    p->p_pid, p->p_comm);
+			    p->p_pid, td->td_name);
 			free(ithd, M_ITHREAD);
-			kproc_exit(0);
+			kthread_exit(0);
 		}
 
 		/*
@@ -1171,9 +1169,9 @@ ithread_loop(void *arg)
 		 */
 		if (ithd->it_flags & IT_DEAD) {
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
-			    p->p_pid, p->p_comm);
+			    p->p_pid, td->td_name);
 			free(ithd, M_ITHREAD);
-			kproc_exit(0);
+			kthread_exit(0);
 		}
 
 		/*

@@ -39,7 +39,7 @@ extern fixpt_t ccpu;
 extern int cflag, eval, fscale, nlistread, rawcpu;
 extern unsigned long mempages;
 extern time_t now;
-extern int sumrusage, termwidth, totwidth;
+extern int showthreads, sumrusage, termwidth, totwidth;
 extern STAILQ_HEAD(velisthead, varent) varlist;
 
 __BEGIN_DECLS
@@ -78,6 +78,7 @@ int	 s_uname(KINFO *);
 void	 showkey(void);
 void	 started(KINFO *, VARENT *);
 void	 state(KINFO *, VARENT *);
+void	 tdnam(KINFO *, VARENT *);
 void	 tdev(KINFO *, VARENT *);
 void	 tname(KINFO *, VARENT *);
 void	 ucomm(KINFO *, VARENT *);
