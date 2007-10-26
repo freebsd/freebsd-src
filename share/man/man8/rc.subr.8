@@ -218,6 +218,11 @@ Otherwise, warn that
 .Ar var
 is not set correctly.
 The values are case insensitive.
+.Sy Note :
+.Ar var
+should be a variable name, not its value;
+.Ic checkyesno
+will expand the variable by itself.
 .It Ic check_pidfile Ar pidfile procname Op Ar interpreter
 Parses the first word of the first line of
 .Ar pidfile
@@ -836,20 +841,17 @@ into the current shell.
 .It Ic stop_boot Op Ar always
 Prevent booting to multiuser mode.
 If the
-.Sy autoboot
-variable is
-.Sq yes ,
+.Va autoboot
+variable is set to
+.Ql yes ,
 or
-.Ar always
-is
-.Sq true ,
-then a
-.Sy SIGTERM
+.Ic checkyesno Ar always
+indicates a truth value, then a
+.Dv SIGTERM
 signal is sent to the parent
-process (which is assumed to be
-.Xr rc 8 ).
-Otherwise, the shell exits with status
-.Li 1 .
+process, which is assumed to be
+.Xr rc 8 .
+Otherwise, the shell exits with a non-zero status.
 .It Ic set_rcvar Op Ar base
 Set the variable name required to start a service.
 In
