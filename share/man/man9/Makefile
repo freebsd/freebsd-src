@@ -129,6 +129,7 @@ MAN=	accept_filter.9 \
 	kernacc.9 \
 	kernel_mount.9 \
 	kobj.9 \
+	kproc.9 \
 	kqueue.9 \
 	kthread.9 \
 	ktr.9 \
@@ -674,6 +675,13 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_create.9 \
 	kobj.9 kobj_delete.9 \
 	kobj.9 kobj_init.9
+MLINKS+=kproc.9 kproc_create.9 \
+	kproc.9 kproc_exit.9 \
+	kproc.9 kproc_resume,.9 \
+	kproc.9 kproc_shutdown.9 \
+	kproc.9 kproc_start.9 \
+	kproc.9 kproc_suspend.9 \
+	kproc.9 kproc_suspend_check.9
 MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_clear.9 \
 	kqueue.9 knlist_delete.9 \
@@ -688,11 +696,11 @@ MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 kqfd_register.9 \
 	kqueue.9 kqueue_add_filteropts.9 \
 	kqueue.9 kqueue_del_filteropts.9
-MLINKS+=kthread.9 kproc_shutdown.9 \
-	kthread.9 kproc_start.9 \
-	kthread.9 kthread_create.9 \
+MLINKS+=kthread.9 kthread_add.9 \
 	kthread.9 kthread_exit.9 \
 	kthread.9 kthread_resume.9 \
+	kthread.9 kthread_shutdown.9 \
+	kthread.9 kthread_start.9 \
 	kthread.9 kthread_suspend.9 \
 	kthread.9 kthread_suspend_check.9
 MLINKS+=ktr.9 CTR0.9 \
