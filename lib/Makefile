@@ -7,7 +7,7 @@
 # built are visible:
 #
 # csu must be built before all shared libaries for ELF.
-# libc must be built before all other shared libraries
+# libc must be built before all other shared libraries.
 # libcom_err must be built before libkrb5 and libpam.
 # libcrypt must be built before libkrb5 and libpam.
 # libkvm must be built before libdevstat.
