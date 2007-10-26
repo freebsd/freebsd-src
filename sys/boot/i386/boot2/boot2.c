@@ -168,6 +168,7 @@ strcmp(const char *s1, const char *s2)
     return (unsigned char)*s1 - (unsigned char)*s2;
 }
 
+#define	UFS_SMALL_CGBASE
 #include "ufsread.c"
 
 static inline int
