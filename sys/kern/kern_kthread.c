@@ -320,6 +320,12 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 void
 kthread_exit(void)
 {
+	/*
+	 * We could rely on thread_exit to call exit1() but
+	 * there is extra work that needs to be done
+	 */
+	if (curthread->td_proc->p_numthreads == 1)
+		kproc_exit(0);
 	thread_exit();
 }
 
