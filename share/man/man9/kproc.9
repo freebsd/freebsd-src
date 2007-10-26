@@ -36,7 +36,7 @@
 .Nm kproc_resume ,
 .Nm kproc_suspend ,
 .Nm kproc_suspend_check
-.Nd kernel procs
+.Nd "kernel processes"
 .Sh SYNOPSIS
 .In sys/kthread.h
 .Ft void
@@ -44,7 +44,11 @@
 .Ft void
 .Fn kproc_shutdown "void *arg" "int howto"
 .Ft int
-.Fn kproc_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "int flags" "int pages" "const char *fmt" "..."
+.Fo kproc_create
+.Fa "void (*func)(void *)" "void *arg" "struct proc **newpp"
+.Fa "int flags" "int pages"
+.Fa "const char *fmt" ...
+.Fc
 .Ft void
 .Fn kproc_exit "int ecode"
 .Ft int
@@ -58,37 +62,41 @@ The function
 .Fn kproc_start
 is used to start
 .Dq internal
-daemons such as bufdaemon, pagedaemon, vmdaemon, and the syncer and is intended
+daemons such as
+.Nm bufdaemon , pagedaemon , vmdaemon ,
+and the
+.Nm syncer
+and is intended
 to be called from
 .Xr SYSINIT 9 .
 The
 .Fa udata
 argument is actually a pointer to a
-.Li struct kproc_desc
+.Vt "struct kproc_desc"
 which describes the kernel process that should be created:
 .Bd -literal -offset indent
 struct kproc_desc {
-        char            *arg0;
-        void            (*func)(void);
-        struct proc     **global_procpp;
+	char		*arg0;
+	void		(*func)(void);
+	struct proc	**global_procpp;
 };
 .Ed
 .Pp
 The structure members are used by
 .Fn kproc_start
 as follows:
-.Bl -tag -width "global_procpp" -offset indent
+.Bl -tag -width ".Va global_procpp" -offset indent
 .It Va arg0
 String to be used for the name of the process.
 This string will be copied into the
 .Va p_comm
 member of the new process'
-.Li struct proc .
+.Vt "struct proc" .
 .It Va func
 The main function for this kernel process to run.
 .It Va global_procpp
 A pointer to a
-.Li struct proc
+.Vt "struct proc"
 pointer that should be updated to point to the newly created process' process
 structure.
 If this variable is
@@ -99,7 +107,9 @@ then it is ignored.
 The
 .Fn kproc_create
 function is used to create a kernel process.
-The new process shares its address space with process 0, the swapper process,
+The new process shares its address space with process 0, the
+.Nm swapper
+process,
 and runs in kernel mode only.
 The
 .Fa func
@@ -112,7 +122,7 @@ when it is called by the new process.
 The
 .Fa newpp
 pointer points to a
-.Li struct proc
+.Vt "struct proc"
 pointer that is to be updated to point to the newly created process.
 If this argument is
 .Dv NULL ,
@@ -131,7 +141,7 @@ argument list that is used to build the name of the new process and is stored
 in the
 .Va p_comm
 member of the new process's
-.Li struct proc .
+.Vt "struct proc" .
 .Pp
 The
 .Fn kproc_exit
@@ -170,7 +180,7 @@ resume request.
 The
 .Fa p
 argument points to the
-.Li struct proc
+.Vt "struct proc"
 of the kernel process to suspend or resume.
 For
 .Fn kproc_suspend ,
@@ -195,14 +205,14 @@ and
 functions return zero on success and non-zero on failure.
 .Sh EXAMPLES
 This example demonstrates the use of a
-.Li struct kproc_desc
+.Vt "struct kproc_desc"
 and the functions
 .Fn kproc_start ,
 .Fn kproc_shutdown ,
 and
 .Fn kproc_suspend_check
 to run the
-.Dq bufdaemon
+.Nm bufdaemon
 process.
 .Bd -literal -offset indent
 static struct proc *bufdaemonproc;
@@ -297,6 +307,9 @@ functions were named
 .Fn shutdown_kproc ,
 and
 .Fn kproc_suspend_loop ,
-respectively. Originally they had the names
-.Fn kthread_xxx
-but were changed when real kthreads became available. 
+respectively.
+Originally they had the names
+.Fn kthread_*
+but were changed to
+.Fn kproc_*
+when real kthreads became available.
