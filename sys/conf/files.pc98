@@ -93,7 +93,7 @@ contrib/dev/oltr/if_oltr_pci.c	optional oltr pci
 contrib/dev/oltr/trlldbm.c	optional oltr
 contrib/dev/oltr/trlldhm.c	optional oltr
 contrib/dev/oltr/trlldmac.c	optional oltr
-bf_enc.o			optional crypto | ipsec \
+bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
@@ -139,7 +139,7 @@ dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/uart/uart_cpu_pc98.c	optional uart
 i386/bios/apm.c			optional apm
 #i386/i386/apic_vector.s		optional apic
-i386/i386/atomic.c		standard				\
+i386/i386/atomic.c		standard		\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
@@ -213,18 +213,18 @@ i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
-i386/linux/linux_locore.s	optional compat_linux		\
+i386/linux/linux_locore.s	optional compat_linux	\
 	dependency 	"linux_assym.h"
 i386/linux/linux_machdep.c	optional compat_linux
 i386/linux/linux_ptrace.c	optional compat_linux
-i386/linux/linux_support.s	optional compat_linux		\
+i386/linux/linux_support.s	optional compat_linux	\
 	dependency 	"linux_assym.h"
 i386/linux/linux_sysent.c	optional compat_linux
 i386/linux/linux_sysvec.c	optional compat_linux
 i386/pci/pci_bus.c		optional pci
 i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
-i386/svr4/svr4_locore.s		optional compat_svr4		\
+i386/svr4/svr4_locore.s		optional compat_svr4	\
 	dependency	"svr4_assym.h"	\
 	warning "COMPAT_SVR4 is broken and should be avoided"
 i386/svr4/svr4_machdep.c	optional compat_svr4
@@ -239,7 +239,7 @@ i4b/layer1/i4b_l1lib.c		optional ifpi | ifpi2 | ifpnp | \
 #
 # isdn4bsd, isic
 #
-i4b/layer1/isic/i4b_asuscom_ipac.c	optional isic
+i4b/layer1/isic/i4b_asuscom_ipac.c optional isic
 i4b/layer1/isic/i4b_avm_a1.c	optional isic
 i4b/layer1/isic/i4b_bchan.c	optional isic
 i4b/layer1/isic/i4b_ctx_s0P.c	optional isic
@@ -247,7 +247,7 @@ i4b/layer1/isic/i4b_drn_ngo.c	optional isic
 i4b/layer1/isic/i4b_dynalink.c	optional isic
 i4b/layer1/isic/i4b_elsa_qs1i.c	optional isic
 i4b/layer1/isic/i4b_elsa_qs1p.c	optional isic pci
-i4b/layer1/isic/i4b_elsa_pcc16.c	optional isic
+i4b/layer1/isic/i4b_elsa_pcc16.c optional isic
 i4b/layer1/isic/i4b_hscx.c	optional isic
 i4b/layer1/isic/i4b_isac.c	optional isic
 i4b/layer1/isic/i4b_isic.c	optional isic
@@ -256,7 +256,7 @@ i4b/layer1/isic/i4b_isic_pnp.c	optional isic
 i4b/layer1/isic/i4b_itk_ix1.c	optional isic
 i4b/layer1/isic/i4b_l1.c	optional isic
 i4b/layer1/isic/i4b_l1fsm.c	optional isic
-i4b/layer1/isic/i4b_siemens_isurf.c	optional isic
+i4b/layer1/isic/i4b_siemens_isurf.c optional isic
 i4b/layer1/isic/i4b_sws.c	optional isic
 i4b/layer1/isic/i4b_tel_s016.c	optional isic
 i4b/layer1/isic/i4b_tel_s0163.c	optional isic
@@ -266,32 +266,32 @@ i4b/layer1/isic/i4b_diva.c	optional isic
 #
 # isdn4bsd, iwic
 #
-i4b/layer1/iwic/i4b_iwic_pci.c		optional iwic pci
-i4b/layer1/iwic/i4b_iwic_dchan.c	optional iwic pci
-i4b/layer1/iwic/i4b_iwic_bchan.c	optional iwic pci
-i4b/layer1/iwic/i4b_iwic_fsm.c		optional iwic pci
-i4b/layer1/iwic/i4b_iwic_l1if.c		optional iwic pci
+i4b/layer1/iwic/i4b_iwic_pci.c	optional iwic pci
+i4b/layer1/iwic/i4b_iwic_dchan.c optional iwic pci
+i4b/layer1/iwic/i4b_iwic_bchan.c optional iwic pci
+i4b/layer1/iwic/i4b_iwic_fsm.c	optional iwic pci
+i4b/layer1/iwic/i4b_iwic_l1if.c	optional iwic pci
 #
 # isdn4bsd, ifpi
 #
-i4b/layer1/ifpi/i4b_ifpi_pci.c		optional ifpi pci
-i4b/layer1/ifpi/i4b_ifpi_isac.c		optional ifpi pci
-i4b/layer1/ifpi/i4b_ifpi_l1.c		optional ifpi pci
-i4b/layer1/ifpi/i4b_ifpi_l1fsm.c	optional ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_pci.c	optional ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_isac.c	optional ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_l1.c	optional ifpi pci
+i4b/layer1/ifpi/i4b_ifpi_l1fsm.c optional ifpi pci
 #
 # isdn4bsd, ifpi2
 #
-i4b/layer1/ifpi2/i4b_ifpi2_pci.c	optional ifpi2 pci
-i4b/layer1/ifpi2/i4b_ifpi2_isacsx.c	optional ifpi2 pci
-i4b/layer1/ifpi2/i4b_ifpi2_l1.c		optional ifpi2 pci
-i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c	optional ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_pci.c optional ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_isacsx.c optional ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_l1.c	optional ifpi2 pci
+i4b/layer1/ifpi2/i4b_ifpi2_l1fsm.c optional ifpi2 pci
 #
 # isdn4bsd, ifpnp
 #
-i4b/layer1/ifpnp/i4b_ifpnp_avm.c	optional ifpnp
-i4b/layer1/ifpnp/i4b_ifpnp_isac.c	optional ifpnp
-i4b/layer1/ifpnp/i4b_ifpnp_l1.c		optional ifpnp
-i4b/layer1/ifpnp/i4b_ifpnp_l1fsm.c	optional ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_avm.c optional ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_isac.c optional ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1.c	 optional ifpnp
+i4b/layer1/ifpnp/i4b_ifpnp_l1fsm.c optional ifpnp
 #
 # isdn4bsd, ihfc
 #
@@ -301,10 +301,10 @@ i4b/layer1/ihfc/i4b_ihfc_drv.c	optional ihfc
 #
 # isdn4bsd, itjc
 #
-i4b/layer1/itjc/i4b_itjc_pci.c		optional itjc
-i4b/layer1/itjc/i4b_itjc_isac.c		optional itjc
-i4b/layer1/itjc/i4b_itjc_l1.c		optional itjc
-i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional itjc
+i4b/layer1/itjc/i4b_itjc_pci.c	optional itjc
+i4b/layer1/itjc/i4b_itjc_isac.c	optional itjc
+i4b/layer1/itjc/i4b_itjc_l1.c	optional itjc
+i4b/layer1/itjc/i4b_itjc_l1fsm.c optional itjc
 #
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
