@@ -405,7 +405,7 @@ stub_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
 }
 
 static void
-stub_create_mbuf_linklayer(struct ifnet *ifp, struct label *iflpabel,
+stub_mbuf_create_linklayer(struct ifnet *ifp, struct label *iflpabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -441,7 +441,7 @@ stub_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-stub_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
+stub_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 
 }
@@ -1521,12 +1521,12 @@ static struct mac_policy_ops stub_ops =
 	.mpo_ipq_reassemble = stub_ipq_reassemble,
 	.mpo_netinet_fragment = stub_netinet_fragment,
 	.mpo_inpcb_create_mbuf = stub_inpcb_create_mbuf,
-	.mpo_create_mbuf_linklayer = stub_create_mbuf_linklayer,
+	.mpo_mbuf_create_linklayer = stub_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = stub_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = stub_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = stub_mbuf_create_multicast_encap,
 	.mpo_mbuf_create_netlayer = stub_mbuf_create_netlayer,
-	.mpo_mbuf_create_from_firewall = stub_mbuf_create_from_firewall,
+	.mpo_netinet_firewall_send = stub_netinet_firewall_send,
 	.mpo_ipq_match = stub_ipq_match,
 	.mpo_netinet_icmp_reply = stub_netinet_icmp_reply,
 	.mpo_netinet_tcp_reply = stub_netinet_tcp_reply,

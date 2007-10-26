@@ -1268,7 +1268,7 @@ biba_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-biba_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
+biba_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *dest;
@@ -1372,13 +1372,13 @@ biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-biba_mbuf_create_from_firewall(struct mbuf *m, struct label *label)
+biba_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *dest;
 
-	dest = SLOT(label);
+	dest = SLOT(mlabel);
 
-	/* XXX: where is the label for the firewall really comming from? */
+	/* XXX: where is the label for the firewall really coming from? */
 	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
 }
 
@@ -3320,7 +3320,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_sysvshm_create = biba_sysvshm_create,
 	.mpo_ipq_create = biba_ipq_create,
 	.mpo_inpcb_create_mbuf = biba_inpcb_create_mbuf,
-	.mpo_create_mbuf_linklayer = biba_create_mbuf_linklayer,
+	.mpo_mbuf_create_linklayer = biba_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = biba_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = biba_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = biba_mbuf_create_multicast_encap,
@@ -3412,7 +3412,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_vnode_check_stat = biba_vnode_check_stat,
 	.mpo_vnode_check_unlink = biba_vnode_check_unlink,
 	.mpo_vnode_check_write = biba_vnode_check_write,
-	.mpo_mbuf_create_from_firewall = biba_mbuf_create_from_firewall,
+	.mpo_netinet_firewall_send = biba_netinet_firewall_send,
 	.mpo_priv_check = biba_priv_check,
 };
 

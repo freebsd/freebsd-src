@@ -1190,7 +1190,7 @@ mls_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-mls_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
+mls_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_mls *dest;
@@ -1294,7 +1294,7 @@ mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
-mls_mbuf_create_from_firewall(struct mbuf *m, struct label *mlabel)
+mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_mls *dest;
 
@@ -2947,7 +2947,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_sysvsem_create = mls_sysvsem_create,
 	.mpo_sysvshm_create = mls_sysvshm_create,
 	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
-	.mpo_create_mbuf_linklayer = mls_create_mbuf_linklayer,
+	.mpo_mbuf_create_linklayer = mls_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = mls_mbuf_create_multicast_encap,
@@ -3035,7 +3035,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_check_stat = mls_vnode_check_stat,
 	.mpo_vnode_check_unlink = mls_vnode_check_unlink,
 	.mpo_vnode_check_write = mls_vnode_check_write,
-	.mpo_mbuf_create_from_firewall = mls_mbuf_create_from_firewall,
+	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
 };
 
 MAC_POLICY_SET(&mls_ops, mac_mls, "TrustedBSD MAC/MLS",

@@ -955,15 +955,15 @@ test_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 	COUNTER_INC(inpcb_create_mbuf);
 }
 
-COUNTER_DECL(create_mbuf_linklayer);
+COUNTER_DECL(mbuf_create_linklayer);
 static void
-test_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
+test_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
-	COUNTER_INC(create_mbuf_linklayer);
+	COUNTER_INC(mbuf_create_linklayer);
 }
 
 COUNTER_DECL(bpfdesc_create_mbuf);
@@ -2561,7 +2561,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_netinet_fragment = test_netinet_fragment,
 	.mpo_ipq_create = test_ipq_create,
 	.mpo_inpcb_create_mbuf = test_inpcb_create_mbuf,
-	.mpo_create_mbuf_linklayer = test_create_mbuf_linklayer,
+	.mpo_mbuf_create_linklayer = test_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = test_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = test_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = test_mbuf_create_multicast_encap,
