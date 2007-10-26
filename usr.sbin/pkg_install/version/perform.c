@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 
 FILE *IndexFile;
+char IndexPath[PATH_MAX] = "";
 struct index_head Index = SLIST_HEAD_INITIALIZER(Index);
 
 static int pkg_do(char *);
@@ -44,7 +45,7 @@ static void show_version(Package, const char *, const char *);
 int
 pkg_perform(char **indexarg)
 {
-    char tmp[PATH_MAX], **pkgs, *pat[2], **patterns;
+    char **pkgs, *pat[2], **patterns;
     struct index_entry *ie;
     int i, err_cnt = 0;
     int MatchType;
@@ -54,13 +55,13 @@ pkg_perform(char **indexarg)
      * later, if we actually need the INDEX.
      */
     if (*indexarg == NULL)
-	snprintf(tmp, PATH_MAX, "%s/%s", PORTS_DIR, INDEX_FNAME);
+	snprintf(IndexPath, sizeof(IndexPath), "%s/%s", PORTS_DIR, INDEX_FNAME);
     else
-	strlcpy(tmp, *indexarg, PATH_MAX);
-    if (isURL(tmp))
-	IndexFile = fetchGetURL(tmp, "");
+	strlcpy(IndexPath, *indexarg, sizeof(IndexPath));
+    if (isURL(IndexPath))
+	IndexFile = fetchGetURL(IndexPath, "");
     else
-	IndexFile = fopen(tmp, "r");
+	IndexFile = fopen(IndexPath, "r");
 
     /* Get either a list of matching or all packages */
     if (MatchName != NULL) {
@@ -172,7 +173,7 @@ pkg_do(char *pkg)
 	/* We only pull in the INDEX once, if needed. */
 	if (SLIST_EMPTY(&Index)) {
 	    if (!IndexFile)
-		errx(2, "Unable to open INDEX in %s.", __func__);
+		errx(2, "Unable to open %s in %s.", IndexPath, __func__);
 	    while ((ch = fgetln(IndexFile, &len)) != NULL) {
 		/*
 		 * Don't use strlcpy() because fgetln() doesn't
