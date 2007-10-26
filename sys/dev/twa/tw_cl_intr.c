@@ -74,6 +74,11 @@ tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle)
 	if (ctlr == NULL)
 		goto out;
 
+	/* If we get an interrupt while resetting, it is a shared
+	   one for another device, so just bail */
+	if (ctlr->state & TW_CLI_CTLR_STATE_RESET_IN_PROGRESS)
+		goto out;
+
 	/*
 	 * Synchronize access between writes to command and control registers
 	 * in 64-bit environments, on G66.

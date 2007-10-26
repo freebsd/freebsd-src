@@ -1033,10 +1033,11 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 			/*
 			 * Don't touch req after a reset.  It (and any
 			 * associated data) will already have been
-			 * freed by the callback.  Just return.
+			 * unmapped by the callback.
 			 */
 			user_buf->driver_pkt.os_status = error;
-			return(ETIMEDOUT);
+			error = ETIMEDOUT;
+			goto fw_passthru_err;
 		}
 		/* 
 		 * Either the request got completed, or we were woken up by a

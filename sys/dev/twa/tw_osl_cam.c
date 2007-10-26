@@ -589,6 +589,12 @@ tw_osli_request_bus_scan(struct twa_softc *sc)
 		return(EIO);
 	}
 
+	/* Release simq at the end of a reset */
+	if (sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) {
+		xpt_release_simq(sc->sim, 1);
+		sc->state &= ~TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+	}
+
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
 	ccb->ccb_h.func_code = XPT_SCAN_BUS;
 	ccb->ccb_h.cbfcnp = twa_bus_scan_cb;
@@ -659,10 +665,13 @@ tw_osli_allow_new_requests(struct twa_softc *sc, TW_VOID *ccb)
 TW_VOID
 tw_osli_disallow_new_requests(struct twa_softc *sc)
 {
-	mtx_lock(&Giant);
-	xpt_freeze_simq(sc->sim, 1);
-	mtx_unlock(&Giant);
-	sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+	/* Don't double freeze if already frozen */
+	if ((sc->state & TW_OSLI_CTLR_STATE_SIMQ_FROZEN) == 0) {
+		mtx_lock(&Giant);
+		xpt_freeze_simq(sc->sim, 1);
+		mtx_unlock(&Giant);
+		sc->state |= TW_OSLI_CTLR_STATE_SIMQ_FROZEN;
+	}
 }
 
 
