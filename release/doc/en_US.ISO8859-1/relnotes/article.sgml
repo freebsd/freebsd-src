@@ -2256,6 +2256,11 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 	and allows <filename>/etc/rc.d/netif</filename>
 	to be used to start and stop an interface
 	on a purely manual basis.</para>
+
+     <para>The <filename>/etc/rc.d/nfslocking</filename> script
+	has been deprecated and will be removed in a future release.
+	It has been replaced by the <filename>/etc/rc.d/lockd</filename> and
+	<filename>/etc/rc.d/statd</filename> scripts. &merged;</para>
     </sect3>
   </sect2>
 
