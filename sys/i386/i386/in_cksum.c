@@ -260,17 +260,6 @@ u_int in_cksum_hdr(const struct ip *ip)
  * reorder operations, this will generally take place in parallel with
  * other calculations.
  */
-#define ADD(n)	__asm __volatile \
-		("addl %1, %0" : "+r" (sum) : \
-		"g" (((const u_int32_t *)w)[n / 4]))
-#define ADDC(n)	__asm __volatile \
-		("adcl %1, %0" : "+r" (sum) : \
-		"g" (((const u_int32_t *)w)[n / 4]))
-#define LOAD(n)	__asm __volatile \
-		("" : : "r" (((const u_int32_t *)w)[n / 4]))
-#define MOP	__asm __volatile \
-		("adcl         $0, %0" : "+r" (sum))
-
 u_short
 in_cksum_skip(m, len, skip)
 	struct mbuf *m;
@@ -341,15 +330,24 @@ skip_start:
 		 * Advance to a 486 cache line boundary.
 		 */
 		if (4 & (int) w && mlen >= 4) {
-			ADD(0);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[0])
+			);
 			w += 2;
 			mlen -= 4;
 		}
 		if (8 & (int) w && mlen >= 8) {
-			ADD(0);
-			ADDC(4);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl %2, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[0]),
+				  "g" (((const u_int32_t *)w)[1])
+			);
 			w += 4;
 			mlen -= 8;
 		}
@@ -379,45 +377,81 @@ skip_start:
 			 * is initially 33 (not 32) to guaranteed that
 			 * the LOAD(32) is within bounds.
 			 */
-			ADD(16);
-			ADDC(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			LOAD(32);
-			ADDC(20);
-			ADDC(24);
-			ADDC(28);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl %2, %0\n"
+				"adcl %3, %0\n"
+				"adcl %4, %0\n"
+				"adcl %5, %0\n"
+				"mov  %6, %%eax\n"
+				"adcl %7, %0\n"
+				"adcl %8, %0\n"
+				"adcl %9, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[4]),
+				  "g" (((const u_int32_t *)w)[0]),
+				  "g" (((const u_int32_t *)w)[1]),
+				  "g" (((const u_int32_t *)w)[2]),
+				  "g" (((const u_int32_t *)w)[3]),
+				  "g" (((const u_int32_t *)w)[8]),
+				  "g" (((const u_int32_t *)w)[5]),
+				  "g" (((const u_int32_t *)w)[6]),
+				  "g" (((const u_int32_t *)w)[7])
+				: "eax"
+			);
 			w += 16;
 		}
 		mlen += 32 + 1;
 		if (mlen >= 32) {
-			ADD(16);
-			ADDC(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			ADDC(20);
-			ADDC(24);
-			ADDC(28);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl %2, %0\n"
+				"adcl %3, %0\n"
+				"adcl %4, %0\n"
+				"adcl %5, %0\n"
+				"adcl %6, %0\n"
+				"adcl %7, %0\n"
+				"adcl %8, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[4]),
+				  "g" (((const u_int32_t *)w)[0]),
+				  "g" (((const u_int32_t *)w)[1]),
+				  "g" (((const u_int32_t *)w)[2]),
+				  "g" (((const u_int32_t *)w)[3]),
+				  "g" (((const u_int32_t *)w)[5]),
+				  "g" (((const u_int32_t *)w)[6]),
+				  "g" (((const u_int32_t *)w)[7])
+			);
 			w += 16;
 			mlen -= 32;
 		}
 		if (mlen >= 16) {
-			ADD(0);
-			ADDC(4);
-			ADDC(8);
-			ADDC(12);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl %2, %0\n"
+				"adcl %3, %0\n"
+				"adcl %4, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[0]),
+				  "g" (((const u_int32_t *)w)[1]),
+				  "g" (((const u_int32_t *)w)[2]),
+				  "g" (((const u_int32_t *)w)[3])
+			);
 			w += 8;
 			mlen -= 16;
 		}
 		if (mlen >= 8) {
-			ADD(0);
-			ADDC(4);
-			MOP;
+			__asm __volatile (
+				"addl %1, %0\n"
+				"adcl %2, %0\n"
+				"adcl $0, %0"
+				: "+r" (sum)
+				: "g" (((const u_int32_t *)w)[0]),
+				  "g" (((const u_int32_t *)w)[1])
+			);
 			w += 4;
 			mlen -= 8;
 		}
