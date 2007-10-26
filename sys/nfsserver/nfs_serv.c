@@ -135,7 +135,7 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0, "
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss, 0, "");
 
 struct nfsrvstats nfsrvstats;
-SYSCTL_STRUCT(_vfs_nfsrv, NFS_NFSRVSTATS, nfsrvstats, CTLFLAG_RD,
+SYSCTL_STRUCT(_vfs_nfsrv, NFS_NFSRVSTATS, nfsrvstats, CTLFLAG_RW,
 	&nfsrvstats, nfsrvstats, "S,nfsrvstats");
 
 static int	nfsrv_access(struct vnode *, int, struct ucred *, int,
