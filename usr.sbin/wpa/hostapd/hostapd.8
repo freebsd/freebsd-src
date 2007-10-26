@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2005
+.Dd October 26, 2007
 .Dt HOSTAPD 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl BdhKtv
+.Op Fl P Ar pidfile
 .Ar config-file ...
 .Sh DESCRIPTION
 The
@@ -102,6 +103,9 @@ Detach from the controlling terminal and run as a daemon process
 in the background.
 .It Fl K
 Include key information in debugging output.
+.It Fl P Ar pidfile
+Store PID in
+.Ar pidfile .
 .El
 .Sh SEE ALSO
 .Xr ath 4 ,
