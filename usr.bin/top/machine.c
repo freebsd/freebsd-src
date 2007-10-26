@@ -737,56 +737,72 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	}
 
 	if (!(flags & FMT_SHOWARGS)) {
-		snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
-	}
-	else if (pp->ki_args == NULL ||
-	    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL || !(*args))
-		snprintf(cmdbuf, cmdlengthdelta, "[%s]", pp->ki_comm);
-	else {
-		char *src, *dst, *argbuf;
-		char *cmd;
-		size_t argbuflen;
-		size_t len;
-
-		argbuflen = cmdlengthdelta * 4;
-		argbuf = (char *)malloc(argbuflen + 1);
-		if (argbuf == NULL) {
-			warn("malloc(%d)", argbuflen + 1);
-			free(cmdbuf);
-			return NULL;
+		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+		    pp->ki_ocomm[0]) {
+			snprintf(cmdbuf, cmdlengthdelta, "{%s}", pp->ki_ocomm);
+		} else {
+			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
 		}
+	} else {
+		if (pp->ki_flag & P_SYSTEM ||
+		    pp->ki_args == NULL ||
+		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
+		    !(*args)) {
+			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
+		    	pp->ki_ocomm[0]) {
+				snprintf(cmdbuf, cmdlengthdelta,
+				    "{%s}", pp->ki_ocomm);
+			} else {
+				snprintf(cmdbuf, cmdlengthdelta,
+				    "[%s]", pp->ki_comm);
+			}
+		} else {
+			char *src, *dst, *argbuf;
+			char *cmd;
+			size_t argbuflen;
+			size_t len;
 
-		dst = argbuf;
+			argbuflen = cmdlengthdelta * 4;
+			argbuf = (char *)malloc(argbuflen + 1);
+			if (argbuf == NULL) {
+				warn("malloc(%d)", argbuflen + 1);
+				free(cmdbuf);
+				return NULL;
+			}
 
-		/* Extract cmd name from argv */
-		cmd = strrchr(*args, '/');
-		if (cmd == NULL)
-			cmd = *args;
-		else
-			cmd++;
+			dst = argbuf;
 
-		for (; (src = *args++) != NULL; ) {
-			if (*src == '\0')
-				continue;
-			len = (argbuflen - (dst - argbuf) - 1) / 4;
-			strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
-			    VIS_NL | VIS_CSTYLE);
-			while (*dst != '\0')
-				dst++;
-			if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
-				*dst++ = ' '; /* add delimiting space */
+			/* Extract cmd name from argv */
+			cmd = strrchr(*args, '/');
+			if (cmd == NULL)
+				cmd = *args;
+			else
+				cmd++;
+
+			for (; (src = *args++) != NULL; ) {
+				if (*src == '\0')
+					continue;
+				len = (argbuflen - (dst - argbuf) - 1) / 4;
+				strvisx(dst, src,
+				    strlen(src) < len ? strlen(src) : len,
+				    VIS_NL | VIS_CSTYLE);
+				while (*dst != '\0')
+					dst++;
+				if ((argbuflen - (dst - argbuf) - 1) / 4 > 0)
+					*dst++ = ' '; /* add delimiting space */
+			}
+			if (dst != argbuf && dst[-1] == ' ')
+				dst--;
+			*dst = '\0';
+
+			if (strcmp(cmd, pp->ki_comm) != 0 )
+				snprintf(cmdbuf, cmdlengthdelta,
+				    "%s (%s)",argbuf,  pp->ki_comm);
+			else
+				strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+
+			free(argbuf);
 		}
-		if (dst != argbuf && dst[-1] == ' ')
-			dst--;
-		*dst = '\0';
-
-		if (strcmp(cmd, pp->ki_comm) != 0 )
-			snprintf(cmdbuf, cmdlengthdelta, "%s (%s)",argbuf, \
-				 pp->ki_comm);
-		else
-			strlcpy(cmdbuf, argbuf, cmdlengthdelta);
-
-		free(argbuf);
 	}
 
 	if (ps.jail == 0) 

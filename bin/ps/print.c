@@ -129,9 +129,11 @@ command(KINFO *k, VARENT *ve)
 	v = ve->var;
 	if (cflag) {
 		/* If it is the last field, then don't pad */
-		if (STAILQ_NEXT(ve, next_ve) == NULL)
+		if (STAILQ_NEXT(ve, next_ve) == NULL) {
 			(void)printf("%s", k->ki_p->ki_comm);
-		else
+			if (showthreads && k->ki_p->ki_numthreads > 1)
+				printf("/%s", k->ki_p->ki_ocomm);
+		} else
 			(void)printf("%-*s", v->width, k->ki_p->ki_comm);
 		return;
 	}
@@ -178,10 +180,25 @@ ucomm(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	if (STAILQ_NEXT(ve, next_ve) == NULL)	/* last field, don't pad */
+	if (STAILQ_NEXT(ve, next_ve) == NULL) {	/* last field, don't pad */
 		(void)printf("%s", k->ki_p->ki_comm);
-	else
+		if (showthreads && k->ki_p->ki_numthreads > 1)
+			printf("/%s", k->ki_p->ki_ocomm);
+	} else
 		(void)printf("%-*s", v->width, k->ki_p->ki_comm);
+}
+
+void
+tdnam(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	if (showthreads && k->ki_p->ki_numthreads > 1)
+		(void)printf("%-*s", v->width, k->ki_p->ki_ocomm);
+        else
+		(void)printf("%-*s", v->width, "      " );
+		
 }
 
 void

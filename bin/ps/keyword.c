@@ -187,6 +187,8 @@ static VAR var[] = {
 		UINT, UIDFMT, 0},
 	{"tdev", "TDEV", NULL, 0, tdev, NULL, 4, 0, CHAR, NULL, 0},
 	{"time", "TIME", NULL, USER, cputime, NULL, 9, 0, CHAR, NULL, 0},
+	{"tdnam", "THRDNAME", NULL, LJUST, tdnam, NULL, COMMLEN, 0, CHAR,
+		NULL, 0},
 	{"tpgid", "TPGID", NULL, 0, kvar, NULL, 4, KOFF(ki_tpgid), UINT,
 		PIDFMT, 0},
 	{"tsid", "TSID", NULL, 0, kvar, NULL, PIDLEN, KOFF(ki_tsid), UINT,

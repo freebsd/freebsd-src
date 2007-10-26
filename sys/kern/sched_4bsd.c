@@ -1367,11 +1367,9 @@ sched_tick(void)
 void
 sched_idletd(void *dummy)
 {
-	struct proc *p;
 	struct thread *td;
 
 	td = curthread;
-	p = td->td_proc;
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 

@@ -136,8 +136,7 @@ exit1(struct thread *td, int rv)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
-	if (p->p_flag & P_HADTHREADS) {
-retry:
+	while (p->p_flag & P_HADTHREADS) {
 		/*
 		 * First check if some other thread got here before us..
 		 * if so, act apropriatly, (exit or suspend);
@@ -161,8 +160,8 @@ retry:
 		 * re-check all suspension request, the thread should
 		 * either be suspended there or exit.
 		 */
-		if (thread_single(SINGLE_EXIT))
-			goto retry;
+		if (! thread_single(SINGLE_EXIT))
+			break;
 
 		/*
 		 * All other activity in this process is now stopped.

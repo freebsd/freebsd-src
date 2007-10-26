@@ -657,12 +657,6 @@ thread_single(int mode)
 						sleepq_abort(td2, EINTR);
 					break;
 				case SINGLE_BOUNDARY:
-					if (TD_IS_SUSPENDED(td2) &&
-					    !(td2->td_flags & TDF_BOUNDARY))
-						thread_unsuspend_one(td2);
-					if (TD_ON_SLEEPQ(td2) &&
-					    (td2->td_flags & TDF_SINTR))
-						sleepq_abort(td2, ERESTART);
 					break;
 				default:	
 					if (TD_IS_SUSPENDED(td2)) {
