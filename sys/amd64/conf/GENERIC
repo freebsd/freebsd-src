@@ -67,10 +67,10 @@ options 	AUDIT			# Security event auditing
 options 	KDB			# Enable kernel debugger support.
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
-options 	INVARIANTS		# Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-options 	WITNESS			# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+# options 	INVARIANTS		# Enable calls of extra sanity checking
+# options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+# options 	WITNESS			# Enable checks to detect deadlocks and cycles
+# options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -279,8 +279,19 @@ device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		ural		# Ralink Technology RT2500USB wireless NICs
+device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
+# USB Serial devices
+device		ucom		# Generic com ttys
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+device		ubser		# BWCT console serial adapters
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
 # USB Ethernet, requires miibus
 device		aue		# ADMtek USB Ethernet
 device		axe		# ASIX Electronics USB Ethernet
@@ -288,6 +299,7 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
+device		udav		# Davicom DM9601E USB
 
 # FireWire support
 device		firewire	# FireWire bus code
