@@ -21,6 +21,7 @@ SUBDIR=	geom_bde \
 	geom_sunlabel \
 	geom_uzip \
 	geom_vinum \
+	geom_virstor \
 	geom_vol_ffs \
 	geom_zero
 
