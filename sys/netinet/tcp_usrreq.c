@@ -1110,10 +1110,9 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	 * Compute window scaling to request:
 	 * Scale to fit into sweet spot.  See tcp_syncache.c.
 	 * XXX: This should move to tcp_output().
-	 * XXX: This should be based on the actual MSS.
 	 */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-	    (0x1 << tp->request_r_scale) < tcp_minmss)
+	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
