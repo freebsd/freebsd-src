@@ -171,6 +171,7 @@ pci_conf_match(struct pci_match_conf *matches, int num_matches,
 
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6)
+#define PRE7_COMPAT
 
 typedef enum {
 	PCI_GETCONF_NO_MATCH_OLD	= 0x00,
@@ -309,8 +310,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_match_conf *pattern_buf;
 	size_t confsz, iolen, pbufsz;
 	int error, ionum, i, num_patterns;
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 	struct pci_conf_old conf_old;
 	struct pci_io iodata;
 	struct pci_io_old *io_old;
@@ -328,8 +328,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #endif
 
 	switch(cmd) {
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 	case PCIOCGETCONF_OLD:
 		/* FALLTHROUGH */
 #endif
@@ -374,8 +373,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		 * multiple of sizeof(struct pci_conf) in case the user
 		 * didn't specify a multiple of that size.
 		 */
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 		if (cmd == PCIOCGETCONF_OLD)
 			confsz = sizeof(struct pci_conf_old);
 		else
@@ -409,8 +407,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			 * it's far more likely to just catch folks that
 			 * updated their kernel but not their userland.
 			 */
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 			if (cmd == PCIOCGETCONF_OLD)
 				pbufsz = sizeof(struct pci_match_conf_old);
 			else
@@ -426,8 +423,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 			/*
 			 * Allocate a buffer to hold the patterns.
 			 */
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 			if (cmd == PCIOCGETCONF_OLD) {
 				pattern_buf_old = malloc(cio->pat_buf_len,
 				    M_TEMP, M_WAITOK);
@@ -481,8 +477,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					device_get_unit(dinfo->cfg.dev);
 			}
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 			if ((cmd == PCIOCGETCONF_OLD &&
 			    (pattern_buf_old == NULL ||
 			    pci_conf_match_old(pattern_buf_old, num_patterns,
@@ -507,8 +502,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 				if (cio->num_matches >= ionum)
 					break;
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 				if (cmd == PCIOCGETCONF_OLD) {
 					conf_old.pc_sel.pc_bus =
 					    dinfo->conf.pc_sel.pc_bus;
@@ -580,16 +574,14 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 getconfexit:
 		if (pattern_buf != NULL)
 			free(pattern_buf, M_TEMP);
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 		if (pattern_buf_old != NULL)
 			free(pattern_buf_old, M_TEMP);
 #endif
 
 		break;
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 	case PCIOCREAD_OLD:
 	case PCIOCWRITE_OLD:
 		io_old = (struct pci_io_old *)data;
@@ -630,8 +622,7 @@ getconfexit:
 				brdev = device_get_parent(
 				    device_get_parent(pcidev));
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 				if (cmd == PCIOCWRITE || cmd == PCIOCWRITE_OLD)
 #else
 				if (cmd == PCIOCWRITE)
@@ -643,8 +634,7 @@ getconfexit:
 							  io->pi_reg,
 							  io->pi_data,
 							  io->pi_width);
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6)
+#ifdef PRE7_COMPAT
 				else if (cmd == PCIOCREAD_OLD)
 					io_old->pi_data =
 						PCIB_READ_CONFIG(brdev,
