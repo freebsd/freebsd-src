@@ -23,7 +23,7 @@ for cipher in aes:0 aes:128 aes:192 aes:256 \
 
 		dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-		geli init -e $ealgo -l $keylen -P -K $keyfile -s $secsize md${no}
+		geli init -e $ealgo -l $keylen -P -K $keyfile -s $secsize md${no} 2>/dev/null
 		geli attach -p -k $keyfile md${no}
 
 		secs=`diskinfo /dev/md${no}.eli | awk '{print $4}'`
