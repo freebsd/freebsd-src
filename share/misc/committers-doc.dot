@@ -50,6 +50,7 @@ garys [label="Gary W. Swearingen\ngarys@FreeBSD.org\n2005/08/21"]
 jcamou [label="Jesus R. Camou\njcamou@FreeBSD.org\n2005/03/02"]
 jesusr [label="Jesus Rodriguez Cuesta\njesusr@FreeBSD.org\n1998/12/10"]
 jim [label="Jim Mock\njim@FreeBSD.org\n1999/08/11\n2003/12/15"]
+jkois [label="Johann Kois\njkois@FreeBSD.org\n2004/11/11"]
 joel [label="Joel Dahl\njoel@FreeBSD.org\n2005/04/05"]
 josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/01/15"]
 keramida [label="Giorgos Keramidas\nkeramida@FreeBSD.org\n2001/10/12"]
@@ -87,6 +88,8 @@ jesusr -> jcamou
 
 jim -> trhodes
 
+jkois -> miwi
+
 keramida -> blackend
 keramida -> danger
 keramida -> gabor
@@ -95,11 +98,15 @@ keramida -> pav
 
 marck -> bvs
 
+mheinen -> jkois
+
 murray -> ceri
 murray -> delphij
 
 nik -> bmah
 nik -> keramida
+
+remko -> jkois
 
 simon -> josef
 simon -> remko
