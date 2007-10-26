@@ -573,3 +573,51 @@ audit_thread_free(struct thread *td)
 
 	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
 }
+
+void
+audit_proc_coredump(struct thread *td, char *path, int errcode)
+{
+	struct kaudit_record *ar;
+	struct au_mask *aumask;
+	au_class_t class;
+	int ret, sorf;
+	char **pathp;
+	au_id_t auid;
+
+	/*
+	 * Make sure we are using the correct preselection mask.
+	 */
+	auid = td->td_ucred->cr_audit.ai_auid;
+	if (auid == AU_DEFAUDITID)
+		aumask = &audit_nae_mask;
+	else
+		aumask = &td->td_ucred->cr_audit.ai_mask;
+	/*
+	 * It's possible for coredump(9) generation to fail.  Make sure that
+	 * we handle this case correctly for preselection.
+	 */
+	if (errcode != 0)
+		sorf = AU_PRS_FAILURE;
+	else
+		sorf = AU_PRS_SUCCESS;
+	class = au_event_class(AUE_CORE);
+	if (au_preselect(AUE_CORE, class, aumask, sorf) == 0)
+		return;
+	/*
+	 * If we are interested in seeing this audit record, allocate it.
+	 * Where possible coredump records should contain a pathname and arg32
+	 * (signal) tokens.
+	 */
+	ar = audit_new(AUE_CORE, td);
+	if (path != NULL) {
+		pathp = &ar->k_ar.ar_arg_upath1;
+		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
+		canon_path(td, path, *pathp);
+		ARG_SET_VALID(ar, ARG_UPATH1);
+	}
+	ar->k_ar.ar_arg_signum = td->td_proc->p_sig;
+	ARG_SET_VALID(ar, ARG_SIGNUM);
+	if (errcode != 0)
+		ret = 1;
+	audit_commit(ar, errcode, ret);
+}
