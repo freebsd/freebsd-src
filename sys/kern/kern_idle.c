@@ -61,11 +61,13 @@ idle_setup(void *dummy)
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 #endif
+#ifdef SMP
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
 		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle: cpu%d", pc->pc_cpuid);
-#ifdef SMP
 		pc->pc_idlethread = td;
 #else
+		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
+		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle");
 		PCPU_SET(idlethread, td);
 #endif
 		p = td->td_proc;
