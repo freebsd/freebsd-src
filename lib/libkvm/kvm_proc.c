@@ -120,6 +120,10 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 
 	kp = &kinfo_proc;
 	kp->ki_structsize = sizeof(kinfo_proc);
+	/*
+	 * Loop on the processes. this is completely broken because we need to be
+	 * able to loop on the threads and merge the ones that are the same process some how.
+	 */
 	for (; cnt < maxcnt && p != NULL; p = LIST_NEXT(&proc, p_list)) {
 		memset(kp, 0, sizeof *kp);
 		if (KREAD(kd, (u_long)p, &proc)) {
@@ -402,8 +406,11 @@ nopgrp:
 			kp->ki_pri.pri_native = mtd.td_base_pri;
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
+			if (mtd.td_name[0] != 0)
+				strlcpy(kp->ki_ocomm, mtd.td_name, MAXOCOMLEN);
 			kp->ki_oncpu = mtd.td_oncpu;
-
+			if (mtd.td_name[0] != '\0')
+				strlcpy(kp->ki_ocomm, mtd.td_name, sizeof(kp->ki_ocomm));
 			if (!(proc.p_flag & P_SA)) {
 				kp->ki_pctcpu = 0;
 				kp->ki_rqindex = 0;
