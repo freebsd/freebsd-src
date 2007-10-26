@@ -88,7 +88,12 @@ struct vop_setlabel_args;
 #include <sys/acl.h>			/* XXX acl_type_t */
 
 /*
- * Kernel functions to manage and evaluate labels.
+ * Entry points to the TrustedBSD MAC Framework from the remainder of the
+ * kernel: entry points are named based on a principle object type and an
+ * action relating to it.  They are sorted alphabetically first by object
+ * type and then action.  In some situations, the principle object type is
+ * obvious, and in other cases, less so as multiple objects may be inolved
+ * in the operation.
  */
 int	mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp);
 void	mac_bpfdesc_create(struct ucred *cred, struct bpf_d *d);
