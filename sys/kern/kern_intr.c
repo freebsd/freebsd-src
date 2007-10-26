@@ -1100,7 +1100,7 @@ ithread_loop(void *arg)
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, td->td_name);
 			free(ithd, M_ITHREAD);
-			kthread_exit(0);
+			kthread_exit();
 		}
 
 		/*
@@ -1171,7 +1171,7 @@ ithread_loop(void *arg)
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 			    p->p_pid, td->td_name);
 			free(ithd, M_ITHREAD);
-			kthread_exit(0);
+			kthread_exit();
 		}
 
 		/*
