@@ -6226,16 +6226,16 @@ ipfw_main(int oldac, char **oldav)
 			config_pipe(ac, av);
 		else if (do_nat && _substrcmp(*av, "config") == 0)
  			config_nat(ac, av);
-			else if (_substrcmp(*av, "set") == 0)
-				sets_handler(ac, av);
-			else if (_substrcmp(*av, "table") == 0)
-				table_handler(ac, av);
-			else if (_substrcmp(*av, "enable") == 0)
-				sysctl_handler(ac, av, 1);
-			else if (_substrcmp(*av, "disable") == 0)
-				sysctl_handler(ac, av, 0);
-			else
-				try_next = 1;
+		else if (_substrcmp(*av, "set") == 0)
+			sets_handler(ac, av);
+		else if (_substrcmp(*av, "table") == 0)
+			table_handler(ac, av);
+		else if (_substrcmp(*av, "enable") == 0)
+			sysctl_handler(ac, av, 1);
+		else if (_substrcmp(*av, "disable") == 0)
+			sysctl_handler(ac, av, 0);
+		else
+			try_next = 1;
 	}
 
 	if (use_set || try_next) {
