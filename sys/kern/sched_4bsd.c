@@ -108,10 +108,7 @@ static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 #define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
 
-static struct callout roundrobin_callout;
-
 static void	setup_runqs(void);
-static void	roundrobin(void *arg);
 static void	schedcpu(void);
 static void	schedcpu_thread(void);
 static void	sched_priority(struct thread *td, u_char prio);
@@ -253,27 +250,6 @@ maybe_resched(struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority < curthread->td_priority)
 		curthread->td_flags |= TDF_NEEDRESCHED;
-}
-
-/*
- * Force switch among equal priority processes every 100ms.
- * We don't actually need to force a context switch of the current process.
- * The act of firing the event triggers a context switch to softclock() and
- * then switching back out again which is equivalent to a preemption, thus
- * no further work is needed on the local CPU.
- */
-/* ARGSUSED */
-static void
-roundrobin(void *arg)
-{
-
-#ifdef SMP
-	mtx_lock_spin(&sched_lock);
-	forward_roundrobin();
-	mtx_unlock_spin(&sched_lock);
-#endif
-
-	callout_reset(&roundrobin_callout, sched_quantum, roundrobin, NULL);
 }
 
 /*
@@ -551,11 +527,6 @@ sched_setup(void *dummy)
 		sched_quantum = SCHED_QUANTUM;
 	hogticks = 2 * sched_quantum;
 
-	callout_init(&roundrobin_callout, CALLOUT_MPSAFE);
-
-	/* Kick off timeout driven events by calling first time. */
-	roundrobin(NULL);
-
 	/* Account for thread0. */
 	sched_load_add();
 }
@@ -626,6 +597,14 @@ sched_clock(struct thread *td)
 		resetpriority(td);
 		resetpriority_thread(td);
 	}
+
+	/*
+	 * Force a context switch if the current thread has used up a full
+	 * quantum (default quantum is 100ms).
+	 */
+	if (!TD_IS_IDLETHREAD(td) &&
+	    ticks - PCPU_GET(switchticks) >= sched_quantum)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
