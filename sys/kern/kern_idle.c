@@ -58,6 +58,7 @@ idle_setup(void *dummy)
 	struct thread *td;
 	int error;
 
+	p = NULL; /* start with no idle process */
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 #endif
@@ -70,7 +71,6 @@ idle_setup(void *dummy)
 		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle");
 		PCPU_SET(idlethread, td);
 #endif
-		p = td->td_proc;
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);
 
