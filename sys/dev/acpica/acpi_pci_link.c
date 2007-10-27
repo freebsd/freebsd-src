@@ -916,10 +916,25 @@ acpi_pci_link_route_irqs(device_t dev)
 static int
 acpi_pci_link_resume(device_t dev)
 {
+	struct acpi_pci_link_softc *sc;
 	ACPI_STATUS status;
+	int i, routed;
 
+	/*
+	 * If all of our links are routed, then restore the link via _SRS,
+	 * otherwise, disable the link via _DIS.
+	 */
 	ACPI_SERIAL_BEGIN(pci_link);
-	status = acpi_pci_link_route_irqs(dev);
+	sc = device_get_softc(dev);
+	routed = 0;
+	for (i = 0; i < sc->pl_num_links; i++)
+		if (sc->pl_links[i].l_routed)
+			routed++;
+	if (routed == sc->pl_num_links)
+		status = acpi_pci_link_route_irqs(dev);
+	else
+		status = AcpiEvaluateObject(acpi_get_handle(dev), "_DIS", NULL,
+		    NULL);
 	ACPI_SERIAL_END(pci_link);
 	if (ACPI_FAILURE(status))
 		return (ENXIO);
