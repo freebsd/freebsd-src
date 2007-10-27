@@ -934,6 +934,7 @@ audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
 		audit_pipe_entry_free(ape);
 		ap->ap_truncates++;
 	} while (1);
+	ap->ap_reads++;
 	mtx_unlock(&audit_pipe_mtx);
 
 	/*
