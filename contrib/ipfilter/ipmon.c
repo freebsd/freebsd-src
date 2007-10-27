@@ -1419,8 +1419,8 @@ char *argv[];
 #endif /* !BSD */
 		close(0);
 		close(1);
+		write_pid(pidfile);
 	}
-	write_pid(pidfile);
 
 	signal(SIGHUP, handlehup);
 
