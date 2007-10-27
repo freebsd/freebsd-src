@@ -387,9 +387,13 @@ nmount(td, uap)
 
 	AUDIT_ARG(fflags, uap->flags);
 
-	/* Kick out MNT_ROOTFS early as it is legal internally */
-	if (uap->flags & MNT_ROOTFS)
-		return (EINVAL);
+	/*
+	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
+	 * userspace to set this flag, but we must filter it out if we want
+	 * MNT_UPDATE on the root file system to work.
+	 * MNT_ROOTFS should only be set in the kernel in vfs_mountroot_try().
+	 */
+	uap->flags &= ~MNT_ROOTFS;
 
 	iovcnt = uap->iovcnt;
 	/*
@@ -769,7 +773,12 @@ mount(td, uap)
 
 	AUDIT_ARG(fflags, uap->flags);
 
-	/* Kick out MNT_ROOTFS early as it is legal internally */
+	/*
+	 * Filter out MNT_ROOTFS.  We do not want clients of mount() in
+	 * userspace to set this flag, but we must filter it out if we want
+	 * MNT_UPDATE on the root file system to work.
+	 * MNT_ROOTFS should only be set in the kernel in vfs_mountroot_try().
+	 */
 	uap->flags &= ~MNT_ROOTFS;
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
