@@ -291,6 +291,10 @@
       More details are included in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:07.bind.asc">FreeBSD-SA-07:07.bind</ulink>. &merged;</para>
 
+    <para>A buffer overflow in OpenSSL (fixed incorrectly in a
+      previously security patch) has been corrected.  More details
+      can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:08.openssl.asc">FreeBSD-SA-07:08.openssl</ulink>. &merged;</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -2025,6 +2029,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       the per-user and per-process summary file location,
       respectively.</para>
 
+    <para>The &man.sade.8; disk partitioning and labeling utility has
+      been added.  This utility is based on the partition editing bits
+      of &man.sysinstall.8;.</para>
+
     <para>A bug in the &man.sed.1; utility which can cause
       incorrect calculation of pattern space length in some cases
       has been fixed.</para>
@@ -2526,7 +2534,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.18.0.  As a part of this update, the
+      updated from 2.10.2 to 2.20.1.  As a part of this update, the
       default prefix for <application>GNOME</application> (and some
       related programs) has moved from
       <filename>/usr/X11R6</filename>
@@ -2550,7 +2558,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>&xorg;</application> windowing system
       (<filename role="package">x11/xorg</filename>) has been updated
-      from 6.8.2 to 7.2.0. &merged;</para>
+      from 6.8.2 to 7.3.0. &merged;</para>
 
     <para>The default value of <varname>X11BASE</varname> has been changed
       from <filename>/usr/X11R6</filename> to <filename>/usr/local</filename>,
