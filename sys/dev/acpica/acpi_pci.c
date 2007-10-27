@@ -208,8 +208,19 @@ acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child)
 	 */
 	child = acpi_get_device(handle);
 	if (child != NULL) {
-		KASSERT(!device_is_alive(child), ("%s: deleting alive child %s",
-		    __func__, device_get_nameunit(child)));
+		if (device_is_alive(child)) {
+			/*
+			 * The TabletPC TC1000 has a second PCI-ISA bridge
+			 * that has a _HID for an acpi_sysresource device.
+			 * In that case, leave ACPI-CA's device data pointing
+			 * at the ACPI-enumerated device.
+			 */
+			device_printf(child,
+			    "Conflicts with PCI device %d:%d:%d\n",
+			    pci_get_bus(pci_child), pci_get_slot(pci_child),
+			    pci_get_function(pci_child));
+			return;
+		}
 		KASSERT(device_get_parent(child) ==
 		    devclass_get_device(devclass_find("acpi"), 0),
 		    ("%s: child (%s)'s parent is not acpi0", __func__,
