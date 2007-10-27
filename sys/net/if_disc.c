@@ -92,6 +92,16 @@ disc_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = DSMTU;
+	/*
+	 * IFF_LOOPBACK should not be removed from disc's flags because
+	 * it controls what PF-specific routes are magically added when
+	 * a network address is assigned to the interface.  Things just
+	 * won't work as intended w/o such routes because the output
+	 * interface selection for a packet is totally route-driven.
+	 * A valid alternative to IFF_LOOPBACK can be IFF_BROADCAST or
+	 * IFF_POINTOPOINT, but it would result in different properties
+	 * of the interface.
+	 */
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
 	ifp->if_drv_flags = IFF_DRV_RUNNING;
 	ifp->if_ioctl = discioctl;
