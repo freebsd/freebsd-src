@@ -594,7 +594,7 @@ create_service(struct netconfig *nconf)
 					break;
 				case AF_INET6:
 					sin6 = malloc(sizeof(struct sockaddr_in6));
-					if (res->ai_addr == NULL)
+					if (sin6 == NULL)
 						out_of_mem();
 					sin6->sin6_family = AF_INET6;
 					sin6->sin6_port = htons(0);
