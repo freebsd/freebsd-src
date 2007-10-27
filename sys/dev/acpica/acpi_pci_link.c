@@ -932,9 +932,10 @@ acpi_pci_link_resume(device_t dev)
 			routed++;
 	if (routed == sc->pl_num_links)
 		status = acpi_pci_link_route_irqs(dev);
-	else
-		status = AcpiEvaluateObject(acpi_get_handle(dev), "_DIS", NULL,
-		    NULL);
+	else {
+		AcpiEvaluateObject(acpi_get_handle(dev), "_DIS", NULL, NULL);
+		status = AE_OK;
+	}
 	ACPI_SERIAL_END(pci_link);
 	if (ACPI_FAILURE(status))
 		return (ENXIO);
