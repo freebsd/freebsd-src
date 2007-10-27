@@ -268,6 +268,9 @@ cap_ht(int fd, struct pci_conf *p, uint8_t ptr)
 		case PCIM_HTCAP_RETRY_MODE:
 			printf("retry mode");
 			break;
+		case PCIM_HTCAP_X86_ENCODING:
+			printf("X86 encoding");
+			break;
 		default:
 			printf("unknown %02x", command);
 			break;
