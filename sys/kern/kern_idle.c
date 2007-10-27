@@ -64,11 +64,11 @@ idle_setup(void *dummy)
 #endif
 #ifdef SMP
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
-		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle: cpu%d", pc->pc_cpuid);
+		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle: cpu%d", pc->pc_cpuid);
 		pc->pc_idlethread = td;
 #else
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,
-		    RFSTOPPED | RFHIGHPID, 0, "idled", "idle");
+		    RFSTOPPED | RFHIGHPID, 0, "idle", "idle");
 		PCPU_SET(idlethread, td);
 #endif
 		if (error)

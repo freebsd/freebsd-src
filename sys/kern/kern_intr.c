@@ -338,7 +338,7 @@ ithread_create(const char *name)
 
 	error = kproc_kthread_add(ithread_loop, ithd, &intrproc,
 		    &td, RFSTOPPED | RFHIGHPID,
-	    	    0, "interd", "%s", name);
+	    	    0, "intr", "%s", name);
 	if (error)
 		panic("kproc_create() failed with %d", error);
 	thread_lock(td);
@@ -362,7 +362,7 @@ ithread_create(const char *name, struct intr_handler *ih)
 
 	error = kproc_kthread_create(ithread_loop, ih, &intrproc,
 		    &td, RFSTOPPED | RFHIGHPID,
-	    	    0, "interd", "%s", name);
+	    	    0, "intr", "%s", name);
 	if (error)
 		panic("kproc_create() failed with %d", error);
 	thread_lock(td);
