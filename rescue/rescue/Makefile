@@ -85,6 +85,10 @@ CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
 
+CRUNCH_PROGS_bin+= pkill
+CRUNCH_SRCDIR_pkill= ${.CURDIR}/../../usr.bin/pkill
+CRUNCH_ALIAS_pkill= pgrep
+
 .if ${MK_RCMDS} != "no"
 CRUNCH_PROGS_bin+= rcp
 .endif
@@ -190,6 +194,8 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 # 
 CRUNCH_SRCDIRS+= usr.bin
 
+CRUNCH_PROGS_usr.bin= head mt sed tail tee
+
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
 
@@ -211,7 +217,10 @@ CRUNCH_ALIAS_id= groups whoami
 # 
 CRUNCH_SRCDIRS+= usr.sbin
 
-CRUNCH_PROGS_usr.sbin+= chroot
+CRUNCH_PROGS_usr.sbin= chroot
+
+CRUNCH_PROGS_usr.sbin+= chown
+CRUNCH_ALIAS_chown= chgrp
 
 ##################################################################
 #  The following is pretty nearly a generic crunchgen-handling makefile
