@@ -833,7 +833,7 @@
 	  <filename role="package">net/ipw-firmware-kmod</filename>
 	  port/package or the
 	  <filename role="package">net/ipw-firmware</filename>
-	  port/package. &merged;</para>
+	  port/package.</para>
 
 	<para>The &man.iwi.4; driver now supports big-endian
 	  architectures such as sparc64.</para>
@@ -850,7 +850,7 @@
 	  <filename role="package">net/iwi-firmware-kmod</filename>
 	  port/package or the
 	  <filename role="package">net/iwi-firmware</filename>
-	  port/package. &merged;</para>
+	  port/package.</para>
 
 	<para>The ixgbe driver, which supports the Intel 10G PCI-Express
 	  adapter (82598), has been added.</para>
@@ -2330,7 +2330,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       to v409. &merged;</para>
 
     <para><application>libpcap</application> has been updated from
-      0.9.1 to 0.9.4. &merged;</para>
+      0.9.1 to 0.9.8.</para>
 
     <para><application>lukemftpd</application> has been updated from a
       snapshot from NetBSD as of 9 August 2004 to a snapshot from
@@ -2357,7 +2357,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       8.13.4 to 8.14.1.  &merged;</para>
 
     <para><application>tcpdump</application> has been updated from
-      3.9.1 to 3.9.4. &merged;</para>
+      3.9.1 to 3.9.8.</para>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
