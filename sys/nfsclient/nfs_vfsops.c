@@ -705,7 +705,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 	}
 }
 
-static const char *nfs_opts[] = { "from", "nfs_args", NULL };
+static const char *nfs_opts[] = { "from", "nfs_args",
+    "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
+    "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
+    "async", NULL };
 
 /*
  * VFS Operations.
