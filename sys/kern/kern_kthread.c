@@ -235,7 +235,6 @@ kthread_start(udata)
  * arg is the parameter to pass to function on first startup.
  * newtdp is the return value pointing to the thread's struct thread.
  *  ** XXX fix this --> flags are flags to fork1 (in unistd.h) 
- *  ** XXX are any used?
  * fmt and following will be *printf'd into (*newtd)->td_name (for ps, etc.).
  */
 int
@@ -250,17 +249,15 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		panic("kthread_add called too soon");
 
 	error = 0;
+	/* If no process supplied, put it on proc0 */
 	if (p == NULL) {
 		p = &proc0;
 		oldtd = &thread0;
 	} else {
-		if (p == &proc0)
-			oldtd = &thread0;
-		else
-			oldtd = FIRST_THREAD_IN_PROC(p);
+		oldtd = FIRST_THREAD_IN_PROC(p);
 	}
 
-	/* Initialize our td  */
+	/* Initialize our new td  */
 	newtd = thread_alloc();
 	if (newtd == NULL)
 		return (ENOMEM);
@@ -320,12 +317,14 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 void
 kthread_exit(void)
 {
+	/* a module may be waiting for us to exit */
+	wakeup(curthread);
 	/*
 	 * We could rely on thread_exit to call exit1() but
 	 * there is extra work that needs to be done
 	 */
 	if (curthread->td_proc->p_numthreads == 1)
-		kproc_exit(0);
+		kproc_exit(0);	/* never returns */
 	thread_exit();
 }
 
