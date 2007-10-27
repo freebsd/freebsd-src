@@ -1107,6 +1107,7 @@ dev/usb/if_ural.c		optional ural
 dev/usb/if_rue.c		optional rue
 dev/usb/if_rum.c		optional rum
 dev/usb/if_udav.c		optional udav
+dev/usb/if_zyd.c		optional zyd
 dev/usb/ohci.c			optional ohci
 dev/usb/ohci_pci.c		optional ohci pci
 dev/usb/sl811hs.c		optional slhci
