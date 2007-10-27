@@ -1612,15 +1612,80 @@ test_pipe_check_write(struct ucred *cred, struct pipepair *pp,
 	return (0);
 }
 
-COUNTER_DECL(posixsem_check);
+COUNTER_DECL(posixsem_check_destroy);
 static int
-test_posixsem_check(struct ucred *cred, struct ksem *ks,
+test_posixsem_check_destroy(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
-	COUNTER_INC(posixsem_check);
+	COUNTER_INC(posixsem_check_destroy);
+
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_getvalue);
+static int
+test_posixsem_check_getvalue(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_getvalue);
+
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_open);
+static int
+test_posixsem_check_open(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_open);
+
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_post);
+static int
+test_posixsem_check_post(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_post);
+
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_unlink);
+static int
+test_posixsem_check_unlink(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_unlink);
+
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_wait);
+static int
+test_posixsem_check_wait(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
+	COUNTER_INC(posixsem_check_wait);
 
 	return (0);
 }
@@ -2616,12 +2681,12 @@ static struct mac_policy_ops test_ops =
 	.mpo_pipe_check_relabel = test_pipe_check_relabel,
 	.mpo_pipe_check_stat = test_pipe_check_stat,
 	.mpo_pipe_check_write = test_pipe_check_write,
-	.mpo_posixsem_check_destroy = test_posixsem_check,
-	.mpo_posixsem_check_getvalue = test_posixsem_check,
-	.mpo_posixsem_check_open = test_posixsem_check,
-	.mpo_posixsem_check_post = test_posixsem_check,
-	.mpo_posixsem_check_unlink = test_posixsem_check,
-	.mpo_posixsem_check_wait = test_posixsem_check,
+	.mpo_posixsem_check_destroy = test_posixsem_check_destroy,
+	.mpo_posixsem_check_getvalue = test_posixsem_check_getvalue,
+	.mpo_posixsem_check_open = test_posixsem_check_open,
+	.mpo_posixsem_check_post = test_posixsem_check_post,
+	.mpo_posixsem_check_unlink = test_posixsem_check_unlink,
+	.mpo_posixsem_check_wait = test_posixsem_check_wait,
 	.mpo_proc_check_debug = test_proc_check_debug,
 	.mpo_proc_check_sched = test_proc_check_sched,
 	.mpo_proc_check_setaudit = test_proc_check_setaudit,
