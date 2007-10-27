@@ -1007,10 +1007,6 @@ apic_init(void *dummy __unused)
 	struct apic_enumerator *enumerator;
 	int retval, best;
 
-	/* We only support built in local APICs. */
-	if (!(cpu_feature & CPUID_APIC))
-		return;
-
 	/* Don't probe if APIC mode is disabled. */
 	if (resource_disabled("apic", 0))
 		return;
