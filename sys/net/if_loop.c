@@ -94,7 +94,6 @@
 
 struct lo_softc {
 	struct	ifnet *sc_ifp;
-	LIST_ENTRY(lo_softc) sc_next;
 };
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
@@ -107,9 +106,6 @@ static void	lo_clone_destroy(struct ifnet *);
 struct ifnet *loif = NULL;			/* Used externally */
 
 static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
-
-static struct mtx lo_mtx;
-static LIST_HEAD(lo_list, lo_softc) lo_list;
 
 IFC_SIMPLE_DECLARE(lo, 1);
 
@@ -124,9 +120,6 @@ lo_clone_destroy(ifp)
 	/* XXX: destroying lo0 will lead to panics. */
 	KASSERT(loif != ifp, ("%s: destroying lo0", __func__));
 
-	mtx_lock(&lo_mtx);
-	LIST_REMOVE(sc, sc_next);
-	mtx_unlock(&lo_mtx);
 	bpfdetach(ifp);
 	if_detach(ifp);
 	if_free(ifp);
@@ -158,9 +151,6 @@ lo_clone_create(ifc, unit, params)
 	ifp->if_softc = sc;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	mtx_lock(&lo_mtx);
-	LIST_INSERT_HEAD(&lo_list, sc, sc_next);
-	mtx_unlock(&lo_mtx);
 	if (loif == NULL)
 		loif = ifp;
 
@@ -172,8 +162,6 @@ loop_modevent(module_t mod, int type, void *data)
 { 
 	switch (type) { 
 	case MOD_LOAD: 
-		mtx_init(&lo_mtx, "lo_mtx", NULL, MTX_DEF);
-		LIST_INIT(&lo_list);
 		if_clone_attach(&lo_cloner);
 		break; 
 	case MOD_UNLOAD: 
