@@ -256,6 +256,11 @@ __MAKE_CONF?=/etc/make.conf
 .include "${__MAKE_CONF}"
 .endif
 
+.if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
+SHELL=	${__MAKE_SHELL}
+.SHELL: path=${__MAKE_SHELL}
+.endif
+
 # Default executable format
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
