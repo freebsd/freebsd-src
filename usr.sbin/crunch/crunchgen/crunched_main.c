@@ -34,6 +34,7 @@
  *	the crunched binary without creating all the links.
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 struct stub {
