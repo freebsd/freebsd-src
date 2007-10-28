@@ -34,21 +34,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <machine/metadata.h>
+#include <machine/pc/bios.h>
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
 
-#define SMAPSIG	0x534D4150
+static struct bios_smap smap;
 
-struct smap {
-	u_int64_t	base;
-	u_int64_t	length;
-	u_int32_t	type;
-} __packed;
-
-static struct smap smap;
-
-static struct smap *smapbase;
+static struct bios_smap *smapbase;
 static int smaplen;
 
 void
@@ -64,12 +57,12 @@ bios_getsmap(void)
 		v86.ctl = V86_FLAGS;
 		v86.addr = 0x15;		/* int 0x15 function 0xe820*/
 		v86.eax = 0xe820;
-		v86.ecx = sizeof(struct smap);
-		v86.edx = SMAPSIG;
+		v86.ecx = sizeof(struct bios_smap);
+		v86.edx = SMAP_SIG;
 		v86.es = VTOPSEG(&smap);
 		v86.edi = VTOPOFF(&smap);
 		v86int();
-		if ((v86.efl & 1) || (v86.eax != SMAPSIG))
+		if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
 			break;
 		n++;
 	} while (v86.ebx != 0);
@@ -84,14 +77,14 @@ bios_getsmap(void)
 		v86.ctl = V86_FLAGS;
 		v86.addr = 0x15;		/* int 0x15 function 0xe820*/
 		v86.eax = 0xe820;
-		v86.ecx = sizeof(struct smap);
-		v86.edx = SMAPSIG;
+		v86.ecx = sizeof(struct bios_smap);
+		v86.edx = SMAP_SIG;
 		v86.es = VTOPSEG(&smap);
 		v86.edi = VTOPOFF(&smap);
 		v86int();
-		bcopy(&smap, &smapbase[smaplen], sizeof(struct smap));
+		bcopy(&smap, &smapbase[smaplen], sizeof(struct bios_smap));
 		smaplen++;
-		if ((v86.efl & 1) || (v86.eax != SMAPSIG))
+		if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
 			break;
 	} while (v86.ebx != 0 && smaplen < n);
 }
