@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2007
+.Dd October 27, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1127,7 +1127,9 @@ it is possible to use something like:
 ifconfig_ed0="DHCP"
 .Ed
 .Pp
-Also, if your interface needs WPA authentication, it is possible to add
+Also, if you want to configure your wireless interface with
+.Xr wpa_supplicant 8
+for use with WPA, EAP/LEAP or WEP, you need to add
 .Dq Li WPA
 to the
 .Va ifconfig_ Ns Aq Ar interface
