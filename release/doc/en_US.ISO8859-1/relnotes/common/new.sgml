@@ -184,6 +184,10 @@
       details can be found in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">FreeBSD-SA-07:05.libarchive</ulink>.</para>
 
+    <para>A buffer overflow in OpenSSL (fixed incorrectly in a
+      previously security patch) has been corrected.  More details
+      can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:08.openssl.asc">FreeBSD-SA-07:08.openssl</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
@@ -282,7 +286,7 @@
 
     <para>The timezone database has been updated from the
       <application>tzdata2006g</application> release to the
-      <application>tzdata2006n</application> release.</para>
+      <application>tzdata2007h</application> release.</para>
 
   </sect2>
 
@@ -298,12 +302,12 @@
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.12.3 to 2.16.1.</para>
+      updated from 2.12.3 to 2.20.1.</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.5.1 to 3.5.3.</para>
+      updated from 3.5.1 to 3.5.7.</para>
 
     <para arch="i386,amd64">The supported Linux emulation now uses the
       libraries in the
