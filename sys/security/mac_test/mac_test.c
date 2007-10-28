@@ -1037,19 +1037,6 @@ test_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
 	COUNTER_INC(ifnet_create_mbuf);
 }
 
-COUNTER_DECL(mbuf_create_multicast_encap);
-static void
-test_mbuf_create_multicast_encap(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *newmbuf, struct label *newmbuflabel)
-{
-
-	LABEL_CHECK(oldmbuflabel, MAGIC_MBUF);
-	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(newmbuflabel, MAGIC_MBUF);
-	COUNTER_INC(mbuf_create_multicast_encap);
-}
-
 COUNTER_DECL(ipq_match);
 static int
 test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
@@ -2720,7 +2707,6 @@ static struct mac_policy_ops test_ops =
 	.mpo_inpcb_create_mbuf = test_inpcb_create_mbuf,
 	.mpo_bpfdesc_create_mbuf = test_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = test_ifnet_create_mbuf,
-	.mpo_mbuf_create_multicast_encap = test_mbuf_create_multicast_encap,
 	.mpo_ipq_match = test_ipq_match,
 	.mpo_netatalk_aarp_send = test_netatalk_aarp_send,
 	.mpo_netinet_arp_send = test_netinet_arp_send,

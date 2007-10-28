@@ -152,8 +152,6 @@ int	mac_kld_check_load(struct ucred *cred, struct vnode *vp);
 int	mac_kld_check_stat(struct ucred *cred);
 
 void	mac_mbuf_copy(struct mbuf *, struct mbuf *);
-void	mac_mbuf_create_multicast_encap(struct mbuf *m, struct ifnet *ifp,
-	    struct mbuf *mnew);
 int	mac_mbuf_init(struct mbuf *, int);
 
 void	mac_mbuf_tag_copy(struct m_tag *, struct m_tag *);
