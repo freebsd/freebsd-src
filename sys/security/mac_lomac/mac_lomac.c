@@ -1332,17 +1332,6 @@ lomac_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-lomac_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(mlabel);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-}
-
-static void
 lomac_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1457,6 +1446,28 @@ lomac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
 }
 
 static void
+lomac_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(mlabel);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
+static void
+lomac_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(mlabel);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
+static void
 lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
@@ -1464,6 +1475,28 @@ lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 	dest = SLOT(mlabel);
 
 	/* XXX: where is the label for the firewall really comming from? */
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
+static void
+lomac_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(mlabel);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
+static void
+lomac_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(mlabel);
+
 	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 }
 
@@ -2878,7 +2911,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_inpcb_create = lomac_inpcb_create,
 	.mpo_ipq_create = lomac_ipq_create,
 	.mpo_inpcb_create_mbuf = lomac_inpcb_create_mbuf,
-	.mpo_mbuf_create_linklayer = lomac_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = lomac_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = lomac_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = lomac_mbuf_create_multicast_encap,
@@ -2936,10 +2968,13 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_vnode_check_unlink = lomac_vnode_check_unlink,
 	.mpo_vnode_check_write = lomac_vnode_check_write,
 	.mpo_thread_userret = lomac_thread_userret,
+	.mpo_netatalk_aarp_send = lomac_netatalk_aarp_send,
+	.mpo_netinet_arp_send = lomac_netinet_arp_send,
 	.mpo_netinet_firewall_send = lomac_netinet_firewall_send,
+	.mpo_netinet_igmp_send = lomac_netinet_igmp_send,
+	.mpo_netinet6_nd6_send = lomac_netinet6_nd6_send,
 	.mpo_priv_check = lomac_priv_check,
 };
 
 MAC_POLICY_SET(&lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",
-    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS,
-    &lomac_slot);
+    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &lomac_slot);

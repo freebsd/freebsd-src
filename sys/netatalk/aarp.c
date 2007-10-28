@@ -177,7 +177,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	if (m == NULL)
 		return;
 #ifdef MAC
-	mac_mbuf_create_linklayer(ifp, m);
+	mac_netatalk_aarp_send(ifp, m);
 #endif
 	m->m_len = sizeof(*ea);
 	m->m_pkthdr.len = sizeof(*ea);
@@ -602,7 +602,7 @@ aarpprobe(void *arg)
 	if (m == NULL)
 		return;
 #ifdef MAC
-	mac_mbuf_create_linklayer(ifp, m);
+	mac_netatalk_aarp_send(ifp, m);
 #endif
 	m->m_len = sizeof(*ea);
 	m->m_pkthdr.len = sizeof(*ea);

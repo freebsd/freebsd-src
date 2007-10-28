@@ -471,7 +471,7 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 
 	m->m_pkthdr.rcvif = loif;
 #ifdef MAC
-	mac_mbuf_create_linklayer(inm->inm_ifp, m);
+	mac_netinet_igmp_send(inm->inm_ifp, m);
 #endif
 	m->m_pkthdr.len = sizeof(struct ip) + IGMP_MINLEN;
 	MH_ALIGN(m, IGMP_MINLEN + sizeof(struct ip));

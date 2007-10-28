@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -152,7 +152,6 @@ int	mac_kld_check_load(struct ucred *cred, struct vnode *vp);
 int	mac_kld_check_stat(struct ucred *cred);
 
 void	mac_mbuf_copy(struct mbuf *, struct mbuf *);
-void	mac_mbuf_create_linklayer(struct ifnet *ifp, struct mbuf *m);
 void	mac_mbuf_create_multicast_encap(struct mbuf *m, struct ifnet *ifp,
 	    struct mbuf *mnew);
 void	mac_mbuf_create_netlayer(struct mbuf *m, struct mbuf *mnew);
@@ -167,10 +166,16 @@ void	mac_mount_create(struct ucred *cred, struct mount *mp);
 void	mac_mount_destroy(struct mount *);
 void	mac_mount_init(struct mount *);
 
+void	mac_netatalk_aarp_send(struct ifnet *ifp, struct mbuf *m);
+
+void	mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_firewall_send(struct mbuf *m);
 void	mac_netinet_fragment(struct mbuf *m, struct mbuf *frag);
 void	mac_netinet_icmp_reply(struct mbuf *m);
+void	mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_tcp_reply(struct mbuf *m);
+
+void	mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m);
 
 int	mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 	    unsigned long cmd, void *data);

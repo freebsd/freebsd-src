@@ -73,10 +73,8 @@ __FBSDID("$FreeBSD$");
  * our own global mutex for struct ifnet.  Non-ideal, but should help in the
  * SMP environment.
  */
-static struct mtx mac_ifnet_mtx;
+struct mtx mac_ifnet_mtx;
 MTX_SYSINIT(mac_ifnet_mtx, &mac_ifnet_mtx, "mac_ifnet", MTX_DEF);
-#define	MAC_IFNET_LOCK(ifp)	mtx_lock(&mac_ifnet_mtx)
-#define	MAC_IFNET_UNLOCK(ifp)	mtx_unlock(&mac_ifnet_mtx)
 
 /*
  * Retrieve the label associated with an mbuf by searching for the tag.
@@ -307,18 +305,6 @@ mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_PERFORM(bpfdesc_create_mbuf, d, d->bd_label, m, label);
-}
-
-void
-mac_mbuf_create_linklayer(struct ifnet *ifp, struct mbuf *m)
-{
-	struct label *label;
-
-	label = mac_mbuf_to_label(m);
-
-	MAC_IFNET_LOCK(ifp);
-	MAC_PERFORM(mbuf_create_linklayer, ifp, ifp->if_label, m, label);
-	MAC_IFNET_UNLOCK(ifp);
 }
 
 void

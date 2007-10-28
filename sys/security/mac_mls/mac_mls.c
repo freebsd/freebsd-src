@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -1190,17 +1190,6 @@ mls_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
-mls_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 mls_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1294,6 +1283,28 @@ mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
+mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
 mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_mls *dest;
@@ -1301,6 +1312,28 @@ mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 	dest = SLOT(mlabel);
 
 	/* XXX: where is the label for the firewall really comming from? */
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
 	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 
@@ -2947,7 +2980,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_sysvsem_create = mls_sysvsem_create,
 	.mpo_sysvshm_create = mls_sysvshm_create,
 	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
-	.mpo_mbuf_create_linklayer = mls_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = mls_mbuf_create_multicast_encap,
@@ -3035,7 +3067,11 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_check_stat = mls_vnode_check_stat,
 	.mpo_vnode_check_unlink = mls_vnode_check_unlink,
 	.mpo_vnode_check_write = mls_vnode_check_write,
+	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
+	.mpo_netinet_arp_send = mls_netinet_arp_send,
 	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
+	.mpo_netinet_igmp_send = mls_netinet_igmp_send,
+	.mpo_netinet6_nd6_send = mls_netinet6_nd6_send,
 };
 
 MAC_POLICY_SET(&mls_ops, mac_mls, "TrustedBSD MAC/MLS",
