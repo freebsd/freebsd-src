@@ -858,7 +858,7 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
-		    th->th_name);
+		    td->td_name);
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
 	} else {
