@@ -1355,19 +1355,6 @@ lomac_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
 	lomac_copy_single(source, dest);
 }
 
-static void
-lomac_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
-    struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
-    struct label *mnewlabel)
-{
-	struct mac_lomac *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(mnewlabel);
-
-	lomac_copy_single(source, dest);
-}
-
 static int
 lomac_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
@@ -2925,7 +2912,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_inpcb_create_mbuf = lomac_inpcb_create_mbuf,
 	.mpo_bpfdesc_create_mbuf = lomac_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = lomac_ifnet_create_mbuf,
-	.mpo_mbuf_create_multicast_encap = lomac_mbuf_create_multicast_encap,
 	.mpo_ipq_match = lomac_ipq_match,
 	.mpo_ifnet_relabel = lomac_ifnet_relabel,
 	.mpo_ipq_update = lomac_ipq_update,
