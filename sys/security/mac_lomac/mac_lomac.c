@@ -1368,18 +1368,6 @@ lomac_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
 	lomac_copy_single(source, dest);
 }
 
-static void
-lomac_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
-    struct mbuf *mnew, struct label *mnewlabel)
-{
-	struct mac_lomac *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(mnewlabel);
-
-	lomac_copy_single(source, dest);
-}
-
 static int
 lomac_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
@@ -1468,6 +1456,18 @@ lomac_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
+lomac_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	lomac_copy_single(source, dest);
+}
+
+static void
 lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
@@ -1476,6 +1476,18 @@ lomac_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	/* XXX: where is the label for the firewall really comming from? */
 	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+}
+
+static void
+lomac_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	lomac_copy_single(source, dest);
 }
 
 static void
@@ -2914,7 +2926,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_bpfdesc_create_mbuf = lomac_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = lomac_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = lomac_mbuf_create_multicast_encap,
-	.mpo_mbuf_create_netlayer = lomac_mbuf_create_netlayer,
 	.mpo_ipq_match = lomac_ipq_match,
 	.mpo_ifnet_relabel = lomac_ifnet_relabel,
 	.mpo_ipq_update = lomac_ipq_update,
@@ -2970,7 +2981,9 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_thread_userret = lomac_thread_userret,
 	.mpo_netatalk_aarp_send = lomac_netatalk_aarp_send,
 	.mpo_netinet_arp_send = lomac_netinet_arp_send,
+	.mpo_netinet_firewall_reply = lomac_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = lomac_netinet_firewall_send,
+	.mpo_netinet_icmp_reply = lomac_netinet_icmp_reply,
 	.mpo_netinet_igmp_send = lomac_netinet_igmp_send,
 	.mpo_netinet6_nd6_send = lomac_netinet6_nd6_send,
 	.mpo_priv_check = lomac_priv_check,
