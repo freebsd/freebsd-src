@@ -427,13 +427,6 @@ stub_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
 }
 
 static void
-stub_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
-    struct mbuf *mnew, struct label *mnewlabel)
-{
-
-}
-
-static void
 stub_netatalk_aarp_send(struct ifnet *ifp, struct label *iflpabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -448,7 +441,27 @@ stub_netinet_arp_send(struct ifnet *ifp, struct label *iflpabel,
 }
 
 static void
+stub_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+
+}
+
+static void
 stub_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
+{
+
+}
+
+static void
+stub_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+
+}
+
+static void
+stub_netinet_icmp_replyinplace(struct mbuf *m, struct label *mlabel)
 {
 
 }
@@ -473,12 +486,6 @@ stub_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 {
 
 	return (1);
-}
-
-static void
-stub_netinet_icmp_reply(struct mbuf *m, struct label *mlabel)
-{
-
 }
 
 static void
@@ -1545,14 +1552,17 @@ static struct mac_policy_ops stub_ops =
 	.mpo_bpfdesc_create_mbuf = stub_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = stub_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = stub_mbuf_create_multicast_encap,
-	.mpo_mbuf_create_netlayer = stub_mbuf_create_netlayer,
 	.mpo_netatalk_aarp_send = stub_netatalk_aarp_send,
 	.mpo_netinet_arp_send = stub_netinet_arp_send,
+	.mpo_netinet_firewall_reply = stub_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = stub_netinet_firewall_send,
+	.mpo_netinet_icmp_reply = stub_netinet_icmp_reply,
+	.mpo_netinet_icmp_replyinplace = stub_netinet_icmp_replyinplace,
 	.mpo_netinet_igmp_send = stub_netinet_igmp_send,
 	.mpo_netinet6_nd6_send = stub_netinet6_nd6_send,
 	.mpo_ipq_match = stub_ipq_match,
 	.mpo_netinet_icmp_reply = stub_netinet_icmp_reply,
+	.mpo_netinet_icmp_replyinplace = stub_netinet_icmp_replyinplace,
 	.mpo_netinet_tcp_reply = stub_netinet_tcp_reply,
 	.mpo_ifnet_relabel = stub_ifnet_relabel,
 	.mpo_ipq_update = stub_ipq_update,

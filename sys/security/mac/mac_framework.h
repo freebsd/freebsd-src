@@ -154,7 +154,6 @@ int	mac_kld_check_stat(struct ucred *cred);
 void	mac_mbuf_copy(struct mbuf *, struct mbuf *);
 void	mac_mbuf_create_multicast_encap(struct mbuf *m, struct ifnet *ifp,
 	    struct mbuf *mnew);
-void	mac_mbuf_create_netlayer(struct mbuf *m, struct mbuf *mnew);
 int	mac_mbuf_init(struct mbuf *, int);
 
 void	mac_mbuf_tag_copy(struct m_tag *, struct m_tag *);
@@ -169,9 +168,11 @@ void	mac_mount_init(struct mount *);
 void	mac_netatalk_aarp_send(struct ifnet *ifp, struct mbuf *m);
 
 void	mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m);
+void	mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend);
 void	mac_netinet_firewall_send(struct mbuf *m);
 void	mac_netinet_fragment(struct mbuf *m, struct mbuf *frag);
-void	mac_netinet_icmp_reply(struct mbuf *m);
+void	mac_netinet_icmp_reply(struct mbuf *mrecv, struct mbuf *msend);
+void	mac_netinet_icmp_replyinplace(struct mbuf *m);
 void	mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_tcp_reply(struct mbuf *m);
 

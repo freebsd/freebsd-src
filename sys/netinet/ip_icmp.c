@@ -221,7 +221,7 @@ stdreply:	icmpelen = max(8, min(icmp_quotelen, oip->ip_len - oiphlen));
 	if (m == NULL)
 		goto freeit;
 #ifdef MAC
-	mac_mbuf_create_netlayer(n, m);
+	mac_netinet_icmp_reply(n, m);
 #endif
 	icmplen = min(icmplen, M_TRAILINGSPACE(m) - sizeof(struct ip) - ICMP_MINLEN);
 	m_align(m, ICMP_MINLEN + icmplen);
@@ -699,7 +699,7 @@ icmp_reflect(struct mbuf *m)
 	}
 match:
 #ifdef MAC
-	mac_netinet_icmp_reply(m);
+	mac_netinet_icmp_replyinplace(m);
 #endif
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;

@@ -1619,7 +1619,7 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 
 #ifdef MAC
 	if (replyto != NULL)
-		mac_mbuf_create_netlayer(replyto, m);
+		mac_netinet_firewall_reply(replyto, m);
 	else
 		mac_netinet_firewall_send(m);
 #else
