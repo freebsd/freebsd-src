@@ -2481,6 +2481,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		}
 
 		IEEE80211_VERIFY_ELEMENT(rates, IEEE80211_RATE_MAXSIZE);
+		if (xrates != NULL)
+			IEEE80211_VERIFY_ELEMENT(xrates,
+				IEEE80211_RATE_MAXSIZE - rates[1]);
 		rate = ieee80211_setup_rates(ni, rates, xrates,
 				IEEE80211_F_JOIN |
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
