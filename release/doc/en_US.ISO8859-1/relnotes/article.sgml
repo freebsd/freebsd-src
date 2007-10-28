@@ -510,13 +510,6 @@
 	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
 	  &merged;</para>
 
-	<para>The &man.dc.4; driver is now MPSAFE. &merged;</para>
-
-	<para>The &man.de.4; driver has been converted to the &man.bus.dma.9;
-	  API and is now MPSAFE.</para>
-
-	<para>The &man.ed.4; driver is now MPSAFE.</para>
-
 	<para>The &man.edsc.4; driver, which provides Ethernet discard network
 	  interfaces, has been added.  &merged;</para>
 
@@ -577,8 +570,6 @@
 	  network interfaces using the Marvell/SysKonnect Yukon II
 	  Gigabit Ethernet controller.  &merged;</para>
 
-	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
-
 	<para>[&arch.amd64;, &arch.i386;] The &man.mxge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
 	  adapters, has been added.  For more details, see
@@ -596,18 +587,12 @@
 	<para>The &man.nxge.4; driver, which supports the Neterion
 	  Xframe 10 Gigabit Ethernet adapter, has been added.</para>
 
-	<para>The &man.pcn.4; driver is now MPSAFE. &merged;</para>
-
 	<para>The &man.re.4; driver now supports the D-Link DGE-528(T)
 	  Gigabit Ethernet card.</para>
 
 	<para>The &man.rum.4; driver has been added.  It supports
 	  WLAN adapters based on the Ralink RT2501USB and RT2601USB
 	  chipsets.</para>
-
-	<para>The &man.sf.4; driver is now MPSAFE. &merged;</para>
-
-	<para>The &man.ste.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.ti.4; driver now supports big-endian
 	  architectures such as sparc64.</para>
@@ -917,13 +902,6 @@
 	release on the 3ware Web site.  It now supports AMCC's 3ware
 	9650 series of SATA controllers.  &merged;</para>
 
-      <para>&man.geli.8; is now able to perform data integrity
-        verification (data authentication) of encrypted data stored on
-        disk.  Note that the encryption algorithm is now specified to
-        the &man.geli.8; control program using the <option>-e</option>
-        option; the <option>-a</option> option is now used to specify
-        the authentication algorithm. &merged;</para>
-
       <para>The &man.iscsi.initiator.4; driver, a kernel driver for
 	the Internet SCSI (iSCSI) protocol, has been added.  This
 	driver allows access to remote SCSI devices over TCP/IP
@@ -993,10 +971,6 @@
       &man.getaddrinfo.3; function on 64-bit architectures, including
       &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
 
-    <para>The &man.arp.8; utility now allows the <option>-i</option>
-      option together with the <option>-d</option> and <option>-a</option> options
-      to allow all entries for a given interface to be removed. &merged;</para>
-
     <para>The &man.atrun.8; utility has gained PAM support.  Before
       running a job for a user account, it will check the account
       status with PAM and refuse to run the job if the account is
@@ -1007,10 +981,6 @@
     <para>The &man.camcontrol.8; utility now supports
       a <command>readcap</command> command to display the size of
       devices. &merged;</para>
-
-    <para>The &man.cmp.1; utility now supports an <option>-h</option>
-      flag to compare the symbolic link itself rather than the
-      file that the link points to. &merged;</para>
 
     <para>The &man.cron.8; daemon has gained PAM support.  Before
       running a command from account's private &man.crontab.5; file,
@@ -1076,21 +1046,6 @@
     <para>The &man.id.1; utility now prints the effective user
       ID after the group ID.</para>
 
-    <para>The &man.ifconfig.8; utility now supports
-      a <option>-k</option> flag to allow printing
-      potentially sensitive keying material to standard output.
-      This sensitive information will not be printed by default.
-      &merged;</para>
-
-    <para>The &man.ifconfig.8; utility now supports a <option>-tunnel</option>
-      parameter, which is just an alias for <option>deletetunnel</option>,
-      yet is more convenient and easier to type. &merged;</para>
-
-    <para>The <option>-vlandev</option> parameter to &man.ifconfig.8;
-      no longer requires a network interface as its argument.  The
-      argument still is supported for backward compatibility, but
-      is now deprecated and its use is discouraged. &merged;</para>
-
     <para>The &man.ipfwpcap.8; utility has been added; it captures
       packets on a &man.divert.4; socket and writes them as
       &man.pcap.3; (also known as &man.tcpdump.1;) format data to a
@@ -1123,23 +1078,6 @@
     <para>The <application>libm</application> library now includes
       initial implementation of symbol maps and symbol version
       definitions.</para>
-
-    <para>The &man.libmemstat.3; library has been added.
-      This is for use by debugging and monitoring applications
-      in tracking kernel memory statistics.  It provides an
-      abstracted interface to &man.uma.9; and &man.malloc.9;
-      statistics, wrapped around the binary stream sysctl variables
-      for the allocators. &merged;</para>
-
-    <para>The &man.ln.1; utility now supports
-      an <option>-F</option> flag, which deletes existing
-      empty directories when creating symbolic links.
-      &merged;</para>
-
-    <para>The &man.locate.1; utility now supports
-      a <option>-0</option> flag to make this utility
-      interoperable with &man.xargs.1;'s <option>-0</option> flag.
-      &merged;</para>
 
     <para>A new &man.malloc.3; implementation has been introduced.
       This implementation, sometimes referred to
@@ -1214,10 +1152,6 @@
       available in the &os; Ports Collection
       as <filename role="package">net/mrouted</filename>.</para>
 
-    <para>The &man.netstat.1; utility now supports an
-      <option>-h</option> flag for interface stats mode,
-      which prints all interface statistics in human readable form. &merged;</para>
-
     <para>The &man.netstat.1; utility now supports printing
       &man.sctp.4; protocol statistics.</para>
 
@@ -1243,12 +1177,6 @@
     <para>&man.nscd.8; has been added.  It is a daemon that caches
       the results of nsswitch lookups (such as those to the password,
       group, and services databases) for improved performance.</para>
-
-    <para>The &man.ping.8; utility now supports a <quote>sweeping
-	ping</quote> in which &man.icmp.4; payload of
-      packets being sent is increased with given step.
-      This is useful for testing problematic channels, MTU issues
-      or traffic policing functions in networks.  &merged;</para>
 
     <para>The &man.pkill.1; utility now supports a
       <option>-F</option> option which allows to
@@ -1328,9 +1256,6 @@
     <para>The <option>-h</option> flag to &man.setfacl.1; now properly
       sets the ACL on a symbolic link, not the link target.</para>
 
-    <para>The &man.sh.1; utility now supports a <literal>times</literal>
-      built-in command. &merged;</para>
-
     <para>The &man.sockstat.1; utility, which shows connected and
       listening network sockets, now supports a new <option>-P</option>
       command-line option, which can be used to filter displayed sockets
@@ -1382,10 +1307,6 @@
     <para>The wicontrol(8) utility has been removed.  Configuration
       functions for &man.wi.4; interfaces should be performed using
       &man.ifconfig.8;.</para>
-
-    <para>The &man.xargs.1; utility now supports a <option>-r</option>
-      flag which makes the command execution when the standard input
-      does not contain any non-whitespace-characters.  &merged;</para>
 
     <para>The shared library version number of all libraries has
       been updated due to some possible ABI changes.  The libraries
