@@ -1492,7 +1492,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>awk</application> has been updated from the 24
       April 2005 release to the 1 May 2007 release. &merged;</para>
 
-    <para><application>BIND</application> has been updated from 9.3.1
+    <para><application>BIND</application> has been updated from 9.3.3
       to 9.4.1-p1.</para>
 
     <para><application>BSNMPD</application> has been updated from
@@ -1516,7 +1516,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>FILE</application> has been updated from 4.12
       to 4.21.</para>
 
-    <para><application>GCC</application> has been updated from 3.4.4
+    <para><application>GCC</application> has been updated from 3.4.6
       to 4.2.1.</para>
 
     <para><application>GNU Readline library</application> has been
@@ -1527,24 +1527,17 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>IPFilter</application> has been updated from
-      4.1.8 to 4.1.23.</para>
+      4.1.13 to 4.1.23.</para>
 
-    <para><application>less</application> has been updated from v381
+    <para><application>less</application> has been updated from v394
       to v409. &merged;</para>
 
     <para><application>libpcap</application> has been updated from
-      0.9.1 to 0.9.8.</para>
-
-    <para><application>lukemftpd</application> has been updated from a
-      snapshot from NetBSD as of 9 August 2004 to a snapshot from
-      NetBSD as of 31 August 2006. &merged;</para>
+      0.9.4 to 0.9.8.</para>
 
     <para><application>netcat</application> has been updated from the
-      version in a 4 February 2005 OpenBSD snapshot to the version
+      version included in OpenBSD 3.9 to the version
       included in OpenBSD 4.1.  &merged;</para>
-
-    <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.5p1. &merged;</para>
 
     <para><application>OpenSSL</application> has been updated from
       0.9.7e to 0.9.8e.</para>
@@ -1561,35 +1554,26 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       version 3.7 to OpenBSD version 4.1.</para>
 
     <para><application>sendmail</application> has been updated from
-      8.13.4 to 8.14.1.  &merged;</para>
+      8.13.8 to 8.14.1.  &merged;</para>
 
     <para><application>tcpdump</application> has been updated from
-      3.9.1 to 3.9.8.</para>
+      3.9.4 to 3.9.8.</para>
 
     <para>The timezone database has been updated from the
-      <application>tzdata2005l</application> release to the
+      <application>tzdata2006g</application> release to the
       <application>tzdata2007h</application> release. &merged;</para>
 
     <para><application>tip</application> has been updated to a
       snapshot from OpenBSD as of 20060831.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 15, an implementation of the documented Sun Basic
-      Security Module (BSM) Audit API and file format, as well as local
-      extensions to support the Mac OS X and &os; operating systems
-      has been added.  This also includes command line tools for audit
-      trail reduction and conversion to text and XML, as well as
-      documentation of the commands, file format, and APIs.
-      For this functionality, the <literal>AUDIT</literal> kernel option,
-      <filename>/var/audit</filename> directory, and
-      <literal>audit</literal> group have been added. &merged;</para>
+      has been updated from version 1.0 alpha 12 to
+      version 1.0 alpha 15.</para>
 
     <para><application>WPA Supplicant</application>
       has been updated from version 0.3.9 to version 0.5.8.
       </para>
 
-    <para><application>zlib</application>
-      has been updated from version 1.2.2 to version 1.2.3. &merged;</para>
   </sect2>
 
   <sect2 id="ports">
