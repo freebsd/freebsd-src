@@ -881,7 +881,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			printf("SMAP type=%02x base=%016lx len=%016lx\n",
 			    smap->type, smap->base, smap->length);
 
-		if (smap->type != 0x01)
+		if (smap->type != SMAP_TYPE_MEMORY)
 			continue;
 
 		if (smap->length == 0)

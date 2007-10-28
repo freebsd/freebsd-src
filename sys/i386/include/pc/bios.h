@@ -271,10 +271,16 @@ struct PIR_table
 
 /*
  * Int 15:E820 'SMAP' structure
- *
- * XXX add constants for type
  */
+
 #define SMAP_SIG	0x534D4150			/* 'SMAP' */
+
+#define	SMAP_TYPE_MEMORY	1
+#define	SMAP_TYPE_RESERVED	2
+#define	SMAP_TYPE_ACPI_RECLAIM	3
+#define	SMAP_TYPE_ACPI_NVS	4
+#define	SMAP_TYPE_ACPI_ERROR	5
+
 struct bios_smap {
     u_int64_t	base;
     u_int64_t	length;
