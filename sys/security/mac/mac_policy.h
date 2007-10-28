@@ -221,10 +221,6 @@ typedef int	(*mpo_kld_check_stat_t)(struct ucred *cred);
 
 typedef void	(*mpo_mbuf_copy_label_t)(struct label *src,
 		    struct label *dest);
-typedef void	(*mpo_mbuf_create_multicast_encap_t)(struct mbuf *m,
-		    struct label *mlabel, struct ifnet *ifp,
-		    struct label *ifplabel, struct mbuf *mnew,
-		    struct label *mnewlabel);
 typedef void	(*mpo_mbuf_destroy_label_t)(struct label *label);
 typedef int	(*mpo_mbuf_init_label_t)(struct label *label, int flag);
 
@@ -692,7 +688,6 @@ struct mac_policy_ops {
 	mpo_kld_check_stat_t			mpo_kld_check_stat;
 
 	mpo_mbuf_copy_label_t			mpo_mbuf_copy_label;
-	mpo_mbuf_create_multicast_encap_t	mpo_mbuf_create_multicast_encap;
 	mpo_mbuf_destroy_label_t		mpo_mbuf_destroy_label;
 	mpo_mbuf_init_label_t			mpo_mbuf_init_label;
 
