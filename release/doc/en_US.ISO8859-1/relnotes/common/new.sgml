@@ -236,6 +236,8 @@
       <para>A new &man.ng.deflate.4; NetGraph node type has been
 	added.  It implements Deflate PPP compression.</para>
 
+      <para>The &man.ng.ppp.4; Netgraph node is now MPSAFE.</para>
+
       <para>A new &man.ng.pred1.4; NetGraph node type has been added
 	to implement Predictor-1 PPP compression.</para>
 
