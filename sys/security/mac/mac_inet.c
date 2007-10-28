@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
@@ -222,6 +222,18 @@ mac_ipq_match(struct mbuf *m, struct ipq *ipq)
 }
 
 void
+mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
+{
+	struct label *mlabel;
+
+	mlabel = mac_mbuf_to_label(m);
+
+	MAC_IFNET_LOCK(ifp);
+	MAC_PERFORM(netinet_arp_send, ifp, ifp->if_label, m, mlabel);
+	MAC_IFNET_UNLOCK(ifp);
+}
+
+void
 mac_netinet_icmp_reply(struct mbuf *m)
 {
 	struct label *label;
@@ -229,6 +241,18 @@ mac_netinet_icmp_reply(struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 
 	MAC_PERFORM(netinet_icmp_reply, m, label);
+}
+
+void
+mac_netinet_igmp_send(struct ifnet *ifp, struct mbuf *m)
+{
+	struct label *mlabel;
+
+	mlabel = mac_mbuf_to_label(m);
+
+	MAC_IFNET_LOCK(ifp);
+	MAC_PERFORM(netinet_igmp_send, ifp, ifp->if_label, m, mlabel);
+	MAC_IFNET_UNLOCK(ifp);
 }
 
 void

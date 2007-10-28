@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -221,9 +221,6 @@ typedef int	(*mpo_kld_check_stat_t)(struct ucred *cred);
 
 typedef void	(*mpo_mbuf_copy_label_t)(struct label *src,
 		    struct label *dest);
-typedef void	(*mpo_mbuf_create_linklayer_t)(struct ifnet *ifp,
-		    struct label *ifplabel, struct mbuf *m,
-		    struct label *mlabel);
 typedef void	(*mpo_mbuf_create_multicast_encap_t)(struct mbuf *m,
 		    struct label *mlabel, struct ifnet *ifp,
 		    struct label *ifplabel, struct mbuf *mnew,
@@ -241,6 +238,13 @@ typedef void	(*mpo_mount_create_t)(struct ucred *cred, struct mount *mp,
 typedef void	(*mpo_mount_destroy_label_t)(struct label *label);
 typedef void	(*mpo_mount_init_label_t)(struct label *label);
 
+typedef void	(*mpo_netatalk_aarp_send_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
+
+typedef void	(*mpo_netinet_arp_send_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
 typedef	void	(*mpo_netinet_firewall_send_t)(struct mbuf *m,
 		    struct label *mlabel);
 typedef void	(*mpo_netinet_fragment_t)(struct mbuf *m,
@@ -248,7 +252,14 @@ typedef void	(*mpo_netinet_fragment_t)(struct mbuf *m,
 		    struct label *fraglabel);
 typedef void	(*mpo_netinet_icmp_reply_t)(struct mbuf *m,
 		    struct label *mlabel);
+typedef void	(*mpo_netinet_igmp_send_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
+		    struct label *mlabel);
 typedef void	(*mpo_netinet_tcp_reply_t)(struct mbuf *m,
+		    struct label *mlabel);
+
+typedef void	(*mpo_netinet6_nd6_send_t)(struct ifnet *ifp,
+		    struct label *ifplabel, struct mbuf *m,
 		    struct label *mlabel);
 
 typedef int	(*mpo_pipe_check_ioctl_t)(struct ucred *cred,
@@ -678,7 +689,6 @@ struct mac_policy_ops {
 	mpo_kld_check_stat_t			mpo_kld_check_stat;
 
 	mpo_mbuf_copy_label_t			mpo_mbuf_copy_label;
-	mpo_mbuf_create_linklayer_t		mpo_mbuf_create_linklayer;
 	mpo_mbuf_create_multicast_encap_t	mpo_mbuf_create_multicast_encap;
 	mpo_mbuf_create_netlayer_t		mpo_mbuf_create_netlayer;
 	mpo_mbuf_destroy_label_t		mpo_mbuf_destroy_label;
@@ -689,10 +699,16 @@ struct mac_policy_ops {
 	mpo_mount_destroy_label_t		mpo_mount_destroy_label;
 	mpo_mount_init_label_t			mpo_mount_init_label;
 
+	mpo_netatalk_aarp_send_t		mpo_netatalk_aarp_send;
+
+	mpo_netinet_arp_send_t			mpo_netinet_arp_send;
 	mpo_netinet_firewall_send_t		mpo_netinet_firewall_send;
 	mpo_netinet_fragment_t			mpo_netinet_fragment;
 	mpo_netinet_icmp_reply_t		mpo_netinet_icmp_reply;
+	mpo_netinet_igmp_send_t			mpo_netinet_igmp_send;
 	mpo_netinet_tcp_reply_t			mpo_netinet_tcp_reply;
+
+	mpo_netinet6_nd6_send_t			mpo_netinet6_nd6_send;
 
 	mpo_pipe_check_ioctl_t			mpo_pipe_check_ioctl;
 	mpo_pipe_check_poll_t			mpo_pipe_check_poll;

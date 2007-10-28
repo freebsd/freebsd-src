@@ -1015,17 +1015,6 @@ test_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 	COUNTER_INC(inpcb_create_mbuf);
 }
 
-COUNTER_DECL(mbuf_create_linklayer);
-static void
-test_mbuf_create_linklayer(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
-{
-
-	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
-	COUNTER_INC(mbuf_create_linklayer);
-}
-
 COUNTER_DECL(bpfdesc_create_mbuf);
 static void
 test_bpfdesc_create_mbuf(struct bpf_d *bpf_d, struct label *bpflabel,
@@ -1086,6 +1075,28 @@ test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
 	return (1);
 }
 
+COUNTER_DECL(netatalk_aarp_send);
+static void
+test_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *mbuf, struct label *mbuflabel)
+{
+
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
+	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	COUNTER_INC(netatalk_aarp_send);
+}
+
+COUNTER_DECL(netinet_arp_send);
+static void
+test_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *mbuf, struct label *mbuflabel)
+{
+
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
+	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	COUNTER_INC(netinet_arp_send);
+}
+
 COUNTER_DECL(netinet_icmp_reply);
 static void
 test_netinet_icmp_reply(struct mbuf *m, struct label *mlabel)
@@ -1095,6 +1106,17 @@ test_netinet_icmp_reply(struct mbuf *m, struct label *mlabel)
 	COUNTER_INC(netinet_icmp_reply);
 }
 
+COUNTER_DECL(netinet_igmp_send);
+static void
+test_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *mbuf, struct label *mbuflabel)
+{
+
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
+	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	COUNTER_INC(netinet_igmp_send);
+}
+
 COUNTER_DECL(netinet_tcp_reply);
 static void
 test_netinet_tcp_reply(struct mbuf *m, struct label *mlabel)
@@ -1102,6 +1124,17 @@ test_netinet_tcp_reply(struct mbuf *m, struct label *mlabel)
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(netinet_tcp_reply);
+}
+
+COUNTER_DECL(netinet6_nd6_send);
+static void
+test_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *mbuf, struct label *mbuflabel)
+{
+
+	LABEL_CHECK(ifplabel, MAGIC_IFNET);
+	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	COUNTER_INC(netinet6_nd6_send);
 }
 
 COUNTER_DECL(ifnet_relabel);
@@ -2686,14 +2719,17 @@ static struct mac_policy_ops test_ops =
 	.mpo_netinet_fragment = test_netinet_fragment,
 	.mpo_ipq_create = test_ipq_create,
 	.mpo_inpcb_create_mbuf = test_inpcb_create_mbuf,
-	.mpo_mbuf_create_linklayer = test_mbuf_create_linklayer,
 	.mpo_bpfdesc_create_mbuf = test_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = test_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = test_mbuf_create_multicast_encap,
 	.mpo_mbuf_create_netlayer = test_mbuf_create_netlayer,
 	.mpo_ipq_match = test_ipq_match,
+	.mpo_netatalk_aarp_send = test_netatalk_aarp_send,
+	.mpo_netinet_arp_send = test_netinet_arp_send,
 	.mpo_netinet_icmp_reply = test_netinet_icmp_reply,
+	.mpo_netinet_igmp_send = test_netinet_igmp_send,
 	.mpo_netinet_tcp_reply = test_netinet_tcp_reply,
+	.mpo_netinet6_nd6_send = test_netinet6_nd6_send,
 	.mpo_ifnet_relabel = test_ifnet_relabel,
 	.mpo_ipq_update = test_ipq_update,
 	.mpo_inpcb_sosetlabel = test_inpcb_sosetlabel,
