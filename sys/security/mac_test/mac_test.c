@@ -87,6 +87,7 @@ SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
 #define	MAGIC_MBUF	0xbbefa5bb
 #define	MAGIC_MOUNT	0xc7c46e47
 #define	MAGIC_SOCKET	0x9199c6cd
+#define	MAGIC_SYNCACHE	0x7fb838a8
 #define	MAGIC_SYSV_MSG	0x8bbba61e
 #define	MAGIC_SYSV_MSQ	0xea672391
 #define	MAGIC_SYSV_SEM	0x896e8a0b
@@ -329,6 +330,20 @@ test_proc_init_label(struct label *label)
 	COUNTER_INC(proc_init_label);
 }
 
+COUNTER_DECL(syncache_init_label);
+static int
+test_syncache_init_label(struct label *label, int flag)
+{
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "test_syncache_init_label() at %s:%d", __FILE__,
+		    __LINE__);
+	LABEL_INIT(label, MAGIC_SYNCACHE);
+	COUNTER_INC(syncache_init_label);
+	return (0);
+}
+
 COUNTER_DECL(vnode_init_label);
 static void
 test_vnode_init_label(struct label *label)
@@ -381,6 +396,15 @@ test_inpcb_destroy_label(struct label *label)
 
 	LABEL_DESTROY(label, MAGIC_INPCB);
 	COUNTER_INC(inpcb_destroy_label);
+}
+
+COUNTER_DECL(syncache_destroy_label);
+static void
+test_syncache_destroy_label(struct label *label)
+{
+
+	LABEL_DESTROY(label, MAGIC_SYNCACHE);
+	COUNTER_INC(syncache_destroy_label);
 }
 
 COUNTER_DECL(sysvmsg_destroy_label);
@@ -950,6 +974,26 @@ test_inpcb_create(struct socket *so, struct label *solabel,
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
 	COUNTER_INC(inpcb_create);
+}
+
+COUNTER_DECL(syncache_create);
+static void
+test_syncache_create(struct label *label, struct inpcb *inp)
+{
+
+	LABEL_CHECK(label, MAGIC_SYNCACHE);
+	COUNTER_INC(syncache_create);
+}
+
+COUNTER_DECL(syncache_create_mbuf);
+static void
+test_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
+    struct label *mlabel)
+{
+
+	LABEL_CHECK(sc_label, MAGIC_SYNCACHE);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
+	COUNTER_INC(syncache_create_mbuf);
 }
 
 COUNTER_DECL(sysvmsg_create);
@@ -2624,6 +2668,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_init_label = test_cred_init_label,
 	.mpo_devfs_init_label = test_devfs_init_label,
 	.mpo_ifnet_init_label = test_ifnet_init_label,
+	.mpo_syncache_init_label = test_syncache_init_label,
 	.mpo_sysvmsg_init_label = test_sysvmsg_init_label,
 	.mpo_sysvmsq_init_label = test_sysvmsq_init_label,
 	.mpo_sysvsem_init_label = test_sysvsem_init_label,
@@ -2642,6 +2687,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_destroy_label = test_cred_destroy_label,
 	.mpo_devfs_destroy_label = test_devfs_destroy_label,
 	.mpo_ifnet_destroy_label = test_ifnet_destroy_label,
+	.mpo_syncache_destroy_label = test_syncache_destroy_label,
 	.mpo_sysvmsg_destroy_label = test_sysvmsg_destroy_label,
 	.mpo_sysvmsq_destroy_label =
 	    test_sysvmsq_destroy_label,
@@ -2697,6 +2743,8 @@ static struct mac_policy_ops test_ops =
 	.mpo_bpfdesc_create = test_bpfdesc_create,
 	.mpo_ifnet_create = test_ifnet_create,
 	.mpo_inpcb_create = test_inpcb_create,
+	.mpo_syncache_create = test_syncache_create,
+	.mpo_syncache_create_mbuf = test_syncache_create_mbuf,
 	.mpo_sysvmsg_create = test_sysvmsg_create,
 	.mpo_sysvmsq_create = test_sysvmsq_create,
 	.mpo_sysvsem_create = test_sysvsem_create,
