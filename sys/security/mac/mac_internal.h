@@ -91,6 +91,7 @@ extern struct mac_policy_list_head	mac_static_policy_list;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
 #endif
+extern struct mtx			mac_ifnet_mtx;
 
 /*
  * MAC Framework infrastructure functions.
@@ -112,6 +113,9 @@ void	mac_init_label(struct label *label);
 void	mac_destroy_label(struct label *label);
 int	mac_check_structmac_consistent(struct mac *mac);
 int	mac_allocate_slot(void);
+
+#define MAC_IFNET_LOCK(ifp)	mtx_lock(&mac_ifnet_mtx)
+#define MAC_IFNET_UNLOCK(ifp)	mtx_unlock(&mac_ifnet_mtx)
 
 /*
  * MAC Framework per-object type functions.  It's not yet clear how the
