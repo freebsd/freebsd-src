@@ -1304,18 +1304,6 @@ biba_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
 	biba_copy_effective(source, dest);
 }
 
-static void
-biba_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
-    struct mbuf *newm, struct label *mnewlabel)
-{
-	struct mac_biba *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(mnewlabel);
-
-	biba_copy_effective(source, dest);
-}
-
 static int
 biba_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
@@ -1383,6 +1371,18 @@ biba_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
+biba_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	biba_copy_effective(source, dest);
+}
+
+static void
 biba_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *dest;
@@ -1391,6 +1391,18 @@ biba_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	/* XXX: where is the label for the firewall really coming from? */
 	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+biba_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	biba_copy_effective(source, dest);
 }
 
 static void
@@ -3356,7 +3368,6 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_bpfdesc_create_mbuf = biba_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = biba_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = biba_mbuf_create_multicast_encap,
-	.mpo_mbuf_create_netlayer = biba_mbuf_create_netlayer,
 	.mpo_ipq_match = biba_ipq_match,
 	.mpo_ifnet_relabel = biba_ifnet_relabel,
 	.mpo_ipq_update = biba_ipq_update,
@@ -3446,7 +3457,9 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_vnode_check_write = biba_vnode_check_write,
 	.mpo_netatalk_aarp_send = biba_netatalk_aarp_send,
 	.mpo_netinet_arp_send = biba_netinet_arp_send,
+	.mpo_netinet_firewall_reply = biba_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = biba_netinet_firewall_send,
+	.mpo_netinet_icmp_reply = biba_netinet_icmp_reply,
 	.mpo_netinet_igmp_send = biba_netinet_igmp_send,
 	.mpo_netinet6_nd6_send = biba_netinet6_nd6_send,
 	.mpo_priv_check = biba_priv_check,

@@ -234,13 +234,25 @@ mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m)
 }
 
 void
-mac_netinet_icmp_reply(struct mbuf *m)
+mac_netinet_icmp_reply(struct mbuf *mrecv, struct mbuf *msend)
+{
+	struct label *mrecvlabel, *msendlabel;
+
+	mrecvlabel = mac_mbuf_to_label(mrecv);
+	msendlabel = mac_mbuf_to_label(msend);
+
+	MAC_PERFORM(netinet_icmp_reply, mrecv, mrecvlabel, msend,
+	    msendlabel);
+}
+
+void
+mac_netinet_icmp_replyinplace(struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(netinet_icmp_reply, m, label);
+	MAC_PERFORM(netinet_icmp_replyinplace, m, label);
 }
 
 void
@@ -297,6 +309,21 @@ mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 	INP_LOCK_ASSERT(inp);
 	SOCK_LOCK_ASSERT(so);
 	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
+}
+
+void
+mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend)
+{
+	struct label *mrecvlabel, *msendlabel;
+
+	M_ASSERTPKTHDR(mrecv);
+	M_ASSERTPKTHDR(msend);
+
+	mrecvlabel = mac_mbuf_to_label(mrecv);
+	msendlabel = mac_mbuf_to_label(msend);
+
+	MAC_PERFORM(netinet_firewall_reply, mrecv, mrecvlabel, msend,
+	    msendlabel);
 }
 
 void

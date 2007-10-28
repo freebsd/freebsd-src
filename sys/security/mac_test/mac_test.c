@@ -1050,18 +1050,6 @@ test_mbuf_create_multicast_encap(struct mbuf *oldmbuf,
 	COUNTER_INC(mbuf_create_multicast_encap);
 }
 
-COUNTER_DECL(mbuf_create_netlayer);
-static void
-test_mbuf_create_netlayer(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct mbuf *newmbuf,
-    struct label *newmbuflabel)
-{
-
-	LABEL_CHECK(oldmbuflabel, MAGIC_MBUF);
-	LABEL_CHECK(newmbuflabel, MAGIC_MBUF);
-	COUNTER_INC(mbuf_create_netlayer);
-}
-
 COUNTER_DECL(ipq_match);
 static int
 test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
@@ -1099,11 +1087,22 @@ test_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
 
 COUNTER_DECL(netinet_icmp_reply);
 static void
-test_netinet_icmp_reply(struct mbuf *m, struct label *mlabel)
+test_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+
+	LABEL_CHECK(mrecvlabel, MAGIC_MBUF);
+	LABEL_CHECK(msendlabel, MAGIC_MBUF);
+	COUNTER_INC(netinet_icmp_reply);
+}
+
+COUNTER_DECL(netinet_icmp_replyinplace);
+static void
+test_netinet_icmp_replyinplace(struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
-	COUNTER_INC(netinet_icmp_reply);
+	COUNTER_INC(netinet_icmp_replyinplace);
 }
 
 COUNTER_DECL(netinet_igmp_send);
@@ -2722,11 +2721,11 @@ static struct mac_policy_ops test_ops =
 	.mpo_bpfdesc_create_mbuf = test_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = test_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = test_mbuf_create_multicast_encap,
-	.mpo_mbuf_create_netlayer = test_mbuf_create_netlayer,
 	.mpo_ipq_match = test_ipq_match,
 	.mpo_netatalk_aarp_send = test_netatalk_aarp_send,
 	.mpo_netinet_arp_send = test_netinet_arp_send,
 	.mpo_netinet_icmp_reply = test_netinet_icmp_reply,
+	.mpo_netinet_icmp_replyinplace = test_netinet_icmp_replyinplace,
 	.mpo_netinet_igmp_send = test_netinet_igmp_send,
 	.mpo_netinet_tcp_reply = test_netinet_tcp_reply,
 	.mpo_netinet6_nd6_send = test_netinet6_nd6_send,

@@ -334,17 +334,6 @@ mac_mbuf_create_multicast_encap(struct mbuf *m, struct ifnet *ifp,
 	MAC_IFNET_UNLOCK(ifp);
 }
 
-void
-mac_mbuf_create_netlayer(struct mbuf *m, struct mbuf *mnew)
-{
-	struct label *mlabel, *mnewlabel;
-
-	mlabel = mac_mbuf_to_label(m);
-	mnewlabel = mac_mbuf_to_label(mnew);
-
-	MAC_PERFORM(mbuf_create_netlayer, m, mlabel, mnew, mnewlabel);
-}
-
 int
 mac_bpfdesc_check_receive(struct bpf_d *d, struct ifnet *ifp)
 {
