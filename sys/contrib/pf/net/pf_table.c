@@ -1171,7 +1171,7 @@ pfr_walktree(struct radix_node *rn, void *arg)
 			struct pfr_addr ad;
 
 			pfr_copyout_addr(&ad, ke);
-			if (copyout(&ad, w->pfrw_addr, sizeof(ad)))
+			if (COPYOUT(&ad, w->pfrw_addr, sizeof(ad)))
 				return (EFAULT);
 			w->pfrw_addr++;
 		}
