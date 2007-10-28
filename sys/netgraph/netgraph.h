@@ -579,7 +579,13 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
  *
  */
 typedef	void	ng_item_fn(node_p node, hook_p hook, void *arg1, int arg2);
+typedef	int	ng_item_fn2(node_p node, struct ng_item *item, hook_p hook);
 typedef	void	ng_apply_t(void *context, int error);
+struct ng_apply_info {
+	ng_apply_t	*apply;
+	void		*context;
+	int		refs;
+};
 struct ng_item {
 	u_long	el_flags;
 	item_p	el_next;
@@ -592,7 +598,10 @@ struct ng_item {
 			ng_ID_t		msg_retaddr;
 		} msg;
 		struct {
-			ng_item_fn	*fn_fn;
+			union {
+				ng_item_fn	*fn_fn;
+				ng_item_fn2	*fn_fn2;
+			} fn_fn;
 			void 		*fn_arg1;
 			int		fn_arg2;
 		} fn;
@@ -601,8 +610,8 @@ struct ng_item {
 	 * Optional callback called when item is being applied,
 	 * and its context.
 	 */
-	ng_apply_t	*apply;
-	void		*context;
+	struct ng_apply_info	*apply;
+	void		*PAD1;
 #ifdef	NETGRAPH_DEBUG /*----------------------------------------------*/
 	char *lastfile;
 	int  lastline;
@@ -614,7 +623,7 @@ struct ng_item {
 #define NGQF_MESG	0x00		/* the queue element is a message */
 #define NGQF_DATA	0x01		/* the queue element is data */
 #define NGQF_FN		0x02		/* the queue element is a function */
-#define NGQF_UNDEF	0x03		/* UNDEFINED */
+#define NGQF_FN2	0x03		/* the queue element is a new function */
 
 #define NGQF_RW		0x04		/* MASK for wanted queue mode */
 #define NGQF_READER	0x04		/* wants to be a reader */
@@ -637,7 +646,8 @@ struct ng_item {
 #define _NGI_M(i) ((i)->body.da_m)
 #define _NGI_MSG(i) ((i)->body.msg.msg_msg)
 #define _NGI_RETADDR(i) ((i)->body.msg.msg_retaddr)
-#define	_NGI_FN(i) ((i)->body.fn.fn_fn)
+#define	_NGI_FN(i) ((i)->body.fn.fn_fn.fn_fn)
+#define	_NGI_FN2(i) ((i)->body.fn.fn_fn.fn_fn2)
 #define	_NGI_ARG1(i) ((i)->body.fn.fn_arg1)
 #define	_NGI_ARG2(i) ((i)->body.fn.fn_arg2)
 #define	_NGI_NODE(i) ((i)->el_dest)
@@ -666,6 +676,7 @@ static __inline struct mbuf **	_ngi_m(item_p item, char *file, int line) ;
 static __inline ng_ID_t *	_ngi_retaddr(item_p item, char *file, int line);
 static __inline struct ng_mesg ** _ngi_msg(item_p item, char *file, int line) ;
 static __inline ng_item_fn **	_ngi_fn(item_p item, char *file, int line) ;
+static __inline ng_item_fn2 **	_ngi_fn2(item_p item, char *file, int line) ;
 static __inline void **		_ngi_arg1(item_p item, char *file, int line) ;
 static __inline int *		_ngi_arg2(item_p item, char *file, int line) ;
 static __inline node_p		_ngi_node(item_p item, char *file, int line);
@@ -706,6 +717,13 @@ _ngi_fn(item_p item, char *file, int line)
 	return (&_NGI_FN(item));
 }
 
+static __inline ng_item_fn2 **
+_ngi_fn2(item_p item, char *file, int line)
+{
+	_ngi_check(item, file, line);
+	return (&_NGI_FN2(item));
+}
+
 static __inline void **
 _ngi_arg1(item_p item, char *file, int line)
 {
@@ -738,6 +756,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NGI_MSG(i)	(*_ngi_msg(i, _NN_))
 #define NGI_RETADDR(i)	(*_ngi_retaddr(i, _NN_))
 #define NGI_FN(i)	(*_ngi_fn(i, _NN_))
+#define NGI_FN2(i)	(*_ngi_fn2(i, _NN_))
 #define NGI_ARG1(i)	(*_ngi_arg1(i, _NN_))
 #define NGI_ARG2(i)	(*_ngi_arg2(i, _NN_))
 #define NGI_HOOK(i)	_ngi_hook(i, _NN_)
@@ -769,6 +788,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NGI_MSG(i)	_NGI_MSG(i)
 #define NGI_RETADDR(i)	_NGI_RETADDR(i)
 #define NGI_FN(i)	_NGI_FN(i)
+#define NGI_FN2(i)	_NGI_FN2(i)
 #define NGI_ARG1(i)	_NGI_ARG1(i)
 #define NGI_ARG2(i)	_NGI_ARG2(i)
 #define	NGI_NODE(i)	_NGI_NODE(i)
@@ -1094,6 +1114,18 @@ int 	ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn,
 	void *arg1, int arg2, int flags);
 #define	ng_send_fn(node, hook, fn, arg1, arg2) \
 	ng_send_fn1(node, hook, fn, arg1, arg2, NG_NOFLAGS)
+int 	ng_send_fn21(node_p node, hook_p hook, ng_item_fn2 *fn,
+	void *arg1, int arg2, int flags);
+#define	ng_send_fn2(node, hook, fn, arg1, arg2) \
+	ng_send_fn21(node, hook, fn, arg1, arg2, NG_NOFLAGS)
+int 	ng_send_fn21_cont(item_p item, node_p node, hook_p hook, ng_item_fn2 *fn,
+	void *arg1, int arg2, int flags);
+#define	ng_send_fn2_cont(item, node, hook, fn, arg1, arg2) \
+	ng_send_fn21_cont(item, node, hook, fn, arg1, arg2, NG_NOFLAGS)
+int 	ng_send_fn21_fwd(item_p item, node_p node, hook_p hook, ng_item_fn2 *fn,
+	void *arg1, int arg2, int flags);
+#define	ng_send_fn2_fwd(item, node, hook, fn, arg1, arg2) \
+	ng_send_fn21_fwd(item, node, hook, fn, arg1, arg2, NG_NOFLAGS)
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
