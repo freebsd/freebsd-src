@@ -82,20 +82,28 @@ make_symlinks()
 
 named_reload()
 {
-	rndc reload
+	${command%/named}/rndc reload
 }
 
 named_stop()
 {
-	echo -n "Stopping named"
-	if rndc stop 2>/dev/null; then
-		echo .
-	else
-		echo -n ": rndc failed, trying killall: "
-		if killall named; then
-			echo .
-		fi
+	# This duplicates an undesirably large amount of code from the stop
+	# routine in rc.subr in order to use rndc to shut down the process,
+	# and to give it a second chance in case rndc fails.
+	rc_pid=$(check_pidfile $pidfile $command)
+	if [ -z "$rc_pid" ]; then
+		[ -n "$rc_fast" ] && return 0
+		_run_rc_notrunning
+		return 1
 	fi
+	echo 'Stopping named.'
+	if ${command%/named}/rndc stop 2>/dev/null; then
+		wait_for_pids $rc_pid
+	else
+		echo -n 'rndc failed, trying kill: '
+		kill -TERM $rc_pid
+		wait_for_pids $rc_pid
+  	fi
 }
 
 named_poststop()
@@ -121,13 +129,13 @@ named_precmd()
 	if [ -s "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
 		return 0
 	fi
-	confgen_command="rndc-confgen -a -b256 -u $named_uid \
+	confgen_command="${command%/named}/rndc-confgen -a -b256 -u $named_uid \
 	    -c ${named_chrootdir}/etc/namedb/rndc.key"
 	if [ -s "${named_chrootdir}/etc/namedb/rndc.key" ]; then
-		if [ ! `stat -f%Su ${named_chrootdir}/etc/namedb/rndc.key` = \
-		    "$named_uid" ]; then
-			$confgen_command
-		fi
+		case `stat -f%Su ${named_chrootdir}/etc/namedb/rndc.key` in
+		root|$named_uid) ;;
+		*) $confgen_command ;;
+		esac
 	else
 		$confgen_command
 	fi
