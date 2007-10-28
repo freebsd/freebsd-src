@@ -199,6 +199,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	item_p item;
 	char *path = NULL;
 	int len, error = 0;
+	struct ng_apply_info apply;
 
 #ifdef	NOTYET
 	if (control && (error = ng_internalize(control, td))) {
@@ -312,21 +313,21 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * If ng_snd_item() has queued item, we sleep until
 	 * callback wakes us up.
 	 */
-	item->apply = ng_socket_item_applied;
-	item->context = priv;
+	bzero(&apply, sizeof(apply));
+	apply.apply = ng_socket_item_applied;
+	apply.context = priv;
+	item->apply = &apply;
 	priv->error = -1;
 
-	error = ng_snd_item(item, NG_PROGRESS);
+	error = ng_snd_item(item, 0);
 
-	if (error == EINPROGRESS) {
-		mtx_lock(&priv->mtx);
-		if (priv->error == -1)
-			msleep(priv, &priv->mtx, 0, "ngsock", 0);
-		mtx_unlock(&priv->mtx);
-		KASSERT(priv->error != -1,
-		    ("ng_socket: priv->error wasn't updated"));
-		error = priv->error;
-	}
+	mtx_lock(&priv->mtx);
+	if (priv->error == -1)
+		msleep(priv, &priv->mtx, 0, "ngsock", 0);
+	mtx_unlock(&priv->mtx);
+	KASSERT(priv->error != -1,
+	    ("ng_socket: priv->error wasn't updated"));
+	error = priv->error;
 
 release:
 	if (path != NULL)
