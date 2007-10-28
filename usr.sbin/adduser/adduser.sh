@@ -603,6 +603,7 @@ input_from_file() {
 			get_homedir
 			get_password
 			get_expire_dates
+			ugroups="$defaultgroups"
 
 			add_user
 			;;
