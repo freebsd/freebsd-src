@@ -568,14 +568,74 @@ test_vnode_copy_label(struct label *src, struct label *dest)
 	COUNTER_INC(vnode_copy_label);
 }
 
-COUNTER_DECL(externalize_label);
+COUNTER_DECL(cred_externalize_label);
 static int
-test_externalize_label(struct label *label, char *element_name,
+test_cred_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
 {
 
-	LABEL_NOTFREE(label);
-	COUNTER_INC(externalize_label);
+	LABEL_CHECK(label, MAGIC_CRED);
+	COUNTER_INC(cred_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(ifnet_externalize_label);
+static int
+test_ifnet_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_IFNET);
+	COUNTER_INC(ifnet_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(pipe_externalize_label);
+static int
+test_pipe_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_PIPE);
+	COUNTER_INC(pipe_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(socket_externalize_label);
+static int
+test_socket_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_SOCKET);
+	COUNTER_INC(socket_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(socketpeer_externalize_label);
+static int
+test_socketpeer_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_SOCKET);
+	COUNTER_INC(socketpeer_externalize_label);
+
+	return (0);
+}
+
+COUNTER_DECL(vnode_externalize_label);
+static int
+test_vnode_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_VNODE);
+	COUNTER_INC(vnode_externalize_label);
 
 	return (0);
 }
@@ -2584,12 +2644,12 @@ static struct mac_policy_ops test_ops =
 	.mpo_pipe_copy_label = test_pipe_copy_label,
 	.mpo_socket_copy_label = test_socket_copy_label,
 	.mpo_vnode_copy_label = test_vnode_copy_label,
-	.mpo_cred_externalize_label = test_externalize_label,
-	.mpo_ifnet_externalize_label = test_externalize_label,
-	.mpo_pipe_externalize_label = test_externalize_label,
-	.mpo_socket_externalize_label = test_externalize_label,
-	.mpo_socketpeer_externalize_label = test_externalize_label,
-	.mpo_vnode_externalize_label = test_externalize_label,
+	.mpo_cred_externalize_label = test_cred_externalize_label,
+	.mpo_ifnet_externalize_label = test_ifnet_externalize_label,
+	.mpo_pipe_externalize_label = test_pipe_externalize_label,
+	.mpo_socket_externalize_label = test_socket_externalize_label,
+	.mpo_socketpeer_externalize_label = test_socketpeer_externalize_label,
+	.mpo_vnode_externalize_label = test_vnode_externalize_label,
 	.mpo_cred_internalize_label = test_internalize_label,
 	.mpo_ifnet_internalize_label = test_internalize_label,
 	.mpo_pipe_internalize_label = test_internalize_label,
