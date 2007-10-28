@@ -396,7 +396,7 @@
 
       <para>[&arch.i386;, &arch.amd64;] The &man.coretemp.4; driver
 	has been added to provide temperature readings on &intel;
-	&core; processors.</para>
+	&core; processors. &merged;</para>
 
       <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
         frequency control for the VIA C7-M family of processors.</para> 
@@ -1490,7 +1490,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       has been updated to 20070320.</para>
 
     <para><application>awk</application> has been updated from the 24
-      April 2005 release to the 1 May 2007 release.</para>
+      April 2005 release to the 1 May 2007 release. &merged;</para>
 
     <para><application>BIND</application> has been updated from 9.3.1
       to 9.4.1-p1.</para>
