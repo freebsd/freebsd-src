@@ -1213,19 +1213,6 @@ mls_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
 	mls_copy_effective(source, dest);
 }
 
-static void
-mls_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
-    struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
-    struct label *mnewlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(mnewlabel);
-
-	mls_copy_effective(source, dest);
-}
-
 static int
 mls_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
@@ -2994,7 +2981,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
 	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
-	.mpo_mbuf_create_multicast_encap = mls_mbuf_create_multicast_encap,
 	.mpo_ipq_match = mls_ipq_match,
 	.mpo_ifnet_relabel = mls_ifnet_relabel,
 	.mpo_ipq_update = mls_ipq_update,

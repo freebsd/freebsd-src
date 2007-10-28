@@ -419,14 +419,6 @@ stub_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
-stub_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
-    struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
-    struct label *mnewlabel)
-{
-
-}
-
-static void
 stub_netatalk_aarp_send(struct ifnet *ifp, struct label *iflpabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1551,7 +1543,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_inpcb_create_mbuf = stub_inpcb_create_mbuf,
 	.mpo_bpfdesc_create_mbuf = stub_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = stub_ifnet_create_mbuf,
-	.mpo_mbuf_create_multicast_encap = stub_mbuf_create_multicast_encap,
 	.mpo_netatalk_aarp_send = stub_netatalk_aarp_send,
 	.mpo_netinet_arp_send = stub_netinet_arp_send,
 	.mpo_netinet_firewall_reply = stub_netinet_firewall_reply,
