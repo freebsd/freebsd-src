@@ -1935,6 +1935,7 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 			 * in case the driver takes a lock, as this will result
 			 * in  LOR between the node lock and the driver lock.
 			 */
+			ieee80211_ref_node(ni);
 			IEEE80211_NODE_UNLOCK(nt);
 			if (ni->ni_associd != 0) {
 				IEEE80211_SEND_MGMT(ic, ni,
@@ -1942,6 +1943,7 @@ IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER, "[%s] discard frame, age %u\n", ether
 				    IEEE80211_REASON_AUTH_EXPIRE);
 			}
 			ieee80211_node_leave(ic, ni);
+			ieee80211_free_node(ni);
 			ic->ic_stats.is_node_timeout++;
 			goto restart;
 		}
