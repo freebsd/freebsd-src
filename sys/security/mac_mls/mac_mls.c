@@ -1226,18 +1226,6 @@ mls_mbuf_create_multicast_encap(struct mbuf *m, struct label *mlabel,
 	mls_copy_effective(source, dest);
 }
 
-static void
-mls_mbuf_create_netlayer(struct mbuf *m, struct label *mlabel,
-    struct mbuf *mnew, struct label *mnewlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(mnewlabel);
-
-	mls_copy_effective(source, dest);
-}
-
 static int
 mls_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
@@ -1305,6 +1293,18 @@ mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static void
+mls_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
 mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_mls *dest;
@@ -1313,6 +1313,18 @@ mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
 
 	/* XXX: where is the label for the firewall really comming from? */
 	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	mls_copy_effective(source, dest);
 }
 
 static void
@@ -2983,7 +2995,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
 	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
 	.mpo_mbuf_create_multicast_encap = mls_mbuf_create_multicast_encap,
-	.mpo_mbuf_create_netlayer = mls_mbuf_create_netlayer,
 	.mpo_ipq_match = mls_ipq_match,
 	.mpo_ifnet_relabel = mls_ifnet_relabel,
 	.mpo_ipq_update = mls_ipq_update,
@@ -3069,7 +3080,9 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_check_write = mls_vnode_check_write,
 	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
 	.mpo_netinet_arp_send = mls_netinet_arp_send,
+	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
+	.mpo_netinet_icmp_reply = mls_netinet_icmp_reply,
 	.mpo_netinet_igmp_send = mls_netinet_igmp_send,
 	.mpo_netinet6_nd6_send = mls_netinet6_nd6_send,
 };
