@@ -1,7 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_class#4 $
-#
-# This file must match audit.h
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_class#5 $
 #
 0x00000000:no:invalid class
 0x00000001:fr:file read
