@@ -60,6 +60,7 @@ void ad1981b_patch(struct ac97_info* codec)
 	 */
 	switch (ac97_getsubvendor(codec)) {
 	case 0x02d91014:	/* IBM Thinkcentre */
+	case 0x099c103c:	/* HP nx6110 */
 		ac97_wrcd(codec, AC97_AD_JACK_SPDIF,
 		    ac97_rdcd(codec, AC97_AD_JACK_SPDIF) | 0x0800);
 		break;
