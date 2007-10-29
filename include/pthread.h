@@ -98,6 +98,7 @@
  * Static initialization values. 
  */
 #define PTHREAD_MUTEX_INITIALIZER	NULL
+#define PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP	NULL
 #define PTHREAD_COND_INITIALIZER	NULL
 #define PTHREAD_RWLOCK_INITIALIZER	NULL
 
@@ -128,6 +129,7 @@ enum pthread_mutextype {
 	PTHREAD_MUTEX_ERRORCHECK	= 1,	/* Default POSIX mutex */
 	PTHREAD_MUTEX_RECURSIVE		= 2,	/* Recursive mutex */
 	PTHREAD_MUTEX_NORMAL		= 3,	/* No error checking */
+	PTHREAD_MUTEX_ADAPTIVE_NP	= 4,	/* Adaptive mutex, spins briefly before blocking on lock */
 	PTHREAD_MUTEX_TYPE_MAX
 };
 
