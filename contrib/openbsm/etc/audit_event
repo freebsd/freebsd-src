@@ -1,6 +1,12 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#25 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#26 $
 # $FreeBSD$
+#
+# The mapping between event identifiers and values is also hard-codedd in
+# audit_kevents.h and audit_uevents.h, so changes must occur in both places,
+# and programs, such as the kernel, may need to be recompiled to recognize
+# those changes.  It is advisable not to change the numbering or naming of
+# kernel audit events.
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc
@@ -438,7 +444,7 @@
 43097:AUE_ACL_SET_LINK:acl_set_link(2):fm
 43098:AUE_ACL_DELETE_LINK:acl_delete_link(2):fm
 43099:AUE_ACL_CHECK_LINK:acl_aclcheck_link(2):fa
-43100:AUE_SYSARCH:sysarch(2):na
+43100:AUE_SYSARCH:sysarch(2):ot
 43101:AUE_EXTATTRCTL:extattrctl(2):fm
 43102:AUE_EXTATTR_GET_FILE:extattr_get_file(2):fa
 43103:AUE_EXTATTR_SET_FILE:extattr_set_file(2):fm
