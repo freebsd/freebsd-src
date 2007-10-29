@@ -137,6 +137,17 @@
 #define RGEPHY_EXTSTS_T_FD_CAP	0x2000	/* 1000base-T FD capable */
 #define RGEPHY_EXTSTS_T_HD_CAP	0x1000	/* 1000base-T HD capable */
 
-
+/* RTL8211B(L) */
+#define RGEPHY_MII_SSR		0x11	/* PHY Specific status register */
+#define	RGEPHY_SSR_S1000	0x8000	/* 1000Mbps */
+#define	RGEPHY_SSR_S100		0x4000	/* 100Mbps */
+#define	RGEPHY_SSR_S10		0x0000	/* 10Mbps */
+#define	RGEPHY_SSR_SPD_MASK	0xc000
+#define	RGEPHY_SSR_FDX		0x2000	/* full duplex */
+#define	RGEPHY_SSR_PAGE_RECEIVED	0x1000	/* new page received */
+#define	RGEPHY_SSR_SPD_DPLX_RESOLVED	0x0800	/* speed/duplex resolved */
+#define	RGEPHY_SSR_LINK		0x0400	/* link up */
+#define	RGEPHY_SSR_MDI_XOVER	0x0040	/* MDI crossover */
+#define	RGEPHY_SSR_JABBER	0x0001	/* Jabber */
 
 #endif /* _DEV_RGEPHY_MIIREG_H_ */
