@@ -360,7 +360,7 @@ ithread_create(const char *name, struct intr_handler *ih)
 
 	ithd = malloc(sizeof(struct intr_thread), M_ITHREAD, M_WAITOK | M_ZERO);
 
-	error = kproc_kthread_create(ithread_loop, ih, &intrproc,
+	error = kproc_kthread_add(ithread_loop, ih, &intrproc,
 		    &td, RFSTOPPED | RFHIGHPID,
 	    	    0, "intr", "%s", name);
 	if (error)
