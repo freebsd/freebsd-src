@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#13 $
  */
 
 #include <bsm/libbsm.h>
@@ -83,11 +83,11 @@ eventfromstr(char *str, struct au_event_ent *e)
 	 */
 	if (evclass != NULL) {
 		if (getauditflagsbin(evclass, &evmask) != 0)
-			e->ae_class = AU_NULL;
+			e->ae_class = 0;
 		else
 			e->ae_class = evmask.am_success;
 	} else
-		e->ae_class = AU_NULL;
+		e->ae_class = 0;
 
 	return (e);
 }
