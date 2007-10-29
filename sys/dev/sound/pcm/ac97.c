@@ -932,10 +932,12 @@ ac97mix_init(struct snd_mixer *m)
 
 	switch (codec->id) {
 	case 0x41445374:	/* AD1981B */
-		if (codec->subvendor == 0x02d91014) {
+		switch (codec->subvendor) {
+		case 0x02d91014:
 			/*
 			 * IBM Thinkcentre:
-			 * Tie "ogain" and "phone" to "vol" since its
+			 *
+			 * Tie "ogain" and "phout" to "vol" since its
 			 * master volume is basically useless and can't
 			 * control anything.
 			 */
@@ -953,6 +955,28 @@ ac97mix_init(struct snd_mixer *m)
 				mix_setrealdev(m, SOUND_MIXER_VOLUME,
 				    SOUND_MIXER_NONE);
 			}
+			break;
+		case 0x099c103c:
+			/*
+			 * HP nx6110:
+			 *
+			 * By default, "vol" is controlling internal speakers
+			 * (not a master volume!) and "ogain" is controlling
+			 * headphone. Enable dummy "phout" so it can be
+			 * remapped to internal speakers and virtualize
+			 * "vol" to control both.
+			 */
+			codec->mix[SOUND_MIXER_OGAIN].enable = 1;
+			codec->mix[SOUND_MIXER_PHONEOUT].enable = 1;
+			mix_setrealdev(m, SOUND_MIXER_PHONEOUT,
+			    SOUND_MIXER_VOLUME);
+			mix_setrealdev(m, SOUND_MIXER_VOLUME,
+			    SOUND_MIXER_NONE);
+			mix_setparentchild(m, SOUND_MIXER_VOLUME,
+			    SOUND_MASK_OGAIN | SOUND_MASK_PHONEOUT);
+			break;
+		default:
+			break;
 		}
 		break;
 	case 0x434d4941:	/* CMI9738 */
