@@ -25,51 +25,46 @@
  *
  * $FreeBSD$
  */
-/******************************************
- *  getinfo.h
- *
- *  To get the Tx, Rx, PCI, Interrupt statistics,
- *  PCI configuration space,device configuration
- *  and bar0 register values
- ******************************************/
+
 #ifndef XGE_CMN_H
 #include "xge_cmn.h"
 #endif
 
 #define XGE_QUERY_STATS       1
 #define XGE_QUERY_PCICONF     2
-#define XGE_QUERY_INTRSTATS   3 
+#define XGE_QUERY_DEVSTATS    3
 #define XGE_QUERY_DEVCONF     4
 #define XGE_READ_VERSION      5
-#define XGE_QUERY_TCODE       6
-#define XGE_SET_BUFFER_MODE_1 7
-#define XGE_SET_BUFFER_MODE_2 8
-#define XGE_SET_BUFFER_MODE_3 9
+#define XGE_QUERY_SWSTATS     6
+#define XGE_QUERY_DRIVERSTATS 7
+#define XGE_SET_BUFFER_MODE_1 8
+#define XGE_SET_BUFFER_MODE_2 9
 #define XGE_SET_BUFFER_MODE_5 10
 #define XGE_QUERY_BUFFER_MODE 11
 
 
 /* Function declerations */
-int getPciConf();
-int getDevConf();
-int getStats();
-int getRegInfo();
-int getIntrStats();
-int getTcodeStats();
-int getReadReg(char *,char *);
-int getWriteReg(char *,char *,char *);
-int getDriverVersion();
-int getBufMode();
-int changeBufMode(char *);
-
-void logStats(void *,unsigned short);
-void logPciConf(void *);
-void logDevConf(void *);
-void logRegInfo(void *);
-void logReadReg(u64,u64);
-void logIntrStats(void *);
-void logTcodeStats(void *);
-void logDriverInfo(char *);
+int xge_get_pciconf(void);
+int xge_get_devconf(void);
+int xge_get_hwstats(void);
+int xge_get_registers(void);
+int xge_get_devstats(void);
+int xge_get_swstats(void);
+int xge_get_drvstats(void);
+int xge_get_register(char *);
+int xge_set_register(char *,char *);
+int xge_get_drv_version(void);
+int xge_get_buffer_mode(void);
+int xge_change_buffer_mode(char *);
+void xge_print_hwstats(void *,unsigned short);
+void xge_print_pciconf(void *);
+void xge_print_devconf(void *);
+void xge_print_registers(void *);
+void xge_print_register(u64,u64);
+void xge_print_devstats(void *);
+void xge_print_swstats(void *);
+void xge_print_drvstats(void *);
+void xge_print_drv_version(char *);
 
 extern xge_pci_bar0_t         regInfo[];
 extern xge_pci_config_t       pciconfInfo[];
@@ -77,7 +72,8 @@ extern xge_stats_hw_info_t    statsInfo[];
 extern xge_device_config_t    devconfInfo[];
 extern xge_stats_intr_info_t  intrInfo[];
 extern xge_stats_tcode_info_t tcodeInfo[];
+extern xge_stats_driver_info_t driverInfo[];
+
 struct ifreq   ifreqp;
-int            sockfd, indexer, bufferSize = 0;
-char          *pAccess;
+int    sockfd, indexer, buffer_size = 0;
 

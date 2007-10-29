@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-event.h
- *
- *  Description:  event types
- *
- *  Created:      7 June 2004
- */
-
 #ifndef XGE_HAL_EVENT_H
 #define XGE_HAL_EVENT_H
 
@@ -41,8 +33,8 @@
 
 __EXTERN_BEGIN_DECLS
 
-#define XGE_HAL_EVENT_BASE		0
-#define XGE_LL_EVENT_BASE		100
+#define XGE_HAL_EVENT_BASE      0
+#define XGE_LL_EVENT_BASE       100
 
 /**
  * enum xge_hal_event_e - Enumerates slow-path HAL events.
@@ -69,15 +61,15 @@ __EXTERN_BEGIN_DECLS
  * xge_uld_link_down_f{}.
  */
 typedef enum xge_hal_event_e {
-	XGE_HAL_EVENT_UNKNOWN		= 0,
+	XGE_HAL_EVENT_UNKNOWN       = 0,
 	/* HAL events */
-	XGE_HAL_EVENT_SERR		= XGE_HAL_EVENT_BASE + 1,
-	XGE_HAL_EVENT_LINK_IS_UP	= XGE_HAL_EVENT_BASE + 2,
-	XGE_HAL_EVENT_LINK_IS_DOWN	= XGE_HAL_EVENT_BASE + 3,
-	XGE_HAL_EVENT_ECCERR		= XGE_HAL_EVENT_BASE + 4,
-	XGE_HAL_EVENT_PARITYERR		= XGE_HAL_EVENT_BASE + 5,
-	XGE_HAL_EVENT_TARGETABORT       = XGE_HAL_EVENT_BASE + 6,
-	XGE_HAL_EVENT_SLOT_FREEZE       = XGE_HAL_EVENT_BASE + 7,
+	XGE_HAL_EVENT_SERR          = XGE_HAL_EVENT_BASE + 1,
+	XGE_HAL_EVENT_LINK_IS_UP    = XGE_HAL_EVENT_BASE + 2,
+	XGE_HAL_EVENT_LINK_IS_DOWN  = XGE_HAL_EVENT_BASE + 3,
+	XGE_HAL_EVENT_ECCERR        = XGE_HAL_EVENT_BASE + 4,
+	XGE_HAL_EVENT_PARITYERR     = XGE_HAL_EVENT_BASE + 5,
+	XGE_HAL_EVENT_TARGETABORT   = XGE_HAL_EVENT_BASE + 6,
+	XGE_HAL_EVENT_SLOT_FREEZE   = XGE_HAL_EVENT_BASE + 7,
 } xge_hal_event_e;
 
 __EXTERN_END_DECLS

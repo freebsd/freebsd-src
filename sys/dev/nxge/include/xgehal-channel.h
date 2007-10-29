@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-channel.h
- *
- *  Description:  HAL channel object functionality
- *
- *  Created:      19 May 2004
- */
-
 #ifndef XGE_HAL_CHANNEL_H
 #define XGE_HAL_CHANNEL_H
 
@@ -80,9 +72,9 @@ typedef enum xge_hal_channel_type_e {
  * Channel opening flags. Reserved for future usage.
  */
 typedef enum xge_hal_channel_flag_e {
-	XGE_HAL_CHANNEL_FLAG_NONE		= 0x0,
-	XGE_HAL_CHANNEL_FLAG_USE_TX_LOCK	= 0x1,
-	XGE_HAL_CHANNEL_FLAG_FREE_RXD	        = 0x2
+	XGE_HAL_CHANNEL_FLAG_NONE       = 0x0,
+	XGE_HAL_CHANNEL_FLAG_USE_TX_LOCK    = 0x1,
+	XGE_HAL_CHANNEL_FLAG_FREE_RXD           = 0x2
 } xge_hal_channel_flag_e;
 
 /**
@@ -101,10 +93,10 @@ typedef enum xge_hal_channel_flag_e {
  * See also: xge_hal_channel_dtr_term_f{}.
  */
 typedef enum xge_hal_dtr_state_e {
-	XGE_HAL_DTR_STATE_NONE		= 0,
-	XGE_HAL_DTR_STATE_AVAIL		= 1,
-	XGE_HAL_DTR_STATE_POSTED	= 2,
-	XGE_HAL_DTR_STATE_FREED		= 3
+	XGE_HAL_DTR_STATE_NONE      = 0,
+	XGE_HAL_DTR_STATE_AVAIL     = 1,
+	XGE_HAL_DTR_STATE_POSTED    = 2,
+	XGE_HAL_DTR_STATE_FREED     = 3
 } xge_hal_dtr_state_e;
 
 /**
@@ -120,8 +112,8 @@ typedef enum xge_hal_dtr_state_e {
  * the memory (including DMA-able memory) used for channel operation.
  */
 typedef enum xge_hal_channel_reopen_e {
-	XGE_HAL_CHANNEL_RESET_ONLY	= 1,
-	XGE_HAL_CHANNEL_OC_NORMAL	= 2
+	XGE_HAL_CHANNEL_RESET_ONLY  = 1,
+	XGE_HAL_CHANNEL_OC_NORMAL   = 2
 } xge_hal_channel_reopen_e;
 
 /**
@@ -168,8 +160,8 @@ typedef enum xge_hal_channel_reopen_e {
  * xge_hal_ring_dtr_next_completed(), xge_hal_channel_dtr_term_f{}.
  */
 typedef xge_hal_status_e (*xge_hal_channel_callback_f)
-				(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-				 u8 t_code, void *userdata);
+	            (xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
+	             u8 t_code, void *userdata);
 
 /**
  * function xge_hal_channel_dtr_init_f - Initialize descriptor callback.
@@ -192,11 +184,11 @@ typedef xge_hal_status_e (*xge_hal_channel_callback_f)
  * See also: xge_hal_channel_attr_t{}, xge_hal_channel_dtr_term_f{}.
  */
 typedef xge_hal_status_e (*xge_hal_channel_dtr_init_f)
-				(xge_hal_channel_h channelh,
-				 xge_hal_dtr_h dtrh,
-				 int index,
-				 void *userdata,
-				 xge_hal_channel_reopen_e reopen);
+	            (xge_hal_channel_h channelh,
+	             xge_hal_dtr_h dtrh,
+	             int index,
+	             void *userdata,
+	             xge_hal_channel_reopen_e reopen);
 
 /**
  * function xge_hal_channel_dtr_term_f - Terminate descriptor callback.
@@ -220,10 +212,10 @@ typedef xge_hal_status_e (*xge_hal_channel_dtr_init_f)
  * See also: xge_hal_channel_attr_t{}, xge_hal_channel_dtr_init_f{}.
  */
 typedef void (*xge_hal_channel_dtr_term_f) (xge_hal_channel_h channelh,
-					    xge_hal_dtr_h dtrh,
-					    xge_hal_dtr_state_e	state,
-					    void *userdata,
-					    xge_hal_channel_reopen_e reopen);
+	                    xge_hal_dtr_h dtrh,
+	                    xge_hal_dtr_state_e state,
+	                    void *userdata,
+	                    xge_hal_channel_reopen_e reopen);
 
 
 /**
@@ -257,18 +249,15 @@ typedef void (*xge_hal_channel_dtr_term_f) (xge_hal_channel_h channelh,
  * Usage: See ex_open{}.
  */
 typedef struct xge_hal_channel_attr_t {
-	xge_hal_channel_type_e		type;
-#ifdef XGEHAL_RNIC
-	u32				vp_id;
-#endif
-	int				post_qid;
-	int				compl_qid;
-	xge_hal_channel_callback_f	callback;
-	xge_hal_channel_dtr_init_f	dtr_init;
-	xge_hal_channel_dtr_term_f	dtr_term;
-	void				*userdata;
-	int				per_dtr_space;
-	xge_hal_channel_flag_e		flags;
+	xge_hal_channel_type_e      type;
+	int             post_qid;
+	int             compl_qid;
+	xge_hal_channel_callback_f  callback;
+	xge_hal_channel_dtr_init_f  dtr_init;
+	xge_hal_channel_dtr_term_f  dtr_term;
+	void                *userdata;
+	int             per_dtr_space;
+	xge_hal_channel_flag_e      flags;
 } xge_hal_channel_attr_t;
 
 /*
@@ -353,73 +342,70 @@ typedef struct xge_hal_channel_attr_t {
  */
 typedef struct {
 	/* complete/free section */
-	xge_list_t			item;
-	xge_hal_channel_callback_f	callback;
-	void				**free_arr;
-	int				length;
-	int				free_length;
+	xge_list_t          item;
+	xge_hal_channel_callback_f  callback;
+	void                **free_arr;
+	int             length;
+	int             free_length;
 #if defined(XGE_HAL_RX_MULTI_FREE_IRQ) || defined(XGE_HAL_TX_MULTI_FREE_IRQ) || \
-    defined(XGE_HAL_RX_MULTI_FREE) || defined(XGE_HAL_TX_MULTI_FREE)
-	spinlock_t			free_lock;
+	defined(XGE_HAL_RX_MULTI_FREE) || defined(XGE_HAL_TX_MULTI_FREE)
+	spinlock_t          free_lock;
 #endif
-	int				compl_index;
-	unsigned int			usage_cnt;
-	unsigned int			poll_bytes;
-	int				unused0;
+	int             compl_index;
+	unsigned int            usage_cnt;
+	unsigned int            poll_bytes;
 
 	/* reserve/post data path section */
+	int             terminating;
 #ifdef __XGE_WIN__
-	int				__xge_os_attr_cacheline_aligned
-					post_index;
+	int             __xge_os_attr_cacheline_aligned
+	                post_index;
 #else
-	int				post_index
-					__xge_os_attr_cacheline_aligned;
+	int             post_index
+	                __xge_os_attr_cacheline_aligned;
 #endif
-	spinlock_t			reserve_lock;
-	spinlock_t			post_lock;
+	spinlock_t          reserve_lock;
+	spinlock_t          post_lock;
 
-	void				**reserve_arr;
-	int				reserve_length;
-	int				reserve_threshold;
-	int				reserve_top;
+	void                **reserve_arr;
+	int             reserve_length;
+	int             reserve_threshold;
+	int             reserve_top;
 	int                             unused1;
 
 	/* common section */
-	xge_hal_device_h		devh;
+	xge_hal_device_h        devh;
 	pci_dev_h                       pdev;
-	pci_reg_h			regh0;
-	pci_reg_h			regh1;
-	void				*userdata;
-	void				**work_arr;
-	void				**saved_arr;
-	void				**orig_arr;
-	xge_hal_stats_channel_info_t	stats;
+	pci_reg_h           regh0;
+	pci_reg_h           regh1;
+	void                *userdata;
+	void                **work_arr;
+	void                **saved_arr;
+	void                **orig_arr;
+	xge_hal_stats_channel_info_t    stats;
 
 	/* slow section */
-	xge_hal_channel_type_e		type;
-#ifdef XGEHAL_RNIC
-	u32				vp_id;
-#endif
-	int				post_qid;
-	int				compl_qid;
-	xge_hal_channel_flag_e		flags;
-	int				reserve_initial;
-	int				reserve_max;
-	int				is_open;
-	int				per_dtr_space;
-	xge_hal_channel_dtr_term_f	dtr_term;
-	xge_hal_channel_dtr_init_f	dtr_init;
+	xge_hal_channel_type_e      type;
+	int             post_qid;
+	int             compl_qid;
+	xge_hal_channel_flag_e      flags;
+	int             reserve_initial;
+	int             reserve_max;
+	int             is_open;
+	int             per_dtr_space;
+	xge_hal_channel_dtr_term_f  dtr_term;
+	xge_hal_channel_dtr_init_f  dtr_init;
 	/* MSI stuff */
-	u32				msi_msg;
-	u8				rti;
-	u8				tti;
+	u32             msi_msg;
+	u8              rti;
+	u8              tti;
 	u16                             unused2;
 	/* MSI-X stuff */
-	u64				msix_address;
-	u32				msix_data;
-	int				msix_idx;
-	volatile int			in_interrupt;
-        unsigned int			magic;
+	u64             msix_address;
+	u32             msix_data;
+	int             msix_idx;
+	volatile int            in_interrupt;
+	    unsigned int            magic;
 #ifdef __XGE_WIN__
 } __xge_os_attr_cacheline_aligned xge_hal_channel_t ;
 #else
@@ -430,17 +416,14 @@ typedef struct {
 
 xge_hal_status_e
 __hal_channel_initialize(xge_hal_channel_h channelh,
-		xge_hal_channel_attr_t *attr, void **reserve_arr,
-		int reserve_initial, int reserve_max, int reserve_threshold);
+	    xge_hal_channel_attr_t *attr, void **reserve_arr,
+	    int reserve_initial, int reserve_max, int reserve_threshold);
 
 void __hal_channel_terminate(xge_hal_channel_h channelh);
 
 xge_hal_channel_t*
 __hal_channel_allocate(xge_hal_device_h devh, int post_qid,
-#ifdef XGEHAL_RNIC
-		u32 vp_id,
-#endif
-		xge_hal_channel_type_e	type);
+	    xge_hal_channel_type_e  type);
 
 void __hal_channel_free(xge_hal_channel_t *channel);
 
@@ -468,7 +451,7 @@ __hal_channel_dtr_dealloc(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_CHANNEL __HAL_INLINE_CHANNEL void
 __hal_channel_dtr_restore(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			  int offset);
+	          int offset);
 
 /* ========================== CHANNEL PUBLIC API ========================= */
 
@@ -483,7 +466,7 @@ xge_hal_channel_id(xge_hal_channel_h channelh);
 
 __HAL_STATIC_CHANNEL __HAL_INLINE_CHANNEL int
 xge_hal_check_alignment(dma_addr_t dma_pointer, int size, int alignment,
-		int copy_size);
+	    int copy_size);
 
 #else /* XGE_FASTPATH_EXTERN */
 #define __HAL_STATIC_CHANNEL static
@@ -493,14 +476,14 @@ xge_hal_check_alignment(dma_addr_t dma_pointer, int size, int alignment,
 
 xge_hal_status_e
 xge_hal_channel_open(xge_hal_device_h hldev, xge_hal_channel_attr_t *attr,
-		     xge_hal_channel_h *channel,
-		     xge_hal_channel_reopen_e reopen);
+	         xge_hal_channel_h *channel,
+	         xge_hal_channel_reopen_e reopen);
 
 void xge_hal_channel_close(xge_hal_channel_h channelh,
-                           xge_hal_channel_reopen_e reopen);
+	                       xge_hal_channel_reopen_e reopen);
 
 void xge_hal_channel_abort(xge_hal_channel_h channelh,
-                           xge_hal_channel_reopen_e reopen);
+	                       xge_hal_channel_reopen_e reopen);
 
 __EXTERN_END_DECLS
 

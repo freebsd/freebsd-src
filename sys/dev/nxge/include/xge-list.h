@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xge-list.h
- *
- *  Description:  Generic bi-directional linked list implementation
- *
- *  Created:      14 May 2004
- */
-
 #ifndef XGE_LIST_H
 #define XGE_LIST_H
 
@@ -76,9 +68,9 @@ static inline void xge_list_init (xge_list_t *header)
  */
 static inline int xge_list_is_empty(xge_list_t *header)
 {
-    xge_assert(header != NULL);
+	xge_assert(header != NULL);
 
-    return header->next == header;
+	return header->next == header;
 }
 
 /**
@@ -96,9 +88,9 @@ static inline xge_list_t *xge_list_first_get(xge_list_t *header)
 	xge_assert(header->prev != NULL);
 
 	if(header->next == header)
-		return NULL;
+	    return NULL;
 	else
-		return header->next;
+	    return header->next;
 }
 
 /**
@@ -131,7 +123,7 @@ static inline void xge_list_remove(xge_list_t *item)
  * See also: xge_list_remove(), xge_list_insert_before(), xge_list_t{}.
  */
 static inline void xge_list_insert (xge_list_t *new_item,
-				    xge_list_t *prev_item)
+	                xge_list_t *prev_item)
 {
 	xge_assert(new_item  != NULL);
 	xge_assert(prev_item != NULL);
@@ -151,7 +143,7 @@ static inline void xge_list_insert (xge_list_t *new_item,
  * Insert new item (new_item) before given item (next_item).
  */
 static inline void xge_list_insert_before (xge_list_t *new_item,
-				    	   xge_list_t *next_item)
+	                       xge_list_t *next_item)
 {
 	xge_assert(new_item  != NULL);
 	xge_assert(next_item != NULL);
@@ -165,34 +157,34 @@ static inline void xge_list_insert_before (xge_list_t *new_item,
 
 #define xge_list_for_each(_p, _h) \
 	for (_p = (_h)->next, xge_os_prefetch(_p->next); _p != (_h); \
-		_p = _p->next, xge_os_prefetch(_p->next))
+	    _p = _p->next, xge_os_prefetch(_p->next))
 
 #define xge_list_for_each_safe(_p, _n, _h) \
-        for (_p = (_h)->next, _n = _p->next; _p != (_h); \
-                _p = _n, _n = _p->next)
+	    for (_p = (_h)->next, _n = _p->next; _p != (_h); \
+	            _p = _n, _n = _p->next)
 
 #ifdef __GNUC__
 /**
  * xge_container_of - Given a member, return the containing structure.
- * @ptr:	the pointer to the member.
- * @type:	the type of the container struct this is embedded in.
- * @member:	the name of the member within the struct.
+ * @ptr:    the pointer to the member.
+ * @type:   the type of the container struct this is embedded in.
+ * @member: the name of the member within the struct.
  *
  * Cast a member of a structure out to the containing structure.
  */
-#define xge_container_of(ptr, type, member) ({			\
-         __typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-        (type *)(void *)( (char *)__mptr - ((size_t) &((type *)0)->member) );})
+#define xge_container_of(ptr, type, member) ({          \
+	     __typeof( ((type *)0)->member ) *__mptr = (ptr);   \
+	    (type *)(void *)( (char *)__mptr - ((size_t) &((type *)0)->member) );})
 #else
 /* type unsafe version */
 #define xge_container_of(ptr, type, member) \
-                ((type*)(void*)((char*)(ptr) - ((size_t) &((type *)0)->member)))
+	            ((type*)(void*)((char*)(ptr) - ((size_t) &((type *)0)->member)))
 #endif
 
 /**
  * xge_offsetof - Offset of the member in the containing structure.
- * @t:	struct name.
- * @m:	the name of the member within the struct.
+ * @t:  struct name.
+ * @m:  the name of the member within the struct.
  *
  * Return the offset of the member @m in the structure @t.
  */

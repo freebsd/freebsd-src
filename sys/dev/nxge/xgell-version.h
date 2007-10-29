@@ -26,20 +26,12 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    version.h
- *
- *  Description:  versioning file
- *
- *  Created:      3 September 2004
- */
-
 #ifndef XGELL_VERSION_H
 #define XGELL_VERSION_H
 
 #define XGELL_VERSION_MAJOR	"2"
 #define XGELL_VERSION_MINOR	"0"
-#define XGELL_VERSION_FIX	"7"
+#define XGELL_VERSION_FIX	"9"
 #define XGELL_VERSION_BUILD	GENERATED_BUILD_VERSION
 #define XGELL_VERSION           XGELL_VERSION_MAJOR"."XGELL_VERSION_MINOR"." \
 				GENERATED_BUILD_VERSION
