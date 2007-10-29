@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2007
+.Dd Oct 20, 2007
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -37,12 +37,15 @@ lines in your kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_GPT"
+.Cd "options GEOM_PART_MBR"
 .Ed
 .Pp
 The GEOM_PART_APM option adds support for the Apple Partition Map (APM)
-found on Apple Macintosh computers, and the GEOM_PART_GPT option adds
-support for the GUID Partition Table (GPT) found on Intel Itanium
-computers and Intel-based Macintosh computers.
+found on Apple Macintosh computers.
+The GEOM_PART_GPT option adds support for the GUID Partition Table (GPT)
+found on Intel Itanium computers and Intel-based Macintosh computers.
+The GEOM_PART_MBR option adds support for the Master Boot Record (MBR)
+found on PCs and used on many removable media.
 .Pp
 Usage of the
 .Xr gpart 8
@@ -88,6 +91,10 @@ utility:
 .Op Fl t Ar type
 .Op Fl f Ar flags
 .Ar geom
+.\" ==== SHOW ====
+.Nm
+.Cm show
+.Op Ar geom ...
 .\" ==== UNDO ====
 .Nm
 .Cm undo
@@ -223,6 +230,10 @@ Additional operational flags.
 See the section entitled "Operational flags" below for a discussion
 about its use.
 .El
+.\" ==== SHOW ====
+.It Cm show
+Show the current partition information of the specified geoms
+or all geoms if none are specified.
 .\" ==== UNDO ====
 .It Cm undo
 Revert any pending changes.
@@ -254,7 +265,7 @@ A FreeBSD partition that uses the BSD disklabel to sub-divide the
 partition into file systems.
 This is a legacy partition type and should not be used for the APM
 or GPT schemes.
-The scheme-specific types are "!FreeBSD" for APM, and
+The scheme-specific types are "!165" for MBR, "!FreeBSD" for APM, and
 "!516e7cb4-6ecf-11d6-8ff8-00022d09712b" for GPT.
 .It freebsd-swap
 A FreeBSD partition dedicated to swap space.
@@ -304,5 +315,11 @@ The
 .Nm
 utility appeared in
 .Fx 7.0 .
+.Sh BUGS
+The MBR partitioning scheme cannot yet be used to create a bootable
+MBR. 
+.Pp
+Support for the PC98 or Sun partitioning schemes is not yet present.
+The BSD disklabel is also not supported yet.
 .Sh AUTHORS
 .An Marcel Moolenaar Aq marcel@FreeBSD.org
