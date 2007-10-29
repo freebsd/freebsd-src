@@ -169,11 +169,11 @@ test_internalize_label(struct label *label, char *element_name,
  */
 COUNTER_DECL(bpfdesc_check_receive);
 static int
-test_bpfdesc_check_receive(struct bpf_d *bpf_d, struct label *bpflabel,
+test_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 
-	LABEL_CHECK(bpflabel, MAGIC_BPF);
+	LABEL_CHECK(dlabel, MAGIC_BPF);
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
 	COUNTER_INC(bpfdesc_check_receive);
 
@@ -182,23 +182,23 @@ test_bpfdesc_check_receive(struct bpf_d *bpf_d, struct label *bpflabel,
 
 COUNTER_DECL(bpfdesc_create);
 static void
-test_bpfdesc_create(struct ucred *cred, struct bpf_d *bpf_d,
-    struct label *bpflabel)
+test_bpfdesc_create(struct ucred *cred, struct bpf_d *d,
+    struct label *dlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(bpflabel, MAGIC_BPF);
+	LABEL_CHECK(dlabel, MAGIC_BPF);
 	COUNTER_INC(bpfdesc_create);
 }
 
 COUNTER_DECL(bpfdesc_create_mbuf);
 static void
-test_bpfdesc_create_mbuf(struct bpf_d *bpf_d, struct label *bpflabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
+test_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
+    struct mbuf *m, struct label *mlabel)
 {
 
-	LABEL_CHECK(bpflabel, MAGIC_BPF);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(dlabel, MAGIC_BPF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(bpfdesc_create_mbuf);
 }
 
@@ -388,11 +388,11 @@ test_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
 COUNTER_DECL(ifnet_check_transmit);
 static int
 test_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(ifnet_check_transmit);
 
 	return (0);
@@ -420,11 +420,11 @@ test_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
 COUNTER_DECL(ifnet_create_mbuf);
 static void
 test_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(ifnet_create_mbuf);
 }
 
@@ -590,22 +590,22 @@ test_ipq_match(struct mbuf *fragment, struct label *fragmentlabel,
 
 COUNTER_DECL(ipq_reassemble);
 static void
-test_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel,
-    struct mbuf *datagram, struct label *datagramlabel)
+test_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
+   struct label *mlabel)
 {
 
 	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
-	LABEL_CHECK(datagramlabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(ipq_reassemble);
 }
 
 COUNTER_DECL(ipq_update);
 static void
-test_ipq_update(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+test_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
 {
 
-	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
 	COUNTER_INC(ipq_update);
 }
@@ -765,33 +765,33 @@ test_mount_init_label(struct label *label)
 COUNTER_DECL(netatalk_aarp_send);
 static void
 test_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(netatalk_aarp_send);
 }
 
 COUNTER_DECL(netinet_arp_send);
 static void
 test_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(netinet_arp_send);
 }
 
 COUNTER_DECL(netinet_fragment);
 static void
-test_netinet_fragment(struct mbuf *datagram, struct label *datagramlabel,
-    struct mbuf *fragment, struct label *fragmentlabel)
+test_netinet_fragment(struct mbuf *m, struct label *mlabel,
+    struct mbuf *frag, struct label *fraglabel)
 {
 
-	LABEL_CHECK(datagramlabel, MAGIC_MBUF);
-	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
+	LABEL_CHECK(fraglabel, MAGIC_MBUF);
 	COUNTER_INC(netinet_fragment);
 }
 
@@ -818,11 +818,11 @@ test_netinet_icmp_replyinplace(struct mbuf *m, struct label *mlabel)
 COUNTER_DECL(netinet_igmp_send);
 static void
 test_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(netinet_igmp_send);
 }
 
@@ -838,22 +838,22 @@ test_netinet_tcp_reply(struct mbuf *m, struct label *mlabel)
 COUNTER_DECL(netinet6_nd6_send);
 static void
 test_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *mbuf, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(netinet6_nd6_send);
 }
 
 COUNTER_DECL(pipe_check_ioctl);
 static int
 test_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
+    struct label *pplabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_ioctl);
 
 	return (0);
@@ -862,11 +862,11 @@ test_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 COUNTER_DECL(pipe_check_poll);
 static int
 test_pipe_check_poll(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel)
+    struct label *pplabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_poll);
 
 	return (0);
@@ -875,11 +875,11 @@ test_pipe_check_poll(struct ucred *cred, struct pipepair *pp,
 COUNTER_DECL(pipe_check_read);
 static int
 test_pipe_check_read(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel)
+    struct label *pplabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_read);
 
 	return (0);
@@ -888,11 +888,11 @@ test_pipe_check_read(struct ucred *cred, struct pipepair *pp,
 COUNTER_DECL(pipe_check_relabel);
 static int
 test_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel, struct label *newlabel)
+    struct label *pplabel, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	LABEL_CHECK(newlabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_relabel);
 
@@ -902,11 +902,11 @@ test_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
 COUNTER_DECL(pipe_check_stat);
 static int
 test_pipe_check_stat(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel)
+    struct label *pplabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_stat);
 
 	return (0);
@@ -915,11 +915,11 @@ test_pipe_check_stat(struct ucred *cred, struct pipepair *pp,
 COUNTER_DECL(pipe_check_write);
 static int
 test_pipe_check_write(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel)
+    struct label *pplabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_check_write);
 
 	return (0);
@@ -938,11 +938,11 @@ test_pipe_copy_label(struct label *src, struct label *dest)
 COUNTER_DECL(pipe_create);
 static void
 test_pipe_create(struct ucred *cred, struct pipepair *pp,
-   struct label *pipelabel)
+   struct label *pplabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_create);
 }
 
@@ -979,11 +979,11 @@ test_pipe_init_label(struct label *label)
 COUNTER_DECL(pipe_relabel);
 static void
 test_pipe_relabel(struct ucred *cred, struct pipepair *pp,
-    struct label *pipelabel, struct label *newlabel)
+    struct label *pplabel, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(pipelabel, MAGIC_PIPE);
+	LABEL_CHECK(pplabel, MAGIC_PIPE);
 	LABEL_CHECK(newlabel, MAGIC_PIPE);
 	COUNTER_INC(pipe_relabel);
 }
@@ -1471,23 +1471,23 @@ test_socket_copy_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(socket_create);
 static void
-test_socket_create(struct ucred *cred, struct socket *socket,
-   struct label *socketlabel)
+test_socket_create(struct ucred *cred, struct socket *so,
+    struct label *solabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(socketlabel, MAGIC_SOCKET);
+	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	COUNTER_INC(socket_create);
 }
 
 COUNTER_DECL(socket_create_mbuf);
 static void
 test_socket_create_mbuf(struct socket *so, struct label *socketlabel,
-    struct mbuf *m, struct label *mbuflabel)
+    struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(socketlabel, MAGIC_SOCKET);
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(socket_create_mbuf);
 }
 
@@ -1529,23 +1529,23 @@ test_socket_init_label(struct label *label, int flag)
 
 COUNTER_DECL(socket_newconn);
 static void
-test_socket_newconn(struct socket *oldsocket,
-    struct label *oldsocketlabel, struct socket *newsocket,
-    struct label *newsocketlabel)
+test_socket_newconn(struct socket *oldso, struct label *oldsolabel,
+    struct socket *newso, struct label *newsolabel)
 {
 
-	LABEL_CHECK(oldsocketlabel, MAGIC_SOCKET);
-	LABEL_CHECK(newsocketlabel, MAGIC_SOCKET);
+	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	LABEL_CHECK(newsolabel, MAGIC_SOCKET);
 	COUNTER_INC(socket_newconn);
 }
 
 COUNTER_DECL(socket_relabel);
 static void
-test_socket_relabel(struct ucred *cred, struct socket *socket,
-    struct label *socketlabel, struct label *newlabel)
+test_socket_relabel(struct ucred *cred, struct socket *so,
+    struct label *solabel, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	LABEL_CHECK(newlabel, MAGIC_SOCKET);
 	COUNTER_INC(socket_relabel);
 }
@@ -1588,24 +1588,24 @@ test_socketpeer_init_label(struct label *label, int flag)
 
 COUNTER_DECL(socketpeer_set_from_mbuf);
 static void
-test_socketpeer_set_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
+test_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *socket, struct label *socketpeerlabel)
 {
 
-	LABEL_CHECK(mbuflabel, MAGIC_MBUF);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	LABEL_CHECK(socketpeerlabel, MAGIC_SOCKET);
 	COUNTER_INC(socketpeer_set_from_mbuf);
 }
 
 COUNTER_DECL(socketpeer_set_from_socket);
 static void
-test_socketpeer_set_from_socket(struct socket *oldsocket,
-    struct label *oldsocketlabel, struct socket *newsocket,
-    struct label *newsocketpeerlabel)
+test_socketpeer_set_from_socket(struct socket *oldso,
+    struct label *oldsolabel, struct socket *newso,
+    struct label *newsopeerlabel)
 {
 
-	LABEL_CHECK(oldsocketlabel, MAGIC_SOCKET);
-	LABEL_CHECK(newsocketpeerlabel, MAGIC_SOCKET);
+	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	LABEL_CHECK(newsopeerlabel, MAGIC_SOCKET);
 	COUNTER_INC(socketpeer_set_from_socket);
 }
 
