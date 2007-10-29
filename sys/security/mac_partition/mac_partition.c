@@ -69,78 +69,6 @@ static int	partition_slot;
 #define	SLOT(l)	mac_label_get((l), partition_slot)
 #define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
-static void
-partition_init_label(struct label *label)
-{
-
-	SLOT_SET(label, 0);
-}
-
-static void
-partition_destroy_label(struct label *label)
-{
-
-	SLOT_SET(label, 0);
-}
-
-static void
-partition_copy_label(struct label *src, struct label *dest)
-{
-
-	SLOT_SET(dest, SLOT(src));
-}
-
-static int
-partition_externalize_label(struct label *label, char *element_name,
-    struct sbuf *sb, int *claimed)
-{
-
-	if (strcmp(MAC_PARTITION_LABEL_NAME, element_name) != 0)
-		return (0);
-
-	(*claimed)++;
-
-	if (sbuf_printf(sb, "%jd", (intmax_t)SLOT(label)) == -1)
-		return (EINVAL);
-	else
-		return (0);
-}
-
-static int
-partition_internalize_label(struct label *label, char *element_name,
-    char *element_data, int *claimed)
-{
-
-	if (strcmp(MAC_PARTITION_LABEL_NAME, element_name) != 0)
-		return (0);
-
-	(*claimed)++;
-	SLOT_SET(label, strtol(element_data, NULL, 10));
-	return (0);
-}
-
-static void
-partition_proc_create_swapper(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
-}
-
-static void
-partition_proc_create_init(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
-}
-
-static void
-partition_cred_relabel(struct ucred *cred, struct label *newlabel)
-{
-
-	if (SLOT(newlabel) != 0)
-		SLOT_SET(cred->cr_label, SLOT(newlabel));
-}
-
 static int
 label_on_label(struct label *subject, struct label *object)
 {
@@ -157,6 +85,10 @@ label_on_label(struct label *subject, struct label *object)
 	return (EPERM);
 }
 
+/*
+ * Object-specific entry points are sorted alphabetically by object type name
+ * and then by operation.
+ */
 static int
 partition_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -188,6 +120,64 @@ partition_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 	return (error == 0 ? 0 : ESRCH);
 }
 
+static void
+partition_cred_copy_label(struct label *src, struct label *dest)
+{
+
+	SLOT_SET(dest, SLOT(src));
+}
+
+static void
+partition_cred_destroy_label(struct label *label)
+{
+
+	SLOT_SET(label, 0);
+}
+
+static int
+partition_cred_externalize_label(struct label *label, char *element_name,
+    struct sbuf *sb, int *claimed)
+{
+
+	if (strcmp(MAC_PARTITION_LABEL_NAME, element_name) != 0)
+		return (0);
+
+	(*claimed)++;
+
+	if (sbuf_printf(sb, "%jd", (intmax_t)SLOT(label)) == -1)
+		return (EINVAL);
+	else
+		return (0);
+}
+
+static void
+partition_cred_init_label(struct label *label)
+{
+
+	SLOT_SET(label, 0);
+}
+
+static int
+partition_cred_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	if (strcmp(MAC_PARTITION_LABEL_NAME, element_name) != 0)
+		return (0);
+
+	(*claimed)++;
+	SLOT_SET(label, strtol(element_data, NULL, 10));
+	return (0);
+}
+
+static void
+partition_cred_relabel(struct ucred *cred, struct label *newlabel)
+{
+
+	if (SLOT(newlabel) != 0)
+		SLOT_SET(cred->cr_label, SLOT(newlabel));
+}
+
 static int
 partition_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -217,6 +207,20 @@ partition_proc_check_signal(struct ucred *cred, struct proc *p,
 	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
+}
+
+static void
+partition_proc_create_init(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
+}
+
+static void
+partition_proc_create_swapper(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
 }
 
 static int
@@ -251,19 +255,19 @@ partition_vnode_check_exec(struct ucred *cred, struct vnode *vp,
 
 static struct mac_policy_ops partition_ops =
 {
-	.mpo_cred_init_label = partition_init_label,
-	.mpo_cred_destroy_label = partition_destroy_label,
-	.mpo_cred_copy_label = partition_copy_label,
-	.mpo_cred_externalize_label = partition_externalize_label,
-	.mpo_cred_internalize_label = partition_internalize_label,
-	.mpo_proc_create_swapper = partition_proc_create_swapper,
-	.mpo_proc_create_init = partition_proc_create_init,
-	.mpo_cred_relabel = partition_cred_relabel,
 	.mpo_cred_check_relabel = partition_cred_check_relabel,
 	.mpo_cred_check_visible = partition_cred_check_visible,
+	.mpo_cred_copy_label = partition_cred_copy_label,
+	.mpo_cred_destroy_label = partition_cred_destroy_label,
+	.mpo_cred_externalize_label = partition_cred_externalize_label,
+	.mpo_cred_init_label = partition_cred_init_label,
+	.mpo_cred_internalize_label = partition_cred_internalize_label,
+	.mpo_cred_relabel = partition_cred_relabel,
 	.mpo_proc_check_debug = partition_proc_check_debug,
 	.mpo_proc_check_sched = partition_proc_check_sched,
 	.mpo_proc_check_signal = partition_proc_check_signal,
+	.mpo_proc_create_init = partition_proc_create_init,
+	.mpo_proc_create_swapper = partition_proc_create_swapper,
 	.mpo_socket_check_visible = partition_socket_check_visible,
 	.mpo_vnode_check_exec = partition_vnode_check_exec,
 };
