@@ -164,6 +164,7 @@ struct tar {
 	struct sparse_block	*sparse_last;
 	int64_t			 sparse_offset;
 	int64_t			 sparse_numbytes;
+	int64_t			 sparse_realsize;
 	int			 sparse_gnu_major;
 	int			 sparse_gnu_minor;
 	char			 sparse_gnu_pending;
@@ -440,6 +441,7 @@ archive_read_format_tar_read_header(struct archive_read *a,
 		free(sp);
 	}
 	tar->sparse_last = NULL;
+	tar->sparse_realsize = -1; /* Mark this as "unset" */
 
 	r = tar_read_header(a, tar, entry);
 
@@ -1388,9 +1390,10 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		}
 		if (wcscmp(key, L"GNU.sparse.name") == 0)
 			archive_entry_copy_pathname_w(entry, value);
-		if (wcscmp(key, L"GNU.sparse.realsize") == 0)
-			archive_entry_set_size(entry,
-			    tar_atol10(value, wcslen(value)));
+		if (wcscmp(key, L"GNU.sparse.realsize") == 0) {
+			tar->sparse_realsize = tar_atol10(value, wcslen(value));
+			archive_entry_set_size(entry, tar->sparse_realsize);
+		}
 		break;
 	case 'L':
 		/* Our extensions */
@@ -1471,11 +1474,22 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		/* POSIX has reserved 'security.*' */
 		/* Someday: if (wcscmp(key, L"security.acl")==0) { ... } */
 		if (wcscmp(key, L"size")==0) {
-			tar->entry_bytes_remaining = tar_atol10(value, wcslen(value));
-			archive_entry_set_size(entry, tar->entry_bytes_remaining);
+			/* "size" is the size of the data in the entry. */
+			tar->entry_bytes_remaining
+			    = tar_atol10(value, wcslen(value));
+			/*
+			 * But, "size" is not necessarily the size of
+			 * the file on disk; if this is a sparse file,
+			 * the disk size may have already been set from
+			 * GNU.sparse.realsize.
+			 */
+			if (tar->sparse_realsize < 0) {
+				archive_entry_set_size(entry,
+				    tar->entry_bytes_remaining);
+				tar->sparse_realsize
+				    = tar->entry_bytes_remaining;
+			}
 		}
-		tar->entry_bytes_remaining = 0;
-
 		break;
 	case 'u':
 		if (wcscmp(key, L"uid")==0)
