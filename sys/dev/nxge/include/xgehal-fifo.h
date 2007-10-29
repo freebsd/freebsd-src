@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-fifo.h
- *
- *  Description:  Tx fifo object functionality
- *
- *  Created:      19 May 2004
- */
-
 #ifndef XGE_HAL_FIFO_H
 #define XGE_HAL_FIFO_H
 
@@ -44,11 +36,11 @@
 __EXTERN_BEGIN_DECLS
 
 /* HW fifo configuration */
-#define	XGE_HAL_FIFO_INT_PER_LIST_THRESHOLD	65
-#define XGE_HAL_FIFO_MAX_WRR			5
-#define XGE_HAL_FIFO_MAX_PARTITION		4
-#define XGE_HAL_FIFO_MAX_WRR_STATE		36
-#define XGE_HAL_FIFO_HW_PAIR_OFFSET		0x20000
+#define XGE_HAL_FIFO_INT_PER_LIST_THRESHOLD 65
+#define XGE_HAL_FIFO_MAX_WRR            5
+#define XGE_HAL_FIFO_MAX_PARTITION      4
+#define XGE_HAL_FIFO_MAX_WRR_STATE      36
+#define XGE_HAL_FIFO_HW_PAIR_OFFSET     0x20000
 
 /* HW FIFO Weight Calender */
 #define XGE_HAL_FIFO_WRR_0      0x0706050407030602ULL
@@ -77,14 +69,14 @@ typedef struct {
 
 
 /* Bad TxDL transfer codes */
-#define XGE_HAL_TXD_T_CODE_OK		        0x0
-#define XGE_HAL_TXD_T_CODE_UNUSED_1		0x1
-#define XGE_HAL_TXD_T_CODE_ABORT_BUFFER		0x2
-#define XGE_HAL_TXD_T_CODE_ABORT_DTOR		0x3
-#define XGE_HAL_TXD_T_CODE_UNUSED_5		0x5
-#define XGE_HAL_TXD_T_CODE_PARITY		0x7
-#define XGE_HAL_TXD_T_CODE_LOSS_OF_LINK		0xA
-#define XGE_HAL_TXD_T_CODE_GENERAL_ERR		0xF
+#define XGE_HAL_TXD_T_CODE_OK               0x0
+#define XGE_HAL_TXD_T_CODE_UNUSED_1     0x1
+#define XGE_HAL_TXD_T_CODE_ABORT_BUFFER     0x2
+#define XGE_HAL_TXD_T_CODE_ABORT_DTOR       0x3
+#define XGE_HAL_TXD_T_CODE_UNUSED_5     0x5
+#define XGE_HAL_TXD_T_CODE_PARITY       0x7
+#define XGE_HAL_TXD_T_CODE_LOSS_OF_LINK     0xA
+#define XGE_HAL_TXD_T_CODE_GENERAL_ERR      0xF
 
 
 /**
@@ -105,16 +97,16 @@ typedef struct {
 typedef struct xge_hal_fifo_txd_t {
 	u64 control_1;
 #define XGE_HAL_TXD_LIST_OWN_XENA       BIT(7)
-#define XGE_HAL_TXD_T_CODE		(BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define XGE_HAL_TXD_T_CODE      (BIT(12)|BIT(13)|BIT(14)|BIT(15))
 #define XGE_HAL_GET_TXD_T_CODE(val)     ((val & XGE_HAL_TXD_T_CODE)>>48)
 #define XGE_HAL_SET_TXD_T_CODE(x, val)  (x |= (((u64)val & 0xF) << 48))
 #define XGE_HAL_TXD_GATHER_CODE         (BIT(22) | BIT(23))
 #define XGE_HAL_TXD_GATHER_CODE_FIRST   BIT(22)
 #define XGE_HAL_TXD_GATHER_CODE_LAST    BIT(23)
-#define XGE_HAL_TXD_NO_LSO				0
-#define XGE_HAL_TXD_UDF_COF				1
-#define XGE_HAL_TXD_TCP_LSO				2
-#define XGE_HAL_TXD_UDP_LSO				3
+#define XGE_HAL_TXD_NO_LSO              0
+#define XGE_HAL_TXD_UDF_COF             1
+#define XGE_HAL_TXD_TCP_LSO             2
+#define XGE_HAL_TXD_UDP_LSO             3
 #define XGE_HAL_TXD_LSO_COF_CTRL(val)   vBIT(val,30,2)
 #define XGE_HAL_TXD_TCP_LSO_MSS(val)    vBIT(val,34,14)
 #define XGE_HAL_TXD_BUFFER0_SIZE(val)   vBIT(val,48,16)
@@ -165,17 +157,17 @@ typedef xge_hal_fifo_txd_t* xge_hal_fifo_txdl_t;
  * Note: The structure is cache line aligned.
  */
 typedef struct xge_hal_fifo_t {
-	xge_hal_channel_t	channel;
-	spinlock_t		*post_lock_ptr;
-	xge_hal_fifo_hw_pair_t	*hw_pair;
-	xge_hal_fifo_config_t	*config;
-	int			no_snoop_bits;
-	int			txdl_per_memblock;
-	u64			interrupt_type;
-	int			txdl_size;
-	int			priv_size;
-	xge_hal_mempool_t	*mempool;
-	int			align_size;
+	xge_hal_channel_t   channel;
+	spinlock_t      *post_lock_ptr;
+	xge_hal_fifo_hw_pair_t  *hw_pair;
+	xge_hal_fifo_config_t   *config;
+	int         no_snoop_bits;
+	int         txdl_per_memblock;
+	u64         interrupt_type;
+	int         txdl_size;
+	int         priv_size;
+	xge_hal_mempool_t   *mempool;
+	int         align_size;
 } __xge_os_attr_cacheline_aligned xge_hal_fifo_t;
 
 /**
@@ -228,30 +220,30 @@ typedef struct xge_hal_fifo_t {
  * See also: xge_hal_ring_rxd_priv_t{}.
  */
 typedef struct xge_hal_fifo_txdl_priv_t {
-	dma_addr_t				dma_addr;
-	pci_dma_h				dma_handle;
-	ptrdiff_t				dma_offset;
-	int					frags;
-	char					*align_vaddr_start;
-	char					*align_vaddr;
-	dma_addr_t				align_dma_addr;
-	pci_dma_h				align_dma_handle;
-	pci_dma_acc_h				align_dma_acch;
-	ptrdiff_t				align_dma_offset;
-	int					align_used_frags;
-	int					alloc_frags;
-	int					dang_frags;
-	unsigned int				bytes_sent;
-	int					unused;
-	xge_hal_fifo_txd_t			*dang_txdl;
-	struct xge_hal_fifo_txdl_priv_t		*next_txdl_priv;
-	xge_hal_fifo_txd_t			*first_txdp;
-	void					*memblock;
+	dma_addr_t              dma_addr;
+	pci_dma_h               dma_handle;
+	ptrdiff_t               dma_offset;
+	int                 frags;
+	char                    *align_vaddr_start;
+	char                    *align_vaddr;
+	dma_addr_t              align_dma_addr;
+	pci_dma_h               align_dma_handle;
+	pci_dma_acc_h               align_dma_acch;
+	ptrdiff_t               align_dma_offset;
+	int                 align_used_frags;
+	int                 alloc_frags;
+	int                 dang_frags;
+	unsigned int                bytes_sent;
+	int                 unused;
+	xge_hal_fifo_txd_t          *dang_txdl;
+	struct xge_hal_fifo_txdl_priv_t     *next_txdl_priv;
+	xge_hal_fifo_txd_t          *first_txdp;
+	void                    *memblock;
 #ifdef XGE_DEBUG_ASSERT
-	xge_hal_mempool_dma_t			*dma_object;
+	xge_hal_mempool_dma_t           *dma_object;
 #endif
 #ifdef XGE_OS_MEMORY_CHECK
-	int					allocated;
+	int                 allocated;
 #endif
 } xge_hal_fifo_txdl_priv_t;
 
@@ -268,7 +260,7 @@ xge_hal_fifo_get_max_frags_cnt(xge_hal_channel_h channelh)
 /* ========================= FIFO PRIVATE API ============================= */
 
 xge_hal_status_e __hal_fifo_open(xge_hal_channel_h channelh,
-			xge_hal_channel_attr_t *attr);
+	        xge_hal_channel_attr_t *attr);
 
 void __hal_fifo_close(xge_hal_channel_h channelh);
 
@@ -289,15 +281,19 @@ __hal_fifo_txdl_priv(xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 __hal_fifo_dtr_post_single(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			u64 ctrl_1);
+	        u64 ctrl_1);
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 __hal_fifo_txdl_restore_many(xge_hal_channel_h channelh,
-			  xge_hal_fifo_txd_t *txdp, int txdl_count);
+	          xge_hal_fifo_txd_t *txdp, int txdl_count);
 
 /* ========================= FIFO PUBLIC API ============================== */
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_dtr_reserve(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh);
+
+__HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
+xge_hal_fifo_dtr_reserve_many(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh,
+	                          const int frags);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void*
 xge_hal_fifo_dtr_private(xge_hal_dtr_h dtrh);
@@ -307,38 +303,38 @@ xge_hal_fifo_dtr_buffer_cnt(xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_dtr_reserve_sp(xge_hal_channel_h channel, int dtr_sp_size,
-			xge_hal_dtr_h dtr_sp);
+	        xge_hal_dtr_h dtr_sp);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
-xge_hal_fifo_dtr_post(xge_hal_channel_h	channelh, xge_hal_dtr_h dtrh);
+xge_hal_fifo_dtr_post(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 xge_hal_fifo_dtr_post_many(xge_hal_channel_h channelh, int num,
-			xge_hal_dtr_h dtrs[]);
+	        xge_hal_dtr_h dtrs[]);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_dtr_next_completed(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh,
-			u8 *t_code);
+	        u8 *t_code);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
-xge_hal_fifo_dtr_free(xge_hal_channel_h	channelh, xge_hal_dtr_h dtr);
+xge_hal_fifo_dtr_free(xge_hal_channel_h channelh, xge_hal_dtr_h dtr);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 xge_hal_fifo_dtr_buffer_set(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			int frag_idx, dma_addr_t dma_pointer, int size);
+	        int frag_idx, dma_addr_t dma_pointer, int size);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_dtr_buffer_set_aligned(xge_hal_channel_h channelh,
-			xge_hal_dtr_h dtrh, int frag_idx, void *vaddr,
-			dma_addr_t dma_pointer, int size, int misaligned_size);
+	        xge_hal_dtr_h dtrh, int frag_idx, void *vaddr,
+	        dma_addr_t dma_pointer, int size, int misaligned_size);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_dtr_buffer_append(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-		void *vaddr, int size);
+	    void *vaddr, int size);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 xge_hal_fifo_dtr_buffer_finalize(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-		int frag_idx);
+	    int frag_idx);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 xge_hal_fifo_dtr_mss_set(xge_hal_dtr_h dtrh, int mss);
@@ -347,7 +343,7 @@ __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
 xge_hal_fifo_dtr_cksum_set_bits(xge_hal_dtr_h dtrh, u64 cksum_bits);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO void
-xge_hal_fifo_dtr_vlan_set(xge_hal_dtr_h	dtrh, u16 vlan_tag);
+xge_hal_fifo_dtr_vlan_set(xge_hal_dtr_h dtrh, u16 vlan_tag);
 
 __HAL_STATIC_FIFO __HAL_INLINE_FIFO xge_hal_status_e
 xge_hal_fifo_is_next_dtr_completed(xge_hal_channel_h channelh);

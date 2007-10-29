@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-driver.h
- *
- *  Description:  HAL driver object functionality
- *
- *  Created:      14 May 2004
- */
-
 #ifndef XGE_HAL_DRIVER_H
 #define XGE_HAL_DRIVER_H
 
@@ -47,7 +39,7 @@
 __EXTERN_BEGIN_DECLS
 
 /* maximum number of events consumed in a syncle poll() cycle */
-#define XGE_HAL_DRIVER_QUEUE_CONSUME_MAX	5
+#define XGE_HAL_DRIVER_QUEUE_CONSUME_MAX    5
 
 
 /**
@@ -112,7 +104,7 @@ typedef void (*xge_uld_link_down_f) (void *userdata);
  * xge_hal_device_private_set(), xge_hal_driver_initialize().
  */
 typedef void (*xge_uld_crit_err_f) (void *userdata, xge_hal_event_e type,
-		u64 ext_data);
+	    u64 ext_data);
 
 /**
  * function xge_uld_event_queued_f - Event-enqueued notification
@@ -216,15 +208,15 @@ typedef void (*xge_uld_xpak_alarm_log_f) (xge_hal_device_h devh, xge_hal_xpak_al
  * See also: xge_hal_driver_initialize().
  */
 typedef struct xge_hal_uld_cbs_t {
-	xge_uld_link_up_f		link_up;
-	xge_uld_link_down_f		link_down;
-	xge_uld_crit_err_f		crit_err;
-	xge_uld_event_f			event;
-	xge_uld_event_queued_f		event_queued;
+	xge_uld_link_up_f       link_up;
+	xge_uld_link_down_f     link_down;
+	xge_uld_crit_err_f      crit_err;
+	xge_uld_event_f         event;
+	xge_uld_event_queued_f      event_queued;
 	xge_uld_before_device_poll_f    before_device_poll;
-	xge_uld_after_device_poll_f	after_device_poll;
-	xge_uld_sched_timer_cb_f	sched_timer;
-	xge_uld_xpak_alarm_log_f	xpak_alarm_log;
+	xge_uld_after_device_poll_f after_device_poll;
+	xge_uld_sched_timer_cb_f    sched_timer;
+	xge_uld_xpak_alarm_log_f    xpak_alarm_log;
 } xge_hal_uld_cbs_t;
 
 /**
@@ -238,19 +230,19 @@ typedef struct xge_hal_uld_cbs_t {
  * @uld_callbacks: Upper-layer driver callbacks. See xge_hal_uld_cbs_t{}.
  * @debug_module_mask: 32bit mask that defines which components of the
  * driver are to be traced. The trace-able components are:
- *	XGE_COMPONENT_HAL_CONFIG		0x1
- *	XGE_COMPONENT_HAL_FIFO			0x2
- *	XGE_COMPONENT_HAL_RING			0x4
- *	XGE_COMPONENT_HAL_CHANNEL		0x8
- *	XGE_COMPONENT_HAL_DEVICE		0x10
- *	XGE_COMPONENT_HAL_MM			0x20
- *	XGE_COMPONENT_HAL_QUEUE			0x40
- *	XGE_COMPONENT_HAL_STATS			0x100
- *	XGE_COMPONENT_OSDEP			0x1000
- *	XGE_COMPONENT_LL			0x2000
- *	XGE_COMPONENT_TOE			0x4000
- *	XGE_COMPONENT_RDMA			0x8000
- *	XGE_COMPONENT_ALL			0xffffffff
+ *  XGE_COMPONENT_HAL_CONFIG        0x1
+ *  XGE_COMPONENT_HAL_FIFO          0x2
+ *  XGE_COMPONENT_HAL_RING          0x4
+ *  XGE_COMPONENT_HAL_CHANNEL       0x8
+ *  XGE_COMPONENT_HAL_DEVICE        0x10
+ *  XGE_COMPONENT_HAL_MM            0x20
+ *  XGE_COMPONENT_HAL_QUEUE         0x40
+ *  XGE_COMPONENT_HAL_STATS         0x100
+ *  XGE_COMPONENT_OSDEP         0x1000
+ *  XGE_COMPONENT_LL            0x2000
+ *  XGE_COMPONENT_TOE           0x4000
+ *  XGE_COMPONENT_RDMA          0x8000
+ *  XGE_COMPONENT_ALL           0xffffffff
  * The @debug_module_mask allows to switch off and on tracing at runtime.
  * In addition, the traces for the same trace-able components can be
  * compiled out, based on the same mask provided via Makefile.
@@ -259,18 +251,18 @@ typedef struct xge_hal_uld_cbs_t {
  * HAL (driver) object. There is a single instance of this structure per HAL.
  */
 typedef struct xge_hal_driver_t {
-	xge_hal_driver_config_t		config;
+	xge_hal_driver_config_t     config;
 	int                             is_initialized;
 	xge_hal_uld_cbs_t               uld_callbacks;
-	u32				debug_module_mask;
-	int				debug_level;
+	u32             debug_module_mask;
+	int             debug_level;
 } xge_hal_driver_t;
 
 extern xge_hal_driver_t *g_xge_hal_driver;
 
 static inline int
 xge_hal_driver_is_initialized(void) {
-        return g_xge_hal_driver->is_initialized;
+	    return g_xge_hal_driver->is_initialized;
 }
 
 static inline int
@@ -283,7 +275,7 @@ static inline void
 xge_hal_driver_debug_module_mask_set(u32 new_mask)
 {
 #if (defined(XGE_DEBUG_TRACE_MASK) && XGE_DEBUG_TRACE_MASK > 0) || \
-    (defined(XGE_DEBUG_ERR_MASK) && XGE_DEBUG_ERR_MASK > 0)
+	(defined(XGE_DEBUG_ERR_MASK) && XGE_DEBUG_ERR_MASK > 0)
 	g_xge_hal_driver->debug_module_mask = new_mask;
 	g_module_mask = (unsigned long *)&g_xge_hal_driver->debug_module_mask;
 #endif
@@ -296,14 +288,14 @@ static inline void
 xge_hal_driver_debug_level_set(int new_level)
 {
 #if (defined(XGE_DEBUG_TRACE_MASK) && XGE_DEBUG_TRACE_MASK > 0) || \
-    (defined(XGE_DEBUG_ERR_MASK) && XGE_DEBUG_ERR_MASK > 0)
+	(defined(XGE_DEBUG_ERR_MASK) && XGE_DEBUG_ERR_MASK > 0)
 	g_xge_hal_driver->debug_level = new_level;
 	g_level = &g_xge_hal_driver->debug_level;
 #endif
 }
 
 xge_hal_status_e xge_hal_driver_initialize(xge_hal_driver_config_t *config,
-		xge_hal_uld_cbs_t *uld_callbacks);
+	    xge_hal_uld_cbs_t *uld_callbacks);
 
 void xge_hal_driver_terminate(void);
 
