@@ -117,6 +117,10 @@ ifnet_check_incoming(struct ifnet *ifp, int viabpf)
 	return (EPERM);
 }
 
+/*
+ * Object-specific entry point implementations are sorted alphabetically by
+ * object type and then by operation.
+ */
 static int
 ifoff_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)

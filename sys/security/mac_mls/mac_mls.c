@@ -736,711 +736,10 @@ mls_copy_label(struct label *src, struct label *dest)
 	*SLOT(dest) = *SLOT(src);
 }
 
-/*
- * Labeling event operations: file system objects, and things that look a lot
- * like file system objects.
- */
-static void
-mls_devfs_create_device(struct ucred *cred, struct mount *mp,
-    struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
-{
-	struct mac_mls *mm;
-	int mls_type;
-
-	mm = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
-		mls_type = MAC_MLS_TYPE_EQUAL;
-	else if (strcmp(dev->si_name, "kmem") == 0 ||
-	    strcmp(dev->si_name, "mem") == 0)
-		mls_type = MAC_MLS_TYPE_HIGH;
-	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
-		mls_type = MAC_MLS_TYPE_EQUAL;
-	else
-		mls_type = MAC_MLS_TYPE_LOW;
-	mls_set_effective(mm, mls_type, 0, NULL);
-}
-
-static void
-mls_devfs_create_directory(struct mount *mp, char *dirname, int dirnamelen,
-    struct devfs_dirent *de, struct label *delabel)
-{
-	struct mac_mls *mm;
-
-	mm = SLOT(delabel);
-	mls_set_effective(mm, MAC_MLS_TYPE_LOW, 0, NULL);
-}
-
-static void
-mls_devfs_create_symlink(struct ucred *cred, struct mount *mp,
-    struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
-    struct label *delabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(delabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_mount_create(struct ucred *cred, struct mount *mp, struct label *mplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(mplabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_vnode_relabel(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, struct label *label)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(label);
-	dest = SLOT(vplabel);
-
-	mls_copy(source, dest);
-}
-
-static void
-mls_devfs_update(struct mount *mp, struct devfs_dirent *de,
-    struct label *delabel, struct vnode *vp, struct label *vplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(vplabel);
-	dest = SLOT(delabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_devfs_vnode_associate(struct mount *mp, struct label *mplabel,
-    struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
-    struct label *vplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(delabel);
-	dest = SLOT(vplabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static int
-mls_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
-    struct vnode *vp, struct label *vplabel)
-{
-	struct mac_mls mm_temp, *source, *dest;
-	int buflen, error;
-
-	source = SLOT(mplabel);
-	dest = SLOT(vplabel);
-
-	buflen = sizeof(mm_temp);
-	bzero(&mm_temp, buflen);
-
-	error = vn_extattr_get(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
-	    MAC_MLS_EXTATTR_NAME, &buflen, (char *) &mm_temp, curthread);
-	if (error == ENOATTR || error == EOPNOTSUPP) {
-		/* Fall back to the mntlabel. */
-		mls_copy_effective(source, dest);
-		return (0);
-	} else if (error)
-		return (error);
-
-	if (buflen != sizeof(mm_temp)) {
-		printf("mls_vnode_associate_extattr: bad size %d\n", buflen);
-		return (EPERM);
-	}
-	if (mls_valid(&mm_temp) != 0) {
-		printf("mls_vnode_associate_extattr: invalid\n");
-		return (EPERM);
-	}
-	if ((mm_temp.mm_flags & MAC_MLS_FLAGS_BOTH) !=
-	    MAC_MLS_FLAG_EFFECTIVE) {
-		printf("mls_associated_vnode_extattr: not effective\n");
-		return (EPERM);
-	}
-
-	mls_copy_effective(&mm_temp, dest);
-	return (0);
-}
-
-static void
-mls_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
-    struct vnode *vp, struct label *vplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mplabel);
-	dest = SLOT(vplabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static int
-mls_vnode_create_extattr(struct ucred *cred, struct mount *mp,
-    struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
-    struct vnode *vp, struct label *vplabel, struct componentname *cnp)
-{
-	struct mac_mls *source, *dest, mm_temp;
-	size_t buflen;
-	int error;
-
-	buflen = sizeof(mm_temp);
-	bzero(&mm_temp, buflen);
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(vplabel);
-	mls_copy_effective(source, &mm_temp);
-
-	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
-	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &mm_temp, curthread);
-	if (error == 0)
-		mls_copy_effective(source, dest);
-	return (error);
-}
-
-static int
-mls_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, struct label *intlabel)
-{
-	struct mac_mls *source, mm_temp;
-	size_t buflen;
-	int error;
-
-	buflen = sizeof(mm_temp);
-	bzero(&mm_temp, buflen);
-
-	source = SLOT(intlabel);
-	if ((source->mm_flags & MAC_MLS_FLAG_EFFECTIVE) == 0)
-		return (0);
-
-	mls_copy_effective(source, &mm_temp);
-
-	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
-	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &mm_temp, curthread);
-	return (error);
-}
 
 /*
- * Labeling event operations: IPC object.
- */
-static void
-mls_inpcb_create(struct socket *so, struct label *solabel, struct inpcb *inp,
-    struct label *inplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(solabel);
-	dest = SLOT(inplabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_socket_create_mbuf(struct socket *so, struct label *solabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(solabel);
-	dest = SLOT(mlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_socket_create(struct ucred *cred, struct socket *so,
-    struct label *solabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(solabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_pipe_create(struct ucred *cred, struct pipepair *pp,
-    struct label *pplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(pplabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_posixsem_create(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(kslabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_socket_newconn(struct socket *oldso, struct label *oldsolabel,
-    struct socket *newso, struct label *newsolabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(oldsolabel);
-	dest = SLOT(newsolabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_socket_relabel(struct ucred *cred, struct socket *so,
-    struct label *solabel, struct label *newlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(newlabel);
-	dest = SLOT(solabel);
-
-	mls_copy(source, dest);
-}
-
-static void
-mls_pipe_relabel(struct ucred *cred, struct pipepair *pp,
-    struct label *pplabel, struct label *newlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(newlabel);
-	dest = SLOT(pplabel);
-
-	mls_copy(source, dest);
-}
-
-static void
-mls_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
-    struct socket *so, struct label *sopeerlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(sopeerlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-/*
- * Labeling event operations: System V IPC objects.
- */
-static void
-mls_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
-{
-	struct mac_mls *source, *dest;
-
-	/* Ignore the msgq label. */
-	source = SLOT(cred->cr_label);
-	dest = SLOT(msglabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(msqlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semalabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(semalabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(shmlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-/*
- * Labeling event operations: network objects.
- */
-static void
-mls_socketpeer_set_from_socket(struct socket *oldso,
-    struct label *oldsolabel, struct socket *newso,
-    struct label *newsopeerlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(oldsolabel);
-	dest = SLOT(newsopeerlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_bpfdesc_create(struct ucred *cred, struct bpf_d *d, struct label *dlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(cred->cr_label);
-	dest = SLOT(dlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
-{
-	struct mac_mls *dest;
-	int type;
-
-	dest = SLOT(ifplabel);
-
-	if (ifp->if_type == IFT_LOOP)
-		type = MAC_MLS_TYPE_EQUAL;
-	else
-		type = MAC_MLS_TYPE_LOW;
-
-	mls_set_effective(dest, type, 0, NULL);
-	mls_set_range(dest, type, 0, NULL, type, 0, NULL);
-}
-
-static void
-mls_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(ipqlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
-    struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(ipqlabel);
-	dest = SLOT(mlabel);
-
-	/* Just use the head, since we require them all to match. */
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_netinet_fragment(struct mbuf *m, struct label *mlabel, struct mbuf *frag,
-    struct label *fraglabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mlabel);
-	dest = SLOT(fraglabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(inplabel);
-	dest = SLOT(mlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(dlabel);
-	dest = SLOT(mlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(ifplabel);
-	dest = SLOT(mlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static int
-mls_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
-{
-	struct mac_mls *a, *b;
-
-	a = SLOT(ipqlabel);
-	b = SLOT(mlabel);
-
-	return (mls_equal_effective(a, b));
-}
-
-static void
-mls_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
-    struct label *ifplabel, struct label *newlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(newlabel);
-	dest = SLOT(ifplabel);
-
-	mls_copy(source, dest);
-}
-
-static void
-mls_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
-{
-
-	/* NOOP: we only accept matching labels, so no need to update */
-}
-
-static void
-mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
-    struct inpcb *inp, struct label *inplabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(solabel);
-	dest = SLOT(inplabel);
-
-	mls_copy(source, dest);
-}
-
-static void
-mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
-mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
-mls_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
-    struct mbuf *msend, struct label *msendlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mrecvlabel);
-	dest = SLOT(msendlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	/* XXX: where is the label for the firewall really comming from? */
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
-mls_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
-    struct mbuf *msend, struct label *msendlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(mrecvlabel);
-	dest = SLOT(msendlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
-mls_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
-mls_syncache_create(struct label *label, struct inpcb *inp)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(inp->inp_label);
-	dest = SLOT(label);
-
-	mls_copy_effective(source, dest);
-}
-
-static void
-mls_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
-    struct label *mlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(sc_label);
-	dest = SLOT(mlabel);
-
-	mls_copy_effective(source, dest);
-}
-
-/*
- * Labeling event operations: processes.
- */
-static void
-mls_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
-static void
-mls_proc_create_init(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
-static void
-mls_proc_associate_nfsd(struct ucred *cred) 
-{
-	struct mac_mls *label;
-
-	label = SLOT(cred->cr_label);
-	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
-static void
-mls_cred_relabel(struct ucred *cred, struct label *newlabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(newlabel);
-	dest = SLOT(cred->cr_label);
-
-	mls_copy(source, dest);
-}
-
-/*
- * Label cleanup/flush operations.
- */
-static void
-mls_sysvmsg_cleanup(struct label *msglabel)
-{
-
-	bzero(SLOT(msglabel), sizeof(struct mac_mls));
-}
-
-static void
-mls_sysvmsq_cleanup(struct label *msqlabel)
-{
-
-	bzero(SLOT(msqlabel), sizeof(struct mac_mls));
-}
-
-static void
-mls_sysvsem_cleanup(struct label *semalabel)
-{
-
-	bzero(SLOT(semalabel), sizeof(struct mac_mls));
-}
-
-static void
-mls_sysvshm_cleanup(struct label *shmlabel)
-{
-
-	bzero(SLOT(shmlabel), sizeof(struct mac_mls));
-}
-
-/*
- * Access control checks.
+ * Object-specific entry point implementations are sorted alphabetically by
+ * object type name and then by operation.
  */
 static int
 mls_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
@@ -1457,6 +756,29 @@ mls_bpfdesc_check_receive(struct bpf_d *d, struct label *dlabel,
 	if (mls_equal_effective(a, b))
 		return (0);
 	return (EACCES);
+}
+
+static void
+mls_bpfdesc_create(struct ucred *cred, struct bpf_d *d, struct label *dlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(dlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(dlabel);
+	dest = SLOT(mlabel);
+
+	mls_copy_effective(source, dest);
 }
 
 static int
@@ -1537,6 +859,90 @@ mls_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 	return (0);
 }
 
+static void
+mls_cred_relabel(struct ucred *cred, struct label *newlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(newlabel);
+	dest = SLOT(cred->cr_label);
+
+	mls_copy(source, dest);
+}
+
+static void
+mls_devfs_create_device(struct ucred *cred, struct mount *mp,
+    struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
+{
+	struct mac_mls *mm;
+	int mls_type;
+
+	mm = SLOT(delabel);
+	if (strcmp(dev->si_name, "null") == 0 ||
+	    strcmp(dev->si_name, "zero") == 0 ||
+	    strcmp(dev->si_name, "random") == 0 ||
+	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+		mls_type = MAC_MLS_TYPE_EQUAL;
+	else if (strcmp(dev->si_name, "kmem") == 0 ||
+	    strcmp(dev->si_name, "mem") == 0)
+		mls_type = MAC_MLS_TYPE_HIGH;
+	else if (ptys_equal &&
+	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+		mls_type = MAC_MLS_TYPE_EQUAL;
+	else
+		mls_type = MAC_MLS_TYPE_LOW;
+	mls_set_effective(mm, mls_type, 0, NULL);
+}
+
+static void
+mls_devfs_create_directory(struct mount *mp, char *dirname, int dirnamelen,
+    struct devfs_dirent *de, struct label *delabel)
+{
+	struct mac_mls *mm;
+
+	mm = SLOT(delabel);
+	mls_set_effective(mm, MAC_MLS_TYPE_LOW, 0, NULL);
+}
+
+static void
+mls_devfs_create_symlink(struct ucred *cred, struct mount *mp,
+    struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
+    struct label *delabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(delabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_devfs_update(struct mount *mp, struct devfs_dirent *de,
+    struct label *delabel, struct vnode *vp, struct label *vplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(vplabel);
+	dest = SLOT(delabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_devfs_vnode_associate(struct mount *mp, struct label *mplabel,
+    struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
+    struct label *vplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(delabel);
+	dest = SLOT(vplabel);
+
+	mls_copy_effective(source, dest);
+}
+
 static int
 mls_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
@@ -1578,6 +984,47 @@ mls_ifnet_check_transmit(struct ifnet *ifp, struct label *ifplabel,
 	return (mls_effective_in_range(p, i) ? 0 : EACCES);
 }
 
+static void
+mls_ifnet_create(struct ifnet *ifp, struct label *ifplabel)
+{
+	struct mac_mls *dest;
+	int type;
+
+	dest = SLOT(ifplabel);
+
+	if (ifp->if_type == IFT_LOOP)
+		type = MAC_MLS_TYPE_EQUAL;
+	else
+		type = MAC_MLS_TYPE_LOW;
+
+	mls_set_effective(dest, type, 0, NULL);
+	mls_set_range(dest, type, 0, NULL, type, 0, NULL);
+}
+
+static void
+mls_ifnet_create_mbuf(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(ifplabel);
+	dest = SLOT(mlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+    struct label *ifplabel, struct label *newlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(newlabel);
+	dest = SLOT(ifplabel);
+
+	mls_copy(source, dest);
+}
+
 static int
 mls_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
@@ -1593,276 +1040,85 @@ mls_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
 	return (mls_equal_effective(p, i) ? 0 : EACCES);
 }
 
-static int
-mls_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr,
-    struct label *msglabel)
+static void
+mls_inpcb_create(struct socket *so, struct label *solabel, struct inpcb *inp,
+    struct label *inplabel)
 {
-	struct mac_mls *subj, *obj;
+	struct mac_mls *source, *dest;
 
-	if (!mls_enabled)
-		return (0);
+	source = SLOT(solabel);
+	dest = SLOT(inplabel);
 
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msglabel);
+	mls_copy_effective(source, dest);
+}
 
-	if (!mls_dominate_effective(subj, obj))
-		return (EACCES);
+static void
+mls_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
 
-	return (0);
+	source = SLOT(inplabel);
+	dest = SLOT(mlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+    struct inpcb *inp, struct label *inplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(solabel);
+	dest = SLOT(inplabel);
+
+	mls_copy(source, dest);
+}
+
+static void
+mls_ipq_create(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(ipqlabel);
+
+	mls_copy_effective(source, dest);
 }
 
 static int
-mls_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
-    struct label *msglabel)
+mls_ipq_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
 {
-	struct mac_mls *subj, *obj;
+	struct mac_mls *a, *b;
 
-	if (!mls_enabled)
-		return (0);
+	a = SLOT(ipqlabel);
+	b = SLOT(mlabel);
 
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msglabel);
-
-	if (!mls_dominate_effective(obj, subj))
-		return (EACCES);
-
-	return (0);
+	return (mls_equal_effective(a, b));
 }
 
-static int
-mls_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
+static void
+mls_ipq_reassemble(struct ipq *ipq, struct label *ipqlabel, struct mbuf *m,
+    struct label *mlabel)
 {
-	struct mac_mls *subj, *obj;
+	struct mac_mls *source, *dest;
 
-	if (!mls_enabled)
-		return (0);
+	source = SLOT(ipqlabel);
+	dest = SLOT(mlabel);
 
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msqklabel);
-
-	if (!mls_dominate_effective(subj, obj))
-		return (EACCES);
-
-	return (0);
+	/* Just use the head, since we require them all to match. */
+	mls_copy_effective(source, dest);
 }
 
-static int
-mls_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
+static void
+mls_ipq_update(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+    struct label *ipqlabel)
 {
-	struct mac_mls *subj, *obj;
 
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msqklabel);
-
-	if (!mls_dominate_effective(obj, subj))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
-mls_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msqklabel);
-
-	if (!mls_dominate_effective(subj, obj))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
-mls_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
-    struct label *msqklabel, int cmd)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(msqklabel);
-
-	switch(cmd) {
-	case IPC_RMID:
-	case IPC_SET:
-		if (!mls_dominate_effective(obj, subj))
-			return (EACCES);
-		break;
-
-	case IPC_STAT:
-		if (!mls_dominate_effective(subj, obj))
-			return (EACCES);
-		break;
-
-	default:
-		return (EACCES);
-	}
-
-	return (0);
-}
-
-static int
-mls_sysvsem_check_semctl(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel, int cmd)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(semaklabel);
-
-	switch(cmd) {
-	case IPC_RMID:
-	case IPC_SET:
-	case SETVAL:
-	case SETALL:
-		if (!mls_dominate_effective(obj, subj))
-			return (EACCES);
-		break;
-
-	case IPC_STAT:
-	case GETVAL:
-	case GETPID:
-	case GETNCNT:
-	case GETZCNT:
-	case GETALL:
-		if (!mls_dominate_effective(subj, obj))
-			return (EACCES);
-		break;
-
-	default:
-		return (EACCES);
-	}
-
-	return (0);
-}
-
-static int
-mls_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(semaklabel);
-
-	if (!mls_dominate_effective(subj, obj))
-		return (EACCES);
-
-	return (0);
-}
-
-static int
-mls_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
-    struct label *semaklabel, size_t accesstype)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(semaklabel);
-
-	if( accesstype & SEM_R )
-		if (!mls_dominate_effective(subj, obj))
-			return (EACCES);
-
-	if( accesstype & SEM_A )
-		if (!mls_dominate_effective(obj, subj))
-			return (EACCES);
-
-	return (0);
-}
-
-static int
-mls_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int shmflg)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(shmseglabel);
-
-	if (!mls_dominate_effective(subj, obj))
-		return (EACCES);
-	if ((shmflg & SHM_RDONLY) == 0) {
-		if (!mls_dominate_effective(obj, subj))
-			return (EACCES);
-	}
-	
-	return (0);
-}
-
-static int
-mls_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int cmd)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(shmseglabel);
-
-	switch(cmd) {
-	case IPC_RMID:
-	case IPC_SET:
-		if (!mls_dominate_effective(obj, subj))
-			return (EACCES);
-		break;
-
-	case IPC_STAT:
-	case SHM_STAT:
-		if (!mls_dominate_effective(subj, obj))
-			return (EACCES);
-		break;
-
-	default:
-		return (EACCES);
-	}
-
-	return (0);
-}
-
-static int
-mls_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
-    struct label *shmseglabel, int shmflg)
-{
-	struct mac_mls *subj, *obj;
-
-	if (!mls_enabled)
-		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(shmseglabel);
-
-	if (!mls_dominate_effective(obj, subj))
-		return (EACCES);
-
-	return (0);
+	/* NOOP: we only accept matching labels, so no need to update */
 }
 
 static int
@@ -1881,6 +1137,108 @@ mls_mount_check_stat(struct ucred *cred, struct mount *mp,
 		return (EACCES);
 
 	return (0);
+}
+
+static void
+mls_mount_create(struct ucred *cred, struct mount *mp, struct label *mplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(mplabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_firewall_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_netinet_firewall_send(struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	/* XXX: where is the label for the firewall really comming from? */
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet_fragment(struct mbuf *m, struct label *mlabel, struct mbuf *frag,
+    struct label *fraglabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(fraglabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_netinet_icmp_reply(struct mbuf *mrecv, struct label *mrecvlabel,
+    struct mbuf *msend, struct label *msendlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mrecvlabel);
+	dest = SLOT(msendlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_netinet_igmp_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+}
+
+static void
+mls_netinet6_nd6_send(struct ifnet *ifp, struct label *ifplabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(mlabel);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 
 static int
@@ -2019,22 +1377,28 @@ mls_pipe_check_write(struct ucred *cred, struct pipepair *pp,
 	return (0);
 }
 
-static int
-mls_posixsem_check_write(struct ucred *cred, struct ksem *ks,
-    struct label *kslabel)
+static void
+mls_pipe_create(struct ucred *cred, struct pipepair *pp,
+    struct label *pplabel)
 {
-	struct mac_mls *subj, *obj;
+	struct mac_mls *source, *dest;
 
-	if (!mls_enabled)
-		return (0);
+	source = SLOT(cred->cr_label);
+	dest = SLOT(pplabel);
 
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(kslabel);
+	mls_copy_effective(source, dest);
+}
 
-	if (!mls_dominate_effective(obj, subj))
-		return (EACCES);
+static void
+mls_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+    struct label *pplabel, struct label *newlabel)
+{
+	struct mac_mls *source, *dest;
 
-	return (0);
+	source = SLOT(newlabel);
+	dest = SLOT(pplabel);
+
+	mls_copy(source, dest);
 }
 
 static int
@@ -2053,6 +1417,47 @@ mls_posixsem_check_rdonly(struct ucred *cred, struct ksem *ks,
 		return (EACCES);
 
 	return (0);
+}
+
+static int
+mls_posixsem_check_write(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(kslabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static void
+mls_posixsem_create(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(kslabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_proc_associate_nfsd(struct ucred *cred) 
+{
+	struct mac_mls *label;
+
+	label = SLOT(cred->cr_label);
+	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
 }
 
 static int
@@ -2113,6 +1518,30 @@ mls_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 		return (EACCES);
 
 	return (0);
+}
+
+static void
+mls_proc_create_init(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
+static void
+mls_proc_create_swapper(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
 }
 
 static int
@@ -2199,6 +1628,102 @@ mls_socket_check_visible(struct ucred *cred, struct socket *so,
 	return (0);
 }
 
+static void
+mls_socket_create(struct ucred *cred, struct socket *so,
+    struct label *solabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(solabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_socket_create_mbuf(struct socket *so, struct label *solabel,
+    struct mbuf *m, struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(solabel);
+	dest = SLOT(mlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_socket_newconn(struct socket *oldso, struct label *oldsolabel,
+    struct socket *newso, struct label *newsolabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(oldsolabel);
+	dest = SLOT(newsolabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_socket_relabel(struct ucred *cred, struct socket *so,
+    struct label *solabel, struct label *newlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(newlabel);
+	dest = SLOT(solabel);
+
+	mls_copy(source, dest);
+}
+
+static void
+mls_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
+    struct socket *so, struct label *sopeerlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(sopeerlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_socketpeer_set_from_socket(struct socket *oldso,
+    struct label *oldsolabel, struct socket *newso,
+    struct label *newsopeerlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(oldsolabel);
+	dest = SLOT(newsopeerlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_syncache_create(struct label *label, struct inpcb *inp)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(inp->inp_label);
+	dest = SLOT(label);
+
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_syncache_create_mbuf(struct label *sc_label, struct mbuf *m,
+    struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(sc_label);
+	dest = SLOT(mlabel);
+
+	mls_copy_effective(source, dest);
+}
+
 static int
 mls_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
@@ -2254,6 +1779,407 @@ mls_system_check_swapon(struct ucred *cred, struct vnode *vp,
 		return (EACCES);
 
 	return (0);
+}
+
+static void
+mls_sysvmsg_cleanup(struct label *msglabel)
+{
+
+	bzero(SLOT(msglabel), sizeof(struct mac_mls));
+}
+
+static void
+mls_sysvmsg_create(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
+{
+	struct mac_mls *source, *dest;
+
+	/* Ignore the msgq label. */
+	source = SLOT(cred->cr_label);
+	dest = SLOT(msglabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msglabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msglabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel, int cmd)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+static void
+mls_sysvmsq_cleanup(struct label *msqlabel)
+{
+
+	bzero(SLOT(msqlabel), sizeof(struct mac_mls));
+}
+
+static void
+mls_sysvmsq_create(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(msqlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_sysvsem_check_semctl(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, int cmd)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+	case SETVAL:
+	case SETALL:
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+	case GETVAL:
+	case GETPID:
+	case GETNCNT:
+	case GETZCNT:
+	case GETALL:
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mls_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, size_t accesstype)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	if( accesstype & SEM_R )
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+
+	if( accesstype & SEM_A )
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+
+	return (0);
+}
+
+static void
+mls_sysvsem_cleanup(struct label *semalabel)
+{
+
+	bzero(SLOT(semalabel), sizeof(struct mac_mls));
+}
+
+static void
+mls_sysvsem_create(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semalabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(semalabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+	if ((shmflg & SHM_RDONLY) == 0) {
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+	}
+	
+	return (0);
+}
+
+static int
+mls_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int cmd)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+		if (!mls_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+	case SHM_STAT:
+		if (!mls_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mls_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	if (!mls_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static void
+mls_sysvshm_cleanup(struct label *shmlabel)
+{
+
+	bzero(SLOT(shmlabel), sizeof(struct mac_mls));
+}
+
+static void
+mls_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_vnode_associate_extattr(struct mount *mp, struct label *mplabel,
+    struct vnode *vp, struct label *vplabel)
+{
+	struct mac_mls mm_temp, *source, *dest;
+	int buflen, error;
+
+	source = SLOT(mplabel);
+	dest = SLOT(vplabel);
+
+	buflen = sizeof(mm_temp);
+	bzero(&mm_temp, buflen);
+
+	error = vn_extattr_get(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, &buflen, (char *) &mm_temp, curthread);
+	if (error == ENOATTR || error == EOPNOTSUPP) {
+		/* Fall back to the mntlabel. */
+		mls_copy_effective(source, dest);
+		return (0);
+	} else if (error)
+		return (error);
+
+	if (buflen != sizeof(mm_temp)) {
+		printf("mls_vnode_associate_extattr: bad size %d\n", buflen);
+		return (EPERM);
+	}
+	if (mls_valid(&mm_temp) != 0) {
+		printf("mls_vnode_associate_extattr: invalid\n");
+		return (EPERM);
+	}
+	if ((mm_temp.mm_flags & MAC_MLS_FLAGS_BOTH) !=
+	    MAC_MLS_FLAG_EFFECTIVE) {
+		printf("mls_associated_vnode_extattr: not effective\n");
+		return (EPERM);
+	}
+
+	mls_copy_effective(&mm_temp, dest);
+	return (0);
+}
+
+static void
+mls_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
+    struct vnode *vp, struct label *vplabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mplabel);
+	dest = SLOT(vplabel);
+
+	mls_copy_effective(source, dest);
 }
 
 static int
@@ -2890,149 +2816,229 @@ mls_vnode_check_write(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
+static int
+mls_vnode_create_extattr(struct ucred *cred, struct mount *mp,
+    struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
+    struct vnode *vp, struct label *vplabel, struct componentname *cnp)
+{
+	struct mac_mls *source, *dest, mm_temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(mm_temp);
+	bzero(&mm_temp, buflen);
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(vplabel);
+	mls_copy_effective(source, &mm_temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &mm_temp, curthread);
+	if (error == 0)
+		mls_copy_effective(source, dest);
+	return (error);
+}
+
+static void
+mls_vnode_relabel(struct ucred *cred, struct vnode *vp,
+    struct label *vplabel, struct label *label)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(label);
+	dest = SLOT(vplabel);
+
+	mls_copy(source, dest);
+}
+
+static int
+mls_vnode_setlabel_extattr(struct ucred *cred, struct vnode *vp,
+    struct label *vplabel, struct label *intlabel)
+{
+	struct mac_mls *source, mm_temp;
+	size_t buflen;
+	int error;
+
+	buflen = sizeof(mm_temp);
+	bzero(&mm_temp, buflen);
+
+	source = SLOT(intlabel);
+	if ((source->mm_flags & MAC_MLS_FLAG_EFFECTIVE) == 0)
+		return (0);
+
+	mls_copy_effective(source, &mm_temp);
+
+	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_MLS_EXTATTR_NAMESPACE,
+	    MAC_MLS_EXTATTR_NAME, buflen, (char *) &mm_temp, curthread);
+	return (error);
+}
+
 static struct mac_policy_ops mls_ops =
 {
 	.mpo_init = mls_init,
-	.mpo_bpfdesc_init_label = mls_init_label,
-	.mpo_cred_init_label = mls_init_label,
-	.mpo_devfs_init_label = mls_init_label,
-	.mpo_ifnet_init_label = mls_init_label,
-	.mpo_inpcb_init_label = mls_init_label_waitcheck,
-	.mpo_syncache_init_label = mls_init_label_waitcheck,
-	.mpo_sysvmsg_init_label = mls_init_label,
-	.mpo_sysvmsq_init_label = mls_init_label,
-	.mpo_sysvsem_init_label = mls_init_label,
-	.mpo_sysvshm_init_label = mls_init_label,
-	.mpo_ipq_init_label = mls_init_label_waitcheck,
-	.mpo_mbuf_init_label = mls_init_label_waitcheck,
-	.mpo_mount_init_label = mls_init_label,
-	.mpo_pipe_init_label = mls_init_label,
-	.mpo_posixsem_init_label = mls_init_label,
-	.mpo_socket_init_label = mls_init_label_waitcheck,
-	.mpo_socketpeer_init_label = mls_init_label_waitcheck,
-	.mpo_vnode_init_label = mls_init_label,
+
+	.mpo_bpfdesc_check_receive = mls_bpfdesc_check_receive,
+	.mpo_bpfdesc_create = mls_bpfdesc_create,
+	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
 	.mpo_bpfdesc_destroy_label = mls_destroy_label,
-	.mpo_cred_destroy_label = mls_destroy_label,
-	.mpo_devfs_destroy_label = mls_destroy_label,
-	.mpo_ifnet_destroy_label = mls_destroy_label,
-	.mpo_inpcb_destroy_label = mls_destroy_label,
-	.mpo_syncache_destroy_label = mls_destroy_label,
-	.mpo_sysvmsg_destroy_label = mls_destroy_label,
-	.mpo_sysvmsq_destroy_label = mls_destroy_label,
-	.mpo_sysvsem_destroy_label = mls_destroy_label,
-	.mpo_sysvshm_destroy_label = mls_destroy_label,
-	.mpo_ipq_destroy_label = mls_destroy_label,
-	.mpo_mbuf_destroy_label = mls_destroy_label,
-	.mpo_mount_destroy_label = mls_destroy_label,
-	.mpo_pipe_destroy_label = mls_destroy_label,
-	.mpo_posixsem_destroy_label = mls_destroy_label,
-	.mpo_socket_destroy_label = mls_destroy_label,
-	.mpo_socketpeer_destroy_label = mls_destroy_label,
-	.mpo_vnode_destroy_label = mls_destroy_label,
+	.mpo_bpfdesc_init_label = mls_init_label,
+
+	.mpo_cred_check_relabel = mls_cred_check_relabel,
+	.mpo_cred_check_visible = mls_cred_check_visible,
 	.mpo_cred_copy_label = mls_copy_label,
-	.mpo_ifnet_copy_label = mls_copy_label,
-	.mpo_mbuf_copy_label = mls_copy_label,
-	.mpo_pipe_copy_label = mls_copy_label,
-	.mpo_socket_copy_label = mls_copy_label,
-	.mpo_vnode_copy_label = mls_copy_label,
+	.mpo_cred_destroy_label = mls_destroy_label,
 	.mpo_cred_externalize_label = mls_externalize_label,
-	.mpo_ifnet_externalize_label = mls_externalize_label,
-	.mpo_pipe_externalize_label = mls_externalize_label,
-	.mpo_socket_externalize_label = mls_externalize_label,
-	.mpo_socketpeer_externalize_label = mls_externalize_label,
-	.mpo_vnode_externalize_label = mls_externalize_label,
+	.mpo_cred_init_label = mls_init_label,
 	.mpo_cred_internalize_label = mls_internalize_label,
-	.mpo_ifnet_internalize_label = mls_internalize_label,
-	.mpo_pipe_internalize_label = mls_internalize_label,
-	.mpo_socket_internalize_label = mls_internalize_label,
-	.mpo_vnode_internalize_label = mls_internalize_label,
+	.mpo_cred_relabel = mls_cred_relabel,
+
 	.mpo_devfs_create_device = mls_devfs_create_device,
 	.mpo_devfs_create_directory = mls_devfs_create_directory,
 	.mpo_devfs_create_symlink = mls_devfs_create_symlink,
-	.mpo_mount_create = mls_mount_create,
-	.mpo_vnode_relabel = mls_vnode_relabel,
+	.mpo_devfs_destroy_label = mls_destroy_label,
+	.mpo_devfs_init_label = mls_init_label,
 	.mpo_devfs_update = mls_devfs_update,
 	.mpo_devfs_vnode_associate = mls_devfs_vnode_associate,
-	.mpo_vnode_associate_extattr = mls_vnode_associate_extattr,
-	.mpo_vnode_associate_singlelabel = mls_vnode_associate_singlelabel,
-	.mpo_vnode_create_extattr = mls_vnode_create_extattr,
-	.mpo_vnode_setlabel_extattr = mls_vnode_setlabel_extattr,
-	.mpo_socket_create_mbuf = mls_socket_create_mbuf,
-	.mpo_syncache_create_mbuf = mls_syncache_create_mbuf,
-	.mpo_pipe_create = mls_pipe_create,
-	.mpo_posixsem_create = mls_posixsem_create,
-	.mpo_socket_create = mls_socket_create,
-	.mpo_socket_newconn = mls_socket_newconn,
-	.mpo_pipe_relabel = mls_pipe_relabel,
-	.mpo_socket_relabel = mls_socket_relabel,
-	.mpo_socketpeer_set_from_mbuf = mls_socketpeer_set_from_mbuf,
-	.mpo_socketpeer_set_from_socket = mls_socketpeer_set_from_socket,
-	.mpo_bpfdesc_create = mls_bpfdesc_create,
-	.mpo_ipq_reassemble = mls_ipq_reassemble,
-	.mpo_netinet_fragment = mls_netinet_fragment,
-	.mpo_ifnet_create = mls_ifnet_create,
-	.mpo_inpcb_create = mls_inpcb_create,
-	.mpo_syncache_create = mls_syncache_create,
-	.mpo_ipq_create = mls_ipq_create,
-	.mpo_sysvmsg_create = mls_sysvmsg_create,
-	.mpo_sysvmsq_create = mls_sysvmsq_create,
-	.mpo_sysvsem_create = mls_sysvsem_create,
-	.mpo_sysvshm_create = mls_sysvshm_create,
-	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
-	.mpo_bpfdesc_create_mbuf = mls_bpfdesc_create_mbuf,
-	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
-	.mpo_ipq_match = mls_ipq_match,
-	.mpo_ifnet_relabel = mls_ifnet_relabel,
-	.mpo_ipq_update = mls_ipq_update,
-	.mpo_inpcb_sosetlabel = mls_inpcb_sosetlabel,
-	.mpo_proc_create_swapper = mls_proc_create_swapper,
-	.mpo_proc_create_init = mls_proc_create_init,
-	.mpo_proc_associate_nfsd = mls_proc_associate_nfsd,
-	.mpo_cred_relabel = mls_cred_relabel,
-	.mpo_sysvmsg_cleanup = mls_sysvmsg_cleanup,
-	.mpo_sysvmsq_cleanup = mls_sysvmsq_cleanup,
-	.mpo_sysvsem_cleanup = mls_sysvsem_cleanup,
-	.mpo_sysvshm_cleanup = mls_sysvshm_cleanup,
-	.mpo_bpfdesc_check_receive = mls_bpfdesc_check_receive,
-	.mpo_cred_check_relabel = mls_cred_check_relabel,
-	.mpo_cred_check_visible = mls_cred_check_visible,
+
 	.mpo_ifnet_check_relabel = mls_ifnet_check_relabel,
 	.mpo_ifnet_check_transmit = mls_ifnet_check_transmit,
+	.mpo_ifnet_copy_label = mls_copy_label,
+	.mpo_ifnet_create = mls_ifnet_create,
+	.mpo_ifnet_create_mbuf = mls_ifnet_create_mbuf,
+	.mpo_ifnet_destroy_label = mls_destroy_label,
+	.mpo_ifnet_externalize_label = mls_externalize_label,
+	.mpo_ifnet_init_label = mls_init_label,
+	.mpo_ifnet_internalize_label = mls_internalize_label,
+	.mpo_ifnet_relabel = mls_ifnet_relabel,
+
 	.mpo_inpcb_check_deliver = mls_inpcb_check_deliver,
-	.mpo_sysvmsq_check_msgrcv = mls_sysvmsq_check_msgrcv,
-	.mpo_sysvmsq_check_msgrmid = mls_sysvmsq_check_msgrmid,
-	.mpo_sysvmsq_check_msqget = mls_sysvmsq_check_msqget,
-	.mpo_sysvmsq_check_msqsnd = mls_sysvmsq_check_msqsnd,
-	.mpo_sysvmsq_check_msqrcv = mls_sysvmsq_check_msqrcv,
-	.mpo_sysvmsq_check_msqctl = mls_sysvmsq_check_msqctl,
-	.mpo_sysvsem_check_semctl = mls_sysvsem_check_semctl,
-	.mpo_sysvsem_check_semget = mls_sysvsem_check_semget,
-	.mpo_sysvsem_check_semop = mls_sysvsem_check_semop,
-	.mpo_sysvshm_check_shmat = mls_sysvshm_check_shmat,
-	.mpo_sysvshm_check_shmctl = mls_sysvshm_check_shmctl,
-	.mpo_sysvshm_check_shmget = mls_sysvshm_check_shmget,
+	.mpo_inpcb_create = mls_inpcb_create,
+	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
+	.mpo_inpcb_destroy_label = mls_destroy_label,
+	.mpo_inpcb_init_label = mls_init_label_waitcheck,
+	.mpo_inpcb_sosetlabel = mls_inpcb_sosetlabel,
+
+	.mpo_ipq_create = mls_ipq_create,
+	.mpo_ipq_destroy_label = mls_destroy_label,
+	.mpo_ipq_init_label = mls_init_label_waitcheck,
+	.mpo_ipq_match = mls_ipq_match,
+	.mpo_ipq_reassemble = mls_ipq_reassemble,
+	.mpo_ipq_update = mls_ipq_update,
+
+	.mpo_mbuf_copy_label = mls_copy_label,
+	.mpo_mbuf_destroy_label = mls_destroy_label,
+	.mpo_mbuf_init_label = mls_init_label_waitcheck,
+
 	.mpo_mount_check_stat = mls_mount_check_stat,
+	.mpo_mount_create = mls_mount_create,
+	.mpo_mount_destroy_label = mls_destroy_label,
+	.mpo_mount_init_label = mls_init_label,
+
+	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
+
+	.mpo_netinet_arp_send = mls_netinet_arp_send,
+	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
+	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
+	.mpo_netinet_fragment = mls_netinet_fragment,
+	.mpo_netinet_icmp_reply = mls_netinet_icmp_reply,
+	.mpo_netinet_igmp_send = mls_netinet_igmp_send,
+
+	.mpo_netinet6_nd6_send = mls_netinet6_nd6_send,
+
 	.mpo_pipe_check_ioctl = mls_pipe_check_ioctl,
 	.mpo_pipe_check_poll = mls_pipe_check_poll,
 	.mpo_pipe_check_read = mls_pipe_check_read,
 	.mpo_pipe_check_relabel = mls_pipe_check_relabel,
 	.mpo_pipe_check_stat = mls_pipe_check_stat,
 	.mpo_pipe_check_write = mls_pipe_check_write,
+	.mpo_pipe_copy_label = mls_copy_label,
+	.mpo_pipe_create = mls_pipe_create,
+	.mpo_pipe_destroy_label = mls_destroy_label,
+	.mpo_pipe_externalize_label = mls_externalize_label,
+	.mpo_pipe_init_label = mls_init_label,
+	.mpo_pipe_internalize_label = mls_internalize_label,
+	.mpo_pipe_relabel = mls_pipe_relabel,
+
 	.mpo_posixsem_check_destroy = mls_posixsem_check_write,
 	.mpo_posixsem_check_getvalue = mls_posixsem_check_rdonly,
 	.mpo_posixsem_check_open = mls_posixsem_check_write,
 	.mpo_posixsem_check_post = mls_posixsem_check_write,
 	.mpo_posixsem_check_unlink = mls_posixsem_check_write,
 	.mpo_posixsem_check_wait = mls_posixsem_check_write,
+	.mpo_posixsem_create = mls_posixsem_create,
+	.mpo_posixsem_destroy_label = mls_destroy_label,
+	.mpo_posixsem_init_label = mls_init_label,
+
+	.mpo_proc_associate_nfsd = mls_proc_associate_nfsd,
 	.mpo_proc_check_debug = mls_proc_check_debug,
 	.mpo_proc_check_sched = mls_proc_check_sched,
 	.mpo_proc_check_signal = mls_proc_check_signal,
+	.mpo_proc_create_init = mls_proc_create_init,
+	.mpo_proc_create_swapper = mls_proc_create_swapper,
+
 	.mpo_socket_check_deliver = mls_socket_check_deliver,
 	.mpo_socket_check_relabel = mls_socket_check_relabel,
 	.mpo_socket_check_visible = mls_socket_check_visible,
+	.mpo_socket_copy_label = mls_copy_label,
+	.mpo_socket_create = mls_socket_create,
+	.mpo_socket_create_mbuf = mls_socket_create_mbuf,
+	.mpo_socket_destroy_label = mls_destroy_label,
+	.mpo_socket_externalize_label = mls_externalize_label,
+	.mpo_socket_init_label = mls_init_label_waitcheck,
+	.mpo_socket_internalize_label = mls_internalize_label,
+	.mpo_socket_newconn = mls_socket_newconn,
+	.mpo_socket_relabel = mls_socket_relabel,
+
+	.mpo_socketpeer_destroy_label = mls_destroy_label,
+	.mpo_socketpeer_externalize_label = mls_externalize_label,
+	.mpo_socketpeer_init_label = mls_init_label_waitcheck,
+	.mpo_socketpeer_set_from_mbuf = mls_socketpeer_set_from_mbuf,
+	.mpo_socketpeer_set_from_socket = mls_socketpeer_set_from_socket,
+
+	.mpo_syncache_create = mls_syncache_create,
+	.mpo_syncache_create_mbuf = mls_syncache_create_mbuf,
+	.mpo_syncache_destroy_label = mls_destroy_label,
+	.mpo_syncache_init_label = mls_init_label_waitcheck,
+
+	.mpo_sysvmsg_cleanup = mls_sysvmsg_cleanup,
+	.mpo_sysvmsg_create = mls_sysvmsg_create,
+	.mpo_sysvmsg_destroy_label = mls_destroy_label,
+	.mpo_sysvmsg_init_label = mls_init_label,
+
+	.mpo_sysvmsq_check_msgrcv = mls_sysvmsq_check_msgrcv,
+	.mpo_sysvmsq_check_msgrmid = mls_sysvmsq_check_msgrmid,
+	.mpo_sysvmsq_check_msqget = mls_sysvmsq_check_msqget,
+	.mpo_sysvmsq_check_msqsnd = mls_sysvmsq_check_msqsnd,
+	.mpo_sysvmsq_check_msqrcv = mls_sysvmsq_check_msqrcv,
+	.mpo_sysvmsq_check_msqctl = mls_sysvmsq_check_msqctl,
+	.mpo_sysvmsq_cleanup = mls_sysvmsq_cleanup,
+	.mpo_sysvmsq_destroy_label = mls_destroy_label,
+	.mpo_sysvmsq_init_label = mls_init_label,
+	.mpo_sysvmsq_create = mls_sysvmsq_create,
+
+	.mpo_sysvsem_check_semctl = mls_sysvsem_check_semctl,
+	.mpo_sysvsem_check_semget = mls_sysvsem_check_semget,
+	.mpo_sysvsem_check_semop = mls_sysvsem_check_semop,
+	.mpo_sysvsem_cleanup = mls_sysvsem_cleanup,
+	.mpo_sysvsem_create = mls_sysvsem_create,
+	.mpo_sysvsem_destroy_label = mls_destroy_label,
+	.mpo_sysvsem_init_label = mls_init_label,
+
+	.mpo_sysvshm_check_shmat = mls_sysvshm_check_shmat,
+	.mpo_sysvshm_check_shmctl = mls_sysvshm_check_shmctl,
+	.mpo_sysvshm_check_shmget = mls_sysvshm_check_shmget,
+	.mpo_sysvshm_cleanup = mls_sysvshm_cleanup,
+	.mpo_sysvshm_create = mls_sysvshm_create,
+	.mpo_sysvshm_destroy_label = mls_destroy_label,
+	.mpo_sysvshm_init_label = mls_init_label,
+
+
 	.mpo_system_check_acct = mls_system_check_acct,
 	.mpo_system_check_auditctl = mls_system_check_auditctl,
 	.mpo_system_check_swapon = mls_system_check_swapon,
+
+	.mpo_vnode_associate_extattr = mls_vnode_associate_extattr,
+	.mpo_vnode_associate_singlelabel = mls_vnode_associate_singlelabel,
 	.mpo_vnode_check_access = mls_vnode_check_open,
 	.mpo_vnode_check_chdir = mls_vnode_check_chdir,
 	.mpo_vnode_check_chroot = mls_vnode_check_chroot,
@@ -3064,13 +3070,14 @@ static struct mac_policy_ops mls_ops =
 	.mpo_vnode_check_stat = mls_vnode_check_stat,
 	.mpo_vnode_check_unlink = mls_vnode_check_unlink,
 	.mpo_vnode_check_write = mls_vnode_check_write,
-	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
-	.mpo_netinet_arp_send = mls_netinet_arp_send,
-	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
-	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
-	.mpo_netinet_icmp_reply = mls_netinet_icmp_reply,
-	.mpo_netinet_igmp_send = mls_netinet_igmp_send,
-	.mpo_netinet6_nd6_send = mls_netinet6_nd6_send,
+	.mpo_vnode_copy_label = mls_copy_label,
+	.mpo_vnode_create_extattr = mls_vnode_create_extattr,
+	.mpo_vnode_destroy_label = mls_destroy_label,
+	.mpo_vnode_externalize_label = mls_externalize_label,
+	.mpo_vnode_init_label = mls_init_label,
+	.mpo_vnode_internalize_label = mls_internalize_label,
+	.mpo_vnode_relabel = mls_vnode_relabel,
+	.mpo_vnode_setlabel_extattr = mls_vnode_setlabel_extattr,
 };
 
 MAC_POLICY_SET(&mls_ops, mac_mls, "TrustedBSD MAC/MLS",

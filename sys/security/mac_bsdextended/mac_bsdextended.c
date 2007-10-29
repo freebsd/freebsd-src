@@ -442,6 +442,10 @@ ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 	return (ugidfw_check(cred, vp, &vap, acc_mode));
 }
 
+/*
+ * Object-specific entry point implementations are sorted alphabetically by
+ * object type and then by operation.
+ */
 static int
 ugidfw_system_check_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
