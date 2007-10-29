@@ -185,6 +185,7 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
+dev/nvram/nvram.c		optional	nvram isa
 dev/rr232x/os_bsd.c		optional	rr232x
 dev/rr232x/osm_bsd.c		optional	rr232x
 dev/rr232x/rr232x_config.c	optional	rr232x
