@@ -167,8 +167,6 @@ static int ng_btsocket_rfcomm_pcb_send
 	(ng_btsocket_rfcomm_pcb_p pcb, int limit);
 static void ng_btsocket_rfcomm_pcb_kill
 	(ng_btsocket_rfcomm_pcb_p pcb, int error);
-static ng_btsocket_rfcomm_pcb_p ng_btsocket_rfcomm_pcb_by_channel
-	(bdaddr_p src, int channel);
 static ng_btsocket_rfcomm_pcb_p ng_btsocket_rfcomm_pcb_by_dlci
 	(ng_btsocket_rfcomm_session_p s, int dlci);
 static ng_btsocket_rfcomm_pcb_p ng_btsocket_rfcomm_pcb_listener
@@ -440,7 +438,7 @@ int
 ng_btsocket_rfcomm_bind(struct socket *so, struct sockaddr *nam, 
 		struct thread *td)
 {
-	ng_btsocket_rfcomm_pcb_t	*pcb = so2rfcomm_pcb(so);
+	ng_btsocket_rfcomm_pcb_t	*pcb = so2rfcomm_pcb(so), *pcb1;
 	struct sockaddr_rfcomm		*sa = (struct sockaddr_rfcomm *) nam;
 
 	if (pcb == NULL)
@@ -455,12 +453,30 @@ ng_btsocket_rfcomm_bind(struct socket *so, struct sockaddr *nam,
 		return (EINVAL);
 	if (sa->rfcomm_channel > 30)
 		return (EINVAL);
-	if (sa->rfcomm_channel != 0 &&
-	    ng_btsocket_rfcomm_pcb_by_channel(&sa->rfcomm_bdaddr, sa->rfcomm_channel) != NULL)
-		return (EADDRINUSE);
+
+	mtx_lock(&pcb->pcb_mtx);
+
+	if (sa->rfcomm_channel != 0) {
+		mtx_lock(&ng_btsocket_rfcomm_sockets_mtx);
+
+		LIST_FOREACH(pcb1, &ng_btsocket_rfcomm_sockets, next) {
+			if (pcb1->channel == sa->rfcomm_channel &&
+			    bcmp(&pcb1->src, &sa->rfcomm_bdaddr,
+					sizeof(pcb1->src)) == 0) {
+				mtx_unlock(&ng_btsocket_rfcomm_sockets_mtx);
+				mtx_unlock(&pcb->pcb_mtx);
+
+				return (EADDRINUSE);
+			}
+		}
+
+		mtx_unlock(&ng_btsocket_rfcomm_sockets_mtx);
+	}
 
 	bcopy(&sa->rfcomm_bdaddr, &pcb->src, sizeof(pcb->src));
 	pcb->channel = sa->rfcomm_channel;
+
+	mtx_unlock(&pcb->pcb_mtx);
 
 	return (0);
 } /* ng_btsocket_rfcomm_bind */
@@ -796,16 +812,43 @@ ng_btsocket_rfcomm_disconnect(struct socket *so)
 int
 ng_btsocket_rfcomm_listen(struct socket *so, int backlog, struct thread *td)
 {
-	ng_btsocket_rfcomm_pcb_p	 pcb = so2rfcomm_pcb(so);
+	ng_btsocket_rfcomm_pcb_p	 pcb = so2rfcomm_pcb(so), pcb1;
 	ng_btsocket_rfcomm_session_p	 s = NULL;
 	struct socket			*l2so = NULL;
-	int				 error;
-	int				 socreate_error;
+	int				 error, socreate_error, usedchannels;
 
 	if (pcb == NULL)
 		return (EINVAL);
-	if (pcb->channel < 1 || pcb->channel > 30)
+	if (pcb->channel > 30)
 		return (EADDRNOTAVAIL);
+
+	usedchannels = 0;
+
+	mtx_lock(&pcb->pcb_mtx);
+
+	if (pcb->channel == 0) {
+		mtx_lock(&ng_btsocket_rfcomm_sockets_mtx);
+
+		LIST_FOREACH(pcb1, &ng_btsocket_rfcomm_sockets, next)
+			if (pcb1->channel != 0 &&
+			    bcmp(&pcb1->src, &pcb->src, sizeof(pcb->src)) == 0)
+				usedchannels |= (1 << (pcb1->channel - 1));
+
+		for (pcb->channel = 30; pcb->channel > 0; pcb->channel --)
+			if (!(usedchannels & (1 << (pcb->channel - 1))))
+				break;
+
+		if (pcb->channel == 0) {
+			mtx_unlock(&ng_btsocket_rfcomm_sockets_mtx);
+			mtx_unlock(&pcb->pcb_mtx);
+
+			return (EADDRNOTAVAIL);
+		}
+
+		mtx_unlock(&ng_btsocket_rfcomm_sockets_mtx);
+	}
+
+	mtx_unlock(&pcb->pcb_mtx);
 
 	/*
 	 * XXX FIXME - This is FUBAR. socreate() will call soalloc(1), i.e.
@@ -3339,27 +3382,6 @@ ng_btsocket_rfcomm_pcb_kill(ng_btsocket_rfcomm_pcb_p pcb, int error)
 		ng_btsocket_rfcomm_task_wakeup();
 	}
 } /* ng_btsocket_rfcomm_pcb_kill */
-
-/*
- * Look for RFCOMM socket with given channel and source address
- */
-
-static ng_btsocket_rfcomm_pcb_p
-ng_btsocket_rfcomm_pcb_by_channel(bdaddr_p src, int channel)
-{
-	ng_btsocket_rfcomm_pcb_p	pcb = NULL;
-
-	mtx_lock(&ng_btsocket_rfcomm_sockets_mtx);
-
-	LIST_FOREACH(pcb, &ng_btsocket_rfcomm_sockets, next)
-		if (pcb->channel == channel &&
-		    bcmp(&pcb->src, src, sizeof(*src)) == 0)
-			break;
-
-	mtx_unlock(&ng_btsocket_rfcomm_sockets_mtx);
-
-	return (pcb);
-} /* ng_btsocket_rfcomm_pcb_by_channel */
 
 /*
  * Look for given dlci for given RFCOMM session. Caller must hold s->session_mtx
