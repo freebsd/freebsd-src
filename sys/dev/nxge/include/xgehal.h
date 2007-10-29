@@ -26,15 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal.h
- *
- *  Description:  Consolidated header. Upper layers should include it to
- *                avoid include order problems.
- *
- *  Created:      14 May 2004
- */
-
 #ifndef XGE_HAL_H
 #define XGE_HAL_H
 

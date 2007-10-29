@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-config.h
- *
- *  Description:  Xframe configuration.
- *
- *  Created:      14 May 2004
- */
-
 #ifndef XGE_HAL_CONFIG_H
 #define XGE_HAL_CONFIG_H
 
@@ -43,14 +35,10 @@
 
 __EXTERN_BEGIN_DECLS
 
-#define	XGE_HAL_DEFAULT_USE_HARDCODE		-1
+#define XGE_HAL_DEFAULT_USE_HARDCODE        -1
 
-#ifdef XGEHAL_RNIC
-#define	XGE_HAL_MAX_VIRTUAL_PATHS		17
-#else
-#define	XGE_HAL_MAX_VIRTUAL_PATHS		8
-#endif
-#define	XGE_HAL_MAX_INTR_PER_VP			4
+#define XGE_HAL_MAX_VIRTUAL_PATHS       8
+#define XGE_HAL_MAX_INTR_PER_VP         4
 
 
 /**
@@ -91,51 +79,51 @@ __EXTERN_BEGIN_DECLS
  */
 typedef struct xge_hal_tti_config_t {
 
-	int				enabled;
-#define XGE_HAL_TTI_ENABLE			1
-#define XGE_HAL_TTI_DISABLE			0
+	int             enabled;
+#define XGE_HAL_TTI_ENABLE          1
+#define XGE_HAL_TTI_DISABLE         0
 
 	/* Line utilization interrupts */
 
-	int				urange_a;
-#define XGE_HAL_MIN_TX_URANGE_A			0
-#define XGE_HAL_MAX_TX_URANGE_A			100
+	int             urange_a;
+#define XGE_HAL_MIN_TX_URANGE_A         0
+#define XGE_HAL_MAX_TX_URANGE_A         100
 
-	int				ufc_a;
-#define XGE_HAL_MIN_TX_UFC_A			0
-#define XGE_HAL_MAX_TX_UFC_A			65535
+	int             ufc_a;
+#define XGE_HAL_MIN_TX_UFC_A            0
+#define XGE_HAL_MAX_TX_UFC_A            65535
 
-	int				urange_b;
-#define XGE_HAL_MIN_TX_URANGE_B			0
-#define XGE_HAL_MAX_TX_URANGE_B			100
+	int             urange_b;
+#define XGE_HAL_MIN_TX_URANGE_B         0
+#define XGE_HAL_MAX_TX_URANGE_B         100
 
-	int				ufc_b;
-#define XGE_HAL_MIN_TX_UFC_B			0
-#define XGE_HAL_MAX_TX_UFC_B			65535
+	int             ufc_b;
+#define XGE_HAL_MIN_TX_UFC_B            0
+#define XGE_HAL_MAX_TX_UFC_B            65535
 
-	int				urange_c;
-#define XGE_HAL_MIN_TX_URANGE_C			0
-#define XGE_HAL_MAX_TX_URANGE_C			100
+	int             urange_c;
+#define XGE_HAL_MIN_TX_URANGE_C         0
+#define XGE_HAL_MAX_TX_URANGE_C         100
 
-	int				ufc_c;
-#define XGE_HAL_MIN_TX_UFC_C			0
-#define XGE_HAL_MAX_TX_UFC_C			65535
+	int             ufc_c;
+#define XGE_HAL_MIN_TX_UFC_C            0
+#define XGE_HAL_MAX_TX_UFC_C            65535
 
-	int				ufc_d;
-#define XGE_HAL_MIN_TX_UFC_D			0
-#define XGE_HAL_MAX_TX_UFC_D			65535
+	int             ufc_d;
+#define XGE_HAL_MIN_TX_UFC_D            0
+#define XGE_HAL_MAX_TX_UFC_D            65535
 
-	int				timer_val_us;
-#define XGE_HAL_MIN_TX_TIMER_VAL		0
-#define XGE_HAL_MAX_TX_TIMER_VAL		65535
+	int             timer_val_us;
+#define XGE_HAL_MIN_TX_TIMER_VAL        0
+#define XGE_HAL_MAX_TX_TIMER_VAL        65535
 
-	int				timer_ac_en;
-#define XGE_HAL_MIN_TX_TIMER_AC_EN		0
-#define XGE_HAL_MAX_TX_TIMER_AC_EN		1
+	int             timer_ac_en;
+#define XGE_HAL_MIN_TX_TIMER_AC_EN      0
+#define XGE_HAL_MAX_TX_TIMER_AC_EN      1
 
-	int				timer_ci_en;
-#define XGE_HAL_MIN_TX_TIMER_CI_EN		0
-#define XGE_HAL_MAX_TX_TIMER_CI_EN		1
+	int             timer_ci_en;
+#define XGE_HAL_MIN_TX_TIMER_CI_EN      0
+#define XGE_HAL_MAX_TX_TIMER_CI_EN      1
 
 
 } xge_hal_tti_config_t;
@@ -171,41 +159,41 @@ typedef struct xge_hal_tti_config_t {
  */
 typedef struct xge_hal_rti_config_t {
 
-	int				urange_a;
-#define XGE_HAL_MIN_RX_URANGE_A			0
-#define XGE_HAL_MAX_RX_URANGE_A			127
+	int             urange_a;
+#define XGE_HAL_MIN_RX_URANGE_A         0
+#define XGE_HAL_MAX_RX_URANGE_A         127
 
-	int				ufc_a;
-#define XGE_HAL_MIN_RX_UFC_A			0
-#define XGE_HAL_MAX_RX_UFC_A			65535
+	int             ufc_a;
+#define XGE_HAL_MIN_RX_UFC_A            0
+#define XGE_HAL_MAX_RX_UFC_A            65535
 
-	int				urange_b;
-#define XGE_HAL_MIN_RX_URANGE_B			0
-#define XGE_HAL_MAX_RX_URANGE_B			127
+	int             urange_b;
+#define XGE_HAL_MIN_RX_URANGE_B         0
+#define XGE_HAL_MAX_RX_URANGE_B         127
 
-	int				ufc_b;
-#define XGE_HAL_MIN_RX_UFC_B			0
-#define XGE_HAL_MAX_RX_UFC_B			65535
+	int             ufc_b;
+#define XGE_HAL_MIN_RX_UFC_B            0
+#define XGE_HAL_MAX_RX_UFC_B            65535
 
-	int				urange_c;
-#define XGE_HAL_MIN_RX_URANGE_C			0
-#define XGE_HAL_MAX_RX_URANGE_C			127
+	int             urange_c;
+#define XGE_HAL_MIN_RX_URANGE_C         0
+#define XGE_HAL_MAX_RX_URANGE_C         127
 
-	int				ufc_c;
-#define XGE_HAL_MIN_RX_UFC_C			0
-#define XGE_HAL_MAX_RX_UFC_C			65535
+	int             ufc_c;
+#define XGE_HAL_MIN_RX_UFC_C            0
+#define XGE_HAL_MAX_RX_UFC_C            65535
 
-	int				ufc_d;
-#define XGE_HAL_MIN_RX_UFC_D			0
-#define XGE_HAL_MAX_RX_UFC_D			65535
+	int             ufc_d;
+#define XGE_HAL_MIN_RX_UFC_D            0
+#define XGE_HAL_MAX_RX_UFC_D            65535
 
-	int				timer_ac_en;
-#define XGE_HAL_MIN_RX_TIMER_AC_EN		0
-#define XGE_HAL_MAX_RX_TIMER_AC_EN		1
+	int             timer_ac_en;
+#define XGE_HAL_MIN_RX_TIMER_AC_EN      0
+#define XGE_HAL_MAX_RX_TIMER_AC_EN      1
 
-	int				timer_val_us;
-#define XGE_HAL_MIN_RX_TIMER_VAL		0
-#define XGE_HAL_MAX_RX_TIMER_VAL		65535
+	int             timer_val_us;
+#define XGE_HAL_MIN_RX_TIMER_VAL        0
+#define XGE_HAL_MAX_RX_TIMER_VAL        65535
 
 } xge_hal_rti_config_t;
 
@@ -234,36 +222,36 @@ typedef struct xge_hal_rti_config_t {
  * See also: xge_hal_fifo_config_t{}
  */
 typedef struct xge_hal_fifo_queue_t {
-	int				max;
-	int				initial;
-#define XGE_HAL_MIN_FIFO_QUEUE_LENGTH		2
-#define XGE_HAL_MAX_FIFO_QUEUE_LENGTH		8192
+	int             max;
+	int             initial;
+#define XGE_HAL_MIN_FIFO_QUEUE_LENGTH       2
+#define XGE_HAL_MAX_FIFO_QUEUE_LENGTH       8192
 
-	int		                intr;
-#define XGE_HAL_MIN_FIFO_QUEUE_INTR		0
-#define XGE_HAL_MAX_FIFO_QUEUE_INTR		1
+	int                     intr;
+#define XGE_HAL_MIN_FIFO_QUEUE_INTR     0
+#define XGE_HAL_MAX_FIFO_QUEUE_INTR     1
 
-	int				intr_vector;
-#define	XGE_HAL_MIN_FIFO_QUEUE_INTR_VECTOR	0
-#define	XGE_HAL_MAX_FIFO_QUEUE_INTR_VECTOR	64
+	int             intr_vector;
+#define XGE_HAL_MIN_FIFO_QUEUE_INTR_VECTOR  0
+#define XGE_HAL_MAX_FIFO_QUEUE_INTR_VECTOR  64
 
-	int				no_snoop_bits;
-#define XGE_HAL_MIN_FIFO_QUEUE_NO_SNOOP_DISABLED	0
-#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_TXD	1
-#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_BUFFER	2
-#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_ALL	3
+	int             no_snoop_bits;
+#define XGE_HAL_MIN_FIFO_QUEUE_NO_SNOOP_DISABLED    0
+#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_TXD 1
+#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_BUFFER  2
+#define XGE_HAL_MAX_FIFO_QUEUE_NO_SNOOP_ALL 3
 
-	int				priority;
-#define XGE_HAL_MIN_FIFO_PRIORITY		0
-#define XGE_HAL_MAX_FIFO_PRIORITY		63
+	int             priority;
+#define XGE_HAL_MIN_FIFO_PRIORITY       0
+#define XGE_HAL_MAX_FIFO_PRIORITY       63
 
-	int				configured;
-#define XGE_HAL_MIN_FIFO_CONFIGURED		0
-#define XGE_HAL_MAX_FIFO_CONFIGURED		1
+	int             configured;
+#define XGE_HAL_MIN_FIFO_CONFIGURED     0
+#define XGE_HAL_MAX_FIFO_CONFIGURED     1
 
-#define XGE_HAL_MAX_FIFO_TTI_NUM		7
-#define XGE_HAL_MAX_FIFO_TTI_RING_0		56
-	xge_hal_tti_config_t		tti[XGE_HAL_MAX_FIFO_TTI_NUM];
+#define XGE_HAL_MAX_FIFO_TTI_NUM        7
+#define XGE_HAL_MAX_FIFO_TTI_RING_0     56
+	xge_hal_tti_config_t        tti[XGE_HAL_MAX_FIFO_TTI_NUM];
 
 } xge_hal_fifo_queue_t;
 
@@ -293,30 +281,30 @@ typedef struct xge_hal_fifo_queue_t {
  * See also: xge_hal_ring_queue_t{}.
  */
 typedef struct xge_hal_fifo_config_t {
-	int				max_frags;
-#define XGE_HAL_MIN_FIFO_FRAGS			1
-#define XGE_HAL_MAX_FIFO_FRAGS			256
+	int             max_frags;
+#define XGE_HAL_MIN_FIFO_FRAGS          1
+#define XGE_HAL_MAX_FIFO_FRAGS          256
 
-	int				reserve_threshold;
-#define XGE_HAL_MIN_FIFO_RESERVE_THRESHOLD	0
-#define XGE_HAL_MAX_FIFO_RESERVE_THRESHOLD	8192
+	int             reserve_threshold;
+#define XGE_HAL_MIN_FIFO_RESERVE_THRESHOLD  0
+#define XGE_HAL_MAX_FIFO_RESERVE_THRESHOLD  8192
 
-	int				memblock_size;
-#define XGE_HAL_MIN_FIFO_MEMBLOCK_SIZE		4096
-#define XGE_HAL_MAX_FIFO_MEMBLOCK_SIZE		131072
+	int             memblock_size;
+#define XGE_HAL_MIN_FIFO_MEMBLOCK_SIZE      4096
+#define XGE_HAL_MAX_FIFO_MEMBLOCK_SIZE      131072
 
-	int		                alignment_size;
-#define XGE_HAL_MIN_ALIGNMENT_SIZE		0
-#define XGE_HAL_MAX_ALIGNMENT_SIZE		65536
+	int                     alignment_size;
+#define XGE_HAL_MIN_ALIGNMENT_SIZE      0
+#define XGE_HAL_MAX_ALIGNMENT_SIZE      65536
 
-	int				max_aligned_frags;
+	int             max_aligned_frags;
 	/* range: (1, @max_frags) */
 
-#define XGE_HAL_MIN_FIFO_NUM			1
-#define XGE_HAL_MAX_FIFO_NUM_HERC		8
-#define XGE_HAL_MAX_FIFO_NUM_TITAN		(XGE_HAL_MAX_VIRTUAL_PATHS - 1)
-#define XGE_HAL_MAX_FIFO_NUM			(XGE_HAL_MAX_VIRTUAL_PATHS)
-	xge_hal_fifo_queue_t		queue[XGE_HAL_MAX_FIFO_NUM];
+#define XGE_HAL_MIN_FIFO_NUM            1
+#define XGE_HAL_MAX_FIFO_NUM_HERC       8
+#define XGE_HAL_MAX_FIFO_NUM_TITAN      (XGE_HAL_MAX_VIRTUAL_PATHS - 1)
+#define XGE_HAL_MAX_FIFO_NUM            (XGE_HAL_MAX_VIRTUAL_PATHS)
+	xge_hal_fifo_queue_t        queue[XGE_HAL_MAX_FIFO_NUM];
 } xge_hal_fifo_config_t;
 
 /**
@@ -326,9 +314,9 @@ typedef struct xge_hal_fifo_config_t {
  * @src: Port is Source (default Destination)
  */
 typedef struct xge_hal_rts_port_t {
-	int				num;
-	int				udp;
-	int				src;
+	int             num;
+	int             udp;
+	int             src;
 } xge_hal_rts_port_t;
 
 /**
@@ -371,7 +359,7 @@ typedef struct xge_hal_rts_port_t {
  *              Rx descriptors. Any subset of 8 available rings can be
  *              "configured".
  * @rts_mac_en: 1 - To enable Receive MAC address steering.
- *		0 - To disable Receive MAC address steering.
+ *      0 - To disable Receive MAC address steering.
  * @rth_en: TBD
  * @rts_port_en: TBD
  * @rts_ports: TBD
@@ -384,68 +372,68 @@ typedef struct xge_hal_rts_port_t {
  * See also: xge_hal_fifo_config_t{}.
  */
 typedef struct xge_hal_ring_queue_t {
-	int				max;
-	int				initial;
-#define XGE_HAL_MIN_RING_QUEUE_BLOCKS		1
-#define XGE_HAL_MAX_RING_QUEUE_BLOCKS		64
+	int             max;
+	int             initial;
+#define XGE_HAL_MIN_RING_QUEUE_BLOCKS       1
+#define XGE_HAL_MAX_RING_QUEUE_BLOCKS       64
 
-	int				buffer_mode;
-#define XGE_HAL_RING_QUEUE_BUFFER_MODE_1	1
-#define XGE_HAL_RING_QUEUE_BUFFER_MODE_2	2
-#define XGE_HAL_RING_QUEUE_BUFFER_MODE_3	3
-#define XGE_HAL_RING_QUEUE_BUFFER_MODE_5	5
+	int             buffer_mode;
+#define XGE_HAL_RING_QUEUE_BUFFER_MODE_1    1
+#define XGE_HAL_RING_QUEUE_BUFFER_MODE_2    2
+#define XGE_HAL_RING_QUEUE_BUFFER_MODE_3    3
+#define XGE_HAL_RING_QUEUE_BUFFER_MODE_5    5
 
-	int				dram_size_mb;
-#define XGE_HAL_MIN_RING_QUEUE_SIZE		0
-#define XGE_HAL_MAX_RING_QUEUE_SIZE_XENA	64
-#define XGE_HAL_MAX_RING_QUEUE_SIZE_HERC	32
+	int             dram_size_mb;
+#define XGE_HAL_MIN_RING_QUEUE_SIZE     0
+#define XGE_HAL_MAX_RING_QUEUE_SIZE_XENA    64
+#define XGE_HAL_MAX_RING_QUEUE_SIZE_HERC    32
 
-	int				intr_vector;
-#define	XGE_HAL_MIN_RING_QUEUE_INTR_VECTOR	0
-#define	XGE_HAL_MAX_RING_QUEUE_INTR_VECTOR	64
+	int             intr_vector;
+#define XGE_HAL_MIN_RING_QUEUE_INTR_VECTOR  0
+#define XGE_HAL_MAX_RING_QUEUE_INTR_VECTOR  64
 
-	int				backoff_interval_us;
-#define XGE_HAL_MIN_BACKOFF_INTERVAL_US		1
-#define XGE_HAL_MAX_BACKOFF_INTERVAL_US		125000
+	int             backoff_interval_us;
+#define XGE_HAL_MIN_BACKOFF_INTERVAL_US     1
+#define XGE_HAL_MAX_BACKOFF_INTERVAL_US     125000
 
-	int				max_frm_len;
-#define XGE_HAL_MIN_MAX_FRM_LEN			-1
-#define XGE_HAL_MAX_MAX_FRM_LEN			9622
+	int             max_frm_len;
+#define XGE_HAL_MIN_MAX_FRM_LEN         -1
+#define XGE_HAL_MAX_MAX_FRM_LEN         9622
 
-	int				priority;
-#define XGE_HAL_MIN_RING_PRIORITY		0
-#define XGE_HAL_MAX_RING_PRIORITY		7
+	int             priority;
+#define XGE_HAL_MIN_RING_PRIORITY       0
+#define XGE_HAL_MAX_RING_PRIORITY       7
 
-	int				no_snoop_bits;
-#define XGE_HAL_MIN_RING_QUEUE_NO_SNOOP_DISABLED	0
-#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_RXD	1
-#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_BUFFER	2
-#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_ALL	3
+	int             no_snoop_bits;
+#define XGE_HAL_MIN_RING_QUEUE_NO_SNOOP_DISABLED    0
+#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_RXD 1
+#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_BUFFER  2
+#define XGE_HAL_MAX_RING_QUEUE_NO_SNOOP_ALL 3
 
-	int				indicate_max_pkts;
-#define XGE_HAL_MIN_RING_INDICATE_MAX_PKTS	1
-#define XGE_HAL_MAX_RING_INDICATE_MAX_PKTS	65536
+	int             indicate_max_pkts;
+#define XGE_HAL_MIN_RING_INDICATE_MAX_PKTS  1
+#define XGE_HAL_MAX_RING_INDICATE_MAX_PKTS  65536
 
-	int				configured;
-#define XGE_HAL_MIN_RING_CONFIGURED		0
-#define XGE_HAL_MAX_RING_CONFIGURED		1
+	int             configured;
+#define XGE_HAL_MIN_RING_CONFIGURED     0
+#define XGE_HAL_MAX_RING_CONFIGURED     1
 
-	int				rts_mac_en;
-#define XGE_HAL_MIN_RING_RTS_MAC_EN		0
-#define XGE_HAL_MAX_RING_RTS_MAC_EN		1
+	int             rts_mac_en;
+#define XGE_HAL_MIN_RING_RTS_MAC_EN     0
+#define XGE_HAL_MAX_RING_RTS_MAC_EN     1
 
-	int				rth_en;
-#define XGE_HAL_MIN_RING_RTH_EN			0
-#define XGE_HAL_MAX_RING_RTH_EN			1
+	int             rth_en;
+#define XGE_HAL_MIN_RING_RTH_EN         0
+#define XGE_HAL_MAX_RING_RTH_EN         1
 
-	int				rts_port_en;
-#define XGE_HAL_MIN_RING_RTS_PORT_EN		0
-#define XGE_HAL_MAX_RING_RTS_PORT_EN		1
+	int             rts_port_en;
+#define XGE_HAL_MIN_RING_RTS_PORT_EN        0
+#define XGE_HAL_MAX_RING_RTS_PORT_EN        1
 
-#define XGE_HAL_MAX_STEERABLE_PORTS		32
-	xge_hal_rts_port_t			rts_ports[XGE_HAL_MAX_STEERABLE_PORTS];
+#define XGE_HAL_MAX_STEERABLE_PORTS     32
+	xge_hal_rts_port_t          rts_ports[XGE_HAL_MAX_STEERABLE_PORTS];
 
-	xge_hal_rti_config_t		rti;
+	xge_hal_rti_config_t        rti;
 
 } xge_hal_ring_queue_t;
 
@@ -465,23 +453,23 @@ typedef struct xge_hal_ring_queue_t {
  */
 typedef struct xge_hal_ring_config_t {
 
-	int				memblock_size;
-#define XGE_HAL_MIN_RING_MEMBLOCK_SIZE		4096
-#define XGE_HAL_MAX_RING_MEMBLOCK_SIZE		131072
+	int             memblock_size;
+#define XGE_HAL_MIN_RING_MEMBLOCK_SIZE      4096
+#define XGE_HAL_MAX_RING_MEMBLOCK_SIZE      131072
 
-	int				scatter_mode;
-#define XGE_HAL_RING_QUEUE_SCATTER_MODE_A		0
-#define XGE_HAL_RING_QUEUE_SCATTER_MODE_B		1
+	int             scatter_mode;
+#define XGE_HAL_RING_QUEUE_SCATTER_MODE_A       0
+#define XGE_HAL_RING_QUEUE_SCATTER_MODE_B       1
 
-	int				strip_vlan_tag;
-#define XGE_HAL_RING_DONOT_STRIP_VLAN_TAG	0
-#define XGE_HAL_RING_STRIP_VLAN_TAG		1
+	int             strip_vlan_tag;
+#define XGE_HAL_RING_DONOT_STRIP_VLAN_TAG   0
+#define XGE_HAL_RING_STRIP_VLAN_TAG     1
 
-#define XGE_HAL_MIN_RING_NUM			1
-#define XGE_HAL_MAX_RING_NUM_HERC		8
-#define XGE_HAL_MAX_RING_NUM_TITAN		(XGE_HAL_MAX_VIRTUAL_PATHS - 1)
-#define XGE_HAL_MAX_RING_NUM			(XGE_HAL_MAX_VIRTUAL_PATHS)
-	xge_hal_ring_queue_t		queue[XGE_HAL_MAX_RING_NUM];
+#define XGE_HAL_MIN_RING_NUM            1
+#define XGE_HAL_MAX_RING_NUM_HERC       8
+#define XGE_HAL_MAX_RING_NUM_TITAN      (XGE_HAL_MAX_VIRTUAL_PATHS - 1)
+#define XGE_HAL_MAX_RING_NUM            (XGE_HAL_MAX_VIRTUAL_PATHS)
+	xge_hal_ring_queue_t        queue[XGE_HAL_MAX_RING_NUM];
 
 } xge_hal_ring_config_t;
 
@@ -520,102 +508,49 @@ typedef struct xge_hal_ring_config_t {
  * corresponding include file.
  */
 typedef struct xge_hal_mac_config_t {
-	int				media;
-#define XGE_HAL_MIN_MEDIA			0
-#define XGE_HAL_MEDIA_SR			0
-#define XGE_HAL_MEDIA_SW			1
-#define XGE_HAL_MEDIA_LR			2
-#define XGE_HAL_MEDIA_LW			3
-#define XGE_HAL_MEDIA_ER			4
-#define XGE_HAL_MEDIA_EW			5
-#define XGE_HAL_MAX_MEDIA			5
+	int             media;
+#define XGE_HAL_MIN_MEDIA           0
+#define XGE_HAL_MEDIA_SR            0
+#define XGE_HAL_MEDIA_SW            1
+#define XGE_HAL_MEDIA_LR            2
+#define XGE_HAL_MEDIA_LW            3
+#define XGE_HAL_MEDIA_ER            4
+#define XGE_HAL_MEDIA_EW            5
+#define XGE_HAL_MAX_MEDIA           5
 
-	int				tmac_util_period;
-#define XGE_HAL_MIN_TMAC_UTIL_PERIOD		0
-#define XGE_HAL_MAX_TMAC_UTIL_PERIOD		15
+	int             tmac_util_period;
+#define XGE_HAL_MIN_TMAC_UTIL_PERIOD        0
+#define XGE_HAL_MAX_TMAC_UTIL_PERIOD        15
 
-	int				rmac_util_period;
-#define XGE_HAL_MIN_RMAC_UTIL_PERIOD		0
-#define XGE_HAL_MAX_RMAC_UTIL_PERIOD		15
+	int             rmac_util_period;
+#define XGE_HAL_MIN_RMAC_UTIL_PERIOD        0
+#define XGE_HAL_MAX_RMAC_UTIL_PERIOD        15
 
-	int				rmac_bcast_en;
-#define XGE_HAL_MIN_RMAC_BCAST_EN		0
-#define XGE_HAL_MAX_RMAC_BCAST_EN		1
+	int             rmac_bcast_en;
+#define XGE_HAL_MIN_RMAC_BCAST_EN       0
+#define XGE_HAL_MAX_RMAC_BCAST_EN       1
 
-	int				rmac_pause_gen_en;
-#define XGE_HAL_MIN_RMAC_PAUSE_GEN_EN		0
-#define XGE_HAL_MAX_RMAC_PAUSE_GEN_EN		1
+	int             rmac_pause_gen_en;
+#define XGE_HAL_MIN_RMAC_PAUSE_GEN_EN       0
+#define XGE_HAL_MAX_RMAC_PAUSE_GEN_EN       1
 
-	int				rmac_pause_rcv_en;
-#define XGE_HAL_MIN_RMAC_PAUSE_RCV_EN		0
-#define XGE_HAL_MAX_RMAC_PAUSE_RCV_EN		1
+	int             rmac_pause_rcv_en;
+#define XGE_HAL_MIN_RMAC_PAUSE_RCV_EN       0
+#define XGE_HAL_MAX_RMAC_PAUSE_RCV_EN       1
 
-	int				rmac_pause_time;
-#define XGE_HAL_MIN_RMAC_HIGH_PTIME		16
-#define XGE_HAL_MAX_RMAC_HIGH_PTIME		65535
+	int             rmac_pause_time;
+#define XGE_HAL_MIN_RMAC_HIGH_PTIME     16
+#define XGE_HAL_MAX_RMAC_HIGH_PTIME     65535
 
-	int				mc_pause_threshold_q0q3;
-#define XGE_HAL_MIN_MC_PAUSE_THRESHOLD_Q0Q3	0
-#define XGE_HAL_MAX_MC_PAUSE_THRESHOLD_Q0Q3	254
+	int             mc_pause_threshold_q0q3;
+#define XGE_HAL_MIN_MC_PAUSE_THRESHOLD_Q0Q3 0
+#define XGE_HAL_MAX_MC_PAUSE_THRESHOLD_Q0Q3 254
 
-	int				mc_pause_threshold_q4q7;
-#define XGE_HAL_MIN_MC_PAUSE_THRESHOLD_Q4Q7	0
-#define XGE_HAL_MAX_MC_PAUSE_THRESHOLD_Q4Q7	254
+	int             mc_pause_threshold_q4q7;
+#define XGE_HAL_MIN_MC_PAUSE_THRESHOLD_Q4Q7 0
+#define XGE_HAL_MAX_MC_PAUSE_THRESHOLD_Q4Q7 254
 
 } xge_hal_mac_config_t;
-
-#ifdef XGEHAL_RNIC
-
-/*
- * struct xge_hal_vp_config_t - Configuration of virtual path
- * @vp_id: Virtual Path Id
- * @vp_valid: Flag specifies if the configuration is valid
- * @bitmap_intr_num: Interrupt Number associated with the bitmap
- * @nce_oid_start: The start of the NCE ID range
- * @nce_oid_end: The end of the NCE ID range
- * @session_oid_start: The start of the Session ID range
- * @session_oid_end: The end of the Session ID range
- * @srq_oid_start: The start of the HSRQ ID range
- * @srq_oid_end: The end of the SRQ ID range
- * @cqrq_oid_start: The start of the CQRQ range
- * @cqrq_oid_end: The end of the CQRQ range
- * @umq_length: Length of up message queue
- * @umq_int_ctrl: Interrupt control for up Message queue
- * @umq_gen_compl: Generate completion for up message queue
- * @dmq_length: Length of down message queue
- * @dmq_int_ctrl: Interrupt control for down Message queue
- * @dmq_gen_compl: Generate completion for up message queue
- *
- * This structure is used by the driver to pass the configuration parameters to
- * configure Virtual Path.
- */
-typedef struct xge_hal_vp_config_t{
-	u32				vp_id;
-	u32				vp_valid;
-#define XGE_HAL_VP_CONFIG_INVALID	0
-#define XGE_HAL_VP_CONFIG_VALID		1
-
-	int				bitmap_intr_num;
-#define XGE_HAL_BITMAP_INTR_NUM_MIN	0
-#define XGE_HAL_BITMAP_INTR_NUM_MAX	3
-
-	u32				nce_oid_start;
-	u32				nce_oid_end;
-	u32				session_oid_start;
-	u32				session_oid_end;
-	u32				srq_oid_start;
-	u32				srq_oid_end;
-	u32				cqrq_oid_start;
-	u32				cqrq_oid_end;
-	u32				umq_length;
-	u32				umq_int_ctrl;
-	u32				umq_gen_compl;
-	u32				dmq_length;
-	u32				dmq_int_ctrl;
-	u32				dmq_gen_compl;
-}xge_hal_vp_config_t;
-
-#endif
 
 /**
  * struct xge_hal_device_config_t - Device configuration.
@@ -668,9 +603,9 @@ typedef struct xge_hal_vp_config_t{
  * @rth_bucket_size: RTH bucket width (in bits). For valid range please see
  *                   xge_hal_device_config_t{} in the driver sources.
  * @rth_spdm_en: Enable Receive Traffic Hashing(RTH) using SPDM(Socket Pair
- *		Direct Match).
+ *      Direct Match).
  * @rth_spdm_use_l4: Set to 1, if the L4 ports are used in the calculation of
- *	hash value in the RTH SPDM based steering.
+ *  hash value in the RTH SPDM based steering.
  * @rxufca_intr_thres: (TODO)
  * @rxufca_lo_lim: (TODO)
  * @rxufca_hi_lim: (TODO)
@@ -686,7 +621,7 @@ typedef struct xge_hal_vp_config_t{
  * stable in order for the adapter to declare "LINK UP".
  * The enumerated settings (see Xframe-II UG) are:
  *      0 ........... instantaneous
- *      1 ........... 500 ´s
+ *      1 ........... 500 ³s
  *      2 ........... 1 ms
  *      3 ........... 64 ms
  *      4 ........... 256 ms
@@ -746,205 +681,170 @@ typedef struct xge_hal_vp_config_t{
  * xge_hal_mac_config_t{}.
  */
 typedef struct xge_hal_device_config_t {
-	int				mtu;
-#define XGE_HAL_MIN_INITIAL_MTU		XGE_HAL_MIN_MTU
-#define XGE_HAL_MAX_INITIAL_MTU		XGE_HAL_MAX_MTU
+	int             mtu;
+#define XGE_HAL_MIN_INITIAL_MTU                 XGE_HAL_MIN_MTU
+#define XGE_HAL_MAX_INITIAL_MTU                 XGE_HAL_MAX_MTU
 
-	int				isr_polling_cnt;
-#define XGE_HAL_MIN_ISR_POLLING_CNT		0
-#define XGE_HAL_MAX_ISR_POLLING_CNT		65536
+	int             isr_polling_cnt;
+#define XGE_HAL_MIN_ISR_POLLING_CNT             0
+#define XGE_HAL_MAX_ISR_POLLING_CNT             65536
 
-	int				latency_timer;
-#define	XGE_HAL_USE_BIOS_DEFAULT_LATENCY	-1
-#define XGE_HAL_MIN_LATENCY_TIMER		8
-#define XGE_HAL_MAX_LATENCY_TIMER		255
+	int             latency_timer;
+#define XGE_HAL_USE_BIOS_DEFAULT_LATENCY        -1
+#define XGE_HAL_MIN_LATENCY_TIMER               8
+#define XGE_HAL_MAX_LATENCY_TIMER               255
 
-	int				napi_weight;
-#define	XGE_HAL_DEF_NAPI_WEIGHT			64
+	int             napi_weight;
+#define XGE_HAL_DEF_NAPI_WEIGHT                 64
 
-	int				max_splits_trans;
-#define	XGE_HAL_USE_BIOS_DEFAULT_SPLITS		-1
-#define	XGE_HAL_ONE_SPLIT_TRANSACTION		0
-#define	XGE_HAL_TWO_SPLIT_TRANSACTION		1
-#define	XGE_HAL_THREE_SPLIT_TRANSACTION		2
-#define	XGE_HAL_FOUR_SPLIT_TRANSACTION		3
-#define	XGE_HAL_EIGHT_SPLIT_TRANSACTION		4
-#define	XGE_HAL_TWELVE_SPLIT_TRANSACTION	5
-#define	XGE_HAL_SIXTEEN_SPLIT_TRANSACTION	6
-#define	XGE_HAL_THIRTYTWO_SPLIT_TRANSACTION	7
+	int             max_splits_trans;
+#define XGE_HAL_USE_BIOS_DEFAULT_SPLITS         -1
+#define XGE_HAL_ONE_SPLIT_TRANSACTION           0
+#define XGE_HAL_TWO_SPLIT_TRANSACTION           1
+#define XGE_HAL_THREE_SPLIT_TRANSACTION         2
+#define XGE_HAL_FOUR_SPLIT_TRANSACTION          3
+#define XGE_HAL_EIGHT_SPLIT_TRANSACTION         4
+#define XGE_HAL_TWELVE_SPLIT_TRANSACTION        5
+#define XGE_HAL_SIXTEEN_SPLIT_TRANSACTION       6
+#define XGE_HAL_THIRTYTWO_SPLIT_TRANSACTION     7
 
-	int				mmrb_count;
-#define XGE_HAL_DEFAULT_BIOS_MMRB_COUNT		-1
-#define XGE_HAL_MIN_MMRB_COUNT			0 /* 512b */
-#define XGE_HAL_MAX_MMRB_COUNT			3 /* 4k */
+	int             mmrb_count;
+#define XGE_HAL_DEFAULT_BIOS_MMRB_COUNT         -1
+#define XGE_HAL_MIN_MMRB_COUNT                  0 /* 512b */
+#define XGE_HAL_MAX_MMRB_COUNT                  3 /* 4k */
 
-	int				shared_splits;
-#define XGE_HAL_MIN_SHARED_SPLITS		0
-#define XGE_HAL_MAX_SHARED_SPLITS		31
+	int             shared_splits;
+#define XGE_HAL_MIN_SHARED_SPLITS               0
+#define XGE_HAL_MAX_SHARED_SPLITS               31
 
-	int				stats_refresh_time_sec;
-#define XGE_HAL_STATS_REFRESH_DISABLE		0
-#define XGE_HAL_MIN_STATS_REFRESH_TIME		1
-#define XGE_HAL_MAX_STATS_REFRESH_TIME		300
+	int             stats_refresh_time_sec;
+#define XGE_HAL_STATS_REFRESH_DISABLE           0
+#define XGE_HAL_MIN_STATS_REFRESH_TIME          1
+#define XGE_HAL_MAX_STATS_REFRESH_TIME          300
 
-	int				pci_freq_mherz;
-#define XGE_HAL_PCI_FREQ_MHERZ_33		33
-#define XGE_HAL_PCI_FREQ_MHERZ_66		66
-#define XGE_HAL_PCI_FREQ_MHERZ_100		100
-#define XGE_HAL_PCI_FREQ_MHERZ_133		133
-#define XGE_HAL_PCI_FREQ_MHERZ_266		266
+	int             pci_freq_mherz;
+#define XGE_HAL_PCI_FREQ_MHERZ_33               33
+#define XGE_HAL_PCI_FREQ_MHERZ_66               66
+#define XGE_HAL_PCI_FREQ_MHERZ_100              100
+#define XGE_HAL_PCI_FREQ_MHERZ_133              133
+#define XGE_HAL_PCI_FREQ_MHERZ_266              266
 
-	int				intr_mode;
-#define XGE_HAL_INTR_MODE_IRQLINE		0
-#define XGE_HAL_INTR_MODE_MSI			1
-#define XGE_HAL_INTR_MODE_MSIX			2
+	int             intr_mode;
+#define XGE_HAL_INTR_MODE_IRQLINE               0
+#define XGE_HAL_INTR_MODE_MSI                   1
+#define XGE_HAL_INTR_MODE_MSIX                  2
 
-	int				sched_timer_us;
-#define XGE_HAL_SCHED_TIMER_DISABLED		0
-#define XGE_HAL_SCHED_TIMER_MIN			0
-#define XGE_HAL_SCHED_TIMER_MAX			0xFFFFF
+	int             sched_timer_us;
+#define XGE_HAL_SCHED_TIMER_DISABLED            0
+#define XGE_HAL_SCHED_TIMER_MIN                 0
+#define XGE_HAL_SCHED_TIMER_MAX                 0xFFFFF
 
-	int				sched_timer_one_shot;
-#define XGE_HAL_SCHED_TIMER_ON_SHOT_DISABLE	0
-#define XGE_HAL_SCHED_TIMER_ON_SHOT_ENABLE	1
+	int             sched_timer_one_shot;
+#define XGE_HAL_SCHED_TIMER_ON_SHOT_DISABLE     0
+#define XGE_HAL_SCHED_TIMER_ON_SHOT_ENABLE      1
 
-	xge_hal_ring_config_t		ring;
-	xge_hal_mac_config_t		mac;
-	xge_hal_fifo_config_t		fifo;
+	xge_hal_ring_config_t       ring;
+	xge_hal_mac_config_t        mac;
+	xge_hal_fifo_config_t       fifo;
 
-	int				dump_on_serr;
-#define XGE_HAL_DUMP_ON_SERR_DISABLE		0
-#define XGE_HAL_DUMP_ON_SERR_ENABLE		1
+	int             dump_on_serr;
+#define XGE_HAL_DUMP_ON_SERR_DISABLE            0
+#define XGE_HAL_DUMP_ON_SERR_ENABLE             1
 
-	int				dump_on_eccerr;
-#define XGE_HAL_DUMP_ON_ECCERR_DISABLE		0
-#define XGE_HAL_DUMP_ON_ECCERR_ENABLE		1
+	int             dump_on_eccerr;
+#define XGE_HAL_DUMP_ON_ECCERR_DISABLE          0
+#define XGE_HAL_DUMP_ON_ECCERR_ENABLE           1
 
-	int				dump_on_parityerr;
-#define XGE_HAL_DUMP_ON_PARITYERR_DISABLE	0
-#define XGE_HAL_DUMP_ON_PARITYERR_ENABLE	1
+	int             dump_on_parityerr;
+#define XGE_HAL_DUMP_ON_PARITYERR_DISABLE       0
+#define XGE_HAL_DUMP_ON_PARITYERR_ENABLE        1
 
-	int				rth_en;
-#define XGE_HAL_RTH_DISABLE			0
-#define XGE_HAL_RTH_ENABLE			1
+	int             rth_en;
+#define XGE_HAL_RTH_DISABLE                     0
+#define XGE_HAL_RTH_ENABLE                      1
 
-	int				rth_bucket_size;
-#define XGE_HAL_MIN_RTH_BUCKET_SIZE		1
-#define XGE_HAL_MAX_RTH_BUCKET_SIZE		8
+	int             rth_bucket_size;
+#define XGE_HAL_MIN_RTH_BUCKET_SIZE             1
+#define XGE_HAL_MAX_RTH_BUCKET_SIZE             8
 
-	int				rth_spdm_en;
-#define XGE_HAL_RTH_SPDM_DISABLE		0
-#define XGE_HAL_RTH_SPDM_ENABLE			1
+	int             rth_spdm_en;
+#define XGE_HAL_RTH_SPDM_DISABLE                0
+#define XGE_HAL_RTH_SPDM_ENABLE                 1
 
-	int				rth_spdm_use_l4;
-#define XGE_HAL_RTH_SPDM_USE_L4			1
+	int             rth_spdm_use_l4;
+#define XGE_HAL_RTH_SPDM_USE_L4                 1
 
-	int				rxufca_intr_thres;
-#define XGE_HAL_RXUFCA_INTR_THRES_MIN		1
-#define XGE_HAL_RXUFCA_INTR_THRES_MAX		4096
+	int             rxufca_intr_thres;
+#define XGE_HAL_RXUFCA_INTR_THRES_MIN           1
+#define XGE_HAL_RXUFCA_INTR_THRES_MAX           4096
 
-	int				rxufca_lo_lim;
-#define XGE_HAL_RXUFCA_LO_LIM_MIN		1
-#define XGE_HAL_RXUFCA_LO_LIM_MAX		16
+	int             rxufca_lo_lim;
+#define XGE_HAL_RXUFCA_LO_LIM_MIN               1
+#define XGE_HAL_RXUFCA_LO_LIM_MAX               16
 
-	int				rxufca_hi_lim;
-#define XGE_HAL_RXUFCA_HI_LIM_MIN		1
-#define XGE_HAL_RXUFCA_HI_LIM_MAX		256
+	int             rxufca_hi_lim;
+#define XGE_HAL_RXUFCA_HI_LIM_MIN               1
+#define XGE_HAL_RXUFCA_HI_LIM_MAX               256
 
-	int				rxufca_lbolt_period;
-#define XGE_HAL_RXUFCA_LBOLT_PERIOD_MIN		1
-#define XGE_HAL_RXUFCA_LBOLT_PERIOD_MAX		1024
+	int             rxufca_lbolt_period;
+#define XGE_HAL_RXUFCA_LBOLT_PERIOD_MIN         1
+#define XGE_HAL_RXUFCA_LBOLT_PERIOD_MAX         1024
 
-	int				link_valid_cnt;
-#define XGE_HAL_LINK_VALID_CNT_MIN		0
-#define XGE_HAL_LINK_VALID_CNT_MAX		127
+	int             link_valid_cnt;
+#define XGE_HAL_LINK_VALID_CNT_MIN              0
+#define XGE_HAL_LINK_VALID_CNT_MAX              127
 
-	int				link_retry_cnt;
-#define XGE_HAL_LINK_RETRY_CNT_MIN		0
-#define XGE_HAL_LINK_RETRY_CNT_MAX		127
+	int             link_retry_cnt;
+#define XGE_HAL_LINK_RETRY_CNT_MIN              0
+#define XGE_HAL_LINK_RETRY_CNT_MAX              127
 
-	int				link_stability_period;
-#define XGE_HAL_DEFAULT_LINK_STABILITY_PERIOD	2 /* 1ms */
-#define XGE_HAL_MIN_LINK_STABILITY_PERIOD	0 /* instantaneous */
-#define XGE_HAL_MAX_LINK_STABILITY_PERIOD	7 /* 2s */
+	int             link_stability_period;
+#define XGE_HAL_DEFAULT_LINK_STABILITY_PERIOD   2 /* 1ms */
+#define XGE_HAL_MIN_LINK_STABILITY_PERIOD       0 /* instantaneous */
+#define XGE_HAL_MAX_LINK_STABILITY_PERIOD       7 /* 2s */
 
-	int				device_poll_millis;
-#define XGE_HAL_DEFAULT_DEVICE_POLL_MILLIS	1000
-#define XGE_HAL_MIN_DEVICE_POLL_MILLIS		1
-#define XGE_HAL_MAX_DEVICE_POLL_MILLIS		100000
+	int             device_poll_millis;
+#define XGE_HAL_DEFAULT_DEVICE_POLL_MILLIS      1000
+#define XGE_HAL_MIN_DEVICE_POLL_MILLIS          1
+#define XGE_HAL_MAX_DEVICE_POLL_MILLIS          100000
 
-	int				no_isr_events;
-#define XGE_HAL_NO_ISR_EVENTS_MIN		0
-#define XGE_HAL_NO_ISR_EVENTS_MAX		1
+	int             no_isr_events;
+#define XGE_HAL_NO_ISR_EVENTS_MIN               0
+#define XGE_HAL_NO_ISR_EVENTS_MAX               1
 
-	int				lro_sg_size;
-#define XGE_HAL_LRO_DEFAULT_SG_SIZE		10
-#define XGE_HAL_LRO_MIN_SG_SIZE			1
-#define XGE_HAL_LRO_MAX_SG_SIZE			64
+	int             lro_sg_size;
+#define XGE_HAL_LRO_DEFAULT_SG_SIZE             10
+#define XGE_HAL_LRO_MIN_SG_SIZE                 1
+#define XGE_HAL_LRO_MAX_SG_SIZE                 64
 
-	int				lro_frm_len;
-#define XGE_HAL_LRO_DEFAULT_FRM_LEN		65536
-#define XGE_HAL_LRO_MIN_FRM_LEN			4096
-#define XGE_HAL_LRO_MAX_FRM_LEN			65536
+	int             lro_frm_len;
+#define XGE_HAL_LRO_DEFAULT_FRM_LEN             65536
+#define XGE_HAL_LRO_MIN_FRM_LEN                 4096
+#define XGE_HAL_LRO_MAX_FRM_LEN                 65536
 
-	int				bimodal_interrupts;
-#define XGE_HAL_BIMODAL_INTR_MIN		-1
-#define XGE_HAL_BIMODAL_INTR_MAX		1
+	int             bimodal_interrupts;
+#define XGE_HAL_BIMODAL_INTR_MIN                -1
+#define XGE_HAL_BIMODAL_INTR_MAX                1
 
-	int				bimodal_timer_lo_us;
-#define XGE_HAL_BIMODAL_TIMER_LO_US_MIN		1
-#define XGE_HAL_BIMODAL_TIMER_LO_US_MAX		127
+	int             bimodal_timer_lo_us;
+#define XGE_HAL_BIMODAL_TIMER_LO_US_MIN         1
+#define XGE_HAL_BIMODAL_TIMER_LO_US_MAX         127
 
-	int				bimodal_timer_hi_us;
-#define XGE_HAL_BIMODAL_TIMER_HI_US_MIN		128
-#define XGE_HAL_BIMODAL_TIMER_HI_US_MAX		65535
+	int             bimodal_timer_hi_us;
+#define XGE_HAL_BIMODAL_TIMER_HI_US_MIN         128
+#define XGE_HAL_BIMODAL_TIMER_HI_US_MAX         65535
 
-	int				rts_mac_en;
-#define XGE_HAL_RTS_MAC_DISABLE			0
-#define XGE_HAL_RTS_MAC_ENABLE			1
+	int             rts_mac_en;
+#define XGE_HAL_RTS_MAC_DISABLE                 0
+#define XGE_HAL_RTS_MAC_ENABLE                  1
 
-	int				rts_qos_en;
-#define XGE_HAL_RTS_QOS_DISABLE			0
-#define XGE_HAL_RTS_QOS_ENABLE			1
+	int             rts_qos_en;
+#define XGE_HAL_RTS_QOS_DISABLE                 0
+#define XGE_HAL_RTS_QOS_ENABLE                  1
 
-	int				rts_port_en;
-#define XGE_HAL_RTS_PORT_DISABLE		0
-#define XGE_HAL_RTS_PORT_ENABLE			1
-
-#ifdef XGEHAL_RNIC
-
-	xge_hal_vp_config_t		vp_config[XGE_HAL_MAX_VIRTUAL_PATHS];
-
-	int				max_cqe_groups;
-#define XGE_HAL_MAX_CQE_GROUPS_MIN		1
-#define XGE_HAL_MAX_CQE_GROUPS_MAX		16
-
-	int				max_num_wqe_od_groups;
-#define XGE_HAL_MAX_NUM_OD_GROUPS_MIN		1
-#define XGE_HAL_MAX_NUM_OD_GROUPS_MAX		16
-
-	int				no_wqe_threshold;
-#define XGE_HAL_NO_WQE_THRESHOLD_MIN		1
-#define XGE_HAL_NO_WQE_THRESHOLD_MAX		16
-
-	int				refill_threshold_high;
-#define XGE_HAL_REFILL_THRESHOLD_HIGH_MIN	1
-#define XGE_HAL_REFILL_THRESHOLD_HIGH_MAX	16
-
-	int				refill_threshold_low;
-#define XGE_HAL_REFILL_THRESHOLD_LOW_MIN	1
-#define XGE_HAL_REFILL_THRESHOLD_LOW_MAX	16
-
-	int				ack_blk_limit;
-#define XGE_HAL_ACK_BLOCK_LIMIT_MIN		1
-#define XGE_HAL_ACK_BLOCK_LIMIT_MAX		16
-
-	int				poll_or_doorbell;
-#define XGE_HAL_POLL_OR_DOORBELL_POLL		1
-#define XGE_HAL_POLL_OR_DOORBELL_DOORBELL	0
-
-
-#endif
+	int             rts_port_en;
+#define XGE_HAL_RTS_PORT_DISABLE                0
+#define XGE_HAL_RTS_PORT_ENABLE                 1
 
 } xge_hal_device_config_t;
 
@@ -971,23 +871,23 @@ typedef struct xge_hal_device_config_t {
  * See also: xge_hal_device_poll()
  */
 typedef struct xge_hal_driver_config_t {
-	int				queue_size_initial;
-#define XGE_HAL_MIN_QUEUE_SIZE_INITIAL		1
-#define XGE_HAL_MAX_QUEUE_SIZE_INITIAL		16
+	int             queue_size_initial;
+#define XGE_HAL_MIN_QUEUE_SIZE_INITIAL      1
+#define XGE_HAL_MAX_QUEUE_SIZE_INITIAL      16
 
-	int				queue_size_max;
-#define XGE_HAL_MIN_QUEUE_SIZE_MAX		1
-#define XGE_HAL_MAX_QUEUE_SIZE_MAX		16
+	int             queue_size_max;
+#define XGE_HAL_MIN_QUEUE_SIZE_MAX          1
+#define XGE_HAL_MAX_QUEUE_SIZE_MAX          16
 
 #ifdef XGE_TRACE_INTO_CIRCULAR_ARR
-	int				tracebuf_size;
-#define XGE_HAL_MIN_CIRCULAR_ARR                4096
-#define XGE_HAL_MAX_CIRCULAR_ARR                1048576
-#define XGE_HAL_DEF_CIRCULAR_ARR                XGE_OS_HOST_PAGE_SIZE
+	int             tracebuf_size;
+#define XGE_HAL_MIN_CIRCULAR_ARR            4096
+#define XGE_HAL_MAX_CIRCULAR_ARR            1048576
+#define XGE_HAL_DEF_CIRCULAR_ARR            XGE_OS_HOST_PAGE_SIZE
 
-	int				tracebuf_timestamp_en;
-#define XGE_HAL_MIN_TIMESTAMP_EN                0
-#define XGE_HAL_MAX_TIMESTAMP_EN                1
+	int             tracebuf_timestamp_en;
+#define XGE_HAL_MIN_TIMESTAMP_EN            0
+#define XGE_HAL_MAX_TIMESTAMP_EN            1
 #endif
 
 } xge_hal_driver_config_t;

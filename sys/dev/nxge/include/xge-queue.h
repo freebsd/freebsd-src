@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xge-queue.h
- *
- *  Description:  serialized event queue
- *
- *  Created:      7 June 2004
- */
-
 #ifndef XGE_QUEUE_H
 #define XGE_QUEUE_H
 
@@ -44,8 +36,8 @@
 
 __EXTERN_BEGIN_DECLS
 
-#define XGE_QUEUE_BUF_SIZE		0x1000
-#define XGE_DEFAULT_EVENT_MAX_DATA_SIZE	16
+#define XGE_QUEUE_BUF_SIZE      0x1000
+#define XGE_DEFAULT_EVENT_MAX_DATA_SIZE 16
 
 /**
  * enum xge_queue_status_e - Enumerates return codes of the xge_queue
@@ -61,11 +53,11 @@ __EXTERN_BEGIN_DECLS
  * and xge_queue_produce() APIs.
  */
 typedef enum xge_queue_status_e {
-	XGE_QUEUE_OK			= 0,
-	XGE_QUEUE_IS_FULL		= 1,
-	XGE_QUEUE_IS_EMPTY		= 2,
-	XGE_QUEUE_OUT_OF_MEMORY	        = 3,
-	XGE_QUEUE_NOT_ENOUGH_SPACE	= 4
+	XGE_QUEUE_OK            = 0,
+	XGE_QUEUE_IS_FULL       = 1,
+	XGE_QUEUE_IS_EMPTY      = 2,
+	XGE_QUEUE_OUT_OF_MEMORY         = 3,
+	XGE_QUEUE_NOT_ENOUGH_SPACE  = 4
 } xge_queue_status_e;
 
 typedef void* xge_queue_h;
@@ -86,11 +78,11 @@ typedef void* xge_queue_h;
  * See also: xge_queue_t{}.
  */
 typedef struct xge_queue_item_t {
-	xge_list_t			item;
-	xge_hal_event_e		event_type;
-	int					data_size;
-	int					is_critical;
-	void				*context;
+	xge_list_t          item;
+	xge_hal_event_e     event_type;
+	int                 data_size;
+	int                 is_critical;
+	void                *context;
 } xge_queue_item_t;
 
 /**
@@ -114,7 +106,7 @@ typedef void (*xge_queued_f) (void *data, int event_type);
  *            produce/consume operations.
  * @lock: Lock for queue operations(syncronization purpose).
  * @pages_initial:Number of pages to be initially allocated at the time
- *		  of queue creation.
+ *        of queue creation.
  * @pages_max: Max number of pages that can be allocated in the queue.
  * @pages_current: Number of pages currently allocated
  * @list_head: Points to the list of queue elements that are produced, but yet
@@ -135,26 +127,26 @@ typedef void (*xge_queued_f) (void *data, int event_type);
  * See also: xge_queue_item_t{}.
  */
 typedef struct xge_queue_t {
-	void				*start_ptr;
-	void				*end_ptr;
-	void				*head_ptr;
-	void				*tail_ptr;
-	spinlock_t			lock;
-	unsigned int			pages_initial;
-	unsigned int			pages_max;
-	unsigned int			pages_current;
-	xge_list_t			list_head;
-	pci_dev_h                       pdev;
-	pci_irq_h                       irqh;
-	xge_queued_f			queued_func;
-	void				*queued_data;
-	int				has_critical_event;
+	void                *start_ptr;
+	void                *end_ptr;
+	void                *head_ptr;
+	void                *tail_ptr;
+	spinlock_t          lock;
+	unsigned int        pages_initial;
+	unsigned int        pages_max;
+	unsigned int        pages_current;
+	xge_list_t          list_head;
+	pci_dev_h           pdev;
+	pci_irq_h           irqh;
+	xge_queued_f        queued_func;
+	void                *queued_data;
+	int             has_critical_event;
 } xge_queue_t;
 
 /* ========================== PUBLIC API ================================= */
 
 xge_queue_h xge_queue_create(pci_dev_h pdev, pci_irq_h irqh, int pages_initial,
-		int pages_max, xge_queued_f queued_func, void *queued_data);
+	    int pages_max, xge_queued_f queued_func, void *queued_data);
 
 void xge_queue_destroy(xge_queue_h queueh);
 
@@ -162,7 +154,7 @@ void* xge_queue_item_data(xge_queue_item_t *item);
 
 xge_queue_status_e
 xge_queue_produce(xge_queue_h queueh, int event_type, void *context,
-		int is_critical, const int data_size, void *data);
+	    int is_critical, const int data_size, void *data);
 
 static inline xge_queue_status_e
 xge_queue_produce_context(xge_queue_h queueh, int event_type, void *context) {
@@ -170,7 +162,7 @@ xge_queue_produce_context(xge_queue_h queueh, int event_type, void *context) {
 }
 
 xge_queue_status_e xge_queue_consume(xge_queue_h queueh, int data_max_size,
-		xge_queue_item_t *item);
+	    xge_queue_item_t *item);
 
 void xge_queue_flush(xge_queue_h queueh);
 
