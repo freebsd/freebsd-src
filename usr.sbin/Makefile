@@ -151,7 +151,7 @@ SUBDIR=	ac \
 	rtsold \
 	rwhod \
 	sa \
-	sade \
+	${_sade} \
 	${_sendmail} \
 	setfmac \
 	setpmac \
@@ -194,6 +194,7 @@ SUBDIR=	ac \
 	${_zzz}
 
 .if ${MACHINE_ARCH} != "arm"
+_sade=		sade
 _sysinstall=	sysinstall
 .endif
 
