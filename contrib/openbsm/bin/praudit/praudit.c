@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/praudit/praudit.c#12 $
  */
 
 /*
@@ -107,6 +107,7 @@ print_tokens(FILE *fp)
 		free(buf);
 		if (oneline)
 			printf("\n");
+		fflush(stdout);
 	}
 	return (0);
 }
