@@ -696,7 +696,8 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * number of back to back interrupts exceeds the storm threshold,
 	 * then enter storming mode.
 	 */
-	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold) {
+	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold &&
+	    !(ie->ie_flags & IE_SOFT)) {
 		/* Report the message only once every second. */
 		if (ppsratecheck(&ie->ie_warntm, &ie->ie_warncnt, 1)) {
 			printf(
