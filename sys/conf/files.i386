@@ -211,6 +211,7 @@ dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
 dev/nve/if_nve.c		optional nve pci
+dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/nehemiah.c		optional random
 dev/rr232x/os_bsd.c		optional rr232x
