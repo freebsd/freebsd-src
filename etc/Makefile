@@ -78,12 +78,12 @@ FREEBSD=COPYRIGHT
 
 afterinstall:
 .if ${MK_MAN} != "no"
-	cd ${.CURDIR}/../share/man; ${MAKE} makedb
+	${_+_}cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 
 distribute:
-	cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
-	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} install DESTDIR=${DISTDIR}/${DISTRIBUTION}
+	${_+_}cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
 
 .include <bsd.endian.mk>
 .if ${TARGET_ENDIANNESS} == "1234"
@@ -112,15 +112,15 @@ distribution:
 		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
 	    pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
 		${DESTDIR}/etc/master.passwd
-	cd ${.CURDIR}/bluetooth; ${MAKE} install
-	cd ${.CURDIR}/defaults; ${MAKE} install
-	cd ${.CURDIR}/gss; ${MAKE} install
-	cd ${.CURDIR}/periodic; ${MAKE} install
-	cd ${.CURDIR}/rc.d; ${MAKE} install
-	cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
-	cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
-	cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
-	cd ${.CURDIR}/pam.d; ${MAKE} install
+	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
+	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
+	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
+	${_+_}cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
+	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
+	${_+_}cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
+	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
 	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
@@ -128,7 +128,7 @@ distribution:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_I4B} != "no"
-	cd ${.CURDIR}/isdn; ${MAKE} install
+	${_+_}cd ${.CURDIR}/isdn; ${MAKE} install
 .endif
 .if ${MK_BIND_MTREE} != "no"
 	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
@@ -137,10 +137,10 @@ distribution:
 	fi
 .endif
 .if ${MK_BIND_ETC} != "no"
-	cd ${.CURDIR}/namedb; ${MAKE} install
+	${_+_}cd ${.CURDIR}/namedb; ${MAKE} install
 .endif
 .if ${MK_SENDMAIL} != "no"
-	cd ${.CURDIR}/sendmail; ${MAKE} distribution
+	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif
 .if ${MK_OPENSSH} != "no"
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
@@ -239,7 +239,7 @@ etc-examples:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${BIN1} ${BIN2} nsmb.conf opieaccess \
 	    ${DESTDIR}/usr/share/examples/etc
-	cd ${.CURDIR}/defaults; ${MAKE} install \
+	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install \
 	    DESTDIR=${DESTDIR}/usr/share/examples
 
 .include <bsd.prog.mk>
