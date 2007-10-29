@@ -799,28 +799,32 @@ inet_makenetandmask(net, sin, bits)
 	rtm_addrs |= RTA_NETMASK;
 	if (net == 0)
 		mask = addr = 0;
-	else if (net < 128) {
-		addr = net << IN_CLASSA_NSHIFT;
-		mask = IN_CLASSA_NET;
-	} else if (net < 65536) {
-		addr = net << IN_CLASSB_NSHIFT;
-		mask = IN_CLASSB_NET;
-	} else if (net < 16777216L) {
-		addr = net << IN_CLASSC_NSHIFT;
-		mask = IN_CLASSC_NET;
-	} else {
-		addr = net;
-		if ((addr & IN_CLASSA_HOST) == 0)
-			mask =  IN_CLASSA_NET;
-		else if ((addr & IN_CLASSB_HOST) == 0)
-			mask =  IN_CLASSB_NET;
-		else if ((addr & IN_CLASSC_HOST) == 0)
-			mask =  IN_CLASSC_NET;
+	else {
+		if (net <= 0xff)
+			addr = net << IN_CLASSA_NSHIFT;
+		else if (net <= 0xffff)
+			addr = net << IN_CLASSB_NSHIFT;
+		else if (net <= 0xffffff)
+			addr = net << IN_CLASSC_NSHIFT;
 		else
-			mask = -1;
+			addr = net;
+
+		if (bits != 0)
+			mask = 0xffffffff << (32 - bits);
+		else {
+			if (IN_CLASSA(addr))
+				mask = IN_CLASSA_NET;
+			else if (IN_CLASSB(addr))
+				mask = IN_CLASSB_NET;
+			else if (IN_CLASSC(addr))
+				mask = IN_CLASSC_NET;
+			else if (IN_MULTICAST(addr))
+				mask = IN_CLASSD_NET;
+			else
+				mask = 0xffffffff;
+		}
+		addr &= mask;
 	}
-	if (bits)
-		mask = 0xffffffff << (32 - bits);
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
 	sin->sin_addr.s_addr = htonl(mask);
