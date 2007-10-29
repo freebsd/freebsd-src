@@ -126,15 +126,7 @@ seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-seeotheruids_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
-{
-
-	return (seeotheruids_check(cr1, cr2));
-}
-
-static int
-seeotheruids_proc_check_signal(struct ucred *cred, struct proc *p,
-    int signum)
+seeotheruids_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 
 	return (seeotheruids_check(cred, p->p_ucred));
@@ -148,10 +140,18 @@ seeotheruids_proc_check_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-seeotheruids_proc_check_debug(struct ucred *cred, struct proc *p)
+seeotheruids_proc_check_signal(struct ucred *cred, struct proc *p,
+    int signum)
 {
 
 	return (seeotheruids_check(cred, p->p_ucred));
+}
+
+static int
+seeotheruids_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
+{
+
+	return (seeotheruids_check(cr1, cr2));
 }
 
 static int
@@ -164,10 +164,10 @@ seeotheruids_socket_check_visible(struct ucred *cred, struct socket *so,
 
 static struct mac_policy_ops seeotheruids_ops =
 {
-	.mpo_cred_check_visible = seeotheruids_cred_check_visible,
 	.mpo_proc_check_debug = seeotheruids_proc_check_debug,
 	.mpo_proc_check_sched = seeotheruids_proc_check_sched,
 	.mpo_proc_check_signal = seeotheruids_proc_check_signal,
+	.mpo_cred_check_visible = seeotheruids_cred_check_visible,
 	.mpo_socket_check_visible = seeotheruids_socket_check_visible,
 };
 
