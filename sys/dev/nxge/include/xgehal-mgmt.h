@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-mgmt.h
- *
- *  Description:  management API
- *
- *  Created:      1 September 2004
- */
-
 #ifndef XGE_HAL_MGMT_H
 #define XGE_HAL_MGMT_H
 
@@ -68,88 +60,88 @@ __EXTERN_BEGIN_DECLS
  * @transponder_temperature: TODO
  */
 typedef struct xge_hal_mgmt_about_info_t {
-	u16		vendor;
-	u16		device;
-	u16		subsys_vendor;
-	u16		subsys_device;
-	u8		board_rev;
-	char		vendor_name[16];
-	char		chip_name[16];
-	char		media[16];
-	char		hal_major[4];
-	char		hal_minor[4];
-	char		hal_fix[4];
-	char		hal_build[16];
-	char		ll_major[4];
-	char		ll_minor[4];
-	char		ll_fix[4];
-	char		ll_build[16];
-	u32		transponder_temperature;
+	u16     vendor;
+	u16     device;
+	u16     subsys_vendor;
+	u16     subsys_device;
+	u8      board_rev;
+	char        vendor_name[16];
+	char        chip_name[16];
+	char        media[16];
+	char        hal_major[4];
+	char        hal_minor[4];
+	char        hal_fix[4];
+	char        hal_build[16];
+	char        ll_major[4];
+	char        ll_minor[4];
+	char        ll_fix[4];
+	char        ll_build[16];
+	u32     transponder_temperature;
 } xge_hal_mgmt_about_info_t;
 
-typedef xge_hal_stats_hw_info_t		xge_hal_mgmt_hw_stats_t;
-typedef xge_hal_stats_pcim_info_t	xge_hal_mgmt_pcim_stats_t;
-typedef xge_hal_stats_sw_err_t		xge_hal_mgmt_sw_stats_t;
-typedef xge_hal_stats_device_info_t	xge_hal_mgmt_device_stats_t;
-typedef xge_hal_stats_channel_info_t	xge_hal_mgmt_channel_stats_t;
-typedef xge_hal_device_config_t		xge_hal_mgmt_device_config_t;
-typedef xge_hal_driver_config_t		xge_hal_mgmt_driver_config_t;
-typedef xge_hal_pci_config_t		xge_hal_mgmt_pci_config_t;
+typedef xge_hal_stats_hw_info_t     xge_hal_mgmt_hw_stats_t;
+typedef xge_hal_stats_pcim_info_t   xge_hal_mgmt_pcim_stats_t;
+typedef xge_hal_stats_sw_err_t      xge_hal_mgmt_sw_stats_t;
+typedef xge_hal_stats_device_info_t xge_hal_mgmt_device_stats_t;
+typedef xge_hal_stats_channel_info_t    xge_hal_mgmt_channel_stats_t;
+typedef xge_hal_device_config_t     xge_hal_mgmt_device_config_t;
+typedef xge_hal_driver_config_t     xge_hal_mgmt_driver_config_t;
+typedef xge_hal_pci_config_t        xge_hal_mgmt_pci_config_t;
 
 xge_hal_status_e
 xge_hal_mgmt_about(xge_hal_device_h devh, xge_hal_mgmt_about_info_t *about_info,
-		int size);
+	    int size);
 
 xge_hal_status_e
 xge_hal_mgmt_hw_stats(xge_hal_device_h devh, xge_hal_mgmt_hw_stats_t *hw_stats,
-		int size);
+	    int size);
 
 xge_hal_status_e
 xge_hal_mgmt_hw_stats_off(xge_hal_device_h devh, int off, int size, char *out);
 
 xge_hal_status_e
 xge_hal_mgmt_pcim_stats(xge_hal_device_h devh,
-		xge_hal_mgmt_pcim_stats_t *pcim_stats, int size);
+	    xge_hal_mgmt_pcim_stats_t *pcim_stats, int size);
 
 xge_hal_status_e
 xge_hal_mgmt_pcim_stats_off(xge_hal_device_h devh, int off, int size,
-		char *out);
+	    char *out);
 
 xge_hal_status_e
 xge_hal_mgmt_sw_stats(xge_hal_device_h devh, xge_hal_mgmt_sw_stats_t *hw_stats,
-		int size);
+	    int size);
 
 xge_hal_status_e
 xge_hal_mgmt_device_stats(xge_hal_device_h devh,
-		xge_hal_mgmt_device_stats_t *device_stats, int size);
+	    xge_hal_mgmt_device_stats_t *device_stats, int size);
 
 xge_hal_status_e
 xge_hal_mgmt_channel_stats(xge_hal_channel_h channelh,
-		xge_hal_mgmt_channel_stats_t *channel_stats, int size);
+	    xge_hal_mgmt_channel_stats_t *channel_stats, int size);
 
 xge_hal_status_e
 xge_hal_mgmt_reg_read(xge_hal_device_h devh, int bar_id, unsigned int offset,
-		u64 *value);
+	    u64 *value);
 
 xge_hal_status_e
-xge_hal_mgmt_reg_write(xge_hal_device_h	devh, int bar_id, unsigned int offset,
-		u64 value);
+xge_hal_mgmt_reg_write(xge_hal_device_h devh, int bar_id, unsigned int offset,
+	    u64 value);
 
 xge_hal_status_e
 xge_hal_mgmt_pcireg_read(xge_hal_device_h devh, unsigned int offset,
-		int bits, u32 *value);
+	    int bits, u32 *value);
 
 xge_hal_status_e
 xge_hal_mgmt_device_config(xge_hal_device_h devh,
-		xge_hal_mgmt_device_config_t *dev_config, int size);
+	    xge_hal_mgmt_device_config_t *dev_config, int size);
 
 xge_hal_status_e
 xge_hal_mgmt_driver_config(xge_hal_mgmt_driver_config_t *drv_config,
-		int size);
+	    int size);
 
 xge_hal_status_e
 xge_hal_mgmt_pci_config(xge_hal_device_h devh,
-		xge_hal_mgmt_pci_config_t *pci_config, int size);
+	    xge_hal_mgmt_pci_config_t *pci_config, int size);
 
 xge_hal_status_e
 xge_hal_pma_loopback( xge_hal_device_h devh, int enable );
@@ -199,7 +191,7 @@ __hal_chk_xpak_counter(xge_hal_device_t *hldev, int type, u32 value);
 #ifdef XGE_TRACE_INTO_CIRCULAR_ARR
 xge_hal_status_e
 xge_hal_mgmt_trace_read(char *buffer, unsigned buf_size, unsigned *offset,
-		unsigned *read_length);
+	    unsigned *read_length);
 #endif
 
 void
@@ -215,8 +207,8 @@ xge_hal_flick_link_led(xge_hal_device_h devh);
  * given its Sub system ID.
  */
 #define CARDS_WITH_FAULTY_LINK_INDICATORS(subid) \
-		((((subid >= 0x600B) && (subid <= 0x600D)) || \
-		 ((subid >= 0x640B) && (subid <= 0x640D))) ? 1 : 0)
+	    ((((subid >= 0x600B) && (subid <= 0x600D)) || \
+	     ((subid >= 0x640B) && (subid <= 0x640D))) ? 1 : 0)
 #define CHECKBIT(value, nbit) (value & (1 << nbit))
 
 #ifdef XGE_HAL_USE_MGMT_AUX
