@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2006 John Baldwin <jhb@FreeBSD.org>
+ * Copyright (c) 2006 Yahoo!, Inc.
  * All rights reserved.
+ * Written by: John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
