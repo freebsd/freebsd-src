@@ -4955,7 +4955,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
-			vtag = sctp_select_a_tag(inp);
+			vtag = sctp_select_a_tag(inp, 1);
 			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			itsn = sctp_select_initial_TSN(&inp->sctp_ep);
@@ -4963,7 +4963,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
-			vtag = sctp_select_a_tag(inp);
+			vtag = sctp_select_a_tag(inp, 1);
 			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
