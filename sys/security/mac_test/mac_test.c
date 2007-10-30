@@ -149,21 +149,6 @@ SYSCTL_NODE(_security_mac_test, OID_AUTO, counter, CTLFLAG_RW, 0,
 } while (0)
 
 /*
- * Functions that span multiple entry points.
- */
-COUNTER_DECL(internalize_label);
-static int
-test_internalize_label(struct label *label, char *element_name,
-    char *element_data, int *claimed)
-{
-
-	LABEL_NOTFREE(label);
-	COUNTER_INC(internalize_label);
-
-	return (0);
-}
-
-/*
  * Object-specific entry point implementations are sorted alphabetically by
  * object type name and then by operation.
  */
@@ -282,6 +267,18 @@ test_cred_init_label(struct label *label)
 
 	LABEL_INIT(label, MAGIC_CRED);
 	COUNTER_INC(cred_init_label);
+}
+
+COUNTER_DECL(cred_internalize_label);
+static int
+test_cred_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_CRED);
+	COUNTER_INC(cred_internalize_label);
+
+	return (0);
 }
 
 COUNTER_DECL(cred_relabel);
@@ -456,6 +453,18 @@ test_ifnet_init_label(struct label *label)
 
 	LABEL_INIT(label, MAGIC_IFNET);
 	COUNTER_INC(ifnet_init_label);
+}
+
+COUNTER_DECL(ifnet_internalize_label);
+static int
+test_ifnet_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_IFNET);
+	COUNTER_INC(ifnet_internalize_label);
+
+	return (0);
 }
 
 COUNTER_DECL(ifnet_relabel);
@@ -974,6 +983,18 @@ test_pipe_init_label(struct label *label)
 
 	LABEL_INIT(label, MAGIC_PIPE);
 	COUNTER_INC(pipe_init_label);
+}
+
+COUNTER_DECL(pipe_internalize_label);
+static int
+test_pipe_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_PIPE);
+	COUNTER_INC(pipe_internalize_label);
+
+	return (0);
 }
 
 COUNTER_DECL(pipe_relabel);
@@ -1524,6 +1545,18 @@ test_socket_init_label(struct label *label, int flag)
 
 	LABEL_INIT(label, MAGIC_SOCKET);
 	COUNTER_INC(socket_init_label);
+	return (0);
+}
+
+COUNTER_DECL(socket_internalize_label);
+static int
+test_socket_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_SOCKET);
+	COUNTER_INC(socket_internalize_label);
+
 	return (0);
 }
 
@@ -2621,6 +2654,18 @@ test_vnode_init_label(struct label *label)
 	COUNTER_INC(vnode_init_label);
 }
 
+COUNTER_DECL(vnode_internalize_label);
+static int
+test_vnode_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
+{
+
+	LABEL_CHECK(label, MAGIC_VNODE);
+	COUNTER_INC(vnode_internalize_label);
+
+	return (0);
+}
+
 COUNTER_DECL(vnode_relabel);
 static void
 test_vnode_relabel(struct ucred *cred, struct vnode *vp,
@@ -2661,7 +2706,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_destroy_label = test_cred_destroy_label,
 	.mpo_cred_externalize_label = test_cred_externalize_label,
 	.mpo_cred_init_label = test_cred_init_label,
-	.mpo_cred_internalize_label = test_internalize_label,
+	.mpo_cred_internalize_label = test_cred_internalize_label,
 	.mpo_cred_relabel = test_cred_relabel,
 
 	.mpo_devfs_create_device = test_devfs_create_device,
@@ -2680,7 +2725,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_ifnet_destroy_label = test_ifnet_destroy_label,
 	.mpo_ifnet_externalize_label = test_ifnet_externalize_label,
 	.mpo_ifnet_init_label = test_ifnet_init_label,
-	.mpo_ifnet_internalize_label = test_internalize_label,
+	.mpo_ifnet_internalize_label = test_ifnet_internalize_label,
 	.mpo_ifnet_relabel = test_ifnet_relabel,
 
 	.mpo_syncache_destroy_label = test_syncache_destroy_label,
@@ -2751,7 +2796,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_pipe_destroy_label = test_pipe_destroy_label,
 	.mpo_pipe_externalize_label = test_pipe_externalize_label,
 	.mpo_pipe_init_label = test_pipe_init_label,
-	.mpo_pipe_internalize_label = test_internalize_label,
+	.mpo_pipe_internalize_label = test_pipe_internalize_label,
 	.mpo_pipe_relabel = test_pipe_relabel,
 
 	.mpo_posixsem_check_destroy = test_posixsem_check_destroy,
@@ -2802,7 +2847,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_socket_destroy_label = test_socket_destroy_label,
 	.mpo_socket_externalize_label = test_socket_externalize_label,
 	.mpo_socket_init_label = test_socket_init_label,
-	.mpo_socket_internalize_label = test_internalize_label,
+	.mpo_socket_internalize_label = test_socket_internalize_label,
 	.mpo_socket_newconn = test_socket_newconn,
 	.mpo_socket_relabel = test_socket_relabel,
 
@@ -2892,7 +2937,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_vnode_execve_will_transition = test_vnode_execve_will_transition,
 	.mpo_vnode_externalize_label = test_vnode_externalize_label,
 	.mpo_vnode_init_label = test_vnode_init_label,
-	.mpo_vnode_internalize_label = test_internalize_label,
+	.mpo_vnode_internalize_label = test_vnode_internalize_label,
 	.mpo_vnode_relabel = test_vnode_relabel,
 	.mpo_vnode_setlabel_extattr = test_vnode_setlabel_extattr,
 };
