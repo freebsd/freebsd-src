@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2006
+.Dd October 30, 2007
 .Dt SCTP_GENERIC_SENDMSG 2
 .Os
 .Sh NAME
@@ -48,7 +48,6 @@
 .Fn sctp_generic_sendmsg "int s" "void *msg" "int msglen" "struct sockaddr *to" "socklen_t len" "struct sctp_sndrcvinfo *sinfo" "int flags"
 .Ft int
 .Fn sctp_generic_sendmsg_iov "int s" "struct iovec *iov" "int iovlen" "struct sockaddr *to" "struct sctp_sndrcvinfo *sinfo" "int flags"
-
 .Sh DESCRIPTION
 The
 .Fn sctp_generic_sendmsg
@@ -85,4 +84,3 @@ is not a socket.
 .Xr sctp_sendx 3 ,
 .Xr sctp_sendmsg 3 ,
 .Xr sctp_sendmsgx 3 ,
-
