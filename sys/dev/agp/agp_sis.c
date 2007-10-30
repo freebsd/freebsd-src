@@ -173,11 +173,8 @@ static int
 agp_sis_detach(device_t dev)
 {
 	struct agp_sis_softc *sc = device_get_softc(dev);
-	int error;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	/* Disable the aperture.. */
 	pci_write_config(dev, AGP_SIS_WINCTRL,
@@ -190,6 +187,7 @@ agp_sis_detach(device_t dev)
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 	return 0;
 }
 

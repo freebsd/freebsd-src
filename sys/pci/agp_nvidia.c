@@ -247,12 +247,9 @@ static int
 agp_nvidia_detach (device_t dev)
 {
 	struct agp_nvidia_softc *sc = device_get_softc(dev);
-	int error;
 	u_int32_t temp;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return (error);
+	agp_free_cdev(dev);
 
 	/* GART Control */
 	temp = pci_read_config(sc->dev, AGP_NVIDIA_0_APSIZE, 4);
@@ -270,6 +267,7 @@ agp_nvidia_detach (device_t dev)
 			 sc->initial_aperture);
 
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 
 	return (0);
 }
