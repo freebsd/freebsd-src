@@ -240,16 +240,14 @@ static int
 agp_via_detach(device_t dev)
 {
 	struct agp_via_softc *sc = device_get_softc(dev);
-	int error;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	pci_write_config(dev, sc->regs[REG_GARTCTRL], 0, 4);
 	pci_write_config(dev, sc->regs[REG_ATTBASE], 0, 4);
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 
 	return 0;
 }
