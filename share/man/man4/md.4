@@ -7,7 +7,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2006
+.Dd October 30, 2007
 .Dt MD 4
 .Os
 .Sh NAME
@@ -65,7 +65,7 @@ For more information, please see
 .Sh EXAMPLES
 To create a kernel with a ramdisk or MD file system, your kernel config
 needs the following options:
-.Bd -literal -ofset indent
+.Bd -literal -offset indent
 options 	MD_ROOT			#MD is a potential root device
 options		MD_ROOT_SIZE=8192	# 8MB ram disk
 makeoptions	MFS_IMAGE=/h/foo/ARM-MD
