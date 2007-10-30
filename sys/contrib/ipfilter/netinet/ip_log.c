@@ -52,7 +52,8 @@ struct file;
 # undef _KERNEL
 # undef KERNEL
 #endif
-#if __FreeBSD_version >= 220000 && defined(_KERNEL)
+#if (defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)) && \
+    defined(_KERNEL)
 # include <sys/fcntl.h>
 # include <sys/filio.h>
 #else
@@ -61,14 +62,14 @@ struct file;
 #include <sys/time.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if defined(NetBSD) && (__NetBSD_Version__ >= 104000000)
+# if (defined(NetBSD) && (__NetBSD_Version__ >= 104000000))
 #  include <sys/proc.h>
 # endif
 #endif /* _KERNEL */
 #if !SOLARIS && !defined(__hpux) && !defined(linux)
-# if (defined(NetBSD) && NetBSD > 199609) || \
-     (defined(OpenBSD) && OpenBSD > 199603) || \
-     (__FreeBSD_version >= 300000)
+# if (defined(NetBSD) && (NetBSD > 199609)) || \
+     (defined(OpenBSD) && (OpenBSD > 199603)) || \
+     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
 #  include <sys/dirent.h>
 # else
 #  include <sys/dir.h>

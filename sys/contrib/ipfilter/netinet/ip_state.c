@@ -655,10 +655,12 @@ caddr_t data;
 	if (error != 0)
 		return error;
 
+	READ_ENTER(&ipf_state);
 	isn = ips.ips_next;
 	if (isn == NULL) {
 		isn = ips_list;
 		if (isn == NULL) {
+			RWLOCK_EXIT(&ipf_state);
 			if (ips.ips_next == NULL)
 				return ENOENT;
 			return 0;
@@ -672,8 +674,10 @@ caddr_t data;
 		for (is = ips_list; is; is = is->is_next)
 			if (is == isn)
 				break;
-		if (!is)
+		if (is == NULL) {
+			RWLOCK_EXIT(&ipf_state);
 			return ESRCH;
+		}
 	}
 	ips.ips_next = isn->is_next;
 	bcopy((char *)isn, (char *)&ips.ips_is, sizeof(ips.ips_is));
@@ -681,6 +685,7 @@ caddr_t data;
 	if (isn->is_rule != NULL)
 		bcopy((char *)isn->is_rule, (char *)&ips.ips_fr,
 		      sizeof(ips.ips_fr));
+	RWLOCK_EXIT(&ipf_state);
 	error = fr_outobj(data, &ips, IPFOBJ_STATESAVE);
 	return error;
 }
