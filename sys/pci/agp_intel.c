@@ -262,13 +262,10 @@ agp_intel_detach(device_t dev)
 {
 	struct agp_intel_softc *sc;
 	u_int32_t reg;
-	int error;
 
 	sc = device_get_softc(dev);
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return (error);
+	agp_free_cdev(dev);
 
 	/* Disable aperture accesses. */
 	switch (pci_get_devid(dev)) {
@@ -305,6 +302,7 @@ agp_intel_detach(device_t dev)
 	pci_write_config(dev, AGP_INTEL_ATTBASE, 0, 4);
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 
 	return (0);
 }

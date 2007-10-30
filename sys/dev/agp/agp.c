@@ -261,16 +261,31 @@ agp_generic_attach(device_t dev)
 	return 0;
 }
 
-int
-agp_generic_detach(device_t dev)
+void
+agp_free_cdev(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
 
 	destroy_dev(sc->as_devnode);
+}
+
+void
+agp_free_res(device_t dev)
+{
+	struct agp_softc *sc = device_get_softc(dev);
+
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->as_aperture_rid,
 	    sc->as_aperture);
 	mtx_destroy(&sc->as_lock);
 	agp_flush_cache();
+}
+
+int
+agp_generic_detach(device_t dev)
+{
+
+	agp_free_cdev(dev);
+	agp_free_res(dev);
 	return 0;
 }
 

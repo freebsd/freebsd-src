@@ -277,11 +277,8 @@ static int
 agp_amd_detach(device_t dev)
 {
 	struct agp_amd_softc *sc = device_get_softc(dev);
-	int error;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	/* Disable the TLB.. */
 	WRITE2(AGP_AMD751_STATUS,
@@ -297,6 +294,7 @@ agp_amd_detach(device_t dev)
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 
 	agp_amd_free_gatt(sc->gatt);
+	agp_free_res(dev);
 
 	bus_release_resource(dev, SYS_RES_MEMORY,
 			     AGP_AMD751_REGISTERS, sc->regs);
