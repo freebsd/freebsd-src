@@ -126,7 +126,6 @@ rgephy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = rgephy_service;
 	sc->mii_pdata = mii;
-	sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 
 	mii->mii_instance++;
 
