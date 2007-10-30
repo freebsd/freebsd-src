@@ -35,7 +35,7 @@
 #ifndef	SOLARIS
 #define	SOLARIS	(defined(sun) && (defined(__svr4__) || defined(__SVR4)))
 #endif
-#if defined(SOLARIS2) && SOLARIS2 >= 8
+#if (defined(SOLARIS2) && (SOLARIS2 >= 8))
 # ifndef	USE_INET6
 #  define	USE_INET6
 # endif

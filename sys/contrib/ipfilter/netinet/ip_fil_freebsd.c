@@ -341,22 +341,19 @@ int mode;
 		if (unit != IPL_LOGIPF)
 			return EIO;
 		if (cmd != SIOCIPFGETNEXT && cmd != SIOCIPFGET &&
-		    cmd != SIOCIPFSET && cmd != SIOCFRENB && 
+		    cmd != SIOCIPFSET && cmd != SIOCFRENB &&
 		    cmd != SIOCGETFS && cmd != SIOCGETFF)
 			return EIO;
 	}
 
 	SPL_NET(s);
-	READ_ENTER(&ipf_global);
 
 	error = fr_ioctlswitch(unit, data, cmd, mode, p->p_uid, p);
 	if (error != -1) {
-		RWLOCK_EXIT(&ipf_global);
 		SPL_X(s);
 		return error;
 	}
 
-	RWLOCK_EXIT(&ipf_global);
 	SPL_X(s);
 
 	return error;
@@ -885,13 +882,17 @@ iplinit()
 #endif /* __FreeBSD_version < 300000 */
 
 
+/*
+ * m0 - pointer to mbuf where the IP packet starts
+ * mpp - pointer to the mbuf pointer that is the start of the mbuf chain
+ */
 int fr_fastroute(m0, mpp, fin, fdp)
 mb_t *m0, **mpp;
 fr_info_t *fin;
 frdest_t *fdp;
 {
 	register struct ip *ip, *mhip;
-	register struct mbuf *m = m0;
+	register struct mbuf *m = *mpp;
 	register struct route *ro;
 	int len, off, error = 0, hlen, code;
 	struct ifnet *ifp, *sifp;
@@ -1016,7 +1017,7 @@ frdest_t *fdp;
 			break;
 		case -1 :
 			error = -1;
-			goto done;
+			goto bad;
 			break;
 		}
 

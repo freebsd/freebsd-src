@@ -53,7 +53,7 @@ struct file;
 # include <sys/kmem.h>
 #endif
 #if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
-    (__FreeBSD_version >= 400000)
+    (defined(__FreeBSD_version) &&(__FreeBSD_version >= 400000))
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)

@@ -190,8 +190,8 @@ static	void	nat_addnat __P((struct ipnat *));
 static	void	nat_addrdr __P((struct ipnat *));
 static	void	nat_delrdr __P((struct ipnat *));
 static	void	nat_delnat __P((struct ipnat *));
-static	int	fr_natgetent __P((caddr_t));
-static	int	fr_natgetsz __P((caddr_t));
+static	int	fr_natgetent __P((caddr_t, int));
+static	int	fr_natgetsz __P((caddr_t, int));
 static	int	fr_natputent __P((caddr_t, int));
 static	int	nat_extraflush __P((int));
 static	int	nat_gettable __P((char *));
@@ -820,19 +820,22 @@ void *ctx;
 	    {
 		natlookup_t nl;
 
-		if (getlock) {
-			READ_ENTER(&ipf_nat);
-		}
 		error = fr_inobj(data, &nl, IPFOBJ_NATLOOKUP);
 		if (error == 0) {
-			if (nat_lookupredir(&nl) != NULL) {
+			void *ptr;
+
+			if (getlock) {
+				READ_ENTER(&ipf_nat);
+			}
+			ptr = nat_lookupredir(&nl);
+			if (getlock) {
+				RWLOCK_EXIT(&ipf_nat);
+			}
+			if (ptr != NULL) {
 				error = fr_outobj(data, &nl, IPFOBJ_NATLOOKUP);
 			} else {
 				error = ESRCH;
 			}
-		}
-		if (getlock) {
-			RWLOCK_EXIT(&ipf_nat);
 		}
 		break;
 	    }
@@ -888,26 +891,14 @@ void *ctx;
 
 	case SIOCSTGSZ :
 		if (fr_nat_lock) {
-			if (getlock) {
-				READ_ENTER(&ipf_nat);
-			}
-			error = fr_natgetsz(data);
-			if (getlock) {
-				RWLOCK_EXIT(&ipf_nat);
-			}
+			error = fr_natgetsz(data, getlock);
 		} else
 			error = EACCES;
 		break;
 
 	case SIOCSTGET :
 		if (fr_nat_lock) {
-			if (getlock) {
-				READ_ENTER(&ipf_nat);
-			}
-			error = fr_natgetent(data);
-			if (getlock) {
-				RWLOCK_EXIT(&ipf_nat);
-			}
+			error = fr_natgetent(data, getlock);
 		} else
 			error = EACCES;
 		break;
@@ -1202,8 +1193,9 @@ int getlock;
 /* The size of the entry is stored in the ng_sz field and the enture natget */
 /* structure is copied back to the user.                                    */
 /* ------------------------------------------------------------------------ */
-static int fr_natgetsz(data)
+static int fr_natgetsz(data, getlock)
 caddr_t data;
+int getlock;
 {
 	ap_session_t *aps;
 	nat_t *nat, *n;
@@ -1211,6 +1203,10 @@ caddr_t data;
 
 	if (BCOPYIN(data, &ng, sizeof(ng)) != 0)
 		return EFAULT;
+
+	if (getlock) {
+		READ_ENTER(&ipf_nat);
+	}
 
 	nat = ng.ng_ptr;
 	if (!nat) {
@@ -1220,6 +1216,9 @@ caddr_t data;
 		 * Empty list so the size returned is 0.  Simple.
 		 */
 		if (nat == NULL) {
+			if (getlock) {
+				RWLOCK_EXIT(&ipf_nat);
+			}
 			if (BCOPYOUT(&ng, data, sizeof(ng)) != 0)
 				return EFAULT;
 			return 0;
@@ -1233,8 +1232,12 @@ caddr_t data;
 		for (n = nat_instances; n; n = n->nat_next)
 			if (n == nat)
 				break;
-		if (!n)
+		if (n == NULL) {
+			if (getlock) {
+				RWLOCK_EXIT(&ipf_nat);
+			}
 			return ESRCH;
+		}
 	}
 
 	/*
@@ -1246,6 +1249,9 @@ caddr_t data;
 		ng.ng_sz += sizeof(ap_session_t) - 4;
 		if (aps->aps_data != 0)
 			ng.ng_sz += aps->aps_psiz;
+	}
+	if (getlock) {
+		RWLOCK_EXIT(&ipf_nat);
 	}
 
 	if (BCOPYOUT(&ng, data, sizeof(ng)) != 0)
@@ -1264,8 +1270,9 @@ caddr_t data;
 /* Copies out NAT entry to user space.  Any additional data held for a      */
 /* proxy is also copied, as to is the NAT rule which was responsible for it */
 /* ------------------------------------------------------------------------ */
-static int fr_natgetent(data)
+static int fr_natgetent(data, getlock)
 caddr_t data;
+int getlock;
 {
 	int error, outsize;
 	ap_session_t *aps;
@@ -1282,6 +1289,10 @@ caddr_t data;
 	KMALLOCS(ipn, nat_save_t *, ipns.ipn_dsize);
 	if (ipn == NULL)
 		return ENOMEM;
+
+	if (getlock) {
+		READ_ENTER(&ipf_nat);
+	}
 
 	ipn->ipn_dsize = ipns.ipn_dsize;
 	nat = ipns.ipn_next;
@@ -1353,10 +1364,17 @@ caddr_t data;
 			error = ENOBUFS;
 	}
 	if (error == 0) {
+		if (getlock) {
+			RWLOCK_EXIT(&ipf_nat);
+			getlock = 0;
+		}
 		error = fr_outobjsz(data, ipn, IPFOBJ_NATSAVE, ipns.ipn_dsize);
 	}
 
 finished:
+	if (getlock) {
+		RWLOCK_EXIT(&ipf_nat);
+	}
 	if (ipn != NULL) {
 		KFREES(ipn, ipns.ipn_dsize);
 	}
