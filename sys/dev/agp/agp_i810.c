@@ -583,11 +583,8 @@ static int
 agp_i810_detach(device_t dev)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
-	int error;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	/* Clear the GATT base. */
 	if ( sc->chiptype == CHIP_I810 ) {
@@ -608,6 +605,7 @@ agp_i810_detach(device_t dev)
 	free(sc->gatt, M_AGP);
 
 	bus_release_resources(dev, sc->sc_res_spec, sc->sc_res);
+	agp_free_res(dev);
 
 	return 0;
 }

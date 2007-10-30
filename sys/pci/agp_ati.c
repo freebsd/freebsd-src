@@ -248,17 +248,14 @@ static int
 agp_ati_detach(device_t dev)
 {
 	struct agp_ati_softc *sc = device_get_softc(dev);
-	int error;
 	u_int32_t apsize_reg, temp;
+
+	agp_free_cdev(dev);
 
 	if (sc->is_rs300)
 		apsize_reg = ATI_RS300_APSIZE;
 	else
 		apsize_reg = ATI_RS100_APSIZE;
-
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
 
 	/* Clear the GATT base */
 	WRITE4(ATI_GART_BASE, 0);
@@ -273,6 +270,7 @@ agp_ati_detach(device_t dev)
 	free(sc->ag_virtual, M_AGP);
 
 	bus_release_resource(dev, SYS_RES_MEMORY, ATI_GART_MMADDR, sc->regs);
+	agp_free_res(dev);
 
 	return 0;
 }
