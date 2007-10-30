@@ -108,6 +108,7 @@ extern struct nfs_diskless nfs_diskless;
 extern int	nfs_diskless_valid;
 void bootpc_init(void);
 void nfs_setup_diskless(void);
+void nfs_parse_options(const char *, struct nfs_args *);
 #endif
 
 #endif
