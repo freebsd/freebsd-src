@@ -19,7 +19,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s [-n count] [-s] [-x] [prefix [suffix]]\n",
+	fprintf(stderr, "usage: %s [-sx] [-n count] [prefix [suffix]]\n",
 	    getprogname());
 	exit(1);
 }
