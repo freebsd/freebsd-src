@@ -71,9 +71,11 @@ If the
 utility is being used to facilitate concurrency between a number
 of processes, it is recommended that the
 .Fl k
-option be used. This will guarantee lock ordering, as well as implement
+option be used.
+This will guarantee lock ordering, as well as implement
 a performance enhanced algorithm which minimizes CPU load associated
-with concurrent unlink, drop and re-acquire activity. It should be noted
+with concurrent unlink, drop and re-acquire activity.
+It should be noted
 that if the
 .Fl k
 option is not used, then no guarantees around lock ordering can be made.
