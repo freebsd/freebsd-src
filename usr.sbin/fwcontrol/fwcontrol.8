@@ -114,7 +114,7 @@ in the
 Ports Collection. Resulting MPEG TS stream can be played and sent over a
 network using the VideoLAN
 .Nm vlc
-tool in the 
+tool in the
 .Fx
 Ports Collection. The stream can be piped directly to
 .Nm vlc,
@@ -167,8 +167,8 @@ with
 from ports and to receive the stream, use
 .Dl nc -l -p 9000 | vlc -
 .Pp
-To netcast via UDP, you need to use 
-.Nm buffer 
+To netcast via UDP, you need to use
+.Nm buffer
 program from ports, since vlc is not fast enough to read UDP packets from
 buffers and thus it experiences dropouts when run directly. The sending side
 can use
