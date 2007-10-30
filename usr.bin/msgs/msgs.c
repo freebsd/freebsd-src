@@ -171,6 +171,7 @@ main(int argc, char *argv[])
 	int blast = 0;
 	struct stat buf;		/* stat to check access of bounds */
 	FILE *bounds;
+	char *cp;
 
 #ifdef UNBUFFERED
 	setbuf(stdout, NULL);
@@ -286,7 +287,7 @@ main(int argc, char *argv[])
 		lastmsg = 0;
 
 		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)){
-			char *cp = dp->d_name;
+			cp = dp->d_name;
 			int i = 0;
 
 			if (dp->d_ino == 0)
@@ -402,7 +403,11 @@ main(int argc, char *argv[])
 	totty = (isatty(fileno(stdout)) != 0);
 	use_pager = use_pager && totty;
 
-	snprintf(fname, sizeof(fname), "%s/%s", getenv("HOME"), MSGSRC);
+	if ((cp = getenv("HOME")) == NULL || *cp == '\0') {
+		fprintf(stderr, "Error, no home directory!\n");
+		exit(1);
+	}
+	snprintf(fname, sizeof(fname), "%s/%s", cp, MSGSRC);
 	msgsrc = fopen(fname, "r");
 	if (msgsrc) {
 		newrc = NO;
