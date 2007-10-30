@@ -1007,10 +1007,9 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
- * Number of seconds of time wait, tied to MSL value (2 minutes), so 2 * MSL
- * = 4 minutes or 480 seconds.
+ * Number of seconds of time wait for a vtag.
  */
-#define SCTP_TIME_WAIT 480
+#define SCTP_TIME_WAIT 60
 
 /* This time wait is the same as the default cookie life
  * since we now enter a tag in every time we send a cookie.

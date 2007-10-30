@@ -928,6 +928,11 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
+		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_INP_RUNLOCK(inp);
+			continue;
+		}
 		/* Does this TCB have a matching address? */
 		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 
@@ -1045,8 +1050,13 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 				goto null_return;
 			}
 			SCTP_TCB_LOCK(stcb);
+
 			if (stcb->rport != rport) {
 				/* remote port does not match. */
+				SCTP_TCB_UNLOCK(stcb);
+				goto null_return;
+			}
+			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				SCTP_TCB_UNLOCK(stcb);
 				goto null_return;
 			}
@@ -1128,8 +1138,12 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 				/* remote port does not match */
 				continue;
 			}
-			/* now look at the list of remote addresses */
 			SCTP_TCB_LOCK(stcb);
+			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				SCTP_TCB_UNLOCK(stcb);
+				continue;
+			}
+			/* now look at the list of remote addresses */
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 #ifdef INVARIANTS
 				if (net == (TAILQ_NEXT(net, sctp_next))) {
@@ -1250,6 +1264,9 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 				SCTP_INP_RUNLOCK(stcb->sctp_ep);
 				continue;
 			}
+			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				continue;
+			}
 			if (want_lock) {
 				SCTP_TCB_LOCK(stcb);
 			}
@@ -1270,6 +1287,9 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 		SCTP_INP_RLOCK(stcb->sctp_ep);
 		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 			SCTP_INP_RUNLOCK(stcb->sctp_ep);
+			continue;
+		}
+		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 			continue;
 		}
 		if (want_lock) {
@@ -1696,6 +1716,10 @@ sctp_findassoc_by_vtag(struct sockaddr *from, uint32_t vtag,
 				 * we could remove this if vtags are unique
 				 * across the system.
 				 */
+				SCTP_TCB_UNLOCK(stcb);
+				continue;
+			}
+			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
@@ -3922,6 +3946,31 @@ sctp_delete_from_timewait(uint32_t tag)
 	}
 }
 
+int
+sctp_is_in_timewait(uint32_t tag)
+{
+	struct sctpvtaghead *chain;
+	struct sctp_tagblock *twait_block;
+	int found = 0;
+	int i;
+
+	chain = &sctppcbinfo.vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
+	if (!SCTP_LIST_EMPTY(chain)) {
+		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
+			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
+				if (twait_block->vtag_block[i].v_tag == tag) {
+					found = 1;
+					break;
+				}
+			}
+			if (found)
+				break;
+		}
+	}
+	return (found);
+}
+
+
 void
 sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 {
@@ -3944,14 +3993,13 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 					twait_block->vtag_block[i].v_tag = tag;
 					set = 1;
 				} else if ((twait_block->vtag_block[i].v_tag) &&
-					    ((long)twait_block->vtag_block[i].tv_sec_at_expire >
-				    now.tv_sec)) {
+				    ((long)twait_block->vtag_block[i].tv_sec_at_expire < now.tv_sec)) {
 					/* Audit expires this guy */
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
 					twait_block->vtag_block[i].v_tag = 0;
 					if (set == 0) {
 						/* Reuse it for my new tag */
-						twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + SCTP_TIME_WAIT;
+						twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
 						twait_block->vtag_block[0].v_tag = tag;
 						set = 1;
 					}
@@ -3975,8 +4023,7 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 		}
 		memset(twait_block, 0, sizeof(struct sctp_tagblock));
 		LIST_INSERT_HEAD(chain, twait_block, sctp_nxt_tagblock);
-		twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec +
-		    SCTP_TIME_WAIT;
+		twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
 		twait_block->vtag_block[0].v_tag = tag;
 	}
 }
@@ -5738,7 +5785,7 @@ sctp_set_primary_addr(struct sctp_tcb *stcb, struct sockaddr *sa,
 }
 
 int
-sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, struct timeval *now)
+sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, struct timeval *now, int save_in_twait)
 {
 	/*
 	 * This function serves two purposes. It will see if a TAG can be
@@ -5805,7 +5852,7 @@ check_time_wait:
 				if (twait_block->vtag_block[i].v_tag == 0) {
 					/* not used */
 					continue;
-				} else if ((long)twait_block->vtag_block[i].tv_sec_at_expire >
+				} else if ((long)twait_block->vtag_block[i].tv_sec_at_expire <
 				    now->tv_sec) {
 					/* Audit expires this guy */
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
@@ -5827,7 +5874,8 @@ check_time_wait:
 	 * add this tag to the assoc hash we need to purge it from
 	 * the t-wait hash.
 	 */
-	sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life));
+	if (save_in_twait)
+		sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life));
 	SCTP_INP_INFO_WUNLOCK();
 	return (1);
 }
