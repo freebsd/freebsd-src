@@ -15,6 +15,7 @@
 #
 
 # 20070930: rename of cached to nscd
+OLD_FILES+=etc/cached.conf
 OLD_FILES+=etc/rc.d/cached
 OLD_FILES+=usr/sbin/cached
 OLD_FILES+=usr/share/man/man5/cached.conf.5.gz
