@@ -2266,6 +2266,7 @@ flags_out:
 			 * land.
 			 */
 			sstat->sstat_state = stcb->asoc.state;
+			sstat->sstat_assoc_id = sctp_get_associd(stcb);
 			sstat->sstat_rwnd = stcb->asoc.peers_rwnd;
 			sstat->sstat_unackdata = stcb->asoc.sent_queue_cnt;
 			/*

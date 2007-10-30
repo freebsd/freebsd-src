@@ -844,7 +844,7 @@ retry:
 }
 
 uint32_t
-sctp_select_a_tag(struct sctp_inpcb *inp)
+sctp_select_a_tag(struct sctp_inpcb *inp, int save_in_twait)
 {
 	u_long x, not_done;
 	struct timeval now;
@@ -857,7 +857,7 @@ sctp_select_a_tag(struct sctp_inpcb *inp)
 			/* we never use 0 */
 			continue;
 		}
-		if (sctp_is_vtag_good(inp, x, &now)) {
+		if (sctp_is_vtag_good(inp, x, &now, save_in_twait)) {
 			not_done = 0;
 		}
 	}
@@ -908,19 +908,25 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		struct timeval now;
 
 		(void)SCTP_GETTIME_TIMEVAL(&now);
-		if (sctp_is_vtag_good(m, override_tag, &now)) {
+		if (sctp_is_in_timewait(override_tag)) {
+			/*
+			 * It must be in the time-wait hash, we put it there
+			 * when we aloc one. If not the peer is playing
+			 * games.
+			 */
 			asoc->my_vtag = override_tag;
 		} else {
 			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
+			panic("Huh is_in_timewait fails");
 			return (ENOMEM);
 		}
 
 	} else {
-		asoc->my_vtag = sctp_select_a_tag(m);
+		asoc->my_vtag = sctp_select_a_tag(m, 1);
 	}
 	/* Get the nonce tags */
-	asoc->my_vtag_nonce = sctp_select_a_tag(m);
-	asoc->peer_vtag_nonce = sctp_select_a_tag(m);
+	asoc->my_vtag_nonce = sctp_select_a_tag(m, 0);
+	asoc->peer_vtag_nonce = sctp_select_a_tag(m, 0);
 	asoc->vrf_id = vrf_id;
 
 	if (sctp_is_feature_on(m, SCTP_PCB_FLAGS_DONOT_HEARTBEAT))
