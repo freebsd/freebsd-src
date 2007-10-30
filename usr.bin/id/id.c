@@ -313,14 +313,46 @@ void
 auditid(void)
 {
 	auditinfo_t auditinfo;
+	auditinfo_addr_t ainfo_addr;
+	int ret, extended;
 
-	if (getaudit(&auditinfo) < 0)
+	extended = 0;
+	ret = getaudit(&auditinfo);
+	if (ret < 0 && errno == E2BIG) {
+		if (getaudit_addr(&ainfo_addr, sizeof(ainfo_addr)) < 0)
+			err(1, "getaudit_addr");
+		extended = 1;
+	} else if (ret < 0)
 		err(1, "getaudit");
-	printf("auid=%d\n", auditinfo.ai_auid);
-	printf("mask.success=0x%08x\n", auditinfo.ai_mask.am_success);
-	printf("mask.failure=0x%08x\n", auditinfo.ai_mask.am_failure);
-	printf("termid.port=0x%08x\n", auditinfo.ai_termid.port);
-	printf("asid=%d\n", auditinfo.ai_asid);
+	if (extended != 0) {
+		(void) printf("auid=%d\n"
+		    "mask.success=0x%08x\n"
+		    "mask.failure=0x%08x\n"
+		    "asid=%d\n"
+		    "termid_addr.port=0x%08x\n"
+		    "termid_addr.addr[0]=0x%08x\n"
+		    "termid_addr.addr[1]=0x%08x\n"
+		    "termid_addr.addr[2]=0x%08x\n"
+		    "termid_addr.addr[3]=0x%08x\n",
+			ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
+			ainfo_addr.ai_mask.am_failure, ainfo_addr.ai_asid,
+			ainfo_addr.ai_termid.at_port,
+			ainfo_addr.ai_termid.at_addr[0],
+			ainfo_addr.ai_termid.at_addr[1],
+			ainfo_addr.ai_termid.at_addr[2],
+			ainfo_addr.ai_termid.at_addr[3]);
+	} else {
+		(void) printf("auid=%d\n"
+		    "mask.success=0x%08x\n"
+		    "mask.failure=0x%08x\n"
+		    "asid=%d\n"
+		    "termid.port=0x%08x\n"
+		    "termid.machine=0x%08x\n",
+			auditinfo.ai_auid, auditinfo.ai_mask.am_success,
+			auditinfo.ai_mask.am_failure,
+			auditinfo.ai_asid, auditinfo.ai_termid.port,
+			auditinfo.ai_termid.machine);
+	}
 }
 #endif
 
