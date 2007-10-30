@@ -550,6 +550,7 @@ mutex_self_lock(pthread_mutex_t m, const struct timespec *abstime)
 
 	switch (m->m_type) {
 	case PTHREAD_MUTEX_ERRORCHECK:
+	case PTHREAD_MUTEX_ADAPTIVE_NP:
 		if (abstime) {
 			clock_gettime(CLOCK_REALTIME, &ts1);
 			TIMESPEC_SUB(&ts2, abstime, &ts1);
