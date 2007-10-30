@@ -1282,10 +1282,18 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			rtfree(rt);	/* unlock gwroute */
 			rt = rt0;
+			rt0->rt_gwroute = NULL;
 		lookup:
 			RT_UNLOCK(rt0);
 			rt = rtalloc1(rt->rt_gateway, 1, 0UL);
+			if (rt == rt0) {
+				RT_REMREF(rt0);
+				RT_UNLOCK(rt0);
+				senderr(ENETUNREACH);
+			}
 			RT_LOCK(rt0);
+			if (rt0->rt_gwroute != NULL)
+				RTFREE(rt0->rt_gwroute);
 			rt0->rt_gwroute = rt;
 			if (rt == NULL) {
 				RT_UNLOCK(rt0);
