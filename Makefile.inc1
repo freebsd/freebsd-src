@@ -159,7 +159,14 @@ XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
+#
+# Avoid running mktemp(1) unless actually needed.
+# It may not be functional, e.g., due to new ABI
+# when in the middle of installing over this system.
+#
+.if make(distributeworld) || make(installworld)
 INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
+.endif
 
 #
 # Building a world goes through the following stages
@@ -265,14 +272,16 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
 # install stage
-.if empty(.MAKEFLAGS:M-n)
-IMAKEENV=	${CROSSENV} \
-		PATH=${STRICTTMPPATH}:${INSTALLTMP}
-.else
-IMAKEENV=	${CROSSENV} \
-		PATH=${TMPPATH}:${INSTALLTMP}
-.endif
+IMAKEENV=	${CROSSENV}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+.if empty(.MAKEFLAGS:M-n)
+IMAKEENV+=	PATH=${STRICTTMPPATH}:${INSTALLTMP} \
+		LD_LIBRARY_PATH=${INSTALLTMP} \
+		PATH_LOCALE=${INSTALLTMP}/locale
+IMAKE+=		__MAKE_SHELL=${INSTALLTMP}/sh
+.else
+IMAKEENV+=	PATH=${TMPPATH}:${INSTALLTMP}
+.endif
 
 # kernel stage
 KMAKEENV=	${WMAKEENV}
@@ -564,6 +573,14 @@ installcheck_UGID:
 .endfor
 
 #
+# Required install tools to be saved in a scratch dir for safety.
+#
+ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
+	date echo egrep find grep install-info \
+	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
+	test true uname wc zic
+
+#
 # distributeworld
 #
 # Distributes everything compiled by a `buildworld'.
@@ -574,19 +591,20 @@ installcheck_UGID:
 #
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
-	for prog in [ awk cap_mkdb cat chflags chmod chown \
-	    date echo egrep find grep install-info \
-	    ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	    test true uname wc zic; do \
+	for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
-			cp $$progpath ${INSTALLTMP}; \
+			progs="$$progs $$progpath"; \
 		else \
-			echo "Required install tool $$prog not found" >&2; \
+			echo "Required tool $$prog not found in PATH." >&2; \
 			exit 1; \
 		fi; \
-	done
-	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}
-	rm -rf ${INSTALLTMP}
+	done; \
+	cp $$progs ${INSTALLTMP}; \
+	cp `ldd -f "%p\n" -f "%p\n" $$progs 2>/dev/null | \
+	    sort -u` ${INSTALLTMP}
+	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
+	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 
 #
 # reinstall
