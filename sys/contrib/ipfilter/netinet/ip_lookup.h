@@ -64,7 +64,7 @@ typedef	union	{
 		char	ilik_ival;
 		u_char	ilik_type;	/* IPLT_* */
 		u_char	ilik_otype;
-		char	ilik_unit;	/* IPL_LOG* */
+		u_char	ilik_unit;	/* IPL_LOG* */
 	} ilik_unstr;
 	u_32_t	ilik_key;
 } iplookupiterkey_t;
@@ -90,7 +90,6 @@ extern int ip_lookup_init __P((void));
 extern int ip_lookup_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
 extern void ip_lookup_unload __P((void));
 extern void ip_lookup_deref __P((int, void *));
-extern int ip_lookup_iterate __P((void *, int, void *));
 extern void ip_lookup_iterderef __P((u_32_t, void *));
 
 #endif /* __IP_LOOKUP_H__ */

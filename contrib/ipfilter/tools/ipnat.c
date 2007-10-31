@@ -67,7 +67,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 1.24.2.6 2007/05/11 11:16:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 1.24.2.11 2007/09/25 08:27:34 darrenr Exp $";
 #endif
 
 
@@ -80,6 +80,7 @@ char	thishost[MAXHOSTNAMELEN];
 extern	char	*optarg;
 
 void	dostats __P((int, natstat_t *, int, int));
+void	dotable __P((natstat_t *, int, int));
 void	flushtable __P((int, int));
 void	usage __P((char *));
 int	main __P((int, char*[]));
@@ -359,9 +360,10 @@ int fd, opts, alive;
 			nsp->ns_added, nsp->ns_expire);
 		printf("no memory\t%lu\tbad nat\t%lu\n",
 			nsp->ns_memfail, nsp->ns_badnat);
-		printf("inuse\t%lu\nrules\t%lu\n",
-			nsp->ns_inuse, nsp->ns_rules);
+		printf("inuse\t%lu\norphans\t%u\nrules\t%lu\n",
+			nsp->ns_inuse, nsp->ns_orphans, nsp->ns_rules);
 		printf("wilds\t%u\n", nsp->ns_wilds);
+		dotable(nsp, fd, alive);
 		if (opts & OPT_VERBOSE)
 			printf("table %p list %p\n",
 				nsp->ns_table, nsp->ns_list);
@@ -375,6 +377,63 @@ int fd, opts, alive;
 		else
 			dostats_dead(nsp, opts);
 	}
+}
+
+
+void dotable(nsp, fd, alive)
+natstat_t *nsp;
+int fd, alive;
+{
+	int sz, i, used, totallen, maxlen, minlen;
+	ipftable_t table;
+	u_long *buckets;
+	ipfobj_t obj;
+
+	sz = sizeof(*buckets) * nsp->ns_nattab_sz;
+	buckets = (u_long *)malloc(sz);
+
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_type = IPFOBJ_GTABLE;
+	obj.ipfo_size = sizeof(table);
+	obj.ipfo_ptr = &table;
+
+	table.ita_type = IPFTABLE_BUCKETS_NATIN;
+	table.ita_table = buckets;
+
+	if (alive) {
+		if (ioctl(fd, SIOCGTABL, &obj) != 0) {
+			free(buckets);
+			return;
+		}
+	} else {
+		if (kmemcpy((char *)buckets, (u_long)nsp->ns_nattab_sz, sz)) {
+			free(buckets);
+			return;
+		}
+	}
+
+	totallen = 0;
+	maxlen = 0;
+	minlen = nsp->ns_inuse;
+	used = 0;
+
+	for (i = 0; i < nsp->ns_nattab_sz; i++) {
+		if (buckets[i] > maxlen)
+			maxlen = buckets[i];
+		if (buckets[i] < minlen)
+			minlen = buckets[i];
+		if (buckets[i] != 0)
+			used++;
+		totallen += buckets[i];
+	}
+
+	printf("hash efficiency\t%2.2f%%\n",
+	       totallen ? ((float)used / totallen) * 100.0 : 0.0);
+	printf("bucket usage\t%2.2f%%\n",
+		((float)used / nsp->ns_nattab_sz) * 100.0);
+	printf("minimal length\t%d\n", minlen);
+	printf("maximal length\t%d\n", maxlen);
+	printf("average length\t%.3f\n", used ? (float)totallen / used : 0.0);
 }
 
 

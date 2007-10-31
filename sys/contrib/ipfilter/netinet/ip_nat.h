@@ -7,7 +7,7 @@
  *
  * @(#)ip_nat.h	1.5 2/4/96
  * $FreeBSD$
- * Id: ip_nat.h,v 2.90.2.9 2005/03/28 11:09:55 darrenr Exp
+ * Id: ip_nat.h,v 2.90.2.20 2007/09/25 08:27:32 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -125,6 +125,7 @@ typedef	struct	nat	{
 	char		nat_ifnames[2][LIFNAMSIZ];
 	int		nat_rev;		/* 0 = forward, 1 = reverse */
 	int		nat_redir;		/* copy of in_redir */
+	u_32_t		nat_seqnext[2];
 } nat_t;
 
 #define	nat_inip	nat_inip6.in4
@@ -363,6 +364,7 @@ typedef	struct	natstat	{
 	hostmap_t *ns_maplist;
 	u_long	*ns_bucketlen[2];
 	u_long	ns_ticks;
+	u_int	ns_orphans;
 } natstat_t;
 
 typedef	struct	natlog {
@@ -384,6 +386,7 @@ typedef	struct	natlog {
 #define	NL_NEWRDR	NAT_REDIRECT
 #define	NL_NEWBIMAP	NAT_BIMAP
 #define	NL_NEWBLOCK	NAT_MAPBLK
+#define	NL_DESTROY	0xfffc
 #define	NL_CLONE	0xfffd
 #define	NL_FLUSH	0xfffe
 #define	NL_EXPIRE	0xffff
@@ -447,6 +450,7 @@ extern	nat_t	*nat_maplookup __P((void *, u_int, struct in_addr,
 extern	nat_t	*nat_lookupredir __P((natlookup_t *));
 extern	nat_t	*nat_icmperrorlookup __P((fr_info_t *, int));
 extern	nat_t	*nat_icmperror __P((fr_info_t *, u_int *, int));
+extern	void	nat_delete __P((struct nat *, int));
 extern	int	nat_insert __P((nat_t *, int));
 
 extern	int	fr_checknatout __P((fr_info_t *, u_32_t *));
