@@ -409,7 +409,7 @@ ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis)
 	fis[0] = 0x27;  /* host to device */
 	fis[1] = 0x80;  /* command FIS (note PM goes here) */
 	fis[2] = ATA_PACKET_CMD;
-	if (request->flags & ATA_R_DMA)
+	if (request->flags & (ATA_R_READ | ATA_R_WRITE))
 	    fis[3] = ATA_F_DMA;
 	else {
 	    fis[5] = request->transfersize;
@@ -620,7 +620,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
     ATA_IDX_OUTL(ch, ATA_SACTIVE, ATA_IDX_INL(ch, ATA_SACTIVE) & (1 << tag));
 
     /* set command type bit */
-    if (request->flags & ATA_R_ATAPI)
+    if (ch->devices & ATA_ATAPI_MASTER)
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) |
 		 ATA_AHCI_P_CMD_ATAPI);
@@ -629,8 +629,28 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) &
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
-    /* issue the command */
+    /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, (1 << tag));
+    
+    if (!(request->flags & ATA_R_ATAPI)) {
+	/* device reset doesn't interrupt */
+	if (request->u.ata.command == ATA_DEVICE_RESET) {
+	    u_int32_t tf_data;
+	    int timeout = 1000000;
+
+	    do {
+		DELAY(10);
+		tf_data = ATA_INL(ctlr->r_res2, ATA_AHCI_P_TFD + (ch->unit<<7));
+	    } while ((tf_data & ATA_S_BUSY) && timeout--);
+	    if (bootverbose)
+		device_printf(ch->dev, "device_reset timeout=%dus\n",
+			      (1000000-timeout)*10);
+	    request->status = tf_data;
+	    if (request->status & ATA_S_ERROR)
+		request->error = tf_data >> 8;
+	    return ATA_OP_FINISHED;
+	}
+    }
 
     /* start the timeout */
     callout_reset(&request->callout, request->timeout * hz,
@@ -737,18 +757,16 @@ ata_ahci_reset(device_t dev)
 	if (bootverbose)
 	    device_printf(dev, "SIGNATURE: %08x\n", signature);
 	switch (signature) {
-	case 0xeb140101:
-	    ch->devices = ATA_ATAPI_MASTER;
-	    device_printf(ch->dev, "SATA ATAPI devices not supported yet\n");
-	    ch->devices = 0;
+	case 0x00000101:
+	    ch->devices = ATA_ATA_MASTER;
 	    break;
 	case 0x96690101:
 	    ch->devices = ATA_PORTMULTIPLIER;
 	    device_printf(ch->dev, "Portmultipliers not supported yet\n");
 	    ch->devices = 0;
 	    break;
-	case 0x00000101:
-	    ch->devices = ATA_ATA_MASTER;
+	case 0xeb140101:
+	    ch->devices = ATA_ATAPI_MASTER;
 	    break;
 	default: /* SOS XXX */
 	    if (bootverbose)
@@ -757,7 +775,8 @@ ata_ahci_reset(device_t dev)
 	}
     }
     if (bootverbose)
-	device_printf(dev, "DEVICES: %08x\n", ch->devices);
+        device_printf(dev, "ahci_reset devices=0x%b\n", ch->devices,
+                      "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
 }
 
 static void
@@ -798,7 +817,7 @@ ata_ahci_setup_fis(struct ata_ahci_cmd_tab *ctp, struct ata_request *request)
     bzero(ctp->cfis, 64);
     if (request->flags & ATA_R_ATAPI) {
 	bzero(ctp->acmd, 32);
-	bcopy(request->u.atapi.ccb, ctp->acmd, 12);
+	bcopy(request->u.atapi.ccb, ctp->acmd, 16);
     }
     return ata_request2fis_h2d(request, &ctp->cfis[0]);
 }
