@@ -2228,8 +2228,10 @@ ng_btsocket_l2cap_ctloutput(struct socket *so, struct sockopt *sopt)
 		 * channel?
 		 */
 
-		if (pcb->state != NG_BTSOCKET_L2CAP_CLOSED)
-			return (EACCES);
+		if (pcb->state != NG_BTSOCKET_L2CAP_CLOSED) {
+			error = EACCES;
+			break;
+		}
 
 		switch (sopt->sopt_name) {
 		case SO_L2CAP_IMTU: /* set incoming MTU */
