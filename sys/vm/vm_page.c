@@ -916,7 +916,9 @@ vm_page_cache_remove(vm_page_t m)
 /*
  *	Transfer all of the cached pages with offset greater than or
  *	equal to 'offidxstart' from the original object's cache to the
- *	new object's cache.  Initially, the new object's cache must be
+ *	new object's cache.  However, any cached pages with offset
+ *	greater than or equal to the new object's size are kept in the
+ *	original object.  Initially, the new object's cache must be
  *	empty.  Offset 'offidxstart' in the original object must
  *	correspond to offset zero in the new object.
  *
@@ -954,17 +956,21 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 			new_object->cache = m;
 			m->left = NULL;
 		}
-		KASSERT(new_object->cache == NULL ||
-		    new_object->type == OBJT_SWAP,
-		    ("vm_page_cache_transfer: object %p's type is incompatible"
-		    " with cached pages", new_object));
-
-		/*
-		 * Update the object and offset of each page that was
-		 * transferred to the new object's cache.
-		 */
 		while ((m = new_object->cache) != NULL) {
+			if ((m->pindex - offidxstart) >= new_object->size) {
+				/*
+				 * Return all of the cached pages with
+				 * offset greater than or equal to the
+				 * new object's size to the original
+				 * object's cache. 
+				 */
+				new_object->cache = m->left;
+				m->left = orig_object->cache;
+				orig_object->cache = m;
+				break;
+			}
 			m_next = vm_page_splay(m->pindex, m->right);
+			/* Update the page's object and offset. */
 			m->object = new_object;
 			m->pindex -= offidxstart;
 			if (m_next == NULL)
@@ -973,6 +979,10 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
 			m_next->left = m;
 			new_object->cache = m_next;
 		}
+		KASSERT(new_object->cache == NULL ||
+		    new_object->type == OBJT_SWAP,
+		    ("vm_page_cache_transfer: object %p's type is incompatible"
+		    " with cached pages", new_object));
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
 }
