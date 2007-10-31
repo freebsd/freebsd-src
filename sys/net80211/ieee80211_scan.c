@@ -158,7 +158,8 @@ ieee80211_scanner_get(enum ieee80211_opmode mode)
 {
 	if (mode >= IEEE80211_SCANNER_MAX)
 		return NULL;
-	if (scanners[mode] == NULL)
+	/* NB: avoid monitor mode; there is no scan support */
+	if (mode != IEEE80211_M_MONITOR && scanners[mode] == NULL)
 		ieee80211_load_module(scan_modnames[mode]);
 	return scanners[mode];
 }
