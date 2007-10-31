@@ -53,7 +53,7 @@ struct file;
 /* END OF INCLUDES */
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_htable.c,v 2.34.2.9 2007/02/02 23:06:16 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_htable.c,v 2.34.2.11 2007/09/20 12:51:51 darrenr Exp $";
 #endif
 
 #ifdef	IPFILTER_LOOKUP
@@ -104,31 +104,29 @@ iplookupop_t *op;
 	int err, i, unit;
 
 	unit = op->iplo_unit;
-	if ((op->iplo_arg & IPHASH_ANON) == 0)
+	if ((op->iplo_arg & IPHASH_ANON) == 0) {
 		iph = fr_existshtable(unit, op->iplo_name);
-	else
-		iph = NULL;
+		if (iph != NULL) {
+			if ((iph->iph_flags & IPHASH_DELETE) == 0)
+				return EEXIST;
+			iph->iph_flags &= ~IPHASH_DELETE;
+			return 0;
+		}
+	}
 
+	KMALLOC(iph, iphtable_t *);
 	if (iph == NULL) {
-		KMALLOC(iph, iphtable_t *);
-		if (iph == NULL) {
-			ipht_nomem[op->iplo_unit]++;
-			return ENOMEM;
-		}
-		err = COPYIN(op->iplo_struct, iph, sizeof(*iph));
-		if (err != 0) {
-			KFREE(iph);
-			return EFAULT;
-		}
-	} else {
-		if ((iph->iph_flags & IPHASH_DELETE) == 0)
-			return EEXIST;
+		ipht_nomem[op->iplo_unit]++;
+		return ENOMEM;
+	}
+	err = COPYIN(op->iplo_struct, iph, sizeof(*iph));
+	if (err != 0) {
+		KFREE(iph);
+		return EFAULT;
 	}
 
 	if (iph->iph_unit != unit) {
-		if ((iph->iph_flags & IPHASH_DELETE) == 0) {
-			KFREE(iph);
-		}
+		KFREE(iph);
 		return EINVAL;
 	}
 
@@ -153,33 +151,25 @@ iplookupop_t *op;
 		iph->iph_type |= IPHASH_ANON;
 	}
 
-	if ((iph->iph_flags & IPHASH_DELETE) == 0) {
-		KMALLOCS(iph->iph_table, iphtent_t **,
-			 iph->iph_size * sizeof(*iph->iph_table));
-		if (iph->iph_table == NULL) {
-			if ((iph->iph_flags & IPHASH_DELETE) == 0) {
-				KFREE(iph);
-			}
-			ipht_nomem[unit]++;
-			return ENOMEM;
-		}
-
-		bzero((char *)iph->iph_table,
-		      iph->iph_size * sizeof(*iph->iph_table));
-		iph->iph_masks = 0;
-		iph->iph_list = NULL;
-
-		iph->iph_ref = 1;
-		iph->iph_next = ipf_htables[unit];
-		iph->iph_pnext = &ipf_htables[unit];
-		if (ipf_htables[unit] != NULL)
-			ipf_htables[unit]->iph_pnext = &iph->iph_next;
-		ipf_htables[unit] = iph;
-
-		ipf_nhtables[unit]++;
+	KMALLOCS(iph->iph_table, iphtent_t **,
+		 iph->iph_size * sizeof(*iph->iph_table));
+	if (iph->iph_table == NULL) {
+		KFREE(iph);
+		ipht_nomem[unit]++;
+		return ENOMEM;
 	}
 
-	iph->iph_flags &= ~IPHASH_DELETE;
+	bzero((char *)iph->iph_table, iph->iph_size * sizeof(*iph->iph_table));
+	iph->iph_masks = 0;
+	iph->iph_list = NULL;
+
+	iph->iph_ref = 1;
+	iph->iph_next = ipf_htables[unit];
+	iph->iph_pnext = &ipf_htables[unit];
+	if (ipf_htables[unit] != NULL)
+		ipf_htables[unit]->iph_pnext = &iph->iph_next;
+	ipf_htables[unit] = iph;
+	ipf_nhtables[unit]++;
 
 	return 0;
 }
@@ -551,11 +541,11 @@ ipflookupiter_t *ilp;
 
 		if (nextiph != NULL) {
 			ATOMIC_INC(nextiph->iph_ref);
-			if (nextiph->iph_next == NULL)
-				token->ipt_alive = 0;
+			token->ipt_data = nextiph;
 		} else {
 			bzero((char *)&zp, sizeof(zp));
 			nextiph = &zp;
+			token->ipt_data = NULL;
 		}
 		break;
 
@@ -574,11 +564,11 @@ ipflookupiter_t *ilp;
 
 		if (nextnode != NULL) {
 			ATOMIC_INC(nextnode->ipe_ref);
-			if (nextnode->ipe_next == NULL)
-				token->ipt_alive = 0;
+			token->ipt_data = nextnode;
 		} else {
 			bzero((char *)&zn, sizeof(zn));
 			nextnode = &zn;
+			token->ipt_data = NULL;
 		}
 		break;
 	default :
@@ -598,7 +588,6 @@ ipflookupiter_t *ilp;
 			fr_derefhtable(iph);
 			RWLOCK_EXIT(&ip_poolrw);
 		}
-		token->ipt_data = nextiph;
 		err = COPYOUT(nextiph, ilp->ili_data, sizeof(*nextiph));
 		if (err != 0)
 			err = EFAULT;
@@ -610,7 +599,6 @@ ipflookupiter_t *ilp;
 			fr_derefhtent(node);
 			RWLOCK_EXIT(&ip_poolrw);
 		}
-		token->ipt_data = nextnode;
 		err = COPYOUT(nextnode, ilp->ili_data, sizeof(*nextnode));
 		if (err != 0)
 			err = EFAULT;

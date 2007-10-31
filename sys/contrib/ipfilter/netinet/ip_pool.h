@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_pool.h,v 2.26.2.5 2007/01/14 14:06:12 darrenr Exp $
+ * $Id: ip_pool.h,v 2.26.2.6 2007/10/10 09:51:43 darrenr Exp $
  */
 
 #ifndef	__IP_POOL_H__
@@ -16,7 +16,7 @@ extern void rn_freehead __P((struct radix_node_head *));
 # define FreeS(p, z)		KFREES(p, z)
 extern int max_keylen;
 #else
-# if defined(__osf__) || defined(__hpux)
+# if defined(__osf__) || defined(__hpux) || defined(sun)
 #  include "radix_ipf_local.h"
 #  define radix_mask ipf_radix_mask
 #  define radix_node ipf_radix_node

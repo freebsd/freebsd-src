@@ -3,7 +3,7 @@
 # 
 # See the IPFILTER.LICENCE file for details on licencing.  
 #   
-# $Id: Makefile,v 1.41.2.13 2007/05/10 06:02:19 darrenr Exp $ 
+# $Id: Makefile,v 1.41.2.14 2007/09/21 08:30:43 darrenr Exp $ 
 #     
 INCDEP=$(TOP)/ip_compat.h $(TOP)/ip_fil.h $(TOP)/ipf.h
 
@@ -135,8 +135,6 @@ $(DEST)/fill6bits.o: $(LIBSRC)/fill6bits.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/fill6bits.c -o $@
 $(DEST)/flags.o: $(LIBSRC)/flags.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/flags.c -o $@
-$(DEST)/getline.o: $(LIBSRC)/getline.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/getline.c -o $@
 $(DEST)/gethost.o: $(LIBSRC)/gethost.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/gethost.c -o $@
 $(DEST)/getifname.o: $(LIBSRC)/getifname.c $(INCDEP)
@@ -218,10 +216,6 @@ $(DEST)/optvalue.o: $(LIBSRC)/optvalue.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/optvalue.c -o $@
 $(DEST)/portname.o: $(LIBSRC)/portname.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/portname.c -o $@
-$(DEST)/portnum.o: $(LIBSRC)/portnum.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/portnum.c -o $@
-$(DEST)/ports.o: $(LIBSRC)/ports.c $(INCDEP)
-	$(CC) $(CCARGS) -c $(LIBSRC)/ports.c -o $@
 $(DEST)/print_toif.o: $(LIBSRC)/print_toif.c $(INCDEP)
 	$(CC) $(CCARGS) -c $(LIBSRC)/print_toif.c -o $@
 $(DEST)/printactivenat.o: $(LIBSRC)/printactivenat.c $(INCDEP)

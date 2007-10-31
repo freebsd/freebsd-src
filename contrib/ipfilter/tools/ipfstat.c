@@ -71,7 +71,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.23 2007/05/31 13:13:02 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfstat.c,v 1.44.2.25 2007/06/30 09:48:50 darrenr Exp $";
 #endif
 
 #ifdef __hpux
@@ -1120,7 +1120,7 @@ ips_stat_t *ipsp;
 		PRINTF("\t%u%% hash efficiency\n", ipsp->iss_active ?
 			(u_int)(ipsp->iss_inuse * 100 / ipsp->iss_active) : 0);
 
-		minlen = ipsp->iss_max;
+		minlen = ipsp->iss_inuse;
 		totallen = 0;
 		maxlen = 0;
 
@@ -1128,7 +1128,7 @@ ips_stat_t *ipsp;
 			if (buckets[i] > maxlen)
 				maxlen = buckets[i];
 			if (buckets[i] < minlen)
-					minlen = buckets[i];
+				minlen = buckets[i];
 			totallen += buckets[i];
 		}
 

@@ -78,7 +78,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.18 2007/05/27 11:12:12 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.20 2007/09/20 12:51:56 darrenr Exp $";
 #endif
 
 
@@ -752,6 +752,8 @@ int	blen;
 		strcpy(t, "NAT:MAPBLOCK ");
 	else if (nl->nl_type == NL_CLONE)
 		strcpy(t, "NAT:CLONE ");
+	else if (nl->nl_type == NL_DESTROY)
+		strcpy(t, "NAT:DESTROY ");
 	else
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);
@@ -764,8 +766,9 @@ int	blen;
 	(void) sprintf(t, "%s,%s ", HOSTNAME_V4(res, nl->nl_outip),
 		portname(res, proto, (u_int)nl->nl_outport));
 	t += strlen(t);
-	(void) sprintf(t, "[%s,%s]", HOSTNAME_V4(res, nl->nl_origip),
-		portname(res, proto, (u_int)nl->nl_origport));
+	(void) sprintf(t, "[%s,%s PR %s]", HOSTNAME_V4(res, nl->nl_origip),
+		portname(res, proto, (u_int)nl->nl_origport),
+		getproto(nl->nl_p));
 	t += strlen(t);
 	if (nl->nl_type == NL_EXPIRE) {
 #ifdef	USE_QUAD_T
@@ -1002,7 +1005,10 @@ int	blen;
 	ipflog_t *ipf;
 	iplog_t	*ipl;
 #ifdef	USE_INET6
+	struct ip6_ext *ehp;
+	u_short ehl;
 	ip6_t *ip6;
+	int go;
 #endif
 
 	ipl = (iplog_t *)buf;
@@ -1111,6 +1117,29 @@ int	blen;
 		s = (u_32_t *)&ip6->ip6_src;
 		d = (u_32_t *)&ip6->ip6_dst;
 		plen = hl + ntohs(ip6->ip6_plen);
+		go = 1;
+		ehp = (struct ip6_ext *)((char *)ip6 + hl);
+		while (go == 1) {
+			switch (p)
+			{
+			case IPPROTO_HOPOPTS :
+			case IPPROTO_MOBILITY :
+			case IPPROTO_DSTOPTS :
+			case IPPROTO_ROUTING :
+			case IPPROTO_AH :
+				p = ehp->ip6e_nxt;
+				ehl = 8 + (ehp->ip6e_len << 3);
+				hl += ehl;
+				ehp = (struct ip6_ext *)((char *)ehp + ehl);
+				break;
+			case IPPROTO_FRAGMENT :
+				hl += sizeof(struct ip6_frag);
+				/* FALLTHROUGH */
+			default :
+				go = 0;
+				break;
+			}
+		}
 #else
 		sprintf(t, "ipv6");
 		goto printipflog;

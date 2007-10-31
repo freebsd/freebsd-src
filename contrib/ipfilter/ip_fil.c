@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.16 2007/05/28 11:56:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.133.2.18 2007/09/09 11:32:05 darrenr Exp $";
 #endif
 
 #ifndef	SOLARIS
@@ -81,7 +81,7 @@ struct file;
 #include <sys/hashing.h>
 # endif
 #endif
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(SOLARIS2)
 # include "radix_ipf.h"
 #endif
 #ifndef __osf__
@@ -390,7 +390,7 @@ int v;
 		*addr++ = '\0';
 
 	for (ifpp = ifneta; ifpp && (ifp = *ifpp); ifpp++) {
-		COPYIFNAME(ifp, ifname);
+		COPYIFNAME(v, ifp, ifname);
 		if (!strcmp(name, ifname)) {
 			if (addr != NULL)
 				fr_setifpaddr(ifp, addr);
@@ -429,6 +429,9 @@ int v;
 	}
 	ifp = ifneta[nifs - 1];
 
+#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__)
+	TAILQ_INIT(&ifp->if_addrlist);
+#endif
 #if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
     (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
     (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
