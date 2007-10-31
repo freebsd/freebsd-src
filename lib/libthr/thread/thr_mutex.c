@@ -39,8 +39,6 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
 #include <pthread.h>
 #include "un-namespace.h"
 
@@ -368,6 +366,9 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		 * the lock is likely to be released quickly and it is
 		 * faster than entering the kernel
 		 */
+		if (!_thr_is_smp)
+			goto yield_loop;
+
 		if (m->m_type == PTHREAD_MUTEX_ADAPTIVE_NP) {
 			count = MUTEX_ADAPTIVE_SPINS;
   	 
@@ -380,7 +381,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			if (ret == 0)
 				goto done;
 		} else {
-			if (_thr_spinloops != 0 && _thr_is_smp &&
+			if (_thr_spinloops != 0 && 
 			    !(m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)) {
 				count = _thr_spinloops;
 				while (count) {
@@ -395,6 +396,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			}
 		}
 
+yield_loop:
 		if (_thr_yieldloops != 0) {
 			count = _thr_yieldloops;
 			while (count--) {
