@@ -366,6 +366,9 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		 * the lock is likely to be released quickly and it is
 		 * faster than entering the kernel
 		 */
+		if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
+			goto sleep_in_kernel;
+
 		if (!_thr_is_smp)
 			goto yield_loop;
 
@@ -381,8 +384,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			if (ret == 0)
 				goto done;
 		} else {
-			if (_thr_spinloops != 0 && 
-			    !(m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)) {
+			if (_thr_spinloops != 0) {
 				count = _thr_spinloops;
 				while (count) {
 					if (m->m_lock.m_owner == UMUTEX_UNOWNED) {
@@ -407,6 +409,7 @@ yield_loop:
 			}
 		}
 
+sleep_in_kernel:
 		if (abstime == NULL) {
 			ret = __thr_umutex_lock(&m->m_lock);
 		} else if (__predict_false(
