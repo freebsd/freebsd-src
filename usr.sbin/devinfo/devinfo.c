@@ -65,7 +65,7 @@ print_resource(struct devinfo_res *res)
 	int			hexmode;
 
 	rman = devinfo_handle_to_rman(res->dr_rman);
-	hexmode =  (rman->dm_size > 100) || (rman->dm_size == 0);
+	hexmode =  (rman->dm_size > 1000) || (rman->dm_size == 0);
 	printf(hexmode ? "0x%lx" : "%lu", res->dr_start);
 	if (res->dr_size > 1)
 		printf(hexmode ? "-0x%lx" : "-%lu",
