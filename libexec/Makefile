@@ -43,7 +43,7 @@ _ypxfr=		ypxfr
 _tftp-proxy=	tftp-proxy
 .endif
 
-.if !defined(NO_PIC)
+.if !defined(NO_PIC) && !defined(NO_RTLD)
 _rtld-elf=	rtld-elf
 .endif
 
