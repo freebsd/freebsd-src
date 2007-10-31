@@ -265,7 +265,7 @@ ipv6if()
 #	Returns 0 if the interface exists and 1 otherwise.
 ifexists()
 {
-	ifconfig $1 > /dev/null 2>&1
+	ifconfig -n $1 > /dev/null 2>&1
 }
 
 # ipv4_up if
