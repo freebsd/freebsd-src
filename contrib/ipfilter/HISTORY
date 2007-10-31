@@ -10,12 +10,110 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+4.1.28 - Release 16 October 2007
+
+backout changes (B1) & (B2) as they've caused NAT entries to persist for
+too long and possibly other side effects.
+
+Still need to compile in our own radix.c for Solaris as the one in S10U4
+has a different alignment of structure members (causes panic)
+
+keep state doesn't work with multicast/broadcast packets (makes UPnP easier)
+
+ippool -l may only lists every 2nd pool's contents
+
+4.1.27 - Released 29 September 2007
+
+SunOS5/replace script does not deal with i386 systems that have the
+i86/amd64 directory pair.
+
+make BSD/kupgrade try to build ip_rules.[ch] before complaining
+
+Need to look for ipl.ko LKM on FreeBSD, not just ipf.ko
+
+Cleanup SunOS5 Makefile pieces, removing CPU, sunos5x86; buildsunos needs
+to drive 32bit cc builds differently for sparc/i386 now.
+
+Update instructions for rebuilding FreeBSD kernels
+
+Make the target "freebsd" work for building ipfilter
+
+destroying NAT entries for blocked packets can lead to NAT table entry leak,
+provide a counter of orphan'd NAT entries to track this problem.
+
+4.1.26 - Released 24 September 2007
+
+Fix build problem for Solaris prior to S10U4
+
+4.1.25 - Released 20 September 2007
+
+stepping through structures with ioctls can lead to the wrong things
+being free'd and panics
+
+if a NAT entry (such as an rdr) is created but the packet ends up being
+blocked, tear down the NAT entry.
+
+fix fragment cache preventing keep state from functioning
+
+fix handling of \ to indicate a continued line in .conf files
+
+include port ranges in the allowed input for ipf when using "port = ()"
+
+only advance TCP state for packets on the leading edge of the window. (B1)
+
+using ipnat -l can lead to memory corruption in high stress situations
+
+track TCP sequence numbers with NAT so that it can do timeout advances
+correctly inline with state
+
+ICMP checksums for some redirect'd packets are not adjusted correctly.
+
+IPv6 address components need to be explicitly cast to a 32bit pointer
+boundary so that compilers don't try to access them as two 64bit
+pieces (no guarantee is made that an Ipv6 address is on a 64bit
+aligned address)
+
+filling up the ipauth packet queue can lead to no more packets being
+processed.
+
+locking used to deref a nat entry causes a significant performance hit
+
+m_pulldown isn't properly handled, leading to possible panics with ICMPv6
+packets
+
+IPv6 fragment handling doesn't allow for "keep frag" to work
+
+build on Solaris10 Update4 with pfhooks in the kernel
+
+logging of Ipv6 packets with extension headers fix - Miroslaw Luc
+
+4.1.24 - Released 8 July 2007
+
+patch from Stuart Remphrey to address recursive mutex lock with TCP state
+
+add hash table bucket stats display to ipnat -s
+
+give ASSERT some teeth for user compiles
+
+initialising ipf_global, ipf_frcache, ipf_mutex should all be done very
+early on
+
+do some caddr_t cleanup, where possible
+
+fr_ref no longer tracks the number of children rules in a group for head rules
+
+make sure all BCOPY* have a value assigned to something
+
+fix possible use of icmp pointer after pullup makes it invalid
+
+resolve compile problems related to FreeBSD tree
+
 4.1.23 - Released 31 May 2007
 
 NAT was not always correctly fixing ICMP headers for errors
 
 some TCP state steps when closing do not update timeouts, leading to
-them being removed prematurely.
+them being removed prematurely. (B2)
 
 fix compilation problems for netbsd 4.99
 

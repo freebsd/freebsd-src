@@ -11,7 +11,7 @@ f7 text text
 f8 text text
 f9 text text
 f10 text text
-f11 text text
+f11 text text -D
 f12 hex hex
 f13 hex hex
 f14 text text
@@ -94,3 +94,6 @@ p2 text text
 p3 text text
 p4 text text
 p5 text text
+n16 hex hex -D
+f24 hex text
+ipv6.6 hex text

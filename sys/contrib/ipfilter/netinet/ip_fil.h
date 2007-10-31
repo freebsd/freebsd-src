@@ -5,7 +5,7 @@
  *
  * @(#)ip_fil.h	1.35 6/5/96
  * $FreeBSD$
- * Id: ip_fil.h,v 2.170.2.29 2006/03/29 11:19:55 darrenr Exp $
+ * Id: ip_fil.h,v 2.170.2.51 2007/10/10 09:48:03 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -157,14 +157,14 @@ typedef	union	i6addr	{
 #define	iplookupptr	vptr[0]
 #define	iplookupfunc	lptr[1]
 
-#define	I60(x)	(((i6addr_t *)(x))->i6[0])
-#define	I61(x)	(((i6addr_t *)(x))->i6[1])
-#define	I62(x)	(((i6addr_t *)(x))->i6[2])
-#define	I63(x)	(((i6addr_t *)(x))->i6[3])
-#define	HI60(x)	ntohl(((i6addr_t *)(x))->i6[0])
-#define	HI61(x)	ntohl(((i6addr_t *)(x))->i6[1])
-#define	HI62(x)	ntohl(((i6addr_t *)(x))->i6[2])
-#define	HI63(x)	ntohl(((i6addr_t *)(x))->i6[3])
+#define	I60(x)	(((u_32_t *)(x))[0])
+#define	I61(x)	(((u_32_t *)(x))[1])
+#define	I62(x)	(((u_32_t *)(x))[2])
+#define	I63(x)	(((u_32_t *)(x))[3])
+#define	HI60(x)	ntohl(((u_32_t *)(x))[0])
+#define	HI61(x)	ntohl(((u_32_t *)(x))[1])
+#define	HI62(x)	ntohl(((u_32_t *)(x))[2])
+#define	HI63(x)	ntohl(((u_32_t *)(x))[3])
 
 #define	IP6_EQ(a,b)	((I63(a) == I63(b)) && (I62(a) == I62(b)) && \
 			 (I61(a) == I61(b)) && (I60(a) == I60(b)))
@@ -182,14 +182,14 @@ typedef	union	i6addr	{
 			      HI63(a) < HI63(b)))))))
 #define	NLADD(n,x)	htonl(ntohl(n) + (x))
 #define	IP6_INC(a)	\
-		{ i6addr_t *_i6 = (i6addr_t *)(a); \
-		  _i6->i6[0] = NLADD(_i6->i6[0], 1); \
-		  if (_i6->i6[0] == 0) { \
-			_i6->i6[0] = NLADD(_i6->i6[1], 1); \
-			if (_i6->i6[1] == 0) { \
-				_i6->i6[0] = NLADD(_i6->i6[2], 1); \
-				if (_i6->i6[2] == 0) { \
-					_i6->i6[0] = NLADD(_i6->i6[3], 1); \
+		{ u_32_t *_i6 = (u_32_t *)(a); \
+		  _i6[3] = NLADD(_i6[3], 1); \
+		  if (_i6[3] == 0) { \
+			_i6[2] = NLADD(_i6[2], 1); \
+			if (_i6[2] == 0) { \
+				_i6[1] = NLADD(_i6[1], 1); \
+				if (_i6[1] == 0) { \
+					_i6[0] = NLADD(_i6[0], 1); \
 				} \
 			} \
 		  } \
@@ -263,11 +263,12 @@ typedef	struct	fr_ip	{
 #define	FI_FRAGBODY	0x2000
 #define	FI_BADSRC	0x4000
 #define	FI_LOWTTL	0x8000
-#define	FI_CMP		0xcfe3	/* Not FI_FRAG,FI_NATED,FI_FRAGTAIL */
+#define	FI_CMP		0xcf03	/* Not FI_FRAG,FI_NATED,FI_FRAGTAIL,broadcast */
 #define	FI_ICMPCMP	0x0003	/* Flags we can check for ICMP error packets */
 #define	FI_WITH		0xeffe	/* Not FI_TCPUDP */
 #define	FI_V6EXTHDR	0x10000
 #define	FI_COALESCE	0x20000
+#define	FI_NEWNAT	0x40000
 #define	FI_NOCKSUM	0x20000000	/* don't do a L4 checksum validation */
 #define	FI_DONTCACHE	0x40000000	/* don't cache the result */
 #define	FI_IGNORE	0x80000000
@@ -327,6 +328,7 @@ typedef	struct	fr_info	{
 	u_short	fin_off;
 	int	fin_depth;		/* Group nesting depth */
 	int	fin_error;		/* Error code to return */
+	int	fin_cksum;		/* -1 bad, 1 good, 0 not done */
 	void	*fin_nat;
 	void	*fin_state;
 	void	*fin_nattag;
@@ -1204,6 +1206,8 @@ typedef	struct	ipftable {
 } ipftable_t;
 
 #define	IPFTABLE_BUCKETS	1
+#define	IPFTABLE_BUCKETS_NATIN	2
+#define	IPFTABLE_BUCKETS_NATOUT	3
 
 
 /*
@@ -1405,6 +1409,13 @@ extern	int	iplwrite __P((dev_t, struct uio *));
 #  endif /* __ sgi */
 # endif /* MENTAT */
 
+# if defined(__FreeBSD_version)
+extern	int	ipf_pfil_hook __P((void));
+extern	int	ipf_pfil_unhook __P((void));
+extern	void	ipf_event_reg __P((void));
+extern	void	ipf_event_dereg __P((void));
+# endif
+
 #endif /* #ifndef _KERNEL */
 
 extern	ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
@@ -1491,7 +1502,7 @@ extern	void		fr_getstat __P((struct friostat *));
 extern	int		fr_ifpaddr __P((int, int, void *,
 				struct in_addr *, struct in_addr *));
 extern	int		fr_initialise __P((void));
-extern	void		fr_lock __P((caddr_t, int *));
+extern	int		fr_lock __P((caddr_t, int *));
 extern  int		fr_makefrip __P((int, ip_t *, fr_info_t *));
 extern	int		fr_matchtag __P((ipftag_t *, ipftag_t *));
 extern	int		fr_matchicmpqueryreply __P((int, icmpinfo_t *,
@@ -1504,7 +1515,7 @@ extern	int		fr_scanlist __P((fr_info_t *, u_32_t));
 extern	frentry_t 	*fr_srcgrpmap __P((fr_info_t *, u_32_t *));
 extern	int		fr_tcpudpchk __P((fr_info_t *, frtuc_t *));
 extern	int		fr_verifysrc __P((fr_info_t *fin));
-extern	int		fr_zerostats __P((char *));
+extern	int		fr_zerostats __P((void *));
 extern	ipftoken_t	*ipf_findtoken __P((int, int, void *));
 extern	int		ipf_getnextrule __P((ipftoken_t *, void *));
 extern	void		ipf_expiretokens __P((void));

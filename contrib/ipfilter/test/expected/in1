@@ -28,3 +28,4 @@ map fxp0 from 192.168.0.0/18 to any port = 21 -> 1.2.3.4/32 proxy port 21 ftp/tc
 map thisisalonginte 0.0.0.0/0 -> 0.0.0.0/32 mssclamp 1452 tag freddyliveshere
 map bar0 0.0.0.0/0 -> 0.0.0.0/32 icmpidmap icmp 1000:2000
 map ppp0,adsl0 0.0.0.0/0 -> 0.0.0.0/32
+map ppp0 from 192.168.0.0/16 to any port = 123 -> 0.0.0.0/32 age 30/1 udp

@@ -611,6 +611,7 @@ compare:
 range:
 	YY_RANGE_OUT			{ $$ = FR_OUTRANGE; }
 	| YY_RANGE_IN			{ $$ = FR_INRANGE; }
+	| ':'				{ $$ = FR_INCRANGE; }
 	;
 
 ipv4:	YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER '.' YY_NUMBER
