@@ -198,6 +198,13 @@ Multiple
 .Fl f
 options can be supplied,
 and the makefiles will be read in that order.
+Unlike the other command-line options,
+.Fl f
+is neither stored in
+.Va .MAKEFLAGS
+nor pushed down to sub-makes via
+.Ev MAKEFLAGS .
+See below for more details on these variables.
 .It Fl I Ar directory
 Specify a directory in which to search for makefiles and included makefiles.
 Multiple
@@ -466,7 +473,21 @@ environment variable or the
 target.
 .It Local variables
 Variables that are defined specific to a certain target.
-The seven local variables are as follows:
+.El
+.Pp
+If the name of an environment variable appears in a makefile
+on the left-hand side of an assignment,
+a global variable with the same name is created, and the latter
+shadows the former as per their relative precedences.
+The environment is not changed in this case, and the change
+is not exported to programs executed by
+.Nm .
+However, a command-line variable actually replaces
+the environment variable of the same name if the latter exists,
+which is visible to child programs.
+.Pp
+There are seven local variables in
+.Nm :
 .Bl -tag -width ".ARCHIVE"
 .It Va .ALLSRC
 The list of all sources for this target; also known as
@@ -528,7 +549,6 @@ These variables are
 .Va .ARCHIVE ,
 and
 .Va .MEMBER .
-.El
 .Pp
 In addition,
 .Nm
@@ -631,14 +651,19 @@ The environment variable
 may contain anything that
 may be specified on
 .Nm Ns 's
-command line.
+command line,
+including
+.Fl f
+option(s).
 Its contents are stored in
 .Nm Ns 's
 .Va .MAKEFLAGS
 variable.
 All options and variable assignments specified on
 .Nm Ns 's
-command line are appended to the
+command line, except for
+.Fl f ,
+are appended to the
 .Va .MAKEFLAGS
 variable which is then
 entered into the environment as
@@ -646,15 +671,60 @@ entered into the environment as
 for all programs which
 .Nm
 executes.
+.Pp
 By modifying the contents of the
 .Va .MAKEFLAGS
-variable, makefile can alter the contents of the
-.Va MAKEFLAGS
+variable, a makefile can alter the contents of the
+.Ev MAKEFLAGS
 environment variable made available for all programs which
 .Nm
-executes; compare with the
+executes.
+(This includes adding or modifying
+.Fl f
+option(s).)
+Note that any options entered to
+.Va .MAKEFLAGS
+neither affect the current instance of
+.Nm
+nor show up in its own copy of
+.Ev MAKEFLAGS
+instantly.
+However, they do show up in the
+.Ev MAKEFLAGS
+environment variable of programs executed by
+.Nm .
+On the other hand, a direct assignment to
+.Ev MAKEFLAGS
+neither affects the current instance of
+.Nm
+nor is passed down to
+.Nm Ns 's
+children.
+Compare with the
 .Ic .MAKEFLAGS
 special target below.
+.Pp
+To sum up what was said on
+.Fl f ,
+it can appear in
+.Va .MAKEFLAGS
+and affect the current
+.Nm
+at the same time only if inherited from
+.Ev MAKEFLAGS
+in 
+.Nm Ns 's
+initial environment.
+On the other hand, a
+.Fl f
+option from
+.Nm Ns 's
+command line
+does affect
+.Nm ,
+but it is never transferred to
+.Va .MAKEFLAGS
+or further.
 .Pp
 When passing macro definitions and flag arguments in the
 .Ev MAKEFLAGS
