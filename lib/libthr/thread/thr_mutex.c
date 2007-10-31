@@ -67,6 +67,12 @@
 #endif
 
 /*
+ * For adaptive mutexes, how many times to spin doing trylock2
+ * before entering the kernel to block
+ */
+#define MUTEX_ADAPTIVE_SPINS	200
+
+/*
  * Prototypes
  */
 int	__pthread_mutex_init(pthread_mutex_t *mutex,
@@ -356,18 +362,35 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_lock(m, abstime);
 	} else {
-		if (_thr_spinloops != 0 && _thr_is_smp &&
-		    !(m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)) {
-			count = _thr_spinloops;
-			while (count && m->m_lock.m_owner != UMUTEX_UNOWNED) {
-				count--;
+		/*
+		 * For adaptive mutexes, spin for a bit in the expectation
+		 * that if the application requests this mutex type then
+		 * the lock is likely to be released quickly and it is
+		 * faster than entering the kernel
+		 */
+		if (m->m_type == PTHREAD_MUTEX_ADAPTIVE_NP) {
+			count = MUTEX_ADAPTIVE_SPINS;
+  	 
+			while (count--) {
+				ret = _thr_umutex_trylock2(&m->m_lock, id);
+				if (ret == 0)
+					break;
 				CPU_SPINWAIT;
 			}
-			if (count) {
-				ret = _thr_umutex_trylock2(&m->m_lock, id);
-				if (ret == 0) {
-					ENQUEUE_MUTEX(curthread, m);
-					return (ret);
+			if (ret == 0)
+				goto done;
+		} else {
+			if (_thr_spinloops != 0 && _thr_is_smp &&
+			    !(m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)) {
+				count = _thr_spinloops;
+				while (count) {
+					if (m->m_lock.m_owner == UMUTEX_UNOWNED) {
+						ret = _thr_umutex_trylock2(&m->m_lock, id);
+						if (ret == 0)
+							goto done;
+					}
+					CPU_SPINWAIT;
+					count--;
 				}
 			}
 		}
@@ -377,10 +400,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			while (count--) {
 				_sched_yield();
 				ret = _thr_umutex_trylock2(&m->m_lock, id);
-				if (ret == 0) {
-					ENQUEUE_MUTEX(curthread, m);
-					return (ret);
-				}
+				if (ret == 0)
+					goto done;
 			}
 		}
 
@@ -401,6 +422,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			if (ret == EINTR)
 				ret = ETIMEDOUT;
 		}
+done:
 		if (ret == 0)
 			ENQUEUE_MUTEX(curthread, m);
 	}
