@@ -97,15 +97,15 @@ Extended burst getting refilled first.
 When it is full, committed burst getting refilled.
 This behavior is similar to RED active queue management algorithm.
 .Pp
-This algorithm is more polite to the TCP traffic then NG_CAR_SINGLE_RATE.
+This algorithm is more polite to the TCP traffic than NG_CAR_SINGLE_RATE.
 .It Dv NG_CAR_SHAPE
 Committed burst packets are counted as green, exceeding packets are delayed
 by queue with RED management and counted as yellow.
 Packets dropped by queue counted as red.
 Queue parameters are hardcoded: length 99 packets, min_th 8 packets, max_p 100%.
 .Pp
-Traffic shaping is much more polite to the TCP traffic then rate limit on
-links with bandwidth * delay product less then 6-8 TCP segments, but it
+Traffic shaping is much more polite to the TCP traffic than rate limit on
+links with bandwidth * delay product less than 6-8 TCP segments, but it
 consumes additional system resources for queue processing.
 .El
 .Sh CONTROL MESSAGES
@@ -122,7 +122,7 @@ Return current node configuration as
 struct ng_car_hookconf {
 	u_int64_t cbs;		/* Committed burst size (bytes) */
 	u_int64_t ebs;		/* Exceeded/Peak burst size (bytes) */
-	u_int64_t cir;		/* Committed information rate (bytes/s) */
+	u_int64_t cir;		/* Committed information rate (bits/s) */
 	u_int64_t pir;		/* Peak information rate (bits/s) */
 	u_int8_t green_action;	/* Action for green packets */
 	u_int8_t yellow_action;	/* Action for yellow packets */
@@ -178,6 +178,6 @@ control message, or when all hooks have been disconnected.
 .Re
 .Sh AUTHORS
 .An Nuno Antunes Aq nuno.antunes@gmail.com
-.An Alexander Motin Aq mav@alkar.net
+.An Alexander Motin Aq mav@FreeBSD.org
 .Sh BUGS
 At this moment only DROP and FORWARD actions are implemented.
