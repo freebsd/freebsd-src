@@ -734,7 +734,7 @@ u_int cputype;
 u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
 
 #if defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) || \
-  defined (CPU_ARM10) ||					       \
+  defined (CPU_ARM9E) || defined (CPU_ARM10) ||			       \
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	       \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	       \
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
