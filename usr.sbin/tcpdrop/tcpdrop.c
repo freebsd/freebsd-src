@@ -45,8 +45,10 @@ main(int argc, char *argv[])
 	char fhbuf[NI_MAXHOST], fsbuf[NI_MAXSERV], lhbuf[NI_MAXHOST],
 	    lsbuf[NI_MAXSERV];
 
-	if (argc != 5)
-		errx(1, "usage: tcpdrop laddr lport faddr fport\n");
+	if (argc != 5) {
+		fprintf(stderr, "usage: tcpdrop laddr lport faddr fport\n");
+		exit(1);
+	}
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
