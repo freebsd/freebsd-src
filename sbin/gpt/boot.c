@@ -168,7 +168,6 @@ boot(int fd)
 		warn("unable to open GPT boot loader");
 		return;
 	}
-	
 
 	/* Fourth step: find an existing boot partition or create one. */
 	if (gpt_find(&boot_uuid, &gptboot) != 0)
@@ -191,8 +190,14 @@ boot(int fd)
 			return;
 	}
 
-	/* Fourth step, write out the gptboot binary to the boot partition. */	
-	buf = malloc(sb.st_size);
+	/*
+	 * Fourth step, write out the gptboot binary to the boot partition.
+	 * When writing to a disk device, the write must be sector aligned
+	 * and not write to any partial sectors, so round up the buffer size
+	 * to the next sector and zero it.
+	 */
+	bsize = (sb.st_size + secsz - 1) / secsz * secsz;
+	buf = calloc(1, bsize);
 	nbytes = read(bfd, buf, sb.st_size);
 	if (nbytes < 0) {
 		warn("unable to read GPT boot loader");
@@ -209,12 +214,12 @@ boot(int fd)
 		    device_name);
 		return;
 	}
-	nbytes = write(fd, buf, sb.st_size);
+	nbytes = write(fd, buf, bsize);
 	if (nbytes < 0) {
 		warn("unable to write GPT boot loader");
 		return;
 	}
-	if (nbytes != sb.st_size) {
+	if (nbytes != bsize) {
 		warnx("short write of GPT boot loader");
 		return;
 	}
