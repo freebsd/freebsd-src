@@ -788,59 +788,50 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 #endif
 
     DEBUG("open_disk %p", od);
-
-
-	switch(rw){
-		case F_READ:
     blks = size / BIOSDISK_SECSIZE;
-    DEBUG("read %d from %d to %p", blks, dblk, buf);
-
     if (rsize)
 	*rsize = 0;
-    if (blks && bd_read(od, dblk, blks, buf)) {
-	DEBUG("read error");
-	return (EIO);
-    }
+
+    switch(rw){
+    case F_READ:
+	DEBUG("read %d from %d to %p", blks, dblk, buf);
+
+	if (blks && bd_read(od, dblk, blks, buf)) {
+	    DEBUG("read error");
+	    return (EIO);
+	}
 #ifdef BD_SUPPORT_FRAGS
-    DEBUG("bd_strategy: frag read %d from %d+%d to %p", 
-	     fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
-    if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
-	DEBUG("frag read error");
-	return(EIO);
-    }
-    bcopy(fragbuf, buf + (blks * BIOSDISK_SECSIZE), fragsize);
+	DEBUG("bd_strategy: frag read %d from %d+%d to %p",
+	    fragsize, dblk, blks, buf + (blks * BIOSDISK_SECSIZE));
+	if (fragsize && bd_read(od, dblk + blks, 1, fragsize)) {
+	    DEBUG("frag read error");
+	    return(EIO);
+	}
+	bcopy(fragbuf, buf + (blks * BIOSDISK_SECSIZE), fragsize);
 #endif
-    if (rsize)
-	*rsize = size;
-    return (0);
-		break;
+	break;
+    case F_WRITE :
+	DEBUG("write %d from %d to %p", blks, dblk, buf);
 
-		case F_WRITE :
-    blks = size / BIOSDISK_SECSIZE;
-    DEBUG("write %d from %d to %p", blks, dblk, buf);
-
-    if (rsize)
-	*rsize = 0;
-    if (blks && bd_write(od, dblk, blks, buf)) {
-	DEBUG("write error");
-	return (EIO);
-    }
+	if (blks && bd_write(od, dblk, blks, buf)) {
+	    DEBUG("write error");
+	    return (EIO);
+	}
 #ifdef BD_SUPPORT_FRAGS
 	if(fragsize) {
-	DEBUG("Attempted to write a frag");
-		return (EIO);
+	    DEBUG("Attempted to write a frag");
+	    return (EIO);
 	}
 #endif
+	break;
+    default:
+	/* DO NOTHING */
+	return (EROFS);
+    }
 
     if (rsize)
 	*rsize = size;
     return (0);
-		default:
-		 /* DO NOTHING */
-			break;
-	}
-
-	return EROFS;
 }
 
 /* Max number of sectors to bounce-buffer if the request crosses a 64k boundary */
