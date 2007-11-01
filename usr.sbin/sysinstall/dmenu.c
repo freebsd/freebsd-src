@@ -169,19 +169,23 @@ dmenuToggleVariable(dialogMenuItem *tmp)
 int
 dmenuISetVariable(dialogMenuItem *tmp)
 {
-    char *ans, *var;
+    char *ans, *p, *var;
 
-    if (!(var = (char *)tmp->data)) {
+    if (!(var = strdup((char *)tmp->data))) {
 	msgConfirm("Incorrect data field for `%s'!", tmp->title);
 	return DITEM_FAILURE;
     }
+    if ((p = index(var, '=')) != NULL)
+	*p = '\0';
     ans = msgGetInput(variable_get(var), tmp->title, 1);
-    if (!ans)
+    if (!ans) {
+	free(var);
 	return DITEM_FAILURE;
-    else if (!*ans)
+    } else if (!*ans)
 	variable_unset(var);
     else
 	variable_set2(var, ans, *var != '_');
+    free(var);
     return DITEM_SUCCESS;
 }
 

@@ -871,13 +871,18 @@ configNFSServer(dialogMenuItem *self)
 int
 configRpcBind(dialogMenuItem *self)
 {
+    char *tmp, *tmp2;
     int retval = 0;
     int doupdate = 1;
 
     if (self != NULL) {
     	retval = dmenuToggleVariable(self);
-	if (strcmp(variable_get(self->data), "YES") != 0)
+	tmp = strdup(self->data);
+	if ((tmp2 = index(tmp, '=')) != NULL)
+	    *tmp2 = '\0';
+	if (strcmp(variable_get(tmp), "YES") != 0)
 	    doupdate = 0;
+	free(tmp);
     }
 
     if (doupdate && strcmp(variable_get(VAR_RPCBIND_ENABLE), "YES") != 0) {
