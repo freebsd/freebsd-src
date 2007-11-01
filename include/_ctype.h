@@ -126,7 +126,7 @@ __sbistype(__ct_rune_t _c, unsigned long _f)
 static __inline int
 __isctype(__ct_rune_t _c, unsigned long _f)
 {
-	return (_c & ~0x7F) ? 0 :
+	return (_c < 0 || _c >= 128) ? 0 :
 	       !!(_DefaultRuneLocale.__runetype[_c] & _f);
 }
 
