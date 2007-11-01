@@ -1105,11 +1105,8 @@ bd_getdev(struct i386_devdesc *dev)
 	    unit = i;
     }
 
-    rootdev = MAKEBOOTDEV(major,
-			  (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
-			  (dev->d_kind.biosdisk.slice + 1) & 0xf, 
-			  unit,
-			  dev->d_kind.biosdisk.partition);
+    rootdev = MAKEBOOTDEV(major, dev->d_kind.biosdisk.slice + 1, unit,
+	dev->d_kind.biosdisk.partition);
     DEBUG("dev is 0x%x\n", rootdev);
     return(rootdev);
 }
