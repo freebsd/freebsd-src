@@ -103,13 +103,17 @@ MALLOC_DEFINE(M_AACCAM, "aaccam", "AAC CAM info");
 static void
 aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 {
+	union ccb *ccb;
 	struct aac_cam *camsc;
 
 	switch (event->ev_type) {
 	case AAC_EVENT_CMFREE:
-		camsc = arg;
+		ccb = arg;
+		camsc = ccb->ccb_h.sim_priv.entries[0].ptr;
 		free(event, M_AACCAM);
 		xpt_release_simq(camsc->sim, 1);
+		ccb->ccb_h.status = CAM_REQUEUE_REQ;
+		xpt_done(ccb);
 		break;
 	default:
 		device_printf(sc->aac_dev, "unknown event %d in aac_cam\n",
@@ -131,19 +135,21 @@ aac_cam_probe(device_t dev)
 static int
 aac_cam_detach(device_t dev)
 {
+	struct aac_softc *sc;
 	struct aac_cam *camsc;
 	debug_called(2);
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
+	sc = camsc->inf->aac_sc;
 
-	mtx_lock(&Giant);
+	mtx_lock(&sc->aac_io_lock);
 
 	xpt_async(AC_LOST_DEVICE, camsc->path, NULL);
 	xpt_free_path(camsc->path);
 	xpt_bus_deregister(cam_sim_path(camsc->sim));
 	cam_sim_free(camsc->sim, /*free_devq*/TRUE);
 
-	mtx_unlock(&Giant);
+	mtx_unlock(&sc->aac_io_lock);
 
 	return (0);
 }
@@ -171,15 +177,17 @@ aac_cam_attach(device_t dev)
 		return (EIO);
 
 	sim = cam_sim_alloc(aac_cam_action, aac_cam_poll, "aacp", camsc,
-	    device_get_unit(dev), &Giant, 1, 1, devq);
+	    device_get_unit(dev), &inf->aac_sc->aac_io_lock, 1, 1, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		return (EIO);
 	}
 
 	/* Since every bus has it's own sim, every bus 'appears' as bus 0 */
+	mtx_lock(&inf->aac_sc->aac_io_lock);
 	if (xpt_bus_register(sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
+		mtx_unlock(&inf->aac_sc->aac_io_lock);
 		return (EIO);
 	}
 
@@ -187,8 +195,10 @@ aac_cam_attach(device_t dev)
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(sim));
 		cam_sim_free(sim, TRUE);
+		mtx_unlock(&inf->aac_sc->aac_io_lock);
 		return (EIO);
 	}
+	mtx_unlock(&inf->aac_sc->aac_io_lock);
 
 	camsc->sim = sim;
 	camsc->path = path;
@@ -321,27 +331,23 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	/* Async ops that require communcation with the controller */
 
-	mtx_lock(&sc->aac_io_lock);
 	if (aac_alloc_command(sc, &cm)) {
 		struct aac_event *event;
 
 		xpt_freeze_simq(sim, 1);
-		ccb->ccb_h.status = CAM_REQUEUE_REQ;
-		xpt_done(ccb);
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		ccb->ccb_h.sim_priv.entries[0].ptr = camsc;
 		event = malloc(sizeof(struct aac_event), M_AACCAM,
 		    M_NOWAIT | M_ZERO);
 		if (event == NULL) {
 			device_printf(sc->aac_dev,
 			    "Warning, out of memory for event\n");
-			/* XXX Yuck, what to do here? */
-			mtx_unlock(&sc->aac_io_lock);
 			return;
 		}
 		event->ev_callback = aac_cam_event;
-		event->ev_arg = camsc;
+		event->ev_arg = ccb;
 		event->ev_type = AAC_EVENT_CMFREE;
 		aac_add_event(sc, event);
-		mtx_unlock(&sc->aac_io_lock);
 		return;
 	}
 
@@ -429,7 +435,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
-			mtx_unlock(&sc->aac_io_lock);
 			return;
 		}
 	default:
@@ -459,8 +464,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	aac_enqueue_ready(cm);
 	aac_startio(cm->cm_sc);
-
-	mtx_unlock(&sc->aac_io_lock);
 
 	return;
 }
@@ -565,7 +568,6 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 		return (CAM_REQ_ABORTED);
 	}
 
-	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
 
 	vmi = (struct aac_vmioctl *)&fib->data[0];
@@ -586,12 +588,10 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 		device_printf(sc->aac_dev,"Error %d sending ResetBus command\n",
 		    e);
 		aac_release_sync_fib(sc);
-		mtx_unlock(&sc->aac_io_lock);
 		return (CAM_REQ_ABORTED);
 	}
 
 	aac_release_sync_fib(sc);
-	mtx_unlock(&sc->aac_io_lock);
 	return (CAM_REQ_CMP);
 }
 
