@@ -60,7 +60,7 @@
 			 defined(CPU_IXP12X0) +				\
 			 defined(CPU_XSCALE_80200) +			\
 			 defined(CPU_XSCALE_80321) +			\
-			 defined(__CPU_XSCALE_PXA2XX) +			\
+			 defined(CPU_XSCALE_PXA2X0) +			\
 			 defined(CPU_XSCALE_IXP425))
 
 /*
