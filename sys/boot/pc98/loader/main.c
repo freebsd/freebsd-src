@@ -210,8 +210,7 @@ extract_currdev(void)
 	new_currdev.d_kind.biosdisk.partition = 0;
 	biosdev = -1;
     } else {
-	new_currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) +
-					     B_CONTROLLER(initial_bootdev) - 1;
+	new_currdev.d_kind.biosdisk.slice = B_SLICE(initial_bootdev) - 1;
 	new_currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
 	biosdev = initial_bootinfo->bi_bios_dev;
 	major = B_TYPE(initial_bootdev);

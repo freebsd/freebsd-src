@@ -78,17 +78,11 @@ extern struct bootinfo	bootinfo;
  * for backward compatibility.  Except for that of the "magic
  * number", each mask applies to the shifted value.
  * Format:
- *	 (4) (4) (4) (4)  (8)     (8)
+ *	 (4)   (8)   (4)  (8)     (8)
  *	--------------------------------
- *	|MA | AD| CT| UN| PART  | TYPE |
+ *	|MA | SLICE | UN| PART  | TYPE |
  *	--------------------------------
  */
-#define	B_ADAPTORSHIFT		24
-#define	B_ADAPTORMASK		0x0f
-#define	B_ADAPTOR(val)		(((val) >> B_ADAPTORSHIFT) & B_ADAPTORMASK)
-#define B_CONTROLLERSHIFT	20
-#define B_CONTROLLERMASK	0xf
-#define	B_CONTROLLER(val)	(((val)>>B_CONTROLLERSHIFT) & B_CONTROLLERMASK)
 #define B_SLICESHIFT		20
 #define B_SLICEMASK		0xff
 #define B_SLICE(val)		(((val)>>B_SLICESHIFT) & B_SLICEMASK)
@@ -105,10 +99,10 @@ extern struct bootinfo	bootinfo;
 #define	B_MAGICMASK	0xf0000000
 #define	B_DEVMAGIC	0xa0000000
 
-#define MAKEBOOTDEV(type, adaptor, controller, unit, partition) \
-	(((type) << B_TYPESHIFT) | ((adaptor) << B_ADAPTORSHIFT) | \
-	((controller) << B_CONTROLLERSHIFT) | ((unit) << B_UNITSHIFT) | \
-	((partition) << B_PARTITIONSHIFT) | B_DEVMAGIC)
+#define	MAKEBOOTDEV(type, slice, unit, partition) \
+	(((type) << B_TYPESHIFT) | ((slice) << B_SLICESHIFT) | \
+	((unit) << B_UNITSHIFT) | ((partition) << B_PARTITIONSHIFT) | \
+	B_DEVMAGIC)
 
 #define	BASE_SLICE		2
 #define	COMPATIBILITY_SLICE	0
