@@ -585,10 +585,16 @@ gpt_open(const char *dev)
 
 	if (gpt_mbr(fd, 0LL) == -1)
 		goto close;
-	if (gpt_gpt(fd, 1LL) == -1)
-		goto close;
-	if (gpt_gpt(fd, mediasz / secsz - 1LL) == -1)
-		goto close;
+
+	/*
+	 * Don't look for a GPT unless we have a valid PMBR.
+	 */
+	if (map_find(MAP_TYPE_PMBR) != NULL) {
+		if (gpt_gpt(fd, 1LL) == -1)
+			goto close;
+		if (gpt_gpt(fd, mediasz / secsz - 1LL) == -1)
+			goto close;
+	}
 
 	return (fd);
 
