@@ -163,6 +163,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 {
 	struct mount *mp;
 	struct vfsconf *vfsp;
+	struct ucred *newcr, *oldcr;
 	int error;
 
 	/*
@@ -202,7 +203,9 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 
 	/*
 	 * Set the mount level flags.
+	 * crdup() can sleep, so do it before acquiring a mutex.
 	 */
+	newcr = crdup(kcred);
 	MNT_ILOCK(mp);
 	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
@@ -212,10 +215,11 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 * Unprivileged user can trigger mounting a snapshot, but we don't want
 	 * him to unmount it, so we switch to privileged credentials.
 	 */
-	crfree(mp->mnt_cred);
-	mp->mnt_cred = crdup(kcred);
+	oldcr = mp->mnt_cred;
+	mp->mnt_cred = newcr;
 	mp->mnt_stat.f_owner = mp->mnt_cred->cr_uid;
 	MNT_IUNLOCK(mp);
+	crfree(oldcr);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
