@@ -294,7 +294,7 @@ loadprog(void)
 	 * For backwards compatibility, use the previously-unused adaptor
 	 * and controller bitfields to hold the slice number.
 	 */
-	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
+	bootdev = MAKEBOOTDEV(maj, slice, unit, part);
 
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_kernelname = (u_int32_t)(name + ouraddr);
