@@ -235,6 +235,8 @@ e1000phy_reset(struct mii_softc *sc)
 			/* Disable energy detect mode. */
 			reg &= ~E1000_SCR_EN_DETECT_MASK;
 			reg |= E1000_SCR_AUTO_X_MODE;
+			if (esc->mii_model == MII_MODEL_MARVELL_E1116)
+				reg &= ~E1000_SCR_POWER_DOWN;
 			break;
 		case MII_MODEL_MARVELL_E3082:
 			reg |= (E1000_SCR_AUTO_X_MODE >> 1);
@@ -248,6 +250,14 @@ e1000phy_reset(struct mii_softc *sc)
 		/* Auto correction for reversed cable polarity. */
 		reg &= ~E1000_SCR_POLARITY_REVERSAL;
 		PHY_WRITE(sc, E1000_SCR, reg);
+
+		if (esc->mii_model == MII_MODEL_MARVELL_E1116) {
+			PHY_WRITE(sc, E1000_EADR, 2);
+			reg = PHY_READ(sc, E1000_SCR);
+			reg |= E1000_SCR_RGMII_POWER_UP;
+			PHY_WRITE(sc, E1000_SCR, reg);
+			PHY_WRITE(sc, E1000_EADR, 0);
+		}
 	}
 
 	switch (MII_MODEL(esc->mii_model)) {
