@@ -244,6 +244,11 @@
 #define E1000_SCR_MODE_COPPER		0x0280
 #define E1000_SCR_MODE_1000BX		0x0380
 
+/* 88E1116 page 0 */
+#define	E1000_SCR_POWER_DOWN		0x0004
+/* 88E1116 page 2 */
+#define	E1000_SCR_RGMII_POWER_UP	0x0008
+
 #define E1000_SSR			0x11	/* special status register */
 #define E1000_SSR_JABBER		0x0001
 #define E1000_SSR_REV_POLARITY		0x0002
