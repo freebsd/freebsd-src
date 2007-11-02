@@ -169,6 +169,10 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_SEQ_SUB(a, b) \
 	(((a) + IEEE80211_SEQ_RANGE - (b)) & (IEEE80211_SEQ_RANGE-1))
 
+#define	IEEE80211_SEQ_BA_RANGE			2048	/* 2^11 */
+#define	IEEE80211_SEQ_BA_BEFORE(a, b) \
+	(IEEE80211_SEQ_SUB(b, a+1) < IEEE80211_SEQ_BA_RANGE-1)
+
 #define	IEEE80211_NWID_LEN			32
 
 #define	IEEE80211_QOS_TXOP			0x00ff
@@ -546,20 +550,20 @@ struct ieee80211_ie_htcap {
 /* HT parameters (hc_param) */
 #define	IEEE80211_HTCAP_MAXRXAMPDU	0x03	/* max rx A-MPDU factor */
 #define	IEEE80211_HTCAP_MAXRXAMPDU_S	0
-#define	IEEE80211_HTCAP_MAXRXAMPDU_8K	0x00
-#define	IEEE80211_HTCAP_MAXRXAMPDU_16K	0x01
-#define	IEEE80211_HTCAP_MAXRXAMPDU_32K	0x02
-#define	IEEE80211_HTCAP_MAXRXAMPDU_64K	0x03
+#define	IEEE80211_HTCAP_MAXRXAMPDU_8K	0
+#define	IEEE80211_HTCAP_MAXRXAMPDU_16K	1
+#define	IEEE80211_HTCAP_MAXRXAMPDU_32K	2
+#define	IEEE80211_HTCAP_MAXRXAMPDU_64K	3
 #define	IEEE80211_HTCAP_MPDUDENSITY	0x1c	/* min MPDU start spacing */
 #define	IEEE80211_HTCAP_MPDUDENSITY_S	2
-#define	IEEE80211_HTCAP_MPDUDENSITY_NA	0x00	/* no time restriction */
-#define	IEEE80211_HTCAP_MPDUDENSITY_025	0x04	/* 1/4 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_05	0x08	/* 1/2 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_1	0x0c	/* 1 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_2	0x10	/* 2 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_4	0x14	/* 4 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_8	0x18	/* 8 us */
-#define	IEEE80211_HTCAP_MPDUDENSITY_16	0x1c	/* 16 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_NA	0	/* no time restriction */
+#define	IEEE80211_HTCAP_MPDUDENSITY_025	1	/* 1/4 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_05	2	/* 1/2 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_1	3	/* 1 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_2	4	/* 2 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_4	5	/* 4 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_8	6	/* 8 us */
+#define	IEEE80211_HTCAP_MPDUDENSITY_16	7	/* 16 us */
 
 /* HT extended capabilities (hc_extcap) */
 #define	IEEE80211_HTCAP_PCO		0x0001	/* PCO capable */
@@ -686,7 +690,7 @@ struct ieee80211_country_ie {
 		uint8_t schan;			/* starting channel */
 		uint8_t nchan;			/* number channels */
 		uint8_t maxtxpwr;		/* tx power cap */
-	} __packed band[4];			/* up to 4 sub bands */
+	} __packed band[10];			/* sub bands */
 } __packed;
 
 /*

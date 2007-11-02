@@ -111,10 +111,13 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_AREF	0x0020		/* authentication ref held */
 #define	IEEE80211_NODE_HT	0x0040		/* HT enabled */
 #define	IEEE80211_NODE_HTCOMPAT	0x0080		/* HT setup w/ vendor OUI's */
+#define	IEEE80211_NODE_AMPDU_RX	0x0400		/* AMPDU rx enabled */
+#define	IEEE80211_NODE_AMPDU_TX	0x0800		/* AMPDU tx enabled */
 	uint16_t		ni_ath_defkeyix;/* Atheros def key index */
 	uint16_t		ni_associd;	/* assoc response */
 	uint16_t		ni_txpower;	/* current transmit power */
 	uint16_t		ni_vlan;	/* vlan tag */
+	uint32_t		ni_jointime;	/* time of join (secs) */
 	uint32_t		*ni_challenge;	/* shared-key challenge */
 	uint8_t			*ni_wpa_ie;	/* captured WPA ie */
 	uint8_t			*ni_rsn_ie;	/* captured RSN ie */
@@ -157,6 +160,7 @@ struct ieee80211_node {
 	uint8_t			ni_dtim_count;	/* DTIM count for last bcn */
 
 	/* 11n state */
+	uint8_t			*ni_htcap_ie;	/* captured HTCAP ie */
 	uint16_t		ni_htcap;	/* HT capabilities */
 	uint8_t			ni_htparam;	/* HT params */
 	uint8_t			ni_htctlchan;	/* HT control channel */
@@ -180,6 +184,8 @@ struct ieee80211_node {
 MALLOC_DECLARE(M_80211_NODE);
 
 #define	IEEE80211_NODE_ATH	(IEEE80211_NODE_FF | IEEE80211_NODE_TURBOP)
+#define	IEEE80211_NODE_AMPDU \
+	(IEEE80211_NODE_AMPDU_RX | IEEE80211_NODE_AMPDU_TX)
 
 #define	IEEE80211_NODE_AID(ni)	IEEE80211_AID(ni->ni_associd)
 
@@ -219,6 +225,7 @@ void	ieee80211_node_unauthorize(struct ieee80211_node *);
 void	ieee80211_probe_curchan(struct ieee80211com *, int);
 void	ieee80211_create_ibss(struct ieee80211com*, struct ieee80211_channel *);
 void	ieee80211_reset_bss(struct ieee80211com *);
+void	ieee80211_setbsschan(struct ieee80211com *, struct ieee80211_channel *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;
 int	ieee80211_sta_join(struct ieee80211com *,
