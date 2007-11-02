@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-ring.h
- *
- *  Description:  HAL Rx ring object functionality
- *
- *  Created:      19 May 2004
- */
-
 #ifndef XGE_HAL_RING_H
 #define XGE_HAL_RING_H
 
@@ -44,52 +36,52 @@
 __EXTERN_BEGIN_DECLS
 
 /* HW ring configuration */
-#define XGE_HAL_RING_RXDBLOCK_SIZE	0x1000
+#define XGE_HAL_RING_RXDBLOCK_SIZE  0x1000
 
-#define XGE_HAL_RXD_T_CODE_OK		0x0
-#define XGE_HAL_RXD_T_CODE_PARITY	0x1
-#define XGE_HAL_RXD_T_CODE_ABORT	0x2
-#define XGE_HAL_RXD_T_CODE_PARITY_ABORT	0x3
-#define XGE_HAL_RXD_T_CODE_RDA_FAILURE	0x4
+#define XGE_HAL_RXD_T_CODE_OK       0x0
+#define XGE_HAL_RXD_T_CODE_PARITY   0x1
+#define XGE_HAL_RXD_T_CODE_ABORT    0x2
+#define XGE_HAL_RXD_T_CODE_PARITY_ABORT 0x3
+#define XGE_HAL_RXD_T_CODE_RDA_FAILURE  0x4
 #define XGE_HAL_RXD_T_CODE_UNKNOWN_PROTO 0x5
-#define XGE_HAL_RXD_T_CODE_BAD_FCS	0x6
-#define XGE_HAL_RXD_T_CODE_BUFF_SIZE	0x7
-#define XGE_HAL_RXD_T_CODE_BAD_ECC	0x8
-#define XGE_HAL_RXD_T_CODE_UNUSED_C	0xC
-#define XGE_HAL_RXD_T_CODE_UNKNOWN	0xF
+#define XGE_HAL_RXD_T_CODE_BAD_FCS  0x6
+#define XGE_HAL_RXD_T_CODE_BUFF_SIZE    0x7
+#define XGE_HAL_RXD_T_CODE_BAD_ECC  0x8
+#define XGE_HAL_RXD_T_CODE_UNUSED_C 0xC
+#define XGE_HAL_RXD_T_CODE_UNKNOWN  0xF
 
-#define XGE_HAL_RING_USE_MTU		-1
+#define XGE_HAL_RING_USE_MTU        -1
 
 /* control_1 and control_2 formatting - same for all buffer modes */
 #define XGE_HAL_RXD_GET_L3_CKSUM(control_1) ((u16)(control_1>>16) & 0xFFFF)
 #define XGE_HAL_RXD_GET_L4_CKSUM(control_1) ((u16)(control_1 & 0xFFFF))
 
-#define XGE_HAL_RXD_MASK_VLAN_TAG		vBIT(0xFFFF,48,16)
+#define XGE_HAL_RXD_MASK_VLAN_TAG       vBIT(0xFFFF,48,16)
 #define XGE_HAL_RXD_SET_VLAN_TAG(control_2, val) control_2 |= (u16)val
-#define XGE_HAL_RXD_GET_VLAN_TAG(control_2)	((u16)(control_2 & 0xFFFF))
+#define XGE_HAL_RXD_GET_VLAN_TAG(control_2) ((u16)(control_2 & 0xFFFF))
 
-#define XGE_HAL_RXD_POSTED_4_XFRAME		BIT(7)  /* control_1 */
+#define XGE_HAL_RXD_POSTED_4_XFRAME     BIT(7)  /* control_1 */
 #define XGE_HAL_RXD_NOT_COMPLETED               BIT(0)  /* control_2 */
-#define XGE_HAL_RXD_T_CODE		(BIT(12)|BIT(13)|BIT(14)|BIT(15))
-#define XGE_HAL_RXD_GET_T_CODE(control_1)	\
-				((control_1 & XGE_HAL_RXD_T_CODE)>>48)
+#define XGE_HAL_RXD_T_CODE      (BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define XGE_HAL_RXD_GET_T_CODE(control_1)   \
+	            ((control_1 & XGE_HAL_RXD_T_CODE)>>48)
 #define XGE_HAL_RXD_SET_T_CODE(control_1, val) \
-				(control_1 |= (((u64)val & 0xF) << 48))
+	            (control_1 |= (((u64)val & 0xF) << 48))
 
-#define XGE_HAL_RXD_MASK_FRAME_TYPE		vBIT(0x3,25,2)
-#define XGE_HAL_RXD_MASK_FRAME_PROTO		vBIT(0xFFFF,24,8)
-#define XGE_HAL_RXD_GET_FRAME_TYPE(control_1)	\
-		(u8)(0x3 & ((control_1 & XGE_HAL_RXD_MASK_FRAME_TYPE) >> 37))
-#define XGE_HAL_RXD_GET_FRAME_PROTO(control_1)	\
-			(u8)((control_1 & XGE_HAL_RXD_MASK_FRAME_PROTO) >> 32)
-#define XGE_HAL_RXD_FRAME_PROTO_VLAN_TAGGED	BIT(24)
-#define XGE_HAL_RXD_FRAME_PROTO_IPV4		BIT(27)
-#define XGE_HAL_RXD_FRAME_PROTO_IPV6		BIT(28)
-#define XGE_HAL_RXD_FRAME_PROTO_IP_FRAGMENTED	BIT(29)
-#define XGE_HAL_RXD_FRAME_PROTO_TCP		BIT(30)
-#define XGE_HAL_RXD_FRAME_PROTO_UDP		BIT(31)
+#define XGE_HAL_RXD_MASK_FRAME_TYPE     vBIT(0x3,25,2)
+#define XGE_HAL_RXD_MASK_FRAME_PROTO        vBIT(0xFFFF,24,8)
+#define XGE_HAL_RXD_GET_FRAME_TYPE(control_1)   \
+	    (u8)(0x3 & ((control_1 & XGE_HAL_RXD_MASK_FRAME_TYPE) >> 37))
+#define XGE_HAL_RXD_GET_FRAME_PROTO(control_1)  \
+	        (u8)((control_1 & XGE_HAL_RXD_MASK_FRAME_PROTO) >> 32)
+#define XGE_HAL_RXD_FRAME_PROTO_VLAN_TAGGED BIT(24)
+#define XGE_HAL_RXD_FRAME_PROTO_IPV4        BIT(27)
+#define XGE_HAL_RXD_FRAME_PROTO_IPV6        BIT(28)
+#define XGE_HAL_RXD_FRAME_PROTO_IP_FRAGMENTED   BIT(29)
+#define XGE_HAL_RXD_FRAME_PROTO_TCP     BIT(30)
+#define XGE_HAL_RXD_FRAME_PROTO_UDP     BIT(31)
 #define XGE_HAL_RXD_FRAME_TCP_OR_UDP (XGE_HAL_RXD_FRAME_PROTO_TCP | \
-				XGE_HAL_RXD_FRAME_PROTO_UDP)
+	            XGE_HAL_RXD_FRAME_PROTO_UDP)
 
 /**
  * enum xge_hal_frame_type_e - Ethernet frame format.
@@ -101,10 +93,10 @@ __EXTERN_BEGIN_DECLS
  * Ethernet frame format.
  */
 typedef enum xge_hal_frame_type_e {
-	XGE_HAL_FRAME_TYPE_DIX			= 0x0,
-	XGE_HAL_FRAME_TYPE_LLC			= 0x1,
-	XGE_HAL_FRAME_TYPE_SNAP			= 0x2,
-	XGE_HAL_FRAME_TYPE_IPX			= 0x3,
+	XGE_HAL_FRAME_TYPE_DIX          = 0x0,
+	XGE_HAL_FRAME_TYPE_LLC          = 0x1,
+	XGE_HAL_FRAME_TYPE_SNAP         = 0x2,
+	XGE_HAL_FRAME_TYPE_IPX          = 0x3,
 } xge_hal_frame_type_e;
 
 /**
@@ -120,14 +112,14 @@ typedef enum xge_hal_frame_type_e {
  * Higher layer ethernet protocols and options.
  */
 typedef enum xge_hal_frame_proto_e {
-	XGE_HAL_FRAME_PROTO_VLAN_TAGGED		= 0x80,
-	XGE_HAL_FRAME_PROTO_IPV4		= 0x10,
-	XGE_HAL_FRAME_PROTO_IPV6		= 0x08,
-	XGE_HAL_FRAME_PROTO_IP_FRAGMENTED	= 0x04,
-	XGE_HAL_FRAME_PROTO_TCP			= 0x02,
-	XGE_HAL_FRAME_PROTO_UDP			= 0x01,
-	XGE_HAL_FRAME_PROTO_TCP_OR_UDP		= (XGE_HAL_FRAME_PROTO_TCP | \
-						   XGE_HAL_FRAME_PROTO_UDP)
+	XGE_HAL_FRAME_PROTO_VLAN_TAGGED     = 0x80,
+	XGE_HAL_FRAME_PROTO_IPV4        = 0x10,
+	XGE_HAL_FRAME_PROTO_IPV6        = 0x08,
+	XGE_HAL_FRAME_PROTO_IP_FRAGMENTED   = 0x04,
+	XGE_HAL_FRAME_PROTO_TCP         = 0x02,
+	XGE_HAL_FRAME_PROTO_UDP         = 0x01,
+	XGE_HAL_FRAME_PROTO_TCP_OR_UDP      = (XGE_HAL_FRAME_PROTO_TCP | \
+	                       XGE_HAL_FRAME_PROTO_UDP)
 } xge_hal_frame_proto_e;
 
 /*
@@ -137,12 +129,12 @@ typedef struct {
 	u64 host_control;
 	u64 control_1;
 	u64 control_2;
-#define XGE_HAL_RXD_1_MASK_BUFFER0_SIZE		vBIT(0xFFFF,0,16)
-#define XGE_HAL_RXD_1_SET_BUFFER0_SIZE(val)	vBIT(val,0,16)
+#define XGE_HAL_RXD_1_MASK_BUFFER0_SIZE     vBIT(0xFFFF,0,16)
+#define XGE_HAL_RXD_1_SET_BUFFER0_SIZE(val) vBIT(val,0,16)
 #define XGE_HAL_RXD_1_GET_BUFFER0_SIZE(Control_2) \
-			(int)((Control_2 & vBIT(0xFFFF,0,16))>>48)
+	        (int)((Control_2 & vBIT(0xFFFF,0,16))>>48)
 #define XGE_HAL_RXD_1_GET_RTH_VALUE(Control_2) \
-			(u32)((Control_2 & vBIT(0xFFFFFFFF,16,32))>>16)
+	        (u32)((Control_2 & vBIT(0xFFFFFFFF,16,32))>>16)
 	u64 buffer0_ptr;
 } xge_hal_ring_rxd_1_t;
 
@@ -154,20 +146,20 @@ typedef struct {
 	u64 control_1;
 
 	u64 control_2;
-#define XGE_HAL_RXD_3_MASK_BUFFER0_SIZE		vBIT(0xFF,8,8)
-#define XGE_HAL_RXD_3_SET_BUFFER0_SIZE(val)	vBIT(val,8,8)
-#define XGE_HAL_RXD_3_MASK_BUFFER1_SIZE		vBIT(0xFFFF,16,16)
-#define XGE_HAL_RXD_3_SET_BUFFER1_SIZE(val)	vBIT(val,16,16)
-#define XGE_HAL_RXD_3_MASK_BUFFER2_SIZE		vBIT(0xFFFF,32,16)
-#define XGE_HAL_RXD_3_SET_BUFFER2_SIZE(val)	vBIT(val,32,16)
+#define XGE_HAL_RXD_3_MASK_BUFFER0_SIZE     vBIT(0xFF,8,8)
+#define XGE_HAL_RXD_3_SET_BUFFER0_SIZE(val) vBIT(val,8,8)
+#define XGE_HAL_RXD_3_MASK_BUFFER1_SIZE     vBIT(0xFFFF,16,16)
+#define XGE_HAL_RXD_3_SET_BUFFER1_SIZE(val) vBIT(val,16,16)
+#define XGE_HAL_RXD_3_MASK_BUFFER2_SIZE     vBIT(0xFFFF,32,16)
+#define XGE_HAL_RXD_3_SET_BUFFER2_SIZE(val) vBIT(val,32,16)
 
 
 #define XGE_HAL_RXD_3_GET_BUFFER0_SIZE(Control_2) \
-				(int)((Control_2 & vBIT(0xFF,8,8))>>48)
+	            (int)((Control_2 & vBIT(0xFF,8,8))>>48)
 #define XGE_HAL_RXD_3_GET_BUFFER1_SIZE(Control_2) \
-				(int)((Control_2 & vBIT(0xFFFF,16,16))>>32)
+	            (int)((Control_2 & vBIT(0xFFFF,16,16))>>32)
 #define XGE_HAL_RXD_3_GET_BUFFER2_SIZE(Control_2) \
-				(int)((Control_2 & vBIT(0xFFFF,32,16))>>16)
+	            (int)((Control_2 & vBIT(0xFFFF,32,16))>>16)
 
 	u64 buffer0_ptr;
 	u64 buffer1_ptr;
@@ -187,33 +179,33 @@ typedef struct {
 #endif
 
 
-#define XGE_HAL_RXD_5_MASK_BUFFER3_SIZE		vBIT(0xFFFF,32,16)
-#define XGE_HAL_RXD_5_SET_BUFFER3_SIZE(val)	vBIT(val,32,16)
-#define XGE_HAL_RXD_5_MASK_BUFFER4_SIZE		vBIT(0xFFFF,48,16)
-#define XGE_HAL_RXD_5_SET_BUFFER4_SIZE(val)	vBIT(val,48,16)
+#define XGE_HAL_RXD_5_MASK_BUFFER3_SIZE     vBIT(0xFFFF,32,16)
+#define XGE_HAL_RXD_5_SET_BUFFER3_SIZE(val) vBIT(val,32,16)
+#define XGE_HAL_RXD_5_MASK_BUFFER4_SIZE     vBIT(0xFFFF,48,16)
+#define XGE_HAL_RXD_5_SET_BUFFER4_SIZE(val) vBIT(val,48,16)
 
 #define XGE_HAL_RXD_5_GET_BUFFER3_SIZE(Control_3) \
-				(int)((Control_3 & vBIT(0xFFFF,32,16))>>16)
+	            (int)((Control_3 & vBIT(0xFFFF,32,16))>>16)
 #define XGE_HAL_RXD_5_GET_BUFFER4_SIZE(Control_3) \
-				(int)((Control_3 & vBIT(0xFFFF,48,16)))
+	            (int)((Control_3 & vBIT(0xFFFF,48,16)))
 
 	u64 control_1;
 	u64 control_2;
 
-#define XGE_HAL_RXD_5_MASK_BUFFER0_SIZE		vBIT(0xFFFF,0,16)
-#define XGE_HAL_RXD_5_SET_BUFFER0_SIZE(val)	vBIT(val,0,16)
-#define XGE_HAL_RXD_5_MASK_BUFFER1_SIZE		vBIT(0xFFFF,16,16)
-#define XGE_HAL_RXD_5_SET_BUFFER1_SIZE(val)	vBIT(val,16,16)
-#define XGE_HAL_RXD_5_MASK_BUFFER2_SIZE		vBIT(0xFFFF,32,16)
-#define XGE_HAL_RXD_5_SET_BUFFER2_SIZE(val)	vBIT(val,32,16)
+#define XGE_HAL_RXD_5_MASK_BUFFER0_SIZE     vBIT(0xFFFF,0,16)
+#define XGE_HAL_RXD_5_SET_BUFFER0_SIZE(val) vBIT(val,0,16)
+#define XGE_HAL_RXD_5_MASK_BUFFER1_SIZE     vBIT(0xFFFF,16,16)
+#define XGE_HAL_RXD_5_SET_BUFFER1_SIZE(val) vBIT(val,16,16)
+#define XGE_HAL_RXD_5_MASK_BUFFER2_SIZE     vBIT(0xFFFF,32,16)
+#define XGE_HAL_RXD_5_SET_BUFFER2_SIZE(val) vBIT(val,32,16)
 
 
 #define XGE_HAL_RXD_5_GET_BUFFER0_SIZE(Control_2) \
-			(int)((Control_2 & vBIT(0xFFFF,0,16))>>48)
+	        (int)((Control_2 & vBIT(0xFFFF,0,16))>>48)
 #define XGE_HAL_RXD_5_GET_BUFFER1_SIZE(Control_2) \
-			(int)((Control_2 & vBIT(0xFFFF,16,16))>>32)
+	        (int)((Control_2 & vBIT(0xFFFF,16,16))>>32)
 #define XGE_HAL_RXD_5_GET_BUFFER2_SIZE(Control_2) \
-			(int)((Control_2 & vBIT(0xFFFF,32,16))>>16)
+	        (int)((Control_2 & vBIT(0xFFFF,32,16))>>16)
 	u64 buffer0_ptr;
 	u64 buffer1_ptr;
 	u64 buffer2_ptr;
@@ -222,32 +214,32 @@ typedef struct {
 } xge_hal_ring_rxd_5_t;
 
 #define XGE_HAL_RXD_GET_RTH_SPDM_HIT(Control_1) \
-		(u8)((Control_1 & BIT(18))>>45)
+	    (u8)((Control_1 & BIT(18))>>45)
 #define XGE_HAL_RXD_GET_RTH_IT_HIT(Control_1) \
-		(u8)((Control_1 & BIT(19))>>44)
+	    (u8)((Control_1 & BIT(19))>>44)
 #define XGE_HAL_RXD_GET_RTH_HASH_TYPE(Control_1) \
-		(u8)((Control_1 & vBIT(0xF,20,4))>>40)
+	    (u8)((Control_1 & vBIT(0xF,20,4))>>40)
 
-#define XGE_HAL_RXD_HASH_TYPE_NONE				0x0
-#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV4			0x1
-#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV4			0x2
-#define XGE_HAL_RXD_HASH_TYPE_IPV4				0x3
-#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV6			0x4
-#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV6			0x5
-#define XGE_HAL_RXD_HASH_TYPE_IPV6				0x6
-#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV6_EX		0x7
-#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV6_EX		0x8
-#define XGE_HAL_RXD_HASH_TYPE_IPV6_EX			0x9
+#define XGE_HAL_RXD_HASH_TYPE_NONE              0x0
+#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV4          0x1
+#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV4          0x2
+#define XGE_HAL_RXD_HASH_TYPE_IPV4              0x3
+#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV6          0x4
+#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV6          0x5
+#define XGE_HAL_RXD_HASH_TYPE_IPV6              0x6
+#define XGE_HAL_RXD_HASH_TYPE_TCP_IPV6_EX       0x7
+#define XGE_HAL_RXD_HASH_TYPE_UDP_IPV6_EX       0x8
+#define XGE_HAL_RXD_HASH_TYPE_IPV6_EX           0x9
 
 typedef u8 xge_hal_ring_block_t[XGE_HAL_RING_RXDBLOCK_SIZE];
 
-#define XGE_HAL_RING_NEXT_BLOCK_POINTER_OFFSET	0xFF8
-#define XGE_HAL_RING_MEMBLOCK_IDX_OFFSET	0xFF0
+#define XGE_HAL_RING_NEXT_BLOCK_POINTER_OFFSET  0xFF8
+#define XGE_HAL_RING_MEMBLOCK_IDX_OFFSET    0xFF0
 
 #define XGE_HAL_RING_RXD_SIZEOF(n) \
 	(n==1 ? sizeof(xge_hal_ring_rxd_1_t) : \
-		(n==3 ? sizeof(xge_hal_ring_rxd_3_t) : \
-			sizeof(xge_hal_ring_rxd_5_t)))
+	    (n==3 ? sizeof(xge_hal_ring_rxd_3_t) : \
+	        sizeof(xge_hal_ring_rxd_5_t)))
 
 #define XGE_HAL_RING_RXDS_PER_BLOCK(n) \
 	(n==1 ? 127 : (n==3 ? 85 : 63))
@@ -274,14 +266,14 @@ typedef u8 xge_hal_ring_block_t[XGE_HAL_RING_RXDBLOCK_SIZE];
  * purposes.
  */
 typedef struct xge_hal_ring_rxd_priv_t {
-	dma_addr_t		dma_addr;
-	pci_dma_h		dma_handle;
-	ptrdiff_t		dma_offset;
+	dma_addr_t      dma_addr;
+	pci_dma_h       dma_handle;
+	ptrdiff_t       dma_offset;
 #ifdef XGE_DEBUG_ASSERT
-	xge_hal_mempool_dma_t	*dma_object;
+	xge_hal_mempool_dma_t   *dma_object;
 #endif
 #ifdef XGE_OS_MEMORY_CHECK
-	int			allocated;
+	int         allocated;
 #endif
 } xge_hal_ring_rxd_priv_t;
 
@@ -317,17 +309,17 @@ typedef struct xge_hal_ring_rxd_priv_t {
  *       CPU cache performance.
  */
 typedef struct xge_hal_ring_t {
-	xge_hal_channel_t		channel;
-	int				buffer_mode;
-	int				indicate_max_pkts;
-	xge_hal_ring_config_t		*config;
-	int				rxd_size;
-	int				rxd_priv_size;
-	int				rxds_per_block;
-	xge_hal_mempool_t		*mempool;
-	int				rxdblock_priv_size;
-	void				**reserved_rxds_arr;
-	int				cmpl_cnt;
+	xge_hal_channel_t       channel;
+	int             buffer_mode;
+	int             indicate_max_pkts;
+	xge_hal_ring_config_t       *config;
+	int             rxd_size;
+	int             rxd_priv_size;
+	int             rxds_per_block;
+	xge_hal_mempool_t       *mempool;
+	int             rxdblock_priv_size;
+	void                **reserved_rxds_arr;
+	int             cmpl_cnt;
 } __xge_os_attr_cacheline_aligned xge_hal_ring_t;
 
 /**
@@ -343,7 +335,7 @@ typedef struct xge_hal_ring_t {
  *            corrupted.
  * @frame: See xge_hal_frame_type_e{}.
  * @proto:    Reporting bits for various higher-layer protocols, including (but
- *	      note restricted to) TCP and UDP. See xge_hal_frame_proto_e{}.
+ *        note restricted to) TCP and UDP. See xge_hal_frame_proto_e{}.
  * @vlan:     VLAN tag extracted from the received frame.
  * @rth_value: Receive Traffic Hashing(RTH) hash value. Produced by Xframe II
  *             hardware if RTH is enabled.
@@ -355,22 +347,22 @@ typedef struct xge_hal_ring_t {
  * @reserved_pad: Unused byte.
  */
 typedef struct xge_hal_dtr_info_t {
-	int	l3_cksum;
-	int	l4_cksum;
-	int	frame; /* zero or more of xge_hal_frame_type_e flags */
-	int	proto; /* zero or more of xge_hal_frame_proto_e flags */
-	int	vlan;
-	u32	rth_value;
-	u8	rth_it_hit;
-	u8	rth_spdm_hit;
-	u8	rth_hash_type;
-	u8	reserved_pad;
+	int l3_cksum;
+	int l4_cksum;
+	int frame; /* zero or more of xge_hal_frame_type_e flags */
+	int proto; /* zero or more of xge_hal_frame_proto_e flags */
+	int vlan;
+	u32 rth_value;
+	u8  rth_it_hit;
+	u8  rth_spdm_hit;
+	u8  rth_hash_type;
+	u8  reserved_pad;
 } xge_hal_dtr_info_t;
 
 /* ========================== RING PRIVATE API ============================ */
 
 xge_hal_status_e __hal_ring_open(xge_hal_channel_h channelh,
-			xge_hal_channel_attr_t	*attr);
+	        xge_hal_channel_attr_t  *attr);
 
 void __hal_ring_close(xge_hal_channel_h channelh);
 
@@ -383,7 +375,7 @@ void __hal_ring_prc_enable(xge_hal_channel_h channelh);
 void __hal_ring_prc_disable(xge_hal_channel_h channelh);
 
 xge_hal_status_e __hal_ring_initial_replenish(xge_hal_channel_t *channel,
-					      xge_hal_channel_reopen_e reopen);
+	                      xge_hal_channel_reopen_e reopen);
 
 #if defined(XGE_DEBUG_FP) && (XGE_DEBUG_FP & XGE_DEBUG_FP_RING)
 #define __HAL_STATIC_RING
@@ -400,7 +392,7 @@ __hal_ring_block_next_pointer(xge_hal_ring_block_t *block);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 __hal_ring_block_next_pointer_set(xge_hal_ring_block_t*block,
-			dma_addr_t dma_next);
+	        dma_addr_t dma_next);
 
 __HAL_STATIC_RING __HAL_INLINE_RING xge_hal_ring_rxd_priv_t*
 __hal_ring_rxd_priv(xge_hal_ring_t *ring, xge_hal_dtr_h dtrh);
@@ -414,31 +406,31 @@ __HAL_STATIC_RING __HAL_INLINE_RING void*
 xge_hal_ring_dtr_private(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
-xge_hal_ring_dtr_1b_set(xge_hal_dtr_h dtrh, dma_addr_t dma_pointer, int	size);
+xge_hal_ring_dtr_1b_set(xge_hal_dtr_h dtrh, dma_addr_t dma_pointer, int size);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_info_get(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			xge_hal_dtr_info_t *ext_info);
+	        xge_hal_dtr_info_t *ext_info);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_1b_get(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			dma_addr_t *dma_pointer, int *pkt_length);
+	        dma_addr_t *dma_pointer, int *pkt_length);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_3b_set(xge_hal_dtr_h dtrh, dma_addr_t dma_pointers[],
-			int sizes[]);
+	        int sizes[]);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_3b_get(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			dma_addr_t dma_pointers[], int sizes[]);
+	        dma_addr_t dma_pointers[], int sizes[]);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_5b_set(xge_hal_dtr_h dtrh, dma_addr_t dma_pointers[],
-			int sizes[]);
+	        int sizes[]);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_5b_get(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh,
-			dma_addr_t dma_pointer[], int sizes[]);
+	        dma_addr_t dma_pointer[], int sizes[]);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_post(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
@@ -454,12 +446,12 @@ xge_hal_ring_dtr_post_post_wmb(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
 
 __HAL_STATIC_RING __HAL_INLINE_RING xge_hal_status_e
 xge_hal_ring_dtr_next_completed(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh,
-			u8 *t_code);
+	        u8 *t_code);
 
 __HAL_STATIC_RING __HAL_INLINE_RING void
 xge_hal_ring_dtr_free(xge_hal_channel_h channelh, xge_hal_dtr_h dtrh);
 
-__HAL_STATIC_RING __HAL_INLINE_RING	xge_hal_status_e
+__HAL_STATIC_RING __HAL_INLINE_RING xge_hal_status_e
 xge_hal_ring_is_next_dtr_completed(xge_hal_channel_h channelh);
 
 #else /* XGE_FASTPATH_EXTERN */

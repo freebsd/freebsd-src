@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xge-queue.c
- *
- *  Description:  serialized event queue
- *
- *  Created:      7 June 2004
- */
-
 #include <dev/nxge/include/xge-queue.h>
 
 /**
@@ -63,65 +55,65 @@ __queue_consume(xge_queue_t *queue, int data_max_size, xge_queue_item_t *item)
 	xge_queue_item_t *elem;
 
 	if (xge_list_is_empty(&queue->list_head))
-		return XGE_QUEUE_IS_EMPTY;
+	    return XGE_QUEUE_IS_EMPTY;
 
 	elem = (xge_queue_item_t *)queue->list_head.next;
 	if (elem->data_size > data_max_size)
-		return XGE_QUEUE_NOT_ENOUGH_SPACE;
+	    return XGE_QUEUE_NOT_ENOUGH_SPACE;
 
 	xge_list_remove(&elem->item);
 	real_size = elem->data_size + sizeof(xge_queue_item_t);
 	if (queue->head_ptr == elem) {
-		queue->head_ptr = (char *)queue->head_ptr + real_size;
-		xge_debug_queue(XGE_TRACE,
-			"event_type: %d removing from the head: "
-			"0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
-			":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
-			elem->event_type,
-			(u64)(ulong_t)queue->start_ptr,
-			(u64)(ulong_t)queue->head_ptr,
-			(u64)(ulong_t)queue->tail_ptr,
-			(u64)(ulong_t)queue->end_ptr,
-			(u64)(ulong_t)elem,
-			real_size);
+	    queue->head_ptr = (char *)queue->head_ptr + real_size;
+	    xge_debug_queue(XGE_TRACE,
+	        "event_type: %d removing from the head: "
+	        "0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
+	        ":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
+	        elem->event_type,
+	        (u64)(ulong_t)queue->start_ptr,
+	        (u64)(ulong_t)queue->head_ptr,
+	        (u64)(ulong_t)queue->tail_ptr,
+	        (u64)(ulong_t)queue->end_ptr,
+	        (u64)(ulong_t)elem,
+	        real_size);
 	} else if ((char *)queue->tail_ptr - real_size == (char*)elem) {
-		queue->tail_ptr = (char *)queue->tail_ptr - real_size;
-		xge_debug_queue(XGE_TRACE,
-			"event_type: %d removing from the tail: "
-			"0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
-			":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
-			elem->event_type,
-			(u64)(ulong_t)queue->start_ptr,
-			(u64)(ulong_t)queue->head_ptr,
-			(u64)(ulong_t)queue->tail_ptr,
-			(u64)(ulong_t)queue->end_ptr,
-			(u64)(ulong_t)elem,
-			real_size);
+	    queue->tail_ptr = (char *)queue->tail_ptr - real_size;
+	    xge_debug_queue(XGE_TRACE,
+	        "event_type: %d removing from the tail: "
+	        "0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
+	        ":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
+	        elem->event_type,
+	        (u64)(ulong_t)queue->start_ptr,
+	        (u64)(ulong_t)queue->head_ptr,
+	        (u64)(ulong_t)queue->tail_ptr,
+	        (u64)(ulong_t)queue->end_ptr,
+	        (u64)(ulong_t)elem,
+	        real_size);
 	} else {
-		xge_debug_queue(XGE_TRACE,
-			"event_type: %d removing from the list: "
-			"0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
-			":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
-			elem->event_type,
-			(u64)(ulong_t)queue->start_ptr,
-			(u64)(ulong_t)queue->head_ptr,
-			(u64)(ulong_t)queue->tail_ptr,
-			(u64)(ulong_t)queue->end_ptr,
-			(u64)(ulong_t)elem,
-			real_size);
+	    xge_debug_queue(XGE_TRACE,
+	        "event_type: %d removing from the list: "
+	        "0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
+	        ":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
+	        elem->event_type,
+	        (u64)(ulong_t)queue->start_ptr,
+	        (u64)(ulong_t)queue->head_ptr,
+	        (u64)(ulong_t)queue->tail_ptr,
+	        (u64)(ulong_t)queue->end_ptr,
+	        (u64)(ulong_t)elem,
+	        real_size);
 	}
 	xge_assert(queue->tail_ptr >= queue->head_ptr);
 	xge_assert(queue->tail_ptr >= queue->start_ptr &&
-		    queue->tail_ptr <= queue->end_ptr);
+	        queue->tail_ptr <= queue->end_ptr);
 	xge_assert(queue->head_ptr >= queue->start_ptr &&
-		    queue->head_ptr < queue->end_ptr);
+	        queue->head_ptr < queue->end_ptr);
 	xge_os_memcpy(item, elem, sizeof(xge_queue_item_t));
 	xge_os_memcpy(xge_queue_item_data(item), xge_queue_item_data(elem),
-		    elem->data_size);
+	        elem->data_size);
 
 	if (xge_list_is_empty(&queue->list_head)) {
-		/* reset buffer pointers just to be clean */
-		queue->head_ptr = queue->tail_ptr = queue->start_ptr;
+	    /* reset buffer pointers just to be clean */
+	    queue->head_ptr = queue->tail_ptr = queue->start_ptr;
 	}
 	return XGE_QUEUE_OK;
 }
@@ -150,7 +142,7 @@ __queue_consume(xge_queue_t *queue, int data_max_size, xge_queue_item_t *item)
  */
 xge_queue_status_e
 xge_queue_produce(xge_queue_h queueh, int event_type, void *context,
-		int is_critical, const int data_size, void *data)
+	    int is_critical, const int data_size, void *data)
 {
 	xge_queue_t *queue = (xge_queue_t *)queueh;
 	int real_size = data_size + sizeof(xge_queue_item_t);
@@ -162,76 +154,76 @@ xge_queue_produce(xge_queue_h queueh, int event_type, void *context,
 	xge_os_spin_lock_irq(&queue->lock, flags);
 
 	if (is_critical && !queue->has_critical_event)  {
-		unsigned char item_buf[sizeof(xge_queue_item_t) +
-				XGE_DEFAULT_EVENT_MAX_DATA_SIZE];
-		xge_queue_item_t *item = (xge_queue_item_t *)(void *)item_buf;
-    xge_os_memzero(item_buf, (sizeof(xge_queue_item_t) +
-                             XGE_DEFAULT_EVENT_MAX_DATA_SIZE));  
+	    unsigned char item_buf[sizeof(xge_queue_item_t) +
+	            XGE_DEFAULT_EVENT_MAX_DATA_SIZE];
+	    xge_queue_item_t *item = (xge_queue_item_t *)(void *)item_buf;
+	xge_os_memzero(item_buf, (sizeof(xge_queue_item_t) +
+	                         XGE_DEFAULT_EVENT_MAX_DATA_SIZE));  
 	
 	        while (__queue_consume(queue,
-				       XGE_DEFAULT_EVENT_MAX_DATA_SIZE,
-				       item) != XGE_QUEUE_IS_EMPTY)
-		        ; /* do nothing */
+	                   XGE_DEFAULT_EVENT_MAX_DATA_SIZE,
+	                   item) != XGE_QUEUE_IS_EMPTY)
+	            ; /* do nothing */
 	}
 
 try_again:
 	if ((char *)queue->tail_ptr + real_size <= (char *)queue->end_ptr) {
-        elem = (xge_queue_item_t *) queue->tail_ptr;
-		queue->tail_ptr = (void *)((char *)queue->tail_ptr + real_size);
-		xge_debug_queue(XGE_TRACE,
-			"event_type: %d adding to the tail: "
-			"0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
-			":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
-			event_type,
-			(u64)(ulong_t)queue->start_ptr,
-			(u64)(ulong_t)queue->head_ptr,
-			(u64)(ulong_t)queue->tail_ptr,
-			(u64)(ulong_t)queue->end_ptr,
-			(u64)(ulong_t)elem,
-			real_size);
+	    elem = (xge_queue_item_t *) queue->tail_ptr;
+	    queue->tail_ptr = (void *)((char *)queue->tail_ptr + real_size);
+	    xge_debug_queue(XGE_TRACE,
+	        "event_type: %d adding to the tail: "
+	        "0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
+	        ":0x"XGE_OS_LLXFMT" elem 0x"XGE_OS_LLXFMT" length %d",
+	        event_type,
+	        (u64)(ulong_t)queue->start_ptr,
+	        (u64)(ulong_t)queue->head_ptr,
+	        (u64)(ulong_t)queue->tail_ptr,
+	        (u64)(ulong_t)queue->end_ptr,
+	        (u64)(ulong_t)elem,
+	        real_size);
 	} else if ((char *)queue->head_ptr - real_size >=
-					(char *)queue->start_ptr) {
-        elem = (xge_queue_item_t *) ((char *)queue->head_ptr - real_size);
-		queue->head_ptr = elem;
-		xge_debug_queue(XGE_TRACE,
-			"event_type: %d adding to the head: "
-			"0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
-			":0x"XGE_OS_LLXFMT" length %d",
-			event_type,
-			(u64)(ulong_t)queue->start_ptr,
-			(u64)(ulong_t)queue->head_ptr,
-			(u64)(ulong_t)queue->tail_ptr,
-			(u64)(ulong_t)queue->end_ptr,
-			real_size);
+	                (char *)queue->start_ptr) {
+	    elem = (xge_queue_item_t *) ((char *)queue->head_ptr - real_size);
+	    queue->head_ptr = elem;
+	    xge_debug_queue(XGE_TRACE,
+	        "event_type: %d adding to the head: "
+	        "0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT":0x"XGE_OS_LLXFMT
+	        ":0x"XGE_OS_LLXFMT" length %d",
+	        event_type,
+	        (u64)(ulong_t)queue->start_ptr,
+	        (u64)(ulong_t)queue->head_ptr,
+	        (u64)(ulong_t)queue->tail_ptr,
+	        (u64)(ulong_t)queue->end_ptr,
+	        real_size);
 	} else {
-		xge_queue_status_e status;
+	    xge_queue_status_e status;
 
-		if (queue->pages_current >= queue->pages_max) {
-			xge_os_spin_unlock_irq(&queue->lock, flags);
-			return XGE_QUEUE_IS_FULL;
-		}
+	    if (queue->pages_current >= queue->pages_max) {
+	        xge_os_spin_unlock_irq(&queue->lock, flags);
+	        return XGE_QUEUE_IS_FULL;
+	    }
 
-		if (queue->has_critical_event) {
-   		xge_os_spin_unlock_irq(&queue->lock, flags);
-			return XGE_QUEUE_IS_FULL;
-    }
+	    if (queue->has_critical_event) {
+	    xge_os_spin_unlock_irq(&queue->lock, flags);
+	        return XGE_QUEUE_IS_FULL;
+	}
 
-		/* grow */
-		status = __io_queue_grow(queueh);
-		if (status != XGE_QUEUE_OK) {
-			xge_os_spin_unlock_irq(&queue->lock, flags);
-			return status;
-		}
+	    /* grow */
+	    status = __io_queue_grow(queueh);
+	    if (status != XGE_QUEUE_OK) {
+	        xge_os_spin_unlock_irq(&queue->lock, flags);
+	        return status;
+	    }
 
-		goto try_again;
+	    goto try_again;
 	}
 	xge_assert(queue->tail_ptr >= queue->head_ptr);
 	xge_assert(queue->tail_ptr >= queue->start_ptr &&
-		    queue->tail_ptr <= queue->end_ptr);
+	        queue->tail_ptr <= queue->end_ptr);
 	xge_assert(queue->head_ptr >= queue->start_ptr &&
-		    queue->head_ptr < queue->end_ptr);
+	        queue->head_ptr < queue->end_ptr);
 	elem->data_size = data_size;
-    elem->event_type = (xge_hal_event_e) event_type;
+	elem->event_type = (xge_hal_event_e) event_type;
 	elem->is_critical = is_critical;
 	if (is_critical)
 	        queue->has_critical_event = 1;
@@ -267,12 +259,12 @@ try_again:
  */
 xge_queue_h
 xge_queue_create(pci_dev_h pdev, pci_irq_h irqh, int pages_initial,
-		int pages_max, xge_queued_f queued, void *queued_data)
+	    int pages_max, xge_queued_f queued, void *queued_data)
 {
 	xge_queue_t *queue;
 
-    if ((queue = (xge_queue_t *) xge_os_malloc(pdev, sizeof(xge_queue_t))) == NULL)
-		return NULL;
+	if ((queue = (xge_queue_t *) xge_os_malloc(pdev, sizeof(xge_queue_t))) == NULL)
+	    return NULL;
 
 	queue->queued_func = queued;
 	queue->queued_data = queued_data;
@@ -282,12 +274,12 @@ xge_queue_create(pci_dev_h pdev, pci_irq_h irqh, int pages_initial,
 	queue->start_ptr = xge_os_malloc(pdev, queue->pages_current *
 	                               XGE_QUEUE_BUF_SIZE);
 	if (queue->start_ptr == NULL) {
-		xge_os_free(pdev, queue, sizeof(xge_queue_t));
-		return NULL;
+	    xge_os_free(pdev, queue, sizeof(xge_queue_t));
+	    return NULL;
 	}
 	queue->head_ptr = queue->tail_ptr = queue->start_ptr;
 	queue->end_ptr = (char *)queue->start_ptr +
-		queue->pages_current * XGE_QUEUE_BUF_SIZE;
+	    queue->pages_current * XGE_QUEUE_BUF_SIZE;
 	xge_os_spin_lock_init_irq(&queue->lock, irqh);
 	queue->pages_initial = pages_initial;
 	queue->pages_max = pages_max;
@@ -309,8 +301,8 @@ void xge_queue_destroy(xge_queue_h queueh)
 	xge_queue_t *queue = (xge_queue_t *)queueh;
 	xge_os_spin_lock_destroy_irq(&queue->lock, queue->irqh);
 	if (!xge_list_is_empty(&queue->list_head)) {
-		xge_debug_queue(XGE_ERR, "destroying non-empty queue 0x"
-				XGE_OS_LLXFMT, (u64)(ulong_t)queue);
+	    xge_debug_queue(XGE_ERR, "destroying non-empty queue 0x"
+	            XGE_OS_LLXFMT, (u64)(ulong_t)queue);
 	}
 	xge_os_free(queue->pdev, queue->start_ptr, queue->pages_current *
 	          XGE_QUEUE_BUF_SIZE);
@@ -339,12 +331,12 @@ __io_queue_grow(xge_queue_h queueh)
 	xge_queue_item_t *elem;
 
 	xge_debug_queue(XGE_TRACE, "queue 0x"XGE_OS_LLXFMT":%d is growing",
-			 (u64)(ulong_t)queue, queue->pages_current);
+	         (u64)(ulong_t)queue, queue->pages_current);
 
 	newbuf = xge_os_malloc(queue->pdev,
 	        (queue->pages_current + 1) * XGE_QUEUE_BUF_SIZE);
 	if (newbuf == NULL)
-		return XGE_QUEUE_OUT_OF_MEMORY;
+	    return XGE_QUEUE_OUT_OF_MEMORY;
 
 	xge_os_memcpy(newbuf, queue->start_ptr,
 	       queue->pages_current * XGE_QUEUE_BUF_SIZE);
@@ -353,32 +345,32 @@ __io_queue_grow(xge_queue_h queueh)
 	/* adjust queue sizes */
 	queue->start_ptr = newbuf;
 	queue->end_ptr = (char *)newbuf +
-			(queue->pages_current + 1) * XGE_QUEUE_BUF_SIZE;
+	        (queue->pages_current + 1) * XGE_QUEUE_BUF_SIZE;
 	queue->tail_ptr = (char *)newbuf + ((char *)queue->tail_ptr -
-					    (char *)oldbuf);
+	                    (char *)oldbuf);
 	queue->head_ptr = (char *)newbuf + ((char *)queue->head_ptr -
-					    (char *)oldbuf);
+	                    (char *)oldbuf);
 	xge_assert(!xge_list_is_empty(&queue->list_head));
 	queue->list_head.next = (xge_list_t *) (void *)((char *)newbuf +
-			((char *)queue->list_head.next - (char *)oldbuf));
+	        ((char *)queue->list_head.next - (char *)oldbuf));
 	queue->list_head.prev = (xge_list_t *) (void *)((char *)newbuf +
-			((char *)queue->list_head.prev - (char *)oldbuf));
+	        ((char *)queue->list_head.prev - (char *)oldbuf));
 	/* adjust queue list */
 	xge_list_for_each(item, &queue->list_head) {
-		elem = xge_container_of(item, xge_queue_item_t, item);
-		if (elem->item.next != &queue->list_head) {
-			elem->item.next =
-				(xge_list_t*)(void *)((char *)newbuf +
-				 ((char *)elem->item.next - (char *)oldbuf));
-		}
-		if (elem->item.prev != &queue->list_head) {
-			elem->item.prev =
-				(xge_list_t*) (void *)((char *)newbuf +
-				 ((char *)elem->item.prev - (char *)oldbuf));
-		}
+	    elem = xge_container_of(item, xge_queue_item_t, item);
+	    if (elem->item.next != &queue->list_head) {
+	        elem->item.next =
+	            (xge_list_t*)(void *)((char *)newbuf +
+	             ((char *)elem->item.next - (char *)oldbuf));
+	    }
+	    if (elem->item.prev != &queue->list_head) {
+	        elem->item.prev =
+	            (xge_list_t*) (void *)((char *)newbuf +
+	             ((char *)elem->item.prev - (char *)oldbuf));
+	    }
 	}
 	xge_os_free(queue->pdev, oldbuf,
-		  queue->pages_current * XGE_QUEUE_BUF_SIZE);
+	      queue->pages_current * XGE_QUEUE_BUF_SIZE);
 	queue->pages_current++;
 
 	return XGE_QUEUE_OK;
@@ -426,18 +418,18 @@ xge_queue_consume(xge_queue_h queueh, int data_max_size, xge_queue_item_t *item)
 void xge_queue_flush(xge_queue_h queueh)
 {
 	unsigned char item_buf[sizeof(xge_queue_item_t) +
-				XGE_DEFAULT_EVENT_MAX_DATA_SIZE];
+	            XGE_DEFAULT_EVENT_MAX_DATA_SIZE];
 	xge_queue_item_t *item = (xge_queue_item_t *)(void *)item_buf;
   xge_os_memzero(item_buf, (sizeof(xge_queue_item_t) +
-                             XGE_DEFAULT_EVENT_MAX_DATA_SIZE));  
+	                         XGE_DEFAULT_EVENT_MAX_DATA_SIZE));  
 	  
 	/* flush queue by consuming all enqueued items */
 	while (xge_queue_consume(queueh,
-				    XGE_DEFAULT_EVENT_MAX_DATA_SIZE,
-				    item) != XGE_QUEUE_IS_EMPTY) {
-		/* do nothing */
-		xge_debug_queue(XGE_TRACE, "item "XGE_OS_LLXFMT"(%d) flushed",
-				 item, item->event_type);
+	                XGE_DEFAULT_EVENT_MAX_DATA_SIZE,
+	                item) != XGE_QUEUE_IS_EMPTY) {
+	    /* do nothing */
+	    xge_debug_queue(XGE_TRACE, "item "XGE_OS_LLXFMT"(%d) flushed",
+	             item, item->event_type);
 	}
 	(void) __queue_get_reset_critical (queueh);
 }
@@ -456,5 +448,5 @@ int __queue_get_reset_critical (xge_queue_h qh) {
 	int c = queue->has_critical_event;
 
 	queue->has_critical_event = 0;
-        return c;
+	    return c;
 }

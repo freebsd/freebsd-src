@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-mgmt.c
- *
- *  Description:  Xframe-family management facility implementation
- *
- *  Created:      1 September 2004
- */
-
 #include <dev/nxge/include/xgehal-mgmt.h>
 #include <dev/nxge/include/xgehal-driver.h>
 #include <dev/nxge/include/xgehal-device.h>
@@ -57,37 +49,37 @@
  */
 xge_hal_status_e
 xge_hal_mgmt_about(xge_hal_device_h devh, xge_hal_mgmt_about_info_t *about_info,
-		int size)
+	    int size)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_mgmt_about_info_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	xge_os_pci_read16(hldev->pdev, hldev->cfgh,
-		xge_offsetof(xge_hal_pci_config_le_t, vendor_id),
-		&about_info->vendor);
+	    xge_offsetof(xge_hal_pci_config_le_t, vendor_id),
+	    &about_info->vendor);
 
 	xge_os_pci_read16(hldev->pdev, hldev->cfgh,
-		xge_offsetof(xge_hal_pci_config_le_t, device_id),
-		&about_info->device);
+	    xge_offsetof(xge_hal_pci_config_le_t, device_id),
+	    &about_info->device);
 
 	xge_os_pci_read16(hldev->pdev, hldev->cfgh,
-		xge_offsetof(xge_hal_pci_config_le_t, subsystem_vendor_id),
-		&about_info->subsys_vendor);
+	    xge_offsetof(xge_hal_pci_config_le_t, subsystem_vendor_id),
+	    &about_info->subsys_vendor);
 
 	xge_os_pci_read16(hldev->pdev, hldev->cfgh,
-		xge_offsetof(xge_hal_pci_config_le_t, subsystem_id),
-		&about_info->subsys_device);
+	    xge_offsetof(xge_hal_pci_config_le_t, subsystem_id),
+	    &about_info->subsys_device);
 
 	xge_os_pci_read8(hldev->pdev, hldev->cfgh,
-		xge_offsetof(xge_hal_pci_config_le_t, revision),
-		&about_info->board_rev);
+	    xge_offsetof(xge_hal_pci_config_le_t, revision),
+	    &about_info->board_rev);
 
 	xge_os_strcpy(about_info->vendor_name, XGE_DRIVER_VENDOR);
 	xge_os_strcpy(about_info->chip_name, XGE_CHIP_FAMILY);
@@ -104,7 +96,7 @@ xge_hal_mgmt_about(xge_hal_device_h devh, xge_hal_mgmt_about_info_t *about_info,
 	xge_os_strcpy(about_info->ll_build, XGELL_VERSION_BUILD);
 
 	about_info->transponder_temperature =
-		xge_hal_read_xfp_current_temp(devh);
+	    xge_hal_read_xfp_current_temp(devh);
 
 	return XGE_HAL_OK;
 }
@@ -127,38 +119,38 @@ xge_hal_mgmt_about(xge_hal_device_h devh, xge_hal_mgmt_about_info_t *about_info,
  */
 xge_hal_status_e
 xge_hal_mgmt_reg_read(xge_hal_device_h devh, int bar_id, unsigned int offset,
-		u64 *value)
+	    u64 *value)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (bar_id == 0) {
-		if (offset > sizeof(xge_hal_pci_bar0_t)-8) {
-			return XGE_HAL_ERR_INVALID_OFFSET;
-		}
-		*value = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-					     (void *)(hldev->bar0 + offset));
+	    if (offset > sizeof(xge_hal_pci_bar0_t)-8) {
+	        return XGE_HAL_ERR_INVALID_OFFSET;
+	    }
+	    *value = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
+	                     (void *)(hldev->bar0 + offset));
 	} else if (bar_id == 1 &&
-		   (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA ||
-		    xge_hal_device_check_id(hldev) == XGE_HAL_CARD_HERC))  {
-		int i;
-		for (i=0; i<XGE_HAL_MAX_FIFO_NUM_HERC; i++) {
-			if (offset == i*0x2000 || offset == i*0x2000+0x18) {
-				break;
-			}
-		}
-		if (i == XGE_HAL_MAX_FIFO_NUM_HERC) {
-			return XGE_HAL_ERR_INVALID_OFFSET;
-		}
-		*value = xge_os_pio_mem_read64(hldev->pdev, hldev->regh1,
-					     (void *)(hldev->bar1 + offset));
+	       (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA ||
+	        xge_hal_device_check_id(hldev) == XGE_HAL_CARD_HERC))  {
+	    int i;
+	    for (i=0; i<XGE_HAL_MAX_FIFO_NUM_HERC; i++) {
+	        if (offset == i*0x2000 || offset == i*0x2000+0x18) {
+	            break;
+	        }
+	    }
+	    if (i == XGE_HAL_MAX_FIFO_NUM_HERC) {
+	        return XGE_HAL_ERR_INVALID_OFFSET;
+	    }
+	    *value = xge_os_pio_mem_read64(hldev->pdev, hldev->regh1,
+	                     (void *)(hldev->bar1 + offset));
 	} else if (bar_id == 1) {
-		/* FIXME: check TITAN BAR1 offsets */
+	    /* FIXME: check TITAN BAR1 offsets */
 	} else {
-		return XGE_HAL_ERR_INVALID_BAR_ID;
+	    return XGE_HAL_ERR_INVALID_BAR_ID;
 	}
 
 	return XGE_HAL_OK;
@@ -183,38 +175,38 @@ xge_hal_mgmt_reg_read(xge_hal_device_h devh, int bar_id, unsigned int offset,
  */
 xge_hal_status_e
 xge_hal_mgmt_reg_write(xge_hal_device_h devh, int bar_id, unsigned int offset,
-		u64 value)
+	    u64 value)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (bar_id == 0) {
-		if (offset > sizeof(xge_hal_pci_bar0_t)-8) {
-			return XGE_HAL_ERR_INVALID_OFFSET;
-		}
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, value,
-				     (void *)(hldev->bar0 + offset));
+	    if (offset > sizeof(xge_hal_pci_bar0_t)-8) {
+	        return XGE_HAL_ERR_INVALID_OFFSET;
+	    }
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, value,
+	                 (void *)(hldev->bar0 + offset));
 	} else if (bar_id == 1 &&
-		   (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA ||
-		    xge_hal_device_check_id(hldev) == XGE_HAL_CARD_HERC))  {
-		int i;
-		for (i=0; i<XGE_HAL_MAX_FIFO_NUM_HERC; i++) {
-			if (offset == i*0x2000 || offset == i*0x2000+0x18) {
-				break;
-			}
-		}
-		if (i == XGE_HAL_MAX_FIFO_NUM_HERC) {
-			return XGE_HAL_ERR_INVALID_OFFSET;
-		}
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh1, value,
-				     (void *)(hldev->bar1 + offset));
+	       (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA ||
+	        xge_hal_device_check_id(hldev) == XGE_HAL_CARD_HERC))  {
+	    int i;
+	    for (i=0; i<XGE_HAL_MAX_FIFO_NUM_HERC; i++) {
+	        if (offset == i*0x2000 || offset == i*0x2000+0x18) {
+	            break;
+	        }
+	    }
+	    if (i == XGE_HAL_MAX_FIFO_NUM_HERC) {
+	        return XGE_HAL_ERR_INVALID_OFFSET;
+	    }
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh1, value,
+	                 (void *)(hldev->bar1 + offset));
 	} else if (bar_id == 1) {
-		/* FIXME: check TITAN BAR1 offsets */
+	    /* FIXME: check TITAN BAR1 offsets */
 	} else {
-		return XGE_HAL_ERR_INVALID_BAR_ID;
+	    return XGE_HAL_ERR_INVALID_BAR_ID;
 	}
 
 	return XGE_HAL_OK;
@@ -237,24 +229,24 @@ xge_hal_mgmt_reg_write(xge_hal_device_h devh, int bar_id, unsigned int offset,
  */
 xge_hal_status_e
 xge_hal_mgmt_hw_stats(xge_hal_device_h devh, xge_hal_mgmt_hw_stats_t *hw_stats,
-		int size)
+	    int size)
 {
 	xge_hal_status_e status;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
-	xge_hal_stats_hw_info_t	*hw_info;
+	xge_hal_stats_hw_info_t *hw_info;
 
 	xge_assert(xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN);
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_stats_hw_info_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	if ((status = xge_hal_stats_hw (devh, &hw_info)) != XGE_HAL_OK) {
-		return status;
+	    return status;
 	}
 
 	xge_os_memcpy(hw_stats, hw_info, sizeof(xge_hal_stats_hw_info_t));
@@ -280,21 +272,21 @@ xge_hal_mgmt_hw_stats_off(xge_hal_device_h devh, int off, int size, char *out)
 {
 	xge_hal_status_e status;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
-	xge_hal_stats_hw_info_t	*hw_info;
+	xge_hal_stats_hw_info_t *hw_info;
 
 	xge_assert(xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN);
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (off > sizeof(xge_hal_stats_hw_info_t)-4 ||
 	    size > 8) {
-		return XGE_HAL_ERR_INVALID_OFFSET;
+	    return XGE_HAL_ERR_INVALID_OFFSET;
 	}
 
 	if ((status = xge_hal_stats_hw (devh, &hw_info)) != XGE_HAL_OK) {
-		return status;
+	    return status;
 	}
 
 	xge_os_memcpy(out, (char*)hw_info + off, size);
@@ -319,28 +311,28 @@ xge_hal_mgmt_hw_stats_off(xge_hal_device_h devh, int off, int size, char *out)
  */
 xge_hal_status_e
 xge_hal_mgmt_pcim_stats(xge_hal_device_h devh,
-		xge_hal_mgmt_pcim_stats_t *pcim_stats, int size)
+	    xge_hal_mgmt_pcim_stats_t *pcim_stats, int size)
 {
 	xge_hal_status_e status;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
-	xge_hal_stats_pcim_info_t	*pcim_info;
+	xge_hal_stats_pcim_info_t   *pcim_info;
 
 	xge_assert(xge_hal_device_check_id(hldev) == XGE_HAL_CARD_TITAN);
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_stats_pcim_info_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	if ((status = xge_hal_stats_pcim (devh, &pcim_info)) != XGE_HAL_OK) {
-		return status;
+	    return status;
 	}
 
 	xge_os_memcpy(pcim_stats, pcim_info,
-		sizeof(xge_hal_stats_pcim_info_t));
+	    sizeof(xge_hal_stats_pcim_info_t));
 
 	return XGE_HAL_OK;
 }
@@ -360,25 +352,25 @@ xge_hal_mgmt_pcim_stats(xge_hal_device_h devh,
  */
 xge_hal_status_e
 xge_hal_mgmt_pcim_stats_off(xge_hal_device_h devh, int off, int size,
-			    char *out)
+	            char *out)
 {
 	xge_hal_status_e status;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
-	xge_hal_stats_pcim_info_t	*pcim_info;
+	xge_hal_stats_pcim_info_t   *pcim_info;
 
 	xge_assert(xge_hal_device_check_id(hldev) == XGE_HAL_CARD_TITAN);
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (off > sizeof(xge_hal_stats_pcim_info_t)-8 ||
 	    size > 8) {
-		return XGE_HAL_ERR_INVALID_OFFSET;
+	    return XGE_HAL_ERR_INVALID_OFFSET;
 	}
 
 	if ((status = xge_hal_stats_pcim (devh, &pcim_info)) != XGE_HAL_OK) {
-		return status;
+	    return status;
 	}
 
 	xge_os_memcpy(out, (char*)pcim_info + off, size);
@@ -404,21 +396,21 @@ xge_hal_mgmt_pcim_stats_off(xge_hal_device_h devh, int off, int size,
  */
 xge_hal_status_e
 xge_hal_mgmt_sw_stats(xge_hal_device_h devh, xge_hal_mgmt_sw_stats_t *sw_stats,
-		int size)
+	    int size)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_stats_sw_err_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled) {
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 	/* Updating xpak stats value */
@@ -451,27 +443,27 @@ xge_hal_mgmt_sw_stats(xge_hal_device_h devh, xge_hal_mgmt_sw_stats_t *sw_stats,
  */
 xge_hal_status_e
 xge_hal_mgmt_device_stats(xge_hal_device_h devh,
-		xge_hal_mgmt_device_stats_t *device_stats, int size)
+	    xge_hal_mgmt_device_stats_t *device_stats, int size)
 {
 	xge_hal_status_e status;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 	xge_hal_stats_device_info_t *device_info;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_stats_device_info_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	if ((status = xge_hal_stats_device (devh, &device_info)) !=
 	XGE_HAL_OK) {
-		return status;
+	    return status;
 	}
 
 	xge_os_memcpy(device_stats, device_info,
-		    sizeof(xge_hal_stats_device_info_t));
+	        sizeof(xge_hal_stats_device_info_t));
 
 	return XGE_HAL_OK;
 }
@@ -495,7 +487,7 @@ __hal_update_ring_bump(xge_hal_device_t *hldev, int queue,
 	void * addr;
 
 	addr = (reg == 1)? (&bar0->ring_bump_counter2) :
-		(&bar0->ring_bump_counter1);
+	    (&bar0->ring_bump_counter1);
 	rbc = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0, addr);
 	chinfo->ring_bump_cnt = XGE_HAL_RING_BUMP_CNT(queue, rbc);
 }
@@ -521,27 +513,27 @@ __hal_update_ring_bump(xge_hal_device_t *hldev, int queue,
  */
 xge_hal_status_e
 xge_hal_mgmt_channel_stats(xge_hal_channel_h channelh,
-		xge_hal_mgmt_channel_stats_t *channel_stats, int size)
+	    xge_hal_mgmt_channel_stats_t *channel_stats, int size)
 {
 	xge_hal_status_e status;
 	xge_hal_stats_channel_info_t *channel_info;
 	xge_hal_channel_t *channel = (xge_hal_channel_t* ) channelh;
 
 	if (size != sizeof(xge_hal_stats_channel_info_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	if ((status = xge_hal_stats_channel (channelh, &channel_info)) !=
-								XGE_HAL_OK) {
-		return status;
+	                            XGE_HAL_OK) {
+	    return status;
 	}
 
 	if (xge_hal_device_check_id(channel->devh) == XGE_HAL_CARD_HERC) {
-        __hal_update_ring_bump( (xge_hal_device_t *) channel->devh, channel->post_qid, channel_info);
+	    __hal_update_ring_bump( (xge_hal_device_t *) channel->devh, channel->post_qid, channel_info);
 	}
 
 	xge_os_memcpy(channel_stats, channel_info,
-		    sizeof(xge_hal_stats_channel_info_t));
+	        sizeof(xge_hal_stats_channel_info_t));
 
 	return XGE_HAL_OK;
 }
@@ -566,27 +558,27 @@ xge_hal_mgmt_channel_stats(xge_hal_channel_h channelh,
  */
 xge_hal_status_e
 xge_hal_mgmt_pcireg_read(xge_hal_device_h devh, unsigned int offset,
-		int value_bits, u32 *value)
+	    int value_bits, u32 *value)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (offset > sizeof(xge_hal_pci_config_t)-value_bits/8) {
-		return XGE_HAL_ERR_INVALID_OFFSET;
+	    return XGE_HAL_ERR_INVALID_OFFSET;
 	}
 
 	if (value_bits == 8) {
-		xge_os_pci_read8(hldev->pdev, hldev->cfgh, offset, (u8*)value);
+	    xge_os_pci_read8(hldev->pdev, hldev->cfgh, offset, (u8*)value);
 	} else if (value_bits == 16) {
-		xge_os_pci_read16(hldev->pdev, hldev->cfgh, offset,
-		(u16*)value);
+	    xge_os_pci_read16(hldev->pdev, hldev->cfgh, offset,
+	    (u16*)value);
 	} else if (value_bits == 32) {
-		xge_os_pci_read32(hldev->pdev, hldev->cfgh, offset, value);
+	    xge_os_pci_read32(hldev->pdev, hldev->cfgh, offset, value);
 	} else {
-		return XGE_HAL_ERR_INVALID_VALUE_BIT_SIZE;
+	    return XGE_HAL_ERR_INVALID_VALUE_BIT_SIZE;
 	}
 
 	return XGE_HAL_OK;
@@ -610,16 +602,16 @@ xge_hal_mgmt_pcireg_read(xge_hal_device_h devh, unsigned int offset,
  */
 xge_hal_status_e
 xge_hal_mgmt_device_config(xge_hal_device_h devh,
-		xge_hal_mgmt_device_config_t	*dev_config, int size)
+	    xge_hal_mgmt_device_config_t    *dev_config, int size)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_mgmt_device_config_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	xge_os_memcpy(dev_config, &hldev->config,
@@ -648,15 +640,15 @@ xge_hal_mgmt_driver_config(xge_hal_mgmt_driver_config_t *drv_config, int size)
 {
 
 	if (g_xge_hal_driver == NULL) {
-		return XGE_HAL_ERR_DRIVER_NOT_INITIALIZED;
+	    return XGE_HAL_ERR_DRIVER_NOT_INITIALIZED;
 	}
 
 	if (size != sizeof(xge_hal_mgmt_driver_config_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	xge_os_memcpy(drv_config, &g_xge_hal_driver->config,
-		    sizeof(xge_hal_mgmt_driver_config_t));
+	        sizeof(xge_hal_mgmt_driver_config_t));
 
 	return XGE_HAL_OK;
 }
@@ -678,27 +670,27 @@ xge_hal_mgmt_driver_config(xge_hal_mgmt_driver_config_t *drv_config, int size)
  */
 xge_hal_status_e
 xge_hal_mgmt_pci_config(xge_hal_device_h devh,
-		xge_hal_mgmt_pci_config_t *pci_config, int size)
+	    xge_hal_mgmt_pci_config_t *pci_config, int size)
 {
 	int i;
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (size != sizeof(xge_hal_mgmt_pci_config_t)) {
-		return XGE_HAL_ERR_VERSION_CONFLICT;
+	    return XGE_HAL_ERR_VERSION_CONFLICT;
 	}
 
 	/* refresh PCI config space */
 	for (i = 0; i < 0x68/4+1; i++) {
-		xge_os_pci_read32(hldev->pdev, hldev->cfgh, i*4,
-		                (u32*)&hldev->pci_config_space + i);
+	    xge_os_pci_read32(hldev->pdev, hldev->cfgh, i*4,
+	                    (u32*)&hldev->pci_config_space + i);
 	}
 
 	xge_os_memcpy(pci_config, &hldev->pci_config_space,
-		    sizeof(xge_hal_mgmt_pci_config_t));
+	        sizeof(xge_hal_mgmt_pci_config_t));
 
 	return XGE_HAL_OK;
 }
@@ -719,17 +711,17 @@ xge_hal_mgmt_pci_config(xge_hal_device_h devh,
  *
  */
 xge_hal_status_e
-xge_hal_mgmt_trace_read (char		*buffer,
-			unsigned	buf_size,
-			unsigned	*offset,
-			unsigned	*read_length)
+xge_hal_mgmt_trace_read (char       *buffer,
+	        unsigned    buf_size,
+	        unsigned    *offset,
+	        unsigned    *read_length)
 {
 	int data_offset;
 	int start_offset;
 
 	if ((g_xge_os_tracebuf == NULL) ||
-		(g_xge_os_tracebuf->offset == g_xge_os_tracebuf->size - 2)) {
-		return XGE_HAL_EOF_TRACE_BUF;
+	    (g_xge_os_tracebuf->offset == g_xge_os_tracebuf->size - 2)) {
+	    return XGE_HAL_EOF_TRACE_BUF;
 	}
 
 	data_offset = g_xge_os_tracebuf->offset + 1;
@@ -737,7 +729,7 @@ xge_hal_mgmt_trace_read (char		*buffer,
 	if  (*offset >= (unsigned)xge_os_strlen(g_xge_os_tracebuf->data +
 	data_offset)) {
 
-		return XGE_HAL_EOF_TRACE_BUF;
+	    return XGE_HAL_EOF_TRACE_BUF;
 	}
 
 	xge_os_memzero(buffer, buf_size);
@@ -747,7 +739,7 @@ xge_hal_mgmt_trace_read (char		*buffer,
 	start_offset);
 
 	if (*read_length  >=  buf_size) {
-		*read_length = buf_size - 1;
+	    *read_length = buf_size - 1;
 	}
 
 	xge_os_memcpy(buffer, g_xge_os_tracebuf->data + start_offset,
@@ -783,17 +775,17 @@ xge_hal_restore_link_led(xge_hal_device_h devh)
 	 */
 	if ((xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA) &&
 	   (xge_hal_device_rev(hldev) <= 3)) {
-		val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-					      &bar0->adapter_control);
-		if (hldev->link_state == XGE_HAL_LINK_UP) {
-			val64 |= XGE_HAL_ADAPTER_LED_ON;
-		} else {
-			val64 &= ~XGE_HAL_ADAPTER_LED_ON;
-		}
+	    val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
+	                      &bar0->adapter_control);
+	    if (hldev->link_state == XGE_HAL_LINK_UP) {
+	        val64 |= XGE_HAL_ADAPTER_LED_ON;
+	    } else {
+	        val64 &= ~XGE_HAL_ADAPTER_LED_ON;
+	    }
 
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-					&bar0->adapter_control);
-		return;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	                &bar0->adapter_control);
+	    return;
 	}
 
 	/*
@@ -803,15 +795,15 @@ xge_hal_restore_link_led(xge_hal_device_h devh)
 	 * represents the gpio control register. In the case of Herc, LED
 	 * handling is done by beacon control register as opposed to gpio
 	 * control register in Xena. Beacon control is used only to toggle
-     * and the value written into it does not depend on the link state.
-     * It is upto the ULD to toggle the LED even number of times which 
-     * brings the LED to it's original state. 
+	 * and the value written into it does not depend on the link state.
+	 * It is upto the ULD to toggle the LED even number of times which 
+	 * brings the LED to it's original state. 
 	 */
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-				      &bar0->beacon_control);
-    val64 |= 0x0000800000000000ULL;
-    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0,
-    		       val64, &bar0->beacon_control);
+	                  &bar0->beacon_control);
+	val64 |= 0x0000800000000000ULL;
+	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0,
+	               val64, &bar0->beacon_control);
 }
 
 /**
@@ -834,12 +826,12 @@ xge_hal_flick_link_led(xge_hal_device_h devh)
 	 */
 	if ((xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA) &&
 	   (xge_hal_device_rev(hldev) <= 3)) {
-		val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-					      &bar0->adapter_control);
-		val64 ^= XGE_HAL_ADAPTER_LED_ON;
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-					&bar0->adapter_control);
-		return;
+	    val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
+	                      &bar0->adapter_control);
+	    val64 ^= XGE_HAL_ADAPTER_LED_ON;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	                &bar0->adapter_control);
+	    return;
 	}
 
 	/*
@@ -850,10 +842,10 @@ xge_hal_flick_link_led(xge_hal_device_h devh)
 	 * in Xena.
 	 */
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-				      &bar0->beacon_control);
+	                  &bar0->beacon_control);
 	val64 ^= XGE_HAL_GPIO_CTRL_GPIO_0;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			       &bar0->beacon_control);
+	               &bar0->beacon_control);
 }
 
 /**
@@ -878,20 +870,20 @@ xge_hal_read_eeprom(xge_hal_device_h devh, int off, u32* data)
 	xge_hal_pci_bar0_t *bar0 = (xge_hal_pci_bar0_t *)hldev->bar0;
 
 	val64 = XGE_HAL_I2C_CONTROL_DEV_ID(XGE_DEV_ID) |
-		XGE_HAL_I2C_CONTROL_ADDR(off) |
-		XGE_HAL_I2C_CONTROL_BYTE_CNT(0x3) |
-		XGE_HAL_I2C_CONTROL_READ | XGE_HAL_I2C_CONTROL_CNTL_START;
+	    XGE_HAL_I2C_CONTROL_ADDR(off) |
+	    XGE_HAL_I2C_CONTROL_BYTE_CNT(0x3) |
+	    XGE_HAL_I2C_CONTROL_READ | XGE_HAL_I2C_CONTROL_CNTL_START;
 
 	__hal_serial_mem_write64(hldev, val64, &bar0->i2c_control);
 
 	while (exit_cnt < 5) {
-		val64 = __hal_serial_mem_read64(hldev, &bar0->i2c_control);
-		if (XGE_HAL_I2C_CONTROL_CNTL_END(val64)) {
-			*data = XGE_HAL_I2C_CONTROL_GET_DATA(val64);
-			ret = XGE_HAL_OK;
-			break;
-		}
-		exit_cnt++;
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->i2c_control);
+	    if (XGE_HAL_I2C_CONTROL_CNTL_END(val64)) {
+	        *data = XGE_HAL_I2C_CONTROL_GET_DATA(val64);
+	        ret = XGE_HAL_OK;
+	        break;
+	    }
+	    exit_cnt++;
 	}
 
 	return ret;
@@ -922,20 +914,20 @@ xge_hal_write_eeprom(xge_hal_device_h devh, int off, u32 data, int cnt)
 	xge_hal_pci_bar0_t *bar0 = (xge_hal_pci_bar0_t *)hldev->bar0;
 
 	val64 = XGE_HAL_I2C_CONTROL_DEV_ID(XGE_DEV_ID) |
-		XGE_HAL_I2C_CONTROL_ADDR(off) |
-		XGE_HAL_I2C_CONTROL_BYTE_CNT(cnt) |
-		XGE_HAL_I2C_CONTROL_SET_DATA(data) |
-		XGE_HAL_I2C_CONTROL_CNTL_START;
+	    XGE_HAL_I2C_CONTROL_ADDR(off) |
+	    XGE_HAL_I2C_CONTROL_BYTE_CNT(cnt) |
+	    XGE_HAL_I2C_CONTROL_SET_DATA(data) |
+	    XGE_HAL_I2C_CONTROL_CNTL_START;
 	__hal_serial_mem_write64(hldev, val64, &bar0->i2c_control);
 
 	while (exit_cnt < 5) {
-		val64 = __hal_serial_mem_read64(hldev, &bar0->i2c_control);
-		if (XGE_HAL_I2C_CONTROL_CNTL_END(val64)) {
-			if (!(val64 & XGE_HAL_I2C_CONTROL_NACK))
-				ret = XGE_HAL_OK;
-			break;
-		}
-		exit_cnt++;
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->i2c_control);
+	    if (XGE_HAL_I2C_CONTROL_CNTL_END(val64)) {
+	        if (!(val64 & XGE_HAL_I2C_CONTROL_NACK))
+	            ret = XGE_HAL_OK;
+	        break;
+	    }
+	    exit_cnt++;
 	}
 
 	return ret;
@@ -962,51 +954,51 @@ xge_hal_register_test(xge_hal_device_h devh, u64 *data)
 	int fail = 0;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->pif_rd_swapper_fb);
+	        &bar0->pif_rd_swapper_fb);
 	if (val64 != 0x123456789abcdefULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_TRACE, "Read Test level 1 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_TRACE, "Read Test level 1 fails");
 	}
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->rmac_pause_cfg);
+	        &bar0->rmac_pause_cfg);
 	if (val64 != 0xc000ffff00000000ULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_TRACE, "Read Test level 2 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_TRACE, "Read Test level 2 fails");
 	}
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->rx_queue_cfg);
+	        &bar0->rx_queue_cfg);
 	if (val64 != 0x0808080808080808ULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_TRACE, "Read Test level 3 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_TRACE, "Read Test level 3 fails");
 	}
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->xgxs_efifo_cfg);
+	        &bar0->xgxs_efifo_cfg);
 	if (val64 != 0x000000001923141EULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_TRACE, "Read Test level 4 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_TRACE, "Read Test level 4 fails");
 	}
 
 	val64 = 0x5A5A5A5A5A5A5A5AULL;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->xmsi_data);
+	        &bar0->xmsi_data);
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->xmsi_data);
+	        &bar0->xmsi_data);
 	if (val64 != 0x5A5A5A5A5A5A5A5AULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_ERR, "Write Test level 1 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_ERR, "Write Test level 1 fails");
 	}
 
 	val64 = 0xA5A5A5A5A5A5A5A5ULL;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->xmsi_data);
+	        &bar0->xmsi_data);
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->xmsi_data);
+	        &bar0->xmsi_data);
 	if (val64 != 0xA5A5A5A5A5A5A5A5ULL) {
-		fail = 1;
-		xge_debug_osdep(XGE_ERR, "Write Test level 2 fails");
+	    fail = 1;
+	    xge_debug_osdep(XGE_ERR, "Write Test level 2 fails");
 	}
 
 	*data = fail;
@@ -1034,19 +1026,19 @@ xge_hal_rldram_test(xge_hal_device_h devh, u64 *data)
 	int cnt, iteration = 0, test_pass = 0;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->adapter_control);
+	        &bar0->adapter_control);
 	val64 &= ~XGE_HAL_ADAPTER_ECC_EN;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->adapter_control);
+	        &bar0->adapter_control);
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->mc_rldram_test_ctrl);
+	        &bar0->mc_rldram_test_ctrl);
 	val64 |= XGE_HAL_MC_RLDRAM_TEST_MODE;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_ctrl);
+	        &bar0->mc_rldram_test_ctrl);
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->mc_rldram_mrs);
+	        &bar0->mc_rldram_mrs);
 	val64 |= XGE_HAL_MC_RLDRAM_QUEUE_SIZE_ENABLE;
 	__hal_serial_mem_write64(hldev, val64, &bar0->i2c_control);
 
@@ -1054,85 +1046,85 @@ xge_hal_rldram_test(xge_hal_device_h devh, u64 *data)
 	__hal_serial_mem_write64(hldev, val64, &bar0->i2c_control);
 
 	while (iteration < 2) {
-		val64 = 0x55555555aaaa0000ULL;
-		if (iteration == 1) {
-			val64 ^= 0xFFFFFFFFFFFF0000ULL;
-		}
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_d0);
+	    val64 = 0x55555555aaaa0000ULL;
+	    if (iteration == 1) {
+	        val64 ^= 0xFFFFFFFFFFFF0000ULL;
+	    }
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_d0);
 
-		val64 = 0xaaaa5a5555550000ULL;
-		if (iteration == 1) {
-			val64 ^= 0xFFFFFFFFFFFF0000ULL;
-		}
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_d1);
+	    val64 = 0xaaaa5a5555550000ULL;
+	    if (iteration == 1) {
+	        val64 ^= 0xFFFFFFFFFFFF0000ULL;
+	    }
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_d1);
 
-		val64 = 0x55aaaaaaaa5a0000ULL;
-		if (iteration == 1) {
-			val64 ^= 0xFFFFFFFFFFFF0000ULL;
-		}
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_d2);
+	    val64 = 0x55aaaaaaaa5a0000ULL;
+	    if (iteration == 1) {
+	        val64 ^= 0xFFFFFFFFFFFF0000ULL;
+	    }
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_d2);
 
-		val64 = (u64) (0x0000003fffff0000ULL);
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_add);
+	    val64 = (u64) (0x0000003fffff0000ULL);
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_add);
 
 
-		val64 = XGE_HAL_MC_RLDRAM_TEST_MODE;
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_ctrl);
+	    val64 = XGE_HAL_MC_RLDRAM_TEST_MODE;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_ctrl);
 
-		val64 |=
-		    XGE_HAL_MC_RLDRAM_TEST_MODE | XGE_HAL_MC_RLDRAM_TEST_WRITE |
-		    XGE_HAL_MC_RLDRAM_TEST_GO;
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_ctrl);
+	    val64 |=
+	        XGE_HAL_MC_RLDRAM_TEST_MODE | XGE_HAL_MC_RLDRAM_TEST_WRITE |
+	        XGE_HAL_MC_RLDRAM_TEST_GO;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_ctrl);
 
-		for (cnt = 0; cnt < 5; cnt++) {
-			val64 = xge_os_pio_mem_read64(hldev->pdev,
-				hldev->regh0, &bar0->mc_rldram_test_ctrl);
-			if (val64 & XGE_HAL_MC_RLDRAM_TEST_DONE)
-				break;
-			xge_os_mdelay(200);
-		}
+	    for (cnt = 0; cnt < 5; cnt++) {
+	        val64 = xge_os_pio_mem_read64(hldev->pdev,
+	            hldev->regh0, &bar0->mc_rldram_test_ctrl);
+	        if (val64 & XGE_HAL_MC_RLDRAM_TEST_DONE)
+	            break;
+	        xge_os_mdelay(200);
+	    }
 
-		if (cnt == 5)
-			break;
+	    if (cnt == 5)
+	        break;
 
-		val64 = XGE_HAL_MC_RLDRAM_TEST_MODE;
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_ctrl);
+	    val64 = XGE_HAL_MC_RLDRAM_TEST_MODE;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_ctrl);
 
-		val64 |= XGE_HAL_MC_RLDRAM_TEST_MODE |
-		XGE_HAL_MC_RLDRAM_TEST_GO;
-		xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-			&bar0->mc_rldram_test_ctrl);
+	    val64 |= XGE_HAL_MC_RLDRAM_TEST_MODE |
+	    XGE_HAL_MC_RLDRAM_TEST_GO;
+	    xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
+	        &bar0->mc_rldram_test_ctrl);
 
-		for (cnt = 0; cnt < 5; cnt++) {
-			val64 = xge_os_pio_mem_read64(hldev->pdev,
-				hldev->regh0, &bar0->mc_rldram_test_ctrl);
-			if (val64 & XGE_HAL_MC_RLDRAM_TEST_DONE)
-				break;
-			xge_os_mdelay(500);
-		}
+	    for (cnt = 0; cnt < 5; cnt++) {
+	        val64 = xge_os_pio_mem_read64(hldev->pdev,
+	            hldev->regh0, &bar0->mc_rldram_test_ctrl);
+	        if (val64 & XGE_HAL_MC_RLDRAM_TEST_DONE)
+	            break;
+	        xge_os_mdelay(500);
+	    }
 
-		if (cnt == 5)
-			break;
+	    if (cnt == 5)
+	        break;
 
-		val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->mc_rldram_test_ctrl);
-		if (val64 & XGE_HAL_MC_RLDRAM_TEST_PASS)
-			test_pass = 1;
+	    val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
+	        &bar0->mc_rldram_test_ctrl);
+	    if (val64 & XGE_HAL_MC_RLDRAM_TEST_PASS)
+	        test_pass = 1;
 
-		iteration++;
+	    iteration++;
 	}
 
 	if (!test_pass)
-		*data = 1;
+	    *data = 1;
 	else
-		*data = 0;
+	    *data = 0;
 
 	return XGE_HAL_OK;
 }
@@ -1161,30 +1153,30 @@ xge_hal_pma_loopback( xge_hal_device_h devh, int enable )
 #if 0
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
 	&bar0->mac_cfg);
-    if ( enable )
-    {
-        val64 |= ( XGE_HAL_MAC_CFG_TMAC_LOOPBACK | XGE_HAL_MAC_CFG_RMAC_PROM_ENABLE );
-    }
+	if ( enable )
+	{
+	    val64 |= ( XGE_HAL_MAC_CFG_TMAC_LOOPBACK | XGE_HAL_MAC_CFG_RMAC_PROM_ENABLE );
+	}
 	__hal_pio_mem_write32_upper(hldev->pdev, hldev->regh0,
-		    (u32)(val64 >> 32), (char*)&bar0->mac_cfg);
+	        (u32)(val64 >> 32), (char*)&bar0->mac_cfg);
 	xge_os_mdelay(1);
 #endif
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(0)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(0)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
@@ -1197,42 +1189,42 @@ xge_hal_pma_loopback( xge_hal_device_h devh, int enable )
 #define _HAL_LOOPBK_PMA         1
 
 	if( enable )
-		data |= 1;
+	    data |= 1;
 	else
-		data &= 0xfe;
+	    data &= 0xfe;
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(0)  |
-		 XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
-		 XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		 XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
-		 XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
+	     XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
+	     XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	     XGE_HAL_MDIO_CONTROL_MMD_CTRL(0)       |
+	     XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(0)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_DATA(data)    |
-		XGE_HAL_MDIO_CONTROL_MMD_CTRL(0x0)     |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_WRITE);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_DATA(data)    |
+	    XGE_HAL_MDIO_CONTROL_MMD_CTRL(0x0)     |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_WRITE);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(0)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_CTRL(0x0)     |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(1)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_CTRL(0x0)     |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
-    return XGE_HAL_OK;
+	return XGE_HAL_OK;
 }
 
 u16
@@ -1246,27 +1238,27 @@ xge_hal_mdio_read( xge_hal_device_h devh, u32 mmd_type, u64 addr )
 
 	/* address transaction */
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(addr)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 	do
 	{
-		val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
-		if (i++ > 10)
-		{
-			break;
-		}
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
+	    if (i++ > 10)
+	    {
+	        break;
+	    }
 	}while((val64 & XGE_HAL_MDIO_CONTROL_MMD_CTRL(0xF)) != XGE_HAL_MDIO_CONTROL_MMD_CTRL(1));
 
 	/* Data transaction */
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(addr)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_READ);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
@@ -1276,11 +1268,11 @@ xge_hal_mdio_read( xge_hal_device_h devh, u32 mmd_type, u64 addr )
 
 	do
 	{
-		val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
-		if (i++ > 10)
-		{
-			break;
-		}
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
+	    if (i++ > 10)
+	    {
+	        break;
+	    }
 	}while((val64 & XGE_HAL_MDIO_CONTROL_MMD_CTRL(0xF)) != XGE_HAL_MDIO_CONTROL_MMD_CTRL(1));
 
 	rval16 = (u16)XGE_HAL_MDIO_CONTROL_MMD_DATA_GET(val64);
@@ -1298,9 +1290,9 @@ xge_hal_mdio_write( xge_hal_device_h devh, u32 mmd_type, u64 addr, u32 value )
 	/* address transaction */
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(addr)  |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)   |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_ADDRESS);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
@@ -1308,23 +1300,23 @@ xge_hal_mdio_write( xge_hal_device_h devh, u32 mmd_type, u64 addr, u32 value )
 
 	do
 	{
-		val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
-		if (i++ > 10)
-		{
-			break;
-		}
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
+	    if (i++ > 10)
+	    {
+	        break;
+	    }
 	} while((val64 & XGE_HAL_MDIO_CONTROL_MMD_CTRL(0xF)) !=
-		XGE_HAL_MDIO_CONTROL_MMD_CTRL(1));
+	    XGE_HAL_MDIO_CONTROL_MMD_CTRL(1));
 
 	/* Data transaction */
 
 	val64 = 0x0;
 
 	val64 = XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(addr)    |
-		XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type) |
-		XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)        |
-		XGE_HAL_MDIO_CONTROL_MMD_DATA(value)        |
-		XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_WRITE);
+	    XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(mmd_type) |
+	    XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(0)        |
+	    XGE_HAL_MDIO_CONTROL_MMD_DATA(value)        |
+	    XGE_HAL_MDIO_CONTROL_MMD_OP(XGE_HAL_MDIO_OP_WRITE);
 	__hal_serial_mem_write64(hldev, val64, &bar0->mdio_control);
 
 	val64 |= XGE_HAL_MDIO_CONTROL_MMD_CTRL(XGE_HAL_MDIO_CTRL_START);
@@ -1334,11 +1326,11 @@ xge_hal_mdio_write( xge_hal_device_h devh, u32 mmd_type, u64 addr, u32 value )
 
 	do
 	{
-		val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
-		if (i++ > 10)
-		{
-			break;
-		}
+	    val64 = __hal_serial_mem_read64(hldev, &bar0->mdio_control);
+	    if (i++ > 10)
+	    {
+	        break;
+	    }
 	}while((val64 & XGE_HAL_MDIO_CONTROL_MMD_CTRL(0xF)) != XGE_HAL_MDIO_CONTROL_MMD_CTRL(1));
 
 	return XGE_HAL_OK;
@@ -1365,51 +1357,51 @@ xge_hal_eeprom_test(xge_hal_device_h devh, u64 *data)
 
 	/* Test Write Error at offset 0 */
 	if (!xge_hal_write_eeprom(hldev, 0, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	/* Test Write at offset 4f0 */
 	if (xge_hal_write_eeprom(hldev, 0x4F0, 0x01234567, 3))
-		fail = 1;
+	    fail = 1;
 	if (xge_hal_read_eeprom(hldev, 0x4F0, &ret_data))
-		fail = 1;
+	    fail = 1;
 
 	if (ret_data != 0x01234567)
-		fail = 1;
+	    fail = 1;
 
 	/* Reset the EEPROM data go FFFF */
 	(void) xge_hal_write_eeprom(hldev, 0x4F0, 0xFFFFFFFF, 3);
 
 	/* Test Write Request Error at offset 0x7c */
 	if (!xge_hal_write_eeprom(hldev, 0x07C, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	/* Test Write Request at offset 0x7fc */
 	if (xge_hal_write_eeprom(hldev, 0x7FC, 0x01234567, 3))
-		fail = 1;
+	    fail = 1;
 	if (xge_hal_read_eeprom(hldev, 0x7FC, &ret_data))
-		fail = 1;
+	    fail = 1;
 
 	if (ret_data != 0x01234567)
-		fail = 1;
+	    fail = 1;
 
 	/* Reset the EEPROM data go FFFF */
 	(void) xge_hal_write_eeprom(hldev, 0x7FC, 0xFFFFFFFF, 3);
 
 	/* Test Write Error at offset 0x80 */
 	if (!xge_hal_write_eeprom(hldev, 0x080, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	/* Test Write Error at offset 0xfc */
 	if (!xge_hal_write_eeprom(hldev, 0x0FC, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	/* Test Write Error at offset 0x100 */
 	if (!xge_hal_write_eeprom(hldev, 0x100, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	/* Test Write Error at offset 4ec */
 	if (!xge_hal_write_eeprom(hldev, 0x4EC, 0, 3))
-		fail = 1;
+	    fail = 1;
 
 	*data = fail;
 	return XGE_HAL_OK;
@@ -1441,14 +1433,14 @@ xge_hal_bist_test(xge_hal_device_h devh, u64 *data)
 	xge_os_pci_write8(hldev->pdev, hldev->cfgh, 0x0f, bist);
 
 	while (cnt < 20) {
-		xge_os_pci_read8(hldev->pdev, hldev->cfgh, 0x0f, &bist);
-		if (!(bist & 0x40)) {
-			*data = (bist & 0x0f);
-			ret = XGE_HAL_OK;
-			break;
-		}
-		xge_os_mdelay(100);
-		cnt++;
+	    xge_os_pci_read8(hldev->pdev, hldev->cfgh, 0x0f, &bist);
+	    if (!(bist & 0x40)) {
+	        *data = (bist & 0x0f);
+	        ret = XGE_HAL_OK;
+	        break;
+	    }
+	    xge_os_mdelay(100);
+	    cnt++;
 	}
 
 	return ret;
@@ -1473,9 +1465,9 @@ xge_hal_link_test(xge_hal_device_h devh, u64 *data)
 	u64 val64;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-			&bar0->adapter_status);
+	        &bar0->adapter_status);
 	if (val64 & XGE_HAL_ADAPTER_STATUS_RMAC_LOCAL_FAULT)
-		*data = 1;
+	    *data = 1;
 
 	return XGE_HAL_OK;
 }
@@ -1498,11 +1490,11 @@ void xge_hal_getpause_data(xge_hal_device_h devh, int *tx, int *rx)
 	u64 val64;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-				&bar0->rmac_pause_cfg);
+	            &bar0->rmac_pause_cfg);
 	if (val64 & XGE_HAL_RMAC_PAUSE_GEN_EN)
-		*tx = 1;
+	    *tx = 1;
 	if (val64 & XGE_HAL_RMAC_PAUSE_RCV_EN)
-		*rx = 1;
+	    *rx = 1;
 }
 
 /**
@@ -1526,17 +1518,17 @@ int xge_hal_setpause_data(xge_hal_device_h devh, int tx, int rx)
 	u64 val64;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-				    &bar0->rmac_pause_cfg);
+	                &bar0->rmac_pause_cfg);
 	if (tx)
-		val64 |= XGE_HAL_RMAC_PAUSE_GEN_EN;
+	    val64 |= XGE_HAL_RMAC_PAUSE_GEN_EN;
 	else
-		val64 &= ~XGE_HAL_RMAC_PAUSE_GEN_EN;
+	    val64 &= ~XGE_HAL_RMAC_PAUSE_GEN_EN;
 	if (rx)
-		val64 |= XGE_HAL_RMAC_PAUSE_RCV_EN;
+	    val64 |= XGE_HAL_RMAC_PAUSE_RCV_EN;
 	else
-		val64 &= ~XGE_HAL_RMAC_PAUSE_RCV_EN;
+	    val64 &= ~XGE_HAL_RMAC_PAUSE_RCV_EN;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0,
-			     val64, &bar0->rmac_pause_cfg);
+	             val64, &bar0->rmac_pause_cfg);
 	return 0;
 }
 
@@ -1549,39 +1541,39 @@ int xge_hal_setpause_data(xge_hal_device_h devh, int tx, int rx)
  */
 u32 xge_hal_read_xfp_current_temp(xge_hal_device_h hldev)
 {
-    u16 val_1, val_2, i = 0;
-    u32 actual;
+	u16 val_1, val_2, i = 0;
+	u32 actual;
 
-    /* First update the NVRAM table of XFP. */
+	/* First update the NVRAM table of XFP. */
 
-    (void) xge_hal_mdio_write(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8000, 0x3);
+	(void) xge_hal_mdio_write(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8000, 0x3);
 
 
-    /* Now wait for the transfer to complete */
-    do
-    {
-        xge_os_mdelay( 50 ); // wait 50 milliseonds
+	/* Now wait for the transfer to complete */
+	do
+	{
+	    xge_os_mdelay( 50 ); // wait 50 milliseonds
 
-        val_1 =  xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8000);
+	    val_1 =  xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8000);
 
-        if ( i++ > 10 )
-        {
-            // waited 500 ms which should be plenty of time.
-            break;
-        }
-    }while (( val_1 & 0x000C ) != 0x0004);
+	    if ( i++ > 10 )
+	    {
+	        // waited 500 ms which should be plenty of time.
+	        break;
+	    }
+	}while (( val_1 & 0x000C ) != 0x0004);
 
-    /* Now NVRAM table of XFP should be updated, so read the temp */
-    val_1 =  (u8) xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8067);
-    val_2 =  (u8) xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8068);
+	/* Now NVRAM table of XFP should be updated, so read the temp */
+	val_1 =  (u8) xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8067);
+	val_2 =  (u8) xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, 0x8068);
 
-    actual = ((val_1 << 8) | val_2);
+	actual = ((val_1 << 8) | val_2);
 
-    if (actual >= 32768)
-        actual = actual- 65536;
-    actual =  actual/256;
+	if (actual >= 32768)
+	    actual = actual- 65536;
+	actual =  actual/256;
 
-    return actual;
+	return actual;
 }
 
 /**
@@ -1603,52 +1595,52 @@ void __hal_chk_xpak_counter(xge_hal_device_t *hldev, int type, u32 value)
 	 */
 	if(value == 3)
 	{
-		switch(type)
-		{
-		case 1:
-			hldev->stats.sw_dev_err_stats.xpak_counter.
-				excess_temp = 0;
+	    switch(type)
+	    {
+	    case 1:
+	        hldev->stats.sw_dev_err_stats.xpak_counter.
+	            excess_temp = 0;
 
-			/*
-			 * Notify the ULD on Excess Xpak temperature alarm msg
-			 */
-			if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
-				g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
-					hldev->upper_layer_info,
-					XGE_HAL_XPAK_ALARM_EXCESS_TEMP);
-			}
-			break;
-		case 2:
-			hldev->stats.sw_dev_err_stats.xpak_counter.
-				excess_bias_current = 0;
+	        /*
+	         * Notify the ULD on Excess Xpak temperature alarm msg
+	         */
+	        if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
+	            g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
+	                hldev->upper_layer_info,
+	                XGE_HAL_XPAK_ALARM_EXCESS_TEMP);
+	        }
+	        break;
+	    case 2:
+	        hldev->stats.sw_dev_err_stats.xpak_counter.
+	            excess_bias_current = 0;
 
-			/*
-			 * Notify the ULD on Excess  xpak bias current alarm msg
-			 */
-			if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
-				g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
-					hldev->upper_layer_info,
-					XGE_HAL_XPAK_ALARM_EXCESS_BIAS_CURRENT);
-			}
-			break;
-		case 3:
-			hldev->stats.sw_dev_err_stats.xpak_counter.
-				excess_laser_output = 0;
+	        /*
+	         * Notify the ULD on Excess  xpak bias current alarm msg
+	         */
+	        if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
+	            g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
+	                hldev->upper_layer_info,
+	                XGE_HAL_XPAK_ALARM_EXCESS_BIAS_CURRENT);
+	        }
+	        break;
+	    case 3:
+	        hldev->stats.sw_dev_err_stats.xpak_counter.
+	            excess_laser_output = 0;
 
-			/*
-			 * Notify the ULD on Excess Xpak Laser o/p power
-			 * alarm msg
-			 */
-			if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
-				g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
-					hldev->upper_layer_info,
-					XGE_HAL_XPAK_ALARM_EXCESS_LASER_OUTPUT);
-			}
-			break;
-		default:
-			xge_debug_osdep(XGE_TRACE, "Incorrect XPAK Alarm "
-			"type ");
-		}
+	        /*
+	         * Notify the ULD on Excess Xpak Laser o/p power
+	         * alarm msg
+	         */
+	        if (g_xge_hal_driver->uld_callbacks.xpak_alarm_log) {
+	            g_xge_hal_driver->uld_callbacks.xpak_alarm_log(
+	                hldev->upper_layer_info,
+	                XGE_HAL_XPAK_ALARM_EXCESS_LASER_OUTPUT);
+	        }
+	        break;
+	    default:
+	        xge_debug_osdep(XGE_TRACE, "Incorrect XPAK Alarm "
+	        "type ");
+	    }
 	}
 
 }
@@ -1671,102 +1663,102 @@ void __hal_updt_stats_xpak(xge_hal_device_t *hldev)
 	val_1 = 0x0;
 	val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
 	if((val_1 == 0xFFFF) || (val_1 == 0x0000))
-        {
-                xge_debug_osdep(XGE_TRACE, "ERR: MDIO slave access failed - "
-                          "Returned %x", val_1);
-                return;
-        }
+	    {
+	            xge_debug_osdep(XGE_TRACE, "ERR: MDIO slave access failed - "
+	                      "Returned %x", val_1);
+	            return;
+	    }
 
 	/* Check for the expected value of 2040 at PMA address 0x0000 */
 	if(val_1 != 0x2040)
-        {
-                xge_debug_osdep(XGE_TRACE, "Incorrect value at PMA address 0x0000 - ");
-                xge_debug_osdep(XGE_TRACE, "Returned: %llx- Expected: 0x2040",
-				(unsigned long long)(unsigned long)val_1);
-                return;
-        }
+	    {
+	            xge_debug_osdep(XGE_TRACE, "Incorrect value at PMA address 0x0000 - ");
+	            xge_debug_osdep(XGE_TRACE, "Returned: %llx- Expected: 0x2040",
+	            (unsigned long long)(unsigned long)val_1);
+	            return;
+	    }
 
 	/* Loading the DOM register to MDIO register */
-        addr = 0xA100;
-        (void) xge_hal_mdio_write(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr, 0x0);
-        val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
+	    addr = 0xA100;
+	    (void) xge_hal_mdio_write(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr, 0x0);
+	    val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
 
 	/*
 	 * Reading the Alarm flags
 	 */
-        addr = 0xA070;
-        val_1 = 0x0;
-        val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
+	    addr = 0xA070;
+	    val_1 = 0x0;
+	    val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
 	if(CHECKBIT(val_1, 0x7))
 	{
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			alarm_transceiver_temp_high++;
-		hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp++;
-		__hal_chk_xpak_counter(hldev, 0x1,
-			hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp);
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        alarm_transceiver_temp_high++;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp++;
+	    __hal_chk_xpak_counter(hldev, 0x1,
+	        hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp);
 	} else {
-		hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp = 0;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.excess_temp = 0;
 	}
 	if(CHECKBIT(val_1, 0x6))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			alarm_transceiver_temp_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        alarm_transceiver_temp_low++;
 
 	if(CHECKBIT(val_1, 0x3))
 	{
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			alarm_laser_bias_current_high++;
-		hldev->stats.sw_dev_err_stats.xpak_counter.
-			excess_bias_current++;
-		__hal_chk_xpak_counter(hldev, 0x2,
-			hldev->stats.sw_dev_err_stats.xpak_counter.
-			excess_bias_current);
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        alarm_laser_bias_current_high++;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.
+	        excess_bias_current++;
+	    __hal_chk_xpak_counter(hldev, 0x2,
+	        hldev->stats.sw_dev_err_stats.xpak_counter.
+	        excess_bias_current);
 	} else {
-		hldev->stats.sw_dev_err_stats.xpak_counter.
-			excess_bias_current = 0;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.
+	        excess_bias_current = 0;
 	}
 	if(CHECKBIT(val_1, 0x2))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			alarm_laser_bias_current_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        alarm_laser_bias_current_low++;
 
 	if(CHECKBIT(val_1, 0x1))
 	{
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			alarm_laser_output_power_high++;
-		hldev->stats.sw_dev_err_stats.xpak_counter.
-			excess_laser_output++;
-		__hal_chk_xpak_counter(hldev, 0x3,
-			hldev->stats.sw_dev_err_stats.xpak_counter.
-				excess_laser_output);
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        alarm_laser_output_power_high++;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.
+	        excess_laser_output++;
+	    __hal_chk_xpak_counter(hldev, 0x3,
+	        hldev->stats.sw_dev_err_stats.xpak_counter.
+	            excess_laser_output);
 	} else {
-		hldev->stats.sw_dev_err_stats.xpak_counter.
-				excess_laser_output = 0;
+	    hldev->stats.sw_dev_err_stats.xpak_counter.
+	            excess_laser_output = 0;
 	}
 	if(CHECKBIT(val_1, 0x0))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-				alarm_laser_output_power_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	            alarm_laser_output_power_low++;
 
 	/*
 	 * Reading the warning flags
 	 */
-        addr = 0xA074;
-        val_1 = 0x0;
-        val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
+	    addr = 0xA074;
+	    val_1 = 0x0;
+	    val_1 = xge_hal_mdio_read(hldev, XGE_HAL_MDIO_MMD_PMA_DEV_ADDR, addr);
 	if(CHECKBIT(val_1, 0x7))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_transceiver_temp_high++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_transceiver_temp_high++;
 	if(CHECKBIT(val_1, 0x6))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_transceiver_temp_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_transceiver_temp_low++;
 	if(CHECKBIT(val_1, 0x3))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_laser_bias_current_high++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_laser_bias_current_high++;
 	if(CHECKBIT(val_1, 0x2))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_laser_bias_current_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_laser_bias_current_low++;
 	if(CHECKBIT(val_1, 0x1))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_laser_output_power_high++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_laser_output_power_high++;
 	if(CHECKBIT(val_1, 0x0))
-		hldev->stats.sw_dev_err_stats.stats_xpak.
-			warn_laser_output_power_low++;
+	    hldev->stats.sw_dev_err_stats.stats_xpak.
+	        warn_laser_output_power_low++;
 }
