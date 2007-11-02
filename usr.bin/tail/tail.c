@@ -114,6 +114,7 @@ main(int argc, char *argv[])
 
 	obsolete(argv);
 	style = NOTSET;
+	off = 0;
 	while ((ch = getopt(argc, argv, "Fb:c:fn:qr")) != -1)
 		switch(ch) {
 		case 'F':	/* -F is superset of (and implies) -f */

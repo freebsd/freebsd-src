@@ -150,7 +150,7 @@ lines(FILE *fp, off_t off)
 	if ((llines = malloc(off * sizeof(*llines))) == NULL)
 		err(1, "malloc");
 	bzero(llines, off * sizeof(*llines));
-	sp = NULL;
+	p = sp = NULL;
 	blen = cnt = recno = wrap = 0;
 	rc = 0;
 
