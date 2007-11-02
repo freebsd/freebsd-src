@@ -229,8 +229,8 @@ audit_init(void)
 
 	audit_fstat.af_filesz = 0;	/* '0' means unset, unbounded. */
 	audit_fstat.af_currsz = 0;
-	audit_nae_mask.am_success = AU_NULL;
-	audit_nae_mask.am_failure = AU_NULL;
+	audit_nae_mask.am_success = 0;
+	audit_nae_mask.am_failure = 0;
 
 	TAILQ_INIT(&audit_q);
 	audit_q_len = 0;
