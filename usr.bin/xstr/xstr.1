@@ -63,10 +63,12 @@ Extract the strings from the C source
 or the standard input
 .Pq Fl ,
 replacing
-string references by expressions of the form (&xstr[number])
-for some number.
+string references by expressions of the form
+.Li (&xstr[number])
+for some
+.Ar number .
 An appropriate declaration of
-.Nm
+.Va xstr
 is prepended to the file.
 The resulting C text is placed in the file
 .Pa x.c ,
@@ -83,11 +85,10 @@ Verbose mode.
 After all components of a large program have been compiled a file
 .Pa xs.c
 declaring the common
-.Nm
+.Va xstr
 space can be created by a command of the form
-.Bd -literal -offset indent
-xstr
-.Ed
+.Pp
+.Dl xstr
 .Pp
 The file
 .Pa xs.c
@@ -122,8 +123,8 @@ An appropriate command sequence for running
 after the C preprocessor is:
 .Pp
 .Bd -literal -offset indent -compact
-cc \-E name.c | xstr \-c \-
-cc \-c x.c
+cc -E name.c | xstr -c -
+cc -c x.c
 mv x.o name.o
 .Ed
 .Pp
@@ -137,15 +138,18 @@ can avoid remaking
 .Pa xs.o
 unless truly necessary.
 .Sh FILES
-.Bl -tag -width /tmp/xsxx* -compact
+.Bl -tag -width ".Pa /tmp/xs*" -compact
 .It Pa strings
 data base of strings
 .It Pa x.c
 massaged C source
 .It Pa xs.c
-C source for definition of array `xstr'
+C source for definition of array
+.Va xstr
 .It Pa /tmp/xs*
-temp file when `xstr name' does not touch
+temporary file when
+.Dq Li "xstr name"
+does not touch
 .Pa strings
 .El
 .Sh SEE ALSO
