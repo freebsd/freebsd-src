@@ -25,6 +25,7 @@
  *
  * $FreeBSD$
  */
+
 #ifndef XGE_CMN_H
 #define XGE_CMN_H
 
@@ -45,96 +46,98 @@
 #define XGE_OS_HOST_BIG_ENDIAN 1
 #endif
 
-#define u64     unsigned long long
-#define u32     unsigned int
-#define u16     unsigned short
-#define u8      unsigned char
+#define u64 unsigned long long
+#define u32 unsigned int
+#define u16 unsigned short
+#define u8  unsigned char
 
 #define XGE_COUNT_REGS           386
 #define XGE_COUNT_STATS          160
 #define XGE_COUNT_PCICONF        43
-#define XGE_COUNT_DEVCONF        1677 
+#define XGE_COUNT_DEVCONF        1677
 #ifdef CONFIG_LRO
-#define XGE_COUNT_INTRSTAT       26 
+#define XGE_COUNT_INTRSTAT       26
 #else
-#define XGE_COUNT_INTRSTAT       20 
+#define XGE_COUNT_INTRSTAT       20
 #endif
-#define XGE_COUNT_TCODESTAT 	 54 
+#define XGE_COUNT_SWSTAT         54
+#define XGE_COUNT_DRIVERSTATS    27
 #define DEVICE_ID_XFRAME_II      0x5832
 #define XGE_COUNT_EXTENDED_STATS 56
 
-#define XGE_PRINT(fd, fmt...)                                                 \
-{                                                                             \
-    fprintf( fd, fmt );                                                       \
-    fprintf( fd, "\n" );                                                      \
-    printf( fmt );                                                            \
-    printf( "\n" );                                                           \
+#define XGE_PRINT(fd, fmt...) {                                                \
+	fprintf(fd, fmt);                                                      \
+	fprintf(fd, "\n");                                                     \
+	printf(fmt);                                                           \
+	printf("\n");                                                          \
 }
 
-#define XGE_PRINT_LINE(fd) XGE_PRINT(fd, line);
+#define XGE_PRINT_LINE(fd)    XGE_PRINT(fd, line);
+
 /* Read & Write Register */
 typedef struct barregister
 {
-    char option[2];
-    u64 offset;
-    u64 value;
-}bar0reg_t;
+	char option[2];
+	u64 offset;
+	u64 value;
+}xge_register_info_t;
 
 /* Register Dump */
 typedef struct xge_pci_bar0_t
 {
-    u8      name[32];              /* Register name as in user guides */
-    u64     offset;                /* Offset from base address        */
-    u64     value;                 /* Value                           */
-    char    type;                  /* 1: XframeII, 0: Common          */
-
+	u8   name[32];                     /* Register name as in user guides */
+	u64  offset;                       /* Offset from base address        */
+	u64  value;                        /* Value                           */
+	char type;                         /* 1: XframeII, 0: Common          */
 } xge_pci_bar0_t;
 
 /* Hardware Statistics */
 typedef struct xge_stats_hw_info_t
 {
-    u8      name[32];              /* Statistics name                 */
-    u64     be_offset;             /* Offset from base address (BE)   */
-    u64     le_offset;             /* Offset from base address (LE)   */
-    u8      type;                  /* Type: 1, 2, 3 or 4 bytes        */
-    u64     value;                 /* Value                           */
-
+	u8  name[32];                      /* Statistics name                 */
+	u64 be_offset;                     /* Offset from base address (BE)   */
+	u64 le_offset;                     /* Offset from base address (LE)   */
+	u8  type;                          /* Type: 1, 2, 3 or 4 bytes        */
+	u64 value;                         /* Value                           */
 } xge_stats_hw_info_t;
 
 /* PCI Configuration Space */
 typedef struct xge_pci_config_t
 {
-    u8      name[32];              /* Pci conf. name                  */
-    u64     be_offset;             /* Offset from base address (BE)   */
-    u64     le_offset;             /* Offset from base address (LE)   */
-    u64     value;                 /* Value                           */
-
+	u8  name[32];                      /* Pci conf. name                  */
+	u64 be_offset;                     /* Offset from base address (BE)   */
+	u64 le_offset;                     /* Offset from base address (LE)   */
+	u64 value;                         /* Value                           */
 } xge_pci_config_t;
 
 /* Device Configuration */
 typedef struct xge_device_config_t
 {
-    u8      name[32];              /* Device conf. name               */
-    u64     value;                 /* Value                           */
-
+	u8  name[32];                      /* Device conf. name               */
+	u64 value;                         /* Value                           */
 } xge_device_config_t;
 
 /* Interrupt Statistics */
 typedef struct xge_stats_intr_info_t
 {
-    u8      name[32];              /* Interrupt entry name            */
-    u64     value;                 /* Value (count)                   */
-
+	u8  name[32];                      /* Interrupt entry name            */
+	u64 value;                         /* Value (count)                   */
 } xge_stats_intr_info_t;
+
 /* Tcode Statistics */
 typedef struct xge_stats_tcode_info_t
 {
-    u8      name[32];              /* Tcode entry name                */
-    u64     value;                 /* Value (count)                   */
-    u8      type;                  /* Type: 1, 2, 3 or 4 bytes        */
-    u16	    flag;
-
+    u8  name[32];                          /* Tcode entry name                */
+    u64 value;                             /* Value (count)                   */
+    u8  type;                              /* Type: 1, 2, 3 or 4 bytes        */
+    u16 flag;
 }xge_stats_tcode_info_t;
+
+typedef struct xge_stats_driver_info_t
+{
+	u8 name[32];                       /* Driver statistics name          */
+	u64 value;                         /* Value                           */
+} xge_stats_driver_info_t;
 
 #ifdef XGE_OS_HOST_BIG_ENDIAN
 #define GET_OFFSET_STATS(index)       statsInfo[(index)].be_offset

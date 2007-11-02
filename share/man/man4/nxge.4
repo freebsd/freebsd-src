@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2007
+.Dd October 16, 2007
 .Dt NXGE 4
 .Os
 .Sh NAME
@@ -48,9 +48,9 @@ if_nxge_load="YES"
 The
 .Nm
 driver provides support for Neterion Xframe-I and Xframe-II adapters.
-The driver supports TCP Segmentation Offload (TSO/LSO), Jumbo Frames
-(5 buffer mode), Header Separation (2 and 3 Receive buffer modes),
-VLAN, and Promiscuous mode.
+The driver supports TCP Segmentation Offload (TSO/LSO), 
+Large Receive Offlaod (LRO), Jumbo Frames (5 buffer mode), 
+Header Separation (Rx 2 buffer mode), VLAN, and Promiscuous mode.
 .Pp
 For general information and support, please visit the Neterion support page
 .Pa http://www.neterion.com/support/support.html .
@@ -60,6 +60,11 @@ Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to transmit and receive Jumbo Frames.
 Xframe adapters support Jumbo Frames up to 9600 bytes.
+.Pp
+.Pp
+For Jumbo frames, the driver will try to allocate physically contiguous buffers. Failures to do so, may degrade the performance. To resolve such problems, please visit
+.Pa http://www.neterion.com
+where additional information and Kernel patch can be found.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .

@@ -26,23 +26,11 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-channel.c
- *
- *  Description:  chipset channel abstraction
- *
- *  Created:      10 May 2004
- */
-
 #include <dev/nxge/include/xgehal-channel.h>
 #include <dev/nxge/include/xgehal-fifo.h>
 #include <dev/nxge/include/xgehal-ring.h>
 #include <dev/nxge/include/xgehal-device.h>
 #include <dev/nxge/include/xgehal-regs.h>
-#ifdef XGEHAL_RNIC
-#include <dev/nxge/include/xgehal-types.h>
-#include "xgehal-iov.h"
-#endif
 
 /*
  * __hal_channel_dtr_next_reservelist
@@ -51,12 +39,12 @@
  */
 static xge_hal_status_e
 __hal_channel_dtr_next_reservelist(xge_hal_channel_h channelh,
-		xge_hal_dtr_h *dtrh)
+	    xge_hal_dtr_h *dtrh)
 {
 	xge_hal_channel_t *channel = (xge_hal_channel_t *)channelh;
 
 	if (channel->reserve_top >= channel->reserve_length) {
-		return XGE_HAL_INF_NO_MORE_FREED_DESCRIPTORS;
+	    return XGE_HAL_INF_NO_MORE_FREED_DESCRIPTORS;
 	}
 
 	*dtrh = channel->reserve_arr[channel->reserve_top++];
@@ -75,7 +63,7 @@ __hal_channel_dtr_next_freelist(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh)
 	xge_hal_channel_t *channel = (xge_hal_channel_t *)channelh;
 
 	if (channel->reserve_initial == channel->free_length) {
-		return XGE_HAL_INF_NO_MORE_FREED_DESCRIPTORS;
+	    return XGE_HAL_INF_NO_MORE_FREED_DESCRIPTORS;
 	}
 
 	*dtrh = channel->free_arr[channel->free_length++];
@@ -91,21 +79,16 @@ __hal_channel_dtr_next_freelist(xge_hal_channel_h channelh, xge_hal_dtr_h *dtrh)
  */
 static xge_hal_status_e
 __hal_channel_dtr_next_not_completed(xge_hal_channel_h channelh,
-		xge_hal_dtr_h *dtrh)
+	    xge_hal_dtr_h *dtrh)
 {
-#ifndef XGEHAL_RNIC
 	xge_hal_ring_rxd_1_t *rxdp; /* doesn't matter 1, 3 or 5... */
-#endif
-
 	__hal_channel_dtr_try_complete(channelh, dtrh);
 	if (*dtrh == NULL) {
-		return XGE_HAL_INF_NO_MORE_COMPLETED_DESCRIPTORS;
+	    return XGE_HAL_INF_NO_MORE_COMPLETED_DESCRIPTORS;
 	}
 
-#ifndef XGEHAL_RNIC
 	rxdp = (xge_hal_ring_rxd_1_t *)*dtrh;
 	xge_assert(rxdp->host_control!=0);
-#endif
 
 	__hal_channel_dtr_complete(channelh);
 
@@ -114,46 +97,26 @@ __hal_channel_dtr_next_not_completed(xge_hal_channel_h channelh,
 
 xge_hal_channel_t*
 __hal_channel_allocate(xge_hal_device_h devh, int post_qid,
-#ifdef XGEHAL_RNIC
-		u32 vp_id,
-#endif
-		xge_hal_channel_type_e type)
+	    xge_hal_channel_type_e type)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t*)devh;
 	xge_hal_channel_t *channel;
 	int size = 0;
 
 	switch(type) {
-		case XGE_HAL_CHANNEL_TYPE_FIFO:
-			xge_assert(post_qid + 1 >= XGE_HAL_MIN_FIFO_NUM &&
-				 post_qid + 1 <= XGE_HAL_MAX_FIFO_NUM);
-			size = sizeof(xge_hal_fifo_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RING:
-			xge_assert(post_qid + 1 >= XGE_HAL_MIN_RING_NUM &&
-				post_qid + 1 <= XGE_HAL_MAX_RING_NUM);
-			size = sizeof(xge_hal_ring_t);
-			break;
-#ifdef XGEHAL_RNIC
-		case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-			size = sizeof(__hal_sq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-			size = sizeof(__hal_srq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-			size = sizeof(__hal_cqrq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-			size = sizeof(__hal_umq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-			size = sizeof(__hal_dmq_t);
-			break;
-#endif
-		default :
-			xge_assert(size);
-			break;
+	    case XGE_HAL_CHANNEL_TYPE_FIFO:
+	        xge_assert(post_qid + 1 >= XGE_HAL_MIN_FIFO_NUM &&
+	             post_qid + 1 <= XGE_HAL_MAX_FIFO_NUM);
+	        size = sizeof(xge_hal_fifo_t);
+	        break;
+	    case XGE_HAL_CHANNEL_TYPE_RING:
+	        xge_assert(post_qid + 1 >= XGE_HAL_MIN_RING_NUM &&
+	            post_qid + 1 <= XGE_HAL_MAX_RING_NUM);
+	        size = sizeof(xge_hal_ring_t);
+	        break;
+	    default :
+	        xge_assert(size);
+	        break;
 
 	}
 
@@ -161,20 +124,17 @@ __hal_channel_allocate(xge_hal_device_h devh, int post_qid,
 	/* allocate FIFO channel */
 	channel = (xge_hal_channel_t *) xge_os_malloc(hldev->pdev, size);
 	if (channel == NULL) {
-		return NULL;
+	    return NULL;
 	}
 	xge_os_memzero(channel, size);
 
-	channel->pdev		= hldev->pdev;
-	channel->regh0		= hldev->regh0;
-	channel->regh1		= hldev->regh1;
-	channel->type		= type;
-	channel->devh		= devh;
-#ifdef XGEHAL_RNIC
-	channel->vp_id		= vp_id;
-#endif
-	channel->post_qid	= post_qid;
-	channel->compl_qid	= 0;
+	channel->pdev       = hldev->pdev;
+	channel->regh0      = hldev->regh0;
+	channel->regh1      = hldev->regh1;
+	channel->type       = type;
+	channel->devh       = devh;
+	channel->post_qid   = post_qid;
+	channel->compl_qid  = 0;
 
 	return channel;
 }
@@ -186,39 +146,21 @@ void __hal_channel_free(xge_hal_channel_t *channel)
 	xge_assert(channel->pdev);
 
 	switch(channel->type) {
-		case XGE_HAL_CHANNEL_TYPE_FIFO:
-			size = sizeof(xge_hal_fifo_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RING:
-			size = sizeof(xge_hal_ring_t);
-			break;
-#ifdef XGEHAL_RNIC
-		case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-			size = sizeof(__hal_sq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-			size = sizeof(__hal_srq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-			size = sizeof(__hal_cqrq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-			size = sizeof(__hal_umq_t);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-			size = sizeof(__hal_dmq_t);
-			break;
-#else
-		case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-			xge_assert(size);
-			break;
-#endif
-		default:
-			break;
+	    case XGE_HAL_CHANNEL_TYPE_FIFO:
+	        size = sizeof(xge_hal_fifo_t);
+	        break;
+	    case XGE_HAL_CHANNEL_TYPE_RING:
+	        size = sizeof(xge_hal_ring_t);
+	        break;
+	    case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
+	        xge_assert(size);
+	        break;
+	    default:
+	        break;
 	}
 
 	xge_os_free(channel->pdev, channel, size);
@@ -226,8 +168,8 @@ void __hal_channel_free(xge_hal_channel_t *channel)
 
 xge_hal_status_e
 __hal_channel_initialize (xge_hal_channel_h channelh,
-		xge_hal_channel_attr_t *attr, void **reserve_arr,
-		int reserve_initial, int reserve_max, int reserve_threshold)
+	    xge_hal_channel_attr_t *attr, void **reserve_arr,
+	    int reserve_initial, int reserve_max, int reserve_threshold)
 {
 	xge_hal_channel_t *channel = (xge_hal_channel_t *)channelh;
 	xge_hal_device_t *hldev;
@@ -248,28 +190,28 @@ __hal_channel_initialize (xge_hal_channel_h channelh,
 	channel->reserve_threshold = reserve_threshold;
 	channel->reserve_top = 0;
 	channel->saved_arr = (void **) xge_os_malloc(hldev->pdev,
-					   sizeof(void*)*channel->reserve_max);
+	                   sizeof(void*)*channel->reserve_max);
 	if (channel->saved_arr == NULL) {
-		return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    return XGE_HAL_ERR_OUT_OF_MEMORY;
 	}
 	xge_os_memzero(channel->saved_arr, sizeof(void*)*channel->reserve_max);
 	channel->free_arr = channel->saved_arr;
 	channel->free_length = channel->reserve_initial;
 	channel->work_arr = (void **) xge_os_malloc(hldev->pdev,
-				  sizeof(void*)*channel->reserve_max);
+	              sizeof(void*)*channel->reserve_max);
 	if (channel->work_arr == NULL) {
-		return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    return XGE_HAL_ERR_OUT_OF_MEMORY;
 	}
 	xge_os_memzero(channel->work_arr,
-                       sizeof(void*)*channel->reserve_max);
+	                   sizeof(void*)*channel->reserve_max);
 	channel->post_index = 0;
 	channel->compl_index = 0;
 	channel->length = channel->reserve_initial;
 
 	channel->orig_arr = (void **) xge_os_malloc(hldev->pdev,
-						sizeof(void*)*channel->reserve_max);
+	                    sizeof(void*)*channel->reserve_max);
 	if (channel->orig_arr == NULL)
-		return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    return XGE_HAL_ERR_OUT_OF_MEMORY;
 
 	xge_os_memzero(channel->orig_arr, sizeof(void*)*channel->reserve_max);
 
@@ -292,21 +234,21 @@ void __hal_channel_terminate(xge_hal_channel_h channelh)
 	xge_assert(channel->pdev);
 	/* undo changes made at channel_initialize() */
 	if (channel->work_arr) {
-		xge_os_free(channel->pdev, channel->work_arr,
-		          sizeof(void*)*channel->reserve_max);
-		channel->work_arr = NULL;
+	    xge_os_free(channel->pdev, channel->work_arr,
+	              sizeof(void*)*channel->reserve_max);
+	    channel->work_arr = NULL;
 	}
 
 	if (channel->saved_arr) {
-		xge_os_free(channel->pdev, channel->saved_arr,
-		          sizeof(void*)*channel->reserve_max);
-		channel->saved_arr = NULL;
+	    xge_os_free(channel->pdev, channel->saved_arr,
+	              sizeof(void*)*channel->reserve_max);
+	    channel->saved_arr = NULL;
 	}
 
 	if (channel->orig_arr) {
-		xge_os_free(channel->pdev, channel->orig_arr,
-		          sizeof(void*)*channel->reserve_max);
-		channel->orig_arr = NULL;
+	    xge_os_free(channel->pdev, channel->orig_arr,
+	              sizeof(void*)*channel->reserve_max);
+	    channel->orig_arr = NULL;
 	}
 
 #if defined(XGE_HAL_RX_MULTI_FREE_IRQ) || defined(XGE_HAL_TX_MULTI_FREE_IRQ)
@@ -354,9 +296,9 @@ void __hal_channel_terminate(xge_hal_channel_h channelh)
  */
 xge_hal_status_e
 xge_hal_channel_open(xge_hal_device_h devh,
-		     xge_hal_channel_attr_t *attr,
-		     xge_hal_channel_h *channelh,
-		     xge_hal_channel_reopen_e reopen)
+	         xge_hal_channel_attr_t *attr,
+	         xge_hal_channel_h *channelh,
+	         xge_hal_channel_reopen_e reopen)
 {
 	xge_list_t *item;
 	int i;
@@ -369,169 +311,98 @@ xge_hal_channel_open(xge_hal_device_h devh,
 
 	*channelh = NULL;
 
-#ifdef XGEHAL_RNIC
-	if((attr->type == XGE_HAL_CHANNEL_TYPE_FIFO) ||
-		(attr->type == XGE_HAL_CHANNEL_TYPE_RING)) {
-#endif
 	/* find channel */
-		xge_list_for_each(item, &device->free_channels) {
-			xge_hal_channel_t *tmp;
+	xge_list_for_each(item, &device->free_channels) {
+	    xge_hal_channel_t *tmp;
 
-			tmp = xge_container_of(item, xge_hal_channel_t, item);
-			if (tmp->type == attr->type &&
-			tmp->post_qid == attr->post_qid &&
-			tmp->compl_qid == attr->compl_qid) {
-				channel = tmp;
-				break;
-			}
-		}
-
-		if (channel == NULL) {
-			return XGE_HAL_ERR_CHANNEL_NOT_FOUND;
-		}
-
-#ifdef XGEHAL_RNIC
+	    tmp = xge_container_of(item, xge_hal_channel_t, item);
+	    if (tmp->type == attr->type &&
+	    tmp->post_qid == attr->post_qid &&
+	    tmp->compl_qid == attr->compl_qid) {
+	        channel = tmp;
+	        break;
+	    }
 	}
-	else {
-		channel = __hal_channel_allocate(devh, attr->post_qid,
-#ifdef XGEHAL_RNIC
-			attr->vp_id,
-#endif
-			attr->type);
-		if (channel == NULL) {
-			xge_debug_device(XGE_ERR,
-					"__hal_channel_allocate failed");
-			return XGE_HAL_ERR_OUT_OF_MEMORY;
-		}
-	}
-#endif
 
-#ifndef XGEHAL_RNIC
+	if (channel == NULL) {
+	    return XGE_HAL_ERR_CHANNEL_NOT_FOUND;
+	}
+
 	xge_assert((channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) ||
-		(channel->type == XGE_HAL_CHANNEL_TYPE_RING));
-#endif
+	    (channel->type == XGE_HAL_CHANNEL_TYPE_RING));
 
-#ifdef XGEHAL_RNIC
-	if((reopen == XGE_HAL_CHANNEL_OC_NORMAL) ||
-		((channel->type != XGE_HAL_CHANNEL_TYPE_FIFO) &&
-		 (channel->type != XGE_HAL_CHANNEL_TYPE_RING))) {
-#else
 	if (reopen == XGE_HAL_CHANNEL_OC_NORMAL) {
-#endif
-		/* allocate memory, initialize pointers, etc */
-		switch(channel->type) {
-			case XGE_HAL_CHANNEL_TYPE_FIFO:
-				status = __hal_fifo_open(channel, attr);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_RING:
-				status = __hal_ring_open(channel, attr);
-				break;
-#ifdef XGEHAL_RNIC
-			case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-				status = __hal_sq_open(channel, attr);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-				status = __hal_srq_open(channel, attr);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-				status = __hal_cqrq_open(channel, attr);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-				status = __hal_umq_open(channel, attr);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-				status = __hal_dmq_open(channel, attr);
-				break;
-#else
-			case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-				status = XGE_HAL_FAIL;
-				break;
-#endif
-			default:
-				break;
-		}
+	    /* allocate memory, initialize pointers, etc */
+	    switch(channel->type) {
+	        case XGE_HAL_CHANNEL_TYPE_FIFO:
+	            status = __hal_fifo_open(channel, attr);
+	            break;
+	        case XGE_HAL_CHANNEL_TYPE_RING:
+	            status = __hal_ring_open(channel, attr);
+	            break;
+	        case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
+	            status = XGE_HAL_FAIL;
+	            break;
+	        default:
+	            break;
+	    }
 
-		if (status == XGE_HAL_OK) {
-			for (i = 0; i < channel->reserve_initial; i++) {
-				channel->orig_arr[i] =
-					channel->reserve_arr[i];
-			}
-		}
-		else
-			return status;
+	    if (status == XGE_HAL_OK) {
+	        for (i = 0; i < channel->reserve_initial; i++) {
+	            channel->orig_arr[i] =
+	                channel->reserve_arr[i];
+	        }
+	    }
+	    else
+	        return status;
 	} else {
 	        xge_assert(reopen == XGE_HAL_CHANNEL_RESET_ONLY);
 
-		for (i = 0; i < channel->reserve_initial; i++) {
-			channel->reserve_arr[i] = channel->orig_arr[i];
-			channel->free_arr[i] = NULL;
-		}
-		channel->free_length = channel->reserve_initial;
-		channel->reserve_length = channel->reserve_initial;
-		channel->reserve_top = 0;
-		channel->post_index = 0;
-		channel->compl_index = 0;
-                if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
-			status = __hal_ring_initial_replenish(channel,
-							      reopen);
-                        if (status != XGE_HAL_OK)
-                                return status;
-		}
+	    for (i = 0; i < channel->reserve_initial; i++) {
+	        channel->reserve_arr[i] = channel->orig_arr[i];
+	        channel->free_arr[i] = NULL;
+	    }
+	    channel->free_length = channel->reserve_initial;
+	    channel->reserve_length = channel->reserve_initial;
+	    channel->reserve_top = 0;
+	    channel->post_index = 0;
+	    channel->compl_index = 0;
+	            if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
+	        status = __hal_ring_initial_replenish(channel,
+	                              reopen);
+	                    if (status != XGE_HAL_OK)
+	                            return status;
+	    }
 	}
 
 	/* move channel to the open state list */
 
 	switch(channel->type) {
-		case XGE_HAL_CHANNEL_TYPE_FIFO:
-			xge_list_remove(&channel->item);
-			xge_list_insert(&channel->item, &device->fifo_channels);
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RING:
-			xge_list_remove(&channel->item);
-			xge_list_insert(&channel->item, &device->ring_channels);
-			break;
-#ifdef XGEHAL_RNIC
-		case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-			xge_list_insert(&channel->item,
-				&device->virtual_paths[attr->vp_id].sq_channels);
-			device->virtual_paths[attr->vp_id].stats.no_sqs++;
-			break;
-		case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-			xge_list_insert(&channel->item,
-				&device->virtual_paths[attr->vp_id].srq_channels);
-			device->virtual_paths[attr->vp_id].stats.no_srqs++;
-			break;
-		case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-			xge_list_insert(&channel->item,
-				&device->virtual_paths[attr->vp_id].cqrq_channels);
-			device->virtual_paths[attr->vp_id].stats.no_cqrqs++;
-			break;
-		case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-			xge_list_init(&channel->item);
-			device->virtual_paths[attr->vp_id].umq_channelh = channel;
-			break;
-		case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-			xge_list_init(&channel->item);
-			device->virtual_paths[attr->vp_id].dmq_channelh = channel;
-			break;
-#else
-		case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-		case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-			xge_assert(channel->type == XGE_HAL_CHANNEL_TYPE_FIFO ||
-				   channel->type == XGE_HAL_CHANNEL_TYPE_RING);
-			break;
-#endif
-		default:
-			break;
+	    case XGE_HAL_CHANNEL_TYPE_FIFO:
+	        xge_list_remove(&channel->item);
+	        xge_list_insert(&channel->item, &device->fifo_channels);
+	        break;
+	    case XGE_HAL_CHANNEL_TYPE_RING:
+	        xge_list_remove(&channel->item);
+	        xge_list_insert(&channel->item, &device->ring_channels);
+	        break;
+	    case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
+	    case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
+	        xge_assert(channel->type == XGE_HAL_CHANNEL_TYPE_FIFO ||
+	               channel->type == XGE_HAL_CHANNEL_TYPE_RING);
+	        break;
+	    default:
+	        break;
 	}
 	channel->is_open = 1;
+	channel->terminating = 0;
 	/*
 	 * The magic check the argument validity, has to be
 	 * removed before 03/01/2005.
@@ -556,7 +427,7 @@ xge_hal_channel_open(xge_hal_device_h devh,
  * See also: xge_hal_channel_dtr_term_f{}.
  */
 void xge_hal_channel_abort(xge_hal_channel_h channelh,
-                           xge_hal_channel_reopen_e reopen)
+	                       xge_hal_channel_reopen_e reopen)
 {
 	xge_hal_channel_t *channel = (xge_hal_channel_t *)channelh;
 	xge_hal_dtr_h dtr;
@@ -567,25 +438,25 @@ void xge_hal_channel_abort(xge_hal_channel_h channelh,
 	int reserve_top_sav;
 
 	if (channel->dtr_term == NULL) {
-		return;
+	    return;
 	}
 
 	free_length_sav = channel->free_length;
 	while (__hal_channel_dtr_next_freelist(channelh, &dtr) == XGE_HAL_OK) {
 #ifdef XGE_OS_MEMORY_CHECK
 #ifdef XGE_DEBUG_ASSERT
-		if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-		    xge_assert(!__hal_fifo_txdl_priv(dtr)->allocated);
-		} else {
-		    if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
-			    xge_assert(!__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)->allocated);
-		    }
-		}
+	    if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
+	        xge_assert(!__hal_fifo_txdl_priv(dtr)->allocated);
+	    } else {
+	        if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
+	            xge_assert(!__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)->allocated);
+	        }
+	    }
 #endif
-		check_cnt++;
+	    check_cnt++;
 #endif
-		channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_FREED,
-				  channel->userdata, reopen);
+	    channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_FREED,
+	              channel->userdata, reopen);
 	}
 	channel->free_length = free_length_sav;
 
@@ -593,44 +464,44 @@ void xge_hal_channel_abort(xge_hal_channel_h channelh,
 	       XGE_HAL_OK) {
 #ifdef XGE_OS_MEMORY_CHECK
 #ifdef XGE_DEBUG_ASSERT
-		if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-			xge_assert(__hal_fifo_txdl_priv(dtr)->allocated);
-		} else {
-		    if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
-			xge_assert(__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)
-				   ->allocated);
-		    }
-		}
+	    if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
+	        xge_assert(__hal_fifo_txdl_priv(dtr)->allocated);
+	    } else {
+	        if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
+	        xge_assert(__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)
+	               ->allocated);
+	        }
+	    }
 #endif
-		check_cnt++;
+	    check_cnt++;
 #endif
-		channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_POSTED,
-				  channel->userdata, reopen);
+	    channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_POSTED,
+	              channel->userdata, reopen);
 
 	}
 
 	reserve_top_sav = channel->reserve_top;
 	while (__hal_channel_dtr_next_reservelist(channelh, &dtr) ==
-							XGE_HAL_OK) {
+	                        XGE_HAL_OK) {
 #ifdef XGE_OS_MEMORY_CHECK
 #ifdef XGE_DEBUG_ASSERT
-		if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-		    xge_assert(!__hal_fifo_txdl_priv(dtr)->allocated);
-		} else {
-		    if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
-			xge_assert(!__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)->allocated);
-		    }
-		}
+	    if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
+	        xge_assert(!__hal_fifo_txdl_priv(dtr)->allocated);
+	    } else {
+	        if (channel->type == XGE_HAL_CHANNEL_TYPE_RING) {
+	        xge_assert(!__hal_ring_rxd_priv((xge_hal_ring_t * ) channelh, dtr)->allocated);
+	        }
+	    }
 #endif
-		check_cnt++;
+	    check_cnt++;
 #endif
-		channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_AVAIL,
-				  channel->userdata, reopen);
+	    channel->dtr_term(channel, dtr, XGE_HAL_DTR_STATE_AVAIL,
+	              channel->userdata, reopen);
 	}
 	channel->reserve_top = reserve_top_sav;
 
 	xge_assert(channel->reserve_length ==
-                (channel->free_length + channel->reserve_top));
+	            (channel->free_length + channel->reserve_top));
 
 #ifdef XGE_OS_MEMORY_CHECK
 	xge_assert(check_cnt == channel->reserve_initial);
@@ -649,14 +520,11 @@ void xge_hal_channel_abort(xge_hal_channel_h channelh,
  * safe context.
  */
 void xge_hal_channel_close(xge_hal_channel_h channelh,
-                           xge_hal_channel_reopen_e reopen)
+	                       xge_hal_channel_reopen_e reopen)
 {
 	xge_hal_channel_t *channel = (xge_hal_channel_t *)channelh;
 	xge_hal_device_t *hldev;
 	xge_list_t *item;
-#ifdef XGEHAL_RNIC
-	u32 vp_id;
-#endif
 	xge_assert(channel);
 	xge_assert(channel->type < XGE_HAL_CHANNEL_TYPE_MAX);
 
@@ -664,96 +532,53 @@ void xge_hal_channel_close(xge_hal_channel_h channelh,
 	channel->is_open = 0;
 	channel->magic = XGE_HAL_DEAD;
 
-#ifdef XGEHAL_RNIC
-	vp_id = channel->vp_id;
+	/* sanity check: make sure channel is not in free list */
+	xge_list_for_each(item, &hldev->free_channels) {
+	    xge_hal_channel_t *tmp;
 
-	if((channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) ||
-		(channel->type == XGE_HAL_CHANNEL_TYPE_RING)) {
-#endif
-		/* sanity check: make sure channel is not in free list */
-		xge_list_for_each(item, &hldev->free_channels) {
-			xge_hal_channel_t *tmp;
-
-			tmp = xge_container_of(item, xge_hal_channel_t, item);
-			xge_assert(!tmp->is_open);
-			if (channel == tmp) {
-				return;
-			}
-		}
-#ifdef XGEHAL_RNIC
+	    tmp = xge_container_of(item, xge_hal_channel_t, item);
+	    xge_assert(!tmp->is_open);
+	    if (channel == tmp) {
+	        return;
+	    }
 	}
-#endif
 
 	xge_hal_channel_abort(channel, reopen);
 
-#ifndef XGEHAL_RNIC
 	xge_assert((channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) ||
-		   (channel->type == XGE_HAL_CHANNEL_TYPE_RING));
-#endif
+	       (channel->type == XGE_HAL_CHANNEL_TYPE_RING));
 
 	if (reopen == XGE_HAL_CHANNEL_OC_NORMAL) {
-		/* de-allocate */
-		switch(channel->type) {
-			case XGE_HAL_CHANNEL_TYPE_FIFO:
-				__hal_fifo_close(channelh);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_RING:
-				__hal_ring_close(channelh);
-				break;
-#ifdef XGEHAL_RNIC
-			case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-				__hal_sq_close(channelh);
-				hldev->virtual_paths[vp_id].stats.no_sqs--;
-				break;
-			case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-				__hal_srq_close(channelh);
-				hldev->virtual_paths[vp_id].stats.no_srqs--;
-				break;
-			case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-				__hal_cqrq_close(channelh);
-				hldev->virtual_paths[vp_id].stats.no_cqrqs--;
-				break;
-			case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-				__hal_umq_close(channelh);
-				break;
-			case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-				__hal_dmq_close(channelh);
-				break;
-#else
-			case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
-			case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
-				xge_assert(channel->type == XGE_HAL_CHANNEL_TYPE_FIFO ||
-					   channel->type == XGE_HAL_CHANNEL_TYPE_RING);
-				break;
-#endif
-			default:
-				break;
-		}
+	    /* de-allocate */
+	    switch(channel->type) {
+	        case XGE_HAL_CHANNEL_TYPE_FIFO:
+	            __hal_fifo_close(channelh);
+	            break;
+	        case XGE_HAL_CHANNEL_TYPE_RING:
+	            __hal_ring_close(channelh);
+	            break;
+	        case XGE_HAL_CHANNEL_TYPE_SEND_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_RECEIVE_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_COMPLETION_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_UP_MESSAGE_QUEUE:
+	        case XGE_HAL_CHANNEL_TYPE_DOWN_MESSAGE_QUEUE:
+	            xge_assert(channel->type == XGE_HAL_CHANNEL_TYPE_FIFO ||
+	                   channel->type == XGE_HAL_CHANNEL_TYPE_RING);
+	            break;
+	        default:
+	            break;
+	    }
 	}
 	else
 	        xge_assert(reopen == XGE_HAL_CHANNEL_RESET_ONLY);
 
 	/* move channel back to free state list */
 	xge_list_remove(&channel->item);
-#ifdef XGEHAL_RNIC
-	if((channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) ||
-	   (channel->type == XGE_HAL_CHANNEL_TYPE_RING)) {
-#endif
-		xge_list_insert(&channel->item, &hldev->free_channels);
+	xge_list_insert(&channel->item, &hldev->free_channels);
 
-		if (xge_list_is_empty(&hldev->fifo_channels) &&
-			xge_list_is_empty(&hldev->ring_channels)) {
-			/* clear msix_idx in case of following HW reset */
-			hldev->reset_needed_after_close = 1;
-		}
-#ifdef XGEHAL_RNIC
+	if (xge_list_is_empty(&hldev->fifo_channels) &&
+	    xge_list_is_empty(&hldev->ring_channels)) {
+	    /* clear msix_idx in case of following HW reset */
+	    hldev->reset_needed_after_close = 1;
 	}
-	else {
-		__hal_channel_free(channel);
-	}
-#endif
-
 }

@@ -26,16 +26,10 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-regs.h
- *
- *  Description:  Xframe mem-mapped register space
- *
- *  Created:      14 May 2004
- */
-
 #ifndef XGE_HAL_REGS_H
 #define XGE_HAL_REGS_H
+
+__EXTERN_BEGIN_DECLS
 
 typedef struct {
 
@@ -53,14 +47,14 @@ typedef struct {
 #define XGE_HAL_GEN_INTR_RXXGXS            BIT(36)
 #define XGE_HAL_GEN_INTR_RXTRAFFIC         BIT(40)
 #define XGE_HAL_GEN_ERROR_INTR             (XGE_HAL_GEN_INTR_TXPIC  | \
-					 XGE_HAL_GEN_INTR_RXPIC  | \
-					 XGE_HAL_GEN_INTR_TXDMA  | \
-					 XGE_HAL_GEN_INTR_RXDMA  | \
-					 XGE_HAL_GEN_INTR_TXMAC  | \
-					 XGE_HAL_GEN_INTR_RXMAC  | \
-					 XGE_HAL_GEN_INTR_TXXGXS | \
-					 XGE_HAL_GEN_INTR_RXXGXS | \
-					 XGE_HAL_GEN_INTR_MC)
+	                 XGE_HAL_GEN_INTR_RXPIC  | \
+	                 XGE_HAL_GEN_INTR_TXDMA  | \
+	                 XGE_HAL_GEN_INTR_RXDMA  | \
+	                 XGE_HAL_GEN_INTR_TXMAC  | \
+	                 XGE_HAL_GEN_INTR_RXMAC  | \
+	                 XGE_HAL_GEN_INTR_TXXGXS | \
+	                 XGE_HAL_GEN_INTR_RXXGXS | \
+	                 XGE_HAL_GEN_INTR_MC)
 
 	u64 general_int_mask;
 
@@ -74,17 +68,17 @@ typedef struct {
 #define XGE_HAL_SW_RESET_EOI               vBIT(0xA5,16,8)
 #define XGE_HAL_SW_RESET_XGXS              vBIT(0xA5,24,8)
 #define XGE_HAL_SW_RESET_ALL               (XGE_HAL_SW_RESET_XENA  | \
-					    XGE_HAL_SW_RESET_FLASH | \
-					    XGE_HAL_SW_RESET_EOI | \
-					    XGE_HAL_SW_RESET_XGXS)
+	                    XGE_HAL_SW_RESET_FLASH | \
+	                    XGE_HAL_SW_RESET_EOI | \
+	                    XGE_HAL_SW_RESET_XGXS)
 
 /* The SW_RESET register must read this value after a successful reset. */
 #if defined(XGE_OS_HOST_BIG_ENDIAN) && !defined(XGE_OS_PIO_LITTLE_ENDIAN)
-#define XGE_HAL_SW_RESET_RAW_VAL_XENA			0xA500000000ULL
-#define XGE_HAL_SW_RESET_RAW_VAL_HERC			0xA5A500000000ULL
+#define XGE_HAL_SW_RESET_RAW_VAL_XENA           0xA500000000ULL
+#define XGE_HAL_SW_RESET_RAW_VAL_HERC           0xA5A500000000ULL
 #else
-#define XGE_HAL_SW_RESET_RAW_VAL_XENA			0xA5000000ULL
-#define XGE_HAL_SW_RESET_RAW_VAL_HERC			0xA5A50000ULL
+#define XGE_HAL_SW_RESET_RAW_VAL_XENA           0xA5000000ULL
+#define XGE_HAL_SW_RESET_RAW_VAL_HERC           0xA5A50000ULL
 #endif
 
 
@@ -115,22 +109,22 @@ typedef struct {
 #define XGE_HAL_ADAPTER_ECC_EN                     BIT(55)
 
 	u64 serr_source;
-#define XGE_HAL_SERR_SOURCE_PIC	                BIT(0)
+#define XGE_HAL_SERR_SOURCE_PIC                 BIT(0)
 #define XGE_HAL_SERR_SOURCE_TXDMA               BIT(1)
 #define XGE_HAL_SERR_SOURCE_RXDMA               BIT(2)
-#define XGE_HAL_SERR_SOURCE_MAC			BIT(3)
-#define XGE_HAL_SERR_SOURCE_MC			BIT(4)
-#define XGE_HAL_SERR_SOURCE_XGXS			 BIT(5)
-#define XGE_HAL_SERR_SOURCE_ANY		(XGE_HAL_SERR_SOURCE_PIC   | \
-					 XGE_HAL_SERR_SOURCE_TXDMA | \
-					 XGE_HAL_SERR_SOURCE_RXDMA | \
-					 XGE_HAL_SERR_SOURCE_MAC   | \
-					 XGE_HAL_SERR_SOURCE_MC    | \
-					 XGE_HAL_SERR_SOURCE_XGXS)
+#define XGE_HAL_SERR_SOURCE_MAC         BIT(3)
+#define XGE_HAL_SERR_SOURCE_MC          BIT(4)
+#define XGE_HAL_SERR_SOURCE_XGXS             BIT(5)
+#define XGE_HAL_SERR_SOURCE_ANY     (XGE_HAL_SERR_SOURCE_PIC   | \
+	                 XGE_HAL_SERR_SOURCE_TXDMA | \
+	                 XGE_HAL_SERR_SOURCE_RXDMA | \
+	                 XGE_HAL_SERR_SOURCE_MAC   | \
+	                 XGE_HAL_SERR_SOURCE_MC    | \
+	                 XGE_HAL_SERR_SOURCE_XGXS)
 
-	u64	pci_info;
-#define XGE_HAL_PCI_INFO			vBIT(0xF,0,4)
-#define XGE_HAL_PCI_32_BIT			BIT(8)
+	u64 pci_info;
+#define XGE_HAL_PCI_INFO            vBIT(0xF,0,4)
+#define XGE_HAL_PCI_32_BIT          BIT(8)
 
 	u8 unused0_1[0x160 - 0x128];
  
@@ -206,9 +200,9 @@ typedef struct {
 	u64 msi_pending_reg;
 
 	u64 misc_int_reg;
-#define XGE_HAL_MISC_INT_REG_DP_ERR_INT			BIT(0)
-#define XGE_HAL_MISC_INT_REG_LINK_DOWN_INT		BIT(1)
-#define XGE_HAL_MISC_INT_REG_LINK_UP_INT		BIT(2)
+#define XGE_HAL_MISC_INT_REG_DP_ERR_INT         BIT(0)
+#define XGE_HAL_MISC_INT_REG_LINK_DOWN_INT      BIT(1)
+#define XGE_HAL_MISC_INT_REG_LINK_UP_INT        BIT(2)
 	u64 misc_int_mask;
 	u64 misc_alarms;
 
@@ -266,14 +260,14 @@ typedef struct {
 	u64 scheduled_int_ctrl;
 #define XGE_HAL_SCHED_INT_CTRL_TIMER_EN                BIT(0)
 #define XGE_HAL_SCHED_INT_CTRL_ONE_SHOT                BIT(1)
-#define XGE_HAL_SCHED_INT_CTRL_INT2MSI(val)	     vBIT(val,10,6)
-#define XGE_HAL_SCHED_INT_PERIOD(val)		     vBIT(val,32,32)
-#define XGE_HAL_SCHED_INT_PERIOD_MASK		     0xFFFFFFFF00000000ULL
+#define XGE_HAL_SCHED_INT_CTRL_INT2MSI(val)      vBIT(val,10,6)
+#define XGE_HAL_SCHED_INT_PERIOD(val)            vBIT(val,32,32)
+#define XGE_HAL_SCHED_INT_PERIOD_MASK            0xFFFFFFFF00000000ULL
 
 
 	u64 txreqtimeout;
-#define XGE_HAL_TXREQTO_VAL(val)		vBIT(val,0,32)
-#define XGE_HAL_TXREQTO_EN			BIT(63)
+#define XGE_HAL_TXREQTO_VAL(val)        vBIT(val,0,32)
+#define XGE_HAL_TXREQTO_EN          BIT(63)
 
 	u64 statsreqtimeout;
 #define XGE_HAL_STATREQTO_VAL(n)                  TBD
@@ -285,25 +279,25 @@ typedef struct {
 	u64 write_retry_acceleration;
 
 	u64 xmsi_control;
-#define XGE_HAL_XMSI_EN				BIT(0)
-#define XGE_HAL_XMSI_DIS_TINT_SERR		BIT(1)
-#define XGE_HAL_XMSI_BYTE_COUNT(val)		vBIT(val,13,3)
+#define XGE_HAL_XMSI_EN             BIT(0)
+#define XGE_HAL_XMSI_DIS_TINT_SERR      BIT(1)
+#define XGE_HAL_XMSI_BYTE_COUNT(val)        vBIT(val,13,3)
 
 	u64 xmsi_access;
-#define XGE_HAL_XMSI_WR_RDN			BIT(7)
-#define XGE_HAL_XMSI_STROBE			BIT(15)
-#define XGE_HAL_XMSI_NO(val)			vBIT(val,26,6)
+#define XGE_HAL_XMSI_WR_RDN         BIT(7)
+#define XGE_HAL_XMSI_STROBE         BIT(15)
+#define XGE_HAL_XMSI_NO(val)            vBIT(val,26,6)
 
 	u64 xmsi_address;
 	u64 xmsi_data;
 
 	u64 rx_mat;
-#define XGE_HAL_SET_RX_MAT(ring, msi)	vBIT(msi, (8 * ring), 8)
+#define XGE_HAL_SET_RX_MAT(ring, msi)   vBIT(msi, (8 * ring), 8)
 
 	u8 unused6[0x8];
 
 	u64 tx_mat[8];
-#define XGE_HAL_SET_TX_MAT(fifo, msi)	vBIT(msi, (8 * fifo), 8)
+#define XGE_HAL_SET_TX_MAT(fifo, msi)   vBIT(msi, (8 * fifo), 8)
 
 	u64 xmsi_mask_reg;
 
@@ -314,64 +308,64 @@ typedef struct {
 #define XGE_HAL_STAT_CFG_ONE_SHOT_EN       BIT(1)
 #define XGE_HAL_STAT_CFG_STAT_NS_EN        BIT(8)
 #define XGE_HAL_STAT_CFG_STAT_RO           BIT(9)
-#define XGE_HAL_XENA_PER_SEC	           0x208d5
-#define XGE_HAL_SET_UPDT_PERIOD(n)	   vBIT(n,32,32)
+#define XGE_HAL_XENA_PER_SEC               0x208d5
+#define XGE_HAL_SET_UPDT_PERIOD(n)     vBIT(n,32,32)
 
 	u64 stat_addr;
 
 	/* General Configuration */
 	u64 mdio_control;
-#define XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(n)	vBIT(n,0,16)
-#define XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(n)	vBIT(n,19,5)
-#define XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(n)	vBIT(n,27,5)
-#define XGE_HAL_MDIO_CONTROL_MMD_DATA(n)	vBIT(n,32,16)
-#define XGE_HAL_MDIO_CONTROL_MMD_CTRL(n)	vBIT(n,56,4)
-#define XGE_HAL_MDIO_CONTROL_MMD_OP(n)		vBIT(n,60,2)
-#define XGE_HAL_MDIO_CONTROL_MMD_DATA_GET(n)	((n>>16)&0xFFFF)
-#define XGE_HAL_MDIO_MMD_PMA_DEV_ADDR		0x01
-#define XGE_HAL_MDIO_DOM_REG_ADDR		0xA100
-#define XGE_HAL_MDIO_ALARM_FLAGS_ADDR		0xA070
-#define XGE_HAL_MDIO_WARN_FLAGS_ADDR		0xA074
-#define XGE_HAL_MDIO_CTRL_START			0xE
-#define XGE_HAL_MDIO_OP_ADDRESS			0x0
-#define XGE_HAL_MDIO_OP_WRITE			0x1
-#define XGE_HAL_MDIO_OP_READ			0x3
-#define XGE_HAL_MDIO_OP_READ_POST_INCREMENT	0x2
-#define XGE_HAL_MDIO_ALARM_TEMPHIGH		0x0080
-#define XGE_HAL_MDIO_ALARM_TEMPLOW		0x0040
-#define XGE_HAL_MDIO_ALARM_BIASHIGH		0x0008
-#define XGE_HAL_MDIO_ALARM_BIASLOW		0x0004
-#define XGE_HAL_MDIO_ALARM_POUTPUTHIGH		0x0002
-#define XGE_HAL_MDIO_ALARM_POUTPUTLOW		0x0001
-#define XGE_HAL_MDIO_WARN_TEMPHIGH		0x0080
-#define XGE_HAL_MDIO_WARN_TEMPLOW		0x0040
-#define XGE_HAL_MDIO_WARN_BIASHIGH		0x0008
-#define XGE_HAL_MDIO_WARN_BIASLOW		0x0004
-#define XGE_HAL_MDIO_WARN_POUTPUTHIGH		0x0002
-#define XGE_HAL_MDIO_WARN_POUTPUTLOW		0x0001
+#define XGE_HAL_MDIO_CONTROL_MMD_INDX_ADDR(n)   vBIT(n,0,16)
+#define XGE_HAL_MDIO_CONTROL_MMD_DEV_ADDR(n)    vBIT(n,19,5)
+#define XGE_HAL_MDIO_CONTROL_MMD_PRT_ADDR(n)    vBIT(n,27,5)
+#define XGE_HAL_MDIO_CONTROL_MMD_DATA(n)    vBIT(n,32,16)
+#define XGE_HAL_MDIO_CONTROL_MMD_CTRL(n)    vBIT(n,56,4)
+#define XGE_HAL_MDIO_CONTROL_MMD_OP(n)      vBIT(n,60,2)
+#define XGE_HAL_MDIO_CONTROL_MMD_DATA_GET(n)    ((n>>16)&0xFFFF)
+#define XGE_HAL_MDIO_MMD_PMA_DEV_ADDR       0x01
+#define XGE_HAL_MDIO_DOM_REG_ADDR       0xA100
+#define XGE_HAL_MDIO_ALARM_FLAGS_ADDR       0xA070
+#define XGE_HAL_MDIO_WARN_FLAGS_ADDR        0xA074
+#define XGE_HAL_MDIO_CTRL_START         0xE
+#define XGE_HAL_MDIO_OP_ADDRESS         0x0
+#define XGE_HAL_MDIO_OP_WRITE           0x1
+#define XGE_HAL_MDIO_OP_READ            0x3
+#define XGE_HAL_MDIO_OP_READ_POST_INCREMENT 0x2
+#define XGE_HAL_MDIO_ALARM_TEMPHIGH     0x0080
+#define XGE_HAL_MDIO_ALARM_TEMPLOW      0x0040
+#define XGE_HAL_MDIO_ALARM_BIASHIGH     0x0008
+#define XGE_HAL_MDIO_ALARM_BIASLOW      0x0004
+#define XGE_HAL_MDIO_ALARM_POUTPUTHIGH      0x0002
+#define XGE_HAL_MDIO_ALARM_POUTPUTLOW       0x0001
+#define XGE_HAL_MDIO_WARN_TEMPHIGH      0x0080
+#define XGE_HAL_MDIO_WARN_TEMPLOW       0x0040
+#define XGE_HAL_MDIO_WARN_BIASHIGH      0x0008
+#define XGE_HAL_MDIO_WARN_BIASLOW       0x0004
+#define XGE_HAL_MDIO_WARN_POUTPUTHIGH       0x0002
+#define XGE_HAL_MDIO_WARN_POUTPUTLOW        0x0001
 
 	u64 dtx_control;
 
 	u64 i2c_control;
-#define XGE_HAL_I2C_CONTROL_DEV_ID(id)		vBIT(id,1,3)
-#define XGE_HAL_I2C_CONTROL_ADDR(addr)		vBIT(addr,5,11)
-#define XGE_HAL_I2C_CONTROL_BYTE_CNT(cnt)	vBIT(cnt,22,2)
-#define XGE_HAL_I2C_CONTROL_READ		BIT(24)
-#define XGE_HAL_I2C_CONTROL_NACK		BIT(25)
-#define XGE_HAL_I2C_CONTROL_CNTL_START		vBIT(0xE,28,4)
-#define XGE_HAL_I2C_CONTROL_CNTL_END(val)	(val & vBIT(0x1,28,4))
-#define XGE_HAL_I2C_CONTROL_GET_DATA(val)	(u32)(val & 0xFFFFFFFF)
-#define XGE_HAL_I2C_CONTROL_SET_DATA(val)	vBIT(val,32,32)
+#define XGE_HAL_I2C_CONTROL_DEV_ID(id)      vBIT(id,1,3)
+#define XGE_HAL_I2C_CONTROL_ADDR(addr)      vBIT(addr,5,11)
+#define XGE_HAL_I2C_CONTROL_BYTE_CNT(cnt)   vBIT(cnt,22,2)
+#define XGE_HAL_I2C_CONTROL_READ        BIT(24)
+#define XGE_HAL_I2C_CONTROL_NACK        BIT(25)
+#define XGE_HAL_I2C_CONTROL_CNTL_START      vBIT(0xE,28,4)
+#define XGE_HAL_I2C_CONTROL_CNTL_END(val)   (val & vBIT(0x1,28,4))
+#define XGE_HAL_I2C_CONTROL_GET_DATA(val)   (u32)(val & 0xFFFFFFFF)
+#define XGE_HAL_I2C_CONTROL_SET_DATA(val)   vBIT(val,32,32)
 
 	u64 beacon_control;
 	u64 misc_control;
-#define XGE_HAL_MISC_CONTROL_LINK_STABILITY_PERIOD(val)	vBIT(val,29,3)
+#define XGE_HAL_MISC_CONTROL_LINK_STABILITY_PERIOD(val) vBIT(val,29,3)
 #define XGE_HAL_MISC_CONTROL_EXT_REQ_EN     BIT(1)
-#define XGE_HAL_MISC_CONTROL_LINK_FAULT		BIT(0)
+#define XGE_HAL_MISC_CONTROL_LINK_FAULT     BIT(0)
 
 	u64 xfb_control;
 	u64 gpio_control;
-#define XGE_HAL_GPIO_CTRL_GPIO_0           	BIT(8)
+#define XGE_HAL_GPIO_CTRL_GPIO_0            BIT(8)
 
 	u64 txfifo_dw_mask;
 	u64 split_table_line_no;
@@ -387,17 +381,17 @@ typedef struct {
 	u64 txp_status;
 	u64 txp_err_context;
 	u64 spdm_bir_offset;
-#define XGE_HAL_SPDM_PCI_BAR_NUM(spdm_bir_offset)	\
-				(u8)(spdm_bir_offset >> 61)
+#define XGE_HAL_SPDM_PCI_BAR_NUM(spdm_bir_offset)   \
+	            (u8)(spdm_bir_offset >> 61)
 #define XGE_HAL_SPDM_PCI_BAR_OFFSET(spdm_bir_offset) \
-				(u32)((spdm_bir_offset >> 32) & 0x1FFFFFFF)
+	            (u32)((spdm_bir_offset >> 32) & 0x1FFFFFFF)
 	u64 spdm_overwrite;
 #define XGE_HAL_SPDM_OVERWRITE_ERR_SPDM_ENTRY(spdm_overwrite)  \
-				(u8)((spdm_overwrite >> 48) & 0xff)
+	            (u8)((spdm_overwrite >> 48) & 0xff)
 #define XGE_HAL_SPDM_OVERWRITE_ERR_SPDM_DW(spdm_overwrite)  \
-				(u8)((spdm_overwrite >> 40) & 0x3)
+	            (u8)((spdm_overwrite >> 40) & 0x3)
 #define XGE_HAL_SPDM_OVERWRITE_ERR_SPDM_LINE(spdm_overwrite)  \
-				(u8)((spdm_overwrite >> 32) & 0x7)
+	            (u8)((spdm_overwrite >> 32) & 0x7)
 	u64 cfg_addr_on_dperr;
 	u64 pif_addr_on_dperr;
 	u64 tags_in_use;
@@ -409,9 +403,9 @@ typedef struct {
 	u64 spdm_structure;
 #define XGE_HAL_SPDM_MAX_ENTRIES(spdm_structure)  (u16)(spdm_structure >> 48)
 #define XGE_HAL_SPDM_INT_QW_PER_ENTRY(spdm_structure)  \
-				(u8)((spdm_structure >> 40) & 0xff)
+	            (u8)((spdm_structure >> 40) & 0xff)
 #define XGE_HAL_SPDM_PCI_QW_PER_ENTRY(spdm_structure)  \
-				(u8)((spdm_structure >> 32) & 0xff)
+	            (u8)((spdm_structure >> 32) & 0xff)
 
 	u64 txdw_ptr_cnt_0;
 	u64 txdw_ptr_cnt_1;
@@ -435,73 +429,73 @@ typedef struct {
 /* TxDMA registers */
 	u64 txdma_int_status;
 	u64 txdma_int_mask;
-#define XGE_HAL_TXDMA_PFC_INT			BIT(0)
-#define XGE_HAL_TXDMA_TDA_INT			BIT(1)
-#define XGE_HAL_TXDMA_PCC_INT			BIT(2)
-#define XGE_HAL_TXDMA_TTI_INT			BIT(3)
-#define XGE_HAL_TXDMA_LSO_INT			BIT(4)
-#define XGE_HAL_TXDMA_TPA_INT			BIT(5)
-#define XGE_HAL_TXDMA_SM_INT			BIT(6)
+#define XGE_HAL_TXDMA_PFC_INT           BIT(0)
+#define XGE_HAL_TXDMA_TDA_INT           BIT(1)
+#define XGE_HAL_TXDMA_PCC_INT           BIT(2)
+#define XGE_HAL_TXDMA_TTI_INT           BIT(3)
+#define XGE_HAL_TXDMA_LSO_INT           BIT(4)
+#define XGE_HAL_TXDMA_TPA_INT           BIT(5)
+#define XGE_HAL_TXDMA_SM_INT            BIT(6)
 	u64 pfc_err_reg;
-#define XGE_HAL_PFC_ECC_SG_ERR			BIT(7)
-#define XGE_HAL_PFC_ECC_DB_ERR			BIT(15)
-#define XGE_HAL_PFC_SM_ERR_ALARM		BIT(23)
-#define XGE_HAL_PFC_MISC_0_ERR			BIT(31)
-#define XGE_HAL_PFC_MISC_1_ERR			BIT(32)
-#define XGE_HAL_PFC_PCIX_ERR			BIT(39)
+#define XGE_HAL_PFC_ECC_SG_ERR          BIT(7)
+#define XGE_HAL_PFC_ECC_DB_ERR          BIT(15)
+#define XGE_HAL_PFC_SM_ERR_ALARM        BIT(23)
+#define XGE_HAL_PFC_MISC_0_ERR          BIT(31)
+#define XGE_HAL_PFC_MISC_1_ERR          BIT(32)
+#define XGE_HAL_PFC_PCIX_ERR            BIT(39)
 	u64 pfc_err_mask;
 	u64 pfc_err_alarm;
 
 	u64 tda_err_reg;
-#define XGE_HAL_TDA_Fn_ECC_SG_ERR		vBIT(0xff,0,8)
-#define XGE_HAL_TDA_Fn_ECC_DB_ERR		vBIT(0xff,8,8)
-#define XGE_HAL_TDA_SM0_ERR_ALARM		BIT(22)
-#define XGE_HAL_TDA_SM1_ERR_ALARM		BIT(23)
-#define XGE_HAL_TDA_PCIX_ERR			BIT(39)
+#define XGE_HAL_TDA_Fn_ECC_SG_ERR       vBIT(0xff,0,8)
+#define XGE_HAL_TDA_Fn_ECC_DB_ERR       vBIT(0xff,8,8)
+#define XGE_HAL_TDA_SM0_ERR_ALARM       BIT(22)
+#define XGE_HAL_TDA_SM1_ERR_ALARM       BIT(23)
+#define XGE_HAL_TDA_PCIX_ERR            BIT(39)
 	u64 tda_err_mask;
 	u64 tda_err_alarm;
 
 	u64 pcc_err_reg;
-#define XGE_HAL_PCC_FB_ECC_SG_ERR		vBIT(0xFF,0,8)
-#define XGE_HAL_PCC_TXB_ECC_SG_ERR		vBIT(0xFF,8,8)
-#define XGE_HAL_PCC_FB_ECC_DB_ERR		vBIT(0xFF,16, 8)
-#define XGE_HAL_PCC_TXB_ECC_DB_ERR		vBIT(0xff,24,8)
-#define XGE_HAL_PCC_SM_ERR_ALARM		vBIT(0xff,32,8)
-#define XGE_HAL_PCC_WR_ERR_ALARM		vBIT(0xff,40,8)
-#define XGE_HAL_PCC_N_SERR			vBIT(0xff,48,8)
-#define XGE_HAL_PCC_ENABLE_FOUR			vBIT(0x0F,0,8)
-#define XGE_HAL_PCC_6_COF_OV_ERR		BIT(56)
-#define XGE_HAL_PCC_7_COF_OV_ERR		BIT(57)
-#define XGE_HAL_PCC_6_LSO_OV_ERR		BIT(58)
-#define XGE_HAL_PCC_7_LSO_OV_ERR		BIT(59)
+#define XGE_HAL_PCC_FB_ECC_SG_ERR       vBIT(0xFF,0,8)
+#define XGE_HAL_PCC_TXB_ECC_SG_ERR      vBIT(0xFF,8,8)
+#define XGE_HAL_PCC_FB_ECC_DB_ERR       vBIT(0xFF,16, 8)
+#define XGE_HAL_PCC_TXB_ECC_DB_ERR      vBIT(0xff,24,8)
+#define XGE_HAL_PCC_SM_ERR_ALARM        vBIT(0xff,32,8)
+#define XGE_HAL_PCC_WR_ERR_ALARM        vBIT(0xff,40,8)
+#define XGE_HAL_PCC_N_SERR          vBIT(0xff,48,8)
+#define XGE_HAL_PCC_ENABLE_FOUR         vBIT(0x0F,0,8)
+#define XGE_HAL_PCC_6_COF_OV_ERR        BIT(56)
+#define XGE_HAL_PCC_7_COF_OV_ERR        BIT(57)
+#define XGE_HAL_PCC_6_LSO_OV_ERR        BIT(58)
+#define XGE_HAL_PCC_7_LSO_OV_ERR        BIT(59)
 	u64 pcc_err_mask;
 	u64 pcc_err_alarm;
 
 	u64 tti_err_reg;
-#define XGE_HAL_TTI_ECC_SG_ERR			BIT(7)
-#define XGE_HAL_TTI_ECC_DB_ERR			BIT(15)
-#define XGE_HAL_TTI_SM_ERR_ALARM		BIT(23)
+#define XGE_HAL_TTI_ECC_SG_ERR          BIT(7)
+#define XGE_HAL_TTI_ECC_DB_ERR          BIT(15)
+#define XGE_HAL_TTI_SM_ERR_ALARM        BIT(23)
 	u64 tti_err_mask;
 	u64 tti_err_alarm;
 
 	u64 lso_err_reg;
-#define XGE_HAL_LSO6_SEND_OFLOW			BIT(12)
-#define XGE_HAL_LSO7_SEND_OFLOW			BIT(13)
-#define XGE_HAL_LSO6_ABORT			BIT(14)
-#define XGE_HAL_LSO7_ABORT			BIT(15)
-#define XGE_HAL_LSO6_SM_ERR_ALARM		BIT(22)
-#define XGE_HAL_LSO7_SM_ERR_ALARM		BIT(23)
+#define XGE_HAL_LSO6_SEND_OFLOW         BIT(12)
+#define XGE_HAL_LSO7_SEND_OFLOW         BIT(13)
+#define XGE_HAL_LSO6_ABORT          BIT(14)
+#define XGE_HAL_LSO7_ABORT          BIT(15)
+#define XGE_HAL_LSO6_SM_ERR_ALARM       BIT(22)
+#define XGE_HAL_LSO7_SM_ERR_ALARM       BIT(23)
 	u64 lso_err_mask;
 	u64 lso_err_alarm;
 
 	u64 tpa_err_reg;
-#define XGE_HAL_TPA_TX_FRM_DROP			BIT(7)
-#define XGE_HAL_TPA_SM_ERR_ALARM		BIT(23)
+#define XGE_HAL_TPA_TX_FRM_DROP         BIT(7)
+#define XGE_HAL_TPA_SM_ERR_ALARM        BIT(23)
 	u64 tpa_err_mask;
 	u64 tpa_err_alarm;
 
 	u64 sm_err_reg;
-#define XGE_HAL_SM_SM_ERR_ALARM			BIT(15)
+#define XGE_HAL_SM_SM_ERR_ALARM         BIT(15)
 	u64 sm_err_mask;
 	u64 sm_err_alarm;
 
@@ -512,7 +506,7 @@ typedef struct {
 
 /* Tx FIFO controller */
 #define XGE_HAL_X_MAX_FIFOS                        8
-#define XGE_HAL_X_FIFO_MAX_LEN                     0x1FFF	/*8191 */
+#define XGE_HAL_X_FIFO_MAX_LEN                     0x1FFF   /*8191 */
 	u64 tx_fifo_partition_0;
 #define XGE_HAL_TX_FIFO_PARTITION_EN               BIT(0)
 #define XGE_HAL_TX_FIFO_PARTITION_0_PRI(val)       vBIT(val,5,3)
@@ -538,14 +532,14 @@ typedef struct {
 #define XGE_HAL_TX_FIFO_PARTITION_7_PRI(val)       vBIT(val,37,3)
 #define XGE_HAL_TX_FIFO_PARTITION_7_LEN(val)       vBIT(val,51,13)
 
-#define XGE_HAL_TX_FIFO_PARTITION_PRI_0            0	/* highest */
+#define XGE_HAL_TX_FIFO_PARTITION_PRI_0            0    /* highest */
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_1            1
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_2            2
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_3            3
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_4            4
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_5            5
 #define XGE_HAL_TX_FIFO_PARTITION_PRI_6            6
-#define XGE_HAL_TX_FIFO_PARTITION_PRI_7            7	/* lowest */
+#define XGE_HAL_TX_FIFO_PARTITION_PRI_7            7    /* lowest */
 
 	u64 tx_w_round_robin_0;
 	u64 tx_w_round_robin_1;
@@ -579,7 +573,7 @@ typedef struct {
 #define XGE_HAL_TX_PA_CFG_IGNORE_FRM_ERR           BIT(1)
 #define XGE_HAL_TX_PA_CFG_IGNORE_SNAP_OUI          BIT(2)
 #define XGE_HAL_TX_PA_CFG_IGNORE_LLC_CTRL          BIT(3)
-#define XGE_HAL_TX_PA_CFG_IGNORE_L2_ERR		 BIT(6)
+#define XGE_HAL_TX_PA_CFG_IGNORE_L2_ERR      BIT(6)
 
 /* Recent add, used only debug purposes. */
 	u64 pcc_enable;
@@ -612,52 +606,52 @@ typedef struct {
 #define XGE_HAL_RXDMA_INT_RTI_INT_M            BIT(3)
 
 	u64 rda_err_reg;
-#define XGE_HAL_RDA_RXDn_ECC_SG_ERR		vBIT(0xFF,0,8)
-#define XGE_HAL_RDA_RXDn_ECC_DB_ERR		vBIT(0xFF,8,8)
-#define XGE_HAL_RDA_FRM_ECC_SG_ERR		BIT(23)
-#define XGE_HAL_RDA_FRM_ECC_DB_N_AERR		BIT(31)
-#define XGE_HAL_RDA_SM1_ERR_ALARM		BIT(38)
-#define XGE_HAL_RDA_SM0_ERR_ALARM		BIT(39)
-#define XGE_HAL_RDA_MISC_ERR			BIT(47)
-#define XGE_HAL_RDA_PCIX_ERR			BIT(55)
-#define XGE_HAL_RDA_RXD_ECC_DB_SERR		BIT(63)
+#define XGE_HAL_RDA_RXDn_ECC_SG_ERR     vBIT(0xFF,0,8)
+#define XGE_HAL_RDA_RXDn_ECC_DB_ERR     vBIT(0xFF,8,8)
+#define XGE_HAL_RDA_FRM_ECC_SG_ERR      BIT(23)
+#define XGE_HAL_RDA_FRM_ECC_DB_N_AERR       BIT(31)
+#define XGE_HAL_RDA_SM1_ERR_ALARM       BIT(38)
+#define XGE_HAL_RDA_SM0_ERR_ALARM       BIT(39)
+#define XGE_HAL_RDA_MISC_ERR            BIT(47)
+#define XGE_HAL_RDA_PCIX_ERR            BIT(55)
+#define XGE_HAL_RDA_RXD_ECC_DB_SERR     BIT(63)
 	u64 rda_err_mask;
 	u64 rda_err_alarm;
 
 	u64 rc_err_reg;
-#define XGE_HAL_RC_PRCn_ECC_SG_ERR		vBIT(0xFF,0,8)
-#define XGE_HAL_RC_PRCn_ECC_DB_ERR		vBIT(0xFF,8,8)
-#define XGE_HAL_RC_FTC_ECC_SG_ERR		BIT(23)
-#define XGE_HAL_RC_FTC_ECC_DB_ERR		BIT(31)
-#define XGE_HAL_RC_PRCn_SM_ERR_ALARM		vBIT(0xFF,32,8)
-#define XGE_HAL_RC_FTC_SM_ERR_ALARM		BIT(47)
-#define XGE_HAL_RC_RDA_FAIL_WR_Rn		vBIT(0xFF,48,8)
+#define XGE_HAL_RC_PRCn_ECC_SG_ERR      vBIT(0xFF,0,8)
+#define XGE_HAL_RC_PRCn_ECC_DB_ERR      vBIT(0xFF,8,8)
+#define XGE_HAL_RC_FTC_ECC_SG_ERR       BIT(23)
+#define XGE_HAL_RC_FTC_ECC_DB_ERR       BIT(31)
+#define XGE_HAL_RC_PRCn_SM_ERR_ALARM        vBIT(0xFF,32,8)
+#define XGE_HAL_RC_FTC_SM_ERR_ALARM     BIT(47)
+#define XGE_HAL_RC_RDA_FAIL_WR_Rn       vBIT(0xFF,48,8)
 	u64 rc_err_mask;
 	u64 rc_err_alarm;
 
 	u64 prc_pcix_err_reg;
-#define XGE_HAL_PRC_PCI_AB_RD_Rn		vBIT(0xFF,0,8)
-#define XGE_HAL_PRC_PCI_DP_RD_Rn		vBIT(0xFF,8,8)
-#define XGE_HAL_PRC_PCI_AB_WR_Rn		vBIT(0xFF,16,8)
-#define XGE_HAL_PRC_PCI_DP_WR_Rn		vBIT(0xFF,24,8)
-#define XGE_HAL_PRC_PCI_AB_F_WR_Rn		vBIT(0xFF,32,8)
-#define XGE_HAL_PRC_PCI_DP_F_WR_Rn		vBIT(0xFF,40,8)
+#define XGE_HAL_PRC_PCI_AB_RD_Rn        vBIT(0xFF,0,8)
+#define XGE_HAL_PRC_PCI_DP_RD_Rn        vBIT(0xFF,8,8)
+#define XGE_HAL_PRC_PCI_AB_WR_Rn        vBIT(0xFF,16,8)
+#define XGE_HAL_PRC_PCI_DP_WR_Rn        vBIT(0xFF,24,8)
+#define XGE_HAL_PRC_PCI_AB_F_WR_Rn      vBIT(0xFF,32,8)
+#define XGE_HAL_PRC_PCI_DP_F_WR_Rn      vBIT(0xFF,40,8)
 	u64 prc_pcix_err_mask;
 	u64 prc_pcix_err_alarm;
 
 	u64 rpa_err_reg;
-#define XGE_HAL_RPA_ECC_SG_ERR			BIT(7)
-#define XGE_HAL_RPA_ECC_DB_ERR			BIT(15)
-#define XGE_HAL_RPA_FLUSH_REQUEST		BIT(22)
-#define XGE_HAL_RPA_SM_ERR_ALARM		BIT(23)
-#define XGE_HAL_RPA_CREDIT_ERR			BIT(31)
+#define XGE_HAL_RPA_ECC_SG_ERR          BIT(7)
+#define XGE_HAL_RPA_ECC_DB_ERR          BIT(15)
+#define XGE_HAL_RPA_FLUSH_REQUEST       BIT(22)
+#define XGE_HAL_RPA_SM_ERR_ALARM        BIT(23)
+#define XGE_HAL_RPA_CREDIT_ERR          BIT(31)
 	u64 rpa_err_mask;
 	u64 rpa_err_alarm;
 
 	u64 rti_err_reg;
-#define XGE_HAL_RTI_ECC_SG_ERR			BIT(7)
-#define XGE_HAL_RTI_ECC_DB_ERR			BIT(15)
-#define XGE_HAL_RTI_SM_ERR_ALARM		BIT(23)
+#define XGE_HAL_RTI_ECC_SG_ERR          BIT(7)
+#define XGE_HAL_RTI_ECC_DB_ERR          BIT(15)
+#define XGE_HAL_RTI_SM_ERR_ALARM        BIT(23)
 	u64 rti_err_mask;
 	u64 rti_err_alarm;
 
@@ -674,14 +668,14 @@ typedef struct {
 #define XGE_HAL_RX_QUEUE_6_PRIORITY(val)       vBIT(val,53,3)
 #define XGE_HAL_RX_QUEUE_7_PRIORITY(val)       vBIT(val,61,3)
 
-#define XGE_HAL_RX_QUEUE_PRI_0                 0	/* highest */
+#define XGE_HAL_RX_QUEUE_PRI_0                 0    /* highest */
 #define XGE_HAL_RX_QUEUE_PRI_1                 1
 #define XGE_HAL_RX_QUEUE_PRI_2                 2
 #define XGE_HAL_RX_QUEUE_PRI_3                 3
 #define XGE_HAL_RX_QUEUE_PRI_4                 4
 #define XGE_HAL_RX_QUEUE_PRI_5                 5
 #define XGE_HAL_RX_QUEUE_PRI_6                 6
-#define XGE_HAL_RX_QUEUE_PRI_7                 7	/* lowest */
+#define XGE_HAL_RX_QUEUE_PRI_7                 7    /* lowest */
 
 	u64 rx_w_round_robin_0;
 	u64 rx_w_round_robin_1;
@@ -771,21 +765,21 @@ typedef struct {
 #define XGE_HAL_MAC_INT_STATUS_RMAC_INT            BIT(1)
 
 	u64 mac_tmac_err_reg;
-#define XGE_HAL_TMAC_ECC_DB_ERR			BIT(15) 
-#define XGE_HAL_TMAC_TX_BUF_OVRN		BIT(23)
-#define XGE_HAL_TMAC_TX_CRI_ERR		   	BIT(31)
-#define XGE_HAL_TMAC_TX_SM_ERR			BIT(39)
+#define XGE_HAL_TMAC_ECC_DB_ERR         BIT(15) 
+#define XGE_HAL_TMAC_TX_BUF_OVRN        BIT(23)
+#define XGE_HAL_TMAC_TX_CRI_ERR         BIT(31)
+#define XGE_HAL_TMAC_TX_SM_ERR          BIT(39)
 	u64 mac_tmac_err_mask;
 	u64 mac_tmac_err_alarm;
 
 	u64 mac_rmac_err_reg;
-#define XGE_HAL_RMAC_RX_BUFF_OVRN		BIT(0)
-#define XGE_HAL_RMAC_RTH_SPDM_ECC_SG_ERR	BIT(0)
-#define XGE_HAL_RMAC_RTS_ECC_DB_ERR		BIT(0)
-#define XGE_HAL_RMAC_ECC_DB_ERR			BIT(0)
-#define XGE_HAL_RMAC_RTH_SPDM_ECC_DB_ERR	BIT(0)
-#define XGE_HAL_RMAC_LINK_STATE_CHANGE_INT	BIT(0)
-#define XGE_HAL_RMAC_RX_SM_ERR			BIT(39)
+#define XGE_HAL_RMAC_RX_BUFF_OVRN       BIT(0)
+#define XGE_HAL_RMAC_RTH_SPDM_ECC_SG_ERR    BIT(0)
+#define XGE_HAL_RMAC_RTS_ECC_DB_ERR     BIT(0)
+#define XGE_HAL_RMAC_ECC_DB_ERR         BIT(0)
+#define XGE_HAL_RMAC_RTH_SPDM_ECC_DB_ERR    BIT(0)
+#define XGE_HAL_RMAC_LINK_STATE_CHANGE_INT  BIT(0)
+#define XGE_HAL_RMAC_RX_SM_ERR          BIT(39)
 	u64 mac_rmac_err_mask;
 	u64 mac_rmac_err_alarm;
 
@@ -846,7 +840,7 @@ typedef struct {
 	u8 unused16[0x8];
 
 /*
-        u64 rmac_addr_cfg;
+	    u64 rmac_addr_cfg;
 #define XGE_HAL_RMAC_ADDR_UCASTn_EN(n)     mBIT(0)_n(n)
 #define XGE_HAL_RMAC_ADDR_MCASTn_EN(n)     mBIT(0)_n(n)
 #define XGE_HAL_RMAC_ADDR_BCAST_EN         vBIT(0)_48
@@ -874,12 +868,12 @@ typedef struct {
 #define XGE_HAL_MAC_RX_LINK_UTIL_VAL( n )  vBIT(n,40,4)
 
 #define XGE_HAL_MAC_LINK_UTIL_DISABLE (XGE_HAL_MAC_TX_LINK_UTIL_DISABLE | \
-				       XGE_HAL_MAC_RX_LINK_UTIL_DISABLE)
+	                   XGE_HAL_MAC_RX_LINK_UTIL_DISABLE)
 
 	u64 rmac_invalid_ipg;
 
 /* rx traffic steering */
-#define XGE_HAL_MAC_RTS_FRM_LEN_SET(len)	vBIT(len,2,14)
+#define XGE_HAL_MAC_RTS_FRM_LEN_SET(len)    vBIT(len,2,14)
 	u64 rts_frm_len_n[8];
 
 	u64 rts_qos_steering;
@@ -891,12 +885,12 @@ typedef struct {
 
 	u64 rts_q_alternates;
 	u64 rts_default_q;
-#define XGE_HAL_RTS_DEFAULT_Q(n)		   vBIT(n,5,3)
+#define XGE_HAL_RTS_DEFAULT_Q(n)           vBIT(n,5,3)
 
 	u64 rts_ctrl;
 #define XGE_HAL_RTS_CTRL_IGNORE_SNAP_OUI           BIT(2)
 #define XGE_HAL_RTS_CTRL_IGNORE_LLC_CTRL           BIT(3)
-#define XGE_HAL_RTS_CTRL_ENHANCED_MODE		   BIT(7)
+#define XGE_HAL_RTS_CTRL_ENHANCED_MODE         BIT(7)
 
 	u64 rts_pn_cam_ctrl;
 #define XGE_HAL_RTS_PN_CAM_CTRL_WE                 BIT(7)
@@ -1024,7 +1018,7 @@ typedef struct {
 	u8  unused17_2[0x700 - 0x5F0];
 
 	u64 mac_debug_ctrl;
-#define XGE_HAL_MAC_DBG_ACTIVITY_VALUE		   0x411040400000000ULL
+#define XGE_HAL_MAC_DBG_ACTIVITY_VALUE         0x411040400000000ULL
 
 	u8 unused18[0x2800 - 0x2708];
 
@@ -1073,8 +1067,8 @@ typedef struct {
 #define XGE_HAL_RX_QUEUE_CFG_Q7_SZ(n)              vBIT(n,56,8)
 
 	u64 mc_rldram_mrs;
-#define XGE_HAL_MC_RLDRAM_QUEUE_SIZE_ENABLE	BIT(39)
-#define XGE_HAL_MC_RLDRAM_MRS_ENABLE		BIT(47)
+#define XGE_HAL_MC_RLDRAM_QUEUE_SIZE_ENABLE BIT(39)
+#define XGE_HAL_MC_RLDRAM_MRS_ENABLE        BIT(47)
 
 	u64 mc_rldram_interleave;
 
@@ -1087,11 +1081,11 @@ typedef struct {
 	u64 mc_rldram_ref_per;
 	u8 unused21[0x220 - 0x208];
 	u64 mc_rldram_test_ctrl;
-#define XGE_HAL_MC_RLDRAM_TEST_MODE		BIT(47)
-#define XGE_HAL_MC_RLDRAM_TEST_WRITE		BIT(7)
-#define XGE_HAL_MC_RLDRAM_TEST_GO		BIT(15)
-#define XGE_HAL_MC_RLDRAM_TEST_DONE		BIT(23)
-#define XGE_HAL_MC_RLDRAM_TEST_PASS		BIT(31)
+#define XGE_HAL_MC_RLDRAM_TEST_MODE     BIT(47)
+#define XGE_HAL_MC_RLDRAM_TEST_WRITE        BIT(7)
+#define XGE_HAL_MC_RLDRAM_TEST_GO       BIT(15)
+#define XGE_HAL_MC_RLDRAM_TEST_DONE     BIT(23)
+#define XGE_HAL_MC_RLDRAM_TEST_PASS     BIT(31)
 
 	u8 unused22[0x240 - 0x228];
 	u64 mc_rldram_test_add;
@@ -1147,16 +1141,16 @@ typedef struct {
 #define XGE_HAL_XGXS_INT_MASK_RXGXS                BIT(1)
 
 	u64 xgxs_txgxs_err_reg;
-#define XGE_HAL_TXGXS_ECC_SG_ERR			BIT(7)
-#define XGE_HAL_TXGXS_ECC_DB_ERR			BIT(15)
-#define XGE_HAL_TXGXS_ESTORE_UFLOW			BIT(31)
-#define XGE_HAL_TXGXS_TX_SM_ERR				BIT(39)
+#define XGE_HAL_TXGXS_ECC_SG_ERR            BIT(7)
+#define XGE_HAL_TXGXS_ECC_DB_ERR            BIT(15)
+#define XGE_HAL_TXGXS_ESTORE_UFLOW          BIT(31)
+#define XGE_HAL_TXGXS_TX_SM_ERR             BIT(39)
 	u64 xgxs_txgxs_err_mask;
 	u64 xgxs_txgxs_err_alarm;
 
 	u64 xgxs_rxgxs_err_reg;
-#define XGE_HAL_RXGXS_ESTORE_OFLOW			BIT(7)
-#define XGE_HAL_RXGXS_RX_SM_ERR				BIT(39)
+#define XGE_HAL_RXGXS_ESTORE_OFLOW          BIT(7)
+#define XGE_HAL_RXGXS_RX_SM_ERR             BIT(39)
 	u64 xgxs_rxgxs_err_mask;
 	u64 xgxs_rxgxs_err_alarm;
 
@@ -1185,193 +1179,195 @@ typedef struct {
 
 /* Using this strcture to calculate offsets */
 typedef struct xge_hal_pci_config_le_t {
-    u16     vendor_id;              // 0x00
-    u16     device_id;              // 0x02
+	u16     vendor_id;              // 0x00
+	u16     device_id;              // 0x02
 
-    u16     command;                // 0x04
-    u16     status;                 // 0x06
+	u16     command;                // 0x04
+	u16     status;                 // 0x06
 
-    u8      revision;               // 0x08
-    u8      pciClass[3];            // 0x09
+	u8      revision;               // 0x08
+	u8      pciClass[3];            // 0x09
 
-    u8      cache_line_size;        // 0x0c
-    u8      latency_timer;          // 0x0d
-    u8      header_type;            // 0x0e
-    u8      bist;                   // 0x0f
+	u8      cache_line_size;        // 0x0c
+	u8      latency_timer;          // 0x0d
+	u8      header_type;            // 0x0e
+	u8      bist;                   // 0x0f
 
-    u32     base_addr0_lo;          // 0x10
-    u32     base_addr0_hi;          // 0x14
+	u32     base_addr0_lo;          // 0x10
+	u32     base_addr0_hi;          // 0x14
 
-    u32     base_addr1_lo;          // 0x18
-    u32     base_addr1_hi;          // 0x1C
+	u32     base_addr1_lo;          // 0x18
+	u32     base_addr1_hi;          // 0x1C
 
-    u32     not_Implemented1;       // 0x20
-    u32     not_Implemented2;       // 0x24
+	u32     not_Implemented1;       // 0x20
+	u32     not_Implemented2;       // 0x24
 
-    u32     cardbus_cis_pointer;    // 0x28
+	u32     cardbus_cis_pointer;    // 0x28
 
-    u16     subsystem_vendor_id;    // 0x2c
-    u16     subsystem_id;           // 0x2e
+	u16     subsystem_vendor_id;    // 0x2c
+	u16     subsystem_id;           // 0x2e
 
-    u32     rom_base;               // 0x30
-    u8      capabilities_pointer;   // 0x34
-    u8      rsvd_35[3];             // 0x35
-    u32     rsvd_38;                // 0x38
+	u32     rom_base;               // 0x30
+	u8      capabilities_pointer;   // 0x34
+	u8      rsvd_35[3];             // 0x35
+	u32     rsvd_38;                // 0x38
 
-    u8      interrupt_line;         // 0x3c
-    u8      interrupt_pin;          // 0x3d
-    u8      min_grant;              // 0x3e
-    u8      max_latency;            // 0x3f
+	u8      interrupt_line;         // 0x3c
+	u8      interrupt_pin;          // 0x3d
+	u8      min_grant;              // 0x3e
+	u8      max_latency;            // 0x3f
 
-    u8      msi_cap_id;             // 0x40
-    u8      msi_next_ptr;           // 0x41
-    u16     msi_control;            // 0x42
-    u32     msi_lower_address;      // 0x44
-    u32     msi_higher_address;     // 0x48
-    u16     msi_data;               // 0x4c
-    u16     msi_unused;             // 0x4e
+	u8      msi_cap_id;             // 0x40
+	u8      msi_next_ptr;           // 0x41
+	u16     msi_control;            // 0x42
+	u32     msi_lower_address;      // 0x44
+	u32     msi_higher_address;     // 0x48
+	u16     msi_data;               // 0x4c
+	u16     msi_unused;             // 0x4e
 
-    u8      vpd_cap_id;             // 0x50
-    u8      vpd_next_cap;           // 0x51
-    u16     vpd_addr;               // 0x52
-    u32     vpd_data;               // 0x54
+	u8      vpd_cap_id;             // 0x50
+	u8      vpd_next_cap;           // 0x51
+	u16     vpd_addr;               // 0x52
+	u32     vpd_data;               // 0x54
 
-    u8      rsvd_b0[8];             // 0x58
+	u8      rsvd_b0[8];             // 0x58
 
-    u8      pcix_cap;               // 0x60
-    u8      pcix_next_cap;          // 0x61
-    u16     pcix_command;           // 0x62
+	u8      pcix_cap;               // 0x60
+	u8      pcix_next_cap;          // 0x61
+	u16     pcix_command;           // 0x62
 
-    u32     pcix_status;            // 0x64
+	u32     pcix_status;            // 0x64
 
-    u8      rsvd_b1[XGE_HAL_PCI_XFRAME_CONFIG_SPACE_SIZE-0x68];
+	u8      rsvd_b1[XGE_HAL_PCI_XFRAME_CONFIG_SPACE_SIZE-0x68];
 } xge_hal_pci_config_le_t;              // 0x100
 
 typedef struct xge_hal_pci_config_t {
 #ifdef XGE_OS_HOST_BIG_ENDIAN
-    u16     device_id;              // 0x02
-    u16     vendor_id;              // 0x00
+	u16     device_id;              // 0x02
+	u16     vendor_id;              // 0x00
 
-    u16     status;                 // 0x06
-    u16     command;                // 0x04
+	u16     status;                 // 0x06
+	u16     command;                // 0x04
 
-    u8      pciClass[3];            // 0x09
-    u8      revision;               // 0x08
+	u8      pciClass[3];            // 0x09
+	u8      revision;               // 0x08
 
-    u8      bist;                   // 0x0f
-    u8      header_type;            // 0x0e
-    u8      latency_timer;          // 0x0d
-    u8      cache_line_size;        // 0x0c
+	u8      bist;                   // 0x0f
+	u8      header_type;            // 0x0e
+	u8      latency_timer;          // 0x0d
+	u8      cache_line_size;        // 0x0c
 
-    u32     base_addr0_lo;           // 0x10
-    u32     base_addr0_hi;           // 0x14
+	u32     base_addr0_lo;           // 0x10
+	u32     base_addr0_hi;           // 0x14
 
-    u32     base_addr1_lo;          // 0x18
-    u32     base_addr1_hi;          // 0x1C
+	u32     base_addr1_lo;          // 0x18
+	u32     base_addr1_hi;          // 0x1C
 
-    u32     not_Implemented1;       // 0x20
-    u32     not_Implemented2;       // 0x24
+	u32     not_Implemented1;       // 0x20
+	u32     not_Implemented2;       // 0x24
 
-    u32     cardbus_cis_pointer;    // 0x28
+	u32     cardbus_cis_pointer;    // 0x28
 
-    u16     subsystem_id;           // 0x2e
-    u16     subsystem_vendor_id;    // 0x2c
+	u16     subsystem_id;           // 0x2e
+	u16     subsystem_vendor_id;    // 0x2c
 
-    u32     rom_base;               // 0x30
-    u8      rsvd_35[3];             // 0x35
-    u8      capabilities_pointer;   // 0x34
-    u32     rsvd_38;                // 0x38
+	u32     rom_base;               // 0x30
+	u8      rsvd_35[3];             // 0x35
+	u8      capabilities_pointer;   // 0x34
+	u32     rsvd_38;                // 0x38
 
-    u8      max_latency;            // 0x3f
-    u8      min_grant;              // 0x3e
-    u8      interrupt_pin;          // 0x3d
-    u8      interrupt_line;         // 0x3c
+	u8      max_latency;            // 0x3f
+	u8      min_grant;              // 0x3e
+	u8      interrupt_pin;          // 0x3d
+	u8      interrupt_line;         // 0x3c
 
-    u16     msi_control;            // 0x42
-    u8      msi_next_ptr;           // 0x41
-    u8      msi_cap_id;             // 0x40
-    u32     msi_lower_address;      // 0x44
-    u32     msi_higher_address;     // 0x48
-    u16     msi_unused;             // 0x4e
-    u16     msi_data;               // 0x4c
+	u16     msi_control;            // 0x42
+	u8      msi_next_ptr;           // 0x41
+	u8      msi_cap_id;             // 0x40
+	u32     msi_lower_address;      // 0x44
+	u32     msi_higher_address;     // 0x48
+	u16     msi_unused;             // 0x4e
+	u16     msi_data;               // 0x4c
 
-    u16     vpd_addr;               // 0x52
-    u8      vpd_next_cap;           // 0x51
-    u8      vpd_cap_id;             // 0x50
-    u32     vpd_data;               // 0x54
+	u16     vpd_addr;               // 0x52
+	u8      vpd_next_cap;           // 0x51
+	u8      vpd_cap_id;             // 0x50
+	u32     vpd_data;               // 0x54
 
-    u8      rsvd_b0[8];             // 0x58
+	u8      rsvd_b0[8];             // 0x58
 
-    u16     pcix_command;           // 0x62
-    u8      pcix_next_cap;          // 0x61
-    u8      pcix_cap;               // 0x60
+	u16     pcix_command;           // 0x62
+	u8      pcix_next_cap;          // 0x61
+	u8      pcix_cap;               // 0x60
 
-    u32     pcix_status;            // 0x64
+	u32     pcix_status;            // 0x64
 #else
-    u16     vendor_id;              // 0x00
-    u16     device_id;              // 0x02
+	u16     vendor_id;              // 0x00
+	u16     device_id;              // 0x02
 
-    u16     command;                // 0x04
-    u16     status;                 // 0x06
+	u16     command;                // 0x04
+	u16     status;                 // 0x06
 
-    u8      revision;               // 0x08
-    u8      pciClass[3];            // 0x09
+	u8      revision;               // 0x08
+	u8      pciClass[3];            // 0x09
 
-    u8      cache_line_size;        // 0x0c
-    u8      latency_timer;          // 0x0d
-    u8      header_type;            // 0x0e
-    u8      bist;                   // 0x0f
+	u8      cache_line_size;        // 0x0c
+	u8      latency_timer;          // 0x0d
+	u8      header_type;            // 0x0e
+	u8      bist;                   // 0x0f
 
-    u32     base_addr0_lo;          // 0x10
-    u32     base_addr0_hi;          // 0x14
+	u32     base_addr0_lo;          // 0x10
+	u32     base_addr0_hi;          // 0x14
 
-    u32     base_addr1_lo;          // 0x18
-    u32     base_addr1_hi;          // 0x1C
+	u32     base_addr1_lo;          // 0x18
+	u32     base_addr1_hi;          // 0x1C
 
-    u32     not_Implemented1;       // 0x20
-    u32     not_Implemented2;       // 0x24
+	u32     not_Implemented1;       // 0x20
+	u32     not_Implemented2;       // 0x24
 
-    u32     cardbus_cis_pointer;    // 0x28
+	u32     cardbus_cis_pointer;    // 0x28
 
-    u16     subsystem_vendor_id;    // 0x2c
-    u16     subsystem_id;           // 0x2e
+	u16     subsystem_vendor_id;    // 0x2c
+	u16     subsystem_id;           // 0x2e
 
-    u32     rom_base;               // 0x30
-    u8      capabilities_pointer;   // 0x34
-    u8      rsvd_35[3];             // 0x35
-    u32     rsvd_38;                // 0x38
+	u32     rom_base;               // 0x30
+	u8      capabilities_pointer;   // 0x34
+	u8      rsvd_35[3];             // 0x35
+	u32     rsvd_38;                // 0x38
 
-    u8      interrupt_line;         // 0x3c
-    u8      interrupt_pin;          // 0x3d
-    u8      min_grant;              // 0x3e
-    u8      max_latency;            // 0x3f
+	u8      interrupt_line;         // 0x3c
+	u8      interrupt_pin;          // 0x3d
+	u8      min_grant;              // 0x3e
+	u8      max_latency;            // 0x3f
 
-    u8      msi_cap_id;             // 0x40
-    u8      msi_next_ptr;           // 0x41
-    u16     msi_control;            // 0x42
-    u32     msi_lower_address;      // 0x44
-    u32     msi_higher_address;     // 0x48
-    u16     msi_data;               // 0x4c
-    u16     msi_unused;             // 0x4e
+	u8      msi_cap_id;             // 0x40
+	u8      msi_next_ptr;           // 0x41
+	u16     msi_control;            // 0x42
+	u32     msi_lower_address;      // 0x44
+	u32     msi_higher_address;     // 0x48
+	u16     msi_data;               // 0x4c
+	u16     msi_unused;             // 0x4e
 
-    u8      vpd_cap_id;             // 0x50
-    u8      vpd_next_cap;           // 0x51
-    u16     vpd_addr;               // 0x52
-    u32     vpd_data;               // 0x54
+	u8      vpd_cap_id;             // 0x50
+	u8      vpd_next_cap;           // 0x51
+	u16     vpd_addr;               // 0x52
+	u32     vpd_data;               // 0x54
 
-    u8      rsvd_b0[8];             // 0x58
+	u8      rsvd_b0[8];             // 0x58
 
-    u8      pcix_cap;               // 0x60
-    u8      pcix_next_cap;          // 0x61
-    u16     pcix_command;           // 0x62
+	u8      pcix_cap;               // 0x60
+	u8      pcix_next_cap;          // 0x61
+	u16     pcix_command;           // 0x62
 
-    u32     pcix_status;            // 0x64
+	u32     pcix_status;            // 0x64
 
 #endif
-    u8      rsvd_b1[XGE_HAL_PCI_XFRAME_CONFIG_SPACE_SIZE-0x68];
+	u8      rsvd_b1[XGE_HAL_PCI_XFRAME_CONFIG_SPACE_SIZE-0x68];
 } xge_hal_pci_config_t;               // 0x100
 
-#define XGE_HAL_REG_SPACE	sizeof(xge_hal_pci_bar0_t)
-#define XGE_HAL_EEPROM_SIZE	(0x01 << 11)
+#define XGE_HAL_REG_SPACE   sizeof(xge_hal_pci_bar0_t)
+#define XGE_HAL_EEPROM_SIZE (0x01 << 11)
+
+__EXTERN_END_DECLS
 
 #endif /* XGE_HAL_REGS_H */

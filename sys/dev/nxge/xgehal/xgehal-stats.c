@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-stats.c
- *
- *  Description:  statistics object implementation
- *
- *  Created:      2 June 2004
- */
-
 #include <dev/nxge/include/xgehal-stats.h>
 #include <dev/nxge/include/xgehal-device.h>
 
@@ -61,132 +53,132 @@ __hal_stats_initialize (xge_hal_stats_t *stats, xge_hal_device_h devh)
 	dma_flags |= XGE_OS_DMA_STREAMING;
 #endif
 	if (xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN) {
-		stats->hw_info =
-			(xge_hal_stats_hw_info_t *) xge_os_dma_malloc(
-					hldev->pdev,
-					sizeof(xge_hal_stats_hw_info_t),
-					dma_flags,
-					&stats->hw_info_dmah,
-					&stats->hw_info_dma_acch);
+	    stats->hw_info =
+	        (xge_hal_stats_hw_info_t *) xge_os_dma_malloc(
+	                hldev->pdev,
+	                sizeof(xge_hal_stats_hw_info_t),
+	                dma_flags,
+	                &stats->hw_info_dmah,
+	                &stats->hw_info_dma_acch);
 
-		if (stats->hw_info == NULL) {
-			xge_debug_stats(XGE_ERR, "%s", "can not DMA alloc");
-			return XGE_HAL_ERR_OUT_OF_MEMORY;
-		}
-		xge_os_memzero(stats->hw_info,
-			sizeof(xge_hal_stats_hw_info_t));
-		xge_os_memzero(&stats->hw_info_saved,
-			sizeof(xge_hal_stats_hw_info_t));
-		xge_os_memzero(&stats->hw_info_latest,
-			sizeof(xge_hal_stats_hw_info_t));
+	    if (stats->hw_info == NULL) {
+	        xge_debug_stats(XGE_ERR, "%s", "can not DMA alloc");
+	        return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    }
+	    xge_os_memzero(stats->hw_info,
+	        sizeof(xge_hal_stats_hw_info_t));
+	    xge_os_memzero(&stats->hw_info_saved,
+	        sizeof(xge_hal_stats_hw_info_t));
+	    xge_os_memzero(&stats->hw_info_latest,
+	        sizeof(xge_hal_stats_hw_info_t));
 
 
 
-		stats->dma_addr = xge_os_dma_map(hldev->pdev,
+	    stats->dma_addr = xge_os_dma_map(hldev->pdev,
 	                               stats->hw_info_dmah,
-				       stats->hw_info,
-				       sizeof(xge_hal_stats_hw_info_t),
-				       XGE_OS_DMA_DIR_FROMDEVICE,
-				       XGE_OS_DMA_CACHELINE_ALIGNED |
+	                   stats->hw_info,
+	                   sizeof(xge_hal_stats_hw_info_t),
+	                   XGE_OS_DMA_DIR_FROMDEVICE,
+	                   XGE_OS_DMA_CACHELINE_ALIGNED |
 #ifdef XGE_HAL_DMA_STATS_CONSISTENT
-				       XGE_OS_DMA_CONSISTENT
+	                   XGE_OS_DMA_CONSISTENT
 #else
-			               XGE_OS_DMA_STREAMING
+	                       XGE_OS_DMA_STREAMING
 #endif
-                                       );
-		if (stats->dma_addr == XGE_OS_INVALID_DMA_ADDR) {
-			xge_debug_stats(XGE_ERR,
-				"can not map vaddr 0x"XGE_OS_LLXFMT" to DMA",
-				(unsigned long long)(ulong_t)stats->hw_info);
-			xge_os_dma_free(hldev->pdev,
-			      stats->hw_info,
-			      sizeof(xge_hal_stats_hw_info_t),
-			      &stats->hw_info_dma_acch,
-			      &stats->hw_info_dmah);
-			return XGE_HAL_ERR_OUT_OF_MAPPING;
-		}
+	                                   );
+	    if (stats->dma_addr == XGE_OS_INVALID_DMA_ADDR) {
+	        xge_debug_stats(XGE_ERR,
+	            "can not map vaddr 0x"XGE_OS_LLXFMT" to DMA",
+	            (unsigned long long)(ulong_t)stats->hw_info);
+	        xge_os_dma_free(hldev->pdev,
+	              stats->hw_info,
+	              sizeof(xge_hal_stats_hw_info_t),
+	              &stats->hw_info_dma_acch,
+	              &stats->hw_info_dmah);
+	        return XGE_HAL_ERR_OUT_OF_MAPPING;
+	    }
 	}
 	else {
-		stats->pcim_info_saved =
-			(xge_hal_stats_pcim_info_t *)xge_os_malloc(
-			hldev->pdev, sizeof(xge_hal_stats_pcim_info_t));
-		if (stats->pcim_info_saved == NULL) {
-			xge_debug_stats(XGE_ERR, "%s", "can not alloc");
-			return XGE_HAL_ERR_OUT_OF_MEMORY;
-		}
+	    stats->pcim_info_saved =
+	        (xge_hal_stats_pcim_info_t *)xge_os_malloc(
+	        hldev->pdev, sizeof(xge_hal_stats_pcim_info_t));
+	    if (stats->pcim_info_saved == NULL) {
+	        xge_debug_stats(XGE_ERR, "%s", "can not alloc");
+	        return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    }
 
-		stats->pcim_info_latest =
-			(xge_hal_stats_pcim_info_t *)xge_os_malloc(
-			hldev->pdev, sizeof(xge_hal_stats_pcim_info_t));
-		if (stats->pcim_info_latest == NULL) {
-			xge_os_free(hldev->pdev, stats->pcim_info_saved,
-				sizeof(xge_hal_stats_pcim_info_t));
-			xge_debug_stats(XGE_ERR, "%s", "can not alloc");
-			return XGE_HAL_ERR_OUT_OF_MEMORY;
-		}
+	    stats->pcim_info_latest =
+	        (xge_hal_stats_pcim_info_t *)xge_os_malloc(
+	        hldev->pdev, sizeof(xge_hal_stats_pcim_info_t));
+	    if (stats->pcim_info_latest == NULL) {
+	        xge_os_free(hldev->pdev, stats->pcim_info_saved,
+	            sizeof(xge_hal_stats_pcim_info_t));
+	        xge_debug_stats(XGE_ERR, "%s", "can not alloc");
+	        return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    }
 
-		stats->pcim_info =
-			(xge_hal_stats_pcim_info_t *) xge_os_dma_malloc(
-					hldev->pdev,
-					sizeof(xge_hal_stats_pcim_info_t),
-					dma_flags,
-					&stats->hw_info_dmah,
-					&stats->hw_info_dma_acch);
+	    stats->pcim_info =
+	        (xge_hal_stats_pcim_info_t *) xge_os_dma_malloc(
+	                hldev->pdev,
+	                sizeof(xge_hal_stats_pcim_info_t),
+	                dma_flags,
+	                &stats->hw_info_dmah,
+	                &stats->hw_info_dma_acch);
 
-		if (stats->pcim_info == NULL) {
-			xge_os_free(hldev->pdev, stats->pcim_info_saved,
-				sizeof(xge_hal_stats_pcim_info_t));
-			xge_os_free(hldev->pdev, stats->pcim_info_latest,
-				sizeof(xge_hal_stats_pcim_info_t));
-			xge_debug_stats(XGE_ERR, "%s", "can not DMA alloc");
-			return XGE_HAL_ERR_OUT_OF_MEMORY;
-		}
-
-
-		xge_os_memzero(stats->pcim_info,
-			sizeof(xge_hal_stats_pcim_info_t));
-		xge_os_memzero(stats->pcim_info_saved,
-			sizeof(xge_hal_stats_pcim_info_t));
-		xge_os_memzero(stats->pcim_info_latest,
-			sizeof(xge_hal_stats_pcim_info_t));
+	    if (stats->pcim_info == NULL) {
+	        xge_os_free(hldev->pdev, stats->pcim_info_saved,
+	            sizeof(xge_hal_stats_pcim_info_t));
+	        xge_os_free(hldev->pdev, stats->pcim_info_latest,
+	            sizeof(xge_hal_stats_pcim_info_t));
+	        xge_debug_stats(XGE_ERR, "%s", "can not DMA alloc");
+	        return XGE_HAL_ERR_OUT_OF_MEMORY;
+	    }
 
 
+	    xge_os_memzero(stats->pcim_info,
+	        sizeof(xge_hal_stats_pcim_info_t));
+	    xge_os_memzero(stats->pcim_info_saved,
+	        sizeof(xge_hal_stats_pcim_info_t));
+	    xge_os_memzero(stats->pcim_info_latest,
+	        sizeof(xge_hal_stats_pcim_info_t));
 
-		stats->dma_addr = xge_os_dma_map(hldev->pdev,
+
+
+	    stats->dma_addr = xge_os_dma_map(hldev->pdev,
 	                               stats->hw_info_dmah,
-				       stats->pcim_info,
-				       sizeof(xge_hal_stats_pcim_info_t),
-				       XGE_OS_DMA_DIR_FROMDEVICE,
-				       XGE_OS_DMA_CACHELINE_ALIGNED |
+	                   stats->pcim_info,
+	                   sizeof(xge_hal_stats_pcim_info_t),
+	                   XGE_OS_DMA_DIR_FROMDEVICE,
+	                   XGE_OS_DMA_CACHELINE_ALIGNED |
 #ifdef XGE_HAL_DMA_STATS_CONSISTENT
-				       XGE_OS_DMA_CONSISTENT
+	                   XGE_OS_DMA_CONSISTENT
 #else
-			               XGE_OS_DMA_STREAMING
+	                       XGE_OS_DMA_STREAMING
 #endif
-                                       );
-		if (stats->dma_addr == XGE_OS_INVALID_DMA_ADDR) {
-			xge_debug_stats(XGE_ERR,
-				"can not map vaddr 0x"XGE_OS_LLXFMT" to DMA",
-				(unsigned long long)(ulong_t)stats->hw_info);
+	                                   );
+	    if (stats->dma_addr == XGE_OS_INVALID_DMA_ADDR) {
+	        xge_debug_stats(XGE_ERR,
+	            "can not map vaddr 0x"XGE_OS_LLXFMT" to DMA",
+	            (unsigned long long)(ulong_t)stats->hw_info);
 
-			xge_os_dma_free(hldev->pdev,
-			      stats->pcim_info,
-			      sizeof(xge_hal_stats_pcim_info_t),
-			      &stats->hw_info_dma_acch,
-			      &stats->hw_info_dmah);
+	        xge_os_dma_free(hldev->pdev,
+	              stats->pcim_info,
+	              sizeof(xge_hal_stats_pcim_info_t),
+	              &stats->hw_info_dma_acch,
+	              &stats->hw_info_dmah);
 
-			xge_os_free(hldev->pdev, stats->pcim_info_saved,
-				sizeof(xge_hal_stats_pcim_info_t));
+	        xge_os_free(hldev->pdev, stats->pcim_info_saved,
+	            sizeof(xge_hal_stats_pcim_info_t));
 
-			xge_os_free(hldev->pdev, stats->pcim_info_latest,
-				sizeof(xge_hal_stats_pcim_info_t));
+	        xge_os_free(hldev->pdev, stats->pcim_info_latest,
+	            sizeof(xge_hal_stats_pcim_info_t));
 
-			return XGE_HAL_ERR_OUT_OF_MAPPING;
-		}
+	        return XGE_HAL_ERR_OUT_OF_MAPPING;
+	    }
 	}
 	stats->devh = devh;
 	xge_os_memzero(&stats->sw_dev_info_stats,
-		     sizeof(xge_hal_stats_device_info_t));
+	         sizeof(xge_hal_stats_device_info_t));
 
 	stats->is_initialized = 1;
 
@@ -199,19 +191,19 @@ __hal_stats_save (xge_hal_stats_t *stats)
 	xge_hal_device_t *hldev = (xge_hal_device_t*)stats->devh;
 
 	if (xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN) {
-		xge_hal_stats_hw_info_t	*latest;
+	    xge_hal_stats_hw_info_t *latest;
 
-		(void) xge_hal_stats_hw(stats->devh, &latest);
+	    (void) xge_hal_stats_hw(stats->devh, &latest);
 
-		xge_os_memcpy(&stats->hw_info_saved, stats->hw_info,
-		      sizeof(xge_hal_stats_hw_info_t));
+	    xge_os_memcpy(&stats->hw_info_saved, stats->hw_info,
+	          sizeof(xge_hal_stats_hw_info_t));
 	} else {
-		xge_hal_stats_pcim_info_t	*latest;
+	    xge_hal_stats_pcim_info_t   *latest;
 
-		(void) xge_hal_stats_pcim(stats->devh, &latest);
+	    (void) xge_hal_stats_pcim(stats->devh, &latest);
 
-		xge_os_memcpy(stats->pcim_info_saved, stats->pcim_info,
-		      sizeof(xge_hal_stats_pcim_info_t));
+	    xge_os_memcpy(stats->pcim_info_saved, stats->pcim_info,
+	          sizeof(xge_hal_stats_pcim_info_t));
 	}
 }
 
@@ -237,16 +229,16 @@ __hal_stats_disable (xge_hal_stats_t *stats)
 	bar0 = (xge_hal_pci_bar0_t *)(void *)hldev->bar0;
 
 	val64 = xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-		&bar0->stat_cfg);
+	    &bar0->stat_cfg);
 	val64 &= ~XGE_HAL_STAT_CFG_STAT_EN;
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0, val64,
-		&bar0->stat_cfg);
+	    &bar0->stat_cfg);
 	/* flush the write */
 	(void)xge_os_pio_mem_read64(hldev->pdev, hldev->regh0,
-		&bar0->stat_cfg);
+	    &bar0->stat_cfg);
 
 	xge_debug_stats(XGE_TRACE, "stats disabled at 0x"XGE_OS_LLXFMT,
-		 (unsigned long long)stats->dma_addr);
+	     (unsigned long long)stats->dma_addr);
 
 	stats->is_enabled = 0;
 }
@@ -268,35 +260,35 @@ __hal_stats_terminate (xge_hal_stats_t *stats)
 	xge_assert(hldev);
 	xge_assert(stats->is_initialized);
 	if (xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN) {
-		xge_os_dma_unmap(hldev->pdev,
+	    xge_os_dma_unmap(hldev->pdev,
 	               stats->hw_info_dmah,
-		       stats->dma_addr,
-		       sizeof(xge_hal_stats_hw_info_t),
-		       XGE_OS_DMA_DIR_FROMDEVICE);
+	           stats->dma_addr,
+	           sizeof(xge_hal_stats_hw_info_t),
+	           XGE_OS_DMA_DIR_FROMDEVICE);
 
-		xge_os_dma_free(hldev->pdev,
-		      stats->hw_info,
-		      sizeof(xge_hal_stats_hw_info_t),
-		      &stats->hw_info_dma_acch,
-		      &stats->hw_info_dmah);
+	    xge_os_dma_free(hldev->pdev,
+	          stats->hw_info,
+	          sizeof(xge_hal_stats_hw_info_t),
+	          &stats->hw_info_dma_acch,
+	          &stats->hw_info_dmah);
 	} else {
-		xge_os_dma_unmap(hldev->pdev,
+	    xge_os_dma_unmap(hldev->pdev,
 	               stats->hw_info_dmah,
-		       stats->dma_addr,
-		       sizeof(xge_hal_stats_pcim_info_t),
-		       XGE_OS_DMA_DIR_FROMDEVICE);
+	           stats->dma_addr,
+	           sizeof(xge_hal_stats_pcim_info_t),
+	           XGE_OS_DMA_DIR_FROMDEVICE);
 
-		xge_os_dma_free(hldev->pdev,
-		      stats->pcim_info,
-		      sizeof(xge_hal_stats_pcim_info_t),
-		      &stats->hw_info_dma_acch,
-		      &stats->hw_info_dmah);
+	    xge_os_dma_free(hldev->pdev,
+	          stats->pcim_info,
+	          sizeof(xge_hal_stats_pcim_info_t),
+	          &stats->hw_info_dma_acch,
+	          &stats->hw_info_dmah);
 
-		xge_os_free(hldev->pdev, stats->pcim_info_saved,
-			sizeof(xge_hal_stats_pcim_info_t));
+	    xge_os_free(hldev->pdev, stats->pcim_info_saved,
+	        sizeof(xge_hal_stats_pcim_info_t));
 
-		xge_os_free(hldev->pdev, stats->pcim_info_latest,
-				sizeof(xge_hal_stats_pcim_info_t));
+	    xge_os_free(hldev->pdev, stats->pcim_info_latest,
+	            sizeof(xge_hal_stats_pcim_info_t));
 
 	}
 
@@ -333,13 +325,13 @@ __hal_stats_enable (xge_hal_stats_t *stats)
 	 * For Titan stat_addr offset == 0x09d8, and stat_cfg offset == 0x09d0
 	*/
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0,
-		stats->dma_addr, &bar0->stat_addr);
+	    stats->dma_addr, &bar0->stat_addr);
 
 	refresh_time_pci_clocks = XGE_HAL_XENA_PER_SEC *
-		hldev->config.stats_refresh_time_sec;
+	    hldev->config.stats_refresh_time_sec;
 	refresh_time_pci_clocks =
-		__hal_fix_time_ival_herc(hldev,
-			refresh_time_pci_clocks);
+	    __hal_fix_time_ival_herc(hldev,
+	        refresh_time_pci_clocks);
 
 #ifdef XGE_HAL_HERC_EMULATION
 	/*
@@ -351,18 +343,18 @@ __hal_stats_enable (xge_hal_stats_t *stats)
 	*/
 
 	val64 = (0x20C | XGE_HAL_STAT_CFG_STAT_RO |
-		XGE_HAL_STAT_CFG_STAT_EN);
+	    XGE_HAL_STAT_CFG_STAT_EN);
 #else
 	val64 = XGE_HAL_SET_UPDT_PERIOD(refresh_time_pci_clocks) |
-		                XGE_HAL_STAT_CFG_STAT_RO |
-				XGE_HAL_STAT_CFG_STAT_EN;
+	                    XGE_HAL_STAT_CFG_STAT_RO |
+	            XGE_HAL_STAT_CFG_STAT_EN;
 #endif
 
 	xge_os_pio_mem_write64(hldev->pdev, hldev->regh0,
-		val64, &bar0->stat_cfg);
+	    val64, &bar0->stat_cfg);
 
 	xge_debug_stats(XGE_TRACE, "stats enabled at 0x"XGE_OS_LLXFMT,
-		 (unsigned long long)stats->dma_addr);
+	     (unsigned long long)stats->dma_addr);
 
 	stats->is_enabled = 1;
 }
@@ -377,133 +369,133 @@ __hal_stats_pcim_update_latest(xge_hal_device_h devh)
 	xge_hal_device_t *hldev = (xge_hal_device_t *)devh;
 	int i;
 
-#define set_latest_stat_link_cnt(_link, _p)				      \
-        hldev->stats.pcim_info_latest->link_info[_link]._p =		      \
-	((hldev->stats.pcim_info->link_info[_link]._p >=	              \
-		hldev->stats.pcim_info_saved->link_info[_link]._p) ?	      \
-		hldev->stats.pcim_info->link_info[_link]._p -		      \
-			hldev->stats.pcim_info_saved->link_info[_link]._p :   \
-		((-1) - hldev->stats.pcim_info_saved->link_info[_link]._p) +  \
-			hldev->stats.pcim_info->link_info[_link]._p)
+#define set_latest_stat_link_cnt(_link, _p)                   \
+	    hldev->stats.pcim_info_latest->link_info[_link]._p =              \
+	((hldev->stats.pcim_info->link_info[_link]._p >=                  \
+	    hldev->stats.pcim_info_saved->link_info[_link]._p) ?          \
+	    hldev->stats.pcim_info->link_info[_link]._p -             \
+	        hldev->stats.pcim_info_saved->link_info[_link]._p :   \
+	    ((-1) - hldev->stats.pcim_info_saved->link_info[_link]._p) +  \
+	        hldev->stats.pcim_info->link_info[_link]._p)
 
 
-#define set_latest_stat_aggr_cnt(_aggr, _p)				      \
-        hldev->stats.pcim_info_latest->aggr_info[_aggr]._p =		      \
-	((hldev->stats.pcim_info->aggr_info[_aggr]._p >=		      \
-		hldev->stats.pcim_info_saved->aggr_info[_aggr]._p) ?	      \
-		hldev->stats.pcim_info->aggr_info[_aggr]._p -		      \
-			hldev->stats.pcim_info_saved->aggr_info[_aggr]._p :   \
-		((-1) - hldev->stats.pcim_info_saved->aggr_info[_aggr]._p) +  \
-			hldev->stats.pcim_info->aggr_info[_aggr]._p)
+#define set_latest_stat_aggr_cnt(_aggr, _p)                   \
+	    hldev->stats.pcim_info_latest->aggr_info[_aggr]._p =              \
+	((hldev->stats.pcim_info->aggr_info[_aggr]._p >=              \
+	    hldev->stats.pcim_info_saved->aggr_info[_aggr]._p) ?          \
+	    hldev->stats.pcim_info->aggr_info[_aggr]._p -             \
+	        hldev->stats.pcim_info_saved->aggr_info[_aggr]._p :   \
+	    ((-1) - hldev->stats.pcim_info_saved->aggr_info[_aggr]._p) +  \
+	        hldev->stats.pcim_info->aggr_info[_aggr]._p)
 
 
 	for (i = 0; i < XGE_HAL_MAC_LINKS; i++) {
-		set_latest_stat_link_cnt(i, tx_frms);
-		set_latest_stat_link_cnt(i, tx_ttl_eth_octets);
-		set_latest_stat_link_cnt(i, tx_data_octets);
-		set_latest_stat_link_cnt(i, tx_mcst_frms);
-		set_latest_stat_link_cnt(i, tx_bcst_frms);
-		set_latest_stat_link_cnt(i, tx_ucst_frms);
-		set_latest_stat_link_cnt(i, tx_tagged_frms);
-		set_latest_stat_link_cnt(i, tx_vld_ip);
-		set_latest_stat_link_cnt(i, tx_vld_ip_octets);
-		set_latest_stat_link_cnt(i, tx_icmp);
-		set_latest_stat_link_cnt(i, tx_tcp);
-		set_latest_stat_link_cnt(i, tx_rst_tcp);
-		set_latest_stat_link_cnt(i, tx_udp);
-		set_latest_stat_link_cnt(i, tx_unknown_protocol);
-		set_latest_stat_link_cnt(i, tx_parse_error);
-		set_latest_stat_link_cnt(i, tx_pause_ctrl_frms);
-		set_latest_stat_link_cnt(i, tx_lacpdu_frms);
-		set_latest_stat_link_cnt(i, tx_marker_pdu_frms);
-		set_latest_stat_link_cnt(i, tx_marker_resp_pdu_frms);
-		set_latest_stat_link_cnt(i, tx_drop_ip);
-		set_latest_stat_link_cnt(i, tx_xgmii_char1_match);
-		set_latest_stat_link_cnt(i, tx_xgmii_char2_match);
-		set_latest_stat_link_cnt(i, tx_xgmii_column1_match);
-		set_latest_stat_link_cnt(i, tx_xgmii_column2_match);
-		set_latest_stat_link_cnt(i, tx_drop_frms);
-		set_latest_stat_link_cnt(i, tx_any_err_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_frms);
-		set_latest_stat_link_cnt(i, rx_vld_frms);
-		set_latest_stat_link_cnt(i, rx_offld_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_eth_octets);
-		set_latest_stat_link_cnt(i, rx_data_octets);
-		set_latest_stat_link_cnt(i, rx_offld_octets);
-		set_latest_stat_link_cnt(i, rx_vld_mcst_frms);
-		set_latest_stat_link_cnt(i, rx_vld_bcst_frms);
-		set_latest_stat_link_cnt(i, rx_accepted_ucst_frms);
-		set_latest_stat_link_cnt(i, rx_accepted_nucst_frms);
-		set_latest_stat_link_cnt(i, rx_tagged_frms);
-		set_latest_stat_link_cnt(i, rx_long_frms);
-		set_latest_stat_link_cnt(i, rx_usized_frms);
-		set_latest_stat_link_cnt(i, rx_osized_frms);
-		set_latest_stat_link_cnt(i, rx_frag_frms);
-		set_latest_stat_link_cnt(i, rx_jabber_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_64_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_65_127_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_128_255_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_256_511_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_512_1023_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_1024_1518_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_1519_4095_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_40956_8191_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_8192_max_frms);
-		set_latest_stat_link_cnt(i, rx_ttl_gt_max_frms);
-		set_latest_stat_link_cnt(i, rx_ip);
-		set_latest_stat_link_cnt(i, rx_ip_octets);
-		set_latest_stat_link_cnt(i, rx_hdr_err_ip);
-		set_latest_stat_link_cnt(i, rx_icmp);
-		set_latest_stat_link_cnt(i, rx_tcp);
-		set_latest_stat_link_cnt(i, rx_udp);
-		set_latest_stat_link_cnt(i, rx_err_tcp);
-		set_latest_stat_link_cnt(i, rx_pause_cnt);
-		set_latest_stat_link_cnt(i, rx_pause_ctrl_frms);
-		set_latest_stat_link_cnt(i, rx_unsup_ctrl_frms);
-		set_latest_stat_link_cnt(i, rx_in_rng_len_err_frms);
-		set_latest_stat_link_cnt(i, rx_out_rng_len_err_frms);
-		set_latest_stat_link_cnt(i, rx_drop_frms);
-		set_latest_stat_link_cnt(i, rx_discarded_frms);
-		set_latest_stat_link_cnt(i, rx_drop_ip);
-		set_latest_stat_link_cnt(i, rx_err_drp_udp);
-		set_latest_stat_link_cnt(i, rx_lacpdu_frms);
-		set_latest_stat_link_cnt(i, rx_marker_pdu_frms);
-		set_latest_stat_link_cnt(i, rx_marker_resp_pdu_frms);
-		set_latest_stat_link_cnt(i, rx_unknown_pdu_frms);
-		set_latest_stat_link_cnt(i, rx_illegal_pdu_frms);
-		set_latest_stat_link_cnt(i, rx_fcs_discard);
-		set_latest_stat_link_cnt(i, rx_len_discard);
-		set_latest_stat_link_cnt(i, rx_pf_discard);
-		set_latest_stat_link_cnt(i, rx_trash_discard);
-		set_latest_stat_link_cnt(i, rx_rts_discard);
-		set_latest_stat_link_cnt(i, rx_wol_discard);
-		set_latest_stat_link_cnt(i, rx_red_discard);
-		set_latest_stat_link_cnt(i, rx_ingm_full_discard);
-		set_latest_stat_link_cnt(i, rx_xgmii_data_err_cnt);
-		set_latest_stat_link_cnt(i, rx_xgmii_ctrl_err_cnt);
-		set_latest_stat_link_cnt(i, rx_xgmii_err_sym);
-		set_latest_stat_link_cnt(i, rx_xgmii_char1_match);
-		set_latest_stat_link_cnt(i, rx_xgmii_char2_match);
-		set_latest_stat_link_cnt(i, rx_xgmii_column1_match);
-		set_latest_stat_link_cnt(i, rx_xgmii_column2_match);
-		set_latest_stat_link_cnt(i, rx_local_fault);
-		set_latest_stat_link_cnt(i, rx_remote_fault);
-		set_latest_stat_link_cnt(i, rx_queue_full);
+	    set_latest_stat_link_cnt(i, tx_frms);
+	    set_latest_stat_link_cnt(i, tx_ttl_eth_octets);
+	    set_latest_stat_link_cnt(i, tx_data_octets);
+	    set_latest_stat_link_cnt(i, tx_mcst_frms);
+	    set_latest_stat_link_cnt(i, tx_bcst_frms);
+	    set_latest_stat_link_cnt(i, tx_ucst_frms);
+	    set_latest_stat_link_cnt(i, tx_tagged_frms);
+	    set_latest_stat_link_cnt(i, tx_vld_ip);
+	    set_latest_stat_link_cnt(i, tx_vld_ip_octets);
+	    set_latest_stat_link_cnt(i, tx_icmp);
+	    set_latest_stat_link_cnt(i, tx_tcp);
+	    set_latest_stat_link_cnt(i, tx_rst_tcp);
+	    set_latest_stat_link_cnt(i, tx_udp);
+	    set_latest_stat_link_cnt(i, tx_unknown_protocol);
+	    set_latest_stat_link_cnt(i, tx_parse_error);
+	    set_latest_stat_link_cnt(i, tx_pause_ctrl_frms);
+	    set_latest_stat_link_cnt(i, tx_lacpdu_frms);
+	    set_latest_stat_link_cnt(i, tx_marker_pdu_frms);
+	    set_latest_stat_link_cnt(i, tx_marker_resp_pdu_frms);
+	    set_latest_stat_link_cnt(i, tx_drop_ip);
+	    set_latest_stat_link_cnt(i, tx_xgmii_char1_match);
+	    set_latest_stat_link_cnt(i, tx_xgmii_char2_match);
+	    set_latest_stat_link_cnt(i, tx_xgmii_column1_match);
+	    set_latest_stat_link_cnt(i, tx_xgmii_column2_match);
+	    set_latest_stat_link_cnt(i, tx_drop_frms);
+	    set_latest_stat_link_cnt(i, tx_any_err_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_frms);
+	    set_latest_stat_link_cnt(i, rx_vld_frms);
+	    set_latest_stat_link_cnt(i, rx_offld_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_eth_octets);
+	    set_latest_stat_link_cnt(i, rx_data_octets);
+	    set_latest_stat_link_cnt(i, rx_offld_octets);
+	    set_latest_stat_link_cnt(i, rx_vld_mcst_frms);
+	    set_latest_stat_link_cnt(i, rx_vld_bcst_frms);
+	    set_latest_stat_link_cnt(i, rx_accepted_ucst_frms);
+	    set_latest_stat_link_cnt(i, rx_accepted_nucst_frms);
+	    set_latest_stat_link_cnt(i, rx_tagged_frms);
+	    set_latest_stat_link_cnt(i, rx_long_frms);
+	    set_latest_stat_link_cnt(i, rx_usized_frms);
+	    set_latest_stat_link_cnt(i, rx_osized_frms);
+	    set_latest_stat_link_cnt(i, rx_frag_frms);
+	    set_latest_stat_link_cnt(i, rx_jabber_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_64_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_65_127_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_128_255_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_256_511_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_512_1023_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_1024_1518_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_1519_4095_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_40956_8191_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_8192_max_frms);
+	    set_latest_stat_link_cnt(i, rx_ttl_gt_max_frms);
+	    set_latest_stat_link_cnt(i, rx_ip);
+	    set_latest_stat_link_cnt(i, rx_ip_octets);
+	    set_latest_stat_link_cnt(i, rx_hdr_err_ip);
+	    set_latest_stat_link_cnt(i, rx_icmp);
+	    set_latest_stat_link_cnt(i, rx_tcp);
+	    set_latest_stat_link_cnt(i, rx_udp);
+	    set_latest_stat_link_cnt(i, rx_err_tcp);
+	    set_latest_stat_link_cnt(i, rx_pause_cnt);
+	    set_latest_stat_link_cnt(i, rx_pause_ctrl_frms);
+	    set_latest_stat_link_cnt(i, rx_unsup_ctrl_frms);
+	    set_latest_stat_link_cnt(i, rx_in_rng_len_err_frms);
+	    set_latest_stat_link_cnt(i, rx_out_rng_len_err_frms);
+	    set_latest_stat_link_cnt(i, rx_drop_frms);
+	    set_latest_stat_link_cnt(i, rx_discarded_frms);
+	    set_latest_stat_link_cnt(i, rx_drop_ip);
+	    set_latest_stat_link_cnt(i, rx_err_drp_udp);
+	    set_latest_stat_link_cnt(i, rx_lacpdu_frms);
+	    set_latest_stat_link_cnt(i, rx_marker_pdu_frms);
+	    set_latest_stat_link_cnt(i, rx_marker_resp_pdu_frms);
+	    set_latest_stat_link_cnt(i, rx_unknown_pdu_frms);
+	    set_latest_stat_link_cnt(i, rx_illegal_pdu_frms);
+	    set_latest_stat_link_cnt(i, rx_fcs_discard);
+	    set_latest_stat_link_cnt(i, rx_len_discard);
+	    set_latest_stat_link_cnt(i, rx_pf_discard);
+	    set_latest_stat_link_cnt(i, rx_trash_discard);
+	    set_latest_stat_link_cnt(i, rx_rts_discard);
+	    set_latest_stat_link_cnt(i, rx_wol_discard);
+	    set_latest_stat_link_cnt(i, rx_red_discard);
+	    set_latest_stat_link_cnt(i, rx_ingm_full_discard);
+	    set_latest_stat_link_cnt(i, rx_xgmii_data_err_cnt);
+	    set_latest_stat_link_cnt(i, rx_xgmii_ctrl_err_cnt);
+	    set_latest_stat_link_cnt(i, rx_xgmii_err_sym);
+	    set_latest_stat_link_cnt(i, rx_xgmii_char1_match);
+	    set_latest_stat_link_cnt(i, rx_xgmii_char2_match);
+	    set_latest_stat_link_cnt(i, rx_xgmii_column1_match);
+	    set_latest_stat_link_cnt(i, rx_xgmii_column2_match);
+	    set_latest_stat_link_cnt(i, rx_local_fault);
+	    set_latest_stat_link_cnt(i, rx_remote_fault);
+	    set_latest_stat_link_cnt(i, rx_queue_full);
 	}
 
 	for (i = 0; i < XGE_HAL_MAC_AGGREGATORS; i++) {
-		set_latest_stat_aggr_cnt(i, tx_frms);
-		set_latest_stat_aggr_cnt(i, tx_mcst_frms);
-		set_latest_stat_aggr_cnt(i, tx_bcst_frms);
-		set_latest_stat_aggr_cnt(i, tx_discarded_frms);
-		set_latest_stat_aggr_cnt(i, tx_errored_frms);
-		set_latest_stat_aggr_cnt(i, rx_frms);
-		set_latest_stat_aggr_cnt(i, rx_data_octets);
-		set_latest_stat_aggr_cnt(i, rx_mcst_frms);
-		set_latest_stat_aggr_cnt(i, rx_bcst_frms);
-		set_latest_stat_aggr_cnt(i, rx_discarded_frms);
-		set_latest_stat_aggr_cnt(i, rx_errored_frms);
-		set_latest_stat_aggr_cnt(i, rx_unknown_protocol_frms);
+	    set_latest_stat_aggr_cnt(i, tx_frms);
+	    set_latest_stat_aggr_cnt(i, tx_mcst_frms);
+	    set_latest_stat_aggr_cnt(i, tx_bcst_frms);
+	    set_latest_stat_aggr_cnt(i, tx_discarded_frms);
+	    set_latest_stat_aggr_cnt(i, tx_errored_frms);
+	    set_latest_stat_aggr_cnt(i, rx_frms);
+	    set_latest_stat_aggr_cnt(i, rx_data_octets);
+	    set_latest_stat_aggr_cnt(i, rx_mcst_frms);
+	    set_latest_stat_aggr_cnt(i, rx_bcst_frms);
+	    set_latest_stat_aggr_cnt(i, rx_discarded_frms);
+	    set_latest_stat_aggr_cnt(i, rx_errored_frms);
+	    set_latest_stat_aggr_cnt(i, rx_unknown_protocol_frms);
 	}
 	return;
 }
@@ -518,14 +510,14 @@ __hal_stats_update_latest(xge_hal_device_h devh)
 	xge_hal_device_t *hldev = (xge_hal_device_t *)devh;
 
 #define set_latest_stat_cnt(_dev, _p)                                   \
-        hldev->stats.hw_info_latest._p =                                \
+	    hldev->stats.hw_info_latest._p =                                \
 	((hldev->stats.hw_info->_p >= hldev->stats.hw_info_saved._p) ?  \
-          hldev->stats.hw_info->_p - hldev->stats.hw_info_saved._p :    \
+	      hldev->stats.hw_info->_p - hldev->stats.hw_info_saved._p :    \
 	  ((-1) - hldev->stats.hw_info_saved._p) + hldev->stats.hw_info->_p)
 
 	if (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_TITAN) {
-		__hal_stats_pcim_update_latest(devh);
-		return;
+	    __hal_stats_pcim_update_latest(devh);
+	    return;
 	}
 
 	/* Tx MAC statistics counters. */
@@ -721,20 +713,20 @@ xge_hal_stats_hw(xge_hal_device_h devh, xge_hal_stats_hw_info_t **hw_info)
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled) {
-		*hw_info = NULL;
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    *hw_info = NULL;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 #if defined(XGE_OS_DMA_REQUIRES_SYNC) && defined(XGE_HAL_DMA_STATS_STREAMING)
 	xge_os_dma_sync(hldev->pdev,
 	              hldev->stats.hw_info_dmah,
-		      hldev->stats.dma_addr,
-		      0,
-		      sizeof(xge_hal_stats_hw_info_t),
-		      XGE_OS_DMA_DIR_FROMDEVICE);
+	          hldev->stats.dma_addr,
+	          0,
+	          sizeof(xge_hal_stats_hw_info_t),
+	          XGE_OS_DMA_DIR_FROMDEVICE);
 #endif
 
-        /*
+	    /*
 	 * update hw counters, taking into account
 	 * the "reset" or "saved"
 	 * values
@@ -746,19 +738,19 @@ xge_hal_stats_hw(xge_hal_device_h devh, xge_hal_stats_hw_info_t **hw_info)
 	 */
 	if (xge_hal_device_check_id(hldev) == XGE_HAL_CARD_XENA ||
 	    xge_hal_device_check_id(hldev) == XGE_HAL_CARD_HERC) {
-		u64 mcst, bcst;
-		xge_hal_stats_hw_info_t *hwsta = &hldev->stats.hw_info_latest;
+	    u64 mcst, bcst;
+	    xge_hal_stats_hw_info_t *hwsta = &hldev->stats.hw_info_latest;
 
-		mcst = ((u64)hwsta->rmac_vld_mcst_frms_oflow << 32) |
-			hwsta->rmac_vld_mcst_frms;
+	    mcst = ((u64)hwsta->rmac_vld_mcst_frms_oflow << 32) |
+	        hwsta->rmac_vld_mcst_frms;
 
-		bcst = ((u64)hwsta->rmac_vld_bcst_frms_oflow << 32) |
-			hwsta->rmac_vld_bcst_frms;
+	    bcst = ((u64)hwsta->rmac_vld_bcst_frms_oflow << 32) |
+	        hwsta->rmac_vld_bcst_frms;
 
-		mcst -= bcst;
+	    mcst -= bcst;
 
-		hwsta->rmac_vld_mcst_frms_oflow = (u32)(mcst >> 32);
-		hwsta->rmac_vld_mcst_frms = (u32)mcst;
+	    hwsta->rmac_vld_mcst_frms_oflow = (u32)(mcst >> 32);
+	    hwsta->rmac_vld_mcst_frms = (u32)mcst;
 	}
 
 	*hw_info = &hldev->stats.hw_info_latest;
@@ -786,20 +778,20 @@ xge_hal_stats_pcim(xge_hal_device_h devh, xge_hal_stats_pcim_info_t **hw_info)
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled) {
-		*hw_info = NULL;
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    *hw_info = NULL;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 #if defined(XGE_OS_DMA_REQUIRES_SYNC) && defined(XGE_HAL_DMA_STATS_STREAMING)
 	xge_os_dma_sync(hldev->pdev,
 	              hldev->stats.hw_info_dmah,
-		      hldev->stats.dma_addr,
-		      0,
-		      sizeof(xge_hal_stats_pcim_info_t),
-		      XGE_OS_DMA_DIR_FROMDEVICE);
+	          hldev->stats.dma_addr,
+	          0,
+	          sizeof(xge_hal_stats_pcim_info_t),
+	          XGE_OS_DMA_DIR_FROMDEVICE);
 #endif
 
-        /*
+	    /*
 	 * update hw counters, taking into account
 	 * the "reset" or "saved"
 	 * values
@@ -830,19 +822,19 @@ xge_hal_stats_pcim(xge_hal_device_h devh, xge_hal_stats_pcim_info_t **hw_info)
  */
 xge_hal_status_e
 xge_hal_stats_device(xge_hal_device_h devh,
-		xge_hal_stats_device_info_t **device_info)
+	    xge_hal_stats_device_info_t **device_info)
 {
 	xge_hal_device_t *hldev = (xge_hal_device_t *)devh;
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled) {
-		*device_info = NULL;
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    *device_info = NULL;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 	hldev->stats.sw_dev_info_stats.traffic_intr_cnt =
-		hldev->stats.sw_dev_info_stats.total_intr_cnt -
-			hldev->stats.sw_dev_info_stats.not_traffic_intr_cnt;
+	    hldev->stats.sw_dev_info_stats.total_intr_cnt -
+	        hldev->stats.sw_dev_info_stats.not_traffic_intr_cnt;
 
 	*device_info = &hldev->stats.sw_dev_info_stats;
 
@@ -866,64 +858,64 @@ xge_hal_stats_device(xge_hal_device_h devh,
  */
 xge_hal_status_e
 xge_hal_stats_channel(xge_hal_channel_h channelh,
-		xge_hal_stats_channel_info_t **channel_info)
+	    xge_hal_stats_channel_info_t **channel_info)
 {
-	xge_hal_stats_hw_info_t	*latest;
+	xge_hal_stats_hw_info_t *latest;
 	xge_hal_channel_t *channel;
 	xge_hal_device_t *hldev;
 
 	channel = (xge_hal_channel_t *)channelh;
+	if ((channel == NULL) || (channel->magic != XGE_HAL_MAGIC)) {
+	    return XGE_HAL_ERR_INVALID_DEVICE;
+	}
 	hldev = (xge_hal_device_t *)channel->devh;
 	if ((hldev == NULL) || (hldev->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
-	}
-	if ((channel == NULL) || (channel->magic != XGE_HAL_MAGIC)) {
-		return XGE_HAL_ERR_INVALID_DEVICE;
+	    return XGE_HAL_ERR_INVALID_DEVICE;
 	}
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled ||
 	    !channel->is_open) {
-		*channel_info = NULL;
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    *channel_info = NULL;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 	hldev->stats.sw_dev_info_stats.traffic_intr_cnt =
-		hldev->stats.sw_dev_info_stats.total_intr_cnt -
-			hldev->stats.sw_dev_info_stats.not_traffic_intr_cnt;
+	    hldev->stats.sw_dev_info_stats.total_intr_cnt -
+	        hldev->stats.sw_dev_info_stats.not_traffic_intr_cnt;
 
 	if (hldev->stats.sw_dev_info_stats.traffic_intr_cnt) {
-		int rxcnt = hldev->stats.sw_dev_info_stats.rx_traffic_intr_cnt;
-		int txcnt = hldev->stats.sw_dev_info_stats.tx_traffic_intr_cnt;
-		if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-			if (!txcnt)
-				txcnt = 1;
-			channel->stats.avg_compl_per_intr_cnt =
-				channel->stats.total_compl_cnt / txcnt;
-		} else if (channel->type == XGE_HAL_CHANNEL_TYPE_RING &&
-			   !hldev->config.bimodal_interrupts) {
-			if (!rxcnt)
-				rxcnt = 1;
-			channel->stats.avg_compl_per_intr_cnt =
-				channel->stats.total_compl_cnt / rxcnt;
-		}
-		if (channel->stats.avg_compl_per_intr_cnt == 0) {
-			/* to not confuse user */
-			channel->stats.avg_compl_per_intr_cnt = 1;
-		}
+	    int rxcnt = hldev->stats.sw_dev_info_stats.rx_traffic_intr_cnt;
+	    int txcnt = hldev->stats.sw_dev_info_stats.tx_traffic_intr_cnt;
+	    if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
+	        if (!txcnt)
+	            txcnt = 1;
+	        channel->stats.avg_compl_per_intr_cnt =
+	            channel->stats.total_compl_cnt / txcnt;
+	    } else if (channel->type == XGE_HAL_CHANNEL_TYPE_RING &&
+	           !hldev->config.bimodal_interrupts) {
+	        if (!rxcnt)
+	            rxcnt = 1;
+	        channel->stats.avg_compl_per_intr_cnt =
+	            channel->stats.total_compl_cnt / rxcnt;
+	    }
+	    if (channel->stats.avg_compl_per_intr_cnt == 0) {
+	        /* to not confuse user */
+	        channel->stats.avg_compl_per_intr_cnt = 1;
+	    }
 	}
 
 	(void) xge_hal_stats_hw(hldev, &latest);
 
 	if (channel->stats.total_posts) {
-		channel->stats.avg_buffers_per_post =
-			channel->stats.total_buffers /
-				channel->stats.total_posts;
+	    channel->stats.avg_buffers_per_post =
+	        channel->stats.total_buffers /
+	            channel->stats.total_posts;
 #ifdef XGE_OS_PLATFORM_64BIT
 	        if (channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-		        channel->stats.avg_post_size =
-			(u32)(latest->tmac_ttl_less_fb_octets /
-				channel->stats.total_posts);
+	            channel->stats.avg_post_size =
+	        (u32)(latest->tmac_ttl_less_fb_octets /
+	            channel->stats.total_posts);
 	        }
 #endif
 	}
@@ -931,9 +923,9 @@ xge_hal_stats_channel(xge_hal_channel_h channelh,
 #ifdef XGE_OS_PLATFORM_64BIT
 	if (channel->stats.total_buffers &&
 	    channel->type == XGE_HAL_CHANNEL_TYPE_FIFO) {
-		channel->stats.avg_buffer_size =
-			(u32)(latest->tmac_ttl_less_fb_octets /
-				channel->stats.total_buffers);
+	    channel->stats.avg_buffer_size =
+	        (u32)(latest->tmac_ttl_less_fb_octets /
+	            channel->stats.total_buffers);
 	}
 #endif
 
@@ -960,14 +952,14 @@ xge_hal_stats_reset(xge_hal_device_h devh)
 
 	if (!hldev->stats.is_initialized ||
 	    !hldev->stats.is_enabled) {
-		return XGE_HAL_INF_STATS_IS_NOT_READY;
+	    return XGE_HAL_INF_STATS_IS_NOT_READY;
 	}
 
 	/* save hw stats to calculate the after-reset values */
 	__hal_stats_save(&hldev->stats);
 
 	/* zero-out driver-maintained stats, don't reset the saved */
-        __hal_stats_soft_reset(hldev, 0);
+	    __hal_stats_soft_reset(hldev, 0);
 
 	return XGE_HAL_OK;
 }
@@ -982,19 +974,19 @@ __hal_stats_soft_reset (xge_hal_device_h devh, int reset_all)
 	xge_hal_channel_t *channel;
 	xge_hal_device_t *hldev = (xge_hal_device_t *)devh;
 
-        if (reset_all)  {
-		if (xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN) {
-			xge_os_memzero(&hldev->stats.hw_info_saved,
-		               sizeof(xge_hal_stats_hw_info_t));
-			xge_os_memzero(&hldev->stats.hw_info_latest,
-		               sizeof(xge_hal_stats_hw_info_t));
-		} else {
-			xge_os_memzero(&hldev->stats.pcim_info_saved,
-		               sizeof(xge_hal_stats_pcim_info_t));
-			xge_os_memzero(&hldev->stats.pcim_info_latest,
-		               sizeof(xge_hal_stats_pcim_info_t));
-		}
-        }
+	    if (reset_all)  {
+	    if (xge_hal_device_check_id(hldev) != XGE_HAL_CARD_TITAN) {
+	        xge_os_memzero(&hldev->stats.hw_info_saved,
+	                   sizeof(xge_hal_stats_hw_info_t));
+	        xge_os_memzero(&hldev->stats.hw_info_latest,
+	                   sizeof(xge_hal_stats_hw_info_t));
+	    } else {
+	        xge_os_memzero(&hldev->stats.pcim_info_saved,
+	                   sizeof(xge_hal_stats_pcim_info_t));
+	        xge_os_memzero(&hldev->stats.pcim_info_latest,
+	                   sizeof(xge_hal_stats_pcim_info_t));
+	    }
+	    }
 
 	/* Reset the "soft" error and informational statistics */
 	xge_os_memzero(&hldev->stats.sw_dev_err_stats,
@@ -1004,16 +996,16 @@ __hal_stats_soft_reset (xge_hal_device_h devh, int reset_all)
 
 	/* for each Rx channel */
 	xge_list_for_each(item, &hldev->ring_channels) {
-		channel = xge_container_of(item, xge_hal_channel_t, item);
-		xge_os_memzero(&channel->stats,
-		             sizeof(xge_hal_stats_channel_info_t));
+	    channel = xge_container_of(item, xge_hal_channel_t, item);
+	    xge_os_memzero(&channel->stats,
+	                 sizeof(xge_hal_stats_channel_info_t));
 	}
 
 	/* for each Tx channel */
 	xge_list_for_each(item, &hldev->fifo_channels) {
-		channel = xge_container_of(item, xge_hal_channel_t, item);
-		xge_os_memzero(&channel->stats,
-		             sizeof(xge_hal_stats_channel_info_t));
+	    channel = xge_container_of(item, xge_hal_channel_t, item);
+	    xge_os_memzero(&channel->stats,
+	                 sizeof(xge_hal_stats_channel_info_t));
 	}
 }
 
