@@ -26,14 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- *  FileName :    xgehal-mm.h
- *
- *  Description:  memory pool object
- *
- *  Created:      28 May 2004
- */
-
 #ifndef XGE_HAL_MM_H
 #define XGE_HAL_MM_H
 
@@ -51,9 +43,9 @@ typedef void* xge_hal_mempool_h;
  caller.
  */
 typedef struct xge_hal_mempool_dma_t {
-	dma_addr_t			addr;
-	pci_dma_h			handle;
-	pci_dma_acc_h			acc_handle;
+	dma_addr_t          addr;
+	pci_dma_h           handle;
+	pci_dma_acc_h           acc_handle;
 } xge_hal_mempool_dma_t;
 
 /*
@@ -67,32 +59,32 @@ typedef struct xge_hal_mempool_dma_t {
  * Memory pool allocation/deallocation callback.
  */
 typedef xge_hal_status_e (*xge_hal_mempool_item_f) (xge_hal_mempool_h mempoolh,
-				void *memblock, int memblock_index,
-				xge_hal_mempool_dma_t *dma_object, void	*item,
-				int index, int is_last, void *userdata);
+	            void *memblock, int memblock_index,
+	            xge_hal_mempool_dma_t *dma_object, void *item,
+	            int index, int is_last, void *userdata);
 
 /*
  * struct xge_hal_mempool_t - Memory pool.
  */
 typedef struct xge_hal_mempool_t {
-	xge_hal_mempool_item_f		item_func_alloc;
-	xge_hal_mempool_item_f		item_func_free;
-	void				*userdata;
-	void				**memblocks_arr;
-	void				**memblocks_priv_arr;
-	xge_hal_mempool_dma_t		*memblocks_dma_arr;
-	pci_dev_h			pdev;
-	int				memblock_size;
-	int				memblocks_max;
-	int				memblocks_allocated;
-	int				item_size;
-	int				items_max;
-	int				items_initial;
-	int				items_current;
-	int				items_per_memblock;
-	void				**items_arr;
-	void				**shadow_items_arr;
-	int				items_priv_size;
+	xge_hal_mempool_item_f      item_func_alloc;
+	xge_hal_mempool_item_f      item_func_free;
+	void                *userdata;
+	void                **memblocks_arr;
+	void                **memblocks_priv_arr;
+	xge_hal_mempool_dma_t       *memblocks_dma_arr;
+	pci_dev_h           pdev;
+	int             memblock_size;
+	int             memblocks_max;
+	int             memblocks_allocated;
+	int             item_size;
+	int             items_max;
+	int             items_initial;
+	int             items_current;
+	int             items_per_memblock;
+	void                **items_arr;
+	void                **shadow_items_arr;
+	int             items_priv_size;
 } xge_hal_mempool_t;
 
 /*
@@ -110,7 +102,7 @@ __hal_mempool_item(xge_hal_mempool_t *mempool, int index)
  */
 static inline void*
 __hal_mempool_item_priv(xge_hal_mempool_t *mempool, int memblock_idx,
-			void *item, int *memblock_item_idx)
+	        void *item, int *memblock_item_idx)
 {
 	ptrdiff_t offset;
 	void *memblock = mempool->memblocks_arr[memblock_idx];
@@ -124,7 +116,7 @@ __hal_mempool_item_priv(xge_hal_mempool_t *mempool, int memblock_idx,
 	xge_assert((*memblock_item_idx) < mempool->items_per_memblock);
 
 	return (char*)mempool->memblocks_priv_arr[memblock_idx] +
-			    (*memblock_item_idx) * mempool->items_priv_size;
+	            (*memblock_item_idx) * mempool->items_priv_size;
 }
 
 /*
@@ -159,12 +151,12 @@ __hal_mempool_memblock_dma(xge_hal_mempool_t *mempool, int memblock_idx)
 }
 
 xge_hal_status_e __hal_mempool_grow(xge_hal_mempool_t *mempool,
-			int num_allocate, int *num_allocated);
+	        int num_allocate, int *num_allocated);
 
 xge_hal_mempool_t* __hal_mempool_create(pci_dev_h pdev, int memblock_size,
-			int item_size, int private_size, int items_initial,
-			int items_max, xge_hal_mempool_item_f item_func_alloc,
-			xge_hal_mempool_item_f item_func_free, void *userdata);
+	        int item_size, int private_size, int items_initial,
+	        int items_max, xge_hal_mempool_item_f item_func_alloc,
+	        xge_hal_mempool_item_f item_func_free, void *userdata);
 
 void __hal_mempool_destroy(xge_hal_mempool_t *mempool);
 

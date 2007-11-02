@@ -26,15 +26,6 @@
  * $FreeBSD$
  */
 
-/*
-	xge_hal_fifo_t            *fifo    = (xge_hal_fifo_t *)channelh;
- *  FileName :    xgehal-stats.h
- *
- *  Description:  HW statistics object
- *
- *  Created:      2 June 2004
- */
-
 #ifndef XGE_HAL_STATS_H
 #define XGE_HAL_STATS_H
 
@@ -524,7 +515,7 @@ typedef struct xge_hal_stats_hw_info_t {
 	u32 wr_disc_cnt;
 	u32 rd_rtry_wr_ack_cnt;
 
-/*	DMA Transaction statistics. */
+/*  DMA Transaction statistics. */
 	u32 txp_wr_cnt;
 	u32 txd_rd_cnt;
 	u32 txd_wr_cnt;
@@ -696,7 +687,7 @@ typedef struct xge_hal_stats_hw_info_t {
 	u32 wr_disc_cnt;
 	u32 wr_rtry_cnt;
 
-/*	PCI/PCI-X Write / DMA Transaction statistics. */
+/*  PCI/PCI-X Write / DMA Transaction statistics. */
 	u32 txp_wr_cnt;
 	u32 rd_rtry_wr_ack_cnt;
 	u32 txd_wr_cnt;
@@ -805,34 +796,34 @@ typedef struct xge_hal_stats_hw_info_t {
  * @total_posts_dtrs_many: Total number of posts on the channel that involving
  *       more than one descriptor.
  * @total_posts_frags_many: Total number of fragments posted on the channel
- *	 during post requests of multiple descriptors.
+ *   during post requests of multiple descriptors.
  * @total_posts_dang_dtrs: Total number of posts on the channel involving
  *       dangling descriptors.
  * @total_posts_dang_frags: Total number of dangling fragments posted on the channel
- *	 during post request containing multiple descriptors.
+ *   during post request containing multiple descriptors.
  *
  * HAL channel counters.
  * See also: xge_hal_stats_device_info_t{}.
  */
 typedef struct xge_hal_stats_channel_info_t {
-	u32	full_cnt;
-	u32	usage_max;
-	u32	reserve_free_swaps_cnt;
-	u32	avg_compl_per_intr_cnt;
-	u32	total_compl_cnt;
-	u32	total_posts;
-	u32	total_posts_many;
-	u32	total_buffers;
-	u32	copied_frags;
-	u32	copied_buffers;
-	u32	avg_buffers_per_post;
-	u32	avg_buffer_size;
-	u32	avg_post_size;
-	u32	ring_bump_cnt;
-	u32	total_posts_dtrs_many;
-	u32	total_posts_frags_many;
-	u32	total_posts_dang_dtrs;
-	u32	total_posts_dang_frags;
+	u32 full_cnt;
+	u32 usage_max;
+	u32 reserve_free_swaps_cnt;
+	u32 avg_compl_per_intr_cnt;
+	u32 total_compl_cnt;
+	u32 total_posts;
+	u32 total_posts_many;
+	u32 total_buffers;
+	u32 copied_frags;
+	u32 copied_buffers;
+	u32 avg_buffers_per_post;
+	u32 avg_buffer_size;
+	u32 avg_post_size;
+	u32 ring_bump_cnt;
+	u32 total_posts_dtrs_many;
+	u32 total_posts_frags_many;
+	u32 total_posts_dang_dtrs;
+	u32 total_posts_dang_frags;
 } xge_hal_stats_channel_info_t;
 
 /**
@@ -843,10 +834,10 @@ typedef struct xge_hal_stats_channel_info_t {
  * @tick_period: tick count for each cycle
  */
 typedef struct xge_hal_xpak_counter_t {
-        u32     excess_temp;
-        u32     excess_bias_current;
-        u32     excess_laser_output;
-        u32     tick_period;
+	    u32     excess_temp;
+	    u32     excess_bias_current;
+	    u32     excess_laser_output;
+	    u32     tick_period;
 } xge_hal_xpak_counter_t;
 
 /**
@@ -865,18 +856,18 @@ typedef struct xge_hal_xpak_counter_t {
  * @warn_laser_output_power_low: warn_laser_output_power_low count value
  */
 typedef struct xge_hal_stats_xpak_t {
-        u16     alarm_transceiver_temp_high;
-        u16     alarm_transceiver_temp_low;
-        u16     alarm_laser_bias_current_high;
-        u16     alarm_laser_bias_current_low;
-        u16     alarm_laser_output_power_high;
-        u16     alarm_laser_output_power_low;
-        u16     warn_transceiver_temp_high;
-        u16     warn_transceiver_temp_low;
-        u16     warn_laser_bias_current_high;
-        u16     warn_laser_bias_current_low;
-        u16     warn_laser_output_power_high;
-        u16     warn_laser_output_power_low;
+	    u16     alarm_transceiver_temp_high;
+	    u16     alarm_transceiver_temp_low;
+	    u16     alarm_laser_bias_current_high;
+	    u16     alarm_laser_bias_current_low;
+	    u16     alarm_laser_output_power_high;
+	    u16     alarm_laser_output_power_low;
+	    u16     warn_transceiver_temp_high;
+	    u16     warn_transceiver_temp_low;
+	    u16     warn_laser_bias_current_high;
+	    u16     warn_laser_bias_current_low;
+	    u16     warn_laser_output_power_high;
+	    u16     warn_laser_output_power_low;
 } xge_hal_stats_xpak_t;
 
 
@@ -955,83 +946,55 @@ typedef struct xge_hal_stats_sw_err_t {
  * See also: xge_hal_stats_channel_info_t{}.
  */
 typedef struct xge_hal_stats_device_info_t {
-	u32				rx_traffic_intr_cnt;
-	u32				tx_traffic_intr_cnt;
-	u32				txpic_intr_cnt;
-	u32				txdma_intr_cnt;
-	u32				pfc_err_cnt;
-	u32				tda_err_cnt;
-	u32				pcc_err_cnt;
-	u32				tti_err_cnt;
-	u32				lso_err_cnt;
-	u32				tpa_err_cnt;
-	u32				sm_err_cnt;
-	u32				txmac_intr_cnt;
-	u32				mac_tmac_err_cnt;
-	u32				txxgxs_intr_cnt;
-	u32				xgxs_txgxs_err_cnt;
-	u32				rxpic_intr_cnt;
-	u32				rxdma_intr_cnt;
-	u32				rc_err_cnt;
-	u32				rpa_err_cnt;
-	u32				rda_err_cnt;
-	u32				rti_err_cnt;
-	u32				rxmac_intr_cnt;
-	u32				mac_rmac_err_cnt;
-	u32				rxxgxs_intr_cnt;
-	u32				xgxs_rxgxs_err_cnt;
-	u32				mc_intr_cnt;
-	u32				not_traffic_intr_cnt;
-	u32				not_xge_intr_cnt;
-	u32				traffic_intr_cnt;
-	u32				total_intr_cnt;
-	u32				soft_reset_cnt;
-	u32				rxufca_hi_adjust_cnt;
-	u32				rxufca_lo_adjust_cnt;
-	u32				bimodal_hi_adjust_cnt;
-	u32				bimodal_lo_adjust_cnt;
+	u32             rx_traffic_intr_cnt;
+	u32             tx_traffic_intr_cnt;
+	u32             txpic_intr_cnt;
+	u32             txdma_intr_cnt;
+	u32             pfc_err_cnt;
+	u32             tda_err_cnt;
+	u32             pcc_err_cnt;
+	u32             tti_err_cnt;
+	u32             lso_err_cnt;
+	u32             tpa_err_cnt;
+	u32             sm_err_cnt;
+	u32             txmac_intr_cnt;
+	u32             mac_tmac_err_cnt;
+	u32             txxgxs_intr_cnt;
+	u32             xgxs_txgxs_err_cnt;
+	u32             rxpic_intr_cnt;
+	u32             rxdma_intr_cnt;
+	u32             rc_err_cnt;
+	u32             rpa_err_cnt;
+	u32             rda_err_cnt;
+	u32             rti_err_cnt;
+	u32             rxmac_intr_cnt;
+	u32             mac_rmac_err_cnt;
+	u32             rxxgxs_intr_cnt;
+	u32             xgxs_rxgxs_err_cnt;
+	u32             mc_intr_cnt;
+	u32             not_traffic_intr_cnt;
+	u32             not_xge_intr_cnt;
+	u32             traffic_intr_cnt;
+	u32             total_intr_cnt;
+	u32             soft_reset_cnt;
+	u32             rxufca_hi_adjust_cnt;
+	u32             rxufca_lo_adjust_cnt;
+	u32             bimodal_hi_adjust_cnt;
+	u32             bimodal_lo_adjust_cnt;
 #ifdef XGE_HAL_CONFIG_LRO
-	u32				tot_frms_lroised;
-	u32				tot_lro_sessions;
-	u32				lro_frm_len_exceed_cnt;
-	u32				lro_sg_exceed_cnt;
-	u32				lro_out_of_seq_pkt_cnt;
-	u32				lro_dup_pkt_cnt;
+	u32             tot_frms_lroised;
+	u32             tot_lro_sessions;
+	u32             lro_frm_len_exceed_cnt;
+	u32             lro_sg_exceed_cnt;
+	u32             lro_out_of_seq_pkt_cnt;
+	u32             lro_dup_pkt_cnt;
 #endif
 } xge_hal_stats_device_info_t;
 
-#ifdef XGEHAL_RNIC
-
-/**
- * struct xge_hal_vp_statistics_t - Virtual Path Statistics
- *
- * @no_nces: Number of NCEs on Adapter in this VP
- * @no_sqs: Number of SQs on Adapter in this VP
- * @no_srqs: Number of SRQs on Adapter in this VP
- * @no_cqrqs: Number of CQRQs on Adapter in this VP
- * @no_tcp_sessions: Number of TCP sessions on Adapter in this VP
- * @no_lro_sessions: Number of LRO sessions on Adapter in this VP
- * @no_spdm_sessions: Number of SPDM sessions on Adapter in this VP
- *
- * This structure contains fields to keep statistics of virtual path
- */
-typedef struct xge_hal_vp_statistics_t {
-	u32				no_nces;
-	u32				no_sqs;
-	u32				no_srqs;
-	u32				no_cqrqs;
-	u32				no_tcp_sessions;
-	u32				no_lro_sessions;
-	u32				no_spdm_sessions;
-}xge_hal_vp_statistics_t;
-
-#endif
-
-
 /* ========================== XFRAME ER STATISTICS ======================== */
-#define XGE_HAL_MAC_LINKS	3
-#define XGE_HAL_MAC_AGGREGATORS	2
-#define XGE_HAL_VPATHS		17
+#define XGE_HAL_MAC_LINKS   3
+#define XGE_HAL_MAC_AGGREGATORS 2
+#define XGE_HAL_VPATHS      17
 /**
  * struct xge_hal_stats_link_info_t - XGMAC statistics for a link
  *
@@ -1207,97 +1170,97 @@ typedef struct xge_hal_vp_statistics_t {
  * queue for mac the link.
  */
 typedef struct xge_hal_stats_link_info_t {
-	u64	tx_frms;
-	u64	tx_ttl_eth_octets;
-	u64	tx_data_octets;
-	u64	tx_mcst_frms;
-	u64	tx_bcst_frms;
-	u64	tx_ucst_frms;
-	u64	tx_tagged_frms;
-	u64	tx_vld_ip;
-	u64	tx_vld_ip_octets;
-	u64	tx_icmp;
-	u64	tx_tcp;
-	u64	tx_rst_tcp;
-	u64	tx_udp;
-	u64	tx_unknown_protocol;
-	u64	tx_parse_error;
-	u64	tx_pause_ctrl_frms;
-	u64	tx_lacpdu_frms;
-	u64	tx_marker_pdu_frms;
-	u64	tx_marker_resp_pdu_frms;
-	u64	tx_drop_ip;
-	u64	tx_xgmii_char1_match;
-	u64	tx_xgmii_char2_match;
-	u64	tx_xgmii_column1_match;
-	u64	tx_xgmii_column2_match;
-	u64	tx_drop_frms;
-	u64	tx_any_err_frms;
-	u64	rx_ttl_frms;
-	u64	rx_vld_frms;
-	u64	rx_offld_frms;
-	u64	rx_ttl_eth_octets;
-	u64	rx_data_octets;
-	u64	rx_offld_octets;
-	u64	rx_vld_mcst_frms;
-	u64	rx_vld_bcst_frms;
-	u64	rx_accepted_ucst_frms;
-	u64	rx_accepted_nucst_frms;
-	u64	rx_tagged_frms;
-	u64	rx_long_frms;
-	u64	rx_usized_frms;
-	u64	rx_osized_frms;
-	u64	rx_frag_frms;
-	u64	rx_jabber_frms;
-	u64	rx_ttl_64_frms;
-	u64	rx_ttl_65_127_frms;
-	u64	rx_ttl_128_255_frms;
-	u64	rx_ttl_256_511_frms;
-	u64	rx_ttl_512_1023_frms;
-	u64	rx_ttl_1024_1518_frms;
-	u64	rx_ttl_1519_4095_frms;
-	u64	rx_ttl_40956_8191_frms;
-	u64	rx_ttl_8192_max_frms;
-	u64	rx_ttl_gt_max_frms;
-	u64	rx_ip;
-	u64	rx_ip_octets;
-	u64	rx_hdr_err_ip;
-	u64	rx_icmp;
-	u64	rx_tcp;
-	u64	rx_udp;
-	u64	rx_err_tcp;
-	u64	rx_pause_cnt;
-	u64	rx_pause_ctrl_frms;
-	u64	rx_unsup_ctrl_frms;
-	u64	rx_in_rng_len_err_frms;
-	u64	rx_out_rng_len_err_frms;
-	u64	rx_drop_frms;
-	u64	rx_discarded_frms;
-	u64	rx_drop_ip;
-	u64	rx_err_drp_udp;
-	u64	rx_lacpdu_frms;
-	u64	rx_marker_pdu_frms;
-	u64	rx_marker_resp_pdu_frms;
-	u64	rx_unknown_pdu_frms;
-	u64	rx_illegal_pdu_frms;
-	u64	rx_fcs_discard;
-	u64	rx_len_discard;
-	u64	rx_pf_discard;
-	u64	rx_trash_discard;
-	u64	rx_rts_discard;
-	u64	rx_wol_discard;
-	u64	rx_red_discard;
-	u64	rx_ingm_full_discard;
-	u64	rx_xgmii_data_err_cnt;
-	u64	rx_xgmii_ctrl_err_cnt;
-	u64	rx_xgmii_err_sym;
-	u64	rx_xgmii_char1_match;
-	u64	rx_xgmii_char2_match;
-	u64	rx_xgmii_column1_match;
-	u64	rx_xgmii_column2_match;
-	u64	rx_local_fault;
-	u64	rx_remote_fault;
-	u64	rx_queue_full;
+	u64 tx_frms;
+	u64 tx_ttl_eth_octets;
+	u64 tx_data_octets;
+	u64 tx_mcst_frms;
+	u64 tx_bcst_frms;
+	u64 tx_ucst_frms;
+	u64 tx_tagged_frms;
+	u64 tx_vld_ip;
+	u64 tx_vld_ip_octets;
+	u64 tx_icmp;
+	u64 tx_tcp;
+	u64 tx_rst_tcp;
+	u64 tx_udp;
+	u64 tx_unknown_protocol;
+	u64 tx_parse_error;
+	u64 tx_pause_ctrl_frms;
+	u64 tx_lacpdu_frms;
+	u64 tx_marker_pdu_frms;
+	u64 tx_marker_resp_pdu_frms;
+	u64 tx_drop_ip;
+	u64 tx_xgmii_char1_match;
+	u64 tx_xgmii_char2_match;
+	u64 tx_xgmii_column1_match;
+	u64 tx_xgmii_column2_match;
+	u64 tx_drop_frms;
+	u64 tx_any_err_frms;
+	u64 rx_ttl_frms;
+	u64 rx_vld_frms;
+	u64 rx_offld_frms;
+	u64 rx_ttl_eth_octets;
+	u64 rx_data_octets;
+	u64 rx_offld_octets;
+	u64 rx_vld_mcst_frms;
+	u64 rx_vld_bcst_frms;
+	u64 rx_accepted_ucst_frms;
+	u64 rx_accepted_nucst_frms;
+	u64 rx_tagged_frms;
+	u64 rx_long_frms;
+	u64 rx_usized_frms;
+	u64 rx_osized_frms;
+	u64 rx_frag_frms;
+	u64 rx_jabber_frms;
+	u64 rx_ttl_64_frms;
+	u64 rx_ttl_65_127_frms;
+	u64 rx_ttl_128_255_frms;
+	u64 rx_ttl_256_511_frms;
+	u64 rx_ttl_512_1023_frms;
+	u64 rx_ttl_1024_1518_frms;
+	u64 rx_ttl_1519_4095_frms;
+	u64 rx_ttl_40956_8191_frms;
+	u64 rx_ttl_8192_max_frms;
+	u64 rx_ttl_gt_max_frms;
+	u64 rx_ip;
+	u64 rx_ip_octets;
+	u64 rx_hdr_err_ip;
+	u64 rx_icmp;
+	u64 rx_tcp;
+	u64 rx_udp;
+	u64 rx_err_tcp;
+	u64 rx_pause_cnt;
+	u64 rx_pause_ctrl_frms;
+	u64 rx_unsup_ctrl_frms;
+	u64 rx_in_rng_len_err_frms;
+	u64 rx_out_rng_len_err_frms;
+	u64 rx_drop_frms;
+	u64 rx_discarded_frms;
+	u64 rx_drop_ip;
+	u64 rx_err_drp_udp;
+	u64 rx_lacpdu_frms;
+	u64 rx_marker_pdu_frms;
+	u64 rx_marker_resp_pdu_frms;
+	u64 rx_unknown_pdu_frms;
+	u64 rx_illegal_pdu_frms;
+	u64 rx_fcs_discard;
+	u64 rx_len_discard;
+	u64 rx_pf_discard;
+	u64 rx_trash_discard;
+	u64 rx_rts_discard;
+	u64 rx_wol_discard;
+	u64 rx_red_discard;
+	u64 rx_ingm_full_discard;
+	u64 rx_xgmii_data_err_cnt;
+	u64 rx_xgmii_ctrl_err_cnt;
+	u64 rx_xgmii_err_sym;
+	u64 rx_xgmii_char1_match;
+	u64 rx_xgmii_char2_match;
+	u64 rx_xgmii_column1_match;
+	u64 rx_xgmii_column2_match;
+	u64 rx_local_fault;
+	u64 rx_remote_fault;
+	u64 rx_queue_full;
 }xge_hal_stats_link_info_t;
 
 /**
@@ -1323,18 +1286,18 @@ typedef struct xge_hal_stats_link_info_t {
  * the aggregator.
 */
 typedef struct xge_hal_stats_aggr_info_t {
-	u64	tx_frms;
-	u64	tx_mcst_frms;
-	u64	tx_bcst_frms;
-	u64	tx_discarded_frms;
-	u64	tx_errored_frms;
-	u64	rx_frms;
-	u64	rx_data_octets;
-	u64	rx_mcst_frms;
-	u64	rx_bcst_frms;
-	u64	rx_discarded_frms;
-	u64	rx_errored_frms;
-	u64	rx_unknown_protocol_frms;
+	u64 tx_frms;
+	u64 tx_mcst_frms;
+	u64 tx_bcst_frms;
+	u64 tx_discarded_frms;
+	u64 tx_errored_frms;
+	u64 rx_frms;
+	u64 rx_data_octets;
+	u64 rx_mcst_frms;
+	u64 rx_bcst_frms;
+	u64 rx_discarded_frms;
+	u64 rx_errored_frms;
+	u64 rx_unknown_protocol_frms;
 }xge_hal_stats_aggr_info_t;
 
 /**
@@ -1439,60 +1402,60 @@ typedef struct xge_hal_stats_aggr_info_t {
  * the vpath.
  */
 typedef struct xge_hal_stats_vpath_info_t {
-	u64	tx_frms;
-	u64	tx_ttl_eth_octets;
-	u64	tx_data_octets;
-	u64	tx_mcst_frms;
-	u64	tx_bcst_frms;
-	u64	tx_ucst_frms;
-	u64	tx_tagged_frms;
-	u64	tx_vld_ip;
-	u64	tx_vld_ip_octets;
-	u64	tx_icmp;
-	u64	tx_tcp;
-	u64	tx_rst_tcp;
-	u64	tx_udp;
-	u64	tx_unknown_protocol;
-	u64	tx_parse_error;
-	u64	rx_ttl_frms;
-	u64	rx_vld_frms;
-	u64	rx_offld_frms;
-	u64	rx_ttl_eth_octets;
-	u64	rx_data_octets;
-	u64	rx_offld_octets;
-	u64	rx_vld_mcst_frms;
-	u64	rx_vld_bcst_frms;
-	u64	rx_accepted_ucst_frms;
-	u64	rx_accepted_nucst_frms;
-	u64	rx_tagged_frms;
-	u64	rx_long_frms;
-	u64	rx_usized_frms;
-	u64	rx_osized_frms;
-	u64	rx_frag_frms;
-	u64	rx_jabber_frms;
-	u64	rx_ttl_64_frms;
-	u64	rx_ttl_65_127_frms;
-	u64	rx_ttl_128_255_frms;
-	u64	rx_ttl_256_511_frms;
-	u64	rx_ttl_512_1023_frms;
-	u64	rx_ttl_1024_1518_frms;
-	u64	rx_ttl_1519_4095_frms;
-	u64	rx_ttl_40956_8191_frms;
-	u64	rx_ttl_8192_max_frms;
-	u64	rx_ttl_gt_max_frms;
-	u64	rx_ip;
-	u64	rx_accepted_ip;
-	u64	rx_ip_octets;
-	u64	rx_hdr_err_ip;
-	u64	rx_icmp;
-	u64	rx_tcp;
-	u64	rx_udp;
-	u64	rx_err_tcp;
-	u64	rx_mpa_ok_frms;
-	u64	rx_mpa_crc_fail_frms;
-	u64	rx_mpa_mrk_fail_frms;
-	u64	rx_mpa_len_fail_frms;
-	u64	rx_wol_frms;
+	u64 tx_frms;
+	u64 tx_ttl_eth_octets;
+	u64 tx_data_octets;
+	u64 tx_mcst_frms;
+	u64 tx_bcst_frms;
+	u64 tx_ucst_frms;
+	u64 tx_tagged_frms;
+	u64 tx_vld_ip;
+	u64 tx_vld_ip_octets;
+	u64 tx_icmp;
+	u64 tx_tcp;
+	u64 tx_rst_tcp;
+	u64 tx_udp;
+	u64 tx_unknown_protocol;
+	u64 tx_parse_error;
+	u64 rx_ttl_frms;
+	u64 rx_vld_frms;
+	u64 rx_offld_frms;
+	u64 rx_ttl_eth_octets;
+	u64 rx_data_octets;
+	u64 rx_offld_octets;
+	u64 rx_vld_mcst_frms;
+	u64 rx_vld_bcst_frms;
+	u64 rx_accepted_ucst_frms;
+	u64 rx_accepted_nucst_frms;
+	u64 rx_tagged_frms;
+	u64 rx_long_frms;
+	u64 rx_usized_frms;
+	u64 rx_osized_frms;
+	u64 rx_frag_frms;
+	u64 rx_jabber_frms;
+	u64 rx_ttl_64_frms;
+	u64 rx_ttl_65_127_frms;
+	u64 rx_ttl_128_255_frms;
+	u64 rx_ttl_256_511_frms;
+	u64 rx_ttl_512_1023_frms;
+	u64 rx_ttl_1024_1518_frms;
+	u64 rx_ttl_1519_4095_frms;
+	u64 rx_ttl_40956_8191_frms;
+	u64 rx_ttl_8192_max_frms;
+	u64 rx_ttl_gt_max_frms;
+	u64 rx_ip;
+	u64 rx_accepted_ip;
+	u64 rx_ip_octets;
+	u64 rx_hdr_err_ip;
+	u64 rx_icmp;
+	u64 rx_tcp;
+	u64 rx_udp;
+	u64 rx_err_tcp;
+	u64 rx_mpa_ok_frms;
+	u64 rx_mpa_crc_fail_frms;
+	u64 rx_mpa_mrk_fail_frms;
+	u64 rx_mpa_len_fail_frms;
+	u64 rx_wol_frms;
 }xge_hal_stats_vpath_info_t;
 
 /**
@@ -1503,8 +1466,8 @@ typedef struct xge_hal_stats_vpath_info_t {
  * See also: xge_hal_stats_link_info_t{}, xge_hal_stats_aggr_info_t{}.
  */
 typedef struct xge_hal_stats_pcim_info_t {
-	xge_hal_stats_link_info_t	link_info[XGE_HAL_MAC_LINKS];
-	xge_hal_stats_aggr_info_t	aggr_info[XGE_HAL_MAC_AGGREGATORS];
+	xge_hal_stats_link_info_t   link_info[XGE_HAL_MAC_LINKS];
+	xge_hal_stats_aggr_info_t   aggr_info[XGE_HAL_MAC_AGGREGATORS];
 }xge_hal_stats_pcim_info_t;
 
 /**
@@ -1541,35 +1504,35 @@ typedef struct xge_hal_stats_pcim_info_t {
  * See also: xge_hal_stats_channel_info_t{}.
  */
 typedef struct xge_hal_stats_t {
-        /* handles */
-	xge_hal_device_h		devh;
-	dma_addr_t			dma_addr;
-	pci_dma_h			hw_info_dmah;
-	pci_dma_acc_h			hw_info_dma_acch;
+	    /* handles */
+	xge_hal_device_h        devh;
+	dma_addr_t          dma_addr;
+	pci_dma_h           hw_info_dmah;
+	pci_dma_acc_h           hw_info_dma_acch;
 
-        /* HAL device hardware statistics */
-	xge_hal_stats_hw_info_t		*hw_info;
-	xge_hal_stats_hw_info_t		hw_info_saved;
-	xge_hal_stats_hw_info_t		hw_info_latest;
+	    /* HAL device hardware statistics */
+	xge_hal_stats_hw_info_t     *hw_info;
+	xge_hal_stats_hw_info_t     hw_info_saved;
+	xge_hal_stats_hw_info_t     hw_info_latest;
 
 	/* HAL device hardware statistics for XFRAME ER */
-	xge_hal_stats_pcim_info_t	*pcim_info;
-	xge_hal_stats_pcim_info_t	*pcim_info_saved;
-	xge_hal_stats_pcim_info_t	*pcim_info_latest;
+	xge_hal_stats_pcim_info_t   *pcim_info;
+	xge_hal_stats_pcim_info_t   *pcim_info_saved;
+	xge_hal_stats_pcim_info_t   *pcim_info_latest;
 
-        /* HAL device "soft" stats */
+	    /* HAL device "soft" stats */
 	xge_hal_stats_sw_err_t          sw_dev_err_stats;
 	xge_hal_stats_device_info_t     sw_dev_info_stats;
 
-        /* flags */
-	int				is_initialized;
-	int				is_enabled;
+	    /* flags */
+	int             is_initialized;
+	int             is_enabled;
 } xge_hal_stats_t;
 
 /* ========================== STATS PRIVATE API ========================= */
 
 xge_hal_status_e __hal_stats_initialize(xge_hal_stats_t *stats,
-			xge_hal_device_h devh);
+	        xge_hal_device_h devh);
 
 void __hal_stats_terminate(xge_hal_stats_t *stats);
 
@@ -1582,16 +1545,16 @@ void __hal_stats_soft_reset(xge_hal_device_h devh, int reset_all);
 /* ========================== STATS PUBLIC API ========================= */
 
 xge_hal_status_e xge_hal_stats_hw(xge_hal_device_h devh,
-			xge_hal_stats_hw_info_t	**hw_info);
+	        xge_hal_stats_hw_info_t **hw_info);
 
 xge_hal_status_e xge_hal_stats_pcim(xge_hal_device_h devh,
-			xge_hal_stats_pcim_info_t	**pcim_info);
+	        xge_hal_stats_pcim_info_t   **pcim_info);
 
 xge_hal_status_e xge_hal_stats_device(xge_hal_device_h devh,
-			xge_hal_stats_device_info_t **device_info);
+	        xge_hal_stats_device_info_t **device_info);
 
 xge_hal_status_e xge_hal_stats_channel(xge_hal_channel_h channelh,
-			xge_hal_stats_channel_info_t **channel_info);
+	        xge_hal_stats_channel_info_t **channel_info);
 
 xge_hal_status_e xge_hal_stats_reset(xge_hal_device_h devh);
 
