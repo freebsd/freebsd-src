@@ -1306,7 +1306,9 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 				 * of this explicitly sync the scanner state.
 				 */
 				ieee80211_scan_update(ic);
-				ieee80211_create_ibss(ic, ic->ic_curchan);
+				ieee80211_create_ibss(ic,
+				    ieee80211_ht_adjust_channel(ic,
+					ic->ic_curchan, ic->ic_flags_ext));
 				break;
 			}
 			/* fall thru... */

@@ -536,6 +536,18 @@ ieee80211_ibss_merge(struct ieee80211_node *ni)
 }
 
 /*
+ * Change the bss channel.
+ */
+void
+ieee80211_setbsschan(struct ieee80211com *ic, struct ieee80211_channel *c)
+{
+	ic->ic_bsschan = c;
+	ic->ic_curchan = ic->ic_bsschan;
+	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
+	ic->ic_set_channel(ic);
+}
+
+/*
  * Join the specified IBSS/BSS network.  The node is assumed to
  * be passed in with a held reference.
  */
@@ -584,10 +596,7 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 	ieee80211_fix_rate(ic->ic_bss, &ic->ic_bss->ni_rates,
 		IEEE80211_F_DODEL | IEEE80211_F_JOIN);
 
-	ic->ic_bsschan = selbs->ni_chan;
-	ic->ic_curchan = ic->ic_bsschan;
-	ic->ic_curmode = ieee80211_chan2mode(ic->ic_curchan);
-	ic->ic_set_channel(ic);
+	ieee80211_setbsschan(ic, selbs->ni_chan);
 	/*
 	 * Set the erp state (mostly the slot time) to deal with
 	 * the auto-select case; this should be redundant if the
@@ -637,7 +646,6 @@ ieee80211_sta_join(struct ieee80211com *ic,
 	ni->ni_tstamp.tsf = se->se_tstamp.tsf;
 	ni->ni_intval = se->se_intval;
 	ni->ni_capinfo = se->se_capinfo;
-	/* XXX shift to 11n channel if htinfo present */
 	ni->ni_chan = se->se_chan;
 	ni->ni_timoff = se->se_timoff;
 	ni->ni_fhdwell = se->se_fhdwell;
@@ -646,9 +654,7 @@ ieee80211_sta_join(struct ieee80211com *ic,
 	ni->ni_rssi = se->se_rssi;
 	ni->ni_noise = se->se_noise;
 	if (se->se_htcap_ie != NULL)
-		ieee80211_ht_node_init(ni, se->se_htcap_ie);
-	if (se->se_htinfo_ie != NULL)
-		ieee80211_parse_htinfo(ni, se->se_htinfo_ie);
+		ieee80211_saveie(&ni->ni_htcap_ie, se->se_htcap_ie);
 	if (se->se_wpa_ie != NULL)
 		ieee80211_saveie(&ni->ni_wpa_ie, se->se_wpa_ie);
 	if (se->se_rsn_ie != NULL)
@@ -664,10 +670,6 @@ ieee80211_sta_join(struct ieee80211com *ic,
 	/* NB: must be after ni_chan is setup */
 	ieee80211_setup_rates(ni, se->se_rates, se->se_xrates,
 		IEEE80211_F_DOSORT);
-	if (se->se_htcap_ie != NULL)
-		ieee80211_setup_htrates(ni, se->se_htcap_ie, IEEE80211_F_JOIN);
-	if (se->se_htinfo_ie != NULL)
-		ieee80211_setup_basic_htrates(ni, se->se_htinfo_ie);
 
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
@@ -715,6 +717,11 @@ node_cleanup(struct ieee80211_node *ni)
 		    "[%s] power save mode off, %u sta's in ps mode\n",
 		    ether_sprintf(ni->ni_macaddr), ic->ic_ps_sta);
 	}
+	/*
+	 * Cleanup any HT-related state.
+	 */
+	if (ni->ni_flags & IEEE80211_NODE_HT)
+		ieee80211_ht_node_cleanup(ni);
 	/*
 	 * Clear AREF flag that marks the authorization refcnt bump
 	 * has happened.  This is probably not needed as the node
@@ -1577,6 +1584,7 @@ ieee80211_node_timeout(void *arg)
 
 	IEEE80211_LOCK(ic);
 	ieee80211_erp_timeout(ic);
+	ieee80211_ht_timeout(ic);
 	IEEE80211_UNLOCK(ic);
 
 	callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
@@ -1659,6 +1667,8 @@ static void
 ieee80211_node_join_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 
+	IEEE80211_LOCK_ASSERT(ic);
+
 	/*
 	 * Station isn't capable of short slot time.  Bump
 	 * the count of long slot time stations and disable
@@ -1724,6 +1734,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	if (ni->ni_associd == 0) {
 		uint16_t aid;
 
+		IEEE80211_LOCK(ic);
 		/*
 		 * It would be good to search the bitmap
 		 * more efficiently, but this will do for now.
@@ -1734,23 +1745,30 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 				break;
 		}
 		if (aid >= ic->ic_max_aid) {
+			IEEE80211_UNLOCK(ic);
 			IEEE80211_SEND_MGMT(ic, ni, resp,
 			    IEEE80211_REASON_ASSOC_TOOMANY);
 			ieee80211_node_leave(ic, ni);
 			return;
 		}
 		ni->ni_associd = aid | 0xc000;
+		ni->ni_jointime = time_uptime;
 		IEEE80211_AID_SET(ni->ni_associd, ic->ic_aid_bitmap);
 		ic->ic_sta_assoc++;
-		newassoc = 1;
+
+		if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
+			ieee80211_ht_node_join(ni);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan) &&
 		    IEEE80211_IS_CHAN_FULL(ic->ic_bsschan))
 			ieee80211_node_join_11g(ic, ni);
+		IEEE80211_UNLOCK(ic);
+
+		newassoc = 1;
 	} else
 		newassoc = 0;
 
 	IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
-	    "station %sassociated at aid %d: %s preamble, %s slot time%s%s%s%s%s",
+	    "station %sassociated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s",
 	    newassoc ? "" : "re",
 	    IEEE80211_NODE_AID(ni),
 	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
@@ -1759,6 +1777,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 	    ni->ni_flags & IEEE80211_NODE_HT ?
 		(ni->ni_chw == 20 ? ", HT20" : ", HT40") : "",
+	    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
 	    IEEE80211_ATH_CAP(ic, ni, IEEE80211_NODE_FF) ?
 		", fast-frames" : "",
 	    IEEE80211_ATH_CAP(ic, ni, IEEE80211_NODE_TURBOP) ?
@@ -1798,6 +1817,8 @@ disable_protection(struct ieee80211com *ic)
 static void
 ieee80211_node_leave_11g(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT(IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan),
 	     ("not in 11g, bss %u:0x%x, curmode %u", ic->ic_bsschan->ic_freq,
@@ -1900,13 +1921,18 @@ ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 	 */
 	if (ic->ic_auth->ia_node_leave != NULL)
 		ic->ic_auth->ia_node_leave(ic, ni);
+
+	IEEE80211_LOCK(ic);
 	IEEE80211_AID_CLR(ni->ni_associd, ic->ic_aid_bitmap);
 	ni->ni_associd = 0;
 	ic->ic_sta_assoc--;
 
+	if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
+		ieee80211_ht_node_leave(ni);
 	if (IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan) &&
 	    IEEE80211_IS_CHAN_FULL(ic->ic_bsschan))
 		ieee80211_node_leave_11g(ic, ni);
+	IEEE80211_UNLOCK(ic);
 	/*
 	 * Cleanup station state.  In particular clear various
 	 * state that might otherwise be reused if the node
