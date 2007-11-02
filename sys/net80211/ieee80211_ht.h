@@ -31,10 +31,9 @@
  * 802.11n protocol implementation definitions.
  */
 
-#define	IEEE80211_SEND_ACTION(_ni,_cat, _act, _args) \
-	((*(_ic)->ic_send_action)(_ni, _cat, _act, _args))
-
 #define	IEEE80211_AGGR_BAWMAX	64	/* max block ack window size */
+/* threshold for aging overlapping non-HT bss */
+#define	IEEE80211_NONHT_PRESENT_AGE	msecs_to_ticks(60*1000)
 
 typedef uint16_t ieee80211_seq;
 
@@ -44,6 +43,7 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_XCHGPEND		0x0002	/* ADDBA response pending */
 #define	IEEE80211_AGGR_RUNNING		0x0004	/* ADDBA response received */
 #define	IEEE80211_AGGR_SETUP		0x0008	/* deferred state setup */
+#define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 	uint8_t		txa_ac;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_qbytes;	/* data queued (bytes) */
@@ -64,7 +64,7 @@ struct ieee80211_tx_ampdu {
 /* return non-zero if AMPDU tx for the TID is running or started */
 #define	IEEE80211_AMPDU_REQUESTED(tap) \
 	(((tap)->txa_flags & \
-	 (IEEE80211_AGGR_RUNNING|IEEE80211_AGGR_XCHGPEND)) != 0)
+	 (IEEE80211_AGGR_RUNNING|IEEE80211_AGGR_XCHGPEND|IEEE80211_AGGR_NAK)) != 0)
 
 struct ieee80211_rx_ampdu {
 	int		rxa_flags;
@@ -72,8 +72,9 @@ struct ieee80211_rx_ampdu {
 	short		rxa_qframes;	/* data queued (frames) */
 	ieee80211_seq	rxa_seqstart;
 	ieee80211_seq	rxa_start;	/* start of current BA window */
-	ieee80211_seq	rxa_nxt;	/* next seq# in BA window */
 	uint16_t	rxa_wnd;	/* BA window size */
+	int		rxa_age;	/* age of oldest frame in window */
+	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
 };
 
@@ -96,11 +97,20 @@ int	ieee80211_ampdu_reorder(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_recv_bar(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_ht_node_init(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_ht_node_cleanup(struct ieee80211_node *);
+struct ieee80211_channel *ieee80211_ht_adjust_channel(struct ieee80211com *,
+		struct ieee80211_channel *, int);
+void	ieee80211_ht_wds_init(struct ieee80211_node *);
+void	ieee80211_ht_node_join(struct ieee80211_node *);
+void	ieee80211_ht_node_leave(struct ieee80211_node *);
+void	ieee80211_htinfo_update(struct ieee80211com *, int protmode);
+void	ieee80211_ht_timeout(struct ieee80211com *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_recv_action(struct ieee80211_node *,
 		const uint8_t *, const uint8_t *);
 int	ieee80211_ampdu_request(struct ieee80211_node *,
+		struct ieee80211_tx_ampdu *);
+void	ieee80211_ampdu_stop(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *);
 int	ieee80211_send_bar(struct ieee80211_node *,
 		const struct ieee80211_tx_ampdu *);

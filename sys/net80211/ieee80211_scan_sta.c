@@ -1352,7 +1352,8 @@ notfound:
 			 * specified, try to select a channel.
 			 */
 			if (ic->ic_des_chan == IEEE80211_CHAN_ANYC)
-				chan = adhoc_pick_channel(ss);
+				chan = ieee80211_ht_adjust_channel(ic,
+				    adhoc_pick_channel(ss), ic->ic_flags_ext);
 			else
 				chan = ic->ic_des_chan;
 			if (chan != NULL) {

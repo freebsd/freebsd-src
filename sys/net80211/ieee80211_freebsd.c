@@ -54,6 +54,27 @@ int	ieee80211_debug = 0;
 SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
+extern int ieee80211_recv_bar_ena;
+SYSCTL_INT(_net_wlan, OID_AUTO, recv_bar, CTLFLAG_RW, &ieee80211_recv_bar_ena,
+	    0, "BAR frame processing (ena/dis)");
+
+#ifdef IEEE80211_AMPDU_AGE
+static int
+ieee80211_sysctl_ampdu_age(SYSCTL_HANDLER_ARGS)
+{
+	extern int ieee80211_ampdu_age;
+	int ampdu_age = ticks_to_msecs(ieee80211_ampdu_age);
+	int error;
+
+	error = sysctl_handle_int(oidp, &ampdu_age, 0, req);
+	if (error || !req->newptr)
+		return error;
+	ieee80211_ampdu_age = msecs_to_ticks(ampdu_age);
+	return 0;
+}
+SYSCTL_PROC(_net_wlan, OID_AUTO, "ampdu_age", CTLFLAG_RW, NULL, 0,
+	ieee80211_sysctl_ampdu_age, "A", "AMPDU max reorder age (ms)");
+#endif
 
 static int
 ieee80211_sysctl_inact(SYSCTL_HANDLER_ARGS)
