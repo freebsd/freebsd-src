@@ -197,6 +197,7 @@ r_buf(FILE *fp)
 	char *p;
 	off_t enomem;
 
+	tl = NULL;
 #define	BSZ	(128 * 1024)
 	for (mark = NULL, enomem = 0;;) {
 		/*
