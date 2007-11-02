@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2007
+.Dd October 31, 2007
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -606,7 +606,7 @@ Background scanning is a technique whereby a station associated to
 an access point will temporarily leave the channel to scan for
 neighboring stations.
 This allows a station to maintain a cache of nearby access points
-so that roaming between access points can be done without doing
+so that roaming between access points can be done without
 a lengthy scan operation.
 Background scanning is done only when a station is not busy and
 any outbound traffic will cancel a scan operation.
@@ -637,7 +637,7 @@ Set the interval at which background scanning is attempted.
 The
 .Ar interval
 parameter is specified in seconds.
-By default a background scanning is considered every 300 seconds (5 minutes).
+By default a background scan is considered every 300 seconds (5 minutes).
 The 
 .Ar interval
 may not be set to less than 15 seconds.
@@ -817,7 +817,7 @@ undirected probe request frames are answered.
 To re-enable the broadcast of the SSID etc., use
 .Fl hidessid .
 .It Cm ff
-Enable the user of Atheros Fast Frames when communicating with
+Enable the use of Atheros Fast Frames when communicating with
 another Fast Frames-capable station.
 Fast Frames are an encapsulation technique by which two 802.3
 frames are transmitted in a single 802.11 frame.
@@ -863,6 +863,9 @@ typically by hearing a beacon frame from an access point operating
 on the channel.
 .Cm list freq
 is another way of requesting this information.
+By default a compacted list of channels is displayed; if the
+.Fl v
+option is specified then all channels are shown.
 .It Cm list mac
 Display the current MAC Access Control List state.
 Each address is prefixed with a character that indicates the
@@ -880,6 +883,8 @@ located in the vicinity.
 The
 .Fl v
 flag may be used to display long SSIDs.
+.Fl v
+also causes received information elements to be displayed symbolicaly.
 This information may be updated automatically by the adaptor
 and/or with a
 .Cm scan
@@ -918,6 +923,11 @@ Indicates that the station is using QoS encapsulation for
 data frame.
 QoS encapsulation is enabled only when WME mode is enabled.
 .El
+.Pp
+By default information elements received from associated stations
+are displayed in a short form; the
+.Fl v
+flag causes this information to be displayed symbolicaly.
 .It Cm list wme
 Display the current parameters to use when operating in WME mode.
 When WME mode is enabled for an adaptor this information will be
@@ -991,7 +1001,7 @@ Set the threshold for controlling roaming when operating in an
 802.11a BSS.
 The
 .Ar rssi
-parameter specifies the receive signal strength in .5 dBm units
+parameter specifies the receive signal strength in dBm units
 at which roaming should be considered.
 If the current rssi drops below this setting and background scanning
 is enabled, then the system will check if a more desirable access point is
@@ -1177,8 +1187,8 @@ then attempts to roam to another access point may trigger unnecessary
 background scan operations.
 .It Cm stationname Ar name
 Set the name of this station.
-It appears that the station name is not really part of the IEEE 802.11
-protocol though all interfaces seem to support it.
+The station name is not part of the IEEE 802.11
+protocol though some interfaces support it.
 As such it only
 seems to be meaningful to identical or virtually identical equipment.
 Setting the station name is identical in syntax to setting the SSID.
@@ -1186,9 +1196,7 @@ Setting the station name is identical in syntax to setting the SSID.
 Set the power used to transmit frames.
 The
 .Ar power
-argument
-is a unitless value in the range 0 to 100 that is interpreted
-by drivers to derive a device-specific value.
+argument is specified in .5 dBm units.
 Out of range values are truncated.
 Typically only a few discreet power settings are available and
 the driver will use the setting closest to the specified value.
