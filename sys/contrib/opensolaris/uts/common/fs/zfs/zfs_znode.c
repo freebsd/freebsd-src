@@ -57,6 +57,10 @@
 #include <sys/zfs_znode.h>
 #include <sys/refcount.h>
 
+/* Used by fstat(1). */
+SYSCTL_INT(_debug_sizeof, OID_AUTO, znode, CTLFLAG_RD, 0, sizeof(znode_t),
+    "sizeof(znode_t)");
+
 /*
  * Functions needed for userland (ie: libzpool) are not put under
  * #ifdef_KERNEL; the rest of the functions have dependencies
