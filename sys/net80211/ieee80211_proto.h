@@ -47,6 +47,16 @@ enum ieee80211_state {
 #define	IEEE80211_SEND_MGMT(_ic,_ni,_type,_arg) \
 	((*(_ic)->ic_send_mgmt)(_ic, _ni, _type, _arg))
 
+/*
+ * The formation of some management frames requires guidance to
+ * deal with legacy clients.  When the client is identified as
+ * "legacy 11b" this parameter can be passed in the arg param of a
+ * IEEE80211_SEND_MGMT call.
+ */
+#define	IEEE80211_SEND_LEGACY_11B	0x1	/* legacy 11b client */
+#define	IEEE80211_SEND_LEGACY_11	0x2	/* other legacy client */
+#define	IEEE80211_SEND_LEGACY		0x3	/* any legacy client */
+
 extern	const char *ieee80211_mgt_subtype_name[];
 extern	const char *ieee80211_phymode_name[];
 
