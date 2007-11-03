@@ -38,11 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+static int acquire_lock(const char *name, int flags);
 static void cleanup(void);
 static void killed(int sig);
 static void timeout(int sig);
 static void usage(void);
-static int wait_for_lock(const char *name, int flags);
+static void wait_for_lock(const char *name);
 
 static const char *lockname;
 static int lockfd = -1;
@@ -95,9 +96,37 @@ main(int argc, char **argv)
 		sigaction(SIGALRM, &act, NULL);
 		alarm(waitsec);
 	}
-	lockfd = wait_for_lock(lockname, O_NONBLOCK);
-	while (lockfd == -1 && !timed_out && waitsec != 0)
-		lockfd = wait_for_lock(lockname, 0);
+	/*
+	 * If the "-k" option is not given, then we must not block when
+	 * acquiring the lock.  If we did, then the lock holder would
+	 * unlink the file upon releasing the lock, and we would acquire
+	 * a lock on a file with no directory entry.  Then another
+	 * process could come along and acquire the same lock.  To avoid
+	 * this problem, we separate out the actions of waiting for the
+	 * lock to be available and of actually acquiring the lock.
+	 *
+	 * That approach produces behavior that is technically correct;
+	 * however, it causes some performance & ordering problems for
+	 * locks that have a lot of contention.  First, it is unfair in
+	 * the sense that a released lock isn't necessarily granted to
+	 * the process that has been waiting the longest.  A waiter may
+	 * be starved out indefinitely.  Second, it creates a thundering
+	 * herd situation each time the lock is released.
+	 *
+	 * When the "-k" option is used, the unlink race no longer
+	 * exists.  In that case we can block while acquiring the lock,
+	 * avoiding the separate step of waiting for the lock.  This
+	 * yields fairness and improved performance.
+	 */
+	lockfd = acquire_lock(lockname, O_NONBLOCK);
+	while (lockfd == -1 && !timed_out && waitsec != 0) {
+		if (keep)
+			lockfd = acquire_lock(lockname, 0);
+		else {
+			wait_for_lock(lockname);
+			lockfd = acquire_lock(lockname, O_NONBLOCK);
+		}
+	}
 	if (waitsec > 0)
 		alarm(0);
 	if (lockfd == -1) {		/* We failed to acquire the lock. */
@@ -123,6 +152,25 @@ main(int argc, char **argv)
 	if (waitpid(child, &status, 0) == -1)
 		err(EX_OSERR, "waitpid failed");
 	return (WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+}
+
+/*
+ * Try to acquire a lock on the given file, creating the file if
+ * necessary.  The flags argument is O_NONBLOCK or 0, depending on
+ * whether we should wait for the lock.  Returns an open file descriptor
+ * on success, or -1 on failure.
+ */
+static int
+acquire_lock(const char *name, int flags)
+{
+	int fd;
+
+	if ((fd = open(name, O_RDONLY|O_CREAT|O_EXLOCK|flags, 0666)) == -1) {
+		if (errno == EAGAIN || errno == EINTR)
+			return (-1);
+		err(EX_CANTCREAT, "cannot open %s", name);
+	}
+	return (fd);
 }
 
 /*
@@ -173,16 +221,17 @@ usage(void)
 
 /*
  * Wait until it might be possible to acquire a lock on the given file.
+ * If the file does not exist, return immediately without creating it.
  */
-static int
-wait_for_lock(const char *name, int flags)
+static void
+wait_for_lock(const char *name)
 {
 	int fd;
 
-	if ((fd = open(name, O_CREAT|O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
-		if (errno == EINTR || errno == EAGAIN)
-			return (-1);
+	if ((fd = open(name, O_RDONLY|O_EXLOCK, 0666)) == -1) {
+		if (errno == ENOENT || errno == EINTR)
+			return;
 		err(EX_CANTCREAT, "cannot open %s", name);
 	}
-	return (fd);
+	close(fd);
 }
