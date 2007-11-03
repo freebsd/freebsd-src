@@ -1805,7 +1805,10 @@ get_pv_entry(pmap_t pmap, int try)
 	PV_STAT(pv_entry_allocs++);
 	pv_entry_count++;
 	if (pv_entry_count > pv_entry_high_water)
-		pagedaemon_wakeup();
+		if (ratecheck(&lastprint, &printinterval))
+			printf("Approaching the limit on PV entries, consider "
+			    "increasing either the vm.pmap.shpgperproc or the "
+			    "vm.pmap.pv_entry_max tunable.\n");
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
 		for (field = 0; field < _NPCM; field++) {
@@ -1851,11 +1854,6 @@ get_pv_entry(pmap_t pmap, int try)
 		 * inactive pages.  After that, if a pv chunk entry
 		 * is still needed, destroy mappings to active pages.
 		 */
-		if (ratecheck(&lastprint, &printinterval))
-			printf("Approaching the limit on PV entries, "
-			    "consider increasing tunables "
-			    "vm.pmap.shpgperproc or "
-			    "vm.pmap.pv_entry_max\n");
 		PV_STAT(pmap_collect_inactive++);
 		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
 		if (m == NULL)
