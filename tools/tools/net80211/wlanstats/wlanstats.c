@@ -66,238 +66,276 @@
 #define	IEEE80211_ADDR_EQ(a1,a2)	(memcmp(a1,a2,IEEE80211_ADDR_LEN) == 0)
 #endif
 
+#define	AFTER(prev)	((prev)+1)
+
 static const struct fmt wlanstats[] = {
-#define	S_RX_BADVERSION	0
-	{ 5,  "rx_badversion",	"badversion",	"rx frame with bad version" },
-#define	S_RX_TOOSHORT	1
-	{ 5,  "rx_tooshort",	"tooshort",	"rx frame too short" },
-#define	S_RX_WRONGBSS	2
-	{ 5,  "rx_wrongbss",	"wrongbss",	"rx from wrong bssid" },
-#define	S_RX_DUP	3
-	{ 5,  "rx_dup",	"rx_dup",		"rx discard 'cuz dup" },
-#define	S_RX_WRONGDIR	4
-	{ 5,  "rx_wrongdir",	"wrongdir",	"rx w/ wrong direction" },
-#define	S_RX_MCASTECHO	5
-	{ 5,  "rx_mcastecho",	"mcastecho",	"rx discard 'cuz mcast echo" },
-#define	S_RX_NOTASSOC	6
-	{ 5,  "rx_notassoc",	"notassoc",	"rx discard 'cuz sta !assoc" },
-#define	S_RX_NOPRIVACY	7
-	{ 5,  "rx_noprivacy",	"noprivacy",	"rx w/ wep but privacy off" },
-#define	S_RX_UNENCRYPTED	8
-	{ 5,  "rx_unencrypted",	"unencrypted",	"rx w/o wep and privacy on" },
-#define	S_RX_WEPFAIL	9
-	{ 5,  "rx_wepfail",	"wepfail",	"rx wep processing failed" },
-#define	S_RX_DECAP	10
+#define	S_RX_BADVERSION		0
+	{ 5,  "rx_badversion",	"bvers",	"rx frame with bad version" },
+#define	S_RX_TOOSHORT		AFTER(S_RX_BADVERSION)
+	{ 5,  "rx_tooshort",	"2short",	"rx frame too short" },
+#define	S_RX_WRONGBSS		AFTER(S_RX_TOOSHORT)
+	{ 5,  "rx_wrongbss",	"wrbss",	"rx from wrong bssid" },
+#define	S_RX_DUP		AFTER(S_RX_WRONGBSS)
+	{ 5,  "rx_dup",		"rxdup",	"rx discard 'cuz dup" },
+#define	S_RX_WRONGDIR		AFTER(S_RX_DUP)
+	{ 5,  "rx_wrongdir",	"wrdir",	"rx w/ wrong direction" },
+#define	S_RX_MCASTECHO		AFTER(S_RX_WRONGDIR)
+	{ 5,  "rx_mcastecho",	"mecho",	"rx discard 'cuz mcast echo" },
+#define	S_RX_NOTASSOC		AFTER(S_RX_MCASTECHO)
+	{ 6,  "rx_notassoc",	"!assoc",	"rx discard 'cuz sta !assoc" },
+#define	S_RX_NOPRIVACY		AFTER(S_RX_NOTASSOC)
+	{ 6,  "rx_noprivacy",	"nopriv",	"rx w/ wep but privacy off" },
+#define	S_RX_UNENCRYPTED	AFTER(S_RX_NOPRIVACY)
+	{ 6,  "rx_unencrypted",	"unencr",	"rx w/o wep and privacy on" },
+#define	S_RX_WEPFAIL		AFTER(S_RX_UNENCRYPTED)
+	{ 7,  "rx_wepfail",	"wepfail",	"rx wep processing failed" },
+#define	S_RX_DECAP		AFTER(S_RX_WEPFAIL)
 	{ 5,  "rx_decap",	"decap",	"rx decapsulation failed" },
-#define	S_RX_MGTDISCARD	11
-	{ 5,  "rx_mgtdiscard",	"mgtdiscard",	"rx discard mgt frames" },
-#define	S_RX_CTL	12
+#define	S_RX_MGTDISCARD		AFTER(S_RX_DECAP)
+	{ 8,  "rx_mgtdiscard",	"mgtdiscard",	"rx discard mgt frames" },
+#define	S_RX_CTL		AFTER(S_RX_MGTDISCARD)
 	{ 5,  "rx_ctl",		"ctl",		"rx ctrl frames" },
-#define	S_RX_BEACON	13
-	{ 5,  "rx_beacon",	"beacon",	"rx beacon frames" },
-#define	S_RX_RSTOOBIG	14
-	{ 5,  "rx_rstoobig",	"rstoobig",	"rx rate set truncated" },
-#define	S_RX_ELEM_MISSING	15
-	{ 5,  "rx_elem_missing","elem_missing",	"rx required element missing" },
-#define	S_RX_ELEM_TOOBIG	16
-	{ 5,  "rx_elem_toobig",	"elem_toobig",	"rx element too big" },
-#define	S_RX_ELEM_TOOSMALL	17
-	{ 5,  "rx_elem_toosmall","elem_toosmall","rx element too small" },
-#define	S_RX_ELEM_UNKNOWN	18
-	{ 5,  "rx_elem_unknown","elem_unknown",	"rx element unknown" },
-#define	S_RX_BADCHAN	19
-	{ 5,  "rx_badchan",	"badchan",	"rx frame w/ invalid chan" },
-#define	S_RX_CHANMISMATCH	20
+#define	S_RX_BEACON		AFTER(S_RX_CTL)
+	{ 6,  "rx_beacon",	"beacon",	"rx beacon frames" },
+#define	S_RX_RSTOOBIG		AFTER(S_RX_BEACON)
+	{ 6,  "rx_rstoobig",	"rs2big",	"rx rate set truncated" },
+#define	S_RX_ELEM_MISSING	AFTER(S_RX_RSTOOBIG)
+	{ 6,  "rx_elem_missing","iemiss",	"rx required element missing" },
+#define	S_RX_ELEM_TOOBIG	AFTER(S_RX_ELEM_MISSING)
+	{ 6,  "rx_elem_toobig",	"ie2big",	"rx element too big" },
+#define	S_RX_ELEM_TOOSMALL	AFTER(S_RX_ELEM_TOOBIG)
+	{ 7,  "rx_elem_toosmall","ie2small","rx element too small" },
+#define	S_RX_ELEM_UNKNOWN 	AFTER(S_RX_ELEM_TOOSMALL)
+	{ 5,  "rx_elem_unknown","ieunk",	"rx element unknown" },
+#define	S_RX_BADCHAN		AFTER(S_RX_ELEM_UNKNOWN)
+	{ 6,  "rx_badchan",	"badchan",	"rx frame w/ invalid chan" },
+#define	S_RX_CHANMISMATCH	AFTER(S_RX_BADCHAN)
 	{ 5,  "rx_chanmismatch","chanmismatch",	"rx frame chan mismatch" },
-#define	S_RX_NODEALLOC	21
+#define	S_RX_NODEALLOC		AFTER(S_RX_CHANMISMATCH)
 	{ 5,  "rx_nodealloc",	"nodealloc",	"nodes allocated (rx)" },
-#define	S_RX_SSIDMISMATCH	22
+#define	S_RX_SSIDMISMATCH	AFTER(S_RX_NODEALLOC)
 	{ 5,  "rx_ssidmismatch","ssidmismatch",	"rx frame ssid mismatch" },
-#define	S_RX_AUTH_UNSUPPORTED	23
+#define	S_RX_AUTH_UNSUPPORTED	AFTER(S_RX_SSIDMISMATCH)
 	{ 5,  "rx_auth_unsupported","auth_unsupported",
 		"rx w/ unsupported auth alg" },
-#define	S_RX_AUTH_FAIL	24
+#define	S_RX_AUTH_FAIL		AFTER(S_RX_AUTH_UNSUPPORTED)
 	{ 5,  "rx_auth_fail",	"auth_fail",	"rx sta auth failure" },
-#define	S_RX_AUTH_COUNTERMEASURES	25
+#define	S_RX_AUTH_COUNTERMEASURES	AFTER(S_RX_AUTH_FAIL)
 	{ 5,  "rx_auth_countermeasures",	"auth_countermeasures",
 		"rx sta auth failure 'cuz of TKIP countermeasures" },
-#define	S_RX_ASSOC_BSS	26
+#define	S_RX_ASSOC_BSS		AFTER(S_RX_AUTH_COUNTERMEASURES)
 	{ 5,  "rx_assoc_bss",	"assoc_bss",	"rx assoc from wrong bssid" },
-#define	S_RX_ASSOC_NOTAUTH	27
+#define	S_RX_ASSOC_NOTAUTH	AFTER(S_RX_ASSOC_BSS)
 	{ 5,  "rx_assoc_notauth","assoc_notauth",	"rx assoc w/o auth" },
-#define	S_RX_ASSOC_CAPMISMATCH	28
+#define	S_RX_ASSOC_CAPMISMATCH	AFTER(S_RX_ASSOC_NOTAUTH)
 	{ 5,  "rx_assoc_capmismatch","assoc_capmismatch",
 		"rx assoc w/ cap mismatch" },
-#define	S_RX_ASSOC_NORATE	29
+#define	S_RX_ASSOC_NORATE	AFTER(S_RX_ASSOC_CAPMISMATCH)
 	{ 5,  "rx_assoc_norate","assoc_norate",	"rx assoc w/ no rate match" },
-#define	S_RX_ASSOC_BADWPAIE	30
+#define	S_RX_ASSOC_BADWPAIE	AFTER(S_RX_ASSOC_NORATE)
 	{ 5,  "rx_assoc_badwpaie","assoc_badwpaie",
 		"rx assoc w/ bad WPA IE" },
-#define	S_RX_DEAUTH	31
+#define	S_RX_DEAUTH		AFTER(S_RX_ASSOC_BADWPAIE)
 	{ 5,  "rx_deauth",	"deauth",	"rx deauthentication" },
-#define	S_RX_DISASSOC	32
+#define	S_RX_DISASSOC		AFTER(S_RX_DEAUTH)
 	{ 5,  "rx_disassoc",	"disassoc",	"rx disassociation" },
-#define	S_RX_BADSUBTYPE	33
+#define	S_RX_BADSUBTYPE		AFTER(S_RX_DISASSOC)
 	{ 5,  "rx_badsubtype",	"badsubtype",	"rx frame w/ unknown subtype" },
-#define	S_RX_NOBUF	34
+#define	S_RX_NOBUF		AFTER(S_RX_BADSUBTYPE)
 	{ 5,  "rx_nobuf",	"nobuf",	"rx failed for lack of mbuf" },
-#define	S_RX_DECRYPTCRC	35
+#define	S_RX_DECRYPTCRC		AFTER(S_RX_NOBUF)
 	{ 5,  "rx_decryptcrc",	"decryptcrc",	"rx decrypt failed on crc" },
-#define	S_RX_AHDEMO_MGT	36
+#define	S_RX_AHDEMO_MGT		AFTER(S_RX_DECRYPTCRC)
 	{ 5,  "rx_ahdemo_mgt",	"ahdemo_mgt",
 		"rx discard mgmt frame received in ahdoc demo mode" },
-#define	S_RX_BAD_AUTH	37
+#define	S_RX_BAD_AUTH		AFTER(S_RX_AHDEMO_MGT)
 	{ 5,  "rx_bad_auth",	"bad_auth",	"rx bad authentication request" },
-#define	S_RX_UNAUTH	38
+#define	S_RX_UNAUTH		AFTER(S_RX_BAD_AUTH)
 	{ 5,  "rx_unauth",	"unauth",
 		"rx discard 'cuz port unauthorized" },
-#define	S_RX_BADKEYID	39
+#define	S_RX_BADKEYID		AFTER(S_RX_UNAUTH)
 	{ 5,  "rx_badkeyid",	"badkeyid",	"rx w/ incorrect keyid" },
-#define	S_RX_CCMPREPLAY	40
+#define	S_RX_CCMPREPLAY		AFTER(S_RX_BADKEYID)
 	{ 5,  "rx_ccmpreplay",	"ccmpreplay",	"rx seq# violation (CCMP)" },
-#define	S_RX_CCMPFORMAT	41
+#define	S_RX_CCMPFORMAT		AFTER(S_RX_CCMPREPLAY)
 	{ 5,  "rx_ccmpformat",	"ccmpformat",	"rx format bad (CCMP)" },
-#define	S_RX_CCMPMIC	42
+#define	S_RX_CCMPMIC		AFTER(S_RX_CCMPFORMAT)
 	{ 5,  "rx_ccmpmic",	"ccmpmic",	"rx MIC check failed (CCMP)" },
-#define	S_RX_TKIPREPLAY	43
+#define	S_RX_TKIPREPLAY		AFTER(S_RX_CCMPMIC)
 	{ 5,  "rx_tkipreplay",	"tkipreplay",	"rx seq# violation (TKIP)" },
-#define	S_RX_TKIPFORMAT	44
+#define	S_RX_TKIPFORMAT		AFTER(S_RX_TKIPREPLAY)
 	{ 5,  "rx_tkipformat",	"tkipformat",	"rx format bad (TKIP)" },
-#define	S_RX_TKIPMIC	45
+#define	S_RX_TKIPMIC		AFTER(S_RX_TKIPFORMAT)
 	{ 5,  "rx_tkipmic",	"tkipmic",	"rx MIC check failed (TKIP)" },
-#define	S_RX_TKIPICV	46
+#define	S_RX_TKIPICV		AFTER(S_RX_TKIPMIC)
 	{ 5,  "rx_tkipicv",	"tkipicv",	"rx ICV check failed (TKIP)" },
-#define	S_RX_BADCIPHER	47
+#define	S_RX_BADCIPHER		AFTER(S_RX_TKIPICV)
 	{ 5,  "rx_badcipher",	"badcipher",	"rx failed 'cuz bad cipher/key type" },
-#define	S_RX_NOCIPHERCTX	48
+#define	S_RX_NOCIPHERCTX	AFTER(S_RX_BADCIPHER)
 	{ 5,  "rx_nocipherctx",	"nocipherctx",	"rx failed 'cuz key/cipher ctx not setup" },
-#define	S_RX_ACL	49
+#define	S_RX_ACL		AFTER(S_RX_NOCIPHERCTX)
 	{ 5,  "rx_acl",		"acl",		"rx discard 'cuz acl policy" },
-#define	S_TX_NOBUF	50
+#define	S_TX_NOBUF		AFTER(S_RX_ACL)
 	{ 5,  "tx_nobuf",	"nobuf",	"tx failed for lack of mbuf" },
-#define	S_TX_NONODE	51
+#define	S_TX_NONODE		AFTER(S_TX_NOBUF)
 	{ 5,  "tx_nonode",	"nonode",	"tx failed for no node" },
-#define	S_TX_UNKNOWNMGT	52
+#define	S_TX_UNKNOWNMGT		AFTER(S_TX_NONODE)
 	{ 5,  "tx_unknownmgt",	"unknownmgt",	"tx of unknown mgt frame" },
-#define	S_TX_BADCIPHER	53
+#define	S_TX_BADCIPHER		AFTER(S_TX_UNKNOWNMGT)
 	{ 5,  "tx_badcipher",	"badcipher",	"tx failed 'cuz bad ciper/key type" },
-#define	S_TX_NODEFKEY	54
+#define	S_TX_NODEFKEY		AFTER(S_TX_BADCIPHER)
 	{ 5,  "tx_nodefkey",	"nodefkey",	"tx failed 'cuz no defkey" },
-#define	S_TX_NOHEADROOM	55
+#define	S_TX_NOHEADROOM		AFTER(S_TX_NODEFKEY)
 	{ 5,  "tx_noheadroom",	"noheadroom",	"tx failed 'cuz no space for crypto hdrs" },
-#define	S_TX_FRAGFRAMES	56
+#define	S_TX_FRAGFRAMES		AFTER(S_TX_NOHEADROOM)
 	{ 5,  "tx_fragframes",	"fragframes",	"tx frames fragmented" },
-#define	S_TX_FRAGS	57
+#define	S_TX_FRAGS		AFTER(S_TX_FRAGFRAMES)
 	{ 5,  "tx_frags",	"frags",		"tx frags generated" },
-#define	S_SCAN_ACTIVE	58
+#define	S_SCAN_ACTIVE		AFTER(S_TX_FRAGS)
 	{ 5,  "scan_active",	"scan_active",	"active scans started" },
-#define	S_SCAN_PASSIVE	59
+#define	S_SCAN_PASSIVE		AFTER(S_SCAN_ACTIVE)
 	{ 5,  "scan_passive",	"scan_passive",	"passive scans started" },
-#define	S_NODE_TIMEOUT	60
-	{ 5,  "node_timeout",	"node_timeout",	"nodes timed out inactivity" },
-#define	S_CRYPTO_NOMEM	61
+#define	S_NODE_TIMEOUT		AFTER(S_SCAN_PASSIVE)
+	{ 5,  "node_timeout",	"node_timeout",	"nodes timed out for inactivity" },
+#define	S_CRYPTO_NOMEM		AFTER(S_NODE_TIMEOUT)
 	{ 5,  "crypto_nomem",	"crypto_nomem",	"cipher context malloc failed" },
-#define	S_CRYPTO_TKIP	62
+#define	S_CRYPTO_TKIP		AFTER(S_CRYPTO_NOMEM)
 	{ 5,  "crypto_tkip",	"crypto_tkip",	"tkip crypto done in s/w" },
-#define	S_CRYPTO_TKIPENMIC	63
+#define	S_CRYPTO_TKIPENMIC	AFTER(S_CRYPTO_TKIP)
 	{ 5,  "crypto_tkipenmic","crypto_tkipenmic",	"tkip tx MIC done in s/w" },
-#define	S_CRYPTO_TKIPDEMIC	64
+#define	S_CRYPTO_TKIPDEMIC	AFTER(S_CRYPTO_TKIPENMIC)
 	{ 5,  "crypto_tkipdemic","crypto_tkipdemic",	"tkip rx MIC done in s/w" },
-#define	S_CRYPTO_TKIPCM	65
+#define	S_CRYPTO_TKIPCM		AFTER(S_CRYPTO_TKIPDEMIC)
 	{ 5,  "crypto_tkipcm",	"crypto_tkipcm",	"tkip dropped frames 'cuz of countermeasures" },
-#define	S_CRYPTO_CCMP	66
+#define	S_CRYPTO_CCMP		AFTER(S_CRYPTO_TKIPCM)
 	{ 5,  "crypto_ccmp",	"crypto_ccmp",	"ccmp crypto done in s/w" },
-#define	S_CRYPTO_WEP	67
+#define	S_CRYPTO_WEP		AFTER(S_CRYPTO_CCMP)
 	{ 5,  "crypto_wep",	"crypto_wep",	"wep crypto done in s/w" },
-#define	S_CRYPTO_SETKEY_CIPHER	68
+#define	S_CRYPTO_SETKEY_CIPHER	AFTER(S_CRYPTO_WEP)
 	{ 5,  "crypto_setkey_cipher",	"crypto_setkey_cipher","setkey failed 'cuz cipher rejected data" },
-#define	S_CRYPTO_SETKEY_NOKEY	69
+#define	S_CRYPTO_SETKEY_NOKEY	AFTER(S_CRYPTO_SETKEY_CIPHER)
 	{ 5,  "crypto_setkey_nokey",	"crypto_setkey_nokey","setkey failed 'cuz no key index" },
-#define	S_CRYPTO_DELKEY	70
+#define	S_CRYPTO_DELKEY		AFTER(S_CRYPTO_SETKEY_NOKEY)
 	{ 5,  "crypto_delkey",	"crypto_delkey",	"driver key delete failed" },
-#define	S_CRYPTO_BADCIPHER	71
+#define	S_CRYPTO_BADCIPHER	AFTER(S_CRYPTO_DELKEY)
 	{ 5,  "crypto_badcipher","crypto_badcipher",	"setkey failed 'cuz unknown cipher" },
-#define	S_CRYPTO_NOCIPHER	72
+#define	S_CRYPTO_NOCIPHER	AFTER(S_CRYPTO_BADCIPHER)
 	{ 5,  "crypto_nocipher","crypto_nocipher",	"setkey failed 'cuz cipher module unavailable" },
-#define	S_CRYPTO_ATTACHFAIL	73
+#define	S_CRYPTO_ATTACHFAIL	AFTER(S_CRYPTO_NOCIPHER)
 	{ 5,  "crypto_attachfail","crypto_attachfail",	"setkey failed 'cuz cipher attach failed" },
-#define	S_CRYPTO_SWFALLBACK	74
+#define	S_CRYPTO_SWFALLBACK	AFTER(S_CRYPTO_ATTACHFAIL)
 	{ 5,  "crypto_swfallback","crypto_swfallback",	"crypto fell back to s/w implementation" },
-#define	S_CRYPTO_KEYFAIL	75
+#define	S_CRYPTO_KEYFAIL	AFTER(S_CRYPTO_SWFALLBACK)
 	{ 5,  "crypto_keyfail",	"crypto_keyfail",	"setkey failed 'cuz driver key alloc failed" },
-#define	S_CRYPTO_ENMICFAIL	76
+#define	S_CRYPTO_ENMICFAIL	AFTER(S_CRYPTO_KEYFAIL)
 	{ 5,  "crypto_enmicfail","crypto_enmicfail",	"enmic failed (may be mbuf exhaustion)" },
-#define	S_IBSS_CAPMISMATCH	77
+#define	S_IBSS_CAPMISMATCH	AFTER(S_CRYPTO_ENMICFAIL)
 	{ 5,  "ibss_capmismatch","ibss_capmismatch",	"ibss merge faied 'cuz capabilities mismatch" },
-#define	S_IBSS_NORATE	78
+#define	S_IBSS_NORATE		AFTER(S_IBSS_CAPMISMATCH)
 	{ 5,  "ibss_norate",	"ibss_norate",	"ibss merge faied 'cuz rate set mismatch" },
-#define	S_PS_UNASSOC	79
+#define	S_PS_UNASSOC		AFTER(S_IBSS_NORATE)
 	{ 5,  "ps_unassoc",	"ps_unassoc",	"ps-poll received for unassociated station" },
-#define	S_PS_BADAID	80
+#define	S_PS_BADAID		AFTER(S_PS_UNASSOC)
 	{ 5,  "ps_badaid",	"ps_badaid",	"ps-poll received with invalid association id" },
-#define	S_PS_QEMPTY	81
+#define	S_PS_QEMPTY		AFTER(S_PS_BADAID)
 	{ 5,  "ps_qempty",	"ps_qempty",	"ps-poll received with nothing to send" },
-#define	S_FF_BADHDR	82
+#define	S_FF_BADHDR		AFTER(S_PS_QEMPTY)
 	{ 5,  "ff_badhdr",	"ff_badhdr",	"fast frame rx'd w/ bad hdr" },
-#define	S_FF_TOOSHORT	83
+#define	S_FF_TOOSHORT		AFTER(S_FF_BADHDR)
 	{ 5,  "ff_tooshort",	"ff_tooshort",	"fast frame rx decap error" },
-#define	S_FF_SPLIT	84
+#define	S_FF_SPLIT		AFTER(S_FF_TOOSHORT)
 	{ 5,  "ff_split",	"ff_split",	"fast frame rx split error" },
-#define	S_FF_DECAP	85
+#define	S_FF_DECAP		AFTER(S_FF_SPLIT)
 	{ 5,  "ff_decap",	"ff_decap",	"fast frames decap'd" },
-#define	S_FF_ENCAP	86
+#define	S_FF_ENCAP		AFTER(S_FF_DECAP)
 	{ 5,  "ff_encap",	"ff_encap",	"fast frames encap'd for tx" },
-#define	S_FF_ENCAPFAIL	87
+#define	S_FF_ENCAPFAIL		AFTER(S_FF_ENCAP)
 	{ 5,  "ff_encapfail",	"ff_encapfail",	"fast frames encap failed" },
-#define	S_RX_BADBINTVAL	88
+#define	S_RX_BADBINTVAL		AFTER(S_FF_ENCAPFAIL)
 	{ 5,  "rx_badbintval",	"rx_badbintval","rx frame with bogus beacon interval" },
-#define	S_RX_MGMT	89
+#define	S_RX_MGMT		AFTER(S_RX_BADBINTVAL)
 	{ 5,  "rx_mgmt",	"rx_mgmt",	"rx management frames" },
-#define	S_RX_DEMICFAIL	90
+#define	S_RX_DEMICFAIL		AFTER(S_RX_MGMT)
 	{ 5,  "rx_demicfail",	"rx_demicfail",	"rx demic failed" },
-#define	S_RX_DEFRAG	91
+#define	S_RX_DEFRAG		AFTER(S_RX_DEMICFAIL)
 	{ 5,  "rx_defrag",	"rx_defrag",	"rx defragmentation failed" },
-#define	S_RX_ACTION	92
+#define	S_RX_ACTION		AFTER(S_RX_DEFRAG)
 	{ 5,  "rx_action",	"rx_action",	"rx action frames" },
-#define	S_AMSDU_TOOSHORT	93
-	{ 8,  "amsdu_tooshort",	"amsdu_tooshort","A-MSDU rx decap error" },
-#define	S_AMSDU_SPLIT	94
-	{ 8,  "amsdu_split",	"amsdu_split",	"A-MSDU rx failed on frame split" },
-#define	S_AMSDU_DECAP	95
-	{ 8,  "amsdu_decap",	"amsdu_decap",	"A-MSDU frames received" },
-#define	S_AMSDU_ENCAP	96
-	{ 8,  "amsdu_encap",	"amsdu_encap",	"A-MSDU frames transmitted" },
-#define	S_AMPDU_FLUSH	97
-	{ 8,  "ampdu_flush",	"ampdu_flush",	"A-MPDU frames flushed" },
-#define	S_AMPDU_BARBAD	98
-	{ 8,  "ampdu_barbad",	"ampdu_barbad",	"A-MPDU BAR rx before ADDBA exchange" },
-#define	S_AMPDU_BAROOW	99
-	{ 8,  "ampdu_baroow",	"ampdu_baroow",	"A-MPDU BAR rx out of BA window" },
-#define	S_AMPDU_BAR	100
-	{ 8,  "ampdu_bar",	"ampdu_bar",	"A-MPDU BAR rx successful" },
-#define	S_AMPDU_OOR	101
-	{ 8,  "ampdu_oor",	"ampdu_oor",	"A-MPDU frames received out-of-order" },
-#define	S_AMPDU_COPY	102
-	{ 8,  "ampdu_copy",	"ampdu_copy",	"A-MPDU rx window slots copied" },
-#define	S_INPUT		103
-	{ 8,	"input",	"input",	"data frames received" },
-#define	S_OUTPUT	104
-	{ 8,	"output",	"output",	"data frames transmit" },
-#define	S_RATE		105
-	{ 4,	"rate",		"rate",		"current transmit rate" },
-#define	S_RSSI		106
-	{ 4,	"rssi",		"rssi",		"current rssi" },
-#define	S_NOISE		107
-	{ 4,	"noise",	"noise",	"current noise floor (dBm)" },
-#define	S_RX_UCAST	108
+#define	S_AMSDU_TOOSHORT	AFTER(S_RX_ACTION)
+	{ 8,  "amsdu_tooshort",	"tooshort","A-MSDU rx decap error" },
+#define	S_AMSDU_SPLIT		AFTER(S_AMSDU_TOOSHORT)
+	{ 8,  "amsdu_split",	"split",	"A-MSDU rx failed on frame split" },
+#define	S_AMSDU_DECAP		AFTER(S_AMSDU_SPLIT)
+	{ 8,  "amsdu_decap",	"decap",	"A-MSDU frames received" },
+#define	S_AMSDU_ENCAP		AFTER(S_AMSDU_DECAP)
+	{ 8,  "amsdu_encap",	"encap",	"A-MSDU frames transmitted" },
+#define	S_AMPDU_REORDER		AFTER(S_AMSDU_ENCAP)
+	{ 8,  "ampdu_reorder",	"reorder","A-MPDU frames held in reorder q" },
+#define	S_AMPDU_FLUSH		AFTER(S_AMPDU_REORDER)
+	{ 8,  "ampdu_flush",	"flush",	"A-MPDU frames sent up from reorder q" },
+#define	S_AMPDU_BARBAD		AFTER(S_AMPDU_FLUSH)
+	{ 6,  "ampdu_barbad",	"barbad",	"A-MPDU BAR rx before ADDBA exchange (or disabled with net.link.ieee80211)" },
+#define	S_AMPDU_BAROOW		AFTER(S_AMPDU_BARBAD)
+	{ 6,  "ampdu_baroow",	"baroow",	"A-MPDU BAR rx out of BA window" },
+#define	S_AMPDU_BARMOVE		AFTER(S_AMPDU_BAROOW)
+	{ 8,  "ampdu_barmove",	"barmove","A-MPDU BAR rx moved BA window" },
+#define	S_AMPDU_BAR		AFTER(S_AMPDU_BARMOVE)
+	{ 8,  "ampdu_bar",	"rxbar",	"A-MPDU BAR rx successful" },
+#define	S_AMPDU_MOVE		AFTER(S_AMPDU_BAR)
+	{ 5,  "ampdu_move",	"move",	"A-MPDU frame moved BA window" },
+#define	S_AMPDU_OOR		AFTER(S_AMPDU_MOVE)
+	{ 8,  "ampdu_oor",	"oorx",	"A-MPDU frames rx out-of-order" },
+#define	S_AMPDU_COPY		AFTER(S_AMPDU_OOR)
+	{ 8,  "ampdu_copy",	"copy",	"A-MPDU rx window slots copied" },
+#define	S_AMPDU_DROP		AFTER(S_AMPDU_COPY)
+	{ 5,  "ampdu_drop",	"drop",	"A-MPDU frames discarded for out of range seqno" },
+#define	S_AMPDU_AGE		AFTER(S_AMPDU_DROP)
+	{ 5,  "ampdu_age",	"age",	"A-MPDU frames sent up due to old age" },
+#define	S_AMPDU_STOP		AFTER(S_AMPDU_AGE)
+	{ 5,  "ampdu_stop",	"stop",	"A-MPDU streams stopped" },
+#define	S_AMPDU_STOP_FAILED	AFTER(S_AMPDU_STOP)
+	{ 5,  "ampdu_stop_failed","!stop",	"A-MPDU stop requests failed 'cuz stream not running" },
+#define	S_ADDBA_REJECT		AFTER(S_AMPDU_STOP_FAILED)
+	{ 5,  "addba_reject",	"reject",	"ADDBA requests rejected 'cuz A-MPDU rx is disabled" },
+#define	S_ADDBA_NOREQUEST	AFTER(S_ADDBA_REJECT)
+	{ 5,  "addba_norequest","norequest","ADDBA response frames discarded because no ADDBA request was pending" },
+#define	S_ADDBA_BADTOKEN	AFTER(S_ADDBA_NOREQUEST)
+	{ 5,  "addba_badtoken",	"badtoken","ADDBA response frames discarded 'cuz rx'd dialog token is wrong" },
+#define	S_TX_BADSTATE		AFTER(S_ADDBA_BADTOKEN)
+	{ 4,  "tx_badstate",	"badstate",	"tx failed 'cuz vap not in RUN state" },
+#define	S_TX_NOTASSOC		AFTER(S_TX_BADSTATE)
+	{ 4,  "tx_notassoc",	"notassoc",	"tx failed 'cuz dest sta not associated" },
+#define	S_TX_CLASSIFY		AFTER(S_TX_NOTASSOC)
+	{ 4,  "tx_classify",	"classify",	"tx packet classification failed" },
+#define	S_DWDS_MCAST		AFTER(S_TX_CLASSIFY)
+	{ 8,  "dwds_mcast",	"dwds_mcast",	"mcast frame transmitted on dwds vap discarded" },
+#define	S_DWDS_QDROP		AFTER(S_DWDS_MCAST)
+	{ 8,  "dwds_qdrop",	"dwds_qdrop",	"4-address frame discarded because dwds pending queue is full" },
+#define	S_HT_ASSOC_NOHTCAP	AFTER(S_DWDS_QDROP)
+	{ 4,  "ht_nohtcap",	"ht_nohtcap",	"non-HT station rejected in HT-only BSS" },
+#define	S_HT_ASSOC_DOWNGRADE	AFTER(S_HT_ASSOC_NOHTCAP)
+	{ 4,  "ht_downgrade",	"ht_downgrade",	"HT station downgraded to legacy operation" },
+#define	S_HT_ASSOC_NORATE	AFTER(S_HT_ASSOC_DOWNGRADE)
+	{ 4,  "ht_norate",	"ht_norate",	"HT station rejected because of HT rate set" },
+#define	S_INPUT			AFTER(S_HT_ASSOC_NORATE)
+	{ 8,	"input",	"input",	"total data frames received" },
+#define	S_RX_UCAST		AFTER(S_INPUT)
 	{ 8,	"rx_ucast",	"rx_ucast",	"unicast data frames received" },
-#define	S_RX_MCAST	109
+#define	S_RX_MCAST		AFTER(S_RX_UCAST)
 	{ 8,	"rx_mcast",	"rx_mcast",	"multicast data frames received" },
-#define	S_TX_UCAST	110
+#define	S_OUTPUT		AFTER(S_RX_MCAST)
+	{ 8,	"output",	"output",	"total data frames transmit" },
+#define	S_TX_UCAST		AFTER(S_OUTPUT)
 	{ 8,	"tx_ucast",	"tx_ucast",	"unicast data frames sent" },
-#define	S_TX_MCAST	111
+#define	S_TX_MCAST		AFTER(S_TX_UCAST)
 	{ 8,	"tx_mcast",	"tx_mcast",	"multicast data frames sent" },
-#define	S_SIGNAL	112
+#define	S_RATE			AFTER(S_TX_MCAST)
+	{ 4,	"rate",		"rate",		"current transmit rate" },
+#define	S_RSSI			AFTER(S_RATE)
+	{ 4,	"rssi",		"rssi",		"current rssi" },
+#define	S_NOISE			AFTER(S_RSSI)
+	{ 4,	"noise",	"noise",	"current noise floor (dBm)" },
+#define	S_SIGNAL		AFTER(S_NOISE)
 	{ 4,	"signal",	"sig",		"current signal (dBm)" },
 };
 
@@ -587,12 +625,28 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_AMSDU_SPLIT:	STAT(amsdu_split);
 	case S_AMSDU_DECAP:	STAT(amsdu_decap);
 	case S_AMSDU_ENCAP:	STAT(amsdu_encap);
+	case S_AMPDU_REORDER:	STAT(ampdu_rx_reorder);
 	case S_AMPDU_FLUSH:	STAT(ampdu_rx_flush);
 	case S_AMPDU_BARBAD:	STAT(ampdu_bar_bad);
 	case S_AMPDU_BAROOW:	STAT(ampdu_bar_oow);
+	case S_AMPDU_BARMOVE:	STAT(ampdu_bar_move);
 	case S_AMPDU_BAR:	STAT(ampdu_bar_rx);
+	case S_AMPDU_MOVE:	STAT(ampdu_rx_move);
 	case S_AMPDU_OOR:	STAT(ampdu_rx_oor);
 	case S_AMPDU_COPY:	STAT(ampdu_rx_copy);
+	case S_AMPDU_DROP:	STAT(ampdu_rx_drop);
+	case S_AMPDU_AGE:	STAT(ampdu_rx_age);
+	case S_AMPDU_STOP:	STAT(ampdu_stop);
+	case S_AMPDU_STOP_FAILED:STAT(ampdu_stop_failed);
+	case S_ADDBA_REJECT:	STAT(addba_reject);
+	case S_ADDBA_NOREQUEST:	STAT(addba_norequest);
+	case S_ADDBA_BADTOKEN:	STAT(addba_badtoken);
+	case S_TX_BADSTATE:	STAT(tx_badstate);
+	case S_TX_NOTASSOC:	STAT(tx_notassoc);
+	case S_TX_CLASSIFY:	STAT(tx_classify);
+	case S_HT_ASSOC_NOHTCAP:STAT(ht_assoc_nohtcap);
+	case S_HT_ASSOC_DOWNGRADE:STAT(ht_assoc_downgrade);
+	case S_HT_ASSOC_NORATE:	STAT(ht_assoc_norate);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
@@ -711,12 +765,28 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_AMSDU_SPLIT:	STAT(amsdu_split);
 	case S_AMSDU_DECAP:	STAT(amsdu_decap);
 	case S_AMSDU_ENCAP:	STAT(amsdu_encap);
+	case S_AMPDU_REORDER:	STAT(ampdu_rx_reorder);
 	case S_AMPDU_FLUSH:	STAT(ampdu_rx_flush);
 	case S_AMPDU_BARBAD:	STAT(ampdu_bar_bad);
 	case S_AMPDU_BAROOW:	STAT(ampdu_bar_oow);
+	case S_AMPDU_BARMOVE:	STAT(ampdu_bar_move);
 	case S_AMPDU_BAR:	STAT(ampdu_bar_rx);
+	case S_AMPDU_MOVE:	STAT(ampdu_rx_move);
 	case S_AMPDU_OOR:	STAT(ampdu_rx_oor);
 	case S_AMPDU_COPY:	STAT(ampdu_rx_copy);
+	case S_AMPDU_DROP:	STAT(ampdu_rx_drop);
+	case S_AMPDU_AGE:	STAT(ampdu_rx_age);
+	case S_AMPDU_STOP:	STAT(ampdu_stop);
+	case S_AMPDU_STOP_FAILED:STAT(ampdu_stop_failed);
+	case S_ADDBA_REJECT:	STAT(addba_reject);
+	case S_ADDBA_NOREQUEST:	STAT(addba_norequest);
+	case S_ADDBA_BADTOKEN:	STAT(addba_badtoken);
+	case S_TX_BADSTATE:	STAT(tx_badstate);
+	case S_TX_NOTASSOC:	STAT(tx_notassoc);
+	case S_TX_CLASSIFY:	STAT(tx_classify);
+	case S_HT_ASSOC_NOHTCAP:STAT(ht_assoc_nohtcap);
+	case S_HT_ASSOC_DOWNGRADE:STAT(ht_assoc_downgrade);
+	case S_HT_ASSOC_NORATE:	STAT(ht_assoc_norate);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
