@@ -461,6 +461,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EINVAL);
 
 	BPFD_LOCK(d);
+	d->bd_pid = curthread->td_proc->p_pid;
 	if (d->bd_state == BPF_WAITING)
 		callout_stop(&d->bd_callout);
 	timed_out = (d->bd_state == BPF_TIMED_OUT);
@@ -589,6 +590,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	int error;
 	struct sockaddr dst;
 
+	d->bd_pid = curthread->td_proc->p_pid;
 	if (d->bd_bif == NULL)
 		return (ENXIO);
 
