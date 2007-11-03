@@ -27,9 +27,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -77,7 +78,7 @@ static void relay __P((int, int, const char *, int));
  * - parent side (ppid == 0) will check the last SIGUSR1 it have seen.
  */
 static void
-sig_ctimeout(int sig)
+sig_ctimeout(int sig __unused)
 {
 	/* parent side: record notification from the child */
 	if (dflag)
@@ -87,7 +88,7 @@ sig_ctimeout(int sig)
 
 /* parent will terminate if child dies. */
 static void
-sig_child(int sig)
+sig_child(int sig __unused)
 {
 	int status;
 	pid_t pid;
@@ -148,7 +149,7 @@ notify_active()
 }
 
 static void
-send_data(int s_rcv, int s_snd, const char *service, int direction)
+send_data(int s_rcv, int s_snd, const char *service __unused, int direction)
 {
 	int cc;
 

@@ -27,8 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -37,6 +35,9 @@
  * Usage: faithd [<port> <progpath> <arg1(progname)> <arg2> ...]
  *   e.g. faithd telnet /usr/libexec/telnetd telnetd
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -702,7 +703,7 @@ map6to4(struct sockaddr_in6 *dst6, struct sockaddr_in *dst4)
 
 
 static void
-sig_child(int sig)
+sig_child(int sig __unused)
 {
 	int status;
 	pid_t pid;
@@ -714,7 +715,7 @@ sig_child(int sig)
 }
 
 void
-sig_terminate(int sig)
+sig_terminate(int sig __unused)
 {
 	syslog(LOG_INFO, "Terminating faith daemon");	
 	exit(EXIT_SUCCESS);
