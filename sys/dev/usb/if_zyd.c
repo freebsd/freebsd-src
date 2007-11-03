@@ -1926,7 +1926,7 @@ zyd_rx_data(struct zyd_softc *sc, const uint8_t *buf, uint16_t len)
 		struct zyd_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
-		if (stat->flags & (ZYD_RX_BADCRC32|ZYD_RX_BADCRC32))
+		if (stat->flags & (ZYD_RX_BADCRC16 | ZYD_RX_BADCRC32))
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_BADFCS;
 		/* XXX toss, no way to express errors */
 		if (stat->flags & ZYD_RX_DECRYPTERR)
