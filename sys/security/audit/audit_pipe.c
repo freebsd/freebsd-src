@@ -466,7 +466,7 @@ audit_pipe_submit(au_id_t auid, au_event_t event, au_class_t class, int sorf,
 	}
 	audit_pipe_records++;
 	mtx_unlock(&audit_pipe_mtx);
-	cv_signal(&audit_pipe_cv);
+	cv_broadcastpri(&audit_pipe_cv, PSOCK);
 }
 
 /*
@@ -493,7 +493,7 @@ audit_pipe_submit_user(void *record, u_int record_len)
 		audit_pipe_append(ap, record, record_len);
 	audit_pipe_records++;
 	mtx_unlock(&audit_pipe_mtx);
-	cv_signal(&audit_pipe_cv);
+	cv_broadcastpri(&audit_pipe_cv, PSOCK);
 }
 
 
