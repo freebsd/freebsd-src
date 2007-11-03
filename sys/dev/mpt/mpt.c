@@ -562,7 +562,8 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 				"Event %#x (ACK %sequired).\n",
 				msg->Event, msg->AckRequired? "r" : "not r");
 		} else if (handled == 0) {
-			mpt_lprt(mpt, MPT_PRT_WARN,
+			mpt_lprt(mpt,
+				msg->AckRequired? MPT_PRT_WARN : MPT_PRT_INFO,
 				"Unhandled Event Notify Frame. Event %#x "
 				"(ACK %sequired).\n",
 				msg->Event, msg->AckRequired? "r" : "not r");
