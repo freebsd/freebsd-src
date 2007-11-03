@@ -54,7 +54,9 @@
 #include "wlanstats.h"
 
 #define	S_DEFAULT \
-	"input,output,rx_ucast,rx_mcast,tx_ucast,tx_mcast,signal,noise,rate"
+	"input,output,rx_ucast,rx_mcast,tx_ucast,tx_mcast,rssi,rate"
+#define	S_AMPDU \
+	"input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
 
 static int signalled;
 
@@ -163,7 +165,10 @@ main(int argc, char *argv[])
 			mac = ea->octet;
 			break;
 		case 'o':
-			wf->setfmt(wf, optarg);
+			if (strcasecmp(optarg, "ampdu") == 0)
+				wf->setfmt(wf, S_AMPDU);
+			else
+				wf->setfmt(wf, optarg);
 			break;
 		default:
 			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
