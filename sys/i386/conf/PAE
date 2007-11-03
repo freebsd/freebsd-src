@@ -89,3 +89,4 @@ nodevice	ath_rate_sample	# SampleRate tx rate control for ath
 nodevice	awi
 nodevice	ral
 nodevice	wi
+nodevice	zyd		# ZyDAS zb1211/zb1211b wireless NICs
