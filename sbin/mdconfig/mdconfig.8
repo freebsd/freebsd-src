@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2004
+.Dd May 18, 2007
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -214,6 +214,12 @@ mdconfig -f somebackingfile -u 0
 bsdlabel -w md0 auto
 newfs md0c
 mount /dev/md0c /mnt
+.Ed
+.Pp
+To mount an ISO 9660 CD image file:
+.Bd -literal -offset indent
+mdconfig -a -t vnode -u 10 -f cdimage.iso
+mount_cd9660 /dev/md10 /mnt
 .Ed
 .Sh SEE ALSO
 .Xr md 4 ,
