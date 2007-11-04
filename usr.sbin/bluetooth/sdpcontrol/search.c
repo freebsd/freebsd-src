@@ -586,9 +586,6 @@ do_sdp_search(void *xs, int argc, char **argv)
 		return (USAGE);
 	}
 
-	if (service < SDP_SERVICE_CLASS_SERVICE_DISCOVERY_SERVER)
-		return (USAGE);
-
 	/* Initialize attribute values array */
 	for (n = 0; n < values_len; n ++) {
 		values[n].flags = SDP_ATTR_INVALID;
