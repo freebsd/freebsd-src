@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#38
+ * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit.h#40
  * $FreeBSD$
  */
 
@@ -73,44 +73,6 @@
  * Pre-defined audit IDs
  */
 #define	AU_DEFAUDITID	-1
-
-/*
- * Define the masks for the classes of audit events.
- */
-#define	AU_NULL		0x00000000
-#define	AU_FREAD	0x00000001
-#define	AU_FWRITE	0x00000002
-#define	AU_FACCESS	0x00000004
-#define	AU_FMODIFY	0x00000008
-#define	AU_FCREATE	0x00000010
-#define	AU_FDELETE	0x00000020
-#define	AU_CLOSE	0x00000040
-#define	AU_PROCESS	0x00000080
-#define	AU_NET		0x00000100
-#define	AU_IPC		0x00000200
-#define	AU_NONAT	0x00000400
-#define	AU_ADMIN	0x00000800
-#define	AU_LOGIN	0x00001000
-#define	AU_TFM		0x00002000
-#define	AU_APPL		0x00004000
-#define	AU_SETL		0x00008000
-#define	AU_IFLOAT	0x00010000
-#define	AU_PRIV		0x00020000
-#define	AU_MAC_RW	0x00040000
-#define	AU_XCONN	0x00080000
-#define	AU_XCREATE	0x00100000
-#define	AU_XDELETE	0x00200000
-#define	AU_XIFLOAT	0x00400000
-#define	AU_XPRIVS	0x00800000
-#define	AU_XPRIVF	0x01000000
-#define	AU_XMOVE	0x02000000
-#define	AU_XDACF	0x04000000
-#define	AU_XMACF	0x08000000
-#define	AU_XSECATTR	0x10000000
-#define	AU_IOCTL	0x20000000
-#define	AU_EXEC		0x40000000
-#define	AU_OTHER	0x80000000
-#define	AU_ALL		0xffffffff
 
 /*
  * IPC types.
