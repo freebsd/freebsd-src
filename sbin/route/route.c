@@ -823,7 +823,6 @@ inet_makenetandmask(net, sin, bits)
 			else
 				mask = 0xffffffff;
 		}
-		addr &= mask;
 	}
 	sin->sin_addr.s_addr = htonl(addr);
 	sin = &so_mask.sin;
