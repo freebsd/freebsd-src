@@ -110,10 +110,10 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
+CRUNCH_PROGS_sbin= atacontrol badsect 		\
 	camcontrol ccdconfig clri devfs dmesg dump			\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
-	fsirand gbde ifconfig init 				\
+	fsirand gbde geom ifconfig init 			\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
@@ -147,7 +147,7 @@ CRUNCH_LIBS+= -lipx
 CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lreadline -lsbuf -lufs -lz
 
 .if ${MACHINE_ARCH} == "i386"
-CRUNCH_PROGS_sbin+= sconfig fdisk
+CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 #.if ${MK_NCP} != "no"
 #CRUNCH_PROGS+= mount_nwfs
@@ -158,19 +158,20 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 .if ${MACHINE} == "pc98"
+CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-CRUNCH_PROGS_sbin+= mca gpt fdisk
+CRUNCH_PROGS_sbin+= mca
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-CRUNCH_PROGS_sbin+= sunlabel
+CRUNCH_PROGS_sbin+= bsdlabel sunlabel
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
-CRUNCH_PROGS_sbin+= fdisk
+CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
@@ -184,6 +185,7 @@ CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
+CRUNCH_ALIAS_geom= gpart
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
