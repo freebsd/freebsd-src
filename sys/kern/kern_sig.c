@@ -1401,6 +1401,7 @@ kill(td, uap)
 	int error;
 
 	AUDIT_ARG(signum, uap->signum);
+	AUDIT_ARG(pid, uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -1417,7 +1418,6 @@ kill(td, uap)
 		PROC_UNLOCK(p);
 		return (error);
 	}
-	AUDIT_ARG(pid, uap->pid);
 	switch (uap->pid) {
 	case -1:		/* broadcast signal */
 		return (killpg1(td, uap->signum, 0, 1));
