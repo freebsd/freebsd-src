@@ -51,6 +51,7 @@
 #define ATI_IXP_200_ID		0x4341
 #define ATI_IXP_300_ID		0x4361
 #define ATI_IXP_400_ID		0x4370
+#define ATI_IXP_SB600_ID	0x4384
 
 #define ATI_IXP_BASE_RATE	48000
 
