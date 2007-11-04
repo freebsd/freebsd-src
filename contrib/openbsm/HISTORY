@@ -1,3 +1,10 @@
+OpenBSM 1.0
+
+- Fix bug in auditreduce(8) which resulted in a memory fault/crash when
+  the user specified an event name with -m.
+- Remove AU_.* hard-coded audit class constants, as udit classes are now
+  entirely dynamically configured using /etc/security/audit_class.
+
 OpenBSM 1.0 alpha 15
 
 - Fix bug when processing in_addr_ex tokens.
@@ -295,4 +302,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/HISTORY#55 $
+$P4: //depot/projects/trustedbsd/openbsm/HISTORY#57 $
