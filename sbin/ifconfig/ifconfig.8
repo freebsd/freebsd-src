@@ -1623,6 +1623,11 @@ The default is calculated from the link speed.
 To change a previously selected path cost back to automatic, set the
 cost to 0.
 The minimum is 1 and the maximum is 200000000.
+.It Cm ifmaxaddr Ar interface Ar size
+Set the maximum number of hosts allowed from an interface, packets with unknown
+source addresses are dropped until an existing host cache entry expires or is
+removed.
+Set to 0 to disable.
 .El
 .Pp
 The following parameters are specific to lagg interfaces:

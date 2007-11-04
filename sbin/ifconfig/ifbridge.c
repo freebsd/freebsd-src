@@ -177,12 +177,14 @@ bridge_interfaces(int s, const char *prefix)
 		printf("%s%s ", prefix, req->ifbr_ifsname);
 		printb("flags", req->ifbr_ifsflags, IFBIFBITS);
 		printf("\n");
-		
+
+		printf("%s", pad);
+		printf("ifmaxaddr %u", req->ifbr_addrmax);
+		printf(" port %u priority %u", req->ifbr_portno,
+		    req->ifbr_priority);
+		printf(" path cost %u", req->ifbr_path_cost);
+
 		if (req->ifbr_ifsflags & IFBIF_STP) {
-			printf("%s", pad);
-			printf("port %u priority %u",
-			    req->ifbr_portno, req->ifbr_priority);
-			printf(" path cost %u", req->ifbr_path_cost);
 			if (req->ifbr_proto <
 			    sizeof(stpproto) / sizeof(stpproto[0]))
 				printf(" proto %s", stpproto[req->ifbr_proto]);
@@ -203,8 +205,8 @@ bridge_interfaces(int s, const char *prefix)
 			else
 				printf(" <unknown state %d>",
 				    req->ifbr_state);
-			printf("\n");
 		}
+		printf("\n");
 	}
 
 	free(inbuf);
@@ -651,6 +653,25 @@ setbridge_ifpathcost(const char *ifn, const char *cost, int s,
 }
 
 static void
+setbridge_ifmaxaddr(const char *ifn, const char *arg, int s,
+    const struct afswtch *afp)
+{
+	struct ifbreq req;
+	u_long val;
+
+	memset(&req, 0, sizeof(req));
+
+	if (get_val(arg, &val) < 0 || (val & ~0xffffffff) != 0)
+		errx(1, "invalid value: %s",  arg);
+
+	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
+	req.ifbr_addrmax = val & 0xffffffff;
+
+	if (do_cmd(s, BRDGSIFAMAX, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSIFAMAX %s",  arg);
+}
+
+static void
 setbridge_timeout(const char *arg, int d, int s, const struct afswtch *afp)
 {
 	struct ifbrparam param;
@@ -714,6 +735,7 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("holdcnt",		setbridge_holdcount),
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
+	DEF_CMD_ARG2("ifmaxaddr",	setbridge_ifmaxaddr),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
 	DEF_CMD_ARG("private",		setbridge_private),
 	DEF_CMD_ARG("-private",		unsetbridge_private),
