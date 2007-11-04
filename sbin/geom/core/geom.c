@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 
 #include "misc/subr.h"
 
+#ifdef RESCUE
+extern uint32_t gpart_version;
+extern struct g_command gpart_class_commands[];
+#endif
 
 static char comm[MAXPATHLEN], *class_name = NULL, *gclass_name = NULL;
 static uint32_t *version = NULL;
@@ -466,6 +470,7 @@ run_command(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
 }
 
+#ifndef RESCUE
 static const char *
 library_path(void)
 {
@@ -524,6 +529,7 @@ load_library(void)
 		exit(EXIT_FAILURE);
 	}
 }
+#endif	/* !RESCUE */
 
 /*
  * Class name should be all capital letters.
@@ -571,8 +577,18 @@ get_class(int *argc, char ***argv)
 	} else {
 		errx(EXIT_FAILURE, "Invalid utility name.");
 	}
-	set_class_name();
+
+#ifndef RESCUE
 	load_library();
+#else
+	if (!strcasecmp(class_name, "part")) {
+		version = &gpart_version;
+		class_commands = gpart_class_commands;
+	} else
+		errx(EXIT_FAILURE, "Invalid class name.");
+#endif /* !RESCUE */
+
+	set_class_name();
 	if (*argc < 1)
 		usage();
 }
