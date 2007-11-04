@@ -213,6 +213,8 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_3590 }, 0 },
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_4200 }, 0 },
  {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_4990 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_5000 }, 0 },
+ {{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_6000 }, 0 },
 
   /* UMAX */
  {{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1220U }, 0 },
@@ -302,13 +304,29 @@ USB_DECLARE_DRIVER(uscanner);
 
 USB_MATCH(uscanner)
 {
+	usb_interface_descriptor_t *id;
 	USB_MATCH_START(uscanner, uaa);
 
-	if (uaa->iface != NULL)
+	if (uaa->iface == NULL)
+		return UMATCH_NONE;	/* do not grab the entire device */
+
+	if (uscanner_lookup(uaa->vendor, uaa->product) == NULL)
+		return UMATCH_NONE;	/* not in the list of known devices */
+	id = usbd_get_interface_descriptor(uaa->iface);
+	if (id == NULL)
 		return UMATCH_NONE;
 
-	return (uscanner_lookup(uaa->vendor, uaa->product) != NULL ?
-		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
+	/*
+	 * There isn't a specific UICLASS for scanners, many vendors use
+	 * UICLASS_VENDOR, so detecting the right interface is not so easy.
+	 * But certainly we can exclude PRINTER and MASS - which some
+	 * multifunction devices implement.
+	 */
+	if (id->bInterfaceClass == UICLASS_PRINTER ||
+	    id->bInterfaceClass == UICLASS_MASS)
+		return UMATCH_NONE;
+ 
+	return UMATCH_VENDOR_PRODUCT;	/* ok we found it */
 }
 
 USB_ATTACH(uscanner)
@@ -319,6 +337,7 @@ USB_ATTACH(uscanner)
 	char devinfo[1024];
 	int i;
 	usbd_status err;
+	int ifnum;
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
@@ -327,15 +346,26 @@ USB_ATTACH(uscanner)
 
 	sc->sc_udev = uaa->device;
 
+	id = usbd_get_interface_descriptor(uaa->iface);
+	ifnum = id->bInterfaceNumber;
+#if 0
+	/*
+	 * This was in the original driver, but we cannot change the
+	 * configuration of the whole device while attaching only to
+	 * one of its interfaces. This can kill other already-attached
+	 * driver, and/or possibly prevent this driver from attaching
+	 * if an error occurs in set_config_no.
+	 * If a device need setting the configuration, this must be done
+	 * before attaching drivers to the various interfaces.
+	 */
 	err = usbd_set_config_no(uaa->device, 1, 1); /* XXX */
 	if (err) {
 		printf("%s: setting config no failed\n",
 		    USBDEVNAME(sc->sc_dev));
 		USB_ATTACH_ERROR_RETURN;
 	}
-
-	/* XXX We only check the first interface */
-	err = usbd_device2interface_handle(sc->sc_udev, 0, &sc->sc_iface);
+#endif
+	err = usbd_device2interface_handle(sc->sc_udev, ifnum, &sc->sc_iface);
 	if (!err && sc->sc_iface)
 	    id = usbd_get_interface_descriptor(sc->sc_iface);
 	if (err || id == 0) {
