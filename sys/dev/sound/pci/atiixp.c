@@ -170,6 +170,7 @@ static const struct {
 	{ ATI_VENDOR_ID, ATI_IXP_200_ID, "ATI IXP 200" },
 	{ ATI_VENDOR_ID, ATI_IXP_300_ID, "ATI IXP 300" },
 	{ ATI_VENDOR_ID, ATI_IXP_400_ID, "ATI IXP 400" },
+	{ ATI_VENDOR_ID, ATI_IXP_SB600_ID, "ATI IXP SB600" },
 };
 
 static void atiixp_enable_interrupts(struct atiixp_info *);
