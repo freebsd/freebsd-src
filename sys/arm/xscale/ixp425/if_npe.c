@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
  * in the Intel Access Library (IAL) and the OS-specific driver.
  *
  * XXX add vlan support
- * XXX NPE-C port doesn't work yet
  */
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
