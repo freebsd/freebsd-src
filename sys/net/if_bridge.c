@@ -181,6 +181,9 @@ struct bridge_iflist {
 	struct bstp_port	bif_stp;	/* STP state */
 	uint32_t		bif_flags;	/* member if flags */
 	int			bif_mutecap;	/* member muted caps */
+	uint32_t		bif_addrmax;	/* max # of addresses */
+	uint32_t		bif_addrcnt;	/* cur. # of addresses */
+	uint32_t		bif_addrexceeded;/* # of address violations */
 };
 
 /*
@@ -189,12 +192,13 @@ struct bridge_iflist {
 struct bridge_rtnode {
 	LIST_ENTRY(bridge_rtnode) brt_hash;	/* hash table linkage */
 	LIST_ENTRY(bridge_rtnode) brt_list;	/* list linkage */
-	struct ifnet		*brt_ifp;	/* destination if */
+	struct bridge_iflist	*brt_dst;	/* destination if */
 	unsigned long		brt_expire;	/* expiration time */
 	uint8_t			brt_flags;	/* address flags */
 	uint8_t			brt_addr[ETHER_ADDR_LEN];
 	uint16_t		brt_vlan;	/* vlan id */
 };
+#define	brt_ifp			brt_dst->bif_ifp
 
 /*
  * Software state for each bridge.
@@ -307,6 +311,7 @@ static int	bridge_ioctl_gma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sma(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
+static int	bridge_ioctl_sifmaxaddr(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_gbparam(struct bridge_softc *, void *);
@@ -447,6 +452,10 @@ const struct bridge_control bridge_control_table[] = {
 
 	{ bridge_ioctl_stxhc,		sizeof(struct ifbrparam),
 	  BC_F_COPYIN|BC_F_SUSER },
+
+	{ bridge_ioctl_sifmaxaddr,	sizeof(struct ifbreq),
+	  BC_F_COPYIN|BC_F_SUSER },
+
 };
 const int bridge_control_table_size =
     sizeof(bridge_control_table) / sizeof(bridge_control_table[0]);
@@ -887,6 +896,8 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	BRIDGE_XDROP(sc);
 
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
+	KASSERT(bif->bif_addrcnt == 0,
+	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
 	BRIDGE_UNLOCK(sc);
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
@@ -1025,6 +1036,9 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 	req->ifbr_proto = bp->bp_protover;
 	req->ifbr_role = bp->bp_role;
 	req->ifbr_stpflags = bp->bp_flags;
+	req->ifbr_addrcnt = bif->bif_addrcnt;
+	req->ifbr_addrmax = bif->bif_addrmax;
+	req->ifbr_addrexceeded = bif->bif_addrexceeded;
 
 	/* Copy STP state options as flags */
 	if (bp->bp_operedge)
@@ -1369,6 +1383,20 @@ bridge_ioctl_sifcost(struct bridge_softc *sc, void *arg)
 		return (ENOENT);
 
 	return (bstp_set_path_cost(&bif->bif_stp, req->ifbr_path_cost));
+}
+
+static int
+bridge_ioctl_sifmaxaddr(struct bridge_softc *sc, void *arg)
+{
+	struct ifbreq *req = arg;
+	struct bridge_iflist *bif;
+
+	bif = bridge_lookup_member(sc, req->ifbr_ifsname);
+	if (bif == NULL)
+		return (ENOENT);
+
+	bif->bif_addrmax = req->ifbr_addrmax;
+	return (0);
 }
 
 static int
@@ -1902,6 +1930,7 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	struct ifnet *src_if, *dst_if, *ifp;
 	struct ether_header *eh;
 	uint16_t vlan;
+	int error;
 
 	src_if = m->m_pkthdr.rcvif;
 	ifp = sc->sc_ifp;
@@ -1919,21 +1948,19 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	eh = mtod(m, struct ether_header *);
 
-	/*
-	 * If the interface is learning, and the source
-	 * address is valid and not multicast, record
-	 * the address.
-	 */
-	if ((sbif->bif_flags & IFBIF_LEARNING) != 0 &&
-	    ETHER_IS_MULTICAST(eh->ether_shost) == 0 &&
-	    (eh->ether_shost[0] == 0 &&
-	     eh->ether_shost[1] == 0 &&
-	     eh->ether_shost[2] == 0 &&
-	     eh->ether_shost[3] == 0 &&
-	     eh->ether_shost[4] == 0 &&
-	     eh->ether_shost[5] == 0) == 0) {
-		(void) bridge_rtupdate(sc, eh->ether_shost, vlan,
+	/* If the interface is learning, record the address. */
+	if (sbif->bif_flags & IFBIF_LEARNING) {
+		error = bridge_rtupdate(sc, eh->ether_shost, vlan,
 		    sbif, 0, IFBAF_DYNAMIC);
+		/*
+		 * If the interface has addresses limits then deny any source
+		 * that is not in the cache.
+		 */
+		if (error && sbif->bif_addrmax) {
+			BRIDGE_UNLOCK(sc);
+			m_freem(m);
+			return;
+		}
 	}
 
 	if ((sbif->bif_flags & IFBIF_STP) != 0 &&
@@ -2058,6 +2085,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	struct ether_header *eh;
 	struct mbuf *mc, *mc2;
 	uint16_t vlan;
+	int error;
 
 	if ((sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (m);
@@ -2112,9 +2140,19 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 
 		/* Note where to send the reply to */
-		if (bif->bif_flags & IFBIF_LEARNING)
-			(void) bridge_rtupdate(sc,
+		if (bif->bif_flags & IFBIF_LEARNING) {
+			error = bridge_rtupdate(sc,
 			    eh->ether_shost, vlan, bif, 0, IFBAF_DYNAMIC);
+			/*
+			 * If the interface has addresses limits then deny any
+			 * source that is not in the cache.
+			 */
+			if (error && bif->bif_addrmax) {
+				BRIDGE_UNLOCK(sc);
+				m_freem(m);
+				return (NULL);
+			}
+		}
 
 		/* Mark the packet as arriving on the bridge interface */
 		m->m_pkthdr.rcvif = bifp;
@@ -2206,9 +2244,15 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
 	    ) {								\
-		if (bif->bif_flags & IFBIF_LEARNING)			\
-			(void) bridge_rtupdate(sc, eh->ether_shost,	\
+		if (bif->bif_flags & IFBIF_LEARNING) {			\
+			error = bridge_rtupdate(sc, eh->ether_shost,	\
 			    vlan, bif, 0, IFBAF_DYNAMIC);		\
+			if (error && bif->bif_addrmax) {		\
+				BRIDGE_UNLOCK(sc);			\
+				m_freem(m);				\
+				return (NULL);				\
+			}						\
+		}							\
 		m->m_pkthdr.rcvif = iface;				\
 		BRIDGE_UNLOCK(sc);					\
 		return (m);						\
@@ -2394,10 +2438,15 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
     struct bridge_iflist *bif, int setflags, uint8_t flags)
 {
 	struct bridge_rtnode *brt;
-	struct ifnet *dst_if = bif->bif_ifp;
 	int error;
 
 	BRIDGE_LOCK_ASSERT(sc);
+
+	/* Check the source address is valid and not multicast. */
+	if (ETHER_IS_MULTICAST(dst) ||
+	    (dst[0] == 0 && dst[1] == 0 && dst[2] == 0 &&
+	     dst[3] == 0 && dst[4] == 0 && dst[5] == 0) != 0)
+		return (EINVAL);
 
 	/* 802.1p frames map to vlan 1 */
 	if (vlan == 0)
@@ -2410,6 +2459,11 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 	if ((brt = bridge_rtnode_lookup(sc, dst, vlan)) == NULL) {
 		if (sc->sc_brtcnt >= sc->sc_brtmax) {
 			sc->sc_brtexceeded++;
+			return (ENOSPC);
+		}
+		/* Check per interface address limits (if enabled) */
+		if (bif->bif_addrmax && bif->bif_addrcnt >= bif->bif_addrmax) {
+			bif->bif_addrexceeded++;
 			return (ENOSPC);
 		}
 
@@ -2427,7 +2481,6 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 		else
 			brt->brt_flags = IFBAF_DYNAMIC;
 
-		brt->brt_ifp = dst_if;
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 		brt->brt_vlan = vlan;
 
@@ -2435,10 +2488,17 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 			uma_zfree(bridge_rtnode_zone, brt);
 			return (error);
 		}
+		brt->brt_dst = bif;
+		bif->bif_addrcnt++;
 	}
 
-	if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
-		brt->brt_ifp = dst_if;
+	if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC &&
+	    brt->brt_dst != bif) {
+		brt->brt_dst->bif_addrcnt--;
+		brt->brt_dst = bif;
+		brt->brt_dst->bif_addrcnt++;
+	}
+
 	if ((flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
 		brt->brt_expire = time_uptime + sc->sc_brttimeout;
 	if (setflags)
@@ -2632,6 +2692,8 @@ static void
 bridge_rtable_fini(struct bridge_softc *sc)
 {
 
+	KASSERT(sc->sc_brtcnt == 0,
+	    ("%s: %d bridge routes referenced", __func__, sc->sc_brtcnt));
 	free(sc->sc_rthash, M_DEVBUF);
 }
 
@@ -2773,6 +2835,7 @@ bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 
 	LIST_REMOVE(brt, brt_list);
 	sc->sc_brtcnt--;
+	brt->brt_dst->bif_addrcnt--;
 	uma_zfree(bridge_rtnode_zone, brt);
 }
 
