@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#19 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#20 $
  */
 
 /* 
@@ -722,7 +722,6 @@ main(int argc, char **argv)
 				if (n == NULL)
 					usage("Incorrect event name");
 				p_evtype = *n;
-				free(n);
 			}
 			SETOPT(opttochk, OPT_m);
 			break;
