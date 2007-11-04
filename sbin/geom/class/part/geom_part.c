@@ -43,15 +43,21 @@ __FBSDID("$FreeBSD$");
 #include "core/geom.h"
 #include "misc/subr.h"
 
-uint32_t lib_version = G_LIB_VERSION;
-uint32_t version = 0;
+#ifdef RESCUE
+#define	PUBSYM(x)	gpart_##x
+#else
+#define	PUBSYM(x)	x
+#endif
+
+uint32_t PUBSYM(lib_version) = G_LIB_VERSION;
+uint32_t PUBSYM(version) = 0;
 
 static char optional[] = "";
 static char flags[] = "C";
 
 static void gpart_show(struct gctl_req *, unsigned);
 
-struct g_command class_commands[] = {
+struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, NULL, {
 		{ 'b', "start", NULL, G_TYPE_STRING },
 		{ 's', "size", NULL, G_TYPE_STRING },
