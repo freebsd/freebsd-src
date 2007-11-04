@@ -1266,23 +1266,6 @@ nfsrvw_sort(gid_t *list, int num)
 }
 
 /*
- * copy credentials making sure that the result can be compared with bcmp().
- */
-void
-nfsrv_setcred(struct ucred *incred, struct ucred *outcred)
-{
-	int i;
-
-	bzero((caddr_t)outcred, sizeof (struct ucred));
-	refcount_init(&outcred->cr_ref, 1);
-	outcred->cr_uid = incred->cr_uid;
-	outcred->cr_ngroups = incred->cr_ngroups;
-	for (i = 0; i < incred->cr_ngroups; i++)
-		outcred->cr_groups[i] = incred->cr_groups[i];
-	nfsrvw_sort(outcred->cr_groups, outcred->cr_ngroups);
-}
-
-/*
  * Helper functions for macros.
  */
 
