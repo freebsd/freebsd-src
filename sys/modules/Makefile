@@ -312,7 +312,8 @@ SUBDIR=	${_3dfx} \
 	xfs \
 	xl \
 	${_zfs} \
-	zlib
+	zlib \
+	zyd
 
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
