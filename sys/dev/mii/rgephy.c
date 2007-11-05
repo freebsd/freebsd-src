@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the RealTek 8169S/8110S internal 10/100/1000 PHY.
+ * Driver for the RealTek 8169S/8110S/8211B internal 10/100/1000 PHY.
  */
 
 #include <sys/param.h>
@@ -62,6 +62,12 @@ __FBSDID("$FreeBSD$");
 static int rgephy_probe(device_t);
 static int rgephy_attach(device_t);
 
+struct rgephy_softc {
+	struct mii_softc mii_sc;
+	int mii_model;
+	int mii_revision;
+};
+
 static device_method_t rgephy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		rgephy_probe),
@@ -76,7 +82,7 @@ static devclass_t rgephy_devclass;
 static driver_t rgephy_driver = {
 	"rgephy",
 	rgephy_methods,
-	sizeof(struct mii_softc)
+	sizeof(struct rgephy_softc)
 };
 
 DRIVER_MODULE(rgephy, miibus, rgephy_driver, rgephy_devclass, 0, 0);
@@ -103,12 +109,14 @@ rgephy_probe(device_t dev)
 static int
 rgephy_attach(device_t dev)
 {
+	struct rgephy_softc *rsc;
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
 	const char *sep = "";
 
-	sc = device_get_softc(dev);
+	rsc = device_get_softc(dev);
+	sc = &rsc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
@@ -121,6 +129,9 @@ rgephy_attach(device_t dev)
 	sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 
 	mii->mii_instance++;
+
+	rsc->mii_model = MII_MODEL(ma->mii_id2);
+	rsc->mii_revision = MII_REV(ma->mii_id2);
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define PRINT(s)	printf("%s%s", sep, s); sep = ", "
@@ -153,8 +164,11 @@ rgephy_attach(device_t dev)
 static int
 rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
+	struct rgephy_softc *rsc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg, speed, gig, anar;
+
+	rsc = (struct rgephy_softc *)sc;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -282,10 +296,19 @@ setit:
 		 * need to restart the autonegotiation process.  Read
 		 * the BMSR twice in case it's latched.
 		 */
-		reg = PHY_READ(sc, RL_GMEDIASTAT);
-		if (reg & RL_GMEDIASTAT_LINK) {
-			sc->mii_ticks = 0;
-			break;
+		if (rsc->mii_revision >= 2) {
+			/* RTL8211B(L) */
+			reg = PHY_READ(sc, RGEPHY_MII_SSR);
+			if (reg & RGEPHY_SSR_LINK) {
+				sc->mii_ticks = 0;
+				break;
+			}
+		} else {
+			reg = PHY_READ(sc, RL_GMEDIASTAT);
+			if (reg & RL_GMEDIASTAT_LINK) {
+				sc->mii_ticks = 0;
+				break;
+			}
 		}
 
 		/* Announce link loss right after it happens. */
@@ -321,16 +344,26 @@ setit:
 static void
 rgephy_status(struct mii_softc *sc)
 {
+	struct rgephy_softc *rsc;
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr;
+	uint16_t ssr;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	bmsr = PHY_READ(sc, RL_GMEDIASTAT);
+	rsc = (struct rgephy_softc *)sc;
+	if (rsc->mii_revision >= 2) {
+		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
+		if (ssr & RGEPHY_SSR_LINK)
+			mii->mii_media_status |= IFM_ACTIVE;
+	} else {
+		bmsr = PHY_READ(sc, RL_GMEDIASTAT);
+		if (bmsr & RL_GMEDIASTAT_LINK)
+			mii->mii_media_status |= IFM_ACTIVE;
+	}
 
-	if (bmsr & RL_GMEDIASTAT_LINK)
-		mii->mii_media_status |= IFM_ACTIVE;
+	PHY_READ(sc, RGEPHY_MII_BMSR);
 	bmsr = PHY_READ(sc, RGEPHY_MII_BMSR);
 
 	bmcr = PHY_READ(sc, RGEPHY_MII_BMCR);
@@ -346,17 +379,41 @@ rgephy_status(struct mii_softc *sc)
 		}
 	}
 
-	bmsr = PHY_READ(sc, RL_GMEDIASTAT);
-	if (bmsr & RL_GMEDIASTAT_1000MBPS)
-		mii->mii_media_active |= IFM_1000_T;
-	else if (bmsr & RL_GMEDIASTAT_100MBPS)
-		mii->mii_media_active |= IFM_100_TX;
-	else if (bmsr & RL_GMEDIASTAT_10MBPS)
-		mii->mii_media_active |= IFM_10_T;
-	else
-		mii->mii_media_active |= IFM_NONE;
-	if (bmsr & RL_GMEDIASTAT_FDX)
-		mii->mii_media_active |= IFM_FDX;
+	if (rsc->mii_revision >= 2) {
+		ssr = PHY_READ(sc, RGEPHY_MII_SSR);
+		switch (ssr & RGEPHY_SSR_SPD_MASK) {
+		case RGEPHY_SSR_S1000:
+			mii->mii_media_active |= IFM_1000_T;
+			break;
+		case RGEPHY_SSR_S100:
+			mii->mii_media_active |= IFM_100_TX;
+			break;
+		case RGEPHY_SSR_S10:
+			mii->mii_media_active |= IFM_10_T;
+			break;
+		default:
+			mii->mii_media_active |= IFM_NONE;
+			break;
+		}
+		if (ssr & RGEPHY_SSR_FDX)
+			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
+	} else {
+		bmsr = PHY_READ(sc, RL_GMEDIASTAT);
+		if (bmsr & RL_GMEDIASTAT_1000MBPS)
+			mii->mii_media_active |= IFM_1000_T;
+		else if (bmsr & RL_GMEDIASTAT_100MBPS)
+			mii->mii_media_active |= IFM_100_TX;
+		else if (bmsr & RL_GMEDIASTAT_10MBPS)
+			mii->mii_media_active |= IFM_10_T;
+		else
+			mii->mii_media_active |= IFM_NONE;
+		if (bmsr & RL_GMEDIASTAT_FDX)
+			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
+	}
 }
 
 static int
@@ -382,10 +439,14 @@ rgephy_mii_phy_auto(struct mii_softc *mii)
 static void
 rgephy_loop(struct mii_softc *sc)
 {
+	struct rgephy_softc *rsc;
 	int i;
 
-	PHY_WRITE(sc, RGEPHY_MII_BMCR, RGEPHY_BMCR_PDOWN);
-	DELAY(1000);
+	rsc = (struct rgephy_softc *)sc;
+	if (rsc->mii_revision < 2) {
+		PHY_WRITE(sc, RGEPHY_MII_BMCR, RGEPHY_BMCR_PDOWN);
+		DELAY(1000);
+	}
 
 	for (i = 0; i < 15000; i++) {
 		if (!(PHY_READ(sc, RGEPHY_MII_BMSR) & RGEPHY_BMSR_LINK)) {
@@ -413,12 +474,11 @@ rgephy_loop(struct mii_softc *sc)
 static void
 rgephy_load_dspcode(struct mii_softc *sc)
 {
+	struct rgephy_softc *rsc;
 	int val;
-        uint16_t id2;
 
-	id2 = PHY_READ(sc, MII_PHYIDR2);
-
-	if (MII_REV(id2) > 1)
+	rsc = (struct rgephy_softc *)sc;
+	if (rsc->mii_revision >= 2)
 		return;
 
 	PHY_WRITE(sc, 31, 0x0001);
