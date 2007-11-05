@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.730 2007/02/01 18:50:03 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.732 2007/04/20 00:53:30 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -2962,9 +2962,9 @@ ifdef(`_ATMPF_', `dnl tempfail?
 R<$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 dnl use the generic routine (for now)
 R<0>		$@ OK		no limit
-R<$+>		$: <$1> $| $(arith l $@ $&{client_rate} $@ $1 $)
+R<$+>		$: <$1> $| $(arith l $@ $1 $@ $&{client_rate} $)
 dnl log this? Connection rate $&{client_rate} exceeds limit $1.
-R<$+> $| FALSE	$#error $@ 4.3.2 $: _RATE_CONTROL_REPLY Connection rate limit exceeded.
+R<$+> $| TRUE	$#error $@ 4.3.2 $: _RATE_CONTROL_REPLY Connection rate limit exceeded.
 ')')
 
 ifdef(`_CONN_CONTROL_',`dnl
@@ -2984,9 +2984,9 @@ ifdef(`_ATMPF_', `dnl tempfail?
 R<$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
 dnl use the generic routine (for now)
 R<0>		$@ OK		no limit
-R<$+>		$: <$1> $| $(arith l $@ $&{client_connections} $@ $1 $)
+R<$+>		$: <$1> $| $(arith l $@ $1 $@ $&{client_connections} $)
 dnl log this: Open connections $&{client_connections} exceeds limit $1.
-R<$+> $| FALSE	$#error $@ 4.3.2 $: _CONN_CONTROL_REPLY Too many open connections.
+R<$+> $| TRUE	$#error $@ 4.3.2 $: _CONN_CONTROL_REPLY Too many open connections.
 ')')
 
 undivert(9)dnl LOCAL_RULESETS

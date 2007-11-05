@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1012 2007/03/29 21:20:15 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1015 2007/10/17 21:35:30 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -495,7 +495,7 @@ sendall(e, mode)
 		time_t now;
 
 		if (tTd(13, 29))
-			sm_dprintf("No deliveries: auto-queuing\n");
+			sm_dprintf("No deliveries: auto-queueing\n");
 		mode = SM_QUEUE;
 		now = curtime();
 
@@ -3293,6 +3293,8 @@ do_transfer:
 			ok = (*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
 		if (ok)
 			ok = (*e->e_putbody)(mci, e, NULL);
+		if (ok && bitset(MCIF_INLONGLINE, mci->mci_flags))
+			ok = putline("", mci);
 
 		/*
 		**  Ignore an I/O error that was caused by EPIPE.
@@ -3404,6 +3406,7 @@ do_transfer:
 			/* No recipients in list and no missing responses? */
 			if (tobuf[0] == '\0'
 # if PIPELINING
+			    && bitset(MCIF_PIPELINED, mci->mci_flags)
 			    && mci->mci_nextaddr == NULL
 # endif /* PIPELINING */
 			   )
