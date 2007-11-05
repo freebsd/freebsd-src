@@ -13,8 +13,8 @@
 ;           on server           FTP.INTERNIC.NET
 ;       -OR-                    RS.INTERNIC.NET
 ;
-;       last update:    Jan 29, 2004
-;       related version of root zone:   2004012900
+;       last update:    Nov 01, 2007
+;       related version of root zone:   2007110100
 ;
 ;
 ; formerly NS.INTERNIC.NET
@@ -75,7 +75,7 @@ K.ROOT-SERVERS.NET.      3600000      A     193.0.14.129
 ; operated by ICANN
 ;
 .                        3600000      NS    L.ROOT-SERVERS.NET.
-L.ROOT-SERVERS.NET.      3600000      A     198.32.64.12
+L.ROOT-SERVERS.NET.      3600000      A     199.7.83.42
 ;
 ; operated by WIDE
 ;
