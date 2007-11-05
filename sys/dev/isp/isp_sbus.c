@@ -327,21 +327,26 @@ isp_sbus_attach(device_t dev)
 	/*
 	 * Make sure we're in reset state.
 	 */
+	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
 		isp_uninit(isp);
+		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_init(isp);
 	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_INITSTATE) {
 		isp_uninit(isp);
+		ISP_UNLOCK(isp);
 		goto bad;
 	}
 	isp_attach(isp);
 	if (isp->isp_role != ISP_ROLE_NONE && isp->isp_state != ISP_RUNSTATE) {
 		isp_uninit(isp);
+		ISP_UNLOCK(isp);
 		goto bad;
 	}
+	ISP_UNLOCK(isp);
 	return (0);
 
 bad:
