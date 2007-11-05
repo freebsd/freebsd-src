@@ -956,7 +956,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 	int i;
 	vm_offset_t addr, starta;
 	vm_pindex_t pindex;
-	vm_page_t m, mpte;
+	vm_page_t m;
 	vm_object_t object;
 
 	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace))
@@ -971,7 +971,6 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 		starta = 0;
 	}
 
-	mpte = NULL;
 	for (i = 0; i < PAGEORDER_SIZE; i++) {
 		vm_object_t backing_object, lobject;
 
@@ -1012,8 +1011,7 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			vm_page_lock_queues();
 			if ((m->queue - m->pc) == PQ_CACHE)
 				vm_page_deactivate(m);
-			mpte = pmap_enter_quick(pmap, addr, m,
-			    entry->protection, mpte);
+			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
 		}
 		VM_OBJECT_UNLOCK(lobject);
