@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003, 2006, 2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: macro.c,v 8.102 2006/12/21 23:06:10 ca Exp $")
+SM_RCSID("@(#)$Id: macro.c,v 8.107 2007/08/06 22:29:02 ca Exp $")
 
 #include <sm/sendmail.h>
 #if MAXMACROID != (BITMAPBITS - 1)
@@ -21,8 +21,67 @@ SM_RCSID("@(#)$Id: macro.c,v 8.102 2006/12/21 23:06:10 ca Exp $")
 #endif /* MAXMACROID != (BITMAPBITS - 1) */
 
 static char	*MacroName[MAXMACROID + 1];	/* macro id to name table */
-int		NextMacroId = 0240;	/* codes for long named macros */
+
+/*
+**  Codes for long named macros.
+**  See also macname():
+	* if not ASCII printable, look up the name *
+	if (n <= 0x20 || n > 0x7f)
+**  First use 1 to NEXTMACROID_L, then use NEXTMACROID_H to MAXMACROID.
+*/
+
+#define NEXTMACROID_L 037
+#define NEXTMACROID_H 0240
+
+#if _FFR_MORE_MACROS
+/* table for next id in non-printable ASCII range: disallow some value */
+static int NextMIdTable[] =
+{
+	/*  0  nul */	 1,
+	/*  1  soh */	 2,
+	/*  2  stx */	 3,
+	/*  3  etx */	 4,
+	/*  4  eot */	 5,
+	/*  5  enq */	 6,
+	/*  6  ack */	 7,
+	/*  7  bel */	 8,
+	/*  8  bs  */	14,
+	/*  9  ht  */	-1,
+	/* 10  nl  */	-1,
+	/* 11  vt  */	-1,
+	/* 12  np  */	-1,
+	/* 13  cr  */	-1,
+	/* 14  so  */	15,
+	/* 15  si  */	16,
+	/* 16  dle */	17,
+	/* 17  dc1 */	18,
+	/* 18  dc2 */	19,
+	/* 19  dc3 */	20,
+	/* 20  dc4 */	21,
+	/* 21  nak */	22,
+	/* 22  syn */	23,
+	/* 23  etb */	24,
+	/* 24  can */	25,
+	/* 25  em  */	26,
+	/* 26  sub */	27,
+	/* 27  esc */	28,
+	/* 28  fs  */	29,
+	/* 29  gs  */	30,
+	/* 30  rs  */	31,
+	/* 31  us  */	32,
+	/* 32  sp  */	-1,
+};
+
+#define NEXTMACROID(mid)	(		\
+	(mid < NEXTMACROID_L) ? (NextMIdTable[mid]) :	\
+	((mid < NEXTMACROID_H) ? NEXTMACROID_H : (mid + 1)))
+
+int		NextMacroId = 1;	/* codes for long named macros */
 /* see sendmail.h: Special characters in rewriting rules. */
+#else /* _FFR_MORE_MACROS */
+int		NextMacroId = 0240;	/* codes for long named macros */
+#define NEXTMACROID(mid)	((mid) + 1)
+#endif /* _FFR_MORE_MACROS */
 
 
 /*
@@ -603,7 +662,7 @@ macid_parse(p, ep)
 		syserr("Macro/class name ({%s}) too long (%d chars max)",
 			mbuf, (int) (sizeof(mbuf) - 1));
 	}
-	else if (mbuf[1] == '\0')
+	else if (mbuf[1] == '\0' && mbuf[0] >= 0x20)
 	{
 		/* ${x} == $x */
 		mid = bitidx(mbuf[0]);
@@ -627,7 +686,8 @@ macid_parse(p, ep)
 			else
 			{
 				MacroName[NextMacroId] = s->s_name;
-				s->s_macro = mid = NextMacroId++;
+				s->s_macro = mid = NextMacroId;
+				NextMacroId = NEXTMACROID(NextMacroId);
 			}
 		}
 		p++;

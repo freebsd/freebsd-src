@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.93 2001/09/11 04:05:07 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.94 2007/05/11 18:50:36 ca Exp $")
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -45,7 +45,7 @@ uid_t	RealUid;
 gid_t	RealGid;
 char	*RealUserName;
 uid_t	RunAsUid;
-uid_t	RunAsGid;
+gid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
 bool	DontInitGroups = false;

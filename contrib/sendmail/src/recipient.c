@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: recipient.c,v 8.348 2007/03/19 21:33:09 ca Exp $")
+SM_RCSID("@(#)$Id: recipient.c,v 8.349 2007/07/10 17:01:22 ca Exp $")
 
 static void	includetimeout __P((int));
 static ADDRESS	*self_reference __P((ADDRESS *));
@@ -377,6 +377,12 @@ removefromlist(list, sendq, e)
 	{
 		(void) sm_strlcpy(bufp, denlstring(list, false, true), i);
 
+#if _FFR_ADDR_TYPE_MODES
+		if (AddrTypeModes)
+			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
+				  "e r d");
+		else
+#endif /* _FFR_ADDR_TYPE_MODES */
 		macdefine(&e->e_macro, A_PERM, macid("{addr_type}"), "e r");
 		for (p = bufp; *p != '\0'; )
 		{

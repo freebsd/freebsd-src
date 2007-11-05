@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2007 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
 #define LDAP_DEPRECATED	1
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.78 2006/08/30 22:56:59 ca Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.80 2007/10/12 00:19:44 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -1103,26 +1103,25 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 	if (save_errno != LDAP_SUCCESS)
 	{
 		statp = EX_TEMPFAIL;
-		if (ret != 0)
+		switch (save_errno)
 		{
-			switch (save_errno)
-			{
 #ifdef LDAP_SERVER_DOWN
-			  case LDAP_SERVER_DOWN:
+		  case LDAP_SERVER_DOWN:
 #endif /* LDAP_SERVER_DOWN */
-			  case LDAP_TIMEOUT:
-			  case LDAP_UNAVAILABLE:
+		  case LDAP_TIMEOUT:
+		  case ETIMEDOUT:
+		  case LDAP_UNAVAILABLE:
 
-				/*
-				**  server disappeared,
-				**  try reopen on next search
-				*/
+			/*
+			**  server disappeared,
+			**  try reopen on next search
+			*/
 
-				statp = EX_RESTART;
-				break;
-			}
-			save_errno += E_LDAPBASE;
+			statp = EX_RESTART;
+			break;
 		}
+		if (ret != 0)
+			save_errno += E_LDAPBASE;
 		SM_LDAP_ERROR_CLEANUP();
 		errno = save_errno;
 		return statp;
@@ -1272,6 +1271,7 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				  case LDAP_SERVER_DOWN:
 #endif /* LDAP_SERVER_DOWN */
 				  case LDAP_TIMEOUT:
+				  case ETIMEDOUT:
 				  case LDAP_UNAVAILABLE:
 
 					/*
@@ -1370,6 +1370,9 @@ sm_ldap_setopts(ld, lmap)
 		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
 	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->ldap_sizelimit);
 	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->ldap_timelimit);
+# if _FFR_LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT)
+	ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &lmap->ldap_networktmo);
+# endif /* _FFR_LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT) */
 #  ifdef LDAP_OPT_RESTART
 	ldap_set_option(ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
 #  endif /* LDAP_OPT_RESTART */
