@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 PROG=	fstat
 SRCS=	cd9660.c fstat.c msdosfs.c
 DPADD=	${LIBKVM}
@@ -10,5 +12,12 @@ BINMODE=2555
 WARNS?=	6
 
 CFLAGS+=-D_KVM_VNODE
+
+.if ${MK_CDDL} != "no"
+CFLAGS+= -DZFS
+OBJS+= zfs/zfs.o
+SUBDIR=	zfs
+zfs/zfs.o: zfs
+.endif
 
 .include <bsd.prog.mk>
