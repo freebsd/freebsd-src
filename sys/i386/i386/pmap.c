@@ -718,6 +718,22 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 #ifdef SMP
 /*
  * For SMP, these functions have to use the IPI mechanism for coherence.
+ *
+ * N.B.: Before calling any of the following TLB invalidation functions,
+ * the calling processor must ensure that all stores updating a non-
+ * kernel page table are globally performed.  Otherwise, another
+ * processor could cache an old, pre-update entry without being
+ * invalidated.  This can happen one of two ways: (1) The pmap becomes
+ * active on another processor after its pm_active field is checked by
+ * one of the following functions but before a store updating the page
+ * table is globally performed. (2) The pmap becomes active on another
+ * processor before its pm_active field is checked but due to
+ * speculative loads one of the following functions stills reads the
+ * pmap as inactive on the other processor.
+ * 
+ * The kernel page table is exempt because its pm_active field is
+ * immutable.  The kernel page table is always active on every
+ * processor.
  */
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
@@ -1169,7 +1185,12 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	pmap->pm_pdir[m->pindex] = 0;
 	--pmap->pm_stats.resident_count;
 
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	/*
+	 * This is a release store so that the ordinary store unmapping
+	 * the page table page is globally performed before TLB shoot-
+	 * down is begun.
+	 */
+	atomic_subtract_rel_int(&cnt.v_wire_count, 1);
 
 	/*
 	 * Do an invltlb to make the invalidated mapping
