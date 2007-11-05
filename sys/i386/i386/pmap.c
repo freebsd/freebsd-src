@@ -1227,7 +1227,7 @@ pmap_pinit0(pmap_t pmap)
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
  */
-void
+int
 pmap_pinit(pmap_t pmap)
 {
 	vm_page_t m, ptdpg[NPGPTD];
@@ -1244,6 +1244,11 @@ pmap_pinit(pmap_t pmap)
 	if (pmap->pm_pdir == NULL) {
 		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
 		    NBPTD);
+
+		if (pmap->pm_pdir == NULL) {
+			PMAP_LOCK_DESTROY(pmap);
+			return (0);
+		}
 #ifdef PAE
 		pmap->pm_pdpt = uma_zalloc(pdptzone, M_WAITOK | M_ZERO);
 		KASSERT(((vm_offset_t)pmap->pm_pdpt &
@@ -1297,6 +1302,8 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+
+	return (1);
 }
 
 /*

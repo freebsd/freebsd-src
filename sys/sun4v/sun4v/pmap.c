@@ -1703,7 +1703,7 @@ pmap_pinit0(pmap_t pmap)
  * Initialize a preallocated and zeroed pmap structure, such as one in a
  * vmspace structure.
  */
-void
+int
 pmap_pinit(pmap_t pmap)
 {
 	int i;
@@ -1723,6 +1723,7 @@ pmap_pinit(pmap_t pmap)
 	TAILQ_INIT(&pmap->pm_pvlist);
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
+	return (1);
 }
 
 /*

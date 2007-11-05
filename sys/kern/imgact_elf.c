@@ -666,10 +666,12 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 */
 	VOP_UNLOCK(imgp->vp, 0, td);
 
-	exec_new_vmspace(imgp, sv);
+	error = exec_new_vmspace(imgp, sv);
 	imgp->proc->p_sysent = sv;
 
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (error)
+		return (error);
 
 	vmspace = imgp->proc->p_vmspace;
 

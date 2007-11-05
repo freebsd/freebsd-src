@@ -1006,7 +1006,7 @@ pmap_pinit0(pmap_t pm)
  * Initialize a preallocated and zeroed pmap structure, such as one in a
  * vmspace structure.
  */
-void
+int
 pmap_pinit(pmap_t pm)
 {
 	vm_page_t ma[TSB_PAGES];
@@ -1021,6 +1021,10 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb == NULL) {
 		pm->pm_tsb = (struct tte *)kmem_alloc_nofault(kernel_map,
 		    TSB_BSIZE);
+		if (pm->pm_tsb == NULL) {
+			PMAP_LOCK_DESTROY(pm);
+			return (0);
+		}
 	}
 
 	/*
@@ -1044,6 +1048,7 @@ pmap_pinit(pmap_t pm)
 		pm->pm_context[i] = -1;
 	pm->pm_active = 0;
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
+	return (1);
 }
 
 /*
