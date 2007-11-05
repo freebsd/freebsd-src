@@ -61,10 +61,12 @@ __FBSDID("$FreeBSD$");
 #define	STA_RSSI_MIN	8		/* min acceptable rssi */
 #define	STA_RSSI_MAX	40		/* max rssi for comparison */
 
-#define RSSI_LPF_LEN	10
+#define RSSI_LPF_LEN		10
+#define	RSSI_DUMMY_MARKER	0x127
 #define	RSSI_EP_MULTIPLIER	(1<<7)	/* pow2 to optimize out * and / */
 #define RSSI_IN(x)		((x) * RSSI_EP_MULTIPLIER)
-#define LPF_RSSI(x, y, len)	(((x) * ((len) - 1) + (y)) / (len))
+#define LPF_RSSI(x, y, len) \
+    ((x != RSSI_DUMMY_MARKER) ? (((x) * ((len) - 1) + (y)) / (len)) : (y))
 #define RSSI_LPF(x, y) do {						\
     if ((y) >= -20)							\
     	x = LPF_RSSI((x), RSSI_IN((y)), RSSI_LPF_LEN);			\
@@ -222,7 +224,7 @@ sta_add(struct ieee80211_scan_state *ss,
 	struct ieee80211com *ic = ss->ss_ic;
 	struct sta_entry *se;
 	struct ieee80211_scan_entry *ise;
-	int hash;
+	int hash, offchan;
 
 	hash = STA_HASH(macaddr);
 
@@ -237,6 +239,7 @@ sta_add(struct ieee80211_scan_state *ss,
 		return 0;
 	}
 	se->se_scangen = st->st_scangen-1;
+	se->se_avgrssi = RSSI_DUMMY_MARKER;
 	IEEE80211_ADDR_COPY(se->base.se_macaddr, macaddr);
 	TAILQ_INSERT_TAIL(&st->st_entry, se, se_list);
 	LIST_INSERT_HEAD(&st->st_hash[hash], se, se_hash);
@@ -257,20 +260,42 @@ found:
 	} else
 		ise->se_xrates[1] = 0;
 	IEEE80211_ADDR_COPY(ise->se_bssid, wh->i_addr3);
-	/*
-	 * Record rssi data using extended precision LPF filter.
-	 */
-	if (se->se_lastupdate == 0)		/* first sample */
-		se->se_avgrssi = RSSI_IN(rssi);
-	else					/* avg w/ previous samples */
+	offchan = (IEEE80211_CHAN2IEEE(sp->curchan) != sp->bchan &&
+	    ic->ic_phytype != IEEE80211_T_FH);
+	if (!offchan) {
+		/*
+		 * Record rssi data using extended precision LPF filter.
+		 *
+		 * NB: use only on-channel data to insure we get a good
+		 *     estimate of the signal we'll see when associated.
+		 */
 		RSSI_LPF(se->se_avgrssi, rssi);
-	se->base.se_rssi = RSSI_GET(se->se_avgrssi);
-	se->base.se_noise = noise;
+		ise->se_rssi = RSSI_GET(se->se_avgrssi);
+		ise->se_noise = noise;
+	}
 	ise->se_rstamp = rstamp;
 	memcpy(ise->se_tstamp.data, sp->tstamp, sizeof(ise->se_tstamp));
 	ise->se_intval = sp->bintval;
 	ise->se_capinfo = sp->capinfo;
-	ise->se_chan = sp->curchan;
+	/*
+	 * Beware of overriding se_chan for frames seen
+	 * off-channel; this can cause us to attempt an
+	 * assocation on the wrong channel.
+	 */
+	if (ise->se_chan == NULL || !offchan) {
+		/*
+		 * NB: this is not right when the frame is received
+		 * off-channel but se_chan is assumed set by code
+		 * elsewhere so we must assign something; the scan
+		 * entry should be ignored because the rssi will be
+		 * zero (because the frames are received off-channel).
+		 *
+		 * We could locate the correct channel using sp->chan
+		 * but it's not clear we should join an ap that we
+		 * never see on-channel during a scan.
+		 */
+		ise->se_chan = sp->curchan;
+	}
 	ise->se_fhdwell = sp->fhdwell;
 	ise->se_fhindex = sp->fhindex;
 	ise->se_erp = sp->erp;
