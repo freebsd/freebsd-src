@@ -35,7 +35,11 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
+.if ${MACHINE_ARCH} == "arm"
+CFLAGS		?=	-O -fno-strict-aliasing -pipe
+.else
 CFLAGS		?=	-O2 -fno-strict-aliasing -pipe
+.endif
 .endif
 
 CXX		?=	c++
