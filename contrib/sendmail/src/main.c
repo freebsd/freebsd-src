@@ -26,7 +26,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.962 2006/12/19 19:47:37 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.963 2007/06/29 20:07:37 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -2362,7 +2362,33 @@ main(argc, argv, envp)
 
 		if (QueueIntvl > 0)
 		{
-			(void) runqueue(true, false, queuepersistent, true);
+#if _FFR_RUNPQG
+			if (qgrp != NOQGRP)
+			{
+				int rwgflags = RWG_NONE;
+
+				/*
+				**  To run a specific queue group mark it to
+				**  be run, select the work group it's in and
+				**  increment the work counter.
+				*/
+
+				for (i = 0; i < NumQueue && Queue[i] != NULL;
+				     i++)
+					Queue[i]->qg_nextrun = (time_t) -1;
+				Queue[qgrp]->qg_nextrun = 0;
+				if (Verbose)
+					rwgflags |= RWG_VERBOSE;
+				if (queuepersistent)
+					rwgflags |= RWG_PERSISTENT;
+				rwgflags |= RWG_FORCE;
+				(void) run_work_group(Queue[qgrp]->qg_wgrp,
+						      rwgflags);
+			}
+			else
+#endif /* _FFR_RUNPQG */
+				(void) runqueue(true, false, queuepersistent,
+						true);
 
 			/*
 			**  If queuepersistent but not in daemon mode then

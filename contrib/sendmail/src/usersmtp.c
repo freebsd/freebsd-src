@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.469 2006/12/13 20:11:15 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.470 2007/10/17 21:35:30 ca Exp $")
 
 #include <sysexits.h>
 
@@ -2703,8 +2703,9 @@ smtpdata(m, mci, e, ctladdr, xstart)
 	}
 
 	/* terminate the message */
-	if (sm_io_fprintf(mci->mci_out, SM_TIME_DEFAULT, ".%s", m->m_eol) ==
-								SM_IO_EOF)
+	if (sm_io_fprintf(mci->mci_out, SM_TIME_DEFAULT, "%s.%s",
+			bitset(MCIF_INLONGLINE, mci->mci_flags) ? m->m_eol : "",
+			m->m_eol) == SM_IO_EOF)
 		goto writeerr;
 	if (TrafficLogFile != NULL)
 		(void) sm_io_fprintf(TrafficLogFile, SM_TIME_DEFAULT,
