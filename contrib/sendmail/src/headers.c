@@ -15,7 +15,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.310 2007/02/07 22:44:35 ca Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.312 2007/06/19 18:52:11 ca Exp $")
 
 static HDR	*allocheader __P((char *, char *, int, SM_RPOOL_T *, bool));
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
@@ -1866,7 +1866,8 @@ putheader(mci, hdr, e, flags)
 
 			if (bitset(H_FROM, h->h_flags))
 				oldstyle = false;
-			commaize(h, p, oldstyle, mci, e);
+			commaize(h, p, oldstyle, mci, e,
+				 PXLF_HEADER | PXLF_STRIPMQUOTE);
 		}
 		else
 		{
@@ -1978,6 +1979,7 @@ put_vanilla_header(h, v, mci)
 **		oldstyle -- true if this is an old style header.
 **		mci -- the connection information.
 **		e -- the envelope containing the message.
+**		putflags -- flags for putxline()
 **
 **	Returns:
 **		true iff header field was written successfully
@@ -1987,17 +1989,17 @@ put_vanilla_header(h, v, mci)
 */
 
 bool
-commaize(h, p, oldstyle, mci, e)
+commaize(h, p, oldstyle, mci, e, putflags)
 	register HDR *h;
 	register char *p;
 	bool oldstyle;
 	register MCI *mci;
 	register ENVELOPE *e;
+	int putflags;
 {
 	register char *obp;
 	int opos, omax, spaces;
 	bool firstone = true;
-	int putflags = PXLF_HEADER | PXLF_STRIPMQUOTE;
 	char **res;
 	char obuf[MAXLINE + 3];
 
