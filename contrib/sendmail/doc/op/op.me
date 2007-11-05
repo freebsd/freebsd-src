@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.739 2007/03/22 17:56:01 ca Exp $
+.\"	$Id: op.me,v 8.741 2007/06/22 23:08:59 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.739 $
+.Ve $Revision: 8.741 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
@@ -6939,6 +6939,10 @@ The
 .b \-v
 command line flag sets this to
 .b i .
+Note: for internal reasons,
+``i'' does not work
+if a milter is enabled which can reject or delete recipients.
+In that case the mode will be changed to ``b''.
 .ip DialDelay=\fIsleeptime\fP
 [no short name]
 Dial-on-demand network connections can see timeouts
@@ -8932,7 +8936,8 @@ The server responds with a status indicator and the result (if any):
 <status> ' ' <result>
 .)b
 
-The status indicator is one of the following upper case words:
+The status indicator specifies the result of the lookup operation itself
+and is one of the following upper case words:
 .(b
 .ta 9n
 OK	the key was found, result contains the looked up value
@@ -8944,13 +8949,19 @@ PERM	a permanent failure occured
 
 In case of errors (status TEMP, TIMEOUT or PERM) the result field may 
 contain an explanatory message.
+However, the explanatory message is not used any further by
+.i sendmail .
 
 Example replies:
 .(b
 31:OK resolved.address@example.com,
 .)b
 
-in case of a successful lookup, or:
+.(b
+56:OK error:550 5.7.1 User does not accept mail from sender,
+.)b
+
+in case of successful lookups, or:
 .(b
 8:NOTFOUND, 
 .)b
@@ -8960,7 +8971,7 @@ in case the key was not found, or:
 55:TEMP this text explains that we had a temporary failure,
 .)b
 
-in case of a failure.
+in case of a temporary map lookup failure.
 
 The socket map uses the same syntax as milters
 (see Section "X \*- Mail Filter (Milter) Definitions")
@@ -11424,7 +11435,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.739 $
+.\"Version $Revision: 8.741 $
 .\".ce 0
 .bp 3
 .ce

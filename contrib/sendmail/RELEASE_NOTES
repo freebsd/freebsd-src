@@ -1,10 +1,75 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1888 2007/04/03 23:28:40 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1909 2007/10/31 16:04:13 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.2/8.14.2	2007/11/01
+	If a message was queued and it contained 8 bit characters in
+		a From: or To: header, then those characters could be
+		"mistaken" for internal control characters during a queue
+		run and trigger various consistency checks.  Problem
+		noted by Neil Rickert of Northern Illinois University.
+	If MaxMimeHeaderLength is set to a value greater than 0 (which
+		it is by default) then even if the Linelimit parameter
+		is 0, sendmail corrupted in the non-transfer-encoding
+		case every MAXLINE-1 characters.  Patch from John Gardiner
+		Myers of Proofpoint.
+	Setting the suboption DeliveryMode for DaemonPortOptions did not
+		work in earlier 8.14 versions.
+	Note: DeliveryMode=interactive is silently converted to
+		background if a milter can reject or delete a recipient.
+		Prior to 8.14 this happened only if milter could delete
+		recipients.
+	ClientRate should trigger when the limit was exceeded (as
+		documented), not when it was reached.  Patch from 
+		John Beck of Sun Microsystems.
+	Force a queue run for -qGqueuegroup even if no runners are
+		specified (R=0) and forking (F=f) is requested.
+	When multiple results are requested for a DNS map lookup
+		(-z and -Z), return only those that are relevant for
+		the query (not also those in the "additional section".)
+	If the message transfer time to sendmail (when acting as server)
+		exceeds Timeout.queuewarn or Timeout.queuereturn and
+		the message is refused (by a milter), sendmail previously
+		created a delivery status notification (DSN).  Patch
+		from Doug Heath of The Hertz Corporation.
+	A code change in Cyrus-SASL 2.1.22 for sasl_decode64() requires
+		the MTA to deal with some input (i.e., "=") itself.
+		Problem noted by Eliot Lear.
+	sendmail counted a delivery as successful if PIPELINING is
+		compiled in but not offered by the server and the
+		delivery failed temporarily.  Patch from Werner Wiethege.
+	If getting the result of an LDAP query times out then close the
+		map so it will be reopened on the next lookup.  This
+		should help "failover" configurations that specify more
+		than one LDAP server.
+	If check_compat returns $#discard then a "savemail panic" could
+		be triggered under some circumstances (e.g., requiring
+		a system which does not have the compile time flag
+		HASFLOCK set). Based on patch by Motonori Nakamura
+		of National Institute of Informatics, Japan.
+	If a milter rejected a recipient, the count for nrcpts= in the
+		logfile entry might have been wrong.  Problem found by
+		Petra Humann of TU Dresden.
+	If a milter invoked smfi_chgfrom() where ESMTP arguments are not
+		NULL, the message body was lost.  Patch from Motonori
+		Nakamura of National Institute of Informatics, Japan.
+	sendmail(8) had a bogus space in -qGname.  Patch from Peng Haitao.
+	CONTRIB: buildvirtuser: Preserve ownership and permissions when
+		replacing files.
+	CONTRIB: buildvirtuser: Skip dot-files (e.g., .cvsignore) when
+		reading the /etc/mail/virtusers/ directory.
+	CONTRIB: buildvirtuser: Emit warnings instead of exiting where
+		appropriate.
+	LIBMILTER: Fix ABI backwards compatibility so milters compiled
+		against an older libmilter.so shared library can use an
+		8.14 libmilter.so shared library.
+	LIBMILTER: smfi_version() did not properly extract the patchlevel
+		from the version number, however, the returned value was
+		correct for the current libmilter version.
 
 8.14.1/8.14.1	2007/04/03
 	Even though a milter rejects a recipient the MTA will still keep

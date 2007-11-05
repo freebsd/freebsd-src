@@ -22,7 +22,7 @@ SM_UNUSED(static char copyright[]) =
 #endif /* ! lint */
 
 #ifndef lint
-SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.24 2004/08/03 18:40:10 ca Exp $";
+SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.25 2007/05/11 18:50:35 ca Exp $";
 #endif /* ! lint */
 
 
@@ -46,7 +46,7 @@ uid_t	RealUid;
 gid_t	RealGid;
 char	*RealUserName;
 uid_t	RunAsUid;
-uid_t	RunAsGid;
+gid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
 bool	DontInitGroups = false;
