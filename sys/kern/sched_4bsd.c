@@ -1346,9 +1346,7 @@ sched_tick(void)
 void
 sched_idletd(void *dummy)
 {
-	struct thread *td;
 
-	td = curthread;
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
