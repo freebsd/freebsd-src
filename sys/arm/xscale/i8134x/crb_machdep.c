@@ -409,7 +409,7 @@ initarm(void *arg, void *arg2)
 #ifdef KSE
 	proc_linkup(&proc0, &ksegrp0, &thread0);
 #else
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 #endif
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)

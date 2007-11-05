@@ -914,7 +914,9 @@ exec_new_vmspace(imgp, sv)
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 	} else {
-		vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
+		error = vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
+		if (error)
+			return (error);
 		vmspace = p->p_vmspace;
 		map = &vmspace->vm_map;
 	}

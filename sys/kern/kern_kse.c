@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
+#include <sys/syslog.h>
 #include <sys/kse.h>
 #include <sys/ktr.h>
 #include <vm/uma.h>
@@ -64,7 +65,7 @@ TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 	TAILQ_HEAD_INITIALIZER(zombie_upcalls);
 
 static int thread_update_usr_ticks(struct thread *td);
-static void thread_alloc_spare(struct thread *td);
+static int thread_alloc_spare(struct thread *td);
 static struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
 static struct kse_upcall *upcall_alloc(void);
 
@@ -648,6 +649,16 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		PROC_UNLOCK(p);
 	}
 
+	/*
+	 * For the first call this may not have been set.
+	 * Of course nor may it actually be needed.
+	 * thread_schedule_upcall() will look for it.
+	 */
+	if (td->td_standin == NULL) {
+		if (!thread_alloc_spare(td))
+			return (ENOMEM);
+	}
+
 	/* 
 	 * Even bound LWPs get a mailbox and an upcall to hold it.
 	 * XXX This should change.
@@ -657,13 +668,6 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	newku->ku_func = mbx.km_func;
 	bcopy(&mbx.km_stack, &newku->ku_stack, sizeof(stack_t));
 
-	/*
-	 * For the first call this may not have been set.
-	 * Of course nor may it actually be needed.
-	 * thread_schedule_upcall() will look for it.
-	 */
-	if (td->td_standin == NULL)
-		thread_alloc_spare(td);
 	PROC_LOCK(p);
 	PROC_SLOCK(p);
 	/*
@@ -989,20 +993,23 @@ error:
  * XXX BUG.. we need to get the cr ref after the thread has 
  * checked and chenged its own, not 6 months before...  
  */
-void
+int
 thread_alloc_spare(struct thread *td)
 {
 	struct thread *spare;
 
 	if (td->td_standin)
-		return;
+		return (1);
 	spare = thread_alloc();
+	if (spare == NULL)
+		return (0);
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	spare->td_proc = td->td_proc;
 	spare->td_ucred = crhold(td->td_ucred);
 	spare->td_flags = TDF_INMEM;
+	return (1);
 }
 
 /*
@@ -1170,8 +1177,18 @@ thread_user_enter(struct thread *td)
 	KASSERT(ku->ku_owner == td, ("wrong owner"));
 	KASSERT(!TD_CAN_UNBIND(td), ("can unbind"));
 
-	if (td->td_standin == NULL)
-		thread_alloc_spare(td);
+	if (td->td_standin == NULL) {
+		if (!thread_alloc_spare(td)) {
+			PROC_LOCK(p);
+			if (kern_logsigexit)
+				log(LOG_INFO,
+				    "pid %d (%s), uid %d: thread_alloc_spare failed\n",
+				    p->p_pid, p->p_comm,
+				    td->td_ucred ? td->td_ucred->cr_uid : -1);
+			sigexit(td, SIGSEGV);	/* XXX ? */
+			/* panic("thread_user_enter: thread_alloc_spare failed"); */
+		}
+	}
 	ku->ku_mflags = fuword32((void *)&ku->ku_mailbox->km_flags);
 	tmbx = (void *)fuword((void *)&ku->ku_mailbox->km_curthread);
 	if ((tmbx == NULL) || (tmbx == (void *)-1L) ||
@@ -1385,7 +1402,7 @@ out:
 		 * for when we re-enter the kernel.
 		 */
 		if (td->td_standin == NULL)
-			thread_alloc_spare(td);
+			thread_alloc_spare(td); /* XXX care of failure ? */
 	}
 
 	ku->ku_mflags = 0;

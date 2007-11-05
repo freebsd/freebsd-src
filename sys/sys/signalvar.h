@@ -299,6 +299,7 @@ struct mtx;
 
 extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
 extern struct mtx	sigio_lock;
+extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
 
 /*
  * Lock the pointers for a sigio object in the underlying objects of

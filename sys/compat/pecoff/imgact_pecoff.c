@@ -416,7 +416,11 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
 	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc), imgp->vp,
 	    peofs + PECOFF_HDR_SIZE, (caddr_t) sh, scnsiz);
-	exec_new_vmspace(imgp, &pecoff_sysvec);
+	if (error)
+		return (error);
+	error = exec_new_vmspace(imgp, &pecoff_sysvec);
+	if (error)
+		return (error);
 	vmspace = imgp->proc->p_vmspace;
 	for (i = 0; i < fp->f_nscns; i++) {
 		prot = VM_PROT_WRITE;	/* XXX for relocation? */
