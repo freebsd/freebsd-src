@@ -71,4 +71,10 @@ dev_t dev2udev(struct cdev *dev);
 int isofs_filestat(struct vnode *vp, struct filestat *fsp);
 int msdosfs_filestat(struct vnode *vp, struct filestat *fsp);
 
+#ifdef ZFS
+int zfs_filestat(struct vnode *vp, struct filestat *fsp);
+void *getvnodedata(struct vnode *vp);
+struct mount *getvnodemount(struct vnode *vp);
+#endif
+
 #endif /* __FSTAT_H__ */
