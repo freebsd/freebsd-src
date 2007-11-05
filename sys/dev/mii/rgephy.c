@@ -118,6 +118,7 @@ rgephy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = rgephy_service;
 	sc->mii_pdata = mii;
+	sc->mii_anegticks = MII_ANEGTICKS_GIGE;
 
 	mii->mii_instance++;
 
@@ -271,8 +272,10 @@ setit:
 		/*
 		 * Only used for autonegotiation.
 		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+			sc->mii_ticks = 0;
 			break;
+		}
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
@@ -280,18 +283,22 @@ setit:
 		 * the BMSR twice in case it's latched.
 		 */
 		reg = PHY_READ(sc, RL_GMEDIASTAT);
-		if (reg & RL_GMEDIASTAT_LINK)
+		if (reg & RL_GMEDIASTAT_LINK) {
+			sc->mii_ticks = 0;
+			break;
+		}
+
+		/* Announce link loss right after it happens. */
+		if (sc->mii_ticks++ == 0)
 			break;
 
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
-			break;
+		/* Only retry autonegotiation every mii_anegticks seconds. */
+		if (sc->mii_ticks <= sc->mii_anegticks)
+			return (0);
 
 		sc->mii_ticks = 0;
 		rgephy_mii_phy_auto(sc);
-		return (0);
+		break;
 	}
 
 	/* Update the media status. */
