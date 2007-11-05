@@ -183,6 +183,7 @@ static int	ciss_name_device(struct ciss_softc *sc, int bus, int target);
 
 /* periodic status monitoring */
 static void	ciss_periodic(void *arg);
+static void	ciss_nop_complete(struct ciss_request *cr);
 static void	ciss_disable_adapter(struct ciss_softc *sc);
 static void	ciss_notify_event(struct ciss_softc *sc);
 static void	ciss_notify_complete(struct ciss_request *cr);
@@ -3100,6 +3101,7 @@ ciss_periodic(void *arg)
      */
     if ((error = ciss_get_request(sc, &cr)) == 0) {
 	cc = CISS_FIND_COMMAND(cr);
+	cr->cr_complete = ciss_nop_complete;
 	cc->cdb.cdb_length = 1;
 	cc->cdb.type = CISS_CDB_TYPE_MESSAGE;
 	cc->cdb.attribute = CISS_CDB_ATTRIBUTE_SIMPLE;
@@ -3107,11 +3109,9 @@ ciss_periodic(void *arg)
 	cc->cdb.timeout = 0;
 	cc->cdb.cdb[0] = CISS_OPCODE_MESSAGE_NOP;
 
-	if ((error = ciss_synch_request(cr, 10 * 1000)) != 0) {
+	if ((error = ciss_start(cr)) != 0) {
 	    ciss_printf(sc, "SENDING NOP MESSAGE FAILED\n");
 	}
-
-	ciss_release_request(cr);
     }
 
     /*
@@ -3127,6 +3127,19 @@ ciss_periodic(void *arg)
      * Reschedule.
      */
     callout_reset(&sc->ciss_periodic, CISS_HEARTBEAT_RATE * hz, ciss_periodic, sc);
+}
+
+static void
+ciss_nop_complete(struct ciss_request *cr)
+{
+    struct ciss_softc		*sc;
+
+    sc = cr->cr_sc;
+    if (ciss_report_request(cr, NULL, NULL) != 0) {
+	ciss_printf(sc, "SENDING NOP MESSAGE FAILED\n");
+    }
+
+    ciss_release_request(cr);
 }
 
 /************************************************************************
