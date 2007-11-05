@@ -181,13 +181,12 @@ thread_init(void *mem, int size, int flags)
 
 	td = (struct thread *)mem;
 
-	vm_thread_new(td, 0);
-	cpu_thread_setup(td);
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
 	sched_newthread(td);
 	umtx_thread_init(td);
+	td->td_kstack = 0;
 	return (0);
 }
 
@@ -203,7 +202,6 @@ thread_fini(void *mem, int size)
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);
-	vm_thread_dispose(td);
 }
 
 /*
@@ -215,10 +213,16 @@ thread_fini(void *mem, int size)
  * proc_init()
  */
 void
+proc_linkup0(struct proc *p, struct thread *td)
+{
+	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
+	proc_linkup(p, td);
+}
+
+void
 proc_linkup(struct proc *p, struct thread *td)
 {
 
-	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 #ifdef KSE
 	TAILQ_INIT(&p->p_upcalls);	     /* upcall list */
 #endif
@@ -310,9 +314,18 @@ thread_reap(void)
 struct thread *
 thread_alloc(void)
 {
+	struct thread *td;
 
 	thread_reap(); /* check if any zombies to get */
-	return (uma_zalloc(thread_zone, M_WAITOK));
+
+	td = (struct thread *)uma_zalloc(thread_zone, M_WAITOK);
+	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
+	if (!vm_thread_new(td, 0)) {
+		uma_zfree(thread_zone, td);
+		return (NULL);
+	}
+	cpu_thread_setup(td);
+	return (td);
 }
 
 
@@ -324,6 +337,10 @@ thread_free(struct thread *td)
 {
 
 	cpu_thread_clean(td);
+	if (td->td_altkstack != 0)
+		vm_thread_dispose_altkstack(td);
+	if (td->td_kstack != 0)
+		vm_thread_dispose(td);
 	uma_zfree(thread_zone, td);
 }
 
