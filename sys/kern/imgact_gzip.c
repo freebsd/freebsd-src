@@ -239,9 +239,13 @@ do_aout_hdr(struct imgact_gzip * gz)
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
-	exec_new_vmspace(gz->ip, &aout_sysvec);
+	error = exec_new_vmspace(gz->ip, &aout_sysvec);
 
 	vn_lock(gz->ip->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (error) {
+		gz->where = __LINE__;
+		return (error);
+	}
 
 	vmspace = gz->ip->proc->p_vmspace;
 

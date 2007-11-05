@@ -145,20 +145,21 @@ proc_dtor(void *mem, int size, void *arg)
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
         td = FIRST_THREAD_IN_PROC(p);
+	if (td != NULL) {
 #ifdef INVARIANTS
-	KASSERT((p->p_numthreads == 1),
-	    ("bad number of threads in exiting process"));
-	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
-	KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
+		KASSERT((p->p_numthreads == 1),
+		    ("bad number of threads in exiting process"));
+		KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 #endif
 
-	/* Dispose of an alternate kstack, if it exists.
-	 * XXX What if there are more than one thread in the proc?
-	 *     The first thread in the proc is special and not
-	 *     freed, so you gotta do this here.
-	 */
-	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
-		vm_thread_dispose_altkstack(td);
+		/* Dispose of an alternate kstack, if it exists.
+		 * XXX What if there are more than one thread in the proc?
+		 *     The first thread in the proc is special and not
+		 *     freed, so you gotta do this here.
+		 */
+		if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
+			vm_thread_dispose_altkstack(td);
+	}
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }
@@ -170,17 +171,14 @@ static int
 proc_init(void *mem, int size, int flags)
 {
 	struct proc *p;
-	struct thread *td;
 
 	p = (struct proc *)mem;
 	p->p_sched = (struct p_sched *)&p[1];
-	td = thread_alloc();
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	p->p_stats = pstats_alloc();
-	proc_linkup(p, td);
-	sched_newproc(p, td);
 	return (0);
 }
 

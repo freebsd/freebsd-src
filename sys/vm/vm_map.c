@@ -197,7 +197,6 @@ vmspace_zfini(void *mem, int size)
 	struct vmspace *vm;
 
 	vm = (struct vmspace *)mem;
-	pmap_release(vmspace_pmap(vm));
 	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
 }
 
@@ -208,8 +207,8 @@ vmspace_zinit(void *mem, int size, int flags)
 
 	vm = (struct vmspace *)mem;
 
+	vm->vm_map.pmap = NULL;
 	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
-	pmap_pinit(vmspace_pmap(vm));
 	return (0);
 }
 
@@ -272,6 +271,10 @@ vmspace_alloc(min, max)
 	struct vmspace *vm;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
+	if (vm->vm_map.pmap == NULL && !pmap_pinit(vmspace_pmap(vm))) {
+		uma_zfree(vmspace_zone, vm);
+		return (NULL);
+	}
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, min, max);
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
@@ -321,6 +324,12 @@ vmspace_dofree(struct vmspace *vm)
 	(void)vm_map_remove(&vm->vm_map, vm->vm_map.min_offset,
 	    vm->vm_map.max_offset);
 
+	/*
+	 * XXX Comment out the pmap_release call for now. The
+	 * vmspace_zone is marked as UMA_ZONE_NOFREE, and bugs cause
+	 * pmap.resident_count to be != 0 on exit sometimes.
+	 */
+/* 	pmap_release(vmspace_pmap(vm)); */
 	uma_zfree(vmspace_zone, vm);
 }
 
@@ -2584,6 +2593,8 @@ vmspace_fork(struct vmspace *vm1)
 	vm_map_lock(old_map);
 
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
+	if (vm2 == NULL)
+		goto unlock_and_return;
 	vm2->vm_taddr = vm1->vm_taddr;
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
@@ -2675,7 +2686,7 @@ vmspace_fork(struct vmspace *vm1)
 		}
 		old_entry = old_entry->next;
 	}
-
+unlock_and_return:
 	vm_map_unlock(old_map);
 
 	return (vm2);
@@ -3003,13 +3014,15 @@ Retry:
  * Unshare the specified VM space for exec.  If other processes are
  * mapped to it, then create a new one.  The new vmspace is null.
  */
-void
+int
 vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
 	newvmspace = vmspace_alloc(minuser, maxuser);
+	if (newvmspace == NULL)
+		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
 	/*
 	 * This code is written like this for prototype purposes.  The
@@ -3024,27 +3037,31 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
+	return (0);
 }
 
 /*
  * Unshare the specified VM space for forcing COW.  This
  * is called by rfork, for the (RFMEM|RFPROC) == 0 case.
  */
-void
+int
 vmspace_unshare(struct proc *p)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
 
 	if (oldvmspace->vm_refcnt == 1)
-		return;
+		return (0);
 	newvmspace = vmspace_fork(oldvmspace);
+	if (newvmspace == NULL)
+		return (ENOMEM);
 	PROC_VMSPACE_LOCK(p);
 	p->p_vmspace = newvmspace;
 	PROC_VMSPACE_UNLOCK(p);
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
 	vmspace_free(oldvmspace);
+	return (0);
 }
 
 /*

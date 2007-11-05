@@ -2088,7 +2088,7 @@ init386(first)
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
