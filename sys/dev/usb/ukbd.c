@@ -370,6 +370,7 @@ typedef struct ukbd_state {
 	u_int		ks_composed_char; /* composed char code (> 0) */
 #ifdef UKBD_EMULATE_ATSCANCODE
 	u_int		ks_buffered_char[2];
+	u_int8_t	ks_leds;	/* store for async led requests */
 #endif
 } ukbd_state_t;
 
@@ -1469,11 +1470,11 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 static void
 set_leds(ukbd_state_t *state, int leds)
 {
-	u_int8_t res = leds;
 
 	DPRINTF(("ukbd:set_leds: state=%p leds=%d\n", state, leds));
-
-	usbd_set_report_async(state->ks_iface, UHID_OUTPUT_REPORT, 0, &res, 1);
+	state->ks_leds = leds;
+	usbd_set_report_async(state->ks_iface, UHID_OUTPUT_REPORT, 0,
+	    &state->ks_leds, 1);
 }
 
 static int
