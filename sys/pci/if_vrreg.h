@@ -330,12 +330,13 @@
 struct vr_desc {
 	u_int32_t		vr_status;
 	u_int32_t		vr_ctl;
-	u_int32_t		vr_ptr1;
-	u_int32_t		vr_ptr2;
+	u_int32_t		vr_data;
+	u_int32_t		vr_nextphys;
+	struct mbuf		*vr_mbuf;
+	struct vr_desc		*vr_next;
+	u_int32_t		*vxr1;
+	u_int32_t		*vxr2;
 };
-
-#define vr_data		vr_ptr1
-#define vr_next		vr_ptr2
 
 
 #define VR_RXSTAT_RXERR		0x00000001
@@ -364,6 +365,8 @@ struct vr_desc {
 #define VR_RXCTL_BUFLEN_EXT	0x00007800
 #define VR_RXCTL_CHAIN		0x00008000
 #define VR_RXCTL_RX_INTR	0x00800000
+#define VR_RXCTL_GOODIP		0x00280000
+#define VR_RXCTL_GOODTCPUDP	0x00100000
 
 #define VR_RXCTL (VR_RXCTL_CHAIN|VR_RXCTL_RX_INTR)
 
@@ -383,52 +386,22 @@ struct vr_desc {
 #define VR_TXCTL_BUFLEN		0x000007FF
 #define VR_TXCTL_BUFLEN_EXT	0x00007800
 #define VR_TXCTL_TLINK		0x00008000
+#define VR_TXCTL_NOCRC		0x00010000
+#define VR_TXCTL_INSERTTAG	0x00020000
+#define VR_TXCTL_IPCSUM		0x00040000
+#define VR_TXCTL_UDPCSUM	0x00080000
+#define VR_TXCTL_TCPCSUM	0x00100000
 #define VR_TXCTL_FIRSTFRAG	0x00200000
 #define VR_TXCTL_LASTFRAG	0x00400000
 #define VR_TXCTL_FINT		0x00800000
 
 
 #define VR_MAXFRAGS		16
-#define VR_RX_LIST_CNT		64
-#define VR_TX_LIST_CNT		128
+#define VR_RX_LIST_CNT		256
+#define VR_TX_LIST_CNT		256
 #define VR_MIN_FRAMELEN		60
 #define VR_FRAMELEN		1536
-#define VR_RXLEN		1520
-
-#define VR_TXOWN(x)		x->vr_ptr->vr_status
-
-struct vr_list_data {
-	struct vr_desc		vr_rx_list[VR_RX_LIST_CNT];
-	struct vr_desc		vr_tx_list[VR_TX_LIST_CNT];
-};
-
-struct vr_chain {
-	struct vr_desc		*vr_ptr;
-	struct mbuf		*vr_mbuf;
-	struct vr_chain		*vr_nextdesc;
-};
-
-struct vr_chain_onefrag {
-	struct vr_desc		*vr_ptr;
-	struct mbuf		*vr_mbuf;
-	struct vr_chain_onefrag	*vr_nextdesc;
-};
-
-struct vr_chain_data {
-	struct vr_chain_onefrag	vr_rx_chain[VR_RX_LIST_CNT];
-	struct vr_chain		vr_tx_chain[VR_TX_LIST_CNT];
-
-	struct vr_chain_onefrag	*vr_rx_head;
-
-	struct vr_chain		*vr_tx_cons;
-	struct vr_chain		*vr_tx_prod;
-};
-
-struct vr_type {
-	u_int16_t		vr_vid;
-	u_int16_t		vr_did;
-	char			*vr_name;
-};
+#define VR_RXLEN		1524
 
 struct vr_mii_frame {
 	u_int8_t		mii_stdelim;
@@ -451,50 +424,6 @@ struct vr_mii_frame {
 #define VR_FLAG_SCHEDDELAY	2
 #define VR_FLAG_DELAYTIMEO	3	
 
-struct vr_softc {
-	struct ifnet		*vr_ifp;	/* interface info */
-	bus_space_handle_t	vr_bhandle;	/* bus space handle */
-	bus_space_tag_t		vr_btag;	/* bus space tag */
-	struct resource		*vr_res;
-	struct resource		*vr_irq;
-	void			*vr_intrhand;
-	device_t		vr_miibus;
-	struct vr_type		*vr_info;	/* Rhine adapter info */
-	u_int8_t		vr_type;
-	u_int8_t		vr_revid;	/* Rhine chip revision */
-	u_int8_t                vr_flags;       /* See VR_F_* below */
-	struct vr_list_data	*vr_ldata;
-	struct vr_chain_data	vr_cdata;
-	struct callout		vr_stat_callout;
-	struct mtx		vr_mtx;
-	int			suspended;	/* if 1, sleeping/detaching */
-#ifdef DEVICE_POLLING
-	int			rxcycles;
-#endif
-};
-
-#define VR_F_RESTART		0x01		/* Restart unit on next tick */
-
-#define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
-#define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
-#define	VR_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->vr_mtx, MA_OWNED)
-
-/*
- * register space access macros
- */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->vr_btag, sc->vr_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->vr_btag, sc->vr_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->vr_btag, sc->vr_bhandle, reg, val)
-
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->vr_btag, sc->vr_bhandle, reg)
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->vr_btag, sc->vr_bhandle, reg)
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->vr_btag, sc->vr_bhandle, reg)
 
 #define VR_TIMEOUT		1000
 #define ETHER_ALIGN		2
@@ -589,9 +518,3 @@ struct vr_softc {
 #define VR_PSTATE_D3		0x0003
 #define VR_PME_EN		0x0010
 #define VR_PME_STATUS		0x8000
-
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-#endif
