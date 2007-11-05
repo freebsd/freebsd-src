@@ -431,12 +431,9 @@ struct sis_mii_frame {
 
 struct sis_softc {
 	struct ifnet		*sis_ifp;	/* interface info */
-	bus_space_handle_t	sis_bhandle;
-	bus_space_tag_t		sis_btag;
-	struct resource		*sis_res;
-	struct resource		*sis_irq;
+	struct resource		*sis_res[2];
 	void			*sis_intrhand;
-	device_t		sis_self;
+	device_t		sis_dev;
 	device_t		sis_miibus;
 	u_int8_t		sis_type;
 	u_int8_t		sis_rev;
@@ -457,6 +454,7 @@ struct sis_softc {
 	u_int32_t		sis_rx_paddr;
 	u_int32_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
+	int			sis_watchdog_timer;
 	int			sis_stopped;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
@@ -464,22 +462,6 @@ struct sis_softc {
 	int			in_tick;
 	struct mtx		sis_mtx;
 };
-
-#define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)
-#define	SIS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sis_mtx)
-#define	SIS_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sis_mtx, MA_OWNED)
-
-/*
- * register space access macros
- */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->sis_btag, sc->sis_bhandle, reg, val)
-
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->sis_btag, sc->sis_bhandle, reg)
-
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->sis_btag, sc->sis_bhandle, reg)
 
 #define SIS_TIMEOUT		1000
 #define ETHER_ALIGN		2

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -101,8 +100,21 @@ MODULE_DEPEND(sis, pci, 1, 1, 1);
 MODULE_DEPEND(sis, ether, 1, 1, 1);
 MODULE_DEPEND(sis, miibus, 1, 1, 1);
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
+/* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
+
+#define	SIS_LOCK(_sc)		mtx_lock(&(_sc)->sis_mtx)
+#define	SIS_UNLOCK(_sc)		mtx_unlock(&(_sc)->sis_mtx)
+#define	SIS_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sis_mtx, MA_OWNED)
+
+/*
+ * register space access macros
+ */
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->sis_res[0], reg, val)
+
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->sis_res[0], reg)
+
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->sis_res[0], reg)
 
 /*
  * Various supported device vendors/types and their names.
@@ -125,15 +137,18 @@ static int sis_newbuf(struct sis_softc *, struct sis_desc *, struct mbuf *);
 static void sis_start(struct ifnet *);
 static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
-static void sis_watchdog(struct ifnet *);
+static void sis_watchdog(struct sis_softc *);
 
+
+static struct resource_spec sis_res_spec[] = {
 #ifdef SIS_USEIOSPACE
-#define SIS_RES			SYS_RES_IOPORT
-#define SIS_RID			SIS_PCI_LOIO
+	{ SYS_RES_IOPORT,	SIS_PCI_LOIO,	RF_ACTIVE},
 #else
-#define SIS_RES			SYS_RES_MEMORY
-#define SIS_RID			SIS_PCI_LOMEM
+	{ SYS_RES_MEMORY,	SIS_PCI_LOMEM,	RF_ACTIVE},
 #endif
+	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE},
+	{ -1, 0 }
+};
 
 #define SIS_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -623,7 +638,7 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		}
 
 		if (i == SIS_TIMEOUT) {
-			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
+			device_printf(sc->sis_dev, "PHY failed to come ready\n");
 			return(0);
 		}
 
@@ -681,7 +696,7 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		}
 
 		if (i == SIS_TIMEOUT)
-			if_printf(sc->sis_ifp, "PHY failed to come ready\n");
+			device_printf(sc->sis_dev, "PHY failed to come ready\n");
 	} else {
 		bzero((char *)&frame, sizeof(frame));
 
@@ -847,7 +862,7 @@ sis_reset(struct sis_softc *sc)
 	}
 
 	if (i == SIS_TIMEOUT)
-		if_printf(sc->sis_ifp, "reset never completed\n");
+		device_printf(sc->sis_dev, "reset never completed\n");
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
@@ -897,12 +912,12 @@ sis_attach(device_t dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			error = 0, rid, waittime = 0;
+	int			error = 0, waittime = 0;
 
 	waittime = 0;
 	sc = device_get_softc(dev);
 
-	sc->sis_self = dev;
+	sc->sis_dev = dev;
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -921,26 +936,9 @@ sis_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = SIS_RID;
-	sc->sis_res = bus_alloc_resource_any(dev, SIS_RES, &rid, RF_ACTIVE);
-
-	if (sc->sis_res == NULL) {
-		device_printf(dev, "couldn't map ports/memory\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->sis_btag = rman_get_bustag(sc->sis_res);
-	sc->sis_bhandle = rman_get_bushandle(sc->sis_res);
-
-	/* Allocate interrupt */
-	rid = 0;
-	sc->sis_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->sis_irq == NULL) {
-		device_printf(dev, "couldn't map interrupt\n");
-		error = ENXIO;
+	error = bus_alloc_resources(dev, sis_res_spec, sc->sis_res);
+	if (error) {
+		device_printf(dev, "couldn't allocate resources\n");
 		goto fail;
 	}
 
@@ -1195,7 +1193,6 @@ sis_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = sis_ioctl;
 	ifp->if_start = sis_start;
-	ifp->if_watchdog = sis_watchdog;
 	ifp->if_init = sis_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SIS_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
@@ -1207,7 +1204,6 @@ sis_attach(device_t dev)
 	if (mii_phy_probe(dev, &sc->sis_miibus,
 	    sis_ifmedia_upd, sis_ifmedia_sts)) {
 		device_printf(dev, "MII without any PHY!\n");
-		if_free(ifp);
 		error = ENXIO;
 		goto fail;
 	}
@@ -1228,7 +1224,7 @@ sis_attach(device_t dev)
 #endif
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->sis_res[1], INTR_TYPE_NET | INTR_MPSAFE,
 	    sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
@@ -1275,18 +1271,16 @@ sis_detach(device_t dev)
 		callout_drain(&sc->sis_stat_ch);
 		ether_ifdetach(ifp);
 	}
-	if (ifp)
-		if_free(ifp);
 	if (sc->sis_miibus)
 		device_delete_child(dev, sc->sis_miibus);
 	bus_generic_detach(dev);
 
 	if (sc->sis_intrhand)
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-	if (sc->sis_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-	if (sc->sis_res)
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
+		bus_teardown_intr(dev, sc->sis_res[1], sc->sis_intrhand);
+	bus_release_resources(dev, sis_res_spec, sc->sis_res);
+
+	if (ifp)
+		if_free(ifp);
 
 	if (sc->sis_rx_tag) {
 		bus_dmamap_unload(sc->sis_rx_tag,
@@ -1402,8 +1396,8 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
 static void
 sis_rxeof(struct sis_softc *sc)
 {
-        struct mbuf		*m;
-        struct ifnet		*ifp;
+	struct mbuf		*m, *m0;
+	struct ifnet		*ifp;
 	struct sis_desc		*cur_rx;
 	int			total_len = 0;
 	u_int32_t		rxstat;
@@ -1446,9 +1440,9 @@ sis_rxeof(struct sis_softc *sc)
 		}
 
 		/* No errors; receive the packet. */	
-#if defined(__i386__) || defined(__amd64__)
+#ifdef __NO_STRICT_ALIGNMENT
 		/*
-		 * On the x86 we do not have alignment problems, so try to
+		 * On architectures without alignment problems we try to
 		 * allocate a new buffer for the receive ring, and pass up
 		 * the one where the packet is already, saving the expensive
 		 * copy done in m_devget().
@@ -1461,7 +1455,6 @@ sis_rxeof(struct sis_softc *sc)
 		else
 #endif
 		{
-			struct mbuf		*m0;
 			m0 = m_devget(mtod(m, char *), total_len,
 				ETHER_ALIGN, ifp, NULL);
 			sis_newbuf(sc, cur_rx, m);
@@ -1546,7 +1539,7 @@ sis_txeof(struct sis_softc *sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
-	ifp->if_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
+	sc->sis_watchdog_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
@@ -1565,6 +1558,8 @@ sis_tick(void *xsc)
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
+
+	sis_watchdog(sc);
 
 	if (!sc->sis_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
@@ -1828,7 +1823,7 @@ sis_startl(struct ifnet *ifp)
 		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
-		ifp->if_timer = 5;
+		sc->sis_watchdog_timer = 5;
 	}
 }
 
@@ -1872,28 +1867,28 @@ sis_initl(struct sis_softc *sc)
 	if (sc->sis_type == SIS_TYPE_83815) {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, NS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	} else {
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[0]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[0]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR1);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[1]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[1]);
 		CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR2);
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA,
-		    ((u_int16_t *)IFP2ENADDR(sc->sis_ifp))[2]);
+		    ((u_int16_t *)IF_LLADDR(sc->sis_ifp))[2]);
 	}
 
 	/* Init circular TX/RX lists. */
 	if (sis_ring_init(sc) != 0) {
-		if_printf(ifp,
+		device_printf(sc->sis_dev,
 		    "initialization failed: no memory for rx buffers\n");
 		sis_stop(sc);
 		return;
@@ -2017,7 +2012,7 @@ sis_initl(struct sis_softc *sc)
 		DELAY(100000);
 		reg = CSR_READ_4(sc, NS_PHY_TDATA) & 0xff;
 		if ((reg & 0x0080) == 0 || (reg > 0xd8 && reg <= 0xff)) {
-			device_printf(sc->sis_self,
+			device_printf(sc->sis_dev,
 			    "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
 			reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
@@ -2171,29 +2166,27 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-sis_watchdog(struct ifnet *ifp)
+sis_watchdog(struct sis_softc *sc)
 {
-	struct sis_softc *sc;
 
-	sc = ifp->if_softc;
-
-	SIS_LOCK(sc);
+	SIS_LOCK_ASSERT(sc);
 	if (sc->sis_stopped) {
 		SIS_UNLOCK(sc);
 		return;
 	}
 
-	ifp->if_oerrors++;
-	if_printf(ifp, "watchdog timeout\n");
+	if (sc->sis_watchdog_timer == 0 || --sc->sis_watchdog_timer >0)
+		return;
+
+	device_printf(sc->sis_dev, "watchdog timeout\n");
+	sc->sis_ifp->if_oerrors++;
 
 	sis_stop(sc);
 	sis_reset(sc);
 	sis_initl(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_startl(ifp);
-
-	SIS_UNLOCK(sc);
+	if (!IFQ_DRV_IS_EMPTY(&sc->sis_ifp->if_snd))
+		sis_startl(sc->sis_ifp);
 }
 
 /*
@@ -2211,7 +2204,7 @@ sis_stop(struct sis_softc *sc)
 		return;
 	SIS_LOCK_ASSERT(sc);
 	ifp = sc->sis_ifp;
-	ifp->if_timer = 0;
+	sc->sis_watchdog_timer = 0;
 
 	callout_stop(&sc->sis_stat_ch);
 
