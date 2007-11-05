@@ -1701,9 +1701,8 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
  * but is *MUCH* faster than pmap_enter...
  */
 
-vm_page_t
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-    vm_page_t mpte)
+void
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
 	pmap_t oldpmap;
 
@@ -1712,7 +1711,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pmap_enter_quick_locked(pmap, va, m, prot);
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
-	return (NULL);
 }
 
 static void
