@@ -1024,13 +1024,13 @@ mac_biba_create_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_biba_create_posix_sem(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+mac_biba_create_posix_sem(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 	struct mac_biba *source, *dest;
 
 	source = SLOT(cred->cr_label);
-	dest = SLOT(ks_label);
+	dest = SLOT(kslabel);
 
 	mac_biba_copy_effective(source, dest);
 }
@@ -2062,8 +2062,8 @@ mac_biba_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2071,7 +2071,7 @@ mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ksemptr,
 		return (0);
 
 	subj = SLOT(cred->cr_label);
-	obj = SLOT(ks_label);
+	obj = SLOT(kslabel);
 
 	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
@@ -2080,8 +2080,8 @@ mac_biba_check_posix_sem_write(struct ucred *cred, struct ksem *ksemptr,
 }
 
 static int
-mac_biba_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+mac_biba_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2089,7 +2089,7 @@ mac_biba_check_posix_sem_rdonly(struct ucred *cred, struct ksem *ksemptr,
 		return (0);
 
 	subj = SLOT(cred->cr_label);
-	obj = SLOT(ks_label);
+	obj = SLOT(kslabel);
 
 	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
