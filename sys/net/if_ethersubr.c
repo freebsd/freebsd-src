@@ -491,7 +491,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 			 */
 			*m0 = NULL ;
 		}
-		ip_dn_io_ptr(m, dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
+		ip_dn_io_ptr(&m, dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
 		return 0;
 	}
 	/*
