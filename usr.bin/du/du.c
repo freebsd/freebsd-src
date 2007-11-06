@@ -140,16 +140,20 @@ main(int argc, char *argv[])
 				cflag = 1;
 				break;
 			case 'h':
-				setenv("BLOCKSIZE", "512", 1);
+				if (setenv("BLOCKSIZE", "512", 1) == -1)
+					warnx(
+					    "setenv: cannot set BLOCKSIZE=512");
 				hflag = 1;
 				break;
 			case 'k':
 				hflag = 0;
-				setenv("BLOCKSIZE", "1024", 1);
+				if (setenv("BLOCKSIZE", "1024", 1) == -1)
+					warnx("setenv: cannot set BLOCKSIZE=1024");
 				break;
 			case 'm':
 				hflag = 0;
-				setenv("BLOCKSIZE", "1048576", 1);
+				if (setenv("BLOCKSIZE", "1048576", 1) == -1)
+					warnx("setenv: cannot set BLOCKSIZE=1048576");
 				break;
 			case 'n':
 				nodumpflag = 1;
