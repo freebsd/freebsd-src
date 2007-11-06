@@ -604,7 +604,7 @@ options 	SCTP_LTRACE_ERRORS
 # broken or changes with CPU throttling then you must also have the ALTQ_NOPCC
 # option.
 options 	ALTQ
-options 	ALTQ_CBQ	# Class Bases Queueing
+options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
