@@ -256,34 +256,6 @@ fork1(td, flags, pages, procp)
 		return (0);
 	}
 
-	/*
-	 * Note 1:1 allows for forking with one thread coming out on the
-	 * other side with the expectation that the process is about to
-	 * exec.
-	 */
-	if (p1->p_flag & P_HADTHREADS) {
-		/*
-		 * Idle the other threads for a second.
-		 * Since the user space is copied, it must remain stable.
-		 * In addition, all threads (from the user perspective)
-		 * need to either be suspended or in the kernel,
-		 * where they will try restart in the parent and will
-		 * be aborted in the child.
-		 */
-		PROC_LOCK(p1);
-		if (thread_single(SINGLE_NO_EXIT)) {
-			/* Abort. Someone else is single threading before us. */
-			PROC_UNLOCK(p1);
-			return (ERESTART);
-		}
-		PROC_UNLOCK(p1);
-		/*
-		 * All other activity in this process
-		 * is now suspended at the user boundary,
-		 * (or other safe places if we think of any).
-		 */
-	}
-
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
 #ifdef MAC
@@ -746,15 +718,6 @@ again:
 	PROC_UNLOCK(p2);
 
 	/*
-	 * If other threads are waiting, let them continue now.
-	 */
-	if (p1->p_flag & P_HADTHREADS) {
-		PROC_LOCK(p1);
-		thread_single_end();
-		PROC_UNLOCK(p1);
-	}
-
-	/*
 	 * Return child proc pointer to parent.
 	 */
 	*procp = p2;
@@ -772,11 +735,6 @@ fail:
 	audit_proc_free(newproc);
 #endif
 	uma_zfree(proc_zone, newproc);
-	if (p1->p_flag & P_HADTHREADS) {
-		PROC_LOCK(p1);
-		thread_single_end();
-		PROC_UNLOCK(p1);
-	}
 	tsleep(&forksleep, PUSER, "fork", hz / 2);
 	return (error);
 }
