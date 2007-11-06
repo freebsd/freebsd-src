@@ -501,11 +501,13 @@ acpi_cpu_shutdown(device_t dev)
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
 
-    /* Disable any entry to the idle function. */
+    /*
+     * Disable any entry to the idle function.  There is a small race where
+     * an idle thread have passed this check but not gone to sleep.  This
+     * is ok since device_shutdown() does not free the softc, otherwise
+     * we'd have to be sure all threads were evicted before returning.
+     */
     cpu_disable_idle = TRUE;
-
-    /* Signal and wait for all processors to exit acpi_cpu_idle(). */
-    smp_rendezvous(NULL, NULL, NULL, NULL);
 
     return_VALUE (0);
 }
