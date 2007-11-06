@@ -77,7 +77,7 @@ struct sctp_ifa *
 
 uint32_t sctp_select_initial_TSN(struct sctp_pcb *);
 
-uint32_t sctp_select_a_tag(struct sctp_inpcb *);
+uint32_t sctp_select_a_tag(struct sctp_inpcb *, int);
 
 int sctp_init_asoc(struct sctp_inpcb *, struct sctp_tcb *, int, uint32_t, uint32_t);
 
