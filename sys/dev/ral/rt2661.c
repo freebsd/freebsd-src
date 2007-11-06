@@ -1430,6 +1430,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 	struct rt2661_tx_desc *desc;
 	struct rt2661_tx_data *data;
 	struct ieee80211_frame *wh;
+	struct ieee80211_key *k;
 	bus_dma_segment_t segs[RT2661_MAX_SCATTER];
 	uint16_t dur;
 	uint32_t flags = 0;	/* XXX HWSEQ */
@@ -1440,6 +1441,16 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 
 	/* send mgt frames at the lowest available rate */
 	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
+
+	wh = mtod(m0, struct ieee80211_frame *);
+
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		k = ieee80211_crypto_encap(ic, ni, m0);
+		if (k == NULL) {
+			m_freem(m0);
+			return ENOBUFS;
+		}
+	}
 
 	error = bus_dmamap_load_mbuf_sg(sc->mgtq.data_dmat, data->map, m0,
 	    segs, &nsegs, 0);
