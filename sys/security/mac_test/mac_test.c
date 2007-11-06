@@ -765,12 +765,12 @@ mac_test_create_pipe(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(create_posix_sem);
 static void
-mac_test_create_posix_sem(struct ucred *cred, struct ksem *ksem,
-   struct label *posixlabel)
+mac_test_create_posix_sem(struct ucred *cred, struct ksem *ks,
+   struct label *kslabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(posixlabel, MAGIC_POSIX_SEM);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
 	COUNTER_INC(create_posix_sem);
 }
 
@@ -1610,12 +1610,12 @@ mac_test_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_posix_sem);
 static int
-mac_test_check_posix_sem(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+mac_test_check_posix_sem(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	LABEL_CHECK(ks_label, MAGIC_POSIX_SEM);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SEM);
 	COUNTER_INC(check_posix_sem);
 
 	return (0);

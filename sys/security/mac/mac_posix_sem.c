@@ -58,10 +58,10 @@ mac_posix_sem_label_alloc(void)
 }
 
 void
-mac_init_posix_sem(struct ksem *ksemptr)
+mac_init_posix_sem(struct ksem *ks)
 {
 
-	ksemptr->ks_label = mac_posix_sem_label_alloc();
+	ks->ks_label = mac_posix_sem_label_alloc();
 }
 
 static void
@@ -72,77 +72,76 @@ mac_posix_sem_label_free(struct label *label)
 }
 
 void
-mac_destroy_posix_sem(struct ksem *ksemptr)
+mac_destroy_posix_sem(struct ksem *ks)
 {
 
-	mac_posix_sem_label_free(ksemptr->ks_label);
-	ksemptr->ks_label = NULL;
+	mac_posix_sem_label_free(ks->ks_label);
+	ks->ks_label = NULL;
 }
 
 void
-mac_create_posix_sem(struct ucred *cred, struct ksem *ksemptr)
+mac_create_posix_sem(struct ucred *cred, struct ksem *ks)
 {
 
-	MAC_PERFORM(create_posix_sem, cred, ksemptr, ksemptr->ks_label);
+	MAC_PERFORM(create_posix_sem, cred, ks, ks->ks_label);
 }
 
 int
-mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_destroy, cred, ksemptr, ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_destroy, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_open(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_open, cred, ksemptr, ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_open, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_getvalue, cred, ksemptr,
-	    ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_getvalue, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_post(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_post, cred, ksemptr, ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_post, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_unlink, cred, ksemptr, ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_unlink, cred, ks, ks->ks_label);
 
 	return (error);
 }
 
 int
-mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr)
+mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ks)
 {
 	int error;
 
-	MAC_CHECK(check_posix_sem_wait, cred, ksemptr, ksemptr->ks_label);
+	MAC_CHECK(check_posix_sem_wait, cred, ks, ks->ks_label);
 
 	return (error);
 }
