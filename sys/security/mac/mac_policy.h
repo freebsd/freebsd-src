@@ -273,7 +273,7 @@ typedef void	(*mpo_create_sysv_shm_t)(struct ucred *cred,
  * Labeling event operations: POSIX (global/inter-process) semaphores.
  */
 typedef void	(*mpo_create_posix_sem_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 
 /*
  * Labeling event operations: network objects.
@@ -434,17 +434,17 @@ typedef int	(*mpo_check_pipe_stat_t)(struct ucred *cred,
 typedef int	(*mpo_check_pipe_write_t)(struct ucred *cred,
 		    struct pipepair *pp, struct label *pplabel);
 typedef int	(*mpo_check_posix_sem_destroy_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_posix_sem_getvalue_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_posix_sem_open_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_posix_sem_post_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_posix_sem_unlink_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_posix_sem_wait_t)(struct ucred *cred,
-		    struct ksem *ksemptr, struct label *ks_label);
+		    struct ksem *ks, struct label *kslabel);
 typedef int	(*mpo_check_proc_debug_t)(struct ucred *cred,
 		    struct proc *p);
 typedef int	(*mpo_check_proc_sched_t)(struct ucred *cred,

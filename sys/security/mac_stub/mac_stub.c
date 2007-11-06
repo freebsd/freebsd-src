@@ -276,8 +276,8 @@ stub_create_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-stub_create_posix_sem(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_create_posix_sem(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 }
@@ -833,48 +833,48 @@ stub_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-stub_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_destroy(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_open(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_post(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_unlink(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
 }
 
 static int
-stub_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr,
-    struct label *ks_label)
+stub_check_posix_sem_wait(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel)
 {
 
 	return (0);
