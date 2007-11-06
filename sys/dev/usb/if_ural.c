@@ -1192,6 +1192,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	struct ural_tx_desc *desc;
 	struct ural_tx_data *data;
 	struct ieee80211_frame *wh;
+	struct ieee80211_key *k;
 	uint32_t flags = 0;
 	uint16_t dur;
 	usbd_status error;
@@ -1201,6 +1202,16 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	desc = (struct ural_tx_desc *)data->buf;
 
 	rate = IEEE80211_IS_CHAN_5GHZ(ic->ic_curchan) ? 12 : 2;
+
+	wh = mtod(m0, struct ieee80211_frame *);
+
+	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		k = ieee80211_crypto_encap(ic, ni, m0);
+		if (k == NULL) {
+			m_freem(m0);
+			return ENOBUFS;
+		}
+	}
 
 	data->m = m0;
 	data->ni = ni;
