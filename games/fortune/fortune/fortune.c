@@ -126,6 +126,9 @@ FILEDESC	*Fortfile;		/* Fortune file to use */
 
 STRFILE		Noprob_tbl;		/* sum of data for all no prob files */
 
+char	*Fortune_path;
+char	**Fortune_path_arr;
+
 int	 add_dir(FILEDESC *);
 int	 add_file __P((int,
 	    char *, char *, FILEDESC **, FILEDESC **, FILEDESC *));
@@ -140,6 +143,7 @@ void	 get_fort(void);
 void	 get_pos(FILEDESC *);
 void	 get_tbl(FILEDESC *);
 void	 getargs(int, char *[]);
+void	 getpath(void);
 void	 init_prob(void);
 int	 is_dir(char *);
 int	 is_fortfile(char *, char **, char **, int);
@@ -177,6 +181,7 @@ char	*av[];
 
 	(void) setlocale(LC_ALL, "");
 
+	getpath();
 	getargs(ac, av);
 
 	if (Match)
@@ -374,17 +379,36 @@ int	file_cnt;
 {
 	int	i, percent;
 	char	*sp;
+	char	**pstr;
 
 	if (file_cnt == 0) {
 		if (Find_files) {
 			Fortunes_only = TRUE;
-			i = add_file(NO_PROB, FORTDIR, NULL, &File_list,
-					&File_tail, NULL);
+			pstr = Fortune_path_arr;
+			i = 0;
+			while (*pstr) {
+				i += add_file(NO_PROB, *pstr++, NULL, 
+					      &File_list, &File_tail, NULL);
+			}
 			Fortunes_only = FALSE;
-			return i;
-		} else
-			return add_file(NO_PROB, "fortunes", FORTDIR,
-					&File_list, &File_tail, NULL);
+			if (!i) {
+			  fprintf(stderr, "No fortunes found in %s.\n",
+				  Fortune_path);
+			}
+			return i != 0;
+		} else {
+			pstr = Fortune_path_arr;
+			i = 0;
+			while (*pstr) {
+				i += add_file(NO_PROB, "fortunes", *pstr++,
+					      &File_list, &File_tail, NULL);
+			}
+			if (!i) {
+			  fprintf(stderr, "No fortunes found in %s.\n",
+				  Fortune_path);
+			}
+			return i != 0;
+		}
 	}
 	for (i = 0; i < file_cnt; i++) {
 		percent = NO_PROB;
@@ -419,10 +443,22 @@ int	file_cnt;
 				sp = files[i];
 			}
 		}
-		if (strcmp(sp, "all") == 0)
-			sp = FORTDIR;
-		if (!add_file(percent, sp, NULL, &File_list, &File_tail, NULL))
-			return FALSE;
+		if (strcmp(sp, "all") == 0) {
+			pstr = Fortune_path_arr;
+			i = 0;
+			while (*pstr) {
+				i += add_file(NO_PROB, *pstr++, NULL, 
+					      &File_list, &File_tail, NULL);
+			}
+			if (!i) {
+			  fprintf(stderr, "No fortunes found in %s.\n",
+				  Fortune_path);
+			  return FALSE;
+			}
+		} else if (!add_file(percent, sp, NULL, &File_list, 
+				     &File_tail, NULL)) {
+ 			return FALSE;
+		}
 	}
 	return TRUE;
 }
@@ -495,11 +531,24 @@ over:
 			file = off_name(file);
 			goto over;
 		}
-		if (dir == NULL && file[0] != '/')
-			return add_file(percent, file, FORTDIR, head, tail,
-					parent);
+		if (dir == NULL && file[0] != '/') {
+			int i = 0;
+			char **pstr = Fortune_path_arr;
+
+			while (*pstr) {
+				i += add_file(percent, file, *pstr++, 
+					      head, tail, parent);
+			}
+			if (!i) {
+			  fprintf(stderr, "No '%s' found in %s.\n",
+				  file, Fortune_path);
+			}
+			return i != 0;
+		}
+		/*
 		if (parent == NULL)
 			perror(path);
+		*/
 		if (was_malloc)
 			free(path);
 		return FALSE;
@@ -898,7 +947,7 @@ init_prob()
 			if (num_noprob > 1) {
 				frac = percent / num_noprob;
 				DPRINTF(1, (stderr, ", frac = %d%%", frac));
-				for (fp = File_list; fp != last; fp = fp->next)
+				for (fp = File_tail; fp != last; fp = fp->prev)
 					if (fp->percent == NO_PROB) {
 						fp->percent = frac;
 						percent -= frac;
@@ -1367,4 +1416,47 @@ usage()
 	(void) fprintf(stderr, " [-m pattern]");
 	(void) fprintf(stderr, " [[N%%] file/directory/all]\n");
 	exit(1);
+}
+
+/*
+ * getpath
+ * 	Set up file search patch from environment var FORTUNE_PATH;
+ *	if not set, use the compiled in FORTDIR.
+ */
+
+void
+getpath(void)
+{
+	int nstr;
+	char *pch, **ppch, *str, *path;
+
+	Fortune_path = getenv("FORTUNE_PATH");
+	
+	if (Fortune_path == NULL)
+		Fortune_path = "";
+	path = strdup(Fortune_path);
+
+	for (nstr = 2, pch = path; *pch != '\0'; pch++) {
+		if (*pch == ':')
+			nstr++;
+	}
+
+	ppch = Fortune_path_arr = (char **)calloc(nstr, sizeof(char *));
+	
+	nstr = 0;
+	str = strtok(path, ":");
+	while (str) {
+		if (is_dir(str)) {
+			nstr++;
+			*ppch++ = str;
+		}
+		str = strtok(NULL, ":");
+	}
+	if (nstr == 0) {
+		free(path);
+		Fortune_path_arr[0] = FORTDIR;
+		if (strlen(Fortune_path))
+			fprintf(stderr,
+			    "Ignoring FORTUNE_PATH; no directories found.\n");
+	}
 }
