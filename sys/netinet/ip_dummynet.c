@@ -110,6 +110,10 @@ static long tick_lost;			/* Lost(coalesced) ticks number. */
 /* Adjusted vs non-adjusted curr_time difference (ticks). */
 static long tick_diff;
 
+static unsigned long	io_pkt;
+static unsigned long	io_pkt_fast;
+static unsigned long	io_pkt_drop;
+
 /*
  * Three heaps contain queues and pipes that the scheduler handles:
  *
@@ -181,6 +185,15 @@ SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
     CTLFLAG_RD, &tick_lost, 0,
     "Number of ticks coalesced by dummynet taskqueue.");
+SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt,
+    CTLFLAG_RD, &io_pkt, 0,
+    "Number of packets passed to dummynet.");
+SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_fast,
+    CTLFLAG_RD, &io_pkt_fast, 0,
+    "Number of packets bypassed dummynet scheduler.");
+SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt_drop,
+    CTLFLAG_RD, &io_pkt_drop, 0,
+    "Number of packets dropped by dummynet.");
 #endif
 
 #ifdef DUMMYNET_DEBUG
@@ -579,10 +592,9 @@ ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 		 * XXX Should check errors on heap_insert, and drain the whole
 		 * queue on error hoping next time we are luckier.
 		 */
-	} else {	/* RED needs to know when the queue becomes empty. */
+	} else		/* RED needs to know when the queue becomes empty. */
 		q->q_time = curr_time;
-		q->numbytes = 0;
-	}
+
 	/*
 	 * If the delay line was empty call transmit_event() now.
 	 * Otherwise, the scheduler will take care of it.
@@ -955,6 +967,7 @@ create_queue(struct dn_flow_set *fs, int i)
 	q->hash_slot = i;
 	q->next = fs->rq[i];
 	q->S = q->F + 1;	/* hack - mark timestamp as invalid. */
+	q->numbytes = fs->pipe->bandwidth;
 	fs->rq[i] = q;
 	fs->rq_elements++;
 	return (q);
@@ -1213,9 +1226,9 @@ locate_pipe(int pipe_nr)
  * rule		matching rule, in case of multiple passes
  */
 static int
-dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
+dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 {
-	struct mbuf *head = NULL, *tail = NULL;
+	struct mbuf *m = *m0, *head = NULL, *tail = NULL;
 	struct dn_pkt_tag *pkt;
 	struct m_tag *mtag;
 	struct dn_flow_set *fs = NULL;
@@ -1237,6 +1250,7 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	is_pipe = (cmd->opcode == O_PIPE);
 
 	DUMMYNET_LOCK();
+	io_pkt++;
 	/*
 	 * This is a dummynet rule, so we expect an O_PIPE or O_QUEUE rule.
 	 *
@@ -1309,6 +1323,11 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 
 	if (q->head != m)		/* Flow was not idle, we are done. */
 		goto done;
+
+	if (q->q_time < curr_time)
+		q->numbytes = fs->pipe->bandwidth;
+	q->q_time = curr_time;
+
 	/*
 	 * If we reach this point the flow was previously idle, so we need
 	 * to schedule it. This involves different actions for fixed-rate or
@@ -1318,7 +1337,7 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 		/* Fixed-rate queue: just insert into the ready_heap. */
 		dn_key t = 0;
 
-		if (pipe->bandwidth)
+		if (pipe->bandwidth && m->m_pkthdr.len * 8 * hz > q->numbytes)
 			t = SET_TICKS(m, q, pipe);
 		q->sched_time = curr_time;
 		if (t == 0)		/* Must process it now. */
@@ -1378,16 +1397,27 @@ dummynet_io(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 		}
 	}
 done:
+	if (head == m && dir != DN_TO_IFB_FWD && dir != DN_TO_ETH_DEMUX &&
+	    dir != DN_TO_ETH_OUT) {	/* Fast io. */
+		io_pkt_fast++;
+		if (m->m_nextpkt != NULL)
+			printf("dummynet: fast io: pkt chain detected!\n");
+		head = m->m_nextpkt = NULL;
+	} else
+		*m0 = NULL;		/* Normal io. */
+
 	DUMMYNET_UNLOCK();
 	if (head != NULL)
 		dummynet_send(head);
 	return (0);
 
 dropit:
+	io_pkt_drop++;
 	if (q)
 		q->drops++;
 	DUMMYNET_UNLOCK();
 	m_freem(m);
+	*m0 = NULL;
 	return ((fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
 }
 
@@ -1706,7 +1736,7 @@ config_pipe(struct dn_pipe *p)
 			/* Flush accumulated credit for all queues. */
 			for (i = 0; i <= pipe->fs.rq_size; i++)
 				for (q = pipe->fs.rq[i]; q; q = q->next)
-					q->numbytes = 0;
+					q->numbytes = p->bandwidth;
 
 		pipe->bandwidth = p->bandwidth;
 		pipe->numbytes = 0;		/* just in case... */

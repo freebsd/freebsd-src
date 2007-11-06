@@ -3038,7 +3038,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			 * packet will return to us via bridge_dummynet().
 			 */
 			args.oif = ifp;
-			ip_dn_io_ptr(*mp, DN_TO_IFB_FWD, &args);
+			ip_dn_io_ptr(mp, DN_TO_IFB_FWD, &args);
 			return (error);
 		}
 
