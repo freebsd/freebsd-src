@@ -429,7 +429,7 @@ get_y_or_n (for_pager)
 	return (1);
       if (c == 'n' || c == 'N' || c == RUBOUT)
 	return (0);
-      if (c == ABORT_CHAR)
+      if (c == ABORT_CHAR || c < 0)
 	_rl_abort_internal ();
       if (for_pager && (c == NEWLINE || c == RETURN))
 	return (2);
