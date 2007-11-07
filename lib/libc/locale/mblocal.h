@@ -29,6 +29,8 @@
 #ifndef _MBLOCAL_H_
 #define	_MBLOCAL_H_
 
+#include <runetype.h>
+
 /*
  * Rune initialization function prototypes.
  */
