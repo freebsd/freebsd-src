@@ -18,10 +18,10 @@
 #if defined(BSD4_4)
 #include <err.h>
 #else
-extern void warn __P((const char *fmt, ...));
-extern void warnx __P((const char *fmt, ...));
+extern void warn(const char *fmt, ...);
+extern void warnx(const char *fmt, ...);
 #endif
-extern void set_program_name __P((const char * name));
+extern void set_program_name(const char * name);
 
 #ifndef __GNUC__
 #define __attribute__(x)

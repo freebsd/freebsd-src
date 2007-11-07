@@ -53,11 +53,11 @@ static char master_name[MAXHOSTNAMELEN];
 static struct netinfo *old_slavenet;
 static int old_status;
 
-static void schgdate __P((struct tsp *, char *));
-static void setmaster __P((struct tsp *));
-static void answerdelay __P((void));
+static void schgdate(struct tsp *, char *);
+static void setmaster(struct tsp *);
+static void answerdelay(void);
 
-extern void logwtmp __P((char *, char *, char *));
+extern void logwtmp(char *, char *, char *);
 
 int
 slave()

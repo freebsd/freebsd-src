@@ -52,16 +52,16 @@ ipxcp_options ipxcp_hisoptions[NUM_PPP];	/* Options that we ack'd */
 /*
  * Callbacks for fsm code.  (CI = Configuration Information)
  */
-static void ipxcp_resetci __P((fsm *));	/* Reset our CI */
-static int  ipxcp_cilen __P((fsm *));		/* Return length of our CI */
-static void ipxcp_addci __P((fsm *, u_char *, int *)); /* Add our CI */
-static int  ipxcp_ackci __P((fsm *, u_char *, int));	/* Peer ack'd our CI */
-static int  ipxcp_nakci __P((fsm *, u_char *, int));	/* Peer nak'd our CI */
-static int  ipxcp_rejci __P((fsm *, u_char *, int));	/* Peer rej'd our CI */
-static int  ipxcp_reqci __P((fsm *, u_char *, int *, int)); /* Rcv CI */
-static void ipxcp_up __P((fsm *));		/* We're UP */
-static void ipxcp_down __P((fsm *));		/* We're DOWN */
-static void ipxcp_script __P((fsm *, char *)); /* Run an up/down script */
+static void ipxcp_resetci(fsm *);	/* Reset our CI */
+static int  ipxcp_cilen(fsm *);		/* Return length of our CI */
+static void ipxcp_addci(fsm *, u_char *, int *); /* Add our CI */
+static int  ipxcp_ackci(fsm *, u_char *, int);	/* Peer ack'd our CI */
+static int  ipxcp_nakci(fsm *, u_char *, int);	/* Peer nak'd our CI */
+static int  ipxcp_rejci(fsm *, u_char *, int);	/* Peer rej'd our CI */
+static int  ipxcp_reqci(fsm *, u_char *, int *, int); /* Rcv CI */
+static void ipxcp_up(fsm *);		/* We're UP */
+static void ipxcp_down(fsm *);		/* We're DOWN */
+static void ipxcp_script(fsm *, char *); /* Run an up/down script */
 
 fsm ipxcp_fsm[NUM_PPP];		/* IPXCP fsm structure */
 
@@ -87,15 +87,15 @@ static fsm_callbacks ipxcp_callbacks = { /* IPXCP callback routines */
  * Protocol entry points.
  */
 
-static void ipxcp_init __P((int));
-static void ipxcp_open __P((int));
-static void ipxcp_close __P((int, char *));
-static void ipxcp_lowerup __P((int));
-static void ipxcp_lowerdown __P((int));
-static void ipxcp_input __P((int, u_char *, int));
-static void ipxcp_protrej __P((int));
-static int  ipxcp_printpkt __P((u_char *, int,
-				void (*) __P((void *, char *, ...)), void *));
+static void ipxcp_init(int);
+static void ipxcp_open(int);
+static void ipxcp_close(int, char *);
+static void ipxcp_lowerup(int);
+static void ipxcp_lowerdown(int);
+static void ipxcp_input(int, u_char *, int);
+static void ipxcp_protrej(int);
+static int  ipxcp_printpkt(u_char *, int,
+				void (*)(void *, char *, ...), void *);
 
 struct protent ipxcp_protent = {
     PPP_IPXCP,
@@ -1274,7 +1274,7 @@ static int
 ipxcp_printpkt(p, plen, printer, arg)
     u_char *p;
     int plen;
-    void (*printer) __P((void *, char *, ...));
+    void (*printer)(void *, char *, ...);
     void *arg;
 {
     int code, id, len, olen;

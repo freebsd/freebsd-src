@@ -213,66 +213,66 @@ volatile sig_atomic_t seenusr1;
 #define RRTF_SENDANYWAY		0x40000000
 #define	RRTF_CHANGED		0x80000000
 
-int main __P((int, char **));
-void sighandler __P((int));
-void ripalarm __P((void));
-void riprecv __P((void));
-void ripsend __P((struct ifc *, struct sockaddr_in6 *, int));
-int out_filter __P((struct riprt *, struct ifc *));
-void init __P((void));
-void sockopt __P((struct ifc *));
-void ifconfig __P((void));
-void ifconfig1 __P((const char *, const struct sockaddr *, struct ifc *, int));
-void rtrecv __P((void));
-int rt_del __P((const struct sockaddr_in6 *, const struct sockaddr_in6 *,
-	const struct sockaddr_in6 *));
-int rt_deladdr __P((struct ifc *, const struct sockaddr_in6 *,
-	const struct sockaddr_in6 *));
-void filterconfig __P((void));
-int getifmtu __P((int));
-const char *rttypes __P((struct rt_msghdr *));
-const char *rtflags __P((struct rt_msghdr *));
-const char *ifflags __P((int));
-int ifrt __P((struct ifc *, int));
-void ifrt_p2p __P((struct ifc *, int));
-void applymask __P((struct in6_addr *, struct in6_addr *));
-void applyplen __P((struct in6_addr *, int));
-void ifrtdump __P((int));
-void ifdump __P((int));
-void ifdump0 __P((FILE *, const struct ifc *));
-void rtdump __P((int));
-void rt_entry __P((struct rt_msghdr *, int));
-void rtdexit __P((void));
-void riprequest __P((struct ifc *, struct netinfo6 *, int,
-	struct sockaddr_in6 *));
-void ripflush __P((struct ifc *, struct sockaddr_in6 *));
-void sendrequest __P((struct ifc *));
-int sin6mask2len __P((const struct sockaddr_in6 *));
-int mask2len __P((const struct in6_addr *, int));
-int sendpacket __P((struct sockaddr_in6 *, int));
-int addroute __P((struct riprt *, const struct in6_addr *, struct ifc *));
-int delroute __P((struct netinfo6 *, struct in6_addr *));
-struct in6_addr *getroute __P((struct netinfo6 *, struct in6_addr *));
-void krtread __P((int));
-int tobeadv __P((struct riprt *, struct ifc *));
-char *allocopy __P((char *));
-char *hms __P((void));
-const char *inet6_n2p __P((const struct in6_addr *));
-struct ifac *ifa_match __P((const struct ifc *, const struct in6_addr *, int));
-struct in6_addr *plen2mask __P((int));
-struct riprt *rtsearch __P((struct netinfo6 *, struct riprt **));
-int ripinterval __P((int));
-time_t ripsuptrig __P((void));
-void fatal __P((const char *, ...))
+int main(int, char **);
+void sighandler(int);
+void ripalarm(void);
+void riprecv(void);
+void ripsend(struct ifc *, struct sockaddr_in6 *, int);
+int out_filter(struct riprt *, struct ifc *);
+void init(void);
+void sockopt(struct ifc *);
+void ifconfig(void);
+void ifconfig1(const char *, const struct sockaddr *, struct ifc *, int);
+void rtrecv(void);
+int rt_del(const struct sockaddr_in6 *, const struct sockaddr_in6 *,
+	const struct sockaddr_in6 *);
+int rt_deladdr(struct ifc *, const struct sockaddr_in6 *,
+	const struct sockaddr_in6 *);
+void filterconfig(void);
+int getifmtu(int);
+const char *rttypes(struct rt_msghdr *);
+const char *rtflags(struct rt_msghdr *);
+const char *ifflags(int);
+int ifrt(struct ifc *, int);
+void ifrt_p2p(struct ifc *, int);
+void applymask(struct in6_addr *, struct in6_addr *);
+void applyplen(struct in6_addr *, int);
+void ifrtdump(int);
+void ifdump(int);
+void ifdump0(FILE *, const struct ifc *);
+void rtdump(int);
+void rt_entry(struct rt_msghdr *, int);
+void rtdexit(void);
+void riprequest(struct ifc *, struct netinfo6 *, int,
+	struct sockaddr_in6 *);
+void ripflush(struct ifc *, struct sockaddr_in6 *);
+void sendrequest(struct ifc *);
+int sin6mask2len(const struct sockaddr_in6 *);
+int mask2len(const struct in6_addr *, int);
+int sendpacket(struct sockaddr_in6 *, int);
+int addroute(struct riprt *, const struct in6_addr *, struct ifc *);
+int delroute(struct netinfo6 *, struct in6_addr *);
+struct in6_addr *getroute(struct netinfo6 *, struct in6_addr *);
+void krtread(int);
+int tobeadv(struct riprt *, struct ifc *);
+char *allocopy(char *);
+char *hms(void);
+const char *inet6_n2p(const struct in6_addr *);
+struct ifac *ifa_match(const struct ifc *, const struct in6_addr *, int);
+struct in6_addr *plen2mask(int);
+struct riprt *rtsearch(struct netinfo6 *, struct riprt **);
+int ripinterval(int);
+time_t ripsuptrig(void);
+void fatal(const char *, ...)
 	__attribute__((__format__(__printf__, 1, 2)));
-void trace __P((int, const char *, ...))
+void trace(int, const char *, ...)
 	__attribute__((__format__(__printf__, 2, 3)));
-void tracet __P((int, const char *, ...))
+void tracet(int, const char *, ...)
 	__attribute__((__format__(__printf__, 2, 3)));
-unsigned int if_maxindex __P((void));
-struct ifc *ifc_find __P((char *));
-struct iff *iff_find __P((struct ifc *, int));
-void setindex2ifc __P((int, struct ifc *));
+unsigned int if_maxindex(void);
+struct ifc *ifc_find(char *);
+struct iff *iff_find(struct ifc *, int);
+void setindex2ifc(int, struct ifc *);
 
 #define	MALLOC(type)	((type *)malloc(sizeof(type)))
 

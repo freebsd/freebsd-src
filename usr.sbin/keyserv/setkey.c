@@ -59,12 +59,12 @@ static const char rcsid[] =
 #include "keyserv.h"
 
 static MINT *MODULUS;
-static char *fetchsecretkey __P(( uid_t ));
-static void writecache __P(( char *, char *, des_block * ));
-static int readcache __P(( char *, char *, des_block * ));
-static void extractdeskey __P (( MINT *, des_block * ));
-static int storesecretkey __P(( uid_t, keybuf ));
-static keystatus pk_crypt __P(( uid_t, char *, netobj *, des_block *, int));
+static char *fetchsecretkey( uid_t );
+static void writecache( char *, char *, des_block * );
+static int readcache( char *, char *, des_block * );
+static void extractdeskey( MINT *, des_block * );
+static int storesecretkey( uid_t, keybuf );
+static keystatus pk_crypt( uid_t, char *, netobj *, des_block *, int);
 static int nodefaultkeys = 0;
 
 
@@ -129,8 +129,8 @@ pk_decrypt(uid, remote_name, remote_key, key)
 	return (pk_crypt(uid, remote_name, remote_key, key, DES_DECRYPT));
 }
 
-static int store_netname __P(( uid_t, key_netstarg * ));
-static int fetch_netname __P(( uid_t, key_netstarg * ));
+static int store_netname( uid_t, key_netstarg * );
+static int fetch_netname( uid_t, key_netstarg * );
 
 keystatus
 pk_netput(uid, netstore)

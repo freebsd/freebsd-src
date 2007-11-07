@@ -46,7 +46,7 @@ struct config {
 
 #define _PATH_PREFIX_CONF	"/etc/faithd.conf"
 
-extern const char *prefix_string __P((const struct prefix *));
-extern int prefix_match __P((const struct prefix *, const struct sockaddr *));
-extern int config_load __P((const char *));
-extern const struct config *config_match __P((struct sockaddr *, struct sockaddr *));
+extern const char *prefix_string(const struct prefix *);
+extern int prefix_match(const struct prefix *, const struct sockaddr *);
+extern int config_load(const char *);
+extern const struct config *config_match(struct sockaddr *, struct sockaddr *);

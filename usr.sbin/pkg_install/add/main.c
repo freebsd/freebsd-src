@@ -90,7 +90,7 @@ struct {
 static char *getpackagesite(void);
 int getosreldate(void);
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)

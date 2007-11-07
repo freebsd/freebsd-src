@@ -57,8 +57,8 @@ rtadvd_timer_init()
 }
 
 struct rtadvd_timer *
-rtadvd_add_timer(struct rtadvd_timer *(*timeout) __P((void *)),
-    void (*update) __P((void *, struct timeval *)),
+rtadvd_add_timer(struct rtadvd_timer *(*timeout)(void *),
+    void (*update)(void *, struct timeval *),
     void *timeodata, void *updatedata)
 {
 	struct rtadvd_timer *newtimer;

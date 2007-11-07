@@ -10,16 +10,16 @@
 struct mygzip_header;
 struct signature;
 
-extern void *new_pgp_checker __P((struct mygzip_header *h, \
+extern void *new_pgp_checker(struct mygzip_header *h, \
 	struct signature *sign, const char *userid, char *envp[], \
-	const char *filename));
+	const char *filename);
 
-extern void pgp_add __P((void *arg, const char *buffer, \
-	size_t length));
+extern void pgp_add(void *arg, const char *buffer, \
+	size_t length);
 
-extern int pgp_sign_ok __P((void *arg));
+extern int pgp_sign_ok(void *arg);
 
-extern void handle_pgp_passphrase __P((void));
+extern void handle_pgp_passphrase(void);
 
-extern int retrieve_pgp_signature __P((const char *filename, \
-struct signature **sign, const char *userid, char *envp[]));
+extern int retrieve_pgp_signature(const char *filename, \
+struct signature **sign, const char *userid, char *envp[]);

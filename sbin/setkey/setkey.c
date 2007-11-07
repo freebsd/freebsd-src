@@ -53,18 +53,18 @@
 
 #include "libpfkey.h"
 
-void usage __P((void));
-int main __P((int, char **));
-int get_supported __P((void));
-void sendkeyshort __P((u_int));
-void promisc __P((void));
-int sendkeymsg __P((char *, size_t));
-int postproc __P((struct sadb_msg *, int));
-const char *numstr __P((int));
-void shortdump_hdr __P((void));
-void shortdump __P((struct sadb_msg *));
-static void printdate __P((void));
-static int32_t gmt2local __P((time_t));
+void usage(void);
+int main(int, char **);
+int get_supported(void);
+void sendkeyshort(u_int);
+void promisc(void);
+int sendkeymsg(char *, size_t);
+int postproc(struct sadb_msg *, int);
+const char *numstr(int);
+void shortdump_hdr(void);
+void shortdump(struct sadb_msg *);
+static void printdate(void);
+static int32_t gmt2local(time_t);
 
 #define MODE_SCRIPT	1
 #define MODE_CMDDUMP	2
@@ -85,7 +85,7 @@ static time_t thiszone;
 
 extern int lineno;
 
-extern int parse __P((FILE **));
+extern int parse(FILE **);
 
 void
 usage()

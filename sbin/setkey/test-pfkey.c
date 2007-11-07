@@ -53,18 +53,18 @@ u_char m_buf[BUFSIZ];
 u_int m_len;
 char *pname;
 
-void Usage __P((void));
-int sendkeymsg __P((void));
-void key_setsadbmsg __P((u_int));
-void key_setsadbsens __P((void));
-void key_setsadbprop __P((void));
-void key_setsadbid __P((u_int, caddr_t));
-void key_setsadblft __P((u_int, u_int));
-void key_setspirange __P((void));
-void key_setsadbkey __P((u_int, caddr_t));
-void key_setsadbsa __P((void));
-void key_setsadbaddr __P((u_int, u_int, caddr_t));
-void key_setsadbextbuf __P((caddr_t, int, caddr_t, int, caddr_t, int));
+void Usage(void);
+int sendkeymsg(void);
+void key_setsadbmsg(u_int);
+void key_setsadbsens(void);
+void key_setsadbprop(void);
+void key_setsadbid(u_int, caddr_t);
+void key_setsadblft(u_int, u_int);
+void key_setspirange(void);
+void key_setsadbkey(u_int, caddr_t);
+void key_setsadbsa(void);
+void key_setsadbaddr(u_int, u_int, caddr_t);
+void key_setsadbextbuf(caddr_t, int, caddr_t, int, caddr_t, int);
 
 void
 Usage()

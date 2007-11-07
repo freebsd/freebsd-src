@@ -72,10 +72,10 @@ static const char rcsid[] =
 #define KEYSERVSOCK "/var/run/keyservsock"
 #endif
 
-static void randomize __P(( des_block * ));
-static void usage __P(( void ));
-static int getrootkey __P(( des_block *, int ));
-static int root_auth __P(( SVCXPRT *, struct svc_req * ));
+static void randomize( des_block * );
+static void usage( void );
+static int getrootkey( des_block *, int );
+static int root_auth( SVCXPRT *, struct svc_req * );
 
 #ifdef DEBUG
 static int debugging = 1;
@@ -102,9 +102,9 @@ extern cryptkeyres *(*__key_decryptsession_pk_LOCAL)();
 extern des_block *(*__key_gendes_LOCAL)();
 extern int (*__des_crypt_LOCAL)();
 
-cryptkeyres *key_encrypt_pk_2_svc_prog __P(( uid_t, cryptkeyarg2 * ));
-cryptkeyres *key_decrypt_pk_2_svc_prog __P(( uid_t, cryptkeyarg2 * ));
-des_block *key_gen_1_svc_prog __P(( void *, struct svc_req * ));
+cryptkeyres *key_encrypt_pk_2_svc_prog( uid_t, cryptkeyarg2 * );
+cryptkeyres *key_decrypt_pk_2_svc_prog( uid_t, cryptkeyarg2 * );
+des_block *key_gen_1_svc_prog( void *, struct svc_req * );
 
 int
 main(argc, argv)

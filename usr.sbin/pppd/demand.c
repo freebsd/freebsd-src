@@ -62,7 +62,7 @@ struct packet {
 struct packet *pend_q;
 struct packet *pend_qtail;
 
-static int active_packet __P((unsigned char *, int));
+static int active_packet(unsigned char *, int);
 
 /*
  * demand_conf - configure the interface for doing dial-on-demand.

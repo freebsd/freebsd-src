@@ -63,8 +63,8 @@
 #define	PMAPFILE	"/tmp/portmap.file"
 #endif
 
-static bool_t write_struct __P((char *, xdrproc_t, void *));
-static bool_t read_struct __P((char *, xdrproc_t, void *));
+static bool_t write_struct(char *, xdrproc_t, void *);
+static bool_t read_struct(char *, xdrproc_t, void *);
 
 static bool_t
 write_struct(char *filename, xdrproc_t structproc, void *list)

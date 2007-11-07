@@ -70,9 +70,9 @@ static struct sockaddr_in *local_in4;
 static struct sockaddr_in6 *local_in6;
 #endif
 
-static int bitmaskcmp __P((void *, void *, void *, int));
+static int bitmaskcmp(void *, void *, void *, int);
 #ifdef INET6
-static void in6_fillscopeid __P((struct sockaddr_in6 *));
+static void in6_fillscopeid(struct sockaddr_in6 *);
 #endif
 
 /*

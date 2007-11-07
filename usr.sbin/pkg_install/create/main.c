@@ -48,7 +48,7 @@ enum zipper	Zipper  = GZIP;
 #endif
 
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)

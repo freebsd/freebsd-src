@@ -112,13 +112,13 @@ char *tcp_uaddr;	/* Universal TCP address */
 static char servname[] = "rpcbind";
 static char superuser[] = "superuser";
 
-int main __P((int, char *[]));
+int main(int, char *[]);
 
-static int init_transport __P((struct netconfig *));
-static void rbllist_add __P((rpcprog_t, rpcvers_t, struct netconfig *,
-			     struct netbuf *));
-static void terminate __P((int));
-static void parseargs __P((int, char *[]));
+static int init_transport(struct netconfig *);
+static void rbllist_add(rpcprog_t, rpcvers_t, struct netconfig *,
+			     struct netbuf *);
+static void terminate(int);
+static void parseargs(int, char *[]);
 
 int
 main(int argc, char *argv[])

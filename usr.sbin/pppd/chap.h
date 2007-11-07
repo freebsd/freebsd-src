@@ -115,8 +115,8 @@ typedef struct chap_state {
 
 extern chap_state chap[];
 
-void ChapAuthWithPeer __P((int, char *, int));
-void ChapAuthPeer __P((int, char *, int));
+void ChapAuthWithPeer(int, char *, int);
+void ChapAuthPeer(int, char *, int);
 
 extern struct protent chap_protent;
 

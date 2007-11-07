@@ -29,8 +29,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "pppd.h"
 #include "magic.h"
 
-extern long mrand48 __P((void));
-extern void srand48 __P((long));
+extern long mrand48(void);
+extern void srand48(long);
 
 /*
  * magic_init - Initialize the magic number generator.
