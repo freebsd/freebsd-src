@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/* $FreeBSD$*/
+/* $FreeBSD$ */
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
@@ -135,7 +135,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /*
  * This parameter controls the duration of transmit watchdog timer.
  */
-#define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
+#define EM_TX_TIMEOUT                   10    /* set to 10 seconds */
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -281,7 +281,8 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
-	struct mtx	mtx;
+	struct mtx	core_mtx;
+	struct mtx	tx_mtx;
 	int		em_insert_vlan_header;
 	struct task     link_task;
 	struct task     rxtx_task;
@@ -291,7 +292,6 @@ struct adapter {
 	int		has_manage;
 
 	/* Info about the board itself */
-	uint32_t	part_num;
 	uint8_t		link_active;
 	uint16_t	link_speed;
 	uint16_t	link_duplex;
@@ -420,11 +420,17 @@ typedef struct _DESCRIPTOR_PAIR
 	uint32_t   elements;
 } DESC_ARRAY, *PDESC_ARRAY;
 
-#define	EM_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
-#define	EM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
-#define	EM_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	EM_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	EM_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
+#define	EM_CORE_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->core_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	EM_TX_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->tx_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
+#define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
+#define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
+#define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
+#define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
+#define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
+#define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
 #endif /* _EM_H_DEFINED_ */
