@@ -146,6 +146,8 @@ _rl_arg_dispatch (cxt, c)
 	  rl_restore_prompt ();
 	  rl_clear_message ();
 	  RL_UNSETSTATE(RL_STATE_NUMERICARG);
+	  if (key < 0)
+	    return -1;
 	  return (_rl_dispatch (key, _rl_keymap));
 	}
     }
