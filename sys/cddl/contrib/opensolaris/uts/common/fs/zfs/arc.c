@@ -2804,12 +2804,12 @@ arc_init(void)
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "
 		    "expect unstable behavior.\n");
-	} else if (kmem_size() < 256 * (1 << 20)) {
-		printf("ZFS WARNING: Recommended minimum kmem_size is 256MB; "
+	} else if (kmem_size() < 512 * (1 << 20)) {
+		printf("ZFS WARNING: Recommended minimum kmem_size is 512MB; "
 		    "expect unstable behavior.\n");
-		printf("             Consider tuning vm.kmem_size or "
-		    "vm.kmem_size_min\n");
-		printf("             in /boot/loader.conf.\n");
+		printf("	     Consider tuning vm.kmem_size and "
+		    "vm.kmem_size_max\n");
+		printf("	     in /boot/loader.conf.\n");
 	}
 #endif
 }
