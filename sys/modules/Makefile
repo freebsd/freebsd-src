@@ -23,6 +23,7 @@ SUBDIR=	${_3dfx} \
 	${_arcmsr} \
 	${_arcnet} \
 	${_arl} \
+	${_asmc} \
 	${_asr} \
 	ata \
 	${_ath} \
@@ -434,6 +435,7 @@ _acpi=		acpi
 _ahb=		ahb
 _arcmsr=	arcmsr
 _arl=		arl
+_asmc=		asmc
 _asr=		asr
 _bios=		bios
 _ciss=		ciss
@@ -485,6 +487,7 @@ _acpi=		acpi
 _agp=		agp
 _an=		an
 _arcmsr=	arcmsr
+_asmc=		asmc
 _ath=		ath
 _ath_hal=	ath_hal
 _ath_rate_amrr=	ath_rate_amrr

@@ -148,6 +148,7 @@ dev/ar/if_ar_isa.c		optional ar isa
 dev/ar/if_ar_pci.c		optional ar pci
 dev/arl/if_arl.c		optional arl
 dev/arl/if_arl_isa.c		optional arl isa
+dev/asmc/asmc.c			optional asmc isa
 dev/atkbdc/atkbd.c		optional atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional atkbd atkbdc
 dev/atkbdc/atkbdc.c		optional atkbdc
