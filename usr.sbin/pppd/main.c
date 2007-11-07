@@ -111,27 +111,27 @@ char *no_ppp_msg = "Sorry - this system lacks PPP kernel support\n";
 
 /* Prototypes for procedures local to this file. */
 
-static void create_pidfile __P((void));
-static void cleanup __P((void));
-static void close_tty __P((void));
-static void get_input __P((void));
-static void calltimeout __P((void));
-static struct timeval *timeleft __P((struct timeval *));
-static void kill_my_pg __P((int));
-static void hup __P((int));
-static void term __P((int));
-static void chld __P((int));
-static void toggle_debug __P((int));
-static void open_ccp __P((int));
-static void bad_signal __P((int));
-static void holdoff_end __P((void *));
-static int device_script __P((char *, int, int));
-static void reap_kids __P((void));
-static void pr_log __P((void *, char *, ...));
+static void create_pidfile(void);
+static void cleanup(void);
+static void close_tty(void);
+static void get_input(void);
+static void calltimeout(void);
+static struct timeval *timeleft(struct timeval *);
+static void kill_my_pg(int);
+static void hup(int);
+static void term(int);
+static void chld(int);
+static void toggle_debug(int);
+static void open_ccp(int);
+static void bad_signal(int);
+static void holdoff_end(void *);
+static int device_script(char *, int, int);
+static void reap_kids(void);
+static void pr_log(void *, char *, ...);
 
-extern	char	*ttyname __P((int));
-extern	char	*getlogin __P((void));
-int main __P((int, char *[]));
+extern	char	*ttyname(int);
+extern	char	*getlogin(void);
+int main(int, char *[]);
 
 #ifdef ultrix
 #undef	O_NONBLOCK
@@ -849,7 +849,7 @@ close_tty()
 struct	callout {
     struct timeval	c_time;		/* time at which to call routine */
     void		*c_arg;		/* argument to routine */
-    void		(*c_func) __P((void *)); /* routine */
+    void		(*c_func)(void *); /* routine */
     struct		callout *c_next;
 };
 
@@ -864,7 +864,7 @@ static struct timeval timenow;		/* Current time */
  */
 void
 timeout(func, arg, time)
-    void (*func) __P((void *));
+    void (*func)(void *);
     void *arg;
     int time;
 {
@@ -904,7 +904,7 @@ timeout(func, arg, time)
  */
 void
 untimeout(func, arg)
-    void (*func) __P((void *));
+    void (*func)(void *);
     void *arg;
 {
     struct callout **copp, *freep;
@@ -1288,7 +1288,7 @@ void
 format_packet(p, len, printer, arg)
     u_char *p;
     int len;
-    void (*printer) __P((void *, char *, ...));
+    void (*printer)(void *, char *, ...);
     void *arg;
 {
     int i, n;
@@ -1356,7 +1356,7 @@ void
 print_string(p, len, printer, arg)
     char *p;
     int len;
-    void (*printer) __P((void *, char *, ...));
+    void (*printer)(void *, char *, ...);
     void *arg;
 {
     int c;

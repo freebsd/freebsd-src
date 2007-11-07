@@ -51,8 +51,8 @@ static FILE *fp;
 
 extern struct ifinfo *iflist;
 
-static void dump_interface_status __P((void));
-static char *sec2str __P((time_t));
+static void dump_interface_status(void);
+static char *sec2str(time_t);
 char *ifstatstr[] = {"IDLE", "DELAY", "PROBE", "DOWN", "TENTATIVE"};
 
 static void

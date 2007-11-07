@@ -71,7 +71,7 @@ static struct fdlist *fdhead;	/* Link list of the check fd's */
 static struct fdlist *fdtail;
 static char *nullstring = "";
 
-static bool_t check_bound __P((struct fdlist *, char *uaddr));
+static bool_t check_bound(struct fdlist *, char *uaddr);
 
 /*
  * Returns 1 if the given address is bound for the given addr & transport

@@ -40,7 +40,7 @@ static const char rcsid[] =
 #include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 
-static void    usage __P((char *));
+static void    usage(char *);
 
 int
 enabler_main(argc, argv)

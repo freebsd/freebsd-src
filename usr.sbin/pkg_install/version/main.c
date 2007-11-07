@@ -35,7 +35,7 @@ Boolean RegexExtended = FALSE;
 Boolean UseINDEXOnly = FALSE;
 Boolean ShowOrigin = FALSE;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)

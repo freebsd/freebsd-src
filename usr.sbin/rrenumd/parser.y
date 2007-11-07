@@ -64,10 +64,10 @@ u_int retry;
 char errbuf[LINE_MAX];
 
 extern int lineno;
-extern void yyerror __P((const char *s));
-extern int yylex __P((void));
-static struct payload_list * pllist_lookup __P((int seqnum));
-static void pllist_enqueue __P((struct payload_list *pl_entry));
+extern void yyerror(const char *s);
+extern int yylex(void);
+static struct payload_list * pllist_lookup(int seqnum);
+static void pllist_enqueue(struct payload_list *pl_entry);
 
 #define MAX_RETRYNUM 10 /* upper limit of retry in this rrenumd program */
 #define MAX_SEQNUM 256 /* upper limit of seqnum in this rrenumd program */

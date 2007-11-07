@@ -69,9 +69,9 @@ static time_t prefix_timo = (60 * 120);	/* 2 hours.
 					 * XXX: should be configurable. */
 extern struct rainfo *ralist;
 
-static struct rtadvd_timer *prefix_timeout __P((void *));
-static void makeentry __P((char *, size_t, int, char *));
-static int getinet6sysctl __P((int));
+static struct rtadvd_timer *prefix_timeout(void *);
+static void makeentry(char *, size_t, int, char *);
+static int getinet6sysctl(int);
 
 void
 getconfig(intface)

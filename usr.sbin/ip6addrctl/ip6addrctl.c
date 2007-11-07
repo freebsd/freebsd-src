@@ -61,17 +61,17 @@ struct policyqueue {
 TAILQ_HEAD(policyhead, policyqueue);
 struct policyhead policyhead;
 
-static void usage __P((void));
-static void get_policy __P((void));
-static void dump_policy __P((void));
-static int mask2plen __P((struct sockaddr_in6 *));
-static int parse_prefix __P((const char *, struct in6_addrpolicy *));
-static void make_policy_fromfile __P((char *));
-static void plen2mask __P((struct sockaddr_in6 *, int));
-static void set_policy __P((void));
-static void add_policy __P((char *, char *, char *));
-static void delete_policy __P((char *));
-static void flush_policy __P(());
+static void usage(void);
+static void get_policy(void);
+static void dump_policy(void);
+static int mask2plen(struct sockaddr_in6 *);
+static int parse_prefix(const char *, struct in6_addrpolicy *);
+static void make_policy_fromfile(char *);
+static void plen2mask(struct sockaddr_in6 *, int);
+static void set_policy(void);
+static void add_policy(char *, char *, char *);
+static void delete_policy(char *);
+static void flush_policy();
 
 int
 main(argc, argv)

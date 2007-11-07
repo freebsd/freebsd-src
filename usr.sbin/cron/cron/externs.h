@@ -1,3 +1,5 @@
+/*	$FreeBSD$	*/
+
 /* Copyright 1993,1994 by Paul Vixie
  * All rights reserved
  *
@@ -71,7 +73,7 @@ extern	void		*malloc(), *realloc();
  * external variables needed for the interface.
  */
 #if (!defined(BSD) || (BSD < 198911)) && !defined(ATT) && !defined(UNICOS)
-int	getopt __P((int, char * const *, const char *));
+int	getopt(int, char * const *, const char *);
 #endif
 
 #if (!defined(BSD) || (BSD < 199103))
@@ -109,19 +111,19 @@ extern	int optind, opterr, optopt;
 #endif
 
 #ifdef NEED_STRCASECMP
-extern	int		strcasecmp __P((char *, char *));
+extern	int		strcasecmp(char *, char *);
 #endif
 
 #ifdef NEED_STRDUP
-extern	char		*strdup __P((char *));
+extern	char		*strdup(char *);
 #endif
 
 #ifdef NEED_STRERROR
-extern	char		*strerror __P((int));
+extern	char		*strerror(int);
 #endif
 
 #ifdef NEED_FLOCK
-extern	int		flock __P((int, int));
+extern	int		flock(int, int);
 # define LOCK_SH 1
 # define LOCK_EX 2
 # define LOCK_NB 4
@@ -129,17 +131,17 @@ extern	int		flock __P((int, int));
 #endif
 
 #ifdef NEED_SETSID
-extern	int		setsid __P((void));
+extern	int		setsid(void);
 #endif
 
 #ifdef NEED_GETDTABLESIZE
-extern	int		getdtablesize __P((void));
+extern	int		getdtablesize(void);
 #endif
 
 #ifdef NEED_SETENV
-extern	int		setenv __P((char *, char *, int));
+extern	int		setenv(char *, char *, int);
 #endif
 
 #ifdef NEED_VFORK
-extern	PID_T		vfork __P((void));
+extern	PID_T		vfork(void);
 #endif

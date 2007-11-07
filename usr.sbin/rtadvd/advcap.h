@@ -36,10 +36,10 @@
 
 __BEGIN_DECLS
 
-extern int agetent __P((char *, const char *));
-extern int agetflag __P((const char *));
-extern int64_t agetnum __P((const char *));
-extern char *agetstr __P((const char *, char **));
+extern int agetent(char *, const char *);
+extern int agetflag(const char *);
+extern int64_t agetnum(const char *);
+extern char *agetstr(const char *, char **);
 
 __END_DECLS
 

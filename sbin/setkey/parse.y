@@ -64,25 +64,25 @@ time_t p_lt_hard, p_lt_soft;
 
 static int p_aiflags = 0, p_aifamily = PF_UNSPEC;
 
-static struct addrinfo *parse_addr __P((char *, char *));
-static int fix_portstr __P((vchar_t *, vchar_t *, vchar_t *));
-static int setvarbuf __P((char *, int *, struct sadb_ext *, int, caddr_t, int));
-void parse_init __P((void));
-void free_buffer __P((void));
+static struct addrinfo *parse_addr(char *, char *);
+static int fix_portstr(vchar_t *, vchar_t *, vchar_t *);
+static int setvarbuf(char *, int *, struct sadb_ext *, int, caddr_t, int);
+void parse_init(void);
+void free_buffer(void);
 
-int setkeymsg0 __P((struct sadb_msg *, unsigned int, unsigned int, size_t));
-static int setkeymsg_spdaddr __P((unsigned int, unsigned int, vchar_t *,
-	struct addrinfo *, int, struct addrinfo *, int));
-static int setkeymsg_addr __P((unsigned int, unsigned int,
-	struct addrinfo *, struct addrinfo *, int));
-static int setkeymsg_add __P((unsigned int, unsigned int,
-	struct addrinfo *, struct addrinfo *));
-extern int setkeymsg __P((char *, size_t *));
-extern int sendkeymsg __P((char *, size_t));
+int setkeymsg0(struct sadb_msg *, unsigned int, unsigned int, size_t);
+static int setkeymsg_spdaddr(unsigned int, unsigned int, vchar_t *,
+	struct addrinfo *, int, struct addrinfo *, int);
+static int setkeymsg_addr(unsigned int, unsigned int,
+	struct addrinfo *, struct addrinfo *, int);
+static int setkeymsg_add(unsigned int, unsigned int,
+	struct addrinfo *, struct addrinfo *);
+extern int setkeymsg(char *, size_t *);
+extern int sendkeymsg(char *, size_t);
 
-extern int yylex __P((void));
-extern void yyfatal __P((const char *));
-extern void yyerror __P((const char *));
+extern int yylex(void);
+extern void yyfatal(const char *);
+extern void yyerror(const char *);
 %}
 
 %union {

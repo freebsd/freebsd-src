@@ -54,9 +54,9 @@ extern int justquit;
 static int dictate;
 static int slvcount;			/* slaves listening to our clock */
 
-static void mchgdate __P((struct tsp *));
+static void mchgdate(struct tsp *);
 
-extern void logwtmp __P((char *, char *, char *));
+extern void logwtmp(char *, char *, char *);
 
 /*
  * The main function of `master' is to periodically compute the differences

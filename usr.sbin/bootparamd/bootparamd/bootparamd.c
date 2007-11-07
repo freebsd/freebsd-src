@@ -40,8 +40,8 @@ static char askname[MAX_MACHINE_NAME];
 static char path[MAX_PATH_LEN];
 static char domain_name[MAX_MACHINE_NAME];
 
-int getthefile __P((char *, char *, char *, int));
-int checkhost __P((char *, char *, int));
+int getthefile(char *, char *, char *, int);
+int checkhost(char *, char *, int);
 
 bp_whoami_res *
 bootparamproc_whoami_1_svc(whoami, req)

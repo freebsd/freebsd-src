@@ -130,27 +130,27 @@ strnodelist *bl_list;
 strnodelist *keep_list;
 strnodelist *skip_list;
 
-void do_file __P((filenode *fnode));
-void strnode_add __P((strnodelist **, char *, filenode *));
-int skip_ok __P((filenode *fnode));
-int keep_ok __P((filenode *fnode));
-void satisfy_req __P((f_reqnode *rnode, char *filename));
-void crunch_file __P((char *));
-void parse_require __P((filenode *, char *));
-void parse_provide __P((filenode *, char *));
-void parse_before __P((filenode *, char *));
-void parse_keywords __P((filenode *, char *));
-filenode *filenode_new __P((char *));
-void add_require __P((filenode *, char *));
-void add_provide __P((filenode *, char *));
-void add_before __P((filenode *, char *));
-void add_keyword __P((filenode *, char *));
-void insert_before __P((void));
-Hash_Entry *make_fake_provision __P((filenode *));
-void crunch_all_files __P((void));
-void initialize __P((void));
-void generate_ordering __P((void));
-int main __P((int, char *[]));
+void do_file(filenode *fnode);
+void strnode_add(strnodelist **, char *, filenode *);
+int skip_ok(filenode *fnode);
+int keep_ok(filenode *fnode);
+void satisfy_req(f_reqnode *rnode, char *filename);
+void crunch_file(char *);
+void parse_require(filenode *, char *);
+void parse_provide(filenode *, char *);
+void parse_before(filenode *, char *);
+void parse_keywords(filenode *, char *);
+filenode *filenode_new(char *);
+void add_require(filenode *, char *);
+void add_provide(filenode *, char *);
+void add_before(filenode *, char *);
+void add_keyword(filenode *, char *);
+void insert_before(void);
+Hash_Entry *make_fake_provision(filenode *);
+void crunch_all_files(void);
+void initialize(void);
+void generate_ordering(void);
+int main(int, char *[]);
 
 int
 main(argc, argv)

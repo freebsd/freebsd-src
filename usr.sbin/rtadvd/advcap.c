@@ -87,15 +87,15 @@ static	char *remotefile;
 
 extern char *conffile;
 
-int tgetent __P((char *, char *));
-int getent __P((char *, char *, char *));
-int tnchktc __P((void));
-int tnamatch __P((char *));
-static char *tskip __P((char *));
-int64_t tgetnum __P((char *));
-int tgetflag __P((char *));
-char *tgetstr __P((char *, char **));
-static char *tdecode __P((char *, char **));
+int tgetent(char *, char *);
+int getent(char *, char *, char *);
+int tnchktc(void);
+int tnamatch(char *);
+static char *tskip(char *);
+int64_t tgetnum(char *);
+int tgetflag(char *);
+char *tgetstr(char *, char **);
+static char *tdecode(char *, char **);
 
 /*
  * Get an entry for terminal name in buffer bp,
