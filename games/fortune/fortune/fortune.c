@@ -263,7 +263,7 @@ int
 fortlen()
 {
 	int	nchar;
-	char		line[BUFSIZ];
+	char	line[BUFSIZ];
 
 	if (!(Fortfile->tbl.str_flags & (STR_RANDOM | STR_ORDERED)))
 		nchar = (int)(Seekpts[1] - Seekpts[0]);
@@ -392,8 +392,8 @@ int	file_cnt;
 			}
 			Fortunes_only = FALSE;
 			if (!i) {
-			  fprintf(stderr, "No fortunes found in %s.\n",
-				  Fortune_path);
+				fprintf(stderr, "No fortunes found in %s.\n",
+				    Fortune_path);
 			}
 			return i != 0;
 		} else {
@@ -404,8 +404,8 @@ int	file_cnt;
 					      &File_list, &File_tail, NULL);
 			}
 			if (!i) {
-			  fprintf(stderr, "No fortunes found in %s.\n",
-				  Fortune_path);
+				fprintf(stderr, "No fortunes found in %s.\n",
+				    Fortune_path);
 			}
 			return i != 0;
 		}
@@ -451,9 +451,9 @@ int	file_cnt;
 					      &File_list, &File_tail, NULL);
 			}
 			if (!i) {
-			  fprintf(stderr, "No fortunes found in %s.\n",
-				  Fortune_path);
-			  return FALSE;
+				fprintf(stderr, "No fortunes found in %s.\n",
+				    Fortune_path);
+				return FALSE;
 			}
 		} else if (!add_file(percent, sp, NULL, &File_list, 
 				     &File_tail, NULL)) {
@@ -470,7 +470,7 @@ int	file_cnt;
 int
 add_file(percent, file, dir, head, tail, parent)
 int		percent;
-char	*file;
+char		*file;
 char		*dir;
 FILEDESC	**head, **tail;
 FILEDESC	*parent;
@@ -540,8 +540,8 @@ over:
 					      head, tail, parent);
 			}
 			if (!i) {
-			  fprintf(stderr, "No '%s' found in %s.\n",
-				  file, Fortune_path);
+				fprintf(stderr, "No '%s' found in %s.\n",
+				    file, Fortune_path);
 			}
 			return i != 0;
 		}
@@ -667,7 +667,7 @@ char	*file;
 void
 all_forts(fp, offensive)
 FILEDESC	*fp;
-char			*offensive;
+char		*offensive;
 {
 	char		*sp;
 	FILEDESC	*scene, *obscene;
@@ -720,8 +720,8 @@ FILEDESC	*fp;
 {
 	DIR		*dir;
 	struct dirent	*dirent;
-	auto FILEDESC		*tailp;
-	auto char		*name;
+	auto FILEDESC	*tailp;
+	auto char	*name;
 
 	(void) close(fp->fd);
 	fp->fd = -1;
@@ -1427,13 +1427,15 @@ usage()
 void
 getpath(void)
 {
-	int nstr;
-	char *pch, **ppch, *str, *path;
+	int	nstr, foundenv;
+	char	*pch, **ppch, *str, *path;
 
+	foundenv = 1;
 	Fortune_path = getenv("FORTUNE_PATH");
-	
-	if (Fortune_path == NULL)
-		Fortune_path = "";
+	if (Fortune_path == NULL) {
+		Fortune_path = FORTDIR;
+		foundenv = 0;
+	}
 	path = strdup(Fortune_path);
 
 	for (nstr = 2, pch = path; *pch != '\0'; pch++) {
@@ -1452,11 +1454,15 @@ getpath(void)
 		}
 		str = strtok(NULL, ":");
 	}
+
 	if (nstr == 0) {
+		if (foundenv == 1) {
+			fprintf(stderr,
+			    "fortune: FORTUNE_PATH: None of the specified "
+			    "directories found.\n");
+			exit(1);
+		}
 		free(path);
 		Fortune_path_arr[0] = FORTDIR;
-		if (strlen(Fortune_path))
-			fprintf(stderr,
-			    "Ignoring FORTUNE_PATH; no directories found.\n");
 	}
 }
