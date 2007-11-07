@@ -446,7 +446,7 @@ kmem_alloc_wait(map, size)
 			return (0);
 		}
 		map->needs_wakeup = TRUE;
-		vm_map_unlock_and_wait(map, FALSE);
+		vm_map_unlock_and_wait(map, 0);
 	}
 	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
