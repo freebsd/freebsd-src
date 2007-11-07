@@ -887,6 +887,13 @@ rl_vi_domove (key, nextkey)
   RL_SETSTATE(RL_STATE_MOREINPUT);
   c = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
+  if (c < 0)
+    {
+      *nextkey = 0;
+      return -1;
+    }
+
   *nextkey = c;
 
   if (!member (c, vi_motion))
@@ -903,6 +910,11 @@ rl_vi_domove (key, nextkey)
 	  RL_SETSTATE(RL_STATE_MOREINPUT);
 	  c = rl_read_key ();	/* real command */
 	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+	  if (c < 0)
+	    {
+	      *nextkey = 0;
+	      return -1;
+	    }
 	  *nextkey = c;
 	}
       else if (key == c && (key == 'd' || key == 'y' || key == 'c'))
@@ -1225,12 +1237,20 @@ static int
 _rl_vi_callback_char_search (data)
      _rl_callback_generic_arg *data;
 {
+  int c;
 #if defined (HANDLE_MULTIBYTE)
-  _rl_vi_last_search_mblen = _rl_read_mbchar (_rl_vi_last_search_mbchar, MB_LEN_MAX);
+  c = _rl_vi_last_search_mblen = _rl_read_mbchar (_rl_vi_last_search_mbchar, MB_LEN_MAX);
 #else
   RL_SETSTATE(RL_STATE_MOREINPUT);
-  _rl_vi_last_search_char = rl_read_key ();
+  c = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
+#endif
+
+  if (c <= 0)
+    return -1;
+
+#if !defined (HANDLE_MULTIBYTE)
+  _rl_vi_last_search_char = c;
 #endif
 
   _rl_callback_func = 0;
@@ -1248,6 +1268,7 @@ int
 rl_vi_char_search (count, key)
      int count, key;
 {
+  int c;
 #if defined (HANDLE_MULTIBYTE)
   static char *target;
   static int tlen;
@@ -1294,11 +1315,17 @@ rl_vi_char_search (count, key)
       else
 	{
 #if defined (HANDLE_MULTIBYTE)
-	  _rl_vi_last_search_mblen = _rl_read_mbchar (_rl_vi_last_search_mbchar, MB_LEN_MAX);
+	  c = _rl_read_mbchar (_rl_vi_last_search_mbchar, MB_LEN_MAX);
+	  if (c <= 0)
+	    return -1;
+	  _rl_vi_last_search_mblen = c;
 #else
 	  RL_SETSTATE(RL_STATE_MOREINPUT);
-	  _rl_vi_last_search_char = rl_read_key ();
+	  c = rl_read_key ();
 	  RL_UNSETSTATE(RL_STATE_MOREINPUT);
+	  if (c < 0)
+	    return -1;
+	  _rl_vi_last_search_char = c;
 #endif
 	}
     }
@@ -1468,6 +1495,9 @@ _rl_vi_callback_getchar (mb, mlen)
   c = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
+  if (c < 0)
+    return -1;
+
 #if defined (HANDLE_MULTIBYTE)
   if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
     c = _rl_read_mbstring (c, mb, mlen);
@@ -1485,6 +1515,9 @@ _rl_vi_callback_change_char (data)
   char mb[MB_LEN_MAX];
 
   _rl_vi_last_replacement = c = _rl_vi_callback_getchar (mb, MB_LEN_MAX);
+
+  if (c < 0)
+    return -1;
 
   _rl_callback_func = 0;
   _rl_want_redisplay = 1;
@@ -1516,6 +1549,9 @@ rl_vi_change_char (count, key)
 #endif
   else
     _rl_vi_last_replacement = c = _rl_vi_callback_getchar (mb, MB_LEN_MAX);
+
+  if (c < 0)
+    return -1;
 
   return (_rl_vi_change_char (count, c, mb));
 }
@@ -1651,7 +1687,7 @@ _rl_vi_set_mark ()
   ch = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
-  if (ch < 'a' || ch > 'z')
+  if (ch < 0 || ch < 'a' || ch > 'z')	/* make test against 0 explicit */
     {
       rl_ding ();
       return -1;
@@ -1703,7 +1739,7 @@ _rl_vi_goto_mark ()
       rl_point = rl_mark;
       return 0;
     }
-  else if (ch < 'a' || ch > 'z')
+  else if (ch < 0 || ch < 'a' || ch > 'z')	/* make test against 0 explicit */
     {
       rl_ding ();
       return -1;
