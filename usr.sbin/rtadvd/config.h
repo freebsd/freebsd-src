@@ -30,13 +30,13 @@
  * SUCH DAMAGE.
  */
 
-extern void getconfig __P((char *));
-extern void delete_prefix __P((struct prefix *));
-extern void invalidate_prefix __P((struct prefix *));
-extern void update_prefix __P((struct prefix *));
-extern void make_prefix __P((struct rainfo *, int, struct in6_addr *, int));
-extern void make_packet __P((struct rainfo *));
-extern void get_prefix __P((struct rainfo *));
+extern void getconfig(char *);
+extern void delete_prefix(struct prefix *);
+extern void invalidate_prefix(struct prefix *);
+extern void update_prefix(struct prefix *);
+extern void make_prefix(struct rainfo *, int, struct in6_addr *, int);
+extern void make_packet(struct rainfo *);
+extern void get_prefix(struct rainfo *);
 
 
 /*

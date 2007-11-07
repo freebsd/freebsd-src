@@ -64,13 +64,13 @@
 		       : sizeof(u_long)))
 
 #ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
-static int rtsock_input_ifannounce __P((int, struct rt_msghdr *, char *));
+static int rtsock_input_ifannounce(int, struct rt_msghdr *, char *);
 #endif
 
 static struct {
 	u_char type;
 	size_t minlen;
-	int (*func) __P((int, struct rt_msghdr *, char *));
+	int (*func)(int, struct rt_msghdr *, char *);
 } rtsock_dispatch[] = {
 #ifdef RTM_IFANNOUNCE	/*NetBSD 1.5 or later*/
 	{ RTM_IFANNOUNCE, sizeof(struct if_announcemsghdr),

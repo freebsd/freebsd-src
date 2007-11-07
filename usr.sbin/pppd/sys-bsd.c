@@ -114,8 +114,8 @@ static u_int32_t default_route_gateway;	/* gateway addr for default route */
 static u_int32_t proxy_arp_addr;	/* remote addr for proxy arp */
 
 /* Prototypes for procedures local to this file. */
-static int dodefaultroute __P((u_int32_t, int));
-static int get_ether_addr __P((u_int32_t, struct sockaddr_dl *));
+static int dodefaultroute(u_int32_t, int);
+static int get_ether_addr(u_int32_t, struct sockaddr_dl *);
 
 
 /*

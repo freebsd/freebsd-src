@@ -87,7 +87,7 @@ int hide_syms(const char *filename);
 
 int verbose;
 
-int main __P((int, char *[]));
+int main(int, char *[]);
 
 int main(argc, argv)
 int argc;

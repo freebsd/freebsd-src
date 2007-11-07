@@ -151,11 +151,11 @@ struct	rainfo {
 	struct soliciter *soliciter;	/* recent solication source */
 };
 
-struct rtadvd_timer *ra_timeout __P((void *));
-void ra_timer_update __P((void *, struct timeval *));
+struct rtadvd_timer *ra_timeout(void *);
+void ra_timer_update(void *, struct timeval *);
 
-int prefix_match __P((struct in6_addr *, int, struct in6_addr *, int));
-struct rainfo *if_indextorainfo __P((int));
-struct prefix *find_prefix __P((struct rainfo *, struct in6_addr *, int));
+int prefix_match(struct in6_addr *, int, struct in6_addr *, int);
+struct rainfo *if_indextorainfo(int);
+struct prefix *find_prefix(struct rainfo *, struct in6_addr *, int);
 
 extern struct in6_addr in6a_site_allrouters;

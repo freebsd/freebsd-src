@@ -129,26 +129,26 @@ static int passwd_from_file;
 #define CHAP_WITHPEER	4
 #define CHAP_PEER	8
 
-extern char *crypt __P((const char *, const char *));
+extern char *crypt(const char *, const char *);
 
 /* Prototypes for procedures local to this file. */
 
-static void network_phase __P((int));
-static void check_idle __P((void *));
-static void connect_time_expired __P((void *));
-static int  plogin __P((char *, char *, char **, int *));
-static void plogout __P((void));
-static int  null_login __P((int));
-static int  get_pap_passwd __P((char *));
-static int  have_pap_secret __P((void));
-static int  have_chap_secret __P((char *, char *, u_int32_t));
-static int  ip_addr_check __P((u_int32_t, struct wordlist *));
-static int  scan_authfile __P((FILE *, char *, char *, u_int32_t, char *,
-			       struct wordlist **, char *));
-static void free_wordlist __P((struct wordlist *));
-static void auth_set_ip_addr __P((int));
-static void auth_script __P((char *));
-static void set_allowed_addrs __P((int, struct wordlist *));
+static void network_phase(int);
+static void check_idle(void *);
+static void connect_time_expired(void *);
+static int  plogin(char *, char *, char **, int *);
+static void plogout(void);
+static int  null_login(int);
+static int  get_pap_passwd(char *);
+static int  have_pap_secret(void);
+static int  have_chap_secret(char *, char *, u_int32_t);
+static int  ip_addr_check(u_int32_t, struct wordlist *);
+static int  scan_authfile(FILE *, char *, char *, u_int32_t, char *,
+			       struct wordlist **, char *);
+static void free_wordlist(struct wordlist *);
+static void auth_set_ip_addr(int);
+static void auth_script(char *);
+static void set_allowed_addrs(int, struct wordlist *);
 
 /*
  * An Open on LCP has requested a change from Dead to Establish phase.

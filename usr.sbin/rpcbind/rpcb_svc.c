@@ -53,10 +53,10 @@
 
 #include "rpcbind.h"
 
-static void *rpcbproc_getaddr_3_local __P((void *, struct svc_req *, SVCXPRT *,
-					   rpcvers_t));
-static void *rpcbproc_dump_3_local __P((void *, struct svc_req *, SVCXPRT *,
-					rpcvers_t));
+static void *rpcbproc_getaddr_3_local(void *, struct svc_req *, SVCXPRT *,
+					   rpcvers_t);
+static void *rpcbproc_dump_3_local(void *, struct svc_req *, SVCXPRT *,
+					rpcvers_t);
 
 /*
  * Called by svc_getreqset. There is a separate server handle for
@@ -75,7 +75,7 @@ rpcb_service_3(struct svc_req *rqstp, SVCXPRT *transp)
 	} argument;
 	char *result;
 	xdrproc_t xdr_argument, xdr_result;
-	void *(*local) __P((void *, struct svc_req *, SVCXPRT *, rpcvers_t));
+	void *(*local)(void *, struct svc_req *, SVCXPRT *, rpcvers_t);
 
 	rpcbs_procinfo(RPCBVERS_3_STAT, rqstp->rq_proc);
 

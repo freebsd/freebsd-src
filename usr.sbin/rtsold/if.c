@@ -63,8 +63,8 @@
 extern int rssock;
 static int ifsock;
 
-static int get_llflag __P((const char *));
-static void get_rtaddrs __P((int, struct sockaddr *, struct sockaddr **));
+static int get_llflag(const char *);
+static void get_rtaddrs(int, struct sockaddr *, struct sockaddr **);
 
 int
 ifinit(void)

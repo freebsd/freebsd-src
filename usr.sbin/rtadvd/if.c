@@ -63,9 +63,9 @@ int iflist_init_ok;
 size_t ifblock_size;
 char *ifblock;
 
-static void get_iflist __P((char **buf, size_t *size));
-static void parse_iflist __P((struct if_msghdr ***ifmlist_p, char *buf,
-		       size_t bufsize));
+static void get_iflist(char **buf, size_t *size);
+static void parse_iflist(struct if_msghdr ***ifmlist_p, char *buf,
+		       size_t bufsize);
 
 static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)

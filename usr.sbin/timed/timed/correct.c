@@ -44,7 +44,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/times.h>
 
-static void adjclock __P((struct timeval *));
+static void adjclock(struct timeval *);
 
 /*
  * sends to the slaves the corrections for their clocks after fixing our

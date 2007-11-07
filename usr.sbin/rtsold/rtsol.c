@@ -75,8 +75,8 @@ int rssock;
 static struct sockaddr_in6 sin6_allrouters =
 {sizeof(sin6_allrouters), AF_INET6};
 
-static void call_script __P((char *, char *));
-static int safefile __P((const char *));
+static void call_script(char *, char *);
+static int safefile(const char *);
 
 int
 sockopen(void)

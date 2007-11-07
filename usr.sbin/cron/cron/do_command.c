@@ -38,8 +38,8 @@ static const char rcsid[] =
 #endif
 
 
-static void		child_process __P((entry *, user *)),
-			do_univ __P((user *));
+static void		child_process(entry *, user *),
+			do_univ(user *);
 
 
 void

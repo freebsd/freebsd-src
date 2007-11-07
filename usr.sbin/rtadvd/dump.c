@@ -61,8 +61,8 @@ static FILE *fp;
 
 extern struct rainfo *ralist;
 
-static char *ether_str __P((struct sockaddr_dl *));
-static void if_dump __P((void));
+static char *ether_str(struct sockaddr_dl *);
+static void if_dump(void);
 
 static char *rtpref_str[] = {
 	"medium",		/* 00 */

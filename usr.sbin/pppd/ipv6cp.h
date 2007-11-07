@@ -126,4 +126,4 @@ extern ipv6cp_options ipv6cp_hisoptions[];
 
 extern struct protent ipv6cp_protent;
 
-extern int setifaceid __P((char **arg));
+extern int setifaceid(char **arg);

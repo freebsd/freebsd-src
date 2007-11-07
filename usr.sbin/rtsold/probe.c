@@ -60,7 +60,7 @@
 static struct msghdr sndmhdr;
 static struct iovec sndiov[2];
 static int probesock;
-static void sendprobe __P((struct in6_addr *, struct ifinfo *));
+static void sendprobe(struct in6_addr *, struct ifinfo *);
 
 int
 probe_init(void)

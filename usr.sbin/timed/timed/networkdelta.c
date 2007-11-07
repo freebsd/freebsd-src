@@ -41,7 +41,7 @@ static const char rcsid[] =
 
 #include "globals.h"
 
-static long median __P((float, float *, long *, long *, unsigned int));
+static long median(float, float *, long *, long *, unsigned int);
 
 /*
  * Compute a corrected date.

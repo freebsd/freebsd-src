@@ -120,8 +120,8 @@ static int	*socksetup(int _af, int _debuglvl);
 static void	 usage(void);
 
 /* XXX from libc/net/rcmd.c */
-extern int __ivaliduser_sa __P((FILE *, struct sockaddr *, socklen_t,
-				const char *, const char *));
+extern int __ivaliduser_sa(FILE *, struct sockaddr *, socklen_t,
+				const char *, const char *);
 
 uid_t	uid, euid;
 

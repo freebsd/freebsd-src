@@ -37,7 +37,7 @@ struct sockaddr_in my_addr;
 char *bootpfile = "/etc/bootparams";
 
 extern  void bootparamprog_1();
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)

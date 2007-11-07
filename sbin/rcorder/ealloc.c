@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$NetBSD: ealloc.c,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $	*/
 
 /*
@@ -50,7 +51,7 @@ __RCSID("$NetBSD: ealloc.c,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $");
 
 #include "ealloc.h"
 
-static void enomem __P((void));
+static void enomem(void);
 
 /*
  * enomem --
