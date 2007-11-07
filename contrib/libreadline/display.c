@@ -1519,11 +1519,31 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
     {
       /* Non-zero if we're increasing the number of lines. */
       int gl = current_line >= _rl_vis_botlin && inv_botlin > _rl_vis_botlin;
+      /* If col_lendiff is > 0, implying that the new string takes up more
+	 screen real estate than the old, but lendiff is < 0, meaning that it
+	 takes fewer bytes, we need to just output the characters starting
+	 from the first difference.  These will overwrite what is on the
+	 display, so there's no reason to do a smart update.  This can really
+	 only happen in a multibyte environment. */
+      if (lendiff < 0)
+	{
+	  _rl_output_some_chars (nfd, temp);
+	  _rl_last_c_pos += _rl_col_width (nfd, 0, temp);
+	  /* If nfd begins before any invisible characters in the prompt,
+	     adjust _rl_last_c_pos to account for wrap_offset and set
+	     cpos_adjusted to let the caller know. */
+	  if (current_line == 0 && wrap_offset && ((nfd - new) <= prompt_last_invisible))
+	    {
+	      _rl_last_c_pos -= wrap_offset;
+	      cpos_adjusted = 1;
+	    }
+	  return;
+	}
       /* Sometimes it is cheaper to print the characters rather than
 	 use the terminal's capabilities.  If we're growing the number
 	 of lines, make sure we actually cause the new line to wrap
 	 around on auto-wrapping terminals. */
-      if (_rl_terminal_can_insert && ((2 * col_temp) >= col_lendiff || _rl_term_IC) && (!_rl_term_autowrap || !gl))
+      else if (_rl_terminal_can_insert && ((2 * col_temp) >= col_lendiff || _rl_term_IC) && (!_rl_term_autowrap || !gl))
 	{
 	  /* If lendiff > prompt_visible_length and _rl_last_c_pos == 0 and
 	     _rl_horizontal_scroll_mode == 1, inserting the characters with
@@ -1599,8 +1619,22 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	  temp = nls - nfd;
 	  if (temp > 0)
 	    {
+	      /* If nfd begins at the prompt, or before the invisible
+		 characters in the prompt, we need to adjust _rl_last_c_pos
+		 in a multibyte locale to account for the wrap offset and
+		 set cpos_adjusted accordingly. */
 	      _rl_output_some_chars (nfd, temp);
-	      _rl_last_c_pos += _rl_col_width (nfd, 0, temp);;
+	      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		{
+                  _rl_last_c_pos += _rl_col_width (nfd, 0, temp);
+                  if (current_line == 0 && wrap_offset &&  ((nfd - new) <= prompt_last_invisible))
+		    {
+		      _rl_last_c_pos -= wrap_offset;
+		      cpos_adjusted = 1;
+		    }
+		}
+              else
+                _rl_last_c_pos += temp;
 	    }
 	}
       /* Otherwise, print over the existing material. */
@@ -1608,8 +1642,20 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	{
 	  if (temp > 0)
 	    {
+	      /* If nfd begins at the prompt, or before the invisible
+		 characters in the prompt, we need to adjust _rl_last_c_pos
+		 in a multibyte locale to account for the wrap offset and
+		 set cpos_adjusted accordingly. */
 	      _rl_output_some_chars (nfd, temp);
 	      _rl_last_c_pos += col_temp;		/* XXX */
+	      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		{
+		  if (current_line == 0 && wrap_offset &&  ((nfd - new) <= prompt_last_invisible))
+		    {
+		      _rl_last_c_pos -= wrap_offset;
+		      cpos_adjusted = 1;
+		    }
+		}
 	    }
 	  lendiff = (oe - old) - (ne - new);
 	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
@@ -1745,7 +1791,10 @@ _rl_move_cursor_relative (new, data)
   if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
     {
       dpos = _rl_col_width (data, 0, new);
-      if (dpos > prompt_last_invisible)		/* XXX - don't use woff here */
+      /* Use NEW when comparing against the last invisible character in the
+	 prompt string, since they're both buffer indices and DPOS is a
+	 desired display position. */
+      if (new > prompt_last_invisible)		/* XXX - don't use woff here */
 	{
 	  dpos -= woff;
 	  /* Since this will be assigned to _rl_last_c_pos at the end (more
