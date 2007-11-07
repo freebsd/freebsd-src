@@ -38,6 +38,7 @@
  */
 
 #include <sys/types.h>
+#include "runefile.h"
 
 /*
  * This should look a LOT like a _RuneEntry
