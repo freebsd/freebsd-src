@@ -128,6 +128,7 @@ struct ifbreq {
 	uint8_t		ifbr_proto;		/* member if STP protocol */
 	uint8_t		ifbr_role;		/* member if STP role */
 	uint8_t		ifbr_state;		/* member if STP state */
+	uint8_t		pad[44];
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */
