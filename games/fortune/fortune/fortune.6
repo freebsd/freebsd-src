@@ -167,6 +167,15 @@ is equivalent to
 .Bd -literal -offset indent
 fortune 50% funny 50% not-funny
 .Ed
+.Sh ENVIRONMENT
+.Bl -tag -width Pa -compact
+.It FORTUNE_PATH
+The search path for the data files. It is a colon-separated list
+of directories in which
+.Nm
+looks for data files. If not set it will default to /usr/games/fortune.
+If none of the directories specified exist, it will print a warning and exit.
+.El
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /usr/games/fortune
