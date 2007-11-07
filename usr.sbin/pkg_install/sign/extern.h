@@ -45,19 +45,19 @@ extern int quiet;
 extern char *userkey;
 
 /* common.c */
-extern int read_header_and_diagnose __P((FILE *file, \
+extern int read_header_and_diagnose(FILE *file, \
 	/*@out@*/struct mygzip_header *h, /*@null@*/struct signature **sign, \
-	const char *filename));
-extern int reap __P((pid_t pid));
+	const char *filename);
+extern int reap(pid_t pid);
 
 /* sign.c */
-extern int sign __P((/*@observer@*/const char *filename, int type, \
-	/*@null@*/const char *userid, char *envp[]));
+extern int sign(/*@observer@*/const char *filename, int type, \
+	/*@null@*/const char *userid, char *envp[]);
 
 /* check.c */
-extern int check_signature __P((/*@dependent@*/FILE *file, \
+extern int check_signature(/*@dependent@*/FILE *file, \
 	/*@null@*/const char *userid, char *envp[], \
-	/*@observer@*/const char *filename));
+	/*@observer@*/const char *filename);
 
 #define PKG_BADSIG 0
 #define PKG_GOODSIG 1
@@ -72,29 +72,29 @@ typedef /*@observer@*/char *pchar;
 /* sha1.c */
 #define SHA1_DB_NAME	"/var/db/pkg/SHA1"
 
-extern void *new_sha1_checker __P((struct mygzip_header *h, \
+extern void *new_sha1_checker(struct mygzip_header *h, \
 	struct signature *sign, const char *userid, char *envp[], \
-	const char *filename));
+	const char *filename);
 
-extern void sha1_add __P((void *arg, const char *buffer, \
-	size_t length));
+extern void sha1_add(void *arg, const char *buffer, \
+	size_t length);
 
-extern int sha1_sign_ok __P((void *arg));
+extern int sha1_sign_ok(void *arg);
 
-extern int retrieve_sha1_marker __P((const char *filename, \
-	struct signature **sign, const char *userid));
+extern int retrieve_sha1_marker(const char *filename, \
+	struct signature **sign, const char *userid);
 
 /* x509.c */
 #define X509_DB_NAME	"/var/db/pkg/X509"
 
-extern void *new_x509_checker __P((struct mygzip_header *h, \
+extern void *new_x509_checker(struct mygzip_header *h, \
 	struct signature *sign, const char *userid, char *envp[], \
-	const char *filename));
+	const char *filename);
 
-extern void x509_add __P((void *arg, const char *buffer, \
-	size_t length));
+extern void x509_add(void *arg, const char *buffer, \
+	size_t length);
 
-extern int x509_sign_ok __P((void *arg));
+extern int x509_sign_ok(void *arg);
 
-extern int retrieve_x509_marker __P((const char *filename, \
-	struct signature **sign, const char *userid));
+extern int retrieve_x509_marker(const char *filename, \
+	struct signature **sign, const char *userid);

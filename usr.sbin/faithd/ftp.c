@@ -67,11 +67,11 @@ static int epsvall = 0;
 
 enum state { NONE, LPRT, EPRT, LPSV, EPSV };
 
-static int ftp_activeconn __P((void));
-static int ftp_passiveconn __P((void));
-static int ftp_copy __P((int, int));
-static int ftp_copyresult __P((int, int, enum state));
-static int ftp_copycommand __P((int, int, enum state *));
+static int ftp_activeconn(void);
+static int ftp_passiveconn(void);
+static int ftp_copy(int, int);
+static int ftp_copyresult(int, int, enum state);
+static int ftp_copycommand(int, int, enum state *);
 
 void
 ftp_relay(int ctl6, int ctl4)

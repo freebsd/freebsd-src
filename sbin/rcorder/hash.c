@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$NetBSD: hash.c,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $	*/
 
 /*
@@ -76,7 +77,7 @@ __RCSID("$NetBSD: hash.c,v 1.1.1.1 1999/11/19 04:30:56 mrg Exp $");
  * defined:
  */
 
-static void RebuildTable __P((Hash_Table *));
+static void RebuildTable(Hash_Table *);
 
 /*
  * The following defines the ratio of # entries to # buckets

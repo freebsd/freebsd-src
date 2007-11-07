@@ -47,11 +47,11 @@
 #include "faithd.h"
 #include "prefix.h"
 
-static int prefix_set __P((const char *, struct prefix *, int));
-static struct config *config_load1 __P((const char *));
+static int prefix_set(const char *, struct prefix *, int);
+static struct config *config_load1(const char *);
 #if 0
-static void config_show1 __P((const struct config *));
-static void config_show __P((void));
+static void config_show1(const struct config *);
+static void config_show(void);
 #endif
 
 struct config *config_list = NULL;

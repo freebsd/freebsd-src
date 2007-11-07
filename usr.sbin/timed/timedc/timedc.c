@@ -63,7 +63,7 @@ int	fromatty;
 char	*margv[MAX_MARGV];
 char	cmdline[200];
 jmp_buf	toplevel;
-static struct cmd *getcmd __P((char *));
+static struct cmd *getcmd(char *);
 
 int
 main(argc, argv)

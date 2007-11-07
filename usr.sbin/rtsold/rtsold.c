@@ -80,7 +80,7 @@ char *otherconf_script;
  */
 #define PROBE_INTERVAL 60
 
-int main __P((int, char **));
+int main(int, char **);
 
 /* static variables and functions */
 static int mobile_node = 0;
@@ -93,15 +93,15 @@ static char *pidfilename = "/var/run/rtsold.pid"; /* should be configurable */
 #endif
 
 #if 0
-static int ifreconfig __P((char *));
+static int ifreconfig(char *);
 #endif
-static int make_packet __P((struct ifinfo *));
-static struct timeval *rtsol_check_timer __P((void));
+static int make_packet(struct ifinfo *);
+static struct timeval *rtsol_check_timer(void);
 
 #ifndef SMALL
-static void rtsold_set_dump_file __P((int));
+static void rtsold_set_dump_file(int);
 #endif
-static void usage __P((char *));
+static void usage(char *);
 
 int
 main(int argc, char **argv)

@@ -37,7 +37,7 @@ Boolean	NoDeInstall	= FALSE;
 Boolean	Recursive	= FALSE;
 match_t	MatchType	= MATCH_GLOB;
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(int argc, char **argv)

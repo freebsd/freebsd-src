@@ -69,7 +69,7 @@ static char rcsid[] = "$FreeBSD$";
 #define TRUE	1
 
 #if defined(ultrix) || defined(NeXT)
-char *strdup __P((char *));
+char *strdup(char *);
 #endif
 
 #ifndef GIDSET_TYPE
@@ -138,146 +138,146 @@ pcap_t  pc;			/* Fake struct pcap so we can compile expr */
 /*
  * Prototypes
  */
-static int setdevname __P((char *, int));
-static int setspeed __P((char *));
-static int setdebug __P((char **));
-static int setkdebug __P((char **));
-static int setpassive __P((char **));
-static int setsilent __P((char **));
-static int noopt __P((char **));
-static int setnovj __P((char **));
-static int setnovjccomp __P((char **));
-static int setvjslots __P((char **));
-static int reqpap __P((char **));
-static int nopap __P((char **));
+static int setdevname(char *, int);
+static int setspeed(char *);
+static int setdebug(char **);
+static int setkdebug(char **);
+static int setpassive(char **);
+static int setsilent(char **);
+static int noopt(char **);
+static int setnovj(char **);
+static int setnovjccomp(char **);
+static int setvjslots(char **);
+static int reqpap(char **);
+static int nopap(char **);
 #ifdef OLD_OPTIONS
-static int setupapfile __P((char **));
+static int setupapfile(char **);
 #endif
-static int nochap __P((char **));
-static int reqchap __P((char **));
-static int noaccomp __P((char **));
-static int noasyncmap __P((char **));
-static int noip __P((char **));
-static int nomagicnumber __P((char **));
-static int setasyncmap __P((char **));
-static int setescape __P((char **));
-static int setmru __P((char **));
-static int setmtu __P((char **));
+static int nochap(char **);
+static int reqchap(char **);
+static int noaccomp(char **);
+static int noasyncmap(char **);
+static int noip(char **);
+static int nomagicnumber(char **);
+static int setasyncmap(char **);
+static int setescape(char **);
+static int setmru(char **);
+static int setmtu(char **);
 #ifdef CBCP_SUPPORT
-static int setcbcp __P((char **));
+static int setcbcp(char **);
 #endif
-static int nomru __P((char **));
-static int nopcomp __P((char **));
-static int setconnector __P((char **));
-static int setdisconnector __P((char **));
-static int setwelcomer __P((char **));
-static int setmaxcon __P((char **));
-static int setmaxconnect __P((char **));
-static int setdomain __P((char **));
-static int setnetmask __P((char **));
-static int setcrtscts __P((char **));
-static int setnocrtscts __P((char **));
-static int setxonxoff __P((char **));
-static int setnodetach __P((char **));
-static int setupdetach __P((char **));
-static int setmodem __P((char **));
-static int setlocal __P((char **));
-static int setlock __P((char **));
-static int setname __P((char **));
-static int setuser __P((char **));
-static int setremote __P((char **));
-static int setauth __P((char **));
-static int setnoauth __P((char **));
-static int readfile __P((char **));
-static int callfile __P((char **));
-static int setdefaultroute __P((char **));
-static int setnodefaultroute __P((char **));
-static int setproxyarp __P((char **));
-static int setnoproxyarp __P((char **));
-static int setpersist __P((char **));
-static int setnopersist __P((char **));
-static int setdologin __P((char **));
-static int setusehostname __P((char **));
-static int setnoipdflt __P((char **));
-static int setlcptimeout __P((char **));
-static int setlcpterm __P((char **));
-static int setlcpconf __P((char **));
-static int setlcpfails __P((char **));
-static int setipcptimeout __P((char **));
-static int setipcpterm __P((char **));
-static int setipcpconf __P((char **));
-static int setipcpfails __P((char **));
-static int setpaptimeout __P((char **));
-static int setpapreqs __P((char **));
-static int setpapreqtime __P((char **));
-static int setchaptimeout __P((char **));
-static int setchapchal __P((char **));
-static int setchapintv __P((char **));
-static int setipcpaccl __P((char **));
-static int setipcpaccr __P((char **));
-static int setlcpechointv __P((char **));
-static int setlcpechofails __P((char **));
-static int noccp __P((char **));
-static int setbsdcomp __P((char **));
-static int setnobsdcomp __P((char **));
-static int setdeflate __P((char **));
-static int setnodeflate __P((char **));
-static int setnodeflatedraft __P((char **));
-static int setdemand __P((char **));
-static int setpred1comp __P((char **));
-static int setnopred1comp __P((char **));
-static int setipparam __P((char **));
-static int setpapcrypt __P((char **));
-static int setidle __P((char **));
-static int setholdoff __P((char **));
-static int setdnsaddr __P((char **));
-static int resetipv6proto __P((char **));
-static int resetipxproto __P((char **));
-static int setwinsaddr __P((char **));
-static int showversion __P((char **));
-static int showhelp __P((char **));
+static int nomru(char **);
+static int nopcomp(char **);
+static int setconnector(char **);
+static int setdisconnector(char **);
+static int setwelcomer(char **);
+static int setmaxcon(char **);
+static int setmaxconnect(char **);
+static int setdomain(char **);
+static int setnetmask(char **);
+static int setcrtscts(char **);
+static int setnocrtscts(char **);
+static int setxonxoff(char **);
+static int setnodetach(char **);
+static int setupdetach(char **);
+static int setmodem(char **);
+static int setlocal(char **);
+static int setlock(char **);
+static int setname(char **);
+static int setuser(char **);
+static int setremote(char **);
+static int setauth(char **);
+static int setnoauth(char **);
+static int readfile(char **);
+static int callfile(char **);
+static int setdefaultroute(char **);
+static int setnodefaultroute(char **);
+static int setproxyarp(char **);
+static int setnoproxyarp(char **);
+static int setpersist(char **);
+static int setnopersist(char **);
+static int setdologin(char **);
+static int setusehostname(char **);
+static int setnoipdflt(char **);
+static int setlcptimeout(char **);
+static int setlcpterm(char **);
+static int setlcpconf(char **);
+static int setlcpfails(char **);
+static int setipcptimeout(char **);
+static int setipcpterm(char **);
+static int setipcpconf(char **);
+static int setipcpfails(char **);
+static int setpaptimeout(char **);
+static int setpapreqs(char **);
+static int setpapreqtime(char **);
+static int setchaptimeout(char **);
+static int setchapchal(char **);
+static int setchapintv(char **);
+static int setipcpaccl(char **);
+static int setipcpaccr(char **);
+static int setlcpechointv(char **);
+static int setlcpechofails(char **);
+static int noccp(char **);
+static int setbsdcomp(char **);
+static int setnobsdcomp(char **);
+static int setdeflate(char **);
+static int setnodeflate(char **);
+static int setnodeflatedraft(char **);
+static int setdemand(char **);
+static int setpred1comp(char **);
+static int setnopred1comp(char **);
+static int setipparam(char **);
+static int setpapcrypt(char **);
+static int setidle(char **);
+static int setholdoff(char **);
+static int setdnsaddr(char **);
+static int resetipv6proto(char **);
+static int resetipxproto(char **);
+static int setwinsaddr(char **);
+static int showversion(char **);
+static int showhelp(char **);
 
 #ifdef PPP_FILTER
-static int setpdebug __P((char **));
-static int setpassfilter __P((char **));
-static int setactivefilter __P((char **));
+static int setpdebug(char **);
+static int setpassfilter(char **);
+static int setactivefilter(char **);
 #endif
 
 #ifdef INET6
-static int setipv6cp_accept_local __P((char **));
-static int setipv6cp_use_ip __P((char **));
+static int setipv6cp_accept_local(char **);
+static int setipv6cp_use_ip(char **);
 #if defined(SOL2)
-static int setipv6cp_use_persistent __P((char **));
+static int setipv6cp_use_persistent(char **);
 #endif
-static int setipv6cptimeout __P((char **));
-static int setipv6cpterm __P((char **));
-static int setipv6cpconf __P((char **));
-static int setipv6cpfails __P((char **));
-static int setipv6proto __P((char **));
+static int setipv6cptimeout(char **);
+static int setipv6cpterm(char **);
+static int setipv6cpconf(char **);
+static int setipv6cpfails(char **);
+static int setipv6proto(char **);
 #endif /* INET6 */
 
 #ifdef IPX_CHANGE
-static int setipxproto __P((char **));
-static int setipxanet __P((char **));
-static int setipxalcl __P((char **));
-static int setipxarmt __P((char **));
-static int setipxnetwork __P((char **));
-static int setipxnode __P((char **));
-static int setipxrouter __P((char **));
-static int setipxname __P((char **));
-static int setipxcptimeout __P((char **));
-static int setipxcpterm __P((char **));
-static int setipxcpconf __P((char **));
-static int setipxcpfails __P((char **));
+static int setipxproto(char **);
+static int setipxanet(char **);
+static int setipxalcl(char **);
+static int setipxarmt(char **);
+static int setipxnetwork(char **);
+static int setipxnode(char **);
+static int setipxrouter(char **);
+static int setipxname(char **);
+static int setipxcptimeout(char **);
+static int setipxcpterm(char **);
+static int setipxcpconf(char **);
+static int setipxcpfails(char **);
 #endif /* IPX_CHANGE */
 
 #ifdef MSLANMAN
-static int setmslanman __P((char **));
+static int setmslanman(char **);
 #endif
 
-static int number_option __P((char *, u_int32_t *, int));
-static int int_option __P((char *, int *));
-static int readable __P((int fd));
+static int number_option(char *, u_int32_t *, int);
+static int int_option(char *, int *);
+static int readable(int fd);
 
 /*
  * Valid arguments.
@@ -285,7 +285,7 @@ static int readable __P((int fd));
 static struct cmd {
     char *cmd_name;
     int num_args;
-    int (*cmd_func) __P((char **));
+    int (*cmd_func)(char **);
 } cmds[] = {
     {"-all", 0, noopt},		/* Don't request/allow any options (useless) */
     {"noaccomp", 0, noaccomp},	/* Disable Address/Control compression */

@@ -46,20 +46,20 @@ struct rtadvd_timer {
 	struct rainfo *rai;
 	struct timeval tm;
 
-	struct rtadvd_timer *(*expire) __P((void *)); /* expiration function */
+	struct rtadvd_timer *(*expire)(void *);	/* expiration function */
 	void *expire_data;
-	void (*update) __P((void *, struct timeval *));	/* update function */
+	void (*update)(void *, struct timeval *);	/* update function */
 	void *update_data;
 };
 
-void rtadvd_timer_init __P((void));
-struct rtadvd_timer *rtadvd_add_timer __P((struct rtadvd_timer *(*) __P((void *)),
-		void (*) __P((void *, struct timeval *)), void *, void *));
-void rtadvd_set_timer __P((struct timeval *, struct rtadvd_timer *));
-void rtadvd_remove_timer __P((struct rtadvd_timer **));
-struct timeval * rtadvd_check_timer __P((void));
-struct timeval * rtadvd_timer_rest __P((struct rtadvd_timer *));
-void TIMEVAL_ADD __P((struct timeval *, struct timeval *,
-		      struct timeval *));
-void TIMEVAL_SUB __P((struct timeval *, struct timeval *,
-		      struct timeval *));
+void rtadvd_timer_init(void);
+struct rtadvd_timer *rtadvd_add_timer(struct rtadvd_timer *(*)(void *),
+		void (*)(void *, struct timeval *), void *, void *);
+void rtadvd_set_timer(struct timeval *, struct rtadvd_timer *);
+void rtadvd_remove_timer(struct rtadvd_timer **);
+struct timeval * rtadvd_check_timer(void);
+struct timeval * rtadvd_timer_rest(struct rtadvd_timer *);
+void TIMEVAL_ADD(struct timeval *, struct timeval *,
+		      struct timeval *);
+void TIMEVAL_SUB(struct timeval *, struct timeval *,
+		      struct timeval *);

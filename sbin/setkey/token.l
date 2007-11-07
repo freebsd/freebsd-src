@@ -57,12 +57,12 @@ extern u_char m_buf[BUFSIZ];
 extern u_int m_len;
 extern int f_debug;
 
-int yylex __P((void));
-void yyfatal __P((const char *s));
-void yyerror __P((const char *s));
-extern void parse_init __P((void));
-int parse __P((FILE **));
-int yyparse __P((void));
+int yylex(void);
+void yyfatal(const char *s);
+void yyerror(const char *s);
+extern void parse_init(void);
+int parse(FILE **);
+int yyparse(void);
 %}
 
 /* common section */

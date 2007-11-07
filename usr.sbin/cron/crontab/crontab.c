@@ -63,13 +63,13 @@ static	FILE		*NewCrontab;
 static	int		CheckErrorCount;
 static	enum opt_t	Option;
 static	struct passwd	*pw;
-static	void		list_cmd __P((void)),
-			delete_cmd __P((void)),
-			edit_cmd __P((void)),
-			poke_daemon __P((void)),
-			check_error __P((char *)),
-			parse_args __P((int c, char *v[]));
-static	int		replace_cmd __P((void));
+static	void		list_cmd(void),
+			delete_cmd(void),
+			edit_cmd(void),
+			poke_daemon(void),
+			check_error(char *),
+			parse_args(int c, char *v[]);
+static	int		replace_cmd(void);
 
 
 static void

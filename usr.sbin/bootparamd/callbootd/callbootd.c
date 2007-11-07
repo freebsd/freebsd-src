@@ -33,9 +33,9 @@ char cln[MAX_MACHINE_NAME+1];
 char dmn[MAX_MACHINE_NAME+1];
 char path[MAX_PATH_LEN+1];
 extern char *inet_ntoa();
-static void usage __P((void));
-int printgetfile __P((bp_getfile_res *));
-int printwhoami __P((bp_whoami_res *));
+static void usage(void);
+int printgetfile(bp_getfile_res *);
+int printwhoami(bp_whoami_res *);
 
 bool_t
 eachres_whoami(resultp, raddr)

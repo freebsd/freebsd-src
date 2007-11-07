@@ -33,9 +33,9 @@ static const char rcsid[] =
 #define TMAX(a,b) ((a)>(b)?(a):(b))
 
 
-static	void		process_crontab __P((char *, char *, char *,
+static	void		process_crontab(char *, char *, char *,
 					     struct stat *,
-					     cron_db *, cron_db *));
+					     cron_db *, cron_db *);
 
 
 void

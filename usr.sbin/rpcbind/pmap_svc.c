@@ -59,11 +59,11 @@ static	char sccsid[] = "@(#)pmap_svc.c 1.23 89/04/05 Copyr 1984 Sun Micro";
 #endif
 #include "rpcbind.h"
 
-static struct pmaplist *find_service_pmap __P((rpcprog_t, rpcvers_t,
-					       rpcprot_t));
-static bool_t pmapproc_change __P((struct svc_req *, SVCXPRT *, u_long));
-static bool_t pmapproc_getport __P((struct svc_req *, SVCXPRT *));
-static bool_t pmapproc_dump __P((struct svc_req *, SVCXPRT *));
+static struct pmaplist *find_service_pmap(rpcprog_t, rpcvers_t,
+					       rpcprot_t);
+static bool_t pmapproc_change(struct svc_req *, SVCXPRT *, u_long);
+static bool_t pmapproc_getport(struct svc_req *, SVCXPRT *);
+static bool_t pmapproc_dump(struct svc_req *, SVCXPRT *);
 
 /*
  * Called for all the version 2 inquiries.
