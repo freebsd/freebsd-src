@@ -133,8 +133,11 @@ rl_get_char (key)
     return (0);
 
   *key = ibuffer[pop_index++];
-
+#if 0
   if (pop_index >= ibuffer_len)
+#else
+  if (pop_index > ibuffer_len)
+#endif
     pop_index = 0;
 
   return (1);
@@ -250,7 +253,8 @@ rl_gather_tyi ()
       while (chars_avail--)
 	{
 	  k = (*rl_getc_function) (rl_instream);
-	  rl_stuff_char (k);
+	  if (rl_stuff_char (k) == 0)
+	    break;			/* some problem; no more room */
 	  if (k == NEWLINE || k == RETURN)
 	    break;
 	}
@@ -373,7 +377,11 @@ rl_stuff_char (key)
       RL_SETSTATE (RL_STATE_INPUTPENDING);
     }
   ibuffer[push_index++] = key;
+#if 0
   if (push_index >= ibuffer_len)
+#else
+  if (push_index > ibuffer_len)
+#endif
     push_index = 0;
 
   return 1;
@@ -513,19 +521,25 @@ _rl_read_mbchar (mbchar, size)
      char *mbchar;
      int size;
 {
-  int mb_len = 0;
+  int mb_len, c;
   size_t mbchar_bytes_length;
   wchar_t wc;
   mbstate_t ps, ps_back;
 
   memset(&ps, 0, sizeof (mbstate_t));
   memset(&ps_back, 0, sizeof (mbstate_t));
-  
+
+  mb_len = 0;  
   while (mb_len < size)
     {
       RL_SETSTATE(RL_STATE_MOREINPUT);
-      mbchar[mb_len++] = rl_read_key ();
+      c = rl_read_key ();
       RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
+      if (c < 0)
+	break;
+
+      mbchar[mb_len++] = c;
 
       mbchar_bytes_length = mbrtowc (&wc, mbchar, mb_len, &ps);
       if (mbchar_bytes_length == (size_t)(-1))
@@ -564,7 +578,7 @@ _rl_read_mbstring (first, mb, mlen)
 
   c = first;
   memset (mb, 0, mlen);
-  for (i = 0; i < mlen; i++)
+  for (i = 0; c >= 0 && i < mlen; i++)
     {
       mb[i] = (char)c;
       memset (&ps, 0, sizeof (mbstate_t));
