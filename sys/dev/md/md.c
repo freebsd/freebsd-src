@@ -60,6 +60,7 @@
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
+#include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -181,6 +182,7 @@ struct md_s {
 	struct g_geom *gp;
 	struct g_provider *pp;
 	int (*start)(struct md_s *sc, struct bio *bp);
+	struct devstat *devstat;
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
@@ -392,6 +394,8 @@ g_md_start(struct bio *bp)
 	struct md_s *sc;
 
 	sc = bp->bio_to->geom->softc;
+	if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
+		devstat_start_transaction_bio(sc->devstat, bp);
 	mtx_lock(&sc->queue_mtx);
 	bioq_disksort(&sc->bio_queue, bp);
 	mtx_unlock(&sc->queue_mtx);
@@ -725,6 +729,8 @@ md_kthread(void *arg)
 		if (error != -1) {
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, error);
+			if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
+				devstat_end_transaction_bio(sc->devstat, bp);
 		}
 	}
 }
@@ -792,6 +798,8 @@ mdinit(struct md_s *sc)
 	sc->pp = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
+	sc->devstat = devstat_new_entry("md", sc->unit, sc->sectorsize,
+	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 }
 
 /*
@@ -962,6 +970,10 @@ mddestroy(struct md_s *sc, struct thread *td)
 		g_topology_unlock();
 		sc->gp = NULL;
 		sc->pp = NULL;
+	}
+	if (sc->devstat) {
+		devstat_remove_entry(sc->devstat);
+		sc->devstat = NULL;
 	}
 	mtx_lock(&sc->queue_mtx);
 	sc->flags |= MD_SHUTDOWN;
