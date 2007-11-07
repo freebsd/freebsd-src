@@ -645,6 +645,11 @@ _rl_dispatch_callback (cxt)
   if ((cxt->flags & KSEQ_DISPATCHED) == 0)
     {
       nkey = _rl_subseq_getchar (cxt->okey);
+      if (nkey < 0)
+	{
+	  _rl_abort_internal ();
+	  return -1;
+	}
       r = _rl_dispatch_subseq (nkey, cxt->dmap, cxt->subseq_arg);
       cxt->flags |= KSEQ_DISPATCHED;
     }
