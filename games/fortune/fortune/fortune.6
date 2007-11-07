@@ -35,7 +35,7 @@
 .\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd November 7, 2007
 .Dt FORTUNE 6
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@ Epigrams are divided into several categories, where each category
 is subdivided into those which are potentially offensive and those
 which are not.
 The options are as follows:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl a
 Choose from all lists of maxims, both offensive and not.
 (See the
@@ -66,7 +66,8 @@ option for more information on offensive fortunes.)
 .It Fl D
 Enable additional debugging output.
 Specify this option multiple times for more verbose output.
-Only available if compiled with -DDEBUG.
+Only available if compiled with
+.Li -DDEBUG .
 .It Fl e
 Consider all fortune files to be of equal size (see discussion below
 on multiple files).
@@ -75,7 +76,7 @@ Print out the list of files which would be searched, but do not
 print a fortune.
 .It Fl l
 Long dictums only.
-.It Fl m
+.It Fl m Ar pattern
 Print out all fortunes which match the regular expression
 .Ar pattern .
 See
@@ -116,13 +117,13 @@ to guarantee that the message can be read before the screen is cleared.
 The user may specify alternate sayings.
 You can specify a specific file, a directory which contains one or
 more files, or the special word
-.Em all
+.Cm all
 which says to use all the standard databases.
 Any of these may be preceded by a percentage, which is a number
 .Ar N
 between 0 and 100 inclusive, followed by a
-.Ar % .
-If it is, there will be a
+.Ql % .
+If it is, there will be an
 .Ar N
 percent probability that an adage will be picked from that file
 or directory.
@@ -132,61 +133,56 @@ and/or directories, in which case the probability of selecting from
 one of them will be based on their relative sizes.
 .Pp
 As an example, given two databases
-.Em funny
+.Pa funny
 and
-.Em not-funny ,
+.Pa not-funny ,
 with
-.Em funny
+.Pa funny
 twice as big, saying
-.Bd -literal -offset indent
-fortune funny not-funny
-.Ed
+.Pp
+.Dl "fortune funny not-funny"
 .Pp
 will get you fortunes out of
-.Em funny
+.Pa funny
 two-thirds of the time.
 The command
-.Bd -literal -offset indent
-fortune 90% funny 10% not-funny
-.Ed
+.Pp
+.Dl "fortune 90% funny 10% not-funny"
 .Pp
 will pick out 90% of its fortunes from
-.Em funny
+.Pa funny
 (the
-.Dq 10% not-funny
+.Dq Li "10% not-funny"
 is unnecessary, since 10% is all that is left).
 The
 .Fl e
 option says to consider all files equal;
 thus
-.Bd -literal -offset indent
-fortune -e funny not-funny
-.Ed
+.Pp
+.Dl "fortune -e funny not-funny"
 .Pp
 is equivalent to
-.Bd -literal -offset indent
-fortune 50% funny 50% not-funny
-.Ed
+.Pp
+.Dl "fortune 50% funny 50% not-funny"
 .Sh ENVIRONMENT
-.Bl -tag -width Pa -compact
-.It FORTUNE_PATH
-The search path for the data files. It is a colon-separated list
-of directories in which
+.Bl -tag -width ".Ev FORTUNE_PATH"
+.It Ev FORTUNE_PATH
+The search path for the data files.
+It is a colon-separated list of directories in which
 .Nm
-looks for data files. If not set it will default to /usr/games/fortune.
+looks for data files.
+If not set it will default to
+.Pa /usr/games/fortune .
 If none of the directories specified exist, it will print a warning and exit.
 .El
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width ".Pa /usr/share/games/fortune/*"
 .It Pa /usr/games/fortune
-.Pp
 .It Pa /usr/share/games/fortune/*
 the fortunes databases (those files ending
-.Dq -o
+.Dq Pa -o
 contain the
-.Bf -symbolic
-offensive
-.Ef
+.Sy offensive
 fortunes)
 .El
 .Sh SEE ALSO
