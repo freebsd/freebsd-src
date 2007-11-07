@@ -857,6 +857,9 @@ _rl_insert_next (count)
   c = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
+  if (c < 0)
+    return -1;
+
 #if defined (HANDLE_SIGNALS)
   if (RL_ISSTATE (RL_STATE_CALLBACK) == 0)
     _rl_restore_tty_signals ();
@@ -1520,6 +1523,9 @@ _rl_char_search (count, fdir, bdir)
 
   mb_len = _rl_read_mbchar (mbchar, MB_LEN_MAX);
 
+  if (mb_len <= 0)
+    return -1;
+
   if (count < 0)
     return (_rl_char_search_internal (-count, bdir, mbchar, mb_len));
   else
@@ -1535,6 +1541,9 @@ _rl_char_search (count, fdir, bdir)
   RL_SETSTATE(RL_STATE_MOREINPUT);
   c = rl_read_key ();
   RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
+  if (c < 0)
+    return -1;
 
   if (count < 0)
     return (_rl_char_search_internal (-count, bdir, c));
