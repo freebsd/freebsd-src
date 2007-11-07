@@ -26,11 +26,9 @@ else:
 # List of packages for disc1.  This just includes packages sysinstall can
 # install as a distribution
 def disc1_packages():
-    # 5.x only
     pkgs = ['lang/perl5.8']
     pkgs.extend(['x11/xorg',
-                 'x11/xorg-manpages',
-                 'devel/imake-6'])
+                 'devel/imake'])
     if arch == 'i386':
         pkgs.append('emulators/linux_base-fc4')
     return pkgs
@@ -71,21 +69,21 @@ def disc2_packages():
             'net/samba3',
             'news/slrn',
             'news/tin',
+            'ports-mgmt/portupgrade',
             'print/a2ps-letter',
             'print/apsfilter',
             'print/ghostscript-gnu-nox11',
             'print/gv',
             'print/psutils-letter',
-            'shells/bash2',
+            'shells/bash',
             'shells/pdksh',
             'shells/zsh',
             'security/sudo',
-            'sysutils/portupgrade',
             'www/links',
             'www/lynx',
             'x11/rxvt',
             # Formerly on disc3
-            'security/portaudit'])
+            'ports-mgmt/portaudit'])
     return pkgs
 
 # The list of desired packages
