@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm tftp
-.Nd trivial file transfer program
+.Nd "trivial file transfer program"
 .Sh SYNOPSIS
 .Nm
 .Op Ar host Op Ar port
@@ -55,26 +55,28 @@ may be specified on the command line, in which case
 uses
 .Ar host
 as the default host for future transfers (see the
-.Cm connect
+.Ic connect
 command below).
 .Sh COMMANDS
 Once
 .Nm
 is running, it issues the prompt
-.Dq Li tftp>
+.Dq Li "tftp> "
 and recognizes the following commands:
 .Pp
-.Bl -tag -width verbose -compact
-.It Cm \&? Ar command-name ...
+.Bl -tag -width ".Ic verbose" -compact
+.It Ic \&? Ar command-name ...
 Print help information.
 .Pp
-.It Cm ascii
-Shorthand for "mode ascii"
+.It Ic ascii
+Shorthand for
+.Ic mode Cm ascii .
 .Pp
-.It Cm binary
-Shorthand for "mode binary"
+.It Ic binary
+Shorthand for
+.Ic mode Cm binary .
 .Pp
-.It Cm connect Ar host Op Ar port
+.It Ic connect Ar host Op Ar port
 Set the
 .Ar host
 (and optionally
@@ -86,19 +88,19 @@ protocol, unlike the
 .Tn FTP
 protocol,
 does not maintain connections between transfers; thus, the
-.Cm connect
+.Ic connect
 command does not actually create a connection,
 but merely remembers what host is to be used for transfers.
 You do not have to use the
-.Cm connect
+.Ic connect
 command; the remote host can be specified as part of the
-.Cm get
+.Ic get
 or
-.Cm put
+.Ic put
 commands.
 .Pp
-.It Cm get Oo Ar host : Oc Ns Ar file Op Ar localname
-.It Cm get Xo
+.It Ic get Oo Ar host : Oc Ns Ar file Op Ar localname
+.It Ic get Xo
 .Oo Ar host1 : Oc Ns Ar file1
 .Oo Ar host2 : Oc Ns Ar file2 ...
 .Oo Ar hostN : Oc Ns Ar fileN
@@ -124,18 +126,18 @@ to disambiguate the
 colons used in the IPv6 address from the colon separating the host and
 the filename.
 .Pp
-.It Cm mode Ar transfer-mode
+.It Ic mode Ar transfer-mode
 Set the mode for transfers;
 .Ar transfer-mode
 may be one of
-.Em ascii
+.Cm ascii
 or
-.Em binary .
+.Cm binary .
 The default is
-.Em ascii .
+.Cm ascii .
 .Pp
-.It Cm put Ar file Op Oo Ar host : Oc Ns Ar remotename
-.It Cm put Ar file1 file2 ... fileN Op Oo Ar host : Oc Ns Ar remote-directory
+.It Ic put Ar file Op Oo Ar host : Oc Ns Ar remotename
+.It Ic put Ar file1 file2 ... fileN Op Oo Ar host : Oc Ns Ar remote-directory
 Put a file or set of files to the remote host.
 When
 .Ar remotename
@@ -150,27 +152,27 @@ machine.
 To specify an IPv6 numeric address for a
 .Ar host ,
 see the example under the
-.Cm get
+.Ic get
 command.
 .Pp
-.It Cm quit
+.It Ic quit
 Exit
 .Nm .
 An end of file also exits.
 .Pp
-.It Cm rexmt Ar retransmission-timeout
+.It Ic rexmt Ar retransmission-timeout
 Set the per-packet retransmission timeout, in seconds.
 .Pp
-.It Cm status
+.It Ic status
 Show current status.
 .Pp
-.It Cm timeout Ar total-transmission-timeout
+.It Ic timeout Ar total-transmission-timeout
 Set the total transmission timeout, in seconds.
 .Pp
-.It Cm trace
+.It Ic trace
 Toggle packet tracing.
 .Pp
-.It Cm verbose
+.It Ic verbose
 Toggle verbose mode.
 .El
 .Sh HISTORY
