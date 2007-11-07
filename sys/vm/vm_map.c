@@ -536,12 +536,12 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
  *	vm_map_unlock_and_wait:
  */
 int
-vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
+vm_map_unlock_and_wait(vm_map_t map, int timo)
 {
 
 	mtx_lock(&map_sleep_mtx);
 	vm_map_unlock(map);
-	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", 0));
+	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", timo));
 }
 
 /*
@@ -1859,7 +1859,7 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = (start >= entry->start) ? start :
 			    entry->start;
 			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			if (vm_map_unlock_and_wait(map, user_unwire)) {
+			if (vm_map_unlock_and_wait(map, 0)) {
 				/*
 				 * Allow interruption of user unwiring?
 				 */
@@ -2005,7 +2005,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = (start >= entry->start) ? start :
 			    entry->start;
 			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
-			if (vm_map_unlock_and_wait(map, user_wire)) {
+			if (vm_map_unlock_and_wait(map, 0)) {
 				/*
 				 * Allow interruption of user wiring?
 				 */
@@ -2361,7 +2361,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			saved_start = entry->start;
 			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
 			last_timestamp = map->timestamp;
-			(void) vm_map_unlock_and_wait(map, FALSE);
+			(void) vm_map_unlock_and_wait(map, 0);
 			vm_map_lock(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
