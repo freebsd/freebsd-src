@@ -574,8 +574,8 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	if (uap->path == NULL)
 		return (EINVAL);
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    UIO_USERSPACE, uap->path, td);
 	flags = AUDIT_OPEN_FLAGS;
 	error = vn_open(&nd, &flags, 0, -1);
 	if (error)
@@ -583,6 +583,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	vp = nd.ni_vp;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	VOP_UNLOCK(vp, 0, td);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VREG) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
