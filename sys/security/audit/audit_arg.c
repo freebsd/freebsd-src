@@ -619,8 +619,10 @@ audit_arg_file(struct proc *p, struct file *fp)
 		so = (struct socket *)fp->f_data;
 		SOCK_LOCK(so);
 		if (INP_CHECK_SOCKAF(so, PF_INET)) {
-			if (so->so_pcb == NULL)
+			if (so->so_pcb == NULL) {
+				SOCK_UNLOCK(so);
 				return;
+			}
 			ar->k_ar.ar_arg_sockinfo.so_type =
 			    so->so_type;
 			ar->k_ar.ar_arg_sockinfo.so_domain =
@@ -645,7 +647,6 @@ audit_arg_file(struct proc *p, struct file *fp)
 		/* XXXAUDIT: else? */
 		break;
 	}
-
 }
 
 /*
