@@ -338,12 +338,11 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
 	}
 
 	/*
-	 * Signal that replacement have occurred to wake up and
-	 * start any other replacements started in parallel.  We can
-	 * continue about our business in the mean time.  We
-	 * broadcast so that both new replacements can be inserted,
-	 * but also so that the source(s) of replacement can return
-	 * successfully.
+	 * Signal that replacement have occurred to wake up and start any
+	 * other replacements started in parallel.  We can continue about our
+	 * business in the mean time.  We broadcast so that both new
+	 * replacements can be inserted, but also so that the source(s) of
+	 * replacement can return successfully.
 	 */
 	if (do_replacement_signal)
 		cv_broadcast(&audit_replacement_cv);

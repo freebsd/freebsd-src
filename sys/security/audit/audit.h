@@ -48,10 +48,10 @@
 
 /*
  * Audit subsystem condition flags.  The audit_enabled flag is set and
- * removed automatically as a result of configuring log files, and
- * can be observed but should not be directly manipulated.  The audit
- * suspension flag permits audit to be temporarily disabled without
- * reconfiguring the audit target.
+ * removed automatically as a result of configuring log files, and can be
+ * observed but should not be directly manipulated.  The audit suspension
+ * flag permits audit to be temporarily disabled without reconfiguring the
+ * audit target.
  */
 extern int	audit_enabled;
 extern int	audit_suspended;
@@ -121,9 +121,9 @@ void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
 
 /*
- * The remaining kernel functions are conditionally compiled in as they
- * are wrapped by a macro, and the macro should be the only place in
- * the source tree where these functions are referenced.
+ * The remaining kernel functions are conditionally compiled in as they are
+ * wrapped by a macro, and the macro should be the only place in the source
+ * tree where these functions are referenced.
  */
 #ifdef AUDIT
 struct ipc_perm;
@@ -196,7 +196,7 @@ void	 audit_thread_free(struct thread *td);
 
 /*
  * Wrap the audit_syscall_exit() function so that it is called only when
- * auditing is enabled, or we have a audit record on the thread. It is
+ * auditing is enabled, or we have a audit record on the thread.  It is
  * possible that an audit record was begun before auditing was turned off.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
