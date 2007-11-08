@@ -141,12 +141,9 @@ static int
 agp_ali_detach(device_t dev)
 {
 	struct agp_ali_softc *sc = device_get_softc(dev);
-	int error;
 	u_int32_t attbase;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	/* Disable the TLB.. */
 	pci_write_config(dev, AGP_ALI_TLBCTRL, 0x90, 1);
@@ -157,6 +154,7 @@ agp_ali_detach(device_t dev)
 	pci_write_config(dev, AGP_ALI_ATTBASE, attbase & 0xfff, 4);
 
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 	return 0;
 }
 
