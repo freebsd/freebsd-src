@@ -132,7 +132,7 @@ enum {
 	WPI_DEBUG_ANY		= 0xffffffff
 };
 
-int wpi_debug = WPI_DEBUG_SCANNING | WPI_DEBUG_CMD | WPI_DEBUG_NOTIFY;
+int wpi_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, wpi, CTLFLAG_RW, &wpi_debug, 0, "wpi debug level");
 
 #else
