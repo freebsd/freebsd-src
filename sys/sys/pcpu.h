@@ -48,6 +48,15 @@
 struct pcb;
 struct thread;
 
+/* 
+ * XXXUPS remove as soon as we have per cpu variable
+ * linker sets and  can define rm_queue in _rm_lock.h
+*/
+struct rm_queue {
+	struct rm_queue* volatile rmq_next;
+	struct rm_queue* volatile rmq_prev;
+};
+
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
@@ -74,6 +83,15 @@ struct pcpu {
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	struct device	*pc_device;
+
+	/* 
+	 * Stuff for read mostly lock
+	 * 
+	 * XXXUPS remove as soon as we have per cpu variable
+	 * linker sets.
+	 */
+	struct rm_queue  pc_rm_queue; 
+
 };
 
 SLIST_HEAD(cpuhead, pcpu);
@@ -92,6 +110,10 @@ extern struct cpuhead cpuhead;
  * db_show_mdpcpu() is responsible for handling machine dependent
  * fields for the DDB 'show pcpu' command.
  */
+
+extern struct pcpu *cpuid_to_pcpu[MAXCPU];
+
+
 void	cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 void	db_show_mdpcpu(struct pcpu *pcpu);
 

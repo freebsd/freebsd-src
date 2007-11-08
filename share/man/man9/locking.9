@@ -53,6 +53,8 @@ Shared-Exclusive locks
 .It
 Reader-Writer locks
 .It
+Read-Mostly locks
+.It
 Turnstiles
 .It
 Semaphores
@@ -163,6 +165,17 @@ This ability should not be used lightly and
 .Em may go away.
 Users of recursion in any locks should be prepared to 
 defend their decision against vigorous criticism.
+.Ss Rm_locks
+Mostly reader locks are similar to
+.Em Reader/write
+locks but optimized for very infrequent 
+.Em writer
+locking.
+.Em rm_lock
+locks implement full priority propagation by tracking shared owners
+using a lock user supplied
+.Em tracker
+data structure.
 .Ss Sx_locks
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -298,12 +311,13 @@ one of the synchronization primitives discussed here:
 (someone who knows what they are talking about should write this table)
 .Bl -column ".Ic xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
-.Em "You have:  You want:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta sleep
+.Em "You have: You want:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta rm_lock Ta sleep
 .Xc
-.It Ic SPIN mutex  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no-3
-.It Ic Sleep mutex Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&no-3
-.It Ic sx_lock     Ta \&ok Ta \&no Ta \&ok-2 Ta \&no Ta \&ok-4
-.It Ic rw_lock     Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&no-3
+.It Ic SPIN mutex  Ta \&ok-1 Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no-3
+.It Ic Sleep mutex Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
+.It Ic sx_lock     Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
+.It Ic rw_lock     Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
+.It Ic rm_lock     Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
 .El
 .Pp
 .Em *1
@@ -333,16 +347,17 @@ The next table shows what can be used in different contexts.
 At this time this is a rather easy to remember table.
 .Bl -column ".Ic Xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
-.Em "Context:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta sleep
+.Em "Context:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta rm_lock Ta sleep
 .Xc
-.It interrupt:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
-.It idle:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
+.It interrupt:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
+.It idle:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
 .El
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr lock 9 ,
 .Xr mtx_pool 9 ,
 .Xr mutex 9 ,
+.Xr rmlock 9 ,
 .Xr rwlock 9 ,
 .Xr sema 9 ,
 .Xr sleep 9 ,
