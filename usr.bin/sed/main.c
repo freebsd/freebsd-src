@@ -112,7 +112,7 @@ const char *fname;		/* File name. */
 const char *outfname;		/* Output file name */
 static char oldfname[PATH_MAX];	/* Old file name (for in-place editing) */
 static char tmpfname[PATH_MAX];	/* Temporary file name (for in-place editing) */
-const char *inplace;		/* Inplace edit file extension. */
+static const char *inplace;	/* Inplace edit file extension. */
 u_long linenum;
 
 static void add_compunit(enum e_cut, char *);
