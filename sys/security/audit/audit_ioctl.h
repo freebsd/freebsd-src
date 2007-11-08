@@ -48,9 +48,6 @@ struct auditpipe_ioctl_preselect {
  */
 #define	AUDITPIPE_PRESELECT_MODE_TRAIL	1	/* Global audit trail. */
 #define	AUDITPIPE_PRESELECT_MODE_LOCAL	2	/* Local audit trail. */
-#ifdef NOTYET
-#define	AUDITPIPE_PRESELECT_MODE_PRIORITY	3	/* Prioritized trail. */
-#endif
 
 /*
  * Ioctls to read and control the behavior of individual audit pipe devices.
