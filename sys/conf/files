@@ -1445,6 +1445,7 @@ kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard
 kern/kern_resource.c		standard
+kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
 kern/kern_sema.c		standard
 kern/kern_shutdown.c		standard
