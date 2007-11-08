@@ -307,7 +307,7 @@ safe_attach(device_t dev)
 		goto bad4;
 	}
 	if (bus_dma_tag_create(NULL,			/* parent */
-			       sizeof(u_int32_t),	/* alignment */
+			       1,			/* alignment */
 			       SAFE_MAX_DSIZE,		/* boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
