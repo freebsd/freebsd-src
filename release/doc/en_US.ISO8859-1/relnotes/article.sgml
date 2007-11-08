@@ -1448,7 +1448,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>IPFilter</application> has been updated from
-      4.1.13 to 4.1.23.</para>
+      4.1.13 to 4.1.28.</para>
 
     <para><application>less</application> has been updated from v394
       to v409. &merged;</para>
@@ -1489,7 +1489,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>TrustedBSD <application>OpenBSM</application>,
       has been updated from version 1.0 alpha 12 to
-      version 1.0 alpha 15.</para>
+      version 1.0.</para>
 
     <para><application>WPA Supplicant</application>
       has been updated from version 0.3.9 to version 0.5.8.
