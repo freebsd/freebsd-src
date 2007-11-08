@@ -293,7 +293,7 @@ Type(msgvec)
 /*
  * Type out the messages requested.
  */
-jmp_buf	pipestop;
+static jmp_buf	pipestop;
 int
 type1(msgvec, doign, page)
 	int *msgvec;
