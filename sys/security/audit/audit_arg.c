@@ -669,9 +669,6 @@ audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
 	if (ar == NULL)
 		return;
 
-	/*
-	 * XXXAUDIT: Witness warning for possible sleep here?
-	 */
 	KASSERT((flag == ARG_UPATH1) || (flag == ARG_UPATH2),
 	    ("audit_arg_upath: flag %llu", (unsigned long long)flag));
 	KASSERT((flag != ARG_UPATH1) || (flag != ARG_UPATH2),

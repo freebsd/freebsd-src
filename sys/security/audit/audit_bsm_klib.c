@@ -488,6 +488,9 @@ canon_path(struct thread *td, char *path, char *cpath)
 	struct filedesc *fdp;
 	int cisr, error, vfslocked;
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "canon_path() at %s:%d", __FILE__, __LINE__);
+
 	fdp = td->td_proc->p_fd;
 	bufp = path;
 	cisr = 0;
