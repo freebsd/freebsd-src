@@ -412,6 +412,7 @@ MAN=	aac.4 \
 	wlan_tkip.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
+	${_wpi.4} \
 	xe.4 \
 	xl.4 \
 	xpt.4 \
@@ -534,6 +535,7 @@ MLINKS+=vr.4 if_vr.4
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
+MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
@@ -547,6 +549,7 @@ _ichwd.4=	ichwd.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
+_if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
@@ -555,6 +558,7 @@ _nxge.4=	nxge.4
 _rr232x.4=	rr232x.4
 _speaker.4=	speaker.4
 _spkr.4=	spkr.4
+_wpi.4=		wpi.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
