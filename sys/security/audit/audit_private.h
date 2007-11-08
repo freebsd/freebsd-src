@@ -53,19 +53,6 @@ MALLOC_DECLARE(M_AUDITTEXT);
 #endif
 
 /*
- * The AUDIT_EXCESSIVELY_VERBOSE define enables a number of gratuitously
- * noisy printf's to the console.  Due to the volume, it should be left off
- * unless you want your system to churn a lot whenever the audit record flow
- * gets high.
- */
-//#define	AUDIT_EXCESSIVELY_VERBOSE
-#ifdef AUDIT_EXCESSIVELY_VERBOSE
-#define	AUDIT_PRINTF(x)	printf x
-#else
-#define	AUDIT_PRINTF(x)
-#endif
-
-/*
  * Audit control variables that are usually set/read via system calls and
  * used to control various aspects of auditing.
  */
