@@ -93,6 +93,7 @@ static int parse(void);
 static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 
+#define	UFS_SMALL_CGBASE
 #include "ufsread.c"
 
 static inline int
