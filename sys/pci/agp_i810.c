@@ -496,12 +496,9 @@ static int
 agp_i810_detach(device_t dev)
 {
 	struct agp_i810_softc *sc = device_get_softc(dev);
-	int error;
 	device_t child;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	/* Clear the GATT base. */
 	if ( sc->chiptype == CHIP_I810 ) {
@@ -532,6 +529,7 @@ agp_i810_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, AGP_I810_MMADR,
 				     sc->regs);
 	}
+	agp_free_res(dev);
 
 	child = device_find_child( dev, "drmsub", 0 );
 	if (child)
