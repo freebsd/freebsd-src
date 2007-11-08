@@ -70,7 +70,7 @@ savestr(str)
 /*
  * Make a copy of new argument incorporating old one.
  */
-char *
+static char *
 save2str(str, old)
 	char *str, *old;
 {
