@@ -80,7 +80,7 @@ db_examine(addr, fmt, count)
 	int		width;
 	char *		fp;
 
-	while (--count >= 0) {
+	while (--count >= 0 && !db_pager_quit) {
 	    fp = fmt;
 	    size = 4;
 	    while ((c = *fp++) != 0) {
