@@ -204,6 +204,7 @@ static int	zyd_set_macaddr(struct zyd_softc *, const uint8_t *);
 static int	zyd_set_bssid(struct zyd_softc *, const uint8_t *);
 static int	zyd_switch_radio(struct zyd_softc *, int);
 static void	zyd_set_led(struct zyd_softc *, int, int);
+static void	zyd_set_multi(struct zyd_softc *);
 static int	zyd_set_rxfilter(struct zyd_softc *);
 static void	zyd_set_chan(struct zyd_softc *, struct ieee80211_channel *);
 static int	zyd_set_beacon_interval(struct zyd_softc *, int);
@@ -1494,6 +1495,7 @@ zyd_hw_init(struct zyd_softc *sc)
 {
 	struct zyd_rf *rf = &sc->sc_rf;
 	const struct zyd_phy_pair *phyp;
+	uint32_t tmp;
 	int error;
 
 	/* specify that the plug and play is finished */
@@ -1517,6 +1519,10 @@ zyd_hw_init(struct zyd_softc *sc)
 	for (; phyp->reg != 0; phyp++) {
 		if ((error = zyd_write16(sc, phyp->reg, phyp->val)) != 0)
 			goto fail;
+	}
+	if (sc->fix_cr157) {
+		if (zyd_read32(sc, ZYD_EEPROM_PHY_REG, &tmp) == 0)
+			(void)zyd_write32(sc, ZYD_CR157, tmp >> 8);
 	}
 	zyd_unlock_phy(sc);
 
@@ -1591,8 +1597,10 @@ zyd_read_eeprom(struct zyd_softc *sc)
 	ic->ic_myaddr[5] = tmp >>  8;
 
 	(void)zyd_read32(sc, ZYD_EEPROM_POD, &tmp);
-	sc->rf_rev = tmp & 0x0f;
-	sc->pa_rev = (tmp >> 16) & 0x0f;
+	sc->rf_rev    = tmp & 0x0f;
+	sc->fix_cr47  = (tmp >> 8 ) & 0x01;
+	sc->fix_cr157 = (tmp >> 13) & 0x01;
+	sc->pa_rev    = (tmp >> 16) & 0x0f;
 
 	/* read regulatory domain (currently unused) */
 	(void)zyd_read32(sc, ZYD_EEPROM_SUBID, &tmp);
@@ -1677,6 +1685,45 @@ zyd_set_led(struct zyd_softc *sc, int which, int on)
 	(void)zyd_write32(sc, ZYD_MAC_TX_PE_CONTROL, tmp);
 }
 
+static void
+zyd_set_multi(struct zyd_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ifmultiaddr *ifma;
+	uint32_t low, high;
+	uint8_t v;
+
+	if (!(ifp->if_flags & IFF_UP))
+		return;
+
+	low = 0x00000000;
+	high = 0x80000000;
+
+	if (ic->ic_opmode == IEEE80211_M_MONITOR ||
+	    (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC))) {
+		low = 0xffffffff;
+		high = 0xffffffff;
+	} else {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			v = ((uint8_t *)LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr))[5] >> 2;
+			if (v < 32)
+				low |= 1 << v;
+			else
+				high |= 1 << (v - 32);
+		}
+		IF_ADDR_UNLOCK(ifp);
+	}
+
+	/* reprogram multicast global hash table */
+	zyd_write32(sc, ZYD_MAC_GHTBL, low);
+	zyd_write32(sc, ZYD_MAC_GHTBH, high);
+}
+
 static int
 zyd_set_rxfilter(struct zyd_softc *sc)
 {
@@ -1705,6 +1752,7 @@ zyd_set_chan(struct zyd_softc *sc, struct ieee80211_channel *c)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct zyd_rf *rf = &sc->sc_rf;
+	uint32_t tmp;
 	u_int chan;
 
 	chan = ieee80211_chan2ieee(ic, c);
@@ -1720,17 +1768,26 @@ zyd_set_chan(struct zyd_softc *sc, struct ieee80211_channel *c)
 	(*rf->set_channel)(rf, chan);
 
 	/* update Tx power */
-	(void)zyd_write32(sc, ZYD_CR31, sc->pwr_int[chan - 1]);
-	(void)zyd_write32(sc, ZYD_CR68, sc->pwr_cal[chan - 1]);
+	(void)zyd_write16(sc, ZYD_CR31, sc->pwr_int[chan - 1]);
 
 	if (sc->mac_rev == ZYD_ZD1211B) {
-		(void)zyd_write32(sc, ZYD_CR67, sc->ofdm36_cal[chan - 1]);
-		(void)zyd_write32(sc, ZYD_CR66, sc->ofdm48_cal[chan - 1]);
-		(void)zyd_write32(sc, ZYD_CR65, sc->ofdm54_cal[chan - 1]);
+		(void)zyd_write16(sc, ZYD_CR67, sc->ofdm36_cal[chan - 1]);
+		(void)zyd_write16(sc, ZYD_CR66, sc->ofdm48_cal[chan - 1]);
+		(void)zyd_write16(sc, ZYD_CR65, sc->ofdm54_cal[chan - 1]);
 
-		(void)zyd_write32(sc, ZYD_CR69, 0x28);
-		(void)zyd_write32(sc, ZYD_CR69, 0x2a);
+		(void)zyd_write16(sc, ZYD_CR68, sc->pwr_cal[chan - 1]);
+
+		(void)zyd_write16(sc, ZYD_CR69, 0x28);
+		(void)zyd_write16(sc, ZYD_CR69, 0x2a);
 	}
+
+	if (sc->fix_cr47) {
+		/* set CCK baseband gain from EEPROM */
+		if (zyd_read32(sc, ZYD_EEPROM_PHY_REG, &tmp) == 0)
+			(void)zyd_write16(sc, ZYD_CR47, tmp & 0xff);
+	}
+
+	(void)zyd_write32(sc, ZYD_CR_CONFIG_PHILIPS, 0);
 
 	zyd_unlock_phy(sc);
 
@@ -2389,12 +2446,23 @@ zyd_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				if ((ifp->if_flags ^ sc->sc_if_flags) &
+				    (IFF_ALLMULTI | IFF_PROMISC))
+					zyd_set_multi(sc);
+			} else
 				zyd_init(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				zyd_stop(sc, 1);
 		}
+		sc->sc_if_flags = ifp->if_flags;
+		break;
+
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			zyd_set_multi(sc);
 		break;
 
 	default:
@@ -2438,6 +2506,9 @@ zyd_init(void *priv)
 	/* promiscuous mode */
 	(void)zyd_write32(sc, ZYD_MAC_SNIFFER,
 	    (ic->ic_opmode == IEEE80211_M_MONITOR) ? 1 : 0);
+
+	/* multicast setup */
+	(void)zyd_set_multi(sc);
 
 	(void)zyd_set_rxfilter(sc);
 
