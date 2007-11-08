@@ -556,7 +556,6 @@ acpi_ec_suspend(device_t dev)
     sc = device_get_softc(dev);
     sc->ec_suspending = TRUE;
     return (0);
-
 }
 
 static int
@@ -567,7 +566,6 @@ acpi_ec_resume(device_t dev)
     sc = device_get_softc(dev);
     sc->ec_suspending = FALSE;
     return (0);
-
 }
 
 static int
