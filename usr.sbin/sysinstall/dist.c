@@ -133,10 +133,9 @@ static Distribution SrcDistTable[] = {
 
 /* The X.Org distribution */
 static Distribution XOrgDistTable[] = {
-    DTE_PACKAGE("Xbin",	 &XOrgDists, XORG_CLIENTS,	 "xorg-clients"),
+    DTE_PACKAGE("Xbin",	 &XOrgDists, XORG_APPS,		 "xorg-apps"),
     DTE_PACKAGE("Xlib",	 &XOrgDists, XORG_LIB,		 "xorg-libraries"),
-    DTE_PACKAGE("Xman",	 &XOrgDists, XORG_MAN,		 "xorg-manpages"),
-    DTE_PACKAGE("Xdoc",  &XOrgDists, XORG_DOC,		 "xorg-documents"),
+    DTE_PACKAGE("Xdoc",  &XOrgDists, XORG_DOC,		 "xorg-docs"),
     DTE_PACKAGE("Xprog", &XOrgDists, XORG_IMAKE,	 "imake"),
 
     DTE_PACKAGE("Xsrv",  &XOrgDists, XORG_SERVER,	 "xorg-server"),
@@ -150,7 +149,6 @@ static Distribution XOrgDistTable[] = {
     DTE_PACKAGE("Xfcyr", &XOrgDists, XORG_FONTS_CYR,	 "xorg-fonts-cyrillic"),
     DTE_PACKAGE("Xft1",  &XOrgDists, XORG_FONTS_T1,	 "xorg-fonts-type1"),
     DTE_PACKAGE("Xftt",  &XOrgDists, XORG_FONTS_TT,	 "xorg-fonts-truetype"),
-    DTE_PACKAGE("Xfs",   &XOrgDists, XORG_FONTSERVER,	 "xorg-fontserver"),
     DTE_END,
 };
 
