@@ -122,7 +122,7 @@ struct	ptsc {
 #define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
-static char *names = "pqrsPQRS";
+static const char names[] = "pqrsPQRS";
 /*
  * This function creates and initializes a pts/ptc pair
  *
@@ -138,7 +138,7 @@ ptyinit(struct cdev *devc, struct thread *td)
 	n = minor2unit(minor(devc));
 
 	/* We only allow for up to 32 ptys per char in "names". */
-	if (n >= 32 * strlen(names))
+	if (n >= 32 * (sizeof(names) - 1))
 		return (NULL);
 
 	devc->si_flags &= ~SI_CHEAPCLONE;
