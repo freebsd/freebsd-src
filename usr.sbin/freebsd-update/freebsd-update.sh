@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #-
-# Copyright 2004-2006 Colin Percival
+# Copyright 2004-2007 Colin Percival
 # All rights reserved
 #
 # Redistribution and use in source and binary forms, with or without
@@ -535,6 +535,13 @@ install_check_params () {
 	# Check that we are root.  All sorts of things won't work otherwise.
 	if [ `id -u` != 0 ]; then
 		echo "You must be root to run this."
+		exit 1
+	fi
+
+	# Check that securelevel <= 0.  Otherwise we can't update schg files.
+	if [ `sysctl -n kern.securelevel` -gt 0 ]; then
+		echo "Updates cannot be installed when the system securelevel"
+		echo "is greater than zero."
 		exit 1
 	fi
 
@@ -1356,7 +1363,12 @@ fetch_files_prepare () {
 
 	# List of files wanted
 	cut -f 2 -d '|' < $3.hashes |
-	    sort -u > files.wanted
+	    sort -u |
+	    while read HASH; do
+		if ! [ -f files/${HASH}.gz ]; then
+			echo ${HASH}
+		fi
+	done > files.wanted
 
 	# Generate a list of unmodified files
 	comm -12 $1.hashes $2.hashes |
