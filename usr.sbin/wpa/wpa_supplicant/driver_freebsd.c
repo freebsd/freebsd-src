@@ -687,6 +687,7 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 #define	GETPARAM(drv, param, v) \
 	(((v) = get80211param(drv, param)) != -1)
 	struct wpa_driver_bsd_data *drv;
+	int flags;
 
 	drv = malloc(sizeof(*drv));
 	if (drv == NULL)
@@ -707,14 +708,22 @@ wpa_driver_bsd_init(void *ctx, const char *ifname)
 	drv->sock = socket(PF_INET, SOCK_DGRAM, 0);
 	if (drv->sock < 0)
 		goto fail1;
+	drv->ctx = ctx;
+	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
+
+	/*
+	 * Mark the interface as down to ensure wpa_supplicant has exclusive
+	 * access to the net80211 state machine, do this before opening the
+	 * route socket to avoid a false event that the interface disappeared.
+	 */
+	if (getifflags(drv, &flags) == 0)
+		(void) setifflags(drv, flags &~ IFF_UP);
+
 	drv->route = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (drv->route < 0)
 		goto fail;
 	eloop_register_read_sock(drv->route,
 		wpa_driver_bsd_event_receive, ctx, drv);
-
-	drv->ctx = ctx;
-	strncpy(drv->ifname, ifname, sizeof(drv->ifname));
 
 	if (!GETPARAM(drv, IEEE80211_IOC_ROAMING, drv->prev_roaming)) {
 		wpa_printf(MSG_DEBUG, "%s: failed to get roaming state: %s",
