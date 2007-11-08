@@ -96,7 +96,7 @@ static struct timecounter acpi_timer_timecounter = {
 	0,				/* no default counter_mask */
 	0,				/* no default frequency */
 	"ACPI",				/* name */
-	1000				/* quality */
+	-1				/* quality (chosen later) */
 };
 
 static u_int
@@ -185,9 +185,11 @@ acpi_timer_probe(device_t dev)
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+	acpi_timer_timecounter.tc_quality = 1000;
     } else {
 	acpi_timer_timecounter.tc_name = "ACPI-safe";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_safe;
+	acpi_timer_timecounter.tc_quality = 850;
     }
     tc_init(&acpi_timer_timecounter);
 
@@ -262,7 +264,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
     if (acpi_timer_timecounter.tc_frequency == 0)
 	return (EOPNOTSUPP);
     freq = acpi_timer_frequency;
-    error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+    error = sysctl_handle_int(oidp, &freq, 0, req);
     if (error == 0 && req->newptr != NULL) {
 	acpi_timer_frequency = freq;
 	acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;

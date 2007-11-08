@@ -70,7 +70,7 @@ struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
 	.tc_counter_mask =	~0u,
 	.tc_name =		"HPET",
-	.tc_quality =		2000,
+	.tc_quality =		900,
 };
 
 static u_int
@@ -86,13 +86,17 @@ hpet_get_timecount(struct timecounter *tc)
 #define ACPI_SIG_HPET "HPET"
 
 /* Discover the HPET via the ACPI table of the same name. */
-void 
-acpi_hpet_table_probe(device_t parent)
+static void 
+acpi_hpet_identify(driver_t *driver, device_t parent)
 {
 	HPET_TABLE *hpet;
 	ACPI_TABLE_HEADER *hdr;
 	ACPI_STATUS	status;
 	device_t	child;
+
+	/* Only one HPET device can be added. */
+	if (devclass_get_device(acpi_hpet_devclass, 0))
+		return;
 
 	/* Currently, ID and minimum clock tick info is unused. */
 
@@ -109,7 +113,7 @@ acpi_hpet_table_probe(device_t parent)
 	if (hpet->HpetNumber != 0)
 		printf("ACPI HPET table warning: Sequence is non-zero (%d)\n",
 		    hpet->HpetNumber);
-	child = BUS_ADD_CHILD(parent, 0, "acpi_hpet", 0);
+	child = BUS_ADD_CHILD(parent, ACPI_DEV_BASE_ORDER, "acpi_hpet", 0);
 	if (child == NULL) {
 		printf("%s: can't add child\n", __func__);
 		return;
@@ -119,8 +123,6 @@ acpi_hpet_table_probe(device_t parent)
 	acpi_set_magic(child, (uintptr_t)&acpi_hpet_devclass);
 	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->BaseAddress.Address,
 	    HPET_MEM_WIDTH);
-	if (device_probe_and_attach(child) != 0)
-		device_delete_child(parent, child);
 }
 
 static int
@@ -258,6 +260,7 @@ acpi_hpet_test(struct acpi_hpet_softc *sc)
 
 static device_method_t acpi_hpet_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify, acpi_hpet_identify),
 	DEVMETHOD(device_probe, acpi_hpet_probe),
 	DEVMETHOD(device_attach, acpi_hpet_attach),
 	DEVMETHOD(device_detach, acpi_hpet_detach),
