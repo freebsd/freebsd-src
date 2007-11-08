@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20071108: Removed very crunch OLDCARD support file
+OLD_FILES+=etc/defaults/pccard.conf
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
