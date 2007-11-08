@@ -2300,7 +2300,7 @@ ffs_copyonwrite(devvp, bp)
 				blkno=((ufs2_daddr_t *)(ibp->b_data))[indiroff];
 			bqrelse(ibp);
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (blkno == BLK_SNAP && bp->b_lblkno >= 0)
 			panic("ffs_copyonwrite: bad copy block");
 #endif

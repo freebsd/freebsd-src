@@ -660,7 +660,7 @@ ufs_makedirentry(ip, cnp, newdirp)
 	struct direct *newdirp;
 {
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((cnp->cn_flags & SAVENAME) == 0)
 		panic("ufs_makedirentry: missing name");
 #endif

@@ -226,7 +226,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	if (vp->v_type == VLNK &&
 	    (ip->i_size < vp->v_mount->mnt_maxsymlinklen ||
 	     datablocks == 0)) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (length != 0)
 			panic("ffs_truncate: partial truncate of symlink");
 #endif
@@ -479,7 +479,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		}
 	}
 done:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (level = SINGLE; level <= TRIPLE; level++)
 		if (newblks[NDADDR + level] != DIP(ip, i_ib[level]))
 			panic("ffs_truncate1");
@@ -493,7 +493,7 @@ done:
 	     vp->v_bufobj.bo_clean.bv_cnt > 0))
 		panic("ffs_truncate3");
 	VI_UNLOCK(vp);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	/*
 	 * Put back the real size.
 	 */

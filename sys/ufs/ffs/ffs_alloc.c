@@ -94,7 +94,7 @@ typedef ufs2_daddr_t allocfcn_t(struct inode *ip, int cg, ufs2_daddr_t bpref,
 static ufs2_daddr_t ffs_alloccg(struct inode *, int, ufs2_daddr_t, int);
 static ufs2_daddr_t
 	      ffs_alloccgblk(struct inode *, struct buf *, ufs2_daddr_t);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 static int	ffs_checkblk(struct inode *, ufs2_daddr_t, long);
 #endif
 static ufs2_daddr_t ffs_clusteralloc(struct inode *, int, ufs2_daddr_t, int);
@@ -152,7 +152,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		printf("dev = %s, bsize = %ld, size = %d, fs = %s\n",
 		    devtoname(ip->i_dev), (long)fs->fs_bsize, size,
@@ -161,7 +161,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	}
 	if (cred == NOCRED)
 		panic("ffs_alloc: missing credential");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	reclaimed = 0;
 retry:
 #ifdef QUOTA
@@ -252,7 +252,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
 	bp = NULL;
 	ump = ip->i_ump;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
 		panic("ffs_realloccg: allocation on suspended filesystem");
 	if ((u_int)osize > fs->fs_bsize || fragoff(fs, osize) != 0 ||
@@ -265,7 +265,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
 	}
 	if (cred == NOCRED)
 		panic("ffs_realloccg: missing credential");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	reclaimed = 0;
 retry:
 	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
@@ -506,7 +506,7 @@ ffs_reallocblks_ufs1(ap)
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (i = 0; i < len; i++)
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
@@ -552,7 +552,7 @@ ffs_reallocblks_ufs1(ap)
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ffs_reallocblk: start == end");
 #endif
@@ -592,7 +592,7 @@ ffs_reallocblks_ufs1(ap)
 			bap = ebap;
 			soff = -i;
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 2");
@@ -658,7 +658,7 @@ ffs_reallocblks_ufs1(ap)
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
@@ -713,7 +713,7 @@ ffs_reallocblks_ufs2(ap)
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (i = 0; i < len; i++)
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
@@ -759,7 +759,7 @@ ffs_reallocblks_ufs2(ap)
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ffs_reallocblk: start == end");
 #endif
@@ -799,7 +799,7 @@ ffs_reallocblks_ufs2(ap)
 			bap = ebap;
 			soff = -i;
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 2");
@@ -865,7 +865,7 @@ ffs_reallocblks_ufs2(ap)
 			    dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 			    fs->fs_bsize, ip->i_number);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (!ffs_checkblk(ip,
 		   dbtofsb(fs, buflist->bs_children[i]->b_blkno), fs->fs_bsize))
 			panic("ffs_reallocblks: unallocated block 3");
@@ -1261,7 +1261,7 @@ ffs_hashalloc(ip, cg, pref, size, allocator)
 	int i, icg = cg;
 
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (ITOV(ip)->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
 		panic("ffs_hashalloc: allocation on suspended filesystem");
 #endif
@@ -1850,7 +1850,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 		    ffs_snapblkfree(fs, devvp, bno, size, inum))
 			return;
 	}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
 		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
@@ -1945,7 +1945,7 @@ ffs_blkfree(ump, fs, devvp, bno, size, inum)
 	bdwrite(bp);
 }
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 /*
  * Verify allocation of a block or fragment. Returns true if block or
  * fragment is allocated, false if it is free.
@@ -1994,7 +1994,7 @@ ffs_checkblk(ip, bno, size)
 	brelse(bp);
 	return (!free);
 }
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 
 /*
  * Free an inode.

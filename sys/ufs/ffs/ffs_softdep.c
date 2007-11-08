@@ -42,11 +42,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * For now we want the safety net that the DIAGNOSTIC and DEBUG flags provide.
+ * For now we want the safety net that the INVARIANTS and DEBUG flags provide.
  */
-#ifndef DIAGNOSTIC
-#define DIAGNOSTIC
-#endif
 #ifndef DEBUG
 #define DEBUG
 #endif
@@ -2782,13 +2779,13 @@ handle_workitem_freeblocks(freeblks, flags)
 		vput(vp);
 	}
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (freeblks->fb_chkcnt != blocksreleased &&
 	    ((fs->fs_flags & FS_UNCLEAN) == 0 || (flags & LK_NOWAIT) != 0))
 		printf("handle_workitem_freeblocks: block count\n");
 	if (allerror)
 		softdep_error("handle_workitem_freeblks", allerror);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 
 	ACQUIRE_LOCK(&lk);
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
@@ -3915,7 +3912,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	 */
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
 		prevlbn = adp->ad_lbn;
@@ -3937,7 +3934,7 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
 	}
@@ -3957,18 +3954,18 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 			continue;
 		dp->di_size = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NDADDR; i++) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep1");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			dp->di_db[i] = 0;
 		}
 		for (i = 0; i < NIADDR; i++) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (dp->di_ib[i] != 0 &&
 			    (deplist & ((1 << NDADDR) << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep2");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			dp->di_ib[i] = 0;
 		}
 		return;
@@ -4059,7 +4056,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 */
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_extupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
 		prevlbn = adp->ad_lbn;
@@ -4073,7 +4070,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
 	}
@@ -4091,10 +4088,10 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 			continue;
 		dp->di_extsize = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NXADDR; i++) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (dp->di_extb[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep1");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			dp->di_extb[i] = 0;
 		}
 		lastadp = NULL;
@@ -4118,7 +4115,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 */
 	for (deplist = 0, adp = TAILQ_FIRST(&inodedep->id_inoupdt); adp;
 	     adp = TAILQ_NEXT(adp, ad_next)) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (deplist != 0 && prevlbn >= adp->ad_lbn)
 			panic("softdep_write_inodeblock: lbn order");
 		prevlbn = adp->ad_lbn;
@@ -4140,7 +4137,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if ((adp->ad_state & ATTACHED) == 0)
 			panic("softdep_write_inodeblock: Unknown state 0x%x",
 			    adp->ad_state);
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 		adp->ad_state &= ~ATTACHED;
 		adp->ad_state |= UNDONE;
 	}
@@ -4160,18 +4157,18 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 			continue;
 		dp->di_size = fs->fs_bsize * adp->ad_lbn + adp->ad_oldsize;
 		for (i = adp->ad_lbn + 1; i < NDADDR; i++) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (dp->di_db[i] != 0 && (deplist & (1 << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep2");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			dp->di_db[i] = 0;
 		}
 		for (i = 0; i < NIADDR; i++) {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 			if (dp->di_ib[i] != 0 &&
 			    (deplist & ((1 << NDADDR) << i)) == 0)
 				panic("softdep_write_inodeblock: lost dep3");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 			dp->di_ib[i] = 0;
 		}
 		return;
