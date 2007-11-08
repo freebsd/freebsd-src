@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * Startup -- interface with user.
  */
 
-jmp_buf	hdrjmp;
+static jmp_buf	hdrjmp;
 
 extern const char *version;
 

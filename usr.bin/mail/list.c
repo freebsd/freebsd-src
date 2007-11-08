@@ -98,7 +98,7 @@ getmsglist(buf, vector, flags)
  * the colon and gives the corresponding modifier bit.
  */
 
-struct coltab {
+static struct coltab {
 	char	co_char;		/* What to find past : */
 	int	co_bit;			/* Associated modifier bit */
 	int	co_mask;		/* m_status bits to mask */
@@ -499,7 +499,7 @@ getrawlist(line, argv, argc)
  * appropriate.  In any event, store the scanned `thing' in lexstring.
  */
 
-struct lex {
+static struct lex {
 	char	l_char;
 	char	l_token;
 } singles[] = {
@@ -686,7 +686,7 @@ matchsender(str, mesg)
 
 static char *to_fields[] = { "to", "cc", "bcc", NULL };
 
-int
+static int
 matchto(str, mesg)
 	char *str;
 	int mesg;
@@ -723,7 +723,7 @@ matchto(str, mesg)
  * be used to limit the search to just the 'To' field.
  */
 
-char lastscan[STRINGLEN];
+static char lastscan[STRINGLEN];
 int
 matchfield(str, mesg)
 	char *str;
