@@ -216,7 +216,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	vm_object_t backing_object, object = NULL;
 	vm_offset_t pageno = 0;		/* page number */
 	vm_prot_t reqprot;
-	int error, writing;
+	int error, fault_flags, writing;
 
 	/*
 	 * Assert that someone has locked this vmspace.  (Should be
@@ -234,6 +234,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
 	    VM_PROT_READ;
+	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL; 
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -268,7 +269,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Fault the page on behalf of the process
 		 */
-		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
+		error = vm_fault(map, pageno, reqprot, fault_flags);
 		if (error) {
 			error = EFAULT;
 			break;
