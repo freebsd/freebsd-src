@@ -269,11 +269,8 @@ agp_intel_detach(device_t dev)
 {
 	struct agp_intel_softc *sc = device_get_softc(dev);
 	u_int32_t type = pci_get_devid(dev);
-	int error;
 
-	error = agp_generic_detach(dev);
-	if (error)
-		return error;
+	agp_free_cdev(dev);
 
 	switch (type) {
 	case 0x1a218086: /* i840 */
@@ -321,6 +318,7 @@ agp_intel_detach(device_t dev)
 	pci_write_config(dev, AGP_INTEL_ATTBASE, 0, 4);
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 	agp_free_gatt(sc->gatt);
+	agp_free_res(dev);
 
 	return 0;
 }

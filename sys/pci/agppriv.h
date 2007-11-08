@@ -88,7 +88,9 @@ struct agp_gatt {
 void			agp_flush_cache(void);
 u_int8_t		agp_find_caps(device_t dev);
 struct agp_gatt	       *agp_alloc_gatt(device_t dev);
+void		        agp_free_cdev(device_t dev);
 void		        agp_free_gatt(struct agp_gatt *gatt);
+void		        agp_free_res(device_t dev);
 int			agp_generic_attach(device_t dev);
 int			agp_generic_detach(device_t dev);
 int			agp_generic_enable(device_t dev, u_int32_t mode);
