@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  * Lexical processing of commands.
  */
 
-const char	*prompt = "& ";
+static const char	*prompt = "& ";
 
 extern const struct cmd cmdtab[];
 extern const char *version;	
@@ -194,8 +194,8 @@ incfile()
 	return (msgCount - omsgCount);
 }
 
-int	*msgvec;
-int	reset_on_stop;			/* do a reset() if stopped */
+static int	*msgvec;
+static int	reset_on_stop;		/* do a reset() if stopped */
 
 /*
  * Interpret user commands one by one.  If standard input is not a tty,
@@ -539,7 +539,7 @@ isprefix(as1, as2)
  * Also, unstack all source files.
  */
 
-int	inithdr;			/* am printing startup headers */
+static int	inithdr;		/* am printing startup headers */
 
 /*ARGSUSED*/
 void
