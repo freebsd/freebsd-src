@@ -471,10 +471,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	 * mapping of system call codes to audit events.  Convert the code to
 	 * an audit event identifier using the process system call table
 	 * reference.  In Darwin, there's only one, so we use the global
-	 * symbol for the system call table.
-	 *
-	 * XXXAUDIT: Should we audit that a bad system call was made, and if
-	 * so, how?
+	 * symbol for the system call table.  No audit record is generated
+	 * for bad system calls, as no operation has been performed.
 	 */
 	if (code >= td->td_proc->p_sysent->sv_size)
 		return;
@@ -563,8 +561,6 @@ audit_proc_alloc(struct proc *p)
 	KASSERT(p->p_au == NULL, ("audit_proc_alloc: p->p_au != NULL (%d)",
 	    p->p_pid));
 	p->p_au = malloc(sizeof(*(p->p_au)), M_AUDITPROC, M_WAITOK);
-	/* XXXAUDIT: Zero?  Slab allocate? */
-	//printf("audit_proc_alloc: pid %d p_au %p\n", p->p_pid, p->p_au);
 }
 
 /*
@@ -588,8 +584,9 @@ audit_thread_free(struct thread *td)
 }
 
 /*
- * Initialize the audit information for the a process, presumably the first
- * process in the system.
+ * Initialize audit information for the first kernel process (proc 0) and for
+ * the first user process (init).
+ *
  * XXX It is not clear what the initial values should be for audit ID,
  * session ID, etc.
  */
@@ -599,7 +596,6 @@ audit_proc_kproc0(struct proc *p)
 
 	KASSERT(p->p_au != NULL, ("audit_proc_kproc0: p->p_au == NULL (%d)",
 	    p->p_pid));
-	//printf("audit_proc_kproc0: pid %d p_au %p\n", p->p_pid, p->p_au);
 	bzero(p->p_au, sizeof(*(p)->p_au));
 }
 
@@ -609,7 +605,6 @@ audit_proc_init(struct proc *p)
 
 	KASSERT(p->p_au != NULL, ("audit_proc_init: p->p_au == NULL (%d)",
 	    p->p_pid));
-	//printf("audit_proc_init: pid %d p_au %p\n", p->p_pid, p->p_au);
 	bzero(p->p_au, sizeof(*(p)->p_au));
 	p->p_au->ai_auid = AU_DEFAUDITID;
 }
@@ -628,15 +623,7 @@ audit_proc_fork(struct proc *parent, struct proc *child)
 	    ("audit_proc_fork: parent->p_au == NULL (%d)", parent->p_pid));
 	KASSERT(child->p_au != NULL,
 	    ("audit_proc_fork: child->p_au == NULL (%d)", child->p_pid));
-	//printf("audit_proc_fork: parent pid %d p_au %p\n", parent->p_pid,
-	//    parent->p_au);
-	//printf("audit_proc_fork: child pid %d p_au %p\n", child->p_pid,
-	//    child->p_au);
 	bcopy(parent->p_au, child->p_au, sizeof(*child->p_au));
-	/*
-	 * XXXAUDIT: Zero pointers to external memory, or assert they are
-	 * zero?
-	 */
 }
 
 /*
@@ -647,10 +634,6 @@ audit_proc_free(struct proc *p)
 {
 
 	KASSERT(p->p_au != NULL, ("p->p_au == NULL (%d)", p->p_pid));
-	//printf("audit_proc_free: pid %d p_au %p\n", p->p_pid, p->p_au);
-	/*
-	 * XXXAUDIT: Assert that external memory pointers are NULL?
-	 */
 	free(p->p_au, M_AUDITPROC);
 	p->p_au = NULL;
 }
