@@ -1519,10 +1519,13 @@ vm_page_cache(vm_page_t m)
 	pmap_remove_all(m);
 	if (m->dirty != 0)
 		panic("vm_page_cache: page %p is dirty", m);
-	if (m->valid == 0 || object->type == OBJT_DEFAULT) {
+	if (m->valid == 0 || object->type == OBJT_DEFAULT ||
+	    (object->type == OBJT_SWAP &&
+	    !vm_pager_has_page(object, m->pindex, NULL, NULL))) {
 		/*
 		 * Hypothesis: A cache-elgible page belonging to a
-		 * default object must be zero filled.
+		 * default object or swap object but without a backing
+		 * store must be zero filled.
 		 */
 		vm_page_free(m);
 		return;
