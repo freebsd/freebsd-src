@@ -604,14 +604,12 @@ ata_getparam(struct ata_device *atadev, int init)
 		   isprint(atadev->param.model[1]))) {
 	struct ata_params *atacap = &atadev->param;
 	char buffer[64];
-#if BYTE_ORDER == BIG_ENDIAN
 	int16_t *ptr;
 
 	for (ptr = (int16_t *)atacap;
 	     ptr < (int16_t *)atacap + sizeof(struct ata_params)/2; ptr++) {
-	    *ptr = bswap16(*ptr);
+	    *ptr = le16toh(*ptr);
 	}
-#endif
 	if (!(!strncmp(atacap->model, "FX", 2) ||
 	      !strncmp(atacap->model, "NEC", 3) ||
 	      !strncmp(atacap->model, "Pioneer", 7) ||
@@ -743,7 +741,7 @@ ata_modify_if_48bit(struct ata_request *request)
 
     atadev->flags &= ~ATA_D_48BIT_ACTIVE;
 
-    if ((request->u.ata.lba >= ATA_MAX_28BIT_LBA ||
+    if (((request->u.ata.lba + request->u.ata.count) >= ATA_MAX_28BIT_LBA ||
 	 request->u.ata.count > 256) &&
 	atadev->param.support.command2 & ATA_SUPPORT_ADDRESS48) {
 

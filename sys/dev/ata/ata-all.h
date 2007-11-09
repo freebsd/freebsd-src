@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -227,6 +227,29 @@
 #define ATA_AHCI_CT_OFFSET              1024+256
 #define ATA_AHCI_CT_SG_OFFSET           128
 #define ATA_AHCI_CT_SIZE                256
+
+struct ata_ahci_dma_prd {
+    u_int64_t                   dba;
+    u_int32_t                   reserved;
+    u_int32_t                   dbc;            /* 0 based */
+#define ATA_AHCI_PRD_MASK       0x003fffff      /* max 4MB */
+#define ATA_AHCI_PRD_IPC        (1<<31)
+} __packed;
+
+struct ata_ahci_cmd_tab {
+    u_int8_t                    cfis[64];
+    u_int8_t                    acmd[32];
+    u_int8_t                    reserved[32];
+    struct ata_ahci_dma_prd     prd_tab[16];
+} __packed;
+
+struct ata_ahci_cmd_list {
+    u_int16_t                   cmd_flags;
+    u_int16_t                   prd_length;     /* PRD entries */
+    u_int32_t                   bytecount;
+    u_int64_t                   cmd_table_phys; /* 128byte aligned */
+} __packed;
+
 
 /* DMA register defines */
 #define ATA_DMA_ENTRIES                 256
@@ -470,6 +493,7 @@ struct ata_channel {
 #define         ATA_ATA_SLAVE           0x02
 #define         ATA_ATAPI_MASTER        0x04
 #define         ATA_ATAPI_SLAVE         0x08
+#define         ATA_PORTMULTIPLIER      0x10
 
     struct mtx                  state_mtx;      /* state lock */
     int                         state;          /* ATA channel state */
