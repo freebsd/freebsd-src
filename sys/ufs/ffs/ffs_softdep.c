@@ -42,7 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * For now we want the safety net that the INVARIANTS and DEBUG flags provide.
+ * For now we want the safety net that the DEBUG flag provides.
  */
 #ifndef DEBUG
 #define DEBUG
@@ -3874,7 +3874,10 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 	struct ufs1_dinode *dp;
 	struct ufs1_dinode *sip;
 	struct fs *fs;
-	ufs_lbn_t i, prevlbn = 0;
+	ufs_lbn_t i;
+#ifdef INVARIANTS
+	ufs_lbn_t prevlbn = 0;
+#endif
 	int deplist;
 
 	if (inodedep->id_state & IOSTARTED)
@@ -4017,7 +4020,10 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	struct ufs2_dinode *dp;
 	struct ufs2_dinode *sip;
 	struct fs *fs;
-	ufs_lbn_t i, prevlbn = 0;
+	ufs_lbn_t i;
+#ifdef INVARIANTS
+	ufs_lbn_t prevlbn = 0;
+#endif
 	int deplist;
 
 	if (inodedep->id_state & IOSTARTED)
