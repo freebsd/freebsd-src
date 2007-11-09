@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -169,6 +169,7 @@ struct ata_connect_task {
 #define ATA_I82801HBM_S1        0x28298086
 #define ATA_I82801HBM_S2        0x282a8086
 #define ATA_I82801IB_S1         0x29208086
+#define ATA_I82801IB_AH2        0x29218086
 #define ATA_I82801IB_AH6        0x29228086
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_S2         0x29268086
@@ -184,6 +185,7 @@ struct ata_connect_task {
 #define ATA_JMB363              0x2363197b
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b
+#define ATA_JMB368              0x2368197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab
@@ -192,6 +194,8 @@ struct ata_connect_task {
 #define ATA_M88SX5081           0x508111ab
 #define ATA_M88SX6041           0x604111ab
 #define ATA_M88SX6081           0x608111ab
+#define ATA_M88SX6101           0x610111ab
+#define ATA_M88SX6145           0x614511ab
 
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
@@ -224,6 +228,10 @@ struct ata_connect_task {
 #define ATA_NFORCE_MCP55        0x036e10de
 #define ATA_NFORCE_MCP55_S1     0x037e10de
 #define ATA_NFORCE_MCP55_S2     0x037f10de
+#define ATA_NFORCE_MCP61        0x03ec10de
+#define ATA_NFORCE_MCP61_S1     0x03e710de
+#define ATA_NFORCE_MCP61_S2     0x03f610de
+#define ATA_NFORCE_MCP61_S3     0x03f710de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
@@ -283,6 +291,8 @@ struct ata_connect_task {
 #define ATA_SII3512             0x35121095
 #define ATA_SII3112             0x31121095
 #define ATA_SII3112_1           0x02401095
+#define ATA_SII3124		0x31241095
+#define ATA_SII3132		0x31321095
 #define ATA_SII0680             0x06801095
 #define ATA_CMD646              0x06461095
 #define ATA_CMD648              0x06481095
@@ -349,6 +359,7 @@ struct ata_connect_task {
 #define ATA_VIA8235             0x31771106
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
+#define ATA_VIA8237S		0x53371106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
@@ -372,8 +383,9 @@ struct ata_connect_task {
 #define HPT374          3
 #define HPTOLD          0x01
 
-#define MV5XXX          5
-#define MV6XXX          6
+#define MV50XX          50
+#define MV60XX          60
+#define MV61XX          61
 
 #define PROLD           0
 #define PRNEW           1
@@ -394,6 +406,7 @@ struct ata_connect_task {
 #define SWKSMIO         3
 
 #define SIIMEMIO        1
+#define SIIPRBIO        2
 #define SIIINTR         0x01
 #define SIISETCLK       0x02
 #define SIIBUG          0x04

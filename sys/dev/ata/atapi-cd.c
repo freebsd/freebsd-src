@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -685,32 +685,25 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 {
     device_t dev = pp->geom->softc;
     struct acd_softc *cdp = device_get_ivars(dev);
-    struct ata_request *request;
-    int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
-		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int timeout = 60, track;
 
-    if (!(request = ata_alloc_request()))
-	return ENOMEM;
-
-    /* wait if drive is not finished loading the medium */
+    /* check for media present, waiting for loading medium just in case */
     while (timeout--) {
-	bzero(request, sizeof(struct ata_request));
-	request->dev = dev;
-	bcopy(ccb, request->u.atapi.ccb, 16);
-	request->flags = ATA_R_ATAPI;
-	request->timeout = 5;
-	ata_queue_request(request);
-	if (!request->error &&
-	    (request->u.atapi.sense.key == 2 ||
-	     request->u.atapi.sense.key == 7) &&
-	    request->u.atapi.sense.asc == 4 &&
-	    request->u.atapi.sense.ascq == 1)
-	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
-	else
-	    break;
+	if (!acd_mode_sense(dev, ATAPI_CDROM_CAP_PAGE,
+			    (caddr_t)&cdp->cap, sizeof(cdp->cap)) &&
+			    cdp->cap.page_code == ATAPI_CDROM_CAP_PAGE) {
+	    if ((cdp->cap.medium_type == MST_FMT_NONE) ||
+		(cdp->cap.medium_type == MST_NO_DISC) ||
+		(cdp->cap.medium_type == MST_DOOR_OPEN) ||
+		(cdp->cap.medium_type == MST_FMT_ERROR))
+		return EIO;
+	    else
+		break;
+	}
+	tsleep(&timeout, PRIBIO, "acdld", hz / 2);
     }
-    ata_free_request(request);
+    if (timeout <= 0)
+	return EIO;
 
     if (pp->acr == 0) {
 	acd_prevent_allow(dev, 1);
@@ -1234,7 +1227,8 @@ acd_get_progress(device_t dev, int *finished)
     request->flags = ATA_R_ATAPI | ATA_R_READ;
     request->timeout = 30;
     ata_queue_request(request);
-    if (!request->error && request->u.atapi.sense.error & ATA_SENSE_VALID)
+    if (!request->error &&
+	request->u.atapi.sense.specific & ATA_SENSE_SPEC_VALID)
 	*finished = ((request->u.atapi.sense.specific2 |
 		     (request->u.atapi.sense.specific1 << 8)) * 100) / 65535;
     else
@@ -1635,13 +1629,15 @@ static void
 acd_get_cap(device_t dev)
 {
     struct acd_softc *cdp = device_get_ivars(dev);
+    int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, ATAPI_CDROM_CAP_PAGE,
+		       0, 0, 0, 0, sizeof(cdp->cap)>>8, sizeof(cdp->cap),
+		       0, 0, 0, 0, 0, 0, 0 };
     int count;
 
     /* get drive capabilities, some bugridden drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-	if (!acd_mode_sense(dev, ATAPI_CDROM_CAP_PAGE,
-			    (caddr_t)&cdp->cap, sizeof(cdp->cap)) &&
-			    cdp->cap.page_code == ATAPI_CDROM_CAP_PAGE) {
+	if (!ata_atapicmd(dev, ccb, (caddr_t)&cdp->cap, sizeof(cdp->cap),
+			  ATA_R_READ | ATA_R_QUIET, 5)) {
 	    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
 	    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
 	    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
@@ -1820,6 +1816,8 @@ acd_describe(device_t dev)
 		printf("CD-R "); break;
 	    case MST_CDRW:
 		printf("CD-RW "); break;
+	    case MST_DVD:
+		printf("DVD "); break;
 	    case MST_DOOR_OPEN:
 		printf("door open"); break;
 	    case MST_NO_DISC:
