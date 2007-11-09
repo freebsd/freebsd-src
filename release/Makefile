@@ -741,10 +741,6 @@ release.8:
 		ln -sf /stand $$dir; \
 	  done )
 	cp ${RD}/trees/base/sbin/dhclient-script ${RD}/mfsfd/stand
-.if ${TARGET} == "pc98"
-	cp ${.CURDIR}/../etc/defaults/pccard.conf \
-	    ${RD}/mfsfd/etc/defaults/pccard.conf
-.endif
 	cp ${.CURDIR}/../etc/master.passwd ${RD}/mfsfd/etc/master.passwd
 	cp ${RD}/trees/base/etc/*pwd.db ${RD}/mfsfd/etc/
 	( for F in defaults/rc.conf netconfig protocols ; do \
