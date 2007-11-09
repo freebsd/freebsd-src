@@ -1066,6 +1066,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
       { " cddl",	"/usr/src/cddl (software from Sun)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CDDL },
+      { " compat",	"/usr/src/compat (compatibility software)",
+	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_COMPAT },
       { " contrib",	"/usr/src/contrib (contributed software)",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
       { " crypto",	"/usr/src/crypto (contrib encryption sources)",
