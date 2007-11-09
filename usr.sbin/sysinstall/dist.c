@@ -109,6 +109,7 @@ static Distribution KernelDistTable[] = {
 static Distribution SrcDistTable[] = {
     DTE_TARBALL("sbase",    &SrcDists, SRC_BASE,    "/usr/src"),
     DTE_TARBALL("scddl",    &SrcDists, SRC_CDDL,    "/usr/src"),
+    DTE_TARBALL("scompat",  &SrcDists, SRC_COMPAT,  "/usr/src"),
     DTE_TARBALL("scontrib", &SrcDists, SRC_CONTRIB, "/usr/src"),
     DTE_TARBALL("scrypto",  &SrcDists, SRC_SCRYPTO, "/usr/src"),
     DTE_TARBALL("sgnu",	    &SrcDists, SRC_GNU,	    "/usr/src"),
