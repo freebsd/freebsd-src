@@ -312,7 +312,9 @@ A number of run-time
 options exist that can help you tune the system.
 The most obvious and most dangerous one is
 .Cm async .
-Do not ever use it; it is far too dangerous.
+Only use this option in conjunction with
+.Xr gjournal 8 ,
+as it is far too dangerous on a normal file system.
 A less dangerous and more
 useful
 .Xr mount 8
@@ -356,7 +358,8 @@ Striping can also improve
 the performance of a file system by splitting I/O operations across two
 or more disks.
 The
-.Xr vinum 8
+.Xr gstripe 8 ,
+.Xr gvinum 8 ,
 and
 .Xr ccdconfig 8
 utilities may be used to create simple striped file systems.
@@ -956,6 +959,9 @@ over services you export from your box (web services, email).
 .Xr ccdconfig 8 ,
 .Xr config 8 ,
 .Xr fsck 8 ,
+.Xr gjournal 8 ,
+.Xr gstripe 8 ,
+.Xr gvinum 8 ,
 .Xr ifconfig 8 ,
 .Xr ipfw 8 ,
 .Xr loader 8 ,
@@ -965,7 +971,6 @@ over services you export from your box (web services, email).
 .Xr sysctl 8 ,
 .Xr sysinstall 8 ,
 .Xr tunefs 8 ,
-.Xr vinum 8
 .Sh HISTORY
 The
 .Nm
