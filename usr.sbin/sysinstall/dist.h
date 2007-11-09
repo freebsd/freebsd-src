@@ -44,7 +44,8 @@
 #define DIST_SRC_SKERBEROS5	0x40000
 #define DIST_SRC_RESCUE		0x80000
 #define DIST_SRC_CDDL		0x100000
-#define DIST_SRC_ALL		0x1FFFFF
+#define DIST_SRC_COMPAT		0x200000
+#define DIST_SRC_ALL		0x3FFFFF
 
 /* Subtypes for X.Org packages */
 #define	DIST_XORG_APPS		0x000001
