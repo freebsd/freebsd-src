@@ -173,7 +173,6 @@ MALLOC_DECLARE(M_IOV);
 
 extern struct mtx malloc_mtx;
 
-/* XXX struct malloc_type is unused for contig*(). */
 void	contigfree(void *addr, unsigned long size, struct malloc_type *type);
 void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
