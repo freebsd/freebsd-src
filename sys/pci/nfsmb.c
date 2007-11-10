@@ -37,6 +37,7 @@ static int nfsmb_debug = 0;
 #define	NFSMB_DEVICEID_NF4_04_SMB	0x0034
 #define	NFSMB_DEVICEID_NF4_51_SMB	0x0264
 #define	NFSMB_DEVICEID_NF4_55_SMB	0x0368
+#define	NFSMB_DEVICEID_NF4_61_SMB	0x03eb
 
 /* PCI Configuration space registers */
 #define	NF2PCI_SMBASE_1		PCIR_BAR(4)
@@ -130,6 +131,7 @@ nfsmb_probe(device_t dev)
 		case NFSMB_DEVICEID_NF4_04_SMB:
 		case NFSMB_DEVICEID_NF4_51_SMB:
 		case NFSMB_DEVICEID_NF4_55_SMB:
+		case NFSMB_DEVICEID_NF4_61_SMB:
 			device_set_desc(dev, "nForce2/3/4 MCP SMBus Controller");
 			return (BUS_PROBE_DEFAULT);
 		}
@@ -219,6 +221,7 @@ nfsmb_attach(device_t dev)
 	case NFSMB_DEVICEID_NF4_04_SMB:
 	case NFSMB_DEVICEID_NF4_51_SMB:
 	case NFSMB_DEVICEID_NF4_55_SMB:
+	case NFSMB_DEVICEID_NF4_61_SMB:
 		/* Trying to add secondary device as slave */
 		nfsmb_sc->subdev = device_add_child(dev, "nfsmb", -1);
 		if (!nfsmb_sc->subdev) {
