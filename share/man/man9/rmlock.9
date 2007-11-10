@@ -56,8 +56,6 @@
 .Fn rm_runlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 .Ft void
 .Fn rm_wunlock "struct rmlock *rm"
-.Ft int
-
 .In sys/kernel.h
 .Fn RM_SYSINIT "name" "struct rmlock *rm" "const char *desc" "int opts"
 .Sh DESCRIPTION
@@ -70,9 +68,11 @@ A thread with exclusive access is known as a
 .Em writer
 since it can modify protected data.
 .Pp
-Read mostly locks are designed to be efficient for locks allmost exclusively used as reader
-locks and as such should be used for protecting data that rarely changes.
-Acquiring an exclusive lock after the lock had been locked for shared access is an expensive operation.   
+Read mostly locks are designed to be efficient for locks almost exclusively
+used as reader locks and as such should be used for protecting data that
+rarely changes.
+Acquiring an exclusive lock after the lock had been locked for shared access
+is an expensive operation. 
 .Pp
 Although reader/writer locks look very similar to
 .Xr sx 9
@@ -89,20 +89,28 @@ can be locked while holding a non-spin mutex, and an
 cannot be held while sleeping.
 The
 .Nm
-locks have full priority propagation like mutexes. The rm_priotracker structure argument supplied
-in rmrlock and rmrunlock is used to keep track of the read owner(s).
+locks have full priority propagation like mutexes. The
+.Va rm_priotracker
+structure argument supplied in
+.Fn rm_rlock
+and
+.Fn rm_runlock
+is used to keep track of the read owner(s).
 Another important property is that shared holders of
 .Nm
-can recurse if the lock has been initialized with the LO_RECURSABLE option,
-however exclusive locks are not allowed to recurse.
+can recurse if the lock has been initialized with the
+.Dv LO_RECURSABLE
+option, however exclusive locks are not allowed to recurse.
 .Ss Macros and Functions
 .Bl -tag -width indent
 .It Fn rm_init "struct rmlock *rm" "const char *name" "int opts"
 Initialize structure located at
 .Fa rm
-as mostly reader lock, described by name
+as mostly reader lock, described by
 .Fa name .
-Optioally allowing readers to recurse by setting LO_RECURSABLE in
+Optionally allowing readers to recurse by setting
+.Dv LO_RECURSABLE
+in
 .Fa opts
 The name description is used solely for debugging purposes.
 This function must be called before any other operations
@@ -113,12 +121,16 @@ Lock
 as a reader. Using
 .Fa tracker
 to track read owners of a lock for priority propagation.
-This data structure is only used internally by rmlock and must persist
-until rm_runlock has been called. This data structure can be allocated on the stack since
+This data structure is only used internally by
+.Nm
+and must persist until rm_runlock has been called.
+This data structure can be allocated on the stack since
 rmlocks cannot be held while sleeping.
 If any thread holds this lock exclusively, the current thread blocks,
 and its priority is propagated to the exclusive holder.
-If the lock was initialized with the LO_RECURSABLE option the
+If the lock was initialized with the
+.Dv LO_RECURSABLE
+option the
 .Fn rm_rlock
 function can be called when the thread has already acquired reader
 access on
@@ -171,15 +183,22 @@ facility was written by
 .An "Stephan Uphoff" .
 This manual page was written by
 .An "Gleb Smirnoff"
-for rwlock and modifed to reflect rmlock by
+for rwlock and modified to reflect rmlock by
 .An "Stephan Uphoff" .
 .Sh BUGS
-.Dv Uniprocessor Systems Optimization:
-rmlock is not currently optimized for single processor systems
-
-.Dv Number of rmlocks in the system:
-The rmlock implementation uses a single per cpu list shared by all rmlocks in the system.
-If rmlocks become popular, hashing to multiple per cpu queues may be needed to speed up
-the writer lock process. 
-
-.Dv condvar: The rm lock can currently not be used as a lock argument for condition variable wait functions.
+.Pp
+The
+.Nm
+implementation is currently not optimized for single processor systems.
+.Pp
+The
+.Nm
+implementation uses a single per cpu list shared by all
+rmlocks in the system.
+If rmlocks become popular, hashing to multiple per cpu queues may
+be needed to speed up the writer lock process. 
+.Pp
+The
+.Nm
+can currently not be used as a lock argument for condition variable
+wait functions.
