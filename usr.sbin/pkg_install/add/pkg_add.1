@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2006
+.Dd November 10, 2007
 .Dt PKG_ADD 1
 .Os
 .Sh NAME
@@ -87,6 +87,9 @@ Turn on verbose output.
 Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
+.It Fl i
+Install the package without fetching and installing
+dependencies.
 .It Fl I
 If any installation scripts (pre-install or post-install) exist for a given
 package, do not execute them.
