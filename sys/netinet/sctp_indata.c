@@ -170,8 +170,8 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
  		 */
 		result = 1;
 	}
-	if (asoc->my_rwnd &&
-	    (asoc->my_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
+	if (result &&
+	    (result < stcb->sctp_ep->sctp_ep.sctp_sws_receiver)) {
 		/* SWS engaged, tell peer none left */
 		result = 1;
 	}
