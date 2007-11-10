@@ -175,6 +175,13 @@ rm_destroy(struct rmlock *rm)
 	lock_destroy(&rm->lock_object);
 }
 
+int
+rm_wowned(struct rmlock *rm)
+{
+
+	return (mtx_owned(&rm->rm_lock));
+}
+
 void
 rm_sysinit(void *arg)
 {
