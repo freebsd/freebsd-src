@@ -149,7 +149,6 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
-struct auditinfo;
 struct kaudit_record;
 struct kg_sched;
 struct nlminfo;
@@ -618,7 +617,7 @@ struct proc {
 	void		*p_emuldata;	/* (c) Emulator state data. */
 	struct label	*p_label;	/* (*) Proc (not subject) MAC label. */
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
-	struct auditinfo	*p_au;	/* (c) Process audit properties. */
+	struct auditinfo_addr	*p_au;	/* (c) Process audit properties. */
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 };
 

@@ -223,11 +223,11 @@ kau_free(struct au_record *rec)
 #define PROCESS_PID_TOKENS(argn) do {					\
 	if ((ar->ar_arg_pid > 0) /* Reference a single process */	\
 	    && (ARG_IS_VALID(kar, ARG_PROCESS))) {			\
-		tok = au_to_process(ar->ar_arg_auid,			\
+		tok = au_to_process32_ex(ar->ar_arg_auid,		\
 		    ar->ar_arg_euid, ar->ar_arg_egid,			\
 		    ar->ar_arg_ruid, ar->ar_arg_rgid,			\
 		    ar->ar_arg_pid, ar->ar_arg_asid,			\
-		    &ar->ar_arg_termid);				\
+		    &ar->ar_arg_termid_addr);				\
 		kau_write(rec, tok);					\
 	} else if (ARG_IS_VALID(kar, ARG_PID)) {			\
 		tok = au_to_arg32(argn, "process", ar->ar_arg_pid);	\
@@ -389,16 +389,40 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	rec = kau_open();
 
 	/* Create the subject token */
-	tid.port = ar->ar_subj_term.port;
-	tid.machine = ar->ar_subj_term.machine;
-	subj_tok = au_to_subject32(ar->ar_subj_auid,  /* audit ID */
-		ar->ar_subj_cred.cr_uid, /* eff uid */
-		ar->ar_subj_egid,	/* eff group id */
-		ar->ar_subj_ruid, 	/* real uid */
-		ar->ar_subj_rgid, 	/* real group id */
-		ar->ar_subj_pid,	/* process id */
-		ar->ar_subj_asid,	/* session ID */
-		&tid);
+	switch (ar->ar_subj_term_addr.at_type) {
+	case AU_IPv4:
+		tid.port = ar->ar_subj_term_addr.at_port;
+		tid.machine = ar->ar_subj_term_addr.at_addr[0];
+		subj_tok = au_to_subject32(ar->ar_subj_auid,  /* audit ID */
+		    ar->ar_subj_cred.cr_uid, /* eff uid */
+		    ar->ar_subj_egid,	/* eff group id */
+		    ar->ar_subj_ruid, 	/* real uid */
+		    ar->ar_subj_rgid, 	/* real group id */
+		    ar->ar_subj_pid,	/* process id */
+		    ar->ar_subj_asid,	/* session ID */
+		    &tid);
+		break;
+	case AU_IPv6:
+		subj_tok = au_to_subject32_ex(ar->ar_subj_auid,
+		    ar->ar_subj_cred.cr_uid,
+		    ar->ar_subj_egid,
+		    ar->ar_subj_ruid,
+		    ar->ar_subj_rgid,
+		    ar->ar_subj_pid,
+		    ar->ar_subj_asid,
+		    &ar->ar_subj_term_addr);
+		break;
+	default:
+		bzero(&tid, sizeof(tid));
+		subj_tok = au_to_subject32(ar->ar_subj_auid,
+		    ar->ar_subj_cred.cr_uid,
+		    ar->ar_subj_egid,
+		    ar->ar_subj_ruid,
+		    ar->ar_subj_rgid,
+		    ar->ar_subj_pid,
+		    ar->ar_subj_asid,
+		    &tid);
+	}
 
 	/*
 	 * The logic inside each case fills in the tokens required for the
