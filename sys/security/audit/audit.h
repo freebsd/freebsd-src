@@ -157,6 +157,7 @@ void	 audit_arg_socket(int sodomain, int sotype, int soprotocol);
 void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *sa);
 void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
+void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
 void	 audit_arg_upath(struct thread *td, char *upath, u_int64_t flags);
 void	 audit_arg_vnode(struct vnode *vp, u_int64_t flags);
 void	 audit_arg_text(char *text);
