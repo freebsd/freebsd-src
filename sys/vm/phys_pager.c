@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-/* list of device pager objects */
+/* list of phys pager objects */
 static struct pagerlst phys_pager_object_list;
 /* protect access to phys_pager_object_list */
 static struct mtx phys_pager_mtx;
