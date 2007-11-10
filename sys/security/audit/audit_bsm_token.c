@@ -617,6 +617,8 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
+	KASSERT((tid->at_type == AU_IPv4) || (tid->at_type == AU_IPv6),
+	    ("au_to_process32_ex: type %u", (unsigned int)tid->at_type));
 	if (tid->at_type == AU_IPv6)
 		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
 		    sizeof(u_int32_t));
@@ -634,12 +636,10 @@ au_to_process32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
-	ADD_U_INT32(dptr, tid->at_addr[0]);
-	if (tid->at_type == AU_IPv6) {
-		ADD_U_INT32(dptr, tid->at_addr[1]);
-		ADD_U_INT32(dptr, tid->at_addr[2]);
-		ADD_U_INT32(dptr, tid->at_addr[3]);
-	}
+        if (tid->at_type == AU_IPv6)
+                ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+        else
+                ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
 	return (t);
 }
 
@@ -952,6 +952,8 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	token_t *t;
 	u_char *dptr = NULL;
 
+	KASSERT((tid->at_type == AU_IPv4) || (tid->at_type == AU_IPv6),
+	    ("au_to_subject32_ex: type %u", (unsigned int)tid->at_type));
 	if (tid->at_type == AU_IPv6)
 		GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 13 *
 		    sizeof(u_int32_t));
@@ -969,12 +971,10 @@ au_to_subject32_ex(au_id_t auid, uid_t euid, gid_t egid, uid_t ruid,
 	ADD_U_INT32(dptr, sid);
 	ADD_U_INT32(dptr, tid->at_port);
 	ADD_U_INT32(dptr, tid->at_type);
-	ADD_U_INT32(dptr, tid->at_addr[0]);
-	if (tid->at_type == AU_IPv6) {
-		ADD_U_INT32(dptr, tid->at_addr[1]);
-		ADD_U_INT32(dptr, tid->at_addr[2]);
-		ADD_U_INT32(dptr, tid->at_addr[3]);
-	}
+	if (tid->at_type == AU_IPv6)  
+		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+	else    
+		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
 	return (t);
 }
 
