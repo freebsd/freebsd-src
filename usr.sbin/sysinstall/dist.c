@@ -141,7 +141,6 @@ static Distribution XOrgDistTable[] = {
 
     DTE_PACKAGE("Xsrv",  &XOrgDists, XORG_SERVER,	 "xorg-server"),
     DTE_PACKAGE("Xnest", &XOrgDists, XORG_NESTSERVER,	 "xorg-nestserver"),
-    DTE_PACKAGE("Xprt",  &XOrgDists, XORG_PRINTSERVER,	 "xorg-printserver"),
     DTE_PACKAGE("Xvfb",  &XOrgDists, XORG_VFBSERVER,	 "xorg-vfbserver"),
 
     DTE_PACKAGE("Xfmsc", &XOrgDists, XORG_FONTS_MISC,	 "xorg-fonts-miscbitmaps"),
