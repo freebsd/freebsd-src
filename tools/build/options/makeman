@@ -94,7 +94,7 @@ variable
 .Va SRCCONF .
 Overriding the location of
 .Nm
-maybe necessary if the system-wide settings are not suitable
+may be necessary if the system-wide settings are not suitable
 for a particular build.
 For instance, setting
 .Va SRCCONF
