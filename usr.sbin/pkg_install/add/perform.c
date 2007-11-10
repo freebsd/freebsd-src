@@ -252,6 +252,7 @@ pkg_do(char *pkg)
     }
 
     /* Now check the packing list for conflicts */
+	if(!IgnoreDeps){
     for (p = Plist.head; p != NULL; p = p->next) {
 	if (p->type == PLIST_CONFLICTS) {
 	    int i;
@@ -296,7 +297,7 @@ pkg_do(char *pkg)
 	    !(deporigin != NULL && matchbyorigin(deporigin, NULL) != NULL)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
-	    if (!Fake) {
+	    if (!Fake&&!IgnoreDeps) {
 		char prefixArg[2 + MAXPATHLEN]; /* "-P" + Prefix */
 		if (PrefixRecursive) {
 		    strlcpy(prefixArg, "-P", sizeof(prefixArg));
@@ -368,6 +369,7 @@ pkg_do(char *pkg)
 	else if (Verbose)
 	    printf(" - already installed.\n");
     }
+	}
 
     if (code != 0)
 	goto bomb;
@@ -514,6 +516,7 @@ pkg_do(char *pkg)
 		depnames[0] = p->name;
 		depnames[1] = NULL;
 	    }
+		if(!IgnoreDeps){
 	    for (i = 0; depnames[i] != NULL; i++) {
 		sprintf(contents, "%s/%s/%s", LOG_DIR, depnames[i],
 			REQUIRED_BY_FNAME);
@@ -530,6 +533,7 @@ pkg_do(char *pkg)
 			warnx("cannot properly close file %s", contents);
 		}
 	    }
+	}
 	}
 	if (Verbose)
 	    printf("Package %s registered in %s\n", Plist.name, LogDir);
