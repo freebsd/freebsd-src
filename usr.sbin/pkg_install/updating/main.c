@@ -10,18 +10,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
-#include <sys/param.h>						/* For MAXPATHLEN */
-
-#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>	
 #include <sysexits.h>
-#include <unistd.h>
 
+#include "lib.h"
 #include "pathnames.h"
 
 typedef struct installedport {
@@ -81,7 +74,7 @@ main(int argc, char *argv[])
 	DIR *dir;
 	FILE *fd;
 
-	while ((ch = getopt(argc, argv, "f:p:d:")) != -1) {
+	while ((ch = getopt(argc, argv, "f:d:")) != -1) {
 		switch (ch) {
 			case 'd':
 				dflag = 1;
@@ -146,7 +139,9 @@ main(int argc, char *argv[])
 					}
 					if(attribute.st_mode & S_IFREG)
 						continue;
-					(void)strlcat(tmp_file + n, "/+CONTENTS",
+					(void)strlcat(tmp_file + n, "/",
+						sizeof(tmp_file) - n);
+					(void)strlcat(tmp_file + n, CONTENTS_FNAME,
 						sizeof(tmp_file) - n);
 
 					/* Open +CONTENT file */
@@ -254,4 +249,11 @@ usage(void)
 	fprintf(stderr,
 		"usage: pkg_updating [-d YYYYMMDD] [-f file] [portname ...]\n");
 	exit(EX_USAGE);
+}
+
+void
+cleanup(int sig)
+{
+	if (sig)
+		exit(1);
 }
