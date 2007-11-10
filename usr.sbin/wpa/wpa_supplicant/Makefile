@@ -102,25 +102,36 @@ SRCS+=	eap_pax.c eap_pax_common.c
 SRCS+=	eap_sake.c eap_sake_common.c
 .endif
 
-.if defined(NEED_SHA256)
-CFLAGS+=-DINTERNAL_SHA256
-SRCS+=	sha256.c
-.endif
-
 # NB: requires patch to openssl
 #CFLAGS+= -DEAP_FAST
 #SRCS+=	eap_fast.c
 
-DPADD+= ${LIBSSL} ${LIBCRYPTO}
-LDADD+= -lssl -lcrypto
+NEED_LIBSSL=	true
 .else
 CFLAGS+= -DEAP_TLS_NONE
-CFLAGS+= -DINTERNAL_AES
-CFLAGS+= -DINTERNAL_SHA1
-CFLAGS+= -DINTERNAL_MD5
 SRCS+=	tls_none.c
 .endif
 
+.endif
+
+#
+# Configure crypto/cipher support.
+#
+# EAPOL support requires openssl in which case we use their
+# cipher code.  Otherwise we use our internal versions.
+#
+.if !defined(NEED_LIBSSL)
+CFLAGS+= -DINTERNAL_AES
+CFLAGS+= -DINTERNAL_SHA1
+CFLAGS+= -DINTERNAL_MD5
+.else
+DPADD+= ${LIBSSL} ${LIBCRYPTO}
+LDADD+= -lssl -lcrypto
+.endif
+
+.if defined(NEED_SHA256)
+CFLAGS+=-DINTERNAL_SHA256
+SRCS+=	sha256.c
 .endif
 
 .include <bsd.prog.mk>
