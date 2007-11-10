@@ -129,11 +129,10 @@
 #define AXE_RXCMD_MULTICAST			0x0010
 #define AXE_178_RXCMD_AP			0x0020
 #define AXE_RXCMD_ENABLE			0x0080
-#define AXE_178_RXCMD_MFB			0x0300	/* Max Frame Burst */
-#define AXE_178_RXCMD_MFB_2048			0x0000
-#define AXE_178_RXCMD_MFB_4096			0x0100
-#define AXE_178_RXCMD_MFB_8192			0x0200
-#define AXE_178_RXCMD_MFB_16384			0x0300
+#define AXE_178_RXCMD_MFB_2048			0x0000	/* 2K max frame burst */
+#define AXE_178_RXCMD_MFB_4096			0x0100	/* 4K max frame burst */
+#define AXE_178_RXCMD_MFB_8192			0x0200	/* 8K max frame burst */
+#define AXE_178_RXCMD_MFB_16384			0x0300	/* 16K max frame burst*/
 
 #define AXE_NOPHY				0xE0
 #define AXE_INTPHY				0x10
@@ -141,13 +140,44 @@
 #define AXE_TIMEOUT		1000
 #define AXE_172_BUFSZ		1536
 #define AXE_178_MIN_BUFSZ	2048
-#define AXE_178_MAX_BUFSZ	16384
 #define AXE_MIN_FRAMELEN	60
 #define AXE_RX_FRAMES		1
 #define AXE_TX_FRAMES		1
 
+#if AXE_178_MAX_FRAME_BURST == 0
+#define AXE_178_RXCMD_MFB	AXE_178_RXCMD_MFB_2048
+#define AXE_178_MAX_BUFSZ	2048
+#elif AXE_178_MAX_FRAME_BURST == 1
+#define AXE_178_RXCMD_MFB	AXE_178_RXCMD_MFB_4096
+#define AXE_178_MAX_BUFSZ	4096
+#elif AXE_178_MAX_FRAME_BURST == 2
+#define AXE_178_RXCMD_MFB	AXE_178_RXCMD_MFB_8192
+#define AXE_178_MAX_BUFSZ	8192
+#else
+#define AXE_178_RXCMD_MFB	AXE_178_RXCMD_MFB_16384
+#define AXE_178_MAX_BUFSZ	16384
+#endif
+
 #define AXE_RX_LIST_CNT		1
 #define AXE_TX_LIST_CNT		1
+
+struct axe_chain {
+	struct axe_softc	*axe_sc;
+	usbd_xfer_handle	axe_xfer;
+	char			*axe_buf;
+	struct mbuf		*axe_mbuf;
+	int			axe_accum;
+	int			axe_idx;
+};
+
+struct axe_cdata {
+	struct axe_chain	axe_tx_chain[AXE_TX_LIST_CNT];
+	struct axe_chain	axe_rx_chain[AXE_RX_LIST_CNT];
+	int			axe_tx_prod;
+	int			axe_tx_cons;
+	int			axe_tx_cnt;
+	int			axe_rx_prod;
+};
 
 #define AXE_CTL_READ		0x01
 #define AXE_CTL_WRITE		0x02
@@ -198,7 +228,7 @@ struct axe_softc {
 	int			axe_ed[AXE_ENDPT_MAX];
 	usbd_pipe_handle	axe_ep[AXE_ENDPT_MAX];
 	int			axe_if_flags;
-	struct ue_cdata		axe_cdata;
+	struct axe_cdata	axe_cdata;
 	struct callout_handle	axe_stat_ch;
 	struct mtx		axe_mtx;
 	struct sx		axe_sleeplock;
@@ -207,7 +237,6 @@ struct axe_softc {
 	unsigned char		axe_ipgs[3];
 	unsigned char 		axe_phyaddrs[2];
 	struct timeval		axe_rx_notice;
-	struct usb_qdat		axe_qdat;
 	struct usb_task		axe_tick_task;
 	int			axe_bufsz;
 	int			axe_boundary;
