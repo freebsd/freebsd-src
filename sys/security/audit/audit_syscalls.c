@@ -581,6 +581,10 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	error = copyin(uap->auditinfo_addr, &aia, sizeof(aia));
 	if (error)
 		return (error);
+	audit_arg_auditinfo_addr(&aia);
+	if (aia.ai_termid.at_type != AU_IPv6 &&
+	    aia.ai_termid.at_type != AU_IPv4)
+		return (EINVAL);
 	PROC_LOCK(td->td_proc);
 	*td->td_proc->p_au = aia;
 	PROC_UNLOCK(td->td_proc);
