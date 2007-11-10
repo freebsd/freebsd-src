@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 /* prevent concurrant creation races */
 static int phys_pager_alloc_lock;
-/* list of device pager objects */
+/* list of phys pager objects */
 static struct pagerlst phys_pager_object_list;
 /* protect access to phys_pager_object_list */
 static struct mtx phys_pager_mtx;
@@ -82,7 +82,7 @@ phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 */
 		while (phys_pager_alloc_lock) {
 			phys_pager_alloc_lock = -1;
-			tsleep(&phys_pager_alloc_lock, PVM, "swpalc", 0);
+			tsleep(&phys_pager_alloc_lock, PVM, "phyalc", 0);
 		}
 		phys_pager_alloc_lock = 1;
 
