@@ -201,6 +201,7 @@ MAN=	accept_filter.9 \
 	resource_int_value.9 \
 	rijndael.9 \
 	rman.9 \
+	rmlock.9 \
 	rtalloc.9 \
 	rtentry.9 \
 	runqueue.9 \
@@ -932,6 +933,14 @@ MLINKS+=runqueue.9 chooseproc.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
 	runqueue.9 setrunqueue.9
+MLINKS+=rmlock.9 rm_destroy.9 \
+	rmlock.9 rm_init.9 \
+	rmlock.9 rm_rlock.9 \
+	rmlock.9 rm_runlock.9 \
+	rmlock.9 RM_SYSINIT.9 \
+	rmlock.9 rm_wlock.9 \
+	rmlock.9 rm_wowned.9 \
+	rmlock.9 rm_wunlock.9
 MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_destroy.9 \
 	rwlock.9 rw_downgrade.9 \
