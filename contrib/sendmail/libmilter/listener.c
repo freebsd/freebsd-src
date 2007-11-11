@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: listener.c,v 8.122 2006/11/02 17:54:44 ca Exp $")
+SM_RCSID("@(#)$Id: listener.c,v 8.124 2007/04/23 22:22:50 ca Exp $")
 
 /*
 **  listener.c -- threaded network listener

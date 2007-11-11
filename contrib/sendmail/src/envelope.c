@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.302 2006/11/10 23:12:52 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.304 2007/04/18 17:15:49 ca Exp $")
 
 /*
 **  CLRSESSENVELOPE -- clear session oriented data in an envelope
@@ -75,7 +75,7 @@ newenvelope(e, parent, rpool)
 	register ENVELOPE *parent;
 	SM_RPOOL_T *rpool;
 {
-	int sendmode;
+	int sendmode, dm;
 
 	/*
 	**  This code used to read:
@@ -86,8 +86,16 @@ newenvelope(e, parent, rpool)
 	**  This meant macvalue() could go into an infinite loop.
 	*/
 
+	dm = DM_NOTSET;
 	if (parent != NULL)
+	{
+		char *str;
+
 		sendmode = parent->e_sendmode;
+		str = macvalue(macid("{deliveryMode}"), parent);
+		if (str != NULL)
+			dm = (int) str[0];
+	}
 	else
 		sendmode = DM_NOTSET;
 
@@ -105,9 +113,18 @@ newenvelope(e, parent, rpool)
 	e->e_parent = parent;
 	assign_queueid(e);
 	e->e_ctime = curtime();
+#if _FFR_SESSID
+	e->e_sessid = e->e_id;
+#endif /* _FFR_SESSID */
 	if (parent != NULL)
 	{
 		e->e_msgpriority = parent->e_msgsize;
+#if _FFR_SESSID
+		if (parent->e_sessid != NULL)
+			e->e_sessid = sm_rpool_strdup_x(rpool,
+							parent->e_sessid);
+#endif /* _FFR_SESSID */
+
 		if (parent->e_quarmsg == NULL)
 		{
 			e->e_quarmsg = NULL;
@@ -128,6 +145,8 @@ newenvelope(e, parent, rpool)
 		(void) sm_io_flush(CurEnv->e_xfp, SM_TIME_DEFAULT);
 	if (sendmode != DM_NOTSET)
 		e->e_sendmode = sendmode;
+	if (dm != DM_NOTSET)
+		set_delivery_mode(dm, e);
 
 	return e;
 }
