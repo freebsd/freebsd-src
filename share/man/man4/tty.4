@@ -32,7 +32,7 @@
 .\"     @(#)tty.4	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd August 14, 1992
+.Dd Jun 27, 2007
 .Dt TTY 4
 .Os
 .Sh NAME
@@ -280,7 +280,7 @@ The current system does not allocate a controlling terminal to
 a process on an
 .Fn open
 call: there is a specific ioctl called
-.Dv TIOSCTTY
+.Dv TIOCSCTTY
 to make a terminal the controlling
 terminal.
 In addition, a program can
