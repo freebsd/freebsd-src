@@ -1108,6 +1108,17 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 	case IEEE80211_IOC_INACTIVITY:
 		ireq->i_val = (ic->ic_flags_ext & IEEE80211_FEXT_INACT) != 0;
 		break;
+	case IEEE80211_IOC_HTPROTMODE:
+		ireq->i_val = ic->ic_htprotmode;
+		break;
+	case IEEE80211_IOC_HTCONF:
+		if (ic->ic_flags_ext & IEEE80211_FEXT_HT) {
+			ireq->i_val = 1;
+			if (ic->ic_flags_ext & IEEE80211_FEXT_USEHT40)
+				ireq->i_val |= 2;
+		} else
+			ireq->i_val = 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -2478,6 +2489,27 @@ ieee80211_ioctl_set80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			ic->ic_flags_ext |= IEEE80211_FEXT_INACT;
 		else
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_INACT;
+		break;
+	case IEEE80211_IOC_HTPROTMODE:
+		if (ireq->i_val > IEEE80211_PROT_RTSCTS)
+			return EINVAL;
+		ic->ic_htprotmode = ireq->i_val ?
+		    IEEE80211_PROT_RTSCTS : IEEE80211_PROT_NONE;
+		/* NB: if not operating in 11n this can wait */
+		if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
+		    IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
+			error = ERESTART;
+		break;
+	case IEEE80211_IOC_HTCONF:
+		if (ireq->i_val & 1)
+			ic->ic_flags_ext |= IEEE80211_FEXT_HT;
+		else
+			ic->ic_flags_ext &= ~IEEE80211_FEXT_HT;
+		if (ireq->i_val & 2)
+			ic->ic_flags_ext |= IEEE80211_FEXT_USEHT40;
+		else
+			ic->ic_flags_ext &= ~IEEE80211_FEXT_USEHT40;
+		error = ENETRESET;
 		break;
 	default:
 		error = EINVAL;
