@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: ackpri,v 1.2 2003/03/10 14:24:33 henning Exp $
+# $OpenBSD: ackpri,v 1.3 2006/10/07 04:48:01 mcbride Exp $
 
 # Use a simple priority queue to prioritize empty (no payload) TCP ACKs,
 # which dramatically improves throughput on (asymmetric) links when the
@@ -25,9 +25,7 @@ altq on $ext_if priq bandwidth 100Kb queue { q_pri, q_def }
 queue q_pri priority 7
 queue q_def priority 1 priq(default)
 
-pass out on $ext_if proto tcp from $ext_if to any flags S/SA \
-	keep state queue (q_def, q_pri)
+pass out on $ext_if proto tcp from $ext_if to any queue (q_def, q_pri)
 
-pass in  on $ext_if proto tcp from any to $ext_if flags S/SA \
-	keep state queue (q_def, q_pri)
+pass in  on $ext_if proto tcp from any to $ext_if queue (q_def, q_pri)
 
