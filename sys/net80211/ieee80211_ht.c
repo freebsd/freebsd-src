@@ -205,7 +205,7 @@ struct mbuf *
 ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	int totallen, framelen;
+	int framelen;
 	struct mbuf *n;
 
 	/* discard 802.3 header inserted by ieee80211_decap */
@@ -213,7 +213,6 @@ ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 
 	ic->ic_stats.is_amsdu_decap++;
 
-	totallen = m->m_pkthdr.len;
 	for (;;) {
 		/*
 		 * Decap the first frame, bust it apart from the
@@ -224,11 +223,11 @@ ieee80211_decap_amsdu(struct ieee80211_node *ni, struct mbuf *m)
 		m = ieee80211_decap1(m, &framelen);
 		if (m == NULL) {
 			IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_ANY,
-			    ni->ni_macaddr, "a-msdu", "%s", "first decap failed");
+			    ni->ni_macaddr, "a-msdu", "%s", "decap failed");
 			ic->ic_stats.is_amsdu_tooshort++;
 			return NULL;
 		}
-		if (framelen == totallen)
+		if (m->m_pkthdr.len == framelen)
 			break;
 		n = m_split(m, framelen, M_NOWAIT);
 		if (n == NULL) {
