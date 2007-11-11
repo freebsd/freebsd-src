@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.82 2007/01/20 06:37:19 ca Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.83 2007/04/23 16:44:39 ca Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
@@ -884,6 +884,6 @@ smfi_version(major, minor, patchlevel)
 	if (minor != NULL)
 		*minor = SM_LM_VRS_MINOR(SMFI_VERSION);
 	if (patchlevel != NULL)
-		*patchlevel = SM_LM_VRS_MINOR(SMFI_VERSION);
+		*patchlevel = SM_LM_VRS_PLVL(SMFI_VERSION);
 	return MI_SUCCESS;
 }

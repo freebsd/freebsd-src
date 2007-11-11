@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@nother.smi.sendmail.com on Tue Apr 3 16:32:55 PDT 2007
-##### in /extra/home/ca/sm-8.14.1/OpenSource/sendmail-8.14.1/cf/cf
+##### built by ca@nother.smi.sendmail.com on Wed Oct 31 09:24:27 PDT 2007
+##### in /extra/home/ca/sm-8.14.2/OpenSource/sendmail-8.14.2/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.730 2007/02/01 18:50:03 ca Exp $  #####
+#####  $Id: proto.m4,v 8.732 2007/04/20 00:53:30 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.14.1/Submit
+DZ8.14.2/Submit
 
 
 ###############

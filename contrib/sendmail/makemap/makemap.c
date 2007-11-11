@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.177 2004/08/03 23:57:24 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.178 2007/05/11 18:45:39 ca Exp $")
 
 
 #include <sys/types.h>
@@ -42,7 +42,7 @@ uid_t	RealUid;
 gid_t	RealGid;
 char	*RealUserName;
 uid_t	RunAsUid;
-uid_t	RunAsGid;
+gid_t	RunAsGid;
 char	*RunAsUserName;
 int	Verbose = 2;
 bool	DontInitGroups = false;

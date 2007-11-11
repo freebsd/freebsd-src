@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2002, 2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2002, 2004, 2007 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: ldap_routing.m4,v 8.14 2004/02/18 02:45:11 gshapiro Exp $')
+VERSIONID(`$Id: ldap_routing.m4,v 8.15 2007/05/01 17:38:25 ca Exp $')
 divert(-1)
 
 # Check first two arguments.  If they aren't set, may need to warn in proto.m4
