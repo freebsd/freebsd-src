@@ -46,7 +46,7 @@
 # if NAMED_BIND
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.34 2006/08/15 23:24:58 ca Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 8.35 2007/06/25 16:20:14 ca Exp $")
 
 static struct stot
 {
@@ -168,6 +168,7 @@ parse_dns_reply(data, len)
 	int len;
 {
 	unsigned char *p;
+	ushort ans_cnt, ui;
 	int status;
 	size_t l;
 	char host[MAXHOSTNAMELEN];
@@ -196,11 +197,15 @@ parse_dns_reply(data, len)
 		dns_free_data(r);
 		return NULL;
 	}
+
+	ans_cnt = ntohs((ushort) r->dns_r_h.ancount);
+
 	p += status;
 	GETSHORT(r->dns_r_q.dns_q_type, p);
 	GETSHORT(r->dns_r_q.dns_q_class, p);
 	rr = &r->dns_r_head;
-	while (p < data + len)
+	ui = 0;
+	while (p < data + len && ui < ans_cnt)
 	{
 		int type, class, ttl, size, txtlen;
 
@@ -210,6 +215,7 @@ parse_dns_reply(data, len)
 			dns_free_data(r);
 			return NULL;
 		}
+		++ui;
 		p += status;
 		GETSHORT(type, p);
 		GETSHORT(class, p);
