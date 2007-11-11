@@ -2037,6 +2037,19 @@ capinfomismatch(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
 	ic->ic_stats.is_rx_assoc_capmismatch++;
 }
 
+static void
+htcapmismatch(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
+	int reassoc, int resp)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+
+	IEEE80211_NOTE_MAC(ic, IEEE80211_MSG_ANY, wh->i_addr2,
+	    "deny %s request, %s missing HT ie", reassoc ? "reassoc" : "assoc");
+	/* XXX no better code */
+	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_OTHER);
+	ieee80211_node_leave(ic, ni);
+}
+
 void
 ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 	struct ieee80211_node *ni,
@@ -2046,7 +2059,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 #define	ISREASSOC(_st)	((_st) == IEEE80211_FC0_SUBTYPE_REASSOC_RESP)
 	struct ieee80211_frame *wh;
 	uint8_t *frm, *efrm;
-	uint8_t *ssid, *rates, *xrates, *wpa, *rsn, *wme, *ath, *htcap;
+	uint8_t *ssid, *rates, *xrates, *wpa, *rsn, *wme, *ath, *htcap, *htinfo;
 	int reassoc, resp, allocbs;
 	uint8_t rate;
 
@@ -2311,8 +2324,17 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				ieee80211_parse_athparams(ni, scan.ath, wh);
 			if (scan.htcap != NULL)
 				ieee80211_parse_htcap(ni, scan.htcap);
-			if (scan.htinfo != NULL)
+			if (scan.htinfo != NULL) {
 				ieee80211_parse_htinfo(ni, scan.htinfo);
+				if (ni->ni_chan != ic->ic_bsschan) {
+					/*
+					 * Channel has been adjusted based on
+					 * negotiated HT parameters; force the
+					 * channel state to follow.
+					 */
+					ieee80211_setbsschan(ic, ni->ni_chan);
+				}
+			}
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
@@ -2789,6 +2811,37 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ieee80211_ht_node_init(ni, htcap);
 		} else if (ni->ni_flags & IEEE80211_NODE_HT)
 			ieee80211_ht_node_cleanup(ni);
+		/*
+		 * Allow AMPDU operation only with unencrypted traffic
+		 * or AES-CCM; the 11n spec only specifies these ciphers
+		 * so permitting any others is undefined and can lead
+		 * to interoperability problems.
+		 *
+		 * NB: We check for AES by looking at the GTK cipher
+		 *     since the WPA/11i specs say the PTK cipher has
+		 *     to be "as good or better".
+		 */
+		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
+		    (((ic->ic_flags & IEEE80211_F_WPA) &&
+		      rsnparms.rsn_mcastcipher != IEEE80211_CIPHER_AES_CCM) ||
+		     (ic->ic_flags & (IEEE80211_F_WPA|IEEE80211_F_PRIVACY)) == IEEE80211_F_PRIVACY)) {
+			IEEE80211_NOTE(ic,
+			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
+			    "disallow HT use because WEP or TKIP requested, "
+			    "capinfo 0x%x mcastcipher %d", capinfo,
+			    rsnparms.rsn_mcastcipher);
+			ieee80211_ht_node_cleanup(ni);
+			ic->ic_stats.is_ht_assoc_downgrade++;
+		}
+		/*
+		 * If constrained to 11n-only stations reject legacy stations.
+		 */
+		if ((ic->ic_flags_ext & IEEE80211_FEXT_PUREN) &&
+		    (ni->ni_flags & IEEE80211_NODE_HT) == 0) {
+			htcapmismatch(ni, wh, reassoc, resp);
+			ic->ic_stats.is_ht_assoc_nohtcap++;
+			return;
+		}
 		ni->ni_rssi = rssi;
 		ni->ni_noise = noise;
 		ni->ni_rstamp = rstamp;
@@ -2884,6 +2937,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		 *	[tlv] extended supported rates
 		 *	[tlv] WME
 		 *	[tlv] HT capabilities
+		 *	[tlv] HT info
 		 */
 		IEEE80211_VERIFY_LENGTH(efrm - frm, 6, return);
 		ni = ic->ic_bss;
@@ -2904,7 +2958,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		associd = le16toh(*(uint16_t *)frm);
 		frm += 2;
 
-		rates = xrates = wme = htcap = NULL;
+		rates = xrates = wme = htcap = htinfo = NULL;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -2917,9 +2971,25 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			case IEEE80211_ELEMID_HTCAP:
 				htcap = frm;
 				break;
+			case IEEE80211_ELEMID_HTINFO:
+				htinfo = frm;
+				break;
 			case IEEE80211_ELEMID_VENDOR:
 				if (iswmeoui(frm))
 					wme = frm;
+				else if (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+					/*
+					 * Accept pre-draft HT ie's if the
+					 * standard ones have not been seen.
+					 */
+					if (ishtcapoui(frm)) {
+						if (htcap == NULL)
+							htcap = frm;
+					} else if (ishtinfooui(frm)) {
+						if (htinfo == NULL)
+							htcap = frm;
+					}
+				}
 				/* XXX Atheros OUI support */
 				break;
 			}
@@ -2956,6 +3026,25 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		} else
 			ni->ni_flags &= ~IEEE80211_NODE_QOS;
 		/*
+		 * Setup HT state according to the negotiation.
+		 */
+		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
+		    htcap != NULL && htinfo != NULL) {
+			ieee80211_ht_node_init(ni, htcap);
+			ieee80211_parse_htinfo(ni, htinfo);
+			ieee80211_setup_htrates(ni,
+			    htcap, IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
+			ieee80211_setup_basic_htrates(ni, htinfo);
+			if (ni->ni_chan != ic->ic_bsschan) {
+				/*
+				 * Channel has been adjusted based on
+				 * negotiated HT parameters; force the
+				 * channel state to follow.
+				 */
+				ieee80211_setbsschan(ic, ni->ni_chan);
+			}
+		}
+		/*
 		 * Configure state now that we are associated.
 		 *
 		 * XXX may need different/additional driver callbacks?
@@ -2989,6 +3078,9 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		    ic->ic_flags&IEEE80211_F_SHSLOT ? "short" : "long",
 		    ic->ic_flags&IEEE80211_F_USEPROT ? ", protection" : "",
 		    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
+		    ni->ni_flags & IEEE80211_NODE_HT ?
+			(ni->ni_chw == 20 ? ", HT20" : ", HT40") : "",
+		    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
 		    IEEE80211_ATH_CAP(ic, ni, IEEE80211_NODE_FF) ?
 			", fast-frames" : "",
 		    IEEE80211_ATH_CAP(ic, ni, IEEE80211_NODE_TURBOP) ?

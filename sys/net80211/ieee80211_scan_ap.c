@@ -325,7 +325,8 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211com *ic)
 				return 0;
 			}
 		}
-		ieee80211_create_ibss(ic, c);
+		ieee80211_create_ibss(ic,
+		    ieee80211_ht_adjust_channel(ic, c, ic->ic_flags_ext));
 		return 1;
 	}
 }
