@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: queue1,v 1.3 2003/01/20 16:14:23 henning Exp $
+# $OpenBSD: queue1,v 1.4 2006/10/07 04:48:01 mcbride Exp $
 
 ext_if = "dc0"
 
@@ -14,10 +14,8 @@ queue	ssh bandwidth 100Kb priority 7 cbq(borrow)
 queue	rsets bandwidth 7500b priority 0 cbq(red)
 
 block return in on $ext_if inet all queue rsets
-pass in on $ext_if inet proto tcp from any to any port 80 keep state queue http
-pass out on $ext_if inet proto tcp from any to any port 22 keep state queue ssh
-pass in  on $ext_if inet proto tcp from any to any port 22 keep state queue ssh
-pass out on $ext_if inet proto tcp from any to any port 25 keep state queue mail
-pass out on $ext_if inet all keep state
-
-
+pass in on $ext_if inet proto tcp from any to any port 80 queue http
+pass out on $ext_if inet proto tcp from any to any port 22 queue ssh
+pass in  on $ext_if inet proto tcp from any to any port 22 queue ssh
+pass out on $ext_if inet proto tcp from any to any port 25 queue mail
+pass out on $ext_if inet all

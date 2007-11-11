@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: faq-example2,v 1.2 2003/08/06 16:04:45 henning Exp $
+# $OpenBSD: faq-example2,v 1.4 2006/10/07 04:48:01 mcbride Exp $
 
 #
 # Small, Home Network
@@ -43,9 +43,9 @@ altq on dc0 cbq bandwidth 2Mb queue { std_in, ssh_im_in, dns_in, bob_in }
 # bob_in      - bandwidth reserved for Bob's workstation. allow him to
 #               borrow.
 
-queue std_in    cbq(default)
-queue ssh_im_in priority 4
-queue dns_in    priority 5
+queue std_in    bandwidth 1.6Mb cbq(default)
+queue ssh_im_in bandwidth 200Kb priority 4
+queue dns_in    bandwidth 120Kb priority 5
 queue bob_in    bandwidth 80Kb cbq(borrow)
 
 
@@ -63,15 +63,15 @@ block in on fxp0 all
 
 # filter rules for fxp0 outbound
 block out on fxp0 all
-pass  out on fxp0 inet proto tcp from (fxp0) to any flags S/SA \
-        keep state queue(std_out, tcp_ack_out)
-pass  out on fxp0 inet proto { udp icmp } from (fxp0) to any keep state
+pass  out on fxp0 inet proto tcp from (fxp0) to any \
+        queue(std_out, tcp_ack_out)
+pass  out on fxp0 inet proto { udp icmp } from (fxp0) to any
 pass  out on fxp0 inet proto { tcp udp } from (fxp0) to any port domain \
-        keep state queue dns_out
+        queue dns_out
 pass  out on fxp0 inet proto tcp from (fxp0) to any port $ssh_ports \
-        flags S/SA keep state queue(std_out, ssh_im_out)
+        queue(std_out, ssh_im_out)
 pass  out on fxp0 inet proto tcp from (fxp0) to any port $im_ports \
-        flags S/SA keep state queue(ssh_im_out, tcp_ack_out)
+        queue(ssh_im_out, tcp_ack_out)
 
 # filter rules for dc0 inbound
 block in on dc0 all
