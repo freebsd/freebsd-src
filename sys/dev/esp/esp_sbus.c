@@ -691,7 +691,7 @@ espattach(struct esp_softc *esc, struct ncr53c9x_glue *gluep)
 		return (ENXIO);
 	}
 	if (bus_setup_intr(esc->sc_dev, esc->sc_irqres,
-	    INTR_TYPE_BIO|INTR_MPSAFE, NULL, ncr53c9x_intr, sc, &esc->sc_irq)) {
+	    INTR_TYPE_BIO, NULL, ncr53c9x_intr, sc, &esc->sc_irq)) {
 		device_printf(esc->sc_dev, "cannot set up interrupt\n");
 		error = ENXIO;
 		goto fail_ires;
