@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.960 2007/02/07 20:18:47 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.967 2007/10/01 16:22:14 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>
@@ -349,14 +349,18 @@ static SM_DEBUG_T DebugLeakSmtp = SM_DEBUG_INITIALIZER("leak_smtp",
 
 typedef struct
 {
-	bool	sm_gotmail;	/* mail command received */
-	unsigned int sm_nrcpts;	/* number of successful RCPT commands */
-	bool	sm_discard;
+	bool		sm_gotmail;	/* mail command received */
+	unsigned int	sm_nrcpts;	/* number of successful RCPT commands */
+	bool		sm_discard;
 #if MILTER
-	bool	sm_milterize;
-	bool	sm_milterlist;	/* any filters in the list? */
+	bool		sm_milterize;
+	bool		sm_milterlist;	/* any filters in the list? */
+	milters_T	sm_milters;
+
+	/* e_nrcpts from envelope before recipient() call */
+	unsigned int	sm_e_nrcpts_orig;
 #endif /* MILTER */
-	char	*sm_quarmsg;	/* carry quarantining across messages */
+	char		*sm_quarmsg;	/* carry quarantining across messages */
 } SMTP_T;
 
 static bool	smtp_data __P((SMTP_T *, ENVELOPE *));
@@ -907,7 +911,7 @@ smtp(nullserver, d_flags, e)
 		char state;
 
 		/* initialize mail filter connection */
-		smtp.sm_milterlist = milter_init(e, &state);
+		smtp.sm_milterlist = milter_init(e, &state, &smtp.sm_milters);
 		switch (state)
 		{
 		  case SMFIR_REJECT:
@@ -1285,7 +1289,7 @@ smtp(nullserver, d_flags, e)
 			{
 				authenticating = SASL_NOT_AUTH;
 
-				/* rfc 2254 4. */
+				/* RFC 2554 4. */
 				message("501 5.0.0 AUTH aborted");
 				RESET_SASLCONN;
 				continue;
@@ -1304,7 +1308,7 @@ smtp(nullserver, d_flags, e)
 			{
 				authenticating = SASL_NOT_AUTH;
 
-				/* rfc 2254 4. */
+				/* RFC 2554 4. */
 				message("501 5.5.4 cannot decode AUTH parameter %s",
 					inp);
 # if SASL >= 20000
@@ -1658,7 +1662,21 @@ smtp(nullserver, d_flags, e)
 				break;
 			}
 
-			if (ismore)
+			/*
+			**  RFC 2554 4.
+			**  Unlike a zero-length client answer to a
+			**  334 reply, a zero- length initial response
+			**  is sent as a single equals sign ("=").
+			*/
+
+			if (ismore && *q == '=' && *(q + 1) == '\0')
+			{
+				/* will be free()d, don't use in=""; */
+				in = xalloc(1);
+				*in = '\0';
+				inlen = 0;
+			}
+			else if (ismore)
 			{
 				/* could this be shorter? XXX */
 # if SASL >= 20000
@@ -2503,6 +2521,7 @@ smtp(nullserver, d_flags, e)
 			(void) memset(&addr_st, '\0', sizeof(addr_st));
 			a = NULL;
 			milter_rcpt_added = false;
+			smtp.sm_e_nrcpts_orig = e->e_nrcpts;
 #endif
 			if (BadRcptThrottle > 0 &&
 			    n_badrcpts >= BadRcptThrottle)
@@ -2558,13 +2577,18 @@ smtp(nullserver, d_flags, e)
 #if MILTER
 			/*
 			**  Do not expand recipients at RCPT time (in the call
-			**  to recipient()).  If they are expanded, it
-			**  is impossible for removefromlist() to figure
-			**  out the expanded members of the original
-			**  recipient and mark them as QS_DONTSEND.
+			**  to recipient()) if a milter can delete or reject
+			**  a RCPT.  If they are expanded, it is impossible
+			**  for removefromlist() to figure out the expanded
+			**  members of the original recipient and mark them
+			**  as QS_DONTSEND.
 			*/
 
-			e->e_flags |= EF_VRFYONLY;
+			if (!(smtp.sm_milterlist && smtp.sm_milterize &&
+			      !bitset(EF_DISCARD, e->e_flags)) &&
+			    (smtp.sm_milters.mis_flags &
+			     (MIS_FL_DEL_RCPT|MIS_FL_REJ_RCPT)) != 0)
+				e->e_flags |= EF_VRFYONLY;
 			milter_cmd_done = false;
 			milter_cmd_safe = false;
 #endif /* MILTER */
@@ -2799,6 +2823,8 @@ smtp(nullserver, d_flags, e)
 			{
 				(void) removefromlist(addr, &e->e_sendqueue, e);
 				milter_cmd_fail = false;
+				if (smtp.sm_e_nrcpts_orig < e->e_nrcpts)
+					e->e_nrcpts = smtp.sm_e_nrcpts_orig;
 			}
 #endif /* MILTER */
 		    }
@@ -3557,8 +3583,19 @@ smtp_data(smtp, e)
 
 	if (aborting)
 	{
+		ADDRESS *q;
+
 		/* Log who the mail would have gone to */
 		logundelrcpts(e, e->e_message, 8, false);
+
+		/*
+		**  If something above refused the message, we still haven't
+		**  accepted responsibility for it.  Don't send DSNs.
+		*/
+
+		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+			q->q_flags &= ~Q_PINGFLAGS;
+
 		flush_errors(true);
 		buffer_errors();
 		goto abortmessage;
@@ -4026,8 +4063,7 @@ reset_mail_esmtp_args(e)
 	macdefine(&e->e_macro, A_PERM, macid("{dsn_envid}"), NULL);
 
 	/* "ret" */
-	e->e_flags &= EF_RET_PARAM;
-	e->e_flags &= EF_NO_BODY_RETN;
+	e->e_flags &= ~(EF_RET_PARAM|EF_NO_BODY_RETN);
 	macdefine(&e->e_macro, A_TEMP, macid("{dsn_ret}"), NULL);
 
 #if SASL

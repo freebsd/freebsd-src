@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.132 2007/03/21 23:56:18 ca Exp $
+ *	$Id: conf.h,v 1.134 2007/09/24 23:05:37 ca Exp $
  */
 
 /*
@@ -458,6 +458,9 @@ typedef int		pid_t;
 #   if SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210)
 #    define HASUNSETENV 1       /* unsetenv() added in S10 */
 #   endif /* SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210) */
+#   if SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211)
+#    define GETLDAPALIASBYNAME_VERSION 2	/* changed in S11 */
+#   endif /* SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211) */
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #   endif /* ! HASGETUSERSHELL */
