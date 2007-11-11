@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mpeix.c,v 1.6 2002/05/24 20:50:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mpeix.c,v 1.7 2007/05/11 18:51:22 gshapiro Exp $")
 
 #ifdef MPE
 /*
@@ -506,7 +506,7 @@ sendmail_mpe_emuluid()
 **		emulated egid if present, else true egid.
 */
 
-static uid_t sendmail_mpe_egid = -1;
+static gid_t sendmail_mpe_egid = -1;
 
 #undef getegid
 gid_t
