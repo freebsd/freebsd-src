@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.400 2006/12/21 00:24:06 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.401 2007/09/27 23:33:59 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"
@@ -217,7 +217,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 		if (e->e_sendmode == SM_DEFER)
 			msg = "Deferring message until queue run";
 		if (tTd(20, 1))
-			sm_dprintf("parseaddr: queuing message\n");
+			sm_dprintf("parseaddr: queueing message\n");
 		message(msg);
 		if (e->e_message == NULL && e->e_sendmode != SM_DEFER)
 			e->e_message = sm_rpool_strdup_x(e->e_rpool, msg);
