@@ -125,6 +125,13 @@ typedef struct mtx ieee80211_scan_lock_t;
 	(_qlen) = ++(_ni)->ni_savedq.ifq_len; 			\
 } while (0)
 
+#define	IEEE80211_TAPQ_INIT(_tap) do {				\
+	mtx_init(&(tap)->txa_q.ifq_mtx, "ampdu tx queue", NULL, MTX_DEF); \
+	(_tap)->txa_q.ifq_maxlen = IEEE80211_AGGR_BAWMAX;	\
+} while (0)
+#define	IEEE80211_TAPQ_DESTROY(_tap) \
+	mtx_destroy(&(_tap)->txa_q.ifq_mtx)
+
 #ifndef IF_PREPEND_LIST
 #define _IF_PREPEND_LIST(ifq, mhead, mtail, mcount) do {	\
 	(mtail)->m_nextpkt = (ifq)->ifq_head;			\
@@ -178,6 +185,7 @@ struct ifqueue;
 void	ieee80211_drain_ifq(struct ifqueue *);
 
 #define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
+#define	ticks_to_msecs(t)	((t) / hz)
 #define time_after(a,b) 	((long)(b) - (long)(a) < 0)
 #define time_before(a,b)	time_after(b,a)
 #define time_after_eq(a,b)	((long)(a) - (long)(b) >= 0)

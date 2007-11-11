@@ -60,6 +60,7 @@ struct ieee80211_nodestats {
 	uint32_t	ns_rx_decryptcrc;	/* rx decrypt failed on crc */
 	uint32_t	ns_rx_unauth;		/* rx on unauthorized port */
 	uint32_t	ns_rx_unencrypted;	/* rx unecrypted w/ privacy */
+	uint32_t	ns_rx_drop;		/* rx discard other reason */
 
 	uint32_t	ns_tx_data;		/* tx data frames */
 	uint32_t	ns_tx_mgmt;		/* tx management frames */
@@ -186,11 +187,28 @@ struct ieee80211_stats {
 	uint32_t	is_amsdu_encap;		/* A-MSDU encap'd for tx */
 	uint32_t	is_ampdu_bar_bad;	/* A-MPDU BAR out of window */
 	uint32_t	is_ampdu_bar_oow;	/* A-MPDU BAR before ADDBA */
+	uint32_t	is_ampdu_bar_move;	/* A-MPDU BAR moved window */
 	uint32_t	is_ampdu_bar_rx;	/* A-MPDU BAR frames handled */
 	uint32_t	is_ampdu_rx_flush;	/* A-MPDU frames flushed */
 	uint32_t	is_ampdu_rx_oor;	/* A-MPDU frames out-of-order */
 	uint32_t	is_ampdu_rx_copy;	/* A-MPDU frames copied down */
-	uint32_t	is_spare[32];
+	uint32_t	is_ampdu_rx_drop;	/* A-MPDU frames dropped */
+	uint32_t	is_tx_badstate;		/* tx discard state != RUN */
+	uint32_t	is_tx_notassoc;		/* tx failed, sta not assoc */
+	uint32_t	is_tx_classify;		/* tx classification failed */
+	uint32_t	is_ht_assoc_nohtcap;	/* non-HT sta rejected */
+	uint32_t	is_ht_assoc_downgrade;	/* HT sta forced to legacy */
+	uint32_t	is_ht_assoc_norate;	/* HT assoc w/ rate mismatch */
+	uint32_t	is_ampdu_rx_age;	/* A-MPDU sent up 'cuz of age */
+	uint32_t	is_ampdu_rx_move;	/* A-MPDU MSDU moved window */
+	uint32_t	is_addba_reject;	/* ADDBA reject 'cuz disabled */
+	uint32_t	is_addba_norequest;	/* ADDBA response w/o ADDBA */
+	uint32_t	is_addba_badtoken;	/* ADDBA response w/ wrong
+						   dialogtoken */
+	uint32_t	is_ampdu_stop;		/* A-MPDU stream stopped */
+	uint32_t	is_ampdu_stop_failed;	/* A-MPDU stream not running */
+	uint32_t	is_ampdu_rx_reorder;	/* A-MPDU held for rx reorder */
+	uint32_t	is_spare[16];
 };
 
 /*
@@ -208,7 +226,7 @@ struct ieee80211_stats {
  * Otherwise a unicast/pairwise key is specified by the bssid
  * (on a station) or mac address (on an ap).  They key length
  * must include any MIC key data; otherwise it should be no
- more than IEEE80211_KEYBUF_SIZE.
+ * more than IEEE80211_KEYBUF_SIZE.
  */
 struct ieee80211req_key {
 	uint8_t		ik_type;	/* key/cipher type */
@@ -493,6 +511,8 @@ struct ieee80211req {
 #define	IEEE80211_IOC_LOCATION		91	/* indoor/outdoor/anywhere */
 #define	IEEE80211_IOC_HTCOMPAT		92	/* support pre-D1.10 HT ie's */
 #define	IEEE80211_IOC_INACTIVITY	94	/* sta inactivity handling */
+#define IEEE80211_IOC_HTPROTMODE	102	/* HT protection (off, rts) */
+#define	IEEE80211_IOC_HTCONF		105	/* HT config (off, HT20, HT40)*/
 
 /*
  * Scan result data returned for IEEE80211_IOC_SCAN_RESULTS.

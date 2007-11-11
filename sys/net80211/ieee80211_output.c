@@ -819,7 +819,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 		 * in case the receiver NAK's us or we are otherwise
 		 * unable to establish a BA stream.
 		 */
-		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
+		if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
 		    (ic->ic_flags_ext & IEEE80211_FEXT_AMPDU_TX)) {
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
@@ -1583,7 +1583,9 @@ int
 ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	int type, int arg)
 {
+#define	HTFLAGS (IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT)
 #define	senderr(_x, _v)	do { ic->ic_stats._v++; ret = _x; goto bad; } while (0)
+	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
 	uint8_t *frm;
 	uint16_t capinfo;
@@ -1657,7 +1659,8 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 		frm = ieee80211_add_ssid(frm, ic->ic_bss->ni_essid,
 				ic->ic_bss->ni_esslen);
-		frm = ieee80211_add_rates(frm, &ni->ni_rates);
+		rs = ieee80211_get_suprates(ic, ic->ic_curchan);
+		frm = ieee80211_add_rates(frm, rs);
 
 		if (IEEE80211_IS_CHAN_FHSS(ic->ic_curchan)) {
                         *frm++ = IEEE80211_ELEMID_FHPARMS;
@@ -1684,16 +1687,25 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			frm = ieee80211_add_wpa(frm, ic);
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 			frm = ieee80211_add_erp(frm, ic);
-		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
-		if (ic->ic_flags & IEEE80211_F_WME)
-			frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
-		if (IEEE80211_IS_CHAN_HT(ic->ic_curchan)) {
+		frm = ieee80211_add_xrates(frm, rs);
+		/*
+		 * NB: legacy 11b clients do not get certain ie's.
+		 *     The caller identifies such clients by passing
+		 *     a token in arg to us.  Could expand this to be
+		 *     any legacy client for stuff like HT ie's.
+		 */
+		if (IEEE80211_IS_CHAN_HT(ic->ic_curchan) &&
+		    arg != IEEE80211_SEND_LEGACY_11B) {
 			frm = ieee80211_add_htcap(frm, ni);
 			frm = ieee80211_add_htinfo(frm, ni);
-			if (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
-				frm = ieee80211_add_htcap_vendor(frm, ni);
-				frm = ieee80211_add_htinfo_vendor(frm, ni);
-			}
+		}
+		if (ic->ic_flags & IEEE80211_F_WME)
+			frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
+		if (IEEE80211_IS_CHAN_HT(ic->ic_curchan) &&
+		    (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT) &&
+		    arg != IEEE80211_SEND_LEGACY_11B) {
+			frm = ieee80211_add_htcap_vendor(frm, ni);
+			frm = ieee80211_add_htinfo_vendor(frm, ni);
 		}
 		if (ni->ni_ath_ie != NULL)
 			frm = ieee80211_add_ath(frm, ni->ni_ath_flags,
@@ -1828,6 +1840,9 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
 		    (ic->ic_caps & IEEE80211_C_SHSLOT))
 			capinfo |= IEEE80211_CAPINFO_SHORT_SLOTTIME;
+		if ((ni->ni_capinfo & IEEE80211_CAPINFO_SPECTRUM_MGMT) &&
+		    (ic->ic_flags & IEEE80211_F_DOTH))
+			capinfo |= IEEE80211_CAPINFO_SPECTRUM_MGMT;
 		*(uint16_t *)frm = htole16(capinfo);
 		frm += 2;
 
@@ -1845,13 +1860,16 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		frm = ieee80211_add_ssid(frm, ni->ni_essid, ni->ni_esslen);
 		frm = ieee80211_add_rates(frm, &ni->ni_rates);
 		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
+		if ((ic->ic_flags_ext & IEEE80211_FEXT_HT) &&
+		    ni->ni_htcap_ie != NULL &&
+		    ni->ni_htcap_ie[0] == IEEE80211_ELEMID_HTCAP)
+			frm = ieee80211_add_htcap(frm, ni);
 		if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL)
 			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
-		if (IEEE80211_IS_CHAN_HT(ic->ic_curchan)) {
-			frm = ieee80211_add_htcap(frm, ni);
-			if (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT)
-				frm = ieee80211_add_htcap_vendor(frm, ni);
-		}
+		if ((ic->ic_flags_ext & IEEE80211_FEXT_HT) &&
+		    ni->ni_htcap_ie != NULL &&
+		    ni->ni_htcap_ie[0] == IEEE80211_ELEMID_VENDOR)
+			frm = ieee80211_add_htcap_vendor(frm, ni);
 		if (IEEE80211_ATH_CAP(ic, ni, IEEE80211_F_ATHEROS))
 			frm = ieee80211_add_ath(frm,
 				IEEE80211_ATH_CAP(ic, ni, IEEE80211_F_ATHEROS),
@@ -1914,17 +1932,16 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 		frm = ieee80211_add_rates(frm, &ni->ni_rates);
 		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
+		/* NB: respond according to what we received */
+		if ((ni->ni_flags & HTFLAGS) == IEEE80211_NODE_HT) {
+			frm = ieee80211_add_htcap(frm, ni);
+			frm = ieee80211_add_htinfo(frm, ni);
+		}
 		if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL)
 			frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
-		if (IEEE80211_IS_CHAN_HT(ic->ic_curchan)) {
-			/* NB: respond according to what we received */
-			if (ni->ni_flags & IEEE80211_NODE_HTCOMPAT) {
-				frm = ieee80211_add_htcap_vendor(frm, ni);
-				frm = ieee80211_add_htinfo_vendor(frm, ni);
-			} else {
-				frm = ieee80211_add_htcap(frm, ni);
-				frm = ieee80211_add_htinfo(frm, ni);
-			}
+		if ((ni->ni_flags & HTFLAGS) == HTFLAGS) {
+			frm = ieee80211_add_htcap_vendor(frm, ni);
+			frm = ieee80211_add_htinfo_vendor(frm, ni);
 		}
 		if (IEEE80211_ATH_CAP(ic, ni, IEEE80211_F_ATHEROS))
 			frm = ieee80211_add_ath(frm,
@@ -1965,6 +1982,7 @@ bad:
 	ieee80211_free_node(ni);
 	return ret;
 #undef senderr
+#undef HTFLAGS
 }
 
 static void
@@ -2072,6 +2090,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		return NULL;
 	}
 
+	memset(bo, 0, sizeof(*bo));
+
 	memset(frm, 0, 8);	/* XXX timestamp is set by hardware/driver */
 	frm += 8;
 	*(uint16_t *)frm = htole16(ni->ni_intval);
@@ -2115,29 +2135,27 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	if (ic->ic_flags & IEEE80211_F_DOTH)
 		frm = ieee80211_add_countryie(frm, ic,
 			ic->ic_countrycode, ic->ic_location);
-	if (ic->ic_flags & IEEE80211_F_WME) {
-		bo->bo_wme = frm;
-		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
-	} else
-		bo->bo_wme = NULL;
 	if (ic->ic_flags & IEEE80211_F_WPA)
 		frm = ieee80211_add_wpa(frm, ic);
 	if (IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan)) {
 		bo->bo_erp = frm;
 		frm = ieee80211_add_erp(frm, ic);
-	} else
-		bo->bo_erp = NULL;
+	}
 	frm = ieee80211_add_xrates(frm, rs);
 	if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan)) {
 		frm = ieee80211_add_htcap(frm, ni);
 		bo->bo_htinfo = frm;
 		frm = ieee80211_add_htinfo(frm, ni);
-		if (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
-			frm = ieee80211_add_htcap_vendor(frm, ni);
-			frm = ieee80211_add_htinfo_vendor(frm, ni);
-		}
-	} else
-		bo->bo_htinfo = NULL;
+	}
+	if (ic->ic_flags & IEEE80211_F_WME) {
+		bo->bo_wme = frm;
+		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
+	}
+	if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan) &&
+	    (ic->ic_flags_ext & IEEE80211_FEXT_HTCOMPAT)) {
+		frm = ieee80211_add_htcap_vendor(frm, ni);
+		frm = ieee80211_add_htinfo_vendor(frm, ni);
+	}
 	bo->bo_tim_trailer_len = frm - bo->bo_tim_trailer;
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
