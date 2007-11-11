@@ -1063,7 +1063,7 @@ product CYBERTAN TG54USB	0x1666	TG54USB
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
-product CYPRESS WISPY		0x0bad	MetaGeek Wi-Spy
+product CYPRESS WISPY1A		0x0bad	MetaGeek Wi-Spy
 product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
 product CYPRESS USBRS232	0x5500	USB-RS232 Interface
@@ -1605,7 +1605,8 @@ product MELCO G54HP		0x00d9	WLI-U2-G54HP
 product MELCO KG54L		0x00da	WLI-U2-KG54L
 
 /* MetaGeek products */
-product METAGEEK WISPYX		0x083e	MetaGeek Wi-Spy 2.4x
+product METAGEEK WISPY1B	0x083e	MetaGeek Wi-Spy
+product METAGEEK WISPY24X	0x083f	MetaGeek Wi-Spy 2.4x
 
 /* Metricom products */
 product METRICOM RICOCHET_GS	0x0001	Ricochet GS
