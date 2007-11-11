@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2004
+.Dd June 6, 2007
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -119,11 +119,41 @@ If
 .Fa ai_protocol
 is zero the caller will accept any protocol.
 .It Fa ai_flags
+The
 .Fa ai_flags
-is formed by
-.Tn OR Ns 'ing
-the following values:
+field to which the
+.Fa hints
+parameter points shall be set to zero
+or be the bitwise-inclusive OR of one or more of the values
+.Dv AI_ADDRCONFIG ,
+.Dv AI_ALL ,
+.Dv AI_CANONNAME ,
+.Dv AI_NUMERICHOST ,
+.Dv AI_NUMERICSERV ,
+.Dv AI_PASSIVE ,
+and
+.Dv AI_V4MAPPED .
 .Bl -tag -width "AI_CANONNAMEXX"
+.It Dv AI_ADDRCONFIG
+If the
+.Dv AI_ADDRCONFIG
+bit is set, IPv4 addresses shall be returned only if
+an IPv4 address is configured on the local system,
+and IPv6 addresses shall be returned only if
+an IPv6 address is configured on the local system.
+.It Dv AI_ALL
+If the
+.Dv AI_ALL
+bit is set with the
+.Dv AI_V4MAPPED
+bit, then
+.Fn getaddrinfo
+shall return all matching IPv6 and IPv4 addresses.
+The
+.Dv AI_ALL
+bit without the
+.Dv AI_V4MAPPED
+bit is ignored.
 .It Dv AI_CANONNAME
 If the
 .Dv AI_CANONNAME
@@ -142,6 +172,18 @@ bit is set, it indicates that
 .Fa hostname
 should be treated as a numeric string defining an IPv4 or IPv6 address
 and no name resolution should be attempted.
+.It Dv AI_NUMERICSERV
+If the
+.Dv AI_NUMERICSERV
+bit is set,
+then a non-null
+.Fa servname
+string supplied shall be a numeric port string.
+Otherwise, an
+.Dv EAI_NONAME
+error shall be returned.
+This bit shall prevent any type of name resolution service
+(for example, NIS+) from being invoked.
 .It Dv AI_PASSIVE
 If the
 .Dv AI_PASSIVE
@@ -176,6 +218,25 @@ loopback address if
 is the null pointer and
 .Dv AI_PASSIVE
 is not set.
+.It Dv AI_V4MAPPED
+If the
+.Dv AI_V4MAPPED
+flag is specified along with an
+.Fa ai_family
+of
+.Dv AF_INET6 ,
+then
+.Fn getaddrinfo
+shall return IPv4-mapped IPv6 addresses
+on finding no matching IPv6 addresses (
+.Fa ai_addrlen
+shall be 16).
+The
+.Dv AI_V4MAPPED
+flag shall be ignored unless
+.Fa ai_family
+equals
+.Dv AF_INET6 .
 .El
 .El
 .Pp
@@ -428,7 +489,7 @@ freeaddrinfo(res0);
 The
 .Fn getaddrinfo
 function is defined by the
-.St -p1003.1g-2000
-draft specification and documented in
+.St -p1003.1-2004
+specification and documented in
 .Dv "RFC 3493" ,
 .Dq Basic Socket Interface Extensions for IPv6 .
