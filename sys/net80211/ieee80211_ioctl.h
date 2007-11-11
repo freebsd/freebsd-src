@@ -321,7 +321,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_ie_off;		/* offset to IE data */
 	uint16_t	isi_ie_len;		/* IE length */
 	uint16_t	isi_freq;		/* MHz */
-	uint16_t	isi_flags;		/* channel flags */
+	uint32_t	isi_flags;		/* channel flags */
 	uint16_t	isi_state;		/* state flags */
 	uint8_t		isi_authmode;		/* authentication algorithm */
 	int8_t		isi_rssi;		/* receive signal strength */
