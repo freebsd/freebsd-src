@@ -39,7 +39,7 @@
 .Nm rm_wunlock ,
 .Nm rm_wowned ,
 .Nm RM_SYSINIT
-.Nd mostly read lock - a kernel reader/writer lock optimized for mostly read access patterns
+.Nd kernel reader/writer lock optimized for mostly read access patterns
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/lock.h
@@ -91,7 +91,8 @@ can be locked while holding a non-spin mutex, and an
 cannot be held while sleeping.
 The
 .Nm
-locks have full priority propagation like mutexes. The
+locks have full priority propagation like mutexes.
+The
 .Va rm_priotracker
 structure argument supplied in
 .Fn rm_rlock
@@ -113,19 +114,22 @@ as mostly reader lock, described by
 Optionally allowing readers to recurse by setting
 .Dv LO_RECURSABLE
 in
-.Fa opts
+.Fa opts .
 The name description is used solely for debugging purposes.
 This function must be called before any other operations
 on the lock.
-.It Fn rm_rlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
+.It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Lock
 .Fa rm
-as a reader. Using
+as a reader.
+Using
 .Fa tracker
 to track read owners of a lock for priority propagation.
 This data structure is only used internally by
 .Nm
-and must persist until rm_runlock has been called.
+and must persist until
+.Fn rm_runlock
+has been called.
 This data structure can be allocated on the stack since
 rmlocks cannot be held while sleeping.
 If any thread holds this lock exclusively, the current thread blocks,
@@ -147,7 +151,7 @@ If there are any shared owners of the lock, the current thread blocks.
 The
 .Fn rm_wlock
 function cannot be called recursively.
-.It Fn rm_runlock "struct rmlock *rm"  "struct rm_priotracker* tracker"
+.It Fn rm_runlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 This function releases a shared lock previously acquired by
 .Fn rm_rlock .
 The
@@ -169,12 +173,11 @@ This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rm .
 .El
-.El
 .Sh SEE ALSO
 .Xr locking 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
-.Xr rwlock 9,
+.Xr rwlock 9 ,
 .Xr sema 9 ,
 .Xr sx 9
 .Sh HISTORY
@@ -192,16 +195,15 @@ This manual page was written by
 for rwlock and modified to reflect rmlock by
 .An "Stephan Uphoff" .
 .Sh BUGS
-.Pp
 The
 .Nm
 implementation is currently not optimized for single processor systems.
 .Pp
 The
 .Nm
-implementation uses a single per cpu list shared by all
+implementation uses a single per CPU list shared by all
 rmlocks in the system.
-If rmlocks become popular, hashing to multiple per cpu queues may
+If rmlocks become popular, hashing to multiple per CPU queues may
 be needed to speed up the writer lock process. 
 .Pp
 The
