@@ -905,17 +905,7 @@ ieee80211_init(struct ieee80211com *ic, int forcescan)
 	 */
 	if (ic->ic_roaming != IEEE80211_ROAMING_MANUAL) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
-			/*
-			 * Try to be intelligent about clocking the state
-			 * machine.  If we're currently in RUN state then
-			 * we should be able to apply any new state/parameters
-			 * simply by re-associating.  Otherwise we need to
-			 * re-scan to select an appropriate ap.
-			 */
-			if (ic->ic_state != IEEE80211_S_RUN || forcescan)
-				ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
-			else
-				ieee80211_new_state(ic, IEEE80211_S_ASSOC, 1);
+			ieee80211_new_state(ic, IEEE80211_S_SCAN, 0);
 		} else {
 			/*
 			 * For monitor+wds modes there's nothing to do but
