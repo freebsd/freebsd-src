@@ -44,6 +44,7 @@ Options:
   -f conffile  -- Read configuration options from conffile
                   (default: /etc/freebsd-update.conf)
   -k KEY       -- Trust an RSA key with SHA256 hash of KEY
+  -r release   -- Target for upgrade (e.g., 6.2-RELEASE)
   -s server    -- Server from which to fetch updates
                   (default: update.FreeBSD.org)
   -t address   -- Mail output of cron command, if any, to address
@@ -52,7 +53,8 @@ Commands:
   fetch        -- Fetch updates from server
   cron         -- Sleep rand(3600) seconds, fetch updates, and send an
                   email if updates were found
-  install      -- Install downloaded updates
+  upgrade      -- Fetch upgrades to FreeBSD version specified via -r option
+  install      -- Install downloaded updates or upgrades
   rollback     -- Uninstall most recently installed updates
 EOF
 	exit 0
@@ -84,7 +86,7 @@ EOF
 
 CONFIGOPTIONS="KEYPRINT WORKDIR SERVERNAME MAILTO ALLOWADD ALLOWDELETE
     KEEPMODIFIEDMETADATA COMPONENTS IGNOREPATHS UPDATEIFUNMODIFIED
-    BASEDIR VERBOSELEVEL"
+    BASEDIR VERBOSELEVEL TARGETRELEASE STRICTCOMPONENTS MERGECHANGES"
 
 # Set all the configuration options to "".
 nullconfig () {
@@ -228,10 +230,48 @@ config_UpdateIfUnmodified () {
 	done
 }
 
+# Add to the list of paths within which updates to text files will be merged
+# instead of overwritten.
+config_MergeChanges () {
+	for C in $@; do
+		MERGECHANGES="${MERGECHANGES} ${C}"
+	done
+}
+
 # Work on a FreeBSD installation mounted under $1
 config_BaseDir () {
 	if [ -z ${BASEDIR} ]; then
 		BASEDIR=$1
+	else
+		return 1
+	fi
+}
+
+# When fetching upgrades, should we assume the user wants exactly the
+# components listed in COMPONENTS, rather than trying to guess based on
+# what's currently installed?
+config_StrictComponents () {
+	if [ -z ${STRICTCOMPONENTS} ]; then
+		case $1 in
+		[Yy][Ee][Ss])
+			STRICTCOMPONENTS=yes
+			;;
+		[Nn][Oo])
+			STRICTCOMPONENTS=no
+			;;
+		*)
+			return 1
+			;;
+		esac
+	else
+		return 1
+	fi
+}
+
+# Upgrade to FreeBSD $1
+config_TargetRelease () {
+	if [ -z ${TARGETRELEASE} ]; then
+		TARGETRELEASE=$1
 	else
 		return 1
 	fi
@@ -313,6 +353,10 @@ parse_cmdline () {
 			if [ $# -eq 1 ]; then usage; fi; shift
 			config_ServerName $1 || usage
 			;;
+		-r)
+			if [ $# -eq 1 ]; then usage; fi; shift
+			config_TargetRelease $1 || usage
+			;;
 		-t)
 			if [ $# -eq 1 ]; then usage; fi; shift
 			config_MailTo $1 || usage
@@ -331,7 +375,7 @@ parse_cmdline () {
 			;;
 
 		# Commands
-		cron | fetch | install | rollback)
+		cron | fetch | upgrade | install | rollback)
 			COMMANDS="${COMMANDS} $1"
 			;;
 
@@ -407,6 +451,7 @@ default_params () {
 	config_KeepModifiedMetadata yes
 	config_BaseDir /
 	config_VerboseLevel stats
+	config_StrictComponents no
 
 	# Merge these defaults into the earlier-configured settings
 	mergeconfig
@@ -490,6 +535,7 @@ fetch_check_params () {
 	    sed -E 's,-SECURITY,-RELEASE,'`
 	ARCH=`uname -m`
 	FETCHDIR=${RELNUM}/${ARCH}
+	PATCHDIR=${RELNUM}/${ARCH}/bp
 
 	# Figure out what directory contains the running kernel
 	BOOTFILE=`sysctl -n kern.bootfile`
@@ -527,6 +573,46 @@ fetch_check_params () {
 
 	# Construct a unique name from ${BASEDIR}
 	BDHASH=`echo ${BASEDIR} | sha256 -q`
+}
+
+# Perform sanity checks etc. before fetching upgrades.
+upgrade_check_params () {
+	fetch_check_params
+
+	# Unless set otherwise, we're upgrading to the same kernel config.
+	NKERNCONF=${KERNCONF}
+
+	# We need TARGETRELEASE set
+	_TARGETRELEASE_z="Release target must be specified via -r option."
+	if [ -z "${TARGETRELEASE}" ]; then
+		echo -n "`basename $0`: "
+		echo "${_TARGETRELEASE_z}"
+		exit 1
+	fi
+
+	# The target release should be != the current release.
+	if [ "${TARGETRELEASE}" = "${RELNUM}" ]; then
+		echo -n "`basename $0`: "
+		echo "Cannot upgrade from ${RELNUM} to itself"
+		exit 1
+	fi
+
+	# Turning off AllowAdd or AllowDelete is a bad idea for upgrades.
+	if [ "${ALLOWADD}" = "no" ]; then
+		echo -n "`basename $0`: "
+		echo -n "WARNING: \"AllowAdd no\" is a bad idea "
+		echo "when upgrading between releases."
+		echo
+	fi
+	if [ "${ALLOWDELETE}" = "no" ]; then
+		echo -n "`basename $0`: "
+		echo -n "WARNING: \"AllowDelete no\" is a bad idea "
+		echo "when upgrading between releases."
+		echo
+	fi
+
+	# Set EDITOR to /usr/bin/vi if it isn't already set
+	: ${EDITOR:='/usr/bin/vi'}
 }
 
 # Perform sanity checks and set some final parameters in
@@ -749,6 +835,20 @@ fetch_progress () {
 	echo -n " "
 }
 
+# Function for asking the user if everything is ok
+continuep () {
+	while read -p "Does this look reasonable (y/n)? " CONTINUE; do
+		case "${CONTINUE}" in
+		y*)
+			return 0
+			;;
+		n*)
+			return 1
+			;;
+		esac
+	done
+}
+
 # Initialize the working directory
 workdir_init () {
 	mkdir -p files
@@ -781,7 +881,8 @@ fetch_key () {
 
 # Fetch metadata signature, aka "tag".
 fetch_tag () {
-	echo ${NDEBUG} "Fetching metadata signature from ${SERVERNAME}... "
+	echo -n "Fetching metadata signature "
+	echo ${NDEBUG} "for ${RELNUM} from ${SERVERNAME}... "
 	rm -f latest.ssl
 	fetch ${QUIETFLAG} http://${SERVERNAME}/${FETCHDIR}/latest.ssl	\
 	    2>${QUIETREDIR} || true
@@ -1072,23 +1173,34 @@ fetch_metadata () {
 	return 0
 }
 
+# Extract a subset of a downloaded metadata file containing only the parts
+# which are listed in COMPONENTS.
+fetch_filter_metadata_components () {
+	METAHASH=`look "$1|" tINDEX.present | cut -f 2 -d '|'`
+	gunzip -c < files/${METAHASH}.gz > $1.all
+
+	# Fish out the lines belonging to components we care about.
+	for C in ${COMPONENTS}; do
+		look "`echo ${C} | tr '/' '|'`|" $1.all
+	done > $1
+
+	# Remove temporary file.
+	rm $1.all
+}
+
 # Generate a filtered version of the metadata file $1 from the downloaded
 # file, by fishing out the lines corresponding to components we're trying
 # to keep updated, and then removing lines corresponding to paths we want
 # to ignore.
 fetch_filter_metadata () {
-	METAHASH=`look "$1|" tINDEX.present | cut -f 2 -d '|'`
-	gunzip -c < files/${METAHASH}.gz > $1.all
-
 	# Fish out the lines belonging to components we care about.
+	fetch_filter_metadata_components $1
+
 	# Canonicalize directory names by removing any trailing / in
 	# order to avoid listing directories multiple times if they
 	# belong to multiple components.  Turning "/" into "" doesn't
 	# matter, since we add a leading "/" when we use paths later.
-	for C in ${COMPONENTS}; do
-		look "`echo ${C} | tr '/' '|'`|" $1.all
-	done |
-	    cut -f 3- -d '|' |
+	cut -f 3- -d '|' $1 |
 	    sed -e 's,/|d|,|d|,' |
 	    sort -u > $1.tmp
 
@@ -1100,24 +1212,23 @@ fetch_filter_metadata () {
 	    comm -13 - $1.tmp > $1
 
 	# Remove temporary files.
-	rm $1.all $1.tmp
+	rm $1.tmp
 }
 
-# Filter the metadata file $1 by adding lines with "/boot/${KERNCONF}"
+# Filter the metadata file $1 by adding lines with "/boot/$2"
 # replaced by ${KERNELDIR} (which is `sysctl -n kern.bootfile` minus the
-# trailing "/kernel"); and if "/boot/${KERNCONF}" does not exist, remove
+# trailing "/kernel"); and if "/boot/$2" does not exist, remove
 # the original lines which start with that.
 # Put another way: Deal with the fact that the FOO kernel is sometimes
 # installed in /boot/FOO/ and is sometimes installed elsewhere.
 fetch_filter_kernel_names () {
-
-	grep ^/boot/${KERNCONF} $1 |
-	    sed -e "s,/boot/${KERNCONF},${KERNELDIR},g" |
+	grep ^/boot/$2 $1 |
+	    sed -e "s,/boot/$2,${KERNELDIR},g" |
 	    sort - $1 > $1.tmp
 	mv $1.tmp $1
 
-	if ! [ -d /boot/${KERNCONF} ]; then
-		grep -v ^/boot/${KERNCONF} $1 > $1.tmp
+	if ! [ -d /boot/$2 ]; then
+		grep -v ^/boot/$2 $1 > $1.tmp
 		mv $1.tmp $1
 	fi
 }
@@ -1200,10 +1311,43 @@ fetch_inspect_system () {
 	echo "done."
 }
 
+# For any paths matching ${MERGECHANGES}, compare $1 and $2 and find any
+# files which differ; generate $3 containing these paths and the old hashes.
+fetch_filter_mergechanges () {
+	# Pull out the paths and hashes of the files matching ${MERGECHANGES}.
+	for F in $1 $2; do
+		for X in ${MERGECHANGES}; do
+			grep -E "^${X}" ${F}
+		done |
+		    cut -f 1,2,7 -d '|' |
+		    sort > ${F}-values
+	done
+
+	# Any line in $2-values which doesn't appear in $1-values and is a
+	# file means that we should list the path in $3.
+	comm -13 $1-values $2-values |
+	    fgrep '|f|' |
+	    cut -f 1 -d '|' > $2-paths
+
+	# For each path, pull out one (and only one!) entry from $1-values.
+	# Note that we cannot distinguish which "old" version the user made
+	# changes to; but hopefully any changes which occur due to security
+	# updates will exist in both the "new" version and the version which
+	# the user has installed, so the merging will still work.
+	while read X; do
+		look "${X}|" $1-values |
+		    head -1
+	done < $2-paths > $3
+
+	# Clean up
+	rm $1-values $2-values $2-paths
+}
+
 # For any paths matching ${UPDATEIFUNMODIFIED}, remove lines from $[123]
-# which correspond to lines in $2 with hashes not matching $1 or $3.  For
-# entries in $2 marked "not present" (aka. type -), remove lines from $[123]
-# unless there is a corresponding entry in $1.
+# which correspond to lines in $2 with hashes not matching $1 or $3, unless
+# the paths are listed in $4.  For entries in $2 marked "not present"
+# (aka. type -), remove lines from $[123] unless there is a corresponding
+# entry in $1.
 fetch_filter_unmodified_notpresent () {
 	# Figure out which lines of $1 and $3 correspond to bits which
 	# should only be updated if they haven't changed, and fish out
@@ -1225,9 +1369,15 @@ fetch_filter_unmodified_notpresent () {
 	    sort > $2-values
 
 	# Any entry in $2-values which is not in $1-values corresponds to
-	# a path which we need to remove from $1, $2, and $3.
-	comm -13 $1-values $2-values > mlines
-	rm $1-values $2-values
+	# a path which we need to remove from $1, $2, and $3, unless it
+	# that path appears in $4.
+	comm -13 $1-values $2-values |
+	    sort -t '|' -k 1,1 > mlines.tmp
+	cut -f 1 -d '|' $4 |
+	    sort |
+	    join -v 2 -t '|' - mlines.tmp |
+	    sort > mlines
+	rm $1-values $2-values mlines.tmp
 
 	# Any lines in $2 which are not in $1 AND are "not present" lines
 	# also belong in mlines.
@@ -1346,6 +1496,51 @@ fetch_filter_uptodate () {
 	mv $2.tmp $2
 }
 
+# Fetch any "clean" old versions of files we need for merging changes.
+fetch_files_premerge () {
+	# We only need to do anything if $1 is non-empty.
+	if [ -s $1 ]; then
+		# Tell the user what we're doing
+		echo -n "Fetching files from ${OLDRELNUM} for merging... "
+
+		# List of files wanted
+		fgrep '|f|' < $1 |
+		    cut -f 3 -d '|' |
+		    sort -u > files.wanted
+
+		# Only fetch the files we don't already have
+		while read Y; do
+			if [ ! -f "files/${Y}.gz" ]; then
+				echo ${Y};
+			fi
+		done < files.wanted > filelist
+
+		# Actually fetch them
+		lam -s "${OLDFETCHDIR}/f/" - -s ".gz" < filelist |
+		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
+		    2>${QUIETREDIR}
+
+		# Make sure we got them all, and move them into /files/
+		while read Y; do
+			if ! [ -f ${Y}.gz ]; then
+				echo "failed."
+				return 1
+			fi
+			if [ `gunzip -c < ${Y}.gz |
+			    ${SHA256} -q` = ${Y} ]; then
+				mv ${Y}.gz files/${Y}.gz
+			else
+				echo "${Y} has incorrect hash."
+				return 1
+			fi
+		done < filelist
+		echo "done."
+
+		# Clean up
+		rm filelist files.wanted
+	fi
+}
+
 # Prepare to fetch files: Generate a list of the files we need,
 # copy the unmodified files we have into /files/, and generate
 # a list of patches to download.
@@ -1421,7 +1616,7 @@ fetch_files () {
 		echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
 		echo ${NDEBUG} "patches.${DDSTATS}"
 		tr '|' '-' < patchlist |
-		    lam -s "${FETCHDIR}/bp/" - |
+		    lam -s "${PATCHDIR}/" - |
 		    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
 			2>${STATSREDIR} | fetch_progress
 		echo "done."
@@ -1495,7 +1690,7 @@ fetch_create_manifest () {
 		echo -n "been downloaded because the files have been "
 		echo "modified locally:"
 		cat modifiedfiles
-	fi
+	fi | more
 	rm modifiedfiles
 
 	# If no files will be updated, tell the user and exit
@@ -1525,7 +1720,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be removed "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.removed
-	fi
+	fi | more
 	rm files.removed
 
 	# Report added files, if any
@@ -1534,7 +1729,7 @@ fetch_create_manifest () {
 		echo -n "The following files will be added "
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 		cat files.added
-	fi
+	fi | more
 	rm files.added
 
 	# Report updated files, if any
@@ -1544,7 +1739,7 @@ fetch_create_manifest () {
 		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
 
 		cat files.updated
-	fi
+	fi | more
 	rm files.updated
 
 	# Create a directory for the install manifest.
@@ -1655,9 +1850,9 @@ fetch_run () {
 	fetch_filter_metadata INDEX-NEW || return 1
 	fetch_filter_metadata INDEX-OLD || return 1
 
-	# Translate /boot/`uname -i` into ${KERNELDIR}
-	fetch_filter_kernel_names INDEX-NEW
-	fetch_filter_kernel_names INDEX-OLD
+	# Translate /boot/${KERNCONF} into ${KERNELDIR}
+	fetch_filter_kernel_names INDEX-NEW ${KERNCONF}
+	fetch_filter_kernel_names INDEX-OLD ${KERNCONF}
 
 	# For all paths appearing in INDEX-OLD or INDEX-NEW, inspect the
 	# system and generate an INDEX-PRESENT file.
@@ -1668,7 +1863,8 @@ fetch_run () {
 	# in INDEX-OLD or INDEX-NEW.  Also remove lines where the entry in
 	# INDEX-PRESENT has type - and there isn't a corresponding entry in
 	# INDEX-OLD with type -.
-	fetch_filter_unmodified_notpresent INDEX-OLD INDEX-PRESENT INDEX-NEW
+	fetch_filter_unmodified_notpresent	\
+	    INDEX-OLD INDEX-PRESENT INDEX-NEW /dev/null
 
 	# For each entry in INDEX-PRESENT of type -, remove any corresponding
 	# entry from INDEX-NEW if ${ALLOWADD} != "yes".  Remove all entries
@@ -1703,6 +1899,462 @@ fetch_run () {
 
 	# Warn about any upcoming EoL
 	fetch_warn_eol || return 1
+}
+
+# If StrictComponents is not "yes", generate a new components list
+# with only the components which appear to be installed.
+upgrade_guess_components () {
+	if [ "${STRICTCOMPONENTS}" = "no" ]; then
+		# Generate filtered INDEX-ALL with only the components listed
+		# in COMPONENTS.
+		fetch_filter_metadata_components $1 || return 1
+
+		# Tell the user why his disk is suddenly making lots of noise
+		echo -n "Inspecting system... "
+
+		# Look at the files on disk, and assume that a component is
+		# supposed to be present if it is more than half-present.
+		cut -f 1-3 -d '|' < INDEX-ALL |
+		    tr '|' ' ' |
+		    while read C S F; do
+			if [ -e ${BASEDIR}/${F} ]; then
+				echo "+ ${C}|${S}"
+			fi
+			echo "= ${C}|${S}"
+		    done |
+		    sort |
+		    uniq -c |
+		    sed -E 's,^ +,,' > compfreq
+		grep ' = ' compfreq |
+		    cut -f 1,3 -d ' ' |
+		    sort -k 2,2 -t ' ' > compfreq.total
+		grep ' + ' compfreq |
+		    cut -f 1,3 -d ' ' |
+		    sort -k 2,2 -t ' ' > compfreq.present
+		join -t ' ' -1 2 -2 2 compfreq.present compfreq.total |
+		    while read S P T; do
+			if [ ${P} -gt `expr ${T} / 2` ]; then
+				echo ${S}
+			fi
+		    done > comp.present
+		cut -f 2 -d ' ' < compfreq.total > comp.total
+		rm INDEX-ALL compfreq compfreq.total compfreq.present
+
+		# We're done making noise.
+		echo "done."
+
+		# Sometimes the kernel isn't installed where INDEX-ALL
+		# thinks that it should be: In particular, it is often in
+		# /boot/kernel instead of /boot/GENERIC or /boot/SMP.  To
+		# deal with this, if "kernel|X" is listed in comp.total
+		# (i.e., is a component which would be upgraded if it is
+		# found to be present) we will add it to comp.present.
+		# If "kernel|<anything>" is in comp.total but "kernel|X" is
+		# not, we print a warning -- the user is running a kernel
+		# which isn't part of the release.
+		KCOMP=`echo ${KERNCONF} | tr 'A-Z' 'a-z'`
+		grep -E "^kernel\|${KCOMP}\$" comp.total >> comp.present
+
+		if grep -qE "^kernel\|" comp.total &&
+		    ! grep -qE "^kernel\|${KCOMP}\$" comp.total; then
+			cat <<-EOF
+
+WARNING: This system is running a "${KCOMP}" kernel, which is not a
+kernel configuration distributed as part of FreeBSD ${RELNUM}.
+This kernel will not be updated: you MUST update the kernel manually
+before running "$0 install".
+			EOF
+		fi
+
+		# Re-sort the list of installed components and generate
+		# the list of non-installed components.
+		sort -u < comp.present > comp.present.tmp
+		mv comp.present.tmp comp.present
+		comm -13 comp.present comp.total > comp.absent
+
+		# Ask the user to confirm that what we have is correct.  To
+		# reduce user confusion, translate "X|Y" back to "X/Y" (as
+		# subcomponents must be listed in the configuration file).
+		echo
+		echo -n "The following components of FreeBSD "
+		echo "seem to be installed:"
+		tr '|' '/' < comp.present |
+		    fmt -72
+		echo
+		echo -n "The following components of FreeBSD "
+		echo "do not seem to be installed:"
+		tr '|' '/' < comp.absent |
+		    fmt -72
+		echo
+		continuep || return 1
+		echo
+
+		# Suck the generated list of components into ${COMPONENTS}.
+		# Note that comp.present.tmp is used due to issues with
+		# pipelines and setting variables.
+		COMPONENTS=""
+		tr '|' '/' < comp.present > comp.present.tmp
+		while read C; do
+			COMPONENTS="${COMPONENTS} ${C}"
+		done < comp.present.tmp
+
+		# Delete temporary files
+		rm comp.present comp.present.tmp comp.absent comp.total
+	fi
+}
+
+# If StrictComponents is not "yes", COMPONENTS contains an entry
+# corresponding to the currently running kernel, and said kernel
+# does not exist in the new release, add "kernel/generic" to the
+# list of components.
+upgrade_guess_new_kernel () {
+	if [ "${STRICTCOMPONENTS}" = "no" ]; then
+		# Grab the unfiltered metadata file.
+		METAHASH=`look "$1|" tINDEX.present | cut -f 2 -d '|'`
+		gunzip -c < files/${METAHASH}.gz > $1.all
+
+		# If "kernel/${KCOMP}" is in ${COMPONENTS} and that component
+		# isn't in $1.all, we need to add kernel/generic.
+		for C in ${COMPONENTS}; do
+			if [ ${C} = "kernel/${KCOMP}" ] &&
+			    ! grep -qE "^kernel\|${KCOMP}\|" $1.all; then
+				COMPONENTS="${COMPONENTS} kernel/generic"
+				NKERNCONF="GENERIC"
+				cat <<-EOF
+
+WARNING: This system is running a "${KCOMP}" kernel, which is not a
+kernel configuration distributed as part of FreeBSD ${RELNUM}.
+As part of upgrading to FreeBSD ${RELNUM}, this kernel will be
+replaced with a "generic" kernel.
+				EOF
+				continuep || return 1
+			fi
+		done
+
+		# Don't need this any more...
+		rm $1.all
+	fi
+}
+
+# Convert INDEX-OLD (last release) and INDEX-ALL (new release) into
+# INDEX-OLD and INDEX-NEW files (in the sense of normal upgrades).
+upgrade_oldall_to_oldnew () {
+	# For each ${F}|... which appears in INDEX-ALL but does not appear
+	# in INDEX-OLD, add ${F}|-|||||| to INDEX-OLD.
+	cut -f 1 -d '|' < $1 |
+	    sort -u > $1.paths
+	cut -f 1 -d '|' < $2 |
+	    sort -u |
+	    comm -13 $1.paths - |
+	    lam - -s "|-||||||" |
+	    sort - $1 > $1.tmp
+	mv $1.tmp $1
+
+	# Remove lines from INDEX-OLD which also appear in INDEX-ALL
+	comm -23 $1 $2 > $1.tmp
+	mv $1.tmp $1
+
+	# Remove lines from INDEX-ALL which have a file name not appearing
+	# anywhere in INDEX-OLD (since these must be files which haven't
+	# changed -- if they were new, there would be an entry of type "-").
+	cut -f 1 -d '|' < $1 |
+	    sort -u > $1.paths
+	sort -k 1,1 -t '|' < $2 |
+	    join -t '|' - $1.paths |
+	    sort > $2.tmp
+	rm $1.paths
+	mv $2.tmp $2
+
+	# Rename INDEX-ALL to INDEX-NEW.
+	mv $2 $3
+}
+
+# From the list of "old" files in $1, merge changes in $2 with those in $3,
+# and update $3 to reflect the hashes of merged files.
+upgrade_merge () {
+	# We only need to do anything if $1 is non-empty.
+	if [ -s $1 ]; then
+		cut -f 1 -d '|' $1 |
+		    sort > $1-paths
+
+		# Create staging area for merging files
+		rm -rf merge/
+		while read F; do
+			D=`dirname ${F}`
+			mkdir -p merge/old/${D}
+			mkdir -p merge/${OLDRELNUM}/${D}
+			mkdir -p merge/${RELNUM}/${D}
+			mkdir -p merge/new/${D}
+		done < $1-paths
+
+		# Copy in files
+		while read F; do
+			# Currently installed file
+			V=`look "${F}|" $2 | cut -f 7 -d '|'`
+			gunzip < files/${V}.gz > merge/old/${F}
+
+			# Old release
+			if look "${F}|" $1 | fgrep -q "|f|"; then
+				V=`look "${F}|" $1 | cut -f 3 -d '|'`
+				gunzip < files/${V}.gz		\
+				    > merge/${OLDRELNUM}/${F}
+			fi
+
+			# New release
+			if look "${F}|" $3 | cut -f 1,2,7 -d '|' |
+			    fgrep -q "|f|"; then
+				V=`look "${F}|" $3 | cut -f 7 -d '|'`
+				gunzip < files/${V}.gz		\
+				    > merge/${RELNUM}/${F}
+			fi
+		done < $1-paths
+
+		# Attempt to automatically merge changes
+		echo -n "Attempting to automatically merge "
+		echo -n "changes in files..."
+		: > failed.merges
+		while read F; do
+			# If the file doesn't exist in the new release,
+			# the result of "merging changes" is having the file
+			# not exist.
+			if ! [ -f merge/${RELNUM}/${F} ]; then
+				continue
+			fi
+
+			# If the file didn't exist in the old release, we're
+			# going to throw away the existing file and hope that
+			# the version from the new release is what we want.
+			if ! [ -f merge/${OLDRELNUM}/${F} ]; then
+				cp merge/${RELNUM}/${F} merge/new/${F}
+				continue
+			fi
+
+			# Some files need special treatment.
+			case ${F} in
+			/etc/spwd.db | /etc/pwd.db | /etc/login.conf.db)
+				# Don't merge these -- we're rebuild them
+				# after updates are installed.
+				cp merge/old/${F} merge/new/${F}
+				;;
+			*)
+				if ! merge -p -L "current version"	\
+				    -L "${OLDRELNUM}" -L "${RELNUM}"	\
+				    merge/old/${F}			\
+				    merge/${OLDRELNUM}/${F}		\
+				    merge/${RELNUM}/${F}		\
+				    > merge/new/${F} 2>/dev/null; then
+					echo ${F} >> failed.merges
+				fi
+				;;
+			esac
+		done < $1-paths
+		echo " done."
+
+		# Ask the user to handle any files which didn't merge.
+		while read F; do
+			cat <<-EOF
+
+The following file could not be merged automatically: ${F}
+Press Enter to edit this file in ${EDITOR} and resolve the conflicts
+manually...
+			EOF
+			read dummy </dev/tty
+			${EDITOR} `pwd`/merge/new/${F} < /dev/tty
+		done < failed.merges
+		rm failed.merges
+
+		# Ask the user to confirm that he likes how the result
+		# of merging files.
+		while read F; do
+			# Skip files which haven't changed.
+			if [ -f merge/new/${F} ] &&
+			    cmp -s merge/old/${F} merge/new/${F}; then
+				continue
+			fi
+
+			# Warn about files which are ceasing to exist.
+			if ! [ -f merge/new/${F} ]; then
+				cat <<-EOF
+
+The following file will be removed, as it no longer exists in
+FreeBSD ${RELNUM}: ${F}
+				EOF
+				continuep < /dev/tty || return 1
+				continue
+			fi
+
+			# Print changes for the user's approval.
+			cat <<-EOF
+
+The following changes, which occurred between FreeBSD ${OLDRELNUM} and
+FreeBSD ${RELNUM} have been merged into ${F}:
+EOF
+			diff -U 5 -L "current version" -L "new version"	\
+			    merge/old/${F} merge/new/${F} || true
+			continuep < /dev/tty || return 1
+		done < $1-paths
+
+		# Store merged files.
+		while read F; do
+			V=`${SHA256} -q merge/new/${F}`
+
+			if [ -f merge/new/${F} ]; then
+				gzip -c < merge/new/${F} > files/${V}.gz
+				echo "${F}|${V}"
+			fi
+		done < $1-paths > newhashes
+
+		# Pull lines out from $3 which need to be updated to
+		# reflect merged files.
+		while read F; do
+			look "${F}|" $3
+		done < $1-paths > $3-oldlines
+
+		# Update lines to reflect merged files
+		join -t '|' -o 1.1,1.2,1.3,1.4,1.5,1.6,2.2,1.8		\
+		    $3-oldlines newhashes > $3-newlines
+
+		# Remove old lines from $3 and add new lines.
+		sort $3-oldlines |
+		    comm -13 - $3 |
+		    sort - $3-newlines > $3.tmp
+		mv $3.tmp $3
+
+		# Clean up
+		rm $1-paths newhashes $3-oldlines $3-newlines
+		rm -rf merge/
+	fi
+
+	# We're done with merging files.
+	rm $1
+}
+
+# Do the work involved in fetching upgrades to a new release
+upgrade_run () {
+	workdir_init || return 1
+
+	# Prepare the mirror list.
+	fetch_pick_server_init && fetch_pick_server
+
+	# Try to fetch the public key until we run out of servers.
+	while ! fetch_key; do
+		fetch_pick_server || return 1
+	done
+ 
+	# Try to fetch the metadata index signature ("tag") until we run
+	# out of available servers; and sanity check the downloaded tag.
+	while ! fetch_tag; do
+		fetch_pick_server || return 1
+	done
+	fetch_tagsanity || return 1
+
+	# Fetch the INDEX-OLD and INDEX-ALL.
+	fetch_metadata INDEX-OLD INDEX-ALL || return 1
+
+	# If StrictComponents is not "yes", generate a new components list
+	# with only the components which appear to be installed.
+	upgrade_guess_components INDEX-ALL || return 1
+
+	# Generate filtered INDEX-OLD and INDEX-ALL files containing only
+	# the components we want and without anything marked as "Ignore".
+	fetch_filter_metadata INDEX-OLD || return 1
+	fetch_filter_metadata INDEX-ALL || return 1
+
+	# Merge the INDEX-OLD and INDEX-ALL files into INDEX-OLD.
+	sort INDEX-OLD INDEX-ALL > INDEX-OLD.tmp
+	mv INDEX-OLD.tmp INDEX-OLD
+	rm INDEX-ALL
+
+	# Adjust variables for fetching files from the new release.
+	OLDRELNUM=${RELNUM}
+	RELNUM=${TARGETRELEASE}
+	OLDFETCHDIR=${FETCHDIR}
+	FETCHDIR=${RELNUM}/${ARCH}
+
+	# Try to fetch the NEW metadata index signature ("tag") until we run
+	# out of available servers; and sanity check the downloaded tag.
+	while ! fetch_tag; do
+		fetch_pick_server || return 1
+	done
+
+	# Fetch the new INDEX-ALL.
+	fetch_metadata INDEX-ALL || return 1
+
+	# If StrictComponents is not "yes", COMPONENTS contains an entry
+	# corresponding to the currently running kernel, and said kernel
+	# does not exist in the new release, add "kernel/generic" to the
+	# list of components.
+	upgrade_guess_new_kernel INDEX-ALL || return 1
+
+	# Filter INDEX-ALL to contain only the components we want and without
+	# anything marked as "Ignore".
+	fetch_filter_metadata INDEX-ALL || return 1
+
+	# Convert INDEX-OLD (last release) and INDEX-ALL (new release) into
+	# INDEX-OLD and INDEX-NEW files (in the sense of normal upgrades).
+	upgrade_oldall_to_oldnew INDEX-OLD INDEX-ALL INDEX-NEW
+
+	# Translate /boot/${KERNCONF} or /boot/${NKERNCONF} into ${KERNELDIR}
+	fetch_filter_kernel_names INDEX-NEW ${NKERNCONF}
+	fetch_filter_kernel_names INDEX-OLD ${KERNCONF}
+
+	# For all paths appearing in INDEX-OLD or INDEX-NEW, inspect the
+	# system and generate an INDEX-PRESENT file.
+	fetch_inspect_system INDEX-OLD INDEX-PRESENT INDEX-NEW || return 1
+
+	# Based on ${MERGECHANGES}, generate a file tomerge-old with the
+	# paths and hashes of old versions of files to merge.
+	fetch_filter_mergechanges INDEX-OLD INDEX-PRESENT tomerge-old
+
+	# Based on ${UPDATEIFUNMODIFIED}, remove lines from INDEX-* which
+	# correspond to lines in INDEX-PRESENT with hashes not appearing
+	# in INDEX-OLD or INDEX-NEW.  Also remove lines where the entry in
+	# INDEX-PRESENT has type - and there isn't a corresponding entry in
+	# INDEX-OLD with type -.
+	fetch_filter_unmodified_notpresent	\
+	    INDEX-OLD INDEX-PRESENT INDEX-NEW tomerge-old
+
+	# For each entry in INDEX-PRESENT of type -, remove any corresponding
+	# entry from INDEX-NEW if ${ALLOWADD} != "yes".  Remove all entries
+	# of type - from INDEX-PRESENT.
+	fetch_filter_allowadd INDEX-PRESENT INDEX-NEW
+
+	# If ${ALLOWDELETE} != "yes", then remove any entries from
+	# INDEX-PRESENT which don't correspond to entries in INDEX-NEW.
+	fetch_filter_allowdelete INDEX-PRESENT INDEX-NEW
+
+	# If ${KEEPMODIFIEDMETADATA} == "yes", then for each entry in
+	# INDEX-PRESENT with metadata not matching any entry in INDEX-OLD,
+	# replace the corresponding line of INDEX-NEW with one having the
+	# same metadata as the entry in INDEX-PRESENT.
+	fetch_filter_modified_metadata INDEX-OLD INDEX-PRESENT INDEX-NEW
+
+	# Remove lines from INDEX-PRESENT and INDEX-NEW which are identical;
+	# no need to update a file if it isn't changing.
+	fetch_filter_uptodate INDEX-PRESENT INDEX-NEW
+
+	# Fetch "clean" files from the old release for merging changes.
+	fetch_files_premerge tomerge-old
+
+	# Prepare to fetch files: Generate a list of the files we need,
+	# copy the unmodified files we have into /files/, and generate
+	# a list of patches to download.
+	fetch_files_prepare INDEX-OLD INDEX-PRESENT INDEX-NEW || return 1
+
+	# Fetch patches from to-${RELNUM}/${ARCH}/bp/
+	PATCHDIR=to-${RELNUM}/${ARCH}/bp
+	fetch_files || return 1
+
+	# Merge configuration file changes.
+	upgrade_merge tomerge-old INDEX-PRESENT INDEX-NEW || return 1
+
+	# Create and populate install manifest directory; and report what
+	# updates are available.
+	fetch_create_manifest || return 1
+
+	# Leave a note behind to tell the "install" command that the kernel
+	# needs to be installed before the world.
+	touch ${BDHASH}-install/kernelfirst
 }
 
 # Make sure that all the file hashes mentioned in $@ have corresponding
@@ -1822,16 +2474,117 @@ install_delete () {
 	rm newfiles killfiles
 }
 
-# Update linker.hints if anything in /boot/ was touched
-install_kldxref () {
-	if cat $@ |
-	    grep -qE '^/boot/'; then
-		kldxref -R /boot/
+# Install new files, delete old files, and update linker.hints
+install_files () {
+	# If we haven't already dealt with the kernel, deal with it.
+	if ! [ -f $1/kerneldone ]; then
+		grep -E '^/boot/' $1/INDEX-OLD > INDEX-OLD
+		grep -E '^/boot/' $1/INDEX-NEW > INDEX-NEW
+
+		# Install new files
+		install_from_index INDEX-NEW || return 1
+
+		# Remove files which need to be deleted
+		install_delete INDEX-OLD INDEX-NEW || return 1
+
+		# Update linker.hints if necessary
+		if [ -s INDEX-OLD -o -s INDEX-NEW ]; then
+			kldxref -R /boot/ 2>/dev/null
+		fi
+
+		# We've finished updating the kernel.
+		touch $1/kerneldone
+
+		# Do we need to ask for a reboot now?
+		if [ -f $1/kernelfirst ] &&
+		    [ -s INDEX-OLD -o -s INDEX-NEW ]; then
+			cat <<-EOF
+
+Kernel updates have been installed.  Please reboot and run
+"$0 install" again to finish installing updates.
+			EOF
+			exit 0
+		fi
 	fi
+
+	# If we haven't already dealt with the world, deal with it.
+	if ! [ -f $1/worlddone ]; then
+		# Install new shared libraries next
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+
+		# Deal with everything else
+		grep -vE '^/boot/' $1/INDEX-OLD |
+		    grep -vE '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -vE '/lib/.*\.so\.[0-9]+' > INDEX-NEW
+		install_from_index INDEX-NEW || return 1
+		install_delete INDEX-OLD INDEX-NEW || return 1
+
+		# Rebuild /etc/spwd.db and /etc/pwd.db if necessary.
+		if [ /etc/master.passwd -nt /etc/spwd.db ] ||
+		    [ /etc/master.passwd -nt /etc/pwd.db ]; then
+			pwd_mkdb /etc/master.passwd
+		fi
+
+		# Rebuild /etc/login.conf.db if necessary.
+		if [ /etc/login.conf -nt /etc/login.conf.db ]; then
+			cap_mkdb /etc/login.conf
+		fi
+
+		# We've finished installing the world and deleting old files
+		# which are not shared libraries.
+		touch $1/worlddone
+
+		# Do we need to ask the user to portupgrade now?
+		grep -vE '^/boot/' $1/INDEX-NEW |
+		    grep -E '/lib/.*\.so\.[0-9]+' |
+		    cut -f 1 -d '|' |
+		    sort > newfiles
+		if grep -vE '^/boot/' $1/INDEX-OLD |
+		    grep -E '/lib/.*\.so\.[0-9]+' |
+		    cut -f 1 -d '|' |
+		    sort |
+		    join -v 1 - newfiles |
+		    grep -q .; then
+			cat <<-EOF
+
+Completing this upgrade requires removing old shared object files.
+Please rebuild all installed 3rd party software (e.g., programs
+installed from the ports tree) and then run "$0 install"
+again to finish installing updates.
+			EOF
+			rm newfiles
+			exit 0
+		fi
+		rm newfiles
+	fi
+
+	# Remove old shared libraries
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-NEW
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+	install_delete INDEX-OLD INDEX-NEW || return 1
+
+	# Remove temporary files
+	rm INDEX-OLD INDEX-NEW
 }
 
 # Rearrange bits to allow the installed updates to be rolled back
 install_setup_rollback () {
+	# Remove the "reboot after installing kernel", "kernel updated", and
+	# "finished installing the world" flags if present -- they are
+	# irrelevant when rolling back updates.
+	if [ -f ${BDHASH}-install/kernelfirst ]; then
+		rm ${BDHASH}-install/kernelfirst
+		rm ${BDHASH}-install/kerneldone
+	fi
+	if [ -f ${BDHASH}-install/worlddone ]; then
+		rm ${BDHASH}-install/worlddone
+	fi
+
 	if [ -L ${BDHASH}-rollback ]; then
 		mv ${BDHASH}-rollback ${BDHASH}-install/rollback
 	fi
@@ -1851,17 +2604,8 @@ install_run () {
 	install_unschg ${BDHASH}-install/INDEX-OLD	\
 	    ${BDHASH}-install/INDEX-NEW || return 1
 
-	# Install new files
-	install_from_index				\
-	    ${BDHASH}-install/INDEX-NEW || return 1
-
-	# Remove files which we want to delete
-	install_delete ${BDHASH}-install/INDEX-OLD	\
-	    ${BDHASH}-install/INDEX-NEW || return 1
-
-	# Update linker.hints if anything in /boot/ was touched
-	install_kldxref ${BDHASH}-install/INDEX-OLD	\
-	    ${BDHASH}-install/INDEX-NEW
+	# Install new files, delete old files, and update linker.hints
+	install_files ${BDHASH}-install || return 1
 
 	# Rearrange bits to allow the installed updates to be rolled back
 	install_setup_rollback
@@ -1880,6 +2624,41 @@ rollback_setup_rollback () {
 		rm -r ${BDHASH}-rollback/
 		rm ${BDHASH}-rollback
 	fi
+}
+
+# Install old files, delete new files, and update linker.hints
+rollback_files () {
+	# Install old shared library files
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+	install_from_index INDEX-OLD || return 1
+
+	# Deal with files which are neither kernel nor shared library
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -vE '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -vE '/lib/.*\.so\.[0-9]+' > INDEX-NEW
+	install_from_index INDEX-OLD || return 1
+	install_delete INDEX-NEW INDEX-OLD || return 1
+
+	# Delete unneeded shared library files
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-NEW
+	install_delete INDEX-NEW INDEX-OLD || return 1
+
+	# Deal with kernel files
+	grep -E '^/boot/' $1/INDEX-OLD > INDEX-OLD
+	grep -E '^/boot/' $1/INDEX-NEW > INDEX-NEW
+	install_from_index INDEX-OLD || return 1
+	install_delete INDEX-NEW INDEX-OLD || return 1
+	if [ -s INDEX-OLD -o -s INDEX-NEW ]; then
+		kldxref -R /boot/ 2>/dev/null
+	fi
+
+	# Remove temporary files
+	rm INDEX-OLD INDEX-NEW
 }
 
 # Actually rollback updates
@@ -1901,17 +2680,8 @@ rollback_run () {
 	install_unschg ${BDHASH}-rollback/INDEX-NEW	\
 	    ${BDHASH}-rollback/INDEX-OLD || return 1
 
-	# Install new files
-	install_from_index				\
-	    ${BDHASH}-rollback/INDEX-OLD || return 1
-
-	# Remove files which we want to delete
-	install_delete ${BDHASH}-rollback/INDEX-NEW	\
-	    ${BDHASH}-rollback/INDEX-OLD || return 1
-
-	# Update linker.hints if anything in /boot/ was touched
-	install_kldxref ${BDHASH}-rollback/INDEX-NEW	\
-	    ${BDHASH}-rollback/INDEX-OLD
+	# Install old files, delete new files, and update linker.hints
+	rollback_files ${BDHASH}-rollback || return 1
 
 	# Remove the rollback directory and the symlink pointing to it; and
 	# rearrange bits to allow the previous set of updates to be rolled
@@ -1961,6 +2731,12 @@ cmd_cron () {
 	fi
 
 	rm ${TMPFILE}
+}
+
+# Fetch files for upgrading to a new release.
+cmd_upgrade () {
+	upgrade_check_params
+	upgrade_run || exit 1
 }
 
 # Install downloaded updates.
