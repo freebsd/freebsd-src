@@ -141,6 +141,15 @@ crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
 dev/advansys/adv_isa.c		optional adv isa
+dev/agp/agp_ali.c			optional agp
+dev/agp/agp_amd.c			optional agp
+dev/agp/agp_amd64.c			optional agp
+dev/agp/agp_ati.c			optional agp
+dev/agp/agp_i810.c			optional agp
+dev/agp/agp_intel.c			optional agp
+dev/agp/agp_nvidia.c		optional agp
+dev/agp/agp_sis.c			optional agp
+dev/agp/agp_via.c			optional agp
 dev/aic/aic_isa.c		optional aic isa
 dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/ar/if_ar.c			optional ar
@@ -447,15 +456,6 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-pci/agp_ali.c			optional agp
-pci/agp_amd.c			optional agp
-pci/agp_amd64.c			optional agp
-pci/agp_ati.c			optional agp
-pci/agp_i810.c			optional agp
-pci/agp_intel.c			optional agp
-pci/agp_nvidia.c		optional agp
-pci/agp_sis.c			optional agp
-pci/agp_via.c			optional agp
 i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb

@@ -34,7 +34,7 @@
  */
 
 #include <sys/agpio.h>
-#include <pci/agpvar.h>
+#include <dev/agp/agpvar.h>
 
 #define AGP_DEBUGxx
 

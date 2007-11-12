@@ -51,10 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #endif
 
+#include <dev/agp/agppriv.h>
+#include <dev/agp/agpreg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <pci/agppriv.h>
-#include <pci/agpreg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

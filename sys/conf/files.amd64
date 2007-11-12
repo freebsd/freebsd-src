@@ -138,6 +138,9 @@ amd64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/acpica/acpi_if.m		standard
+dev/agp/agp_amd64.c			optional	agp
+dev/agp/agp_i810.c			optional	agp
+dev/agp/agp_intel.c			optional	agp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -205,9 +208,6 @@ dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
-pci/agp_amd64.c			optional	agp
-pci/agp_i810.c			optional	agp
-pci/agp_intel.c			optional	agp
 #
 # IA32 binary support
 #

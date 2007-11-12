@@ -87,7 +87,7 @@ int agp_release(device_t dev);
 
 /*
  * Enable the agp hardware with the relavent mode. The mode bits are
- * defined in <pci/agpreg.h>
+ * defined in <dev/agp/agpreg.h>
  */
 int agp_enable(device_t dev, u_int32_t mode);
 
