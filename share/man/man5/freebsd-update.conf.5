@@ -93,7 +93,15 @@ accumulate.
 The parameters following this keyword are regular expressions;
 updates to paths which start with a string matching one of
 these regular expressions will be ignored if the files have
-been modified locally.
+been modified locally (unless they are merged -- see MergeChanges
+below).
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
+.It Cm MergeChanges
+The parameters following this keyword are regular expressions;
+updates to paths which start with a string matching one of
+these regular expressions will be merged with local modifications.
 .Pp
 This option can be specified multiple times, and the parameters
 accumulate.
@@ -138,6 +146,24 @@ and specifies whether
 .Cm freebsd-update
 should keep existing file ownership, permissions, and flags
 when installing updates if these have been modified locally.
+.It Cm StrictComponents
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+should interpret the list of components of
+.Fx
+specified via the
+.Cm Components
+option strictly as a list of components installed which
+should be upgraded when the
+.Cm upgrade
+command is used ("yes"), or merely as a list of components
+which might be installed, of which
+.Cm freebsd-update
+should identify which in fact are present ("no").
 .El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"
