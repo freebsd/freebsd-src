@@ -515,7 +515,7 @@ class Yielding(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio):
 		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 1
+		self.skipnext = 0
 		self.prio = prio
 		self.textadd(("prio:", self.prio, 0))
 
@@ -862,7 +862,7 @@ class KTRFile:
 			print "Can't open", file
 			sys.exit(1)
 
-		ktrhdr = "\s+\d+\s+(\d+)\s+(\d+)\s+"
+		ktrhdr = "\s*\d+\s+(\d+)\s+(\d+)\s+"
 		tdname = "(\S+)\(([^)]*)\)"
 		crittdname = "(\S+)\s+\(\d+,\s+([^)]*)\)"
 
@@ -901,12 +901,14 @@ class KTRFile:
 		sched_prio_re = re.compile(ktrhdr + ktrstr)
 
 		cpuload_re = re.compile(ktrhdr + "load: (\d+)")
+		cpuload2_re = re.compile(ktrhdr + "cpu (\d+) load: (\d+)")
 		loadglobal_re = re.compile(ktrhdr + "global load: (\d+)")
 
 		ktrstr = "critical_\S+ by thread " + crittdname + " to (\d+)"
 		critsec_re = re.compile(ktrhdr + ktrstr)
 
 		parsers = [[cpuload_re, self.cpuload],
+			   [cpuload2_re, self.cpuload2],
 			   [loadglobal_re, self.loadglobal],
 			   [switchin_re, self.switchin],
 			   [switchout_re, self.switchout],
@@ -932,8 +934,8 @@ class KTRFile:
 				if (m != None):
 					p[1](*m.groups())
 					break
-			# if (m == None):
-			# 	print line,
+			if (m == None):
+				print line,
 
 	def synchstamp(self, lines):
 		status.startup("Rationalizing Timestamps")
@@ -1114,6 +1116,19 @@ class KTRFile:
 		if (timestamp == 0):
 			return
 		cpu = int(cpu)
+		try:
+			load = self.load[cpu]
+		except:
+			load = Counter("cpu" + str(cpu) + " load")
+			self.load[cpu] = load
+			self.sources.insert(0, load)
+		Count(load, cpu, timestamp, count)
+
+	def cpuload2(self, cpu, timestamp, ncpu, count):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		cpu = int(ncpu)
 		try:
 			load = self.load[cpu]
 		except:
