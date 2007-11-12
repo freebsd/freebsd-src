@@ -98,6 +98,13 @@ bf_enc.o			optional crypto | ipsec	\
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
 crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
+dev/agp/agp_ali.c			optional agp
+dev/agp/agp_amd.c			optional agp
+dev/agp/agp_i810.c			optional agp
+dev/agp/agp_intel.c			optional agp
+dev/agp/agp_nvidia.c		optional agp
+dev/agp/agp_sis.c			optional agp
+dev/agp/agp_via.c			optional agp
 dev/aic/aic_cbus.c		optional aic isa
 dev/ar/if_ar.c			optional ar
 dev/ar/if_ar_pci.c		optional ar pci
@@ -340,10 +347,3 @@ pc98/pc98/canbus.c		optional canbus
 pc98/pc98/canbus_if.m		optional canbus
 pc98/pc98/machdep.c		standard
 pc98/pc98/pc98_machdep.c	standard
-pci/agp_ali.c			optional agp
-pci/agp_amd.c			optional agp
-pci/agp_i810.c			optional agp
-pci/agp_intel.c			optional agp
-pci/agp_nvidia.c		optional agp
-pci/agp_sis.c			optional agp
-pci/agp_via.c			optional agp
