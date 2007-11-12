@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
+#include <dev/agp/agppriv.h>
+#include <dev/agp/agpvar.h>
+#include <dev/agp/agpreg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
-#include <pci/agppriv.h>
-#include <pci/agpvar.h>
-#include <pci/agpreg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

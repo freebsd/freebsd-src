@@ -423,6 +423,8 @@ dev/advansys/adw_pci.c		optional adw pci
 dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
+dev/agp/agp.c			optional agp pci
+dev/agp/agp_if.m			optional agp pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
@@ -2002,8 +2004,6 @@ opencrypto/deflate.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
-pci/agp.c			optional agp pci
-pci/agp_if.m			optional agp pci
 pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci

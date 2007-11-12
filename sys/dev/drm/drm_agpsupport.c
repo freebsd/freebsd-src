@@ -37,7 +37,11 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/drmP.h"
 
 #ifdef __FreeBSD__
+#if __FreeBSD_version >= 800004
+#include <dev/agp/agpreg.h>
+#else
 #include <pci/agpreg.h>
+#endif
 #include <dev/pci/pcireg.h>
 #endif
 
