@@ -77,7 +77,11 @@ typedef struct drm_file drm_file_t;
 #if defined(__FreeBSD__)
 #include <sys/rman.h>
 #include <sys/memrange.h>
+#if __FreeBSD_version >= 800004
+#include <dev/agp/agpvar.h>
+#else
 #include <pci/agpvar.h>
+#endif
 #include <sys/agpio.h>
 #if __FreeBSD_version >= 500000
 #include <sys/mutex.h>

@@ -321,7 +321,7 @@ ${_src}:
 .endfor
 .endif
 
-MFILES?= dev/acpica/acpi_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
+MFILES?= dev/acpica/acpi_if.m dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
 	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/ofw/ofw_bus_if.m \
@@ -333,7 +333,7 @@ MFILES?= dev/acpica/acpi_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/sound/midi/synth_if.m dev/usb/usb_if.m isa/isa_if.m \
 	kern/bus_if.m kern/cpufreq_if.m kern/device_if.m kern/serdev_if.m \
 	libkern/iconv_converter_if.m opencrypto/cryptodev_if.m \
-	pc98/pc98/canbus_if.m pci/agp_if.m
+	pc98/pc98/canbus_if.m
 
 .for _srcsrc in ${MFILES}
 .for _ext in c h
