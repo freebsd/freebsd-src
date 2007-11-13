@@ -138,6 +138,10 @@ void	priv_msgbuf_unprivok(int, int, struct test *);
 
 void	priv_msgbuf_cleanup(int, int, struct test *);
 
+int	priv_netinet_ipsec_pfkey_setup(int, int, struct test *);
+void	priv_netinet_ipsec_pfkey(int, int, struct test *);
+void	priv_netinet_ipsec_pfkey_cleanup(int, int, struct test *);
+
 int	priv_netinet_raw_setup(int, int, struct test *);
 void	priv_netinet_raw(int, int, struct test *);
 void	priv_netinet_raw_cleanup(int, int, struct test *);
