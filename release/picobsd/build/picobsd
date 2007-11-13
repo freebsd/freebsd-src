@@ -491,8 +491,8 @@ populate_floppy_fs() {		# OK
 
     excl=${MY_TREE}/floppy.tree.exclude
     if [ -f ${excl} ] ; then
-	excl="--exclude-from ${excl}"
 	log "Files excluded from generic tree: `echo;cat ${excl}`"
+	excl="--exclude-from ${excl}"
     else
 	excl=""
     fi
