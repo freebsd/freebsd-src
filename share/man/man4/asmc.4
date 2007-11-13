@@ -66,12 +66,12 @@ brightness, check temperatures of several sensors, check the speed of
 the internal fans and check the status of the Sudden Motion Sensor.
 .Pp
 Variables related to the SMC control and inspection are exported via
-.Xr sysctl 4
+.Xr sysctl 3
 under the device tree
 .Va dev.asmc .
 .Sh KEYBOARD BACKLIGHT
 On
-.Em MacBook Pro
+.Tn MacBook Pro
 systems, you can control the keyboard brightness by writing values to
 the
 .Va dev.asmc.%d.light.left
@@ -104,7 +104,7 @@ Each of these leaf nodes represent the current fan speed, the safest
 minimum fan speed, the mininum speed and the maximum speed
 respectively.
 .Pp
-All values are in RPM. 
+All values are in RPM.
 .Sh SUDDEN MOTION SENSOR
 The Sudden Motion Sensor (SMS for short) is a device that detects
 laptop movement and notifies the operating system via an interrupt.
@@ -115,7 +115,7 @@ all relate to the SMS.
 The most interesting usage of this device is to park the disk heads
 when the laptop is moved harshly.
 First, you need to install
-.Xr ataidle 1 Pq Pa ports/sysutils/ataidle
+.Xr ataidle 8 Pq Pa ports/sysutils/ataidle
 and then configure
 .Xr devd 8
 the following way:
@@ -128,9 +128,9 @@ notify 0 {
 .Ed
 .Pp
 Do not forget to change the
-.Va X
+.Ar X
 and
-.Va Y
+.Ar Y
 values in the command above.
 .Pp
 Also, please note that parking the disk heads too many times can
@@ -139,12 +139,9 @@ Do not rely solely on
 the SMS to protect your hard drive: good care and common sense can
 increase your hard drive's life.
 .Sh SEE ALSO
-.Xr ataidle 1 Pq Pa ports/sysutils/ataidle ,
+.Xr ataidle 8 Pq Pa ports/sysutils/ataidle ,
 .Xr devd 8 ,
 .Xr sysctl 8
-.Sh BUGS
-Support for the latest models was never tested and is most likely not
-fully working.
 .Sh HISTORY
 The
 .Nm
@@ -154,3 +151,6 @@ driver first appeared in
 .An -nosplit
 .An Rui Paulo Aq rpaulo@FreeBSD.org
 (Google Summer of Code project).
+.Sh BUGS
+Support for the latest models was never tested and is most likely not
+fully working.
