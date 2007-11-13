@@ -542,8 +542,8 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _acpi_dock.4=	acpi_dock.4
-_asmc.4=	asmc.4
 _amdsmb.4=	amdsmb.4
+_asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
