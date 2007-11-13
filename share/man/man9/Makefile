@@ -925,14 +925,6 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 	rman.9 rman_set_bustag.9 \
 	rman.9 rman_set_rid.9 \
 	rman.9 rman_set_virtual.9
-MLINKS+=rtalloc.9 rtalloc1.9 \
-	rtalloc.9 rtalloc_ign.9 \
-	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9
-MLINKS+=runqueue.9 chooseproc.9 \
-	runqueue.9 procrunnable.9 \
-	runqueue.9 remrunqueue.9 \
-	runqueue.9 setrunqueue.9
 MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
 	rmlock.9 rm_rlock.9 \
@@ -941,6 +933,14 @@ MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_wlock.9 \
 	rmlock.9 rm_wowned.9 \
 	rmlock.9 rm_wunlock.9
+MLINKS+=rtalloc.9 rtalloc1.9 \
+	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 RTFREE.9 \
+	rtalloc.9 rtfree.9
+MLINKS+=runqueue.9 chooseproc.9 \
+	runqueue.9 procrunnable.9 \
+	runqueue.9 remrunqueue.9 \
+	runqueue.9 setrunqueue.9
 MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_destroy.9 \
 	rwlock.9 rw_downgrade.9 \
