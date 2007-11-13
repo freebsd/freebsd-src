@@ -135,6 +135,9 @@ static struct test tests[] = {
 	{ "priv_msgbuf_unprivok", priv_msgbuf_unprivok_setup,
 	   priv_msgbuf_unprivok, priv_msgbuf_cleanup },
 
+	{ "priv_netinet_ipsec_pfkey", priv_netinet_ipsec_pfkey_setup,
+	    priv_netinet_ipsec_pfkey, priv_netinet_ipsec_pfkey_cleanup },
+
 	{ "priv_netinet_raw", priv_netinet_raw_setup, priv_netinet_raw,
 	    priv_netinet_raw_cleanup },
 
