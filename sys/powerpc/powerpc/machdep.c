@@ -188,6 +188,11 @@ cpu_startup(void *dummy)
 {
 
 	/*
+	 * Initialise the decrementer-based clock.
+	 */
+	decr_init();
+
+	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	cpu_setup(PCPU_GET(cpuid));
@@ -714,7 +719,7 @@ void
 cpu_initclocks(void)
 {
 
-	decr_init();
+	decr_tc_init();
 }
 
 /* Get current clock frequency for the given cpu id. */
