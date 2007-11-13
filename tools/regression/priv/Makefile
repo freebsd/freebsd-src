@@ -16,6 +16,7 @@ SRCS=	main.c				\
 	priv_kenv_set.c			\
 	priv_kenv_unset.c		\
 	priv_msgbuf.c			\
+	priv_netinet_ipsec.c		\
 	priv_netinet_raw.c		\
 	priv_proc_setlogin.c		\
 	priv_proc_setrlimit.c		\
