@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
-#include <machine/privatespace.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -134,6 +133,8 @@ int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
 extern	int nkpt;
 
+extern	struct pcpu __pcpu[];
+
 /*
  * CPU topology map datastructures for HTT.
  */
@@ -144,11 +145,11 @@ static struct cpu_top mp_top;
 char *bootSTK;
 static int bootAP;
 
+/* Free these after use */
+void *bootstacks[MAXCPU];
+
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
-
-/* SMP page table page */
-extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[MAXCPU];
 
@@ -493,6 +494,7 @@ cpu_mp_announce(void)
 void
 init_secondary(void)
 {
+	struct pcpu *pc;
 	vm_offset_t addr;
 	int	gsel_tss;
 	int	x, myid;
@@ -500,11 +502,18 @@ init_secondary(void)
 
 	/* bootAP is set in start_ap() to our ID. */
 	myid = bootAP;
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[myid].pcpu.pc_common_tss;
-	SMP_prvspace[myid].pcpu.pc_prvspace =
-		&SMP_prvspace[myid].pcpu;
+
+	/* Get per-cpu data */
+	pc = &__pcpu[myid];
+
+	/* prime data page for it to use */
+	pcpu_init(pc, myid, sizeof(struct pcpu));
+	pc->pc_apic_id = cpu_apic_ids[myid];
+	pc->pc_prvspace = pc;
+	pc->pc_curthread = 0;
+
+	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
+	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
 	for (x = 0; x < NGDT; x++) {
 		ssdtosd(&gdt_segs[x], &gdt[myid * NGDT + x].sd);
@@ -587,7 +596,6 @@ init_secondary(void)
 		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
 		printf("SMP: actual apic_id = %d\n", lapic_id());
 		printf("SMP: correct apic_id = %d\n", PCPU_GET(apic_id));
-		printf("PTD[MPPTDI] = %#jx\n", (uintmax_t)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
 
@@ -727,11 +735,9 @@ start_all_aps(void)
 #ifndef PC98
 	u_char mpbiosreason;
 #endif
-	struct pcpu *pc;
-	char *stack;
 	uintptr_t kptbase;
 	u_int32_t mpbioswarmvec;
-	int apic_id, cpu, i, pg;
+	int apic_id, cpu, i;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
@@ -757,24 +763,8 @@ start_all_aps(void)
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		apic_id = cpu_apic_ids[cpu];
 
-		/* first page of AP's private space */
-		pg = cpu * i386_btop(sizeof(struct privatespace));
-
-		/* allocate a new private data page */
-		pc = (struct pcpu *)kmem_alloc(kernel_map, PAGE_SIZE);
-
-		/* wire it into the private page table page */
-		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(pc));
-
 		/* allocate and set up an idle stack data page */
-		stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE); /* XXXKSE */
-		for (i = 0; i < KSTACK_PAGES; i++)
-			SMPpt[pg + 1 + i] = (pt_entry_t)
-			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
-
-		/* prime data page for it to use */
-		pcpu_init(pc, cpu, sizeof(struct pcpu));
-		pc->pc_apic_id = apic_id;
+		bootstacks[cpu] = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -784,8 +774,7 @@ start_all_aps(void)
 		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 #endif
 
-		bootSTK = &SMP_prvspace[cpu].idlekstack[KSTACK_PAGES *
-		    PAGE_SIZE];
+		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 4;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
@@ -814,19 +803,7 @@ start_all_aps(void)
 	outb(CMOS_DATA, mpbiosreason);
 #endif
 
-	/*
-	 * Set up the idle context for the BSP.  Similar to above except
-	 * that some was done by locore, some by pmap.c and some is implicit
-	 * because the BSP is cpu#0 and the page is initially zero and also
-	 * because we can refer to variables by name on the BSP..
-	 */
-
-	/* Allocate and setup BSP idle stack */
-	stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-	for (i = 0; i < KSTACK_PAGES; i++)
-		SMPpt[1 + i] = (pt_entry_t)
-		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
-
+	/* Undo V==P hack from above */
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
 	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
