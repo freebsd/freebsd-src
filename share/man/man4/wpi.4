@@ -52,7 +52,7 @@ wlan_load="YES"
 firmware_load="YES"
 .Ed
 .Pp
-In both cases, place the following lines in
+In both cases, place the following line in
 .Xr loader.conf 5
 to load the firmware modules:
 .Bd -literal -offset indent
@@ -121,27 +121,29 @@ This should not happen.
 .It "wpi%d: fatal firmware error"
 An unknown error has occurred in the uploaded firmware, you may have to
 unload/reload the driver to continue.
-.It "wpi%d: Radio Transmitteer is switched off"
+.It "wpi%d: Radio transmitter is switched off"
 The hardware switch controlling the radio is currently turned off. 
-Data transmision is not possible in this state.
+Data transmission is not possible in this state.
 .Sh BUGS
 Not all the error messages are documented here.
 .Pp
 Automatic recovery of firmware failures is not currently supported, nor is 
 detection of toggling the radio switch on.
 .Pp
-Background scanning is not currently supported
+Background scanning is not currently supported.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
-.Xr iwi 4 ,
 .Xr ipw 4 ,
+.Xr iwi 4 ,
 .Xr pci 4 ,
 .Xr wlan 4 ,
 .Xr ifconfig 8
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
 .An Damien Bergamini Aq damien.bergamini@free.fr
-.An and Benjamin Close Aq benjsc@FreeBSD.org .
+and
+.An Benjamin Close Aq benjsc@FreeBSD.org .
