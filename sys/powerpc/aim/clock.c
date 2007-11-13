@@ -233,9 +233,6 @@ decr_init(void)
 			msr = mfmsr();
 			mtmsr(msr & ~(PSL_EE|PSL_RI));
 
-			decr_timecounter.tc_frequency = ticks_per_sec;
-			tc_init(&decr_timecounter);
-
 			ns_per_tick = 1000000000 / ticks_per_sec;
 			ticks_per_intr = ticks_per_sec / hz;
 			__asm __volatile ("mftb %0" : "=r"(lasttb));
@@ -255,6 +252,13 @@ decr_init(void)
 	}
 	if (!phandle)
 		panic("no cpu node");
+}
+
+void
+decr_tc_init(void)
+{
+	decr_timecounter.tc_frequency = ticks_per_sec;
+	tc_init(&decr_timecounter);
 }
 
 static __inline u_quad_t
