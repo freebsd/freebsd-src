@@ -121,11 +121,7 @@
 #endif
 
 #ifndef NKPDE
-#ifdef SMP
-#define NKPDE	(KVA_PAGES - 1) /* number of page tables/pde's */
-#else
 #define NKPDE	(KVA_PAGES)	/* number of page tables/pde's */
-#endif
 #endif
 
 /*
@@ -133,15 +129,8 @@
  *
  * XXX This works for now, but I am not real happy with it, I'll fix it
  * right after I fix locore.s and the magic 28K hole
- *
- * SMP_PRIVPAGES: The per-cpu address space is 0xff80000 -> 0xffbfffff
  */
-#ifdef SMP
-#define MPPTDI		(NPDEPTD-1)	/* per cpu ptd entry */
-#define	KPTDI		(MPPTDI-NKPDE)	/* start of kernel virtual pde's */
-#else
-#define	KPTDI		(NPDEPTD-NKPDE)/* start of kernel virtual pde's */
-#endif	/* SMP */
+#define	KPTDI		(NPDEPTD-NKPDE)	/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
 
 /*
