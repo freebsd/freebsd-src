@@ -4,10 +4,10 @@
 .PATH: ${.CURDIR}/../../../../usr.bin/login
 
 PROG=	login
-SRCS=	pico-login.c login_access.c login_fbtab.c
+SRCS=	pico-login.c login_fbtab.c
 MAN=	login.1 login.access.5
 
-CFLAGS+=-DLOGIN_ACCESS -DLOGALL
+CFLAGS+=-DLOGALL
 
 DPADD=	${LIBUTIL} ${LIBCRYPT}
 LDADD=	-lutil -lcrypt
