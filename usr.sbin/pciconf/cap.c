@@ -40,7 +40,7 @@ static const char rcsid[] =
 #include <sys/agpio.h>
 #include <sys/pciio.h>
 
-#include <pci/agpreg.h>
+#include <dev/agp/agpreg.h>
 #include <dev/pci/pcireg.h>
 
 #include "pciconf.h"
