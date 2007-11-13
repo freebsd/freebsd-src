@@ -73,6 +73,7 @@ ntfs_nthashinit()
 void
 ntfs_nthashdestroy(void)
 {
+	hashdestroy(ntfs_nthashtbl, M_NTFSNTHASH, ntfs_nthash);
 	lockdestroy(&ntfs_hashlock);
 	mtx_destroy(&ntfs_nthash_mtx);
 }
