@@ -1,0 +1,24 @@
+$FreeBSD$
+
+ 1. Download latest less(1) tarball.  The homepage of less(1) is at:
+	http://www.greenwoodsoftware.com/less/
+ 2. Export the tarball into a directory, (say "v-less").
+ 3. Checkout our contrib/less code into another directory (say "f-less"),
+    with -rLESS.
+ 4. Copy v-less/ files over f-less, check if there is any files that is
+    removed by vendor, or newly added, note them.
+ 5. do cvs up -A in f-less, resolve the conflicts.
+ 6. Regenerate defines.h:
+	./configure --prefix=/ --bindir=/usr/bin --sbindir=/usr/sbin \
+		    --libexecdir=/usr/libexec --datarootdir=/usr/share
+ 7. Manually merge changes into src/usr.bin/less/defines.h; adjust
+    Makefile glue to reflect added/removed files.
+ 8. Replace your src/contrib/less with the merged copy, and do a ``make
+    universe'' to make sure that nothing was broken;
+ 9. If everything goes well, do the actual import from v-less:
+	cvs -n import src/contrib/less LESS v<version>
+    Seems everything is fine?  Go with:
+	cvs import src/contrib/less LESS v<version>
+10. Resolve the conflicts with the patchset found in step 5.
+
+delphij@FreeBSD.org - Nov 13th, 2007
