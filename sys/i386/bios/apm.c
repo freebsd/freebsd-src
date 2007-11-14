@@ -485,7 +485,13 @@ apm_do_suspend(void)
 	apm_op_inprog = 0;
 	sc->suspends = sc->suspend_countdown = 0;
 
+	/*
+	 * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since
+	 * non-MPSAFE drivers need this.
+	 */
+	mtx_lock(&Giant);
 	error = DEVICE_SUSPEND(root_bus);
+	mtx_unlock(&Giant);
 	if (error)
 		return;
 
@@ -496,7 +502,9 @@ apm_do_suspend(void)
 	} else {
 		/* Failure, 'resume' the system again */
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
+		mtx_lock(&Giant);
 		DEVICE_RESUME(root_bus);
+		mtx_unlock(&Giant);
 	}
 	return;
 }
@@ -602,7 +610,9 @@ apm_resume(void)
 
 	sc->suspending = 0;
 	apm_execute_hook(hook[APM_HOOK_RESUME]);
+	mtx_lock(&Giant);
 	DEVICE_RESUME(root_bus);
+	mtx_unlock(&Giant);
 	return;
 }
 
