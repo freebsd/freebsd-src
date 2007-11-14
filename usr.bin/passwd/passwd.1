@@ -98,6 +98,7 @@ When changing only the local password,
 .Xr pwd_mkdb 8
 is used to update the password databases.
 .El
+.Pp
 When changing local or NIS password, the next password change date
 is set according to
 .Dq passwordtime
@@ -118,7 +119,7 @@ If a user exists in the NIS password
 database but does not exist locally,
 .Nm
 automatically switches into
-.Dq yppasswd
+.Nm yppasswd
 mode.
 If the specified
 user does not exist in either the local password database or the
@@ -208,7 +209,9 @@ NIS server (master or slave) in a domain, so specifying the name of a
 slave server will work equally well.
 .It Fl o
 Do not automatically override the password authentication checks for the
-super-user on the NIS master server; assume 'old' mode instead.
+super-user on the NIS master server; assume
+.Dq old
+mode instead.
 This
 flag is of limited practical use but is useful for testing.
 .El

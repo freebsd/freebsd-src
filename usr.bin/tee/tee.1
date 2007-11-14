@@ -35,12 +35,12 @@
 .\"     @(#)tee.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 13, 2007
 .Dt TEE 1
 .Os
 .Sh NAME
 .Nm tee
-.Nd pipe fitting
+.Nd duplicate standard input
 .Sh SYNOPSIS
 .Nm
 .Op Fl ai
@@ -53,7 +53,7 @@ making a copy in zero or more files.
 The output is unbuffered.
 .Pp
 The following options are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
 Append the output to the files rather than
 overwriting them.
@@ -64,7 +64,7 @@ signal.
 .El
 .Pp
 The following operands are available:
-.Bl -tag -width file
+.Bl -tag -width indent
 .It Ar file
 A pathname of an output
 .Ar file .
