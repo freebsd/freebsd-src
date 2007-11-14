@@ -125,7 +125,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/perfmon.h>
 #endif
 #ifdef SMP
-#include <machine/privatespace.h>
 #include <machine/smp.h>
 #endif
 
@@ -204,9 +203,7 @@ vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 struct kva_md_info kmi;
 
 static struct trapframe proc0_tf;
-#ifndef SMP
-static struct pcpu __pcpu;
-#endif
+struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
 
@@ -1950,11 +1947,7 @@ init386(first)
 	gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
 
-#ifdef SMP
-	pc = &SMP_prvspace[0].pcpu;
-#else
-	pc = &__pcpu;
-#endif
+	pc = &__pcpu[0];
 	gdt_segs[GPRIV_SEL].ssd_limit = atop(0 - 1);
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
