@@ -156,7 +156,7 @@ trap(struct trapframe *frame)
 	sig = 0;
 	user = frame->srr1 & PSL_PR;
 
-	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", p->p_comm,
+	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
 	if (user) {
@@ -401,7 +401,7 @@ syscall(struct trapframe *frame)
 	} else
 		error = 0;
 
-	CTR5(KTR_SYSC, "syscall: p=%s %s(%x %x %x)", p->p_comm,
+	CTR5(KTR_SYSC, "syscall: p=%s %s(%x %x %x)", td->td_name,
 	     syscallnames[code],
 	     frame->fixreg[FIRSTARG],
 	     frame->fixreg[FIRSTARG+1],
@@ -426,7 +426,7 @@ syscall(struct trapframe *frame)
 		error = (*callp->sy_call)(td, params);
 		AUDIT_SYSCALL_EXIT(error, td);
 
-		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", p->p_comm,
+		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", td->td_name,
 		     syscallnames[code], td->td_retval[0]);
 	}
 	switch (error) {

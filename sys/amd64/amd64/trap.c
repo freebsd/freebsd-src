@@ -208,7 +208,7 @@ trap(struct trapframe *frame)
 		if (ISPL(frame->tf_cs) == SEL_UPL)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
-			    (long)curproc->p_pid, curproc->p_comm, type);
+			    (long)curproc->p_pid, curthread->td_name, type);
 		else if (type != T_NMI && type != T_BPTFLT &&
 		    type != T_TRCTRAP) {
 			/*
@@ -681,8 +681,8 @@ trap_fatal(frame, eva)
 	printf("current process		= ");
 	if (curproc) {
 		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curproc->p_comm ?
-		    curproc->p_comm : "");
+		    (u_long)curproc->p_pid, curthread->td_name ?
+		    curthread->td_name : "");
 	} else {
 		printf("Idle\n");
 	}
