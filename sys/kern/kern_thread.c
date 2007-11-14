@@ -232,6 +232,7 @@ proc_linkup(struct proc *p, struct thread *td)
 		/* XXX p_ksi may be null if ksiginfo zone is not ready */
 		p->p_ksi->ksi_flags = KSI_EXT | KSI_INS;
 	}
+	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 	LIST_INIT(&p->p_mqnotifier);
 	p->p_numthreads = 0;
 	thread_link(td, p);
