@@ -111,7 +111,7 @@ cpu_thread_clean(struct thread *td)
 }
 
 void
-cpu_thread_setup(struct thread *td)
+cpu_thread_alloc(struct thread *td)
 {
 	struct pcb *pcb;
 
@@ -124,6 +124,11 @@ cpu_thread_setup(struct thread *td)
 	KASSERT(pcb > (struct pcb *)VM_MIN_DIRECT_ADDRESS,("pcb is NULL"));
 	td->td_pcb = pcb;
 	
+}
+
+void
+cpu_thread_free(struct thread *td)
+{
 }
 
 void

@@ -325,7 +325,7 @@ thread_alloc(void)
 		uma_zfree(thread_zone, td);
 		return (NULL);
 	}
-	cpu_thread_setup(td);
+	cpu_thread_alloc(td);
 	return (td);
 }
 
@@ -337,7 +337,7 @@ void
 thread_free(struct thread *td)
 {
 
-	cpu_thread_clean(td);
+	cpu_thread_free(td);
 	if (td->td_altkstack != 0)
 		vm_thread_dispose_altkstack(td);
 	if (td->td_kstack != 0)
