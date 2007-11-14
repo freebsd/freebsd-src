@@ -15,9 +15,8 @@
 .Nd convert file to c-source
 .Sh SYNOPSIS
 .Nm
+.Op Fl sx
 .Op Fl n Ar count
-.Op Fl s
-.Op Fl x
 .Op Ar prefix Op Ar suffix
 .Sh DESCRIPTION
 The
@@ -28,7 +27,8 @@ The byte values are separated by a comma.
 This also means that the last byte value is not followed by a comma.
 By default the byte values are printed in decimal, but when the
 .Fl x
-option is given, the values will be printed in hexadecimal. When
+option is given, the values will be printed in hexadecimal.
+When
 .Fl s
 option is given, each line is printed with a leading tab and each comma is
 followed by a space except for the last one on the line.
@@ -54,9 +54,7 @@ This program is typically used to embed binary files into C source files.
 The prefix is used to define an array type and the suffix is used to end
 the C statement.
 The
-.Fl n
-,
-.Fl s
+.Fl n , s
 and
 .Fl x
 options are useful when the binary data represents a bitmap and the output
