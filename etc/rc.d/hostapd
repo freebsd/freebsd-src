@@ -14,9 +14,11 @@ command="/usr/sbin/${name}"
 rcvar=`set_rcvar`
 
 conf_file="/etc/${name}.conf"
+pidfile="/var/run/${name}.pid"
 
-command_args="-B ${conf_file}"
+command_args="-P ${pidfile} -B ${conf_file}"
 required_files="${conf_file}"
+extra_commands="reload"
 
 load_rc_config ${name}
 run_rc_command "$1"
