@@ -280,7 +280,7 @@ ktr_getrequest(int type)
 		microtime(&req->ktr_header.ktr_time);
 		req->ktr_header.ktr_pid = p->p_pid;
 		req->ktr_header.ktr_tid = td->td_tid;
-		bcopy(p->p_comm, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
+		bcopy(td->td_name, req->ktr_header.ktr_comm, MAXCOMLEN + 1);
 		req->ktr_buffer = NULL;
 		req->ktr_header.ktr_len = 0;
 	} else {

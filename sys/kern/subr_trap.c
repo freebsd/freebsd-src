@@ -79,7 +79,7 @@ userret(struct thread *td, struct trapframe *frame)
 	struct proc *p = td->td_proc;
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
-            p->p_comm);
+            td->td_name);
 #ifdef DIAGNOSTIC
 	/* Check that we called signotify() enough. */
 	PROC_LOCK(p);

@@ -382,7 +382,7 @@ sleepq_catch_signals(void *wchan)
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 	MPASS(wchan != NULL);
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
-		(void *)td, (long)p->p_pid, p->p_comm);
+		(void *)td, (long)p->p_pid, td->td_name);
 
 	mtx_unlock_spin(&sc->sc_lock);
 

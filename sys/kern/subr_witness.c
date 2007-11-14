@@ -2016,7 +2016,7 @@ DB_SHOW_COMMAND(alllocks, db_witness_list_all)
 			if (!witness_thread_has_locks(td))
 				continue;
 			db_printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
-			    p->p_comm, td, td->td_tid);
+			    td->td_name, td, td->td_tid);
 			witness_list(td);
 		}
 	}
