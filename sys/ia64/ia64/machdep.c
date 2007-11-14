@@ -806,7 +806,7 @@ ia64_init(void)
 	 * and make proc0's trapframe pointer point to it for sanity.
 	 * Initialise proc0's backing store to start after u area.
 	 */
-	cpu_thread_setup(&thread0);
+	cpu_thread_alloc(&thread0);
 	thread0.td_frame->tf_flags = FRAME_SYSCALL;
 	thread0.td_pcb->pcb_special.sp =
 	    (u_int64_t)thread0.td_frame - 16;

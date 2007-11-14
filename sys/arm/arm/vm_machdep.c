@@ -333,7 +333,7 @@ cpu_thread_exit(struct thread *td)
 }
 
 void
-cpu_thread_setup(struct thread *td)
+cpu_thread_alloc(struct thread *td)
 {
 	td->td_pcb = (struct pcb *)(td->td_kstack + td->td_kstack_pages * 
 	    PAGE_SIZE) - 1;
@@ -344,8 +344,13 @@ cpu_thread_setup(struct thread *td)
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
 #endif
 #endif  
-		
 }
+
+void
+cpu_thread_free(struct thread *td)
+{
+}
+
 void
 cpu_thread_clean(struct thread *td)
 {
