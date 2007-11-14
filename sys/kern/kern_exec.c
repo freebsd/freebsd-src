@@ -523,6 +523,7 @@ interpret:
 	len = min(ndp->ni_cnd.cn_namelen,MAXCOMLEN);
 	bcopy(ndp->ni_cnd.cn_nameptr, p->p_comm, len);
 	p->p_comm[len] = 0;
+	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 
 	/*
 	 * mark as execed, wakeup the process that vforked (if any) and tell
