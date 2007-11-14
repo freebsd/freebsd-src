@@ -583,7 +583,9 @@ extern size_t	_thr_guard_default __hidden;
 extern size_t	_thr_stack_default __hidden;
 extern size_t	_thr_stack_initial __hidden;
 extern int	_thr_page_size __hidden;
-extern int	_thr_adaptive_spin __hidden;
+extern int	_thr_spinloops __hidden;
+extern int	_thr_yieldloops __hidden;
+
 /* Garbage thread count. */
 extern int	_gc_count __hidden;
 
@@ -653,6 +655,7 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 		struct rtprio *rtp) __hidden;
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
+int	_sched_yield(void);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
