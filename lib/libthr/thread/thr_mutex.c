@@ -65,6 +65,12 @@
 #endif
 
 /*
+ * For adaptive mutexes, how many times to spin doing trylock2
+ * before entering the kernel to block
+ */
+#define MUTEX_ADAPTIVE_SPINS	200
+
+/*
  * Prototypes
  */
 int	__pthread_mutex_init(pthread_mutex_t *mutex,
@@ -271,6 +277,16 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 	return (ret);
 }
 
+
+#define ENQUEUE_MUTEX(curthread, m)  					\
+		m->m_owner = curthread;					\
+		/* Add to the list of owned mutexes: */			\
+		MUTEX_ASSERT_NOT_OWNED(m);				\
+		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)	\
+			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);	\
+		else							\
+			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe)
+
 static int
 mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 {
@@ -282,13 +298,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 	m = *mutex;
 	ret = _thr_umutex_trylock(&m->m_lock, id);
 	if (ret == 0) {
-		m->m_owner = curthread;
-		/* Add to the list of owned mutexes. */
-		MUTEX_ASSERT_NOT_OWNED(m);
-		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
-			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
-		else
-			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe);
+		ENQUEUE_MUTEX(curthread, m);
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_trylock(m);
 	} /* else {} */
@@ -340,21 +350,66 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 	struct	pthread_mutex *m;
 	uint32_t	id;
 	int	ret;
+	int	count;
 
 	id = TID(curthread);
 	m = *mutex;
 	ret = _thr_umutex_trylock2(&m->m_lock, id);
 	if (ret == 0) {
-		m->m_owner = curthread;
-		/* Add to the list of owned mutexes: */
-		MUTEX_ASSERT_NOT_OWNED(m);
-		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
-			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
-		else
-			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe);
+		ENQUEUE_MUTEX(curthread, m);
 	} else if (m->m_owner == curthread) {
 		ret = mutex_self_lock(m, abstime);
 	} else {
+		/*
+		 * For adaptive mutexes, spin for a bit in the expectation
+		 * that if the application requests this mutex type then
+		 * the lock is likely to be released quickly and it is
+		 * faster than entering the kernel
+		 */
+		if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
+			goto sleep_in_kernel;
+
+		if (!_thr_is_smp)
+			goto yield_loop;
+
+		if (m->m_type == PTHREAD_MUTEX_ADAPTIVE_NP) {
+			count = MUTEX_ADAPTIVE_SPINS;
+  	 
+			while (count--) {
+				ret = _thr_umutex_trylock2(&m->m_lock, id);
+				if (ret == 0)
+					break;
+				CPU_SPINWAIT;
+			}
+			if (ret == 0)
+				goto done;
+		} else {
+			if (_thr_spinloops != 0) {
+				count = _thr_spinloops;
+				while (count) {
+					if (m->m_lock.m_owner == UMUTEX_UNOWNED) {
+						ret = _thr_umutex_trylock2(&m->m_lock, id);
+						if (ret == 0)
+							goto done;
+					}
+					CPU_SPINWAIT;
+					count--;
+				}
+			}
+		}
+
+yield_loop:
+		if (_thr_yieldloops != 0) {
+			count = _thr_yieldloops;
+			while (count--) {
+				_sched_yield();
+				ret = _thr_umutex_trylock2(&m->m_lock, id);
+				if (ret == 0)
+					goto done;
+			}
+		}
+
+sleep_in_kernel:
 		if (abstime == NULL) {
 			ret = __thr_umutex_lock(&m->m_lock);
 		} else if (__predict_false(
@@ -372,16 +427,9 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 			if (ret == EINTR)
 				ret = ETIMEDOUT;
 		}
-		if (ret == 0) {
-			m->m_owner = curthread;
-			/* Add to the list of owned mutexes: */
-			MUTEX_ASSERT_NOT_OWNED(m);
-			if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
-				TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);
-			else
-				TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m,
-					m_qe);
-		}
+done:
+		if (ret == 0)
+			ENQUEUE_MUTEX(curthread, m);
 	}
 	return (ret);
 }
@@ -529,6 +577,7 @@ mutex_self_lock(pthread_mutex_t m, const struct timespec *abstime)
 
 	switch (m->m_type) {
 	case PTHREAD_MUTEX_ERRORCHECK:
+	case PTHREAD_MUTEX_ADAPTIVE_NP:
 		if (abstime) {
 			clock_gettime(CLOCK_REALTIME, &ts1);
 			TIMESPEC_SUB(&ts2, abstime, &ts1);

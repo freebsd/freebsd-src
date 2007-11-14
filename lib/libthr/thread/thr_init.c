@@ -103,6 +103,8 @@ size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
 size_t		_thr_stack_initial = THR_STACK_INITIAL;
 int		_thr_page_size;
+int		_thr_spinloops;
+int		_thr_yieldloops;
 int		_gc_count;
 struct umutex	_mutex_static_lock = DEFAULT_UMUTEX;
 struct umutex	_cond_static_lock = DEFAULT_UMUTEX;
@@ -423,6 +425,7 @@ init_private(void)
 {
 	size_t len;
 	int mib[2];
+	char *env;
 
 	_thr_umutex_init(&_mutex_static_lock);
 	_thr_umutex_init(&_cond_static_lock);
@@ -452,7 +455,12 @@ init_private(void)
 		_thr_guard_default = _thr_page_size;
 		_pthread_attr_default.guardsize_attr = _thr_guard_default;
 		_pthread_attr_default.stacksize_attr = _thr_stack_default;
-
+		env = getenv("LIBPTHREAD_SPINLOOPS");
+		if (env)
+			_thr_spinloops = atoi(env);
+		env = getenv("LIBPTHREAD_YIELDLOOPS");
+		if (env)
+			_thr_yieldloops = atoi(env);
 		TAILQ_INIT(&_thr_atfork_list);
 	}
 	init_once = 1;
