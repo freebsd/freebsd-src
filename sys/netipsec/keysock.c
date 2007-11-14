@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -392,6 +393,12 @@ key_attach(struct socket *so, int proto, struct thread *td)
 		return ENOBUFS;
 
 	so->so_pcb = (caddr_t)kp;
+
+	if (td != NULL) {
+		error = priv_check(td, PRIV_NET_RAW);
+		if (error)
+			return error;
+	}
 	error = raw_attach(so, proto);
 	kp = (struct keycb *)sotorawcb(so);
 	if (error) {
