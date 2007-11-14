@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright 2006 Colin Percival
+.\" Copyright 2006, 2007 Colin Percival
 .\" All rights reserved
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2006
+.Dd November 11, 2007
 .Dt FREEBSD-UPDATE 8
 .Os FreeBSD
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl d Ar workdir
 .Op Fl f Ar conffile
 .Op Fl k Ar KEY
+.Op Fl r Ar newrelease
 .Op Fl s Ar server
 .Op Fl t Ar address
 .Cm command ...
@@ -84,6 +85,10 @@ Read configuration options from
 Trust an RSA key with SHA256 of
 .Ar KEY .
 (default: read value from configuration file.)
+.It Fl r Ar newrelease
+Specify the new release to which
+.Nm
+should upgrade (upgrade command only).
 .It Fl s Ar server
 Fetch files from the specified server or server pool.
 (default: read value from configuration file.)
@@ -118,8 +123,13 @@ from
 the random delay serves to minimize the probability that
 a large number of machines will simultaneously attempt to
 fetch updates.
+.It Cm upgrade
+Fetch files necessary for upgrading to a new release.
+Before using this command, make sure that you read the
+announcement and release notes for the new release in
+case there are any special steps needed for upgrading.
 .It Cm install
-Install the most recently fetched updates.
+Install the most recently fetched updates or upgrade.
 .It Cm rollback
 Uninstall the most recently installed updates.
 .El
