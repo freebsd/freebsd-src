@@ -339,7 +339,7 @@ runq_print(struct runq *rq)
 				rqh = &rq->rq_queues[pri];
 				TAILQ_FOREACH(ts, rqh, ts_procq) {
 					printf("\t\t\ttd %p(%s) priority %d rqindex %d pri %d\n",
-					    ts->ts_thread, ts->ts_thread->td_proc->p_comm, ts->ts_thread->td_priority, ts->ts_rqindex, pri);
+					    ts->ts_thread, ts->ts_thread->td_name, ts->ts_thread->td_priority, ts->ts_rqindex, pri);
 				}
 			}
 	}
@@ -1600,8 +1600,8 @@ sched_thread_priority(struct thread *td, u_char prio)
 	struct td_sched *ts;
 
 	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, prio, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, prio, curthread,
+	    curthread->td_name);
 	ts = td->td_sched;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -2087,7 +2087,7 @@ sched_exit(struct proc *p, struct thread *child)
 	struct thread *td;
 	
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
-	    child, child->td_proc->p_comm, child->td_priority);
+	    child, child->td_name, child->td_priority);
 
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	td = FIRST_THREAD_IN_PROC(p);
@@ -2105,7 +2105,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, child->td_proc->p_comm, child->td_priority);
+	    child, child->td_name, child->td_priority);
 
 #ifdef KSE
 	/*
@@ -2396,8 +2396,8 @@ sched_add(struct thread *td, int flags)
 	int cpu;
 #endif
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, curthread,
+	    curthread->td_name);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
 	/*
@@ -2450,8 +2450,8 @@ sched_rem(struct thread *td)
 	struct td_sched *ts;
 
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, curthread,
+	    curthread->td_name);
 	ts = td->td_sched;
 	tdq = TDQ_CPU(ts->ts_cpu);
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);

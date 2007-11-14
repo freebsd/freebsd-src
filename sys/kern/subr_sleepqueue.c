@@ -459,7 +459,7 @@ sleepq_switch(void *wchan)
 	mi_switch(SW_VOL, NULL);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
 	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %ld, %s)",
-	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 }
 
 /*
@@ -650,7 +650,7 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	 * do it.  However, we can't assert that it is set.
 	 */
 	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %ld, %s)",
-	    (void *)td, (long)td->td_proc->p_pid, td->td_proc->p_comm);
+	    (void *)td, (long)td->td_proc->p_pid, td->td_name);
 	TD_CLR_SLEEPING(td);
 
 	/* Adjust priority if requested. */
@@ -772,7 +772,7 @@ sleepq_timeout(void *arg)
 
 	td = arg;
 	CTR3(KTR_PROC, "sleepq_timeout: thread %p (pid %ld, %s)",
-	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 
 	/*
 	 * First, see if the thread is asleep and get the wait channel if
@@ -880,7 +880,7 @@ sleepq_abort(struct thread *td, int intrval)
 		return;
 
 	CTR3(KTR_PROC, "sleepq_abort: thread %p (pid %ld, %s)",
-	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
+	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_name);
 	td->td_intrval = intrval;
 	td->td_flags |= TDF_SLEEPABORT;
 	/*
@@ -957,7 +957,7 @@ found:
 				db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
 					  td->td_tid, td->td_proc->p_pid,
 					  td->td_name[i] != '\0' ? td->td_name :
-					  td->td_proc->p_comm);
+					  td->td_name);
 			}
 	}
 }

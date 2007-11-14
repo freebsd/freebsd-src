@@ -708,7 +708,7 @@ db_show_lockmgr(struct lock_object *lock)
 		td = lkp->lk_lockholder;
 		db_printf("EXCL (count %d) %p ", lkp->lk_exclusivecount, td);
 		db_printf("(tid %d, pid %d, \"%s\")\n", td->td_tid,
-		    td->td_proc->p_pid, td->td_proc->p_comm);
+		    td->td_proc->p_pid, td->td_name);
 	} else
 		db_printf("UNLOCKED\n");
 	if (lkp->lk_waitcount > 0)

@@ -615,7 +615,7 @@ sched_exit(struct proc *p, struct thread *td)
 {
 
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
-	    td, td->td_proc->p_comm, td->td_priority);
+	    td, td->td_name, td->td_priority);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
 }
@@ -625,7 +625,7 @@ sched_exit_thread(struct thread *td, struct thread *child)
 {
 
 	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, child->td_proc->p_comm, child->td_priority);
+	    child, child->td_name, child->td_priority);
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);
@@ -679,8 +679,8 @@ static void
 sched_priority(struct thread *td, u_char prio)
 {
 	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, prio, curthread, 
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, prio, curthread, 
+	    curthread->td_name);
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	if (td->td_priority == prio)
@@ -1071,8 +1071,8 @@ sched_add(struct thread *td, int flags)
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_add: thread swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, curthread,
+	    curthread->td_name);
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
 	 * to the scheduler's lock.
@@ -1140,8 +1140,8 @@ sched_add(struct thread *td, int flags)
 	KASSERT(td->td_flags & TDF_INMEM,
 	    ("sched_add: thread swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, curthread,
+	    curthread->td_name);
 	/*
 	 * Now that the thread is moving to the run-queue, set the lock
 	 * to the scheduler's lock.
@@ -1188,8 +1188,8 @@ sched_rem(struct thread *td)
 	    ("sched_rem: thread not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
-	    td, td->td_proc->p_comm, td->td_priority, curthread,
-	    curthread->td_proc->p_comm);
+	    td, td->td_name, td->td_priority, curthread,
+	    curthread->td_name);
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
