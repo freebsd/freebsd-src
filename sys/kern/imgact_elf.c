@@ -1155,12 +1155,12 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 	if (dst != NULL) {
 		psinfo->pr_version = PRPSINFO_VERSION;
 		psinfo->pr_psinfosz = sizeof(elf_prpsinfo_t);
-		strlcpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname));
+		strlcpy(psinfo->pr_fname, td->td_name, sizeof(psinfo->pr_fname));
 		/*
 		 * XXX - We don't fill in the command line arguments properly
 		 * yet.
 		 */
-		strlcpy(psinfo->pr_psargs, p->p_comm,
+		strlcpy(psinfo->pr_psargs, td->td_name,
 		    sizeof(psinfo->pr_psargs));
 	}
 	__elfN(putnote)(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,

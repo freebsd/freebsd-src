@@ -764,7 +764,7 @@ fork_exit(callout, arg, frame)
 	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
 	CTR4(KTR_PROC, "fork_exit: new thread %p (kse %p, pid %d, %s)",
-		td, td->td_sched, p->p_pid, p->p_comm);
+		td, td->td_sched, p->p_pid, td->td_name);
 
 	sched_fork_exit(td);
 	/*
@@ -792,7 +792,7 @@ fork_exit(callout, arg, frame)
 	 */
 	if (p->p_flag & P_KTHREAD) {
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
-		    p->p_comm, p->p_pid);
+		    td->td_name, p->p_pid);
 		kproc_exit(0);
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
