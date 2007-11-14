@@ -1036,7 +1036,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 		return (NULL);
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
-	     td2, td->td_proc->p_pid, td->td_proc->p_comm);
+	     td2, td->td_proc->p_pid, td->td_name);
 	/*
 	 * Bzero already done in thread_alloc_spare() because we can't
 	 * do the crhold here because we are in schedlock already.
@@ -1339,7 +1339,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * Do the last parts of the setup needed for the upcall.
 		 */
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
-		    td, td->td_proc->p_pid, td->td_proc->p_comm);
+		    td, td->td_proc->p_pid, td->td_name);
 
 		td->td_pflags &= ~TDP_UPCALLING;
 		if (ku->ku_flags & KUF_DOUPCALL) {

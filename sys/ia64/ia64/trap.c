@@ -279,7 +279,7 @@ printtrap(int vector, struct trapframe *tf, int isfatal, int user)
 	printf("    curthread   = %p\n", curthread);
 	if (curthread != NULL)
 		printf("        pid = %d, comm = %s\n",
-		       curthread->td_proc->p_pid, curthread->td_proc->p_comm);
+		       curthread->td_proc->p_pid, curthread->td_name);
 	printf("\n");
 }
 
@@ -1022,7 +1022,7 @@ syscall(struct trapframe *tf)
 		ktrsyscall(code, callp->sy_narg, args);
 #endif
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
@@ -1077,7 +1077,7 @@ syscall(struct trapframe *tf)
 	userret(td, tf);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(code, error, td->td_retval[0]);

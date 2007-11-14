@@ -967,7 +967,7 @@ db_show_rwlock(struct lock_object *lock)
 	else {
 		td = rw_wowner(rw);
 		db_printf("WLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
-		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
+		    td->td_tid, td->td_proc->p_pid, td->td_name);
 		if (rw_recursed(rw))
 			db_printf(" recursed: %u\n", rw->rw_recurse);
 	}

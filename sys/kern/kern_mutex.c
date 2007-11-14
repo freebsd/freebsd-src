@@ -819,7 +819,7 @@ db_show_mtx(struct lock_object *lock)
 	if (!mtx_unowned(m) && !mtx_destroyed(m)) {
 		td = mtx_owner(m);
 		db_printf(" owner: %p (tid %d, pid %d, \"%s\")\n", td,
-		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
+		    td->td_tid, td->td_proc->p_pid, td->td_name);
 		if (mtx_recursed(m))
 			db_printf(" recursed: %d\n", m->mtx_recurse);
 	}

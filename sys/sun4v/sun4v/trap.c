@@ -370,7 +370,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 #ifdef VERBOSE
 			if (sig == 4 || sig == 10 || sig == 11)
 				printf("trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d sig=%d proc=%s\n", 
-				       trapno, trap_msg[trapno], data, tf->tf_tpc, curcpu, sig, curthread->td_proc->p_comm);
+				       trapno, trap_msg[trapno], data, tf->tf_tpc, curcpu, sig, curthread->td_name);
 #endif
 			/* XXX I've renumbered the traps to largely reflect what the hardware uses
 			 * so this will need to be re-visited

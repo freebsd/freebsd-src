@@ -521,7 +521,7 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	if (uap->com > 0xffffffff) {
 		printf(
 		    "WARNING pid %d (%s): ioctl sign-extension ioctl %lx\n",
-		    td->td_proc->p_pid, td->td_proc->p_comm, uap->com);
+		    td->td_proc->p_pid, td->td_name, uap->com);
 		uap->com &= 0xffffffff;
 	}
 	com = uap->com;

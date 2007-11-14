@@ -303,7 +303,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("   curthread       = %p\n", curthread);
 	if (curthread != NULL)
 		printf("          pid = %d, comm = %s\n",
-		    curthread->td_proc->p_pid, curthread->td_proc->p_comm);
+		    curthread->td_proc->p_pid, curthread->td_name);
 	printf("\n");
 }
 
