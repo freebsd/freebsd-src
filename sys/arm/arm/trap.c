@@ -455,7 +455,7 @@ data_abort_handler(trapframe_t *tf)
 
 	if (error == ENOMEM) {
 		printf("VM: pid %d (%s), uid %d killed: "
-		    "out of swap\n", td->td_proc->p_pid, td->td_proc->p_comm,
+		    "out of swap\n", td->td_proc->p_pid, td->td_name,
 		    (td->td_proc->p_ucred) ?
 		     td->td_proc->p_ucred->cr_uid : -1);
 		ksig.signb = SIGKILL;
@@ -805,7 +805,7 @@ prefetch_abort_handler(trapframe_t *tf)
 
 	if (error == ENOMEM) {
 		printf("VM: pid %d (%s), uid %d killed: "
-		    "out of swap\n", td->td_proc->p_pid, td->td_proc->p_comm,
+		    "out of swap\n", td->td_proc->p_pid, td->td_name,
 		    (td->td_proc->p_ucred) ?
 		     td->td_proc->p_ucred->cr_uid : -1);
 		ksig.signb = SIGKILL;
@@ -927,7 +927,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 #endif
 		
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
@@ -989,7 +989,7 @@ bad:
 
 	userret(td, frame);
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 	
 	STOPEVENT(p, S_SCX, code);
 	PTRACESTOP_SC(p, td, S_PT_SCX);

@@ -465,7 +465,7 @@ statclock(int usermode)
 	if (ru->ru_maxrss < rss)
 		ru->ru_maxrss = rss;
 	CTR4(KTR_SCHED, "statclock: %p(%s) prio %d stathz %d",
-	    td, td->td_proc->p_comm, td->td_priority, (stathz)?stathz:hz);
+	    td, td->td_name, td->td_priority, (stathz)?stathz:hz);
 	sched_clock(td);
 	thread_unlock(td);
 }
