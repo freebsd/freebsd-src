@@ -393,7 +393,7 @@ thread_exit(void)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p != NULL, ("thread exiting without a process"));
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
-	    (long)p->p_pid, p->p_comm);
+	    (long)p->p_pid, td->td_name);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
 
 #ifdef AUDIT
