@@ -112,7 +112,7 @@ show_pcpu(struct pcpu *pc)
 	td = pc->pc_curthread;
 	if (td != NULL)
 		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_proc->p_comm);
+		    td->td_name);
 	else
 		db_printf("none\n");
 	db_printf("curpcb       = %p\n", pc->pc_curpcb);
@@ -120,14 +120,14 @@ show_pcpu(struct pcpu *pc)
 	td = pc->pc_fpcurthread;
 	if (td != NULL)
 		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_proc->p_comm);
+		    td->td_name);
 	else
 		db_printf("none\n");
 	db_printf("idlethread   = ");
 	td = pc->pc_idlethread;
 	if (td != NULL)
 		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
-		    td->td_proc->p_comm);
+		    td->td_name);
 	else
 		db_printf("none\n");
 	db_show_mdpcpu(pc);

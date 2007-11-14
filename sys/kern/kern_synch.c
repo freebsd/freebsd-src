@@ -419,16 +419,16 @@ mi_switch(int flags, struct thread *newtd)
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (TD_IS_IDLETHREAD(td))
 		CTR3(KTR_SCHED, "mi_switch: %p(%s) prio %d idle",
-		    td, td->td_proc->p_comm, td->td_priority);
+		    td, td->td_name, td->td_priority);
 	else if (newtd != NULL)
 		CTR5(KTR_SCHED,
 		    "mi_switch: %p(%s) prio %d preempted by %p(%s)",
-		    td, td->td_proc->p_comm, td->td_priority, newtd,
-		    newtd->td_proc->p_comm);
+		    td, td->td_name, td->td_priority, newtd,
+		    newtd->td_name);
 	else
 		CTR6(KTR_SCHED,
 		    "mi_switch: %p(%s) prio %d inhibit %d wmesg %s lock %s",
-		    td, td->td_proc->p_comm, td->td_priority,
+		    td, td->td_name, td->td_priority,
 		    td->td_inhibitors, td->td_wmesg, td->td_lockname);
 #endif
 	/*
@@ -441,7 +441,7 @@ mi_switch(int flags, struct thread *newtd)
 #endif
 	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",
-	    td, td->td_proc->p_comm, td->td_priority);
+	    td, td->td_name, td->td_priority);
 
 	CTR4(KTR_PROC, "mi_switch: new thread %ld (kse %p, pid %ld, %s)",
 	    td->td_tid, td->td_sched, p->p_pid, p->p_comm);

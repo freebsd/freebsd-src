@@ -986,7 +986,7 @@ db_show_sx(struct lock_object *lock)
 	else {
 		td = sx_xholder(sx);
 		db_printf("XLOCK: %p (tid %d, pid %d, \"%s\")\n", td,
-		    td->td_tid, td->td_proc->p_pid, td->td_proc->p_comm);
+		    td->td_tid, td->td_proc->p_pid, td->td_name);
 		if (sx_recursed(sx))
 			db_printf(" recursed: %d\n", sx->sx_recurse);
 	}

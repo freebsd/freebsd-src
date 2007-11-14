@@ -163,7 +163,7 @@ critical_enter(void)
 	td = curthread;
 	td->td_critnest++;
 	CTR4(KTR_CRITICAL, "critical_enter by thread %p (%ld, %s) to %d", td,
-	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
+	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }
 
 void
@@ -189,7 +189,7 @@ critical_exit(void)
 		td->td_critnest--;
 
 	CTR4(KTR_CRITICAL, "critical_exit by thread %p (%ld, %s) to %d", td,
-	    (long)td->td_proc->p_pid, td->td_proc->p_comm, td->td_critnest);
+	    (long)td->td_proc->p_pid, td->td_name, td->td_critnest);
 }
 
 /*
@@ -260,7 +260,7 @@ maybe_preempt(struct thread *td)
 	MPASS(TD_ON_RUNQ(td));
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm);
+	    td->td_proc->p_pid, td->td_name);
 	SCHED_STAT_INC(switch_preempt);
 	mi_switch(SW_INVOL|SW_PREEMPT, td);
 	/*

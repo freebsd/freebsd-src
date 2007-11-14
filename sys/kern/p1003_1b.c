@@ -63,7 +63,7 @@ int
 syscall_not_present(struct thread *td, const char *s, struct nosys_args *uap)
 {
 	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
-			td->td_proc->p_comm, td->td_proc->p_pid, s);
+			td->td_name, td->td_proc->p_pid, s);
 
 	/* a " return nosys(p, uap); " here causes a core dump.
 	 */
