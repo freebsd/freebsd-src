@@ -107,7 +107,7 @@ cpu_thread_clean(struct thread *td)
 }
 
 void
-cpu_thread_setup(struct thread *td)
+cpu_thread_alloc(struct thread *td)
 {
 	intptr_t sp;
 
@@ -118,6 +118,13 @@ cpu_thread_setup(struct thread *td)
 	td->td_frame = (struct trapframe *)sp;
 	td->td_frame->tf_length = sizeof(struct trapframe);
 	mtx_init(&td->td_md.md_highfp_mtx, "High FP lock", NULL, MTX_SPIN);
+}
+
+void
+cpu_thread_free(struct thread *td)
+{
+
+	mtx_destroy(&td->td_md.md_highfp_mtx);
 }
 
 void
