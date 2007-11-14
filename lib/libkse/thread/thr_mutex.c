@@ -179,6 +179,7 @@ __pthread_mutex_init(pthread_mutex_t *mutex,
 			/* case PTHREAD_MUTEX_DEFAULT: */
 			case PTHREAD_MUTEX_ERRORCHECK:
 			case PTHREAD_MUTEX_NORMAL:
+			case PTHREAD_MUTEX_ADAPTIVE_NP:
 				/* Nothing to do here. */
 				break;
 
@@ -971,6 +972,7 @@ mutex_self_trylock(struct pthread *curthread, pthread_mutex_t m)
 	/* case PTHREAD_MUTEX_DEFAULT: */
 	case PTHREAD_MUTEX_ERRORCHECK:
 	case PTHREAD_MUTEX_NORMAL:
+	case PTHREAD_MUTEX_ADAPTIVE_NP:
 		ret = EBUSY; 
 		break;
 
@@ -1002,6 +1004,7 @@ mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 	switch (m->m_type) {
 	/* case PTHREAD_MUTEX_DEFAULT: */
 	case PTHREAD_MUTEX_ERRORCHECK:
+	case PTHREAD_MUTEX_ADAPTIVE_NP:
 		/*
 		 * POSIX specifies that mutexes should return EDEADLK if a
 		 * recursive lock is detected.
