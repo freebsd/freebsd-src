@@ -75,19 +75,17 @@
 # log something on stdout if verbose.
 o_verbose=0	# this needs to be here!
 log() {
-    if [ ${o_verbose} -gt 0 ] ; then
-	printf "\n*** %s\n" "$*"
-	if [ ${o_verbose}  -gt 1 ] ; then
-	    read -p "=== Press enter to continue" foo
-	fi
-    fi
+    local foo
+    [ ${o_verbose} -gt 0 ] && printf "\n*** %s\n" "$*"
+    [ ${o_verbose}  -gt 1 ] && read -p "=== Press enter to continue" foo
+    return 0
 }
 
 logverbose() {
     local foo
-
     printf "\n*** %s\n" "$*"
     read -p "=== Press enter to continue" foo
+    return 0
 }
 
 set_defaults() {
@@ -164,6 +162,7 @@ create_includes_and_libraries2() {
     )
 }
 
+# entry for 4.x and earlier trees
 create_includes_and_libraries() {
     local e i
 
@@ -208,33 +207,32 @@ create_includes_and_libraries() {
 
 # set_type <type> looks in user or system directories for the floppy type
 # specified as first argument, and sets variables according to the config.
-# file. Also sets MY_TREE and BUILDDIR and SITE
+# file. Sets THETYPE, SITE, name, MY_TREE and BUILDDIR
 
 set_type() {
     local a i
 
-    log "set_type()"
+    log "set_type() : Type '$1' site '$2'"
     THETYPE=$1
     SITE=$2
     a=$1
+    name=""	# clear in case of errors
     for i in ${c_startdir}/${a} ${PICO_TREE}/${a} ; do
 	log "set_type: checking $i"
-	if [ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] ; then
-	    set -- `cat $i/PICOBSD | \
+	[ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] || continue
+	set -- `cat $i/PICOBSD | \
 	    awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}'`
-	    if [ "$1" != "" ]; then
-		MFS_SIZE=$1 ; init_name=$2
-		mfs_inodes=$3 ; fd_inodes=$4
-		name=`(cd $i ; pwd) `
-		name=`basename $name`
-		MY_TREE=$i
-		BUILDDIR=${c_startdir}/build_dir-${name}
-		log "Matching file $name in $i"
-		return ;
-	    fi
-	fi
+	[ x"$1" != "x" ] || continue
+	MFS_SIZE=$1 ; init_name=$2
+	mfs_inodes=$3 ; fd_inodes=$4
+	name=`(cd $i ; pwd) `
+	name=`basename $name`
+	MY_TREE=$i
+	BUILDDIR=${c_startdir}/build_dir-${name}
+	log "Matching file $name in $i"
+	return ;
     done
-    echo "Type $a NOT FOUND"
+    logverbose "Type $a NOT FOUND"
 }
 
 clean_tree() {
@@ -280,10 +278,8 @@ build_image() {
     log "PICO_OBJ is ${PICO_OBJ}"
 
     if [ ${OSVERSION} -ge 500035 ] ; then
-	MAKEOBJDIRPREFIX=${l_objtree}
-	export MAKEOBJDIRPREFIX
+	export MAKEOBJDIRPREFIX=${l_objtree}
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	log `cd ${SRC}; make -f Makefile.inc1 -V WMAKEENV`
 	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
     # create build directory and subtree
@@ -305,12 +301,16 @@ build_package() {
     local z msg
 
     log "build_package()"
-    touch build.status
+    rm -rf build.status
     echo "##############################################" >>build.status
     echo "## `date` ">>build.status
     echo "##############################################" >>build.status
     for z in bridge dial router net isp ; do
 	set_type ${z}
+        if [ "${name}" = "" ] ; then
+	    echo "*** TYPE=${z} not found" >>build.status
+	    continue
+	fi
 	echo "---------------------------------------------">>build.status
 	echo "Building TYPE=${z}, SIZE=${MFS_SIZE}" >>build.status
 	msg="(ok)"	# error message
@@ -455,15 +455,13 @@ Your options:\n\
 
 #-------------------------------------------------------------------
 
-# invoke the Makefile to compile the kernel.
+# invoke the picobsd Makefile to compile the kernel.
+# if MODULES is set (value is irrelevant) the makefile will build modules.
 do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
 	# export CONFIG
-	if [ "${o_do_modules}" = "yes" ] ; then
-		MODULES=""
-		export MODULES
-	fi
+	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	${BINMAKE} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
@@ -825,7 +823,8 @@ set_build_parameters() {
 # arguments.
 
 set_defaults
-while [ true ]; do
+args=""
+while [ x"$1" != x ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
 	SRC=`(cd $2; pwd)`
@@ -866,23 +865,22 @@ while [ true ]; do
 	o_makeopts="-d l" # be verbose
 	;;
     *)
-	break ;
+	args="$args $1"			# accumulate args
 	;;
 
     esac
     shift
 done
 set_build_parameters	# things that depend on ${SRC}
-set_type $1 $2		# type and site, respectively
 
 # If $1="package", it creates a neat set of floppies
+set -- ${args}
+[ "$1" = "package" ] && build_package
 
-if [ "$1" = "package" ] ; then
-    build_package
-fi
-if [ "${o_interactive}" != "NO" ] ; then
-    main_dialog
-fi
+set_type $args		# type and site, respectively
+
+[ "${o_interactive}" != "NO" ] && main_dialog
+
 if [ "${o_clean}" = "YES" ] ; then
     clean_tree
 else
