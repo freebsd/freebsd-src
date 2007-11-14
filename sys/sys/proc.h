@@ -372,6 +372,7 @@ do {									\
 #define	TDP_WAKEUP	0x00080000 /* Don't sleep in umtx cond_wait */
 #define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
 #define	TDP_KTHREAD	0x00200000 /* This is an official kernel thread */
+#define	TDP_CALLCHAIN	0x00400000 /* Capture thread's callchain */
 
 /*
  * Reasons that the current thread can not be run yet.
