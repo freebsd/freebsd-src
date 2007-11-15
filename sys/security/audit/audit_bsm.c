@@ -55,9 +55,6 @@
 
 MALLOC_DEFINE(M_AUDITBSM, "audit_bsm", "Audit BSM data");
 
-/*
- * Forward declares.
- */
 static void	audit_sys_auditon(struct audit_record *ar,
 		    struct au_record *rec);
 
