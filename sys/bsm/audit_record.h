@@ -2,8 +2,6 @@
  * Copyright (c) 2005 Apple Computer, Inc.
  * All rights reserved.
  *
- * @APPLE_BSD_LICENSE_HEADER_START@
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,9 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * @APPLE_BSD_LICENSE_HEADER_END@
- *
- * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_record.h#21 $
+ * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_record.h#26
  * $FreeBSD$
  */
 
@@ -86,6 +82,7 @@
 /* XXXRW: Additional X11 tokens not defined? */
 #define	AUT_CMD			0x51
 #define	AUT_EXIT		0x52
+#define	AUT_ZONENAME		0x60
 /* XXXRW: OpenBSM AUT_HOST 0x70? */
 #define	AUT_ARG64		0x71
 #define	AUT_RETURN64		0x72
@@ -247,6 +244,8 @@ token_t	*au_to_file(char *file, struct timeval tm);
 
 token_t	*au_to_header32_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
 	    struct timeval tm);
+token_t	*au_to_header64_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
+	    struct timeval tm);
 #if !defined(KERNEL) && !defined(_KERNEL)
 token_t	*au_to_header(int rec_size, au_event_t e_type, au_emod_t e_mod);
 token_t	*au_to_header32(int rec_size, au_event_t e_type, au_emod_t e_mod);
@@ -329,6 +328,7 @@ token_t	*au_to_exec_env(char **envp);
 token_t	*au_to_text(char *text);
 token_t	*au_to_kevent(struct kevent *kev);
 token_t	*au_to_trailer(int rec_size);
+token_t	*au_to_zonename(char *zonename);
 
 __END_DECLS
 
