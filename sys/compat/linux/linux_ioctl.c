@@ -2323,6 +2323,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCGIFCONF:
 	case LINUX_SIOCGPGRP:
 	case LINUX_SIOCSPGRP:
+	case LINUX_SIOCGIFCOUNT:
 		/* these ioctls don't take an interface name */
 #ifdef DEBUG
 		printf("%s(): ioctl %d\n", __func__,
@@ -2344,6 +2345,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCSIFHWADDR:
 	case LINUX_SIOCDEVPRIVATE:
 	case LINUX_SIOCDEVPRIVATE+1:
+	case LINUX_SIOCGIFINDEX:
 		/* copy in the interface name and translate it. */
 		error = copyin((void *)args->arg, lifname, LINUX_IFNAMSIZ);
 		if (error != 0)
@@ -2476,6 +2478,15 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCDELMULTI:
 		args->cmd = SIOCDELMULTI;
 		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+
+	case LINUX_SIOCGIFINDEX:
+		args->cmd = SIOCGIFINDEX;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+
+	case LINUX_SIOCGIFCOUNT:
+		error = 0;
 		break;
 
 	/*
