@@ -60,7 +60,7 @@
  * hasn't already been filled in?
  */
 void
-audit_arg_addr(void * addr)
+audit_arg_addr(void *addr)
 {
 	struct kaudit_record *ar;
 
