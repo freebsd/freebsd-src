@@ -1045,6 +1045,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	sched_fork_thread(td, td2);
 	thread_link(td2, ku->ku_proc);
+	bcopy(ku->ku_comm, td2->td_name, sizeof(td2->td_name));
 	/* inherit parts of blocked thread's context as a good template */
 	cpu_set_upcall(td2, td);
 	/* Let the new thread become owner of the upcall */
