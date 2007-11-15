@@ -347,8 +347,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	/*
 	 * Decide whether to commit the audit record by checking the error
 	 * value from the system call and using the appropriate audit mask.
-	 *
-	 * XXXAUDIT: Synchronize access to audit_nae_mask?
 	 */
 	if (ar->k_ar.ar_subj_auid == AU_DEFAUDITID)
 		aumask = &audit_nae_mask;
@@ -377,7 +375,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		break;
 
 	case AUE_AUDITON:
-		/* Convert the auditon() command to an event */
+		/* Convert the auditon() command to an event. */
 		ar->k_ar.ar_event = auditon_command_event(ar->k_ar.ar_arg_cmd);
 		break;
 	}
@@ -403,15 +401,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 
 	ar->k_ar.ar_errno = error;
 	ar->k_ar.ar_retval = retval;
-
-	/*
-	 * We might want to do some system-wide post-filtering here at some
-	 * point.
-	 */
-
-	/*
-	 * Timestamp system call end.
-	 */
 	nanotime(&ar->k_ar.ar_endtime);
 
 	/*
@@ -536,9 +525,6 @@ audit_syscall_exit(int error, struct thread *td)
 	td->td_ar = NULL;
 }
 
-/*
- * Allocate storage for a new process (init, or otherwise).
- */
 void
 audit_proc_alloc(struct proc *p)
 {
@@ -548,9 +534,6 @@ audit_proc_alloc(struct proc *p)
 	p->p_au = malloc(sizeof(*(p->p_au)), M_AUDITPROC, M_WAITOK);
 }
 
-/*
- * Allocate storage for a new thread.
- */
 void
 audit_thread_alloc(struct thread *td)
 {
@@ -558,9 +541,6 @@ audit_thread_alloc(struct thread *td)
 	td->td_ar = NULL;
 }
 
-/*
- * Thread destruction.
- */
 void
 audit_thread_free(struct thread *td)
 {
@@ -596,10 +576,6 @@ audit_proc_init(struct proc *p)
 	p->p_au->ai_auid = AU_DEFAUDITID;
 }
 
-/*
- * Copy the audit info from the parent process to the child process when a
- * fork takes place.
- */
 void
 audit_proc_fork(struct proc *parent, struct proc *child)
 {
@@ -614,9 +590,6 @@ audit_proc_fork(struct proc *parent, struct proc *child)
 	bcopy(parent->p_au, child->p_au, sizeof(*child->p_au));
 }
 
-/*
- * Free the auditing structure for the process.
- */
 void
 audit_proc_free(struct proc *p)
 {
