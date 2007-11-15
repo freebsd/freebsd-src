@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2006
+.Dd November 14, 2007
 .Dt GJOURNAL 8
 .Os
 .Sh NAME
@@ -66,31 +66,31 @@ utility is used for journal configuration on the given GEOM provider.
 The Journal and data may be stored on the same provider or on two separate
 providers.
 This is block level journaling, not file system level journaling, which means
-.Nm
-everything gets logged, e.g.: for file systems, it journals both data and
+everything gets logged, e.g.\& for file systems, it journals both data and
 metadata.
 The
 .Nm
 GEOM class can talk to file systems, which allows the use of
 .Nm
 for file system journaling and to keep file systems in a consistent state.
-At this time, only UFS file systems are supported.
+At this time, only UFS file system is supported.
 .Pp
-.\" XXX This next sentence needs fixed, it's a run on.
-To configure journaling via
+To configure journaling on the UFS file system using
+.Nm ,
+one should first create a
 .Nm
-for the UFS file system, one should create a gjournaled provider using the
+provider using the
 .Nm
-utility with the
-.Fl J
-flag for
+utility, then run
 .Xr newfs 8
 or
 .Xr tunefs 8
-which instructs UFS to cooperate with the
+on it with the
+.Fl J
+flag which instructs UFS to cooperate with the
 .Nm
 provider below.
-There are important differences in how gjournaled UFS works.
+There are important differences in how journaled UFS works.
 The most important one is that
 .Xr sync 2
 and
@@ -111,17 +111,17 @@ option.
 When
 .Nm
 is configured on top of
-.Nm gmirror
+.Xr gmirror 8
 or
-.Nm graid3
+.Xr graid3 8
 providers, it also keeps them in a consistent state, thus
 automatic synchronization on power failure or system crash may be disabled
 on those providers.
 .Pp
 The
 .Nm
-utility uses on-disk metadata, stored in the provider's last sector, to store all needed
-information.
+utility uses on-disk metadata, stored in the provider's last sector,
+to store all needed information.
 This could be a problem when an existing file system is converted to use
 .Nm .
 .Pp
@@ -133,7 +133,7 @@ indicates an action to be performed:
 Configures
 .Nm
 on the given provider(s).
-If only one provider is given, both data and journal is stored on the same
+If only one provider is given, both data and journal are stored on the same
 provider.
 If two providers are given, the first one will be used as data provider and the
 second will be used as the journal provider.
@@ -143,8 +143,8 @@ Additional options include:
 .It Fl f
 May be used to convert an existing file system to use
 .Nm ,
-but only if the journal will be configured on a separate provider and if the last
-sector in the data provider is not used by the existing file system.
+but only if the journal will be configured on a separate provider and if the
+last sector in the data provider is not used by the existing file system.
 If
 .Nm
 detects that the last sector is used, it will refuse to overwrite it
@@ -155,7 +155,7 @@ flag, which will force
 .Nm
 to overwrite the last sector.
 .It Fl h
-Hardcode provider names in meta-data.
+Hardcode provider names in metadata.
 .It Fl s Ar jsize
 Specifies size of the journal if only one provider is used for both data and
 journal.
@@ -166,7 +166,7 @@ It is not recommended to use
 for small file systems (e.g.: only few gigabytes big).
 .El
 .It Cm clear
-Clear meta-data on the given providers.
+Clear metadata on the given providers.
 .It Cm stop
 Stop the given provider.
 .Pp
@@ -211,12 +211,15 @@ newfs -J /dev/da0.journal
 mount -o async /dev/da0.journal /mnt
 .Ed
 .Pp
-Configure gjournaling on an existing file system, but only if
+Configure journaling on an existing file system, but only if
 .Nm
-allows this (i.e.: if the last sector is not already used by the file system):
+allows this (i.e., if the last sector is not already used by the file system):
 .Bd -literal -offset indent
 umount /dev/da0s1d
-gjournal label da0s1d da0s1e && tunefs -J enable -n disable && mount -o async /dev/da0s1d.journal /mnt || mount /dev/da0s1d /mnt
+gjournal label da0s1d da0s1e && \e
+    tunefs -J enable -n disable && \e
+    mount -o async /dev/da0s1d.journal /mnt || \e
+    mount /dev/da0s1d /mnt
 .Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
