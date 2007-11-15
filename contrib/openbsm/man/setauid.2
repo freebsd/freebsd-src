@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -23,52 +23,55 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/setauid.2#5 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/setauid.2#7 $
 .\"
 .Dd April 19, 2005
 .Dt SETAUID 2
 .Os
 .Sh NAME
 .Nm setauid
-.Nd "Set audit session ID"
+.Nd "set audit session ID"
 .Sh SYNOPSIS
 .In bsm/audit.h
 .Ft int
 .Fn setauid "au_id_t *auid"
 .Sh DESCRIPTION
-.Nm
+The
+.Fn setauid
+system call
 sets the active audit session ID for the current process from the
 .Vt au_id_t
 pointed to by
-.Va auid .
+.Fa auid .
 .Pp
-This system call requires appropriate privilege to complete.
+This system call requires an appropriate privilege to complete.
 .Sh RETURN VALUES
-.Nm
-returns 0 on success, or returns -1 on failure, providing additional error
-information via
-.Va errno .
+.Rv -std
 .Sh SEE ALSO
 .Xr audit 2 ,
 .Xr auditon 2 ,
-.Xr getauid 2 ,
 .Xr getaudit 2 ,
-.Xr setaudit 2 ,
 .Xr getaudit_addr 2 ,
+.Xr getauid 2 ,
+.Xr setaudit 2 ,
 .Xr setaudit_addr 2 ,
 .Xr libbsm 3
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
 .Pp
 This manual page was written by
 .An Robert Watson Aq rwatson@FreeBSD.org .
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.

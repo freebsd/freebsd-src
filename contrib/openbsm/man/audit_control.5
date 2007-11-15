@@ -1,19 +1,19 @@
 .\" Copyright (c) 2004 Apple Computer, Inc.
 .\" Copyright (c) 2006 Robert N. M. Watson
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
 .\" 1.  Redistributions of source code must retain the above copyright
-.\"     notice, this list of conditions and the following disclaimer. 
+.\"     notice, this list of conditions and the following disclaimer.
 .\" 2.  Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
-.\"     documentation and/or other materials provided with the distribution. 
+.\"     documentation and/or other materials provided with the distribution.
 .\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
 .\"     its contributors may be used to endorse or promote products derived
-.\"     from this software without specific prior written permission. 
-.\" 
+.\"     from this software without specific prior written permission.
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,34 +26,34 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#13 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#17 $
 .\"
 .Dd January 4, 2006
 .Dt AUDIT_CONTROL 5
 .Os
 .Sh NAME
 .Nm audit_control
-.Nd "contains audit system parameters"
+.Nd "audit system parameters"
 .Sh DESCRIPTION
 The
 .Nm
 file contains several audit system parameters.
 Each line of this file is of the form:
 .Pp
-.Dl parameter:value
+.D1 Ar parameter Ns : Ns Ar value
 .Pp
 The parameters are:
-.Bl -tag -width Ds
-.It Pa dir
+.Bl -tag -width indent
+.It Va dir
 The directory where audit log files are stored.
 There may be more than one of these entries.
 Changes to this entry can only be enacted by restarting the
 audit system.
 See
-.Xr audit 1
+.Xr audit 8
 for a description of how to restart the audit system.
 .It Va flags
-Specifies which audit event classes are audited for all users.  
+Specifies which audit event classes are audited for all users.
 .Xr audit_user 5
 describes how to audit events for individual users.
 See the information below for the format of the audit flags.
@@ -76,73 +76,85 @@ If 0, trail files will not be automatically rotated based on file size.
 .El
 .Sh AUDIT FLAGS
 Audit flags are a comma-delimited list of audit classes as defined in the
-.Pa audit_class
-file.
-See
 .Xr audit_class 5
-for details.
+file.
 Event classes may be preceded by a prefix which changes their interpretation.
 The following prefixes may be used for each class:
 .Pp
-.Bl -tag -width Ds -compact -offset indent
+.Bl -tag -width indent -compact -offset indent
 .It (none)
-Record both successful and failed events
-.It +
-Record successful events
-.It -
-Record failed events
-.It ^
-Record neither successful nor failed events
-.It ^+
-Do not record successful events
-.It ^-
-Do not record failed events
+Record both successful and failed events.
+.It Li +
+Record successful events.
+.It Li -
+Record failed events.
+.It Li ^
+Record neither successful nor failed events.
+.It Li ^+
+Do not record successful events.
+.It Li ^-
+Do not record failed events.
 .El
 .Sh AUDIT POLICY FLAGS
 The policy flags field is a comma-delimited list of policy flags from the
 following list:
 .Pp
-.Bl -tag -width zonename -compact -offset indent
-.It cnt
+.Bl -tag -width ".Cm zonename" -compact -offset indent
+.It Cm cnt
 Allow processes to continue running even though events are not being audited.
 If not set, processes will be suspended when the audit store space is
 exhausted.
 Currently, this is not a recoverable state.
-.It ahlt
-Fail stop the system if unable to audit an event--this consists of first
+.It Cm ahlt
+Fail stop the system if unable to audit an event\[em]this consists of first
 draining pending records to disk, and then halting the operating system.
-.It argv
+.It Cm argv
 Audit command line arguments to
 .Xr execve 2 .
-.It arge
+.It Cm arge
 Audit environmental variable arguments to
 .Xr execve 2 .
-.It seq
+.It Cm seq
 Include a unique audit sequence number token in generated audit records (not
-implemented on FreeBSD or Darwin).
-.It group
+implemented on
+.Fx
+or Darwin).
+.It Cm group
 Include supplementary groups list in generated audit records (not implemented
-on FreeBSD or Darwin; supplementary groups are never included in records on
+on
+.Fx
+or Darwin; supplementary groups are never included in records on
 these systems).
-.It trail
-Append a trailer token to each audit record (not implemented on FreeBSD or
+.It Cm trail
+Append a trailer token to each audit record (not implemented on
+.Fx
+or
 Darwin; trailers are always included in records on these systems).
-.It path
-Include secondary file paths in audit records (not implemented on FreeBSD or
+.It Cm path
+Include secondary file paths in audit records (not implemented on
+.Fx
+or
 Darwin; secondary paths are never included in records on these systems).
-.It zonename
-Include a zone ID token with each audit record (not implemented on FreeBSD or
-Darwin; FreeBSD audit records do not currently include the jail ID or name.)
-.It perzone
-Enable auditing for each local zone (not implemented on FreeBSD or Darwin; on
-FreeBSD, audit records are collected from all jails and placed in a single
-global trail, and only limited audit controls are permitted within a jail.)
+.It Cm zonename
+Include a zone ID token with each audit record (not implemented on
+.Fx
+or
+Darwin;
+.Fx
+audit records do not currently include the jail ID or name).
+.It Cm perzone
+Enable auditing for each local zone (not implemented on
+.Fx
+or Darwin; on
+.Fx ,
+audit records are collected from all jails and placed in a single
+global trail, and only limited audit controls are permitted within a jail).
 .El
 .Pp
 It is recommended that installations set the
-.Dv cnt
+.Cm cnt
 flag but not
-.Dv ahlt
+.Cm ahlt
 flag unless it is intended that audit logs exceeding available disk space
 halt the system.
 .Sh DEFAULT
@@ -169,23 +181,29 @@ processes when the audit store fills.
 The trail file will not be automatically rotated by the audit daemon based on
 file size.
 .Sh FILES
-.Bl -tag -width "/etc/security/audit_control" -compact
+.Bl -tag -width ".Pa /etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
 .El
 .Sh SEE ALSO
+.Xr audit 4 ,
 .Xr audit_class 5 ,
+.Xr audit_event 5 ,
 .Xr audit_user 5 ,
 .Xr audit 8 ,
 .Xr auditd 8
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.
