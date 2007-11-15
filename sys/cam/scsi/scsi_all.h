@@ -1340,7 +1340,7 @@ find_mode_page_10(struct scsi_mode_header_10 *mode_header)
 {
 	void *page_start;
 
-	page_start = (void *)((u_int8_t *)&mode_header[2] +
+	page_start = (void *)((u_int8_t *)&mode_header[1] +
 			       scsi_2btoul(mode_header->blk_desc_len));
 
 	return(page_start);
