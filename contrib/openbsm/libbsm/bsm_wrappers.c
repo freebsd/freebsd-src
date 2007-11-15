@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#23 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_wrappers.c#24 $
  */
 
 #ifdef __APPLE__
@@ -66,8 +66,9 @@ audit_submit(short au_event, au_id_t auid, char status,
 	long acond;
 	va_list ap;
 	pid_t pid;
-	int error, afd;
+	int error, afd, subj_ex;
 	struct auditinfo ai;
+	struct auditinfo_addr aia;
 
 	if (auditon(A_GETCOND, &acond, sizeof(acond)) < 0) {
 		/*
@@ -84,6 +85,7 @@ audit_submit(short au_event, au_id_t auid, char status,
 	}
 	if (acond == AUC_NOAUDIT)
 		return (0);
+	/* XXXCSJP we should be doing a pre-select here */
 	afd = au_open();
 	if (afd < 0) {
 		error = errno;
@@ -92,7 +94,20 @@ audit_submit(short au_event, au_id_t auid, char status,
 		errno = error;
 		return (-1);
 	}
-	if (getaudit(&ai) < 0) {
+	/*
+	 * Some operating systems do not have getaudit_addr(2) implemented
+	 * yet.  So we try to use getaudit(2) first, if the subject is
+	 * using IPv6, then we will have to try getaudit_addr(2).  Failing
+	 * this, we return error.
+	 */
+	subj_ex = 0;
+	error = getaudit(&ai);
+	if (error < 0 && errno == E2BIG) {
+		error = getaudit_addr(&aia, sizeof(aia));
+		if (error == 0)
+			subj_ex = 1;
+	}
+	if (error < 0) {
 		error = errno;
 		syslog(LOG_AUTH | LOG_ERR, "audit: getaudit failed: %s",
 		    strerror(errno));
@@ -100,8 +115,12 @@ audit_submit(short au_event, au_id_t auid, char status,
 		return (-1);
 	}
 	pid = getpid();
-	token = au_to_subject32(auid, geteuid(), getegid(),
-	    getuid(), getgid(), pid, pid, &ai.ai_termid);
+	if (subj_ex == 0)
+		token = au_to_subject32(auid, geteuid(), getegid(),
+		    getuid(), getgid(), pid, pid, &ai.ai_termid);
+	else
+		token = au_to_subject_ex(auid, geteuid(), getegid(),
+		    getuid(), getgid(), pid, pid, &aia.ai_termid);
 	if (token == NULL) {
 		syslog(LOG_AUTH | LOG_ERR,
 		    "audit: unable to build subject token");

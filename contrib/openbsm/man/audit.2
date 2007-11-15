@@ -24,25 +24,29 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.2#6 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.2#8 $
 .\"
 .Dd April 19, 2005
 .Dt AUDIT 2
 .Os
 .Sh NAME
 .Nm audit
-.Nd "Commit a BSM audit record to the audit log"
+.Nd "commit BSM audit record to audit log"
 .Sh SYNOPSIS
 .In bsm/audit.h
 .Ft int
 .Fn audit "const char *record" "u_int length"
 .Sh DESCRIPTION
+The
 .Fn audit
+system call
 submits a completed BSM audit record to the system audit log.
 .Pp
+The
 .Fa record
-is a pointer to the the specific event to be recorded and
-.Vt length
+argument
+is a pointer to the specific event to be recorded and
+.Fa length
 is the size in bytes of the data to be written.
 .Sh RETURN VALUES
 .Rv -std
@@ -57,37 +61,41 @@ The
 argument is beyond the allocated address space of the process.
 .It Bq Er EINVAL
 The token ID is invalid or
-.Vt length
+.Va length
 is larger than
-.Vt MAXAUDITDATA .
+.Dv MAXAUDITDATA .
 .It Bq Er EPERM
 The process does not have sufficient permission to complete
 the operation.
 .El
 .Sh SEE ALSO
 .Xr auditon 2 ,
-.Xr getauid 2 ,
-.Xr setauid 2 ,
 .Xr getaudit 2 ,
-.Xr setaudit 2 ,
 .Xr getaudit_addr 2 ,
+.Xr getauid 2 ,
+.Xr setaudit 2 ,
 .Xr setaudit_addr 2 ,
+.Xr setauid 2 ,
 .Xr libbsm 3
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.
 .Sh AUTHORS
+.An -nosplit
 This software was created by McAfee Research, the security research division
 of McAfee, Inc., under contract to Apple Computer Inc.
-Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+Additional authors include
+.An Wayne Salamon ,
+.An Robert Watson ,
+and SPARTA Inc.
 .Pp
 The Basic Security Module (BSM) interface to audit records and audit event
 stream format were defined by Sun Microsystems.
 .Pp
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
-.Sh HISTORY
-The OpenBSM implementation was created by McAfee Research, the security
-division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
-It was subsequently adopted by the TrustedBSD Project as the foundation for
-the OpenBSM distribution.
 .Sh BUGS
 The
 .Fx

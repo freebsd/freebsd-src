@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#6 $
+ * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#7 $
  */
 
 #include <bsm/libbsm.h>
@@ -123,7 +123,7 @@ audump_control(void)
 		err(-1, "getacpol");
 	if (au_strtopol(string, &policy) < 0)
 		err(-1, "au_strtopol");
-	if (au_poltostr(policy, string2, PATH_MAX) < 0)
+	if (au_poltostr(policy, PATH_MAX, string2) < 0)
 		err(-1, "au_poltostr");
 	printf("policy:%s\n", string2);
 }
