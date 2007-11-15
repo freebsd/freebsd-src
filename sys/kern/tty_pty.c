@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_tty.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
@@ -121,15 +122,12 @@ struct	ptsc {
 #define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
-static char *names = "pqrsPQRS";
+static const char names[] = "pqrsPQRS";
 /*
  * This function creates and initializes a pts/ptc pair
  *
  * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
  * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- *
- * XXX: define and add mapping of upper minor bits to allow more
- *      than 256 ptys.
  */
 static struct cdev *
 ptyinit(struct cdev *devc, struct thread *td)
@@ -138,9 +136,10 @@ ptyinit(struct cdev *devc, struct thread *td)
 	struct ptsc *pt;
 	int n;
 
-	n = minor(devc);
-	/* For now we only map the lower 8 bits of the minor */
-	if (n & ~0xff)
+	n = minor2unit(minor(devc));
+
+	/* We only allow for up to 32 ptys per char in "names". */
+	if (n >= 32 * (sizeof(names) - 1))
 		return (NULL);
 
 	devc->si_flags &= ~SI_CHEAPCLONE;
@@ -690,32 +689,26 @@ static void
 pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
     struct cdev **dev)
 {
+	char *cp;
 	int u;
 
 	if (*dev != NULL)
 		return;
 	if (bcmp(name, "pty", 3) != 0)
 		return;
-	if (name[5] != '\0')
+	if (name[5] != '\0' || name[3] == '\0')
 		return;
-	switch (name[3]) {
-	case 'p': u =   0; break;
-	case 'q': u =  32; break;
-	case 'r': u =  64; break;
-	case 's': u =  96; break;
-	case 'P': u = 128; break;
-	case 'Q': u = 160; break;
-	case 'R': u = 192; break;
-	case 'S': u = 224; break;
-	default: return;
-	}
+	cp = index(names, name[3]);
+	if (cp == NULL)
+		return;
+	u = (cp - names) * 32;
 	if (name[4] >= '0' && name[4] <= '9')
 		u += name[4] - '0';
 	else if (name[4] >= 'a' && name[4] <= 'v')
 		u += name[4] - 'a' + 10;
 	else
 		return;
-	*dev = make_dev_cred(&ptc_cdevsw, u, cr,
+	*dev = make_dev_cred(&ptc_cdevsw, unit2minor(u), cr,
 	    UID_ROOT, GID_WHEEL, 0666, "pty%c%r", names[u / 32], u % 32);
 	dev_ref(*dev);
 	(*dev)->si_flags |= SI_CHEAPCLONE;
