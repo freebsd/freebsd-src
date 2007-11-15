@@ -182,10 +182,27 @@ struct image_params;
 typedef void (*exitlist_fn)(void *, struct proc *);
 typedef void (*forklist_fn)(void *, struct proc *, struct proc *, int);
 typedef void (*execlist_fn)(void *, struct proc *, struct image_params *);
-
+typedef void (*proc_ctor_fn)(void *, struct proc *);
+typedef void (*proc_dtor_fn)(void *, struct proc *);
+typedef void (*proc_init_fn)(void *, struct proc *);
+typedef void (*proc_fini_fn)(void *, struct proc *);
+EVENTHANDLER_DECLARE(process_ctor, proc_ctor_fn);
+EVENTHANDLER_DECLARE(process_dtor, proc_dtor_fn);
+EVENTHANDLER_DECLARE(process_init, proc_init_fn);
+EVENTHANDLER_DECLARE(process_fini, proc_fini_fn);
 EVENTHANDLER_DECLARE(process_exit, exitlist_fn);
 EVENTHANDLER_DECLARE(process_fork, forklist_fn);
 EVENTHANDLER_DECLARE(process_exec, execlist_fn);
+
+struct thread;
+typedef void (*thread_ctor_fn)(void *, struct thread *);
+typedef void (*thread_dtor_fn)(void *, struct thread *);
+typedef void (*thread_fini_fn)(void *, struct thread *);
+typedef void (*thread_init_fn)(void *, struct thread *);
+EVENTHANDLER_DECLARE(thread_ctor, thread_ctor_fn);
+EVENTHANDLER_DECLARE(thread_dtor, thread_dtor_fn);
+EVENTHANDLER_DECLARE(thread_init, thread_init_fn);
+EVENTHANDLER_DECLARE(thread_fini, thread_fini_fn);
 
 typedef void (*uma_zone_chfn)(void *);
 EVENTHANDLER_DECLARE(nmbclusters_change, uma_zone_chfn);
