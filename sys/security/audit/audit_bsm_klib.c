@@ -78,7 +78,7 @@ au_event_class(au_event_t event)
 
 	mtx_lock(&evclass_mtx);
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
-	class = AU_NULL;
+	class = 0;
 	LIST_FOREACH(evc, &evcl->head, entry) {
 		if (evc->event == event) {
 			class = evc->class;
@@ -145,7 +145,7 @@ au_evclassmap_init(void)
 	 */
 	for (i = 0; i < SYS_MAXSYSCALL; i++) {
 		if (sysent[i].sy_auevent != AUE_NULL)
-			au_evclassmap_insert(sysent[i].sy_auevent, AU_NULL);
+			au_evclassmap_insert(sysent[i].sy_auevent, 0);
 	}
 }
 
