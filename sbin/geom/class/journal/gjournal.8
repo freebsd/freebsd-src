@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
-.Op Fl fhv
+.Op Fl cfhv
 .Op Fl s Ar jsize
 .Ar dataprov
 .Op Ar jprov
@@ -140,6 +140,8 @@ second will be used as the journal provider.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl s Ar jsize"
+.It Fl c
+Checksum journal records.
 .It Fl f
 May be used to convert an existing file system to use
 .Nm ,
