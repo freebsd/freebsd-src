@@ -1,4 +1,3 @@
-- Teach praudit how to general XML format BSM streams.
 - Teach libbsm about any additional 64-bit token types that are present
   in more recent Solaris versions.
 - Build a regression test suite for libbsm that generates each token
@@ -20,4 +19,4 @@
 - Put hostname in trail file name.
 - Document audit_warn event arguments.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#8 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#9 $
