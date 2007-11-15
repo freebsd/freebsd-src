@@ -811,13 +811,32 @@ tr_pci_attach(device_t dev)
 	u_int32_t	data;
 	struct tr_info *tr;
 	struct ac97_info *codec = 0;
-	int		i;
+	int		i, dacn;
 	char 		status[SND_STATUSLEN];
 
 	tr = malloc(sizeof(*tr), M_DEVBUF, M_WAITOK | M_ZERO);
 	tr->type = pci_get_devid(dev);
 	tr->rev = pci_get_revid(dev);
 	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_t4dwave softc");
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "dac", &i) == 0) {
+	    	if (i < 1)
+			dacn = 1;
+		else if (i > TR_MAXPLAYCH)
+			dacn = TR_MAXPLAYCH;
+		else
+			dacn = i;
+	} else {
+		switch (tr->type) {
+		case ALI_PCI_ID:
+			dacn = 1;
+			break;
+		default:
+			dacn = TR_MAXPLAYCH;
+			break;
+		}
+	}
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
@@ -871,9 +890,10 @@ tr_pci_attach(device_t dev)
 	snprintf(status, 64, "at io 0x%lx irq %ld %s",
 		 rman_get_start(tr->reg), rman_get_start(tr->irq),PCM_KLDSTRING(snd_t4dwave));
 
-	if (pcm_register(dev, tr, TR_MAXPLAYCH, 1)) goto bad;
+	if (pcm_register(dev, tr, dacn, 1))
+		goto bad;
 	pcm_addchan(dev, PCMDIR_REC, &trrchan_class, tr);
-	for (i = 0; i < TR_MAXPLAYCH; i++)
+	for (i = 0; i < dacn; i++)
 		pcm_addchan(dev, PCMDIR_PLAY, &trpchan_class, tr);
 	pcm_setstatus(dev, status);
 
