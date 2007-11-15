@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/jail.h>
 #include <sys/vnode.h>
+#include <sys/eventhandler.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -130,6 +131,7 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	EVENTHANDLER_INVOKE(process_ctor, p);
 	return (0);
 }
 
@@ -144,14 +146,13 @@ proc_dtor(void *mem, int size, void *arg)
 
 	/* INVARIANTS checks go here */
 	p = (struct proc *)mem;
-        td = FIRST_THREAD_IN_PROC(p);
+	td = FIRST_THREAD_IN_PROC(p);
 	if (td != NULL) {
 #ifdef INVARIANTS
 		KASSERT((p->p_numthreads == 1),
 		    ("bad number of threads in exiting process"));
 		KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 #endif
-
 		/* Dispose of an alternate kstack, if it exists.
 		 * XXX What if there are more than one thread in the proc?
 		 *     The first thread in the proc is special and not
@@ -160,6 +161,7 @@ proc_dtor(void *mem, int size, void *arg)
 		if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
 			vm_thread_dispose_altkstack(td);
 	}
+	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }
@@ -178,6 +180,7 @@ proc_init(void *mem, int size, int flags)
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
+	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
 	return (0);
 }
@@ -193,6 +196,7 @@ proc_fini(void *mem, int size)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	EVENTHANDLER_INVOKE(process_fini, p);
 	pstats_free(p->p_stats);
 	thread_free(FIRST_THREAD_IN_PROC(p));
 	mtx_destroy(&p->p_mtx);
