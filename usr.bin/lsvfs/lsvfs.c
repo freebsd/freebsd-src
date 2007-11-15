@@ -70,7 +70,7 @@ fmt_flags(int flags)
    * NB: if you add new flags, don't forget to add them here vvvvvv too.
    */
   static char buf[sizeof
-    "static, network, read-only, synthetic, loopback, unicode"];
+    "static, network, read-only, synthetic, loopback, unicode, jail"];
   int comma = 0;
 
   buf[0] = '\0';
