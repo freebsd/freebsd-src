@@ -4934,7 +4934,7 @@ sctp_sorecvmsg(struct socket *so,
 	int out_flags = 0, in_flags = 0;
 	int block_allowed = 1;
 	uint32_t freed_so_far = 0;
-	int copied_so_far = 0;
+	uint32_t copied_so_far = 0;
 	int in_eeor_mode = 0;
 	int no_rcv_needed = 0;
 	uint32_t rwnd_req = 0;
@@ -5585,11 +5585,11 @@ get_more_data:
 				if (TAILQ_NEXT(control, next) == NULL) {
 					/*
 					 * If we don't have a next we need a
-					 * lock, if there is a next interupt
-					 * is filling ahead of us and we
-					 * don't need a lock to remove this
-					 * guy (which is the head of the
-					 * queue).
+					 * lock, if there is a next
+					 * interrupt is filling ahead of us
+					 * and we don't need a lock to
+					 * remove this guy (which is the
+					 * head of the queue).
 					 */
 					if (hold_rlock == 0) {
 						SCTP_INP_READ_LOCK(inp);
