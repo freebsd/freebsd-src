@@ -43,19 +43,24 @@ struct disk *
 Int_Open_Disk(const char *name, char *conftxt)
 {
 	struct disk *d;
-	int i;
+	int i, line = 1;
 	char *p, *q, *r, *a, *b, *n, *t, *sn;
 	daddr_t o, len, off;
 	u_int l, s, ty, sc, hd, alt;
 	daddr_t lo[10];
 
-	for (p = conftxt; p != NULL && *p; p = strchr(p, '\n')) {
+	/*
+	 * Locate the disk (by name) in our sysctl output
+	 */
+	for (p = conftxt; p != NULL && *p; p = strchr(p, '\n'), line++) {
 		if (*p == '\n')
 			p++;
 		a = strsep(&p, " ");
+		/* Skip anything not with index 0 */
 		if (strcmp(a, "0"))
 			continue;
 
+		/* Skip anything not a disk */
 		a = strsep(&p, " ");
 		if (strcmp(a, "DISK"))
 			continue;
@@ -79,15 +84,17 @@ Int_Open_Disk(const char *name, char *conftxt)
 	a = strsep(&p, " ");	/* length in bytes */
 	len = strtoimax(a, &r, 0);
 	if (*r) {
-		printf("BARF %d <%d>\n", __LINE__, *r);
-		exit (0);
+		printf("libdisk: Int_Open_Disk(%s): can't parse length in line %d (r='%s')\n",
+			name, line, r);
+		return NULL;
 	}
 
 	a = strsep(&p, " ");	/* sectorsize */
 	s = strtoul(a, &r, 0);
 	if (*r) {
-		printf("BARF %d <%d>\n", __LINE__, *r);
-		exit (0);
+		printf("libdisk: Int_Open_Disk(%s): can't parse sector size in line %d (r='%s')\n",
+			name, line, r);
+		return NULL;
 	}
 
 	if (s == 0)
@@ -99,6 +106,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 		DPRINT(("Failed to add 'whole' chunk"));
 	}
 
+	/* Try to parse any fields after the sector size in the DISK entry line */
 	for (;;) {
 		a = strsep(&p, " ");
 		if (a == NULL)
@@ -106,15 +114,17 @@ Int_Open_Disk(const char *name, char *conftxt)
 		b = strsep(&p, " ");
 		o = strtoimax(b, &r, 0);
 		if (*r) {
-			printf("BARF %d <%d>\n", __LINE__, *r);
-			exit (0);
+			printf("libdisk: Int_Open_Disk(%s): can't parse parameter '%s' in line %d (r='%s')\n",
+				name, a, line, r);
+			return NULL;
 		}
 		if (!strcmp(a, "hd"))
 			d->bios_hd = o;
 		else if (!strcmp(a, "sc"))
 			d->bios_sect = o;
 		else
-			printf("HUH ? <%s> <%s>\n", a, b);
+			printf("libdisk: Int_Open_Disk(%s): unknown parameter '%s' with value '%s' in line %d, ignored\n",
+				name, a, b, line);
 	}
 
 	/*
@@ -124,35 +134,43 @@ Int_Open_Disk(const char *name, char *conftxt)
 	o = d->bios_hd * d->bios_sect;
 	d->bios_cyl = (o != 0) ? len / o : 0;
 
-	p = q;
+	p = q; line++; /* p is now the start of the line _after_ the DISK entry */
 	lo[0] = 0;
 
-	for (; p != NULL && *p; p = q) {
+	for (; p != NULL && *p; p = q, line++) {
 		sn = NULL;
 		q = strchr(p, '\n');
 		if (q != NULL)
 			*q++ = '\0';
 		a = strsep(&p, " ");	/* Index */
+		/*
+		 * If we find index 0 again, this means we've encountered another disk, so it's safe to assume this disk
+		 * has been processed.
+		 */
 		if (!strcmp(a, "0"))
 			break;
 		l = strtoimax(a, &r, 0);
 		if (*r) {
-			printf("BARF %d <%d>\n", __LINE__, *r);
-			exit (0);
+			printf("libdisk: Int_Open_Disk(%s): can't parse depth '%s' in line %d (r='%s')\n",
+				name, a, line, r);
+			return NULL;
+
 		}
 		t = strsep(&p, " ");	/* Type {SUN, BSD, MBR, PC98, GPT} */
 		n = strsep(&p, " ");	/* name */
 		a = strsep(&p, " ");	/* len */
 		len = strtoimax(a, &r, 0);
 		if (*r) {
-			printf("BARF %d <%d>\n", __LINE__, *r);
-			exit (0);
+			printf("libdisk: Int_Open_Disk(%s): can't parse length '%s' in line %d (r='%s')\n",
+				name, a, line, r);
+			continue;
 		}
 		a = strsep(&p, " ");	/* secsize */
 		s = strtoimax(a, &r, 0);
 		if (*r) {
-			printf("BARF %d <%d>\n", __LINE__, *r);
-			exit (0);
+			printf("libdisk: Int_Open_Disk(%s): can't parse sector size '%s' in line %d (r='%s')\n",
+				name, a, line, r);
+			continue;
 		}
 		for (;;) {
 			a = strsep(&p, " ");
@@ -167,8 +185,9 @@ Int_Open_Disk(const char *name, char *conftxt)
 			o = strtoimax(b, &r, 0);
 			/* APPLE have ty as a string */
 			if ((*r) && (strcmp(t, "APPLE") && strcmp(t, "GPT"))) {
-				printf("BARF %d <%d>\n", __LINE__, *r);
-				exit (0);
+				printf("libdisk: Int_Open_Disk(%s): can't parse parameter '%s' in line %d (r='%s')\n",
+					name, a, line, r);
+				break;
 			}
 			if (!strcmp(a, "o"))
 				off = o;
