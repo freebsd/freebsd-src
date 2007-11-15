@@ -139,6 +139,18 @@ static const char *uhci_device_ich6_c = "Intel 82801FB/FR/FW/FRW (ICH6) USB cont
 #define PCI_UHCI_DEVICEID_ICH6_D	0x265b8086
 static const char *uhci_device_ich6_d = "Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-D";
 
+#define PCI_UHCI_DEVICEID_63XXESB_1	0x26888086
+static const char *uhci_device_esb_1 = "Intel 631XESB/632XESB/3100 USB controller USB-1";
+
+#define PCI_UHCI_DEVICEID_63XXESB_2	0x26898086
+static const char *uhci_device_esb_2 = "Intel 631XESB/632XESB/3100 USB controller USB-2";
+
+#define PCI_UHCI_DEVICEID_63XXESB_3	0x268a8086
+static const char *uhci_device_esb_3 = "Intel 631XESB/632XESB/3100 USB controller USB-3";
+
+#define PCI_UHCI_DEVICEID_63XXESB_4	0x268b8086
+static const char *uhci_device_esb_4 = "Intel 631XESB/632XESB/3100 USB controller USB-4";
+
 #define PCI_UHCI_DEVICEID_440MX		0x719a8086
 static const char *uhci_device_440mx = "Intel 82443MX USB controller";
 
@@ -230,6 +242,14 @@ uhci_pci_match(device_t self)
 		return (uhci_device_ich6_c);
 	} else if (device_id == PCI_UHCI_DEVICEID_ICH6_D) {
 		return (uhci_device_ich6_d);
+	} else if (device_id == PCI_UHCI_DEVICEID_63XXESB_1) {
+		return (uhci_device_esb_1);
+	} else if (device_id == PCI_UHCI_DEVICEID_63XXESB_2) {
+		return (uhci_device_esb_2);
+	} else if (device_id == PCI_UHCI_DEVICEID_63XXESB_3) {
+		return (uhci_device_esb_3);
+	} else if (device_id == PCI_UHCI_DEVICEID_63XXESB_4) {
+		return (uhci_device_esb_4);
 	} else if (device_id == PCI_UHCI_DEVICEID_440MX) {
 		return (uhci_device_440mx);
 	} else if (device_id == PCI_UHCI_DEVICEID_460GX) {
