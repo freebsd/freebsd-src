@@ -317,7 +317,8 @@ db_nextframe(struct amd64_frame **fp, db_addr_t *ip, struct thread *td)
 	if (name != NULL) {
 		if (strcmp(name, "calltrap") == 0 ||
 		    strcmp(name, "fork_trampoline") == 0 ||
-		    strcmp(name, "nmi_calltrap") == 0)
+		    strcmp(name, "nmi_calltrap") == 0 ||
+		    strcmp(name, "Xdblfault") == 0)
 			frame_type = TRAP;
 		else if (strncmp(name, "Xatpic_intr", 11) == 0 ||
 		    strncmp(name, "Xapic_isr", 9) == 0 ||
