@@ -1247,8 +1247,6 @@ DMenu MenuXOrgSelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_SERVER },
       { " nest",	"Nested X Server",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_NESTSERVER },
-      { " prt", 	"X Print Server",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_PRINTSERVER },
       { " vfb",		"Virtual Framebuffer",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XOrgDists, '[', 'X', ']', DIST_XORG_VFBSERVER },
       { NULL } },
