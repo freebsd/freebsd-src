@@ -2672,7 +2672,7 @@ rollback_files () {
 	fi
 
 	# Remove temporary files
-	rm INDEX-OLD INDEX-NEW
+	rm INDEX-OLD INDEX-NEW INDEX-NEW.libs.flist
 }
 
 # Actually rollback updates
