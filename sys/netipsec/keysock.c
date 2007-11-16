@@ -387,18 +387,18 @@ key_attach(struct socket *so, int proto, struct thread *td)
 
 	KASSERT(so->so_pcb == NULL, ("key_attach: so_pcb != NULL"));
 
+	if (td != NULL) {
+		error = priv_check(td, PRIV_NET_RAW);
+		if (error)
+			return error;
+	}
+
 	/* XXX */
 	MALLOC(kp, struct keycb *, sizeof *kp, M_PCB, M_WAITOK | M_ZERO); 
 	if (kp == 0)
 		return ENOBUFS;
 
 	so->so_pcb = (caddr_t)kp;
-
-	if (td != NULL) {
-		error = priv_check(td, PRIV_NET_RAW);
-		if (error)
-			return error;
-	}
 	error = raw_attach(so, proto);
 	kp = (struct keycb *)sotorawcb(so);
 	if (error) {
