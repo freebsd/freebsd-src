@@ -34,18 +34,125 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <net/pfkeyv2.h>
+#include <netinet/in.h>
+#include <netipsec/ipsec.h>
 
+#include <err.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "main.h"
 
-int
-priv_netinet_ipsec_pfkey_setup(int asroot, int injail, struct test *test)
+static char	policy_bypass[]	= "in bypass";
+static char	policy_entrust[] = "in entrust";
+static char	*bypassbuf = NULL;
+static char	*entrustbuf = NULL;
+static int	sd = -1;
+
+
+static int
+priv_netinet_ipsec_policy_bypass_setup_af(int asroot, int injail,
+    struct test *test, int af)
 {
 
+	bypassbuf = ipsec_set_policy(policy_bypass, sizeof(policy_bypass) - 1);
+	if (bypassbuf == NULL) {
+		warn("%s: ipsec_set_policy(NULL)", __func__);
+		return (-1);
+	}
+	switch (af) {
+	case AF_INET:
+		sd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (sd < 0) {
+			warn("%s: socket4", __func__);
+			return (-1);
+		}
+		break;
+	case AF_INET6:
+		sd = socket(AF_INET6, SOCK_DGRAM, 0);
+		if (sd < 0) {
+			warn("%s: socket6", __func__);
+			return (-1);
+		}
+		break;
+	default:
+		warnx("%s: unexpected address family", __func__);
+		return (-1);
+	}
 	return (0);
 }
+
+int
+priv_netinet_ipsec_policy4_bypass_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	return (priv_netinet_ipsec_policy_bypass_setup_af(asroot, injail, test,
+	    AF_INET));
+}
+
+int
+priv_netinet_ipsec_policy6_bypass_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	return (priv_netinet_ipsec_policy_bypass_setup_af(asroot, injail, test,
+	    AF_INET6));
+}
+
+
+
+static int
+priv_netinet_ipsec_policy_entrust_setup_af(int asroot, int injail,
+    struct test *test, int af)
+{
+
+	entrustbuf = ipsec_set_policy(policy_entrust, sizeof(policy_entrust)-1);
+	if (entrustbuf == NULL) {
+		warn("%s: ipsec_set_policy(NULL)", __func__);
+		return (-1);
+	}
+	switch (af) {
+	case AF_INET:
+		sd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (sd < 0) {
+			warn("%s: socket4", __func__);
+			return (-1);
+		}
+		break;
+	case AF_INET6:
+		sd = socket(AF_INET6, SOCK_DGRAM, 0);
+		if (sd < 0) {
+			warn("%s: socket6", __func__);
+			return (-1);
+		}
+		break;
+	default:
+		warnx("%s: unexpected address family", __func__);
+		return (-1);
+	}
+	return (0);
+}
+
+int
+priv_netinet_ipsec_policy4_entrust_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	return (priv_netinet_ipsec_policy_entrust_setup_af(asroot, injail, test,
+	    AF_INET));
+}
+
+int
+priv_netinet_ipsec_policy6_entrust_setup(int asroot, int injail,
+    struct test *test)
+{
+
+	return (priv_netinet_ipsec_policy_entrust_setup_af(asroot, injail, test,
+	    AF_INET6));
+}
+
 
 void
 priv_netinet_ipsec_pfkey(int asroot, int injail, struct test *test)
@@ -77,9 +184,134 @@ priv_netinet_ipsec_pfkey(int asroot, int injail, struct test *test)
 		(void)close(fd);
 }
 
+
+static void
+priv_netinet_ipsec_policy_bypass_af(int asroot, int injail, struct test *test,
+    int af)
+{
+	int error, level, optname;
+
+	switch (af) {
+	case AF_INET:
+		level = IPPROTO_IP;
+		optname = IP_IPSEC_POLICY;
+		break;
+	case AF_INET6:
+		level = IPPROTO_IPV6;
+		optname = IPV6_IPSEC_POLICY;
+		break;
+	default:
+		warnx("%s: unexpected address family", __func__);
+		return;
+	}
+	error = setsockopt(sd, level, optname,
+	    bypassbuf, ipsec_get_policylen(bypassbuf));
+	if (asroot && injail)
+		expect("priv_netinet_ipsec_policy_bypass(asroot, injail)",
+		    error, -1, EACCES); /* see ipsec_set_policy */
+	if (asroot && !injail)
+		expect("priv_netinet_ipsec_policy_bypass(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_netinet_ipsec_policy_bypass(!asroot, injail)",
+		    error, -1, EACCES); /* see ipsec_set_policy */
+	if (!asroot && !injail)
+		expect("priv_netinet_ipsec_policy_bypass(!asroot, !injail)",
+		    error, -1, EACCES); /* see ipsec_set_policy */
+}
+
 void
-priv_netinet_ipsec_pfkey_cleanup(int asroot, int injail, struct test *test)
+priv_netinet_ipsec_policy4_bypass(int asroot, int injail, struct test *test)
 {
 
+	priv_netinet_ipsec_policy_bypass_af(asroot, injail, test, AF_INET);
+}
+
+void
+priv_netinet_ipsec_policy6_bypass(int asroot, int injail, struct test *test)
+{
+
+	priv_netinet_ipsec_policy_bypass_af(asroot, injail, test, AF_INET6);
+}
+
+
+static void
+priv_netinet_ipsec_policy_entrust_af(int asroot, int injail, struct test *test,
+    int af)
+{
+	int error, level, optname;
+
+	switch (af) {
+	case AF_INET:
+		level = IPPROTO_IP;
+		optname = IP_IPSEC_POLICY;
+		break;
+	case AF_INET6:
+		level = IPPROTO_IPV6;
+		optname = IPV6_IPSEC_POLICY;
+		break;
+	default:
+		warnx("%s: unexpected address family", __func__);
+		return;
+	}
+	error = setsockopt(sd, level, optname,
+	    entrustbuf, ipsec_get_policylen(entrustbuf));
+	if (asroot && injail)
+		expect("priv_netinet_ipsec_policy_entrust(asroot, injail)",
+		    error, 0, 0); /* XXX ipsec_set_policy */
+	if (asroot && !injail)
+		expect("priv_netinet_ipsec_policy_entrust(asroot, !injail)",
+		    error, 0, 0);
+	if (!asroot && injail)
+		expect("priv_netinet_ipsec_policy_entrust(!asroot, injail)",
+		    error, 0, 0); /* XXX ipsec_set_policy */
+	if (!asroot && !injail)
+		expect("priv_netinet_ipsec_policy_entrust(!asroot, !injail)",
+		    error, 0, 0); /* XXX ipsec_set_policy */
+}
+
+void
+priv_netinet_ipsec_policy4_entrust(int asroot, int injail, struct test *test)
+{
+
+	priv_netinet_ipsec_policy_entrust_af(asroot, injail, test, AF_INET);
+}
+
+void
+priv_netinet_ipsec_policy6_entrust(int asroot, int injail, struct test *test)
+{
+
+	priv_netinet_ipsec_policy_entrust_af(asroot, injail, test, AF_INET6);
+}
+
+
+void
+priv_netinet_ipsec_policy_bypass_cleanup(int asroot, int injail,
+    struct test *test)
+{
+
+	if (bypassbuf != NULL) {
+		free(bypassbuf);
+		bypassbuf = NULL;
+	}
+	if (sd >= 0) {
+		close(sd);
+		sd = -1;
+	}
+}
+
+void
+priv_netinet_ipsec_policy_entrust_cleanup(int asroot, int injail,
+    struct test *test)
+{
+
+	if (entrustbuf != NULL) {
+		free(entrustbuf);
+		entrustbuf = NULL;
+	}
+	if (sd >= 0) {
+		close(sd);
+		sd = -1;
+	}
 }
 
