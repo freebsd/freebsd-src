@@ -66,6 +66,7 @@ extern int screen_trashed;
 extern int size_linebuf;
 extern int squished;
 extern int can_goto_line;
+extern int utf_mode;
 static int hide_hilite;
 static int oldbot;
 static POSITION prep_startpos;
@@ -106,14 +107,31 @@ static int is_ucase_pattern;
 static int last_search_type;
 static char *last_pattern = NULL;
 
-/*
- * Convert text.  Perform one or more of these transformations:
- */
 #define	CVT_TO_LC	01	/* Convert upper-case to lower-case */
 #define	CVT_BS		02	/* Do backspace processing */
 #define	CVT_CRLF	04	/* Remove CR after LF */
 #define	CVT_ANSI	010	/* Remove ANSI escape sequences */
 
+/*
+ * Get the length of a buffer needed to convert a string.
+ */
+	static int
+cvt_length(len, ops)
+	int len;
+	int ops;
+{
+	if (utf_mode && (ops & CVT_TO_LC))
+		/*
+		 * Converting case can cause a UTF-8 string to increase in length.
+		 * Multiplying by 3 is the worst case.
+		 */
+		len *= 3;
+	return len+1;
+}
+
+/*
+ * Convert text.  Perform one or more of these transformations:
+ */
 	static void
 cvt_text(odst, osrc, lenp, ops)
 	char *odst;
@@ -140,7 +158,7 @@ cvt_text(odst, osrc, lenp, ops)
 			put_wchar(&dst, TO_LOWER(ch));
 		} else if ((ops & CVT_BS) && ch == '\b' && dst > odst)
 		{
-			/* Delete BS and preceding char. */
+			/* Delete backspace and preceding char. */
 			do {
 				dst--;
 			} while (dst > odst &&
@@ -363,7 +381,7 @@ undo_search()
  * Compile a search pattern, for future use by match_pattern.
  */
 	static int
-compile_pattern(pattern, search_type)
+compile_pattern2(pattern, search_type)
 	char *pattern;
 	int search_type;
 {
@@ -440,6 +458,30 @@ compile_pattern(pattern, search_type)
 
 	last_search_type = search_type;
 	return (0);
+}
+
+/*
+ * Like compile_pattern, but convert the pattern to lowercase if necessary.
+ */
+	static int
+compile_pattern(pattern, search_type)
+	char *pattern;
+	int search_type;
+{
+	char *cvt_pattern;
+	int result;
+
+	if (caseless != OPT_ONPLUS)
+		cvt_pattern = pattern;
+	else
+	{
+		cvt_pattern = (char*) ecalloc(1, cvt_length(strlen(pattern), CVT_TO_LC));
+		cvt_text(cvt_pattern, pattern, (int *)NULL, CVT_TO_LC);
+	}
+	result = compile_pattern2(cvt_pattern, search_type);
+	if (cvt_pattern != pattern)
+		free(cvt_pattern);
+	return (result);
 }
 
 /*
@@ -681,35 +723,8 @@ add_hilite(anchor, hl)
 	ihl->hl_next = hl;
 }
 
-	static void
-adj_hilite_ansi(cvt_ops, line, line_len, npos)
-	int cvt_ops;
-	char **line;
-	int line_len;
-	POSITION *npos;
-{
-	char *line_end = *line + line_len;
-
-	if (cvt_ops & CVT_ANSI)
-		while (IS_CSI_START(**line))
-		{
-			/*
-			 * Found an ESC.  The file position moves
-			 * forward past the entire ANSI escape sequence.
-			 */
-			(*line)++;
-			(*npos)++;
-			while (*line < line_end)
-			{
-				(*npos)++;
-				if (!is_ansi_middle(*(*line)++))
-					break;
-			}
-		}
-}
-
 /*
- * Adjust hl_startpos & hl_endpos to account for backspace processing.
+ * Adjust hl_startpos & hl_endpos to account for processing by cvt_text.
  */
 	static void
 adj_hilite(anchor, linepos, cvt_ops)
@@ -718,18 +733,21 @@ adj_hilite(anchor, linepos, cvt_ops)
 	int cvt_ops;
 {
 	char *line;
+	char *oline;
 	int line_len;
 	char *line_end;
 	struct hilite *hl;
 	int checkstart;
 	POSITION opos;
 	POSITION npos;
+	LWCHAR ch;
+	int ncwidth;
 
 	/*
 	 * The line was already scanned and hilites were added (in hilite_line).
 	 * But it was assumed that each char position in the line 
 	 * correponds to one char position in the file.
-	 * This may not be true if there are backspaces in the line.
+	 * This may not be true if cvt_text modified the line.
 	 * Get the raw line again.  Look at each character.
 	 */
 	(void) forw_raw_line(linepos, &line, &line_len);
@@ -760,31 +778,43 @@ adj_hilite(anchor, linepos, cvt_ops)
 		}
 		if (line == line_end)
 			break;
-		adj_hilite_ansi(cvt_ops, &line, line_end - line, &npos);
-		opos++;
-		npos++;
-		line++;
-		if (cvt_ops & CVT_BS)
+
+		/* Get the next char from the line. */
+		oline = line;
+		ch = step_char(&line, +1, line_end);
+		ncwidth = line - oline;
+		npos += ncwidth;
+
+		/* Figure out how this char was processed by cvt_text. */
+		if ((cvt_ops & CVT_BS) && ch == '\b')
 		{
-			while (*line == '\b')
+			/* Skip the backspace and the following char. */
+			oline = line;
+			ch = step_char(&line, +1, line_end);
+			ncwidth = line - oline;
+			npos += ncwidth;
+		} else if ((cvt_ops & CVT_TO_LC) && IS_UPPER(ch))
+		{
+			/* Converted uppercase to lower.
+			 * Note that this may have changed the number of bytes 
+			 * that the character occupies. */
+			char dbuf[6];
+			char *dst = dbuf;
+			put_wchar(&dst, TO_LOWER(ch));
+			opos += dst - dbuf;
+		} else if ((cvt_ops & CVT_ANSI) && IS_CSI_START(ch))
+		{
+			/* Skip to end of ANSI escape sequence. */
+			while (line < line_end)
 			{
 				npos++;
-				line++;
-				adj_hilite_ansi(cvt_ops, &line, line_end - line, &npos);
-				if (line == line_end)
-				{
-					--npos;
-					--line;
+				if (!is_ansi_middle(*++line))
 					break;
-				}
-				/*
-				 * Found a backspace.  The file position moves
-				 * forward by 2 relative to the processed line
-				 * which was searched in hilite_line.
-				 */
-				npos++;
-				line++;
 			}
+		} else 
+		{
+			/* Ordinary unprocessed character. */
+			opos += ncwidth;
 		}
 	}
 }
@@ -1014,6 +1044,7 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 	POSITION *pendpos;
 {
 	char *line;
+	char *cline;
 	int line_len;
 	LINENUM linenum;
 	char *sp, *ep;
@@ -1099,18 +1130,22 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 		 * If we're doing backspace processing, delete backspaces.
 		 */
 		cvt_ops = get_cvt_ops();
-		cvt_text(line, line, &line_len, cvt_ops);
+		cline = calloc(1, cvt_length(line_len, cvt_ops));
+		cvt_text(cline, line, &line_len, cvt_ops);
 
 		/*
 		 * Test the next line to see if we have a match.
 		 * We are successful if we either want a match and got one,
 		 * or if we want a non-match and got one.
 		 */
-		line_match = match_pattern(line, line_len, &sp, &ep, 0);
+		line_match = match_pattern(cline, line_len, &sp, &ep, 0);
 		line_match = (!(search_type & SRCH_NO_MATCH) && line_match) ||
 				((search_type & SRCH_NO_MATCH) && !line_match);
 		if (!line_match)
+		{
+			free(cline);
 			continue;
+		}
 		/*
 		 * Got a match.
 		 */
@@ -1123,8 +1158,9 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 			 * hilite list and keep searching.
 			 */
 			if (line_match)
-				hilite_line(linepos, line, line_len, sp, ep, cvt_ops);
+				hilite_line(linepos, cline, line_len, sp, ep, cvt_ops);
 #endif
+			free(cline);
 		} else if (--matches <= 0)
 		{
 			/*
@@ -1140,9 +1176,10 @@ search_range(pos, endpos, search_type, matches, maxlines, plinepos, pendpos)
 				 */
 				clr_hilite();
 				if (line_match)
-					hilite_line(linepos, line, line_len, sp, ep, cvt_ops);
+					hilite_line(linepos, cline, line_len, sp, ep, cvt_ops);
 			}
 #endif
+			free(cline);
 			if (plinepos != NULL)
 				*plinepos = linepos;
 			return (0);
@@ -1164,9 +1201,6 @@ hist_pattern(search_type)
 	pattern = cmd_lastpattern();
 	if (pattern == NULL)
 		return (0);
-
-	if (caseless == OPT_ONPLUS)
-		cvt_text(pattern, pattern, (int *)NULL, CVT_TO_LC);
 
 	if (compile_pattern(pattern, search_type) < 0)
 		return (0);
@@ -1204,7 +1238,7 @@ search(search_type, pattern, n)
 	int n;
 {
 	POSITION pos;
-	int ucase;
+	int result;
 
 	if (pattern == NULL || *pattern == '\0')
 	{
@@ -1247,16 +1281,13 @@ search(search_type, pattern, n)
 		/*
 		 * Compile the pattern.
 		 */
-		ucase = is_ucase(pattern);
-		if (caseless == OPT_ONPLUS)
-			cvt_text(pattern, pattern, (int *)NULL, CVT_TO_LC);
 		if (compile_pattern(pattern, search_type) < 0)
 			return (-1);
 		/*
 		 * Ignore case if -I is set OR
 		 * -i is set AND the pattern is all lowercase.
 		 */
-		is_ucase_pattern = ucase;
+		is_ucase_pattern = is_ucase(pattern);
 		if (is_ucase_pattern && caseless != OPT_ONPLUS)
 			is_caseless = 0;
 		else
