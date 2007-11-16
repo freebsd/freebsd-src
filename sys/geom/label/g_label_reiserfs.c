@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #define REISERFS_OLD_DISK_OFFSET 8 * 1024
 #define REISERFS_SUPER_MAGIC	"ReIsEr"
 
-typedef struct resiserfs_sb {
+typedef struct reiserfs_sb {
 	uint8_t		fake1[52];
 	char		s_magic[10];
 	uint8_t		fake2[10];
