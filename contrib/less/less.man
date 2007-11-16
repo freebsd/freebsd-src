@@ -750,40 +750,35 @@ LESS(1)                                                                LESS(1)
               deinitialization  string does something unnecessary, like clear-
               ing the screen.
 
-       --no-keypad
-              Disables sending the keypad initialization and  deinitialization
-              strings to the terminal.  This is sometimes useful if the keypad
-              strings make the numeric keypad behave in an undesirable manner.
-
        -y[4mn[24m or --max-forw-scroll=[4mn[0m
               Specifies a maximum number of lines to scroll forward.  If it is
-              necessary to scroll forward more than [4mn[24m  lines,  the  screen  is
-              repainted  instead.   The -c or -C option may be used to repaint
-              from the top of the screen if desired.  By default, any  forward
+              necessary  to  scroll  forward  more than [4mn[24m lines, the screen is
+              repainted instead.  The -c or -C option may be used  to  repaint
+              from  the top of the screen if desired.  By default, any forward
               movement causes scrolling.
 
        -[z][4mn[24m or --window=[4mn[0m
-              Changes  the  default  scrolling  window  size  to [4mn[24m lines.  The
+              Changes the default scrolling  window  size  to  [4mn[24m  lines.   The
               default is one screenful.  The z and w commands can also be used
-              to  change the window size.  The "z" may be omitted for compati-
+              to change the window size.  The "z" may be omitted for  compati-
               bility with some versions of [4mmore.[24m  If the number [4mn[24m is negative,
-              it  indicates  [4mn[24m  lines  less than the current screen size.  For
+              it indicates [4mn[24m lines less than the  current  screen  size.   For
               example, if the screen is 24 lines, [4m-z-4[24m sets the scrolling win-
-              dow  to  20  lines.   If  the screen is resized to 40 lines, the
+              dow to 20 lines.  If the screen is  resized  to  40  lines,  the
               scrolling window automatically changes to 36 lines.
 
        -[4m"cc[24m or --quotes=[4mcc[0m
-              Changes the filename quoting character.  This may  be  necessary
-              if  you are trying to name a file which contains both spaces and
-              quote characters.  Followed by a single character, this  changes
-              the  quote  character to that character.  Filenames containing a
+              Changes  the  filename quoting character.  This may be necessary
+              if you are trying to name a file which contains both spaces  and
+              quote  characters.  Followed by a single character, this changes
+              the quote character to that character.  Filenames  containing  a
               space should then be surrounded by that character rather than by
-              double  quotes.   Followed  by  two characters, changes the open
-              quote to the first character, and the close quote to the  second
+              double quotes.  Followed by two  characters,  changes  the  open
+              quote  to the first character, and the close quote to the second
               character.  Filenames containing a space should then be preceded
-              by the open quote character and  followed  by  the  close  quote
-              character.   Note  that  even  after  the  quote  characters are
-              changed, this option remains -" (a dash  followed  by  a  double
+              by  the  open  quote  character  and followed by the close quote
+              character.  Note  that  even  after  the  quote  characters  are
+              changed,  this  option  remains  -" (a dash followed by a double
               quote).
 
        -~ or --tilde
@@ -793,9 +788,24 @@ LESS(1)                                                                LESS(1)
 
        -# or --shift
               Specifies the default number of positions to scroll horizontally
-              in the RIGHTARROW and LEFTARROW commands.  If the number  speci-
-              fied  is  zero,  it  sets the default number of positions to one
+              in  the RIGHTARROW and LEFTARROW commands.  If the number speci-
+              fied is zero, it sets the default number  of  positions  to  one
               half of the screen width.
+
+       --no-keypad
+              Disables  sending the keypad initialization and deinitialization
+              strings to the terminal.  This is sometimes useful if the keypad
+              strings make the numeric keypad behave in an undesirable manner.
+
+       --follow-name
+              Normally, if the input file is renamed while  an  F  command  is
+              executing,  [4mless[24m  will  continue  to display the contents of the
+              original file despite its  name  change.   If  --follow-name  is
+              specified, during an F command [4mless[24m will periodically attempt to
+              reopen the file by name.  If the reopen succeeds and the file is
+              a  different file from the original (which means that a new file
+              has been created  with  the  same  name  as  the  original  (now
+              renamed) file), [4mless[24m will display the contents of that new file.
 
        --     A command line argument of "--" marks the end  of  option  argu-
               ments.   Any  arguments  following this are interpreted as file-
@@ -1149,10 +1159,10 @@ LESS(1)                                                                LESS(1)
               is followed by a single character (shown as [4mX[24m above) which spec-
               ifies  the line whose byte offset is to be used.  If the charac-
               ter is a "t", the byte offset of the top line in the display  is
-              used, an "m" means use the middle line, a "b" means use the bot-
-              tom line, a "B" means use the line just after the  bottom  line,
-              and  a  "j"  means use the "target" line, as specified by the -j
-              option.
+              used,  an  "m"  means  use  the middle line, a "b" means use the
+              bottom line, a "B" means use the  line  just  after  the  bottom
+              line, and a "j" means use the "target" line, as specified by the
+              -j option.
 
        %B     Replaced by the size of the current input file.
 
@@ -1499,10 +1509,10 @@ LESS(1)                                                                LESS(1)
        expressions turned off via ^R, and also does not  occur  when  [4mless[24m  is
        compiled to use the PCRE regular expression library.
 
-       In certain cases, when search highlighting is enabled and a search pat-
-       tern begins with a ^, more text than the matching string may  be  high-
-       lighted.  (This problem does not occur when less is compiled to use the
-       POSIX regular expression package.)
+       In  certain  cases,  when  search  highlighting is enabled and a search
+       pattern begins with a ^, more text than  the  matching  string  may  be
+       highlighted.  (This problem does not occur when less is compiled to use
+       the POSIX regular expression package.)
 
        On some systems, [4msetlocale[24m claims that ASCII characters 0 thru  31  are
        control  characters rather than binary characters.  This causes [4mless[24m to
@@ -1544,4 +1554,4 @@ LESS(1)                                                                LESS(1)
 
 
 
-                           Version 409: 12 Oct 2007                    LESS(1)
+                           Version 415: 15 Nov 2007                    LESS(1)
