@@ -94,10 +94,10 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f,
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
-static uint32_t		pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg,
-			    int reg);
+static int		pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg,
+			    int reg, uint32_t *data);
 #if 0
-static void		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
+static int		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
 			    int reg, uint32_t data);
 #endif
 static void		pci_read_vpd(device_t pcib, pcicfgregs *cfg);
@@ -253,11 +253,6 @@ TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
-
-static int pci_do_vpd = 1;
-TUNABLE_INT("hw.pci.enable_vpd", &pci_do_vpd);
-SYSCTL_INT(_hw_pci, OID_AUTO, enable_vpd, CTLFLAG_RW, &pci_do_vpd, 1,
-    "Enable support for VPD.");
 
 static int pci_do_msi = 1;
 TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
@@ -638,33 +633,49 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 /*
  * PCI Vital Product Data
  */
-static uint32_t
-pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg)
+
+#define	PCI_VPD_TIMEOUT		1000000
+
+static int
+pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg, uint32_t *data)
 {
+	int count = PCI_VPD_TIMEOUT;
 
 	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
 
 	WREG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, reg, 2);
-	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) != 0x8000)
-		DELAY(1);	/* limit looping */
 
-	return (REG(cfg->vpd.vpd_reg + PCIR_VPD_DATA, 4));
+	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) != 0x8000) {
+		if (--count < 0)
+			return (ENXIO);
+		DELAY(1);	/* limit looping */
+	}
+	*data = (REG(cfg->vpd.vpd_reg + PCIR_VPD_DATA, 4));
+
+	return (0);
 }
 
 #if 0
-static void
+static int
 pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg, uint32_t data)
 {
+	int count = PCI_VPD_TIMEOUT;
+
 	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
 
 	WREG(cfg->vpd.vpd_reg + PCIR_VPD_DATA, data, 4);
 	WREG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, reg | 0x8000, 2);
-	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) == 0x8000)
+	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) == 0x8000) {
+		if (--count < 0)
+			return (ENXIO);
 		DELAY(1);	/* limit looping */
+	}
 
-	return;
+	return (0);
 }
 #endif
+
+#undef PCI_VPD_TIMEOUT
 
 struct vpd_readstate {
 	device_t	pcib;
@@ -675,14 +686,16 @@ struct vpd_readstate {
 	uint8_t		cksum;
 };
 
-static uint8_t
-vpd_nextbyte(struct vpd_readstate *vrs)
+static int
+vpd_nextbyte(struct vpd_readstate *vrs, uint8_t *data)
 {
+	uint32_t reg;
 	uint8_t byte;
 
 	if (vrs->bytesinval == 0) {
-		vrs->val = le32toh(pci_read_vpd_reg(vrs->pcib, vrs->cfg,
-		    vrs->off));
+		if (pci_read_vpd_reg(vrs->pcib, vrs->cfg, vrs->off, &reg))
+			return (ENXIO);
+		vrs->val = le32toh(reg);
 		vrs->off += 4;
 		byte = vrs->val & 0xff;
 		vrs->bytesinval = 3;
@@ -693,7 +706,8 @@ vpd_nextbyte(struct vpd_readstate *vrs)
 	}
 
 	vrs->cksum += byte;
-	return (byte);
+	*data = byte;
+	return (0);
 }
 
 static void
@@ -703,17 +717,12 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	int state;
 	int name;
 	int remain;
-	int end;
 	int i;
-	uint8_t byte;
 	int alloc, off;		/* alloc/off for RO/W arrays */
 	int cksumvalid;
 	int dflen;
-
-	if (!pci_do_vpd) {
-		cfg->vpd.vpd_cached = 1;
-		return;
-	}
+	uint8_t byte;
+	uint8_t byte2;
 
 	/* init vpd reader */
 	vrs.bytesinval = 0;
@@ -726,10 +735,12 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	name = remain = i = 0;	/* shut up stupid gcc */
 	alloc = off = 0;	/* shut up stupid gcc */
 	dflen = 0;		/* shut up stupid gcc */
-	end = 0;
 	cksumvalid = -1;
-	for (; !end;) {
-		byte = vpd_nextbyte(&vrs);
+	while (state >= 0) {
+		if (vpd_nextbyte(&vrs, &byte)) {
+			state = -2;
+			break;
+		}
 #if 0
 		printf("vpd: val: %#x, off: %d, bytesinval: %d, byte: %#hhx, " \
 		    "state: %d, remain: %d, name: %#x, i: %d\n", vrs.val,
@@ -738,12 +749,20 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 		switch (state) {
 		case 0:		/* item name */
 			if (byte & 0x80) {
-				remain = vpd_nextbyte(&vrs);
-				remain |= vpd_nextbyte(&vrs) << 8;
+				if (vpd_nextbyte(&vrs, &byte2)) {
+					state = -2;
+					break;
+				}
+				remain = byte2;
+				if (vpd_nextbyte(&vrs, &byte2)) {
+					state = -2;
+					break;
+				}
+				remain |= byte2 << 8;
 				if (remain > (0x7f*4 - vrs.off)) {
-					end = 1;
+					state = -1;
 					printf(
-			    "pci%d:%d:%d:%d: invalid vpd data, remain %#x\n",
+			    "pci%d:%d:%d:%d: invalid VPD data, remain %#x\n",
 					    cfg->domain, cfg->bus, cfg->slot,
 					    cfg->func, remain);
 				}
@@ -760,28 +779,27 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				state = 1;
 				break;
 			case 0xf:	/* End */
-				end = 1;
 				state = -1;
 				break;
 			case 0x10:	/* VPD-R */
 				alloc = 8;
 				off = 0;
 				cfg->vpd.vpd_ros = malloc(alloc *
-				    sizeof *cfg->vpd.vpd_ros, M_DEVBUF,
-				    M_WAITOK);
+				    sizeof(*cfg->vpd.vpd_ros), M_DEVBUF,
+				    M_WAITOK | M_ZERO);
 				state = 2;
 				break;
 			case 0x11:	/* VPD-W */
 				alloc = 8;
 				off = 0;
 				cfg->vpd.vpd_w = malloc(alloc *
-				    sizeof *cfg->vpd.vpd_w, M_DEVBUF,
-				    M_WAITOK);
+				    sizeof(*cfg->vpd.vpd_w), M_DEVBUF,
+				    M_WAITOK | M_ZERO);
 				state = 5;
 				break;
 			default:	/* Invalid data, abort */
-				end = 1;
-				continue;
+				state = -1;
+				break;
 			}
 			break;
 
@@ -797,12 +815,20 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 		case 2:	/* VPD-R Keyword Header */
 			if (off == alloc) {
 				cfg->vpd.vpd_ros = reallocf(cfg->vpd.vpd_ros,
-				    (alloc *= 2) * sizeof *cfg->vpd.vpd_ros,
-				    M_DEVBUF, M_WAITOK);
+				    (alloc *= 2) * sizeof(*cfg->vpd.vpd_ros),
+				    M_DEVBUF, M_WAITOK | M_ZERO);
 			}
 			cfg->vpd.vpd_ros[off].keyword[0] = byte;
-			cfg->vpd.vpd_ros[off].keyword[1] = vpd_nextbyte(&vrs);
-			dflen = vpd_nextbyte(&vrs);
+			if (vpd_nextbyte(&vrs, &byte2)) {
+				state = -2;
+				break;
+			}
+			cfg->vpd.vpd_ros[off].keyword[1] = byte2;
+			if (vpd_nextbyte(&vrs, &byte2)) {
+				state = -2;
+				break;
+			}
+			dflen = byte2;
 			if (dflen == 0 &&
 			    strncmp(cfg->vpd.vpd_ros[off].keyword, "RV",
 			    2) == 0) {
@@ -815,17 +841,17 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				    cfg->domain, cfg->bus, cfg->slot,
 				    cfg->func, dflen);
 				cksumvalid = 0;
-				end = 1;
+				state = -1;
 				break;
 			} else if (dflen == 0) {
 				cfg->vpd.vpd_ros[off].value = malloc(1 *
-				    sizeof *cfg->vpd.vpd_ros[off].value,
+				    sizeof(*cfg->vpd.vpd_ros[off].value),
 				    M_DEVBUF, M_WAITOK);
 				cfg->vpd.vpd_ros[off].value[0] = '\x00';
 			} else
 				cfg->vpd.vpd_ros[off].value = malloc(
 				    (dflen + 1) *
-				    sizeof *cfg->vpd.vpd_ros[off].value,
+				    sizeof(*cfg->vpd.vpd_ros[off].value),
 				    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
@@ -845,12 +871,14 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				if (vrs.cksum == 0)
 					cksumvalid = 1;
 				else {
-					printf(
+					if (bootverbose)
+						printf(
 				"pci%d:%d:%d:%d: bad VPD cksum, remain %hhu\n",
-					    cfg->domain, cfg->bus, cfg->slot,
-					    cfg->func, vrs.cksum);
+						    cfg->domain, cfg->bus,
+						    cfg->slot, cfg->func,
+						    vrs.cksum);
 					cksumvalid = 0;
-					end = 1;
+					state = -1;
 					break;
 				}
 			}
@@ -862,8 +890,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			if (dflen == 0 && remain == 0) {
 				cfg->vpd.vpd_rocnt = off;
 				cfg->vpd.vpd_ros = reallocf(cfg->vpd.vpd_ros,
-				    off * sizeof *cfg->vpd.vpd_ros,
-				    M_DEVBUF, M_WAITOK);
+				    off * sizeof(*cfg->vpd.vpd_ros),
+				    M_DEVBUF, M_WAITOK | M_ZERO);
 				state = 0;
 			} else if (dflen == 0)
 				state = 2;
@@ -878,15 +906,23 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 		case 5:	/* VPD-W Keyword Header */
 			if (off == alloc) {
 				cfg->vpd.vpd_w = reallocf(cfg->vpd.vpd_w,
-				    (alloc *= 2) * sizeof *cfg->vpd.vpd_w,
-				    M_DEVBUF, M_WAITOK);
+				    (alloc *= 2) * sizeof(*cfg->vpd.vpd_w),
+				    M_DEVBUF, M_WAITOK | M_ZERO);
 			}
 			cfg->vpd.vpd_w[off].keyword[0] = byte;
-			cfg->vpd.vpd_w[off].keyword[1] = vpd_nextbyte(&vrs);
-			cfg->vpd.vpd_w[off].len = dflen = vpd_nextbyte(&vrs);
+			if (vpd_nextbyte(&vrs, &byte2)) {
+				state = -2;
+				break;
+			}
+			cfg->vpd.vpd_w[off].keyword[1] = byte2;
+			if (vpd_nextbyte(&vrs, &byte2)) {
+				state = -2;
+				break;
+			}
+			cfg->vpd.vpd_w[off].len = dflen = byte2;
 			cfg->vpd.vpd_w[off].start = vrs.off - vrs.bytesinval;
 			cfg->vpd.vpd_w[off].value = malloc((dflen + 1) *
-			    sizeof *cfg->vpd.vpd_w[off].value,
+			    sizeof(*cfg->vpd.vpd_w[off].value),
 			    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
@@ -909,8 +945,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			if (dflen == 0 && remain == 0) {
 				cfg->vpd.vpd_wcnt = off;
 				cfg->vpd.vpd_w = reallocf(cfg->vpd.vpd_w,
-				    off * sizeof *cfg->vpd.vpd_w,
-				    M_DEVBUF, M_WAITOK);
+				    off * sizeof(*cfg->vpd.vpd_w),
+				    M_DEVBUF, M_WAITOK | M_ZERO);
 				state = 0;
 			} else if (dflen == 0)
 				state = 5;
@@ -920,18 +956,34 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			printf("pci%d:%d:%d:%d: invalid state: %d\n",
 			    cfg->domain, cfg->bus, cfg->slot, cfg->func,
 			    state);
-			end = 1;
+			state = -1;
 			break;
 		}
 	}
 
-	if (cksumvalid == 0) {
+	if (cksumvalid == 0 || state < -1) {
 		/* read-only data bad, clean up */
-		for (; off; off--)
-			free(cfg->vpd.vpd_ros[off].value, M_DEVBUF);
-
-		free(cfg->vpd.vpd_ros, M_DEVBUF);
-		cfg->vpd.vpd_ros = NULL;
+		if (cfg->vpd.vpd_ros != NULL) {
+			for (off = 0; cfg->vpd.vpd_ros[off].value; off++)
+				free(cfg->vpd.vpd_ros[off].value, M_DEVBUF);
+			free(cfg->vpd.vpd_ros, M_DEVBUF);
+			cfg->vpd.vpd_ros = NULL;
+		}
+	}
+	if (state < -1) {
+		/* I/O error, clean up */
+		printf("pci%d:%d:%d:%d: failed to read VPD data.\n",
+		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
+		if (cfg->vpd.vpd_ident != NULL) {
+			free(cfg->vpd.vpd_ident, M_DEVBUF);
+			cfg->vpd.vpd_ident = NULL;
+		}
+		if (cfg->vpd.vpd_w != NULL) {
+			for (off = 0; cfg->vpd.vpd_w[off].value; off++)
+				free(cfg->vpd.vpd_w[off].value, M_DEVBUF);
+			free(cfg->vpd.vpd_w, M_DEVBUF);
+			cfg->vpd.vpd_w = NULL;
+		}
 	}
 	cfg->vpd.vpd_cached = 1;
 #undef REG
@@ -968,7 +1020,7 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 
 	for (i = 0; i < cfg->vpd.vpd_rocnt; i++)
 		if (memcmp(kw, cfg->vpd.vpd_ros[i].keyword,
-		    sizeof cfg->vpd.vpd_ros[i].keyword) == 0) {
+		    sizeof(cfg->vpd.vpd_ros[i].keyword)) == 0) {
 			*vptr = cfg->vpd.vpd_ros[i].value;
 		}
 
