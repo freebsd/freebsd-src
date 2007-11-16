@@ -27,9 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/proc.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
+#include <machine/segments.h>
+#include <machine/tss.h>
 #include <err.h>
 #include <kvm.h>
 #include <string.h>
@@ -70,6 +73,152 @@ kgdb_trgt_store_registers(int regno __unused)
 {
 	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
 }
+
+struct kgdb_tss_cache {
+	CORE_ADDR	pc;
+	CORE_ADDR	sp;
+	CORE_ADDR	tss;
+};
+
+static int kgdb_trgt_tss_offset[15] = {
+	offsetof(struct i386tss, tss_eax),
+	offsetof(struct i386tss, tss_ecx),
+	offsetof(struct i386tss, tss_edx),
+	offsetof(struct i386tss, tss_ebx),
+	offsetof(struct i386tss, tss_esp),
+	offsetof(struct i386tss, tss_ebp),
+	offsetof(struct i386tss, tss_esi),
+	offsetof(struct i386tss, tss_edi),
+	offsetof(struct i386tss, tss_eip),
+	offsetof(struct i386tss, tss_eflags),
+	offsetof(struct i386tss, tss_cs),
+	offsetof(struct i386tss, tss_ss),
+	offsetof(struct i386tss, tss_ds),
+	offsetof(struct i386tss, tss_es),
+	offsetof(struct i386tss, tss_fs)
+};
+
+/*
+ * If the current thread is executing on a CPU, fetch the common_tss
+ * for that CPU.
+ *
+ * This is painful because 'struct pcpu' is variant sized, so we can't
+ * use it.  Instead, we lookup the GDT selector for this CPU and
+ * extract the base of the TSS from there.
+ */
+static CORE_ADDR
+kgdb_trgt_fetch_tss(void)
+{
+	struct kthr *kt;
+	struct segment_descriptor sd;
+	uintptr_t addr, cpu0prvpage, tss;
+
+	kt = kgdb_thr_lookup_tid(ptid_get_tid(inferior_ptid));
+	if (kt == NULL || kt->cpu == NOCPU)
+		return (0);
+
+	addr = kgdb_lookup("_gdt");
+	if (addr == 0)
+		return (0);
+	addr += (kt->cpu * NGDT + GPROC0_SEL) * sizeof(sd);
+	if (kvm_read(kvm, addr, &sd, sizeof(sd)) != sizeof(sd)) {
+		warnx("kvm_read: %s", kvm_geterr(kvm));
+		return (0);
+	}
+	if (sd.sd_type != SDT_SYS386BSY) {
+		warnx("descriptor is not a busy TSS");
+		return (0);
+	}
+	tss = sd.sd_hibase << 24 | sd.sd_lobase;
+
+	/*
+	 * In SMP kernels, the TSS is stored as part of the per-CPU
+	 * data.  On older kernels, the CPU0's private page
+	 * is stored at an address that isn't mapped in minidumps.
+	 * However, the data is mapped at the alternate cpu0prvpage
+	 * address.  Thus, if the TSS is at the invalid address,
+	 * change it to be relative to cpu0prvpage instead.
+	 */ 
+	if (trunc_page(tss) == 0xffc00000) {
+		addr = kgdb_lookup("_cpu0prvpage");
+		if (addr == 0)
+			return (0);
+		if (kvm_read(kvm, addr, &cpu0prvpage, sizeof(cpu0prvpage)) !=
+		    sizeof(cpu0prvpage)) {
+			warnx("kvm_read: %s", kvm_geterr(kvm));
+			return (0);
+		}
+		tss = cpu0prvpage + (tss & PAGE_MASK);
+	}
+	return ((CORE_ADDR)tss);
+}
+
+static struct kgdb_tss_cache *
+kgdb_trgt_tss_cache(struct frame_info *next_frame, void **this_cache)
+{
+	char buf[MAX_REGISTER_SIZE];
+	struct kgdb_tss_cache *cache;
+
+	cache = *this_cache;
+	if (cache == NULL) {
+		cache = FRAME_OBSTACK_ZALLOC(struct kgdb_tss_cache);
+		*this_cache = cache;
+		cache->pc = frame_func_unwind(next_frame);
+		frame_unwind_register(next_frame, SP_REGNUM, buf);
+		cache->sp = extract_unsigned_integer(buf,
+		    register_size(current_gdbarch, SP_REGNUM));
+		cache->tss = kgdb_trgt_fetch_tss();
+	}
+	return (cache);
+}
+
+static void
+kgdb_trgt_dblfault_this_id(struct frame_info *next_frame, void **this_cache,
+    struct frame_id *this_id)
+{
+	struct kgdb_tss_cache *cache;
+
+	cache = kgdb_trgt_tss_cache(next_frame, this_cache);
+	*this_id = frame_id_build(cache->sp, cache->pc);
+}
+
+static void
+kgdb_trgt_dblfault_prev_register(struct frame_info *next_frame,
+    void **this_cache, int regnum, int *optimizedp, enum lval_type *lvalp,
+    CORE_ADDR *addrp, int *realnump, void *valuep)
+{
+	char dummy_valuep[MAX_REGISTER_SIZE];
+	struct kgdb_tss_cache *cache;
+	int ofs, regsz;
+
+	regsz = register_size(current_gdbarch, regnum);
+
+	if (valuep == NULL)
+		valuep = dummy_valuep;
+	memset(valuep, 0, regsz);
+	*optimizedp = 0;
+	*addrp = 0;
+	*lvalp = not_lval;
+	*realnump = -1;
+
+	ofs = (regnum >= I386_EAX_REGNUM && regnum <= I386_FS_REGNUM)
+	    ? kgdb_trgt_tss_offset[regnum] : -1;
+	if (ofs == -1)
+		return;
+
+	cache = kgdb_trgt_tss_cache(next_frame, this_cache);
+	if (cache->tss == 0)
+		return;
+	*addrp = cache->tss + ofs;
+	*lvalp = lval_memory;
+	target_read_memory(*addrp, valuep, regsz);
+}
+
+static const struct frame_unwind kgdb_trgt_dblfault_unwind = {
+        UNKNOWN_FRAME,
+        &kgdb_trgt_dblfault_this_id,
+        &kgdb_trgt_dblfault_prev_register
+};
 
 struct kgdb_frame_cache {
 	int		intrframe;
@@ -194,6 +343,8 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	find_pc_partial_function(pc, &pname, NULL, NULL);
 	if (pname == NULL)
 		return (NULL);
+	if (strcmp(pname, "dblfault_handler") == 0)
+		return (&kgdb_trgt_dblfault_unwind);
 	if (strcmp(pname, "calltrap") == 0 ||
 	    (pname[0] == 'X' && pname[1] != '_'))
 		return (&kgdb_trgt_trapframe_unwind);
