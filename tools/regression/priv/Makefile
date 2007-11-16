@@ -46,4 +46,7 @@ SRCS=	main.c				\
 NO_MAN=
 WARNS=	3
 
+DPADD+= ${LIBIPSEC}
+LDADD+= -lipsec
+
 .include <bsd.prog.mk>
