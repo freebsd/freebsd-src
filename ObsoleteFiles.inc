@@ -16,6 +16,12 @@
 
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
+# 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
+.if ${TARGET_ARCH} == "ia64"
+OLD_FILES+=rescue/bsdlabel
+OLD_FILES+=rescue/fdisk
+OLD_FILES+=rescue/gpt
+.endif
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
