@@ -696,6 +696,11 @@ v406  6/17/07	Fix secure build.
 v407  8/16/07	Fix bugs; support CSI chars.
 v408  10/1/07	Fix bug in -i with non-ASCII chars.
 v409  10/12/07	Fix crash when viewing text with invalid UTF-8 sequences.
+v411  11/6/07	Fix case-insensitive searching with non-ASCII text.
+v412  11/6/07	Use symbolic SEEK constants.
+v413  11/6/07	Fix search highlight bug with non-ASCII text.
+v414  11/6/07	Fix display bug with no-wrap terminals.
+v415  11/14/07	Add --follow-name option.
 */
 
-char version[] = "409";
+char version[] = "415";

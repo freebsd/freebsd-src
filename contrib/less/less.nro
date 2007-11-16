@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 409: 12 Oct 2007"
+.TH LESS 1 "Version 415: 15 Nov 2007"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -799,11 +799,6 @@ Disables sending the termcap initialization and deinitialization strings
 to the terminal.
 This is sometimes desirable if the deinitialization string does
 something unnecessary, like clearing the screen.
-.IP "\-\-no-keypad"
-Disables sending the keypad initialization and deinitialization strings
-to the terminal.
-This is sometimes useful if the keypad strings make the numeric
-keypad behave in an undesirable manner.
 .IP "\-y\fIn\fP or \-\-max-forw-scroll=\fIn\fP"
 Specifies a maximum number of lines to scroll forward.
 If it is necessary to scroll forward more than \fIn\fP lines,
@@ -847,6 +842,24 @@ Specifies the default number of positions to scroll horizontally
 in the RIGHTARROW and LEFTARROW commands.
 If the number specified is zero, it sets the default number of
 positions to one half of the screen width.
+.IP "\-\-no-keypad"
+Disables sending the keypad initialization and deinitialization strings
+to the terminal.
+This is sometimes useful if the keypad strings make the numeric
+keypad behave in an undesirable manner.
+.IP "\-\-follow-name"
+Normally, if the input file is renamed while an F command is executing, 
+.I less
+will continue to display the contents of the original file despite
+its name change.
+If \-\-follow-name is specified, during an F command
+.I less
+will periodically attempt to reopen the file by name.
+If the reopen succeeds and the file is a different file from the original
+(which means that a new file has been created 
+with the same name as the original (now renamed) file),
+.I less
+will display the contents of that new file.
 .IP \-\-
 A command line argument of "\-\-" marks the end of option arguments.
 Any arguments following this are interpreted as filenames.
