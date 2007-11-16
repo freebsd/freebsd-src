@@ -1846,10 +1846,14 @@ line_left()
 		row = scr.dwCursorPosition.Y - scr.srWindow.Top + 1;
 	}
 #else
+#if MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
+		row = wherey();
+#else
 	{
 		struct rccoord tpos = _gettextposition();
 		row = tpos.row;
 	}
+#endif
 #endif
 	_settextposition(row, 1);
 #endif
