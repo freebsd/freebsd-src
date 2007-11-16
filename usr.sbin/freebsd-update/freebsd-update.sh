@@ -2628,9 +2628,16 @@ rollback_setup_rollback () {
 
 # Install old files, delete new files, and update linker.hints
 rollback_files () {
-	# Install old shared library files
+	# Install old shared library files which don't have the same path as
+	# a new shared library file.
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '/lib/.*\.so\.[0-9]+' |
+	    cut -f 1 -d '|' |
+	    sort > INDEX-NEW.libs.flist
 	grep -vE '^/boot/' $1/INDEX-OLD |
-	    grep -E '/lib/.*\.so\.[0-9]+' > INDEX-OLD
+	    grep -E '/lib/.*\.so\.[0-9]+' |
+	    sort -k 1,1 -t '|' - |
+	    join -t '|' -v 1 - INDEX-NEW.libs.flist > INDEX-OLD
 	install_from_index INDEX-OLD || return 1
 
 	# Deal with files which are neither kernel nor shared library
@@ -2640,6 +2647,13 @@ rollback_files () {
 	    grep -vE '/lib/.*\.so\.[0-9]+' > INDEX-NEW
 	install_from_index INDEX-OLD || return 1
 	install_delete INDEX-NEW INDEX-OLD || return 1
+
+	# Install any old shared library files which we didn't install above.
+	grep -vE '^/boot/' $1/INDEX-OLD |
+	    grep -E '/lib/.*\.so\.[0-9]+' |
+	    sort -k 1,1 -t '|' - |
+	    join -t '|' - INDEX-NEW.libs.flist > INDEX-OLD
+	install_from_index INDEX-OLD || return 1
 
 	# Delete unneeded shared library files
 	grep -vE '^/boot/' $1/INDEX-OLD |
