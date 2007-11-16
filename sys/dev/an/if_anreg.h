@@ -485,7 +485,7 @@ struct an_softc	{
 	int			an_have_rssimap;
 	struct an_ltv_rssi_map	an_rssimap;
 #endif
-	struct callout_handle	an_stat_ch;
+	struct callout		an_stat_ch;
 	struct mtx		an_mtx;
 	device_t		an_dev;
 	struct ifmedia		an_ifmedia;
