@@ -1689,7 +1689,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		nfe_rxeof(sc, count);
 	nfe_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->nfe_tx_task);
+		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
 		if ((r = NFE_READ(sc, sc->nfe_irq_status)) == 0) {
@@ -1898,7 +1898,7 @@ nfe_intr(void *arg)
 	if (status == 0 || status == 0xffffffff)
 		return (FILTER_STRAY);
 	nfe_disable_intr(sc);
-	taskqueue_enqueue_fast(taskqueue_fast, &sc->nfe_int_task);
+	taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_int_task);
 
 	return (FILTER_HANDLED);
 }
@@ -1952,12 +1952,12 @@ nfe_int_task(void *arg, int pending)
 	nfe_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->nfe_tx_task);
+		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
 
 	NFE_UNLOCK(sc);
 
 	if (domore || (NFE_READ(sc, sc->nfe_irq_status) != 0)) {
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->nfe_int_task);
+		taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_int_task);
 		return;
 	}
 
@@ -2808,8 +2808,7 @@ nfe_watchdog(struct ifnet *ifp)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(taskqueue_fast,
-			    &sc->nfe_tx_task);
+			taskqueue_enqueue_fast(sc->nfe_tq, &sc->nfe_tx_task);
 		return;
 	}
 	/* Check if we've lost start Tx command. */
