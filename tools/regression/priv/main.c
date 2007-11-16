@@ -135,8 +135,27 @@ static struct test tests[] = {
 	{ "priv_msgbuf_unprivok", priv_msgbuf_unprivok_setup,
 	   priv_msgbuf_unprivok, priv_msgbuf_cleanup },
 
-	{ "priv_netinet_ipsec_pfkey", priv_netinet_ipsec_pfkey_setup,
-	    priv_netinet_ipsec_pfkey, priv_netinet_ipsec_pfkey_cleanup },
+	{ "priv_netinet_ipsec_pfkey", NULL, priv_netinet_ipsec_pfkey, NULL },
+
+	{ "priv_netinet_ipsec_policy4_bypass",
+	    priv_netinet_ipsec_policy4_bypass_setup,
+	    priv_netinet_ipsec_policy4_bypass,
+	    priv_netinet_ipsec_policy_bypass_cleanup },
+
+	{ "priv_netinet_ipsec_policy6_bypass",
+	    priv_netinet_ipsec_policy6_bypass_setup,
+	    priv_netinet_ipsec_policy6_bypass,
+	    priv_netinet_ipsec_policy_bypass_cleanup },
+
+	{ "priv_netinet_ipsec_policy4_entrust",
+	    priv_netinet_ipsec_policy4_entrust_setup,
+	    priv_netinet_ipsec_policy4_entrust,
+	    priv_netinet_ipsec_policy_entrust_cleanup },
+
+	{ "priv_netinet_ipsec_policy6_entrust",
+	    priv_netinet_ipsec_policy6_entrust_setup,
+	    priv_netinet_ipsec_policy6_entrust,
+	    priv_netinet_ipsec_policy_entrust_cleanup },
 
 	{ "priv_netinet_raw", priv_netinet_raw_setup, priv_netinet_raw,
 	    priv_netinet_raw_cleanup },
