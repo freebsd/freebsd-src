@@ -790,7 +790,7 @@ an_attach(struct an_softc *sc, int unit, int flags)
 	 */
 
 	ether_ifattach(ifp, sc->an_caps.an_oemaddr);
-	callout_handle_init(&sc->an_stat_ch);
+	callout_init_mtx(&sc->an_stat_ch, &sc->an_mtx, 0);
 
 	return(0);
 fail:;
@@ -818,6 +818,7 @@ an_detach(device_t dev)
 	AN_UNLOCK(sc);
 	ether_ifdetach(ifp);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	callout_drain(&sc->an_stat_ch);
 	if_free(ifp);
 	an_release_resources(dev);
 	mtx_destroy(&sc->an_mtx);
@@ -1142,6 +1143,8 @@ an_txeof(struct an_softc *sc, int status)
  * is important because we don't want to allow transmissions until
  * the NIC has synchronized to the current cell (either as the master
  * in an ad-hoc group, or as a station connected to an access point).
+ *
+ * Note that this function will be called via callout(9) with a lock held.
  */
 static void
 an_stats_update(void *xsc)
@@ -1150,12 +1153,17 @@ an_stats_update(void *xsc)
 	struct ifnet		*ifp;
 
 	sc = xsc;
-	AN_LOCK(sc);
+	if (sc->an_gone) {
+		return;
+	}
+
+	AN_LOCK_ASSERT(sc);
 	ifp = sc->an_ifp;
 
 	sc->an_status.an_type = AN_RID_STATUS;
 	sc->an_status.an_len = sizeof(struct an_ltv_status);
-	an_read_record(sc, (struct an_ltv_gen *)&sc->an_status);
+	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_status))
+		return;
 
 	if (sc->an_status.an_opmode & AN_STATUS_OPMODE_IN_SYNC)
 		sc->an_associated = 1;
@@ -1164,17 +1172,16 @@ an_stats_update(void *xsc)
 
 	/* Don't do this while we're transmitting */
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		sc->an_stat_ch = timeout(an_stats_update, sc, hz);
-		AN_UNLOCK(sc);
+		callout_reset(&sc->an_stat_ch, hz, an_stats_update, sc);
 		return;
 	}
 
 	sc->an_stats.an_len = sizeof(struct an_ltv_stats);
 	sc->an_stats.an_type = AN_RID_32BITS_CUM;
-	an_read_record(sc, (struct an_ltv_gen *)&sc->an_stats.an_len);
+	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_stats.an_len))
+		return;
 
-	sc->an_stat_ch = timeout(an_stats_update, sc, hz);
-	AN_UNLOCK(sc);
+	callout_reset(&sc->an_stat_ch, hz, an_stats_update, sc);
 
 	return;
 }
@@ -2615,7 +2622,7 @@ an_init(void *xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->an_stat_ch = timeout(an_stats_update, sc, hz);
+	callout_reset(&sc->an_stat_ch, hz, an_stats_update, sc);
 	AN_UNLOCK(sc);
 
 	return;
@@ -2828,7 +2835,7 @@ an_stop(struct an_softc *sc)
 	for (i = 0; i < AN_TX_RING_CNT; i++)
 		an_cmd(sc, AN_CMD_DEALLOC_MEM, sc->an_rdata.an_tx_fids[i]);
 
-	untimeout(an_stats_update, sc, sc->an_stat_ch);
+	callout_stop(&sc->an_stat_ch);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
