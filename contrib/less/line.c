@@ -1047,6 +1047,23 @@ pdone(endline)
 		linebuf[curr] = '\n';
 		attr[curr] = AT_NORMAL;
 		curr++;
+	} 
+	else if (ignaw && !auto_wrap && column >= sc_width)
+	{
+		/*
+		 * Big horrible kludge.
+		 * No-wrap terminals are too hard to deal with when they get in
+		 * the state where a full screen width of characters have been 
+		 * output but the cursor is sitting on the right edge instead
+		 * of at the start of the next line.  
+		 * So after we output a full line, we output an extra 
+		 * space and backspace to force the cursor to the 
+		 * beginning of the next line, like a sane terminal.
+		 */
+		linebuf[curr] = ' '; 
+		attr[curr++] = AT_NORMAL;
+		linebuf[curr] = '\b'; 
+		attr[curr++] = AT_NORMAL;
 	}
 	linebuf[curr] = '\0';
 	attr[curr] = AT_NORMAL;
