@@ -21,6 +21,12 @@
 #include <windows.h>
 #endif
 
+#if HAVE_STAT_INO
+#include <sys/stat.h>
+extern dev_t curr_dev;
+extern ino_t curr_ino;
+#endif
+
 typedef POSITION BLOCKNUM;
 
 public int ignore_eoi;
@@ -98,6 +104,8 @@ static int maxbufs = -1;
 extern int autobuf;
 extern int sigs;
 extern int secure;
+extern int screen_trashed;
+extern int follow_mode;
 extern constant char helpdata[];
 extern constant int size_helpdata;
 extern IFILE curr_ifile;
@@ -195,7 +203,7 @@ fch_get()
 		 */
 		if (!(ch_flags & CH_CANSEEK))
 			return ('?');
-		if (lseek(ch_file, (off_t)pos, 0) == BAD_LSEEK)
+		if (lseek(ch_file, (off_t)pos, SEEK_SET) == BAD_LSEEK)
 		{
  			error("seek error", NULL_PARG);
 			clear_eol();
@@ -276,6 +284,25 @@ fch_get()
 #endif
 #endif
 			slept = TRUE;
+
+#if HAVE_STAT_INO
+			if (follow_mode == FOLLOW_NAME)
+			{
+				/* See whether the file's i-number has changed.
+				 * If so, force the file to be closed and
+				 * reopened. */
+				struct stat st;
+				int r = stat(get_filename(curr_ifile), &st);
+				if (r == 0 && (st.st_ino != curr_ino ||
+					st.st_dev != curr_dev))
+				{
+					/* screen_trashed=2 causes
+					 * make_display to reopen the file. */
+					screen_trashed = 2;
+					return (EOI);
+				}
+			}
+#endif
 		}
 		if (sigs)
 			return (EOI);
@@ -648,7 +675,7 @@ ch_flush()
 	}
 #endif
 
-	if (lseek(ch_file, (off_t)0, 0) == BAD_LSEEK)
+	if (lseek(ch_file, (off_t)0, SEEK_SET) == BAD_LSEEK)
 	{
 		/*
 		 * Warning only; even if the seek fails for some reason,
@@ -711,7 +738,7 @@ ch_delbufs()
 	while (ch_bufhead != END_OF_CHAIN)
 	{
 		bp = ch_bufhead;
-		bp->next->prev = bp->prev;;
+		bp->next->prev = bp->prev;
 		bp->prev->next = bp->next;
 		free(bp);
 	}
@@ -737,7 +764,7 @@ seekable(f)
 		return (0);
 	}
 #endif
-	return (lseek(f, (off_t)1, 0) != BAD_LSEEK);
+	return (lseek(f, (off_t)1, SEEK_SET) != BAD_LSEEK);
 }
 
 /*

@@ -50,7 +50,8 @@ public int shift_count;		/* Number of positions to shift horizontally */
 public int status_col;		/* Display a status column */
 public int use_lessopen;	/* Use the LESSOPEN filter */
 public int quit_on_intr;	/* Quit on interrupt */
-public int oldbot;		/* Old bottom of screen behavior */
+public int follow_mode;		/* F cmd Follows file desc or file name? */
+public int oldbot;		/* Old bottom of screen behavior {{REMOVE}} */
 #if HILITE_SEARCH
 public int hilite_search;	/* Highlight matched search patterns? */
 #endif
@@ -113,6 +114,7 @@ static struct optname query_optname  = { "help",                 NULL };
 static struct optname pound_optname  = { "shift",                NULL };
 static struct optname keypad_optname = { "no-keypad",            NULL };
 static struct optname oldbot_optname = { "old-bot",              NULL };
+static struct optname follow_optname = { "follow-name",          NULL };
 
 
 /*
@@ -437,6 +439,14 @@ static struct loption option[] =
 		{
 			"Use new bottom of screen behavior",
 			"Use old bottom of screen behavior",
+			NULL
+		}
+	},
+	{ '.', &follow_optname,
+		BOOL, FOLLOW_DESC, &follow_mode, NULL,
+		{
+			"F command Follows file descriptor",
+			"F command Follows file name",
 			NULL
 		}
 	},

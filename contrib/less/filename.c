@@ -476,7 +476,7 @@ bin_file(f)
 
 	if (!seekable(f))
 		return (0);
-	if (lseek(f, (off_t)0, 0) == BAD_LSEEK)
+	if (lseek(f, (off_t)0, SEEK_SET) == BAD_LSEEK)
 		return (0);
 	n = read(f, data, sizeof(data));
 	for (i = 0;  i < n;  i++)
@@ -505,7 +505,7 @@ seek_filesize(f)
 {
 	off_t spos;
 
-	spos = lseek(f, (off_t)0, 2);
+	spos = lseek(f, (off_t)0, SEEK_END);
 	if (spos == BAD_LSEEK)
 		return (NULL_POSITION);
 	return ((POSITION) spos);
