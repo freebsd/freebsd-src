@@ -61,7 +61,7 @@ struct chap {
 #define descriptor2chap(d) \
   ((d)->type == CHAP_DESCRIPTOR ? (struct chap *)(d) : NULL)
 #define auth2chap(a) \
-  ((struct chap *)((char *)a - (int)&((struct chap *)0)->auth))
+  ((struct chap *)((char *)a - (uintptr_t)&((struct chap *)0)->auth))
 
 struct MSCHAPv2_resp {		/* rfc2759 */
   char PeerChallenge[16];
