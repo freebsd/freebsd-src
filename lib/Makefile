@@ -36,7 +36,7 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
 	libpmc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
-	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
+	${_libsmutil} libstand libtelnet ${_libthr} libthread_db libufs \
 	libugidfw ${_libusbhid} ${_libvgl} libwrap liby libz ${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -106,10 +106,6 @@ _libkse=	libkse
 
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
-.endif
-
-.if ${MACHINE_ARCH} != "arm"
-_libthread_db= libthread_db
 .endif
 
 .if ${MK_USB} != "no"
