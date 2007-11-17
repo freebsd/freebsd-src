@@ -69,7 +69,7 @@ int
 main(int argc, char *argv[])
 {
 	struct stat sb;
-	char *p, *sourcedir;
+	char *p, *targetdir;
 	int ch, exitval;
 
 	/*
@@ -134,34 +134,34 @@ main(int argc, char *argv[])
 	case 0:
 		usage();
 		/* NOTREACHED */
-	case 1:				/* ln target */
+	case 1:				/* ln source */
 		exit(linkit(argv[0], ".", 1));
-	case 2:				/* ln target source */
+	case 2:				/* ln source target */
 		exit(linkit(argv[0], argv[1], 0));
 	default:
 		;
 	}
-					/* ln target1 target2 directory */
-	sourcedir = argv[argc - 1];
-	if (hflag && lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+					/* ln source1 source2 directory */
+	targetdir = argv[argc - 1];
+	if (hflag && lstat(targetdir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
 		/*
 		 * We were asked not to follow symlinks, but found one at
 		 * the target--simulate "not a directory" error
 		 */
 		errno = ENOTDIR;
-		err(1, "%s", sourcedir);
+		err(1, "%s", targetdir);
 	}
-	if (stat(sourcedir, &sb))
-		err(1, "%s", sourcedir);
+	if (stat(targetdir, &sb))
+		err(1, "%s", targetdir);
 	if (!S_ISDIR(sb.st_mode))
 		usage();
-	for (exitval = 0; *argv != sourcedir; ++argv)
-		exitval |= linkit(*argv, sourcedir, 1);
+	for (exitval = 0; *argv != targetdir; ++argv)
+		exitval |= linkit(*argv, targetdir, 1);
 	exit(exitval);
 }
 
 int
-linkit(const char *target, const char *source, int isdir)
+linkit(const char *source, const char *target, int isdir)
 {
 	struct stat sb;
 	const char *p;
@@ -169,57 +169,57 @@ linkit(const char *target, const char *source, int isdir)
 	char path[PATH_MAX];
 
 	if (!sflag) {
-		/* If target doesn't exist, quit now. */
-		if (stat(target, &sb)) {
-			warn("%s", target);
+		/* If source doesn't exist, quit now. */
+		if (stat(source, &sb)) {
+			warn("%s", source);
 			return (1);
 		}
 		/* Only symbolic links to directories. */
 		if (S_ISDIR(sb.st_mode)) {
 			errno = EISDIR;
-			warn("%s", target);
+			warn("%s", source);
 			return (1);
 		}
 	}
 
 	/*
-	 * If the source is a directory (and not a symlink if hflag),
-	 * append the target's name.
+	 * If the target is a directory (and not a symlink if hflag),
+	 * append the source's name.
 	 */
 	if (isdir ||
-	    (lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
-	    (!hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
-		if ((p = strrchr(target, '/')) == NULL)
-			p = target;
+	    (lstat(target, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
+	    (!hflag && stat(target, &sb) == 0 && S_ISDIR(sb.st_mode))) {
+		if ((p = strrchr(source, '/')) == NULL)
+			p = source;
 		else
 			++p;
-		if (snprintf(path, sizeof(path), "%s/%s", source, p) >=
+		if (snprintf(path, sizeof(path), "%s/%s", target, p) >=
 		    (ssize_t)sizeof(path)) {
 			errno = ENAMETOOLONG;
-			warn("%s", target);
+			warn("%s", source);
 			return (1);
 		}
-		source = path;
+		target = path;
 	}
 
-	exists = !lstat(source, &sb);
+	exists = !lstat(target, &sb);
 	/*
 	 * If the file exists, then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
 	 */
 	if (fflag && exists) {
 		if (Fflag && S_ISDIR(sb.st_mode)) {
-			if (rmdir(source)) {
-				warn("%s", source);
+			if (rmdir(target)) {
+				warn("%s", target);
 				return (1);
 			}
-		} else if (unlink(source)) {
-			warn("%s", source);
+		} else if (unlink(target)) {
+			warn("%s", target);
 			return (1);
 		}
 	} else if (iflag && exists) {
 		fflush(stdout);
-		fprintf(stderr, "replace %s? ", source);
+		fprintf(stderr, "replace %s? ", target);
 
 		first = ch = getchar();
 		while(ch != '\n' && ch != EOF)
@@ -230,23 +230,23 @@ linkit(const char *target, const char *source, int isdir)
 		}
 
 		if (Fflag && S_ISDIR(sb.st_mode)) {
-			if (rmdir(source)) {
-				warn("%s", source);
+			if (rmdir(target)) {
+				warn("%s", target);
 				return (1);
 			}
-		} else if (unlink(source)) {
-			warn("%s", source);
+		} else if (unlink(target)) {
+			warn("%s", target);
 			return (1);
 		}
 	}
 
 	/* Attempt the link. */
-	if ((*linkf)(target, source)) {
-		warn("%s", source);
+	if ((*linkf)(source, target)) {
+		warn("%s", target);
 		return (1);
 	}
 	if (vflag)
-		(void)printf("%s %c> %s\n", source, linkch, target);
+		(void)printf("%s %c> %s\n", target, linkch, source);
 	return (0);
 }
 
