@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 1999
+.Dd 17 November, 2007
 .Dt MOUNT_NTFS 8
 .Os
 .Sh NAME
@@ -82,6 +82,9 @@ on which the file system is being mounted.
 .It Fl m Ar mask
 Specify the maximum file permissions for files
 in the file system.
+Only the nine low-order bits of
+.Ar mask
+are used.
 .It Fl C Ar charset
 Specify local
 .Ar charset
