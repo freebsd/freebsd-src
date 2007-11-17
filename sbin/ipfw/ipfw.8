@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2007
+.Dd November 17, 2007
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1756,6 +1756,16 @@ Depending on local policies, a flow can contain packets for a single
 TCP connection, or from/to a given host, or entire subnet, or a
 protocol type, etc.
 .Pp
+There are two modes of dummynet operation: normal and fast.
+Normal mode tries to emulate real link: dummynet scheduler ensures packet will
+not leave pipe faster than it would be on real link with given bandwidth.
+Fast mode allows certain packets to bypass dummynet scheduler (if packet flow
+does not exceed pipe's bandwidth). Thus fast mode requires less cpu cycles
+per packet (in average) but packet latency can be significantly lower comparing
+to real link with same bandwidth. Default is normal mode, fast mode can be
+enabled by setting net.inet.ip.dummynet.io_fast sysctl(8) variable to non-zero
+value.
+.Pp
 Packets belonging to the same flow are then passed to either of two
 different objects, which implement the traffic regulation:
 .Bl -hang -offset XXXX
@@ -2120,6 +2130,14 @@ Default size of the hash table used for dynamic pipes/queues.
 This value is used when no
 .Cm buckets
 option is specified when configuring a pipe/queue.
+.It Em net.inet.ip.dummynet.io_fast : No 0
+If set to non-zero value enables "fast" mode of dummynet operation (see above).
+.It Em net.inet.ip.dummynet.io_pkt
+Number of packets passed to by dummynet.
+.It Em net.inet.ip.dummynet.io_pkt_drop
+Number of packets dropped by dummynet.
+.It Em net.inet.ip.dummynet.io_pkt_fast
+Number of packets bypassed dummynet scheduler.
 .It Em net.inet.ip.dummynet.max_chain_len : No 16
 Target value for the maximum number of pipes/queues in a hash bucket.
 The product

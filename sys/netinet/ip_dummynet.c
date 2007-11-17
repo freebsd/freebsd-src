@@ -110,6 +110,7 @@ static long tick_lost;			/* Lost(coalesced) ticks number. */
 /* Adjusted vs non-adjusted curr_time difference (ticks). */
 static long tick_diff;
 
+static int		io_fast;
 static unsigned long	io_pkt;
 static unsigned long	io_pkt_fast;
 static unsigned long	io_pkt_drop;
@@ -185,6 +186,8 @@ SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
 SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
     CTLFLAG_RD, &tick_lost, 0,
     "Number of ticks coalesced by dummynet taskqueue.");
+SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, io_fast,
+    CTLFLAG_RW, &io_fast, 0, "Enable fast dummynet io.");
 SYSCTL_ULONG(_net_inet_ip_dummynet, OID_AUTO, io_pkt,
     CTLFLAG_RD, &io_pkt, 0,
     "Number of packets passed to dummynet.");
@@ -967,7 +970,7 @@ create_queue(struct dn_flow_set *fs, int i)
 	q->hash_slot = i;
 	q->next = fs->rq[i];
 	q->S = q->F + 1;	/* hack - mark timestamp as invalid. */
-	q->numbytes = fs->pipe->bandwidth;
+	q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
 	fs->rq[i] = q;
 	fs->rq_elements++;
 	return (q);
@@ -1325,7 +1328,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		goto done;
 
 	if (q->q_time < curr_time)
-		q->numbytes = fs->pipe->bandwidth;
+		q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
 	q->q_time = curr_time;
 
 	/*
@@ -1736,7 +1739,7 @@ config_pipe(struct dn_pipe *p)
 			/* Flush accumulated credit for all queues. */
 			for (i = 0; i <= pipe->fs.rq_size; i++)
 				for (q = pipe->fs.rq[i]; q; q = q->next)
-					q->numbytes = p->bandwidth;
+					q->numbytes = io_fast ? p->bandwidth : 0;
 
 		pipe->bandwidth = p->bandwidth;
 		pipe->numbytes = 0;		/* just in case... */
