@@ -68,7 +68,8 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	uint64_t *zid;
 	void *znodeptr, *vnodeptr;
 	char *dataptr;
-	int len, size, *zphys_addr;
+	int *zphys_addr;
+	size_t len, size;
 
 	len = sizeof(size);
 	if (sysctlbyname("debug.sizeof.znode", &size, &len, NULL, 0) == -1) {
