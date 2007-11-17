@@ -1915,6 +1915,38 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 }
 
 /*
+ *	pmap_page_wired_mappings:
+ *
+ *	Return the number of managed mappings to the given physical page
+ *	that are wired.
+ */
+int
+pmap_page_wired_mappings(vm_page_t m)
+{
+	struct ia64_lpte *pte;
+	pmap_t oldpmap, pmap;
+	pv_entry_t pv;
+	int count;
+
+	count = 0;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return (count);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = pv->pv_pmap;
+		PMAP_LOCK(pmap);
+		oldpmap = pmap_switch(pmap);
+		pte = pmap_find_vhpt(pv->pv_va);
+		KASSERT(pte != NULL, ("pte"));
+		if (pmap_wired(pte))
+			count++;
+		pmap_switch(oldpmap);
+		PMAP_UNLOCK(pmap);
+	}
+	return (count);
+}
+
+/*
  * Remove all pages from specified address space
  * this aids process exit speeds.  Also, this code
  * is special cased for current process only, but

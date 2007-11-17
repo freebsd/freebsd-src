@@ -4490,6 +4490,27 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	return (FALSE);
 }
 
+/*
+ *	pmap_page_wired_mappings:
+ *
+ *	Return the number of managed mappings to the given physical page
+ *	that are wired.
+ */
+int
+pmap_page_wired_mappings(vm_page_t m)
+{
+	pv_entry_t pv;
+	int count;
+
+	count = 0;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return (count);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list)
+		if ((pv->pv_flags & PVF_WIRED) != 0)
+			count++;
+	return (count);
+}
 
 /*
  *	pmap_ts_referenced:

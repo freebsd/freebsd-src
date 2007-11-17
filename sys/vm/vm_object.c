@@ -1797,6 +1797,7 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
     boolean_t clean_only)
 {
 	vm_page_t p, next;
+	int wirings;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->resident_page_count == 0)
@@ -1831,8 +1832,16 @@ again:
 	     p = next) {
 		next = TAILQ_NEXT(p, listq);
 
-		if (p->wire_count != 0) {
+		/*
+		 * If the page is wired for any reason besides the
+		 * existence of managed, wired mappings, then it cannot
+		 * be freed.  
+		 */
+		if ((wirings = p->wire_count) != 0 &&
+		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			pmap_remove_all(p);
+			/* Account for removal of managed, wired mappings. */
+			p->wire_count -= wirings;
 			if (!clean_only)
 				p->valid = 0;
 			continue;
@@ -1845,6 +1854,9 @@ again:
 				continue;
 		}
 		pmap_remove_all(p);
+		/* Account for removal of managed, wired mappings. */
+		if (wirings != 0)
+			p->wire_count -= wirings;
 		vm_page_free(p);
 	}
 	vm_page_unlock_queues();

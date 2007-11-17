@@ -431,6 +431,21 @@ METHOD void page_init {
 
 
 /**
+ * @brief Count the number of managed mappings to the given physical
+ * page that are wired.
+ *
+ * @param _pg		physical page
+ *
+ * @retval int		the number of wired, managed mappings to the
+ *			given physical page
+ */
+METHOD int page_wired_mappings {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
+
+/**
  * @brief Initialise a physical map data structure
  *
  * @param _pmap		physical map
