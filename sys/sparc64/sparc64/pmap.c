@@ -1753,6 +1753,26 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 }
 
 /*
+ * Return the number of managed mappings to the given physical page
+ * that are wired.
+ */
+int
+pmap_page_wired_mappings(vm_page_t m)
+{
+	struct tte *tp;
+	int count;
+
+	count = 0;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return (count);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link)
+		if ((tp->tte_data & (TD_PV | TD_WIRED)) == (TD_PV | TD_WIRED))
+			count++;
+	return (count);
+}
+
+/*
  * Remove all pages from specified address space, this aids process exit
  * speeds.  This is much faster than pmap_remove n the case of running down
  * an entire address space.  Only works for the current pmap.
