@@ -116,7 +116,7 @@ struct physical {
 };
 
 #define field2phys(fp, name) \
-  ((struct physical *)((char *)fp - (int)(&((struct physical *)0)->name)))
+  ((struct physical *)((char *)fp - (uintptr_t)(&((struct physical *)0)->name)))
 
 #define link2physical(l) \
   ((l)->type == PHYSICAL_LINK ? field2phys(l, link) : NULL)
