@@ -322,6 +322,7 @@ boolean_t moea_is_modified(mmu_t, vm_page_t);
 boolean_t moea_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
 boolean_t moea_page_exists_quick(mmu_t, pmap_t, vm_page_t);
+int moea_page_wired_mappings(mmu_t, vm_page_t);
 void moea_pinit(mmu_t, pmap_t);
 void moea_pinit0(mmu_t, pmap_t);
 void moea_protect(mmu_t, pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
@@ -359,6 +360,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_ts_referenced,	moea_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea_map),
 	MMUMETHOD(mmu_page_exists_quick,moea_page_exists_quick),
+	MMUMETHOD(mmu_page_wired_mappings,moea_page_wired_mappings),
 	MMUMETHOD(mmu_pinit,		moea_pinit),
 	MMUMETHOD(mmu_pinit0,		moea_pinit0),
 	MMUMETHOD(mmu_protect,		moea_protect),
@@ -1490,6 +1492,26 @@ moea_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	}
 
 	return (FALSE);
+}
+
+/*
+ * Return the number of managed mappings to the given physical page
+ * that are wired.
+ */
+int
+moea_page_wired_mappings(mmu_t mmu, vm_page_t m)
+{
+	struct pvo_entry *pvo;
+	int count;
+
+	count = 0;
+	if (!moea_initialized || (m->flags & PG_FICTITIOUS) != 0)
+		return (count);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
+		if ((pvo->pvo_vaddr & PVO_WIRED) != 0)
+			count++;
+	return (count);
 }
 
 static u_int	moea_vsidcontext;

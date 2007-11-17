@@ -1669,6 +1669,34 @@ pmap_page_init(vm_page_t m)
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pv_list_count = 0;
 }
+
+/*
+ * Return the number of managed mappings to the given physical page
+ * that are wired.
+ */
+int
+pmap_page_wired_mappings(vm_page_t m)
+{
+	pmap_t pmap;
+	pv_entry_t pv;
+	uint64_t tte_data;
+	int count;
+
+	count = 0;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return (count);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		pmap = pv->pv_pmap;
+		PMAP_LOCK(pmap);
+		tte_data = tte_hash_lookup(pmap->pm_hash, pv->pv_va);
+		if ((tte_data & VTD_WIRED) != 0)
+			count++;
+		PMAP_UNLOCK(pmap);
+	}
+	return (count);
+}
+
 /*
  * Lower the permission for all mappings to a given page.
  */
