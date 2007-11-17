@@ -89,7 +89,7 @@ db_copy_in(DB **mdb, const char *dbname, const char *uname, BTREEINFO *bti,
 		goto closeout;
 	} else if (rv == 0) {	/* It's there; verify version. */
 		if (data.size != sizeof(version)) {
-			warnx("invalid version size %d in %s",
+			warnx("invalid version size %zd in %s",
 			    data.size, uname);
 			error = -1;
 			goto closeout;
