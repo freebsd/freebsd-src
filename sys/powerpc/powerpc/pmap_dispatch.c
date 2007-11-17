@@ -194,6 +194,13 @@ pmap_page_init(vm_page_t m)
 }
 
 int
+pmap_page_wired_mappings(vm_page_t m)
+{
+
+	return (MMU_PAGE_WIRED_MAPPINGS(mmu_obj, m));
+}
+
+int
 pmap_pinit(pmap_t pmap)
 {
 	MMU_PINIT(mmu_obj, pmap);
