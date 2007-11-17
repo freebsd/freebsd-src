@@ -53,9 +53,8 @@ kgdb_kernbase (void)
 {
 	static CORE_ADDR kernbase;
 	struct minimal_symbol *sym;
- 
-	if (kernbase == 0)
-	{
+
+	if (kernbase == 0) {
 		sym = lookup_minimal_symbol ("kernbase", NULL, NULL);
 		if (sym == NULL) {
 			kernbase = KERNBASE;
@@ -205,9 +204,8 @@ kgdb_target(void)
 		ti = add_thread(ptid_build(kt->pid, 0, kt->tid));
 		kt = kgdb_thr_next(kt);
 	}
-	if (curkthr != NULL)
+	if (curkthr != 0)
 		inferior_ptid = ptid_build(curkthr->pid, 0, curkthr->tid);
-
 	add_com ("proc", class_obscure, kgdb_set_proc_cmd,
 	   "Set current process context");
 }
