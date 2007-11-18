@@ -1,13 +1,13 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2001-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipsyncs.c,v 1.5.2.3 2006/03/27 02:09:47 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipsyncs.c,v 1.5.2.4 2006/08/26 11:21:15 darrenr Exp $";
 #endif
 #include <sys/types.h>
 #include <sys/time.h>

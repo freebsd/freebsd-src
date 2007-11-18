@@ -27,6 +27,7 @@
 #endif
 #ifdef __osf__
 # include <sys/dlpihdr.h>
+# include "radix_ipf_local.h"
 #else
 # include <sys/dlpi.h>
 #endif
@@ -48,7 +49,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)sdlpi.c	1.3 10/30/95 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sdlpi.c,v 2.8.2.1 2004/12/09 19:41:13 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sdlpi.c,v 2.8.2.2 2007/02/17 12:41:51 darrenr Exp $";
 #endif
 
 #define	CHUNKSIZE	8192

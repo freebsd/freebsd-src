@@ -124,7 +124,11 @@ seconds between an update. Any positive integer can be used. The default (and
 minimal update time) is 1.
 .TP
 .B \-v
-Turn verbose mode on.  Displays more debugging information.
+Turn verbose mode on.  Displays more debugging information.  When used with
+either \fB-i\fP or \fB-o\fP, counters associated with the rule, such as the
+number of times it has been matched and the number of bytes from such packets
+is displayed.  For "keep state" rules, a count of the number of state sessions
+active against the rule is also displayed.
 .SH SYNOPSIS
 The role of \fBipfstat\fP is to display current kernel statistics gathered
 as a result of applying the filters in place (if any) to packets going in and

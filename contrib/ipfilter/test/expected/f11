@@ -14,6 +14,16 @@ nomatch
 nomatch
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 block
 nomatch
@@ -31,6 +41,16 @@ nomatch
 nomatch
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 nomatch
 nomatch
@@ -48,6 +68,16 @@ pass
 nomatch
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 nomatch
 nomatch
@@ -65,6 +95,16 @@ block
 nomatch
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 nomatch
 nomatch
@@ -82,6 +122,36 @@ pass
 pass
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+2.2.2.2 -> 4.4.4.4 pass 0x40008402 pr 17 state 0/0
+	tag 0 ttl 240 2 -> 53
+	forward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	backward: pkts in 0 bytes in 0 pkts out 0 bytes out 0
+	pass in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0 0 0
+	interfaces: in X[e1],X[] out X[],X[]
+	Sync status: not synchronized
+1.1.1.1 -> 4.4.4.4 pass 0x40008402 pr 17 state 0/0
+	tag 0 ttl 24 1 -> 53
+	forward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	backward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	pass in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0x8001 0 0
+	interfaces: in X[e1],X[e0] out X[],X[]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 nomatch
 nomatch
@@ -99,6 +169,36 @@ block
 block
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+2.2.2.2 -> 4.4.4.4 pass 0x40008401 pr 17 state 0/0
+	tag 0 ttl 240 2 -> 53
+	forward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	backward: pkts in 0 bytes in 0 pkts out 0 bytes out 0
+	block in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0 0 0
+	interfaces: in X[e1],X[] out X[],X[]
+	Sync status: not synchronized
+1.1.1.1 -> 4.4.4.4 pass 0x40008401 pr 17 state 0/0
+	tag 0 ttl 24 1 -> 53
+	forward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	backward: pkts in 1 bytes in 28 pkts out 0 bytes out 0
+	block in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0x8001 0 0
+	interfaces: in X[e1],X[e0] out X[],X[]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------
 nomatch
 nomatch
@@ -116,4 +216,28 @@ nomatch
 nomatch
 nomatch
 nomatch
+List of active MAP/Redirect filters:
+
+List of active sessions:
+
+Hostmap table:
+List of active state sessions:
+1.1.1.1 -> 2.1.2.2 pass 0x40008402 pr 6 state 3/4
+	tag 0 ttl 864000
+	1 -> 25 2:66 4096<<0:16384<<0
+	cmsk 0000 smsk 0000 s0 00000000/00000000
+	FWD:ISN inc 0 sumd 0
+	REV:ISN inc 0 sumd 0
+	forward: pkts in 1 bytes in 40 pkts out 0 bytes out 0
+	backward: pkts in 1 bytes in 40 pkts out 0 bytes out 0
+	pass in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0x8001 0 0
+	interfaces: in X[e0],X[e1] out X[],X[]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
 --------

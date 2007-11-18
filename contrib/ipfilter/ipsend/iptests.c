@@ -8,7 +8,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.8.2.7 2006/03/21 16:10:55 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.8.2.9 2007/09/13 07:19:34 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -22,6 +22,9 @@ typedef	int	boolean_t;
 #endif
 #include <sys/time.h>
 #if !defined(__osf__)
+# ifdef __NetBSD__ 
+#  include <machine/lock.h>
+# endif
 # define _KERNEL
 # define KERNEL
 # if !defined(solaris) && !defined(linux) && !defined(__sgi) && !defined(hpux)
@@ -63,6 +66,9 @@ typedef	int	boolean_t;
 #include <sys/socket.h>
 #ifdef __hpux
 # define _NET_ROUTE_INCLUDED
+#endif
+#ifdef __osf__
+# include "radix_ipf_local.h"
 #endif
 #include <net/if.h>
 #if defined(linux) && (LINUX >= 0200)
@@ -1094,7 +1100,8 @@ int	ptest;
 	struct tcpcb *tcbp, tcb;
 	struct tcpiphdr ti;
 	struct sockaddr_in sin;
-	int fd, slen;
+	int fd;
+	socklen_t slen;
 
 	bzero((char *)&sin, sizeof(sin));
 

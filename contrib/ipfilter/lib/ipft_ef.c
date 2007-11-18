@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp $
+ * $Id: ipft_ef.c,v 1.14.2.2 2006/06/16 17:21:02 darrenr Exp $
  */
 
 /*
@@ -33,7 +33,7 @@ etherfind -n -t
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 1.14 2004/01/08 13:34:31 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 1.14.2.2 2006/06/16 17:21:02 darrenr Exp $";
 #endif
 
 static	int	etherf_open __P((char *));
@@ -98,13 +98,18 @@ int	cnt, *dir;
 
 	switch (ip->ip_p) {
 	case IPPROTO_TCP :
+		if (isdigit(*sprt))
+			pkt.ti_sport = htons(atoi(sprt) & 65535);
+		if (isdigit(*dprt))
+			pkt.ti_dport = htons(atoi(dprt) & 65535);
+		extra = sizeof(struct tcphdr);
+		break;
 	case IPPROTO_UDP :
-		s = strtok(NULL, " :");
-		ip->ip_len += atoi(s);
-		if (ip->ip_p == IPPROTO_TCP)
-			extra = sizeof(struct tcphdr);
-		else if (ip->ip_p == IPPROTO_UDP)
-			extra = sizeof(struct udphdr);
+		if (isdigit(*sprt))
+			pkt.ti_sport = htons(atoi(sprt) & 65535);
+		if (isdigit(*dprt))
+			pkt.ti_dport = htons(atoi(dprt) & 65535);
+		extra = sizeof(struct udphdr);
 		break;
 #ifdef	IGMP
 	case IPPROTO_IGMP :

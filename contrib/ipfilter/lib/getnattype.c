@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2002-2004 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
@@ -11,26 +11,34 @@
 #include "kmem.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: getnattype.c,v 1.3 2004/01/17 17:26:07 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: getnattype.c,v 1.3.2.2 2006/07/14 06:12:24 darrenr Exp $";
 #endif
 
 
 /*
  * Get a nat filter type given its kernel address.
  */
-char *getnattype(ipnat)
-ipnat_t *ipnat;
+char *getnattype(nat, alive)
+nat_t *nat;
+int alive;
 {
 	static char unknownbuf[20];
-	ipnat_t ipnatbuff;
+	ipnat_t *ipn, ipnat;
 	char *which;
+	int type;
 
-	if (!ipnat)
+	if (!nat)
 		return "???";
-	if (kmemcpy((char *)&ipnatbuff, (long)ipnat, sizeof(ipnatbuff)))
-		return "!!!";
+	if (alive) {
+		type = nat->nat_redir;
+	} else {
+		ipn = nat->nat_ptr;
+		if (kmemcpy((char *)&ipnat, (long)ipn, sizeof(ipnat)))
+			return "!!!";
+		type = ipnat.in_redir;
+	}
 
-	switch (ipnatbuff.in_redir)
+	switch (type)
 	{
 	case NAT_MAP :
 		which = "MAP";
@@ -45,8 +53,7 @@ ipnat_t *ipnat;
 		which = "BIMAP";
 		break;
 	default :
-		sprintf(unknownbuf, "unknown(%04x)",
-			ipnatbuff.in_redir & 0xffffffff);
+		sprintf(unknownbuf, "unknown(%04x)", type & 0xffffffff);
 		which = unknownbuf;
 		break;
 	}

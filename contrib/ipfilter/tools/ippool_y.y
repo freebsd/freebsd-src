@@ -1,5 +1,10 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2001-2006 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ */
 %{
 #include <sys/types.h>
 #include <sys/time.h>
@@ -34,6 +39,7 @@
 #include "kmem.h"
 
 #define	YYDEBUG	1
+#define	YYSTACKSIZE	0x00ffffff
 
 extern	int	yyparse __P((void));
 extern	int	yydebug;
@@ -44,6 +50,9 @@ static	iphtent_t	iphte;
 static	ip_pool_t	iplo;
 static	ioctlfunc_t	poolioctl = NULL;
 static	char		poolname[FR_GROUPLEN];
+
+static iphtent_t *add_htablehosts __P((char *));
+static ip_pool_node_t *add_poolhosts __P((char *));
 
 %}
 
@@ -112,6 +121,7 @@ assign:	YY_STR assigning YY_STR ';'	{ set_variable($1, $3);
 					  resetlexer();
 					  free($1);
 					  free($3);
+					  yyvarnext = 0;
 					}
 	;
 
@@ -248,6 +258,7 @@ groupentry:
 						  FR_GROUPLEN);
 					  free($3);
 					}
+	| YY_STR			{ $$ = add_htablehosts($1); }
 	;
 
 range:	addrmask	{ $$ = calloc(1, sizeof(*$$));
@@ -264,6 +275,7 @@ range:	addrmask	{ $$ = calloc(1, sizeof(*$$));
 			  $$->ipn_mask.adf_len = sizeof($$->ipn_mask);
 			  $$->ipn_mask.adf_addr.in4.s_addr = $2[1].s_addr;
 			}
+	| YY_STR			{ $$ = add_poolhosts($1); }
 
 hashlist:
 	next				{ $$ = NULL; }
@@ -280,6 +292,7 @@ hashentry:
 						(char *)&($$->ipe_mask),
 						sizeof($$->ipe_mask));
 					}
+	| YY_STR			{ $$ = add_htablehosts($1); }
 	;
 
 addrmask:
@@ -293,9 +306,6 @@ addrmask:
 
 ipaddr:	ipv4			{ $$ = $1; }
 	| YY_NUMBER		{ $$.s_addr = htonl($1); }
-	| YY_STR		{ if (gethost($1, &($$.s_addr)) == -1)
-					yyerror("Unknown hostname");
-				}
 	;
 
 mask:	YY_NUMBER		{ ntomask(4, $1, (u_32_t *)&$$.s_addr); }
@@ -412,4 +422,101 @@ ioctlfunc_t iocfunc;
 	yyin = fp;
 	yyparse();
 	return 1;
+}
+
+
+static iphtent_t *
+add_htablehosts(url)
+char *url;
+{
+	iphtent_t *htop, *hbot, *h;
+	alist_t *a, *hlist;
+
+	if (!strncmp(url, "file://", 7) || !strncmp(url, "http://", 7)) {
+		hlist = load_url(url);
+	} else {
+		use_inet6 = 0;
+
+		hlist = calloc(1, sizeof(*hlist));
+		if (hlist == NULL)
+			return NULL;
+
+		if (gethost(url, &hlist->al_addr) == -1)
+			yyerror("Unknown hostname");
+	}
+
+	hbot = NULL;
+	htop = NULL;
+
+	for (a = hlist; a != NULL; a = a->al_next) {
+		h = calloc(1, sizeof(*h));
+		if (h == NULL)
+			break;
+
+		bcopy((char *)&a->al_addr, (char *)&h->ipe_addr,
+		      sizeof(h->ipe_addr));
+		bcopy((char *)&a->al_mask, (char *)&h->ipe_mask,
+		      sizeof(h->ipe_mask));
+
+		if (hbot != NULL)
+			hbot->ipe_next = h;
+		else
+			htop = h;
+		hbot = h;
+	}
+
+	alist_free(hlist);
+
+	return htop;
+}
+
+
+static ip_pool_node_t *
+add_poolhosts(url)
+char *url;
+{
+	ip_pool_node_t *ptop, *pbot, *p;
+	alist_t *a, *hlist;
+
+	if (!strncmp(url, "file://", 7) || !strncmp(url, "http://", 7)) {
+		hlist = load_url(url);
+	} else {
+		use_inet6 = 0;
+
+		hlist = calloc(1, sizeof(*hlist));
+		if (hlist == NULL)
+			return NULL;
+
+		if (gethost(url, &hlist->al_addr) == -1)
+			yyerror("Unknown hostname");
+	}
+
+	pbot = NULL;
+	ptop = NULL;
+
+	for (a = hlist; a != NULL; a = a->al_next) {
+		p = calloc(1, sizeof(*p));
+		if (p == NULL)
+			break;
+
+		p->ipn_addr.adf_len = 8;
+		p->ipn_mask.adf_len = 8;
+
+		p->ipn_info = a->al_not;
+
+		bcopy((char *)&a->al_addr, (char *)&p->ipn_addr.adf_addr,
+		      sizeof(p->ipn_addr.adf_addr));
+		bcopy((char *)&a->al_mask, (char *)&p->ipn_mask.adf_addr,
+		      sizeof(p->ipn_mask.adf_addr));
+
+		if (pbot != NULL)
+			pbot->ipn_next = p;
+		else
+			ptop = p;
+		pbot = p;
+	}
+
+	alist_free(hlist);
+
+	return ptop;
 }

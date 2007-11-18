@@ -6,17 +6,17 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * Id: iplang_y.y,v 2.9.2.4 2006/03/17 12:11:29 darrenr Exp $
  * $FreeBSD$
+ * Id: iplang_y.y,v 2.9.2.5 2007/02/17 12:41:48 darrenr Exp $
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
 #if !defined(__SVR4) && !defined(__svr4__)
-#include <strings.h>
+# include <strings.h>
 #else
-#include <sys/byteorder.h>
+# include <sys/byteorder.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,11 +30,14 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #ifndef	linux
-#include <netinet/ip_var.h>
+# include <netinet/ip_var.h>
+#endif
+#ifdef __osf__
+# include "radix_ipf_local.h"
 #endif
 #include <net/if.h>
 #ifndef	linux
-#include <netinet/if_ether.h>
+# include <netinet/if_ether.h>
 #endif
 #include <netdb.h>
 #include <arpa/nameser.h>
