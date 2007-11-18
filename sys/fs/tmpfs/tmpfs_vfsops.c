@@ -154,7 +154,6 @@ tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 	node->tn_lockf = NULL;
 	node->tn_vnode = NULL;
 	node->tn_vpstate = 0;
-	node->tn_lookup_dirent = NULL;
 
 	return (0);
 }
