@@ -76,6 +76,13 @@ ata_pci_probe(device_t dev)
     if (pci_get_class(dev) != PCIC_STORAGE)
 	return ENXIO;
 
+    /* if this is an AHCI chipset grab it */
+    if (pci_get_subclass(dev) == PCIS_STORAGE_SATA) {
+	if (!ata_ahci_ident(dev))
+	    return ATA_PROBE_OK;
+    }
+
+    /* run through the vendor specific drivers */
     switch (pci_get_vendor(dev)) {
     case ATA_ACARD_ID: 
 	if (!ata_acard_ident(dev))
@@ -172,8 +179,7 @@ ata_pci_probe(device_t dev)
     }
 
     /* unknown chipset, try generic DMA if it seems possible */
-    if ((pci_get_class(dev) == PCIC_STORAGE) &&
-	(pci_get_subclass(dev) == PCIS_STORAGE_IDE)) {
+    if (pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
 	if (!ata_generic_ident(dev))
 	    return ATA_PROBE_OK;
     }
@@ -501,6 +507,35 @@ ata_pci_dmainit(device_t dev)
 	ch->dma->start = ata_pci_dmastart;
 	ch->dma->stop = ata_pci_dmastop;
 	ch->dma->reset = ata_pci_dmareset;
+    }
+}
+
+char *
+ata_pcivendor2str(device_t dev)
+{
+    switch (pci_get_vendor(dev)) {
+    case ATA_ACARD_ID:          return "Acard";
+    case ATA_ACER_LABS_ID:      return "AcerLabs";
+    case ATA_AMD_ID:            return "AMD";
+    case ATA_ATI_ID:            return "ATI";
+    case ATA_CYRIX_ID:          return "Cyrix";
+    case ATA_CYPRESS_ID:        return "Cypress";
+    case ATA_HIGHPOINT_ID:      return "HighPoint";
+    case ATA_INTEL_ID:          return "Intel";
+    case ATA_ITE_ID:            return "ITE";
+    case ATA_JMICRON_ID:        return "JMicron";
+    case ATA_MARVELL_ID:        return "Marvell";
+    case ATA_NATIONAL_ID:       return "National";
+    case ATA_NETCELL_ID:        return "Netcell";
+    case ATA_NVIDIA_ID:         return "nVidia";
+    case ATA_PROMISE_ID:        return "Promise";
+    case ATA_SERVERWORKS_ID:    return "ServerWorks";
+    case ATA_SILICON_IMAGE_ID:  return "SiI";
+    case ATA_SIS_ID:            return "SiS";
+    case ATA_VIA_ID:            return "VIA";
+    case ATA_CENATEK_ID:        return "Cenatek";
+    case ATA_MICRON_ID:         return "Micron";
+    default:                    return "Generic";
     }
 }
 
