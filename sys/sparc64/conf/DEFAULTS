@@ -20,3 +20,5 @@ options 	KSE
 options 	GEOM_BSD
 options 	GEOM_SUNLABEL
 
+# Let sunkbd emulate an AT keyboard by default.
+options 	SUNKBD_EMULATE_ATKBD
