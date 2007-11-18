@@ -216,7 +216,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	}
 
 	printf("WARNING: TMPFS is considered to be a highly experimental "
-		"feature in FreeBSD.\n");
+	    "feature in FreeBSD.\n");
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY, td);
 	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
@@ -233,12 +233,9 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_cred->cr_ruid != 0 ||
 	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if(vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
+	if (vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
 		nodes_max = 0;
-
-	if(vfs_scanopt(mp->mnt_optnew,
-			"size",
-			"%qu", &size_max) != 1)
+	if (vfs_scanopt(mp->mnt_optnew, "size", "%qu", &size_max) != 1)
 		size_max = 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
@@ -277,19 +274,15 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
 	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->allnode_lock);
-	tmp->tm_dirent_pool = uma_zcreate(
-					"TMPFS dirent",
-					sizeof(struct tmpfs_dirent),
-					NULL, NULL, NULL, NULL,
-					UMA_ALIGN_PTR,
-					0);
-	tmp->tm_node_pool = uma_zcreate(
-					"TMPFS node",
-					sizeof(struct tmpfs_node),
-					tmpfs_node_ctor, tmpfs_node_dtor,
-					tmpfs_node_init, tmpfs_node_fini,
-					UMA_ALIGN_PTR,
-					0);
+	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
+	    sizeof(struct tmpfs_dirent),
+	    NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+	tmp->tm_node_pool = uma_zcreate("TMPFS node",
+	    sizeof(struct tmpfs_node),
+	    tmpfs_node_ctor, tmpfs_node_dtor,
+	    tmpfs_node_init, tmpfs_node_fini,
+	    UMA_ALIGN_PTR, 0);
 
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(tmp, VDIR, root_uid,
