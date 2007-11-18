@@ -343,7 +343,7 @@ virstor_label(struct gctl_req *req)
 			    "%s: %s.", name, strerror(errno));
 			return;
 		}
-		if (msize < MAX(md.md_chunk_size*4, map_size))
+		if (msize < (off_t) MAX(md.md_chunk_size*4, map_size))
 			gctl_error(req, "Device %s is too small", name);
 		error = g_metadata_clear(name, NULL);
 		if (error != 0) {
@@ -429,7 +429,7 @@ virstor_label(struct gctl_req *req)
 		if (verbose)
 			printf("(%u chunks) ", md.chunk_count);
 		/* Check to make sure last sector is unused */
-		if ((off_t)(md.chunk_count) * md.md_chunk_size > msize-ssize)
+		if ((off_t)(md.chunk_count * md.md_chunk_size) > msize-ssize)
 		    md.chunk_count--;
 		md.chunk_next = 0;
 		if (i != 1) {
