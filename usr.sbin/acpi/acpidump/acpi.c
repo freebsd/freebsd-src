@@ -821,7 +821,7 @@ aml_disassemble(struct ACPIsdt *rsdt, struct ACPIsdt *dsdp)
 		close(STDOUT_FILENO);
 		if (vflag == 0)
 			close(STDERR_FILENO);
-		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, 0);
+		execl("/usr/sbin/iasl", "iasl", "-d", tmpstr, NULL);
 		err(1, "exec");
 	}
 
