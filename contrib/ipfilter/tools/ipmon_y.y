@@ -1,5 +1,10 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2001-2004 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ */
 %{
 #include "ipf.h"
 #include <syslog.h>
@@ -77,6 +82,7 @@ assign:	YY_STR assigning YY_STR ';'		{ set_variable($1, $3);
 						  resetlexer();
 						  free($1);
 						  free($3);
+						  yyvarnext = 0;
 						} 
 	;
 

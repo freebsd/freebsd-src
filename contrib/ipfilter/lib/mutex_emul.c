@@ -1,5 +1,13 @@
 /*	$FreeBSD$	*/
 
+/*
+ * Copyright (C) 2003 by Darren Reed.
+ * 
+ * See the IPFILTER.LICENCE file for details on licencing.  
+ *   
+ * $Id: mutex_emul.c,v 1.2.4.1 2006/06/16 17:21:06 darrenr Exp $ 
+ */     
+
 #include "ipf.h"
 
 #define	EMM_MAGIC	0x9d7adba3

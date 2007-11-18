@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.8.4.4 2006/03/21 16:10:56 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.8.4.7 2007/09/13 07:19:34 darrenr Exp $";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
@@ -30,6 +30,9 @@ typedef int     boolean_t;
 # include <sys/dir.h>
 #endif
 #if !defined(__osf__)
+# ifdef __NetBSD__ 
+#  include <machine/lock.h>
+# endif
 # define _KERNEL
 # define	KERNEL
 # ifdef	ultrix
@@ -66,7 +69,9 @@ typedef int     boolean_t;
 #if defined(__FreeBSD__)
 # include "radix_ipf.h"
 #endif
-#include <net/route.h>
+#ifndef __osf__
+# include <net/route.h>
+#endif
 #include <netinet/ip_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_timer.h>
@@ -294,11 +299,14 @@ struct	tcpiphdr *ti;
 		return NULL;
 
 	fd = (struct filedesc *)malloc(sizeof(*fd));
+	if (fd == NULL)
+		return NULL;
 #if defined( __FreeBSD_version) && __FreeBSD_version >= 500013
 	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->ki_fd);
+		free(fd);
 		return NULL;
 	    }
 #else
@@ -306,6 +314,7 @@ struct	tcpiphdr *ti;
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->kp_proc.p_fd);
+		free(fd);
 		return NULL;
 	    }
 #endif
@@ -379,7 +388,8 @@ struct	in_addr	gwip;
 {
 	struct	sockaddr_in	rsin, lsin;
 	struct	tcpcb	*t, tcb;
-	int	fd, nfd, len;
+	int	fd, nfd;
+	socklen_t len;
 
 	printf("Dest. Port: %d\n", ti->ti_dport);
 

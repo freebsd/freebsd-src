@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ipft_td.c,v 1.15 2004/01/08 13:34:31 darrenr Exp $
+ * $Id: ipft_td.c,v 1.15.2.2 2006/06/16 17:21:03 darrenr Exp $
  */
 
 /*
@@ -42,7 +42,7 @@ tcpdump -nqte
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_td.c,v 1.15 2004/01/08 13:34:31 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_td.c,v 1.15.2.2 2006/06/16 17:21:03 darrenr Exp $";
 #endif
 
 static	int	tcpd_open __P((char *));
@@ -144,6 +144,8 @@ int	cnt, *dir;
 	IP_HL_A(ip, sizeof(ip_t));
 
 	s = strtok(misc, " :");
+	if (s == NULL)
+		return 0;
 	ip->ip_p = getproto(s);
 
 	switch (ip->ip_p)
@@ -151,6 +153,8 @@ int	cnt, *dir;
 	case IPPROTO_TCP :
 	case IPPROTO_UDP :
 		s = strtok(NULL, " :");
+		if (s == NULL)
+			return 0;
 		ip->ip_len += atoi(s);
 		if (ip->ip_p == IPPROTO_TCP)
 			extra = sizeof(struct tcphdr);

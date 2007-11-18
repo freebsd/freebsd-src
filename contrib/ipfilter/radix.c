@@ -76,8 +76,14 @@ void panic __P((char *str));
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#ifdef SOLARIS2
+# define _RADIX_H_
+#endif
 #include "netinet/ip_compat.h"
 #include "netinet/ip_fil.h"
+#ifdef SOLARIS2
+# undef _RADIX_H_
+#endif
 /* END OF INCLUDES */
 #include "radix_ipf.h"
 #ifndef min

@@ -15,7 +15,13 @@ else
 	fi
 fi
 if [ "$tuning" != "" ] ; then
-	tuning="-T $tuning"
+	case $tuning in
+	-*)
+		;;
+	*)
+		tuning="-T $tuning"
+		;;
+	esac
 fi
 echo "${thistest}...";
 /bin/cp /dev/null results/${thistest}

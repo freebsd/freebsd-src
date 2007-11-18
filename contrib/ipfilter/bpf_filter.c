@@ -42,7 +42,7 @@
 
 #if !(defined(lint) || defined(KERNEL) || defined(_KERNEL))
 static const char rcsid[] =
-    "@(#) $Header: /devel/CVS/IP-Filter/bpf_filter.c,v 2.2.2.2 2005/12/30 12:57:28 darrenr Exp $ (LBL)";
+    "@(#) $Header: /devel/CVS/IP-Filter/bpf_filter.c,v 2.2.2.3 2006/10/03 11:25:56 darrenr Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -195,7 +195,8 @@ bpf_filter(pc, p, wirelen, buflen)
 	register int k;
 	int32 mem[BPF_MEMWORDS];
 	mb_t *m, *n;
-	int merr, len;
+	int merr = 0;	/* XXX: GCC */
+	int len;
 
 	if (buflen == 0) {
 		m = (mb_t *)p;

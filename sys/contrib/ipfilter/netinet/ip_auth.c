@@ -53,7 +53,7 @@ struct file;
 # include <sys/kmem.h>
 #endif
 #if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
-    (__FreeBSD_version >= 400000)
+    (defined(__FreeBSD_version) &&(__FreeBSD_version >= 400000))
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
@@ -121,7 +121,7 @@ extern struct ifqueue   ipintrq;		/* ip packet input queue */
 
 #if !defined(lint)
 static const char rcsid[] = "@(#)$FreeBSD$";
-/* static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.73.2.13 2006/03/29 11:19:55 darrenr Exp $"; */
+/* static const char rcsid[] = "@(#)$Id: ip_auth.c,v 2.73.2.24 2007/09/09 11:32:04 darrenr Exp $"; */
 #endif
 
 
@@ -146,7 +146,19 @@ frauthent_t	*fae_list = NULL;
 frentry_t	*ipauth = NULL,
 		*fr_authlist = NULL;
 
+void fr_authderef __P((frauthent_t **));
+int fr_authgeniter __P((ipftoken_t *, ipfgeniter_t *));
+int fr_authreply __P((char *));
+int fr_authwait __P((char *));
 
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authinit                                                 */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  None                                                        */
+/*                                                                          */
+/* Allocate memory and initialise data structures used in handling auth     */
+/* rules.                                                                   */
+/* ------------------------------------------------------------------------ */
 int fr_authinit()
 {
 	KMALLOCS(fr_auth, frauth_t *, fr_authsize * sizeof(*fr_auth));
@@ -176,11 +188,16 @@ int fr_authinit()
 }
 
 
-/*
- * Check if a packet has authorization.  If the packet is found to match an
- * authorization result and that would result in a feedback loop (i.e. it
- * will end up returning FR_AUTH) then return FR_BLOCK instead.
- */
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_checkauth                                                */
+/* Returns:     frentry_t* - pointer to ipf rule if match found, else NULL  */
+/* Parameters:  fin(I)   - pointer to ipftoken structure                    */
+/*              passp(I) - pointer to ipfgeniter structure                  */
+/*                                                                          */
+/* Check if a packet has authorization.  If the packet is found to match an */
+/* authorization result and that would result in a feedback loop (i.e. it   */
+/* will end up returning FR_AUTH) then return FR_BLOCK instead.             */
+/* ------------------------------------------------------------------------ */
 frentry_t *fr_checkauth(fin, passp)
 fr_info_t *fin;
 u_32_t *passp;
@@ -237,7 +254,12 @@ u_32_t *passp;
 				fr = fra->fra_info.fin_fr;
 			fin->fin_fr = fr;
 			RWLOCK_EXIT(&ipf_auth);
+
 			WRITE_ENTER(&ipf_auth);
+			/*
+			 * fr_authlist is populated with the rules malloc'd
+			 * above and only those.
+			 */
 			if ((fr != NULL) && (fr != fra->fra_info.fin_fr)) {
 				fr->fr_next = fr_authlist;
 				fr_authlist = fr;
@@ -279,11 +301,16 @@ u_32_t *passp;
 }
 
 
-/*
- * Check if we have room in the auth array to hold details for another packet.
- * If we do, store it and wake up any user programs which are waiting to
- * hear about these events.
- */
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_newauth                                                  */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  m(I)   - pointer to mb_t with packet in it                  */
+/*              fin(I) - pointer to packet information                      */
+/*                                                                          */
+/* Check if we have room in the auth array to hold details for another      */
+/* packet. If we do, store it and wake up any user programs which are       */
+/* waiting to hear about these events.                                      */
+/* ------------------------------------------------------------------------ */
 int fr_newauth(m, fin)
 mb_t *m;
 fr_info_t *fin;
@@ -301,16 +328,10 @@ fr_info_t *fin;
 		return 0;
 
 	WRITE_ENTER(&ipf_auth);
-	if (fr_authstart > fr_authend) {
+	if (((fr_authend + 1) % fr_authsize) == fr_authstart) {
 		fr_authstats.fas_nospace++;
 		RWLOCK_EXIT(&ipf_auth);
 		return 0;
-	} else {
-		if (fr_authused == fr_authsize) {
-			fr_authstats.fas_nospace++;
-			RWLOCK_EXIT(&ipf_auth);
-			return 0;
-		}
 	}
 
 	fr_authstats.fas_added++;
@@ -322,7 +343,10 @@ fr_info_t *fin;
 
 	fra = fr_auth + i;
 	fra->fra_index = i;
-	fra->fra_pass = fin->fin_fr->fr_flags;
+	if (fin->fin_fr != NULL)
+		fra->fra_pass = fin->fin_fr->fr_flags;
+	else
+		fra->fra_pass = 0;
 	fra->fra_age = fr_defaultauthage;
 	bcopy((char *)fin, (char *)&fra->fra_info, sizeof(*fin));
 #if !defined(sparc) && !defined(m68k)
@@ -344,10 +368,12 @@ fr_info_t *fin;
 	}
 #endif
 #if SOLARIS && defined(_KERNEL)
-	COPYIFNAME(fin->fin_ifp, fra->fra_info.fin_ifname);
+	COPYIFNAME(fin->fin_v, fin->fin_ifp, fra->fra_info.fin_ifname);
 	m->b_rptr -= qpi->qpi_off;
 	fr_authpkts[i] = *(mblk_t **)fin->fin_mp;
+# if !defined(_INET_IP_STACK_H)
 	fra->fra_q = qpi->qpi_q;	/* The queue can disappear! */
+# endif
 	fra->fra_m = *fin->fin_mp;
 	fra->fra_info.fin_mp = &fra->fra_m;
 	cv_signal(&ipfauthwait);
@@ -360,29 +386,65 @@ fr_info_t *fin;
 }
 
 
-int fr_auth_ioctl(data, cmd, mode)
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_auth_ioctl                                               */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  data(IO) - pointer to ioctl data                            */
+/*              cmd(I)   - ioctl command                                    */
+/*              mode(I)  - mode flags associated with open descriptor       */
+/*              uid(I)   - uid associatd with application making the call   */
+/*              ctx(I)   - pointer for context                              */
+/*                                                                          */
+/* This function handles all of the ioctls recognised by the auth component */
+/* in IPFilter - ie ioctls called on an open fd for /dev/ipauth             */
+/* ------------------------------------------------------------------------ */
+int fr_auth_ioctl(data, cmd, mode, uid, ctx)
 caddr_t data;
 ioctlcmd_t cmd;
-int mode;
+int mode, uid;
+void *ctx;
 {
-	frauth_t auth, *au = &auth, *fra;
-	int i, error = 0, len;
-	char *t;
-	mb_t *m;
-#if defined(_KERNEL) && !defined(MENTAT) && !defined(linux) && \
-    (!defined(__FreeBSD_version) || (__FreeBSD_version < 501000))
-	struct ifqueue *ifq;
+	int error = 0, i;
 	SPL_INT(s);
-#endif
 
 	switch (cmd)
 	{
+	case SIOCGENITER :
+	    {
+		ipftoken_t *token;
+		ipfgeniter_t iter;
+
+		error = fr_inobj(data, &iter, IPFOBJ_GENITER);
+		if (error != 0)
+			break;
+
+		SPL_SCHED(s);
+		token = ipf_findtoken(IPFGENITER_AUTH, uid, ctx);
+		if (token != NULL)
+			error = fr_authgeniter(token, &iter);
+		else
+			error = ESRCH;
+		RWLOCK_EXIT(&ipf_tokens);
+		SPL_X(s);
+
+		break;
+	    }
+
+	case SIOCADAFR :
+	case SIOCRMAFR :
+		if (!(mode & FWRITE))
+			error = EPERM;
+		else
+			error = frrequest(IPL_LOGAUTH, cmd, data,
+					  fr_active, 1);
+		break;
+
 	case SIOCSTLCK :
 		if (!(mode & FWRITE)) {
 			error = EPERM;
 			break;
 		}
-		fr_lock(data, &fr_auth_lock);
+		error = fr_lock(data, &fr_auth_lock);
 		break;
 
 	case SIOCATHST:
@@ -396,203 +458,17 @@ int mode;
 		i = fr_authflush();
 		RWLOCK_EXIT(&ipf_auth);
 		SPL_X(s);
-		error = copyoutptr((char *)&i, data, sizeof(i));
+		error = BCOPYOUT((char *)&i, data, sizeof(i));
+		if (error != 0)
+			error = EFAULT;
 		break;
 
 	case SIOCAUTHW:
-fr_authioctlloop:
-		error = fr_inobj(data, au, IPFOBJ_FRAUTH);
-		if (error != 0)
-			break;
-		READ_ENTER(&ipf_auth);
-		if ((fr_authnext != fr_authend) && fr_authpkts[fr_authnext]) {
-			error = fr_outobj(data, &fr_auth[fr_authnext],
-					  IPFOBJ_FRAUTH);
-			if (error != 0)
-				break;
-			if (auth.fra_len != 0 && auth.fra_buf != NULL) {
-				/*
-				 * Copy packet contents out to user space if
-				 * requested.  Bail on an error.
-				 */
-				m = fr_authpkts[fr_authnext];
-				len = MSGDSIZE(m);
-				if (len > auth.fra_len)
-					len = auth.fra_len;
-				auth.fra_len = len;
-				for (t = auth.fra_buf; m && (len > 0); ) {
-					i = MIN(M_LEN(m), len);
-					error = copyoutptr(MTOD(m, char *),
-							   &t, i);
-					len -= i;
-					t += i;
-					if (error != 0)
-						break;
-					m = m->m_next;
-				}
-			}
-			RWLOCK_EXIT(&ipf_auth);
-			if (error != 0)
-				break;
-			SPL_NET(s);
-			WRITE_ENTER(&ipf_auth);
-			fr_authnext++;
-			if (fr_authnext == fr_authsize)
-				fr_authnext = 0;
-			RWLOCK_EXIT(&ipf_auth);
-			SPL_X(s);
-			return 0;
-		}
-		RWLOCK_EXIT(&ipf_auth);
-		/*
-		 * We exit ipf_global here because a program that enters in
-		 * here will have a lock on it and goto sleep having this lock.
-		 * If someone were to do an 'ipf -D' the system would then
-		 * deadlock.  The catch with releasing it here is that the
-		 * caller of this function expects it to be held when we
-		 * return so we have to reacquire it in here.
-		 */
-		RWLOCK_EXIT(&ipf_global);
-
-		MUTEX_ENTER(&ipf_authmx);
-#ifdef	_KERNEL
-# if	SOLARIS
-		error = 0;
-		if (!cv_wait_sig(&ipfauthwait, &ipf_authmx.ipf_lk))
-			error = EINTR;
-# else /* SOLARIS */
-#  ifdef __hpux
-		{
-		lock_t *l;
-
-		l = get_sleep_lock(&fr_authnext);
-		error = sleep(&fr_authnext, PZERO+1);
-		spinunlock(l);
-		}
-#  else
-#   ifdef __osf__
-		error = mpsleep(&fr_authnext, PSUSP|PCATCH, "fr_authnext", 0,
-				&ipf_authmx, MS_LOCK_SIMPLE);
-#   else
-		error = SLEEP(&fr_authnext, "fr_authnext");
-#   endif /* __osf__ */
-#  endif /* __hpux */
-# endif /* SOLARIS */
-#endif
-		MUTEX_EXIT(&ipf_authmx);
-		READ_ENTER(&ipf_global);
-		if (error == 0)
-			goto fr_authioctlloop;
+		error = fr_authwait(data);
 		break;
 
 	case SIOCAUTHR:
-		error = fr_inobj(data, &auth, IPFOBJ_FRAUTH);
-		if (error != 0)
-			return error;
-		SPL_NET(s);
-		WRITE_ENTER(&ipf_auth);
-		i = au->fra_index;
-		fra = fr_auth + i;
-		error = 0;
-		if ((i < 0) || (i >= fr_authsize) ||
-		    (fra->fra_info.fin_id != au->fra_info.fin_id)) {
-			RWLOCK_EXIT(&ipf_auth);
-			SPL_X(s);
-			return ESRCH;
-		}
-		m = fr_authpkts[i];
-		fra->fra_index = -2;
-		fra->fra_pass = au->fra_pass;
-		fr_authpkts[i] = NULL;
-		RWLOCK_EXIT(&ipf_auth);
-#ifdef	_KERNEL
-		if ((m != NULL) && (au->fra_info.fin_out != 0)) {
-# ifdef MENTAT
-			error = ipf_inject(&fra->fra_info);
-			if (error != 0) {
-				FREE_MB_T(m);
-				error = ENOBUFS;
-			}
-# else /* MENTAT */
-#  if defined(linux) || defined(AIX)
-#  else
-#   if (defined(_BSDI_VERSION) && _BSDI_VERSION >= 199802) || \
-       (defined(__OpenBSD__)) || \
-       (defined(__sgi) && (IRIX >= 60500) || \
-       (defined(__FreeBSD__) && (__FreeBSD_version >= 470102)))
-			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL,
-					  NULL);
-#   else
-			error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL);
-#   endif
-#  endif /* Linux */
-# endif /* MENTAT */
-			if (error != 0)
-				fr_authstats.fas_sendfail++;
-			else
-				fr_authstats.fas_sendok++;
-		} else if (m) {
-# ifdef MENTAT
-			error = ipf_inject(&fra->fra_info);
-			if (error != 0) {
-				FREE_MB_T(m);
-				error = ENOBUFS;
-			}
-# else /* MENTAT */
-#  if defined(linux) || defined(AIX)
-#  else
-#   if (__FreeBSD_version >= 501000)
-			netisr_dispatch(NETISR_IP, m);
-#   else
-#    if (IRIX >= 60516)
-			ifq = &((struct ifnet *)fra->fra_info.fin_ifp)->if_snd;
-#    else
-			ifq = &ipintrq;
-#    endif
-			if (IF_QFULL(ifq)) {
-				IF_DROP(ifq);
-				FREE_MB_T(m);
-				error = ENOBUFS;
-			} else {
-				IF_ENQUEUE(ifq, m);
-#    if IRIX < 60500
-				schednetisr(NETISR_IP);
-#    endif
-			}
-#   endif
-#  endif /* Linux */
-# endif /* MENTAT */
-			if (error != 0)
-				fr_authstats.fas_quefail++;
-			else
-				fr_authstats.fas_queok++;
-		} else
-			error = EINVAL;
-		/*
-		 * If we experience an error which will result in the packet
-		 * not being processed, make sure we advance to the next one.
-		 */
-		if (error == ENOBUFS) {
-			fr_authused--;
-			fra->fra_index = -1;
-			fra->fra_pass = 0;
-			if (i == fr_authstart) {
-				while (fra->fra_index == -1) {
-					i++;
-					if (i == fr_authsize)
-						i = 0;
-					fr_authstart = i;
-					if (i == fr_authend)
-						break;
-				}
-				if (fr_authstart == fr_authend) {
-					fr_authnext = 0;
-					fr_authstart = fr_authend = 0;
-				}
-			}
-		}
-#endif /* _KERNEL */
-		SPL_X(s);
+		error = fr_authreply(data);
 		break;
 
 	default :
@@ -603,9 +479,13 @@ fr_authioctlloop:
 }
 
 
-/*
- * Free all network buffer memory used to keep saved packets.
- */
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authunload                                               */
+/* Returns:     None                                                        */
+/* Parameters:  None                                                        */
+/*                                                                          */
+/* Free all network buffer memory used to keep saved packets.               */
+/* ------------------------------------------------------------------------ */
 void fr_authunload()
 {
 	register int i;
@@ -659,17 +539,21 @@ void fr_authunload()
 }
 
 
-/*
- * Slowly expire held auth records.  Timeouts are set
- * in expectation of this being called twice per second.
- */
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authexpire                                               */
+/* Returns:     None                                                        */
+/* Parameters:  None                                                        */
+/*                                                                          */
+/* Slowly expire held auth records.  Timeouts are set in expectation of     */
+/* this being called twice per second.                                      */
+/* ------------------------------------------------------------------------ */
 void fr_authexpire()
 {
-	register int i;
-	register frauth_t *fra;
-	register frauthent_t *fae, **faep;
-	register frentry_t *fr, **frp;
+	frauthent_t *fae, **faep;
+	frentry_t *fr, **frp;
+	frauth_t *fra;
 	mb_t *m;
+	int i;
 	SPL_INT(s);
 
 	if (fr_auth_lock)
@@ -688,11 +572,13 @@ void fr_authexpire()
 		}
 	}
 
+	/*
+	 * Expire pre-auth rules
+	 */
 	for (faep = &fae_list; ((fae = *faep) != NULL); ) {
 		fae->fae_age--;
 		if (fae->fae_age == 0) {
-			*faep = fae->fae_next;
-			KFREE(fae);
+			fr_authderef(&fae);
 			fr_authstats.fas_expire++;
 		} else
 			faep = &fae->fae_next;
@@ -713,6 +599,15 @@ void fr_authexpire()
 	SPL_X(s);
 }
 
+
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_preauthcmd                                               */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  cmd(I)  - ioctl command for rule                            */
+/*              fr(I)   - pointer to ipf rule                               */
+/*              fptr(I) - pointer to caller's 'fr'                          */
+/*                                                                          */
+/* ------------------------------------------------------------------------ */
 int fr_preauthcmd(cmd, fr, frptr)
 ioctlcmd_t cmd;
 frentry_t *fr, **frptr;
@@ -723,7 +618,7 @@ frentry_t *fr, **frptr;
 
 	if ((cmd != SIOCADAFR) && (cmd != SIOCRMAFR))
 		return EIO;
-	
+
 	for (faep = &fae_list; ((fae = *faep) != NULL); ) {
 		if (&fae->fae_fr == fr)
 			break;
@@ -757,6 +652,7 @@ frentry_t *fr, **frptr;
 			fae->fae_age = fr_defaultauthage;
 			fae->fae_fr.fr_hits = 0;
 			fae->fae_fr.fr_next = *frptr;
+			fae->fae_ref = 1;
 			*frptr = &fae->fae_fr;
 			fae->fae_next = *faep;
 			*faep = fae;
@@ -771,11 +667,18 @@ frentry_t *fr, **frptr;
 }
 
 
-/*
- * Flush held packets.
- * Must already be properly SPL'ed and Locked on &ipf_auth.
- *
- */
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authflush                                                */
+/* Returns:     int - number of auth entries flushed                        */
+/* Parameters:  None                                                        */
+/* Locks:       WRITE(ipf_auth)                                             */
+/*                                                                          */
+/* This function flushs the fr_authpkts array of any packet data with       */
+/* references still there.                                                  */
+/* It is expected that the caller has already acquired the correct locks or */
+/* set the priority level correctly for this to block out other code paths  */
+/* into these data structures.                                              */
+/* ------------------------------------------------------------------------ */
 int fr_authflush()
 {
 	register int i, num_flushed;
@@ -807,7 +710,343 @@ int fr_authflush()
 }
 
 
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_auth_waiting                                             */
+/* Returns:     int - 0 = no pakcets wiating, 1 = packets waiting.          */
+/* Parameters:  None                                                        */
+/*                                                                          */
+/* Simple truth check to see if there are any packets waiting in the auth   */
+/* queue.                                                                   */
+/* ------------------------------------------------------------------------ */
 int fr_auth_waiting()
 {
-	return (fr_authnext != fr_authend) && fr_authpkts[fr_authnext];
+	return (fr_authused != 0);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authgeniter                                              */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  token(I) - pointer to ipftoken structure                    */
+/*              itp(I)   - pointer to ipfgeniter structure                  */
+/*                                                                          */
+/* ------------------------------------------------------------------------ */
+int fr_authgeniter(token, itp)
+ipftoken_t *token;
+ipfgeniter_t *itp;
+{
+	frauthent_t *fae, *next, zero;
+	int error;
+
+	if (itp->igi_data == NULL)
+		return EFAULT;
+
+	if (itp->igi_type != IPFGENITER_AUTH)
+		return EINVAL;
+
+	fae = token->ipt_data;
+	READ_ENTER(&ipf_auth);
+	if (fae == NULL) {
+		next = fae_list;
+	} else {
+		next = fae->fae_next;
+	}
+
+	if (next != NULL) {
+		/*
+		 * If we find an auth entry to use, bump its reference count
+		 * so that it can be used for is_next when we come back.
+		 */
+		ATOMIC_INC(next->fae_ref);
+		if (next->fae_next == NULL) {
+			ipf_freetoken(token);
+			token = NULL;
+		} else {
+			token->ipt_data = next;
+		}
+	} else {
+		bzero(&zero, sizeof(zero));
+		next = &zero;
+	}
+	RWLOCK_EXIT(&ipf_auth);
+
+	/*
+	 * If we had a prior pointer to an auth entry, release it.
+	 */
+	if (fae != NULL) {
+		WRITE_ENTER(&ipf_auth);
+		fr_authderef(&fae);
+		RWLOCK_EXIT(&ipf_auth);
+	}
+
+	/*
+	 * This should arguably be via fr_outobj() so that the auth
+	 * structure can (if required) be massaged going out.
+	 */
+	error = COPYOUT(next, itp->igi_data, sizeof(*next));
+	if (error != 0)
+		error = EFAULT;
+
+	return error;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authderef                                                */
+/* Returns:     None                                                        */
+/* Parameters:  faep(IO) - pointer to caller's frauthent_t pointer          */
+/* Locks:       WRITE(ipf_auth)                                             */
+/*                                                                          */
+/* This function unconditionally sets the pointer in the caller to NULL,    */
+/* to make it clear that it should no longer use that pointer, and drops    */
+/* the reference count on the structure by 1.  If it reaches 0, free it up. */
+/* ------------------------------------------------------------------------ */
+void fr_authderef(faep)
+frauthent_t **faep;
+{
+	frauthent_t *fae;
+
+	fae = *faep;
+	*faep = NULL;
+
+	fae->fae_ref--;
+	if (fae->fae_ref == 0) {
+		KFREE(fae);
+	}
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authwait                                                 */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  data(I) - pointer to data from ioctl call                   */
+/*                                                                          */
+/* This function is called when an application is waiting for a packet to   */
+/* match an "auth" rule by issuing an SIOCAUTHW ioctl.  If there is already */
+/* a packet waiting on the queue then we will return that _one_ immediately.*/
+/* If there are no packets present in the queue (fr_authpkts) then we go to */
+/* sleep.                                                                   */
+/* ------------------------------------------------------------------------ */
+int fr_authwait(data)
+char *data;
+{
+	frauth_t auth, *au = &auth;
+	int error, len, i;
+	mb_t *m;
+	char *t;
+#if defined(_KERNEL) && !defined(MENTAT) && !defined(linux) && \
+    (!defined(__FreeBSD_version) || (__FreeBSD_version < 501000))
+	SPL_INT(s);
+#endif
+
+fr_authioctlloop:
+	error = fr_inobj(data, au, IPFOBJ_FRAUTH);
+	if (error != 0)
+		return error;
+
+	/*
+	 * XXX Locks are held below over calls to copyout...a better
+	 * solution needs to be found so this isn't necessary.  The situation
+	 * we are trying to guard against here is an error in the copyout
+	 * steps should not cause the packet to "disappear" from the queue.
+	 */
+	READ_ENTER(&ipf_auth);
+
+	/*
+	 * If fr_authnext is not equal to fr_authend it will be because there
+	 * is a packet waiting to be delt with in the fr_authpkts array.  We
+	 * copy as much of that out to user space as requested.
+	 */
+	if (fr_authused > 0) {
+		while (fr_authpkts[fr_authnext] == NULL) {
+			fr_authnext++;
+			if (fr_authnext == fr_authsize)
+				fr_authnext = 0;
+		}
+
+		error = fr_outobj(data, &fr_auth[fr_authnext], IPFOBJ_FRAUTH);
+		if (error != 0)
+			return error;
+
+		if (auth.fra_len != 0 && auth.fra_buf != NULL) {
+			/*
+			 * Copy packet contents out to user space if
+			 * requested.  Bail on an error.
+			 */
+			m = fr_authpkts[fr_authnext];
+			len = MSGDSIZE(m);
+			if (len > auth.fra_len)
+				len = auth.fra_len;
+			auth.fra_len = len;
+
+			for (t = auth.fra_buf; m && (len > 0); ) {
+				i = MIN(M_LEN(m), len);
+				error = copyoutptr(MTOD(m, char *), &t, i);
+				len -= i;
+				t += i;
+				if (error != 0)
+					return error;
+				m = m->m_next;
+			}
+		}
+		RWLOCK_EXIT(&ipf_auth);
+
+		SPL_NET(s);
+		WRITE_ENTER(&ipf_auth);
+		fr_authnext++;
+		if (fr_authnext == fr_authsize)
+			fr_authnext = 0;
+		RWLOCK_EXIT(&ipf_auth);
+		SPL_X(s);
+
+		return 0;
+	}
+	RWLOCK_EXIT(&ipf_auth);
+
+	/*
+	 * We exit ipf_global here because a program that enters in
+	 * here will have a lock on it and goto sleep having this lock.
+	 * If someone were to do an 'ipf -D' the system would then
+	 * deadlock.  The catch with releasing it here is that the
+	 * caller of this function expects it to be held when we
+	 * return so we have to reacquire it in here.
+	 */
+	RWLOCK_EXIT(&ipf_global);
+
+	MUTEX_ENTER(&ipf_authmx);
+#ifdef	_KERNEL
+# if	SOLARIS
+	error = 0;
+	if (!cv_wait_sig(&ipfauthwait, &ipf_authmx.ipf_lk))
+		error = EINTR;
+# else /* SOLARIS */
+#  ifdef __hpux
+	{
+	lock_t *l;
+
+	l = get_sleep_lock(&fr_authnext);
+	error = sleep(&fr_authnext, PZERO+1);
+	spinunlock(l);
+	}
+#  else
+#   ifdef __osf__
+	error = mpsleep(&fr_authnext, PSUSP|PCATCH, "fr_authnext", 0,
+			&ipf_authmx, MS_LOCK_SIMPLE);
+#   else
+	error = SLEEP(&fr_authnext, "fr_authnext");
+#   endif /* __osf__ */
+#  endif /* __hpux */
+# endif /* SOLARIS */
+#endif
+	MUTEX_EXIT(&ipf_authmx);
+	READ_ENTER(&ipf_global);
+	if (error == 0)
+		goto fr_authioctlloop;
+	return error;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* Function:    fr_authreply                                                */
+/* Returns:     int - 0 == success, else error                              */
+/* Parameters:  data(I) - pointer to data from ioctl call                   */
+/*                                                                          */
+/* This function is called by an application when it wants to return a      */
+/* decision on a packet using the SIOCAUTHR ioctl.  This is after it has    */
+/* received information using an SIOCAUTHW.  The decision returned in the   */
+/* form of flags, the same as those used in each rule.                      */
+/* ------------------------------------------------------------------------ */
+int fr_authreply(data)
+char *data;
+{
+	frauth_t auth, *au = &auth, *fra;
+	int error, i;
+	mb_t *m;
+	SPL_INT(s);
+
+	error = fr_inobj(data, &auth, IPFOBJ_FRAUTH);
+	if (error != 0)
+		return error;
+
+	SPL_NET(s);
+	WRITE_ENTER(&ipf_auth);
+
+	i = au->fra_index;
+	fra = fr_auth + i;
+	error = 0;
+
+	/*
+	 * Check the validity of the information being returned with two simple
+	 * checks.  First, the auth index value should be within the size of
+	 * the array and second the packet id being returned should also match.
+	 */
+	if ((i < 0) || (i >= fr_authsize) ||
+	    (fra->fra_info.fin_id != au->fra_info.fin_id)) {
+		RWLOCK_EXIT(&ipf_auth);
+		SPL_X(s);
+		return ESRCH;
+	}
+
+	m = fr_authpkts[i];
+	fra->fra_index = -2;
+	fra->fra_pass = au->fra_pass;
+	fr_authpkts[i] = NULL;
+
+	RWLOCK_EXIT(&ipf_auth);
+
+	/*
+	 * Re-insert the packet back into the packet stream flowing through
+	 * the kernel in a manner that will mean IPFilter sees the packet
+	 * again.  This is not the same as is done with fastroute,
+	 * deliberately, as we want to resume the normal packet processing
+	 * path for it.
+	 */
+#ifdef	_KERNEL
+	if ((m != NULL) && (au->fra_info.fin_out != 0)) {
+		error = ipf_inject(&fra->fra_info, m);
+		if (error != 0) {
+			error = ENOBUFS;
+			fr_authstats.fas_sendfail++;
+		} else {
+			fr_authstats.fas_sendok++;
+		}
+	} else if (m) {
+		error = ipf_inject(&fra->fra_info, m);
+		if (error != 0) {
+			error = ENOBUFS;
+			fr_authstats.fas_quefail++;
+		} else {
+			fr_authstats.fas_queok++;
+		}
+	} else {
+		error = EINVAL;
+	}
+
+	/*
+	 * If we experience an error which will result in the packet
+	 * not being processed, make sure we advance to the next one.
+	 */
+	if (error == ENOBUFS) {
+		fr_authused--;
+		fra->fra_index = -1;
+		fra->fra_pass = 0;
+		if (i == fr_authstart) {
+			while (fra->fra_index == -1) {
+				i++;
+				if (i == fr_authsize)
+					i = 0;
+				fr_authstart = i;
+				if (i == fr_authend)
+					break;
+			}
+			if (fr_authstart == fr_authend) {
+				fr_authnext = 0;
+				fr_authstart = fr_authend = 0;
+			}
+		}
+	}
+#endif /* _KERNEL */
+	SPL_X(s);
+
+	return 0;
 }

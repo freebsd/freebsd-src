@@ -16,10 +16,10 @@ List of configured pools
 List of configured hash tables
 # 'anonymous' table
 table role = ipf type = hash number = 2147483650 size = 3
-	{ 4.4.0.0/16; 127.0.0.1/32; };
+	{ 127.0.0.1/32; 4.4.0.0/16; };
 # 'anonymous' table
 table role = ipf type = hash number = 2147483649 size = 3
-	{ 4.4.0.0/16; 127.0.0.1/32; };
+	{ 127.0.0.1/32; 4.4.0.0/16; };
 List of groups configured (set 0)
 List of groups configured (set 1)
 -------------------------------

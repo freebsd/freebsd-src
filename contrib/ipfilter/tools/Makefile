@@ -1,4 +1,8 @@
-
+#
+# Copyright (C) 1993-2001 by Darren Reed.
+#
+# See the IPFILTER.LICENCE file for details on licencing.
+#
 DEST=.
 
 all: $(DEST)/ipf_y.c $(DEST)/ipf_y.h $(DEST)/ipf_l.c \

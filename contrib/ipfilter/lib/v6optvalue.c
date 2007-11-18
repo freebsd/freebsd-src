@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2003 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: v6optvalue.c,v 1.1 2003/04/26 04:55:58 darrenr Exp $
+ * $Id: v6optvalue.c,v 1.1.4.1 2006/06/16 17:21:18 darrenr Exp $
  */
 #include "ipf.h"
 
