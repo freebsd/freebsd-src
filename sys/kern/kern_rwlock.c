@@ -59,12 +59,14 @@ CTASSERT((RW_RECURSE & LO_CLASSFLAGS) == RW_RECURSE);
 
 static void	db_show_rwlock(struct lock_object *lock);
 #endif
+static void	assert_rw(struct lock_object *lock, int what);
 static void	lock_rw(struct lock_object *lock, int how);
 static int	unlock_rw(struct lock_object *lock);
 
 struct lock_class lock_class_rw = {
 	.lc_name = "rw",
 	.lc_flags = LC_SLEEPLOCK | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_assert = assert_rw,
 #ifdef DDB
 	.lc_ddb_show = db_show_rwlock,
 #endif
@@ -101,6 +103,13 @@ struct lock_class lock_class_rw = {
 #ifndef INVARIANTS
 #define	_rw_assert(rw, what, file, line)
 #endif
+
+void
+assert_rw(struct lock_object *lock, int what)
+{
+
+	rw_assert((struct rwlock *)lock, what);
+}
 
 void
 lock_rw(struct lock_object *lock, int how)
