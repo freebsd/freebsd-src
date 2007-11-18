@@ -1,5 +1,7 @@
 #	$FreeBSD$
 
+WARNS=0
+
 PROG=		ipftest
 SRCS=		${GENHDRS} ipftest.c fil.c ip_frag.c ip_state.c ip_nat.c \
 		ip_proxy.c ip_auth.c ip_htable.c ip_lookup.c \
