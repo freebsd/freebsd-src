@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  *	8) A positive decimal number followed by a 'e' or 'E' (mult by 1 << 60).
  */
 int
-expand_number(char *buf, int64_t *num)
+expand_number(const char *buf, int64_t *num)
 {
 	static const char unit[] = "bkmgtpe";
 	char *endptr, s;
