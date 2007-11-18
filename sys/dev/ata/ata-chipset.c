@@ -176,6 +176,7 @@ static void ata_via_reset(device_t dev);
 static void ata_via_setmode(device_t dev, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
 static void ata_via_family_setmode(device_t dev, int mode);
+static void ata_set_desc(device_t dev);
 static struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *index);
 static struct ata_chip_id *ata_find_chip(device_t dev, struct ata_chip_id *index, int slot);
 static int ata_setup_interrupt(device_t dev);
@@ -193,8 +194,10 @@ int
 ata_generic_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    char buffer[64];
 
-    device_set_desc(dev, "GENERIC ATA controller");
+    sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
+    device_set_desc(dev, buffer);
     ctlr->chipinit = ata_generic_chipinit;
     return 0;
 }
@@ -447,15 +450,48 @@ ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis)
 /*
  * AHCI v1.x compliant SATA chipset support functions
  */
+int
+ata_ahci_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    char buffer[64];
+
+    /* is this PCI device flagged as an AHCI compliant chip ? */
+    if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
+	return ENXIO;
+
+    sprintf(buffer, "%s AHCI controller", ata_pcivendor2str(dev));
+    device_set_desc_copy(dev, buffer);
+    ctlr->chipinit = ata_ahci_chipinit;
+    return 0;
+}
+
 static int
 ata_ahci_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     u_int32_t version;
 
+    /* if we have a memory BAR(5) we are likely on an AHCI part */
+    ctlr->r_type2 = SYS_RES_MEMORY;
+    ctlr->r_rid2 = PCIR_BAR(5);
+    if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
+					       &ctlr->r_rid2, RF_ACTIVE)))
+	return ENXIO;
+
+    /* setup interrupt delivery if not done allready by a vendor driver */
+    if (!ctlr->r_irq) {
+	if (ata_setup_interrupt(dev))
+	    return ENXIO;
+    }
+    else
+	device_printf(dev, "AHCI called from vendor specific driver\n");
+
+    /* enable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
+
     /* reset AHCI controller */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_HR);
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_HR);
     DELAY(1000000);
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
 	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
@@ -463,9 +499,8 @@ ata_ahci_chipinit(device_t dev)
 	return ENXIO;
     }
 
-    /* enable AHCI mode */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
+    /* reenable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
 
     /* get the number of HW channels */
     ctlr->channels =
@@ -830,7 +865,6 @@ int
 ata_acard_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_ATP850R, 0, ATPOLD, 0x00, ATA_UDMA2, "ATP850" },
      { ATA_ATP860A, 0, 0,      0x00, ATA_UDMA4, "ATP860A" },
@@ -838,15 +872,11 @@ ata_acard_ident(device_t dev)
      { ATA_ATP865A, 0, 0,      0x00, ATA_UDMA6, "ATP865A" },
      { ATA_ATP865R, 0, 0,      0x00, ATA_UDMA6, "ATP865R" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "Acard %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_acard_chipinit;
     return 0;
 }
@@ -994,7 +1024,6 @@ int
 ata_ali_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_ALI_5289, 0x00, 2, ALISATA, ATA_SA150, "M5289" },
      { ATA_ALI_5288, 0x00, 4, ALISATA, ATA_SA300, "M5288" },
@@ -1006,15 +1035,11 @@ ata_ali_ident(device_t dev)
      { ATA_ALI_5229, 0x20, 0, ALIOLD,  ATA_UDMA2, "M5229" },
      { ATA_ALI_5229, 0x00, 0, ALIOLD,  ATA_WDMA2, "M5229" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "AcerLabs %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_ali_chipinit;
     return 0;
 }
@@ -1033,15 +1058,10 @@ ata_ali_chipinit(device_t dev)
 	ctlr->allocate = ata_ali_sata_allocate;
 	ctlr->setmode = ata_sata_setmode;
 
-	/* if we have a memory resource we can likely do AHCI */
-	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = PCIR_BAR(5);
-
 	/* AHCI mode is correctly supported only on the ALi 5288. */
 	if ((ctlr->chip->chipid == ATA_ALI_5288) &&
-	    (ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						   &ctlr->r_rid2, RF_ACTIVE)))
-	    return ata_ahci_chipinit(dev);
+	    (ata_ahci_chipinit(dev) != ENXIO))
+            return 0;
 
 	/* enable PCI interrupt */
 	pci_write_config(dev, PCIR_COMMAND,
@@ -1241,7 +1261,6 @@ int
 ata_amd_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_AMD756,  0x00, AMDNVIDIA, 0x00,            ATA_UDMA4, "756" },
      { ATA_AMD766,  0x00, AMDNVIDIA, AMDCABLE|AMDBUG, ATA_UDMA5, "766" },
@@ -1249,15 +1268,11 @@ ata_amd_ident(device_t dev)
      { ATA_AMD8111, 0x00, AMDNVIDIA, AMDCABLE,        ATA_UDMA6, "8111" },
      { ATA_AMD5536, 0x00, AMDNVIDIA, 0x00,            ATA_UDMA5, "CS5536" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "AMD %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_amd_chipinit;
     return 0;
 }
@@ -1288,24 +1303,21 @@ int
 ata_ati_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_ATI_IXP200,    0x00, 0,        0, ATA_UDMA5, "IXP200" },
      { ATA_ATI_IXP300,    0x00, 0,        0, ATA_UDMA6, "IXP300" },
-     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "IXP400" },
      { ATA_ATI_IXP300_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP300" },
+     { ATA_ATI_IXP400,    0x00, 0,        0, ATA_UDMA6, "IXP400" },
      { ATA_ATI_IXP400_S1, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
      { ATA_ATI_IXP400_S2, 0x00, SIIMEMIO, 0, ATA_SA150, "IXP400" },
+     { ATA_ATI_IXP600,    0x00, 0,        0, ATA_UDMA6, "IXP600" },
+     { ATA_ATI_IXP700,    0x00, 0,        0, ATA_UDMA6, "IXP700" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "ATI %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
 
     /* the ATI SATA controller is actually a SiI 3112 controller*/
     if (ctlr->chip->cfg1 & SIIMEMIO)
@@ -1322,6 +1334,11 @@ ata_ati_chipinit(device_t dev)
 
     if (ata_setup_interrupt(dev))
 	return ENXIO;
+
+    /* IXP600 & IXP700 only have 1 PATA channel */
+    if ((ctlr->chip->chipid == ATA_ATI_IXP600) ||
+	(ctlr->chip->chipid == ATA_ATI_IXP700))
+	ctlr->channels = 1;
 
     ctlr->setmode = ata_ati_setmode;
     return 0;
@@ -1697,7 +1714,6 @@ int
 ata_intel_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_I82371FB,     0,    0, 0x00, ATA_WDMA2, "PIIX" },
      { ATA_I82371SB,     0,    0, 0x00, ATA_WDMA2, "PIIX3" },
@@ -1749,15 +1765,11 @@ ata_intel_ident(device_t dev)
      { ATA_I82801IB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH9" },
      { ATA_I31244,       0,    0, 0x00, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "Intel %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_intel_chipinit;
     return 0;
 }
@@ -1806,18 +1818,14 @@ ata_intel_chipinit(device_t dev)
 	ctlr->reset = ata_intel_reset;
 
 	/* 
-	 * if we have AHCI capability and BAR(5) as a memory resource
-	 * and AHCI or RAID mode enabled in BIOS we go for AHCI mode
+	 * if we have AHCI capability and AHCI or RAID mode enabled
+	 * in BIOS we try for AHCI mode
 	 */ 
 	if ((ctlr->chip->cfg1 == AHCI) &&
-	    (pci_read_config(dev, 0x90, 1) & 0xc0)) {
-	    ctlr->r_type2 = SYS_RES_MEMORY;
-	    ctlr->r_rid2 = PCIR_BAR(5);
-	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						       &ctlr->r_rid2,
-						       RF_ACTIVE)))
-		return ata_ahci_chipinit(dev);
-	}
+	    (pci_read_config(dev, 0x90, 1) & 0xc0) &&
+	    (ata_ahci_chipinit(dev) != ENXIO))
+	    return 0;
+
 	ctlr->setmode = ata_sata_setmode;
 
 	/* enable PCI interrupt */
@@ -2063,20 +2071,15 @@ int
 ata_ite_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8212F" },
      { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8211F" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "ITE %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_ite_chipinit;
     return 0;
 }
@@ -2207,12 +2210,9 @@ ata_jmicron_chipinit(device_t dev)
 
     /* do we have multiple PCI functions ? */
     if (pci_read_config(dev, 0xdf, 1) & 0x40) {
-	/* if we have a memory BAR(5) we are on the AHCI part */
-	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = PCIR_BAR(5);
-	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						    &ctlr->r_rid2, RF_ACTIVE)))
-	    return ata_ahci_chipinit(dev);
+	/* are we on the AHCI part ? */
+	if (ata_ahci_chipinit(dev) != ENXIO)
+	    return 0;
 
 	/* otherwise we are on the PATA part */
 	ctlr->allocate = ata_pci_allocate;
@@ -2226,13 +2226,8 @@ ata_jmicron_chipinit(device_t dev)
 	pci_write_config(dev, 0x40, 0x80c0a131, 4);
 	pci_write_config(dev, 0x80, 0x01200000, 4);
 
-	ctlr->r_type2 = SYS_RES_MEMORY;
-	ctlr->r_rid2 = PCIR_BAR(5);
-	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						    &ctlr->r_rid2, RF_ACTIVE))){
-	    if ((error = ata_ahci_chipinit(dev)))
-		return error;
-	}
+	if ((error = ata_ahci_chipinit(dev)))
+	    return error;
 
 	ctlr->allocate = ata_jmicron_allocate;
 	ctlr->reset = ata_jmicron_reset;
@@ -2335,7 +2330,6 @@ int
 ata_marvell_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_M88SX5040, 0, 4, MV50XX, ATA_SA150, "88SX5040" },
      { ATA_M88SX5041, 0, 4, MV50XX, ATA_SA150, "88SX5041" },
@@ -2346,15 +2340,12 @@ ata_marvell_ident(device_t dev)
      { ATA_M88SX6101, 0, 1, MV61XX, ATA_UDMA6, "88SX6101" },
      { ATA_M88SX6145, 0, 2, MV61XX, ATA_UDMA6, "88SX6145" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "Marvell %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
+
     switch (ctlr->chip->cfg2) {
     case MV50XX:
     case MV60XX:
@@ -2905,7 +2896,6 @@ int
 ata_nvidia_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_NFORCE1,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA5, "nForce" },
      { ATA_NFORCE2,         0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce2" },
@@ -2931,16 +2921,16 @@ ata_nvidia_ident(device_t dev)
      { ATA_NFORCE_MCP61_S1, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP61" },
      { ATA_NFORCE_MCP61_S2, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP61" },
      { ATA_NFORCE_MCP61_S3, 0, 0,         NV4|NVQ, ATA_SA300, "nForce MCP61" },
+     { ATA_NFORCE_MCP65,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP65" },
+     { ATA_NFORCE_MCP67,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP67" },
+     { ATA_NFORCE_MCP73,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP73" },
+     { ATA_NFORCE_MCP77,    0, AMDNVIDIA, NVIDIA,  ATA_UDMA6, "nForce MCP77" },
      { 0, 0, 0, 0, 0, 0}} ;
-    char buffer[64] ;
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "nVidia %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_nvidia_chipinit;
     return 0;
 }
@@ -4030,7 +4020,6 @@ int
 ata_serverworks_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_ROSB4,     0x00, SWKS33,  0, ATA_UDMA2, "ROSB4" },
      { ATA_CSB5,      0x92, SWKS100, 0, ATA_UDMA5, "CSB5" },
@@ -4044,15 +4033,11 @@ ata_serverworks_ident(device_t dev)
      { ATA_FRODO4,    0x00, SWKSMIO, 4, ATA_SA150, "Frodo4" },
      { ATA_FRODO8,    0x00, SWKSMIO, 8, ATA_SA150, "Frodo8" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "ServerWorks %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_serverworks_chipinit;
     return 0;
 }
@@ -4211,7 +4196,6 @@ int
 ata_sii_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_SII3114,   0x00, SIIMEMIO, SII4CH,    ATA_SA150, "SiI 3114" },
      { ATA_SII3512,   0x02, SIIMEMIO, 0,         ATA_SA150, "SiI 3512" },
@@ -4228,14 +4212,11 @@ ata_sii_ident(device_t dev)
      { ATA_CMD646,    0x07, 0,        0,         ATA_UDMA2, "CMD 646U2" },
      { ATA_CMD646,    0x00, 0,        0,         ATA_WDMA2, "CMD 646" },
      { 0, 0, 0, 0, 0, 0}};
-    char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids)))
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_sii_chipinit;
     return 0;
 }
@@ -5112,7 +5093,6 @@ int
 ata_via_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "82C586B" },
      { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "82C586" },
@@ -5139,21 +5119,17 @@ ata_via_ident(device_t dev)
      { ATA_VIA8237S,  0x00, 7,      0x00,    ATA_SA150, "8237S" },
      { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
-    char buffer[64];
 
     if (pci_get_devid(dev) == ATA_VIA82C571) {
-	if (!(idx = ata_find_chip(dev, ids, -99))) 
+	if (!(ctlr->chip = ata_find_chip(dev, ids, -99))) 
 	    return ENXIO;
     }
     else {
-	if (!(idx = ata_match_chip(dev, new_ids))) 
+	if (!(ctlr->chip = ata_match_chip(dev, new_ids))) 
 	    return ENXIO;
     }
 
-    sprintf(buffer, "VIA %s %s controller",
-	    idx->text, ata_mode2str(idx->max_dma));
-    device_set_desc_copy(dev, buffer);
-    ctlr->chip = idx;
+    ata_set_desc(dev);
     ctlr->chipinit = ata_via_chipinit;
     return 0;
 }
@@ -5167,15 +5143,10 @@ ata_via_chipinit(device_t dev)
 	return ENXIO;
     
     if (ctlr->chip->max_dma >= ATA_SA150) {
-	if (ctlr->chip->cfg2 == VIAAHCI) {
-	    ctlr->r_type2 = SYS_RES_MEMORY;
-	    ctlr->r_rid2 = PCIR_BAR(5);
-	    if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						       &ctlr->r_rid2,
-						       RF_ACTIVE))) {
-		 return ata_ahci_chipinit(dev);
-	    } 
-	}
+	/* do we have AHCI capability ? */
+	if ((ctlr->chip->cfg2 == VIAAHCI) && ata_ahci_chipinit(dev) != ENXIO)
+	    return 0;
+
 	ctlr->r_type2 = SYS_RES_IOPORT;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
@@ -5254,7 +5225,7 @@ ata_via_allocate(device_t dev)
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 	ata_pci_hw(dev);
-	if (ch->unit > 1)
+	if (ch->unit >= 2)
 	    return 0;
     }
     else {
@@ -5407,6 +5378,18 @@ ata_via_family_setmode(device_t dev, int mode)
 
 
 /* misc functions */
+static void
+ata_set_desc(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    char buffer[128];
+
+    sprintf(buffer, "%s %s %s controller",
+            ata_pcivendor2str(dev), ctlr->chip->text, 
+            ata_mode2str(ctlr->chip->max_dma));
+    device_set_desc_copy(dev, buffer);
+}
+
 static struct ata_chip_id *
 ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
@@ -5458,6 +5441,7 @@ ata_setup_interrupt(device_t dev)
 	}
 	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			    ata_generic_intr, ctlr, &ctlr->handle))) {
+	    /* SOS XXX release r_irq */
 	    device_printf(dev, "unable to setup interrupt\n");
 	    return ENXIO;
 	}
