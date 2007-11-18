@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	argc--;
 	argv++;
 
-	spr.cmd = (int)SPPPIOGDEFS;
+	spr.cmd = (uintptr_t) SPPPIOGDEFS;
 	ifr.ifr_data = (caddr_t)&spr;
 
 	if (ioctl(s, SIOCGIFGENERIC, &ifr) == -1)
@@ -186,7 +186,7 @@ main(int argc, char **argv)
 		argc--;
 	}
 
-	spr.cmd = (int)SPPPIOSDEFS;
+	spr.cmd = (uintptr_t)SPPPIOSDEFS;
 
 	if (ioctl(s, SIOCSIFGENERIC, &ifr) == -1)
 		err(EX_OSERR, "SIOCSIFGENERIC(SPPPIOSDEFS)");
