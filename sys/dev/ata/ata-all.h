@@ -155,7 +155,7 @@
 #define ATA_AHCI_GHC                    0x04
 #define         ATA_AHCI_GHC_AE         0x80000000
 #define         ATA_AHCI_GHC_IE         0x00000002
-#define         ATA_AHCI_GHC_HR         0x80000001
+#define         ATA_AHCI_GHC_HR         0x00000001
 
 #define ATA_AHCI_IS                     0x08
 #define ATA_AHCI_PI                     0x0c
