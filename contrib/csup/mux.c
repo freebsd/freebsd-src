@@ -782,7 +782,7 @@ sender_loop(void *arg)
 	struct buf *buf;
 	uint32_t winsize;
 	uint16_t hdrsize, size, len;
-	int error, id, iovcnt, what;
+	int error, id, iovcnt, what = 0;
 
 	m = (struct mux *)arg;
 again:
