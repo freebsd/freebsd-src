@@ -216,15 +216,15 @@ GENSRCS+=	tconfig.h
 CLEANFILES+=	cs-tconfig.h
 # Options
 optionlist: ${OPT_FILES}
-	awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
+	LC_ALL=C awk -f ${GCCDIR}/opt-gather.awk ${.ALLSRC} > ${.TARGET}
 
 options.h:	optionlist
-	awk -f ${GCCDIR}/opt-functions.awk \
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
 	    -f ${GCCDIR}/opth-gen.awk \
 		< ${.ALLSRC} > ${.TARGET}
 
 options.c:	optionlist
-	awk -f ${GCCDIR}/opt-functions.awk \
+	LC_ALL=C awk -f ${GCCDIR}/opt-functions.awk \
 	    -f ${GCCDIR}/optc-gen.awk \
 		-v header_name="config.h system.h coretypes.h tm.h" \
 		< ${.ALLSRC} > ${.TARGET}
