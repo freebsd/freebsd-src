@@ -106,12 +106,9 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 
 		vn_lock(dvp, ltype | LK_RETRY, td);
 		vdrop(dvp);
-
-		dnode->tn_dir.tn_parent->tn_lookup_dirent = NULL;
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
 		VREF(dvp);
 		*vpp = dvp;
-		dnode->tn_lookup_dirent = NULL;
 		error = 0;
 	} else {
 		de = tmpfs_dir_lookup(dnode, cnp);
@@ -178,7 +175,6 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 					*vpp = NULL;
 					goto out;
 				}
-				tnode->tn_lookup_dirent = de;
 				cnp->cn_flags |= SAVENAME;
 			} else {
 				error = tmpfs_alloc_vp(dvp->v_mount, tnode,
@@ -786,7 +782,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
-	de = node->tn_lookup_dirent;
+	de = tmpfs_dir_search(dnode, node);
 	MPASS(de != NULL);
 
 	/* Files marked as immutable or append-only cannot be deleted. */
@@ -906,10 +902,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	MPASS(fcnp->cn_flags & HASBUF);
 	MPASS(tcnp->cn_flags & HASBUF);
 
-	fdnode = VP_TO_TMPFS_DIR(fdvp);
-	fnode = VP_TO_TMPFS_NODE(fvp);
   	tnode = (tvp == NULL) ? NULL : VP_TO_TMPFS_NODE(tvp);
-	de = fnode->tn_lookup_dirent;
 
 	/* Disallow cross-device renames.
 	 * XXX Why isn't this done by the caller? */
@@ -927,11 +920,22 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out;
 	}
 
+	/* If we need to move the directory between entries, lock the
+	 * source so that we can safely operate on it. */
+	if (tdvp != fdvp) {
+		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY, tcnp->cn_thread);
+		if (error != 0)
+			goto out;
+	}
+	fdnode = VP_TO_TMPFS_DIR(fdvp);
+	fnode = VP_TO_TMPFS_NODE(fvp);
+	de = tmpfs_dir_search(fdnode, fnode);
+
 	/* Avoid manipulating '.' and '..' entries. */
 	if (de == NULL) {
 		MPASS(fvp->v_type == VDIR);
 		error = EINVAL;
-		goto out;
+		goto out_locked;
 	}
 	MPASS(de->td_node == fnode);
 
@@ -946,32 +950,24 @@ tmpfs_rename(struct vop_rename_args *v)
 		if ((tnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 		    (tdnode->tn_flags & (APPEND | IMMUTABLE))) {
 			error = EPERM;
-			goto out;
+			goto out_locked;
 		}
 
 		if (fnode->tn_type == VDIR && tnode->tn_type == VDIR) {
 			if (tnode->tn_size > 0) {
 				error = ENOTEMPTY;
-				goto out;
+				goto out_locked;
 			}
 		} else if (fnode->tn_type == VDIR && tnode->tn_type != VDIR) {
 			error = ENOTDIR;
-			goto out;
+			goto out_locked;
 		} else if (fnode->tn_type != VDIR && tnode->tn_type == VDIR) {
 			error = EISDIR;
-			goto out;
+			goto out_locked;
 		} else {
 			MPASS(fnode->tn_type != VDIR &&
 				tnode->tn_type != VDIR);
 		}
-	}
-
-	/* If we need to move the directory between entries, lock the
-	 * source so that we can safely operate on it. */
-	if (fdnode != tdnode) {
-		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY, tcnp->cn_thread);
-		if (error != 0)
-			goto out;
 	}
 
 	if ((fnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND))
@@ -1045,7 +1041,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	 * from the target directory. */
 	if (tvp != NULL) {
 		/* Remove the old entry from the target directory. */
-		de = tnode->tn_lookup_dirent;
+		de = tmpfs_dir_search(tdnode, tnode);
 		tmpfs_dir_detach(tdvp, de);
 
 		/* Free the directory entry we just deleted.  Note that the
@@ -1133,7 +1129,7 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 
 	/* Get the directory entry associated with node (vp).  This was
 	 * filled by tmpfs_lookup while looking up the entry. */
-	de = node->tn_lookup_dirent;
+	de = tmpfs_dir_search(dnode, node);
 	MPASS(TMPFS_DIRENT_MATCHES(de,
 	    v->a_cnp->cn_nameptr,
 	    v->a_cnp->cn_namelen));
