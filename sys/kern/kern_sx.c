@@ -103,6 +103,7 @@ CTASSERT(((SX_ADAPTIVESPIN | SX_RECURSE) & LO_CLASSFLAGS) ==
  */
 #define	sx_recursed(sx)		((sx)->sx_recurse != 0)
 
+static void	assert_sx(struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_sx(struct lock_object *lock);
 #endif
@@ -112,6 +113,7 @@ static int	unlock_sx(struct lock_object *lock);
 struct lock_class lock_class_sx = {
 	.lc_name = "sx",
 	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_assert = assert_sx,
 #ifdef DDB
 	.lc_ddb_show = db_show_sx,
 #endif
@@ -122,6 +124,13 @@ struct lock_class lock_class_sx = {
 #ifndef INVARIANTS
 #define	_sx_assert(sx, what, file, line)
 #endif
+
+void
+assert_sx(struct lock_object *lock, int what)
+{
+
+	sx_assert((struct sx *)lock, what);
+}
 
 void
 lock_sx(struct lock_object *lock, int how)
