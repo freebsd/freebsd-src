@@ -82,7 +82,7 @@ int	forkpty(int *_amaster, char *_name,
 		     struct termios *_termp, struct winsize *_winp);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
-int	expand_number(char *_buf, int64_t *_num);
+int	expand_number(const char *_buf, int64_t *_num);
 const char *uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
