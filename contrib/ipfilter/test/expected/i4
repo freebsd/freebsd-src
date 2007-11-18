@@ -6,4 +6,4 @@ block in proto udp from any port != 123 to any port < 7
 block in proto tcp from any port = 25 to any port > 25
 pass in proto tcp/udp from any port 1 >< 3 to any port 1 <> 3
 pass in proto tcp/udp from any port 2:2 to any port 10:20
-pass in log first quick proto tcp from any port > 1023 to any port = 1723 flags S/FSRPAU keep state
+pass in log first quick proto tcp from any port > 1023 to any port = 1723 flags S/FSRPAU keep state # count 0

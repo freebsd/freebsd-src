@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2002-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -12,7 +12,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipftest.c,v 1.44.2.9 2006/03/29 11:21:13 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipftest.c,v 1.44.2.13 2006/12/12 16:13:01 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -22,12 +22,13 @@ extern	struct ifnet	*get_unit __P((char *, int));
 extern	void	init_ifp __P((void));
 extern	ipnat_t	*natparse __P((char *, int));
 extern	int	fr_running;
-extern	hostmap_t **maptable;
+extern	hostmap_t **ipf_hm_maptable;
+extern	hostmap_t *ipf_hm_maplist;
 
 ipfmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_stinsert;
 ipfmutex_t	ipf_nat_new, ipf_natio, ipf_timeoutlock;
 ipfrwlock_t	ipf_mutex, ipf_global, ipf_ipidfrag, ip_poolrw, ipf_frcache;
-ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+ipfrwlock_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth, ipf_tokens;
 int	opts = OPT_DONOTHING;
 int	use_inet6 = 0;
 int	docksum = 0;
@@ -103,6 +104,7 @@ char *argv[];
 	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock");
 	RWLOCK_INIT(&ipf_ipidfrag, "ipf IP NAT-Frag rwlock");
 	RWLOCK_INIT(&ipf_frcache, "ipf filter cache");
+	RWLOCK_INIT(&ipf_tokens, "ipf token rwlock");
 
 	initparse();
 	if (fr_initialise() == -1)
@@ -251,7 +253,10 @@ char *argv[];
 				(void)printf("pass");
 				break;
 			case 1 :
-				(void)printf("nomatch");
+				if (m == NULL)
+					(void)printf("bad-packet");
+				else
+					(void)printf("nomatch");
 				break;
 			case 3 :
 				(void)printf("block return-rst");
@@ -631,26 +636,23 @@ int n;
  */
 void dumpnat()
 {
-	ipnat_t	*ipn;
-	nat_t	*nat;
 	hostmap_t *hm;
-	int	i;
+	ipnat_t	*ipn;
+	nat_t *nat;
 
 	printf("List of active MAP/Redirect filters:\n");
 	for (ipn = nat_list; ipn != NULL; ipn = ipn->in_next)
 		printnat(ipn, opts & (OPT_DEBUG|OPT_VERBOSE));
 	printf("\nList of active sessions:\n");
 	for (nat = nat_instances; nat; nat = nat->nat_next) {
-		printactivenat(nat, opts);
+		printactivenat(nat, opts, 0, 0);
 		if (nat->nat_aps)
 			printaps(nat->nat_aps, opts);
 	}
 
 	printf("\nHostmap table:\n");
-	for (i = 0; i < ipf_hostmap_sz; i++) {
-		for (hm = maptable[i]; hm != NULL; hm = hm->hm_next)
-			printhostmap(hm, i);
-	}
+	for (hm = ipf_hm_maplist; hm != NULL; hm = hm->hm_next)
+		printhostmap(hm, 0);
 }
 
 

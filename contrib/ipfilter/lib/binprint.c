@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2002 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: binprint.c,v 1.8 2002/05/14 15:18:56 darrenr Exp $
+ * $Id: binprint.c,v 1.8.4.1 2006/06/16 17:20:56 darrenr Exp $
  */
 
 #include "ipf.h"

@@ -1,10 +1,12 @@
-IP Filter bug report form.
+Please submit this information at SourceForge using this URL:
+http://sourceforge.net/tracker/?func=add&group_id=169098&atid=849053
+
+Please also send an email to darrenr@reed.wattle.id.au.
+
+Some information that I generally find important:
 --------------------------
-IP Filter Version:
-Operating System Version:
-Configuration: <LKM or compiled-into-kernel>
-
-Description of problem:
-
-How to repeat:
-
+* IP Filter Version
+* Operating System and its Version
+* Configuration: (LKM or compiled-into-kernel)
+* Description of problem
+* How to repeat

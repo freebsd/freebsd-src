@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_scan.h,v 2.9.2.1 2005/06/12 07:18:29 darrenr Exp $
+ * $Id: ip_scan.h,v 2.9.2.2 2006/07/14 06:12:19 darrenr Exp $
  */
 
 #ifndef __IP_SCAN_H__
@@ -94,7 +94,7 @@ typedef	struct	ipscanstat	{
 } ipscanstat_t;
 
 
-extern	int fr_scan_ioctl __P((caddr_t, ioctlcmd_t, int));
+extern	int fr_scan_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
 extern	int ipsc_init __P((void));
 extern	int ipsc_attachis __P((struct ipstate *));
 extern	int ipsc_attachfr __P((struct frentry *));

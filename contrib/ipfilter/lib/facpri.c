@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: facpri.c,v 1.6.2.4 2006/03/17 22:28:41 darrenr Exp $
+ * $Id: facpri.c,v 1.6.2.5 2006/06/16 17:20:58 darrenr Exp $
  */
 
 #include <stdio.h>
@@ -22,7 +22,7 @@
 #include "facpri.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: facpri.c,v 1.6.2.4 2006/03/17 22:28:41 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: facpri.c,v 1.6.2.5 2006/06/16 17:20:58 darrenr Exp $";
 #endif
 
 

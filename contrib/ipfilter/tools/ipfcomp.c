@@ -1,13 +1,13 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2001-2005 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipfcomp.c,v 1.24.2.3 2006/03/17 22:31:57 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipfcomp.c,v 1.24.2.7 2007/05/01 22:15:00 darrenr Exp $";
 #endif
 
 #include "ipf.h"
@@ -94,11 +94,22 @@ frentry_t *fr;
  		fprintf(fp, "* to the original author and the contributors.\n");
  		fprintf(fp, "*/\n\n");
 
+		fprintf(fp, "#include <sys/param.h>\n");
 		fprintf(fp, "#include <sys/types.h>\n");
 		fprintf(fp, "#include <sys/time.h>\n");
 		fprintf(fp, "#include <sys/socket.h>\n");
-		fprintf(fp, "#if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__sgi)\n");
-		fprintf(fp, "# include <sys/systm.h>\n");
+		fprintf(fp, "#if (__FreeBSD_version >= 40000)\n");
+		fprintf(fp, "# if defined(_KERNEL)\n");
+		fprintf(fp, "#  include <sys/libkern.h>\n");
+		fprintf(fp, "# else\n");
+		fprintf(fp, "#  include <sys/unistd.h>\n");
+		fprintf(fp, "# endif\n");
+		fprintf(fp, "#endif\n");
+		fprintf(fp, "#if (__NetBSD_Version__ >= 399000000)\n");
+		fprintf(fp, "#else\n");
+		fprintf(fp, "# if !defined(__FreeBSD__) && !defined(__OpenBSD__) && !defined(__sgi)\n");
+		fprintf(fp, "#  include <sys/systm.h>\n");
+		fprintf(fp, "# endif\n");
 		fprintf(fp, "#endif\n");
 		fprintf(fp, "#include <sys/errno.h>\n");
 		fprintf(fp, "#include <sys/param.h>\n");
@@ -493,7 +504,8 @@ u_int incount, outcount;
 	/*
 	 * Output the array of pointers to rules for this group.
 	 */
-	if (num == -2 && dir == 0 && header[0] == 0 && incount != 0) {
+	if (g != NULL && num == -2 && dir == 0 && header[0] == 0 &&
+	    incount != 0) {
 		fprintf(fp, "\nfrentry_t *ipf_rules_in_%s[%d] = {",
 			group, incount);
 		for (f = g->fg_start, i = 0; f != NULL; f = f->fr_next) {
@@ -512,7 +524,8 @@ u_int incount, outcount;
 		fprintf(fp, "\n};\n");
 	}
 
-	if (num == -2 && dir == 1 && header[1] == 0 && outcount != 0) {
+	if (g != NULL && num == -2 && dir == 1 && header[0] == 0 &&
+	    outcount != 0) {
 		fprintf(fp, "\nfrentry_t *ipf_rules_out_%s[%d] = {",
 			group, outcount);
 		for (f = g->fg_start, i = 0; f != NULL; f = f->fr_next) {
@@ -541,7 +554,7 @@ u_int incount, outcount;
 	/*
 	 * If the function header has not been printed then print it now.
 	 */
-	if (header[dir] == 0) {
+	if (g != NULL && header[dir] == 0) {
 		int pdst = 0, psrc = 0;
 
 		openfunc = 1;

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001, 2003 by Darren Reed.
+ * Copyright (C) 2001-2006 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -78,7 +78,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.15 2006/03/18 06:59:39 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 1.33.2.20 2007/09/20 12:51:56 darrenr Exp $";
 #endif
 
 
@@ -752,6 +752,8 @@ int	blen;
 		strcpy(t, "NAT:MAPBLOCK ");
 	else if (nl->nl_type == NL_CLONE)
 		strcpy(t, "NAT:CLONE ");
+	else if (nl->nl_type == NL_DESTROY)
+		strcpy(t, "NAT:DESTROY ");
 	else
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);
@@ -764,8 +766,9 @@ int	blen;
 	(void) sprintf(t, "%s,%s ", HOSTNAME_V4(res, nl->nl_outip),
 		portname(res, proto, (u_int)nl->nl_outport));
 	t += strlen(t);
-	(void) sprintf(t, "[%s,%s]", HOSTNAME_V4(res, nl->nl_origip),
-		portname(res, proto, (u_int)nl->nl_origport));
+	(void) sprintf(t, "[%s,%s PR %s]", HOSTNAME_V4(res, nl->nl_origip),
+		portname(res, proto, (u_int)nl->nl_origport),
+		getproto(nl->nl_p));
 	t += strlen(t);
 	if (nl->nl_type == NL_EXPIRE) {
 #ifdef	USE_QUAD_T
@@ -817,27 +820,49 @@ int	blen;
 	(void) sprintf(t, ".%-.6ld ", ipl->ipl_usec);
 	t += strlen(t);
 
-	if (sl->isl_type == ISL_NEW)
+	switch (sl->isl_type)
+	{
+	case ISL_NEW :
 		strcpy(t, "STATE:NEW ");
-	else if (sl->isl_type == ISL_CLONE)
+		break;
+
+	case ISL_CLONE :
 		strcpy(t, "STATE:CLONED ");
-	else if (sl->isl_type == ISL_EXPIRE) {
+		break;
+
+	case ISL_EXPIRE :
 		if ((sl->isl_p == IPPROTO_TCP) &&
 		    (sl->isl_state[0] > IPF_TCPS_ESTABLISHED ||
 		     sl->isl_state[1] > IPF_TCPS_ESTABLISHED))
 			strcpy(t, "STATE:CLOSE ");
 		else
 			strcpy(t, "STATE:EXPIRE ");
-	} else if (sl->isl_type == ISL_FLUSH)
+		break;
+
+	case ISL_FLUSH :
 		strcpy(t, "STATE:FLUSH ");
-	else if (sl->isl_type == ISL_INTERMEDIATE)
+		break;
+
+	case ISL_INTERMEDIATE :
 		strcpy(t, "STATE:INTERMEDIATE ");
-	else if (sl->isl_type == ISL_REMOVE)
+		break;
+
+	case ISL_REMOVE :
 		strcpy(t, "STATE:REMOVE ");
-	else if (sl->isl_type == ISL_KILLED)
+		break;
+
+	case ISL_KILLED :
 		strcpy(t, "STATE:KILLED ");
-	else
+		break;
+
+	case ISL_UNLOAD :
+		strcpy(t, "STATE:UNLOAD ");
+		break;
+
+	default :
 		sprintf(t, "Type: %d ", sl->isl_type);
+		break;
+	}
 	t += strlen(t);
 
 	proto = getproto(sl->isl_p);
@@ -980,7 +1005,10 @@ int	blen;
 	ipflog_t *ipf;
 	iplog_t	*ipl;
 #ifdef	USE_INET6
+	struct ip6_ext *ehp;
+	u_short ehl;
 	ip6_t *ip6;
+	int go;
 #endif
 
 	ipl = (iplog_t *)buf;
@@ -1089,6 +1117,29 @@ int	blen;
 		s = (u_32_t *)&ip6->ip6_src;
 		d = (u_32_t *)&ip6->ip6_dst;
 		plen = hl + ntohs(ip6->ip6_plen);
+		go = 1;
+		ehp = (struct ip6_ext *)((char *)ip6 + hl);
+		while (go == 1) {
+			switch (p)
+			{
+			case IPPROTO_HOPOPTS :
+			case IPPROTO_MOBILITY :
+			case IPPROTO_DSTOPTS :
+			case IPPROTO_ROUTING :
+			case IPPROTO_AH :
+				p = ehp->ip6e_nxt;
+				ehl = 8 + (ehp->ip6e_len << 3);
+				hl += ehl;
+				ehp = (struct ip6_ext *)((char *)ehp + ehl);
+				break;
+			case IPPROTO_FRAGMENT :
+				hl += sizeof(struct ip6_frag);
+				/* FALLTHROUGH */
+			default :
+				go = 0;
+				break;
+			}
+		}
 #else
 		sprintf(t, "ipv6");
 		goto printipflog;
@@ -1629,6 +1680,7 @@ char *argv[];
 			if (!tr)
 				continue;
 			nr += tr;
+			n = 0;
 
 			tr = read_log(fd[i], &n, buf, sizeof(buf));
 			if (donehup) {

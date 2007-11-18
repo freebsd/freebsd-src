@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $FreeBSD$
- * Id: ip_log.c,v 2.75.2.11 2006/03/26 13:50:47 darrenr Exp $
+ * Id: ip_log.c,v 2.75.2.19 2007/09/09 11:32:06 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) || defined(_KERNEL)
@@ -17,7 +17,11 @@
 #endif
 #if defined(__NetBSD__) && (NetBSD >= 199905) && !defined(IPFILTER_LKM) && \
     defined(_KERNEL)
-# include "opt_ipfilter_log.h"
+# if (__NetBSD_Version__ < 399001400)
+#  include "opt_ipfilter_log.h"
+# else
+#  include "opt_ipfilter.h"
+# endif
 #endif
 #if defined(__FreeBSD__) && !defined(IPFILTER_LKM)
 # if defined(_KERNEL)
@@ -48,7 +52,8 @@ struct file;
 # undef _KERNEL
 # undef KERNEL
 #endif
-#if __FreeBSD_version >= 220000 && defined(_KERNEL)
+#if (defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)) && \
+    defined(_KERNEL)
 # include <sys/fcntl.h>
 # include <sys/filio.h>
 #else
@@ -57,14 +62,14 @@ struct file;
 #include <sys/time.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if defined(NetBSD) && (__NetBSD_Version__ >= 104000000)
+# if (defined(NetBSD) && (__NetBSD_Version__ >= 104000000))
 #  include <sys/proc.h>
 # endif
 #endif /* _KERNEL */
 #if !SOLARIS && !defined(__hpux) && !defined(linux)
-# if (defined(NetBSD) && NetBSD > 199609) || \
-     (defined(OpenBSD) && OpenBSD > 199603) || \
-     (__FreeBSD_version >= 300000)
+# if (defined(NetBSD) && (NetBSD > 199609)) || \
+     (defined(OpenBSD) && (OpenBSD > 199603)) || \
+     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
 #  include <sys/dirent.h>
 # else
 #  include <sys/dir.h>
@@ -148,12 +153,11 @@ iplog_select_t	iplog_ss[IPL_LOGMAX+1];
 
 extern int selwait;
 # endif /* IPL_SELECT */
-extern struct selinfo	ipfselwait[IPL_LOGSIZE];
 
 # if defined(linux) && defined(_KERNEL)
 wait_queue_head_t	iplh_linux[IPL_LOGSIZE];
 # endif
-# if SOLARIS
+# if SOLARIS && defined(_KERNEL)
 extern	kcondvar_t	iplwait;
 extern	struct pollhead	iplpollhead[IPL_LOGSIZE];
 # endif
@@ -162,7 +166,6 @@ iplog_t	**iplh[IPL_LOGSIZE], *iplt[IPL_LOGSIZE], *ipll[IPL_LOGSIZE];
 int	iplused[IPL_LOGSIZE];
 static fr_info_t	iplcrc[IPL_LOGSIZE];
 int	ipl_suppress = 1;
-int	ipl_buffer_sz;
 int	ipl_logmax = IPL_LOGMAX;
 int	ipl_logall = 0;
 int	ipl_log_init = 0;
@@ -259,16 +262,23 @@ u_int flags;
 	ipflog_t ipfl;
 	u_char p;
 	mb_t *m;
-# if (SOLARIS || defined(__hpux)) && defined(_KERNEL)
+# if (SOLARIS || defined(__hpux)) && defined(_KERNEL) && \
+  !defined(_INET_IP_STACK_H)
 	qif_t *ifp;
 # else
 	struct ifnet *ifp;
 # endif /* SOLARIS || __hpux */
 
-	ipfl.fl_nattag.ipt_num[0] = 0;
 	m = fin->fin_m;
+	if (m == NULL)
+		return -1;
+
+	ipfl.fl_nattag.ipt_num[0] = 0;
 	ifp = fin->fin_ifp;
-	hlen = fin->fin_hlen;
+	if (fin->fin_exthdr != NULL)
+		hlen = (char *)fin->fin_dp - (char *)fin->fin_ip;
+	else
+		hlen = fin->fin_hlen;
 	/*
 	 * calculate header size.
 	 */
@@ -329,14 +339,16 @@ u_int flags;
 	 * Get the interface number and name to which this packet is
 	 * currently associated.
 	 */
-# if (SOLARIS || defined(__hpux)) && defined(_KERNEL)
+# if (SOLARIS || defined(__hpux)) && defined(_KERNEL) && \
+     !defined(_INET_IP_STACK_H)
 	ipfl.fl_unit = (u_int)ifp->qf_ppa;
-	COPYIFNAME(ifp, ipfl.fl_ifname);
+	COPYIFNAME(fin->fin_v, ifp, ipfl.fl_ifname);
 # else
 #  if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
       (defined(OpenBSD) && (OpenBSD >= 199603)) || defined(linux) || \
-      (defined(__FreeBSD__) && (__FreeBSD_version >= 501113))
-	COPYIFNAME(ifp, ipfl.fl_ifname);
+      (defined(__FreeBSD__) && (__FreeBSD_version >= 501113)) || \
+      (SOLARIS && defined(_INET_IP_STACK_H))
+	COPYIFNAME(fin->fin_v, ifp, ipfl.fl_ifname);
 #  else
 	ipfl.fl_unit = (u_int)ifp->if_unit;
 #   if defined(_KERNEL)
@@ -345,7 +357,7 @@ u_int flags;
 			if ((ipfl.fl_ifname[2] = ifp->if_name[2]))
 				ipfl.fl_ifname[3] = ifp->if_name[3];
 #   else
-	(void) strncpy(ipfl.fl_ifname, IFNAME(ifp), sizeof(ipfl.fl_ifname));
+	COPYIFNAME(fin->fin_v, ifp, ipfl.fl_ifname);
 	ipfl.fl_ifname[sizeof(ipfl.fl_ifname) - 1] = '\0';
 #   endif
 #  endif
@@ -421,7 +433,7 @@ void **items;
 size_t *itemsz;
 int *types, cnt;
 {
-	caddr_t buf, ptr;
+	u_char *buf, *ptr;
 	iplog_t *ipl;
 	size_t len;
 	int i;
@@ -458,7 +470,7 @@ int *types, cnt;
 	 * check that we have space to record this information and can
 	 * allocate that much.
 	 */
-	KMALLOCS(buf, caddr_t, len);
+	KMALLOCS(buf, u_char *, len);
 	if (buf == NULL)
 		return -1;
 	SPL_NET(s);
@@ -497,7 +509,7 @@ int *types, cnt;
 		if (types[i] == 0) {
 			bcopy(items[i], ptr, itemsz[i]);
 		} else if (types[i] == 1) {
-			COPYDATA(items[i], 0, itemsz[i], ptr);
+			COPYDATA(items[i], 0, itemsz[i], (char *)ptr);
 		}
 		ptr += itemsz[i];
 	}
@@ -622,7 +634,7 @@ struct uio *uio;
 		iplused[unit] -= dlen;
 		MUTEX_EXIT(&ipl_mutex);
 		SPL_X(s);
-		error = UIOMOVE((caddr_t)ipl, dlen, UIO_READ, uio);
+		error = UIOMOVE(ipl, dlen, UIO_READ, uio);
 		if (error) {
 			SPL_NET(s);
 			MUTEX_ENTER(&ipl_mutex);
@@ -632,7 +644,7 @@ struct uio *uio;
 			break;
 		}
 		MUTEX_ENTER(&ipl_mutex);
-		KFREES((caddr_t)ipl, dlen);
+		KFREES(ipl, dlen);
 		SPL_NET(s);
 	}
 	if (!iplt[unit]) {
@@ -665,7 +677,7 @@ minor_t unit;
 	MUTEX_ENTER(&ipl_mutex);
 	while ((ipl = iplt[unit]) != NULL) {
 		iplt[unit] = ipl->ipl_next;
-		KFREES((caddr_t)ipl, ipl->ipl_dsize);
+		KFREES(ipl, ipl->ipl_dsize);
 	}
 	iplh[unit] = &iplt[unit];
 	ipll[unit] = NULL;

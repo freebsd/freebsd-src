@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * $FreeBSD$
- * Id: ip_proxy.h,v 2.31.2.2 2005/03/12 19:33:48 darrenr Exp
+ * Id: ip_proxy.h,v 2.31.2.5 2007/04/16 21:06:52 darrenr Exp $
  */
 
 #ifndef	__IP_PROXY_H__
@@ -443,6 +443,7 @@ extern	ap_session_t	*ap_sess_tab[AP_SESS_SIZE];
 extern	ap_session_t	*ap_sess_list;
 extern	aproxy_t	ap_proxies[];
 extern	int		ippr_ftp_pasvonly;
+extern	int		ipf_proxy_debug;
 
 extern	int	appr_add __P((aproxy_t *));
 extern	int	appr_ctl __P((ap_ctl_t *));
@@ -456,6 +457,6 @@ extern	void	aps_free __P((ap_session_t *));
 extern	int	appr_check __P((fr_info_t *, struct nat *));
 extern	aproxy_t	*appr_lookup __P((u_int, char *));
 extern	int	appr_new __P((fr_info_t *, struct nat *));
-extern	int	appr_ioctl __P((caddr_t, ioctlcmd_t, int));
+extern	int	appr_ioctl __P((caddr_t, ioctlcmd_t, int, void *));
 
 #endif /* __IP_PROXY_H__ */

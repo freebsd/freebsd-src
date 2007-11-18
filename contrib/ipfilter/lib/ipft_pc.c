@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2000-2005 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ipft_pc.c,v 1.10.2.1 2005/12/04 09:55:10 darrenr Exp $
+ * $Id: ipft_pc.c,v 1.10.2.2 2006/06/16 17:21:03 darrenr Exp $
  */
 #include "ipf.h"
 #include "pcap-ipf.h"
@@ -13,7 +13,7 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 1.10.2.1 2005/12/04 09:55:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 1.10.2.2 2006/06/16 17:21:03 darrenr Exp $";
 #endif
 
 struct	llc	{
