@@ -492,6 +492,7 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->userrefs = 0;
 	lf->flags = 0;
 	lf->filename = linker_strdup(filename);
+	lf->pathname = linker_strdup(pathname);
 	LINKER_GET_NEXT_FILE_ID(lf->id);
 	lf->ndeps = 0;
 	lf->deps = NULL;
@@ -589,6 +590,10 @@ linker_file_unload(linker_file_t file, int flags)
 	if (file->filename) {
 		free(file->filename, M_LINKER);
 		file->filename = NULL;
+	}
+	if (file->pathname) {
+		free(file->pathname, M_LINKER);
+		file->pathname = NULL;
 	}
 	kobj_delete((kobj_t) file, M_LINKER);
 out:
@@ -972,7 +977,7 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 {
 	linker_file_t lf;
 	int error = 0;
-	int namelen, version;
+	int namelen, version, version_num;
 	struct kld_file_stat *stat;
 
 #ifdef MAC
@@ -995,10 +1000,16 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 	 */
 	if ((error = copyin(&stat->version, &version, sizeof(version))) != 0)
 		goto out;
-	if (version != sizeof(struct kld_file_stat)) {
+	if (version == sizeof(struct kld_file_stat_1))
+		version_num = 1;
+	else if (version == sizeof(struct kld_file_stat))
+		version_num = 2;
+	else {
 		error = EINVAL;
 		goto out;
 	}
+
+	/* Version 1 fields: */
 	namelen = strlen(lf->filename) + 1;
 	if (namelen > MAXPATHLEN)
 		namelen = MAXPATHLEN;
@@ -1013,6 +1024,15 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 		goto out;
 	if ((error = copyout(&lf->size, &stat->size, sizeof(size_t))) != 0)
 		goto out;
+	if (version_num > 1) {
+		/* Version 2 fields: */
+		namelen = strlen(lf->pathname) + 1;
+		if (namelen > MAXPATHLEN)
+			namelen = MAXPATHLEN;
+		if ((error = copyout(lf->pathname, &stat->pathname[0],
+		    namelen)) != 0)
+			goto out;
+	}
 
 	td->td_retval[0] = 0;
 out:

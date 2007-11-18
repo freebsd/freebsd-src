@@ -53,6 +53,7 @@ struct kld_file_stat {
 	int         id;
 	caddr_t     address;        /* load address */
 	size_t      size;           /* size in bytes */
+	char        pathname[MAXPATHLEN];
 };
 .Ed
 .Pp
@@ -77,6 +78,10 @@ The id of the file specified in
 The load address of the kld file.
 .It size
 The size of the file.
+.It pathname
+The full name of the file referred to by
+.Fa fileid ,
+including the path.
 .El
 .Sh RETURN VALUES
 .Rv -std kldstat
