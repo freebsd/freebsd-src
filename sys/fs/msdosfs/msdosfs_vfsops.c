@@ -464,7 +464,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 
 	/*
 	 * Initialize ownerships and permissions, since nothing else will
-	 * initialize them if we are mounting root.
+	 * initialize them iff we are mounting root.
 	 */
 	pmp->pm_uid = UID_ROOT;
 	pmp->pm_gid = GID_WHEEL;
