@@ -71,12 +71,14 @@ static __inline void compiler_memory_barrier(void) {
 	__asm __volatile("":::"memory");
 }
 
+static void assert_rm(struct lock_object *lock, int what);
 static void lock_rm(struct lock_object *lock, int how);
 static int unlock_rm(struct lock_object *lock); 
 
 struct lock_class lock_class_rm = {
 	.lc_name = "rm",
 	.lc_flags = LC_SLEEPLOCK | LC_RECURSABLE,
+	.lc_assert = assert_rm,
 #if 0
 #ifdef DDB
 	.lc_ddb_show = db_show_rwlock,
@@ -85,6 +87,13 @@ struct lock_class lock_class_rm = {
 	.lc_lock = lock_rm,
 	.lc_unlock = unlock_rm,
 };
+
+static void
+assert_rm(struct lock_object *lock, int what)
+{
+
+	panic("assert_rm called");
+}
 
 static void
 lock_rm(struct lock_object *lock, int how) {

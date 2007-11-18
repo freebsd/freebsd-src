@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #endif
 
+static void	assert_lockmgr(struct lock_object *lock, int what);
 #ifdef DDB
 #include <ddb/ddb.h>
 static void	db_show_lockmgr(struct lock_object *lock);
@@ -70,6 +71,7 @@ static int	unlock_lockmgr(struct lock_object *lock);
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
 	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_assert = assert_lockmgr,
 #ifdef DDB
 	.lc_ddb_show = db_show_lockmgr,
 #endif
@@ -81,6 +83,13 @@ struct lock_class lock_class_lockmgr = {
  * Locking primitives implementation.
  * Locks provide shared/exclusive sychronization.
  */
+
+void
+assert_lockmgr(struct lock_object *lock, int what)
+{
+
+	panic("lockmgr locks do not support assertions");
+}
 
 void
 lock_lockmgr(struct lock_object *lock, int how)
