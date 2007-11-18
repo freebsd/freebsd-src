@@ -21,6 +21,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20071118:
+	The AT keyboard emulation of sunkbd(4) has been turned on
+	by default. In order to make the special symbols of the Sun
+	keyboards driven by sunkbd(4) work under X these now have
+	to be configured the same way as Sun USB keyboards driven
+	by ukbd(4) (which also does AT keyboard emulation), f.e.:
+
+	Option	"XkbLayout" "us"
+	Option	"XkbRules" "xorg"
+	Option	"XkbSymbols" "pc(pc105)+sun_vndr/usb(sun_usb)+us"
+
 20071024:
 	It has been decided that it is desirable to provide ABI
 	backwards compatibility to the FreeBSD 4/5/6 versions of the
