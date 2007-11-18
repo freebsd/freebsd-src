@@ -59,6 +59,8 @@ typedef struct linker_symval {
     size_t		size;
 } linker_symval_t;
 
+typedef int (*linker_function_nameval_callback_t)(linker_file_t, linker_symval_t *, void *);
+
 struct common_symbol {
     STAILQ_ENTRY(common_symbol) link;
     char*		name;
@@ -152,6 +154,12 @@ caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name,
  */
 int linker_file_lookup_set(linker_file_t _file, const char *_name,
 			   void *_start, void *_stop, int *_count);
+
+/*
+ * List all functions in a file.
+ */
+int linker_file_function_listall(linker_file_t, int (*)(linker_file_t,
+    linker_symval_t *, void *), void *);
 
 /*
  * Functions soley for use by the linker class handlers.

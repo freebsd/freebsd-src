@@ -690,6 +690,16 @@ linker_file_lookup_set(linker_file_t file, const char *name,
 	return (error);
 }
 
+/*
+ * List all functions in a file.
+ */
+int
+linker_file_function_listall(linker_file_t lf,
+    int (*callback_func)(linker_file_t, linker_symval_t *, void *), void *arg)
+{
+	return (LINKER_EACH_FUNCTION_NAMEVAL(lf, callback_func, arg));
+}
+
 caddr_t
 linker_file_lookup_symbol(linker_file_t file, const char *name, int deps)
 {
