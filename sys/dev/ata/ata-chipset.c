@@ -142,6 +142,7 @@ static int ata_promise_mio_status(device_t dev);
 static int ata_promise_mio_command(struct ata_request *request);
 static void ata_promise_mio_reset(device_t dev);
 static void ata_promise_mio_dmainit(device_t dev);
+static void ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void ata_promise_mio_setmode(device_t dev, int mode);
 static void ata_promise_sx4_intr(void *data);
 static int ata_promise_sx4_command(struct ata_request *request);
@@ -859,6 +860,7 @@ ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	    prd[i].dbc = htole32((segs[i].ds_len - 1) & ATA_AHCI_PRD_MASK);
 	}
     }
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
     args->nsegs = nsegs;
 }
 
@@ -2783,6 +2785,8 @@ ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	prd[i].addrhi = htole32((u_int64_t)segs[i].ds_addr >> 32);
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    args->nsegs = nsegs;
 }
 
 static void
@@ -3310,8 +3314,12 @@ sataii:
 	/* prime fake interrupt register */
 	ATA_OUTL(ctlr->r_res2, fake_reg, 0xffffffff);
 
-	/* clear SATA status */
+	/* clear SATA status and unmask interrupts */
 	ATA_OUTL(ctlr->r_res2, stat_reg, 0x000000ff);
+
+	/* enable "long burst lenght" on gen2 chips */
+	if ((ctlr->chip->cfg2 == PRSATA2) || (ctlr->chip->cfg2 == PRCMBO2))
+	    ATA_OUTL(ctlr->r_res2, 0x44, ATA_INL(ctlr->r_res2, 0x44) | 0x2000);
 
 	ctlr->allocate = ata_promise_mio_allocate;
 	ctlr->reset = ata_promise_mio_reset;
@@ -3800,8 +3808,42 @@ ata_promise_mio_reset(device_t dev)
 static void
 ata_promise_mio_dmainit(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
+
     /* note start and stop are not used here */
     ata_dmainit(dev);
+    if (ch->dma) 
+	ch->dma->setprd = ata_promise_mio_setprd;
+}
+
+
+#define MAXLASTSGSIZE (32 * sizeof(u_int32_t))
+static void 
+ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+{
+    struct ata_dmasetprd_args *args = xsc;
+    struct ata_dma_prdentry *prd = args->dmatab;
+    int i;
+
+    if ((args->error = error))
+	return;
+
+    for (i = 0; i < nsegs; i++) {
+	prd[i].addr = htole32(segs[i].ds_addr);
+	prd[i].count = htole32(segs[i].ds_len);
+    }
+    if (segs[i - 1].ds_len > MAXLASTSGSIZE) {
+	//printf("split last SG element of %u\n", segs[i - 1].ds_len);
+	prd[i - 1].count = htole32(segs[i - 1].ds_len - MAXLASTSGSIZE);
+	prd[i].count = htole32(MAXLASTSGSIZE);
+	prd[i].addr = htole32(segs[i - 1].ds_addr +
+			      (segs[i - 1].ds_len - MAXLASTSGSIZE));
+	nsegs++;
+	i++;
+    }
+    prd[i - 1].count |= htole32(ATA_DMA_EOT);
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    args->nsegs = nsegs;
 }
 
 static void
@@ -4862,6 +4904,8 @@ ata_siiprb_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	prd[i].count = htole32(segs[i].ds_len);
     }
     prd[i - 1].control = htole32(ATA_DMA_EOT);
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    args->nsegs = nsegs;
 }
 
 static void
