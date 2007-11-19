@@ -213,6 +213,7 @@ ata_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	prd[i].count = htole32(segs[i].ds_len);
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
     args->nsegs = nsegs;
 }
 
