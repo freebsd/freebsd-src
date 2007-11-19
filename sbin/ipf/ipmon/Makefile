@@ -1,15 +1,15 @@
 #	$FreeBSD$
 
 PROG=		ipmon
-SRCS=		ipmon.c ipmon_y.c ipmon_l.c
+SRCS=		${GENHDRS} ipmon.c ipmon_y.c ipmon_l.c
 MAN=		ipmon.8
 
 CFLAGS+=	-DLOGFAC=LOG_LOCAL0 -I.
 
-DPSRCS+=	ipmon_l.h ipmon_y.h
+GENHDRS+=	ipmon_l.h ipmon_y.h
+DPSRCS+=	${GENHDRS}
 
-CLEANFILES+=	ipmon_y.c ipmon_y.h
-CLEANFILES+=	ipmon_l.c ipmon_l.h
+CLEANFILES+=	${GENHDRS} ipmon_y.c ipmon_l.c
 
 ipmon_y.c: ipmon_y.y
 	${YACC} -d ${.ALLSRC}
