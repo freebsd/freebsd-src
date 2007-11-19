@@ -1769,11 +1769,6 @@ nfsmout:
 		VTONFS(vp)->n_attrstamp = 0;
 	if (!wccflag)
 		VTONFS(tdvp)->n_attrstamp = 0;
-	/*
-	 * Kludge: Map EEXIST => 0 assuming that it is a reply to a retry.
-	 */
-	if (error == EEXIST)
-		error = 0;
 	return (error);
 }
 
@@ -1837,17 +1832,9 @@ nfs_symlink(struct vop_symlink_args *ap)
 nfsmout:
 
 	/*
-	 * If we get an EEXIST error, silently convert it to no-error
-	 * in case of an NFS retry.
-	 */
-	if (error == EEXIST)
-		error = 0;
-
-	/*
-	 * If we do not have (or no longer have) an error, and we could
-	 * not extract the newvp from the response due to the request being
-	 * NFSv2 or the error being EEXIST.  We have to do a lookup in order
-	 * to obtain a newvp to return.
+	 * If we do not have an error and we could not extract the newvp from
+	 * the response due to the request being NFSv2, we have to do a
+	 * lookup in order to obtain a newvp to return.
 	 */
 	if (error == 0 && newvp == NULL) {
 		struct nfsnode *np = NULL;
@@ -1925,15 +1912,7 @@ nfsmout:
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
 	if (!wccflag)
 		VTONFS(dvp)->n_attrstamp = 0;
-	/*
-	 * Kludge: Map EEXIST => 0 assuming that you have a reply to a retry
-	 * if we can succeed in looking up the directory.
-	 */
-	if (error == EEXIST || (!error && !gotvp)) {
-		if (newvp) {
-			vput(newvp);
-			newvp = NULL;
-		}
+	if (error == 0 && newvp == NULL) {
 		error = nfs_lookitup(dvp, cnp->cn_nameptr, len, cnp->cn_cred,
 			cnp->cn_thread, &np);
 		if (!error) {
