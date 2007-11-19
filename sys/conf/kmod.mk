@@ -79,7 +79,7 @@ CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 . if !empty(CFLAGS:M-O[23s]) && empty(CFLAGS:M-fno-strict-aliasing)
 CFLAGS+=	-fno-strict-aliasing
 . endif
-#WERROR?=	-Werror
+WERROR?=	-Werror
 .endif
 CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
