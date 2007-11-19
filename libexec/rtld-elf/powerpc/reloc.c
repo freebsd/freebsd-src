@@ -38,6 +38,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 
 #include "debug.h"
 #include "rtld.h"
