@@ -441,8 +441,10 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
-#define	atomic_cmpset_acq_long	atomic_cmpset_acq_32
-#define	atomic_cmpset_rel_long	atomic_cmpset_rel_32
+#define	atomic_cmpset_acq_long(dst, old, new)	\
+    atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
+#define	atomic_cmpset_rel_long(dst, old, new)	\
+    atomic_cmpset_rel_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
 
 #define	atomic_cmpset_acq_ptr(dst, old, new)	\
     atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
