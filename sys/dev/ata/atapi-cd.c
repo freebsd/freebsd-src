@@ -689,25 +689,32 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 {
     device_t dev = pp->geom->softc;
     struct acd_softc *cdp = device_get_ivars(dev);
+    struct ata_request *request;
+    int8_t ccb[16] = { ATAPI_TEST_UNIT_READY, 0, 0, 0, 0,
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int timeout = 60, track;
 
-    /* check for media present, waiting for loading medium just in case */
+    if (!(request = ata_alloc_request()))
+	return ENOMEM;
+
+    /* wait if drive is not finished loading the medium */
     while (timeout--) {
-	if (!acd_mode_sense(dev, ATAPI_CDROM_CAP_PAGE,
-			    (caddr_t)&cdp->cap, sizeof(cdp->cap)) &&
-			    cdp->cap.page_code == ATAPI_CDROM_CAP_PAGE) {
-	    if ((cdp->cap.medium_type == MST_FMT_NONE) ||
-		(cdp->cap.medium_type == MST_NO_DISC) ||
-		(cdp->cap.medium_type == MST_DOOR_OPEN) ||
-		(cdp->cap.medium_type == MST_FMT_ERROR))
-		return EIO;
-	    else
-		break;
-	}
-	pause("acdld", hz / 2);
+	bzero(request, sizeof(struct ata_request));
+	request->dev = dev;
+	bcopy(ccb, request->u.atapi.ccb, 16);
+	request->flags = ATA_R_ATAPI;
+	request->timeout = 5;
+	ata_queue_request(request);
+	if (!request->error &&
+	    (request->u.atapi.sense.key == 2 ||
+	     request->u.atapi.sense.key == 7) &&
+	    request->u.atapi.sense.asc == 4 &&
+	    request->u.atapi.sense.ascq == 1)
+	    pause("acdld", hz / 2);
+	else
+	    break;
     }
-    if (timeout <= 0)
-	return EIO;
+    ata_free_request(request);
 
     if (pp->acr == 0) {
 	acd_prevent_allow(dev, 1);
