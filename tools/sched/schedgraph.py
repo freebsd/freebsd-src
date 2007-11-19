@@ -31,10 +31,17 @@ import re
 from Tkinter import *
 
 # To use:
-# - Install the ports/x11-toolkits/py-tkinter package.
-# - Add KTR_SCHED to KTR_COMPILE and KTR_MASK in your KERNCONF
-# - It is encouraged to increase KTR_ENTRIES size to 32768 to gather
-#    enough information for analysis.
+# - Install the ports/x11-toolkits/py-tkinter package; e.g.
+#	portinstall x11-toolkits/py-tkinter package
+# - Add KTR_SCHED to KTR_COMPILE and KTR_MASK in your KERNCONF; e.g.
+#	options 	KTR
+#	options 	KTR_ENTRIES=32768
+#	options 	KTR_COMPILE=(KTR_SCHED)
+#	options 	KTR_MASK=(KTR_SCHED)
+#	options 	KTR_CPUMASK=0x3
+# - It is encouraged to increase KTR_ENTRIES size to gather enough
+#    information for analysis; e.g.
+#	options 	KTR_ENTRIES=262144
 # - Rebuild kernel with proper changes to KERNCONF and boot new kernel.
 # - Run your workload to be profiled.
 # - While the workload is continuing (i.e. before it finishes), disable
@@ -52,6 +59,11 @@ from Tkinter import *
 # 2)  Add bounding box style zoom.
 # 3)  Click to center.
 # 4)  Implement some sorting mechanism.
+# 5)  Widget to display variable-range data (e.g. q length)
+# 6)  Reorder rows, hide rows, etc.
+# 7)  "Vertical rule" to help relate data in different rows
+# 8)  Mouse-over popup of full thread/event/row lable (currently truncated)
+# 9)  More visible anchors for popup event windows
 #
 # BUGS: 1) Only 8 CPUs are supported, more CPUs require more choices of
 #          colours to represent them ;-)
@@ -62,6 +74,7 @@ from Tkinter import *
 ticksps = None
 status = None
 configtypes = []
+lineno = -1
 
 def ticks2sec(ticks):
 	us = ticksps / 1000000
@@ -334,6 +347,7 @@ class Event:
 		self.item = None
 		self.dispcnt = 0
 		self.linked = None
+		self.recno = lineno
 		if (last):
 			source.lastevent(self)
 		else:
@@ -355,9 +369,11 @@ class Event:
 
 	def labels(self):
 		return [("Source:", self.source.name, 0),
-				("Event:", self.name, 0),
-				("CPU:", self.cpu, 0),
-				("Timestamp:", self.timestamp, 0)] + self.entries
+			("Event:", self.name, 0),
+			("CPU:", self.cpu, 0),
+			("Timestamp:", self.timestamp, 0),
+			("Record: ", self.recno, 0)
+		] + self.entries
 	def mouseenter(self, canvas, item):
 		self.displayref(canvas)
 		self.status()
@@ -452,11 +468,12 @@ class StateEvent(Event):
 
 	def labels(self):
 		return [("Source:", self.source.name, 0),
-				("Event:", self.name, 0),
-				("Timestamp:", self.timestamp, 0),
-				("CPU:", self.cpu, 0),
-				("Duration:", ticks2sec(self.duration), 0)] \
-				 + self.entries
+			("Event:", self.name, 0),
+			("Timestamp:", self.timestamp, 0),
+			("CPU:", self.cpu, 0),
+			("Record:", self.recno, 0),
+			("Duration:", ticks2sec(self.duration), 0)
+		] + self.entries
 
 class Count(Event):
 	name = "Count"
@@ -629,6 +646,18 @@ class Runq(StateEvent):
 		self.textadd(("by thread:", self.linked.name, 1))
 
 configtypes.append(Runq)
+
+class Sched_exit_thread(StateEvent):
+	name = "exit_thread"
+	color = "grey"
+	enabled = 0
+	def __init__(self, thread, cpu, timestamp, prio):
+		StateEvent.__init__(self, thread, cpu, timestamp)
+		self.name = "sched_exit_thread"
+		self.prio = prio
+		self.textadd(("prio:", self.prio, 0))
+
+configtypes.append(Sched_exit_thread)
 
 class Sched_exit(StateEvent):
 	name = "exit"
@@ -824,6 +853,9 @@ class Counter(EventSource):
 		if (count > Counter.max):
 			Counter.max = count
 
+	def ymax(self):
+		return (Counter.max)
+
 	def ysize(self):
 		return (80)
 
@@ -838,7 +870,6 @@ class KTRFile:
 		self.timestamp_adjust = {}
 		self.timestamp_f = None
 		self.timestamp_l = None
-		self.lineno = -1
 		self.threads = []
 		self.sources = []
 		self.ticks = {}
@@ -866,6 +897,8 @@ class KTRFile:
 		tdname = "(\S+)\(([^)]*)\)"
 		crittdname = "(\S+)\s+\(\d+,\s+([^)]*)\)"
 
+# XXX doesn't handle:
+#   371   0      61628682318 mi_switch: 0xc075c070(swapper) prio 180 inhibit 2 wmesg ATA request done lock (null)
 		ktrstr = "mi_switch: " + tdname
 		ktrstr += " prio (\d+) inhibit (\d+) wmesg (\S+) lock (\S+)"
 		switchout_re = re.compile(ktrhdr + ktrstr)
@@ -890,6 +923,9 @@ class KTRFile:
 		sched_rem_re = re.compile(ktrhdr + ktrstr)
 
 		ktrstr = "sched_exit_thread: " + tdname + " prio (\d+)"
+		sched_exit_thread_re = re.compile(ktrhdr + ktrstr)
+
+		ktrstr = "sched_exit: " + tdname + " prio (\d+)"
 		sched_exit_re = re.compile(ktrhdr + ktrstr)
 
 		ktrstr = "statclock: " + tdname + " prio (\d+)"
@@ -917,18 +953,20 @@ class KTRFile:
 			   [sched_prio_re, self.sched_prio],
 			   [preempted_re, self.preempted],
 			   [sched_rem_re, self.sched_rem],
+			   [sched_exit_thread_re, self.sched_exit_thread],
 			   [sched_exit_re, self.sched_exit],
 			   [sched_clock_re, self.sched_clock],
 			   [critsec_re, self.critsec],
 			   [idled_re, self.idled]]
 
+		global lineno
+		lineno = 0
 		lines = ifp.readlines()
 		self.synchstamp(lines)
 		for line in lines:
-			self.lineno += 1
-			if ((self.lineno % 1024) == 0):
-				status.startup("Parsing line " +
-				    str(self.lineno))
+			lineno += 1
+			if ((lineno % 1024) == 0):
+				status.startup("Parsing line " + str(lineno))
 			for p in parsers:
 				m = p[0].match(line)
 				if (m != None):
@@ -1001,7 +1039,7 @@ class KTRFile:
 		cpu = int(cpu)
 		timestamp = int(timestamp)
 		if (timestamp > self.timestamp_first[cpu]):
-			print "Bad timestamp on line ", self.lineno
+			print "Bad timestamp on line ", lineno, " (", timestamp, " > ", self.timestamp_first[cpu], ")"
 			return (0)
 		timestamp -= self.timestamp_adjust[cpu]
 		return (timestamp)
@@ -1078,6 +1116,13 @@ class KTRFile:
 		thread = self.findtd(td, pcomm)
 		KsegrpRunq(thread, cpu, timestamp, prio,
 		    self.findtd(bytd, bypcomm))
+
+	def sched_exit_thread(self, cpu, timestamp, td, pcomm, prio):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
+			return
+		thread = self.findtd(td, pcomm)
+		Sched_exit_thread(thread, cpu, timestamp, prio)
 
 	def sched_exit(self, cpu, timestamp, td, pcomm, prio):
 		timestamp = self.checkstamp(cpu, timestamp)
