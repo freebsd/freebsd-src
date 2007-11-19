@@ -460,7 +460,11 @@ ata_ahci_ident(device_t dev)
     if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
 	return ENXIO;
 
-    sprintf(buffer, "%s AHCI controller", ata_pcivendor2str(dev));
+    if (bootverbose)
+	sprintf(buffer, "%s (ID=%08x) AHCI controller", 
+		ata_pcivendor2str(dev), pci_get_devid(dev));
+    else
+	sprintf(buffer, "%s AHCI controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_ahci_chipinit;
     return 0;
@@ -591,16 +595,44 @@ ata_ahci_status(device_t dev)
 
     if (action & (1 << ch->unit)) {
 	u_int32_t istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
+	u_int32_t cstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 
 	/* clear interrupt(s) */
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
 
 	/* do we have any PHY events ? */
+	/* XXX SOS check istatus phy bits */
 	ata_sata_phy_check_events(dev);
 
-	/* do we have any device action ? */
-	return (!(ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset) & (1 << tag)));
+	/* do we have a potentially hanging engine to take care of? */
+	if ((istatus & 0x78400050) && (cstatus & (1 << tag))) {
+
+	    u_int32_t cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
+	    int timeout = 0;
+
+	    /* kill off all activity on this channel */
+	    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
+		     cmd & ~(ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
+
+	    /* XXX SOS this is not entirely wrong */
+	    do {
+		DELAY(1000);
+		if (timeout++ > 500) {
+		    device_printf(dev, "stopping AHCI engine failed\n");
+		    break;
+		}
+    	    } while (ATA_INL(ctlr->r_res2,
+			     ATA_AHCI_P_CMD + offset) & ATA_AHCI_P_CMD_CR);
+
+	    /* start operations on this channel */
+	    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
+		     cmd | (ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
+
+	    return 1;
+	}
+	else
+	    return (!(cstatus & (1 << tag)));
     }
     return 0;
 }
@@ -655,7 +687,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
     ATA_IDX_OUTL(ch, ATA_SACTIVE, ATA_IDX_INL(ch, ATA_SACTIVE) & (1 << tag));
 
     /* set command type bit */
-    if (ch->devices & ATA_ATAPI_MASTER)
+    if (request->flags & ATA_R_ATAPI)
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) |
 		 ATA_AHCI_P_CMD_ATAPI);
