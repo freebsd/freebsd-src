@@ -195,12 +195,9 @@ ast_reinit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
-    struct ast_softc *stp = device_get_ivars(dev);
 
     if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATAPI_MASTER)) ||
 	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATAPI_SLAVE))) {
-	device_set_ivars(dev, NULL);
-	free(stp, M_AST);
 	return 1;
     }
     ATA_SETMODE(device_get_parent(dev), dev);
