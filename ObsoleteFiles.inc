@@ -3963,6 +3963,20 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 #  - usr/share/tmac/mm/locale
 #  - usr/share/tmac/mm/se_locale
 #  - var/yp/Makefile
+
+# 20071119: shared library version bump
+OLD_LIBS+=usr/lib/libasn1.so.8
+OLD_LIBS+=usr/lib/libgssapi.so.8
+OLD_LIBS+=usr/lib/libhdb.so.8
+OLD_LIBS+=usr/lib/libkadm5clnt.so.8
+OLD_LIBS+=usr/lib/libkadm5srv.so.8
+OLD_LIBS+=usr/lib/libkafs5.so.8
+OLD_LIBS+=usr/lib/libkrb5.so.8
+OLD_LIBS+=usr/lib/libobjc.so.2
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libgssapi.so.8
+OLD_LIBS+=usr/lib32/libobjc.so.2
+.endif
 # 20070519: GCC 4.2
 OLD_LIBS+=usr/lib/libg2c.a
 OLD_LIBS+=usr/lib/libg2c.so
