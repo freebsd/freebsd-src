@@ -354,7 +354,7 @@ invalid:
 		iov[1].iov_len = sizeof(_devfs);
 		iov[2].iov_base = _fspath;
 		iov[2].iov_len = sizeof(_fspath);
-		/* 
+		/*
 		 * Try to avoid the trailing slash in _PATH_DEV.
 		 * Be *very* defensive.
 		 */
@@ -1373,8 +1373,8 @@ clean_ttys(void)
 	int devlen;
 	char *old_getty, *old_window, *old_type;
 
-	/* 
-	 * mark all sessions for death, (!SE_PRESENT) 
+	/*
+	 * mark all sessions for death, (!SE_PRESENT)
 	 * as we find or create new ones they'll be marked as keepers,
 	 * we'll later nuke all the ones not found in /etc/ttys
 	 */
