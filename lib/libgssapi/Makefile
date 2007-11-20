@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		gssapi
-SHLIB_MAJOR=	8
+SHLIB_MAJOR=	9
 
 SRCS=
 SRCS+=		gss_utils.c
