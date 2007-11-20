@@ -135,7 +135,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /*
  * This parameter controls the duration of transmit watchdog timer.
  */
-#define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
+#define EM_TX_TIMEOUT                   5
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -185,9 +185,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
 #define ETHER_ALIGN                     2
-#define EM_TX_BUFFER_SIZE		((uint32_t) 1514)
 #define EM_FC_PAUSE_TIME		0x0680
 #define EM_EEPROM_APME			0x400;
+
+/* Code compatilbility between 6 and 7 */
+#ifndef ETHER_BPF_MTAP
+#define ETHER_BPF_MTAP			BPF_MTAP
+#endif
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -226,11 +230,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
 #define EM_MAX_SCATTER		64
-#define EM_TSO_SIZE		65535	/* maxsize of a dma transfer */
+#define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
-#define CSUM_OFFLOAD		7	/* Offload bits in csum flags */
+#define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
 
 struct adapter;
 
@@ -274,7 +278,10 @@ struct adapter {
 	int		io_rid;
 	int		msi;
 	int		if_flags;
-	struct mtx	mtx;
+	int		max_frame_size;
+	int		min_frame_size;
+	struct mtx	core_mtx;
+	struct mtx	tx_mtx;
 	int		em_insert_vlan_header;
 	struct task     link_task;
 	struct task     rxtx_task;
@@ -284,7 +291,6 @@ struct adapter {
 	int		has_manage;
 
 	/* Info about the board itself */
-	uint32_t	part_num;
 	uint8_t		link_active;
 	uint16_t	link_speed;
 	uint16_t	link_duplex;
@@ -413,11 +419,17 @@ typedef struct _DESCRIPTOR_PAIR
 	uint32_t   elements;
 } DESC_ARRAY, *PDESC_ARRAY;
 
-#define	EM_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
-#define	EM_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->mtx)
-#define	EM_LOCK(_sc)		mtx_lock(&(_sc)->mtx)
-#define	EM_UNLOCK(_sc)		mtx_unlock(&(_sc)->mtx)
-#define	EM_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->mtx, MA_OWNED)
+#define	EM_CORE_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->core_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	EM_TX_LOCK_INIT(_sc, _name) \
+	mtx_init(&(_sc)->tx_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+#define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
+#define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
+#define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
+#define	EM_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
+#define	EM_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
+#define	EM_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
+#define	EM_CORE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->core_mtx, MA_OWNED)
+#define	EM_TX_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
 #endif /* _EM_H_DEFINED_ */
