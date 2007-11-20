@@ -836,8 +836,8 @@
 #define CHIP_REV_YU_EC_A2	1 /* Chip Rev. for Yukon-EC A2 */
 #define CHIP_REV_YU_EC_A3	2 /* Chip Rev. for Yukon-EC A3 */
 
-#define	CHIP_REV_YU_EC_U_A0	0
-#define	CHIP_REV_YU_EC_U_A1	1
+#define	CHIP_REV_YU_EC_U_A0	1
+#define	CHIP_REV_YU_EC_U_A1	2
 
 /*	B2_Y2_CLK_GATE	 8 bit	Clock Gating (Yukon-2 only) */
 #define Y2_STATUS_LNK2_INAC	BIT_7	/* Status Link 2 inactiv (0 = activ) */
@@ -1082,8 +1082,9 @@
 /* Threshold values for Yukon-EC Ultra */
 #define	MSK_ECU_ULPP	0x0080	/* Upper Pause Threshold (multiples of 8) */
 #define	MSK_ECU_LLPP	0x0060	/* Lower Pause Threshold (multiples of 8) */
-#define	MSK_ECU_AE_THR	0x0180  /* Almost Empty Threshold */
+#define	MSK_ECU_AE_THR	0x0070  /* Almost Empty Threshold */
 #define	MSK_ECU_TXFF_LEV	0x01a0	/* Tx BMU FIFO Level */
+#define	MSK_ECU_JUMBO_WM	0x01
 
 #define MSK_BMU_RX_WM		0x600	/* BMU Rx Watermark */
 #define MSK_BMU_TX_WM		0x600	/* BMU Tx Watermark */
@@ -1863,6 +1864,8 @@
 #define	TX_STFW_ENA	BIT_30	/* Enable Store & Forward (Yukon-EC Ultra) */
 #define TX_VLAN_TAG_ON	BIT_25	/* enable  VLAN tagging */
 #define TX_VLAN_TAG_OFF	BIT_24	/* disable VLAN tagging */
+#define	TX_JUMBO_ENA	BIT_23	/* Enable Jumbo Mode (Yukon-EC Ultra) */
+#define	TX_JUMBO_DIS	BIT_22	/* Disable Jumbo Mode (Yukon-EC Ultra) */
 #define GMF_WSP_TST_ON	BIT_18	/* Write Shadow Pointer Test On */
 #define GMF_WSP_TST_OFF	BIT_17	/* Write Shadow Pointer Test Off */
 #define GMF_WSP_STEP	BIT_16	/* Write Shadow Pointer Step/Increment */
