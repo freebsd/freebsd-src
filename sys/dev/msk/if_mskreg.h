@@ -135,6 +135,7 @@
 #define DEVICEID_MRVL_4362	0x4362
 #define DEVICEID_MRVL_4363	0x4363
 #define DEVICEID_MRVL_4364	0x4364
+#define DEVICEID_MRVL_436A	0x436A
 
 /*
  * D-Link gigabit ethernet device ID
