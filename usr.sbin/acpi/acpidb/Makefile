@@ -59,5 +59,6 @@ MAN=	acpidb.8
 WARNS?=	2
 
 CFLAGS+= -DACPI_EXEC_APP
+CFLAGS+=-fno-strict-aliasing
 
 .include <bsd.prog.mk>

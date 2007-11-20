@@ -27,6 +27,7 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
+CFLAGS+=-fno-strict-aliasing
 
 # CFLAGS+=-DSYSTEM_SCOPE_ONLY
 

@@ -8,6 +8,7 @@ SRCS=	if.c inet.c main.c mbuf.c mcast.c mroute.c route.c \
 	unix.c atalk.c netgraph.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
 
 WARNS?=	3
+CFLAGS+=-fno-strict-aliasing
 
 CFLAGS+=-DIPSEC
 CFLAGS+=-DSCTP
