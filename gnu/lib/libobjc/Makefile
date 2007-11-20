@@ -7,7 +7,7 @@ GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 .PATH: ${OBJCDIR}/objc ${OBJCDIR}
 
 LIB=		objc
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 SRCS=	archive.c class.c encoding.c gc.c hash.c init.c linking.m misc.c \
 	nil_method.c NXConstStr.m Object.m objects.c Protocol.m sarray.c \
