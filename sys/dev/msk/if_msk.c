@@ -1028,64 +1028,38 @@ mskc_probe(device_t dev)
 static int
 mskc_setup_rambuffer(struct msk_softc *sc)
 {
-	int totqsize, minqsize;
-	int avail, next;
+	int next;
 	int i;
 	uint8_t val;
 
 	/* Get adapter SRAM size. */
 	val = CSR_READ_1(sc, B2_E_0);
 	sc->msk_ramsize = (val == 0) ? 128 : val * 4;
-	if (sc->msk_hw_id == CHIP_ID_YUKON_FE)
-		sc->msk_ramsize = 4 * 4;
 	if (bootverbose)
 		device_printf(sc->msk_dev,
 		    "RAM buffer size : %dKB\n", sc->msk_ramsize);
-
-	totqsize = sc->msk_ramsize * sc->msk_num_port;
-	minqsize = MSK_MIN_RXQ_SIZE + MSK_MIN_TXQ_SIZE;
-	if (minqsize > sc->msk_ramsize)
-		minqsize = sc->msk_ramsize;
-
-	if (minqsize * sc->msk_num_port > totqsize) {
-		device_printf(sc->msk_dev,
-		    "not enough RAM buffer memory : %d/%dKB\n",
-		    minqsize * sc->msk_num_port, totqsize);
-		return (ENOSPC);
-	}
-
-	avail = totqsize;
-	if (sc->msk_num_port > 1) {
-		/*
-		 * Divide up the memory evenly so that everyone gets a
-		 * fair share for dual port adapters.
-		 */
-		avail = sc->msk_ramsize;
-	}
-
-	/* Take away the minimum memory for active queues. */
-	avail -= minqsize;
-	/* Rx queue gets the minimum + 80% of the rest. */
-	sc->msk_rxqsize =
-	    (avail * MSK_RAM_QUOTA_RX) / 100 + MSK_MIN_RXQ_SIZE;
-	avail -= (sc->msk_rxqsize - MSK_MIN_RXQ_SIZE);
-	sc->msk_txqsize = avail + MSK_MIN_TXQ_SIZE;
-
+	/*
+	 * Give receiver 2/3 of memory and round down to the multiple
+	 * of 1024. Tx/Rx RAM buffer size of Yukon II shoud be multiple
+	 * of 1024.
+	 */
+	sc->msk_rxqsize = rounddown((sc->msk_ramsize * 1024 * 2) / 3, 1024);
+	sc->msk_txqsize = (sc->msk_ramsize * 1024) - sc->msk_rxqsize;
 	for (i = 0, next = 0; i < sc->msk_num_port; i++) {
 		sc->msk_rxqstart[i] = next;
-		sc->msk_rxqend[i] = next + (sc->msk_rxqsize * 1024) - 1;
+		sc->msk_rxqend[i] = next + sc->msk_rxqsize - 1;
 		next = sc->msk_rxqend[i] + 1;
 		sc->msk_txqstart[i] = next;
-		sc->msk_txqend[i] = next + (sc->msk_txqsize * 1024) - 1;
+		sc->msk_txqend[i] = next + sc->msk_txqsize - 1;
 		next = sc->msk_txqend[i] + 1;
 		if (bootverbose) {
 			device_printf(sc->msk_dev,
 			    "Port %d : Rx Queue %dKB(0x%08x:0x%08x)\n", i,
-			    sc->msk_rxqsize, sc->msk_rxqstart[i],
+			    sc->msk_rxqsize / 1024, sc->msk_rxqstart[i],
 			    sc->msk_rxqend[i]);
 			device_printf(sc->msk_dev,
 			    "Port %d : Tx Queue %dKB(0x%08x:0x%08x)\n", i,
-			    sc->msk_txqsize, sc->msk_txqstart[i],
+			    sc->msk_txqsize / 1024, sc->msk_txqstart[i],
 			    sc->msk_txqend[i]);
 		}
 	}
