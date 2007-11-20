@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2005
+.Dd November 20, 2007
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -45,6 +45,7 @@
 .Nm callout_handle_init ,
 .Nm callout_init ,
 .Nm callout_init_mtx ,
+.Nm callout_init_rw ,
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
@@ -73,6 +74,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_init "struct callout *c" "int mpsafe"
 .Ft void
 .Fn callout_init_mtx "struct callout *c" "struct mtx *mtx" "int flags"
+.Ft void
+.Fn callout_init_rw "struct callout *c" "struct rwlock *rw" "int flags"
 .Ft int
 .Fn callout_stop "struct callout *c"
 .Ft int
@@ -186,6 +189,7 @@ Thus they are protected from re-entrancy.
 The functions
 .Fn callout_init ,
 .Fn callout_init_mtx ,
+.Fn callout_init_rw ,
 .Fn callout_stop ,
 .Fn callout_drain
 and
@@ -228,6 +232,27 @@ The callout function will release
 .Fa mtx
 itself, so the callout subsystem should not attempt to unlock it
 after the callout function returns.
+.El
+.Pp
+The
+.Fn callout_init_rw
+function serves the need of using rwlocks in conujunction with callouts.
+The function does basically the same as
+.Fn callout_init_mtx
+with the possibility of specifying an extra
+.Fa rw
+argument.
+The usable lock classes are currently limited to mutexes and rwlocks,
+because callout handlers run in softclock swi, so they cannot sleep nor
+acquire sleepable locks like sx or lockmgr.
+The following
+.Fa flags
+may be specified:
+.Bl -tag -width ".Dv CALLOUT_SHAREDLOCK"
+.It Dv CALLOUT_SHAREDLOCK
+The lock is only acquired in read mode when running the callout handler.
+It has no effects when used in conjuction with
+.Fa mtx .
 .El
 .Pp
 The function
