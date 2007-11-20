@@ -2306,7 +2306,6 @@ struct msk_softc {
 	uint32_t		msk_intrhwemask;
 	int			msk_suspended;
 	int			msk_clock;
-	int			msk_marvell_phy;
 	int			msk_msi;
 	struct msk_if_softc	*msk_if[2];
 	device_t		msk_devs[2];
