@@ -367,6 +367,9 @@ msk_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct msk_if_softc *sc_if;
 
+	if (phy != PHY_ADDR_MARV)
+		return (0);
+
 	sc_if = device_get_softc(dev);
 
 	return (msk_phy_readreg(sc_if, phy, reg));
@@ -404,6 +407,9 @@ static int
 msk_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct msk_if_softc *sc_if;
+
+	if (phy != PHY_ADDR_MARV)
+		return (0);
 
 	sc_if = device_get_softc(dev);
 
@@ -516,17 +522,14 @@ msk_link_task(void *arg, int pending)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), gmac);
 
 		/* Enable PHY interrupt for FIFO underrun/overflow. */
-		if (sc->msk_marvell_phy)
-			msk_phy_writereg(sc_if, PHY_ADDR_MARV,
-			    PHY_MARV_INT_MASK, PHY_M_IS_FIFO_ERROR);
+		msk_phy_writereg(sc_if, PHY_ADDR_MARV,
+		    PHY_MARV_INT_MASK, PHY_M_IS_FIFO_ERROR);
 	} else {
 		/*
 		 * Link state changed to down.
 		 * Disable PHY interrupts.
 		 */
-		if (sc->msk_marvell_phy)
-			msk_phy_writereg(sc_if, PHY_ADDR_MARV,
-			    PHY_MARV_INT_MASK, 0);
+		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
@@ -1503,10 +1506,6 @@ msk_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-	/* Check whether PHY Id is MARVELL. */
-	if (msk_phy_readreg(sc_if, PHY_ADDR_MARV, PHY_MARV_ID0)
-	    == PHY_MARV_ID0_VAL)
-		sc->msk_marvell_phy = 1;
 
 fail:
 	if (error != 0) {
@@ -3158,15 +3157,12 @@ msk_intr_phy(struct msk_if_softc *sc_if)
 {
 	uint16_t status;
 
-	if (sc_if->msk_softc->msk_marvell_phy) {
-		msk_phy_readreg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_STAT);
-		status = msk_phy_readreg(sc_if, PHY_ADDR_MARV,
-		    PHY_MARV_INT_STAT);
-		/* Handle FIFO Underrun/Overflow? */
-		if ((status & PHY_M_IS_FIFO_ERROR))
-			device_printf(sc_if->msk_if_dev,
-			    "PHY FIFO underrun/overflow.\n");
-	}
+	msk_phy_readreg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_STAT);
+	status = msk_phy_readreg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_STAT);
+	/* Handle FIFO Underrun/Overflow? */
+	if ((status & PHY_M_IS_FIFO_ERROR))
+		device_printf(sc_if->msk_if_dev,
+		    "PHY FIFO underrun/overflow.\n");
 }
 
 static void
@@ -3974,8 +3970,7 @@ msk_stop(struct msk_if_softc *sc_if)
 	/* Disable all GMAC interrupt. */
 	CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_MSK), 0);
 	/* Disable PHY interrupt. */
-	if (sc->msk_marvell_phy)
-		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
+	msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 
 	/* Disable the RAM Interface Arbiter. */
 	CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, TXA_CTRL), TXA_DIS_ARB);
