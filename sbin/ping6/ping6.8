@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd November 15, 2007
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl dfHmnNqtvwW
+.Op Fl dfHmnNoqtvwW
 .\" old ipsec
 .\" .Op Fl AdEfmnNqRtvwW
 .Bk -words
@@ -225,6 +225,8 @@ Since node information multicast group is a link-local multicast group,
 outgoing interface needs to be specified by
 .Fl I
 option.
+.It Fl o
+Exit successfully after receiving one reply packet.
 .It Fl p Ar pattern
 You may specify up to 16
 .Dq pad
