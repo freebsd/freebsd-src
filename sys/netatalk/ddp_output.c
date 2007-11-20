@@ -191,6 +191,14 @@ ddp_route(struct mbuf *m, struct route *ro)
 	 * mbuf without ensuring that the mbuf pointer is aligned.  This is
 	 * bad for transition routing, since phase 1 and phase 2 packets end
 	 * up poorly aligned due to the three byte elap header.
+	 *
+	 * XXXRW: kern/4184 suggests that an m_pullup() of (m) should take
+	 * place here to address possible alignment issues.
+	 *
+	 * XXXRW: This appears not to handle M_PKTHDR properly, as it doesn't
+	 * move the existing header from the old packet to the new one.
+	 * Posibly should call M_MOVE_PKTHDR()?  This would also allow
+	 * removing mac_mbuf_copy().
 	 */
 	if (!(aa->aa_flags & AFA_PHASE2)) {
 		MGET(m0, M_DONTWAIT, MT_DATA);
