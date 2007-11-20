@@ -10,6 +10,9 @@
 *
 */
 
+#ifndef _LIBDISK_H_
+#define _LIBDISK_H_
+
 /* #define DEBUG 1 */
 /* You can define a particular architecture here if you are debugging. */
 /* #define P_DEBUG p_sparc64 */
@@ -362,3 +365,5 @@ __END_DECLS
  *
  *
  */
+
+#endif /* _LIBDISK_H_ */
