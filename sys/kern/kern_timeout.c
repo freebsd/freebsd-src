@@ -55,9 +55,9 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
 static int avg_gcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_gcalls, CTLFLAG_RD, &avg_gcalls, 0,
     "Average number of Giant callouts made per softclock call. Units = 1/1000");
-static int avg_mtxcalls;
-SYSCTL_INT(_debug, OID_AUTO, to_avg_mtxcalls, CTLFLAG_RD, &avg_mtxcalls, 0,
-    "Average number of mtx callouts made per softclock call. Units = 1/1000");
+static int avg_lockcalls;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_lockcalls, CTLFLAG_RD, &avg_lockcalls, 0,
+    "Average number of lock callouts made per softclock call. Units = 1/1000");
 static int avg_mpcalls;
 SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
     "Average number of MP callouts made per softclock call. Units = 1/1000");
@@ -82,12 +82,12 @@ static struct callout *nextsoftcheck;	/* Next callout to be checked. */
  *                     If curr_callout is non-NULL, threads waiting in
  *                     callout_drain() will be woken up as soon as the 
  *                     relevant callout completes.
- *   curr_cancelled  - Changing to 1 with both callout_lock and c_mtx held
+ *   curr_cancelled  - Changing to 1 with both callout_lock and c_lock held
  *                     guarantees that the current callout will not run.
  *                     The softclock() function sets this to 0 before it
- *                     drops callout_lock to acquire c_mtx, and it calls
+ *                     drops callout_lock to acquire c_lock, and it calls
  *                     the handler only if curr_cancelled is still 0 after
- *                     c_mtx is successfully acquired.
+ *                     c_lock is successfully acquired.
  *   callout_wait    - If a thread is waiting in callout_drain(), then
  *                     callout_wait is nonzero.  Set only when
  *                     curr_callout is non-NULL.
@@ -170,7 +170,7 @@ softclock(void *dummy)
 	int steps;	/* #steps since we last allowed interrupts */
 	int depth;
 	int mpcalls;
-	int mtxcalls;
+	int lockcalls;
 	int gcalls;
 #ifdef DIAGNOSTIC
 	struct bintime bt1, bt2;
@@ -184,7 +184,7 @@ softclock(void *dummy)
 #endif /* MAX_SOFTCLOCK_STEPS */
 
 	mpcalls = 0;
-	mtxcalls = 0;
+	lockcalls = 0;
 	gcalls = 0;
 	depth = 0;
 	steps = 0;
@@ -215,14 +215,17 @@ softclock(void *dummy)
 			} else {
 				void (*c_func)(void *);
 				void *c_arg;
-				struct mtx *c_mtx;
-				int c_flags;
+				struct lock_class *class;
+				int c_flags, sharedlock;
 
 				nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
 				TAILQ_REMOVE(bucket, c, c_links.tqe);
+				class = (c->c_lock != NULL) ?
+				    LOCK_CLASS(c->c_lock) : NULL;
+				sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ?
+				    0 : 1;
 				c_func = c->c_func;
 				c_arg = c->c_arg;
-				c_mtx = c->c_mtx;
 				c_flags = c->c_flags;
 				if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 					c->c_func = NULL;
@@ -237,27 +240,27 @@ softclock(void *dummy)
 				}
 				curr_cancelled = 0;
 				mtx_unlock_spin(&callout_lock);
-				if (c_mtx != NULL) {
-					mtx_lock(c_mtx);
+				if (class != NULL) {
+					class->lc_lock(c->c_lock, sharedlock);
 					/*
 					 * The callout may have been cancelled
 					 * while we switched locks.
 					 */
 					if (curr_cancelled) {
-						mtx_unlock(c_mtx);
+						class->lc_unlock(c->c_lock);
 						goto skip;
 					}
 					/* The callout cannot be stopped now. */
 					curr_cancelled = 1;
 
-					if (c_mtx == &Giant) {
+					if (c->c_lock == &Giant.lock_object) {
 						gcalls++;
 						CTR3(KTR_CALLOUT,
 						    "callout %p func %p arg %p",
 						    c, c_func, c_arg);
 					} else {
-						mtxcalls++;
-						CTR3(KTR_CALLOUT, "callout mtx"
+						lockcalls++;
+						CTR3(KTR_CALLOUT, "callout lock"
 						    " %p func %p arg %p",
 						    c, c_func, c_arg);
 					}
@@ -291,7 +294,7 @@ softclock(void *dummy)
 				}
 #endif
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
-					mtx_unlock(c_mtx);
+					class->lc_unlock(c->c_lock);
 			skip:
 				mtx_lock_spin(&callout_lock);
 				curr_callout = NULL;
@@ -312,7 +315,7 @@ softclock(void *dummy)
 	}
 	avg_depth += (depth * 1000 - avg_depth) >> 8;
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
-	avg_mtxcalls += (mtxcalls * 1000 - avg_mtxcalls) >> 8;
+	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 	nextsoftcheck = NULL;
 	mtx_unlock_spin(&callout_lock);
@@ -411,19 +414,14 @@ callout_reset(c, to_ticks, ftn, arg)
 {
 	int cancelled = 0;
 
-#ifdef notyet /* Some callers of timeout() do not hold Giant. */
-	if (c->c_mtx != NULL)
-		mtx_assert(c->c_mtx, MA_OWNED);
-#endif
-
 	mtx_lock_spin(&callout_lock);
 	if (c == curr_callout) {
 		/*
 		 * We're being asked to reschedule a callout which is
-		 * currently in progress.  If there is a mutex then we
+		 * currently in progress.  If there is a lock then we
 		 * can cancel the callout if it has not really started.
 		 */
-		if (c->c_mtx != NULL && !curr_cancelled)
+		if (c->c_lock != NULL && !curr_cancelled)
 			cancelled = curr_cancelled = 1;
 		if (callout_wait) {
 			/*
@@ -482,18 +480,23 @@ _callout_stop_safe(c, safe)
 	struct	callout *c;
 	int	safe;
 {
-	int use_mtx, sq_locked;
+	struct lock_class *class;
+	int use_lock, sq_locked;
 
-	if (!safe && c->c_mtx != NULL) {
-#ifdef notyet /* Some callers do not hold Giant for Giant-locked callouts. */
-		mtx_assert(c->c_mtx, MA_OWNED);
-		use_mtx = 1;
-#else
-		use_mtx = mtx_owned(c->c_mtx);
-#endif
-	} else {
-		use_mtx = 0;
-	}
+	/*
+	 * Some old subsystems don't hold Giant while running a callout_stop(),
+	 * so just discard this check for the moment.
+	 */
+	if (!safe && c->c_lock != NULL) {
+		if (c->c_lock == &Giant.lock_object)
+			use_lock = mtx_owned(&Giant);
+		else {
+			use_lock = 1;
+			class = LOCK_CLASS(c->c_lock);
+			class->lc_assert(c->c_lock, LA_XLOCKED);
+		}
+	} else
+		use_lock = 0;
 
 	sq_locked = 0;
 again:
@@ -565,12 +568,12 @@ again:
 				PICKUP_GIANT();
 				mtx_lock_spin(&callout_lock);
 			}
-		} else if (use_mtx && !curr_cancelled) {
+		} else if (use_lock && !curr_cancelled) {
 			/*
-			 * The current callout is waiting for it's
-			 * mutex which we hold.  Cancel the callout
+			 * The current callout is waiting for its
+			 * lock which we hold.  Cancel the callout
 			 * and return.  After our caller drops the
-			 * mutex, the callout will be skipped in
+			 * lock, the callout will be skipped in
 			 * softclock().
 			 */
 			curr_cancelled = 1;
@@ -614,28 +617,30 @@ callout_init(c, mpsafe)
 {
 	bzero(c, sizeof *c);
 	if (mpsafe) {
-		c->c_mtx = NULL;
+		c->c_lock = NULL;
 		c->c_flags = CALLOUT_RETURNUNLOCKED;
 	} else {
-		c->c_mtx = &Giant;
+		c->c_lock = &Giant.lock_object;
 		c->c_flags = 0;
 	}
 }
 
 void
-callout_init_mtx(c, mtx, flags)
+_callout_init_lock(c, lock, flags)
 	struct	callout *c;
-	struct	mtx *mtx;
+	struct	lock_object *lock;
 	int flags;
 {
 	bzero(c, sizeof *c);
-	c->c_mtx = mtx;
-	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED)) == 0,
-	    ("callout_init_mtx: bad flags %d", flags));
-	/* CALLOUT_RETURNUNLOCKED makes no sense without a mutex. */
-	KASSERT(mtx != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
-	    ("callout_init_mtx: CALLOUT_RETURNUNLOCKED with no mutex"));
-	c->c_flags = flags & (CALLOUT_RETURNUNLOCKED);
+	c->c_lock = lock;
+	KASSERT((flags & ~(CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK)) == 0,
+	    ("callout_init_lock: bad flags %d", flags));
+	KASSERT(lock != NULL || (flags & CALLOUT_RETURNUNLOCKED) == 0,
+	    ("callout_init_lock: CALLOUT_RETURNUNLOCKED with no lock"));
+	KASSERT(lock == NULL || LOCK_CLASS(lock) == &lock_class_mtx_sleep ||
+	    LOCK_CLASS(lock) == &lock_class_rw, ("%s: invalid lock class",
+	    __func__));
+	c->c_flags = flags & (CALLOUT_RETURNUNLOCKED | CALLOUT_SHAREDLOCK);
 }
 
 #ifdef APM_FIXUP_CALLTODO
