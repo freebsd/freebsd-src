@@ -15,6 +15,7 @@ GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
 	yppasswd_private_xdr.c yppasswd_svc.c
 
 WARNS?=	 4
+CFLAGS+= -fno-strict-aliasing
 CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw \
 	 -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr \
