@@ -1188,9 +1188,6 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 em_watchdog(struct adapter *adapter)
 {
-#ifdef EM_FAST_IRQ
-	struct task *t = &adapter->rxtx_task;
-#endif
 
 	EM_CORE_LOCK_ASSERT(adapter);
 

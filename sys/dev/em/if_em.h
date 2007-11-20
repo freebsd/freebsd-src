@@ -30,12 +30,17 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD$ */
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
 
 /* Tunables */
+
+/* Set FAST handling on by default */
+#if __FreeBSD_version > 700000
+#define EM_FAST_IRQ
+#endif
 
 /*
  * EM_TXD: Maximum number of Transmit Descriptors
