@@ -108,14 +108,17 @@ xdr_accepted_reply(xdrs, ar)
 	XDR *xdrs;   
 	struct accepted_reply *ar;
 {
+	enum accept_stat *par_stat;
 
 	assert(xdrs != NULL);
 	assert(ar != NULL);
 
+	par_stat = &ar->ar_stat;
+
 	/* personalized union, rather than calling xdr_union */
 	if (! xdr_opaque_auth(xdrs, &(ar->ar_verf)))
 		return (FALSE);
-	if (! xdr_enum(xdrs, (enum_t *)&(ar->ar_stat)))
+	if (! xdr_enum(xdrs, (enum_t *) par_stat))
 		return (FALSE);
 	switch (ar->ar_stat) {
 
@@ -144,12 +147,16 @@ xdr_rejected_reply(xdrs, rr)
 	XDR *xdrs;
 	struct rejected_reply *rr;
 {
+	enum reject_stat *prj_stat;
+	enum auth_stat *prj_why;
 
 	assert(xdrs != NULL);
 	assert(rr != NULL);
 
+	prj_stat = &rr->rj_stat;
+
 	/* personalized union, rather than calling xdr_union */
-	if (! xdr_enum(xdrs, (enum_t *)&(rr->rj_stat)))
+	if (! xdr_enum(xdrs, (enum_t *) prj_stat))
 		return (FALSE);
 	switch (rr->rj_stat) {
 
@@ -159,7 +166,8 @@ xdr_rejected_reply(xdrs, rr)
 		return (xdr_u_int32_t(xdrs, &(rr->rj_vers.high)));
 
 	case AUTH_ERROR:
-		return (xdr_enum(xdrs, (enum_t *)&(rr->rj_why)));
+		prj_why = &rr->rj_why;
+		return (xdr_enum(xdrs, (enum_t *) prj_why));
 	}
 	/* NOTREACHED */
 	assert(0);
@@ -179,14 +187,20 @@ xdr_replymsg(xdrs, rmsg)
 	XDR *xdrs;
 	struct rpc_msg *rmsg;
 {
+	enum msg_type *prm_direction;
+	enum reply_stat *prp_stat;
+
 	assert(xdrs != NULL);
 	assert(rmsg != NULL);
 
+	prm_direction = &rmsg->rm_direction;
+	prp_stat = &rmsg->rm_reply.rp_stat;
+
 	if (
 	    xdr_u_int32_t(xdrs, &(rmsg->rm_xid)) && 
-	    xdr_enum(xdrs, (enum_t *)&(rmsg->rm_direction)) &&
+	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
 	    (rmsg->rm_direction == REPLY) )
-		return (xdr_union(xdrs, (enum_t *)&(rmsg->rm_reply.rp_stat),
+		return (xdr_union(xdrs, (enum_t *) prp_stat,
 		   (caddr_t)(void *)&(rmsg->rm_reply.ru), reply_dscrm,
 		   NULL_xdrproc_t));
 	return (FALSE);
@@ -203,16 +217,19 @@ xdr_callhdr(xdrs, cmsg)
 	XDR *xdrs;
 	struct rpc_msg *cmsg;
 {
+	enum msg_type *prm_direction;
 
 	assert(xdrs != NULL);
 	assert(cmsg != NULL);
+
+	prm_direction = &cmsg->rm_direction;
 
 	cmsg->rm_direction = CALL;
 	cmsg->rm_call.cb_rpcvers = RPC_MSG_VERSION;
 	if (
 	    (xdrs->x_op == XDR_ENCODE) &&
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_xid)) &&
-	    xdr_enum(xdrs, (enum_t *)&(cmsg->rm_direction)) &&
+	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_prog)) )
 		return (xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_vers)));
