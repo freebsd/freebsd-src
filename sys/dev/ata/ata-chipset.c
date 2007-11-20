@@ -860,7 +860,7 @@ ata_ahci_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	    prd[i].dbc = htole32((segs[i].ds_len - 1) & ATA_AHCI_PRD_MASK);
 	}
     }
-    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 
@@ -2785,7 +2785,7 @@ ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	prd[i].addrhi = htole32((u_int64_t)segs[i].ds_addr >> 32);
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
-    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 
@@ -3842,7 +3842,7 @@ ata_promise_mio_setprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	i++;
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
-    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 
@@ -4904,7 +4904,7 @@ ata_siiprb_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	prd[i].count = htole32(segs[i].ds_len);
     }
     prd[i - 1].control = htole32(ATA_DMA_EOT);
-    KASSERT(nsegs <= ATA_DMA_ENTRIES, "too many DMA segment entries\n");
+    KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
     args->nsegs = nsegs;
 }
 
