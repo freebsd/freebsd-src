@@ -2023,35 +2023,6 @@
 /* GPHY address (bits 15..11 of SMI control reg) */
 #define PHY_ADDR_MARV	0
 
-/*-RMV- DWORD 1: Deviations */
-#define HWF_WA_DEV_4200		0x10200000UL	/*-RMV- 4.200 (D3 Blue Screen)*/
-#define HWF_WA_DEV_4185CS	0x10100000UL	/*-RMV- 4.185 (ECU 100 CS cal)*/
-#define HWF_WA_DEV_4185		0x10080000UL	/*-RMV- 4.185 (ECU Tx h check)*/
-#define HWF_WA_DEV_4167		0x10040000UL	/*-RMV- 4.167 (Rx OvSize Hang)*/
-#define HWF_WA_DEV_4152		0x10020000UL	/*-RMV- 4.152 (RSS issue) */
-#define HWF_WA_DEV_4115		0x10010000UL	/*-RMV- 4.115 (Rx MAC FIFO) */
-#define HWF_WA_DEV_4109		0x10008000UL	/*-RMV- 4.109 (BIU hang) */
-#define HWF_WA_DEV_483		0x10004000UL	/*-RMV- 4.83 (Rx TCP wrong) */
-#define HWF_WA_DEV_479		0x10002000UL	/*-RMV- 4.79 (Rx BMU hang II) */
-#define HWF_WA_DEV_472		0x10001000UL	/*-RMV- 4.72 (GPHY2 MDC clk) */
-#define HWF_WA_DEV_463		0x10000800UL	/*-RMV- 4.63 (Rx BMU hang I) */
-#define HWF_WA_DEV_427		0x10000400UL	/*-RMV- 4.27 (Tx Done Rep) */
-#define HWF_WA_DEV_42		0x10000200UL	/*-RMV- 4.2 (pref unit burst) */
-#define HWF_WA_DEV_46		0x10000100UL	/*-RMV- 4.6 (CPU crash II) */
-#define HWF_WA_DEV_43_418	0x10000080UL	/*-RMV- 4.3 & 4.18 (PCI unexp */
-/*-RMV- compl&Stat BMU deadl) */
-#define HWF_WA_DEV_420		0x10000040UL	/*-RMV- 4.20 (Status BMU ov) */
-#define HWF_WA_DEV_423		0x10000020UL	/*-RMV- 4.23 (TCP Segm Hang) */
-#define HWF_WA_DEV_424		0x10000010UL	/*-RMV- 4.24 (MAC reg overwr) */
-#define HWF_WA_DEV_425		0x10000008UL	/*-RMV- 4.25 (Magic packet */
-/*-RMV- with odd offset) */
-#define HWF_WA_DEV_428		0x10000004UL	/*-RMV- 4.28 (Poll-U &BigEndi)*/
-#define HWF_WA_FIFO_FLUSH_YLA0	0x10000002UL	/*-RMV- dis Rx GMAC FIFO Flush*/
-
-#define HW_FEATURE(sc, f)	\
-	(((((sc)->msk_hw_feature & 0x30000000) >> 28) & ((f) & 0x0fffffff)) != 0)
-
-
 #define MSK_ADDR_LO(x)	((uint64_t) (x) & 0xffffffffUL)
 #define MSK_ADDR_HI(x)	((uint64_t) (x) >> 32)
 
@@ -2334,7 +2305,6 @@ struct msk_softc {
 	uint32_t		msk_intrmask;
 	uint32_t		msk_intrhwemask;
 	int			msk_suspended;
-	int			msk_hw_feature;
 	int			msk_clock;
 	int			msk_marvell_phy;
 	int			msk_msi;

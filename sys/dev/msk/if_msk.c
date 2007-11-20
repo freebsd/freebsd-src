@@ -1355,7 +1355,8 @@ mskc_reset(struct msk_softc *sc)
 	CSR_WRITE_4(sc, STAT_LIST_ADDR_HI, MSK_ADDR_HI(addr));
 	/* Set the status list last index. */
 	CSR_WRITE_2(sc, STAT_LAST_IDX, MSK_STAT_RING_CNT - 1);
-	if (HW_FEATURE(sc, HWF_WA_DEV_43_418)) {
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EC &&
+	    sc->msk_hw_rev == CHIP_REV_YU_EC_A1) {
 		/* WA for dev. #4.3 */
 		CSR_WRITE_2(sc, STAT_TX_IDX_TH, ST_TXTH_IDX_MASK);
 		/* WA for dev. #4.18 */
@@ -1364,8 +1365,11 @@ mskc_reset(struct msk_softc *sc)
 	} else {
 		CSR_WRITE_2(sc, STAT_TX_IDX_TH, 0x0a);
 		CSR_WRITE_1(sc, STAT_FIFO_WM, 0x10);
-		CSR_WRITE_1(sc, STAT_FIFO_ISR_WM,
-		    HW_FEATURE(sc, HWF_WA_DEV_4109) ? 0x10 : 0x04);
+		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
+		    sc->msk_hw_rev == CHIP_REV_YU_XL_A0)
+			CSR_WRITE_1(sc, STAT_FIFO_ISR_WM, 0x04);
+		else
+			CSR_WRITE_1(sc, STAT_FIFO_ISR_WM, 0x10);
 		CSR_WRITE_4(sc, STAT_ISR_TIMER_INI, 0x0190);
 	}
 	/*
@@ -1637,74 +1641,20 @@ mskc_attach(device_t dev)
 	else
 		sc->msk_bustype = MSK_PCI_BUS;
 
-	/* Get H/W features(bugs). */
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
-		sc->msk_clock = 125;	/* 125 Mhz */
-		if (sc->msk_hw_rev == CHIP_REV_YU_EC_A1) {
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_42  | HWF_WA_DEV_46 | HWF_WA_DEV_43_418 |
-			    HWF_WA_DEV_420 | HWF_WA_DEV_423 |
-			    HWF_WA_DEV_424 | HWF_WA_DEV_425 | HWF_WA_DEV_427 |
-			    HWF_WA_DEV_428 | HWF_WA_DEV_483 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4152 | HWF_WA_DEV_4167;
-		} else {
-			/* A2/A3 */
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_424 | HWF_WA_DEV_425 | HWF_WA_DEV_427 |
-			    HWF_WA_DEV_428 | HWF_WA_DEV_483 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4152 | HWF_WA_DEV_4167;
-		}
-		break;
 	case CHIP_ID_YUKON_EC_U:
 		sc->msk_clock = 125;	/* 125 Mhz */
-		if (sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
-			sc->msk_hw_feature = HWF_WA_DEV_427 | HWF_WA_DEV_483 |
-			    HWF_WA_DEV_4109;
-		} else if (sc->msk_hw_rev == CHIP_REV_YU_EC_A1) {
-			uint16_t v;
-
-			sc->msk_hw_feature = HWF_WA_DEV_427 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4185;
-			v = CSR_READ_2(sc, Q_ADDR(Q_XA1, Q_WM));
-			if (v == 0)
-				sc->msk_hw_feature |= HWF_WA_DEV_4185CS |
-				    HWF_WA_DEV_4200;
-		}
 		break;
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
-		sc->msk_hw_feature = HWF_WA_DEV_427 | HWF_WA_DEV_4109 |
-		    HWF_WA_DEV_4152 | HWF_WA_DEV_4167;
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
-		switch (sc->msk_hw_rev) {
-		case CHIP_REV_YU_XL_A0:
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_427 | HWF_WA_DEV_463 | HWF_WA_DEV_472 |
-			    HWF_WA_DEV_479 | HWF_WA_DEV_483 | HWF_WA_DEV_4115 |
-			    HWF_WA_DEV_4152 | HWF_WA_DEV_4167;
-			break;
-		case CHIP_REV_YU_XL_A1:
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_427 | HWF_WA_DEV_483 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4115 | HWF_WA_DEV_4152 | HWF_WA_DEV_4167;
-			break;
-		case CHIP_REV_YU_XL_A2:
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_427 | HWF_WA_DEV_483 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4115 | HWF_WA_DEV_4167;
-			break;
-		case CHIP_REV_YU_XL_A3:
-			sc->msk_hw_feature =
-			    HWF_WA_DEV_427 | HWF_WA_DEV_483 | HWF_WA_DEV_4109 |
-			    HWF_WA_DEV_4115;
-		}
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 Mhz */
-		sc->msk_hw_feature = 0;
+		break;
 	}
 
 	/* Allocate IRQ resources. */
