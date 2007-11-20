@@ -916,7 +916,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 			break;
 		}
-		if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U &&
+		if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_FE &&
 		    ifr->ifr_mtu > MSK_MAX_FRAMELEN) {
 			error = EINVAL;
 			break;
@@ -983,6 +983,16 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
+		if (sc_if->msk_framesize > MSK_MAX_FRAMELEN &&
+		    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
+			/*
+			 * In Yukon EC Ultra, TSO & checksum offload is not
+			 * supported for jumbo frame.
+			 */
+			ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
+			ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+		}
+
 		VLAN_CAPABILITIES(ifp);
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -1453,13 +1463,8 @@ msk_attach(device_t dev)
 	 * compute the checksum? I think there is no reason to spend time to
 	 * make Rx checksum offload work on Yukon II hardware.
 	 */
-	ifp->if_capabilities = IFCAP_TXCSUM;
-	ifp->if_hwassist = MSK_CSUM_FEATURES;
-	if (sc->msk_hw_id != CHIP_ID_YUKON_EC_U) {
-		/* It seems Yukon EC Ultra doesn't support TSO. */
-		ifp->if_capabilities |= IFCAP_TSO4;
-		ifp->if_hwassist |= CSUM_TSO;
-	}
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
+	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
 	ifp->if_start = msk_start;
@@ -1504,6 +1509,9 @@ msk_attach(device_t dev)
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
         ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+
+	sc_if->msk_framesize = ifp->if_mtu + ETHER_HDR_LEN +
+	    ETHER_VLAN_ENCAP_LEN;
 
 	/*
 	 * Do miibus setup.
@@ -3706,6 +3714,15 @@ msk_init_locked(struct msk_if_softc *sc_if)
 
 	sc_if->msk_framesize = ifp->if_mtu + ETHER_HDR_LEN +
 	    ETHER_VLAN_ENCAP_LEN;
+	if (sc_if->msk_framesize > MSK_MAX_FRAMELEN &&
+	    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
+		/*
+		 * In Yukon EC Ultra, TSO & checksum offload is not
+		 * supported for jumbo frame.
+		 */
+		ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
+		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+	}
 
 	/*
 	 * Initialize GMAC first.
@@ -3796,9 +3813,6 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Configure hardware VLAN tag insertion/stripping. */
 	msk_setvlan(sc_if, ifp);
 
-	/* XXX It seems STFW is requried for all cases. */
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T), TX_STFW_ENA);
-
 	if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
 		/* Set Rx Pause threshould. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_LP_THR),
@@ -3807,16 +3821,17 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		    MSK_ECU_ULPP);
 		if (sc_if->msk_framesize > MSK_MAX_FRAMELEN) {
 			/*
-			 * Can't sure the following code is needed as Yukon
-			 * Yukon EC Ultra may not support jumbo frames.
-			 *
 			 * Set Tx GMAC FIFO Almost Empty Threshold.
 			 */
 			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_AE_THR),
-			    MSK_ECU_AE_THR);
+			    MSK_ECU_JUMBO_WM << 16 | MSK_ECU_AE_THR);
 			/* Disable Store & Forward mode for Tx. */
 			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_STFW_DIS);
+			    TX_JUMBO_ENA | TX_STFW_DIS);
+		} else {
+			/* Enable Store & Forward mode for Tx. */
+			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_JUMBO_DIS | TX_STFW_ENA);
 		}
 	}
 
