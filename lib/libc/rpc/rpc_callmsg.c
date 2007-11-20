@@ -59,6 +59,7 @@ xdr_callmsg(xdrs, cmsg)
 	XDR *xdrs;
 	struct rpc_msg *cmsg;
 {
+	enum msg_type *prm_direction;
 	int32_t *buf;
 	struct opaque_auth *oa;
 
@@ -190,9 +191,10 @@ xdr_callmsg(xdrs, cmsg)
 			return (TRUE);
 		}
 	}
+	prm_direction = &cmsg->rm_direction;
 	if (
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_xid)) &&
-	    xdr_enum(xdrs, (enum_t *)&(cmsg->rm_direction)) &&
+	    xdr_enum(xdrs, (enum_t *) prm_direction) &&
 	    (cmsg->rm_direction == CALL) &&
 	    xdr_u_int32_t(xdrs, &(cmsg->rm_call.cb_rpcvers)) &&
 	    (cmsg->rm_call.cb_rpcvers == RPC_MSG_VERSION) &&
