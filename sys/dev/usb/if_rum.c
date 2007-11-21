@@ -839,9 +839,8 @@ rum_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 	struct rum_softc *sc = data->sc;
 	struct ifnet *ifp = sc->sc_ic.ic_ifp;
 
-	if (data->m->m_flags & M_TXCB)
-		ieee80211_process_callback(data->ni, data->m,
-			status == USBD_NORMAL_COMPLETION ? 0 : ETIMEDOUT);
+	if (data->m != NULL && data->m->m_flags & M_TXCB)
+		ieee80211_process_callback(data->ni, data->m, 0/*XXX*/);
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
