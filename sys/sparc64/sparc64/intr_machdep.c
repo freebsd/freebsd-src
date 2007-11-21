@@ -286,7 +286,6 @@ intr_execute_handlers(void *cookie)
 	}
 	if (!thread)
 		intr_enable_eoi(iv);
-	critical_exit();
 
 	/* Schedule a heavyweight interrupt process. */
 	if (thread)
@@ -295,6 +294,7 @@ intr_execute_handlers(void *cookie)
 		error = EINVAL;
 	else
 		error = 0;
+	critical_exit();
 	if (error == EINVAL)
 #else
 	if (intr_event_handle(iv->iv_event, NULL) != 0)
