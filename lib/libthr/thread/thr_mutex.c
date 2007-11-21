@@ -749,11 +749,11 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 		MUTEX_ASSERT_IS_OWNED(m);
 		m1 = TAILQ_PREV(m, mutex_queue, m_qe);
 		m2 = TAILQ_NEXT(m, m_qe);
-		if ((m1 != NULL && m1->m_lock.m_ceilings[0] > ceiling) ||
-		    (m2 != NULL && m2->m_lock.m_ceilings[0] < ceiling)) {
+		if ((m1 != NULL && m1->m_lock.m_ceilings[0] > (u_int)ceiling) ||
+		    (m2 != NULL && m2->m_lock.m_ceilings[0] < (u_int)ceiling)) {
 			TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
 			TAILQ_FOREACH(m2, &curthread->pp_mutexq, m_qe) {
-				if (m2->m_lock.m_ceilings[0] > ceiling) {
+				if (m2->m_lock.m_ceilings[0] > (u_int)ceiling) {
 					TAILQ_INSERT_BEFORE(m2, m, m_qe);
 					return (0);
 				}
