@@ -231,7 +231,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	    vfs_scanopt(mp->mnt_optnew, "uid", "%d", &root_uid) != 1)
 		root_uid = va.va_uid;
 	if (mp->mnt_cred->cr_ruid != 0 ||
-	    vfs_scanopt(mp->mnt_optnew, "mode", "%o", &root_mode) != 1)
+	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
 	if(vfs_scanopt(mp->mnt_optnew, "inodes", "%d", &nodes_max) != 1)
 		nodes_max = 0;
