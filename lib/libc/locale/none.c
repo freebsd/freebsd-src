@@ -62,11 +62,6 @@ static size_t	_none_wcrtomb(char * __restrict, wchar_t,
 static size_t	_none_wcsnrtombs(char * __restrict, const wchar_t ** __restrict,
 		    size_t, size_t, mbstate_t * __restrict);
 
-/* setup defaults */
-
-int __mb_cur_max = 1;
-int __mb_sb_limit = 256; /* Expected to be <= _CACHED_RUNES */
-
 int
 _none_init(_RuneLocale *rl)
 {
@@ -78,7 +73,6 @@ _none_init(_RuneLocale *rl)
 	__wcsnrtombs = _none_wcsnrtombs;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 1;
-	__mb_sb_limit = 256;
 	return(0);
 }
 
@@ -186,6 +180,7 @@ _none_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
 
 /* setup defaults */
 
+int __mb_cur_max = 1;
 size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t,
     mbstate_t * __restrict) = _none_mbrtowc;
 int (*__mbsinit)(const mbstate_t *) = _none_mbsinit;
