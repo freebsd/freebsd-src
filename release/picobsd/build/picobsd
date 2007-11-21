@@ -282,8 +282,9 @@ build_image() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	MAKEOBJDIRPREFIX=${l_objtree}
 	export MAKEOBJDIRPREFIX
+	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
 	log `cd ${SRC}; make -f Makefile.inc1 -V WMAKEENV`
-	eval export `cd ${SRC}; make -f Makefile.inc1 -V WMAKEENV`
+	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
     # create build directory and subtree
     mkdir -p ${BUILDDIR}/crunch
@@ -463,7 +464,7 @@ do_kernel() {		# OK
 		MODULES=""
 		export MODULES
 	fi
-	make -m ${SRC}/share/mk -v -f ${PICO_TREE}/build/Makefile.conf ) || \
+	${BINMAKE} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
 }
 
@@ -491,8 +492,8 @@ populate_floppy_fs() {		# OK
 
     excl=${MY_TREE}/floppy.tree.exclude
     if [ -f ${excl} ] ; then
-	excl="--exclude-from ${excl}"
 	log "Files excluded from generic tree: `echo;cat ${excl}`"
+	excl="--exclude-from ${excl}"
     else
 	excl=""
     fi
@@ -561,13 +562,13 @@ populate_mfs_tree() {
     log "Making and installing crunch1 from `pwd` src ${SRC}..."
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
-	make -m ${SRC}/share/mk \
+	${BINMAKE} \
 		-v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "Libs are ${LIBS} "
     export SRC # used by crunch.mk
     # export LIBS CFLAGS
     log "Now make -f crunch.mk"
-    make -m ${SRC}/share/mk ${o_makeopts} -f ${BUILDDIR}/crunch.mk
+    ${BINMAKE} ${o_makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
     mv crunch1 ${dst}/stand/crunch
     chmod 555 ${dst}/stand/crunch
