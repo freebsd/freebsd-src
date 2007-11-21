@@ -138,7 +138,6 @@ __FBSDID("$FreeBSD$");
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
-extern void dblfault_handler(void);
 
 extern void printcpuinfo(void);	/* XXX header file */
 extern void identify_cpu(void);
