@@ -99,10 +99,12 @@ struct ata_connect_task {
 #define ATA_ATI_ID              0x1002
 #define ATA_ATI_IXP200          0x43491002
 #define ATA_ATI_IXP300          0x43691002
-#define ATA_ATI_IXP400          0x43761002
 #define ATA_ATI_IXP300_S1       0x436e1002
+#define ATA_ATI_IXP400          0x43761002
 #define ATA_ATI_IXP400_S1       0x43791002
 #define ATA_ATI_IXP400_S2       0x437a1002
+#define ATA_ATI_IXP600          0x438c1002
+#define ATA_ATI_IXP700          0x439c1002
 
 #define ATA_CENATEK_ID          0x16ca
 #define ATA_CENATEK_ROCKET      0x000116ca
@@ -232,6 +234,10 @@ struct ata_connect_task {
 #define ATA_NFORCE_MCP61_S1     0x03e710de
 #define ATA_NFORCE_MCP61_S2     0x03f610de
 #define ATA_NFORCE_MCP61_S3     0x03f710de
+#define ATA_NFORCE_MCP65        0x044810de
+#define ATA_NFORCE_MCP67        0x056010de
+#define ATA_NFORCE_MCP73        0x056c10de
+#define ATA_NFORCE_MCP77        0x075910de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
@@ -449,11 +455,13 @@ int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int f
 int ata_pci_allocate(device_t dev);
 void ata_pci_hw(device_t dev);
 int ata_pci_status(device_t dev);
-void ata_pci_dmainit(device_t);
+void ata_pci_dmainit(device_t dev);
+char *ata_pcivendor2str(device_t dev);
 
 
 /* global prototypes ata-chipset.c */
 int ata_generic_ident(device_t);
+int ata_ahci_ident(device_t);
 int ata_acard_ident(device_t);
 int ata_ali_ident(device_t);
 int ata_amd_ident(device_t);
