@@ -1351,8 +1351,8 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	}
 	mtx_unlock(&ng_topo_mtx);
 
-	if ((error = ng_send_fn2_fwd(item, peer->hk_node, peer,
-	    &ng_con_part3, NULL, 0))) {
+	if ((error = ng_send_fn2(peer->hk_node, peer, item, &ng_con_part3,
+	    NULL, 0, NG_REUSE_ITEM))) {
 		printf("failed in ng_con_part2(C)\n");
 		ng_destroy_hook(hook);	/* also zaps peer */
 		return (error);		/* item was consumed. */
@@ -1403,8 +1403,8 @@ ng_con_nodes(item_p item, node_p node, const char *name,
 	 * Procesing continues in that function in the lock context of
 	 * the other node.
 	 */
-	if ((error = ng_send_fn2_cont(item, node2, hook2,
-	    &ng_con_part2, NULL, 0))) {
+	if ((error = ng_send_fn2(node2, hook2, item, &ng_con_part2, NULL, 0,
+	    NG_NOFLAGS))) {
 		printf("failed in ng_con_nodes(): %d\n", error);
 		ng_destroy_hook(hook);	/* also zaps peer */
 	}
@@ -2540,23 +2540,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 		}
 		break;
 	case NGQF_FN:
-		/*
-		 *  We have to implicitly trust the hook,
-		 * as some of these are used for system purposes
-		 * where the hook is invalid. In the case of
-		 * the shutdown message we allow it to hit
-		 * even if the node is invalid.
-		 */
-		if ((NG_NODE_NOT_VALID(node))
-		&& (NGI_FN(item) != &ng_rmnode)) {
-			TRAP_ERROR();
-			error = EINVAL;
-			NG_FREE_ITEM(item);
-			break;
-		}
-		(*NGI_FN(item))(node, hook, NGI_ARG1(item), NGI_ARG2(item));
-		NG_FREE_ITEM(item);
-		break;
 	case NGQF_FN2:
 		/*
 		 *  We have to implicitly trust the hook,
@@ -2572,7 +2555,12 @@ ng_apply_item(node_p node, item_p item, int rw)
 			NG_FREE_ITEM(item);
 			break;
 		}
-		error = (*NGI_FN2(item))(node, item, hook);
+		if ((item->el_flags & NGQF_TYPE) == NGQF_FN) {
+			(*NGI_FN(item))(node, hook, NGI_ARG1(item),
+			    NGI_ARG2(item));
+			NG_FREE_ITEM(item);
+		} else	/* it is NGQF_FN2 */
+			error = (*NGI_FN2(item))(node, item, hook);
 		break;
 	}
 	/*
@@ -3693,6 +3681,13 @@ ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg)
  */
 
 int
+ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
+{
+
+	return ng_send_fn1(node, hook, fn, arg1, arg2, NG_NOFLAGS);
+}
+
+int
 ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 	int flags)
 {
@@ -3715,18 +3710,32 @@ ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2,
 }
 
 /*
- * Send ng_item_fn2 function call to the specified.
+ * Send ng_item_fn2 function call to the specified node.
+ *
+ * If an optional pitem parameter is supplied, its apply
+ * callback will be copied to the new item. If also NG_REUSE_ITEM
+ * flag is set, no new item will be allocated, but pitem will
+ * be used.
  */
-
 int
-ng_send_fn21(node_p node, hook_p hook, ng_item_fn2 *fn, void * arg1, int arg2,
-	int flags)
+ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn, void *arg1,
+	int arg2, int flags)
 {
 	item_p item;
 
-	if ((item = ng_getqblk(flags)) == NULL) {
-		return (ENOMEM);
-	}
+	KASSERT((pitem != NULL || (flags & NG_REUSE_ITEM) == 0),
+	    ("%s: NG_REUSE_ITEM but no pitem", __func__));
+
+	/*
+	 * Allocate a new item if no supplied or
+	 * if we can't use supplied one.
+	 */
+	if (pitem == NULL || (flags & NG_REUSE_ITEM) == 0) {
+		if ((item = ng_getqblk(flags)) == NULL)
+			return (ENOMEM);
+	} else
+		item = pitem;
+
 	item->el_flags = NGQF_FN2 | NGQF_WRITER;
 	NG_NODE_REF(node); /* and one for the item */
 	NGI_SET_NODE(item, node);
@@ -3737,58 +3746,8 @@ ng_send_fn21(node_p node, hook_p hook, ng_item_fn2 *fn, void * arg1, int arg2,
 	NGI_FN2(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	return(ng_snd_item(item, flags));
-}
-
-/*
- * Send ng_item_fn2 function call to the specified node
- * with copying apply pointer from specified item.
- * Passed item left untouched.
- */
-
-int
-ng_send_fn21_cont(item_p pitem, node_p node, hook_p hook,
-    ng_item_fn2 *fn, void * arg1, int arg2, int flags)
-{
-	item_p item;
-
-	if ((item = ng_getqblk(flags)) == NULL) {
-		return (ENOMEM);
-	}
-	item->el_flags = NGQF_FN2 | NGQF_WRITER;
-	NG_NODE_REF(node); /* and one for the item */
-	NGI_SET_NODE(item, node);
-	if (hook) {
-		NG_HOOK_REF(hook);
-		NGI_SET_HOOK(item, hook);
-	}
-	NGI_FN2(item) = fn;
-	NGI_ARG1(item) = arg1;
-	NGI_ARG2(item) = arg2;
-	item->apply = pitem->apply;
-	return(ng_snd_item(item, flags));
-}
-
-/*
- * Send ng_item_fn2 function call to the specified node
- * reusing item including apply pointer.
- * Passed item is consumed.
- */
-
-int
-ng_send_fn21_fwd(item_p item, node_p node, hook_p hook,
-    ng_item_fn2 *fn, void * arg1, int arg2, int flags)
-{
-	item->el_flags = NGQF_FN2 | NGQF_WRITER;
-	NG_NODE_REF(node); /* and one for the item */
-	NGI_SET_NODE(item, node);
-	if (hook) {
-		NG_HOOK_REF(hook);
-		NGI_SET_HOOK(item, hook);
-	}
-	NGI_FN2(item) = fn;
-	NGI_ARG1(item) = arg1;
-	NGI_ARG2(item) = arg2;
+	if (pitem != NULL && (flags & NG_REUSE_ITEM) == 0)
+		item->apply = pitem->apply;
 	return(ng_snd_item(item, flags));
 }
 
