@@ -497,10 +497,8 @@ static void
 lacp_tick(void *arg)
 {
 	struct lacp_softc *lsc = arg;
-	struct lagg_softc *sc = lsc->lsc_softc;
 	struct lacp_port *lp;
 
-	LAGG_WLOCK(sc);
 	LIST_FOREACH(lp, &lsc->lsc_ports, lp_next) {
 		if ((lp->lp_state & LACP_STATE_AGGREGATION) == 0)
 			continue;
@@ -512,7 +510,6 @@ lacp_tick(void *arg)
 		lacp_sm_tx(lp);
 		lacp_sm_ptx_tx_schedule(lp);
 	}
-	LAGG_WUNLOCK(sc);
 	callout_reset(&lsc->lsc_callout, hz, lacp_tick, lsc);
 }
 
@@ -789,8 +786,8 @@ lacp_attach(struct lagg_softc *sc)
 	mtx_init(&lsc->lsc_queue.ifq_mtx, "lacp queue", NULL, MTX_DEF);
 	lsc->lsc_queue.ifq_maxlen = ifqmaxlen;
 
-	callout_init(&lsc->lsc_transit_callout, CALLOUT_MPSAFE);
-	callout_init(&lsc->lsc_callout, CALLOUT_MPSAFE);
+	callout_init_rw(&lsc->lsc_transit_callout, &sc->sc_mtx, 0);
+	callout_init_rw(&lsc->lsc_callout, &sc->sc_mtx, 0);
 
 	/* if the lagg is already up then do the same */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
