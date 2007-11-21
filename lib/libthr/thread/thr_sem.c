@@ -196,7 +196,7 @@ _sem_wait(sem_t *sem)
 				return (0);
 		}
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait((umtx_t *)&(*sem)->count, 0, NULL);
+		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL);
 		_thr_cancel_leave(curthread);
 	} while (retval == 0);
 	errno = retval;
@@ -239,7 +239,7 @@ _sem_timedwait(sem_t * __restrict sem,
 		clock_gettime(CLOCK_REALTIME, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
 		_thr_cancel_enter(curthread);
-		retval = _thr_umtx_wait((umtx_t *)&(*sem)->count, 0, &ts2);
+		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, &ts2);
 		_thr_cancel_leave(curthread);
 	} while (retval == 0);
 	errno = retval;
@@ -264,7 +264,7 @@ _sem_post(sem_t *sem)
 	do {
 		val = (*sem)->count;
 	} while (!atomic_cmpset_acq_int(&(*sem)->count, val, val + 1));
-	retval = _thr_umtx_wake((umtx_t *)&(*sem)->count, val + 1);
+	retval = _thr_umtx_wake(&(*sem)->count, val + 1);
 	if (retval > 0)
 		retval = 0;
 	return (retval);
