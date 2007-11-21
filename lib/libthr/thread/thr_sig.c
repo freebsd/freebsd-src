@@ -52,8 +52,13 @@ int	___pause(void);
 int	_raise(int);
 int	__sigtimedwait(const sigset_t *set, siginfo_t *info,
 	const struct timespec * timeout);
+int	_sigtimedwait(const sigset_t *set, siginfo_t *info,
+	const struct timespec * timeout);
 int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
+int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sigwait(const sigset_t *set, int *sig);
+int	_sigwait(const sigset_t *set, int *sig);
+int	__sigsuspend(const sigset_t *sigmask);
 
 
 static void
