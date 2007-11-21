@@ -55,6 +55,7 @@ int	__sigtimedwait(const sigset_t *set, siginfo_t *info,
 int	__sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	__sigwait(const sigset_t *set, int *sig);
 
+
 static void
 sigcancel_handler(int sig __unused,
 	siginfo_t *info __unused, ucontext_t *ucp __unused)
@@ -81,7 +82,7 @@ _thr_ast(struct pthread *curthread)
 void
 _thr_suspend_check(struct pthread *curthread)
 {
-	umtx_t cycle;
+	long cycle;
 	int err;
 
 	err = errno;

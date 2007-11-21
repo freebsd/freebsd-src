@@ -121,7 +121,7 @@ static int
 suspend_common(struct pthread *curthread, struct pthread *thread,
 	int waitok)
 {
-	umtx_t tmp;
+	long tmp;
 
 	while (thread->state != PS_DEAD &&
 	      !(thread->flags & THR_FLAGS_SUSPENDED)) {

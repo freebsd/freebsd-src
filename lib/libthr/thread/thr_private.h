@@ -312,7 +312,7 @@ struct pthread {
 	struct umutex		lock;
 
 	/* Internal condition variable cycle number. */
-	umtx_t			cycle;
+	long			cycle;
 
 	/* How many low level locks the thread held. */
 	int			locklevel;
