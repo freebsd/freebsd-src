@@ -2386,6 +2386,26 @@ __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap)
 }
 
 static int
+__umtx_op_wait_uint(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->uaddr2, &timeout, sizeof(timeout));
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return do_wait(td, uap->obj, uap->val, ts, 1);
+}
+
+static int
 __umtx_op_wake(struct thread *td, struct _umtx_op_args *uap)
 {
 	return (kern_umtx_wake(td, uap->obj, uap->val));
@@ -2480,7 +2500,8 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
 	__umtx_op_cv_wait,		/* UMTX_OP_CV_WAIT*/
 	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast		/* UMTX_OP_CV_BROADCAST */
+	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
+	__umtx_op_wait_uint		/* UMTX_OP_WAIT_UINT */
 };
 
 int
@@ -2626,7 +2647,8 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
 	__umtx_op_cv_wait_compat32,	/* UMTX_OP_CV_WAIT*/
 	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
-	__umtx_op_cv_broadcast		/* UMTX_OP_CV_BROADCAST */
+	__umtx_op_cv_broadcast,		/* UMTX_OP_CV_BROADCAST */
+	__umtx_op_wait_compat32		/* UMTX_OP_WAIT_UINT */
 };
 
 int
