@@ -298,9 +298,6 @@ static void     em_enable_wakeup(device_t);
 
 #ifndef EM_FAST_IRQ
 static void	em_intr(void *);
-#ifdef DEVICE_POLLING
-static poll_handler_t em_poll;
-#endif /* POLLING */
 #else /* FAST IRQ */
 #if __FreeBSD_version < 700000
 static void	em_intr_fast(void *);
@@ -312,6 +309,10 @@ static void	em_add_rx_process_limit(struct adapter *, const char *,
 static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
 #endif /* EM_FAST_IRQ */
+
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+#endif /* POLLING */
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
