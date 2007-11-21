@@ -421,10 +421,10 @@ struct mtx_args {
  * _mtx_assert() must build.
  */
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-#define MA_OWNED	0x01
-#define MA_NOTOWNED	0x02
-#define MA_RECURSED	0x04
-#define MA_NOTRECURSED	0x08
+#define MA_OWNED	LA_XLOCKED
+#define MA_NOTOWNED	LA_UNLOCKED
+#define MA_RECURSED	LA_RECURSED
+#define MA_NOTRECURSED	LA_NOTRECURSED
 #endif
 
 #ifdef INVARIANTS
