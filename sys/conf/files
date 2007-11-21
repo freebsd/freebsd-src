@@ -1523,8 +1523,8 @@ kern/tty.c			standard
 kern/tty_compat.c		optional compat_43tty
 kern/tty_conf.c			standard
 kern/tty_cons.c			standard
-kern/tty_pty.c			optional pty
 kern/tty_pts.c			optional pty
+kern/tty_pty.c			optional pty
 kern/tty_subr.c			standard
 kern/tty_tty.c			standard
 kern/uipc_accf.c		optional inet
