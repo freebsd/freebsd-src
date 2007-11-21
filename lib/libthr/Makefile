@@ -17,7 +17,6 @@ SHLIBDIR= /lib
 
 LIB=thr
 SHLIB_MAJOR= 3
-WARNS?= 2
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include
@@ -27,7 +26,6 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR}/../libthread_db
 CFLAGS+=-Winline
-CFLAGS+=-fno-strict-aliasing
 
 # CFLAGS+=-DSYSTEM_SCOPE_ONLY
 
