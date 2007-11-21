@@ -137,6 +137,9 @@ tcp_output(struct tcpcb *tp)
 	struct tcphdr *th;
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
+#ifdef IPSEC
+	unsigned ipsec_optlen = 0;
+#endif
 	int idle, sendalot;
 	int sack_rxmit, sack_bytes_rxmt;
 	struct sackhole *p;
@@ -456,13 +459,23 @@ after_sack_rexmit:
 	 * removal of FIN (if not already catched here) are handled later after
 	 * the exact length of the TCP options are known.
 	 */
+#ifdef IPSEC
+	/*
+	 * Pre-calculate here as we save another lookup into the darknesses
+	 * of IPsec that way and can actually decide if TSO is ok.
+	 */
+	ipsec_optlen = ipsec_hdrsiz_tcp(tp);
+#endif
 	if (len > tp->t_maxseg) {
 		if ((tp->t_flags & TF_TSO) && tcp_do_tso &&
 		    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 		    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
 		    tp->t_inpcb->inp_options == NULL &&
-		    tp->t_inpcb->in6p_options == NULL &&
-		    tp->t_inpcb->inp_sp == NULL) {
+		    tp->t_inpcb->in6p_options == NULL
+#ifdef IPSEC
+		    && ipsec_optlen == 0
+#endif
+		    ) {
 			tso = 1;
 		} else {
 			len = tp->t_maxseg;
@@ -698,7 +711,7 @@ send:
 	else
 		ipoptlen = 0;
 #ifdef IPSEC
-	ipoptlen += ipsec_hdrsiz_tcp(tp);
+	ipoptlen += ipsec_optlen;
 #endif
 
 	/*
