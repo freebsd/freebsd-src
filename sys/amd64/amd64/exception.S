@@ -187,10 +187,28 @@ alltraps_noen:
 IDTVEC(dblfault)
 	subq	$TF_ERR,%rsp
 	movq	$T_DOUBLEFLT,TF_TRAPNO(%rsp)
+	movq	$0,TF_ADDR(%rsp)
+	movq	$0,TF_ERR(%rsp)
+	movq	%rdi,TF_RDI(%rsp)
+	movq	%rsi,TF_RSI(%rsp)
+	movq	%rdx,TF_RDX(%rsp)
+	movq	%rcx,TF_RCX(%rsp)
+	movq	%r8,TF_R8(%rsp)
+	movq	%r9,TF_R9(%rsp)
+	movq	%rax,TF_RAX(%rsp)
+	movq	%rbx,TF_RBX(%rsp)
+	movq	%rbp,TF_RBP(%rsp)
+	movq	%r10,TF_R10(%rsp)
+	movq	%r11,TF_R11(%rsp)
+	movq	%r12,TF_R12(%rsp)
+	movq	%r13,TF_R13(%rsp)
+	movq	%r14,TF_R14(%rsp)
+	movq	%r15,TF_R15(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
-1:	call	dblfault_handler
+1:	movq	%rsp, %rdi
+	call	dblfault_handler
 2:	hlt
 	jmp	2b
 

@@ -96,10 +96,10 @@ __FBSDID("$FreeBSD$");
 
 extern void trap(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
+void dblfault_handler(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
-void dblfault_handler(void);
 
 #define MAX_TRAP_MSG		30
 static char *trap_msg[] = {
@@ -706,9 +706,12 @@ trap_fatal(frame, eva)
  * for example).
  */
 void
-dblfault_handler()
+dblfault_handler(struct trapframe *frame)
 {
 	printf("\nFatal double fault\n");
+	printf("rip = 0x%lx\n", frame->tf_rip);
+	printf("rsp = 0x%lx\n", frame->tf_rsp);
+	printf("rbp = 0x%lx\n", frame->tf_rbp);
 #ifdef SMP
 	/* two separate prints in case of a trap on an unmapped page */
 	printf("cpuid = %d; ", PCPU_GET(cpuid));
