@@ -3739,7 +3739,7 @@ pf_unload(void)
 		wakeup_one(pf_purge_thread);
 		msleep(pf_purge_thread, &pf_task_mtx, 0, "pftmo", hz);
 	}
-/*	pfi_cleanup(); */
+	pfi_cleanup();
 	pf_osfp_flush();
 	pf_osfp_cleanup();
 	cleanup_pf_zone();
