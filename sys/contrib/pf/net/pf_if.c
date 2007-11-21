@@ -162,6 +162,36 @@ pfi_initialize(void)
 #endif
 }
 
+#ifdef __FreeBSD__
+void
+pfi_cleanup(void)
+{
+	struct pfi_kif *p;
+
+	PF_UNLOCK();
+	EVENTHANDLER_DEREGISTER(ifnet_arrival_event, pfi_attach_cookie);
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event, pfi_detach_cookie);
+	EVENTHANDLER_DEREGISTER(group_attach_event, pfi_attach_group_cookie);
+	EVENTHANDLER_DEREGISTER(group_change_event, pfi_change_group_cookie);
+	EVENTHANDLER_DEREGISTER(group_detach_event, pfi_detach_group_cookie);
+	EVENTHANDLER_DEREGISTER(ifaddr_event, pfi_ifaddr_event_cookie);
+	PF_LOCK();
+
+	pfi_all = NULL;
+	while ((p = RB_MIN(pfi_ifhead, &pfi_ifs))) {
+		if (p->pfik_rules || p->pfik_states) {
+			printf("pfi_cleanup: dangling refs for %s\n",
+			    p->pfik_name);
+		}
+
+		RB_REMOVE(pfi_ifhead, &pfi_ifs, p);
+		free(p, PFI_MTYPE);
+	}
+
+	free(pfi_buffer, PFI_MTYPE);
+}
+#endif
+
 struct pfi_kif *
 pfi_kif_get(const char *kif_name)
 {
