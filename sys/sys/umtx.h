@@ -78,7 +78,8 @@ struct ucond {
 #define	UMTX_OP_CV_WAIT		8
 #define	UMTX_OP_CV_SIGNAL	9
 #define	UMTX_OP_CV_BROADCAST	10
-#define	UMTX_OP_MAX		11
+#define	UMTX_OP_WAIT_UINT	11
+#define	UMTX_OP_MAX		12
 
 /* flags for UMTX_OP_CV_WAIT */
 #define UMTX_CHECK_UNPARKING	0x01
