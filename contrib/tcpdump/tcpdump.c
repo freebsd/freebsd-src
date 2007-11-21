@@ -1132,6 +1132,7 @@ info(register int verbose)
 
 	if (pcap_stats(pd, &stat) < 0) {
 		(void)fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(pd));
+		infoprint = 0;
 		return;
 	}
 
