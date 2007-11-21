@@ -81,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20071020_0048"
+#define HDA_DRV_TEST_REV	"20071122_0049"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -141,10 +141,12 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define NVIDIA_VENDORID		0x10de
 #define HDA_NVIDIA_MCP51	HDA_MODEL_CONSTRUCT(NVIDIA, 0x026c)
 #define HDA_NVIDIA_MCP55	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0371)
-#define HDA_NVIDIA_MCP61A	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03e4)
-#define HDA_NVIDIA_MCP61B	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03f0)
-#define HDA_NVIDIA_MCP65A	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044a)
-#define HDA_NVIDIA_MCP65B	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044b)
+#define HDA_NVIDIA_MCP61_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03e4)
+#define HDA_NVIDIA_MCP61_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03f0)
+#define HDA_NVIDIA_MCP65_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044a)
+#define HDA_NVIDIA_MCP65_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044b)
+#define HDA_NVIDIA_MCP67_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x055c)
+#define HDA_NVIDIA_MCP67_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x055d)
 #define HDA_NVIDIA_ALL		HDA_MODEL_CONSTRUCT(NVIDIA, 0xffff)
 
 /* ATI */
@@ -198,6 +200,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Acer */
 #define ACER_VENDORID		0x1025
 #define ACER_A5050_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x010f)
+#define ACER_A4520_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0127)
 #define ACER_3681WXM_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x0110)
 #define ACER_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0xffff)
 
@@ -240,6 +243,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define MEDION_MD95257_SUBVENDOR	HDA_MODEL_CONSTRUCT(MEDION, 0x203d)
 #define MEDION_ALL_SUBVENDOR		HDA_MODEL_CONSTRUCT(MEDION, 0xffff)
 
+/* Apple Computer Inc. */
+#define APPLE_VENDORID		0x106b
+#define APPLE_MB3_SUBVENDOR	HDA_MODEL_CONSTRUCT(APPLE, 0x00a1)
+
 /*
  * Apple Intel MacXXXX seems using Sigmatel codec/vendor id
  * instead of their own, which is beyond my comprehension
@@ -266,6 +273,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 /* Toshiba */
 #define TOSHIBA_VENDORID	0x1179
 #define TOSHIBA_U200_SUBVENDOR	HDA_MODEL_CONSTRUCT(TOSHIBA, 0x0001)
+#define TOSHIBA_A135_SUBVENDOR	HDA_MODEL_CONSTRUCT(TOSHIBA, 0xff01)
 #define TOSHIBA_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(TOSHIBA, 0xffff)
 
 /* Micro-Star International (MSI) */
@@ -419,10 +427,11 @@ static const struct {
 	{ HDA_INTEL_82801I,  "Intel 82801I" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
-	{ HDA_NVIDIA_MCP61A, "NVidia MCP61A" },
-	{ HDA_NVIDIA_MCP61B, "NVidia MCP61B" },
-	{ HDA_NVIDIA_MCP65A, "NVidia MCP65A" },
-	{ HDA_NVIDIA_MCP65B, "NVidia MCP65B" },
+	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
+	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61" },
+	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65" },
+	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67" },
+	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67" },
 	{ HDA_ATI_SB450,     "ATI SB450"    },
 	{ HDA_ATI_SB600,     "ATI SB600"    },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
@@ -654,12 +663,16 @@ static const struct {
 	    0, 0, -1, 21, { 22, 27, -1 }, -1 }, */
 	{ TOSHIBA_U200_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, -1 }, -1 },
+	{ TOSHIBA_A135_SUBVENDOR, HDA_CODEC_ALC861VD, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 27, { 20, -1 }, -1 },
 	{ DELL_D820_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
 	    0, 0, -1, 13, { 14, -1 }, -1 },
 	{ DELL_I1300_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
 	    0, 0, -1, 13, { 14, -1 }, -1 },
 	{ DELL_OPLX745_SUBVENDOR, HDA_CODEC_AD1983, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, 7, -1 }, -1 },
+	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 21, { 20, 22, -1 }, -1 },
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDAC_HP_SWITCH_CTRL,
 	    0, 0, -1, 10, { 13, -1 }, -1 },
 	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL,
@@ -671,6 +684,8 @@ static const struct {
 	{ ACER_A5050_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 	{ ACER_3681WXM_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
+	    0, 0, -1, 20, { 21, -1 }, -1 },
+	{ ACER_A4520_SUBVENDOR, HDA_CODEC_ALC268, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
 	{ UNIWILL_9080_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 20, { 21, -1 }, -1 },
@@ -3093,7 +3108,8 @@ static void
 hdac_stream_setup(struct hdac_chan *ch)
 {
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
-	int i;
+	struct hdac_widget *w;
+	int i, chn, totalchn;
 	nid_t cad = ch->devinfo->codec->cad;
 	uint16_t fmt;
 
@@ -3114,12 +3130,19 @@ hdac_stream_setup(struct hdac_chan *ch)
 		}
 	}
 
-	if (ch->fmt & AFMT_STEREO)
+	if (ch->fmt & AFMT_STEREO) {
 		fmt |= 1;
+		totalchn = 2;
+	} else
+		totalchn = 1;
 
 	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDFMT, fmt);
 
+	chn = 0;
 	for (i = 0; ch->io[i] != -1; i++) {
+		w = hdac_widget_get(ch->devinfo, ch->io[i]);
+		if (w == NULL)
+			continue;
 		HDA_BOOTVERBOSE(
 			device_printf(sc->dev,
 			    "HDA_DEBUG: PCMDIR_%s: Stream setup nid=%d "
@@ -3131,7 +3154,10 @@ hdac_stream_setup(struct hdac_chan *ch)
 		    HDA_CMD_SET_CONV_FMT(cad, ch->io[i], fmt), cad);
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i],
-		    ch->sid << 4), cad);
+		    (chn < totalchn) ? ((ch->sid << 4) | chn) : 0), cad);
+		chn +=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
+		    2 : 1;
 	}
 }
 
@@ -4176,6 +4202,8 @@ static const struct {
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
+	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885,
+	    HDA_QUIRK_GPIO0 | HDA_QUIRK_OVREF50, 0},
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
