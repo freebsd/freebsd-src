@@ -360,6 +360,11 @@ static struct resource_spec msk_irq_spec_legacy[] = {
 
 static struct resource_spec msk_irq_spec_msi[] = {
 	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
+	{ -1,			0,		0 }
+};
+
+static struct resource_spec msk_irq_spec_msi2[] = {
+	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
 	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
 	{ -1,			0,		0 }
 };
@@ -1527,7 +1532,7 @@ static int
 mskc_attach(device_t dev)
 {
 	struct msk_softc *sc;
-	int error, msic, *port, reg;
+	int error, msic, msir, *port, reg;
 
 	sc = device_get_softc(dev);
 	sc->msk_dev = dev;
@@ -1647,13 +1652,27 @@ mskc_attach(device_t dev)
 	 */
 	if (legacy_intr != 0)
 		msi_disable = 1;
-	if (msic == 2 && msi_disable == 0 && sc->msk_num_port == 1 &&
-	    pci_alloc_msi(dev, &msic) == 0) {
-		if (msic == 2) {
-			sc->msk_msi = 1;
-			sc->msk_irq_spec = msk_irq_spec_msi;
-		} else
-			pci_release_msi(dev);
+	if (msi_disable == 0) {
+		switch (msic) {
+		case 2:
+		case 1: /* 88E8058 reports 1 MSI message */
+			msir = msic;
+			if (sc->msk_num_port == 1 &&
+			    pci_alloc_msi(dev, &msir) == 0) {
+				if (msic == msir) {
+					sc->msk_msi = 1;
+					sc->msk_irq_spec = msic == 2 ?
+					    msk_irq_spec_msi2 :
+					    msk_irq_spec_msi;
+				} else
+					pci_release_msi(dev);
+			}
+			break;
+		default:
+			device_printf(dev,
+			    "Unexpected number of MSI messages : %d\n", msic);
+			break;
+		}
 	}
 
 	error = bus_alloc_resources(dev, sc->msk_irq_spec, sc->msk_irq);
