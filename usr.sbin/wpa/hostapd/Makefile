@@ -16,6 +16,11 @@ CLEANFILES=driver_conf.c
 
 MAN=	hostapd.8 hostapd.conf.5
 
+.if ${MK_EXAMPLES} != "no"
+FILESDIR= ${SHAREDIR}/examples/hostapd
+FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
+.endif
+
 CFLAGS+= -I${.CURDIR} -I${HOSTAPD_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
 CFLAGS+= -DCONFIG_CTRL_IFACE
