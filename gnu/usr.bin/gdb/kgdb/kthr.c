@@ -129,6 +129,7 @@ kgdb_thr_init(void)
 			kt->tid = td.td_tid;
 			kt->pid = p.p_pid;
 			kt->paddr = paddr;
+			kt->cpu = td.td_oncpu;
 			first = kt;
 			addr = (uintptr_t)TAILQ_NEXT(&td, td_plist);
 		}
