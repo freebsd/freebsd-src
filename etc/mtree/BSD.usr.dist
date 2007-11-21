@@ -212,6 +212,8 @@
             ..
             find_interface
             ..
+            hostapd
+            ..
             ibcs2
             ..
             ipfilter
@@ -303,6 +305,8 @@
                 ..
             ..
             tcsh
+            ..
+            wpa_supplicant
             ..
         ..
         games
