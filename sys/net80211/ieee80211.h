@@ -326,9 +326,15 @@ struct ieee80211_action_ht_txchwidth {
 /* HT - MIMO Power Save (NB: D2.04) */
 struct ieee80211_action_ht_mimopowersave {
 	struct ieee80211_action am_header;
-	uint8_t		am_enable;
-	uint8_t		am_mode;
+	uint8_t		am_control;
 } __packed;
+
+#define	IEEE80211_A_HT_MIMOPWRSAVE_ENA		0x01	/* PS enabled */
+#define	IEEE80211_A_HT_MIMOPWRSAVE_MODE		0x02
+#define	IEEE80211_A_HT_MIMOPWRSAVE_MODE_S	1
+#define	IEEE80211_A_HT_MIMOPWRSAVE_DYNAMIC	0x02	/* Dynamic Mode */
+#define	IEEE80211_A_HT_MIMOPWRSAVE_STATIC	0x00	/* no SM packets */
+/* bits 2-7 reserved */
 
 /* Block Ack actions */
 #define IEEE80211_ACTION_BA_ADDBA_REQUEST       0   /* ADDBA request */
