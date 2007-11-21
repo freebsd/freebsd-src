@@ -172,6 +172,14 @@ _sem_trywait(sem_t *sem)
 	return (-1);
 }
 
+static void
+sem_cancel_handler(void *arg)
+{
+	sem_t *sem = arg;
+
+	atomic_add_int(&(*sem)->nwaiters, -1);
+}
+
 int
 _sem_wait(sem_t *sem)
 {
@@ -191,13 +199,19 @@ _sem_wait(sem_t *sem)
 
 	_pthread_testcancel();
 	do {
+		atomic_add_int(&(*sem)->nwaiters, 1);
 		while ((val = (*sem)->count) > 0) {
-			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
+			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1)) {
+				atomic_add_int(&(*sem)->nwaiters, -1);
 				return (0);
+			}
 		}
+		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 		_thr_cancel_leave(curthread);
+		THR_CLEANUP_POP(curthread, 0);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
@@ -228,19 +242,26 @@ _sem_timedwait(sem_t * __restrict sem,
 	 */
 	_pthread_testcancel();
 	do {
+		atomic_add_int(&(*sem)->nwaiters, 1);
 		while ((val = (*sem)->count) > 0) {
-			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
+			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1)) {
+				atomic_add_int(&(*sem)->nwaiters, -1);
 				return (0);
+			}
 		}
 		if (abstime == NULL) {
+			atomic_add_int(&(*sem)->nwaiters, -1);
 			errno = EINVAL;
 			return (-1);
 		}
+		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		clock_gettime(CLOCK_REALTIME, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
 		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, &ts2);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 		_thr_cancel_leave(curthread);
+		THR_CLEANUP_POP(curthread, 0);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
@@ -249,7 +270,7 @@ _sem_timedwait(sem_t * __restrict sem,
 int
 _sem_post(sem_t *sem)
 {
-	int val, retval;
+	int val, retval = 0;
 	
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -263,9 +284,12 @@ _sem_post(sem_t *sem)
 	 */
 	do {
 		val = (*sem)->count;
-	} while (!atomic_cmpset_acq_int(&(*sem)->count, val, val + 1));
-	retval = _thr_umtx_wake(&(*sem)->count, val + 1);
-	if (retval > 0)
-		retval = 0;
+	} while (!atomic_cmpset_rel_int(&(*sem)->count, val, val + 1));
+
+	if ((*sem)->nwaiters) {
+		retval = _thr_umtx_wake(&(*sem)->count, val + 1);
+		if (retval > 0)
+			retval = 0;
+	}
 	return (retval);
 }
