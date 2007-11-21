@@ -213,7 +213,18 @@ pfi_kif_get(const char *kif_name)
 
 	bzero(kif, sizeof(*kif));
 	strlcpy(kif->pfik_name, kif_name, sizeof(kif->pfik_name));
+#ifdef __FreeBSD__
+	/*
+	 * It seems that the value of time_second is in unintialzied state
+	 * when pf sets interface statistics clear time in boot phase if pf
+	 * was statically linked to kernel. Instead of setting the bogus
+	 * time value have pfi_get_ifaces handle this case. In
+	 * pfi_get_ifaces it uses boottime.tv_sec if it sees the time is 0.
+	 */
+	kif->pfik_tzero = time_second > 1 ? time_second : 0;
+#else
 	kif->pfik_tzero = time_second;
+#endif
 	TAILQ_INIT(&kif->pfik_dynaddrs);
 
 	RB_INSERT(pfi_ifhead, &pfi_ifs, kif);
@@ -570,6 +581,18 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		af = ia->ifa_addr->sa_family;
 		if (af != AF_INET && af != AF_INET6)
 			continue;
+#ifdef __FreeBSD__
+		/*
+		 * XXX: For point-to-point interfaces, (ifname:0) and IPv4,
+		 *	jump over addresses without a proper route to work
+		 *	around a problem with ppp not fully removing the
+		 *	address used during IPCP.
+		 */
+		if ((ifp->if_flags & IFF_POINTOPOINT) &&
+		    !(ia->ifa_flags & IFA_ROUTE) &&
+		    (flags & PFI_AFLAG_NOALIAS) && (af == AF_INET))
+			continue;
+#endif
 		if ((flags & PFI_AFLAG_BROADCAST) && af == AF_INET6)
 			continue;
 		if ((flags & PFI_AFLAG_BROADCAST) &&
