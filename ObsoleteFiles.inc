@@ -204,7 +204,7 @@ OLD_FILES+=usr/include/netipx/ipx_ip.h
 # 20070605: sched_core removal
 OLD_FILES+=usr/share/man/man4/sched_core.4.gz
 # 20070603: BIND 9.4.1 import
-OLD_LIBS+=lib/liblwres.so.10
+OLD_LIBS+=usr/lib/liblwres.so.10
 # 20070521: shared library version bump
 OLD_LIBS+=lib/libatm.so.4
 OLD_LIBS+=lib/libbegemot.so.2
