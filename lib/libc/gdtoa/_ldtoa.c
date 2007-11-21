@@ -61,6 +61,7 @@ __ldtoa(long double *ld, int mode, int ndigits, int *decpt, int *sign,
 	char *ret;
 	union IEEEl2bits u;
 	uint32_t bits[(LDBL_MANT_DIG + 31) / 32];
+	void *vbits = bits;
 
 	u.e = *ld;
 	*sign = u.bits.sign;
@@ -93,7 +94,7 @@ __ldtoa(long double *ld, int mode, int ndigits, int *decpt, int *sign,
 		abort();
 	}
 
-	ret = gdtoa(&fpi, be, (ULong *)bits, &kind, mode, ndigits, decpt, rve);
+	ret = gdtoa(&fpi, be, vbits, &kind, mode, ndigits, decpt, rve);
 	if (*decpt == -32768)
 		*decpt = INT_MAX;
 	return ret;
