@@ -1110,22 +1110,12 @@ int	ng_rmhook_self(hook_p hook);	/* if a node wants to kill a hook */
 int	ng_rmnode_self(node_p here);	/* if a node wants to suicide */
 int	ng_rmtype(struct ng_type *tp);
 int	ng_snd_item(item_p item, int queue);
-int 	ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn,
+int 	ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void *arg1,
+	int arg2);
+int 	ng_send_fn1(node_p node, hook_p hook, ng_item_fn *fn, void *arg1,
+	int arg2, int flags);
+int 	ng_send_fn2(node_p node, hook_p hook, item_p pitem, ng_item_fn2 *fn,
 	void *arg1, int arg2, int flags);
-#define	ng_send_fn(node, hook, fn, arg1, arg2) \
-	ng_send_fn1(node, hook, fn, arg1, arg2, NG_NOFLAGS)
-int 	ng_send_fn21(node_p node, hook_p hook, ng_item_fn2 *fn,
-	void *arg1, int arg2, int flags);
-#define	ng_send_fn2(node, hook, fn, arg1, arg2) \
-	ng_send_fn21(node, hook, fn, arg1, arg2, NG_NOFLAGS)
-int 	ng_send_fn21_cont(item_p item, node_p node, hook_p hook, ng_item_fn2 *fn,
-	void *arg1, int arg2, int flags);
-#define	ng_send_fn2_cont(item, node, hook, fn, arg1, arg2) \
-	ng_send_fn21_cont(item, node, hook, fn, arg1, arg2, NG_NOFLAGS)
-int 	ng_send_fn21_fwd(item_p item, node_p node, hook_p hook, ng_item_fn2 *fn,
-	void *arg1, int arg2, int flags);
-#define	ng_send_fn2_fwd(item, node, hook, fn, arg1, arg2) \
-	ng_send_fn21_fwd(item, node, hook, fn, arg1, arg2, NG_NOFLAGS)
 int	ng_uncallout(struct callout *c, node_p node);
 int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	    ng_item_fn *fn, void * arg1, int arg2);
@@ -1135,7 +1125,9 @@ int	ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 #define	NG_NOFLAGS	0x00000000	/* no special options */
 #define	NG_QUEUE	0x00000001	/* enqueue item, don't dispatch */
 #define	NG_WAITOK	0x00000002	/* use M_WAITOK, etc. */
+/* XXXGL: NG_PROGRESS unused since ng_base.c rev. 1.136. Should be deleted? */
 #define	NG_PROGRESS	0x00000004	/* return EINPROGRESS if queued */
+#define	NG_REUSE_ITEM	0x00000008	/* supplied item should be reused */
 
 /*
  * prototypes the user should DEFINITELY not use directly
