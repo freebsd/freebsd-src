@@ -204,15 +204,18 @@ sdp_search(void *xss,
 			return (-1);
 		}
 
+		rsp += xpdu.len;
+		ss->tid ++;
+
 		/* Save continuation state (if any) */
-		ss->cslen = rsp[xpdu.len];
+		ss->cslen = rsp[0];
 		if (ss->cslen > 0) {
 			if (ss->cslen > sizeof(ss->cs)) {
 				ss->error = ENOBUFS;
 				return (-1);
 			}
 
-			memcpy(ss->cs, rsp + xpdu.len + 1, ss->cslen);
+			memcpy(ss->cs, rsp + 1, ss->cslen);
 
 			/*
 			 * Ensure that we always have ss->imtu bytes
@@ -236,9 +239,6 @@ sdp_search(void *xss,
 				rsp = ss->rsp + offset;
 			}
 		}
-
-		rsp += xpdu.len;
-		ss->tid ++;
 	} while (ss->cslen > 0);
 
 	/*
