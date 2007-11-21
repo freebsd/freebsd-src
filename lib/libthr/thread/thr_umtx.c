@@ -85,7 +85,7 @@ __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 }
 
 int
-_thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
+_thr_umtx_wait(volatile long *mtx, long id, const struct timespec *timeout)
 {
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
 		timeout->tv_nsec <= 0)))
@@ -97,7 +97,19 @@ _thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
 }
 
 int
-_thr_umtx_wake(volatile umtx_t *mtx, int nr_wakeup)
+_thr_umtx_wait_uint(volatile u_int *mtx, u_int id, const struct timespec *timeout)
+{
+	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
+		timeout->tv_nsec <= 0)))
+		return (ETIMEDOUT);
+	if (_umtx_op(__DEVOLATILE(void *, mtx), UMTX_OP_WAIT_UINT, id, 0,
+		__DECONST(void*, timeout)) != -1)
+		return (0);
+	return (errno);
+}
+
+int
+_thr_umtx_wake(volatile void *mtx, int nr_wakeup)
 {
 	if (_umtx_op(__DEVOLATILE(void *, mtx), UMTX_OP_WAKE,
 		nr_wakeup, 0, 0) != -1)
