@@ -76,7 +76,7 @@ static int  nfe_attach(device_t);
 static int  nfe_detach(device_t);
 static int  nfe_suspend(device_t);
 static int  nfe_resume(device_t);
-static void nfe_shutdown(device_t);
+static int nfe_shutdown(device_t);
 static void nfe_power(struct nfe_softc *);
 static int  nfe_miibus_readreg(device_t, int, int);
 static int  nfe_miibus_writereg(device_t, int, int, int);
@@ -3115,7 +3115,7 @@ nfe_tick(void *xsc)
 }
 
 
-static void
+static int
 nfe_shutdown(device_t dev)
 {
 	struct nfe_softc *sc;
@@ -3128,6 +3128,8 @@ nfe_shutdown(device_t dev)
 	nfe_stop(ifp);
 	/* nfe_reset(sc); */
 	NFE_UNLOCK(sc);
+
+	return (0);
 }
 
 

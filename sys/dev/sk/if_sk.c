@@ -190,7 +190,7 @@ static struct sk_type sk_devs[] = {
 static int skc_probe(device_t);
 static int skc_attach(device_t);
 static int skc_detach(device_t);
-static void skc_shutdown(device_t);
+static int skc_shutdown(device_t);
 static int skc_suspend(device_t);
 static int skc_resume(device_t);
 static int sk_detach(device_t);
@@ -2691,7 +2691,7 @@ done:
 	return;
 }
 
-static void
+static int
 skc_shutdown(dev)
 	device_t		dev;
 {
@@ -2710,7 +2710,7 @@ skc_shutdown(dev)
 	sk_reset(sc);
 	SK_UNLOCK(sc);
 
-	return;
+	return (0);
 }
 
 static int

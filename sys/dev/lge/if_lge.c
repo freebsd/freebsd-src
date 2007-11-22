@@ -138,7 +138,7 @@ static void lge_init(void *);
 static void lge_init_locked(struct lge_softc *);
 static void lge_stop(struct lge_softc *);
 static void lge_watchdog(struct ifnet *);
-static void lge_shutdown(device_t);
+static int lge_shutdown(device_t);
 static int lge_ifmedia_upd(struct ifnet *);
 static void lge_ifmedia_upd_locked(struct ifnet *);
 static void lge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -1579,7 +1579,7 @@ lge_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 lge_shutdown(dev)
 	device_t		dev;
 {
@@ -1592,5 +1592,5 @@ lge_shutdown(dev)
 	lge_stop(sc);
 	LGE_UNLOCK(sc);
 
-	return;
+	return (0);
 }
