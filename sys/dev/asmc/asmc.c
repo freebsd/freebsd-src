@@ -183,8 +183,8 @@ struct asmc_model asmc_models[] = {
 	{ 
 	  "Macmini1,1", "Apple SMC Mac Mini",
 	  NULL, NULL, NULL,
-	  NULL, NULL,
 	  ASMC_FAN_FUNCS,
+	  NULL, NULL,
 	  ASMC_MM_TEMPS, ASMC_MM_TEMPNAMES, ASMC_MM_TEMPDESCS
 	},
 
