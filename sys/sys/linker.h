@@ -268,10 +268,10 @@ int elf_cpu_unload_file(linker_file_t);
 
 /*
  * This is version 1 of the KLD file status structure. It is identified
- * by it's _size_ in the version field.
+ * by its _size_ in the version field.
  */
 struct kld_file_stat_1 {
-    int		version;	/* set to sizeof(linker_file_stat) */
+    int		version;	/* set to sizeof(struct kld_file_stat_1) */
     char        name[MAXPATHLEN];
     int		refs;
     int		id;
@@ -281,7 +281,7 @@ struct kld_file_stat_1 {
 #endif /* _KERNEL */
 
 struct kld_file_stat {
-    int		version;	/* set to sizeof(linker_file_stat) */
+    int		version;	/* set to sizeof(struct kld_file_stat) */
     char        name[MAXPATHLEN];
     int		refs;
     int		id;
