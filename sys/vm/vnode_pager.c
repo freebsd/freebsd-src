@@ -395,21 +395,6 @@ vnode_pager_setsize(vp, nsize)
 			pmap_zero_page_area(m, base, size);
 
 			/*
-			 * XXX work around SMP data integrity race
-			 * by unmapping the page from user processes.
-			 * The garbage we just cleared may be mapped
-			 * to a user process running on another cpu
-			 * and this code is not running through normal
-			 * I/O channels which handle SMP issues for
-			 * us, so unmap page to synchronize all cpus.
-			 *
-			 * XXX should vm_pager_unmap_page() have
-			 * dealt with this?
-			 */
-			vm_page_lock_queues();
-			pmap_remove_all(m);
-
-			/*
 			 * Clear out partial-page dirty bits.  This
 			 * has the side effect of setting the valid
 			 * bits, but that is ok.  There are a bunch
@@ -422,6 +407,7 @@ vnode_pager_setsize(vp, nsize)
 			 * bits.  This would prevent bogus_page
 			 * replacement from working properly.
 			 */
+			vm_page_lock_queues();
 			vm_page_set_validclean(m, base, size);
 			if (m->dirty != 0)
 				m->dirty = VM_PAGE_BITS_ALL;
