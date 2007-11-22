@@ -147,7 +147,7 @@ static void sf_init(void *);
 static void sf_init_locked(struct sf_softc *);
 static void sf_stop(struct sf_softc *);
 static void sf_watchdog(struct ifnet *);
-static void sf_shutdown(device_t);
+static int sf_shutdown(device_t);
 static int sf_ifmedia_upd(struct ifnet *);
 static void sf_ifmedia_upd_locked(struct ifnet *);
 static void sf_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -1588,7 +1588,7 @@ sf_watchdog(ifp)
 	SF_UNLOCK(sc);
 }
 
-static void
+static int
 sf_shutdown(dev)
 	device_t		dev;
 {
@@ -1599,4 +1599,6 @@ sf_shutdown(dev)
 	SF_LOCK(sc);
 	sf_stop(sc);
 	SF_UNLOCK(sc);
+
+	return (0);
 }

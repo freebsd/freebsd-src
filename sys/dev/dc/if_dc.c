@@ -248,7 +248,7 @@ static void dc_init(void *);
 static void dc_init_locked(struct dc_softc *);
 static void dc_stop(struct dc_softc *);
 static void dc_watchdog(void *);
-static void dc_shutdown(device_t);
+static int dc_shutdown(device_t);
 static int dc_ifmedia_upd(struct ifnet *);
 static void dc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -3761,7 +3761,7 @@ dc_resume(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 dc_shutdown(device_t dev)
 {
 	struct dc_softc *sc;
@@ -3771,4 +3771,6 @@ dc_shutdown(device_t dev)
 	DC_LOCK(sc);
 	dc_stop(sc);
 	DC_UNLOCK(sc);
+
+	return (0);
 }
