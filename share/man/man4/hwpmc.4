@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2005 Joseph Koshy
+.\" Copyright (c) 2003-2007 Joseph Koshy
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2007
+.Dd November 22, 2007
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -196,6 +196,7 @@ sampling mode.
 It signifies that the PMC's sampling interrupt is to be used to drive
 kernel profiling via
 .Xr kgmon 8 .
+This functionality is currently unimplemented.
 .It Dv PMC_F_LOG_PROCCSW
 This modifier is valid only for a PMC being allocated in process-private
 mode.
@@ -286,7 +287,7 @@ the hardware PMCs managed by the
 driver.
 .It Dv PMC_OP_PMCALLOCATE
 Allocate and configure a PMC.
-On successful allocation, a handle to the PMC (a small integer)
+On successful allocation, a handle to the PMC (a 32 bit value)
 is returned.
 .It Dv PMC_OP_PMCATTACH
 Attach a process mode PMC to a target process.
@@ -577,7 +578,7 @@ of this PMC.
 .It Bq Er EFAULT
 A bad address was passed in to the driver.
 .It Bq Er EINVAL
-A process specified an invalid PMC handle.
+An invalid PMC handle was specified.
 .It Bq Er EINVAL
 An invalid CPU number was passed in for a
 .Dv PMC_OP_GETPMCINFO
@@ -734,6 +735,12 @@ The
 .Nm
 driver first appeared in
 .Fx 6.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An "Joseph Koshy"
+.Aq jkoshy@FreeBSD.org .
 .Sh BUGS
 The driver samples the state of the kernel's logical processor support
 at the time of initialization (i.e., at module load time).
