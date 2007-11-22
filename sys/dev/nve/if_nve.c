@@ -130,7 +130,7 @@ static int      nve_detach(device_t);
 static void     nve_init(void *);
 static void     nve_init_locked(struct nve_softc *);
 static void     nve_stop(struct nve_softc *);
-static void     nve_shutdown(device_t);
+static int      nve_shutdown(device_t);
 static int      nve_init_rings(struct nve_softc *);
 static void     nve_free_rings(struct nve_softc *);
 
@@ -717,7 +717,7 @@ nve_stop(struct nve_softc *sc)
 }
 
 /* Shutdown interface for unload/reboot */
-static void
+static int
 nve_shutdown(device_t dev)
 {
 	struct nve_softc *sc;
@@ -730,6 +730,8 @@ nve_shutdown(device_t dev)
 	NVE_LOCK(sc);
 	nve_stop(sc);
 	NVE_UNLOCK(sc);
+
+	return (0);
 }
 
 /* Allocate TX ring buffers */
