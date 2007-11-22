@@ -689,12 +689,10 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
-	mtx_lock(&Giant);
 	FILEDESC_SLOCK(fdp);
 	error = vn_fullpath1(td, fdp->fd_cdir, fdp->fd_rdir, tmpbuf,
 	    &bp, buflen);
 	FILEDESC_SUNLOCK(fdp);
-	mtx_unlock(&Giant);
 
 	if (!error) {
 		if (bufseg == UIO_SYSSPACE)
