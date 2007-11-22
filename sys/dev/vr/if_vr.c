@@ -186,7 +186,7 @@ static void vr_init(void *);
 static void vr_init_locked(struct vr_softc *);
 static void vr_stop(struct vr_softc *);
 static void vr_watchdog(struct ifnet *);
-static void vr_shutdown(device_t);
+static int vr_shutdown(device_t);
 static int vr_ifmedia_upd(struct ifnet *);
 static void vr_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -1595,9 +1595,11 @@ vr_stop(struct vr_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 vr_shutdown(device_t dev)
 {
 
 	vr_detach(dev);
+
+	return (0);
 }
