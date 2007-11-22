@@ -921,6 +921,7 @@ cdrom.1:
 	done
 	@echo "Copy GENERIC kernel to boot area"
 	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_LIVEFS}/boot/kernel
+	@rm -f ${CD_LIVEFS}/boot/kernel/*.symbols
 	@rm -f ${CD_LIVEFS}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_LIVEFS}/.profile
 	@ln -sf /rescue ${CD_LIVEFS}/stand
