@@ -216,6 +216,7 @@ softclock(void *dummy)
 				void (*c_func)(void *);
 				void *c_arg;
 				struct lock_class *class;
+				struct lock_object *c_lock;
 				int c_flags, sharedlock;
 
 				nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
@@ -224,6 +225,7 @@ softclock(void *dummy)
 				    LOCK_CLASS(c->c_lock) : NULL;
 				sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ?
 				    0 : 1;
+				c_lock = c->c_lock;
 				c_func = c->c_func;
 				c_arg = c->c_arg;
 				c_flags = c->c_flags;
@@ -240,20 +242,20 @@ softclock(void *dummy)
 				}
 				curr_cancelled = 0;
 				mtx_unlock_spin(&callout_lock);
-				if (class != NULL) {
-					class->lc_lock(c->c_lock, sharedlock);
+				if (c_lock != NULL) {
+					class->lc_lock(c_lock, sharedlock);
 					/*
 					 * The callout may have been cancelled
 					 * while we switched locks.
 					 */
 					if (curr_cancelled) {
-						class->lc_unlock(c->c_lock);
+						class->lc_unlock(c_lock);
 						goto skip;
 					}
 					/* The callout cannot be stopped now. */
 					curr_cancelled = 1;
 
-					if (c->c_lock == &Giant.lock_object) {
+					if (c_lock == &Giant.lock_object) {
 						gcalls++;
 						CTR3(KTR_CALLOUT,
 						    "callout %p func %p arg %p",
@@ -294,7 +296,7 @@ softclock(void *dummy)
 				}
 #endif
 				if ((c_flags & CALLOUT_RETURNUNLOCKED) == 0)
-					class->lc_unlock(c->c_lock);
+					class->lc_unlock(c_lock);
 			skip:
 				mtx_lock_spin(&callout_lock);
 				curr_callout = NULL;
