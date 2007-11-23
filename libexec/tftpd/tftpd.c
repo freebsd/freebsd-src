@@ -110,6 +110,8 @@ static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
 static int	create_new = 0;
+static char	*newfile_format = "%Y%m%d";
+static int	increase_name = 0;
 static mode_t	mask = S_IWGRP|S_IWOTH;
 
 static const char *errtomsg(int);
@@ -134,13 +136,16 @@ main(int argc, char *argv[])
 	tzset();			/* syslog in localtime */
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cClns:u:U:w")) != -1) {
+	while ((ch = getopt(argc, argv, "cCF:lns:u:U:wW")) != -1) {
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
 			break;
 		case 'C':
 			ipchroot = 2;
+			break;
+		case 'F':
+			newfile_format = optarg;
 			break;
 		case 'l':
 			logging = 1;
@@ -159,6 +164,10 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			create_new = 1;
+			break;
+		case 'W':
+			create_new = 1;
+			increase_name = 1;
 			break;
 		default:
 			syslog(LOG_WARNING, "ignoring unknown option -%c", ch);
@@ -513,6 +522,57 @@ option_fail:
 FILE *file;
 
 /*
+ * Find the next value for YYYYMMDD.nn when the file to be written should
+ * be unique. Due to the limitations of nn, we will fail if nn reaches 100.
+ * Besides, that is four updates per hour on a file, which is kind of
+ * execessive anyway.
+ */
+static int
+find_next_name(char *filename, int *fd)
+{
+	int i;
+	time_t tval;
+	size_t len;
+	struct tm lt;
+	char yyyymmdd[MAXPATHLEN];
+	char newname[MAXPATHLEN];
+	struct stat sb;
+	int ret;
+
+	/* Create the YYYYMMDD part of the filename */
+	time(&tval);
+	lt = *localtime(&tval);
+	len = strftime(yyyymmdd, sizeof(yyyymmdd), newfile_format, &lt);
+	if (len == 0) {
+		syslog(LOG_WARNING,
+			"Filename suffix too long (%d characters maximum)",
+			MAXPATHLEN);
+		return (EACCESS);
+	}
+
+	/* Make sure the new filename is not too long */
+	if (strlen(filename) > MAXPATHLEN - len - 5) {
+		syslog(LOG_WARNING,
+			"Filename too long (%d characters, %d maximum)",
+			strlen(filename), MAXPATHLEN - len - 5);
+		return (EACCESS);
+	}
+
+	/* Find the first file which doesn't exist */
+	for (i = 0; i < 100; i++) {
+		sprintf(newname, "%s.%s.%02d", filename, yyyymmdd, i);
+		*fd = open(newname,
+		    O_WRONLY | O_CREAT | O_EXCL, 
+		    S_IRUSR | S_IWUSR | S_IRGRP |
+		    S_IWGRP | S_IROTH | S_IWOTH);
+		if (*fd > 0)
+			return 0;
+	}
+
+	return (EEXIST);
+}
+
+/*
  * Validate file access.  Since we
  * have no uid or gid, for now require
  * file to exist and be publicly
@@ -528,6 +588,7 @@ validate_access(char **filep, int mode)
 {
 	struct stat stbuf;
 	int	fd;
+	int	error;
 	struct dirlist *dirp;
 	static char pathname[MAXPATHLEN];
 	char *filename = *filep;
@@ -610,10 +671,18 @@ validate_access(char **filep, int mode)
 	if (mode == RRQ)
 		fd = open(filename, O_RDONLY);
 	else {
-		if (create_new)
-			fd = open(filename, O_WRONLY|O_TRUNC|O_CREAT, 0666);
-		else
-			fd = open(filename, O_WRONLY|O_TRUNC);
+		if (create_new) {
+			if (increase_name) {
+				error = find_next_name(filename, &fd);
+				if (error > 0)
+					return (error + 100);
+			} else
+				fd = open(filename,
+				    O_WRONLY | O_TRUNC | O_CREAT, 
+				    S_IRUSR | S_IWUSR | S_IRGRP | 
+				    S_IWGRP | S_IROTH | S_IWOTH );
+		} else
+			fd = open(filename, O_WRONLY | O_TRUNC);
 	}
 	if (fd < 0)
 		return (errno + 100);
