@@ -426,53 +426,22 @@ ieee80211_classify(struct ieee80211com *ic, struct mbuf *m, struct ieee80211_nod
 			return 1;
 		}
 		/* map vlan priority to AC */
-		switch (EVL_PRIOFTAG(ni->ni_vlan)) {
-		case 1:
-		case 2:
-			v_wme_ac = WME_AC_BK;
-			break;
-		case 0:
-		case 3:
-			v_wme_ac = WME_AC_BE;
-			break;
-		case 4:
-		case 5:
-			v_wme_ac = WME_AC_VI;
-			break;
-		case 6:
-		case 7:
-			v_wme_ac = WME_AC_VO;
-			break;
-		}
+		v_wme_ac = TID_TO_WME_AC(EVL_PRIOFTAG(ni->ni_vlan));
 	}
 
 #ifdef INET
 	eh = mtod(m, struct ether_header *);
 	if (eh->ether_type == htons(ETHERTYPE_IP)) {
-		const struct ip *ip = (struct ip *)
-			(mtod(m, uint8_t *) + sizeof (*eh));
+		uint8_t tos;
 		/*
-		 * IP frame, map the TOS field.
+		 * IP frame, map the DSCP bits from the TOS field.
 		 */
-		switch (ip->ip_tos) {
-		case 0x08:
-		case 0x20:
-			d_wme_ac = WME_AC_BK;	/* background */
-			break;
-		case 0x28:
-		case 0xa0:
-			d_wme_ac = WME_AC_VI;	/* video */
-			break;
-		case 0x30:			/* voice */
-		case 0xe0:
-		case 0x88:			/* XXX UPSD */
-		case 0xb8:
-			d_wme_ac = WME_AC_VO;
-			break;
-		default:
-			d_wme_ac = WME_AC_BE;
-			break;
-		}
+		/* XXX m_copydata may be too slow for fast path */
+		/* NB: ip header may not be in first mbuf */
+		m_copydata(m, sizeof(struct ether_header) +
+		    offsetof(struct ip, ip_tos), sizeof(tos), &tos);
+		tos >>= 5;		/* NB: ECN + low 3 bits of DSCP */
+		d_wme_ac = TID_TO_WME_AC(tos);
 	} else {
 #endif /* INET */
 		d_wme_ac = WME_AC_BE;
