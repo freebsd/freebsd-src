@@ -7,7 +7,7 @@ INCS=	pmc.h pmclog.h
 
 WARNS?=	6
 
-MAN=	pmc.3 pmc_allocate.3 pmclog.3
+MAN=	pmc.3 pmc_allocate.3 pmc_disable.3 pmclog.3
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \
@@ -16,8 +16,7 @@ MLINKS+= \
 	pmc.3 pmc_configure_logfile.3 \
 	pmc.3 pmc_cpuinfo.3 \
 	pmc.3 pmc_detach.3 \
-	pmc.3 pmc_disable.3 \
-	pmc.3 pmc_enable.3 \
+	pmc_disable.3 pmc_enable.3 \
 	pmc.3 pmc_event_names_of_class.3 \
 	pmc.3 pmc_flush_logfile.3 \
 	pmc.3 pmc_get_driver_stats.3 \
