@@ -422,6 +422,8 @@ int	ieee80211_chan2ieee(struct ieee80211com *,
 u_int	ieee80211_ieee2mhz(u_int, u_int);
 struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
 		int freq, int flags);
+struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
+		int ieee, int flags);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 
