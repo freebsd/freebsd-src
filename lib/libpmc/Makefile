@@ -7,10 +7,10 @@ INCS=	pmc.h pmclog.h
 
 WARNS?=	6
 
-MAN=	pmc.3 pmclog.3
+MAN=	pmc.3 pmc_allocate.3 pmclog.3
 
 MLINKS+= \
-	pmc.3 pmc_allocate.3 \
+	pmc_allocate.3 pmc_release.3 \
 	pmc.3 pmc_attach.3 \
 	pmc.3 pmc_capabilities.3 \
 	pmc.3 pmc_configure_logfile.3 \
@@ -32,7 +32,6 @@ MLINKS+= \
 	pmc.3 pmc_npmc.3 \
 	pmc.3 pmc_pmcinfo.3 \
 	pmc.3 pmc_read.3 \
-	pmc.3 pmc_release.3 \
 	pmc.3 pmc_rw.3 \
 	pmc.3 pmc_set.3 \
 	pmc.3 pmc_start.3 \
