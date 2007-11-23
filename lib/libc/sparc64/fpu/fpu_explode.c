@@ -260,10 +260,11 @@ __fpu_explode(fe, fp, type, reg)
 {
 	u_int32_t s, *sp;
 	u_int64_t l[2];
+	void *vl = l;
 
 	if (type == FTYPE_LNG || type == FTYPE_DBL || type == FTYPE_EXT) {
 		l[0] = __fpu_getreg64(reg & ~1);
-		sp = (u_int32_t *)l;
+		sp = vl;
 		fp->fp_sign = sp[0] >> 31;
 	} else {
 		s = __fpu_getreg(reg);
