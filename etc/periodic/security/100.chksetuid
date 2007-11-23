@@ -44,7 +44,7 @@ case "$daily_status_security_chksetuid_enable" in
 	echo ""
 	echo 'Checking setuid files and devices:'
 	# XXX Note that there is the possibility of overrunning the args to ls
-	MP=`mount -t ufs | egrep -v " no(suid|exec)" | awk '{ print $3 }' | sort`
+	MP=`mount -t ufs,zfs | egrep -v " no(suid|exec)" | awk '{ print $3 }' | sort`
 	if [ -n "${MP}" ]
 	then
 	    set ${MP}
