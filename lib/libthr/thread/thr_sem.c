@@ -199,19 +199,17 @@ _sem_wait(sem_t *sem)
 
 	_pthread_testcancel();
 	do {
-		atomic_add_int(&(*sem)->nwaiters, 1);
 		while ((val = (*sem)->count) > 0) {
-			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1)) {
-				atomic_add_int(&(*sem)->nwaiters, -1);
+			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
 				return (0);
-			}
 		}
+		atomic_add_int(&(*sem)->nwaiters, 1);
 		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, NULL);
-		atomic_add_int(&(*sem)->nwaiters, -1);
 		_thr_cancel_leave(curthread);
 		THR_CLEANUP_POP(curthread, 0);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
@@ -242,35 +240,37 @@ _sem_timedwait(sem_t * __restrict sem,
 	 */
 	_pthread_testcancel();
 	do {
-		atomic_add_int(&(*sem)->nwaiters, 1);
 		while ((val = (*sem)->count) > 0) {
-			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1)) {
-				atomic_add_int(&(*sem)->nwaiters, -1);
+			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
 				return (0);
-			}
 		}
 		if (abstime == NULL) {
-			atomic_add_int(&(*sem)->nwaiters, -1);
 			errno = EINVAL;
 			return (-1);
 		}
-		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		clock_gettime(CLOCK_REALTIME, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
+		atomic_add_int(&(*sem)->nwaiters, 1);
+		THR_CLEANUP_PUSH(curthread, sem_cancel_handler, sem);
 		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait_uint(&(*sem)->count, 0, &ts2);
-		atomic_add_int(&(*sem)->nwaiters, -1);
 		_thr_cancel_leave(curthread);
 		THR_CLEANUP_POP(curthread, 0);
+		atomic_add_int(&(*sem)->nwaiters, -1);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
 }
 
+/*
+ * sem_post() is required to be safe to call from within
+ * signal handlers, these code should work as that.
+ */
+
 int
 _sem_post(sem_t *sem)
 {
-	int val, retval = 0;
+	int retval = 0;
 	
 	if (sem_check_validity(sem) != 0)
 		return (-1);
@@ -278,16 +278,10 @@ _sem_post(sem_t *sem)
 	if ((*sem)->syssem != 0)
 		return (ksem_post((*sem)->semid));
 
-	/*
-	 * sem_post() is required to be safe to call from within
-	 * signal handlers, these code should work as that.
-	 */
-	do {
-		val = (*sem)->count;
-	} while (!atomic_cmpset_rel_int(&(*sem)->count, val, val + 1));
+	atomic_add_rel_int(&(*sem)->count, 1);
 
 	if ((*sem)->nwaiters) {
-		retval = _thr_umtx_wake(&(*sem)->count, val + 1);
+		retval = _thr_umtx_wake(&(*sem)->count, 1);
 		if (retval > 0)
 			retval = 0;
 	}
