@@ -78,11 +78,14 @@ ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+ASSYM(TD_PFLAGS, offsetof(struct thread, td_pflags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
+
+ASSYM(TDP_CALLCHAIN, TDP_CALLCHAIN);
 
 ASSYM(V_TRAP, offsetof(struct vmmeter, v_trap));
 ASSYM(V_SYSCALL, offsetof(struct vmmeter, v_syscall));
