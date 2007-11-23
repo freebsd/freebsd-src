@@ -1770,8 +1770,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 		newassoc = 0;
 
 	IEEE80211_NOTE(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
-	    "station %sassociated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s",
-	    newassoc ? "" : "re",
+	    "station associated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s",
 	    IEEE80211_NODE_AID(ni),
 	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
 	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long",
@@ -1793,7 +1792,8 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 	/* tell the authenticator about new station */
 	if (ic->ic_auth->ia_node_join != NULL)
 		ic->ic_auth->ia_node_join(ic, ni);
-	ieee80211_notify_node_join(ic, ni, newassoc);
+	ieee80211_notify_node_join(ic, ni,
+	    resp == IEEE80211_FC0_SUBTYPE_ASSOC_RESP);
 }
 
 static void
