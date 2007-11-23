@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* ppc-dis.c -- Disassemble PowerPC instructions
    Copyright 1994, 1995, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
@@ -45,6 +46,7 @@ static int
 powerpc_dialect (struct disassemble_info *info)
 {
   int dialect = PPC_OPCODE_PPC | PPC_OPCODE_ALTIVEC;
+  void *pd = &info->private_data;
 
   if (BFD_DEFAULT_TARGET_SIZE == 64)
     dialect |= PPC_OPCODE_64;
@@ -91,7 +93,7 @@ powerpc_dialect (struct disassemble_info *info)
 	dialect |= PPC_OPCODE_64;
     }
 
-  ((struct dis_private *) &info->private_data)->dialect = dialect;
+  ((struct dis_private *) pd)->dialect = dialect;
   return dialect;
 }
 
@@ -100,7 +102,8 @@ powerpc_dialect (struct disassemble_info *info)
 int
 print_insn_big_powerpc (bfd_vma memaddr, struct disassemble_info *info)
 {
-  int dialect = ((struct dis_private *) &info->private_data)->dialect;
+  void *pd = &info->private_data;
+  int dialect = ((struct dis_private *) pd)->dialect;
   return print_insn_powerpc (memaddr, info, 1, dialect);
 }
 
@@ -109,7 +112,8 @@ print_insn_big_powerpc (bfd_vma memaddr, struct disassemble_info *info)
 int
 print_insn_little_powerpc (bfd_vma memaddr, struct disassemble_info *info)
 {
-  int dialect = ((struct dis_private *) &info->private_data)->dialect;
+  void *pd = &info->private_data;
+  int dialect = ((struct dis_private *) pd)->dialect;
   return print_insn_powerpc (memaddr, info, 0, dialect);
 }
 
