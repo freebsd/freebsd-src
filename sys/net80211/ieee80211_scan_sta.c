@@ -282,20 +282,21 @@ found:
 	 * off-channel; this can cause us to attempt an
 	 * assocation on the wrong channel.
 	 */
-	if (ise->se_chan == NULL || !offchan) {
+	if (offchan) {
+		struct ieee80211_channel *c;
 		/*
-		 * NB: this is not right when the frame is received
-		 * off-channel but se_chan is assumed set by code
-		 * elsewhere so we must assign something; the scan
-		 * entry should be ignored because the rssi will be
-		 * zero (because the frames are received off-channel).
-		 *
-		 * We could locate the correct channel using sp->chan
-		 * but it's not clear we should join an ap that we
-		 * never see on-channel during a scan.
+		 * Off-channel, locate the home/bss channel for the sta
+		 * using the value broadcast in the DSPARMS ie.
 		 */
+		c = ieee80211_find_channel_byieee(ic, sp->bchan,
+		    sp->curchan->ic_flags);
+		if (c == NULL && ise->se_chan == NULL) {
+			/* should not happen, pick something */
+			c = sp->curchan;
+		}
+		ise->se_chan = c;
+	} else
 		ise->se_chan = sp->curchan;
-	}
 	ise->se_fhdwell = sp->fhdwell;
 	ise->se_fhindex = sp->fhindex;
 	ise->se_erp = sp->erp;
