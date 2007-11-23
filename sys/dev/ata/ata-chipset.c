@@ -4621,12 +4621,11 @@ struct ata_siiprb_dma_prdentry {
 } __packed;
 
 struct ata_siiprb_ata_command {
-    u_int32_t reserved0;
     struct ata_siiprb_dma_prdentry prd[126];
 } __packed;
 
 struct ata_siiprb_atapi_command {
-    u_int8_t cdb[16];
+    u_int8_t ccb[16];
     struct ata_siiprb_dma_prdentry prd[125];
 } __packed;
 
@@ -4634,7 +4633,7 @@ struct ata_siiprb_command {
     u_int16_t control;
     u_int16_t protocol_override;
     u_int32_t transfer_count;
-    u_int8_t fis[20];
+    u_int8_t fis[24];
     union {
 	struct ata_siiprb_ata_command ata;
 	struct ata_siiprb_atapi_command atapi;
@@ -4670,9 +4669,10 @@ ata_siiprb_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    u_int32_t action = ATA_INL(ctlr->r_res1, 0x0044);
     int offset = ch->unit * 0x2000;
 
-    if ((ATA_INL(ctlr->r_res1, 0x0044) & (1 << ch->unit))) {
+    if (action & (1 << ch->unit)) {
 	u_int32_t istatus = ATA_INL(ctlr->r_res2, 0x1008 + offset);
 
 	/* do we have any PHY events ? */
@@ -4682,7 +4682,7 @@ ata_siiprb_status(device_t dev)
 	ATA_OUTL(ctlr->r_res2, 0x1008 + offset, istatus);
 
 	/* do we have any device action ? */
-	return (istatus & 0x00000001);
+	return (istatus & 0x00000003);
     }
     return 0;
 }
@@ -4693,9 +4693,16 @@ ata_siiprb_begin_transaction(struct ata_request *request)
     struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_siiprb_command *prb;
+    struct ata_siiprb_dma_prdentry *prd;
     int offset = ch->unit * 0x2000;
     u_int64_t prb_bus;
     int tag = 0, dummy;
+
+    /* SOS XXX */
+    if (request->u.ata.command == ATA_DEVICE_RESET) {
+        request->result = 0;
+        return ATA_OP_FINISHED;
+    }
 
     /* check for 48 bit access and convert if needed */
     ata_modify_if_48bit(request);
@@ -4714,14 +4721,26 @@ ata_siiprb_begin_transaction(struct ata_request *request)
         return ATA_OP_FINISHED;
     }
 
+    /* setup transfer type */
+    if (request->flags & ATA_R_ATAPI) {
+        struct ata_device *atadev = device_get_softc(request->dev);
+
+	bcopy(request->u.atapi.ccb, prb->u.atapi.ccb, 16);
+	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
+	    ATA_OUTL(ctlr->r_res2, 0x1004 + offset, 0x00000020);
+	else
+	    ATA_OUTL(ctlr->r_res2, 0x1000 + offset, 0x00000020);
+	if (request->flags & ATA_R_READ)
+	    prb->control = htole16(0x0010);
+	if (request->flags & ATA_R_WRITE)
+	    prb->control = htole16(0x0020);
+	prd = &prb->u.atapi.prd[0];
+    }
+    else
+	prd = &prb->u.ata.prd[0];
+
     /* if request moves data setup and load SG list */
     if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
-	struct ata_siiprb_dma_prdentry *prd;
-
-	if (request->flags & ATA_R_ATAPI)
-	    prd = &prb->u.atapi.prd[0];
-	else
-	    prd = &prb->u.ata.prd[0];
 	if (ch->dma->load(ch->dev, request->data, request->bytecount,
 			  request->flags & ATA_R_READ, prd, &dummy)) {
 	    device_printf(request->dev, "setting up DMA failed\n");
@@ -4750,7 +4769,7 @@ ata_siiprb_end_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_siiprb_command *prb;
     int offset = ch->unit * 0x2000;
-    int error, tag = 0;
+    int error, timeout, tag = 0;
 
     /* kill the timeout */
     callout_stop(&request->callout);
@@ -4758,10 +4777,37 @@ ata_siiprb_end_transaction(struct ata_request *request)
     prb = (struct ata_siiprb_command *)
 	((u_int8_t *)rman_get_virtual(ctlr->r_res2) + (tag << 7) + offset);
 
-    /* if error status get details */
-    request->status = prb->fis[2];
-    if (request->status & ATA_S_ERROR)  
-	request->error = prb->fis[3];
+    /* any controller errors flagged ? */
+    if ((error = ATA_INL(ctlr->r_res2, 0x1024 + offset))) {
+	if (bootverbose)
+	    printf("ata_siiprb_end_transaction %s error=%08x\n",
+		   ata_cmd2str(request), error);
+
+	/* if device error status get details */
+	if (error == 1 || error == 2) {
+	    request->status = prb->fis[2];
+	    if (request->status & ATA_S_ERROR)
+		request->error = prb->fis[3];
+	}
+
+ 	/* SOS XXX handle other controller errors here */
+
+	/* initialize port */
+	ATA_OUTL(ctlr->r_res2, 0x1000 + offset, 0x00000004);
+
+	/* poll for port ready */
+	for (timeout = 0; timeout < 1000; timeout++) {
+	    DELAY(1000);
+            if (ATA_INL(ctlr->r_res2, 0x1008 + offset) & 0x00040000)
+        	break;
+	}
+	if (bootverbose) {
+	    if (timeout >= 1000)
+		device_printf(ch->dev, "port initialize timeout\n");
+	    else
+		device_printf(ch->dev, "port initialize time=%dms\n", timeout);
+	}
+    }
 
     /* update progress */
     if (!(request->status & ATA_S_ERROR) && !(request->flags & ATA_R_TIMEOUT)) {
@@ -4769,12 +4815,6 @@ ata_siiprb_end_transaction(struct ata_request *request)
 	    request->donecount = prb->transfer_count;
 	else
 	    request->donecount = request->bytecount;
-    }
-
-    /* any controller errors flagged ? */
-    if ((error = ATA_INL(ctlr->r_res2, 0x1024 + offset))) {
-	printf("ata_siiprb_end_transaction %s error=%08x\n",
-	       ata_cmd2str(request), error);
     }
 
     /* release SG list etc */
@@ -4802,17 +4842,17 @@ ata_siiprb_reset(device_t dev)
 
     /* poll for channel ready */
     for (timeout = 0; timeout < 1000; timeout++) {
-        if ((status = ATA_INL(ctlr->r_res2, 0x1000 + offset)) & 0x00040000)
+        if ((status = ATA_INL(ctlr->r_res2, 0x1008 + offset)) & 0x00040000)
             break;
         DELAY(1000);
     }
-    if (timeout >= 1000) {
-	device_printf(ch->dev, "channel HW reset timeout reset failure\n");
-	ch->devices = 0;
-	goto finish;
+
+    if (bootverbose) {
+	if (timeout >= 1000)
+	    device_printf(ch->dev, "channel HW reset timeout\n");
+	else
+	    device_printf(ch->dev, "channel HW reset time=%dms\n", timeout);
     }
-    if (bootverbose)
-	device_printf(ch->dev, "channel HW reset time=%dms\n", timeout * 1);
 
     /* reset phy */
     if (!ata_sata_phy_reset(dev)) {
@@ -4835,8 +4875,8 @@ ata_siiprb_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2,
 	     0x1c04 + offset + (tag * sizeof(u_int64_t)), prb_bus>>32);
 
-    /* poll for channel ready */
-    for (timeout = 0; timeout < 1000; timeout++) {
+    /* poll for command finished */
+    for (timeout = 0; timeout < 10000; timeout++) {
         DELAY(1000);
         if ((status = ATA_INL(ctlr->r_res2, 0x1008 + offset)) & 0x00010000)
             break;
@@ -4856,24 +4896,25 @@ ata_siiprb_reset(device_t dev)
     signature =
 	prb->fis[12]|(prb->fis[4]<<8)|(prb->fis[5]<<16)|(prb->fis[6]<<24);
     if (bootverbose)
-	device_printf(ch->dev, "signature=%08x\n", signature);
+	device_printf(ch->dev, "SIGNATURE=%08x\n", signature);
     switch (signature) {
-    case 0xeb140101:
-	ch->devices = ATA_ATAPI_MASTER;
-	device_printf(ch->dev, "SATA ATAPI devices not supported yet\n");
-	ch->devices = 0;
+    case 0x00000101:
+	ch->devices = ATA_ATA_MASTER;
 	break;
     case 0x96690101:
 	ch->devices = ATA_PORTMULTIPLIER;
 	device_printf(ch->dev, "Portmultipliers not supported yet\n");
 	ch->devices = 0;
 	break;
-    case 0x00000101:
-	ch->devices = ATA_ATA_MASTER;
+    case 0xeb140101:
+	ch->devices = ATA_ATAPI_MASTER;
 	break;
     default:
 	ch->devices = 0;
     }
+    if (bootverbose)
+        device_printf(dev, "siiprb_reset devices=0x%b\n", ch->devices,
+                      "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
 
 finish:
     /* clear interrupt(s) */
