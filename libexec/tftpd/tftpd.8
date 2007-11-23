@@ -40,7 +40,8 @@
 .Nd Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm tftpd
-.Op Fl cClnw
+.Op Fl cClnwW
+.Op Fl F Ar strftime-format
 .Op Fl s Ar directory
 .Op Fl u Ar user
 .Op Fl U Ar umask
@@ -142,6 +143,13 @@ except it falls back to
 specified via
 .Fl s
 if a directory does not exist for the client's IP.
+.It Fl F
+Use this
+.Xr strftime 3
+compatible format string for the creation of the suffix if
+.Fl W
+is specified.
+By default the string "%Y%m%d" is used.
 .It Fl l
 Log all requests using
 .Xr syslog 3
@@ -184,6 +192,17 @@ Allow write requests to create new files.
 By default
 .Nm
 requires that the file specified in a write request exist.
+Note that this only works in directories writable by the user
+specified with
+.Fl u
+option
+.It Fl W
+As
+.Fl w
+but append a YYYYMMDD.nn sequence number to the end of the filename.
+Note that the string YYYYMMDD can be changed the
+.Fl F
+option.
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,
@@ -212,10 +231,17 @@ the
 .Fl u
 option was introduced in
 .Fx 4.2 ,
-and the
+the
 .Fl c
 option was introduced in
-.Fx 4.3 .
+.Fx 4.3 ,
+and the
+.Fl F
+and
+.Fl W
+options were introduced in
+.Fx 7 .
+.Pp
 .Sh BUGS
 Files larger than 33488896 octets (65535 blocks) cannot be transferred
 without client and server supporting blocksize negotiation (RFC1783).
