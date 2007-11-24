@@ -1,0 +1,10 @@
+LIB=xutil
+EXTRA_CFLAGS=$(X_CFLAGS)
+OBJS=\
+  DviChar.$(OBJEXT) \
+  XFontName.$(OBJEXT) \
+  xmalloc.$(OBJEXT)
+CSRCS=\
+  $(srcdir)/DviChar.c \
+  $(srcdir)/XFontName.c \
+  $(srcdir)/xmalloc.c

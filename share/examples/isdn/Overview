@@ -1,0 +1,307 @@
+
+        Short technical overview of isdn4bsd
+        ====================================
+
+	Copyright (c) 1998 Hellmuth Michaelis. All rights reserved.
+
+ $FreeBSD$
+
+	Last edit-date: [Tue Oct 27 11:26:03 1998]
+
+	-hm	starting an overview ...
+
+
+Contents:
+---------
+	Functional block diagram
+	Layer 1
+	Layer 2
+	Layer 3
+	Debugging control
+	Layer 4
+	ISDN protocol trace
+
+
+Functional block diagram
+========================
+
+ isdndebug                         isdnd                             isdntrace
+ +-------+  +----------------------------------------------------+   +--------+
+ |       |  |                                                    |   |        |
+ |       |  |                                                    |   |        |
+ +-------+  +----------------------------------------------------+   +--------+
+     |                               |                                    |
+     |                               |                                    |
+     | /dev/i4bctl    Userland       | /dev/i4b            /dev/i4btrc<n> |
+===============================================================================
+     |                Kernel         |                                    |
+     |                               |                                    |
+ +-------+  +----------------------------------------------------+   +--------+
+ |       |  |                                                    |   |        |
+ |i4bctl |  |                       i4b                          |   | i4btrc |
+ |  (6)  |  |                       (7)                          |   |   (8)  |
+ | debug |  |     Layer 4 - common call control interface        |   |  ISDN  |
+ |control|  |                                                    |   | trace  |
+ +:-:-:--+  +----------------------------------------------------+   +--------+
+  : : :          ^                                          ^              ^
+  : : :     Call |           various ptr arrays             | Call         %
+  . . .  Control |             in i4b_l3l4.h                | Control      %
+                 V                                          V              %
+ +----------------------+                       +----------------------+   %
+ |                      |                       |                      |   %
+ |       i4bq931        |                  ISDN |     active card      |   %
+ |         (5)          |                   #####                      |   %
+ |    Layer 3 (Q.931)   |                   #   |       driver         |   %
+ |                      |                   #   |                      |   %
+ +----------------------+                   #   +----------------------+   %
+            ^                               #   B +                        %
+            |  i4b_l2l3_func function       #   | +   +------------+       %
+            |  ptr array in i4b_l2l3.h      #   C +++++    isp     |---->  %
+            V                               #   h +   +------------+ IP    %
+ +----------------------+                   #   a +                Subsys  %
+ |                      |                   #   n +   +------------+       %
+ |       i4bq921        |                   #   n +++++    ipr     |---->  %
+ |         (4)          |                   #   e +   +------------+ IP    %
+ |    Layer 2 (Q.921)   |                   #   l +                Subsys  %
+ |                      |                   #     +   +------------+       %
+ +----------------------+                   #   D +++++  tel/rbch  |---->  %
+            ^                               #   a +   +------------+ to    %
+            |  i4b_l1l2_func function       #   t +         /dev/i4btel<n> %
+            |  ptr array in i4b_l1l2.h      #   a +      or /dev/i4brbch<n>%
+            V                               #     +                        %
+ +----------------------+                   #   +---------------------+    %
+ |                      |                   #   |                     |    %
+ |    isic (ISAC part)  |  D-ch trace       #   |   isic (HSCX part)  |B-ch%
+ |         (2)          |%%%%%%%%%%%%       #   |        (3)          |%%%%%
+ |    Layer 1 (I.430)   |           %       #   |   non-HDLC / HDLC   |trc %
+ |                      |           %       #   |                     |    %
+ +----------------------+           %       #   +---------------------+    %
+            ^                       %       #               ^              %
+ D-channel  |                       %       #    B-channels |              %
+            +-----------------------------------------------+              %
+            |  function ptr in      %       #                              %
+            |  in isic_softc in     %%%%%%%%#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            V  i4b_l1.h                     #
+ +----------------------+                   #
+ |                      |                   #
+ |         isic         |                   #
+ |         (1)          |                   #
+ | Card hardware driver |                   #
+ | for Teles, AVM, USR  |                   #
+ |                      |                   #
+ +----------#-----------+                   #
+            #                               #
+            #                               #
+            #                               #
+            #                               #
+  |=========#===============================#============================|
+        ISDN S0 bus
+
+
+Layer 1
+=======
+
+(1) A driver for a special card hardware consists of a
+	- probe routine
+	- attach routine
+	- FIFO read
+	- FIFO write
+	- register read
+	- register write
+   routines. These routines handle the card/manufacturer specific stuff
+   required to talk to a particular card.
+
+   The addresses of the read/write routines are put into an array found
+   in struct isic_softc and they are later called by the macros:
+
+   ISAC_READ(r), ISAC_WRITE(r,v), ISAC_RDFIFO(b,s), ISAC_WRFIFO(b,s),
+   HSCX_READ(n,r), HSCX_WRITE(n,r,v), HSCX_RDFIFO(n,b,s), HSCX_WRFIFO(n,b,s)
+
+   (see file layer1/i4b_l1.h)
+
+   Files currently used for this purpose are
+   	- i4b_avm_a1.c    AVM A1 and AVM Fritz!Card drivers
+   	- i4b_ctx_s0P.c   Creatix S0 PnP (experimental!)
+   	- i4b_tel_s016.c  Teles S0/16 and clones
+   	- i4b_tel_s0163.c Teles S0/16.3
+   	- i4b_tel_s08.c   Teles S0/8 and clones
+   	- i4b_tel_s0P.c   Teles S0/16 PnP (experimental!)
+   	- i4b_usr_sti.c   3Com USRobotics Sportster
+
+
+(2) The files i4b_isac.c and i4b_isac.h contain the code to control the
+    ISAC chip by using the above mentioned macros.
+
+    Files i4b_l1.c and i4b_l1.h handle stuff used to access layer 1
+    functions from layer 2.
+
+    Layer 1 and layer 2 access functionality of each other by using
+    a well known function pointer array, which contains addresses of
+    "primitives" functions which are defined in I.430 and Q.921. The
+    function pointer array for layer 1/2 communication is defined in
+    file include/i4b_l1l2.h and is initialized i4b_l1.c at the very
+    beginning.
+
+    File i4b_isic.c contains the main code for the "isic" device driver.
+
+    i4b_l1fsm.c is the heart of layer 1 containing the state machine which
+    implements the protocol described in I.430 and the ISAC data book.
+
+
+(3) All above code is used for handling of the D channel, the files
+    i4b_bchan.c, i4b_hscx.c and i4b_hscx.h contain the code for handling
+    the B-channel, the HSCX is used to interface the userland drivers
+    isp, ipr, tel and rbch to one of the B-channels and i4b_hscx.c and
+    i4b_hscx.h contain the code to handle it (also by using the above
+    mentioned macros). i4b_bchan.c contains various maintenance code for
+    interfacing to the upper layers.
+
+
+Layer 2
+=======
+
+(4) Layer 2 implements the LAPD protocol described in Q.920/Q.921. Layer 2
+    interfaces to layer 1 by the above described function pointer array,
+    where layer 1 calls layer 2 functions to provide input to layer 2 and
+    layer 2 calls layer 1 functions to feed data to layer 1.
+
+    The same mechanism is used for layer 2 / layer 3 communication, the
+    pointer array interface is defined in include/i4b_l2l3.h ad the array
+    is initialized at the very beginning of i4b_l2.c which also contains
+    some layer 1 and some layer 3 interface routines. As with l1/l2, the
+    l2/l3 array also contains addresses for "primitives" functions which
+    are specified in Q.920/Q.921 and Q.931.
+
+    i4b_l2.h contains the definition of l2_softc_t, which describes the
+    complete state of a layer 2 link between the exchange and the local
+    terminal equipment.
+
+    i4b_l2.c contains the entrance of data from layer 1 into the system,
+    which is split up in i4b_ph_data_ind() into the 3 classes of layer 2
+    frames called S-frame, I-frame and U-frame. They are handled in files
+    i4b_sframe.c, i4b_iframe.c and i4b_uframe.c together with the respective
+    routines to send data with each ones frame type.
+
+    i4b_l2timer.c implements the timers required by Q.921.
+
+    i4b_tei.c contains the TEI handling routines.
+
+    i4b_lme.c implements a rudimentary layer management entity.
+
+    i4b_util.c implements the many utility functions specified
+    in Q.921 together wit some misc routines required for overall
+    functionality.
+
+    i4b_mbuf.c handles all (!) requests for mbufs and frees all mbufs used
+    by the whole isdn4bsd kernel part. It should probably be moved else-
+    where.
+
+    i4b_l2fsm.c and i4b_l2fsm.h contain the heart of layer 2, the state-
+    machine implementing the protocol as specified in Q.921.
+
+Layer 3
+=======
+
+(5) i4b_l2if.c and i4b_l4if.c contain the interface routines to communicate
+    to layer 2 and layer 4 respectively.
+
+    i4b_l3timer.c implements the timers required by layer 3.
+
+    i4b_q931.c and i4b_q931.h implement the message and information element
+    decoding of the Q.931 protocol.
+
+    i4b_q932fac.c and i4b_q932fac.h implement a partial decoding of facility
+    messages and/or information elements; the only decoding done here is
+    the decoding of AOCD and AOCE, advice of charge during and at end of
+    call.
+
+    As usual, i4b_l3fsm.c and i4b_l3fsm.h contain the state machine required
+    to handle the protocol as specified in Q.931.
+
+    Layer 3 uses a structure defined in include/i4b_l3l4.h to store and
+    request information about one particular isdncontroller, it is called
+    ctrl_desc_t (controller descriptor). It contains information on the
+    state of a controller (controller ready/down and which B channels are
+    used or idle) as well as a pointer array used for communication of
+    layer 4 with layer 3: layer 3 "knows" the routines to call within
+    layer 4 by name, but in case layer 4 has to call layer 3, several
+    possibilities exist (i.e. active / passive cards) so it has to call
+    the routines which the ISDN controller had put into the the function
+    pointer array (N_CONNECT_REQUEST, N_CONNECT_RESPONSE etc) at init time.
+
+    Layer 3 shares a structure called call_desc_t (call descriptor) with
+    layer 4. This structure is used to describe the state of one call. The
+    reference to layer 3 is the Q.931 call reference value, the reference to
+    layer 4 (and the isdn daemon, isdnd) is the cdid, an unique integer
+    value uniquely describing one call, the call descriptor id.
+              This structure is used to build an array of this structures
+    (call_desc[N_CALL_DESC]), which must be large enough to hold as many
+    calls as there are B channels in the system PLUS a reserve to be able
+    to handle incoming SETUP messages although all channels are in use.
+
+    More, this structure contains the so called "link table pointers"
+    (isdn_link_t *ilt and drvr_link_t *dlt) which contain function pointers
+    to "link" a B-channel (better the addresses of functions each participant
+    needs to access each others functionality) after a successful call setup
+    to a userland driver (such as isp, ipr, rbch or tel) to exchange user
+    data in the desired protocol and format.
+
+Debugging control
+=================
+
+(6) the device driver for /dev/i4bctl in conjunction with the userland
+    program isdndebug(8) is used to set the debug level for each of the
+    layers and several other parts of the system, information how to use
+    this is contained in machine/i4b_debug.h and all parts of the kernel
+    sources. It is only usable for passive cards.
+
+
+Layer 4
+=======
+
+(7) Layer 4 is "just" an abstraction layer used to shield the differences
+    of the various possible Layer 3 interfaces (passive cards based on
+    Siemens chip-sets, passive cards based on other chip-sets, active cards
+    from different manufacturers using manufacturer-specific interfaces)
+    and to provide a uniform interface to the isdnd userland daemon, which
+    is used to handle all the required actions to setup and close calls
+    and to the necessary retry handling and management functionality.
+
+    Layer 4 communicates with the userland by using a well defined protocol
+    consisting of "messages" sent to userland and which are read(2) by the
+    isdnd. The isdnd in turn sends "messages" to the kernel by using the
+    ioctl(2) call. This protocol and the required messages for both
+    directions are documented in the machine/i4b_ioctl.h file and are
+    implemented in files i4b_i4bdrv.c and i4b_l4.c, the latter also
+    containing much of the Layer 4 interface to the lower layers.
+
+    i4b_l4mgmt.c contains all the required routines to manage the above
+    mentioned call descriptor id (cdid) in conjunction with the call
+    descriptor (array) and the call reference seen from layer 3.
+
+    i4b_l4timer.c implements a timeout timer for Layer 4.
+
+
+ISDN protocol trace
+===================
+
+(8) ISDN D-channel protocol trace for layers 2 and 3 is possible by using
+    hooks in the ISAC handling routines.
+
+    In case D-channel trace is enabled, every frame is prepended with a
+    header containing further data such as a time stamp and sent via the
+    i4btrc driver found in driver/i4b_trace.c to one of the /dev/i4btrc<n>
+    devices, where <n> corresponds to a passive controller unit number.
+
+    If desired, B-channel data can be made available using the same
+    mechanism - hooks in the HSCX handler send data up to the i4btrc
+    device.
+
+    The raw data is then read by the isdntrace userland program which
+    decodes the layer 2 and/or layer 3 protocol and formats it to be
+    easily readable by the user.
+
+    B-channel data is not interpreted but dumped as a hex-dump.
+
+
+/* EOF */

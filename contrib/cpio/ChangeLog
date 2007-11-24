@@ -1,0 +1,1397 @@
+2004-12-20  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	Released version 2.6. Sources up to this point are tagged
+	release_2_6.
+
+	* configure.ac: Raised version number to 2.6
+	* NEWS: Likewise
+	* bootstrap (update_po): Give -r to wget. Always remove index.html
+	Ignore alloca-opt module (it duplicates alloca)
+
+2004-11-23  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (enum cpio_options): Bugfix: Initialize first enum
+	value to 256.
+	* bootstrap: Add unlocked-io
+	* headers/argp.h: Removed
+	* headers/getopt.h: Removed
+	* headers/Makefile.am: Updated
+
+2004-10-14  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/copyout.c: Add trailing slash to directory names in
+	ustar format.
+	* src/makepath.c: Removed redeclaration of error().
+	* src/tar.c: Fixed deviations from POSIX.1-1988:
+	Properly split long file names. Fill in octal fields with zeros,
+	not spaces. Save only protection modes, not the whole mode.
+	
+	* NEWS: Updated
+
+2004-09-08  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* NEWS: Updated
+	* TODO: Updated
+	* bootstrap: Install po files by default
+	* po/LINGUAS: Removed. File is generated automatically
+	* po/.cvsignore: Updated
+	* src/copyin.c: Implemented --to-stdout option
+	* src/copyout.c: Display the annoying 'truncating inode number'
+	message only if the user wishes it.
+	* src/extern.h: Added new globals.
+	* src/global.c: Likewise.
+
+	* src/main.c: Added support for --to-stdout and --warning options
+	* src/tar.c (read_in_tar_header): Use warn_junk_bytes()
+	* src/util.c (create_all_directories): Use dir_name.
+
+	* configure.ac: Added support for the test suite
+	* Makefile.am: Likewise
+
+	* tests: New directory
+	* tests/.cvsignore: New file
+	* tests/Makefile.am: New file
+	* tests/testsuite.at: New file
+	* tests/inout.at: New file
+	* tests/version.at: New file
+	* tests/atlocal.in: New file
+	
+2004-09-07  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (process_args): Bugfix. Allow extra arguments
+	in copy_in mode.
+	* src/util.c (write_nuls_to_file): Use buffered I/O. All
+	callers changed. Thanks Matthew Braithwaite <mab@cnet.com>
+	for noticing.
+	Bugfix: extra_bytes was mistakenly used instead of blocks.
+	* THANKS: Added Matthew Braithwaite.
+
+2004-09-06  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	Started merging with tar into paxutils. Sources before
+	this point are tagged alpha-2_50_90.
+	
+	* bootstrap: New file
+	* autogen.sh: Removed
+	* Makefile.am: Updated
+	* NEWS: Updated
+	* README-alpha: Updated
+	* configure.ac: Updated
+	* doc/cpio.1: Updated
+	* po/POTFILES.in: Updated
+
+	* src/Makefile.am: Updated
+	* src/error.c: Removed
+	* src/dirname.c: Likewise
+	* src/xmalloc.c: Likewise
+	* src/stripslash.c: Likewise
+	* src/xstrdup.c
+	* src/gettext.h: Likewise
+	* src/system.h: Likewise
+	* src/rmt.h: Likewise
+	* src/getopt.c: Likewise
+	* src/getopt1.c: Likewise
+	* src/bcopy.c: Likewise
+	* src/fnmatch.c: Likewise
+	* src/mkdir.c: Likewise
+	* src/strdup.c: Likewise
+	* src/argp-ba.c: Likewise
+	* src/argp-eexst.c: Likewise
+	* src/argp-fmtstream.c: Likewise
+	* src/argp-fs-xinl.c: Likewise
+	* src/argp-help.c: Likewise
+	* src/argp-parse.c: Likewise
+	* src/argp-pv.c: Likewise
+	* src/argp-pvh.c: Likewise
+	* src/argp-xinl.c: Likewise
+	* src/pin.c: Likewise
+	* src/alloca.c: Likewise
+	* src/argmatch.c: Likewise
+	* src/rmt.c: Likewise
+	* src/rtapelib.c: Likewise
+	* src/strerror.c: Likewise
+	
+	* src/copyin.c: Switched to ANSI C (sigh)
+	* src/copyout.c: Likewise
+	* src/copypass.c: Likewise
+	* src/defer.c: Likewise
+	* src/defer.h: Likewise
+	* src/dstring.c: Likewise
+	* src/dstring.h: Likewise
+	* src/extern.h: Likewise
+	* src/filemode.c: Likewise
+	* src/global.c: Likewise
+	* src/idcache.c: Likewise
+	* src/main.c: Likewise
+	* src/makepath.c: Likewise
+	* src/mt.c: Likewise
+	* src/tar.c: Likewise
+	* src/userspec.c: Likewise
+	* src/util.c: Likewise
+
+	* lib: New directory
+	* lib/Makefile.tmpl: New file
+	* lib/bcopy.c: Moved from ../src
+	* lib/mkdir.c: Likewise.
+	* lib/strdup.c: Likewise.
+	* lib/strerror.c: Likewise.
+	
+2004-08-30  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* Makefile.am: Added headers to SUBDIRS.
+	* configure.ac: Check for AC_SYS_LARGEFILE.
+	Use AC_CONFIG_LINKS to provide for fnmatch.h and getopt.h on
+	the systems where these are missing
+	Check for argp and replace it if necessary.
+	* src/Makefile.am: Updated
+	* src/fnmatch.h: Moved to headers/
+	* src/getopt.h: Likewise.
+	* src/main.c: Option parsing rewritten using argp. Improved
+	option consistency checking.
+	* src/rmt.c: Include getopt.h
+
+	* src/argp-ba.c: New file
+	* src/argp-eexst.c: New file
+	* src/argp-fmtstream.c: New file
+	* src/argp-fs-xinl.c: New file
+	* src/argp-help.c: New file
+	* src/argp-parse.c: New file
+	* src/argp-pv.c: New file
+	* src/argp-pvh.c: New file
+	* src/argp-xinl.c: New file
+	* src/pin.c: New file
+
+	* headers: New directory
+	* headers/Makefile.am: New file
+	* headers/getopt.h: New file
+	* headers/argp.h: New file
+	* headers/fnmatch.h: New file
+	* headers/.cvsignore: New file
+	
+2004-03-02  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/util.c (copy_files_disk_to_disk): Bugfix. If a file
+	grew n bytes in copy-pass mode, these n bytes got prepended
+	to the contents of all subsequent files. Fix provided by
+	Holger Fleischmann <holger_fleischmann@mra.man.de>
+	* THANKS: Added Holger Fleischmann.
+
+2004-02-27  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/makepath.c: Remove unneded typedefs
+	
+	* src/copyin.c: Remove __MSDOS__ conditionals
+	* src/copyout.c: Likewise
+	* src/copypass.c: Likewise
+	* src/main.c: Likewise
+	* src/tar.c: Likewise
+	* src/util.c: Likewise
+	
+2004-02-27  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+	
+	Changed from flat to deep package layout. Added the framework
+	for NLS support.
+	
+	* .cvsignore: Updated
+	* Makefile.am: Updated
+	* configure.ac: Updated
+	* NEWS: Updated
+	* README-alpha: Updated
+	* THANKS: Updated
+
+	* autogen.sh: New file
+	
+	* alloca.c: Moved to src
+	* argmatch.c: Likewise
+	* bcopy.c: Likewise
+	* dstring.h: Likewise
+	* copyin.c: Likewise
+	* copyout.c: Likewise
+	* copypass.c: Likewise
+	* cpio.h: Likewise
+	* cpiohdr.h: Likewise
+	* defer.c: Likewise
+	* defer.h: Likewise
+	* dirname.c: Likewise
+	* dstring.c: Likewise
+	* dstring.h: Likewise
+        * error.c: Likewise
+        * extern.h: Likewise
+        * filemode.c: Likewise
+        * filetypes.h: Likewise
+        * fnmatch.c: Likewise
+        * fnmatch.h: Likewise
+        * getopt.c: Likewise
+        * getopt.h: Likewise
+        * getopt1.c: Likewise
+        * global.c: Likewise
+        * idcache.c: Likewise
+        * main.c: Likewise
+        * makepath.c: Likewise
+        * mkdir.c: Likewise
+        * mt.c: Likewise
+        * rmt.c: Likewise
+        * rmt.h: Likewise
+        * rtapelib.c: Likewise
+        * safe-stat.h: Likewise
+        * strdup.c: Likewise
+        * strerror.c: Likewise
+        * stripslash.c: Likewise
+        * system.h: Likewise
+	* tar.c: Likewise
+	* tar.h: Likewise
+	* tarhdr.h: Likewise
+	* userspec.c: Likewise
+	* util.c: Likewise
+	* xmalloc.c: Likewise
+	* xstrdup.c: Likewise
+
+ 	* cpio.1: Moved to doc
+	* cpio.texi: Likewise
+        * mt.1: Likewise
+
+	* src: New directory
+        * src/.cvsignore: New file
+        * src/Makefile.am: Likewise
+        * src/alloca.c: Likewise
+        * src/argmatch.c: Likewise
+        * src/bcopy.c: Likewise
+        * src/copyin.c: Likewise
+        * src/copyout.c: Likewise
+        * src/copypass.c: Likewise
+        * src/cpio.h: Likewise
+        * src/cpiohdr.h: Likewise
+        * src/defer.c: Likewise
+        * src/defer.h: Likewise
+        * src/dirname.c: Likewise
+        * src/dstring.c: Likewise
+        * src/dstring.h: Likewise
+        * src/error.c: Likewise
+        * src/extern.h: Likewise
+        * src/filemode.c: Likewise
+        * src/filetypes.h: Likewise
+        * src/fnmatch.c: Likewise
+        * src/fnmatch.h: Likewise
+        * src/getopt.c: Likewise
+        * src/getopt.h: Likewise
+        * src/getopt1.c: Likewise
+        * src/gettext.h: Likewise
+        * src/global.c: Likewise
+        * src/idcache.c: Likewise
+        * src/main.c: Likewise
+        * src/makepath.c: Likewise
+        * src/mkdir.c: Likewise
+        * src/mt.c: Likewise
+        * src/rmt.c: Likewise
+        * src/rmt.h: Likewise
+        * src/rtapelib.c: Likewise
+        * src/safe-stat.h: Likewise
+        * src/strdup.c: Likewise
+        * src/strerror.c: Likewise
+        * src/stripslash.c: Likewise
+        * src/system.h: Likewise
+        * src/tar.c: Likewise
+        * src/tar.h: Likewise
+        * src/tarhdr.h: Likewise
+        * src/userspec.c: Likewise
+        * src/util.c: Likewise
+	* src/xmalloc.c: Likewise
+	* src/xstrdup.c: Likewise
+
+	* doc: New directory
+	* doc/.cvsignore: New file
+	* doc/Makefile.am: New file
+	* doc/cpio.1: New file
+	* doc/cpio.info: New file
+	* doc/cpio.texi: New file
+	* doc/mt.1: New file
+
+	* po: New directory
+	* po/.cvsignore: New file
+	* po/LINGUAS: New file
+	* po/Makevars: New file
+	* po/POTFILES.in: New file
+	
+2003-11-28  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Added various checks
+	* Makefile.am (rmt_LDADD): Added.
+	* error.c: Updated
+	* rmt.c: Removed useless private_errstring
+	* system.h: Updated
+	* userspec.c: Changed the way of handling declared vs. undeclared
+	system calls.
+	* strerror.c: New file. Borrowed from GNU Radius.
+
+	* copyin.c: Removed kludgy declaration of delayed_seek_count.
+	* copypass.c: Likewise
+	* extern.h: Declare delayed_seek_count.
+	* mkdir.c: Fixed handling of undeclared errno
+	* mt.c: Likewise
+	* util.c: Likewise
+	* rtapelib.c: Likewise
+	
+2003-11-28  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* TODO: New file
+
+	* README-alpha: New file
+	* Makefile.am: Require at least version 1.7.1
+	* configure.ac: Check for locale.h
+	* main.c (main): Call setlocale. Thanks
+	Mitsuru Chinen <mchinen@yamato.ibm.com>	for the patch.
+	* THANKS: Updated
+	
+2003-11-21  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Added to the repository
+	* Makefile.am: Likewise
+	* NEWS: Likewise
+	* README: Likewise
+	* AUTHORS: Likewise
+	* .cvsignore: Likewise
+	
+	* configure.in: Removed
+	* Makefile.in: Removed
+	* makefile.pc: Removed
+	* configure: Removed
+	
+	* alloca.c: Added to the repository
+	* argmatch.c: Likewise
+	* bcopy.c: Likewise
+	* cpio.h: Likewise
+	* cpiohdr.h: Likewise
+	* defer.c: Likewise
+	* defer.h: Likewise
+	* dirname.c: Likewise
+	* dstring.c: Likewise
+	* dstring.h: Likewise
+	* error.c: Likewise
+	* filemode.c: Likewise
+	* filetypes.h: Likewise
+	* fnmatch.c: Likewise
+	* fnmatch.h: Likewise
+	* getopt.c: Likewise
+	* getopt.h: Likewise
+	* getopt1.c: Likewise
+	* idcache.c: Likewise
+	* mkdir.c: Likewise
+	* rmt.h: Likewise
+	* rtapelib.c: Likewise
+	* safe-stat.h: Likewise
+	* strdup.c: Likewise
+	* stripslash.c: Likewise
+	* tar.c: Likewise
+	* tar.h: Likewise
+	* tarhdr.h: Likewise
+	* xmalloc.c: Likewise
+	* xstrdup.c: Likewise
+	
+	* makepath.c: Updated
+	* mt.c: Likewise.
+	* rmt.c: Likewise.
+	* util.c: Likewise.
+	* copyin.c: Likewise.
+	* copyout.c: Likewise.
+	* copypass.c: Likewise.
+	* global.c: Likewise.
+	* main.c: Likewise.
+	
+Thu Jun 13 20:14:48 2002  John Oleynick  (juo@gnu.org)
+	* copyin.c:  Strip leading / on absolute filenames after
+	comparing to the list of files specified on the command line
+	(instead of before).  Problem reported by Jeff Holt.
+	* Version 2.5 released.
+
+Thu Jun 13 00:20:30 2002  John Oleynick  (juo@gnu.org)
+	* Makefile.in:  Fixed problem of looking in srcdir for info files.
+	Bug reported by Mike Castle.
+	* cpio.texi:  Fixed typo.  Problem reported by Fabrice Bauzac.
+
+Sun Jan 13 18:45:02 2002  John Oleynick  (juo@gnu.org)
+	* copyin.c:  Fixed a problem skipping files with multiple links
+	in a newc or CRC format archive.  If the file with the shared copy
+	of the data was skipped, but other links were not skipped, the
+	other links were created as empty files.  Bug reported by 
+	Hendrik-Jan Thomassen.
+
+Thu Dec  6 20:05:10 2001  John Oleynick  (juo@gnu.org)
+	* mt.c, mt.1:  Merged Debian --rsh-command option and -V fix.
+	* copyout.c, copypass.c, util.c, extern.h:  Modified to warn
+	  if a file grows or its mtime is changed while it is being
+	  copied.
+
+Wed Dec  6 00:02:04 2001  John Oleynick  (juo@gnu.org)
+	* Many files:  Updated FSF's address in copyright notices.
+
+Wed Aug 29 23:57:05 2001  John Oleynick  (juo@gnu.org)
+	* Many files:  Numerous fixes from Debian, Red Hat and SuSE
+	GNU/Linux distributions.
+
+Tue Jan 16 19:03:05 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* util.c: An I/O error reading a file would cause the last byte
+	of the next file to be corrupted in the archive.  Thanks to a
+	buggy NT NFS server for pointing out this problem.
+	* Version 2.4.2 released.
+
+Tue Jan  9 23:19:37 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copyout.c: missed 1 part of last bug fix.
+
+Mon Jan  8 16:49:01 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copyout.c, copypass.c: Use result of readlink() as length
+	of link name instead of size from lstat().  On some OS's lstat() 
+	doesn't return the true length in size.  Bug reported by
+	Robert Joop (rj@rainbow.IN-berlin.DE).
+
+Wed Dec 20 10:52:56 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* rmt.c:  Added temporary kludge so make rmt will work on Linux.
+	* configure.in:  Only define HAVE_UTIME_H if utime.h declares
+	struct utimbuf.
+	* Makefile.in:  Change prefix, exec_prefix and bindir to get their
+	values from configure.  Added cpio.info to DISTFILES.
+	* cpio.texi:  Added INFO-DIR-ENTRY.
+	* Version 2.4.1 released.
+
+Wed Nov 22 19:37:05 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+        * cpio.texi:  Updated release date and FSF's address.
+        * NEWS: Listed major new features for 2.4.
+	* mt.c, mt.1: Added seek and fsfm commands.
+	* Version 2.4 released.
+
+Tue Jun 27 19:14:27 1995  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+        * configure.in: fixed for new autoconf.  Added check to make
+	sure fnmatch() works.
+        * Makefile.in: changed realclean to maintainer-clean.  Added
+	support to handle fnmatch separate from other LIBOBJS.
+        * cpio.texi:  More changes for 2.4.
+
+Wed Dec 14 16:14:27 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* copypass.h:  When given the -a option, set the access time of
+	the copy to be the access time of the original (instead of the
+	modification time of the original).  Reported by
+	karney@pppl.gov (Charles Karney).
+	* cpio.texi:  Updated with changes for 2.4.
+
+Wed Nov  3 18:18:07 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* safe-stat.h, Makefile.in:  New file used by mkdir.c.  This will go
+	away when we get the real safe-xstat.[ch]in for mkdir.c.
+	* main.c:  Don't mention [--null] twice in -p's usage message.
+	Changed --no-absolute-paths to --no-absolute-filenames.
+	* cpio.1:  Updated man page with new features.
+	* cpio.texi, texinfo.tex, Makefile.in:  Added texi documentation
+	from Robert Carleton (rbc@gnu.ai.mit.edu).
+
+Mon Oct  3 00:46:30 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* makefile.pc, system.h:  Changes to compile with Borland C++ 4.0.
+
+Thu Sep 29 22:15:50 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* makepath.c: Don't #define index if it is already #defined.
+
+	* mt.c:  Check for __hpux defined instead of __hpux__.  Reported
+	by ericb@lsid.hp.com (Eric Backus).
+
+Thu Sep 29 11:21:31 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* extern.h, util.c, copyout.c, copypass.c, main.c, global.c:
+	Never mind --ignore-disk-input-errors flag, we'll just always
+	do that, like tar.
+
+	* global.c, extern.h, main.c, copyin.c, copyout.c, copypass.c:
+	Added --quiet flag to supress printing number of blocks copied.
+
+	* global.c, extern.h:  If compiled with gcc, make input_bytes
+	and output_bytes `long long' instead of `long'.  We need more
+	than 32 bits to keep track of the number of bytes copied to
+	and from tape drives that hold more than 4Gbytes.
+
+	* util.c, copyin.c, main.c, global.c, extern.h:  Added
+	--only-verify-crc flag to read a CRC format archive and verify
+	its contents' CRCs.
+
+	* copyout.c:  Fixed problem with creating oldc format archives
+	on machines with 16 bit ints.  Reported by mpoole@cix.compulink.co.uk
+	(Martin Poole).
+
+	* mt.c: Need to open tape WR_ONLY for erase command (and probably
+	others?).  Reported by robert@hst.e.technik.uni-kl.de (Robert
+	Vogelgesan).  Accept `eject' as a synonym for `offline'.  Accept
+	`-t' as a synonym for `-f' (to be compatible with HPUX mt, which 
+	only accepts `-t').
+
+Wed Sep 28 12:01:55 1994  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
+	* extern.h, global.c, main.c, util.c: only write sparse files
+	when given --sparse flag.
+	* extern.h, util.c, copyout.c, copypass.c, main.c, global.c:
+	Added support for --ignore-disk-input-errors flag.
+
+Wed Aug 24 12:55:38 1994  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* configure.in: Replace calls to AC_REMOTE_TAPE and AC_RSH
+	with equivalent code, since those macros are going away.
+
+Sun Feb 13 00:56:48 1994  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* extern.h, global.c, main.c, util.c:  Added code to 
+	tape_buffered_peek() to properly handle large, corrutped 
+	archives, without overrunning the allocated buffer and
+	dumping core.  Also changed the way the input and output 
+	buffers are allocated in initialize_buffers().
+	
+Tue Jan 25 01:04:32 1994  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* copyin.c, copyout.c, copypass.c, extern.h, main.c, tar.c, util.c:
+	Redid i/o buffer code.  Previously, the same routines buffered input and
+	output for accessing the archive and the filesystem.  Now there are
+	separate routines for buffering input and output and for buffering the
+	archive and the filesystem.  This simplifies much of the buffer code
+	(e.g., only input from the archive has to check for end of tape and
+	allow the tape to be changed, only output to the filesystem has to
+	handle byte and word swapping, etc.; previously one routine had to
+	handle all of these special cases) This is how the routines got split
+	and renamed (old name -> new name):
+
+		clear_rest_of_block -> tape_clear_rest_of_block
+		copy_files -> copy_files_tape_to_disk
+		    "      -> copy_files_disk_to_disk
+		    "      -> copy_files_disk_to_tape
+		copy_buf_out -> disk_buffered_write
+		    "        -> tape_buffered_write
+		copy_in_buf -> tape_buffered_read
+		empty_output_buffer -> tape_empty_output_buffer
+		    "               -> disk_empty_output_buffer
+		fill_input_buffer -> tape_fill_input_buffer
+		    "             -> disk_fill_input_buffer
+		pad_output -> tape_pad_output
+		peek_in_buf -> tape_buffered_peek
+		skip_padding -> tape_skip_padding
+		toss_input -> tape_toss_input
+
+	* extern.h, global.c, main.c, util.c:  Added support for
+	writing sparse files.
+
+Tue Dec 28 23:01:36 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+	* util.c, system.h, makepath.c, extern.h: don't define chown() 
+	and don't typedef uid_t and gid_t if we are being compiled
+	by DJGPP.
+
+	* copyin.c, extern.h, global.c, main.c:  Added support for
+	--rename-batch-file.
+	
+	* copyin.c, copyout.c, extern.h:  Cleaned up to pass gcc -Wall.
+
+Wed Dec 22 02:17:44 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* makepath.c, copypass.c, copyin.c:  If cpio was creating a
+	directory that contained `.' in the pathname (e.g. `foo/./bar'),
+	it would complain that it could not create `.', since it already
+	exists.  From schwab@issan.informatik.uni-dortmund.de (Andreas
+	Schwab).
+
+	* mt.c:  Added "eject" as a synonym for "offline".
+
+	* util.c:  Slight modification to when we lseek with
+	BROKEN_LONG_TAPE_DRIVER (do it every 1Gb, instead 
+	of every 2Gb).
+
+	* copyin.c, global.c, extern.h:  Added --no-absolute-paths option, 
+	to ignore absolute paths in archives.
+
+Tue Dec 21 01:30:59 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* util.c:  Fix for copying new_media_message_after_number.  From
+	Christian.Kuehnke@arbi.informatik.uni-oldenburg.de (Christian
+	Kuehnke).
+
+Thu Jul 29 20:35:57 1993  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* Makefile.in (config.status): Run config.status --recheck, not
+	configure, to get the right args passed.
+
+Mon Jul 19 23:01:00 1993  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* Makefile.in (libdir): Use standard GNU value --
+	$(exec_prefix)/lib, not /etc.
+	(.c.o): Put CFLAGS last.
+
+Thu Jul  8 19:43:39 1993  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in: Add rules for remaking Makefile, configure,
+	config.status. 
+
+Mon Jul  5 14:54:08 1993  John Oleynick  (juo@spiff.gnu.ai.mit.edu)
+
+	* cpio.1:  Updated man page for 2.3.
+	* Makefile.in:  Create distribution with .gz extension, instead of .z.
+
+Tue Jun 29 18:54:37 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* Makefile.in: Added installdirs target (using mkinstalldirs).
+	* Added mkinstalldirs script.
+	* main.c, mt.c:  Added --help option.  Changed usage() to
+	take a stream and exit value (so --help can print on stdout
+	and return a 0 exit status).
+	* extern.h:  Removed usage()'s prototype (it was out of date,
+	and only used in main.c).
+
+Thu May  6 00:22:22 1993  John Oleynick  (juo@hal.gnu.ai.mit.edu)
+
+	* cpio.1:  Added hpbin and hpodc.
+
+Tue May  4 00:32:29 1993  John Oleynick  (juo@hal.gnu.ai.mit.edu)
+
+	* copyin.c (process_copy_in), copypass.c (process_copy_pass):  When
+	deleting an existing file, if the file is a directory, use rmdir()
+	instead of unlink().
+
+Thu Apr 29 14:43:56 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* tar.c (read_in_tar_header):  Clear non-protection bits from
+	mode, in case tar has left some device bits in there.
+
+Wed Apr 28 10:36:53 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* util.c: Added code to try and work around broken tape drivers
+	that have problems with tapes > 2Gb.
+
+	* copyout.c (process_copy_out): Pass file_hdr to 
+	writeout_other_defers() and add_link_defer() by reference, 
+	not by value.
+
+	* copyin.c (process_copy_in): Pass file_hdr to defer_copyin()
+	and create_defered_links() by reference, not by value.
+
+	* defer.c: include <sys/types.h> (to build on BSD 4.3 on HP300)
+
+Fri Apr 16 18:01:17 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* mt.c, util.c: Include <sys/mtio.h> if HAVE_SYS_MTIO_H is 
+	defined, not HAVE_MTIO_H.
+
+Wed Apr 14 17:37:46 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* util.c: Include <sys/io/trioctl.h> if HAVE_SYS_IO_TRIOCTL_H
+	is defined.
+
+	* mt.c: Only include <sys/mtio.h> if HAVE_SYS_MTIO_H is defined.
+
+Fri Apr  2 13:09:11 1993  John Oleynick  (juo@goldman.gnu.ai.mit.edu)
+
+	* configure.in: Added fnmatch to AC_REPLACE_FUNCS.  Added
+	sys/io/trioctl.h to AC_HAVE_HEADERS.
+
+	* Makefile.in: Removed fnmatch.o from OBJS.
+
+	* copyin.c: Only include "fnmatch.h" if FNM_PATHNAME isn't
+	defined yet.
+
+	* mt.c: Include <sys/io/trioctl.h> if HAVE_SYS_IO_TRIOCTL_H is
+	defined.
+
+Mon Mar 29 17:04:06 1993  John Oleynick  (juo@hal.gnu.ai.mit.edu)
+
+	* Many changes for supporting HPUX Context Dependent Files;
+	also some bug fixes to fix problems with multiply (hard) linked
+	device files; minor changes to support HPUX format archives
+	(slightly broken?) System V.4 posix tar archives and HPUX
+	posix tar archives.
+
+	* Makefile.in: New files defer.o, defer,c and defer.h; added
+	-DSYMLINK_USES_UMASK and -DHPUX_CDF comments; changed dist rule
+	to use gzip with tar, instead of compress.
+
+	* copyin.c: changes for new arf_hpbinary and arf_hpascii formats;
+	HPUX CDF's; DEBUG_CPIO; fixes to properly handle multiple
+	links in newc and crc format archives (new routines defer_copyin(),
+	create_defered_links(), create_final_defers()); move most
+	multiple (hard) link code to new routines link_name() and
+	link_to_maj_min_ino(); use new macro UMASKED_SYMLINK instead of
+	symlink().
+
+	* copyout.c: fixes to properly handle multiple links in newc
+	and crc format archives (new routines last_link(), 
+	count_defered_links_to_dev_ino(), add_link_defer(),
+	writeout_other_defers(), writeout_final_defers(),
+	writeout_defered_file()); support for new arf_hpbinary and
+	arf_hpascii formats; support for HPUX CDF's.
+
+	* copypass.c: move most multiple link code to new routines
+	link_name() and link_to_maj_min_ino(); use new macro UMASKED_SYMLINK
+	instead of symlink(); support for HPUX CDF's.
+
+	* extern.h: added arf_hpascii and arf_hpbinary archive enum types;
+	added debug_flag.
+
+	* global.c: added debug_flag.
+
+	* main.c: added debug_flag; support for hpodc and hpbin formats.
+
+	* makepath.c: split from standard makpath.c to add support
+	for HPUX CDF's.
+
+	* mt.c: added !defined(__osf__) (from Andrew Marquis
+	<amarquis@genome.wi.mit.edu>).
+
+	* system.h: new macro UMASKED_SYMLINK
+
+	* tar.c: minor changes to read (slightly broken?) System V.4 posix 
+	tar archives and HPUX posix tar archives.
+
+	* util.c: HPUX CDF support (including new routines
+	add_cdf_double_slashes() and islasparentcdf()); new routine
+	umasked_symlink().
+
+Sun Mar 14 23:00:14 1993  Jim Meyering  (meyering@comco.com)
+
+	* copypass.c (process_copy_pass): Use <=, not just <, when comparing
+	mtimes.  From Pieter Bowman <bowman@math.utah.edu>.
+
+Fri Jan 15 14:35:37 1993  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* copyin.c: Move include of fnmatch.h to get right FNM* macros.
+
+Tue Nov 24 08:45:32 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Version 2.2.
+
+	* copyout.c (process_copy_out): Add parens for gcc -Wall.
+	From Jim Meyering.
+
+	* system.h: Use HAVE_FCNTL_H, not USG.
+
+	* dstring.c, mt.c, system.h: Use HAVE_STRING_H, not USG.
+
+Fri Nov 20 22:47:18 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* copyin.c (read_in_binary): Copy the dev and ino that are
+	already in `file_hdr' into `short_hdr'.
+	From dao@abars.att.com (David A Oshinsky).
+
+	* system.h [!_POSIX_VERSION]: Declare lseek as off_t, not long.
+	From Karl Berry.
+
+Wed Oct 14 13:53:41 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* Version 2.1.
+
+Tue Oct 13 22:51:34 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* main.c: Add --swap equivalent to -b.
+
+	* mt.c: Add f_force_local variable and -V --version option.
+
+Fri Oct  2 18:42:27 1992  David J. MacKenzie  (djm@kropotkin.gnu.ai.mit.edu)
+
+	* main.c (long_opts, usage): Add --force-local option.
+
+Thu Oct  1 23:23:43 1992  David J. MacKenzie  (djm@goldman.gnu.ai.mit.edu)
+
+	* main.c (process_args) [__MSDOS__]: Don't call geteuid.
+
+	* copyin.c (read_in_{old,new}_ascii): Use `l' for sscanf into longs.
+	* copyout.c (write_out_header): Ditto for sprintf.
+	* global.c, extern.h: Make input_size and output_size long.
+
+Thu Sep 10 23:39:30 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* global.c, extern.h: Add new var f_force_local to work with
+	rmt.h change from tar.
+
+Sun Aug 23 00:18:20 1992  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* Version 2.0.
+
+	* tar.c (otoa): Compute value in an unsigned long, not an int.
+	* copyout.c (write_out_header) [__MSDOS__]: Don't use dev_t.
+
+	* main.c (process_args): By default, don't chown for non-root users.
+
+Sat Aug 22 14:17:54 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* global.c, extern.h: Use uid_t and gid_t.
+
+	* main.c (main) [__EMX__]: Expand wildcards.
+	* system.h [__EMX__]: Alias some error names.  From Kai Uwe Rommel.
+
+	* extern.h [__STDC__]: Use prototypes.
+
+	* copyin.c (process_copy_in), copyout.c (process_copy_out),
+	copypass.c (process_copy_pass): Open all files with O_BINARY.
+	Add cast to chmod call.
+	* util.c: Add cast to bcopy calls.  Make hash_insert static.
+	From Kai Uwe Rommel.
+
+Thu Aug 20 22:03:49 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* util.c (peek_in_buf): Don't print "end of file" before
+	getting the next reel of medium.
+
+	* copyin.c (read_in_old_ascii): Allocate space for NUL terminator.
+	Print newline for dot line when done, even if appending.
+
+Thu Jul 23 16:34:53 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* tar.c (write_out_tar_header, read_in_tar_header)
+	[__MSDOS__]: Don't try to get user and group names.
+	* extern.h: Don't declare the functions to do it (need uid_t).
+
+	* main.c [__MSDOS__]: Ignore the -R option.
+
+	* system.h: Define makedev if defining major and minor.
+
+	* copyin.c, copyout.c [__MSDOS__]: setmode on archive_des, not
+	0 and 1.
+
+Sat Jul 18 14:30:55 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* tar.c, stripslash.c, userspec.c, cpiohdr.h, tar.h, tarhdr.h,
+	system.h: New files.
+	* Move portability stuff from various files to system.h.
+	* cpio.h: Rename header structure and members, and add
+	new structure for SVR4 format.
+	* copyin.c, copyout.c: Use the new structure internally, the
+	old one only for I/O in the old formats.
+	* copyin.c (read_in_header): Recognize the new archive formats.
+	(read_in_new_ascii, read_pattern_file, skip_padding): New functions.
+	(swab_array): Do the swapping using char pointers instead of
+	bitwise arithmetic.
+	(process_copy_in): Handle byte and halfword swapping and new formats.
+	Ok if a directory we want to make already exists, but set its perms.
+	Do chmod after chown to fix any set[ug]id bits.
+	Use `struct utimbuf' instead of a long array.
+	* copyout.c (write_out_header): Handle new formats.
+	(process_copy_out): Use `struct utimbuf'.
+	Handle appending and new formats.
+	Remove any leading `./' from filenames.
+	(read_for_checksum, clear_rest_of_block, pad_output): New functions.
+	* copypass.c (process_copy_pass): Use `struct utimbuf'.
+	Ok if a directory we want to make already exists, but set its perms.
+	Do chmod after chown to fix any set[ug]id bits.
+	Don't change perms of `.'.
+	* extern.h, global.c: Replace the separate format flags with
+	one variable.  Add new variables for the new options.
+	* main.c: Add new options -A --append, -H --format, -C --io-size,
+	-M --message, --no-preserve-owner, -R --owner, -E --pattern-file,
+	-V --dot, -s --swap-bytes, -S --swap-halfwords, -b, -I, -k, -O.
+	(usage): Document them.
+	(process_args): Recognize them.  Use open_archive.
+	(initialize_buffers): Allow room for tar archives and double buffers.
+	* util.c (empty_output_buffer_swap): New function.
+	(empty_output_buffer): Call it if swapping current file.
+	Check additional end of media indicators.
+	(swahw_array, peek_in_buf, prepare_append, open_archive,
+	set_new_media_message): New functions.
+	(fill_input_buffer): Don't print error message if end of media.
+	(toss_input): Don't seek, always read.
+	(copy_files): Update crc if needed.
+	(find_inode_file, add_inode): Check major and minor numbers as
+	well as dev.
+	(get_next_reel): Prompt user if archive name is unknown.
+	Print fancy messages.
+	Close the archive and reopen it.
+
+	Above primarily from John Oleynick <juo@klinzhai.rutgers.edu>.
+
+	* util.c (find_inode_file): Use modulus when computing initial
+	loop index.
+	(add_inode): Zero out new entry.
+	From scott@sctc.com (Scott Hammond).
+
+	* cpio.h, copyin.c, copyout.c: Rename `struct cpio_header'
+	members from h_foo to c_foo.
+
+Wed May 20 00:09:26 1992  David J. MacKenzie  (djm@churchy.gnu.ai.mit.edu)
+
+	* copyin.c:  If we include a header file specifically to get
+	major et al., assume we have them.
+
+Mon Mar  9 19:29:20 1992  David J. MacKenzie  (djm@nutrimat.gnu.ai.mit.edu)
+
+	* mt.c (main): rmtclose the tape file descriptor.
+
+	* main.c (main): rmtclose the archive, if not in copy-pass mode.
+
+	* util.c (create_all_directories): Don't print a message when
+	creating a directory, for UNIX compat.
+
+	* copyin.c (process_copy_in), copypass.c (process_copy_pass):
+	Skip file if it has the same timestamp as existing file, not just
+	if it is older than existing file, for UNIX compat.
+
+Tue Mar  3 12:06:58 1992  David J. MacKenzie  (djm@wookumz.gnu.ai.mit.edu)
+
+	* main.c, mt.c (usage): Document long options as starting with
+	-- instead of +.
+
+	* extern.h: Only declare lseek if not _POSIX_VERSION.
+
+Tue Dec 24 00:19:45 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* copyin.c: Use MAJOR_IN_MKDEV and MAJOR_IN_SYSMACROS instead
+	of USG and _POSIX_VERSION to find major and minor macros.
+
+	* mt.c: Use unistd.h and stdlib.h if available.
+
+	* copyin.c, copyout.c, copypass.c, util.c, extern.h: Change
+	POSIX ifdefs to HAVE_UNISTD_H and _POSIX_VERSION.
+
+Sun Aug 25 06:31:08 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* Version 1.5.
+
+	* bcopy.c: New file (moved from util.c).
+
+	* mt.c (print_status): Not all hpux machines have mt_fileno
+	and mt_blkno; rather than trying to track HP's product line,
+	just assume none of them have them.
+
+	* util.c (copy_buf_out, copy_in_buf): Use more efficient
+	copying technique for a big speedup.
+
+Fri Aug  2 04:06:45 1991  David J. MacKenzie  (djm at apple-gunkies)
+
+	* configure: Support +srcdir.  Create config.status.
+	Remove it and Makefile if interrupted while creating them.
+
+Thu Jul 18 09:43:40 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* Many files: use __MSDOS__ instead of MSDOS.
+
+	* util.c, configure: Use NO_MTIO instead of HAVE_MTIO, to keep
+	up with tar and rtapelib.c.
+
+Mon Jul 15 13:45:30 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* configure: Also look in sys/signal.h for signal decl.
+
+Thu Jul 11 01:50:32 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* Version 1.4.
+
+	* configure: Remove /etc and /usr/etc from PATH to avoid
+	finding /etc/install.
+
+Wed Jul 10 01:40:07 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* makefile.pc: Rewrite for Turbo C 2.0.
+	* util.c [__TURBOC__] (utime): New function.
+	* alloca.c, tcexparg.c: New files.
+
+	* extern.h [STDC_HEADERS]: Don't declare malloc and realloc.
+
+	* main.c [MSDOS]: Make binary mode the default.
+	* copyin.c, copyout.c: Make stdin or stdout binary mode as
+	appropriate (so cpio archives don't get corrupted).
+
+	* Many files: Use <string.h> if STDC_HEADERS as well as if USG.
+
+	* configure, Makefile.in: $(INSTALLPROG) -> $(INSTALL),
+	$(INSTALLTEXT) -> $(INSTALLDATA).
+
+Mon Jul  8 23:18:28 1991  David J. MacKenzie  (djm at wookumz.gnu.ai.mit.edu)
+
+	* configure: For some library functions that might be missing,
+	conditionally add the .o files to Makefile instead of
+	defining func_MISSING.
+	* mkdir.c: Renamed from mkrmdir.c.
+
+Sat Jul  6 02:27:22 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* configure: echo messages to stdout, not stderr.
+	Use a test program to see if alloca needs -lPW.
+
+Thu Jun 27 16:15:15 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* copyin.c (process_copy_in), copyout.c (process_copy_out),
+	copypass.c (process_copy_pass): Check close return value for
+	delayed error notification because of NFS.
+
+Thu Jun 20 02:43:33 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* configure: Include $DEFS when compiling test programs.
+
+	* util.c: Only declare getpwuid and getgrgid if not POSIX.
+
+	* Version 1.3.
+
+	* copyin.c: Use time_t, not long, for time values.
+
+	* mt.c (print_status): Special cases for HP-UX and Ultrix.
+
+	* util.c: Compile bcopy if USG or STDC_HEADERS, not BCOPY_MISSING.
+
+Tue Jun 11 16:40:02 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* copyin.c: Don't include sys/sysmacros.h if _POSIX_SOURCE.
+
+	* copyin.c, copyout.c, copypass.c: Don't include sys/file.h if POSIX.
+
+	* util.c: Include sys/types.h before, not after, pwd.h and grp.h.
+
+	* configure: New shell script to aid configuration and create
+	Makefile from Makefile.in.
+
+	* copyin.c (process_copy_in): Use POSIX.2 fnmatch instead of
+	glob_match. 
+
+Mon Jun 10 22:11:19 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* global.c, extern.h: New variable, name_end.
+	* main.c (process_args, usage): Add -0 +null option to set it.
+	* copypass.c (process_copy_pass), copyout.c (process_copy_out): 
+	Use it.
+
+	* dstring.c (ds_fgetstr): New function made from ds_fgets.
+	(ds_fgets, ds_fgetname): Implement as front ends to ds_fgetstr.
+
+Sun Jun  2 15:45:24 1991  David J. MacKenzie  (djm at wheat-chex)
+
+	* most files: use GPL version 2.
+
+Sat May 18 11:39:22 1991  David J. MacKenzie  (djm at geech.gnu.ai.mit.edu)
+
+	* copyin.c, copypass.c: Take out #ifdef MSDOS around chown.
+	* util.c [MSDOS]: Provide dummy chown.
+
+Fri May 17 21:29:05 1991  David J. MacKenzie  (djm at churchy.gnu.ai.mit.edu)
+
+	* Version 1.2.
+
+	* makefile.pc, cpio.cs: Update for new source and object files.
+
+Fri Mar 15 05:48:36 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* global.c, extern.h: New variable `archive_desc'.
+	* main.c (process_args): Set it.
+	* copyout.c (process_copy_out), copyin.c (process_copy_in):
+	Use it.
+
+	* copyout.c (process_copy_out), copyin.c (process_copy_in):
+	Remote tapes are special and not seekable; don't fstat them.
+
+	* main.c (main, usage): Add -F, +file option.  Use rmtopen.
+	(main): Exit after printing version number.
+	* util.c (empty_output_buffer): Use rmtwrite instead of write.
+	(fill_input_buffer): Use rmtread instead of read.
+	(tape_offline): Use rmtioctl instead of ioctl.
+	Test HAVE_MTIO instead of MTIO_MISSING, for tar compatibility.
+
+Thu Mar 14 17:49:57 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* util.c (create_all_directories): Use make_path to do the work.
+
+Sat Jan 12 15:32:15 1991  David J. MacKenzie  (djm at geech.ai.mit.edu)
+
+	* copyin.c, copyout.c, copypass.c, util.c: Only declare
+	`errno' if not MSDOS.  Some Unix errno.h do, some don't . . . .
+
+	* global.c, extern.h: Make `input_size' and `output_size'
+	unsigned, for 16 bit machines.
+
+	* copyin.c (print_name_with_quoting): All non-ctrl chars are
+	printable on MS-DOS.
+
+	* util.c (empty_output_buffer): Never make sparse files;
+	can create unrunnable executables.
+	* copyin.c, copyout.c, copypass.c: Callers changed.
+	* util.c (finish_output_file): Function removed.
+
+Tue Nov  6 15:47:16 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* copyin.c, util.c, extern.h: Rename copystring to xstrdup.
+
+Mon Oct 29 02:24:41 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* util.c (empty_output_buffer): Only make sparse files if
+	NO_SPARSE_FILES is undefined, to accomodate dumb kernels.
+
+Wed Jul 25 18:48:35 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* util.c (getuser, getgroup): Make uid and gid unsigned short,
+	not int.
+
+Sat Jul 21 00:44:44 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* copyin.c, copyout.c, copypass.c, util.c, cpio.h: Add ifdefs
+	for MSDOS.
+
+Sun Jul 15 23:51:48 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* copyin.c, copyout.c, copypass.c, global.c, extern.h, util.c:
+	Use longs where appropriate, for 16 bit machines.
+
+Sun Jul  8 22:58:06 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* main.c (process_args, usage): Change -b option to -O (old), to
+	allow adding byte swapping later.
+
+Sat Jul  7 14:48:35 1990  David J. MacKenzie  (dave at edfmd)
+
+	* Version 1.1.
+
+	* cpio.h: Make `mtime' and `filesize' unsigned long.
+	* copyin.c (read_in_binary), copyout.c (write_out_header):
+	High short-word of `mtime' and `filesize' always comes first.
+
+	* (read_in_ascii, read_in_binary): New functions, from code in
+	read_in_header. 
+	(read_in_header): Search for valid magic number, then fill in
+	rest of header using read_in_ascii and read_in_binary.
+	* global.c, extern.h: New variable, `binary_flag'.
+	* main.c (process_args): Recognize new -b +binary option.
+	* util.c [BCOPY_MISSING] (bcopy): New function.
+
+Wed Jul  4 00:40:58 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* main.c (process_args): Add local pointers to functions to
+	work around a pcc bug found on a Convex.
+
+	* copyin.c (process_copy_in), util.c (toss_input,
+	create_all_directories, add_inode): Don't use `index' as a
+	variable name. 
+
+Tue Jul  3 02:33:36 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* version 1.0.
+
+Mon Jul  2 23:18:56 1990  David J. MacKenzie  (djm at twiddle)
+
+	* copyin.c (process_copy_in), copyout.c (process_copy_out),
+	copypass.c (process_copy_pass): Print "1 block", not "1 blocks".
+
+	* copyin.c (process_copy_in), copypass.c (process_copy_pass):
+	Unlink existing dest. file unless either it is newer and
+	not unconditional, or it is a directory.
+
+Mon Jul  2 03:57:41 1990  David J. MacKenzie  (dave at edfmd)
+
+	* util.c (xrealloc): New function.
+	* dstring.c (ds_resize): Use xrealloc instead of free and
+	xmalloc.  Never shrink the string.
+
+	* copypass.c (process_copy_pass): More efficient
+	string handling while constructing output filename.
+
+	* global.c, extern.h, main.c, cpio.h: Change from an enum,
+	`copy_command', to a pointer to a void function, `copy_function'.
+
+	* cpio.h (struct cpio_header): Make most fields unsigned.
+	Rename h_filesize to h_filesizes and h_mtime to h_mtimes, and
+	add new `long' fields with the old names at the end of the
+	structure.
+	* copyin.c (read_in_header): Set the long fields from the
+	short arrays, making sure longs are aligned properly.
+	(process_copy_in, long_format): Use the long fields.
+	* copyout.c (write_out_header): Set the short arrays from the
+	long fields, making sure longs are aligned properly.
+	(process_copy_out): Use the long fields.
+
+	* global.c, extern.h: New variable `output_is_seekable'.
+	* util.c (empty_output_buffer): If output_is_seekable, use
+	lseek to write blocks of zeros.
+	(finish_output_file): New function.
+	* copyin.c (process_copy_in), copyout.c (process_copy_out),
+	copypass.c (process_copy_pass): Set `output_is_seekable'
+	correctly and call finish_output_file.
+	* main.c (initialize_buffers): Allocate space for sentinel in
+	`output_buffer'. 
+
+	* global.c, extern.h: New variable `numeric_uid'.
+	* main.c (process_args): Accept -n +numeric-uid-gid option, like ls.
+	* copyin.c (long_format): Use numeric_uid.
+
+	* copyin.c (process_copy_in), copyout.c (process_copy_out),
+	copypass.c (process_copy_pass): Don't (for verbose) print the
+	names of files that are not copied because of errors.  Try to
+	create missing directories for all file types.  Free temporary
+	buffers on error.
+
+Sat Jun 30 14:28:45 1990  David J. MacKenzie  (djm at apple-gunkies)
+
+	* version.c: New file.
+	* main.c: Add -V, +version option.
+	* Makefile [dist]: Extract version number from version.c.
+
+Sat Jun 30 12:44:47 1990  David J. MacKenzie  (dave at edfmd)
+
+	* global.c, extern.h, copyin.c, copyout.c, util.c: Rename
+	`{input,output}_is_regular' to `{input,output}_is_special' and
+	reverse the truth value. 
+
+	* global.c, extern.h: New variable `input_is_seekable' to
+	control whether to skip data with lseek or read. 
+	* copyin.c (process_copy_in): Set it.
+	* util.c (toss_input): Use it.
+
+	* global.c, extern.h: New variable `xstat' that selects stat
+	or lstat for input files.
+	* main.c (process_args): New option -L, +dereference to set
+	xstat to stat instead of lstat.
+	(usage): Document it.
+	* copyout.c (process_copy_out), copypass.c
+	(process_copy_pass): Use *xstat on input file.
+
+Sat Jun 30 01:53:12 1990  David J. MacKenzie  (dave at edfmd)
+
+	* dstring.c (ds_init): Return void because return value was
+	never used. 
+	(ds_resize): Ditto, and free old value instead of new one.
+
+	* util.c (empty_output_buffer, fill_input_buffer,
+	copy_out_buf, copy_in_buf, toss_input, copy_files): Return
+	void instead of an error value and make errors fatal
+	immediately instead of several levels up, to prevent printing
+	of multiple error messages by different levels of functions.
+
+	* copyin.c (read_in_header): Return void, because the error
+	handling all happens at lower levels.
+	(print_name_with_quoting): New function.
+	(long_format): Call print_name_with_quoting.  Take additional
+	arg for name of linked-to file, and print it if nonzero.
+	(process_copy_in): For verbose listing of symlinks, read in
+	the linkname and pass it to long_format.
+
+	* extern.h: Declare some more functions.
+
+Thu Jun 28 16:07:15 1990  David J. MacKenzie  (dave at edfmd)
+
+	* copypass.c (process_copy_pass): Warn about unknown file types.
+
+	* copyout.c (process_copy_out): Check fstat return for error.
+	Record filesize of 0 for special files.  Warn about unknown
+	file types.
+
+	* copyin.c (process_copy_in): Warn about unknown file types.
+	(read_in_header): Warn about byte-reversed binary headers.
+
+Sat Jun 23 22:50:45 1990  David J. MacKenzie  (dave at edfmd)
+
+	* main.c (main): Set umask to 0 so permissions of created
+	files are preserved. 
+
+	* copyin.c, copyout.c, copypass.c, util.c: Pass file
+	descriptors as ints, not pointers to ints. 
+	Cast file timestamps and sizes to long *, not int *, for 16
+	bit machines.
+	Use lstat instead of stat, if available.
+	Handle FIFO's, sockets, and symlinks, if supported by O.S.
+
+	* copyin.c (process_copy_in), copyout.c (process_copy_out):
+	Don't consider FIFO'S, sockets, etc. to be possible tape drives.
+
+	* util.c (create_all_directories): Fix incorrect loop
+	termination check.  Only copy string if it contains slashes.
+	Don't check whether directory "" exists.
+	(tape_offline): Code moved from get_next_reel.
+	(get_next_reel): Print message before taking tape offline.
+	Read a line of arbitrary length.
+
+	* copyout.c, copyin.c, copypass.c: Always use utime, not utimes.
+
+	* copyin.c (swab_short): New macro.
+	(swab_array): New function.
+	(read_in_header): In binary mode, if a byte-swapped header is
+	read, swap the bytes back.
+	(process_copy_in, process_copy_pass): Don't stat each file to
+	create unless !unconditional_flag.  Create device files correctly.
+	Don't temporarily allow files being created to be read by
+	other users.  Don't unnecessarily chmod special files.
+
+Thu May 31 20:51:43 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* copyin.c (long_format): Use mode_string to format
+	file protections instead of doing it ourselves.
+	(protections): Function removed.
+
+Sat Apr 14 02:31:01 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* cpio.h (struct cpio_header): Make inode, mode, uid, gid
+	fields unsigned. 
+
+	* util.c (getgroup): New function.
+	* copyin.c (long_format): Print group name of files.
+	Print file size, etc. as unsigned integers, not signed.
+
+	* main.c (process_args): If -t is given and neither -i, -o, or
+	-p is given, assume -i.
+
+	* Add -f, +nonmatching option.
+	* main.c: Rename +out to +create, +in to +extract,
+	+modification-time to +preserve-modification-time,
+	+pass to +pass-through.
+
+	* copyin.c (process_copy_in), copypass.c (process_copy_pass):
+	Don't complain in chown fails because the user doesn't have
+	permission. 
+
+Fri Apr 13 13:53:20 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* Add ifdefs for USG/Xenix.
+	* util.c (cpio_error): Function removed.
+	* Use error instead of cpio_error, so system error messages
+	will be included.
+	* cpio.h: Rename 'hdr_struct' to 'struct cpio_header'.
+	* Move definition of xmalloc from dstring.c to util.c.
+	* global.c, extern.c: Add global `program_name'.
+	* main.c (main): Set program_name.
+	(process_args): Rename +reset-atime to +reset-access-time,
+	+table to +list.
+	Have +block-size take an argument.
+
+Thu Apr 12 13:33:32 1990  David J. MacKenzie  (djm at rice-chex)
+
+	* util.c (find_inode_file): Make inode an int, not a short.
+
+	* Make functions that don't return a value have type void.
+	Add some casts to function calls.
+
+Wed Apr 11 14:55:28 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* main.c (process_args): -i, -o, and -p don't take arguments.
+
+	* main.c (process_args): Get the non-option args from the
+	correct elements of argv.
+
+Tue Apr 10 00:20:26 1990  David J. MacKenzie  (djm at albert.ai.mit.edu)
+
+	* Indent source code and update copyrights.
+
+	* cpio.c (usage): Change `collection' to `archive' in message.
+
+Thu Dec 28 03:03:55 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* dstring.c (xmalloc): Don't return a null pointer if size is 0,
+	on the assumption that trying to allocate 0 bytes is a bug that
+	should be trapped.
+
+Wed Dec 20 03:24:48 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* All files: Change from GNU CPIO General Public License to
+	GNU General Public License.
+
+Mon Dec 18 13:18:36 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* Makefile: Add clean target and defines for CC and LDFLAGS.
+	Add dist target and SRCS, DISTFILES macros.  Add tags and TAGS targets.
+	* dstring.c (ds_fgets): Read characters into an int, not char.
+	(xmalloc): New function.
+	(out_of_memory): Function removed.
+	Global: use xmalloc instead of malloc and out_of_memory.
+	* extern.h, global.c: Make flag variables ints instead of chars for
+	compatibility with getopt_long.
+	* extern.h: Declare more functions.
+	* main.c (usage): Put the whole usage message into a single string
+	and fix errors.
+	* util.c (create_all_directories): Remove unused variable.
+	(get_next_reel): Ditto.
+	* dstring.h: Declare function.
+
+Sat Dec  2 13:22:37 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
+
+	* main.c: Change +copy-pass option to +pass, +copy-in to +in,
+	+copy-out to +out, and +mkdir to +make-directories, and add null
+	option to terminate table.
+	(process_args): Use the same code to handle long and short named 
+	options.
+	(usage): Mention long options in message.
+
+Local Variables:
+mode: change-log
+version-control: never
+End:

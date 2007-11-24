@@ -1,0 +1,2484 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Mom -- Document Processing, Introduction and Setup</title>
+</head>
+<body bgcolor="#dfdfdf">
+
+<!====================================================================>
+
+<a href="typemacdoc.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="color.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+<p>
+<a name="TOP"></a>
+<a name="DOCPROCESSING">
+	<h1 align="center"><u>DOCUMENT PROCESSING WITH MOM</u></h1>
+</a>
+<a href="#INTRO_MACROS_DOCPROCESSING">Introduction to document processing</a>
+<br>
+<a href="#DEFAULTS">Some document defaults</a>
+<br>
+<a href="#LEADING_NOTE">* IMPORTANT NOTE on leading/spacing and bottom margins *</a>
+<br>
+<a href="#SHIM">The SHIM macro</a>
+<br>
+<h3><u>Table of Contents for document processing</u></h3>
+<ul>
+	<li><a href="#SETUP"><strong>DOCUMENT SETUP</strong></a>
+	<br>
+	<a href="#DOCPROCESSING_TUT">Tutorial -- Setting up a mom document</a>
+	<br>
+	<ul>
+		<li><a href="#REFERENCE_MACROS"><strong>The Reference Macros</strong></a>
+		<ul>
+			<li><a href="#TITLE">TITLE</a>
+			<li><a href="#DOC_TITLE">DOCTITLE</a>
+			<li><a href="#SUBTITLE">SUBTITLE</a>
+			<li><a href="#AUTHOR">AUTHOR</a>
+			<li><a href="#CHAPTER">CHAPTER</a>
+			<li><a href="#CHAPTER_TITLE">CHAPTER_TITLE</a>
+			<li><a href="#DRAFT">DRAFT</a>
+			<li><a href="#REVISION">REVISION</a>
+			<li><a href="#COPYRIGHT">COPYRIGHT</a>
+			<li><a href="#MISC">MISC</a>
+		</ul>
+		<li><a href="#DOCSTYLE_MACROS"><strong>The Docstyle Macros</strong></a>
+		<ul>
+			<li><a href="#DOCTYPE">DOCTYPE</a>
+			<li><a href="#PRINTSTYLE">PRINTSTYLE</a>
+			<li><a href="#COPYSTYLE">COPYSTYLE</a>
+		</ul>
+		
+		<li><a href="#STYLE_BEFORE_START"><strong>Changing type/style parameters prior to START</strong></a>
+		<ul>
+			<li><a href="#TYPE_BEFORE_START">Using typesetting macros prior to START</a>
+			<ul>
+				<li><a href="#COLOR">Colour</a>
+			</ul>
+			<li><a href="#DOC_LEAD_ADJUST">Adjusting document leading to fill pages -- DOC_LEAD_ADJUST</a>
+			<li><a href="#DOCHEADER">Managing the document header</a>
+			<ul>
+				<li><a href="#DOCHEADER">DOCHEADER -- turning docheaders off</a>
+				<li><a href="#DOCHEADER_CONTROL">Docheader control</a>
+			</ul>
+		</ul>
+
+		<li><a href="#COLUMNS_INTRO"><strong>Setting documents in columns</strong></a>
+		<ul>
+			<li><a href="#COLUMNS">COLUMNS</a>
+			<li><a href="#BREAKING_COLUMNS">Breaking columns manually</a>
+			<ul>
+			    <li><a href="#COL_NEXT">COL_NEXT</a>
+			    <li><a href="#COL_BREAK">COL_BREAK</a>
+			</ul>
+
+		</ul>
+
+		<li><a href="#START_MACRO"><strong>Initiate document processing</strong></a>
+		<ul>
+			<li><a href="#START">START</a>
+		</ul>
+	
+		<li><a href="#DOC_PARAM_MACROS"><strong>Changing document-wide typesetting parameters after START</strong></a>
+		<ul>
+			<li><a href="#DOC_LEFT_MARGIN">DOC_LEFT_MARGIN</a>
+			<li><a href="#DOC_RIGHT_MARGIN">DOC_RIGHT_MARGIN</a>
+			<li><a href="#DOC_LINE_LENGTH">DOC_LINE_LENGTH</a>
+			<li><a href="#DOC_FAMILY">DOC_FAMILY</a>
+			<li><a href="#DOC_PT_SIZE">DOC_PT_SIZE</a>
+			<li><a href="#DOC_LEAD">DOC_LEAD</a>
+			<li><a href="#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+			<li><a href="#DOC_QUAD">DOC_QUAD</a>
+		</ul>
+		<br>
+		<li><a href="docelement.html#DOCELEMENT"><strong>THE DOCUMENT ELEMENT MACROS (TAGS)</strong></a>
+		<ul>
+			<li><a href="docelement.html#DOCELEMENT_INTRO">Introduction to the document element tags</a>
+			<ul>
+				<li><a href="docelement.html#DOCELEMENT_CONTROL">Document element (tag) control macros</a>
+				<li><a href="docelement.html#CONTROL_MACRO_ARGS">Arguments to the control macros</a>
+			</ul>
+			<li><a href="docelement.html#EPIGRAPH_INTRO"><strong>Epigraphs</strong></a>
+			<ul>
+				<li><a href="docelement.html#EPIGRAPH">EPIGRAPH</a>
+				<li><a href="docelement.html#EPIGRAPH_CONTROL">Epigrah control</a>
+			</ul>
+			<li><a href="docelement.html#PP_INTRO"><strong>Paragraphs</strong></a>
+			<ul>
+				<li><a href="docelement.html#PP">PP</a>
+				<li><a href="docelement.html#PP_CONTROL">Paragraph control</a>
+			</ul>
+			<li><a href="docelement.html#HEAD_INTRO"><strong>Main heads</strong></a>
+			<ul>
+				<li><a href="docelement.html#HEAD">HEAD</a>
+				<li><a href="docelement.html#HEAD_CONTROL">Head control</a>
+			</ul>
+			<li><a href="docelement.html#SUBHEAD_INTRO"><strong>Subheads</strong></a>
+			<ul>
+				<li><a href="docelement.html#SUBHEAD">SUBHEAD</a>
+				<li><a href="docelement.html#SUBHEAD_CONTROL">Subhead control</a>
+			</ul>
+			<li><a href="docelement.html#PARAHEAD_INTRO"><strong>Paragraph heads</strong></a>
+			<ul>
+				<li><a href="docelement.html#PARAHEAD">PARAHEAD</a>
+				<li><a href="docelement.html#PARAHEAD_CONTROL">Parahead control</a>
+			</ul>
+			<li><a href="docelement.html#LINEBREAK_INTRO"><strong>Linebreaks (author linebreaks, also called section breaks)</strong></a>
+			<ul>
+				<li><a href="docelement.html#LINEBREAK">LINEBREAK</a>
+				<li><a href="docelement.html#LINEBREAK_CONTROL">Linebreak control</a>
+			</ul>
+			<li><a href="docelement.html#QUOTE_INTRO"><strong>Quotes (line for line poetic quotes)</strong></a>
+			<ul>
+				<li><a href="docelement.html#QUOTE">QUOTE</a>
+				<li><a href="docelement.html#QUOTE_CONTROL">Quote control</a>
+			</ul>
+			<li><a href="docelement.html#BLOCKQUOTE_INTRO"><strong>Blockquotes (cited material)</strong></a>
+			<ul>
+				<li><a href="docelement.html#BLOCKQUOTE">BLOCKQUOTE</a>
+				<li><a href="docelement.html#BLOCKQUOTE_CONTROL">Blockquote control</a>
+			</ul>
+			<li><a href="docelement.html#FOOTNOTE_INTRO"><strong>Footnotes</strong></a>
+			<ul>
+				<li><a href="docelement.html#FOOTNOTE">FOOTNOTE</a>
+				<li><a href="docelement.html#FOOTNOTE_CONTROL">Footnote control</a>
+			</ul>
+			<li><a href="docelement.html#ENDNOTE_INTRO"><strong>Endnotes</strong></a>
+			<ul>
+				<li><a href="docelement.html#ENDNOTE">ENDNOTE</a>
+				<li><a href="docelement.html#ENDNOTE_CONTROL">Endnote control</a>
+			</ul>
+			<li><a href="docelement.html#FINIS_INTRO"><strong>Document termination</strong></a>
+			<ul>
+				<li><a href="docelement.html#FINIS">FINIS</a>
+				<li><a href="docelement.html#FINIS_CONTROL">Finis control</a>
+			</ul>
+		</ul>
+		
+		<li><a href="headfootpage.html#HEADFOOTPAGE"><strong>HEADERS and FOOTERS</strong></a>
+		<br>
+		<ul>
+			<li><a href="headfootpage.html#HEADFOOTPAGE_INTRO">Introduction to headers/footers</a>
+			<li><a href="headfootpage.html#HEADFOOT_MANAGEMENT">Managing headers/footers</a>
+			<ul>
+				<li><a href="headfootpage.html#HEADERS">HEADERS</a> -- on or off
+				<li><a href="headfootpage.html#FOOTERS">FOOTERS</a> -- on or off
+				<li><a href="headfootpage.html#FOOTER_ON_FIRST_PAGE">FOOTER_ON_FIRST_PAGE</a>
+			</ul>
+			<li><a href="headfootpage.html#HEADFOOT_CONTROL">Header/footer control</a>
+			<ul>
+				<li><a href="headfootpage.html#HDRFTR_STRINGS">Header/footer strings</a>
+				<li><a href="headfootpage.html#HDRFTR_STYLE">Header/footer style</a> -- global and part-by-part
+				<li><a href="headfootpage.html#HDRFTR_VERTICAL">Header/footer placement and spacing</a>
+				<li><a href="headfootpage.html#HDRFTR_SEPARATOR">The header/footer separator rule</a>
+			</ul>
+		</ul>
+		<li><a href="headfootpage.html#PAGINATION"><strong>PAGINATION</strong></a>
+		<br>
+		<ul>
+			<li><a href="headfootpage.html#PAGINATE">PAGINATE</a> -- on or off
+			<li><a href="headfootpage.html#PAGENUMBER">PAGENUMBER</a> -- user supplied page number
+			<li><a href="headfootpage.html#PAGENUM_STYLE">PAGENUM_STYLE</a> -- digits, roman numerals, etc.
+			<li><a href="headfootpage.html#DRAFT_WITH_PAGENUMBER">DRAFT_WITH_PAGENUMBER</a> -- attach draft/revision information to page numbers
+			<li><a href="headfootpage.html#PAGINATE_CONTROL">Pagination control</a>
+		</ul>
+		<br>
+		<li><a href="rectoverso.html#RECTOVERSO"><strong>RECTO_VERSO PRINTING and COLLATING</strong></a>
+		<br>
+		<ul>
+			<li><a href="rectoverso.html#RECTOVERSO_INTRO">Introduction to recto/verso</a>
+			<ul>
+				<li><a href="rectoverso.html#RECTO_VERSO">RECTO_VERSO</a>
+				<li><a href="rectoverso.html#SWITCH_HDRFTR">SWITCH_HEADERS</a> (also FOOTERS)
+			</ul>
+			<li><a href="rectoverso.html#COLLATE_INTRO">Introduction to collating</a>
+			<ul>
+				<li><a href="rectoverso.html#COLLATE">COLLATE</a>
+			</ul>
+		</ul>
+	
+		<li><a href="cover.html#TOP"><strong>CREATING A COVER PAGE</strong></a>
+		<br>
+		<li><a href="letters.html#LETTERS"><strong>WRITING LETTERS</strong></a>
+		<ul>
+			<li><a href="letters.html#LETTERS_INTRO">Introduction to writing letters</a>
+			<li><a href="letters.html#TUTORIAL">Tutorial on writing letters</a>
+			<li><a href="letters.html#LETTERS_DEFAULTS">Default style for letters</a>
+			<li><a href="letters.html#LETTERS_MACROS">The letter macros</a>
+		</ul>
+	</ul>
+</ul>
+<br>
+<hr>
+
+<h2><a name="INTRO_MACROS_DOCPROCESSING"><u>Introduction to document processing</u></a></h2>
+
+As explained in
+<a href="intro.html#INTRO_DOCPROCESSING">Document processing with mom</a>,
+document processing uses markup tags to identify document elements
+such as heads, paragraphs, and so on.  The tags are, of course, macros,
+but with sensible, readable names that make them easy to grasp and
+easy to remember.  (And don't forget: if you don't like the
+&quot;official&quot; name of a tag -- too long, cumbersome
+to type in, not &quot;intuitive&quot; enough -- you can change it
+with the
+<a href="goodies.html#ALIAS">ALIAS</a>
+macro.)
+<p>
+In addition to the tags themselves, <strong>mom</strong> has an
+extensive array of macros that control how they look and behave.
+<p>
+Setting up a <strong>mom</strong> doc is a simple, four-part procedure.
+You begin by entering information about the document itself (title,
+subtitle, author, etc.).  Next, you tell <strong>mom</strong> what
+kind of document you're creating (e.g. chapter, letter, abstract,
+etc...) and what kind of output you want (typeset, typewritten,
+draft-style, etc).  Thirdly, you make as many or as few changes to
+<strong>mom</strong>'s default behaviour as you wish.  Lastly, you
+invoke the
+<a href="#START">START</a>
+macro.  Voilà!  You're ready to write.
+<p>
+<hr>
+
+
+<h2><a name="DEFAULTS"><u>Some document defaults</u></a></h2>
+
+As is to be expected, <strong>mom</strong> has defaults for everything.
+If you want to know a particular default, read about it in the
+description of the pertinent tag.
+<p>
+I fear the following may not be adequately covered in the
+documentation.  Just in case, here they are.
+<p>
+<ul>
+	<li>the paper size is 8.5x11 inches
+	<li>the left and right margins are 1-inch
+	<li>the top and bottom margins for document text are plus/minus
+		visually 1-inch
+	<li>pages are numbered; the number appears centred, at the
+		bottom, surrounded by hyphens ( e.g. -6- )
+	<li>the first page of a document begins with a
+		<a href="definitions.html#TERMS_DOCHEADER">document header</a>
+	<li>subsequent pages have
+		<a href="definitions.html#TERMS_HEADER">page headers</a>
+		with a rule underneath
+</ul>
+<p>
+Another way to check up on document processing defaults is to have
+a look at the macro file (om.tmac).  Each macro is preceded by a
+description that (generally) says what its default is (if it has
+one).
+<p>
+<hr>
+
+<a name="LEADING_NOTE">
+	<h2><u>IMPORTANT NOTE on leading/spacing and  bottom margins</u></h2>
+</a>
+
+<strong>Mom</strong> takes evenly-aligned  bottom margins in
+<a href="definitions.html#TERMS_RUNNING">running text</a>
+very seriously.  Only under a very few (exceptional) circumstances
+will she allow a bottom margin to &quot;hang&quot; (i.e. to fall
+short).
+<p>
+In order to ensure even bottom margins, <strong>mom</strong>
+uses the &quot;base&quot; document
+<a href="definitions.html#TERMS_LEADING">leading</a>
+in effect <em>at the start of running text on each page</em> (i.e.
+the leading used in paragraphs) to calculate the spacing of every
+document element.  Prior to invoking
+<a href="#START">START</a>,
+this is set with the
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macro</a>
+<a href="typesetting.html#LEADING">LS</a>,
+afterwards with the document
+<a href="definitions.html#TERMS_CONTROLMACRO">control macro</a>
+<a href="#DOC_LEAD">DOC_LEAD</a>.
+<p>
+Because <strong>mom</strong> relies so heavily on the base document
+leading, any change to the leading or spacing on a page will almost
+certainly have undesirable consequences on that page's bottom margin
+unless the change is fully compensated for elsewhere on the page.
+<p>
+In other words, if you add a few points of space somewhere on a page,
+you must subtract the same number of points somewhere else on that
+same page, and vice versa.
+<p>
+If it's a question of adding or subtracting full line spaces between
+or within document elements, you can do so by using the &quot;v&quot;
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+with whatever spacing macro you choose --
+<a href="typesetting.html#ALD">ALD</a>,
+<a href="typesetting.html#RLD">RLD</a>,
+<a href="typesetting.html#SPACE">SPACE</a>
+-- and <strong>mom</strong> won't object.  &quot;v&quot; means
+&quot;the current leading&quot;, so she isn't confused by it.  And
+since &quot;v&quot; accepts decimal fractions, you can add/subtract
+half linespaces and quarter linespaces with &quot;v&quot; as well,
+<em>provided you compensate for the fractional linespace somewhere
+else on the page</em>.
+<p>
+If all this seems like too much work, <strong>mom</strong>
+provides a special macro to get you out of trouble if you've played
+around with leading and/or spacing.  The macro is called
+<strong>SHIM</strong> (like those little pieces of wood carpenters
+use to get their work even, level and snug), and it's described
+below.
+<p>
+
+<!---SHIM--->
+
+<hr width="66%" align="left">
+<p>
+<a name="SHIM"></a>
+Macro: <strong>SHIM</strong>
+
+<p>
+<strong>SHIM</strong> doesn't take any argument.  Use it whenever
+you've played around with the
+<a href="definitions.html#TERMS_LEADING">leading</a>
+or spacing on a page and you
+need to get <strong>mom</strong>'s document leading back on track.
+<p>
+For example, say you want to insert a picture into a document with
+the special groff macro, <strong>PSPIC</strong> (see the
+<strong>groff_tmac</strong> man page for usage).
+<p>
+Pictures aren't usually conveniently sized in multiples of document
+leading, which means that when you insert the picture, you disrupt
+<strong>mom</strong>'s ordered placement of baselines on the page.
+This will certainly result in a bottom margin that doesn't match the
+bottom margins of your document's other pages.
+<p>
+The solution is to insert <strong>SHIM</strong> after the picture,
+like this:
+<p>
+<pre>
+	&lt;some lines of text&gt;
+	.PSPIC &lt;full path to picture&gt;
+	.SHIM
+	&lt;more lines of text&gt;
+</pre>
+<strong>SHIM</strong> instructs <strong>mom</strong> to insert as
+much or a little space after the picture as is needed to ensure that
+the baseline of the next
+<a href="definitions.html#TERMS_OUTPUTLINE">output line</a>
+falls where <strong>mom</strong> would have put it had you not
+disrupted the normal flow of output lines with the picture.
+<p>
+And say, on previewing the above example, you find that the picture
+doesn't centre nicely between the lines of text, you can always do
+<p>
+<pre>
+	&lt;some lines of text&gt;
+	.RLD 3p
+	.PSPIC &lt;full path to picture&gt;
+	.SHIM
+	&lt;more lines of text&gt;
+</pre>
+
+to raise the picture slightly
+(<strong>R</strong>everse <strong>L</strong>ea<strong>D</strong>
+3 points; see
+<a href="typesetting.html#RLD">RLD</a>),
+and still have <strong>SHIM</strong> ensure that text underneath
+falls exactly where it's supposed to.
+<p>
+<hr>
+
+<a name="SETUP"><h2><u>Document setup</u></h2></a>
+<p>
+<a name="DOCPROCESSING_TUT">
+	<h3><u>Tutorial -- Setting up a mom document</u></h3>
+</a>
+There are four &quot;parts&quot; to setting up a <strong>mom</strong>
+doc (three, actually, with one optional).  Before we proceed, though,
+be reassured that something as simple as
+<p>
+<pre>
+	.TITLE     "By the Shores of Lake Attica"
+	.AUTHOR    "Rosemary Winspeare"
+	.PRINTSTYLE TYPESET
+	.START
+</pre>
+
+produces a beautifully typeset 8.5x11 document, with a
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+at the top of page 1,
+<a href="definitions.html#TERMS_HEADER">page headers</a>
+with the title and author on subsequent
+pages, and page numbers at the bottom of each page.  In the course
+of the document, heads, subheads, citations, quotes, epigraphs,
+and so on, all come out looking neat, trim, and professional.
+<p>
+For the purposes of this tutorial, we're going to set up a short
+story -- <em>My Pulitzer Winner</em> by Joe Blow.  Thankfully,
+we don't have to look at story itself, just the setup.
+Joe wants the document
+<p>
+<ul>
+	<li>to be draft 7, revision 39;
+	<li>to use the &quot;default&quot; style of document formatting:
+	<li>to print as draft-style output (instead of &quot;final&quot; copy output);
+	<li>to be typeset, in Helvetica, 12 on 14,
+		<a href="definitions.html#TERMS_RAG">rag-right</a>;
+	<li>to have <a href="definitions.html#TERMS_FOOTER">footers</a>
+		instead of
+		<a href="definitions.html#TERMS_HEADER">headers</a>;
+	<li>to use a single asterisk for
+		<a href="definitions.html#TERMS_LINEBREAK">author linebreaks</a>.
+</ul>
+<p>
+Joe Blow has no taste in typography.  His draft won't look pretty,
+but this is, after all, a tutorial; we're after examples, not beauty.
+<h3><u>Step 1</u></h3>
+
+The first step in setting up any document is giving <strong>mom</strong>
+some reference information.  The reference macros are:
+<p>
+<ul>
+	<li>TITLE
+	<li>DOCTITLE
+	<li>COVERTITLE
+	<li>SUBTITLE
+	<li>AUTHOR
+	<li>CHAPTER -- the chapter number
+	<li>DRAFT -- the draft number
+	<li>REVISION -- the revision number
+	<li>COPYRIGHT -- only used on cover pages
+	<li>MISC -- only used on cover pages
+	<li>COVER_TITLE -- only on cover pages; only if needed
+	<li>DOC_COVER_TITLE -- only on document cover pages; only if needed
+</ul>
+<p>
+You can use as many or as few as you wish, although at a minimum,
+you'll probably fill in <strong>TITLE</strong> (unless the document's
+a letter) and <strong>AUTHOR</strong>.  Order doesn't matter.
+You can separate the
+<a href="definitions.html#TERMS_ARGUMENTS">arguments</a>
+from the macros by any number of spaces.  The following are
+what you'd need to start Joe Blow's story.
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+</pre>
+
+<h3><u>Step 2</u></h3>
+
+Once you've given <strong>mom</strong> the reference information she
+needs, you tell her how you want your document formatted.  What kind
+of document is it?  Should it be typeset or typewritten?  Is this
+a &quot;final&quot; copy (for the world to see) or just a draft?
+<strong>Mom</strong> calls the macros that answer these questions
+&quot;the docstyle macros.&quot;  They are:
+<p>
+<ul>
+	<li>DOCTYPE -- the type of document (default, chapter, user-defined, letter)
+	<li>PRINTSTYLE -- typeset or typewritten
+	<li>COPYSTYLE  -- draft or final copy
+</ul>
+<p>
+<strong>Mom</strong> has defaults for <strong>DOCTYPE</strong>
+and <strong>COPYSTYLE</strong>; if they're what you want, you
+don't need to include them here.  However, <strong>PRINTSTYLE</strong>
+has no default and MUST be present in every formatted document.
+If you omit it, <strong>mom</strong> won't process the document AND
+she'll complain (both to stderr and as a single printed sheet with
+a warning).  Moms -- they can be so annoying sometimes. &lt;sigh&gt;
+<p>
+Adding to what we already have, the next bit of setup for Joe
+Blow's story looks like this:
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+	\#
+	.DOCTYPE     DEFAULT \"Superfluous; mom uses DOCTYPE DEFAULT by default
+	.PRINTSTYLE  TYPESET
+	.COPYSTYLE   DRAFT
+</pre>
+
+Notice the use of the
+<a href="definitions.html#TERMS_COMMENTLINES">comment line</a>
+( \# ), a handy way to keep groups of macros visually separated
+for easy reading in a text editor.
+
+<h3><u>Step 3</u></h3>
+
+This step -- completely optional -- is where you, the user, take
+charge.  <strong>Mom</strong> has defaults for <em>everything</em>,
+but who's ever satisfied with defaults?  Use any of the <a
+href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+here to change <strong>mom</strong>'s document defaults (paper
+size, margins, family, point size, line space, rag, etc), or
+any of the document processing macros that set/change/control
+the appearance of document elements.  Think of this as the
+&quot;style-sheet &quot; section of a document.  And please note:
+you MUST give <strong>mom</strong> a
+<a href="#PRINTSTYLE">PRINTSTYLE</a>
+directive <strong>before</strong> making any such changes.
+<p>
+Joe Blow wants his story printed in Helvetica, 12 on 14, rag
+right, with
+<a href="definitions.html#TERMS_FOOTER">page footers</a>
+instead of
+<a href="definitions.html#TERMS_HEADER">page headers</a>
+and a single asterisk for the
+<a href="definitions.html#TERMS_LINEBREAK">linebreak</a>
+character.  None of these requirements conforms
+to <strong>mom</strong>'s defaults for the chosen
+<strong>PRINTSTYLE</strong> (TYPESET), so we change them here.
+The setup for Joe Blow's story now looks like this:
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+	\#
+	.DOCTYPE     DEFAULT
+	.PRINTSTYLE  TYPESET
+	.COPYSTYLE   DRAFT
+	\#
+	.FAMILY  H
+	.PT_SIZE 12
+	.LS      14
+	.QUAD    LEFT    \"i.e. rag right
+	.FOOTERS
+	.LINEBREAK_CHAR *
+</pre>
+
+<h3><u>Step 4</u></h3>
+The final step in setting up a document is telling <strong>mom</strong>
+to start document processing.  It's a no-brainer, just the single macro
+<strong>START</strong>.  Other than <strong>PRINTSTYLE</strong>, it's
+the only macro required for document processing (although
+I can't guarantee you'll like the results of using just the two).
+<p>
+Here's the complete setup for <em>My Pulitzer Winner</em>:
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+	\#
+	.DOCTYPE     DEFAULT
+	.PRINTSTYLE  TYPESET
+	.COPYSTYLE   DRAFT
+	\#
+	.FAMILY   H
+	.PT_SIZE  12
+	.LS       14
+	.QUAD     LEFT    \"i.e. rag right
+	.FOOTERS
+	.LINEBREAK_CHAR *
+	\#
+	.START
+</pre>
+
+As pointed out earlier, Joe Blow is no typographer.  Given that all he
+needs is a printed draft of his work, a simpler setup would have been:
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+	\#
+	.PRINTSTYLE  TYPEWRITE
+	.COPYSTYLE   DRAFT
+	\#
+	.START
+</pre>
+
+<kbd>.PRINTSTYLE TYPEWRITE</kbd>, above, means that Joe's work
+will come out &quot;typewritten, double-spaced&quot;, making the
+blue-pencilling he (or someone else) is sure to do much
+easier (which is why many publishers and agents still insist on
+typewritten, double-spaced copy).
+<p>
+When J. Blow stops re-writing and decides to print off a final,
+typeset copy of his work for the world to see, he need only
+make two changes to the (simplified) setup:
+<p>
+<pre>
+	.TITLE    "My Pulitzer Winner"
+	.AUTHOR   "Joe Blow"
+	.DRAFT     7
+	.REVISION  39
+	\#
+	.PRINTSTYLE  TYPESET  \"first change
+	.COPYSTYLE   FINAL    \"second change
+	\#
+	.START
+</pre>
+
+In the above, <kbd>.DRAFT 7, .REVISION 39,</kbd> and <kbd>.COPYSTYLE
+FINAL</kbd> are actually superfluous.  The draft and revision numbers
+aren't used when <strong>COPYSTYLE</strong> is <strong>FINAL</strong>,
+and <strong>COPYSTYLE FINAL</strong> is <strong>mom</strong>'s
+default unless you tell her otherwise.  BUT... to judge from the
+number of drafts already, J. Blow may very well decide his
+&quot;final&quot; version still isn't up to snuff.  Hence, he might
+as well leave in the superfluous macros.  That way, when draft 7,
+rev. 62 becomes draft 8, rev. 1, he'll be ready to tackle his Pulitzer
+winner again.
+<p>
+<hr>
+
+<!========================================================================>
+
+<a name="REFERENCE_MACROS">
+	<h2><u>The Reference Macros</u></h2>
+</a>
+
+The reference macros give <strong>mom</strong> the information
+she needs to generate
+<a href="definitions.html#TERMS_DOCHEADER">docheaders</a>,
+<a href="definitions.html#TERMS_HEADER">page headers</a>,
+and
+<a href="cover.html#COVER_TOP">covers</a>.
+They must go at the top of any file that uses <strong>mom</strong>'s
+document processing macros.
+<p>
+<a name="INDEX_REFERENCE">
+	<h3><u>Reference macros list</u></h3>
+</a>
+
+<ul>
+	<li><a href="#TITLE">TITLE</a>
+	<li><a href="#DOC_TITLE">DOCTITLE</a>
+	<li><a href="#SUBTITLE">SUBTITLE</a>
+	<li><a href="#AUTHOR">AUTHOR</a>
+	<li><a href="#CHAPTER">CHAPTER</a>
+	<li><a href="#CHAPTER_TITLE">CHAPTER_TITLE</a>
+	<li><a href="#DRAFT">DRAFT</a>
+	<li><a href="#REVISION">REVISION</a>
+	<li><a href="#COPYRIGHT">COPYRIGHT</a>
+	<li><a href="#MISC">MISC</a>
+	<li><a href="#COVERTITLE">COVERTITLE</a>
+</ul>
+<br>
+
+<!---TITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="TITLE"></a>
+<nobr>Macro: <strong>TITLE</strong> &quot;&lt;title&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+The title string can be caps or caps/lower-case; it's up to you.
+In
+<a href="#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
+the title will appear in the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+exactly as you typed it.  However, <strong>mom</strong> converts
+the title to all caps in
+<a href="definitions.html#TERMS_HEADER">page headers</a>
+unless you turn that feature off (see
+<a href="headfootpage.html#_CAPS">HEADER_&lt;POSITION&gt;_CAPS</a>). In
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+the title always gets converted to caps.
+<p>
+<strong>NOTE:</strong> If your
+<a href="#DOCTYPE">DOCTYPE</a>
+is <strong>CHAPTER</strong>, <strong>TITLE</strong> should be the
+title of the opus, not &quot;CHAPTER whatever&quot;.
+<p>
+
+<!---DOCTITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="DOCTITLE"></a>
+<nobr>Macro: <strong>DOCTITLE</strong> &quot;&lt;overall document title&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+<strong>NOTE:</strong> This macro should be used only if your
+<a href="#DOCTYPE">DOCTYPE</a>
+is <strong>DEFAULT</strong> (which is <strong>mom</strong>'s
+default).
+<p>
+When you're creating a single document, say, an essay or a short
+story, you have no need of this macro.
+<a href="#TITLE">TITLE</a>
+takes care of all your title needs.
+<p>
+However if you're 
+<a href="rectoverso.html#COLLATE">collating</a>
+a bunch of documents together, say, to print out a report containing
+many articles with different titles, or a book of short stories, you
+need <strong>DOCTITLE</strong>.
+<p>
+<strong>DOCTITLE</strong> tells <strong>mom</strong> the title
+of the complete document (as opposed to the title of each article
+or entitled section).
+<p>
+The doctitle string can be caps or caps/lower-case; it's up to you.
+In
+<a href="#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
+by default, the doctitle appears in the rightmost position of
+<a href="definitions.html#TERMS_HEADER">page headers</a>,
+all in caps unless you turn that feature off (see
+<a href="headfootpage.html#_CAPS">HEADER_&lt;POSITION&gt;_CAPS</a>). In
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+the doctitle always gets converted to caps.
+<p>
+<strong>NOTE:</strong> If your
+<a href="#DOCTYPE">DOCTYPE</a>
+is <strong>CHAPTER</strong>, you don't need
+<strong>DOCTITLE</strong>.  <strong>TITLE</strong> takes care of
+everything.
+<p>
+
+<!---SUBTITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="SUBTITLE"></a>
+<nobr>Macro: <strong>SUBTITLE</strong> &quot;&lt;subtitle&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+The subtitle string can be caps or caps/lower-case.  Since a
+document's subtitle appears only in the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>,
+and the title is most likely in caps, I recommend caps/lower case.
+<p>
+
+<!---AUTHOR--->
+
+<hr width="66%" align="left">
+<p>
+<a name="AUTHOR"></a>
+<nobr>Macro: <strong>AUTHOR</strong> &quot;&lt;author string&gt;&quot; [ &quot;&lt;author2 string&gt;&quot; &quot;&lt;author3 string&gt;&quot; ... ]</nobr>
+<br>
+<em>*Multiple arguments must all be enclosed in double-quotes</em>
+
+<p>
+Each author string can hold as many names as you like, e.g.
+<p>
+<pre>
+	.AUTHOR "Joe Blow"
+	    or
+	.AUTHOR "Joe Blow, Jane Doe" "John Hancock"
+</pre>
+
+<strong>Mom</strong> prints each string that's enclosed in
+double-quotes on a separate line in the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>,
+however only the first string appears in
+<a href="definitions.html#TERMS_HEADER">page headers</a>.
+If you want <strong>mom</strong> to put something else in the author
+part of page headers (say, just the last names of a document's two
+authors), redefine the appropriate part of the header (see
+<a href="headfootpage.html#HEADER_CONTROL">header/footer control</a>).
+<p>
+The strings can be caps or caps/lower-case.  I recommend caps/lower
+case.
+<p>
+
+<!---CHAPTER--->
+
+<hr width="66%" align="left">
+<p>
+<a name="CHAPTER"></a>
+<nobr>Macro: <strong>CHAPTER</strong> &lt;chapter number&gt;</nobr>
+
+<p>
+The chapter number can be in any form you like -- a digit, a roman
+numeral, a word.  If you choose
+<a href="#DOCTYPE">DOCTYPE CHAPTER</a>,
+<strong>mom</strong> prints whatever argument you pass
+<strong>CHAPTER</strong> beside the word &quot;Chapter&quot; as a
+single line
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>.
+She also puts the same thing in the middle of
+<a href="definitions.html#TERMS_HEADER">page headers</a>.
+<p>
+Please note that if your argument to <strong>CHAPTER</strong> runs
+to more than one word, you must enclose the argument in
+double-quotes.
+<p>
+If you're not using <strong>DOCTYPE CHAPTER</strong>, the macro serves
+no purpose and <strong>mom</strong> ignores it.
+<p>
+<a name="CHAPTER_STRING"><strong>CHAPTER_STRING</strong></a>
+<p>
+If you're not writing in English, you can ask <strong>mom</strong>
+to use the word for &quot;chapter&quot; in your own language by
+telling her what it is with the <strong>CHAPTER_STRING</strong>
+macro, like this:
+<p>
+<pre>
+	.CHAPTER_STRING "Chapître"
+</pre>
+
+You can also use <strong>CHAPTER_STRING</strong> if you want
+&quot;CHAPTER&quot; instead of &quot;Chapter&quot; in the doc- and
+page-headers.
+<p>
+
+<!---CHAPTER_TITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="CHAPTER_TITLE"></a>
+<nobr>Macro: <strong>CHAPTER_TITLE</strong> &quot;&lt;chapter title&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+If, either in addition to or instead of &quot;Chapter #&quot; appearing
+at the top of chapters, you want your chapter to have a title, use
+<strong>CHAPTER_TITLE</strong>, with your title enclosed in
+double-quotes, like this:
+<p>
+<pre>
+	.CHAPTER_TITLE "The DMCA Nazis"
+</pre>
+
+If you've used
+<a href="#CHAPTER">CHAPTER</a> to give the chapter a number,
+both &quot;Chapter #&quot; and the chapter title will appear at the
+top of the chapter, like this:
+<p>
+<pre>
+                       Chapter 1
+                    The DMCA Nazis
+</pre>
+
+In such a case, by default, only the chapter's title will appear in the
+<a href="definitions.html#TERMS_HEADER">page headers</a>,
+not &quot;Chapter #&quot;.
+<p>
+If you omit <strong>CHAPTER</strong> when setting up your reference
+macros, only the title will appear, both at the top of page one and in
+subsequent page headers.
+<p>
+The style of the chapter title can be altered by
+<a href="docelement.html#DOCELEMENT_CONTROL">control macros</a>,
+e.g. <strong>CHAPTER_TITLE_FAMILY</strong>,
+<strong>CHAPTER_TITLE_FONT</strong>, etc.  The default family,
+font and point size are Times Roman, Bold Italic, 4 points larger
+than
+<a href="definitions.html#TERMS_RUNNING">running text</a>.
+<p>
+
+<!---DRAFT--->
+
+<hr width="66%" align="left">
+<p>
+<a name="DRAFT"></a>
+<nobr>Macro: <strong>DRAFT</strong> &lt;draft #&gt;</nobr>
+
+<p>
+<strong>DRAFT</strong> only gets used with
+<a href="#COPYSTYLE">COPYSTYLE DRAFT</a>.
+If the <strong>COPYSTYLE</strong> is <strong>FINAL</strong> (the
+default), <strong>mom</strong> ignores <strong>DRAFT</strong>.
+<strong>DRAFT</strong> accepts both alphabetic and numeric
+arguments, hence it's possible to do either
+<p>
+<pre>
+	.DRAFT 2
+	   or
+	.DRAFT Two
+</pre>
+
+<strong>Mom</strong> prints the argument to <strong>.DRAFT</strong>
+(i.e. the draft number) beside the word &quot;Draft&quot; in the
+middle part of
+<a href="definitions.html#TERMS_HEADER">page headers</a>.
+<p>
+<strong>A small word of caution:</strong> If your argument to
+<strong>.DRAFT</strong> is more than one word long, you must
+enclose the argument in double-quotes.
+<p>
+You may, if you wish, invoke <strong>.DRAFT</strong> without an
+argument, in which case, no draft number will be printed beside
+&quot;Draft&quot; in headers or footers.
+<p>
+<a name="DRAFT_STRING"><strong>DRAFT_STRING</strong></a>
+<p>
+If you're not writing in English, you can ask <strong>mom</strong>
+to use the word for &quot;draft&quot; in your own language by
+telling her what it is with the <strong>DRAFT_STRING</strong> macro,
+like this:
+<p>
+<pre>
+	.DRAFT_STRING "Jet"
+</pre>
+
+Equally, <strong>DRAFT_STRING</strong> can be used to roll your own
+solution to something other than the word &quot;Draft.&quot;  For
+example, you might want &quot;Trial run alpha-three&quot; to appear
+in the headers of a draft version.  You'd accomplish this by doing
+<p>
+<pre>
+	.DRAFT alpha-three
+	.DRAFT_STRING "Trial run
+</pre>
+
+<strong>.DRAFT</strong> without an argument, above, ensures that
+only the <strong>DRAFT_STRING</strong> gets printed.
+<p>
+<strong>NOTE:</strong> If you define both a blank <strong>.DRAFT</strong>
+and a blank <strong>.DRAFT_STRING</strong>, <strong>mom</strong>
+skips the draft field in headers entirely.  If this is what you
+want, this is also the only way to do it.  Simply leaving out
+<strong>.DRAFT</strong> and <strong>.DRAFT_STRING</strong> will
+result in <strong>mom</strong> using her default, which is to print
+&quot;Draft 1&quot;.
+<p>
+
+<!---REVISION--->
+
+<hr width="66%" align="left">
+<p>
+<a name="REVISION"></a>
+<nobr>Macro: <strong>REVISION</strong> &lt;revision #&gt;</nobr>
+
+<p>
+<strong>REVISION</strong> only gets used with
+<a href="#COPYSTYLE">COPYSTYLE DRAFT</a>.
+If the <strong>COPYSTYLE</strong> is <strong>FINAL</strong>
+(the default), <strong>mom</strong> ignores the
+<strong>REVISION</strong> macro. <strong>REVISION</strong> accepts
+both alphabetic and numeric arguments, hence it's possible to do
+either
+<p>
+<pre>
+	.REVISION 2
+	   or
+	.REVISION Two
+</pre>
+
+<strong>Mom</strong> prints the revision number beside the shortform
+&quot;Rev.&quot; in the middle part of
+<a href="definitions.html#TERMS_HEADER">page headers</a>.
+<p>
+<strong>A small word of caution:</strong> If your argument to
+<strong>.REVISION</strong> is more than one word long, you must
+enclose the argument in double-quotes.
+<p>
+You may, if you wish, invoke <strong>.REVISION</strong> without an
+argument, in which case, no revision number will be printed beside
+&quot;Rev.&quot; in headers or footers.
+<p>
+<a name="REVISION_STRING"><strong>REVISION_STRING</strong></a>
+<p>
+If you're not writing in English, you can ask <strong>mom</strong>
+to use the word for &quot;revision,&quot; or a shortform
+thereof, in your own language by telling her what it is with the
+<strong>REVISION_STRING</strong> macro, like this:
+<p>
+<pre>
+	.REVISION_STRING "Rév."
+</pre>
+
+Additionally, you may sometimes want to make use of
+<strong>mom</strong>'s
+<a href="#COPYSTYLE">COPYSTYLE DRAFT</a>
+but not actually require any draft information.  For example, you
+might like <strong>mom</strong> to indicate only the revision number
+of your document.  The way to do that is to define an empty
+<strong>.DRAFT</strong> and <strong>.DRAFT_STRING</strong> in
+addition to <strong>.REVISION</strong>, like this:
+<p>
+<pre>
+	.DRAFT
+	.DRAFT_STRING
+	.REVISION 2
+</pre>
+
+<p>
+Equally, if you want to roll your own solution to what revision
+information appears in headers, you could do something like this:
+<pre>
+	.DRAFT
+	.DRAFT_STRING
+	.REVISION "two-twenty-two"
+	.REVISION_STRING "Revision"
+</pre>
+
+<p>
+The above, naturally, has no draft information.  If you want to
+roll your own <strong>.DRAFT</strong> and/or
+<strong>.DRAFT_STRING</strong> as well, simply supply arguments to
+either or both.
+<p>
+
+<!---COPYRIGHT--->
+
+<hr width="66%" align="left">
+<p>
+<a name="COPYRIGHT"></a>
+<nobr>Macro: <strong>COPYRIGHT</strong> &quot;&lt;copyright info&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+The argument passed to <strong>COPYRIGHT</strong> is only used on
+cover or doc cover pages, and then only if the argument COPYRIGHT is
+passed to
+<a href="cover.html#COVER">COVER</a>
+or
+<a href="cover.html#DOC_COVER">DOC_COVER</a>.
+Do not include the copyright symbol in the argument passed to
+<strong>COPYRIGHT</strong>; <strong>mom</strong> puts it in for
+you.
+<p>
+
+<!---MISC--->
+
+<hr width="66%" align="left">
+<p>
+<a name="MISC"></a>
+<nobr>Macro: <strong>MISC</strong> &quot;&lt;argument 1&gt;&quot; [&quot;&lt;argument 2&gt;&quot; &quot;&lt;argument 3&gt;&quot; ...]</nobr>
+<br>
+<em>*Multliple arguments must all be enclosed in double-quotes</em>
+
+<p>
+The argument(s) passed to <strong>MISC</strong> are only used on
+cover or doc cover pages, and then only if the argument MISC is
+passed to
+<a href="cover.html#COVER">COVER</a>
+or
+<a href="cover.html#DOC_COVER">DOC_COVER</a>.
+<strong>MISC</strong> can contain any information you like.  Each
+argument appears on a separate line at the bottom of the cover or
+doc cover page.
+<p>
+For example, if you're submitting an essay where the prof has
+requested that you include the course number, his name and the
+date, you could do
+<p>
+<pre>
+	.MISC &quot;Music History 101&quot; &quot;Professor Hasbeen&quot; &quot;Dec. 24, 2006&quot;
+</pre>
+
+and the information would appear on the essay's cover page.
+<p>
+
+<!---COVER_TITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="COVERTITLE"></a>
+<nobr>Macro: <strong>COVERTITLE</strong> &quot;&lt;user defined cover page title&gt;&quot;</nobr>
+<br>
+<nobr>Macro: <strong>DOC_COVERTITLE</strong> &quot;&lt;user defined document cover page title&gt;&quot;</nobr>
+<br>
+<em>*Argument must be enclosed in double-quotes</em>
+
+<p>
+The argument passed to <strong>COVERTITLE</strong> or
+<strong>DOC_COVERTITLE</strong> is only used on cover or doc cover
+pages, and then only if the argument COVERTITLE is passed to
+<a href="cover.html#COVER">COVER</a>
+or
+<a href="cover.html#DOC_COVER">DOC_COVER</a>.
+<p>
+The only time you require a <strong>COVERTITLE</strong> or
+<strong>DOC_COVERTITLE</strong>is when none of the required first
+arguments to <strong>COVER</strong> or <strong>DOC_COVER</strong>
+fits your needs for the title you want to appear on cover (or doc
+cover) pages.
+
+<p>
+<hr>
+<!========================================================================>
+
+<a name="DOCSTYLE_MACROS">
+	<h2><u>The Docstyle Macros</u></h2>
+</a>
+
+The docstyle macros tell <strong>mom</strong> what type of document you're
+writing, whether you want the output typeset or
+&quot;typewritten&quot;, and whether you want a draft copy (with
+draft and revision information in the headers) or a final copy.
+
+<a name="INDEX_DOCSTYLE">
+	<h3><u>Docstyle macros list</u></h3>
+</a>
+
+<ul>
+	<li><a href="#DOCTYPE">DOCTYPE</a>
+	<li><a href="#PRINTSTYLE">PRINTSTYLE</a>
+	<ul>
+		<li><a href="#TYPESET_DEFAULTS">Defaults for PRINTSTYLE TYPESET</a>
+		<li><a href="#TYPEWRITE_DEFAULTS">Defaults for PRINTSTYLE TYPEWRITE</a>
+		<ul>
+			<li><a href="#TYPEWRITE_CONTROL">TYPEWRITE control macros</a>
+		</ul>
+	</ul>
+	<li><a href="#COPYSTYLE">COPYSTYLE</a>
+</ul>
+<br>
+
+<!---DOCTYPE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="DOCTYPE"></a>
+<nobr>Macro: <strong>DOCTYPE</strong> DEFAULT | CHAPTER | NAMED &quot;&lt;name&gt;&quot; | LETTER</nobr>
+<p>
+The arguments <strong>DEFAULT, CHAPTER</strong> and
+<strong>NAMED</strong> tell <strong>mom</strong> what to put
+in the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+and
+<a href="definitions.html#TERMS_HEADER">page headers</a>.
+<strong>LETTER</strong> tells her that you want to write a
+letter.
+<p>
+<strong>Mom</strong>'s default <strong>DOCTYPE</strong> is
+<strong>DEFAULT</strong>.  If that's what you want, you don't
+have to give a <strong>DOCTYPE</strong> command.
+<p>
+<strong>DEFAULT</strong> prints a
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+containing the title, subtitle and author information given to the
+<a href="#REFERENCE_MACROS">reference macros</a>,
+and page headers with the author and title.
+(See
+<a href="headfootpage.html#HEADER_STYLE">Default specs for headers</a>
+for how <strong>mom</strong> outputs each part of the page header.)
+<p>
+<strong>CHAPTER</strong> prints &quot;Chapter #&quot; in place of a
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+(# is what you gave to the
+<a href="#REFERENCE_MACROS">reference macro</a>
+<a href="#CHAPTER">CHAPTER</a>).
+If you give the chapter a title with
+<a href="#CHAPTER_TITLE">CHAPTER TITLE</a>,
+<strong>mom</strong> prints &quot;Chapter #&quot; and the title
+underneath.  If you omit the
+<a href="#CHAPTER">CHAPTER</a>
+reference macro but supply a
+<a href="#CHAPTER_TITLE">CHAPTER_TITLE</a>,
+<strong>mom</strong> prints only the chapter title. <em>(*For
+backward compatibility with pre-1.1.5 versions of</em>
+<strong>mom</strong><em>, you can also supply a chapter title by
+omitting the</em> <strong>CHAPTER</strong> <em>reference macro and
+supplying a chapter title with</em>
+<a href="#CHAPTER_STRING">CHAPTER_STRING</a>.)
+<p>
+The page headers in <strong>DOCTYPE CHAPTER</strong> contain the author,
+the title of the book (which you gave with
+<a href="#TITLE">TITLE</a>),
+and &quot;Chapter #&quot; (or the chapter title).  See
+<a href="headfootpage.html#HEADER_STYLE">Default Specs for Headers</a>
+for <strong>mom</strong>'s default type parameters for each part of
+the page header.
+<p>
+<strong>NAMED</strong> takes an additional argument: a name
+for this particular kind of document  (e.g. outline, synopsis,
+abstract, memorandum), enclosed in double-quotes.
+<strong>NAMED</strong> is identical to <strong>DEFAULT</strong>
+except that <strong>mom</strong> prints the argument to
+<strong>NAMED</strong> beneath the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>,
+as well as in page headers.
+(See
+<a href="headfootpage.html#HEADER_STYLE">Default specs for headers</a>
+for how <strong>mom</strong> outputs each part of the page header.)
+<p>
+Additionally, if you wish the name of this particular kind of
+document to be coloured, you can pass <strong>DOCTYPE NAMED</strong>
+a third (optional) argument: the name of a colour pre-defined (or
+&quot;initialized&quot;) with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+For example, if you have a doctype named &quot;Warning&quot;, and
+you'd like &quot;Warning&quot; to be in red, assuming you've
+pre-defined (or &quot;initialized&quot;) the color, red, this is
+what the <strong>DOCTYPE</strong> entry would look like:
+<p>
+<pre>
+	.DOCTYPE NAME "Warning" red
+</pre>
+
+<p>
+<strong>LETTER</strong> tells mom you're writing a letter.  See
+the section
+<a href="letters.html#INTRO">Writing Letters</a>
+for instructions on using <strong>mom</strong> to format letters.
+<p>
+
+<!---PRINTSTYLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="PRINTSTYLE"></a>
+<nobr>Macro: <strong>PRINTSTYLE</strong> TYPESET | TYPEWRITE [ SINGLESPACE ]</nobr>
+<br>
+<em>*Required for document processing.</em>
+<br>
+<em>*Must come before any changes to default document style</em>
+
+<p>
+<strong>PRINTSTYLE</strong> tells <strong>mom</strong> whether to typeset
+a document, or to print it out &quot;typewritten, doubled-spaced&quot;.
+<p>
+<strong>THIS MACRO MAY NOT BE OMITTED.</strong>  In order for
+document processing to take place, <strong>mom</strong> requires
+a <strong>PRINTSTYLE</strong>.  If you don't give one,
+<strong>mom</strong> will warn you on stderr and print a single
+page with a nasty message.
+<p>
+Furthermore, <strong>PRINTSTYLE</strong> must come before any
+changes to <strong>mom</strong>'s default typestyle parameters.
+(This applies primarily to, but is by no means restricted to,
+<strong>PRINTSTYLE TYPESET</strong>.)  <strong>PRINTSTYLE</strong>
+sets up complete &quot;templates&quot; that include default
+papersize, margins, family, fonts, point sizes, and so on.
+Therefore, changes to any aspect of document style must come
+afterwards.
+<p>
+<strong>TYPESET</strong>, as the argument implies, typesets documents
+(by default in Times Roman; see
+<a href="#TYPESET_DEFAULTS">TYPESET defaults</a>).
+You have full access to all the
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+as well as the
+<a href="definitions.html#STYLE_CONTROL">style control macros</a>
+of document processing.
+<p>
+As mentioned above, <strong>PRINTSTYLE TYPESET</strong> must come
+before any changes to <strong>mom</strong>'s default typographic
+settings.  For example,
+
+<pre>
+	.PAPER A4
+	.LS 14
+	.PRINTSTYLE TYPESET
+</pre>
+
+will not changes <strong>mom</strong>'s default paper size to A4,
+nor her default document leading 14 points, whereas
+
+<pre>
+	.PRINTSTYLE TYPESET
+	.PAPER A4
+	.LS 14
+</pre>
+
+will.
+<p>
+With <strong>TYPEWRITE</strong>, <strong>mom</strong> does her best
+to reproduce the look and feel of typewritten, double-spaced copy (see
+<a href="#TYPEWRITE_DEFAULTS">TYPEWRITE defaults</a>).
+<a href="docelement.html#DOCELEMENT_CONTROL">Control macros</a>
+and
+<a href="typesetting.html#INTRO_MACROS_TYPESETTING">typesetting macros</a>
+that alter family, font, point size, and
+<a href="definitions.html#TERMS_LEADING">leading</a>
+are (mostly) ignored.  An important exception is
+<a href="headfootpage.html#HDRFTR_GLOBAL_SIZE">HEADER_SIZE</a>
+(and, by extension, <strong>FOOTER_SIZE</strong>), which allows
+you to reduce the point size of headers/footers should they become
+too crowded.  Most of <strong>mom</strong>'s inlines affecting the
+appearance of type are also ignored (<strong>\*S</strong> is an
+exception; there may be a few others).
+<p>
+In short, <strong>TYPEWRITE</strong> never produces effects other than
+those available on a typewriter.  Don't be fooled by how brainless
+this sounds; <strong>mom</strong> is remarkably sophisticated when
+it comes to conveying the typographic sense of a document within the
+confines of <strong>TYPEWRITE</strong>.
+<p>
+The primary uses of <strong>TYPEWRITE</strong> are: outputting hard
+copy drafts of your work (for editing), and producing documents
+for submission to publishers and agents who (wisely) insist on
+typewritten, double-spaced copy. To get a nicely typeset version of
+work that's in the submission phase of its life (say, to show fellow
+writers for critiquing), simply change <strong>TYPEWRITE</strong>
+to <strong>TYPESET</strong> and print out a copy.
+<p>
+If, for some reason, you would prefer the output of
+<strong>TYPEWRITE</strong> single-spaced, pass <strong>PRINTSTYLE
+TYPEWRITE</strong> the optional argument, <strong>SINGLESPACE</strong>.
+<p>
+If you absolutely must have a leading other than typewriter double-
+or singlespaced, the only way to get it is with the
+<a href="#DOC_LEAD">DOC_LEAD</a>
+macro, and then ONLY if <strong>DOC_LEAD</strong> is set
+<strong>before</strong> you invoke the <strong>START</strong>
+macro.
+<p>
+<a name="TYPESET_DEFAULTS"><h3><u>TYPESET defaults</u></h3></a>
+<pre>
+	Family            = Times Roman
+	Point size        = 12.5
+	Paragraph leading = 16 points, adjusted
+	Fill mode         = justified
+	Hyphenation       = enabled
+	                    max. lines = 2
+	                    margin = 36 points
+	                    interword adjustment = 1 point
+	Kerning           = enabled
+	Ligatures         = enabled
+	Smartquotes       = enabled
+	Word space        = groff default
+	Sentence space    = 0
+</pre>
+
+<a name="TYPEWRITE_DEFAULTS"><h3><u>TYPEWRITE defaults</u></h3></a>
+<pre>
+	Family            = Courier
+	Italics           = underlined
+	Point size        = 12
+	Paragraph leading = 24 points, adjusted; 12 points for SINGLESPACE
+	Fill mode         = left
+	Hyphenation       = disabled
+	Kerning           = disabled
+	Ligatures         = disabled
+	Smartquotes       = disabled
+	Word space        = groff default
+	Sentence space    = groff default
+	Columns           = ignored
+</pre>
+
+<a name="TYPEWRITE_CONTROL"><h3><u>PRINTSTYLE TYPEWRITE control macros</u></h3></a>
+<p>
+In <strong>PRINTSTYLE TYPEWRITE</strong>, <strong>mom</strong>,
+by default, underlines anything that looks like italics.  This
+includes the
+<a href="typesetting.html#SLANT_INLINE">\*[SLANT]</a>
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+for pseudo-italics.
+<p>
+If you'd prefer that <strong>mom</strong> were
+less bloody-minded about pretending to be a typewriter (i.e.
+you'd like italics and pseudo-italics to come out as italics),
+use the control macros <strong>.ITALIC_MEANS_ITALIC</strong> and
+<strong>.SLANT_MEANS_SLANT</strong>.  Neither requires an
+argument.
+<p>
+Although it's unlikely, should you wish to reverse the sense of
+these macros in the midst of a document,
+<strong>.UNDERLINE_ITALIC</strong> and
+<strong>.UNDERLINE_SLANT</strong> restore underlining of
+italics and pseudo-italics.
+<p>
+<a name="UNDERLINE_QUOTES"></a>
+Additionally, by default, <strong>mom</strong> underlines
+<a href="definitions.html#TERMS_QUOTES">quotes</a>
+(but not
+<a href="definitions.html#TERMS_BLOCKQUOTES">blockquotes</a>)
+in <strong>PRINTSTYLE TYPEWRITE</strong>.
+If you don't like this behaviour, turn it off with
+<p>
+<pre>
+	.UNDERLINE_QUOTES OFF
+</pre>
+
+To turn underlining of quotes back on, use
+<strong>UNDERLINE_QUOTES</strong> without an argument.
+<p>
+While most of the
+<a href="docelement.html#DOCELEMENT_CONTROL">control macros</a>
+have no effect on <strong>PRINTSTYLE TYPEWRITE</strong>, there
+is an important exception:
+<a href="headfootpage.html#HDRFTR_GLOBAL_SIZE">HEADER_SIZE</a>
+(and by extension, <strong>FOOTER_SIZE</strong>).  This is
+particularly useful for reducing the point size of
+headers/footers should they become crowded (quite likely to
+happen if the title of your document is long and your
+<a href="#COPYSTYLE">COPYSTYLE</a>
+is <strong>DRAFT</strong>).
+<p>
+
+<!---COPYSTYLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="COPYSTYLE"></a>
+<nobr>Macro: <strong>COPYSTYLE</strong> DRAFT | FINAL</nobr>
+
+<p>
+<strong>Mom</strong>'s default <strong>COPYSTYLE</strong> is
+<strong>FINAL</strong>, so you don't have to use this macro unless
+you want to.
+<p>
+<strong>COPYSTYLE DRAFT</strong> exhibits the following behaviour:
+<br>
+<ol>
+	<li>documents start on page 1, whether or not you
+		request a different starting page number with
+		<a href="headfootpage.html#PAGENUMBER">PAGENUMBER</a>
+	<li>page numbers are set in lower case roman numerals
+	<li>the draft number supplied by 
+		<a href="#DRAFT">DRAFT</a>
+		and a revision number, if supplied with 
+		<a href="#REVISION">REVISION</a>
+		(see
+		<a href="#REFERENCE_MACROS">reference macros</a>),
+		appear in the centre part of
+		<a href="definitions.html#TERMS_HEADER">page headers</a>
+		(or footers, depending on which you've selected) along with
+		any other information that normally appears there.
+</ol>
+<p>
+<strong>IMPORTANT:</strong> If you define your own centre part for page
+headers with
+<a href="headfootpage.html#HDRFTR_CENTER">HEADER_CENTER</a>,
+no draft and/or revision number will appear there.  If you want draft
+and revision information in this circumstance, use
+<a href="headfootpage.html#DRAFT_WITH_PAGENUMBER">DRAFT_WITH_PAGENUMBER</a>.
+<p>
+<strong>COPYSTYLE FINAL</strong> differs from <strong>DRAFT</strong> in that:
+<br>
+<ol>
+	<li>it respects the starting page number you give the document
+	<li>page numbers are set in normal (Arabic) digits
+	<li>no draft or revision number appears in the page headers
+</ol>
+<p>
+<strong>NOTE:</strong> The centre part of page headers can get crowded,
+especially with
+<a href="docprocessing.html#DOCTYPE">DOCTYPE CHAPTER</a>
+and
+<a href="docprocessing.html#DOCTYPE">DOCTYPE NAMED</a>,
+when the <strong>COPYSTYLE</strong> is <strong>DRAFT</strong>.
+Three mechanisms are available to overcome this problem.  One is to
+reduce the overall size of headers (with
+<a href="headfootpage.html#HDRFTR_GLOBAL_SIZE">HEADER_SIZE</a>).
+Another, which only works with
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
+is to reduce the size of the header's centre part only (with
+<a href="headfootpage.html#_SIZE">HEADER_CENTER_SIZE</a>).
+And finally, you can elect to have the draft/revision information
+attached to page numbers instead of having it appear in the centre
+of page headers (see
+<a href="headfootpage.html#DRAFT_WITH_PAGENUMBER">DRAFT_WITH_PAGENUMBER</a>).
+<p>
+<hr>
+
+<!========================================================================>
+
+<a name="STYLE_BEFORE_START"><h2><u>Changing type/style parameters prior to START</u></h2></a>
+<p>
+In the third (optional) part of setting up a document (see
+<a href="#DOCPROCESSING_TUT">Tutorial -- setting up a mom document</a>),
+you can use the
+<a href="typsetting.html">typesetting macros</a>
+to change <strong>mom</strong>'s document-wide defaults for margins,
+line length, family, base point size,
+<a href="definitions.html#TERMS_LEADING">leading</a>,
+and justification style.
+<p>
+Two additional style concerns have to be addressed here (i.e. in
+macros before
+<a href="#START">START</a>):
+changes to the
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>,
+and whether you want you want the document's nominal leading
+adjusted to fill pages fully to the bottom margin.
+<p>
+<ul>
+	<li><a href="#TYPE_BEFORE_START">Using typesetting macros prior to START</a>
+	<p>
+	<li><a href="#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+		-- adjusting linespacing for equal, accurate bottom margins
+	<li><a href="#DOCHEADER">DOCHEADER</a>
+		-- turning the docheader off
+	<ul>
+		<li><a href="#DOCHEADER_CONTROL">Docheader control</a>
+	</ul>
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<a name="TYPE_BEFORE_START"><h2><u>Using the typesetting macros prior to START</u></h2></a>
+<p>
+From time to time (or maybe frequently), you'll want the overall
+look of a document to differ from <strong>mom</strong>'s defaults.
+Perhaps you'd like her to use a different
+<a href="definitions.html#TERMS_FAMILY">family</a>,
+or a different overall
+<a href="definitions.html#TERMS_LEADING">leading</a>,
+or have different left and/or right page margins.
+<p>
+To accomplish such alterations, use the appropriate
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+(listed below) <strong>after</strong>
+<a href="#PRINTSTYLE">PRINTSTYLE</a>
+and <strong>before</strong>
+<a href="#START">START</a>.
+<p>
+More than one user has, quite understandably, not fully grasped
+the significance of the preceding sentence.  The part they've missed
+is &quot;<u>after <strong>PRINTSTYLE</strong></u>&quot;.
+<p>
+Changes to any aspect of the default look and/or formatting
+of a <strong>mom</strong> document must come after
+<strong>PRINTSTYLE</strong>.  For example, it might seem natural to
+set up page margins at the very top of a document with
+<p>
+<pre>
+	.L_MARGIN 1i
+	.R_MARGIN 1.5i
+</pre>
+
+However, when you invoke <strong>.PRINTSTYLE</strong>, those
+margins will be overridden.  The correct place to set margins--and
+all other changes to the look of a document--is <strong>after
+PRINTSTYLE</strong>.
+
+<p>
+<strong>NOTE:</strong> Don't use the macros listed in <a
+href="#DOC_PARAM_MACROS">Changing document-wide typesetting
+parameters after START</a> prior to <strong>START</strong>; they are
+exclusively for use afterwards.
+<p>
+When used before
+<strong>START</strong>,
+the
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+(below) have the following meanings:
+<p>
+<pre>
+	L_MARGIN       Left margin of pages, including headers/footers
+	R_MARGIN       Right margin of pages, including headers/footers
+	T_MARGIN       The point at which running text (i.e. not
+	               headers/footers or page numbers) starts on each page
+	B_MARGIN*      The point at which running text (i.e. not
+	(see note)     headers/footers or page numbers) ends on each page
+
+	PAGE           If you use PAGE, its final four arguments have the
+	               same meaning as L_ R_ T_ and B_MARGIN (above).
+
+	LL             The line length for everything on the page;
+	               equivalent to setting the right margin with R_MARGIN
+	FAMILY         The family of all type in the document
+	PT_SIZE        The point size of type in paragraphs; mom uses this
+	               to calculate automatic point size changes (e.g. for
+	               heads, footnotes, quotes, headers, etc)
+	LS/AUTOLEAD**  The leading used in paragraphs; all leading and spacing
+	               of running text is calculated from this
+
+	QUAD/JUSTIFY   Affects paragraphs only
+	LEFT           No effect***
+	RIGHT          No effect***
+	CENTER         No effect***
+
+------
+  *See <a href="headfootpage.html#FOOTER_MARGIN">FOOTER MARGIN AND BOTTOM MARGIN</a> for an important warning
+ **See <a href="#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+***See <a href="#LRC_NOTE">Special note</a>
+</pre>
+
+Other macros that deal with type style, or refinements thereof
+(<strong>KERN, LIGATURES, HY, WS, SS,</strong> etc.), behave normally.
+It is not recommended that you set up tabs or indents prior to
+<strong>START</strong>.
+<p>
+If you want to change any of the basic parameters (above)
+<em>after</em> <strong>START</strong> and have them affect a
+document globally (as if you'd entered them <em>before</em>
+<strong>START</strong>), you must use the macros listed in
+<a href="#DOC_PARAM_MACROS">Changing document-wide style parameters after START</a>.
+
+<a name="LRC_NOTE"></a>
+<h3><u>Special note on .LEFT, .RIGHT and .CENTER prior to START</u></h3>
+In a word, these three macros have no effect on document processing
+when invoked prior to <strong>START</strong>.
+<p>
+All <strong>mom</strong>'s document element tags
+(<strong>PP</strong>, <strong>HEAD</strong>,
+<strong>BLOCKQUOTE</strong>, <strong>FOOTNOTE</strong>, etc.)
+except
+<a href="docelement.html#QUOTE">QUOTE</a>
+set a
+<a href="definitions.html#TERMS_FILLED">fill mode</a>
+as soon as they're invoked.  If you wish to turn fill mode off for
+the duration of any tag (with
+<a href="typesetting.html#LRC">.LEFT, .RIGHT or .CENTER</a>)
+you must do so immediately after invoking the tag.  Furthermore,
+the change affects <em>only</em> the current invocation of the tag.
+Subsequent invocations of the same tag for which you want the same
+change require that you invoke <strong>LEFT</strong>,
+<strong>RIGHT</strong> or <strong>CENTER</strong> immediately after
+every invocation of the tag.
+<p>
+
+<!---COLOR--->
+<a name="COLOR"><h2><u>Colour</u></h2></a>
+<br>
+Although it doesn't really matter where you define/initialize
+colours for use in document processing (see
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+and
+<a href="color.html#XCOLOR">XCOLOR</a>
+in the section
+<a href="color.html#COLOR_INTRO">Coloured text</a>),
+I recommend doing so before you begin document processing with
+<a href="#START">START</a>.
+<p>
+The macro,
+<a href="color.html#COLOR">COLOR</a>,
+and the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>,
+<a href="color.html#COLOR_INLINE">\[&lt;colorname&gt;]</a>,
+can be used at any time during document processing for occasional
+colour effects.  However, consistent and reliable colourizing of
+various document elements (the docheader, heads, linebreaks,
+footnotes, pagenumbers, and so on) must be managed through the use
+of the
+<a href="docelement.html#DOCELEMENT_CONTROL">document element control macros</a>.
+<p>
+<strong>PLEASE NOTE:</strong> If you plan to have <strong>mom</strong>
+generate a
+<a href="docelement.html#TOC">table of contents</a>,
+do NOT embed colour
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>
+(<a href="color.html#COLOR_INLINE">\[&lt;colorname&gt;]</a>)
+in the
+<a href="definitions.html#TERMS_STRINGARGUMENT">string arguments</a>
+given to any of the
+<a href="docprocessing.html#REFERENCE_MACROS">reference macros</a>,
+nor in the string arguments given to
+<a href="docelement.html#HEAD">.HEAD</a>,
+<a href="docelement.html#SUBHEAD">.SUBHEAD</a>
+or
+<a href="docelement.html#PARAHEAD">.PARAHEAD</a>.
+Use, rather, the
+<a href="definitions.html#TERMS_CONTROLMACRO">control macros</a>
+<strong>mom</strong> provides to automatically colourize these
+elements.
+<br>
+
+<!---DOC_LEAD_ADJUST--->
+
+<hr width="66%" align="left">
+<a name="DOC_LEAD_ADJUST"><h3><u>Adjusting document leading to fill pages</u></h3></a>
+<br>
+<nobr>Macro: <strong>DOC_LEAD_ADJUST</strong> toggle</nobr>
+<br>
+<em>*Must come after LS or AUTOLEAD and before START</em>
+
+<p>
+<strong>DOC_LEAD_ADJUST</strong> is a special macro to adjust
+document
+<a href="definitions.html#TERMS_LEADING">leading</a>
+so that bottom margins fall precisely where you expect.
+<p>
+If you invoke <strong>DOC_LEAD_ADJUST</strong>, <strong>mom</strong>
+takes the number of lines that fit on the page at your requested
+leading, then incrementally adds
+<a href="definitions.html#TERMS_UNITS">machine units</a>
+to the leading until the maximum number of lines at the new leading
+matches the bottom margin.  In most instances, the difference
+between the requested lead and the adjusted lead is
+unnoticeable, and since in almost all cases adjusted leading is
+what you want, it's <strong>mom</strong>'s default.
+<p>
+Should you NOT want adjusted document leading, you MUST turn it
+off manually, like this:
+<p>
+<pre>
+	.DOC_LEAD_ADJUST OFF
+</pre>
+  If you set the document leading prior to <strong>START</strong>
+with
+<a href="typesetting.html#LS">LS</a>
+or
+<a href="typesetting.html#AUTOLEAD">AUTOLEAD</a>,
+<strong>DOC_LEAD_ADJUST OFF</strong> must come afterwards, like
+this:
+<p>
+<pre>
+	.LS 12
+	.DOC_LEAD_ADJUST OFF
+</pre>
+
+In this scenario, the maximum number of lines that fit on a page at
+a
+<a href="definitions.html#TERMS_LEADING">leading</a>
+of 12
+<a href="definitions.html#TERMS_PICASPOINTS">points</a>
+determine where <strong>mom</strong> ends
+a page.  The effect will be that last lines usually fall (slightly)
+short of the &quot;official&quot; bottom margin.
+<p>
+In
+<a href="docprocessing.html#PRINTSTYLE">PRINTSTYLE</a>
+<strong>TYPEWRITE</strong>, the leading is always adjusted and
+can't be turned off.
+<p>
+<strong>NOTE:</strong> <strong>DOC_LEAD_ADJUST</strong>, if
+used, must be invoked after
+<a href="typesetting.html#LEADING">LS</a>
+or
+<a href="typesetting.html#AUTOLEAD">AUTOLEAD</a>
+and before
+<a href="#START">START</a>
+<p>
+<strong>ADDITIONAL NOTE:</strong> Even if you disable
+<strong>DOC_LEAD_ADJUST</strong>, <strong>mom</strong> will still
+adjust the leading of endnotes pages and toc pages.  See
+<a href="docelement.html#ENDNOTE_LEAD">ENDNOTE_LEAD</a>
+and
+<a href="docelement.html#TOC_LEAD">TOC_LEAD</a>
+for an explanation of how to disable this default behaviour.
+<p>
+
+<!---DOCHEADER--->
+
+<hr width="66%" align="left">
+<a name="DOCHEADER"><h3><u>Managing the docheader</u></h3></a>
+<br>
+<nobr>Macro: <strong>DOCHEADER</strong> &lt;toggle&gt; [ distance to advance from top of page ]</nobr>
+<br>
+<em>*Must come before START; distance requires a <a href="#TERMS_UNITOFMEASURE">unit of measure</a></em>
+
+<p>
+By default, <strong>mom</strong> prints a
+<a href="definitions.html#TERMS_DOCHEADER">docheader</a>
+on the first page of any document (see
+<a href="#DOCHEADER_DESC">below</a>
+for a description of the docheader).  If you don't want a docheader,
+turn it off with
+<p>
+<pre>
+	.DOCHEADER OFF
+</pre> 
+
+<strong>DOCHEADER</strong> is a toggle macro, so the argument doesn't
+have to be <strong>OFF</strong>; it can be anything you like.
+<p>
+If you turn the docheader off, <strong>mom</strong>, by default, starts
+the running text of your document on the same top
+<a href="definitions.html#TERMS_BASELINE">baseline</a>
+as all subsequent pages.  If you'd like her to start at a different
+vertical position, give her the distance you'd like as a second
+argument.
+<p>
+<pre>
+	.DOCHEADER OFF 1.5i
+</pre>
+
+This starts the document 1.5 inches from the top of the page PLUS
+whatever spacing adjustment <strong>mom</strong> has to make in
+order to ensure that the first baseline of running text falls on a
+&quot;legal&quot; baseline (i.e. one that ensures that the bottom
+margin of the first page falls where it should).  The distance is
+measured from the top edge of the paper to the
+<a href="definitions.html#TERMS_BASELINE">baseline</a>
+of the first line of type.
+<p>
+<strong>TIP:</strong> Since no document processing happens until
+you invoke
+<a href="#START">START</a>
+-- including anything to do with docheaders -- you can typeset
+your own docheader prior to <strong>START</strong> (if you don't
+like the way <strong>mom</strong> does things) and use
+<strong>DOCHEADER OFF</strong> with its optional distance argument
+to ensure that the body of your document starts where you want.
+You can even insert a PostScript file (with <strong>.PSPIC</strong>;
+see the <strong>groff_tmac</strong> man page for usage).
+<p>
+<a name="DOCHEADER_CONTROL"><h3><u>How to change the look of docheaders: docheader control macros</u></h3></a>
+
+<p>
+With
+<a href="#PRINTSTYLE">PRINTSTYLE TYPEWRITE</a>,
+the look of docheaders is carved in stone.
+In
+<a href="#PRINTSTYLE">PRINTSTYLE TYPESET</a>,
+however, you can make a lot of changes.  Macros that alter docheaders
+MUST come before
+<a href="#START">START</a>.
+<a name="DOCHEADER_DESC"></a>
+<p>
+A typeset docheader has the following characteristics.  Note that
+title, subtitle, author, and document type are what you supply
+with the
+<a href="#REFERENCE_MACROS">reference macros</a>.
+Any you leave out will not appear; <strong>mom</strong> will
+compensate:
+<p>
+<pre>
+	    TITLE         bold, 3.5 points larger than running text (not necessarily caps)
+	   Subtitle       medium, same size as running text
+	      by          medium italic, same size as running text
+	   Author(s)      medium italic, same size as running text
+
+	(Document type)   bold italic, underscored, 3 points larger than running text
+</pre>
+
+If the
+<a href="#DOCTYPE">DOCTYPE</a>
+is CHAPTER,
+<pre>
+	   Chapter #       bold, 4 points larger than running text
+	 Chapter Title     bold italic, 4 points larger than running text
+</pre>
+
+<p>
+The
+<a href="definitions.html#TERMS_FAMILY">family</a>
+is the prevailing family of the whole document.
+<p>
+<strong>NOTE:</strong> If your <strong>DOCTYPE</strong> is
+<strong>CHAPTER</strong> and you have both &quot;Chapter #&quot;
+and a &quot;Chapter Title&quot; (as above), you may find the
+<a href="definitions.html#TERMS_LEADING">leading</a>
+a bit cramped (owing to <strong>mom</strong>'s default docheader
+leading).  If this is the case, you can adjust the leading either
+with
+<a href="#ADJUST_LEADING">DOCHEADER_LEAD</a>
+or by including the
+<a name="definitions.html#TERMS_INLINES">inline escape</a>,
+<a href="inlines.html#DOWN">\*[DOWN]</a>,
+in the argument you pass to
+<a href="#CHAPTER_TITLE">CHAPTER_TITLE</a>, like this:
+<p>
+<pre>
+	.CHAPTER_TITLE "\*[DOWN 2p]Why Not Patent Calculus?"
+</pre>
+
+
+<a name="DOCHEADER_CONTROL_INDEX"><h3><u>The docheader macros to:</u></h3></a>
+<ol>
+	<li><a href="#CHANGE_START">Change the starting position of the docheader</a>
+	<li><a href="#DOCHEADER_FAMILY">Change the family of the entire docheader</a>
+	<li><a href="#ADJUST_LEADING">Adjust the docheader leading</a>
+	<li><a href="#CHANGE_FAMILY">Change the family of individual docheader elements</a>
+	<li><a href="#CHANGE_FONT">Change the font of docheader elements</a>
+	<li><a href="#CHANGE_COLOR">Change the colour of the docheader</a>
+	<li><a href="#CHANGE_SIZE">Adjust the size of docheader elements</a>
+	<li><a href="#CHANGE_ATTRIBUTE">Change the attribution string (&quot;by&quot;)</a>
+</ol>
+<p>
+<a name="CHANGE_START"><h3><u>1. Change the starting position</u></h3></a>
+<p>
+By default, a docheader starts on the same
+<a href="definitions.html#TERMS_BASELINE">baseline</a>
+as
+<a href="definitions.html#TERMS_RUNNING">running text</a>.
+If you'd like it to start somewhere else, use the macro
+<kbd>.DOCHEADER_ADVANCE</kbd> and give it the distance you want
+(measured from the top edge of the paper to the first baseline
+of the docheader), like this:
+<p>
+<pre>
+	.DOCHEADER_ADVANCE 4P
+</pre>
+
+A
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+is required.
+<p>
+<strong>NOTE:</strong> If
+<a href="headfootpage.html#HEADERS">HEADERS</a>
+are <strong>OFF</strong>, <strong>mom</strong>'s normal top
+margin for
+<a href="definitions.html#TERMS_RUNNING">running text</a>
+(7.5
+<a href="definitions.html#TERMS_PICASPOINTS">picas</a>)
+changes to 6 picas (visually approx. 1 inch).  Since the
+first baseline of the docheader falls on the same baseline
+as the first line of running text (on pages after page 1),
+you might find the docheaders a bit high when headers are off.
+Use
+<a href="#CHANGE_START">DOCHEADER_ADVANCE</a>
+to place them where you want.
+<p>
+
+<a name="DOCHEADER_FAMILY"><h3><u>2. Change the family of the entire docheader</u></h3></a>
+<p>
+By default, <strong>mom</strong> sets the docheader in the same
+family used for 
+<a href="definitions.html#TERMS_RUNNING">running text</a>.
+If you'd prefer to have your docheaders set in a different family,
+invoke <strong>DOCHEADER_FAMILY</strong> with the family you want.
+The argument for <strong>DOCHEADER_FAMILY</strong> is the same as
+for
+<a href="typesetting.html#FAMILY">FAMILY</a>.
+<p>
+For example, <strong>mom</strong>'s default family for running text
+is Times Roman.  If you'd like to keep that default, but have the
+docheaders set entirely in Helvetica,
+<p>
+<pre>
+	.DOCHEADER_FAMILY H
+</pre>
+
+is how you'd do it.
+<p>
+Please note that if you use <strong>DOCHEADER_FAMILY</strong>,
+you can still alter the family of individual parts of the docheader
+with the macros listed
+<a href="#CHANGE_FAMILY">here</a>.
+
+<a name="ADJUST_LEADING"><h3><u>3. Adjust the leading</u></h3></a>
+<p>
+The
+<a href="definitions.html#TERMS_LEADING">leading</a>
+of docheaders is the same as running text (except when
+<a href="#DOCTYPE">DOCTYPE</a>
+is <strong>CHAPTER</strong> <em>and</em> both a chapter number and a
+chapter title have been supplied, in which case the default is 4 points
+more than running text.)
+<p>
+If you'd like your docheaders to have a different leading, say, 2
+points more than the lead of running text, use:
+<p>
+<pre>
+	.DOCHEADER_LEAD +2
+</pre>
+
+Since the leading of docheaders is calculated from the lead of running
+text, a + or - sign is required before the argument (how much to add
+or subtract from the lead of running text).  No 
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+is required; points is assumed.
+<p>
+
+<a name="CHANGE_FAMILY"><h3><u>4. Change the family of docheader elements</u></h3></a>
+<p>
+The following macros let you change the
+<a href="definitions.html#TERMS_FAMILY">family</a>
+of each docheader element separately:
+<p>
+<ul>
+<li><strong>TITLE_FAMILY</strong> <nobr>&lt;family&gt;</nobr>
+<li><strong>CHAPTER_TITLE_FAMILY</strong> <nobr>&lt;family&gt;</nobr>
+<li><strong>SUBTITLE_FAMILY</strong> <nobr>&lt;family&gt;</nobr>
+<li><strong>AUTHOR_FAMILY</strong> <nobr>&lt;family&gt;</nobr>
+<li><strong>DOCTYPE_FAMILY</strong> <nobr>&lt;family&gt; (if</nobr>
+<a href="#DOCTYPE">DOCTYPE</a> is NAMED)
+</ul>
+<p>
+Simply pass the appropriate macro the family you want, just as you
+would with
+<a href="typesetting.html#FAMILY">FAMILY</a>.
+<p>
+
+<a name="CHANGE_FONT"><h3><u>5. Change the font of docheader elements</u></h3></a>
+<p>
+The following macros let you change the
+<a href="definitions.html#TERMS_FONT">font</a>
+of each docheader element separately:
+<p>
+<ul>
+<li><strong>TITLE_FONT</strong> <nobr>R | B | I | BI</nobr>
+<li><strong>CHAPTER_TITLE_FONT</strong> <nobr>R | B | I | BI</nobr>
+<li><strong>SUBTITLE_FONT</strong> <nobr>R | B | I | BI</nobr>
+<li><strong>AUTHOR_FONT</strong> <nobr>R | B | I | BI</nobr>
+<li><strong>DOCTYPE_FONT</strong> <nobr>R | B | I | BI (if</nobr>
+<a href="#DOCTYPE">DOCTYPE</a> is NAMED)
+</ul>
+<p>
+Simply pass the appropriate macro the font you want.  <strong>R,
+B, I</strong> and <strong>BI</strong> have the same meaning as
+they do for
+<a href="typesetting.html#FONT">FT</a>.
+<p>
+
+<a name="CHANGE_COLOR"><h3><u>6. Change the colour of the docheader elements individually</u></h3></a>
+<p>
+The following macros let you change the color of each docheader
+element separately.  You must pre-define (or
+&quot;initialize&quot;) the color with
+<a href="color.html#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="color.html#XCOLOR">XCOLOR</a>.
+<p>
+<ul>
+	<li><strong>TITLE_COLOR</strong> <nobr>&lt;colorname&gt;</nobr>
+	<li><strong>CHAPTER_TITLE_COLOR</strong> <nobr>&lt;colorname&gt;</nobr>
+	<ul>
+        <li><strong>Note: CHAPTER_TITLE_COLOR</strong> is needed
+            only if you enter both a <strong>CHAPTER</strong>
+            reference macro AND a <strong>CHAPTER_TITLE</strong>
+            macro.  Otherwise, the macro,
+            <strong>TITLE_COLOR</strong> takes care of colorizing
+            the chapter header.
+	</ul>
+	<li><strong>SUBTITLE_COLOR</strong> <nobr>&lt;colorname&gt;</nobr>
+	<li><strong>ATTRIBUTE_COLOR</strong> <nobr>&lt;colorname&gt;</nobr>
+		(the &quot;by&quot; string that precedes the author[s] name[s])
+	<li><strong>AUTHOR_COLOR</strong> <nobr>&lt;colorname&gt;</nobr>
+	<li><strong>DOCTYPE_COLOR</strong>  <nobr>&lt;colorname&gt; (if</nobr>
+		<a href="#DOCTYPE">DOCTYPE</a> is NAMED)
+</ul>
+<p>
+It is not recommended that you embed colour (with the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>,
+<a href="color.html#COLOR_INLINE">\*[&lt;colorname&gt;]</a>)
+in the strings passed to
+<strong>TITLE</strong>, <strong>CHAPTER_TITLE</strong>,
+<strong>SUBTITLE</strong>, <strong>AUTHOR</strong> or the name you
+give <strong>DOCTYPE NAMED</strong>.  The strings passed to these
+macros are used to generate page
+<a href="definitions.html#TERMS_HEADER">headers</a>
+and
+<a href="definitions.html#TERMS_FOOTER">footers</a>.
+An embedded colour will cause the string to be colourized any time
+it appears in headers or footers.  (If you want headers or footers
+colourized, or parts thereof, use the header/footer control macros.)
+<p>
+<a name="DOCHEADER_COLOR"></a>
+If you want to colourize the entire docheader, use the macro
+<p>
+<ul>
+<li><strong>DOCHEADER_COLOR</strong> <nobr>&lt;color name&gt;.</nobr>
+</ul>
+
+<a name="CHANGE_SIZE"><h3><u>7. Adjust the size of docheader elements</u></h3></a>
+<p>
+The following macros let you adjust the point size of each docheader
+element separately.
+<p>
+<strong>Mom</strong> calculates the point size
+of docheader elements from the point size of paragraphs in running
+text, so you must prepend a + or - sign to the argument.  Points is
+assumed as the
+<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>,
+so there's no need to append a unit to the argument.  Fractional point
+sizes are allowed.
+<p>
+<ul>
+<li><strong>TITLE_SIZE</strong> <nobr>&lt;+/-points&gt;</nobr>
+<br>
+default = +3.5 (+4 if docheader title is &quot;Chapter #&quot;)
+<li><strong>CHAPTER_TITLE_SIZE</strong> <nobr>&lt;+/-points&gt;</nobr>
+<br>
+default = +4
+<li><strong>SUBTITLE_SIZE</strong> <nobr>&lt;+/-points&gt;</nobr>
+<br>
+default = +0
+<li><strong>AUTHOR_SIZE</strong> <nobr>&lt;+/-points&gt;</nobr>
+<br>
+default = +0
+<li><strong>DOCTYPE_SIZE</strong> <nobr>&lt;+/-points&gt; (if</nobr>
+<a href="#DOCTYPE">DOCTYPE</a> is NAMED)
+<br>
+default = +3
+</ul>
+<p>
+Simply pass the appropriate macro the size adjustment you want.
+<p>
+
+<a name="CHANGE_ATTRIBUTE"><h3><u>8. Change the attribution string (&quot;by&quot;)</u></h3></a>
+<p>
+If you're not writing in English, you can change what
+<strong>mom</strong> prints where &quot;by&quot; appears in
+docheaders.  For example,
+<p>
+<pre>
+	.ATTRIBUTE_STRING "par"
+</pre>
+
+changes &quot;by&quot; to &quot;par&quot;.  If you
+don't want an attribution string at all, simply pass
+<strong>ATTRIBUTE_STRING</strong> an empty argument, like this:
+<p>
+<pre>
+	.ATTRIBUTE_STRING ""
+</pre>
+
+<strong>Mom</strong> will deposit a blank line where the
+attribution string normally appears.
+<p>
+<strong>NOTE:</strong> The type specs for the attribution line
+in docheaders are the same as for the author line.  Although
+it's highly unlikely you'll want the attribution line in a
+different family, font, or point size, you can do so by using
+<a href="definitions.html#TERMS_INLINES">inline escapes</a>
+in the argument to <strong>ATTRIBUTE_STRING</strong>.  For
+example,
+<p>
+<pre>
+	.ATTRIBUTE_STRING "\f[HBI]\*[SIZE -2p] by \*[SIZE +2p]\*[PREV]"
+</pre>
+
+would set &quot;by&quot; in Helvetica bold italic, 2 points
+smaller than normal.
+<p>
+<hr>
+
+<!---COLUMNS_INTRO--->
+
+<a name="COLUMNS_INTRO"><h2><u>Setting documents in columns</u></h2></a>
+
+<p>
+Setting documents in columns is easy with <strong>mom</strong>.  (Of
+course she'd say that, but it's true!)  All you have to do is is
+say how many columns you want and how much space you want
+between them (the
+<a href="definitions.html#TERMS_GUTTER">gutters</a>).
+That's it. <strong>Mom</strong> takes care of everything else, from
+soup to nuts.
+<p>
+<strong>SOME WORDS OF ADVICE:</strong>
+<p>
+If you want your type to achieve a pleasing
+<a href="definitions.html#TERMS_JUST">justification</a>
+or
+<a href="definitions.html#TERMS_RAG">rag</a>
+in columns, reduce the point size of type (and probably the
+<a href="definitions.html#TERMS_LEADING">leading</a>
+as well).  <strong>Mom</strong>'s default document point
+size is 12.5, which works well across her default 39
+<a href="definitions.html#TERMS_PICASPOINTS">pica</a>
+full page line length, but with even just two columns on a page,
+the default point size is awkward to work with.
+<p>
+Furthermore, you'll absolutely need to reduce the indents for
+<a href="docelement.html#EPIGRAPH_CONTROL">epigraphs</a>,
+<a href="docelement.html#QUOTE_GENERAL">quotes</a>,
+and
+<a href="docelement.html#BLOCKQUOTE_GENERAL">blockquotes</a>
+(and probably the
+<a href="docelement.html#PARA_INDENT">paragraph first-line indent</a>
+as well).
+<p>
+
+<!---COLUMNS--->
+
+<hr width="66%" align="left">
+<a name="COLUMNS"><h3><u>COLUMNS</u></h3></a>
+<br>
+<nobr>Macro: <strong>COLUMNS</strong> &lt;number of columns&gt; &lt;width of gutters&gt;</nobr>
+<br>
+<em>*Should be the last macro before START
+<br>
+The second argument requires a <a href="#TERMS_UNITOFMEASURE">unit of measure</a></em>
+
+<p>
+<strong>COLUMNS</strong> takes two arguments: the number of
+columns you want on document pages, and the width of the
+<a href="definitions.html#TERMS_GUTTER">gutter</a>
+between them.  For example, to set up a page with two columns
+separated by an 18 point gutter, you'd do
+<p>
+<pre>
+	.COLUMNS 2 18p
+</pre>
+
+Nothing to it, really.  However, as noted above,
+<strong>COLUMNS</strong> should always be the last document
+setup macro prior to
+<a href="#START">START</a>.
+<p>
+<strong>NOTE:</strong> <strong>Mom</strong> ignores columns completely
+when the
+<a href="#PRINTSTYLE">PRINTSTYLE</a>
+is <strong>TYPEWRITE</strong>.	The notion of typewriter-style
+output in columns is just too ghastly for her to bear.
+
+<h3><u>Using tabs when COLUMNS are enabled</u></h3>
+<strong>Mom</strong>'s tabs
+(both
+<a href="typesetting.html#TYPESETTING_TABS">typesetting tabs</a>
+and
+<a href="typesetting.html#STRING_TABS">string tabs</a>)
+behave as you'd expect during document processing, even when
+<strong>COLUMNS</strong> are enabled.  Tab structures set up
+during document processing carry over from page to page and column
+to column.
+
+<a name="BREAKING_COLUMNS"></a>
+<h3><u>Breaking columns manually</u></h3>
+<strong>Mom</strong> takes care of breaking columns when they reach
+the bottom margin of a page.  However, there may be times you want to
+break the columns yourself.  There are two macros for breaking columns
+manually: <strong>COL_NEXT</strong> and <strong>COL_BREAK</strong>.
+
+<a name="COL_NEXT"></a>
+<p>
+<kbd>.COL_NEXT</kbd> breaks the line just before it,
+<a href="definitions.html#TERMS_QUAD">quads</a>
+it left (assuming the type is justified or quad left), and moves over
+to the top of the next column.  If the column happens to be the last
+(rightmost) one on the page, <strong>mom</strong> starts a new page
+at the &quot;column 1&quot; position.  This is the macro to use when
+you want to start a new column after the end of a paragraph.
+
+<a name="COL_BREAK"></a>
+<p>
+<kbd>.COL_BREAK</kbd> is almost the same, except that
+instead of breaking and quadding the line preceding it,
+she breaks and spreads it (see
+<a href="typesetting.html#SPREAD">SPREAD</a>).
+Use this macro whenever you need to start a new column in the middle
+of a paragraph.
+<p>
+If you need <strong>COL_BREAK</strong> in the middle of a blockquote
+or (god help us) an epigraph, you must do the following in order for
+<strong>COL_BREAK</strong> to work:
+<p>
+<pre>
+	.SPREAD
+	\!.COL_BREAK
+</pre>
+<hr>
+
+<!========================================================================>
+
+<a name="START_MACRO">
+<h2><u>Start document processing</u></h2>
+</a>
+
+In order to use <strong>mom</strong>'s document element macros
+(tags), you have to tell her you want them.  The macro to do this
+is <strong>START</strong>.
+<p>
+<strong>START</strong> collects the information you gave
+<strong>mom</strong> in the setup section at the top of your file (see
+<a href="#DOCPROCESSING_TUT">Tutorial -- setting up a mom document</a>),
+merges it with her defaults, sets up headers and page numbering,
+and prepares <strong>mom</strong> to process your document using
+the document element tags.  No document processing takes place until
+you invoke <strong>START</strong>.
+<p>
+
+<!---START--->
+
+<hr width="66%" align="left">
+<p>
+<a name="START"></a>
+Macro: <strong>START</strong>
+<br>
+<em>*Required for document processing.</em>
+
+<p>
+<strong>START</strong> takes no arguments.  It simply instructs
+<strong>mom</strong> to begin document processing.  If you don't
+want document processing (i.e. you only want the
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>),
+don't use <strong>START</strong>.
+<p>
+At a barest minimum before <strong>START</strong>, you must enter a
+<a href="#PRINTSTYLE">PRINTSTYLE</a>
+command.
+<p>
+<hr>
+
+<!========================================================================>
+
+<a name="DOC_PARAM_MACROS">
+<h2><u>Changing document-wide style parameters after START</u></h2>
+</a>
+
+In the normal course of things, you change the basic type
+parameters of a document <em>before</em>
+<a href="#START">START</a>,
+using
+<a href="typesetting.html#MACROS_TYPESETTING">typesetting macros</a>
+(<strong>L_MARGIN, FAMILY, PT_SIZE, LS,</strong> etc).  After
+<strong>START</strong>, you MUST use the following macros to make
+global changes to the basic type parameters of a document.
+<p>
+
+<a name="INDEX_DOC_PARAM">
+	<h3><u>Macro list</u></h3>
+</a>
+<ul>
+	<li><a href="#DOC_LEFT_MARGIN">DOC_LEFT_MARGIN</a>
+	<li><a href="#DOC_RIGHT_MARGIN">DOC_RIGHT_MARGIN</a>
+	<li><a href="#DOC_LINE_LENGTH">DOC_LINE_LENGTH</a>
+	<li><a href="#DOC_FAMILY">DOC_FAMILY</a>
+	<li><a href="#DOC_PT_SIZE">DOC_PT_SIZE</a>
+	<li><a href="#DOC_LEAD">DOC_LEAD</a>
+	<li><a href="#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+	<li><a href="#DOC_QUAD">DOC_QUAD</a>
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_LEFT_MARGIN">
+	<nobr>Macro: <strong>DOC_LEFT_MARGIN</strong> &lt;left margin&gt;</nobr>
+</a>
+<br>
+<em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#L_MARGIN">L_MARGIN</a>
+	<li>changes all left margins to the new value
+	<li>the line length remains the same (i.e. the right margin
+		shifts when you change the left margin)
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_RIGHT_MARGIN">
+	<nobr>Macro: <strong>DOC_RIGHT_MARGIN</strong> &lt;right margin&gt;</nobr>
+</a>
+<br>
+<em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#R_MARGIN">R_MARGIN</a>
+    <li>changes all right margins, including
+        <a href="definitions.html#TERMS_DOCHEADER">docheaders</a>,
+        headers (or footers) and page numbering to the new value;
+        for changing the right margin of
+        <a href="definitions.html#TERMS_RUNNING">running text</a>
+        only, use
+        <a href="typesetting.html#R_MARGIN">R_MARGIN</a>
+        (see
+        <a href="typemacdoc.html#TOP">Using typesetting macros during
+        document processing</a>,
+        entry for <strong>R_MARGIN</strong>)
+	<li>all mom commands that include a right indent calculate
+		the indent from the new value
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_LINE_LENGTH">
+	<nobr>Macro: <strong>DOC_LINE_LENGTH</strong> &lt;length&gt;</nobr>
+</a>
+<br>
+<em>*Requires a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a></em>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#LINELENGTH">LL</a>
+    <li>exactly equivalent to changing the right margin with
+        DOC_RIGHT_MARGIN (see
+        <a href="#DOC_RIGHT_MARGIN">above</a>);
+        for changing the line length of
+        <a href="definitions.html#TERMS_RUNNING">running text</a>
+        only, use
+        <a href="typesetting.html#LINELENGTH">LL</a>
+        (see
+        <a href="typemacdoc.html#TOP">Using typesetting macros during
+        document processing</a>,
+        entry for <strong>LL</strong>)
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_FAMILY">
+	<nobr>Macro: <strong>DOC_FAMILY</strong> &lt;family&gt;</nobr>
+</a>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#FAMILY">FAMILY</a>
+	<li>globally changes the type family
+	<li>any page elements (e.g.
+		<a href="definitions.html#TERMS_HEADER">headers</a>,
+        page numbers, footnotes) whose families you wish to remain
+        at their old values must be reset with the appropriate
+        <a href="docelement.html#DOCELEMENT_CONTROL">control macros</a>
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_PT_SIZE">
+	<nobr>Macro: <strong>DOC_PT_SIZE</strong> &lt;point size&gt;</nobr>
+</a>
+<br>
+<em>*Does not require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>; points is assumed</em>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#PS">PT_SIZE</a>,
+		and refers to the point size of type in paragraphs
+	<li>all automatic point size changes (heads, quotes,
+		footnotes, headers, etc.) are affected by the new size;
+		anything you do not want affected must be reset to
+		its former value (see the Control Macros section of
+		the pertinent document element for instructions on
+		how to do this)
+</ul>
+<br>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_LEAD">
+	<nobr>Macro: <strong>DOC_LEAD</strong> &lt;points&gt; [ ADJUST ]</nobr>
+</a>
+<br>
+<em>*Does not require a <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>; points is assumed</em>
+<p>
+<ul>
+	<li>the argument is the same as for
+		<a href="typesetting.html#LS">LS</a>,
+		and refers to the
+		<a href="definitions.html#TERMS_LEAD">leading</a>
+		of paragraphs
+	<li>because paragraphs will have a new leading, the leading and
+		spacing of most running text is influenced by the new value
+	<li>epigraphs and footnotes remain unaffected;
+		if you wish to change their leading, use
+		<a href="docelement.html#EPIGRAPH_AUTOLEAD">EPIGRAPH_AUTOLEAD</a>
+		and
+		<a href="docelement.html#FOOTNOTE_AUTOLEAD">FOOTNOTE_AUTOLEAD</a>.
+	<li>the optional argument <strong>ADJUST</strong> performs
+		leading adjustment as explained in
+		<a href="#DOC_LEAD_ADJUST">DOC_LEAD_ADJUST</a>
+</ul>
+<p>
+<strong>IMPORTANT:</strong> Do not use <strong>DOC_LEAD</strong>
+in the middle of a page!  It should always and only be invoked
+immediately prior to a new page, like this:
+<p>
+<pre>
+	.DOC_LEAD &lt;new value&gt;
+	.NEWPAGE
+</pre>
+
+<strong>NOTE:</strong> Even if you don't pass
+<strong>DOC_LEAD</strong> the optional argument
+<strong>ADJUST</strong>, <strong>mom</strong> will still adjust the
+leading of endnotes pages and toc pages.  See
+<a href="docelement.html#ENDNOTE_LEAD">ENDNOTE_LEAD</a>
+and
+<a href="docelement.html#TOC_LEAD">TOC_LEAD</a>
+for an explanation of how to disable this default behaviour.
+<p>
+
+<hr width="66%" align="left">
+<p>
+<a name="DOC_QUAD">
+	<nobr>Macro: <strong>DOC_QUAD</strong> L | R | C | J</nobr>
+</a>
+<p>
+<ul>
+	<li>the arguments are the same as for
+		<a href="typesetting.html#QUAD">QUAD</a>
+	<li>affects paragraphs, epigraphs and footnotes; does not
+		affect blockquotes
+</ul>
+<br>
+
+<hr>
+<a href="typemacdoc.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="color.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="#TOP">Top</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+</body>
+</html>

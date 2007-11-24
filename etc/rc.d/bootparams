@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# $NetBSD: bootparams,v 1.6 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: bootparams
+# REQUIRE: rpcbind DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="bootparamd"
+rcvar=`set_rcvar`
+required_files="/etc/bootparams"
+command="/usr/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

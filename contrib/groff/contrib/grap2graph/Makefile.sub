@@ -1,0 +1,19 @@
+MAN1=grap2graph.n
+CLEANADD=grap2graph
+
+all: grap2graph
+
+grap2graph: grap2graph.sh
+	rm -f $@; \
+	sed -e "s|@g@|$(g)|g" \
+	    -e "s|@VERSION@|$(version)$(revision)|" \
+	    -e $(SH_SCRIPT_SED_CMD) $(srcdir)/grap2graph.sh >$@; \
+	chmod +x $@
+
+install_data: grap2graph
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
+	-rm -f $(bindir)/grap2graph
+	$(INSTALL_SCRIPT) grap2graph $(bindir)/grap2graph
+
+uninstall_sub:
+	-rm -f $(bindir)/grap2graph

@@ -1,0 +1,199 @@
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.13
+	$FreeBSD$
+
+	This section contains the contents of the old UPGRADE.TXT
+	file.
+-->
+<sect1 id="upgrading">
+  <title>升级 &os;</title>
+
+  <para>这些说明描述了从一个旧版本的 &os; 执行二进制升级的过程。</para>
+
+  <warning>
+    <para>尽管 &os; 升级过程尽力防止意外的数据丢失，
+    但是仍有很大可能这次安装会
+    <emphasis>擦除您的整个硬盘</emphasis>！
+    请不要接受最后的确认请求，除非您已经备份了所有重要的数据文件。</para>
+  </warning>
+
+  <important>
+    <para>这些说明假定您正在使用您打算升级的 &os; 版本提供的
+    &man.sysinstall.8; 版本。使用一个不匹配的 &man.sysinstall.8;
+    版本几乎总是会造成问题并且已知会让系统处于不可用状态。
+    在这方面最容易犯的错误就是使用现存的安装的旧的
+    &man.sysinstall.8; 副本来升级 &os; 到新的版本。
+    这是 <emphasis>绝不</emphasis> 推荐的。</para>
+  </important>
+
+  <warning>
+    <para>现在还不支持从 &os; 4-STABLE 到 &os; &release.current;
+      的二进制升级。&os; 4-STABLE 中存在的一些文件会引起混乱，
+      但是却不能被二进制升级移除。一个著名的例子就是旧的
+      <filename>/usr/include/g++</filename> 目录会引起 C++
+      程序编译错误 (也可能没有影响)。</para>
+    
+    <para>这些升级说明提供给那些从近来的
+      &os; &release.branch; snapshot 升级的用户。</para>
+  </warning>
+
+  <sect2>
+    <title>介绍</title>
+
+    <para>升级过程用相应的最新的
+    &os; release 取代用户选定的发行版本。
+    这个过程保护标准的系统配置文件数据，
+    还有用户数据、已安装的包和其它软件。</para>
+
+    <para>推荐正在考虑升级的管理员在着手升级之前完整阅读这一章节。
+    不这样做的后果很可能就是升级失败或者数据丢失。</para>
+
+    <sect3>
+      <title>升级概览</title>
+
+      <para>发行版本的升级就是执行解压缩新版本组件覆盖当前版本。
+      属于旧的发行版本的文件不会被删除。</para>
+
+      <para>系统配置文件通过保留并恢复下列文件的当前版本来实现保护：</para>
+
+      <para><filename>Xaccel.ini</filename>,
+<filename>XF86Config</filename>,
+<filename>adduser.conf</filename>,
+<filename>aliases</filename>,
+<filename>aliases.db</filename>,
+<filename>amd.map</filename>,
+<filename>crontab</filename>,
+<filename>csh.cshrc</filename>,
+<filename>csh.login</filename>,
+<filename>csh.logout</filename>,
+<filename>cvsupfile</filename>,
+<filename>dhclient.conf</filename>,
+<filename>disktab</filename>,
+<filename>dm.conf</filename>,
+<filename>dumpdates</filename>,
+<filename>exports</filename>,
+<filename>fbtab</filename>,
+<filename>fstab</filename>,
+<filename>ftpusers</filename>,
+<filename>gettytab</filename>,
+<filename>gnats</filename>,
+<filename>group</filename>,
+<filename>hosts</filename>,
+<filename>hosts.allow</filename>,
+<filename>hosts.equiv</filename>,
+<filename>hosts.lpd</filename>,
+<filename>inetd.conf</filename>,
+<filename>localtime</filename>,
+<filename>login.access</filename>,
+<filename>login.conf</filename>,
+<filename>mail</filename>,
+<filename>mail.rc</filename>,
+<filename>make.conf</filename>,
+<filename>manpath.config</filename>,
+<filename>master.passwd</filename>,
+<filename>motd</filename>,
+<filename>namedb</filename>,
+<filename>networks</filename>,
+<filename>newsyslog.conf</filename>,
+<filename>nsmb.conf</filename>,
+<filename>nsswitch.conf</filename>,
+<filename>pam.conf</filename>,
+<filename>passwd</filename>,
+<filename>periodic</filename>,
+<filename>ppp</filename>,
+<filename>printcap</filename>,
+<filename>profile</filename>,
+<filename>pwd.db</filename>,
+<filename>rc.conf</filename>,
+<filename>rc.conf.local</filename>,
+<filename>rc.firewall</filename>,
+<filename>rc.local</filename>,
+<filename>remote</filename>,
+<filename>resolv.conf</filename>,
+<filename>rmt</filename>,
+<filename>sendmail.cf</filename>,
+<filename>sendmail.cw</filename>,
+<filename>services</filename>,
+<filename>shells</filename>,
+<filename>skeykeys</filename>,
+<filename>spwd.db</filename>,
+<filename>ssh</filename>,
+<filename>syslog.conf</filename>,
+<filename>ttys</filename>,
+<filename>uucp</filename>
+</para>
+
+      <para>这些文件相应的新版本被转移到
+      <filename>/etc/upgrade/</filename>。
+      系统管理员可以仔细阅读这些新版本并合并需要的部分。
+      注意这里面很多文件是相互依赖的，
+      最好的合并过程是将所有的站点特定数据从当前文件复制进新的文件。</para>
+
+      <para>在升级过程中，会提示管理员
+      <filename>/etc/</filename> 中所有文件要存放的位置。
+      在本地修改合并进入其它文件后，也可以从这个位置再找回它们。</para>
+
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>过程</title>
+
+    <para>这一节详细描述了升级过程。尤其关注那些和通常的安装有明显区别的部分。</para>
+
+    <sect3>
+      <title>备份</title>
+
+      <para>用户数据和系统配置文件在升级前应该备份。
+      尽管升级过程尽力的去防止意外的失误，
+      还是有可能全部或部分的毁坏数据和配置文件信息。</para>
+    </sect3>
+
+    <sect3>
+      <title>挂载文件系统</title>
+
+      <para>进入 disklabel 编辑器会列出命名的磁盘文件系统设备。
+      在着手升级前，管理员应该记录一下设备名和相应的挂载点。
+      这些挂载点应该在这里输入。
+      <emphasis>不要</emphasis> 对任何文件系统设置<quote>newfs
+      flag</quote>，因为这会引起数据丢失。</para>
+    </sect3>
+
+    <sect3>
+      <title>选择 Distribution</title>
+
+      <para>选择 distribution 的时候，没有强制的约束必须选择哪一个。
+      基本规则是，<literal>base</literal>
+      distribution 对于升级来说应该选择，如果已经安装了联机手册
+      <literal>man</literal> distribution 也应该选择。
+      如果管理员希望添加额外的功能，在最初的安装之外其它 distribution
+      也可以选择。</para>
+    </sect3>
+
+    <sect3 id="fstab">
+      <title>安装之后</title>
+
+      <para>一旦安装过程完成，就会提示管理员检查新的配置文件。
+      这时候，应该做下检查来保证系统配置文件有效。
+      尤其是，应该检查 <filename>/etc/rc.conf</filename> 和
+      <filename>/etc/fstab</filename> 文件。</para>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>从源代码升级</title>
+
+    <para>那些对允许更复杂、诡异的升级方法感兴趣的人应该看看
+    &os; 使用手册的 <ulink
+    url="&url.books.handbook;/cutting-edge.html">
+    最前沿</ulink> 一章。这个过程包括了从源代码重建整个 &os;。
+    这依赖于可靠的网络连接、额外的磁盘空间和时间，
+    但是有网络以及其它更复杂安装的优势。
+    这基本和跟踪 -STABLE 或 -CURRENT 开发分支的过程是相同的。</para>
+
+    <para><filename>/usr/src/UPDATING</filename> 包含了从源代码升级 &os;
+    系统的重要信息。它列出了 &os; 中各种各样可能影响升级的改动。</para>
+  </sect2>
+</sect1>  

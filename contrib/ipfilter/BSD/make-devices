@@ -1,0 +1,30 @@
+#!/bin/sh
+
+os=`uname -s`-`uname -r`
+
+case "$os" in
+	FreeBSD-2.2*)
+		major=79
+		;;
+	FreeBSD-*)
+		major=20
+		;;
+	NetBSD-*)
+		echo "see /dev/MAKEDEV"
+		exit 0
+		;;
+	OpenBSD-*)
+		echo "see /dev/MAKEDEV"
+		exit 0
+		;;
+	*)
+		;;
+esac
+
+umask 037
+mknod /dev/ipl c $major 0
+mknod /dev/ipnat c $major 1
+mknod /dev/ipstate c $major 2
+mknod /dev/ipauth c $major 3
+mknod /dev/ipsync c $major 4
+mknod /dev/ipscan c $major 5

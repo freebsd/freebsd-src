@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+    <head>
+        <meta name="generator" content="HTML Tidy, see www.w3.org">
+        <title>The Network Time Protocol (NTP) Distribution</title>
+        <link href="scripts/style.css" type="text/css" rel="stylesheet">
+    </head>
+
+    <body>
+        <h3>The Network Time Protocol (NTP) Distribution</h3>
+        <img src="pic/barnstable.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html"><i>P.T. Bridgeport Bear</i>; from <i>Pogo</i>, Walt Kelly</a>
+        <p>Pleased to meet you.</p>
+        <p>Last update: <csobj format="ShortTime" h="25" locale="00000409" region="0" t="DateTime" w="99">03:12 AM</csobj> UTC <csobj format="LongDate" h="25" locale="00000409" region="0" t="DateTime" w="270">Monday, October 13, 2003</csobj></p>
+        <br clear="left">
+        <h4>Related Links</h4>
+        <script type="text/javascript" language="javascript" src="scripts/links7.txt"></script>
+        <br clear="left">
+        <h4>Table of Contents</h4>
+        <ul>
+            <li class="inline"><a href="#intro">Introduction</a>
+            <li class="inline"><a href="#build">Building and Installing NTP</a>
+            <li class="inline"><a href="#conf">Configuring Clients and Servers</a>
+            <li class="inline"><a href="#conf">Configuring Clients and Servers</a>
+            <li class="inline"><a href="#prog">Program Manual Pages</a>
+            <li class="inline"><a href="#docs">Supporting Documentation</a>
+            <li class="inline"><a href="#back">Background Information</a>
+            <li class="inline"><a href="#app">Application Notes</a>
+        </ul>
+        <hr>
+        <h4 id="intro">Introduction</h4>
+        <p>Note: The software contained in this distribution is available without charge under the conditions set forth in the <a href="copyright.html">Copyright Notice</a>.</p>
+        <p>The Network Time Protocol (NTP) is used to synchronize the time of a computer client or server to another server or reference time source, such as a radio or satellite receiver or modem. It provides accuracies typically within a millisecond on LANs and up to a few tens of milliseconds on WANs relative to Coordinated Universal Time (UTC) via a Global Positioning Service (GPS) receiver, for example. Typical NTP configurations utilize multiple redundant servers and diverse network paths in order to achieve high accuracy and reliability.</p>
+        <p>This software release implements NTP Version 4 (NTPv4), but is in general backwards compatible with previous versions except NTP Version 1, support for which is no longer viable. NTPv4 includes support for both symmetric key and public key cryptography to prevent accidental or malicious protocol attacks, as well as automatic server discovery using IP multicast means. This release includes full support for the IPv6 address family, where the operating system supports it, as well as the default IPv4 address family. Either or both families can be used at the same time on the same machine.</p>
+        <p>Background information on computer network time synchronization can be found on the <a href="http://www.eecis.udel.edu/%7emills/exec.html">Executive Summary - Computer Network Time Synchronization</a> page. Discussion on protocol conformance issues and interoperability with previous NTP versions can be found on the <a href="http://www.eecis.udel.edu/%7emills/biblio.html">Protocol Conformance Statement</a> page. Discussion on how NTP reckons the time can be found on the <a href="http://www.eecis.udel.edu/%7emills/leap.html">NTP Timescale and Leap Seconds</a> page. Background information, bibliography and briefing slides suitable for presentations can be found on the <a href="http://www.eecis.udel.edu/%7emills/ntp.html">Network Time Synchronization Project</a> page. Additional information can be found at the NTP web site <a href="http://www.ntp.org">www.ntp.org</a>. Please send bug reports to <a href="mailto:bugs@mail.ntp.org">&lt;bugs@mail.ntp.org&gt;</a>.</p>
+        <h4 id="build">Building and Installing NTP</h4>
+        <p>NTP supports Unix and Windows (NT4 and 2000) systems. The <a href="build.html">Building and Installing the Distribution</a> page presents an overview of the procedures for compiling the distribution and installing it on a typical client or server. The build procedures inspect the system hardware and software environment and automatically select the appropriate options for that environment. While these procedures work with most computers and operating systems marketed today, exceptions requiring manual intervention do exist, as documented on the <a href="config.html">Configuration Options</a> and <a href="release.html">Release Notes</a> pages.</p>
+        <p>Bringing up a NTP primary server requires a radio or satellite receiver or modem. The distribution includes hardware drivers for some forty radio and satellite clocks and modem services. A list of supported drivers is given on the <a href="refclock.html">Reference Clock Drivers</a> page. It is also possible to use an otherwise undisciplined machine as a primary or backup server, as described on the <a href="drivers/driver1.html">Undisciplined Local Clock</a> page. For most popular workstations marketed by Sun, Silicon Graphics and Hewlett Packard, as well as widely available Unix clones such as FreeBSD and Linux, the automatic build procedures select all drivers that run on the target machine. While this increases the size of the executable binary somewhat, individual drivers can be included or excluded using the configure utility documented in the Configuration Options page.</p>
+        <p>Some programs included in this distribution use cryptographic algorithms to verify authenticity and credentials. Where local security policy permits relatively weak symmetric key cryptography, the required software is included in this distribution. However, where local policy requires stronger public key cryptography, additional software not in this distribution is required. This distribution uses the OpenSSL library available from <a href="http://www.openssl.org">http://www.openssl.org</a>. This library is also used by the Secure Shell facility, so is often already installed on Unix workstations and servers. It includes support for most message digest and digital signature algorithms used in the industry, as well as X.509 certificate generation, signing and verification.</p>
+        <p>While public key cryptography is optional but highly recommended for all NTP operations, it is required for the NTPv4 Autokey protocol described on the <a href="http://www.eecis.udel.edu/%7emills/autokey.html">Autonomous Authentication</a> page and is an integral component of the generic automatic configuration scheme described on the <a href="http://www.eecis.udel.edu/%7emills/autocfg.html">Autonomous Configuration</a> page. In addition, access can be restricted in various ways described on the <a href="accopt.html">Access Control Options</a> page.</p>
+        <h4 id="conf">Configuring Clients and Servers</h4>
+        <p>NTP is by its very nature a complex distributed network application and can be configured and used for a great many widely divergent timekeeping scenarios. The documentation presented on these pages attempts to cover the entire suite of configuration, operation and maintenance facilities which this distribution supports. However, most applications will need only a few of these facilities. If this is the case, the <a href="quick.html">Quick Start</a> page may be useful to get a simple workstation on the air with an existing server.</p>
+        <p>However, in order to participate in the existing NTP synchronization subnet and obtain accurate, reliable time, it is usually necessary to construct an appropriate configuration file, commonly called <tt>ntp.conf</tt>, which establishes the servers and/or external receivers or modems to be used by this particular machine. Directions for constructing this file are in the <a href="notes.html">Notes on Configuring NTP and Setting up a NTP Subnet</a> page. However, in many common cases involving simple network topologies and workstations, the configuration data can be specified entirely on the command line for the <a href="ntpd.html"><tt>ntpd</tt> - Network Time Protocol (NTP) daemon</a>.</p>
+        <p>The most important factor in providing accurate, reliable time is the selection of modes and servers to be used in the configuration file. A discussion on the available modes is on the <a href="assoc.html">Association Management</a> page. NTP support for one or more computers is normally engineered as part of the existing public NTP synchronization subnet. The public subnet consists of a multiply redundant hierarchy of servers and clients, with each level in the hierarchy identified by stratum number. Primary servers operate at stratum one and provide synchronization to secondary servers operating at stratum two and so on to higher strata. In this hierarchy, clients are simply servers that have no dependents.</p>
+        <p>Configuring a corporate or campus NTP subnet can be an engineering challenge. NTP contains many features designed to survive system and network failures, software bugs, clock errors and hacker attacks. Surviving these hazards requires intricate design of the timekeeping network using good principles of server redundancy and path diversity. The Manycast mode, new to NTPv4, is designed to track the current server and network states and adjust the client/server configuration for the best available accuracy and reliability. More information on the Manycast mode is on the <a href="authopt.html">Athentication Options</a> and <a href="manyopt.html">Automatic NTP Configuration Options</a> pages.</p>
+        <p>The NTP subnet in early 2003 includes well over a hundred public primary (stratum 1) servers synchronized directly to UTC by radio, satellite or modem and located in every continent of the globe, including Antarctica. Normally, client workstations and servers with a relatively small number of clients do not synchronize to primary servers. There are well over a hundred public secondary (stratum 2) servers synchronized to the primary servers and providing synchronization to a total well over 100,000 clients and servers in the Internet. The current lists are maintained on the <a href="http://www.eecis.udel.edu/%7emills/ntp/index.html">Information on Time and Frequency Services</a> page, which is updated frequently. There are thousands upon thousands of private primary and secondary servers not normally available to the public, many hiding behind firewalls. Clients are strongly discouraged against using these servers, since they sometimes hide in little ghettos behind dinky links to the outside world and unwanted traffic can bring up expensive ISDN lines, causing much grief and frustration. There are defensive means described on the Access Control Options page, including the Kiss-of-Death packet.</p>
+        <h4 id="prob">Resolving Problems</h4>
+        <p>Like other things Internet, the NTP synchronization subnets tend to be large and devilishly intricate, with many opportunities for misconfiguration and network problems. The NTP engineering model is specifically designed to help isolate and repair such problems using an integrated management protocol, together with a suite of monitoring and debugging tools. There is an optional statistics data recording facility which can be used to record normal and aberrant operation, log problems to the system log facility, and retain records of client access. The <a href="debug.html">NTP Debugging Techniques</a> and <a href="hints.html">Hints and Kinks</a> pages contain useful information for identifying problems and devising solutions. In extreme cases, problems can be detected through the use of the <a href="ntpdsim.html"><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</a> included in this software distribution.</p>
+        <p>Users are requested to report bugs, offer suggestions and contribute additions to this distribution. The <a href="patches.html">Patching Procedures</a> page suggests procedures which greatly simplify distribution updates, while the <a href="porting.html">Porting Hints</a> page suggest ways to make porting this code to new hardware and operating systems easier. Additional information on reference clock driver construction and debugging can be found in the <a href="rdebug.html">Debugging Hints for Reference Clock Drivers</a> page.</p>
+        <h4 id="prog">Program Manual Pages</h4>
+        <ul>
+            <li class="inline"><a href="ntpd.html"><tt>ntpd</tt> - Network Time Protocol (NTP) daemon</a>
+            <li class="inline"><a href="ntpq.html"><tt>ntpq</tt> - standard NTP query program</a>
+            <li class="inline"><a href="ntpdc.html"><tt>ntpdc</tt> - special NTP query program</a>
+            <li class="inline"><a href="ntpdate.html"><tt>ntpdate</tt> - set the date and time via NTP</a>
+            <li class="inline"><a href="ntptrace.html"><tt>ntptrace</tt> - trace a chain of NTP servers back to the primary source</a>
+            <li class="inline"><a href="tickadj.html"><tt>tickadj</tt> - set time-related kernel variables</a>
+            <li class="inline"><a href="ntptime.html"><tt>ntptime</tt> - read kernel time variables</a>
+            <li class="inline"><a href="keygen.html"><tt>ntp-genkeys</tt> - generate public and private keys</a>
+            <li class="inline"><a href="ntpdsim.html"><tt>ntpdsim</tt> - Network Time Protocol (NTP) simulator</a>
+        </ul>
+        <h4 id="docs">Supporting Documentation</h4>
+        <ul>
+            <li class="inline"><a href="copyright.html">Copyright Notice</a>
+            <li class="inline"><a href="notes.html">Notes on Configuring NTP and Setting up a NTP Subnet</a>
+            <li class="inline"><a href="release.html">NTP Version 4 Release Notes</a>
+            <li class="inline"><a href="build.html">Building and Installing the Distribution</a>
+            <li class="inline"><a href="config.html">Configuration Options</a>
+            <li class="inline"><a href="refclock.html">Reference Clock Drivers</a>
+            <li class="inline"><a href="debug.html">NTP Debugging Techniques</a>
+            <li class="inline"><a href="rdebug.html">Debugging Reference Clock Drivers</a>
+            <li class="inline"><a href="msyslog.html"><tt>ntpd</tt> System Log Messages</a>
+            <li class="inline"><a href="patches.html">Patching Procedures</a>
+            <li class="inline"><a href="hints.html">Hints and Kinks</a>
+            <li class="inline"><a href="porting.html">Porting Hints</a>
+        </ul>
+        <h4 id="back">Background Information</h4>
+        <ul>
+            <li class="inline"><a href="http://www.eecis.udel.edu/%7emills/ntp.html">NTP Project and Reference Library</a>
+            <li class="inline"><a href="http://www.eecis.udel.edu/%7emills/exec.html">Executive Summary - Computer Network Time Synchronization</a>
+            <li class="inline"><a href="http://www.eecis.udel.edu/%7emills/y2k.html">The Network Time Protocol Timescale and Era Numbering</a>
+            <li class="inline"><a href="http://www.eecis.udel.edu/%7emills/leap.html">NTP Timescale and Leap Seconds</a>
+            <li class="inline"><a href="http://www.eecis.udel.edu/%7emills/biblio.html">Protocol Conformance Statement</a>
+        </ul>
+        <h4 id="app">Application Notes</h4>
+        <ul>
+            <li class="inline"><a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a>
+            <li class="inline"><a href="assoc.html">Association Management</a>
+            <li class="inline"><a href="pps.html">Pulse-per-second (PPS) Signal Interfacing</a>
+            <li class="inline"><a href="measure.html">Time and Time Interval Measurement with Application to Computer and Network Performance Evaluation</a>
+            <li class="inline"><a href="kern.html">Kernel Model for Precision Timekeeping</a>
+        </ul>
+        <hr>
+        <div align="center">
+            <img src="pic/pogo1a.gif" alt="gif"></div>
+        <br>
+        <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+    </body>
+
+</html>

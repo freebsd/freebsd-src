@@ -1,0 +1,141 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.9
+
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//FR">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+    <title>&os; &release.current; Errata</title>
+
+    <corpauthor>
+    Le projet &os;
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder role="mailto:doc@FreeBSD.org">Projet de Documentation &os;</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+
+<!-- XXX Change release.current to release.prev when there's -->
+<!-- XXX a release on this branch. -->
+
+<para>Ce document &eacute;num&egrave;re les errata pour &os; &release.current;
+, contenant des informations importantes d&eacute;couvertes
+apr&egrave;s la sortie de cette version. Ces informations incluent les
+bulletins de s&eacute;curit&eacute;, aussi bien que des informations
+sur les logiciels ou sur les documentations qui pourraient affecter
+son &eacute;x&eacute;cution ou son utilisation. Une version &agrave;
+jour de ce document devrait toujours être consult&eacute;e avant
+d'installer cette version de &os;.  
+</para>
+
+
+<![ %release.type.current [
+
+<para>Cet errata de &os; &release.prev; sera maintenu 
+jusqu'a  &os; &release.next;.</para>
+
+]]>
+
+<![ %release.type.snapshot [
+
+<para>Cet errata de &os; &release.prev; sera maintenu 
+jusqu'a  &os; &release.next;.</para>
+
+]]>
+
+<![ %release.type.release [
+
+<para>Ceci est la version final du errat pour &os; &release.prev;. 
+Les errata suivants de la branche &release.branch; se r&eacute;f&eacute;reront 
+a &os; &release.current; et les version suivantes.</para>
+
+]]>
+
+<para>Actuellement, &release.current; ne comporte aucun errata, car 
+il n'y a pas eut de version finale dans la branche &release.branch; 
+depuis le dernier changement de branche (la prochaine version finale 
+sera &release.next;). Ce fichier existe pour permettre de creer un canevas
+propre pour les nouvelles branches cr&eacute;es. (Normalement cette
+note ne devrait apparaitre sur aucune version de branches)
+</para>
+  </abstract>
+
+  <sect1>
+    <title>Introduction</title>
+    
+    <para>Ce document contient les <quote>derni&egrave;res informations 
+    importantes</quote> &agrave; propos de &os; &release.current;. Avant 
+    d'installer cette version, il est important de consulter ce document 
+    pour se renseigner sur les probl&egrave;mes qui peuvent avoir
+    d&eacute;j&agrave; &eacute;t&eacute; rencontr&eacute;s et
+    corrig&eacute;s.</para>
+
+
+    <para>Toute version de ce document actuellement distribu&eacute; avec 
+    une version finale (par exemple sur la distrtibution en CDROM) est 
+    obsol&egrave;te par d&eacute;finition, mais les autres copies sont
+    gard&eacute;es et mises a jour sur Internet et peuvent etre
+    consult&eacute;es comment <quote>errata</quote> pour cette version
+    finale. Les autres copies de cet errata se trouvent <ulink
+    url="http://www.FreeBSD.org/releases/">ici</ulink> et sur les
+    autres sites mirroirs de ce site</para>
+
+
+    <para>Les snapshots binaires ou en source de la version 
+    &release.branch; de &os; contiennent toutes une version &agrave; jour 
+    de ce document (au moment de la creation du snapshot).</para>
+
+    <para>Pour une liste de tous les avis de securit&eacute; du CERT 
+    sur &os;, voyez <ulink
+    url="http://www.FreeBSD.org/security/"></ulink> ou <ulink
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+  </sect1>
+
+  <sect1>
+    <title>Avis de securit&eacute;</title>
+    <para></para>
+  </sect1>
+
+  <sect1>
+    <title>Information de mise a jour du syst&egrave;me</title>
+    <para></para>
+  </sect1>
+</article>

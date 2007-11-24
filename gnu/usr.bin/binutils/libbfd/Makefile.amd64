@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+.include "${.CURDIR}/Makefile.i386"
+
+#	Get the i386 DEFAULT_VECTOR and VECS.
+I386_VECS:=	${DEFAULT_VECTOR} # ${VECS}
+
+DEFAULT_VECTOR=	bfd_elf64_x86_64_vec
+
+SRCS+=	elf64-amd64-fbsd.c \
+	elf64.c \
+	elf64-gen.c \
+	elf64-target.h
+
+VECS=	bfd_elf64_x86_64_vec \
+	${I386_VECS}
+
+CLEANFILES+=	elf64-amd64-fbsd.c
+
+elf64-amd64-fbsd.c: ${.CURDIR}/elf-fbsd-brand.c ${SRCDIR}/bfd/elf64-x86-64.c
+	cat ${.ALLSRC:M*elf-fbsd-brand.c} > ${.TARGET}
+	echo "#define elf_backend_post_process_headers elf_fbsd_post_process_headers" \
+	    >> ${.TARGET}
+	cat ${.ALLSRC:M*elf64-x86-64.c} >> ${.TARGET}

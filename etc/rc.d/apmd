@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# $NetBSD: apmd,v 1.5 2002/03/22 04:33:58 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: apmd
+# REQUIRE: DAEMON apm
+# BEFORE:  LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="apmd"
+rcvar=`set_rcvar`
+command="/usr/sbin/${name}"
+start_precmd="apmd_prestart"
+
+apmd_prestart()
+{
+	case `${SYSCTL_N} hw.machine_arch` in
+	i386)
+		# Enable apm if it is not already enabled
+		if ! checkyesno apm_enable  && \
+		    ! /etc/rc.d/apm forcestatus 1>/dev/null 2>&1
+		then
+			force_depend apm || return 1
+		fi
+
+		# Warn user about acpi apm compatibility support which
+		# does not work with apmd.
+		if [ ! -e /dev/apmctl ]; then
+		    warn "/dev/apmctl not found; kernel is missing apm(4)"
+		fi
+		;;
+	*)
+		return 1
+		;;
+	esac
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

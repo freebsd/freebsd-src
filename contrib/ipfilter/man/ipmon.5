@@ -1,0 +1,69 @@
+.\"	$FreeBSD$
+.\"
+.TH IPMON 5
+.SH NAME
+ipmon, ipmon.conf \- ipmon configuration file format
+.SH DESCRIPTION
+The format for files accepted by ipmon is described by the following grammar:
+.LP
+.nf
+"match" "{" matchlist "}" "do" "{" doing "}" ";"
+
+matchlist ::= matching [ "," matching ] .
+matching  ::= direction | dstip | dstport | every | group | interface |
+              logtag | nattag | protocol | result | rule | srcip | srcport .
+
+dolist ::= doing [ "," doing ] .
+doing  ::= execute | save | syslog .
+
+direction ::= "in" | "out" .
+dstip     ::= "dstip" "=" ipv4 "/" number .
+dstport   ::= "dstport" "=" number .
+every     ::= "every" every-options .
+execute   ::= "execute" "=" string .
+group     ::= "group" "=" string | "group" "=" number .
+interface ::= "interface" "=" string .
+logtag    ::= "logtag" "=" string | "logtag" "=" number .
+nattag    ::= "nattag" "=" string .
+protocol  ::= "protocol" "=" string | "protocol" "=" number .
+result    ::= "result" "=" result-option .
+rule      ::= "rule" "=" number .
+srcip     ::= "srcip" "=" ipv4 "/" number .
+srcport   ::= "srcport" "=" number .
+type      ::= "type" "=" ipftype .
+ipv4      ::= number "." number "." number "." number .
+
+every-options ::= "second" | number "seconds" | "packet" | number "packets" .
+result-option ::= "pass" | "block" | "short" | "nomatch" | "log" .
+ipftype ::= "ipf" | "nat" | "state" .
+
+.fi
+.PP
+In addition, lines that start with a # are considered to be comments.
+.TP
+.SH OVERVIEW
+.PP
+The ipmon configuration file is used for defining rules to be executed when
+logging records are read from
+.B /dev/ipl.
+.PP
+At present, only IPv4 matching is available for source/destination address
+matching.
+.SH MATCHING
+.PP
+Each rule for ipmon consists of two primary segments: the first describes how
+the log record is to be matched, the second defines what action to take if
+there is a positive match.  All entries of the rules present in the file are
+compared for matches - there is no first or last rule match.
+.SH FILES
+/dev/ipl
+.br
+/dev/ipf
+.br
+/dev/ipnat
+.br
+/dev/ipstate
+.br
+/etc/ipmon.conf
+.SH SEE ALSO
+ipmon(8), ipl(4)

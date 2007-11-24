@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# Hierarchical Data Format, used to facilitate scientific data exchange
+# specifications at http://hdf.ncsa.uiuc.edu/
+
+0	belong		0x0e031301	Hierarchical Data Format (version 4) data
+0	string		\211HDF\r\n\032	Hierarchical Data Format (version 5) data

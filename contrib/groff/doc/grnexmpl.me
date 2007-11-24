@@ -1,0 +1,84 @@
+.nr pp 12
+.nr tp 12
+.nr sp 12
+.nr fi 0
+.ls 1
+.po 1i
+.pl 11i
+.EQ
+gsize 12
+delim $$
+define // 'over down 10'
+define sw 'phi sub'
+define aa 'A sub'
+define vv 'V sub'
+define mm 'M sub'
+define nn 'N sub'
+define cc 'C sub'
+define ll 'L sub'
+define rr 'R sub'
+define ss 'S sub'
+define gg 'g sub'
+define ff 'F sub'
+define qq 'Q sub'
+define qqq '{C prime} sub'
+define pp 'P sub'
+define tt 'T sub'
+define zz 'Z sub'
+define kk 'K sub'
+define ii 'I sub'
+define iis 'IC sub'
+define e2 '2 sup'
+define sunc '{ sin x } / x'
+define vddm1V 'vv DD - 1 ^ roman V'
+define vssp1V 'vv SS + 1 ^ roman V'
+.EN
+.pp
+The following slide shows the complete schematics of the
+fully-differential RIC. The operation includes a
+correlated-double-sampling phase that occurs once every 256
+clock periods, also called the
+.i "spreading ratio" .
+This reset phase is controlled by clocks $ DP sub 1 $ and $ DP
+sub 2 $ in which the integrator is initialized by totally
+removing the charge from $ cc F $ and storing the low-frequency
+noise of the op amp in $ cc C $. At the same time the comparison
+thresholds are set.
+.fl
+.po -0.2i
+.sp 2
+.lp
+.(b
+.EQ
+gsize -4
+.EN
+.GS
+roman 1
+italics 2
+bold 3
+special 4
+narrow 1
+medium 3
+thick 5
+width 5.5
+l mg
+file grnexmpl.g
+.GE
+.EQ
+gsize +4
+.EN
+.)b
+.fl
+.po +0.2i
+.pp
+The faster clocks are $ PN $, $ ITS $ and $ SP $. The sampling
+capacitor $ cc S $ performs the delayed subtraction of a sample
+of the input signal $ +- ^ vv SIG $ and a choice of $ - ^ vv REF
+$, $ AGND $ or $ + ^ vv REF $ according to the operations
+performed by the logic partially depicted operating on past
+results of the comparisons. The synchronous comparators are
+reset at this fast rates, thus performing one comparison for
+every fast clock cycle. The dynamic common-mode feedback
+arrangement operates synchronously with the reset time slot and
+its configuration is equivalent to that in the differential
+feedback path.

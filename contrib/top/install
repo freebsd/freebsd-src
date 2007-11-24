@@ -1,0 +1,69 @@
+#!/bin/sh
+#
+# this shell script is amazingly similar to the old and lamented
+# BSD "install" command.  It recognized the following options:
+#
+#	-o target file owner
+#	-m target file mode
+#	-g target file group owner
+#
+#
+# scan the options
+#
+while [ $# -gt 0 ]; do
+    case $1 in
+      -o)
+	owner=$2
+	shift ; shift
+	;;
+
+      -m)
+	mode=$2
+	shift; shift
+	;;
+
+      -g)
+	group=$2
+	shift ; shift
+	;;
+
+      -*)
+	echo "install: unknown option $1"
+	exit
+	;;
+
+      *)
+	break
+	;;
+    esac
+done
+#
+# we need two more:  filename and destination
+#
+if [ $# -ne 2 ]; then
+    echo "Usage:  install [ -o owner ] [ -m mode ] [ -g group ] file destination"
+    exit
+fi
+#
+# first, copy
+#
+cp $1 $2
+#
+# normalize the name
+#
+dest=$2
+if [ -d $2 ]; then
+    dest=$2/`basename $1`
+fi
+#
+# do optional things
+#
+if [ "$owner" ]; then
+    chown $owner $dest
+fi
+if [ "$group" ]; then
+    chgrp $group $dest
+fi
+if [ "$mode" ]; then
+    chmod $mode $dest
+fi

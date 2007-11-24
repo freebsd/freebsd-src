@@ -1,0 +1,8 @@
+PROG=hpftodit$(EXEEXT)
+MAN1=hpftodit.n
+XLIBS=$(LIBGROFF)
+MLIB=$(LIBM)
+OBJS=hpftodit.$(OBJEXT) \
+     hpuni.$(OBJEXT)
+CCSRCS=$(srcdir)/hpftodit.cpp \
+       $(srcdir)/hpuni.cpp

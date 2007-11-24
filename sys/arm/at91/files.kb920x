@@ -1,0 +1,2 @@
+#$FreeBSD$
+arm/at91/kb920x_machdep.c	standard

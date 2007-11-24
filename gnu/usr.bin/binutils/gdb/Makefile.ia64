@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+XSRCS+=	ia64-tdep.c ia64-fbsd-nat.c \
+	core-regset.c
+CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf64_ia64_vec

@@ -1,0 +1,18 @@
+$FreeBSD$
+
+GNU regex (from glibc):
+
+Imported by:
+
+cvs -z 9 -d :pserver:anoncvs@sources.redhat.com:/cvs/glibc login
+# enter "anoncvs" as the password
+cvs -z 9 -d :pserver:anoncvs@sources.redhat.com:/cvs/glibc \
+	co -r fedora-glibc-2_3_4-21 libc/posix libc/include
+mkdir regex regex/posix
+cd libc/posix
+cp regcomp.c regex.c regex_internal.c regex_internal.h regexec.c $OLDPWD/regex/
+cp regex.h $OLDPWD/regex/posix/
+cd -
+cp libc/include/regex.h regex/
+cd regex
+cvs import src/gnu/lib/libregex FSF fedora-glibc-2_3_4-21

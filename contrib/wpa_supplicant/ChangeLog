@@ -1,0 +1,680 @@
+ChangeLog for wpa_supplicant
+
+2006-02-08 - v0.4.8
+	* fixed PC/SC code to use correct length for GSM AUTH command buffer
+	  and to not use pioRecvPci with SCardTransmit() calls; these were not
+	  causing visible problems with pcsc-lite, but Windows Winscard.dll
+	  refused the previously used parameters; this fixes EAP-SIM and
+	  EAP-AKA authentication using SIM/USIM card under Windows
+	* added support for EAP-FAST key derivation using other ciphers than
+	  RC4-128-SHA for authentication and AES128-SHA for provisioning
+	* fixed EAP-SIM and EAP-AKA pseudonym and fast re-authentication to
+	  decrypt AT_ENCR_DATA attributes correctly
+	* added support for configuring CA certificate as DER file and as a
+	  configuration blob
+	* fixed private key configuration as configuration blob and added
+	  support for using PKCS#12 as a blob
+	* fixed cygwin build
+	* added support for loading trusted CA certificates from Windows
+	  certificate store: ca_cert="cert_store://<name>", where <name> is
+	  likely CA (Intermediate CA certificates) or ROOT (root certificates)
+	* fixed TLS library deinitialization after RSN pre-authentication not
+	  to disable TLS library for normal authentication
+	* fixed PMKSA cache processing not to trigger deauthentication if the
+	  current PMKSA cache entry is replaced with a valid new entry
+	* fixed PC/SC initialization for ap_scan != 1 modes (this fixes
+	  EAP-SIM and EAP-AKA with real SIM/USIM card when using ap_scan=0 or
+	  ap_scan=2)
+	* do not try to use USIM APDUs when initializing PC/SC for SIM card
+	  access for a network that has not enabled EAP-AKA
+
+2005-11-20 - v0.4.7 (beginning of 0.4.x stable releases)
+	* l2_packet_pcap: fixed wired IEEE 802.1X authentication with libpcap
+	  and WinPcap to receive frames sent to PAE group address
+	* disable EAP state machine when IEEE 802.1X authentication is not used
+	  in order to get rid of bogus "EAP failed" messages
+	* fixed OpenSSL error reporting to go through all pending errors to
+	  avoid confusing reports of old errors being reported at later point
+	  during handshake
+	* fixed configuration file updating to not write empty variables
+	  (e.g., proto or key_mgmt) that the file parser would not accept
+	* fixed ADD_NETWORK ctrl_iface command to use the same default values
+	  for variables as empty network definitions read from config file
+	  would get
+	* fixed EAP state machine to not discard EAP-Failure messages in many
+	  cases (e.g., during TLS handshake)
+	* fixed a infinite loop in private key reading if the configured file
+	  cannot be parsed successfully
+	* driver_madwifi: added support for madwifi-ng
+	* wpa_gui: do not display password/PSK field contents
+	* wpa_gui: added CA certificate configuration
+	* driver_ndis: fixed scan request in ap_scan=2 mode not to change SSID
+	* driver_ndis: include Beacon IEs in AssocInfo in order to notice if
+	  the new AP is using different WPA/RSN IE
+	* use longer timeout for IEEE 802.11 association to avoid problems with
+	  drivers that may take more than five second to associate
+
+2005-10-27 - v0.4.6
+	* allow fallback to WPA, if mixed WPA+WPA2 networks have mismatch in
+	  RSN IE, but WPA IE would match with wpa_supplicant configuration
+	* added support for named configuration blobs in order to avoid having
+	  to use file system for external files (e.g., certificates);
+	  variables can be set to "blob://<blob name>" instead of file path to
+	  use a named blob; supported fields: pac_file, client_cert,
+	  private_key
+	* fixed RSN pre-authentication (it was broken in the clean up of WPA
+	  state machine interface in v0.4.5)
+	* driver_madwifi: set IEEE80211_KEY_GROUP flag for group keys to make
+	  sure the driver configures broadcast decryption correctly
+	* added ca_path (and ca_path2) configuration variables that can be used
+	  to configure OpenSSL CA path, e.g., /etc/ssl/certs, for using the
+	  system-wide trusted CA list
+	* added support for starting wpa_supplicant without a configuration
+	  file (-C argument must be used to set ctrl_interface parameter for
+	  this case; in addition, -p argument can be used to provide
+	  driver_param; these new arguments can also be used with a
+	  configuration to override the values from the configuration)
+	* added global control interface that can be optionally used for adding
+	  and removing network interfaces dynamically (-g command line argument
+	  for both wpa_supplicant and wpa_cli) without having to restart
+	  wpa_supplicant process
+	* wpa_gui:
+	  - try to save configuration whenever something is modified
+	  - added WEP key configuration
+	  - added possibility to edit the current network configuration
+	* driver_ndis: fixed driver polling not to increase frequency on each
+	  received EAPOL frame due to incorrectly cancelled timeout
+	* added simple configuration file examples (in examples subdirectory)
+	* fixed driver_wext.c to filter wireless events based on ifindex to
+	  avoid interfaces receiving events from other interfaces
+	* delay sending initial EAPOL-Start couple of seconds to speed up
+	  authentication for the most common case of Authenticator starting
+	  EAP authentication immediately after association
+
+2005-09-25 - v0.4.5
+	* added a workaround for clearing keys with ndiswrapper to allow
+	  roaming from WPA enabled AP to plaintext one
+	* added docbook documentation (doc/docbook) that can be used to
+	  generate, e.g., man pages
+	* l2_packet_linux: use socket type SOCK_DGRAM instead of SOCK_RAW for
+	  PF_PACKET in order to prepare for network devices that do not use
+	  Ethernet headers (e.g., network stack with native IEEE 802.11 frames)
+	* use receipt of EAPOL-Key frame as a lower layer success indication
+	  for EAP state machine to allow recovery from dropped EAP-Success
+	  frame
+	* cleaned up internal EAPOL frame processing by not including link
+	  layer (Ethernet) header during WPA and EAPOL/EAP processing; this
+	  header is added only when transmitted the frame; this makes it easier
+	  to use wpa_supplicant on link layers that use different header than
+	  Ethernet
+	* updated EAP-PSK to use draft 9 by default since this can now be
+	  tested with hostapd; removed support for draft 3, including
+	  server_nai configuration option from network blocks
+	* driver_wired: add PAE address to the multicast address list in order
+	  to be able to receive EAPOL frames with drivers that do not include
+	  these multicast addresses by default
+	* driver_wext: add support for WE-19
+	* added support for multiple configuration backends (CONFIG_BACKEND
+	  option); currently, only 'file' is supported (i.e., the format used
+	  in wpa_supplicant.conf)
+	* added support for updating configuration ('wpa_cli save_config');
+	  this is disabled by default and can be enabled with global
+	  update_config=1 variable in wpa_supplicant.conf; this allows wpa_cli
+	  and wpa_gui to store the configuration changes in a permanent store
+	* added GET_NETWORK ctrl_iface command
+	  (e.g., 'wpa_cli get_network 0 ssid')
+
+2005-08-21 - v0.4.4
+	* replaced OpenSSL patch for EAP-FAST support
+	  (openssl-tls-extensions.patch) with a more generic and correct
+	  patch (the new patch is not compatible with the previous one, so the
+	  OpenSSL library will need to be patched with the new patch in order
+	  to be able to build wpa_supplicant with EAP-FAST support)
+	* added support for using Windows certificate store (through CryptoAPI)
+	  for client certificate and private key operations (EAP-TLS)
+	  (see wpa_supplicant.conf for more information on how to configure
+	  this with private_key)
+	* ported wpa_gui to Windows
+	* added Qt4 version of wpa_gui (wpa_gui-qt4 directory); this can be
+	  built with the open source version of the Qt4 for Windows
+	* allow non-WPA modes (e.g., IEEE 802.1X with dynamic WEP) to be used
+	  with drivers that do not support WPA
+	* ndis_events: fixed Windows 2000 support
+	* added support for enabling/disabling networks from the list of all
+	  configured networks ('wpa_cli enable_network <network id>' and
+	  'wpa_cli disable_network <network id>')
+	* added support for adding and removing network from the current
+	  configuration ('wpa_cli add_network' and 'wpa_cli remove_network
+	  <network id>'); added networks are disabled by default and they can
+	  be enabled with enable_network command once the configuration is done
+	  for the new network; note: configuration file is not yet updated, so
+	  these new networks are lost when wpa_supplicant is restarted
+	* added support for setting network configuration parameters through
+	  the control interface, for example:
+	  wpa_cli set_network 0 ssid "\"my network\""
+	* fixed parsing of strings that include both " and # within double
+	  quoted area (e.g., "start"#end")
+	* added EAP workaround for PEAP session resumption: allow outer,
+	  i.e., not tunneled, EAP-Success to terminate session since; this can
+	  be disabled with eap_workaround=0
+	  (this was allowed for PEAPv1 before, but now it is also allowed for
+	  PEAPv0 since at least one RADIUS authentication server seems to be
+	  doing this for PEAPv0, too)
+	* wpa_gui: added preliminary support for adding new networks to the
+	  wpa_supplicant configuration (double click on the scan results to
+	  open network configuration)
+
+2005-06-26 - v0.4.3
+	* removed interface for external EAPOL/EAP supplicant (e.g.,
+	  Xsupplicant), (CONFIG_XSUPPLICANT_IFACE) since it is not required
+	  anymore and is unlikely to be used by anyone
+	* driver_ndis: fixed WinPcap 3.0 support
+	* fixed build with CONFIG_DNET_PCAP=y on Linux
+	* l2_packet: moved different implementations into separate files
+	  (l2_packet_*.c)
+
+2005-06-12 - v0.4.2
+	* driver_ipw: updated driver structures to match with ipw2200-1.0.4
+	  (note: ipw2100-1.1.0 is likely to require an update to work with
+	  this)
+	* added support for using ap_scan=2 mode with multiple network blocks;
+	  wpa_supplicant will go through the networks one by one until the
+	  driver reports a successful association; this uses the same order for
+	  networks as scan_ssid=1 scans, i.e., the priority field is ignored
+	  and the network block order in the file is used instead
+	* fixed a potential issue in RSN pre-authentication ending up using
+	  freed memory if pre-authentication times out
+	* added support for matching alternative subject name extensions of the
+	  authentication server certificate; new configuration variables
+	  altsubject_match and altsubject_match2
+	* driver_ndis: added support for IEEE 802.1X authentication with wired
+	  NDIS drivers
+	* added support for querying private key password (EAP-TLS) through the
+	  control interface (wpa_cli/wpa_gui) if one is not included in the
+	  configuration file
+	* driver_broadcom: fixed couple of memory leaks in scan result
+	  processing
+	* EAP-PAX is now registered as EAP type 46
+	* fixed EAP-PAX MAC calculation
+	* fixed EAP-PAX CK and ICK key derivation
+	* added support for using password with EAP-PAX (as an alternative to
+	  entering key with eappsk); SHA-1 hash of the password will be used as
+	  the key in this case
+	* added support for arbitrary driver interface parameters through the
+	  configuration file with a new driver_param field; this adds a new
+	  driver_ops function set_param()
+	* added possibility to override l2_packet module with driver interface
+	  API (new send_eapol handler); this can be used to implement driver
+	  specific TX/RX functions for EAPOL frames
+	* fixed ctrl_interface_group processing for the case where gid is
+	  entered as a number, not group name
+	* driver_test: added support for testing hostapd with wpa_supplicant
+	  by using test driver interface without any kernel drivers or network
+	  cards
+
+2005-05-22 - v0.4.1
+	* driver_madwifi: fixed WPA/WPA2 mode configuration to allow EAPOL
+	  packets to be encrypted; this was apparently broken by the changed
+	  ioctl order in v0.4.0
+	* driver_madwifi: added preliminary support for compiling against 'BSD'
+	  branch of madwifi CVS tree
+	* added support for EAP-MSCHAPv2 password retries within the same EAP
+	  authentication session
+	* added support for password changes with EAP-MSCHAPv2 (used when the
+	  password has expired)
+	* added support for reading additional certificates from PKCS#12 files
+	  and adding them to the certificate chain
+	* fixed association with IEEE 802.1X (no WPA) when dynamic WEP keys
+	  were used
+	* fixed a possible double free in EAP-TTLS fast-reauthentication when
+	  identity or password is entered through control interface
+	* display EAP Notification messages to user through control interface
+	  with "CTRL-EVENT-EAP-NOTIFICATION" prefix
+	* added GUI version of wpa_cli, wpa_gui; this is not build
+	  automatically with 'make'; use 'make wpa_gui' to build (this requires
+	  Qt development tools)
+	* added 'disconnect' command to control interface for setting
+	  wpa_supplicant in state where it will not associate before
+	  'reassociate' command has been used
+	* added support for selecting a network from the list of all configured
+	  networks ('wpa_cli select_network <network id>'; this disabled all
+	  other networks; to re-enable, 'wpa_cli select_network any')
+	* added support for getting scan results through control interface
+	* added EAP workaround for PEAPv1 session resumption: allow outer,
+	  i.e., not tunneled, EAP-Success to terminate session since; this can
+	  be disabled with eap_workaround=0
+
+2005-04-25 - v0.4.0 (beginning of 0.4.x development releases)
+	* added a new build time option, CONFIG_NO_STDOUT_DEBUG, that can be
+	  used to reduce the size of the wpa_supplicant considerably if
+	  debugging code is not needed
+	* fixed EAPOL-Key validation to drop packets with invalid Key Data
+	  Length; such frames could have crashed wpa_supplicant due to buffer
+	  overflow
+	* added support for wired authentication (IEEE 802.1X on wired
+	  Ethernet); driver interface 'wired'
+	* obsoleted set_wpa() handler in the driver interface API (it can be
+	  replaced by moving enable/disable functionality into init()/deinit())
+	  (calls to set_wpa() are still present for backwards compatibility,
+	  but they may be removed in the future)
+	* driver_madwifi: fixed association in plaintext mode
+	* modified the EAP workaround that accepts EAP-Success with incorrect
+	  Identifier to be even less strict about verification in order to
+	  interoperate with some authentication servers
+	* added support for sending TLS alerts
+	* added support for 'any' SSID wildcard; if ssid is not configured or
+	  is set to an empty string, any SSID will be accepted for non-WPA AP
+	* added support for asking PIN (for SIM) from frontends (e.g.,
+	  wpa_cli); if a PIN is needed, but not included in the configuration
+	  file, a control interface request is sent and EAP processing is
+	  delayed until the PIN is available
+	* added support for using external devices (e.g., a smartcard) for
+	  private key operations in EAP-TLS (CONFIG_SMARTCARD=y in .config);
+	  new wpa_supplicant.conf variables:
+	  - global: opensc_engine_path, pkcs11_engine_path, pkcs11_module_path
+	  - network: engine, engine_id, key_id
+	* added experimental support for EAP-PAX
+	* added monitor mode for wpa_cli (-a<path to a program to run>) that
+	  allows external commands (e.g., shell scripts) to be run based on
+	  wpa_supplicant events, e.g., when authentication has been completed
+	  and data connection is ready; other related wpa_cli arguments:
+	  -B (run in background), -P (write PID file); wpa_supplicant has a new
+	  command line argument (-W) that can be used to make it wait until a
+	  control interface command is received in order to avoid missing
+	  events
+	* added support for opportunistic WPA2 PMKSA key caching (disabled by
+	  default, can be enabled with proactive_key_caching=1)
+	* fixed RSN IE in 4-Way Handshake message 2/4 for the case where
+	  Authenticator rejects PMKSA caching attempt and the driver is not
+	  using assoc_info events
+	* added -P<pid file> argument for wpa_supplicant to write the current
+	  process id into a file
+
+2005-02-12 - v0.3.7 (beginning of 0.3.x stable releases)
+	* added new phase1 option parameter, include_tls_length=1, to force
+	  wpa_supplicant to add TLS Message Length field to all TLS messages
+	  even if the packet is not fragmented; this may be needed with some
+	  authentication servers
+	* fixed WPA/RSN IE verification in message 3 of 4-Way Handshake when
+	  using drivers that take care of AP selection (e.g., when using
+	  ap_scan=2)
+	* fixed reprocessing of pending request after ctrl_iface requests for
+	  identity/password/otp
+	* fixed ctrl_iface requests for identity/password/otp in Phase 2 of
+	  EAP-PEAP and EAP-TTLS
+	* all drivers using driver_wext: set interface up and select Managed
+	  mode when starting wpa_supplicant; set interface down when exiting
+	* renamed driver_ipw2100.c to driver_ipw.c since it now supports both
+	  ipw2100 and ipw2200; please note that this also changed the
+	  configuration variable in .config to CONFIG_DRIVER_IPW
+
+2005-01-24 - v0.3.6
+	* fixed a busy loop introduced in v0.3.5 for scan result processing
+	  when no matching AP is found
+
+2005-01-23 - v0.3.5
+	* added a workaround for an interoperability issue with a Cisco AP
+	  when using WPA2-PSK
+	* fixed non-WPA IEEE 802.1X to use the same authentication timeout as
+	  WPA with IEEE 802.1X (i.e., timeout 10 -> 70 sec to allow
+	  retransmission of dropped frames)
+	* fixed issues with 64-bit CPUs and SHA1 cleanup in previous version
+	  (e.g., segfault when processing EAPOL-Key frames)
+	* fixed EAP workaround and fast reauthentication configuration for
+	  RSN pre-authentication; previously these were disabled and
+	  pre-authentication would fail if the used authentication server
+	  requires EAP workarounds
+	* added support for blacklisting APs that fail or timeout
+	  authentication in ap_scan=1 mode so that all APs are tried in cases
+	  where the ones with strongest signal level are failing authentication
+	* fixed CA certificate loading after a failed EAP-TLS/PEAP/TTLS
+	  authentication attempt
+	* allow EAP-PEAP/TTLS fast reauthentication only if Phase 2 succeeded
+	  in the previous authentication (previously, only Phase 1 success was
+	  verified)
+
+2005-01-09 - v0.3.4
+	* added preliminary support for IBSS (ad-hoc) mode configuration
+	  (mode=1 in network block); this included a new key_mgmt mode
+	  WPA-NONE, i.e., TKIP or CCMP with a fixed key (based on psk) and no
+	  key management; see wpa_supplicant.conf for more details and an
+	  example on how to configure this (note: this is currently implemented
+	  only for driver_hostapd.c, but the changes should be trivial to add
+	  in associate() handler for other drivers, too (assuming the driver
+	  supports WPA-None)
+	* added preliminary port for native Windows (i.e., no cygwin) using
+	  mingw
+
+2005-01-02 - v0.3.3
+	* added optional support for GNU Readline and History Libraries for
+	  wpa_cli (CONFIG_READLINE)
+	* cleaned up EAP state machine <-> method interface and number of
+	  small problems with error case processing not terminating on
+	  EAP-Failure but waiting for timeout
+	* added couple of workarounds for interoperability issues with a
+	  Cisco AP when using WPA2
+	* added support for EAP-FAST (draft-cam-winget-eap-fast-00.txt);
+	  Note: This requires a patch for openssl to add support for TLS
+	  extensions and number of workarounds for operations without
+	  certificates. Proof of concept type of experimental patch is
+	  included in openssl-tls-extensions.patch.
+
+2004-12-19 - v0.3.2
+	* fixed private key loading for cases where passphrase is not set
+	* fixed Windows/cygwin L2 packet handler freeing; previous version
+	  could cause a segfault when RSN pre-authentication was completed
+	* added support for PMKSA caching with drivers that generate RSN IEs
+	  (e.g., NDIS); currently, this is only implemented in driver_ndis.c,
+	  but similar code can be easily added to driver_ndiswrapper.c once
+	  ndiswrapper gets full support for RSN PMKSA caching
+	* improved recovery from PMKID mismatches by requesting full EAP
+	  authentication in case of failed PMKSA caching attempt
+	* driver_ndis: added support for NDIS NdisMIncidateStatus() events
+	  (this requires that ndis_events is ran while wpa_supplicant is
+	  running)
+	* driver_ndis: use ADD_WEP/REMOVE_WEP when configuring WEP keys
+	* added support for driver interfaces to replace the interface name
+	  based on driver/OS specific mapping, e.g., in case of driver_ndis,
+	  this allows the beginning of the adapter description to be used as
+	  the interface name
+	* added support for CR+LF (Windows-style) line ends in configuration
+	  file
+	* driver_ndis: enable radio before starting scanning, disable radio
+	  when exiting
+	* modified association event handler to set portEnabled = FALSE before
+	  clearing port Valid in order to reset EAP state machine and avoid
+	  problems with new authentication getting ignored because of state
+	  machines ending up in AUTHENTICATED/SUCCESS state based on old
+	  information
+	* added support for driver events to add PMKID candidates in order to
+	  allow drivers to give priority to most likely roaming candidates
+	* driver_hostap: moved PrivacyInvoked configuration to associate()
+	  function so that this will not be set for plaintext connections
+	* added KEY_MGMT_802_1X_NO_WPA as a new key_mgmt type so that driver
+	  interface can distinguish plaintext and IEEE 802.1X (no WPA)
+	  authentication
+	* fixed static WEP key configuration to use broadcast/default type for
+	  all keys (previously, the default TX key was configured as pairwise/
+	  unicast key)
+	* driver_ndis: added legacy WPA capability detection for non-WPA2
+	  drivers
+	* added support for setting static WEP keys for IEEE 802.1X without
+	  dynamic WEP keying (eapol_flags=0)
+
+2004-12-12 - v0.3.1
+	* added support for reading PKCS#12 (PFX) files (as a replacement for
+	  PEM/DER) to get certificate and private key (CONFIG_PKCS12)
+	* fixed compilation with CONFIG_PCSC=y
+	* added new ap_scan mode, ap_scan=2, for drivers that take care of
+	  association, but need to be configured with security policy and SSID,
+	  e.g., ndiswrapper and NDIS driver; this mode should allow such
+	  drivers to work with hidden SSIDs and optimized roaming; when
+	  ap_scan=2 is used, only the first network block in the configuration
+	  file is used and this configuration should have explicit security
+	  policy (i.e., only one option in the lists) for key_mgmt, pairwise,
+	  group, proto variables
+	* added experimental port of wpa_supplicant for Windows
+	  - driver_ndis.c driver interface (NDIS OIDs)
+	  - currently, this requires cygwin and WinPcap
+	  - small utility, win_if_list, can be used to get interface name
+	* control interface can now be removed at build time; add
+	  CONFIG_CTRL_IFACE=y to .config to maintain old functionality
+	* optional Xsupplicant interface can now be removed at build time;
+	  (CONFIG_XSUPPLICANT_IFACE=y in .config to bring it back)
+	* added auth_alg to driver interface associate() parameters to make it
+	  easier for drivers to configure authentication algorithm as part of
+	  the association
+
+2004-12-05 - v0.3.0 (beginning of 0.3.x development releases)
+	* driver_broadcom: added new driver interface for Broadcom wl.o driver
+	  (a generic driver for Broadcom IEEE 802.11a/g cards)
+	* wpa_cli: fixed parsing of -p <path> command line argument
+	* PEAPv1: fixed tunneled EAP-Success reply handling to reply with TLS
+	  ACK, not tunneled EAP-Success (of which only the first byte was
+	  actually send due to a bug in previous code); this seems to
+	  interoperate with most RADIUS servers that implements PEAPv1
+	* PEAPv1: added support for terminating PEAP authentication on tunneled
+	  EAP-Success message; this can be configured by adding
+	  peap_outer_success=0 on phase1 parameters in wpa_supplicant.conf
+	  (some RADIUS servers require this whereas others require a tunneled
+	  reply
+	* PEAPv1: changed phase1 option peaplabel to use default to 0, i.e., to
+	  the old label for key derivation; previously, the default was 1,
+	  but it looks like most existing PEAPv1 implementations use the old
+	  label which is thus more suitable default option
+	* added support for EAP-PSK (draft-bersani-eap-psk-03.txt)
+	* fixed parsing of wep_tx_keyidx
+	* added support for configuring list of allowed Phase 2 EAP types
+	  (for both EAP-PEAP and EAP-TTLS) instead of only one type
+	* added support for configuring IEEE 802.11 authentication algorithm
+	  (auth_alg; mainly for using Shared Key authentication with static
+	  WEP keys)
+	* added support for EAP-AKA (with UMTS SIM)
+	* fixed couple of errors in PCSC handling that could have caused
+	  random-looking errors for EAP-SIM
+	* added support for EAP-SIM pseudonyms and fast re-authentication
+	* added support for EAP-TLS/PEAP/TTLS fast re-authentication (TLS
+	  session resumption)
+	* added support for EAP-SIM with two challanges
+	  (phase1="sim_min_num_chal=3" can be used to require three challenges)
+	* added support for configuring DH/DSA parameters for an ephemeral DH
+	  key exchange (EAP-TLS/PEAP/TTLS) using new configuration parameters
+	  dh_file and dh_file2 (phase 2); this adds support for using DSA keys
+	  and optional DH key exchange to achieve forward secracy with RSA keys
+	* added support for matching subject of the authentication server
+	  certificate with a substring when using EAP-TLS/PEAP/TTLS; new
+	  configuration variables subject_match and subject_match2
+	* changed SSID configuration in driver_wext.c (used by many driver
+	  interfaces) to use ssid_len+1 as the length for SSID since some Linux
+	  drivers expect this
+	* fixed couple of unaligned reads in scan result parsing to fix WPA
+	  connection on some platforms (e.g., ARM)
+	* added driver interface for Intel ipw2100 driver
+	* added support for LEAP with WPA
+	* added support for larger scan results report (old limit was 4 kB of
+	  data, i.e., about 35 or so APs) when using Linux wireless extensions
+	  v17 or newer
+	* fixed a bug in PMKSA cache processing: skip sending of EAPOL-Start
+	  only if there is a PMKSA cache entry for the current AP
+	* fixed error handling for case where reading of scan results fails:
+	  must schedule a new scan or wpa_supplicant will remain waiting
+	  forever
+	* changed debug output to remove shared password/key material by
+	  default; all key information can be included with -K command line
+	  argument to match the previous behavior
+	* added support for timestamping debug log messages (disabled by
+	  default, can be enabled with -t command line argument)
+	* set pairwise/group cipher suite for non-WPA IEEE 802.1X to WEP-104
+	  if keys are not configured to be used; this fixes IEEE 802.1X mode
+	  with drivers that use this information to configure whether Privacy
+	  bit can be in Beacon frames (e.g., ndiswrapper)
+	* avoid clearing driver keys if no keys have been configured since last
+	  key clear request; this seems to improve reliability of group key
+	  handshake for ndiswrapper & NDIS driver which seems to be suffering
+	  of some kind of timing issue when the keys are cleared again after
+	  association
+	* changed driver interface API:
+	  - WPA_SUPPLICANT_DRIVER_VERSION define can be used to determine which
+	    version is being used (now, this is set to 2; previously, it was
+	    not defined)
+	  - pass pointer to private data structure to all calls
+	  - the new API is not backwards compatible; all in-tree driver
+	    interfaces has been converted to the new API
+	* added support for controlling multiple interfaces (radios) per
+	  wpa_supplicant process; each interface needs to be listed on the
+	  command line (-c, -i, -D arguments) with -N as a separator
+	  (-cwpa1.conf -iwlan0 -Dhostap -N -cwpa2.conf -iath0 -Dmadwifi)
+	* added a workaround for EAP servers that incorrectly use same Id for
+	  sequential EAP packets
+	* changed libpcap/libdnet configuration to use .config variable,
+	  CONFIG_DNET_PCAP, instead of requiring Makefile modification
+	* improved downgrade attack detection in IE verification of msg 3/4:
+	  verify both WPA and RSN IEs, if present, not only the selected one;
+	  reject the AP if an RSN IE is found in msg 3/4, but not in Beacon or
+	  Probe Response frame, and RSN is enabled in wpa_supplicant
+	  configuration
+	* fixed WPA msg 3/4 processing to allow Key Data field contain other
+	  IEs than just one WPA IE
+	* added support for FreeBSD and driver interface for the BSD net80211
+	  layer (CONFIG_DRIVER_BSD=y in .config); please note that some of the
+	  required kernel mods have not yet been committed
+	* made EAP workarounds configurable; enabled by default, can be
+	  disabled with network block option eap_workaround=0
+
+2004-07-17 - v0.2.4 (beginning of 0.2.x stable releases)
+	* resolved couple of interoperability issues with EAP-PEAPv1 and
+	  Phase 2 (inner EAP) fragment reassembly
+	* driver_madwifi: fixed WEP key configuration for IEEE 802.1X when the
+	  AP is using non-zero key index for the unicast key and key index zero
+	  for the broadcast key
+	* driver_hostap: fixed IEEE 802.1X WEP key updates and
+	  re-authentication by allowing unencrypted EAPOL frames when not using
+	  WPA
+	* added a new driver interface, 'wext', which uses only standard,
+	  driver independent functionality in Linux wireless extensions;
+	  currently, this can be used only for non-WPA IEEE 802.1X mode, but
+	  eventually, this is to be extended to support full WPA/WPA2 once
+	  Linux wireless extensions get support for this
+	* added support for mode in which the driver is responsible for AP
+	  scanning and selection; this is disabled by default and can be
+	  enabled with global ap_scan=0 variable in wpa_supplicant.conf;
+	  this mode can be used, e.g., with generic 'wext' driver interface to
+	  use wpa_supplicant as IEEE 802.1X Supplicant with any Linux driver
+	  supporting wireless extensions.
+	* driver_madwifi: fixed WPA2 configuration and scan_ssid=1 (e.g.,
+	  operation with an AP that does not include SSID in the Beacon frames)
+	* added support for new EAP authentication methods:
+	  EAP-TTLS/EAP-OTP, EAP-PEAPv0/OTP, EAP-PEAPv1/OTP, EAP-OTP
+	* added support for asking one-time-passwords from frontends (e.g.,
+	  wpa_cli); this 'otp' command works otherwise like 'password' command,
+	  but the password is used only once and the frontend will be asked for
+	  a new password whenever a request from authenticator requires a
+	  password; this can be used with both EAP-OTP and EAP-GTC
+	* changed wpa_cli to automatically re-establish connection so that it
+	  does not need to be re-started when wpa_supplicant is terminated and
+	  started again
+	* improved user data (identity/password/otp) requests through
+	  frontends: process pending EAPOL packets after getting new
+	  information so that full authentication does not need to be
+	  restarted; in addition, send pending requests again whenever a new
+	  frontend is attached
+	* changed control frontends to use a new directory for socket files to
+	  make it easier for wpa_cli to automatically select between interfaces
+	  and to provide access control for the control interface;
+	  wpa_supplicant.conf: ctrl_interface is now a path
+	  (/var/run/wpa_supplicant is the recommended path) and
+	  ctrl_interface_group can be used to select which group gets access to
+	  the control interface;
+	  wpa_cli: by default, try to connect to the first interface available
+	  in /var/run/wpa_supplicant; this path can be overriden with -p option
+	  and an interface can be selected with -i option (i.e., in most common
+	  cases, wpa_cli does not need to get any arguments)
+	* added support for LEAP
+	* added driver interface for Linux ndiswrapper
+	* added priority option for network blocks in the configuration file;
+	  this allows networks to be grouped based on priority (the scan
+	  results are searched for matches with network blocks in this order)
+
+2004-06-20 - v0.2.3
+	* sort scan results to improve AP selection
+	* fixed control interface socket removal for some error cases
+	* improved scan requesting and authentication timeout
+	* small improvements/bug fixes for EAP-MSCHAPv2, EAP-PEAP, and
+	  TLS processing
+	* PEAP version can now be forced with phase1="peapver=<ver>"
+	  (mostly for testing; by default, the highest version supported by
+	  both the Supplicant and Authentication Server is selected
+	  automatically)
+	* added support for madwifi driver (Atheros ar521x)
+	* added a workaround for cases where AP sets Install Tx/Rx bit for
+	  WPA Group Key messages when pairwise keys are used (without this,
+	  the Group Key would be used for Tx and the AP would drop frames
+	  from the station)
+	* added GSM SIM/USIM interface for GSM authentication algorithm for
+	  EAP-SIM; this requires pcsc-lite
+	* added support for ATMEL AT76C5XXx driver
+	* fixed IEEE 802.1X WEP key derivation in the case where Authenticator
+	  does not include key data in the EAPOL-Key frame (i.e., part of
+	  EAP keying material is used as data encryption key)
+	* added support for using plaintext and static WEP networks
+	  (key_mgmt=NONE)
+
+2004-05-31 - v0.2.2
+	* added support for new EAP authentication methods:
+	  EAP-TTLS/EAP-MD5-Challenge
+	  EAP-TTLS/EAP-GTC
+	  EAP-TTLS/EAP-MSCHAPv2
+	  EAP-TTLS/EAP-TLS
+	  EAP-TTLS/MSCHAPv2
+	  EAP-TTLS/MSCHAP
+	  EAP-TTLS/PAP
+	  EAP-TTLS/CHAP
+	  EAP-PEAP/TLS
+	  EAP-PEAP/GTC
+	  EAP-PEAP/MD5-Challenge
+	  EAP-GTC
+	  EAP-SIM (not yet complete; needs GSM/SIM authentication interface)
+	* added support for anonymous identity (to be used when identity is
+	  sent in plaintext; real identity will be used within TLS protected
+	  tunnel (e.g., with EAP-TTLS)
+	* added event messages from wpa_supplicant to frontends, e.g., wpa_cli
+	* added support for requesting identity and password information using
+	  control interface; in other words, the password for EAP-PEAP or
+	  EAP-TTLS does not need to be included in the configuration file since
+	  a frontand (e.g., wpa_cli) can ask it from the user
+	* improved RSN pre-authentication to use a candidate list and process
+	  all candidates from each scan; not only one per scan
+	* fixed RSN IE and WPA IE capabilities field parsing
+	* ignore Tx bit in GTK IE when Pairwise keys are used
+	* avoid making new scan requests during IEEE 802.1X negotiation
+	* use openssl/libcrypto for MD5 and SHA-1 when compiling wpa_supplicant
+	  with TLS support (this replaces the included implementation with
+	  library code to save about 8 kB since the library code is needed
+	  anyway for TLS)
+	* fixed WPA-PSK only mode when compiled without IEEE 802.1X support
+	  (i.e., without CONFIG_IEEE8021X_EAPOL=y in .config)
+
+2004-05-06 - v0.2.1
+	* added support for internal IEEE 802.1X (actually, IEEE 802.1aa/D6.1)
+	  Supplicant
+	  - EAPOL state machines for Supplicant [IEEE 802.1aa/D6.1]
+	  - EAP peer state machine [draft-ietf-eap-statemachine-02.pdf]
+	  - EAP-MD5 (cannot be used with WPA-RADIUS)
+	    [draft-ietf-eap-rfc2284bis-09.txt]
+	  - EAP-TLS [RFC 2716]
+	  - EAP-MSCHAPv2 (currently used only with EAP-PEAP)
+	  - EAP-PEAP/MSCHAPv2 [draft-josefsson-pppext-eap-tls-eap-07.txt]
+	    [draft-kamath-pppext-eap-mschapv2-00.txt]
+	    (PEAP version 0, 1, and parts of 2; only 0 and 1 are enabled by
+	    default; tested with FreeRADIUS, Microsoft IAS, and Funk Odyssey)
+	  - new configuration file options: eap, identity, password, ca_cert,
+	    client_cert, privatekey, private_key_passwd
+	  - Xsupplicant is not required anymore, but it can be used by
+	    disabling the internal IEEE 802.1X Supplicant with -e command line
+	    option
+	  - this code is not included in the default build; Makefile need to
+	    be edited for this (uncomment lines for selected functionality)
+	  - EAP-TLS and EAP-PEAP require openssl libraries
+	* use module prefix in debug messages (WPA, EAP, EAP-TLS, ..)
+	* added support for non-WPA IEEE 802.1X mode with dynamic WEP keys
+	  (i.e., complete IEEE 802.1X/EAP authentication and use IEEE 802.1X
+	   EAPOL-Key frames instead of WPA key handshakes)
+	* added support for IEEE 802.11i/RSN (WPA2)
+	  - improved PTK Key Handshake
+	  - PMKSA caching, pre-authentication
+	* fixed wpa_supplicant to ignore possible extra data after WPA
+	  EAPOL-Key packets (this fixes 'Invalid EAPOL-Key MIC when using
+	  TPTK' error from message 3 of 4-Way Handshake in case the AP
+	  includes extra data after the EAPOL-Key)
+	* added interface for external programs (frontends) to control
+	  wpa_supplicant
+	  - CLI example (wpa_cli) with interactive mode and command line
+	    mode
+	  - replaced SIGUSR1 status/statistics with the new control interface
+	* made some feature compile time configurable
+	  - .config file for make
+	  - driver interfaces (hostap, hermes, ..)
+	  - EAPOL/EAP functions
+
+2004-02-15 - v0.2.0
+	* Initial version of wpa_supplicant

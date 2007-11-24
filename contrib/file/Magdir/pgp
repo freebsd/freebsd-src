@@ -1,0 +1,13 @@
+
+#------------------------------------------------------------------------------
+# pgp:  file(1) magic for Pretty Good Privacy
+#
+0       beshort         0x9900                  PGP key public ring
+0       beshort         0x9501                  PGP key security ring
+0       beshort         0x9500                  PGP key security ring
+0	beshort		0xa600			PGP encrypted data
+0       string          -----BEGIN\040PGP       PGP armored data
+>15     string          PUBLIC\040KEY\040BLOCK- public key block
+>15     string          MESSAGE-                message
+>15     string          SIGNED\040MESSAGE-      signed message
+>15     string          PGP\040SIGNATURE-       signature

@@ -1,0 +1,281 @@
+.ig \"-*- nroff -*-
+Copyright (C) 2004, 2005 Free Software Foundation, Inc.
+
+This file is part of the gdiffmk utility, which is part of groff.
+Written by Mike Bianchi <MBianchi@Foveal.com <mailto:MBianchi@Foveal.com>>
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.
+.do mso www.tmac
+.
+.TH GDIFFMK @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
+.SH NAME
+gdiffmk \- mark differences between groff/nroff/troff files
+.
+.
+.SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fBgdiffmk 'u
+.ti \niu   
+.B gdiffmk
+.de OP
+.  ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.  el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-a \%addmark
+.OP \-c \%changemark
+.OP \-d \%deletemark
+[\ \c
+.B \-D
+.OP \-B
+.OP \-M "mark1 mark2"
+]
+.OP \-x \%diffcmd
+.OP \-\-
+.OP \-\-help
+.OP \%\-\-version
+.I \%file1
+.I \%file2
+[\ \c
+.IR \%output \ \c
+]
+.br
+.ad \na
+.
+.
+.SH DESCRIPTION
+.B gdiffmk
+compares two
+.BR groff (1),
+.BR nroff (1),
+or
+.BR troff (1)
+documents,
+.I file1
+and
+.IR file2 ,
+and creates an output which is
+.I file2
+with added `margin character' (.mc) commands that indicate the differences.
+.
+.LP
+If the
+.I output
+filename is present,
+the output is written there.
+If it is
+.B \-
+or absent the output is written to the standard output.
+.
+.LP
+If the
+.I file1
+or
+.I file2
+argument is
+.B \-
+the standard input is read for that input.
+Clearly both cannot be
+.BR \- .
+.
+.LP
+Note that the output is not necessarily compatible with all macro packages
+and all preprocessors.
+See the
+.B BUGS
+section below.
+.
+.
+.SH OPTIONS
+.TP
+.BI \-a addmark
+Use the
+.I addmark
+for source lines not in
+.I file1
+but present in
+.IR file2 .
+Default:
+.BR + .
+.
+.TP
+.B \-B
+By default, the deleted texts marked by the
+.B \-D
+option end
+with an added troff break command,
+.BR .br ,
+to ensure that the deletions are marked properly.
+This is the only way to guarantee that deletions and small
+changes get flagged.
+This option directs the program not to insert these breaks; it makes no
+sense to use it without
+.BR \-D .
+.
+.TP
+.BI \-c changemark
+Use the
+.I changemark
+for changed source lines.
+Default:
+.BR | .
+.
+.TP
+.BI \-d deletemark
+Use the
+.I deletemark
+for deleted source lines.
+Default:
+.BR * .
+.
+.TP
+.B \-D
+Show the deleted portions from changed and deleted text.
+Default delimiting marks:
+.BR "[[" " .\&.\&.\&. " "]]" .
+.
+.TP
+.BI \-M "mark1 mark2"
+Change the delimiting marks for the
+.B \-D
+option.
+It makes no sense to use this option without
+.BR \-D .
+.
+.TP
+.BI \-x diffcmd
+Use the
+.I diffcmd
+command to perform the comparison of
+.I file1
+and
+.IR file2 .
+In particular,
+.I diffcmd
+should accept the GNU
+.B diff
+.BI \-D name
+option.
+Default:
+.BR diff (1).
+.
+.TP
+.B \-\-
+All the following arguments are treated as file names,
+even if they begin with
+.BR \- .
+.
+.TP
+.B \-\-help
+Print a usage message on standard error output and exit.
+.
+.TP
+.B \-\-version
+Print version information on the standard output and exit.
+.
+.
+.SH BUGS
+The output is not necessarily compatible with all macro packages
+and all preprocessors.
+A workaround that is often successful against preprocessor problems
+is to run
+.B gdiffmk
+on the output of all the preprocessors instead of the input source.
+.
+.LP
+.B gdiffmk
+relies on the
+.BI \-D name
+option of GNU
+.BR diff (1)
+to make a merged `#ifdef' output format.
+It hasn't been tested whether other versions of
+.BR diff (1)
+do support this option.
+See also the
+.BI \-x diffcmd
+option.
+.
+.LP
+Report bugs to bug-groff@gnu.org.
+Include a complete, self-contained example that will allow the bug to
+be reproduced, and say which version of
+.B gdiffmk
+you are using.
+.
+.
+.SH AUTHORS
+This document was written and is maintained by
+.MTO MBianchi@Foveal.com "Mike Bianchi" .
+.
+.LP
+This document is distributed under the terms of the FDL (GNU Free
+Documentation License) version 1.1 or later.
+You should have received a copy of the FDL on your system, it is also
+available on-line at the
+.URL http://\:www.gnu.org/\:copyleft/\:fdl.html "GNU copyleft site" .
+.
+.LP
+.B gdiffmk
+is part of the
+.I groff
+GNU free software project.
+All parts of the
+.I groff package
+are protected by GNU copyleft licenses.
+The software files are distributed under the terms of the GNU General
+Public License (GPL), while the documentation files mostly use the GNU
+Free Documentation License (FDL).
+.
+.
+.SH COPYRIGHT
+Copyright \(co 2004, 2005 Free Software Foundation, Inc.
+.
+.LP
+.B gdiffmk
+is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+.
+.LP
+.B gdiffmk
+is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+.
+.LP
+You should have received a copy of the GNU General Public License along
+with groff; see the file COPYING.
+If not, write to the Free Software
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
+.
+.
+.SH "SEE ALSO"
+.BR groff (@MAN1EXT@),
+.BR nroff (@MAN1EXT@),
+.BR gtroff (@MAN1EXT@),
+.BR diff (@MAN1EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

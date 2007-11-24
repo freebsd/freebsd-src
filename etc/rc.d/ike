@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: ike
+# REQUIRE: root mountcritlocal
+# BEFORE:  DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ike"
+rcvar=`set_rcvar`
+command="/usr/local/sbin/isakmpd"
+extra_commands="reload"
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,110 @@
+$FreeBSD$
+
+Soft Updates Status
+
+As is detailed in the operational information below, snapshots
+are definitely alpha-test code and are NOT yet ready for production
+use. Much remains to be done to make them really useful, but I
+wanted to let folks get a chance to try it out and start reporting
+bugs and other shortcomings. Such reports should be sent to
+Kirk McKusick <mckusick@mckusick.com>.
+
+
+Snapshot Copyright Restrictions
+
+Snapshots have been introduced to FreeBSD with a `Berkeley-style'
+copyright. The file implementing snapshots resides in the sys/ufs/ffs
+directory and is compiled into the generic kernel by default.
+
+
+Using Snapshots
+
+To create a snapshot of your /var filesystem, run the command:
+
+	mount -u -o snapshot /var/snapshot/snap1 /var
+
+This command will take a snapshot of your /var filesystem and
+leave it in the file /var/snapshot/snap1. Note that snapshot
+files must be created in the filesystem that is being snapshotted.
+I use the convention of putting a `snapshot' directory at the
+root of each filesystem into which I can place snapshots.
+You may create up to 20 snapshots per filesystem. Active snapshots
+are recorded in the superblock, so they persist across unmount
+and remount operations and across system reboots. When you
+are done with a snapshot, it can be removed with the `rm'
+command. Snapshots may be removed in any order, however you
+may not get back all the space contained in the snapshot as
+another snapshot may claim some of the blocks that it is releasing. 
+Note that the `schg' flag is set on snapshots to ensure that
+not even the root user can write to them. The unlink command
+makes an exception for snapshot files in that it allows them
+to be removed even though they have the `schg' flag set, so it
+is not necessary to clear the `schg' flag before removing a
+snapshot file.
+
+Once you have taken a snapshot, there are three interesting
+things that you can do with it:
+
+1) Run fsck on the snapshot file. Assuming that the filesystem
+   was clean when it was mounted, you should always get a clean
+   (and unchanging) result from running fsck on the snapshot.
+   If you are running with soft updates and rebooted after a
+   crash without cleaning up the filesystem, then fsck of the
+   snapshot may find missing blocks and inodes or inodes with
+   link counts that are too high. I have not yet added the
+   system calls to allow fsck to add these missing resources
+   back to the filesystem - that will be added once the basic
+   snapshot code is working properly. So, view those reports
+   as informational for now.
+
+2) Run dump on the snapshot. You will get a dump that is
+   consistent with the filesystem as of the timestamp of the
+   snapshot.
+
+3) Mount the snapshot as a frozen image of the filesystem.
+   To mount the snapshot /var/snapshot/snap1:
+
+	mdconfig -a -t vnode -f /var/snapshot/snap1 -u 4
+	mount -r /dev/md4 /mnt
+
+   You can now cruise around your frozen /var filesystem
+   at /mnt. Everything will be in the same state that it
+   was at the time the snapshot was taken. The one exception
+   is that any earlier snapshots will appear as zero length
+   files. When you are done with the mounted snapshot:
+
+	umount /mnt
+	mdconfig -d -u 4
+
+   Note that under some circumstances, the process accessing
+   the frozen filesystem may deadlock. I am aware of this
+   problem, but the solution is not simple. It requires
+   using buffer read locks rather than exclusive locks when
+   traversing the inode indirect blocks. Until this problem
+   is fixed, you should avoid putting mounted snapshots into
+   production.
+
+
+Performance
+
+It takes about 30 seconds to create a snapshot of an 8Gb filesystem.
+Of that time 25 seconds is spent in preparation; filesystem activity
+is only suspended for the final 5 seconds of that period. Snapshot
+removal of an 8Gb filesystem takes about two minutes. Filesystem
+activity is never suspended during snapshot removal.
+
+The suspend time may be expanded by several minutes if a process
+is in the midst of removing many files as all the soft updates
+backlog must be cleared. Generally snapshots do not slow the system
+down appreciably except when removing many small files (i.e., any
+file less than 96Kb whose last block is a fragment) that are claimed
+by a snapshot. Here, the snapshot code must make a copy of every
+released fragment which slows the rate of file removal to about
+twenty files per second once the soft updates backlog limit is
+reached.
+
+
+How Snapshots Work
+
+For more general information on snapshots, please see:
+	http://www.mckusick.com/softdep/

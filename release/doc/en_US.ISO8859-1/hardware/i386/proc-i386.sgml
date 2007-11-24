@@ -1,0 +1,96 @@
+<!--
+	$FreeBSD$
+-->
+<sect1 id="proc">
+  <title>Supported Processors and Motherboards</title>
+
+  <para>&os;/i386 runs on a wide variety of <quote>IBM PC
+    compatible</quote> machines.  Due to the wide range of hardware
+    available for this architecture, it is impossible to exhaustively
+    list all combinations of equipment supported by &os;.
+    Nevertheless, some general guidelines are presented here.</para>
+
+  <para>Almost all i386-compatible processors with a floating point unit
+    are supported.  All
+    Intel processors beginning with the 80486 are supported, including
+    the 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
+    Pentium 4, and variants thereof, such as the Xeon and Celeron
+    processors.  All i386-compatible AMD
+    processors are also supported, including the Am486, Am5x86, K5, K6
+    (and variants), Athlon (including Athlon-MP, Athlon-XP, Athlon-4,
+    and Athlon Thunderbird), and Duron processors.  The AMD
+    &Eacute;lan SC520 embedded processor is supported.  The Transmeta
+    Crusoe is recognized and supported, as are i386-compatible
+    processors from Cyrix and NexGen.</para>
+
+  <para>There is a wide variety of motherboards available for this
+    architecture.  Motherboards using the ISA, VLB, EISA, AGP, and PCI
+    expansion busses are well-supported.  There is some limited
+    support for the MCA (<quote>MicroChannel</quote>) expansion bus
+    used in the IBM PS/2 line of PCs.</para>
+
+  <para>Symmetric multi-processor (SMP) systems are generally
+    supported by &os;, although in some cases, BIOS or motherboard
+    bugs may generate some problems.  Perusal of the archives of the
+    &a.smp; may yield some clues.</para>
+
+  <para>&os; will take advantage of HyperThreading (HTT) support on
+    Intel CPUs that support this feature.  A kernel with the
+    <literal>options&nbsp;SMP</literal> feature enabled will
+    automatically detect the additional logical processors.  The
+    default &os; scheduler treats the logical processors the same as
+    additional physical processors; in other words, no attempt is made
+    to optimize scheduling decisions given the shared resources
+    between logical processors within the same CPU.  Because this
+    naive scheduling can result in suboptimal performance, under
+    certain circumstances it may be useful to disable the logical
+    processors with the
+    the <varname>machdep.hlt_logical_cpus</varname> sysctl variable.
+    It is also possible to halt any CPU in the idle loop with the
+    <varname>machdep.hlt_cpus</varname> sysctl variable.  The
+    &man.smp.4; manual page has more details.</para>
+
+  <para>&os; will take advantage of Physical Address Extensions (PAE)
+    support on CPUs that support this feature.  A kernel with the
+    <literal>PAE</literal> feature enabled will detect memory above
+    4 gigabytes and allow it to be used by the system.  This feature
+    places constraints on the device drivers and other features of
+    &os; which may be used; consult the &man.pae.4; manpage for more
+    details.</para>
+
+  <para>&os; will generally run on i386-based laptops, albeit with
+    varying levels of support for certain hardware features such as
+    sound, graphics, power management, and PCCARD expansion slots.
+    These features tend to vary in idiosyncratic ways between
+    machines, and frequently require special-case support in &os; to
+    work around hardware bugs or other oddities.  When in doubt, a
+    search of the archives of the &a.mobile; may be useful.</para>
+
+  <para>Most modern laptops (as well as many desktops) use the
+    Advanced Configuration and Power Management (ACPI) standard.  &os;
+    supports ACPI via the ACPI Component Architecture reference
+    implementation from Intel, as described in the &man.acpi.4; manual
+    page.  The use of ACPI causes instabilities on some machines and it
+    may be necessary to disable the ACPI driver, which is normally
+    loaded via a kernel module.  This may be accomplished by adding
+    the following line to <filename>/boot/device.hints</filename>:</para>
+
+  <programlisting>hint.acpi.0.disabled="1"</programlisting>
+
+  <para>Users debugging ACPI-related problems may find it useful to
+    disable portions of the ACPI functionality.  The &man.acpi.4;
+    manual page has more information on how to do this via loader
+    tunables.</para>
+
+  <para>ACPI depends on a Differentiated System Descriptor Table
+    (DSDT) provided by each machine's BIOS.  Some machines have bad or
+    incomplete DSDTs, which prevents ACPI from functioning correctly.
+    Replacement DSDTs for some machines can be found at the <ulink
+    url="http://acpi.sourceforge.net/dsdt/index.php">DSDT</ulink>
+    section of the <ulink
+    url="http://acpi.sourceforge.net/">ACPI4Linux</ulink> project Web
+    site.  &os; can use these DSDTs to override the DSDT provided by
+    the BIOS; see the &man.acpi.4; manual page for more
+    information.</para>
+
+</sect1>

@@ -1,0 +1,72 @@
+<!doctype refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+
+<refentry>
+  <refmeta>
+    <refentrytitle>wpa_passphrase</refentrytitle>
+    <manvolnum>8</manvolnum>
+  </refmeta>
+  <refnamediv>
+    <refname>wpa_passphrase</refname>
+    <refpurpose>Set WPA passphrase for a SSID</refpurpose>
+  </refnamediv>
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>wpa_passphrase</command>
+      <arg><replaceable>ssid</replaceable></arg>
+      <arg><replaceable>passphrase</replaceable></arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Overview</title> 
+
+    <para><command>wpa_passphrase</command> pre-computes PSK entries for
+    network configuration blocks of a
+    <filename>wpa_supplicant.conf</filename> file.</para>
+  </refsect1>
+
+  <refsect1>
+    <title>Options</title>
+    <variablelist>
+      <varlistentry>
+	<term>ssid</term>
+	<listitem>
+	  <para>The SSID whose passphrase should be derived.</para>
+	</listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>passphrase</term>
+	<listitem>
+	  <para>The passphrase to use. If not included on the command line,
+	  passphrase will be read from standard input.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>See Also</title>
+    <para>
+      <citerefentry>
+	<refentrytitle>wpa_supplicant.conf</refentrytitle>
+	<manvolnum>5</manvolnum>
+      </citerefentry>
+      <citerefentry>
+	<refentrytitle>wpa_supplicant</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>
+    </para>
+
+  </refsect1>
+  <refsect1>
+    <title>Legal</title>
+    <para>wpa_supplicant is copyright (c) 2003-2005,
+    Jouni Malinen <email>jkmaline@cc.hut.fi</email> and
+    contributors.
+    All Rights Reserved.</para>
+
+    <para>This program is dual-licensed under both the GPL version 2
+    and BSD license. Either license may be used at your option.</para>
+  </refsect1>
+</refentry>

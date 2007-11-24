@@ -1,0 +1,13 @@
+<!-- -*- sgml -*- -->
+
+<!-- $FreeBSD$ -->
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+
+<!-- Files to be included -->
+
+<!ENTITY art SYSTEM "../common/new.sgml">
+

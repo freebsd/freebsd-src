@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# $NetBSD: DAEMON,v 1.8 2002/03/22 04:33:57 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: DAEMON
+# REQUIRE: NETWORKING SERVERS
+
+#	This is a dummy dependency, to ensure that general purpose daemons
+#	are run _after_ the above are.

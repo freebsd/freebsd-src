@@ -1,0 +1,22 @@
+# $FreeBSD$
+
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+.if ${TARGET_ARCH} == "alpha"
+GCC_CPU=	alpha
+.elif ${TARGET_ARCH} == "arm"
+GCC_CPU=	arm
+.if defined(TARGET_BIG_ENDIAN)
+CFLAGS+=	-DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
+.endif
+.elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
+GCC_CPU=	i386
+.elif ${TARGET_ARCH} == "ia64"
+TARGET_CPU_DEFAULT= MASK_GNU_AS|MASK_GNU_LD
+GCC_CPU=	ia64
+.elif ${TARGET_ARCH} == "powerpc"
+GCC_CPU=	rs6000
+.elif ${TARGET_ARCH} == "sparc64"
+GCC_CPU=	sparc
+TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
+.endif

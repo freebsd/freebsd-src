@@ -1,0 +1,896 @@
+
+
+
+DNSEXT                                                         R. Arends
+Internet-Draft                                      Telematica Instituut
+Expires: January 19, 2006                                     M. Kosters
+                                                               D. Blacka
+                                                          Verisign, Inc.
+                                                           July 18, 2005
+
+
+                             DNSSEC Opt-In
+                   draft-ietf-dnsext-dnssec-opt-in-07
+
+Status of this Memo
+
+   By submitting this Internet-Draft, each author represents that any
+   applicable patent or other IPR claims of which he or she is aware
+   have been or will be disclosed, and any of which he or she becomes
+   aware will be disclosed, in accordance with Section 6 of BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+   This Internet-Draft will expire on January 19, 2006.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2005).
+
+Abstract
+
+   In the DNS security extensions (DNSSEC, defined in RFC 4033 [3], RFC
+   4034 [4], and RFC 4035 [5]), delegations to unsigned subzones are
+   cryptographically secured.  Maintaining this cryptography is not
+   practical or necessary.  This document describes an experimental
+   "Opt-In" model that allows administrators to omit this cryptography
+   and manage the cost of adopting DNSSEC with large zones.
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 1]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+Table of Contents
+
+   1.  Definitions and Terminology  . . . . . . . . . . . . . . . . .  3
+   2.  Overview . . . . . . . . . . . . . . . . . . . . . . . . . . .  3
+   3.  Experimental Status  . . . . . . . . . . . . . . . . . . . . .  4
+   4.  Protocol Additions . . . . . . . . . . . . . . . . . . . . . .  4
+     4.1   Server Considerations  . . . . . . . . . . . . . . . . . .  5
+       4.1.1   Delegations Only . . . . . . . . . . . . . . . . . . .  5
+       4.1.2   Insecure Delegation Responses  . . . . . . . . . . . .  6
+       4.1.3   Wildcards and Opt-In . . . . . . . . . . . . . . . . .  6
+       4.1.4   Dynamic Update . . . . . . . . . . . . . . . . . . . .  7
+     4.2   Client Considerations  . . . . . . . . . . . . . . . . . .  7
+       4.2.1   Delegations Only . . . . . . . . . . . . . . . . . . .  7
+       4.2.2   Validation Process Changes . . . . . . . . . . . . . .  7
+       4.2.3   NSEC Record Caching  . . . . . . . . . . . . . . . . .  8
+       4.2.4   Use of the AD bit  . . . . . . . . . . . . . . . . . .  8
+   5.  Benefits . . . . . . . . . . . . . . . . . . . . . . . . . . .  8
+   6.  Example  . . . . . . . . . . . . . . . . . . . . . . . . . . .  9
+   7.  Transition Issues  . . . . . . . . . . . . . . . . . . . . . . 10
+   8.  Security Considerations  . . . . . . . . . . . . . . . . . . . 11
+   9.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 12
+   10.   Acknowledgments  . . . . . . . . . . . . . . . . . . . . . . 12
+   11.   References . . . . . . . . . . . . . . . . . . . . . . . . . 13
+     11.1  Normative References . . . . . . . . . . . . . . . . . . . 13
+     11.2  Informative References . . . . . . . . . . . . . . . . . . 13
+       Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . 14
+   A.  Implementing Opt-In using "Views"  . . . . . . . . . . . . . . 14
+       Intellectual Property and Copyright Statements . . . . . . . . 16
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 2]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+1.  Definitions and Terminology
+
+   Throughout this document, familiarity with the DNS system (RFC 1035
+   [1]), DNS security extensions ([3], [4], and [5], referred to in this
+   document as "standard DNSSEC"), and DNSSEC terminology (RFC 3090
+   [10]) is assumed.
+
+   The following abbreviations and terms are used in this document:
+
+   RR: is used to refer to a DNS resource record.
+   RRset: refers to a Resource Record Set, as defined by [8].  In this
+      document, the RRset is also defined to include the covering RRSIG
+      records, if any exist.
+   signed name: refers to a DNS name that has, at minimum, a (signed)
+      NSEC record.
+   unsigned name: refers to a DNS name that does not (at least) have a
+      NSEC record.
+   covering NSEC record/RRset: is the NSEC record used to prove
+      (non)existence of a particular name or RRset.  This means that for
+      a RRset or name 'N', the covering NSEC record has the name 'N', or
+      has an owner name less than 'N' and "next" name greater than 'N'.
+   delegation: refers to a NS RRset with a name different from the
+      current zone apex (non-zone-apex), signifying a delegation to a
+      subzone.
+   secure delegation: refers to a signed name containing a delegation
+      (NS RRset), and a signed DS RRset, signifying a delegation to a
+      signed subzone.
+   insecure delegation: refers to a signed name containing a delegation
+      (NS RRset), but lacking a DS RRset, signifying a delegation to an
+      unsigned subzone.
+   Opt-In insecure delegation: refers to an unsigned name containing
+      only a delegation NS RRset.  The covering NSEC record uses the
+      Opt-In methodology described in this document.
+
+   The key words "MUST, "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY, and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [7].
+
+2.  Overview
+
+   The cost to cryptographically secure delegations to unsigned zones is
+   high for large delegation-centric zones and zones where insecure
+   delegations will be updated rapidly.  For these zones, the costs of
+   maintaining the NSEC record chain may be extremely high relative to
+   the gain of cryptographically authenticating existence of unsecured
+   zones.
+
+   This document describes an experimental method of eliminating the
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 3]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   superfluous cryptography present in secure delegations to unsigned
+   zones.  Using "Opt-In", a zone administrator can choose to remove
+   insecure delegations from the NSEC chain.  This is accomplished by
+   extending the semantics of the NSEC record by using a redundant bit
+   in the type map.
+
+3.  Experimental Status
+
+   This document describes an EXPERIMENTAL extension to DNSSEC.  It
+   interoperates with non-experimental DNSSEC using the technique
+   described in [6].  This experiment is identified with the following
+   private algorithms (using algorithm 253):
+
+   "3.optin.verisignlabs.com": is an alias for DNSSEC algorithm 3, DSA,
+      and
+   "5.optin.verisignlabs.com": is an alias for DNSSEC algorithm 5,
+      RSASHA1.
+
+   Servers wishing to sign and serve zones that utilize Opt-In MUST sign
+   the zone with only one or more of these private algorithms.  This
+   requires the signing tools and servers to support private algorithms,
+   as well as Opt-In.
+
+   Resolvers wishing to validate Opt-In zones MUST only do so when the
+   zone is only signed using one or more of these private algorithms.
+
+   The remainder of this document assumes that the servers and resolvers
+   involved are aware of and are involved in this experiment.
+
+4.  Protocol Additions
+
+   In DNSSEC, delegation NS RRsets are not signed, but are instead
+   accompanied by a NSEC RRset of the same name and (possibly) a DS
+   record.  The security status of the subzone is determined by the
+   presence or absence of the DS RRset, cryptographically proven by the
+   NSEC record.  Opt-In expands this definition by allowing insecure
+   delegations to exist within an otherwise signed zone without the
+   corresponding NSEC record at the delegation's owner name.  These
+   insecure delegations are proven insecure by using a covering NSEC
+   record.
+
+   Since this represents a change of the interpretation of NSEC records,
+   resolvers must be able to distinguish between RFC standard DNSSEC
+   NSEC records and Opt-In NSEC records.  This is accomplished by
+   "tagging" the NSEC records that cover (or potentially cover) insecure
+   delegation nodes.  This tag is indicated by the absence of the NSEC
+   bit in the type map.  Since the NSEC bit in the type map merely
+   indicates the existence of the record itself, this bit is redundant
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 4]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   and safe for use as a tag.
+
+   An Opt-In tagged NSEC record does not assert the (non)existence of
+   the delegations that it covers (except for a delegation with the same
+   name).  This allows for the addition or removal of these delegations
+   without recalculating or resigning records in the NSEC chain.
+   However, Opt-In tagged NSEC records do assert the (non)existence of
+   other RRsets.
+
+   An Opt-In NSEC record MAY have the same name as an insecure
+   delegation.  In this case, the delegation is proven insecure by the
+   lack of a DS bit in type map and the signed NSEC record does assert
+   the existence of the delegation.
+
+   Zones using Opt-In MAY contain a mixture of Opt-In tagged NSEC
+   records and standard DNSSEC NSEC records.  If a NSEC record is not
+   Opt-In, there MUST NOT be any insecure delegations (or any other
+   records) between it and the RRsets indicated by the 'next domain
+   name' in the NSEC RDATA.  If it is Opt-In, there MUST only be
+   insecure delegations between it and the next node indicated by the
+   'next domain name' in the NSEC RDATA.
+
+   In summary,
+
+   o  An Opt-In NSEC type is identified by a zero-valued (or not-
+      specified) NSEC bit in the type bit map of the NSEC record.
+   o  A RFC2535bis NSEC type is identified by a one-valued NSEC bit in
+      the type bit map of the NSEC record.
+
+   and,
+
+   o  An Opt-In NSEC record does not assert the non-existence of a name
+      between its owner name and "next" name, although it does assert
+      that any name in this span MUST be an insecure delegation.
+   o  An Opt-In NSEC record does assert the (non)existence of RRsets
+      with the same owner name.
+
+4.1  Server Considerations
+
+   Opt-In imposes some new requirements on authoritative DNS servers.
+
+4.1.1  Delegations Only
+
+   This specification dictates that only insecure delegations may exist
+   between the owner and "next" names of an Opt-In tagged NSEC record.
+   Signing tools SHOULD NOT generate signed zones that violate this
+   restriction.  Servers SHOULD refuse to load and/or serve zones that
+   violate this restriction.  Servers also SHOULD reject AXFR or IXFR
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 5]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   responses that violate this restriction.
+
+4.1.2  Insecure Delegation Responses
+
+   When returning an Opt-In insecure delegation, the server MUST return
+   the covering NSEC RRset in the Authority section.
+
+   In standard DNSSEC, NSEC records already must be returned along with
+   the insecure delegation.  The primary difference that this proposal
+   introduces is that the Opt-In tagged NSEC record will have a
+   different owner name from the delegation RRset.  This may require
+   implementations to search for the covering NSEC RRset.
+
+4.1.3  Wildcards and Opt-In
+
+   Standard DNSSEC describes the practice of returning NSEC records to
+   prove the non-existence of an applicable wildcard in non-existent
+   name responses.  This NSEC record can be described as a "negative
+   wildcard proof".  The use of Opt-In NSEC records changes the
+   necessity for this practice.  For non-existent name responses when
+   the query name (qname) is covered by an Opt-In tagged NSEC record,
+   servers MAY choose to omit the wildcard proof record, and clients
+   MUST NOT treat the absence of this NSEC record as a validation error.
+
+   The intent of the standard DNSSEC negative wildcard proof requirement
+   is to prevent malicious users from undetectably removing valid
+   wildcard responses.  In order for this cryptographic proof to work,
+   the resolver must be able to prove:
+
+   1.  The exact qname does not exist.  This is done by the "normal"
+       NSEC record.
+   2.  No applicable wildcard exists.  This is done by returning a NSEC
+       record proving that the wildcard does not exist (this is the
+       negative wildcard proof).
+
+   However, if the NSEC record covering the exact qname is an Opt-In
+   NSEC record, the resolver will not be able to prove the first part of
+   this equation, as the qname might exist as an insecure delegation.
+   Thus, since the total proof cannot be completed, the negative
+   wildcard proof NSEC record is not useful.
+
+   The negative wildcard proof is also not useful when returned as part
+   of an Opt-In insecure delegation response for a similar reason: the
+   resolver cannot prove that the qname does or does not exist, and
+   therefore cannot prove that a wildcard expansion is valid.
+
+   The presence of an Opt-In tagged NSEC record does not change the
+   practice of returning a NSEC along with a wildcard expansion.  Even
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 6]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   though the Opt-In NSEC will not be able to prove that the wildcard
+   expansion is valid, it will prove that the wildcard expansion is not
+   masking any signed records.
+
+4.1.4  Dynamic Update
+
+   Opt-In changes the semantics of Secure DNS Dynamic Update [9].  In
+   particular, it introduces the need for rules that describe when to
+   add or remove a delegation name from the NSEC chain.  This document
+   does not attempt to define these rules.  Until these rules are
+   defined, servers MUST NOT process DNS Dynamic Update requests against
+   zones that use Opt-In NSEC records.  Servers SHOULD return responses
+   to update requests with RCODE=REFUSED.
+
+4.2  Client Considerations
+
+   Opt-In imposes some new requirements on security-aware resolvers
+   (caching or otherwise).
+
+4.2.1  Delegations Only
+
+   As stated in the "Server Considerations" section above, this
+   specification restricts the namespace covered by Opt-In tagged NSEC
+   records to insecure delegations only.  Thus, resolvers MUST reject as
+   invalid any records that fall within an Opt-In NSEC record's span
+   that are not NS records or corresponding glue records.
+
+4.2.2  Validation Process Changes
+
+   This specification does not change the resolver's resolution
+   algorithm.  However, it does change the DNSSEC validation process.
+   Resolvers MUST be able to use Opt-In tagged NSEC records to
+   cryptographically prove the validity and security status (as
+   insecure) of a referral.  Resolvers determine the security status of
+   the referred-to zone as follows:
+
+   o  In standard DNSSEC, the security status is proven by the existence
+      or absence of a DS RRset at the same name as the delegation.  The
+      existence of the DS RRset indicates that the referred-to zone is
+      signed.  The absence of the DS RRset is proven using a verified
+      NSEC record of the same name that does not have the DS bit set in
+      the type map.  This NSEC record MAY also be tagged as Opt-In.
+   o  Using Opt-In, the security status is proven by the existence of a
+      DS record (for signed) or the presence of a verified Opt-In tagged
+      NSEC record that covers the delegation name.  That is, the NSEC
+      record does not have the NSEC bit set in the type map, and the
+      delegation name falls between the NSEC's owner and "next" name.
+
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 7]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   Using Opt-In does not substantially change the nature of following
+   referrals within DNSSEC.  At every delegation point, the resolver
+   will have cryptographic proof that the referred-to subzone is signed
+   or unsigned.
+
+   When receiving either an Opt-In insecure delegation response or a
+   non-existent name response where that name is covered by an Opt-In
+   tagged NSEC record, the resolver MUST NOT require proof (in the form
+   of a NSEC record) that a wildcard did not exist.
+
+4.2.3  NSEC Record Caching
+
+   Caching resolvers MUST be able to retrieve the appropriate covering
+   Opt-In NSEC record when returning referrals that need them.  This
+   requirement differs from standard DNSSEC in that the covering NSEC
+   will not have the same owner name as the delegation.  Some
+   implementations may have to use new methods for finding these NSEC
+   records.
+
+4.2.4  Use of the AD bit
+
+   The AD bit, as defined by [2] and [5], MUST NOT be set when:
+
+   o  sending a Name Error (RCODE=3) response where the covering NSEC is
+      tagged as Opt-In.
+   o  sending an Opt-In insecure delegation response, unless the
+      covering (Opt-In) NSEC record's owner name equals the delegation
+      name.
+
+   This rule is based on what the Opt-In NSEC record actually proves:
+   for names that exist between the Opt-In NSEC record's owner and
+   "next" names, the Opt-In NSEC record cannot prove the non-existence
+   or existence of the name.  As such, not all data in the response has
+   been cryptographically verified, so the AD bit cannot be set.
+
+5.  Benefits
+
+   Using Opt-In allows administrators of large and/or changing
+   delegation-centric zones to minimize the overhead involved in
+   maintaining the security of the zone.
+
+   Opt-In accomplishes this by eliminating the need for NSEC records for
+   insecure delegations.  This, in a zone with a large number of
+   delegations to unsigned subzones, can lead to substantial space
+   savings (both in memory and on disk).  Additionally, Opt-In allows
+   for the addition or removal of insecure delegations without modifying
+   the NSEC record chain.  Zones that are frequently updating insecure
+   delegations (e.g., TLDs) can avoid the substantial overhead of
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 8]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   modifying and resigning the affected NSEC records.
+
+6.  Example
+
+   Consider the zone EXAMPLE, shown below.  This is a zone where all of
+   the NSEC records are tagged as Opt-In.
+
+   Example A: Fully Opt-In Zone.
+
+         EXAMPLE.               SOA    ...
+         EXAMPLE.               RRSIG  SOA ...
+         EXAMPLE.               NS     FIRST-SECURE.EXAMPLE.
+         EXAMPLE.               RRSIG  NS ...
+         EXAMPLE.               DNSKEY ...
+         EXAMPLE.               RRSIG  DNSKEY ...
+         EXAMPLE.               NSEC   FIRST-SECURE.EXAMPLE. (
+                                       SOA NS RRSIG DNSKEY )
+         EXAMPLE.               RRSIG  NSEC ...
+
+         FIRST-SECURE.EXAMPLE.  A      ...
+         FIRST-SECURE.EXAMPLE.  RRSIG  A ...
+         FIRST-SECURE.EXAMPLE.  NSEC   NOT-SECURE-2.EXAMPLE. A RRSIG
+         FIRST-SECURE.EXAMPLE.  RRSIG  NSEC ...
+
+         NOT-SECURE.EXAMPLE.    NS     NS.NOT-SECURE.EXAMPLE.
+         NS.NOT-SECURE.EXAMPLE. A      ...
+
+         NOT-SECURE-2.EXAMPLE.  NS     NS.NOT-SECURE.EXAMPLE.
+         NOT-SECURE-2.EXAMPLE   NSEC   SECOND-SECURE.EXAMPLE NS RRSIG
+         NOT-SECURE-2.EXAMPLE   RRSIG  NSEC ...
+
+         SECOND-SECURE.EXAMPLE. NS     NS.ELSEWHERE.
+         SECOND-SECURE.EXAMPLE. DS     ...
+         SECOND-SECURE.EXAMPLE. RRSIG  DS ...
+         SECOND-SECURE.EXAMPLE. NSEC   EXAMPLE. NS RRSIG DNSKEY
+         SECOND-SECURE.EXAMPLE. RRSIG  NSEC ...
+
+         UNSIGNED.EXAMPLE.      NS     NS.UNSIGNED.EXAMPLE.
+         NS.UNSIGNED.EXAMPLE.   A      ...
+
+
+   In this example, a query for a signed RRset (e.g., "FIRST-
+   SECURE.EXAMPLE A"), or a secure delegation ("WWW.SECOND-
+   SECURE.EXAMPLE A") will result in a standard DNSSEC response.
+
+   A query for a nonexistent RRset will result in a response that
+   differs from standard DNSSEC by: the NSEC record will be tagged as
+   Opt-In, there may be no NSEC record proving the non-existence of a
+
+
+
+Arends, et al.          Expires January 19, 2006                [Page 9]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   matching wildcard record, and the AD bit will not be set.
+
+   A query for an insecure delegation RRset (or a referral) will return
+   both the answer (in the Authority section) and the corresponding
+   Opt-In NSEC record to prove that it is not secure.
+
+   Example A.1: Response to query for WWW.UNSIGNED.EXAMPLE.  A
+
+
+         RCODE=NOERROR, AD=0
+
+         Answer Section:
+
+         Authority Section:
+         UNSIGNED.EXAMPLE.      NS     NS.UNSIGNED.EXAMPLE
+         SECOND-SECURE.EXAMPLE. NSEC   EXAMPLE. NS RRSIG DS
+         SECOND-SECURE.EXAMPLE. RRSIG  NSEC ...
+
+         Additional Section:
+         NS.UNSIGNED.EXAMPLE.   A      ...
+
+   In the Example A.1 zone, the EXAMPLE. node MAY use either style of
+   NSEC record, because there are no insecure delegations that occur
+   between it and the next node, FIRST-SECURE.EXAMPLE.  In other words,
+   Example A would still be a valid zone if the NSEC record for EXAMPLE.
+   was changed to the following RR:
+
+         EXAMPLE.               NSEC   FIRST-SECURE.EXAMPLE. (SOA NS
+                                       RRSIG DNSKEY NSEC )
+
+   However, the other NSEC records (FIRST-SECURE.EXAMPLE. and SECOND-
+   SECURE.EXAMPLE.)  MUST be tagged as Opt-In because there are insecure
+   delegations in the range they define.  (NOT-SECURE.EXAMPLE. and
+   UNSIGNED.EXAMPLE., respectively).
+
+   NOT-SECURE-2.EXAMPLE. is an example of an insecure delegation that is
+   part of the NSEC chain and also covered by an Opt-In tagged NSEC
+   record.  Because NOT-SECURE-2.EXAMPLE. is a signed name, it cannot be
+   removed from the zone without modifying and resigning the prior NSEC
+   record.  Delegations with names that fall between NOT-SECURE-
+   2.EXAMPLE. and SECOND-SECURE.EXAMPLE. may be added or removed without
+   resigning any NSEC records.
+
+7.  Transition Issues
+
+   Opt-In is not backwards compatible with standard DNSSEC and is
+   considered experimental.  Standard DNSSEC compliant implementations
+   would not recognize Opt-In tagged NSEC records as different from
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 10]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   standard NSEC records.  Because of this, standard DNSSEC
+   implementations, if they were to validate Opt-In style responses,
+   would reject all Opt-In insecure delegations within a zone as
+   invalid.  However, by only signing with private algorithms, standard
+   DNSSEC implementations will treat Opt-In responses as unsigned.
+
+   It should be noted that all elements in the resolution path between
+   (and including) the validator and the authoritative name server must
+   be aware of the Opt-In experiment and implement the Opt-In semantics
+   for successful validation to be possible.  In particular, this
+   includes any caching middleboxes between the validator and
+   authoritative name server.
+
+8.  Security Considerations
+
+   Opt-In allows for unsigned names, in the form of delegations to
+   unsigned subzones, to exist within an otherwise signed zone.  All
+   unsigned names are, by definition, insecure, and their validity or
+   existence cannot by cryptographically proven.
+
+   In general:
+
+   o  Records with unsigned names (whether existing or not) suffer from
+      the same vulnerabilities as records in an unsigned zone.  These
+      vulnerabilities are described in more detail in [12] (note in
+      particular sections 2.3, "Name Games" and 2.6, "Authenticated
+      Denial").
+   o  Records with signed names have the same security whether or not
+      Opt-In is used.
+
+   Note that with or without Opt-In, an insecure delegation may have its
+   contents undetectably altered by an attacker.  Because of this, the
+   primary difference in security that Opt-In introduces is the loss of
+   the ability to prove the existence or nonexistence of an insecure
+   delegation within the span of an Opt-In NSEC record.
+
+   In particular, this means that a malicious entity may be able to
+   insert or delete records with unsigned names.  These records are
+   normally NS records, but this also includes signed wildcard
+   expansions (while the wildcard record itself is signed, its expanded
+   name is an unsigned name).
+
+   For example, if a resolver received the following response from the
+   example zone above:
+
+
+
+
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 11]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   Example S.1: Response to query for WWW.DOES-NOT-EXIST.EXAMPLE.  A
+
+         RCODE=NOERROR
+
+         Answer Section:
+
+         Authority Section:
+         DOES-NOT-EXIST.EXAMPLE. NS     NS.FORGED.
+         EXAMPLE.                NSEC   FIRST-SECURE.EXAMPLE. SOA NS \
+                                        RRSIG DNSKEY
+         EXAMPLE.                RRSIG  NSEC ...
+
+         Additional Section:
+
+
+   The resolver would have no choice but to believe that the referral to
+   NS.FORGED. is valid.  If a wildcard existed that would have been
+   expanded to cover "WWW.DOES-NOT-EXIST.EXAMPLE.", an attacker could
+   have undetectably removed it and replaced it with the forged
+   delegation.
+
+   Note that being able to add a delegation is functionally equivalent
+   to being able to add any record type: an attacker merely has to forge
+   a delegation to nameserver under his/her control and place whatever
+   records needed at the subzone apex.
+
+   While in particular cases, this issue may not present a significant
+   security problem, in general it should not be lightly dismissed.
+   Therefore, it is strongly RECOMMENDED that Opt-In be used sparingly.
+   In particular, zone signing tools SHOULD NOT default to Opt-In, and
+   MAY choose to not support Opt-In at all.
+
+9.  IANA Considerations
+
+   None.
+
+10.  Acknowledgments
+
+   The contributions, suggestions and remarks of the following persons
+   (in alphabetic order) to this draft are acknowledged:
+
+      Mats Dufberg, Miek Gieben, Olafur Gudmundsson, Bob Halley, Olaf
+      Kolkman, Edward Lewis, Ted Lindgreen, Rip Loomis, Bill Manning,
+      Dan Massey, Scott Rose, Mike Schiraldi, Jakob Schlyter, Brian
+      Wellington.
+
+11.  References
+
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 12]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+11.1  Normative References
+
+   [1]  Mockapetris, P., "Domain names - implementation and
+        specification", STD 13, RFC 1035, November 1987.
+
+   [2]  Wellington, B. and O. Gudmundsson, "Redefinition of DNS
+        Authenticated Data (AD) bit", RFC 3655, November 2003.
+
+   [3]  Arends, R., Austein, R., Larson, M., Massey, D., and S. Rose,
+        "DNS Security Introduction and Requirements", RFC 4033,
+        March 2005.
+
+   [4]  Arends, R., Austein, R., Larson, M., Massey, D., and S. Rose,
+        "Resource Records for the DNS Security Extensions", RFC 4034,
+        March 2005.
+
+   [5]  Arends, R., Austein, R., Larson, M., Massey, D., and S. Rose,
+        "Protocol Modifications for the DNS Security Extensions",
+        RFC 4035, March 2005.
+
+   [6]  Blacka, D., "DNSSEC Experiments",
+        draft-ietf-dnsext-dnssec-experiments-01 (work in progress),
+        July 2005.
+
+11.2  Informative References
+
+   [7]   Bradner, S., "Key words for use in RFCs to Indicate Requirement
+         Levels", BCP 14, RFC 2119, March 1997.
+
+   [8]   Elz, R. and R. Bush, "Clarifications to the DNS Specification",
+         RFC 2181, July 1997.
+
+   [9]   Eastlake, D., "Secure Domain Name System Dynamic Update",
+         RFC 2137, April 1997.
+
+   [10]  Lewis, E., "DNS Security Extension Clarification on Zone
+         Status", RFC 3090, March 2001.
+
+   [11]  Conrad, D., "Indicating Resolver Support of DNSSEC", RFC 3225,
+         December 2001.
+
+   [12]  Atkins, D. and R. Austein, "Threat Analysis of the Domain Name
+         System (DNS)", RFC 3833, August 2004.
+
+
+
+
+
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 13]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+Authors' Addresses
+
+   Roy Arends
+   Telematica Instituut
+   Drienerlolaan 5
+   7522 NB  Enschede
+   NL
+
+   Email: roy.arends@telin.nl
+
+
+   Mark Kosters
+   Verisign, Inc.
+   21355 Ridgetop Circle
+   Dulles, VA  20166
+   US
+
+   Phone: +1 703 948 3200
+   Email: markk@verisign.com
+   URI:   http://www.verisignlabs.com
+
+
+   David Blacka
+   Verisign, Inc.
+   21355 Ridgetop Circle
+   Dulles, VA  20166
+   US
+
+   Phone: +1 703 948 3200
+   Email: davidb@verisign.com
+   URI:   http://www.verisignlabs.com
+
+Appendix A.  Implementing Opt-In using "Views"
+
+   In many cases, it may be convenient to implement an Opt-In zone by
+   combining two separately maintained "views" of a zone at request
+   time.  In this context, "view" refers to a particular version of a
+   zone, not to any specific DNS implementation feature.
+
+   In this scenario, one view is the secure view, the other is the
+   insecure (or legacy) view.  The secure view consists of an entirely
+   signed zone using Opt-In tagged NSEC records.  The insecure view
+   contains no DNSSEC information.  It is helpful, although not
+   necessary, for the secure view to be a subset (minus DNSSEC records)
+   of the insecure view.
+
+   In addition, the only RRsets that may solely exist in the insecure
+   view are non-zone-apex NS RRsets.  That is, all non-NS RRsets (and
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 14]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+   the zone apex NS RRset) MUST be signed and in the secure view.
+
+   These two views may be combined at request time to provide a virtual,
+   single Opt-In zone.  The following algorithm is used when responding
+   to each query:
+      V_A is the secure view as described above.
+      V_B is the insecure view as described above.
+      R_A is a response generated from V_A, following RFC 2535bis.
+      R_B is a response generated from V_B, following DNS resolution as
+      per RFC 1035 [1].
+      R_C is the response generated by combining R_A with R_B, as
+      described below.
+      A query is DNSSEC-aware if it either has the DO bit [11] turned
+      on, or is for a DNSSEC-specific record type.
+
+
+
+   1.  If V_A is a subset of V_B and the query is not DNSSEC-aware,
+       generate and return R_B, otherwise
+   2.  Generate R_A.
+   3.  If R_A's RCODE != NXDOMAIN, return R_A, otherwise
+   4.  Generate R_B and combine it with R_A to form R_C:
+          For each section (ANSWER, AUTHORITY, ADDITIONAL), copy the
+          records from R_A into R_B, EXCEPT the AUTHORITY section SOA
+          record, if R_B's RCODE = NOERROR.
+   5.  Return R_C.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 15]
+
+Internet-Draft                DNSSEC Opt-In                    July 2005
+
+
+Intellectual Property Statement
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+
+Disclaimer of Validity
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+Copyright Statement
+
+   Copyright (C) The Internet Society (2005).  This document is subject
+   to the rights, licenses and restrictions contained in BCP 78, and
+   except as set forth therein, the authors retain all their rights.
+
+
+Acknowledgment
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+Arends, et al.          Expires January 19, 2006               [Page 16]
+

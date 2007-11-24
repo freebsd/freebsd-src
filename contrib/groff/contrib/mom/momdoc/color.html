@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Mom -- Colour</title>
+</head>
+<body bgcolor="#dfdfdf">
+
+<!====================================================================>
+
+<a href="docprocessing.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="inlines.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+
+<a name="TOP"></a>
+<h1 align="center">
+    <a name="COLOR_INTRO"><u>Coloured text</u></a>
+</h1>
+<p>
+<a href="#INTRO_COLOR">Introduction to coloured text</a>
+<br>
+<a href="#MACROS_COLOR">Index of colour macros</a>
+<p>
+
+<a name="INTRO_COLOR">
+	<h2><u>Introduction to coloured text</u></h2>
+</a>
+
+<strong>Mom</strong>'s support for coloured text is straightforward.
+You begin by telling <strong>mom</strong> about the colours you want
+with
+<a href="#NEWCOLOR">NEWCOLOR</a>
+or
+<a href="#XCOLOR">XCOLOR</a>.
+Afterward, any time you want text to be coloured, you either colour
+it with an
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+that contains the colour name (e.g. <kbd>\*[red]</kbd> or
+<kbd>\*[blue]</kbd>) or invoke the macro,
+<a href="#COLOR">COLOR</a>,
+with the name of the colour you want.
+<a name="COLOR_EXAMPLE"></a>
+<p>
+For example, say you want to have the name &quot;Jack&quot; in the
+sentence &quot;All work and no play makes Jack a dull boy&quot;
+appear in yellow.  You'd begin by telling <strong>mom</strong> about
+the colour, yellow.  There are two ways of doing this; see
+<a href="#NEWCOLOR">NEWCOLOR</a>
+and
+<a href="#XCOLOR">XCOLOR</a>
+for a full explanation of the difference between the two.  If you
+use <strong>XCOLOR</strong>, you'd enter this:
+<p>
+<pre>
+	.XCOLOR yellow
+</pre>
+
+If you use <strong>NEWCOLOR</strong>, you might enter
+<p>
+<pre>
+	.NEWCOLOR yellow RGB #FFFF00
+</pre>
+
+<a name="COLOR_EXAMPLE2"></a>
+After &quot;defining&quot; (or &quot;initializing&quot;) the colour
+&quot;yellow&quot;, you'd colourize the name, Jack, either with an
+inline escape
+<p>
+<pre>
+	All work and no play makes \*[yellow]Jack\*[black] a dull boy.
+</pre>
+
+or with the <strong>COLOR</strong> macro
+<p>
+<pre>
+	All work and no play makes
+	.COLOR yellow
+	Jack
+	.COLOR black
+	a dull boy.
+</pre>
+
+Notice, in both examples, that a) you have to set the colour back to
+black after &quot;Jack&quot;, and b) you don't have to define or
+intialize the colour, black.  <strong>Mom</strong> predefines
+&quot;black&quot;, &quot;BLACK&quot;, &quot;white&quot; and
+&quot;WHITE&quot; for you.
+<p>
+For information on using colour during
+<a href="docprocessing.html#INTRO_MACROS_DOCPROCESSING">document processing</a>,
+see
+<a href="docprocessing.html#COLOR">Colour support in document processing</a>.
+<p>
+<strong>Please note: Mom</strong>'s colour support is for text only.
+She doesn't support &quot;fill&quot; (or &quot;background&quot;)
+colour for drawn objects.  Please also note that if you're
+accustomed to using groff's <kbd>.defcolor</kbd> to define colours,
+and groff's inline <kbd>\m[&lt;colorname&gt;]</kbd> to call them, you may
+continue to do so without confusing <strong>mom</strong>.
+
+<p>
+<a name="MACROS_COLOR"><h3><u>Index of colour macros</u></h3></a>
+<ul>
+    <li><a href="#NEWCOLOR">NEWCOLOR</a>
+    <li><a href="#XCOLOR">XCOLOR</a>
+    <li><a href="#COLOR">COLOR</a>
+    <li><a href="#COLOR_INLINE">\*[&lt;colorname&gt;]</a> inline escape
+</ul>
+<p>
+
+<!---NEWCOLOR--->
+
+<hr width="66%" align="left">
+<a name="NEWCOLOR"><h3><u>Creating (initializing) a colour with NEWCOLOR</u></h3></a>
+<br>
+<nobr>Macro: <strong>NEWCOLOR</strong> &lt;colour name&gt; [&lt;colour scheme&gt;] &lt;colour components&gt;</nobr>
+
+<p>
+<strong>NEWCOLOR</strong> lets you create a colour, rather like an
+artist mixing paint on a palette.  The colour isn't used
+immediately; <strong>NEWCOLOR</strong> merely tells
+<strong>mom</strong> how to mix the colour when you need it.  If
+you haven't invoked <strong>NEWCOLOR</strong> (or
+<a href="#XCOLOR">XCOLOR</a>),
+<strong>mom</strong> doesn't have a clue what you mean when you
+reference a colour (with 
+<a href="#COLOR">COLOR</a>
+or
+<a href="#COLOR_INLINE">\*[&lt;color name&gt;]</a>).
+<p>
+The first argument to <strong>NEWCOLOR</strong> is a name for your
+colour.  It can be anything you like--provided it's just one word
+long--and can be caps, lower case, or any combination of the two.
+<p>
+The second argument, which is entirely optional, is the &quot;colour
+scheme&quot; you want <strong>mom</strong> to use when mixing the
+colour.  Valid arguments are <strong>RGB</strong> (3 components,
+red green blue), <strong>CYM</strong> (3 components cyan yellow
+magenta), <strong>CMYK</strong> (4 components cyan magenta yellow
+black) or <strong>GRAY</strong> (1 component).  If you omit the
+second argument, <strong>mom</strong> assumes you want RGB.
+<p>
+The final argument is the components of your colour.  This can be
+hexadecimal string starting with a pound sign (#) (for colour values
+in the 0-255 range) or two pound signs (##) (for colour values
+in the 0-65535 range), or it can be a series of decimal digits,
+separated by spaces, one digit per component, with the argument
+enclosed in double quotes.  (If this is all gibberish to you, see
+<a href="#COLOR_TIP">Tips for newbies</a>.)
+<p>
+Thus, to tell <strong>mom</strong> about a colour named
+&quot;YELLOW&quot;, you could enter one of the following:
+<p>
+<pre>
+	.NEWCOLOR YELLOW #FFFF00         \"or ##FFFFFFFF0000 or "1 1 0"
+	.NEWCOLOR YELLOW RGB #FFFF00     \"or ##FFFFFFFF0000 or "1 1 0"
+	.NEWCOLOR YELLOW CYM #00FF00     \"or ##0000FFFF0000 or "0 1 0"
+	.NEWCOLOR YELLOW CYMK #00FF0000  \"or ##0000FFFF00000000 or "1 1 0"
+</pre>
+
+After you've told <strong>mom</strong> about a colour, you can then get
+her to set text in that colour either with the inline escape
+<a href="#COLOR_INLINE">\*[&lt;colorname&gt;]</a>
+or the macro
+<a href="#COLOR">COLOR</a>.
+(See the
+<a href="#COLOR_EXAMPLE">example</a>,
+above.)
+<br>
+<h3><u>Tips for newbies</u></h3>
+Colour manipulation can be tremendously confusing if you don't have
+a background in graphic arts or computing.  My advice, if color
+intimidates you, is to stick to using <strong>mom</strong>'s
+default RGB colour scheme, and to fire up a color chooser that
+gives you the RGB values you want for the colour you select.  Plug
+those values into the components argument to
+<strong>NEWCOLOR</strong>, and you'll get the colour you want.
+Both the KDE and gnome desktops have colour selectors that provide
+you with the shorter RGB hexadecimal string.  If you're not running
+KDE or gnome, the X utility, xcolorsel, provides you with a similar
+functionality, although it only provides RGB values for 256
+pre-defined colours.  If you use xcolorsel, be sure to click the
+button &quot;Display format&quot; and select &quot;8 bit truncated
+rgb&quot;.
+<p>
+Alternatively, you can use <strong>mom</strong>'s simpler
+<a href="#XCOLOR">XCOLOR</a>
+macro to initialize one of the 256 pre-defined X colours by
+supplying the name of the color as an argument.
+<br>
+
+<!---XCOLOR--->
+
+<hr width="33%" align="left">
+<a name="XCOLOR"><h3><u>Initializing a colour with XCOLOR</u></h3>
+<br>
+<nobr>Macro: <strong>XCOLOR</strong> &lt;X color name&gt; [&lt;alias&gt;]</nobr>
+<br>
+<em>*&lt;X color name&gt; must be all one word, all lower case.
+<br>
+(See
+<a href="#XCOLOR_NAMES">Finding X color names</a>
+for how to get a list of valid colour names.)
+</em>
+<p>
+<strong>XCOLOR</strong> is similar to <strong>NEWCOLOR</strong> in
+that it tells <strong>mom</strong> to initialize a colour, but it's
+easier to use.  All you have to do is pass it, as an argument, the
+legal name of one of the 256 pre-defined X colours.  The name must
+be all one word, and, breaking with <strong>mom</strong> policy, it
+must be entered in lower case.
+<p>
+For example, if you want to intialize the X colour, coral, all you
+have to do is enter
+<br>
+<pre>
+	.XCOLOR coral
+</pre>
+
+Afterwards
+<p>
+<pre>
+	.COLOR coral
+</pre>
+
+will colourize subsequent text coral until you instruct
+<strong>mom</strong> to return to black, or some other pre-defined
+initialized colour.  (The
+<a href="definitions.html#TERMS_INLINES">inline escape</a>
+<kbd>\*[coral]</kbd> will equally colourize text coral after you've
+initialized the colour with <strong>XCOLOR</strong>.)
+<p>
+The downside of <strong>XCOLOR</strong> is that you can't create
+custom colours.  This restriction, however, is mitigated by the
+fact that for many users, 256 colours is more than enough to play
+around with.
+<p>
+While some X colours have fanciful names (peachpuff, papayawhip,
+thistle, snow), many are self-explanatory and self-descriptive in
+ordinary colour terms.  &quot;blue&quot; is pure (rgb) blue,
+&quot;green&quot; is pure (rgb) green, and so on.  Furthermore, for
+many X colors, there exist four variants, each representing
+increasingly darker shades of the same colour.  For example,
+&quot;blue&quot; (and &quot;blue1&quot;) are the brightest forms of
+(rgb) blue; &quot;blue2&quot;, &quot;blue3&quot; and &quot;blue4&quot;
+are increasingly darker shades of the same blue.  For that reason,
+you may find <strong>XCOLOR</strong> is a better choice than
+<strong>NEWCOLOR</strong> when it comes to initializing common
+colors.
+<p>
+The whimsical nature of X colour names sometimes makes for names
+that are long to type in, e.g. &quot;mediumspringgreen&quot;.
+The optional second argument to <strong>XCOLOR</strong> allows you
+to come up with more convenient name by which to reference the
+colour.  For example, you could enter
+<p>
+<pre>
+	.XCOLOR mediumspringgreen mygreen
+	    or
+	.XCOLOR mediumspringgreen MYGREEN
+</pre>
+
+so that whenever you want text mediumspringgreen-ed, you can use
+either <kbd>.COLOR mygreen</kbd> (or <kbd>.COLOR MYGREEN</kbd>) or
+the inline escape <kbd>\*[mygreen]</kbd> (or
+<kbd>\*[MYGREEN]</kbd>.)
+<p>
+<a name="XCOLOR_NAMES"><h3><u>Finding X color names</u></h3></a>
+<br>
+There are two ways of finding the names of the pre-defined X
+colours.  One is to consult the file, rgb.txt, included with
+all X11 installations.  The location of the file on a Debian
+GNU/Linux distribution is typically /etc/X11/rgb.txt.  Other
+distributions and other X installations may have the file in
+another location.  The file lists the colour names, but doesn't
+show you what the colours actually look like.
+<p>
+A better way to get the colour names, as well as to see what the
+colours look like, is to fire up a colour chooser (like xcolorsel)
+that both lists the colour names and shows a swatch of the colour
+as well.
+<p>
+Whichever method you use to find X color names, remember that the
+names, passed as arguments to <strong>XCOLOR</strong>, <em>must</em>
+be all one word, all in lower case.
+<br>
+
+<!---COLOR--->
+
+<hr width="33%" align="left">
+<a name="COLOR"><h3><u>Invoking a color</u></h3>
+<br>
+<nobr>Macro: <strong>COLOR</strong> &lt;colorname&gt;</nobr>
+<br>
+<a name="COLOR_INLINE">Inline: <strong>\*[&lt;colorname&gt;]</strong></a>
+<p>
+<a name="COLOR_INLINE"></a>
+Once you've told <strong>mom</strong> about a colour (via
+<strong>NEWCOLOR</strong> or <strong>XCOLOR</strong>), you use either
+the macro, <strong>COLOR</strong>, or the
+<a href="definitions.html#TERMS_INLINES">inline escape</a>,
+<kbd>\*[&lt;colorname&gt;]</kbd>, to cause <strong>mom</strong> to
+set subsequent text in that colour.  See the
+<a href="#COLOR_EXAMPLE2">example</a>,
+above, which shows both in action.
+<p>
+<strong>NOTE:</strong> You can use the
+<kbd>\*[&lt;colorname&gt;]</kbd> inline escape in any
+<a href="docprocessing.html#TOP">document processing</a>
+macro that takes a
+<a href="definitions.html#TERMS_STRINGARGUMENT">string argument</a>.
+However, you must remember to reset the colour at the end of the
+argument (typically with <kbd>\*[black]</kbd>) unless you want all
+subsequent invocations of that particular macro to be colourized.
+<p>
+Furthermore, if you use <kbd>\*[&lt;colorname&gt;]</kbd> in the
+string argument passed to
+<a href="docelement.html#HEAD">.HEAD</a>,
+<a href="docelement.html#SUBHEAD">.SUBHEAD</a>
+or
+<a href="docelement.html#PARAHEAD">.PARAHEAD</a>,
+and you've requested that any of these types of heads be numbered,
+the numbers themselves will not be coloured, only the text you
+passed the macro.  If you wish the numbers to be colourized as
+well, you must explicitly tell <strong>mom</strong> that you wish
+all of the head(s), subhead(s) or parahead(s), including the
+numbers, colourized by invoking the appropriate
+<a href="docelement.html#DOCELEMENT_CONTROL">control macro</a>.
+
+<br>
+
+<hr>
+<a href="docprocessing.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="inlines.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="#TOP">Top</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+</body>
+</html>

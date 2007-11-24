@@ -1,0 +1,535 @@
+MSNTP (Simple Network Time Protocol Utility) - Version 1.6
+----------------------------------------------------------
+
+Please read the file Copyright first.  Also note that the file RFC2030.TXT is
+David Mills's copyright and not the author's - it is just a copy of the RFC
+that is available from so many Internet archives.
+
+RFC 1305 (Network Time Protocol - NTP) is an attempt to provide globally
+consistent timestamps in an extremely hostile environment; it is fiendishly
+complicated and an impressive piece of virtuosity.  RFC 2030 (Simple Network
+Time Protocol - SNTP) which supersedes RFC 1769 describes a subset of this that
+will give excellent accuracy in most environments encountered in practice; it
+uses only the obvious algorithms that have been used since time immemorial.
+
+WARNING: the text version of RFC 1305 is incomplete, and omits the tables that
+are in the Postscript version.  Unfortunately, these contain the only copy of
+some critical information.
+
+The canonical NTP code for Unix is the xntp suite, and is as complicated as
+would be expected from reading RFC 1305.  While its code is moderately clean by
+Unix and C standards, version 3-5.86 is over 80,000 lines and unavoidably
+system-dependent.  A worse problem is that it is so badly fouled up by its
+configuration mechanism that ab initio porting could be several weeks' work,
+even if the new system has all the necessary facilities and is bug free!
+
+
+SNTP Servers - Some Little-Known Facts
+--------------------------------------
+
+RFC 2030 states that SNTP clients should be used only at the lowest level,
+which is good practice.  It then states that SNTP servers should be used only
+at stratum 1 (i.e. top level), which is bizarre!  A far saner use of them would
+be for the very lowest level of server, exporting solely to local clients that
+do not themselves act as servers to ANY system (e.g. on a Netware server,
+exporting only to the PCs that it manages).
+
+If the NTP network were being run as a directed acyclic graph (i.e. using SNTP
+rather than full NTP), with a diameter of D links and a maximum error per link
+of E, the maximum synchronisation error would be D*E.  Reasonable figures for D
+and E are 5 and 0.1 seconds, so this would be adequate for most uses.  Note
+that the fact that the graph is acyclic is critical, which is one reason why
+SNTP client/servers must NEVER be embedded WITHIN an NTP network.
+
+The other reason is that inserting SNTP client/servers at a low stratum (but
+not the root) of an NTP network could easily break NTP!  See RFC 1305 for why,
+but don't expect the answer to stand out at you.  It would be easy to extend
+MSNTP to a full-function client/server application, thus making it into a true
+alternative to xntp, but this incompatibility is why it MUST NOT be done.
+
+The above does not mean that the SNTP approach is unsatisfactory, but only that
+it is incompatible with full NTP.  The author would favour a complete SNTP
+network using the SNTP approach, and the statistical error reduction used in
+MSNTP, but it actually addresses a slightly different problem from that
+addressed by NTP.  TANSTAAFL.
+
+FINAL WARNING: do NOT use this program to serve NTP requests from outside the
+systems that you manage.  If you do this, and manage to break the time
+synchronisation on other people's systems, you will be regarded very
+unfavourably.  Actually, this should be possible only if their NTP client is
+completely broken, because MSNTP does its damnedest to declare its packets as
+the lowest form of NTP timestamp.
+
+
+
+MSNTP and its Assumptions
+-------------------------
+
+MSNTP is intended to be a straightforward SNTP daemon/utility that is easy to
+build on any reasonable Unix platform (and most near-Unix ones), whether or not
+it has ever been ported to them before.  It is intended to answer the following
+requirements, either by challenge and response or the less reliable broadcast
+method:
+
+    A simple command to run on Unix systems that will check the time
+    and optionally drift compared with a known, local and reliable NTP
+    time server.  No privilege is required just to read the time and
+    estimate the drift.
+
+    A client for Unix systems that will synchronise the time from a known,
+    local and reliable NTP time server.  This is probably the most common
+    one, and the need that caused the program to be written.
+
+    A server for Unix systems that are synchronised other than by NTP
+    methods and that need to synchronise other systems by NTP.  This is
+    the classroom of PCs with a central server scenario.  It is NOT
+    intended to work as a peer with true NTP servers, and won't.
+
+    A simple method by which two or more Unix systems can keep themselves
+    synchronised using what is becoming a standard protocol.  Yes, I know
+    that there are half-a-dozen other such methods.
+
+    A base for building non-Unix SNTP clients.  Some 3/4 of the code
+    (including all of the complicated algorithms and NTP packet handling)
+    should work, unchanged, on any system with an ANSI/ISO C compiler.
+
+There are full tracing facilities and a lot of paranoia in the code to check
+for bad packets (more than in xntp) which may need relaxing in the light of
+experience.  Unfortunately, RFC 1305 does not include a precise description of
+the data protocol, despite its length, and there are some internal
+inconsistencies and differences between it and RFC 2030 and xntp3-5's
+behaviour.
+
+WARNING: MSNTP has not been tested in conjunction with xntp broadcasts or xntp
+clients, as the ability to do so was not available to the author.  It is very
+unlikely that it won't work, but you should check.  Much of the paranoid code
+is only partially tested, too, because it is dealing with cases that are very
+hard to provoke.
+
+It assumes that the local network is tolerably secure and that any accessible
+NTP or SNTP servers are trustworthy.  It also makes no attempt to check that
+it has been installed and is being used correctly (e.g. at an appropriate
+priority) or that the changes it makes have the desired effect.  When you first 
+use it, you should both run it in display mode and use the date command as a
+cross-check.
+
+Furthermore, it does not attempt to solve all of the problems addressed by the
+NTP protocol and you should NOT use it if any of those problems are likely to
+cause you serious trouble.  If they are, bite the bullet and implement xntp, or
+buy a fancy time-server.
+
+
+Building SNTP
+-------------
+
+The contents of the distribution are:
+
+README        -    this file
+Copyright     -    the copyright notice and conditions of use
+Makefile      -    the makefile, with comments for several systems
+header.h      -    the main header (almost entirely portable)
+kludges.h     -    dirty kludges for difficult systems
+internet.h    -    a very small header for internet.c and socket.c
+main.c        -    most of the source (almost entirely portable)
+unix.c        -    just for isatty, sleep and locking
+internet.c    -    Internet host and service name lookup
+socket.c      -    the Berkeley socket code
+msntp.1       -    the man page
+RFC2030.TXT   -    the SNTPv4 specification
+
+All you SHOULD need to do is to uncomment the settings in file Makefile for
+your system or to add new ones.  But real life is not always so simple.  As
+POSIX does not yet define sub-second timers, Internet addressing facilities,
+sockets etc., the code has to rely on the facilities described in the
+ill-defined and non-standard 'X/Open' documents and the almost totally
+unspecified 'BSD' extensions.
+
+Most hacks should be limited to the compiler options (e.g. setting flags like
+_XOPEN_SOURCE), but perverse systems may need additions to kludges.h - please
+report them to the author.  See Makefile and kludges.h for documentation on
+the standard hacks - there only 6, and most are only for obsolete systems.
+But, generally, using the generic set of C options usually works with no
+further ado.
+
+
+Sick, Bizarre or non-Unix Systems
+---------------------------------
+
+A very few Unix systems and almost all non-Unix systems may need changes to the
+code, such as:
+
+    If the system doesn't have Berkeley sockets, you will need to replace
+    socket.c and possibly modify internet.h and internet.c.  All of the
+    systems for which the author needs this have Berkeley sockets.
+
+    NTP is supposedly an Internet protocol, but is not Internet specific.
+    For other types of network, you will need to replace internet.c and
+    probably modify internet.h.
+
+    If the system doesn't have gettimeofday or settimeofday, you will
+    need to modify timing.c.  If it doesn't have adjtime (e.g. HP-UX
+    on PA-RISC before 10.0), you can set -DADJTIME_MISSING and the code
+    will compile but the -a option will always give an error.
+
+    If the system has totally broken signal handling, the program will
+    hang or crash if it can't reach its name server or responses time
+    out.  You may be able to improve matters by hacking internet.c and
+    socket.c, but don't bet on it.
+
+    If the the program won't be able to create files in /etc when
+    updating the clock, you can use another lock file or even set
+    -DLOCKFILE=NULL, which will disable the locking code entirely.  On
+    systems that have it, using /var/run would be better than /etc.
+
+    If the the program hangs when flushing outstanding packets (which
+    you can tell by setting -W), it may help to set -DNONBLOCK_BROKEN.
+    This seems needed only for obsolete systems, like Ultrix.
+
+    If the system isn't Unix, even vaguely, you will probably need to
+    modify all of the above, and unix.c as well.
+
+    Note that adjtime is commonly sick, but you don't need to change the
+    code - just use the -r option whan making large corrections (see below
+    for more details).
+
+Any changes needed to header.h or main.c are bugs.  They may be bugs in the
+code or in the compiler or libraries, but they are bugs.  Please prod the
+people responsible and tell the author, who may be able to bypass them cleanly
+even if they aren't bugs in his code.  The code also makes the following
+assumptions, which would be quite hard to remove:
+
+    8-bit bytes.  Strictly, neither ANSI/ISO C nor POSIX require these,
+    and there were some very early versions of Unix on systems with other
+    byte sizes.  But, without a defined sub-byte facility in C, ....
+
+    At least 32-bit ints.  Well, actually, this wouldn't be too hard to
+    remove.  But most Unix programs make this assumption, and I have very
+    little interest in the more rudimentary versions of MS-DOS etc.
+
+    An ANSI/ISO C compiler.  It didn't seem worth writing dual-language
+    code in 1996.  Tough luck if you haven't got one.
+
+    Tolerably efficient floating-point arithmetic, with at least 13 digits
+    (decimal), preferably 15, in the mantissa of doubles.  Ditto.  If you
+    want to port this to a toaster, please accept my insincerest sympathies
+    and don't bother me.
+
+    A trustworthy local network.  It does not check for DNS, Ethernet,
+    packet or other spoofing, and assumes that any accessible NTP or SNTP
+    servers are properly synchronised.
+
+
+Warnings about Installation and Use
+-----------------------------------
+
+Anyone attempting to fiddle with the clock on their system should already know
+how to write system administration scripts, install daemons and so on.  There
+are a few warnings:
+
+    Don't use the broadcast modes unless you really have to, as the
+    client-server modes are far more reliable.  The broadcast modes were
+    implemented more for virtuosity (a.k.a. SNTP conformance) than use.
+    In particular, the error estimates are mere guesses, and may be low
+    or even very low.  And even reading broadcasts needs privilege.
+
+    The program is not intended to be installed setuid or setgid, and
+    doing so is asking for trouble.  Its ownerships and access modes are
+    not important.  It need not be run by root for merely displaying the
+    time (even in daemon mode).
+
+    The program does not need to run at a high priority (low in Unix
+    terms!) even when being used to set the clock or as a server, except
+    when the '-r' option is  used.  However, doing so may improve its
+    accuracy.
+
+    Unlike NTP, the SNTP protocol contains no protection against
+    client-server loops.  If you set one up, your systems will spin
+    themselves off into a disconnected vortex of unreality!
+
+    It will get very confused if another process changes the local time
+    while it is running.  There is some locking code in unix.c to prevent
+    this program doing this to itself, but it will protect only against
+    some errors.  However, the remaining failures should be harmless.
+
+    Don't run it as a server unless you REALLY know what you are doing.
+    It should be used as a server only on a system that is properly
+    synchronised, by fair means or foul.  If it isn't, you will simply
+    perpetrate misinformation.  And remember that broadcasts are most
+    unpopular with overloaded administrators of overloaded networks.
+
+    Watch out for multi-server broadcasts and systems with multiple ports
+    onto the same Ethernet; there is some code to protect against this,
+    but it is still easy to get confused.
+
+    Don't put the lock file onto an automounted partition or delete it by
+    hand, unless you really want to start two daemons at the same time.
+    Both will probably fail horribly if you do this.
+
+    The daemon save file is checked fairly carefully, but should be in a
+    reasonably safe directory, unless you want hackers to cause trouble.
+    /tmp is safe enough on most systems, but not all - /etc is better.
+
+
+Installing and Using the Program
+--------------------------------
+
+Start by copying the executable and man page to where you want them.  If you
+want only to display the time and as a replacement for the rdate or date
+commands, the installation is finished!
+
+You can use it as a simple unprivileged command to check the time, quite
+independently of whether it is running as a time-updating daemon or server, or
+whether you are running xntp.  You can run it in daemon mode without updating
+the clock, to check for drift, but it may fail if the clock is changed under
+its feet.  Unfortunately, you cannot listen to broadcasts without privilege.
+
+If it is used with the -a option to keep the time synchronised, it is best to
+run it as one of root's cron jobs - for many systems, running it once a day
+should be adequate, but it will depend on the reliability of the local clock.
+The author runs it this way with -a and -x - see below.
+
+If it is used with the -r option to set the time (instead of the rdate or date
+commands), it should be used interactively and either on a lightly loaded
+system or at a high priority.  You should then check the result by running it
+in display mode.
+
+You are advised NOT to run it with the -r option in a cron job, though this is
+not locked out.  If you have to (for example under HP-UX before 10.0), be sure
+to run it as the highest priority that will not cause other system problems and
+set the maximum automatic change to as low a value as you can get away with.
+
+WARNING: adjtime is more than a bit sick on many systems, and will ignore large
+corrections, usually without any form of hint that it has done so.  It is often
+(even usually) necessary to reset the clock to approximately the right time
+using the -r option before using the -a and -x options to keep it correct.
+
+It can be started as a time-updating daemon with the -a and -x options (or -r
+and -x if you must), and will perform some limited drift correction.  In this
+case, start it from any suitable system initialisation script and leave it
+running.  Note that it will stop if it thinks that the time difference or drift
+has got out of control, and you will need to reset the time and restart it by
+hand.
+
+In daemon mode, it will survive its time server or network disappearing for a
+while, but will eventually fail, and will fail immediately if the network call
+returns an unexpected error.  If this is a problem, you can start it (say,
+hourly or nightly) from cron, and it will fail if it is already running
+(provided that you haven't disabled or deleted the lock file).
+
+If it is used as a server, it should be started from any suitable system
+initialisation script, just like any other daemon.  It must be started after
+the networking, of course.  To run it in both server modes, start one copy with 
+the -B option and one with the -S option.
+
+
+Simple Examples of Use
+----------------------
+
+Many people use it solely to check the time of their system, especially as a
+cross-check on xntpd.  You do not need privilege and it will not cause trouble
+to the local network, so you can use it on someone else's system!  You can
+specify one server or several.  For example:
+
+    msntp ntp.server.local ntp.server.neighbour
+
+You can use it to check how your system is drifting, but it isn't very good at
+this if the system is drifting very badly (in which case use the previous
+technique and dc) or if you are running xntp.  You do not need privilege and it
+will not cause trouble to the local network.  For example:
+
+    msntp -x 120 -f /tmp/msntp.state ntp.server.local
+
+More generally, it is used to synchronise the clock, in which case you DO need
+root privilege.  It can be used in many ways, but the author favours running it
+in daemon mode, started from a cron job, which will restart after power cuts
+with no attention, and send a mail message (if cron is configured to do that)
+when it fails badly.  For example, the author uses a root crontab entry on one
+system of:
+
+    15 0 * * * /bin/nice --10 /usr/local/bin/msntp -a -x 480 ntp.server.local
+
+If you have a home computer, it can be set up to resynchronise each time you
+dial up.  For example, the author uses a /etc/ppp/ip-up.d/msntp file on his
+home Linux system of:
+
+    #!/bin/sh
+    sleep 60
+    /bin/nice --10 /usr/local/sbin/msntp -r -P 60 ntp.server.local
+
+-a would be better, but adjtime is broken in Linux.
+
+
+Debugging or Hacking the Program
+--------------------------------
+
+Almost everybody who does this is likely to need to modify only the system
+interfaces.  While they are messy, they are pretty simple and have a simple
+specification.  This is documented in comments in the source.  This is
+described above.
+
+The main program SHOULD need no attention, though it may need the odd tweak to
+bypass compiler problems - please report these, if you encounter any.  If
+something looks odd while it is running, start by setting the -v option (lower
+case), as for investigating network problems, and checking any diagnostics that
+appear.  Note that most of it can be checked in display mode without harming
+your system.
+
+The client will sometimes give up, complaining about inconsistent timestamps or
+similar.  This can be caused by the server being rebooted and similar glitches
+to the time - unfortunately, there is no reliable way to tell an ignorable
+fluctuation from a server up the spout.  If this happens annoyingly often,
+the -V option may help tie down the problem.  In actual use, it is simplest
+just to restart the client in a cron job!
+
+If it needs more than this, then you will need to debug the source seriously.
+Start by putting an icepack on your head and pouring yourself a large whisky!
+While it is commented, it is not well commented, and much of the code interacts
+in complex and horrible ways.  This isn't so much because it lacks 'structure'
+as because one part needs to make assumptions about the numerical properties of
+another.
+
+The -W option (upper case) will print out a complete trace of everything it
+does, and this should be enough to tie down the problem.  It does distort the
+timing a bit, but not usually too badly.  However, wading through that amount
+of gibberish (let alone looking at the source) is not a pleasant task.  If you
+are pretty sure that you have a bug, you may tell the author, and he may ask
+for a copy of the output - but he will reply rudely if you send thousands of
+lines of tracing to him by Email!
+
+Note that there are a fair number of circumstances where its error recovery
+could be better, but is left as it is to keep the code simple.  Most of these
+should be pretty rare.
+
+
+Changes in Version 1.2
+----------------------
+
+The main change was the addition of the daemon mode for drift correction (i.e.
+the -x option).  The daemon code is complex and has a lot of special-casing for
+strange circumstances, not all of which are testable in practice.
+
+A lot of the code was reordered while doing this.  The output was slightly
+different - considerably different with -V.
+
+The error estimation for broadcasts was modified, and should bear more relation
+to reality.  It remains a guess, as there is no way to get decent error error
+estimates under such circumstances.
+
+The -B option is now in minutes, and has a different permissible range and
+default value.
+
+The argument consistency checking for broadcasts was tightened up a bit, and a
+few other internal checks added.  These should not affect any reasonable
+requirement.
+
+A couple of new functions were added to the portability base, but they don't
+use any non-standard new facilities.  However, the specification of the
+functions has changed slightly.
+
+
+Changes in Version 1.3
+----------------------
+
+The main change was the addition of the restarting facility for daemon mode
+(i.e. the -f option), which is pretty straightforward.
+
+There were also a lot of minor changes to the paranoia code in daemon mode, to
+try to separate out the case of a demented server from network and other
+'ignorable' problems.  These are not entirely successful.
+
+
+Changes in Version 1.4 and 1.5
+------------------------------
+
+There turned out to be a couple of places where the author misunderstood the
+specification of NTP, which affect only its use in server mode.  The main
+change is to use stratum 15 instead of stratum 0.
+
+And there were some more relaxations of the paranoia code, to allow for more
+erratic servers, plus a kludge to improve restarting in daemon mode after a
+period of down time has unsynchronised the clock.  There is also an
+incompatible change to the debugging options to add a new level - the old -V
+option is now -W, and -V is an intermediate one for debugging daemon mode - but
+they are both hacker's facilities, and not for normal use.
+
+Version 1.5 adds some very minor fixes.
+
+
+Changes in Version 1.6
+----------------------
+
+The first change is support for multiple server addresses - it uses these in a
+round-robin fashion.  This may be useful when you have access to several
+servers, all of which are a bit iffy.  This means that the restart file format
+is incompatible with msntp 1.5.
+
+It has also been modified to reset itself automatically after detecting an
+inconsistency in its server's timestamps, because the author got sick of the
+failures.  It writes a comment to syslog (uniquely) in such cases.
+
+The ability to query a daemon save file was added.
+
+Related to the above, the -E argument has been redefined to mean an error bound
+on various internal times (which is what it had become, anyway) and a -P option
+introduced to be what the -E argument was documented to be.
+
+The lock and save file handling have been changed to allow defaults to be set
+at installation time, and to be overridable at run-time.  To disable these
+at either stage, simply set the file names to the null string.
+
+And there have been the usual changes for portability, as standards have been
+modified and/or introduced.
+
+
+Future Versions
+---------------
+
+There are unlikely to be any, except probably one to fix bugs in version 1.6.
+
+I attempted to put support for intermittent connexions (e.g. dial-up) into the
+daemon mode, but doing so needs so much code reorganisation that it isn't worth
+it.  What needs doing for that is to separate the socket handling from the
+timekeeping, so that they can be run asynchronously (either in separate
+processes or threads), and to look up a network name and open a socket only
+when prodded (and to close it immediately thereafter).  So just running it
+with the -r option is the current best solution.
+
+I also attempted to put support for the "Unix 2000" interfaces into the code.
+Ha, ha.  Not merely do very few systems define socklen_t (needed for IPv6
+support), but "Unix 2000" neither addresses the leap second problem nor even
+provides an adjtime replacement!  Some function like the latter is critical,
+not so much because of the gradual change, but because of its atomicity;
+without it, msntp really needs to be made non-interruptible, and that brings in
+a ghastly number of system-dependencies.
+
+Realistically, it needs a complete rewrite before adding any more function.
+And, worse, the Unix 'standards' need fixing, too.
+
+
+
+Miscellaneous
+-------------
+
+Thanks are due to Douglas M. Wells of Connection Technologies for helping the
+author with several IP-related conventions, to Sam Nelson of Stirling
+University for testing it on some very strange systems, and to David Mills for
+clarifying what the NTP specification really is.
+
+Thanks are also due to several other people with locating bugs, finding
+appropriate options for the Makefile and passing on extension code and
+suggestions.  As I am sure to leave someone out, I shall not name anyone else.
+
+Version 1.0 - October 1996.
+Version 1.1 - November 1996 - mainly portability improvements.
+Version 1.2 - January 1997 - mainly drift handling, but much reorganisation.
+Version 1.3 - February 1997 - daemon save file, and some robustness changes.
+Version 1.4 - May 1997 - relatively minor fixes, more diagnostic levels etc.
+Version 1.5 - December 1997 - some very minor fixes
+Version 1.6 - October 2000 - quite a few miscellaneous changes
+
+
+Nick Maclaren,
+University of Cambridge Computer Laboratory,
+New Museums Site, Pembroke Street, Cambridge CB2 3QG, England.
+Email:  nmm1@cam.ac.uk
+Tel.:  +44 1223 334761    Fax:  +44 1223 334679

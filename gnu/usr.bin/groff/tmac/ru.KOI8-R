@@ -1,0 +1,140 @@
+.\" Copyright (c) 2001-2003 Ruslan Ermilov <ru@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"     %beginstrip%
+.
+.\" локализация .Dt
+.nr doc-volume-operating-system-ateol 1
+.ds doc-volume-ds-1 Справочник основных команд
+.ds doc-volume-ds-2 Справочник системных вызовов
+.ds doc-volume-ds-3 Справочник библиотечных функций
+.ds doc-volume-ds-4 Справочник интерфейсов ядра
+.ds doc-volume-ds-5 Справочник форматов файлов
+.ds doc-volume-ds-6 Справочник игр
+.ds doc-volume-ds-7 Справочник разной информации
+.ds doc-volume-ds-8 Справочник системного администратора
+.ds doc-volume-ds-9 Справочник разработчика ядра
+.
+.ds doc-volume-ds-USD   Дополнительные документы для пользователя
+.ds doc-volume-ds-PS1   Дополнительные документы для программиста
+.ds doc-volume-ds-AMD   Документы унаследованного справочника
+.ds doc-volume-ds-SMM   Руководство системного администратора
+.ds doc-volume-ds-URM   Справочное руководство
+.ds doc-volume-ds-PRM   Руководство программиста
+.ds doc-volume-ds-KM    Руководство по ядру
+.ds doc-volume-ds-IND   Основной предметный указатель справочника
+.ds doc-volume-ds-LOCAL Локальный справочник
+.ds doc-volume-ds-CON   Справочник по дополнительному ПО
+.
+.\" локализация .Os
+.ds doc-operating-system-ATT-7    7я\~редакция
+.ds doc-operating-system-BSD-3    3й\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4    4й\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.1  4.1\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.2  4.2\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3  4.3\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3T 4.3-Tahoe дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3R 4.3-Reno дистрибутив Беркли
+.
+.\" локализация .Sh
+.ds doc-section-name        НАЗВАНИЕ
+.ds doc-section-synopsis    СИНТАКСИС
+.ds doc-section-library     БИБЛИОТЕКА
+.ds doc-section-description ОПИСАНИЕ
+.ds doc-section-see-also    СМОТРИ
+.ds doc-section-files       ФАЙЛЫ
+.ds doc-section-authors     АВТОРЫ
+.
+.\" локализация .Lb (XXX)
+.ds doc-str-Lb-libarm32    Библиотека архитектуры ARM32 (libarm32, \-larm32)
+.ds doc-str-Lb-libc        Стандартная библиотека\~C (libc, \-lc)
+.ds doc-str-Lb-libc_r      Реентерабельная библиотека\~C (libc_r, \-lc_r)
+.ds doc-str-Lb-libcalendar Библиотека календарной арифметики (libcalendar, \-lcalendar)
+.ds doc-str-Lb-libcam      Пользовательская библиотека CAM (libcam, \-lcam)
+.ds doc-str-Lb-libcipher   Библиотека криптографии FreeSec (libcipher, \-lcipher)
+.ds doc-str-Lb-libcompat   Библиотека совместимости (libcompat, \-lcompat)
+.ds doc-str-Lb-libcrypt    Библиотека криптографии (libcrypt, \-lcrypt)
+.\" XXX ds doc-str-Lb-libcurses   Curses Library (libcurses, \-lcurses)
+.\" XXX ds doc-str-Lb-libdevinfo  Device and Resource Information Utility Library (libdevinfo, \-ldevinfo)
+.ds doc-str-Lb-libdevstat  Библиотека статистики устройств (libdevstat, \-ldevstat)
+.\" XXX ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
+.ds doc-str-Lb-libedit     Библиотека редактора командной строки (libedit, \-ledit)
+.ds doc-str-Lb-libfetch    Библиотека файловой передачи (libfetch, \-lfetch)
+.ds doc-str-Lb-libgeom     Пользовательская API библиотека подсистемы ядра GEOM (libgeom, \-lgeom)
+.ds doc-str-Lb-libi386     Библиотека архитектуры i386 (libi386, \-li386)
+.ds doc-str-Lb-libipsec    Библиотека управления IPsec Policy (libipsec, \-lipsec)
+.ds doc-str-Lb-libipx      Библиотека поддержки конверсии адресов IPX (libipx, \-lipx)
+.ds doc-str-Lb-libkvm      Библиотека доступа к данным ядра (libkvm, \-lkvm)
+.ds doc-str-Lb-libm        Библиотека математических функций (libm, \-lm)
+.\" XXX ds doc-str-Lb-libmd       Message Digest (MD4, MD5, и т.д.) Support Library (libmd, \-lmd)
+.\" XXX ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
+.ds doc-str-Lb-libnetgraph Пользовательская библиотека Netgraph (libnetgraph, \-lnetgraph)
+.ds doc-str-Lb-libossaudio Библиотека эмуляции OSS Audio (libossaudio, \-lossaudio)
+.ds doc-str-Lb-libpam      Библиотека PAM (libpam, \-lpam)
+.ds doc-str-Lb-libposix    Библиотека \*[Px]\-совместимости (libposix, \-lposix)
+.\" XXX ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
+.ds doc-str-Lb-librpcsvc   Библиотека служб RPC (librpcsvc, \-lrpcsvc)
+.ds doc-str-Lb-libtermcap  Библиотека доступа к termcap (libtermcap, \-ltermcap)
+.ds doc-str-Lb-libufs      Библиотека доступа к файловой системе UFS (libufs, \-lufs)
+.\" XXX ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
+.ds doc-str-Lb-libusbhid   Библиотека функций доступа к USB HID (libusbhid, \-lusbhid)
+.ds doc-str-Lb-libutil     Библиотека системных утилит (libutil, \-lutil)
+.ds doc-str-Lb-libvgl      Библиотека видео-графики (libvgl, \-lvgl)
+.ds doc-str-Lb-libz        Библиотека компрессии (libz, \-lz)
+.
+.\" локализация .Rv
+.ds doc-str-Rv-std-prefix "Функция
+.ds doc-str-Rv-std-suffix "возвращает\~0 в случае успешного завершения;
+.as doc-str-Rv-std-suffix " в противном случае она возвращает\~-1,
+.as doc-str-Rv-std-suffix " а код ошибки сохраняется в глобальной
+.as doc-str-Rv-std-suffix " переменной \*[doc-Va-font]errno\f[P].
+.
+.ds doc-str-Rv-stds-prefix "Функции
+.ds doc-str-Rv-stds-and    "и
+.ds doc-str-Rv-stds-suffix "возвращают\~0 в случае успешного завершения;
+.as doc-str-Rv-stds-suffix " в противном случае они возвращают\~-1,
+.as doc-str-Rv-stds-suffix " а код ошибки сохраняется в глобальной
+.as doc-str-Rv-stds-suffix " переменной \*[doc-Va-font]errno\f[P].
+.
+.ds doc-str-Rv-std0 "В случае успешного завершения возвращается\~0;
+.as doc-str-Rv-std0 " в противном случае возвращается\~-1,
+.as doc-str-Rv-std0 " а код ошибки сохраняется в глобальной
+.as doc-str-Rv-std0 " переменной \*[doc-Va-font]errno\f[P].
+.
+.\" локализация .Ex
+.ds doc-str-Ex-std-prefix "Утилита
+.ds doc-str-Ex-std-suffix "возвращает\~0 в случае успешного завершения
+.as doc-str-Ex-std-suffix " и\~>0 в случае возникновения ошибки.
+.
+.ds doc-str-Ex-stds-prefix "Утилиты
+.ds doc-str-Ex-stds-suffix "возвращают\~0 в случае успешного завершения
+.as doc-str-Ex-stds-suffix " и\~>0 в случае возникновения ошибки.
+.
+.\" локализация .Ar
+.ds doc-str-Ar-default "файл\ .\|.\|.
+.
+.\" локализация .%A
+.ds doc-str-dpra "и
