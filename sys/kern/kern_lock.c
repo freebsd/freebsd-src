@@ -506,34 +506,6 @@ acquiredrain(struct lock *lkp, int extflags) {
 }
 
 /*
- * Transfer any waiting processes from one lock to another.
- */
-void
-transferlockers(from, to)
-	struct lock *from;
-	struct lock *to;
-{
-
-	KASSERT(from != to, ("lock transfer to self"));
-	KASSERT((from->lk_flags&LK_WAITDRAIN) == 0, ("transfer draining lock"));
-
-	mtx_lock(from->lk_interlock);
-	if (from->lk_waitcount == 0) {
-		mtx_unlock(from->lk_interlock);
-		return;
-	}
-	from->lk_newlock = to;
-	wakeup((void *)from);
-	msleep(&from->lk_newlock, from->lk_interlock, from->lk_prio,
-	    "lkxfer", 0);
-	from->lk_newlock = NULL;
-	from->lk_flags &= ~(LK_WANT_EXCL | LK_WANT_UPGRADE);
-	KASSERT(from->lk_waitcount == 0, ("active lock"));
-	mtx_unlock(from->lk_interlock);
-}
-
-
-/*
  * Initialize a lock; required before use.
  */
 void
