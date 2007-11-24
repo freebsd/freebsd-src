@@ -1,0 +1,122 @@
+.\" Copyright (c) 2003
+.\"	Sam Leffler <sam@errno.com>. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Sam Leffler AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 20, 2003
+.Dt FAST_IPSEC 4
+.Os
+.Sh NAME
+.Nm "Fast IPsec"
+.Nd hardware-accelerated IP Security Protocols
+.Sh SYNOPSIS
+.Cd "options FAST_IPSEC"
+.Cd "device crypto"
+.Pp
+.Bl -item -compact
+.It
+.Va net.inet.esp.enable
+.It
+.Va net.inet.ah.enable
+.It
+.Va net.inet.ipcomp.enable
+.El
+.Sh DESCRIPTION
+.Tn IPsec
+is a set of protocols,
+.Tn ESP
+(for Encapsulating Security Payload)
+.Tn AH
+(for Authentication Header),
+and
+.Tn IPComp
+(for IP Payload Compression Protocol)
+that provide security services for IP datagrams.
+.Nm
+is an experimental implementation of these protocols that uses the
+.Xr crypto 4
+subsystem to carry out cryptographic operations.
+This means, in particular, that cryptographic hardware devices are
+employed whenever possible to optimize the performance of these protocols.
+.Pp
+In general, the
+.Nm
+implementation is intended to be compatible with the
+.Tn KAME IPsec
+implementation.
+This documentation concentrates on differences from that software.
+The user should refer to
+.Xr ipsec 4
+for basic information on setting up and using these protocols.
+.Pp
+System configuration requires the
+.Xr crypto 4
+subsystem.
+When the
+.Nm
+protocols are configured for use, all protocols are included in the system.
+To selectively enable/disable protocols, use
+.Xr sysctl 8 .
+.Pp
+The packets can be passed to a virtual interface,
+.Dq enc0 ,
+to perform packet filtering before outbound encryption and after decapsulation
+inbound.
+.Sh DIAGNOSTICS
+To be added.
+.Sh SEE ALSO
+.Xr crypto 4 ,
+.Xr enc 4 ,
+.Xr ipsec 4 ,
+.Xr setkey 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The protocols draw heavily on the
+.Ox
+implementation of the
+.Tn IPsec
+protocols.
+The policy management code is derived from the
+.Tn KAME
+implementation found
+in their
+.Tn IPsec
+protocols.
+The
+.Nm
+protocols first appeared in
+.Fx 5.0 .
+.Sh BUGS
+There is presently no support for IPv6.
+.Pp
+The
+.Tn IPcomp
+protocol support does not work.
+.Pp
+Certain legacy authentication algorithms are not supported because of
+issues with the
+.Xr crypto 4
+subsystem.
+.Pp
+This documentation is incomplete.

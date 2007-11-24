@@ -1,0 +1,70 @@
+@c Copyright 1992, 1993 Free Software Foundation, Inc.
+@c This file is part of the documentation for the GAS manual
+
+@c Configuration settings for all-inclusive version of manual
+
+@c switches:------------------------------------------------------------
+@c Properties of the manual
+@c ========================
+@c Discuss all architectures?
+@clear ALL-ARCH
+@c A generic form of manual (not tailored to specific target)?
+@clear GENERIC
+@c Include text on assembler internals?
+@set INTERNALS
+@c Many object formats supported in this config?
+@clear MULTI-OBJ
+
+@c Object formats of interest
+@c ==========================
+@clear AOUT
+@clear BOUT
+@clear COFF
+@set ELF
+@clear SOM
+
+@c CPUs of interest
+@c ================
+@clear A29K
+@clear ARC
+@clear ARM
+@clear D10V
+@clear H8/300
+@clear H8/500
+@clear SH
+@set I80386
+@clear I960
+@clear MIPS
+@clear M32R
+@clear M680X0
+@clear Z8000
+@clear SPARC
+@clear VAX
+@clear VXWORKS
+@clear HPPA
+@clear V850
+
+@c Does this version of the assembler use the difference-table kluge?
+@clear DIFF-TBL-KLUGE
+
+@c Do all machines described use IEEE floating point?
+@set IEEEFLOAT
+
+@c Is a word 32 bits, or 16?
+@set W32
+@clear W16
+
+@c Do symbols have different characters than usual?
+@clear SPECIAL-SYMS
+
+@c strings:------------------------------------------------------------
+@c Name of the assembler:
+@set AS as
+@c Name of C compiler:
+@set GCC gcc
+@c Name of linker:
+@set LD ld
+@c Text for target machine (best not used in generic case; but just in case...)
+@set TARGET i386
+@c Name of object format (NOT SET in generic version)
+@set OBJ-NAME ELF

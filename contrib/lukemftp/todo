@@ -1,0 +1,25 @@
+$Id: todo,v 1.30 2002/06/10 08:08:53 lukem Exp $
+
+update NEWS, README, ...
+
+at end of configure, show summary of options used and features found
+
+if socks is defined, disable ipv6 and use own getaddrinfo()/getnameinfo()
+(for tron)
+
+add locale autoconf checks
+
+AC_CHECK_SIZEOF(off_t, 0) doesn't work on FreeBSD 4.0 because the
+test doesn't include <sys/types.h>. fix autoconf?
+
+in configure, check for ansi c compiler and barf if it fails
+
+check if we need #defines for memcpy() et al
+
+check for utimes() decls [which system?]
+
+possibly install editline.3 and editrc.5
+
+system specific tests (to remove need for manual intervention):
+- sunos4
+	LIBS+= -lresolv

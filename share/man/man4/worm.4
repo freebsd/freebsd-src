@@ -1,0 +1,110 @@
+.\"
+.\" Copyright (C) 1996
+.\"   interface business GmbH
+.\"   Tolkewitzer Strasse 49
+.\"   D-01277 Dresden
+.\"   F.R. Germany
+.\"
+.\" All rights reserved.
+.\"
+.\" Written by Joerg Wunsch <joerg_wunsch@interface-business.de>
+.\"
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+.\" OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+.\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" "
+.Dd October 15, 1998
+.Dt WORM 4
+.Os
+.Sh NAME
+.Nm worm
+.Nd write-once (CD-R) disk driver
+.Sh SYNOPSIS
+None.
+.Sh DESCRIPTION
+The
+.Nm
+driver was provided under
+.Fx
+releases prior to
+.Fx 3.0 .
+.Pp
+The
+.Fx
+.Tn SCSI
+layer was replaced for
+.Fx 3.0
+by a CAM-compliant
+.Tn SCSI
+layer.
+The new
+.Tn SCSI
+layer does not include a
+.Nm
+driver, and is not likely to include one in the future.
+Future in-kernel
+support for CD-R/CD-RW/DVD drives will likely be implemented through the
+.Xr cd 4
+driver.
+Users who wish to write CDs on a WORM, CD-R, or CD-RW drive should use
+.Nm cdrtools ,
+which is in the
+.Fx
+ports collection.
+.Pp
+The
+.Xr cd 4
+driver provides read-only access to CD, CD-R, and CD-RW drives, as well as
+WORM drives that support the CDROM command set.
+Therefore, users wishing to mount CDs in a WORM drive should use the
+.Xr cd 4
+driver instead.
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr ioctl 2 ,
+.Xr open 2 ,
+.Xr write 2 ,
+.Xr cd 4 ,
+.Xr pass 4 ,
+.Xr xpt 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 2.1 ,
+and disappeared in
+.Fx 3.0
+with the advent of the CAM
+.Tn SCSI
+layer.
+.Sh AUTHORS
+.An -nosplit
+The first skeleton for a
+.Nm
+driver has been written by
+.An Peter Dufault
+in May, 1995.
+The driver has then been improved and made actually usable at all by
+.An J\(:org Wunsch
+in January, 1996.

@@ -1,0 +1,190 @@
+# @(#)interp	8.5 (Berkeley) 10/19/96
+			Nvi Interpreter API
+
+Introduction:
+    The intention is to provide a way to graft a fairly generic extension
+    language into nvi.  I think that the obvious candidates are Tcl/Rush,
+    Scheme, Python and Perl.  Since the interpretation language chosen
+    is often a religious issue, the method should be as flexible as
+    possible.  I don't expect to rewrite the editor in the interpreted
+    language, so that isn't a consideration.
+
+    Q: Is there any reason for nvi to support multiple interpreters in
+       a single executable?
+
+Interpreter functions in nvi:
+
+ 1: Function to get the current screen pointer.
+
+    SCR *inter_screen();
+
+	Return a pointer to the current screen.
+
+ 2: Functions to execute both ex and vi commands.  The return value of the
+    function will be success/failure.  The editor itself will continue to
+    handle the display of all messages and text for the foreseeable future.
+
+    int inter_vicmd(SCR *, char *cmds, size_t len);
+    int inter_excmd(SCR *, char *cmds, size_t len);
+
+	The byte string cmds, of length len, is entered into the standard
+	vi or ex parser, as if typed by the user.  The characters are not
+	mapped in any way, i.e. the user's vi mappings don't apply.  If
+	any error occurs, an error value is returned, and the rest of the
+	characters are discarded.
+
+ 3: Functions to handle lines of text in the file.
+
+    int inter_gline(SCR *, recno_t lno, char **lp, size_t *lenp);
+
+	Return a pointer to the text of the line lno, into the location
+	referenced by lp, and its length into the location referenced by
+	lenp.
+
+    int inter_dline(SCR *, recno_t lno);
+
+	Delete the line lno from the file.
+
+    int inter_aline(SCR *, recno_t lno, char *lp, size_t len);
+
+	Append a line consisting of the len bytes of text referenced by
+	lp to the line lno.
+
+    int inter_iline(SCR *, recno_t lno, char *lp, size_t len);
+
+	Insert a line consisting of the len bytes of text referenced by
+	lp before the line lno.
+
+    int inter_sline(SCR *, recno_t lno, char *lp, size_t len);
+
+	Replace line lno with the len bytes of text referenced by lp.
+
+    int inter_lline(SCR *, recno_t *lnop);
+
+	Return the number of the last line in the file in the location
+	referenced by lnop.
+
+ 4: Function to post an error message to the user.
+
+    int inter_msgq(SCR *, enum msgtype, char *fmt, ...);
+
+    Display the message for the user.  Valid message types are:
+
+	M_BERR       Error: M_ERR if  verbose, else bell.
+	M_ERR        Error: Display in inverse video.
+	M_INFO        Info: Display in normal video.
+	M_SYSERR     Error: M_ERR, using strerror(3) message.
+	M_VINFO       Info: M_INFO if verbose, else ignore.
+
+ 5: Function to manipulate cut buffers.
+
+    int inter_setbuf(SCR *, CHAR_T buffer);
+
+	Create the specified buffer if it does not exist (the
+	buffer will have no contents).
+
+    int inter_getbuf(SCR *, CHAR_T buffer, TEXT **textp);
+
+	Return a pointer to the specified buffer in the location
+	referenced by textp.  (Since a pointer to the real item
+	is being returned, it can be manipulated in any way the
+	interpreter chooses.)
+
+ 6: Functions to manipulate marks.
+
+    int inter_setmark(SCR *, CHAR_T name);
+
+	Create the specified mark if it does not exist (the
+	mark will have no contents).
+
+    int inter_getmark(SCR *, CHAR_T name, MARK **markp);
+
+	Return a pointer to the specified mark in the location
+	referenced by markp.  (Since a pointer to the real item
+	is being returned, it can be manipulated in any way the
+	interpreter chooses.)
+
+ 7: Function to manipulate screens.
+
+    SCR *inter_iscreen();
+
+	Create a new screen, and return a pointer to it.
+
+    int inter_escreen(SCR *);
+
+	End a screen.
+
+ 8: Functions to get input from the user.
+
+    int inter_getchar(CHAR_T *chp,
+	enum maptype {NONE, INPUT, COMMAND} mapt);
+
+	Return a character from the keyboard into the location referenced
+	by chp.  Mapt can be set to INPUT, COMMAND or NONE, depending on
+	what vi mappings should be applied to the character.
+
+    int inter_getline(SCR *, char *prompt, CHAR_T **linep,
+	size_t *lenp, enum maptype {NONE, INPUT, COMMAND} mapt);
+
+	Return a pointer to a line entered by the user, and its length,
+	into the locations linep and lenp.  A prompt may be specified
+	by prompt, and mappings by mapt.
+
+    int inter_freeline(CHAR_T *linep);
+
+	Free the memory that was allocated by inter_getline();
+
+ 9: Function to retrieve and set the cursor.
+
+    int inter_getcursor(SCR *, MARK *mark);
+
+	Store the current cursor position in mark.
+
+    int inter_setcursor(SCR *, MARK *mark);
+
+	Set the current cursor position to mark.
+
+10: Function to return a motion command from the user.
+
+    int inter_getmotion(SCR *,
+	MARK *start, MARK *end, enum movetype {LINE, CHAR} *mt);
+
+	Nvi gets a motion command from the user and returns the starting
+	and stopping points of the movement, reordered from the beginning
+	to the end of the file.  The standard rules for line/character
+	motions are applied, and returned to the interpreter through the
+	mt argument.
+
+11: Functions to return pathnames.
+
+12: Functions to return edit options.
+
+13: Nvi commands which will send text to the interpreter.
+
+    Nvi will have a new ex command "inter", which will pipe the rest of
+    the line up to the first unescaped <newline> to the interpreter, of
+    the following form:
+   
+	:[address[,address]] inter [count] command
+
+    The interface from the ex command to the interpreter is a function:
+
+    int inter_ex(
+	SCR *,				/* Current screen. */
+	char *cmd;			/* The command. */
+	size_t len;			/* The command length. */
+	MARK *start,			/* Starting address for INTER_EX */
+	MARK *end,			/* Ending address for INTER_EX */
+	int count);			/* Count. */
+
+    Nvi will have a new vi command "*<buffer>" which will pipe the contents
+    of the named buffer to the interpreter, of the following form:
+
+	[count]*<buffer>
+
+    The interface from the vi command to the interpreter is a function:
+
+    int inter_vi(
+	SCR *,				/* Current screen. */
+	CHAR_T buffer,			/* Buffer. */
+	int count);			/* Count. */

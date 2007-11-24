@@ -1,0 +1,154 @@
+.\"
+.\" Copyright (c) 2003 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 26, 2005
+.Dt WLAN 4
+.Os
+.Sh NAME
+.Nm wlan
+.Nd generic 802.11 link-layer support
+.Sh SYNOPSIS
+.Cd "device wlan"
+.Sh DESCRIPTION
+The
+.Nm
+module provides generic code to support 802.11 drivers.
+Where a device does not directly support 802.11 functionality
+this layer fills in.
+The
+.Nm
+is required for the
+.Xr an 4 ,
+.Xr ath 4 ,
+.Xr awi 4 ,
+.Xr ipw 4 ,
+.Xr iwi 4 ,
+.Xr ral 4 ,
+.Xr ural 4 ,
+and
+.Xr wi 4
+drivers, with other drivers to follow.
+.Pp
+The
+.Nm
+module supports multi-mode devices capable of
+operating in both 2.4GHz and 5GHz bands and supports numerous
+802.11 protocols: 802.11a, 802.11b, and 802.11g.
+The WPA, 802.11i, and 802.1x security protocols are supported
+through a combination of in-kernel code and user-mode applications.
+The WME and WMM multi-media protocols are supported entirely within
+the
+.Nm
+module but require a suitably capable hardware device.
+.Pp
+The
+.Nm
+module defines several mechanisms by which plugin modules may
+be used to extend functionality.
+Cryptographic support such as WEP, TKIP, and AES-CCMP are implemented
+as modules that are loaded on demand (if not statically configured
+into a system).
+Similarly there is an authenticator framework for defining 802.11
+authentication services and a framework for integrating access
+control mechanisms specific to the 802.11 protocol.
+.Sh DEBUGGING
+If the associated interface is marked for debugging with, for example,
+.Pp
+.Dl "ifconfig wi0 debug"
+.Pp
+then messages describing the operation of the 802.11 protocol will
+be sent to the console.
+Complete debugging controls are available using:
+.Pp
+.Dl "sysctl net.wlan.X.debug=mask"
+.Pp
+where
+.Ar X
+is the number of the
+.Nm
+instance and mask is a bit-or of control bits that determine which
+debugging messages to enable.
+For example,
+.Pp
+.Dl "sysctl net.wlan.0.debug=0x00200000"
+.Pp
+enables debugging messages related to scanning for an access point,
+adhoc neighbor, or an unoccupied channel when operation as an access point.
+The
+.Xr 80211debug
+tool provides a more user-friendly mechanism for doing the same thing.
+.Pp
+Many drivers will also display the contents of each 802.11 frame
+sent and received when the interface is marked with
+both debugging and
+.Cm link2 ;
+e.g.,
+.Pp
+.Dl "ifconfig wi0 debug link2"
+.Pp
+Beware however that some management frames may be processed entirely within
+the device and not be received by the host.
+.Sh COMPATIBILITY
+The module name of
+.Nm
+was used to be compatible with
+.Nx .
+.Sh SEE ALSO
+.Xr an 4 ,
+.Xr ath 4 ,
+.Xr awi 4 ,
+.Xr ipw 4 ,
+.Xr iwi 4 ,
+.Xr netintro 4 ,
+.Xr ral 4 ,
+.Xr ural 4 ,
+.Xr wi 4 ,
+.Xr wlan_acl 4 ,
+.Xr wlan_ccmp 4 ,
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4 ,
+.Xr wlan_xauth 4
+.Sh STANDARDS
+More information can be found in the IEEE 802.11 Standard.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+Atsushi Onoe is the author of original
+.Nx
+software from which this work began.
+.An -nosplit
+.An Sam Leffler
+brought the code into
+.Fx
+and then rewrote it to support multi-mode devices,
+802.11g, WPA/802.11i, WME, and add the extensible frameworks
+for cryptographic, authentication, and access control plugins.
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .

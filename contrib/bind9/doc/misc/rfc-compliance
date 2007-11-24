@@ -1,0 +1,62 @@
+Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2001  Internet Software Consortium.
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+$Id: rfc-compliance,v 1.3.206.1 2004/03/06 13:16:20 marka Exp $
+
+BIND 9 is striving for strict compliance with IETF standards.  We
+believe this release of BIND 9 complies with the following RFCs, with
+the caveats and exceptions listed in the numbered notes below.  Note
+that a number of these RFCs do not have the status of Internet
+standards but are proposed or draft standards, experimental RFCs, 
+or Best Current Practice (BCP) documents.
+
+  RFC1034
+  RFC1035 [1] [2]
+  RFC1123
+  RFC1183
+  RFC1535
+  RFC1536
+  RFC1706
+  RFC1712
+  RFC1750
+  RFC1876
+  RFC1982
+  RFC1995
+  RFC1996
+  RFC2136
+  RFC2163
+  RFC2181
+  RFC2230
+  RFC2308
+  RFC2535 [3] [4]
+  RFC2536
+  RFC2537
+  RFC2538
+  RFC2539
+  RFC2671
+  RFC2672
+  RFC2673
+  RFC2782
+  RFC2915
+  RFC2930
+  RFC2931 [5]
+  RFC3007
+
+
+[1] Queries to zones that have failed to load return SERVFAIL rather
+than a non-authoritative response.  This is considered a feature.
+
+[2] CLASS ANY queries are not supported.  This is considered a feature.
+
+[3] Wildcard records are not supported in DNSSEC secure zones.
+
+[4] Servers authoritative for secure zones being resolved by BIND 9
+must support EDNS0 (RFC2671), and must return all relevant SIGs and
+NXTs in responses rather than relying on the resolving server to
+perform separate queries for missing SIGs and NXTs.
+
+[5] When receiving a query signed with a SIG(0), the server will only
+be able to verify the signature if it has the key in its local
+authoritative data; it will not do recursion or validation to
+retrieve unknown keys.

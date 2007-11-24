@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ -x /etc/init.d/xntp ]
+then
+	/etc/init.d/xntp stop
+fi
+exit 0

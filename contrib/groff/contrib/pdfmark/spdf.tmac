@@ -1,0 +1,225 @@
+.\" -*- nroff -*-
+.ig
+
+spdf.tmac
+
+Copyright (C) 2004
+  Free Software Foundation, Inc.
+     Written by Keith Marshall (keith.d.marshall@ntlworld.com)
+
+This file is part of groff.
+
+groff is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
+
+groff is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License along
+with groff; see the file COPYING.  If not, write to the Free Software
+Foundation, 51 Franklin St - Fifth Floor, Boston, MA 02110-1301, USA.
+
+..
+.\"
+.if !rOPMODE .nr OPMODE 1
+.\"
+.mso s.tmac
+.mso pdfmark.tmac
+.\"
+.\" Omitted Sections
+.\" ================
+.\"
+.\" Define section markers, for special document sections,
+.\" which are to be omitted from regular document processing.
+.\"
+.de OMIT OMIT
+.de \\$1
+.omit@begin \\$1 \\$2
+..
+.de \\$2
+.omit@end \\$1 \\$2
+..
+.OMIT CS CE    \" front cover text, processed independently
+.OMIT MS ME    \" menu definitions, for info documents only
+.\"
+.de omit@begin
+.ds omit@section \\$1
+.ig \\$2
+..
+.de omit@end
+.if !'\\*[omit@section]'\\$1' .@error \\$2 without \\$1
+.rm omit@section
+..
+.de XM
+.\"
+.pdfhref M -X \\$@
+..
+.de XR
+.if \\n(.$ \{\
+.   if \\n[OPMODE] \{\
+.      ds spdf!opts -D "\\$1"
+.      if \\n(.$>1 .as spdf!opts " -A "\\$2"
+.      if \\n(.$>2 .as spdf!opts " -P "\\$3"
+.      pdfhref L \\*[spdf!opts]
+.      rm spdf!opts
+.      \}
+.   \}
+..
+.\"
+.\" Document Outlines, Section Headings and Table of Contents
+.\" =========================================================
+.\"
+.de XN
+.\" Use AFTER .NH n, to define the text of the numbered heading,
+.\" automatically generating a matching formatted TOC entry, and
+.\" a PDF document outline entry.
+.\"
+.\" String registers XNVS1, XNVS2 and XNVS3 establish additional leading,
+.\" prior to top level headings, preceding each level of indented subheading,
+.\" and following each nested level of subheading, respectively
+.\" (strings are used, rather than numeric registers, so that these
+.\"  additional spacing parameters may be set relative to the current
+.\"  document line spacing, as set by \n[VS]).
+.\"
+.rm xn*ref
+.while dopt*XN\\$1 \{\
+.   opt*XN\\$1 \\$*
+.   shift \\n[xn*argc]
+.   \}
+.rr xn*argc
+.if '\\$1'--' .shift
+.if dxn*ref .XM -N \\*[xn*ref] -- \\$@
+.rm xn*ref
+.pdfhref O \\n[nh*hl] "\\*(SN \\$*"
+.XS
+.if rtc*hl \{\
+.   if !dXNVS1 .ds XNVS1 1.0v  \" default leading for top level
+.   if !dXNVS2 .ds XNVS2 0.3v  \" default leading at nesting increment
+.   if !dXNVS3 .ds XNVS3 0.6v  \" default leading following nested group
+.   if \\n[nh*hl]==1 \{\
+.      sp \\*[XNVS1]
+.      nr tc*hl-max 1
+.      \}
+.   ie \\n[nh*hl]<\\n[tc*hl] .if \\n[nh*hl]>1 .sp \\*[XNVS3]
+.   el \{\
+.      ie \\n[nh*hl]>\\n[tc*hl] .sp \\*[XNVS2]
+.      el \{\
+.         if !r tc*hl-max .nr tc*hl-max 1
+.         ie \\n[tc*hl-max]>\\n[nh*hl] .sp \\*[XNVS3]
+.         el .nr tc*hl-max \\n[nh*hl]
+.         \}
+.      \}
+.   \}
+.nr tc*hl \\n[nh*hl]
+\h'\\n[nh*hl]-1m'\c
+\&\\*(SN\h'1n'\\$*
+.\".pdfhref L -D \\*[PDFBOOKMARK.NAME] -- \&\\*(SN\h'1n'\\$*
+.XE
+\&\\$*
+..
+.de opt*XN-N
+.nr xn*argc 2
+.ds xn*ref \\$2
+..
+.de opt*XN-X
+.nr xn*argc 1
+.if !dxn*ref .ds xn*ref \\\\$1
+..
+.de LU
+.LP
+The content for this section is not yet available.
+..
+.de AN
+.ie \\n(.$ .@AN \\$*
+.el .@AN Note
+..
+.de @AN
+.SH
+\\$*
+.LP
+..
+.nr PDF-TOC-ONLY  1
+.nr PDF-BODY-TEXT 2
+.de OP
+.ie rPHASE \{\
+.   ie \\n(.$ \{\
+.      nr op:request 0
+.      while \\n(.$ \{\
+.         if \\$1=\\n[PHASE] .nr op:request 1
+.         shift
+.         \}
+.      \}
+.   el .nr op:request 1
+.   if !\\n[op:request]=\\n[OPMODE] \{\
+.      nr OPMODE \\n[op:request]
+.      nop \O[\\n[OPMODE]]\c
+.      \}
+.   \}
+.el .nr OPMODE 1
+..
+.nr SAME-PAGE 0
+.de NN
+.if !\\n[SAME-PAGE] .bp
+.nr SAME-PAGE 0
+.NH \\$1
+.nn*setname \\$2
+.shift 2
+.XN -N \\*[nn*name] -- \\$@
+.rm nn*name
+..
+.de nn*setname
+.ds nn*name \\$1
+.shift
+.while \\n(.$ \{\
+.   as nn*name -\\$1
+.   shift
+.   \}
+..
+.de PXREF
+.nn*setname \\$2
+.XR \\*[nn*name] )\\$1 (
+.rm nn*name
+..
+.de IS
+.RS
+.nr LL \\n(LL-\\n(PI
+..
+.de IE
+.RE
+.nr LL \\n(LL+\\n(PI
+..
+.\" Override the standard ms macro,
+.\" to ensure the document outline cache is flushed
+.\" BEFORE emitting the table of contents.
+.de TC
+.pdfsync O
+.P1
+.OP \n[PDF-TOC-ONLY]
+.pg@begin 1 i
+.if \\n[OPMODE] .pdf@toc
+.PX \\$1
+..
+.de pdf@toc
+.pdfhref O -T T 1 "\\*[TOC]"
+.pdfsync O
+..
+.de pdf@exit
+.if \\n[OPMODE] .pdfsync
+.pg@end-text
+..
+.em pdf@exit
+.OP \n[PDF-BODY-TEXT]
+.
+.\" groff "ms" provides the "pg@bottom" macro, which has already
+.\" been installed as a page transition trap.  To ensure proper
+.\" mapping of "pdfhref" links which overflow the bottom of any
+.\" page, we need to install the "pdfhref" page transition hook,
+.\" as an addendum to this macro.
+.
+.pdfhref I -PT pg@bottom
+.\"
+.\" spdf.tmac: end of file: vim: ft=groff

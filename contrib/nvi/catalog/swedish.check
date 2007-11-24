@@ -1,0 +1,34 @@
+Unused message id's (this is okay):
+001
+047
+050
+051
+052
+081
+176
+213
+229
+288
+=========================
+MISSING ERROR MESSAGES (Please add!):
+=========================
+Extra error messages (just delete them):
+=========================
+MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
+=========================
+Duplicate messages, both id and message (this is okay):
+=========================
+Duplicate messages, just message (this is okay):
+   2 %s expanderade till för många filnamnX
+   2 %s: %lu rader, %lu teckenX
+   2 %s: Återskapningsfilen är korruptX
+   2 Filen har ändrats efter den sparats; spara eller använd !X
+   2 Ingen tidigare söksträngX
+   2 Kopierar filen för återskapning...X
+   2 Loggning utförs inte, ångra är inte möjligtX
+   2 flyttadeX
+   2 set: %s flaggan är inte boleanskX
+   2 Ändringar kan inte återskapas om programmet krascharX
+   3 %s: ta bortX
+   4 Användning: %sX
+=========================

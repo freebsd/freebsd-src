@@ -1,0 +1,216 @@
+.\" Copyright (c) 2000 Mark Newton
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.Dd October 28, 2003
+.Dt SVR4 4 i386
+.Os
+.Sh NAME
+.Nm svr4
+.Nd System V Release 4 ABI support
+.Sh SYNOPSIS
+To link System V Release 4 (SVR4) ABI support into the kernel:
+.Cd options COMPAT_SVR4
+.Pp
+To load the SVR4 ABI support kernel module:
+.Dl kldload svr4
+.Sh DESCRIPTION
+The
+.Nm
+module provides limited
+System V Release 4 ABI (application binary interface) compatibility
+for userland applications.
+The module provides the following significant facilities:
+.Bl -bullet
+.It
+An image activator
+for correctly branded
+.Xr elf 5
+executable images
+.It
+Special signal handling for activated images
+.It
+SVR4 to native system call translation
+.It
+STREAMS network API emulation (via the
+.Xr streams 4
+loadable module, or by means of
+.Dl device streams
+in a kernel configuration file)
+.It
+Mappings between
+.Fx
+and SVR4
+.Xr ioctl 2
+calls, or, where no such mappings exist, reverse-engineered implementations
+of the SVR4 calls.
+.El
+.Pp
+It is important to note that the SVR4 ABI support
+it not provided through an emulator.
+Rather, a true (albeit limited) "clean room" reverse-engineered ABI
+implementation is provided.
+.Sh LIMITATIONS
+Because the provided ABI has been developed in ignorance of actual SVR4
+source code, there are bound to be unforeseen interactions between SVR4
+client applications and the emulated ABI which cause applications to
+malfunction.
+.Pp
+Additionally, some SVR4 operating systems do not adhere to the SVR4
+ELF standard.
+In particular, Solaris does not set the ELF interpreter field in the
+ELF header to a value which would allow the kernel to correctly
+identify a client executable as an SVR4 application.
+Thus, in certain instances it is necessary to use the
+.Xr brandelf 1
+utility to explicitly brand the executable, or to set the
+kern.fallback_elf_brand
+.Xr sysctl 8
+variable to define a "default" ABI for unbranded executables.
+Value ELFOSABI_SOLARIS represents Solaris; ELFOSABI_SYSV represents other
+SysVR4 operating systems.
+See
+.In sys/elf_common.h
+for ELFOSABI branding definitions, and
+.Xr brandelf 1
+for information on branding executables.
+.Pp
+The
+.Nm
+module can be linked into the kernel statically with the
+.Dv COMPAT_SVR4
+kernel configuration option
+or loaded as required.
+The following command will load the module
+if it is neither linked into the kernel
+nor already loaded as a module:
+.Bd -literal -offset indent
+if ! kldstat -v | grep -E 'svr4elf' > /dev/null; then
+	kldload svr4 > /dev/null 2>&1
+fi
+.Ed
+.Pp
+The kernel
+will check for the presence of the
+.Xr streams 4
+module, and load it if necessary.
+.Pp
+Note that dynamically linked SVR4 executables
+will require a suitable environment in
+.Pa /compat/svr4 .
+.Pp
+For information on loading the
+.Nm
+kernel loadable module automatically on system startup,
+see
+.Xr rc.conf 5 .
+This information applies
+regardless of whether the
+.Nm
+module is statically linked into the kernel
+or loaded as a module.
+.Pp
+STREAMS emulation is limited but (largely) functional.
+Assuming the
+.Xr streams 4
+module is loaded, a STREAMS handle can be obtained by opening one of the
+relevant files in
+.Pa /dev
+or
+.Pa /compat/svr4/dev .
+Internally, the
+.Xr streams 4
+driver produces a socket descriptor and
+.Dq tags
+it with additional STREAMS
+state information before returning it to the client application.
+The
+.Nm
+environment uses the additional state information to recognize and
+manipulate emulated STREAMS handles when STREAMS-specific
+.Xr ioctl 2
+calls are executed.
+.Pp
+The subset of STREAMS functionality which is provided is small, probably
+little more than what is required to enable programs on the Solaris CD
+sets to run.
+.Sh FILES
+.Bl -tag -width /sys/compat/svr4/syscalls.master -compact
+.It Pa /compat/svr4
+minimal SVR4 run-time environment
+.It Pa /sys/compat/svr4/syscalls.master
+mappings between SVR4 syscalls and
+.Nm
+module entrypoints.
+.El
+.Sh SEE ALSO
+.Xr brandelf 1 ,
+.Xr streams 4 ,
+.Xr elf 5
+.Sh HISTORY
+System V Release 4 ABI support first appeared in
+.Fx 4.0 .
+The ABI was ported from an equivalent facility present in
+.Nx 1.3
+written by Christos Zoulas.
+.Sh BUGS
+Emulation of signal handlers is buggy.
+.Pp
+Emulated connectionless STREAMS fail to receive data from the network in
+some circumstances (but succeed in others -- probably due to particular
+ways of initializing them which the
+.Xr streams 4
+module is mishandling, and interaction between STREAMS and
+.Xr poll 2 ) .
+Connection-oriented STREAMS appear to be functional.
+.Pp
+Ironically, this SVR4 emulator does not (yet) support SVR4 semaphores or
+shared memory.
+.Pp
+.Xr ports 7
+to automatically create the
+.Pa /compat/svr4
+environment do not exist.
+.Xr tar 1
+archives containing pre-populated trees can be obtained from
+.Pa http://people.FreeBSD.org/~newton/freebsd-svr4/ .
+.Pp
+Extensive testing has only really been carried out with Solaris 2.x binaries,
+with anecdotal reports of limited success coming from testers with
+early-revision SCO media.
+In theory, the basic SVR4 ABI should be constant
+across the set of vendors who produce SVR4 operating systems, but in
+practice that is probably not the case.
+If necessary, future work can
+either implement additional
+.Xr kld 4
+modules which produce functionality which contains OS-dependent
+departures from the behaviour which has been implemented in this
+ABI implementation.
+Alternatively,
+.Xr sysctl 8
+variables could set the
+.Dq personality
+the environment should present to
+client applications.

@@ -1,0 +1,153 @@
+#
+# GENERIC -- Generic kernel configuration file for FreeBSD/ia64
+#
+# For more information on this file, please read the handbook section on
+# Kernel Configuration Files:
+#
+#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
+#
+# The handbook is also available locally in /usr/share/doc/handbook
+# if you've installed the doc distribution, otherwise always see the
+# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
+# latest information.
+#
+# An exhaustive list of options and more detailed explanations of the
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check
+# first in NOTES.
+#
+# For hardware specific information check HARDWARE.TXT
+#
+# $FreeBSD$
+
+machine		ia64
+cpu		ITANIUM
+ident		GENERIC
+
+makeoptions	DEBUG=-g	# Build kernel with debug information.
+
+options 	CD9660		# ISO 9660 Filesystem
+options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
+options 	COMPAT_FREEBSD5	# Compatible with FreeBSD5
+options 	DDB		# Support DDB
+options 	FFS		# Berkeley Fast Filesystem
+options 	GDB		# Support remote GDB
+options 	INET		# InterNETworking
+options 	INET6		# IPv6 communications protocols
+options 	KDB		# Enable kernel debugger support
+options 	KTRACE		# ktrace(1) syscall trace support
+options 	MD_ROOT		# MD usable as root device
+options 	MSDOSFS		# MSDOS Filesystem
+options 	NFSCLIENT	# Network Filesystem Client
+options 	NFSSERVER	# Network Filesystem Server
+options 	NFS_ROOT	# NFS usable as root device
+options 	PROCFS		# Process filesystem (/proc)
+options 	PSEUDOFS	# Pseudo-filesystem framework
+options 	SCHED_4BSD	# 4BSD scheduler
+options 	SCSI_DELAY=5000	# Delay (in ms) before probing SCSI
+options 	SMP		# Symmetric Multi-Processor support
+options 	SOFTUPDATES	# Enable FFS soft updates support
+options 	SYSVMSG		# SYSV-style message queues
+options 	SYSVSEM		# SYSV-style semaphores
+options 	SYSVSHM		# SYSV-style shared memory
+options 	UFS_ACL		# Support for access control lists
+options 	UFS_DIRHASH	# Hash-based directory lookup scheme
+options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
+
+# Various "busses"
+device 		acpi		# ACPI support (mandatory)
+device		firewire	# FireWire bus code
+device		miibus		# MII bus support (Ethernet)
+device		pci		# PCI bus support
+device		scbus		# SCSI bus (required for SCSI)
+device		usb		# USB Bus (required for USB)
+
+# ATA and ATAPI devices
+device		ata		# ATA controller
+device		atadisk		# ATA disk drives
+device		atapicd		# ATAPI CDROM drives
+device		atapifd		# ATAPI floppy drives
+device		ataraid		# ATA RAID drives
+
+# SCSI Controllers
+device		ahc		# AHA2940 and AIC7xxx devices
+device		ahd		# AHA39320/29320 and AIC79xx devices
+device		isp		# Qlogic family
+device		mpt		# LSI-Logic MPT-Fusion
+device		sym		# NCR/Symbios Logic
+
+# RAID controllers interfaced to the SCSI subsystem
+device		ciss		# Compaq Smart RAID 5*
+device		dpt		# DPT Smartcache III, IV
+device		iir		# Intel Integrated RAID
+device		mly		# Mylex AcceleRAID/eXtremeRAID
+
+# SCSI peripherals
+device		cd		# CD-ROM, DVD-ROM etc.
+device		ch		# Media changer
+device		da		# Direct Access (ie disk)
+device		pass		# Passthrough (direct SCSI access)
+device		sa		# Sequential Access (ie tape)
+device		ses		# Environmental Services (and SAF-TE)
+
+# RAID controllers
+device		aac		# Adaptec FSA RAID
+device		aacp		# SCSI passthrough for aac (requires CAM)
+device		amr		# AMI MegaRAID
+device		ida		# Compaq Smart RAID
+device		mlx		# Mylex DAC960 family
+
+# USB host controllers and peripherals
+device		ehci		# EHCI host controller
+device		ohci		# OHCI PCI->USB interface
+device		ugen		# Generic device
+device		uhci		# UHCI PCI->USB interface
+device		uhid		# Human Interface Devices
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage (need scbus & da)
+device		ums		# Mouse
+
+# PCI Ethernet NICs.
+device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
+device		txp		# 3Com 3cR990 (``Typhoon'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+
+# PCI Ethernet NICs that use the common MII bus controller code.
+device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
+device		pcn		# AMD Am79C97x PCI 10/100 NICs
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		rl		# RealTek 8129/8139
+device		sf		# Adaptec AIC-6915 (``Starfire'')
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		xl		# 3Com 3c90x ("Boomerang", "Cyclone")
+
+# USB Ethernet
+device		aue		# ADMtek USB Ethernet
+device		cdce		# Generic USB over Ethernet
+device		cue		# CATC USB Ethernet
+device		kue		# Kawasaki LSI USB Ethernet
+
+# FireWire support
+device		sbp		# SCSI over FireWire (need scbus & da)
+
+# Various (pseudo) devices
+device		ether		# Ethernet support
+device		faith		# IPv6-to-IPv4 relaying (translation)
+device		gif		# IPv6 and IPv4 tunneling
+device		loop		# Network loopback
+device		md		# Memory "disks"
+device		mem		# Memory and kernel memory devices
+device		pty		# Pseudo-ttys (telnet etc)
+device		puc		# Multi I/O cards and multi-channel UARTs
+device		random		# Entropy device
+device		tun		# Packet tunnel.
+device		uart		# Serial port (UART)
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+# Note that 'bpf' is required for DHCP.
+device		bpf		# Berkeley packet filter

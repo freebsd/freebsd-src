@@ -1,0 +1,14 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/amd64
+#
+# $FreeBSD$
+
+# Not yet, this would break all existing configs
+#machine		amd64
+
+# Bus support.
+device		isa
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+device		io		# I/O device

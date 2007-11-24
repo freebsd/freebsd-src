@@ -1,0 +1,17 @@
+OOPS:
+	FreeBSD does not fsync!!!
+
+Near term:
+	Fix bug in executing/mapping new files.
+	cfs_mount bug: interaction with cfs_inactive no cfs_unsave.
+	vref/vn_lock == vget except no VXWANT which may be on.
+	Review locks: vn_lock/VOP_UNLOCK/lockmgr ...
+
+Medium term:
+	Add missing VFS methods.
+	Do performance profile.
+	Tune hash algorithm used in cfs_namecache.
+	Tune hash algorithm used in cfs_subr.
+
+Eventually:
+	Use standard queue macros.

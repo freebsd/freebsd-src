@@ -1,0 +1,228 @@
+2006-03-05  Release Manager
+
+	* GCC 3.4.6 released.
+
+2005-11-30  Release Manager
+
+	* GCC 3.4.5 released.
+
+2005-09-10  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* testsuite/26_numerics/c99_classification_macros_c.cc:
+	XFAIL on *-*-linux*, not *-*-linux-gnu.
+
+2005-09-01  Benjamin Kosnik  <bkoz@redhat.com>
+
+        * include/c_std/std_cmath.h: Declare C99 functions and helper
+        functions as inline.
+
+2005-08-29  Paolo Carlini  <pcarlini@suse.de>
+
+        PR libstdc++/23528
+        Port from HEAD/4_0-branch:
+	2004-07-28  Matt Austern  <austern@apple.com>
+	* include/ext/hashtable.h: Use rebind so that allocator_type
+	has correct type for a container's allocator.
+	* testsuite/ext/23528.cc: New.
+
+2005-08-24  Lawrence Lim  <llim@redhat.com>
+            Jakub Jelinek  <jakub@redhat.com>
+	    Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/23550
+	* testsuite/21_strings/char_traits/requirements/char/1.cc
+	(test01): Simplify counting.
+	* testsuite/21_strings/char_traits/requirements/wchar_t/1.cc
+	(test02): Same.
+
+2005-07-18  Paolo Carlini  <pcarlini@suse.de>
+	    Nathan Myers  <ncm@cantrip.org>
+
+	PR libstdc++/21286
+	* include/bits/fstream.tcc (basic_filebuf<>::xsgetn):
+	Loop on short reads.
+
+2005-05-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* testsuite/Makefile.in: Regenerate with Automake 1.7.8.
+
+2005-05-19  Release Manager
+
+	* GCC 3.4.4 released.
+
+2005-05-18  Jonathan Wakely  <redi@gcc.gnu.org>
+
+	* docs/html/debug.html: Explain that _GLIBXX_DEBUG_PEDANTIC must
+	be defined for pedantic mode.
+
+2005-05-15  Andreas Schwab  <schwab@suse.de>
+
+	* testsuite/Makefile.am (check-local): Really remove.
+	* testsuite/Makefile.in: Regenerated.
+
+2005-05-12  Mark Mitchell  <mark@codesourcery.com>
+
+	2005-04-04  Mark Mitchell  <mark@codesourcery.com>
+	* testsuite/Makefile.am (check-local): Remove.
+	(curent_symbols.txt): Likewise.
+	(check-abi): Do not depend on current_symbols.txt.
+	* testsuite/Makefile.in: Regenerated.
+	* testsuite/libstdc++-abi/abi.exp: Build current_symbols.txt.
+	2005-04-01  Mark Mitchell  <mark@codesourcery.com>
+	* testsuite/Makefile.am (noinst_PROGRAMS): Remove.
+	(site.exp): Write out the path to the baseline file.
+	(check-abi): Use DejaGNU.
+	(check-abi-verbose): Remove.
+	* testsuite/Makefile.in: Regenerated.
+	* testsuite/abi_check.cc (main): Check the return value from
+	compare_symbols.
+	* testsuite/testsuite_abi.cc (compare_symbols): Return a value.
+	* testsuite/testsuite_abi.h (compare_symbols): Adjust prototype.
+	* testsuite/libstdc++-abi/abi.exp: New file.
+	2004-03-19  Phil Edwards  <phil@codesourcery.com>
+	* testsuite/Makefile.am (site.exp):  New target, based on that
+	created by automake.  Also set libiconv.
+
+2005-05-04  Mark Mitchell  <mark@codesourcery.com>
+
+	* testsuite/lib/libstdc++.exp (v3-build_support): Look for
+	__GTHREADS, rather than _GLIBCXX_HAVE_GTHR_DEFAULT, to determine
+	whether or not thread support is available.
+
+2005-05-04  Mark Mitchell  <mark@codesourcery.com>
+
+	Backport:
+	2005-03-25  Mark Mitchell  <mark@codesourcery.com>
+	* testsuite/lib/libstdc++.exp (libstdc++_init): Define LOCALEDIR
+	when testing an installed compiler.
+	* testsuite/lib/libstdc++.exp (v3-build_support): Pass -w when
+	compiling support objects.
+	2005-03-23  Mark Mitchell  <mark@codesourcery.com>
+	* testsuite/libstdc++-dg/normal.exp: Read testsuite_files, if it
+	exists.
+	* testsuite/lib/libstdc++.exp (libstdc++_wchar_t): Rename to ...
+	(v3-wchar_t): ... this.
+	(libstdc++_threads): Rename to ...
+	(v3-threads): ... this.
+	(libstdc++_test_objs): Rename to ...
+	(v3-test_objs): ... this.
+	(libstdc++_build_support): Rename to ...
+	(v3-build_support): ... this.
+	* testsuite/libstdc++-dg/normal.exp: Adjust to use new names.
+	* testsuite/lib/libstdc++.exp (libstdc++_init): Improve handling
+	of compilers not in the build directory.
+	(libstdc++_wchar_t): New variable.
+	(libstdc++_threads): Likewise.
+	(libstdc++_test_objs): Likewise.
+	(v3_target_compile): Use libstdc++_test_objs.
+	(v3-list-tests): Remove.
+	(listdc++_build_support): New function.
+	* testsuite/libstdc++-dg/normal.exp: Rework to dynamically
+	generate list of tests.
+	2004-11-23  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+	* testsuite/lib/libstdc++.exp: Use new procs in target-libpath.exp.
+
+2005-04-26  Jones Desougi  <jones@ingate.com>
+
+	PR libstdc++/21131
+	* linkage.m4: Fix comments.
+
+2005-04-25  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/21035
+	* include/bits/basic_string.h (compare): Adjust the documentation
+	to match the implementation and the standard.
+
+2005-02-20  Paolo Carlini  <pcarlini@suse.de>
+	    Jon Grimm  <jgrimm2@us.ibm.com>
+	
+	PR libstdc++/19955
+	* include/bits/locale_facets.h (ctype<char>::_M_narrow_init()):
+	Fix the logic setting _M_narrow_ok: first check whether the
+	transformation is trivial with a dflt == 0, then deal with the
+	special case of zero.
+	* testsuite/22_locale/ctype/narrow/char/19955.cc: New.
+
+	* include/bits/locale_facets.h (ctype<char>::_M_widen_init()):
+	Tweak consistently to use memcmp; minor formatting fixes.
+
+2005-02-18  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* testsuite/thread/pthread1.cc: Do not invoke pthread_setconcurrency
+	on Solaris 2.6 and below.
+	* testsuite/thread/pthread2.cc: Likewise.
+	* testsuite/thread/pthread3.cc: Likewise.
+	* testsuite/thread/pthread4.cc: Likewise.
+	* testsuite/thread/pthread5.cc: Likewise.
+	* testsuite/thread/pthread6.cc: Likewise.
+	* testsuite/thread/pthread7-rope.cc: Likewise.
+
+2005-02-16  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/19829
+	* testsuite/21_strings/basic_string/find/char/3.cc: Fix the test
+	at line #66 to not access str_lit01 beyond its end.
+	* testsuite/21_strings/basic_string/find/wchar_t/3.cc: Likewise.
+
+2005-02-15  Jakub Jelinek  <jakub@redhat.com>
+
+	PR libstdc++/19946
+	* testsuite/demangle/abi_examples/01.cc (main): Adjust for 2005-02-13
+	demangler change.
+	* testsuite/demangle/abi_examples/02.cc (main): Likewise.
+
+2005-02-08  Mark Mitchell  <mark@codesourcery.com>
+
+	* config/linker-map.gnu (GLIBCXX_3.4): Add _ZNSdC* and _ZNSdD*.
+
+2005-02-02  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/19642
+	* config/locale/generic/c_locale.h (__convert_from_v): Switch only
+	LC_NUMERIC, and only when actually != "C".
+
+2005-01-31  Brad Spencer  <spencer@infointeractive.com>
+
+        * crossconfig.m4: Repair Solaris cross bits for strtold and strtof.
+	* configure: Regenerated.
+
+2005-01-26  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/std/std_complex.h: Remove usages of the dead
+	_GLIBCXX_BUGGY_COMPLEX macro.
+
+2005-01-21  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	PR libstdc++/19510
+	* include/bits/stl_list.h (_List_iterator): Initialize _M_node
+	in constructor.
+	(_List_const_iterator): Likewise.
+	* include/bits/stl_tree.h (_Rb_tree_iterator): Likewise.
+	(_Rb_tree_const_iterator): Likewise.
+
+	* testsuite/23_containers/map/operators/1_neg.cc: Adjust line numbers.
+	* testsuite/23_containers/set/operators/1_neg.cc: Likewise.
+
+2005-01-18  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/stl_tree.h: Add a few missing std:: qualifications.
+
+2005-01-16  Jonathan Wakely  <redi@gcc.gnu.org>
+
+	* include/ext/rope: Qualify calls to std::copy() by sequence_buffer.
+	* testsuite/ext/rope/4.cc: Add.
+
+2005-01-12  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/stl_algobase.h (lexicographical_compare):
+	Fix concept check.
+
+2005-01-02  Chris Jefferson  <chris@bubblescope.net>
+
+	* include/bits/stl_algobase.h (mismatch): Correct concept check.
+
+2005-01-01  Paolo Carlini  <pcarlini@suse.de>
+
+	* testsuite/ext/enc_filebuf/char/13189.cc: Fix, first include
+	testsuite_hooks.h, to know whether including ext/enc_filebuf.h.
+	* testsuite/ext/enc_filebuf/wchar_t/13189.cc: Likewise.

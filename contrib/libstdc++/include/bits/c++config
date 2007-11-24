@@ -1,0 +1,95 @@
+// Predefined symbols and macros -*- C++ -*-
+
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+// Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 2, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License along
+// with this library; see the file COPYING.  If not, write to the Free
+// Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+// USA.
+
+// As a special exception, you may use this file as part of a free software
+// library without restriction.  Specifically, if other files instantiate
+// templates or use macros or inline functions from this file, or you compile
+// this file and link it with other files to produce an executable, this
+// file does not by itself cause the resulting executable to be covered by
+// the GNU General Public License.  This exception does not however
+// invalidate any other reasons why the executable file might be covered by
+// the GNU General Public License.
+
+#ifndef _CXXCONFIG
+#define _CXXCONFIG 1
+
+// Pick up any OS-specific definitions.
+#include <bits/os_defines.h>
+
+// The current version of the C++ library in compressed ISO date format.
+#define __GLIBCXX__ 20060311
+
+// Allow use of "export template." This is currently not a feature
+// that g++ supports.
+// #define _GLIBCXX_EXPORT_TEMPLATE 1
+
+// Allow use of the GNU syntax extension, "extern template." This
+// extension is fully documented in the g++ manual, but in a nutshell,
+// it inhibits all implicit instantiations and is used throughout the
+// library to avoid multiple weak definitions for required types that
+// are already explicitly instantiated in the library binary. This
+// substantially reduces the binary size of resulting executables.
+#ifndef _GLIBCXX_EXTERN_TEMPLATE
+# define _GLIBCXX_EXTERN_TEMPLATE 1
+#endif
+
+// Debug mode support. Debug mode basic_string is not allowed to be
+// associated with std, because of locale and exception link
+// dependence.
+namespace __gnu_debug_def { }
+
+namespace __gnu_debug 
+{ 
+  using namespace __gnu_debug_def;
+}
+
+#ifdef _GLIBCXX_DEBUG
+# define _GLIBCXX_STD __gnu_norm
+namespace __gnu_norm 
+{ 
+  using namespace std; 
+}
+namespace std
+{
+  using namespace __gnu_debug_def __attribute__ ((strong));
+}
+#else
+# define _GLIBCXX_STD std
+#endif
+
+
+// The remainder of the prewritten config is automatic; all the
+// user hooks are listed above.
+
+// Create a boolean flag to be used to determine if --fast-math is set.
+#ifdef __FAST_MATH__
+# define _GLIBCXX_FAST_MATH 1
+#else
+# define _GLIBCXX_FAST_MATH 0
+#endif
+
+// This marks string literals in header files to be extracted for eventual
+// translation.  It is primarily used for messages in thrown exceptions; see
+// src/functexcept.cc.  We use __N because the more traditional _N is used
+// for something else under certain OSes (see BADNAMES).
+#define __N(msgid)     (msgid)
+
+// End of prewritten config; the discovered settings follow.

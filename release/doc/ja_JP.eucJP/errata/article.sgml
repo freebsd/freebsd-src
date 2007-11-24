@@ -1,0 +1,205 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+    Original revision: 1.73
+-->
+
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
+%ja-authors;
+<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
+%ja-mlists;
+<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
+%ja-trademarks;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!ENTITY release.bugfix "5.2.1-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+
+    <title>&os;
+<![ %release.type.current [
+    &release.current;
+]]>
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>&os; プロジェクト</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
+      <holder role="mailto:doc@FreeBSD.org">&os; ドキュメンテーションプロジェクト</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+
+    <para>この文書は &os;
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+       &release.current;
+]]>
+      の公開後に判明した重要な情報、あるいはリリース工程の終盤で判明し、
+      リリース文書に収録できなかった重要な情報が書かれている errata リスト (正誤表) です。
+      これにはセキュリティ勧告および、
+      システムの運用・利用に影響を与えるような関連ソフトウェア、
+      関連文書の更新情報も含まれています。
+      このバージョンの &os; をインストールする前には必ず、
+      最新の errata を参照するようにしてください。</para>
+
+    <para>これは &os; 
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+ <![ %release.type.release [
+      &release.current;
+]]>
+      用の errata 文書です。&os; &release.next; の公開までの間、保守されます。</para>
+
+    <para>&release.branch;
+      ブランチは最新のブランチポイントであり、
+      ここからはまだリリース版が公開されていません。
+      そのため現時点の &release.current; には、
+      errata がありません
+      (最初のリリースは &release.next; になる予定です)。
+      このファイルは新たに作成されたブランチ用のひな型として用意されているものです
+      (当然ながら、この注意書きは他のブランチにある errata
+      文書には存在しません)。</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>はじめに</title>
+
+    <para>この errata 文書には &os;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      に関する
+      <quote>最新の障害情報</quote> が書かれています。
+      この文書を読み、
+      このバージョンのインストール前にリリース公開後に既に発見・修正された問題点について
+      知っておいてください。</para>
+
+    <para>リリースの公開 (たとえば CDROM による配布) には
+      errata 文書が同梱されていることがあります。
+      しかし、それは当然ながらその時点のものであり、
+      最新のものと同じであるとは限りません。
+      インターネット上に置かれている
+      このリリースに対応した <quote>errata 文書の最新版</quote>
+      を参照するようにしてください。
+      errata 文書は <ulink url="http://www.FreeBSD.org/releases/"></ulink>
+      をはじめ、最新の状態を維持している各ミラーサイトに置かれています。</para>
+
+    <para>&os; &release.branch; のソーススナップショット、
+      バイナリスナップショットにも、
+      (スナップショット作成時の) 最新版の
+      errata 文書が含まれています。</para>
+
+    <para>&os; CERT セキュリティ勧告の全リストは、
+      <ulink url="http://www.FreeBSD.org/security/"></ulink>
+      もしくは
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>
+      を参照してください。</para>
+  </sect1>
+
+  <sect1 id="security">
+    <title>セキュリティ勧告</title>
+
+<![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.current [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>未解決の問題</title>
+
+<![ %release.type.release [
+    <para>未解決の問題はありません。</para>
+]]>
+
+<![ %release.type.current [
+    <para>未解決の問題はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>未解決の問題はありません。</para>
+]]>
+
+  <sect1 id="late-news">
+    <title>最新情報</title>
+
+<![ %release.type.release [
+    <para>情報はありません。</para>
+]]>
+
+<![ %release.type.current [
+    <para>情報はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>情報はありません。</para>
+]]>
+  </sect1>
+
+</article>

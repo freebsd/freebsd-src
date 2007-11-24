@@ -1,0 +1,376 @@
+.\" $Id: memcluster.mdoc,v 1.1.2.1.10.1 2004/03/09 08:33:43 marka Exp $
+.\"
+.\" Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1995-1999 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" The following six UNCOMMENTED lines are required.
+.Dd Month day, year
+.\"Os OPERATING_SYSTEM [version/release]
+.Os BSD 4
+.\"Dt DOCUMENT_TITLE [section number] [volume]
+.Dt MEMCLUSTER 3
+.Sh NAME
+.Nm meminit ,
+.Nm memget ,
+.Nm memput ,
+.Nm memstats 
+.Nd memory allocation/deallocation system
+.Sh SYNOPSIS
+.Fd #include \&<isc/memcluster.h\&>
+.Ft void * 
+.Fn memget "size_t size"
+.Ft void 
+.Fn memput "void *mem" "size_t size"
+.Ft void 
+.Fn memstats "FILE *out"
+.Sh DESCRIPTION
+These functions access a memory management system which allows callers to not 
+fragment memory to the extent which can ordinarily occur through many random 
+calls to
+.Xr malloc 3 .
+Instead, 
+.Fn memget
+gets a large contiguous chunk of blocks of the requested 
+.Fa size 
+and parcels out these blocks as requested.  The symmetric call is
+.Fn memput ,
+which callers use to return a piece of memory obtained from
+.Fn memget .
+Statistics about memory usage are returned by
+.Fn memstats , 
+which prints a report on the stream
+.Fa out .
+.Ss INTERNALS
+Internally, linked lists of free memory blocks are stored in an array.
+The size of this array is determined by the value
+.Dv MEM_FREECOUNT ,
+currently set to 1100.  In general, for any requested blocksize
+.Dq Fa size ,
+any free blocks will be stored on the linked list at that index.
+No free lists are managed for blocks greater than or equal to
+.Dv MEM_FREECOUNT
+bytes; instead, calls to
+.Xr malloc 3
+or
+.Xr free 3
+are made, directly.
+.Pp
+Since the blocks are actually stored as linked lists, they must at least
+be large enough to hold a pointer to the next block.  This size, which is
+.Dv SMALL_SIZE_LIMIT ,
+is currently defined as
+.Bd -literal -offset indent
+#define SMALL_SIZE_LIMIT sizeof(struct { void *next; })
+.Ed
+.Pp
+Both 
+.Fn memget
+and
+.Fn memput
+enforce this limit; for example, any call to 
+.Fn memget 
+requesting a block smaller than
+.Dv SMALL_SIZE_LIMIT
+bytes will actually be considered to be of size
+.Dv SMALL_SIZE_LIMIT 
+internally.  (Such a caller request will be logged for 
+.Fn memstats
+purposes using the caller-requested
+.Fa size ;
+see the discussion of
+.Fn memstats ,
+below, for more information.)
+.Pp
+Additionally, the requested
+.Fa size
+will be adjusted so that when a large 
+.Xr malloc 3 Ns No -d
+chunk of memory is broken up into a linked list, the blocks will all fall on
+the correct memory alignment boundaries.  Thus, one can conceptualize a call
+which mentions
+.Fa size
+as resulting in a
+.Fa new_size
+which is used internally.
+.Pp
+In order to more efficiently allocate memory, there is a 
+.Dq target
+size for calls to 
+.Xr malloc 3 .
+It is given by the pre-defined value
+.Dv MEM_TARGET , 
+which is currently 4096 bytes.
+For any requested block
+.Fa size ,
+enough memory is 
+.Xr malloc 3 Ns No -d
+in order to fill up a block of about
+.Dv MEM_TARGET
+bytes.  
+.No [ Ns Sy NOTE :
+For allocations larger than
+.Dv MEM_TARGET Ns No /2
+bytes, there is a 
+.Dq fudge factor
+introduced which boosts the target size by 25% of
+.Dv MEM_TARGET .
+This means that enough memory for two blocks
+will actually be allocated for any 
+.Fa size
+such that
+.Pq Dv MEM_TARGET Ns No / 3 
+.No < Fa size No < 
+.Pq Dv MEM_TARGET Ns No *5/8 ,
+provided that the value of
+.Dv MEM_FREECOUNT 
+is at least as large as the upper limit shown above.]
+.Pp
+.Ss FUNCTION DESCRIPTIONS
+.Pp
+The function
+.Fn memget
+returns a pointer to a block of memory of at least the requested
+.Fa size .
+After adjusting
+.Fa size
+to the value
+.Va new_size
+as mentioned above in the 
+.Sx INTERNALS
+subsection, the internal array of free lists is checked.
+If there is no block of the needed
+.Va new_size ,
+then
+.Fn memget 
+will 
+.Xr malloc 3
+a chunk of memory which is as many times as 
+.Va new_size
+will fit into the target size.  This memory is then turned into a linked list 
+of 
+.Va new_size Ns No -sized
+blocks which are given out as requested; the last such block is the first one 
+returned by 
+.Fn memget .
+If the requested
+.Fa size
+is zero or negative, then 
+.Dv NULL
+is returned and
+.Va errno
+is set to
+.Dv EINVAL ;
+if 
+.Fa size
+is larger than or equal to the pre-defined maximum size
+.Dv MEM_FREECOUNT ,
+then only a single block of exactly 
+.Fa size
+will be
+.Xr malloc 3 Ns No -d
+and returned.
+.Pp
+The
+.Fn memput
+call is used to return memory once the caller is finished with it.
+After adjusting
+.Fa size
+the the value
+.Va new_size
+as mentioned in the 
+.Sx INTERNALS 
+subsection, above, the block is placed at the head of the free list of 
+.Va new_size Ns -sized
+blocks.
+If the given
+.Fa size
+is zero or negative, then 
+.Va errno
+is set to
+.Dv EINVAL ,
+as for
+.Fn memget .
+If 
+.Fa size
+is larger than or equal to the pre-defined maximum size
+.Dv MEM_FREECOUNT ,
+then the block is immediately
+.Xr free 3 Ns No -d .
+.Pp
+.Sy NOTE :
+It is important that callers give 
+.Fn memput
+.Em only
+blocks of memory which were previously obtained from
+.Fn memget 
+if the block is 
+.Em actually 
+less than
+.Dv SMALL_SIZE_LIMIT
+bytes in size.  Since all blocks will be added to a free list, any block 
+which is not at least
+.Dv SMALL_SIZE_LIMIT
+bytes long will not be able to hold a pointer to the next block in the
+free list.
+.Pp
+The
+.Fn memstats
+function will summarize the number of calls to 
+.Fn memget
+and
+.Fn memput
+for any block size from 1 byte up to
+.Pq Dv MEM_FREECOUNT No - 1  
+bytes, followed by a single line for any calls using a 
+.Fa size
+greater than or equal to 
+.Dv MEM_FREECOUNT ; 
+a brief header with shell-style comment lines prefaces the report and
+explains the information.  The 
+.Dv FILE 
+pointer
+.Fa out
+identifies the stream which is used for this report.  Currently, 
+.Fn memstat
+reports the number of calls to 
+.Fn memget
+and
+.Fn memput
+using the caller-supplied value 
+.Fa size ; 
+the percentage of outstanding blocks of a given size (i.e., the percentage
+by which calls to
+.Fn memget
+exceed 
+.Fn memput )
+are also reported on the line for blocks of the given
+.Fa size .
+However, the percent of blocks used is computed using the number of 
+blocks allocated according to the internal parameter
+.Va new_size ;
+it is the percentage of blocks used to those available at a given
+.Va new_size ,
+and is computed using the
+.Em total
+number of caller 
+.Dq gets
+for any caller
+.Fa size Ns No -s
+which map to the internally-computed
+.Va new_size .
+Keep in mind that
+.Va new_size
+is generally 
+.Em not
+equal to
+.Fa size , 
+which has these implications:
+.Bl -enum -offset indent
+.It
+For
+.Fa size
+smaller than
+.Dv SMALL_SIZE_LIMIT ,
+.Fn memstat
+.Em will 
+show statistics for caller requests under
+.Fa size , 
+but "percent used" information about such blocks will be reported under
+.Dv SMALL_SIZE_LIMIT Ns No -sized
+blocks.  
+.It
+As a general case of point 1, internal statistics are reported on the the
+line corresponding to
+.Va new_size ,
+so that, for a given caller-supplied
+.Fa size ,
+the associated internal information will appear on that line or on the next
+line which shows "percent used" information.
+.El
+.Pp
+.Sy NOTE :
+If the caller returns blocks of a given
+.Fa size
+and requests others of 
+.Fa size Ns No -s 
+which map to the same internal
+.Va new_size ,
+it is possible for
+.Fn memstats
+to report usage of greater than 100% for blocks of size
+.Va new_size .
+This should be viewed as A Good Thing.
+.Sh RETURN VALUES
+The function
+.Fn memget
+returns a 
+.No non- Ns Dv NULL
+pointer to a block of memory of the requested
+.Fa size .
+It returns
+.Dv NULL
+if either the
+.Fa size
+is invalid (less than or equal to zero) or a 
+.Xr malloc 3
+of a new block of memory fails.  In the former case, 
+.Va errno
+is set to 
+.Dv EINVAL ; 
+in the latter, it is set to
+.Dv ENOMEM .
+.Pp
+Neither
+.Fn memput
+nor
+.Fn memstats
+return a value.
+.\" This next request is for sections 1, 6, 7 & 8 only
+.\" .Sh ENVIRONMENT
+.\" .Sh FILES
+.\" .Sh EXAMPLES
+.\" This next request is for sections 1, 6, 7 & 8 only
+.\"     (command return values (to shell) and
+.\"    fprintf/stderr type diagnostics)
+.\" .Sh DIAGNOSTICS
+.\" The next request is for sections 2 and 3 error
+.\" and signal handling only.
+.Sh ERRORS
+.Va errno
+is set as follows:
+.Bl -tag -width "ENOMEM  " -offset indent
+.It Dv EINVAL
+set by both
+.Fn memget
+and
+.Fn memput
+if the 
+.Fa size
+is zero or negative
+.It Dv ENOMEM
+set by 
+.Fn memget
+if a call to
+.Xr malloc 3
+fails
+.El
+.Sh SEE ALSO
+.Xr free 3 ,
+.Xr malloc 3 .
+.\" .Sh STANDARDS
+.\" .Sh HISTORY
+.Sh AUTHORS
+Steven J. Richardson and Paul Vixie, Vixie Enterprises.
+.\" .Sh BUGS

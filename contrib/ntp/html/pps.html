@@ -1,0 +1,40 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+    <head>
+        <meta name="generator" content="HTML Tidy, see www.w3.org">
+        <title>Pulse-per-second (PPS) Signal Interfacing</title>
+        <link href="scripts/style.css" type="text/css" rel="stylesheet">
+    </head>
+
+    <body>
+        <h3>Pulse-per-second (PPS) Signal Interfacing</h3>
+        <img src="pic/alice32.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/%7emills/pictures.html">from <i>Alice's Adventures in Wonderland</i>, Lewis Carroll</a>
+        <p>Alice is trying to find the PPS signal connector.</p>
+        <p>Last update: <csobj format="ShortTime" h="24" locale="00000409" region="0" t="DateTime" w="50">14:46</csobj> UTC <csobj format="LongDate" h="24" locale="00000409" region="0" t="DateTime" w="235">Monday, January 20, 2003</csobj></p>
+        <br clear="left">
+        <h4>Related Links</h4>
+        <script type="text/javascript" language="javascript" src="scripts/links11.txt"></script>
+        <hr>
+        <p>Some radio clocks and related timekeeping gear have a pulse-per-second (PPS) signal that can be used to discipline the system clock to a high degree of precision, typically to the order less than 10 <font face="Symbol">m</font>s in time and 0.01 parts-per-million (PPM) in frequency. This page describes the hardware and software necessar for NTP to use this signal.</p>
+        <img src="pic/gadget.jpg" alt="gif" align="left">A Gadget Box built by Chuck Hanavin<br clear="left">
+        <h4>Gadget Box</h4>
+        <p>The PPS signal can be connected in either of two ways: via the data carrier detector (DCD) pin of a serial port or via the acknowledge (ACK) pin of a parallel port, depending on the hardware and operating system. Note that NTP no longer supports connection via the data leads of a serial port. However, the PPS signal levels are usually incompatible with serial port levels. The gadget box consists of a handful of electronic components assembled in a small aluminum box. It includes level converters and a optional modem designed to decode the radio timecode signals transmitted by Canadian time and frequency station CHU. This can be used with the <a href="drivers/driver7.html">Radio CHU Audio Demodulator/Decoder</a>. A complete set of schematics, PCB artwork and drill templates can be obrtained via the web at <a href="ftp://ftp.udel.edu/pub/ntp/hardware/gadget.tar.Z">gadget.tar.Z</a>.</p>
+        <h4>Operating System Support&nbsp;</h4>
+        <p>Both the serial and parallel port connection require operating system support, which is available in only a few operating systems, including FreeBSD, Linux (with PPSkit patch) and Solaris. Support on an experimental basis is available for several other systems, including SunOS and HP/Compaq/Digital Tru64. The PPSAPI application program interface defined in [1] is the only interface currently supported. Older PPS interfaces based on the <tt>ppsclock</tt> and <tt>tty_clk</tt> streams modules are no longer supported. As the PPSAPI is expected to become an IETF cross-platform standard, it should be used by new applications.</p>
+        <p>The entire PPS interface functionality is currently provided by inline code in the <tt>timepps.h</tt> header file. While not all implementations support the full PPSAPI specification, they do support all the functions required for the PPS driver described next. The FreeBSD, Linux and Solaris implementations can be used with the stock kernels provided with those systems; however, the Tru64 and SunOS kernels require additional functions not provided in the stock kernels. Solaris users are cautioned that these functions operate improperly in Solaris versions prior to 2.8 with patch Generic_108528-02. Header files for other systems can be found via the web at <a href="ftp://ftp.udel.edu/pub/ntp/software/nanokernel.tar.gz">nanokernel.tar.gz</a>.</p>
+        <h4>PPS Driver</h4>
+        <p>In the preferred mode of operation, PPS signals are processed by the <a href="drivers/driver22.html">PPS Clock Discipline</a> driver and other clock drivers which might be involved need not know or care about them. In some cases where there is no other driver, time might be obtained from remote NTP servers via the network and local PPS signals, for instance from a calibrated cesium oscillator, used to stabilize the frequency and remove network jitter. Note that the <tt>pps</tt> configuration command has been obsoleted by this driver.</p>
+        <p>The PPS driver operates in conjunction with a preferred peer, as described in the <a href="prefer.html">Mitigation Rules and the <tt>prefer</tt> Keyword</a> page. One of the drivers described in the <a href="refclock.html">Reference Clock Drivers</a> page or another NTP server furnishes the coarse timing and disambiguates the seconds numbering of the PPS signal itself. The NTP daemon mitigates between the clock driver or NTP server and the PPS driver as described in that page in order to provide the most accurate time, while respecting the various types of equipment failures that could happen.</p>
+        <p>Some Unix system kernels support a PPS signal directly, as described in the <a href="kern.html">A Kernel Model for Precision Timekeeping</a> page. Specifically, the PPS driver can be used to direct the PPS signal to the kernel for use as a discipline source for both time and frequency. The presence of the kernel support is automatically detected during the NTP build process and supporting code automatically compiled. Note that the PPS driver does not normally enable the PPS kernel code, since performance is generally better without it. However, this code can be enabled by a driver fudge flag if necessary.</p>
+        <p>Some configurations may include multiple radio clocks with individual PPS outputs. In some PPSAPI designs multiple PPS signals can be connected to multiple instances of the PPS driver. In such cases the NTP mitigation and grooming algorithms operate with all the radio timecodes and PPS signals to develop the highest degree of redundancy and survivability.</p>
+        <h4>Reference</h4>
+        <ol>
+            <li>Mogul, J., D. Mills, J. Brittenson, J. Stone and U. Windl. Pulse-per-second API for Unix-like operating systems, version 1. Request for Comments RFC-2783, Internet Engineering Task Force, March 2000, 31 pp. <a href="http://www.eecis.udel.edu/mills/database/rfc/rfc2783.txt">ASCII</a>
+        </ol>
+        <hr>
+        <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+    </body>
+
+</html>

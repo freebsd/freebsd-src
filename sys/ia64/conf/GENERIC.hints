@@ -1,0 +1,2 @@
+# $FreeBSD$
+hw.uart.console="io:0x3f8"

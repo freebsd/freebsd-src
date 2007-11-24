@@ -1,0 +1,216 @@
+.\"
+.\" Copyright (c) 1996 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 21, 1996
+.Os
+.Dt SPL 9
+.Sh NAME
+.Nm splbio ,
+.Nm splclock ,
+.Nm splhigh ,
+.Nm splimp ,
+.Nm splnet ,
+.Nm splsoftclock ,
+.Nm splsofttty ,
+.Nm splstatclock ,
+.Nm spltty ,
+.Nm splvm ,
+.Nm spl0 ,
+.Nm splx
+.Nd manipulate interrupt priorities
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/systm.h
+.Ft intrmask_t
+.Fn splbio "void"
+.Ft intrmask_t
+.Fn splclock "void"
+.Ft intrmask_t
+.Fn splhigh "void"
+.Ft intrmask_t
+.Fn splimp "void"
+.Ft intrmask_t
+.Fn splnet "void"
+.Ft intrmask_t
+.Fn splsoftclock "void"
+.Ft intrmask_t
+.Fn splsofttty "void"
+.Ft intrmask_t
+.Fn splstatclock "void"
+.Ft intrmask_t
+.Fn spltty "void"
+.Ft void
+.Fn spl0 "void"
+.Ft void
+.Fn splx "intrmask_t ipl"
+.Sh DESCRIPTION
+.Bf -symbolic
+This API is deprecated.
+Use mutexes to protect data structures instead.
+See
+.Xr mutex 9
+for more information.
+.Ef
+.Pp
+The
+.Fn spl
+function family sets the interrupt priority
+.Dq level
+of the CPU.
+This prevents interrupt handlers of the blocked priority level from
+being run.
+This is used in the
+.Dq synchronous
+part of a driver (the part that runs on behalf of the user process) to
+examine or modify data areas that might be examined or modified by
+interrupt handlers.
+.Pp
+Each driver that uses interrupts is normally assigned to an interrupt
+priority group by a keyword in its config line.
+For example:
+.Bd -literal -offset indent
+device foo0 at isa? port 0x0815 irq 12 tty
+.Ed
+.Pp
+assigns interrupt 12 to the
+.Dq tty
+priority group.
+The system automatically arranges for interrupts in
+the
+.Em xxx
+group to be called at a priority >=
+.Ns spl Ns Em xxx
+\&().
+.Pp
+The function
+.Fn splx
+sets the interrupt priority to an absolute value.
+The intent is that
+the value returned by the other functions should be saved in a local
+variable, and later passed to
+.Fn splx
+in order to restore the previous priority.
+.Pp
+The function
+.Fn spl0
+lowers the priority to a value where all interrupt handlers are
+unblocked, but ASTs (asynchronous system traps) remain blocked until
+the system is about to return to user mode.
+.Pp
+The traditional assignment of the various device drivers to the
+interrupt priority groups can be roughly classified as:
+.Bl -tag -width Fn
+.It Fn splnet
+Software part of the network interface drivers.
+.It Fn splimp
+All network interface drivers.
+.It Fn splbio
+All
+.Em buffered IO
+(i.e., disk and the like) drivers.
+.It Fn spltty
+Basically, all non-network communications devices, but effectively
+used for all drivers that are neither network nor disks.
+.El
+.Sh RETURN VALUES
+All functions except
+.Fn splx
+and
+.Fn spl0
+return the previous priority value.
+.Sh EXAMPLES
+This is a typical example demonstrating the usage:
+.Bd -literal
+struct foo_softc {
+	...
+	int flags;
+#define	FOO_ASLEEP	1
+#define	FOO_READY	2
+
+} foo_softc[NFOO];
+
+int
+foowrite(...)
+{
+	struct foo_softc *sc;
+	int s, error;
+
+	...
+	s = spltty();
+	if (!(sc->flags & FOO_READY)) {
+		/* Not ready, must sleep on resource. */
+		sc->flags |= FOO_ASLEEP;
+		error = tsleep(sc, PZERO, "foordy", 0);
+		sc->flags &= ~FOO_ASLEEP;
+	}
+	sc->flags &= ~FOO_READY;
+	splx(s);
+
+	...
+}
+
+void
+foointr(...)
+{
+	struct foo_softc *sc;
+
+	...
+	sc->flags |= FOO_READY;
+	if (sc->flags & FOO_ASLEEP)
+		/* Somebody was waiting for us, awake him. */
+		wakeup(sc);
+	...
+}
+
+.Ed
+Note that the interrupt handler should
+.Em never
+reduce the priority level.
+It is automatically called as it had
+raised the interrupt priority to its own level, i.e., further interrupts
+of the same group are being blocked.
+.Sh HISTORY
+The interrupt priority levels appeared in a very early version of
+.Ux .
+They have been traditionally known by number instead of by
+names, and were inclusive up to higher priority levels (i.e., priority
+5 has been blocking everything up to level 5).
+This is no longer the case in
+.Fx .
+The traditional name
+.Ql level
+for them is still reflected in the letter
+.Ql l
+of the respective functions and variables, although they are not
+really levels anymore, but rather different (partially inclusive)
+sets of functions to be blocked during some periods of the life of
+the system.
+The historical number scheme can be considered as a
+simple linearly ordered set of interrupt priority groups.
+.Sh AUTHORS
+This manual page was written by
+.An J\(:org Wunsch .

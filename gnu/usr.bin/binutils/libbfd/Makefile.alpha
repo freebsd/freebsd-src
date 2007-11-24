@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+DEFAULT_VECTOR=	bfd_elf64_alpha_freebsd_vec
+
+SRCS+=	coff-alpha.c \
+	cpu-alpha.c \
+	ecoff.c \
+	ecofflink.c \
+	elf64.c \
+	elf64-alpha.c \
+	elf64-target.h \
+	elflink.c
+
+VECS=	${DEFAULT_VECTOR} \
+	bfd_elf64_alpha_vec \
+	ecoffalpha_little_vec
