@@ -1240,6 +1240,11 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	}
 
 	vp = p->p_textvp;
+	if (vp == NULL) {
+		if (*pidp != -1)
+			PROC_UNLOCK(p);
+		return (0);
+	}
 	vref(vp);
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
