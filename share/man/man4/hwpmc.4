@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2007
+.Dd November 24, 2007
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -50,27 +50,23 @@ PMCs are allocated using the
 request.
 A successful
 .Dv PMC_OP_PMCALLOCATE
-request will return an integer handle to the requesting process.
+request will return a handle to the requesting process.
 Subsequent operations on the allocated PMC use this handle to denote
 the specific PMC.
 A process that has successfully allocated a PMC is termed an
 .Dq "owner process" .
 .Pp
-PMCs may be allocated to operate in process-private or in system-wide
-modes.
-.Bl -tag -width ".Em Process-private"
-.It Em Process-private
-In process-private mode, a PMC is active only when a thread belonging
+PMCs may be allocated with process or system scope.
+.Bl -tag -width ".Em Process-scope"
+.It Em "Process-scope"
+The PMC is active only when a thread belonging
 to a process it is attached to is scheduled on a CPU.
-.It Em System-wide
-In system-wide mode, a PMC operates independently of processes and
+.It Em "System-scope"
+The PMC operates independently of processes and
 measures hardware events for the system as a whole.
 .El
 .Pp
-The
-.Nm
-driver supports the use of hardware PMCs for counting or for
-sampling:
+PMCs may be allocated for counting or for sampling:
 .Bl -tag -width ".Em Counting"
 .It Em Counting
 In counting modes, the PMCs count hardware events.
@@ -86,10 +82,10 @@ These instruction pointer samples are usually directed to a log file
 for subsequent analysis.
 .El
 .Pp
-These modes of operation are orthogonal; a PMC may be configured to
-operate in one of four modes:
+Scope and operational mode are orthogonal; a PMC may thus be
+configured to operate in one of the following four modes:
 .Bl -tag -width indent
-.It Process-private, counting
+.It Process-scope, counting
 These PMCs count hardware events whenever a thread in their attached process is
 scheduled on a CPU.
 These PMCs normally count from zero, but the initial count may be
@@ -99,7 +95,7 @@ operation.
 Applications can read the value of the PMC anytime using the
 .Dv PMC_OP_PMCRW
 operation.
-.It Process-private, sampling
+.It Process-scope, sampling
 These PMCs sample the target processes instruction pointer after they
 have seen the configured number of hardware events.
 The PMCs only count events when a thread belonging to their attached
@@ -110,7 +106,7 @@ operation prior to starting the PMC.
 Log files are configured using the
 .Dv PMC_OP_CONFIGURELOG
 operation.
-.It System-wide, counting
+.It System-scope, counting
 These PMCs count hardware events seen by them independent of the
 processes that are executing.
 The current count on these PMCs can be read using the
@@ -120,7 +116,7 @@ These PMCs normally count from zero, but the initial count may be
 set using the
 .Dv PMC_OP_SETCOUNT
 operation.
-.It System-wide, sampling
+.It System-scope, sampling
 These PMCs will periodically sample the instruction pointer of the CPU
 they are allocated on, and will write the sample to a log for further
 processing.
@@ -243,6 +239,27 @@ The
 .Nm
 driver is being unloaded from the kernel.
 .El
+.Ss PMC ROW DISPOSITIONS
+A PMC row is defined as the set of PMC resources at the same hardware
+address in the CPUs in a system.
+Since process scope PMCs need to move between CPUs following their
+target threads, allocation of a process scope PMC reserves all PMCs in
+a PMC row for use only with process scope PMCs.
+Accordingly a PMC row will be in one of the following dispositions:
+.Bl -tag -width ".Dv PMC_DISP_STANDALONE" -compact
+.It Dv PMC_DISP_FREE
+Hardware counters in this row are free and may be use to satisfy
+either of system scope or process scope allocation requests.
+.It Dv PMC_DISP_THREAD
+Hardware counters in this row are in use by process scope PMCs
+and are only available for process scope allocation requests.
+.It Dv PMC_DISP_STANDALONE
+Some hardware counters in this row have been administratively
+disabled or are in use by system scope PMCs.
+Non-disabled hardware counters in such a row may be used
+for satisfying system scope allocation requests.
+No process scope PMCs will use hardware counters in this row.
+.El
 .Sh PROGRAMMING API
 The recommended way for application programs to use the facilities of
 the
@@ -285,6 +302,9 @@ Set the administrative state (i.e., whether enabled or disabled) for
 the hardware PMCs managed by the
 .Nm
 driver.
+The invoking process needs to possess the
+.Dv PRIV_PMC_MANAGE
+privilege.
 .It Dv PMC_OP_PMCALLOCATE
 Allocate and configure a PMC.
 On successful allocation, a handle to the PMC (a 32 bit value)
