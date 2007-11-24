@@ -8,12 +8,12 @@ INCS=	pmc.h pmclog.h
 WARNS?=	6
 
 MAN=	pmc.3 pmc_allocate.3 pmc_disable.3 pmc_event_names_of_class.3
+MAN+=	pmc_name_of_capability.3
 MAN+=	pmclog.3
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \
 	pmc.3 pmc_attach.3 \
-	pmc.3 pmc_capabilities.3 \
 	pmc.3 pmc_configure_logfile.3 \
 	pmc.3 pmc_cpuinfo.3 \
 	pmc.3 pmc_detach.3 \
@@ -21,12 +21,12 @@ MLINKS+= \
 	pmc.3 pmc_flush_logfile.3 \
 	pmc.3 pmc_get_driver_stats.3 \
 	pmc.3 pmc_init.3 \
-	pmc.3 pmc_name_of_capability.3 \
-	pmc.3 pmc_name_of_class.3 \
-	pmc.3 pmc_name_of_cputype.3 \
-	pmc.3 pmc_name_of_event.3 \
-	pmc.3 pmc_name_of_mode.3 \
-	pmc.3 pmc_name_of_state.3 \
+	pmc_name_of_capability.3 pmc_name_of_class.3 \
+	pmc_name_of_capability.3 pmc_name_of_cputype.3 \
+	pmc_name_of_capability.3 pmc_name_of_disposition.3 \
+	pmc_name_of_capability.3 pmc_name_of_event.3 \
+	pmc_name_of_capability.3 pmc_name_of_mode.3 \
+	pmc_name_of_capability.3 pmc_name_of_state.3 \
 	pmc.3 pmc_ncpu.3 \
 	pmc.3 pmc_npmc.3 \
 	pmc.3 pmc_pmcinfo.3 \
