@@ -34,7 +34,7 @@
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
@@ -66,11 +66,12 @@ int
 pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
     int dir, struct inpcb *inp)
 {
+	struct rm_priotracker rmpt;
 	struct packet_filter_hook *pfh;
 	struct mbuf *m = *mp;
 	int rv = 0;
 
-	PFIL_RLOCK(ph);
+	PFIL_RLOCK(ph, &rmpt);
 	KASSERT(ph->ph_nhooks >= 0, ("Pfil hook count dropped < 0"));
 	for (pfh = pfil_hook_get(dir, ph); pfh != NULL;
 	     pfh = TAILQ_NEXT(pfh, pfil_link)) {
@@ -80,7 +81,7 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 				break;
 		}
 	}
-	PFIL_RUNLOCK(ph);
+	PFIL_RUNLOCK(ph, &rmpt);
 	
 	*mp = m;
 	return (rv);
@@ -104,7 +105,7 @@ pfil_head_register(struct pfil_head *ph)
 		}
 	PFIL_LIST_UNLOCK();
 
-	rw_init(&ph->ph_mtx, "PFil hook read/write mutex");
+	PFIL_LOCK_INIT(ph);
 	PFIL_WLOCK(ph);
 	ph->ph_nhooks = 0;
 
@@ -143,7 +144,7 @@ pfil_head_unregister(struct pfil_head *ph)
 		free(pfh, M_IFADDR);
 	TAILQ_FOREACH_SAFE(pfh, &ph->ph_out, pfil_link, pfnext)
 		free(pfh, M_IFADDR);
-	rw_destroy(&ph->ph_mtx);
+	PFIL_LOCK_DESTROY(ph);
 	
 	return (0);
 }
