@@ -808,6 +808,22 @@ Remake_Makefiles(void)
 			printf("`%s' not remade because of errors.\n",
 			    gn->name);
 			error_cnt++;
+		} else if (gn->made == UPTODATE) {
+			Lst examine;
+
+			Lst_Init(&examine);
+			Lst_EnQueue(&examine, gn);
+			while (!Lst_IsEmpty(&examine)) {
+				LstNode	*eln;
+				GNode *egn = Lst_DeQueue(&examine);
+
+				egn->make = FALSE;
+				LST_FOREACH(eln, &egn->children) {
+					GNode *cgn = Lst_Datum(eln);
+
+					Lst_EnQueue(&examine, cgn);
+				}
+			}
 		}
 	}
 
