@@ -18,7 +18,7 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=6.3-STABLE
+#BUILDNAME=6.3-RELEASE
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
