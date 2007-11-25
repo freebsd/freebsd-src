@@ -278,13 +278,22 @@ The
 driver supports the following operations:
 .Bl -tag -width indent
 .It Dv PMC_OP_CONFIGURELOG
-Configure a log file for sampling mode PMCs.
+Configure a log file for PMCs that require a log file.
+The
+.Nm
+driver will write log data to this file asynchronously.
+If it encounters an error, logging will be stopped and the error code
+encountered will be saved for subsequent retrieval by a
+.Dv PMC_OP_FLUSHLOG
+request.
 .It Dv PMC_OP_FLUSHLOG
 Transfer buffered log data inside
 .Nm
 to a configured output file.
 This operation returns to the caller after the write operation
 has returned.
+The returned error code reflects any pending error state inside
+.Nm .
 .It Dv PMC_OP_GETCPUINFO
 Retrieve information about the number of CPUs on the system and
 the number of hardware performance monitoring counters available per-CPU.
@@ -550,6 +559,10 @@ A command issued to the
 .Nm
 driver may fail with the following errors:
 .Bl -tag -width Er
+.It Bq Er EAGAIN
+Helper process creation failed for a
+.Dv PMC_OP_CONFIGURELOG
+request due to a temporary resource shortage in the kernel.
 .It Bq Er EBUSY
 A
 .Dv PMC_OP_CONFIGURELOG
@@ -604,6 +617,15 @@ An invalid CPU number was passed in for a
 .Dv PMC_OP_GETPMCINFO
 operation.
 .It Bq Er EINVAL
+A
+.Dv PMC_OP_CONFIGURELOG
+request to de-configure a log file was issued without a log file
+being configured.
+.It Bq Er EINVAL
+A
+.Dv PMC_OP_FLUSHLOG
+request was issued without a log file being configured.
+.It Bq Er EINVAL
 An invalid CPU number was passed in for a
 .Dv PMC_OP_PMCADMIN
 operation.
@@ -631,13 +653,13 @@ request.
 A CPU other than
 .Dv PMC_CPU_ANY
 was specified in a
-.Dv PMC_OP_ALLOCATE
+.Dv PMC_OP_PMCALLOCATE
 request for a process-private PMC.
 .It Bq Er EINVAL
 A CPU number of
 .Dv PMC_CPU_ANY
 was specified in a
-.Dv PMC_OP_ALLOCATE
+.Dv PMC_OP_PMCALLOCATE
 request for a system-wide PMC.
 .It Bq Er EINVAL
 The
@@ -646,14 +668,24 @@ argument to an
 .Dv PMC_OP_PMCALLOCATE
 request contained unknown flags.
 .It Bq Er EINVAL
+(On Intel Pentium 4 CPUs with HTT support)
+A
+.Dv PMC_OP_PMCALLOCATE
+request for a process-private PMC was issued for an event that does
+not support counting on a per-logical CPU basis.
+.It Bq Er EINVAL
 A PMC allocated for system-wide operation was specified with a
 .Dv PMC_OP_PMCATTACH
+or
+.Dv PMC_OP_PMCDETACH
 request.
 .It Bq Er EINVAL
 The
 .Ar pm_pid
 argument to a
 .Dv PMC_OP_PMCATTACH
+or
+.Dv PMC_OP_PMCDETACH
 request specified an illegal process ID.
 .It Bq Er EINVAL
 A
@@ -673,14 +705,14 @@ for a PMC that is not solely attached to its owner process, or for
 a PMC that was allocated with flag
 .Dv PMC_F_DESCENDANTS .
 .It Bq Er EINVAL
-(On Intel Pentium 4 CPUs with HTT support)
-An allocation request for
-a process-private PMC was issued for an event that does not support
-counting on a per-logical CPU basis.
+A
+.Dv PMC_OP_WRITELOG
+request was issued for an owner process without a log file
+configured.
 .It Bq Er ENOMEM
 The system was not able to allocate kernel memory.
 .It Bq Er ENOSYS
-(i386 architectures)
+(On i386 and amd64 architectures)
 A
 .Dv PMC_OP_PMCX86GETMSR
 operation was requested for hardware that does not support reading
@@ -732,13 +764,14 @@ from all of its target processes.
 .It Bq Er ESRCH
 A
 .Dv PMC_OP_PMCATTACH
+or
+.Dv PMC_OP_PMCDETACH
 request specified a non-existent process ID.
 .It Bq Er ESRCH
 The target process for a
 .Dv PMC_OP_PMCDETACH
-operation is not being monitored by the
-.Nm
-driver.
+operation is not being monitored by
+.Nm .
 .El
 .Sh SEE ALSO
 .Xr kenv 1 ,
@@ -749,6 +782,7 @@ driver.
 .Xr pmccontrol 8 ,
 .Xr pmcstat 8 ,
 .Xr sysctl 8 ,
+.Xr kproc_create 9 ,
 .Xr p_candebug 9
 .Sh HISTORY
 The
