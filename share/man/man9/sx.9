@@ -36,6 +36,8 @@
 .Nm sx_destroy ,
 .Nm sx_slock ,
 .Nm sx_xlock ,
+.Nm sx_slock_sig ,
+.Nm sx_xlock_sig ,
 .Nm sx_try_slock ,
 .Nm sx_try_xlock ,
 .Nm sx_sunlock ,
@@ -63,6 +65,10 @@
 .Fn sx_slock "struct sx *sx"
 .Ft void
 .Fn sx_xlock "struct sx *sx"
+.Ft int
+.Fn sx_slock_sig "struct sx *sx"
+.Ft int
+.Fn sx_xlock_sig "struct sx *sx"
 .Ft int
 .Fn sx_try_slock "struct sx *sx"
 .Ft int
@@ -147,7 +153,8 @@ The lock
 must not be locked by any thread when it is destroyed.
 .Pp
 Threads acquire and release a shared lock by calling
-.Fn sx_slock
+.Fn sx_slock ,
+.Fn sx_slock_sig
 or
 .Fn sx_try_slock
 and
@@ -155,7 +162,8 @@ and
 or
 .Fn sx_unlock .
 Threads acquire and release an exclusive lock by calling
-.Fn sx_xlock
+.Fn sx_xlock ,
+.Fn sx_xlock_sig
 or
 .Fn sx_try_xlock
 and
@@ -180,6 +188,13 @@ be returned.
 will return 0 if the shared lock cannot be upgraded to an exclusive lock
 immediately; otherwise the exclusive lock will be acquired and a non-zero value
 will be returned.
+.Pp
+.Fn sx_slock_sig
+and
+.Fn sx_xlock_sig
+do the same as their normal versions but performing an interruptible sleep.
+They return a non-zero value if the sleep has been interrupted by a signal
+or an interrupt, otherwise 0.
 .Pp
 A thread can atomically release a shared/exclusive lock while waiting for an
 event by calling
