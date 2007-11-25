@@ -1015,6 +1015,10 @@
       <option>-group</option> from working as expected
       has been fixed.</para>
 
+    <para>The &man.freebsd-update.8; command now supports
+      a <option>-r</option> option to perform binary upgrades between
+      different versions of &os;. &merged;</para>
+
     <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
       and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
       is optional and can be enabled using the new <option>-8</option>
