@@ -305,6 +305,10 @@
     <para>The &man.fdisk.8; program now supports a <option>-p</option>
       flag to print the slice table in fdisk configuration format.</para>
 
+    <para>The &man.freebsd-update.8; command now supports
+      a <option>-r</option> option to perform binary upgrades between
+      different versions of &os;.</para>
+
     <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
       and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
       is optional and can be enabled using the new <option>-8</option>
@@ -387,6 +391,8 @@
       <application>tzdata2006g</application> release to the
       <application>tzdata2007h</application> release.</para>
 
+    <para>TrustedBSD <application>OpenBSM</application> has been
+      updated from 1.0 alpha 12 to 1.0.</para>
   </sect2>
 
   <sect2 id="ports">
