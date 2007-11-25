@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 static int
-vm_contig_launder_page(vm_page_t m)
+vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 {
 	vm_object_t object;
 	vm_page_t m_tmp;
@@ -98,8 +98,11 @@ vm_contig_launder_page(vm_page_t m)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	object = m->object;
-	if (!VM_OBJECT_TRYLOCK(object))
+	if (!VM_OBJECT_TRYLOCK(object) &&
+	    !vm_pageout_fallback_object_lock(m, next)) {
+		VM_OBJECT_UNLOCK(object);
 		return (EAGAIN);
+	}
 	if (vm_page_sleep_if_busy(m, TRUE, "vpctw0")) {
 		VM_OBJECT_UNLOCK(object);
 		vm_page_lock_queues();
@@ -157,7 +160,7 @@ vm_contig_launder(int queue)
 
 		KASSERT(VM_PAGE_INQUEUE2(m, queue),
 		    ("vm_contig_launder: page %p's queue is not %d", m, queue));
-		error = vm_contig_launder_page(m);
+		error = vm_contig_launder_page(m, &next);
 		if (error == 0)
 			return (TRUE);
 		if (error == EBUSY)
