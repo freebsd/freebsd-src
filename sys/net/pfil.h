@@ -37,7 +37,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/lock.h>
-#include <sys/rwlock.h>
+#include <sys/rmlock.h>
 
 struct mbuf;
 struct ifnet;
@@ -69,7 +69,7 @@ struct pfil_head {
 	pfil_list_t	ph_out;
 	int		ph_type;
 	int		ph_nhooks;
-	struct rwlock	ph_mtx;
+	struct rmlock	ph_lock;
 	union {
 		u_long		phu_val;
 		void		*phu_ptr;
@@ -93,10 +93,13 @@ int	pfil_head_unregister(struct pfil_head *);
 struct pfil_head *pfil_head_get(int, u_long);
 
 #define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
-#define PFIL_RLOCK(p) rw_rlock(&(p)->ph_mtx)
-#define PFIL_WLOCK(p) rw_wlock(&(p)->ph_mtx)
-#define PFIL_RUNLOCK(p) rw_runlock(&(p)->ph_mtx)
-#define PFIL_WUNLOCK(p) rw_wunlock(&(p)->ph_mtx)
+#define	PFIL_LOCK_INIT(p) \
+    rm_init(&(p)->ph_lock, "PFil hook read/write mutex", LO_RECURSABLE)
+#define	PFIL_LOCK_DESTROY(p) rm_destroy(&(p)->ph_lock)
+#define PFIL_RLOCK(p, t) rm_rlock(&(p)->ph_lock, (t))
+#define PFIL_WLOCK(p) rm_wlock(&(p)->ph_lock)
+#define PFIL_RUNLOCK(p, t) rm_runlock(&(p)->ph_lock, (t))
+#define PFIL_WUNLOCK(p) rm_wunlock(&(p)->ph_lock)
 #define PFIL_LIST_LOCK() mtx_lock(&pfil_global_lock)
 #define PFIL_LIST_UNLOCK() mtx_unlock(&pfil_global_lock)
 
