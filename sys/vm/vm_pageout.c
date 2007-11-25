@@ -230,7 +230,7 @@ static void vm_pageout_page_stats(void);
  * This function depends on both the lock portion of struct vm_object
  * and normal struct vm_page being type stable.
  */
-static boolean_t
+boolean_t
 vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 {
 	struct vm_page marker;
