@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2006
+.Dd November 25, 2007
 .Dt RWLOCK 9
 .Os
 .Sh NAME
@@ -123,14 +123,15 @@ The description is used solely for debugging purposes.
 This function must be called before any other operations
 on the lock.
 .It Fn rw_init_flags "struct rwlock *rw" "const char *name" "int opts"
-Initialize the rw lock just like 
+Initialize the rw lock just like the
 .Fn rw_init
-function, but specifing a set of optional flags to alter the
+function, but specifying a set of optional flags to alter the
 behaviour of
 .Fa rw ,
 through the
 .Fa opts
-argument. It contains one or more of the following flags:
+argument.
+It contains one or more of the following flags:
 .Bl -tag -width ".Dv RW_NOPROFILE"
 .It Dv RW_DUPOK
 Witness should not log messages about duplicate locks being acquired.
