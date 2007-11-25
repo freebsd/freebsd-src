@@ -98,6 +98,7 @@ extern void vm_wait(void);
 extern void vm_waitpfault(void);
 
 #ifdef _KERNEL
+boolean_t vm_pageout_fallback_object_lock(vm_page_t, vm_page_t *);
 int vm_pageout_flush(vm_page_t *, int, int);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */
