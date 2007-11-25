@@ -30,6 +30,7 @@
 .Sh NAME
 .Nm rwlock ,
 .Nm rw_init ,
+.Nm rw_init_flags,
 .Nm rw_destroy ,
 .Nm rw_rlock ,
 .Nm rw_wlock ,
@@ -49,6 +50,8 @@
 .In sys/rwlock.h
 .Ft void
 .Fn rw_init "struct rwlock *rw" "const char *name"
+.Ft void
+.Fn rw_init_flags "struct rwlock *rw" "const char *name" "int opts"
 .Ft void
 .Fn rw_destroy "struct rwlock *rw"
 .Ft void
@@ -108,7 +111,7 @@ are anonymous.
 Another important property is that shared holders of
 .Nm
 can recurse,
-but exclusive locks are not allowed to recurse.
+and exclusive locks can be made recursive selectively.
 .Ss Macros and Functions
 .Bl -tag -width indent
 .It Fn rw_init "struct rwlock *rw" "const char *name"
@@ -119,6 +122,30 @@ as reader/writer lock, described by name
 The description is used solely for debugging purposes.
 This function must be called before any other operations
 on the lock.
+.It Fn rw_init_flags "struct rwlock *rw" "const char *name" "int opts"
+Initialize the rw lock just like 
+.Fn rw_init
+function, but specifing a set of optional flags to alter the
+behaviour of
+.Fa rw ,
+through the
+.Fa opts
+argument. It contains one or more of the following flags:
+.Bl -tag -width ".Dv RW_NOPROFILE"
+.It Dv RW_DUPOK
+Witness should not log messages about duplicate locks being acquired.
+.It Dv RW_NOPROFILE
+Do not profile this lock.
+.It Dv RW_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv RW_QUIET
+Do not log any operations for this lock via
+.Xr ktr 4 .
+.It Dv RW_RECURSE
+Allow threads to recursively acquire exclusive locks for
+.Fa rw .
 .It Fn rw_rlock "struct rwlock *rw"
 Lock
 .Fa rw
@@ -139,7 +166,11 @@ as a writer.
 If there are any shared owners of the lock, the current thread blocks.
 The
 .Fn rw_wlock
-function cannot be called recursively.
+function can be called recursively only if
+.Fa rw
+has been initialized with the
+.Dv RW_RECURSE
+option enabled.
 .It Fn rw_runlock "struct rwlock *rw"
 This function releases a shared lock previously acquired by
 .Fn rw_rlock .
