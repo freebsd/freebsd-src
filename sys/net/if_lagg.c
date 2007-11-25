@@ -88,6 +88,7 @@ static void	lagg_port_setlladdr(void *, int);
 static int	lagg_port_create(struct lagg_softc *, struct ifnet *);
 static int	lagg_port_destroy(struct lagg_port *, int);
 static struct mbuf *lagg_input(struct ifnet *, struct mbuf *);
+static void	lagg_linkstate(struct lagg_softc *);
 static void	lagg_port_state(struct ifnet *, int);
 static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
@@ -491,6 +492,7 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 
 	/* Update lagg capabilities */
 	lagg_capabilities(sc);
+	lagg_linkstate(sc);
 
 	/* Add multicast addresses and interface flags to this port */
 	lagg_ether_cmdmulti(lp, 1);
@@ -596,6 +598,7 @@ lagg_port_destroy(struct lagg_port *lp, int runpd)
 
 	/* Update lagg capabilities */
 	lagg_capabilities(sc);
+	lagg_linkstate(sc);
 
 	return (0);
 }
@@ -1188,6 +1191,22 @@ lagg_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 }
 
 static void
+lagg_linkstate(struct lagg_softc *sc)
+{
+	struct lagg_port *lp;
+	int new_link = LINK_STATE_DOWN;
+
+	/* Our link is considered up if at least one of our ports is active */
+	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries) {
+		if (lp->lp_link_state == LINK_STATE_UP) {
+			new_link = LINK_STATE_UP;
+			break;
+		}
+	}
+	if_link_state_change(sc->sc_ifp, new_link);
+}
+
+static void
 lagg_port_state(struct ifnet *ifp, int state)
 {
 	struct lagg_port *lp = (struct lagg_port *)ifp->if_lagg;
@@ -1199,6 +1218,7 @@ lagg_port_state(struct ifnet *ifp, int state)
 		return;
 
 	LAGG_WLOCK(sc);
+	lagg_linkstate(sc);
 	if (sc->sc_linkstate != NULL)
 		(*sc->sc_linkstate)(lp);
 	LAGG_WUNLOCK(sc);
