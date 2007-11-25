@@ -900,6 +900,7 @@ retry:
 			wakeup(wpipe);
 		}
 		wpipe->pipe_state |= PIPE_WANTW;
+		pipeselwakeup(wpipe);
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdww", 0);
@@ -915,6 +916,7 @@ retry:
 			wakeup(wpipe);
 		}
 		wpipe->pipe_state |= PIPE_WANTW;
+		pipeselwakeup(wpipe);
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdwc", 0);
@@ -1098,6 +1100,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
 			}
+			pipeselwakeup(wpipe);
 			pipeunlock(wpipe);
 			error = msleep(wpipe, PIPE_MTX(rpipe), PRIBIO | PCATCH,
 			    "pipbww", 0);
