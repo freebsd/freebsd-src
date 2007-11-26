@@ -803,6 +803,7 @@ em_detach(device_t dev)
 	em_disable_intr(adapter);
 	em_free_intr(adapter);
 	EM_CORE_LOCK(adapter);
+	EM_TX_LOCK(adapter);
 	adapter->in_detach = 1;
 	em_stop(adapter);
 	e1000_phy_hw_reset(&adapter->hw);
@@ -821,7 +822,6 @@ em_detach(device_t dev)
 		em_enable_wakeup(dev);
 	}
 
-	EM_CORE_UNLOCK(adapter);
 	ether_ifdetach(adapter->ifp);
 
 	callout_drain(&adapter->timer);
@@ -834,6 +834,8 @@ em_detach(device_t dev)
 	e1000_remove_device(&adapter->hw);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
+	EM_TX_UNLOCK(adapter);
+	EM_CORE_UNLOCK(adapter);
 
 	/* Free Transmit Descriptor ring */
 	if (adapter->tx_desc_base) {
@@ -874,7 +876,10 @@ em_suspend(device_t dev)
 	struct adapter *adapter = device_get_softc(dev);
 
 	EM_CORE_LOCK(adapter);
+
+	EM_TX_LOCK(adapter);
 	em_stop(adapter);
+	EM_TX_UNLOCK(adapter);
 
         em_release_manageability(adapter);
 
@@ -1082,8 +1087,11 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else
 				em_init_locked(adapter);
 		} else
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				EM_TX_LOCK(adapter);
 				em_stop(adapter);
+				EM_TX_UNLOCK(adapter);
+			}
 		adapter->if_flags = ifp->if_flags;
 		EM_CORE_UNLOCK(adapter);
 		break;
@@ -1241,7 +1249,9 @@ em_init_locked(struct adapter *adapter)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+	EM_TX_LOCK(adapter);
 	em_stop(adapter);
+	EM_TX_UNLOCK(adapter);
 
 	/*
 	 * Packet Buffer Allocation (PBA)
@@ -1349,7 +1359,9 @@ em_init_locked(struct adapter *adapter)
 	/* Prepare receive descriptors and buffers */
 	if (em_setup_receive_structures(adapter)) {
 		device_printf(dev, "Could not setup receive structures\n");
+		EM_TX_LOCK(adapter);
 		em_stop(adapter);
+		EM_TX_UNLOCK(adapter);
 		return;
 	}
 	em_initialize_receive_unit(adapter);
@@ -2527,6 +2539,8 @@ em_update_link_status(struct adapter *adapter)
  *  This routine disables all traffic on the adapter by issuing a
  *  global reset on the MAC and deallocates TX/RX buffers.
  *
+ *  This routine should always be called with BOTH the CORE
+ *  and TX locks.
  **********************************************************************/
 
 static void
@@ -2536,6 +2550,7 @@ em_stop(void *arg)
 	struct ifnet	*ifp = adapter->ifp;
 
 	EM_CORE_LOCK_ASSERT(adapter);
+	EM_TX_LOCK_ASSERT(adapter);
 
 	INIT_DEBUGOUT("em_stop: begin");
 
