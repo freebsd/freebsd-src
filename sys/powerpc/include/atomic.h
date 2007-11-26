@@ -390,6 +390,32 @@ atomic_cmpset_32(volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 	return (ret);
 }
 
+static __inline u_long
+atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
+{
+	uint32_t	ret;
+
+#ifdef __GNUCLIKE_ASM
+	__asm __volatile (
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
+		"bne 2f\n\t"			/* exit if not equal */
+		"stwcx. %4, 0, %2\n\t"      	/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stwcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval), "m" (*p)
+		: "cc", "memory");
+#endif
+
+	return (ret);
+}
+
 #if 0
 
 /*
@@ -413,7 +439,6 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 #endif /* 0 */
 
 #define	atomic_cmpset_int	atomic_cmpset_32
-#define	atomic_cmpset_long	atomic_cmpset_32
 
 #define	atomic_cmpset_ptr(dst, old, new)	\
     atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
@@ -439,12 +464,25 @@ atomic_cmpset_rel_32(volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
+static __inline u_long
+atomic_cmpset_acq_long(volatile u_long *p, u_long cmpval, u_long newval)
+{
+	int retval;
+
+	retval = atomic_cmpset_long(p, cmpval, newval);
+	powerpc_mb();
+	return (retval);
+}
+
+static __inline uint32_t
+atomic_cmpset_rel_long(volatile u_long *p, u_long cmpval, u_long newval)
+{
+	powerpc_mb();
+	return (atomic_cmpset_long(p, cmpval, newval));
+}
+
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
 #define	atomic_cmpset_rel_int	atomic_cmpset_rel_32
-#define	atomic_cmpset_acq_long(dst, old, new)	\
-    atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
-#define	atomic_cmpset_rel_long(dst, old, new)	\
-    atomic_cmpset_rel_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
 
 #define	atomic_cmpset_acq_ptr(dst, old, new)	\
     atomic_cmpset_acq_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
