@@ -389,13 +389,13 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 		    ih->ih_handler, ih->ih_argument, ih->ih_name);
 		ih->ih_handler(ih->ih_argument);
 	}
-	critical_exit();
 
 	if (thread) {
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("got an impossible stray interrupt"));
 	} else
 		ia64_send_eoi(vector);
+	critical_exit();
 }
 
 #ifdef DDB
