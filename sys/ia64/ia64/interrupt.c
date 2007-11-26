@@ -441,7 +441,6 @@ ia64_dispatch_intr(void *frame, u_int vector)
 				thread = 1;
 		}
 	}
-	critical_exit();
 
 	if (thread) {
 		ia64_intr_mask((void *)(uintptr_t)vector);
@@ -449,6 +448,7 @@ ia64_dispatch_intr(void *frame, u_int vector)
 		KASSERT(error == 0, ("%s: impossible stray", __func__));
 	} else
 		ia64_intr_eoi((void *)(uintptr_t)vector);
+	critical_exit();
 #endif
 }
 
