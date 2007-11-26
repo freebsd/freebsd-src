@@ -63,8 +63,12 @@ __weak_reference(_pthread_setspecific, pthread_setspecific);
 int
 _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 {
-	struct pthread *curthread = _get_curthread();
+	struct pthread *curthread;
 	int i;
+
+	if (_thr_initial == NULL)
+		_libpthread_init(NULL);
+	curthread = _get_curthread();
 
 	/* Lock the key table: */
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
