@@ -1016,7 +1016,7 @@
       has been fixed.</para>
 
     <para>The &man.freebsd-update.8; command now supports
-      a <option>-r</option> option to perform binary upgrades between
+      an <command>upgrade</command> command to perform binary upgrades between
       different versions of &os;. &merged;</para>
 
     <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
@@ -1053,7 +1053,7 @@
     <para>The &man.ipfwpcap.8; utility has been added; it captures
       packets on a &man.divert.4; socket and writes them as
       &man.pcap.3; (also known as &man.tcpdump.1;) format data to a
-      file or pipe.</para>
+      file or pipe. &merged;</para>
 
     <para>The &man.kdump.1; program now supports printing
       flags in a system call argument by using symbol names.</para>
@@ -1452,7 +1452,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       &merged;</para>
 
     <para><application>IPFilter</application> has been updated from
-      4.1.13 to 4.1.28.</para>
+      4.1.13 to 4.1.28. &merged;</para>
 
     <para><application>less</application> has been updated from v394
       to v409. &merged;</para>
