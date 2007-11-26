@@ -238,12 +238,6 @@ struct tmpfs_node {
 	 * allocated for it or it has been reclaimed). */
 	struct vnode *		tn_vnode;
 
-	/* Pointer to the node returned by tmpfs_lookup() after doing a
-	 * delete or a rename lookup; its value is only valid in these two
-	 * situations.  In case we were looking up . or .., it holds a null
-	 * pointer. */
-	struct tmpfs_dirent *	tn_lookup_dirent;
-
 	/* interlock to protect tn_vpstate */
 	struct mtx	tn_interlock;
 
@@ -425,6 +419,8 @@ void	tmpfs_dir_attach(struct vnode *, struct tmpfs_dirent *);
 void	tmpfs_dir_detach(struct vnode *, struct tmpfs_dirent *);
 struct tmpfs_dirent *	tmpfs_dir_lookup(struct tmpfs_node *node,
 			    struct componentname *cnp);
+struct tmpfs_dirent *tmpfs_dir_search(struct tmpfs_node *node,
+    struct tmpfs_node *f);
 int	tmpfs_dir_getdotdent(struct tmpfs_node *, struct uio *);
 int	tmpfs_dir_getdotdotdent(struct tmpfs_node *, struct uio *);
 struct tmpfs_dirent *	tmpfs_dir_lookupbycookie(struct tmpfs_node *, off_t);
