@@ -13,7 +13,7 @@
 ======================================================================
 
 
-	Major changes between "less" versions 409 and 415
+	Major changes between "less" versions 409 and 416
 
 * New --follow-name option makes F command follow the name of a file
   rather than the file descriptor if an open file is renamed.
