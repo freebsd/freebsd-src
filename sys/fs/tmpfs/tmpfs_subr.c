@@ -125,6 +125,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 
 	case VDIR:
 		TAILQ_INIT(&nnode->tn_dir.tn_dirhead);
+		MPASS(parent != nnode);
+		MPASS(IMPLIES(parent == NULL, tmp->tm_root == NULL));
 		nnode->tn_dir.tn_parent = (parent == NULL) ? nnode : parent;
 		nnode->tn_dir.tn_readdir_lastn = 0;
 		nnode->tn_dir.tn_readdir_lastp = NULL;
@@ -370,8 +372,6 @@ loop:
 		/* FALLTHROUGH */
 	case VCHR:
 		/* FALLTHROUGH */
-	case VDIR:
-		/* FALLTHROUGH */
 	case VLNK:
 		/* FALLTHROUGH */
 	case VREG:
@@ -381,6 +381,10 @@ loop:
 	case VFIFO:
 		vp->v_op = &tmpfs_fifoop_entries;
 		break;
+	case VDIR:
+		if (node->tn_dir.tn_parent == node)
+			vp->v_vflag |= VV_ROOT;
+		break;
 
 	default:
 		MPASS(0);
@@ -388,8 +392,11 @@ loop:
 
 	vnode_pager_setsize(vp, node->tn_size);
 	error = insmntque(vp, mp);
-	if (error)
+	if (error) {
+		vgone(vp);
+		vput(vp);
 		vp = NULL;
+	}
 
 unlock:
 	TMPFS_NODE_LOCK(node);
@@ -480,6 +487,7 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 		}
 
 		parent = dnode;
+		MPASS(parent != NULL);
 	} else
 		parent = NULL;
 
@@ -596,6 +604,20 @@ tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
 	node->tn_status |= TMPFS_NODE_ACCESSED;
 
 	return found ? de : NULL;
+}
+
+struct tmpfs_dirent *
+tmpfs_dir_search(struct tmpfs_node *node, struct tmpfs_node *f)
+{
+	struct tmpfs_dirent *de;
+
+	TMPFS_VALIDATE_DIR(node);
+	node->tn_status |= TMPFS_NODE_ACCESSED;
+	TAILQ_FOREACH(de, &node->tn_dir.tn_dirhead, td_entries) {
+		if (de->td_node == f)
+			return (de);
+	}
+	return (NULL);
 }
 
 /* --------------------------------------------------------------------- */
