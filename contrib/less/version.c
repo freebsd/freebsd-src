@@ -701,6 +701,7 @@ v412  11/6/07	Use symbolic SEEK constants.
 v413  11/6/07	Fix search highlight bug with non-ASCII text.
 v414  11/6/07	Fix display bug with no-wrap terminals.
 v415  11/14/07	Add --follow-name option.
+v416  11/22/07	Fix crash when searching text with invalid UTF-8 sequences.
 */
 
-char version[] = "415";
+char version[] = "416";
