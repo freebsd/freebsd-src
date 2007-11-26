@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 17, 2007
+.Dd November 26, 2007
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -527,7 +527,7 @@ A match is only declared with the specified probability
 This can be useful for a number of applications such as
 random packet drop or
 (in conjunction with
-.Xr dummynet 4 )
+.Nm dummynet )
 to simulate the effect of multiple paths leading to out-of-order
 packet delivery.
 .Pp
@@ -543,7 +543,7 @@ with a
 .Dv LOG_SECURITY
 facility.
 The logging only occurs if the sysctl variable
-.Em net.inet.ip.fw.verbose
+.Va net.inet.ip.fw.verbose
 is set to 1
 (which is the default when the kernel is compiled with
 .Dv IPFIREWALL_VERBOSE )
@@ -554,7 +554,7 @@ parameter.
 If no
 .Cm logamount
 is specified, the limit is taken from the sysctl variable
-.Em net.inet.ip.fw.verbose_limit .
+.Va net.inet.ip.fw.verbose_limit .
 In both cases, a value of 0 removes the logging limit.
 .Pp
 Once the limit is reached, logging can be re-enabled by
@@ -656,7 +656,7 @@ and
 .Nm
 .Cm disable Ar altq .
 The usage of
-.Em net.inet.ip.fw.one_pass
+.Va net.inet.ip.fw.one_pass
 is irrelevant to ALTQ traffic shaping, as the actual rule action is followed
 always after adding an ALTQ tag.
 .El
@@ -750,7 +750,7 @@ see the
 Section for further information.
 .It Cm pipe Ar pipe_nr
 Pass packet to a
-.Xr dummynet 4
+.Nm dummynet
 .Dq pipe
 (for bandwidth limitation, delay, etc.).
 See the
@@ -760,12 +760,12 @@ The search terminates; however, on exit from the pipe and if
 the
 .Xr sysctl 8
 variable
-.Em net.inet.ip.fw.one_pass
+.Va net.inet.ip.fw.one_pass
 is not set, the packet is passed again to the firewall code
 starting from the next rule.
 .It Cm queue Ar queue_nr
 Pass packet to a
-.Xr dummynet 4
+.Nm dummynet
 .Dq queue
 (for bandwidth limitation using WF2Q+).
 .It Cm reject
@@ -823,12 +823,12 @@ Divert packet into netgraph with given
 The search terminates.
 If packet is later returned from netgraph it is either
 accepted or continues with the next rule, depending on
-.Em net.inet.ip.fw.one_pass
+.Va net.inet.ip.fw.one_pass
 sysctl variable.
 .It Cm ngtee Ar cookie
 A copy of packet is diverted into netgraph, original
 packet is either accepted or continues with the next rule, depending on
-.Em net.inet.ip.fw.one_pass
+.Va net.inet.ip.fw.one_pass
 sysctl variable.
 See
 .Xr ng_ipfw 4
@@ -1165,7 +1165,7 @@ Matches ICMP packets whose ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of
 individual types (numeric) separated by commas.
-.Em Ranges are not allowed.
+.Em Ranges are not allowed .
 The supported ICMP types are:
 .Pp
 echo reply
@@ -1203,7 +1203,7 @@ Matches ICMP6 packets whose ICMP6 type is in the list of
 .Ar types .
 The list may be specified as any combination of
 individual types (numeric) separated by commas.
-.Em Ranges are not allowed.
+.Em Ranges are not allowed .
 .It Cm in | out
 Matches incoming or outgoing packets, respectively.
 .Cm in
@@ -1743,7 +1743,7 @@ for more examples on how to use dynamic rules.
 .Sh TRAFFIC SHAPER (DUMMYNET) CONFIGURATION
 .Nm
 is also the user interface for the
-.Xr dummynet 4
+.Nm dummynet
 traffic shaper.
 .Pp
 .Nm dummynet
@@ -1756,15 +1756,36 @@ Depending on local policies, a flow can contain packets for a single
 TCP connection, or from/to a given host, or entire subnet, or a
 protocol type, etc.
 .Pp
-There are two modes of dummynet operation: normal and fast.
-Normal mode tries to emulate real link: dummynet scheduler ensures packet will
-not leave pipe faster than it would be on real link with given bandwidth.
-Fast mode allows certain packets to bypass dummynet scheduler (if packet flow
-does not exceed pipe's bandwidth). Thus fast mode requires less cpu cycles
-per packet (in average) but packet latency can be significantly lower comparing
-to real link with same bandwidth. Default is normal mode, fast mode can be
-enabled by setting net.inet.ip.dummynet.io_fast sysctl(8) variable to non-zero
-value.
+There are two modes of
+.Nm dummynet
+operation:
+.Dq normal
+and
+.Dq fast .
+The
+.Dq normal
+mode tries to emulate a real link: the
+.Nm dummynet
+scheduler ensures that the packet will not leave the pipe faster than it
+would on the real link with a given bandwidth.
+The
+.Dq fast
+mode allows certain packets to bypass the
+.Nm dummynet
+scheduler (if packet flow does not exceed pipe's bandwidth).
+This is the reason why the
+.Dq fast
+mode requires less CPU cycles per packet (on average) and packet latency
+can be significantly lower in comparison to a real link with the same
+bandwidth.
+The default mode is
+.Dq normal .
+The
+.Dq fast
+mode can be enabled by setting the
+.Va net.inet.ip.dummynet.io_fast
+.Xr sysctl 8
+variable to a non-zero value.
 .Pp
 Packets belonging to the same flow are then passed to either of two
 different objects, which implement the traffic regulation:
@@ -1869,7 +1890,7 @@ various queues.
 Default value is 64 controlled by the
 .Xr sysctl 8
 variable
-.Em net.inet.ip.dummynet.hash_size ,
+.Va net.inet.ip.dummynet.hash_size ,
 allowed range is 16 to 65536.
 .Pp
 .It Cm mask Ar mask-specifier
@@ -1912,7 +1933,9 @@ or
 where the latter means all bits in all fields are significant.
 .Pp
 .It Cm noerror
-When a packet is dropped by a dummynet queue or pipe, the error
+When a packet is dropped by a
+.Nm dummynet
+queue or pipe, the error
 is normally reported to the caller routine in the kernel, in the
 same way as it happens when a device queue fills up.
 Setting this
@@ -1958,30 +1981,33 @@ are integer numbers specifying thresholds for queue management
 (thresholds are computed in bytes if the queue has been defined
 in bytes, in slots otherwise).
 The
-.Xr dummynet 4
+.Nm dummynet
 also supports the gentle RED variant (gred).
 Three
 .Xr sysctl 8
 variables can be used to control the RED behaviour:
 .Bl -tag -width indent
-.It Em net.inet.ip.dummynet.red_lookup_depth
+.It Va net.inet.ip.dummynet.red_lookup_depth
 specifies the accuracy in computing the average queue
 when the link is idle (defaults to 256, must be greater than zero)
-.It Em net.inet.ip.dummynet.red_avg_pkt_size
+.It Va net.inet.ip.dummynet.red_avg_pkt_size
 specifies the expected average packet size (defaults to 512, must be
 greater than zero)
-.It Em net.inet.ip.dummynet.red_max_pkt_size
+.It Va net.inet.ip.dummynet.red_max_pkt_size
 specifies the expected maximum packet size, only used when queue
 thresholds are in bytes (defaults to 1500, must be greater than zero).
 .El
 .El
 .Pp
-When used with IPv6 data, dummynet currently has several limitations.
+When used with IPv6 data,
+.Nm dummynet
+currently has several limitations.
 Information necessary to route link-local packets to an
-interface is not avalable after processing by dummynet so those packets
-are dropped in the output path.
+interface is not available after processing by
+.Nm dummynet
+so those packets are dropped in the output path.
 Care should be taken to insure that link-local packets are not passed to
-dummynet.
+.Nm dummynet .
 .Sh CHECKLIST
 Here are some important points to consider when designing your
 rules:
@@ -2095,7 +2121,7 @@ Obey transparent proxy rules only, packet aliasing is not performed.
 .El
 .Pp
 To let the packet continue after being (de)aliased, set the sysctl variable
-.Em net.inet.ip.fw.one_pass 
+.Va net.inet.ip.fw.one_pass 
 to 0.
 For more information about aliasing modes, refer to
 .Xr libalias 3
@@ -2121,71 +2147,80 @@ These are shown below together with their default value
 .Xr sysctl 8
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
-.It Em net.inet.ip.dummynet.expire : No 1
+.It Va net.inet.ip.dummynet.expire : No 1
 Lazily delete dynamic pipes/queue once they have no pending traffic.
 You can disable this by setting the variable to 0, in which case
 the pipes/queues will only be deleted when the threshold is reached.
-.It Em net.inet.ip.dummynet.hash_size : No 64
+.It Va net.inet.ip.dummynet.hash_size : No 64
 Default size of the hash table used for dynamic pipes/queues.
 This value is used when no
 .Cm buckets
 option is specified when configuring a pipe/queue.
-.It Em net.inet.ip.dummynet.io_fast : No 0
-If set to non-zero value enables "fast" mode of dummynet operation (see above).
-.It Em net.inet.ip.dummynet.io_pkt
-Number of packets passed to by dummynet.
-.It Em net.inet.ip.dummynet.io_pkt_drop
-Number of packets dropped by dummynet.
-.It Em net.inet.ip.dummynet.io_pkt_fast
-Number of packets bypassed dummynet scheduler.
-.It Em net.inet.ip.dummynet.max_chain_len : No 16
+.It Va net.inet.ip.dummynet.io_fast : No 0
+If set to a non-zero value,
+the
+.Dq fast
+mode of
+.Nm dummynet
+operation (see above) is enabled.
+.It Va net.inet.ip.dummynet.io_pkt
+Number of packets passed to
+.Nm dummynet .
+.It Va net.inet.ip.dummynet.io_pkt_drop
+Number of packets dropped by
+.Nm dummynet .
+.It Va net.inet.ip.dummynet.io_pkt_fast
+Number of packets bypassed by the
+.Nm dummynet
+scheduler.
+.It Va net.inet.ip.dummynet.max_chain_len : No 16
 Target value for the maximum number of pipes/queues in a hash bucket.
 The product
 .Cm max_chain_len*hash_size
 is used to determine the threshold over which empty pipes/queues
 will be expired even when
 .Cm net.inet.ip.dummynet.expire=0 .
-.It Em net.inet.ip.dummynet.red_lookup_depth : No 256
-.It Em net.inet.ip.dummynet.red_avg_pkt_size : No 512
-.It Em net.inet.ip.dummynet.red_max_pkt_size : No 1500
+.It Va net.inet.ip.dummynet.red_lookup_depth : No 256
+.It Va net.inet.ip.dummynet.red_avg_pkt_size : No 512
+.It Va net.inet.ip.dummynet.red_max_pkt_size : No 1500
 Parameters used in the computations of the drop probability
 for the RED algorithm.
-.It Em net.inet.ip.fw.autoinc_step : No 100
+.It Va net.inet.ip.fw.autoinc_step : No 100
 Delta between rule numbers when auto-generating them.
 The value must be in the range 1..1000.
-.It Em net.inet.ip.fw.curr_dyn_buckets : Em net.inet.ip.fw.dyn_buckets
+.It Va net.inet.ip.fw.curr_dyn_buckets : Va net.inet.ip.fw.dyn_buckets
 The current number of buckets in the hash table for dynamic rules
 (readonly).
-.It Em net.inet.ip.fw.debug : No 1
+.It Va net.inet.ip.fw.debug : No 1
 Controls debugging messages produced by
 .Nm .
-.It Em net.inet.ip.fw.dyn_buckets : No 256
+.It Va net.inet.ip.fw.dyn_buckets : No 256
 The number of buckets in the hash table for dynamic rules.
 Must be a power of 2, up to 65536.
 It only takes effect when all dynamic rules have expired, so you
 are advised to use a
 .Cm flush
 command to make sure that the hash table is resized.
-.It Em net.inet.ip.fw.dyn_count : No 3
+.It Va net.inet.ip.fw.dyn_count : No 3
 Current number of dynamic rules
 (read-only).
-.It Em net.inet.ip.fw.dyn_keepalive : No 1
+.It Va net.inet.ip.fw.dyn_keepalive : No 1
 Enables generation of keepalive packets for
 .Cm keep-state
 rules on TCP sessions.
 A keepalive is generated to both
 sides of the connection every 5 seconds for the last 20
 seconds of the lifetime of the rule.
-.It Em net.inet.ip.fw.dyn_max : No 8192
+.It Va net.inet.ip.fw.dyn_max : No 8192
 Maximum number of dynamic rules.
 When you hit this limit, no more dynamic rules can be
 installed until old ones expire.
-.It Em net.inet.ip.fw.dyn_ack_lifetime : No 300
-.It Em net.inet.ip.fw.dyn_syn_lifetime : No 20
-.It Em net.inet.ip.fw.dyn_fin_lifetime : No 1
-.It Em net.inet.ip.fw.dyn_rst_lifetime : No 1
-.It Em net.inet.ip.fw.dyn_udp_lifetime : No 5
-.It Em net.inet.ip.fw.dyn_short_lifetime : No 30
+.It Va net.inet.ip.fw.dyn_ack_lifetime : No 300
+.It Va net.inet.ip.fw.dyn_syn_lifetime : No 20
+.It Va net.inet.ip.fw.dyn_fin_lifetime : No 1
+.It Va net.inet.ip.fw.dyn_rst_lifetime : No 1
+.It Va net.inet.ip.fw.dyn_udp_lifetime : No 5
+.It Va net.inet.ip.fw.dyn_short_lifetime : No 30
 These variables control the lifetime, in seconds, of dynamic
 rules.
 Upon the initial SYN exchange the lifetime is kept short,
@@ -2198,31 +2233,31 @@ and
 must be strictly lower than 5 seconds, the period of
 repetition of keepalives.
 The firewall enforces that.
-.It Em net.inet.ip.fw.enable : No 1
+.It Va net.inet.ip.fw.enable : No 1
 Enables the firewall.
 Setting this variable to 0 lets you run your machine without
 firewall even if compiled in.
-.It Em net.inet6.ip6.fw.enable : No 1
+.It Va net.inet6.ip6.fw.enable : No 1
 provides the same functionality as above for the IPv6 case.
-.It Em net.inet.ip.fw.one_pass : No 1
+.It Va net.inet.ip.fw.one_pass : No 1
 When set, the packet exiting from the
-.Xr dummynet 4
+.Nm dummynet
 pipe or from
 .Xr ng_ipfw 4
 node is not passed though the firewall again.
 Otherwise, after an action, the packet is
 reinjected into the firewall at the next rule.
-.It Em net.inet.ip.fw.verbose : No 1
+.It Va net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
-.It Em net.inet.ip.fw.verbose_limit : No 0
+.It Va net.inet.ip.fw.verbose_limit : No 0
 Limits the number of messages produced by a verbose firewall.
-.It Em net.inet6.ip6.fw.deny_unknown_exthdrs : No 1
+.It Va net.inet6.ip6.fw.deny_unknown_exthdrs : No 1
 If enabled packets with unknown IPv6 Extension Headers will be denied.
-.It Em net.link.ether.ipfw : No 0
+.It Va net.link.ether.ipfw : No 0
 Controls whether layer-2 packets are passed to
 .Nm .
 Default is no.
-.It Em net.link.bridge.ipfw : No 0
+.It Va net.link.bridge.ipfw : No 0
 Controls whether bridged packets are passed to
 .Nm .
 Default is no.
@@ -2370,7 +2405,7 @@ to divert port 5000:
 The following rules show some of the applications of
 .Nm
 and
-.Xr dummynet 4
+.Nm dummynet
 for simulations and the like.
 .Pp
 This rule drops random incoming packets with a probability
@@ -2378,7 +2413,9 @@ of 5%:
 .Pp
 .Dl "ipfw add prob 0.05 deny ip from any to any in"
 .Pp
-A similar effect can be achieved making use of dummynet pipes:
+A similar effect can be achieved making use of
+.Nm dummynet
+pipes:
 .Pp
 .Dl "ipfw add pipe 10 ip from any to any"
 .Dl "ipfw pipe 10 config plr 0.05"
@@ -2593,7 +2630,7 @@ The
 .Nm
 utility first appeared in
 .Fx 2.0 .
-.Xr dummynet 4
+.Nm dummynet
 was introduced in
 .Fx 2.2.8 .
 Stateful extensions were introduced in
@@ -2618,7 +2655,7 @@ In-kernel NAT support written by
 as part of a Summer of Code 2005 project.
 .Pp
 Work on
-.Xr dummynet 4
+.Nm dummynet
 traffic shaper supported by Akamba Corp.
 .Sh BUGS
 The syntax has grown over the years and sometimes it might be confusing.
