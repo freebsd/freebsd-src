@@ -280,7 +280,6 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 				sched = 1;
 		}
 	}
-	critical_exit();
 
 	if (sched) {
 		PIC_MASK(pic, i->irq);
@@ -289,6 +288,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 		    __func__));
 	} else
 		PIC_EOI(pic, i->irq);
+	critical_exit();
 #endif
 	return;
 
