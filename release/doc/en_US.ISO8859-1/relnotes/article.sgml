@@ -163,7 +163,9 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
+	  been added to support the Intel 3945 Wireless LAN
+	  Controller.</para>
 
       </sect4>
     </sect3>
