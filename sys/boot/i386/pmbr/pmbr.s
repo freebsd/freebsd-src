@@ -28,6 +28,8 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+# Partly from: src/sys/boot/i386/mbr/mbr.s 1.7
 
 # A 512 byte PMBR boot manager that looks for a FreeBSD boot GPT partition
 # and boots it.
