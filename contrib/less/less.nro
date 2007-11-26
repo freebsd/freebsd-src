@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 415: 15 Nov 2007"
+.TH LESS 1 "Version 416: 22 Nov 2007"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -462,7 +462,7 @@ By default 64K of buffer space is used for each file
 The \-b option specifies instead that \fIn\fP kilobytes of 
 buffer space should be used for each file.
 If \fIn\fP is \-1, buffer space is unlimited; that is,
-the entire file is read into memory.
+the entire file can be read into memory.
 .IP "\-B or \-\-auto-buffers"
 By default, when data is read from a pipe,
 buffers are allocated automatically as needed.
@@ -473,7 +473,7 @@ so that only 64K
 (or the amount of space specified by the \-b option)
 is used for the pipe.
 Warning: use of \-B can result in erroneous display, since only the
-most recently viewed part of the file is kept in memory; 
+most recently viewed part of the piped data is kept in memory; 
 any earlier data is lost.
 .IP "\-c or \-\-clear-screen"
 Causes full screen repaints to be painted from the top line down.
@@ -555,9 +555,9 @@ the pattern contains uppercase letters.
 .IP "\-j\fIn\fP or \-\-jump-target=\fIn\fP"
 Specifies a line on the screen where the "target" line
 is to be positioned.
-A target line is the object of a text search, 
-tag search, jump to a line number,
-jump to a file percentage, or jump to a marked position.
+The target line is the line specified by any command to
+search for a pattern, jump to a line number,
+jump to a file percentage or jump to a tag.
 The screen line may be specified by a number: the top line on the screen
 is 1, the next is 2, and so on.
 The number may be negative to specify a line relative to the bottom
@@ -569,10 +569,11 @@ screen, .3 is three tenths down from the first line, and so on.
 If the line is specified as a fraction, the actual line number
 is recalculated if the terminal window is resized, so that the
 target line remains at the specified fraction of the screen height.
-If the \-j option is used, searches begin at the line immediately
-after the target line.
+If any form of the \-j option is used, 
+forward searches begin at the line immediately after the target line,
+and backward searches begin at the target line.
 For example, if "\-j4" is used, the target line is the
-fourth line on the screen, so searches begin at the fifth line
+fourth line on the screen, so forward searches begin at the fifth line
 on the screen.
 .IP "\-J or \-\-status-column"
 Displays a status column at the left edge of the screen.
@@ -597,6 +598,8 @@ to exit immediately when an interrupt character (usually ^C) is typed.
 Normally, an interrupt character causes
 .I less
 to stop whatever it is doing and return to its command prompt.
+Note that use of this option makes it impossible to return to the 
+command prompt from the "F" command.
 .IP "\-L or \-\-no-lessopen"
 Ignore the LESSOPEN environment variable
 (see the INPUT PREPROCESSOR section below).
