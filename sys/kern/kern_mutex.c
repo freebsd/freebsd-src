@@ -335,6 +335,31 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 
 	while (!_obtain_lock(m, tid)) { 
+#ifdef ADAPTIVE_MUTEXES
+		/*
+		 * If the owner is running on another CPU, spin until the
+		 * owner stops running or the state of the lock changes.
+		 */
+		v = m->mtx_lock;
+		if (v != MTX_UNOWNED) {
+			owner = (struct thread *)(v & ~MTX_FLAGMASK);
+#ifdef ADAPTIVE_GIANT
+			if (TD_IS_RUNNING(owner)) {
+#else
+			if (m != &Giant && TD_IS_RUNNING(owner)) {
+#endif
+				if (LOCK_LOG_TEST(&m->lock_object, 0))
+					CTR3(KTR_LOCK,
+					    "%s: spinning on %p held by %p",
+					    __func__, m, owner);
+				while (mtx_owner(m) == owner &&
+				    TD_IS_RUNNING(owner))
+					cpu_spinwait();
+				continue;
+			}
+		}
+#endif
+
 		ts = turnstile_trywait(&m->lock_object);
 		v = m->mtx_lock;
 
@@ -350,6 +375,23 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 
 		MPASS(v != MTX_CONTESTED);
 
+#ifdef ADAPTIVE_MUTEXES
+		/*
+		 * If the current owner of the lock is executing on another
+		 * CPU quit the hard path and try to spin.
+		 */
+		owner = (struct thread *)(v & ~MTX_FLAGMASK);
+#ifdef ADAPTIVE_GIANT
+		if (TD_IS_RUNNING(owner)) {
+#else
+		if (m != &Giant && TD_IS_RUNNING(owner)) {
+#endif
+			turnstile_cancel(ts);
+			cpu_spinwait();
+			continue;
+		}
+#endif
+
 		/*
 		 * If the mutex isn't already contested and a failure occurs
 		 * setting the contested bit, the mutex was either released
@@ -361,26 +403,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 			cpu_spinwait();
 			continue;
 		}
-
-#ifdef ADAPTIVE_MUTEXES
-		/*
-		 * If the current owner of the lock is executing on another
-		 * CPU, spin instead of blocking.
-		 */
-		owner = (struct thread *)(v & ~MTX_FLAGMASK);
-#ifdef ADAPTIVE_GIANT
-		if (TD_IS_RUNNING(owner)) 
-#else
-		if (m != &Giant && TD_IS_RUNNING(owner)) 
-#endif
-		{
-			turnstile_cancel(ts);
-			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
-				cpu_spinwait();
-			}
-			continue;
-		}
-#endif	/* ADAPTIVE_MUTEXES */
 
 		/*
 		 * We definitely must sleep for this lock.
@@ -589,17 +611,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
 
-#ifdef ADAPTIVE_MUTEXES
-	if (ts == NULL) {
-		_release_lock_quick(m);
-		if (LOCK_LOG_TEST(&m->lock_object, opts))
-			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p no sleepers", m);
-		turnstile_chain_unlock(&m->lock_object);
-		return;
-	}
-#else
 	MPASS(ts != NULL);
-#endif
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 	_release_lock_quick(m);
 	/*
