@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ *
+ * Partly from: src/sys/boot/i386/boot2/boot1.S 1.31
  */
 
 /* Memory Locations */
