@@ -917,6 +917,11 @@ struct rl_softc {
 #define PLANEX_VENDORID				0x14ea
 
 /*
+ * Planex FNW-3603-TX device ID
+ */
+#define PLANEX_DEVICEID_FNW3603TX		0xab06
+
+/*
  * Planex FNW-3800-TX device ID
  */
 #define PLANEX_DEVICEID_FNW3800TX		0xab07
