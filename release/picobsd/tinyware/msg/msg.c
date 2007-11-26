@@ -32,6 +32,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -45,13 +46,13 @@ main(int argc, char *argv[])
 	/* We use sysctlbyname, because the oid is unknown (OID_AUTO) */
 
 	/* get the buffer size */
-	i=sysctlbyname(mib,NULL,&len,NULL,NULL);
+	i=sysctlbyname(mib,NULL,&len,NULL,0);
 	if(i) {
 		perror("buffer sizing");
 		exit(-1);
 	}
 	buf=(char *)malloc(len*sizeof(char));
-	i=sysctlbyname(mib,buf,&len,NULL,NULL);
+	i=sysctlbyname(mib,buf,&len,NULL,0);
 	if(i) {
 		perror("retrieving data");
 		exit(-1);
