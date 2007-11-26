@@ -279,13 +279,13 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		isrc->is_pic->pic_disable_source(isrc, PIC_EOI);
 	else
 		isrc->is_pic->pic_eoi_source(isrc);
-	critical_exit();
 
 	/* Schedule the ithread if needed. */
 	if (thread) {
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("bad stray interrupt"));
 	}
+	critical_exit();
 	td->td_intr_nesting_level--;
 }
 
