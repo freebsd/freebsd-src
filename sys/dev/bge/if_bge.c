@@ -4295,6 +4295,9 @@ bge_add_sysctls(struct bge_softc *sc)
 
 #endif
 
+	if (BGE_IS_5705_PLUS(sc))
+		return;
+
 	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "BGE Statistics");
 	schildren = children = SYSCTL_CHILDREN(tree);
@@ -4417,16 +4420,12 @@ bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct bge_softc *sc;
 	uint32_t result;
-	int base, offset;
+	int offset;
 
 	sc = (struct bge_softc *)arg1;
 	offset = arg2;
-	if (BGE_IS_5705_PLUS(sc))
-		base = BGE_MAC_STATS;
-	else
-		base = BGE_MEMWIN_START + BGE_STATS_BLOCK;
-	result = CSR_READ_4(sc, base + offset + offsetof(bge_hostaddr,
-	    bge_addr_lo));
+	result = CSR_READ_4(sc, BGE_MEMWIN_START + BGE_STATS_BLOCK + offset +
+	    offsetof(bge_hostaddr, bge_addr_lo));
 	return (sysctl_handle_int(oidp, &result, 0, req));
 }
 
