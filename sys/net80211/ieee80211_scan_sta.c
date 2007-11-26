@@ -290,11 +290,12 @@ found:
 		 */
 		c = ieee80211_find_channel_byieee(ic, sp->bchan,
 		    sp->curchan->ic_flags);
-		if (c == NULL && ise->se_chan == NULL) {
+		if (c != NULL) {
+			ise->se_chan = c;
+		} else if (ise->se_chan == NULL) {
 			/* should not happen, pick something */
-			c = sp->curchan;
+			ise->se_chan = sp->curchan;
 		}
-		ise->se_chan = c;
 	} else
 		ise->se_chan = sp->curchan;
 	ise->se_fhdwell = sp->fhdwell;
