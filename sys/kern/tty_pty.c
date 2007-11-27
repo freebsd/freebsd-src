@@ -122,12 +122,12 @@ struct	ptsc {
 #define	TSA_PTC_WRITE(tp)	((void *)&(tp)->t_rawq.c_cl)
 #define	TSA_PTS_READ(tp)	((void *)&(tp)->t_canq)
 
-static const char names[] = "pqrsPQRS";
+static const char names[] = "pqrsPQRSlmnoLMNO";
 /*
  * This function creates and initializes a pts/ptc pair
  *
- * pts == /dev/tty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
- * ptc == /dev/pty[pqrsPQRS][0123456789abcdefghijklmnopqrstuv]
+ * pts == /dev/tty[pqrsPQRSlmnoLMNO][0123456789abcdefghijklmnopqrstuv]
+ * ptc == /dev/pty[pqrsPQRSlmnoLMNO][0123456789abcdefghijklmnopqrstuv]
  */
 static struct cdev *
 ptyinit(struct cdev *devc, struct thread *td)
