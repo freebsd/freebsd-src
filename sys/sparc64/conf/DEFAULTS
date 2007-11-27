@@ -3,5 +3,10 @@
 #
 # $FreeBSD$
 
+machine		sparc64
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
+
 # Let sunkbd emulate an AT keyboard by default.
 options 	SUNKBD_EMULATE_ATKBD
