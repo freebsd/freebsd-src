@@ -8,6 +8,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20071127:
+	The AT keyboard emulation of sunkbd(4) has been turned on
+	by default. In order to make the special symbols of the Sun
+	keyboards driven by sunkbd(4) work under X these now have
+	to be configured the same way as Sun USB keyboards driven
+	by ukbd(4) (which also does AT keyboard emulation), f.e.:
+
+	Option	"XkbLayout" "us"
+	Option	"XkbRules" "xorg"
+	Option	"XkbSymbols" "pc(pc105)+sun_vndr/usb(sun_usb)+us"
+
 20071024:
 	A breakage was introduced in libc and fixed later. Make sure
 	you have lib/Makefile rev 1.205.2.4. If it already breaks your
