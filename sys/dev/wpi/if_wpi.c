@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define VERSION "20071102"
+#define VERSION "20071127"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -1331,8 +1331,11 @@ wpi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	struct wpi_softc *sc = ifp->if_softc;
 	struct ieee80211_node *ni;
 	int error;
+	WPI_LOCK_DECL;
 
+	WPI_LOCK(sc);
 	callout_stop(&sc->calib_to);
+	WPI_UNLOCK(sc);
 
 	switch (nstate) {
 	case IEEE80211_S_SCAN:
