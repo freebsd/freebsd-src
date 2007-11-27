@@ -259,6 +259,17 @@ __FBSDID("$FreeBSD$");
 #define	RUN_MAX_SMALL_2POW	15
 #define	RUN_MAX_SMALL		(1U << RUN_MAX_SMALL_2POW)
 
+/* Default size of each arena's lazy free cache. */
+#define	LAZY_FREE_2POW_DEFAULT	8
+/*
+ * Number of pseudo-random probes to conduct before considering the cache to be
+ * overly full.  It takes on average n probes to detect fullness of (n-1)/n.
+ * However, we are effectively doing multiple non-independent trials (each
+ * deallocation is a trial), so the actual average threshold for clearing the
+ * cache is somewhat lower.
+ */
+#define	LAZY_FREE_NPROBES	5
+
 /******************************************************************************/
 
 /*
@@ -529,6 +540,16 @@ struct arena_s {
 	 */
 	arena_chunk_t		*spare;
 
+#ifndef NO_TLS
+	/*
+	 * Deallocation of small objects can be lazy, in which case free_cache
+	 * stores pointers to those objects that have not yet been deallocated.
+	 * In order to avoid lock contention, slots are chosen randomly.  Empty
+	 * slots contain NULL.
+	 */
+	void			**free_cache;
+#endif
+
 	/*
 	 * bins is used to store rings of free regions of the following sizes,
 	 * assuming a 16-byte quantum, 4kB pagesize, and default MALLOC_OPTIONS.
@@ -691,6 +712,9 @@ static bool	opt_abort = false;
 static bool	opt_junk = false;
 #endif
 static bool	opt_hint = false;
+#ifndef NO_TLS
+static int	opt_lazy_free_2pow = LAZY_FREE_2POW_DEFAULT;
+#endif
 static bool	opt_print_stats = false;
 static size_t	opt_quantum_2pow = QUANTUM_2POW_MIN;
 static size_t	opt_small_max_2pow = SMALL_MAX_2POW_DEFAULT;
@@ -850,6 +874,59 @@ pow2_ceil(size_t x)
 	x++;
 	return (x);
 }
+
+#ifndef NO_TLS
+/*
+ * Use a simple linear congruential pseudo-random number generator:
+ *
+ *   prn(y) = (a*x + c) % m
+ *
+ * where the following constants ensure maximal period:
+ *
+ *   a == Odd number (relatively prime to 2^n), and (a-1) is a multiple of 4.
+ *   c == Odd number (relatively prime to 2^n).
+ *   m == 2^32
+ *
+ * See Knuth's TAOCP 3rd Ed., Vol. 2, pg. 17 for details on these constraints.
+ *
+ * This choice of m has the disadvantage that the quality of the bits is
+ * proportional to bit position.  For example. the lowest bit has a cycle of 2,
+ * the next has a cycle of 4, etc.  For this reason, we prefer to use the upper
+ * bits.
+ */
+#define	PRN_DEFINE(suffix, var, a, c)					\
+static inline void							\
+sprn_##suffix(uint32_t seed)						\
+{									\
+	var = seed;							\
+}									\
+									\
+static inline uint32_t							\
+prn_##suffix(uint32_t lg_range)						\
+{									\
+	uint32_t ret, x;						\
+									\
+	assert(lg_range > 0);						\
+	assert(lg_range <= 32);						\
+									\
+	x = (var * (a)) + (c);						\
+	var = x;							\
+	ret = x >> (32 - lg_range);					\
+									\
+	return (ret);							\
+}
+#define	SPRN(suffix, seed)	sprn_##suffix(seed)
+#define	PRN(suffix, lg_range)	prn_##suffix(lg_range)
+
+/*
+ * Define PRNGs, one for each purpose, in order to avoid auto-correlation
+ * problems.
+ */
+
+/* Define the per-thread PRNG used for lazy deallocation. */
+static __thread uint32_t lazy_free_x;
+PRN_DEFINE(lazy_free, lazy_free_x, 12345, 12347)
+#endif
 
 static void
 wrtmessage(const char *p1, const char *p2, const char *p3, const char *p4)
@@ -1523,6 +1600,18 @@ choose_arena_hard(void)
 	arena_t *ret;
 
 	assert(__isthreaded);
+
+	/*
+	 * Seed the PRNG used for lazy deallocation.  Since seeding only occurs
+	 * on the first allocation by a thread, it is possible for a thread to
+	 * deallocate before seeding.  This is not a critical issue though,
+	 * since it is extremely unusual for an application to to use threads
+	 * that deallocate but *never* allocate, and because even if seeding
+	 * never occurs for multiple threads, they will tend to drift apart
+	 * unless some aspect of the application forces deallocation
+	 * synchronization.
+	 */
+	SPRN(lazy_free, (uint32_t)(uintptr_t)(_pthread_self()));
 
 	/* Assign one of the arenas to this thread, in a round-robin fashion. */
 	malloc_mutex_lock(&arenas_mtx);
@@ -2577,6 +2666,80 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 #endif
 }
 
+#ifndef NO_TLS
+static inline void
+arena_dalloc_lazy(arena_t *arena, arena_chunk_t *chunk, void *ptr,
+    unsigned pageind, arena_chunk_map_t *mapelm)
+{
+	void **free_cache = arena->free_cache;
+	unsigned i, slot;
+
+	if (!__isthreaded || opt_lazy_free_2pow < 0) {
+		malloc_mutex_lock(&arena->mtx);
+		arena_dalloc_small(arena, chunk, ptr, pageind, mapelm);
+		malloc_mutex_unlock(&arena->mtx);
+		return;
+	}
+
+	for (i = 0; i < LAZY_FREE_NPROBES; i++) {
+		slot = PRN(lazy_free, opt_lazy_free_2pow);
+		if (atomic_cmpset_ptr((uintptr_t *)&free_cache[slot],
+		    (uintptr_t)NULL, (uintptr_t)ptr)) {
+			return;
+		}
+	}
+
+	malloc_mutex_lock(&arena->mtx);
+	arena_dalloc_small(arena, chunk, ptr, pageind, mapelm);
+
+	/*
+	 * Check whether another thread already cleared the cache.  It is
+	 * possible that another thread cleared the cache *and* this slot was
+	 * already refilled, which could result in a mostly fruitless cache
+	 * sweep, but such a sequence of events causes no correctness issues.
+	 */
+	if ((ptr = (void *)atomic_readandclear_ptr(
+	    (uintptr_t *)&free_cache[slot]))
+	    != NULL) {
+		unsigned lazy_free_mask;
+		
+		/*
+		 * Clear the cache, since we failed to find a slot.  It is
+		 * possible that other threads will continue to insert objects
+		 * into the cache while this one sweeps, but that is okay,
+		 * since on average the cache is still swept with the same
+		 * frequency.
+		 */
+
+		/* Handle pointer at current slot. */
+		chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+		pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >>
+		    pagesize_2pow);
+		mapelm = &chunk->map[pageind];
+		arena_dalloc_small(arena, chunk, ptr, pageind, mapelm);
+
+		/* Sweep remainder of slots. */
+		lazy_free_mask = (1U << opt_lazy_free_2pow) - 1;
+		for (i = (slot + 1) & lazy_free_mask;
+		     i != slot;
+		     i = (i + 1) & lazy_free_mask) {
+			ptr = (void *)atomic_readandclear_ptr(
+			    (uintptr_t *)&free_cache[i]);
+			if (ptr != NULL) {
+				chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+				pageind = (((uintptr_t)ptr - (uintptr_t)chunk)
+				    >> pagesize_2pow);
+				mapelm = &chunk->map[pageind];
+				arena_dalloc_small(arena, chunk, ptr, pageind,
+				    mapelm);
+			}
+		}
+	}
+
+	malloc_mutex_unlock(&arena->mtx);
+}
+#endif
+
 static void
 arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 {
@@ -2594,9 +2757,13 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	if (mapelm->pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
 	    pagesize_2pow)) {
 		/* Small allocation. */
+#ifndef NO_TLS
+		arena_dalloc_lazy(arena, chunk, ptr, pageind, mapelm);
+#else
 		malloc_mutex_lock(&arena->mtx);
 		arena_dalloc_small(arena, chunk, ptr, pageind, mapelm);
 		malloc_mutex_unlock(&arena->mtx);
+#endif
 	} else {
 		size_t size;
 
@@ -2634,6 +2801,18 @@ arena_new(arena_t *arena)
 	/* Initialize chunks. */
 	RB_INIT(&arena->chunks);
 	arena->spare = NULL;
+
+#ifndef NO_TLS
+	if (opt_lazy_free_2pow >= 0) {
+		arena->free_cache = (void **) base_alloc(sizeof(void *)
+		    * (1U << opt_lazy_free_2pow));
+		if (arena->free_cache == NULL)
+			return (true);
+		memset(arena->free_cache, 0, sizeof(void *)
+		    * (1U << opt_lazy_free_2pow));
+	} else
+		arena->free_cache = NULL;
+#endif
 
 	/* Initialize bins. */
 	prev_run_size = pagesize;
@@ -3147,6 +3326,13 @@ malloc_print_stats(void)
 
 		_malloc_message("CPUs: ", umax2s(ncpus, s), "\n", "");
 		_malloc_message("Max arenas: ", umax2s(narenas, s), "\n", "");
+#ifndef NO_TLS
+		if (opt_lazy_free_2pow >= 0) {
+			_malloc_message("Lazy free slots: ",
+			    umax2s(1U << opt_lazy_free_2pow, s), "\n", "");
+		} else
+			_malloc_message("Lazy free slots: 0\n", "", "", "");
+#endif
 		_malloc_message("Pointer size: ", umax2s(sizeof(void *), s),
 		    "\n", "");
 		_malloc_message("Quantum size: ", umax2s(quantum, s), "\n", "");
@@ -3275,6 +3461,11 @@ malloc_init_hard(void)
 		}
 	}
 
+#ifndef NO_TLS
+	if (ncpus == 1)
+		opt_lazy_free_2pow = -1;
+#endif
+
 	/* Get page size. */
 	{
 		long result;
@@ -3380,6 +3571,18 @@ malloc_init_hard(void)
 				if (opt_chunk_2pow - pagesize_2pow
 				    < (sizeof(uint32_t) << 3) - 1)
 					opt_chunk_2pow++;
+				break;
+			case 'l':
+#ifndef NO_TLS
+				if (opt_lazy_free_2pow >= 0)
+					opt_lazy_free_2pow--;
+#endif
+				break;
+			case 'L':
+#ifndef NO_TLS
+				if (ncpus > 1)
+					opt_lazy_free_2pow++;
+#endif
 				break;
 			case 'n':
 				opt_narenas_lshift--;
@@ -3489,6 +3692,14 @@ malloc_init_hard(void)
 	}
 	arena_maxclass = chunksize - (arena_chunk_header_npages <<
 	    pagesize_2pow);
+#ifndef NO_TLS
+	/*
+	 * Make sure that allocating the free_cache does not exceed the limits
+	 * of what base_alloc() can handle.
+	 */
+	while ((sizeof(void *) << opt_lazy_free_2pow) > chunksize)
+		opt_lazy_free_2pow--;
+#endif
 
 	UTRACE(0, 0, 0);
 
@@ -3612,6 +3823,13 @@ malloc_init_hard(void)
 		malloc_mutex_unlock(&init_lock);
 		return (true);
 	}
+#ifndef NO_TLS
+	/*
+	 * Seed here for the initial thread, since choose_arena_hard() is only
+	 * called for other threads.  The seed values don't really matter.
+	 */
+	SPRN(lazy_free, 42);
+#endif
 
 	malloc_mutex_init(&arenas_mtx);
 
