@@ -378,6 +378,7 @@ FBSDprivate_1.0 {
 	_pthread_kill;
 	_pthread_main_np;
 	_pthread_mutex_destroy;
+	_pthread_mutex_init_calloc_cb;
 	_pthread_mutex_init;
 	_pthread_mutex_lock;
 	_pthread_mutex_trylock;
