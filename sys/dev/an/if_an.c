@@ -1153,10 +1153,6 @@ an_stats_update(void *xsc)
 	struct ifnet		*ifp;
 
 	sc = xsc;
-	if (sc->an_gone) {
-		return;
-	}
-
 	AN_LOCK_ASSERT(sc);
 	ifp = sc->an_ifp;
 
