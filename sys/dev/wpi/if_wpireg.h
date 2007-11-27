@@ -203,6 +203,7 @@ struct wpi_rx_desc {
 #define WPI_START_SCAN		130
 #define WPI_STOP_SCAN		132
 #define WPI_STATE_CHANGED	161
+#define WPI_MISSED_BEACON	162
 
 	uint8_t		flags;
 	uint8_t		idx;
@@ -419,6 +420,15 @@ struct wpi_cmd_beacon {
 	uint8_t		reserved4;
 	struct		ieee80211_frame wh;
 } __packed;
+
+/* structure for notification WPI_MISSED_BEACON */
+struct wpi_missed_beacon {
+    uint32_t consecutive;
+    uint32_t total;
+    uint32_t expected;
+    uint32_t received;
+} __packed;
+
 
 /* structure for WPI_CMD_MRR_SETUP */
 struct wpi_mrr_setup {
