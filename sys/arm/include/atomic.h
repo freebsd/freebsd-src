@@ -271,9 +271,10 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
-	    "add	%3, %1, %3\n"
-	    "str	%3, [%2]\n"
+	    "add	%0, %1, %3\n"
+	    "str	%0, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%3, #0\n"
 	    "str	%3, [%0]\n"
 	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (v)
