@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2007
+.Dd October 1, 2007
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -177,6 +177,19 @@ flags being set) become fatal.
 The process will call
 .Xr abort 3
 in these cases.
+.It B
+Increase/decrease the per-arena lock contention threshold at which a thread is
+randomly re-assigned to an arena.
+This dynamic load balancing tends to push threads away from highly contended
+arenas, which avoids worst case contention scenarios in which threads
+disproportionately utilize arenas.
+However, due to the highly dynamic load that applications may place on the
+allocator, it is impossible for the allocator to know in advance how sensitive
+it should be to contention over arenas.
+Therefore, some applications may benefit from increasing or decreasing this
+threshold parameter.
+This option is not available for some configurations (non-PIC).
+This option can be specified multiple times.
 .It H
 Use
 .Xr madvise 2
@@ -203,6 +216,18 @@ This is intended for debugging and will impact performance negatively.
 .It K
 Increase/decrease the virtual memory chunk size by a factor of two.
 The default chunk size is 1 MB.
+This option can be specified multiple times.
+.It L
+Increase/decrease the per-arena number of slots for lazy deallocation.
+Lazy deallocation can decrease lock contention, especially for programs that use
+the producer/consumer model.
+The default is 256 slots per arena (so
+.Ev MALLOC_OPTIONS=lllllllll
+will disable lazy deallocation), but note that due to algorithmic details, the
+cache is typically flushed well before it completely fills.
+This option has no impact unless there are multiple CPUs, and lazy deallocation
+does not activate unless the program uses multiple threads.
+This option is not available for some configurations (non-PIC).
 This option can be specified multiple times.
 .It N
 Increase/decrease the number of arenas by a factor of two.
