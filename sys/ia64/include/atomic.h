@@ -350,6 +350,7 @@ atomic_readandclear_64(volatile uint64_t* p)
 
 #define	atomic_readandclear_int		atomic_readandclear_32
 #define	atomic_readandclear_long	atomic_readandclear_64
+#define	atomic_readandclear_ptr		atomic_readandclear_64
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
