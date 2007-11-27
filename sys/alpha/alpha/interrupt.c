@@ -452,7 +452,6 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		    ih->ih_handler, ih->ih_argument, ih->ih_name);
 		ih->ih_handler(ih->ih_argument);
 	}
-	critical_exit();
 
 	/*
 	 * If the ithread needs to run, disable the source and schedule the
@@ -468,6 +467,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("got an impossible stray interrupt"));
 	}
+	critical_exit();
 	sched_unpin();
 }
 
