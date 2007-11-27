@@ -378,13 +378,13 @@ _kse_init(void)
 		TAILQ_INIT(&free_threadq);
 		TAILQ_INIT(&gc_ksegq);
 		if (_lock_init(&kse_lock, LCK_ADAPTIVE,
-		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+		    _kse_lock_wait, _kse_lock_wakeup, calloc) != 0)
 			PANIC("Unable to initialize free KSE queue lock");
 		if (_lock_init(&thread_lock, LCK_ADAPTIVE,
-		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+		    _kse_lock_wait, _kse_lock_wakeup, calloc) != 0)
 			PANIC("Unable to initialize free thread queue lock");
 		if (_lock_init(&_thread_list_lock, LCK_ADAPTIVE,
-		    _kse_lock_wait, _kse_lock_wakeup) != 0)
+		    _kse_lock_wait, _kse_lock_wakeup, calloc) != 0)
 			PANIC("Unable to initialize thread list lock");
 		_pthread_mutex_init(&_tcb_mutex, NULL);
 		active_kse_count = 0;
@@ -2120,7 +2120,7 @@ kseg_init(struct kse_group *kseg)
 {
 	kseg_reinit(kseg);
 	_lock_init(&kseg->kg_lock, LCK_ADAPTIVE, _kse_lock_wait,
-	    _kse_lock_wakeup);
+	    _kse_lock_wakeup, calloc);
 }
 
 static void
@@ -2390,7 +2390,7 @@ _thr_alloc(struct pthread *curthread)
 		 * enter critical region before doing this!
 		 */
 		if (_lock_init(&thread->lock, LCK_ADAPTIVE,
-		    _thr_lock_wait, _thr_lock_wakeup) != 0)
+		    _thr_lock_wait, _thr_lock_wakeup, calloc) != 0)
 			PANIC("Cannot initialize thread lock");
 		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
 			_lockuser_init(&thread->lockusers[i], (void *)thread);
