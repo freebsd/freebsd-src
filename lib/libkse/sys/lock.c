@@ -54,11 +54,12 @@ _lock_destroy(struct lock *lck)
 
 int
 _lock_init(struct lock *lck, enum lock_type ltype,
-    lock_handler_t *waitfunc, lock_handler_t *wakeupfunc)
+    lock_handler_t *waitfunc, lock_handler_t *wakeupfunc,
+    void *(calloc_cb)(size_t, size_t))
 {
 	if (lck == NULL)
 		return (-1);
-	else if ((lck->l_head = malloc(sizeof(struct lockreq))) == NULL)
+	else if ((lck->l_head = calloc_cb(1, sizeof(struct lockreq))) == NULL)
 		return (-1);
 	else {
 		lck->l_type = ltype;
@@ -80,7 +81,7 @@ _lock_reinit(struct lock *lck, enum lock_type ltype,
 	if (lck == NULL)
 		return (-1);
 	else if (lck->l_head == NULL)
-		return (_lock_init(lck, ltype, waitfunc, wakeupfunc));
+		return (_lock_init(lck, ltype, waitfunc, wakeupfunc, calloc));
 	else {
 		lck->l_head->lr_locked = 0;
 		lck->l_head->lr_watcher = NULL;
