@@ -100,7 +100,8 @@ __weak_reference(_pthread_mutex_setprioceiling, pthread_mutex_setprioceiling);
 
 static int
 mutex_init(pthread_mutex_t *mutex,
-    const pthread_mutexattr_t *mutex_attr, int private)
+    const pthread_mutexattr_t *mutex_attr, int private,
+    void *(calloc_cb)(size_t, size_t))
 {
 	const struct pthread_mutex_attr *attr;
 	struct pthread_mutex *pmutex;
@@ -117,7 +118,7 @@ mutex_init(pthread_mutex_t *mutex,
 			return (EINVAL);
 	}
 	if ((pmutex = (pthread_mutex_t)
-		calloc(1, sizeof(struct pthread_mutex))) == NULL)
+		calloc_cb(1, sizeof(struct pthread_mutex))) == NULL)
 		return (ENOMEM);
 
 	pmutex->m_type = attr->m_type;
@@ -154,7 +155,7 @@ init_static(struct pthread *thread, pthread_mutex_t *mutex)
 	THR_LOCK_ACQUIRE(thread, &_mutex_static_lock);
 
 	if (*mutex == NULL)
-		ret = mutex_init(mutex, NULL, 0);
+		ret = mutex_init(mutex, NULL, 0, calloc);
 	else
 		ret = 0;
 
@@ -171,7 +172,7 @@ init_static_private(struct pthread *thread, pthread_mutex_t *mutex)
 	THR_LOCK_ACQUIRE(thread, &_mutex_static_lock);
 
 	if (*mutex == NULL)
-		ret = mutex_init(mutex, NULL, 1);
+		ret = mutex_init(mutex, NULL, 1, calloc);
 	else
 		ret = 0;
 
@@ -196,14 +197,34 @@ int
 _pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
 {
-	return mutex_init(mutex, mutex_attr, 1);
+	return mutex_init(mutex, mutex_attr, 1, calloc);
 }
 
 int
 __pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
 {
-	return mutex_init(mutex, mutex_attr, 0);
+	return mutex_init(mutex, mutex_attr, 0, calloc);
+}
+
+/* This function is used internally by malloc. */
+int
+_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
+    void *(calloc_cb)(size_t, size_t))
+{
+/* XXX Enable adaptive locking if similar code is removed from malloc. */
+#if 0
+	static const struct pthread_mutex_attr attr = {
+		.m_type = PTHREAD_MUTEX_ADAPTIVE_NP,
+		.m_protocol = PTHREAD_PRIO_NONE,
+		.m_ceiling = 0,
+		.m_flags = 0
+	};
+
+	return mutex_init(mutex, (pthread_mutexattr_t *)&attr, 0, calloc_cb);
+#else
+	return mutex_init(mutex, NULL, 0, calloc_cb);
+#endif
 }
 
 void
