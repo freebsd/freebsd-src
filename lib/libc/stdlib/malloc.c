@@ -98,7 +98,7 @@
  * defaults the A and J runtime options to off.  These settings are appropriate
  * for production systems.
  */
-/* #define MALLOC_PRODUCTION */
+/* #define	MALLOC_PRODUCTION */
 
 #ifndef MALLOC_PRODUCTION
 #  define MALLOC_DEBUG
@@ -202,9 +202,9 @@ __FBSDID("$FreeBSD$");
 #  define USE_BRK
 #endif
 
-#define	SIZEOF_PTR		(1 << SIZEOF_PTR_2POW)
+#define	SIZEOF_PTR		(1U << SIZEOF_PTR_2POW)
 
-/* sizeof(int) == (1 << SIZEOF_INT_2POW). */
+/* sizeof(int) == (1U << SIZEOF_INT_2POW). */
 #ifndef SIZEOF_INT_2POW
 #  define SIZEOF_INT_2POW	2
 #endif
@@ -226,7 +226,7 @@ __FBSDID("$FreeBSD$");
  * negatively affect performance.
  */
 #define	CACHELINE_2POW		6
-#define	CACHELINE		((size_t)(1 << CACHELINE_2POW))
+#define	CACHELINE		((size_t)(1U << CACHELINE_2POW))
 
 /* Smallest size class to support. */
 #define	TINY_MIN_2POW		1
@@ -237,7 +237,7 @@ __FBSDID("$FreeBSD$");
  * power of 2.
  */
 #define	SMALL_MAX_2POW_DEFAULT	9
-#define	SMALL_MAX_DEFAULT	(1 << SMALL_MAX_2POW_DEFAULT)
+#define	SMALL_MAX_DEFAULT	(1U << SMALL_MAX_2POW_DEFAULT)
 
 /*
  * Maximum desired run header overhead.  Runs are sized as small as possible
@@ -252,12 +252,12 @@ __FBSDID("$FreeBSD$");
  * RUN_MAX_OVRHD_RELAX specifies the maximum number of bits per region of
  * overhead for which RUN_MAX_OVRHD is relaxed.
  */
-#define RUN_MAX_OVRHD		0.015
-#define RUN_MAX_OVRHD_RELAX	1.5
+#define	RUN_MAX_OVRHD		0.015
+#define	RUN_MAX_OVRHD_RELAX	1.5
 
 /* Put a cap on small object run size.  This overrides RUN_MAX_OVRHD. */
-#define RUN_MAX_SMALL_2POW	15
-#define RUN_MAX_SMALL		(1 << RUN_MAX_SMALL_2POW)
+#define	RUN_MAX_SMALL_2POW	15
+#define	RUN_MAX_SMALL		(1U << RUN_MAX_SMALL_2POW)
 
 /******************************************************************************/
 
@@ -384,7 +384,7 @@ struct arena_chunk_map_s {
 	 * This is the limiting factor for chunksize; there can be at most 2^31
 	 * pages in a run.
 	 */
-#define POS_FREE ((uint32_t)0xffffffffU)
+#define	POS_FREE ((uint32_t)0xffffffffU)
 	uint32_t	pos;
 };
 
@@ -517,7 +517,7 @@ struct arena_s {
 	 * order to avoid interactions between multiple threads that could make
 	 * a single spare inadequate.
 	 */
-	arena_chunk_t *spare;
+	arena_chunk_t		*spare;
 
 	/*
 	 * bins is used to store rings of free regions of the following sizes,
@@ -689,7 +689,7 @@ static bool	opt_utrace = false;
 static bool	opt_sysv = false;
 static bool	opt_xmalloc = false;
 static bool	opt_zero = false;
-static int32_t	opt_narenas_lshift = 0;
+static int	opt_narenas_lshift = 0;
 
 typedef struct {
 	void	*p;
@@ -876,7 +876,7 @@ malloc_printf(const char *format, ...)
  * integer printing functionality, so that malloc_printf() use can be limited to
  * MALLOC_STATS code.
  */
-#define UMAX2S_BUFSIZE	21
+#define	UMAX2S_BUFSIZE	21
 static char *
 umax2s(uintmax_t x, char *s)
 {
@@ -1444,8 +1444,10 @@ choose_arena(void)
 	}
 
 	ret = arenas_map;
-	if (ret == NULL)
+	if (ret == NULL) {
 		ret = choose_arena_hard();
+		assert(ret != NULL);
+	}
 #else
 	if (__isthreaded) {
 		unsigned long ind;
@@ -1588,7 +1590,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 		    + (bin->reg_size * regind));
 
 		/* Clear bit. */
-		mask ^= (1 << bit);
+		mask ^= (1U << bit);
 		run->regs_mask[i] = mask;
 
 		return (ret);
@@ -1605,7 +1607,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 			    + (bin->reg_size * regind));
 
 			/* Clear bit. */
-			mask ^= (1 << bit);
+			mask ^= (1U << bit);
 			run->regs_mask[i] = mask;
 
 			/*
@@ -1635,8 +1637,8 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	 *
 	 *   (X * size_invs[(D >> QUANTUM_2POW_MIN) - 3]) >> SIZE_INV_SHIFT
 	 */
-#define SIZE_INV_SHIFT 21
-#define SIZE_INV(s) (((1 << SIZE_INV_SHIFT) / (s << QUANTUM_2POW_MIN)) + 1)
+#define	SIZE_INV_SHIFT 21
+#define	SIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << QUANTUM_2POW_MIN)) + 1)
 	static const unsigned size_invs[] = {
 	    SIZE_INV(3),
 	    SIZE_INV(4), SIZE_INV(5), SIZE_INV(6), SIZE_INV(7),
@@ -1718,8 +1720,8 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	if (elm < run->regs_minelm)
 		run->regs_minelm = elm;
 	bit = regind - (elm << (SIZEOF_INT_2POW + 3));
-	assert((run->regs_mask[elm] & (1 << bit)) == 0);
-	run->regs_mask[elm] |= (1 << bit);
+	assert((run->regs_mask[elm] & (1U << bit)) == 0);
+	run->regs_mask[elm] |= (1U << bit);
 #undef SIZE_INV
 #undef SIZE_INV_SHIFT
 }
@@ -2015,10 +2017,10 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 
 	for (i = 0; i < bin->regs_mask_nelms; i++)
 		run->regs_mask[i] = UINT_MAX;
-	remainder = bin->nregs & ((1 << (SIZEOF_INT_2POW + 3)) - 1);
+	remainder = bin->nregs & ((1U << (SIZEOF_INT_2POW + 3)) - 1);
 	if (remainder != 0) {
 		/* The last element has spare bits that need to be unset. */
-		run->regs_mask[i] = (UINT_MAX >> ((1 << (SIZEOF_INT_2POW + 3))
+		run->regs_mask[i] = (UINT_MAX >> ((1U << (SIZEOF_INT_2POW + 3))
 		    - remainder));
 	}
 
@@ -2107,7 +2109,7 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 	do {
 		try_nregs--;
 		try_mask_nelms = (try_nregs >> (SIZEOF_INT_2POW + 3)) +
-		    ((try_nregs & ((1 << (SIZEOF_INT_2POW + 3)) - 1)) ? 1 : 0);
+		    ((try_nregs & ((1U << (SIZEOF_INT_2POW + 3)) - 1)) ? 1 : 0);
 		try_reg0_offset = try_run_size - (try_nregs * bin->reg_size);
 	} while (sizeof(arena_run_t) + (sizeof(unsigned) * (try_mask_nelms - 1))
 	    > try_reg0_offset);
@@ -2129,7 +2131,7 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 		do {
 			try_nregs--;
 			try_mask_nelms = (try_nregs >> (SIZEOF_INT_2POW + 3)) +
-			    ((try_nregs & ((1 << (SIZEOF_INT_2POW + 3)) - 1)) ?
+			    ((try_nregs & ((1U << (SIZEOF_INT_2POW + 3)) - 1)) ?
 			    1 : 0);
 			try_reg0_offset = try_run_size - (try_nregs *
 			    bin->reg_size);
@@ -2180,8 +2182,8 @@ arena_malloc(arena_t *arena, size_t size)
 			 * to fix size for the purposes of assertions and/or
 			 * stats accuracy.
 			 */
-			if (size < (1 << TINY_MIN_2POW))
-				size = (1 << TINY_MIN_2POW);
+			if (size < (1U << TINY_MIN_2POW))
+				size = (1U << TINY_MIN_2POW);
 #endif
 		} else if (size <= small_max) {
 			/* Quantum-spaced. */
@@ -2544,7 +2546,7 @@ arena_new(arena_t *arena)
 		bin->runcur = NULL;
 		RB_INIT(&bin->runs);
 
-		bin->reg_size = (1 << (TINY_MIN_2POW + i));
+		bin->reg_size = (1U << (TINY_MIN_2POW + i));
 
 		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
@@ -3132,8 +3134,7 @@ malloc_print_stats(void)
 			malloc_printf(
 			    "huge: nmalloc      ndalloc    allocated\n");
 			malloc_printf(" %12llu %12llu %12zu\n",
-			    huge_nmalloc, huge_ndalloc, huge_allocated
-			    * chunksize);
+			    huge_nmalloc, huge_ndalloc, huge_allocated);
 
 			/* Print stats for each arena. */
 			for (i = 0; i < narenas; i++) {
@@ -3379,7 +3380,7 @@ malloc_init_hard(void)
 	/* Set variables according to the value of opt_small_max_2pow. */
 	if (opt_small_max_2pow < opt_quantum_2pow)
 		opt_small_max_2pow = opt_quantum_2pow;
-	small_max = (1 << opt_small_max_2pow);
+	small_max = (1U << opt_small_max_2pow);
 
 	/* Set bin-related variables. */
 	bin_maxclass = (pagesize >> 1);
@@ -3390,7 +3391,7 @@ malloc_init_hard(void)
 	nsbins = pagesize_2pow - opt_small_max_2pow - 1;
 
 	/* Set variables according to the value of opt_quantum_2pow. */
-	quantum = (1 << opt_quantum_2pow);
+	quantum = (1U << opt_quantum_2pow);
 	quantum_mask = quantum - 1;
 	if (ntbins > 0)
 		small_min = (quantum >> 1) + 1;
@@ -3471,14 +3472,14 @@ malloc_init_hard(void)
 		if ((narenas << opt_narenas_lshift) > narenas)
 			narenas <<= opt_narenas_lshift;
 		/*
-		 * Make sure not to exceed the limits of what base_malloc()
-		 * can handle.
+		 * Make sure not to exceed the limits of what base_alloc() can
+		 * handle.
 		 */
 		if (narenas * sizeof(arena_t *) > chunksize)
 			narenas = chunksize / sizeof(arena_t *);
 	} else if (opt_narenas_lshift < 0) {
-		if ((narenas << opt_narenas_lshift) < narenas)
-			narenas <<= opt_narenas_lshift;
+		if ((narenas >> -opt_narenas_lshift) < narenas)
+			narenas >>= -opt_narenas_lshift;
 		/* Make sure there is at least one arena. */
 		if (narenas == 0)
 			narenas = 1;
@@ -3529,7 +3530,7 @@ malloc_init_hard(void)
 
 	/*
 	 * Initialize one arena here.  The rest are lazily created in
-	 * arena_choose_hard().
+	 * choose_arena_hard().
 	 */
 	arenas_extend(0);
 	if (arenas[0] == NULL) {
