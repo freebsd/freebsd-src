@@ -3964,9 +3964,10 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 #  - usr/share/tmac/mm/se_locale
 #  - var/yp/Makefile
 
-# 20071119: shared library version bump
+# 20071120: shared library version bump
 OLD_LIBS+=usr/lib/libasn1.so.8
 OLD_LIBS+=usr/lib/libgssapi.so.8
+OLD_LIBS+=usr/lib/libgssapi_krb5.so.8
 OLD_LIBS+=usr/lib/libhdb.so.8
 OLD_LIBS+=usr/lib/libkadm5clnt.so.8
 OLD_LIBS+=usr/lib/libkadm5srv.so.8
