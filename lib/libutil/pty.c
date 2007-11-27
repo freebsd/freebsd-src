@@ -107,7 +107,7 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct win
 	else
 		ttygid = -1;
 
-	for (cp1 = "pqrsPQRS"; *cp1; cp1++) {
+	for (cp1 = "pqrsPQRSlmnoLMNO"; *cp1; cp1++) {
 		line[8] = *cp1;
 		for (cp2 = "0123456789abcdefghijklmnopqrstuv"; *cp2; cp2++) {
 			line[5] = 'p';
