@@ -234,6 +234,7 @@ atomic_readandclear_64(volatile u_int64_t *addr)
 #define	atomic_clear_ptr		atomic_clear_32
 #define	atomic_add_ptr			atomic_add_32
 #define	atomic_subtract_ptr     	atomic_subtract_32
+#define	atomic_readandclear_ptr		atomic_readandclear_32
 
 #if 0
 
