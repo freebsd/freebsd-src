@@ -20,7 +20,6 @@
 #
 # $FreeBSD$
 
-machine		sparc64
 cpu		SUN4U
 ident		GENERIC
 
@@ -186,7 +185,6 @@ device		ath_rate_sample	# SampleRate tx rate control for ath
 
 # Pseudo devices.
 device		loop		# Network loopback
-device		mem		# Memory and kernel memory devices
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		sl		# Kernel SLIP
