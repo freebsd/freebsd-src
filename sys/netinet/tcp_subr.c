@@ -2049,12 +2049,16 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			tw = intotw(inp);
 			if (tw != NULL)
 				tcp_twclose(tw, 0);
+			else
+				INP_UNLOCK(inp);
 		} else if (!(inp->inp_vflag & INP_DROPPED) &&
 			   !(inp->inp_socket->so_options & SO_ACCEPTCONN)) {
 			tp = intotcpcb(inp);
-			tcp_drop(tp, ECONNABORTED);
-		}
-		INP_UNLOCK(inp);
+			tp = tcp_drop(tp, ECONNABORTED);
+			if (tp != NULL)
+				INP_UNLOCK(inp);
+		} else
+			INP_UNLOCK(inp);
 	} else
 		error = ESRCH;
 	INP_INFO_WUNLOCK(&tcbinfo);
