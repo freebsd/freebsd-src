@@ -1800,7 +1800,6 @@ wpi_notif_intr(struct wpi_softc *sc)
 		if (!(desc->qid & 0x80))	/* reply to a command */
 			wpi_cmd_intr(sc, desc);
 
-		/* XXX beacon miss handling? */
 		switch (desc->type) {
 		case WPI_RX_DONE:
 			/* a 802.11 frame was received */
@@ -1869,6 +1868,18 @@ wpi_notif_intr(struct wpi_softc *sc)
 
 			wpi_queue_cmd(sc, WPI_SCAN_NEXT);
 			break;
+		}
+		case WPI_MISSED_BEACON:
+		{
+		    struct wpi_missed_beacon *beacon =
+				(struct wpi_missed_beacon *)(desc + 1);
+
+                    if (le32toh(beacon->consecutive) >= ic->ic_bmissthreshold) {
+			DPRINTF(("Beacon miss: %u >= %u\n",
+				 le32toh(beacon->consecutive),
+				 ic->ic_bmissthreshold));
+			ieee80211_beacon_miss(ic);
+		    }
 		}
 		}
 
