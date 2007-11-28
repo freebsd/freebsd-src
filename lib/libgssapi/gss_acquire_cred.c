@@ -59,8 +59,8 @@ gss_acquire_cred(OM_uint32 *minor_status,
 	 * First make sure that at least one of the requested
 	 * mechanisms is one that we support.
 	 */
+	_gss_load_mech();
 	if (mechs) {
-		_gss_load_mech();
 		for (i = 0; i < mechs->count; i++) {
 			int t;
 			gss_test_oid_set_member(minor_status,
@@ -73,6 +73,8 @@ gss_acquire_cred(OM_uint32 *minor_status,
 			*minor_status = 0;
 			return (GSS_S_BAD_MECH);
 		}
+	} else {
+		mechs = _gss_mech_oids;
 	}
 
 	if (actual_mechs) {
@@ -91,9 +93,6 @@ gss_acquire_cred(OM_uint32 *minor_status,
 	}
 	cred->gc_usage = cred_usage;
 	SLIST_INIT(&cred->gc_mc);
-
-	if (mechs == GSS_C_NO_OID_SET)
-		mechs = _gss_mech_oids;
 
 	set.count = 1;
 	min_time = GSS_C_INDEFINITE;
