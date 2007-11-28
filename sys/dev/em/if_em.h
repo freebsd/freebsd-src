@@ -425,9 +425,9 @@ typedef struct _DESCRIPTOR_PAIR
 } DESC_ARRAY, *PDESC_ARRAY;
 
 #define	EM_CORE_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->core_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
 #define	EM_TX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->tx_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+	mtx_init(&(_sc)->tx_mtx, _name, "EM TX Lock", MTX_DEF)
 #define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
 #define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
 #define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
