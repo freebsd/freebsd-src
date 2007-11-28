@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_82543_H_
@@ -44,7 +44,8 @@
 #define PHY_TURNAROUND    0x2
 
 #define TBI_COMPAT_ENABLED 0x1 /* Global "knob" for the workaround */
-#define TBI_SBP_ENABLED    0x2 /* If TBI_COMPAT_ENABLED,
-                                * then this is the current state (on/off) */
+/* If TBI_COMPAT_ENABLED, then this is the current state (on/off) */
+#define TBI_SBP_ENABLED    0x2 
+                                
 
 #endif
