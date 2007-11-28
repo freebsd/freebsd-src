@@ -184,6 +184,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_ITR	1000000000/(MAX_IRQ_SEC * 256)
 #define LINK_ITR	1000000000/(1950 * 256)
 
+/* Used for auto RX queue configuration */
+extern int mp_ncpus;
+
 /*
  * ******************************************************************************
  * vendor_info_array
@@ -234,14 +237,17 @@ struct ixgbe_dma_alloc {
 struct tx_ring {
         struct adapter		*adapter;
 	u32			me;
+	u32			msix;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_dma_alloc	txdma;
-	uint32_t		next_avail_tx_desc;
-	uint32_t		next_tx_to_clean;
+	u32			next_avail_tx_desc;
+	u32			next_tx_to_clean;
 	struct ixgbe_tx_buf	*tx_buffers;
-	volatile uint16_t	tx_avail;
-	uint32_t		txd_cmd;
+	volatile u16		tx_avail;
+	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
+	/* Interrupt soft stat */
+	u64			tx_irq;
 };
 
 
@@ -251,6 +257,7 @@ struct tx_ring {
 struct rx_ring {
         struct adapter			*adapter;
 	u32				me;
+	u32				msix;
 	u32				payload;
 	union 	ixgbe_adv_rx_desc	*rx_base;
 	struct ixgbe_dma_alloc		rxdma;
@@ -262,6 +269,7 @@ struct rx_ring {
 	struct mbuf			*fmp;
 	struct mbuf			*lmp;
 	/* Soft stats */
+	u64				rx_irq;
 	u64				packet_count;
 	u64 				byte_count;
 };
@@ -292,25 +300,28 @@ struct adapter {
 	int		watchdog_timer;
 	int		msix;
 	int		if_flags;
+
+	/* Dual locks for the driver */
 	struct mtx	core_mtx;
 	struct mtx	tx_mtx;
+
 	/* Legacy Fast Intr handling */
 	struct task     link_task;
 	struct task     rxtx_task;
 	struct taskqueue *tq;
 	
 	/* Info about the board itself */
-	uint32_t       part_num;
-	boolean_t      link_active;
-	uint16_t       max_frame_size;
-	uint16_t       link_duplex;
-	uint32_t       tx_int_delay;
-	uint32_t       tx_abs_int_delay;
-	uint32_t       rx_int_delay;
-	uint32_t       rx_abs_int_delay;
+	u32		part_num;
+	bool		link_active;
+	u16		max_frame_size;
+	u32		link_speed;
+	u32		tx_int_delay;
+	u32		tx_abs_int_delay;
+	u32		rx_int_delay;
+	u32		rx_abs_int_delay;
 
 	/* Indicates the cluster size to use */
-	boolean_t	bigbufs;
+	bool		bigbufs;
 
 	/*
 	 * Transmit rings:
@@ -327,7 +338,7 @@ struct adapter {
 	struct rx_ring	*rx_rings;
 	int		num_rx_desc;
 	int		num_rx_queues;
-	uint32_t	rx_process_limit;
+	u32		rx_process_limit;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
@@ -339,6 +350,8 @@ struct adapter {
 	unsigned long   no_tx_dma_setup;
 	unsigned long   watchdog_events;
 	unsigned long   tso_tx;
+	unsigned long	linkvec;
+	unsigned long	link_irq;
 
 	struct ixgbe_hw_stats stats;
 };

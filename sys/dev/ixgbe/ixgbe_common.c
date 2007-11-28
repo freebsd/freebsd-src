@@ -32,7 +32,6 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
-
 #include "ixgbe_common.h"
 #include "ixgbe_api.h"
 
@@ -98,7 +97,7 @@ s32 ixgbe_assign_func_pointers_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_start_hw_generic - Prepare hardware for TX/RX
+ *  ixgbe_start_hw_generic - Prepare hardware for Tx/Rx
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware by filling the bus info structure and media type, clears
@@ -138,6 +137,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_NS_DIS;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
+	IXGBE_WRITE_FLUSH(hw);
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = FALSE;
@@ -245,6 +245,37 @@ s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_read_pba_num - Reads part number from EEPROM
+ *  @hw: pointer to hardware strucure
+ *  @pba_num: stores the part number from the EEPROM
+ *
+ *  Reads the part number from the EEPROM.
+ **/
+s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
+{
+	s32 ret_val;
+	u16 data;
+
+	DEBUGFUNC("ixgbe_read_pba_num_generic");
+
+	ret_val = ixgbe_read_eeprom(hw, IXGBE_PBANUM0_PTR, &data);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+	*pba_num = (u32)(data << 16);
+
+	ret_val = ixgbe_read_eeprom(hw, IXGBE_PBANUM1_PTR, &data);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		return ret_val;
+	}
+	*pba_num |= data;
+
+	return IXGBE_SUCCESS;
+}
+
+/**
  *  ixgbe_get_mac_addr_generic - Generic get MAC address
  *  @hw: pointer to hardware structure
  *  @mac_addr: Adapter MAC address
@@ -320,7 +351,7 @@ s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_stop_adapter_generic - Generic stop TX/RX units
+ *  ixgbe_stop_adapter_generic - Generic stop Tx/Rx units
  *  @hw: pointer to hardware structure
  *
  *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
@@ -344,6 +375,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	reg_val = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	reg_val &= ~(IXGBE_RXCTRL_RXEN);
 	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, reg_val);
+	IXGBE_WRITE_FLUSH(hw);
 	msec_delay(2);
 
 	/* Clear interrupt mask to stop from interrupts being generated */
@@ -362,6 +394,14 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 		}
 	}
 
+	/*
+	 * Prevent the PCI-E bus from from hanging by disabling PCI-E master
+	 * access and verify no pending requests
+	 */
+	if (ixgbe_disable_pcie_master(hw) != IXGBE_SUCCESS) {
+		DEBUGOUT("PCI-E Master disable polling has failed.\n");
+	}
+
 	return IXGBE_SUCCESS;
 }
 
@@ -378,6 +418,7 @@ s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index)
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg |= IXGBE_LED_ON << IXGBE_LED_MODE_SHIFT(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -395,6 +436,7 @@ s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index)
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg |= IXGBE_LED_OFF << IXGBE_LED_MODE_SHIFT(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -411,6 +453,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 
 	led_reg |= IXGBE_LED_BLINK(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -426,6 +469,7 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 
 	led_reg &= ~IXGBE_LED_BLINK(index);
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
+	IXGBE_WRITE_FLUSH(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -771,6 +815,7 @@ static void ixgbe_release_eeprom_semaphore(struct ixgbe_hw *hw)
 	/* Release both semaphores by writing 0 to the bits SWESMBI and SMBI */
 	swsm &= ~(IXGBE_SWSM_SWESMBI | IXGBE_SWSM_SMBI);
 	IXGBE_WRITE_REG(hw, IXGBE_SWSM, swsm);
+	IXGBE_WRITE_FLUSH(hw);
 }
 
 /**
@@ -1129,44 +1174,47 @@ s32 ixgbe_validate_mac_addr(u8 *mac_addr)
 }
 
 /**
- *  ixgbe_set_rar_generic - Set RX address register
+ *  ixgbe_set_rar_generic - Set Rx address register
  *  @hw: pointer to hardware structure
  *  @addr: Address to put into receive address register
  *  @index: Receive address register to write
- *  @vind: Vind to set RAR to
  *  @enable_addr: set flag that address is active
  *
  *  Puts an ethernet address into a receive address register.
  **/
-s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vind,
+s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr,
 			  u32 enable_addr)
 {
 	u32 rar_low, rar_high;
+	u32 rar_entries = ixgbe_get_num_rx_addrs(hw);
 
-	/*
-	 * HW expects these in little endian so we reverse the byte order from
-	 * network order (big endian) to little endian
-	 */
-	rar_low = ((u32)addr[0] |
-		   ((u32)addr[1] << 8) |
-		   ((u32)addr[2] << 16) |
-		   ((u32)addr[3] << 24));
+	/* Make sure we are using a valid rar index range */
+	if (index < rar_entries) {
+		/*
+		 * HW expects these in little endian so we reverse the byte
+		 * order from network order (big endian) to little endian
+		 */
+		rar_low = ((u32)addr[0] |
+			   ((u32)addr[1] << 8) |
+			   ((u32)addr[2] << 16) |
+			   ((u32)addr[3] << 24));
 
-	rar_high = ((u32)addr[4] |
-		    ((u32)addr[5] << 8) |
-		    ((vind << IXGBE_RAH_VIND_SHIFT) & IXGBE_RAH_VIND_MASK));
+		rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	if (enable_addr != 0)
-		rar_high |= IXGBE_RAH_AV;
+		if (enable_addr != 0)
+			rar_high |= IXGBE_RAH_AV;
 
-	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
-	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
+	} else {
+		DEBUGOUT("Current RAR index is out of range.");
+	}
 
 	return IXGBE_SUCCESS;
 }
 
 /**
- *  ixgbe_enable_rar - Enable RX address register
+ *  ixgbe_enable_rar - Enable Rx address register
  *  @hw: pointer to hardware structure
  *  @index: index into the RAR table
  *
@@ -1182,7 +1230,7 @@ static void ixgbe_enable_rar(struct ixgbe_hw *hw, u32 index)
 }
 
 /**
- *  ixgbe_disable_rar - Disable RX address register
+ *  ixgbe_disable_rar - Disable Rx address register
  *  @hw: pointer to hardware structure
  *  @index: index into the RAR table
  *
@@ -1234,7 +1282,7 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 		DEBUGOUT3("%.2X %.2X %.2X\n", hw->mac.addr[3],
 			  hw->mac.addr[4], hw->mac.addr[5]);
 
-		ixgbe_set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
+		ixgbe_set_rar(hw, 0, hw->mac.addr, IXGBE_RAH_AV);
 	}
 
 	hw->addr_ctrl.rar_used_count = 1;
@@ -1354,7 +1402,7 @@ void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
 	 */
 	if (hw->addr_ctrl.rar_used_count < rar_entries) {
 		ixgbe_set_rar(hw, hw->addr_ctrl.rar_used_count,
-			      mc_addr, 0, IXGBE_RAH_AV);
+			      mc_addr, IXGBE_RAH_AV);
 		DEBUGOUT1("Added a multicast address to RAR[%d]\n",
 			  hw->addr_ctrl.rar_used_count);
 		hw->addr_ctrl.rar_used_count++;
@@ -1371,15 +1419,15 @@ void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
  *  @hw: pointer to hardware structure
  *  @mc_addr_list: the list of new multicast addresses
  *  @mc_addr_count: number of addresses
- *  @pad: number of bytes between addresses in the list
+ *  @func: iterator function to walk the multicast address list
  *
  *  The given list replaces any existing list. Clears the MC addrs from receive
- *  address registers and the multicast table. Uses unsed receive address
+ *  address registers and the multicast table. Uses unused receive address
  *  registers for the first multicast addresses, and hashes the rest into the
  *  multicast table.
  **/
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
-				      u32 mc_addr_count, u32 pad)
+				      u32 mc_addr_count, ixgbe_mc_addr_itr next)
 {
 	u32 i;
 	u32 rar_entries = ixgbe_get_num_rx_addrs(hw);
@@ -1408,8 +1456,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	/* Add the new addresses */
 	for (i = 0; i < mc_addr_count; i++) {
 		DEBUGOUT(" Adding the multicast addresses:\n");
-		ixgbe_add_mc_addr(hw, mc_addr_list +
-				  (i * (IXGBE_ETH_LENGTH_OF_ADDRESS + pad)));
+		ixgbe_add_mc_addr(hw, next(&mc_addr_list));
 	}
 
 	/* Enable mta */
@@ -1572,7 +1619,7 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 *    send pause frames).
 	 * 2: Tx flow control is enabled (we can send pause frames but we do not
 	 *    support receiving pause frames)
-	 * 3: Both Rx and TX flow control (symmetric) are enabled.
+	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.type) {
@@ -1580,21 +1627,21 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 		break;
 	case ixgbe_fc_rx_pause:
 		/*
-		 * RX Flow control is enabled,
-		 * and TX Flow control is disabled.
+		 * Rx Flow control is enabled,
+		 * and Tx Flow control is disabled.
 		 */
 		frctl_reg |= IXGBE_FCTRL_RFCE;
 		break;
 	case ixgbe_fc_tx_pause:
 		/*
-		 * TX Flow control is enabled, and RX Flow control is disabled,
+		 * Tx Flow control is enabled, and Rx Flow control is disabled,
 		 * by a software over-ride.
 		 */
 		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
 		break;
 	case ixgbe_fc_full:
 		/*
-		 * Flow control (both RX and TX) is enabled by a software
+		 * Flow control (both Rx and Tx) is enabled by a software
 		 * over-ride.
 		 */
 		frctl_reg |= IXGBE_FCTRL_RFCE;
@@ -1610,6 +1657,16 @@ s32 ixgbe_setup_fc_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	/* Enable 802.3x based flow control settings. */
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, frctl_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
+
+	/*
+	 * Check for invalid software configuration, zeros are completely
+	 * invalid for all parameters used past this point, and if we enable
+	 * flow control with zero water marks, we blast flow control packets.
+	 */
+	if (!hw->fc.low_water || !hw->fc.high_water || !hw->fc.pause_time) {
+		DEBUGOUT("Flow control structure initialized incorrectly\n");
+		return IXGBE_ERR_INVALID_LINK_SETTINGS;
+	}
 
 	/*
 	 * We need to set up the Receive Threshold high and low water

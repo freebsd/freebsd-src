@@ -32,7 +32,6 @@
 *******************************************************************************/
 /* $FreeBSD$ */
 
-
 #include "ixgbe_api.h"
 #include "ixgbe_common.h"
 
@@ -96,6 +95,7 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 		switch (hw->device_id) {
 		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
 		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
+		case IXGBE_DEV_ID_82598AT:
 		case IXGBE_DEV_ID_82598EB_CX4:
 			hw->mac.type = ixgbe_mac_82598EB;
 			break;
@@ -136,7 +136,7 @@ s32 ixgbe_reset_hw(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_start_hw - Prepares hardware for TX/TX
+ *  ixgbe_start_hw - Prepares hardware for Rx/Tx
  *  @hw: pointer to hardware structure
  *
  *  Starts the hardware by filling the bus info structure and media type,
@@ -205,7 +205,7 @@ s32 ixgbe_get_bus_info(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_of_tx_queues - Get TX queues
+ *  ixgbe_get_num_of_tx_queues - Get Tx queues
  *  @hw: pointer to hardware structure
  *
  *  Returns the number of transmit queues for the given adapter.
@@ -217,7 +217,7 @@ u32 ixgbe_get_num_of_tx_queues(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_num_of_rx_queues - Get RX queues
+ *  ixgbe_get_num_of_rx_queues - Get Rx queues
  *  @hw: pointer to hardware structure
  *
  *  Returns the number of receive queues for the given adapter.
@@ -229,7 +229,7 @@ u32 ixgbe_get_num_of_rx_queues(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_stop_adapter - Disable TX/TX units
+ *  ixgbe_stop_adapter - Disable Rx/Tx units
  *  @hw: pointer to hardware structure
  *
  *  Sets the adapter_stopped flag within ixgbe_hw struct. Clears interrupts,
@@ -241,6 +241,18 @@ s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
 {
 	return ixgbe_call_func(hw, ixgbe_func_stop_adapter, (hw),
 			       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_read_pba_num - Reads part number from EEPROM
+ *  @hw: pointer to hardware strucure
+ *  @pba_num: stores the part number from the EEPROM
+ *
+ *  Reads the part number from the EEPROM.
+ **/
+s32 ixgbe_read_pba_num(struct ixgbe_hw *hw, u32 *pba_num)
+{
+	return ixgbe_read_pba_num_generic(hw, pba_num);
 }
 
 /**
@@ -386,15 +398,15 @@ s32 ixgbe_setup_link_speed(struct ixgbe_hw *hw, ixgbe_link_speed speed,
 }
 
 /**
- *  ixgbe_get_link_settings - Set link settings to default
+ *  ixgbe_get_link_capabilities - Returns link capabilities
  *  @hw: pointer to hardware structure
  *
- *  Sets the default link settings based on attach type in the hw struct.
+ *  Determines the link capabilities of the current configuration.
  **/
-s32 ixgbe_get_link_settings(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-			    bool *autoneg)
+s32 ixgbe_get_link_capabilities(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
+				bool *autoneg)
 {
-	return ixgbe_call_func(hw, ixgbe_func_get_link_settings, (hw, speed,
+	return ixgbe_call_func(hw, ixgbe_func_get_link_capabilities, (hw, speed,
 			       autoneg), IXGBE_NOT_IMPLEMENTED);
 }
 
@@ -551,19 +563,18 @@ s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_set_rar - Set RX address register
+ *  ixgbe_set_rar - Set Rx address register
  *  @hw: pointer to hardware structure
  *  @addr: Address to put into receive address register
  *  @index: Receive address register to write
- *  @vind: Vind to set RAR to
  *  @enable_addr: set flag that address is active
  *
  *  Puts an ethernet address into a receive address register.
  **/
-s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vind,
+s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr,
 		  u32 enable_addr)
 {
-	return ixgbe_call_func(hw, ixgbe_func_set_rar, (hw, index, addr, vind,
+	return ixgbe_call_func(hw, ixgbe_func_set_rar, (hw, index, addr,
 			       enable_addr), IXGBE_NOT_IMPLEMENTED);
 }
 
@@ -595,18 +606,18 @@ u32 ixgbe_get_num_rx_addrs(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *  @mc_addr_list: the list of new multicast addresses
  *  @mc_addr_count: number of addresses
- *  @pad: number of bytes between addresses in the list
+ *  @func: iterator function to walk the multicast address list
  *
  *  The given list replaces any existing list. Clears the MC addrs from receive
- *  address registers and the multicast table. Uses unsed receive address
+ *  address registers and the multicast table. Uses unused receive address
  *  registers for the first multicast addresses, and hashes the rest into the
  *  multicast table.
  **/
 s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
-			      u32 mc_addr_count, u32 pad)
+			      u32 mc_addr_count, ixgbe_mc_addr_itr func)
 {
 	return ixgbe_call_func(hw, ixgbe_func_update_mc_addr_list, (hw,
-			       mc_addr_list, mc_addr_count,  pad),
+			       mc_addr_list, mc_addr_count, func),
 			       IXGBE_NOT_IMPLEMENTED);
 }
 
