@@ -312,8 +312,9 @@ main(int argc, char *argv[])
 		errx(1, "%s: not a character-special device", special);
 
 	if (sectorsize == 0)
-		ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize);
-	if (sectorsize && !ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize))
+		if (ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize) == -1)
+			sectorsize = 0;	/* back out on error for safety */
+	if (sectorsize && ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize) != -1)
 		getfssize(&fssize, special, mediasize / sectorsize, reserved);
 	pp = NULL;
 	lp = getdisklabel(special);
@@ -409,7 +410,7 @@ getdisklabel(char *s)
 	static struct disklabel lab;
 	struct disklabel *lp;
 
-	if (!ioctl(disk.d_fd, DIOCGDINFO, (char *)&lab))
+	if (ioctl(disk.d_fd, DIOCGDINFO, (char *)&lab) != -1)
 		return (&lab);
 	unlabeled++;
 	if (disktype) {
@@ -427,7 +428,7 @@ rewritelabel(char *s, struct disklabel *lp)
 		return;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
-	if (ioctl(disk.d_fd, DIOCWDINFO, (char *)lp) < 0)
+	if (ioctl(disk.d_fd, DIOCWDINFO, (char *)lp) == -1)
 		warn("ioctl (WDINFO): %s: can't rewrite disk label", s);
 }
 
