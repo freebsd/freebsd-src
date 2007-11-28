@@ -3,7 +3,8 @@
 #
 # $FreeBSD$
 
-machine		sparc64
+# Not yet, this would break all existing configs
+#machine		sparc64
 
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices

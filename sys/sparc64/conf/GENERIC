@@ -20,6 +20,7 @@
 #
 # $FreeBSD$
 
+machine		sparc64
 cpu		SUN4U
 ident		GENERIC
 
