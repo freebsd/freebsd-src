@@ -60,7 +60,9 @@
 #include <netinet6/ip6_var.h>
 #endif
 
+#include "opt_enc.h"
 #include <netipsec/ipsec.h>
+#include <netipsec/xform.h>
 
 #define ENCMTU		(1024+512)
 
@@ -89,6 +91,32 @@ static int	enc_clone_create(struct if_clone *, int, caddr_t);
 static void	enc_clone_destroy(struct ifnet *);
 
 IFC_SIMPLE_DECLARE(enc, 1);
+
+/*
+ * Sysctls.
+ */
+
+/*
+ * Before and after are relative to when we are stripping the
+ * outer IP header.
+ */
+SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
+
+SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
+static int ipsec_filter_mask_in = ENC_BEFORE;
+SYSCTL_XINT(_net_enc_in, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
+	&ipsec_filter_mask_in, 0, "IPsec input firewall filter mask");
+static int ipsec_bpf_mask_in = ENC_BEFORE;
+SYSCTL_XINT(_net_enc_in, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW,
+	&ipsec_bpf_mask_in, 0, "IPsec input bpf mask");
+
+SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
+static int ipsec_filter_mask_out = ENC_BEFORE;
+SYSCTL_XINT(_net_enc_out, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
+	&ipsec_filter_mask_out, 0, "IPsec output firewall filter mask");
+static int ipsec_bpf_mask_out = ENC_BEFORE|ENC_AFTER;
+SYSCTL_XINT(_net_enc_out, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW,
+	&ipsec_bpf_mask_out, 0, "IPsec output bpf mask");
 
 static void
 enc_clone_destroy(struct ifnet *ifp)
@@ -194,15 +222,25 @@ enc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 int
-ipsec_filter(struct mbuf **mp, int dir)
+ipsec_filter(struct mbuf **mp, int dir, int flags)
 {
 	int error, i;
 	struct ip *ip;
 
 	KASSERT(encif != NULL, ("%s: encif is null", __func__));
+	KASSERT(flags & (ENC_IN|ENC_OUT),
+		("%s: invalid flags: %04x", __func__, flags));
 
 	if ((encif->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return (0);
+
+	if (flags & ENC_IN) {
+		if ((flags & ipsec_filter_mask_in) == 0)
+			return (0);
+	} else {
+		if ((flags & ipsec_filter_mask_out) == 0)
+			return (0);
+	}
 
 	/* Skip pfil(9) if no filters are loaded */
 	if (!(PFIL_HOOKED(&inet_pfil_hook)
@@ -269,23 +307,48 @@ bad:
 }
 
 void
-ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
+ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af, int flags)
 {
-	int flags;
+	int mflags;
 	struct enchdr hdr;
 
 	KASSERT(encif != NULL, ("%s: encif is null", __func__));
-	KASSERT(sav != NULL, ("%s: sav is null", __func__));
+	KASSERT(flags & (ENC_IN|ENC_OUT),
+		("%s: invalid flags: %04x", __func__, flags));
 
 	if ((encif->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
+	if (flags & ENC_IN) {
+		if ((flags & ipsec_bpf_mask_in) == 0)
+			return;
+	} else {
+		if ((flags & ipsec_bpf_mask_out) == 0)
+			return;
+	}
+
 	if (bpf_peers_present(encif->if_bpf)) {
-		flags = 0;
-		if (sav->alg_enc != SADB_EALG_NONE)
-			flags |= M_CONF;
-		if (sav->alg_auth != SADB_AALG_NONE)
-			flags |= M_AUTH;
+		mflags = 0;
+		hdr.spi = 0;
+		if (!sav) {
+			struct m_tag *mtag;
+			mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
+			if (mtag != NULL) {
+				struct tdb_ident *tdbi;
+				tdbi = (struct tdb_ident *) (mtag + 1);
+				if (tdbi->alg_enc != SADB_EALG_NONE)
+					mflags |= M_CONF;
+				if (tdbi->alg_auth != SADB_AALG_NONE)
+					mflags |= M_AUTH;
+				hdr.spi = tdbi->spi;
+			}
+		} else {
+			if (sav->alg_enc != SADB_EALG_NONE)
+				mflags |= M_CONF;
+			if (sav->alg_auth != SADB_AALG_NONE)
+				mflags |= M_AUTH;
+			hdr.spi = sav->spi;
+		}
 
 		/*
 		 * We need to prepend the address family as a four byte
@@ -295,8 +358,8 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 		 * to it).
 		 */
 		hdr.af = af;
-		hdr.spi = sav->spi;
-		hdr.flags = flags;
+		/* hdr.spi already set above */
+		hdr.flags = mflags;
 
 		bpf_mtap2(encif->if_bpf, &hdr, sizeof(hdr), m);
 	}
