@@ -206,12 +206,6 @@ options 	NO_ADAPTIVE_MUTEXES
 # to disable it.
 options 	NO_ADAPTIVE_RWLOCKS
 
-# ADAPTIVE_GIANT causes the Giant lock to also be made adaptive when
-# running without NO_ADAPTIVE_MUTEXES.  Normally, because Giant is assumed
-# to be held for extended periods, contention on Giant will cause a thread
-# to sleep rather than spinning.
-options 	ADAPTIVE_GIANT
-
 # ADAPTIVE_SX changes the behavior of sx locks to spin if the thread
 # that currently owns the lock is executing on another CPU.  Note that
 # in addition to enabling this option, individual sx locks must be

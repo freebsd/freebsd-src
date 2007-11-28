@@ -59,7 +59,6 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	ADAPTIVE_GIANT		# Giant mutex is adaptive.
 options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 options 	AUDIT			# Security event auditing
 
