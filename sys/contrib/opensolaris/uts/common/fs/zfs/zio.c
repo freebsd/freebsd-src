@@ -1299,7 +1299,7 @@ zio_write_allocate_gang_members(zio_t *zio)
 	bzero(gbh, gsize);
 
 	/* We need to test multi-level gang blocks */
-	if (maxalloc >= zio_gang_bang && (lbolt & 0x1) == 0)
+	if (maxalloc >= zio_gang_bang && (LBOLT & 0x1) == 0)
 		maxalloc = MAX(maxalloc >> 2, SPA_MINBLOCKSIZE);
 
 	for (loff = 0, i = 0; loff != zio->io_size;
@@ -1375,7 +1375,7 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT3U(zio->io_ndvas, <=, spa_max_replication(zio->io_spa));
 
 	/* For testing, make some blocks above a certain size be gang blocks */
-	if (zio->io_size >= zio_gang_bang && (lbolt & 0x3) == 0) {
+	if (zio->io_size >= zio_gang_bang && (LBOLT & 0x3) == 0) {
 		zio_write_allocate_gang_members(zio);
 		return;
 	}
