@@ -303,20 +303,4 @@ __END_DECLS
 #define ctodb(db)			/* calculates pages to devblks */ \
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
-/*
- * Solaris compatibility definitions.
- */
-#ifdef _SOLARIS_C_SOURCE
-#define	PAGESIZE	PAGE_SIZE
-
-/*
- * The OpenSolaris version is set according to the version last imported
- * from http://dlc.sun.com/osol/on/downloads/current/. In FreeBSD header
- * files it can be used to determine the level of compatibility that the
- * FreeBSD headers provide to OpenSolaris code. Perhaps one day there
- * will be a really, really Single Unix Specification.
- */
-#define __OpenSolaris_version 20060731
-#endif
-
 #endif	/* _SYS_PARAM_H_ */
