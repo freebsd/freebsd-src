@@ -81,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20071122_0049"
+#define HDA_DRV_TEST_REV	"20071129_0050"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -527,6 +527,7 @@ static const struct {
 #define ANALOGDEVICES_VENDORID	0x11d4
 #define HDA_CODEC_AD1981HD	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1981)
 #define HDA_CODEC_AD1983	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1983)
+#define HDA_CODEC_AD1984	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1984)
 #define HDA_CODEC_AD1986A	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1986)
 #define HDA_CODEC_AD1988	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x1988)
 #define HDA_CODEC_AD1988B	HDA_CODEC_CONSTRUCT(ANALOGDEVICES, 0x198b)
@@ -596,6 +597,7 @@ static const struct {
 	{ HDA_CODEC_ALC888,    "Realtek ALC888" },
 	{ HDA_CODEC_AD1981HD,  "Analog Devices AD1981HD" },
 	{ HDA_CODEC_AD1983,    "Analog Devices AD1983" },
+	{ HDA_CODEC_AD1984,    "Analog Devices AD1984" },
 	{ HDA_CODEC_AD1986A,   "Analog Devices AD1986A" },
 	{ HDA_CODEC_AD1988,    "Analog Devices AD1988" },
 	{ HDA_CODEC_AD1988B,   "Analog Devices AD1988B" },
@@ -3153,9 +3155,15 @@ hdac_stream_setup(struct hdac_chan *ch)
 		);
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_FMT(cad, ch->io[i], fmt), cad);
-		hdac_command(sc,
-		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i],
-		    (chn < totalchn) ? ((ch->sid << 4) | chn) : 0), cad);
+		if (ch->dir == PCMDIR_REC)
+			hdac_command(sc,
+			    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i],
+			    (chn < totalchn) ? ((ch->sid << 4) | chn) : 0),
+			    cad);
+		else
+			hdac_command(sc,
+			    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i],
+			    ch->sid << 4), cad);
 		chn +=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
 		    2 : 1;
@@ -4291,6 +4299,22 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			if (ctl != NULL && ctl->widget != NULL) {
 				ctl->ossmask = SOUND_MASK_SPEAKER;
 				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+		}
+		break;
+	case HDA_CODEC_ALC268:
+		if (HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, subvendor)) {
+			w = hdac_widget_get(devinfo, 29);
+			if (w != NULL) {
+				w->enable = 1;
+				w->type =
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET;
+				w->param.widget_cap &=
+				    ~HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_MASK;
+				w->param.widget_cap |=
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET <<
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
+				strlcpy(w->name, "beep widget", sizeof(w->name));
 			}
 		}
 		break;
