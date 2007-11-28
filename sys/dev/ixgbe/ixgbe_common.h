@@ -41,6 +41,7 @@ s32 ixgbe_assign_func_pointers_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
 s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
+s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num);
 s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
@@ -60,10 +61,10 @@ s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
 
 s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr,
-			  u32 vind, u32 enable_addr);
+			  u32 enable_addr);
 s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
-				      u32 mc_addr_count, u32 pad);
+				      u32 mc_addr_count, ixgbe_mc_addr_itr func);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);

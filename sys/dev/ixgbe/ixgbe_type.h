@@ -43,6 +43,7 @@
 /* Device IDs */
 #define IXGBE_DEV_ID_82598AF_DUAL_PORT   0x10C6
 #define IXGBE_DEV_ID_82598AF_SINGLE_PORT 0x10C7
+#define IXGBE_DEV_ID_82598AT             0x10C8
 #define IXGBE_DEV_ID_82598EB_CX4         0x10DD
 
 /* General Registers */
@@ -112,8 +113,8 @@
 #define IXGBE_RFCTL     0x05008
 #define IXGBE_MTA(_i)   (0x05200 + ((_i) * 4))
 				   /* Multicast Table Array - 128 entries */
-#define IXGBE_RAL(_i)   (0x05400 + ((_i) * 8)) /* 16 of these (0-15) */
-#define IXGBE_RAH(_i)   (0x05404 + ((_i) * 8)) /* 16 of these (0-15) */
+#define IXGBE_RAL(_i)   (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : (0x0A200 + ((_i) * 8)))
+#define IXGBE_RAH(_i)   (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : (0x0A204 + ((_i) * 8)))
 #define IXGBE_PSRTYPE   0x05480
 				   /* 0x5480-0x54BC Packet split receive type */
 #define IXGBE_VFTA(_i)  (0x0A000 + ((_i) * 4))
@@ -141,6 +142,7 @@
 #define IXGBE_TDWBAL(_i) (0x06038 + ((_i) * 0x40))
 #define IXGBE_TDWBAH(_i) (0x0603C + ((_i) * 0x40))
 #define IXGBE_DTXCTL    0x07E00
+#define IXGBE_DTXCTL_V2 0x04A80
 #define IXGBE_DCA_TXCTRL(_i)    (0x07200 + ((_i) * 4))
 					      /* there are 16 of these (0-15) */
 #define IXGBE_TIPG      0x0CB00
@@ -385,7 +387,7 @@
 
 #define IXGBE_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
 #define IXGBE_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
-#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* TX Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
 #define IXGBE_DCA_MAX_QUEUES_82598   16 /* DCA regs only on 16 queues */
 
 /* MSCA Bit Masks */
@@ -457,6 +459,7 @@
 #define IXGBE_MAX_PHY_ADDR             32
 
 /* PHY IDs*/
+#define TN1010_PHY_ID    0x00A19410
 #define QT2022_PHY_ID    0x0043A400
 
 /* General purpose Interrupt Enable */
@@ -533,6 +536,7 @@
 #define IXGBE_RMCS_TFCE_PRIORITY 0x00000010 /* Tx Priority flow control ena */
 #define IXGBE_RMCS_ARBDIS       0x00000040 /* Arbitration disable bit */
 
+
 /* Interrupt register bitmasks */
 
 /* Extended Interrupt Cause Read */
@@ -548,6 +552,7 @@
 #define IXGBE_EICS_RTX_QUEUE    IXGBE_EICR_RTX_QUEUE /* RTx Queue Interrupt */
 #define IXGBE_EICS_LSC          IXGBE_EICR_LSC /* Link Status Change */
 #define IXGBE_EICR_GPI_SDP0     0x01000000 /* Gen Purpose Interrupt on SDP0 */
+#define IXGBE_EICR_GPI_SDP1     0x02000000 /* Gen Purpose Interrupt on SDP1 */
 #define IXGBE_EICS_MNG          IXGBE_EICR_MNG /* MNG Event Interrupt */
 #define IXGBE_EICS_PBUR         IXGBE_EICR_PBUR /* Pkt Buf Handler Error */
 #define IXGBE_EICS_DHER         IXGBE_EICR_DHER /* Desc Handler Error */
@@ -578,7 +583,7 @@
 				IXGBE_EIMS_TCP_TIMER       | \
 				IXGBE_EIMS_OTHER)
 
-/* Immediate Interrupt RX (A.K.A. Low Latency Interrupt) */
+/* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 #define IXGBE_IMIR_PORT_IM_EN     0x00010000  /* TCP port enable */
 #define IXGBE_IMIR_PORT_BP        0x00020000  /* TCP port check bypass */
 #define IXGBE_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
@@ -770,6 +775,8 @@
 #define IXGBE_CSR0_CONFIG_PTR   0x0D
 #define IXGBE_CSR1_CONFIG_PTR   0x0E
 #define IXGBE_FW_PTR            0x0F
+#define IXGBE_PBANUM0_PTR       0x15
+#define IXGBE_PBANUM1_PTR       0x16
 
 /* Legacy EEPROM word offsets */
 #define IXGBE_ISCSI_BOOT_CAPS           0x0033
@@ -871,6 +878,7 @@
 /* This allows for 16K packets + 4k for vlan */
 #define IXGBE_MAX_FRAME_SZ      0x40040000
 
+#define IXGBE_DTXCTL_TE         0x00000001
 #define IXGBE_TDWBAL_HEAD_WB_ENABLE   0x1      /* Tx head write-back enable */
 #define IXGBE_TDWBAL_SEQNUM_WB_ENABLE 0x2      /* Tx seq. # write-back enable */
 
@@ -1148,7 +1156,11 @@ typedef u32 ixgbe_link_speed;
 #define IXGBE_LINK_SPEED_100_FULL  0x0008
 #define IXGBE_LINK_SPEED_1GB_FULL  0x0020
 #define IXGBE_LINK_SPEED_10GB_FULL 0x0080
-
+#define IXGBE_LINK_SPEED_82598_AUTONEG (IXGBE_LINK_SPEED_1GB_FULL | \
+					IXGBE_LINK_SPEED_10GB_FULL)
+#define IXGBE_LINK_SPEED_82599_AUTONEG (IXGBE_LINK_SPEED_100_FULL | \
+					IXGBE_LINK_SPEED_1GB_FULL | \
+					IXGBE_LINK_SPEED_10GB_FULL)
 
 enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
@@ -1164,6 +1176,7 @@ enum ixgbe_mac_type {
 
 enum ixgbe_phy_type {
 	ixgbe_phy_unknown = 0,
+	ixgbe_phy_tn,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui
 };
@@ -1172,7 +1185,8 @@ enum ixgbe_media_type {
 	ixgbe_media_type_unknown = 0,
 	ixgbe_media_type_fiber,
 	ixgbe_media_type_copper,
-	ixgbe_media_type_backplane
+	ixgbe_media_type_backplane,
+	ixgbe_media_type_virtual
 };
 
 /* Flow Control Settings */
@@ -1308,13 +1322,14 @@ struct ixgbe_hw_stats {
 	u64 qbtc[16];
 };
 
+/* iterator type for walking multicast address lists */
+typedef u8* (*ixgbe_mc_addr_itr) (u8 **mc_addr_ptr);
 
 /* forward declaration */
 struct ixgbe_hw;
 
 /* Function pointer table */
-struct ixgbe_functions
-{
+struct ixgbe_functions {
 	s32 (*ixgbe_func_init_hw)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_reset_hw)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_start_hw)(struct ixgbe_hw *);
@@ -1334,8 +1349,7 @@ struct ixgbe_functions
 	s32 (*ixgbe_func_write_phy_reg)(struct ixgbe_hw *, u32, u32, u16);
 	s32 (*ixgbe_func_setup_phy_link)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_setup_phy_link_speed)(struct ixgbe_hw *,
-					       ixgbe_link_speed,
-					       bool, bool);
+					       ixgbe_link_speed, bool, bool);
 	s32 (*ixgbe_func_check_phy_link)(struct ixgbe_hw *, ixgbe_link_speed *,
 					 bool *);
 
@@ -1345,7 +1359,7 @@ struct ixgbe_functions
 					   bool, bool);
 	s32 (*ixgbe_func_check_link)(struct ixgbe_hw *, ixgbe_link_speed *,
 				     bool *);
-	s32 (*ixgbe_func_get_link_settings)(struct ixgbe_hw *,
+	s32 (*ixgbe_func_get_link_capabilities)(struct ixgbe_hw *,
 					    ixgbe_link_speed *,
 					    bool *);
 
@@ -1363,11 +1377,11 @@ struct ixgbe_functions
 	s32 (*ixgbe_func_update_eeprom_checksum)(struct ixgbe_hw *);
 
 	/* RAR, Multicast, VLAN */
-	s32 (*ixgbe_func_set_rar)(struct ixgbe_hw *, u32, u8 *, u32 , u32);
+	s32 (*ixgbe_func_set_rar)(struct ixgbe_hw *, u32, u8 *, u32);
 	s32 (*ixgbe_func_init_rx_addrs)(struct ixgbe_hw *);
 	u32 (*ixgbe_func_get_num_rx_addrs)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_update_mc_addr_list)(struct ixgbe_hw *, u8 *, u32,
-					      u32);
+					      ixgbe_mc_addr_itr);
 	s32 (*ixgbe_func_enable_mc)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_disable_mc)(struct ixgbe_hw *);
 	s32 (*ixgbe_func_clear_vfta)(struct ixgbe_hw *);
