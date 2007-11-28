@@ -28,7 +28,7 @@
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2005
+.Dd November 28, 2007
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -198,7 +198,6 @@ denote
 .It "kern.osreldate	string	no
 .It "kern.bootfile	string	yes
 .It "kern.corefile	string	yes
-.It "kern.dumpdev	dev_t	yes
 .It "kern.logsigexit	integer	yes
 .It "security.bsd.suser_enabled	integer	yes
 .It "security.bsd.see_other_uids	integer	yes
@@ -269,14 +268,6 @@ To set the maximum number of processes allowed
 per uid to 1000, one would use the following request:
 .Pp
 .Dl "sysctl kern.maxprocperuid=1000"
-.Pp
-The device used for crash dumps can be specified using:
-.Pp
-.Dl "sysctl kern.dumpdev=/dev/somedev"
-.Pp
-which is equivalent to
-.Pp
-.Dl "dumpon /dev/somedev"
 .Pp
 Information about the system clock rate may be obtained with:
 .Pp
