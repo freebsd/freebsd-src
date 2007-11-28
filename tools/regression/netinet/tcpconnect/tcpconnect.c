@@ -74,13 +74,13 @@ tcpconnect_server(int argc, char *argv[])
 
 	listen_sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (listen_sock == -1)
-		errx(-1, "socket: %s", strerror(errno));
+		err(-1, "socket");
 
 	if (bind(listen_sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
-		errx(-1, "bind: %s", strerror(errno));
+		err(-1, "bind");
 
 	if (listen(listen_sock, -1) == -1)
-		errx(-1, "listen: %s", strerror(errno));
+		err(-1, "listen");
 
 	while (1) {
 		accept_sock = accept(listen_sock, NULL, NULL);
@@ -110,7 +110,7 @@ tcpconnect_client(int argc, char *argv[])
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	if (inet_aton(argv[0], &sin.sin_addr) == 0)
-		errx(-1, "listen: %x", strerror(errno));
+		err(-1, "listen");
 
 	port = strtoul(argv[1], &dummy, 10);
 	if (port < 1 || port > 65535 || *dummy != '\0')
@@ -124,7 +124,7 @@ tcpconnect_client(int argc, char *argv[])
 	for (i = 0; i < count; i++) {
 		sock = socket(PF_INET, SOCK_STREAM, 0);
 		if (sock == -1)
-			errx(-1, "socket: %s", strerror(errno));
+			err(-1, "socket");
 
 		/* No warning in default case on ENOPROTOOPT. */
 		if (setsockopt(sock, IPPROTO_TCP, TCP_MD5SIG,
@@ -137,15 +137,15 @@ tcpconnect_client(int argc, char *argv[])
 
 		if (nonblock) {
 			if (fcntl(sock, F_SETFL, O_NONBLOCK) != 0)
-				errx(-1, "fcntl(F_SETFL): %s", strerror(errno));
+				err(-1, "fcntl(F_SETFL)");
 
 			if (connect(sock, (struct sockaddr *)&sin,
 			    sizeof(sin)) == -1 && errno != EINPROGRESS)
-				errx(-1, "connect: %s", strerror(errno));
+				err(-1, "connect");
 		} else {
 			if (connect(sock, (struct sockaddr *)&sin,
 			    sizeof(sin)) == -1)
-				errx(-1, "connect: %s", strerror(errno));
+				err(-1, "connect");
 		}
 
 		close(sock);
