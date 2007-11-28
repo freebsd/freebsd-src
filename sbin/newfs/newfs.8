@@ -52,6 +52,7 @@
 .Op Fl i Ar bytes
 .Op Fl m Ar free-space
 .Op Fl o Ar optimization
+.Op Fl r Ar reserved
 .Op Fl s Ar size
 .Ar special
 .Sh DESCRIPTION
@@ -196,14 +197,30 @@ the default is to optimize for
 See
 .Xr tunefs 8
 for more details on how to set this option.
+.It Fl r Ar reserved
+The size, in sectors, of reserved space
+at the end of the partition specified in
+.Ar special .
+This space will not be occupied by the file system;
+it can be used by other consumers such as
+.Xr geom 4 .
+Defaults to 0.
 .It Fl s Ar size
 The size of the file system in sectors.
 This value defaults to the size of the
 raw partition specified in
 .Ar special
-(in other words,
-.Nm
-will use the entire partition for the file system).
+less the
+.Ar reserved
+space at its end (see
+.Fl r ) .
+A
+.Ar size
+of 0 can also be used to choose the default value.
+A valid
+.Ar size
+value cannot be larger than the default one,
+which means that the file system cannot extend into the reserved space.
 .El
 .Pp
 The following options override the standard sizes for the disk geometry.
@@ -237,6 +254,7 @@ This large fragment size may lead to much wasted space
 on file systems that contain many small files.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
+.Xr geom 4 ,
 .Xr disktab 5 ,
 .Xr fs 5 ,
 .Xr bsdlabel 8 ,
