@@ -30,21 +30,24 @@
 #include <sys/socket.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <arpa/inet.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 
 static void
 usage(void)
 {
 
 	fprintf(stderr, "tcpconnect server port\n");
-	fprintf(stderr, "tcpconnect client ip port count\n");
+	fprintf(stderr, "tcpconnect client ip port count [nonblock] [tcpmd5]\n");
 	exit(-1);
 }
 
@@ -92,9 +95,16 @@ tcpconnect_client(int argc, char *argv[])
 	long count, i, port;
 	char *dummy;
 	int sock;
+	int nonblock = 0, md5enable = 0;
 
-	if (argc != 3)
+	if (argc < 3 || argc > 5)
 		usage();
+	for (i=3; i < argc; i++) {
+		if (strcmp(argv[i], "nonblock") == 0)
+			nonblock = 1;
+		if (strcmp(argv[i], "tcpmd5") == 0)
+			md5enable = 1;
+	}
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -116,17 +126,27 @@ tcpconnect_client(int argc, char *argv[])
 		if (sock == -1)
 			errx(-1, "socket: %s", strerror(errno));
 
-#ifdef NONBLOCK
-		if (fcntl(sock, F_SETFL, O_NONBLOCK) != 0)
-			errx(-1, "fcntl(F_SETFL): %s", strerror(errno));
+		/* No warning in default case on ENOPROTOOPT. */
+		if (setsockopt(sock, IPPROTO_TCP, TCP_MD5SIG,
+		    &md5enable, sizeof(md5enable)) != 0) {
+			if (errno == ENOPROTOOPT && md5enable > 0)
+				err(-1, "setsockopt(TCP_MD5SIG)");
+			else if (errno != ENOPROTOOPT)
+				warn("setsockopt(TCP_MD5SIG)");
+		}
 
-		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1
-		    && errno != EINPROGRESS)
-			errx(-1, "connect: %s", strerror(errno));
-#else
-		if (connect(sock, (struct sockaddr *)&sin, sizeof(sin)) == -1)
-			errx(-1, "connect: %s", strerror(errno));
-#endif
+		if (nonblock) {
+			if (fcntl(sock, F_SETFL, O_NONBLOCK) != 0)
+				errx(-1, "fcntl(F_SETFL): %s", strerror(errno));
+
+			if (connect(sock, (struct sockaddr *)&sin,
+			    sizeof(sin)) == -1 && errno != EINPROGRESS)
+				errx(-1, "connect: %s", strerror(errno));
+		} else {
+			if (connect(sock, (struct sockaddr *)&sin,
+			    sizeof(sin)) == -1)
+				errx(-1, "connect: %s", strerror(errno));
+		}
 
 		close(sock);
 	}
