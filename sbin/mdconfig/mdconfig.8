@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2007
+.Dd November 28, 2007
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -98,7 +98,14 @@ A file specified with
 .Fl f Ar file
 becomes the backing store for this memory disk.
 .It Cm swap
-Swap space is used to back this memory disk.
+Storage for this type of memory disk is allocated from buffer
+memory. Pages get pushed out to the swap when the system is
+under memory pressure, otherwise they stay in the operating
+emory. Using
+.Cm swap
+backing is generally preferable over
+.Cm malloc
+backing.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk. Options
