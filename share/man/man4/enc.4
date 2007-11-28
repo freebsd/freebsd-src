@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2007
+.Dd November 28, 2007
 .Dt ENC 4
 .Os
 .Sh NAME
@@ -56,10 +56,10 @@ framework.
 .Pp
 The
 .Nm
-interface allows an administrator
-to see outgoing packets before they have been processed by
-.Xr ipsec 4 ,
-or incoming packets after they have been similarly processed, via
+interface allows an administrator to see incoming and outgoing packets
+before and after they will be or have been processed by
+.Xr ipsec 4
+via
 .Xr tcpdump 1 .
 .Pp
 The
@@ -72,10 +72,55 @@ and all IPsec traffic could be seen by invoking
 on the
 .Dq Li enc0
 interface.
+.Pp
+What can be seen with
+.Xr tcpdump 1
+and what will be passed on to the firewalls via the
+.Xr pfil 9
+framework can be independently controlled using the following
+.Xr sysctl 8
+variables:
+.Bl -column net.enc.out.ipsec_filter_mask 0x00000000 0x00000000
+.It Sy "Name	Defaults	Suggested"
+.It "net.enc.out.ipsec_bpf_mask"	0x00000003	0x00000001
+.It "net.enc.out.ipsec_filter_mask"	0x00000001	0x00000001
+.It "net.enc.in.ipsec_bpf_mask"	0x00000001	0x00000002
+.It "net.enc.in.ipsec_filter_mask"	0x00000001	0x00000002
+.El
+.Pp
+For the incoming path a value of
+.Li 0x1
+means
+.Dq Li before stripping off the outer header
+and
+.Li 0x2
+means
+.Dq Li after stripping off the outer header .
+For the outgoing path
+.Li 0x1
+means
+.Dq Li with only the inner header
+and
+.Li 0x2
+means
+.Dq Li with outer and inner headers .
+.Bd -literal
+incoming path                                          |------|
+---- IPsec processing ---- (before) ---- (after) ----> |      |
+                                                       | Host |
+<--- IPsec processing ---- (after) ----- (before) ---- |      |
+outgoing path                                          |------|
+.Ed
+.Pp
+Most people will want to run with the suggested defaults for
+.Cm ipsec_filter_mask
+and rely on the security policy database for the outer headers.
 .Sh EXAMPLES
-To see all outgoing packets before they have been processed via
+To see the packets the processed via
 .Xr ipsec 4 ,
-or all incoming packets after they have been similarly processed:
+adjust the
+.Xr sysctl 8
+variables according to your need and run:
 .Pp
 .Dl "tcpdump -i enc0"
 .Sh SEE ALSO
