@@ -58,7 +58,6 @@ SYSCTL_DEBUG	opt_sysctl.h
 NO_SYSCTL_DESCR	opt_global.h
 
 # Miscellaneous options.
-ADAPTIVE_GIANT	opt_adaptive_mutexes.h
 ADAPTIVE_SX
 ALQ
 AUDIT		opt_global.h
