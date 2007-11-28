@@ -254,8 +254,9 @@ _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
 		.m_ceiling = 0,
 		.m_flags = 0
 	};
+	static const struct pthread_mutex_attr *pattr = &attr;
 
-	return (thr_mutex_init(mutex, (pthread_mutexattr_t *)&attr,
+	return (thr_mutex_init(mutex, (pthread_mutexattr_t *)&pattr,
 	    calloc_cb));
 }
 
