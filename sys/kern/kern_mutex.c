@@ -343,11 +343,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		v = m->mtx_lock;
 		if (v != MTX_UNOWNED) {
 			owner = (struct thread *)(v & ~MTX_FLAGMASK);
-#ifdef ADAPTIVE_GIANT
 			if (TD_IS_RUNNING(owner)) {
-#else
-			if (m != &Giant && TD_IS_RUNNING(owner)) {
-#endif
 				if (LOCK_LOG_TEST(&m->lock_object, 0))
 					CTR3(KTR_LOCK,
 					    "%s: spinning on %p held by %p",
@@ -381,11 +377,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 * CPU quit the hard path and try to spin.
 		 */
 		owner = (struct thread *)(v & ~MTX_FLAGMASK);
-#ifdef ADAPTIVE_GIANT
 		if (TD_IS_RUNNING(owner)) {
-#else
-		if (m != &Giant && TD_IS_RUNNING(owner)) {
-#endif
 			turnstile_cancel(ts);
 			cpu_spinwait();
 			continue;
