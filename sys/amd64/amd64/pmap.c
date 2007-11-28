@@ -1733,6 +1733,7 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
+	vm_page_unwire(m, 0);
 	vm_page_free(m);
 }
 
@@ -1782,7 +1783,8 @@ get_pv_entry(pmap_t pmap, int try)
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (try) {
 			pv_entry_count--;
@@ -1797,12 +1799,12 @@ get_pv_entry(pmap_t pmap, int try)
 		PV_STAT(pmap_collect_inactive++);
 		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
 		m = vm_page_alloc(NULL, colour,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 		if (m == NULL) {
 			PV_STAT(pmap_collect_active++);
 			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
 			m = vm_page_alloc(NULL, colour,
-			    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ);
+			    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
 			if (m == NULL)
 				panic("get_pv_entry: increase vm.pmap.shpgperproc");
 		}
@@ -3048,6 +3050,7 @@ pmap_remove_pages(pmap_t pmap)
 			TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 			dump_drop_page(m->phys_addr);
+			vm_page_unwire(m, 0);
 			vm_page_free(m);
 		}
 	}
