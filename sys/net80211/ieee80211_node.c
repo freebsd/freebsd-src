@@ -653,8 +653,10 @@ ieee80211_sta_join(struct ieee80211com *ic,
 	ni->ni_erp = se->se_erp;
 	ni->ni_rssi = se->se_rssi;
 	ni->ni_noise = se->se_noise;
-	if (se->se_htcap_ie != NULL)
+	if (se->se_htcap_ie != NULL) {
 		ieee80211_saveie(&ni->ni_htcap_ie, se->se_htcap_ie);
+		ieee80211_parse_htcap(ni, ni->ni_htcap_ie);
+	}
 	if (se->se_wpa_ie != NULL)
 		ieee80211_saveie(&ni->ni_wpa_ie, se->se_wpa_ie);
 	if (se->se_rsn_ie != NULL)
