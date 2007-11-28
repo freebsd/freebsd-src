@@ -2598,7 +2598,7 @@ arena_malloc(arena_t *arena, size_t size, bool zero)
 		/* Large allocation. */
 		size = PAGE_CEILING(size);
 		arena_lock_balance(arena);
-		ret = (void *)arena_run_alloc(arena, size, true); // XXX zero?
+		ret = (void *)arena_run_alloc(arena, size, zero);
 		if (ret == NULL) {
 			malloc_spin_unlock(&arena->lock);
 			return (NULL);
