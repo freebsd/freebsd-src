@@ -39,6 +39,18 @@
 #define	MAXNAMELEN	256
 
 typedef	struct timespec	timestruc_t;
+typedef u_int		uint_t;
+typedef u_char		uchar_t;
+typedef u_short		ushort_t;
+typedef u_long		ulong_t;
+typedef long long	longlong_t;  
+typedef unsigned long long	u_longlong_t;
+typedef off_t		off64_t;
+typedef id_t		taskid_t;
+typedef id_t		projid_t;
+typedef id_t		poolid_t;
+typedef id_t		zoneid_t;
+typedef id_t		ctid_t;
 
 #ifdef _KERNEL
 
@@ -52,6 +64,12 @@ typedef	void		pathname_t;
 typedef	int64_t		rlim64_t;
 
 #else
+
+#if defined(__XOPEN_OR_POSIX)
+typedef enum { _B_FALSE, _B_TRUE }	boolean_t;
+#else
+typedef enum { B_FALSE, B_TRUE }	boolean_t;
+#endif /* defined(__XOPEN_OR_POSIX) */
 
 typedef	longlong_t	offset_t;
 typedef	u_longlong_t	u_offset_t;
