@@ -1918,7 +1918,7 @@ nvlist_common(nvlist_t *nvl, char *buf, size_t *buflen, int encoding,
 	int err = 0;
 	nvstream_t nvs;
 	int nvl_endian;
-#ifdef	_LITTLE_ENDIAN
+#if BYTE_ORDER == _LITTLE_ENDIAN
 	int host_endian = 1;
 #else
 	int host_endian = 0;
