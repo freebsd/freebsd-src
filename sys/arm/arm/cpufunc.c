@@ -939,7 +939,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* V4 or higher */
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
-		return 0;
+		goto out;
 	}
 #endif /* CPU_ARM9E || CPU_ARM10 */
 #ifdef CPU_ARM10
@@ -1798,6 +1798,9 @@ arm10_setup(args)
 
 	/* Now really make sure they are clean.  */
 	__asm __volatile ("mcr\tp15, 0, r0, c7, c7, 0" : : );
+
+	if (vector_page == ARM_VECTORS_HIGH)
+		cpuctrl |= CPU_CONTROL_VECRELOC;
 
 	/* Set the control register */
 	ctrl = cpuctrl;
