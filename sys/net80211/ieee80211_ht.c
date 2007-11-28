@@ -1795,6 +1795,7 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 } while (0)
 	struct ieee80211com *ic = ni->ni_ic;
 	uint16_t caps;
+	int rxmax, density;
 
 	/* HT capabilities */
 	caps = ic->ic_htcaps & 0xffff;
@@ -1812,12 +1813,17 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+		/* use advertised setting (XXX locally constraint) */
+		rxmax = MS(ni->ni_htparam, IEEE80211_HTCAP_MAXRXAMPDU);
+		density = MS(ni->ni_htparam, IEEE80211_HTCAP_MPDUDENSITY);
 	} else {
 		/* override 20/40 use based on current channel */
 		if (IEEE80211_IS_CHAN_HT40(ic->ic_bsschan))
 			caps |= IEEE80211_HTCAP_CHWIDTH40;
 		else
 			caps &= ~IEEE80211_HTCAP_CHWIDTH40;
+		rxmax = ic->ic_ampdu_rxmax;
+		density = ic->ic_ampdu_density;
 	}
 	/* adjust short GI based on channel and config */
 	if ((ic->ic_flags_ext & IEEE80211_FEXT_SHORTGI20) == 0)
@@ -1828,8 +1834,8 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 	ADDSHORT(frm, caps);
 
 	/* HT parameters */
-	*frm = SM(ic->ic_ampdu_rxmax, IEEE80211_HTCAP_MAXRXAMPDU)
-	     | SM(ic->ic_ampdu_density, IEEE80211_HTCAP_MPDUDENSITY)
+	*frm = SM(rxmax, IEEE80211_HTCAP_MAXRXAMPDU)
+	     | SM(density, IEEE80211_HTCAP_MPDUDENSITY)
 	     ;
 	frm++;
 
