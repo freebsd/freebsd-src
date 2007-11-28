@@ -99,9 +99,10 @@ A file specified with
 becomes the backing store for this memory disk.
 .It Cm swap
 Storage for this type of memory disk is allocated from buffer
-memory. Pages get pushed out to the swap when the system is
-under memory pressure, otherwise they stay in the operating
-emory. Using
+memory.
+Pages get pushed out to the swap when the system is under memory
+pressure, otherwise they stay in the operating memory.
+Using
 .Cm swap
 backing is generally preferable over
 .Cm malloc
