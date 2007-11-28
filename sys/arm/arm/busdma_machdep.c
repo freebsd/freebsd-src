@@ -1090,7 +1090,7 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		cpu_l2cache_wb_range((vm_offset_t)buf, len);
 	}
 	if (op & BUS_DMASYNC_PREREAD) {
-		if ((op & BUS_DMASYNC_PREWRITE) ||
+		if (!(op & BUS_DMASYNC_PREWRITE) &&
 		    ((((vm_offset_t)(buf) | len) & arm_dcache_align_mask) == 0)) {
 			cpu_dcache_inv_range((vm_offset_t)buf, len);
 			cpu_l2cache_inv_range((vm_offset_t)buf, len);
