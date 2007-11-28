@@ -212,19 +212,15 @@ int
 _pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
     void *(calloc_cb)(size_t, size_t))
 {
-/* XXX Enable adaptive locking if similar code is removed from malloc. */
-#if 0
 	static const struct pthread_mutex_attr attr = {
-		.m_type = PTHREAD_MUTEX_ADAPTIVE_NP,
+		.m_type = PTHREAD_MUTEX_NORMAL,
 		.m_protocol = PTHREAD_PRIO_NONE,
 		.m_ceiling = 0,
 		.m_flags = 0
 	};
+	static const struct pthread_mutex_attr *pattr = &attr;
 
-	return mutex_init(mutex, (pthread_mutexattr_t *)&attr, 0, calloc_cb);
-#else
-	return mutex_init(mutex, NULL, 0, calloc_cb);
-#endif
+	return mutex_init(mutex, (pthread_mutexattr_t *)&pattr, 0, calloc_cb);
 }
 
 void
