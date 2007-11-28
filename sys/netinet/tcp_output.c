@@ -693,7 +693,7 @@ send:
 #endif /* TCP_SIGNATURE */
 
 		/* Processing the options. */
-		hdrlen += optlen = tcp_addoptions(&to, (u_char *)&opt);
+		hdrlen += optlen = tcp_addoptions(&to, opt);
 
 #ifdef TCP_SIGNATURE
 		sigoff = to.to_signature - (u_char *)&to;
