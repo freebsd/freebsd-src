@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 /* e1000_82543
@@ -42,43 +42,43 @@
 
 void e1000_init_function_pointers_82543(struct e1000_hw *hw);
 
-STATIC s32       e1000_init_phy_params_82543(struct e1000_hw *hw);
-STATIC s32       e1000_init_nvm_params_82543(struct e1000_hw *hw);
-STATIC s32       e1000_init_mac_params_82543(struct e1000_hw *hw);
-STATIC s32       e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset,
-                                          u16 *data);
-STATIC s32       e1000_write_phy_reg_82543(struct e1000_hw *hw, u32 offset,
-                                           u16 data);
-STATIC s32       e1000_phy_force_speed_duplex_82543(struct e1000_hw *hw);
-STATIC s32       e1000_phy_hw_reset_82543(struct e1000_hw *hw);
-STATIC s32       e1000_reset_hw_82543(struct e1000_hw *hw);
-STATIC s32       e1000_init_hw_82543(struct e1000_hw *hw);
-STATIC s32       e1000_setup_link_82543(struct e1000_hw *hw);
-STATIC s32       e1000_setup_copper_link_82543(struct e1000_hw *hw);
-STATIC s32       e1000_setup_fiber_link_82543(struct e1000_hw *hw);
-STATIC s32       e1000_check_for_copper_link_82543(struct e1000_hw *hw);
-STATIC s32       e1000_check_for_fiber_link_82543(struct e1000_hw *hw);
-STATIC s32       e1000_led_on_82543(struct e1000_hw *hw);
-STATIC s32       e1000_led_off_82543(struct e1000_hw *hw);
-STATIC void      e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset,
-                                        u32 value);
-STATIC void      e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value);
-STATIC void      e1000_clear_hw_cntrs_82543(struct e1000_hw *hw);
-static s32       e1000_config_mac_to_phy_82543(struct e1000_hw *hw);
-static boolean_t e1000_init_phy_disabled_82543(struct e1000_hw *hw);
-static void      e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl);
-static s32       e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw);
-static void      e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl);
-static u16       e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw);
-static void      e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data,
-                                                u16 count);
-static boolean_t e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw);
-static void      e1000_set_tbi_sbp_82543(struct e1000_hw *hw, boolean_t state);
+STATIC s32  e1000_init_phy_params_82543(struct e1000_hw *hw);
+STATIC s32  e1000_init_nvm_params_82543(struct e1000_hw *hw);
+STATIC s32  e1000_init_mac_params_82543(struct e1000_hw *hw);
+STATIC s32  e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset,
+                                     u16 *data);
+STATIC s32  e1000_write_phy_reg_82543(struct e1000_hw *hw, u32 offset,
+                                      u16 data);
+STATIC s32  e1000_phy_force_speed_duplex_82543(struct e1000_hw *hw);
+STATIC s32  e1000_phy_hw_reset_82543(struct e1000_hw *hw);
+STATIC s32  e1000_reset_hw_82543(struct e1000_hw *hw);
+STATIC s32  e1000_init_hw_82543(struct e1000_hw *hw);
+STATIC s32  e1000_setup_link_82543(struct e1000_hw *hw);
+STATIC s32  e1000_setup_copper_link_82543(struct e1000_hw *hw);
+STATIC s32  e1000_setup_fiber_link_82543(struct e1000_hw *hw);
+STATIC s32  e1000_check_for_copper_link_82543(struct e1000_hw *hw);
+STATIC s32  e1000_check_for_fiber_link_82543(struct e1000_hw *hw);
+STATIC s32  e1000_led_on_82543(struct e1000_hw *hw);
+STATIC s32  e1000_led_off_82543(struct e1000_hw *hw);
+STATIC void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset,
+                                   u32 value);
+STATIC void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value);
+STATIC void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw);
+static s32  e1000_config_mac_to_phy_82543(struct e1000_hw *hw);
+static bool e1000_init_phy_disabled_82543(struct e1000_hw *hw);
+static void e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl);
+static s32  e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw);
+static void e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl);
+static u16  e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw);
+static void e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data,
+                                           u16 count);
+static bool e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw);
+static void e1000_set_tbi_sbp_82543(struct e1000_hw *hw, bool state);
 
 struct e1000_dev_spec_82543 {
 	u32  tbi_compatibility;
-	boolean_t dma_fairness;
-	boolean_t init_phy_disabled;
+	bool dma_fairness;
+	bool init_phy_disabled;
 };
 
 /**
@@ -87,8 +87,7 @@ struct e1000_dev_spec_82543 {
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_phy_params_82543(struct e1000_hw *hw)
+STATIC s32 e1000_init_phy_params_82543(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	struct e1000_functions *func = &hw->func;
@@ -96,9 +95,12 @@ e1000_init_phy_params_82543(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_init_phy_params_82543");
 
-	if (hw->media_type != e1000_media_type_copper) {
+	if (hw->phy.media_type != e1000_media_type_copper) {
 		phy->type               = e1000_phy_none;
 		goto out;
+	} else {
+		func->power_up_phy      = e1000_power_up_phy_copper;
+		func->power_down_phy    = e1000_power_down_phy_copper;
 	}
 
 	phy->addr                       = 1;
@@ -123,7 +125,8 @@ e1000_init_phy_params_82543(struct e1000_hw *hw)
 	                                  : e1000_write_phy_reg_m88;
 	func->get_phy_info              = e1000_get_phy_info_m88;
 
-	/* The external PHY of the 82543 can be in a funky state.
+	/*
+	 * The external PHY of the 82543 can be in a funky state.
 	 * Resetting helps us read the PHY registers for acquiring
 	 * the PHY ID.
 	 */
@@ -170,8 +173,7 @@ out:
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_nvm_params_82543(struct e1000_hw *hw)
+STATIC s32 e1000_init_nvm_params_82543(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_functions *func = &hw->func;
@@ -200,8 +202,7 @@ e1000_init_nvm_params_82543(struct e1000_hw *hw)
  *
  *  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_init_mac_params_82543(struct e1000_hw *hw)
+STATIC s32 e1000_init_mac_params_82543(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_functions *func = &hw->func;
@@ -213,10 +214,10 @@ e1000_init_mac_params_82543(struct e1000_hw *hw)
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82543GC_FIBER:
 	case E1000_DEV_ID_82544EI_FIBER:
-		hw->media_type = e1000_media_type_fiber;
+		hw->phy.media_type = e1000_media_type_fiber;
 		break;
 	default:
-		hw->media_type = e1000_media_type_copper;
+		hw->phy.media_type = e1000_media_type_copper;
 		break;
 	}
 
@@ -237,21 +238,21 @@ e1000_init_mac_params_82543(struct e1000_hw *hw)
 	func->setup_link = e1000_setup_link_82543;
 	/* physical interface setup */
 	func->setup_physical_interface =
-	        (hw->media_type == e1000_media_type_copper)
+	        (hw->phy.media_type == e1000_media_type_copper)
 	                ? e1000_setup_copper_link_82543
 	                : e1000_setup_fiber_link_82543;
 	/* check for link */
 	func->check_for_link =
-	        (hw->media_type == e1000_media_type_copper)
+	        (hw->phy.media_type == e1000_media_type_copper)
 	                ? e1000_check_for_copper_link_82543
 	                : e1000_check_for_fiber_link_82543;
 	/* link info */
 	func->get_link_up_info =
-	        (hw->media_type == e1000_media_type_copper)
+	        (hw->phy.media_type == e1000_media_type_copper)
 	                ? e1000_get_speed_and_duplex_copper_generic
 	                : e1000_get_speed_and_duplex_fiber_serdes_generic;
 	/* multicast address update */
-	func->mc_addr_list_update = e1000_mc_addr_list_update_generic;
+	func->update_mc_addr_list = e1000_update_mc_addr_list_generic;
 	/* writing VFTA */
 	func->write_vfta = e1000_write_vfta_82543;
 	/* clearing VFTA */
@@ -275,7 +276,7 @@ e1000_init_mac_params_82543(struct e1000_hw *hw)
 
 	/* Set tbi compatibility */
 	if ((hw->mac.type != e1000_82543) ||
-	    (hw->media_type == e1000_media_type_fiber))
+	    (hw->phy.media_type == e1000_media_type_fiber))
 		e1000_set_tbi_compatibility_82543(hw, FALSE);
 
 out:
@@ -289,8 +290,7 @@ out:
  *  The only function explicitly called by the api module to initialize
  *  all function pointers and parameters.
  **/
-void
-e1000_init_function_pointers_82543(struct e1000_hw *hw)
+void e1000_init_function_pointers_82543(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_init_function_pointers_82543");
 
@@ -306,11 +306,10 @@ e1000_init_function_pointers_82543(struct e1000_hw *hw)
  *  Returns the curent status of 10-bit Interface (TBI) compatibility
  *  (enabled/disabled).
  **/
-static boolean_t
-e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw)
+static bool e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82543 *dev_spec;
-	boolean_t state = FALSE;
+	bool state = FALSE;
 
 	DEBUGFUNC("e1000_tbi_compatibility_enabled_82543");
 
@@ -321,7 +320,7 @@ e1000_tbi_compatibility_enabled_82543(struct e1000_hw *hw)
 
 	dev_spec = (struct e1000_dev_spec_82543 *)hw->dev_spec;
 
-	if (dev_spec == NULL) {
+	if (!dev_spec) {
 		DEBUGOUT("dev_spec pointer is set to NULL.\n");
 		goto out;
 	}
@@ -340,8 +339,7 @@ out:
  *
  *  Enables or disabled 10-bit Interface (TBI) compatibility.
  **/
-void
-e1000_set_tbi_compatibility_82543(struct e1000_hw *hw, boolean_t state)
+void e1000_set_tbi_compatibility_82543(struct e1000_hw *hw, bool state)
 {
 	struct e1000_dev_spec_82543 *dev_spec;
 
@@ -354,7 +352,7 @@ e1000_set_tbi_compatibility_82543(struct e1000_hw *hw, boolean_t state)
 
 	dev_spec = (struct e1000_dev_spec_82543 *)hw->dev_spec;
 
-	if (dev_spec == NULL) {
+	if (!dev_spec) {
 		DEBUGOUT("dev_spec pointer is set to NULL.\n");
 		goto out;
 	}
@@ -375,11 +373,10 @@ out:
  *  Returns the curent status of 10-bit Interface (TBI) store bad packet (SBP)
  *  (enabled/disabled).
  **/
-boolean_t
-e1000_tbi_sbp_enabled_82543(struct e1000_hw *hw)
+bool e1000_tbi_sbp_enabled_82543(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82543 *dev_spec;
-	boolean_t state = FALSE;
+	bool state = FALSE;
 
 	DEBUGFUNC("e1000_tbi_sbp_enabled_82543");
 
@@ -390,7 +387,7 @@ e1000_tbi_sbp_enabled_82543(struct e1000_hw *hw)
 
 	dev_spec = (struct e1000_dev_spec_82543 *)hw->dev_spec;
 
-	if (dev_spec == NULL) {
+	if (!dev_spec) {
 		DEBUGOUT("dev_spec pointer is set to NULL.\n");
 		goto out;
 	}
@@ -409,8 +406,7 @@ out:
  *
  *  Enables or disabled 10-bit Interface (TBI) store bad packet (SBP).
  **/
-static void
-e1000_set_tbi_sbp_82543(struct e1000_hw *hw, boolean_t state)
+static void e1000_set_tbi_sbp_82543(struct e1000_hw *hw, bool state)
 {
 	struct e1000_dev_spec_82543 *dev_spec;
 
@@ -433,11 +429,10 @@ e1000_set_tbi_sbp_82543(struct e1000_hw *hw, boolean_t state)
  *  Returns the current status of whether PHY initialization is disabled.
  *  True if PHY initialization is disabled else false.
  **/
-static boolean_t
-e1000_init_phy_disabled_82543(struct e1000_hw *hw)
+static bool e1000_init_phy_disabled_82543(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82543 *dev_spec;
-	boolean_t ret_val;
+	bool ret_val;
 
 	DEBUGFUNC("e1000_init_phy_disabled_82543");
 
@@ -448,7 +443,7 @@ e1000_init_phy_disabled_82543(struct e1000_hw *hw)
 
 	dev_spec = (struct e1000_dev_spec_82543 *)hw->dev_spec;
 
-	if (dev_spec == NULL) {
+	if (!dev_spec) {
 		DEBUGOUT("dev_spec pointer is set to NULL.\n");
 		ret_val = FALSE;
 		goto out;
@@ -466,21 +461,21 @@ out:
  *  @stats: Struct containing statistic register values
  *  @frame_len: The length of the frame in question
  *  @mac_addr: The Ethernet destination address of the frame in question
+ *  @max_frame_size: The maximum frame size
  *
  *  Adjusts the statistic counters when a frame is accepted by TBI_ACCEPT
  **/
-void
-e1000_tbi_adjust_stats_82543(struct e1000_hw *hw, struct e1000_hw_stats *stats,
-                             u32 frame_len, u8 *mac_addr)
+void e1000_tbi_adjust_stats_82543(struct e1000_hw *hw,
+                                  struct e1000_hw_stats *stats, u32 frame_len,
+                                  u8 *mac_addr, u32 max_frame_size)
 {
-	u64 carry_bit;
-
-	if (e1000_tbi_sbp_enabled_82543(hw) == FALSE)
+	if (!(e1000_tbi_sbp_enabled_82543(hw)))
 		goto out;
 
 	/* First adjust the frame length. */
 	frame_len--;
-	/* We need to adjust the statistics counters, since the hardware
+	/*
+	 * We need to adjust the statistics counters, since the hardware
 	 * counters overcount this packet as a CRC error and undercount
 	 * the packet as a good packet
 	 */
@@ -490,18 +485,10 @@ e1000_tbi_adjust_stats_82543(struct e1000_hw *hw, struct e1000_hw_stats *stats,
 	stats->gprc++;
 
 	/* Adjust the Good Octets received counters             */
-	carry_bit = 0x80000000 & stats->gorcl;
-	stats->gorcl += frame_len;
-	/* If the high bit of Gorcl (the low 32 bits of the Good Octets
-	 * Received Count) was one before the addition,
-	 * AND it is zero after, then we lost the carry out,
-	 * need to add one to Gorch (Good Octets Received Count High).
-	 * This could be simplified if all environments supported
-	 * 64-bit integers.
-	 */
-	if (carry_bit && ((stats->gorcl & 0x80000000) == 0))
-		stats->gorch++;
-	/* Is this a broadcast or multicast?  Check broadcast first,
+	stats->gorc += frame_len;
+
+	/*
+	 * Is this a broadcast or multicast?  Check broadcast first,
 	 * since the test for a multicast frame will test positive on
 	 * a broadcast frame.
 	 */
@@ -512,13 +499,15 @@ e1000_tbi_adjust_stats_82543(struct e1000_hw *hw, struct e1000_hw_stats *stats,
 		/* Multicast packet */
 		stats->mprc++;
 
-	/* In this case, the hardware has overcounted the number of
+	/*
+	 * In this case, the hardware has overcounted the number of
 	 * oversize frames.
 	 */
-	if ((frame_len == hw->mac.max_frame_size) && (stats->roc > 0))
+	if ((frame_len == max_frame_size) && (stats->roc > 0))
 		stats->roc--;
 
-	/* Adjust the bin counters when the extra byte put the frame in the
+	/*
+	 * Adjust the bin counters when the extra byte put the frame in the
 	 * wrong bin. Remember that the frame_len was adjusted above.
 	 */
 	if (frame_len == 64) {
@@ -552,8 +541,7 @@ out:
  *
  *  Reads the PHY at offset and stores the information read to data.
  **/
-STATIC s32
-e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 *data)
+STATIC s32 e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	u32 mdic;
 	s32 ret_val = E1000_SUCCESS;
@@ -566,13 +554,15 @@ e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 *data)
 		goto out;
 	}
 
-	/* We must first send a preamble through the MDIO pin to signal the
+	/*
+	 * We must first send a preamble through the MDIO pin to signal the
 	 * beginning of an MII instruction.  This is done by sending 32
 	 * consecutive "1" bits.
 	 */
 	e1000_shift_out_mdi_bits_82543(hw, PHY_PREAMBLE, PHY_PREAMBLE_SIZE);
 
-	/* Now combine the next few fields that are required for a read
+	/*
+	 * Now combine the next few fields that are required for a read
 	 * operation.  We use this method instead of calling the
 	 * e1000_shift_out_mdi_bits routine five different times.  The format
 	 * of an MII read instruction consists of a shift out of 14 bits and
@@ -588,7 +578,8 @@ e1000_read_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 *data)
 
 	e1000_shift_out_mdi_bits_82543(hw, mdic, 14);
 
-	/* Now that we've shifted out the read command to the MII, we need to
+	/*
+	 * Now that we've shifted out the read command to the MII, we need to
 	 * "shift in" the 16-bit value (18 total bits) of the requested PHY
 	 * register address.
 	 */
@@ -606,8 +597,7 @@ out:
  *
  *  Writes data to the PHY at offset.
  **/
-STATIC s32
-e1000_write_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 data)
+STATIC s32 e1000_write_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	u32 mdic;
 	s32 ret_val = E1000_SUCCESS;
@@ -620,14 +610,16 @@ e1000_write_phy_reg_82543(struct e1000_hw *hw, u32 offset, u16 data)
 		goto out;
 	}
 
-	/* We'll need to use the SW defined pins to shift the write command
+	/*
+	 * We'll need to use the SW defined pins to shift the write command
 	 * out to the PHY. We first send a preamble to the PHY to signal the
 	 * beginning of the MII instruction.  This is done by sending 32
 	 * consecutive "1" bits.
 	 */
 	e1000_shift_out_mdi_bits_82543(hw, PHY_PREAMBLE, PHY_PREAMBLE_SIZE);
 
-	/* Now combine the remaining required fields that will indicate a
+	/*
+	 * Now combine the remaining required fields that will indicate a
 	 * write operation. We use this method instead of calling the
 	 * e1000_shift_out_mdi_bits routine for each field in the command. The
 	 * format of a MII write instruction is as follows:
@@ -652,10 +644,10 @@ out:
  *  Raise the management data input clock by setting the MDC bit in the control
  *  register.
  **/
-static void
-e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
+static void e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
 {
-	/* Raise the clock input to the Management Data Clock (by setting the
+	/*
+	 * Raise the clock input to the Management Data Clock (by setting the
 	 * MDC bit), and then delay a sufficient amount of time.
 	 */
 	E1000_WRITE_REG(hw, E1000_CTRL, (*ctrl | E1000_CTRL_MDC));
@@ -671,10 +663,10 @@ e1000_raise_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
  *  Lower the management data input clock by clearing the MDC bit in the control
  *  register.
  **/
-static void
-e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
+static void e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
 {
-	/* Lower the clock input to the Management Data Clock (by clearing the
+	/*
+	 * Lower the clock input to the Management Data Clock (by clearing the
 	 * MDC bit), and then delay a sufficient amount of time.
 	 */
 	E1000_WRITE_REG(hw, E1000_CTRL, (*ctrl & ~E1000_CTRL_MDC));
@@ -692,12 +684,13 @@ e1000_lower_mdi_clk_82543(struct e1000_hw *hw, u32 *ctrl)
  *  "data" parameter will be shifted out to the PHY one bit at a time.
  *  In order to do this, "data" must be broken down into bits.
  **/
-static void
-e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data, u16 count)
+static void e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data,
+                                           u16 count)
 {
 	u32 ctrl, mask;
 
-	/* We need to shift "count" number of bits out to the PHY.  So, the
+	/*
+	 * We need to shift "count" number of bits out to the PHY.  So, the
 	 * value in the "data" parameter will be shifted out to the PHY one
 	 * bit at a time.  In order to do this, "data" must be broken down
 	 * into bits.
@@ -711,7 +704,8 @@ e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data, u16 count)
 	ctrl |= (E1000_CTRL_MDIO_DIR | E1000_CTRL_MDC_DIR);
 
 	while (mask) {
-		/* A "1" is shifted out to the PHY by setting the MDIO bit to
+		/*
+		 * A "1" is shifted out to the PHY by setting the MDIO bit to
 		 * "1" and then raising and lowering the Management Data Clock.
 		 * A "0" is shifted out to the PHY by setting the MDIO bit to
 		 * "0" and then raising and lowering the clock.
@@ -740,14 +734,14 @@ e1000_shift_out_mdi_bits_82543(struct e1000_hw *hw, u32 data, u16 count)
  *  the PHY (setting the MDC bit), and then reading the value of the data out
  *  MDIO bit.
  **/
-static u16
-e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
+static u16 e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	u16 data = 0;
 	u8 i;
 
-	/* In order to read a register from the PHY, we need to shift in a
+	/*
+	 * In order to read a register from the PHY, we need to shift in a
 	 * total of 18 bits from the PHY.  The first two bit (turnaround)
 	 * times are used to avoid contention on the MDIO pin when a read
 	 * operation is performed.  These two bits are ignored by us and
@@ -757,7 +751,8 @@ e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
 	 */
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
-	/* Clear MDIO_DIR (SWDPIO1) to indicate this bit is to be used as
+	/*
+	 * Clear MDIO_DIR (SWDPIO1) to indicate this bit is to be used as
 	 * input.
 	 */
 	ctrl &= ~E1000_CTRL_MDIO_DIR;
@@ -766,7 +761,8 @@ e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl);
 	E1000_WRITE_FLUSH(hw);
 
-	/* Raise and lower the clock before reading in the data.  This accounts
+	/*
+	 * Raise and lower the clock before reading in the data.  This accounts
 	 * for the turnaround bits.  The first clock occurred when we clocked
 	 * out the last bit of the Register Address.
 	 */
@@ -797,8 +793,7 @@ e1000_shift_in_mdi_bits_82543(struct e1000_hw *hw)
  *  if the PHY is not auto-negotiating and the speed is forced to 10Mbit,
  *  then call the function for polarity reversal workaround.
  **/
-STATIC s32
-e1000_phy_force_speed_duplex_82543(struct e1000_hw *hw)
+STATIC s32 e1000_phy_force_speed_duplex_82543(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
@@ -824,13 +819,12 @@ out:
  *  inadvertantly.  To workaround the issue, we disable the transmitter on
  *  the PHY until we have established the link partner's link parameters.
  **/
-static s32
-e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw)
+static s32 e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw)
 {
 	s32 ret_val;
 	u16 mii_status_reg;
 	u16 i;
-	boolean_t link;
+	bool link;
 
 	/* Polarity reversal workaround for forced 10F/10H links. */
 
@@ -847,11 +841,13 @@ e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/* This loop will early-out if the NO link condition has been met.
+	/*
+	 * This loop will early-out if the NO link condition has been met.
 	 * In other words, DO NOT use e1000_phy_has_link_generic() here.
 	 */
 	for (i = PHY_FORCE_TIME; i > 0; i--) {
-		/* Read the MII Status Register and wait for Link Status bit
+		/*
+		 * Read the MII Status Register and wait for Link Status bit
 		 * to be clear.
 		 */
 
@@ -893,7 +889,8 @@ e1000_polarity_reversal_workaround_82543(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/* Read the MII Status Register and wait for Link Status bit
+	/*
+	 * Read the MII Status Register and wait for Link Status bit
 	 * to be set.
 	 */
 	ret_val = e1000_phy_has_link_generic(hw, PHY_FORCE_TIME, 100000, &link);
@@ -913,8 +910,7 @@ out:
  *  has been accomplished, clear the PHY_RESET_DIR bit to take the PHY out
  *  of reset.  This is a function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_phy_hw_reset_82543(struct e1000_hw *hw)
+STATIC s32 e1000_phy_hw_reset_82543(struct e1000_hw *hw)
 {
 	struct e1000_functions *func = &hw->func;
 	u32 ctrl_ext;
@@ -922,7 +918,8 @@ e1000_phy_hw_reset_82543(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_phy_hw_reset_82543");
 
-	/* Read the Extended Device Control Register, assert the PHY_RESET_DIR
+	/*
+	 * Read the Extended Device Control Register, assert the PHY_RESET_DIR
 	 * bit to put the PHY into reset...
 	 */
 	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
@@ -952,8 +949,7 @@ e1000_phy_hw_reset_82543(struct e1000_hw *hw)
  *  This resets the hardware into a known state.  This is a
  *  function pointer entry point called by the api module.
  **/
-STATIC s32
-e1000_reset_hw_82543(struct e1000_hw *hw)
+STATIC s32 e1000_reset_hw_82543(struct e1000_hw *hw)
 {
 	u32 ctrl, icr;
 	s32 ret_val = E1000_SUCCESS;
@@ -969,7 +965,8 @@ e1000_reset_hw_82543(struct e1000_hw *hw)
 
 	e1000_set_tbi_sbp_82543(hw, FALSE);
 
-	/* Delay to allow any outstanding PCI transactions to complete before
+	/*
+	 * Delay to allow any outstanding PCI transactions to complete before
 	 * resetting the device
 	 */
 	msec_delay(10);
@@ -980,13 +977,15 @@ e1000_reset_hw_82543(struct e1000_hw *hw)
 	if (hw->mac.type == e1000_82543) {
 		E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
 	} else {
-		/* The 82544 can't ACK the 64-bit write when issuing the
+		/*
+		 * The 82544 can't ACK the 64-bit write when issuing the
 		 * reset, so use IO-mapping as a workaround.
 		 */
 		E1000_WRITE_REG_IO(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
 	}
 
-	/* After MAC reset, force reload of NVM to restore power-on
+	/*
+	 * After MAC reset, force reload of NVM to restore power-on
 	 * settings to device.
 	 */
 	e1000_reload_nvm(hw);
@@ -1005,8 +1004,7 @@ e1000_reset_hw_82543(struct e1000_hw *hw)
  *
  *  This inits the hardware readying it for operation.
  **/
-STATIC s32
-e1000_init_hw_82543(struct e1000_hw *hw)
+STATIC s32 e1000_init_hw_82543(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_dev_spec_82543 *dev_spec;
@@ -1018,7 +1016,7 @@ e1000_init_hw_82543(struct e1000_hw *hw)
 
 	dev_spec = (struct e1000_dev_spec_82543 *)hw->dev_spec;
 
-	if (dev_spec == NULL) {
+	if (!dev_spec) {
 		DEBUGOUT("dev_spec pointer is set to NULL.\n");
 		ret_val = -E1000_ERR_CONFIG;
 		goto out;
@@ -1038,7 +1036,8 @@ e1000_init_hw_82543(struct e1000_hw *hw)
 		E1000_WRITE_FLUSH(hw);
 	}
 
-	/* Set the PCI priority bit correctly in the CTRL register.  This
+	/*
+	 * Set the PCI priority bit correctly in the CTRL register.  This
 	 * determines if the adapter gives priority to receives, or if it
 	 * gives equal priority to transmits and receives.
 	 */
@@ -1052,7 +1051,8 @@ e1000_init_hw_82543(struct e1000_hw *hw)
 	/* Setup link and flow control */
 	ret_val = e1000_setup_link(hw);
 
-	/* Clear all of the statistics registers (clear on read).  It is
+	/*
+	 * Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
 	 * is no link.
@@ -1076,8 +1076,7 @@ out:
  *  should be established.  Assumes the hardware has previously been reset
  *  and the transmitter and receiver are not enabled.
  **/
-STATIC s32
-e1000_setup_link_82543(struct e1000_hw *hw)
+STATIC s32 e1000_setup_link_82543(struct e1000_hw *hw)
 {
 	u32 ctrl_ext;
 	s32  ret_val;
@@ -1085,7 +1084,8 @@ e1000_setup_link_82543(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_setup_link_82543");
 
-	/* Take the 4 bits from NVM word 0xF that determine the initial
+	/*
+	 * Take the 4 bits from NVM word 0xF that determine the initial
 	 * polarity value for the SW controlled pins, and setup the
 	 * Extended Device Control reg with that info.
 	 * This is needed because one of the SW controlled pins is used for
@@ -1117,17 +1117,17 @@ out:
  *  for link, once link is established calls to configure collision distance
  *  and flow control are called.
  **/
-STATIC s32
-e1000_setup_copper_link_82543(struct e1000_hw *hw)
+STATIC s32 e1000_setup_copper_link_82543(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32 ret_val;
-	boolean_t link;
+	bool link;
 
 	DEBUGFUNC("e1000_setup_copper_link_82543");
 
 	ctrl = E1000_READ_REG(hw, E1000_CTRL) | E1000_CTRL_SLU;
-	/* With 82543, we need to force speed and duplex on the MAC
+	/*
+	 * With 82543, we need to force speed and duplex on the MAC
 	 * equal to what the PHY speed and duplex configuration is.
 	 * In addition, we need to perform a hardware reset on the
 	 * PHY to take it out of reset.
@@ -1150,14 +1150,18 @@ e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		goto out;
 
 	if (hw->mac.autoneg) {
-		/* Setup autoneg and flow control advertisement and perform
-		 * autonegotiation. */
+		/*
+		 * Setup autoneg and flow control advertisement and perform
+		 * autonegotiation.
+		 */
 		ret_val = e1000_copper_link_autoneg(hw);
 		if (ret_val)
 			goto out;
 	} else {
-		/* PHY will be set to 10H, 10F, 100H or 100F
-		 * depending on user settings. */
+		/*
+		 * PHY will be set to 10H, 10F, 100H or 100F
+		 * depending on user settings.
+		 */
 		DEBUGOUT("Forcing Speed and Duplex\n");
 		ret_val = e1000_phy_force_speed_duplex_82543(hw);
 		if (ret_val) {
@@ -1166,7 +1170,8 @@ e1000_setup_copper_link_82543(struct e1000_hw *hw)
 		}
 	}
 
-	/* Check link status. Wait up to 100 microseconds for link to become
+	/*
+	 * Check link status. Wait up to 100 microseconds for link to become
 	 * valid.
 	 */
 	ret_val = e1000_phy_has_link_generic(hw,
@@ -1180,9 +1185,9 @@ e1000_setup_copper_link_82543(struct e1000_hw *hw)
 	if (link) {
 		DEBUGOUT("Valid link established!!!\n");
 		/* Config the MAC and PHY after link is up */
-		if (hw->mac.type == e1000_82544)
+		if (hw->mac.type == e1000_82544) {
 			e1000_config_collision_dist_generic(hw);
-		else {
+		} else {
 			ret_val = e1000_config_mac_to_phy_82543(hw);
 			if (ret_val)
 				goto out;
@@ -1203,8 +1208,7 @@ out:
  *  Configures collision distance and flow control for fiber links.  Upon
  *  successful setup, poll for link.
  **/
-STATIC s32
-e1000_setup_fiber_link_82543(struct e1000_hw *hw)
+STATIC s32 e1000_setup_fiber_link_82543(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32 ret_val;
@@ -1228,7 +1232,8 @@ e1000_setup_fiber_link_82543(struct e1000_hw *hw)
 	E1000_WRITE_FLUSH(hw);
 	msec_delay(1);
 
-	/* For these adapters, the SW defineable pin 1 is cleared when the
+	/*
+	 * For these adapters, the SW defineable pin 1 is cleared when the
 	 * optics detect a signal.  If we have a signal, then poll for a
 	 * "Link-Up" indication.
 	 */
@@ -1253,14 +1258,13 @@ out:
  *   - configure flow control after link up
  *   - configure tbi compatibility
  **/
-STATIC s32
-e1000_check_for_copper_link_82543(struct e1000_hw *hw)
+STATIC s32 e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 icr, rctl;
 	s32 ret_val;
 	u16 speed, duplex;
-	boolean_t link;
+	bool link;
 
 	DEBUGFUNC("e1000_check_for_copper_link_82543");
 
@@ -1280,11 +1284,13 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 
 	e1000_check_downshift_generic(hw);
 
-	/* If we are forcing speed/duplex, then we can return since
+	/*
+	 * If we are forcing speed/duplex, then we can return since
 	 * we have already determined whether we have link or not.
 	 */
 	if (!mac->autoneg) {
-		/* If speed and duplex are forced to 10H or 10F, then we will
+		/*
+		 * If speed and duplex are forced to 10H or 10F, then we will
 		 * implement the polarity reversal workaround.  We disable
 		 * interrupts first, and upon returning, place the devices
 		 * interrupt state to its previous value except for the link
@@ -1303,7 +1309,8 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/* We have a M88E1000 PHY and Auto-Neg is enabled.  If we
+	/*
+	 * We have a M88E1000 PHY and Auto-Neg is enabled.  If we
 	 * have Si on board that is 82544 or newer, Auto
 	 * Speed Detection takes care of MAC speed/duplex
 	 * configuration.  So we only need to configure Collision
@@ -1321,7 +1328,8 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 		}
 	}
 
-	/* Configure Flow Control now that Auto-Neg has completed.
+	/*
+	 * Configure Flow Control now that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -1331,7 +1339,8 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 		DEBUGOUT("Error configuring flow control\n");
 	}
 
-	/* At this point we know that we are on copper and we have
+	/*
+	 * At this point we know that we are on copper and we have
 	 * auto-negotiated link.  These are conditions for checking the link
 	 * partner capability register.  We use the link speed to determine if
 	 * TBI compatibility needs to be turned on or off.  If the link is not
@@ -1345,11 +1354,13 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 			return ret_val;
 		}
 		if (speed != SPEED_1000) {
-			/* If link speed is not set to gigabit speed,
+			/*
+			 * If link speed is not set to gigabit speed,
 			 * we do not need to enable TBI compatibility.
 			 */
 			if (e1000_tbi_sbp_enabled_82543(hw)) {
-				/* If we previously were in the mode,
+				/*
+				 * If we previously were in the mode,
 				 * turn it off.
 				 */
 				e1000_set_tbi_sbp_82543(hw, FALSE);
@@ -1358,7 +1369,8 @@ e1000_check_for_copper_link_82543(struct e1000_hw *hw)
 				E1000_WRITE_REG(hw, E1000_RCTL, rctl);
 			}
 		} else {
-			/* If TBI compatibility is was previously off,
+			/*
+			 * If TBI compatibility is was previously off,
 			 * turn it on. For compatibility with a TBI link
 			 * partner, we will store bad packets. Some
 			 * frames have an additional byte on the end and
@@ -1383,8 +1395,7 @@ out:
  *  Checks for link up on the hardware.  If link is not up and we have
  *  a signal, then we need to force link up.
  **/
-STATIC s32
-e1000_check_for_fiber_link_82543(struct e1000_hw *hw)
+STATIC s32 e1000_check_for_fiber_link_82543(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 rxcw, ctrl, status;
@@ -1393,10 +1404,11 @@ e1000_check_for_fiber_link_82543(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_check_for_fiber_link_82543");
 
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
-	status = E1000_READ_REG(hw, E1000_CTRL);
-	rxcw = E1000_READ_REG(hw, E1000_CTRL);
+	status = E1000_READ_REG(hw, E1000_STATUS);
+	rxcw = E1000_READ_REG(hw, E1000_RXCW);
 
-	/* If we don't have link (auto-negotiation failed or link partner
+	/*
+	 * If we don't have link (auto-negotiation failed or link partner
 	 * cannot auto-negotiate), the cable is plugged in (we have signal),
 	 * and our link partner is not trying to auto-negotiate with us (we
 	 * are receiving idles or data), we need to force link up. We also
@@ -1429,7 +1441,8 @@ e1000_check_for_fiber_link_82543(struct e1000_hw *hw)
 			goto out;
 		}
 	} else if ((ctrl & E1000_CTRL_SLU) && (rxcw & E1000_RXCW_C)) {
-		/* If we are forcing link and we are receiving /C/ ordered
+		/*
+		 * If we are forcing link and we are receiving /C/ ordered
 		 * sets, re-enable auto-negotiation in the TXCW register
 		 * and disable forced link in the Device Control register
 		 * in an attempt to auto-negotiate with our link partner.
@@ -1452,8 +1465,7 @@ out:
  *  For the 82543 silicon, we need to set the MAC to match the settings
  *  of the PHY, even if the PHY is auto-negotiating.
  **/
-static s32
-e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
+static s32 e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32 ret_val;
@@ -1466,7 +1478,8 @@ e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
 	ctrl |= (E1000_CTRL_FRCSPD | E1000_CTRL_FRCDPX);
 	ctrl &= ~(E1000_CTRL_SPD_SEL | E1000_CTRL_ILOS);
 
-	/* Set up duplex in the Device Control and Transmit Control
+	/*
+	 * Set up duplex in the Device Control and Transmit Control
 	 * registers depending on negotiated values.
 	 */
 	ret_val = e1000_read_phy_reg(hw, M88E1000_PHY_SPEC_STATUS, &phy_data);
@@ -1479,7 +1492,8 @@ e1000_config_mac_to_phy_82543(struct e1000_hw *hw)
 
 	e1000_config_collision_dist_generic(hw);
 
-	/* Set up speed in the Device Control register depending on
+	/*
+	 * Set up speed in the Device Control register depending on
 	 * negotiated values.
 	 */
 	if ((phy_data & M88E1000_PSSR_SPEED) == M88E1000_PSSR_1000MBS)
@@ -1502,8 +1516,7 @@ out:
  *  This writes a 32-bit value to a 32-bit offset in the VLAN filter
  *  table.
  **/
-STATIC void
-e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
+STATIC void e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
 {
 	u32 temp;
 
@@ -1515,8 +1528,9 @@ e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
 		E1000_WRITE_FLUSH(hw);
 		E1000_WRITE_REG_ARRAY(hw, E1000_VFTA, offset - 1, temp);
 		E1000_WRITE_FLUSH(hw);
-	} else
+	} else {
 		e1000_write_vfta_generic(hw, offset, value);
+	}
 }
 
 /**
@@ -1529,8 +1543,7 @@ e1000_write_vfta_82543(struct e1000_hw *hw, u32 offset, u32 value)
  *  current value is read, the new bit is OR'd in and the new value is
  *  written back into the register.
  **/
-STATIC void
-e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
+STATIC void e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
 {
 	u32 hash_bit, hash_reg, mta, temp;
 
@@ -1538,7 +1551,8 @@ e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
 
 	hash_reg = (hash_value >> 5);
 
-	/* If we are on an 82544 and we are trying to write an odd offset
+	/*
+	 * If we are on an 82544 and we are trying to write an odd offset
 	 * in the MTA, save off the previous entry before writing and
 	 * restore the old value after writing.
 	 */
@@ -1553,8 +1567,9 @@ e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
 		E1000_WRITE_FLUSH(hw);
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, hash_reg - 1, temp);
 		E1000_WRITE_FLUSH(hw);
-	} else
+	} else {
 		e1000_mta_set_generic(hw, hash_value);
+	}
 }
 
 /**
@@ -1564,15 +1579,14 @@ e1000_mta_set_82543(struct e1000_hw *hw, u32 hash_value)
  *  Turns the SW defined LED on.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32
-e1000_led_on_82543(struct e1000_hw *hw)
+STATIC s32 e1000_led_on_82543(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
 	DEBUGFUNC("e1000_led_on_82543");
 
 	if (hw->mac.type == e1000_82544 &&
-	    hw->media_type == e1000_media_type_copper) {
+	    hw->phy.media_type == e1000_media_type_copper) {
 		/* Clear SW-defineable Pin 0 to turn on the LED */
 		ctrl &= ~E1000_CTRL_SWDPIN0;
 		ctrl |= E1000_CTRL_SWDPIO0;
@@ -1593,15 +1607,14 @@ e1000_led_on_82543(struct e1000_hw *hw)
  *  Turns the SW defined LED off.  This is a function pointer entry point
  *  called by the api module.
  **/
-STATIC s32
-e1000_led_off_82543(struct e1000_hw *hw)
+STATIC s32 e1000_led_off_82543(struct e1000_hw *hw)
 {
 	u32 ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
 	DEBUGFUNC("e1000_led_off_82543");
 
 	if (hw->mac.type == e1000_82544 &&
-	    hw->media_type == e1000_media_type_copper) {
+	    hw->phy.media_type == e1000_media_type_copper) {
 		/* Set SW-defineable Pin 0 to turn off the LED */
 		ctrl |= E1000_CTRL_SWDPIN0;
 		ctrl |= E1000_CTRL_SWDPIO0;
@@ -1620,8 +1633,7 @@ e1000_led_off_82543(struct e1000_hw *hw)
  *
  *  Clears the hardware counters by reading the counter registers.
  **/
-STATIC void
-e1000_clear_hw_cntrs_82543(struct e1000_hw *hw)
+STATIC void e1000_clear_hw_cntrs_82543(struct e1000_hw *hw)
 {
 	volatile u32 temp;
 

@@ -30,31 +30,12 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/*$FreeBSD$*/
+/* $FreeBSD$ */
 
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
 
-#define E1000_TXD_POPTS_IXSM 0x01       /* Insert IP checksum */
-#define E1000_TXD_POPTS_TXSM 0x02       /* Insert TCP/UDP checksum */
-#define E1000_TXD_CMD_EOP    0x01000000 /* End of Packet */
-#define E1000_TXD_CMD_IFCS   0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_TXD_CMD_IC     0x04000000 /* Insert Checksum */
-#define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
-#define E1000_TXD_CMD_RPS    0x10000000 /* Report Packet Sent */
-#define E1000_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
-#define E1000_TXD_CMD_VLE    0x40000000 /* Add VLAN tag */
-#define E1000_TXD_CMD_IDE    0x80000000 /* Enable Tidv register */
-#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
-#define E1000_TXD_STAT_EC    0x00000002 /* Excess Collisions */
-#define E1000_TXD_STAT_LC    0x00000004 /* Late Collisions */
-#define E1000_TXD_STAT_TU    0x00000008 /* Transmit underrun */
-#define E1000_TXD_CMD_TCP    0x01000000 /* TCP packet */
-#define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
-#define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
-#define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
-/* Extended desc bits for Linksec and timesync */
 /* Number of Transmit and Receive Descriptors must be a multiple of 8 */
 #define REQ_TX_DESCRIPTOR_MULTIPLE  8
 #define REQ_RX_DESCRIPTOR_MULTIPLE  8
@@ -243,20 +224,20 @@
 #define E1000_MANC_IPV6_EN       0x00000800 /* Enable IPv6 */
 #define E1000_MANC_SNAP_EN       0x00001000 /* Accept LLC/SNAP */
 #define E1000_MANC_ARP_EN        0x00002000 /* Enable ARP Request Filtering */
-#define E1000_MANC_NEIGHBOR_EN   0x00004000 /* Enable Neighbor Discovery
-                                             * Filtering */
+/* Enable Neighbor Discovery Filtering */
+#define E1000_MANC_NEIGHBOR_EN   0x00004000
 #define E1000_MANC_ARP_RES_EN    0x00008000 /* Enable ARP response Filtering */
 #define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
 #define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
 #define E1000_MANC_REPORT_STATUS 0x00040000 /* Status Reporting Enabled */
 #define E1000_MANC_RCV_ALL       0x00080000 /* Receive All Enabled */
 #define E1000_MANC_BLK_PHY_RST_ON_IDE   0x00040000 /* Block phy resets */
-#define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000 /* Enable MAC address
-                                                    * filtering */
-#define E1000_MANC_EN_MNG2HOST   0x00200000 /* Enable MNG packets to host
-                                             * memory */
-#define E1000_MANC_EN_IP_ADDR_FILTER    0x00400000 /* Enable IP address
-                                                    * filtering */
+/* Enable MAC address filtering */
+#define E1000_MANC_EN_MAC_ADDR_FILTER   0x00100000
+/* Enable MNG packets to host memory */
+#define E1000_MANC_EN_MNG2HOST   0x00200000
+/* Enable IP address filtering */
+#define E1000_MANC_EN_IP_ADDR_FILTER    0x00400000
 #define E1000_MANC_EN_XSUM_FILTER   0x00800000 /* Enable checksum filtering */
 #define E1000_MANC_BR_EN            0x01000000 /* Enable broadcast filtering */
 #define E1000_MANC_SMB_REQ       0x01000000 /* SMBus Request */
@@ -311,7 +292,8 @@
 #define E1000_RCTL_FLXBUF_MASK    0x78000000    /* Flexible buffer size */
 #define E1000_RCTL_FLXBUF_SHIFT   27            /* Flexible buffer shift */
 
-/* Use byte values for the following shift parameters
+/*
+ * Use byte values for the following shift parameters
  * Usage:
  *     psrctl |= (((ROUNDUP(value0, 128) >> E1000_PSRCTL_BSIZE0_SHIFT) &
  *                  E1000_PSRCTL_BSIZE0_MASK) |
@@ -342,6 +324,8 @@
 #define E1000_SWFW_PHY0_SM  0x2
 #define E1000_SWFW_PHY1_SM  0x4
 
+/* FACTPS Definitions */
+#define E1000_FACTPS_LFS    0x40000000  /* LAN Function Select */
 /* Device Control */
 #define E1000_CTRL_FD       0x00000001  /* Full duplex.0=half; 1=full */
 #define E1000_CTRL_BEM      0x00000002  /* Endian Mode.0=little,1=big */
@@ -533,6 +517,7 @@
 /* Transmit Descriptor bit definitions */
 #define E1000_TXD_DTYP_D     0x00100000 /* Data Descriptor */
 #define E1000_TXD_DTYP_C     0x00000000 /* Context Descriptor */
+#define E1000_TXD_POPTS_SHIFT 8         /* POPTS shift */
 #define E1000_TXD_POPTS_IXSM 0x01       /* Insert IP checksum */
 #define E1000_TXD_POPTS_TXSM 0x02       /* Insert TCP/UDP checksum */
 #define E1000_TXD_CMD_EOP    0x01000000 /* End of Packet */
@@ -551,6 +536,7 @@
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
+/* Extended desc bits for Linksec and timesync */
 
 /* Transmit Control */
 #define E1000_TCTL_RST    0x00000001    /* software reset */
@@ -651,9 +637,9 @@
 #define E1000_KABGTXD_BGSQLBIAS           0x00050000
 
 /* PBA constants */
-#define E1000_PBA_8K  0x0008    /* 8KB, default Rx allocation */
-#define E1000_PBA_12K 0x000C    /* 12KB, default Rx allocation */
-#define E1000_PBA_16K 0x0010    /* 16KB, default TX allocation */
+#define E1000_PBA_8K  0x0008    /* 8KB */
+#define E1000_PBA_12K 0x000C    /* 12KB */
+#define E1000_PBA_16K 0x0010    /* 16KB */
 #define E1000_PBA_20K 0x0014
 #define E1000_PBA_22K 0x0016
 #define E1000_PBA_24K 0x0018
@@ -662,7 +648,8 @@
 #define E1000_PBA_34K 0x0022
 #define E1000_PBA_38K 0x0026
 #define E1000_PBA_40K 0x0028
-#define E1000_PBA_48K 0x0030    /* 48KB, default RX allocation */
+#define E1000_PBA_48K 0x0030    /* 48KB */
+#define E1000_PBA_64K 0x0040    /* 64KB */
 
 #define E1000_PBS_16K E1000_PBA_16K
 #define E1000_PBS_24K E1000_PBA_24K
@@ -688,7 +675,7 @@
 #define E1000_ICR_RXO           0x00000040 /* rx overrun */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_MDAC          0x00000200 /* MDIO access complete */
-#define E1000_ICR_RXCFG         0x00000400 /* RX /c/ ordered set */
+#define E1000_ICR_RXCFG         0x00000400 /* Rx /c/ ordered set */
 #define E1000_ICR_GPI_EN0       0x00000800 /* GP Int 0 */
 #define E1000_ICR_GPI_EN1       0x00001000 /* GP Int 1 */
 #define E1000_ICR_GPI_EN2       0x00002000 /* GP Int 2 */
@@ -727,7 +714,8 @@
 #define E1000_TCPTIMER_COUNT_FINISH       0x00000400 /* Count finish */
 #define E1000_TCPTIMER_LOOP     0x00000800 /* Loop */
 
-/* This defines the bits that are set in the Interrupt Mask
+/*
+ * This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXDMT0 = Receive Descriptor Minimum Threshold hit (ring 0)
  *   o RXSEQ  = Receive Sequence Error
@@ -736,7 +724,8 @@
     E1000_IMS_RXDMT0 |    \
     E1000_IMS_RXSEQ)
 
-/* This defines the bits that are set in the Interrupt Mask
+/*
+ * This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
  *   o RXT0   = Receiver Timer Interrupt (ring 0)
  *   o TXDW   = Transmit Descriptor Written Back
@@ -760,7 +749,7 @@
 #define E1000_IMS_RXO       E1000_ICR_RXO       /* rx overrun */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
 #define E1000_IMS_MDAC      E1000_ICR_MDAC      /* MDIO access complete */
-#define E1000_IMS_RXCFG     E1000_ICR_RXCFG     /* RX /c/ ordered set */
+#define E1000_IMS_RXCFG     E1000_ICR_RXCFG     /* Rx /c/ ordered set */
 #define E1000_IMS_GPI_EN0   E1000_ICR_GPI_EN0   /* GP Int 0 */
 #define E1000_IMS_GPI_EN1   E1000_ICR_GPI_EN1   /* GP Int 1 */
 #define E1000_IMS_GPI_EN2   E1000_ICR_GPI_EN2   /* GP Int 2 */
@@ -801,7 +790,7 @@
 #define E1000_ICS_RXO       E1000_ICR_RXO       /* rx overrun */
 #define E1000_ICS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
 #define E1000_ICS_MDAC      E1000_ICR_MDAC      /* MDIO access complete */
-#define E1000_ICS_RXCFG     E1000_ICR_RXCFG     /* RX /c/ ordered set */
+#define E1000_ICS_RXCFG     E1000_ICR_RXCFG     /* Rx /c/ ordered set */
 #define E1000_ICS_GPI_EN0   E1000_ICR_GPI_EN0   /* GP Int 0 */
 #define E1000_ICS_GPI_EN1   E1000_ICR_GPI_EN1   /* GP Int 1 */
 #define E1000_ICS_GPI_EN2   E1000_ICR_GPI_EN2   /* GP Int 2 */
@@ -841,8 +830,8 @@
 #define E1000_TXDCTL_LWTHRESH 0xFE000000 /* TXDCTL Low Threshold */
 #define E1000_TXDCTL_FULL_TX_DESC_WB 0x01010000 /* GRAN=1, WTHRESH=1 */
 #define E1000_TXDCTL_MAX_TX_DESC_PREFETCH 0x0100001F /* GRAN=1, PTHRESH=31 */
-#define E1000_TXDCTL_COUNT_DESC 0x00400000 /* Enable the counting of desc.
-                                              still to be processed. */
+/* Enable the counting of descriptors still to be processed. */
+#define E1000_TXDCTL_COUNT_DESC 0x00400000
 
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW  0x00C28001
@@ -854,7 +843,8 @@
 #define E1000_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
 
 /* Receive Address */
-/* Number of high/low register pairs in the RAR. The RAR (Receive Address
+/*
+ * Number of high/low register pairs in the RAR. The RAR (Receive Address
  * Registers) holds the directed and multicast addresses that we monitor.
  * Technically, we have 16 spots.  However, we reserve one of these spots
  * (RAR[15]) for our directed address used by controllers with
@@ -1021,7 +1011,7 @@
 #define SR_1000T_LP_FD_CAPS       0x0800 /* LP is 1000T FD capable */
 #define SR_1000T_REMOTE_RX_STATUS 0x1000 /* Remote receiver OK */
 #define SR_1000T_LOCAL_RX_STATUS  0x2000 /* Local receiver OK */
-#define SR_1000T_MS_CONFIG_RES    0x4000 /* 1=Local TX is Master, 0=Slave */
+#define SR_1000T_MS_CONFIG_RES    0x4000 /* 1=Local Tx is Master, 0=Slave */
 #define SR_1000T_MS_CONFIG_FAULT  0x8000 /* Master/Slave config fault */
 
 #define SR_1000T_PHY_EXCESSIVE_IDLE_ERR_COUNT 5
@@ -1035,7 +1025,7 @@
 #define PHY_AUTONEG_ADV  0x04 /* Autoneg Advertisement */
 #define PHY_LP_ABILITY   0x05 /* Link Partner Ability (Base Page) */
 #define PHY_AUTONEG_EXP  0x06 /* Autoneg Expansion Reg */
-#define PHY_NEXT_PAGE_TX 0x07 /* Next Page TX */
+#define PHY_NEXT_PAGE_TX 0x07 /* Next Page Tx */
 #define PHY_LP_NEXT_PAGE 0x08 /* Link Partner Next Page */
 #define PHY_1000T_CTRL   0x09 /* 1000Base-T Control Reg */
 #define PHY_1000T_STATUS 0x0A /* 1000Base-T Status Reg */
@@ -1054,8 +1044,8 @@
 #define E1000_EECD_GNT       0x00000080 /* NVM Access Grant */
 #define E1000_EECD_PRES      0x00000100 /* NVM Present */
 #define E1000_EECD_SIZE      0x00000200 /* NVM Size (0=64 word 1=256 word) */
-#define E1000_EECD_ADDR_BITS 0x00000400 /* NVM Addressing bits based on type
-                                         * (0-small, 1-large) */
+/* NVM Addressing bits based on type 0=small, 1=large */
+#define E1000_EECD_ADDR_BITS 0x00000400
 #define E1000_EECD_TYPE      0x00002000 /* NVM Type (1-SPI, 0-Microwire) */
 #ifndef E1000_NVM_GRANT_ATTEMPTS
 #define E1000_NVM_GRANT_ATTEMPTS   1000 /* NVM # attempts to gain grant */
@@ -1097,6 +1087,7 @@
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
 #define NVM_CFG                    0x0012
 #define NVM_FLASH_VERSION          0x0032
+#define NVM_ALT_MAC_ADDR_PTR       0x0037
 #define NVM_CHECKSUM_REG           0x003F
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x40000 /* MNG config cycle done */
@@ -1199,7 +1190,8 @@
 #define MAX_PHY_MULTI_PAGE_REG 0xF
 
 /* Bit definitions for valid PHY IDs. */
-/* I = Integrated
+/*
+ * I = Integrated
  * E = External
  */
 #define M88E1000_E_PHY_ID    0x01410C50
@@ -1233,26 +1225,22 @@
 #define M88E1000_PSCR_JABBER_DISABLE    0x0001 /* 1=Jabber Function disabled */
 #define M88E1000_PSCR_POLARITY_REVERSAL 0x0002 /* 1=Polarity Reversal enabled */
 #define M88E1000_PSCR_SQE_TEST          0x0004 /* 1=SQE Test enabled */
-#define M88E1000_PSCR_CLK125_DISABLE    0x0010 /* 1=CLK125 low,
-                                                * 0=CLK125 toggling
-                                                */
+/* 1=CLK125 low, 0=CLK125 toggling */
+#define M88E1000_PSCR_CLK125_DISABLE    0x0010
 #define M88E1000_PSCR_MDI_MANUAL_MODE  0x0000  /* MDI Crossover Mode bits 6:5 */
                                                /* Manual MDI configuration */
 #define M88E1000_PSCR_MDIX_MANUAL_MODE 0x0020  /* Manual MDIX configuration */
-#define M88E1000_PSCR_AUTO_X_1000T     0x0040  /* 1000BASE-T: Auto crossover,
-                                                *  100BASE-TX/10BASE-T:
-                                                *  MDI Mode
-                                                */
-#define M88E1000_PSCR_AUTO_X_MODE      0x0060  /* Auto crossover enabled
-                                                * all speeds.
-                                                */
+/* 1000BASE-T: Auto crossover, 100BASE-TX/10BASE-T: MDI Mode */
+#define M88E1000_PSCR_AUTO_X_1000T     0x0040
+/* Auto crossover enabled all speeds */
+#define M88E1000_PSCR_AUTO_X_MODE      0x0060
+/*
+ * 1=Enable Extended 10BASE-T distance (Lower 10BASE-T Rx Threshold
+ * 0=Normal 10BASE-T Rx Threshold
+ */
 #define M88E1000_PSCR_EN_10BT_EXT_DIST 0x0080
-                                        /* 1=Enable Extended 10BASE-T distance
-                                         * (Lower 10BASE-T RX Threshold)
-                                         * 0=Normal 10BASE-T RX Threshold */
+/* 1=5-bit interface in 100BASE-TX, 0=MII interface in 100BASE-TX */
 #define M88E1000_PSCR_MII_5BIT_ENABLE      0x0100
-                                        /* 1=5-Bit interface in 100BASE-TX
-                                         * 0=MII interface in 100BASE-TX */
 #define M88E1000_PSCR_SCRAMBLER_DISABLE    0x0200 /* 1=Scrambler disable */
 #define M88E1000_PSCR_FORCE_LINK_GOOD      0x0400 /* 1=Force link good */
 #define M88E1000_PSCR_ASSERT_CRS_ON_TX     0x0800 /* 1=Assert CRS on Transmit */
@@ -1262,8 +1250,14 @@
 #define M88E1000_PSSR_REV_POLARITY       0x0002 /* 1=Polarity reversed */
 #define M88E1000_PSSR_DOWNSHIFT          0x0020 /* 1=Downshifted */
 #define M88E1000_PSSR_MDIX               0x0040 /* 1=MDIX; 0=MDI */
-#define M88E1000_PSSR_CABLE_LENGTH       0x0380 /* 0=<50M;1=50-80M;2=80-110M;
-                                            * 3=110-140M;4=>140M */
+/*
+ * 0 = <50M
+ * 1 = 50-80M
+ * 2 = 80-110M
+ * 3 = 110-140M
+ * 4 = >140M
+ */
+#define M88E1000_PSSR_CABLE_LENGTH       0x0380
 #define M88E1000_PSSR_LINK               0x0400 /* 1=Link up, 0=Link down */
 #define M88E1000_PSSR_SPD_DPLX_RESOLVED  0x0800 /* 1=Speed & Duplex resolved */
 #define M88E1000_PSSR_PAGE_RCVD          0x1000 /* 1=Page received */
@@ -1277,20 +1271,26 @@
 
 /* M88E1000 Extended PHY Specific Control Register */
 #define M88E1000_EPSCR_FIBER_LOOPBACK 0x4000 /* 1=Fiber loopback */
-#define M88E1000_EPSCR_DOWN_NO_IDLE   0x8000 /* 1=Lost lock detect enabled.
-                                              * Will assert lost lock and bring
-                                              * link down if idle not seen
-                                              * within 1ms in 1000BASE-T
-                                              */
-/* Number of times we will attempt to autonegotiate before downshifting if we
- * are the master */
+/*
+ * 1 = Lost lock detect enabled.
+ * Will assert lost lock and bring
+ * link down if idle not seen
+ * within 1ms in 1000BASE-T
+ */
+#define M88E1000_EPSCR_DOWN_NO_IDLE   0x8000
+/*
+ * Number of times we will attempt to autonegotiate before downshifting if we
+ * are the master
+ */
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_MASK 0x0C00
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_1X   0x0000
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_2X   0x0400
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_3X   0x0800
 #define M88E1000_EPSCR_MASTER_DOWNSHIFT_4X   0x0C00
-/* Number of times we will attempt to autonegotiate before downshifting if we
- * are the slave */
+/*
+ * Number of times we will attempt to autonegotiate before downshifting if we
+ * are the slave
+ */
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_MASK  0x0300
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_DIS   0x0000
 #define M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X    0x0100
@@ -1311,7 +1311,8 @@
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_7X    0x0C00
 #define M88EC018_EPSCR_DOWNSHIFT_COUNTER_8X    0x0E00
 
-/* Bits...
+/*
+ * Bits...
  * 15-5: page
  * 4-0: register offset
  */
@@ -1400,4 +1401,30 @@
 #define E1000_GEN_CTL_READY             0x80000000
 #define E1000_GEN_CTL_ADDRESS_SHIFT     8
 #define E1000_GEN_POLL_TIMEOUT          640
+
+/* LinkSec register fields */
+#define E1000_LSECTXCAP_SUM_MASK        0x00FF0000
+#define E1000_LSECTXCAP_SUM_SHIFT       16
+#define E1000_LSECRXCAP_SUM_MASK        0x00FF0000
+#define E1000_LSECRXCAP_SUM_SHIFT       16
+
+#define E1000_LSECTXCTRL_EN_MASK        0x00000003
+#define E1000_LSECTXCTRL_DISABLE        0x0
+#define E1000_LSECTXCTRL_AUTH           0x1
+#define E1000_LSECTXCTRL_AUTH_ENCRYPT   0x2
+#define E1000_LSECTXCTRL_AISCI          0x00000020
+#define E1000_LSECTXCTRL_PNTHRSH_MASK   0xFFFFFF00
+#define E1000_LSECTXCTRL_RSV_MASK       0x000000D8
+
+#define E1000_LSECRXCTRL_EN_MASK        0x0000000C
+#define E1000_LSECRXCTRL_EN_SHIFT       2
+#define E1000_LSECRXCTRL_DISABLE        0x0
+#define E1000_LSECRXCTRL_CHECK          0x1
+#define E1000_LSECRXCTRL_STRICT         0x2
+#define E1000_LSECRXCTRL_DROP           0x3
+#define E1000_LSECRXCTRL_PLSH           0x00000040
+#define E1000_LSECRXCTRL_RP             0x00000080
+#define E1000_LSECRXCTRL_RSV_MASK       0xFFFFFF33
+
+#define UNREFERENCED_PARAMETER(_p)
 #endif
