@@ -6,7 +6,6 @@ SRCS=	zfs.c
 OBJS=	zfs.o
 WARNS?=	1
 
-CFLAGS=-D_SOLARIS_C_SOURCE
 CFLAGS+= -I${.CURDIR}/../../../sys/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../../compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../compat/opensolaris/lib/libumem
