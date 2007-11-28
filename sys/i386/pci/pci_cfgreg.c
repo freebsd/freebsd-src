@@ -403,6 +403,7 @@ pcireg_cfgopen(void)
 	uint32_t mode1res, oldval1;
 	uint8_t mode2res, oldval2;
 
+	/* Check for type #1 first. */
 	oldval1 = inl(CONF1_ADDR_PORT);
 
 	if (bootverbose) {
@@ -410,39 +411,37 @@ pcireg_cfgopen(void)
 		    oldval1);
 	}
 
-	if ((oldval1 & CONF1_ENABLE_MSK) == 0) {
+	cfgmech = CFGMECH_1;
+	devmax = 32;
 
-		cfgmech = CFGMECH_1;
-		devmax = 32;
+	outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	DELAY(1);
+	mode1res = inl(CONF1_ADDR_PORT);
+	outl(CONF1_ADDR_PORT, oldval1);
 
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-		DELAY(1);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
+	if (bootverbose)
+		printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n",  mode1res,
+		    CONF1_ENABLE_CHK);
 
-		if (bootverbose)
-			printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n", 
-			    mode1res, CONF1_ENABLE_CHK);
-
-		if (mode1res) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
-
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
-
-		if (bootverbose)
-			printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n", 
-			    mode1res, CONF1_ENABLE_CHK1);
-
-		if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
+	if (mode1res) {
+		if (pci_cfgcheck(32)) 
+			return (cfgmech);
 	}
 
+	outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
+	mode1res = inl(CONF1_ADDR_PORT);
+	outl(CONF1_ADDR_PORT, oldval1);
+
+	if (bootverbose)
+		printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n",  mode1res,
+		    CONF1_ENABLE_CHK1);
+
+	if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
+		if (pci_cfgcheck(32)) 
+			return (cfgmech);
+	}
+
+	/* Type #1 didn't work, so try type #2. */
 	oldval2 = inb(CONF2_ENABLE_PORT);
 
 	if (bootverbose) {
@@ -472,6 +471,7 @@ pcireg_cfgopen(void)
 		}
 	}
 
+	/* Nothing worked, so punt. */
 	cfgmech = CFGMECH_NONE;
 	devmax = 0;
 	return (cfgmech);
