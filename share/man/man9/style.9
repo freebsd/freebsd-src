@@ -65,7 +65,8 @@ The copyright header should be a multi-line comment, with the first
 line of the comment having a dash after the star like so:
 .Bd -literal
 /*-
- * Copyright (c) 1984-2025 John Q. Public.  All Rights Reserved.
+ * Copyright (c) 1984-2025 John Q. Public
+ * All rights reserved.
  *
  * Long, boring license goes here, but redacted for brevity
  */
@@ -473,7 +474,7 @@ comment.
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
 		case 'a':		/* Don't indent the case. */
-			aflag = 1;
+			aflag = 1;	/* Indent case body one tab. */
 			/* FALLTHROUGH */
 		case 'b':
 			bflag = 1;
