@@ -21,6 +21,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20071128:
+	The ADAPTIVE_GIANT kernel option has been retired because its
+	functionality is the default now.
+
 20071118:
 	The AT keyboard emulation of sunkbd(4) has been turned on
 	by default. In order to make the special symbols of the Sun
