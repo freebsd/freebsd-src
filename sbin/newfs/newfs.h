@@ -52,7 +52,7 @@ extern int	Eflag;		/* exit as if error, for testing */
 extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
-extern quad_t	fssize;		/* file system size */
+extern intmax_t	fssize;		/* file system size */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/
 extern int	fsize;		/* fragment size */

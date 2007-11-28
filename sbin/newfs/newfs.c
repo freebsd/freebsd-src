@@ -120,7 +120,7 @@ int	Eflag = 0;		/* exit in middle of newfs for testing */
 int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
-quad_t	fssize;			/* file system size */
+intmax_t fssize;		/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
 int	fsize = 0;		/* fragment size */
@@ -141,6 +141,7 @@ static char	device[MAXPATHLEN];
 static char	*disktype;
 static int	unlabeled;
 
+static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
@@ -153,11 +154,13 @@ main(int argc, char *argv[])
 	struct partition oldpartition;
 	struct stat st;
 	char *cp, *special;
+	intmax_t reserved;
 	int ch, i;
 	off_t mediasize;
 
+	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:lm:no:s:")) != -1)
+	    "EJL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag++;
@@ -262,11 +265,19 @@ main(int argc, char *argv[])
 		"%s: unknown optimization preference: use `space' or `time'",
 				    optarg);
 			break;
+		case 'r':
+			errno = 0;
+			reserved = strtoimax(optarg, &cp, 0);
+			if (errno != 0 || cp == optarg ||
+			    *cp != '\0' || reserved < 0)
+				errx(1, "%s: bad reserved size", optarg);
+			break;
 		case 's':
 			errno = 0;
-			fssize = strtoimax(optarg, NULL, 0);
-			if (errno != 0)
-				err(1, "%s: bad file system size", optarg);
+			fssize = strtoimax(optarg, &cp, 0);
+			if (errno != 0 || cp == optarg ||
+			    *cp != '\0' || fssize < 0)
+				errx(1, "%s: bad file system size", optarg);
 			break;
 		case '?':
 		default:
@@ -302,13 +313,8 @@ main(int argc, char *argv[])
 
 	if (sectorsize == 0)
 		ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize);
-	if (sectorsize && !ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize)) {
-		if (fssize == 0)
-			fssize = mediasize / sectorsize;
-		else if (fssize > mediasize / sectorsize)
-			errx(1, "%s: maximum file system size is %jd",
-			    special, (intmax_t)(mediasize / sectorsize));
-	}
+	if (sectorsize && !ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize))
+		getfssize(&fssize, special, mediasize / sectorsize, reserved);
 	pp = NULL;
 	lp = getdisklabel(special);
 	if (lp != NULL) {
@@ -328,11 +334,7 @@ main(int argc, char *argv[])
 		if (pp->p_fstype == FS_BOOT)
 			errx(1, "%s: `%c' partition overlaps boot program",
 			    special, *cp);
-		if (fssize == 0)
-			fssize = pp->p_size;
-		if (fssize > pp->p_size)
-			errx(1, 
-		    "%s: maximum file system size %d", special, pp->p_size);
+		getfssize(&fssize, special, pp->p_size, reserved);
 		if (sectorsize == 0)
 			sectorsize = lp->d_secsize;
 		if (fsize == 0)
@@ -383,6 +385,22 @@ main(int argc, char *argv[])
 	}
 	ufs_disk_close(&disk);
 	exit(0);
+}
+
+void
+getfssize(intmax_t *fsz, const char *s, intmax_t disksize, intmax_t reserved)
+{
+	intmax_t available;
+
+	available = disksize - reserved;
+	if (available <= 0)
+		errx(1, "%s: reserved not less than device size %jd",
+		    s, disksize);
+	if (*fsz == 0)
+		*fsz = available;
+	else if (*fsz > available)
+		errx(1, "%s: maximum file system size is %jd",
+		    s, available);
 }
 
 struct disklabel *
@@ -443,6 +461,7 @@ usage()
 	fprintf(stderr, "\t-n do not create .snap directory\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
-	fprintf(stderr, "\t-s file systemsize (sectors)\n");
+	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
+	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);
 }
