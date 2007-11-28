@@ -44,8 +44,6 @@
 #define	max_ncpus	mp_ncpus
 #define	boot_max_ncpus	mp_ncpus
 
-extern int hz;	/* system clock's frequency */
-
 #define	TS_RUN	0
 
 #define	p0	proc0
