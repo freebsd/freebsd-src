@@ -430,6 +430,7 @@ static const struct {
 	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
 	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61" },
 	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65" },
+	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65" },
 	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67" },
 	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67" },
 	{ HDA_ATI_SB450,     "ATI SB450"    },
