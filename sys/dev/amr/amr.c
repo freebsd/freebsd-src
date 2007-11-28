@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
  * The CAM interface appears to be completely broken.  Disable it.
  */
 #ifndef AMR_ENABLE_CAM
-#define AMR_ENABLE_CAM 0
+#define AMR_ENABLE_CAM 1
 #endif
 
 SYSCTL_NODE(_hw, OID_AUTO, amr, CTLFLAG_RD, 0, "AMR driver parameters");
