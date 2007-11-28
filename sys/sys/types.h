@@ -297,36 +297,6 @@ typedef	struct vm_page	*vm_page_t;
 #endif /* !_KERNEL */
 
 /*
- * Solaris compatibility definitions.
- */
-#ifdef _SOLARIS_C_SOURCE
-typedef u_int		uint_t;
-typedef u_char		uchar_t;
-typedef u_short		ushort_t;
-typedef u_long		ulong_t;
-
-typedef	long long	longlong_t;  
-typedef unsigned long long	u_longlong_t;
-
-typedef off_t		off64_t;
-
-typedef id_t		taskid_t;
-typedef id_t		projid_t;
-typedef id_t		poolid_t;
-typedef id_t		zoneid_t;
-typedef id_t		ctid_t;
-
-#ifndef _KERNEL
-#if defined(__XOPEN_OR_POSIX)
-typedef enum { _B_FALSE, _B_TRUE } boolean_t;
-#else
-typedef enum { B_FALSE, B_TRUE } boolean_t;
-#endif /* defined(__XOPEN_OR_POSIX) */
-#endif
-
-#endif /* _SOLARIS_C_SOURCE */
-
-/*
  * The following are all things that really shouldn't exist in this header,
  * since its purpose is to provide typedefs, not miscellaneous doodads.
  */
