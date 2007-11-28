@@ -229,7 +229,9 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
+#if defined(sun)
 #define	_LITTLE_ENDIAN
+#endif
 #define	_STACK_GROWS_DOWNWARD
 #define	_LONG_LONG_LTOH
 #define	_BIT_FIELDS_LTOH
@@ -293,7 +295,9 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
+#if defined(sun)
 #define	_LITTLE_ENDIAN
+#endif
 #define	_STACK_GROWS_DOWNWARD
 #define	_LONG_LONG_LTOH
 #define	_BIT_FIELDS_LTOH
@@ -378,7 +382,9 @@ extern "C" {
  * Define the appropriate "processor characteristics" shared between
  * all Solaris on SPARC systems.
  */
+#if defined(sun)
 #define	_BIG_ENDIAN
+#endif
 #define	_STACK_GROWS_DOWNWARD
 #define	_LONG_LONG_HTOL
 #define	_BIT_FIELDS_HTOL
