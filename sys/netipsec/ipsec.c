@@ -1608,7 +1608,9 @@ ipsec4_hdrsiz(m, dir, inp)
 
 		KEY_FREESP(&sp);
 	} else {
-		size = 0;	/* XXX should be panic ? */
+		size = 0;	/* XXX should be panic ?
+				 * -> No, we are called w/o knowing if
+				 *    IPsec processing is needed. */
 	}
 	return size;
 }
