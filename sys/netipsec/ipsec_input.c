@@ -444,6 +444,9 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 		bcopy(&saidx->dst, &tdbi->dst, saidx->dst.sa.sa_len);
 		tdbi->proto = sproto;
 		tdbi->spi = sav->spi;
+		/* Cache those two for enc(4) in xform_ipip. */
+		tdbi->alg_auth = sav->alg_auth;
+		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
 	} else if (mt != NULL) {
@@ -458,10 +461,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
 	 * packet later after it has been decapsulated.
 	 */
-	ipsec_bpf(m, sav, AF_INET);
+	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
 
 	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN)) != 0)
+		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
 			return (error);
 #endif
 
@@ -703,6 +706,9 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 		bcopy(&saidx->dst, &tdbi->dst, sizeof(union sockaddr_union));
 		tdbi->proto = sproto;
 		tdbi->spi = sav->spi;
+		/* Cache those two for enc(4) in xform_ipip. */
+		tdbi->alg_auth = sav->alg_auth;
+		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
 	} else {
@@ -712,6 +718,19 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	}
 
 	key_sa_recordxfer(sav, m);
+
+#ifdef DEV_ENC
+	/*
+	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
+	 * packet later after it has been decapsulated.
+	 */
+	ipsec_bpf(m, sav, AF_INET6, ENC_IN|ENC_BEFORE);
+
+	/* XXX-BZ does not make sense. */
+	if (prot != IPPROTO_IPIP)
+		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+			return (error);
+#endif
 
 	/* Retrieve new protocol */
 	m_copydata(m, protoff, sizeof(u_int8_t), (caddr_t) &nxt8);

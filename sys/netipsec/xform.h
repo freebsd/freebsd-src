@@ -57,6 +57,9 @@ struct tdb_ident {
 	u_int32_t spi;
 	union sockaddr_union dst;
 	u_int8_t proto;
+	/* Cache those two for enc(4) in xform_ipip. */
+	u_int8_t alg_auth;
+	u_int8_t alg_enc;
 };
 
 /*
