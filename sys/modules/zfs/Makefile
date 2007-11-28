@@ -76,8 +76,6 @@ CWARNFLAGS+=-Wno-uninitialized
 CWARNFLAGS+=-Wno-unused
 CWARNFLAGS+=-Wno-switch
 
-CFLAGS+=-D_SOLARIS_C_SOURCE
-
 CFLAGS+=-I${.CURDIR}/../../compat/opensolaris
 CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+=-I${.CURDIR}/../../contrib/opensolaris/uts/common/zmod

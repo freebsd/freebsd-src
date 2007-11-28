@@ -1,3 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+= -D_SOLARIS_C_SOURCE
+OPENSOLARIS_USR_DISTDIR= ${.CURDIR}/../../../contrib/opensolaris
+OPENSOLARIS_SYS_DISTDIR= ${.CURDIR}/../../../sys/contrib/opensolaris
+
+IGNORE_PRAGMA=	YES
