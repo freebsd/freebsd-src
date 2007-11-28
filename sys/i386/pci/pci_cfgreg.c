@@ -280,11 +280,15 @@ pci_cfgdisable(void)
 {
 	switch (cfgmech) {
 	case CFGMECH_1:
-		outl(CONF1_ADDR_PORT, 0);
+		/*
+		 * Do nothing for the config mechanism 1 case.
+		 * Writing a 0 to the address port can apparently
+		 * confuse some bridges and cause spurious
+		 * access failures.
+		 */
 		break;
 	case CFGMECH_2:
 		outb(CONF2_ENABLE_PORT, 0);
-		outb(CONF2_FORWARD_PORT, 0);
 		break;
 	}
 }
