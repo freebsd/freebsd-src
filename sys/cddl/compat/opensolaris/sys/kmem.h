@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/vmem.h>
 
 #include <vm/uma.h>
 #include <vm/vm.h>
@@ -40,8 +41,6 @@
 #define	KM_SLEEP		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
 #define	KMC_NODEBUG		0
-
-typedef	void	vmem_t;
 
 typedef struct kmem_cache {
 	char		kc_name[32];
