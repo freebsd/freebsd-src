@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20071129: Removed a Solaris compatibility header
+OLD_FILES+=usr/include/sys/_elf_solaris.h
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
 # 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
