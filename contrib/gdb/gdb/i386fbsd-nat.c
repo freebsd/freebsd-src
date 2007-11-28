@@ -91,7 +91,7 @@ _initialize_i386fbsd_nat (void)
 #ifdef KERN_PS_STRINGS
   {
     int mib[2];
-    int ps_strings;
+    u_long ps_strings;
     size_t len;
 
     mib[0] = CTL_KERN;
