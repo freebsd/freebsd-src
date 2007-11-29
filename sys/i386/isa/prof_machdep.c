@@ -90,8 +90,6 @@ __mcount:							\n\
 	.p2align 4,0x90						\n\
 	.globl	.mcount						\n\
 .mcount:							\n\
-	.globl	__cyg_profile_func_enter			\n\
-__cyg_profile_func_enter:					\n\
 	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
 	je	.mcount_exit					\n\
 	#							\n\
@@ -145,8 +143,6 @@ GMON_PROF_HIRES	=	4					\n\
 	.p2align 4,0x90						\n\
 	.globl	.mexitcount					\n\
 .mexitcount:							\n\
-	.globl	__cyg_profile_func_exit				\n\
-__cyg_profile_func_exit:					\n\
 	cmpl	$GMON_PROF_HIRES,_gmonparam+GM_STATE		\n\
 	jne	.mexitcount_exit				\n\
 	pushl	%edx						\n\
