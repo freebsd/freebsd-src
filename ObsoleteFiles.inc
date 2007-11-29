@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20071129: Disabled static versions of libkse by default
+.if ${DEFAULT_THREAD_LIB} != "libkse" && ${MK_LIBTHR} != "no"
+OLD_FILES+=usr/lib/libkse.a
+OLD_FILES+=usr/lib/libkse_p.a
+OLD_FILES+=usr/lib/libkse_pic.a
+.endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
 # 20071108: Removed very crunch OLDCARD support file
