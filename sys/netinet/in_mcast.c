@@ -113,6 +113,8 @@ static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
 static int	inp_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	inp_set_source_filters(struct inpcb *, struct sockopt *);
+static struct ifnet *
+		ip_multicast_if(struct in_addr *a);
 
 /*
  * Resize the ip_moptions vector to the next power-of-two minus 1.
@@ -1019,7 +1021,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		 * reject the IPv4 multicast join.
 		 */
 		if (mreqs.imr_interface.s_addr != INADDR_ANY) {
-			INADDR_TO_IFP(mreqs.imr_interface, ifp);
+			ifp = ip_multicast_if(&mreqs.imr_interface);
 		} else {
 			struct route ro;
 
@@ -1435,7 +1437,7 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		if (addr.s_addr == INADDR_ANY) {
 			ifp = NULL;
 		} else {
-			INADDR_TO_IFP(addr, ifp);
+			ifp = ip_multicast_if(&addr);
 			if (ifp == NULL)
 				return (EADDRNOTAVAIL);
 		}
@@ -1820,3 +1822,23 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	return (error);
 }
+
+/*
+ * Following RFC1724 section 3.3, 0.0.0.0/8 is interpreted as interface index.
+ */
+static struct ifnet *
+ip_multicast_if(struct in_addr *a)
+{
+	int ifindex;
+	struct ifnet *ifp;
+
+	if (ntohl(a->s_addr) >> 24 == 0) {
+		ifindex = ntohl(a->s_addr) & 0xffffff;
+		if (ifindex < 0 || if_index < ifindex)
+			return (NULL);
+		ifp = ifnet_byindex(ifindex);
+	} else
+		INADDR_TO_IFP(*a, ifp);
+	return (ifp);
+}
+
