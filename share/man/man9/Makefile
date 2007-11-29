@@ -1070,6 +1070,7 @@ MLINKS+=spl.9 spl0.9 \
 MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_create.9 \
 	stack.9 stack_destroy.9 \
+	stack.9 stack_printf.9 \
 	stack.9 stack_put.9 \
 	stack.9 stack_save.9 \
 	stack.9 stack_sbuf_print.9 \
