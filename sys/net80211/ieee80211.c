@@ -440,6 +440,32 @@ ieee80211_find_channel(struct ieee80211com *ic, int freq, int flags)
 	return NULL;
 }
 
+/*
+ * Locate a channel given a channel number+flags.  We cache
+ * the previous lookup to optimize switching between two
+ * channels--as happens with dynamic turbo.
+ */
+struct ieee80211_channel *
+ieee80211_find_channel_byieee(struct ieee80211com *ic, int ieee, int flags)
+{
+	struct ieee80211_channel *c;
+	int i;
+
+	flags &= IEEE80211_CHAN_ALLTURBO;
+	c = ic->ic_prevchan;
+	if (c != NULL && c->ic_ieee == ieee &&
+	    (c->ic_flags & IEEE80211_CHAN_ALLTURBO) == flags)
+		return c;
+	/* brute force search */
+	for (i = 0; i < ic->ic_nchans; i++) {
+		c = &ic->ic_channels[i];
+		if (c->ic_ieee == ieee &&
+		    (c->ic_flags & IEEE80211_CHAN_ALLTURBO) == flags)
+			return c;
+	}
+	return NULL;
+}
+
 static void
 addmedia(struct ieee80211com *ic, int mode, int mword)
 {
