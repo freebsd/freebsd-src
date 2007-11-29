@@ -184,6 +184,7 @@ lines(FILE *fp, off_t off)
 	}
 	if (cnt) {
 		llines[recno].l = sp;
+		sp = NULL;
 		llines[recno].len = cnt;
 		if (++recno == off) {
 			wrap = 1;
