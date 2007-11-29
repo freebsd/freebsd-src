@@ -10,12 +10,15 @@
 
 .include <bsd.own.mk>
 
-.if (${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no") && \
-    ${SHLIBDIR} == "/usr/lib"
+.if ${DEFAULT_THREAD_LIB} == "libkse" || ${MK_LIBTHR} == "no"
+LIB=kse
+.if ${SHLIBDIR} == "/usr/lib"
 SHLIBDIR= /lib
 .endif
+.else
+SHLIB=kse
+.endif
 
-LIB=kse
 SHLIB_MAJOR= 3
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
