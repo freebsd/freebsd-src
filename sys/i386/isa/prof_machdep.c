@@ -113,7 +113,7 @@ __mcount:							\n\
 	addl	$8,%esp						\n\
 	popfl							\n\
 .mcount_exit:							\n\
-	ret							\n\
+	ret	$0						\n\
 ");
 #else /* !__GNUCLIKE_ASM */
 #error "this file needs to be ported to your compiler"
@@ -157,7 +157,7 @@ GMON_PROF_HIRES	=	4					\n\
 	popl	%eax						\n\
 	popl	%edx						\n\
 .mexitcount_exit:						\n\
-	ret							\n\
+	ret	$0						\n\
 ");
 #endif /* __GNUCLIKE_ASM */
 
