@@ -82,10 +82,10 @@ __mcount:							\n\
 	# Check that we are profiling.  Do it early for speed.	\n\
 	#							\n\
 	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
- 	je	.mcount_exit					\n\
- 	#							\n\
- 	# __mcount is the same as [.]mcount except the caller	\n\
- 	# hasn't changed the stack except to call here, so the	\n\
+	je	.mcount_exit					\n\
+	#							\n\
+	# __mcount is the same as [.]mcount except the caller	\n\
+	# hasn't changed the stack except to call here, so the	\n\
 	# caller's raddr is above our raddr.			\n\
 	#							\n\
 	pushq	%rax						\n\
@@ -96,13 +96,11 @@ __mcount:							\n\
 	pushq	%r8						\n\
 	pushq	%r9						\n\
 	movq	7*8+8(%rsp),%rdi				\n\
- 	jmp	.got_frompc					\n\
- 								\n\
- 	.p2align 4,0x90						\n\
- 	.globl	.mcount						\n\
+	jmp	.got_frompc					\n\
+								\n\
+	.p2align 4,0x90						\n\
+	.globl	.mcount						\n\
 .mcount:							\n\
- 	.globl	__cyg_profile_func_enter			\n\
-__cyg_profile_func_enter:					\n\
 	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
 	je	.mcount_exit					\n\
 	#							\n\
@@ -167,8 +165,6 @@ GMON_PROF_HIRES	=	4					\n\
 	.p2align 4,0x90						\n\
 	.globl	.mexitcount					\n\
 .mexitcount:							\n\
- 	.globl	__cyg_profile_func_exit				\n\
-__cyg_profile_func_exit:					\n\
 	cmpl	$GMON_PROF_HIRES,_gmonparam+GM_STATE		\n\
 	jne	.mexitcount_exit				\n\
 	pushq	%rax						\n\
