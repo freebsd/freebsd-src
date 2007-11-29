@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20071129:	p21	FreeBSD-SA-07:09.random
+	Correct a random value disclosure in random(4).
+
 20071003:	p20	FreeBSD-SA-07:08.openssl
 	Correct a buffer overflow in OpenSSL SSL_get_shared_ciphers().
 
