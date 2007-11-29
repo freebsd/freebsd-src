@@ -50,19 +50,6 @@
 #define xdr_control(a,b,c) xdrmem_control(a,b,c)
 
 /*
- * These are XDR control operators
- */
-
-#define	XDR_GET_BYTES_AVAIL 1
-
-struct xdr_bytesrec {
-	bool_t xc_is_last_record;
-	size_t xc_num_avail;
-};
-
-typedef struct xdr_bytesrec xdr_bytesrec;
-
-/*
  * These are the request arguments to XDR_CONTROL.
  *
  * XDR_PEEK - returns the contents of the next XDR unit on the XDR stream.
