@@ -298,6 +298,7 @@ random_yarrow_read(void *buf, int count)
 				random_state.outputblocks = 0;
 			}
 			retval += (int)tomove;
+			cur = 0;
 		}
 	}
 	else {
