@@ -43,6 +43,7 @@
 
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
+#include <sys/resource.h>
 #include <machine/pcpu.h>
 
 struct pcb;
@@ -82,6 +83,7 @@ struct pcpu {
 #endif
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
+	long		pc_cp_time[CPUSTATES];
 	struct device	*pc_device;
 
 	/* 
