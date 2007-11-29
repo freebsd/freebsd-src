@@ -50,6 +50,8 @@ In kernel configuration files:
 .Ft void
 .Fn stack_zero "struct stack *st"
 .Ft void
+.Fn stack_print "struct stack *st"
+.Ft void
 .Fn stack_sbuf_print "struct sbuf sb*" "struct stack *st"
 .Ft void
 .Fn stack_save "struct stack *st"
@@ -78,6 +80,10 @@ Memory associated with a trace may be freed by calling
 A trace of the current kernel thread's call stack may be captured using
 .Fn stack_save .
 .Pp
+.Fn stack_print
+may be used to print a stack trace using the kernel
+.Xr printf 9 .
+.Pp
 .Fn stack_sbuf_print
 may be used to construct a human-readable string, including conversion (where
 possible) from a simple kernel instruction pointer to a named symbol and
@@ -99,7 +105,9 @@ and
 .Nm stack_put
 may be used to manipulate stack data structures directly.
 .Sh SEE ALSO
-.Xr DDB 4
+.Xr DDB 4 ,
+.Xr printf 9 ,
+.Xr sbuf 9
 .Sh AUTHORS
 .An -nosplit
 The
