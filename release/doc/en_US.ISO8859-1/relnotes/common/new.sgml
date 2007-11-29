@@ -305,8 +305,8 @@
     <para>The &man.fdisk.8; program now supports a <option>-p</option>
       flag to print the slice table in fdisk configuration format.</para>
 
-    <para>The &man.freebsd-update.8; command now supports
-      a <option>-r</option> option to perform binary upgrades between
+    <para>The &man.freebsd-update.8; utility now supports
+      an <command>upgrade</command> command to perform binary upgrades between
       different versions of &os;.</para>
 
     <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
@@ -314,6 +314,11 @@
       is optional and can be enabled using the new <option>-8</option>
       flag.  More information can be found in the &man.ftpd.8; manual
       page.</para>
+
+    <para>The &man.ipfwpcap.8; utility has been added; it captures
+      packets on a &man.divert.4; socket and writes them as
+      &man.pcap.3; (also known as &man.tcpdump.1;) format data to a
+      file or pipe.</para>
 
     <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
       accept <option>-p</option> options to indicate which port they
@@ -369,6 +374,9 @@
 
     <para>The GNU version of <application>gzip</application> has been
       replaced with a modified version of gzip ported from NetBSD.</para>
+
+    <para><application>IPFilter</application> has been updated from
+      4.1.13 to 4.1.28.</para>
 
     <para><application>less</application> has been updated from v381
       to v409.</para>
