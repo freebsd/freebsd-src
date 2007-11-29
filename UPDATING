@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20071129:	p17	FreeBSD-SA-07:09.random, FreeBSD-SA-07:10.gtar
+	Correct a random value disclosure in random(4). [07:09]
+
+	Correct a gtar directory traversal vulnerability. [07:10]
+
 20071003:	p16	FreeBSD-SA-07:08.openssl
 	Correct a buffer overflow in OpenSSL SSL_get_shared_ciphers().
 
