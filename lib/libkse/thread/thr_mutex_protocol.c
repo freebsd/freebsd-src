@@ -31,10 +31,13 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_mutexattr_getprotocol);

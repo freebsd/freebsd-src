@@ -26,9 +26,9 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdlib.h>
-#include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
 #include "thr_private.h"
@@ -65,7 +65,7 @@ _pthread_barrier_destroy(pthread_barrier_t *barrier)
 
 int
 _pthread_barrier_init(pthread_barrier_t *barrier,
-		      const pthread_barrierattr_t *attr, unsigned count)
+    const pthread_barrierattr_t *attr __unused, unsigned count)
 {
 	pthread_barrier_t	bar;
 	int			ret;

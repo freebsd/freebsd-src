@@ -30,18 +30,18 @@
 #define	_ATOMIC_OPS_H_
 
 static inline void
-atomic_swap_int(int *dst, int val, int *res)
+atomic_swap_int(volatile int *dst, int val, int *res)
 {
 	__asm("xchg4	%0=[%2],%1" : "=r"(*res) : "r"(val), "r"(dst));
 }
 
 static inline void
-atomic_swap_long(long *dst, long val, long *res)
+atomic_swap_long(volatile long *dst, long val, long *res)
 {
 	__asm("xchg8	%0=[%2],%1" : "=r"(*res) : "r"(val), "r"(dst));
 }
 
 #define	atomic_swap_ptr(d,v,r)		\
-	atomic_swap_long((long*)d, (long)v, (long*)r)
+	atomic_swap_long((volatile long *)d, (long)v, (long *)r)
 
 #endif /* _ATOMIC_OPS_H_ */

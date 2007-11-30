@@ -27,8 +27,15 @@
  *
  */
 
+#include "namespace.h"
 #include <errno.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int _pthread_mutexattr_getpshared(const pthread_mutexattr_t *attr,
+	int *pshared);
+int _pthread_mutexattr_setpshared(pthread_mutexattr_t *attr, int pshared);
+
 
 __weak_reference(_pthread_mutexattr_getpshared, pthread_mutexattr_getpshared);
 __weak_reference(_pthread_mutexattr_setpshared, pthread_mutexattr_setpshared);
