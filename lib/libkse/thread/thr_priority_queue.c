@@ -31,10 +31,13 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <string.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 /* Prototypes: */

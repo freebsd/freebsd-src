@@ -29,9 +29,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	_pause(void);
 
 extern int __pause(void);
 

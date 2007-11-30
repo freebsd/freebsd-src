@@ -28,7 +28,10 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 /*
@@ -39,6 +42,8 @@
 #undef errno;
 #endif
 extern int      errno;
+
+void	_thread_seterrno(pthread_t thread, int error);
 
 void
 _thread_seterrno(pthread_t thread, int error)

@@ -171,7 +171,7 @@ _thr_rtld_lock_create(void)
 }
 
 static void
-_thr_rtld_lock_destroy(void *lock)
+_thr_rtld_lock_destroy(void *lock __unused)
 {
 	/* XXX We really can not free memory after a fork() */
 #if 0
@@ -268,13 +268,13 @@ _thr_rtld_lock_release(void *lock)
 
 
 static int
-_thr_rtld_set_flag(int mask)
+_thr_rtld_set_flag(int mask __unused)
 {
 	return (0);
 }
 
 static int
-_thr_rtld_clr_flag(int mask)
+_thr_rtld_clr_flag(int mask __unused)
 {
 	return (0);
 }

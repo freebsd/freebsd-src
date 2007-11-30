@@ -30,10 +30,12 @@
  *
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <machine/atomic.h>
-
+#include <pthread.h>
 #include <libc_private.h>
+#include "un-namespace.h"
 #include "spinlock.h"
 #include "thr_private.h"
 
@@ -43,6 +45,14 @@ struct spinlock_extra {
 	spinlock_t	*owner;
 	pthread_mutex_t	lock;
 };
+
+struct nv_spinlock {
+	long   access_lock;
+	long   lock_owner;
+	struct spinlock_extra *extra;	/* overlays fname in spinlock_t */
+	int    lineno;
+};
+typedef struct nv_spinlock nv_spinlock_t;
 
 static void	init_spinlock(spinlock_t *lck);
 
@@ -67,10 +77,10 @@ LT10_COMPAT_PRIVATE(_spinunlock);
 void
 _spinunlock(spinlock_t *lck)
 {
-	struct spinlock_extra *extra;
+	struct spinlock_extra *sl_extra;
 
-	extra = (struct spinlock_extra *)lck->fname;
-	_pthread_mutex_unlock(&extra->lock);
+	sl_extra = ((nv_spinlock_t *)lck)->extra;
+	_pthread_mutex_unlock(&sl_extra->lock);
 }
 
 /*
@@ -82,7 +92,7 @@ _spinunlock(spinlock_t *lck)
 void
 _spinlock(spinlock_t *lck)
 {
-	struct spinlock_extra *extra;
+	struct spinlock_extra *sl_extra;
 
 	if (!__isthreaded)
 		PANIC("Spinlock called when not threaded.");
@@ -94,8 +104,8 @@ _spinlock(spinlock_t *lck)
 	 */
 	if (lck->fname == NULL)
 		init_spinlock(lck);
-	extra = (struct spinlock_extra *)lck->fname;
-	_pthread_mutex_lock(&extra->lock);
+	sl_extra = ((nv_spinlock_t *)lck)->extra;
+	_pthread_mutex_lock(&sl_extra->lock);
 }
 
 /*
@@ -109,7 +119,7 @@ _spinlock(spinlock_t *lck)
  * returning.
  */
 void
-_spinlock_debug(spinlock_t *lck, char *fname, int lineno)
+_spinlock_debug(spinlock_t *lck, char *fname __unused, int lineno __unused)
 {
 	_spinlock(lck);
 }

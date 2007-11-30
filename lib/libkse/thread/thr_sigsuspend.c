@@ -29,14 +29,17 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
-
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	__sigsuspend(const sigset_t * set);
 
 LT10_COMPAT_PRIVATE(__sigsuspend);
 LT10_COMPAT_PRIVATE(_sigsuspend);

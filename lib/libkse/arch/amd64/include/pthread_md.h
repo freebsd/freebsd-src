@@ -250,7 +250,7 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 			_amd64_restore_context(
 				&tcb->tcb_tmbx.tm_context.uc_mcontext,
 				(intptr_t)&tcb->tcb_tmbx,
-				(intptr_t *)&kcb->kcb_kmbx.km_curthread);
+				(intptr_t *)(void *)&kcb->kcb_kmbx.km_curthread);
 		else
 			_amd64_restore_context(
 				&tcb->tcb_tmbx.tm_context.uc_mcontext,

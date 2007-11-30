@@ -28,6 +28,8 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -35,6 +37,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 #ifndef NELEMENTS
@@ -45,12 +48,13 @@ LT10_COMPAT_PRIVATE(_pthread_set_name_np);
 LT10_COMPAT_DEFAULT(pthread_set_name_np);
 
 static void	dump_thread(int fd, pthread_t pthread, int long_version);
+void		_pthread_set_name_np(pthread_t thread, char *name);
 
 __weak_reference(_pthread_set_name_np, pthread_set_name_np);
 
 struct s_thread_info {
 	enum pthread_state state;
-	char           *name;
+	const char	*name;
 };
 
 /* Static variables: */
@@ -72,15 +76,15 @@ static const struct s_thread_info thread_info[] = {
 void
 _thread_dump_info(void)
 {
-	char s[512], tmpfile[128];
+	char s[512], tempfile[128];
 	pthread_t pthread;
 	int fd, i;
 
 	for (i = 0; i < 100000; i++) {
-		snprintf(tmpfile, sizeof(tmpfile), "/tmp/pthread.dump.%u.%i",
+		snprintf(tempfile, sizeof(tempfile), "/tmp/pthread.dump.%u.%i",
 			getpid(), i);
 		/* Open the dump file for append and create it if necessary: */
-		if ((fd = __sys_open(tmpfile, O_RDWR | O_CREAT | O_EXCL,
+		if ((fd = __sys_open(tempfile, O_RDWR | O_CREAT | O_EXCL,
 			0666)) < 0) {
 				/* Can't open the dump file. */
 				if (errno == EEXIST)
@@ -140,7 +144,7 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 	int i;
 
 	/* Find the state: */
-	for (i = 0; i < NELEMENTS(thread_info) - 1; i++)
+	for (i = 0; i < (int)NELEMENTS(thread_info) - 1; i++)
 		if (thread_info[i].state == pthread->state)
 			break;
 

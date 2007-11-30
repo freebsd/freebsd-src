@@ -26,11 +26,14 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 /* Spare thread stack. */
@@ -123,7 +126,7 @@ round_up(size_t size)
 	if (size % _thr_page_size != 0)
 		size = ((size / _thr_page_size) + 1) *
 		    _thr_page_size;
-	return size;
+	return (size);
 }
 
 int
@@ -191,11 +194,13 @@ _thr_stack_alloc(struct pthread_attr *attr)
 	else {
 		/* Allocate a stack from usrstack. */
 		if (last_stack == NULL)
-			last_stack = _usrstack - _thr_stack_initial -
-			    _thr_guard_default;
+			last_stack = (void *)((uintptr_t)_usrstack -
+			    (uintptr_t)_thr_stack_initial -
+			    (uintptr_t)_thr_guard_default);
 
 		/* Allocate a new stack. */
-		stackaddr = last_stack - stacksize - guardsize;
+		stackaddr = (void *)((uintptr_t)last_stack -
+		    (uintptr_t)stacksize - (uintptr_t)guardsize);
 
 		/*
 		 * Even if stack allocation fails, we don't want to try to
@@ -204,7 +209,8 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		 * likely reason for an mmap() error is a stack overflow of
 		 * the adjacent thread stack.
 		 */
-		last_stack -= (stacksize + guardsize);
+		last_stack = (void *)((uintptr_t)last_stack -
+		    (uintptr_t)(stacksize + guardsize));
 
 		/* Release the lock before mmap'ing it. */
 		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
@@ -239,8 +245,8 @@ _thr_stack_free(struct pthread_attr *attr)
 
 	if ((attr != NULL) && ((attr->flags & THR_STACK_USER) == 0)
 	    && (attr->stackaddr_attr != NULL)) {
-		spare_stack = (attr->stackaddr_attr + attr->stacksize_attr
-		    - sizeof(struct stack));
+		spare_stack = (struct stack *)((uintptr_t)attr->stackaddr_attr
+		    + (uintptr_t)attr->stacksize_attr - sizeof(struct stack));
 		spare_stack->stacksize = round_up(attr->stacksize_attr);
 		spare_stack->guardsize = round_up(attr->guardsize_attr);
 		spare_stack->stackaddr = attr->stackaddr_attr;

@@ -36,6 +36,11 @@
 LT10_COMPAT_PRIVATE(_aio_suspend);
 LT10_COMPAT_DEFAULT(aio_suspend);
 
+
+int
+_aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
+    timespec *timeout);
+
 __weak_reference(_aio_suspend, aio_suspend);
 
 int
