@@ -35,6 +35,9 @@ __FBSDID("$FreeBSD$");
 LT10_COMPAT_PRIVATE(__accept);
 LT10_COMPAT_DEFAULT(accept);
 
+int __accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+
+
 __weak_reference(__accept, accept);
 
 int

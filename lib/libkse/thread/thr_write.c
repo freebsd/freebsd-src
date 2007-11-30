@@ -40,6 +40,8 @@
 LT10_COMPAT_PRIVATE(__write);
 LT10_COMPAT_DEFAULT(write);
 
+__ssize_t __write(int fd, const void *buf, size_t nbytes);
+
 __weak_reference(__write, write);
 
 ssize_t

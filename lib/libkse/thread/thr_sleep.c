@@ -29,12 +29,16 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 extern unsigned int	__sleep(unsigned int);
 extern int		__usleep(useconds_t);
+
+unsigned int	_sleep(unsigned int seconds);
 
 LT10_COMPAT_PRIVATE(_sleep);
 LT10_COMPAT_DEFAULT(sleep);

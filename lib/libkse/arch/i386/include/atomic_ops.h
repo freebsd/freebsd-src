@@ -36,7 +36,7 @@
  * void atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res);
  */
 static inline void
-atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res)
+atomic_swap32(volatile intptr_t *dst, intptr_t val, intptr_t *res)
 {
 	__asm __volatile(
 	"xchgl %2, %1; movl %2, %0"
@@ -44,8 +44,8 @@ atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res)
 }
 
 #define	atomic_swap_ptr(d, v, r) \
-	atomic_swap32((intptr_t *)d, (intptr_t)v, (intptr_t *)r)
+	atomic_swap32((volatile intptr_t *)d, (intptr_t)v, (intptr_t *)r)
 
 #define	atomic_swap_int(d, v, r) \
-	atomic_swap32((intptr_t *)d, (intptr_t)v, (intptr_t *)r)
+	atomic_swap32((volatile intptr_t *)d, (intptr_t)v, (intptr_t *)r)
 #endif

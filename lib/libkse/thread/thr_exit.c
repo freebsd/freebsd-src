@@ -28,6 +28,8 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -35,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_exit);
@@ -45,7 +48,7 @@ void	_pthread_exit(void *status);
 __weak_reference(_pthread_exit, pthread_exit);
 
 void
-_thr_exit(char *fname, int lineno, char *msg)
+_thr_exit(const char *fname, int lineno, const char *msg)
 {
 
 	/* Write an error message to the standard error file descriptor: */
@@ -122,7 +125,7 @@ _pthread_exit(void *status)
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {
-		pthread_cleanup_pop(1);
+		_pthread_cleanup_pop(1);
 	}
 	if (curthread->attr.cleanup_attr != NULL) {
 		curthread->attr.cleanup_attr(curthread->attr.arg_attr);

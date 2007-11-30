@@ -28,16 +28,21 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(__close);
 LT10_COMPAT_DEFAULT(close);
+
+int __close(int fd);
 
 __weak_reference(__close, close);
 

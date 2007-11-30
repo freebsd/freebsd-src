@@ -28,12 +28,11 @@ CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-fno-builtin
-CFLAGS+=-fno-strict-aliasing
 
 # Uncomment this if you want libkse to contain debug information for
 # thread locking.
 CFLAGS+=-D_LOCK_DEBUG
-WARNS?=2
+WARNS?=3
 
 # Uncomment this if you want to build a 1:1 threading mode library
 # however it is no longer strictly conformed to POSIX

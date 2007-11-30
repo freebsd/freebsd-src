@@ -28,12 +28,15 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/signalvar.h>
 #include <signal.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_sigprocmask);
@@ -46,7 +49,7 @@ _sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
 	int ret;
 
-	ret = pthread_sigmask(how, set, oset);
+	ret = _pthread_sigmask(how, set, oset);
 	if (ret) {
 		errno = ret;
 		ret = -1;
