@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -160,14 +161,10 @@ static device_method_t psycho_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t psycho_driver = {
-	"pcib",
-	psycho_methods,
-	sizeof(struct psycho_softc),
-};
-
 static devclass_t psycho_devclass;
 
+DEFINE_CLASS_0(pcib, psycho_driver, psycho_methods,
+    sizeof(struct psycho_softc));
 DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
@@ -304,9 +301,9 @@ psycho_attach(device_t dev)
 	struct psycho_softc *asc, *sc, *osc;
 	struct ofw_pci_ranges *range;
 	const struct psycho_desc *desc;
-	phandle_t child, node;
 	bus_addr_t intrclr, intrmap;
 	uint64_t csr, dr;
+	phandle_t child, node;
 	uint32_t dvmabase, psycho_br[2];
 	int32_t rev;
 	u_int ver;
@@ -676,6 +673,16 @@ psycho_attach(device_t dev)
 	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC, PCSR_SECBUS,
 	    sc->sc_pci_secbus, 1);
 
+	for (n = PCIR_VENDOR; n < PCIR_STATUS; n += sizeof(uint16_t))
+		le16enc(&sc->sc_pci_hpbcfg[n], bus_space_read_2(
+		    sc->sc_pci_cfgt, sc->sc_pci_bh[OFW_PCI_CS_CONFIG],
+		    PSYCHO_CONF_OFF(sc->sc_pci_secbus, PCS_DEVICE,
+		    PCS_FUNC, n)));
+	for (n = PCIR_REVID; n <= PCIR_BIST; n += sizeof(uint8_t))
+		sc->sc_pci_hpbcfg[n] = bus_space_read_1(sc->sc_pci_cfgt,
+		    sc->sc_pci_bh[OFW_PCI_CS_CONFIG], PSYCHO_CONF_OFF(
+		    sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC, n));
+
 	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(ofw_pci_intr_t));
 	/*
 	 * On E250 the interrupt map entry for the EBus bridge is wrong,
@@ -924,13 +931,53 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	u_long offset = 0;
 	uint8_t byte;
 	uint16_t shrt;
-	uint32_t wrd;
-	uint32_t r;
+	uint32_t r, wrd;
 	int i;
 
 	sc = device_get_softc(dev);
-	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
 	bh = sc->sc_pci_bh[OFW_PCI_CS_CONFIG];
+
+	/*
+	 * The Hummingbird and Sabre bridges are picky in that they
+	 * only allow their config space to be accessed using the
+	 * "native" width of the respective register being accessed
+	 * and return semi-random other content of their config space
+	 * otherwise. Given that the PCI specs don't say anything
+	 * about such a (unusual) limitation and lots of stuff expects
+	 * to be able to access the contents of the config space at
+	 * any width we allow just that. We do this by using a copy
+	 * of the header of the bridge (the rest is all zero anyway)
+	 * read during attach (expect for PCIR_STATUS) in order to
+	 * simplify things.
+	 * The Psycho bridges contain a dupe of their header at 0x80
+	 * which we nullify that way also.
+	 */
+	if (bus == sc->sc_pci_secbus && slot == PCS_DEVICE &&
+	    func == PCS_FUNC) {
+		if (offset % width != 0)
+			return (-1);
+
+		if (reg > sizeof(sc->sc_pci_hpbcfg))
+			return (0);
+
+		if ((reg < PCIR_STATUS && reg + width > PCIR_STATUS) ||
+		    reg == PCIR_STATUS || reg == PCIR_STATUS + 1)
+			le16enc(&sc->sc_pci_hpbcfg[PCIR_STATUS],
+			    bus_space_read_2(sc->sc_pci_cfgt, bh,
+			    PSYCHO_CONF_OFF(sc->sc_pci_secbus,
+			    PCS_DEVICE, PCS_FUNC, PCIR_STATUS)));
+
+		switch (width) {
+		case 1:
+			return (sc->sc_pci_hpbcfg[reg]);
+		case 2:
+			return (le16dec(&sc->sc_pci_hpbcfg[reg]));
+		case 4:
+			return (le32dec(&sc->sc_pci_hpbcfg[reg]));
+		}
+	}
+
+	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
 	switch (width) {
 	case 1:
 		i = bus_space_peek_1(sc->sc_pci_cfgt, bh, offset, &byte);
@@ -1001,7 +1048,7 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	/*
 	 * If this is outside of the range for an intpin, it's likely a full
 	 * INO, and no mapping is required at all; this happens on the U30,
- 	 * where there's no interrupt map at the Psycho node. Fortunately,
+	 * where there's no interrupt map at the Psycho node. Fortunately,
 	 * there seem to be no INOs in the intpin range on this boxen, so
 	 * this easy heuristics will do.
 	 */
