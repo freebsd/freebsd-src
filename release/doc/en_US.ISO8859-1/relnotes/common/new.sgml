@@ -188,6 +188,19 @@
       previously security patch) has been corrected.  More details
       can be found in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:08.openssl.asc">FreeBSD-SA-07:08.openssl</ulink>.</para>
+
+    <para>An flaw that could lead to the disclosure of
+      previously-generated &man.random.4; data has been corrected.
+      Information regarding this issue can be found in security
+      advisory
+      <ulink
+      url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:09.random.asc">FreeBSD-SA-07:09.random</ulink>.</para>
+
+    <para>An error in &man.gtar.1;, which could in certain
+      circumstances lead to arbitrary overwriting of files in the file
+      system, has been fixed.  More information about this issue can
+      be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:10.gtar.asc">FreeBSD-SA-07:10.tar</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
