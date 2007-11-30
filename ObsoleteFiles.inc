@@ -3957,6 +3957,7 @@ OLD_FILES+=usr/libdata/msdosfs/koi8u2dos
 # 20071120: shared library version bump
 OLD_LIBS+=usr/lib/libasn1.so.8
 OLD_LIBS+=usr/lib/libgssapi.so.8
+OLD_LIBS+=usr/lib/libgssapi_krb5.so.8
 OLD_LIBS+=usr/lib/libhdb.so.8
 OLD_LIBS+=usr/lib/libkadm5clnt.so.8
 OLD_LIBS+=usr/lib/libkadm5srv.so.8
