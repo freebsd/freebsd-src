@@ -307,6 +307,16 @@ device_sysctl_init(device_t dev)
 }
 
 static void
+device_sysctl_update(device_t dev)
+{
+	devclass_t dc = dev->devclass;
+
+	if (dev->sysctl_tree == NULL)
+		return;
+	sysctl_rename_oid(dev->sysctl_tree, dev->nameunit + strlen(dc->name));
+}
+
+static void
 device_sysctl_fini(device_t dev)
 {
 	if (dev->sysctl_tree == NULL)
@@ -2387,6 +2397,7 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
 	devadded(dev);
 	return (0);
