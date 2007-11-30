@@ -40,7 +40,7 @@
 <!ENTITY release.manpath.xorg          "7.2">
 <!ENTITY release.manpath.netbsd        "3.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "7-current">
+<!ENTITY release.manpath.freebsd       "8-current">
 
 <!-- Text constants which probably don't need to be changed.-->
 
