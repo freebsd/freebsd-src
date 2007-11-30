@@ -25,6 +25,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_sio.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -167,4 +169,6 @@ sio_isa_attach(dev)
 }
 
 DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
+#ifndef COM_NO_ACPI
 DRIVER_MODULE(sio, acpi, sio_isa_driver, sio_devclass, 0, 0);
+#endif
