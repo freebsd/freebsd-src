@@ -1747,6 +1747,7 @@ get_pv_entry(pmap_t pmap, int try)
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
 	static vm_pindex_t colour;
+	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
@@ -1761,6 +1762,8 @@ get_pv_entry(pmap_t pmap, int try)
 			printf("Approaching the limit on PV entries, consider "
 			    "increasing either the vm.pmap.shpgperproc or the "
 			    "vm.pmap.pv_entry_max sysctl.\n");
+	pq = NULL;
+retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
 		for (field = 0; field < _NPCM; field++) {
@@ -1783,7 +1786,8 @@ get_pv_entry(pmap_t pmap, int try)
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+	m = vm_page_alloc(NULL, colour, (pq == &vm_page_queues[PQ_ACTIVE] ?
+	    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
 		if (try) {
@@ -1796,18 +1800,16 @@ get_pv_entry(pmap_t pmap, int try)
 		 * pages.  After that, if a pv chunk entry is still needed,
 		 * destroy mappings to active pages.
 		 */
-		PV_STAT(pmap_collect_inactive++);
-		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
-		m = vm_page_alloc(NULL, colour,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-		if (m == NULL) {
+		if (pq == NULL) {
+			PV_STAT(pmap_collect_inactive++);
+			pq = &vm_page_queues[PQ_INACTIVE];
+		} else if (pq == &vm_page_queues[PQ_INACTIVE]) {
 			PV_STAT(pmap_collect_active++);
-			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
-			m = vm_page_alloc(NULL, colour,
-			    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-			if (m == NULL)
-				panic("get_pv_entry: increase vm.pmap.shpgperproc");
-		}
+			pq = &vm_page_queues[PQ_ACTIVE];
+		} else
+			panic("get_pv_entry: increase vm.pmap.shpgperproc");
+		pmap_collect(pmap, pq);
+		goto retry;
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
