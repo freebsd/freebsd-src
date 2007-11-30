@@ -32,10 +32,12 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-extern int __wait(int *);
-
 LT10_COMPAT_PRIVATE(_wait);
 LT10_COMPAT_DEFAULT(wait);
+
+extern int __wait(int *);
+
+pid_t _wait(int *istat);
 
 __weak_reference(_wait, wait);
 

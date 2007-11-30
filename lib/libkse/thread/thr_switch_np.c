@@ -31,9 +31,12 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(_pthread_switch_add_np);
@@ -45,13 +48,13 @@ __weak_reference(_pthread_switch_add_np, pthread_switch_add_np);
 __weak_reference(_pthread_switch_delete_np, pthread_switch_delete_np);
 
 int
-_pthread_switch_add_np(pthread_switch_routine_t routine)
+_pthread_switch_add_np(pthread_switch_routine_t routine __unused)
 {
 	return (ENOTSUP);
 }
 
 int
-_pthread_switch_delete_np(pthread_switch_routine_t routine)
+_pthread_switch_delete_np(pthread_switch_routine_t routine __unused)
 {
 	return (ENOTSUP);
 }

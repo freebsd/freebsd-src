@@ -6,13 +6,17 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(__msync);
 LT10_COMPAT_DEFAULT(msync);
+
+int __msync(void *addr, size_t len, int flags);
 
 __weak_reference(__msync, msync);
 
@@ -32,5 +36,5 @@ __msync(void *addr, size_t len, int flags)
 	ret = __sys_msync(addr, len, flags);
 	_thr_cancel_leave(curthread, 1);
 
-	return ret;
+	return (ret);
 }

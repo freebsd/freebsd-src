@@ -637,15 +637,18 @@ struct join_status {
 };
 
 struct pthread_specific_elem {
-	const void	*data;
-	int		seqno;
+	void	*data;
+	int	seqno;
 };
+
+typedef void (*const_key_destructor_t)(const void *);
+typedef void (*key_destructor_t)(void *);
 
 struct pthread_key {
 	volatile int	allocated;
 	volatile int	count;
 	int		seqno;
-	void            (*destructor) (void *);
+	key_destructor_t destructor;
 };
 
 #define	MAX_THR_LOCKLEVEL	5	
@@ -867,7 +870,7 @@ struct pthread {
 
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup *cleanup;
-	char			*fname;	/* Ptr to source file name  */
+	const char		*fname;	/* Ptr to source file name  */
 	int			lineno;	/* Source line number.      */
 };
 
@@ -1110,9 +1113,9 @@ SCLASS struct lock	_mutex_static_lock;
 SCLASS struct lock	_rwlock_static_lock;
 SCLASS struct lock	_keytable_lock;
 SCLASS struct lock	_thread_list_lock;
-SCLASS int		_thr_guard_default;
-SCLASS int		_thr_stack_default;
-SCLASS int		_thr_stack_initial;
+SCLASS size_t		_thr_guard_default;
+SCLASS size_t		_thr_stack_default;
+SCLASS size_t		_thr_stack_initial;
 SCLASS int		_thr_page_size;
 SCLASS pthread_t	_thr_sig_daemon;
 SCLASS int		_thr_debug_flags	SCLASS_PRESET(0);
@@ -1173,7 +1176,7 @@ void	_pthread_yield(void);
 void	_pthread_cleanup_push(void (*routine) (void *), void *routine_arg);
 void	_pthread_cleanup_pop(int execute);
 struct pthread *_thr_alloc(struct pthread *);
-void	_thr_exit(char *, int, char *);
+void	_thr_exit(const char *, int, const char *) __dead2;
 void	_thr_exit_cleanup(void);
 void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
 void	_thr_lock_wakeup(struct lock *lock, struct lockuser *lu);
@@ -1201,7 +1204,7 @@ void	_thr_sched_switch(struct pthread *);
 void	_thr_sched_switch_unlocked(struct pthread *);
 void    _thr_set_timeout(const struct timespec *);
 void	_thr_seterrno(struct pthread *, int);
-void    _thr_sig_handler(int, siginfo_t *, ucontext_t *);
+void    _thr_sig_handler(int, siginfo_t *, void *);
 void    _thr_sig_check_pending(struct pthread *);
 void	_thr_sig_rundown(struct pthread *, ucontext_t *);
 void	_thr_sig_send(struct pthread *pthread, int sig);
@@ -1301,7 +1304,7 @@ ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 int	__sys_sigwait(const sigset_t *, int *);
-int	__sys_sigtimedwait(sigset_t *, siginfo_t *, struct timespec *);
+int	__sys_sigtimedwait(const sigset_t *, siginfo_t *, const struct timespec *);
 #endif
 
 /* #include <poll.h> */

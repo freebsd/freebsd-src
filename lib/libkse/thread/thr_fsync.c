@@ -28,12 +28,17 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <unistd.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(__fsync);
 LT10_COMPAT_DEFAULT(fsync);
+
+int __fsync(int fd);
 
 __weak_reference(__fsync, fsync);
 

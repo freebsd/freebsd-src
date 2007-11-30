@@ -28,10 +28,13 @@
  *
  * $FreeBSD$
  */
+
+#include "namespace.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(__pthread_cond_wait);
@@ -62,6 +65,10 @@ static inline void		cond_queue_enq(pthread_cond_t, pthread_t);
 static void			cond_wait_backout(void *);
 static inline void		check_continuation(struct pthread *,
 				    struct pthread_cond *, pthread_mutex_t *);
+
+int __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
+int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+		       const struct timespec *abstime);
 
 /*
  * Double underscore versions are cancellation points.  Single underscore
@@ -197,7 +204,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	 * perform the dynamic initialization:
 	 */
 	if (*cond == NULL &&
-	    (rval = pthread_cond_init(cond, NULL)) != 0)
+	    (rval = _pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
 
 	if (!_kse_isthreaded())
@@ -395,7 +402,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
 	 */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
+	if (*cond == NULL && (rval = _pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
 
 	if (!_kse_isthreaded())
@@ -596,7 +603,7 @@ _pthread_cond_signal(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
+	else if (*cond != NULL || (rval = _pthread_cond_init(cond, NULL)) == 0) {
 		/* Lock the condition variable structure: */
 		THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
 
@@ -665,7 +672,7 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	else if (*cond != NULL || (rval = pthread_cond_init(cond, NULL)) == 0) {
+	else if (*cond != NULL || (rval = _pthread_cond_init(cond, NULL)) == 0) {
 		/* Lock the condition variable structure: */
 		THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
 

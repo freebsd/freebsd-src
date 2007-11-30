@@ -26,11 +26,10 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
-
-#include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
 #include "thr_private.h"
@@ -115,7 +114,8 @@ _pthread_rwlock_destroy (pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_init (pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
+_pthread_rwlock_init (pthread_rwlock_t *rwlock,
+    const pthread_rwlockattr_t *attr __unused)
 {
 	pthread_rwlock_t prwlock;
 	int ret;

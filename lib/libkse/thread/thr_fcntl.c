@@ -28,15 +28,18 @@
  *
  * $FreeBSD$
  */
-#include <stdarg.h>
+
 #include "namespace.h"
+#include <stdarg.h>
 #include <fcntl.h>
-#include "un-namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(__fcntl);
 LT10_COMPAT_DEFAULT(fcntl);
+
+int __fcntl(int fd, int cmd,...);
 
 __weak_reference(__fcntl, fcntl);
 

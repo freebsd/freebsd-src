@@ -29,14 +29,18 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <fcntl.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
 LT10_COMPAT_PRIVATE(___creat);
 LT10_COMPAT_DEFAULT(creat);
 
 extern int __creat(const char *, mode_t);
+
+int ___creat(const char *path, mode_t mode);
 
 __weak_reference(___creat, creat);
 

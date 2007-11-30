@@ -29,10 +29,13 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <termios.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
 
+int	_tcdrain(int fd);
 extern int __tcdrain(int);
 
 LT10_COMPAT_PRIVATE(_tcdrain);

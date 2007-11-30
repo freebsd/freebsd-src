@@ -29,13 +29,18 @@
  * $FreeBSD$
  *
  */
+
+#include "namespace.h"
 #include <stdarg.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
+#include "un-namespace.h"
 #include "thr_private.h"
+
+int	__open(const char *path, int flags,...);
 
 LT10_COMPAT_PRIVATE(__open);
 LT10_COMPAT_DEFAULT(open);

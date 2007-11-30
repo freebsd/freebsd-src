@@ -30,6 +30,9 @@
 #include <errno.h>
 #include "thr_private.h"
 
+int _pthread_condattr_getpshared(const pthread_condattr_t *attr, int *pshared);
+int _pthread_condattr_setpshared(pthread_condattr_t *attr, int pshared);
+
 __weak_reference(_pthread_condattr_getpshared, pthread_condattr_getpshared);
 __weak_reference(_pthread_condattr_setpshared, pthread_condattr_setpshared);
 

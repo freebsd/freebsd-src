@@ -36,6 +36,8 @@ LT10_COMPAT_DEFAULT(sched_yield);
 LT10_COMPAT_PRIVATE(_pthread_yield);
 LT10_COMPAT_DEFAULT(pthread_yield);
 
+int _sched_yield(void);
+
 __weak_reference(_sched_yield, sched_yield);
 __weak_reference(_pthread_yield, pthread_yield);
 
