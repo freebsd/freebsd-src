@@ -218,6 +218,18 @@
 	    <entry>12&nbsp;July&nbsp;2007</entry>
 	    <entry><para>Errors handling corrupt tar files in &man.libarchive.3;</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:09.random.asc">SA-07:09.random</ulink></entry>
+	    <entry>29&nbsp;November&nbsp;2007</entry>
+	    <entry><para>Random value disclosure</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:10.gtar.asc">SA-07:10.gtar</ulink></entry>
+	    <entry>29&nbsp;November&nbsp;2007</entry>
+	    <entry><para>&man.gtar.1; directory traversal vulnerability</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
