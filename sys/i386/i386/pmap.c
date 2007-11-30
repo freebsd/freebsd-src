@@ -1813,6 +1813,7 @@ get_pv_entry(pmap_t pmap, int try)
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
 	static vm_pindex_t colour;
+	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
 	struct pv_chunk *pc;
@@ -1827,6 +1828,8 @@ get_pv_entry(pmap_t pmap, int try)
 			printf("Approaching the limit on PV entries, consider "
 			    "increasing either the vm.pmap.shpgperproc or the "
 			    "vm.pmap.pv_entry_max tunable.\n");
+	pq = NULL;
+retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
 		for (field = 0; field < _NPCM; field++) {
@@ -1850,21 +1853,17 @@ get_pv_entry(pmap_t pmap, int try)
 			return (pv);
 		}
 	}
-	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
-	m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL |
-	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-	if (m == NULL || pc == NULL) {
+	/*
+	 * Access to the ptelist "pv_vafree" is synchronized by the page
+	 * queues lock.  If "pv_vafree" is currently non-empty, it will
+	 * remain non-empty until pmap_ptelist_alloc() completes.
+	 */
+	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, colour, (pq ==
+	    &vm_page_queues[PQ_ACTIVE] ? VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
 			pv_entry_count--;
 			PV_STAT(pc_chunk_tryfail++);
-			if (m) {
-				vm_page_lock_queues();
-				vm_page_unwire(m, 0);
-				vm_page_free(m);
-				vm_page_unlock_queues();
-			}
-			if (pc)
-				pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 			return (NULL);
 		}
 		/*
@@ -1872,30 +1871,21 @@ get_pv_entry(pmap_t pmap, int try)
 		 * inactive pages.  After that, if a pv chunk entry
 		 * is still needed, destroy mappings to active pages.
 		 */
-		PV_STAT(pmap_collect_inactive++);
-		pmap_collect(pmap, &vm_page_queues[PQ_INACTIVE]);
-		if (m == NULL)
-			m = vm_page_alloc(NULL, colour, VM_ALLOC_NORMAL |
-			    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED);
-		if (pc == NULL)
-			pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
-		if (m == NULL || pc == NULL) {
+		if (pq == NULL) {
+			PV_STAT(pmap_collect_inactive++);
+			pq = &vm_page_queues[PQ_INACTIVE];
+		} else if (pq == &vm_page_queues[PQ_INACTIVE]) {
 			PV_STAT(pmap_collect_active++);
-			pmap_collect(pmap, &vm_page_queues[PQ_ACTIVE]);
-			if (m == NULL)
-				m = vm_page_alloc(NULL, colour,
-				    VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
-				    VM_ALLOC_WIRED);
-			if (pc == NULL)
-				pc = (struct pv_chunk *)
-				    pmap_ptelist_alloc(&pv_vafree);
-			if (m == NULL || pc == NULL)
-				panic("get_pv_entry: increase vm.pmap.shpgperproc");
-		}
+			pq = &vm_page_queues[PQ_ACTIVE];
+		} else
+			panic("get_pv_entry: increase vm.pmap.shpgperproc");
+		pmap_collect(pmap, pq);
+		goto retry;
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
 	colour++;
+	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
 	pmap_qenter((vm_offset_t)pc, &m, 1);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = pc_freemask[0] & ~1ul;	/* preallocated bit 0 */
