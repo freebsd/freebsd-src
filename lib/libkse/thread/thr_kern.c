@@ -176,7 +176,7 @@ static void	thread_gc(struct pthread *thread);
 static void	kse_gc(struct pthread *thread);
 static void	kseg_gc(struct pthread *thread);
 
-static void __inline
+static __inline void
 thr_accounting(struct pthread *thread)
 {
 	if ((thread->slice_usec != -1) &&
@@ -342,6 +342,16 @@ _kse_single_thread(struct pthread *curthread)
 		_LCK_SET_PRIVATE2(&curthread->kse->k_lockusers[i], NULL);
 	}
 	curthread->kse->k_locklevel = 0;
+
+	/*
+	 * Reinitialize the thread and signal locks so that
+	 * sigaction() will work after a fork().
+	 */
+	_lock_reinit(&curthread->lock, LCK_ADAPTIVE, _thr_lock_wait,
+	    _thr_lock_wakeup);
+	_lock_reinit(&_thread_signal_lock, LCK_ADAPTIVE, _kse_lock_wait,
+	    _kse_lock_wakeup);
+
 	_thr_spinlock_init();
 	if (__isthreaded) {
 		_thr_rtld_fini();
@@ -474,7 +484,7 @@ _kse_setthreaded(int threaded)
  * queue, you would just end up blocking again.
  */
 void
-_kse_lock_wait(struct lock *lock, struct lockuser *lu)
+_kse_lock_wait(struct lock *lock __unused, struct lockuser *lu)
 {
 	struct kse *curkse = (struct kse *)_LCK_GET_PRIVATE(lu);
 	struct timespec ts;
@@ -531,7 +541,7 @@ _kse_lock_wakeup(struct lock *lock, struct lockuser *lu)
  * (defined in its structure), and condition variable and mutex locks.
  */
 void
-_thr_lock_wait(struct lock *lock, struct lockuser *lu)
+_thr_lock_wait(struct lock *lock __unused, struct lockuser *lu)
 {
 	struct pthread *curthread = (struct pthread *)lu->lu_private;
 
@@ -543,7 +553,7 @@ _thr_lock_wait(struct lock *lock, struct lockuser *lu)
 }
 
 void
-_thr_lock_wakeup(struct lock *lock, struct lockuser *lu)
+_thr_lock_wakeup(struct lock *lock __unused, struct lockuser *lu)
 {
 	struct pthread *thread;
 	struct pthread *curthread;
@@ -1104,7 +1114,8 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 }
 
 static void
-thr_resume_wrapper(int sig, siginfo_t *siginfo, ucontext_t *ucp)
+thr_resume_wrapper(int sig __unused, siginfo_t *siginfo __unused,
+    ucontext_t *ucp)
 {
 	struct pthread *curthread = _get_curthread();
 	struct kse *curkse;
