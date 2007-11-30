@@ -415,6 +415,25 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 }
 
 /*
+ * Rename an existing oid.
+ */
+void
+sysctl_rename_oid(struct sysctl_oid *oidp, const char *name)
+{
+	ssize_t len;
+	char *newname;
+	void *oldname;
+
+	oldname = (void *)(uintptr_t)(const void *)oidp->oid_name;
+	len = strlen(name);
+	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
+	bcopy(name, newname, len + 1);
+	newname[len] = '\0';
+	oidp->oid_name = newname;
+	free(oldname, M_SYSCTLOID);
+}
+
+/*
  * Reparent an existing oid.
  */
 int
