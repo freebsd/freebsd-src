@@ -228,6 +228,9 @@ cisco_newhook(node_p node, hook_p hook, const char *name)
 	} else if (strcmp(name, NG_CISCO_HOOK_INET) == 0) {
 		sc->inet.hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &sc->inet);
+	} else if (strcmp(name, NG_CISCO_HOOK_INET6) == 0) {
+		sc->inet6.hook = hook;
+		NG_HOOK_SET_PRIVATE(hook, &sc->inet6);
 	} else if (strcmp(name, NG_CISCO_HOOK_APPLETALK) == 0) {
 		sc->atalk.hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &sc->atalk);
