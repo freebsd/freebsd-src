@@ -30,6 +30,7 @@ COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 CONSPEED		opt_sio.h
 GDBSPEED		opt_sio.h
+COM_NO_ACPI		opt_sio.h
 
 VGA_ALT_SEQACCESS	opt_vga.h
 VGA_DEBUG		opt_vga.h
