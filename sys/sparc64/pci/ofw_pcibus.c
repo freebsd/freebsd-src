@@ -189,6 +189,19 @@ ofw_pcibus_attach(device_t dev)
 		    domain, busno);
 
 	node = ofw_bus_get_node(dev);
+
+#ifndef SUN4V
+	/* Add the PCI side of the HOST-PCI bridge itself to the bus. */
+	if (strcmp(device_get_name(device_get_parent(pcib)), "nexus") == 0 &&
+	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
+	    domain, busno, 0, 0, sizeof(*dinfo))) != NULL) {
+		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, node) != 0)
+			pci_freecfg((struct pci_devinfo *)dinfo);
+		else
+			pci_add_child(dev, (struct pci_devinfo *)dinfo);
+	}
+#endif
+
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
 			continue;
