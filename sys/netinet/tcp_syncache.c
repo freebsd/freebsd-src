@@ -1349,15 +1349,16 @@ syncache_respond(struct syncache *sc)
 #endif
 		optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 
-#ifdef TCP_SIGNATURE
-		tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
-		    to.to_signature, IPSEC_DIR_OUTBOUND);
-#endif
-
 		/* Adjust headers by option size. */
 		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
 		m->m_len += optlen;
 		m->m_pkthdr.len += optlen;
+
+#ifdef TCP_SIGNATURE
+		if (sc->sc_flags & SCF_SIGNATURE)
+			tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
+			    to.to_signature, IPSEC_DIR_OUTBOUND);
+#endif
 #ifdef INET6
 		if (sc->sc_inc.inc_isipv6)
 			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
