@@ -1084,8 +1084,10 @@ struct zyd_notif_retry {
 	 sizeof(struct zyd_rx_stat))
 #define ZYD_MIN_RXBUFSZ	ZYD_MIN_FRAGSZ
 #define ZYX_MAX_RXBUFSZ							\
-	((sizeof(struct zyd_plcphdr) + MCLBYTES +			\
-	  sizeof(struct zyd_rx_desc)) * 3)
+	((sizeof (struct zyd_plcphdr) + IEEE80211_MAX_LEN +		\
+	  sizeof (struct zyd_rx_stat)) * ZYD_MAX_RXFRAMECNT + 		\
+	 sizeof (struct zyd_rx_desc))
+ 
 
 #define ZYD_CMD_FLAG_READ	(1 << 0)
 
@@ -1188,6 +1190,7 @@ struct zyd_softc {
 	usbd_device_handle		sc_udev;
 	usbd_interface_handle		sc_iface;
 	int				sc_flags;
+	int				sc_if_flags;
 #define ZD1211_FWLOADED (1 << 0)
 
 
@@ -1208,6 +1211,8 @@ struct zyd_softc {
 	uint16_t			fw_rev;
 	uint8_t				rf_rev;
 	uint8_t				pa_rev;
+	uint8_t				fix_cr47;
+	uint8_t				fix_cr157;
 	uint8_t				pwr_cal[14];
 	uint8_t				pwr_int[14];
 	uint8_t				ofdm36_cal[14];
