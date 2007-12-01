@@ -625,7 +625,7 @@ lockmgr_printinfo(lkp)
 	if (lkp->lk_waitcount > 0)
 		printf(" with %d pending", lkp->lk_waitcount);
 #ifdef DEBUG_LOCKS
-	stack_print(&lkp->lk_stack);
+	stack_print_ddb(&lkp->lk_stack);
 #endif
 }
 
