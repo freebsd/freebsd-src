@@ -17,7 +17,7 @@
 #include <sys/time.h>
 #if defined(__NetBSD__)
 # if (NetBSD >= 199905) && !defined(IPFILTER_LKM) && defined(_KERNEL)
-#  if (__NetBSD_Version__ < 399001400)
+#  if (__NetBSD_Version__ < 301000000)
 #   include "opt_ipfilter_log.h"
 #  else
 #   include "opt_ipfilter.h"
@@ -2307,8 +2307,7 @@ u_32_t *passp;
 	if (FR_ISAUTH(pass)) {
 		if (fr_newauth(fin->fin_m, fin) != 0) {
 #ifdef	_KERNEL
-			if ((pass & FR_RETMASK) == 0)
-				fin->fin_m = *fin->fin_mp = NULL;
+			fin->fin_m = *fin->fin_mp = NULL;
 #else
 			;
 #endif
@@ -2600,7 +2599,8 @@ int out;
 	 * Here rather than fr_firewall because fr_checkauth may decide
 	 * to return a packet for "keep state"
 	 */
-	if ((pass & FR_KEEPSTATE) && !(fin->fin_flx & FI_STATE)) {
+	if ((pass & FR_KEEPSTATE) && (fin->fin_m != NULL) &&
+	    !(fin->fin_flx & FI_STATE)) {
 		if (fr_addstate(fin, NULL, 0) != NULL) {
 			ATOMIC_INCL(frstats[out].fr_ads);
 		} else {

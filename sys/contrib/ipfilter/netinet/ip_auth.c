@@ -303,7 +303,7 @@ u_32_t *passp;
 
 /* ------------------------------------------------------------------------ */
 /* Function:    fr_newauth                                                  */
-/* Returns:     int - 0 == success, else error                              */
+/* Returns:     int - 1 == success, 0 = did not put packet on auth queue    */
 /* Parameters:  m(I)   - pointer to mb_t with packet in it                  */
 /*              fin(I) - pointer to packet information                      */
 /*                                                                          */
@@ -339,10 +339,10 @@ fr_info_t *fin;
 	i = fr_authend++;
 	if (fr_authend == fr_authsize)
 		fr_authend = 0;
-	RWLOCK_EXIT(&ipf_auth);
-
 	fra = fr_auth + i;
 	fra->fra_index = i;
+	RWLOCK_EXIT(&ipf_auth);
+
 	if (fin->fin_fr != NULL)
 		fra->fra_pass = fin->fin_fr->fr_flags;
 	else
@@ -903,16 +903,6 @@ fr_authioctlloop:
 	}
 	RWLOCK_EXIT(&ipf_auth);
 
-	/*
-	 * We exit ipf_global here because a program that enters in
-	 * here will have a lock on it and goto sleep having this lock.
-	 * If someone were to do an 'ipf -D' the system would then
-	 * deadlock.  The catch with releasing it here is that the
-	 * caller of this function expects it to be held when we
-	 * return so we have to reacquire it in here.
-	 */
-	RWLOCK_EXIT(&ipf_global);
-
 	MUTEX_ENTER(&ipf_authmx);
 #ifdef	_KERNEL
 # if	SOLARIS
@@ -939,7 +929,6 @@ fr_authioctlloop:
 # endif /* SOLARIS */
 #endif
 	MUTEX_EXIT(&ipf_authmx);
-	READ_ENTER(&ipf_global);
 	if (error == 0)
 		goto fr_authioctlloop;
 	return error;
@@ -1027,6 +1016,7 @@ char *data;
 	 * not being processed, make sure we advance to the next one.
 	 */
 	if (error == ENOBUFS) {
+		WRITE_ENTER(&ipf_auth);
 		fr_authused--;
 		fra->fra_index = -1;
 		fra->fra_pass = 0;
@@ -1044,6 +1034,7 @@ char *data;
 				fr_authstart = fr_authend = 0;
 			}
 		}
+		RWLOCK_EXIT(&ipf_auth);
 	}
 #endif /* _KERNEL */
 	SPL_X(s);
