@@ -957,7 +957,7 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		if (offset % width != 0)
 			return (-1);
 
-		if (reg > sizeof(sc->sc_pci_hpbcfg))
+		if (reg >= sizeof(sc->sc_pci_hpbcfg))
 			return (0);
 
 		if ((reg < PCIR_STATUS && reg + width > PCIR_STATUS) ||
