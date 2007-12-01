@@ -90,7 +90,7 @@ struct kcb {
 #define TP_OFFSET	0x7008
 
 static __inline char *
-ppc_get_tp()
+ppc_get_tp(void)
 {
 	register char *r2 __asm__("%r2");
 
@@ -105,7 +105,7 @@ ppc_set_tp(char *tp)
 }
 
 static __inline struct tcb *
-ppc_get_tcb()
+ppc_get_tcb(void)
 {
 	return ((struct tcb *)(ppc_get_tp() - offsetof(struct tcb, tcb_tp)));
 }
