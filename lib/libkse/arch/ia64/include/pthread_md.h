@@ -73,7 +73,7 @@ struct kcb {
 };
 
 static __inline struct tcb *
-ia64_get_tcb()
+ia64_get_tcb(void)
 {
 	register char *tp __asm("%r13");
 
