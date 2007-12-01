@@ -791,18 +791,18 @@ linker_file_lookup_symbol_internal(linker_file_t file, const char *name,
 	return (0);
 }
 
-#ifdef DDB
 /*
- * DDB Helpers.  DDB has to look across multiple files with their own symbol
- * tables and string tables.
+ * Both DDB and stack(9) rely on the kernel linker to provide forward and
+ * backward lookup of symbols.  However, DDB and sometimes stack(9) need to
+ * do this in a lockfree manner.  We provide a set of internal helper
+ * routines to perform these operations without locks, and then wrappers that
+ * optionally lock.
  *
- * Note that we do not obey list locking protocols here.  We really don't need
- * DDB to hang because somebody's got the lock held.  We'll take the chance
- * that the files list is inconsistant instead.
+ * linker_debug_lookup() is ifdef DDB as currently it's only used by DDB.
  */
-
-int
-linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
+#ifdef DDB
+static int
+linker_debug_lookup(const char *symstr, c_linker_sym_t *sym)
 {
 	linker_file_t lf;
 
@@ -812,9 +812,10 @@ linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
 	}
 	return (ENOENT);
 }
+#endif
 
-int
-linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
+static int
+linker_debug_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
 {
 	linker_file_t lf;
 	c_linker_sym_t best, es;
@@ -844,8 +845,8 @@ linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
 	}
 }
 
-int
-linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
+static int
+linker_debug_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 {
 	linker_file_t lf;
 
@@ -855,7 +856,80 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 	}
 	return (ENOENT);
 }
+
+static int
+linker_debug_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+    long *offset)
+{
+	linker_symval_t symval;
+	c_linker_sym_t sym;
+	int error;
+
+	*offset = 0;
+	error = linker_debug_search_symbol(value, &sym, offset);
+	if (error)
+		return (error);
+	error = linker_debug_symbol_values(sym, &symval);
+	if (error)
+		return (error);
+	strlcpy(buf, symval.name, buflen);
+	return (0);
+}
+
+#ifdef DDB
+/*
+ * DDB Helpers.  DDB has to look across multiple files with their own symbol
+ * tables and string tables.
+ *
+ * Note that we do not obey list locking protocols here.  We really don't need
+ * DDB to hang because somebody's got the lock held.  We'll take the chance
+ * that the files list is inconsistant instead.
+ */
+int
+linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
+{
+
+	return (linker_debug_lookup(symstr, sym));
+}
+
+int
+linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
+{
+
+	return (linker_debug_search_symbol(value, sym, diffp));
+}
+
+int
+linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
+{
+
+	return (linker_debug_symbol_values(sym, symval));
+}
+
+int
+linker_ddb_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+    long *offset)
+{
+
+	return (linker_debug_search_symbol_name(value, buf, buflen, offset));
+}
 #endif
+
+/*
+ * stack(9) helper for non-debugging environemnts.  Unlike DDB helpers, we do
+ * obey locking protocols, and offer a significantly less complex interface.
+ */
+int
+linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
+    long *offset)
+{
+	int error;
+
+	KLD_LOCK();
+	error = linker_debug_search_symbol_name(value, buf, buflen, offset);
+	KLD_UNLOCK();
+	return (error);
+}
 
 /*
  * Syscalls.
