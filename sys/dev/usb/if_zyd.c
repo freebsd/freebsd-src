@@ -2246,7 +2246,7 @@ zyd_tx_data(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		rate = ic->ic_mcast_rate;
 		desc->flags |= ZYD_TX_FLAG_MULTICAST;
 	} else if (ic->ic_fixed_rate != IEEE80211_FIXED_RATE_NONE)
-		rate = ic->ic_bss->ni_rates.rs_rates[ic->ic_fixed_rate];
+		rate = ic->ic_fixed_rate;
 	else
 		rate = ni->ni_rates.rs_rates[ni->ni_txrate];
 	rate &= IEEE80211_RATE_VAL;
