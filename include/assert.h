@@ -39,6 +39,9 @@
  * $FreeBSD$
  */
 
+#ifndef _ASSERT_H_
+#define _ASSERT_H_
+
 #include <sys/cdefs.h>
 
 /*
@@ -62,3 +65,4 @@
 __BEGIN_DECLS
 void __assert(const char *, const char *, int, const char *);
 __END_DECLS
+#endif /* !_ASSERT_H_ */
