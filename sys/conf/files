@@ -2021,7 +2021,6 @@ pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
-pci/xrpu.c			optional xrpu pci
 rpc/rpcclnt.c			optional nfsclient
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit

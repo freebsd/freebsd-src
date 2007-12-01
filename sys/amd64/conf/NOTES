@@ -432,8 +432,6 @@ hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
-# HOT1 Xilinx 6200 card (http://www.vcc.com/)
-device		xrpu
 
 #
 # Laptop/Notebook options:
