@@ -1518,6 +1518,8 @@ mb_t *m;
 		}
 #endif
 	} else {
+		fin->fin_ip->ip_len = ntohs(fin->fin_ip->ip_len);
+		fin->fin_ip->ip_off = ntohs(fin->fin_ip->ip_off);
 #if (__FreeBSD_version >= 470102)
 		error = ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 #else
