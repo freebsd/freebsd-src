@@ -2,7 +2,7 @@
 
 GENSRCS+= xm.h
 LIBSRCS+= armfbsd-nat.c
-LIBSRCS+= arm-tdep.c armfbsd-tdep.c solib.c solib-svr4.c
+LIBSRCS+= arm-tdep.c armfbsd-tdep.c solib.c solib-svr4.c fbsd-threads.c
 
 nm.h:
 #XXX this should be arm/nm-fbsd.h but won't until it's merged into the gdb repo
