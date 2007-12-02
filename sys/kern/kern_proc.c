@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
+#include "opt_stack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/stack.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -1440,6 +1442,105 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+#if defined(STACK) || defined(DDB)
+static int
+sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
+{
+	struct kinfo_kstack *kkstp;
+	int error, i, *name, numthreads;
+	lwpid_t *lwpidarray;
+	struct thread *td;
+	struct stack *st;
+	struct sbuf sb;
+	struct proc *p;
+
+	name = (int *)arg1;
+	if ((p = pfind((pid_t)name[0])) == NULL)
+		return (ESRCH);
+	if ((error = p_candebug(curthread, p))) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	_PHOLD(p);
+	PROC_UNLOCK(p);
+
+	kkstp = malloc(sizeof(*kkstp), M_TEMP, M_WAITOK);
+	st = stack_create();
+
+	lwpidarray = NULL;
+	numthreads = 0;
+	PROC_SLOCK(p);
+repeat:
+	if (numthreads < p->p_numthreads) {
+		if (lwpidarray != NULL) {
+			free(lwpidarray, M_TEMP);
+			lwpidarray = NULL;
+		}
+		numthreads = p->p_numthreads;
+		PROC_SUNLOCK(p);
+		lwpidarray = malloc(sizeof(*lwpidarray) * numthreads, M_TEMP,
+		    M_WAITOK | M_ZERO);
+		PROC_SLOCK(p);
+		goto repeat;
+	}
+	PROC_SUNLOCK(p);
+	i = 0;
+
+	/*
+	 * XXXRW: During the below loop, execve(2) and countless other sorts
+	 * of changes could have taken place.  Should we check to see if the
+	 * vmspace has been replaced, or the like, in order to prevent
+	 * giving a snapshot that spans, say, execve(2), with some threads
+	 * before and some after?  Among other things, the credentials could
+	 * have changed, in which case the right to extract debug info might
+	 * no longer be assured.
+	 */
+	PROC_LOCK(p);
+	FOREACH_THREAD_IN_PROC(p, td) {
+		KASSERT(i < numthreads,
+		    ("sysctl_kern_proc_kstack: numthreads"));
+		lwpidarray[i] = td->td_tid;
+		i++;
+	}
+	numthreads = i;
+	for (i = 0; i < numthreads; i++) {
+		td = thread_find(p, lwpidarray[i]);
+		if (td == NULL) {
+			continue;
+		}
+		bzero(kkstp, sizeof(*kkstp));
+		(void)sbuf_new(&sb, kkstp->kkst_trace,
+		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
+		thread_lock(td);
+		kkstp->kkst_tid = td->td_tid;
+		if (TD_IS_SWAPPED(td))
+			kkstp->kkst_state = KKST_STATE_SWAPPED;
+		else if (TD_IS_RUNNING(td))
+			kkstp->kkst_state = KKST_STATE_RUNNING;
+		else {
+			kkstp->kkst_state = KKST_STATE_STACKOK;
+			stack_save_td(st, td);
+		}
+		thread_unlock(td);
+		PROC_UNLOCK(p);
+		stack_sbuf_print(&sb, st);
+		sbuf_finish(&sb);
+		sbuf_delete(&sb);
+		error = SYSCTL_OUT(req, kkstp, sizeof(*kkstp));
+		PROC_LOCK(p);
+		if (error)
+			break;
+	}
+	_PRELE(p);
+	PROC_UNLOCK(p);
+	if (lwpidarray != NULL)
+		free(lwpidarray, M_TEMP);
+	stack_destroy(st);
+	free(kkstp, M_TEMP);
+	return (error);
+}
+#endif
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
@@ -1511,3 +1612,8 @@ static SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD,
 	sysctl_kern_proc_vmmap, "Process vm map entries");
+
+#if defined(STACK) || defined(DDB)
+static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD,
+	sysctl_kern_proc_kstack, "Process kernel stacks");
+#endif
