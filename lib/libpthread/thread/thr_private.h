@@ -78,7 +78,7 @@
 
 /* Output debug messages like this: */
 #define stdout_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
-#define stderr_debug(args...)	_thread_printf(STDOUT_FILENO, ##args)
+#define stderr_debug(args...)	_thread_printf(STDERR_FILENO, ##args)
 
 #define	DBG_MUTEX	0x0001
 #define	DBG_SIG		0x0002
