@@ -14,6 +14,16 @@ struct timezone;        /* silence warning */
 #endif
 #include <limits.h>
 
+#ifdef ISC_PLATFORM_NEEDTIMESPEC
+#include <time.h>		/* For time_t */
+struct timespec {
+        time_t  tv_sec;         /* seconds */
+        long    tv_nsec;        /* nanoseconds */
+};
+#endif
+#ifndef HAVE_MEMMOVE
+#define memmove(a,b,c) bcopy(b,a,c)
+#endif
 
 #undef WANT_IRS_GR
 #undef WANT_IRS_NIS
