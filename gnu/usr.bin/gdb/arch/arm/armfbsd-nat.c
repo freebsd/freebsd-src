@@ -78,14 +78,34 @@ supply_gregset (struct reg *gregset)
 
   supply_register (ARM_SP_REGNUM, (char *) &gregset->r_sp);
   supply_register (ARM_LR_REGNUM, (char *) &gregset->r_lr);
-  /* This is ok: we're running native...  */
-  r_pc = ADDR_BITS_REMOVE (gregset->r_pc);
-  supply_register (ARM_PC_REGNUM, (char *) &r_pc);
+  supply_register (ARM_PC_REGNUM, (char *) &gregset->r_pc);
 
   if (arm_apcs_32)
     supply_register (ARM_PS_REGNUM, (char *) &gregset->r_cpsr);
   else
     supply_register (ARM_PS_REGNUM, (char *) &gregset->r_pc);
+}
+
+/* Fill register REGNO (if it is a general-purpose register) in
+   *GREGSETPS with the value in GDB's register array.  If REGNO is -1,
+   do this for all registers.  */
+
+void
+fill_gregset (struct reg *gregset, int regno)
+{
+  int i;
+
+  for (i = ARM_A1_REGNUM; i < ARM_SP_REGNUM; i++)
+    if ((regno == -1 || regno == i))
+      regcache_collect (i, &gregset->r[i]);
+  if (regno == -1 || regno == ARM_SP_REGNUM)
+      regcache_collect (ARM_SP_REGNUM, &gregset->r_sp);
+  if (regno == -1 || regno == ARM_LR_REGNUM)
+      regcache_collect (ARM_LR_REGNUM, &gregset->r_lr);
+  if (regno == -1 || regno == ARM_PC_REGNUM)
+      regcache_collect (ARM_PC_REGNUM, &gregset->r_pc);
+  if (regno == -1 || regno == ARM_PS_REGNUM)
+      regcache_collect (ARM_PS_REGNUM, &gregset->r_cpsr);
 }
 
 void
@@ -98,6 +118,20 @@ supply_fpregset (struct fpreg *fparegset)
       (regno, (char *) &fparegset->fpr[regno - ARM_F0_REGNUM]);
 
   supply_register (ARM_FPS_REGNUM, (char *) &fparegset->fpr_fpsr);
+}
+
+void
+fill_fpregset (struct fpreg *fparegset, int regno)
+{
+  int i;
+
+  for (i = ARM_F0_REGNUM; i <= ARM_F7_REGNUM; i++)
+    if (regno == -1 || regno == i)
+      regcache_raw_supply(current_regcache, i,
+	  &fparegset->fpr[i - ARM_F0_REGNUM]);
+  if (regno == -1 || regno == ARM_FPS_REGNUM)
+    regcache_raw_supply(current_regcache, ARM_FPS_REGNUM, 
+	&fparegset->fpr_fpsr);
 }
 
 static void
