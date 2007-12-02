@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: rndc.conf.5,v 1.23.18.13 2007/01/30 00:23:44 marka Exp $
+.\" $Id: rndc.conf.5,v 1.23.18.15 2007/05/09 13:35:47 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -88,7 +88,7 @@ keyword, the server statement includes a string which is the hostname or address
 and
 \fBaddresses\fR. The key name must match the name of a key statement in the file. The port number specifies the port to connect to. If an
 \fBaddresses\fR
-clause is supplied these addresses will be used instead of the server name. Each address can take a optional port. If an
+clause is supplied these addresses will be used instead of the server name. Each address can take an optional port. If an
 \fBsource\-address\fR
 or
 \fBsource\-address\-v6\fR
@@ -156,7 +156,7 @@ does not ship with BIND 9 but is available on many systems. See the EXAMPLE sect
       key testkey {
         algorithm	hmac\-md5;
         secret		"R3HI8P6BKw9ZwXwN3VZKuQ==";
-      }
+      };
 .fi
 .RE
 .sp
@@ -178,7 +178,7 @@ To generate a random secret with
 .PP
 A complete
 \fIrndc.conf\fR
-file, including the randomly generated key, will be written to the standard output. Commented out
+file, including the randomly generated key, will be written to the standard output. Commented\-out
 \fBkey\fR
 and
 \fBcontrols\fR

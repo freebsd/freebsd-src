@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.8,v 1.30.18.13 2007/01/30 00:23:44 marka Exp $
+.\" $Id: nsupdate.8,v 1.30.18.14 2007/05/09 03:33:13 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -55,7 +55,7 @@ operate in debug mode. This provides tracing information about the update reques
 .PP
 Transaction signatures can be used to authenticate the Dynamic DNS updates. These use the TSIG resource record type described in RFC2845 or the SIG(0) record described in RFC3535 and RFC2931. TSIG relies on a shared secret that should only be known to
 \fBnsupdate\fR
-and the name server. Currently, the only supported encryption algorithm for TSIG is HMAC\-MD5, which is defined in RFC 2104. Once other algorithms are defined for TSIG, applications will need to ensure they select the appropriate algorithm as well as the key when authenticating each other. For instance suitable
+and the name server. Currently, the only supported encryption algorithm for TSIG is HMAC\-MD5, which is defined in RFC 2104. Once other algorithms are defined for TSIG, applications will need to ensure they select the appropriate algorithm as well as the key when authenticating each other. For instance, suitable
 \fBkey\fR
 and
 \fBserver\fR
@@ -106,15 +106,15 @@ use a TCP connection. This may be preferable when a batch of update requests is 
 .PP
 The
 \fB\-t\fR
-option sets the maximum time a update request can take before it is aborted. The default is 300 seconds. Zero can be used to disable the timeout.
+option sets the maximum time an update request can take before it is aborted. The default is 300 seconds. Zero can be used to disable the timeout.
 .PP
 The
 \fB\-u\fR
-option sets the UDP retry interval. The default is 3 seconds. If zero the interval will be computed from the timeout interval and number of UDP retries.
+option sets the UDP retry interval. The default is 3 seconds. If zero, the interval will be computed from the timeout interval and number of UDP retries.
 .PP
 The
 \fB\-r\fR
-option sets the number of UDP retries. The default is 3. If zero only one update request will be made.
+option sets the number of UDP retries. The default is 3. If zero, only one update request will be made.
 .SH "INPUT FORMAT"
 .PP
 \fBnsupdate\fR
@@ -164,13 +164,13 @@ will attempt determine the correct zone to update based on the rest of the input
 .RS 4
 Specify the default class. If no
 \fIclass\fR
-is specified the default class is
+is specified, the default class is
 \fIIN\fR.
 .RE
 .PP
 \fBkey\fR {name} {secret}
 .RS 4
-Specifies that all updates are to be TSIG signed using the
+Specifies that all updates are to be TSIG\-signed using the
 \fIkeyname\fR
 \fIkeysecret\fR
 pair. The
@@ -293,9 +293,9 @@ zone. Notice that the input in each example contains a trailing blank line so th
 .PP
 Any A records for
 \fBoldhost.example.com\fR
-are deleted. and an A record for
+are deleted. And an A record for
 \fBnewhost.example.com\fR
-it IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (86400 seconds)
+with IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (86400 seconds).
 .sp
 .RS 4
 .nf

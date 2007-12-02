@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named-checkzone.html,v 1.11.18.27 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: named-checkzone.html,v 1.11.18.30 2007/06/20 02:26:58 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -47,7 +47,7 @@
 	Additionally, it applies stricter check levels by default,
         since the dump output will be used as an actual zone file
 	loaded by <span><strong class="command">named</strong></span>.
-	When manaully specified otherwise, the check levels must at
+	When manually specified otherwise, the check levels must at
         least be as strict as those specified in the
 	<span><strong class="command">named</strong></span> configuration file.
      </p>
@@ -79,7 +79,7 @@
 <dt><span class="term">-i <em class="replaceable"><code>mode</code></em></span></dt>
 <dd>
 <p>
-	      Perform post load zone integrity checks.  Possible modes are
+	      Perform post-load zone integrity checks.  Possible modes are
 	      <span><strong class="command">"full"</strong></span> (default),
 	      <span><strong class="command">"full-sibling"</strong></span>,
 	      <span><strong class="command">"local"</strong></span>,
@@ -101,7 +101,7 @@
 <p>
 	      Mode <span><strong class="command">"full"</strong></span> checks that delegation NS
 	      records refer to A or AAAA record (both in-zone and out-of-zone
-	      hostnames).  It also checks that glue addresses records
+	      hostnames).  It also checks that glue address records
 	      in the zone match those advertised by the child.
 	      Mode <span><strong class="command">"local"</strong></span> only checks NS records which
 	      refer to in-zone hostnames or that some required glue exists,
@@ -195,7 +195,7 @@
 	  </p></dd>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
-            chroot to <code class="filename">directory</code> so that
+            Chroot to <code class="filename">directory</code> so that
             include
             directives in the configuration file are processed as if
             run by a similarly chrooted named.
@@ -242,12 +242,13 @@
 <div class="refsect1" lang="en">
 <a name="id2544311"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <em class="citetitle">RFC 1035</em>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544336"></a><h2>AUTHOR</h2>
+<a name="id2544344"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

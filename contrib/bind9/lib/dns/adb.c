@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.215.18.13 2006/08/30 23:49:57 marka Exp $ */
+/* $Id: adb.c,v 1.215.18.17 2007/09/11 02:23:26 marka Exp $ */
 
 /*! \file 
  *
@@ -2987,7 +2987,7 @@ dbfind_name(dns_adbname_t *adbname, isc_stdtime_t now, dns_rdatatype_t rdtype)
 		adbname->fetch6_err = FIND_ERR_UNEXPECTED;
 
 	result = dns_view_find(adb->view, &adbname->name, rdtype, now,
-			       NAME_GLUEOK(adbname),
+			       NAME_GLUEOK(adbname) ? DNS_DBFIND_GLUEOK : 0,
 			       ISC_TF(NAME_HINTOK(adbname)),
 			       NULL, NULL, fname, &rdataset, NULL);
 
@@ -3471,7 +3471,9 @@ dns_adb_findaddrinfo(dns_adb_t *adb, isc_sockaddr_t *sa,
 
 	port = isc_sockaddr_getport(sa);
 	addr = new_adbaddrinfo(adb, entry, port);
-	if (addr != NULL) {
+	if (addr == NULL) {
+		result = ISC_R_NOMEMORY;
+	} else {
 		inc_entry_refcnt(adb, entry, ISC_FALSE);
 		*addrp = addr;
 	}

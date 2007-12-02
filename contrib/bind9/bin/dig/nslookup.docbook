@@ -4,7 +4,7 @@
 <!--
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nslookup.docbook,v 1.4.2.10 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: nslookup.docbook,v 1.4.2.13 2007/08/28 07:19:55 tbox Exp $ -->
 <!--
  - Copyright (c) 1985, 1989
  -    The Regents of the University of California.  All rights reserved.
@@ -314,9 +314,8 @@ nslookup -query=hinfo  -timeout=10
                     <replaceable><optional>no</optional></replaceable>debug</constant></term>
                 <listitem>
                   <para>
-                    Turn debugging mode on.  A lot more information is
-                    printed about the packet sent to the server and the
-                    resulting answer.
+		    Turn on or off the display of the full response packet and
+		    any intermediate response packets when searching.
                   </para>
 		  <para>
                     (Default = nodebug; abbreviation = <optional>no</optional>deb)
@@ -329,9 +328,8 @@ nslookup -query=hinfo  -timeout=10
                     <replaceable><optional>no</optional></replaceable>d2</constant></term>
                 <listitem>
                   <para>
-                    Turn debugging mode on.  A lot more information is
-                    printed about the packet sent to the server and the
-                    resulting answer.
+                    Turn debugging mode on or off.  This displays more about
+	            what nslookup is doing.
                   </para>
 		  <para>
                     (Default = nod2)
