@@ -181,6 +181,8 @@ static void	amr_init_sysctl(struct amr_softc *sc);
 static int	amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr,
 		    int32_t flag, d_thread_t *td);
 
+MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
+
 /********************************************************************************
  ********************************************************************************
                                                                       Inline Glue
@@ -571,7 +573,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	adapter = (ali.ui.fcs.adapno) ^ 'm' << 8;
 
 	ap = malloc(sizeof(struct amr_passthrough),
-	    M_DEVBUF, M_WAITOK | M_ZERO);
+	    M_AMR, M_WAITOK | M_ZERO);
 
 	mb = (void *)&ali.mbox[0];
 
@@ -591,7 +593,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 		break;
 
 	    if (ap->ap_data_transfer_length)
-		dp = malloc(ap->ap_data_transfer_length, M_DEVBUF,
+		dp = malloc(ap->ap_data_transfer_length, M_AMR,
 		    M_WAITOK | M_ZERO);
 
 	    if (ali.inlen) {
@@ -647,7 +649,7 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	    break;
 	} else {
 	    if (len)
-		dp = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+		dp = malloc(len, M_AMR, M_WAITOK | M_ZERO);
 
 	    if (ali.inlen) {
 		error = copyin((void *)(uintptr_t)mb->mb_physaddr, dp, len);
@@ -703,9 +705,9 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	amr_releasecmd(ac);
     mtx_unlock(&sc->amr_list_lock);
     if (dp != NULL)
-	free(dp, M_DEVBUF);
+	free(dp, M_AMR);
     if (ap != NULL)
-	free(ap, M_DEVBUF);
+	free(ap, M_AMR);
     return(error);
 }
 
@@ -818,12 +820,12 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 
     /* handle inbound data buffer */
     if (au_length != 0 && au_cmd[0] != 0x06) {
-	if ((dp = malloc(au_length, M_DEVBUF, M_WAITOK|M_ZERO)) == NULL) {
+	if ((dp = malloc(au_length, M_AMR, M_WAITOK|M_ZERO)) == NULL) {
 	    error = ENOMEM;
 	    goto out;
 	}
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
-	    free(dp, M_DEVBUF);
+	    free(dp, M_AMR);
 	    return (error);
 	}
 	debug(2, "copyin %ld bytes from %p -> %p", au_length, au_buffer, dp);
@@ -831,7 +833,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 
     /* Allocate this now before the mutex gets held */
     if (au_cmd[0] == AMR_CMD_PASS)
-	ap = malloc(sizeof(struct amr_passthrough), M_DEVBUF, M_WAITOK|M_ZERO);
+	ap = malloc(sizeof(struct amr_passthrough), M_AMR, M_WAITOK|M_ZERO);
 
     mtx_lock(&sc->amr_list_lock); 
     while ((ac = amr_alloccmd(sc)) == NULL)
@@ -910,9 +912,9 @@ out:
 	amr_releasecmd(ac);
     mtx_unlock(&sc->amr_list_lock);
     if (dp != NULL)
-	free(dp, M_DEVBUF);
+	free(dp, M_AMR);
     if (ap != NULL)
-	free(ap, M_DEVBUF);
+	free(ap, M_AMR);
 
 #ifndef LSI
     if (logical_drives_changed)
@@ -997,7 +999,7 @@ amr_query_controller(struct amr_softc *sc)
 	    debug(2, "  drive %d: %d state %x properties %x\n", ldrv, sc->amr_drive[ldrv].al_size,
 		  sc->amr_drive[ldrv].al_state, sc->amr_drive[ldrv].al_properties);
 	}
-	free(aex, M_DEVBUF);
+	free(aex, M_AMR);
 
 	/*
 	 * Get product info for channel count.
@@ -1010,11 +1012,11 @@ amr_query_controller(struct amr_softc *sc)
 	sc->amr_maxchan = ap->ap_nschan;
 	sc->amr_maxio = ap->ap_maxio;
 	sc->amr_type |= AMR_TYPE_40LD;
-	free(ap, M_DEVBUF);
+	free(ap, M_AMR);
 
 	ap = amr_enquiry(sc, 0, FC_DEL_LOGDRV, OP_SUP_DEL_LOGDRV, 0, &status);
 	if (ap != NULL)
-	    free(ap, M_DEVBUF);
+	    free(ap, M_AMR);
 	if (!status) {
 	    sc->amr_ld_del_supported = 1;
 	    device_printf(sc->amr_dev, "delete logical drives supported by controller\n");
@@ -1044,7 +1046,7 @@ amr_query_controller(struct amr_softc *sc)
 	sc->amr_maxdrives = 8;
 	sc->amr_maxchan = ae->ae_adapter.aa_channels;
 	sc->amr_maxio = ae->ae_adapter.aa_maxio;
-	free(ae, M_DEVBUF);
+	free(ae, M_AMR);
     }
 
     /*
@@ -1085,7 +1087,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
     if (ac == NULL)
 	goto out;
     /* allocate the response structure */
-    if ((result = malloc(bufsize, M_DEVBUF, M_ZERO|M_NOWAIT)) == NULL)
+    if ((result = malloc(bufsize, M_AMR, M_ZERO|M_NOWAIT)) == NULL)
 	goto out;
     /* set command flags */
 
@@ -1114,7 +1116,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
 	amr_releasecmd(ac);
     mtx_unlock(&sc->amr_list_lock);
     if ((error != 0) && (result != NULL)) {
-	free(result, M_DEVBUF);
+	free(result, M_AMR);
 	result = NULL;
     }
     return(result);
@@ -2150,7 +2152,7 @@ amr_alloccmd_cluster(struct amr_softc *sc)
 
     if (sc->amr_nextslot > sc->amr_maxio)
 	return;
-    acc = malloc(AMR_CMD_CLUSTERSIZE, M_DEVBUF, M_NOWAIT | M_ZERO);
+    acc = malloc(AMR_CMD_CLUSTERSIZE, M_AMR, M_NOWAIT | M_ZERO);
     if (acc != NULL) {
 	nextslot = sc->amr_nextslot;
 	TAILQ_INSERT_TAIL(&sc->amr_cmd_clusters, acc, acc_link);
@@ -2205,7 +2207,7 @@ amr_freecmd_cluster(struct amr_command_cluster *acc)
 		bus_dmamap_destroy(sc->amr_buffer64_dmat, acc->acc_command[i].ac_dma64map);
 		bus_dmamap_destroy(sc->amr_buffer64_dmat, acc->acc_command[i].ac_ccb_dma64map);
     }
-    free(acc, M_DEVBUF);
+    free(acc, M_AMR);
 }
 
 /********************************************************************************
@@ -2468,7 +2470,7 @@ amr_describe_controller(struct amr_softc *sc)
 		      ap->ap_product, ap->ap_firmware, ap->ap_bios,
 		      ap->ap_memsize);
 
-	free(ap, M_DEVBUF);
+	free(ap, M_AMR);
 	return;
     }
 
@@ -2535,7 +2537,7 @@ amr_describe_controller(struct amr_softc *sc)
 		      prod, ae->ae_adapter.aa_firmware, ae->ae_adapter.aa_bios,
 		      ae->ae_adapter.aa_memorysize);
     }    	
-    free(ae, M_DEVBUF);
+    free(ae, M_AMR);
 }
 
 int
