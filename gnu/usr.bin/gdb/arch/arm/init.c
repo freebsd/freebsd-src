@@ -105,6 +105,7 @@ extern initialize_file_ftype _initialize_mi_cmds;
 extern initialize_file_ftype _initialize_mi_cmd_env;
 extern initialize_file_ftype _initialize_mi_interp;
 extern initialize_file_ftype _initialize_mi_main;
+extern initialize_file_ftype _initialize_thread_db;
 extern initialize_file_ftype _initialize_tui_hooks;
 extern initialize_file_ftype _initialize_tui_interp;
 extern initialize_file_ftype _initialize_tui_layout;
@@ -128,6 +129,7 @@ initialize_all_files (void)
   _initialize_kernel_u_addr ();
   _initialize_infptrace ();
   _initialize_inftarg ();
+  _initialize_thread_db ();
 #endif
   _initialize_arm_fbsdnat ();
   _initialize_remote ();

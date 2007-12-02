@@ -60,7 +60,6 @@ arm_freebsd_elf_init_abi (struct gdbarch_info info,
   tdep->fp_model = ARM_FLOAT_SOFT_VFP;
 }
 
-
 void
 _initialize_armfbsd_tdep (void)
 {
