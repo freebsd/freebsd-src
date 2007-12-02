@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.116.18.13.10.4 2007/06/27 04:17:45 marka Exp $ */
+/* $Id: dispatch.c,v 1.116.18.19 2007/08/28 07:20:04 tbox Exp $ */
 
 /*! \file */
 
@@ -1615,8 +1615,10 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, isc_socket_t *sock,
 					    DNS_EVENT_DISPATCHCONTROL,
 					    destroy_disp, disp,
 					    sizeof(isc_event_t));
-	if (disp->ctlevent == NULL)
+	if (disp->ctlevent == NULL) {
+		result = ISC_R_NOMEMORY;
 		goto kill_task;
+	}
 
 	isc_task_setname(disp->task, "tcpdispatch", disp);
 
@@ -1797,8 +1799,10 @@ dispatch_createudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 					    DNS_EVENT_DISPATCHCONTROL,
 					    destroy_disp, disp,
 					    sizeof(isc_event_t));
-	if (disp->ctlevent == NULL)
+	if (disp->ctlevent == NULL) {
+		result = ISC_R_NOMEMORY;
 		goto kill_task;
+	}
 
 	isc_task_setname(disp->task, "udpdispatch", disp);
 

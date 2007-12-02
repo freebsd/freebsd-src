@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nslookup.1,v 1.1.10.12 2007/01/30 00:23:44 marka Exp $
+.\" $Id: nslookup.1,v 1.1.10.14 2007/05/16 06:11:27 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -158,7 +158,7 @@ The class specifies the protocol group of the information.
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBdebug\fR
 .RS 4
-Turn debugging mode on. A lot more information is printed about the packet sent to the server and the resulting answer.
+Turn on or off the display of the full response packet and any intermediate response packets when searching.
 .sp
 (Default = nodebug; abbreviation =
 [no]deb)
@@ -166,7 +166,7 @@ Turn debugging mode on. A lot more information is printed about the packet sent 
 .PP
 \fB \fR\fB\fI[no]\fR\fR\fBd2\fR
 .RS 4
-Turn debugging mode on. A lot more information is printed about the packet sent to the server and the resulting answer.
+Turn debugging mode on or off. This displays more about what nslookup is doing.
 .sp
 (Default = nod2)
 .RE
