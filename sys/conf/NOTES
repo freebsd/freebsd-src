@@ -465,6 +465,13 @@ options 	REGRESSION
 #
 options 	COMPILING_LINT
 
+#
+# STACK enables the stack(9) facility, allowing the capture of kernel stack
+# for the purpose of procinfo(1), etc.  stack(9) will also be compiled in
+# automatically if DDB(4) is compiled into the kernel.
+#
+options 	STACK
+
 
 #####################################################################
 # PERFORMANCE MONITORING OPTIONS
