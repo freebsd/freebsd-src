@@ -1948,7 +1948,7 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	/*
 	 * Step 4: Update MD5 hash with shared secret.
 	 */
-	MD5Update(&ctx, _KEYBUF(sav->key_auth), _KEYLEN(sav->key_auth));
+	MD5Update(&ctx, sav->key_auth->key_data, _KEYLEN(sav->key_auth));
 	MD5Final(buf, &ctx);
 
 	key_sa_recordxfer(sav, m);

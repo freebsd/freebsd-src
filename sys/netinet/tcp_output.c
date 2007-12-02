@@ -128,9 +128,6 @@ tcp_output(struct tcpcb *tp)
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
 	int off, flags, error;
-#ifdef TCP_SIGNATURE
-	int sigoff = 0;
-#endif
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -681,10 +678,6 @@ send:
 
 		/* Processing the options. */
 		hdrlen += optlen = tcp_addoptions(&to, opt);
-
-#ifdef TCP_SIGNATURE
-		sigoff = to.to_signature - (u_char *)&to;
-#endif /* TCP_SIGNATURE */
 	}
 
 #ifdef INET6
@@ -951,9 +944,11 @@ send:
 #ifdef INET6
 	if (!isipv6)
 #endif
-	if (tp->t_flags & TF_SIGNATURE)
+	if (tp->t_flags & TF_SIGNATURE) {
+		int sigoff = to.to_signature - opt;
 		tcp_signature_compute(m, sizeof(struct ip), len, optlen,
 		    (u_char *)(th + 1) + sigoff, IPSEC_DIR_OUTBOUND);
+	}
 #endif
 
 	/*
