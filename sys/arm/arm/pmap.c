@@ -430,10 +430,10 @@ pmap_init_l1(struct l1_ttable *l1, pd_entry_t *l1pt)
 
 	l1->l1_kva = l1pt;
 	l1->l1_domain_use_count = 0;
-	l1->l1_domain_first = 1;
+	l1->l1_domain_first = 0;
 
 	for (i = 0; i < PMAP_DOMAINS; i++)
-		l1->l1_domain_free[i] = i + 2;
+		l1->l1_domain_free[i] = i + 1;
 
 	/*
 	 * Copy the kernel's L1 entries to each new L1.
@@ -787,7 +787,7 @@ pmap_alloc_l1(pmap_t pm)
 	 * Fix up the relevant bits in the pmap structure
 	 */
 	pm->pm_l1 = l1;
-	pm->pm_domain = domain;
+	pm->pm_domain = domain + 1;
 }
 
 /*
@@ -810,8 +810,8 @@ pmap_free_l1(pmap_t pm)
 	/*
 	 * Free up the domain number which was allocated to the pmap
 	 */
-	l1->l1_domain_free[pm->pm_domain] = l1->l1_domain_first;
-	l1->l1_domain_first = pm->pm_domain;
+	l1->l1_domain_free[pm->pm_domain - 1] = l1->l1_domain_first;
+	l1->l1_domain_first = pm->pm_domain - 1;
 	l1->l1_domain_use_count--;
 
 	/*
