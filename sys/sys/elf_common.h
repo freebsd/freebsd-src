@@ -431,6 +431,9 @@ typedef struct {
 #define STV_INTERNAL	0x1	/* Special meaning in relocatable objects. */
 #define STV_HIDDEN	0x2	/* Not visible. */
 #define STV_PROTECTED	0x3	/* Visible but not preemptible. */
+#define STV_EXPORTED	0x4
+#define STV_SINGLETON	0x5
+#define STV_ELIMINATE	0x6
 
 /* Special symbol table indexes. */
 #define STN_UNDEF	0	/* Undefined symbol index. */
