@@ -66,7 +66,6 @@ device		random
 device		pty
 device		loop
 device		ether
-device		nexus
 device		uart
 device		ate
 device		mii

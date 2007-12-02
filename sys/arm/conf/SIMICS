@@ -58,7 +58,6 @@ device		loop
 device		ether
 device		saip
 device		assabet
-device		nexus
 #device		saarm
 device		rl
 device		uart
