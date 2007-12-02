@@ -67,7 +67,13 @@
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
-	str	r0, [sp, #-4]!;
+	str	r0, [sp, #-4]!;						   \
+	mov	r0, #0xe0000004;					   \
+	mov	r1, #0;							   \
+	str	r1, [r0];						   \
+	mov	r0, #0xe0000008;					   \
+	mov	r1, #0xffffffff;					   \
+	str	r1, [r0];
 
 /*
  * PULLFRAME - macro to pull a trap frame from the stack in the current mode
@@ -121,6 +127,7 @@
 	ldrgt	r4, [r1];		/* Get the end of the RAS */	   \
 	movgt	r2, #0;			/* Reset the magic addresses */	   \
 	strgt	r2, [r5];						   \
+	movgt	r2, #0xffffffff;					   \
 	strgt	r2, [r1];						   \
 	cmpgt	lr, r3;			/* Were we in the RAS ? */	   \
 	cmpgt	r4, lr;							   \
