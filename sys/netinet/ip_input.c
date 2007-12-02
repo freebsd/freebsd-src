@@ -1268,7 +1268,8 @@ ip_forward(struct mbuf *m, int srcrt)
 	}
 #endif
 
-	if (!srcrt && (ia = ip_rtaddr(ip->ip_dst)) == NULL) {
+	ia = ip_rtaddr(ip->ip_dst);
+	if (!srcrt && ia == NULL) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		return;
 	}
