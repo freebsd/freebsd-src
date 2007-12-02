@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <sys/conf.h>
+#include <sys/domain.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/protosw.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 #include <sys/vnode.h>
 
 #include <security/audit/audit.h>
@@ -2405,7 +2408,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 }
 
 /*
- * Get file structures.
+ * Get file structures globally.
  */
 static int
 sysctl_kern_file(SYSCTL_HANDLER_ARGS)
@@ -2487,6 +2490,182 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
+
+/*
+ * Get per-process file descriptors for use by procstat(1), et al.
+ */
+static int
+sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
+{
+	char *fullpath, *freepath;
+	struct kinfo_file *kif;
+	struct filedesc *fdp;
+	int error, i, *name;
+	struct socket *so;
+	struct vnode *vp;
+	struct file *fp;
+	struct proc *p;
+	int vfslocked;
+
+	name = (int *)arg1;
+	if ((p = pfind((pid_t)name[0])) == NULL)
+		return (ESRCH);
+	if ((error = p_candebug(curthread, p))) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	fdp = fdhold(p);
+	PROC_UNLOCK(p);
+	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
+	FILEDESC_SLOCK(fdp);
+	for (i = 0; i < fdp->fd_nfiles; i++) {
+		if ((fp = fdp->fd_ofiles[i]) == NULL)
+			continue;
+		bzero(kif, sizeof(*kif));
+		kif->kf_structsize = sizeof(*kif);
+		FILE_LOCK(fp);
+		vp = NULL;
+		so = NULL;
+		kif->kf_fd = i;
+		switch (fp->f_type) {
+		case DTYPE_VNODE:
+			kif->kf_type = KF_TYPE_VNODE;
+			vp = fp->f_vnode;
+			vref(vp);
+			break;
+
+		case DTYPE_SOCKET:
+			kif->kf_type = KF_TYPE_SOCKET;
+			so = fp->f_data;
+			break;
+
+		case DTYPE_PIPE:
+			kif->kf_type = KF_TYPE_PIPE;
+			break;
+
+		case DTYPE_FIFO:
+			kif->kf_type = KF_TYPE_FIFO;
+			vp = fp->f_vnode;
+			vref(vp);
+			break;
+
+		case DTYPE_KQUEUE:
+			kif->kf_type = KF_TYPE_KQUEUE;
+			break;
+
+		case DTYPE_CRYPTO:
+			kif->kf_type = KF_TYPE_CRYPTO;
+			break;
+
+		case DTYPE_MQUEUE:
+			kif->kf_type = KF_TYPE_MQUEUE;
+			break;
+
+		default:
+			kif->kf_type = KF_TYPE_UNKNOWN;
+			break;
+		}
+		kif->kf_ref_count = fp->f_count;
+		if (fp->f_flag & FREAD)
+			kif->kf_flags |= KF_FLAG_READ;
+		if (fp->f_flag & FWRITE)
+			kif->kf_flags |= KF_FLAG_WRITE;
+		if (fp->f_flag & FAPPEND)
+			kif->kf_flags |= KF_FLAG_APPEND;
+		if (fp->f_flag & FASYNC)
+			kif->kf_flags |= KF_FLAG_ASYNC;
+		if (fp->f_flag & FFSYNC)
+			kif->kf_flags |= KF_FLAG_FSYNC;
+		if (fp->f_flag & FNONBLOCK)
+			kif->kf_flags |= KF_FLAG_NONBLOCK;
+		if (fp->f_flag & O_DIRECT)
+			kif->kf_flags |= KF_FLAG_DIRECT;
+		if (fp->f_flag & FHASLOCK)
+			kif->kf_flags |= KF_FLAG_HASLOCK;
+		kif->kf_offset = fp->f_offset;
+		FILE_UNLOCK(fp);
+		if (vp != NULL) {
+			switch (vp->v_type) {
+			case VNON:
+				kif->kf_vnode_type = KF_VTYPE_VNON;
+				break;
+			case VREG:
+				kif->kf_vnode_type = KF_VTYPE_VREG;
+				break;
+			case VDIR:
+				kif->kf_vnode_type = KF_VTYPE_VDIR;
+				break;
+			case VBLK:
+				kif->kf_vnode_type = KF_VTYPE_VBLK;
+				break;
+			case VCHR:
+				kif->kf_vnode_type = KF_VTYPE_VCHR;
+				break;
+			case VLNK:
+				kif->kf_vnode_type = KF_VTYPE_VLNK;
+				break;
+			case VSOCK:
+				kif->kf_vnode_type = KF_VTYPE_VSOCK;
+				break;
+			case VFIFO:
+				kif->kf_vnode_type = KF_VTYPE_VFIFO;
+				break;
+			case VBAD:
+				kif->kf_vnode_type = KF_VTYPE_VBAD;
+				break;
+			default:
+				kif->kf_vnode_type = KF_VTYPE_UNKNOWN;
+				break;
+			}
+			/*
+			 * It is OK to drop the filedesc lock here as we will
+			 * re-validate and re-evaluate its properties when
+			 * the loop continues.
+			 */
+			freepath = NULL;
+			fullpath = "-";
+			FILEDESC_SUNLOCK(fdp);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+			vn_fullpath(curthread, vp, &fullpath, &freepath);
+			vput(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			strlcpy(kif->kf_path, fullpath,
+			    sizeof(kif->kf_path));
+			if (freepath != NULL)
+				free(freepath, M_TEMP);
+			FILEDESC_SLOCK(fdp);
+		}
+		if (so != NULL) {
+			struct sockaddr *sa;
+
+			if (so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa)
+			    == 0 && sa->sa_len <= sizeof(kif->kf_sa_local)) {
+				bcopy(sa, &kif->kf_sa_local, sa->sa_len);
+				free(sa, M_SONAME);
+			}
+			if (so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa)
+			    == 00 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
+				bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
+				free(sa, M_SONAME);
+			}
+			kif->kf_sock_domain =
+			    so->so_proto->pr_domain->dom_family;
+			kif->kf_sock_type = so->so_type;
+			kif->kf_sock_protocol = so->so_proto->pr_protocol;
+		}
+		error = SYSCTL_OUT(req, kif, sizeof(*kif));
+		if (error)
+			break;
+	}
+	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
+	free(kif, M_TEMP);
+	return (0);
+}
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc, CTLFLAG_RD,
+    sysctl_kern_proc_filedesc, "Process filedesc entries");
 
 #ifdef DDB
 /*
