@@ -149,6 +149,7 @@ SUBDIR=	alias \
 	pr \
 	printenv \
 	printf \
+	procstat \
 	quota \
 	renice \
 	rev \
