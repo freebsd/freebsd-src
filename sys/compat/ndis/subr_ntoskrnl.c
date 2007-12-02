@@ -218,7 +218,6 @@ static int atoi (const char *);
 static long atol (const char *);
 static int rand(void);
 static void srand(unsigned int);
-static void ntoskrnl_time(uint64_t *);
 static uint8_t IoIsWdmVersionAvailable(uint8_t, uint8_t);
 static void ntoskrnl_thrfunc(void *);
 static ndis_status PsCreateSystemThread(ndis_handle *,
@@ -1574,7 +1573,11 @@ ntoskrnl_waittest(obj, increment)
 	return;
 }
 
-static void 
+/*
+ * Return the number of 100 nanosecond intervals since
+ * January 1, 1601. (?!?!)
+ */
+void
 ntoskrnl_time(tval)
 	uint64_t                *tval;
 {
@@ -1582,7 +1585,7 @@ ntoskrnl_time(tval)
 
 	nanotime(&ts);
 	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
-	    11644473600;
+	    11644473600 * 10000000; /* 100ns ticks from 1601 to 1970 */
 
 	return;
 }
