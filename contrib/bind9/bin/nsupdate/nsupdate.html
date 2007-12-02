@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.14.18.21 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: nsupdate.html,v 1.14.18.22 2007/05/09 03:33:13 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -77,7 +77,7 @@
       Once other algorithms are defined for TSIG, applications will need to
       ensure they select the appropriate algorithm as well as the key when
       authenticating each other.
-      For instance suitable
+      For instance, suitable
       <span class="type">key</span>
       and
       <span class="type">server</span>
@@ -133,7 +133,7 @@
       This may be preferable when a batch of update requests is made.
     </p>
 <p>
-      The <code class="option">-t</code> option sets the maximum time a update request
+      The <code class="option">-t</code> option sets the maximum time an update request
       can
       take before it is aborted.  The default is 300 seconds.  Zero can be
       used
@@ -142,14 +142,14 @@
 <p>
       The <code class="option">-u</code> option sets the UDP retry interval.  The default
       is
-      3 seconds.  If zero the interval will be computed from the timeout
+      3 seconds.  If zero, the interval will be computed from the timeout
       interval
       and number of UDP retries.
     </p>
 <p>
       The <code class="option">-r</code> option sets the number of UDP retries. The
       default is
-      3.  If zero only one update request will be made.
+      3.  If zero, only one update request will be made.
     </p>
 </div>
 <div class="refsect1" lang="en">
@@ -242,7 +242,7 @@
             </span></dt>
 <dd><p>
               Specify the default class.
-              If no <em class="parameter"><code>class</code></em> is specified the
+              If no <em class="parameter"><code>class</code></em> is specified, the
               default class is
               <em class="parameter"><code>IN</code></em>.
             </p></dd>
@@ -252,7 +252,7 @@
                {secret}
             </span></dt>
 <dd><p>
-              Specifies that all updates are to be TSIG signed using the
+              Specifies that all updates are to be TSIG-signed using the
               <em class="parameter"><code>keyname</code></em> <em class="parameter"><code>keysecret</code></em> pair.
               The <span><strong class="command">key</strong></span> command
               overrides any key specified on the command line via
@@ -402,7 +402,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544649"></a><h2>EXAMPLES</h2>
+<a name="id2544648"></a><h2>EXAMPLES</h2>
 <p>
       The examples below show how
       <span><strong class="command">nsupdate</strong></span>
@@ -428,10 +428,10 @@
       Any A records for
       <span class="type">oldhost.example.com</span>
       are deleted.
-      and an A record for
+      And an A record for
       <span class="type">newhost.example.com</span>
-      it IP address 172.16.1.1 is added.
-      The newly-added record has a 1 day TTL (86400 seconds)
+      with IP address 172.16.1.1 is added.
+      The newly-added record has a 1 day TTL (86400 seconds).
       </p>
 <pre class="programlisting">
 # nsupdate
@@ -456,7 +456,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544693"></a><h2>FILES</h2>
+<a name="id2544692"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -475,7 +475,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544830"></a><h2>SEE ALSO</h2>
+<a name="id2544829"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
       <span class="citerefentry"><span class="refentrytitle">RFC2104</span></span>,
@@ -488,7 +488,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544901"></a><h2>BUGS</h2>
+<a name="id2544900"></a><h2>BUGS</h2>
 <p>
       The TSIG key is redundantly stored in two separate files.
       This is a consequence of nsupdate using the DST library

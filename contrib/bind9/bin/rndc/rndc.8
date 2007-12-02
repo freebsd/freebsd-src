@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: rndc.8,v 1.26.18.12 2007/01/30 00:23:44 marka Exp $
+.\" $Id: rndc.8,v 1.26.18.15 2007/06/20 02:26:58 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -47,8 +47,7 @@ is invoked with no command line options or arguments, it prints a short summary 
 communicates with the name server over a TCP connection, sending commands authenticated with digital signatures. In the current versions of
 \fBrndc\fR
 and
-\fBnamed\fR
-named the only supported authentication algorithm is HMAC\-MD5, which uses a shared secret on each end of the connection. This provides TSIG\-style authentication for the command request and the name server's response. All commands sent over the channel must be signed by a key_id known to the server.
+\fBnamed\fR, the only supported authentication algorithm is HMAC\-MD5, which uses a shared secret on each end of the connection. This provides TSIG\-style authentication for the command request and the name server's response. All commands sent over the channel must be signed by a key_id known to the server.
 .PP
 \fBrndc\fR
 reads a configuration file to determine how to contact the name server and decide what algorithm and key it should use.
@@ -85,7 +84,9 @@ does not exist.
 .RS 4
 \fIserver\fR
 is the name or address of the server which matches a server statement in the configuration file for
-\fBrndc\fR. If no server is supplied on the command line, the host named by the default\-server clause in the option statement of the configuration file will be used.
+\fBrndc\fR. If no server is supplied on the command line, the host named by the default\-server clause in the options statement of the
+\fBrndc\fR
+configuration file will be used.
 .RE
 .PP
 \-p \fIport\fR
@@ -100,14 +101,14 @@ instead of BIND 9's default control channel port, 953.
 Enable verbose logging.
 .RE
 .PP
-\-y \fIkeyid\fR
+\-y \fIkey_id\fR
 .RS 4
 Use the key
-\fIkeyid\fR
+\fIkey_id\fR
 from the configuration file.
-\fIkeyid\fR
+\fIkey_id\fR
 must be known by named with the same algorithm and secret string in order for control message validation to succeed. If no
-\fIkeyid\fR
+\fIkey_id\fR
 is specified,
 \fBrndc\fR
 will first look for a key clause in the server statement of the server being used, or if no server statement is present for that host, then the default\-key clause of the options statement. Note that the configuration file contains shared secrets which are used to send authenticated control commands to name servers. It should therefore not have general read or write access.
@@ -133,7 +134,7 @@ Several error messages could be clearer.
 .PP
 \fBrndc.conf\fR(5),
 \fBnamed\fR(8),
-\fBnamed.conf\fR(5)
+\fBnamed.conf\fR(5),
 \fBndc\fR(8),
 BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"

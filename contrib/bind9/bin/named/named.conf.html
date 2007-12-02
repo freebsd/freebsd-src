@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.1.2.32 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: named.conf.html,v 1.1.2.35 2007/08/19 23:26:13 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -255,6 +255,7 @@ options {<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
@@ -312,7 +313,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544400"></a><h2>VIEW</h2>
+<a name="id2544401"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -402,6 +403,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
@@ -451,7 +453,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544964"></a><h2>ZONE</h2>
+<a name="id2544966"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -487,6 +489,7 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	};<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
+	masterfile-format ( text | raw );<br>
 	notify <em class="replaceable"><code>notifytype</code></em>;<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
@@ -535,15 +538,16 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545316"></a><h2>FILES</h2>
+<a name="id2545319"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545328"></a><h2>SEE ALSO</h2>
+<a name="id2545331"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
-      <span class="citerefentry"><span class="refentrytitle">BIND 9 Administrator Reference Manual</span></span>.
+      <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 </div></body>

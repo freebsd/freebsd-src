@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,14 +15,13 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.47.18.28 2006/05/03 01:46:40 marka Exp $ */
+/* $Id: config.c,v 1.47.18.32 2007/09/13 05:04:01 each Exp $ */
 
 /*! \file */
 
 #include <config.h>
 
 #include <stdlib.h>
-#include <string.h>
 
 #include <isc/buffer.h>
 #include <isc/log.h>
@@ -31,6 +30,7 @@
 #include <isc/region.h>
 #include <isc/result.h>
 #include <isc/sockaddr.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
 #include <isccfg/namedconf.h>
@@ -182,7 +182,7 @@ options {\n\
 "
 
 "#\n\
-#  Zones in the \"_bind\" view are NOT counted is the count of zones.\n\
+#  Zones in the \"_bind\" view are NOT counted in the count of zones.\n\
 #\n\
 view \"_bind\" chaos {\n\
 	recursion no;\n\

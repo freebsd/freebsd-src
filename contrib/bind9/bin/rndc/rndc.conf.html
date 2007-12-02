@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: rndc.conf.html,v 1.6.18.21 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: rndc.conf.html,v 1.6.18.23 2007/05/09 13:35:47 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -87,7 +87,7 @@
       name of a key statement in the file.  The port number
       specifies the port to connect to.  If an <code class="option">addresses</code>
       clause is supplied these addresses will be used instead of
-      the server name.  Each address can take a optional port.
+      the server name.  Each address can take an optional port.
       If an <code class="option">source-address</code> or <code class="option">source-address-v6</code>
       of supplied then these will be used to specify the IPv4 and IPv6
       source addresses respectively.
@@ -153,7 +153,7 @@
       key testkey {
         algorithm	hmac-md5;
         secret		"R3HI8P6BKw9ZwXwN3VZKuQ==";
-      }
+      };
     </pre>
 <p>
     </p>
@@ -180,7 +180,7 @@
       A complete <code class="filename">rndc.conf</code> file, including
       the
       randomly generated key, will be written to the standard
-      output.  Commented out <code class="option">key</code> and
+      output.  Commented-out <code class="option">key</code> and
       <code class="option">controls</code> statements for
       <code class="filename">named.conf</code> are also printed.
     </p>

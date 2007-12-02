@@ -5,7 +5,7 @@
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.17.18.17 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: dig.docbook,v 1.17.18.21 2007/08/28 07:19:55 tbox Exp $ -->
 <refentry id="man.dig">
 
   <refentryinfo>
@@ -104,7 +104,7 @@
       arguments, it also has a batch mode of operation for reading lookup
       requests from a file.  A brief summary of its command-line arguments
       and options is printed when the <option>-h</option> option is given.
-      Unlike earlier versions, the BIND9 implementation of
+      Unlike earlier versions, the BIND 9 implementation of
       <command>dig</command> allows multiple lookups to be issued
       from the
       command line.
@@ -216,7 +216,7 @@
       The default query class (IN for internet) is overridden by the
       <option>-c</option> option.  <parameter>class</parameter> is
       any valid
-      class, such as HS for Hesiod records or CH for CHAOSNET records.
+      class, such as HS for Hesiod records or CH for Chaosnet records.
     </para>
 
     <para>
@@ -225,7 +225,7 @@
       in batch mode by reading a list of lookup requests to process from the
       file <parameter>filename</parameter>.  The file contains a
       number of
-      queries, one per line.  Each entry in the file should be organised in
+      queries, one per line.  Each entry in the file should be organized in
       the same way they would be presented as queries to
       <command>dig</command> using the command-line interface.
     </para>
@@ -251,7 +251,7 @@
       The <option>-t</option> option sets the query type to
       <parameter>type</parameter>.  It can be any valid query type
       which is
-      supported in BIND9.  The default query type "A", unless the
+      supported in BIND 9.  The default query type is "A", unless the
       <option>-x</option> option is supplied to indicate a reverse lookup.
       A zone transfer can be requested by specifying a type of AXFR.  When
       an incremental zone transfer (IXFR) is required,
@@ -263,12 +263,12 @@
 
     <para>
       The <option>-q</option> option sets the query name to 
-      <parameter>name</parameter>.  This useful do distingish the
+      <parameter>name</parameter>.  This useful do distinguish the
       <parameter>name</parameter> from other arguments.
     </para>
 
     <para>
-      Reverse lookups - mapping addresses to names - are simplified by the
+      Reverse lookups &mdash; mapping addresses to names &mdash; are simplified by the
       <option>-x</option> option.  <parameter>addr</parameter> is
       an IPv4
       address in dotted-decimal notation, or a colon-delimited IPv6 address.
@@ -343,7 +343,7 @@
           <listitem>
             <para>
               Use [do not use] TCP when querying name servers.  The default
-              behaviour is to use UDP unless an AXFR or IXFR query is
+              behavior is to use UDP unless an AXFR or IXFR query is
               requested, in
               which case a TCP connection is used.
             </para>
@@ -536,7 +536,7 @@
           <term><option>+[no]cmd</option></term>
           <listitem>
             <para>
-              toggles the printing of the initial comment in the output
+              Toggles the printing of the initial comment in the output
               identifying
               the version of <command>dig</command> and the query
               options that have
@@ -588,7 +588,7 @@
               This query option toggles the printing of statistics: when the
               query
               was made, the size of the reply and so on.  The default
-              behaviour is
+              behavior is
               to print the query statistics.
             </para>
           </listitem>
@@ -662,8 +662,8 @@
             <para>
 
               Sets the timeout for a query to
-              <parameter>T</parameter> seconds.  The default time
-              out is 5 seconds.
+              <parameter>T</parameter> seconds.  The default
+	      timeout is 5 seconds.
               An attempt to set <parameter>T</parameter> to less
               than 1 will result
               in a query timeout of 1 second being applied.
@@ -763,7 +763,7 @@
               default is
               to not try the next server which is the reverse of normal stub
               resolver
-              behaviour.
+              behavior.
             </para>
           </listitem>
         </varlistentry>
@@ -822,7 +822,7 @@
           <term><option>+[no]topdown</option></term>
           <listitem>
             <para>
-              When chasing DNSSEC signature chains perform a top down
+              When chasing DNSSEC signature chains perform a top-down
               validation.
               Requires dig be compiled with -DDIG_SIGCHASE.
             </para>

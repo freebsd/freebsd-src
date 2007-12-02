@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named-checkconf.html,v 1.9.18.18 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: named-checkconf.html,v 1.9.18.20 2007/06/20 02:26:58 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -43,7 +43,7 @@
 <div class="variablelist"><dl>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
-            chroot to <code class="filename">directory</code> so that
+            Chroot to <code class="filename">directory</code> so that
             include
             directives in the configuration file are processed as if
             run by a similarly chrooted named.
@@ -55,8 +55,8 @@
           </p></dd>
 <dt><span class="term">-z</span></dt>
 <dd><p>
-            Perform a check load the master zonefiles found in
-            <code class="filename">named.conf</code>.
+	    Perform a test load of all master zones found in
+	    <code class="filename">named.conf</code>.
           </p></dd>
 <dt><span class="term">-j</span></dt>
 <dd><p>
@@ -70,20 +70,21 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543488"></a><h2>RETURN VALUES</h2>
+<a name="id2543489"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543499"></a><h2>SEE ALSO</h2>
+<a name="id2543500"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">named-checkzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543521"></a><h2>AUTHOR</h2>
+<a name="id2543530"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.219.18.20.14.1 2007/06/26 02:58:54 marka Exp $ */
+/* $Id: client.c,v 1.219.18.28 2007/08/28 07:20:00 tbox Exp $ */
 
 #include <config.h>
 
@@ -1180,7 +1180,7 @@ client_addopt(ns_client_t *client) {
 	rdatalist->ttl = (client->extflags & DNS_MESSAGEEXTFLAG_REPLYPRESERVE);
 
 	/*
-	 * No ENDS options in the default case.
+	 * No EDNS options in the default case.
 	 */
 	rdata->data = NULL;
 	rdata->length = 0;
@@ -1226,7 +1226,8 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 		 dns_rdataclass_t rdclass, void *arg)
 {
 	dns_view_t *view;
-	dns_tsigkey_t *key;
+	dns_tsigkey_t *key = NULL;
+	dns_name_t *tsig = NULL;
 	isc_netaddr_t netsrc;
 	isc_netaddr_t netdst;
 
@@ -1241,7 +1242,6 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 	for (view = ISC_LIST_HEAD(ns_g_server->viewlist);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link)) {
-		dns_name_t *tsig = NULL;
 
 		if (view->matchrecursiveonly)
 			continue;
@@ -1584,6 +1584,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 					 "failed to get request's "
 					 "destination: %s",
 					 isc_result_totext(result));
+			ns_client_next(client, ISC_R_SUCCESS);
 			goto cleanup;
 		}
 	}
@@ -1672,21 +1673,29 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		char tsigrcode[64];
 		isc_buffer_t b;
 		dns_name_t *name = NULL;
+		dns_rcode_t status;
+		isc_result_t tresult;
 
-		isc_buffer_init(&b, tsigrcode, sizeof(tsigrcode) - 1);
-		RUNTIME_CHECK(dns_tsigrcode_totext(client->message->tsigstatus,
-						   &b) == ISC_R_SUCCESS);
-		tsigrcode[isc_buffer_usedlength(&b)] = '\0';
 		/* There is a signature, but it is bad. */
 		if (dns_message_gettsig(client->message, &name) != NULL) {
 			char namebuf[DNS_NAME_FORMATSIZE];
 			dns_name_format(name, namebuf, sizeof(namebuf));
+			status = client->message->tsigstatus;
+			isc_buffer_init(&b, tsigrcode, sizeof(tsigrcode) - 1);
+			tresult = dns_tsigrcode_totext(status, &b);
+			INSIST(tresult == ISC_R_SUCCESS);
+			tsigrcode[isc_buffer_usedlength(&b)] = '\0';
 			ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 				      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
 				      "request has invalid signature: "
 				      "TSIG %s: %s (%s)", namebuf,
 				      isc_result_totext(result), tsigrcode);
 		} else {
+			status = client->message->sig0status;
+			isc_buffer_init(&b, tsigrcode, sizeof(tsigrcode) - 1);
+			tresult = dns_tsigrcode_totext(status, &b);
+			INSIST(tresult == ISC_R_SUCCESS);
+			tsigrcode[isc_buffer_usedlength(&b)] = '\0';
 			ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 				      NS_LOGMODULE_CLIENT, ISC_LOG_ERROR,
 				      "request has invalid signature: %s (%s)",

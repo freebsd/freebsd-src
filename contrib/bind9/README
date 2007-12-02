@@ -43,16 +43,19 @@ BIND 9
 		Nominum, Inc.
 
 
-BIND 9.4.1-P1
+BIND 9.4.2
 
-	BIND 9.4.1-P1 is a security release, containing a fixes for a
-	security bugs in BIND 9.4.1.
+	BIND 9.4.2 is a maintenance release, containing fixes for
+	a number of bugs in 9.4.1.
+
+	Warning: If you installed BIND 9.4.2rc1 then any applications
+	linked against this release candidate will need to be rebuilt.
 
 BIND 9.4.1
 
-	BIND 9.4.1 is a security release, containing a fix for a
-	security bug in 9.4.0.
-	
+	BIND 9.4.1 is a security release, containing a fix for
+	a security bugs in 9.4.0.
+
 BIND 9.4.0
 
 	BIND 9.4.0 has a number of new features over 9.3,
@@ -74,7 +77,9 @@ BIND 9.4.0
 	used to specify the default zone access level rather than
 	having to have every zone override the global value.
 	allow-query-cache can be set at both the options and view
-	levels.  If allow-query-cache is not set allow-query applies.
+	levels. If allow-query-cache is not set then allow-recursion
+	is used if set, otherwise allow-query is used if set, otherwise
+	the default (localhost; localnets;) is used.
 
 	rndc: the source address can now be specified.
 
@@ -418,7 +423,7 @@ Building
 	We've had successful builds and tests on the following systems:
 
 		COMPAQ Tru64 UNIX 5.1B
-		FreeBSD 4.10, 5.2.1
+		FreeBSD 4.10, 5.2.1, 6.2
 		HP-UX 11.11
 		NetBSD 1.5
 		Slackware Linux 8.1
@@ -475,6 +480,8 @@ Building
 				    -DDIG_SIGCHASE_BU=1)
 		Disable dropping queries from particular well known ports.
 		  -DNS_CLIENT_DROPPORT=0
+		Disable support for "rrset-order fixed".
+		  -DDNS_RDATASET_FIXED=0
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.
@@ -587,9 +594,8 @@ Bug Reports and Mailing Lists
 		http://www.isc.org/ops/lists/
 
 	If you're planning on making changes to the BIND 9 source
-	code, you might want to join the BIND Workers mailing list.
-	Send mail to
+	code, you might want to join the BIND Forum as a Worker.
+	This gives you access to the bind-workers@isc.org mailing
+	list and pre-release access to the code.
 
-		bind-workers-request@isc.org
-
-
+		http://www.isc.org/sw/guild/bf/
