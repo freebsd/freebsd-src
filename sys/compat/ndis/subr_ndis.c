@@ -2661,20 +2661,11 @@ NdisMSynchronizeWithInterrupt(intr, syncfunc, syncctx)
 	return(KeSynchronizeExecution(intr->ni_introbj, syncfunc, syncctx));
 }
 
-/*
- * Return the number of 100 nanosecond intervals since
- * January 1, 1601. (?!?!)
- */
 static void
 NdisGetCurrentSystemTime(tval)
 	uint64_t		*tval;
 {
-	struct timespec		ts;
-
-	nanotime(&ts);
-	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
-	    11644473600;
-
+	ntoskrnl_time(tval);
 	return;
 }
 
