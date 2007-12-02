@@ -22,45 +22,55 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _SYS_STACK_H_
-#define	_SYS_STACK_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	STACK_MAX	18	/* Don't change, stack_ktr relies on this. */
+#include <sys/systm.h>
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/stack.h>
 
-struct sbuf;
+#include <machine/vmparam.h>
+#include <machine/pcb.h>
+#include <machine/stack.h>
 
-struct stack {
-	int		depth;
-	vm_offset_t	pcs[STACK_MAX];
-};
+static void
+stack_capture(struct stack *st, u_int32_t *frame)
+{
+	vm_offset_t callpc;
 
-/* MI Routines. */
-struct stack	*stack_create(void);
-void		 stack_destroy(struct stack *);
-int		 stack_put(struct stack *, vm_offset_t);
-void		 stack_copy(struct stack *, struct stack *);
-void		 stack_zero(struct stack *);
-void		 stack_print(struct stack *);
-void		 stack_print_ddb(struct stack *);
-void		 stack_sbuf_print(struct sbuf *, struct stack *);
-void		 stack_sbuf_print_ddb(struct sbuf *, struct stack *);
-#ifdef KTR
-void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
-#define	CTRSTACK(m, st, depth, cheap) do {				\
-	if (KTR_COMPILE & (m))						\
-		stack_ktr((m), __FILE__, __LINE__, st, depth, cheap);	\
-	} while(0)
-#else
-#define	CTRSTACK(m, st, depth, cheap)
-#endif
+	stack_zero(st);
+	while (1) {
+		if (!INKERNEL(frame))
+			break;
+		callpc = frame[FR_SCP];
+		if (stack_put(st, callpc) == -1)
+			break;
+		frame = (u_int32_t *)(frame[FR_RFP]);
+	}
+}
 
-/* MD Routine. */
-struct thread;
-void		 stack_save(struct stack *);
-void		 stack_save_td(struct stack *, struct thread *);
+void
+stack_save_td(struct stack *st, struct thread *td)
+{
+	u_int32_t *frame;
 
-#endif
+	if (TD_IS_SWAPPED(td))
+		panic("stack_save_td: swapped");
+	if (TD_IS_RUNNING(td))
+		panic("stack_save_td: running");
+
+	frame = (u_int32_t *)td->td_pcb->un_32.pcb32_r11;
+	stack_capture(st, frame);
+}
+
+void
+stack_save(struct stack *st)
+{
+	u_int32_t *frame;
+
+	frame = (u_int32_t *)__builtin_frame_address(0);
+	stack_capture(st, frame);
+}

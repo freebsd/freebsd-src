@@ -98,6 +98,7 @@ ia64/ia64/sapic.c		standard
 ia64/ia64/setjmp.S		standard
 ia64/ia64/ssc.c			optional	ski
 ia64/ia64/sscdisk.c		optional	ski
+ia64/ia64/stack_machdep.c	optional	ddb | stack
 ia64/ia64/support.S		standard
 ia64/ia64/sys_machdep.c		standard
 ia64/ia64/syscall.S		standard

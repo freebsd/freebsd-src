@@ -22,45 +22,66 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _SYS_STACK_H_
-#define	_SYS_STACK_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	STACK_MAX	18	/* Don't change, stack_ktr relies on this. */
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/stack.h>
 
-struct sbuf;
+#include <machine/pcb.h>
+#include <machine/stack.h>
 
-struct stack {
-	int		depth;
-	vm_offset_t	pcs[STACK_MAX];
-};
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
-/* MI Routines. */
-struct stack	*stack_create(void);
-void		 stack_destroy(struct stack *);
-int		 stack_put(struct stack *, vm_offset_t);
-void		 stack_copy(struct stack *, struct stack *);
-void		 stack_zero(struct stack *);
-void		 stack_print(struct stack *);
-void		 stack_print_ddb(struct stack *);
-void		 stack_sbuf_print(struct sbuf *, struct stack *);
-void		 stack_sbuf_print_ddb(struct sbuf *, struct stack *);
-#ifdef KTR
-void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
-#define	CTRSTACK(m, st, depth, cheap) do {				\
-	if (KTR_COMPILE & (m))						\
-		stack_ktr((m), __FILE__, __LINE__, st, depth, cheap);	\
-	} while(0)
-#else
-#define	CTRSTACK(m, st, depth, cheap)
-#endif
+static void
+stack_capture(struct stack *st, register_t rbp)
+{
+	struct amd64_frame *frame;
+	vm_offset_t callpc;
 
-/* MD Routine. */
-struct thread;
-void		 stack_save(struct stack *);
-void		 stack_save_td(struct stack *, struct thread *);
+	stack_zero(st);
+	frame = (struct amd64_frame *)rbp;
+	while (1) {
+		if (!INKERNEL((long)frame))
+			break;
+		callpc = frame->f_retaddr;
+		if (!INKERNEL(callpc))
+			break;
+		if (stack_put(st, callpc) == -1)
+			break;
+		if (frame->f_frame <= frame ||
+		    (vm_offset_t)frame->f_frame >=
+		    (vm_offset_t)rbp + KSTACK_PAGES * PAGE_SIZE)
+			break;
+		frame = frame->f_frame;
+	}
+}
 
-#endif
+void
+stack_save_td(struct stack *st, struct thread *td)
+{
+	register_t rbp;
+
+	if (TD_IS_SWAPPED(td))
+		panic("stack_save_td: swapped");
+	if (TD_IS_RUNNING(td))
+		panic("stack_save_td: running");
+
+	rbp = td->td_pcb->pcb_rbp;
+	stack_capture(st, rbp);
+}
+
+void
+stack_save(struct stack *st)
+{
+	register_t rbp;
+
+	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
+	stack_capture(st, rbp);
+}

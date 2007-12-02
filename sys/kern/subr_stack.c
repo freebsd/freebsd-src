@@ -105,6 +105,7 @@ stack_print(struct stack *st)
 	}
 }
 
+#ifdef DDB
 void
 stack_print_ddb(struct stack *st)
 {
@@ -120,6 +121,7 @@ stack_print_ddb(struct stack *st)
 		    namebuf, offset);
 	}
 }
+#endif
 
 /*
  * Two print routines -- one for use from DDB and DDB-like contexts, the
