@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Antoine Brodin
+ * Copyright (c) 2001 Jake Burkholder.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,41 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_STACK_H_
-#define	_SYS_STACK_H_
+#ifndef _MACHINE_STACK_H_
+#define	_MACHINE_STACK_H_
 
-#define	STACK_MAX	18	/* Don't change, stack_ktr relies on this. */
+#define	INKERNEL(va) \
+	((va) >= VM_MIN_KERNEL_ADDRESS && (va) <= VM_MAX_KERNEL_ADDRESS)
 
-struct sbuf;
-
-struct stack {
-	int		depth;
-	vm_offset_t	pcs[STACK_MAX];
-};
-
-/* MI Routines. */
-struct stack	*stack_create(void);
-void		 stack_destroy(struct stack *);
-int		 stack_put(struct stack *, vm_offset_t);
-void		 stack_copy(struct stack *, struct stack *);
-void		 stack_zero(struct stack *);
-void		 stack_print(struct stack *);
-void		 stack_print_ddb(struct stack *);
-void		 stack_sbuf_print(struct sbuf *, struct stack *);
-void		 stack_sbuf_print_ddb(struct sbuf *, struct stack *);
-#ifdef KTR
-void		 stack_ktr(u_int, const char *, int, struct stack *, u_int, int);
-#define	CTRSTACK(m, st, depth, cheap) do {				\
-	if (KTR_COMPILE & (m))						\
-		stack_ktr((m), __FILE__, __LINE__, st, depth, cheap);	\
-	} while(0)
-#else
-#define	CTRSTACK(m, st, depth, cheap)
-#endif
-
-/* MD Routine. */
-struct thread;
-void		 stack_save(struct stack *);
-void		 stack_save_td(struct stack *, struct thread *);
-
-#endif
+#endif /* !_MACHINE_STACK_H_ */

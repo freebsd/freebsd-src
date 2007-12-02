@@ -597,18 +597,6 @@ db_trace_thread(struct thread *td, int count)
 	return (db_backtrace(td, ctx, count));
 }
 
-void
-stack_save(struct stack *st)
-{
-
-	stack_zero(st);
-	/*
-	 * Nothing for now.
-	 * Is libuwx reentrant?
-	 * Can unw_create* sleep?
-	 */
-}
-
 #ifdef EXCEPTION_TRACING
 
 extern long xtrace[];
