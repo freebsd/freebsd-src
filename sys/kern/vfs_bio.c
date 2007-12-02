@@ -98,7 +98,7 @@ static void vm_hold_free_pages(struct buf *bp, vm_offset_t from,
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
-			       int pageno, vm_page_t m);
+		vm_page_t m);
 static void vfs_clean_pages(struct buf *bp);
 static void vfs_setdirty(struct buf *bp);
 static void vfs_setdirty_locked_object(struct buf *bp);
@@ -3269,7 +3269,7 @@ bufdone_finish(struct buf *bp)
 			 * only need to do this here in the read case.
 			 */
 			if ((bp->b_iocmd == BIO_READ) && !bogusflag && resid > 0) {
-				vfs_page_set_valid(bp, foff, i, m);
+				vfs_page_set_valid(bp, foff, m);
 			}
 
 			/*
@@ -3367,7 +3367,7 @@ vfs_unbusy_pages(struct buf *bp)
  *	This routine is typically called after a read completes.
  */
 static void
-vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
+vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 {
 	vm_ooffset_t soff, eoff;
 
@@ -3459,7 +3459,7 @@ retry:
 		 */
 		pmap_remove_all(m);
 		if (clear_modify)
-			vfs_page_set_valid(bp, foff, i, m);
+			vfs_page_set_valid(bp, foff, m);
 		else if (m->valid == VM_PAGE_BITS_ALL &&
 		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
@@ -3504,7 +3504,7 @@ vfs_clean_pages(struct buf *bp)
 
 		if (eoff > bp->b_offset + bp->b_bufsize)
 			eoff = bp->b_offset + bp->b_bufsize;
-		vfs_page_set_valid(bp, foff, i, m);
+		vfs_page_set_valid(bp, foff, m);
 		/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
 		foff = noff;
 	}
