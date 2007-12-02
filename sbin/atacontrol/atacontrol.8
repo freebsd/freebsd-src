@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2005
+.Dd November 28, 2007
 .Dt ATACONTROL 8
 .Os
 .Sh NAME
@@ -221,6 +221,110 @@ for example:
 The new modes are set as soon as the
 .Nm
 command returns.
+.Pp
+The atacontrol command can also be used to create purely software
+RAID arrays in systems that do NOT have a "real" hardware RAID card
+such as a Highpoint or Promise card.
+A common scenario is a 1U server such as the HP DL320 G4 or G5.
+These servers contain a SATA controller that has 2 channels that can
+contain 2 disks per channel, but the servers are wired to only place
+a single SATA drive on each channel.
+These servers do have a "pseudo" RAID BIOS but it uses a proprietary
+format that is not compatible with the ata driver, and thus their
+RAID bios must be switched off.
+Another common scenario would be a Promise UDMA100 controller card
+that did not contain the Fasttrack RAID BIOS, but did contain 2
+UDMA channels.
+1 disk would be attached to one channel and the other disk would be
+attached to the other channel.
+It is NOT recommended to create such arrays on a primary/secondary
+pair on a SINGLE channel since the throughput of the mirror would be
+severely compromised, the ability to rebuild the array in the event
+of a disk failure would be greatly complicated, and if a disk
+controller electronics failed it could wedge the channel and take
+both disks in the mirror offline.
+(which would defeat the purpose of having a mirror in the first place)
+.Pp
+A quick and dirty way to create such a mirrored array on a new
+system is to boot off the FreeBSD install CD, do a minimal scratch
+install, abort out of the post install questions, and at the command
+line issue the command:
+.Pp
+.Dl "atacontrol create RAID1 ad4 ad6"
+.Pp
+then immediately issue a reboot and boot from the installation CD
+again, and during the installation, you will now see "ar0" listed
+as a disk to install on, and install on that instead of ad4, ad6, etc.
+.Pp
+To get information about the status of a RAID array in the system
+use the command line:
+.Pp
+.Dl "atacontrol status ar0"
+.Pp
+A typical output showing good health on a RAID array might be as
+follows:
+.Pp
+.Dl "ar0: ATA RAID1 subdisks: ad4 ad6 status: READY"
+.Pp
+If a disk drive in a RAID1 array dies the system will mark the disk
+in a DOWN state and change the array status to DEGRADED.
+This can ALSO happen in rare instances due to a power fluctuation or
+other event causing the system to not shutdown properly.
+In that case the output will look like the following:
+.Pp
+.Dl "ar0: ATA RAID1 subdisks: ad4 DOWN status: DEGRADED"
+.Pp
+For a mirrored RAID1 system the server WILL ALLOW you to remove a
+dead SATA disk drive (if the drive is in a hot-swap tray) without
+freezing up the system, so you can remove the disk and while you are
+obtaining a replacement the server can run from the active disk.
+The only caveat is that if the active disk is ad6, the system most
+likely will NOT be able to be rebooted since most systems only
+support booting from the first disk drive.
+.Pp
+To deactivate the DOWN disk ad6 to allow for it to be ejected, use
+the following:
+.Pp
+.Dl "atacontrol detach ata3"
+.Pp
+then eject or remove the disk.
+Note that this only works if the 2 disks in the mirror are on separate
+channels (which is the standard setup for 1-U servers like the HP DL320).
+When the new disk drive is obtained, make sure it is blank, then shut
+the system down.
+At this point, if the system has a RAID array card like a Highpoint or
+Promise controller, you may then boot it into the BIOS of the card and use
+the manufacturers RAID array rebuild utilities to rebuild the array.
+.Pp
+If the system has a pure software array and is not using a "real" ATA
+RAID controller, then shut the system down, make sure that the disk
+that was still working is moved to the bootable position (channel 0
+or whatever the BIOS allows the system to boot from) and the blank disk
+is placed in the secondary position, then boot the system into 
+single-user mode and issue the command:
+.Pp
+.Dl "atacontrol addspare ar0 ad6"
+.Dl "atacontrol rebuild ar0"
+.Pp
+If the disk drive did NOT fail and the RAID array became unmirrored due
+to a software glitch or improper shutdown, then a slightly different
+process must be followed.
+Begin by issuing the detach command (this shows the detach for disk ad6,
+the primary master on channel 3):
+.Pp
+.Dl "atacontrol detach ata3"
+.Pp
+then reboot the system into single-user mode.
+(don't just init the system, reboot it so that both disks get probed)
+You will probably see TWO mirrored RAID arrays appear during the boot
+messages, ar0 and ar1.
+Issue the command:
+.Pp
+.Dl "atacontrol delete ar1"
+.Dl "atacontrol addspare ar0 ad6"
+.Pp
+Now a status command will show the array rebuilding.
+.Pp
 .Sh SEE ALSO
 .Xr ata 4
 .Sh HISTORY
