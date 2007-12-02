@@ -57,6 +57,7 @@ options 	EPSON_BOUNCEDMA		# use bounce buffer for 15-16M
 #options 	EPSON_MEMWIN		# EPSON memory window support
 #options 	LINE30
 options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
