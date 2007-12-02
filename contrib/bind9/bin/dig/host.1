@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: host.1,v 1.14.18.13 2007/01/30 00:23:44 marka Exp $
+.\" $Id: host.1,v 1.14.18.14 2007/05/09 03:33:12 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -130,7 +130,7 @@ makes. This should mean that the name server receiving the query will not attemp
 \fB\-r\fR
 option enables
 \fBhost\fR
-to mimic the behaviour of a name server by making non\-recursive queries and expecting to receive answers to those queries that are usually referrals to other name servers.
+to mimic the behavior of a name server by making non\-recursive queries and expecting to receive answers to those queries that are usually referrals to other name servers.
 .PP
 By default
 \fBhost\fR
@@ -152,7 +152,7 @@ The
 \fB\-t\fR
 option is used to select the query type.
 \fItype\fR
-can be any recognised query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
+can be any recognized query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
 \fBhost\fR
 automatically selects an appropriate query type. By default it looks for A records, but if the
 \fB\-C\fR
@@ -185,7 +185,7 @@ The
 option tells
 \fBhost\fR
 \fInot\fR
-to send the query to the next nameserver if any server responds with a SERVFAIL response, which is the reverse of normal stub resolver behaviour.
+to send the query to the next nameserver if any server responds with a SERVFAIL response, which is the reverse of normal stub resolver behavior.
 .PP
 The
 \fB\-m\fR

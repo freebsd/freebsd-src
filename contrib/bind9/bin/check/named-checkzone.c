@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkzone.c,v 1.29.18.16 2006/10/05 05:24:35 marka Exp $ */
+/* $Id: named-checkzone.c,v 1.29.18.19 2007/08/28 07:19:55 tbox Exp $ */
 
 /*! \file */
 
@@ -109,6 +109,8 @@ main(int argc, char **argv) {
 	outputstyle = &dns_master_style_full;
 
 	prog_name = strrchr(argv[0], '/');
+	if (prog_name == NULL)
+		prog_name = strrchr(argv[0], '\\');
 	if (prog_name != NULL)
 		prog_name++;
 	else

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.c,v 1.116.18.12 2006/12/08 05:07:59 marka Exp $ */
+/* $Id: mem.c,v 1.116.18.18 2007/10/30 23:31:43 marka Exp $ */
 
 /*! \file */
 
@@ -690,7 +690,8 @@ default_memfree(void *arg, void *ptr) {
 
 static void
 initialize_action(void) {
-        RUNTIME_CHECK(isc_mutex_init(&lock) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_mutex_init(&lock) == ISC_R_SUCCESS);
+	ISC_LIST_INIT(contexts);
 }
 
 /*
@@ -1948,7 +1949,7 @@ isc_mem_checkdestroyed(FILE *file) {
 		}
 		fflush(file);
 #endif
-		INSIST(1);
+		INSIST(0);
 	}
 	UNLOCK(&lock);
 }

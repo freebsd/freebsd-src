@@ -1,11 +1,10 @@
-<?xml-stylesheet href="common.css" type="text/css"?>
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
        "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.4.8 2007/02/05 05:23:39 marka Exp $ -->
+<!-- $Id: FAQ.xml,v 1.4.4.16 2007/10/31 02:14:07 marka Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -39,69 +38,63 @@
     </copyright>
   </articleinfo>
   <qandaset defaultlabel='qanda'>
+	  
+    <qandadiv><title>Compilation and Installation Questions</title>	  
+    
     <qandaentry>
       <question>
 	<para>
-	  Why doesn't -u work on Linux 2.2.x when I build with
-	  --enable-threads?
+	  I'm trying to compile BIND 9, and "make" is failing due to
+	  files not being found.  Why?
 	</para>
       </question>
       <answer>
 	<para>
-	  Linux threads do not fully implement the Posix threads
-	  (pthreads) standard.  In particular, setuid() operates only
-	  on the current thread, not the full process.  Because of
-	  this limitation, BIND 9 cannot use setuid() on Linux as it
-	  can on all other supported platforms.  setuid() cannot be
-	  called before creating threads, since the server does not
-	  start listening on reserved ports until after threads have
-	  started.
-	</para>
-	<para>
-	  In the 2.2.18 or 2.3.99-pre3 and newer kernels, the ability
-	  to preserve capabilities across a setuid() call is present.
-	  This allows BIND 9 to call setuid() early, while retaining
-	  the ability to bind reserved ports.  This is a Linux-specific
-	  hack.
-	</para>
-	<para>
-	  On a 2.2 kernel, BIND 9 does drop many root privileges, so
-	  it should be less of a security risk than a root process
-	  that has not dropped privileges.
-	</para>
-	<para>
-	  If Linux threads ever work correctly, this restriction will
-	  go away.
-	</para>
-	<para>
-	  Configuring BIND9 with the --disable-threads option (the
-	  default) causes a non-threaded version to be built, which
-	  will allow -u to be used.
+	  Using a parallel or distributed "make" to build BIND 9 is
+	  not supported, and doesn't work.  If you are using one of
+	  these, use normal make or gmake instead.
 	</para>
       </answer>
     </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
-	  Why do I get the following errors:
-<programlisting>general: errno2result.c:109: unexpected error:
-general: unable to convert errno to isc_result: 14: Bad address
-client: UDP client handler shutting down due to fatal receive error: unexpected error</programlisting>
+	  Isn't "make install"  supposed to generate a default named.conf?
 	</para>
       </question>
       <answer>
 	<para>
-	  This is the result of a Linux kernel bug.
+	  Short Answer: No. 
 	</para>
 	<para>
-	  See:
-	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2</ulink>
+	  Long Answer: There really isn't a default configuration which fits
+	  any site perfectly.  There are lots of decisions that need to
+	  be made and there is no consensus on what the defaults should be.
+	  For example FreeBSD uses /etc/namedb as the location where the
+	  configuration files for named are stored.  Others use /var/named.
+	</para>
+	<para>
+	  What addresses to listen on?  For a laptop on the move a lot
+	  you may only want to listen on the loop back interfaces.
+	</para>
+	<para>
+	  Who do you offer recursive service to?  Is there are firewall
+	  to consider?  If so is it stateless or stateful.  Are you
+	  directly on the Internet?  Are you on a private network? Are
+	  you on a NAT'd network? The answers
+	  to all these questions change how you configure even a
+	  caching name server.
 	</para>
       </answer>
     </qandaentry>
+    
+    </qandadiv> <!-- Compilation and Installation Questions -->
+	    
+    <qandadiv><title>Configuration and Setup Questions</title>
 
     <qandaentry>
+      <!-- configuration, log -->
       <question>
 	<para>
 	  Why does named log the warning message <quote>no TTL specified -
@@ -127,48 +120,9 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
 	</informalexample>
       </answer>
     </qandaentry>
-
+    
     <qandaentry>
-      <question>
-	<para>
-	  Why do I see 5 (or more) copies of named on Linux?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  Linux threads each show up as a process under ps.  The
-	  approximate number of threads running is n+4, where n is
-	  the number of CPUs.  Note that the amount of memory used
-	  is not cumulative; if each process is using 10M of memory,
-	  only a total of 10M is used.
-	</para>
-	<para>
-	  Newer versions of Linux's ps command hide the individual threads
-	  and require -L to display them.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  Why does BIND 9 log <quote>permission denied</quote> errors accessing
-	  its configuration files or zones on my Linux system even
-	  though it is running as root?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  On Linux, BIND 9 drops most of its root privileges on
-	  startup.  This including the privilege to open files owned
-	  by other users.  Therefore, if the server is running as
-	  root, the configuration files and zone files should also
-	  be owned by root.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
+      <!-- configuration -->
       <question>
 	<para>
 	  Why do I get errors like <quote>dns_zone_load: zone foo/IN: loading
@@ -185,25 +139,7 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
     </qandaentry>
 
     <qandaentry>
-      <question>
-	<para>
-	How do I produce a usable core file from a multi-threaded
-	named on Linux?
-	</para>
-      </question>
-      <answer>
-	<para>
-	If the Linux kernel is 2.4.7 or newer, multi-threaded core
-	dumps are usable (that is, the correct thread is dumped).
-	Otherwise, if using a 2.2 kernel, apply the kernel patch
-	found in contrib/linux/coredump-patch and rebuild the kernel.
-	This patch will cause multi-threaded programs to dump the
-	correct thread.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
+      <!-- security -->
       <question>
 	<para>
 	  How do I restrict people from looking up the server version?
@@ -222,6 +158,7 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
     </qandaentry>
 
     <qandaentry>
+      <!-- security -->
       <question>
 	<para>
 	  How do I restrict only remote users from looking up the
@@ -250,6 +187,7 @@ view "chaos" chaos {
     </qandaentry>
 
     <qandaentry>
+      <!-- configuration -->
       <question>
 	<para>
 	  What do <quote>no source of entropy found</quote> or <quote>could not
@@ -269,21 +207,7 @@ view "chaos" chaos {
     </qandaentry>
 
     <qandaentry>
-      <question>
-	<para>
-	  I installed BIND 9 and restarted named, but it's still BIND 8.  Why?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  BIND 9 is installed under /usr/local by default.  BIND 8
-	  is often installed under /usr.  Check that the correct named
-	  is running.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
+      <!-- configuration -->
       <question>
 	<para>
 	  I'm trying to use TSIG to authenticate dynamic updates or
@@ -296,87 +220,6 @@ view "chaos" chaos {
 	  This may be a clock skew problem.  Check that the the clocks
 	  on the client and server are properly synchronised (e.g.,
 	  using ntp).
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I'm trying to compile BIND 9, and "make" is failing due to
-	  files not being found.  Why?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  Using a parallel or distributed "make" to build BIND 9 is
-	  not supported, and doesn't work.  If you are using one of
-	  these, use normal make or gmake instead.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I have a BIND 9 master and a BIND 8.2.3 slave, and the
-	  master is logging error messages like <quote>notify to 10.0.0.1#53
-	  failed: unexpected end of input</quote>.  What's wrong?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  This error message is caused by a known bug in BIND 8.2.3
-	  and is fixed in BIND 8.2.4.  It can be safely ignored - the
-	  notify has been acted on by the slave despite the error
-	  message.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I keep getting log messages like the following.  Why?
-	</para>
-	<para>
-	  Dec  4 23:47:59 client 10.0.0.1#1355: updating zone
-	  'example.com/IN': update failed: 'RRset exists (value
-	  dependent)' prerequisite not satisfied (NXRRSET)
-	</para>
-      </question>
-      <answer>
-	<para>
-	  DNS updates allow the update request to test to see if
-	  certain conditions are met prior to proceeding with the
-	  update.  The message above is saying that conditions were
-	  not met and the update is not proceeding.  See doc/rfc/rfc2136.txt
-	  for more details on prerequisites.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I keep getting log messages like the following.  Why?
-	</para>
-	<para>
-	  Jun 21 12:00:00.000 client 10.0.0.1#1234: update denied
-	</para>
-      </question>
-      <answer>
-	<para>
-	  Someone is trying to update your DNS data using the RFC2136
-	  Dynamic Update protocol.  Windows 2000 machines have a habit
-	  of sending dynamic update requests to DNS servers without
-	  being specifically configured to do so.  If the update
-	  requests are coming from a Windows 2000 machine, see
-	  <ulink
-	   url="http://support.microsoft.com/support/kb/articles/q246/8/04.asp">
-	    http://support.microsoft.com/support/kb/articles/q246/8/04.asp
-	  </ulink>
-	  for information about how to turn them off.
 	</para>
       </answer>
     </qandaentry>
@@ -403,81 +246,7 @@ view "chaos" chaos {
 	</para>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  When I do a "dig . ns", many of the A records for the root
-	  servers are missing.  Why?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  This is normal and harmless.  It is a somewhat confusing
-	  side effect of the way BIND 9 does RFC2181 trust ranking
-	  and of the efforts BIND 9 makes to avoid promoting glue
-	  into answers.
-	</para>
-	<para>
-	 When BIND 9 first starts up and primes its cache, it receives
-	 the root server addresses as additional data in an authoritative
-	 response from a root server, and these records are eligible
-	 for inclusion as additional data in responses.  Subsequently
-	 it receives a subset of the root server addresses as
-	 additional data in a non-authoritative (referral) response
-	 from a root server.  This causes the addresses to now be
-	 considered non-authoritative (glue) data, which is not
-	 eligible for inclusion in responses.
-	</para>
-	<para>
-	 The server does have a complete set of root server addresses
-	 cached at all times, it just may not include all of them
-	 as additional data, depending on whether they were last
-	 received as answers or as glue.  You can always look up the
-	 addresses with explicit queries like "dig a.root-servers.net A".
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  Zone transfers from my BIND 9 master to my Windows 2000
-	  slave fail.  Why?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  This may be caused by a bug in the Windows 2000 DNS server
-	  where DNS messages larger than 16K are not handled properly.
-	  This can be worked around by setting the option "transfer-format
-	  one-answer;".  Also check whether your zone contains domain
-	  names with embedded spaces or other special characters,
-	  like "John\032Doe\213s\032Computer", since such names have
-	  been known to cause Windows 2000 slaves to incorrectly
-	  reject the zone.
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  Why don't my zones reload when I do an "rndc reload" or SIGHUP?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  A zone can be updated either by editing zone files and
-	  reloading the server or by dynamic update, but not both.
-	  If you have enabled dynamic update for a zone using the
-	  "allow-update" option, you are not supposed to edit the
-	  zone file by hand, and the server will not attempt to reload
-	  it.
-	</para>
-      </answer>
-    </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -492,7 +261,7 @@ view "chaos" chaos {
 	</para>
       </answer>
     </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -580,50 +349,7 @@ Slave 10.0.1.2:
 	</informalexample>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I have FreeBSD 4.x and "rndc-confgen -a" just sits there.
-	</para>
-      </question>
-      <answer>
-	<para>
-	  /dev/random is not configured.  Use rndcontrol(8) to tell
-	  the kernel to use certain interrupts as a source of random
-	  events.  You can make this permanent by setting rand_irqs
-	  in /etc/rc.conf.
-	</para>
-	<informalexample>
-	  <programlisting>
-/etc/rc.conf
-rand_irqs="3 14 15"</programlisting>
-	</informalexample>
-	<para>
-	  See also
-	  <ulink url="http://people.freebsd.org/~dougb/randomness.html">
-	    http://people.freebsd.org/~dougb/randomness.html
-	  </ulink>
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  Why is named listening on UDP port other than 53?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  Named uses a system selected port to make queries of other
-	  nameservers.  This behaviour can be overridden by using
-	  query-source to lock down the port and/or address.  See
-	  also notify-source and transfer-source.
-	</para>
-      </answer>
-    </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -656,7 +382,7 @@ named-checkzone example.com tmp</programlisting>
 	</para>
       </answer>
     </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -675,33 +401,7 @@ named-checkzone example.com tmp</programlisting>
 	</para>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I get warning messages like <quote>zone example.com/IN: refresh:
-	  failure trying master 1.2.3.4#53: timed out</quote>.
-	</para>
-      </question>
-      <answer>
-	<para>
-	Check that you can make UDP queries from the slave to the master
-	</para>
-	<informalexample>
-	  <programlisting>
-dig +norec example.com soa @1.2.3.4</programlisting>
-	</informalexample>
-	<para>
-	  You could be generating queries faster than the slave can
-	  cope with.  Lower the serial query rate.
-	</para>
-	<informalexample>
-	  <programlisting>
-serial-query-rate 5; // default 20</programlisting>
-	</informalexample>
-      </answer>
-    </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -727,7 +427,7 @@ Master 10.0.1.1:
 	};
 
 	view "internal" {
-		match-clients { !external; 10.0.1/24; };
+		match-clients { !key external; 10.0.1/24; };
 		server 10.0.1.1 {
 			/* Deliver notify messages to external view. */
 			keys { external; };
@@ -741,7 +441,7 @@ Master 10.0.1.1:
 	};
 
 	view "external" {
-		match-clients { external; any; };
+		match-clients { key external; any; };
 		zone "example.com" {
 			type slave;
 			file "external/example.db";
@@ -768,8 +468,8 @@ Master 10.0.1.1:
 	  This error is produced when a line in the master file
 	  contains leading white space (tab/space) but the is no
 	  current record owner name to inherit the name from.  Usually
-	  this is the result of putting white space before a comment.
-	  Forgetting the "@" for the SOA record or indenting the master
+	  this is the result of putting white space before a comment,
+	  forgetting the "@" for the SOA record, or indenting the master
 	  file.
 	</para>
       </answer>
@@ -796,22 +496,7 @@ Master 10.0.1.1:
 	</para>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I get the error message <quote>named: capset failed: Operation
-	  not permitted</quote> when starting named.
-	</para>
-      </question>
-      <answer>
-	<para>
-	  The capability module, part of "Linux Security Modules/LSM",
-	  has not been loaded into the kernel.  See insmod(8).
-	</para>
-      </answer>
-    </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -851,46 +536,7 @@ Master 10.0.1.1:
 	</para>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I don't get RRSIG's returned when I use "dig +dnssec".
-	</para>
-      </question>
-      <answer>
-	<para>
-	  You need to ensure DNSSEC is enabled (dnssec-enable yes;).
-	</para>
-      </answer>
-    </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  I get <quote>Error 1067</quote> when starting named under Windows.
-	</para>
-      </question>
-      <answer>
-	<para>
-	  This is the service manager saying that named exited.   You
-	  need to examine the Application log in the EventViewer to
-	  find out why.
-	</para>
-	<para>
-	  Common causes are that you failed to create "named.conf"
-	  (usually "C:\windows\dns\etc\named.conf") or failed to
-	  specify the directory in named.conf.
-	</para>
-	<informalexample>
-	  <programlisting>
-options {
-	Directory "C:\windows\dns\etc";
-};</programlisting>
-	</informalexample>
-      </answer>
-    </qandaentry>
-
+    
     <qandaentry>
       <question>
 	<para>
@@ -942,26 +588,238 @@ zone "example.net" {
 	</informalexample>
       </answer>
     </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  I want to forward all DNS queries from my caching nameserver to
+	  another server. But there are some domains which have to be
+	  served locally, via rbldnsd.
+	</para>
+	<para>
+	  How do I achieve this ?
+	</para>
+      </question>
+      <answer>
+        <programlisting>
+options {
+	forward only;
+	forwarders { &lt;ip.of.primary.nameserver&gt;; };
+};
+
+zone "sbl-xbl.spamhaus.org" {
+	type forward; forward only;
+	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
+};
+
+zone "list.dsbl.org" {
+	type forward; forward only;
+	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
+};
+        </programlisting>
+      </answer>
+    </qandaentry>
 
     <qandaentry>
       <question>
 	<para>
-	  How do I integrate BIND 9 and Solaris SMF
+	  Can you help me understand how BIND 9 uses memory to store
+	  DNS zones?
+	</para>
+	<para>
+	  Some times it seems to take several times the amount of
+	  memory it needs to store the zone.
 	</para>
       </question>
       <answer>
 	<para>
-	  Sun has a blog entry describing how to do this.
+	  When reloading a zone named my have multiple copies of
+	  the zone in memory at one time.  The zone it is serving
+	  and the one it is loading.  If reloads are ultra fast it
+	  can have more still.
 	</para>
 	<para>
-	  <ulink
-	  url="http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris">
-	     http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris
-	  </ulink>
+	  e.g.  Ones that are transferring out, the one that it is
+	  serving and the one that is loading.
+	</para>
+	<para>
+	  BIND 8 destroyed the zone before loading and also killed
+	  off outgoing transfers of the zone.
+	</para>
+	<para>
+	  The new strategy allows slaves to get copies of the new
+	  zone regardless of how often the master is loaded compared
+	  to the transfer time.  The slave might skip some intermediate
+	  versions but the transfers will complete and it will keep
+	  reasonably in sync with the master.
+	</para>
+	<para>
+	  The new strategy also allows the master to recover from
+	  syntax and other errors in the master file as it still
+	  has an in-core copy of the old contents.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    </qandadiv> <!-- Configuration and Setup Questions -->
+    
+    <qandadiv><title>General Questions</title>
+	    
+    <qandaentry>
+      <question>
+	<para>
+	  I keep getting log messages like the following.  Why?
+	</para>
+	<para>
+	  Dec  4 23:47:59 client 10.0.0.1#1355: updating zone
+	  'example.com/IN': update failed: 'RRset exists (value
+	  dependent)' prerequisite not satisfied (NXRRSET)
+	</para>
+      </question>
+      <answer>
+	<para>
+	  DNS updates allow the update request to test to see if
+	  certain conditions are met prior to proceeding with the
+	  update.  The message above is saying that conditions were
+	  not met and the update is not proceeding.  See doc/rfc/rfc2136.txt
+	  for more details on prerequisites.
 	</para>
       </answer>
     </qandaentry>
 
+    <qandaentry>
+      <question>
+	<para>
+	  I keep getting log messages like the following.  Why?
+	</para>
+	<para>
+	  Jun 21 12:00:00.000 client 10.0.0.1#1234: update denied
+	</para>
+      </question>
+      <answer>
+	<para>
+	  Someone is trying to update your DNS data using the RFC2136
+	  Dynamic Update protocol.  Windows 2000 machines have a habit
+	  of sending dynamic update requests to DNS servers without
+	  being specifically configured to do so.  If the update
+	  requests are coming from a Windows 2000 machine, see
+	  <ulink
+	   url="http://support.microsoft.com/support/kb/articles/q246/8/04.asp">
+	    http://support.microsoft.com/support/kb/articles/q246/8/04.asp
+	  </ulink>
+	  for information about how to turn them off.
+	</para>
+      </answer>
+    </qandaentry>
+	    
+    <qandaentry>
+      <question>
+	<para>
+	  When I do a "dig . ns", many of the A records for the root
+	  servers are missing.  Why?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  This is normal and harmless.  It is a somewhat confusing
+	  side effect of the way BIND 9 does RFC2181 trust ranking
+	  and of the efforts BIND 9 makes to avoid promoting glue
+	  into answers.
+	</para>
+	<para>
+	 When BIND 9 first starts up and primes its cache, it receives
+	 the root server addresses as additional data in an authoritative
+	 response from a root server, and these records are eligible
+	 for inclusion as additional data in responses.  Subsequently
+	 it receives a subset of the root server addresses as
+	 additional data in a non-authoritative (referral) response
+	 from a root server.  This causes the addresses to now be
+	 considered non-authoritative (glue) data, which is not
+	 eligible for inclusion in responses.
+	</para>
+	<para>
+	 The server does have a complete set of root server addresses
+	 cached at all times, it just may not include all of them
+	 as additional data, depending on whether they were last
+	 received as answers or as glue.  You can always look up the
+	 addresses with explicit queries like "dig a.root-servers.net A".
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  Why don't my zones reload when I do an "rndc reload" or SIGHUP?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  A zone can be updated either by editing zone files and
+	  reloading the server or by dynamic update, but not both.
+	  If you have enabled dynamic update for a zone using the
+	  "allow-update" option, you are not supposed to edit the
+	  zone file by hand, and the server will not attempt to reload
+	  it.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  Why is named listening on UDP port other than 53?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  Named uses a system selected port to make queries of other
+	  nameservers.  This behaviour can be overridden by using
+	  query-source to lock down the port and/or address.  See
+	  also notify-source and transfer-source.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  I get warning messages like <quote>zone example.com/IN: refresh:
+	  failure trying master 1.2.3.4#53: timed out</quote>.
+	</para>
+      </question>
+      <answer>
+	<para>
+	Check that you can make UDP queries from the slave to the master
+	</para>
+	<informalexample>
+	  <programlisting>
+dig +norec example.com soa @1.2.3.4</programlisting>
+	</informalexample>
+	<para>
+	  You could be generating queries faster than the slave can
+	  cope with.  Lower the serial query rate.
+	</para>
+	<informalexample>
+	  <programlisting>
+serial-query-rate 5; // default 20</programlisting>
+	</informalexample>
+      </answer>
+    </qandaentry>
+
+    <qandaentry>	    
+      <question>
+	<para>
+	  I don't get RRSIG's returned when I use "dig +dnssec".
+	</para>
+      </question>
+      <answer>
+	<para>
+	  You need to ensure DNSSEC is enabled (dnssec-enable yes;).
+	</para>
+      </answer>
+    </qandaentry>
+    
     <qandaentry>
       <question>
 	<para>
@@ -1045,7 +903,172 @@ empty:
 	</para>
       </answer>
     </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  Will named be affected by the 2007 changes to daylight savings
+	  rules in the US.
+	</para>
+      </question>
+      <answer>
+	<para>
+	  No, so long as the machines internal clock (as reported
+	  by "date -u") remains at UTC.  The only visible change
+	  if you fail to upgrade your OS, if you are in a affected
+	  area, will be that log messages will be a hour out during
+	  the period where the old rules do not match the new rules.
+	</para>
+	<para>
+	  For most OS's this change just means that you need to
+	  update the conversion rules from UTC to local time.
+	  Normally this involves updating a file in /etc (which
+	  sets the default timezone for the machine) and possibly
+	  a directory which has all the conversion rules for the
+	  world (e.g. /usr/share/zoneinfo).  When updating the OS
+	  do not forget to update any chroot areas as well.
+	  See your OS's documentation for more details.
+	</para>
+	<para>
+	  The local timezone conversion rules can also be done on
+	  a individual basis by setting the TZ environment variable
+	  appropriately.  See your OS's documentation for more
+	  details.
+	</para>
+      </answer>
+    </qandaentry>
 
+    <qandaentry>
+      <question>
+	<para>
+	  Is there a bugzilla (or other tool) database that mere
+	  mortals can have (read-only) access to for bind?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  No.  The BIND 9 bug database is kept closed for a number
+	  of reasons.  These include, but are not limited to, that
+	  the database contains proprietory information from people
+	  reporting bugs.  The database has in the past and may in
+	  future contain unfixed bugs which are capable of bringing
+	  down most of the Internet's DNS infrastructure.
+	</para>
+	<para>
+	  The release pages for each version contain up to date
+	  lists of bugs that have been fixed post release.  That
+	  is as close as we can get to providing a bug database.
+	</para>
+      </answer>
+    </qandaentry>
+
+    </qandadiv> <!-- General Questions -->
+    
+    <qandadiv><title>Operating-System Specific Questions</title>
+	    
+    <qandadiv><title>HPUX</title>
+
+    <qandaentry>
+      <question>
+	<para>I get the following error trying to configure BIND:
+<programlisting>checking if unistd.h or sys/types.h defines fd_set... no
+configure: error: need either working unistd.h or sys/select.h</programlisting>
+	</para>
+      </question>
+      <answer>
+	<para>
+	  You have attempted to configure BIND with the bundled C compiler.
+	  This compiler does not meet the minimum compiler requirements to
+	  for building BIND.  You need to install a ANSI C compiler and / or
+	  teach configure how to find the ANSI C compiler.  The later can
+	  be done by adjusting the PATH environment variable and / or
+	  specifying the compiler via CC.
+	</para>
+	<informalexample>
+	  <programlisting>./configure CC=&lt;compiler&gt; ...</programlisting>
+	</informalexample>
+      </answer>
+    </qandaentry>
+
+    </qandadiv> <!-- HPUX -->
+
+    <qandadiv><title>Linux</title>
+	    
+    <qandaentry>
+      <question> 
+	<para>
+	  Why do I get the following errors:
+<programlisting>general: errno2result.c:109: unexpected error:
+general: unable to convert errno to isc_result: 14: Bad address
+client: UDP client handler shutting down due to fatal receive error: unexpected error</programlisting>
+	</para>
+      </question>
+      <answer>
+	<para>
+	  This is the result of a Linux kernel bug.
+	</para>
+	<para>
+	  See:
+	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2</ulink>
+	</para>
+      </answer>
+    </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
+	  Why do I see 5 (or more) copies of named on Linux?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  Linux threads each show up as a process under ps.  The
+	  approximate number of threads running is n+4, where n is
+	  the number of CPUs.  Note that the amount of memory used
+	  is not cumulative; if each process is using 10M of memory,
+	  only a total of 10M is used.
+	</para>
+	<para>
+	  Newer versions of Linux's ps command hide the individual threads
+	  and require -L to display them.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  Why does BIND 9 log <quote>permission denied</quote> errors accessing
+	  its configuration files or zones on my Linux system even
+	  though it is running as root?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  On Linux, BIND 9 drops most of its root privileges on
+	  startup.  This including the privilege to open files owned
+	  by other users.  Therefore, if the server is running as
+	  root, the configuration files and zone files should also
+	  be owned by root.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  I get the error message <quote>named: capset failed: Operation
+	  not permitted</quote> when starting named.
+	</para>
+      </question>
+      <answer>
+	<para>
+	  The capability module, part of "Linux Security Modules/LSM",
+	  has not been loaded into the kernel.  See insmod(8).
+	</para>
+      </answer>
+    </qandaentry>
+    
     <qandaentry>
       <question>
 	<para>
@@ -1210,148 +1233,115 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	</para>
       </answer>
     </qandaentry>
-
+    
+    </qandadiv> <!-- Linux -->
+    
+    <qandadiv><title>Windows</title>
+	    
     <qandaentry>
       <question>
 	<para>
-	  I want to forward all DNS queries from my caching nameserver to
-	  another server. But there are some domains which have to be
-	  served locally, via rbldnsd.
-	</para>
-	<para>
-	  How do I achieve this ?
+	  Zone transfers from my BIND 9 master to my Windows 2000
+	  slave fail.  Why?
 	</para>
       </question>
       <answer>
-        <programlisting>
+	<para>
+	  This may be caused by a bug in the Windows 2000 DNS server
+	  where DNS messages larger than 16K are not handled properly.
+	  This can be worked around by setting the option "transfer-format
+	  one-answer;".  Also check whether your zone contains domain
+	  names with embedded spaces or other special characters,
+	  like "John\032Doe\213s\032Computer", since such names have
+	  been known to cause Windows 2000 slaves to incorrectly
+	  reject the zone.
+	</para>
+      </answer>
+    </qandaentry>
+    
+    <qandaentry>
+      <question>
+	<para>
+	  I get <quote>Error 1067</quote> when starting named under Windows.
+	</para>
+      </question>
+      <answer>
+	<para>
+	  This is the service manager saying that named exited.   You
+	  need to examine the Application log in the EventViewer to
+	  find out why.
+	</para>
+	<para>
+	  Common causes are that you failed to create "named.conf"
+	  (usually "C:\windows\dns\etc\named.conf") or failed to
+	  specify the directory in named.conf.
+	</para>
+	<informalexample>
+	  <programlisting>
 options {
-	forward only;
-	forwarders { &lt;ip.of.primary.nameserver&gt;; };
-};
-
-zone "sbl-xbl.spamhaus.org" {
-	type forward; forward only;
-	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
-};
-
-zone "list.dsbl.org" {
-	type forward; forward only;
-	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
-};
-        </programlisting>
+	Directory "C:\windows\dns\etc";
+};</programlisting>
+	</informalexample>
       </answer>
     </qandaentry>
-
+	    
+    </qandadiv> <!-- Windows -->
+    
+    <qandadiv><title>FreeBSD</title>
+	    
     <qandaentry>
       <question>
 	<para>
-	  Will named be affected by the 2007 changes to daylight savings
-	  rules in the US.
+	  I have FreeBSD 4.x and "rndc-confgen -a" just sits there.
 	</para>
       </question>
       <answer>
 	<para>
-	  No, so long as the machines internal clock (as reported
-	  by "date -u") remains at UTC.  The only visible change
-	  if you fail to upgrade your OS, if you are in a affected
-	  area, will be that log messages will be a hour out during
-	  the period where the old rules do not match the new rules.
+	  /dev/random is not configured.  Use rndcontrol(8) to tell
+	  the kernel to use certain interrupts as a source of random
+	  events.  You can make this permanent by setting rand_irqs
+	  in /etc/rc.conf.
 	</para>
+	<informalexample>
+	  <programlisting>
+/etc/rc.conf
+rand_irqs="3 14 15"</programlisting>
+	</informalexample>
 	<para>
-	  For most OS's this change just means that you need to
-	  update the conversion rules from UTC to local time.
-	  Normally this involves updating a file in /etc (which
-	  sets the default timezone for the machine) and possibly
-	  a directory which has all the conversion rules for the
-	  world (e.g. /usr/share/zoneinfo).  When updating the OS
-	  do not forget to update any chroot areas as well.
-	  See your OS's documentation for more details.
-	</para>
-	<para>
-	  The local timezone conversion rules can also be done on
-	  a individual basis by setting the TZ environment variable
-	  appropriately.  See your OS's documentation for more
-	  details.
+	  See also
+	  <ulink url="http://people.freebsd.org/~dougb/randomness.html">
+	    http://people.freebsd.org/~dougb/randomness.html
+	  </ulink>
 	</para>
       </answer>
     </qandaentry>
-
+    
+    </qandadiv> <!-- FreeBSD -->
+    
+    <qandadiv><title>Solaris</title>
+	    
     <qandaentry>
       <question>
 	<para>
-	  Why do we get the following warning at run time:
-<programlisting>kernel: process `named' is using obsolete setsockopt SO_BSDCOMPAT</programlisting>
+	  How do I integrate BIND 9 and Solaris SMF
 	</para>
       </question>
       <answer>
 	<para>
-          The early Linux kernels broke sendto() by having it return     
-          that a ICMP unreachable had be received for non connected
-          UDP sockets.  This made non connected UDP sockets work like
-          connected UDP socket which is fine when you are only talking
-          to one destination.  Named however talks to multiple
-          destinations and it caused problems.
+	  Sun has a blog entry describing how to do this.
 	</para>
 	<para>
-          Rather than fix sendto() to just have BSD behaviour they added
-          SO_BSDCOMPAT to turn BSD behaviour on/off on a per socket basis.
-	</para>
-	<para>
-          Later they decided to make BSD behaviour the default and
-          to aggressively track down applications that used SO_BSDCOMPAT
-          by issuing a warning.  This is the sort of things vendors
-          do in alpha/beta stages of a release so that their code is
-          clean.  They then turn the warning *off* for release code.
-	</para>
-	<para>
-          We still have customers that have kernels that require
-          SO_BSDCOMPAT to operate.  We therefore cannot remove the
-          setsockopt(SO_BSDCOMPAT) call.
-	</para>
-	<para>
-          Now most/all portable applications that use SO_BSDCOMPAT use it
-          conditionally manner so just removing SO_BSDCOMPAT from the
-          header file would be safe as long as the binary was not to
-          be moved between systems.  BIND's use is conditional.
-	</para>
-	<para>
-	  In short, the Linux developers should either, remove the #define for
-	  SO_BSDCOMPAT, and/or remove the warning.
+	  <ulink
+	  url="http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris">
+	     http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris
+	  </ulink>
 	</para>
       </answer>
     </qandaentry>
-
-    <qandaentry>
-      <question>
-	<para>
-	  Isn't "make install"  supposed to generate a default named.conf?
-	</para>
-      </question>
-      <answer>
-	<para>
-	  Short Answer: No. 
-	</para>
-	<para>
-	  Long Answer: There really isn't a default configuration which fits
-	  any site perfectly.  There are lots of decisions that need to
-	  be made and there is no consensus on what the defaults should be.
-	  For example FreeBSD uses /etc/namedb as the location where the
-	  configuration files for named are stored.  Others use /var/named.
-	</para>
-	<para>
-	  What addresses to listen on?  For a laptop on the move a lot
-	  you may only want to listen on the loop back interfaces.
-	</para>
-	<para>
-	  Who do you offer recursive service to?  Is there are firewall
-	  to consider?  If so is it stateless or stateful.  Are you
-	  directly on the Internet?  Are you on a private network? Are
-	  you on a NAT'd network? The answers
-	  to all these questions change how you configure even a
-	  caching name server.
-	</para>
-      </answer>
-    </qandaentry>
+    
+    </qandadiv>
+    
+    </qandadiv> <!-- Operating-System Specific Questions -->
 
   </qandaset>
 </article>

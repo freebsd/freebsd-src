@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwresd.html,v 1.5.18.16 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: lwresd.html,v 1.5.18.18 2007/05/16 06:11:27 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">lwresd</code>  [<code class="option">-C <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-i <em class="replaceable"><code>pid-file</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-P <em class="replaceable"><code>port</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">lwresd</code>  [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-C <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-i <em class="replaceable"><code>pid-file</code></em></code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-P <em class="replaceable"><code>port</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-4</code>] [<code class="option">-6</code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543435"></a><h2>DESCRIPTION</h2>
+<a name="id2543461"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">lwresd</strong></span>
       is the daemon providing name lookup
       services to clients that use the BIND 9 lightweight resolver
@@ -67,13 +67,34 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543482"></a><h2>OPTIONS</h2>
+<a name="id2543508"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
+<dt><span class="term">-4</span></dt>
+<dd><p>
+            Use IPv4 only even if the host machine is capable of IPv6.
+            <code class="option">-4</code> and <code class="option">-6</code> are mutually
+            exclusive.
+          </p></dd>
+<dt><span class="term">-6</span></dt>
+<dd><p>
+            Use IPv6 only even if the host machine is capable of IPv4.
+            <code class="option">-4</code> and <code class="option">-6</code> are mutually
+            exclusive.
+          </p></dd>
+<dt><span class="term">-c <em class="replaceable"><code>config-file</code></em></span></dt>
+<dd><p>
+            Use <em class="replaceable"><code>config-file</code></em> as the
+            configuration file instead of the default,
+            <code class="filename">/etc/lwresd.conf</code>.
+	    
+	    <font color="red">&lt;term&gt;-c&lt;/term&gt;</font> can not be used with <font color="red">&lt;term&gt;-C&lt;/term&gt;</font>.
+          </p></dd>
 <dt><span class="term">-C <em class="replaceable"><code>config-file</code></em></span></dt>
 <dd><p>
             Use <em class="replaceable"><code>config-file</code></em> as the
             configuration file instead of the default,
             <code class="filename">/etc/resolv.conf</code>.
+	    <font color="red">&lt;term&gt;-C&lt;/term&gt;</font> can not be used with <font color="red">&lt;term&gt;-c&lt;/term&gt;</font>.
           </p></dd>
 <dt><span class="term">-d <em class="replaceable"><code>debug-level</code></em></span></dt>
 <dd><p>
@@ -89,6 +110,23 @@
 <dd><p>
             Run the server in the foreground and force all logging
             to <code class="filename">stderr</code>.
+          </p></dd>
+<dt><span class="term">-i <em class="replaceable"><code>pid-file</code></em></span></dt>
+<dd><p>
+            Use <em class="replaceable"><code>pid-file</code></em> as the
+            PID file instead of the default,
+            <code class="filename">/var/run/lwresd.pid</code>.
+          </p></dd>
+<dt><span class="term">-m <em class="replaceable"><code>flag</code></em></span></dt>
+<dd><p>
+            Turn on memory usage debugging flags.  Possible flags are
+            <em class="replaceable"><code>usage</code></em>,
+            <em class="replaceable"><code>trace</code></em>,
+            <em class="replaceable"><code>record</code></em>,
+            <em class="replaceable"><code>size</code></em>, and
+            <em class="replaceable"><code>mctx</code></em>.  
+            These correspond to the ISC_MEM_DEBUGXXXX flags described in
+            <code class="filename">&lt;isc/mem.h&gt;</code>.
           </p></dd>
 <dt><span class="term">-n <em class="replaceable"><code>#cpus</code></em></span></dt>
 <dd><p>
@@ -129,7 +167,7 @@
 </dd>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd>
-<p><code class="function">chroot()</code>
+<p>Chroot
 	    to <em class="replaceable"><code>directory</code></em> after
             processing the command line arguments, but before
             reading the configuration file.
@@ -140,14 +178,14 @@
               This option should be used in conjunction with the
               <code class="option">-u</code> option, as chrooting a process
               running as root doesn't enhance security on most
-              systems; the way <code class="function">chroot()</code> is
+              systems; the way <code class="function">chroot(2)</code> is
               defined allows a process with root privileges to
               escape a chroot jail.
             </p>
 </div>
 </dd>
 <dt><span class="term">-u <em class="replaceable"><code>user</code></em></span></dt>
-<dd><p><code class="function">setuid()</code>
+<dd><p>Setuid
 	    to <em class="replaceable"><code>user</code></em> after completing
             privileged operations, such as creating sockets that
             listen on privileged ports.
@@ -159,7 +197,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543746"></a><h2>FILES</h2>
+<a name="id2543925"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="filename">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -172,14 +210,14 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543785"></a><h2>SEE ALSO</h2>
+<a name="id2543964"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">lwres</span>(3)</span>,
       <span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543819"></a><h2>AUTHOR</h2>
+<a name="id2543998"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
