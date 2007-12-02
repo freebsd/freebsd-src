@@ -80,7 +80,6 @@ options		BOOTP_COMPAT
 #options		VERBOSE_SYSINIT
 
 device		genclock
-device		nexus
 device		mem			# Memory and kernel memory devices
 #device		saarm
 

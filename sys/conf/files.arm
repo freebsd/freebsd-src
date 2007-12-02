@@ -32,9 +32,7 @@ arm/arm/intr.c			standard
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/mem.c			optional	mem
-arm/arm/nexus.c			optional	nexus
-arm/arm/nexus_io.c		optional	nexus
-arm/arm/nexus_io_asm.S		optional	nexus
+arm/arm/nexus.c			standard
 arm/arm/pmap.c			standard
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
