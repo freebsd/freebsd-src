@@ -258,7 +258,7 @@ vm_page_startup(vm_offset_t vaddr)
 	    MTX_DEF);
 
 	/*
-	 * Initialize the queue headers for the free queue, the active queue
+	 * Initialize the queue headers for the hold queue, the active queue,
 	 * and the inactive queue.
 	 */
 	vm_pageq_init();
