@@ -68,8 +68,10 @@ gai_strerror(int ecode) {
                 if (pthread_mutex_lock(&lock) != 0)
 			goto unknown;
                 if (!once) {
-                        if (pthread_key_create(&key, free) != 0)
+                        if (pthread_key_create(&key, free) != 0) {
+				(void)pthread_mutex_unlock(&lock);
 				goto unknown;
+			}
 			once = 1;
 		}
                 if (pthread_mutex_unlock(&lock) != 0)
