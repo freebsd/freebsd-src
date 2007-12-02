@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2007 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +57,9 @@
 #endif
 #ifndef _SYS_SIGNALVAR_H_
 #include <sys/signalvar.h>
+#endif
+#ifndef _SYS_SOCKET_VAR_H_
+#include <sys/socket.h>
 #endif
 
 /*
@@ -226,6 +231,92 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 struct user {
 	struct	pstats u_stats;		/* *p_stats */
 	struct	kinfo_proc u_kproc;	/* eproc */
+};
+
+/*
+ * The KERN_PROC_FILE sysctl allows a process to dumpt the file descriptor
+ * array of another process.
+ */
+#define	KF_TYPE_NONE	0
+#define	KF_TYPE_VNODE	1
+#define	KF_TYPE_SOCKET	2
+#define	KF_TYPE_PIPE	3
+#define	KF_TYPE_FIFO	4
+#define	KF_TYPE_KQUEUE	5
+#define	KF_TYPE_CRYPTO	6
+#define	KF_TYPE_MQUEUE	7
+#define	KF_TYPE_UNKNOWN	255
+
+#define	KF_VTYPE_VNON	0
+#define	KF_VTYPE_VREG	1
+#define	KF_VTYPE_VDIR	2
+#define	KF_VTYPE_VBLK	3
+#define	KF_VTYPE_VCHR	4
+#define	KF_VTYPE_VLNK	5
+#define	KF_VTYPE_VSOCK	6
+#define	KF_VTYPE_VFIFO	7
+#define	KF_VTYPE_VBAD	8
+#define	KF_VTYPE_UNKNOWN	255
+
+#define	KF_FLAG_READ		0x00000001
+#define	KF_FLAG_WRITE		0x00000002
+#define	KF_FLAG_APPEND		0x00000004
+#define	KF_FLAG_ASYNC		0x00000008
+#define	KF_FLAG_FSYNC		0x00000010
+#define	KF_FLAG_NONBLOCK	0x00000020
+#define	KF_FLAG_DIRECT		0x00000040
+#define	KF_FLAG_HASLOCK		0x00000080
+
+struct kinfo_file {
+	int	kf_structsize;			/* Size of kinfo_file. */
+	int	kf_type;			/* Descriptor type. */
+	int	kf_fd;				/* Array index. */
+	int	kf_ref_count;			/* Reference count. */
+	int	kf_flags;			/* Flags. */
+	off_t	kf_offset;			/* Seek location. */
+	int	kf_vnode_type;			/* Vnode type. */
+	int	kf_sock_domain;			/* Socket domain. */
+	int	kf_sock_type;			/* Socket type. */
+	int	kf_sock_protocol;		/* Socket protocol. */
+	char	kf_path[PATH_MAX];		/* Path to file, if any. */
+	struct sockaddr_storage kf_sa_local;	/* Socket address. */
+	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
+};
+
+/*
+ * The KERN_PROC_VMMAP sysctl allows a process to dump the VM layout of
+ * another process as a series of entries.
+ */
+#define	KVME_TYPE_NONE		0
+#define	KVME_TYPE_DEFAULT	1
+#define	KVME_TYPE_VNODE		2
+#define	KVME_TYPE_SWAP		3
+#define	KVME_TYPE_DEVICE	4
+#define	KVME_TYPE_PHYS		5
+#define	KVME_TYPE_DEAD		6
+#define	KVME_TYPE_UNKNOWN	255
+
+#define	KVME_PROT_READ		0x00000001
+#define	KVME_PROT_WRITE		0x00000002
+#define	KVME_PROT_EXEC		0x00000004
+
+#define	KVME_FLAG_COW		0x00000001
+#define	KVME_FLAG_NEEDS_COPY	0x00000002
+
+struct kinfo_vmentry {
+	int	 kve_structsize;		/* Size of kinfo_vmmapentry. */
+	int	 kve_type;			/* Type of map entry. */
+	void	*kve_start;			/* Starting pointer. */
+	void	*kve_end;			/* Finishing pointer. */
+	int	 kve_flags;			/* Flags on map entry. */
+	int	 kve_resident;			/* Number of resident pages. */
+	int	 kve_private_resident;		/* Number of private pages. */
+	int	 kve_protection;		/* Protection bitmask. */
+	int	 kve_ref_count;			/* VM obj ref count. */
+	int	 kve_shadow_count;		/* VM obj shadow count. */
+	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
+	void	*_kve_pspare[8];		/* Space for more stuff. */
+	int	 _kve_ispare[8];		/* Space for more stuff. */
 };
 
 #endif
