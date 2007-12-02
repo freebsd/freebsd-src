@@ -578,12 +578,12 @@ ate_get_mac(struct ate_softc *sc, u_char *eaddr)
      */
     low = RD4(sc, ETH_SA1L);
     high =  RD4(sc, ETH_SA1H);
-    eaddr[0] = (high >> 8) & 0xff;
-    eaddr[1] = high & 0xff;
-    eaddr[2] = (low >> 24) & 0xff;
-    eaddr[3] = (low >> 16) & 0xff;
-    eaddr[4] = (low >> 8) & 0xff;
-    eaddr[5] = low & 0xff;
+    eaddr[0] = low & 0xff;
+    eaddr[1] = (low >> 8) & 0xff;
+    eaddr[2] = (low >> 16) & 0xff;
+    eaddr[3] = (low >> 24) & 0xff;
+    eaddr[4] = high & 0xff;
+    eaddr[5] = (high >> 8) & 0xff;
 }
 
 static void
