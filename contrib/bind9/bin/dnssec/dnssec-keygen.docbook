@@ -5,7 +5,7 @@
  - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.7.18.9 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.7.18.11 2007/08/28 07:20:00 tbox Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -76,7 +76,7 @@
     <title>DESCRIPTION</title>
     <para><command>dnssec-keygen</command>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
-      and RFC &lt;TBA\&gt;.  It can also generate keys for use with
+      and RFC 4034.  It can also generate keys for use with
       TSIG (Transaction Signatures), as defined in RFC 2845.
     </para>
   </refsect1>
@@ -286,7 +286,7 @@
       </listitem>
     </itemizedlist>
     <para><command>dnssec-keygen</command> 
-      creates two file, with names based
+      creates two files, with names based
       on the printed string.  <filename>Knnnn.+aaa+iiiii.key</filename>
       contains the public key, and
       <filename>Knnnn.+aaa+iiiii.private</filename> contains the
@@ -300,14 +300,14 @@
       statement).
     </para>
     <para>
-      The <filename>.private</filename> file contains algorithm
-      specific
+      The <filename>.private</filename> file contains
+      algorithm-specific
       fields.  For obvious security reasons, this file does not have
       general read permission.
     </para>
     <para>
       Both <filename>.key</filename> and <filename>.private</filename>
-      files are generated for symmetric encryption algorithm such as
+      files are generated for symmetric encryption algorithms such as
       HMAC-MD5, even though the public and private key are equivalent.
     </para>
   </refsect1>
@@ -330,7 +330,7 @@
       In this example, <command>dnssec-keygen</command> creates
       the files <filename>Kexample.com.+003+26160.key</filename>
       and
-      <filename>Kexample.com.+003+26160.private</filename>
+      <filename>Kexample.com.+003+26160.private</filename>.
     </para>
   </refsect1>
 

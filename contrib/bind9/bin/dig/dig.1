@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dig.1,v 1.23.18.19 2007/01/30 00:23:44 marka Exp $
+.\" $Id: dig.1,v 1.23.18.22 2007/05/16 06:11:27 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -50,7 +50,7 @@ Although
 \fBdig\fR
 is normally used with command\-line arguments, it also has a batch mode of operation for reading lookup requests from a file. A brief summary of its command\-line arguments and options is printed when the
 \fB\-h\fR
-option is given. Unlike earlier versions, the BIND9 implementation of
+option is given. Unlike earlier versions, the BIND 9 implementation of
 \fBdig\fR
 allows multiple lookups to be issued from the command line.
 .PP
@@ -128,14 +128,14 @@ The default query class (IN for internet) is overridden by the
 \fB\-c\fR
 option.
 \fIclass\fR
-is any valid class, such as HS for Hesiod records or CH for CHAOSNET records.
+is any valid class, such as HS for Hesiod records or CH for Chaosnet records.
 .PP
 The
 \fB\-f\fR
 option makes
 \fBdig \fR
 operate in batch mode by reading a list of lookup requests to process from the file
-\fIfilename\fR. The file contains a number of queries, one per line. Each entry in the file should be organised in the same way they would be presented as queries to
+\fIfilename\fR. The file contains a number of queries, one per line. Each entry in the file should be organized in the same way they would be presented as queries to
 \fBdig\fR
 using the command\-line interface.
 .PP
@@ -160,7 +160,7 @@ to only use IPv6 query transport.
 The
 \fB\-t\fR
 option sets the query type to
-\fItype\fR. It can be any valid query type which is supported in BIND9. The default query type "A", unless the
+\fItype\fR. It can be any valid query type which is supported in BIND 9. The default query type is "A", unless the
 \fB\-x\fR
 option is supplied to indicate a reverse lookup. A zone transfer can be requested by specifying a type of AXFR. When an incremental zone transfer (IXFR) is required,
 \fItype\fR
@@ -171,11 +171,11 @@ ixfr=N. The incremental zone transfer will contain the changes made to the zone 
 The
 \fB\-q\fR
 option sets the query name to
-\fIname\fR. This useful do distingish the
+\fIname\fR. This useful do distinguish the
 \fIname\fR
 from other arguments.
 .PP
-Reverse lookups \- mapping addresses to names \- are simplified by the
+Reverse lookups \(em mapping addresses to names \(em are simplified by the
 \fB\-x\fR
 option.
 \fIaddr\fR
@@ -228,7 +228,7 @@ to negate the meaning of that keyword. Other keywords assign values to options l
 .PP
 \fB+[no]tcp\fR
 .RS 4
-Use [do not use] TCP when querying name servers. The default behaviour is to use UDP unless an AXFR or IXFR query is requested, in which case a TCP connection is used.
+Use [do not use] TCP when querying name servers. The default behavior is to use UDP unless an AXFR or IXFR query is requested, in which case a TCP connection is used.
 .RE
 .PP
 \fB+[no]vc\fR
@@ -330,7 +330,7 @@ makes iterative queries to resolve the name being looked up. It will follow refe
 .PP
 \fB+[no]cmd\fR
 .RS 4
-toggles the printing of the initial comment in the output identifying the version of
+Toggles the printing of the initial comment in the output identifying the version of
 \fBdig\fR
 and the query options that have been applied. This comment is printed by default.
 .RE
@@ -354,7 +354,7 @@ Toggle the display of comment lines in the output. The default is to print comme
 .PP
 \fB+[no]stats\fR
 .RS 4
-This query option toggles the printing of statistics: when the query was made, the size of the reply and so on. The default behaviour is to print the query statistics.
+This query option toggles the printing of statistics: when the query was made, the size of the reply and so on. The default behavior is to print the query statistics.
 .RE
 .PP
 \fB+[no]qr\fR
@@ -391,7 +391,7 @@ Set or clear all display flags.
 .RS 4
 Sets the timeout for a query to
 \fIT\fR
-seconds. The default time out is 5 seconds. An attempt to set
+seconds. The default timeout is 5 seconds. An attempt to set
 \fIT\fR
 to less than 1 will result in a query timeout of 1 second being applied.
 .RE
@@ -451,7 +451,7 @@ output.
 .PP
 \fB+[no]fail\fR
 .RS 4
-Do not try the next server if you receive a SERVFAIL. The default is to not try the next server which is the reverse of normal stub resolver behaviour.
+Do not try the next server if you receive a SERVFAIL. The default is to not try the next server which is the reverse of normal stub resolver behavior.
 .RE
 .PP
 \fB+[no]besteffort\fR
@@ -487,7 +487,7 @@ Requires dig be compiled with \-DDIG_SIGCHASE.
 .PP
 \fB+[no]topdown\fR
 .RS 4
-When chasing DNSSEC signature chains perform a top down validation. Requires dig be compiled with \-DDIG_SIGCHASE.
+When chasing DNSSEC signature chains perform a top\-down validation. Requires dig be compiled with \-DDIG_SIGCHASE.
 .RE
 .SH "MULTIPLE QUERIES"
 .PP

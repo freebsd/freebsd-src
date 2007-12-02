@@ -5,7 +5,7 @@
  - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc.docbook,v 1.8.18.8 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: rndc.docbook,v 1.8.18.12 2007/08/28 07:20:01 tbox Exp $ -->
 <refentry id="man.rndc">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -78,7 +78,7 @@
       communicates with the name server
       over a TCP connection, sending commands authenticated with
       digital signatures.  In the current versions of
-      <command>rndc</command> and <command>named</command> named
+      <command>rndc</command> and <command>named</command>,
       the only supported authentication algorithm is HMAC-MD5,
       which uses a shared secret on each end of the connection.
       This provides TSIG-style authentication for the command
@@ -139,13 +139,12 @@
         <term>-s <replaceable class="parameter">server</replaceable></term>
         <listitem>
           <para><replaceable class="parameter">server</replaceable> is
-            	       the name or address of the server which matches a
+            the name or address of the server which matches a
             server statement in the configuration file for
-            <command>rndc</command>.  If no server is supplied on
-            the
+            <command>rndc</command>.  If no server is supplied on the
             command line, the host named by the default-server clause
-            in the option statement of the configuration file will be
-            used.
+            in the options statement of the <command>rndc</command>
+	    configuration file will be used.
           </para>
         </listitem>
       </varlistentry>
@@ -172,16 +171,16 @@
       </varlistentry>
 
       <varlistentry>
-        <term>-y <replaceable class="parameter">keyid</replaceable></term>
+        <term>-y <replaceable class="parameter">key_id</replaceable></term>
         <listitem>
           <para>
-            Use the key <replaceable class="parameter">keyid</replaceable>
+            Use the key <replaceable class="parameter">key_id</replaceable>
             from the configuration file.
-            <replaceable class="parameter">keyid</replaceable>
+            <replaceable class="parameter">key_id</replaceable>
             must be
             known by named with the same algorithm and secret string
             in order for control message validation to succeed.
-            If no <replaceable class="parameter">keyid</replaceable>
+            If no <replaceable class="parameter">key_id</replaceable>
             is specified, <command>rndc</command> will first look
             for a key clause in the server statement of the server
             being used, or if no server statement is present for that
@@ -230,7 +229,7 @@
       </citerefentry>,
       <citerefentry>
         <refentrytitle>named.conf</refentrytitle><manvolnum>5</manvolnum>
-      </citerefentry>
+      </citerefentry>,
       <citerefentry>
         <refentrytitle>ndc</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,

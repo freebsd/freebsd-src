@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dnssec-keygen.html,v 1.9.18.19 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: dnssec-keygen.html,v 1.9.18.20 2007/05/09 03:33:12 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -35,7 +35,7 @@
 <a name="id2543474"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keygen</strong></span>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
-      and RFC &lt;TBA\&gt;.  It can also generate keys for use with
+      and RFC 4034.  It can also generate keys for use with
       TSIG (Transaction Signatures), as defined in RFC 2845.
     </p>
 </div>
@@ -168,7 +168,7 @@
         </p></li>
 </ul></div>
 <p><span><strong class="command">dnssec-keygen</strong></span> 
-      creates two file, with names based
+      creates two files, with names based
       on the printed string.  <code class="filename">Knnnn.+aaa+iiiii.key</code>
       contains the public key, and
       <code class="filename">Knnnn.+aaa+iiiii.private</code> contains the
@@ -182,14 +182,14 @@
       statement).
     </p>
 <p>
-      The <code class="filename">.private</code> file contains algorithm
-      specific
+      The <code class="filename">.private</code> file contains
+      algorithm-specific
       fields.  For obvious security reasons, this file does not have
       general read permission.
     </p>
 <p>
       Both <code class="filename">.key</code> and <code class="filename">.private</code>
-      files are generated for symmetric encryption algorithm such as
+      files are generated for symmetric encryption algorithms such as
       HMAC-MD5, even though the public and private key are equivalent.
     </p>
 </div>
@@ -211,7 +211,7 @@
       In this example, <span><strong class="command">dnssec-keygen</strong></span> creates
       the files <code class="filename">Kexample.com.+003+26160.key</code>
       and
-      <code class="filename">Kexample.com.+003+26160.private</code>
+      <code class="filename">Kexample.com.+003+26160.private</code>.
     </p>
 </div>
 <div class="refsect1" lang="en">

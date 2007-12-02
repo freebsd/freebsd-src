@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_ioctl.c,v 1.44.18.11 2006/02/03 23:51:38 marka Exp $ */
+/* $Id: ifiter_ioctl.c,v 1.44.18.13 2007/08/31 23:46:25 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -905,7 +905,8 @@ internal_next4(isc_interfaceiter_t *iter) {
 	struct ifreq *ifrp;
 #endif
 
-	REQUIRE (iter->pos < (unsigned int) iter->ifc.ifc_len);
+	REQUIRE(iter->ifc.ifc_len == 0 ||
+	        iter->pos < (unsigned int) iter->ifc.ifc_len);
 
 #ifdef __linux
 	if (linux_if_inet6_next(iter) == ISC_R_SUCCESS)
@@ -913,6 +914,10 @@ internal_next4(isc_interfaceiter_t *iter) {
 	if (!iter->first)
 		return (ISC_R_SUCCESS);
 #endif
+
+	if (iter->ifc.ifc_len == 0)
+		return (ISC_R_NOMORE);
+
 #ifdef ISC_PLATFORM_HAVESALEN
 	ifrp = (struct ifreq *)((char *) iter->ifc.ifc_req + iter->pos);
 
