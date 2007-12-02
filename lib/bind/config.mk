@@ -10,6 +10,7 @@ CFLAGS+=	-DVERSION='"${BIND_VERSION}"'
 .endif
 
 CFLAGS+=	-DHAVE_CONFIG_H
+CFLAGS+=	-D_REENTRANT -D_THREAD_SAFE
 
 # Get version numbers (for libraries)
 .if defined(SRCDIR) && exists(${SRCDIR}/api)

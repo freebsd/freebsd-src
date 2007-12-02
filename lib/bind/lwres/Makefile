@@ -26,6 +26,8 @@ SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/include
+CFLAGS+=	-I${BIND_DIR}/lib/isc/unix/include
 
 DPADD=		${PTHREAD_DPADD}
 LDADD=		${PTHREAD_LDADD}

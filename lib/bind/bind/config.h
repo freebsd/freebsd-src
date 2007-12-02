@@ -14,6 +14,8 @@
 /* #undef POSIX_GETPWNAM_R */
 /* #undef POSIX_GETGRGID_R */
 /* #undef POSIX_GETGRNAM_R */
+#define HAVE_MEMMOVE 1
+#define HAVE_MEMCHR 1
 
 /* #undef NEED_SETGROUPENT */
 /* #undef NEED_GETGROUPLIST */
@@ -41,6 +43,7 @@
 
 #define HAS_PW_CLASS 1
 
+/* #undef ssize_t */
 /* #undef uintptr_t */
 
 /* Shut up warnings about sputaux in stdio.h on BSD/OS pre-4.1 */
