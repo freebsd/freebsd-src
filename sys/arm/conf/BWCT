@@ -73,7 +73,6 @@ device		random
 device		ether
 device		vlan
 device		pty
-device		nexus
 device		uart
 device		ate
 device		mii

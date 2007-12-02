@@ -61,7 +61,6 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 device		genclock
 device		loop
 device		ether
-device		nexus
 #device		saarm
 device		rl
 device		uart
