@@ -284,10 +284,10 @@ initarm(void *arg, void *arg2)
 	i += 2;
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE;
+	fake_preload[i++] = KERNVIRTADDR;
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE;
+	fake_preload[i++] = (uint32_t)&end - KERNVIRTADDR;
 #ifdef DDB
 	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
 		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
@@ -369,7 +369,7 @@ initarm(void *arg, void *arg2)
 	for (i = 0; i < KERNEL_PT_KERN_NUM; i++)
 		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x100000,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
-	pmap_map_chunk(l1pagetable, KERNBASE, KERNPHYSADDR,
+	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
@@ -473,15 +473,19 @@ initarm(void *arg, void *arg2)
 	mutex_init();
 	
 	i = 0;
-	dump_avail[0] = KERNPHYSADDR;
-	dump_avail[1] = KERNPHYSADDR + memsize;
+	dump_avail[0] = PHYSADDR;
+	dump_avail[1] = PHYSADDR + memsize;
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 	
-	phys_avail[0] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[1] = KERNPHYSADDR + memsize;
-	phys_avail[2] = 0;
-	phys_avail[3] = 0;
+#if PHYSADDR != KERNPHYSADDR
+	phys_avail[i++] = PHYSADDR;
+	phys_avail[i++] = KERNPHYSADDR;
+#endif
+	phys_avail[i++] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
+	phys_avail[i++] = PHYSADDR + memsize;
+	phys_avail[i++] = 0;
+	phys_avail[i++] = 0;
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
