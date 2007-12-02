@@ -483,7 +483,7 @@ amr_pci_intr(void *arg)
 static void
 amr_pci_free(struct amr_softc *sc)
 {
-    void *p
+    void *p;
 
     debug_called(1);
 
