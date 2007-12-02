@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.259.18.39 2007/02/14 23:45:43 marka Exp $ */
+/* $Id: dighost.c,v 1.259.18.43 2007/08/28 07:19:55 tbox Exp $ */
 
 /*! \file
  *  \note
@@ -144,6 +144,7 @@ static idn_result_t	append_textname(char *name, const char *origin,
 static void		idn_check_result(idn_result_t r, const char *msg);
 
 #define MAXDLEN		256
+int  idnoptions	= 0;
 #endif
 
 /*%
@@ -1275,9 +1276,7 @@ clear_query(dig_query_t *query) {
  */
 static isc_boolean_t
 try_clear_lookup(dig_lookup_t *lookup) {
-	dig_server_t *s;
 	dig_query_t *q;
-	void *ptr;
 
 	REQUIRE(lookup != NULL);
 
@@ -1298,7 +1297,16 @@ try_clear_lookup(dig_lookup_t *lookup) {
 	 * At this point, we know there are no queries on the lookup,
 	 * so can make it go away also.
 	 */
-	debug("cleared");
+	destroy_lookup(lookup);
+	return (ISC_TRUE);
+}
+
+void
+destroy_lookup(dig_lookup_t *lookup) {
+	dig_server_t *s;
+	void *ptr;
+
+	debug("destroy");
 	s = ISC_LIST_HEAD(lookup->my_server_list);
 	while (s != NULL) {
 		debug("freeing server %p belonging to %p", s, lookup);
@@ -1323,7 +1331,6 @@ try_clear_lookup(dig_lookup_t *lookup) {
 		dst_context_destroy(&lookup->tsigctx);
 
 	isc_mem_free(mctx, lookup);
-	return (ISC_TRUE);
 }
 
 /*%
@@ -1816,7 +1823,7 @@ setup_lookup(dig_lookup_t *lookup) {
 				     sizeof(utf8_textname));
 		idn_check_result(mr, "append origin to textname");
 	}
-	mr = idn_encodename(IDN_LOCALMAP | IDN_NAMEPREP | IDN_ASCCHECK |
+	mr = idn_encodename(idnoptions | IDN_LOCALMAP | IDN_NAMEPREP |
 			    IDN_IDNCONV | IDN_LENCHECK, utf8_textname,
 			    idn_textname, sizeof(idn_textname));
 	idn_check_result(mr, "convert UTF-8 textname to IDN encoding");
@@ -3891,7 +3898,7 @@ get_trusted_key(isc_mem_t *mctx)
 		       filename);
 		return (ISC_R_FAILURE);
 	}
-	while (fgets(buf, 1500, fp) != NULL) {
+	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		result = opentmpkey(mctx,"tmp_file", &filetemp, &fptemp);
 		if (result != ISC_R_SUCCESS) {
 			fclose(fp);

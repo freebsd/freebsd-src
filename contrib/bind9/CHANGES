@@ -1,5 +1,117 @@
 
-	--- 9.4.1-P1 released ---
+	--- 9.4.2 released ---
+	--- 9.4.2rc2 released ---
+
+2259.	[bug]		Reverse incorrect LIBINTERFACE bump of libisc
+			in 9.4.2rc1.  Applications built against 9.4.2rc1
+			will need to be rebuilt.
+
+2258.	[bug]		Fallback from IXFR/TSIG to SOA/AXFR/TSIG broken.
+			[RT #17241]
+
+2257.	[bug]		win32: Use the full path to vcredist_x86.exe when
+			calling it. [RT #17222]
+
+2256.	[bug]		win32: Correctly register the installation location of
+			bindevt.dll. [RT #17159]
+
+2255.	[bug]		L.ROOT-SERVERS.NET is now 199.7.83.42.
+
+2254.	[bug]		timer.c:dispatch() failed to lock timer->lock
+			when reading timer->idle allowing it to see
+			intermediate values as timer->idle was reset by
+			isc_timer_touch(). [RT #17243]
+
+	--- 9.4.2rc1 released ---
+
+2251.	[doc]		Update memstatistics-file documentation to reflect
+			reality. Note there is behaviour change for BIND 9.5.
+			[RT #17113]
+
+2249.   [bug]           Only set Authentic Data bit if client requested
+                        DNSSEC, per RFC 3655 [RT #17175]
+
+2248.   [cleanup]       Fix several errors reported by Coverity. [RT #17160]
+
+2245.	[bug]		Validating lack of DS records at trust anchors wasn't
+			working. [RT #17151]
+
+2238.	[bug]		It was possible to trigger a REQUIRE when a
+			validation was cancelled. [RT #17106]
+
+2237.	[bug]		libbind: res_init() was not thread aware. [RT #17123]
+
+2236.	[bug]		dnssec-signzone failed to preserve the case of
+			of wildcard owner names. [RT #17085]
+
+2235.	[bug]		<isc/atomic.h> was not being installed. [RT #17135]
+
+2234.   [port]          Correct some compiler warnings on SCO OSr5 [RT #17134]
+  
+2232.	[bug]		dns_adb_findaddrinfo() could fail and return
+			ISC_R_SUCCESS. [RT #17137]
+
+2231.	[bug]		Building dlzbdb (contrib/dlz/bin/dlzbdb) was broken.
+			[RT #17088]
+
+2230.	[bug]		We could INSIST reading a corrupted journal.
+			[RT #17132]
+
+2228.	[contrib]	contrib: Change 2188 was incomplete.
+
+2227.	[cleanup]	Tidied up the FAQ. [RT #17121]
+
+2225.	[bug]		More support for systems with no IPv4 addresses.
+		        [RT #17111]
+
+2224.	[bug]		Defer journal compaction if a xfrin is in progress.
+			[RT #17119]
+
+2223.	[bug]		Make a new journal when compacting. [RT #17119]
+
+2221.	[bug]		Set the event result code to reflect the actual
+			record returned to caller when a cache update is
+			rejected due to a more credible answer existing.
+			[RT #17017]
+
+2220.	[bug]		win32: Address a race condition in final shutdown of
+			the Windows socket code. [RT #17028]
+			
+2219.	[bug]		Apply zone consistancy checks to additions, not
+			removals, when updating. [RT #17049]
+
+2218.	[bug]		Remove unnecessary REQUIRE from dns_validator_create().
+			[RT #16976]
+
+2216.	[cleanup]	Fix a number of errors reported by Coverity.
+		        [RT #17094]
+
+2215.	[bug]		Bad REQUIRE check isc_hmacsha1_verify(). [RT #17094]
+
+2214.	[bug]		Deregister OpenSSL lock callback when cleaning
+			up.  Reorder OpenSSL cleanup so that RAND_cleanup()
+			is called before the locks are destroyed. [RT #17098]
+
+2213.	[bug]		SIG0 diagnostic failure messages were looking at the
+			wrong status code. [RT #17101]
+
+2212.	[func]		'host -m' now causes memory statistics and active
+			memory to be printed at exit. [RT 17028]
+
+2210.	[bug]		Deleting class specific records via UPDATE could
+			fail.  [RT #17074]
+
+2209.	[port]		osx: linking against user supplied static OpenSSL
+			libraries failed as the system ones were still being
+			found. [RT #17078]
+
+2208.	[port]		win32: make sure both build methods produce the
+			same output. [RT #17058]
+
+2207.	[port]		Some implementations of getaddrinfo() fail to set
+			ai_canonname correctly. [RT #17061]
+
+	--- 9.4.2b1 released ---
 
 2206.	[security]	"allow-query-cache" and "allow-recursion" now
 			cross inherit from each other.
@@ -16,11 +128,31 @@
 
 			[RT #16987]
 	
+2205.	[bug]		libbind: change #2119 broke thread support. [RT #16982]
+
 2203.	[security]	Query id generation was cryptographically weak.
 			[RT # 16915]
 
 2202.	[security]	The default acls for allow-query-cache and 
 			allow-recursion were not being applied. [RT #16960]
+
+2200.	[bug]		The search for cached NSEC records was stopping to
+			early leading to excessive DLV queries. [RT #16930]
+
+2199.	[bug]		win32: don't call WSAStartup() while loading dlls.
+			[RT #16911]
+
+2198.	[bug]		win32: RegCloseKey() could be called when
+			RegOpenKeyEx() failed. [RT #16911]
+
+2197.	[bug]		Add INSIST to catch negative responses which are
+			not setting the event result code appropriately.
+			[RT #16909]
+
+2196.	[port]		win32: yield processor while waiting for once to
+			to complete. [RT #16958]
+
+2194.	[bug]		Close journal before calling 'done' in xfrin.c.
 
 2193.	[port]		win32: BINDInstall.exe is now linked statically.
 			[RT #16906]
@@ -28,6 +160,145 @@
 2192.	[port]		win32: use vcredist_x86.exe to install Visual
 			Studio's redistributable dlls if building with
 			Visual Stdio 2005 or later.
+
+2189.	[bug]		Handle socket() returning EINTR. [RT #15949]
+
+2188.	[contrib]	queryperf: autoconf changes to make the search for
+			libresolv or libbind more robust. [RT #16299]
+
+2187.	[bug]		query_addds(), query_addwildcardproof() and
+			query_addnxrrsetnsec() should take a version
+			arguement. [RT #16368]
+
+2186.	[port]		cygwin: libbind: check for struct sockaddr_storage
+			independently of IPv6. [RT #16482]
+
+2185.	[port]		sunos: libbind: check for ssize_t, memmove() and
+			memchr(). [RT #16463]
+
+2183.	[bug]		dnssec-signzone didn't handle offline private keys
+			well.  [RT #16832]
+
+2182.	[bug]		dns_dispatch_createtcp() and dispatch_createudp()
+			could return ISC_R_SUCCESS when they ran out of
+			memory. [RT #16365]
+
+2181.	[port]		sunos: libbind: add paths.h from BIND 8. [RT #16462]
+
+2180.	[cleanup]	Remove bit test from 'compress_test' as they
+			are no longer needed. [RT #16497]
+
+2178.	[bug]		'rndc reload' of a slave or stub zone resulted in
+			a reference leak. [RT #16867]
+
+2177.	[bug]		Array bounds overrun on read (rcodetext) at
+			debug level 10+. [RT #16798]
+
+2176.	[contrib]	dbus update to handle race condition during
+			initialisation (Bugzilla 235809). [RT #16842]
+
+2175.	[bug]		win32: windows broadcast condition variable support
+			was broken. [RT #16592]
+
+2174.	[bug]		I/O errors should always be fatal when reading
+			master files. [RT #16825]
+
+2173.	[port]		win32: When compiling with MSVS 2005 SP1 we also
+			need to ship Microsoft.VC80.MFCLOC.
+
+2171.	[bug]		Handle breaks in DNSSEC trust chains where the parent
+			servers are not DS aware (DS queries to the parent
+			return a referral to the child).
+
+2170.	[func]		Add acache processing to test suite. [RT #16711]
+
+2169.	[bug]		host, nslookup: when reporting NXDOMAIN report the
+			given name and not the last name searched for.
+			[RT #16763]
+
+2168.	[bug]		nsupdate: in non-interactive mode treat syntax errors
+			as fatal errors. [RT #16785]
+
+2167.	[bug]		When re-using a automatic zone named failed to
+			attach it to the new view. [RT #16786]
+
+2166.	[bug]		When running in batch mode, dig could misinterpret
+			a server address as a name to be looked up, causing
+			unexpected output. [RT #16743]
+
+2164.	[bug]		The code to determine how named-checkzone / 
+			named-compilezone was called failed under windows.
+			[RT #16764]
+
+2162.	[func]		Allow "rrset-order fixed" to be disabled at compile
+			time. [RT #16665]
+
+2161.	[bug]		'rndc flush' could report a false success. [RT #16698]
+
+2160.	[bug]		libisc wasn't handling NULL ifa_addr pointers returned
+			from getifaddrs(). [RT #16708]
+
+2159.	[bug]		Array bounds overrun in acache processing. [RT #16710]
+
+2158.	[bug]		ns_client_isself() failed to initialise key
+			leading to a REQUIRE failure. [RT #16688]
+
+2156.	[bug]		Fix node reference leaks in lookup.c:lookup_find(),
+			resolver.c:validated() and resolver.c:cache_name().
+			Fix a memory leak in rbtdb.c:free_noqname().
+			Make lookup.c:lookup_find() robust against
+			event leaks. [RT #16685]
+
+2155.	[contrib]	SQLite sdb module from jaboydjr@netwalk.com.
+			[RT #16694]
+
+2153.	[bug]		nsupdate could leak memory. [RT #16691]
+
+2152.	[cleanup]	Use sizeof(buf) instead of fixed number in
+			dighost.c:get_trusted_key(). [RT #16678]
+
+2151.	[bug]		Missing newline in usage message for journalprint.
+			[RT #16679]
+
+2150.	[bug]		'rrset-order cyclic' uniformly distribute the
+			starting point for the first response for a given
+			RRset. [RT #16655]
+
+2149.	[bug]		isc_mem_checkdestroyed() failed to abort on
+			if there were still active memory contexts.
+			[RT #16672]
+
+2147.	[bug]		libbind: remove potential buffer overflow from
+			hmac_link.c. [RT #16437]
+
+2146.	[cleanup]	Silence Linux's spurious "obsolete setsockopt
+			SO_BSDCOMPAT" message. [RT #16641]
+
+2145.	[bug]		Check DS/DLV digest lengths for known digests.
+			[RT #16622]
+
+2144.	[cleanup]	Suppress logging of SERVFAIL from forwarders.
+			[RT #16619]
+
+2143.	[bug]		We failed to restart the IPv6 client when the
+			kernel failed to return the destination the
+			packet was sent to. [RT #16613]
+
+2142.	[bug]		Handle master files with a modification time that
+			matches the epoch. [RT# 16612]
+
+2141.	[bug]		dig/host should not be setting IDN_ASCCHECK (IDN
+			equivalent of LDH checks).  [RT #16609]
+
+2140.	[bug]		libbind: missing unlock on pthread_key_create()
+			failures. [RT #16654]
+
+2139.	[bug]		dns_view_find() was being called with wrong type
+			in adb.c. [RT #16670]
+
+2119.	[compat]	libbind: allow res_init() to succeed enough to
+			return the default domain even if it was unable
+			to allocate memory.
 
 	--- 9.4.1 released ---
 
@@ -524,7 +795,7 @@
 			hex strings with comments. [RT #15814]
 
 1974.	[doc]		List each of the zone types and associated zone
-			options seperately in the ARM.
+			options separately in the ARM.
 
 1973.	[func]		TSIG HMACSHA1, HMACSHA224, HMACSHA256, HMACSHA384 and
 			HMACSHA512 support. [RT #13606]
@@ -551,7 +822,7 @@
 1965.	[func]		Suppress spurious "recusion requested but not
 			available" warning with 'dig +qr'. [RT #15780].
 
-1964.	[func]		Seperate out MX and SRV to CNAME checks. [RT #15723]
+1964.	[func]		Separate out MX and SRV to CNAME checks. [RT #15723]
 
 1963.	[port]		Tru64 4.0E doesn't support send() and recv(). 
 			[RT #15586]
@@ -771,7 +1042,7 @@
 1898.	[bug]		Extend ISC_SOCKADDR_FORMATSIZE and
 			ISC_NETADDR_FORMATSIZE to allow for scope details.
 
-1897.	[func]		x86 and x86_64 now have seperate atomic locking
+1897.	[func]		x86 and x86_64 now have separate atomic locking
 			implementations.
 
 1896.	[bug]		Recursive clients soft quota support wasn't working
@@ -825,7 +1096,7 @@
 			[RT #14892]
 
 1878.	[func]		Detect duplicates of UDP queries we are recursing on
-			and drop them.  New stats category "duplicates".
+			and drop them.  New stats category "duplicate".
 			[RT #2471]
 
 1877.	[bug]		Fix unreasonably low quantum on call to
@@ -1769,7 +2040,7 @@
 			[RT #6427]
 
 1555.	[func]		'rrset-order cyclic' no longer has a random starting
-			point. [RT #7572]
+			point per query. [RT #7572]
 
 1554.	[bug]		dig, host, nslookup failed when no nameservers
 			were specified in /etc/resolv.conf. [RT #8232]
@@ -6250,7 +6521,7 @@
 			and has been removed.
 
  170.	[cleanup]	Remove inter server consistancy checks from zone,
-			these should return as a seperate module in 9.1.
+			these should return as a separate module in 9.1.
 			dns_zone_checkservers(), dns_zone_checkparents(),
 			dns_zone_checkchildren(), dns_zone_checkglue().
 

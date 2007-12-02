@@ -1,4 +1,4 @@
-Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
@@ -134,9 +134,8 @@ characters.
 3.1. EDNS0
 
 BIND 9 uses EDNS0 (RFC2671) to advertise its receive buffer size.  It
-also sets an EDNS flag bit in queries to indicate that it wishes to
-receive DNSSEC responses; this flag bit usage is not yet standardised,
-but we hope it will be.
+also sets DO EDNS flag bit in queries to indicate that it wishes to
+receive DNSSEC responses.
 
 Most older servers that do not support EDNS0, including prior versions
 of BIND, will send a FORMERR or NOTIMP response to these queries.
@@ -173,6 +172,8 @@ http://support.microsoft.com/default.aspx?scid=kb;en-us;297936
 
 4. Unrestricted Character Set
 
+		BIND 9.2 only
+
 BIND 9 does not restrict the character set of domain names - it is
 fully 8-bit clean in accordance with RFC2181 section 11.
 
@@ -192,6 +193,7 @@ no-check-names" in resolv.conf.  BIND 9 provides no such protection;
 if applications with these flaws are still being used, they should
 be upgraded.
 
+	BIND 9.3 onwards implements check-names.
 
 5. Server Administration Tools
 
@@ -252,4 +254,4 @@ necessary, the umask should be set explicitly in the script used to
 start the named process.
 
 
-$Id: migration,v 1.45.18.1 2004/11/22 22:32:19 marka Exp $
+$Id: migration,v 1.45.18.2 2007/09/07 06:34:21 marka Exp $

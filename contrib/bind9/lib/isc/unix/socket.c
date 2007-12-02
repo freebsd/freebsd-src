@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.237.18.24 2006/06/06 00:56:09 marka Exp $ */
+/* $Id: socket.c,v 1.237.18.29 2007/08/28 07:20:06 tbox Exp $ */
 
 /*! \file */
 
@@ -48,6 +48,7 @@
 #include <isc/msgs.h>
 #include <isc/mutex.h>
 #include <isc/net.h>
+#include <isc/once.h>
 #include <isc/platform.h>
 #include <isc/print.h>
 #include <isc/region.h>
@@ -69,6 +70,11 @@
  */
 #ifndef ISC_SOCKADDR_LEN_T
 #define ISC_SOCKADDR_LEN_T unsigned int
+#endif
+
+
+#if defined(SO_BSDCOMPAT) && defined(__linux__)
+#include <sys/utsname.h>
 #endif
 
 /*%
@@ -1386,7 +1392,45 @@ free_socket(isc_socket_t **socketp) {
 	*socketp = NULL;
 }
 
+#ifdef SO_BSDCOMPAT
 /*
+ * This really should not be necessary to do.  Having to workout
+ * which kernel version we are on at run time so that we don't cause
+ * the kernel to issue a warning about us using a deprecated socket option.
+ * Such warnings should *never* be on by default in production kernels.
+ *
+ * We can't do this a build time because executables are moved between
+ * machines and hence kernels.
+ *
+ * We can't just not set SO_BSDCOMAT because some kernels require it.
+ */
+
+static isc_once_t         bsdcompat_once = ISC_ONCE_INIT;
+isc_boolean_t bsdcompat = ISC_TRUE;
+
+static void
+clear_bsdcompat(void) {
+#ifdef __linux__
+	 struct utsname buf;
+	 char *endp;
+	 long int major;
+	 long int minor;
+
+	 uname(&buf);    /* Can only fail if buf is bad in Linux. */
+
+	 /* Paranoia in parsing can be increased, but we trust uname(). */
+	 major = strtol(buf.release, &endp, 10);
+	 if (*endp == '.') {
+		minor = strtol(endp+1, &endp, 10);
+		if ((major > 2) || ((major == 2) && (minor >= 4))) {
+			bsdcompat = ISC_FALSE;
+		}
+	 }
+#endif /* __linux __ */
+}
+#endif
+
+/*%
  * Create a new 'type' socket managed by 'manager'.  Events
  * will be posted to 'task' and when dispatched 'action' will be
  * called with 'arg' as the arg value.  The new socket is returned
@@ -1407,6 +1451,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 #endif
 	char strbuf[ISC_STRERRORSIZE];
 	const char *err = "socket";
+	int try = 0;
 
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(socketp != NULL && *socketp == NULL);
@@ -1416,6 +1461,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		return (result);
 
 	sock->pf = pf;
+ again:
 	switch (type) {
 	case isc_sockettype_udp:
 		sock->fd = socket(pf, SOCK_DGRAM, IPPROTO_UDP);
@@ -1427,6 +1473,8 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		sock->fd = socket(pf, SOCK_STREAM, 0);
 		break;
 	}
+	if (sock->fd == -1 && errno == EINTR && try++ < 42)
+		goto again;
 
 #ifdef F_DUPFD
 	/*
@@ -1493,7 +1541,9 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 	}
 
 #ifdef SO_BSDCOMPAT
-	if (type != isc_sockettype_unix &&
+	RUNTIME_CHECK(isc_once_do(&bsdcompat_once,
+				  clear_bsdcompat) == ISC_R_SUCCESS);
+	if (type != isc_sockettype_unix && bsdcompat &&
 	    setsockopt(sock->fd, SOL_SOCKET, SO_BSDCOMPAT,
 		       (void *)&on, sizeof(on)) < 0) {
 		isc__strerror(errno, strbuf, sizeof(strbuf));
@@ -1540,7 +1590,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		}
 #ifdef ISC_PLATFORM_HAVEIN6PKTINFO
 #ifdef IPV6_RECVPKTINFO
-		/* 2292bis */
+		/* RFC 3542 */
 		if ((pf == AF_INET6)
 		    && (setsockopt(sock->fd, IPPROTO_IPV6, IPV6_RECVPKTINFO,
 				   (void *)&on, sizeof(on)) < 0)) {
@@ -1555,7 +1605,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 					 strbuf);
 		}
 #else
-		/* 2292 */
+		/* RFC 2292 */
 		if ((pf == AF_INET6)
 		    && (setsockopt(sock->fd, IPPROTO_IPV6, IPV6_PKTINFO,
 				   (void *)&on, sizeof(on)) < 0)) {
@@ -1571,7 +1621,7 @@ isc_socket_create(isc_socketmgr_t *manager, int pf, isc_sockettype_t type,
 		}
 #endif /* IPV6_RECVPKTINFO */
 #endif /* ISC_PLATFORM_HAVEIN6PKTINFO */
-#ifdef IPV6_USE_MIN_MTU        /*2292bis, not too common yet*/
+#ifdef IPV6_USE_MIN_MTU        /* RFC 3542, not too common yet*/
 		/* use minimum MTU */
 		if (pf == AF_INET6) {
 			(void)setsockopt(sock->fd, IPPROTO_IPV6,

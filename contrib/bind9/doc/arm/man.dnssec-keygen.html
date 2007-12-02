@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-keygen.html,v 1.2.2.37.10.1 2007/07/09 02:25:53 marka Exp $ -->
+<!-- $Id: man.dnssec-keygen.html,v 1.2.2.47 2007/10/31 01:35:59 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,15 +50,15 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-keygen</code>  {-a <em class="replaceable"><code>algorithm</code></em>} {-b <em class="replaceable"><code>keysize</code></em>} {-n <em class="replaceable"><code>nametype</code></em>} [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-e</code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-g <em class="replaceable"><code>generator</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k</code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>strength</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2597558"></a><h2>DESCRIPTION</h2>
+<a name="id2597830"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keygen</strong></span>
       generates keys for DNSSEC (Secure DNS), as defined in RFC 2535
-      and RFC &lt;TBA\&gt;.  It can also generate keys for use with
+      and RFC 4034.  It can also generate keys for use with
       TSIG (Transaction Signatures), as defined in RFC 2845.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2597572"></a><h2>OPTIONS</h2>
+<a name="id2597844"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
@@ -166,7 +166,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2598052"></a><h2>GENERATED KEYS</h2>
+<a name="id2598187"></a><h2>GENERATED KEYS</h2>
 <p>
       When <span><strong class="command">dnssec-keygen</strong></span> completes
       successfully,
@@ -186,7 +186,7 @@
         </p></li>
 </ul></div>
 <p><span><strong class="command">dnssec-keygen</strong></span> 
-      creates two file, with names based
+      creates two files, with names based
       on the printed string.  <code class="filename">Knnnn.+aaa+iiiii.key</code>
       contains the public key, and
       <code class="filename">Knnnn.+aaa+iiiii.private</code> contains the
@@ -200,19 +200,19 @@
       statement).
     </p>
 <p>
-      The <code class="filename">.private</code> file contains algorithm
-      specific
+      The <code class="filename">.private</code> file contains
+      algorithm-specific
       fields.  For obvious security reasons, this file does not have
       general read permission.
     </p>
 <p>
       Both <code class="filename">.key</code> and <code class="filename">.private</code>
-      files are generated for symmetric encryption algorithm such as
+      files are generated for symmetric encryption algorithms such as
       HMAC-MD5, even though the public and private key are equivalent.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2598160"></a><h2>EXAMPLE</h2>
+<a name="id2598295"></a><h2>EXAMPLE</h2>
 <p>
       To generate a 768-bit DSA key for the domain
       <strong class="userinput"><code>example.com</code></strong>, the following command would be
@@ -229,11 +229,11 @@
       In this example, <span><strong class="command">dnssec-keygen</strong></span> creates
       the files <code class="filename">Kexample.com.+003+26160.key</code>
       and
-      <code class="filename">Kexample.com.+003+26160.private</code>
+      <code class="filename">Kexample.com.+003+26160.private</code>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2600196"></a><h2>SEE ALSO</h2>
+<a name="id2600195"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2535</em>,
@@ -242,7 +242,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2600227"></a><h2>AUTHOR</h2>
+<a name="id2600226"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>
