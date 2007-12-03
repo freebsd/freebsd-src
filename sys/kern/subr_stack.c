@@ -208,7 +208,7 @@ stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
 	if (linker_search_symbol_name((caddr_t)pc, namebuf, buflen,
 	    offset) != 0) {
 		*offset = 0;
-		strlcpy(namebuf, "Unknown func", buflen);
+		strlcpy(namebuf, "??", buflen);
 	}
 }
 
@@ -220,7 +220,7 @@ stack_symbol_ddb(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
 	if (linker_ddb_search_symbol_name((caddr_t)pc, namebuf, buflen,
 	    offset) != 0) {
 		*offset = 0;
-		strlcpy(namebuf, "Unknown func", buflen);
+		strlcpy(namebuf, "??", buflen);
 	};
 }
 #endif
