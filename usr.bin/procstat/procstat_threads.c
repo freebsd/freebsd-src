@@ -47,8 +47,8 @@ procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %6s %-20s %2s %4s %-7s %-9s\n", "PID", "TID",
-		    "COMM", "CPU", "PRI", "STATE", "WCHAN");
+		printf("%5s %6s %-16s %-16s %2s %4s %-7s %-9s\n", "PID",
+		    "TID", "COMM", "TDNAME", "CPU", "PRI", "STATE", "WCHAN");
 
 	/*
 	 * We need to re-query for thread information, so don't use *kipp.
@@ -82,8 +82,11 @@ procstat_threads(pid_t pid, struct kinfo_proc *kipp)
 		kipp = &kip[i];
 		printf("%5d ", pid);
 		printf("%6d ", kipp->ki_tid);
-		printf("%-20s ", strlen(kipp->ki_comm) ?
+		printf("%-16s ", strlen(kipp->ki_comm) ?
 		    kipp->ki_comm : "-");
+		printf("%-16s ", (strlen(kipp->ki_ocomm) &&
+		    (strcmp(kipp->ki_comm, kipp->ki_ocomm) != 0)) ?
+		    kipp->ki_ocomm : "-");
 		if (kipp->ki_oncpu != 255)
 			printf("%3d ", kipp->ki_oncpu);
 		else if (kipp->ki_lastcpu != 255)
