@@ -87,9 +87,9 @@ readdir(dirp)
 	struct dirent	*dp;
 
 	if (__isthreaded) {
-		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_lock(&dirp->dd_lock);
 		dp = _readdir_unlocked(dirp);
-		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_unlock(&dirp->dd_lock);
 	}
 	else
 		dp = _readdir_unlocked(dirp);
@@ -108,10 +108,10 @@ readdir_r(dirp, entry, result)
 	saved_errno = errno;
 	errno = 0;
 	if (__isthreaded) {
-		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_lock(&dirp->dd_lock);
 		if ((dp = _readdir_unlocked(dirp)) != NULL)
 			memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
-		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_unlock(&dirp->dd_lock);
 	}
 	else if ((dp = _readdir_unlocked(dirp)) != NULL)
 		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
