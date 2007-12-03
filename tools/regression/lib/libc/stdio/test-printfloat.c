@@ -91,12 +91,15 @@ main(int argc, char *argv[])
 	testfmt("NAN", "%F", NAN);
 	testfmt("nan", "%g", NAN);
 	testfmt("NAN", "%LE", (long double)NAN);
+	testfmt("  nan", "%05e", NAN);
 
 	testfmt("INF", "%E", HUGE_VAL);
 	testfmt("-inf", "%f", -HUGE_VAL);
 	testfmt("+inf", "%+g", HUGE_VAL);
 	testfmt(" inf", "%4.2Le", HUGE_VALL);
 	testfmt("-inf", "%Lf", -HUGE_VALL);
+	testfmt("  inf", "%05e", HUGE_VAL);
+	testfmt(" -inf", "%05e", -HUGE_VAL);
 
 	printf("ok 2 - printfloat\n");
 
@@ -210,18 +213,26 @@ main(int argc, char *argv[])
 	fesetround(FE_DOWNWARD);
 	testfmt("4.437", "%.3f", 4.4375);
 	testfmt("-4.438", "%.3f", -4.4375);
+	testfmt("4.437", "%.3Lf", 4.4375L);
+	testfmt("-4.438", "%.3Lf", -4.4375L);
 
 	fesetround(FE_UPWARD);
 	testfmt("4.438", "%.3f", 4.4375);
 	testfmt("-4.437", "%.3f", -4.4375);
+	testfmt("4.438", "%.3Lf", 4.4375L);
+	testfmt("-4.437", "%.3Lf", -4.4375L);
 
 	fesetround(FE_TOWARDZERO);
 	testfmt("4.437", "%.3f", 4.4375);
 	testfmt("-4.437", "%.3f", -4.4375);
+	testfmt("4.437", "%.3Lf", 4.4375L);
+	testfmt("-4.437", "%.3Lf", -4.4375L);
 
 	fesetround(FE_TONEAREST);
 	testfmt("4.438", "%.3f", 4.4375);
 	testfmt("-4.438", "%.3f", -4.4375);
+	testfmt("4.438", "%.3Lf", 4.4375L);
+	testfmt("-4.438", "%.3Lf", -4.4375L);
 
 	printf("ok 9 - printfloat\n");
 
@@ -291,9 +302,10 @@ main(int argc, char *argv[])
 	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
 	testfmt("0x1.23456p+0", "%.5a", 0x1.23456789abcdep0);
 	testfmt("0x1.234568p+0", "%.6a", 0x1.23456789abcdep0);
-	testfmt("-0x1.234566p+0", "%.6a", -0x1.23456689abcdep0);
+	testfmt("-0x1.234567p+0", "%.6a", -0x1.23456689abcdep0);
 	testfmt("0x2.00p-1030", "%.2a", 0x1.fffp-1030);
 	testfmt("0x2.00p-1027", "%.2a", 0xf.fffp-1030);
+	testfmt("0x1.83p+0", "%.2a", 1.51);
 
 	printf("ok 11 - printfloat\n");
 
