@@ -105,8 +105,6 @@ static void bsd_to_svr4_semid_ds(const struct semid_ds *,
 				      struct svr4_semid_ds *);
 static void svr4_to_bsd_semid_ds(const struct svr4_semid_ds *,
 				      struct semid_ds *);
-static int svr4_setsemun(caddr_t *sgp, union semun **argp,
-			      union semun *usp);
 static int svr4_semop(struct thread *, void *);
 static int svr4_semget(struct thread *, void *);
 static int svr4_semctl(struct thread *, void *);
@@ -194,16 +192,6 @@ svr4_to_bsd_semid_ds(sds, bds)
 	bds->sem_pad2 = sds->sem_pad2;
 }
 
-static int
-svr4_setsemun(sgp, argp, usp)
-	caddr_t *sgp;
-	union semun **argp;
-	union semun *usp;
-{
-	*argp = stackgap_alloc(sgp, sizeof(union semun));
-	return copyout((caddr_t)usp, *argp, sizeof(union semun));
-}
-
 struct svr4_sys_semctl_args {
 	int what;
 	int semid;
@@ -217,108 +205,75 @@ svr4_semctl(td, v)
 	struct thread *td;
 	void *v;
 {
-	int error;
 	struct svr4_sys_semctl_args *uap = v;
-	struct __semctl_args ap;
 	struct svr4_semid_ds ss;
-	struct semid_ds bs, *bsp;
-	caddr_t sg = stackgap_init();
-
-	ap.semid = uap->semid;
-	ap.semnum = uap->semnum;
+	struct semid_ds bs;
+	union semun semun;
+	register_t rval;
+	int cmd, error;
 
 	switch (uap->cmd) {
 	case SVR4_SEM_GETZCNT:
+		cmd = GETZCNT;
+		break;
+
 	case SVR4_SEM_GETNCNT:
+		cmd = GETNCNT;
+		break;
+
 	case SVR4_SEM_GETPID:
+		cmd = GETPID;
+		break;
+
 	case SVR4_SEM_GETVAL:
-		switch (uap->cmd) {
-		case SVR4_SEM_GETZCNT:
-			ap.cmd = GETZCNT;
-			break;
-		case SVR4_SEM_GETNCNT:
-			ap.cmd = GETNCNT;
-			break;
-		case SVR4_SEM_GETPID:
-			ap.cmd = GETPID;
-			break;
-		case SVR4_SEM_GETVAL:
-			ap.cmd = GETVAL;
-			break;
-		}
-		return __semctl(td, &ap);
+		cmd = GETVAL;
+		break;
 
 	case SVR4_SEM_SETVAL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
-		if (error)
-			return error;
-		ap.cmd = SETVAL;
-		return __semctl(td, &ap);
+		cmd = SETVAL;
+		break;
 
 	case SVR4_SEM_GETALL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
-		if (error)
-			return error;
-		ap.cmd = GETVAL;
-		return __semctl(td, &ap);
+		cmd = GETVAL;
+		break;
 
 	case SVR4_SEM_SETALL:
-		error = svr4_setsemun(&sg, &ap.arg, &uap->arg);
-		if (error)
-			return error;
-		ap.cmd = SETVAL;
-		return __semctl(td, &ap);
+		cmd = SETVAL;
+		break;
 
 	case SVR4_IPC_STAT:
-                ap.cmd = IPC_STAT;
-		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
-				      (union semun *)&bsp);
+		cmd = IPC_STAT;
+		semun.buf = &bs;
+		error = kern_semctl(td, uap->semid, uap->semnum, cmd, &semun,
+		    &rval);
 		if (error)
-			return error;
-                if ((error = __semctl(td, &ap)) != 0)
-                        return error;
-		error = copyin((caddr_t)bsp, (caddr_t)&bs, sizeof(bs));
-                if (error)
-                        return error;
+                        return (error);
                 bsd_to_svr4_semid_ds(&bs, &ss);
-		return copyout(&ss, uap->arg.buf, sizeof(ss));
+		error = copyout(&ss, uap->arg.buf, sizeof(ss));
+		if (error == 0)
+			td->td_retval[0] = rval;
+		return (error);
 
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
-		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
-				      (union semun *)&bsp);
-		if (error)
-			return error;
+		cmd = IPC_SET;
 		error = copyin(uap->arg.buf, (caddr_t) &ss, sizeof ss);
                 if (error)
-                        return error;
+                        return (error);
                 svr4_to_bsd_semid_ds(&ss, &bs);
-		error = copyout(&bs, bsp, sizeof(bs));
-                if (error)
-                        return error;
-		return __semctl(td, &ap);
+		semun.buf = &bs;
+		return (kern_semctl(td, uap->semid, uap->semnum, cmd, &semun,
+		    td->td_retval));
 
 	case SVR4_IPC_RMID:
-		ap.cmd = IPC_RMID;
-		bsp = stackgap_alloc(&sg, sizeof(bs));
-		error = svr4_setsemun(&sg, &ap.arg,
-				      (union semun *)&bsp);
-		if (error)
-			return error;
-		error = copyin(uap->arg.buf, &ss, sizeof ss);
-                if (error)
-                        return error;
-                svr4_to_bsd_semid_ds(&ss, &bs);
-		error = copyout(&bs, bsp, sizeof(bs));
-		if (error)
-			return error;
-		return __semctl(td, &ap);
+		cmd = IPC_RMID;
+		break;
 
 	default:
 		return EINVAL;
 	}
+
+	return (kern_semctl(td, uap->semid, uap->semnum, cmd, &uap->arg,
+	    td->td_retval));
 }
 
 struct svr4_sys_semget_args {
@@ -385,6 +340,8 @@ svr4_sys_semsys(td, uap)
 		return EINVAL;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvsem, 1, 1, 1);
 #endif
 
 #ifdef SYSVMSG
@@ -547,11 +504,7 @@ svr4_msgctl(td, v)
 		return (kern_msgctl(td, uap->msqid, IPC_SET, &bs));
 
 	case SVR4_IPC_RMID:
-		error = copyin(uap->buf, &ss, sizeof ss);
-		if (error)
-			return error;
-		svr4_to_bsd_msqid_ds(&ss, &bs);
-		return (kern_msgctl(td, uap->msqid, IPC_RMID, &bs));
+		return (kern_msgctl(td, uap->msqid, IPC_RMID, NULL));
 
 	default:
 		return EINVAL;
@@ -579,6 +532,8 @@ svr4_sys_msgsys(td, uap)
 		return EINVAL;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvmsg, 1, 1, 1);
 #endif
 
 #ifdef SYSVSHM
@@ -695,76 +650,60 @@ svr4_shmctl(td, v)
 	void *v;
 {
 	struct svr4_sys_shmctl_args *uap = v;
-	int error;
-	caddr_t sg = stackgap_init();
-	struct shmctl_args ap;
 	struct shmid_ds bs;
 	struct svr4_shmid_ds ss;
-
-	ap.shmid = uap->shmid;
+	size_t bufsize;
+	int cmd, error;
 
 	if (uap->buf != NULL) {
-		ap.buf = stackgap_alloc(&sg, sizeof (struct shmid_ds));
 		switch (uap->cmd) {
 		case SVR4_IPC_SET:
-		case SVR4_IPC_RMID:
 		case SVR4_SHM_LOCK:
 		case SVR4_SHM_UNLOCK:
-			error = copyin(uap->buf, (caddr_t) &ss,
-			    sizeof ss);
+			error = copyin(uap->buf, &ss, sizeof(ss));
 			if (error)
-				return error;
+				return (error);
 			svr4_to_bsd_shmid_ds(&ss, &bs);
-			error = copyout(&bs, ap.buf, sizeof bs);
-			if (error)
-				return error;
 			break;
 		default:
-			break;
+			return (EINVAL);
 		}
 	}
-	else
-		ap.buf = NULL;
-
 
 	switch (uap->cmd) {
 	case SVR4_IPC_STAT:
-		ap.cmd = IPC_STAT;
-		if ((error = shmctl(td, &ap)) != 0)
-			return error;
-		if (uap->buf == NULL)
-			return 0;
-		error = copyin(&bs, ap.buf, sizeof bs);
-		if (error)
-			return error;
-		bsd_to_svr4_shmid_ds(&bs, &ss);
-		return copyout(&ss, uap->buf, sizeof ss);
-
+		cmd = IPC_STAT;
+		break;
 	case SVR4_IPC_SET:
-		ap.cmd = IPC_SET;
-		return shmctl(td, &ap);
-
+		cmd = IPC_SET;
+		break;
 	case SVR4_IPC_RMID:
+		cmd = IPC_RMID;
+		break;
 	case SVR4_SHM_LOCK:
+		cmd = SHM_LOCK;
+		break;
 	case SVR4_SHM_UNLOCK:
-		switch (uap->cmd) {
-		case SVR4_IPC_RMID:
-			ap.cmd = IPC_RMID;
-			break;
-		case SVR4_SHM_LOCK:
-			ap.cmd = SHM_LOCK;
-			break;
-		case SVR4_SHM_UNLOCK:
-			ap.cmd = SHM_UNLOCK;
-			break;
-		default:
-			return EINVAL;
-		}
-		return shmctl(td, &ap);
-
+		cmd = SHM_UNLOCK;
+		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
+		
+	error = kern_shmctl(td, uap->shmid, cmd, &bs, &bufsize);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SVR4_IPC_STAT:
+		if (uap->buf != NULL) {
+			bsd_to_svr4_shmid_ds(&bs, &ss);
+			error = copyout(&ss, uap->buf, sizeof(ss));
+		}
+		break;
+	}
+
+	return (error);
 }
 
 int
@@ -788,4 +727,6 @@ svr4_sys_shmsys(td, uap)
 		return ENOSYS;
 	}
 }
+
+MODULE_DEPEND(svr4elf, sysvshm, 1, 1, 1);
 #endif /* SYSVSHM */
