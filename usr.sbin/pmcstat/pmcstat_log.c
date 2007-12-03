@@ -1529,6 +1529,11 @@ pmcstat_print_log(struct pmcstat_args *a)
 			PMCSTAT_PRINT_ENTRY(a,"initlog","0x%x \"%s\"",
 			    ev.pl_u.pl_i.pl_version,
 			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
+			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
+			    PMC_VERSION_MAJOR << 24 && a->pa_verbosity > 0)
+				warnx("WARNING: Log version 0x%x != expected "
+				    "version 0x%x.", ev.pl_u.pl_i.pl_version,
+				    PMC_VERSION);
 			break;
 		case PMCLOG_TYPE_MAP_IN:
 			PMCSTAT_PRINT_ENTRY(a,"map-in","%d %p \"%s\"",
@@ -1599,7 +1604,7 @@ pmcstat_print_log(struct pmcstat_args *a)
 			    ev.pl_u.pl_se.pl_pid);
 			break;
 		default:
-			fprintf(a->pa_printfile, "unknown %d",
+			fprintf(a->pa_printfile, "unknown event (type %d).\n",
 			    ev.pl_type);
 		}
 	}
@@ -1609,8 +1614,8 @@ pmcstat_print_log(struct pmcstat_args *a)
 	else if (ev.pl_state ==  PMCLOG_REQUIRE_DATA)
 		return (PMCSTAT_RUNNING);
 
-	err(EX_DATAERR, "ERROR: event parsing failed "
-	    "(record %jd, offset 0x%jx)",
+	errx(EX_DATAERR, "ERROR: event parsing failed "
+	    "(record %jd, offset 0x%jx).",
 	    (uintmax_t) ev.pl_count + 1, ev.pl_offset);
 	/*NOTREACHED*/
 }
