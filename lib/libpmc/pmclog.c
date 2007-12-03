@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2005-2006 Joseph Koshy
+ * Copyright (c) 2005-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -270,7 +274,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
     struct pmclog_ev *ev)
 {
 	int evlen, pathlen;
-	uint32_t h, *le;
+	uint32_t h, *le, npc;
 	enum pmclog_parser_state e;
 	struct pmclog_parse_state *ps;
 
@@ -310,7 +314,22 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 			goto error;					\
 	} while (0)
 
+#define	PMCLOG_GET_CALLCHAIN_SIZE(SZ,E) do {				\
+		(SZ) = ((E) - offsetof(struct pmclog_callchain, pl_pc))	\
+			/ sizeof(uintfptr_t);				\
+	} while (0);
+
 	switch (ev->pl_type = PMCLOG_HEADER_TO_TYPE(h)) {
+	case PMCLOG_TYPE_CALLCHAIN:
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pid);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pmcid);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_cpuflags);
+		PMCLOG_GET_CALLCHAIN_SIZE(ev->pl_u.pl_cc.pl_npc,evlen);
+		for (npc = 0; npc < ev->pl_u.pl_cc.pl_npc; npc++)
+			PMCLOG_READADDR(le,ev->pl_u.pl_cc.pl_pc[npc]);
+		for (;npc < PMC_CALLCHAIN_DEPTH_MAX; npc++)
+			ev->pl_u.pl_cc.pl_pc[npc] = (uintfptr_t) 0;
+		break;
 	case PMCLOG_TYPE_CLOSELOG:
 	case PMCLOG_TYPE_DROPNOTIFY:
 		/* nothing to do */
@@ -387,7 +406,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	default:	/* unknown record type */
 		ps->ps_state = PL_STATE_ERROR;
 		ev->pl_state = PMCLOG_ERROR;
-		return -1;
+		return (-1);
 	}
 
 	ev->pl_offset = (ps->ps_offset += evlen);
