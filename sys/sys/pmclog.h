@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2005-2006, Joseph Koshy
+ * Copyright (c) 2005-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -51,10 +55,12 @@ enum pmclog_type {
 	 * V2 ABI
 	 *
 	 * The MAP_{IN,OUT} event types obsolete the MAPPING_CHANGE
-	 * event type of the older (V1) ABI.
+	 * event type.  The CALLCHAIN event type obsoletes the
+	 * PCSAMPLE event type.
 	 */
 	PMCLOG_TYPE_MAP_IN,
-	PMCLOG_TYPE_MAP_OUT
+	PMCLOG_TYPE_MAP_OUT,
+	PMCLOG_TYPE_CALLCHAIN
 };
 
 /*
@@ -89,6 +95,20 @@ enum pmclog_type {
  * The actual reading and writing of the log file is always in terms
  * of 4 byte quantities.
  */
+
+struct pmclog_callchain {
+	PMCLOG_ENTRY_HEADER
+	uint32_t		pl_pid;
+	uint32_t		pl_pmcid;
+	uint32_t		pl_cpuflags;
+	/* 8 byte aligned */
+	uintptr_t		pl_pc[PMC_CALLCHAIN_DEPTH_MAX];
+} __packed;
+
+#define	PMC_CALLCHAIN_CPUFLAGS_TO_CPU(CF)	(((CF) >> 16) & 0xFFFF)
+#define	PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(CF)	((CF) & PMC_CC_F_USERSPACE)
+#define	PMC_CALLCHAIN_TO_CPUFLAGS(CPU,FLAGS)	\
+	(((CPU) << 16) | ((FLAGS) & 0xFFFF))
 
 struct pmclog_closelog {
 	PMCLOG_ENTRY_HEADER
@@ -185,6 +205,7 @@ struct pmclog_userdata {
 } __packed;
 
 union pmclog_entry {		/* only used to size scratch areas */
+	struct pmclog_callchain		pl_cc;
 	struct pmclog_closelog		pl_cl;
 	struct pmclog_dropnotify	pl_dn;
 	struct pmclog_initialize	pl_i;

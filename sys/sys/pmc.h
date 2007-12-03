@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2003-2006, Joseph Koshy
+ * Copyright (c) 2003-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -263,7 +267,6 @@ enum pmc_event {
  * "PMC_OPS" -- these are the commands recognized by the kernel
  * module, and are used when performing a system call from userland.
  */
-
 #define	__PMC_OPS()							\
 	__PMC_OP(CONFIGURELOG, "Set log file")				\
 	__PMC_OP(FLUSHLOG, "Flush log file")				\
@@ -301,11 +304,16 @@ enum pmc_ops {
 #define	PMC_F_NEWVALUE		0x00000010 /*OP RW write new value */
 #define	PMC_F_OLDVALUE		0x00000020 /*OP RW get old value */
 #define	PMC_F_KGMON		0x00000040 /*OP ALLOCATE kgmon(8) profiling */
+/* V2 API */
+#define	PMC_F_CALLCHAIN		0x00000080 /*OP ALLOCATE capture callchains */
 
 /* internal flags */
 #define	PMC_F_ATTACHED_TO_OWNER	0x00010000 /*attached to owner*/
 #define	PMC_F_NEEDS_LOGFILE	0x00020000 /*needs log file */
 #define	PMC_F_ATTACH_DONE	0x00040000 /*attached at least once */
+
+#define	PMC_CALLCHAIN_DEPTH_MAX	32
+#define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
 
 /*
  * Cookies used to denote allocated PMCs, and the values of PMCs.
