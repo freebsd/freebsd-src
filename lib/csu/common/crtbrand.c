@@ -43,7 +43,7 @@ static const struct {
     int32_t	type;
     char	name[sizeof ABI_VENDOR];
     int32_t	desc;
-} abitag __attribute__ ((section (ABI_SECTION), aligned(4))) __unused = {
+} abitag __attribute__ ((section (ABI_SECTION), aligned(4), used)) __unused = {
     sizeof ABI_VENDOR,
     sizeof(int32_t),
     ABI_NOTETYPE,
