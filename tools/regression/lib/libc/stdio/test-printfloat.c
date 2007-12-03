@@ -53,7 +53,7 @@ main(int argc, char *argv[])
 {
 
 	printf("1..11\n");
-	assert(setlocale(LC_NUMERIC, ""));
+	assert(setlocale(LC_NUMERIC, "C"));
 
 	/*
 	 * Basic tests of decimal output functionality.
@@ -144,7 +144,7 @@ main(int argc, char *argv[])
 	testfmt("1.234,00", "%'.2f", 1234.00);
 	testfmt("123.456,789", "%'.3f", 123456.789);
 
-	assert(setlocale(LC_NUMERIC, ""));
+	assert(setlocale(LC_NUMERIC, "C"));
 	testfmt("12345678.062500", "%'f", 12345678.0625);
 	testfmt("9000.000000", "%'f", 9000.0);
 
