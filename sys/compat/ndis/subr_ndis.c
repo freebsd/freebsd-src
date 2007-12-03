@@ -282,6 +282,7 @@ static void NdisCopyFromPacketToPacket(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *);
 static void NdisCopyFromPacketToPacketSafe(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *, uint32_t);
+static void NdisIMCopySendPerPacketInfo(ndis_packet *, ndis_packet *);
 static ndis_status NdisMRegisterDevice(ndis_handle,
 	unicode_string *, unicode_string *, driver_dispatch **,
 	void **, ndis_handle *);
@@ -3279,6 +3280,14 @@ NdisCopyFromPacketToPacketSafe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
 	return;
 }
 
+static void
+NdisIMCopySendPerPacketInfo(dpkt, spkt)
+	ndis_packet		*dpkt;
+	ndis_packet		*spkt;
+{
+	memcpy(&dpkt->np_ext, &spkt->np_ext, sizeof(ndis_packet_extension));
+}
+
 static ndis_status
 NdisMRegisterDevice(handle, devname, symname, majorfuncs, devobj, devhandle)
 	ndis_handle		handle;
@@ -3356,6 +3365,7 @@ dummy()
 image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisCopyFromPacketToPacket, 6),
 	IMPORT_SFUNC(NdisCopyFromPacketToPacketSafe, 7),
+	IMPORT_SFUNC(NdisIMCopySendPerPacketInfo, 2),
 	IMPORT_SFUNC(NdisScheduleWorkItem, 1),
 	IMPORT_SFUNC(NdisMIndicateStatusComplete, 1),
 	IMPORT_SFUNC(NdisMIndicateStatus, 4),
