@@ -67,6 +67,11 @@ __ElfType(Dyn);
 __ElfType(Rel);
 __ElfType(Rela);
 __ElfType(Sym);
+__ElfType(Verdef);
+__ElfType(Verdaux);
+__ElfType(Verneed);
+__ElfType(Vernaux);
+__ElfType(Versym);
 
 /* Non-standard ELF types. */
 __ElfType(Hashelt);
