@@ -218,6 +218,8 @@ static int atoi (const char *);
 static long atol (const char *);
 static int rand(void);
 static void srand(unsigned int);
+static void KeQuerySystemTime(uint64_t *);
+static uint32_t KeTickCount(void);
 static uint8_t IoIsWdmVersionAvailable(uint8_t, uint8_t);
 static void ntoskrnl_thrfunc(void *);
 static ndis_status PsCreateSystemThread(ndis_handle *,
@@ -240,11 +242,13 @@ static void *ntoskrnl_memset(void *, int, size_t);
 static void *ntoskrnl_memmove(void *, void *, size_t);
 static void *ntoskrnl_memchr(void *, unsigned char, size_t);
 static char *ntoskrnl_strstr(char *, char *);
+static char *ntoskrnl_strncat(char *, char *, size_t);
 static int ntoskrnl_toupper(int);
 static int ntoskrnl_tolower(int);
 static funcptr ntoskrnl_findwrap(funcptr);
 static uint32_t DbgPrint(char *, ...);
 static void DbgBreakPoint(void);
+static void KeBugCheckEx(uint32_t, u_long, u_long, u_long, u_long);
 static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
@@ -473,6 +477,29 @@ ntoskrnl_strstr(s, find)
 		s--;
 	}
 	return ((char *)s);
+}
+
+/* Taken from libc */
+static char *
+ntoskrnl_strncat(dst, src, n)
+	char		*dst;
+	char		*src;
+	size_t		n;
+{
+	if (n != 0) {
+		char *d = dst;
+		const char *s = src;
+
+		while (*d != 0)
+			d++;
+		do {
+			if ((*d = *s++) == 0)
+				break;
+			d++;
+		} while (--n != 0);
+		*d = 0;
+        }
+        return (dst);
 }
 
 static int
@@ -1589,6 +1616,22 @@ ntoskrnl_time(tval)
 
 	return;
 }
+
+static void
+KeQuerySystemTime(current_time)
+	uint64_t		*current_time;
+{
+	ntoskrnl_time(current_time);
+}
+
+static uint32_t
+KeTickCount(void)
+{
+	struct timeval tv;
+	getmicrouptime(&tv);
+	return tvtohz(&tv);
+}
+
 
 /*
  * KeWaitForSingleObject() is a tricky beast, because it can be used
@@ -3594,6 +3637,17 @@ DbgBreakPoint(void)
 }
 
 static void
+KeBugCheckEx(code, param1, param2, param3, param4)
+    uint32_t			code;
+    u_long			param1;
+    u_long			param2;
+    u_long			param3;
+    u_long			param4;
+{
+	panic("KeBugCheckEx: STOP 0x%X", code);
+}
+
+static void
 ntoskrnl_timercall(arg)
 	void			*arg;
 {
@@ -4218,6 +4272,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC_MAP(_vsnprintf, vsnprintf, 0),
 	IMPORT_CFUNC(DbgPrint, 0),
 	IMPORT_SFUNC(DbgBreakPoint, 0),
+	IMPORT_SFUNC(KeBugCheckEx, 5),
 	IMPORT_CFUNC(strncmp, 0),
 	IMPORT_CFUNC(strcmp, 0),
 	IMPORT_CFUNC_MAP(stricmp, strcasecmp, 0),
@@ -4227,6 +4282,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC_MAP(toupper, ntoskrnl_toupper, 0),
 	IMPORT_CFUNC_MAP(tolower, ntoskrnl_tolower, 0),
 	IMPORT_CFUNC_MAP(strstr, ntoskrnl_strstr, 0),
+	IMPORT_CFUNC_MAP(strncat, ntoskrnl_strncat, 0),
 	IMPORT_CFUNC_MAP(strchr, index, 0),
 	IMPORT_CFUNC_MAP(strrchr, rindex, 0),
 	IMPORT_CFUNC(memcpy, 0),
@@ -4368,6 +4424,8 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(IoWMIRegistrationControl, 2),
 	IMPORT_SFUNC(WmiQueryTraceInformation, 5),
 	IMPORT_CFUNC(WmiTraceMessage, 0),
+	IMPORT_SFUNC(KeQuerySystemTime, 1),
+	IMPORT_CFUNC(KeTickCount, 0),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
