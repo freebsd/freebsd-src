@@ -4,6 +4,6 @@
 #
 
 # Long double is 80 bits
-GDTOASRCS+=strtopx.c
+GDTOASRCS+=strtorx.c
 MDSRCS+=machdep_ldisx.c
 SYM_MAPS+=${.CURDIR}/ia64/Symbol.map

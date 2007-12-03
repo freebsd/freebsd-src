@@ -46,11 +46,11 @@ char *
 __ldtoa(long double *ld, int mode, int ndigits, int *decpt, int *sign,
     char **rve)
 {
-	static FPI fpi = {
+	FPI fpi = {
 		LDBL_MANT_DIG,			/* nbits */
 		LDBL_MIN_EXP - LDBL_MANT_DIG,	/* emin */
 		LDBL_MAX_EXP - LDBL_MANT_DIG,	/* emax */
-		FPI_Round_near,	       		/* rounding */
+		FLT_ROUNDS,	       		/* rounding */
 #ifdef Sudden_Underflow	/* unused, but correct anyway */
 		1
 #else
@@ -64,7 +64,15 @@ __ldtoa(long double *ld, int mode, int ndigits, int *decpt, int *sign,
 	void *vbits = bits;
 
 	u.e = *ld;
+
+	/*
+	 * gdtoa doesn't know anything about the sign of the number, so
+	 * if the number is negative, we need to swap rounding modes of
+	 * 2 (upwards) and 3 (downwards).
+	 */
 	*sign = u.bits.sign;
+	fpi.rounding ^= (fpi.rounding >> 1) & u.bits.sign;
+
 	be = u.bits.exp - (LDBL_MAX_EXP - 1) - (LDBL_MANT_DIG - 1);
 	LDBL_TO_ARRAY32(u, bits);
 
