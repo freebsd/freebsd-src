@@ -1990,7 +1990,10 @@ register char *	cp;
 			else while ((*dp = *cp++) != '"')
 				if (*dp != '\0')
 					++dp;
-				else	error(_("odd number of quotation marks"));
+				else {
+					error(_("odd number of quotation marks"));
+					exit(EXIT_FAILURE);
+				}
 		} while (*cp != '\0' && *cp != '#' &&
 			(!isascii(*cp) || !isspace((unsigned char) *cp)));
 		if (isascii(*cp) && isspace((unsigned char) *cp))
