@@ -502,6 +502,9 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		s = *(int *)data;
 		if (s < 0)
 			return (snp_down(snp));
+		if (snp->snp_tty != NULL)
+			return (EBUSY);
+
 		if (fget(td, s, &fp) != 0)
 			return (EINVAL);
 		if (fp->f_type != DTYPE_VNODE ||
