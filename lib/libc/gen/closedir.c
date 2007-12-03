@@ -54,7 +54,7 @@ closedir(dirp)
 	int fd;
 
 	if (__isthreaded)
-		_pthread_mutex_lock((void *)&dirp->dd_lock);
+		_pthread_mutex_lock(&dirp->dd_lock);
 	_seekdir(dirp, dirp->dd_rewind);	/* free seekdir storage */
 	fd = dirp->dd_fd;
 	dirp->dd_fd = -1;
@@ -62,8 +62,8 @@ closedir(dirp)
 	free((void *)dirp->dd_buf);
 	_reclaim_telldir(dirp);
 	if (__isthreaded) {
-		_pthread_mutex_unlock((void *)&dirp->dd_lock);
-		_pthread_mutex_destroy((void *)&dirp->dd_lock);
+		_pthread_mutex_unlock(&dirp->dd_lock);
+		_pthread_mutex_destroy(&dirp->dd_lock);
 	}
 	free((void *)dirp);
 	return(_close(fd));

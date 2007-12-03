@@ -52,8 +52,8 @@ seekdir(dirp, loc)
 	long loc;
 {
 	if (__isthreaded)
-		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_lock(&dirp->dd_lock);
 	_seekdir(dirp, loc);
 	if (__isthreaded)
-		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
+		_pthread_mutex_unlock(&dirp->dd_lock);
 }
