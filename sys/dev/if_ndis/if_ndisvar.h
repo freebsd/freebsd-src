@@ -89,9 +89,6 @@ TAILQ_HEAD(nch, ndis_cfglist);
 #define NDIS_INC(x)		\
 	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % NDIS_TXPKTS
 
-#if __FreeBSD_version < 600007
-#define arpcom ic.ic_ac
-#endif
 
 #define NDIS_EVENTS 4
 #define NDIS_EVTINC(x)	(x) = ((x) + 1) % NDIS_EVENTS
@@ -150,10 +147,6 @@ struct ndis_softc {
 	int			ndis_if_flags;
 	int			ndis_skip;
 
-#if __FreeBSD_version < 502113
-	struct sysctl_ctx_list	ndis_ctx;
-	struct sysctl_oid	*ndis_tree;
-#endif
 	int			ndis_devidx;
 	interface_type		ndis_iftype;
 	driver_object		*ndis_dobj;
@@ -176,9 +169,6 @@ struct ndis_softc {
 	kspin_lock		ndis_rxlock;
 
 	struct taskqueue	*ndis_tq;		/* private task queue */
-#if __FreeBSD_version < 700000
-	struct proc		*ndis_tqproc;
-#endif
 	struct task		ndis_scantask;
 	int			(*ndis_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
@@ -188,30 +178,3 @@ struct ndis_softc {
 				    &(_sc)->ndis_irql);
 #define NDIS_UNLOCK(_sc)	KeReleaseSpinLock(&(_sc)->ndis_spinlock, \
 				    (_sc)->ndis_irql);
-
-/*
- * Backwards compatibility defines.
- */
-
-#ifndef IF_ADDR_LOCK
-#define IF_ADDR_LOCK(x)
-#define IF_ADDR_UNLOCK(x)
-#endif
-
-#ifndef IFF_DRV_OACTIVE
-#define IFF_DRV_OACTIVE IFF_OACTIVE
-#define IFF_DRV_RUNNING IFF_RUNNING
-#define if_drv_flags if_flags
-#endif
-
-#ifndef ic_def_txkey
-#define ic_def_txkey ic_wep_txkey
-#define wk_keylen wk_len
-#endif
-
-#ifndef SIOCGDRVSPEC
-#define SIOCSDRVSPEC	_IOW('i', 123, struct ifreq)	/* set driver-specific
-								parameters */
-#define SIOCGDRVSPEC	_IOWR('i', 123, struct ifreq)	/* get driver-specific
-								parameters */
-#endif
