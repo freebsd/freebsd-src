@@ -41,6 +41,7 @@ typedef uint64_t	Elf64_Off;
 typedef int32_t		Elf64_Sword;
 typedef int64_t		Elf64_Sxword;
 typedef uint32_t	Elf64_Word;
+typedef uint64_t	Elf64_Lword;
 typedef uint64_t	Elf64_Xword;
 
 /*
@@ -150,6 +151,42 @@ typedef struct {
 /* Macro for constructing r_info from field values. */
 #define ELF64_R_INFO(sym, type)	(((sym) << 32) + ((type) & 0xffffffffL))
 
+#define	ELF64_R_TYPE_DATA(info)	(((Elf64_Xword)(info)<<32)>>40)
+#define	ELF64_R_TYPE_ID(info)	(((Elf64_Xword)(info)<<56)>>56)
+#define	ELF64_R_TYPE_INFO(data, type)	\
+		(((Elf64_Xword)(data)<<8)+(Elf64_Xword)(type))
+
+/*
+ *	Note entry header
+ */
+typedef Elf_Note Elf64_Nhdr;
+
+/*
+ *	Move entry
+ */
+typedef struct {
+	Elf64_Lword	m_value;	/* symbol value */
+	Elf64_Xword 	m_info;		/* size + index */
+	Elf64_Xword	m_poffset;	/* symbol offset */
+	Elf64_Half	m_repeat;	/* repeat count */
+	Elf64_Half	m_stride;	/* stride info */
+} Elf64_Move;
+
+#define	ELF64_M_SYM(info)	((info)>>8)
+#define	ELF64_M_SIZE(info)	((unsigned char)(info))
+#define	ELF64_M_INFO(sym, size)	(((sym)<<8)+(unsigned char)(size))
+
+/*
+ *	Hardware/Software capabilities entry
+ */
+typedef struct {
+	Elf64_Xword	c_tag;		/* how to interpret value */
+	union {
+		Elf64_Xword	c_val;
+		Elf64_Addr	c_ptr;
+	} c_un;
+} Elf64_Cap;
+
 /*
  * Symbol table entries.
  */
@@ -172,5 +209,44 @@ typedef struct {
 
 /* Macro for accessing the fields of st_other. */
 #define ELF64_ST_VISIBILITY(oth)	((oth) & 0x3)
+
+/* Structures used by Sun & GNU-style symbol versioning. */
+typedef struct {
+	Elf64_Half	vd_version;
+	Elf64_Half	vd_flags;
+	Elf64_Half	vd_ndx;
+	Elf64_Half	vd_cnt;
+	Elf64_Word	vd_hash;
+	Elf64_Word	vd_aux;
+	Elf64_Word	vd_next;
+} Elf64_Verdef;
+
+typedef struct {
+	Elf64_Word	vda_name;
+	Elf64_Word	vda_next;
+} Elf64_Verdaux;
+
+typedef struct {
+	Elf64_Half	vn_version;
+	Elf64_Half	vn_cnt;
+	Elf64_Word	vn_file;
+	Elf64_Word	vn_aux;
+	Elf64_Word	vn_next;
+} Elf64_Verneed;
+
+typedef struct {
+	Elf64_Word	vna_hash;
+	Elf64_Half	vna_flags;
+	Elf64_Half	vna_other;
+	Elf64_Word	vna_name;
+	Elf64_Word	vna_next;
+} Elf64_Vernaux;
+
+typedef Elf64_Half Elf64_Versym;
+
+typedef struct {
+	Elf64_Half	si_boundto;	/* direct bindings - symbol bound to */
+	Elf64_Half	si_flags;	/* per symbol flags */
+} Elf64_Syminfo;
 
 #endif /* !_SYS_ELF64_H_ */
