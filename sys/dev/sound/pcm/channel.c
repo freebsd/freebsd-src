@@ -409,7 +409,7 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 				sndbuf_acquire(bs, NULL, t);
 			}
 			ret = 0;
-			if (CHN_STOPPED(c)) {
+			if (CHN_STOPPED(c) && !(c->flags & CHN_F_NOTRIGGER)) {
 				ret = chn_start(c, 0);
 				if (ret != 0)
 					c->flags |= CHN_F_DEAD;
@@ -520,7 +520,7 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 
 	CHN_LOCKASSERT(c);
 
-	if (CHN_STOPPED(c)) {
+	if (CHN_STOPPED(c) && !(c->flags & CHN_F_NOTRIGGER)) {
 		ret = chn_start(c, 0);
 		if (ret != 0) {
 			c->flags |= CHN_F_DEAD;
