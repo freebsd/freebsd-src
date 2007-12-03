@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2005-2006 Joseph Koshy
+ * Copyright (c) 2005-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +40,14 @@ enum pmclog_state {
 	PMCLOG_EOF,
 	PMCLOG_REQUIRE_DATA,
 	PMCLOG_ERROR
+};
+
+struct pmclog_ev_callchain {
+	uint32_t	pl_pid;
+	uint32_t	pl_pmcid;
+	uint32_t	pl_cpuflags;
+	uint32_t	pl_npc;
+	uintfptr_t	pl_pc[PMC_CALLCHAIN_DEPTH_MAX];
 };
 
 struct pmclog_ev_dropnotify {
@@ -125,6 +137,7 @@ struct pmclog_ev {
 	struct timespec   pl_ts;	/* log entry timestamp */
 	enum pmclog_type  pl_type;	/* type of log entry */
 	union { 			/* log entry data */
+		struct pmclog_ev_callchain	pl_cc;
 		struct pmclog_ev_closelog	pl_cl;
 		struct pmclog_ev_dropnotify	pl_dn;
 		struct pmclog_ev_initialize	pl_i;
