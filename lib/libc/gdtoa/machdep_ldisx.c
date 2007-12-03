@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "gdtoaimp.h"
 
 long double
@@ -40,6 +42,6 @@ strtold(const char * __restrict s, char ** __restrict sp)
 {
 	long double result;
 
-	strtopx(s, sp, &result);
+	strtorx(s, sp, FLT_ROUNDS, &result);
 	return result;
 }

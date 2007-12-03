@@ -6,6 +6,6 @@
 .include "fpu/Makefile.inc"
 
 # Long double is quad precision
-GDTOASRCS+=strtopQ.c
+GDTOASRCS+=strtorQ.c
 MDSRCS+=machdep_ldisQ.c
 SYM_MAPS+=${.CURDIR}/sparc64/Symbol.map
