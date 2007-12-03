@@ -66,7 +66,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 1.16.18.5 2006/08/30 23:23:13 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 1.16.18.7 2007/07/09 01:52:58 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -168,7 +168,9 @@ __res_vinit(res_state statp, int preinit) {
 #endif
 	int dots;
 	union res_sockaddr_union u[2];
+	int maxns = MAXNS;
 
+	RES_SET_H_ERRNO(statp, 0);
 	if (statp->_u._ext.ext != NULL)
 		res_ndestroy(statp);
 
@@ -218,8 +220,22 @@ __res_vinit(res_state statp, int preinit) {
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
-	} else
-		return (-1);
+	} else {
+		/*
+		 * Historically res_init() rarely, if at all, failed.
+		 * Examples and applications exist which do not check
+		 * our return code.  Furthermore several applications
+		 * simply call us to get the systems domainname.  So
+		 * rather then immediately fail here we store the
+		 * failure, which is returned later, in h_errno.  And
+		 * prevent the collection of 'nameserver' information
+		 * by setting maxns to 0.  Thus applications that fail
+		 * to check our return code wont be able to make
+		 * queries anyhow.
+		 */
+		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
+		maxns = 0;
+	}
 #ifdef RESOLVSORT
 	statp->nsort = 0;
 #endif
@@ -240,9 +256,9 @@ __res_vinit(res_state statp, int preinit) {
 				buf[0] = '.';
 			cp = strchr(buf, '.');
 			cp = (cp == NULL) ? buf : (cp + 1);
-			if (strlen(cp) >= sizeof(statp->defdname))
-				goto freedata; 
-			strcpy(statp->defdname, cp);
+			strncpy(statp->defdname, cp,
+				sizeof(statp->defdname) - 1);
+			statp->defdname[sizeof(statp->defdname) - 1] = '\0';
 		}
 	}
 #endif	/* SOLARIS2 */
@@ -348,7 +364,7 @@ __res_vinit(res_state statp, int preinit) {
 		    continue;
 		}
 		/* read nameservers to query */
-		if (MATCH(buf, "nameserver") && nserv < MAXNS) {
+		if (MATCH(buf, "nameserver") && nserv < maxns) {
 		    struct addrinfo hints, *ai;
 		    char sbuf[NI_MAXSERV];
 		    const size_t minsiz =
@@ -541,16 +557,7 @@ __res_vinit(res_state statp, int preinit) {
 	else if ((cp = getenv("RES_OPTIONS")) != NULL)
 		res_setoptions(statp, cp, "env");
 	statp->options |= RES_INIT;
-	return (0);
-
-#ifdef	SOLARIS2
- freedata:
-	if (statp->_u._ext.ext != NULL) {
-		free(statp->_u._ext.ext);
-		statp->_u._ext.ext = NULL;
-	}
-	return (-1);
-#endif
+	return (statp->res_h_errno);
 }
 
 static void
