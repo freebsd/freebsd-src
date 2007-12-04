@@ -1488,7 +1488,7 @@ ipw_cmd(struct ipw_softc *sc, uint32_t type, void *data, uint32_t len)
 		if (ipw_debug >= 9 && len > 0) {
 			printf(" data: 0x");
 			for (int i = 1; i <= len; i++)
-				printf("%1D", (char *)data + len - i, "");
+				printf("%1D", (u_char *)data + len - i, "");
 		}
 		printf("\n");
 	}
