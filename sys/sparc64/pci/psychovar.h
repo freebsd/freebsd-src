@@ -43,17 +43,17 @@ struct psycho_softc {
 	struct mtx			*sc_mtx;
 
 	/* Interrupt Group Number for this device */
-	int				sc_ign;
+	uint32_t			sc_ign;
 
 	bus_addr_t			sc_pcictl;
 
 	phandle_t			sc_node;	/* Firmware node */
-	int				sc_mode;
+	u_int				sc_mode;
 #define	PSYCHO_MODE_SABRE	1
 #define	PSYCHO_MODE_PSYCHO	2
 
 	/* Bus A or B of a psycho pair? */
-	int				sc_half;
+	u_int				sc_half;
 
 	struct iommu_state		*sc_is;
 
@@ -76,6 +76,8 @@ struct psycho_softc {
 
 	struct rman			sc_pci_mem_rman;
 	struct rman			sc_pci_io_rman;
+
+	uint8_t				sc_pci_hpbcfg[16];
 
 	SLIST_ENTRY(psycho_softc)	sc_link;
 };
