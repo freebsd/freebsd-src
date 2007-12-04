@@ -529,7 +529,7 @@ tmpfs_read(struct vop_read_args *v)
 	size_t len;
 	int resid;
 
-	int error;
+	int error = 0;
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -576,6 +576,8 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	caddr_t		va;
 	int		error;
 
+	error = 0;
+	
 	addr = uio->uio_offset;
 	idx = OFF_TO_IDX(addr);
 	offset = addr & PAGE_MASK;
