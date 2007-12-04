@@ -65,6 +65,8 @@ frame-unwind-kluge.c: frame-unwind.diff
 	cat ${CNTRB_GDB}/gdb/frame-unwind.c > ${.TARGET}
 	patch ${.TARGET} ${.ALLSRC}
 
+CLEANFILES= frame-unwind-kluge.c.orig
+
 version.c:
 	echo '#include "version.h"' >  ${.TARGET}
 	echo 'const char version[] = ${VERSION};' >> ${.TARGET}
