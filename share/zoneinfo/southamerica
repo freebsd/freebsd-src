@@ -1,4 +1,4 @@
-# @(#)southamerica	8.12
+# @(#)southamerica	8.13
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -1107,19 +1107,17 @@ Zone America/Montevideo	-3:44:44 -	LMT	1898 Jun 28
 
 # Venezuela
 #
-# From Kiraz Janicke (2007-09-25), in
-# http://www.venezuelanalysis.com/analysis/2645:
-# The proposal ... involves turning the clock back half an hour from
-# +4.00 Greenwich Mean Time (GMT), to +4.30GMT, the time zone
-# Venezuela had until December 31, 1964, when the current time zone
-# was adopted. The change was due to take place on September 17 and
-# then on September 24, but has since been postponed until December
-# 31, to allow for compliance with international organizations, such
-# as the International Office of Weights and Measures.
+# From John Stainforth (2007-11-28):
+# ... the change for Venezuela originally expected for 2007-12-31 has
+# been brought forward to 2007-12-09.  The official announcement was
+# published today in the "Gaceta Oficial de la Republica Bolivariana
+# de Venezuela, numero 38.819" (official document for all laws or
+# resolution publication)
+# http://www.globovision.com/news.php?nid=72208
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Caracas	-4:27:44 -	LMT	1890
 			-4:27:40 -	CMT	1912 Feb 12 # Caracas Mean Time?
 			-4:30	-	VET	1965	     # Venezuela Time
-			-4:00	-	VET	2008
+			-4:00	-	VET	2007 Dec  9 03:00
 			-4:30	-	VET
