@@ -1184,7 +1184,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if (to->to_flags & TOF_SIGNATURE)
 		sc->sc_flags |= SCF_SIGNATURE;
 #endif
-	if (to->to_flags & TOF_SACK)
+	if (to->to_flags & TOF_SACKPERM)
 		sc->sc_flags |= SCF_SACK;
 	if (to->to_flags & TOF_MSS)
 		sc->sc_peer_mss = to->to_mss;	/* peer mss may be zero */
