@@ -2404,7 +2404,7 @@ ndis_setstate_80211(sc)
 	else
 		bcopy(ifp->if_broadcastaddr, bssid, len);
 
-	DPRINTF(("Setting BSSID to %6D\n", &bssid, ":"));
+	DPRINTF(("Setting BSSID to %6D\n", (uint8_t *)&bssid, ":"));
 	rval = ndis_set_info(sc, OID_802_11_BSSID, &bssid, &len);
 	if (rval)
 		device_printf(sc->ndis_dev,
