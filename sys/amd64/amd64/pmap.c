@@ -1430,9 +1430,9 @@ retry:
 	 * This supports switching from a 2MB page to a
 	 * normal 4K page.
 	 */
-	if (pd != 0 && (*pd & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
+	if (pd != NULL && (*pd & (PG_PS | PG_V)) == (PG_PS | PG_V)) {
 		*pd = 0;
-		pd = 0;
+		pd = NULL;
 		pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 		free = NULL;
 		pmap_unuse_pt(pmap, va, *pmap_pdpe(pmap, va), &free);
@@ -1444,7 +1444,7 @@ retry:
 	 * If the page table page is mapped, we just increment the
 	 * hold count, and activate it.
 	 */
-	if (pd != 0 && (*pd & PG_V) != 0) {
+	if (pd != NULL && (*pd & PG_V) != 0) {
 		m = PHYS_TO_VM_PAGE(*pd & PG_FRAME);
 		m->wire_count++;
 	} else {
