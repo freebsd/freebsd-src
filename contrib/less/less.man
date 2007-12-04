@@ -445,8 +445,8 @@ LESS(1)                                                                LESS(1)
               buffer space is used for each file (unless the file is  a  pipe;
               see  the  -B  option).   The  -b option specifies instead that [4mn[0m
               kilobytes of buffer space should be used for each file.  If [4mn[24m is
-              -1,  buffer space is unlimited; that is, the entire file is read
-              into memory.
+              -1,  buffer  space is unlimited; that is, the entire file can be
+              read into memory.
 
        -B or --auto-buffers
               By default, when data is read from a pipe, buffers are allocated
@@ -456,8 +456,8 @@ LESS(1)                                                                LESS(1)
               buffers for pipes, so that only 64K  (or  the  amount  of  space
               specified  by the -b option) is used for the pipe.  Warning: use
               of -B can result in  erroneous  display,  since  only  the  most
-              recently  viewed part of the file is kept in memory; any earlier
-              data is lost.
+              recently  viewed  part  of the piped data is kept in memory; any
+              earlier data is lost.
 
        -c or --clear-screen
               Causes full screen repaints to be  painted  from  the  top  line
@@ -533,42 +533,44 @@ LESS(1)                                                                LESS(1)
 
        -j[4mn[24m or --jump-target=[4mn[0m
               Specifies  a line on the screen where the "target" line is to be
-              positioned.  A target line is the object of a text  search,  tag
-              search,  jump  to  a  line number, jump to a file percentage, or
-              jump to a marked position.  The screen line may be specified  by
-              a number: the top line on the screen is 1, the next is 2, and so
-              on.  The number may be negative to specify a  line  relative  to
-              the  bottom  of the screen: the bottom line on the screen is -1,
-              the second to the bottom is -2, and  so  on.   Alternately,  the
-              screen  line may be specified as a fraction of the height of the
-              screen, starting with a decimal point: .5 is in  the  middle  of
-              the  screen, .3 is three tenths down from the first line, and so
-              on.  If the line is specified as a  fraction,  the  actual  line
+              positioned.  The target line is the line specified by  any  com-
+              mand  to  search for a pattern, jump to a line number, jump to a
+              file percentage or jump to a tag.  The screen line may be speci-
+              fied  by  a number: the top line on the screen is 1, the next is
+              2, and so on.  The number may be negative to specify a line rel-
+              ative to the bottom of the screen: the bottom line on the screen
+              is -1, the second to the bottom is -2, and so on.   Alternately,
+              the  screen line may be specified as a fraction of the height of
+              the screen, starting with a decimal point: .5 is in  the  middle
+              of  the screen, .3 is three tenths down from the first line, and
+              so on.  If the line is specified as a fraction, the actual  line
               number  is  recalculated  if  the terminal window is resized, so
               that the target line remains at the specified  fraction  of  the
-              screen  height.  If the -j option is used, searches begin at the
-              line immediately after the target line.  For example,  if  "-j4"
-              is  used,  the  target line is the fourth line on the screen, so
-              searches begin at the fifth line on the screen.
+              screen  height.   If  any form of the -j option is used, forward
+              searches begin at the line immediately after  the  target  line,
+              and backward searches begin at the target line.  For example, if
+              "-j4" is used, the target line is the fourth line on the screen,
+              so forward searches begin at the fifth line on the screen.
 
        -J or --status-column
-              Displays a status column at the left edge of  the  screen.   The
-              status  column  shows the lines that matched the current search.
-              The status column is also used if the -w  or  -W  option  is  in
+              Displays  a  status  column at the left edge of the screen.  The
+              status column shows the lines that matched the  current  search.
+              The  status  column  is  also  used if the -w or -W option is in
               effect.
 
        -k[4mfilename[24m or --lesskey-file=[4mfilename[0m
-              Causes  [4mless[24m  to  open and interpret the named file as a [4mlesskey[0m
+              Causes [4mless[24m to open and interpret the named file  as  a  [4mlesskey[0m
               (1) file.  Multiple -k options may be specified.  If the LESSKEY
-              or  LESSKEY_SYSTEM  environment variable is set, or if a lesskey
+              or LESSKEY_SYSTEM environment variable is set, or if  a  lesskey
               file is found in a standard place (see KEY BINDINGS), it is also
               used as a [4mlesskey[24m file.
 
        -K or --quit-on-intr
-              Causes  [4mless[24m  to  exit  immediately  when an interrupt character
-              (usually ^C) is typed.  Normally, an interrupt character  causes
-              [4mless[24m  to  stop  whatever  it  is doing and return to its command
-              prompt.
+              Causes [4mless[24m to exit  immediately  when  an  interrupt  character
+              (usually  ^C) is typed.  Normally, an interrupt character causes
+              [4mless[24m to stop whatever it is doing  and  return  to  its  command
+              prompt.   Note  that  use  of this option makes it impossible to
+              return to the command prompt from the "F" command.
 
        -L or --no-lessopen
               Ignore the LESSOPEN environment variable (see the INPUT  PREPRO-
@@ -739,8 +741,8 @@ LESS(1)                                                                LESS(1)
        -x[4mn[24m,... or --tabs=[4mn[24m,...
               Sets tab stops.  If only one [4mn[24m is specified, tab stops  are  set
               at  multiples  of [4mn[24m.  If multiple values separated by commas are
-              specified, tab stops  are  set  at  those  positions,  and  then
-              continue  with  the  same spacing as the last two.  For example,
+              specified, tab stops are set at those positions, and  then  con-
+              tinue  with  the  same  spacing  as  the last two.  For example,
               [4m-x9,17[24m will set tabs at positions  9,  17,  25,  33,  etc.   The
               default for [4mn[24m is 8.
 
@@ -750,40 +752,35 @@ LESS(1)                                                                LESS(1)
               deinitialization  string does something unnecessary, like clear-
               ing the screen.
 
-       --no-keypad
-              Disables sending the keypad initialization and  deinitialization
-              strings to the terminal.  This is sometimes useful if the keypad
-              strings make the numeric keypad behave in an undesirable manner.
-
        -y[4mn[24m or --max-forw-scroll=[4mn[0m
               Specifies a maximum number of lines to scroll forward.  If it is
-              necessary to scroll forward more than [4mn[24m  lines,  the  screen  is
-              repainted  instead.   The -c or -C option may be used to repaint
-              from the top of the screen if desired.  By default, any  forward
+              necessary  to  scroll  forward  more than [4mn[24m lines, the screen is
+              repainted instead.  The -c or -C option may be used  to  repaint
+              from  the top of the screen if desired.  By default, any forward
               movement causes scrolling.
 
        -[z][4mn[24m or --window=[4mn[0m
-              Changes  the  default  scrolling  window  size  to [4mn[24m lines.  The
+              Changes the default scrolling  window  size  to  [4mn[24m  lines.   The
               default is one screenful.  The z and w commands can also be used
-              to  change the window size.  The "z" may be omitted for compati-
+              to change the window size.  The "z" may be omitted for  compati-
               bility with some versions of [4mmore.[24m  If the number [4mn[24m is negative,
-              it  indicates  [4mn[24m  lines  less than the current screen size.  For
+              it indicates [4mn[24m lines less than the  current  screen  size.   For
               example, if the screen is 24 lines, [4m-z-4[24m sets the scrolling win-
-              dow  to  20  lines.   If  the screen is resized to 40 lines, the
+              dow to 20 lines.  If the screen is  resized  to  40  lines,  the
               scrolling window automatically changes to 36 lines.
 
        -[4m"cc[24m or --quotes=[4mcc[0m
-              Changes the filename quoting character.  This may  be  necessary
-              if  you are trying to name a file which contains both spaces and
-              quote characters.  Followed by a single character, this  changes
-              the  quote  character to that character.  Filenames containing a
+              Changes  the  filename quoting character.  This may be necessary
+              if you are trying to name a file which contains both spaces  and
+              quote  characters.  Followed by a single character, this changes
+              the quote character to that character.  Filenames  containing  a
               space should then be surrounded by that character rather than by
-              double  quotes.   Followed  by  two characters, changes the open
-              quote to the first character, and the close quote to the  second
+              double quotes.  Followed by two  characters,  changes  the  open
+              quote  to the first character, and the close quote to the second
               character.  Filenames containing a space should then be preceded
-              by the open quote character and  followed  by  the  close  quote
-              character.   Note  that  even  after  the  quote  characters are
-              changed, this option remains -" (a dash  followed  by  a  double
+              by  the  open  quote  character  and followed by the close quote
+              character.  Note  that  even  after  the  quote  characters  are
+              changed,  this  option  remains  -" (a dash followed by a double
               quote).
 
        -~ or --tilde
@@ -793,9 +790,24 @@ LESS(1)                                                                LESS(1)
 
        -# or --shift
               Specifies the default number of positions to scroll horizontally
-              in the RIGHTARROW and LEFTARROW commands.  If the number  speci-
-              fied  is  zero,  it  sets the default number of positions to one
+              in  the RIGHTARROW and LEFTARROW commands.  If the number speci-
+              fied is zero, it sets the default number  of  positions  to  one
               half of the screen width.
+
+       --no-keypad
+              Disables  sending the keypad initialization and deinitialization
+              strings to the terminal.  This is sometimes useful if the keypad
+              strings make the numeric keypad behave in an undesirable manner.
+
+       --follow-name
+              Normally, if the input file is renamed while  an  F  command  is
+              executing,  [4mless[24m  will  continue  to display the contents of the
+              original file despite its  name  change.   If  --follow-name  is
+              specified, during an F command [4mless[24m will periodically attempt to
+              reopen the file by name.  If the reopen succeeds and the file is
+              a  different file from the original (which means that a new file
+              has been created  with  the  same  name  as  the  original  (now
+              renamed) file), [4mless[24m will display the contents of that new file.
 
        --     A command line argument of "--" marks the end  of  option  argu-
               ments.   Any  arguments  following this are interpreted as file-
@@ -1544,4 +1556,4 @@ LESS(1)                                                                LESS(1)
 
 
 
-                           Version 409: 12 Oct 2007                    LESS(1)
+                           Version 416: 22 Nov 2007                    LESS(1)
