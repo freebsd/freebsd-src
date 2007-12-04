@@ -682,7 +682,7 @@ lesskey(filename, sysvar)
 		close(f);
 		return (-1);
 	}
-	if (lseek(f, (off_t)0, 0) == BAD_LSEEK)
+	if (lseek(f, (off_t)0, SEEK_SET) == BAD_LSEEK)
 	{
 		free(buf);
 		close(f);
