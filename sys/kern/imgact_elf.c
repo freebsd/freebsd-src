@@ -597,11 +597,13 @@ fail:
 	return (error);
 }
 
+static const char FREEBSD_ABI_VENDOR[] = "FreeBSD";
+
 static int
 __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
-	const Elf_Phdr *phdr;
+	const Elf_Phdr *phdr, *pnote = NULL;
 	Elf_Auxargs *elf_auxargs;
 	struct vmspace *vmspace;
 	vm_prot_t prot;
@@ -612,7 +614,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	int error = 0, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
+	const Elf_Note *note, *note_end;
 	char *path;
+	const char *note_name;
 	struct thread *td = curthread;
 	struct sysentvec *sv;
 
@@ -754,6 +758,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		case PT_PHDR: 	/* Program header table info */
 			proghdr = phdr[i].p_vaddr;
 			break;
+		case PT_NOTE:
+			pnote = &phdr[i];
+			break;
 		default:
 			break;
 		}
@@ -835,6 +842,41 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->auxargs = elf_auxargs;
 	imgp->interpreted = 0;
 
+	/*
+	 * Try to fetch the osreldate for FreeBSD binary from the ELF
+	 * OSABI-note. Only the first page of the image is searched,
+	 * the same as for headers.
+	 */
+	if (pnote != NULL && pnote->p_offset < PAGE_SIZE &&
+	    pnote->p_offset + pnote->p_filesz < PAGE_SIZE ) {
+		note = (const Elf_Note *)(imgp->image_header + pnote->p_offset);
+		if (!aligned(note, Elf32_Addr)) {
+			free(imgp->auxargs, M_TEMP);
+			imgp->auxargs = NULL;
+			return (ENOEXEC);
+		}
+		note_end = (const Elf_Note *)(imgp->image_header + pnote->p_offset +
+		    pnote->p_filesz);
+		while (note < note_end) {
+			if (note->n_namesz == sizeof(FREEBSD_ABI_VENDOR) &&
+			    note->n_descsz == sizeof(int32_t) &&
+			    note->n_type == 1 /* ABI_NOTETYPE */) {
+				note_name = (const char *)(note + 1);
+				if (strncmp(FREEBSD_ABI_VENDOR, note_name,
+				    sizeof(FREEBSD_ABI_VENDOR)) == 0) {
+					imgp->proc->p_osrel = *(const int32_t *)
+					    (note_name +
+					    round_page_ps(sizeof(FREEBSD_ABI_VENDOR),
+						sizeof(Elf32_Addr)));
+					break;
+				}
+			}
+			note = (const Elf_Note *)((const char *)(note + 1) +
+			    round_page_ps(note->n_namesz, sizeof(Elf32_Addr)) +
+			    round_page_ps(note->n_descsz, sizeof(Elf32_Addr)));
+		}
+	}
+
 	return (error);
 }
 
@@ -900,8 +942,6 @@ static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
 static void __elfN(puthdr)(struct thread *, void *, size_t *, int);
 static void __elfN(putnote)(void *, size_t *, const char *, int,
     const void *, size_t);
-
-extern int osreldate;
 
 int
 __elfN(coredump)(td, vp, limit)
