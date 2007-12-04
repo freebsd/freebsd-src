@@ -126,8 +126,7 @@ options 	MAXPHYS=(128*1024)
 
 
 # This allows you to actually store this configuration file into
-# the kernel binary itself, where it may be later read by saying:
-#    strings -n 3 /boot/kernel/kernel | sed -n 's/^___//p' > MYKERNEL
+# the kernel binary itself. See config(8) for more details.
 #
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
