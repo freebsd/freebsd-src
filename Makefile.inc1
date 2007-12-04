@@ -591,17 +591,25 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
-	for prog in ${ITOOLS}; do \
+	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
-			progs="$$progs $$progpath"; \
+			echo $$progpath; \
 		else \
 			echo "Required tool $$prog not found in PATH." >&2; \
 			exit 1; \
 		fi; \
-	done; \
-	cp $$progs ${INSTALLTMP}; \
-	cp `ldd -f "%p\n" -f "%p\n" $$progs 2>/dev/null | \
-	    sort -u` ${INSTALLTMP}
+	    done); \
+	libs=$$(ldd -f "%o %p\n" -f "%o %p\n" $$progs 2>/dev/null | sort -u | \
+	    while read line; do \
+		set -- $$line; \
+		if [ "$$2 $$3" != "not found" ]; then \
+			echo $$2; \
+		else \
+			echo "Required library $$1 not found." >&2; \
+			exit 1; \
+		fi; \
+	    done); \
+	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
