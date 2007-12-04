@@ -584,6 +584,8 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	char **pathp;
 	au_id_t auid;
 
+	ret = 0;
+
 	/*
 	 * Make sure we are using the correct preselection mask.
 	 */
