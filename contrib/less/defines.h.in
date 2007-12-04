@@ -282,6 +282,9 @@
 /* Define to 1 if you have the `stat' function. */
 #undef HAVE_STAT
 
+/* Define HAVE_STAT_INO if your struct stat has st_ino and st_dev. */
+#undef HAVE_STAT_INO
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
@@ -350,6 +353,12 @@
 
 /* Define HAVE_VOID if your compiler supports the "void" type. */
 #undef HAVE_VOID
+
+/* Define HAVE_WCTYPE if you have iswupper, iswlower, towupper, towlower. */
+#undef HAVE_WCTYPE
+
+/* Define to 1 if you have the <wctype.h> header file. */
+#undef HAVE_WCTYPE_H
 
 /* Define to 1 if you have the `_setjmp' function. */
 #undef HAVE__SETJMP
