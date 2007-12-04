@@ -800,6 +800,7 @@ struct sctp_association {
 	uint32_t total_output_queue_size;
 
 	uint32_t sb_cc;		/* shadow of sb_cc */
+	uint32_t sb_send_resv;	/* amount reserved on a send */
 	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
 					 * control */
 	/* 32 bit nonce stuff */
