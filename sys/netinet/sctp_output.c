@@ -6608,13 +6608,12 @@ out_gu:
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 
 	chk->rec.data.TSN_seq = atomic_fetchadd_int(&asoc->sending_seq, 1);
-#ifdef SCTP_LOG_SENDING_STR
-	sctp_misc_ints(SCTP_STRMOUT_LOG_SEND,
-	    (uintptr_t) stcb, (uintptr_t) sp,
-	    (uint32_t) ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq),
-	    chk->rec.data.TSN_seq);
-#endif
-
+	if (sctp_logging_level & SCTP_LOG_AT_SEND_2_OUTQ) {
+		sctp_misc_ints(SCTP_STRMOUT_LOG_SEND,
+		    (uintptr_t) stcb, sp->length,
+		    (uint32_t) ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq),
+		    chk->rec.data.TSN_seq);
+	}
 	dchkh = mtod(chk->data, struct sctp_data_chunk *);
 	/*
 	 * Put the rest of the things in place now. Size was done earlier in
@@ -10960,6 +10959,7 @@ sctp_lower_sosend(struct socket *so,
 	int free_cnt_applied = 0;
 	int un_sent = 0;
 	int now_filled = 0;
+	int inqueue_bytes = 0;
 	struct sctp_block_entry be;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb = NULL;
@@ -10975,7 +10975,7 @@ sctp_lower_sosend(struct socket *so,
 	int hold_tcblock = 0;
 	int non_blocking = 0;
 	int temp_flags = 0;
-	uint32_t local_add_more;
+	uint32_t local_add_more, local_soresv = 0;
 
 	error = 0;
 	net = NULL;
@@ -11011,9 +11011,9 @@ sctp_lower_sosend(struct socket *so,
 	    addr,
 	    sndlen);
 	/*-
-	 * Pre-screen address, if one is given the sin-len
-	 * must be set correctly!
-	 */
+         * Pre-screen address, if one is given the sin-len
+         * must be set correctly!
+         */
 	if (addr) {
 		if ((addr->sa_family == AF_INET) &&
 		    (addr->sa_len != sizeof(struct sockaddr_in))) {
@@ -11306,20 +11306,20 @@ sctp_lower_sosend(struct socket *so,
 						}
 						for (i = 0; i < asoc->streamoutcnt; i++) {
 							/*-
-							 * inbound side must be set
-							 * to 0xffff, also NOTE when
-							 * we get the INIT-ACK back
-							 * (for INIT sender) we MUST
-							 * reduce the count
-							 * (streamoutcnt) but first
-							 * check if we sent to any
-							 * of the upper streams that
-							 * were dropped (if some
-							 * were). Those that were
-							 * dropped must be notified
-							 * to the upper layer as
-							 * failed to send.
-							 */
+						         * inbound side must be set
+						         * to 0xffff, also NOTE when
+						         * we get the INIT-ACK back
+						         * (for INIT sender) we MUST
+						         * reduce the count
+						         * (streamoutcnt) but first
+						         * check if we sent to any
+						         * of the upper streams that
+						         * were dropped (if some
+						         * were). Those that were
+						         * dropped must be notified
+						         * to the upper layer as
+						         * failed to send.
+						         */
 							asoc->strmout[i].next_sequence_sent = 0x0;
 							TAILQ_INIT(&asoc->strmout[i].outqueue);
 							asoc->strmout[i].stream_no = i;
@@ -11334,11 +11334,11 @@ sctp_lower_sosend(struct socket *so,
 			/* out with the INIT */
 			queue_only_for_init = 1;
 			/*-
-			 * we may want to dig in after this call and adjust the MTU
-			 * value. It defaulted to 1500 (constant) but the ro
-			 * structure may now have an update and thus we may need to
-			 * change it BEFORE we append the message.
-			 */
+		         * we may want to dig in after this call and adjust the MTU
+		         * value. It defaulted to 1500 (constant) but the ro
+		         * structure may now have an update and thus we may need to
+		         * change it BEFORE we append the message.
+		         */
 			net = stcb->asoc.primary_destination;
 			asoc = &stcb->asoc;
 		}
@@ -11359,8 +11359,13 @@ sctp_lower_sosend(struct socket *so,
 	}
 	/* would we block? */
 	if (non_blocking) {
+		if (hold_tcblock == 0) {
+			SCTP_TCB_LOCK(stcb);
+			hold_tcblock = 1;
+		}
+		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		if ((SCTP_SB_LIMIT_SND(so) <
-		    (sndlen + stcb->asoc.total_output_queue_size)) ||
+		    (sndlen + inqueue_bytes + stcb->asoc.sb_send_resv)) ||
 		    (stcb->asoc.chunks_on_out_queue >
 		    sctp_max_chunks_on_queue)) {
 			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EWOULDBLOCK);
@@ -11368,11 +11373,15 @@ sctp_lower_sosend(struct socket *so,
 				error = EMSGSIZE;
 			else
 				error = EWOULDBLOCK;
-
-			atomic_add_int(&stcb->sctp_ep->total_nospaces, 1);
 			goto out_unlocked;
 		}
+		stcb->asoc.sb_send_resv += sndlen;
+		SCTP_TCB_UNLOCK(stcb);
+		hold_tcblock = 0;
+	} else {
+		atomic_add_int(&stcb->asoc.sb_send_resv, sndlen);
 	}
+	local_soresv = sndlen;
 	/* Keep the stcb from being freed under our feet */
 	if (free_cnt_applied) {
 #ifdef INVARIANTS
@@ -11526,10 +11535,10 @@ sctp_lower_sosend(struct socket *so,
 				error = uiomove((caddr_t)ph, (int)tot_out, uio);
 				if (error) {
 					/*-
-					 * Here if we can't get his data we
-					 * still abort we just don't get to
-					 * send the users note :-0
-					 */
+				         * Here if we can't get his data we
+				         * still abort we just don't get to
+				         * send the users note :-0
+				         */
 					sctp_m_freem(mm);
 					mm = NULL;
 				}
@@ -11563,8 +11572,14 @@ sctp_lower_sosend(struct socket *so,
 		goto out_unlocked;
 	}
 	/* Calculate the maximum we can send */
-	if (SCTP_SB_LIMIT_SND(so) > stcb->asoc.total_output_queue_size) {
-		max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
+	inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
+	if (SCTP_SB_LIMIT_SND(so) > inqueue_bytes) {
+		if (non_blocking) {
+			/* we already checked for non-blocking above. */
+			max_len = sndlen;
+		} else {
+			max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
+		}
 	} else {
 		max_len = 0;
 	}
@@ -11612,13 +11627,17 @@ sctp_lower_sosend(struct socket *so,
 		local_add_more = sndlen;
 	}
 	len = 0;
-	if (((max_len < local_add_more) &&
+	if (non_blocking == 0) {
+		goto skip_preblock;
+	}
+	if (((max_len <= local_add_more) &&
 	    (SCTP_SB_LIMIT_SND(so) > local_add_more)) ||
-	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) > sctp_max_chunks_on_queue)) {
+	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) > sctp_max_chunks_on_queue)) {	/* if */
 		/* No room right no ! */
 		SOCKBUF_LOCK(&so->so_snd);
-		while ((SCTP_SB_LIMIT_SND(so) < (stcb->asoc.total_output_queue_size + sctp_add_more_threshold)) ||
-		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) > sctp_max_chunks_on_queue)) {
+		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
+		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + sctp_add_more_threshold)) ||
+		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) > sctp_max_chunks_on_queue /* while */ )) {
 
 			if (sctp_logging_level & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA,
@@ -11646,6 +11665,7 @@ sctp_lower_sosend(struct socket *so,
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				goto out_unlocked;
 			}
+			inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		}
 		if (SCTP_SB_LIMIT_SND(so) > stcb->asoc.total_output_queue_size) {
 			max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
@@ -11654,6 +11674,7 @@ sctp_lower_sosend(struct socket *so,
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
 	}
+skip_preblock:
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 		goto out_unlocked;
 	}
@@ -11714,11 +11735,11 @@ sctp_lower_sosend(struct socket *so,
 			atomic_add_int(&asoc->stream_queue_cnt, 1);
 			if ((srcv->sinfo_flags & SCTP_UNORDERED) == 0) {
 				sp->strseq = strm->next_sequence_sent;
-#ifdef SCTP_LOG_SENDING_STR
-				sctp_misc_ints(SCTP_STRMOUT_LOG_ASSIGN,
-				    (uintptr_t) stcb, (uintptr_t) sp,
-				    (uint32_t) ((srcv->sinfo_stream << 16) | sp->strseq), 0);
-#endif
+				if (sctp_logging_level & SCTP_LOG_AT_SEND_2_SCTP) {
+					sctp_misc_ints(SCTP_STRMOUT_LOG_ASSIGN,
+					    (uintptr_t) stcb, sp->length,
+					    (uint32_t) ((srcv->sinfo_stream << 16) | sp->strseq), 0);
+				}
 				strm->next_sequence_sent++;
 			} else {
 				SCTP_STAT_INCR(sctps_sends_with_unord);
@@ -11827,8 +11848,9 @@ sctp_lower_sosend(struct socket *so,
 					hold_tcblock = 1;
 				}
 				sctp_prune_prsctp(stcb, asoc, srcv, sndlen);
+				inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 				if (SCTP_SB_LIMIT_SND(so) > stcb->asoc.total_output_queue_size)
-					max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
+					max_len = SCTP_SB_LIMIT_SND(so) - inqueue_bytes;
 				else
 					max_len = 0;
 				if (max_len > 0) {
@@ -11946,19 +11968,19 @@ sctp_lower_sosend(struct socket *so,
 			}
 			SOCKBUF_LOCK(&so->so_snd);
 			/*-
-			 * This is a bit strange, but I think it will
-			 * work. The total_output_queue_size is locked and
-			 * protected by the TCB_LOCK, which we just released.
-			 * There is a race that can occur between releasing it
-			 * above, and me getting the socket lock, where sacks
-			 * come in but we have not put the SB_WAIT on the
-			 * so_snd buffer to get the wakeup. After the LOCK
-			 * is applied the sack_processing will also need to
-			 * LOCK the so->so_snd to do the actual sowwakeup(). So
-			 * once we have the socket buffer lock if we recheck the
-			 * size we KNOW we will get to sleep safely with the
-			 * wakeup flag in place.
-			 */
+		         * This is a bit strange, but I think it will
+		         * work. The total_output_queue_size is locked and
+		         * protected by the TCB_LOCK, which we just released.
+		         * There is a race that can occur between releasing it
+		         * above, and me getting the socket lock, where sacks
+		         * come in but we have not put the SB_WAIT on the
+		         * so_snd buffer to get the wakeup. After the LOCK
+		         * is applied the sack_processing will also need to
+		         * LOCK the so->so_snd to do the actual sowwakeup(). So
+		         * once we have the socket buffer lock if we recheck the
+		         * size we KNOW we will get to sleep safely with the
+		         * wakeup flag in place.
+		         */
 			if (SCTP_SB_LIMIT_SND(so) <= (stcb->asoc.total_output_queue_size +
 			    min(sctp_add_more_threshold, SCTP_SB_LIMIT_SND(so)))
 			    ) {
@@ -12068,15 +12090,15 @@ dataless_eof:
 			}
 		} else {
 			/*-
-			 * we still got (or just got) data to send, so set
-			 * SHUTDOWN_PENDING
-			 */
+		         * we still got (or just got) data to send, so set
+		         * SHUTDOWN_PENDING
+		         */
 			/*-
-			 * XXX sockets draft says that SCTP_EOF should be
-			 * sent with no data.  currently, we will allow user
-			 * data to be sent first and move to
-			 * SHUTDOWN-PENDING
-			 */
+		         * XXX sockets draft says that SCTP_EOF should be
+		         * sent with no data.  currently, we will allow user
+		         * data to be sent first and move to
+		         * SHUTDOWN-PENDING
+		         */
 			if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
@@ -12233,7 +12255,10 @@ skip_out_eof:
 out:
 out_unlocked:
 
-
+	if (local_soresv && stcb) {
+		atomic_subtract_int(&stcb->asoc.sb_send_resv, sndlen);
+		local_soresv = 0;
+	}
 	if (create_lock_applied) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		create_lock_applied = 0;
