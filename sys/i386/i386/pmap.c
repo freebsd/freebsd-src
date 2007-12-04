@@ -1443,7 +1443,7 @@ pmap_lazyfix_action(void)
 	u_int mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
-	*ipi_lazypmap_counts[PCPU_GET(cpuid)]++;
+	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
 #endif
 	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
