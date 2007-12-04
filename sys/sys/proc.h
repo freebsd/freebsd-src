@@ -561,6 +561,8 @@ struct proc {
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_endzero
 	u_int		p_magic;	/* (b) Magic number. */
+	int		p_osrel;	/* (x) osreldate for the
+					       binary (from ELF note, if any) */
 	char		p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 	struct pgrp	*p_pgrp;	/* (c + e) Pointer to process group. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
