@@ -1371,9 +1371,6 @@ freebsd32_msgsnd(struct thread *td, struct freebsd32_msgsnd_args *uap)
 	int32_t mtype32;
 	int error;
 
-	if (!SYSCALL_MODULE_PRESENT(msgsnd))
-		return (nosys(td, (struct nosys_args *)uap));
-
 	msgp = PTRIN(uap->msgp);
 	if ((error = copyin(msgp, &mtype32, sizeof(mtype32))) != 0)
 		return (error);
@@ -1390,9 +1387,6 @@ freebsd32_msgrcv(struct thread *td, struct freebsd32_msgrcv_args *uap)
 	long mtype;
 	int32_t mtype32;
 	int error;
-
-	if (!SYSCALL_MODULE_PRESENT(msgrcv))
-		return (nosys(td, (struct nosys_args *)uap));
 
 	msgp = PTRIN(uap->msgp);
 	if ((error = kern_msgrcv(td, uap->msqid,
