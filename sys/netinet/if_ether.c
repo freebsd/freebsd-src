@@ -655,9 +655,9 @@ match:
 	 */
 	if (!bridged && isaddr.s_addr == myaddr.s_addr && myaddr.s_addr != 0) {
 		log(LOG_ERR,
-		   "arp: %*D is using my IP address %s!\n",
+		   "arp: %*D is using my IP address %s on %s!\n",
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-		   inet_ntoa(isaddr));
+		   inet_ntoa(isaddr), ifp->if_xname);
 		itaddr = myaddr;
 		goto reply;
 	}
