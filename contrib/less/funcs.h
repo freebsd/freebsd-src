@@ -104,6 +104,7 @@
 	public IFILE save_curr_ifile ();
 	public void unsave_ifile ();
 	public void reedit_ifile ();
+	public void reopen_curr_ifile ();
 	public int edit_stdin ();
 	public void cat_file ();
 	public void use_logfile ();
