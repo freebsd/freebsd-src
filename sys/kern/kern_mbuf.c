@@ -166,6 +166,10 @@ static void	mb_zfini_pack(void *, int);
 
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
+static void    *mbuf_jumbo_alloc(uma_zone_t, int, u_int8_t *, int);
+static void	mbuf_jumbo_free(void *, int, u_int8_t);
+
+static MALLOC_DEFINE(M_JUMBOFRAME, "jumboframes", "mbuf jumbo frame buffers");
 
 /* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -226,6 +230,8 @@ mbuf_init(void *dummy)
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	if (nmbjumbo9 > 0)
 		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
+	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
+	uma_zone_set_freef(zone_jumbo9, mbuf_jumbo_free);
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -237,6 +243,8 @@ mbuf_init(void *dummy)
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	if (nmbjumbo16 > 0)
 		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
+	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
+	uma_zone_set_freef(zone_jumbo16, mbuf_jumbo_free);
 
 	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
 	    NULL, NULL,
@@ -271,6 +279,31 @@ mbuf_init(void *dummy)
 	mbstat.m_mcfail = mbstat.m_mpfail = 0;
 	mbstat.sf_iocnt = 0;
 	mbstat.sf_allocwait = mbstat.sf_allocfail = 0;
+}
+
+/*
+ * UMA backend page allocator for the jumbo frame zones.
+ *
+ * Allocates kernel virtual memory that is backed by contiguous physical
+ * pages.
+ */
+static void *
+mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+
+	*flags = UMA_SLAB_PRIV;
+	return (contigmalloc(bytes, M_JUMBOFRAME, wait, (vm_paddr_t)0,
+	    ~(vm_paddr_t)0, 1, 0));
+}
+
+/*
+ * UMA backend page deallocator for the jumbo frame zones.
+ */
+static void
+mbuf_jumbo_free(void *mem, int size, u_int8_t flags)
+{
+
+	contigfree(mem, size, M_JUMBOFRAME);
 }
 
 /*
