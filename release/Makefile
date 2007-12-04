@@ -618,7 +618,7 @@ release.4:
 	rm -rf ${j}_crunch
 	mkdir ${j}_crunch
 	cd ${j}_crunch; ${WMAKEENV} MAKEFLAGS="-m ${.CURDIR}/../share/mk" \
-	    crunchgen -o \
+	    NO_WERROR= crunchgen -o \
 	    ${.CURDIR}/${TARGET}/${j}_crunch.conf
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk subclean
 	cd ${.CURDIR}/..; ${BINMAKE} -f Makefile.inc1 _build-tools
