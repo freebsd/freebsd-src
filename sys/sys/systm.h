@@ -101,6 +101,7 @@ extern int maxusers;		/* system tune hint */
  * in two files.
  * XXX most of these variables should be const.
  */
+extern int osreldate;
 extern int envmode;
 extern int hintmode;		/* 0 = off. 1 = config, 2 = fallback */
 extern int dynamic_kenv;

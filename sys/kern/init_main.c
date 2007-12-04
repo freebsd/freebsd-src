@@ -373,9 +373,10 @@ proc0_init(void *dummy __unused)
 	td = &thread0;
 	
 	/*
-	 * Initialize magic number.
+	 * Initialize magic number and osrel.
 	 */
 	p->p_magic = P_MAGIC;
+	p->p_osrel = osreldate;
 
 	/*
 	 * Initialize thread and process structures.

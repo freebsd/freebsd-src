@@ -104,7 +104,6 @@ SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD,
  * NOTICE: The *userland* release date is available in
  * /usr/include/osreldate.h
  */
-extern int osreldate;
 SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD,
     &osreldate, 0, "Kernel release date");
 
