@@ -10959,7 +10959,7 @@ sctp_lower_sosend(struct socket *so,
 	int free_cnt_applied = 0;
 	int un_sent = 0;
 	int now_filled = 0;
-	int inqueue_bytes = 0;
+	unsigned int inqueue_bytes = 0;
 	struct sctp_block_entry be;
 	struct sctp_inpcb *inp;
 	struct sctp_tcb *stcb = NULL;
