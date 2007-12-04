@@ -11627,7 +11627,7 @@ sctp_lower_sosend(struct socket *so,
 		local_add_more = sndlen;
 	}
 	len = 0;
-	if (non_blocking == 0) {
+	if (non_blocking) {
 		goto skip_preblock;
 	}
 	if (((max_len <= local_add_more) &&
@@ -11667,8 +11667,9 @@ sctp_lower_sosend(struct socket *so,
 			}
 			inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		}
-		if (SCTP_SB_LIMIT_SND(so) > stcb->asoc.total_output_queue_size) {
-			max_len = SCTP_SB_LIMIT_SND(so) - stcb->asoc.total_output_queue_size;
+		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
+		if (SCTP_SB_LIMIT_SND(so) > inqueue_bytes) {
+			max_len = SCTP_SB_LIMIT_SND(so) - inqueue_bytes;
 		} else {
 			max_len = 0;
 		}
