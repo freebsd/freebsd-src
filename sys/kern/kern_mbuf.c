@@ -106,7 +106,10 @@ tunable_mbinit(void *dummy)
 {
 
 	/* This has to be done before VM init. */
-	nmbclusters = 1024 + maxusers * 64;
+    nmbclusters = 1024 + maxusers * 64;
+	nmbjumbop = nmbclusters / 2;
+	nmbjumbo9 = nmbjumbop / 2;
+	nmbjumbo16 = nmbjumbo9 / 2;
 	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
@@ -132,12 +135,70 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbclusters, CTLTYPE_INT|CTLFLAG_RW,
 &nmbclusters, 0, sysctl_nmbclusters, "IU",
     "Maximum number of mbuf clusters allowed");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbop, CTLFLAG_RW, &nmbjumbop, 0,
-    "Maximum number of mbuf page size jumbo clusters allowed");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo9, CTLFLAG_RW, &nmbjumbo9, 0,
-    "Maximum number of mbuf 9k jumbo clusters allowed");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbjumbo16, CTLFLAG_RW, &nmbjumbo16, 0,
+
+static int
+sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
+{
+	int error, newnmbjumbop;
+
+	newnmbjumbop = nmbjumbop;
+	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req); 
+	if (error == 0 && req->newptr) {
+		if (newnmbjumbop> nmbjumbop) {
+			nmbjumbop = newnmbjumbop;
+			uma_zone_set_max(zone_jumbop, nmbjumbop);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbop, CTLTYPE_INT|CTLFLAG_RW,
+&nmbjumbop, 0, sysctl_nmbjumbop, "IU",
+	 "Maximum number of mbuf page size jumbo clusters allowed");
+
+
+static int
+sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
+{
+	int error, newnmbjumbo9;
+
+	newnmbjumbo9 = nmbjumbo9;
+	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req); 
+	if (error == 0 && req->newptr) {
+		if (newnmbjumbo9> nmbjumbo9) {
+			nmbjumbo9 = newnmbjumbo9;
+			uma_zone_set_max(zone_jumbo9, nmbjumbo9);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo9, CTLTYPE_INT|CTLFLAG_RW,
+&nmbjumbo9, 0, sysctl_nmbjumbo9, "IU",
+	"Maximum number of mbuf 9k jumbo clusters allowed"); 
+
+static int
+sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
+{
+	int error, newnmbjumbo16;
+
+	newnmbjumbo16 = nmbjumbo16;
+	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req); 
+	if (error == 0 && req->newptr) {
+		if (newnmbjumbo16> nmbjumbo16) {
+			nmbjumbo16 = newnmbjumbo16;
+			uma_zone_set_max(zone_jumbo16, nmbjumbo16);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo16, CTLTYPE_INT|CTLFLAG_RW,
+&nmbjumbo16, 0, sysctl_nmbjumbo16, "IU",
     "Maximum number of mbuf 16k jumbo clusters allowed");
+
+
+
 SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
     "Mbuf general information and statistics");
 
