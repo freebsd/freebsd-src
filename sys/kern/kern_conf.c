@@ -608,9 +608,11 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 	}
 		
 	dev->si_flags |= SI_NAMED;
+#ifdef MAC
 	if (cr != NULL)
 		dev->si_cred = crhold(cr);
 	else
+#endif
 		dev->si_cred = NULL;
 	dev->si_uid = uid;
 	dev->si_gid = gid;
