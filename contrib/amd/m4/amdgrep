@@ -1,7 +1,0 @@
-#!/bin/sh
-exec egrep -n "$*" \
-    [a-z]*/*.[hcyl] \
-    conf/*/*.[hc] \
-    Makefile.am \
-    [a-z]*/Makefile.am \
-    m4/macros/*.m4
