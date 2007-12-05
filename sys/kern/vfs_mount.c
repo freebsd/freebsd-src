@@ -134,7 +134,6 @@ static const char *global_opts[] = {
 	"errmsg",
 	"fstype",
 	"fspath",
-	"rdonly",
 	"ro",
 	"rw",
 	"nosuid",
@@ -684,9 +683,13 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags &= ~MNT_RDONLY;
 			has_rw = 1;
 		}
-		else if (strcmp(opt->name, "ro") == 0 ||
-		    strcmp(opt->name, "rdonly") == 0)
+		else if (strcmp(opt->name, "ro") == 0)
 			fsflags |= MNT_RDONLY;
+		else if (strcmp(opt->name, "rdonly") == 0) {
+			free(opt->name, M_MOUNT);
+			opt->name = strdup("ro", M_MOUNT);
+			fsflags |= MNT_RDONLY;
+		}
 		else if (strcmp(opt->name, "snapshot") == 0)
 			fsflags |= MNT_SNAPSHOT;
 		else if (strcmp(opt->name, "suiddir") == 0)
