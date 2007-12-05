@@ -444,10 +444,9 @@ utopia_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	UTP_UNLOCK(utp);
 
 	error = SYSCTL_OUT(req, val, sizeof(utp->stats));
-	free(val, M_TEMP);
-
 	if (error && req->newptr != NULL)
 		bcopy(val, &utp->stats, sizeof(utp->stats));
+	free(val, M_TEMP);
 
 	/* ignore actual new value */
 
