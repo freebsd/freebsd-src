@@ -2528,9 +2528,11 @@ ndis_setstate_80211(sc)
 	/* Set SSID -- always do this last. */
 
 #ifdef NDIS_DEBUG
-	printf("Setting ESSID to ");
-	ieee80211_print_essid(ni->ni_essid, ni->ni_esslen);
-	printf("\n");
+	if (ndis_debug > 0) {
+		printf("Setting ESSID to ");
+		ieee80211_print_essid(ni->ni_essid, ni->ni_esslen);
+		printf("\n");
+	}
 #endif
 
 	len = sizeof(ssid);
