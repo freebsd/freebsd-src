@@ -57,9 +57,12 @@ specification for the shell.
 This version has many features which make
 it appear
 similar in some respects to the Korn shell, but it is not a Korn
-shell clone like pdksh.
+shell clone like
+.Nm pdksh .
 Only features
-designated by POSIX, plus a few Berkeley extensions, are being
+designated by
+.Tn POSIX ,
+plus a few Berkeley extensions, are being
 incorporated into this shell.
 This man page is not intended to be a tutorial nor a complete
 specification of the shell.
@@ -107,6 +110,7 @@ from the files
 .Pa /etc/profile
 and then
 .Pa .profile
+in a user's home directory,
 if they exist.
 If the environment variable
 .Ev ENV
@@ -129,13 +133,15 @@ substituting for
 .Pa .shinit
 the filename desired:
 .Pp
-.Dl ENV=$HOME/.shinit; export ENV
+.Dl "ENV=$HOME/.shinit; export ENV"
 .Pp
 The first non-option argument specified on the command line
 will be treated as the
 name of a file from which to read commands (a shell script), and
 the remaining arguments are set as the positional parameters
-of the shell ($1, $2, etc).
+of the shell
+.Li ( $1 , $2 ,
+etc.).
 Otherwise, the shell reads commands
 from its standard input.
 .Pp
@@ -180,7 +186,7 @@ disables the option.
 A
 .Dq Li --
 or plain
-.Dq Ql -
+.Ql -
 will stop option processing and will force the remaining
 words on the command line to be treated as arguments.
 The
@@ -198,7 +204,7 @@ completion.
 (UNIMPLEMENTED)
 .It Fl C Li noclobber
 Do not overwrite existing files with
-.Dq Li > .
+.Ql > .
 .It Fl E Li emacs
 Enable the built-in
 .Xr emacs 1
@@ -228,7 +234,7 @@ well.
 Disable pathname expansion.
 .It Fl I Li ignoreeof
 Ignore
-.Dv EOF Ns ' Ns s
+.Dv EOF Ap s
 from input when in interactive mode.
 .It Fl i Li interactive
 Force the shell to behave interactively.
@@ -253,10 +259,10 @@ to
 .It Fl p Li privileged
 Turn on privileged mode.
 This mode is enabled on startup
-if either the effective user or group id is not equal to the
-real user or group id.
+if either the effective user or group ID is not equal to the
+real user or group ID.
 Turning this mode off sets the
-effective user and group ids to the real user and group ids.
+effective user and group IDs to the real user and group IDs.
 When this mode is enabled for interactive shells, the file
 .Pa /etc/suid_profile
 is sourced instead of
@@ -288,7 +294,6 @@ like this:
 .Bd -literal -offset indent
 sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
 .Ed
-.Pp
 .It Fl u Li nounset
 Write a message to standard error when attempting
 to expand a variable that is not set, and if the
@@ -306,7 +311,7 @@ Useful for debugging.
 .It Fl x Li xtrace
 Write each command
 (preceded by the value of the
-.Ev PS4
+.Va PS4
 variable)
 to standard error before it is executed.
 Useful for debugging.
@@ -384,7 +389,7 @@ meaning of all the characters (except single quotes, making
 it impossible to put single-quotes in a single-quoted string).
 .It Double Quotes
 Enclosing characters within double quotes preserves the literal
-meaning of all characters except dollarsign
+meaning of all characters except dollar sign
 .Pq Ql $ ,
 backquote
 .Pq Ql ` ,
@@ -423,16 +428,14 @@ If it does, it replaces it in the input stream with its value.
 For example, if there is an alias called
 .Dq Li lf
 with the value
-.Dq Li ls -F ,
+.Dq Li "ls -F" ,
 then the input
-.Bd -literal -offset indent
-lf foobar
-.Ed
+.Pp
+.Dl "lf foobar"
 .Pp
 would become
-.Bd -literal -offset indent
-ls -F foobar
-.Ed
+.Pp
+.Dl "ls -F foobar"
 .Pp
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
@@ -498,10 +501,10 @@ duplicate an existing reference to a file.
 The overall format
 used for redirection is:
 .Pp
-.Dl [n] redir-op file
+.D1 Oo Ar n Oc Ar redir-op file
 .Pp
 The
-.Ql redir-op
+.Ar redir-op
 is one of the redirection operators mentioned
 previously.
 The following gives some examples of how these
@@ -509,42 +512,66 @@ operators can be used.
 Note that stdin and stdout are commonly used abbreviations
 for standard input and standard output respectively.
 .Bl -tag -width "1234567890XX" -offset indent
-.It Li [n]> file
-redirect stdout (or file descriptor n) to file
-.It Li [n]>| file
+.It Oo Ar n Oc Ns Li > Ar file
+redirect stdout (or file descriptor
+.Ar n )
+to
+.Ar file
+.It Oo Ar n Oc Ns Li >| Ar file
 same as above, but override the
 .Fl C
 option
-.It Li [n]>> file
-append stdout (or file descriptor n) to file
-.It Li [n]< file
-redirect stdin (or file descriptor n) from file
-.It Li [n]<> file
-redirect stdin (or file descriptor n) to and from file
-.It Li [n1]<&n2
-duplicate stdin (or file descriptor n1) from file descriptor n2
-.It Li [n]<&-
-close stdin (or file descriptor n)
-.It Li [n1]>&n2
-duplicate stdout (or file descriptor n1) to file descriptor n2
-.It Li [n]>&-
-close stdout (or file descriptor n)
+.It Oo Ar n Oc Ns Li >> Ar file
+append stdout (or file descriptor
+.Ar n )
+to
+.Ar file
+.It Oo Ar n Oc Ns Li < Ar file
+redirect stdin (or file descriptor
+.Ar n )
+from
+.Ar file
+.It Oo Ar n Oc Ns Li <> Ar file
+redirect stdin (or file descriptor
+.Ar n )
+to and from
+.Ar file
+.It Oo Ar n1 Oc Ns Li <& Ns Ar n2
+duplicate stdin (or file descriptor
+.Ar n1 )
+from file descriptor
+.Ar n2
+.It Oo Ar n Oc Ns Li <&-
+close stdin (or file descriptor
+.Ar n )
+.It Oo Ar n1 Oc Ns Li >& Ns Ar n2
+duplicate stdout (or file descriptor
+.Ar n1 )
+to file descriptor
+.Ar n2
+.It Oo Ar n Oc Ns Li >&-
+close stdout (or file descriptor
+.Ar n )
 .El
 .Pp
 The following redirection is often called a
 .Dq here-document .
-.Bd -literal -offset indent
-[n]<< delimiter
-	here-doc-text
-	...
-delimiter
+.Bd -unfilled -offset indent
+.Oo Ar n Oc Ns Li << Ar delimiter
+.D1 Ar here-doc-text
+.D1 ...
+.Ar delimiter
 .Ed
 .Pp
 All the text on successive lines up to the delimiter is
 saved away and made available to the command on standard
-input, or file descriptor n if it is specified.
-If the delimiter
-as specified on the initial line is quoted, then the here-doc-text
+input, or file descriptor
+.Ar n
+if it is specified.
+If the
+.Ar delimiter
+as specified on the initial line is quoted, then the
+.Ar here-doc-text
 is treated literally, otherwise the text is subjected to
 parameter expansion, command substitution, and arithmetic
 expansion (as described in the section on
@@ -554,7 +581,9 @@ If the operator is
 instead of
 .Dq Li << ,
 then leading tabs
-in the here-doc-text are stripped.
+in the
+.Ar here-doc-text
+are stripped.
 .Ss Search and Execution
 There are three types of commands: shell functions,
 built-in commands, and normal programs.
@@ -562,7 +591,9 @@ The command is searched for (by name) in that order.
 The three types of commands are all executed in a different way.
 .Pp
 When a shell function is executed, all of the shell positional
-parameters (except $0, which remains unchanged) are
+parameters (except
+.Li $0 ,
+which remains unchanged) are
 set to the arguments of the shell function.
 The variables which are explicitly placed in the environment of
 the command (by placing assignments to them before the
@@ -583,11 +614,11 @@ When a normal program is executed, the shell runs the program,
 passing the arguments and the environment to the program.
 If the program is not a normal executable file
 (i.e., if it does not begin with the
-.Qq magic number
+.Dq "magic number"
 whose
 .Tn ASCII
 representation is
-.Qq #! ,
+.Dq Li #! ,
 resulting in an
 .Er ENOEXEC
 return value from
@@ -597,13 +628,16 @@ The child shell will reinitialize itself in this case,
 so that the effect will be
 as if a new shell had been invoked to handle the ad-hoc shell script,
 except that the location of hashed commands located in
-the parent shell will be remembered by the child.
+the parent shell will be remembered by the child
+(see the description of the
+.Ic hash
+built-in command below).
 .Pp
 Note that previous versions of this document
 and the source code itself misleadingly and sporadically
 refer to a shell script without a magic number
 as a
-.Qq shell procedure .
+.Dq "shell procedure" .
 .Ss Path Search
 When locating a command, the shell first looks to see if
 it has a shell function by that name.
@@ -616,8 +650,9 @@ one of two things happen:
 Command names containing a slash are simply executed without
 performing any searches.
 .It
-The shell searches each entry in
+The shell searches each entry in the
 .Ev PATH
+environment variable
 in turn for the command.
 The value of the
 .Ev PATH
@@ -666,7 +701,8 @@ Unless otherwise stated, the exit status of a command is
 that of the last simple command executed by the command.
 .Ss Pipelines
 A pipeline is a sequence of one or more commands separated
-by the control operator |.
+by the control operator
+.Ql \&| .
 The standard output of all but
 the last command is connected to the standard input
 of the next command.
@@ -675,10 +711,12 @@ command is inherited from the shell, as usual.
 .Pp
 The format for a pipeline is:
 .Pp
-.Dl [!] command1 [ | command2 ...]
+.D1 Oo Li \&! Oc Ar command1 Op Li \&| Ar command2 ...
 .Pp
-The standard output of command1 is connected to the standard
-input of command2.
+The standard output of
+.Ar command1
+is connected to the standard input of
+.Ar command2 .
 The standard input, standard output, or
 both of a command is considered to be assigned by the
 pipeline before any redirection specified by redirection
@@ -704,22 +742,22 @@ output or both takes place before redirection, it can be
 modified by redirection.
 For example:
 .Pp
-.Dl $ command1 2>&1 | command2
+.Dl "command1 2>&1 | command2"
 .Pp
 sends both the standard output and standard error of
-.Ql command1
+.Ar command1
 to the standard input of
-.Ql command2 .
+.Ar command2 .
 .Pp
 A
-.Dq Li \&;
+.Ql \&;
 or newline terminator causes the preceding
 AND-OR-list
 (described below in the section called
 .Sx Short-Circuit List Operators )
 to be executed sequentially;
 an
-.Dq Li &
+.Ql &
 causes asynchronous execution of the preceding AND-OR-list.
 .Pp
 Note that unlike some other shells,
@@ -738,12 +776,12 @@ the shell does not wait for the command to finish
 before executing the next command.
 .Pp
 The format for running a command in background is:
-.Bd -literal -offset indent
-command1 & [command2 & ...]
-.Ed
+.Pp
+.D1 Ar command1 Li & Op Ar command2 Li & Ar ...
 .Pp
 If the shell is not interactive, the standard input of an
-asynchronous command is set to /dev/null.
+asynchronous command is set to
+.Pa /dev/null .
 .Ss Lists (Generally Speaking)
 A list is a sequence of zero or more commands separated by
 newlines, semicolons, or ampersands,
@@ -773,22 +811,23 @@ both have the same priority.
 The syntax of the
 .Ic if
 command is:
-.\"
-.\" XXX Use .Dl to work around broken handling of .Ic inside .Bd and .Ed .
-.\"
-.Dl Ic if Ar list
-.Dl Ic then Ar list
-.Dl [ Ic elif Ar list
-.Dl Ic then Ar list ] ...
-.Dl [ Ic else Ar list ]
-.Dl Ic fi
+.Bd -unfilled -offset indent -compact
+.Ic if Ar list
+.Ic then Ar list
+.Oo Ic elif Ar list
+.Ic then Ar list Oc Ar ...
+.Op Ic else Ar list
+.Ic fi
+.Ed
 .Pp
 The syntax of the
 .Ic while
 command is:
-.Dl Ic while Ar list
-.Dl Ic do Ar list
-.Dl Ic done
+.Bd -unfilled -offset indent -compact
+.Ic while Ar list
+.Ic do Ar list
+.Ic done
+.Ed
 .Pp
 The two lists are executed repeatedly while the exit status of the
 first list is zero.
@@ -804,9 +843,11 @@ repeat until the exit status of the first list is zero.
 The syntax of the
 .Ic for
 command is:
-.Dl Ic for Ar variable Op Ic in Ar word ...
-.Dl Ic do Ar list
-.Dl Ic done
+.Bd -unfilled -offset indent -compact
+.Ic for Ar variable Op Ic in Ar word ...
+.Ic do Ar list
+.Ic done
+.Ed
 .Pp
 If
 .Ic in
@@ -820,17 +861,17 @@ The
 and
 .Ic done
 commands may be replaced with
-.Dq Li {
+.Ql {
 and
-.Dq Li } .
+.Ql } .
 .Pp
 The syntax of the
 .Ic break
 and
 .Ic continue
 commands is:
-.Dl Ic break Op Ar num
-.Dl Ic continue Op Ar num
+.D1 Ic break Op Ar num
+.D1 Ic continue Op Ar num
 .Pp
 The
 .Ic break
@@ -848,18 +889,20 @@ These are implemented as built-in commands.
 .Pp
 The syntax of the
 .Ic case
-command is
-.Dl Ic case Ar word Ic in
-.Dl pattern) list ;;
-.Dl ...
-.Dl Ic esac
+command is:
+.Bd -unfilled -offset indent -compact
+.Ic case Ar word Ic in
+.Ar pattern Ns Li ) Ar list Li ;;
+.Ar ...
+.Ic esac
+.Ed
 .Pp
 The pattern can actually be one or more patterns
 (see
 .Sx Shell Patterns
 described later),
 separated by
-.Dq Li \&|
+.Ql \&|
 characters.
 The exit code of the
 .Ic case
@@ -867,14 +910,12 @@ command is the exit code of the last command executed in the list or
 zero if no patterns were matched.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
-.Bd -literal -offset indent
-(list)
-.Ed
+.Pp
+.D1 Li \&( Ns Ar list Ns Li \%)
 .Pp
 or
-.Bd -literal -offset indent
-{ list; }
-.Ed
+.Pp
+.D1 Li { Ar list Ns Li \&; }
 .Pp
 The first form executes the commands in a subshell.
 Note that built-in commands thus executed do not affect the current shell.
@@ -887,18 +928,21 @@ redirect their output as though they were one program:
 .Ed
 .Ss Functions
 The syntax of a function definition is
-.Bd -literal -offset indent
-name ( ) command
-.Ed
+.Pp
+.D1 Ar name Li \&( \&) Ar command
 .Pp
 A function definition is an executable statement; when
-executed it installs a function named name and returns an
+executed it installs a function named
+.Ar name
+and returns an
 exit status of zero.
-The command is normally a list
+The
+.Ar command
+is normally a list
 enclosed between
-.Dq Li {
+.Ql {
 and
-.Dq Li } .
+.Ql } .
 .Pp
 Variables may be declared to be local to a function by
 using the
@@ -906,11 +950,8 @@ using the
 command.
 This should appear as the first statement of a function,
 and the syntax is:
-.Bd -ragged -offset indent
-.Ic local
-.Op Ar variable ...
-.Op Fl
-.Ed
+.Pp
+.D1 Ic local Oo Ar variable ... Oc Op Fl
 .Pp
 The
 .Ic local
@@ -923,38 +964,38 @@ one.
 Otherwise, the variable is initially unset.
 The shell
 uses dynamic scoping, so that if the variable
-.Em x
+.Va x
 is made local to function
 .Em f ,
 which then calls function
 .Em g ,
 references to the variable
-.Em x
+.Va x
 made inside
 .Em g
 will refer to the variable
-.Em x
+.Va x
 declared inside
 .Em f ,
 not to the global variable named
-.Em x .
+.Va x .
 .Pp
 The only special parameter that can be made local is
-.Dq Li - .
+.Ql - .
 Making
-.Dq Li -
+.Ql -
 local causes any shell options that are
-changed via the set command inside the function to be
+changed via the
+.Ic set
+command inside the function to be
 restored to their original values when the function
 returns.
 .Pp
 The syntax of the
 .Ic return
 command is
-.Bd -ragged -offset indent
-.Ic return
-.Op Ar exitstatus
-.Ed
+.Pp
+.D1 Ic return Op Ar exitstatus
 .Pp
 It terminates the current executional scope, returning from the previous
 nested function, sourced script, or shell instance, in that order.
@@ -969,9 +1010,8 @@ When starting up,
 the shell turns all the environment variables into shell
 variables.
 New variables can be set using the form
-.Bd -literal -offset indent
-name=value
-.Ed
+.Pp
+.D1 Ar name Ns = Ns Ar value
 .Pp
 Variables set by the user must have a name consisting solely
 of alphabetics, numerics, and underscores.
@@ -1001,12 +1041,10 @@ When
 the expansion occurs within a double-quoted string
 it expands to a single field with the value of each parameter
 separated by the first character of the
-.Ev IFS
+.Va IFS
 variable,
-or by a
-.Aq space
-if
-.Ev IFS
+or by a space if
+.Va IFS
 is unset.
 .It Li $@
 Expands to the positional parameters, starting from one.
@@ -1020,12 +1058,16 @@ generates zero arguments, even when
 .Li @
 is double-quoted.
 What this basically means, for example, is
-if $1 is
-.Dq abc
-and $2 is
-.Dq def ghi ,
+if
+.Li $1
+is
+.Dq Li abc
+and
+.Li $2
+is
+.Dq Li "def ghi" ,
 then
-.Qq Li $@
+.Dq Li $@
 expands to
 the two arguments:
 .Bd -literal -offset indent
@@ -1033,18 +1075,22 @@ the two arguments:
 .Ed
 .It Li $#
 Expands to the number of positional parameters.
-.It Li $\&?
+.It Li $?
 Expands to the exit status of the most recent pipeline.
 .It Li $-
 (hyphen) Expands to the current option flags (the single-letter
 option names concatenated into a string) as specified on
-invocation, by the set built-in command, or implicitly
+invocation, by the
+.Ic set
+built-in command, or implicitly
 by the shell.
 .It Li $$
 Expands to the process ID of the invoked shell.
 A subshell
-retains the same value of $ as its parent.
-.It Li $\&!
+retains the same value of
+.Va $
+as its parent.
+.It Li $!
 Expands to the process ID of the most recent background
 command executed from the current shell.
 For a
@@ -1067,7 +1113,7 @@ splitting or pathname expansion that can create multiple
 fields from a single word.
 The single exception to this rule is
 the expansion of the special parameter
-.Li @
+.Va @
 within double-quotes,
 as was described above.
 .Pp
@@ -1079,7 +1125,7 @@ Arithmetic Expansion (these all occur at the same time).
 .It
 Field Splitting is performed on fields generated by step (1)
 unless the
-.Ev IFS
+.Va IFS
 variable is null.
 .It
 Pathname Expansion (unless the
@@ -1090,7 +1136,7 @@ Quote Removal.
 .El
 .Pp
 The
-.Dq Li $
+.Ql $
 character is used to introduce parameter expansion, command
 substitution, or arithmetic evaluation.
 .Ss Tilde Expansion (substituting a user's home directory)
@@ -1103,30 +1149,34 @@ All the characters up to a slash
 or the end of the word are treated as a username
 and are replaced with the user's home directory.
 If the
-username is missing (as in ~/foobar), the tilde is replaced
-with the value of the HOME variable (the current user's
-home directory).
+username is missing (as in
+.Pa ~/foobar ) ,
+the tilde is replaced with the value of the
+.Ev HOME
+variable (the current user's home directory).
 .Ss Parameter Expansion
 The format for parameter expansion is as follows:
-.Bd -literal -offset indent
-${expression}
-.Ed
 .Pp
-where expression consists of all characters until the matching
-.Dq Li } .
+.D1 Li ${ Ns Ar expression Ns Li }
+.Pp
+where
+.Ar expression
+consists of all characters until the matching
+.Ql } .
 Any
-.Dq Li }
+.Ql }
 escaped by a backslash or within a quoted string, and characters in
 embedded arithmetic expansions, command substitutions, and variable
 expansions, are not examined in determining the matching
-.Dq Li } .
+.Ql } .
 .Pp
 The simplest form for parameter expansion is:
-.Bd -literal -offset indent
-${parameter}
-.Ed
 .Pp
-The value, if any, of parameter is substituted.
+.D1 Li ${ Ns Ar parameter Ns Li }
+.Pp
+The value, if any, of
+.Ar parameter
+is substituted.
 .Pp
 The parameter name or symbol can be enclosed in braces, which are
 optional except for positional parameters with more than one digit or
@@ -1140,57 +1190,71 @@ expansion.
 .It
 Field splitting is not performed on the results of the
 expansion, with the exception of the special parameter
-.Li @ .
+.Va @ .
 .El
 .Pp
 In addition, a parameter expansion can be modified by using one of the
 following formats.
 .Bl -tag -width indent
-.It Li ${parameter:-word}
+.It Li ${ Ns Ar parameter Ns Li :- Ns Ar word Ns Li }
 Use Default Values.
-If parameter is unset or
-null, the expansion of word is
-substituted; otherwise, the value of
-parameter is substituted.
-.It Li ${parameter:=word}
+If
+.Ar parameter
+is unset or null, the expansion of
+.Ar word
+is substituted; otherwise, the value of
+.Ar parameter
+is substituted.
+.It Li ${ Ns Ar parameter Ns Li := Ns Ar word Ns Li }
 Assign Default Values.
-If parameter is unset
-or null, the expansion of word is
-assigned to parameter.
+If
+.Ar parameter
+is unset or null, the expansion of
+.Ar word
+is assigned to
+.Ar parameter .
 In all cases, the
-final value of parameter is
-substituted.
+final value of
+.Ar parameter
+is substituted.
 Only variables, not positional
 parameters or special parameters, can be
 assigned in this way.
-.It Li ${parameter:?[word]}
+.It Li ${ Ns Ar parameter Ns Li :? Ns Oo Ar word Oc Ns Li }
 Indicate Error if Null or Unset.
 If
-parameter is unset or null, the expansion of
-word (or a message indicating it is unset if
-word is omitted) is written to standard
+.Ar parameter
+is unset or null, the expansion of
+.Ar word
+(or a message indicating it is unset if
+.Ar word
+is omitted) is written to standard
 error and the shell exits with a nonzero
 exit status.
 Otherwise, the value of
-parameter is substituted.
+.Ar parameter
+is substituted.
 An
 interactive shell need not exit.
-.It Li ${parameter:+word}
+.It Li ${ Ns Ar parameter Ns Li :+ Ns Ar word Ns Li }
 Use Alternate Value.
-If parameter is unset
-or null, null is substituted;
-otherwise, the expansion of word is
-substituted.
+If
+.Ar parameter
+is unset or null, null is substituted;
+otherwise, the expansion of
+.Ar word
+is substituted.
 .El
 .Pp
 In the parameter expansions shown previously, use of the colon in the
 format results in a test for a parameter that is unset or null; omission
 of the colon results in a test for a parameter that is only unset.
 .Bl -tag -width indent
-.It Li ${#parameter}
+.It Li ${# Ns Ar parameter Ns Li }
 String Length.
 The length in characters of
-the value of parameter.
+the value of
+.Ar parameter .
 .El
 .Pp
 The following four varieties of parameter expansion provide for substring
@@ -1201,45 +1265,53 @@ In each case, pattern matching notation
 rather than regular expression notation,
 is used to evaluate the patterns.
 If parameter is one of the special parameters
-.Li *
+.Va *
 or
-.Li @ ,
+.Va @ ,
 the result of the expansion is unspecified.
 Enclosing the full parameter expansion string in double-quotes does not
 cause the following four varieties of pattern characters to be quoted,
 whereas quoting characters within the braces has this effect.
 .Bl -tag -width indent
-.It Li ${parameter%word}
+.It Li ${ Ns Ar parameter Ns Li % Ns Ar word Ns Li }
 Remove Smallest Suffix Pattern.
-The word
+The
+.Ar word
 is expanded to produce a pattern.
 The
 parameter expansion then results in
-parameter, with the smallest portion of the
+.Ar parameter ,
+with the smallest portion of the
 suffix matched by the pattern deleted.
-.It Li ${parameter%%word}
+.It Li ${ Ns Ar parameter Ns Li %% Ns Ar word Ns Li }
 Remove Largest Suffix Pattern.
-The word
+The
+.Ar word
 is expanded to produce a pattern.
 The
 parameter expansion then results in
-parameter, with the largest portion of the
+.Ar parameter ,
+with the largest portion of the
 suffix matched by the pattern deleted.
-.It Li ${parameter#word}
+.It Li ${ Ns Ar parameter Ns Li # Ns Ar word Ns Li }
 Remove Smallest Prefix Pattern.
-The word
+The
+.Ar word
 is expanded to produce a pattern.
 The
 parameter expansion then results in
-parameter, with the smallest portion of the
+.Ar parameter ,
+with the smallest portion of the
 prefix matched by the pattern deleted.
-.It Li ${parameter##word}
+.It Li ${ Ns Ar parameter Ns Li ## Ns Ar word Ns Li }
 Remove Largest Prefix Pattern.
-The word
+The
+.Ar word
 is expanded to produce a pattern.
 The
 parameter expansion then results in
-parameter, with the largest portion of the
+.Ar parameter ,
+with the largest portion of the
 prefix matched by the pattern deleted.
 .El
 .Ss Command Substitution
@@ -1247,14 +1319,12 @@ Command substitution allows the output of a command to be substituted in
 place of the command name itself.
 Command substitution occurs when
 the command is enclosed as follows:
-.Bd -literal -offset indent
-$(command)
-.Ed
+.Pp
+.D1 Li $( Ns Ar command Ns Li )\&
 .Pp
 or the backquoted version:
-.Bd -literal -offset indent
-`command`
-.Ed
+.Pp
+.D1 Li ` Ns Ar command Ns Li `
 .Pp
 The shell expands the command substitution by executing command in a
 subshell environment and replacing the command substitution
@@ -1263,20 +1333,23 @@ removing sequences of one or more newlines at the end of the substitution.
 Embedded newlines before the end of the output are not removed;
 however, during field splitting, they may be translated into spaces
 depending on the value of
-.Ev IFS
+.Va IFS
 and the quoting that is in effect.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
 The format for arithmetic expansion is as follows:
-.Bd -literal -offset indent
-$((expression))
-.Ed
 .Pp
-The expression is treated as if it were in double-quotes, except
+.D1 Li $(( Ns Ar expression Ns Li ))
+.Pp
+The
+.Ar expression
+is treated as if it were in double-quotes, except
 that a double-quote inside the expression is not treated specially.
 The
-shell expands all tokens in the expression for parameter expansion,
+shell expands all tokens in the
+.Ar expression
+for parameter expansion,
 command substitution, and quote removal.
 .Pp
 Next, the shell treats this as an arithmetic expression and
@@ -1288,8 +1361,8 @@ expansions and substitutions that did not occur in double-quotes for
 field splitting and multiple fields can result.
 .Pp
 The shell treats each character of the
-.Ev IFS
-as a delimiter and uses
+.Va IFS
+variable as a delimiter and uses
 the delimiters to split the results of parameter expansion and command
 substitution into fields.
 .Ss Pathname Expansion (File Name Generation)
@@ -1316,11 +1389,11 @@ command.
 A pattern consists of normal characters, which match themselves,
 and meta-characters.
 The meta-characters are
-.Dq Li \&! ,
-.Dq Li * ,
-.Dq Li \&? ,
+.Ql \&! ,
+.Ql * ,
+.Ql \&? ,
 and
-.Dq Li [ .
+.Ql \&[ .
 These characters lose their special meanings if they are quoted.
 When command or variable substitution is performed and the dollar sign
 or back quotes are not double-quoted, the value of the
@@ -1334,16 +1407,16 @@ A question mark
 .Pq Ql \&?
 matches any single character.
 A left bracket
-.Pq Ql [
+.Pq Ql \&[
 introduces a character class.
 The end of the character class is indicated by a
-.Dq Li \&] ;
+.Ql \&] ;
 if the
-.Dq Li \&]
+.Ql \&]
 is missing then the
-.Dq Li [
+.Ql \&[
 matches a
-.Dq Li [
+.Ql \&[
 rather than introducing a character class.
 A character class matches any of the characters between the square brackets.
 A range of characters may be specified using a minus sign.
@@ -1352,13 +1425,13 @@ The character class may be complemented by making an exclamation point
 the first character of the character class.
 .Pp
 To include a
-.Dq Li \&]
+.Ql \&]
 in a character class, make it the first character listed
 (after the
-.Dq Li \&! ,
+.Ql \&! ,
 if any).
 To include a
-.Dq Li - ,
+.Ql - ,
 make it the first or last character listed.
 .Ss Built-in Commands
 This section lists the commands which
@@ -1380,7 +1453,7 @@ command's caller.
 If
 .Ar file
 contains any
-.Dq /
+.Ql /
 characters, it is used as is.
 Otherwise, the shell searches the
 .Ev PATH
@@ -1449,7 +1522,7 @@ If
 .Ev CDPATH
 is unset, the current directory is searched.
 The format of
-.Ar CDPATH
+.Ev CDPATH
 is the same as that of
 .Ev PATH .
 In an interactive shell,
@@ -1522,7 +1595,7 @@ a shell function,
 a shell keyword
 or
 an alias for
-. Ar value .
+.Ar value .
 .It Ic echo Oo Fl e | n Oc Op Ar string ...
 Print a space-separated list of the arguments to the standard output
 and append a newline character.
@@ -1531,8 +1604,9 @@ and append a newline character.
 Suppress the output of the trailing newline.
 .It Fl e
 Process C-style backslash escape sequences.
+The
 .Ic echo
-understands the following character escapes:
+command understands the following character escapes:
 .Bl -tag -width indent
 .It \ea
 Alert (ring the terminal bell)
@@ -1542,7 +1616,9 @@ Backspace
 Suppress the trailing newline (this has the side-effect of truncating the
 line if it is not the last character)
 .It \ee
-The ESC character (ASCII 0x1b)
+The ESC character
+.Tn ( ASCII
+0x1b)
 .It \ef
 Formfeed
 .It \en
@@ -1556,7 +1632,8 @@ Vertical tab
 .It \e\e
 Literal backslash
 .It \e0nnn
-(Zero) The character whose octal value is nnn
+(Zero) The character whose octal value is
+.Ar nnn
 .El
 .Pp
 If
@@ -1614,11 +1691,12 @@ The only way to un-export a variable is to
 it.
 The shell allows the value of a variable to be set
 at the same time as it is exported by writing
-.Bd -literal -offset indent
-export name=value
-.Ed
 .Pp
-With no arguments the export command lists the names
+.D1 Ic export Ar name Ns = Ns Ar value
+.Pp
+With no arguments the
+.Ic export
+command lists the names
 of all exported variables.
 If the
 .Fl p
@@ -1639,7 +1717,9 @@ commands previously entered to an interactive shell.
 Use the editor named by
 .Ar editor
 to edit the commands.
-The editor string is a command name,
+The
+.Ar editor
+string is a command name,
 subject to search via the
 .Ev PATH
 variable.
@@ -1662,8 +1742,11 @@ is used as the editor.
 List the commands rather than invoking
 an editor on them.
 The commands are written in the
-sequence indicated by the first and last operands, as
-affected by
+sequence indicated by the
+.Ar first
+and
+.Ar last
+operands, as affected by
 .Fl r ,
 with each command preceded by the command number.
 .It Fl n
@@ -1693,23 +1776,23 @@ or
 .Ar last
 or both are one of the following:
 .Bl -tag -width indent
-.It Ar [+]num
+.It Oo Cm + Oc Ns Ar num
 A positive number representing a command number;
 command numbers can be displayed with the
 .Fl l
 option.
-.It Ar -num
+.It Fl Ar num
 A negative decimal number representing the
 command that was executed
 .Ar num
 of
 commands previously.
-For example, -1 is the immediately previous command.
+For example, \-1 is the immediately previous command.
 .It Ar string
 A string indicating the most recently entered command
 that begins with that string.
 If the
-.Ar old=new
+.Ar old Ns = Ns Ar new
 operand is not also specified with
 .Fl s ,
 the string form of the first operand cannot contain an embedded equal sign.
@@ -1728,8 +1811,9 @@ The number of previous commands that are accessible.
 Move the specified
 .Ar job
 or the current job to the foreground.
-.It Ic getopts Ar optstring Ar var
-The POSIX
+.It Ic getopts Ar optstring var
+The
+.Tn POSIX
 .Ic getopts
 command.
 The
@@ -1742,13 +1826,13 @@ followed by a colon which indicates that the option takes an argument.
 The specified variable is set to the parsed option.
 The index of
 the next argument is placed into the shell variable
-.Ev OPTIND .
+.Va OPTIND .
 If an option takes an argument, it is placed into the shell variable
-.Ev OPTARG .
+.Va OPTARG .
 If an invalid option is encountered,
-.Ev var
+.Ar var
 is set to
-.Dq Li \&? .
+.Ql \&? .
 It returns a false value (1) when it encounters the end of the options.
 .It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
@@ -1776,7 +1860,7 @@ option causes the
 .Ic hash
 command to delete all the entries in the hash table except for functions.
 .It Ic jobid Op Ar job
-Print the process id's of the processes in the specified
+Print the process IDs of the processes in the specified
 .Ar job .
 If the
 .Ar job
@@ -1824,7 +1908,8 @@ If the
 option is specified, the shell's notion of the current directory
 is printed (symbolic links are not resolved).
 This is the default.
-.It Ic read Oo Fl p Ar prompt Oc Oo Fl t Ar timeout Oc Oo Fl er Oc Ar variable ...
+.It Ic read Oo Fl p Ar prompt Oc Oo
+.Fl t Ar timeout Oc Oo Fl er Oc Ar variable ...
 The
 .Ar prompt
 is printed if the
@@ -1841,7 +1926,7 @@ above, and
 the pieces are assigned to the variables in order.
 If there are more pieces than variables, the remaining
 pieces (along with the characters in
-.Ev IFS
+.Va IFS
 that separated them)
 are assigned to the last variable.
 If there are more variables than pieces, the remaining
@@ -1857,7 +1942,7 @@ deleted.
 If a backslash is followed by any other
 character, the backslash will be deleted and the following
 character will be treated as though it were not in
-.Ev IFS ,
+.Va IFS ,
 even if it is.
 .Pp
 If the
@@ -1871,13 +1956,13 @@ command will return an exit status of 1 without assigning any values.
 The
 .Ar timeout
 value may optionally be followed by one of
-.Dq s ,
-.Dq m
+.Ql s ,
+.Ql m
 or
-.Dq h
+.Ql h
 to explicitly specify seconds, minutes or hours.
 If none is supplied,
-.Dq s
+.Ql s
 is assumed.
 .Pp
 The
@@ -1891,9 +1976,8 @@ so that it cannot be subsequently modified or unset.
 The shell allows the value of a variable to be set
 at the same time as it is marked read only
 by using the following form:
-.Bd -literal -offset indent
-readonly name=value
-.Ed
+.Pp
+.D1 Ic readonly Ar name Ns = Ns Ar value
 .Pp
 With no arguments the
 .Ic readonly
@@ -1934,7 +2018,7 @@ If no arguments follow the
 option,
 all the positional parameters will be cleared,
 which is equivalent to executing the command
-.Dq Li shift $# .
+.Dq Li "shift $#" .
 The
 .Dq Fl -
 flag may be omitted when specifying arguments to be used
@@ -1948,18 +2032,17 @@ which the
 .Ic set
 command will interpret as a request to enable or disable options.
 .El
-.It Ic setvar Ar variable Ar value
+.It Ic setvar Ar variable value
 Assigns the specified
 .Ar value
 to the specified
 .Ar variable .
-.Ic Setvar
-is intended to be used in functions that
+The
+.Ic setvar
+command is intended to be used in functions that
 assign values to variables whose names are passed as parameters.
 In general it is better to write
-.Bd -literal -offset indent
-variable=value
-.Ed
+.Dq Ar variable Ns = Ns Ar value
 rather than using
 .Ic setvar .
 .It Ic shift Op Ar n
@@ -1968,9 +2051,18 @@ Shift the positional parameters
 times, or once if
 .Ar n
 is not specified.
-A shift sets the value of $1 to the value of $2,
-the value of $2 to the value of $3, and so on,
-decreasing the value of $# by one.
+A shift sets the value of
+.Li $1
+to the value of
+.Li $2 ,
+the value of
+.Li $2
+to the value of
+.Li $3 ,
+and so on,
+decreasing the value of
+.Li $#
+by one.
 If there are zero positional parameters, shifting does not do anything.
 .It Ic test
 A built-in equivalent of
@@ -1990,7 +2082,9 @@ is received.
 The signals are specified by name or number.
 In addition, the pseudo-signal
 .Cm EXIT
-may be used to specify an action that is performed when the shell terminates.
+may be used to specify an
+.Ar action
+that is performed when the shell terminates.
 The
 .Ar action
 may be an empty string or a dash
@@ -2132,17 +2226,27 @@ and the command history
 .Ic fc
 in
 .Sx Built-in Commands )
-can be edited using vi-mode command line editing.
+can be edited using
+.Nm vi Ns -mode
+command line editing.
 This mode uses commands similar
-to a subset of those described in the vi man page.
+to a subset of those described in the
+.Xr vi 1
+man page.
 The command
-.Dq Li set -o vi
+.Dq Li "set -o vi"
 (or
-.Dq Li set -V )
-enables vi-mode editing and places
+.Dq Li "set -V" )
+enables
+.Nm vi Ns -mode
+editing and places
 .Nm
-into vi insert mode.
-With vi-mode enabled,
+into
+.Nm vi
+insert mode.
+With
+.Nm vi Ns -mode
+enabled,
 .Nm
 can be switched between insert mode and command mode by typing
 .Aq ESC .
@@ -2151,11 +2255,12 @@ Hitting
 while in command mode will pass the line to the shell.
 .Pp
 Similarly, the
-.Dq Li set -o emacs
+.Dq Li "set -o emacs"
 (or
-.Dq Li set -E )
+.Dq Li "set -E" )
 command can be used to enable a subset of
-emacs-style command line editing features.
+.Nm emacs Ns -style
+command line editing features.
 .Sh ENVIRONMENT
 The following environment variables affect the execution of
 .Nm :
@@ -2233,7 +2338,9 @@ cause the shell to exit with a non-zero exit status.
 If the shell is not an interactive shell, the execution of the shell
 file will be aborted.
 Otherwise the shell will return the exit status of the last command
-executed, or if the exit builtin is used with a numeric argument, it
+executed, or if the
+.Ic exit
+builtin is used with a numeric argument, it
 will return the argument.
 .Sh SEE ALSO
 .Xr builtin 1 ,
