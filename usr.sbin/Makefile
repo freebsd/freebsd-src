@@ -8,6 +8,7 @@ SUBDIR=	ac \
 	accton \
 	${_acpi} \
 	adduser \
+	amd \
 	ancontrol \
 	${_apm} \
 	${_apmd} \
