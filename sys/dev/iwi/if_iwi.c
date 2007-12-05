@@ -3327,15 +3327,15 @@ iwi_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	struct iwi_softc *sc = arg1;
 	uint32_t size, buf[128];
 
-	if (!(sc->flags & IWI_FLAG_FW_INITED)) {
-		memset(buf, 0, sizeof buf);
+	memset(buf, 0, sizeof buf);
+
+	if (!(sc->flags & IWI_FLAG_FW_INITED))
 		return SYSCTL_OUT(req, buf, sizeof buf);
-	}
 
 	size = min(CSR_READ_4(sc, IWI_CSR_TABLE0_SIZE), 128 - 1);
 	CSR_READ_REGION_4(sc, IWI_CSR_TABLE0_BASE, &buf[1], size);
 
-	return SYSCTL_OUT(req, buf, sizeof buf);
+	return SYSCTL_OUT(req, buf, size);
 }
 
 static int
