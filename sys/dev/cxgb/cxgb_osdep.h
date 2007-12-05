@@ -38,14 +38,25 @@ $FreeBSD$
 
 #include <dev/mii/mii.h>
 
+#ifdef CONFIG_DEFINED
+#include <common/cxgb_version.h>
+#include <cxgb_config.h>
+#else
 #include <dev/cxgb/common/cxgb_version.h>
 #include <dev/cxgb/cxgb_config.h>
+#endif
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
 
 typedef struct adapter adapter_t;
 struct sge_rspq;
+
+struct t3_mbuf_hdr {
+	struct mbuf *mh_head;
+	struct mbuf *mh_tail;
+};
+
 
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
@@ -70,15 +81,12 @@ struct sge_rspq;
 #define TSO_SUPPORTED
 #define VLAN_SUPPORTED
 #define TASKQUEUE_CURRENT
+#else
+#define if_name(ifp) (ifp)->if_xname
+#define M_SANITY(m, n)
 #endif
 
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
-
-#if defined(INVARIANTS) && (__FreeBSD_version > 700000)
-#define M_SANITY m_sanity
-#else
-#define M_SANITY(a, b)
-#endif
 
 /*
  * Workaround for weird Chelsio issue
@@ -101,8 +109,16 @@ struct sge_rspq;
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
-#define TX_START_MAX_DESC (TX_MAX_DESC << 2)    /* maximum number of descriptors
+
+#define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
+
+#if 0
+#define TX_START_MAX_DESC (TX_ETH_Q_SIZE >> 2)  /* maximum number of descriptors */
+#endif
+
+#define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
+
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
 
@@ -113,7 +129,7 @@ struct sge_rspq;
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
 
-#define L1_CACHE_BYTES 32
+#define L1_CACHE_BYTES 64
 static __inline
 void prefetch(void *x) 
 { 
@@ -168,9 +184,6 @@ static const int debug_flags = DBG_RX;
 #define cpu_to_be32            htobe32
 
 
-#ifndef if_name
-#define if_name(ifp)  (ifp)->if_xname
-#endif
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
