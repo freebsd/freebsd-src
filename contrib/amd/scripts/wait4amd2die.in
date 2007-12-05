@@ -4,7 +4,7 @@
 # If not specified, delay=5 seconds and count=6 (total 30 seconds)
 # If at end of total delay amd is till up, return 1; else return 0.
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 
 #set -x
@@ -20,14 +20,14 @@ if test -n "$1"
 then
 	delay=$1
 else
-	delay=5
+	delay=3
 fi
 # how many times to delay
 if test -n "$2"
 then
 	count=$2
 else
-	count=6
+	count=10
 fi
 
 i=1

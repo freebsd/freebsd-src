@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_nfsx.c,v 1.3.2.5 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_nfsx.c
  *
  */
 
@@ -67,13 +66,13 @@ struct amfs_nfsx {
   int nx_c;			/* Number of elements in nx_v */
   amfs_nfsx_mnt *nx_v;		/* Underlying mounts */
   amfs_nfsx_mnt *nx_try;
+  am_node *nx_mp;
 };
 
 /* forward definitions */
 static char *amfs_nfsx_match(am_opts *fo);
-static int amfs_nfsx_fmount (mntfs *);
-static int amfs_nfsx_fmount(mntfs *mf);
-static int amfs_nfsx_fumount(mntfs *mf);
+static int amfs_nfsx_mount(am_node *am, mntfs *mf);
+static int amfs_nfsx_umount(am_node *am, mntfs *mf);
 static int amfs_nfsx_init(mntfs *mf);
 
 /*
@@ -84,17 +83,20 @@ am_ops amfs_nfsx_ops =
   "nfsx",
   amfs_nfsx_match,
   amfs_nfsx_init,
-  amfs_auto_fmount,
-  amfs_nfsx_fmount,
-  amfs_auto_fumount,
-  amfs_nfsx_fumount,
-  amfs_error_lookuppn,
+  amfs_nfsx_mount,
+  amfs_nfsx_umount,
+  amfs_error_lookup_child,
+  amfs_error_mount_child,
   amfs_error_readdir,
   0,				/* amfs_nfsx_readlink */
   0,				/* amfs_nfsx_mounted */
   0,				/* amfs_nfsx_umounted */
   find_nfs_srvr,		/* XXX */
-	/* FS_UBACKGROUND| */ FS_AMQINFO
+  0,				/* amfs_nfsx_get_wchan */
+  /* FS_UBACKGROUND| */ FS_AMQINFO,	/* nfs_fs_flags */
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_NFSX_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -118,7 +120,7 @@ amfs_nfsx_match(am_opts *fo)
   /* set default sublink */
   if (fo->opt_sublink == 0) {
     ptr = strchr(fo->opt_rfs, ',');
-    if (ptr && ptr != (fo->opt_rfs + 1))
+    if (ptr && ptr > (fo->opt_rfs + 1))
       fo->opt_sublink = strnsave(fo->opt_rfs + 1, ptr - fo->opt_rfs - 1);
   }
 
@@ -148,17 +150,15 @@ amfs_nfsx_match(am_opts *fo)
    * Determine magic cookie to put in mtab
    */
   xmtab = str3cat((char *) 0, fo->opt_rhost, ":", fo->opt_rfs);
-#ifdef DEBUG
   dlog("NFSX: mounting remote server \"%s\", remote fs \"%s\" on \"%s\"",
        fo->opt_rhost, fo->opt_rfs, fo->opt_fs);
-#endif /* DEBUG */
 
   return xmtab;
 }
 
 
 static void
-amfs_nfsx_prfree(voidp vp)
+amfs_nfsx_prfree(opaque_t vp)
 {
   struct amfs_nfsx *nx = (struct amfs_nfsx *) vp;
   int i;
@@ -201,7 +201,7 @@ amfs_nfsx_init(mntfs *mf)
       error = EINVAL;
       goto errexit;
     }
-    pref = host +1;
+    pref = host + 1;
     host = info;
 
     /*
@@ -212,14 +212,16 @@ amfs_nfsx_init(mntfs *mf)
     /*
      * Count array size
      */
-    for (i = 0; ivec[i]; i++) ;
+    for (i = 0; ivec[i]; i++)
+      /* nothing */;
 
     nx = ALLOC(struct amfs_nfsx);
-    mf->mf_private = (voidp) nx;
+    mf->mf_private = (opaque_t) nx;
     mf->mf_prfree = amfs_nfsx_prfree;
 
     nx->nx_c = i - 1;		/* i-1 because we don't want the prefix */
     nx->nx_v = (amfs_nfsx_mnt *) xmalloc(nx->nx_c * sizeof(amfs_nfsx_mnt));
+    nx->nx_mp = 0;
     {
       char *mp = 0;
       char *xinfo = 0;
@@ -243,11 +245,11 @@ amfs_nfsx_init(mntfs *mf)
 	normalize_slash(xinfo);
 	if (pref[1] != '\0')
 	  deslashify(xinfo);
-#ifdef DEBUG
 	dlog("amfs_nfsx: init mount for %s on %s", xinfo, mp);
-#endif /* DEBUG */
 	nx->nx_v[i].n_error = -1;
 	nx->nx_v[i].n_mnt = find_mntfs(&nfs_ops, mf->mf_fo, mp, xinfo, "", mf->mf_mopts, mf->mf_remopts);
+	/* propagate the on_autofs flag */
+	nx->nx_v[i].n_mnt->mf_flags |= mf->mf_flags & MFF_ON_AUTOFS;
       }
       if (rfs)
 	XFREE(rfs);
@@ -274,7 +276,9 @@ amfs_nfsx_init(mntfs *mf)
   for (i = 0; i < nx->nx_c; i++) {
     amfs_nfsx_mnt *n = &nx->nx_v[i];
     mntfs *m = n->n_mnt;
-    int error = (*m->mf_ops->fs_init) (m);
+    int error = 0;
+    if (m->mf_ops->fs_init && !(mf->mf_flags & MFF_RESTART))
+      error = m->mf_ops->fs_init(m);
     /*
      * if you just "return error" here, you will have made a failure
      * in any submounts to fail the whole group.  There was old unused code
@@ -287,7 +291,7 @@ amfs_nfsx_init(mntfs *mf)
       glob_error = -1;
       if (!asked_for_wakeup) {
 	asked_for_wakeup = 1;
-	sched_task(wakeup_task, (voidp) mf, (voidp) m);
+	sched_task(wakeup_task, (opaque_t) mf, get_mntfs_wchan(m));
       }
     }
   }
@@ -297,10 +301,11 @@ amfs_nfsx_init(mntfs *mf)
 
 
 static void
-amfs_nfsx_cont(int rc, int term, voidp closure)
+amfs_nfsx_cont(int rc, int term, opaque_t arg)
 {
-  mntfs *mf = (mntfs *) closure;
+  mntfs *mf = (mntfs *) arg;
   struct amfs_nfsx *nx = (struct amfs_nfsx *) mf->mf_private;
+  am_node *mp = nx->nx_mp;
   amfs_nfsx_mnt *n = nx->nx_try;
 
   n->n_mnt->mf_flags &= ~(MFF_ERROR | MFF_MOUNTING);
@@ -309,7 +314,7 @@ amfs_nfsx_cont(int rc, int term, voidp closure)
   /*
    * Wakeup anything waiting for this mount
    */
-  wakeup((voidp) n->n_mnt);
+  wakeup(get_mntfs_wchan(n->n_mnt));
 
   if (rc || term) {
     if (term) {
@@ -334,52 +339,41 @@ amfs_nfsx_cont(int rc, int term, voidp closure)
     /*
      * The mount worked.
      */
-    mf_mounted(n->n_mnt);
+    mf_mounted(n->n_mnt, FALSE); /* FALSE => don't free the n_mnt->am_opts */
     n->n_error = 0;
   }
 
   /*
    * Do the remaining bits
    */
-  if (amfs_nfsx_fmount(mf) >= 0) {
-    wakeup((voidp) mf);
-    mf->mf_flags &= ~MFF_MOUNTING;
-    mf_mounted(mf);
-  }
+  if (amfs_nfsx_mount(mp, mf) >= 0)
+    wakeup(get_mntfs_wchan(mf));
 }
 
 
 static int
-try_amfs_nfsx_mount(voidp mv)
+try_amfs_nfsx_mount(opaque_t mv)
 {
   mntfs *mf = (mntfs *) mv;
+  struct amfs_nfsx *nx = (struct amfs_nfsx *) mf->mf_private;
+  am_node *mp = nx->nx_mp;
   int error;
 
-  mf->mf_flags |= MFF_MOUNTING;
-  error = (*mf->mf_ops->fmount_fs) (mf);
-  mf->mf_flags &= ~MFF_MOUNTING;
+  error = mf->mf_ops->mount_fs(mp, mf);
 
   return error;
 }
 
 
 static int
-amfs_nfsx_remount(mntfs *mf, int fg)
+amfs_nfsx_remount(am_node *am, mntfs *mf, int fg)
 {
   struct amfs_nfsx *nx = (struct amfs_nfsx *) mf->mf_private;
   amfs_nfsx_mnt *n;
   int glob_error = -1;
 
-  for (n = nx->nx_v; n < nx->nx_v + nx->nx_c; n++) {
-    mntfs *m = n->n_mnt;
-    if (n->n_error < 0) {
-      if (!(m->mf_flags & MFF_MKMNT) && m->mf_ops->fs_flags & FS_MKMNT) {
-	int error = mkdirs(m->mf_mount, 0555);
-	if (!error)
-	  m->mf_flags |= MFF_MKMNT;
-      }
-    }
-  }
+  /* Save the am_node pointer for later use */
+  nx->nx_mp = am;
 
   /*
    * Iterate through the mntfs's and mount each filesystem
@@ -387,40 +381,38 @@ amfs_nfsx_remount(mntfs *mf, int fg)
    */
   for (n = nx->nx_v; n < nx->nx_v + nx->nx_c; n++) {
     mntfs *m = n->n_mnt;
+
+    if (m->mf_flags & MFF_MOUNTING)
+      break;
+
+    if (m->mf_flags & MFF_MOUNTED) {
+      mf_mounted(m, FALSE);	/* FALSE => don't free the m->am_opts */
+      n->n_error = glob_error = 0;
+      continue;
+    }
+
     if (n->n_error < 0) {
-      /*
-       * Check fmount entry pt. exists
-       * and then mount...
-       */
-      if (!m->mf_ops->fmount_fs) {
-	n->n_error = EINVAL;
-      } else {
-#ifdef DEBUG
-	dlog("calling underlying fmount on %s", m->mf_mount);
-#endif /* DEBUG */
-	if (!fg && foreground && (m->mf_ops->fs_flags & FS_MBACKGROUND)) {
-	  m->mf_flags |= MFF_MOUNTING;	/* XXX */
-#ifdef DEBUG
-	  dlog("backgrounding mount of \"%s\"", m->mf_info);
-#endif /* DEBUG */
-	  nx->nx_try = n;
-	  run_task(try_amfs_nfsx_mount, (voidp) m, amfs_nfsx_cont, (voidp) mf);
-	  n->n_error = -1;
-	  return -1;
-	} else {
-#ifdef DEBUG
-	  dlog("foreground mount of \"%s\" ...", mf->mf_info);
-#endif /* DEBUG */
-	  n->n_error = (*m->mf_ops->fmount_fs) (m);
-	}
+      /* Create the mountpoint, if and as required */
+      if (!(m->mf_flags & MFF_MKMNT) && m->mf_fsflags & FS_MKMNT) {
+	if (!mkdirs(m->mf_mount, 0555))
+	  m->mf_flags |= MFF_MKMNT;
       }
 
-#ifdef DEBUG
-      if (n->n_error > 0) {
-	errno = n->n_error;	/* XXX */
-	dlog("underlying fmount of %s failed: %m", m->mf_mount);
+      dlog("calling underlying mount on %s", m->mf_mount);
+      if (!fg && foreground && (m->mf_fsflags & FS_MBACKGROUND)) {
+	m->mf_flags |= MFF_MOUNTING;
+	dlog("backgrounding mount of \"%s\"", m->mf_info);
+	nx->nx_try = n;
+	run_task(try_amfs_nfsx_mount, (opaque_t) m, amfs_nfsx_cont, (opaque_t) mf);
+	n->n_error = -1;
+	return -1;
+      } else {
+	dlog("foreground mount of \"%s\" ...", mf->mf_info);
+	n->n_error = m->mf_ops->mount_fs(am, m);
       }
-#endif /* DEBUG */
+
+      if (n->n_error > 0)
+	dlog("underlying fmount of %s failed: %s", m->mf_mount, strerror(n->n_error));
 
       if (n->n_error == 0) {
 	glob_error = 0;
@@ -435,9 +427,9 @@ amfs_nfsx_remount(mntfs *mf, int fg)
 
 
 static int
-amfs_nfsx_fmount(mntfs *mf)
+amfs_nfsx_mount(am_node *am, mntfs *mf)
 {
-  return amfs_nfsx_remount(mf, FALSE);
+  return amfs_nfsx_remount(am, mf, FALSE);
 }
 
 
@@ -447,7 +439,7 @@ amfs_nfsx_fmount(mntfs *mf)
  * and so may hang under extremely rare conditions.
  */
 static int
-amfs_nfsx_fumount(mntfs *mf)
+amfs_nfsx_umount(am_node *am, mntfs *mf)
 {
   struct amfs_nfsx *nx = (struct amfs_nfsx *) mf->mf_private;
   amfs_nfsx_mnt *n;
@@ -469,10 +461,8 @@ amfs_nfsx_fumount(mntfs *mf)
      * which had been successfully unmounted.
      */
     if (n->n_error == 0) {
-#ifdef DEBUG
       dlog("calling underlying fumount on %s", m->mf_mount);
-#endif /* DEBUG */
-      n->n_error = (*m->mf_ops->fumount_fs) (m);
+      n->n_error = m->mf_ops->umount_fs(am, m);
       if (n->n_error) {
 	glob_error = n->n_error;
 	n->n_error = 0;
@@ -490,7 +480,7 @@ amfs_nfsx_fumount(mntfs *mf)
    * whole lot...
    */
   if (glob_error) {
-    glob_error = amfs_nfsx_remount(mf, TRUE);
+    glob_error = amfs_nfsx_remount(am, mf, TRUE);
     if (glob_error) {
       errno = glob_error;	/* XXX */
       plog(XLOG_USER, "amfs_nfsx: remount of %s failed: %m", mf->mf_mount);
@@ -502,22 +492,12 @@ amfs_nfsx_fumount(mntfs *mf)
      */
     for (n = nx->nx_v; n < nx->nx_v + nx->nx_c; n++) {
       mntfs *m = n->n_mnt;
-      am_node am;
-
-      /*
-       * XXX: all the umounted handler needs is a
-       * mntfs pointer, so pass an am_node with the right
-       * pointer in it.
-       */
-      memset((voidp) &am, 0, sizeof(am));
-      am.am_mnt = m;
-#ifdef DEBUG
       dlog("calling underlying umounted on %s", m->mf_mount);
-#endif /* DEBUG */
-      (*m->mf_ops->umounted) (&am);
+      if (m->mf_ops->umounted)
+	m->mf_ops->umounted(m);
 
       if (n->n_error < 0) {
-	if (m->mf_ops->fs_flags & FS_MKMNT) {
+	if (m->mf_fsflags & FS_MKMNT) {
 	  (void) rmdirs(m->mf_mount);
 	  m->mf_flags &= ~MFF_MKMNT;
 	}

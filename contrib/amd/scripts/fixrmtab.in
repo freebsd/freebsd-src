@@ -5,7 +5,7 @@
 #
 # usage: fixrmtab host1 host2 ...
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Andreas Stolcke <stolcke@icsi.berkeley.edu>
 
 #set -x
