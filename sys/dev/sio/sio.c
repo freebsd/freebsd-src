@@ -2443,7 +2443,7 @@ sio_cnprobe(cp)
 				continue;
 			iobase = port;
 			s = spltty();
-			if (boothowto & RB_SERIAL) {
+			if ((boothowto & RB_SERIAL) && COM_CONSOLE(flags)) {
 				boot_speed =
 				    siocngetspeed(iobase, comdefaultrclk);
 				if (boot_speed)
