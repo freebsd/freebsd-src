@@ -550,9 +550,11 @@ mb_reclaim(void *junk)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK | WARN_PANIC, NULL,
 	    "mb_reclaim()");
 
+	NET_LOCK_GIANT();
 	mbstat.m_drain++;
 	for (dp = domains; dp != NULL; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_drain != NULL)
 				(*pr->pr_drain)();
+	NET_UNLOCK_GIANT();
 }
