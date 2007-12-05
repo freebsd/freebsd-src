@@ -718,12 +718,12 @@ vnlru_proc(void)
 	struct mount *mp, *nmp;
 	int done;
 	struct proc *p = vnlruproc;
-	struct thread *td = FIRST_THREAD_IN_PROC(p);
-
-	mtx_lock(&Giant);
+	struct thread *td = curthread;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_FIRST);
+
+	mtx_lock(&Giant);
 
 	for (;;) {
 		kproc_suspend_check(p);
@@ -1611,16 +1611,42 @@ static struct kproc_desc up_kp = {
 SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 
 static int
-sync_vnode(struct bufobj *bo, struct thread *td)
+sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 {
 	struct vnode *vp;
 	struct mount *mp;
+	int vfslocked;
 
-	vp = bo->__bo_vnode;	/* XXX */
-	if (VOP_ISLOCKED(vp, NULL) != 0)
+	vfslocked = 0;
+restart:
+	*bo = LIST_FIRST(slp);
+	if (*bo == NULL) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (0);
+	}
+	vp = (*bo)->__bo_vnode;	/* XXX */
+	if (VFS_NEEDSGIANT(vp->v_mount)) {
+		if (!vfslocked) {
+			vfslocked = 1;
+			if (mtx_trylock(&Giant) == 0) {
+				mtx_unlock(&sync_mtx);
+				mtx_lock(&Giant);
+				mtx_lock(&sync_mtx);
+				goto restart;
+			}
+		}
+	} else {
+		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = 0;
+	}
+	if (VOP_ISLOCKED(vp, NULL) != 0) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (1);
-	if (VI_TRYLOCK(vp) == 0)
+	}
+	if (VI_TRYLOCK(vp) == 0) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (1);
+	}
 	/*
 	 * We use vhold in case the vnode does not
 	 * successfully sync.  vhold prevents the vnode from
@@ -1632,6 +1658,7 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	VI_UNLOCK(vp);
 	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
 		vdrop(vp);
+		VFS_UNLOCK_GIANT(vfslocked);
 		mtx_lock(&sync_mtx);
 		return (1);
 	}
@@ -1640,16 +1667,17 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	VI_LOCK(vp);
-	if ((bo->bo_flag & BO_ONWORKLST) != 0) {
+	if (((*bo)->bo_flag & BO_ONWORKLST) != 0) {
 		/*
 		 * Put us back on the worklist.  The worklist
 		 * routine will remove us from our current
 		 * position and then add us back in at a later
 		 * position.
 		 */
-		vn_syncer_add_to_worklist(bo, syncdelay);
+		vn_syncer_add_to_worklist(*bo, syncdelay);
 	}
 	vdropl(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	mtx_lock(&sync_mtx);
 	return (0);
 }
@@ -1664,7 +1692,7 @@ sched_sync(void)
 	struct synclist *slp;
 	struct bufobj *bo;
 	long starttime;
-	struct thread *td = FIRST_THREAD_IN_PROC(updateproc);
+	struct thread *td = curthread;
 	static int dummychan;
 	int last_work_seen;
 	int net_worklist_len;
@@ -1672,7 +1700,6 @@ sched_sync(void)
 	int first_printf;
 	int error;
 
-	mtx_lock(&Giant);
 	last_work_seen = 0;
 	syncer_final_iter = 0;
 	first_printf = 1;
@@ -1739,8 +1766,8 @@ sched_sync(void)
 			last_work_seen = syncer_delayno;
 		if (net_worklist_len > 0 && syncer_state == SYNCER_FINAL_DELAY)
 			syncer_state = SYNCER_SHUTTING_DOWN;
-		while ((bo = LIST_FIRST(slp)) != NULL) {
-			error = sync_vnode(bo, td);
+		while (!LIST_EMPTY(slp)) {
+			error = sync_vnode(slp, &bo, td);
 			if (error == 1) {
 				LIST_REMOVE(bo, bo_synclist);
 				LIST_INSERT_HEAD(next, bo, bo_synclist);
@@ -1795,7 +1822,6 @@ speedup_syncer(void)
 	int ret = 0;
 
 	td = FIRST_THREAD_IN_PROC(updateproc);
-	sleepq_remove(td, &lbolt);
 	mtx_lock(&sync_mtx);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
@@ -1803,6 +1829,7 @@ speedup_syncer(void)
 		ret = 1;
 	}
 	mtx_unlock(&sync_mtx);
+	sleepq_remove(td, &lbolt);
 	return (ret);
 }
 
@@ -1818,11 +1845,11 @@ syncer_shutdown(void *arg, int howto)
 	if (howto & RB_NOSYNC)
 		return;
 	td = FIRST_THREAD_IN_PROC(updateproc);
-	sleepq_remove(td, &lbolt);
 	mtx_lock(&sync_mtx);
 	syncer_state = SYNCER_SHUTTING_DOWN;
 	rushjob = 0;
 	mtx_unlock(&sync_mtx);
+	sleepq_remove(td, &lbolt);
 	kproc_shutdown(arg, howto);
 }
 
