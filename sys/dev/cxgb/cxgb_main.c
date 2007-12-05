@@ -224,7 +224,8 @@ enum {
 	MIN_TXQ_ENTRIES      = 4,
 	MIN_CTRL_TXQ_ENTRIES = 4,
 	MIN_RSPQ_ENTRIES     = 32,
-	MIN_FL_ENTRIES       = 32
+	MIN_FL_ENTRIES       = 32,
+	MIN_FL_JUMBO_ENTRIES = 32
 };
 
 struct filter_info {
@@ -386,16 +387,21 @@ cxgb_controller_attach(device_t dev)
 	device_t child;
 	const struct adapter_info *ai;
 	struct adapter *sc;
-	int i, reg, error = 0;
+	int i, error = 0;
 	uint32_t vers;
 	int port_qsets = 1;
 #ifdef MSI_SUPPORTED
-	int msi_needed;
+	int msi_needed, reg;
 #endif	
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
-	
+	ai = cxgb_get_adapter_info(dev);
+
+	/*
+	 * XXX not really related but a recent addition
+	 */
+#ifdef MSI_SUPPORTED	
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk, pectl;
@@ -406,15 +412,13 @@ cxgb_controller_attach(device_t dev)
 		pectl = (pectl & ~0x7000) | (5 << 12);
 		pci_write_config(dev, reg + 0x8, pectl, 2);
 	}
-
-	ai = cxgb_get_adapter_info(dev);
 	if (sc->link_width != 0 && sc->link_width <= 4 &&
 	    (ai->nports0 + ai->nports1) <= 2) {
 		device_printf(sc->dev,
 		    "PCIe x%d Link, expect reduced performance\n",
 		    sc->link_width);
 	}
-
+#endif
 	touch_bars(dev);
 	pci_enable_busmaster(dev);
 	/*
@@ -687,111 +691,6 @@ cxgb_free(struct adapter *sc)
 	return;
 }
 
-static int
-alloc_filters(struct adapter *adap)
-{
-	struct filter_info *p;
-	int nfilters;
-	
-	if ((nfilters = adap->params.mc5.nfilters) == 0)
-		return (0);
-
-	adap->filters = malloc(nfilters*sizeof(struct filter_info),
-	    M_DEVBUF, M_ZERO|M_WAITOK);
-	
-	if (adap->filters == NULL)
-		return (ENOMEM);
-
-	/* Set the default filters, only need to set non-0 fields here. */
-	p = &adap->filters[nfilters - 1];
-	p->vlan = 0xfff;
-	p->vlan_prio = FILTER_NO_VLAN_PRI;
-	p->pass = p->rss = p->valid = p->locked = 1;
-
-	return (0);
-}
-
-static inline void
-set_tcb_field_ulp(struct cpl_set_tcb_field *req,
-    unsigned int tid, unsigned int word,
-    uint64_t mask, uint64_t val)
-{
-	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
-
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(1);
-	req->cpu_idx = 0;
-	req->word = htons(word);
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
-}
-
-static int
-set_filter(struct adapter *adap, int id, const struct filter_info *f)
-{
-	int len;
-	struct mbuf *m;
-	struct ulp_txpkt *txpkt;
-	struct work_request_hdr *wr;
-	struct cpl_pass_open_req *oreq;
-	struct cpl_set_tcb_field *sreq;
-
-	len = sizeof(*wr) + sizeof(*oreq) + 2 * sizeof(*sreq);
-	id += t3_mc5_size(&adap->mc5) - adap->params.mc5.nroutes -
-	      adap->params.mc5.nfilters;
-
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	wr = mtod(m, struct work_request_hdr *);
-	wr->wr_hi = htonl(V_WR_OP(FW_WROPCODE_BYPASS) | F_WR_ATOMIC);
-	m->m_len = m->m_pkthdr.len = len;
-	
-	oreq = (struct cpl_pass_open_req *)(wr + 1);
-	txpkt = (struct ulp_txpkt *)oreq;
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*oreq) / 8));
-	OPCODE_TID(oreq) = htonl(MK_OPCODE_TID(CPL_PASS_OPEN_REQ, id));
-	oreq->local_port = htons(f->dport);
-	oreq->peer_port = htons(f->sport);
-	oreq->local_ip = htonl(f->dip);
-	oreq->peer_ip = htonl(f->sip);
-	oreq->peer_netmask = htonl(f->sip_mask);
-	oreq->opt0h = 0;
-	oreq->opt0l = htonl(F_NO_OFFLOAD);
-	oreq->opt1 = htonl(V_MAC_MATCH_VALID(f->mac_vld) |
-			 V_CONN_POLICY(CPL_CONN_POLICY_FILTER) |
-			 V_VLAN_PRI(f->vlan_prio >> 1) |
-			 V_VLAN_PRI_VALID(f->vlan_prio != FILTER_NO_VLAN_PRI) |
-			 V_PKT_TYPE(f->pkt_type) | V_OPT1_VLAN(f->vlan) |
-			 V_MAC_MATCH(f->mac_idx | (f->mac_hit << 4)));
-
-	sreq = (struct cpl_set_tcb_field *)(oreq + 1);
-	set_tcb_field_ulp(sreq, id, 1, 0x1800808000ULL,
-			  (f->report_filter_id << 15) | (1 << 23) |
-			  ((u64)f->pass << 35) | ((u64)!f->rss << 36));
-	set_tcb_field_ulp(sreq + 1, id, 25, 0x3f80000,
-			  (u64)adap->rrss_map[f->qset] << 19);
-	t3_mgmt_tx(adap, m);
-	return 0;
-}
-
-static int
-setup_hw_filters(struct adapter *adap)
-{
-	int i, err;
-
-	if (adap->filters == NULL)
-		return 0;
-
-	t3_enable_filters(adap);
-
-	for (i = err = 0; i < adap->params.mc5.nfilters && !err; i++)
-		if (adap->filters[i].locked)
-			err = set_filter(adap, i, &adap->filters[i]);
-	return err;
-}
-
 /**
  *	setup_sge_qsets - configure SGE Tx/Rx/response queues
  *	@sc: the controller softc
@@ -803,7 +702,7 @@ setup_hw_filters(struct adapter *adap)
 static int
 setup_sge_qsets(adapter_t *sc)
 {
-	int i, j, err, irq_idx, qset_idx;
+	int i, j, err, irq_idx = 0, qset_idx = 0;
 	u_int ntxq = SGE_TXQ_PER_SET;
 
 	if ((err = t3_sge_alloc(sc)) != 0) {
@@ -813,15 +712,11 @@ setup_sge_qsets(adapter_t *sc)
 
 	if (sc->params.rev > 0 && !(sc->flags & USING_MSI))
 		irq_idx = -1;
-	else
-		irq_idx = 0;
 
-	for (qset_idx = 0, i = 0; i < (sc)->params.nports; i++) {
+	for (i = 0; i < (sc)->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 
 		for (j = 0; j < pi->nqsets; j++, qset_idx++) {
-			printf("allocating qset_idx=%d for port_id=%d\n",
-			    qset_idx, pi->port_id);
 			err = t3_sge_alloc_qset(sc, qset_idx, (sc)->params.nports,
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
@@ -1111,7 +1006,15 @@ void
 t3_fatal_err(struct adapter *sc)
 {
 	u_int fw_status[4];
-
+	
+	if (sc->flags & FULL_INIT_DONE) {
+		t3_sge_stop(sc);
+		t3_write_reg(sc, A_XGM_TX_CTRL, 0);
+		t3_write_reg(sc, A_XGM_RX_CTRL, 0);
+		t3_write_reg(sc, XGM_REG(A_XGM_TX_CTRL, 1), 0);
+		t3_write_reg(sc, XGM_REG(A_XGM_RX_CTRL, 1), 0);
+		t3_intr_disable(sc);
+	}
 	device_printf(sc->dev,"encountered fatal error, operation suspended\n");
 	if (!t3_cim_ctl_blk_read(sc, 0xa0, 4, fw_status))
 		device_printf(sc->dev, "FW_ status: 0x%x, 0x%x, 0x%x, 0x%x\n",
@@ -1271,7 +1174,7 @@ cxgb_link_start(struct port_info *p)
 	ifp = p->ifp;
 
 	t3_init_rx_mode(&rm, p);
-	if (!mac->multiport)
+	if (!mac->multiport) 
 		t3_mac_reset(mac);
 	t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
 	t3_mac_set_address(mac, 0, p->hw_addr);
@@ -1298,7 +1201,7 @@ setup_rss(adapter_t *adap)
 	u_int nq[2]; 
 	uint8_t cpus[SGE_QSETS + 1];
 	uint16_t rspq_map[RSS_TABLE_SIZE];
-	
+
 	for (i = 0; i < SGE_QSETS; ++i)
 		cpus[i] = i;
 	cpus[SGE_QSETS] = 0xff;
@@ -1309,9 +1212,11 @@ setup_rss(adapter_t *adap)
 
 		nq[pi->tx_chan] += pi->nqsets;
 	}
+	nq[0] = max(nq[0], 1U);
+	nq[1] = max(nq[1], 1U);
 	for (i = 0; i < RSS_TABLE_SIZE / 2; ++i) {
-		rspq_map[i] = nq[0] ? i % nq[0] : 0;
-		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0; 
+		rspq_map[i] = i % nq[0];
+		rspq_map[i + RSS_TABLE_SIZE / 2] = (i % nq[1]) + nq[0];
 	}
 	/* Calculate the reverse RSS map table */
 	for (i = 0; i < RSS_TABLE_SIZE; ++i)
@@ -1320,7 +1225,7 @@ setup_rss(adapter_t *adap)
 
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
 		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN | F_OFDMAPEN |
-		      F_RRCPLMAPEN | V_RRCPLCPUSIZE(6), cpus, rspq_map);
+		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
 
 }
 
@@ -1414,16 +1319,23 @@ bind_qsets(adapter_t *sc)
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		const struct port_info *pi = adap2pinfo(sc, i);
 
-		for (j = 0; j < pi->nqsets; ++j)
+		for (j = 0; j < pi->nqsets; ++j) {
 			send_pktsched_cmd(sc, 1, pi->first_qset + j, -1,
-					  -1, i);
+					  -1, pi->tx_chan);
+
+		}
 	}
 }
 
 static void
 update_tpeeprom(struct adapter *adap)
 {
+#ifdef FIRMWARE_LATEST
 	const struct firmware *tpeeprom;
+#else
+	struct firmware *tpeeprom;
+#endif	
+
 	char buf[64];
 	uint32_t version;
 	unsigned int major, minor;
@@ -1479,7 +1391,11 @@ release_tpeeprom:
 static int
 update_tpsram(struct adapter *adap)
 {
+#ifdef FIRMWARE_LATEST
 	const struct firmware *tpsram;
+#else
+	struct firmware *tpsram;
+#endif	
 	char buf[64];
 	int ret;
 	char rev;
@@ -1547,7 +1463,6 @@ cxgb_up(struct adapter *sc)
 		if (err)
 			goto out;
 
-		alloc_filters(sc);
 		setup_rss(sc);
 		sc->flags |= FULL_INIT_DONE;
 	}
@@ -1581,9 +1496,9 @@ cxgb_up(struct adapter *sc)
 	t3_sge_start(sc);
 	t3_intr_enable(sc);
 
-	if ((sc->flags & (USING_MSIX | QUEUES_BOUND)) == USING_MSIX) {
+	if (!(sc->flags & QUEUES_BOUND)) {
+		printf("bind qsets\n");
 		bind_qsets(sc);
-		setup_hw_filters(sc);
 		sc->flags |= QUEUES_BOUND;		
 	}
 out:
@@ -1748,7 +1663,7 @@ cxgb_init_locked(struct port_info *p)
 	t3_link_changed(sc, p->port_id);
 	ifp->if_baudrate = p->link_config.speed * 1000000;
 
-	printf("enabling interrupts on port=%d\n", p->port_id);
+	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
@@ -1920,8 +1835,8 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
-	struct mbuf *m0, *m = NULL;
-	int err, in_use_init, qsidx = 0;
+	struct mbuf *m = NULL;
+	int err, in_use_init, free;
 
 	if (!p->link_config.link_ok)
 		return (ENXIO);
@@ -1929,10 +1844,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return (ENOBUFS);
 
-	if (p->adapter->params.nports <= 2)
-		qsidx = p->first_qset;
-	
-	qs = &p->adapter->sge.qs[qsidx];
+	qs = &p->adapter->sge.qs[p->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
@@ -1944,6 +1856,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	in_use_init = txq->in_use;
 	while ((txq->in_use - in_use_init < txmax) &&
 	    (txq->size > txq->in_use + TX_MAX_DESC)) {
+		free = 0;
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
 			break;
@@ -1951,6 +1864,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 		 * Convert chain to M_IOVEC
 		 */
 		KASSERT((m->m_flags & M_IOVEC) == 0, ("IOVEC set too early"));
+#ifdef notyet
 		m0 = m;
 		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
 		    m_collapse(m, TX_MAX_SEGS, &m0) == EFBIG) {
@@ -1961,9 +1875,12 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 				break;
 		}
 		m = m0;
-		if ((err = t3_encap(p, &m)) != 0)
+#endif		
+		if ((err = t3_encap(p, &m, &free)) != 0)
 			break;
 		BPF_MTAP(ifp, m);
+		if (free)
+			m_freem(m);
 	}
 	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
@@ -2197,121 +2114,6 @@ touch_bars(device_t dev)
 	pci_write_config_dword(pdev, PCI_BASE_ADDRESS_5, v);
 #endif
 }
-
-#if 0
-static void *
-filter_get_idx(struct seq_file *seq, loff_t pos)
-{
-	int i;
-	struct adapter *adap = seq->private;
-	struct filter_info *p = adap->filters;
-
-	if (!p)
-		return NULL;
-
-	for (i = 0; i < adap->params.mc5.nfilters; i++, p++)
-		if (p->valid) {
-			if (!pos)
-				return p;
-			pos--;
-		}
-	return NULL;
-}
-
-static void *filter_get_nxt_idx(struct seq_file *seq, struct filter_info *p)
-{
-	struct adapter *adap = seq->private;
-	struct filter_info *end = &adap->filters[adap->params.mc5.nfilters];
-
-	while (++p < end && !p->valid)
-		;
-	return p < end ? p : NULL;
-}
-
-static void *filter_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	return *pos ? filter_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
-}
-
-static void *filter_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	v = *pos ? filter_get_nxt_idx(seq, v) : filter_get_idx(seq, 0);
-	if (v)
-		++*pos;
-	return v;
-}
-
-static void filter_seq_stop(struct seq_file *seq, void *v)
-{
-}
-
-static int filter_seq_show(struct seq_file *seq, void *v)
-{
-	static const char *pkt_type[] = { "any", "tcp", "udp", "frag" };
-
-	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "index         SIP              DIP       sport "
-			      "dport VLAN PRI MAC type Q\n");
-	else {
-		char sip[20], dip[20];
-		struct filter_info *f = v;
-		struct adapter *adap = seq->private;
-
-		sprintf(sip, NIPQUAD_FMT "/%-2u", HIPQUAD(f->sip),
-			f->sip_mask ? 33 - ffs(f->sip_mask) : 0);
-		sprintf(dip, NIPQUAD_FMT, HIPQUAD(f->dip));
-		seq_printf(seq, "%5zu %18s %15s ", f - adap->filters, sip, dip);
-		seq_printf(seq, f->sport ? "%5u " : "    * ", f->sport);
-		seq_printf(seq, f->dport ? "%5u " : "    * ", f->dport);
-		seq_printf(seq, f->vlan != 0xfff ? "%4u " : "   * ", f->vlan);
-		seq_printf(seq, f->vlan_prio == FILTER_NO_VLAN_PRI ?
-			   "  * " : "%1u/%1u ", f->vlan_prio, f->vlan_prio | 1);
-		if (!f->mac_vld)
-			seq_printf(seq, "  * ");
-		else if (f->mac_hit)
-			seq_printf(seq, "%3u ", f->mac_idx);
-		else
-			seq_printf(seq, " -1 ");
-		seq_printf(seq, "%4s ", pkt_type[f->pkt_type]);
-		if (!f->pass)
-			seq_printf(seq, "-\n");
-		else if (f->rss)
-			seq_printf(seq, "*\n");
-		else
-			seq_printf(seq, "%1u\n", f->qset);
-	}
-	return 0;
-}
-
-static struct seq_operations filter_seq_ops = {
-	.start = filter_seq_start,
-	.next = filter_seq_next,
-	.stop = filter_seq_stop,
-	.show = filter_seq_show
-};
-
-static int filter_seq_open(struct inode *inode, struct file *file)
-{
-	int rc = seq_open(file, &filter_seq_ops);
-
-	if (!rc) {
-		struct proc_dir_entry *dp = PDE(inode);
-		struct seq_file *seq = file->private_data;
-
-		seq->private = dp->data;
-	}
-	return rc;
-}
-
-static struct file_operations filter_seq_fops = {
-	.owner = THIS_MODULE,
-	.open = filter_seq_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release
-};
-
-#endif
 
 static int
 set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset)
@@ -2630,79 +2432,6 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		m->nmtus = NMTUS;
 		break;
 	}
-	case CHELSIO_SET_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;
-		struct filter_info *p;
-		int ret;
-		
-		if (sc->params.mc5.nfilters == 0)
-			return (EOPNOTSUPP);
-		if (!(sc->flags & FULL_INIT_DONE))
-			return (EAGAIN);  /* can still change nfilters */
-		if (sc->filters == NULL)
-			return (ENOMEM);
-
-		if (f->filter_id >= sc->params.mc5.nfilters ||
-		    (f->val.dip && f->mask.dip != 0xffffffff) ||
-		    (f->val.sport && f->mask.sport != 0xffff) ||
-		    (f->val.dport && f->mask.dport != 0xffff) ||
-		    (f->mask.vlan && f->mask.vlan != 0xfff) ||
-		    (f->mask.vlan_prio && f->mask.vlan_prio != 7) ||
-		    (f->mac_addr_idx != 0xffff && f->mac_addr_idx > 15) ||
-		    f->qset >= SGE_QSETS ||
-		    sc->rrss_map[f->qset] >= RSS_TABLE_SIZE)
-			return (EINVAL);
-
-		p = &sc->filters[f->filter_id];
-		if (p->locked)
-			return (EPERM);
-
-		p->sip = f->val.sip;
-		p->sip_mask = f->mask.sip;
-		p->dip = f->val.dip;
-		p->sport = f->val.sport;
-		p->dport = f->val.dport;
-		p->vlan = f->mask.vlan ? f->val.vlan : 0xfff;
-		p->vlan_prio = f->mask.vlan_prio ? (f->val.vlan_prio & 6) :
-						  FILTER_NO_VLAN_PRI;
-		p->mac_hit = f->mac_hit;
-		p->mac_vld = f->mac_addr_idx != 0xffff;
-		p->mac_idx = f->mac_addr_idx;
-		p->pkt_type = f->proto;
-		p->report_filter_id = f->want_filter_id;
-		p->pass = f->pass;
-		p->rss = f->rss;
-		p->qset = f->qset;
-
-		ret = set_filter(sc, f->filter_id, p);
-		if (ret)
-			return ret;
-		p->valid = 1;
-		break;
-	}
-	case CHELSIO_DEL_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;
-		struct filter_info *p;
-	
-		if (sc->params.mc5.nfilters == 0)
-			return (EOPNOTSUPP);
-		if (!(sc->flags & FULL_INIT_DONE))
-			return (EAGAIN);  /* can still change nfilters */
-		if (sc->filters == NULL)
-			return (ENOMEM);
-		if (f->filter_id >= sc->params.mc5.nfilters)
-			return (EINVAL);	
-
-		p = &sc->filters[f->filter_id];
-		if (p->locked)
-			return (EPERM);
-		memset(p, 0, sizeof(*p));
-		p->sip_mask = 0xffffffff;
-		p->vlan = 0xfff;
-		p->vlan_prio = FILTER_NO_VLAN_PRI;
-		p->pkt_type = 1;
-		return set_filter(sc, f->filter_id, p);
-	}		
 	case CHELSIO_DEVUP:
 		if (!is_offload(sc))
 			return (EOPNOTSUPP);
