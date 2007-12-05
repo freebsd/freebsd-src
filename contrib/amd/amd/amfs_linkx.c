@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_linkx.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_linkx.c
  *
  */
 
@@ -53,7 +52,8 @@
 #include <amd.h>
 
 /* forward declarations */
-static int amfs_linkx_mount(am_node *mp);
+static int amfs_linkx_mount(am_node *mp, mntfs *mf);
+static int amfs_linkx_umount(am_node *mp, mntfs *mf);
 
 /*
  * linkx operations
@@ -64,21 +64,24 @@ struct am_ops amfs_linkx_ops =
   amfs_link_match,
   0,				/* amfs_linkx_init */
   amfs_linkx_mount,
-  0,
-  amfs_auto_fumount,
-  amfs_link_fumount,
-  amfs_error_lookuppn,
+  amfs_linkx_umount,
+  amfs_error_lookup_child,
+  amfs_error_mount_child,
   amfs_error_readdir,
   0,				/* amfs_linkx_readlink */
   0,				/* amfs_linkx_mounted */
   0,				/* amfs_linkx_umounted */
-  find_amfs_auto_srvr,
-  FS_MBACKGROUND
+  amfs_generic_find_srvr,
+  0,				/* amfs_linkx_get_wchan */
+  FS_MBACKGROUND,
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_LINKX_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
 static int
-amfs_linkx_mount(am_node *mp)
+amfs_linkx_mount(am_node *mp, mntfs *mf)
 {
   /*
    * Check for existence of target.
@@ -89,7 +92,7 @@ amfs_linkx_mount(am_node *mp)
   if (mp->am_link)
     ln = mp->am_link;
   else				/* should never occur */
-    ln = mp->am_mnt->mf_mount;
+    ln = mf->mf_mount;
 
   /*
    * Use lstat, not stat, since we don't
@@ -99,5 +102,12 @@ amfs_linkx_mount(am_node *mp)
   if (lstat(ln, &stb) < 0)
     return errno;
 
+  return 0;
+}
+
+
+static int
+amfs_linkx_umount(am_node *mp, mntfs *mf)
+{
   return 0;
 }

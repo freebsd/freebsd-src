@@ -25,6 +25,8 @@
  */
 #define UNMOUNT_TRAP(mnt)	@am_utils_unmount_call@(@am_utils_unmount_args@)
 /* End of replaced UNMOUNT_TRAP macro definition */
+/* umount(8) executable path, for type:=program */
+#define UNMOUNT_PROGRAM		"@UNMOUNT_PROGRAM@"
 
 /*
  * The next line is a literal inclusion of a file which includes a

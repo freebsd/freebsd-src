@@ -2,7 +2,7 @@
 #
 # Convert Sun automount map format to amd format
 #
-# Package:      am-utils-6.0
+# Package:      am-utils-6.x
 # Author:       Mike Walker <mike@tab00.larc.nasa.gov>
 #		Erez Zadok <ezk@cs.columbia.edu>
 #
@@ -26,7 +26,7 @@
 #
 # You should set the DOMAIN and DEFAULT variables to your preferences.
 #
-# $Id: automount2amd.in,v 1.1 1999/08/16 01:16:36 ezk Exp $
+# $Id: automount2amd.in,v 1.2 2002/01/15 18:25:25 ezk Exp $
 #
 
 require "ctime.pl";

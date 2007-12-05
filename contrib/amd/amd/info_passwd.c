@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: info_passwd.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/info_passwd.c
  *
  */
 
@@ -151,11 +150,11 @@ passwd_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
     do {
       q = strrchr(p, '/');
       if (q) {
-	strcat(rhost, q + 1);
-	strcat(rhost, ".");
+	xstrlcat(rhost, q + 1, sizeof(rhost));
+	xstrlcat(rhost, ".", sizeof(rhost));
 	*q = '\0';
       } else {
-	strcat(rhost, p);
+	xstrlcat(rhost, p, sizeof(rhost));
       }
     } while (q);
 
@@ -176,11 +175,9 @@ passwd_search(mnt_map *m, char *map, char *key, char **pval, time_t *tp)
       p++;
     else
       p = "type:=nfs;rfs:=/${var0}/${var1};rhost:=${var1};sublink:=${var2};fs:=${autodir}${var3}";
-    sprintf(val, "var0:=%s;var1:=%s;var2:=%s;var3:=%s;%s",
-	    dir+1, rhost, user, pw->pw_dir, p);
-#ifdef DEBUG
+    xsnprintf(val, sizeof(val), "var0:=%s;var1:=%s;var2:=%s;var3:=%s;%s",
+	      dir+1, rhost, user, pw->pw_dir, p);
     dlog("passwd_search: map=%s key=%s -> %s", map, key, val);
-#endif /* DEBUG */
     if (q)
       *q = '.';
     *pval = strdup(val);

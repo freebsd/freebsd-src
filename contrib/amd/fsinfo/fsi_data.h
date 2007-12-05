@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,11 +36,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: fsi_data.h,v 1.3.2.4 2004/01/06 03:15:23 ezk Exp $
+ * File: am-utils/fsinfo/fsi_data.h
  *
  */
+
+#ifndef _FSI_DATA_H
+#define _FSI_DATA_H
 
 typedef struct auto_tree auto_tree;
 typedef struct automount automount;
@@ -233,3 +235,4 @@ struct ioloc {
   int i_line;
   char *i_file;
 };
+#endif /* not _FSI_DATA_H */
