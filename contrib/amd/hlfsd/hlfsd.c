@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.7.2.9 2004/01/19 00:25:55 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/hlfsd/hlfsd.c
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -86,7 +84,7 @@ char *logfile = DEFAULT_LOGFILE;
 char *passwdfile = NULL;	/* alternate passwd file to use */
 char *slinkname = 0;
 char hostname[MAXHOSTNAMELEN + 1] = "localhost";
-int cache_interval = DEFAULT_CACHE_INTERVAL;
+u_int cache_interval = DEFAULT_CACHE_INTERVAL;
 gid_t hlfs_gid = (gid_t) INVALIDID;
 int masterpid = 0;
 int noverify = 0;
@@ -119,6 +117,17 @@ usage(void)
 #endif /* DEBUG */
   fprintf(stderr, "\t[dir_name [subdir]]\n");
   exit(2);
+}
+
+
+void
+fatalerror(char *str)
+{
+#define ERRM ": %m"
+  size_t l = strlen(str) + sizeof(ERRM) - 1;
+  char *tmp = strnsave(str, l);
+  xstrlcat(tmp, ERRM, l);
+  fatal(tmp);
 }
 
 
@@ -309,12 +318,12 @@ main(int argc, char *argv[])
     *dot = '\0';
   orig_umask = umask(0);
   if (logfile)
-    switch_to_logfile(logfile, orig_umask);
+    switch_to_logfile(logfile, orig_umask, 0);
 
-#if defined(DEBUG) && !defined(MOUNT_TABLE_ON_FILE)
-  if (debug_flags & D_MTAB)
+#ifndef MOUNT_TABLE_ON_FILE
+  if (amuDebug(D_MTAB))
     dlog("-D mtab option ignored");
-#endif /* defined(DEBUG) && !defined(MOUNT_TABLE_ON_FILE) */
+#endif /* not MOUNT_TABLE_ON_FILE */
 
   /* avoid hanging on other NFS servers if started elsewhere */
   if (chdir("/") < 0)
@@ -337,8 +346,6 @@ main(int argc, char *argv[])
 	   am_get_progname(), dir_name);
     exit(3);
   }
-
-  clock_valid = 0;		/* invalidate logging clock */
 
   if (!forcefast) {
     /* make sure mount point exists and is at least mode 555 */
@@ -384,7 +391,7 @@ main(int argc, char *argv[])
     chmod(alt_spooldir, OPEN_SPOOLMODE);
 
     /* create failsafe link to alternate spool directory */
-    slinkname[-1] = '/';	/* unsplit dir_name to include link */
+    *(slinkname-1) = '/';	/* unsplit dir_name to include link */
     if (lstat(dir_name, &stmodes) == 0 &&
 	(stmodes.st_mode & S_IFMT) != S_IFLNK) {
       fprintf(stderr, "%s: failsafe %s not a symlink\n",
@@ -405,7 +412,7 @@ main(int argc, char *argv[])
       }
     }
 
-    slinkname[-1] = '\0';	/* resplit dir_name */
+    *(slinkname-1) = '\0';	/* resplit dir_name */
   } /* end of "if (!forcefast) {" */
 
   /*
@@ -421,7 +428,7 @@ main(int argc, char *argv[])
 
 #ifdef HAVE_SIGACTION
   sa.sa_handler = proceed;
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGUSR2);
   sigaction(SIGUSR2, &sa, NULL);
@@ -434,7 +441,7 @@ main(int argc, char *argv[])
 
 #ifdef HAVE_SIGACTION
   sa.sa_handler = reaper;
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGCHLD);
   sigaction(SIGCHLD, &sa, NULL);
@@ -442,53 +449,57 @@ main(int argc, char *argv[])
   signal(SIGCHLD, reaper);
 #endif /* not HAVE_SIGACTION */
 
-#ifdef DEBUG
   /*
-   * In the parent, if -D nodaemon (or -D daemon) , we don't need to
+   * In the parent, if -D daemon, we don't need to
    * set this signal handler.
    */
-  amuDebug(D_DAEMON) {
-#endif /* DEBUG */
-    /* XXX: port to use pure svr4 signals */
+  if (!amuDebug(D_DAEMON)) {
     s = -99;
     while (stoplight != SIGUSR2) {
       plog(XLOG_INFO, "parent waits for child to setup (stoplight=%d)", stoplight);
+#ifdef HAVE_SIGSUSPEND
+      {
+	sigset_t mask;
+	sigemptyset(&mask);
+	s = sigsuspend(&mask);	/* wait for child to set up */
+      }
+#else /* not HAVE_SIGSUSPEND */
       s = sigpause(0);		/* wait for child to set up */
+#endif /* not HAVE_SIGSUSPEND */
       sleep(1);
     }
-#ifdef DEBUG
   }
-#endif /* DEBUG */
 
   /*
    * setup options to mount table (/etc/{mtab,mnttab}) entry
    */
-  sprintf(hostpid_fs, "%s:(pid%d)", hostname, masterpid);
+  xsnprintf(hostpid_fs, sizeof(hostpid_fs),
+	    "%s:(pid%d)", hostname, masterpid);
   memset((char *) &mnt, 0, sizeof(mnt));
   mnt.mnt_dir = dir_name;	/* i.e., "/mail" */
   mnt.mnt_fsname = hostpid_fs;
   if (mntopts) {
     mnt.mnt_opts = mntopts;
   } else {
-    strcpy(preopts, default_mntopts);
+    xstrlcpy(preopts, default_mntopts, sizeof(preopts));
     /*
      * Turn off all kinds of attribute and symlink caches as
      * much as possible.  Also make sure that mount does not
      * show up to df.
      */
 #ifdef MNTTAB_OPT_INTR
-    strcat(preopts, ",");
-    strcat(preopts, MNTTAB_OPT_INTR);
+    xstrlcat(preopts, ",", sizeof(preopts));
+    xstrlcat(preopts, MNTTAB_OPT_INTR, sizeof(preopts));
 #endif /* MNTTAB_OPT_INTR */
 #ifdef MNTTAB_OPT_IGNORE
-    strcat(preopts, ",");
-    strcat(preopts, MNTTAB_OPT_IGNORE);
+    xstrlcat(preopts, ",", sizeof(preopts));
+    xstrlcat(preopts, MNTTAB_OPT_IGNORE, sizeof(preopts));
 #endif /* MNTTAB_OPT_IGNORE */
 #ifdef MNT2_GEN_OPT_CACHE
-    strcat(preopts, ",nocache");
+    xstrlcat(preopts, ",nocache", sizeof(preopts));
 #endif /* MNT2_GEN_OPT_CACHE */
 #ifdef MNT2_NFS_OPT_SYMTTL
-    strcat(preopts, ",symttl=0");
+    xstrlcat(preopts, ",symttl=0", sizeof(preopts));
 #endif /* MNT2_NFS_OPT_SYMTTL */
     mnt.mnt_opts = preopts;
   }
@@ -499,11 +510,15 @@ main(int argc, char *argv[])
    * If they don't appear to support the either the "ignore" mnttab
    * option entry, or the "auto" one, set the mount type to "nfs".
    */
+#ifdef HIDE_MOUNT_TYPE
   mnt.mnt_type = HIDE_MOUNT_TYPE;
+#else /* not HIDE_MOUNT_TYPE */
+  mnt.mnt_type = "nfs";
+#endif /* not HIDE_MOUNT_TYPE */
   /* some systems don't have a mount type, but a mount flag */
 
 #ifndef HAVE_TRANSPORT_TYPE_TLI
-  amu_get_myaddress(&localsocket.sin_addr);
+  amu_get_myaddress(&localsocket.sin_addr, NULL);
   localsocket.sin_family = AF_INET;
   localsocket.sin_port = htons(nfsxprt->xp_port);
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
@@ -512,11 +527,13 @@ main(int argc, char *argv[])
    * Update hostname field.
    * Make some name prog:pid (i.e., hlfsd:174) for hostname
    */
-  sprintf(progpid_fs, "%s:%d", am_get_progname(), masterpid);
+  xsnprintf(progpid_fs, sizeof(progpid_fs),
+	    "%s:%d", am_get_progname(), masterpid);
 
   /* Most kernels have a name length restriction. */
   if ((int) strlen(progpid_fs) >= (int) MAXHOSTNAMELEN)
-    strcpy(progpid_fs + MAXHOSTNAMELEN - 3, "..");
+    xstrlcpy(progpid_fs + MAXHOSTNAMELEN - 3, "..",
+	     sizeof(progpid_fs) - MAXHOSTNAMELEN + 3);
 
   genflags = compute_mount_flags(&mnt);
 
@@ -524,7 +541,7 @@ main(int argc, char *argv[])
   if (retry <= 0)
     retry = 1;			/* XXX */
 
-  memmove(&anh.v2.fhs_fh, root_fhp, sizeof(*root_fhp));
+  memmove(&anh.v2, root_fhp, sizeof(*root_fhp));
 #ifdef HAVE_TRANSPORT_TYPE_TLI
   compute_nfs_args(&nfs_args,
 		   &mnt,
@@ -550,6 +567,7 @@ main(int argc, char *argv[])
   compute_nfs_args(&nfs_args,
 		   &mnt,
 		   genflags,
+		   NULL,
 		   &localsocket,
 		   NFS_VERSION, /* version 2 */
 		   "udp",	/* XXX: shouldn't this be "udp"? */
@@ -565,33 +583,26 @@ main(int argc, char *argv[])
    *************************************************************************/
   compute_automounter_nfs_args(&nfs_args, &mnt);
 
-  clock_valid = 0;		/* invalidate logging clock */
-
-/*
- * The following code could be cleverly ifdef-ed, but I duplicated the
- * mount_fs call three times for simplicity and readability.
- */
-#ifdef DEBUG
 /*
  * For some reason, this mount may have to be done in the background, if I am
- * using -D nodebug.  I suspect that the actual act of mounting requires
+ * using -D daemon.  I suspect that the actual act of mounting requires
  * calling to hlfsd itself to invoke one or more of its nfs calls, to stat
- * /mail.  That means that even if you say -D nodaemon, at least the mount
+ * /mail.  That means that even if you say -D daemon, at least the mount
  * of hlfsd itself on top of /mail will be done in the background.
  * The other alternative I have is to run svc_run, but set a special
  * signal handler to perform the mount in N seconds via some alarm.
  *      -Erez Zadok.
  */
-  if (debug_flags & D_DAEMON) {	/* asked for -D daemon */
-    plog(XLOG_INFO, "parent NFS mounting hlfsd service points");
-    if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 0, NULL, mnttab_file_name) < 0)
+  if (!amuDebug(D_DAEMON)) {	/* Normal case */
+    plog(XLOG_INFO, "normal NFS mounting hlfsd service points");
+    if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 0, NULL, mnttab_file_name, 0) < 0)
       fatal("nfsmount: %m");
-  } else {			/* asked for -D nodaemon */
+  } else {			/* asked for -D daemon */
     if (fork() == 0) {		/* child runs mount */
       am_set_mypid();
       foreground = 0;
       plog(XLOG_INFO, "child NFS mounting hlfsd service points");
-      if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 0, NULL, mnttab_file_name) < 0) {
+      if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 0, NULL, mnttab_file_name, 0) < 0) {
 	fatal("nfsmount: %m");
       }
       exit(0);			/* all went well */
@@ -599,11 +610,6 @@ main(int argc, char *argv[])
       plog(XLOG_INFO, "parent waiting 1sec for mount...");
     }
   }
-#else /* not DEBUG */
-  plog(XLOG_INFO, "normal NFS mounting hlfsd service points");
-  if (mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type, 2, "udp", mnttab_file_name) < 0)
-    fatal("nfsmount: %m");
-#endif /* not DEBUG */
 
 #ifdef HAVE_TRANSPORT_TYPE_TLI
   /*
@@ -621,15 +627,14 @@ main(int argc, char *argv[])
     printf("%d\n", masterpid);
 
   plog(XLOG_INFO, "hlfsd ready to serve");
-#ifdef DEBUG
   /*
-   * If asked not to fork a daemon (-D nodaemon), then hlfsd_init()
+   * If asked not to fork a daemon (-D daemon), then hlfsd_init()
    * will not run svc_run.  We must start svc_run here.
    */
-  dlog("starting no-daemon debugging svc_run");
-  amuDebugNo(D_DAEMON)
+  if (amuDebug(D_DAEMON)) {
+    plog(XLOG_DEBUG, "starting no-daemon debugging svc_run");
     svc_run();
-#endif /* DEBUG */
+  }
 
   cleanup(0);			/* should never happen here */
   return (0);			/* everything went fine? */
@@ -644,20 +649,16 @@ hlfsd_init(void)
   struct sigaction sa;
 #endif /* HAVE_SIGACTION */
 
-  clock_valid = 0;		/* invalidate logging clock */
-
   /*
    * Initialize file handles.
    */
   plog(XLOG_INFO, "initializing hlfsd file handles");
   hlfsd_init_filehandles();
 
-#ifdef DEBUG
   /*
-   * If -D daemon then we must fork.
+   * If not -D daemon then we must fork.
    */
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
+  if (!amuDebug(D_DAEMON))
     child = fork();
 
   if (child < 0)
@@ -686,7 +687,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = reload;
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGALRM);
   sigaddset(&(sa.sa_mask), SIGHUP);
@@ -702,7 +703,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = cleanup;
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGTERM);
   sigaction(SIGTERM, &sa, NULL);
@@ -715,7 +716,7 @@ hlfsd_init(void)
    */
 #ifdef HAVE_SIGACTION
   sa.sa_handler = interlock;
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGCHLD);
   sigaction(SIGCHLD, &sa, NULL);
@@ -732,7 +733,7 @@ hlfsd_init(void)
 # else /* not defined(DEBUG) || defined(DEBUG_PRINT) */
   sa.sa_handler = SIG_IGN;
 # endif /* not defined(DEBUG) || defined(DEBUG_PRINT) */
-  sa.sa_flags = SA_RESTART;
+  sa.sa_flags = 0;
   sigemptyset(&(sa.sa_mask));
   sigaddset(&(sa.sa_mask), SIGUSR1);
   sigaction(SIGUSR1, &sa, NULL);
@@ -747,17 +748,14 @@ hlfsd_init(void)
   if (setitimer(ITIMER_REAL, &reloadinterval, (struct itimerval *) 0) < 0)
     fatal("setitimer: %m");
 
-  gettimeofday((struct timeval *) ((void *)&startup), (struct timezone *) 0);
+  clocktime(&startup);
 
-#ifdef DEBUG
   /*
-   * If -D daemon, then start serving here in the child,
-   * and the parent will exit.  But if -D nodaemon, then
+   * If not -D daemon, then start serving here in the child,
+   * and the parent will exit.  But if -D daemon, then
    * skip this code and make sure svc_run is entered elsewhere.
    */
-  amuDebug(D_DAEMON) {
-#endif /* DEBUG */
-
+  if (!amuDebug(D_DAEMON)) {
     /*
      * Dissociate from the controlling terminal
      */
@@ -772,9 +770,7 @@ hlfsd_init(void)
     plog(XLOG_INFO, "starting svc_run");
     svc_run();
     cleanup(0);		/* should never happen, just in case */
-#ifdef DEBUG
-  } /* end of code that runs iff hlfsd daemonizes */
-#endif /* DEBUG */
+  }
 
 }
 
@@ -792,8 +788,6 @@ reload(int signum)
   int child;
   int status;
 
-  clock_valid = 0;		/* invalidate logging clock */
-
   if (getpid() != masterpid)
     return;
 
@@ -802,7 +796,7 @@ reload(int signum)
    * can be rotated)
    */
   if (signum == SIGHUP && logfile)
-    switch_to_logfile(logfile, orig_umask);
+    switch_to_logfile(logfile, orig_umask, 0);
 
   /*
    * parent performs the reload, while the child continues to serve
@@ -845,29 +839,21 @@ cleanup(int signum)
   struct stat stbuf;
   int umount_result;
 
-  clock_valid = 0;		/* invalidate logging clock */
-
-#ifdef DEBUG
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
+  if (!amuDebug(D_DAEMON)) {
     if (getpid() != masterpid)
       return;
 
-#ifdef DEBUG
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
     if (fork() != 0) {
       masterpid = 0;
       am_set_mypid();
       return;
     }
+  }
   am_set_mypid();
 
   for (;;) {
-    while ((umount_result = UMOUNT_FS(dir_name, mnttab_file_name)) == EBUSY) {
-#ifdef DEBUG
+    while ((umount_result = UMOUNT_FS(dir_name, mnttab_file_name, 0)) == EBUSY) {
       dlog("cleanup(): umount delaying for 10 seconds");
-#endif /* DEBUG */
       sleep(10);
     }
     if (stat(dir_name, &stbuf) == 0 && stbuf.st_ino == ROOTID) {
@@ -879,19 +865,14 @@ cleanup(int signum)
     break;
   }
 
-#ifdef DEBUG
-  dlog("cleanup(): killing processes and terminating");
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
+  if (!amuDebug(D_DAEMON)) {
+    plog(XLOG_INFO, "cleanup(): killing processes and terminating");
     kill(masterpid, SIGKILL);
-
-#ifdef DEBUG
-  amuDebug(D_DAEMON)
-#endif /* DEBUG */
     kill(serverpid, SIGKILL);
+  }
 
   plog(XLOG_INFO, "hlfsd terminating with status 0\n");
-  exit(0);
+  _exit(0);
 }
 
 
@@ -901,7 +882,7 @@ reaper(int signum)
   int result;
 
   if (wait(&result) == masterpid) {
-    exit(4);
+    _exit(4);
   }
 }
 
@@ -932,7 +913,7 @@ fatal(char *mess)
     if (!STREQ(&mess[messlen + 1 - sizeof(ERRM)], ERRM))
       fprintf(stderr, "%s: %s\n", am_get_progname(), mess);
     else {
-      strcpy(lessmess, mess);
+      xstrlcpy(lessmess, mess, sizeof(lessmess));
       lessmess[messlen - 4] = '\0';
 
       fprintf(stderr, "%s: %s: %s\n",
