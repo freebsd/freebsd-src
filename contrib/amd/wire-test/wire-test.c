@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,10 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: wire-test.c,v 1.5.2.4 2004/01/06 03:15:25 ezk Exp $
- * $FreeBSD$
+ * File: am-utils/wire-test/wire-test.c
  *
  */
 
@@ -80,7 +78,7 @@ main(int argc, char **argv)
   }
 
   /* also print my IP address */
-  amu_get_myaddress(&myipaddr);
+  amu_get_myaddress(&myipaddr, NULL);
   fprintf(stderr, "My IP address is 0x%x.\n", (unsigned int) htonl(myipaddr.s_addr));
 
   /*
@@ -99,6 +97,7 @@ main(int argc, char **argv)
   }
   ip = (struct sockaddr_in *) xmalloc(sizeof(struct sockaddr_in));
   memset((voidp) ip, 0, sizeof(*ip));
+  /* as per POSIX, sin_len need not be set (used internally by kernel) */
   ip->sin_family = AF_INET;
   memmove((voidp) &ip->sin_addr, (voidp) hp->h_addr, sizeof(ip->sin_addr));
   ip->sin_port = htons(NFS_PORT);
