@@ -40,6 +40,7 @@ $FreeBSD$
 enum {
 	MAX_FRAME_SIZE = 10240, /* max MAC frame size, includes header + FCS */
 	EEPROMSIZE     = 8192,  /* Serial EEPROM size */
+	SERNUM_LEN     = 16,    /* Serial # length */
 	RSS_TABLE_SIZE = 64,    /* size of RSS lookup and mapping tables */
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
@@ -98,7 +99,7 @@ enum {
 
 enum {
 	FW_VERSION_MAJOR = 4,
-	FW_VERSION_MINOR = 5,
+	FW_VERSION_MINOR = 7,
 	FW_VERSION_MICRO = 0
 };
 
@@ -348,6 +349,7 @@ struct vpd_params {
 	unsigned int uclk;
 	unsigned int mdc;
 	unsigned int mem_timing;
+	u8 sn[SERNUM_LEN + 1];
 	u8 eth_base[6];
 	u8 port_type[MAX_NPORTS];
 	unsigned short xauicfg[2];
@@ -474,6 +476,7 @@ struct cmac {
 	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
+	u64 rx_pause;
 	struct mac_stats stats;
 };
 
