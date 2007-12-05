@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: conf_parse.y,v 1.4.2.5 2004/05/12 15:54:31 ezk Exp $
+ * File: am-utils/amd/conf_parse.y
  *
  */
 

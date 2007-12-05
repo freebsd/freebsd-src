@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2004 Erez Zadok
+.\" Copyright (c) 1997-2006 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -38,21 +38,21 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.7.2.10 2004/01/21 04:04:58 ib42 Exp $
+.\" $Id: amd.conf.5,v 1.39.2.5 2006/04/21 01:12:04 ezk Exp $
 .\"
 .TH AMD.CONF 5 "7 August 1997"
 .SH NAME
-amd.conf \- amd configuration file
+amd.conf \- Amd configuration file
 .SH SYNOPSIS
 .B amd.conf
 .SH DESCRIPTION
 The
 .B amd.conf
-file is the configuration file for amd, as part of the am-utils suite.
+file is the configuration file for Amd, as part of the am-utils suite.
 .P
 .B amd.conf
 contains runtime configuration information for the
-.B amd
+.B Amd
 automounter program.
 .\" **************************************************************************
 .SH FILE FORMAT
@@ -85,7 +85,7 @@ cache timeouts are numeric.
 .\" **************************************************************************
 .SH SECTIONS
 .SS The [global] section
-Parameters in this section either apply to amd as a whole, or to all other
+Parameters in this section either apply to Amd as a whole, or to all other
 regular map sections which follow.  There should be only one global section
 defined in one configuration file.
 .P
@@ -99,7 +99,7 @@ For example, if the map section
 .B [/homes]
 is defined, then all parameters following it will be applied to the
 .I /homes
-amd-managed mount point.
+Amd-managed mount point.
 .\" **************************************************************************
 .SH PARAMETERS
 .SS Parameters common to all sections
@@ -111,34 +111,41 @@ sections that follow.
 .\" **************************************************************************
 .TP
 .BR browsable_dirs " (string, default=no)"
-If "yes", then amd's top-level mount points will be browsable to
+If "yes," then Amd's top-level mount points will be browsable to
 .BR readdir (3)
 calls.  This means you could run for example
-.BR ls (3)
+.BR ls (1)
 and see what keys are available to mount in that directory.  Not all entries
 are made visible to readdir(3): the "/default" entry, wildcard
 entries, and those with a "/" in them are not included.  If you specify
 "full" to this option, all but "/default" will be visible.
 Note that if you run a command which will attempt to
 .BR stat (2)
-the entries, such as often done by "ls -l" or "ls -F", amd will attempt to
+the entries, such as often done by "ls -l" or "ls -F," Amd will attempt to
 mount
 .I every
-entry in that map.  This is often called a ``mount storm''.
+entry in that map.  This is often called a ``mount storm.''
+
+.TP
+.BR map_defaults " (string, default to empty)"
+This option sets a string to be used as the map's /defaults entry,
+overriding any /defaults specified in the map.  This allows local users to
+override map defaults without modifying maps globally.
 
 .TP
 .BR map_options " (string, default no options)"
 This option is the same as specifying map options on the command line to
-amd, such as "cache:=all".
+Amd, such as "cache:=all".
 
 .TP
 .BR map_type " (string, default search all map types)"
-If specified, amd will initialize the map only for the type given.  This is
-useful to avoid the default map search type used by amd which takes longer
+If specified, Amd will initialize the map only for the type given.  This is
+useful to avoid the default map search type used by Amd which takes longer
 and can have undesired side-effects such as initializing NIS even if not
 used.  Possible values are
 
 .nf
+\fBexec\fR      executable maps
 \fBfile\fR      plain files
 \fBhesiod\fR    Hesiod name service from MIT
 \fBldap\fR      Lightweight Directory Access Protocol
@@ -151,9 +158,17 @@ used.  Possible values are
 
 .TP
 .BR mount_type " (string, default=nfs)"
-All amd mount types must be NFS.  That is, amd is an NFS server on the
+All Amd mount types default to NFS.  That is, Amd is an NFS server on the
 map mount points, for the local host it is running on.  If "autofs" is
-specified, amd will log an error and convert it to NFS.
+specified, Amd will be an autofs server for those mount points.
+
+.TP
+.BR autofs_use_lofs " (string, default=yes)"
+When set to "yes" and using Autofs, Amd will use lofs-type (loopback) mounts
+for type:=link mounts.  This has the advantage of mounting in place, and
+users get to the see the same pathname that they chdir'ed into.  If this
+option is set to "no," then Amd will use symlinks instead: that code is more
+tested, but negates autofs's big advantage of in-place mounts.
 
 .TP
 .BR search_path " (string, default no search path)"
@@ -161,45 +176,81 @@ This provides a (colon-delimited) search path for file maps.  Using a search
 path, sites can allow for local map customizations and overrides, and can
 distributed maps in several locations as needed.
 
+.TP
+.BR selectors_in_defaults " (boolean, default=no)"
+If "yes," then the /defaults entry of maps will search for and process any
+selectors before setting defaults for all other keys in that map.  Useful
+when you want to set different options for a complete map based on some
+parameters.  For example, you may want to better the NFS performance over
+slow slip-based networks as follows:
+
+.nf
+/defaults \\
+    wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
+    wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
+.fi
+
+Deprecated form: selectors_on_default
+
 .\" **************************************************************************
 .SS Parameters applicable to the global section only
 
 .TP
 .BR arch " (string, default to compiled in value)"
-Allows you to override the value of the
+Same as the
+.B \-A
+option to Amd.  Allows you to override the value of the
 .I arch
-amd variable.
+Amd variable.
+
+.TP
+.BR auto_attrcache " (numeric, default=0)"
+Specify in seconds (or units of 0.1 seconds, depending on the OS), what is
+the (kernel-side) NFS attribute cache timeout for @i{Amd}'s own automount
+points.  A value of 0 is supposed to turn off attribute caching, meaning
+that @i{Amd} will be consulted via a kernel-RPC each time someone stat()'s
+the mount point (which could be abused as a denial-of-service attack).
+Warning: some OSs are incapable of turning off the NFS attribute cache
+reliably.  On such systems, Amd may not work reliably under heavy load.  See
+the README.attrcache document in the Am-utils distribution for more details.
 
 .TP
 .BR auto_dir " (string, default=/a)"
 Same as the
 .B \-a
-option to amd.  This sets the private directory where amd will create
+option to Amd.  This sets the private directory where Amd will create
 sub-directories for its real mount points.
 
 .TP
 .BR cache_duration " (numeric, default=300)"
 Same as the
 .B \-c
-option to amd.  Sets the duration in seconds that looked up map entries
-remain in the cache.
+option to Amd.  Sets the duration in seconds that looked-up or mounted map
+entries remain in the cache.
 
 .TP
 .BR cluster " (string, default no cluster)"
 Same as the
 .B \-C
-option to amd.  Specifies the alternate HP-UX cluster to use.
+option to Amd.  Specifies the alternate HP-UX cluster to use.
+
+.TP
+.BR debug_mtab_file " (string, default=/tmp/mnttab)"
+Path to mtab file that is used by Amd to store a list of mounted
+file systems during debug-mtab mode.  This option only applies
+to systems that store mtab information on disk.
+.TP
 
 .TP
 .BR debug_options " (string, default no debug options)"
 Same as the
 .B \-D
-option to amd.  Specify any debugging options for amd.  Works only if
+option to Amd.  Specify any debugging options for Amd.  Works only if
 am-utils was configured for debugging using the --enable-debug option.  The
 "mem" option, as well as all other options, can be turned on via
 --enable-debug=mem.  Otherwise debugging options are ignored.  Options are
 comma delimited, and can be preceded by the string "no" to negate their
-meaning.  You can get the list of supported debugging options by running amd
+meaning.  You can get the list of supported debugging options by running Amd
 \-H.  Possible values are:
 
 .nf
@@ -223,8 +274,43 @@ meaning.  You can get the list of supported debugging options by running amd
 .BR dismount_interval " (numeric, default=120)"
 Same as the
 .B \-w
-option to amd.  Specify in seconds, the time between attempts to dismount
+option to Amd.  Specify in seconds, the time between attempts to dismount
 file systems that have exceeded their cached times.
+
+.TP
+.BR domain_strip " (boolean, default=yes)"
+If "yes," then the domain
+name part referred to by ${rhost} is stripped off.  This is
+useful to keep logs and smaller.  If "no," then the domain name
+part is left changed.  This is useful when using multiple domains with
+the same maps (as you may have hosts whose domain-stripped name is
+identical).
+
+.TP
+.BR exec_map_timeout " (numeric, default=10)"
+The timeout in seconds that
+.I Amd
+will wait for an executable map program before an answer is returned from
+that program (or script).  This value should be set to as small as possible
+while still allowing normal replies to be returned before the timer expires,
+because during the time that the executable map program is queried,
+.I Amd
+is essentially waiting and is thus not responding to any other queries.
+
+.TP
+.BR forced_unmounts " (boolean, default=no)"
+If set to "yes," and the client OS supports forced or lazy unmounts, then
+.I Amd
+will attempt to use them if it gets any of three serious error conditions
+when trying to unmount an existing mount point or mount on top of one: EIO,
+ESTALE, or EBUSY.
+
+This could be useful to recover from serious conditions such as hardware
+failure of mounted disks, or NFS servers which are down permanently, were
+migrated, or changed their IP address.  Only "type:=toplvl" mounts hung with
+EBUSY are forcibly unmounted using this option, which is useful to recover
+from a hung
+.IR Amd ).
 
 .TP
 .BR full_os " (string, default to compiled in value)"
@@ -236,7 +322,7 @@ it to ``linux-2.2.5.''
 
 .TP
 .BR fully_qualified_hosts " (string, default=no)"
-If "yes",
+If "yes,"
 .I Amd
 will perform RPC authentication using fully-qualified host names.  This is
 necessary for some systems, and especially when performing cross-domain
@@ -252,13 +338,13 @@ Specify the base name for hesiod maps.
 .BR karch " (string, default to karch of the system)"
 Same as the
 .B \-k
-option to amd.  Allows you to override the kernel-architecture of your
+option to Amd.  Allows you to override the kernel-architecture of your
 system.  Useful for example on Sun (Sparc) machines, where you can build one
-amd binary, and run it on multiple machines, yet you want each one to get
+Amd binary, and run it on multiple machines, yet you want each one to get
 the correct
 .I karch
 variable set (for example, sun4c, sun4m, sun4u, etc.)  Note that if not
-specified, amd will use uname(2) to figure out the kernel architecture of
+specified, Amd will use uname(3) to figure out the kernel architecture of
 the machine.
 
 .TP
@@ -268,7 +354,7 @@ values such as country and organization.
 
 .TP
 .BR ldap_cache_maxmem " (numeric, default=131072)"
-Specify the maximum memory amd should use to cache LDAP entries.
+Specify the maximum memory Amd should use to cache LDAP entries.
 
 .TP
 .BR ldap_cache_seconds " (numeric, default=0)"
@@ -279,24 +365,36 @@ Specify the number of seconds to keep entries in the cache.
 Specify the LDAP host and port values.
 
 .TP
+.BR ldap_proto_version " (numeric, default=2)"
+Specify the version of the LDAP protocol to use.
+
+.TP
 .BR local_domain " (string, default no sub-domain)"
 Same as the
 .B \-d
-option to amd.  Specify the local domain name.  If this option is not given
+option to Amd.  Specify the local domain name.  If this option is not given
 the domain name is determined from the hostname, by removing the first
 component of the fully-qualified host name.
+
+.TP
+.BR localhost_address " (string, default to localhost or 127.0.0.1)"
+Specify the name or IP address for Amd to use when connecting the sockets
+for the local NFS server and the RPC server.  This defaults to 127.0.0.1 or
+whatever the host reports as its local address.  This parameter is useful on
+hosts with multiple addresses where you want to force Amd to connect to a
+specific address.
 
 .TP
 .BR log_file " (string, default=/dev/stderr)"
 Same as the
 .B \-l
-option to amd.  Specify a file name to log amd events to.
+option to Amd.  Specify a file name to log Amd events to.
 If the string
 .B /dev/stderr
-is specified, amd will send its events to the standard error file descriptor.
+is specified, Amd will send its events to the standard error file descriptor.
 If the string
 .B syslog
-is given, amd will record its events with the system logger
+is given, Amd will record its events with the system logger
 .BR syslogd (8).
 The default syslog facility used is LOG_DAEMON.  If you
 wish to change it, append its name to the log file name, delimited by a
@@ -304,7 +402,7 @@ single colon.  For example, if
 .I logfile
 is the string
 .B syslog:local7
-then amd will log messages via
+then Amd will log messages via
 .IR syslog (3)
 using the LOG_LOCAL7 facility (if it exists on the system).
 
@@ -312,11 +410,14 @@ using the LOG_LOCAL7 facility (if it exists on the system).
 .BR log_options " (string, default no logging options)"
 Same as the
 .B \-x
-option to amd.  Specify any logging options for amd.  Options are comma
+option to Amd.  Specify any logging options for Amd.  Options are comma
 delimited, and can be preceded by the string "no" to negate their meaning.
 The "debug" logging option is only available if am-utils was configured with
 --enable-debug.  You can get the list of supported debugging and logging
-options by running amd \-H.  Possible values are:
+options by running
+.B amd
+.BR \-H .
+Possible values are:
 
 .nf
 \fBall\fR       all messages
@@ -332,13 +433,39 @@ options by running amd \-H.  Possible values are:
 .fi
 
 .TP
-.BR nfs_vers " (numeric, default to trying version 3 then 2)"
-By default, amd tries version 3 and then version 2.  This option forces the
-overall NFS protocol used to version 3 or 2.  It overrides what is in the
-amd maps, and is useful when amd is compiled with NFSv3 support that may not
-be stable.  With this option you can turn off the complete usage of NFSv3
-dynamically (without having to recompile amd) until such time as NFSv3
-support is desired again.
+.BR map_reload_interval " (numeric, default=3600)"
+The number of seconds that Amd will wait before it checks to see if any maps
+have changed at their source (NIS servers, LDAP servers, files, etc.).  Amd
+will reload only those maps that have changed.
+
+.TP
+.BR nfs_allow_any_interface " (string, default=no)"
+Normally Amd accepts local NFS packets only from 127.0.0.1.  If this
+parameter is set to "yes" then Amd will accept local NFS packets from any
+local interface; this is useful on hosts that may have multiple interfaces
+where the system is forced to send all outgoing packets (even those bound to
+the same host) via an address other than 127.0.0.1.
+
+.TP
+.BR nfs_allow_insecure_port " (string, default=no)"
+Normally Amd will refuse requests coming from unprivileged ports (i.e.
+ports >= 1024 on Unix systems), so that only privileged users and the kernel
+can send NFS requests to it.  However, some kernels (certain versions of
+Darwin, MacOS X, and Linux) have bugs that cause them to use unprivileged
+ports in certain situations, which causes Amd to stop dead in its tracks.
+This parameter allows Amd to operate normally even on such systems, at the
+expense of a slight decrease in the security of its operations.  If you see
+messages like "ignoring request from foo:1234, port not reserved" in your
+Amd log, try enabling this parameter and give it another go.
+
+.TP
+.BR nfs_proto " (string, default to trying version tcp then udp)"
+By default, Amd tries TCP and then UDP.  This option forces the overall NFS
+protocol used to TCP or UDP.  It overrides what is in the Amd maps, and is
+useful when Amd is compiled with NFSv3 support that may not be stable.  With
+this option you can turn off the complete usage of NFSv3 dynamically
+(without having to recompile Amd) until such time as NFSv3 support is
+desired again.
 
 .TP
 .BR nfs_retransmit_counter " (numeric, default=11)"
@@ -346,9 +473,27 @@ Same as the
 .I retransmit
 part of the
 .BI \-t " timeout.retransmit"
-option to amd.
+option to Amd.
 Specifies the number of NFS retransmissions that the kernel will use to
-communicate with amd.
+communicate with Amd.
+
+.TP
+.BR nfs_retransmit_counter_udp " (numeric, default=11)"
+Same as the
+.B nfs_retransmit_counter
+option, but for all UDP mounts only.
+
+.TP
+.BR nfs_retransmit_counter_tcp " (numeric, default=11)"
+Same as the
+.B nfs_retransmit_counter
+option, but for all TCP mounts only.
+
+.TP
+.BR nfs_retransmit_counter_toplvl " (numeric, default=11)"
+Same as the
+.B nfs_retransmit_counter
+option, but only for Amd's top-level UDP mounts.
 
 .TP
 .BR nfs_retry_interval " (numeric, default=8)"
@@ -356,11 +501,11 @@ Same as the
 .I timeout
 part of the
 .BI \-t " timeout.retransmit"
-option to amd.  Specifies the NFS timeout interval, in
+option to Amd.  Specifies the NFS timeout interval, in
 .I tenths
-of seconds, between NFS/RPC retries (for UDP only).
+of seconds, between NFS/RPC retries (for UDP and TCP).
 This is the value that the kernel will use to
-communicate with amd.
+communicate with Amd.
 
 Amd relies on the kernel RPC retransmit mechanism to trigger mount retries.
 The values of the
@@ -371,31 +516,37 @@ parameters change the overall retry interval.  Too long an interval gives
 poor interactive response; too short an interval causes excessive retries.
 
 .TP
-.BR nfs_allow_insecure_port " (string, default=no).
-Normally amd will refuse requests coming from unprivileged ports (i.e.
-ports >= 1024 on Unix systems), so that only privileged users and the kernel
-can send NFS requests to it. However, some kernels (certain versions of
-Darwin, MacOS X, and Linux) have bugs that cause them to use unprivileged
-ports in certain situations, which causes amd to stop dead in its
-tracks. This parameter allows amd to operate normally even on such systems,
-at the expense of a slight decrease in the security of its operations. If
-you see messages like "ignoring request from foo:1234, port not reserved"
-in your amd log, try enabling this parameter and give it another go.
+.BR nfs_retry_interval_udp " (numeric, default=8)"
+Same as the
+.B nfs_retry_interval
+option, but for all UDP mounts only.
 
 .TP
-.BR nfs_proto " (string, default to trying version tcp then udp)"
-By default, amd tries TCP and then UDP.  This option forces the overall NFS
-protocol used to TCP or UDP.  It overrides what is in the amd maps, and is
-useful when amd is compiled with NFSv3 support that may not be stable.  With
-this option you can turn off the complete usage of NFSv3 dynamically
-(without having to recompile amd) until such time as NFSv3 support is
-desired again.
+.BR nfs_retry_interval_tcp " (numeric, default=8)"
+Same as the
+.B nfs_retry_interval
+option, but for all TCP mounts only.
+
+.TP
+.BR nfs_retry_interval_toplvl " (numeric, default=8)"
+Same as the
+.B nfs_retry_interval
+option, but only for Amd's top-level UDP mounts.
+
+.TP
+.BR nfs_vers " (numeric, default to trying version 3 then 2)"
+By default, Amd tries version 3 and then version 2.  This option forces the
+overall NFS protocol used to version 3 or 2.  It overrides what is in the
+Amd maps, and is useful when Amd is compiled with NFSv3 support that may not
+be stable.  With this option you can turn off the complete usage of NFSv3
+dynamically (without having to recompile Amd) until such time as NFSv3
+support is desired again.
 
 .TP
 .BR nis_domain " (string, default to local NIS domain name)"
 Same as the
 .B \-y
-option to amd.  Specify an alternative NIS domain from which to fetch the
+option to Amd.  Specify an alternative NIS domain from which to fetch the
 NIS maps.  The default is the system domain name.  This option is ignored if
 NIS support is not available.
 
@@ -403,15 +554,24 @@ NIS support is not available.
 .BR normalize_hostnames " (boolean, default=no)"
 Same as the
 .B \-n
-option to amd.  If "yes", then the name refereed to by ${rhost} is
+option to Amd.  If "yes," then the name refereed to by ${rhost} is
 normalized relative to the host database before being used.  The effect is
 to translate aliases into ``official'' names.
+
+.TP
+.BR normalize_slashes " (boolean, default=yes)"
+
+If "yes," then Amd will condense all multiple ``/'' (slash) characters into
+one and remove all trailing slashes.  If "no," then Amd will not touch
+strings that may contain repeated or trailing slashes.  The latter is
+sometimes useful with SMB mounts, which often require multiple slash
+characters in pathnames.
 
 .TP
 .BR os " (string, default to compiled in value)"
 Same as the
 .B \-O
-option to amd.  Allows you to override the compiled-in name of the operating
+option to Amd.  Allows you to override the compiled-in name of the operating
 system.  Useful when the built-in name is not desired for backward
 compatibility reasons.  For example, if the build in name is ``sunos5'', you
 can override it to ``sos5'', and use older maps which were written with the
@@ -421,7 +581,7 @@ latter in mind.
 .BR osver " (string, default to compiled in value)"
 Same as the
 .B \-o
-option to amd.  Overrides the compiled-in version number of the operating
+option to Amd.  Overrides the compiled-in version number of the operating
 system.  Useful when the built in version is not desired for backward
 compatibility reasons.  For example, if the build in version is ``2.5.1'',
 you can override it to ``5.5.1'', and use older maps that were written with
@@ -430,8 +590,8 @@ the latter in mind.
 .TP
 .BR pid_file " (string, default=/dev/stdout)"
 Specify a file to store the process ID of the running daemon into.  If not
-specified, amd will print its process id onto the standard output.  Useful
-for killing amd after it had run.  Note that the PID of a running amd can
+specified, Amd will print its process id onto the standard output.  Useful
+for killing Amd after it had run.  Note that the PID of a running Amd can
 also be retrieved via
 .B amq
 .BR \-p .
@@ -441,84 +601,95 @@ This file is used only if the print_pid option is on.
 .BR plock " (boolean, default=yes)"
 Same as the
 .B \-S
-option to amd.
-If "yes", lock the running executable pages of amd into memory.  To improve
-amd's performance, systems that support the
+option to Amd.
+If "yes," lock the running executable pages of Amd into memory.  To improve
+Amd's performance, systems that support the
 .BR plock (3)
-call can lock the amd process into memory.  This way there is less chance it
-the operating system will schedule, page out, and swap the amd process as
-needed.  This improves amd's performance, at the cost of reserving the
-memory used by the amd process (making it unavailable for other processes).
+or
+.BR mlockall (2)
+call can lock the Amd process into memory.  This way there is less chance it
+the operating system will schedule, page out, and swap the Amd process as
+needed.  This improves Amd's performance, at the cost of reserving the
+memory used by the Amd process (making it unavailable for other processes).
 
 .TP
 .BR portmap_program " (numeric, default=300019)"
 Specify an alternate Port-mapper RPC program number, other than the official
-number.  This is useful when running multiple amd processes.  For example,
-you can run another amd in "test" mode, without affecting the primary amd
+number.  This is useful when running multiple Amd processes.  For example,
+you can run another Amd in "test" mode, without affecting the primary Amd
 process in any way.  For safety reasons, the alternate program numbers that
 can be specified must be in the range 300019-300029, inclusive.
-.B amq
+Amq
 has an option
 .B -P
-which can be used to specify an alternate program number of an amd to
-contact.  In this way, amq can fully control any number of amd processes
+which can be used to specify an alternate program number of an Amd to
+contact.  In this way, amq can fully control any number of Amd processes
 running on the same host.
+
+.TP
+.BR preferred_amq_port " (numeric, default=0)"
+Specify an alternate Port-mapper RPC port number for Amd's
+Amq
+service.  This is used for both UDP and TCP.  Setting this value to 0 (or
+not defining it) will cause
+Amd
+to select an arbitrary port number.  Setting the
+Amq
+RPC service port to a specific number is useful in firewalled or NAT'ed
+environments, where you need to know which port
+Amd
+will listen on.
 
 .TP
 .BR print_pid " (boolean, default=no)"
 Same as the
 .B \-p
-option to amd.  If "yes", amd will print its process ID upon starting.
+option to Amd.  If "yes," Amd will print its process ID upon starting.
 
 .TP
 .BR print_version " (boolean, default=no)"
 Same as the
 .B \-v
-option to amd, but the version prints and amd continues to run.  If "yes",
-amd will print its version information string, which includes some
+option to Amd, but the version prints and Amd continues to run.  If "yes,"
+Amd will print its version information string, which includes some
 configuration and compilation values.
 
 .TP
 .BR restart_mounts " (boolean, default=no)"
 Same as the
 .B \-r
-option to amd.  If "yes"
-.B amd
+option to Amd.  If "yes"
+Amd
 will scan the mount table to determine which file systems are currently
 mounted.  Whenever one of these would have been auto-mounted,
-.B amd
+Amd
 inherits it.
 
 .TP
-.BR selectors_in_defaults " (boolean, default=no)"
-If "yes", then the /defaults entry of maps will search for and process any
-selectors before setting defaults for all other keys in that map.  Useful
-when you want to set different options for a complete map based on some
-parameters.  For example, you may want to better the NFS performance over
-slow slip-based networks as follows:
-
-.nf
-/defaults \\
-    wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
-    wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
-.fi
-
-Deprecated form: selectors_on_default
-
-.TP
 .BR show_statfs_entries " (boolean), default=no)"
-If "yes", then all maps which are browsable will also show the number of
+If "yes," then all maps which are browsable will also show the number of
 entries (keys) they have when "df" runs. (This is accomplished by returning
 non-zero values to the statfs(2) system call).
 
 .TP
+.BR truncate_log " (boolean), default=no)"
+If "yes," then the log file (if it is a regular file), will be truncated
+upon startup.
+
+.TP
 .BR unmount_on_exit " (boolean), default=no)"
-If "yes", then amd will attempt to unmount all file systems which it knows
-about.  Normally amd leaves all (esp. NFS) mounted file systems intact.
-Note that amd does not know about file systems mounted before it starts up,
+If "yes," then Amd will attempt to unmount all file systems which it knows
+about.  Normally Amd leaves all (esp. NFS) mounted file systems intact.
+Note that Amd does not know about file systems mounted before it starts up,
 unless the restart_mounts option or
 .B \-r
 flag are used.
+
+.TP
+.BR use_tcpwrappers " (boolean), default=yes)"
+If "yes," then Amd will use the tcpd/librwap tcpwrappers library
+(if available) to control
+access to Amd via the /etc/hosts.allow and /etc/hosts.deny files.
 
 .TP
 .BR vendor " (string, default to compiled in value)"
@@ -537,15 +708,15 @@ Name of the map where the keys are located.
 .TP
 .BR tag " (string, default no tag)"
 Each map entry in the configuration file can be tagged.  If no tag is
-specified, that map section will always be processed by amd.  If it is
-specified, then amd will process the map if the
+specified, that map section will always be processed by Amd.  If it is
+specified, then Amd will process the map if the
 .B -T
-option was given to amd, and the value given to that command-line option
+option was given to Amd, and the value given to that command-line option
 matches that in the map section.
 
 .\" **************************************************************************
 .SH EXAMPLES
-Here is a real amd configuration file I use daily.
+Here is a real Amd configuration file I use daily.
 .P
 .nf
 # GLOBAL OPTIONS SECTION
@@ -561,7 +732,7 @@ plock =                  no
 selectors_in_defaults =  yes
 # config.guess picks up "sunos5" and I don't want to edit my maps yet
 os =                     sos5
-# if you print_version after setting up "os", it will show it.
+# if you print_version after setting up "os," it will show it.
 print_version =          no
 map_type =               file
 search_path =            /etc/amdmaps:/usr/lib/amd:/usr/local/AMD/lib
@@ -591,10 +762,22 @@ map_name =               amd.tftpboot
 .SH "SEE ALSO"
 .BR amd (8),
 .BR amq (8),
-.BR ctl-amd (8).
+.BR ctl-amd (8),
+.BR hosts_access (5).
+.LP
+``am-utils''
+.BR info (1)
+entry.
+.LP
+.I "Linux NFS and Automounter Administration"
+by Erez Zadok, ISBN 0-7821-2739-8, (Sybex, 2001).
+.LP
+.I http://www.am-utils.org
+.LP
+.I "Amd \- The 4.4 BSD Automounter"
 .SH AUTHORS
-Erez Zadok <ezk@cs.columbia.edu>, Department of Computer Science, Columbia
-University, New York, USA.
+Erez Zadok <ezk@cs.sunysb.edu>, Computer Science Department, Stony Brook
+University, Stony Brook, New York, USA.
 .P
 Other authors and contributors to am-utils are listed in the
 .B AUTHORS

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: nfs_start.c,v 1.5.2.7 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/nfs_start.c
  *
  */
 
@@ -52,8 +51,8 @@
 # define SELECT_MAXWAIT 16
 #endif /* not SELECT_MAXWAIT */
 
-SVCXPRT *nfsxprt;
-u_short nfs_port;
+SVCXPRT *nfsxprt = NULL;
+u_short nfs_port = 0;
 
 #ifndef HAVE_SIGACTION
 # define MASKED_SIGS	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGCHLD)|sigmask(SIGHUP))
@@ -92,7 +91,9 @@ checkup(void)
 
   }
 }
-#endif /* DEBUG */
+#else  /* not DEBUG */
+#define checkup()
+#endif /* not DEBUG */
 
 
 static int
@@ -121,10 +122,6 @@ do_select(int smask, int fds, fd_set *fdp, struct timeval *tvp)
   } else {
     select_intr_valid = 1;
     /*
-     * Invalidate the current clock value
-     */
-    clock_valid = 0;
-    /*
      * Allow interrupts.  If a signal
      * occurs, then it will cause a longjmp
      * up above.
@@ -151,9 +148,9 @@ do_select(int smask, int fds, fd_set *fdp, struct timeval *tvp)
   /*
    * Perhaps reload the cache?
    */
-  if (do_mapc_reload < clocktime()) {
+  if (do_mapc_reload < clocktime(NULL)) {
     mapc_reload();
-    do_mapc_reload = clocktime() + ONE_HOUR;
+    do_mapc_reload = clocktime(NULL) + gopt.map_reload_interval;
   }
   return nsel;
 }
@@ -168,26 +165,17 @@ rpc_pending_now(void)
 {
   struct timeval tvv;
   int nsel;
-#ifdef FD_SET
   fd_set readfds;
 
   FD_ZERO(&readfds);
   FD_SET(fwd_sock, &readfds);
-#else /* not FD_SET */
-  int readfds = (1 << fwd_sock);
-#endif /* not FD_SET */
 
   tvv.tv_sec = tvv.tv_usec = 0;
   nsel = select(FD_SETSIZE, &readfds, (fd_set *) 0, (fd_set *) 0, &tvv);
   if (nsel < 1)
     return (0);
-#ifdef FD_SET
   if (FD_ISSET(fwd_sock, &readfds))
     return (1);
-#else /* not FD_SET */
-  if (readfds & (1 << fwd_sock))
-    return (1);
-#endif /* not FD_SET */
 
   return (0);
 }
@@ -203,7 +191,7 @@ run_rpc(void)
   int smask = sigblock(MASKED_SIGS);
 #endif /* not HAVE_SIGACTION */
 
-  next_softclock = clocktime();
+  next_softclock = clocktime(NULL);
 
   amd_state = Run;
 
@@ -216,31 +204,27 @@ run_rpc(void)
     struct timeval tvv;
     int nsel;
     time_t now;
+    fd_set readfds;
+
 #ifdef HAVE_SVC_GETREQSET
-    fd_set readfds;
-
     memmove(&readfds, &svc_fdset, sizeof(svc_fdset));
-    FD_SET(fwd_sock, &readfds);
 #else /* not HAVE_SVC_GETREQSET */
-# ifdef FD_SET
-    fd_set readfds;
     FD_ZERO(&readfds);
+# ifdef HAVE_FD_SET_FDS_BITS
     readfds.fds_bits[0] = svc_fds;
-    FD_SET(fwd_sock, &readfds);
-# else /* not FD_SET */
-    int readfds = svc_fds | (1 << fwd_sock);
-# endif /* not FD_SET */
+# else /* not HAVE_FD_SET_FDS_BITS */
+    readfds = svc_fds;
+# endif  /* not HAVE_FD_SET_FDS_BITS */
 #endif /* not HAVE_SVC_GETREQSET */
+    FD_SET(fwd_sock, &readfds);
 
-#ifdef DEBUG
     checkup();
-#endif /* DEBUG */
 
     /*
      * If the full timeout code is not called,
      * then recompute the time delta manually.
      */
-    now = clocktime();
+    now = clocktime(NULL);
 
     if (next_softclock <= now) {
       if (amd_state == Finishing)
@@ -251,29 +235,30 @@ run_rpc(void)
     }
     tvv.tv_usec = 0;
 
-    if (amd_state == Finishing && last_used_map < 0) {
+    if (amd_state == Finishing && get_exported_ap(0) == NULL) {
       flush_mntfs();
       amd_state = Quit;
       break;
     }
+
+#ifdef HAVE_FS_AUTOFS
+    autofs_add_fdset(&readfds);
+#endif /* HAVE_FS_AUTOFS */
+
     if (tvv.tv_sec <= 0)
       tvv.tv_sec = SELECT_MAXWAIT;
-#ifdef DEBUG
     if (tvv.tv_sec) {
       dlog("Select waits for %ds", (int) tvv.tv_sec);
     } else {
       dlog("Select waits for Godot");
     }
-#endif /* DEBUG */
 
     nsel = do_select(smask, FD_SETSIZE, &readfds, &tvv);
 
     switch (nsel) {
     case -1:
       if (errno == EINTR) {
-#ifdef DEBUG
 	dlog("select interrupted");
-#endif /* DEBUG */
 	continue;
       }
       plog(XLOG_ERROR, "select: %m");
@@ -284,21 +269,21 @@ run_rpc(void)
 
     default:
       /*
-       * Read all pending NFS responses at once to avoid having responses.
+       * Read all pending NFS responses at once to avoid having responses
        * queue up as a consequence of retransmissions.
        */
-#ifdef FD_SET
       if (FD_ISSET(fwd_sock, &readfds)) {
 	FD_CLR(fwd_sock, &readfds);
-#else /* not FD_SET */
-      if (readfds & (1 << fwd_sock)) {
-	readfds &= ~(1 << fwd_sock);
-#endif /* not FD_SET */
 	--nsel;
 	do {
 	  fwd_reply();
 	} while (rpc_pending_now() > 0);
       }
+
+#ifdef HAVE_FS_AUTOFS
+      if (nsel)
+	nsel = autofs_handle_fdset(&readfds, nsel);
+#endif /* HAVE_FS_AUTOFS */
 
       if (nsel) {
 	/*
@@ -308,11 +293,11 @@ run_rpc(void)
 #ifdef HAVE_SVC_GETREQSET
 	svc_getreqset(&readfds);
 #else /* not HAVE_SVC_GETREQSET */
-# ifdef FD_SET
+# ifdef HAVE_FD_SET_FDS_BITS
 	svc_getreq(readfds.fds_bits[0]);
-# else /* not FD_SET */
+# else /* not HAVE_FD_SET_FDS_BITS */
 	svc_getreq(readfds);
-# endif /* not FD_SET */
+# endif /* not HAVE_FD_SET_FDS_BITS */
 #endif /* not HAVE_SVC_GETREQSET */
       }
       break;
@@ -344,26 +329,16 @@ mount_automounter(int ppid)
   int nmount, ret;
   int soNFS;
   int udp_soAMQ, tcp_soAMQ;
-#ifdef HAVE_TRANSPORT_TYPE_TLI
   struct netconfig *udp_amqncp, *tcp_amqncp;
-#endif /* HAVE_TRANSPORT_TYPE_TLI */
 
   /*
-   * Create the nfs service for amd
+   * This must be done first, because it attempts to bind
+   * to various UDP ports and we don't want anything else
+   * potentially taking over those ports before we get a chance
+   * to reserve them.
    */
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-  ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
-  if (ret != 0)
-    return ret;
-  ret = create_amq_service(&udp_soAMQ, &udp_amqp, &udp_amqncp, &tcp_soAMQ, &tcp_amqp, &tcp_amqncp);
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-  ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
-  if (ret != 0)
-    return ret;
-  ret = create_amq_service(&udp_soAMQ, &udp_amqp, &tcp_soAMQ, &tcp_amqp);
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
-  if (ret != 0)
-    return ret;
+  if (gopt.flags & CFM_RESTART_EXISTING_MOUNTS)
+    restart_automounter_nodes();
 
   /*
    * Start RPC forwarding
@@ -385,6 +360,46 @@ mount_automounter(int ppid)
     restart();
 
   /*
+   * Create the nfs service for amd
+   * If nfs_port is already initialized, it means we
+   * already created the service during restart_automounter_nodes().
+   */
+  if (nfs_port == 0) {
+    ret = create_nfs_service(&soNFS, &nfs_port, &nfsxprt, nfs_program_2);
+    if (ret != 0)
+      return ret;
+  }
+  xsnprintf(pid_fsname, sizeof(pid_fsname), "%s:(pid%ld,port%u)",
+	    am_get_hostname(), (long) am_mypid, nfs_port);
+
+  /* security: if user sets -D amq, don't even create listening socket */
+  if (!amuDebug(D_AMQ)) {
+    ret = create_amq_service(&udp_soAMQ,
+			     &udp_amqp,
+			     &udp_amqncp,
+			     &tcp_soAMQ,
+			     &tcp_amqp,
+			     &tcp_amqncp,
+			     gopt.preferred_amq_port);
+    if (ret != 0)
+      return ret;
+  }
+
+#ifdef HAVE_FS_AUTOFS
+  if (amd_use_autofs) {
+    /*
+     * Create the autofs service for amd.
+     */
+    ret = create_autofs_service();
+    /* if autofs service fails it is OK if using a test amd */
+    if (ret != 0) {
+      plog(XLOG_WARNING, "autofs service registration failed, turning off autofs support");
+      amd_use_autofs = 0;
+    }
+  }
+#endif /* HAVE_FS_AUTOFS */
+
+  /*
    * Mount the top-level auto-mountpoints
    */
   nmount = mount_exported();
@@ -401,41 +416,26 @@ mount_automounter(int ppid)
     return 0;
   }
 
-#ifdef DEBUG
-  amuDebug(D_AMQ) {
-#endif /* DEBUG */
+  if (!amuDebug(D_AMQ)) {
     /*
      * Complete registration of amq (first TCP service then UDP)
      */
     unregister_amq();
 
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-    ret = svc_reg(tcp_amqp, get_amd_program_number(), AMQ_VERSION,
-		  amq_program_1, tcp_amqncp);
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-    ret = svc_register(tcp_amqp, get_amd_program_number(), AMQ_VERSION,
-		       amq_program_1, IPPROTO_TCP);
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
+    ret = amu_svc_register(tcp_amqp, get_amd_program_number(), AMQ_VERSION,
+			   amq_program_1, IPPROTO_TCP, tcp_amqncp);
     if (ret != 1) {
       plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM=%d, AMQ_VERSION, tcp)", get_amd_program_number());
       return 3;
     }
 
-#ifdef HAVE_TRANSPORT_TYPE_TLI
-    ret = svc_reg(udp_amqp, get_amd_program_number(), AMQ_VERSION,
-		  amq_program_1, udp_amqncp);
-#else /* not HAVE_TRANSPORT_TYPE_TLI */
-    ret = svc_register(udp_amqp, get_amd_program_number(), AMQ_VERSION,
-		       amq_program_1, IPPROTO_UDP);
-#endif /* not HAVE_TRANSPORT_TYPE_TLI */
+    ret = amu_svc_register(udp_amqp, get_amd_program_number(), AMQ_VERSION,
+			   amq_program_1, IPPROTO_UDP, udp_amqncp);
     if (ret != 1) {
       plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM=%d, AMQ_VERSION, udp)", get_amd_program_number());
       return 4;
     }
-
-#ifdef DEBUG
   }
-#endif /* DEBUG */
 
   /*
    * Start timeout_mp rolling

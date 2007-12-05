@@ -2,12 +2,12 @@
 # control starting, stopping, or restarting amd.
 # usage: ctl-amd [start|stop|status|restart|condrestart|reload]
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
 # chkconfig: - 72 28
 # description: Runs the automount daemon that mounts devices and NFS hosts \
-#	       on demand.
+#              on demand.
 # processname: amd
 # config: /etc/amd.conf
 #
@@ -60,16 +60,20 @@ fi
 return 1
 }
 
+# before running any real programs, chdir to / to avoid possible hangs on
+# (NFS) mounts which may be restarting.
+cd /
+
 # search for amd.conf file
-CF_FILE="${prefix}/etc/amd.conf"
+CF_FILE="@sysconfdir@/amd.conf"
 # any local copy of the conf file overrides the "global" one
 if [ -f /etc/amd.conf ]
 then
 	CF_FILE="/etc/amd.conf"
 fi
-if [ -f ${prefix}/etc/amd.conf ]
+if [ -f @sysconfdir@/amd.conf ]
 then
-	CF_FILE="${prefix}/etc/amd.conf"
+	CF_FILE="@sysconfdir@/amd.conf"
 fi
 if [ -f /etc/local/amd.conf ]
 then
@@ -99,7 +103,7 @@ case "$1" in
 	echo "killing amd..."
 	killproc " amd"
 	wait4amd2die
-	test -f /var/lock/subsys/amd && rm -f /var/lock/subsys/amd
+	rm -f /var/lock/subsys/amd
 	;;
 
 'restart')
@@ -117,14 +121,14 @@ case "$1" in
 
 'condrestart')
      if [ -f /var/lock/subsys/amd ]; then
-	    ctl-amd stop
-	    ctl-amd start
-	fi
+            ctl-amd stop
+            ctl-amd start
+        fi
      ;;
 
 'reload')
-	amq -f
-	;;
+        amq -f
+        ;;
 
 'status')
 	# run amq -v to produce status
@@ -139,13 +143,13 @@ case "$1" in
 
 # start_msg and stop_msg are for HPUX
 'start_msg')
-	echo "Start am-utils 6.0 automounter"
+	echo "Start am-utils 6.1 automounter"
 	;;
 'stop_msg')
-	echo "Stop am-utils 6.0 automounter"
+	echo "Stop am-utils 6.1 automounter"
 	;;
 
 *)
-	echo "Usage: @sbindir@/ctl-amd [start|stop|status|restart|condrestart|reload]"
+	echo "Usage: $0 [start|stop|status|restart|condrestart|reload]"
 	;;
 esac

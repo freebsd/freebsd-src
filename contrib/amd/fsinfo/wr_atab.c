@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: wr_atab.c,v 1.3.2.4 2004/01/06 03:15:23 ezk Exp $
+ * File: am-utils/fsinfo/wr_atab.c
  *
  */
 
@@ -54,7 +53,7 @@
  * Write a sequence of automount mount map entries
  */
 static int
-write_amount_info(FILE *af, automount *ap,  int sk)
+write_amount_info(FILE *af, automount *ap,  u_int sk)
 {
   int errors = 0;
 
@@ -135,7 +134,8 @@ write_amount_info(FILE *af, automount *ap,  int sk)
        */
       if (mp->m_dk->d_host->h_lochost) {
 	char amountpt[1024];
-	compute_automount_point(amountpt, mp->m_dk->d_host, mp->m_exported->m_volname);
+	compute_automount_point(amountpt, sizeof(amountpt),
+				mp->m_dk->d_host, mp->m_exported->m_volname);
 	if (!STREQ(mp->m_dk->d_mountpt, amountpt)) {
 	  /*
 	   * ap->a_volname is the name of the aliased volume
@@ -221,12 +221,12 @@ write_amount_info(FILE *af, automount *ap,  int sk)
 	char sublink[1024];
 	sublink[0] = '\0';
 	if (exp_namelen < namelen) {
-	  strcat(sublink, mp->m_name + exp_namelen + 1);
+	  xstrlcat(sublink, mp->m_name + exp_namelen + 1, sizeof(sublink));
 	  if (mvolnlen < volnlen)
-	    strcat(sublink, "/");
+	    xstrlcat(sublink, "/", sizeof(sublink));
 	}
 	if (mvolnlen < volnlen)
-	  strcat(sublink, ap->a_volname + mvolnlen + 1);
+	  xstrlcat(sublink, ap->a_volname + mvolnlen + 1, sizeof(sublink));
 
 	fprintf(af, ";sublink:=%s", sublink);
       }

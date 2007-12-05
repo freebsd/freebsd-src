@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: wire.c,v 1.8.2.10 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/libamu/wire.c
  *
  */
 
@@ -59,6 +58,7 @@
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
 #include <amu.h>
+
 
 #ifdef HAVE_IFADDRS_H
 #include <ifaddrs.h>
@@ -101,31 +101,32 @@ print_wires(void)
   int bufcount = 0;
   int buf_size = 1024;
 
-  buf = SALLOC(1024);
+  buf = SALLOC(buf_size);	/* initial allocation (may grow!) */
   if (!buf)
     return NULL;
 
   if (!localnets) {
-    sprintf(buf, "No networks.\n");
+    xstrlcpy(buf, "No networks\n", buf_size);
     return buf;
   }
   /* check if there's more than one network */
   if (!localnets->ip_next) {
-    sprintf(buf,
-	    "Network: wire=\"%s\" (netnumber=%s).\n",
-	    localnets->ip_net_name, localnets->ip_net_num);
+    /* use buf_size for sizeof(buf) because of the realloc() below */
+    xsnprintf(buf, buf_size,
+	      "Network: wire=\"%s\" (netnumber=%s).\n",
+	      localnets->ip_net_name, localnets->ip_net_num);
     return buf;
   }
   buf[0] = '\0';		/* null out buffer before appending */
   for (i = 1, al = localnets; al; al = al->ip_next, i++) {
-    sprintf(s, "Network %d: wire=\"%s\" (netnumber=%s).\n",
-	    i, al->ip_net_name, al->ip_net_num);
+    xsnprintf(s, sizeof(s), "Network %d: wire=\"%s\" (netnumber=%s).\n",
+	      i, al->ip_net_name, al->ip_net_num);
     bufcount += strlen(s);
     if (bufcount > buf_size) {
       buf_size *= 2;
       buf = xrealloc(buf, buf_size);
     }
-    strcat(buf, s);
+    xstrlcat(buf, s, buf_size);
   }
   return buf;
 }
@@ -199,7 +200,7 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
      */
     if (!np) {
       u_long short_subnet = subnet;
-      while(short_subnet && (short_subnet & 0x000000ff) == 0)
+      while (short_subnet && (short_subnet & 0x000000ff) == 0)
 	short_subnet >>= 8;
       np = getnetbyaddr(short_subnet, AF_INET);
       if (np)
@@ -210,18 +211,18 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
   }
 
   if ((subnet & 0xffffff) == 0) {
-    sprintf(netNumberBuf, "%lu", C(subnet >> 24));
+    xsnprintf(netNumberBuf, sizeof(netNumberBuf), "%lu", C(subnet >> 24));
   } else if ((subnet & 0xffff) == 0) {
-    sprintf(netNumberBuf, "%lu.%lu",
-	C(subnet >> 24), C(subnet >> 16));
+    xsnprintf(netNumberBuf, sizeof(netNumberBuf), "%lu.%lu",
+	      C(subnet >> 24), C(subnet >> 16));
   } else if ((subnet & 0xff) == 0) {
-    sprintf(netNumberBuf, "%lu.%lu.%lu",
-	C(subnet >> 24), C(subnet >> 16),
-	C(subnet >> 8));
+    xsnprintf(netNumberBuf, sizeof(netNumberBuf), "%lu.%lu.%lu",
+	      C(subnet >> 24), C(subnet >> 16),
+	      C(subnet >> 8));
   } else {
-    sprintf(netNumberBuf, "%lu.%lu.%lu.%lu",
-	C(subnet >> 24), C(subnet >> 16),
-	C(subnet >> 8), C(subnet));
+    xsnprintf(netNumberBuf, sizeof(netNumberBuf), "%lu.%lu.%lu.%lu",
+	      C(subnet >> 24), C(subnet >> 16),
+	      C(subnet >> 8), C(subnet));
   }
 
   /* fill in network number (string) */
@@ -237,7 +238,7 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
     if (hp != NULL)
       s = (char *) hp->h_name;
     else
-      s = inet_dquad(buf, subnet);
+      s = inet_dquad(buf, sizeof(buf), subnet);
   }
 
   /* fill in network name (string) */
@@ -259,14 +260,14 @@ getwire_lookup(u_long address, u_long netmask, int ishost)
  * sizeof(buf) needs to be at least 16.
  */
 char *
-inet_dquad(char *buf, u_long addr)
+inet_dquad(char *buf, size_t l, u_long addr)
 {
   addr = ntohl(addr);
-  sprintf(buf, "%ld.%ld.%ld.%ld",
-	  ((addr >> 24) & 0xff),
-	  ((addr >> 16) & 0xff),
-	  ((addr >> 8) & 0xff),
-	  ((addr >> 0) & 0xff));
+  xsnprintf(buf, l, "%ld.%ld.%ld.%ld",
+	    ((addr >> 24) & 0xff),
+	    ((addr >> 16) & 0xff),
+	    ((addr >> 8) & 0xff),
+	    ((addr >> 0) & 0xff));
   return buf;
 }
 
@@ -279,16 +280,17 @@ int
 islocalnet(u_long addr)
 {
   addrlist *al;
-#ifdef DEBUG
-  char buf[16];
-#endif /* DEBUG */
 
   for (al = localnets; al; al = al->ip_next)
     if (((addr ^ al->ip_addr) & al->ip_mask) == 0)
       return TRUE;
 
 #ifdef DEBUG
-    plog(XLOG_INFO, "%s is on a remote network", inet_dquad(buf, addr));
+  {
+    char buf[16];
+    plog(XLOG_INFO, "%s is on a remote network",
+	 inet_dquad(buf, sizeof(buf), addr));
+  }
 #endif /* DEBUG */
 
   return FALSE;
@@ -319,15 +321,16 @@ is_network_member(const char *net)
     char *netstr = strdup(net), *maskstr;
     u_long netnum, masknum = 0;
     maskstr = strchr(netstr, '/');
+    maskstr[0] = '\0';		/* null terminate netstr */
     maskstr++;
-    maskstr[-1] = '\0';		/* null terminate netstr */
     if (*maskstr == '\0')	/* if empty string, make it NULL */
       maskstr = NULL;
     /* check if netmask uses a dotted-quad or bit-length, or not defined at all */
     if (maskstr) {
       if (strchr(maskstr, '.')) {
+	/* XXX: inet_addr is obsolste, convert to inet_aton() */
 	masknum = inet_addr(maskstr);
-	if (masknum < 0)		/* can be invalid (-1) or all-1s */
+	if (masknum == INADDR_NONE) /* can be invalid (-1) or all-1s */
 	  masknum = 0xffffffff;
       } else if (NSTRCEQ(maskstr, "0x", 2)) {
 	masknum = strtoul(maskstr, NULL, 16);
@@ -350,6 +353,24 @@ is_network_member(const char *net)
     }
   }
 
+  return FALSE;
+}
+
+
+/*
+ * Determine whether a IP address (netnum) is one of the local interfaces,
+ * returns TRUE/FALSE.
+ * Does not include the loopback interface: caller needs to check that.
+ */
+int
+is_interface_local(u_long netnum)
+{
+  addrlist *al;
+
+  for (al = localnets; al; al = al->ip_next) {
+    if (al->ip_addr == netnum)
+      return TRUE;
+  }
   return FALSE;
 }
 
@@ -381,10 +402,10 @@ getwire(char **name1, char **number1)
       continue;
 
     /*
-     * If the interface is a loopback, or its not running
+     * If the interface is the loopback, or it's not running,
      * then ignore it.
      */
-    if ((ifap->ifa_flags & IFF_LOOPBACK) != 0)
+    if (S2IN(ifap->ifa_addr) == htonl(INADDR_LOOPBACK))
       continue;
     if ((ifap->ifa_flags & IFF_RUNNING) == 0)
       continue;
@@ -395,7 +416,7 @@ getwire(char **name1, char **number1)
       al = getwire_lookup(S2IN(ifap->ifa_dstaddr), 0xffffffff, 1);
 
     /* append to the end of the list */
-    if (!localnets) {
+    if (!localnets || tail == NULL) {
       localnets = tail = al;
       tail->ip_next = NULL;
     } else {
@@ -439,12 +460,6 @@ getwire(char **name1, char **number1)
   u_long address;
   addrlist *al = NULL, *tail = NULL;
   char buf[GFBUFLEN];
-#if 0
-  u_long net;
-  u_long mask;
-  u_long subnetshift;
-  char buf[GFBUFLEN], *s;
-#endif
 
 #ifndef SIOCGIFFLAGS
   /* if cannot get interface flags, return nothing */
@@ -504,13 +519,11 @@ getwire(char **name1, char **number1)
       continue;
 
     /*
-     * If the interface is a loopback, or its not running
+     * If the interface is the loopback, or it's not running,
      * then ignore it.
      */
-#ifdef IFF_LOOPBACK
-    if ((ifr->ifr_flags & IFF_LOOPBACK) != 0)
+    if (address == htonl(INADDR_LOOPBACK))
       continue;
-#endif /* IFF_LOOPBACK */
     /*
      * Fix for 0.0.0.0 loopback on SunOS 3.X which defines IFF_ROUTE
      * instead of IFF_LOOPBACK.
