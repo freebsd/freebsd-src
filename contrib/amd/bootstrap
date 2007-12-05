@@ -23,7 +23,7 @@ if [ ! -f m4/macros/HEADER ]; then
 fi
 
 # remove any remaining autom4te.cache directory
-rm -fr autom4te.cache
+rm -fr autom4te.cache autom4te-*.cache
 
 # generate acinclude.m4 file
 echo "AMU: prepare acinclude.m4..."
