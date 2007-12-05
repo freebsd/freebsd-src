@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2004 Erez Zadok
+.\" Copyright (c) 1997-2006 Erez Zadok
 .\" Copyright (c) 1993 Jan-Simon Pendry.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)fsinfo.8	8.1 (Berkeley) 6/28/93
-.\"	$Id: fsinfo.8,v 1.3.2.5 2004/01/06 03:15:23 ezk Exp $
+.\"	$Id: fsinfo.8,v 1.13.2.1 2006/01/02 18:48:25 ezk Exp $
 .\"
 .TH FSINFO 8 "June 28, 1993"
 .SH NAME
@@ -68,10 +68,10 @@ fsinfo \- coordinate site-wide filesystem information
 .I dir
 ] [
 .B \-D
-.I string[=string]]
+.I string[=string]
 ] [
 .B \-U
-.I string[=string]]
+.I string[=string]
 ]
 .I config
 .I ...
@@ -95,7 +95,27 @@ command is fully described in the document
 .BR amd (8),
 .BR mount (8),
 .BR mountd (8).
+.LP
+``am-utils''
+.BR info (1)
+entry.
+.LP
+.I "Linux NFS and Automounter Administration"
+by Erez Zadok, ISBN 0-7821-2739-8, (Sybex, 2001).
+.LP
+.I http://www.am-utils.org
+.LP
+.I "Amd \- The 4.4 BSD Automounter"
 .SH HISTORY
 The
 .B fsinfo
 command first appeared in 4.4BSD.
+.SH AUTHORS
+Jan-Simon Pendry <jsp@doc.ic.ac.uk>, Department of Computing, Imperial College, London, UK.
+.P
+Erez Zadok <ezk@cs.sunysb.edu>, Computer Science Department, Stony Brook
+University, Stony Brook, New York, USA.
+.P
+Other authors and contributors to am-utils are listed in the
+.B AUTHORS
+file distributed with am-utils.

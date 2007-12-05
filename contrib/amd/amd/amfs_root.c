@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amfs_root.c,v 1.3.2.4 2004/01/06 03:15:16 ezk Exp $
+ * File: am-utils/amd/amfs_root.c
  *
  */
 
@@ -55,7 +54,7 @@
 /****************************************************************************
  *** FORWARD DEFINITIONS                                                  ***
  ****************************************************************************/
-static int amfs_root_mount(am_node *mp);
+static int amfs_root_mount(am_node *mp, mntfs *mf);
 
 /****************************************************************************
  *** OPS STRUCTURES                                                       ***
@@ -66,16 +65,19 @@ am_ops amfs_root_ops =
   0,				/* amfs_root_match */
   0,				/* amfs_root_init */
   amfs_root_mount,
-  0,
-  amfs_auto_umount,
-  0,
-  amfs_auto_lookuppn,
-  amfs_auto_readdir,
+  amfs_generic_umount,
+  amfs_generic_lookup_child,
+  amfs_generic_mount_child,
+  amfs_generic_readdir,
   0,				/* amfs_root_readlink */
   0,				/* amfs_root_mounted */
   0,				/* amfs_root_umounted */
-  find_amfs_auto_srvr,
-  FS_NOTIMEOUT | FS_AMQINFO | FS_DIRECTORY
+  amfs_generic_find_srvr,
+  0,				/* amfs_root_get_wchan */
+  FS_NOTIMEOUT | FS_AMQINFO | FS_DIRECTORY,	/* nfs_fs_flags */
+#ifdef HAVE_FS_AUTOFS
+  AUTOFS_ROOT_FS_FLAGS,
+#endif /* HAVE_FS_AUTOFS */
 };
 
 
@@ -87,12 +89,10 @@ am_ops amfs_root_ops =
  * Mount the root...
  */
 static int
-amfs_root_mount(am_node *mp)
+amfs_root_mount(am_node *mp, mntfs *mf)
 {
-  mntfs *mf = mp->am_mnt;
-
   mf->mf_mount = strealloc(mf->mf_mount, pid_fsname);
-  mf->mf_private = (voidp) mapc_find(mf->mf_info, "", NULL);
+  mf->mf_private = (opaque_t) mapc_find(mf->mf_info, "", NULL);
   mf->mf_prfree = mapc_free;
 
   return 0;
