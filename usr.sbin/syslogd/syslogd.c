@@ -70,10 +70,10 @@ __FBSDID("$FreeBSD$");
 
 #define	MAXLINE		1024		/* maximum line length */
 #define	MAXSVLINE	120		/* maximum saved line length */
-#define DEFUPRI		(LOG_USER|LOG_NOTICE)
-#define DEFSPRI		(LOG_KERN|LOG_CRIT)
-#define TIMERINTVL	30		/* interval for checking flush, mark */
-#define TTYMSGTIME	1		/* timeout passed to ttymsg */
+#define	DEFUPRI		(LOG_USER|LOG_NOTICE)
+#define	DEFSPRI		(LOG_KERN|LOG_CRIT)
+#define	TIMERINTVL	30		/* interval for checking flush, mark */
+#define	TTYMSGTIME	1		/* timeout passed to ttymsg */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -119,7 +119,7 @@ const char	ctty[] = _PATH_CONSOLE;
 
 #define	dprintf		if (Debug) printf
 
-#define MAXUNAMES	20	/* maximum number of user names */
+#define	MAXUNAMES	20	/* maximum number of user names */
 
 /*
  * Unix sockets.
@@ -144,11 +144,11 @@ STAILQ_HEAD(, funix) funixes =	{ &funix_default,
  * Flags to logmsg().
  */
 
-#define IGN_CONS	0x001	/* don't print on console */
-#define SYNC_FILE	0x002	/* do fsync on file after printing */
-#define ADDDATE		0x004	/* add a date to the message */
-#define MARK		0x008	/* this message is a mark */
-#define ISKERNEL	0x010	/* kernel generated message */
+#define	IGN_CONS	0x001	/* don't print on console */
+#define	SYNC_FILE	0x002	/* do fsync on file after printing */
+#define	ADDDATE		0x004	/* add a date to the message */
+#define	MARK		0x008	/* this message is a mark */
+#define	ISKERNEL	0x010	/* kernel generated message */
 
 /*
  * This structure represents the files that will have log
@@ -190,8 +190,8 @@ struct filed {
 	int	f_prevcount;			/* repetition cnt of prevline */
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
 	int	f_flags;			/* file-specific flags */
-#define FFLAG_SYNC 0x01
-#define FFLAG_NEEDSYNC	0x02
+#define	FFLAG_SYNC 0x01
+#define	FFLAG_NEEDSYNC	0x02
 };
 
 /*
@@ -213,7 +213,7 @@ struct deadq_entry {
  * Processes on the dead queue will be terminated after that time.
  */
 
-#define DQ_TIMO_INIT	2
+#define	 DQ_TIMO_INIT	2
 
 typedef struct deadq_entry *dq_t;
 
@@ -1916,12 +1916,12 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			p++;
 		else
 			p = NULL;
-		
+
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
 		error = getaddrinfo(f->f_un.f_forw.f_hname,
-				p ? p: "syslog", &hints, &res); 
+				p ? p : "syslog", &hints, &res);
 		if (error) {
 			logerror(gai_strerror(error));
 			break;
