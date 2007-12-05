@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: amq_defs.h,v 1.4.2.4 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/include/amq_defs.h
  *
  */
 
@@ -51,7 +50,7 @@
 #ifndef AMQ_SIZE
 # define AMQ_SIZE 16384
 #endif /* not AMQ_SIZE */
-#define AMQ_STRLEN 2048
+#define AMQ_STRLEN 16384
 #define AMQ_PROGRAM ((u_long)300019)
 #define AMQ_VERSION ((u_long)1)
 #define AMQPROC_NULL ((u_long)0)
@@ -64,6 +63,7 @@
 #define AMQPROC_MOUNT ((u_long)7)
 #define AMQPROC_GETVERS ((u_long)8)
 #define AMQPROC_GETPID ((u_long)9)
+#define AMQPROC_PAWD ((u_long)10)
 
 /*
  * TYPEDEFS

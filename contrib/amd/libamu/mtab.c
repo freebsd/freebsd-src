@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2004 Erez Zadok
+ * Copyright (c) 1997-2006 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -36,9 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      %W% (Berkeley) %G%
  *
- * $Id: mtab.c,v 1.3.2.8 2004/01/06 03:15:24 ezk Exp $
+ * File: am-utils/libamu/mtab.c
  *
  */
 
@@ -118,14 +117,14 @@ haseq(char *instr)
 /*
  * Utility routine which returns a pointer to whatever
  * follows an = in a mount option.  Returns null if option
- * doesn't exist or doesn't have an '='.  Won't fall for opt,foo=.
+ * doesn't exist or doesn't have an '='.  Won't fail for opt,foo=.
  */
 char *
 hasmnteq(mntent_t *mnt, char *opt)
 {
   if (mnt && opt) {		/* disallow null input pointers */
     if ( *opt ) {		/* disallow the null string as an opt */
-      char *str = hasmntopt(mnt, opt);
+      char *str = amu_hasmntopt(mnt, opt);
       if ( str ) {		/* option was there */
 	char *eq = str + strlen(opt); /* Look at char just after option */
 	if (*eq == '=')		/* Is it '=' ? */
@@ -138,14 +137,93 @@ hasmnteq(mntent_t *mnt, char *opt)
 
 
 /*
- * Utility routine which determines the value of a
- * numeric option in the mount options (such as port=%d).
- * Returns 0 if the option is not specified.
+ * Wrapper around hasmntvalerr(), which retains backwards compatibiliy with
+ * older use of hasmntval().
+ *
+ * XXX: eventually, all use of hasmntval() should be replaced with
+ * hasmntvalerr().
  */
 int
 hasmntval(mntent_t *mnt, char *opt)
 {
-  char *str = hasmntopt(mnt, opt);
+  int err, val = 0;
+
+  err = hasmntvalerr(mnt, opt, &val);
+  if (err)	   /* if there was an error (hasmntvalerr returned 1) */
+    return 0;	   /* redundant: val==0 above, but leave here for clarity */
+  /* otherwise there was no error */
+  return val;
+}
+
+
+/*
+ * Utility routine which determines the value of a numeric option in the
+ * mount options (such as port=%d), and fills in the value in the argument
+ * valp (argument won't be touched if no value is set, for example due to an
+ * error).
+ *
+ * Returns non-zero (1) on error; returns 0 on success.
+ *
+ * XXX: eventually, all use of hasmntval() should be replaced with
+ * hasmntvalerr().
+ */
+unsigned int
+hasmntvalerr(mntent_t *mnt, char *opt, int *valp)
+{
+  char *str = amu_hasmntopt(mnt, opt);
+  int err = 1;		     /* 1 means no good value was set (an error) */
+  char *eq, *endptr;
+  long int i;
+
+  /* exit if no option specificed */
+  if (!str) {
+    goto out;
+  }
+
+  eq = hasmnteq(mnt, opt);
+
+  if (!eq) {		  /* no argument to option ('=' sign was missing) */
+    plog(XLOG_MAP, "numeric option to \"%s\" missing", opt);
+    goto out;
+  }
+
+  /* if got here, then we had an '=' after option name */
+  endptr = NULL;
+  i = strtol(eq, &endptr, 0); /* hex and octal allowed ;-) */
+  if (!endptr ||
+      (endptr != eq && (*endptr == ',' || *endptr == '\0'))) {
+      /*
+       * endptr set means strtol saw a non-digit.  If the non-digit is a
+       * comma, it's probably the start of the next option.  If the comma is
+       * the first char though, complain about it (foo=,bar is made
+       * noticeable by this).
+       *
+       * Similar reasoning for '\0' instead of comma, it's the end of the
+       * string.
+       */
+    *valp = (int) i;		/* set good value */
+    err = 0;			/* no error */
+  } else {
+    /* whatever was after the '=' sign wasn't a number */
+    plog(XLOG_MAP, "invalid numeric option in \"%s\": \"%s\"", opt, str);
+    /* fall through to error/exit processing */
+  }
+
+ out:
+  return err;
+}
+
+
+/*
+ * Utility routine which returns the string value of
+ * an option in the mount options (such as proto=udp).
+ * Returns NULL if the option is not specified.
+ * Returns malloc'ed string (caller must free!)
+ */
+char *
+hasmntstr(mntent_t *mnt, char *opt)
+{
+  char *str = amu_hasmntopt(mnt, opt);
 
   if (str) { /* The option was there */
 
@@ -153,27 +231,20 @@ hasmntval(mntent_t *mnt, char *opt)
 
     if (eq) { /* and had an = after it */
 
-      char *endptr = NULL;
-      long int i = strtol(eq, &endptr, 0); /* hex and octal allowed ;-) */
+      char *endptr = strchr(eq, ',');
 
-      if (!endptr ||
-	  /*
-	   * endptr set means strtol saw a non-digit.  If the
-	   * non-digit is a comma, it's probably the start of the next
-	   * option.  If the comma is the first char though, complain about
-	   * it (foo=,bar is made noticeable by this).
-	   *
-	   * Similar reasoning for '\0' instead of comma, it's the end
-	   * of the string.
-	   */
-	   (endptr != eq && (*endptr == ',' || *endptr == '\0')))
-	  return((int) i);
-      /* whatever was after the '=' sign wasn't a number */
-      plog(XLOG_MAP, "invalid numeric option in \"%s\": \"%s\"", opt, str);
-    } else {
-      /* No argument to option ('=' sign was missing) */
-      plog(XLOG_MAP, "numeric option to \"%s\" missing", opt);
+      /* if saw no comma, return strdup'd string */
+      if (!endptr)
+	return strdup(eq);
+      else {
+	/* else we need to copy only the chars needed */
+	int len = endptr - eq;
+	char *buf = xmalloc(len + 1);
+	strncpy(buf, eq, len);
+	buf[len] = '\0';
+	return buf;
+      }
     }
   }
-  return 0;
+  return NULL;
 }

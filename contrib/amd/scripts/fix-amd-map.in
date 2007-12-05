@@ -5,7 +5,7 @@
 # takes any number of files on the command line, and produces
 # a fixed map on stdout.
 #
-# Package:	am-utils-6.0
+# Package:	am-utils-6.x
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
 
