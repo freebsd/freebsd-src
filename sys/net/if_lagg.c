@@ -1155,6 +1155,11 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	if (m != NULL) {
 		scifp->if_ipackets++;
 		scifp->if_ibytes += m->m_pkthdr.len;
+
+		if (scifp->if_flags & IFF_MONITOR) {
+			m_freem(m);
+			m = NULL;
+		}
 	}
 
 	LAGG_RUNLOCK(sc);
