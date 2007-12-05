@@ -873,6 +873,7 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 	struct i386_ldt_args ldt;
 	struct l_descriptor ld;
 	union descriptor desc;
+	int size, written;
 
 	if (uap->ptr == NULL)
 		return (EINVAL);
@@ -884,6 +885,14 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		ldt.num = uap->bytecount / sizeof(union descriptor);
 		error = i386_get_ldt(td, &ldt);
 		td->td_retval[0] *= sizeof(union descriptor);
+		break;
+	case 0x02: /* read_default_ldt = 0 */
+		size = 5*sizeof(struct l_desc_struct);
+		if (size > uap->bytecount)
+			size = uap->bytecount;
+		for (written = error = 0; written < size && error == 0; written++)
+			error = subyte((char *)uap->ptr + written, 0);
+		td->td_retval[0] = written;
 		break;
 	case 0x01: /* write_ldt */
 	case 0x11: /* write_ldt */
