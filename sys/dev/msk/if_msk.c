@@ -193,6 +193,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8036 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8038,
 	    "Marvell Yukon 88E8038 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8039,
+	    "Marvell Yukon 88E8039 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4361,
 	    "Marvell Yukon 88E8050 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4360,
