@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997-2004 Erez Zadok
+.\" Copyright (c) 1997-2006 Erez Zadok
 .\" Copyright (c) 1990 Jan-Simon Pendry
 .\" Copyright (c) 1990 Imperial College of Science, Technology & Medicine
 .\" Copyright (c) 1990 The Regents of the University of California.
@@ -38,21 +38,21 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.conf.5,v 1.7.2.10 2004/01/21 04:04:58 ib42 Exp $
+.\" $Id: amd.conf.5,v 1.39.2.5 2006/04/21 01:12:04 ezk Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 7, 1997
+.Dd April 4, 2006
 .Dt AMD.CONF 5
 .Os
 .Sh NAME
 .Nm amd.conf
-.Nd amd configuration file
+.Nd Amd configuration file
 .Sh SYNOPSIS
 .Nm
 .Sh DESCRIPTION
 The
 .Nm
-file is the configuration file for amd, as part of the am-utils suite.
+file is the configuration file for Amd, as part of the am-utils suite.
 .Pp
 .Nm
 contains runtime configuration information for the
@@ -98,7 +98,7 @@ cache timeouts are numeric.
 .Sh SECTIONS
 .Ss "The [global] section"
 Parameters in this section either apply to
-.Nm amd
+.Nm Amd
 as a whole, or to all other regular map sections which follow.
 There
 should be only one global section defined in one configuration file.
@@ -113,7 +113,7 @@ For example, if the map section
 .Bq Pa /homes
 is defined, then all parameters following it will be applied to the
 .Pa /homes
-amd-managed mount point.
+Amd-managed mount point.
 .Sh PARAMETERS
 .Ss "Parameters common to all sections"
 These parameters can be specified either in the global or a map specific
@@ -129,7 +129,7 @@ sections that follow.
 .Xc
 If
 .Qq yes ,
-then amd's top-level mount points will be browsable to
+then Amd's top-level mount points will be browsable to
 .Xr readdir 3
 calls.
 This means you could run for example
@@ -154,31 +154,40 @@ the entries, such as often done by
 .Qq ls -l
 or
 .Qq ls -F ,
-.Nm amd
+.Nm Amd
 will attempt to mount
 .Em every
 entry in that map.
 This is often called a
 .Dq mount storm .
+.It Ic map_defaults Xo (string, default no empty)
+This option sets a string to be used as the map's /defaults entry,
+overriding any
+.Em /defaults
+specified in the map.
+This allows local users to override map defaults without modifying maps
+globally.
 .It Ic map_options Xo
 (string, default no options)
 .Xc
 This option is the same as specifying map options on the command line to
-.Nm amd ,
+.Nm Amd ,
 such as
 .Ql cache\&:\&=all .
 .It Ic map_type Xo
 (string, default search all map types)
 .Xc
-If specified, amd will initialize the map only for the type given.
+If specified, Amd will initialize the map only for the type given.
 This is useful to avoid the default map search type used by
-.Nm amd
+.Nm Amd
 which takes longer and can have undesired side-effects such as initializing
 .Tn NIS
 even if not used.
 Possible values are:
 .Pp
 .Bl -tag -width "nisplus" -compact
+.It Ic exec
+executable maps
 .It Ic file
 plain files
 .It Ic hesiod
@@ -199,17 +208,33 @@ union maps
 .It Ic mount_type Xo
 (string, default=nfs)
 .Xc
-All amd mount types must be
+All amd mount types default to
 .Tn NFS .
 That is,
-.Nm amd
+.Nm Amd
 is an
 .Tn NFS
 server on the map mount points, for the local host it is running on.
 If
 .Qq autofs
-is specified, amd will log an error and convert it to
-.Tn NFS .
+is specified,
+.Nm Amd
+will be an autofs server for those mount points.
+.It Ic autofs_use_lofs Xo (string, default=yes)
+.Xc
+When set to
+.Qq yes
+and using Autofs,
+.Nm Amd
+will use lofs-type (loopback) mounts for type:=link mounts.
+This has the advantage of mounting in place, and users get to the see the
+same pathname that they chdir'ed into.
+If this option is set to
+.Qq no ,
+then
+.Nm Amd
+will use symlinks instead: that code is more tested,
+but negates autofs's big advantage of in-place mounts.
 .It Ic search_path Xo
 (string, default no search path)
 .Xc
@@ -219,22 +244,57 @@ search path for file maps.
 Using a search path, sites can allow for
 local map customizations and overrides, and can query distributed maps in
 several locations as needed.
+.It Ic selectors_in_defaults Xo (boolean, default=no)
+.Xc
+If
+.Qq yes ,
+then the /defaults entry of maps will search for and process any selectors
+before setting defaults for all other keys in that map.
+Useful when you want to set different options for a complete map based on
+some parameters.
+For example, you may want to better the NFS performance over
+slow slip-based networks as follows:
+.Bd -literal
+.nf
+/defaults \\
+	wire==slip-net;opts:=intr,rsize=1024,wsize=1024 \\
+	wire!=slip-net;opts:=intr,rsize=8192,wsize=8192
+.fi
+.Ed
+Deprecated form: selectors_on_default
 .El
 .Ss "Parameters applicable to the global section only"
 .Bl -tag -width 4n
 .It Ic arch Xo
 (string, default to compiled in value)
 .Xc
+Same as the
+.Ar -A
+option to
+.Nm Amd.
 Allows you to override the value of the
 .Va arch
-.Nm amd
+.Nm Amd
 variable.
+.It Ic auto_attrcache Xo (string, default= Ns Pa /a )
+.Xc
+Specify in seconds (or units of 0.1 seconds, depending on the OS), what is
+the (kernel-side) NFS attribute cache timeout for
+.Em @i{Amd} 's
+own automount points.
+A value of 0 is supposed to turn off attribute caching, meaning that
+.Em @i{Amd}
+will be consulted via a kernel-RPC each time someone stat()'s the mount point
+(which could be abused as a denial-of-service attack).
+Warning: some OSs are incapable of turning off the NFS attribute cache reliably.
+On such systems, Amd may not work reliably under heavy load.
+See the README.attrcache document in the Am-utils distribution for more details.
 .It Ic auto_dir Xo (string, default= Ns Pa /a )
 .Xc
 Same as the
 .Fl a
 option to
-.Nm amd .
+.Nm Amd .
 This sets the private directory where amd will create sub-directories for its
 real mount points.
 .It Ic cache_duration Xo
@@ -243,27 +303,33 @@ real mount points.
 Same as the
 .Fl c
 option to
-.Nm amd .
-Sets the duration in seconds that looked up map entries remain in the cache.
+.Nm Amd .
+Sets the duration in seconds that looked-up ormounted map entries remain
+in the cache.
 .It Ic cluster Xo
 (string, default no cluster)
 .Xc
 Same as the
 .Fl C
 option to
-.Nm amd .
+.Nm Amd .
 Specifies the alternate
 .Tn HP-UX
 cluster to use.
+.It Ic debug_mtab_file Xo (string, default=/tmp/mnttab)
+.Xc
+Path to mtab file that is used by Amd to store a list of mounted file
+systems during debug-mtab mode.
+This option only applies to systems that store mtab information on disk.
 .It Ic debug_options Xo
 (string, default no debug options)
 .Xc
 Same as the
 .Fl D
 option to
-.Nm amd .
+.Nm Amd .
 Specify any debugging options for
-.Nm amd .
+.Nm Amd .
 Works only if am-utils was configured for debugging using the
 .Fl -enable-debug
 option.
@@ -278,7 +344,7 @@ be preceded by the string
 to negate their meaning.
 You can get the list of supported debugging options
 by running
-.Nm amd Fl v .
+.Nm Amd Fl v .
 Possible values are:
 .Pp
 .Bl -tag -width "daemon" -compact
@@ -315,21 +381,63 @@ protocol trace
 Same as the
 .Fl w
 option to
-.Nm amd .
+.Nm Amd .
 Specify, in seconds, the time between attempts to dismount file systems that
 have exceeded their cached times.
+.It Ic domain_strip Xo (boolean, default=yes)
+.Xc
+If
+.Qq yes ,
+then the domain name part referred to by 
+.Em ${rhost}
+is stripped off.
+This is useful to keep logs and smaller.
+If
+.Qq no ,
+then the domain name part is left changed.
+This is useful when using multiple domains with the same maps
+(as you may have hosts whose domain-stripped name is identical).
+.It Ic exec_map_timeout Xo (numeric, default=10)
+.Xc
+The timeout in seconds that
+.Nm Amd
+will wait for an executable map program before an answer is returned from
+that program (or script).
+This value should be set to as small as possible while still allowing normal
+replies to be returned before the timer expires,
+because during the time that the executable map program is queried,
+.Nm Amd
+is essentially waiting and is thus not responding to any other queries.
+.It Ic forced_unmounts Xo (boolean, default=no)
+.Xc
+If set to
+.Qq yes ,
+and the client OS supports forced or lazy unmounts, then
+.Nm Amd
+will attempt to use them if it gets any of three serious error conditions
+when trying to unmount an existing mount point or mount on top of one:
+EIO, ESTALE, or EBUSY.
+.Pp
+This could be useful to recover from serious conditions such as hardware
+failure of mounted disks, or NFS servers which are down permanently, were
+migrated, or changed their IP address.
+Only
+.Qq type:=toplvl
+mounts hung with EBUSY are forcibly unmounted using this option,
+which is useful to recover from a hung
+.Nm Amd ).
 .It Ic fully_qualified_hosts Xo
 (string, default=no)
 .Xc
 If
 .Qq yes ,
-.Nm amd
+.Nm Amd
 will perform RPC authentication using fully-qualified host names.
 This is
 necessary for some systems, and especially when performing cross-domain
 mounting.
 For this function to work, the
-.Nm amd
+.Nm Amd
 variable
 .Va ${hostd}
 is used, requiring that
@@ -345,13 +453,13 @@ Specify the base name for hesiod maps.
 Same as the
 .Fl k
 option to
-.Nm amd .
+.Nm Amd .
 Allows you to override the kernel-architecture of your system.
 Useful for
 example on Sun
 (Sparc)
 machines, where you can build one
-.Nm amd
+.Nm Amd
 binary and run it on multiple machines, yet you want each one to get the
 correct
 .Va karch
@@ -359,7 +467,7 @@ variable set
 (for example, sun4c, sun4m, sun4u, etc.)
 Note that if not
 specified,
-.Nm amd
+.Nm Amd
 will use
 .Xr uname 3
 to figure out the kernel architecture of the machine.
@@ -379,35 +487,48 @@ Specify the number of seconds to keep entries in the cache.
 (string, default not set)
 .Xc
 Specify LDAP-specific values such as country and organization.
+.It Ic ldap_proto_version Xo (numeric, default=2)
+.Xc
+Specify the version of the LDAP protocol to use.
 .It Ic local_domain Xo
 (string, default no sub-domain)
 .Xc
 Same as the
 .Fl d
 option to
-.Nm amd .
+.Nm Amd .
 Specify the local domain name.
 If this option is not given the domain name is
 determined from the hostname by removing the first component of the
 fully-qualified host name.
+.It Ic localhost_address Xo (string, default to localhost or 127.0.0.1)
+.Xc
+Specify the name or IP address for
+.Nm Amd
+to use when connecting the sockets for the local NFS server and the RPC server.
+This defaults to 127.0.0.1 or whatever the host reports as its local address.
+This parameter is useful on hosts with multiple addresses where you want
+to force
+.Nm Amd
+to connect to a specific address.
 .It Ic log_file Xo (string, default= Ns Pa /dev/stderr )
 .Xc
 Same as the
 .Fl l
 option to
-.Nm amd .
+.Nm Amd .
 Specify a file name to log
-.Nm amd
+.Nm Amd
 events to.
 If the string
 .Pa /dev/stderr
 is specified,
-.Nm amd
+.Nm Amd
 will send its events to the standard error file descriptor.
 IF the string
 .Pa syslog
 is given,
-.Nm amd
+.Nm Amd
 will record its events with the system logger
 .Xr syslogd 8 .
 The default syslog facility used is
@@ -419,7 +540,7 @@ For example, if
 is the string
 .Qq syslog:local7
 then
-.Nm amd
+.Nm Amd
 will log messages via
 .Xr syslog 3
 using the
@@ -432,9 +553,9 @@ facility
 Same as the
 .Fl x
 option to
-.Nm amd .
+.Nm Amd .
 Specify any logging options for
-.Nm amd .
+.Nm Amd .
 Options are comma delimited, and can be preceded by the string
 .Dq no
 to negate their meaning.
@@ -443,7 +564,7 @@ The
 logging option is only available if am-utils was configured with
 .Fl -enable-debug .
 You can get the list of supported debugging and logging options by running
-.Nm amd Fl H .
+.Nm Amd Fl H .
 Possible values are:
 .Pp
 .Bl -tag -width "warning" -compact
@@ -468,19 +589,65 @@ warnings
 .It Ic warning
 warnings
 .El
+.It Ic map_reload_interval Xo (numeric, default=3600)
+.Xc
+The number of seconds that Amd will wait before it checks to see if any maps
+have changed at their source (NIS servers, LDAP servers, files, etc.).
+.Nm Amd
+will reload only those maps that have changed.
+.It Ic nfs_allow_any_interface Xo (string, default=no)
+.Xc
+Normally
+.Nm Amd
+accepts local NFS packets only from 127.0.0.1.
+If this parameter is set to
+.Qq yes
+then
+.Nm Amd
+will accept local NFS packets from any local interface;
+this is useful on hosts that may have multiple interfaces where the system
+is forced to send all outgoing packets (even those bound to the same host)
+via an address other than 127.0.0.1.
+.It Ic nfs_allow_insecure_port Xo (string, default=no)
+.Xc
+Normally
+.Nm Amd
+will refuse requests coming from unprivileged ports (i.e. ports >= 1024
+on Unix systems), so that only privileged users and the kernel can send
+NFS requests to it.
+However, some kernels (certain versions of Darwin, MacOS X, and Linux)
+have bugs that cause them to use unprivileged ports in certain situations,
+which causes
+.Nm Amd
+to stop dead in its tracks.
+This parameter allows
+.Nm Amd
+to operate normally even on such systems,
+at the expense of a slight decrease in the security of its operations.
+If you see messages like
+.Qq ignoring request from foo:1234, port not reserved
+in your
+.Nn Amd
+log, try enabling this parameter and give it another go.
 .It Ic nfs_proto Xo
 (string, default to trying version tcp then udp)
 .Xc
-By default, amd tries TCP and then UDP.
+By default,
+.Nm Amd
+tries TCP and then UDP.
 This option forces the overall
 .Tn NFS
 protocol used to TCP or UDP.
-It overrides what is in the amd maps, and is
-useful when amd is compiled with NFSv3 support that may not be stable.
+It overrides what is in the
+.Nm Amd
+maps, and is useful when
+.Nm Amd
+is compiled with NFSv3 support that may not be stable.
 With
 this option you can turn off the complete usage of NFSv3 dynamically
-(without having to recompile amd) until such time as NFSv3 support is
-desired again.
+(without having to recompile
+.Nm Amd )
+until such time as NFSv3 support is desired again.
 .It Ic nfs_retransmit_counter Xo
 (numeric, default=110)
 .Xc
@@ -489,8 +656,23 @@ Same as the
 part of the
 .Fl t Ar interval.counter
 option to
-.Nm amd .
+.Nm Amd .
 Specifies the retransmit counter's value in tenths of seconds.
+.It Ic nfs_retransmit_counter_udp Xo (numeric, default=11)
+.Xc
+Same as the
+.It nfs_retransmit_counter
+option, but for all UDP mounts only.
+.It Ic nfs_retransmit_counter_tcp Xo (numeric, default=11)
+.Xc
+Same as the
+.It nfs_retransmit_counter
+option, but for all TCP mounts only.
+.It Ic nfs_retransmit_counter_toplvl Xo (numeric, default=11
+.Xc
+Same as the
+.It nfs_retransmit_counter
+option, but only for Amd's top-level UDP mounts.
 .It Ic nfs_retry_interval Xo
 (numeric, default=8)
 .Xc
@@ -499,12 +681,13 @@ Same as the
 part of the
 .Fl t Ar interval.counter
 option to
-.Nm amd .
+.Nm Amd .
 Specifies the
 .Tn NFS
 timeout interval, in tenths of seconds, between NFS/RPC retries (for UDP only).
 This is the value that the kernel will use to
-communicate with amd.
+communicate with
+.Nm Amd.
 .Pp
 .Nm Amd
 relies on the kernel RPC retransmit mechanism to trigger mount retries.
@@ -530,6 +713,21 @@ at the expense of a slight decrease in the security of its operations.
 If
 you see messages like "ignoring request from foo:1234, port not reserved"
 in your amd log, try enabling this parameter and give it another go.
+.It Ic nfs_retry_interval_udp Xo (numeric, default=8)
+Same as the
+.It nfs_retry_interval
+option, but for all UDP mounts only.
+.It Ic nfs_retry_interval_tcp Xo (numeric, default=8)
+Same as the
+.It nfs_retry_interval
+option, but for all TCP mounts only.
+.It Ic nfs_retry_interval_toplvl Xo (numeric, default=8)
+.Xc
+Same as the
+.It nfs_retry_interval
+option, but only for
+.Nm Amd 's
+top-level UDP mounts.
 .It Ic nfs_vers Xo
 (numeric, default to trying version 3 then 2)
 .Xc
@@ -552,7 +750,7 @@ domain name)
 Same as the
 .Fl y
 option to
-.Nm amd .
+.Nm Amd .
 Specify an alternative
 .Tn NIS
 domain from which to fetch the
@@ -568,7 +766,7 @@ support is not available.
 Same as the
 .Fl n
 option to
-.Nm amd .
+.Nm Amd .
 If
 .Dq yes ,
 then the name referred to by
@@ -578,13 +776,27 @@ The effect is
 to translate aliases into
 .Qq official
 names.
+.It Ic normalize_slashes Xo (boolean, default=yes)
+If
+.Qq yes ,
+then
+.Nm Amd
+will condense all multiple ``/'' (slash) characters into one and remove all
+trailing slashes.
+If
+.Qq no ,
+then
+.Nm Amd
+will not touch strings that may contain repeated or trailing slashes.
+The latter is sometimes useful with SMB mounts, which often require
+multiple slash characters in pathnames.
 .It Ic os Xo
 (string, default to compiled in value)
 .Xc
 Same as the
 .Fl O
 option to
-.Nm amd .
+.Nm Amd .
 Allows you to override the compiled-in name of the operating
 system.
 Useful when the built-in name is not desired for backward
@@ -600,7 +812,7 @@ and use older maps which were written with the latter in mind.
 Same as the
 .Fl o
 option to
-.Nm amd .
+.Nm Amd .
 Override the compiled-in version number of the operating
 system.
 Useful when the built in version is not desired for backward
@@ -615,13 +827,13 @@ and use older maps that were written with the latter in mind.
 Specify a file to store the process ID of the running daemon into.
 If not
 specified,
-.Nm amd
+.Nm Amd
 will print its process id only the standard output.
 Useful for killing
-.Nm amd
+.Nm Amd
 after it had run.
 Note that the PID of a running
-.Nm amd
+.Nm Amd
 can also be retrieved via
 .Nm amq Fl p .
 This file is used only if the
@@ -633,27 +845,29 @@ option is on.
 Same as the
 .Fl S
 option to
-.Nm amd .
+.Nm Amd .
 If
 .Dq yes ,
 lock the running executable pages of
-.Nm amd
+.Nm Amd
 into memory.
 To improve
-.Nm amd Ns 's
+.Nm Amd Ns 's
 performance, systems that support the
 .Xr plock 3
+or
+.Xr mlockall 2
 call can lock the
-.Nm amd
+.Nm Amd
 process into memory.
 This way there is less chance it that the operating
 system will schedule, page out, and swap the
-.Nm amd
+.Nm Amd
 process as needed.
 This improves
-.Nm amd Ns 's
+.Nm Amd Ns 's
 performance, at the cost of reserving the memory used by the
-.Nm amd
+.Nm Amd
 process
 (making it unavailable for other processes).
 .It Ic portmap_program Xo
@@ -662,14 +876,14 @@ process
 Specify an alternate Port-mapper RPC program number, other than the official
 number.
 This is useful when running multiple
-.Nm amd
+.Nm Amd
 processes.
 For example, you can run another
-.Nm amd
+.Nm Amd
 in
 .Dq test
 mode, without affecting the primary
-.Nm amd
+.Nm Amd
 process in any way.
 For safety reasons, the alternate program numbers that
 can be specified must be in the range 300019-300029, inclusive.
@@ -677,23 +891,39 @@ can be specified must be in the range 300019-300029, inclusive.
 has an option
 .Fl P
 which can be used to specify an alternate program number of an
-.Nm amd
+.Nm Amd
 to contact.
 In this way,
 .Nm amq
 can fully control any number of
-.Nm amd
+.Nm Amd
 processes running on the same host.
+.It Ic preferred_amq_port Xo (numeric, default=0)
+.Xc
+Specify an alternate Port-mapper RPC port number for
+.Nm Amd s
+.Nm Amq
+service.
+This is used for both UDP and TCP.
+Setting this value to 0 (or not defining it) will cause
+.Nm Amd
+to select an arbitrary port number.
+Setting the
+.Nm Amq
+RPC service port to a specific number is useful in firewalled or NAT'ed
+environments, where you need to know which port
+.Nm Amd
+will listen on.
 .It Ic print_pid Xo
 (boolean, default=no)
 .Xc
 Same as the
 .Fl p
 option to
-.Nm amd .
+.Nm Amd .
 If
 .Dq yes ,
-.Nm amd
+.Nm Amd
 will print its process ID upon starting.
 .It Ic print_version Xo
 (boolean, default=no)
@@ -701,13 +931,13 @@ will print its process ID upon starting.
 Same as the
 .Fl v
 option to
-.Nm amd ,
+.Nm Amd ,
 but the version prints and
-.Nm amd
+.Nm Amd
 continues to run.
 If
 .Dq yes ,
-.Nm amd
+.Nm Amd
 will print its version information string, which includes some configuration
 and compilation values.
 .It Ic restart_mounts Xo
@@ -716,14 +946,14 @@ and compilation values.
 Same as the
 .Fl r
 option to
-.Nm amd .
+.Nm Amd .
 If
 .Dq yes ,
-.Nm amd
+.Nm Amd
 will scan the mount table to determine which file systems are currently
 mounted.
 Whenever one of these would have been auto-mounted,
-.Nm amd
+.Nm Amd
 inherits it.
 .It Ic selectors_on_default Xo
 (boolean, default=no)
@@ -760,22 +990,27 @@ runs.
 (This is accomplished by returning non-zero values to the
 .Xr statfs 2
 system call.)
+.It Ic truncate_log Xo (boolean), default=no)
+.Xc
+If
+.Qq yes ,
+then the log file (if it is a regular file), will be truncated upon startup.
 .It Ic unmount_on_exit Xo
 (boolean, default=no)
 .Xc
 If
 .Dq yes ,
 then
-.Nm amd
+.Nm Amd
 will attempt to unmount all file systems which it knows about.
 Normally
-.Nm amd
+.Nm Amd
 leaves all
 (esp.\&)
 .Tn NFS
 mounted file systems intact.
 Note that
-.Nm amd
+.Nm Amd
 does not know about file systems mounted before it starts up, unless the
 .Ar restart_mounts
 option or
@@ -784,6 +1019,19 @@ flag are used.
 .El
 .Ss "Parameters applicable to regular map sections"
 .Bl -tag -width 4n
+.It Ic use_tcpwrappers Xo (boolean), default=yes)
+If
+.Qq yes ,
+then
+.Nm Amd
+will use the tcpd/librwap tcpwrappers library (if available) to control
+access to
+.Nm Amd
+via the
+.It Pa /etc/hosts.allow
+and
+.It Pa /etc/hosts.deny
+files.
 .It Ic map_name Xo
 (string, must be specified)
 .Xc
@@ -794,19 +1042,19 @@ Name of the map where the keys are located.
 Each map entry in the configuration file can be tagged.
 If no tag is
 specified, that map section will always be processed by
-.Nm amd .
+.Nm Amd .
 If it is specified, then
-.Nm amd
+.Nm Amd
 will process the map if the
 .Fl T
 option was given to
-.Nm amd ,
+.Nm Amd ,
 and the value given to that command-line option matches that in the map
 section.
 .El
 .Sh EXAMPLES
 Here is a real
-.Nm amd
+.Nm Amd
 configuration I use daily.
 .Bd -literal
 # GLOBAL OPTIONS SECTION
@@ -819,7 +1067,7 @@ log_file =               /var/log/amd
 log_options =            all
 #debug_options =         all
 plock =                  no
-selectors_on_default =   yes
+selectors_in_default =   yes
 # config.guess picks up "sunos5" and I don't want to edit my maps yet
 os =                     sos5
 # if you print_version after setting up "os", it will show it.
@@ -849,16 +1097,18 @@ tag =                    tftpboot
 map_name =               amd.tftpboot
 .Ed
 .Sh SEE ALSO
+.Xr hosts_access (5) ,
 .Xr amd 8 ,
 .Xr amq 8
 .Sh HISTORY
 The
-.Nm amd
+.Nm Amd
 utility first appeared in
 .Bx 4.4 .
 .Sh AUTHORS
 .An Erez Zadok Aq ezk@cs.columbia.edu ,
-Department of Computer Science, Columbia University, New York, USA.
+Department of Computer Science, Stony Brook University, Stony Brook,
+New York, USA.
 .Pp
 .An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
 Department of Computing, Imperial College, London, UK.

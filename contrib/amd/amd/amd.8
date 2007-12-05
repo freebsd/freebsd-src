@@ -38,10 +38,10 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: amd.8,v 1.4.2.5 2004/01/06 03:15:16 ezk Exp $
+.\" $Id: amd.8,v 1.14.2.1 2006/01/02 18:48:23 ezk Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd January 2, 2006
 .Dt AMD 8
 .Os
 .Sh NAME
@@ -68,6 +68,7 @@
 .Ek
 .Op Fl x Ar log-option
 .Op Fl y Ar YP-domain
+.Op Fl A Ar arch
 .Bk -words
 .Op Fl C Ar cluster-name
 .Ek
@@ -228,6 +229,11 @@ The default is the system domain name.
 This option is ignored if
 .Tn NIS
 support is not available.
+.It Fl A Ar arch
+Specifies the OS architecture.
+This is used solely to set the
+.Em ${arch}
+selector.
 .It Fl C Ar cluster-name
 Specify an alternative HP-UX cluster name to use.
 .It Fl D Ar option
@@ -356,6 +362,9 @@ the features.
 .Re
 .Pp
 .Pa http://www.am-utils.org/
+.Pp
+.%T Linux NFS and Automounter Administration
+by Erez Zadok, ISBN 0-7821-2739-8, (Sybex, 2001).
 .Sh HISTORY
 The
 .Nm amd
@@ -366,8 +375,7 @@ utility first appeared in
 Department of Computing, Imperial College, London, UK.
 .Pp
 .An Erez Zadok Aq ezk@am-utils.org ,
-Department of Computer Science, Columbia University,
-New York, USA.
+Department of Computer Science, Stony Brook University New York, USA.
 .Pp
 Other authors and contributors to am-utils are listed in the
 .Pa AUTHORS
