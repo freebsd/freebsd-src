@@ -361,6 +361,19 @@ _kse_single_thread(struct pthread *curthread)
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
 	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 
+	/*
+	 * After a fork, it is possible that an upcall occurs in
+	 * the parent KSE that fork()'d before the child process
+	 * is fully created and before its vm space is copied.
+	 * During the upcall, the tcb is set to null or to another
+	 * thread, and this is what gets copied in the child process
+	 * when the vm space is cloned sometime after the upcall
+	 * occurs.  Note that we shouldn't have to set the kcb, but
+	 * we do it for completeness.
+	 */
+	_kcb_set(curthread->kse->k_kcb);
+	_tcb_set(curthread->kse->k_kcb, curthread->tcb);
+
 	/* After a fork(), there child should have no pending signals. */
 	sigemptyset(&curthread->sigpend);
 
