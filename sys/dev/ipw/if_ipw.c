@@ -2700,10 +2700,10 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	struct ipw_softc *sc = arg1;
 	uint32_t i, size, buf[256];
 
-	if (!(sc->flags & IPW_FLAG_FW_INITED)) {
-		memset(buf, 0, sizeof buf);
+	memset(buf, 0, sizeof buf);
+
+	if (!(sc->flags & IPW_FLAG_FW_INITED))
 		return SYSCTL_OUT(req, buf, sizeof buf);
-	}
 
 	CSR_WRITE_4(sc, IPW_CSR_AUTOINC_ADDR, sc->table1_base);
 
@@ -2711,7 +2711,7 @@ ipw_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	for (i = 1; i < size; i++)
 		buf[i] = MEM_READ_4(sc, CSR_READ_4(sc, IPW_CSR_AUTOINC_DATA));
 
-	return SYSCTL_OUT(req, buf, sizeof buf);
+	return SYSCTL_OUT(req, buf, size);
 }
 
 static int
