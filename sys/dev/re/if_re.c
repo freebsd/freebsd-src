@@ -634,10 +634,14 @@ re_setmulti(sc)
 
 	ifp = sc->rl_ifp;
 
-	rxfilt = CSR_READ_4(sc, RL_RXCFG);
 
+	rxfilt = CSR_READ_4(sc, RL_RXCFG);
+	rxfilt &= ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_MULTI);
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		rxfilt |= RL_RXCFG_RX_MULTI;
+		if (ifp->if_flags & IFF_PROMISC)
+			rxfilt |= RL_RXCFG_RX_ALLPHYS;
+		if (ifp->if_flags & IFF_ALLMULTI)
+			rxfilt |= RL_RXCFG_RX_MULTI;
 		CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
 		CSR_WRITE_4(sc, RL_MAR0, 0xFFFFFFFF);
 		CSR_WRITE_4(sc, RL_MAR4, 0xFFFFFFFF);
