@@ -195,7 +195,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	int error;
 	/* Size counters. */
 	ino_t	nodes_max;
-	off_t	size_max;
+	size_t	size_max;
 
 	/* Root node attributes. */
 	uid_t	root_uid;
