@@ -391,6 +391,7 @@ interpret:
 	if (error)
 		goto exec_fail_dealloc;
 
+	imgp->proc->p_osrel = 0;
 	/*
 	 *	If the current process has a special image activator it
 	 *	wants to try first, call it.   For example, emulating shell
