@@ -110,7 +110,6 @@ TcpChecksum(struct ip *pip)
 	struct tcphdr *tc;
 	int nhdr, ntcp, nbytes;
 	int sum, oddbyte;
-	void *v;
 
 	nhdr = pip->ip_hl << 2;
 	ntcp = ntohs(pip->ip_len) - nhdr;
@@ -132,12 +131,10 @@ TcpChecksum(struct ip *pip)
 		sum += oddbyte;
 	}
 /* "Pseudo-header" data */
-	v = &pip->ip_dst;
-	ptr = v;
+	ptr = (void *)&pip->ip_dst;
 	sum += *ptr++;
 	sum += *ptr;
-	v = &pip->ip_src;
-	ptr = v;
+	ptr = (void *)&pip->ip_src;
 	sum += *ptr++;
 	sum += *ptr;
 	sum += htons((u_short) ntcp);
