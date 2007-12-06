@@ -221,10 +221,6 @@ on the mounted file system.
 The same as
 .Fl r ;
 mount the file system read-only (even the super-user may not write it).
-.It Cm sync
-All
-.Tn I/O
-to the file system should be done synchronously.
 .It Cm snapshot
 This option allows a snapshot of the specified file system to be taken.
 The
@@ -310,6 +306,10 @@ Only UFS file systems support this option.
 See
 .Xr chmod 2
 for more information.
+.It Cm sync
+All
+.Tn I/O
+to the file system should be done synchronously.
 .It Cm update
 The same as
 .Fl u ;
