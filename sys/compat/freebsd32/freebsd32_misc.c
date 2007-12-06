@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_ipc.h>
 #include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
@@ -1422,42 +1423,6 @@ freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 		return (EINVAL);
 	}
 }
-
-struct ipc_perm32 {
-	uint16_t	cuid;
-	uint16_t	cgid;
-	uint16_t	uid;
-	uint16_t	gid;
-	uint16_t	mode;
-	uint16_t	seq;
-	uint32_t	key;
-};
-struct shmid_ds32 {
-	struct ipc_perm32 shm_perm;
-	int32_t		shm_segsz;
-	int32_t		shm_lpid;
-	int32_t		shm_cpid;
-	int16_t		shm_nattch;
-	int32_t		shm_atime;
-	int32_t		shm_dtime;
-	int32_t		shm_ctime;
-	uint32_t	shm_internal;
-};
-struct shm_info32 {
-	int32_t		used_ids;
-	uint32_t	shm_tot;
-	uint32_t	shm_rss;
-	uint32_t	shm_swp;
-	uint32_t	swap_attempts;
-	uint32_t	swap_successes;
-};
-struct shminfo32 {
-	uint32_t	shmmax;
-	uint32_t	shmmin;
-	uint32_t	shmmni;
-	uint32_t	shmseg;
-	uint32_t	shmall;
-};
 
 int
 freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
