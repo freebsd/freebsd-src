@@ -6459,6 +6459,10 @@ out_gu:
 	/* clear out the chunk before setting up */
 	memset(chk, 0, sizeof(*chk));
 	chk->rec.data.rcv_flags = rcv_flags;
+	if ((send_lock_up == 0) && (sp->msg_is_complete == 0)) {
+		SCTP_TCB_SEND_LOCK(stcb);
+		send_lock_up = 1;
+	}
 	if (SCTP_BUF_IS_EXTENDED(sp->data)) {
 		chk->copy_by_ref = 1;
 	} else {
@@ -6521,6 +6525,12 @@ out_gu:
 	} else {
 		atomic_subtract_int(&sp->length, to_move);
 	}
+	if (chk->last_mbuf == NULL) {
+		chk->last_mbuf = chk->data;
+		while (SCTP_BUF_NEXT(chk->last_mbuf) != NULL) {
+			chk->last_mbuf = SCTP_BUF_NEXT(chk->last_mbuf);
+		}
+	}
 	if (M_LEADINGSPACE(chk->data) < (int)sizeof(struct sctp_data_chunk)) {
 		/* Not enough room for a chunk header, get some */
 		struct mbuf *m;
@@ -6546,7 +6556,7 @@ out_gu:
 				/* reassemble the data */
 				m_tmp = sp->data;
 				sp->data = chk->data;
-				SCTP_BUF_NEXT(sp->data) = m_tmp;
+				SCTP_BUF_NEXT(chk->last_mbuf) = m_tmp;
 			}
 			sp->some_taken = some_taken;
 			atomic_add_int(&sp->length, to_move);
@@ -6583,12 +6593,6 @@ out_gu:
 	 * get last_mbuf and counts of mb useage This is ugly but hopefully
 	 * its only one mbuf.
 	 */
-	if (chk->last_mbuf == NULL) {
-		chk->last_mbuf = chk->data;
-		while (SCTP_BUF_NEXT(chk->last_mbuf) != NULL) {
-			chk->last_mbuf = SCTP_BUF_NEXT(chk->last_mbuf);
-		}
-	}
 	chk->flags = 0;
 	chk->asoc = &stcb->asoc;
 	chk->pad_inplace = 0;
