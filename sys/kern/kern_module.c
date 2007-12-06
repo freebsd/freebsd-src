@@ -416,6 +416,7 @@ modfind(struct thread *td, struct modfind_args *uap)
 
 #ifdef COMPAT_IA32
 #include <sys/mount.h>
+#include <sys/socket.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
