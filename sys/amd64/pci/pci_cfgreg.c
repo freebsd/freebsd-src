@@ -38,12 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <machine/pci_cfgreg.h>
 
-static int cfgmech;
-static int devmax;
-
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
-static int	pcireg_cfgopen(void);
 
 static struct mtx pcicfg_mtx;
 
@@ -57,8 +53,6 @@ pci_cfgregopen(void)
 
 	if (opened)
 		return (1);
-	if (pcireg_cfgopen() == 0)
-		return (0);
 	mtx_init(&pcicfg_mtx, "pcicfg", NULL, MTX_SPIN);
 	opened = 1;
 	return (1);
@@ -109,26 +103,12 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 {
 	int dataport = 0;
 
-	if (bus <= PCI_BUSMAX
-	    && slot < devmax
-	    && func <= PCI_FUNCMAX
-	    && reg <= PCI_REGMAX
-	    && bytes != 3
-	    && (unsigned) bytes <= 4
-	    && (reg & (bytes - 1)) == 0) {
-		switch (cfgmech) {
-		case 1:
-			outl(CONF1_ADDR_PORT, (1 << 31)
-			    | (bus << 16) | (slot << 11) 
-			    | (func << 8) | (reg & ~0x03));
-			dataport = CONF1_DATA_PORT + (reg & 0x03);
-			break;
-		case 2:
-			outb(CONF2_ENABLE_PORT, 0xf0 | (func << 1));
-			outb(CONF2_FORWARD_PORT, bus);
-			dataport = 0xc000 | (slot << 8) | reg;
-			break;
-		}
+	if (bus <= PCI_BUSMAX && slot < 32 && func <= PCI_FUNCMAX &&
+	    reg <= PCI_REGMAX && bytes != 3 && (unsigned) bytes <= 4 &&
+	    (reg & (bytes - 1)) == 0) {
+		outl(CONF1_ADDR_PORT, (1 << 31) | (bus << 16) | (slot << 11) 
+		    | (func << 8) | (reg & ~0x03));
+		dataport = CONF1_DATA_PORT + (reg & 0x03);
 	}
 	return (dataport);
 }
@@ -137,19 +117,11 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 static void
 pci_cfgdisable(void)
 {
-	switch (cfgmech) {
-	case 1:
-		/*
-		 * Do nothing for the config mechanism 1 case.
-		 * Writing a 0 to the address port can apparently
-		 * confuse some bridges and cause spurious
-		 * access failures.
-		 */
-		break;
-	case 2:
-		outb(CONF2_ENABLE_PORT, 0);
-		break;
-	}
+
+	/*
+	 * Do nothing.  Writing a 0 to the address port can apparently
+	 * confuse some bridges and cause spurious access failures.
+	 */
 }
 
 static int
@@ -200,132 +172,4 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 		pci_cfgdisable();
 	}
 	mtx_unlock_spin(&pcicfg_mtx);
-}
-
-/* check whether the configuration mechanism has been correctly identified */
-static int
-pci_cfgcheck(int maxdev)
-{
-	uint32_t id, class;
-	uint8_t header;
-	uint8_t device;
-	int port;
-
-	if (bootverbose) 
-		printf("pci_cfgcheck:\tdevice ");
-
-	for (device = 0; device < maxdev; device++) {
-		if (bootverbose) 
-			printf("%d ", device);
-
-		port = pci_cfgenable(0, device, 0, 0, 4);
-		id = inl(port);
-		if (id == 0 || id == 0xffffffff)
-			continue;
-
-		port = pci_cfgenable(0, device, 0, 8, 4);
-		class = inl(port) >> 8;
-		if (bootverbose)
-			printf("[class=%06x] ", class);
-		if (class == 0 || (class & 0xf870ff) != 0)
-			continue;
-
-		port = pci_cfgenable(0, device, 0, 14, 1);
-		header = inb(port);
-		if (bootverbose)
-			printf("[hdr=%02x] ", header);
-		if ((header & 0x7e) != 0)
-			continue;
-
-		if (bootverbose)
-			printf("is there (id=%08x)\n", id);
-
-		pci_cfgdisable();
-		return (1);
-	}
-	if (bootverbose) 
-		printf("-- nothing found\n");
-
-	pci_cfgdisable();
-	return (0);
-}
-
-static int
-pcireg_cfgopen(void)
-{
-	uint32_t mode1res, oldval1;
-	uint8_t mode2res, oldval2;
-
-	oldval1 = inl(CONF1_ADDR_PORT);
-
-	if (bootverbose) {
-		printf("pci_open(1):\tmode 1 addr port (0x0cf8) is 0x%08x\n",
-		    oldval1);
-	}
-
-	if ((oldval1 & CONF1_ENABLE_MSK) == 0) {
-
-		cfgmech = 1;
-		devmax = 32;
-
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-		DELAY(1);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
-
-		if (bootverbose)
-			printf("pci_open(1a):\tmode1res=0x%08x (0x%08lx)\n", 
-			    mode1res, CONF1_ENABLE_CHK);
-
-		if (mode1res) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
-
-		outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK1);
-		mode1res = inl(CONF1_ADDR_PORT);
-		outl(CONF1_ADDR_PORT, oldval1);
-
-		if (bootverbose)
-			printf("pci_open(1b):\tmode1res=0x%08x (0x%08lx)\n", 
-			    mode1res, CONF1_ENABLE_CHK1);
-
-		if ((mode1res & CONF1_ENABLE_MSK1) == CONF1_ENABLE_RES1) {
-			if (pci_cfgcheck(32)) 
-				return (cfgmech);
-		}
-	}
-
-	oldval2 = inb(CONF2_ENABLE_PORT);
-
-	if (bootverbose) {
-		printf("pci_open(2):\tmode 2 enable port (0x0cf8) is 0x%02x\n",
-		    oldval2);
-	}
-
-	if ((oldval2 & 0xf0) == 0) {
-
-		cfgmech = 2;
-		devmax = 16;
-
-		outb(CONF2_ENABLE_PORT, CONF2_ENABLE_CHK);
-		mode2res = inb(CONF2_ENABLE_PORT);
-		outb(CONF2_ENABLE_PORT, oldval2);
-
-		if (bootverbose)
-			printf("pci_open(2a):\tmode2res=0x%02x (0x%02x)\n", 
-			    mode2res, CONF2_ENABLE_CHK);
-
-		if (mode2res == CONF2_ENABLE_RES) {
-			if (bootverbose)
-				printf("pci_open(2a):\tnow trying mechanism 2\n");
-
-			if (pci_cfgcheck(16)) 
-				return (cfgmech);
-		}
-	}
-
-	cfgmech = 0;
-	devmax = 0;
-	return (cfgmech);
 }
