@@ -158,6 +158,9 @@ SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
+static int prot_fault_translation = 0;
+SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
+	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
 
 extern char *syscallnames[];
 
@@ -375,8 +378,32 @@ trap(struct trapframe *frame)
 			if (i == SIGSEGV)
 				ucode = SEGV_MAPERR;
 			else {
-				i = SIGSEGV; /* XXX hack */
-				ucode = SEGV_ACCERR;
+				if (prot_fault_translation == 0) {
+					/*
+					 * Autodetect.
+					 * This check also covers the images
+					 * without the ABI-tag ELF note.
+					 */
+					if (p->p_osrel >= 700004) {
+						i = SIGSEGV;
+						ucode = SEGV_ACCERR;
+					} else {
+						i = SIGBUS;
+						ucode = BUS_PAGE_FAULT;
+					}
+				} else if (prot_fault_translation == 1) {
+					/*
+					 * Always compat mode.
+					 */
+					i = SIGBUS;
+					ucode = BUS_PAGE_FAULT;
+				} else {
+					/*
+					 * Always SIGSEGV mode.
+					 */
+					i = SIGSEGV;
+					ucode = SEGV_ACCERR;
+				}
 			}
 			addr = eva;
 			break;
