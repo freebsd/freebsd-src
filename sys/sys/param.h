@@ -238,10 +238,12 @@
 #define MAXSYMLINKS	32
 
 /* Bit map related macros. */
-#define	setbit(a,i)	(((uint8_t *)(a))[(i)/NBBY] |= 1<<((i)%NBBY))
-#define	clrbit(a,i)	(((uint8_t *)(a))[(i)/NBBY] &= ~(1<<((i)%NBBY)))
-#define	isset(a,i)	(((const uint8_t *)(a))[(i)/NBBY] & (1<<((i)%NBBY)))
-#define	isclr(a,i)	((((const uint8_t *)(a))[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
+#define	setbit(a,i)	(((unsigned char *)(a))[(i)/NBBY] |= 1<<((i)%NBBY))
+#define	clrbit(a,i)	(((unsigned char *)(a))[(i)/NBBY] &= ~(1<<((i)%NBBY)))
+#define	isset(a,i)							\
+	(((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY)))
+#define	isclr(a,i)							\
+	((((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
 
 /* Macros for counting and rounding. */
 #ifndef howmany
