@@ -106,6 +106,10 @@ SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW,
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
 
+#define	trunc_page_ps(va, ps)	((va) & ~(ps - 1))
+#define	round_page_ps(va, ps)	(((va) + (ps - 1)) & ~(ps - 1))
+#define	aligned(a, t)	(trunc_page_ps((u_long)(a), sizeof(t)) == (u_long)(a))
+
 int
 __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 {
@@ -360,9 +364,6 @@ __elfN(load_section)(struct vmspace *vmspace,
 		return (ENOEXEC);
 	}
 
-#define trunc_page_ps(va, ps)	((va) & ~(ps - 1))
-#define round_page_ps(va, ps)	(((va) + (ps - 1)) & ~(ps - 1))
-
 	map_addr = trunc_page_ps((vm_offset_t)vmaddr, pagesize);
 	file_addr = trunc_page_ps(offset, pagesize);
 
@@ -549,6 +550,10 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	}
 
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	if (!aligned(phdr, Elf_Addr)) {
+		error = ENOEXEC;
+		goto fail;
+	}
 
 	for (i = 0, numsegs = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_LOAD) {	/* Loadable segment */
@@ -632,6 +637,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		return (ENOEXEC);
 	}
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	if (!aligned(phdr, Elf_Addr))
+		return (ENOEXEC);
 	for (i = 0; i < hdr->e_phnum; i++) {
 		if (phdr[i].p_type == PT_INTERP) {
 			/* Path to interpreter */
