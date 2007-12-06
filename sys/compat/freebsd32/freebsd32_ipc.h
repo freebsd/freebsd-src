@@ -39,6 +39,41 @@ struct ipc_perm32 {
 	uint32_t	key;
 };
 
+struct semid_ds32 {
+	struct ipc_perm32 sem_perm;
+	uint32_t	sem_base;
+	unsigned short	sem_nsems;
+	int32_t		sem_otime;
+	int32_t		sem_pad1;
+	int32_t		sem_ctime;
+	int32_t		sem_pad2;
+	int32_t		sem_pad3[4];
+};
+
+union semun32 {
+	int		val;
+	uint32_t	buf;
+	uint32_t	array;
+};
+
+struct msqid_ds32 {
+	struct ipc_perm32 msg_perm;
+	uint32_t	msg_first;
+	uint32_t	msg_last;
+	uint32_t	msg_cbytes;
+	uint32_t	msg_qnum;
+	uint32_t	msg_qbytes;
+	pid_t		msg_lspid;
+	pid_t		msg_lrpid;
+	int32_t		msg_stime;
+	int32_t		msg_pad1;
+	int32_t		msg_rtime;
+	int32_t		msg_pad2;
+	int32_t		msg_ctime;
+	int32_t		msg_pad3;
+	int32_t		msg_pad4[4];
+};
+
 struct shmid_ds32 {
 	struct ipc_perm32 shm_perm;
 	int32_t		shm_segsz;
