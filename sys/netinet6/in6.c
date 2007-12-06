@@ -1113,32 +1113,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		 */
 		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
 		if (rt) {
-			if (memcmp(&mltaddr.sin6_addr,
-			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
-			    MLTMASK_LEN)) {
-				RTFREE_LOCKED(rt);
-				rt = NULL;
-			}
-		}
-		if (!rt) {
-			/* XXX: we need RTF_CLONING to fake nd6_rtrequest */
-			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
-			    (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&mltmask, RTF_UP | RTF_CLONING,
-			    (struct rtentry **)0);
-			if (error)
-				goto cleanup;
-		} else
-			RTFREE_LOCKED(rt);
-
-		/*
-		 * XXX: do we really need this automatic routes?
-		 * We should probably reconsider this stuff.  Most applications
-		 * actually do not need the routes, since they usually specify
-		 * the outgoing interface.
-		 */
-		rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
-		if (rt) {
 			/* XXX: only works in !SCOPEDROUTING case. */
 			if (memcmp(&mltaddr.sin6_addr,
 			    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
@@ -1148,6 +1122,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			}
 		}
 		if (!rt) {
+			/* XXX: we need RTF_CLONING to fake nd6_rtrequest */
 			error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&mltmask, RTF_UP | RTF_CLONING,
