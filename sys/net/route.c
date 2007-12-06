@@ -193,7 +193,6 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 			}
 			rt_missmsg(RTM_ADD, &info, newrt->rt_flags, 0);
 		} else {
-			KASSERT(rt == newrt, ("locking wrong route"));
 			RT_LOCK(newrt);
 			RT_ADDREF(newrt);
 		}
