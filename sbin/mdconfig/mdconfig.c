@@ -284,7 +284,7 @@ main(int argc, char **argv)
 			 */
 			md_list(NULL, OPT_LIST);
 		} else {
-			md_query(mdunit);
+			return (md_query(mdunit));
 		}
 	} else if (action == ATTACH) {
 		if (cmdline < 2)
@@ -323,7 +323,7 @@ md_list(char *units, int opt)
 	struct ggeom *gg;
 	struct gclass *gcl;
 	void *sq;
-	int retcode;
+	int retcode, found;
 	char *type, *file, *length;
 
 	type = file = length = NULL;
@@ -338,6 +338,7 @@ md_list(char *units, int opt)
 	if (sq == NULL)
 		return (-1);
 
+	found = 0;
 	while ((gsp = geom_stats_snapshot_next(sq)) != NULL) {
 		gid = geom_lookupid(&gm, gsp->id);
 		if (gid == NULL)
@@ -352,6 +353,8 @@ md_list(char *units, int opt)
 				retcode = md_find(units, pp->lg_name);
 				if (retcode != 1)
 					continue;
+				else
+					found = 1;
 			}
 			gc = &pp->lg_config;
 			printf("%s", pp->lg_name);
@@ -380,7 +383,10 @@ md_list(char *units, int opt)
 		printf("\n");
 	/* XXX: Check if it's enough to clean everything. */
 	geom_stats_snapshot_free(sq);
-	return (-1);
+	if ((opt & OPT_UNIT) && found)
+		return (0);
+	else
+		return (-1);
 }
 
 /*
