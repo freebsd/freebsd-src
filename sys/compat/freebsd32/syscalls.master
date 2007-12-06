@@ -395,15 +395,15 @@
 ; The following were introduced with NetBSD/4.4Lite-2
 ; They are initialized by thier respective modules/sysinits
 ; XXX PROBLEM!!
-220	AUE_SEMCTL	NOPROTO	{ int __semctl(int semid, int semnum, \
-				    int cmd, union semun *arg); }
+220	AUE_SEMCTL	STD	{ int freebsd32_semctl(int semid, int semnum, \
+				    int cmd, union semun32 *arg); }
 221	AUE_SEMGET	NOPROTO	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOPROTO	{ int semop(int semid, struct sembuf *sops, \
 				    u_int nsops); }
 223	AUE_NULL	UNIMPL	semconfig
-224	AUE_MSGCTL	NOPROTO	{ int msgctl(int msqid, int cmd, \
-				    struct msqid_ds *buf); }
+224	AUE_MSGCTL	STD	{ int freebsd32_msgctl(int msqid, int cmd, \
+				    struct msqid_ds32 *buf); }
 225	AUE_MSGGET	NOPROTO	{ int msgget(key_t key, int msgflg); }
 226	AUE_MSGSND	STD	{ int freebsd32_msgsnd(int msqid, void *msgp, \
 				    size_t msgsz, int msgflg); }
