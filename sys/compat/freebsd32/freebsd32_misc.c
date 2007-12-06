@@ -71,6 +71,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/sem.h>
 #include <sys/shm.h>
 
 #include <vm/vm.h>
@@ -1319,34 +1321,201 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 }
 #endif
 
+static void
+freebsd32_ipcperm_in(struct ipc_perm32 *ip32, struct ipc_perm *ip)
+{
+
+	CP(*ip32, *ip, cuid);
+	CP(*ip32, *ip, cgid);
+	CP(*ip32, *ip, uid);
+	CP(*ip32, *ip, gid);
+	CP(*ip32, *ip, mode);
+	CP(*ip32, *ip, seq);
+	CP(*ip32, *ip, key);
+}
+
+static void
+freebsd32_ipcperm_out(struct ipc_perm *ip, struct ipc_perm32 *ip32)
+{
+
+	CP(*ip, *ip32, cuid);
+	CP(*ip, *ip32, cgid);
+	CP(*ip, *ip32, uid);
+	CP(*ip, *ip32, gid);
+	CP(*ip, *ip32, mode);
+	CP(*ip, *ip32, seq);
+	CP(*ip, *ip32, key);
+}
+
 int
 freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 {
-	/*
-	 * Vector through to semsys if it is loaded.
-	 */
-	return sysent[SYS_semsys].sy_call(td, uap);
+
+	switch (uap->which) {
+	case 0:
+		return (freebsd32_semctl(td,
+		    (struct freebsd32_semctl_args *)&uap->a2));
+	default:
+		return (semsys(td, (struct semsys_args *)uap));
+	}
+}
+
+int
+freebsd32_semctl(struct thread *td, struct freebsd32_semctl_args *uap)
+{
+	struct semid_ds32 dsbuf32;
+	struct semid_ds dsbuf;
+	union semun semun;
+	union semun32 arg;
+	register_t rval;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &arg, sizeof(arg));
+		if (error)
+			return (error);		
+		break;
+	}
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(PTRIN(arg.buf), &dsbuf32, sizeof(dsbuf32));
+		if (error)
+			return (error);
+		freebsd32_ipcperm_in(&dsbuf32.sem_perm, &dsbuf.sem_perm);
+		PTRIN_CP(dsbuf32, dsbuf, sem_base);
+		CP(dsbuf32, dsbuf, sem_nsems);
+		CP(dsbuf32, dsbuf, sem_otime);
+		CP(dsbuf32, dsbuf, sem_pad1);
+		CP(dsbuf32, dsbuf, sem_ctime);
+		CP(dsbuf32, dsbuf, sem_pad2);
+		CP(dsbuf32, dsbuf, sem_pad3[0]);
+		CP(dsbuf32, dsbuf, sem_pad3[1]);
+		CP(dsbuf32, dsbuf, sem_pad3[2]);
+		CP(dsbuf32, dsbuf, sem_pad3[3]);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = PTRIN(arg.array);
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;		
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		freebsd32_ipcperm_out(&dsbuf.sem_perm, &dsbuf32.sem_perm);
+		PTROUT_CP(dsbuf, dsbuf32, sem_base);
+		CP(dsbuf, dsbuf32, sem_nsems);
+		CP(dsbuf, dsbuf32, sem_otime);
+		CP(dsbuf, dsbuf32, sem_pad1);
+		CP(dsbuf, dsbuf32, sem_ctime);
+		CP(dsbuf, dsbuf32, sem_pad2);
+		CP(dsbuf, dsbuf32, sem_pad3[0]);
+		CP(dsbuf, dsbuf32, sem_pad3[1]);
+		CP(dsbuf, dsbuf32, sem_pad3[2]);
+		CP(dsbuf, dsbuf32, sem_pad3[3]);
+		error = copyout(&dsbuf32, PTRIN(arg.buf), sizeof(dsbuf32));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
 }
 
 int
 freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 {
+
 	switch (uap->which) {
+	case 0:
+		return (freebsd32_msgctl(td,
+		    (struct freebsd32_msgctl_args *)&uap->a2));
 	case 2:
 		return (freebsd32_msgsnd(td,
 		    (struct freebsd32_msgsnd_args *)&uap->a2));
-		break;
 	case 3:
 		return (freebsd32_msgrcv(td,
 		    (struct freebsd32_msgrcv_args *)&uap->a2));
-		break;
 	default:
-		/*
-		 * Vector through to msgsys if it is loaded.
-		 */
-		return (sysent[SYS_msgsys].sy_call(td, uap));
-		break;
+		return (msgsys(td, (struct msgsys_args *)uap));
 	}
+}
+
+int
+freebsd32_msgctl(struct thread *td, struct freebsd32_msgctl_args *uap)
+{
+	struct msqid_ds msqbuf;
+	struct msqid_ds32 msqbuf32;
+	int error;
+
+	if (uap->cmd == IPC_SET) {
+		error = copyin(uap->buf, &msqbuf32, sizeof(msqbuf32));
+		if (error)
+			return (error);
+		freebsd32_ipcperm_in(&msqbuf32.msg_perm, &msqbuf.msg_perm);
+		PTRIN_CP(msqbuf32, msqbuf, msg_first);
+		PTRIN_CP(msqbuf32, msqbuf, msg_last);
+		CP(msqbuf32, msqbuf, msg_cbytes);
+		CP(msqbuf32, msqbuf, msg_qnum);
+		CP(msqbuf32, msqbuf, msg_qbytes);
+		CP(msqbuf32, msqbuf, msg_lspid);
+		CP(msqbuf32, msqbuf, msg_lrpid);
+		CP(msqbuf32, msqbuf, msg_stime);
+		CP(msqbuf32, msqbuf, msg_pad1);
+		CP(msqbuf32, msqbuf, msg_rtime);
+		CP(msqbuf32, msqbuf, msg_pad2);
+		CP(msqbuf32, msqbuf, msg_ctime);
+		CP(msqbuf32, msqbuf, msg_pad3);
+		CP(msqbuf32, msqbuf, msg_pad4[0]);
+		CP(msqbuf32, msqbuf, msg_pad4[1]);
+		CP(msqbuf32, msqbuf, msg_pad4[2]);
+		CP(msqbuf32, msqbuf, msg_pad4[3]);
+	}
+	error = kern_msgctl(td, uap->msqid, uap->cmd, &msqbuf);
+	if (error)
+		return (error);
+	if (uap->cmd == IPC_STAT) {
+		freebsd32_ipcperm_out(&msqbuf.msg_perm, &msqbuf32.msg_perm);
+		PTROUT_CP(msqbuf, msqbuf32, msg_first);
+		PTROUT_CP(msqbuf, msqbuf32, msg_last);
+		CP(msqbuf, msqbuf32, msg_cbytes);
+		CP(msqbuf, msqbuf32, msg_qnum);
+		CP(msqbuf, msqbuf32, msg_qbytes);
+		CP(msqbuf, msqbuf32, msg_lspid);
+		CP(msqbuf, msqbuf32, msg_lrpid);
+		CP(msqbuf, msqbuf32, msg_stime);
+		CP(msqbuf, msqbuf32, msg_pad1);
+		CP(msqbuf, msqbuf32, msg_rtime);
+		CP(msqbuf, msqbuf32, msg_pad2);
+		CP(msqbuf, msqbuf32, msg_ctime);
+		CP(msqbuf, msqbuf32, msg_pad3);
+		CP(msqbuf, msqbuf32, msg_pad4[0]);
+		CP(msqbuf, msqbuf32, msg_pad4[1]);
+		CP(msqbuf, msqbuf32, msg_pad4[2]);
+		CP(msqbuf, msqbuf32, msg_pad4[3]);
+		error = copyout(&msqbuf32, uap->buf, sizeof(struct msqid_ds32));
+	}
+	return (error);
 }
 
 int
@@ -1444,13 +1613,8 @@ freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 		if ((error = copyin(uap->buf, &u32.shmid_ds32,
 		    sizeof(u32.shmid_ds32))))
 			goto done;
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.cuid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.cgid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.uid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.gid);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.mode);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.seq);
-		CP(u32.shmid_ds32, u.shmid_ds, shm_perm.key);
+		freebsd32_ipcperm_in(&u32.shmid_ds32.shm_perm,
+		    &u.shmid_ds.shm_perm);
 		CP(u32.shmid_ds32, u.shmid_ds, shm_segsz);
 		CP(u32.shmid_ds32, u.shmid_ds, shm_lpid);
 		CP(u32.shmid_ds32, u.shmid_ds, shm_cpid);
@@ -1488,13 +1652,8 @@ freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 		break;
 	case SHM_STAT:
 	case IPC_STAT:
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.cuid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.cgid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.uid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.gid);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.mode);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.seq);
-		CP(u.shmid_ds, u32.shmid_ds32, shm_perm.key);
+		freebsd32_ipcperm_out(&u.shmid_ds.shm_perm,
+		    &u32.shmid_ds32.shm_perm);
 		CP(u.shmid_ds, u32.shmid_ds32, shm_segsz);
 		CP(u.shmid_ds, u32.shmid_ds32, shm_lpid);
 		CP(u.shmid_ds, u32.shmid_ds32, shm_cpid);
