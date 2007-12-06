@@ -5260,7 +5260,7 @@ found_one:
 	 * If we reach here, control has a some data for us to read off.
 	 * Note that stcb COULD be NULL.
 	 */
-	control->some_taken = 1;
+	control->some_taken++;
 	if (hold_sblock) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
@@ -5731,7 +5731,14 @@ wait_some_more:
 				 * big trouble.. we have the lock and its
 				 * corrupt?
 				 */
+#ifdef INVARIANTS
 				panic("Impossible data==NULL length !=0");
+#endif
+				out_flags |= MSG_EOR;
+				out_flags |= MSG_TRUNC;
+				control->length = 0;
+				SCTP_INP_READ_UNLOCK(inp);
+				goto done_with_control;
 			}
 			SCTP_INP_READ_UNLOCK(inp);
 			/* We will fall around to get more data */
@@ -5807,7 +5814,7 @@ release_unlocked:
 			sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 	}
 	if (msg_flags)
-		*msg_flags |= out_flags;
+		*msg_flags = out_flags;
 out:
 	if (((out_flags & MSG_EOR) == 0) &&
 	    ((in_flags & MSG_PEEK) == 0) &&
