@@ -91,6 +91,7 @@ is_pts(int fd)
 	return (_ioctl(fd, TIOCGPTN, &nb) == 0);
 }
 
+#if 0
 int
 __use_pts(void)
 {
@@ -109,6 +110,7 @@ __use_pts(void)
 	}
 	return (use_pts);
 }
+#endif
 
 /*
  * grantpt():  grant ownership of a slave pseudo-terminal device to the
@@ -212,10 +214,12 @@ posix_openpt(int oflag)
 	if (oflag & ~(O_RDWR | O_NOCTTY))
 		errno = EINVAL;
 	else {
+#if 0
 		if (__use_pts()) {
 			fildes = _open(_PATH_DEV PTMX, oflag);
 			return (fildes);
 		}
+#endif
 		mc1 = master + strlen(_PATH_DEV PTM_PREFIX);
 		mc2 = mc1 + 1;
 
