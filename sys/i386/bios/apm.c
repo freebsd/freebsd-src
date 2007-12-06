@@ -491,9 +491,10 @@ apm_do_suspend(void)
 	 */
 	mtx_lock(&Giant);
 	error = DEVICE_SUSPEND(root_bus);
-	mtx_unlock(&Giant);
-	if (error)
+	if (error) {
+		mtx_unlock(&Giant);
 		return;
+	}
 
 	apm_execute_hook(hook[APM_HOOK_SUSPEND]);
 	if (apm_suspend_system(PMST_SUSPEND) == 0) {
@@ -502,10 +503,9 @@ apm_do_suspend(void)
 	} else {
 		/* Failure, 'resume' the system again */
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
-		mtx_lock(&Giant);
 		DEVICE_RESUME(root_bus);
-		mtx_unlock(&Giant);
 	}
+	mtx_unlock(&Giant);
 	return;
 }
 
