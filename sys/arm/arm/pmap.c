@@ -1733,7 +1733,7 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 			pg->md.krw_mappings++;
 		else
 			pg->md.kro_mappings++;
-	} 
+	} else
 	if (flags & PVF_WRITE)
 		pg->md.urw_mappings++;
 	else
