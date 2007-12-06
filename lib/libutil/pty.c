@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #include <termios.h>
 #include <unistd.h>
 
+#if 0
 int __use_pts(void);
 
 static int
@@ -90,6 +91,7 @@ new_openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 
 	return (0);
 }
+#endif
 
 int
 openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct winsize *winp)
@@ -99,8 +101,10 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp, struct win
 	int master, slave, ttygid;
 	struct group *gr;
 
+#if 0
 	if (__use_pts())
 		return (new_openpty(amaster, aslave, name, termp, winp));
+#endif
 
 	if ((gr = getgrnam("tty")) != NULL)
 		ttygid = gr->gr_gid;
