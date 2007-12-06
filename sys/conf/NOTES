@@ -145,6 +145,7 @@ options 	GEOM_MIRROR		# Disk mirroring.
 options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
+options 	GEOM_PART_BSD		# BSD disklabel
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PC98		# NEC PC9800 partitioning
