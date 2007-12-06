@@ -453,6 +453,8 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 			index = entry->gpe_index + 1;
 			last = entry;
 		}
+		if (entry->gpe_internal)
+			continue;
 		if (gpp->gpp_start >= entry->gpe_start &&
 		    gpp->gpp_start <= entry->gpe_end) {
 			gctl_error(req, "%d start '%jd'", ENOSPC,
@@ -666,6 +668,14 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	error = g_getattr("PART::depth", cp, &attr);
 	table->gpt_depth = (!error) ? attr + 1 : 0;
 
+	/* If we're nested, get the absolute sector offset on disk. */
+	if (table->gpt_depth) {
+		error = g_getattr("PART::offset", cp, &attr);
+		if (error)
+			goto fail;
+		table->gpt_offset = attr;
+	}
+
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
@@ -742,13 +752,16 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 	}
 
 	pp = entry->gpe_pp;
-	if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
-		gctl_error(req, "%d", EBUSY);
-		return (EBUSY);
+	if (pp != NULL) {
+		if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0) {
+			gctl_error(req, "%d", EBUSY);
+			return (EBUSY);
+		}
+
+		pp->private = NULL;
+		entry->gpe_pp = NULL;
 	}
 
-	pp->private = NULL;
-	entry->gpe_pp = NULL;
 	if (entry->gpe_created) {
 		LIST_REMOVE(entry, gpe_entry);
 		g_free(entry);
@@ -756,7 +769,9 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 0;
 		entry->gpe_deleted = 1;
 	}
-	g_wither_provider(pp, ENXIO);
+
+	if (pp != NULL)
+		g_wither_provider(pp, ENXIO);
 
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
@@ -919,9 +934,11 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 		entry->gpe_modified = 0;
 		if (entry->gpe_created) {
 			pp = entry->gpe_pp;
-			pp->private = NULL;
-			entry->gpe_pp = NULL;
-			g_wither_provider(pp, ENXIO);
+			if (pp != NULL) {
+				pp->private = NULL;
+				entry->gpe_pp = NULL;
+				g_wither_provider(pp, ENXIO);
+			}
 			entry->gpe_deleted = 1;
 		}
 		if (entry->gpe_deleted) {
@@ -956,8 +973,10 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 
 	g_topology_lock();
 
-	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry)
-		g_part_new_provider(gp, table, entry);
+	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
+		if (!entry->gpe_internal)
+			g_part_new_provider(gp, table, entry);
+	}
 
 	table->gpt_opened = 0;
 	g_access(cp, -1, -1, -1);
@@ -1331,7 +1350,15 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		goto fail;
 
 	table = gp->softc;
-	
+
+	/* If we're nested, get the absolute sector offset on disk. */
+	if (table->gpt_depth) {
+		error = g_getattr("PART::offset", cp, &attr);
+		if (error)
+			goto fail;
+		table->gpt_offset = attr;
+	}
+
 	/*
 	 * Synthesize a disk geometry. Some partitioning schemes
 	 * depend on it and since some file systems need it even
@@ -1345,8 +1372,10 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		goto fail;
 
 	g_topology_lock();
-	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry)
-		g_part_new_provider(gp, table, entry);
+	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
+		if (!entry->gpe_internal)
+			g_part_new_provider(gp, table, entry);
+	}
 
 	g_access(cp, -1, 0, 0);
 	return (gp);
@@ -1506,6 +1535,9 @@ g_part_start(struct bio *bp)
 		if (g_handleattr_int(bp, "PART::isleaf", table->gpt_isleaf))
 			return;
 		if (g_handleattr_int(bp, "PART::depth", table->gpt_depth))
+			return;
+		if (g_handleattr_int(bp, "PART::offset",
+		    table->gpt_offset + entry->gpe_start))
 			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
