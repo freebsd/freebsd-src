@@ -154,7 +154,7 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		break;
 
 	default:
-		MPASS(0);
+		panic("tmpfs_alloc_node: type %p %d", nnode, (int)nnode->tn_type);
 	}
 
 	TMPFS_LOCK(tmp);
@@ -229,8 +229,7 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 		break;
 
 	default:
-		MPASS(0);
-		break;
+		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
 	free_unr(tmp->tm_ino_unr, node->tn_id);
@@ -387,7 +386,7 @@ loop:
 		break;
 
 	default:
-		MPASS(0);
+		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
 
 	vnode_pager_setsize(vp, node->tn_size);
@@ -799,7 +798,8 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, off_t *cntp)
 			break;
 
 		default:
-			MPASS(0);
+			panic("tmpfs_dir_getdents: type %p %d",
+			    de->td_node, (int)de->td_node->tn_type);
 		}
 		d.d_namlen = de->td_namelen;
 		MPASS(de->td_namelen < sizeof(d.d_name));
