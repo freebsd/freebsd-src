@@ -135,6 +135,9 @@ struct syncache {
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
+#ifndef DISABLE_TCP_OFFLOAD
+	void		*sc_pspare[2];		/* toepcb / toe_usrreqs */
+#endif			
 #ifdef MAC
 	struct label	*sc_label;		/* MAC label reference */
 #endif
