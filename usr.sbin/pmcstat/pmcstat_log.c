@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2005-2006, Joseph Koshy
+ * Copyright (c) 2005-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -50,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <gelf.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -67,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #define	min(A,B)		((A) < (B) ? (A) : (B))
 #define	max(A,B)		((A) > (B) ? (A) : (B))
 
+#define	PMCSTAT_ALLOCATE		1
+
 /*
  * PUBLIC INTERFACES
  *
@@ -76,21 +83,16 @@ __FBSDID("$FreeBSD$");
  * pmcstat_process_log()		print/convert an event log
  * pmcstat_close_log()			finish processing an event log
  *
- * IMPLEMENTATION OF GMON OUTPUT
+ * IMPLEMENTATION NOTES
  *
- * We correlate each 'sample' seen in the event log back to an
- * executable object in the system. Executable objects include:
+ * We correlate each 'callchain' or 'sample' entry seen in the event
+ * log back to an executable object in the system. Executable objects
+ * include:
  * 	- program executables,
  *	- shared libraries loaded by the runtime loader,
  *	- dlopen()'ed objects loaded by the program,
  *	- the runtime loader itself,
  *	- the kernel and kernel modules.
- *
- * Each such executable object gets one 'gmon.out' profile, per PMC in
- * use.  Creation of 'gmon.out' profiles is done lazily.  The
- * 'gmon.out' profiles generated for a given sampling PMC are
- * aggregates of all the samples for that particular executable
- * object.
  *
  * Each process that we know about is treated as a set of regions that
  * map to executable objects.  Processes are described by
@@ -106,6 +108,23 @@ __FBSDID("$FreeBSD$");
  *
  * The sample log could have samples from multiple PMCs; we
  * generate one 'gmon.out' profile per PMC.
+ *
+ * IMPLEMENTATION OF GMON OUTPUT
+ *
+ * Each executable object gets one 'gmon.out' profile, per PMC in
+ * use.  Creation of 'gmon.out' profiles is done lazily.  The
+ * 'gmon.out' profiles generated for a given sampling PMC are
+ * aggregates of all the samples for that particular executable
+ * object.
+ *
+ * IMPLEMENTATION OF SYSTEM-WIDE CALLGRAPH OUTPUT
+ *
+ * Each active pmcid has its own callgraph structure, described by a
+ * 'struct pmcstat_callgraph'.  Given a process id and a list of pc
+ * values, we map each pc value to a tuple (image, symbol), where
+ * 'image' denotes an executable object and 'symbol' is the closest
+ * symbol that precedes the pc value.  Each pc value in the list is
+ * also given a 'rank' that reflects its depth in the call stack.
  */
 
 typedef const void *pmcstat_interned_string;
@@ -139,6 +158,7 @@ struct pmcstat_gmonfile {
 	pmcstat_interned_string pgf_name;	/* pathname of gmon.out file */
 	size_t		pgf_ndatabytes;	/* number of bytes mapped */
 	void		*pgf_gmondata;	/* pointer to mmap'ed data */
+	FILE		*pgf_file;	/* used when writing gmon arcs */
 };
 
 /*
@@ -161,8 +181,9 @@ enum pmcstat_image_type {
 struct pmcstat_image {
 	LIST_ENTRY(pmcstat_image) pi_next;	/* hash link */
 	TAILQ_ENTRY(pmcstat_image) pi_lru;	/* LRU list */
-	pmcstat_interned_string	pi_execpath;/* cookie */
+	pmcstat_interned_string	pi_execpath;    /* cookie */
 	pmcstat_interned_string pi_samplename;  /* sample path name */
+	pmcstat_interned_string pi_fullpath;    /* path to FS object */
 
 	enum pmcstat_image_type pi_type;	/* executable type */
 
@@ -170,14 +191,17 @@ struct pmcstat_image {
 	 * Executables have pi_start and pi_end; these are zero
 	 * for shared libraries.
 	 */
-	uintfptr_t	pi_start;		/* start address (inclusive) */
-	uintfptr_t	pi_end;			/* end address (exclusive) */
-	uintfptr_t	pi_entry;		/* entry address */
-	uintfptr_t	pi_vaddr;		/* virtual address where loaded */
-	int		pi_isdynamic;		/* whether a dynamic
-						 * object */
+	uintfptr_t	pi_start;	/* start address (inclusive) */
+	uintfptr_t	pi_end;		/* end address (exclusive) */
+	uintfptr_t	pi_entry;	/* entry address */
+	uintfptr_t	pi_vaddr;	/* virtual address where loaded */
+	int		pi_isdynamic;	/* whether a dynamic object */
 	int		pi_iskernelmodule;
 	pmcstat_interned_string pi_dynlinkerpath; /* path in .interp */
+
+	/* All symbols associated with this object. */
+	struct pmcstat_symbol *pi_symbols;
+	size_t		pi_symcount;
 
 	/*
 	 * An image can be associated with one or more gmon.out files;
@@ -190,8 +214,6 @@ struct pmcstat_image {
  * All image descriptors are kept in a hash table.
  */
 static LIST_HEAD(,pmcstat_image)	pmcstat_image_hash[PMCSTAT_NHASH];
-static TAILQ_HEAD(,pmcstat_image)	pmcstat_image_lru =
-	TAILQ_HEAD_INITIALIZER(pmcstat_image_lru);
 
 /*
  * A 'pmcstat_pcmap' structure maps a virtual address range to an
@@ -224,14 +246,50 @@ struct pmcstat_process {
 	TAILQ_HEAD(,pmcstat_pcmap) pp_map;	/* address range map */
 };
 
-#define	PMCSTAT_ALLOCATE		1
-
 /*
  * All process descriptors are kept in a hash table.
  */
 static LIST_HEAD(,pmcstat_process) pmcstat_process_hash[PMCSTAT_NHASH];
 
 static struct pmcstat_process *pmcstat_kernproc; /* kernel 'process' */
+
+/*
+ * Each function symbol tracked by pmcstat(8).
+ */
+
+struct pmcstat_symbol {
+	pmcstat_interned_string ps_name;
+	uint64_t	ps_start;
+	uint64_t	ps_end;
+};
+
+/*
+ * Each call graph node is tracked by a pmcstat_cgnode struct.
+ */
+
+struct pmcstat_cgnode {
+	struct pmcstat_image	*pcg_image;
+	uintfptr_t		pcg_func;
+	uint32_t		pcg_count;
+	uint32_t		pcg_nchildren;
+	LIST_ENTRY(pmcstat_cgnode) pcg_sibling;
+	LIST_HEAD(,pmcstat_cgnode) pcg_children;
+};
+
+struct pmcstat_cgnode_hash {
+	struct pmcstat_cgnode  *pch_cgnode;
+	uint32_t		pch_pmcid;
+	LIST_ENTRY(pmcstat_cgnode_hash) pch_next;
+};
+
+static int pmcstat_cgnode_hash_count;
+static pmcstat_interned_string pmcstat_previous_filename_printed;
+
+/*
+ * The toplevel CG nodes (i.e., with rank == 0) are placed in a hash table.
+ */
+
+static LIST_HEAD(,pmcstat_cgnode_hash) pmcstat_cgnode_hash[PMCSTAT_NHASH];
 
 /* Misc. statistics */
 static struct pmcstat_stats {
@@ -240,9 +298,12 @@ static struct pmcstat_stats {
 	int ps_exec_errors;	/* # errors processing executables */
 	int ps_exec_indeterminable; /* # unknown executables seen */
 	int ps_samples_total;	/* total number of samples processed */
-	int ps_samples_unknown_offset;	/* #samples not in any map */
+	int ps_samples_skipped; /* #samples filtered out for any reason */
+	int ps_samples_unknown_offset;	/* #samples of rank 0 not in a map */
 	int ps_samples_indeterminable;	/* #samples in indeterminable images */
+	int ps_callchain_dubious_frames;/* #dubious frame pointers seen */
 } pmcstat_stats;
+
 
 /*
  * Prototypes
@@ -257,6 +318,8 @@ static void	pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *_pgf);
 
 static void pmcstat_image_determine_type(struct pmcstat_image *_image,
     struct pmcstat_args *_a);
+static struct pmcstat_gmonfile *pmcstat_image_find_gmonfile(struct
+    pmcstat_image *_i, pmc_id_t _id);
 static struct pmcstat_image *pmcstat_image_from_path(pmcstat_interned_string
     _path, int _iskernelmodule);
 static void pmcstat_image_get_aout_params(struct pmcstat_image *_image,
@@ -464,8 +527,6 @@ pmcstat_gmon_create_file(struct pmcstat_gmonfile *pgf,
 	if (write(fd, &buffer, count) < 0)
 		goto error;
 
-	/* TODO size the arc table */
-
 	(void) close(fd);
 
 	return;
@@ -534,6 +595,42 @@ pmcstat_gmon_unmap_file(struct pmcstat_gmonfile *pgf)
 	pgf->pgf_gmondata = NULL;
 }
 
+static void
+pmcstat_gmon_append_arc(struct pmcstat_image *image, pmc_id_t pmcid,
+    uintptr_t rawfrom, uintptr_t rawto, uint32_t count)
+{
+	struct rawarc arc;	/* from <sys/gmon.h> */
+	const char *pathname;
+	struct pmcstat_gmonfile *pgf;
+
+	if ((pgf = pmcstat_image_find_gmonfile(image, pmcid)) == NULL)
+		return;
+
+	if (pgf->pgf_file == NULL) {
+		pathname = pmcstat_string_unintern(pgf->pgf_name);
+		if ((pgf->pgf_file = fopen(pathname, "a")) == NULL)
+			return;
+	}
+
+	arc.raw_frompc = rawfrom + image->pi_vaddr;
+	arc.raw_selfpc = rawto + image->pi_vaddr;
+	arc.raw_count = count;
+
+	(void) fwrite(&arc, sizeof(arc), 1, pgf->pgf_file);
+
+}
+
+static struct pmcstat_gmonfile *
+pmcstat_image_find_gmonfile(struct pmcstat_image *image, pmc_id_t pmcid)
+{
+	struct pmcstat_gmonfile *pgf;
+	LIST_FOREACH(pgf, &image->pi_gmlist, pgf_next)
+	    if (pgf->pgf_pmcid == pmcid)
+		    return (pgf);
+	return (NULL);
+}
+
+
 /*
  * Determine whether a given executable image is an A.OUT object, and
  * if so, fill in its parameters from the text file.
@@ -583,6 +680,145 @@ pmcstat_image_get_aout_params(struct pmcstat_image *image,
 }
 
 /*
+ * Helper function.
+ */
+
+static int
+pmcstat_symbol_compare(const void *a, const void *b)
+{
+	const struct pmcstat_symbol *sym1, *sym2;
+
+	sym1 = (const struct pmcstat_symbol *) a;
+	sym2 = (const struct pmcstat_symbol *) b;
+
+	if (sym1->ps_end <= sym2->ps_start)
+		return (-1);
+	if (sym1->ps_start >= sym2->ps_end)
+		return (1);
+	return (0);
+}
+
+/*
+ * Map an address to a symbol in an image.
+ */
+
+static struct pmcstat_symbol *
+pmcstat_symbol_search(struct pmcstat_image *image, uintfptr_t addr)
+{
+	struct pmcstat_symbol sym;
+
+	if (image->pi_symbols == NULL)
+		return (NULL);
+
+	sym.ps_name  = NULL;
+	sym.ps_start = addr;
+	sym.ps_end   = addr + 1;
+
+	return (bsearch((void *) &sym, image->pi_symbols,
+		    image->pi_symcount, sizeof(struct pmcstat_symbol),
+		    pmcstat_symbol_compare));
+}
+
+/*
+ * Add the list of symbols in the given section to the list associated
+ * with the object.
+ */
+static void
+pmcstat_image_add_symbols(struct pmcstat_image *image, Elf *e,
+    Elf_Scn *scn, GElf_Shdr *sh)
+{
+	int firsttime;
+	size_t n, newsyms, nshsyms, nfuncsyms;
+	struct pmcstat_symbol *symptr;
+	char *fnname;
+	GElf_Sym sym;
+	Elf_Data *data;
+
+	if ((data = elf_getdata(scn, NULL)) == NULL)
+		return;
+
+	/*
+	 * Determine the number of functions named in this
+	 * section.
+	 */
+
+	nshsyms = sh->sh_size / sh->sh_entsize;
+	for (n = nfuncsyms = 0; n < nshsyms; n++) {
+		if (gelf_getsym(data, (int) n, &sym) != &sym)
+			return;
+		if (GELF_ST_TYPE(sym.st_info) == STT_FUNC)
+			nfuncsyms++;
+	}
+
+	if (nfuncsyms == 0)
+		return;
+
+	/*
+	 * Allocate space for the new entries.
+	 */
+	firsttime = image->pi_symbols == NULL;
+	symptr = realloc(image->pi_symbols,
+	    sizeof(*symptr) * (image->pi_symcount + nfuncsyms));
+	if (symptr == image->pi_symbols) /* realloc() failed. */
+		return;
+	image->pi_symbols = symptr;
+
+	/*
+	 * Append new symbols to the end of the current table.
+	 */
+	symptr += image->pi_symcount;
+
+	for (n = newsyms = 0; n < nshsyms; n++) {
+		if (gelf_getsym(data, (int) n, &sym) != &sym)
+			return;
+		if (GELF_ST_TYPE(sym.st_info) != STT_FUNC)
+			continue;
+
+		if (!firsttime && pmcstat_symbol_search(image, sym.st_value))
+			continue; /* We've seen this symbol already. */
+
+		if ((fnname = elf_strptr(e, sh->sh_link, sym.st_name))
+		    == NULL)
+			continue;
+
+		symptr->ps_name  = pmcstat_string_intern(fnname);
+		symptr->ps_start = sym.st_value - image->pi_vaddr;
+		symptr->ps_end   = symptr->ps_start + sym.st_size;
+		symptr++;
+
+		newsyms++;
+	}
+
+	image->pi_symcount += newsyms;
+
+	assert(newsyms <= nfuncsyms);
+
+	/*
+	 * Return space to the system if there were duplicates.
+	 */
+	if (newsyms < nfuncsyms)
+		image->pi_symbols = realloc(image->pi_symbols,
+		    sizeof(*symptr) * image->pi_symcount);
+
+	/*
+	 * Keep the list of symbols sorted.
+	 */
+	qsort(image->pi_symbols, image->pi_symcount, sizeof(*symptr),
+	    pmcstat_symbol_compare);
+
+	/*
+	 * Deal with function symbols that have a size of 'zero' by
+	 * making them extend to the next higher address.  These
+	 * symbols are usually defined in assembly code.
+	 */
+	for (symptr = image->pi_symbols;
+	     symptr < image->pi_symbols + (image->pi_symcount - 1);
+	     symptr++)
+		if (symptr->ps_start == symptr->ps_end)
+			symptr->ps_end = (symptr+1)->ps_start;
+}
+
+/*
  * Examine an ELF file to determine the size of its text segment.
  * Sets image->pi_type if anything conclusive can be determined about
  * this image.
@@ -592,28 +828,28 @@ static void
 pmcstat_image_get_elf_params(struct pmcstat_image *image,
     struct pmcstat_args *a)
 {
-	int fd, i;
-	const char *path;
-	void *mapbase;
+	int fd;
+	size_t i, nph, nsh;
+	const char *path, *elfbase;
 	uintfptr_t minva, maxva;
-	const Elf_Ehdr *h;
-	const Elf_Phdr *ph;
-	const Elf_Shdr *sh;
-#if	defined(__amd64__)
-	const Elf32_Ehdr *h32;
-	const Elf32_Phdr *ph32;
-	const Elf32_Shdr *sh32;
-#endif
+	Elf *e;
+	Elf_Scn *scn;
+	GElf_Ehdr eh;
+	GElf_Phdr ph;
+	GElf_Shdr sh;
 	enum pmcstat_image_type image_type;
-	struct stat st;
 	char buffer[PATH_MAX];
 
 	assert(image->pi_type == PMCSTAT_IMAGE_UNKNOWN);
 
-	minva = ~(uintfptr_t) 0;
-	maxva = (uintfptr_t) 0;
-	path = pmcstat_string_unintern(image->pi_execpath);
+	image->pi_start = minva = ~(uintfptr_t) 0;
+	image->pi_end = maxva = (uintfptr_t) 0;
+	image->pi_type = image_type = PMCSTAT_IMAGE_INDETERMINABLE;
+	image->pi_isdynamic = 0;
+	image->pi_dynlinkerpath = NULL;
+	image->pi_vaddr = 0;
 
+	path = pmcstat_string_unintern(image->pi_execpath);
 	assert(path != NULL);
 
 	/*
@@ -627,112 +863,107 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image,
 		(void) snprintf(buffer, sizeof(buffer), "%s%s",
 		    a->pa_fsroot, path);
 
+	e = NULL;
 	if ((fd = open(buffer, O_RDONLY, 0)) < 0 ||
-	    fstat(fd, &st) < 0 ||
-	    (mapbase = mmap(0, st.st_size, PROT_READ, MAP_SHARED,
-		fd, 0)) == MAP_FAILED) {
-		warn("WARNING: Cannot determine type of \"%s\"", buffer);
-		image->pi_type = PMCSTAT_IMAGE_INDETERMINABLE;
-		if (fd != -1)
-			(void) close(fd);
-		return;
+	    (e = elf_begin(fd, ELF_C_READ, NULL)) == NULL ||
+	    (elf_kind(e) != ELF_K_ELF)) {
+		warnx("WARNING: Cannot determine the type of \"%s\".",
+		    buffer);
+		goto done;
 	}
 
-	(void) close(fd);
+	if (gelf_getehdr(e, &eh) != &eh) {
+		warnx("WARNING: Cannot retrieve the ELF Header for "
+		    "\"%s\": %s.", buffer, elf_errmsg(-1));
+		goto done;
+	}
 
-	/* Punt on non-ELF objects */
-	h = (const Elf_Ehdr *) mapbase;
-	if (!IS_ELF(*h))
-		return;
+	if (eh.e_type != ET_EXEC && eh.e_type != ET_DYN &&
+	    !(image->pi_iskernelmodule && eh.e_type == ET_REL)) {
+		warnx("WARNING: \"%s\" is of an unsupported ELF type.",
+		    buffer);
+		goto done;
+	}
+
+	image_type = eh.e_ident[EI_CLASS] == ELFCLASS32 ?
+	    PMCSTAT_IMAGE_ELF32 : PMCSTAT_IMAGE_ELF64;
 
 	/*
-	 * We only handle executable ELF objects and kernel
-	 * modules.
+	 * Determine the virtual address where an executable would be
+	 * loaded.  Additionally, for dynamically linked executables,
+	 * save the pathname to the runtime linker.
 	 */
-	if (h->e_type != ET_EXEC && h->e_type != ET_DYN &&
-	    !(image->pi_iskernelmodule && h->e_type == ET_REL))
-		return;
-
-	image->pi_isdynamic = 0;
-	image->pi_dynlinkerpath = NULL;
-	image->pi_vaddr = 0;
-
-#define	GET_VA(H, SH, MINVA, MAXVA) do {				\
-		for (i = 0; i < (H)->e_shnum; i++)			\
-			if ((SH)[i].sh_flags & SHF_EXECINSTR) {		\
-				(MINVA) = min((MINVA),(SH)[i].sh_addr);	\
-				(MAXVA) = max((MAXVA),(SH)[i].sh_addr +	\
-				    (SH)[i].sh_size);			\
-			}						\
-	} while (0)
-
-
-#define	GET_PHDR_INFO(H, PH, IMAGE) do {				\
-		for (i = 0; i < (H)->e_phnum; i++) {			\
-			switch ((PH)[i].p_type) {			\
-			case PT_DYNAMIC:				\
-				image->pi_isdynamic = 1;		\
-				break;					\
-			case PT_INTERP:					\
-				image->pi_dynlinkerpath =		\
-				    pmcstat_string_intern(		\
-					(char *) mapbase +		\
-					(PH)[i].p_offset);		\
-				break;					\
-			case PT_LOAD:					\
-				if ((PH)[i].p_offset == 0)		\
-				    image->pi_vaddr = 			\
-					(PH)[i].p_vaddr;		\
-				break;					\
-			}						\
-		}							\
-	} while (0)
-
-	switch (h->e_machine) {
-	case EM_386:
-	case EM_486:
-#if	defined(__amd64__)
-		/* a 32 bit executable */
-		h32 = (const Elf32_Ehdr *) h;
-		sh32 = (const Elf32_Shdr *)((uintptr_t) mapbase + h32->e_shoff);
-
-		GET_VA(h32, sh32, minva, maxva);
-
-		image->pi_entry = h32->e_entry;
-
-		if (h32->e_type == ET_EXEC) {
-			ph32 = (const Elf32_Phdr *)((uintptr_t) mapbase +
-			    h32->e_phoff);
-			GET_PHDR_INFO(h32, ph32, image);
+	if (eh.e_type == ET_EXEC) {
+		if (elf_getphnum(e, &nph) == 0) {
+			warnx("WARNING: Could not determine the number of "
+			    "program headers in \"%s\": %s.", buffer,
+			    elf_errmsg(-1));
+			goto done;
 		}
-		image_type = PMCSTAT_IMAGE_ELF32;
-		break;
-#endif
-	default:
-		sh = (const Elf_Shdr *)((uintptr_t) mapbase + h->e_shoff);
-
-		GET_VA(h, sh, minva, maxva);
-
-		image->pi_entry = h->e_entry;
-
-		if (h->e_type == ET_EXEC) {
-			ph = (const Elf_Phdr *)((uintptr_t) mapbase +
-			    h->e_phoff);
-			GET_PHDR_INFO(h, ph, image);
+		for (i = 0; i < eh.e_phnum; i++) {
+			if (gelf_getphdr(e, i, &ph) != &ph) {
+				warnx("WARNING: Retrieval of PHDR entry #%ju "
+				    "in \"%s\" failed: %s.", (uintmax_t) i,
+				    buffer, elf_errmsg(-1));
+				goto done;
+			}
+			switch (ph.p_type) {
+			case PT_DYNAMIC:
+				image->pi_isdynamic = 1;
+				break;
+			case PT_INTERP:
+				if ((elfbase = elf_rawfile(e, NULL)) == NULL) {
+					warnx("WARNING: Cannot retrieve the "
+					    "interpreter for \"%s\": %s.",
+					    buffer, elf_errmsg(-1));
+					goto done;
+				}
+				image->pi_dynlinkerpath =
+				    pmcstat_string_intern(elfbase +
+					ph.p_offset);
+				break;
+			case PT_LOAD:
+				if (ph.p_offset == 0)
+					image->pi_vaddr = ph.p_vaddr;
+				break;
+			}
 		}
-		image_type = PMCSTAT_IMAGE_ELF64;
-		break;
 	}
 
-#undef	GET_PHDR_INFO
-#undef	GET_VA
+	/*
+	 * Get the min and max VA associated with this ELF object.
+	 */
+	if (elf_getshnum(e, &nsh) == 0) {
+		warnx("WARNING: Could not determine the number of sections "
+		    "for \"%s\": %s.", buffer, elf_errmsg(-1));
+		goto done;
+	}
+
+	for (i = 0; i < nsh; i++) {
+		if ((scn = elf_getscn(e, i)) == NULL ||
+		    gelf_getshdr(scn, &sh) != &sh) {
+			warnx("WARNING: Could not retrieve section header "
+			    "#%ju in \"%s\": %s.", (uintmax_t) i, buffer,
+			    elf_errmsg(-1));
+			goto done;
+		}
+		if (sh.sh_flags & SHF_EXECINSTR) {
+			minva = min(minva, sh.sh_addr);
+			maxva = max(maxva, sh.sh_addr + sh.sh_size);
+		}
+		if (sh.sh_type == SHT_SYMTAB || sh.sh_type == SHT_DYNSYM)
+			pmcstat_image_add_symbols(image, e, scn, &sh);
+	}
 
 	image->pi_start = minva;
 	image->pi_end   = maxva;
 	image->pi_type  = image_type;
+	image->pi_fullpath = pmcstat_string_intern(buffer);
 
-	if (munmap(mapbase, st.st_size) < 0)
-		err(EX_OSERR, "ERROR: Cannot unmap \"%s\"", path);
+ done:
+	(void) elf_end(e);
+	if (fd >= 0)
+		(void) close(fd);
 	return;
 }
 
@@ -785,16 +1016,12 @@ pmcstat_image_from_path(pmcstat_interned_string internedpath,
 	/* First, look for an existing entry. */
 	LIST_FOREACH(pi, &pmcstat_image_hash[hash], pi_next)
 	    if (pi->pi_execpath == internedpath &&
-		  pi->pi_iskernelmodule == iskernelmodule) {
-		    /* move descriptor to the head of the lru list */
-		    TAILQ_REMOVE(&pmcstat_image_lru, pi, pi_lru);
-		    TAILQ_INSERT_HEAD(&pmcstat_image_lru, pi, pi_lru);
+		  pi->pi_iskernelmodule == iskernelmodule)
 		    return (pi);
-	    }
 
 	/*
-	 * Allocate a new entry and place at the head of the hash and
-	 * LRU lists.
+	 * Allocate a new entry and place it at the head of the hash
+	 * and LRU lists.
 	 */
 	pi = malloc(sizeof(*pi));
 	if (pi == NULL)
@@ -803,9 +1030,14 @@ pmcstat_image_from_path(pmcstat_interned_string internedpath,
 	pi->pi_type = PMCSTAT_IMAGE_UNKNOWN;
 	pi->pi_execpath = internedpath;
 	pi->pi_start = ~0;
-	pi->pi_entry = ~0;
 	pi->pi_end = 0;
+	pi->pi_entry = 0;
+	pi->pi_vaddr = 0;
+	pi->pi_isdynamic = 0;
 	pi->pi_iskernelmodule = iskernelmodule;
+	pi->pi_dynlinkerpath = NULL;
+	pi->pi_symbols = NULL;
+	pi->pi_symcount = 0;
 
 	/*
 	 * Look for a suitable name for the sample files associated
@@ -836,12 +1068,13 @@ pmcstat_image_from_path(pmcstat_interned_string internedpath,
 		count = 0;
 		do {
 			if (++count > 999)
-				errx(EX_CANTCREAT, "ERROR: cannot create a gmon "
-				    "file for \"%s\"", name);
+				errx(EX_CANTCREAT, "ERROR: cannot create a "
+				    "gmon file for \"%s\"", name);
 			snprintf(name, sizeof(name), "%.*s~%3.3d.gmon",
 			    nlen, sn, count);
 			if (pmcstat_string_lookup(name) == NULL) {
-				pi->pi_samplename = pmcstat_string_intern(name);
+				pi->pi_samplename =
+				    pmcstat_string_intern(name);
 				count = 0;
 			}
 		} while (count > 0);
@@ -851,7 +1084,6 @@ pmcstat_image_from_path(pmcstat_interned_string internedpath,
 	LIST_INIT(&pi->pi_gmlist);
 
 	LIST_INSERT_HEAD(&pmcstat_image_hash[hash], pi, pi_next);
-	TAILQ_INSERT_HEAD(&pmcstat_image_lru, pi, pi_lru);
 
 	return (pi);
 }
@@ -893,11 +1125,7 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 	 * Find the gmon file corresponding to 'pmcid', creating it if
 	 * needed.
 	 */
-	LIST_FOREACH(pgf, &image->pi_gmlist, pgf_next)
-	    if (pgf->pgf_pmcid == pmcid)
-		    break;
-
-	/* If we don't have a gmon.out file for this PMCid, create one */
+	pgf = pmcstat_image_find_gmonfile(image, pmcid);
 	if (pgf == NULL) {
 		if ((pgf = calloc(1, sizeof(*pgf))) == NULL)
 			err(EX_OSERR, "ERROR:");
@@ -912,6 +1140,7 @@ pmcstat_image_increment_bucket(struct pmcstat_pcmap *map, uintfptr_t pc,
 		pgf->pgf_ndatabytes = sizeof(struct gmonhdr) +
 		    pgf->pgf_nbuckets * sizeof(HISTCOUNTER);
 		pgf->pgf_nsamples = 0;
+		pgf->pgf_file = NULL;
 
 		pmcstat_gmon_create_file(pgf, image);
 
@@ -1012,12 +1241,11 @@ pmcstat_image_unmap(struct pmcstat_process *pp, uintfptr_t start,
 	 * - we could have either 'start' or 'end' falling in the
 	 *   middle of a pcmap; in this case shorten the entry.
 	 */
-
 	TAILQ_FOREACH_SAFE(pcm, &pp->pp_map, ppm_next, pcmtmp) {
 		assert(pcm->ppm_lowpc < pcm->ppm_highpc);
 		if (pcm->ppm_highpc <= start)
 			continue;
-		if (pcm->ppm_lowpc > end)
+		if (pcm->ppm_lowpc >= end)
 			return;
 		if (pcm->ppm_lowpc >= start && pcm->ppm_highpc <= end) {
 			/*
@@ -1046,10 +1274,10 @@ pmcstat_image_unmap(struct pmcstat_process *pp, uintfptr_t start,
 			TAILQ_INSERT_AFTER(&pp->pp_map, pcm, pcmnew, ppm_next);
 
 			return;
-		} else if (pcm->ppm_lowpc < start)
-			pcm->ppm_lowpc = start;
-		else if (pcm->ppm_highpc > end)
-			pcm->ppm_highpc = end;
+		} else if (pcm->ppm_lowpc < start && pcm->ppm_highpc <= end)
+			pcm->ppm_highpc = start;
+		else if (pcm->ppm_lowpc >= start && pcm->ppm_highpc > end)
+			pcm->ppm_lowpc = end;
 		else
 			assert(0);
 	}
@@ -1067,12 +1295,17 @@ pmcstat_pmcid_add(pmc_id_t pmcid, pmcstat_interned_string ps,
 	struct stat st;
 	char fullpath[PATH_MAX];
 
+	/* Replace an existing name for the PMC. */
 	LIST_FOREACH(pr, &pmcstat_pmcs, pr_next)
 	    if (pr->pr_pmcid == pmcid) {
 		    pr->pr_pmcname = ps;
 		    return;
 	    }
 
+	/*
+	 * Otherwise, allocate a new descriptor and create the
+	 * appropriate directory to hold gmon.out files.
+	 */
 	if ((pr = malloc(sizeof(*pr))) == NULL)
 		err(EX_OSERR, "ERROR: Cannot allocate pmc record");
 
@@ -1154,11 +1387,11 @@ pmcstat_process_elf_exec(struct pmcstat_process *pp,
 	pmcstat_image_link(pp, image, image->pi_vaddr);
 
 	/*
-	 * For dynamically linked executables we need to:
-	 * (a) find where the dynamic linker was mapped to for this
-	 *     process,
-	 * (b) find all the executable objects that the dynamic linker
-	 *     brought in.
+	 * For dynamically linked executables we need to determine
+	 * where the dynamic linker was mapped to for this process,
+	 * Subsequent executable objects that are mapped in by the
+	 * dynamic linker will be tracked by log events of type
+	 * PMCLOG_TYPE_MAP_IN.
 	 */
 
 	if (image->pi_isdynamic) {
@@ -1319,11 +1552,423 @@ pmcstat_process_find_map(struct pmcstat_process *p, uintfptr_t pc)
 	return (NULL);
 }
 
-
-
-static int
-pmcstat_convert_log(struct pmcstat_args *a)
+static struct pmcstat_cgnode *
+pmcstat_cgnode_allocate(struct pmcstat_image *image, uintfptr_t pc)
 {
+	struct pmcstat_cgnode *cg;
+
+	if ((cg = malloc(sizeof(*cg))) == NULL)
+		err(EX_OSERR, "ERROR: Cannot allocate callgraph node");
+
+	cg->pcg_image = image;
+	cg->pcg_func = pc;
+
+	cg->pcg_count = 0;
+	cg->pcg_nchildren = 0;
+	LIST_INIT(&cg->pcg_children);
+
+	return (cg);
+}
+
+/*
+ * Free a node and its children.
+ */
+static void
+pmcstat_cgnode_free(struct pmcstat_cgnode *cg)
+{
+	struct pmcstat_cgnode *cgc, *cgtmp;
+
+	LIST_FOREACH_SAFE(cgc, &cg->pcg_children, pcg_sibling, cgtmp)
+		pmcstat_cgnode_free(cgc);
+	free(cg);
+}
+
+/*
+ * Look for a callgraph node associated with pmc `pmcid' in the global
+ * hash table that corresponds to the given `pc' value in the process
+ * `pp'.
+ */
+static struct pmcstat_cgnode *
+pmcstat_cgnode_hash_lookup_pc(struct pmcstat_process *pp, uint32_t pmcid,
+    uintfptr_t pc, int usermode)
+{
+	struct pmcstat_pcmap *ppm;
+	struct pmcstat_symbol *sym;
+	struct pmcstat_image *image;
+	struct pmcstat_cgnode *cg;
+	struct pmcstat_cgnode_hash *h;
+	uintfptr_t loadaddress;
+	unsigned int i, hash;
+
+	ppm = pmcstat_process_find_map(usermode ? pp : pmcstat_kernproc, pc);
+	if (ppm == NULL)
+		return (NULL);
+
+	image = ppm->ppm_image;
+
+	loadaddress = ppm->ppm_lowpc + image->pi_vaddr - image->pi_start;
+	pc -= loadaddress;	/* Convert to an offset in the image. */
+
+	/*
+	 * Try determine the function at this offset.  If we can't
+	 * find a function round leave the `pc' value alone.
+	 */
+	if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
+		pc = sym->ps_start;
+
+	for (hash = i = 0; i < sizeof(uintfptr_t); i++)
+		hash += (pc >> i) & 0xFF;
+
+	hash &= PMCSTAT_HASH_MASK;
+
+	cg = NULL;
+	LIST_FOREACH(h, &pmcstat_cgnode_hash[hash], pch_next)
+	{
+		if (h->pch_pmcid != pmcid)
+			continue;
+
+		cg = h->pch_cgnode;
+
+		assert(cg != NULL);
+
+		if (cg->pcg_image == image && cg->pcg_func == pc)
+			return (cg);
+	}
+
+	/*
+	 * We haven't seen this (pmcid, pc) tuple yet, so allocate a
+	 * new callgraph node and a new hash table entry for it.
+	 */
+	cg = pmcstat_cgnode_allocate(image, pc);
+	if ((h = malloc(sizeof(*h))) == NULL)
+		err(EX_OSERR, "ERROR: Could not allocate callgraph node");
+
+	h->pch_pmcid = pmcid;
+	h->pch_cgnode = cg;
+	LIST_INSERT_HEAD(&pmcstat_cgnode_hash[hash], h, pch_next);
+
+	pmcstat_cgnode_hash_count++;
+
+	return (cg);
+}
+
+/*
+ * Compare two callgraph nodes for sorting.
+ */
+static int
+pmcstat_cgnode_compare(const void *a, const void *b)
+{
+	const struct pmcstat_cgnode *const *pcg1, *const *pcg2, *cg1, *cg2;
+
+	pcg1 = (const struct pmcstat_cgnode *const *) a;
+	cg1 = *pcg1;
+	pcg2 = (const struct pmcstat_cgnode *const *) b;
+	cg2 = *pcg2;
+
+	/* Sort in reverse order */
+	if (cg1->pcg_count < cg2->pcg_count)
+		return (1);
+	if (cg1->pcg_count > cg2->pcg_count)
+		return (-1);
+	return (0);
+}
+
+/*
+ * Find (allocating if a needed) a callgraph node in the given
+ * parent with the same (image, pcoffset) pair.
+ */
+
+static struct pmcstat_cgnode *
+pmcstat_cgnode_find(struct pmcstat_cgnode *parent, struct pmcstat_image *image,
+    uintfptr_t pcoffset)
+{
+	struct pmcstat_cgnode *child;
+
+	LIST_FOREACH(child, &parent->pcg_children, pcg_sibling) {
+		if (child->pcg_image == image &&
+		    child->pcg_func == pcoffset)
+			return (child);
+	}
+
+	/*
+	 * Allocate a new structure.
+	 */
+
+	child = pmcstat_cgnode_allocate(image, pcoffset);
+
+	/*
+	 * Link it into the parent.
+	 */
+	LIST_INSERT_HEAD(&parent->pcg_children, child, pcg_sibling);
+	parent->pcg_nchildren++;
+
+	return (child);
+}
+
+/*
+ * Print one callgraph node.  The output format is:
+ *
+ * indentation %(parent's samples) #nsamples function@object
+ */
+static void
+pmcstat_cgnode_print(struct pmcstat_args *a, struct pmcstat_cgnode *cg,
+    int depth, uint32_t total)
+{
+	uint32_t n;
+	const char *space;
+	struct pmcstat_symbol *sym;
+	struct pmcstat_cgnode **sortbuffer, **cgn, *pcg;
+
+	space = " ";
+
+	if (depth > 0)
+		(void) fprintf(a->pa_graphfile, "%*s", depth, space);
+
+	if (cg->pcg_count == total)
+		(void) fprintf(a->pa_graphfile, "100.0%% ");
+	else
+		(void) fprintf(a->pa_graphfile, "%05.2f%% ",
+		    100.0 * cg->pcg_count / total);
+
+	n = fprintf(a->pa_graphfile, " [%u] ", cg->pcg_count);
+
+	/* #samples is a 12 character wide field. */
+	if (n < 12)
+		(void) fprintf(a->pa_graphfile, "%*s", 12 - n, space);
+
+	if (depth > 0)
+		(void) fprintf(a->pa_graphfile, "%*s", depth, space);
+
+	sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
+	if (sym)
+		(void) fprintf(a->pa_graphfile, "%s",
+		    pmcstat_string_unintern(sym->ps_name));
+	else
+		(void) fprintf(a->pa_graphfile, "%p",
+		    (void *) (cg->pcg_image->pi_vaddr + cg->pcg_func));
+
+	if (pmcstat_previous_filename_printed !=
+	    cg->pcg_image->pi_fullpath) {
+		pmcstat_previous_filename_printed = cg->pcg_image->pi_fullpath;
+		(void) fprintf(a->pa_graphfile, " @ %s\n",
+		    pmcstat_string_unintern(
+		    pmcstat_previous_filename_printed));
+	} else
+		(void) fprintf(a->pa_graphfile, "\n");
+
+	if (cg->pcg_nchildren == 0)
+		return;
+
+	if ((sortbuffer = (struct pmcstat_cgnode **)
+		malloc(sizeof(struct pmcstat_cgnode *) *
+		    cg->pcg_nchildren)) == NULL)
+		err(EX_OSERR, "ERROR: Cannot print callgraph");
+	cgn = sortbuffer;
+
+	LIST_FOREACH(pcg, &cg->pcg_children, pcg_sibling)
+	    *cgn++ = pcg;
+
+	assert(cgn - sortbuffer == (int) cg->pcg_nchildren);
+
+	qsort(sortbuffer, cg->pcg_nchildren, sizeof(struct pmcstat_cgnode *),
+	    pmcstat_cgnode_compare);
+
+	for (cgn = sortbuffer, n = 0; n < cg->pcg_nchildren; n++, cgn++)
+		pmcstat_cgnode_print(a, *cgn, depth+1, cg->pcg_count);
+
+	free(sortbuffer);
+}
+
+/*
+ * Record a callchain.
+ */
+
+static void
+pmcstat_record_callchain(struct pmcstat_process *pp, uint32_t pmcid,
+    uint32_t nsamples, uintfptr_t *cc, int usermode, struct pmcstat_args *a)
+{
+	uintfptr_t pc, loadaddress;
+	uint32_t n;
+	struct pmcstat_image *image;
+	struct pmcstat_pcmap *ppm;
+	struct pmcstat_symbol *sym;
+	struct pmcstat_cgnode *parent, *child;
+
+	/*
+	 * Find the callgraph node recorded in the global hash table
+	 * for this (pmcid, pc).
+	 */
+
+	pc = cc[0];
+	parent = pmcstat_cgnode_hash_lookup_pc(pp, pmcid, pc, usermode);
+	if (parent == NULL) {
+		pmcstat_stats.ps_callchain_dubious_frames++;
+		return;
+	}
+
+	parent->pcg_count++;
+
+	/*
+	 * For each return address in the call chain record, subject
+	 * to the maximum depth desired.
+	 * - Find the image associated with the sample.  Stop if there
+	 *   there is no valid image at that address.
+	 * - Find the function that overlaps the return address.
+	 * - If found: use the start address of the function.
+	 *   If not found (say an object's symbol table is not present or
+	 *   is incomplete), round down to th gprof bucket granularity.
+	 * - Convert return virtual address to an offset in the image.
+	 * - Look for a child with the same {offset,image} tuple,
+	 *   inserting one if needed.
+	 * - Increment the count of occurrences of the child.
+	 */
+
+	for (n = 1; n < (uint32_t) a->pa_graphdepth && n < nsamples; n++,
+	    parent = child) {
+		pc = cc[n];
+
+		ppm = pmcstat_process_find_map(usermode ? pp :
+		    pmcstat_kernproc, pc);
+		if (ppm == NULL)
+			return;
+
+		image = ppm->ppm_image;
+		loadaddress = ppm->ppm_lowpc + image->pi_vaddr -
+		    image->pi_start;
+		pc -= loadaddress;
+
+		if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
+			pc = sym->ps_start;
+
+		child = pmcstat_cgnode_find(parent, image, pc);
+		child->pcg_count++;
+	}
+}
+
+/*
+ * Printing a callgraph for a PMC.
+ */
+static void
+pmcstat_callgraph_print_for_pmcid(struct pmcstat_args *a,
+    struct pmcstat_pmcrecord *pmcr)
+{
+	int n, nentries;
+	uint32_t nsamples, pmcid;
+	struct pmcstat_cgnode **sortbuffer, **cgn;
+	struct pmcstat_cgnode_hash *pch;
+
+	/*
+	 * We pull out all callgraph nodes in the top-level hash table
+	 * with a matching PMC id.  We then sort these based on the
+	 * frequency of occurrence.  Each callgraph node is then
+	 * printed.
+	 */
+
+	nsamples = 0;
+	pmcid = pmcr->pr_pmcid;
+	if ((sortbuffer = (struct pmcstat_cgnode **)
+	    malloc(sizeof(struct pmcstat_cgnode *) *
+	    pmcstat_cgnode_hash_count)) == NULL)
+		err(EX_OSERR, "ERROR: Cannot sort callgraph");
+	cgn = sortbuffer;
+
+	memset(sortbuffer, 0xFF, pmcstat_cgnode_hash_count *
+	    sizeof(struct pmcstat_cgnode **));
+
+	for (n = 0; n < PMCSTAT_NHASH; n++)
+		LIST_FOREACH(pch, &pmcstat_cgnode_hash[n], pch_next)
+		    if (pch->pch_pmcid == pmcid) {
+			    nsamples += pch->pch_cgnode->pcg_count;
+			    *cgn++ = pch->pch_cgnode;
+		    }
+
+	nentries = cgn - sortbuffer;
+	assert(nentries <= pmcstat_cgnode_hash_count);
+
+	if (nentries == 0)
+		return;
+
+	qsort(sortbuffer, nentries, sizeof(struct pmcstat_cgnode *),
+	    pmcstat_cgnode_compare);
+
+	(void) fprintf(a->pa_graphfile,
+	    "@ %s [%u samples]\n\n",
+	    pmcstat_string_unintern(pmcr->pr_pmcname),
+	    nsamples);
+
+	for (cgn = sortbuffer, n = 0; n < nentries; n++, cgn++) {
+		pmcstat_previous_filename_printed = NULL;
+		pmcstat_cgnode_print(a, *cgn, 0, nsamples);
+		(void) fprintf(a->pa_graphfile, "\n");
+	}
+
+	free(sortbuffer);
+}
+
+/*
+ * Print out callgraphs.
+ */
+
+static void
+pmcstat_callgraph_print(struct pmcstat_args *a)
+{
+	struct pmcstat_pmcrecord *pmcr;
+
+	LIST_FOREACH(pmcr, &pmcstat_pmcs, pr_next)
+	    pmcstat_callgraph_print_for_pmcid(a, pmcr);
+}
+
+static void
+pmcstat_cgnode_do_gmon_arcs(struct pmcstat_cgnode *cg, pmc_id_t pmcid)
+{
+	struct pmcstat_cgnode *cgc;
+
+	/*
+	 * Look for child nodes that belong to the same image.
+	 */
+
+	LIST_FOREACH(cgc, &cg->pcg_children, pcg_sibling) {
+		if (cgc->pcg_image == cg->pcg_image)
+			pmcstat_gmon_append_arc(cg->pcg_image, pmcid,
+			    cgc->pcg_func, cg->pcg_func, cgc->pcg_count);
+		if (cgc->pcg_nchildren > 0)
+			pmcstat_cgnode_do_gmon_arcs(cgc, pmcid);
+	}
+}
+
+static void
+pmcstat_callgraph_do_gmon_arcs_for_pmcid(pmc_id_t pmcid)
+{
+	int n;
+	struct pmcstat_cgnode_hash *pch;
+
+	for (n = 0; n < PMCSTAT_NHASH; n++)
+		LIST_FOREACH(pch, &pmcstat_cgnode_hash[n], pch_next)
+			if (pch->pch_pmcid == pmcid &&
+			    pch->pch_cgnode->pcg_nchildren > 1)
+				pmcstat_cgnode_do_gmon_arcs(pch->pch_cgnode,
+				    pmcid);
+}
+
+
+static void
+pmcstat_callgraph_do_gmon_arcs(void)
+{
+	struct pmcstat_pmcrecord *pmcr;
+
+	LIST_FOREACH(pmcr, &pmcstat_pmcs, pr_next)
+		pmcstat_callgraph_do_gmon_arcs_for_pmcid(pmcr->pr_pmcid);
+}
+
+/*
+ * Convert a hwpmc(4) log to profile information.  A system-wide
+ * callgraph is generated if FLAG_DO_CALLGRAPHS is set.  gmon.out
+ * files usable by gprof(1) are created if FLAG_DO_GPROF is set.
+ */
+static int
+pmcstat_analyze_log(struct pmcstat_args *a)
+{
+	uint32_t cpu, cpuflags;
 	uintfptr_t pc;
 	pid_t pid;
 	struct pmcstat_image *image;
@@ -1331,6 +1976,11 @@ pmcstat_convert_log(struct pmcstat_args *a)
 	struct pmcstat_pcmap *ppm, *ppmtmp;
 	struct pmclog_ev ev;
 	pmcstat_interned_string image_path;
+
+	assert(a->pa_flags & FLAG_DO_ANALYSIS);
+
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		err(EX_UNAVAILABLE, "Elf library intialization failed");
 
 	while (pmclog_read(a->pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
@@ -1344,6 +1994,7 @@ pmcstat_convert_log(struct pmcstat_args *a)
 				    ev.pl_u.pl_i.pl_version,
 				    PMC_VERSION_MAJOR);
 			break;
+
 		case PMCLOG_TYPE_MAP_IN:
 			/*
 			 * Introduce an address range mapping for a
@@ -1391,6 +2042,10 @@ pmcstat_convert_log(struct pmcstat_args *a)
 			break;
 
 		case PMCLOG_TYPE_PCSAMPLE:
+			/*
+			 * Note: the `PCSAMPLE' log entry is not
+			 * generated by hpwmc(4) after version 2.
+			 */
 
 			/*
 			 * We bring in the gmon file for the image
@@ -1412,6 +2067,42 @@ pmcstat_convert_log(struct pmcstat_args *a)
 
 			pmcstat_image_increment_bucket(ppm, pc,
 			    ev.pl_u.pl_s.pl_pmcid, a);
+
+			break;
+
+		case PMCLOG_TYPE_CALLCHAIN:
+			pmcstat_stats.ps_samples_total++;
+
+			cpuflags = ev.pl_u.pl_cc.pl_cpuflags;
+			cpu = PMC_CALLCHAIN_CPUFLAGS_TO_CPU(cpuflags);
+
+			/* Filter on the CPU id. */
+			if ((a->pa_cpumask & (1 << cpu)) == 0) {
+				pmcstat_stats.ps_samples_skipped++;
+				break;
+			}
+
+			pp = pmcstat_process_lookup(ev.pl_u.pl_cc.pl_pid,
+			    PMCSTAT_ALLOCATE);
+
+			pmcstat_record_callchain(pp,
+			    ev.pl_u.pl_cc.pl_pmcid, ev.pl_u.pl_cc.pl_npc,
+			    ev.pl_u.pl_cc.pl_pc,
+			    PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(cpuflags), a);
+
+			if ((a->pa_flags & FLAG_DO_GPROF) == 0)
+				break;
+
+			pc = ev.pl_u.pl_cc.pl_pc[0];
+			if ((ppm = pmcstat_process_find_map(pp, pc)) == NULL &&
+			    (ppm = pmcstat_process_find_map(pmcstat_kernproc,
+				pc)) == NULL) { /* unknown offset */
+				pmcstat_stats.ps_samples_unknown_offset++;
+				break;
+			}
+
+			pmcstat_image_increment_bucket(ppm, pc,
+			    ev.pl_u.pl_cc.pl_pmcid, a);
 
 			break;
 
@@ -1515,10 +2206,23 @@ static int
 pmcstat_print_log(struct pmcstat_args *a)
 {
 	struct pmclog_ev ev;
+	uint32_t npc;
 
 	while (pmclog_read(a->pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
 		switch (ev.pl_type) {
+		case PMCLOG_TYPE_CALLCHAIN:
+			PMCSTAT_PRINT_ENTRY(a, "callchain",
+			    "%d 0x%x %d %d %c", ev.pl_u.pl_cc.pl_pid,
+			    ev.pl_u.pl_cc.pl_pmcid,
+			    PMC_CALLCHAIN_CPUFLAGS_TO_CPU(ev.pl_u.pl_cc. \
+				pl_cpuflags), ev.pl_u.pl_cc.pl_npc,
+			    PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(ev.pl_u.pl_cc.\
+			        pl_cpuflags) ? 'u' : 's');
+			for (npc = 0; npc < ev.pl_u.pl_cc.pl_npc; npc++)
+				PMCSTAT_PRINT_ENTRY(a, "...", "%p",
+				    (void *) ev.pl_u.pl_cc.pl_pc[npc]);
+			break;
 		case PMCLOG_TYPE_CLOSELOG:
 			PMCSTAT_PRINT_ENTRY(a,"closelog",);
 			break;
@@ -1663,7 +2367,7 @@ pmcstat_open_log(const char *path, int mode)
 	/*
 	 * If 'path' is "-" then open one of stdin or stdout depending
 	 * on the value of 'mode'.
-	 * 
+	 *
 	 * If 'path' contains a ':' and does not start with a '/' or '.',
 	 * and is being opened for writing, treat it as a "host:port"
 	 * specification and open a network socket.
@@ -1717,7 +2421,7 @@ pmcstat_open_log(const char *path, int mode)
 		    S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)) < 0)
 			errstr = strerror(errno);
 
-  done: 
+  done:
 	if (errstr)
 		errx(EX_OSERR, "ERROR: Cannot open \"%s\" for %s: %s.", path,
 		    (mode == PMCSTAT_OPEN_FOR_READ ? "reading" : "writing"),
@@ -1735,14 +2439,13 @@ pmcstat_process_log(struct pmcstat_args *a)
 {
 
 	/*
-	 * If gprof style profiles haven't been asked for, just print the
-	 * log to the current output file.
+	 * If analysis has not been asked for, just print the log to
+	 * the current output file.
 	 */
 	if (a->pa_flags & FLAG_DO_PRINT)
 		return (pmcstat_print_log(a));
 	else
-		/* convert the log to gprof compatible profiles */
-		return (pmcstat_convert_log(a));
+		return (pmcstat_analyze_log(a));
 }
 
 /*
@@ -1789,6 +2492,7 @@ pmcstat_shutdown_logging(struct pmcstat_args *a)
 	struct pmcstat_gmonfile *pgf, *pgftmp;
 	struct pmcstat_image *pi, *pitmp;
 	struct pmcstat_process *pp, *pptmp;
+	struct pmcstat_cgnode_hash *pch, *pchtmp;
 
 	/* determine where to send the map file */
 	mf = NULL;
@@ -1803,37 +2507,75 @@ pmcstat_shutdown_logging(struct pmcstat_args *a)
 	if (mf)
 		(void) fprintf(mf, "MAP:\n");
 
-	for (i = 0; i < PMCSTAT_NHASH; i++) {
-		LIST_FOREACH_SAFE(pi, &pmcstat_image_hash[i], pi_next, pitmp) {
 
+	if (a->pa_flags & FLAG_DO_CALLGRAPHS)
+		pmcstat_callgraph_print(a);
+
+	/*
+	 * Sync back all gprof flat profile data.
+	 */
+	for (i = 0; i < PMCSTAT_NHASH; i++) {
+		LIST_FOREACH(pi, &pmcstat_image_hash[i], pi_next) {
 			if (mf)
 				(void) fprintf(mf, " \"%s\" => \"%s\"",
 				    pmcstat_string_unintern(pi->pi_execpath),
-				    pmcstat_string_unintern(pi->pi_samplename));
+				    pmcstat_string_unintern(
+				    pi->pi_samplename));
 
 			/* flush gmon.out data to disk */
-			LIST_FOREACH_SAFE(pgf, &pi->pi_gmlist, pgf_next,
-			    pgftmp) {
+			LIST_FOREACH(pgf, &pi->pi_gmlist, pgf_next) {
 				pmcstat_gmon_unmap_file(pgf);
-			    	LIST_REMOVE(pgf, pgf_next);
 				if (mf)
 					(void) fprintf(mf, " %s/%d",
-					    pmcstat_pmcid_to_name(pgf->pgf_pmcid),
+					    pmcstat_pmcid_to_name(
+					    pgf->pgf_pmcid),
 					    pgf->pgf_nsamples);
 				if (pgf->pgf_overflow && a->pa_verbosity >= 1)
 					warnx("WARNING: profile \"%s\" "
 					    "overflowed.",
 					    pmcstat_string_unintern(
 					        pgf->pgf_name));
-			    	free(pgf);
 			}
 
 			if (mf)
 				(void) fprintf(mf, "\n");
+		}
+	}
+
+	/*
+	 * Compute arcs and add these to the gprof files.
+	 */
+	if (a->pa_flags & FLAG_DO_GPROF && a->pa_graphdepth > 1)
+		pmcstat_callgraph_do_gmon_arcs();
+
+	/*
+	 * Free memory.
+	 */
+	for (i = 0; i < PMCSTAT_NHASH; i++) {
+		LIST_FOREACH_SAFE(pch, &pmcstat_cgnode_hash[i], pch_next,
+		    pchtmp) {
+			pmcstat_cgnode_free(pch->pch_cgnode);
+			free(pch);
+		}
+	}
+
+	for (i = 0; i < PMCSTAT_NHASH; i++) {
+		LIST_FOREACH_SAFE(pi, &pmcstat_image_hash[i], pi_next, pitmp)
+		{
+			LIST_FOREACH_SAFE(pgf, &pi->pi_gmlist, pgf_next,
+			    pgftmp) {
+				if (pgf->pgf_file)
+					(void) fclose(pgf->pgf_file);
+				LIST_REMOVE(pgf, pgf_next);
+				free(pgf);
+			}
+			if (pi->pi_symbols)
+				free(pi->pi_symbols);
 
 			LIST_REMOVE(pi, pi_next);
 			free(pi);
 		}
+
 		LIST_FOREACH_SAFE(pp, &pmcstat_process_hash[i], pp_next,
 		    pptmp) {
 			LIST_REMOVE(pp, pp_next);
@@ -1862,6 +2604,8 @@ pmcstat_shutdown_logging(struct pmcstat_args *a)
 		PRINT("#samples/total", samples_total, a);
 		PRINT("#samples/unclaimed", samples_unknown_offset, a);
 		PRINT("#samples/unknown-object", samples_indeterminable, a);
+		PRINT("#callchain/dubious-frames", callchain_dubious_frames,
+		    a);
 	}
 
 	if (mf)

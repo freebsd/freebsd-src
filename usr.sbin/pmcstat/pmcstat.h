@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2005-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -43,11 +47,14 @@
 #define	FLAG_HAS_SAMPLESDIR		0x00000800	/* -D dir */
 #define	FLAG_HAS_KERNELPATH		0x00001000	/* -k kernel */
 #define	FLAG_DO_PRINT			0x00002000	/* -o */
+#define	FLAG_DO_CALLGRAPHS		0x00004000	/* -G */
+#define	FLAG_DO_ANALYSIS		0x00008000	/* -g or -G */
 
 #define	DEFAULT_SAMPLE_COUNT		65536
 #define	DEFAULT_WAIT_INTERVAL		5.0
 #define	DEFAULT_DISPLAY_HEIGHT		23
 #define	DEFAULT_BUFFER_SIZE		4096
+#define	DEFAULT_CALLGRAPH_DEPTH		4
 
 #define	PRINT_HEADER_PREFIX		"# "
 #define	READPIPEFD			0
@@ -68,9 +75,9 @@
 #define	PMCSTAT_LDD_COMMAND		"/usr/bin/ldd"
 
 #define	PMCSTAT_PRINT_ENTRY(A,T,...) do {				\
-		fprintf((A)->pa_printfile, "%-8s", T);			\
-		fprintf((A)->pa_printfile, " "  __VA_ARGS__);		\
-		fprintf((A)->pa_printfile, "\n");			\
+		(void) fprintf((A)->pa_printfile, "%-9s", T);		\
+		(void) fprintf((A)->pa_printfile, " "  __VA_ARGS__);	\
+		(void) fprintf((A)->pa_printfile, "\n");		\
 	} while (0)
 
 enum pmcstat_state {
@@ -112,7 +119,10 @@ struct pmcstat_args {
 	char	*pa_kernel;		/* pathname of the kernel */
 	const char	*pa_samplesdir;	/* directory for profile files */
 	const char	*pa_mapfilename;/* mapfile name */
+	FILE	*pa_graphfile;		/* where to send the callgraph */
+	int	pa_graphdepth;		/* print depth for callgraphs */
 	double	pa_interval;		/* printing interval in seconds */
+	uint32_t pa_cpumask;		/* filter for CPUs analysed */
 	int	pa_argc;
 	char	**pa_argv;
 	STAILQ_HEAD(, pmcstat_ev) pa_events;
