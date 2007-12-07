@@ -272,6 +272,14 @@ extern struct aac_interface	aac_rkt_interface;
 #define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
 					sc->aac_bhandle, reg)
 
+/* fib context (IOCTL) */
+struct aac_fib_context {
+	u_int32_t		unique;
+	int			ctx_idx;
+	int			ctx_wrap;
+	struct aac_fib_context *next, *prev;
+};
+
 /*
  * Per-controller structure.
  */
@@ -298,6 +306,7 @@ struct aac_softc
 #define	AAC_STATE_OPEN		(1<<1)
 #define AAC_STATE_INTERRUPTS_ON	(1<<2)
 #define AAC_STATE_AIF_SLEEPER	(1<<3)
+	int			aac_open_cnt;
 	struct FsaRevision		aac_revision;
 
 	/* controller hardware interface */
@@ -327,10 +336,6 @@ struct aac_softc
 	TAILQ_HEAD(,aac_command) aac_ready;	/* commands on hold for
 						 * controller resources */
 	TAILQ_HEAD(,aac_command) aac_busy;
-	TAILQ_HEAD(,aac_command) aac_aif;
-#if 0
-	TAILQ_HEAD(,aac_command) aac_norm;
-#endif
 	TAILQ_HEAD(,aac_event)	aac_ev_cmfree;
 	struct bio_queue_head	aac_bioq;
 	struct aac_queue_table	*aac_queues;
@@ -356,9 +361,10 @@ struct aac_softc
 	/* management interface */
 	struct cdev *aac_dev_t;
 	struct mtx		aac_aifq_lock;
-	struct aac_aif_command	aac_aifq[AAC_AIFQ_LENGTH];
-	int			aac_aifq_head;
-	int			aac_aifq_tail;
+	struct aac_fib		aac_aifq[AAC_AIFQ_LENGTH];
+	int			aifq_idx;
+	int			aifq_filled;
+	struct aac_fib_context *fibctx;
 	struct selinfo		rcv_select;
 	struct proc		*aifthread;
 	int			aifflags;
