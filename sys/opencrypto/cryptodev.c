@@ -178,6 +178,9 @@ cryptof_ioctl(
 		case CRYPTO_ARC4:
 			txform = &enc_xform_arc4;
 			break;
+		case CRYPTO_CAMELLIA_CBC:
+			txform = &enc_xform_camellia;
+			break;
 		default:
 			mtx_unlock(&Giant);
 			return (EINVAL);

@@ -6,6 +6,7 @@
 .PATH:	${.CURDIR}/../../crypto/des
 .PATH:	${.CURDIR}/../../crypto/rijndael
 .PATH:	${.CURDIR}/../../crypto/sha2
+.PATH:	${.CURDIR}/../../crypto/camellia
 
 KMOD	= crypto
 SRCS	= crypto.c
@@ -15,5 +16,6 @@ SRCS	+= skipjack.c bf_enc.c bf_skey.c
 SRCS	+= des_ecb.c des_enc.c des_setkey.c
 SRCS	+= sha1.c sha2.c
 SRCS	+= opt_param.h
+SRCS	+= camellia.c camellia-api.c
 
 .include <bsd.kmod.mk>
