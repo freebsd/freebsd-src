@@ -198,7 +198,7 @@ ata_generic_ident(device_t dev)
     char buffer[64];
 
     sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
-    device_set_desc(dev, buffer);
+    device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_generic_chipinit;
     return 0;
 }
