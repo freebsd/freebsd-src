@@ -150,9 +150,7 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 {
 	int error;
 
-	error = statfs_scale_blocks(in, INT32_MAX);
-	if (error)
-		return (error);
+	statfs_scale_blocks(in, INT32_MAX);
 	bzero(out, sizeof(*out));
 	CP(*in, *out, f_bsize);
 	out->f_iosize = MIN(in->f_iosize, INT32_MAX);
