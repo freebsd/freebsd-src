@@ -51,16 +51,18 @@
 .Nm
 .Op Ar path ...
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is used to print the current working directory, adjusted to reflect proper
 paths that can be reused to go through the automounter for the shortest
 possible path.
 In particular, the path printed back does not include any
 of
-.Nm Amd Ns \'s
+.Xr amd 8 Ns 's
 local mount points.
 Using them is unsafe, because
-.Nm Amd
+.Xr amd 8
 may unmount managed file systems from the mount points, and thus including
 them in paths may not always find the files within.
 .Pp
@@ -76,15 +78,32 @@ arguments.
 .Xr pwd 1 ,
 .Xr amd 8 ,
 .Xr amq 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 3.0 .
-.SH AUTHORS
-Erez Zadok <ezk@cs.sunysb.edu>, Computer Science Department, Stony Brook
+.Sh AUTHORS
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook
 University, Stony Brook, New York, USA.
-.P
+.Pp
 Other authors and contributors to am-utils are listed in the
-.B AUTHORS
+.Pa AUTHORS
 file distributed with am-utils.

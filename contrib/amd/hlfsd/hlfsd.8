@@ -53,23 +53,19 @@
 .Nm
 .Op Fl fhnpvC
 .Op Fl a Ar alt_dir
-.Bk -words
 .Op Fl c Ar cache-interval
-.Ek
 .Op Fl g Ar group
-.Bk -words
 .Op Fl i Ar reload-interval
-.Ek
 .Op Fl l Ar logfile
-.Bk -words
 .Op Fl o Ar mount-options
 .Op Fl x Ar log-options
 .Op Fl D Ar debug-options
 .Op Fl P Ar password-file
-.Ek
-.Op linkname Op subdir
+.Op Ar linkname Op Ar subdir
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is a daemon which implements a file system containing a symbolic link to
 subdirectory within a user's home directory, depending on the user
 which accessed that link.
@@ -77,7 +73,9 @@ It was primarily designed to redirect
 incoming mail to users' home directories, so that it can read from
 anywhere.
 .Pp
+The
 .Nm
+utility
 operates by mounting itself as an
 .Tn NFS
 server for the directory containing
@@ -85,12 +83,10 @@ server for the directory containing
 which defaults to
 .Pa /hlfs/home .
 Lookups within that directory are handled by
-.Nm hlfsd ,
+.Nm ,
 which uses the password map to determine how to resolve the lookup.
-The
-directory will be created if it does not already exist.
-The symbolic link will
-be to the accessing user's home directory, with
+The directory will be created if it does not already exist.
+The symbolic link will be to the accessing user's home directory, with
 .Ar subdir
 appended to it.
 If not specified,
@@ -100,18 +96,24 @@ defaults to
 This directory will also be created if it does not already exist.
 .Pp
 A
-.Er SIGHUP
-will flush the internal caches, and reload the password map.
-It will also
-close and reopen the log file, to enable the original log file to be removed
-or rotated.
+.Dv SIGTERM
+sent to
+.Nm
+will cause it to shutdown.
 A
-.Er SIGUSR1
-will cause it to dump its internal table of user IDs and home directories to
-the file
+.Dv SIGHUP
+will flush the internal
+caches, and reload the password map.
+It will also close and
+reopen the log file, to enable the original log file to be
+removed or rotated.
+A
+.Dv SIGUSR1
+will cause it to dump its internal
+table of user IDs and home directories to the file
 .Pa /usr/tmp/hlfsd.dump.XXXXXX .
 .Sh OPTIONS
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a Ar alt_dir
 Alternate directory.
 The name of the directory to which
@@ -129,7 +131,9 @@ will run a script to resend this
 to its owner.
 .It Fl c Ar cache-interval
 Caching interval.
+The
 .Nm
+utility
 will cache the validity of home directories for this interval, in
 seconds.
 Entries which have been verified within the last
@@ -142,8 +146,7 @@ will re-verify the validity of the user's home directory, and
 reset the cache time-counter.
 The default value for
 .Ar cache-interval
-is 300 seconds
-(5 minutes).
+is 300 seconds (5 minutes).
 .It Fl f
 Force fast startup.
 This option tells
@@ -153,19 +156,19 @@ directory, alternate spool directory, symlink to be hidden under the
 mount directory, their permissions and validity.
 .It Fl g Ar group
 Set the special group
-.Va HLFS_GID
+.Dv HLFS_GID
 to
 .Ar group .
 Programs such as
-.Ic comsat ,
-(which access the mailboxes of other users)
-must be setgid
-.Va HLFS_GID
+.Xr comsat 8 ,
+(which access the mailboxes of other users) must be setgid
+.Dv HLFS_GID
 to work properly.
 The default group is
-.Dq hlfs .
-If no group is provided, and there is no group
-.Dq hlfs ,
+.Dq Li hlfs .
+If no group is provided,
+and there is no group
+.Dq Li hlfs ,
 this feature is disabled.
 .It Fl h
 Help.
@@ -177,38 +180,43 @@ Each
 seconds,
 .Nm
 will reload the password map.
+The
 .Nm
+utility
 needs the password map for the UIDs and home directory pathnames.
+The
 .Nm
-schedules a
-.Va SIGALRM
+utility schedules a
+.Dv SIGALRM
 to reload the password maps.
 A
-.Va SIGHUP
+.Dv SIGHUP
 sent to
 .Nm
 will force it to reload the maps immediately.
-The default value for
+The default
+value for
 .Ar reload-interval
-is 900 seconds
-(15 minutes).
+is 900 seconds (15 minutes).
 .It Fl l Ar logfile
 Specify a log file to which
 .Nm
 will record events.
 If
-.Pa logfile
+.Ar logfile
 is the string
-.Pa syslog
+.Dq Li syslog
 then the log messages will be sent to the system log daemon by
 .Xr syslog 3 ,
 using the
-.Va LOG_DAEMON
+.Dv LOG_DAEMON
 facility.
 This is also the default.
 .It Fl n
 No verify.
+The
 .Nm
+utility
 will not verify the validity of the symbolic link it will be
 returning, or that the user's home directory contains
 sufficient disk-space for spooling.
@@ -229,18 +237,17 @@ Mount options.
 Mount options which
 .Nm
 will use to mount itself on top of
-.Pa dirname .
+.Ar dirname .
 By default,
 .Ar mount-options
 is set to
-.Qq ro .
+.Dq Li ro .
 If the system supports symbolic-link caching, default
 options are set to
-.Qq ro,nocache .
+.Dq Li ro,nocache .
 .It Fl p
-Prints
-.Va PID .
-Outputs the process-id of
+Print PID.
+Outputs the process ID of
 .Nm
 to standard output where it can be saved into a file.
 .It Fl v
@@ -249,7 +256,8 @@ Displays version information to standard error.
 .It Fl x Ar log-options
 Specify run-time logging options.
 The options are a comma separated
-list chosen from: fatal, error, user, warn, info, map, stats, all.
+list chosen from:
+.Li fatal , error , user , warn , info , map , stats , all .
 .It Fl C
 Force
 .Nm
@@ -263,17 +271,17 @@ off the attribute-cache.
 Select from a variety of debugging options.
 Prefixing an
 option with the string
-.Qq no
+.Dq Li no
 reverses the effect of that option.
 Options are cumulative.
 The most useful option is
-.Em all .
+.Dq Li all .
 Since this option is only used for debugging other options are not
 documented here.
 A fuller description is available in the program
 source.
 A
-.Va SIGUSR1
+.Dv SIGUSR1
 sent to
 .Nm
 will cause it to dump its internal password map to the file
@@ -296,13 +304,13 @@ are read and checked.
 All other fields are ignored.
 The file
 .Ar password-file
-must be compliant with
+must otherwise be compliant with
 .Ux
 System 7 colon-delimited format
 .Xr passwd 5 .
 .El
 .Sh FILES
-.Bl -tag -width /axx
+.Bl -tag -width ".Pa /var/hlfs"
 .It Pa /hlfs
 directory under which
 .Nm
@@ -338,6 +346,19 @@ user's home directory is accessible.
 .%B Proc. LISA-VII, The 7th Usenix System Administration Conference
 .%D November 1993
 .Re
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
 .Sh HISTORY
 The
 .Nm
