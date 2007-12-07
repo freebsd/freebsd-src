@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -486,7 +490,9 @@ pmcstat_show_usage(void)
 	    "\t -C\t\t (toggle) show cumulative counts\n"
 	    "\t -D path\t create profiles in directory \"path\"\n"
 	    "\t -E\t\t (toggle) show counts at process exit\n"
+	    "\t -G file\t write a system-wide callgraph to \"file\"\n"
 	    "\t -M file\t print executable/gmon file map to \"file\"\n"
+	    "\t -N\t\t (toggle) capture callchains\n"
 	    "\t -O file\t send log output to \"file\"\n"
 	    "\t -P spec\t allocate a process-private sampling PMC\n"
 	    "\t -R file\t read events from \"file\"\n"
@@ -504,7 +510,8 @@ pmcstat_show_usage(void)
 	    "\t -s spec\t allocate a system-wide counting PMC\n"
 	    "\t -t pid\t\t attach to running process with pid \"pid\"\n"
 	    "\t -v\t\t increase verbosity\n"
-	    "\t -w secs\t set printing time interval"
+	    "\t -w secs\t set printing time interval\n"
+	    "\t -z depth\t limit callchain display depth"
 	);
 }
 
@@ -516,16 +523,17 @@ int
 main(int argc, char **argv)
 {
 	double interval;
-	int option, npmc, ncpu;
+	int option, npmc, ncpu, haltedcpus;
 	int c, check_driver_stats, current_cpu, current_sampling_count;
-	int do_print, do_descendants;
-	int do_logproccsw, do_logprocexit;
+	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
+	int do_print;
 	size_t dummy;
+	int graphdepth;
 	int pipefd[2];
 	int use_cumulative_counts;
 	uint32_t cpumask;
 	char *end, *tmp;
-	const char *errmsg;
+	const char *errmsg, *graphfilename;
 	enum pmcstat_state runstate;
 	struct pmc_driverstats ds_start, ds_end;
 	struct pmcstat_ev *ev;
@@ -538,10 +546,12 @@ main(int argc, char **argv)
 	check_driver_stats      = 0;
 	current_cpu 		= 0;
 	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
+	do_callchain		= 1;
 	do_descendants          = 0;
 	do_logproccsw           = 0;
 	do_logprocexit          = 0;
 	use_cumulative_counts   = 0;
+	graphfilename		= "-";
 	args.pa_required	= 0;
 	args.pa_flags		= 0;
 	args.pa_verbosity	= 1;
@@ -550,21 +560,33 @@ main(int argc, char **argv)
 	args.pa_kernel		= strdup("/boot/kernel");
 	args.pa_samplesdir	= ".";
 	args.pa_printfile	= stderr;
+	args.pa_graphdepth	= DEFAULT_CALLGRAPH_DEPTH;
+	args.pa_graphfile	= NULL;
 	args.pa_interval	= DEFAULT_WAIT_INTERVAL;
 	args.pa_mapfilename	= NULL;
+	args.pa_inputpath	= NULL;
+	args.pa_outputpath	= NULL;
 	STAILQ_INIT(&args.pa_events);
 	SLIST_INIT(&args.pa_targets);
 	bzero(&ds_start, sizeof(ds_start));
 	bzero(&ds_end, sizeof(ds_end));
 	ev = NULL;
 
-	dummy = sizeof(ncpu);
+	/*
+	 * The initial CPU mask specifies all non-halted CPUS in the
+	 * system.
+	 */
+	dummy = sizeof(int);
 	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine #cpus");
+		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
 	cpumask = (1 << ncpu) - 1;
+	if (sysctlbyname("machdep.hlt_cpus", &haltedcpus, &dummy,
+	    NULL, 0) < 0)
+		err(EX_OSERR, "ERROR: Cannot determine which CPUs are halted");
+	cpumask &= ~haltedcpus;
 
 	while ((option = getopt(argc, argv,
-	    "CD:EM:O:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:")) != -1)
+	    "CD:EG:M:NO:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
@@ -598,6 +620,11 @@ main(int argc, char **argv)
 			args.pa_required |= FLAG_HAS_PROCESS_PMCS;
 			break;
 
+		case 'G':	/* produce a system-wide callgraph */
+			args.pa_flags |= FLAG_DO_CALLGRAPHS;
+			graphfilename = optarg;
+			break;
+
 		case 'g':	/* produce gprof compatible profiles */
 			args.pa_flags |= FLAG_DO_GPROF;
 			break;
@@ -605,7 +632,7 @@ main(int argc, char **argv)
 		case 'k':	/* pathname to the kernel */
 			free(args.pa_kernel);
 			args.pa_kernel = strdup(optarg);
-			args.pa_required |= FLAG_DO_GPROF;
+			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
 			break;
 
@@ -617,6 +644,11 @@ main(int argc, char **argv)
 
 		case 'M':	/* mapfile */
 			args.pa_mapfilename = optarg;
+			break;
+
+		case 'N':
+			do_callchain = !do_callchain;
+			args.pa_required |= FLAG_HAS_SAMPLING_PMCS;
 			break;
 
 		case 'p':	/* process virtual counting PMC */
@@ -664,6 +696,8 @@ main(int argc, char **argv)
 				ev->ev_cpu = PMC_CPU_ANY;
 
 			ev->ev_flags = 0;
+			if (do_callchain)
+				ev->ev_flags |= PMC_F_CALLCHAIN;
 			if (do_descendants)
 				ev->ev_flags |= PMC_F_DESCENDANTS;
 			if (do_logprocexit)
@@ -725,7 +759,7 @@ main(int argc, char **argv)
 			break;
 
 		case 'R':	/* read an existing log file */
-			if (args.pa_logparser != NULL)
+			if (args.pa_inputpath != NULL)
 				errx(EX_USAGE, "ERROR: option -R may only be "
 				    "specified once.");
 			args.pa_inputpath = optarg;
@@ -761,6 +795,15 @@ main(int argc, char **argv)
 			    FLAG_HAS_COUNTING_PMCS | FLAG_HAS_OUTPUT_LOGFILE);
 			break;
 
+		case 'z':
+			graphdepth = strtod(optarg, &end);
+			if (*end != '\0' || graphdepth <= 0)
+				errx(EX_USAGE, "ERROR: Illegal callchain "
+				    "depth \"%s\".", optarg);
+			args.pa_graphdepth = graphdepth;
+			args.pa_required |= FLAG_DO_CALLGRAPHS;
+			break;
+
 		case '?':
 		default:
 			pmcstat_show_usage();
@@ -771,8 +814,13 @@ main(int argc, char **argv)
 	args.pa_argc = (argc -= optind);
 	args.pa_argv = (argv += optind);
 
+	args.pa_cpumask = cpumask; /* For selecting CPUs using -R. */
+
 	if (argc)	/* command line present */
 		args.pa_flags |= FLAG_HAS_COMMANDLINE;
+
+	if (args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS))
+		args.pa_flags |= FLAG_DO_ANALYSIS;
 
 	/*
 	 * Check invocation syntax.
@@ -822,9 +870,10 @@ main(int argc, char **argv)
 		errx(EX_USAGE, "ERROR: options -d, -E, and -W require a "
 		    "process mode PMC to be specified.");
 
-	/* check for -c cpu and not system mode PMCs */
+	/* check for -c cpu with no system mode PMCs or logfile. */
 	if ((args.pa_required & FLAG_HAS_SYSTEM_PMCS) &&
-	    (args.pa_flags & FLAG_HAS_SYSTEM_PMCS) == 0)
+	    (args.pa_flags & FLAG_HAS_SYSTEM_PMCS) == 0 &&
+	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
 		errx(EX_USAGE, "ERROR: option -c requires at least one "
 		    "system mode PMC to be specified.");
 
@@ -837,14 +886,14 @@ main(int argc, char **argv)
 	/* check for sampling mode options without a sampling PMC spec */
 	if ((args.pa_required & FLAG_HAS_SAMPLING_PMCS) &&
 	    (args.pa_flags & FLAG_HAS_SAMPLING_PMCS) == 0)
-		errx(EX_USAGE, "ERROR: options -n and -O require at least "
-		    "one sampling mode PMC to be specified.");
+		errx(EX_USAGE, "ERROR: options -N, -n and -O require at "
+		    "least one sampling mode PMC to be specified.");
 
-	/* check if -g is being used correctly */
-	if ((args.pa_flags & FLAG_DO_GPROF) &&
+	/* check if -g/-G are being used correctly */
+	if ((args.pa_flags & FLAG_DO_ANALYSIS) &&
 	    !(args.pa_flags & (FLAG_HAS_SAMPLING_PMCS|FLAG_READ_LOGFILE)))
-		errx(EX_USAGE, "ERROR: option -g requires sampling PMCs or -R "
-		    "to be specified.");
+		errx(EX_USAGE, "ERROR: options -g/-G require sampling PMCs "
+		    "or -R to be specified.");
 
 	/* check if -O was spuriously specified */
 	if ((args.pa_flags & FLAG_HAS_OUTPUT_LOGFILE) &&
@@ -853,16 +902,16 @@ main(int argc, char **argv)
 		    "ERROR: option -O is used only with options "
 		    "-E, -P, -S and -W.");
 
-	/* -D dir and -k kernel path require -g or -R */
+	/* -k kernel path require -g/-G or -R */
 	if ((args.pa_flags & FLAG_HAS_KERNELPATH) &&
-	    (args.pa_flags & FLAG_DO_GPROF) == 0 &&
+	    (args.pa_flags & FLAG_DO_ANALYSIS) == 0 &&
 	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
 	    errx(EX_USAGE, "ERROR: option -k is only used with -g/-R.");
 
+	/* -D only applies to gprof output mode (-g) */
 	if ((args.pa_flags & FLAG_HAS_SAMPLESDIR) &&
-	    (args.pa_flags & FLAG_DO_GPROF) == 0 &&
-	    (args.pa_flags & FLAG_READ_LOGFILE) == 0)
-	    errx(EX_USAGE, "ERROR: option -D is only used with -g/-R.");
+	    (args.pa_flags & FLAG_DO_GPROF) == 0)
+	    errx(EX_USAGE, "ERROR: option -D is only used with -g.");
 
 	/* -M mapfile requires -g or -R */
 	if (args.pa_mapfilename != NULL &&
@@ -882,9 +931,9 @@ main(int argc, char **argv)
 		    "sampling PMCs are specified together.");
 
 	/*
-	 * Check if "-k kerneldir" was specified, and if whether 'kerneldir'
-	 * actually refers to a a file.  If so, use `dirname path` to determine
-	 * the kernel directory.
+	 * Check if "-k kerneldir" was specified, and if whether
+	 * 'kerneldir' actually refers to a a file.  If so, use
+	 * `dirname path` to determine the kernel directory.
 	 */
 	if (args.pa_flags & FLAG_HAS_KERNELPATH) {
 		(void) snprintf(buffer, sizeof(buffer), "%s%s", args.pa_fsroot,
@@ -910,13 +959,27 @@ main(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * If we have a callgraph be created, select the outputfile.
+	 */
+	if (args.pa_flags & FLAG_DO_CALLGRAPHS) {
+		if (strcmp(graphfilename, "-") == 0)
+		    args.pa_graphfile = args.pa_printfile;
+		else {
+			args.pa_graphfile = fopen(graphfilename, "w");
+			if (args.pa_graphfile == NULL)
+				err(EX_OSERR, "ERROR: cannot open \"%s\" "
+				    "for writing", graphfilename);
+		}
+	}
+
 	/* if we've been asked to process a log file, do that and exit */
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		/*
 		 * Print the log in textual form if we haven't been
-		 * asked to generate gmon.out files.
+		 * asked to generate profiling information.
 		 */
-		if ((args.pa_flags & FLAG_DO_GPROF) == 0)
+		if ((args.pa_flags & FLAG_DO_ANALYSIS) == 0)
 			args.pa_flags |= FLAG_DO_PRINT;
 
 		pmcstat_initialize_logging(&args);
@@ -1162,7 +1225,7 @@ main(int argc, char **argv)
 				    FLAG_HAS_PIPE)) {
 					runstate = pmcstat_close_log(&args);
 					if (args.pa_flags &
-					    (FLAG_DO_PRINT|FLAG_DO_GPROF))
+					    (FLAG_DO_PRINT|FLAG_DO_ANALYSIS))
 						pmcstat_process_log(&args);
 				}
 				do_print = 1; /* print PMCs at exit */
