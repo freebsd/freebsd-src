@@ -214,8 +214,7 @@ trap(struct trapframe *frame)
 	 * return immediately.
 	 */
 	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame->tf_eip,
-		TRAPF_USERMODE(frame)))
+	    (*pmc_intr)(PCPU_GET(cpuid), frame))
 	    goto out;
 #endif
 

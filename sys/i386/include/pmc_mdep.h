@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -73,10 +77,33 @@ union pmc_md_pmc  {
 
 struct pmc;
 
+#define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_eip)
+#define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_ebp)
+#define	PMC_TRAPFRAME_TO_SP(TF)	((TF)->tf_esp)
+
+#define	PMC_IN_KERNEL_STACK(S,START,END)		\
+	((S) >= (START) && (S) < (END))
+#define	PMC_IN_KERNEL(va) (((va) >= USRSTACK) &&	\
+	((va) < VM_MAX_KERNEL_ADDRESS))
+
+#define	PMC_IN_USERSPACE(va) ((va) <= VM_MAXUSER_ADDRESS)
+
+#define	PMC_IN_TRAP_HANDLER(PC) 			\
+	((PC) >= (uintptr_t) start_exceptions &&	\
+	 (PC) < (uintptr_t) end_exceptions)
+
+#define	PMC_AT_FUNCTION_PROLOGUE_PUSH_BP(I)		\
+	(((I) & 0xffffffff) == 0xe5894855) /* pushq %rbp; movq %rsp,%rbp */
+#define	PMC_AT_FUNCTION_PROLOGUE_MOV_SP_BP(I)		\
+	(((I) & 0x00ffffff) == 0x00e58948) /* movq %rsp,%rbp */
+#define	PMC_AT_FUNCTION_EPILOGUE_RET(I)			\
+	(((I) & 0xFF) == 0xC3)		   /* ret */
+
 /*
  * Prototypes
  */
 
+void	start_exceptions(void), end_exceptions(void);
 void	pmc_x86_lapic_enable_pmc_interrupt(void);
 
 #endif /* _KERNEL */
