@@ -161,8 +161,7 @@ struct ifnet {
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
-	void	*if_spare2;		/* spare pointer 2 */
-	void	*if_spare3;		/* spare pointer 3 */
+	void	*if_llsoftc;		/* link layer softc */
 	int	if_drv_flags;		/* driver-managed status flags */
 	u_int	if_spare_flags2;	/* spare flags 2 */
 	struct  ifaltq if_snd;		/* output queue (includes altq) */
@@ -187,6 +186,8 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
+	void	*if_pspare[10];		/* multiq/TOE 3; vimage 3; general use 4 */
+	int	if_ispare[2];		/* general use 2 */
 };
 
 typedef void if_init_f_t(void *);

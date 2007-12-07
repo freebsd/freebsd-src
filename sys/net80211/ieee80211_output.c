@@ -248,7 +248,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct rtentry *rt0)
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
-	struct ieee80211com *ic = ifp->if_spare2;	/* XXX */
+	struct ieee80211com *ic = ifp->if_llsoftc;	/* XXX */
 	struct ieee80211_node *ni = NULL;
 	struct ieee80211_frame *wh;
 	int error;

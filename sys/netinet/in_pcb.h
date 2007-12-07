@@ -113,19 +113,13 @@ struct	icmp6_filter;
 struct inpcb {
 	LIST_ENTRY(inpcb) inp_hash;	/* hash list */
 	LIST_ENTRY(inpcb) inp_list;	/* list for all PCBs of this proto */
-	u_int32_t	inp_flow;
-
-	/* Local and foreign ports, local and foreign addr. */
-	struct	in_conninfo inp_inc;
-
 	void	*inp_ppcb;		/* pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* PCB list info */
 	struct	socket *inp_socket;	/* back pointer to socket */
-					/* list for this PCB's local port */
-	struct	label *inp_label;	/* MAC label */
+
+	u_int32_t	inp_flow;
 	int	inp_flags;		/* generic IP/datagram flags */
 
-	struct	inpcbpolicy *inp_sp;    /* for IPSEC */
 	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
@@ -137,6 +131,15 @@ struct inpcb {
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
 	u_char	inp_ip_minttl;		/* minimum TTL or drop */
+	uint32_t inp_ispare1;		/* connection id / queue id */
+	void	*inp_pspare[2];		/* rtentry / general use */
+
+	/* Local and foreign ports, local and foreign addr. */
+	struct	in_conninfo inp_inc;
+
+					/* list for this PCB's local port */
+	struct	label *inp_label;	/* MAC label */
+	struct	inpcbpolicy *inp_sp;    /* for IPSEC */
 
 	/* Protocol-dependent part; options. */
 	struct {
@@ -262,6 +265,12 @@ struct inpcbinfo {
 	 */
 	u_quad_t		 ipi_gencnt;
 	struct mtx		 ipi_mtx;
+
+	/*
+	 * vimage 1
+	 * general use 1
+	 */
+	void 			*ipi_pspare[2];	
 };
 
 #define INP_LOCK_INIT(inp, d, t) \
