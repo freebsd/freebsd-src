@@ -148,22 +148,26 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	register int done, ras_start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
 	    "cmp	%1, %3\n"
 	    "streq	%4, [%2]\n"
 	    "2:\n"
 	    "mov	%1, #0\n"
+	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "mov	%0, #0xe0000008\n"
 	    "str	%1, [%0]\n"
 	    "moveq	%1, #1\n"
 	    "movne	%1, #0\n"
 	    : "=r" (ras_start), "=r" (done)
-	    ,"+r" (p), "+r" (cmpval), "+r" (newval));
+	    ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "memory");
 	return (done);
 }
 
@@ -173,19 +177,24 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 	int ras_start, start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
 	    "add	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
+	    "mov	%1, #0xffffffff\n"
+	    "mov	%0, #0xe0000008\n"
+	    "str	%1, [%0]\n"
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val)
+	    : : "memory");
 }
 
 static __inline void
@@ -194,20 +203,25 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 	int ras_start, start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
 	    "sub	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "mov	%0, #0xe0000008\n"
+	    "str	%1, [%0]\n"
 
-	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val));
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (val)
+	    : : "memory");
 }
 
 static __inline void
@@ -216,20 +230,25 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 	int ras_start, start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
 	    "orr	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
+	    "mov	%1, #0xffffffff\n"
+	    "mov	%0, #0xe0000008\n"
+	    "str	%1, [%0]\n"
 
-	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask));
+	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (setmask)
+	    : : "memory");
 }
 
 static __inline void
@@ -238,19 +257,24 @@ atomic_clear_32(volatile uint32_t *address, uint32_t clearmask)
 	int ras_start, start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
+	    "str	%1, [%0]\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
 	    "str	%1, [%0]\n"
 	    "ldr	%1, [%2]\n"
 	    "bic	%1, %1, %3\n"
 	    "str	%1, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%1, #0\n"
 	    "str	%1, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (clearmask));
+	    "mov	%1, #0xffffffff\n"
+	    "mov	%0, #0xe0000008\n"
+	    "str	%1, [%0]\n"
+	    : "=r" (ras_start), "=r" (start), "+r" (address), "+r" (clearmask)
+	    : : "memory");
 
 }
 
@@ -260,19 +284,24 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 	uint32_t ras_start, start;
 
 	__asm __volatile("1:\n"
-	    "mov	%0, #0xe0000008\n"
-	    "adr	%1, 2f\n"
-	    "str	%1, [%0]\n"
 	    "adr	%1, 1b\n"
 	    "mov	%0, #0xe0000004\n"
 	    "str	%1, [%0]\n"
-	    "ldr	%1, %2\n"
-	    "add	%3, %1, %3\n"
-	    "str	%3, %2\n"
+	    "mov	%0, #0xe0000008\n"
+	    "adr	%1, 2f\n"
+	    "str	%1, [%0]\n"
+	    "ldr	%1, [%2]\n"
+	    "add	%0, %1, %3\n"
+	    "str	%0, [%2]\n"
 	    "2:\n"
+	    "mov	%0, #0xe0000004\n"
 	    "mov	%3, #0\n"
 	    "str	%3, [%0]\n"
-	    : "=r" (ras_start), "=r" (start), "=m" (*p), "+r" (v));
+	    "mov	%0, #0xe0000008\n"
+	    "mov	%3, #0xffffffff\n"
+	    "str	%3, [%0]\n"
+	    : "=r" (ras_start), "=r" (start), "+r" (p), "+r" (v)
+	    : : "memory");
 	return (start);
 }
 
