@@ -1,5 +1,9 @@
-<!-- Original Revision: 1.2.2.1 -->
-<!-- $FreeBSD$ -->
+<!--
+	The FreeBSD Simplified Chinese Project
+
+	Original Revision: 1.1.2.1
+	$FreeBSD$
+-->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
@@ -7,7 +11,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY % sections SYSTEM "../common/relnotes.ent">
+<!ENTITY % sections SYSTEM "../common/install.ent">
 %sections;
 
 <!-- Architecture-specific customization -->
@@ -18,5 +22,10 @@
 ]>
 
 <article>
-  &art;
+&artheader;
+&abstract;
+&sect.install;
+&sect.layout;
+&sect.upgrade;
+&sect.trouble;
 </article>

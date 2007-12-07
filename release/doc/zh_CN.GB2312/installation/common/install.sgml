@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.32.2.1
+Original Revision: 1.32.2.4
 $FreeBSD$
 
 install.sgml
@@ -116,7 +116,7 @@ from {alpha,i386}/INSTALL.TXT.
   <title>软盘映像说明</title>
 
   <para arch="i386,alpha,pc98">取决于您选择如何来安装
-  &os;，您可能需要创建几张软盘(通常是三张)来开启安装过程。
+  &os;，您可能需要创建几张软盘(通常是四张)来开启安装过程。
   这一章节简要描述了如何创建这些软盘来从 CDROM 或者从 Internet
   安装。注意一般情况下在一台支持自启动 CDROM 的机器上从 CDROM
   安装 &os; 的话，这一章节描述的步骤都是不需要的，可以跳过。</para>
@@ -741,15 +741,15 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	</question>
 	<answer>
 	  <para>如果您的计算机已经在运行 DOS 而只有很少或没有可以用于安装
-	  &os; 的磁盘空间， 还有机会! 您可以从 &os; CDROM 的
-	  <filename>tools/</filename> 目录， 或众多 &os;
-	  ftp 站点上找到 <application>FIPS</application>
-	  工具来解决这个问题。</para>
+	  &os; 的磁盘空间， 则可以使用一些方法来改变现有分区尺寸，
+	  从而腾出空间来安装 &os;。</para>
 
-	  <para><application>FIPS</application> 允许您将已经存在的
-	  DOS 分区分割为两部分， 保持原有分区中的内容，
-	  从而在剩余空间上安装。 在运行 FIPS 之前首先应该使用 DOS 6.xx 的
-	  <filename>DEFRAG</filename> 工具或
+	  <para>随 &os; CDROM 或 &os; ftp 站点提供的
+	  <filename>tools/</filename> 目录中， 有一个可以改变已经存在的
+	  FAT 分区尺寸的 <application>FIPS</application> 工具。
+	  它允许您将 DOS 分区分成两部分， 保留现有分区中的数据，
+	  并在第二个分区的空间上进行安装。 在运行 FIPS
+	  之前首先应该使用 DOS 6.xx 的 <filename>DEFRAG</filename> 工具或
 	  <application>Norton Disk Tools</application>
 	  对您的 DOS 分区执行 <quote>碎片整理</quote>。
 	  它将提示您输入所需的其它信息。 此后，
@@ -760,13 +760,19 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  您可以简单地删除那个多余的 DOS 主分区
 	  (可以通过分区大小来看出是否是应该删除的那个)。</para>
 
-	  <para><application>FIPS</application> 目前并不支持
-          NTFS 格式的分区。 要分割这样的分区， 您需要类似
-          <application>Partition Magic</application>
-          这样的商业产品。</para>
-	  
-	  <para><application>FIPS</application> 无法处理扩展
-	  DOS 分区。 但它支持 Windows 95/98/ME 的 FAT32 格式主分区。</para>
+	  <para>对于使用 NTFS 分区的系统，
+	  则会需要使用另一个工具， <application>ntfsresize</application>
+	  或者类似 <application>Partition
+	  Magic</application> 这样的商业软件。 在许多 Live CD
+	  Linux 发行版本， 如
+	  <ulink url="http://www.sysresccd.org/">SystemRescueCD</ulink>
+	  中， 均提供了 <application>ntfsresize</application>
+	  以及 <application>GParted</application> 图形界面程序。</para>
+
+	  <para>有报道说对 Microsoft Vista
+	  分区的尺寸进行修改会导致问题。 在进行这类操作时，
+	  应该在手边准备好 Vista 安装 CDROM。 与其他磁盘维护工作类似，
+	  强烈建议您在操作之前做好系统的数据备份。</para>
 
 	</answer>
       </qandaentry>

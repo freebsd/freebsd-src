@@ -1,6 +1,6 @@
 # The FreeBSD Simplified Chinese Project
 #
-# Original Revision: 1.6
+# Original Revision: 1.6.10.1
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/../..

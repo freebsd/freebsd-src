@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.282.2.12
+	Original Revision: 1.282.2.17
 -->
 
 <!--
@@ -214,6 +214,8 @@
     (&man.cs.4; 驱动程序)
     </para>
 
+    &hwlist.cxgb;
+
     &hwlist.dc;
 
     &hwlist.de;
@@ -245,6 +247,10 @@
     &hwlist.lge;
 
     &hwlist.lnc;
+
+    &hwlist.msk;
+
+    &hwlist.mxge;
 
     &hwlist.my;
 
@@ -334,26 +340,30 @@
   <sect2 id="wlan">
     <title>无线网络接口</title>
 
-    <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
-    ISA/radio LAN 卡 (&man.wl.4; 驱动程序)</para>
-
-    <para arch="i386,pc98,amd64">Lucent Technologies WaveLAN/IEEE 802.11b
-      无线网络适配器以及软件通用型的采用 Lucent Hermes, Intersil
-      PRISM-II, Intersil PRISM-2.5, Intersil Prism-3, 和 Symbol
-      Spectrum24 芯片组的网卡 (&man.wi.4; 驱动程序)
+    <para arch="i386,pc98,amd64">Cisco/Aironet 802.11b 无线适配器 (&man.an.4; 驱动程序)
     </para>
 
-    <para arch="i386,pc98,amd64">Cisco/Aironet 802.11b 无线网络适配器 (&man.an.4; 驱动程序)
-    </para>
-
-    <para arch="i386,pc98">Raytheon Raylink 2.4GHz 无线网络适配器 (&man.ray.4; 驱动程序)
-    </para>
+    &hwlist.ath;
 
     &hwlist.awi;
 
     &hwlist.cnw;
 
-    &hwlist.ath;
+    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI 网络适配器
+      (&man.ipw.4; 驱动程序)</para>
+
+    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2200BG/2915ABG MiniPCI
+      和 2225BG PCI 网络适配器 (&man.iwi.4; 驱动程序)</para>
+
+    &hwlist.ral;
+
+    <para arch="i386,pc98">Raytheon Raylink 2.4GHz 无线适配器 (&man.ray.4; 驱动程序)
+    </para>
+
+    &hwlist.ural;
+
+    <para arch="i386">NCR / AT&amp;T / 郎讯科技 WaveLan T1-speed
+    ISA/无线 LAN 卡 (&man.wl.4; 驱动程序)</para>
   </sect2>
 
   <sect2 id="misc-network">
