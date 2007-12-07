@@ -1,5 +1,10 @@
 /*-
- * Copyright (c) 2003-2005, Joseph Koshy
+ * Copyright (c) 2003-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,7 +50,7 @@ const int pmc_kernel_version = PMC_KERNEL_VERSION;
 int (*pmc_hook)(struct thread *td, int function, void *arg) = NULL;
 
 /* Interrupt handler */
-int (*pmc_intr)(int cpu, uintptr_t pc, int usermode) = NULL;
+int (*pmc_intr)(int cpu, struct trapframe *tf) = NULL;
 
 /* Bitmask of CPUs requiring servicing at hardclock time */
 volatile cpumask_t pmc_cpumask;
@@ -66,7 +71,14 @@ volatile int pmc_ss_count;
  * somewhat more expensive than a simple 'if' check and indirect call.
  */
 struct sx pmc_sx;
-SX_SYSINIT(pmc, &pmc_sx, "pmc shared lock");
+
+static void
+pmc_init_sx(void)
+{
+	sx_init_flags(&pmc_sx, "pmc-sx", SX_NOWITNESS);
+}
+
+SYSINIT(pmcsx, SI_SUB_LOCK, SI_ORDER_MIDDLE, pmc_init_sx, NULL);
 
 /*
  * Helper functions
