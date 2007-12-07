@@ -1,4 +1,5 @@
 %% $FreeBSD$
+%
 A father doesn't destroy his children.
 		-- Lt. Carolyn Palamas, "Who Mourns for Adonais?",
 		   stardate 3468.1.
@@ -50,8 +51,8 @@ in this way? ...  Obedience.  Duty.  Death, and more death ...
 enough to play around with that.
 		-- McCoy, "The Omega Glory", stardate unknown
 %
-"Beauty is transitory."
-"Beauty survives."
+	"Beauty is transitory."
+	"Beauty survives."
 		-- Spock and Kirk, "That Which Survives", stardate unknown
 %
 Behind every great man, there is a woman -- urging him on.
@@ -66,13 +67,12 @@ able to break it, but, I'll bet you credits to Navy Beans we can put a
 dent in it.
 		-- deSalle, "Catspaw", stardate 3018.2
 %
-"Can you imagine how life could be improved if we could do away with
-jealousy, greed, hate ..."
-
-"It can also be improved by eliminating love, tenderness, sentiment --
-the other side of the coin"
-		-- Dr. Roger Corby and Kirk, "What are Little Girls Made Of?",
-		   stardate 2712.4
+	"Can you imagine how life could be improved if we could do away
+with jealousy, greed, hate ..."
+	"It can also be improved by eliminating love, tenderness,
+sentiment -- the other side of the coin"
+		-- Dr. Roger Corby and Kirk,
+		   "What are Little Girls Made Of?", stardate 2712.4
 %
 Change is the essential process of all existence.
 		-- Spock, "Let That Be Your Last Battlefield", stardate 5730.2
@@ -132,8 +132,8 @@ mistakes.
 Every living thing wants to survive.
 		-- Spock, "The Ultimate Computer", stardate 4731.3
 %
-"Evil does seek to maintain power by suppressing the truth."
-"Or by misleading the innocent."
+	"Evil does seek to maintain power by suppressing the truth."
+	"Or by misleading the innocent."
 		-- Spock and McCoy, "And The Children Shall Lead",
 		   stardate 5029.5.
 %
@@ -152,16 +152,16 @@ First study the enemy.  Seek weakness.
 Four thousand throats may be cut in one night by a running man.
 		-- Klingon Soldier, "Day of the Dove", stardate unknown
 %
-"... freedom ... is a worship word..."
-"It is our worship word too."
+	"... freedom ... is a worship word..."
+	"It is our worship word too."
 		-- Cloud William and Kirk, "The Omega Glory", stardate unknown
 %
 Genius doesn't work on an assembly line basis.  You can't simply say,
 "Today I will be brilliant."
 		-- Kirk, "The Ultimate Computer", stardate 4731.3
 %
-"Get back to your stations!"
-"We're beaming down to the planet, sir."
+	"Get back to your stations!"
+	"We're beaming down to the planet, sir."
 		-- Kirk and Mr. Leslie, "This Side of Paradise",
 		   stardate 3417.3
 %
@@ -192,9 +192,9 @@ nor am I frightened of it.  It simply exists, and I will do whatever
 logically needs to be done.
 		-- Spock, "The Galileo Seven", stardate 2812.7
 %
-"I think they're going to take all this money that we spend now on war
-and death --"
-"And make them spend it on life."
+	"I think they're going to take all this money that we spend now
+on war and death --"
+	"And make them spend it on life."
 		-- Edith Keeler and Kirk, "The City on the Edge of Forever",
 		   stardate unknown.
 %
@@ -278,11 +278,10 @@ It would be illogical to kill without reason
 It would seem that evil retreats when forcibly confronted
 		-- Yarnek of Excalbia, "The Savage Curtain", stardate 5906.5
 %
-"It's hard to believe that something which is neither seen nor felt can
-do so much harm."
-
-"That's true.  But an idea can't be seen or felt.  And that's what kept
-the Troglytes in the mines all these centuries.  A mistaken idea."
+	"It's hard to believe that something which is neither seen nor
+felt can do so much harm."
+	"That's true.  But an idea can't be seen or felt.  And that's
+what kept the Troglytes in the mines all these centuries.  A mistaken idea."
 		-- Vanna and Kirk, "The Cloud Minders", stardate 5819.0
 %
 Killing is stupid; useless!
@@ -300,16 +299,16 @@ Landru! Guide us!
 Leave bigotry in your quarters; there's no room for it on the bridge.
 		-- Kirk, "Balance of Terror", stardate 1709.2
 %
-"Life and death are seldom logical."
-"But attaining a desired goal always is."
+	"Life and death are seldom logical."
+	"But attaining a desired goal always is."
 		-- McCoy and Spock, "The Galileo Seven", stardate 2821.7
 %
 Live long and prosper.
 		-- Spock, "Amok Time", stardate 3372.7
 %
-"Logic and practical information do not seem to apply here."
-"You admit that?"
-"To deny the facts would be illogical, Doctor"
+	"Logic and practical information do not seem to apply here."
+	"You admit that?"
+	"To deny the facts would be illogical, Doctor"
 		-- Spock and McCoy, "A Piece of the Action", stardate unknown
 %
 Lots of people drink from the wrong bottle sometimes.
@@ -323,7 +322,7 @@ Madness has no purpose.  Or reason.  But it may have a goal.
 		-- Spock, "The Alternative Factor", stardate 3088.7
 %
 Many Myths are based on truth
-		-- Spock, "The Way to Eden",  stardate 5832.3
+		-- Spock, "The Way to Eden", stardate 5832.3
 %
 Men don't talk peace unless they're ready to back it up with war.
 		-- Col. Green, "The Savage Curtain", stardate 5906.4
@@ -352,8 +351,8 @@ No one can guarantee the actions of another.
 No one may kill a man.  Not for any purpose.  It cannot be condoned.
 		-- Kirk, "Spock's Brain", stardate 5431.6
 %
-"No one talks peace unless he's ready to back it up with war."
-"He talks of peace if it is the only way to live."
+	"No one talks peace unless he's ready to back it up with war."
+	"He talks of peace if it is the only way to live."
 		-- Colonel Green and Surak of Vulcan, "The Savage Curtain",
 		   stardate 5906.5.
 %
@@ -440,12 +439,12 @@ Suffocating together ... would create heroic camaraderie.
 Superior ability breeds superior ambition.
 		-- Spock, "Space Seed", stardate 3141.9
 %
-"That unit is a woman."
-"A mass of conflicting impulses."
+	"That unit is a woman."
+	"A mass of conflicting impulses."
 		-- Spock and Nomad, "The Changeling", stardate 3541.9
 %
-"The combination of a number of things to make existence worthwhile."
-"Yes, the philosophy of 'none,' meaning 'all.'"
+	"The combination of a number of things to make existence worthwhile."
+	"Yes, the philosophy of 'none,' meaning 'all.'"
 		-- Spock and Lincoln, "The Savage Curtain", stardate 5906.4
 %
 The face of war has never changed.  Surely it is more logical to heal
@@ -457,10 +456,11 @@ pattern.  We don't fear it as you do.
 		-- Proconsul Marcus Claudius, "Bread and Circuses",
 		   stardate 4041.2
 %
-"The glory of creation is in its infinite diversity."
-"And in the way our differences combine to create meaning and beauty."
-		-- Dr. Miranda Jones and Spock, "Is There in Truth No Beauty?",
-		   stardate 5630.8
+	"The glory of creation is in its infinite diversity."
+	"And in the way our differences combine to create meaning and
+beauty."
+		-- Dr. Miranda Jones and Spock,
+		   "Is There in Truth No Beauty?", stardate 5630.8
 %
 The heart is not a logical organ.
 		-- Dr. Janet Wallace, "The Deadly Years", stardate 3479.4
@@ -494,10 +494,10 @@ deeply -- life in every form from fetus to developed being.
 to know each other.
 		-- Kirk, "Elaan of Troyius", stardate 4372.5
 %
-"The release of emotion is what keeps us healthy.  Emotionally healthy."
-
-"That may be, Doctor.  However, I have noted that the healthy release
-of emotion is frequently unhealthy for those closest to you."
+	"The release of emotion is what keeps us healthy.  Emotionally
+healthy."
+	"That may be, Doctor.  However, I have noted that the healthy
+release of emotion is frequently unhealthy for those closest to you."
 		-- McCoy and Spock, "Plato's Stepchildren", stardate 5784.3
 %
 The sight of death frightens them [Earthers].
@@ -551,8 +551,9 @@ There's nothing disgusting about it [the Companion].  It's just another
 life form, that's all.  You get used to those things.
 		-- McCoy, "Metamorphosis", stardate 3219.8
 %
-"There's only one kind of woman ..."
-"Or man, for that matter.  You either believe in yourself or you don't."
+	"There's only one kind of woman ..."
+	"Or man, for that matter.  You either believe in yourself or
+you don't."
 		-- Kirk and Harry Mudd, "Mudd's Women", stardate 1330.1
 %
 This cultural mystique surrounding the biological function -- you
@@ -628,8 +629,8 @@ development.
 We have phasers, I vote we blast 'em!
 		-- Bailey, "The Corbomite Maneuver", stardate 1514.2
 %
-"We have the right to survive!"
-"Not by killing others."
+	"We have the right to survive!"
+	"Not by killing others."
 		-- Deela and Kirk, "Wink of An Eye", stardate 5710.5
 %
 We Klingons believe as you do -- the sick should die.  Only the strong
@@ -641,10 +642,9 @@ But when it comes to your job -- that's different.  And it always will
 be different.
 		-- McCoy, "The Ultimate Computer", stardate 4729.4
 %
-"What happened to the crewman?"
-
-"The M-5 computer needed a new power source, the crewman merely got in
-the way."
+	"What happened to the crewman?"
+	"The M-5 computer needed a new power source, the crewman merely
+got in the way."
 		-- Kirk and Dr. Richard Daystrom, "The Ultimate Computer",
 		   stardate 4731.3.
 %
@@ -652,8 +652,8 @@ What kind of love is that?  Not to be loved; never to have shown love.
 		-- Commissioner Nancy Hedford, "Metamorphosis",
 		   stardate 3219.8
 %
-"What terrible way to die."
-"There are no good ways."
+	"What a terrible way to die."
+	"There are no good ways."
 		-- Sulu and Kirk, "That Which Survives", stardate unknown
 %
 When a child is taught ... its programmed with simple instructions --
@@ -755,3 +755,4 @@ You're too beautiful to ignore.  Too much woman.
 Youth doesn't excuse everything.
 		-- Dr. Janice Lester (in Kirk's body), "Turnabout Intruder",
 		   stardate 5928.5.
+%
