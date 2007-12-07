@@ -135,7 +135,7 @@ POSSIBILITY OF SUCH DAMAGE.
 /*
  * This parameter controls the duration of transmit watchdog timer.
  */
-#define EM_TX_TIMEOUT                   10    /* set to 10 seconds */
+#define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -231,7 +231,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
 #define EM_MAX_SCATTER		64
-#define EM_TSO_SIZE		65535	/* maxsize of a dma transfer */
+#define EM_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define EM_TSO_SEG_SIZE		4096	/* Max dma segment size */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
@@ -421,9 +421,9 @@ typedef struct _DESCRIPTOR_PAIR
 } DESC_ARRAY, *PDESC_ARRAY;
 
 #define	EM_CORE_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->core_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
 #define	EM_TX_LOCK_INIT(_sc, _name) \
-	mtx_init(&(_sc)->tx_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
+	mtx_init(&(_sc)->tx_mtx, _name, "EM TX Lock", MTX_DEF)
 #define	EM_CORE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->core_mtx)
 #define	EM_TX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->tx_mtx)
 #define	EM_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
