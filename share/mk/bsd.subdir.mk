@@ -26,7 +26,7 @@
 #
 #	afterinstall, all, all-man, beforeinstall, checkdpadd,
 #	clean, cleandepend, cleandir, depend, install, lint, maninstall,
-#	obj, objlink, realinstall, regress, tags
+#	manlint, obj, objlink, realinstall, regress, tags
 #
 
 .include <bsd.init.mk>
@@ -65,9 +65,8 @@ ${SUBDIR}: .PHONY
 	fi; \
 	${MAKE} all
 
-
 .for __target in all all-man checkdpadd clean cleandepend cleandir \
-    depend distribute lint maninstall \
+    depend distribute lint maninstall manlint \
     obj objlink realinstall regress tags \
     ${SUBDIR_TARGETS}
 ${__target}: _SUBDIR
