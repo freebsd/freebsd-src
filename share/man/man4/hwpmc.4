@@ -1,5 +1,9 @@
 .\" Copyright (c) 2003-2007 Joseph Koshy
+.\" Copyright (c) 2007 The FreeBSD Foundation
 .\" All rights reserved.
+.\"
+.\" Portions of this software were developed by A. Joseph Koshy under
+.\" sponsorship from the FreeBSD Foundation and Google, Inc.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -76,10 +80,11 @@ system call on all architectures.
 Some architectures offer faster methods of reading these counts.
 .It Em Sampling
 In sampling modes, the PMCs are configured to sample the CPU
-instruction pointer after a configurable number of hardware events
-have been observed.
-These instruction pointer samples are usually directed to a log file
-for subsequent analysis.
+instruction pointer (and optionally to capture the call chain leading
+upto the sampled instruction pointer) after a configurable number of
+hardware events have been observed.
+Instruction pointer samples and call chain records are usually
+directed to a log file for subsequent analysis.
 .El
 .Pp
 Scope and operational mode are orthogonal; a PMC may thus be
@@ -181,6 +186,13 @@ The
 operation supports the following flags that modify the behavior
 of an allocated PMC:
 .Bl -tag -width indent
+.It Dv PMC_F_CALLCHAIN
+This modifier informs sampling PMCs to record a callchain when
+capturing a sample.
+The maximum depth to which call chains are recorded is specified
+by the
+.Va "kern.hwpmc.callchaindepth"
+kernel tunable.
 .It Dv PMC_F_DESCENDANTS
 This modifier is valid only for a PMC being allocated in process-private
 mode.
@@ -391,6 +403,9 @@ and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va kern.hwpmc.callchaindepth Pq integer, read-only
+The maximum number of call chain records to capture per sample.
+The default is 8.
 .It Va kern.hwpmc.debugflags Pq string, read-write
 (Only available if the
 .Nm
