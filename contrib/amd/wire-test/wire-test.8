@@ -51,12 +51,15 @@
 .Nm
 .Op Ar host
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is used to find out what
-.Nm Amd
-thinks are the first two network interfaces and network names/numbers
-used, as well as the IP address used for
-.Nm Amd
+.Xr amd 8
+thinks are the first two network
+interfaces and network names/numbers used, as well as the IP address
+used for
+.Xr amd 8
 to NFS-mount itself.
 .Pp
 If
@@ -72,9 +75,25 @@ server
 If not specified,
 .Ar host
 defaults to
-.Dq localhost .
+.Dq Li localhost .
 .Sh SEE ALSO
 .Xr amd 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
 .Sh HISTORY
 The
 .Nm
