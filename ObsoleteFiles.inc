@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20071207: Merged with fortunes-o.real
+OLD_FILES+=usr/share/games/fortune/fortunes2-o
+OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
 # 20071129: Disabled static versions of libkse by default
 .if ${DEFAULT_THREAD_LIB} != "libkse" && ${MK_LIBTHR} != "no"
 OLD_FILES+=usr/lib/libkse.a
