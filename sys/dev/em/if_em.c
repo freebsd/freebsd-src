@@ -2066,11 +2066,10 @@ em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 	union e1000_adv_tx_desc	*txd = NULL;
 	struct mbuf		*m_head;
 	u32			olinfo_status = 0, cmd_type_len = 0;
+	u32			hdrlen = 0;
 	int			nsegs, i, j, error, first, last = 0;
 #if __FreeBSD_version < 700000
 	struct m_tag		*mtag;
-#else
-	u32			hdrlen = 0;
 #endif
 
 	m_head = *m_headp;
