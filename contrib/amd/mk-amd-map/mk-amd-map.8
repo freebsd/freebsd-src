@@ -36,18 +36,21 @@
 .\"	$Id: mk-amd-map.8,v 1.9.2.1 2006/01/02 18:48:26 ezk Exp $
 .\"	$FreeBSD$
 .\"
-.Dd Janary 2, 2006
+.Dd January 2, 2006
 .Dt MK-AMD-MAP 8
 .Os
 .Sh NAME
 .Nm mk-amd-map
-.Nd create database maps for Amd
+.Nd create database maps for
+.Xr amd 8
 .Sh SYNOPSIS
 .Nm
 .Op Fl p
 .Ar mapname
 .Sh DESCRIPTION
+The
 .Nm
+utility
 creates the database maps used by the keyed map lookups in
 .Xr amd 8 .
 It reads input from the named file
@@ -63,6 +66,22 @@ into one physical line.
 .Sh SEE ALSO
 .Xr amd.conf 5 ,
 .Xr amd 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
 .Sh AUTHORS
 .An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
 Department of Computing, Imperial College, London, UK.
