@@ -4152,6 +4152,11 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		}
 		SOCK_LOCK(so);
 	} else {
+		if (backlog != 0) {
+			inp->sctp_flags |= SCTP_PCB_FLAGS_LISTENING;
+		} else {
+			inp->sctp_flags &= ~SCTP_PCB_FLAGS_LISTENING;
+		}
 		SCTP_INP_RUNLOCK(inp);
 	}
 	/* It appears for 7.0 and on, we must always call this. */
