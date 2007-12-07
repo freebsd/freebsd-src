@@ -541,11 +541,14 @@ struct pmc_op_getmsr {
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 
+#include <machine/frame.h>
+
 #define	PMC_HASH_SIZE				16
 #define	PMC_MTXPOOL_SIZE			32
 #define	PMC_LOG_BUFFER_SIZE			4
 #define	PMC_NLOGBUFFERS				16
 #define	PMC_NSAMPLES				32
+#define	PMC_CALLCHAIN_DEPTH			8
 
 #define PMC_SYSCTL_NAME_PREFIX "kern." PMC_MODULE_NAME "."
 
@@ -652,7 +655,7 @@ struct pmc {
 		pmc_value_t	pm_initial;	/* counting PMC modes */
 	} pm_sc;
 
-	uint32_t	pm_stalled;	/* true for stalled sampling PMCs */
+	uint32_t	pm_stalled;	/* marks stalled sampling PMCs */
 	uint32_t	pm_caps;	/* PMC capabilities */
 	enum pmc_event	pm_event;	/* event being measured */
 	uint32_t	pm_flags;	/* additional flags PMC_F_... */
@@ -679,6 +682,7 @@ struct pmc {
 #define	PMC_TO_CLASS(P)		PMC_ID_TO_CLASS((P)->pm_id)
 #define	PMC_TO_ROWINDEX(P)	PMC_ID_TO_ROWINDEX((P)->pm_id)
 #define	PMC_TO_CPU(P)		PMC_ID_TO_CPU((P)->pm_id)
+
 
 /*
  * struct pmc_process
@@ -743,6 +747,7 @@ struct pmc_owner  {
 
 #define	PMC_PO_OWNS_LOGFILE		0x00000001 /* has a log file */
 #define	PMC_PO_IN_FLUSH			0x00000010 /* in the middle of a flush */
+#define	PMC_PO_INITIAL_MAPPINGS_DONE	0x00000020
 
 /*
  * struct pmc_hw -- describe the state of the PMC hardware
@@ -793,15 +798,21 @@ struct pmc_hw {
  */
 
 struct pmc_sample {
-	uintfptr_t		ps_pc;		/* PC value at interrupt */
-	struct pmc		*ps_pmc;	/* interrupting PMC */
-	int			ps_usermode;	/* true for user mode PCs */
+	uint16_t		ps_nsamples;	/* callchain depth */
+	uint8_t			ps_cpu;		/* cpu number */
+	uint8_t			ps_flags;	/* other flags */
 	pid_t			ps_pid;		/* process PID or -1 */
+	struct pmc		*ps_pmc;	/* interrupting PMC */
+	uintptr_t		*ps_pc;		/* (const) callchain start */
 };
+
+#define	PMC_SAMPLE_FREE		((uint16_t) 0)
+#define	PMC_SAMPLE_INUSE	((uint16_t) 0xFFFF)
 
 struct pmc_samplebuffer {
 	struct pmc_sample * volatile ps_read;	/* read pointer */
 	struct pmc_sample * volatile ps_write;	/* write pointer */
+	uintptr_t		*ps_callchains;	/* all saved call chains */
 	struct pmc_sample	*ps_fence;	/* one beyond ps_samples[] */
 	struct pmc_sample	ps_samples[];	/* array of sample entries */
 };
@@ -881,7 +892,7 @@ struct pmc_mdep  {
 	int (*pmd_stop_pmc)(int _cpu, int _ri);
 
 	/* handle a PMC interrupt */
-	int (*pmd_intr)(int _cpu, uintptr_t _pc, int _usermode);
+	int (*pmd_intr)(int _cpu, struct trapframe *_tf);
 
 	int (*pmd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
 		struct pmc **_ppmc);
@@ -1002,8 +1013,11 @@ MALLOC_DECLARE(M_PMC);
 
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _cpu, struct pmc *_pm, uintfptr_t _pc,
-    int _usermode);
-
+int	pmc_process_interrupt(int _cpu, struct pmc *_pm,
+    struct trapframe *_tf, int _inuserspace);
+int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
+    struct trapframe *_tf);
+int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,
+    struct trapframe *_tf);
 #endif /* _KERNEL */
 #endif /* _SYS_PMC_H_ */

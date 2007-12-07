@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
@@ -710,7 +715,7 @@ p6_stop_pmc(int cpu, int ri)
 }
 
 static int
-p6_intr(int cpu, uintptr_t eip, int usermode)
+p6_intr(int cpu, struct trapframe *tf)
 {
 	int i, error, retval, ri;
 	uint32_t perf0cfg;
@@ -745,7 +750,8 @@ p6_intr(int cpu, uintptr_t eip, int usermode)
 
 		retval = 1;
 
-		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+		error = pmc_process_interrupt(cpu, pm, tf,
+		    TRAPF_USERMODE(tf));
 		if (error)
 			P6_MARK_STOPPED(pc,ri);
 

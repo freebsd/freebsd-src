@@ -243,13 +243,13 @@ int	pmclog_configure_log(struct pmc_owner *_po, int _logfd);
 int	pmclog_deconfigure_log(struct pmc_owner *_po);
 int	pmclog_flush(struct pmc_owner *_po);
 void	pmclog_initialize(void);
+void	pmclog_process_callchain(struct pmc *_pm, struct pmc_sample *_ps);
 void	pmclog_process_closelog(struct pmc_owner *po);
 void	pmclog_process_dropnotify(struct pmc_owner *po);
 void	pmclog_process_map_in(struct pmc_owner *po, pid_t pid,
     uintfptr_t start, const char *path);
 void	pmclog_process_map_out(struct pmc_owner *po, pid_t pid,
     uintfptr_t start, uintfptr_t end);
-void	pmclog_process_pcsample(struct pmc *_pm, struct pmc_sample *_ps);
 void	pmclog_process_pmcallocate(struct pmc *_pm);
 void	pmclog_process_pmcattach(struct pmc *_pm, pid_t _pid, char *_path);
 void	pmclog_process_pmcdetach(struct pmc *_pm, pid_t _pid);

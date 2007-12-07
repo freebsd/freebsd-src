@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2005 Joseph Koshy
+ * Copyright (c) 2005-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,7 +68,6 @@ TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "logbuffersize", &pmclog_buffer_size);
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, logbuffersize, CTLFLAG_TUN|CTLFLAG_RD,
     &pmclog_buffer_size, 0, "size of log buffers in kilobytes");
 
-
 /*
  * kern.hwpmc.nbuffer -- number of global log buffers
  */
@@ -96,7 +99,6 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
 /*
  * Log file record constructors.
  */
-
 #define	_PMCLOG_TO_HEADER(T,L)						\
 	((PMCLOG_HEADER_MAGIC << 24) |					\
 	 (PMCLOG_TYPE_ ## T << 16)   |					\
@@ -135,6 +137,8 @@ static struct mtx pmc_kthread_mtx;	/* sleep lock */
  * Assertions about the log file format.
  */
 
+CTASSERT(sizeof(struct pmclog_callchain) == 6*4 +
+    PMC_CALLCHAIN_DEPTH_MAX*sizeof(uintfptr_t));
 CTASSERT(sizeof(struct pmclog_closelog) == 3*4);
 CTASSERT(sizeof(struct pmclog_dropnotify) == 3*4);
 CTASSERT(sizeof(struct pmclog_map_in) == PATH_MAX +
@@ -710,9 +714,28 @@ pmclog_flush(struct pmc_owner *po)
 }
 
 
-/*
- * Send a 'close log' event to the log file.
- */
+void
+pmclog_process_callchain(struct pmc *pm, struct pmc_sample *ps)
+{
+	int n, recordlen;
+	uint32_t flags;
+	struct pmc_owner *po;
+
+	PMCDBG(LOG,SAM,1,"pm=%p pid=%d n=%d", pm, ps->ps_pid,
+	    ps->ps_nsamples);
+
+	recordlen = offsetof(struct pmclog_callchain, pl_pc) +
+	    ps->ps_nsamples * sizeof(uintfptr_t);
+	po = pm->pm_owner;
+	flags = PMC_CALLCHAIN_TO_CPUFLAGS(ps->ps_cpu,ps->ps_flags);
+	PMCLOG_RESERVE(po, CALLCHAIN, recordlen);
+	PMCLOG_EMIT32(ps->ps_pid);
+	PMCLOG_EMIT32(pm->pm_id);
+	PMCLOG_EMIT32(flags);
+	for (n = 0; n < ps->ps_nsamples; n++)
+		PMCLOG_EMITADDR(ps->ps_pc[n]);
+	PMCLOG_DESPATCH(po);
+}
 
 void
 pmclog_process_closelog(struct pmc_owner *po)
@@ -757,24 +780,6 @@ pmclog_process_map_out(struct pmc_owner *po, pid_t pid, uintfptr_t start,
 	PMCLOG_EMIT32(pid);
 	PMCLOG_EMITADDR(start);
 	PMCLOG_EMITADDR(end);
-	PMCLOG_DESPATCH(po);
-}
-
-void
-pmclog_process_pcsample(struct pmc *pm, struct pmc_sample *ps)
-{
-	struct pmc_owner *po;
-
-	PMCDBG(LOG,SAM,1,"pm=%p pid=%d pc=%p", pm, ps->ps_pid,
-	    (void *) ps->ps_pc);
-
-	po = pm->pm_owner;
-
-	PMCLOG_RESERVE(po, PCSAMPLE, sizeof(struct pmclog_pcsample));
-	PMCLOG_EMIT32(ps->ps_pid);
-	PMCLOG_EMITADDR(ps->ps_pc);
-	PMCLOG_EMIT32(pm->pm_id);
-	PMCLOG_EMIT32(ps->ps_usermode);
 	PMCLOG_DESPATCH(po);
 }
 
