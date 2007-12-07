@@ -2514,13 +2514,20 @@ ndis_get_assoc(sc, assoc)
 		return(ENOENT);
 	}
 
-	len = 4;
-	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
-	if (error != ENOSPC)
-		len = 65536;
+	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
+	bl = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
+	if (bl == NULL)
+		return (ENOMEM);
 
-	bl = malloc(len, M_TEMP, M_NOWAIT|M_ZERO);
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+	if (error == ENOSPC) {
+		free(bl, M_TEMP);
+		bl = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
+		if (bl == NULL)
+			return (ENOMEM);
+
+		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+	}
 	if (error) {
 		free(bl, M_TEMP);
 		device_printf(sc->ndis_dev, "bssid_list failed\n");
@@ -3279,13 +3286,22 @@ ndis_scan_results(struct ndis_softc *sc)
 	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t *frm, *efrm;
 
-	len = 0;
 	noise = -96;
-	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
-	if (error != ENOSPC)
-		len = 65536;
+
+	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
 	bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (bl == NULL)
+		return;
+
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+	if (error == ENOSPC) {
+		free(bl, M_DEVBUF);
+		bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (bl == NULL)
+			return;
+
+		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
+	}
 	if (error) {
 		DPRINTF(("%s: failed to read\n", __func__));
 		free(bl, M_DEVBUF);
