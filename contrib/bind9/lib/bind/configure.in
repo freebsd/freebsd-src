@@ -1,7 +1,7 @@
 # Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2003  Internet Software Consortium.
 #
-# Permission to use, copy, modify, and distribute this software for any
+# Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.90.18.31 $)
+AC_REVISION($Revision: 1.90.18.34 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -174,6 +174,7 @@ AC_CHECK_HEADERS(fcntl.h db.h paths.h sys/time.h unistd.h sys/sockio.h sys/selec
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
+AC_CHECK_TYPE(ssize_t,signed)
 AC_CHECK_TYPE(uintptr_t,unsigned long)
 AC_HEADER_TIME
 #
@@ -458,6 +459,8 @@ AC_SUBST(WANT_IRS_THREADS_OBJS)
 AC_SUBST(WANT_THREADS_OBJS)
 
 AC_CHECK_FUNC(strlcat, AC_DEFINE(HAVE_STRLCAT))
+AC_CHECK_FUNC(memmove, AC_DEFINE(HAVE_MEMMOVE))
+AC_CHECK_FUNC(memchr, AC_DEFINE(HAVE_MEMCHR))
 
 AC_CHECK_FUNC(if_nametoindex,
 	[USE_IFNAMELINKID="#define USE_IFNAMELINKID 1"],
@@ -879,33 +882,30 @@ $isc_netinet6in6_hack
 			 ISC_PLATFORM_HAVEIN6PKTINFO="#define ISC_PLATFORM_HAVEIN6PKTINFO 1"],
 			[AC_MSG_RESULT(no -- disabling runtime ipv6 support)
 			 ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"])
-
-		AC_MSG_CHECKING(for sockaddr_storage)
-		AC_TRY_COMPILE([
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-$isc_netinetin6_hack
-$isc_netinet6in6_hack
-],
-		[struct sockaddr_storage xyzzy; return (0);],
-			[AC_MSG_RESULT(yes)
-			 HAVE_SOCKADDR_STORAGE="#define HAVE_SOCKADDR_STORAGE 1"],
-			[AC_MSG_RESULT(no)
-			 HAVE_SOCKADDR_STORAGE="#undef HAVE_SOCKADDR_STORAGE"])
 		;;
 	no)
 		HAS_INET6_STRUCTS="#undef HAS_INET6_STRUCTS"
 		NEED_IN6ADDR_ANY="#undef NEED_IN6ADDR_ANY"
 		ISC_PLATFORM_HAVEIN6PKTINFO="#undef ISC_PLATFORM_HAVEIN6PKTINFO"
 		HAVE_SIN6_SCOPE_ID="#define HAVE_SIN6_SCOPE_ID 1"
-		HAVE_SOCKADDR_STORAGE="#undef HAVE_SOCKADDR_STORAGE"
 		ISC_IPV6_H="ipv6.h"
 		ISC_IPV6_O="ipv6.$O"
 		ISC_ISCIPV6_O="unix/ipv6.$O"
 		ISC_IPV6_C="ipv6.c"
 		;;
 esac
+
+AC_MSG_CHECKING(for sockaddr_storage)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+],
+[struct sockaddr_storage xyzzy; return (0);],
+	[AC_MSG_RESULT(yes)
+	 HAVE_SOCKADDR_STORAGE="#define HAVE_SOCKADDR_STORAGE 1"],
+	[AC_MSG_RESULT(no)
+	 HAVE_SOCKADDR_STORAGE="#undef HAVE_SOCKADDR_STORAGE"])
 
 AC_SUBST(HAS_INET6_STRUCTS)
 AC_SUBST(ISC_PLATFORM_NEEDNETINETIN6H)
@@ -1116,6 +1116,17 @@ AC_TRY_COMPILE([
         [AC_MSG_RESULT(no)
 	ISC_PLATFORM_NEEDPORTT="#define ISC_PLATFORM_NEEDPORTT 1"])
 AC_SUBST(ISC_PLATFORM_NEEDPORTT)
+
+AC_MSG_CHECKING(for struct timespec)
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <time.h>],
+[struct timespec ts = { 0, 0 }; return (0);],
+	[AC_MSG_RESULT(yes)
+	ISC_PLATFORM_NEEDTIMESPEC="#undef ISC_PLATFORM_NEEDTIMESPEC"],
+        [AC_MSG_RESULT(no)
+	ISC_PLATFORM_NEEDTIMESPEC="#define ISC_PLATFORM_NEEDTIMESPEC 1"])
+AC_SUBST(ISC_PLATFORM_NEEDTIMESPEC)
 
 #
 # Check for addrinfo

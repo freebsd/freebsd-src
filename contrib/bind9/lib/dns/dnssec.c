@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: dnssec.c,v 1.81.18.6 2006/03/07 00:34:53 marka Exp $
+ * $Id: dnssec.c,v 1.81.18.10 2007/09/14 04:35:42 marka Exp $
  */
 
 /*! \file */
@@ -406,16 +406,11 @@ dns_dnssec_verify2(dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	 */
 	dns_fixedname_init(&fnewname);
 	labels = dns_name_countlabels(name) - 1;
-	if (labels - sig.labels > 0) {
-		dns_name_split(name, sig.labels + 1, NULL,
-			       dns_fixedname_name(&fnewname));
-		RUNTIME_CHECK(dns_name_downcase(dns_fixedname_name(&fnewname),
-						dns_fixedname_name(&fnewname),
-						NULL)
-			      == ISC_R_SUCCESS);
-	}
-	else
-		dns_name_downcase(name, dns_fixedname_name(&fnewname), NULL);
+	RUNTIME_CHECK(dns_name_downcase(name, dns_fixedname_name(&fnewname),
+				        NULL) == ISC_R_SUCCESS);
+	if (labels - sig.labels > 0)
+		dns_name_split(dns_fixedname_name(&fnewname), sig.labels + 1,
+			       NULL, dns_fixedname_name(&fnewname));
 
 	dns_name_toregion(dns_fixedname_name(&fnewname), &r);
 
@@ -531,6 +526,9 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 	dst_key_t *pubkey = NULL;
 	unsigned int count = 0;
 
+	REQUIRE(nkeys != NULL);
+	REQUIRE(keys != NULL);
+
 	*nkeys = 0;
 	dns_rdataset_init(&rdataset);
 	RETERR(dns_db_findrdataset(db, node, ver, dns_rdatatype_dnskey, 0, 0,
@@ -540,7 +538,8 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 		pubkey = NULL;
 		dns_rdataset_current(&rdataset, &rdata);
 		RETERR(dns_dnssec_keyfromrdata(name, &rdata, mctx, &pubkey));
-		if (!is_zone_key(pubkey))
+		if (!is_zone_key(pubkey) ||
+		    (dst_key_flags(pubkey) & DNS_KEYTYPE_NOAUTH) != 0)
 			goto next;
 		keys[count] = NULL;
 		result = dst_key_fromfile(dst_key_name(pubkey),
@@ -549,17 +548,23 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 					  DST_TYPE_PUBLIC|DST_TYPE_PRIVATE,
 					  directory,
 					  mctx, &keys[count]);
-		if (result == ISC_R_FILENOTFOUND)
+		if (result == ISC_R_FILENOTFOUND) {
+			keys[count] = pubkey;
+			pubkey = NULL;
+			count++;
 			goto next;
+		}
 		if (result != ISC_R_SUCCESS)
 			goto failure;
 		if ((dst_key_flags(keys[count]) & DNS_KEYTYPE_NOAUTH) != 0) {
+			/* We should never get here. */
 			dst_key_free(&keys[count]);
 			goto next;
 		}
 		count++;
  next:
-		dst_key_free(&pubkey);
+		if (pubkey != NULL)
+			dst_key_free(&pubkey);
 		dns_rdata_reset(&rdata);
 		result = dns_rdataset_next(&rdataset);
 	}
@@ -575,6 +580,9 @@ dns_dnssec_findzonekeys2(dns_db_t *db, dns_dbversion_t *ver,
 		dns_rdataset_disassociate(&rdataset);
 	if (pubkey != NULL)
 		dst_key_free(&pubkey);
+	if (result != ISC_R_SUCCESS)
+		while (count > 0)
+			dst_key_free(&keys[--count]);
 	*nkeys = count;
 	return (result);
 }

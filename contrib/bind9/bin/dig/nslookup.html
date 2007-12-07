@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nslookup.html,v 1.1.10.19 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: nslookup.html,v 1.1.10.21 2007/05/16 06:11:27 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -180,9 +180,8 @@ nslookup -query=hinfo  -timeout=10
                     <em class="replaceable"><code>[<span class="optional">no</span>]</code></em>debug</code></span></dt>
 <dd>
 <p>
-                    Turn debugging mode on.  A lot more information is
-                    printed about the packet sent to the server and the
-                    resulting answer.
+		    Turn on or off the display of the full response packet and
+		    any intermediate response packets when searching.
                   </p>
 <p>
                     (Default = nodebug; abbreviation = [<span class="optional">no</span>]deb)
@@ -192,9 +191,8 @@ nslookup -query=hinfo  -timeout=10
                     <em class="replaceable"><code>[<span class="optional">no</span>]</code></em>d2</code></span></dt>
 <dd>
 <p>
-                    Turn debugging mode on.  A lot more information is
-                    printed about the packet sent to the server and the
-                    resulting answer.
+                    Turn debugging mode on or off.  This displays more about
+	            what nslookup is doing.
                   </p>
 <p>
                     (Default = nod2)
