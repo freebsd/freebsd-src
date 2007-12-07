@@ -12,7 +12,7 @@ and they can be combined as "ls -FG".
 %
 If you need to ask a question on the FreeBSD-questions mailing list then
 
-	http://www.freebsd.org/doc/en_US.ISO8859-1/articles/\
+	http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/\
 		freebsd-questions/index.html
 
 contains lots of useful advice to help you get the best results.
@@ -93,7 +93,7 @@ also do a lot more advanced searches - type 'man grep' for details.
 %
 You can use the 'fetch' command to retrieve files over ftp or http.
 
-	 fetch http://www.freebsd.org/index.html
+	 fetch http://www.FreeBSD.org/index.html
 
 will download the front page of the FreeBSD web site.
 %
@@ -131,7 +131,7 @@ The default editor in FreeBSD is vi, which is efficient to use when you have
 learned it, but somewhat user-unfriendly.  To use ee (an easier but less
 powerful editor) instead, set the environment variable EDITOR to /usr/bin/ee
 %
-If you accidentally end up inside vi, you can quit it by pressing Escape, colon 
+If you accidentally end up inside vi, you can quit it by pressing Escape, colon
 (:), q (q), bang (!) and pressing return.
 %
 You can use aliases to decrease the amount of typing you need to do to get
@@ -180,7 +180,7 @@ Type 'cdcontrol' then 'help' to learn more.  (You may need to set the CDROM
 environment variable in order to make cdcontrol want to start.)
 %
 If you have a CD-ROM drive in your machine, you can make the CD-ROM that is
-presently inserted available by typing 'mount /cdrom' as root.   The CD-ROM
+presently inserted available by typing 'mount /cdrom' as root.  The CD-ROM
 will be available under /cdrom/.  Remember to do 'umount /cdrom' before
 removing the CD-ROM (it will usually not be possible to remove the CD-ROM
 without doing this.)
@@ -194,7 +194,7 @@ just typing
 	# cd /usr/ports/<category>/<portname>
 	# make install && make clean
 
-as root.   The ports infrastructure will download the software, change it so
+as root.  The ports infrastructure will download the software, change it so
 it works on FreeBSD, compile it, install it, register the installation so it
 will be possible to automatically uninstall it, and clean out the temporary
 working space it used.  You can remove an installed port you decide you do not
@@ -243,7 +243,7 @@ Over quota?  "du -s * | sort -n " will give you a sorted list of your
 directory sizes.
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
-Handy bash(1) prompt:   PS1="\u@\h \w \!$ "
+Handy bash(1) prompt:  PS1="\u@\h \w \!$ "
 		-- David Scheidt <dscheidt@tumbolia.com>
 %
 Ever wonder what those numbers after command names were, as in cat(1)?  It's
@@ -262,7 +262,7 @@ the section of the manual the man page is in.  "man man" will tell you more.
 You can often get answers to your questions about FreeBSD by searching in the
 FreeBSD mailing list archives at
 
-	http://www.freebsd.org/search/search.html
+	http://www.FreeBSD.org/search/search.html
 %
 You can adjust the volume of various parts of the sound system in your
 computer by typing 'mixer <type> <volume>'.  To get a list of what you can
@@ -438,7 +438,7 @@ Need to see which daemons are listening for connection requests? Use
 "sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6.
 		-- Dru <genesis@istar.ca>
 %
-Can't remember if you've installed a certain port or not? Try "pkg_info 
+Can't remember if you've installed a certain port or not? Try "pkg_info
 -Ix port_name".
 %
 To erase a line you've written at the command prompt, use "Ctrl-U".
@@ -503,3 +503,4 @@ or
 Want to strip UTF-8 BOM(Byte Order Mark) from given files?
 
 	sed -e '1s/^\xef\xbb\xbf//' < bomfile > newfile
+%
