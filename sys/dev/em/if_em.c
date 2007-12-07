@@ -30,8 +30,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
+/* $FreeBSD$ */
 
-/* $FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -89,7 +89,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "Version - 6.7.2";
+char em_driver_version[] = "Version - 6.7.3";
 
 
 /*********************************************************************
@@ -298,9 +298,6 @@ static void     em_enable_wakeup(device_t);
 
 #ifndef EM_FAST_IRQ
 static void	em_intr(void *);
-#ifdef DEVICE_POLLING
-static poll_handler_t em_poll;
-#endif /* POLLING */
 #else /* FAST IRQ */
 #if __FreeBSD_version < 700000
 static void	em_intr_fast(void *);
@@ -312,6 +309,10 @@ static void	em_add_rx_process_limit(struct adapter *, const char *,
 static void	em_handle_rxtx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
 #endif /* EM_FAST_IRQ */
+
+#ifdef DEVICE_POLLING
+static poll_handler_t em_poll;
+#endif /* POLLING */
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -802,6 +803,7 @@ em_detach(device_t dev)
 	em_disable_intr(adapter);
 	em_free_intr(adapter);
 	EM_CORE_LOCK(adapter);
+	EM_TX_LOCK(adapter);
 	adapter->in_detach = 1;
 	em_stop(adapter);
 	e1000_phy_hw_reset(&adapter->hw);
@@ -820,7 +822,6 @@ em_detach(device_t dev)
 		em_enable_wakeup(dev);
 	}
 
-	EM_CORE_UNLOCK(adapter);
 	ether_ifdetach(adapter->ifp);
 
 	callout_drain(&adapter->timer);
@@ -833,6 +834,8 @@ em_detach(device_t dev)
 	e1000_remove_device(&adapter->hw);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
+	EM_TX_UNLOCK(adapter);
+	EM_CORE_UNLOCK(adapter);
 
 	/* Free Transmit Descriptor ring */
 	if (adapter->tx_desc_base) {
@@ -873,7 +876,10 @@ em_suspend(device_t dev)
 	struct adapter *adapter = device_get_softc(dev);
 
 	EM_CORE_LOCK(adapter);
+
+	EM_TX_LOCK(adapter);
 	em_stop(adapter);
+	EM_TX_UNLOCK(adapter);
 
         em_release_manageability(adapter);
 
@@ -1081,8 +1087,11 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			} else
 				em_init_locked(adapter);
 		} else
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				EM_TX_LOCK(adapter);
 				em_stop(adapter);
+				EM_TX_UNLOCK(adapter);
+			}
 		adapter->if_flags = ifp->if_flags;
 		EM_CORE_UNLOCK(adapter);
 		break;
@@ -1188,36 +1197,18 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 em_watchdog(struct adapter *adapter)
 {
-#ifdef EM_FAST_IRQ
-	struct task *t = &adapter->rxtx_task;
-#endif
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
 	/*
-	** The timer is set to 10 every time start queues a packet.
-	** Then txeof keeps resetting to 10 as long as it cleans at
+	** The timer is set to 5 every time start queues a packet.
+	** Then txeof keeps resetting it as long as it cleans at
 	** least one descriptor.
 	** Finally, anytime all descriptors are clean the timer is
 	** set to 0.
 	*/
-#ifndef EM_FAST_IRQ
 	if ((adapter->watchdog_timer == 0) || (--adapter->watchdog_timer))
-#else	/* FAST_IRQ */
-	if (adapter->watchdog_timer == 0)
-#endif
 		return;
-
-#ifdef EM_FAST_IRQ
-	/*
-	 * Force a clean if things seem sluggish, this
-	 * is a 6.3 scheduler workaround.
-	 */
-	if ((--adapter->watchdog_timer != 0) && (t->ta_pending == 0)) {
-		taskqueue_enqueue(adapter->tq, &adapter->rxtx_task);
-		return;
-	}
-#endif
 
 	/* If we are in this routine because of pause frames, then
 	 * don't reset the hardware.
@@ -1258,7 +1249,9 @@ em_init_locked(struct adapter *adapter)
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
+	EM_TX_LOCK(adapter);
 	em_stop(adapter);
+	EM_TX_UNLOCK(adapter);
 
 	/*
 	 * Packet Buffer Allocation (PBA)
@@ -1366,7 +1359,9 @@ em_init_locked(struct adapter *adapter)
 	/* Prepare receive descriptors and buffers */
 	if (em_setup_receive_structures(adapter)) {
 		device_printf(dev, "Could not setup receive structures\n");
+		EM_TX_LOCK(adapter);
 		em_stop(adapter);
+		EM_TX_UNLOCK(adapter);
 		return;
 	}
 	em_initialize_receive_unit(adapter);
@@ -1887,10 +1882,13 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 	/* Do hardware assists */
 #if __FreeBSD_version >= 700000
-	if (em_tso_setup(adapter, m_head, &txd_upper, &txd_lower))
+	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+		error = em_tso_setup(adapter, m_head, &txd_upper, &txd_lower);
+		if (error != TRUE)
+			return (ENXIO); /* something foobar */
 		/* we need to make a final sentinel transmit desc */
 		tso_desc = TRUE;
-	else
+	} else
 #endif
 	 if (m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)
 		em_transmit_checksum_setup(adapter,  m_head,
@@ -2072,7 +2070,7 @@ em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 #if __FreeBSD_version < 700000
 	struct m_tag		*mtag;
 #else
-	u32			paylen = 0;
+	u32			hdrlen = 0;
 #endif
 
 	m_head = *m_headp;
@@ -2168,17 +2166,22 @@ em_adv_encap(struct adapter *adapter, struct mbuf **m_headp)
 	 * will use the first descriptor.
          */
 #if __FreeBSD_version >= 700000
-	/* First try TSO */
-	if (em_tso_adv_setup(adapter, m_head, &paylen)) {
-		cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
-		olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
-		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-		olinfo_status |= paylen << E1000_ADVTXD_PAYLEN_SHIFT;
-	} else
-#endif
-		/* Do all other context descriptor setup */
-		if (em_tx_adv_ctx_setup(adapter, m_head))
+	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
+		if (em_tso_adv_setup(adapter, m_head, &hdrlen)) {
+			cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
+			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
 			olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+		} else
+			return (ENXIO);
+	}
+#endif
+	/* Do all other context descriptor setup */
+	if (em_tx_adv_ctx_setup(adapter, m_head))
+		olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+
+	/* Calculate payload length */
+	olinfo_status |= ((m_head->m_pkthdr.len - hdrlen)
+	    << E1000_ADVTXD_PAYLEN_SHIFT);
 
 	/* Set up our transmit descriptors */
 	i = adapter->next_avail_tx_desc;
@@ -2536,6 +2539,8 @@ em_update_link_status(struct adapter *adapter)
  *  This routine disables all traffic on the adapter by issuing a
  *  global reset on the MAC and deallocates TX/RX buffers.
  *
+ *  This routine should always be called with BOTH the CORE
+ *  and TX locks.
  **********************************************************************/
 
 static void
@@ -2545,6 +2550,7 @@ em_stop(void *arg)
 	struct ifnet	*ifp = adapter->ifp;
 
 	EM_CORE_LOCK_ASSERT(adapter);
+	EM_TX_LOCK_ASSERT(adapter);
 
 	INIT_DEBUGOUT("em_stop: begin");
 
@@ -2821,7 +2827,7 @@ msi:
        	val = pci_msi_count(dev);
        	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
                	adapter->msi = 1;
-               	device_printf(adapter->dev,"Using MSI interrupts\n");
+               	device_printf(adapter->dev,"Using MSI interrupt\n");
 		return (TRUE);
 	} 
 	return (FALSE);
@@ -3107,7 +3113,7 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
 	}
 
 	error = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
-	    BUS_DMA_NOWAIT, &dma->dma_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dma->dma_map);
 	if (error) {
 		device_printf(adapter->dev,
 		    "%s: bus_dmamem_alloc(%ju) failed: %d\n",
@@ -3542,7 +3548,7 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
  *  Setup work for hardware segmentation offload (TSO)
  *
  **********************************************************************/
-static boolean_t
+static bool
 em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
    uint32_t *txd_lower)
 {
@@ -3554,17 +3560,6 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
 	struct tcphdr *th;
 	int curr_txd, ehdrlen, hdr_len, ip_hlen, isip6;
 	uint16_t etype;
-
-	/*
-	 * XXX: This is not really correct as the stack would not have
-	 * set up all checksums.
-	 * XXX: Return FALSE is not sufficient as we may have to return
-	 * in true failure cases as well.  Should do -1 (failure), 0 (no)
-	 * and 1 (success).
-	 */
-	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-	     (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE))
-		return FALSE;
 
 	/*
 	 * This function could/should be extended to support IP/IPv6
@@ -3705,21 +3700,17 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
  *
  **********************************************************************/
 static boolean_t
-em_tso_adv_setup(struct adapter *adapter, struct mbuf *mp, u32 *paylen)
+em_tso_adv_setup(struct adapter *adapter, struct mbuf *mp, u32 *hdrlen)
 {
 	struct e1000_adv_tx_context_desc *TXD;
 	struct em_buffer        *tx_buffer;
 	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
 	u32 mss_l4len_idx = 0;
 	u16 vtag = 0;
-	int ctxd, ehdrlen, hdrlen, ip_hlen, tcp_hlen;
+	int ctxd, ehdrlen, ip_hlen, tcp_hlen;
 	struct ether_vlan_header *eh;
 	struct ip *ip;
 	struct tcphdr *th;
-
-	if (((mp->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-	     (mp->m_pkthdr.len <= EM_TX_BUFFER_SIZE))
-		return FALSE;
 
 	/*
 	 * Determine where frame payload starts.
@@ -3750,9 +3741,11 @@ em_tso_adv_setup(struct adapter *adapter, struct mbuf *mp, u32 *paylen)
 	th->th_sum = in_pseudo(ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 	tcp_hlen = th->th_off << 2;
-	hdrlen = ehdrlen + ip_hlen + tcp_hlen;
-	/* Calculate payload, this is used in the transmit desc in encap */
-	*paylen = mp->m_pkthdr.len - hdrlen;
+	/*
+	 * Calculate header length, this is used
+	 * in the transmit desc in igb_encap
+	 */
+	*hdrlen = ehdrlen + ip_hlen + tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (mp->m_flags & M_VLANTAG) {
