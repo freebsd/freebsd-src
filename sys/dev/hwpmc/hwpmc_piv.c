@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2003-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -1478,7 +1483,7 @@ p4_stop_pmc(int cpu, int ri)
 	 *
 	 * On HTT machines, this PMC may be in use by two threads
 	 * running on two logical CPUS.  Thus we look at the
-	 * 'pm_runcount' field and only turn off the appropriate TO/T1
+	 * 'runcount' field and only turn off the appropriate TO/T1
 	 * bits (and keep the PMC running) if two logical CPUs were
 	 * using the PMC.
 	 *
@@ -1562,16 +1567,17 @@ p4_stop_pmc(int cpu, int ri)
  */
 
 static int
-p4_intr(int cpu, uintptr_t eip, int usermode)
+p4_intr(int cpu, struct trapframe *tf)
 {
-	int i, did_interrupt, error, ri;
 	uint32_t cccrval, ovf_mask, ovf_partner;
-	struct p4_cpu *pc;
+	int i, did_interrupt, error, ri;
 	struct pmc_hw *phw;
+	struct p4_cpu *pc;
 	struct pmc *pm;
 	pmc_value_t v;
 
-	PMCDBG(MDP,INT, 1, "cpu=%d eip=%p um=%d", cpu, (void *) eip, usermode);
+	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	    TRAPF_USERMODE(tf));
 
 	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
@@ -1579,8 +1585,8 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 	    P4_CCCR_OVF_PMI_T1 : P4_CCCR_OVF_PMI_T0;
 	ovf_mask |= P4_CCCR_OVF;
 	if (p4_system_has_htt)
-		ovf_partner = P4_CPU_IS_HTT_SECONDARY(cpu) ? P4_CCCR_OVF_PMI_T0 :
-		    P4_CCCR_OVF_PMI_T1;
+		ovf_partner = P4_CPU_IS_HTT_SECONDARY(cpu) ?
+		    P4_CCCR_OVF_PMI_T0 : P4_CCCR_OVF_PMI_T1;
 	else
 		ovf_partner = 0;
 	did_interrupt = 0;
@@ -1617,7 +1623,8 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 			    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 				continue;
 			}
-			(void) pmc_process_interrupt(cpu, pm, eip, usermode);
+			(void) pmc_process_interrupt(cpu, pm, tf,
+			    TRAPF_USERMODE(tf));
 			continue;
 		}
 
@@ -1667,7 +1674,8 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 		 * Process the interrupt.  Re-enable the PMC if
 		 * processing was successful.
 		 */
-		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+		error = pmc_process_interrupt(cpu, pm, tf,
+		    TRAPF_USERMODE(tf));
 
 		/*
 		 * Only the first processor executing the NMI handler
@@ -1698,7 +1706,7 @@ p4_intr(int cpu, uintptr_t eip, int usermode)
 	atomic_add_int(did_interrupt ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);
 
-	return did_interrupt;
+	return (did_interrupt);
 }
 
 /*

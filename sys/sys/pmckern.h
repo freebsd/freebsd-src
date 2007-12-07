@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2003-2006, Joseph Koshy
+ * Copyright (c) 2003-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,6 +51,7 @@
 #define	PMC_FN_KLD_UNLOAD		6
 #define	PMC_FN_MMAP			7
 #define	PMC_FN_MUNMAP			8
+#define	PMC_FN_USER_CALLCHAIN		9
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
@@ -65,7 +70,7 @@ struct pmckern_map_out {
 
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
-extern int (*pmc_intr)(int _cpu, uintptr_t _pc, int _usermode);
+extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
 
 /* SX lock protecting the hook */
 extern struct sx pmc_sx;

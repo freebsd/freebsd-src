@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 1989, 1990 William F. Jolitz.
  * Copyright (c) 1990 The Regents of the University of California.
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +35,7 @@
  */
 
 #include "opt_apic.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
@@ -42,7 +47,9 @@
 #define	SEL_RPL_MASK	0x0003
 
 	.text
-
+#ifdef HWPMC_HOOKS
+	ENTRY(start_exceptions)
+#endif
 /*****************************************************************************/
 /* Trap handling                                                             */
 /*****************************************************************************/
@@ -261,8 +268,18 @@ doreti:
 	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
 doreti_next:
 	/*
-	 * Check if ASTs can be handled now.  PSL_VM must be checked first
-	 * since segment registers only have an RPL in non-VM86 mode.
+	 * Check if ASTs can be handled now.  ASTs cannot be safely
+	 * processed when returning from an NMI.
+	 */
+	cmpb	$T_NMI,TF_TRAPNO(%esp)
+#ifdef HWPMC_HOOKS
+	je	doreti_nmi
+#else
+	je	doreti_exit
+#endif
+	/*
+	 * PSL_VM must be checked first since segment registers only
+	 * have an RPL in non-VM86 mode.
 	 */
 	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
 	jz	doreti_notvm86
@@ -340,3 +357,32 @@ doreti_popl_fs_fault:
 	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
 	movl	$T_PROTFLT,TF_TRAPNO(%esp)
 	jmp	alltraps_with_regs_pushed
+#ifdef HWPMC_HOOKS
+doreti_nmi:
+	/*
+	 * Since we are returning from an NMI, check if the current trap
+	 * was from user mode and if so whether the current thread
+	 * needs a user call chain capture.
+	 */
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
+	jz	doreti_exit
+	movl	PCPU(CURTHREAD),%eax	/* curthread present? */
+	orl	%eax,%eax
+	jz	doreti_exit
+	testl	$TDP_CALLCHAIN,TD_PFLAGS(%eax) /* flagged for capture? */
+	jz	doreti_exit
+	/*
+	 * Take the processor out of NMI mode by executing a fake "iret".
+	 */
+	pushfl
+	pushl	%cs
+	pushl	$outofnmi
+	iret
+outofnmi:
+	/*
+	 * Clear interrupts and jump to AST handling code.
+	 */
+	sti
+	jmp	doreti_ast
+	ENTRY(end_exceptions)
+#endif

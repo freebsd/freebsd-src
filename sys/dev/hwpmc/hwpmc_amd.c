@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2003-2007 Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,9 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/systm.h>
 
+#include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
-#include <machine/pmc_mdep.h>
 #include <machine/specialreg.h>
 
 #ifdef	DEBUG
@@ -667,7 +671,7 @@ amd_stop_pmc(int cpu, int ri)
  */
 
 static int
-amd_intr(int cpu, uintptr_t eip, int usermode)
+amd_intr(int cpu, struct trapframe *tf)
 {
 	int i, error, retval, ri;
 	uint32_t config, evsel, perfctr;
@@ -679,8 +683,8 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	KASSERT(cpu >= 0 && cpu < mp_ncpus,
 	    ("[amd,%d] out of range CPU %d", __LINE__, cpu));
 
-	PMCDBG(MDP,INT,1, "cpu=%d eip=%p um=%d", cpu, (void *) eip,
-	    usermode);
+	PMCDBG(MDP,INT,1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
+	    TRAPF_USERMODE(tf));
 
 	retval = 0;
 
@@ -696,8 +700,8 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	 *
 	 * If multiple PMCs interrupt at the same time, the AMD64
 	 * processor appears to deliver as many NMIs as there are
-	 * outstanding PMC interrupts.  Thus we need to only process
-	 * one interrupt at a time.
+	 * outstanding PMC interrupts.  So we process only one NMI
+	 * interrupt at a time.
 	 */
 
 	for (i = 0; retval == 0 && i < AMD_NPMCS-1; i++) {
@@ -717,9 +721,9 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 			continue;
 		}
 
-		retval = 1;	/* found an interrupting PMC */
+		retval = 1;	/* Found an interrupting PMC. */
 
-		/* stop the PMC, reload count */
+		/* Stop the PMC, reload count. */
 		evsel   = AMD_PMC_EVSEL_0 + i;
 		perfctr = AMD_PMC_PERFCTR_0 + i;
 		v       = pm->pm_sc.pm_reloadcount;
@@ -733,8 +737,8 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
-		/* restart the counter if there was no error during logging */
-		error = pmc_process_interrupt(cpu, pm, eip, usermode);
+		/* Restart the counter if logging succeeded. */
+		error = pmc_process_interrupt(cpu, pm, tf, TRAPF_USERMODE(tf));
 		if (error == 0)
 			wrmsr(evsel, config | AMD_PMC_ENABLE);
 	}
@@ -742,7 +746,7 @@ amd_intr(int cpu, uintptr_t eip, int usermode)
 	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);
 
-	return retval;
+	return (retval);
 }
 
 /*
