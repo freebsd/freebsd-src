@@ -5,7 +5,7 @@
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.18.18.8 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.18.18.10 2007/08/28 07:20:01 tbox Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Jun 30, 2000</date>
@@ -112,7 +112,7 @@
       Once other algorithms are defined for TSIG, applications will need to
       ensure they select the appropriate algorithm as well as the key when
       authenticating each other.
-      For instance suitable
+      For instance, suitable
       <type>key</type>
       and
       <type>server</type>
@@ -170,7 +170,7 @@
       This may be preferable when a batch of update requests is made.
     </para>
     <para>
-      The <option>-t</option> option sets the maximum time a update request
+      The <option>-t</option> option sets the maximum time an update request
       can
       take before it is aborted.  The default is 300 seconds.  Zero can be
       used
@@ -179,14 +179,14 @@
     <para>
       The <option>-u</option> option sets the UDP retry interval.  The default
       is
-      3 seconds.  If zero the interval will be computed from the timeout
+      3 seconds.  If zero, the interval will be computed from the timeout
       interval
       and number of UDP retries.
     </para>
     <para>
       The <option>-r</option> option sets the number of UDP retries. The
       default is
-      3.  If zero only one update request will be made.
+      3.  If zero, only one update request will be made.
     </para>
   </refsect1>
 
@@ -297,7 +297,7 @@
           <listitem>
             <para>
               Specify the default class.
-              If no <parameter>class</parameter> is specified the
+              If no <parameter>class</parameter> is specified, the
               default class is
               <parameter>IN</parameter>.
             </para>
@@ -312,7 +312,7 @@
             </term>
           <listitem>
             <para>
-              Specifies that all updates are to be TSIG signed using the
+              Specifies that all updates are to be TSIG-signed using the
               <parameter>keyname</parameter> <parameter>keysecret</parameter> pair.
               The <command>key</command> command
               overrides any key specified on the command line via
@@ -543,10 +543,10 @@
       Any A records for
       <type>oldhost.example.com</type>
       are deleted.
-      and an A record for
+      And an A record for
       <type>newhost.example.com</type>
-      it IP address 172.16.1.1 is added.
-      The newly-added record has a 1 day TTL (86400 seconds)
+      with IP address 172.16.1.1 is added.
+      The newly-added record has a 1 day TTL (86400 seconds).
       <programlisting>
 # nsupdate
 &gt; prereq nxdomain nickname.example.com

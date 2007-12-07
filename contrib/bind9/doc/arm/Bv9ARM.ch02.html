@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch02.html,v 1.13.18.18.10.1 2007/07/09 02:25:50 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch02.html,v 1.13.18.21 2007/10/31 01:35:57 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -45,16 +45,16 @@
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567620">Hardware requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567646">CPU Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567659">Memory Requirements</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567686">Name Server Intensive Environment Issues</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567697">Supported Operating Systems</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567622">Hardware requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567649">CPU Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567661">Memory Requirements</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567688">Name Server Intensive Environment Issues</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch02.html#id2567699">Supported Operating Systems</a></span></dt>
 </dl>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567620"></a>Hardware requirements</h2></div></div></div>
+<a name="id2567622"></a>Hardware requirements</h2></div></div></div>
 <p>
         <acronym class="acronym">DNS</acronym> hardware requirements have
         traditionally been quite modest.
@@ -73,7 +73,7 @@
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567646"></a>CPU Requirements</h2></div></div></div>
+<a name="id2567649"></a>CPU Requirements</h2></div></div></div>
 <p>
         CPU requirements for <acronym class="acronym">BIND</acronym> 9 range from
         i486-class machines
@@ -84,7 +84,7 @@
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567659"></a>Memory Requirements</h2></div></div></div>
+<a name="id2567661"></a>Memory Requirements</h2></div></div></div>
 <p>
         The memory of the server has to be large enough to fit the
         cache and zones loaded off disk.  The <span><strong class="command">max-cache-size</strong></span>
@@ -93,7 +93,7 @@
         traffic.
         Additionally, if additional section caching
         (<a href="Bv9ARM.ch06.html#acache" title="Additional Section Caching">the section called &#8220;Additional Section Caching&#8221;</a>) is enabled,
-        the <span><strong class="command">max-acache-size</strong></span> can be used to
+        the <span><strong class="command">max-acache-size</strong></span> option can be used to
         limit the amount
         of memory used by the mechanism.
         It is still good practice to have enough memory to load
@@ -107,7 +107,7 @@
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567686"></a>Name Server Intensive Environment Issues</h2></div></div></div>
+<a name="id2567688"></a>Name Server Intensive Environment Issues</h2></div></div></div>
 <p>
         For name server intensive environments, there are two alternative
         configurations that may be used. The first is where clients and
@@ -124,7 +124,7 @@
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567697"></a>Supported Operating Systems</h2></div></div></div>
+<a name="id2567699"></a>Supported Operating Systems</h2></div></div></div>
 <p>
         ISC <acronym class="acronym">BIND</acronym> 9 compiles and runs on a large
         number

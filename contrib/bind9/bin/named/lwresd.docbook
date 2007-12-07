@@ -5,7 +5,7 @@
  - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwresd.docbook,v 1.7.18.5 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: lwresd.docbook,v 1.7.18.8 2007/08/28 07:20:01 tbox Exp $ -->
 <refentry>
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -52,11 +52,13 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>lwresd</command>
+      <arg><option>-c <replaceable class="parameter">config-file</replaceable></option></arg>
       <arg><option>-C <replaceable class="parameter">config-file</replaceable></option></arg>
       <arg><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
       <arg><option>-f</option></arg>
       <arg><option>-g</option></arg>
       <arg><option>-i <replaceable class="parameter">pid-file</replaceable></option></arg>
+      <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
       <arg><option>-P <replaceable class="parameter">port</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
@@ -64,6 +66,8 @@
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-u <replaceable class="parameter">user</replaceable></option></arg>
       <arg><option>-v</option></arg>
+      <arg><option>-4</option></arg>
+      <arg><option>-6</option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
 
@@ -109,6 +113,43 @@
     <title>OPTIONS</title>
 
     <variablelist>
+
+      <varlistentry>
+        <term>-4</term>
+        <listitem>
+          <para>
+            Use IPv4 only even if the host machine is capable of IPv6.
+            <option>-4</option> and <option>-6</option> are mutually
+            exclusive.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-6</term>
+        <listitem>
+          <para>
+            Use IPv6 only even if the host machine is capable of IPv4.
+            <option>-4</option> and <option>-6</option> are mutually
+            exclusive.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <!-- this is in source but not mentioned? does this matter? -->
+      <varlistentry>
+        <term>-c <replaceable class="parameter">config-file</replaceable></term>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">config-file</replaceable> as the
+            configuration file instead of the default,
+            <filename>/etc/lwresd.conf</filename>.
+	    <!-- Should this be an absolute path name? -->
+	    <term>-c</term> can not be used with <term>-C</term>.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry>
         <term>-C <replaceable class="parameter">config-file</replaceable></term>
         <listitem>
@@ -116,6 +157,7 @@
             Use <replaceable class="parameter">config-file</replaceable> as the
             configuration file instead of the default,
             <filename>/etc/resolv.conf</filename>.
+	    <term>-C</term> can not be used with <term>-c</term>.
           </para>
         </listitem>
       </varlistentry>
@@ -146,6 +188,33 @@
           <para>
             Run the server in the foreground and force all logging
             to <filename>stderr</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-i <replaceable class="parameter">pid-file</replaceable></term>
+        <listitem>
+          <para>
+            Use <replaceable class="parameter">pid-file</replaceable> as the
+            PID file instead of the default,
+            <filename>/var/run/lwresd.pid</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-m <replaceable class="parameter">flag</replaceable></term>
+        <listitem>
+          <para>
+            Turn on memory usage debugging flags.  Possible flags are
+            <replaceable class="parameter">usage</replaceable>,
+            <replaceable class="parameter">trace</replaceable>,
+            <replaceable class="parameter">record</replaceable>,
+            <replaceable class="parameter">size</replaceable>, and
+            <replaceable class="parameter">mctx</replaceable>.  
+            These correspond to the ISC_MEM_DEBUGXXXX flags described in
+            <filename>&lt;isc/mem.h&gt;</filename>.
           </para>
         </listitem>
       </varlistentry>
@@ -207,7 +276,7 @@
       <varlistentry>
         <term>-t <replaceable class="parameter">directory</replaceable></term>
         <listitem>
-          <para><function>chroot()</function>
+          <para>Chroot
 	    to <replaceable class="parameter">directory</replaceable> after
             processing the command line arguments, but before
             reading the configuration file.
@@ -217,7 +286,7 @@
               This option should be used in conjunction with the
               <option>-u</option> option, as chrooting a process
               running as root doesn't enhance security on most
-              systems; the way <function>chroot()</function> is
+              systems; the way <function>chroot(2)</function> is
               defined allows a process with root privileges to
               escape a chroot jail.
             </para>
@@ -228,7 +297,7 @@
       <varlistentry>
         <term>-u <replaceable class="parameter">user</replaceable></term>
         <listitem>
-          <para><function>setuid()</function>
+          <para>Setuid
 	    to <replaceable class="parameter">user</replaceable> after completing
             privileged operations, such as creating sockets that
             listen on privileged ports.

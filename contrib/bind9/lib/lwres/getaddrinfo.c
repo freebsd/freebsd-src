@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * This code is derived from software contributed to ISC by
  * Berkeley Software Design, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -18,7 +18,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: getaddrinfo.c,v 1.43.18.6 2006/11/14 01:07:28 marka Exp $ */
+/* $Id: getaddrinfo.c,v 1.43.18.8 2007/09/13 23:46:26 tbox Exp $ */
 
 /*! \file */
 
@@ -133,8 +133,9 @@
 
 #include <config.h>
 
-#include <string.h>
 #include <errno.h>
+
+#include <isc/string.h>
 
 #include <lwres/lwres.h>
 #include <lwres/net.h>

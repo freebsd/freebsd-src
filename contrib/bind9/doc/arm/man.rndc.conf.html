@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.rndc.conf.html,v 1.2.2.43.10.1 2007/07/09 02:25:53 marka Exp $ -->
+<!-- $Id: man.rndc.conf.html,v 1.2.2.55 2007/10/31 01:35:59 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">rndc.conf</code> </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599206"></a><h2>DESCRIPTION</h2>
+<a name="id2603676"></a><h2>DESCRIPTION</h2>
 <p><code class="filename">rndc.conf</code> is the configuration file
       for <span><strong class="command">rndc</strong></span>, the BIND 9 name server control
       utility.  This file has a similar structure and syntax to
@@ -105,7 +105,7 @@
       name of a key statement in the file.  The port number
       specifies the port to connect to.  If an <code class="option">addresses</code>
       clause is supplied these addresses will be used instead of
-      the server name.  Each address can take a optional port.
+      the server name.  Each address can take an optional port.
       If an <code class="option">source-address</code> or <code class="option">source-address-v6</code>
       of supplied then these will be used to specify the IPv4 and IPv6
       source addresses respectively.
@@ -135,7 +135,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2603201"></a><h2>EXAMPLE</h2>
+<a name="id2604121"></a><h2>EXAMPLE</h2>
 <pre class="programlisting">
       options {
         default-server  localhost;
@@ -171,7 +171,7 @@
       key testkey {
         algorithm	hmac-md5;
         secret		"R3HI8P6BKw9ZwXwN3VZKuQ==";
-      }
+      };
     </pre>
 <p>
     </p>
@@ -198,7 +198,7 @@
       A complete <code class="filename">rndc.conf</code> file, including
       the
       randomly generated key, will be written to the standard
-      output.  Commented out <code class="option">key</code> and
+      output.  Commented-out <code class="option">key</code> and
       <code class="option">controls</code> statements for
       <code class="filename">named.conf</code> are also printed.
     </p>
@@ -209,7 +209,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2603459"></a><h2>NAME SERVER CONFIGURATION</h2>
+<a name="id2604994"></a><h2>NAME SERVER CONFIGURATION</h2>
 <p>
       The name server must be configured to accept rndc connections and
       to recognize the key specified in the <code class="filename">rndc.conf</code>
@@ -219,7 +219,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2603484"></a><h2>SEE ALSO</h2>
+<a name="id2605019"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc-confgen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">mmencode</span>(1)</span>,
@@ -227,7 +227,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2603523"></a><h2>AUTHOR</h2>
+<a name="id2605058"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

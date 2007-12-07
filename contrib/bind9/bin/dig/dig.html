@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dig.html,v 1.13.18.25 2007/01/30 00:23:44 marka Exp $ -->
+<!-- $Id: dig.html,v 1.13.18.28 2007/05/16 06:11:27 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
       arguments, it also has a batch mode of operation for reading lookup
       requests from a file.  A brief summary of its command-line arguments
       and options is printed when the <code class="option">-h</code> option is given.
-      Unlike earlier versions, the BIND9 implementation of
+      Unlike earlier versions, the BIND 9 implementation of
       <span><strong class="command">dig</strong></span> allows multiple lookups to be issued
       from the
       command line.
@@ -139,7 +139,7 @@
       The default query class (IN for internet) is overridden by the
       <code class="option">-c</code> option.  <em class="parameter"><code>class</code></em> is
       any valid
-      class, such as HS for Hesiod records or CH for CHAOSNET records.
+      class, such as HS for Hesiod records or CH for Chaosnet records.
     </p>
 <p>
       The <code class="option">-f</code> option makes <span><strong class="command">dig </strong></span>
@@ -147,7 +147,7 @@
       in batch mode by reading a list of lookup requests to process from the
       file <em class="parameter"><code>filename</code></em>.  The file contains a
       number of
-      queries, one per line.  Each entry in the file should be organised in
+      queries, one per line.  Each entry in the file should be organized in
       the same way they would be presented as queries to
       <span><strong class="command">dig</strong></span> using the command-line interface.
     </p>
@@ -170,7 +170,7 @@
       The <code class="option">-t</code> option sets the query type to
       <em class="parameter"><code>type</code></em>.  It can be any valid query type
       which is
-      supported in BIND9.  The default query type "A", unless the
+      supported in BIND 9.  The default query type is "A", unless the
       <code class="option">-x</code> option is supplied to indicate a reverse lookup.
       A zone transfer can be requested by specifying a type of AXFR.  When
       an incremental zone transfer (IXFR) is required,
@@ -181,11 +181,11 @@
     </p>
 <p>
       The <code class="option">-q</code> option sets the query name to 
-      <em class="parameter"><code>name</code></em>.  This useful do distingish the
+      <em class="parameter"><code>name</code></em>.  This useful do distinguish the
       <em class="parameter"><code>name</code></em> from other arguments.
     </p>
 <p>
-      Reverse lookups - mapping addresses to names - are simplified by the
+      Reverse lookups &#8212; mapping addresses to names &#8212; are simplified by the
       <code class="option">-x</code> option.  <em class="parameter"><code>addr</code></em> is
       an IPv4
       address in dotted-decimal notation, or a colon-delimited IPv6 address.
@@ -249,7 +249,7 @@
 <dt><span class="term"><code class="option">+[no]tcp</code></span></dt>
 <dd><p>
               Use [do not use] TCP when querying name servers.  The default
-              behaviour is to use UDP unless an AXFR or IXFR query is
+              behavior is to use UDP unless an AXFR or IXFR query is
               requested, in
               which case a TCP connection is used.
             </p></dd>
@@ -362,7 +362,7 @@
             </p></dd>
 <dt><span class="term"><code class="option">+[no]cmd</code></span></dt>
 <dd><p>
-              toggles the printing of the initial comment in the output
+              Toggles the printing of the initial comment in the output
               identifying
               the version of <span><strong class="command">dig</strong></span> and the query
               options that have
@@ -394,7 +394,7 @@
               This query option toggles the printing of statistics: when the
               query
               was made, the size of the reply and so on.  The default
-              behaviour is
+              behavior is
               to print the query statistics.
             </p></dd>
 <dt><span class="term"><code class="option">+[no]qr</code></span></dt>
@@ -433,8 +433,8 @@
 <dd><p>
 
               Sets the timeout for a query to
-              <em class="parameter"><code>T</code></em> seconds.  The default time
-              out is 5 seconds.
+              <em class="parameter"><code>T</code></em> seconds.  The default
+	      timeout is 5 seconds.
               An attempt to set <em class="parameter"><code>T</code></em> to less
               than 1 will result
               in a query timeout of 1 second being applied.
@@ -499,7 +499,7 @@
               default is
               to not try the next server which is the reverse of normal stub
               resolver
-              behaviour.
+              behavior.
             </p></dd>
 <dt><span class="term"><code class="option">+[no]besteffort</code></span></dt>
 <dd><p>
@@ -535,7 +535,7 @@
 </dd>
 <dt><span class="term"><code class="option">+[no]topdown</code></span></dt>
 <dd><p>
-              When chasing DNSSEC signature chains perform a top down
+              When chasing DNSSEC signature chains perform a top-down
               validation.
               Requires dig be compiled with -DDIG_SIGCHASE.
             </p></dd>

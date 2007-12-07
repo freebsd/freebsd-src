@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.196.18.41 2006/10/26 06:04:29 marka Exp $ */
+/* $Id: rbtdb.c,v 1.196.18.48 2007/08/28 07:20:04 tbox Exp $ */
 
 /*! \file */
 
@@ -177,6 +177,10 @@ typedef isc_mutex_t nodelock_t;
 #define NODE_WEAKLOCK(l, t)	((void)0)
 #define NODE_WEAKUNLOCK(l, t)	((void)0)
 #define NODE_WEAKDOWNGRADE(l)	((void)0)
+#endif
+
+#ifndef DNS_RDATASET_FIXED
+#define DNS_RDATASET_FIXED 1
 #endif
 
 /*
@@ -494,6 +498,19 @@ typedef struct rbtdb_dbiterator {
 
 static void free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log,
 		       isc_event_t *event);
+
+/*%
+ * 'init_count' is used to initialize 'newheader->count' which inturn
+ * is used to determine where in the cycle rrset-order cyclic starts.
+ * We don't lock this as we don't care about simultanious updates.
+ *
+ * Note:
+ *	Both init_count and header->count can be ISC_UINT32_MAX.
+ *      The count on the returned rdataset however can't be as
+ *	that indicates that the database does not implement cyclic
+ *	processing.
+ */
+static unsigned int init_count;
 
 /*
  * Locking
@@ -889,7 +906,7 @@ free_noqname(isc_mem_t *mctx, struct noqname **noqname) {
 	if ((*noqname)->nsec != NULL)
 		isc_mem_put(mctx, (*noqname)->nsec,
 			    dns_rdataslab_size((*noqname)->nsec, 0));
-	if ((*noqname)->nsec != NULL)
+	if ((*noqname)->nsecsig != NULL)
 		isc_mem_put(mctx, (*noqname)->nsecsig,
 			    dns_rdataslab_size((*noqname)->nsecsig, 0));
 	isc_mem_put(mctx, *noqname, sizeof(**noqname));
@@ -1857,8 +1874,8 @@ bind_rdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	raw = (unsigned char *)header + sizeof(*header);
 	rdataset->private3 = raw;
 	rdataset->count = header->count++;
-	if (header->count == ISC_UINT32_MAX)
-		header->count = 0;
+	if (rdataset->count == ISC_UINT32_MAX)
+		rdataset->count = 0;
 
 	/*
 	 * Reset iterator state.
@@ -1964,12 +1981,20 @@ valid_glue(rbtdb_search_t *search, dns_name_t *name, rbtdb_rdatatype_t type,
 	header = search->zonecut_rdataset;
 	raw = (unsigned char *)header + sizeof(*header);
 	count = raw[0] * 256 + raw[1];
+#if DNS_RDATASET_FIXED
 	raw += 2 + (4 * count);
+#else 
+	raw += 2;
+#endif
 
 	while (count > 0) {
 		count--;
 		size = raw[0] * 256 + raw[1];
+#if DNS_RDATASET_FIXED
 		raw += 4;
+#else
+		raw += 2;
+#endif
 		region.base = raw;
 		region.length = size;
 		raw += size;
@@ -3298,7 +3323,8 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 					header_prev = header;
 				continue;
 			}
-			if (NONEXISTENT(header) || NXDOMAIN(header)) {
+			if (NONEXISTENT(header) ||
+			    RBTDB_RDATATYPE_BASE(header->type) == 0) {
 				header_prev = header;
 				continue;
 			}
@@ -3324,7 +3350,7 @@ find_coveringnsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 			result = DNS_R_COVERINGNSEC;
 		} else if (!empty_node) {
 			result = ISC_R_NOTFOUND;
-		}else
+		} else
 			result = dns_rbtnodechain_prev(&search->chain, NULL,
 						       NULL);
  unlock_node:
@@ -4825,7 +4851,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 						rdataset->covers);
 	newheader->attributes = 0;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 	newheader->trust = rdataset->trust;
 	newheader->additional_auth = NULL;
 	newheader->additional_glue = NULL;
@@ -4910,7 +4936,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	newheader->serial = rbtversion->serial;
 	newheader->trust = 0;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 	newheader->additional_auth = NULL;
 	newheader->additional_glue = NULL;
 
@@ -5161,7 +5187,7 @@ loading_addrdataset(void *arg, dns_name_t *name, dns_rdataset_t *rdataset) {
 	newheader->trust = rdataset->trust;
 	newheader->serial = 1;
 	newheader->noqname = NULL;
-	newheader->count = 0;
+	newheader->count = init_count++;
 	newheader->additional_auth = NULL;
 	newheader->additional_glue = NULL;
 
@@ -5636,9 +5662,11 @@ rdataset_first(dns_rdataset_t *rdataset) {
 		return (ISC_R_NOMORE);
 	}
 	
+#if DNS_RDATASET_FIXED
 	if ((rdataset->attributes & DNS_RDATASETATTR_LOADORDER) == 0)
 		raw += 2 + (4 * count);
 	else
+#endif
 		raw += 2;
 
 	/*
@@ -5673,11 +5701,17 @@ rdataset_next(dns_rdataset_t *rdataset) {
 	 * Skip forward one record (length + 4) or one offset (4).
 	 */
 	raw = rdataset->private5;
+#if DNS_RDATASET_FIXED
 	if ((rdataset->attributes & DNS_RDATASETATTR_LOADORDER) == 0) {
+#endif
 		length = raw[0] * 256 + raw[1];
 		raw += length;
+#if DNS_RDATASET_FIXED
 	}
-	rdataset->private5 = raw + 4;
+	rdataset->private5 = raw + 4;		/* length(2) + order(2) */
+#else
+	rdataset->private5 = raw + 2;		/* length(2) */
+#endif
 
 	return (ISC_R_SUCCESS);
 }
@@ -5685,7 +5719,9 @@ rdataset_next(dns_rdataset_t *rdataset) {
 static void
 rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	unsigned char *raw = rdataset->private5;	/* RDATASLAB */
+#if DNS_RDATASET_FIXED
 	unsigned int offset;
+#endif
 	isc_region_t r;
 
 	REQUIRE(raw != NULL);
@@ -5694,14 +5730,21 @@ rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	 * Find the start of the record if not already in private5
 	 * then skip the length and order fields.
 	 */
+#if DNS_RDATASET_FIXED
 	if ((rdataset->attributes & DNS_RDATASETATTR_LOADORDER) != 0) {
 		offset = (raw[0] << 24) + (raw[1] << 16) +
 			 (raw[2] << 8) + raw[3];
 		raw = rdataset->private3;
 		raw += offset;
 	}
+#endif
 	r.length = raw[0] * 256 + raw[1];
+
+#if DNS_RDATASET_FIXED
 	raw += 4;
+#else
+	raw += 2;
+#endif
 	r.base = raw;
 	dns_rdata_fromregion(rdata, rdataset->rdclass, rdataset->type, &r);
 }

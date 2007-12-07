@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.named-checkconf.html,v 1.2.2.38.10.1 2007/07/09 02:25:53 marka Exp $ -->
+<!-- $Id: man.named-checkconf.html,v 1.2.2.49 2007/10/31 01:35:59 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,18 +50,18 @@
 <div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-z</code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599724"></a><h2>DESCRIPTION</h2>
+<a name="id2599604"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       checks the syntax, but not the semantics, of a named
       configuration file.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599738"></a><h2>OPTIONS</h2>
+<a name="id2599618"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
-            chroot to <code class="filename">directory</code> so that
+            Chroot to <code class="filename">directory</code> so that
             include
             directives in the configuration file are processed as if
             run by a similarly chrooted named.
@@ -73,8 +73,8 @@
           </p></dd>
 <dt><span class="term">-z</span></dt>
 <dd><p>
-            Perform a check load the master zonefiles found in
-            <code class="filename">named.conf</code>.
+	    Perform a test load of all master zones found in
+	    <code class="filename">named.conf</code>.
           </p></dd>
 <dt><span class="term">-j</span></dt>
 <dd><p>
@@ -88,20 +88,21 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599840"></a><h2>RETURN VALUES</h2>
+<a name="id2599720"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599853"></a><h2>SEE ALSO</h2>
+<a name="id2599734"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">named-checkzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2599875"></a><h2>AUTHOR</h2>
+<a name="id2599764"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

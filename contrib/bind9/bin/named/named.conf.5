@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.1.2.23 2007/01/30 00:23:44 marka Exp $
+.\" $Id: named.conf.5,v 1.1.2.26 2007/08/19 23:26:13 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -253,6 +253,7 @@ options {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -386,6 +387,7 @@ view \fIstring\fR \fIoptional_class\fR {
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -462,6 +464,7 @@ zone \fIstring\fR \fIoptional_class\fR {
 		\fIrrtypelist\fR; ...
 	};
 	update\-check\-ksk \fIboolean\fR;
+	masterfile\-format ( text | raw );
 	notify \fInotifytype\fR;
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
@@ -509,8 +512,9 @@ zone \fIstring\fR \fIoptional_class\fR {
 .SH "SEE ALSO"
 .PP
 \fBnamed\fR(8),
+\fBnamed\-checkconf\fR(8),
 \fBrndc\fR(8),
-\fBBIND 9 Administrator Reference Manual\fR().
+BIND 9 Administrator Reference Manual.
 .SH "COPYRIGHT"
 Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
 .br
