@@ -275,8 +275,8 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	if (ic->ic_reset == NULL)
 		ic->ic_reset = ieee80211_default_reset;
 
-	KASSERT(ifp->if_spare2 == NULL, ("oops, hosed"));
-	ifp->if_spare2 = ic;			/* XXX temp backpointer */
+	KASSERT(ifp->if_llsoftc == NULL, ("oops, hosed"));
+	ifp->if_llsoftc = ic;
 }
 
 void
