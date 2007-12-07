@@ -1733,11 +1733,12 @@ pmap_enter_pv(struct vm_page *pg, struct pv_entry *pve, pmap_t pm,
 			pg->md.krw_mappings++;
 		else
 			pg->md.kro_mappings++;
-	} else
-	if (flags & PVF_WRITE)
-		pg->md.urw_mappings++;
-	else
-		pg->md.uro_mappings++;
+	} else {
+		if (flags & PVF_WRITE)
+			pg->md.urw_mappings++;
+		else
+			pg->md.uro_mappings++;
+	}
 	pg->md.pv_list_count++;
 	if (pve->pv_flags & PVF_WIRED)
 		++pm->pm_stats.wired_count;
