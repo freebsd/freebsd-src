@@ -51,10 +51,11 @@
 .Nm
 .Op Fl adervq
 .Op Fl h Ar name
-.Ar host
-\&...
+.Ar host ...
 .Sh DESCRIPTION
+The
 .Nm
+utility
 is a variant of
 .Xr showmount 8
 that can delete bogus mount entries in remote
@@ -64,8 +65,8 @@ The actions specified by the options are performed for each
 .Ar host
 in turn.
 .Sh OPTIONS
-.Bl -tag -width Ds
-.It Fl a Fl d Fl e
+.Bl -tag -width indent
+.It Fl a , d , e
 These options work as in
 .Xr showmount 8
 except that only entries pertaining to the local host are printed.
@@ -87,15 +88,15 @@ The remote mount table is not changed.
 Issues a command to the remote mountd declaring that
 .Em all
 of its file systems have been unmounted.
-This should be used with caution, as
-it removes all remote mount entries pertaining to the local system, whether or
-not any file systems are still mounted locally.
+This should be used with caution, as it removes all
+remote mount entries pertaining to the local system, whether or not any
+file systems are still mounted locally.
 .It Fl q
 Be quiet.
 Suppresses error messages due to timeouts and
-.Dq Program not Registered ,
+.Dq Li "Program not registered" ,
 i.e., due to remote hosts not supporting RPC or not running
-.Nm mountd .
+.Xr mountd 8 .
 .It Fl h Ar name
 Pretend the local hostname is
 .Ar name .
@@ -110,7 +111,7 @@ This option also saves time as comparisons of remotely recorded and local
 hostnames by address are avoided.
 .El
 .Sh FILES
-.Bl -tag -width /axx
+.Bl -tag -width ".Pa /etc/rmtab"
 .It Pa /etc/mtab
 List of current mounts.
 .It Pa /etc/rmtab
@@ -123,6 +124,22 @@ server.
 .Xr rmtab 5 ,
 .Xr mountd 8 ,
 .Xr showmount 8
+.Pp
+.Dq am-utils
+.Xr info 1
+entry.
+.Rs
+.%A Erez Zadok
+.%B "Linux NFS and Automounter Administration"
+.%O ISBN 0-7821-2739-8
+.%I Sybex
+.%D 2001
+.Re
+.Pp
+.Pa http://www.am-utils.org/
+.Rs
+.%T Amd \- The 4.4 BSD Automounter
+.Re
 .Sh HISTORY
 The
 .Nm
@@ -141,6 +158,15 @@ are listed in the
 .Nm AUTHORS
 file distributed with
 .Nm am-utils .
+.Sh AUTHORS
+.An Andreas Stolcke Aq stolcke@icsi.berkeley.edu
+.Pp
+.An Erez Zadok Aq ezk@cs.sunysb.edu ,
+Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
+.Pp
+Other authors and contributors to am-utils are listed in the
+.Pa AUTHORS
+file distributed with am-utils.
 .Sh BUGS
 No attempt is made to verify the information in
 .Pa /etc/mtab
@@ -150,9 +176,9 @@ Since swap file mounts are not recorded in
 .Pa /etc/mtab ,
 a heuristic specific to SunOS is used to determine whether such a mount
 is actual (replacing the string
-.Ql swap
+.Dq Li swap
 with
-.Ql root
+.Dq Li root
 and verifying the resulting path).
 .Pp
 Symbolic links on the server will cause the path in the remote entry to differ
@@ -170,27 +196,19 @@ Since the local mount point is
 as well this will be handled correctly.
 .Pp
 There is no way to clear a stale entry in a remote
-.Nm mountd
-after the local hostname (or whatever reverse name resolution
-returns for it) has been changed.
+.Xr mountd 8
+after the
+local hostname (or whatever reverse name resolution returns for it)
+has been changed.
 To take care of these cases,
 the remote
 .Pa /etc/rmtab
 file has to be edited and
-.Nm mountd
+.Xr mountd 8
 restarted.
 .Pp
 The RPC timeouts for
-.Nm mountd
+.Xr mountd 8
 calls can only be changed by recompiling.
-The defaults are 2 seconds
-for client handle creation and 5 seconds for RPC calls.
-.Sh AUTHORS
-.An Andreas Stolcke Aq stolcke@icsi.berkeley.edu
-.Pp
-.An Erez Zadok Aq ezk@cs.sunysb.edu ,
-Computer Science Department, Stony Brook University, Stony Brook, New York, USA.
-.Pp
-Other authors and contributors to am-utils are listed in the
-.Pa AUTHORS
-file distributed with am-utils.
+The defaults are 2 seconds for client handle creation and 5 seconds for
+RPC calls.
