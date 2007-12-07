@@ -2728,11 +2728,28 @@ aac_describe_controller(struct aac_softc *sc)
 {
 	struct aac_fib *fib;
 	struct aac_adapter_info	*info;
+	char *adapter_type = "Adaptec RAID controller";
 
 	debug_called(2);
 
 	mtx_lock(&sc->aac_io_lock);
 	aac_alloc_sync_fib(sc, &fib);
+
+	if (sc->supported_options & AAC_SUPPORTED_SUPPLEMENT_ADAPTER_INFO) {
+		fib->data[0] = 0;
+		if (aac_sync_fib(sc, RequestSupplementAdapterInfo, 0, fib, 1))
+			device_printf(sc->aac_dev,
+			    "RequestSupplementAdapterInfo failed\n");
+		else
+			adapter_type = ((struct aac_supplement_adapter_info *)
+			    &fib->data[0])->AdapterTypeText;
+	}
+	device_printf(sc->aac_dev, "%s, aac driver %d.%d.%d-%d\n",
+		adapter_type,
+		AAC_DRIVER_VERSION >> 24,
+		(AAC_DRIVER_VERSION >> 16) & 0xFF,
+		AAC_DRIVER_VERSION & 0xFF,
+		AAC_DRIVER_BUILD);
 
 	fib->data[0] = 0;
 	if (aac_sync_fib(sc, RequestAdapterInfo, 0, fib, 1)) {
@@ -2746,11 +2763,6 @@ aac_describe_controller(struct aac_softc *sc)
 	info = (struct aac_adapter_info *)&fib->data[0];
 	sc->aac_revision = info->KernelRevision;
 
-	device_printf(sc->aac_dev, "Adaptec Raid Controller %d.%d.%d-%d\n",
-		AAC_DRIVER_VERSION >> 24,
-		(AAC_DRIVER_VERSION >> 16) & 0xFF,
-		AAC_DRIVER_VERSION & 0xFF,
-		AAC_DRIVER_BUILD);
 
 	if (bootverbose) {
 		device_printf(sc->aac_dev, "%s %dMHz, %dMB memory "
