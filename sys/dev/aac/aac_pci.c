@@ -272,18 +272,36 @@ struct aac_ident
 	 "AOC-USAS-S8iR-LP"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
+struct aac_ident
+aac_family_identifiers[] = {
+	{0x9005, 0x0285, 0, 0, AAC_HWIF_I960RX, 0,
+	 "Adaptec RAID Controller"},
+	{0x9005, 0x0286, 0, 0, AAC_HWIF_RKT, 0,
+	 "Adaptec RAID Controller"},
+	{0, 0, 0, 0, 0, 0, 0}
+};
 
 static struct aac_ident *
 aac_find_ident(device_t dev)
 {
 	struct aac_ident *m;
+	u_int16_t vendid, devid, sub_vendid, sub_devid;
+
+	vendid = pci_get_vendor(dev);
+	devid = pci_get_device(dev);
+	sub_vendid = pci_get_subvendor(dev);
+	sub_devid = pci_get_subdevice(dev);
 
 	for (m = aac_identifiers; m->vendor != 0; m++) {
-		if ((m->vendor == pci_get_vendor(dev)) &&
-		    (m->device == pci_get_device(dev)) &&
-		    (m->subvendor == pci_get_subvendor(dev)) &&
-		    (m->subdevice == pci_get_subdevice(dev)))
-		return (m);
+		if ((m->vendor == vendid) && (m->device == devid) &&
+		    (m->subvendor == sub_vendid) &&
+		    (m->subdevice == sub_devid))
+			return (m);
+	}
+
+	for (m = aac_family_identifiers; m->vendor != 0; m++) {
+		if ((m->vendor == vendid) && (m->device == devid))
+			return (m);
 	}
 
 	return (NULL);
