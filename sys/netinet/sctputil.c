@@ -2825,7 +2825,7 @@ sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 		SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
 		return (ENOBUFS);
 	}
-	if (M_TRAILINGSPACE(m)) {
+	if (padlen <= M_TRAILINGSPACE(m)) {
 		/*
 		 * The easy way. We hope the majority of the time we hit
 		 * here :)
@@ -2843,8 +2843,8 @@ sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 			return (ENOSPC);
 		}
 		/* setup and insert in middle */
-		SCTP_BUF_NEXT(tmp) = SCTP_BUF_NEXT(m);
 		SCTP_BUF_LEN(tmp) = padlen;
+		SCTP_BUF_NEXT(tmp) = NULL;
 		SCTP_BUF_NEXT(m) = tmp;
 		dp = mtod(tmp, uint8_t *);
 	}
