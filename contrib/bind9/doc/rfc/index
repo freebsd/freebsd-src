@@ -105,4 +105,10 @@
 4255:	Using DNS to Securely Publish Secure Shell (SSH) Key Fingerprints
 4343:	Domain Name System (DNS) Case Insensitivity Clarification
 4367:	What's in a Name: False Assumptions about DNS Names
+4398:	Storing Certificates in the Domain Name System (DNS)
 4431:	The DNSSEC Lookaside Validation (DLV) DNS Resource Record
+4408:	Sender Policy Framework (SPF) for Authorizing Use of Domains
+	 in E-Mail, Version 1
+4470:	Minimally Covering NSEC Records and DNSSEC On-line Signing
+4634:	US Secure Hash Algorithms (SHA and HMAC-SHA)
+4641:	DNSSEC Operational Practices

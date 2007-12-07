@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: man.dnssec-signzone.html,v 1.2.2.35.10.1 2007/07/09 02:25:53 marka Exp $ -->
+<!-- $Id: man.dnssec-signzone.html,v 1.2.2.46 2007/10/31 01:35:59 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -50,7 +50,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-signzone</code>  [<code class="option">-a</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-d <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-e <em class="replaceable"><code>end-time</code></em></code>] [<code class="option">-f <em class="replaceable"><code>output-file</code></em></code>] [<code class="option">-g</code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>key</code></em></code>] [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-I <em class="replaceable"><code>input-format</code></em></code>] [<code class="option">-j <em class="replaceable"><code>jitter</code></em></code>] [<code class="option">-N <em class="replaceable"><code>soa-serial-format</code></em></code>] [<code class="option">-o <em class="replaceable"><code>origin</code></em></code>] [<code class="option">-O <em class="replaceable"><code>output-format</code></em></code>] [<code class="option">-p</code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>start-time</code></em></code>] [<code class="option">-t</code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-z</code>] {zonefile} [key...]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2598407"></a><h2>DESCRIPTION</h2>
+<a name="id2598823"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-signzone</strong></span>
       signs a zone.  It generates
       NSEC and RRSIG records and produces a signed version of the
@@ -61,7 +61,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2598426"></a><h2>OPTIONS</h2>
+<a name="id2598842"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a</span></dt>
 <dd><p>
@@ -117,7 +117,7 @@
             The name of the output file containing the signed zone.  The
             default is to append <code class="filename">.signed</code> to
             the
-            input file.
+            input filename.
           </p></dd>
 <dt><span class="term">-h</span></dt>
 <dd><p>
@@ -127,7 +127,7 @@
 <dt><span class="term">-i <em class="replaceable"><code>interval</code></em></span></dt>
 <dd>
 <p>
-            When a previously signed zone is passed as input, records
+            When a previously-signed zone is passed as input, records
             may be resigned.  The <code class="option">interval</code> option
             specifies the cycle interval as an offset from the current
             time (in seconds).  If a RRSIG record expires after the
@@ -163,8 +163,8 @@
             When signing a zone with a fixed signature lifetime, all
             RRSIG records issued at the time of signing expires
             simultaneously.  If the zone is incrementally signed, i.e.
-            a previously signed zone is passed as input to the signer,
-            all expired signatures has to be regenerated at about the
+            a previously-signed zone is passed as input to the signer,
+            all expired signatures have to be regenerated at about the
             same time.  The <code class="option">jitter</code> option specifies a
             jitter window that will be used to randomize the signature
             expire time, thus spreading incremental signature
@@ -250,47 +250,52 @@
           </p></dd>
 <dt><span class="term">key</span></dt>
 <dd><p>
-            The keys used to sign the zone.  If no keys are specified, the
-            default all zone keys that have private key files in the
-            current directory.
+	    Specify which keys should be used to sign the zone.  If
+	    no keys are specified, then the zone will be examined
+	    for DNSKEY records at the zone apex.  If these are found and
+	    there are matching private keys, in the current directory,
+	    then these will be used for signing.
           </p></dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2622323"></a><h2>EXAMPLE</h2>
+<a name="id2641307"></a><h2>EXAMPLE</h2>
 <p>
       The following command signs the <strong class="userinput"><code>example.com</code></strong>
-      zone with the DSA key generated in the <span><strong class="command">dnssec-keygen</strong></span>
-      man page.  The zone's keys must be in the zone.  If there are
-      <code class="filename">keyset</code> files associated with child
-      zones,
-      they must be in the current directory.
-      <strong class="userinput"><code>example.com</code></strong>, the following command would be
-      issued:
+      zone with the DSA key generated by <span><strong class="command">dnssec-keygen</strong></span>
+      (Kexample.com.+003+17247).  The zone's keys must be in the master
+      file (<code class="filename">db.example.com</code>).  This invocation looks
+      for <code class="filename">keyset</code> files, in the current directory,
+      so that DS records can be generated from them (<span><strong class="command">-g</strong></span>).
     </p>
-<p><strong class="userinput"><code>dnssec-signzone -o example.com db.example.com
-        Kexample.com.+003+26160</code></strong>
-    </p>
+<pre class="programlisting">% dnssec-signzone -g -o example.com db.example.com \
+Kexample.com.+003+17247
+db.example.com.signed
+%</pre>
 <p>
-      The command would print a string of the form:
-    </p>
-<p>
-      In this example, <span><strong class="command">dnssec-signzone</strong></span> creates
+      In the above example, <span><strong class="command">dnssec-signzone</strong></span> creates
       the file <code class="filename">db.example.com.signed</code>.  This
-      file
-      should be referenced in a zone statement in a
+      file should be referenced in a zone statement in a
       <code class="filename">named.conf</code> file.
     </p>
+<p>
+      This example re-signs a previously signed zone with default parameters.
+      The private keys are assumed to be in the current directory.
+    </p>
+<pre class="programlisting">% cp db.example.com.signed db.example.com
+% dnssec-signzone -o example.com db.example.com
+db.example.com.signed
+%</pre>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2641229"></a><h2>SEE ALSO</h2>
+<a name="id2641380"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
       <em class="citetitle">RFC 2535</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2652723"></a><h2>AUTHOR</h2>
+<a name="id2641404"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

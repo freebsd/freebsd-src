@@ -5,7 +5,7 @@
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.7.18.8 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: named.docbook,v 1.7.18.12 2007/08/28 07:20:01 tbox Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -60,6 +60,7 @@
       <arg><option>-d <replaceable class="parameter">debug-level</replaceable></option></arg>
       <arg><option>-f</option></arg>
       <arg><option>-g</option></arg>
+      <arg><option>-m <replaceable class="parameter">flag</replaceable></option></arg>
       <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
       <arg><option>-s</option></arg>
@@ -159,6 +160,22 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-m <replaceable class="parameter">flag</replaceable></term>
+        <listitem>
+          <para>
+	    Turn on memory usage debugging flags.  Possible flags are
+	    <replaceable class="parameter">usage</replaceable>,
+	    <replaceable class="parameter">trace</replaceable>,
+	    <replaceable class="parameter">record</replaceable>,
+	    <replaceable class="parameter">size</replaceable>, and
+	    <replaceable class="parameter">mctx</replaceable>.
+	    These correspond to the ISC_MEM_DEBUGXXXX flags described in
+	    <filename>&lt;isc/mem.h&gt;</filename>.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-n <replaceable class="parameter">#cpus</replaceable></term>
         <listitem>
           <para>
@@ -200,7 +217,7 @@
       <varlistentry>
         <term>-t <replaceable class="parameter">directory</replaceable></term>
         <listitem>
-          <para><function>chroot()</function>
+          <para>Chroot
 	    to <replaceable class="parameter">directory</replaceable> after
             processing the command line arguments, but before
             reading the configuration file.
@@ -210,7 +227,7 @@
               This option should be used in conjunction with the
               <option>-u</option> option, as chrooting a process
               running as root doesn't enhance security on most
-              systems; the way <function>chroot()</function> is
+              systems; the way <function>chroot(2)</function> is
               defined allows a process with root privileges to
               escape a chroot jail.
             </para>
@@ -221,7 +238,7 @@
       <varlistentry>
         <term>-u <replaceable class="parameter">user</replaceable></term>
         <listitem>
-          <para><function>setuid()</function>
+          <para>Setuid
 	    to <replaceable class="parameter">user</replaceable> after completing
             privileged operations, such as creating sockets that
             listen on privileged ports.
@@ -230,7 +247,7 @@
             <para>
               On Linux, <command>named</command> uses the kernel's
               		capability mechanism to drop all root privileges
-              except the ability to <function>bind()</function> to
+              except the ability to <function>bind(2)</function> to
               a
               privileged port and set process resource limits.
               Unfortunately, this means that the <option>-u</option>
@@ -238,7 +255,7 @@
               run
               on kernel 2.2.18 or later, or kernel 2.3.99-pre3 or
               later, since previous kernels did not allow privileges
-              to be retained after <function>setuid()</function>.
+              to be retained after <function>setuid(2)</function>.
             </para>
           </note>
         </listitem>
@@ -352,6 +369,14 @@
     <para><citetitle>RFC 1033</citetitle>,
       <citetitle>RFC 1034</citetitle>,
       <citetitle>RFC 1035</citetitle>,
+      <citerefentry>
+        <refentrytitle>named-checkconf</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>named-checkzone</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
       <citerefentry>
         <refentrytitle>rndc</refentrytitle>
 	<manvolnum>8</manvolnum>

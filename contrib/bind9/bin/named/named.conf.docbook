@@ -4,7 +4,7 @@
 <!--
  - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  -
- - Permission to use, copy, modify, and distribute this software for any
+ - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
  - copyright notice and this permission notice appear in all copies.
  -
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.conf.docbook,v 1.1.2.25 2007/01/29 23:57:20 marka Exp $ -->
+<!-- $Id: named.conf.docbook,v 1.1.2.29 2007/08/28 07:20:01 tbox Exp $ -->
 <refentry>
   <refentryinfo>
     <date>Aug 13, 2004</date>
@@ -284,6 +284,7 @@ options {
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
 	update-check-ksk <replaceable>boolean</replaceable>;
 
+	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
@@ -432,6 +433,7 @@ view <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	allow-update-forwarding { <replaceable>address_match_element</replaceable>; ... };
 	update-check-ksk <replaceable>boolean</replaceable>;
 
+	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
@@ -518,6 +520,7 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
 	};
 	update-check-ksk <replaceable>boolean</replaceable>;
 
+	masterfile-format ( text | raw );
 	notify <replaceable>notifytype</replaceable>;
 	notify-source ( <replaceable>ipv4_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
 	notify-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) <optional> port ( <replaceable>integer</replaceable> | * ) </optional>;
@@ -578,11 +581,12 @@ zone <replaceable>string</replaceable> <replaceable>optional_class</replaceable>
         <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>rndc</refentrytitle><manvolnum>8</manvolnum>
+        <refentrytitle>named-checkconf</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>BIND 9 Administrator Reference Manual</refentrytitle>
-      </citerefentry>.
+        <refentrytitle>rndc</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
     </para>
   </refsect1>
 

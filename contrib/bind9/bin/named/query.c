@@ -2,7 +2,7 @@
  * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.257.18.36.12.1 2007/04/30 01:10:19 marka Exp $ */
+/* $Id: query.c,v 1.257.18.40 2007/09/26 03:08:14 each Exp $ */
 
 /*! \file */
 
@@ -2592,7 +2592,9 @@ query_addbestns(ns_client_t *client) {
 }
 
 static void
-query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node) {
+query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node,
+	    dns_dbversion_t *version)
+{
 	dns_name_t *rname;
 	dns_rdataset_t *rdataset, *sigrdataset;
 	isc_result_t result;
@@ -2613,12 +2615,12 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node) {
 	/*
 	 * Look for the DS record, which may or may not be present.
 	 */
-	result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_ds, 0,
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_ds, 0,
 				     client->now, rdataset, sigrdataset);
 	/*
 	 * If we didn't find it, look for an NSEC. */
 	if (result == ISC_R_NOTFOUND)
-		result = dns_db_findrdataset(db, node, NULL,
+		result = dns_db_findrdataset(db, node, version,
 					     dns_rdatatype_nsec, 0, client->now,
 					     rdataset, sigrdataset);
 	if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND)
@@ -2657,7 +2659,8 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node) {
 
 static void
 query_addwildcardproof(ns_client_t *client, dns_db_t *db,
-		       dns_name_t *name, isc_boolean_t ispositive)
+		       dns_dbversion_t *version, dns_name_t *name,
+		       isc_boolean_t ispositive)
 {
 	isc_buffer_t *dbuf, b;
 	dns_name_t *fname;
@@ -2738,7 +2741,7 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 	if (fname == NULL || rdataset == NULL || sigrdataset == NULL)
 		goto cleanup;
 
-	result = dns_db_find(db, name, NULL, dns_rdatatype_nsec, options,
+	result = dns_db_find(db, name, version, dns_rdatatype_nsec, options,
 			     0, &node, fname, rdataset, sigrdataset);
 	if (node != NULL)
 		dns_db_detachnode(db, &node);
@@ -2790,8 +2793,9 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 }
 
 static void
-query_addnxrrsetnsec(ns_client_t *client, dns_db_t *db, dns_name_t **namep,
-		    dns_rdataset_t **rdatasetp, dns_rdataset_t **sigrdatasetp)
+query_addnxrrsetnsec(ns_client_t *client, dns_db_t *db,
+		     dns_dbversion_t *version, dns_name_t **namep,
+		     dns_rdataset_t **rdatasetp, dns_rdataset_t **sigrdatasetp)
 {
 	dns_name_t *name;
 	dns_rdataset_t *sigrdataset;
@@ -2828,8 +2832,7 @@ query_addnxrrsetnsec(ns_client_t *client, dns_db_t *db, dns_name_t **namep,
 		return;
 
 	/* XXX */
-	query_addwildcardproof(client, db,
-			       client->query.qname,
+	query_addwildcardproof(client, db, version, client->query.qname,
 			       ISC_TRUE);
 
 	/*
@@ -3705,7 +3708,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					       dbuf, DNS_SECTION_AUTHORITY);
 				client->query.gluedb = NULL;
 				if (WANTDNSSEC(client) && dns_db_issecure(db))
-					query_addds(client, db, node);
+					query_addds(client, db, node, version);
 			} else {
 				/*
 				 * We might have a better answer or delegation
@@ -3809,7 +3812,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				client->query.attributes &=
 					~NS_QUERYATTR_CACHEGLUEOK;
 				if (WANTDNSSEC(client))
-					query_addds(client, db, node);
+					query_addds(client, db, node, version);
 			}
 		}
 		goto cleanup;
@@ -3846,8 +3849,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 */
 		if (WANTDNSSEC(client)) {
 			if (dns_rdataset_isassociated(rdataset))
-				query_addnxrrsetnsec(client, db, &fname,
-						    &rdataset, &sigrdataset);
+				query_addnxrrsetnsec(client, db, version,
+						     &fname, &rdataset,
+						     &sigrdataset);
 		}
 		goto cleanup;
 	case DNS_R_EMPTYWILD:
@@ -3896,7 +3900,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				query_addrrset(client, &fname, &rdataset,
 					       &sigrdataset,
 					       NULL, DNS_SECTION_AUTHORITY);
-				query_addwildcardproof(client, db,
+				query_addwildcardproof(client, db, version,
 						       client->query.qname,
 						       ISC_FALSE);
 			}
@@ -4305,7 +4309,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	 * DNSSEC wildcard proofs.
 	 */
 	if (need_wildcardproof && dns_db_issecure(db))
-		query_addwildcardproof(client, db,
+		query_addwildcardproof(client, db, version,
 				       dns_fixedname_name(&wildcardname),
 				       ISC_TRUE);
  cleanup:
@@ -4590,7 +4594,7 @@ ns_query_start(ns_client_t *client) {
 	 * Set AD.  We must clear it if we add non-validated data to a
 	 * response.
 	 */
-	if (client->view->enablednssec)
+	if (WANTDNSSEC(client))
 		message->flags |= DNS_MESSAGEFLAG_AD;
 
 	qclient = NULL;

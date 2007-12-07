@@ -3,7 +3,7 @@
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssldh_link.c,v 1.1.6.9 2007/01/08 02:52:39 marka Exp $
+ * $Id: openssldh_link.c,v 1.1.6.10 2007/08/28 07:20:04 tbox Exp $
  */
 
 #ifdef OPENSSL

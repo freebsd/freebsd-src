@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.c,v 1.186.18.26 2006/07/21 23:52:21 marka Exp $ */
+/* $Id: dig.c,v 1.186.18.29 2007/08/28 07:19:55 tbox Exp $ */
 
 /*! \file */
 
@@ -650,42 +650,6 @@ printgreeting(int argc, char **argv, dig_lookup_t *lookup) {
 	}
 }
 
-/*%
- * Reorder an argument list so that server names all come at the end.
- * This is a bit of a hack, to allow batch-mode processing to properly
- * handle the server options.
- */
-static void
-reorder_args(int argc, char *argv[]) {
-	int i, j;
-	char *ptr;
-	int end;
-
-	debug("reorder_args()");
-	end = argc - 1;
-	while (argv[end][0] == '@') {
-		end--;
-		if (end == 0)
-			return;
-	}
-	debug("arg[end]=%s", argv[end]);
-	for (i = 1; i < end - 1; i++) {
-		if (argv[i][0] == '@') {
-			debug("arg[%d]=%s", i, argv[i]);
-			ptr = argv[i];
-			for (j = i + 1; j < end; j++) {
-				debug("Moving %s to %d", argv[j], j - 1);
-				argv[j - 1] = argv[j];
-			}
-			debug("moving %s to end, %d", ptr, end - 1);
-			argv[end - 1] = ptr;
-			end--;
-			if (end < 1)
-				return;
-		}
-	}
-}
-
 static isc_uint32_t
 parse_uint(char *arg, const char *desc, isc_uint32_t max) {
 	isc_result_t result;
@@ -1104,7 +1068,9 @@ static const char *single_dash_opts = "46dhimnv";
 static const char *dash_opts = "46bcdfhikmnptvyx";
 static isc_boolean_t
 dash_option(char *option, char *next, dig_lookup_t **lookup,
-	    isc_boolean_t *open_type_class, isc_boolean_t config_only)
+	    isc_boolean_t *open_type_class, isc_boolean_t *need_clone,
+	    isc_boolean_t config_only, int argc, char **argv,
+	    isc_boolean_t *firstarg)
 {
 	char opt, *value, *ptr, *ptr2, *ptr3;
 	isc_result_t result;
@@ -1241,14 +1207,20 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 		return (value_from_next);
 	case 'q':
 		if (!config_only) {
-			(*lookup) = clone_lookup(default_lookup,
-					         ISC_TRUE);
+			if (*need_clone)
+				(*lookup) = clone_lookup(default_lookup,
+							 ISC_TRUE);
+			*need_clone = ISC_TRUE;
 			strncpy((*lookup)->textname, value, 
 				sizeof((*lookup)->textname));
 			(*lookup)->textname[sizeof((*lookup)->textname)-1]=0;
 			(*lookup)->trace_root = ISC_TF((*lookup)->trace  ||
 						     (*lookup)->ns_search_only);
 			(*lookup)->new_search = ISC_TRUE;
+			if (*firstarg) {
+				printgreeting(argc, argv, *lookup);
+				*firstarg = ISC_FALSE;
+			}
 			ISC_LIST_APPEND(lookup_list, (*lookup), link);
 			debug("looking up %s", (*lookup)->textname);
 		}
@@ -1376,7 +1348,9 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 		keysecret[sizeof(keysecret)-1]=0;
 		return (value_from_next);
 	case 'x':
-		*lookup = clone_lookup(default_lookup, ISC_TRUE);
+		if (*need_clone)
+			*lookup = clone_lookup(default_lookup, ISC_TRUE);
+		*need_clone = ISC_TRUE;
 		if (get_reverse(textname, sizeof(textname), value,
 				ip6_int, ISC_FALSE) == ISC_R_SUCCESS) {
 			strncpy((*lookup)->textname, textname,
@@ -1390,6 +1364,10 @@ dash_option(char *option, char *next, dig_lookup_t **lookup,
 			if (!(*lookup)->rdclassset)
 				(*lookup)->rdclass = dns_rdataclass_in;
 			(*lookup)->new_search = ISC_TRUE;
+			if (*firstarg) {
+				printgreeting(argc, argv, *lookup);
+				*firstarg = ISC_FALSE;
+			}
 			ISC_LIST_APPEND(lookup_list, *lookup, link);
 		} else {
 			fprintf(stderr, "Invalid IP address %s\n", value);
@@ -1481,6 +1459,8 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 	char rcfile[256];
 #endif
 	char *input;
+	int i;
+	isc_boolean_t need_clone = ISC_TRUE;
 
 	/*
 	 * The semantics for parsing the args is a bit complex; if
@@ -1528,7 +1508,9 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 				bargv[0] = argv[0];
 				argv0 = argv[0];
 
-				reorder_args(bargc, (char **)bargv);
+				for(i = 0; i < bargc; i++)
+					debug(".digrc argv %d: %s",
+					      i, bargv[i]);
 				parse_args(ISC_TRUE, ISC_TRUE, bargc,
 					   (char **)bargv);
 			}
@@ -1537,7 +1519,12 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 #endif
 	}
 
-	lookup = default_lookup;
+	if (is_batchfile && !config_only) {
+		/* Processing '-f batchfile'. */
+		lookup = clone_lookup(default_lookup, ISC_TRUE);
+		need_clone = ISC_FALSE;
+	} else
+		lookup = default_lookup;
 
 	rc = argc;
 	rv = argv;
@@ -1554,14 +1541,16 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 			if (rc <= 1) {
 				if (dash_option(&rv[0][1], NULL,
 						&lookup, &open_type_class,
-						config_only)) {
+						&need_clone, config_only,
+						argc, argv, &firstarg)) {
 					rc--;
 					rv++;
 				}
 			} else {
 				if (dash_option(&rv[0][1], rv[1],
 						&lookup, &open_type_class,
-						config_only)) {
+						&need_clone, config_only,
+						argc, argv, &firstarg)) {
 					rc--;
 					rv++;
 				}
@@ -1629,21 +1618,29 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 					continue;
 				}
 			}
+
 			if (!config_only) {
-				lookup = clone_lookup(default_lookup,
-						      ISC_TRUE);
+				if (need_clone)
+					lookup = clone_lookup(default_lookup,
+								      ISC_TRUE);
+				need_clone = ISC_TRUE;
 				strncpy(lookup->textname, rv[0], 
 					sizeof(lookup->textname));
 				lookup->textname[sizeof(lookup->textname)-1]=0;
 				lookup->trace_root = ISC_TF(lookup->trace  ||
 						     lookup->ns_search_only);
 				lookup->new_search = ISC_TRUE;
+				if (firstarg) {
+					printgreeting(argc, argv, lookup);
+					firstarg = ISC_FALSE;
+				}
 				ISC_LIST_APPEND(lookup_list, lookup, link);
 				debug("looking up %s", lookup->textname);
 			}
 			/* XXX Error message */
 		}
 	}
+
 	/*
 	 * If we have a batchfile, seed the lookup list with the
 	 * first entry, then trust the callback in dighost_shutdown
@@ -1678,15 +1675,20 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 			bargv[0] = argv[0];
 			argv0 = argv[0];
 
-			reorder_args(bargc, (char **)bargv);
+			for(i = 0; i < bargc; i++)
+				debug("batch argv %d: %s", i, bargv[i]);
 			parse_args(ISC_TRUE, ISC_FALSE, bargc, (char **)bargv);
+			return;
 		}
+		return;
 	}
 	/*
 	 * If no lookup specified, search for root
 	 */
 	if ((lookup_list.head == NULL) && !config_only) {
-		lookup = clone_lookup(default_lookup, ISC_TRUE);
+		if (need_clone)
+			lookup = clone_lookup(default_lookup, ISC_TRUE);
+		need_clone = ISC_TRUE;
 		lookup->trace_root = ISC_TF(lookup->trace ||
 					    lookup->ns_search_only);
 		lookup->new_search = ISC_TRUE;
@@ -1698,10 +1700,9 @@ parse_args(isc_boolean_t is_batchfile, isc_boolean_t config_only,
 			firstarg = ISC_FALSE;
 		}
 		ISC_LIST_APPEND(lookup_list, lookup, link);
-	} else if (!config_only && firstarg) {
-			printgreeting(argc, argv, lookup);
-			firstarg = ISC_FALSE;
 	}
+	if (!need_clone)
+		destroy_lookup(lookup);
 }
 
 /*
@@ -1715,7 +1716,7 @@ dighost_shutdown(void) {
 	int bargc;
 	char *bargv[16];
 	char *input;
-
+	int i;
 
 	if (batchname == NULL) {
 		isc_app_shutdown();
@@ -1743,7 +1744,8 @@ dighost_shutdown(void) {
 
 		bargv[0] = argv0;
 
-		reorder_args(bargc, (char **)bargv);
+		for(i = 0; i < bargc; i++)
+			debug("batch argv %d: %s", i, bargv[i]);
 		parse_args(ISC_TRUE, ISC_FALSE, bargc, (char **)bargv);
 		start_lookup();
 	} else {
@@ -1759,7 +1761,6 @@ dighost_shutdown(void) {
 int
 main(int argc, char **argv) {
 	isc_result_t result;
-	dig_server_t *s, *s2;
 
 	ISC_LIST_INIT(lookup_list);
 	ISC_LIST_INIT(server_list);
@@ -1780,16 +1781,7 @@ main(int argc, char **argv) {
 	result = isc_app_onrun(mctx, global_task, onrun_callback, NULL);
 	check_result(result, "isc_app_onrun");
 	isc_app_run();
-	s = ISC_LIST_HEAD(default_lookup->my_server_list);
-	while (s != NULL) {
-		debug("freeing server %p belonging to %p",
-		      s, default_lookup);
-		s2 = s;
-		s = ISC_LIST_NEXT(s, link);
-		ISC_LIST_DEQUEUE(default_lookup->my_server_list, s2, link);
-		isc_mem_free(mctx, s2);
-	}
-	isc_mem_free(mctx, default_lookup);
+	destroy_lookup(default_lookup);
 	if (batchname != NULL) {
 		if (batchfp != stdin)
 			fclose(batchfp);
