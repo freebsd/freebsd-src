@@ -123,6 +123,11 @@ bsd_parse_type(const char *type, uint8_t *fstype)
 		*fstype = FS_VINUM;
 		return (0);
 	}
+	alias = g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS);
+	if (!strcasecmp(type, alias)) {
+		*fstype = FS_ZFS;
+		return (0);
+	}
 	return (EINVAL);
 }
 
@@ -391,6 +396,8 @@ g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_UFS));
 	if (type == FS_VINUM)
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_VINUM));
+	if (type == FS_ZFS)
+		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
 	snprintf(buf, bufsz, "!%d", type);
 	return (buf);
 }
