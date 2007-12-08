@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: accounting,v 1.7 2002/03/22 04:33:57 thorpej Exp $
 # $FreeBSD$
 #
 

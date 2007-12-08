@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: bootconf.sh,v 1.5 2002/03/25 03:22:10 wiz Exp $
 # $FreeBSD$
 #
 

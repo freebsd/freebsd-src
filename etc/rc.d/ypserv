@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: ypserv,v 1.5 2000/09/19 13:04:39 lukem Exp $
 # $FreeBSD$
 #
 
