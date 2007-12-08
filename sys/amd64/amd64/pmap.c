@@ -422,7 +422,8 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	DMPDphys = allocpages(firstaddr, ndmpdp);
+	if ((amd_feature & AMDID_PAGE1GB) == 0)
+		DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
 	/* Fill in the underlying page table pages */
@@ -448,21 +449,31 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* And connect up the PD to the PDP */
 	for (i = 0; i < NKPDPE; i++) {
-		((pdp_entry_t *)KPDPphys)[i + KPDPI] = KPDphys + (i << PAGE_SHIFT);
+		((pdp_entry_t *)KPDPphys)[i + KPDPI] = KPDphys +
+		    (i << PAGE_SHIFT);
 		((pdp_entry_t *)KPDPphys)[i + KPDPI] |= PG_RW | PG_V | PG_U;
 	}
 
-
-	/* Now set up the direct map space using 2MB pages */
-	for (i = 0; i < NPDEPG * ndmpdp; i++) {
-		((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
-		((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
-	}
-
-	/* And the direct map space's PDP */
-	for (i = 0; i < ndmpdp; i++) {
-		((pdp_entry_t *)DMPDPphys)[i] = DMPDphys + (i << PAGE_SHIFT);
-		((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_U;
+	/* Now set up the direct map space using either 2MB or 1GB pages */
+	if ((amd_feature & AMDID_PAGE1GB) == 0) {
+		for (i = 0; i < NPDEPG * ndmpdp; i++) {
+			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
+			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
+			    PG_G;
+		}
+		/* And the direct map space's PDP */
+		for (i = 0; i < ndmpdp; i++) {
+			((pdp_entry_t *)DMPDPphys)[i] = DMPDphys +
+			    (i << PAGE_SHIFT);
+			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_U;
+		}
+	} else {
+		for (i = 0; i < ndmpdp; i++) {
+			((pdp_entry_t *)DMPDPphys)[i] =
+			    (vm_paddr_t)i << PDPSHIFT;
+			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS |
+			    PG_G;
+		}
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */
