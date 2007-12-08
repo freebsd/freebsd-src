@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: sendmail,v 1.14 2002/02/12 01:26:36 lukem Exp $
 # $FreeBSD$
 #
 

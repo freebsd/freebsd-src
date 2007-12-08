@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: pwcheck,v 1.4 2002/03/22 04:33:59 thorpej Exp $
 # $FreeBSD$
 #
 
