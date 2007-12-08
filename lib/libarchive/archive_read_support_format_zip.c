@@ -336,7 +336,8 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 	zip->entry_offset = 0;
 
 	/* If there's no body, force read_data() to return EOF immediately. */
-	if (zip->entry_bytes_remaining < 1)
+	if (0 == (zip->flags & ZIP_LENGTH_AT_END)
+	    && zip->entry_bytes_remaining < 1)
 		zip->end_of_entry = 1;
 
 	/* Set up a more descriptive format name. */
