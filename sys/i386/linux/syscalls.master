@@ -443,6 +443,7 @@
 				    int flags, struct l_timespec *rqtp, \
 				    struct l_timespec *rmtp); }
 268	AUE_NULL	MSTD	{ int linux_statfs64(char *path, \
+				    size_t bufsize, \
 				    struct l_statfs64_buf *buf); }
 269	AUE_NULL	MSTD	{ int linux_fstatfs64(void); }
 270	AUE_NULL	MSTD	{ int linux_tgkill(int tgid, int pid, int sig); }
