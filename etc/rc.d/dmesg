@@ -6,7 +6,7 @@
 # PROVIDE: dmesg
 # REQUIRE: mountcritremote cleanvar
 # BEFORE:  DAEMON
-# KEYWORD: Daemon nojail
+# KEYWORD: nojail
 
 . /etc/rc.subr
 
