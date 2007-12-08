@@ -524,7 +524,7 @@
 	<para>The &man.el.4; driver has been removed due to lack of use.</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 6.5.0 from Intel.  Among other changes, it now supports
+	  version 6.7.3 from Intel.  Among other changes, it now supports
 	  80003, 82571, 82571EB, 82572 and 82575 based adapters, as well as
 	  onboard-NICs on ICH8-based motherboards. &merged;</para>
 
@@ -900,12 +900,6 @@
 
       <para>The &man.mpt.4; driver is now MPSAFE.</para>
 
-      <para>[&arch.amd64;, &arch.i386;] Experimental support for the
-	TMPFS file system has been added.  TMPFS is an efficient
-	memory file system originally developed for the NetBSD project
-	during the Google Summer of Code.  More information can be
-	found in the &man.tmpfs.5; manual page.</para>
-
       <para>The &man.twa.4; driver has been updated to the 3.70.03.007
 	release on the 3ware Web site.  It now supports AMCC's 3ware
 	9650 series of SATA controllers.  &merged;</para>
@@ -942,6 +936,12 @@
       <para>The &man.pseudofs.9; pseudo file system construction kit and
 	all of its consumers (&man.procfs.5;, &man.linprocfs.5; and
 	&man.linsysfs.5;), are now MPSAFE.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] Experimental support for the
+	TMPFS file system has been added.  TMPFS is an efficient
+	memory file system originally developed for the NetBSD project
+	during the Google Summer of Code.  More information can be
+	found in the &man.tmpfs.5; manual page.</para>
 
       <para>The unionfs file system has been re-implemented.  This
 	version solves many crashing and locking issues compared to
@@ -1426,7 +1426,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       April 2005 release to the 1 May 2007 release. &merged;</para>
 
     <para><application>BIND</application> has been updated from 9.3.3
-      to 9.4.1-p1.</para>
+      to 9.4.2.</para>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
