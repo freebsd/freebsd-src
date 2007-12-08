@@ -182,6 +182,8 @@ static struct rl_type re_devs[] = {
 		"RealTek 8168/8111B PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168_SPIN2,
 		"RealTek 8168/8111B PCIe Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8168, RL_HWREV_8168_SPIN3,
+		"RealTek 8168/8111B PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
 		"RealTek 8169 Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169S,
@@ -223,6 +225,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
 	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
+	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
 	{ 0, 0, NULL }
 };
 
@@ -683,13 +686,19 @@ re_setmulti(sc)
 
 	hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
 
-	if (hwrev == RL_HWREV_8100E || hwrev == RL_HWREV_8101E ||
-	    hwrev == RL_HWREV_8168_SPIN1 || hwrev == RL_HWREV_8168_SPIN2) {
+	switch (hwrev) {
+	case RL_HWREV_8100E:
+	case RL_HWREV_8101E:
+	case RL_HWREV_8168_SPIN1:
+	case RL_HWREV_8168_SPIN2:
+	case RL_HWREV_8168_SPIN3:
 		CSR_WRITE_4(sc, RL_MAR0, bswap32(hashes[1]));
 		CSR_WRITE_4(sc, RL_MAR4, bswap32(hashes[0]));
-	} else {
+		break;
+	default:
 		CSR_WRITE_4(sc, RL_MAR0, hashes[0]);
 		CSR_WRITE_4(sc, RL_MAR4, hashes[1]);
+		break;
 	}
 }
 
@@ -1320,6 +1329,7 @@ re_attach(dev)
 			case RL_HWREV_8169_8110SB:
 			case RL_HWREV_8169_8110SC:
 			case RL_HWREV_8168_SPIN2:
+			case RL_HWREV_8168_SPIN3:
 				re_gmii_writereg(dev, 1, 0x1f, 0);
 				re_gmii_writereg(dev, 1, 0x0e, 0);
 				break;
