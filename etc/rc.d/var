@@ -33,6 +33,7 @@
 . /etc/rc.subr
 
 name="var"
+stop_cmd=':'
 
 load_rc_config $name
 
