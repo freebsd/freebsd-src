@@ -800,7 +800,7 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 
 	table = gp->softc;
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
-		if (entry->gpe_deleted)
+		if (entry->gpe_deleted || entry->gpe_internal)
 			continue;
 		gctl_error(req, "%d", EBUSY);
 		return (EBUSY);
