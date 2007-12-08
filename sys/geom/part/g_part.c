@@ -741,7 +741,7 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 	table = gp->softc;
 
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
-		if (entry->gpe_deleted)
+		if (entry->gpe_deleted || entry->gpe_internal)
 			continue;
 		if (entry->gpe_index == gpp->gpp_index)
 			break;
@@ -857,7 +857,7 @@ g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 	table = gp->softc;
 
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
-		if (entry->gpe_deleted)
+		if (entry->gpe_deleted || entry->gpe_internal)
 			continue;
 		if (entry->gpe_index == gpp->gpp_index)
 			break;
