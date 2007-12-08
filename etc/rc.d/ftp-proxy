@@ -5,7 +5,6 @@
 
 # PROVIDE: ftp-proxy
 # REQUIRE: DAEMON pf
-#
 
 . /etc/rc.subr
 
