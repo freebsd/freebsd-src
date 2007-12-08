@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: mountcritremote,v 1.7 2002/04/29 12:29:53 lukem Exp $
 # $FreeBSD$
 #
 

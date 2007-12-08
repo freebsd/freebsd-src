@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: ipsec,v 1.7 2002/03/22 04:33:58 thorpej Exp $
 # $FreeBSD$
 #
 

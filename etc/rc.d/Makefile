@@ -1,4 +1,3 @@
-# $NetBSD: Makefile,v 1.16 2001/01/14 15:37:22 minoura Exp $
 # $FreeBSD$
 
 .include <bsd.own.mk>
