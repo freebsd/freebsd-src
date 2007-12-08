@@ -148,7 +148,6 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 static int
 copy_statfs(struct statfs *in, struct statfs32 *out)
 {
-	int error;
 
 	statfs_scale_blocks(in, INT32_MAX);
 	bzero(out, sizeof(*out));
