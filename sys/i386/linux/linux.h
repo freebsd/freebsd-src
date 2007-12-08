@@ -217,6 +217,19 @@ struct l_stat64 {
 	l_ulonglong	st_ino;
 };
 
+struct l_statfs64 { 
+        l_int           f_type; 
+        l_int           f_bsize; 
+        uint64_t        f_blocks; 
+        uint64_t        f_bfree; 
+        uint64_t        f_bavail; 
+        uint64_t        f_files; 
+        uint64_t        f_ffree; 
+        l_fsid_t        f_fsid;
+        l_int           f_namelen;
+        l_int           f_spare[6];
+};
+
 struct l_new_utsname {
 	char	sysname[LINUX_MAX_UTSNAME];
 	char	nodename[LINUX_MAX_UTSNAME];
