@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2005
+.Dd December 8, 2007
 .Dt NVE 4
 .Os
 .Sh NAME
@@ -72,6 +72,8 @@ Enable autoselection of the media type and options.
 Set 10Mbps operation.
 .It Cm 100baseTX
 Set 100Mbps (Fast Ethernet) operation.
+.It Cm 1000baseTX
+Set 1000Mbps (Gigabit Ethernet) operation.
 .El
 .Pp
 The
@@ -111,6 +113,11 @@ There are not enough mbufs available for allocation.
 .It "nve%d: device timeout"
 The device has stopped responding to the network, or there is a problem with
 the network connection (cable).
+.El
+.Sh BUGS
+There are mentionings that when the card is in auto select mode,
+ifconfig output reports a 10baseT/UTP output while the leds and
+bandwidth show that the card is actually in 100baseTX mode.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
