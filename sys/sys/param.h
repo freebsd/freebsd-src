@@ -247,7 +247,7 @@
 #define	isset(a,i)							\
 	(((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY)))
 #define	isclr(a,i)							\
-	((((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY))) == 0
+	((((const unsigned char *)(a))[(i)/NBBY] & (1<<((i)%NBBY))) == 0)
 
 /* Macros for counting and rounding. */
 #ifndef howmany
