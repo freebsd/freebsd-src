@@ -604,6 +604,7 @@ hint.mse.0.irq="5"
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # wl:   Lucent Wavelan (ISA card only).
+# wpi:	Intel 3945ABG Wireless LAN controller
 
 # Order for ISA/EISA devices is important here
 
@@ -673,6 +674,7 @@ hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
 options 	WLCACHE		# enables the signal-strength cache
 options 	WLDEBUG		# enables verbose debugging output
+device		wpi
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
