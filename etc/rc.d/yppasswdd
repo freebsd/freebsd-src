@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: yppasswdd,v 1.6 2002/03/22 04:34:01 thorpej Exp $
 # $FreeBSD$
 #
 

@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: securelevel,v 1.4 2002/03/22 04:34:00 thorpej Exp $
 # $FreeBSD$
 #
 

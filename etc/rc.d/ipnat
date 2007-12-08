@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: ipnat,v 1.6 2000/09/19 13:04:38 lukem Exp $
 # $FreeBSD$
 #
 

@@ -1,6 +1,5 @@
 #!/bin/sh
 #
-# $NetBSD: ypbind,v 1.5 2002/03/22 04:34:01 thorpej Exp $
 # $FreeBSD$
 #
 
