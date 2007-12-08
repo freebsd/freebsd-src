@@ -80,6 +80,8 @@
                 ..
                 intel_iwi
                 ..
+                intel_wpi
+                ..
             ..
             ncurses
             ..

@@ -308,6 +308,8 @@ SUBDIR=	${_3dfx} \
 	wlan_tkip \
 	wlan_wep \
 	wlan_xauth \
+	${_wpi} \
+	${_wpifw} \
 	${_xe} \
 	xfs \
 	xl \
@@ -462,6 +464,8 @@ _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+_wpi=		wpi
+_wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
 _padlock=	padlock
@@ -534,6 +538,8 @@ _sppp=		sppp
 _tmpfs= 	tmpfs
 _twa=		twa
 _wi=		wi
+_wpi=		wpi
+_wpifw=		wpifw
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
