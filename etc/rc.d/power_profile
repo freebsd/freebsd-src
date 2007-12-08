@@ -15,6 +15,7 @@
 . /etc/rc.subr
 
 name="power_profile"
+stop_cmd=':'
 LOGGER="logger -t power_profile -p daemon.notice"
 
 # Set a given sysctl node to a value.
