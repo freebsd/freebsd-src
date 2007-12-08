@@ -205,7 +205,7 @@
 	  interfaces, has been added.</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 6.6.6 from Intel.</para>
+	  version 6.7.2 from Intel.</para>
 
 	<para>The &man.msk.4; driver has been added.  It supports
 	  network interfaces using the Marvell/SysKonnect Yukon II
