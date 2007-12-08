@@ -315,6 +315,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
+# wpi:	Intel 3945ABG Wireless LAN controller
 
 device		ed
 options 	ED_3C503
@@ -326,6 +327,7 @@ device		nfe		# nVidia nForce MCP on-board Ethernet Networking
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		ral
 device		ural
+device		wpi
 
 device		ath
 device		ath_hal		# Atheros HAL (includes binary component)
