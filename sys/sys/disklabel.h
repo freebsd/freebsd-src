@@ -231,6 +231,7 @@ static const char *dktypenames[] = {
 #define	FS_JFS2		21		/* IBM JFS2 */
 #define	FS_UDF		24		/* UDF */
 #define	FS_EFS		26		/* SGI's Extent File system */
+#define	FS_ZFS		27		/* Sun's ZFS */
 
 #ifdef	FSTYPENAMES
 static const char *fstypenames[] = {
@@ -261,6 +262,7 @@ static const char *fstypenames[] = {
 	"UDF",
 	"?"
 	"EFS",
+	"ZFS",
 	NULL
 };
 #define FSMAXTYPES	(sizeof(fstypenames) / sizeof(fstypenames[0]) - 1)
