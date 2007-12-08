@@ -204,11 +204,12 @@ flag is your gateway.
 Nice bash prompt: PS1='(\[$(tput md)\]\t <\w>\[$(tput me)\]) $(echo $?) \$ '
 		-- Mathieu <mathieu@hal.interactionvirtuelle.com>
 %
-Nice tcsh prompt: set prompt = '[%B%m%b] %B%~%b%# '
-%
-Nice tcsh prompt: set prompt = '%m %# '
-%
-Nice tcsh prompt: set prompt = '%n@%m%# '
+Nice tcsh prompts:
+	set prompt = '[%B%m%b] %B%~%b%# '
+	set prompt = '%m %# '
+	set prompt = '%n@%m%# '
+	set prompt = '%n@%m:%/%# '
+	set prompt = '%n@%m:%~%# '
 %
 Over quota?  "du -s * | sort -n " will give you a sorted list of your
 directory sizes.
