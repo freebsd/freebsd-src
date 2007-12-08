@@ -5,7 +5,6 @@
 
 # PROVIDE: dhclient
 # KEYWORD: nojail nostart
-#
 
 . /etc/rc.subr
 . /etc/network.subr
