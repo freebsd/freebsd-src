@@ -1309,6 +1309,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
 		return (ESRCH);
+	if (p->p_flag & P_WEXIT) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
 	if ((error = p_candebug(curthread, p))) {
 		PROC_UNLOCK(p);
 		return (error);
@@ -1457,6 +1461,10 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
 		return (ESRCH);
+	if (p->p_flag & P_WEXIT) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
 	if ((error = p_candebug(curthread, p))) {
 		PROC_UNLOCK(p);
 		return (error);
