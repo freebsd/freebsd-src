@@ -3099,7 +3099,7 @@ static u_int32_t arcmsr_attach(device_t dev)
 		return ENXIO;
 	}
 	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
-#if __FreeBSD_version >= 700099
+#if __FreeBSD_version >= 700044
 	if(xpt_bus_register(acb->psim, dev, 0) != CAM_SUCCESS) {
 #else
 	if(xpt_bus_register(acb->psim, 0) != CAM_SUCCESS) {
