@@ -98,8 +98,6 @@ static const u_char *__sccl(char *, const u_char *);
 static int parsefloat(FILE *, char *, char *);
 #endif
 
-int __scanfdebug = 0;
-
 __weak_reference(__vfscanf, vfscanf);
 
 /*
@@ -781,8 +779,6 @@ literal:
 					float res = strtof(buf, &p);
 					*va_arg(ap, float *) = res;
 				}
-				if (__scanfdebug && p - buf != width)
-					abort();
 				nassigned++;
 			}
 			nread += width;

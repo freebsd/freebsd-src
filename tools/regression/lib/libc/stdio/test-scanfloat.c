@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #define	eq(type, a, b)	_eq(type##_EPSILON, (a), (b))
 static int _eq(long double epsilon, long double a, long double b);
 
-extern int __scanfdebug;
-
 int
 main(int argc, char *argv[])
 {
@@ -56,8 +54,6 @@ main(int argc, char *argv[])
 
 	buf[0] = '\0';
 	assert(setlocale(LC_NUMERIC, ""));
-
-	__scanfdebug = 1;
 
 	/*
 	 * Various tests for normalized numbers
