@@ -1,7 +1,10 @@
 # $FreeBSD$
-# a very simple makefile...
+# a simple makefile to help builds on !FreeBSD systems
 pmake:
 	@echo 'make started.'
-	cc -DDEFSHELLNAME=\"sh\" -I. -c *.c
+	cc -D__FBSDID="static const char *id=" -DDEFSHELLNAME=\"sh\" -I. -c *.c
 	cc *.o -o pmake
 	@echo 'make completed.'
+
+clean:
+	@rm -f *.o pmake
