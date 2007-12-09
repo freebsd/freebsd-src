@@ -102,7 +102,7 @@
     #include <sys/endian.h>
     #include <dev/pci/pcivar.h>
     #include <dev/pci/pcireg.h>
-    #define ARCMSR_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF|MTX_RECURSE)
+    #define ARCMSR_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF)
     #define ARCMSR_LOCK_DESTROY(l)	mtx_destroy(l)
     #define ARCMSR_LOCK_ACQUIRE(l)	mtx_lock(l)
     #define ARCMSR_LOCK_RELEASE(l)	mtx_unlock(l)
@@ -903,7 +903,6 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 			struct HBB_MessageUnit *phbbmu=(struct HBB_MessageUnit *)acb->pmu;
 			int ending_index, index;
 	
-			ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
 			index=phbbmu->postq_index;
 			ending_index=((index+1)%ARCMSR_MAX_HBB_POSTQUEUE);
 			phbbmu->post_qbuffer[ending_index]=0;
@@ -919,7 +918,6 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 			phbbmu->postq_index=index;
 			CHIP_REG_WRITE32(HBB_DOORBELL, 
 			0, drv2iop_doorbell, ARCMSR_DRV2IOP_CDB_POSTED);
-			ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
 		}
 		break;
 	}
@@ -1108,7 +1106,16 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb)
 */
 static void arcmsr_poll(struct cam_sim * psim)
 {
-	arcmsr_interrupt((struct AdapterControlBlock *)cam_sim_softc(psim));
+	struct AdapterControlBlock *acb;
+
+	acb = (struct AdapterControlBlock *)cam_sim_softc(psim);
+#if __FreeBSD_version < 700025
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+#endif
+	arcmsr_interrupt(acb);
+#if __FreeBSD_version < 700025
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+#endif
 	return;
 }
 /*
@@ -1569,7 +1576,10 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 {
 	struct CommandControlBlock *srb=NULL;
 	u_int32_t workingsrb_startindex, workingsrb_doneindex;
-	
+
+#if __FreeBSD_version < 700025
+	ARCMSR_LOCK_ACQUIRE(&acb->qbuffer_lock);
+#endif
 	workingsrb_doneindex=acb->workingsrb_doneindex;
 	workingsrb_startindex=acb->workingsrb_startindex;
 	srb=acb->srbworkingQ[workingsrb_startindex];
@@ -1580,6 +1590,9 @@ struct CommandControlBlock * arcmsr_get_freesrb(struct AdapterControlBlock *acb)
 	} else {
 		srb=NULL;
 	}
+#if __FreeBSD_version < 700025
+	ARCMSR_LOCK_RELEASE(&acb->qbuffer_lock);
+#endif
 	return(srb);
 }
 /*
@@ -2826,7 +2839,11 @@ static u_int32_t arcmsr_initialize(device_t dev)
 				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
 				/*flags*/	0,
 				/*lockfunc*/	busdma_lock_mutex,
+#if __FreeBSD_version >= 700025
 				/*lockarg*/	&acb->qbuffer_lock,
+#else
+				/*lockarg*/	&Giant,
+#endif
 						&acb->dm_segs_dmat) != 0)
 #else
 	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
