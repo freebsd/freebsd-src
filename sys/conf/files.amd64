@@ -116,7 +116,7 @@ amd64/amd64/mptable.c		optional	mptable
 amd64/amd64/mptable_pci.c	optional	mptable pci
 amd64/amd64/msi.c		optional	pci
 amd64/amd64/nexus.c		standard
-amd64/amd64/pmap.c		standard	nowerror
+amd64/amd64/pmap.c		standard
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/sigtramp.S		standard
 amd64/amd64/stack_machdep.c	optional	ddb | stack
