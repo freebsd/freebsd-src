@@ -70,7 +70,7 @@ sctp_init(void)
 	 * the SB_MAX whichever is smaller for the send window.
 	 */
 	sb_max_adj = (u_long)((u_quad_t) (SB_MAX) * MCLBYTES / (MSIZE + MCLBYTES));
-	sctp_sendspace = min((min(SB_MAX, sb_max_adj)),
+	sctp_sendspace = min(sb_max_adj,
 	    (((uint32_t) nmbclusters / 2) * SCTP_DEFAULT_MAXSEGMENT));
 	/*
 	 * Now for the recv window, should we take the same amount? or
@@ -4152,6 +4152,11 @@ sctp_listen(struct socket *so, int backlog, struct thread *p)
 		}
 		SOCK_LOCK(so);
 	} else {
+		if (backlog != 0) {
+			inp->sctp_flags |= SCTP_PCB_FLAGS_LISTENING;
+		} else {
+			inp->sctp_flags &= ~SCTP_PCB_FLAGS_LISTENING;
+		}
 		SCTP_INP_RUNLOCK(inp);
 	}
 	/* It appears for 7.0 and on, we must always call this. */
