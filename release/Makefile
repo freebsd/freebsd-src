@@ -248,7 +248,8 @@ DISKLABEL?=		bsdlabel
 DISKLABEL?=		disklabel
 .endif
 
-ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1392k -
+ZIPPER=			gzip -9 --no-name
+ZIPNSPLIT=		${ZIPPER} -c | split -b 1392k -
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
@@ -782,7 +783,7 @@ release.8:
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
 	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9fnv ${RD}/mfsroot/mfsroot
+	@${ZIPPER} -fv ${RD}/mfsroot/mfsroot
 	touch ${.TARGET}
 
 KERNFLOPPYSET=		${RD}/floppyset/kern/kernel.gz
@@ -798,7 +799,7 @@ SMALLMFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot-small/mfsroot.gz
 
 # Build boot and install floppies.
 floppies.1:
-	@gzip -9nc ${RD}/kernels/GENERIC/kernel > ${RD}/kernels/kernel.gz
+	@${ZIPPER} -c ${RD}/kernels/GENERIC/kernel > ${RD}/kernels/kernel.gz
 	@echo "Making the kernel boot floppies..."
 	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern \
 	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz
@@ -1000,7 +1001,7 @@ cdrom.3:
 	@mkdir -p ${FD}/miniroot
 	@sh -e ${DOFS_SH} ${FD}/miniroot/miniroot.ufs \
 	    ${RD} ${MNT} 0 ${CD_BOOT} 8192 auto
-	@gzip -9v ${FD}/miniroot/miniroot.ufs
+	@${ZIPPER} -v ${FD}/miniroot/miniroot.ufs
 .endif
 .endif
 	touch ${.TARGET}
@@ -1141,7 +1142,7 @@ installCRUNCH:
 	@echo "ZIP undefined in installCRUNCH" && exit 1
 .endif
 	@if ${ZIP} ; then \
-		gzip -9 < ${RD}/crunch/${CRUNCH} > ${DIR}/${CRUNCH}_crunch ; \
+		${ZIPPER} < ${RD}/crunch/${CRUNCH} > ${DIR}/${CRUNCH}_crunch ; \
 	else \
 		ln -f ${RD}/crunch/${CRUNCH} ${DIR}/${CRUNCH}_crunch ; \
 	fi
@@ -1247,13 +1248,13 @@ buildBootFloppy:
 	    ${BOOTDIR}/loader.rc ${IMAGEDIR}/boot
 .if exists(${HINTSFILE})
 	@cp ${HINTSFILE} ${IMAGEDIR}/boot/device.hints
-	@gzip -9n ${IMAGEDIR}/boot/device.hints
+	@${ZIPPER} ${IMAGEDIR}/boot/device.hints
 .endif
-	@gzip -9n ${IMAGEDIR}/boot/*.4th ${IMAGEDIR}/boot/loader.help \
+	@${ZIPPER} ${IMAGEDIR}/boot/*.4th ${IMAGEDIR}/boot/loader.help \
 	    ${IMAGEDIR}/boot/defaults/loader.conf
 	@echo 'bootfile="/kernel"' > ${IMAGEDIR}/boot/loader.conf
 .if exists(${ACPI_KO})
-	@gzip -9nc ${ACPI_KO} > ${IMAGEDIR}/acpi.ko.gz
+	@${ZIPPER} -c ${ACPI_KO} > ${IMAGEDIR}/acpi.ko.gz
 	@echo 'acpi_load="YES"' >> ${IMAGEDIR}/boot/loader.conf
 	@echo 'acpi_name="/acpi.ko"' >> ${IMAGEDIR}/boot/loader.conf
 	@echo 'acpi_before="read -p \"Insert boot floppy and press Enter\""' >> ${IMAGEDIR}/boot/loader.conf
