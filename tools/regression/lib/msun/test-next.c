@@ -77,7 +77,7 @@ main(int argc, char *argv[])
 {
 	static const int ex_under = FE_UNDERFLOW | FE_INEXACT;	/* shorthand */
 	static const int ex_over = FE_OVERFLOW | FE_INEXACT;
-	long double ldbl_eps;
+	long double ldbl_small, ldbl_eps, ldbl_max;
 
 	printf("1..5\n");
 
@@ -89,7 +89,9 @@ main(int argc, char *argv[])
 	 * FreeBSD/i386 assumes long doubles are truncated to the
 	 * double format.
 	 */
-	ldbl_eps = ldexpl(1.0, LDBL_MIN_EXP - LDBL_MANT_DIG);
+	ldbl_small = ldexpl(1.0, LDBL_MIN_EXP - LDBL_MANT_DIG);
+	ldbl_eps = LDBL_EPSILON;
+	ldbl_max = ldexpl(1.0 - ldbl_eps / 2, LDBL_MAX_EXP);
 
 	/*
 	 * Special cases involving zeroes.
@@ -113,10 +115,10 @@ main(int argc, char *argv[])
 
 	stest(nextafter, 0x1p-1074, );
 	stest(nextafterf, 0x1p-149f, f);
-	stest(nextafterl, ldbl_eps, l);
+	stest(nextafterl, ldbl_small, l);
 	stest(nexttoward, 0x1p-1074, );
 	stest(nexttowardf, 0x1p-149f, f);
-	stest(nexttowardl, ldbl_eps, l);
+	stest(nexttowardl, ldbl_small, l);
 #undef	stest
 
 	printf("ok 1 - next\n");
@@ -141,20 +143,20 @@ main(int argc, char *argv[])
 	testboth(1.0, -INFINITY, 1.0 - DBL_EPSILON/2, 0, );
 	testboth(1.0, 2.0, 1.0 + FLT_EPSILON, 0, f);
 	testboth(1.0, -INFINITY, 1.0 - FLT_EPSILON/2, 0, f);
-	testboth(1.0, 2.0, 1.0 + LDBL_EPSILON, 0, l);
-	testboth(1.0, -INFINITY, 1.0 - LDBL_EPSILON/2, 0, l);
+	testboth(1.0, 2.0, 1.0 + ldbl_eps, 0, l);
+	testboth(1.0, -INFINITY, 1.0 - ldbl_eps/2, 0, l);
 
 	testboth(-1.0, 2.0, -1.0 + DBL_EPSILON/2, 0, );
 	testboth(-1.0, -INFINITY, -1.0 - DBL_EPSILON, 0, );
 	testboth(-1.0, 2.0, -1.0 + FLT_EPSILON/2, 0, f);
 	testboth(-1.0, -INFINITY, -1.0 - FLT_EPSILON, 0, f);
-	testboth(-1.0, 2.0, -1.0 + LDBL_EPSILON/2, 0, l);
-	testboth(-1.0, -INFINITY, -1.0 - LDBL_EPSILON, 0, l);
+	testboth(-1.0, 2.0, -1.0 + ldbl_eps/2, 0, l);
+	testboth(-1.0, -INFINITY, -1.0 - ldbl_eps, 0, l);
 
 	/* Cases where nextafter(...) != nexttoward(...) */
-	test(nexttoward(1.0, 1.0 + LDBL_EPSILON), 1.0 + DBL_EPSILON, 0);
-	testf(nexttowardf(1.0, 1.0 + LDBL_EPSILON), 1.0 + FLT_EPSILON, 0);
-	testl(nexttowardl(1.0, 1.0 + LDBL_EPSILON), 1.0 + LDBL_EPSILON, 0);
+	test(nexttoward(1.0, 1.0 + ldbl_eps), 1.0 + DBL_EPSILON, 0);
+	testf(nexttowardf(1.0, 1.0 + ldbl_eps), 1.0 + FLT_EPSILON, 0);
+	testl(nexttowardl(1.0, 1.0 + ldbl_eps), 1.0 + ldbl_eps, 0);
 
 	printf("ok 3 - next\n");
 
@@ -216,8 +218,8 @@ main(int argc, char *argv[])
 	testf(idf(nexttowardf(FLT_MAX, FLT_MAX * 2.0)), INFINITY, ex_over);
 	testf(idf(nexttowardf(INFINITY, FLT_MAX * 2.0)), FLT_MAX, 0);
 
-	testboth(LDBL_MAX, INFINITY, INFINITY, ex_over, l);
-	testboth(INFINITY, 0.0, LDBL_MAX, 0, l);
+	testboth(ldbl_max, INFINITY, INFINITY, ex_over, l);
+	testboth(INFINITY, 0.0, ldbl_max, 0, l);
 
 	printf("ok 5 - next\n");
 
