@@ -618,7 +618,7 @@ bstp_received_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 				bp->bp_rcvdtca = 1;
 
 			if (bp->bp_agree &&
-			    !bstp_pdu_bettersame(bp, BSTP_INFO_RECIEVED))
+			    !bstp_pdu_bettersame(bp, BSTP_INFO_RECEIVED))
 				bp->bp_agree = 0;
 
 			/* copy the received priority and timers to the port */
@@ -633,7 +633,7 @@ bstp_received_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 			/* set expiry for the new info */
 			bstp_set_timer_msgage(bp);
 
-			bp->bp_infois = BSTP_INFO_RECIEVED;
+			bp->bp_infois = BSTP_INFO_RECEIVED;
 			bstp_assign_roles(bs);
 			break;
 
@@ -728,8 +728,8 @@ bstp_pdu_rcvtype(struct bstp_port *bp, struct bstp_config_unit *cu)
 static int
 bstp_pdu_bettersame(struct bstp_port *bp, int newinfo)
 {
-	if (newinfo == BSTP_INFO_RECIEVED &&
-	    bp->bp_infois == BSTP_INFO_RECIEVED &&
+	if (newinfo == BSTP_INFO_RECEIVED &&
+	    bp->bp_infois == BSTP_INFO_RECEIVED &&
 	    bstp_info_cmp(&bp->bp_port_pv, &bp->bp_msg_cu.cu_pv) >= INFO_SAME)
 		return (1);
 
@@ -801,7 +801,7 @@ bstp_assign_roles(struct bstp_state *bs)
 
 	/* check if any recieved info supersedes us */
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-		if (bp->bp_infois != BSTP_INFO_RECIEVED)
+		if (bp->bp_infois != BSTP_INFO_RECEIVED)
 			continue;
 
 		pv = bp->bp_port_pv;
@@ -864,7 +864,7 @@ bstp_assign_roles(struct bstp_state *bs)
 				bstp_update_info(bp);
 			break;
 
-		case BSTP_INFO_RECIEVED:
+		case BSTP_INFO_RECEIVED:
 			if (bp == rbp) {
 				/*
 				 * root priority is derived from this
@@ -1959,7 +1959,7 @@ bstp_hello_timer_expiry(struct bstp_state *bs, struct bstp_port *bp)
 static void
 bstp_message_age_expiry(struct bstp_state *bs, struct bstp_port *bp)
 {
-	if (bp->bp_infois == BSTP_INFO_RECIEVED) {
+	if (bp->bp_infois == BSTP_INFO_RECEIVED) {
 		bp->bp_infois = BSTP_INFO_AGED;
 		bstp_assign_roles(bs);
 		DPRINTF("aged info on %s\n", bp->bp_ifp->if_xname);
