@@ -449,10 +449,10 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 				delent = entry;
 			continue;
 		}
-		if (entry->gpe_index == index) {
+		if (entry->gpe_index == index)
 			index = entry->gpe_index + 1;
+		if (entry->gpe_index < index)
 			last = entry;
-		}
 		if (entry->gpe_internal)
 			continue;
 		if (gpp->gpp_start >= entry->gpe_start &&
