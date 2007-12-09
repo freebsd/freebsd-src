@@ -904,6 +904,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #else
 	asoc->default_flowlabel = 0;
 #endif
+	asoc->sb_send_resv = 0;
 	if (override_tag) {
 		struct timeval now;
 
@@ -2824,7 +2825,7 @@ sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 		SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
 		return (ENOBUFS);
 	}
-	if (M_TRAILINGSPACE(m)) {
+	if (padlen <= M_TRAILINGSPACE(m)) {
 		/*
 		 * The easy way. We hope the majority of the time we hit
 		 * here :)
@@ -2842,8 +2843,8 @@ sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 			return (ENOSPC);
 		}
 		/* setup and insert in middle */
-		SCTP_BUF_NEXT(tmp) = SCTP_BUF_NEXT(m);
 		SCTP_BUF_LEN(tmp) = padlen;
+		SCTP_BUF_NEXT(tmp) = NULL;
 		SCTP_BUF_NEXT(m) = tmp;
 		dp = mtod(tmp, uint8_t *);
 	}
@@ -3363,6 +3364,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		}
 #endif
 		socantsendmore(stcb->sctp_socket);
+		socantrcvmore(stcb->sctp_socket);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 #endif
@@ -4948,10 +4950,6 @@ sctp_sorecvmsg(struct socket *so,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 		return (EINVAL);
 	}
-	if (from && fromlen <= 0) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
-		return (EINVAL);
-	}
 	if (msg_flags) {
 		in_flags = *msg_flags;
 		if (in_flags & MSG_PEEK)
@@ -5017,12 +5015,15 @@ restart_nosblocks:
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
 				so->so_error = 0;
+			goto out;
 		} else {
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOTCONN);
-			/* indicate EOF */
-			error = 0;
+			if (so->so_rcv.sb_cc == 0) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOTCONN);
+				/* indicate EOF */
+				error = 0;
+				goto out;
+			}
 		}
-		goto out;
 	}
 	if ((so->so_rcv.sb_cc <= held_length) && block_allowed) {
 		/* we need to wait for data */
@@ -5259,7 +5260,7 @@ found_one:
 	 * If we reach here, control has a some data for us to read off.
 	 * Note that stcb COULD be NULL.
 	 */
-	control->some_taken = 1;
+	control->some_taken++;
 	if (hold_sblock) {
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		hold_sblock = 0;
@@ -5730,7 +5731,14 @@ wait_some_more:
 				 * big trouble.. we have the lock and its
 				 * corrupt?
 				 */
+#ifdef INVARIANTS
 				panic("Impossible data==NULL length !=0");
+#endif
+				out_flags |= MSG_EOR;
+				out_flags |= MSG_TRUNC;
+				control->length = 0;
+				SCTP_INP_READ_UNLOCK(inp);
+				goto done_with_control;
 			}
 			SCTP_INP_READ_UNLOCK(inp);
 			/* We will fall around to get more data */
@@ -5806,7 +5814,7 @@ release_unlocked:
 			sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 	}
 	if (msg_flags)
-		*msg_flags |= out_flags;
+		*msg_flags = out_flags;
 out:
 	if (((out_flags & MSG_EOR) == 0) &&
 	    ((in_flags & MSG_PEEK) == 0) &&
