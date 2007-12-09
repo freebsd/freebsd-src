@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set this if you do not want to install optional libraries.
+For example when creating a
+.Xr nanobsd 8
+image.
