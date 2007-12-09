@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
+#define MAXPARTITIONS	26
 #include <sys/disklabel.h>
 
 #include <unistd.h>
@@ -94,6 +95,7 @@ static void	usage(void);
 static struct disklabel *getvirginlabel(void);
 
 #define	DEFEDITOR	_PATH_VI
+#define	DEFPARTITIONS	8
 
 static char	*dkname;
 static char	*specname;
@@ -301,7 +303,7 @@ fixlabel(struct disklabel *lp)
 	struct partition *dp;
 	int i;
 
-	for (i = 0; i < MAXPARTITIONS; i++) {
+	for (i = 0; i < lp->d_npartitions; i++) {
 		if (i == RAW_PART)
 			continue;
 		if (lp->d_partitions[i].p_size)
@@ -1392,7 +1394,7 @@ checklabel(struct disklabel *lp)
 			}
 		}
 	}
-	for (; i < MAXPARTITIONS; i++) {
+	for (; i < lp->d_npartitions; i++) {
 		part = 'a' + i;
 		pp = &lp->d_partitions[i];
 		if (pp->p_size || pp->p_offset)
@@ -1457,7 +1459,7 @@ getvirginlabel(void)
 		loclab.d_ntracks = 255;
 	loclab.d_secpercyl = loclab.d_ntracks * loclab.d_nsectors;
 	loclab.d_ncylinders = loclab.d_secperunit / loclab.d_secpercyl;
-	loclab.d_npartitions = MAXPARTITIONS;
+	loclab.d_npartitions = DEFPARTITIONS;
 
 	/* Various (unneeded) compat stuff */
 	loclab.d_rpm = 3600;
