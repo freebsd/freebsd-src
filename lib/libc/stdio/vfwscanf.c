@@ -99,8 +99,6 @@ __FBSDID("$FreeBSD$");
 static int parsefloat(FILE *, wchar_t *, wchar_t *);
 #endif
 
-extern int __scanfdebug;
-
 #define	INCCL(_c)	\
 	(cclcompl ? (wmemchr(ccls, (_c), ccle - ccls) == NULL) : \
 	(wmemchr(ccls, (_c), ccle - ccls) != NULL))
@@ -705,8 +703,6 @@ literal:
 					float res = wcstof(buf, &p);
 					*va_arg(ap, float *) = res;
 				}
-				if (__scanfdebug && p - buf != width)
-					abort();
 				nassigned++;
 			}
 			nread += width;
