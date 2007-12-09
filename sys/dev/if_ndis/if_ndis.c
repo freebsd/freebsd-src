@@ -958,7 +958,8 @@ ndis_detach(dev)
 	} else
 		NDIS_UNLOCK(sc);
 
-	taskqueue_drain(sc->ndis_tq, &sc->ndis_scantask);
+	if (sc->ndis_80211)
+		taskqueue_drain(sc->ndis_tq, &sc->ndis_scantask);
 
 	if (sc->ndis_tickitem != NULL)
 		IoFreeWorkItem(sc->ndis_tickitem);
@@ -1017,7 +1018,8 @@ ndis_detach(dev)
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
-	taskqueue_free(sc->ndis_tq);
+	if (sc->ndis_80211)
+		taskqueue_free(sc->ndis_tq);
 	return(0);
 }
 
