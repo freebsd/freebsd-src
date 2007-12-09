@@ -391,6 +391,8 @@ ad_describe(device_t dev)
     else {
 	if (!strncmp(atadev->param.model, "ST", 2))
 	    strcpy(vendor, "Seagate ");
+	else if (!strncmp(atadev->param.model, "HDS", 3))
+	    strcpy(vendor, "Hitachi ");
 	else
 	    strcpy(vendor, "");
 	strncpy(product, atadev->param.model, 40);
