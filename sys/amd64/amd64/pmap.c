@@ -154,7 +154,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if !defined(PMAP_DIAGNOSTIC)
-#define PMAP_INLINE __inline
+#define PMAP_INLINE	__gnu89_inline
 #else
 #define PMAP_INLINE
 #endif
@@ -1094,7 +1094,7 @@ pmap_qremove(vm_offset_t sva, int count)
 /***************************************************
  * Page table page management routines.....
  ***************************************************/
-static PMAP_INLINE void
+static __inline void
 pmap_free_zero_pages(vm_page_t free)
 {
 	vm_page_t m;
@@ -1110,7 +1110,7 @@ pmap_free_zero_pages(vm_page_t free)
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
-static PMAP_INLINE int
+static __inline int
 pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t *free)
 {
 
