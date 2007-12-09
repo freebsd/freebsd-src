@@ -235,6 +235,12 @@
 #define	__always_inline
 #endif
 
+#if __GNUC_PREREQ__(4, 2) /* actually 4.1.3 */
+#define	__gnu89_inline	__attribute__((__gnu_inline__)) __inline
+#else
+#define	__gnu89_inline
+#endif
+
 #if __GNUC_PREREQ__(3, 3)
 #define __nonnull(x)	__attribute__((__nonnull__(x)))
 #else
