@@ -2,7 +2,7 @@
 	The FreeBSD Documentation Project
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.37
+	Original Revision: 1.40
 -->
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
@@ -27,6 +27,8 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -56,13 +58,12 @@
       <title>关于 &os;</title>
 
       <para>&os; 是一个基于 4.4 BSD Lite 的操作系统，支持
-	DEC/Compaq/HP Alpha/AXP 计算机 (alpha)，
-	基于 AMD64 和 Intel EM64T 的 PC 硬件 (amd64)，
-	基于 Intel, AMD, Cyrix 或 NexGen <quote>x86</quote> 的 PC 硬件 (i386)，
-	基于 Intel Itanium Processor 的计算机 (ia64)，
-	NEC PC-9801/9821 系列 PC 及其兼容机 (pc98)，
-	以及 &ultrasparc; 机器 (sparc64)。
-	支持 &powerpc; (powerpc), and &mips; (mips)
+	基于 AMD64 和 Intel EM64T 的 PC 硬件 (&arch.amd64;)，
+	基于 Intel, AMD, Cyrix 或 NexGen <quote>x86</quote> 的 PC 硬件 (&arch.i386;)，
+	基于 Intel Itanium Processor 的计算机 (&arch.ia64;)，
+	NEC PC-9801/9821 系列 PC 及其兼容机 (&arch.pc98;)，
+	以及 &ultrasparc; 机器 (&arch.sparc64;)。
+	支持 &powerpc; (&arch.powerpc;) 和 &mips; (mips)
 	硬件架构的的版本也正在开发中。
 	&os; 支持各种各样的外围设备，
 	可以胜任软件开发、游戏，以及提供 Internet
@@ -168,8 +169,8 @@
       <para>&os; -RELEASE 发行版本可以从几个发行商那里以 CDROM 或者 DVD
 	的形式订购。 对于全新安装来说， 这通常是获取 &os; 最方便的方式，
 	因为它提供了在必要时快速地重新安装系统的方法。
-	一些发行版本包含了一些来自 &os; Ports Collection 的可选的、
-	预编译的 <quote>package</quote>。</para>
+	一些发行版本包含了一些来自 &os; Ports 套件的可选的、
+	预编译的 <quote>package</quote> 以及其他资料。</para>
 
       <para>一个已知的 CDROM 和 DVD
 	发行商列表列在使用手册的 <ulink
@@ -199,10 +200,10 @@
         URL="&url.articles.hubs;/">如何为 &os; 做镜像站点</ulink>
         这篇文章中找到关于镜像站点的更多有用的信息。</para>
 
-      <para>镜像通常包含启动安装程序所必需的软盘镜像，
-	以及安装进程本身所需要的发行版本文件。
-	许多镜像也包含创建 &os; 发行 CDROM 的必要的 ISO 镜像。</para>
-
+      <para>镜像站点通常会提供用于刻录 &os; 发行版本的 CDROM
+	的 ISO 映像文件。 它们通常包括了软盘映像 (仅限支持的平台)
+	以及通过网络安装所需要的文件。 最后，
+	镜像站点通常还会提供最新发行版本对应的预编译软件包。</para>
     </sect2>
   </sect1>
 
@@ -287,7 +288,7 @@
 	大多数发行版本会包含
 	ASCII 文本 (<filename>.TXT</filename>) 和 HTML
 	(<filename>.HTM</filename>) 格式。有一些发行版本也可能包含其它的格式，
-	比如 PostScript(<filename>.PS</filename>)或者可移植文档格式
+	比如 Portable Document Format
 	(<filename>.PDF</filename>)。
 
 	<itemizedlist>
@@ -309,11 +310,6 @@
 	  </listitem>
 
 	  <listitem>
-	    <para><filename>INSTALL.TXT</filename>：用于从发行介质安装
-	      &os; 的安装说明。</para>
-	  </listitem>
-
-	  <listitem>
 	    <para><filename>ERRATA.TXT</filename>：发行勘误。
 	      提供新近发现的、 发行之后发现的问题等信息，
 	      主要适用于发行版本(相对于 snapshot)。
@@ -322,20 +318,10 @@
 	      创建以来发现并修正问题的最新的信息。</para>
 	  </listitem>
 	</itemizedlist>
-
-	<note>
-	  <para>这几个文档(特别是，
-	    <filename>RELNOTES.TXT</filename>、
-	    <filename>HARDWARE.TXT</filename> 和
-	    <filename>INSTALL.TXT</filename>) 包含了对特定硬件体系的信息。
-	    比如， alpha 发行说明中可能包含某些不适用于 &i386; 的信息，
-	    反之亦然。 每篇文档适用的体系结构会在文档的标题处列出。</para>
-	</note>
-
       </para>
 
       <para>在支持 &man.sysinstall.8; 的平台上 (目前有
-	alpha、&i386;、ia64、pc98 还有 &sparc64;)，
+	&arch.amd64;、 &arch.i386;、 &arch.ia64;、 &arch.pc98; 以及 &arch.sparc64;)，
 	这些文档在安装时都可以通过 Documentation 菜单访问。
 	一旦系统已经安装，您可以通过重新运行
 	&man.sysinstall.8; 工具来重新访问菜单。</para>
@@ -380,7 +366,8 @@
 	url="&url.books.faq;/">FreeBSD
 	文档页面</ulink> 或者它的镜像上得到。 如果安装了
 	<filename>doc</filename> 发行集， 则可以在本地使用 Web
-	浏览器来阅读使用手册和 FAQ。</para>
+	浏览器来阅读使用手册和 FAQ。 值得一提的是，
+	在使用手册中提供了如何安装 &os; 的详细说明。</para>
 
       <para>许多在线书籍和文章也由 &os; 项目维护， 涵盖了更专业的、&os;
         相关的主题。 这些文章题材广泛，从邮件列表的有效使用到双重启动
