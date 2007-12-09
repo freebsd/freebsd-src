@@ -2535,9 +2535,12 @@ do {									\
 				break;
 
 			case IPPROTO_NONE:	/* RFC 2460 */
-				PULLUP_TO(hlen, ulp, struct ip6_ext);
-				/* Packet ends here. if ip6e_len!=0 octets
-				 * must be ignored. */
+				/*
+				 * Packet ends here, and IPv6 header has
+				 * already been pulled up. If ip6e_len!=0
+				 * then octets must be ignored.
+				 */
+				ulp = ip; /* non-NULL to get out of loop. */
 				break;
 
 			case IPPROTO_OSPFIGP:
