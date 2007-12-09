@@ -1,0 +1,74 @@
+.\"-
+.\" Copyright (c) 2006 Matthias Schmidt <schmidtm@mathematik.uni-marburg.de>
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" - Redistributions of source code must retain the above copyright notice,
+.\"   this list of conditions and the following disclaimer.
+.\" - Redistributions in binary form must reproduce the above copyright notice,
+.\"   this list of conditions and the following disclaimer in the documentation
+.\"   and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+.\" CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\" EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\" PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 12, 2006
+.Dt PKG_SEARCH 1
+.Os
+.Sh NAME
+.Nm pkg_search
+.Nd "pkg_search command manual page"
+.Sh SYNOPSIS
+.Nm
+.Op Fl i | Fl k | Fl r
+.Ar name
+.Sh DESCRIPTION
+.Nm
+querys the appropriate database file for a given package name.
+By default the complete package name and Comment is displayed.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl d Ar argument"
+.It Fl i
+Print verbose information (Ports directory, URL, depencies)
+.It Fl k
+Also query the Info and WWW field.
+.It Fl r
+Print the directory within the Ports Collection where the port lives.
+.It Ar name
+Required package
+.Ar name .
+.El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl "pkg_search -i ctwm"
+.Sh SEE ALSO
+.Xr pkg_add 1 ,
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_search 1
+.Sh AUTHORS
+.Nm
+was written by
+.An Matthias Schmidt Aq schmidtm@mathematik.uni-marburg.de
+and
+.An David O'Brien Aq obrien@FreeBSD.org .
