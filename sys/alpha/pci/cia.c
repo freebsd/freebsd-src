@@ -490,6 +490,7 @@ cia_attach(device_t dev)
 		ctrl &= ~(CTRL_RD_TYPE|CTRL_RL_TYPE|CTRL_RM_TYPE);
 		REGVAL(CIA_CSR_CTRL) = ctrl;
 		alpha_mb();
+		busdma_pyxis_bug = 1;
 	}
 #endif
 
