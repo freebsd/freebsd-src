@@ -381,6 +381,7 @@ MK_${var}:=	yes
 #
 .for var in \
     BIND_LIBS \
+    GSSAPI \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
