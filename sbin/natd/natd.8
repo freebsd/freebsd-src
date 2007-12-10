@@ -421,6 +421,26 @@ For example, the line
 is synonymous with
 .Fl log .
 .Pp
+Options can be divided to several sections. Each section applies to own
+.Nm
+instance. This ability allow to configure one
+.Nm
+process for several NAT instances. The first instance that always exists is
+a "default" instance. Each another instance should begin with 
+.Pp
+.Dl instance Ar instance_name
+.Pp
+At the next should be placed a configuration options. Example:
+.Pp
+.Dl \&# default instance
+.Dl port 8668
+.Dl alias_address 158.152.17.1
+.Pp
+.Dl \&# second instance
+.Dl instance dsl1
+.Dl port 8888
+.Dl alias_address 192.168.0.1
+.Pp
 Trailing spaces and empty lines are ignored.
 A
 .Ql \&#
