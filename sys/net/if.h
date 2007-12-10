@@ -209,9 +209,13 @@ struct if_data {
 #define	IFCAP_TSO4		0x0100	/* can do TCP Segmentation Offload */
 #define	IFCAP_TSO6		0x0200	/* can do TCP6 Segmentation Offload */
 #define	IFCAP_LRO		0x0400	/* can do Large Receive Offload */
+#define	IFCAP_WOL_UCAST		0x0800	/* wake on any unicast frame */
+#define	IFCAP_WOL_MCAST		0x1000	/* wake on any multicast frame */
+#define	IFCAP_WOL_MAGIC		0x2000	/* wake on any Magic Packet */
 
-#define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
-#define	IFCAP_TSO		(IFCAP_TSO4 | IFCAP_TSO6)
+#define IFCAP_HWCSUM	(IFCAP_RXCSUM | IFCAP_TXCSUM)
+#define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
+#define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
