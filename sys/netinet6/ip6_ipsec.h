@@ -37,5 +37,5 @@ int	ip6_ipsec_fwd(struct mbuf *);
 int	ip6_ipsec_input(struct mbuf *, int);
 int	ip6_ipsec_mtu(struct mbuf *);
 int	ip6_ipsec_output(struct mbuf **, struct inpcb *, int *, int *,
-			 struct ifnet **, struct secpolicy **sp);
+	    struct ifnet **, struct secpolicy **sp);
 #endif

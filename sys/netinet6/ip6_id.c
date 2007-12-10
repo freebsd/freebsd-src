@@ -1,7 +1,3 @@
-/*	$KAME: ip6_id.c,v 1.13 2003/09/16 09:11:19 itojun Exp $	*/
-/*	$OpenBSD: ip_id.c,v 1.6 2002/03/15 18:19:52 millert Exp $	*/
-/* $FreeBSD$ */
-
 /*-
  * Copyright (C) 2003 WIDE Project.
  * All rights reserved.
@@ -29,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: ip6_id.c,v 1.13 2003/09/16 09:11:19 itojun Exp $
  */
 
 /*-
@@ -64,7 +62,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $OpenBSD: ip_id.c,v 1.6 2002/03/15 18:19:52 millert Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * seed = random (bits - 1) bit
