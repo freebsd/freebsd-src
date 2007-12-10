@@ -145,7 +145,7 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 }
 
 #ifdef COMPAT_FREEBSD4
-static int
+static void
 copy_statfs(struct statfs *in, struct statfs32 *out)
 {
 
@@ -157,25 +157,21 @@ copy_statfs(struct statfs *in, struct statfs32 *out)
 	CP(*in, *out, f_bfree);
 	CP(*in, *out, f_bavail);
 	out->f_files = MIN(in->f_files, INT32_MAX);
-	if (in->f_ffree < 0)
-		out->f_ffree = MAX(in->f_ffree, INT32_MIN);
-	else
-		out->f_ffree = MIN(in->f_ffree, INT32_MAX);
+	out->f_ffree = MIN(in->f_ffree, INT32_MAX);
 	CP(*in, *out, f_fsid);
 	CP(*in, *out, f_owner);
 	CP(*in, *out, f_type);
 	CP(*in, *out, f_flags);
-	CP(*in, *out, f_syncwrites);
-	CP(*in, *out, f_asyncwrites);
+	out->f_syncwrites = MIN(in->f_syncwrites, INT32_MAX);
+	out->f_asyncwrites = MIN(in->f_asyncwrites, INT32_MAX);
 	strlcpy(out->f_fstypename,
 	      in->f_fstypename, MFSNAMELEN);
 	strlcpy(out->f_mntonname,
 	      in->f_mntonname, min(MNAMELEN, FREEBSD4_MNAMELEN));
-	CP(*in, *out, f_syncreads);
-	CP(*in, *out, f_asyncreads);
+	out->f_syncreads = MIN(in->f_syncreads, INT32_MAX);
+	out->f_asyncreads = MIN(in->f_asyncreads, INT32_MAX);
 	strlcpy(out->f_mntfromname,
 	      in->f_mntfromname, min(MNAMELEN, FREEBSD4_MNAMELEN));
-	return (0);
 }
 #endif
 
@@ -195,9 +191,7 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 		count = td->td_retval[0];
 		sp = buf;
 		while (count > 0 && error == 0) {
-			error = copy_statfs(sp, &stat32);
-			if (error)
-				break;
+			copy_statfs(sp, &stat32);
 			error = copyout(&stat32, uap->buf, sizeof(stat32));
 			sp++;
 			uap->buf++;
@@ -1272,9 +1266,7 @@ freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_ar
 	error = kern_statfs(td, uap->path, UIO_USERSPACE, &s);
 	if (error)
 		return (error);
-	error = copy_statfs(&s, &s32);
-	if (error)
-		return (error);
+	copy_statfs(&s, &s32);
 	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
@@ -1290,9 +1282,7 @@ freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_
 	error = kern_fstatfs(td, uap->fd, &s);
 	if (error)
 		return (error);
-	error = copy_statfs(&s, &s32);
-	if (error)
-		return (error);
+	copy_statfs(&s, &s32);
 	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
@@ -1311,9 +1301,7 @@ freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatf
 	error = kern_fhstatfs(td, fh, &s);
 	if (error)
 		return (error);
-	error = copy_statfs(&s, &s32);
-	if (error)
-		return (error);
+	copy_statfs(&s, &s32);
 	return (copyout(&s32, uap->buf, sizeof(s32)));
 }
 #endif
