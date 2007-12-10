@@ -77,7 +77,8 @@ struct bounce_page {
 	STAILQ_ENTRY(bounce_page) links;
 };
 
-int busdma_swi_pending;
+int busdma_pyxis_bug, busdma_swi_pending;
+TUNABLE_INT("machdep.busdma_pyxis_bug", &busdma_pyxis_bug);
 
 static struct mtx bounce_lock;
 static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
@@ -514,6 +515,22 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	vm_offset_t vaddr;
 	bus_addr_t paddr;
 	int seg;
+	bus_size_t boundary;
+	bus_size_t maxsegsz;
+
+	/*
+	 * Enforce a boundary of 8k for buffers that aren't allocated
+	 * via bus_dmamem_alloc() on systems with the Pyxis pass 1 DMA
+	 * bug.  This is somewhat gross.
+	 */
+	boundary = dmat->boundary;
+	maxsegsz = dmat->maxsegsz;
+	if (busdma_pyxis_bug && map != &nobounce_dmamap) {
+		if (boundary == 0 || boundary > 8192)
+			boundary = 8192;
+		if (boundary < maxsegsz)
+			maxsegsz = boundary;
+	}
 
 	/*
 	 * If we are being called during a callback, pagesneeded will
@@ -566,7 +583,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	vaddr = (vm_offset_t)buf;
 	lastaddr = *lastaddrp;
-	bmask = ~(dmat->boundary - 1);
+	bmask = ~(boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
 		/*
@@ -587,8 +604,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		/*
 		 * Make sure we don't cross any boundaries.
 		 */
-		if (dmat->boundary > 0) {
-			baddr = (curaddr + dmat->boundary) & bmask;
+		if (boundary > 0) {
+			baddr = (curaddr + boundary) & bmask;
 			if (sgsize > (baddr - curaddr))
 				sgsize = (baddr - curaddr);
 		}
@@ -611,8 +628,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			first = 0;
 		} else {
 			if (curaddr == lastaddr &&
-			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-			    (dmat->boundary == 0 ||
+			    (segs[seg].ds_len + sgsize) <= maxsegsz &&
+			    (boundary == 0 ||
 			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
 				segs[seg].ds_len += sgsize;
 			else {
