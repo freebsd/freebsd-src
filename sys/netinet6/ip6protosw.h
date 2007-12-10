@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: ip6protosw.h,v 1.25 2001/09/26 06:13:03 keiichi Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -29,9 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	$KAME: ip6protosw.h,v 1.25 2001/09/26 06:13:03 keiichi Exp $
  */
-
-/*	BSDI protosw.h,v 2.3 1996/10/11 16:02:40 pjd Exp	*/
 
 /*-
  * Copyright (c) 1982, 1986, 1993
@@ -62,6 +58,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
+ *	BSDI protosw.h,v 2.3 1996/10/11 16:02:40 pjd Exp
+ * $FreeBSD$
  */
 
 #ifndef _NETINET6_IP6PROTOSW_H_

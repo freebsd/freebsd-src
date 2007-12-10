@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: mld6.c,v 1.27 2001/04/04 05:17:30 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: mld6.c,v 1.27 2001/04/04 05:17:30 itojun Exp $
  */
 
 /*-
@@ -64,6 +63,9 @@
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"

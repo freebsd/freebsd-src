@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: scope6.c,v 1.10 2000/07/24 13:29:31 itojun Exp $	*/
-
 /*-
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
@@ -28,7 +25,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: scope6.c,v 1.10 2000/07/24 13:29:31 itojun Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/malloc.h>

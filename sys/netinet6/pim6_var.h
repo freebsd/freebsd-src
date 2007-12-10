@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: pim6_var.h,v 1.8 2000/06/06 08:07:43 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -28,10 +25,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: pim6_var.h,v 1.8 2000/06/06 08:07:43 jinmei Exp $
+ * $FreeBSD$
  */
-
-#ifndef _NETINET6_PIM6_VAR_H_
-#define _NETINET6_PIM6_VAR_H_
 
 /*
  * Protocol Independent Multicast (PIM),
@@ -40,6 +37,9 @@
  * Written by George Edmond Eddy (Rusty), ISI, February 1998
  * Modified by Pavlin Ivanov Radoslavov, USC/ISI, May 1998
  */
+
+#ifndef _NETINET6_PIM6_VAR_H_
+#define _NETINET6_PIM6_VAR_H_
 
 struct pim6stat {
 	u_quad_t pim6s_rcv_total;	/* total PIM messages received	*/

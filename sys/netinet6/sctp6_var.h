@@ -28,8 +28,10 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*	$KAME: sctp6_var.h,v 1.7 2004/08/17 04:06:22 itojun Exp $	*/
+
 #ifndef _NETINET6_SCTP6_VAR_H_
 #define _NETINET6_SCTP6_VAR_H_
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
