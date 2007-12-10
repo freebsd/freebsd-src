@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6.h,v 1.89 2001/05/27 13:28:35 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in6.h,v 1.89 2001/05/27 13:28:35 itojun Exp $
  */
 
 /*-
@@ -59,6 +58,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
+ * $FreeBSD$
  */
 
 #ifndef __KAME_NETINET_IN_H_INCLUDED_
