@@ -392,16 +392,17 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 			bcopy(csio->cdb_io.cdb_bytes, (u_int8_t *)&srb->cdb[0],
 			    srb->cdb_len);
 
+		/* Set command */
+		fib->Header.Command = (sc->flags & AAC_FLAGS_SG_64BIT) ? 
+			ScsiPortCommandU64 : ScsiPortCommand;
+
 		/* Map the s/g list. XXX 32bit addresses only! */
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 			if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 				srb->data_len = csio->dxfer_len;
 				if (ccb->ccb_h.flags & CAM_DATA_PHYS) {
-					/*
-					 * XXX This isn't 64-bit clean.
-					 * However, this condition is not
-					 * normally used in CAM.
-					 */
+					/* Send a 32bit command */
+					fib->Header.Command = ScsiPortCommand;
 					srb->sg_map32.SgCount = 1;
 					srb->sg_map32.SgEntry[0].SgAddress =
 					    (uint32_t)(uintptr_t)csio->data_ptr;
@@ -458,7 +459,6 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    AAC_FIBSTATE_FROMHOST	|
 	    AAC_FIBSTATE_REXPECTED	|
 	    AAC_FIBSTATE_NORM;
-	fib->Header.Command = ScsiPortCommand;
 	fib->Header.Size = sizeof(struct aac_fib_header) +
 	    sizeof(struct aac_srb32);
 
@@ -528,8 +528,8 @@ aac_cam_complete(struct aac_command *cm)
 			else
 				command = ccb->csio.cdb_io.cdb_bytes[0];
 
-			if ((command == INQUIRY) &&
-			    (ccb->ccb_h.status == CAM_REQ_CMP)) {
+			if (command == INQUIRY) {
+				if (ccb->ccb_h.status == CAM_REQ_CMP) {
 				device = ccb->csio.data_ptr[0] & 0x1f;
 				/*
 				 * We want DASD and PROC devices to only be
@@ -540,6 +540,11 @@ aac_cam_complete(struct aac_command *cm)
 				    (sc->flags & AAC_FLAGS_CAM_PASSONLY))
 					ccb->csio.data_ptr[0] =
 					    ((device & 0xe0) | T_NODEVICE);
+				} else if (ccb->ccb_h.status == CAM_SEL_TIMEOUT &&
+					ccb->ccb_h.target_lun != 0) {
+					/* fix for INQUIRYs on Lun>0 */
+					ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+				}
 			}
 		}
 	}
