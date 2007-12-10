@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: nd6.h,v 1.76 2001/12/18 02:10:31 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: nd6.h,v 1.76 2001/12/18 02:10:31 itojun Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET6_ND6_H_

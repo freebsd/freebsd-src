@@ -28,9 +28,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*	$KAME: sctp6_usrreq.c,v 1.38 2005/08/24 08:08:56 suz Exp $	*/
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 
 #include <netinet/sctp_os.h>
 #include <sys/proc.h>
