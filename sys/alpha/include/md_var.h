@@ -50,6 +50,7 @@ extern	int	szfreebsd4_sigcode;
 #endif
 extern	long	Maxmem;
 extern	int	busdma_swi_pending;
+extern	int	busdma_pyxis_bug;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected;
 extern volatile int mc_received;
