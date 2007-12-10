@@ -31,7 +31,7 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	libgssapi libipsec \
+	${_libgssapi} libipsec \
 	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
 	libpmc ${_libkse} librt ${_libsdp} ${_libsm} ${_libsmb} \
@@ -60,6 +60,14 @@ _bind=		bind
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
+.endif
+
+.if ${MK_KERBEROS} != "no"
+_libgssapi=	libgssapi
+.else
+.if ${MK_GSSAPI} == "yes"
+_libgssapi=	libgssapi
+.endif
 .endif
 
 .if ${MK_IPX} != "no"
