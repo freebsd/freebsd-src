@@ -746,7 +746,7 @@ setifname(const char *val, int dummy __unused, int s,
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
-"\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO"
+"\10VLAN_HWCSUM\11TSO4\12TSO6\13LRO\14WOL_UCAST\15WOL_MCAST\16WOL_MAGIC"
 
 /*
  * Print the status of the interface.  If an address family was
@@ -991,6 +991,14 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-tso",		-IFCAP_TSO,	setifcap),
 	DEF_CMD("lro",		IFCAP_LRO,	setifcap),
 	DEF_CMD("-lro",		-IFCAP_LRO,	setifcap),
+	DEF_CMD("wol",		IFCAP_WOL,	setifcap),
+	DEF_CMD("-wol",		-IFCAP_WOL,	setifcap),
+	DEF_CMD("wol_ucast",	IFCAP_WOL_UCAST,	setifcap),
+	DEF_CMD("-wol_ucast",	-IFCAP_WOL_UCAST,	setifcap),
+	DEF_CMD("wol_mcast",	IFCAP_WOL_MCAST,	setifcap),
+	DEF_CMD("-wol_mcast",	-IFCAP_WOL_MCAST,	setifcap),
+	DEF_CMD("wol_magic",	IFCAP_WOL_MAGIC,	setifcap),
+	DEF_CMD("-wol_magic",	-IFCAP_WOL_MAGIC,	setifcap),
 	DEF_CMD("normal",	-IFF_LINK0,	setifflags),
 	DEF_CMD("compress",	IFF_LINK0,	setifflags),
 	DEF_CMD("noicmp",	IFF_LINK1,	setifflags),
