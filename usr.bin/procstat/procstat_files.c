@@ -57,26 +57,28 @@ protocol_to_string(int domain, int type, int protocol)
 		case IPPROTO_UDP:
 			return ("UDP");
 		case IPPROTO_ICMP:
-			return ("ICMP");
+			return ("ICM");
 		case IPPROTO_RAW:
 			return ("RAW");
 		case IPPROTO_SCTP:
-			return ("SCTP");
+			return ("SCT");
+		case IPPROTO_DIVERT:
+			return ("IPD");
 		default:
-			return ("??");
+			return ("IP?");
 		}
 
 	case AF_LOCAL:
 		switch (type) {
 		case SOCK_STREAM:
-			return ("UDSS");
+			return ("UDS");
 		case SOCK_DGRAM:
-			return ("UDSD");
+			return ("UDD");
 		default:
-			return ("??");
+			return ("UD?");
 		}
 	default:
-		return ("??");
+		return ("?");
 	}
 }
 
@@ -125,7 +127,7 @@ print_address(struct sockaddr_storage *ss)
 	char addr[PATH_MAX];
 
 	addr_to_string(ss, addr, sizeof(addr));
-	printf("%-19s", addr);
+	printf("%s", addr);
 }
 
 void
@@ -137,9 +139,9 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 	size_t len;
 
 	if (!hflag)
-		printf("%5s %3s %1s %1s %-8s %3s %7s %-4s %-35s\n", "PID",
-		    "FD", "T", "V", "FLAGS", "REF", "OFFSET", "PROT",
-		    "NAME");
+		printf("%5s %-16s %3s %1s %1s %-8s %3s %7s %-3s %-12s\n",
+		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
+		    "PRO", "NAME");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -168,6 +170,7 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		if (kif->kf_structsize != sizeof(*kif))
 			errx(-1, "kinfo_file mismatch");
 		printf("%5d ", pid);
+		printf("%-16s ", kipp->ki_comm);
 		printf("%3d ", kif->kf_fd);
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
@@ -262,12 +265,12 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 		case KF_TYPE_FIFO:
-			printf("%-4s ", "-");
-			printf("%-35s", kif->kf_path);
+			printf("%-3s ", "-");
+			printf("%-18s", kif->kf_path);
 			break;
 
 		case KF_TYPE_SOCKET:
-			printf("%-4s ",
+			printf("%-3s ",
 			    protocol_to_string(kif->kf_sock_domain,
 			    kif->kf_sock_type, kif->kf_sock_protocol));
 			/*
@@ -293,8 +296,8 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			break;
 
 		default:
-			printf("%-4s ", "-");
-			printf("%-35s", "-");
+			printf("%-3s ", "-");
+			printf("%-18s", "-");
 		}
 
 		printf("\n");

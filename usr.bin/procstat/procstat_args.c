@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 
 #include <err.h>
 #include <errno.h>
@@ -48,7 +49,7 @@ procstat_args(pid_t pid, struct kinfo_proc *kipp)
 	char *cp;
 
 	if (!hflag)
-		printf("%5s %-70s\n", "PID", "ARGS");
+		printf("%5s %-16s %-53s\n", "PID", "COMM", "ARGS");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -68,6 +69,7 @@ procstat_args(pid_t pid, struct kinfo_proc *kipp)
 	}
 
 	printf("%5d ", pid);
+	printf("%-16s ", kipp->ki_comm);
 	for (cp = args; cp < args + len; cp += strlen(cp) + 1)
 		printf("%s%s", cp != args ? " " : "", cp);
 	printf("\n");
