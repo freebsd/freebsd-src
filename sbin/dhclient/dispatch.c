@@ -329,6 +329,7 @@ interface_status(struct interface_info *ifinfo)
 	if (ifmr.ifm_status & IFM_AVALID) {
 		switch (ifmr.ifm_active & IFM_NMASK) {
 		case IFM_ETHER:
+		case IFM_IEEE80211:
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				goto active;
 			else
@@ -487,7 +488,9 @@ interface_link_status(char *ifname)
 	close(sock);
 
 	if (ifmr.ifm_status & IFM_AVALID) {
-		if ((ifmr.ifm_active & IFM_NMASK) == IFM_ETHER) {
+		switch (ifmr.ifm_active & IFM_NMASK) {
+		case IFM_ETHER:
+		case IFM_IEEE80211:
 			if (ifmr.ifm_status & IFM_ACTIVE)
 				return (1);
 			else
