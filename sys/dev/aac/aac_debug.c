@@ -416,57 +416,57 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 			break;
 		case AifJobCtrZero:		/* Container clear operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerZero) container %d\n", 
+				      "(ContainerZero) container %d\n", 
 				      aif->data.PR[0].jd.client.container.src);
 			break;
 		case AifJobCtrCopy:		/* Container copy operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerCopy) container %d to %d\n", 
+				      "(ContainerCopy) container %d to %d\n", 
 				      aif->data.PR[0].jd.client.container.src,
 				      aif->data.PR[0].jd.client.container.dst);
 			break;
 		case AifJobCtrCreateMirror:	/* Container Create Mirror
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerCreateMirror) container %d\n",
+				      "(ContainerCreateMirror) container %d\n",
 				      aif->data.PR[0].jd.client.container.src);
 				      /* XXX two containers? */
 			break;
 		case AifJobCtrMergeMirror:	/* Container Merge Mirror
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerMergeMirror) container %d\n",
+				      "(ContainerMergeMirror) container %d\n",
 				      aif->data.PR[0].jd.client.container.src);
 				      /* XXX two containers? */
 			break;
 		case AifJobCtrScrubMirror:	/* Container Scrub Mirror
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerScrubMirror) container %d\n",
+				      "(ContainerScrubMirror) container %d\n",
 				      aif->data.PR[0].jd.client.container.src);
 			break;
 		case AifJobCtrRebuildRaid5:	/* Container Rebuild Raid5
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerRebuildRaid5) container %d\n",
+				      "(ContainerRebuildRaid5) container %d\n",
 				      aif->data.PR[0].jd.client.container.src);
 			break;
 		case AifJobCtrScrubRaid5:	/* Container Scrub Raid5
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerScrubRaid5) container %d\n", 
+				      "(ContainerScrubRaid5) container %d\n", 
 				      aif->data.PR[0].jd.client.container.src);
 			break;
 		case AifJobCtrMorph:		/* Container morph operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerMorph) container %d\n", 
+				      "(ContainerMorph) container %d\n", 
 				      aif->data.PR[0].jd.client.container.src);
 				      /* XXX two containers? */
 			break;
 		case AifJobCtrPartCopy:		/* Container Partition copy
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerPartCopy) container %d to "
+				      "(ContainerPartCopy) container %d to "
 				      "%d\n",
 				      aif->data.PR[0].jd.client.container.src,
 				      aif->data.PR[0].jd.client.container.dst);
@@ -474,13 +474,13 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 		case AifJobCtrRebuildMirror:	/* Container Rebuild Mirror
 						 * operation */
 			device_printf(sc->aac_dev,
-				      "(ConatainerRebuildMirror) container " 
+				      "(ContainerRebuildMirror) container " 
 				      "%d\n",
 				      aif->data.PR[0].jd.client.container.src);
 			break;
 		case AifJobCtrCrazyCache:	/* crazy cache */
 			device_printf(sc->aac_dev,
-				      "(ConatainerCrazyCache) container %d\n", 
+				      "(ContainerCrazyCache) container %d\n", 
 				      aif->data.PR[0].jd.client.container.src);
 				      /* XXX two containers? */
 			break;
