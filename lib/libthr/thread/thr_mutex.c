@@ -296,13 +296,15 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 
 
 #define ENQUEUE_MUTEX(curthread, m)  					\
-		m->m_owner = curthread;					\
+	do {								\
+		(m)->m_owner = curthread;				\
 		/* Add to the list of owned mutexes: */			\
-		MUTEX_ASSERT_NOT_OWNED(m);				\
-		if ((m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)	\
-			TAILQ_INSERT_TAIL(&curthread->mutexq, m, m_qe);	\
+		MUTEX_ASSERT_NOT_OWNED((m));				\
+		if (((m)->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)	\
+			TAILQ_INSERT_TAIL(&curthread->mutexq, (m), m_qe);\
 		else							\
-			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, m, m_qe)
+			TAILQ_INSERT_TAIL(&curthread->pp_mutexq, (m), m_qe);\
+	} while (0)
 
 static int
 mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
