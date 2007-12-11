@@ -955,7 +955,11 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 	/* log the message to the particular outputs */
 	if (!Initialized) {
 		f = &consfile;
-		f->f_file = open(ctty, O_WRONLY, 0);
+		/*
+		 * Open in non-blocking mode to avoid hangs during open
+		 * and close(waiting for the port to drain).
+		 */
+		f->f_file = open(ctty, O_WRONLY | O_NONBLOCK, 0);
 
 		if (f->f_file >= 0) {
 			(void)strlcpy(f->f_lasttime, timestamp,
@@ -996,7 +1000,7 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		 */
 		if (no_compress - (f->f_type != F_PIPE) < 1 &&
 		    (flags & MARK) == 0 && msglen == f->f_prevlen &&
-		    !strcmp(msg, f->f_prevline) &&
+		    f->f_prevline && !strcmp(msg, f->f_prevline) &&
 		    !strcasecmp(from, f->f_prevhost)) {
 			(void)strlcpy(f->f_lasttime, timestamp,
 				sizeof(f->f_lasttime));
@@ -1066,9 +1070,14 @@ fprintlog(struct filed *f, int flags, const char *msg)
 	v = iov;
 	if (f->f_type == F_WALL) {
 		v->iov_base = greetings;
+		/* The time displayed is not synchornized with the other log
+		 * destinations (like messages).  Following fragment was using
+		 * ctime(&now), which was updating the time every 30 sec.
+		 * With f_lasttime, time is synchronized correctly.
+		 */
 		v->iov_len = snprintf(greetings, sizeof greetings,
 		    "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
-		    f->f_prevhost, ctime(&now));
+		    f->f_prevhost, f->f_lasttime);
 		if (v->iov_len > 0)
 			v++;
 		v->iov_base = nul;
@@ -1076,7 +1085,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v++;
 	} else {
 		v->iov_base = f->f_lasttime;
-		v->iov_len = 15;
+		v->iov_len = strlen(f->f_lasttime);
 		v++;
 		v->iov_base = space;
 		v->iov_len = 1;
@@ -1144,9 +1153,11 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_base = repbuf;
 		v->iov_len = snprintf(repbuf, sizeof repbuf,
 		    "last message repeated %d times", f->f_prevcount);
-	} else {
+	} else if (f->f_prevline) {
 		v->iov_base = f->f_prevline;
 		v->iov_len = f->f_prevlen;
+	} else {
+		return;
 	}
 	v++;
 
@@ -1236,8 +1247,8 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		if (writev(f->f_file, iov, 7) < 0) {
 			/*
 			 * If writev(2) fails for potentially transient errors
-			 * like the * filesystem being full, ignore it.
-			 * Otherwise remove * this logfile from the list.
+			 * like the filesystem being full, ignore it.
+			 * Otherwise remove this logfile from the list.
 			 */
 			if (errno != ENOSPC) {
 				int e = errno;
@@ -1304,7 +1315,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		break;
 	}
 	f->f_prevcount = 0;
-	if (msg)
+	if (wmsg)
 		free(wmsg);
 }
 
@@ -1831,7 +1842,7 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 
 		/* decode priority name */
 		if (*buf == '*') {
-			pri = LOG_PRIMASK + 1;
+			pri = LOG_PRIMASK;
 			pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
 		} else {
 			/* Ignore trailing spaces. */
