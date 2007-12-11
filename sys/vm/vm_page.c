@@ -1315,13 +1315,11 @@ vm_page_free_toq(vm_page_t m)
 		m->flags |= PG_FREE;
 		mtx_lock(&vm_page_queue_free_mtx);
 		cnt.v_free_count++;
-		if ((m->flags & PG_ZERO) != 0) {
-			vm_phys_free_pages(m, 0);
+		vm_phys_free_pages(m, 0);
+		if ((m->flags & PG_ZERO) != 0)
 			++vm_page_zero_count;
-		} else {
-			vm_phys_free_pages(m, 0);
+		else
 			vm_page_zero_idle_wakeup();
-		}
 		vm_page_free_wakeup();
 		mtx_unlock(&vm_page_queue_free_mtx);
 	}
