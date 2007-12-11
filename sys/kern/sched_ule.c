@@ -1709,9 +1709,6 @@ sched_user_prio(struct thread *td, u_char prio)
                 return;
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
-
-	if (TD_ON_UPILOCK(td) && oldprio != prio)
-		umtx_pi_adjust(td, oldprio);
 }
 
 void
@@ -1719,13 +1716,10 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 {
 	u_char oldprio;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_flags |= TDF_UBORROWING;
-
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
-
-	if (TD_ON_UPILOCK(td) && oldprio != prio)
-		umtx_pi_adjust(td, oldprio);
 }
 
 void
@@ -1733,12 +1727,14 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 {
 	u_char base_pri;
 
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	base_pri = td->td_base_user_pri;
 	if (prio >= base_pri) {
 		td->td_flags &= ~TDF_UBORROWING;
 		sched_user_prio(td, base_pri);
-	} else
+	} else {
 		sched_lend_user_prio(td, prio);
+	}
 }
 
 /*
