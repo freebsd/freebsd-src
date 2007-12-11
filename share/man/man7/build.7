@@ -335,6 +335,16 @@ are influenced by the following
 .Xr make 1
 variables:
 .Bl -tag -width ".Va SUBDIR_OVERRIDE"
+.It Va BSDMAKE
+If set, this variable supplies the name of the
+program to use in early boot strapping that is compatible with the
+default
+.Fx
+.Xr make 1 
+program.
+This program is subjected to the normal make regression tests at the
+start of the build, and is used to build a more compatible make, if
+necessary, which is used to build the rest of the system.
 .It Va LOCAL_DIRS
 If set, this variable supplies a list of additional directories to
 build, relative to the root of the source tree.
@@ -366,7 +376,10 @@ output.
 Set this to cross-build for a different architecture.
 If not set,
 .Va TARGET_ARCH
-defaults to the current machine architecture.
+defaults to the current machine architecture, unless 
+.Va TARGET
+is also set, in which case it defaults to the appropriate
+value for that platform.
 .El
 .Pp
 Builds under directory
@@ -402,8 +415,8 @@ The following sequence of commands can be used to cross-build the
 system for the sparc64 architecture on an i386 host:
 .Bd -literal -offset indent
 cd /usr/src
-make TARGET_ARCH=sparc64 buildworld
-make TARGET_ARCH=sparc64 DESTDIR=/clients/sparc64 installworld
+make TARGET=sparc64 buildworld
+make TARGET=sparc64 DESTDIR=/clients/sparc64 installworld
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
