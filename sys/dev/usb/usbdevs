@@ -1737,6 +1737,7 @@ product NEODIO ND5010		0x5010	Multi-format Flash Controller
 
 /* Netac products */
 product NETAC CF_CARD		0x1060	USB-CF-Card
+product NETAC ONLYDISK		0x0003	OnlyDisk
 
 /* NetChip Technology Products */
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect

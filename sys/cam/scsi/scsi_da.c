@@ -535,6 +535,10 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "ChipsBnk", "USB*",
 		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Netac", "OnlyDisk*",
+		 "2000"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	}
 };
 
 static	disk_strategy_t	dastrategy;
