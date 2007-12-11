@@ -3277,7 +3277,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				if (pg != NULL) {
 					f = pmap_modify_pv(pg, pm, sva,
 					    PVF_WRITE, 0);
-					pmap_vac_me_harder(pg, pm, sva);
 					vm_page_dirty(pg);
 				} else
 					f = PVF_REF | PVF_EXEC;
