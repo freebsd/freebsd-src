@@ -234,17 +234,19 @@ upgrade_checks:
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
-	    (cd ${.CURDIR} && make make); \
+	    (cd ${.CURDIR} && ${BSDMAKE} make); \
 	fi
 
 #
 # Upgrade make(1) to the current version using the installed
-# headers, libraries and tools.
+# headers, libraries and tools.  Also, allow the location of
+# the system bsdmake-like utility to be overridden.
 #
+BSDMAKE?=make
 MMAKEENV=	MAKEOBJDIRPREFIX=${MAKEPATH} \
 		DESTDIR= \
 		INSTALL="sh ${.CURDIR}/tools/install.sh"
-MMAKE=		${MMAKEENV} make \
+MMAKE=		${MMAKEENV} ${BSDMAKE} \
 		-D_UPGRADING \
 		-DNOMAN -DNO_MAN -DNOSHARED -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WERROR
