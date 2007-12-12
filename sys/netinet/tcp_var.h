@@ -123,6 +123,7 @@ struct tcpcb {
 #define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
 #define	TF_FORCEDATA	0x800000	/* force out a byte */
 #define	TF_TSO		0x1000000	/* TSO enabled on this connection */
+#define	TF_TOE		0x2000000	/* this connection is offloaded */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -206,7 +207,9 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	void	*t_pspare[5];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */ 
+	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */
+	struct toe_usrreqs *t_tu;       /* offload operations vector */
+	void *t_toe;			/* TOE pcb pointer	     */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
