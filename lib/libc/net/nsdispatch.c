@@ -136,6 +136,15 @@ static	void			*nss_cache_cycle_prevention_func = NULL;
 #endif
 
 /*
+ * When this is set to 1, nsdispatch won't use nsswitch.conf
+ * but will consult the 'defaults' source list only.
+ * NOTE: nested fallbacks (when nsdispatch calls fallback functions,
+ *     which in turn calls nsdispatch, which should call fallback
+ *     function) are not supported
+ */
+static	int			fallback_dispatch = 0;
+
+/*
  * Attempt to spew relatively uniform messages to syslog.
  */
 #define nss_log(level, fmt, ...) \
@@ -600,7 +609,7 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	va_list		 ap;
 	const ns_dbt	*dbt;
 	const ns_src	*srclist;
-	nss_method	 method;
+	nss_method	 method, fb_method;
 	void		*mdata;
 	int		 isthreaded, serrno, i, result, srclistsize;
 
@@ -609,6 +618,9 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 	nss_cache_data	*cache_data_p;
 	int		 cache_flag;
 #endif
+	
+	dbt = NULL;
+	fb_method = NULL;
 
 	isthreaded = __isthreaded;
 	serrno = errno;
@@ -624,8 +636,13 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 		result = NS_UNAVAIL;
 		goto fin;
 	}
-	dbt = vector_search(&database, _nsmap, _nsmapsize, sizeof(*_nsmap),
-	    string_compare);
+	if (fallback_dispatch == 0) {
+		dbt = vector_search(&database, _nsmap, _nsmapsize, sizeof(*_nsmap),
+		    string_compare);
+		fb_method = nss_method_lookup(NSSRC_FALLBACK, database,
+		    method_name, disp_tab, &mdata);
+	}
+
 	if (dbt != NULL) {
 		srclist = dbt->srclist;
 		srclistsize = dbt->srclistsize;
@@ -684,6 +701,12 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 
 			if (result & (srclist[i].flags))
 				break;
+		} else if (fb_method != NULL) {
+			fallback_dispatch = 1;
+			va_start(ap, defaults);
+			result = fb_method(retval, (void *)srclist[i].name, ap);
+			va_end(ap);
+			fallback_dispatch = 0;
 		}
 	}
 
