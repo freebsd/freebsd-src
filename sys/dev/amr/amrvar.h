@@ -100,6 +100,12 @@ struct amr_logdrive
 
 #define AMR_CMD_CLUSTERSIZE	(16 * 1024)
 
+union amr_ccb {
+    struct amr_passthrough	ccb_pthru;
+    struct amr_ext_passthrough	ccb_epthru;
+    uint8_t			bytes[128];
+};
+
 /*
  * Per-command control structure.
  */
@@ -121,8 +127,7 @@ struct amr_command
     int				ac_flags;
 #define AMR_CMD_DATAIN		(1<<0)
 #define AMR_CMD_DATAOUT		(1<<1)
-#define AMR_CMD_CCB_DATAIN	(1<<2)
-#define AMR_CMD_CCB_DATAOUT	(1<<3)
+#define AMR_CMD_CCB		(1<<2)
 #define AMR_CMD_PRIORITY	(1<<4)
 #define AMR_CMD_MAPPED		(1<<5)
 #define AMR_CMD_SLEEP		(1<<6)
@@ -139,11 +144,13 @@ struct amr_command
     bus_dmamap_t		ac_dmamap;
     bus_dmamap_t		ac_dma64map;
 
-    void			*ac_ccb_data;
-    size_t			ac_ccb_length;
-    bus_dmamap_t		ac_ccb_dmamap;
-    bus_dmamap_t		ac_ccb_dma64map;
+    bus_dma_tag_t		ac_tag;
+    bus_dmamap_t		ac_datamap;
+    int				ac_nsegments;
+    uint32_t			ac_mb_physaddr;
 
+    union amr_ccb		*ac_ccb;
+    uint32_t			ac_ccb_busaddr;
 };
 
 struct amr_command_cluster
@@ -184,6 +191,11 @@ struct amr_softc
     u_int32_t			amr_sgbusaddr;		/* s/g table base address in bus space */
     bus_dma_tag_t		amr_sg_dmat;		/* s/g buffer DMA tag */
     bus_dmamap_t		amr_sg_dmamap;		/* map for s/g buffers */
+
+    union amr_ccb		*amr_ccb;
+    uint32_t			amr_ccb_busaddr;
+    bus_dma_tag_t		amr_ccb_dmat;
+    bus_dmamap_t		amr_ccb_dmamap;
 
     /* controller limits and features */
     int				amr_nextslot;		/* Next slot to use for newly allocated commands */
