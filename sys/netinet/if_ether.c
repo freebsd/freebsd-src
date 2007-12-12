@@ -578,7 +578,10 @@ in_arpinput(struct mbuf *m)
 #ifdef DEV_CARP
 	int carp_match = 0;
 #endif
-
+	struct sockaddr_in sin;
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_family = AF_INET;
+	
 	if (ifp->if_bridge)
 		bridged = 1;
 
@@ -772,6 +775,10 @@ match:
 	la->la_preempt = arp_maxtries;
 	hold = la->la_hold;
 	la->la_hold = NULL;
+
+	sin.sin_addr.s_addr = ntohl(itaddr.s_addr);
+	EVENTHANDLER_INVOKE(route_event, RTEVENT_ARP_UPDATE, rt, NULL,
+	    (struct sockaddr *)&sin);
 	RT_UNLOCK(rt);
 	if (hold != NULL)
 		(*ifp->if_output)(ifp, hold, rt_key(rt), rt);
