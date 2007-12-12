@@ -173,6 +173,10 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
+/* Intel ICH registers */
+#define ICH_PMBASE	0x400
+#define ICH_SMI_EN	ICH_PMBASE + 0x30
+
 int	_udatasel, _ucodesel;
 u_int	basemem;
 
@@ -1122,6 +1126,27 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
 static void
 cpu_idle_default(void)
 {
+	char *sysenv;
+	
+	/*
+	 * On MacBooks, we need to disallow the legacy USB circuit to
+	 * generate an SMI# because this can cause several problems,
+	 * namely: incorrect CPU frequency detection and failure to
+	 * start the APs.
+	 * We do this by disabling a bit in the SMI_EN (SMI Control and
+	 * Enable register) of the Intel ICH LPC Interface Bridge.
+	 */
+	sysenv = getenv("smbios.system.product");
+	if (sysenv != NULL) {
+		if (strncmp(sysenv, "MacBook", 7) == 0) {
+			if (bootverbose)
+				printf("Disabling LEGACY_USB_EN bit on "
+				    "Intel ICH.\n");
+			outl(ICH_SMI_EN, inl(ICH_SMI_EN) & ~0x8);
+		}
+		freeenv(sysenv);
+	}
+
 	/*
 	 * we must absolutely guarentee that hlt is the
 	 * absolute next instruction after sti or we
