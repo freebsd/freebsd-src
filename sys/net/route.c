@@ -318,7 +318,7 @@ rtredirect(struct sockaddr *dst,
 	int flags,
 	struct sockaddr *src)
 {
-	struct rtentry *rt;
+	struct rtentry *rt, *rt0 = NULL;
 	int error = 0;
 	short *stat = NULL;
 	struct rt_addrinfo info;
@@ -362,8 +362,9 @@ rtredirect(struct sockaddr *dst,
 			 * Create new route, rather than smashing route to net.
 			 */
 		create:
-			if (rt)
-				rtfree(rt);
+			rt0 = rt;
+			rt = NULL;
+		
 			flags |=  RTF_GATEWAY | RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
@@ -371,14 +372,19 @@ rtredirect(struct sockaddr *dst,
 			info.rti_info[RTAX_NETMASK] = netmask;
 			info.rti_ifa = ifa;
 			info.rti_flags = flags;
-			rt = NULL;
 			error = rtrequest1(RTM_ADD, &info, &rt);
 			if (rt != NULL) {
 				RT_LOCK(rt);
+				EVENTHANDLER_INVOKE(route_event, RTEVENT_REDIRECT_UPDATE, rt0, rt, dst);
 				flags = rt->rt_flags;
 			}
+			if (rt0)
+				RTFREE_LOCKED(rt0);
+			
 			stat = &rtstat.rts_dynamic;
 		} else {
+			struct rtentry *gwrt;
+
 			/*
 			 * Smash the current notion of the gateway to
 			 * this destination.  Should check about netmask!!!
@@ -390,6 +396,9 @@ rtredirect(struct sockaddr *dst,
 			 * add the key and gateway (in one malloc'd chunk).
 			 */
 			rt_setgate(rt, rt_key(rt), gateway);
+			gwrt = rtalloc1(gateway, 1, 0);
+			EVENTHANDLER_INVOKE(route_event, RTEVENT_REDIRECT_UPDATE, rt, gwrt, dst);
+			RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
