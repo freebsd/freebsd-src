@@ -118,8 +118,8 @@ typedef	__uid_t		uid_t;
 #define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
 #define	SO_BINTIME	0x2000		/* timestamp received dgram traffic */
 #endif
-#define	SO_NOOFFLOAD	0x4000		/* socket cannot be offloaded */
-#define	SO_NO_DDP       0x8000		/* disable direct data placement */
+#define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
+#define	SO_NO_DDP	0x8000		/* disable direct data placement */
 
 /*
  * Additional options, not kept in so_options.
