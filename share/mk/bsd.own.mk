@@ -381,7 +381,6 @@ MK_${var}:=	yes
 #
 .for var in \
     BIND_LIBS \
-    GSSAPI \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
@@ -479,6 +478,27 @@ MK_${var}_SUPPORT:= no
 MK_${var}_SUPPORT:= yes
 .endif
 .endfor
+
+#
+# MK_* options whose default value depends on another option.
+#
+.for vv in \
+    GSSAPI/KERBEROS
+.if defined(WITH_${vv:H}) && defined(WITHOUT_${vv:H})
+.error WITH_${vv:H} and WITHOUT_${vv:H} can't both be set.
+.endif
+.if defined(MK_${vv:H})
+.error MK_${vv:H} can't be set by a user.
+.endif
+.if defined(WITH_${vv:H})
+MK_${vv:H}:=	yes
+.elif defined(WITHOUT_${vv:H})
+MK_${vv:H}:=	no
+.else
+MK_${vv:H}:=	${MK_${vv:T}}
+.endif
+.endfor
+
 .endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)
