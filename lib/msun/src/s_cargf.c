@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 The FreeBSD Project.
+ * Copyright (c) 2005 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,42 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _COMPLEX_H
-#define	_COMPLEX_H
-
-#ifdef __GNUC__
-#if __STDC_VERSION__ < 199901
-#define	_Complex	__complex__
-#endif
-#define	_Complex_I	1.0fi
-#endif
-
-#define	complex		_Complex
-#define	I		_Complex_I
-
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-__BEGIN_DECLS
+#include <complex.h>
+#include <math.h>
 
-double		cabs(double complex);
-float		cabsf(float complex);
-double		carg(double complex);
-float		cargf(float complex);
-double		cimag(double complex);
-float		cimagf(float complex);
-long double	cimagl(long double complex);
-double complex	conj(double complex);
-float complex	conjf(float complex);
-long double complex
-		conjl(long double complex);
-double		creal(double complex);
-float		crealf(float complex);
-long double	creall(long double complex);
+float
+cargf(float complex z)
+{
 
-__END_DECLS
-
-#endif /* _COMPLEX_H */
+	return (atan2f(cimagf(z), crealf(z)));
+}

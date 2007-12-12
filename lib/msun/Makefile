@@ -38,8 +38,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
-	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_cbrt.c s_cbrtf.c \
-	s_ceil.c s_ceilf.c s_ceill.c \
+	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c \
+	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_ceill.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c s_erf.c s_erff.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
@@ -106,7 +106,7 @@ MLINKS+=asin.3 asinf.3
 MLINKS+=asinh.3 asinhf.3
 MLINKS+=atan.3 atanf.3
 MLINKS+=atanh.3 atanhf.3
-MLINKS+=atan2.3 atan2f.3
+MLINKS+=atan2.3 atan2f.3 atan2.3 carg.3 atan2.3 cargf.3
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
