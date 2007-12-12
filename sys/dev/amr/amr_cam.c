@@ -222,16 +222,16 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 		/* check the CDB length */
 		if (csio->cdb_len > AMR_MAX_EXTCDB_LEN)
-			ccbh->status = CAM_REQ_CMP_ERR;
+			ccbh->status = CAM_REQ_INVALID;
 
 		if ((csio->cdb_len > AMR_MAX_CDB_LEN) &&
 		    (sc->support_ext_cdb == 0))
-			ccbh->status = CAM_REQ_CMP_ERR;
+			ccbh->status = CAM_REQ_INVALID;
 	
 		/* check that the CDB pointer is not to a physical address */
 		if ((ccbh->flags & CAM_CDB_POINTER) &&
 		    (ccbh->flags & CAM_CDB_PHYS))
-			ccbh->status = CAM_REQ_CMP_ERR;
+			ccbh->status = CAM_REQ_INVALID;
 		/*
 		 * if there is data transfer, it must be to/from a virtual
 		 * address
@@ -239,10 +239,10 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 			if (ccbh->flags & CAM_DATA_PHYS)
 				/* we can't map it */
-				ccbh->status = CAM_REQ_CMP_ERR;
+				ccbh->status = CAM_REQ_INVALID;
 			if (ccbh->flags & CAM_SCATTER_VALID)
 				/* we want to do the s/g setup */
-				ccbh->status = CAM_REQ_CMP_ERR;
+				ccbh->status = CAM_REQ_INVALID;
 		}
 	
 		/*
@@ -252,7 +252,7 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 		 * devices appear echoed.
 		 */
 		if (csio->ccb_h.target_lun != 0)
-			ccbh->status = CAM_REQ_CMP_ERR;
+			ccbh->status = CAM_DEV_NOT_THERE;
 
 		/* if we're happy with the request, queue it for attention */
 		if (ccbh->status == CAM_REQ_INPROG) {
@@ -405,13 +405,15 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 	 * Build a passthrough command.
 	 */
 
+	/* construct command */
+	if ((ac = amr_alloccmd(sc)) == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
 	/* construct passthrough */
 	if (sc->support_ext_cdb ) {
-		if ((aep = malloc(sizeof(*aep), M_AMRCAM, M_NOWAIT | M_ZERO))
-		    == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
+		aep = &ac->ac_ccb->ccb_epthru;
 		aep->ap_timeout = 2;
 		aep->ap_ars = 1;
 		aep->ap_request_sense_length = 14;
@@ -437,11 +439,7 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 		    aep->ap_scsi_id, aep->ap_logical_drive_no);
 
 	} else {
-		if ((ap = malloc(sizeof(*ap), M_AMRCAM, M_NOWAIT | M_ZERO))
-		    == NULL) {
-			error = ENOMEM;
-			goto out;
-		}
+		ap = &ac->ac_ccb->ccb_pthru;
 		ap->ap_timeout = 0;
 		ap->ap_ars = 1;
 		ap->ap_request_sense_length = 14;
@@ -467,30 +465,20 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 		    ap->ap_scsi_id, ap->ap_logical_drive_no);
 	}
 
-	/* construct command */
-	if ((ac = amr_alloccmd(sc)) == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
+	ac->ac_flags |= AMR_CMD_CCB;
 
-	ac->ac_flags |= AMR_CMD_DATAOUT | AMR_CMD_DATAIN;
-
-	ac->ac_ccb_data = csio->data_ptr;
-	ac->ac_ccb_length = csio->dxfer_len;
+	ac->ac_data = csio->data_ptr;
+	ac->ac_length = csio->dxfer_len;
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
-		ac->ac_flags |= AMR_CMD_CCB_DATAIN;
+		ac->ac_flags |= AMR_CMD_DATAIN;
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
-		ac->ac_flags |= AMR_CMD_CCB_DATAOUT;
+		ac->ac_flags |= AMR_CMD_DATAOUT;
 
 	ac->ac_private = csio;
 	ac->ac_complete = amr_cam_complete;
 	if ( sc->support_ext_cdb ) {
-		ac->ac_data = aep;
-		ac->ac_length = sizeof(*aep);
 		ac->ac_mailbox.mb_command = AMR_CMD_EXTPASS;
 	} else {
-		ac->ac_data = ap;
-		ac->ac_length = sizeof(*ap);
 		ac->ac_mailbox.mb_command = AMR_CMD_PASS;
 	}
 
@@ -498,10 +486,6 @@ out:
 	if (error != 0) {
 		if (ac != NULL)
 			amr_releasecmd(ac);
-		if (ap != NULL)
-			free(ap, M_AMRCAM);
-		if (aep != NULL)
-			free(aep, M_AMRCAM);
 		if (csio != NULL)
 			/* put it back and try again later */
 			amr_requeue_ccb(sc, (union ccb *)csio);
@@ -532,19 +516,20 @@ amr_cam_complete(struct amr_command *ac)
 	struct scsi_inquiry_data	*inq;
 	int				scsi_status, cdb0;
 
-	ap = (struct amr_passthrough *)ac->ac_data;
-	aep = (struct amr_ext_passthrough *)ac->ac_data;
+	ap = &ac->ac_ccb->ccb_pthru;
+	aep = &ac->ac_ccb->ccb_epthru;
 	csio = (struct ccb_scsiio *)ac->ac_private;
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
 
-	if (ac->ac_length == sizeof(*ap))
-		scsi_status = ap->ap_scsi_status;
-	else
+	if (ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS)
 		scsi_status = aep->ap_scsi_status;
+	else
+		scsi_status = ap->ap_scsi_status;
 	debug(1, "status 0x%x  AP scsi_status 0x%x", ac->ac_status,
 	    scsi_status);
 
-	if (ac->ac_status != AMR_STATUS_SUCCESS) {
+	/* Make sure the status is sane */
+	if ((ac->ac_status != AMR_STATUS_SUCCESS) && (scsi_status == 0)) {
 		csio->ccb_h.status = CAM_REQ_CMP_ERR;
 		goto out;
 	}
@@ -561,10 +546,10 @@ amr_cam_complete(struct amr_command *ac)
 	/* handle passthrough SCSI status */
 	switch(scsi_status) {
 	case 0:	/* completed OK */
-		if (ac->ac_length == sizeof(*ap))
-			cdb0 = ap->ap_cdb[0];
-		else
+		if (ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS)
 			cdb0 = aep->ap_cdb[0];
+		else
+			cdb0 = ap->ap_cdb[0];
 		if ((cdb0 == INQUIRY) && (SID_TYPE(inq) == T_DIRECT))
 			inq->device = (inq->device & 0xe0) | T_NODEVICE;
 		csio->ccb_h.status = CAM_REQ_CMP;
@@ -573,11 +558,11 @@ amr_cam_complete(struct amr_command *ac)
 	case 0x02:
 		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 		csio->scsi_status = SCSI_STATUS_CHECK_COND;
-		if (ac->ac_length == sizeof(*ap))
-			bcopy(ap->ap_request_sense_area, &csio->sense_data,
+		if (ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS)
+			bcopy(aep->ap_request_sense_area, &csio->sense_data,
 			    AMR_MAX_REQ_SENSE_LEN);
 		else
-			bcopy(aep->ap_request_sense_area, &csio->sense_data,
+			bcopy(ap->ap_request_sense_area, &csio->sense_data,
 			    AMR_MAX_REQ_SENSE_LEN);
 		csio->sense_len = AMR_MAX_REQ_SENSE_LEN;
 		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
@@ -590,20 +575,20 @@ amr_cam_complete(struct amr_command *ac)
 	case 0xf0:
 	case 0xf4:
 	default:
-		csio->ccb_h.status = CAM_REQ_CMP_ERR;
+		/*
+		 * Non-zero LUNs are already filtered, so there's no need
+		 * to return CAM_DEV_NOT_THERE.
+		 */
+		csio->ccb_h.status = CAM_SEL_TIMEOUT;
 		break;
 	}
 
 out:
-	if (ac->ac_length == sizeof(*ap))
-		free(ap, M_AMRCAM);
-	else
-		free(aep, M_AMRCAM);
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 		debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr,
 		    " ");
 
-	mtx_unlock(&ac->ac_sc->amr_list_lock);
+	mtx_lock(&ac->ac_sc->amr_list_lock);
 	xpt_done((union ccb *)csio);
 	amr_releasecmd(ac);
 	mtx_unlock(&ac->ac_sc->amr_list_lock);

@@ -140,9 +140,9 @@ static int	amr_mapcmd(struct amr_command *ac);
 static void	amr_unmapcmd(struct amr_command *ac);
 static int	amr_start(struct amr_command *ac);
 static void	amr_complete(void *context, int pending);
-static void	amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
-static void	amr_setup_dma64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
-static void	amr_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
+static void	amr_setup_sg(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
+static void	amr_setup_data(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
+static void	amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegments, int error);
 
 /*
  * Status monitoring
@@ -572,9 +572,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 
 	adapter = (ali.ui.fcs.adapno) ^ 'm' << 8;
 
-	ap = malloc(sizeof(struct amr_passthrough),
-	    M_AMR, M_WAITOK | M_ZERO);
-
 	mb = (void *)&ali.mbox[0];
 
 	if ((ali.mbox[0] == FC_DEL_LOGDRV  && ali.mbox[2] == OP_DEL_LOGDRV) ||	/* delete */
@@ -587,6 +584,12 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 	}
 
 	if (ali.mbox[0] == AMR_CMD_PASS) {
+	    mtx_lock(&sc->amr_list_lock); 
+	    while ((ac = amr_alloccmd(sc)) == NULL)
+		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
+	    mtx_unlock(&sc->amr_list_lock);
+	    ap = &ac->ac_ccb->ccb_pthru;
+
 	    error = copyin((void *)(uintptr_t)mb->mb_physaddr, ap,
 		sizeof(struct amr_passthrough));
 	    if (error)
@@ -603,21 +606,16 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
 		    break;
 	    }
 
-	    mtx_lock(&sc->amr_list_lock); 
-	    while ((ac = amr_alloccmd(sc)) == NULL)
-		msleep(sc, &sc->amr_list_lock, PPAUSE, "amrioc", hz);
-
-	    ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT|AMR_CMD_CCB_DATAIN|AMR_CMD_CCB_DATAOUT;
+	    ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT|AMR_CMD_CCB;
 	    bzero(&ac->ac_mailbox, sizeof(ac->ac_mailbox));
 	    ac->ac_mailbox.mb_command = AMR_CMD_PASS;
 	    ac->ac_flags = ac_flags;
 
-	    ac->ac_data = ap;
-	    ac->ac_length = sizeof(struct amr_passthrough);
-	    ac->ac_ccb_data = dp;
-	    ac->ac_ccb_length = ap->ap_data_transfer_length;
+	    ac->ac_data = dp;
+	    ac->ac_length = ap->ap_data_transfer_length;
 	    temp = (void *)(uintptr_t)ap->ap_data_transfer_address;
 
+	    mtx_lock(&sc->amr_list_lock);
 	    error = amr_wait_command(ac);
 	    mtx_unlock(&sc->amr_list_lock);
 	    if (error)
@@ -706,8 +704,6 @@ amr_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag,
     mtx_unlock(&sc->amr_list_lock);
     if (dp != NULL)
 	free(dp, M_AMR);
-    if (ap != NULL)
-	free(ap, M_AMR);
     return(error);
 }
 
@@ -729,7 +725,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     unsigned long		au_length;
     unsigned char		*au_cmd;
     int				*au_statusp, au_direction;
-    int				error, ac_flags = 0;
+    int				error;
     struct amr_passthrough	*ap;	/* 60 bytes */
     int				logical_drives_changed = 0;
 
@@ -832,8 +828,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     }
 
     /* Allocate this now before the mutex gets held */
-    if (au_cmd[0] == AMR_CMD_PASS)
-	ap = malloc(sizeof(struct amr_passthrough), M_AMR, M_WAITOK|M_ZERO);
 
     mtx_lock(&sc->amr_list_lock); 
     while ((ac = amr_alloccmd(sc)) == NULL)
@@ -842,6 +836,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     /* handle SCSI passthrough command */
     if (au_cmd[0] == AMR_CMD_PASS) {
         int len;
+
+	ap = &ac->ac_ccb->ccb_pthru;
+	bzero(ap, sizeof(struct amr_passthrough));
 
 	/* copy cdb */
         len = au_cmd[2];
@@ -860,13 +857,8 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 	/* XXX what about the request-sense area? does the caller want it? */
 
 	/* build command */
-	ac->ac_data = ap;
-	ac->ac_length = sizeof(struct amr_passthrough);
-	ac->ac_ccb_data = dp;
-	ac->ac_ccb_length = au_length;
-
 	ac->ac_mailbox.mb_command = AMR_CMD_PASS;
-	ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT|AMR_CMD_CCB_DATAIN|AMR_CMD_CCB_DATAOUT;
+	ac->ac_flags = AMR_CMD_CCB;
 
     } else {
 	/* direct command to controller */
@@ -878,14 +870,13 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 	mbi->mb_param = au_cmd[2];
 	mbi->mb_pad[0] = au_cmd[3];
 	mbi->mb_drive = au_cmd[4];
-
-	/* build the command */
-	ac->ac_data = dp;
-	ac->ac_length = au_length;
-	ac_flags = AMR_CMD_DATAIN|AMR_CMD_DATAOUT;
+	ac->ac_flags = 0;
     }
 
-    ac->ac_flags = ac_flags;
+    /* build the command */
+    ac->ac_data = dp;
+    ac->ac_length = au_length;
+    ac->ac_flags |= AMR_CMD_DATAIN|AMR_CMD_DATAOUT;
 
     /* run the command */
     error = amr_wait_command(ac);
@@ -899,7 +890,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     }
     debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
     if (dp != NULL)
-	debug(2, "%jd", (uintptr_t)dp);
+	debug(2, "%p status 0x%x", dp, ac->ac_status);
     *au_statusp = ac->ac_status;
 
 out:
@@ -913,8 +904,6 @@ out:
     mtx_unlock(&sc->amr_list_lock);
     if (dp != NULL)
 	free(dp, M_AMR);
-    if (ap != NULL)
-	free(ap, M_AMR);
 
 #ifndef LSI
     if (logical_drives_changed)
@@ -1420,21 +1409,24 @@ amr_setup_polled_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 {
     struct amr_command *ac = arg;
     struct amr_softc *sc = ac->ac_sc;
-    int flags;
+    int mb_channel;
 
-    flags = 0;
-    if (ac->ac_flags & AMR_CMD_DATAIN)
-	flags |= BUS_DMASYNC_PREREAD;
-    if (ac->ac_flags & AMR_CMD_DATAOUT)
-	flags |= BUS_DMASYNC_PREWRITE;
+    amr_setup_sg(arg, segs, nsegs, err);
 
+    /* for AMR_CMD_CONFIG Read/Write the s/g count goes elsewhere */
+    mb_channel = ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel;
+    if (ac->ac_mailbox.mb_command == AMR_CMD_CONFIG &&
+        ((mb_channel == AMR_CONFIG_READ_NVRAM_CONFIG) ||
+        (mb_channel == AMR_CONFIG_WRITE_NVRAM_CONFIG)))
+	((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_param = ac->ac_nsegments;
+
+    ac->ac_mailbox.mb_nsgelem = ac->ac_nsegments;
+    ac->ac_mailbox.mb_physaddr = ac->ac_mb_physaddr;
     if (AC_IS_SG64(ac)) {
-	amr_setup_dma64map(arg, segs, nsegs, err);
-	bus_dmamap_sync(sc->amr_buffer64_dmat,ac->ac_dma64map, flags);
-    } else {
-	amr_setup_dmamap(arg, segs, nsegs, err);
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap, flags);
+	ac->ac_sg64_hi = 0;
+	ac->ac_sg64_lo = ac->ac_sgbusaddr;
     }
+
     sc->amr_poll_command1(sc, ac);
 }
 
@@ -1445,8 +1437,6 @@ amr_setup_polled_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 static int
 amr_quartz_poll_command(struct amr_command *ac)
 {
-    bus_dma_tag_t	tag;
-    bus_dmamap_t	datamap;
     struct amr_softc	*sc = ac->ac_sc;
     int			error;
 
@@ -1455,17 +1445,17 @@ amr_quartz_poll_command(struct amr_command *ac)
     error = 0;
 
     if (AC_IS_SG64(ac)) {
-	tag = sc->amr_buffer64_dmat;
-	datamap = ac->ac_dma64map;
+	ac->ac_tag = sc->amr_buffer64_dmat;
+	ac->ac_datamap = ac->ac_dma64map;
     } else {
-	tag = sc->amr_buffer_dmat;
-	datamap = ac->ac_dmamap;
+	ac->ac_tag = sc->amr_buffer_dmat;
+	ac->ac_datamap = ac->ac_dmamap;
     }
 
     /* now we have a slot, we can map the command (unmapped in amr_complete) */
     if (ac->ac_data != 0) {
-	if (bus_dmamap_load(tag, datamap, ac->ac_data, ac->ac_length,
-	    amr_setup_polled_dmamap, ac, BUS_DMA_NOWAIT) != 0) {
+	if (bus_dmamap_load(ac->ac_tag, ac->ac_datamap, ac->ac_data,
+	    ac->ac_length, amr_setup_polled_dmamap, ac, BUS_DMA_NOWAIT) != 0) {
 	    error = 1;
 	}
     } else {
@@ -1494,10 +1484,7 @@ amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac)
 	    device_printf(sc->amr_dev, "adapter is busy\n");
 	    mtx_unlock(&sc->amr_hw_lock);
 	    if (ac->ac_data != NULL) {
-		if (AC_IS_SG64(ac))
-		    bus_dmamap_unload(sc->amr_buffer64_dmat, ac->ac_dma64map);
-		else
-		    bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_dmamap);
+		bus_dmamap_unload(ac->ac_tag, ac->ac_datamap);
 	    }
     	    ac->ac_status=0;
 	    return(1);
@@ -1535,17 +1522,12 @@ amr_quartz_poll_command1(struct amr_softc *sc, struct amr_command *ac)
 
     /* unmap the command's data buffer */
     if (ac->ac_flags & AMR_CMD_DATAIN) {
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
-	    BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ac->ac_tag, ac->ac_datamap, BUS_DMASYNC_POSTREAD);
     }
     if (ac->ac_flags & AMR_CMD_DATAOUT) {
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,
-	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(ac->ac_tag, ac->ac_datamap, BUS_DMASYNC_POSTWRITE);
     }
-    if (AC_IS_SG64(ac))
-	bus_dmamap_unload(sc->amr_buffer64_dmat, ac->ac_dma64map);
-    else
-	bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_dmamap);
+    bus_dmamap_unload(ac->ac_tag, ac->ac_datamap);
 
     return(error);
 }
@@ -1574,289 +1556,141 @@ amr_freeslot(struct amr_command *ac)
  * These functions may be safely called multiple times on a given command.
  */
 static void
-amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+amr_setup_sg(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 {
     struct amr_command	*ac = (struct amr_command *)arg;
     struct amr_sgentry	*sg;
-    int			i;
-    u_int8_t		*sgc;
+    struct amr_sg64entry *sg64;
+    int flags, i;
 
     debug_called(3);
 
+    if (error)
+	printf("amr_setup_sg: error %d\n", error);
+
     /* get base address of s/g table */
     sg = ac->ac_sg.sg32;
+    sg64 = ac->ac_sg.sg64;
 
-    /* save data physical address */
-
-    /* for AMR_CMD_CONFIG Read/Write the s/g count goes elsewhere */
-    if (ac->ac_mailbox.mb_command == AMR_CMD_CONFIG && ( 
-	 ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel == AMR_CONFIG_READ_NVRAM_CONFIG ||
-	 ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel == AMR_CONFIG_WRITE_NVRAM_CONFIG)) {
-	sgc = &(((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_param);
+    if (AC_IS_SG64(ac)) {
+	ac->ac_nsegments = nsegments;
+	ac->ac_mb_physaddr = 0xffffffff;
+	for (i = 0; i < nsegments; i++, sg64++) {
+	    sg64->sg_addr = segs[i].ds_addr;
+	    sg64->sg_count = segs[i].ds_len;
+	}
     } else {
-	sgc = &ac->ac_mailbox.mb_nsgelem;
+	/* decide whether we need to populate the s/g table */
+	if (nsegments < 2) {
+	    ac->ac_nsegments = 0;
+	    ac->ac_mb_physaddr = segs[0].ds_addr;
+	} else {
+            ac->ac_nsegments = nsegments;
+	    ac->ac_mb_physaddr = ac->ac_sgbusaddr;
+	    for (i = 0; i < nsegments; i++, sg++) {
+		sg->sg_addr = segs[i].ds_addr;
+		sg->sg_count = segs[i].ds_len;
+	    }
+	}
     }
 
-    /* decide whether we need to populate the s/g table */
-    if (nsegments < 2) {
-	*sgc = 0;
-	ac->ac_mailbox.mb_nsgelem = 0;
-	ac->ac_mailbox.mb_physaddr = segs[0].ds_addr;
-    } else {
-        ac->ac_mailbox.mb_nsgelem = nsegments;
-	*sgc = nsegments;
-	/* XXX Setting these to 0 might not be needed. */
-	ac->ac_sg64_lo = 0;
+    flags = 0;
+    if (ac->ac_flags & AMR_CMD_DATAIN)
+	flags |= BUS_DMASYNC_PREREAD;
+    if (ac->ac_flags & AMR_CMD_DATAOUT)
+	flags |= BUS_DMASYNC_PREWRITE;
+    bus_dmamap_sync(ac->ac_tag, ac->ac_datamap, flags);
+    ac->ac_flags |= AMR_CMD_MAPPED;
+}
+
+static void
+amr_setup_data(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
+{
+    struct amr_command *ac = arg;
+    struct amr_softc *sc = ac->ac_sc;
+    int mb_channel;
+
+    amr_setup_sg(arg, segs, nsegs, err);
+
+    /* for AMR_CMD_CONFIG Read/Write the s/g count goes elsewhere */
+    mb_channel = ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel;
+    if (ac->ac_mailbox.mb_command == AMR_CMD_CONFIG &&
+        ((mb_channel == AMR_CONFIG_READ_NVRAM_CONFIG) ||
+        (mb_channel == AMR_CONFIG_WRITE_NVRAM_CONFIG)))
+	((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_param = ac->ac_nsegments;
+
+    ac->ac_mailbox.mb_nsgelem = ac->ac_nsegments;
+    ac->ac_mailbox.mb_physaddr = ac->ac_mb_physaddr;
+    if (AC_IS_SG64(ac)) {
 	ac->ac_sg64_hi = 0;
-	ac->ac_mailbox.mb_physaddr = ac->ac_sgbusaddr;
-	for (i = 0; i < nsegments; i++, sg++) {
-	    sg->sg_addr = segs[i].ds_addr;
-	    sg->sg_count = segs[i].ds_len;
-	}
+	ac->ac_sg64_lo = ac->ac_sgbusaddr;
     }
-
-}
-
-static void
-amr_setup_dma64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
-{
-    struct amr_command	*ac = (struct amr_command *)arg;
-    struct amr_sg64entry *sg;
-    int			i;
-    u_int8_t		*sgc;
-
-    debug_called(3);
-
-    /* get base address of s/g table */
-    sg = ac->ac_sg.sg64;
-
-    /* save data physical address */
-
-    /* for AMR_CMD_CONFIG Read/Write the s/g count goes elsewhere */
-    if (ac->ac_mailbox.mb_command == AMR_CMD_CONFIG && ( 
-	 ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel == AMR_CONFIG_READ_NVRAM_CONFIG ||
-	 ((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_channel == AMR_CONFIG_WRITE_NVRAM_CONFIG)) {
-	sgc = &(((struct amr_mailbox_ioctl *)&ac->ac_mailbox)->mb_param);
-    } else {
-	sgc = &ac->ac_mailbox.mb_nsgelem;
-    }
-
-    ac->ac_mailbox.mb_nsgelem = nsegments;
-    *sgc = nsegments;
-    ac->ac_sg64_hi = 0;
-    ac->ac_sg64_lo = ac->ac_sgbusaddr;
-    ac->ac_mailbox.mb_physaddr = 0xffffffff;
-    for (i = 0; i < nsegments; i++, sg++) {
-	sg->sg_addr = segs[i].ds_addr;
-	sg->sg_count = segs[i].ds_len;
-    }
-}
-
-static void
-amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
-{
-    struct amr_command          *ac = (struct amr_command *)arg;
-    struct amr_softc            *sc = ac->ac_sc;
-    struct amr_sgentry          *sg;
-    struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
-    struct amr_ext_passthrough	*aep = (struct amr_ext_passthrough *)ac->ac_data;
-    int                         i;
-
-    /* get base address of s/g table */
-    sg = ac->ac_sg.sg32;
-
-    /* decide whether we need to populate the s/g table */
-    if( ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS ) {
-	if (nsegments < 2) {
-	    aep->ap_no_sg_elements = 0;
-	    aep->ap_data_transfer_address =  segs[0].ds_addr;
-	} else {
-	    /* save s/g table information in passthrough */
-	    aep->ap_no_sg_elements = nsegments;
-	    aep->ap_data_transfer_address = ac->ac_sgbusaddr;
-	    /*
-	     * populate s/g table (overwrites previous call which mapped the
-	     * passthrough)
-	     */
-	    for (i = 0; i < nsegments; i++, sg++) {
-		sg->sg_addr = segs[i].ds_addr;
-		sg->sg_count = segs[i].ds_len;
-		debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
-	    }
-	}
-	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
-	    aep->ap_no_sg_elements, aep->ap_data_transfer_address);
-    } else {
-	if (nsegments < 2) {
-	    ap->ap_no_sg_elements = 0;
-	    ap->ap_data_transfer_address =  segs[0].ds_addr;
-	} else {
-	    /* save s/g table information in passthrough */
-	    ap->ap_no_sg_elements = nsegments;
-	    ap->ap_data_transfer_address = ac->ac_sgbusaddr;
-	    /*
-	     * populate s/g table (overwrites previous call which mapped the
-	     * passthrough)
-	     */
-	    for (i = 0; i < nsegments; i++, sg++) {
-		sg->sg_addr = segs[i].ds_addr;
-		sg->sg_count = segs[i].ds_len;
-		debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
-	    }
-	}
-	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
-	    ap->ap_no_sg_elements, ap->ap_data_transfer_address);
-    }
-    if (ac->ac_flags & AMR_CMD_CCB_DATAIN)
-	bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
-	    BUS_DMASYNC_PREREAD);
-    if (ac->ac_flags & AMR_CMD_CCB_DATAOUT)
-	bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-    if ((ac->ac_flags & (AMR_CMD_CCB_DATAIN | AMR_CMD_CCB_DATAOUT)) == 0)
-	panic("no direction for ccb?\n");
-
-    if (ac->ac_flags & AMR_CMD_DATAIN)
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,BUS_DMASYNC_PREREAD);
-    if (ac->ac_flags & AMR_CMD_DATAOUT)
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap,BUS_DMASYNC_PREWRITE);
-
-    ac->ac_flags |= AMR_CMD_MAPPED;
 
     if (sc->amr_submit_command(ac) == EBUSY) {
 	amr_freeslot(ac);
 	amr_requeue_ready(ac);
     }
 }
-
+ 
 static void
-amr_setup_ccb64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
+amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 {
-    struct amr_command          *ac = (struct amr_command *)arg;
-    struct amr_softc            *sc = ac->ac_sc;
-    struct amr_sg64entry        *sg;
-    struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
-    struct amr_ext_passthrough	*aep = (struct amr_ext_passthrough *)ac->ac_data;
-    int                         i;
+    struct amr_command *ac = arg;
+    struct amr_softc *sc = ac->ac_sc;
+    struct amr_passthrough *ap = &ac->ac_ccb->ccb_pthru;
+    struct amr_ext_passthrough *aep = &ac->ac_ccb->ccb_epthru;
 
-    /* get base address of s/g table */
-    sg = ac->ac_sg.sg64;
+    /* Set up the mailbox portion of the command to point at the ccb */
+    ac->ac_mailbox.mb_nsgelem = 0;
+    ac->ac_mailbox.mb_physaddr = ac->ac_ccb_busaddr;
 
-    /* decide whether we need to populate the s/g table */
-    if( ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS ) {
-	/* save s/g table information in passthrough */
-	aep->ap_no_sg_elements = nsegments;
-	aep->ap_data_transfer_address = ac->ac_sgbusaddr;
-	/*
-	 * populate s/g table (overwrites previous call which mapped the
-	 * passthrough)
-	 */
-	for (i = 0; i < nsegments; i++, sg++) {
-	    sg->sg_addr = segs[i].ds_addr;
-	    sg->sg_count = segs[i].ds_len;
-	    debug(3, " %d: 0x%lx/%d", i, (u_long)sg->sg_addr, sg->sg_count);
-	}
-	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
-	    aep->ap_no_sg_elements, aep->ap_data_transfer_address);
-    } else {
-	/* save s/g table information in passthrough */
-	ap->ap_no_sg_elements = nsegments;
-	ap->ap_data_transfer_address = ac->ac_sgbusaddr;
-	/*
-	 * populate s/g table (overwrites previous call which mapped the
-	 * passthrough)
-	 */
-	for (i = 0; i < nsegments; i++, sg++) {
-	    sg->sg_addr = segs[i].ds_addr;
-	    sg->sg_count = segs[i].ds_len;
-	    debug(3, " %d: 0x%lx/%d", i, (u_long)sg->sg_addr, sg->sg_count);
-	}
-	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
-	    ap->ap_no_sg_elements, ap->ap_data_transfer_address);
+    amr_setup_sg(arg, segs, nsegs, err);
+
+    switch (ac->ac_mailbox.mb_command) {
+    case AMR_CMD_EXTPASS:
+	aep->ap_no_sg_elements = ac->ac_nsegments;
+	aep->ap_data_transfer_address = ac->ac_mb_physaddr;
+        break;
+    case AMR_CMD_PASS:
+	ap->ap_no_sg_elements = ac->ac_nsegments;
+	ap->ap_data_transfer_address = ac->ac_mb_physaddr;
+	break;
+    default:
+	panic("Unknown ccb command");
     }
-    if (ac->ac_flags & AMR_CMD_CCB_DATAIN)
-	bus_dmamap_sync(sc->amr_buffer64_dmat, ac->ac_ccb_dma64map,
-	    BUS_DMASYNC_PREREAD);
-    if (ac->ac_flags & AMR_CMD_CCB_DATAOUT)
-	bus_dmamap_sync(sc->amr_buffer64_dmat, ac->ac_ccb_dma64map,
-	    BUS_DMASYNC_PREWRITE);
-    if ((ac->ac_flags & (AMR_CMD_CCB_DATAIN | AMR_CMD_CCB_DATAOUT)) == 0)
-	panic("no direction for ccb?\n");
-
-    if (ac->ac_flags & AMR_CMD_DATAIN)
-	bus_dmamap_sync(sc->amr_buffer64_dmat, ac->ac_dma64map,
-	    BUS_DMASYNC_PREREAD);
-    if (ac->ac_flags & AMR_CMD_DATAOUT)
-	bus_dmamap_sync(sc->amr_buffer64_dmat, ac->ac_dma64map,
-	    BUS_DMASYNC_PREWRITE);
-
-    ac->ac_flags |= AMR_CMD_MAPPED;
 
     if (sc->amr_submit_command(ac) == EBUSY) {
 	amr_freeslot(ac);
 	amr_requeue_ready(ac);
-    }
-}
-
-static void
-amr_setup_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegments,
-    int error)
-{
-    struct amr_command          *ac = (struct amr_command *)arg;
-    struct amr_softc            *sc = ac->ac_sc;
-
-    amr_setup_dmamap(arg, segs, nsegments, error);
-
-    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
-	ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccbmap, ac,
-	0) == EINPROGRESS) {
-	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
-    }
-}
-
-static void
-amr_setup_dma64map_cb(void *arg, bus_dma_segment_t *segs, int nsegments,
-    int error)
-{
-    struct amr_command          *ac = (struct amr_command *)arg;
-    struct amr_softc            *sc = ac->ac_sc;
-
-    amr_setup_dma64map(arg, segs, nsegments, error);
-
-    if (bus_dmamap_load(sc->amr_buffer64_dmat, ac->ac_ccb_dma64map,
-	ac->ac_ccb_data, ac->ac_ccb_length, amr_setup_ccb64map, ac,
-	0) == EINPROGRESS) {
-	sc->amr_state |= AMR_STATE_QUEUE_FRZN;
     }
 }
 
 static int
 amr_mapcmd(struct amr_command *ac)
 {
-    bus_dma_tag_t	tag;
-    bus_dmamap_t	datamap;
     bus_dmamap_callback_t *cb;
     struct amr_softc	*sc = ac->ac_sc;
 
     debug_called(3);
 
     if (AC_IS_SG64(ac)) {
-	tag = sc->amr_buffer64_dmat;
-	datamap = ac->ac_dma64map;
-	cb = amr_setup_dma64map_cb;
+	ac->ac_tag = sc->amr_buffer64_dmat;
+	ac->ac_datamap = ac->ac_dma64map;
     } else {
-	tag = sc->amr_buffer_dmat;
-	datamap = ac->ac_dmamap;
-	cb = amr_setup_dmamap_cb;
+	ac->ac_tag = sc->amr_buffer_dmat;
+	ac->ac_datamap = ac->ac_dmamap;
     }
+
+    if (ac->ac_flags & AMR_CMD_CCB)
+	cb = amr_setup_ccb;
+    else
+	cb = amr_setup_data;
 
     /* if the command involves data at all, and hasn't been mapped */
     if ((ac->ac_flags & AMR_CMD_MAPPED) == 0 && (ac->ac_data != NULL)) {
-	if (ac->ac_ccb_data == NULL)
-	    cb = amr_setup_data_dmamap;
 	/* map the data buffers into bus space and build the s/g list */
-	if (bus_dmamap_load(tag, datamap, ac->ac_data, ac->ac_length,
-	    cb, ac, 0) == EINPROGRESS) {
+	if (bus_dmamap_load(ac->ac_tag, ac->ac_datamap, ac->ac_data,
+	     ac->ac_length, cb, ac, 0) == EINPROGRESS) {
 	    sc->amr_state |= AMR_STATE_QUEUE_FRZN;
 	}
    } else {
@@ -1872,7 +1706,6 @@ amr_mapcmd(struct amr_command *ac)
 static void
 amr_unmapcmd(struct amr_command *ac)
 {
-    struct amr_softc	*sc = ac->ac_sc;
     int			flag;
 
     debug_called(3);
@@ -1888,63 +1721,14 @@ amr_unmapcmd(struct amr_command *ac)
 	    if (ac->ac_flags & AMR_CMD_DATAOUT)
 		flag |= BUS_DMASYNC_POSTWRITE;
 
-	    if (AC_IS_SG64(ac)) {
-		bus_dmamap_sync(sc->amr_buffer64_dmat, ac->ac_dma64map, flag);
-		bus_dmamap_unload(sc->amr_buffer64_dmat, ac->ac_dma64map);
-	    } else {
-		bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_dmamap, flag);
-		bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_dmamap);
-	    }
+	    bus_dmamap_sync(ac->ac_tag, ac->ac_datamap, flag);
+	    bus_dmamap_unload(ac->ac_tag, ac->ac_datamap);
 	}
 
-	if (ac->ac_ccb_data != NULL) {
-
-	    flag = 0;
-	    if (ac->ac_flags & AMR_CMD_CCB_DATAIN)
-		flag |= BUS_DMASYNC_POSTREAD;
-	    if (ac->ac_flags & AMR_CMD_CCB_DATAOUT)
-		flag |= BUS_DMASYNC_POSTWRITE;
-
-	    if (AC_IS_SG64(ac)) {
-		bus_dmamap_sync(sc->amr_buffer64_dmat,ac->ac_ccb_dma64map,flag);
-		bus_dmamap_unload(sc->amr_buffer64_dmat, ac->ac_ccb_dma64map);
-	    } else {
-		bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_ccb_dmamap, flag);
-		bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_ccb_dmamap);
-	    }
-	}
 	ac->ac_flags &= ~AMR_CMD_MAPPED;
     }
 }
 
-static void
-amr_setup_data_dmamap(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
-{
-    struct amr_command *ac = arg;
-    struct amr_softc *sc = ac->ac_sc;
-    int flags;
-
-    flags = 0;
-    if (ac->ac_flags & AMR_CMD_DATAIN)
-	flags |= BUS_DMASYNC_PREREAD;
-    if (ac->ac_flags & AMR_CMD_DATAOUT)
-	flags |= BUS_DMASYNC_PREWRITE;
-
-    if (AC_IS_SG64(ac)) {
-	amr_setup_dma64map(arg, segs, nsegs, err);
-	bus_dmamap_sync(sc->amr_buffer64_dmat,ac->ac_dma64map, flags);
-    } else {
-	amr_setup_dmamap(arg, segs, nsegs, err);
-	bus_dmamap_sync(sc->amr_buffer_dmat,ac->ac_dmamap, flags);
-    }
-    ac->ac_flags |= AMR_CMD_MAPPED;
-
-    if (sc->amr_submit_command(ac) == EBUSY) {
-	amr_freeslot(ac);
-	amr_requeue_ready(ac);
-    }
-}
-   
 /********************************************************************************
  * Take a command and give it to the controller, returns 0 if successful, or
  * EBUSY if the command should be retried later.
@@ -2124,8 +1908,9 @@ amr_alloccmd(struct amr_softc *sc)
     ac->ac_flags = 0;
     ac->ac_bio = NULL;
     ac->ac_data = NULL;
-    ac->ac_ccb_data = NULL;
     ac->ac_complete = NULL;
+    ac->ac_tag = NULL;
+    ac->ac_datamap = NULL;
     return(ac);
 }
 
@@ -2177,12 +1962,15 @@ amr_alloccmd_cluster(struct amr_softc *sc)
 	        ac->ac_sg.sg32 = sc->amr_sgtable + (ac->ac_slot * AMR_NSEG);
 	    }
 
-	    if (bus_dmamap_create(sc->amr_buffer_dmat, 0, &ac->ac_dmamap) ||
-		bus_dmamap_create(sc->amr_buffer_dmat, 0, &ac->ac_ccb_dmamap) ||
-		(AMR_IS_SG64(sc) &&
-		(bus_dmamap_create(sc->amr_buffer64_dmat, 0,&ac->ac_dma64map) ||
-		bus_dmamap_create(sc->amr_buffer64_dmat, 0, &ac->ac_ccb_dma64map))))
-		    break;
+	    ac->ac_ccb = sc->amr_ccb + ac->ac_slot;
+	    ac->ac_ccb_busaddr = sc->amr_ccb_busaddr +
+		(ac->ac_slot * sizeof(union amr_ccb));
+
+	    if (bus_dmamap_create(sc->amr_buffer_dmat, 0, &ac->ac_dmamap))
+		break;
+	    if (AMR_IS_SG64(sc) &&
+		(bus_dmamap_create(sc->amr_buffer64_dmat, 0,&ac->ac_dma64map)))
+		break;
 	    amr_releasecmd(ac);
 	    if (++nextslot > sc->amr_maxio)
 		break;
@@ -2202,10 +1990,8 @@ amr_freecmd_cluster(struct amr_command_cluster *acc)
 
     for (i = 0; i < AMR_CMD_CLUSTERCOUNT; i++) {
 	bus_dmamap_destroy(sc->amr_buffer_dmat, acc->acc_command[i].ac_dmamap);
-	bus_dmamap_destroy(sc->amr_buffer_dmat, acc->acc_command[i].ac_ccb_dmamap);
 	if (AMR_IS_SG64(sc))
 		bus_dmamap_destroy(sc->amr_buffer64_dmat, acc->acc_command[i].ac_dma64map);
-		bus_dmamap_destroy(sc->amr_buffer64_dmat, acc->acc_command[i].ac_ccb_dma64map);
     }
     free(acc, M_AMR);
 }
