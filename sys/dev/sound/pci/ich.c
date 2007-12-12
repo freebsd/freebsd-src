@@ -980,6 +980,10 @@ ich_pci_attach(device_t dev)
 	    device_get_unit(dev), "fixedrate", &i) == 0 && i != 0)
 		sc->flags |= ICH_FIXED_RATE;
 
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "micchannel_enabled", &i) == 0 && i != 0)
+		sc->hasmic = 1;
+
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irqid,
 	    RF_ACTIVE | RF_SHAREABLE);
@@ -1026,7 +1030,8 @@ ich_pci_attach(device_t dev)
 	extcaps = ac97_getextcaps(sc->codec);
 	sc->hasvra = extcaps & AC97_EXTCAP_VRA;
 	sc->hasvrm = extcaps & AC97_EXTCAP_VRM;
-	sc->hasmic = ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL;
+	sc->hasmic = (sc->hasmic != 0 &&
+	    (ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL)) ? 1 : 0;
 	ac97_setextmode(sc->codec, sc->hasvra | sc->hasvrm);
 
 	sc->dtbl_size = sizeof(struct ich_desc) * ICH_DTBL_LENGTH *
