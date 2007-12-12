@@ -1,7 +1,2 @@
 .\" $FreeBSD$
 Set this if you do not want to build Kerberos 5 (KTH Heimdal).
-This option implies
-.Va WITHOUT_GSSAPI .
-Set
-.Va WITH_GSSAPI
-to override.
