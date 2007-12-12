@@ -62,12 +62,8 @@ _libbluetooth=	libbluetooth
 _libsdp=	libsdp
 .endif
 
-.if ${MK_KERBEROS} != "no"
+.if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
-.else
-.if ${MK_GSSAPI} == "yes"
-_libgssapi=	libgssapi
-.endif
 .endif
 
 .if ${MK_IPX} != "no"
