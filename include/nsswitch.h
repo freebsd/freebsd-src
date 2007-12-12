@@ -68,7 +68,8 @@
 #define	NSSRC_DNS	"dns"		/* DNS; IN for hosts, HS for others */
 #define	NSSRC_NIS	"nis"		/* YP/NIS */
 #define	NSSRC_COMPAT	"compat"	/* passwd,group in YP compat mode */
-#define	NSSRC_CACHE	"cache"		/* cache daemon */
+#define	NSSRC_CACHE	"cache"		/* nscd daemon */
+#define NSSRC_FALLBACK	"__fallback"	/* internal fallback source */
 
 /*
  * currently implemented databases
@@ -132,6 +133,7 @@ typedef struct _ns_dtab {
  */
 #define NS_FILES_CB(F,C)	{ NSSRC_FILES,	F,	C },
 #define NS_COMPAT_CB(F,C)	{ NSSRC_COMPAT,	F,	C },
+#define NS_FALLBACK_CB(F)	{ NSSRC_FALLBACK, F,	NULL },
  
 #ifdef HESIOD
 #   define NS_DNS_CB(F,C)	{ NSSRC_DNS,	F,	C },
