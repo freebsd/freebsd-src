@@ -28,13 +28,15 @@
 .\"     from: @(#)atan2.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd December 12, 2007
 .Dt ATAN2 3
 .Os
 .Sh NAME
 .Nm atan2 ,
-.Nm atan2f
-.Nd arc tangent functions of two variables
+.Nm atan2f ,
+.Nm carg ,
+.Nm cargf
+.Nd arc tangent and complex phase angle functions
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -43,6 +45,10 @@
 .Fn atan2 "double y" "double x"
 .Ft float
 .Fn atan2f "float y" "float x"
+.Ft double
+.Fn carg "double complex z"
+.Ft float
+.Fn cargf "float complex z"
 .Sh DESCRIPTION
 The
 .Fn atan2
@@ -52,6 +58,29 @@ functions compute the principal value of the arc tangent of
 .Fa y/ Ns Ar x ,
 using the signs of both arguments to determine the quadrant of
 the return value.
+.ie '\*[.T]'utf8' \{\
+.  ds Th \[*h]
+.\}
+.el \{\
+.  ds Th theta
+.\}
+.Pp
+The
+.Fn carg
+and
+.Fn cargf
+functions compute the complex argument (or phase angle) of
+.Fa z .
+The complex argument is the number \*(Th such that
+.Li z = r * e^(I * \*(Th) ,
+where
+.Li r = cabs(z) .
+The call
+.Li carg(z)
+is equivalent to
+.Li atan2(cimag(z), creal(z)) ,
+and similarly for
+.Fn cargf .
 .Sh RETURN VALUES
 The
 .Fn atan2
@@ -169,6 +198,7 @@ r := \(sr(x\(**x+y\(**y);\0\0if r = 0 then x := copysign(1,x);
 .Xr acos 3 ,
 .Xr asin 3 ,
 .Xr atan 3 ,
+.Xr cabs 3 ,
 .Xr cos 3 ,
 .Xr cosh 3 ,
 .Xr math 3 ,
@@ -178,6 +208,10 @@ r := \(sr(x\(**x+y\(**y);\0\0if r = 0 then x := copysign(1,x);
 .Xr tanh 3
 .Sh STANDARDS
 The
-.Fn atan2
-function conforms to
+.Fn atan2 ,
+.Fn atan2f ,
+.Fn carg ,
+and
+.Fn cargf
+functions conform to
 .St -isoC .
