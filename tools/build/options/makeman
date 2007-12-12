@@ -49,7 +49,7 @@ show()
 main()
 {
 
-	trap 'rm -f _config _config2 _deps' exit
+	trap 'rm -f _defcfg _config _config2 _deps _deps2' exit
 	ident=${ident#$}
 	ident=${ident% $}
 	fbsdid='$'FreeBSD'$'
@@ -134,7 +134,7 @@ The following list provides a name and short description for variables
 that can be used for source builds.
 .Bl -tag -width indent
 EOF
-	show settings |sort >_config
+	show settings |sort >_defcfg
 	show options |
 	while read opt; do
 		if [ -f ${opt} ]; then
@@ -146,8 +146,8 @@ EOF
 			echo "no description found for ${opt}, skipping" >/dev/stderr
 			continue
 		fi
-		show settings -D${opt} |sort >_config2
-		comm -13 _config _config2 |grep -v "^${opt}$" >_deps
+		show settings -D${opt} |sort >_config
+		comm -13 _defcfg _config |grep -v "^${opt}$" >_deps
 		if [ -s _deps ]; then
 			cat <<EOF
 When set, it also enforces the following options:
@@ -159,6 +159,17 @@ EOF
 .It
 .Va ${opt2}
 EOF
+				show settings -D${opt} $(
+				    echo ${opt2} |
+				    sed -e's/^WITHOUT_/-DWITH_/' -e's/^WITH_/-DWITHOUT_/'
+				) |sort >_config2
+				comm -13 _config _config2 >_deps2
+				if [ -s _deps2 ]; then
+					cat <<EOF
+(can be overridden with
+.Va $(cat _deps2) )
+EOF
+				fi
 			done
 				cat <<EOF
 .El
