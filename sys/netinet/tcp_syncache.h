@@ -40,6 +40,9 @@ int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
 void	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
+void	 syncache_offload_add(struct in_conninfo *, struct tcpopt *,
+             struct tcphdr *, struct inpcb *, struct socket **,
+             struct toe_usrreqs *tu, void *toepcb);
 void	 syncache_chkrst(struct in_conninfo *, struct tcphdr *);
 void	 syncache_badack(struct in_conninfo *);
 int	 syncache_pcbcount(void);
