@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #ifdef HESIOD
@@ -142,6 +143,9 @@ static	void	 compat_endstate(void *);
 NSS_TLS_HANDLING(compat);
 static	int	 compat_setgrent(void *, void *, va_list);
 static	int	 compat_group(void *, void *, va_list);
+
+static	int	gr_addgid(gid_t, gid_t *, int, int *);
+static	int	getgroupmembership_fallback(void *, void *, va_list);
 
 #ifdef NS_CACHING
 static	int	 grp_id_func(char *, size_t *, va_list, void *);
@@ -361,32 +365,178 @@ grp_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 NSS_MP_CACHE_HANDLING(group);
 #endif /* NS_CACHING */
 
+#ifdef NS_CACHING
+static const nss_cache_info setgrent_cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+	group, (void *)nss_lt_all,
+	NULL, NULL);
+#endif
+
+static const ns_dtab setgrent_dtab[] = {
+	{ NSSRC_FILES, files_setgrent, (void *)SETGRENT },
+#ifdef HESIOD
+	{ NSSRC_DNS, dns_setgrent, (void *)SETGRENT },
+#endif
+#ifdef YP
+	{ NSSRC_NIS, nis_setgrent, (void *)SETGRENT },
+#endif
+	{ NSSRC_COMPAT, compat_setgrent, (void *)SETGRENT },
+#ifdef NS_CACHING
+	NS_CACHE_CB(&setgrent_cache_info)
+#endif
+	{ NULL, NULL, NULL }
+};
+
+#ifdef NS_CACHING
+static const nss_cache_info endgrent_cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+	group, (void *)nss_lt_all,
+	NULL, NULL);
+#endif
+
+static const ns_dtab endgrent_dtab[] = {
+	{ NSSRC_FILES, files_setgrent, (void *)ENDGRENT },
+#ifdef HESIOD
+	{ NSSRC_DNS, dns_setgrent, (void *)ENDGRENT },
+#endif
+#ifdef YP
+	{ NSSRC_NIS, nis_setgrent, (void *)ENDGRENT },
+#endif
+	{ NSSRC_COMPAT, compat_setgrent, (void *)ENDGRENT },
+#ifdef NS_CACHING
+	NS_CACHE_CB(&endgrent_cache_info)
+#endif
+	{ NULL, NULL, NULL }
+};
+
+#ifdef NS_CACHING
+static const nss_cache_info getgrent_r_cache_info = NS_MP_CACHE_INFO_INITIALIZER(
+	group, (void *)nss_lt_all,
+	grp_marshal_func, grp_unmarshal_func);
+#endif
+
+static const ns_dtab getgrent_r_dtab[] = {
+	{ NSSRC_FILES, files_group, (void *)nss_lt_all },
+#ifdef HESIOD
+	{ NSSRC_DNS, dns_group, (void *)nss_lt_all },
+#endif
+#ifdef YP
+	{ NSSRC_NIS, nis_group, (void *)nss_lt_all },
+#endif
+	{ NSSRC_COMPAT, compat_group, (void *)nss_lt_all },
+#ifdef NS_CACHING
+	NS_CACHE_CB(&getgrent_r_cache_info)
+#endif
+	{ NULL, NULL, NULL }
+};
+
+static int
+gr_addgid(gid_t gid, gid_t *groups, int maxgrp, int *grpcnt)
+{
+	int     ret, dupc;
+
+	for (dupc = 0; dupc < MIN(maxgrp, *grpcnt); dupc++) {
+		if (groups[dupc] == gid)
+			return 1;
+	}
+
+	ret = 1;
+	if (*grpcnt < maxgrp)
+		groups[*grpcnt] = gid;
+	else
+		ret = 0;
+
+	(*grpcnt)++;
+
+	return ret;
+}
+
+static int
+getgroupmembership_fallback(void *retval, void *mdata, va_list ap)
+{
+	const ns_src src[] = {
+		{ mdata, NS_SUCCESS },
+		{ NULL, 0}
+	};
+	struct group	grp;
+	struct group	*grp_p;
+	char		*buf;
+	size_t		bufsize;
+	const char	*uname;
+	gid_t		*groups;
+	gid_t		agroup;
+	int 		maxgrp, *grpcnt;
+	int		i, rv, ret_errno;
+
+	/*
+	 * As this is a fallback method, only provided src
+	 * list will be respected during methods search.
+	 */
+	assert(src[0].name != NULL);
+
+	uname = va_arg(ap, const char *);
+	agroup = va_arg(ap, gid_t);
+	groups = va_arg(ap, gid_t *);
+	maxgrp = va_arg(ap, int);
+	grpcnt = va_arg(ap, int *); 
+
+	rv = NS_UNAVAIL;
+
+	buf = malloc(GRP_STORAGE_INITIAL);
+	if (buf == NULL)
+		goto out;
+
+	bufsize = GRP_STORAGE_INITIAL;
+
+	gr_addgid(agroup, groups, maxgrp, grpcnt);
+
+	_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", src, 0);
+	for (;;) {
+		do {
+			ret_errno = 0;
+			grp_p = NULL;
+			rv = _nsdispatch(&grp_p, getgrent_r_dtab, NSDB_GROUP,
+			    "getgrent_r", src, &grp, buf, bufsize, &ret_errno);
+
+			if (grp_p == NULL && ret_errno == ERANGE) {
+				free(buf);
+				if ((bufsize << 1) > GRP_STORAGE_MAX) {
+					buf = NULL;
+					errno = ERANGE;
+					goto out;
+				}
+
+				bufsize <<= 1;
+				buf = malloc(bufsize);
+				if (buf == NULL) {
+					goto out;
+				}
+			}
+		} while (grp_p == NULL && ret_errno == ERANGE);
+
+		if (ret_errno != 0) {
+			errno = ret_errno;
+			goto out;
+		}
+
+		if (grp_p == NULL)
+			break;
+
+		for (i = 0; grp.gr_mem[i]; i++) {
+			if (strcmp(grp.gr_mem[i], uname) == 0)
+			    gr_addgid(grp.gr_gid, groups, maxgrp, grpcnt);
+		}
+	}
+
+	_nsdispatch(NULL, endgrent_dtab, NSDB_GROUP, "endgrent", src);
+out:
+	free(buf);
+	return (rv);
+}
 
 /* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
 int				
 setgrent(void)
 {
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
-		group, (void *)nss_lt_all,
-		NULL, NULL);
-#endif
-
-	static const ns_dtab dtab[] = {
-		{ NSSRC_FILES, files_setgrent, (void *)SETGRENT },
-#ifdef HESIOD
-		{ NSSRC_DNS, dns_setgrent, (void *)SETGRENT },
-#endif
-#ifdef YP
-		{ NSSRC_NIS, nis_setgrent, (void *)SETGRENT },
-#endif
-		{ NSSRC_COMPAT, compat_setgrent, (void *)SETGRENT },
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ NULL, NULL, NULL }
-	};
-	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
+	(void)_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", defaultsrc, 0);
 	return (1);
 }
 
@@ -394,27 +544,7 @@ setgrent(void)
 int
 setgroupent(int stayopen)
 {
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
-		group, (void *)nss_lt_all,
-		NULL, NULL);
-#endif
-
-	static const ns_dtab dtab[] = {
-		{ NSSRC_FILES, files_setgrent, (void *)SETGRENT },
-#ifdef HESIOD
-		{ NSSRC_DNS, dns_setgrent, (void *)SETGRENT },
-#endif
-#ifdef YP
-		{ NSSRC_NIS, nis_setgrent, (void *)SETGRENT },
-#endif
-		{ NSSRC_COMPAT, compat_setgrent, (void *)SETGRENT },
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ NULL, NULL, NULL }
-	};
-	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "setgrent", defaultsrc,
+	(void)_nsdispatch(NULL, setgrent_dtab, NSDB_GROUP, "setgrent", defaultsrc,
 	    stayopen);
 	return (1);
 }
@@ -423,27 +553,7 @@ setgroupent(int stayopen)
 void
 endgrent(void)
 {
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
-		group, (void *)nss_lt_all,
-		NULL, NULL);
-#endif
-
-	static const ns_dtab dtab[] = {
-		{ NSSRC_FILES, files_setgrent, (void *)ENDGRENT },
-#ifdef HESIOD
-		{ NSSRC_DNS, dns_setgrent, (void *)ENDGRENT },
-#endif
-#ifdef YP
-		{ NSSRC_NIS, nis_setgrent, (void *)ENDGRENT },
-#endif
-		{ NSSRC_COMPAT, compat_setgrent, (void *)ENDGRENT },
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ NULL, NULL, NULL }
-	};
-	(void)_nsdispatch(NULL, dtab, NSDB_GROUP, "endgrent", defaultsrc);
+	(void)_nsdispatch(NULL, endgrent_dtab, NSDB_GROUP, "endgrent", defaultsrc);
 }
 
 
@@ -451,31 +561,11 @@ int
 getgrent_r(struct group *grp, char *buffer, size_t bufsize,
     struct group **result)
 {
-#ifdef NS_CACHING
-	static const nss_cache_info cache_info = NS_MP_CACHE_INFO_INITIALIZER(
-		group, (void *)nss_lt_all,
-		grp_marshal_func, grp_unmarshal_func);
-#endif
-
-	static const ns_dtab dtab[] = {
-		{ NSSRC_FILES, files_group, (void *)nss_lt_all },
-#ifdef HESIOD
-		{ NSSRC_DNS, dns_group, (void *)nss_lt_all },
-#endif
-#ifdef YP
-		{ NSSRC_NIS, nis_group, (void *)nss_lt_all },
-#endif
-		{ NSSRC_COMPAT, compat_group, (void *)nss_lt_all },
-#ifdef NS_CACHING
-		NS_CACHE_CB(&cache_info)
-#endif
-		{ NULL, NULL, NULL }
-	};
 	int	rv, ret_errno;
 
 	ret_errno = 0;
 	*result = NULL;
-	rv = _nsdispatch(result, dtab, NSDB_GROUP, "getgrent_r", defaultsrc,
+	rv = _nsdispatch(result, getgrent_r_dtab, NSDB_GROUP, "getgrent_r", defaultsrc,
 	    grp, buffer, bufsize, &ret_errno);
 	if (rv == NS_SUCCESS)
 		return (0);
@@ -557,6 +647,30 @@ getgrgid_r(gid_t gid, struct group *grp, char *buffer, size_t bufsize,
 		return (0);
 	else
 		return (ret_errno);
+}
+
+
+
+int
+__getgroupmembership(const char *uname, gid_t agroup, gid_t *groups,
+	int maxgrp, int *grpcnt)
+{
+	static const ns_dtab dtab[] = {
+		NS_FALLBACK_CB(getgroupmembership_fallback)
+		{ NULL, NULL, NULL }
+	};
+	int rv;
+
+	assert(uname != NULL);
+	/* groups may be NULL if just sizing when invoked with maxgrp = 0 */
+	assert(grpcnt != NULL);
+
+	*grpcnt = 0;
+	rv = _nsdispatch(NULL, dtab, NSDB_GROUP, "getgroupmembership",
+	    defaultsrc, uname, agroup, groups, maxgrp, grpcnt);
+
+	/* too many groups found? */
+	return (*grpcnt > maxgrp ? -1 : 0);
 }
 
 
@@ -1436,3 +1550,5 @@ __gr_parse_entry(char *line, size_t linesize, struct group *grp, char *membuf,
 		return (NS_RETURN);
 	}
 }
+
+
