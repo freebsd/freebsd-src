@@ -88,7 +88,7 @@ MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 #define L2TP_DATA_HDR		(L2TP_HDR_VERSION)	/* optional: len, seq */
 
 /* Some hard coded values */
-#define L2TP_MAX_XWIN		16			/* my max xmit window */
+#define L2TP_MAX_XWIN		128			/* my max xmit window */
 #define L2TP_MAX_REXMIT		5			/* default max rexmit */
 #define L2TP_MAX_REXMIT_TO	30			/* default rexmit to */
 #define L2TP_DELAYED_ACK	((hz + 19) / 20)	/* delayed ack: 50 ms */
