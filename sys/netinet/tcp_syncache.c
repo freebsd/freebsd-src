@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/tcp_ofld.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -136,7 +137,8 @@ struct syncache {
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
 #ifndef DISABLE_TCP_OFFLOAD
-	void		*sc_pspare[2];		/* toepcb / toe_usrreqs */
+	struct toe_usrreqs *sc_tu;		/* TOE operations */
+	void 		*sc_toepcb;		/* TOE protocol block */
 #endif			
 #ifdef MAC
 	struct label	*sc_label;		/* MAC label reference */
@@ -356,6 +358,10 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 	TAILQ_REMOVE(&sch->sch_bucket, sc, sc_hash);
 	sch->sch_length--;
 
+#ifndef DISABLE_TCP_OFFLOAD
+	if (sc->sc_tu)
+		sc->sc_tu->tu_syncache_event(SC_DROP, sc->sc_toepcb);
+#endif		    
 	syncache_free(sc);
 	tcp_syncache.cache_count--;
 }
@@ -406,7 +412,6 @@ syncache_timer(void *xsch)
 				sch->sch_nextc = sc->sc_rxttime;
 			continue;
 		}
-
 		if (sc->sc_rxmits > tcp_syncache.rexmt_limit) {
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: Retransmits exhausted, "
@@ -873,7 +878,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Segment validation:
 	 * ACK must match our initial sequence number + 1 (the SYN|ACK).
 	 */
-	if (th->th_ack != sc->sc_iss + 1) {
+	if (th->th_ack != sc->sc_iss + 1 && sc->sc_toepcb == NULL) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: ACK %u != ISS+1 %u, segment "
 			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
@@ -884,7 +889,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * number + 1 (the SYN) because we didn't ACK any data that
 	 * may have come with the SYN.
 	 */
-	if (th->th_seq != sc->sc_irs + 1) {
+	if (th->th_seq != sc->sc_irs + 1 && sc->sc_toepcb == NULL) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
 			    "rejected\n", s, __func__, th->th_seq, sc->sc_irs);
@@ -901,7 +906,8 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * If timestamps were negotiated the reflected timestamp
 	 * must be equal to what we actually sent in the SYN|ACK.
 	 */
-	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts) {
+	if ((to->to_flags & TOF_TS) && to->to_tsecr != sc->sc_ts &&
+	    sc->sc_toepcb == NULL) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: TSECR %u != TS %u, "
 			    "segment rejected\n",
@@ -941,9 +947,10 @@ failed:
  * consume all available buffer space if it were ACKed.  By not ACKing
  * the data, we avoid this DoS scenario.
  */
-void
-syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
-    struct inpcb *inp, struct socket **lsop, struct mbuf *m)
+static void
+_syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
+    struct inpcb *inp, struct socket **lsop, struct mbuf *m,
+    struct toe_usrreqs *tu, void *toepcb)
 {
 	struct tcpcb *tp;
 	struct socket *so;
@@ -1021,6 +1028,11 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc = syncache_lookup(inc, &sch);	/* returns locked entry */
 	SCH_LOCK_ASSERT(sch);
 	if (sc != NULL) {
+#ifndef DISABLE_TCP_OFFLOAD
+		if (sc->sc_tu)
+			sc->sc_tu->tu_syncache_event(SC_ENTRY_PRESENT,
+			    sc->sc_toepcb);
+#endif		    
 		tcpstat.tcps_sc_dupsyn++;
 		if (ipopts) {
 			/*
@@ -1055,7 +1067,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    s, __func__);
 			free(s, M_TCPLOG);
 		}
-		if (syncache_respond(sc) == 0) {
+		if ((sc->sc_toepcb == NULL) && syncache_respond(sc) == 0) {
 			sc->sc_rxmits = 0;
 			syncache_timeout(sc, sch, 1);
 			tcpstat.tcps_sndacks++;
@@ -1088,7 +1100,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			}
 		}
 	}
-
+	
 	/*
 	 * Fill in the syncache values.
 	 */
@@ -1104,7 +1116,10 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		sc->sc_ip_tos = ip_tos;
 		sc->sc_ip_ttl = ip_ttl;
 	}
-
+#ifndef DISABLE_TCP_OFFLOAD	
+	sc->sc_tu = tu;
+	sc->sc_toepcb = toepcb;
+#endif
 	sc->sc_irs = th->th_seq;
 	sc->sc_iss = arc4random();
 	sc->sc_flags = 0;
@@ -1196,7 +1211,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Do a standard 3-way handshake.
 	 */
-	if (syncache_respond(sc) == 0) {
+	if (sc->sc_toepcb || syncache_respond(sc) == 0) {
 		if (tcp_syncookies && tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
@@ -1214,8 +1229,11 @@ done:
 	if (sc == &scs)
 		mac_syncache_destroy(&maclabel);
 #endif
-	*lsop = NULL;
-	m_freem(m);
+	if (m) {
+		
+		*lsop = NULL;
+		m_freem(m);
+	}
 	return;
 }
 
@@ -1372,6 +1390,21 @@ syncache_respond(struct syncache *sc)
 		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, NULL);
 	}
 	return (error);
+}
+
+void
+syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
+    struct inpcb *inp, struct socket **lsop, struct mbuf *m)
+{
+	_syncache_add(inc, to, th, inp, lsop, m, NULL, NULL);
+}
+
+void
+syncache_offload_add(struct in_conninfo *inc, struct tcpopt *to,
+    struct tcphdr *th, struct inpcb *inp, struct socket **lsop,
+    struct toe_usrreqs *tu, void *toepcb)
+{
+	_syncache_add(inc, to, th, inp, lsop, NULL, tu, toepcb);
 }
 
 /*
@@ -1699,4 +1732,3 @@ exit:
 	*pcbs_exported = count;
 	return error;
 }
-
