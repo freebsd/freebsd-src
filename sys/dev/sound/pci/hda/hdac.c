@@ -2168,6 +2168,18 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 		default:
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC268 &&
+	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor)) {
+		switch (nid) {
+		case 28:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_CD |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		default:
+			break;
+		}
 	}
 
 	HDA_BOOTVERBOSE(
