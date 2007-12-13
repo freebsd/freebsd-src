@@ -194,22 +194,19 @@ enum ieee80211_radiotap_type {
 };
 
 #ifndef _KERNEL
-/* Channel flags. */
-#define	IEEE80211_CHAN_TURBO	0x00010	/* Turbo channel */
-#define	IEEE80211_CHAN_CCK	0x00020	/* CCK channel */
-#define	IEEE80211_CHAN_OFDM	0x00040	/* OFDM channel */
-#define	IEEE80211_CHAN_2GHZ	0x00080	/* 2 GHz spectrum channel. */
-#define	IEEE80211_CHAN_5GHZ	0x00100	/* 5 GHz spectrum channel */
-#define	IEEE80211_CHAN_PASSIVE	0x00200	/* Only passive scan allowed */
-#define	IEEE80211_CHAN_DYN	0x00400	/* Dynamic CCK-OFDM channel */
-#define	IEEE80211_CHAN_GFSK	0x00800	/* GFSK channel (FHSS PHY) */
-#define	IEEE80211_CHAN_GSM	0x01000	/* 900 MHz spectrum channel */
-#define	IEEE80211_CHAN_STURBO	0x02000	/* 11a static turbo channel only */
-#define	IEEE80211_CHAN_HALF	0x04000	/* Half rate channel */
-#define	IEEE80211_CHAN_QUARTER	0x08000	/* Quarter rate channel */
-#define	IEEE80211_CHAN_HT20	0x10000	/* HT 20 channel */
-#define	IEEE80211_CHAN_HT40U	0x20000	/* HT 40 channel w/ ext above */
-#define	IEEE80211_CHAN_HT40D	0x40000	/* HT 40 channel w/ ext below */
+/* channel attributes */
+#define	IEEE80211_CHAN_TURBO	0x00000010 /* Turbo channel */
+#define	IEEE80211_CHAN_CCK	0x00000020 /* CCK channel */
+#define	IEEE80211_CHAN_OFDM	0x00000040 /* OFDM channel */
+#define	IEEE80211_CHAN_2GHZ	0x00000080 /* 2 GHz spectrum channel. */
+#define	IEEE80211_CHAN_5GHZ	0x00000100 /* 5 GHz spectrum channel */
+#define	IEEE80211_CHAN_PASSIVE	0x00000200 /* Only passive scan allowed */
+#define	IEEE80211_CHAN_DYN	0x00000400 /* Dynamic CCK-OFDM channel */
+#define	IEEE80211_CHAN_GFSK	0x00000800 /* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x00001000 /* 900 MHz spectrum channel */
+#define	IEEE80211_CHAN_STURBO	0x00002000 /* 11a static turbo channel only */
+#define	IEEE80211_CHAN_HALF	0x00004000 /* Half rate channel */
+#define	IEEE80211_CHAN_QUARTER	0x00008000 /* Quarter rate channel */
 #endif /* !_KERNEL */
 
 /* For IEEE80211_RADIOTAP_FLAGS */
