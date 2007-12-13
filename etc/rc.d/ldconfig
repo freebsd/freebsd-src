@@ -49,8 +49,14 @@ ldconfig_start()
 					fi
 				fi
 			done
-			echo '32-bit compatibility ldconfig path:' ${ldconfig32_paths}
-			${ldconfig} -32 -m ${_ins} ${ldconfig32_paths}
+			_LDC=""
+			for i in ${ldconfig32_paths}; do
+				if [ -r "${i}" ]; then
+					_LDC="${_LDC} ${i}"
+				fi
+			done
+			echo '32-bit compatibility ldconfig path:' ${_LDC}
+			${ldconfig} -32 -m ${_ins} ${_LDC}
 			;;
 		esac
 
