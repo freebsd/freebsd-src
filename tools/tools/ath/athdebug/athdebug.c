@@ -67,6 +67,7 @@ enum {
 	ATH_DEBUG_LED		= 0x00100000,	/* led management */
 	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
 	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
+	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -95,6 +96,7 @@ static struct {
 	{ "led",	ATH_DEBUG_LED },
 	{ "ff",		ATH_DEBUG_FF },
 	{ "dfs",	ATH_DEBUG_DFS },
+	{ "tdma",	ATH_DEBUG_TDMA },
 	{ "fatal",	ATH_DEBUG_FATAL },
 };
 
@@ -135,7 +137,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	const char *ifname = "ath0";
+	const char *ifname;
 	const char *cp, *tp;
 	const char *sep;
 	int c, op, i;
@@ -143,6 +145,9 @@ main(int argc, char *argv[])
 	size_t debuglen;
 	char oid[256];
 
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
 	progname = argv[0];
 	if (argc > 1) {
 		if (strcmp(argv[1], "-i") == 0) {
