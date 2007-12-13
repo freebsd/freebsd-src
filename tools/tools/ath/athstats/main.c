@@ -42,6 +42,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 #include <err.h>
@@ -63,9 +64,13 @@ int
 main(int argc, char *argv[])
 {
 	struct athstatfoo *wf;
+	const char *ifname;
 	int c;
 
-	wf = athstats_new("ath0", S_DEFAULT);
+	ifname = getenv("ATH");
+	if (ifname == NULL)
+		ifname = "ath0";
+	wf = athstats_new(ifname, S_DEFAULT);
 	while ((c = getopt(argc, argv, "i:lo:")) != -1) {
 		switch (c) {
 		case 'i':
