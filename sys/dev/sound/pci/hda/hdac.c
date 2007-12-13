@@ -179,6 +179,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HP_XW4300_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x3013)
 #define HP_3010_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x3010)
 #define HP_DV5000_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30a5)
+#define HP_DC7700S_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x2801)
 #define HP_DC7700_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x2802)
 #define HP_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0xffff)
 /* What is wrong with XN 2563 anyway? (Got the picture ?) */
@@ -4304,7 +4305,18 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		}
 		break;
 	case HDA_CODEC_ALC262:
-		if (subvendor == HP_DC7700_SUBVENDOR) {
+		if (subvendor == HP_DC7700S_SUBVENDOR) {
+			ctl = hdac_audio_ctl_amp_get(devinfo, 21, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_PHONEOUT;
+				ctl->widget->ctlflags |= SOUND_MASK_PHONEOUT;
+			}
+			ctl = hdac_audio_ctl_amp_get(devinfo, 22, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_SPEAKER;
+				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+		} else if (subvendor == HP_DC7700_SUBVENDOR) {
 			ctl = hdac_audio_ctl_amp_get(devinfo, 22, 0, 1);
 			if (ctl != NULL && ctl->widget != NULL) {
 				ctl->ossmask = SOUND_MASK_SPEAKER;
