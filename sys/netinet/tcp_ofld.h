@@ -38,7 +38,7 @@
 #define	SC_DROP			2
 
 #define	tp_offload(tp)		((tp)->t_flags & TF_TOE)
-#define	SO_OFFLOADABLE(so)	((so->so_options & SO_NOOFFLOAD) == 0)
+#define	SO_OFFLOADABLE(so)	((so->so_options & SO_NO_OFFLOAD) == 0)
 
 int	ofld_connect(struct socket *so, struct sockaddr *nam);
 int	ofld_can_offload(struct tcpcb *tp, struct sockaddr *nam);
