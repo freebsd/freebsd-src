@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
+#include <libutil.h>
 
 static char da[] = "da";
 
@@ -137,6 +138,8 @@ static struct	vmmeter sum, osum;
 static int	winlines = 20;
 static int	aflag;
 static int	nflag;
+static int	Pflag;
+static int	hflag;
 
 static kvm_t   *kd;
 
@@ -149,6 +152,7 @@ static kvm_t   *kd;
 #define ZMEMSTAT	0x40
 
 static void	cpustats(void);
+static void	pcpustats(int, u_long, int);
 static void	devstats(void);
 static void	doforkst(void);
 static void	dointr(void);
@@ -160,7 +164,7 @@ static void	kread(int, void *, size_t);
 static void	kreado(int, void *, size_t, size_t);
 static char    *kgetstr(const char *);
 static void	needhdr(int);
-static void	printhdr(void);
+static void	printhdr(int, u_long);
 static void	usage(void);
 
 static long	pct(long, long);
@@ -180,7 +184,8 @@ main(int argc, char *argv[])
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
 	maxshowdevs = 2;
-	while ((c = getopt(argc, argv, "ac:fiM:mN:n:p:stw:z")) != -1) {
+	hflag = isatty(1);
+	while ((c = getopt(argc, argv, "ac:fhHiM:mN:n:Pp:stw:z")) != -1) {
 		switch (c) {
 		case 'a':
 			aflag++;
@@ -188,8 +193,17 @@ main(int argc, char *argv[])
 		case 'c':
 			reps = atoi(optarg);
 			break;
+		case 'P':
+			Pflag++;
+			break;
 		case 'f':
 			todo |= FORKSTAT;
+			break;
+		case 'h':
+			hflag = 1;
+			break;
+		case 'H':
+			hflag = 0;
 			break;
 		case 'i':
 			todo |= INTRSTAT;
@@ -261,6 +275,8 @@ main(int argc, char *argv[])
 			warnx("kvm_nlist: %s", kvm_geterr(kd));
 		exit(1);
 	}
+	if (kd && Pflag)
+		errx(1, "Cannot use -P with crash dumps");
 
 	if (todo & VMSTAT) {
 		struct winsize winsize;
@@ -487,7 +503,70 @@ fill_vmtotal(struct vmtotal *vmtp)
 	}
 }
 
+/* Determine how many cpu columns, and what index they are in kern.cp_times */
+static int
+getcpuinfo(u_long *maskp, int *maxidp)
+{
+	int maxcpu;
+	int maxid;
+	int ncpus;
+	int i, j;
+	int empty;
+	size_t size;
+	long *times;
+	u_long mask;
+
+	if (kd != NULL)
+		errx(1, "not implemented");
+	mask = 0;
+	ncpus = 0;
+	size = sizeof(maxcpu);
+	mysysctl("kern.smp.maxcpus", &maxcpu, &size, NULL, 0);
+	if (size != sizeof(maxcpu))
+		errx(1, "sysctl kern.smp.maxcpus");
+	size = sizeof(long) * maxcpu * CPUSTATES;
+	times = malloc(size);
+	if (times == NULL)
+		err(1, "malloc %zd bytes", size);
+	mysysctl("kern.cp_times", times, &size, NULL, 0);
+	maxid = (size / CPUSTATES / sizeof(long)) - 1;
+	for (i = 0; i <= maxid; i++) {
+		empty = 1;
+		for (j = 0; empty && j < CPUSTATES; j++) {
+			if (times[i * CPUSTATES + j] != 0)
+				empty = 0;
+		}
+		if (!empty) {
+			mask |= (1ul << i);
+			ncpus++;
+		}
+	}
+	if (maskp)
+		*maskp = mask;
+	if (maxidp)
+		*maxidp = maxid;
+	return (ncpus);
+}
+
+
+static void
+prthuman(u_int64_t val, int size)
+{
+	char buf[10];
+	int flags;
+
+	if (size < 5 || size > 9)
+		errx(1, "doofus");
+	flags = HN_B | HN_NOSPACE | HN_DECIMAL;
+	humanize_number(buf, size, val, "", HN_AUTOSCALE, flags);
+	printf("%*s", size, buf);
+}
+
 static int hz, hdrcnt;
+
+static long *cur_cp_times;
+static long *last_cp_times;
+static size_t size_cp_times;
 
 static void
 dovmstat(unsigned int interval, int reps)
@@ -496,6 +575,8 @@ dovmstat(unsigned int interval, int reps)
 	time_t uptime, halfuptime;
 	struct devinfo *tmp_dinfo;
 	size_t size;
+	int ncpus, maxid;
+	u_long cpumask;
 
 	uptime = getuptime();
 	halfuptime = uptime / 2;
@@ -517,9 +598,17 @@ dovmstat(unsigned int interval, int reps)
 		hz = clockrate.hz;
 	}
 
+	if (Pflag) {
+		ncpus = getcpuinfo(&cpumask, &maxid);
+		size_cp_times = sizeof(long) * (maxid + 1) * CPUSTATES;
+		cur_cp_times = malloc(size_cp_times);
+		last_cp_times = malloc(size_cp_times);
+		bzero(cur_cp_times, size_cp_times);
+		bzero(last_cp_times, size_cp_times);
+	}
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)
-			printhdr();
+			printhdr(ncpus, cpumask);
 		if (kd != NULL) {
 			kread(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
 		} else {
@@ -527,6 +616,12 @@ dovmstat(unsigned int interval, int reps)
 			mysysctl("kern.cp_time", &cur.cp_time, &size, NULL, 0);
 			if (size != sizeof(cur.cp_time))
 				errx(1, "cp_time size mismatch");
+		}
+		if (Pflag) {
+			size = size_cp_times;
+			mysysctl("kern.cp_times", cur_cp_times, &size, NULL, 0);
+			if (size != size_cp_times)
+				errx(1, "cp_times mismatch");
 		}
 
 		tmp_dinfo = last.dinfo;
@@ -563,7 +658,7 @@ dovmstat(unsigned int interval, int reps)
 				errx(1, "%s", devstat_errbuf);
 				break;
 			case 1:
-				printhdr();
+				printhdr(ncpus, cpumask);
 				break;
 			default:
 				break;
@@ -579,8 +674,16 @@ dovmstat(unsigned int interval, int reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf(" %7d %6d ", vmstat_pgtok(total.t_avm),
-		    vmstat_pgtok(total.t_free));
+		if (hflag) {
+			printf(" ");
+			prthuman(total.t_avm * (u_int64_t)sum.v_page_size, 7);
+			printf(" ");
+			prthuman(total.t_free * (u_int64_t)sum.v_page_size, 6);
+			printf(" ");
+		} else {
+			printf(" %7d ", vmstat_pgtok(total.t_avm));
+			printf(" %6d ", vmstat_pgtok(total.t_free));
+		}
 		(void)printf("%5lu ",
 		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -596,11 +699,14 @@ dovmstat(unsigned int interval, int reps)
 		(void)printf("%3lu ",
 		    (unsigned long)rate(sum.v_pdpages - osum.v_pdpages));
 		devstats();
-		(void)printf("%4lu %4lu %4lu ",
+		(void)printf("%4lu %4lu %4lu",
 		    (unsigned long)rate(sum.v_intr - osum.v_intr),
 		    (unsigned long)rate(sum.v_syscall - osum.v_syscall),
 		    (unsigned long)rate(sum.v_swtch - osum.v_swtch));
-		cpustats();
+		if (Pflag)
+			pcpustats(ncpus, cpumask, maxid);
+		else
+			cpustats();
 		(void)printf("\n");
 		(void)fflush(stdout);
 		if (reps >= 0 && --reps <= 0)
@@ -620,7 +726,7 @@ dovmstat(unsigned int interval, int reps)
 }
 
 static void
-printhdr(void)
+printhdr(int ncpus, u_long cpumask)
 {
 	int i, num_shown;
 
@@ -630,7 +736,15 @@ printhdr(void)
 		(void)printf(" disks %*s", num_shown * 4 - 7, "");
 	else if (num_shown == 1)
 		(void)printf("disk");
-	(void)printf("   faults      cpu\n");
+	(void)printf("   faults         ");
+	if (Pflag) {
+		for (i = 0; i < ncpus; i++) {
+			if (cpumask && (1ul << i))
+				printf("cpu%-2d    ", i);
+		}
+		printf("\n");
+	} else
+		printf("cpu\n");
 	(void)printf(" r b w     avm    fre   flt  re  pi  po    fr  sr ");
 	for (i = 0; i < num_devices; i++)
 		if ((dev_select[i].selected)
@@ -638,7 +752,13 @@ printhdr(void)
 			(void)printf("%c%c%d ", dev_select[i].device_name[0],
 				     dev_select[i].device_name[1],
 				     dev_select[i].unit_number);
-	(void)printf("  in   sy   cs us sy id\n");
+	(void)printf("  in   sy   cs");
+	if (Pflag) {
+		for (i = 0; i < ncpus; i++)
+			printf(" us sy id");
+		printf("\n");
+	} else
+		printf(" us sy id\n");
 	hdrcnt = winlines - 2;
 }
 
@@ -809,9 +929,25 @@ devstats(void)
 }
 
 static void
+percent(double pct, int *over)
+{
+	char buf[10];
+	int l;
+
+	l = snprintf(buf, sizeof(buf), "%.0f", pct);
+	if (l == 1 && *over) {
+		printf("%s",  buf);
+		(*over)--;
+	} else
+		printf("%2s", buf);
+	if (l > 2)
+		(*over)++;
+}
+
+static void
 cpustats(void)
 {
-	int state;
+	int state, over;
 	double lpct, total;
 
 	total = 0;
@@ -821,11 +957,54 @@ cpustats(void)
 		lpct = 100.0 / total;
 	else
 		lpct = 0.0;
-	(void)printf("%2.0f ", (cur.cp_time[CP_USER] +
-				cur.cp_time[CP_NICE]) * lpct);
-	(void)printf("%2.0f ", (cur.cp_time[CP_SYS] +
-				cur.cp_time[CP_INTR]) * lpct);
-	(void)printf("%2.0f", cur.cp_time[CP_IDLE] * lpct);
+	over = 0;
+	printf(" ");
+	percent((cur.cp_time[CP_USER] + cur.cp_time[CP_NICE]) * lpct, &over);
+	printf(" ");
+	percent((cur.cp_time[CP_SYS] + cur.cp_time[CP_INTR]) * lpct, &over);
+	printf(" ");
+	percent(cur.cp_time[CP_IDLE] * lpct, &over);
+}
+
+static void
+pcpustats(int ncpus, u_long cpumask, int maxid)
+{
+	int state, i;
+	double lpct, total;
+	long tmp;
+	int over;
+
+	/* devstats does this for cp_time */
+	for (i = 0; i <= maxid; i++) {
+		if (cpumask && (1ul << i) == 0)
+			continue;
+		for (state = 0; state < CPUSTATES; ++state) {
+			tmp = cur_cp_times[i * CPUSTATES + state];
+			cur_cp_times[i * CPUSTATES + state] -= last_cp_times[i * CPUSTATES + state];
+			last_cp_times[i * CPUSTATES + state] = tmp;
+		}
+	}
+
+	over = 0;
+	for (i = 0; i <= maxid; i++) {
+		if (cpumask && (1ul << i) == 0)
+			continue;
+		total = 0;
+		for (state = 0; state < CPUSTATES; ++state)
+			total += cur_cp_times[i * CPUSTATES + state];
+		if (total)
+			lpct = 100.0 / total;
+		else
+			lpct = 0.0;
+		printf(" ");
+		percent((cur_cp_times[i * CPUSTATES + CP_USER] +
+			 cur_cp_times[i * CPUSTATES + CP_NICE]) * lpct, &over);
+		printf(" ");
+		percent((cur_cp_times[i * CPUSTATES + CP_SYS] +
+			 cur_cp_times[i * CPUSTATES + CP_INTR]) * lpct, &over);
+		printf(" ");
+		percent(cur_cp_times[i * CPUSTATES + CP_IDLE] * lpct, &over);
+	}
 }
 
 static void
