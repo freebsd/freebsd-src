@@ -9,9 +9,15 @@ SRCS=	main.c statfoo.c athstats.c
 .include <bsd.prog.mk>
 
 CFLAGS+= -I.
-CLEANFILES+= opt_ah.h
+CLEANFILES+= opt_ah.h ah_osdep.h
 
-athstats.o: opt_ah.h
+CFLAGS+=-I../../../../sys/contrib/dev/ath
+CFLAGS+=-I../../../../sys/net80211
+CFLAGS+=-I../../../../sys/dev/ath
+
+athstats.o: opt_ah.h ah_osdep.h
 
 opt_ah.h:
 	touch opt_ah.h
+ah_osdep.h:
+	touch ah_osdep.h
