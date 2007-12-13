@@ -75,7 +75,7 @@ ata_dmainit(device_t dev)
 	ch->dma->load = ata_dmaload;
 	ch->dma->unload = ata_dmaunload;
 	ch->dma->alignment = 2;
-	ch->dma->boundary = 128 * DEV_BSIZE;
+	ch->dma->boundary = 65536;
 	ch->dma->segsize = 128 * DEV_BSIZE;
 	ch->dma->max_iosize = 128 * DEV_BSIZE;
 	ch->dma->max_address = BUS_SPACE_MAXADDR_32BIT;
