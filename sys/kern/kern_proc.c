@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/jail.h>
 #include <sys/vnode.h>
+#include <sys/eventhandler.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -130,6 +131,7 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	EVENTHANDLER_INVOKE(process_ctor, p);
 	return (0);
 }
 
@@ -158,7 +160,8 @@ proc_dtor(void *mem, int size, void *arg)
 	 *     freed, so you gotta do this here.
 	 */
 	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
-		vm_thread_dispose_altkstack(td);
+	  vm_thread_dispose_altkstack(td);
+	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }
@@ -178,6 +181,7 @@ proc_init(void *mem, int size, int flags)
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
 	proc_linkup(p, td);
 	sched_newproc(p, td);
@@ -195,6 +199,7 @@ proc_fini(void *mem, int size)
 	struct proc *p;
 
 	p = (struct proc *)mem;
+	EVENTHANDLER_INVOKE(process_fini, p);
 	pstats_free(p->p_stats);
 	thread_free(FIRST_THREAD_IN_PROC(p));
 	mtx_destroy(&p->p_mtx);
