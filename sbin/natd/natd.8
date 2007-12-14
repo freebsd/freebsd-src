@@ -421,16 +421,20 @@ For example, the line
 is synonymous with
 .Fl log .
 .Pp
-Options can be divided to several sections. Each section applies to own
+Options can be divided to several sections.
+Each section applies to own
 .Nm
-instance. This ability allow to configure one
+instance.
+This ability allows to configure one
 .Nm
-process for several NAT instances. The first instance that always exists is
-a "default" instance. Each another instance should begin with 
+process for several NAT instances.
+The first instance that always exists is a "default" instance.
+Each another instance should begin with
 .Pp
 .Dl instance Ar instance_name
 .Pp
-At the next should be placed a configuration option. Example:
+At the next should be placed a configuration option.
+Example:
 .Pp
 .Dl \&# default instance
 .Dl port 8668
