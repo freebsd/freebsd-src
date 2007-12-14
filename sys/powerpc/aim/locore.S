@@ -205,4 +205,4 @@ setfault:
 	xor	3,3,3
 	blr
 
-#include <powerpc/powerpc/trap_subr.S>
+#include <powerpc/aim/trap_subr.S>
