@@ -28,7 +28,7 @@
 .\"     from: @(#)sqrt.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd May 6, 1991
+.Dd December 14, 2007
 .Dt SQRT 3
 .Os
 .Sh NAME
@@ -80,15 +80,20 @@ An attempt to take the
 .Fn sqrt
 of negative
 .Fa x
-raises an invalid exception and causes an \*(Na to be returned.
+raises an invalid exception and causes an \*(Na to be returned
+(except that the square root of -0 is valid and equal to -0.)
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr math 3
 .Sh STANDARDS
 The
-.Fn sqrt
-function conforms to
-.St -isoC .
+.Fn cbrt ,
+.Fn cbrtf ,
+.Fn sqrt ,
+and
+.Fn sqrtf
+functions conform to
+.St -isoC-99 .
 .Sh HISTORY
 The
 .Fn cbrt
