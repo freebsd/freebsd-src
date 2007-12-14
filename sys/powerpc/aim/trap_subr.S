@@ -36,7 +36,7 @@
  * NOTICE: This is not a standalone file.  to use it, #include it in
  * your port's locore.S, like so:
  *
- *	#include <powerpc/powerpc/trap_subr.S>
+ *	#include <powerpc/aim/trap_subr.S>
  */
 
 /*
