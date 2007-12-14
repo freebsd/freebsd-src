@@ -119,6 +119,8 @@ struct pthread_mutex {
 	int				m_flags;
 	int				m_count;
 	int				m_refcount;
+	int				m_spinloops;
+	int				m_yieldloops;
 	/*
 	 * Link for all mutexes a thread currently owns.
 	 */
