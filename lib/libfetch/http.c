@@ -130,11 +130,11 @@ struct httpio
  * Get next chunk header
  */
 static int
-_http_new_chunk(struct httpio *io)
+http_new_chunk(struct httpio *io)
 {
 	char *p;
 
-	if (_fetch_getln(io->conn) == -1)
+	if (fetch_getln(io->conn) == -1)
 		return (-1);
 
 	if (io->conn->buflen < 2 || !ishexnumber(*io->conn->buf))
@@ -173,7 +173,7 @@ _http_new_chunk(struct httpio *io)
  * Grow the input buffer to at least len bytes
  */
 static inline int
-_http_growbuf(struct httpio *io, size_t len)
+http_growbuf(struct httpio *io, size_t len)
 {
 	char *tmp;
 
@@ -191,7 +191,7 @@ _http_growbuf(struct httpio *io, size_t len)
  * Fill the input buffer, do chunk decoding on the fly
  */
 static int
-_http_fillbuf(struct httpio *io, size_t len)
+http_fillbuf(struct httpio *io, size_t len)
 {
 	if (io->error)
 		return (-1);
@@ -199,9 +199,9 @@ _http_fillbuf(struct httpio *io, size_t len)
 		return (0);
 
 	if (io->chunked == 0) {
-		if (_http_growbuf(io, len) == -1)
+		if (http_growbuf(io, len) == -1)
 			return (-1);
-		if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1) {
+		if ((io->buflen = fetch_read(io->conn, io->buf, len)) == -1) {
 			io->error = 1;
 			return (-1);
 		}
@@ -210,7 +210,7 @@ _http_fillbuf(struct httpio *io, size_t len)
 	}
 
 	if (io->chunksize == 0) {
-		switch (_http_new_chunk(io)) {
+		switch (http_new_chunk(io)) {
 		case -1:
 			io->error = 1;
 			return (-1);
@@ -222,9 +222,9 @@ _http_fillbuf(struct httpio *io, size_t len)
 
 	if (len > io->chunksize)
 		len = io->chunksize;
-	if (_http_growbuf(io, len) == -1)
+	if (http_growbuf(io, len) == -1)
 		return (-1);
-	if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1) {
+	if ((io->buflen = fetch_read(io->conn, io->buf, len)) == -1) {
 		io->error = 1;
 		return (-1);
 	}
@@ -233,7 +233,7 @@ _http_fillbuf(struct httpio *io, size_t len)
 	if (io->chunksize == 0) {
 		char endl[2];
 
-		if (_fetch_read(io->conn, endl, 2) != 2 ||
+		if (fetch_read(io->conn, endl, 2) != 2 ||
 		    endl[0] != '\r' || endl[1] != '\n')
 			return (-1);
 	}
@@ -247,7 +247,7 @@ _http_fillbuf(struct httpio *io, size_t len)
  * Read function
  */
 static int
-_http_readfn(void *v, char *buf, int len)
+http_readfn(void *v, char *buf, int len)
 {
 	struct httpio *io = (struct httpio *)v;
 	int l, pos;
@@ -260,7 +260,7 @@ _http_readfn(void *v, char *buf, int len)
 	for (pos = 0; len > 0; pos += l, len -= l) {
 		/* empty buffer */
 		if (!io->buf || io->bufpos == io->buflen)
-			if (_http_fillbuf(io, len) < 1)
+			if (http_fillbuf(io, len) < 1)
 				break;
 		l = io->buflen - io->bufpos;
 		if (len < l)
@@ -278,23 +278,23 @@ _http_readfn(void *v, char *buf, int len)
  * Write function
  */
 static int
-_http_writefn(void *v, const char *buf, int len)
+http_writefn(void *v, const char *buf, int len)
 {
 	struct httpio *io = (struct httpio *)v;
 
-	return (_fetch_write(io->conn, buf, len));
+	return (fetch_write(io->conn, buf, len));
 }
 
 /*
  * Close function
  */
 static int
-_http_closefn(void *v)
+http_closefn(void *v)
 {
 	struct httpio *io = (struct httpio *)v;
 	int r;
 
-	r = _fetch_close(io->conn);
+	r = fetch_close(io->conn);
 	if (io->buf)
 		free(io->buf);
 	free(io);
@@ -305,20 +305,20 @@ _http_closefn(void *v)
  * Wrap a file descriptor up
  */
 static FILE *
-_http_funopen(conn_t *conn, int chunked)
+http_funopen(conn_t *conn, int chunked)
 {
 	struct httpio *io;
 	FILE *f;
 
 	if ((io = calloc(1, sizeof(*io))) == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		return (NULL);
 	}
 	io->conn = conn;
 	io->chunked = chunked;
-	f = funopen(io, _http_readfn, _http_writefn, NULL, _http_closefn);
+	f = funopen(io, http_readfn, http_writefn, NULL, http_closefn);
 	if (f == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		free(io);
 		return (NULL);
 	}
@@ -362,7 +362,7 @@ static struct {
  * Send a formatted line; optionally echo to terminal
  */
 static int
-_http_cmd(conn_t *conn, const char *fmt, ...)
+http_cmd(conn_t *conn, const char *fmt, ...)
 {
 	va_list ap;
 	size_t len;
@@ -375,15 +375,15 @@ _http_cmd(conn_t *conn, const char *fmt, ...)
 
 	if (msg == NULL) {
 		errno = ENOMEM;
-		_fetch_syserr();
+		fetch_syserr();
 		return (-1);
 	}
 
-	r = _fetch_putln(conn, msg, len);
+	r = fetch_putln(conn, msg, len);
 	free(msg);
 
 	if (r == -1) {
-		_fetch_syserr();
+		fetch_syserr();
 		return (-1);
 	}
 
@@ -394,11 +394,11 @@ _http_cmd(conn_t *conn, const char *fmt, ...)
  * Get and parse status line
  */
 static int
-_http_get_reply(conn_t *conn)
+http_get_reply(conn_t *conn)
 {
 	char *p;
 
-	if (_fetch_getln(conn) == -1)
+	if (fetch_getln(conn) == -1)
 		return (-1);
 	/*
 	 * A valid status line looks like "HTTP/m.n xyz reason" where m
@@ -429,7 +429,7 @@ _http_get_reply(conn_t *conn)
  * to the beginning of the value.
  */
 static const char *
-_http_match(const char *str, const char *hdr)
+http_match(const char *str, const char *hdr)
 {
 	while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
 		/* nothing */;
@@ -444,11 +444,11 @@ _http_match(const char *str, const char *hdr)
  * Get the next header and return the appropriate symbolic code.
  */
 static hdr_t
-_http_next_header(conn_t *conn, const char **p)
+http_next_header(conn_t *conn, const char **p)
 {
 	int i;
 
-	if (_fetch_getln(conn) == -1)
+	if (fetch_getln(conn) == -1)
 		return (hdr_syserror);
 	while (conn->buflen && isspace(conn->buf[conn->buflen - 1]))
 		conn->buflen--;
@@ -462,7 +462,7 @@ _http_next_header(conn_t *conn, const char **p)
 	 * characters except "()<>@,;:\\\"{}".
 	 */
 	for (i = 0; hdr_names[i].num != hdr_unknown; i++)
-		if ((*p = _http_match(hdr_names[i].name, conn->buf)) != NULL)
+		if ((*p = http_match(hdr_names[i].name, conn->buf)) != NULL)
 			return (hdr_names[i].num);
 	return (hdr_unknown);
 }
@@ -471,7 +471,7 @@ _http_next_header(conn_t *conn, const char **p)
  * Parse a last-modified header
  */
 static int
-_http_parse_mtime(const char *p, time_t *mtime)
+http_parse_mtime(const char *p, time_t *mtime)
 {
 	char locale[64], *r;
 	struct tm tm;
@@ -495,7 +495,7 @@ _http_parse_mtime(const char *p, time_t *mtime)
  * Parse a content-length header
  */
 static int
-_http_parse_length(const char *p, off_t *length)
+http_parse_length(const char *p, off_t *length)
 {
 	off_t len;
 
@@ -513,7 +513,7 @@ _http_parse_length(const char *p, off_t *length)
  * Parse a content-range header
  */
 static int
-_http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
+http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 {
 	off_t first, last, len;
 
@@ -560,7 +560,7 @@ _http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
  * Base64 encoding
  */
 static char *
-_http_base64(const char *src)
+http_base64(const char *src)
 {
 	static const char base64[] =
 	    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -616,7 +616,7 @@ _http_base64(const char *src)
  * Encode username and password
  */
 static int
-_http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd)
+http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd)
 {
 	char *upw, *auth;
 	int r;
@@ -625,11 +625,11 @@ _http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd
 	DEBUG(fprintf(stderr, "pwd: [%s]\n", pwd));
 	if (asprintf(&upw, "%s:%s", usr, pwd) == -1)
 		return (-1);
-	auth = _http_base64(upw);
+	auth = http_base64(upw);
 	free(upw);
 	if (auth == NULL)
 		return (-1);
-	r = _http_cmd(conn, "%s: Basic %s", hdr, auth);
+	r = http_cmd(conn, "%s: Basic %s", hdr, auth);
 	free(auth);
 	return (r);
 }
@@ -638,7 +638,7 @@ _http_basic_auth(conn_t *conn, const char *hdr, const char *usr, const char *pwd
  * Send an authorization header
  */
 static int
-_http_authorize(conn_t *conn, const char *hdr, const char *p)
+http_authorize(conn_t *conn, const char *hdr, const char *p)
 {
 	/* basic authorization */
 	if (strncasecmp(p, "basic:", 6) == 0) {
@@ -655,7 +655,7 @@ _http_authorize(conn_t *conn, const char *hdr, const char *p)
 		user = str;
 		pwd = strchr(str, ':');
 		*pwd++ = '\0';
-		r = _http_basic_auth(conn, hdr, user, pwd);
+		r = http_basic_auth(conn, hdr, user, pwd);
 		free(str);
 		return (r);
 	}
@@ -671,7 +671,7 @@ _http_authorize(conn_t *conn, const char *hdr, const char *p)
  * Connect to the correct HTTP server or proxy.
  */
 static conn_t *
-_http_connect(struct url *URL, struct url *purl, const char *flags)
+http_connect(struct url *URL, struct url *purl, const char *flags)
 {
 	conn_t *conn;
 	int verbose;
@@ -699,15 +699,15 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 		return (NULL);
 	}
 
-	if ((conn = _fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
-		/* _fetch_connect() has already set an error code */
+	if ((conn = fetch_connect(URL->host, URL->port, af, verbose)) == NULL)
+		/* fetch_connect() has already set an error code */
 		return (NULL);
 	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
-	    _fetch_ssl(conn, verbose) == -1) {
-		_fetch_close(conn);
+	    fetch_ssl(conn, verbose) == -1) {
+		fetch_close(conn);
 		/* grrr */
 		errno = EAUTH;
-		_fetch_syserr();
+		fetch_syserr();
 		return (NULL);
 	}
 
@@ -718,7 +718,7 @@ _http_connect(struct url *URL, struct url *purl, const char *flags)
 }
 
 static struct url *
-_http_get_proxy(const char *flags)
+http_get_proxy(const char *flags)
 {
 	struct url *purl;
 	char *p;
@@ -730,7 +730,7 @@ _http_get_proxy(const char *flags)
 		if (!*purl->scheme)
 			strcpy(purl->scheme, SCHEME_HTTP);
 		if (!purl->port)
-			purl->port = _fetch_default_proxy_port(purl->scheme);
+			purl->port = fetch_default_proxy_port(purl->scheme);
 		if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 			return (purl);
 		fetchFreeURL(purl);
@@ -739,7 +739,7 @@ _http_get_proxy(const char *flags)
 }
 
 static void
-_http_print_html(FILE *out, FILE *in)
+http_print_html(FILE *out, FILE *in)
 {
 	size_t len;
 	char *line, *p, *q;
@@ -788,7 +788,7 @@ _http_print_html(FILE *out, FILE *in)
  * XXX off into a separate function.
  */
 FILE *
-_http_request(struct url *URL, const char *op, struct url_stat *us,
+http_request(struct url *URL, const char *op, struct url_stat *us,
     struct url *purl, const char *flags)
 {
 	conn_t *conn;
@@ -831,18 +831,18 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* check port */
 		if (!url->port)
-			url->port = _fetch_default_port(url->scheme);
+			url->port = fetch_default_port(url->scheme);
 
 		/* were we redirected to an FTP URL? */
 		if (purl == NULL && strcmp(url->scheme, SCHEME_FTP) == 0) {
 			if (strcmp(op, "GET") == 0)
-				return (_ftp_request(url, "RETR", us, purl, flags));
+				return (ftp_request(url, "RETR", us, purl, flags));
 			else if (strcmp(op, "HEAD") == 0)
-				return (_ftp_request(url, "STAT", us, purl, flags));
+				return (ftp_request(url, "STAT", us, purl, flags));
 		}
 
 		/* connect to server or proxy */
-		if ((conn = _http_connect(url, purl, flags)) == NULL)
+		if ((conn = http_connect(url, purl, flags)) == NULL)
 			goto ouch;
 
 		host = url->host;
@@ -852,7 +852,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			host = hbuf;
 		}
 #endif
-		if (url->port != _fetch_default_port(url->scheme)) {
+		if (url->port != fetch_default_port(url->scheme)) {
 			if (host != hbuf) {
 				strcpy(hbuf, host);
 				host = hbuf;
@@ -863,38 +863,38 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* send request */
 		if (verbose)
-			_fetch_info("requesting %s://%s%s",
+			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
 		if (purl) {
-			_http_cmd(conn, "%s %s://%s%s HTTP/1.1",
+			http_cmd(conn, "%s %s://%s%s HTTP/1.1",
 			    op, url->scheme, host, url->doc);
 		} else {
-			_http_cmd(conn, "%s %s HTTP/1.1",
+			http_cmd(conn, "%s %s HTTP/1.1",
 			    op, url->doc);
 		}
 
 		/* virtual host */
-		_http_cmd(conn, "Host: %s", host);
+		http_cmd(conn, "Host: %s", host);
 
 		/* proxy authorization */
 		if (purl) {
 			if (*purl->user || *purl->pwd)
-				_http_basic_auth(conn, "Proxy-Authorization",
+				http_basic_auth(conn, "Proxy-Authorization",
 				    purl->user, purl->pwd);
 			else if ((p = getenv("HTTP_PROXY_AUTH")) != NULL && *p != '\0')
-				_http_authorize(conn, "Proxy-Authorization", p);
+				http_authorize(conn, "Proxy-Authorization", p);
 		}
 
 		/* server authorization */
 		if (need_auth || *url->user || *url->pwd) {
 			if (*url->user || *url->pwd)
-				_http_basic_auth(conn, "Authorization", url->user, url->pwd);
+				http_basic_auth(conn, "Authorization", url->user, url->pwd);
 			else if ((p = getenv("HTTP_AUTH")) != NULL && *p != '\0')
-				_http_authorize(conn, "Authorization", p);
+				http_authorize(conn, "Authorization", p);
 			else if (fetchAuthMethod && fetchAuthMethod(url) == 0) {
-				_http_basic_auth(conn, "Authorization", url->user, url->pwd);
+				http_basic_auth(conn, "Authorization", url->user, url->pwd);
 			} else {
-				_http_seterr(HTTP_NEED_AUTH);
+				http_seterr(HTTP_NEED_AUTH);
 				goto ouch;
 			}
 		}
@@ -902,19 +902,19 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		/* other headers */
 		if ((p = getenv("HTTP_REFERER")) != NULL && *p != '\0') {
 			if (strcasecmp(p, "auto") == 0)
-				_http_cmd(conn, "Referer: %s://%s%s",
+				http_cmd(conn, "Referer: %s://%s%s",
 				    url->scheme, host, url->doc);
 			else
-				_http_cmd(conn, "Referer: %s", p);
+				http_cmd(conn, "Referer: %s", p);
 		}
 		if ((p = getenv("HTTP_USER_AGENT")) != NULL && *p != '\0')
-			_http_cmd(conn, "User-Agent: %s", p);
+			http_cmd(conn, "User-Agent: %s", p);
 		else
-			_http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
+			http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
 		if (url->offset > 0)
-			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
-		_http_cmd(conn, "Connection: close");
-		_http_cmd(conn, "");
+			http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
+		http_cmd(conn, "Connection: close");
+		http_cmd(conn, "");
 
 		/*
 		 * Force the queued request to be dispatched.  Normally, one
@@ -931,7 +931,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			   sizeof(val));
 
 		/* get reply */
-		switch (_http_get_reply(conn)) {
+		switch (http_get_reply(conn)) {
 		case HTTP_OK:
 		case HTTP_PARTIAL:
 			/* fine */
@@ -950,12 +950,12 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				 * We already sent out authorization code,
 				 * so there's nothing more we can do.
 				 */
-				_http_seterr(conn->err);
+				http_seterr(conn->err);
 				goto ouch;
 			}
 			/* try again, but send the password this time */
 			if (verbose)
-				_fetch_info("server requires authorization");
+				fetch_info("server requires authorization");
 			break;
 		case HTTP_NEED_PROXY_AUTH:
 			/*
@@ -963,7 +963,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			 * our proxy authorization code, so there's
 			 * nothing more we can do.
 			 */
-			_http_seterr(conn->err);
+			http_seterr(conn->err);
 			goto ouch;
 		case HTTP_BAD_RANGE:
 			/*
@@ -975,10 +975,10 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		case HTTP_PROTOCOL_ERROR:
 			/* fall through */
 		case -1:
-			_fetch_syserr();
+			fetch_syserr();
 			goto ouch;
 		default:
-			_http_seterr(conn->err);
+			http_seterr(conn->err);
 			if (!verbose)
 				goto ouch;
 			/* fall through so we can get the full error message */
@@ -986,21 +986,21 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get headers */
 		do {
-			switch ((h = _http_next_header(conn, &p))) {
+			switch ((h = http_next_header(conn, &p))) {
 			case hdr_syserror:
-				_fetch_syserr();
+				fetch_syserr();
 				goto ouch;
 			case hdr_error:
-				_http_seterr(HTTP_PROTOCOL_ERROR);
+				http_seterr(HTTP_PROTOCOL_ERROR);
 				goto ouch;
 			case hdr_content_length:
-				_http_parse_length(p, &clength);
+				http_parse_length(p, &clength);
 				break;
 			case hdr_content_range:
-				_http_parse_range(p, &offset, &length, &size);
+				http_parse_range(p, &offset, &length, &size);
 				break;
 			case hdr_last_modified:
-				_http_parse_mtime(p, &mtime);
+				http_parse_mtime(p, &mtime);
 				break;
 			case hdr_location:
 				if (!HTTP_REDIRECT(conn->err))
@@ -1008,7 +1008,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				if (new)
 					free(new);
 				if (verbose)
-					_fetch_info("%d redirect to %s", conn->err, p);
+					fetch_info("%d redirect to %s", conn->err, p);
 				if (*p == '/')
 					/* absolute path */
 					new = fetchMakeURL(url->scheme, url->host, url->port, p,
@@ -1048,7 +1048,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		if (conn->err == HTTP_NEED_AUTH) {
 			e = conn->err;
 			need_auth = 1;
-			_fetch_close(conn);
+			fetch_close(conn);
 			conn = NULL;
 			continue;
 		}
@@ -1061,7 +1061,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 				conn->err = HTTP_OK;
 				break;
 			} else {
-				_http_seterr(conn->err);
+				http_seterr(conn->err);
 				goto ouch;
 			}
 		}
@@ -1073,7 +1073,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		/* all other cases: we got a redirect */
 		e = conn->err;
 		need_auth = 0;
-		_fetch_close(conn);
+		fetch_close(conn);
 		conn = NULL;
 		if (!new) {
 			DEBUG(fprintf(stderr, "redirect with no new location\n"));
@@ -1086,7 +1086,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 	/* we failed, or ran out of retries */
 	if (conn == NULL) {
-		_http_seterr(e);
+		http_seterr(e);
 		goto ouch;
 	}
 
@@ -1097,7 +1097,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 	/* check for inconsistencies */
 	if (clength != -1 && length != -1 && clength != length) {
-		_http_seterr(HTTP_PROTOCOL_ERROR);
+		http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
 	if (clength == -1)
@@ -1105,7 +1105,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	if (clength != -1)
 		length = offset + clength;
 	if (length != -1 && size != -1 && length != size) {
-		_http_seterr(HTTP_PROTOCOL_ERROR);
+		http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
 	if (size == -1)
@@ -1119,7 +1119,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 
 	/* too far? */
 	if (URL->offset > 0 && offset > URL->offset) {
-		_http_seterr(HTTP_PROTOCOL_ERROR);
+		http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
 
@@ -1128,8 +1128,8 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	URL->length = clength;
 
 	/* wrap it up in a FILE */
-	if ((f = _http_funopen(conn, chunked)) == NULL) {
-		_fetch_syserr();
+	if ((f = http_funopen(conn, chunked)) == NULL) {
+		fetch_syserr();
 		goto ouch;
 	}
 
@@ -1139,7 +1139,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 		fetchFreeURL(purl);
 
 	if (HTTP_ERROR(conn->err)) {
-		_http_print_html(stderr, f);
+		http_print_html(stderr, f);
 		fclose(f);
 		f = NULL;
 	}
@@ -1152,7 +1152,7 @@ ouch:
 	if (purl)
 		fetchFreeURL(purl);
 	if (conn != NULL)
-		_fetch_close(conn);
+		fetch_close(conn);
 	return (NULL);
 }
 
@@ -1167,7 +1167,7 @@ ouch:
 FILE *
 fetchXGetHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
-	return (_http_request(URL, "GET", us, _http_get_proxy(flags), flags));
+	return (http_request(URL, "GET", us, http_get_proxy(flags), flags));
 }
 
 /*
@@ -1197,7 +1197,7 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
 	FILE *f;
 
-	f = _http_request(URL, "HEAD", us, _http_get_proxy(flags), flags);
+	f = http_request(URL, "HEAD", us, http_get_proxy(flags), flags);
 	if (f == NULL)
 		return (-1);
 	fclose(f);

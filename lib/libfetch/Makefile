@@ -28,7 +28,7 @@ WARNS?=		2
 SHLIB_MAJOR=    5
 
 ftperr.h: ftp.errors
-	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
+	@echo "static struct fetcherr ftp_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
@@ -39,7 +39,7 @@ ftperr.h: ftp.errors
 	@echo "};" >> ${.TARGET}
 
 httperr.h: http.errors
-	@echo "static struct fetcherr _http_errlist[] = {" > ${.TARGET}
+	@echo "static struct fetcherr http_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
 	  | sort \
