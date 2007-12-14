@@ -70,7 +70,7 @@ struct pcpu {
 	struct thread	*pc_fpcurthread;	/* Fp state owner */
 	struct thread	*pc_deadthread;		/* Zombie thread or NULL */
 	struct pcb	*pc_curpcb;		/* Current pcb */
-	uint64_t	pc_switchtime;	
+	uint64_t	pc_switchtime;
 	int		pc_switchticks;
 	u_int		pc_cpuid;		/* This cpu number */
 	cpumask_t	pc_cpumask;		/* This cpu mask */
@@ -83,7 +83,7 @@ struct pcpu {
 #endif
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
-	long		pc_cp_time[CPUSTATES];
+	long		pc_cp_time[CPUSTATES];	/* statclock ticks */
 	struct device	*pc_device;
 
 	/* 
