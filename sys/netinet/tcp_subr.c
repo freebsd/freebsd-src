@@ -1470,7 +1470,7 @@ tcp_new_isn(tp)
 }
 
 /*
- * Increment the offset to the next ISN_BYTES_PER_SECOND / hz boundary
+ * Increment the offset to the next ISN_BYTES_PER_SECOND / 100 boundary
  * to keep time flowing at a relatively constant rate.  If the random
  * increments have already pushed us past the projected offset, do nothing.
  */
@@ -1483,7 +1483,7 @@ tcp_isn_tick(xtp)
 	INP_INFO_WLOCK(&tcbinfo);
 	projected_offset = isn_offset_old + ISN_BYTES_PER_SECOND / 100;
 
-	if (projected_offset > isn_offset)
+	if (SEQ_GT(projected_offset, isn_offset))
 		isn_offset = projected_offset;
 
 	isn_offset_old = isn_offset;
