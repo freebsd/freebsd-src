@@ -1,8 +1,13 @@
 # $FreeBSD$
 
 # This is our first version; it depends on no other.
+# This version was first added to 7.0-current.
 FBSD_1.0 {
 };
+
+# This version was first added to 8.0-current.
+FBSD_1.1 {
+} FBSD_1.0;
 
 # This is our private namespace.  Any global interfaces that are
 # strictly for use only by other FreeBSD applications and libraries
