@@ -60,8 +60,8 @@ FBSD_1.0 {
 	asinhf;
 	atan;
 	atanf;
-	carg
-	cargf
+	carg;
+	cargf;
 	cbrt;
 	cbrtf;
 	ceil;
