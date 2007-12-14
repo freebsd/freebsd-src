@@ -10,7 +10,7 @@
 #
 
 font.h				optional	sc			\
-        compile-with    "uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
+	compile-with	"uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x16.fnt && file2c 'u_char dflt_font_16[16*256] = {' '};' < ${SC_DFLT_FONT}-8x16 > font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x14.fnt && file2c 'u_char dflt_font_14[14*256] = {' '};' < ${SC_DFLT_FONT}-8x14 >> font.h && uudecode < /usr/share/syscons/fonts/${SC_DFLT_FONT}-8x8.fnt && file2c 'u_char dflt_font_8[8*256] = {' '};' < ${SC_DFLT_FONT}-8x8 >> font.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
@@ -25,66 +25,23 @@ opt_ah.h			optional	ath_hal			\
 	clean		"opt_ah.h"
 #
 
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
-dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/scterm-sc.c		optional	sc
-dev/syscons/scvtb.c		optional	sc
-dev/uart/uart_cpu_powerpc.c	optional	uart
-kern/syscalls.c			optional	ktr
-powerpc/aim/clock.c		standard
-powerpc/aim/copyinout.c		standard
-powerpc/aim/interrupt.c		standard
-powerpc/aim/locore.S		standard	no-obj
-powerpc/aim/machdep.c		standard
-powerpc/aim/mmu_oea.c		standard
-powerpc/aim/nexus.c		standard
-powerpc/aim/ofw_machdep.c	standard
-powerpc/aim/ofwmagic.S		standard
-powerpc/aim/swtch.S		standard
-powerpc/aim/trap.c		standard
-powerpc/aim/uio_machdep.c	standard
-powerpc/aim/uma_machdep.c	standard
-powerpc/aim/vm_machdep.c	standard
-powerpc/powerpc/atomic.S	standard
-powerpc/powerpc/autoconf.c	standard
-powerpc/powerpc/bcopy.c		standard
-powerpc/powerpc/busdma_machdep.c standard
-powerpc/powerpc/copystr.c	standard
-powerpc/powerpc/cpu.c		standard
-powerpc/powerpc/elf_machdep.c	standard
-powerpc/powerpc/fpu.c		standard
-powerpc/powerpc/fuswintr.c	standard
-powerpc/powerpc/gdb_machdep.c	optional	gdb
-powerpc/powerpc/in_cksum.c	optional	inet
-powerpc/powerpc/intr_machdep.c	standard
-powerpc/powerpc/mmu_if.m	standard
-powerpc/powerpc/openpic.c	standard
-powerpc/powerpc/pic_if.m	standard
-powerpc/powerpc/pmap_dispatch.c	standard
-powerpc/powerpc/sc_machdep.c	optional	sc
-powerpc/powerpc/setjmp.S	standard
-powerpc/powerpc/sigcode.S	standard
-powerpc/powerpc/stack_machdep.c	optional	ddb | stack
-powerpc/powerpc/suswintr.c	standard
-powerpc/powerpc/syncicache.c	standard
-powerpc/powerpc/sys_machdep.c	standard
-
-powerpc/powerpc/db_disasm.c	optional	ddb
-powerpc/powerpc/db_interface.c	optional	ddb
-powerpc/powerpc/db_hwwatch.c	optional	ddb
-powerpc/powerpc/db_trace.c	optional	ddb
-
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
-
 dev/ofw/openfirm.c		standard
 dev/ofw/ofw_bus_if.m		standard
 dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		standard
 dev/ofw/ofw_disk.c		optional	ofwd
-
+dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
+dev/scc/scc_bfe_macio.c		optional	scc powermac
+dev/syscons/scgfbrndr.c		optional	sc
+dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scvtb.c		optional	sc
+dev/uart/uart_cpu_powerpc.c	optional	uart
+kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/bcmp.c			standard
@@ -100,14 +57,23 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-
-powerpc/powerpc/mem.c		optional	mem
-powerpc/powerpc/mp_machdep.c	optional	smp
-
+powerpc/aim/clock.c		standard
+powerpc/aim/copyinout.c		standard
+powerpc/aim/interrupt.c		standard
+powerpc/aim/locore.S		standard	no-obj
+powerpc/aim/machdep.c		standard
+powerpc/aim/mmu_oea.c		standard
+powerpc/aim/nexus.c		standard
+powerpc/aim/ofw_machdep.c	standard
+powerpc/aim/ofwmagic.S		standard
+powerpc/aim/swtch.S		standard
+powerpc/aim/trap.c		standard
+powerpc/aim/uio_machdep.c	standard
+powerpc/aim/uma_machdep.c	standard
+powerpc/aim/vm_machdep.c	standard
 powerpc/ofw/ofw_pci.c		optional	pci
 powerpc/ofw/ofw_pcib_pci.c	optional	pci
 powerpc/ofw/ofw_syscons.c	optional	sc
-
 powerpc/powermac/ata_kauai.c	optional	powermac ata
 powerpc/powermac/ata_macio.c	optional	powermac ata
 powerpc/powermac/grackle.c	optional	powermac pci
@@ -116,12 +82,36 @@ powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/uninorth.c	optional	powermac pci
-
+powerpc/powerpc/atomic.S	standard
+powerpc/powerpc/autoconf.c	standard
+powerpc/powerpc/bcopy.c		standard
+powerpc/powerpc/busdma_machdep.c standard
+powerpc/powerpc/copystr.c	standard
+powerpc/powerpc/cpu.c		standard
+powerpc/powerpc/db_disasm.c	optional	ddb
+powerpc/powerpc/db_hwwatch.c	optional	ddb
+powerpc/powerpc/db_interface.c	optional	ddb
+powerpc/powerpc/db_trace.c	optional	ddb
+powerpc/powerpc/elf_machdep.c	standard
+powerpc/powerpc/fpu.c		standard
+powerpc/powerpc/fuswintr.c	standard
+powerpc/powerpc/gdb_machdep.c	optional	gdb
+powerpc/powerpc/in_cksum.c	optional	inet
+powerpc/powerpc/intr_machdep.c	standard
+powerpc/powerpc/mem.c		optional	mem
+powerpc/powerpc/mmu_if.m	standard
+powerpc/powerpc/mp_machdep.c	optional	smp
+powerpc/powerpc/openpic.c	standard
+powerpc/powerpc/pic_if.m	standard
+powerpc/powerpc/pmap_dispatch.c	standard
+powerpc/powerpc/sc_machdep.c	optional	sc
+powerpc/powerpc/setjmp.S	standard
+powerpc/powerpc/sigcode.S	standard
+powerpc/powerpc/stack_machdep.c	optional	ddb | stack
+powerpc/powerpc/suswintr.c	standard
+powerpc/powerpc/syncicache.c	standard
+powerpc/powerpc/sys_machdep.c	standard
 powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
 powerpc/psim/uart_iobus.c	optional	uart psim
-
-dev/scc/scc_bfe_macio.c		optional	scc powermac
-
-dev/powermac_nvram/powermac_nvram.c optional	powermac powermac_nvram
