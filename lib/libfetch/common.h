@@ -68,33 +68,33 @@ struct fetcherr {
 	const char	*string;
 };
 
-/* for _fetch_writev */
+/* for fetch_writev */
 struct iovec;
 
-void		 _fetch_seterr(struct fetcherr *, int);
-void		 _fetch_syserr(void);
-void		 _fetch_info(const char *, ...);
-int		 _fetch_default_port(const char *);
-int		 _fetch_default_proxy_port(const char *);
-int		 _fetch_bind(int, int, const char *);
-conn_t		*_fetch_connect(const char *, int, int, int);
-conn_t		*_fetch_reopen(int);
-conn_t		*_fetch_ref(conn_t *);
-int		 _fetch_ssl(conn_t *, int);
-ssize_t		 _fetch_read(conn_t *, char *, size_t);
-int		 _fetch_getln(conn_t *);
-ssize_t		 _fetch_write(conn_t *, const char *, size_t);
-ssize_t		 _fetch_writev(conn_t *, struct iovec *, int);
-int		 _fetch_putln(conn_t *, const char *, size_t);
-int		 _fetch_close(conn_t *);
-int		 _fetch_add_entry(struct url_ent **, int *, int *,
+void		 fetch_seterr(struct fetcherr *, int);
+void		 fetch_syserr(void);
+void		 fetch_info(const char *, ...);
+int		 fetch_default_port(const char *);
+int		 fetch_default_proxy_port(const char *);
+int		 fetch_bind(int, int, const char *);
+conn_t		*fetch_connect(const char *, int, int, int);
+conn_t		*fetch_reopen(int);
+conn_t		*fetch_ref(conn_t *);
+int		 fetch_ssl(conn_t *, int);
+ssize_t		 fetch_read(conn_t *, char *, size_t);
+int		 fetch_getln(conn_t *);
+ssize_t		 fetch_write(conn_t *, const char *, size_t);
+ssize_t		 fetch_writev(conn_t *, struct iovec *, int);
+int		 fetch_putln(conn_t *, const char *, size_t);
+int		 fetch_close(conn_t *);
+int		 fetch_add_entry(struct url_ent **, int *, int *,
 		     const char *, struct url_stat *);
-int		 _fetch_netrc_auth(struct url *url);
+int		 fetch_netrc_auth(struct url *url);
 
-#define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
-#define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
-#define _netdb_seterr(n) _fetch_seterr(_netdb_errlist, n)
-#define _url_seterr(n)	 _fetch_seterr(_url_errlist, n)
+#define ftp_seterr(n)	 fetch_seterr(ftp_errlist, n)
+#define http_seterr(n)	 fetch_seterr(http_errlist, n)
+#define netdb_seterr(n)	 fetch_seterr(netdb_errlist, n)
+#define url_seterr(n)	 fetch_seterr(url_errlist, n)
 
 #ifndef NDEBUG
 #define DEBUG(x) do { if (fetchDebug) { x; } } while (0)
@@ -103,7 +103,7 @@ int		 _fetch_netrc_auth(struct url *url);
 #endif
 
 /*
- * I don't really like exporting _http_request() and _ftp_request(),
+ * I don't really like exporting http_request() and ftp_request(),
  * but the HTTP and FTP code occasionally needs to cross-call
  * eachother, and this saves me from adding a lot of special-case code
  * to handle those cases.
@@ -111,9 +111,9 @@ int		 _fetch_netrc_auth(struct url *url);
  * Note that _*_request() free purl, which is way ugly but saves us a
  * whole lot of trouble.
  */
-FILE		*_http_request(struct url *, const char *,
+FILE		*http_request(struct url *, const char *,
 		     struct url_stat *, struct url *, const char *);
-FILE		*_ftp_request(struct url *, const char *,
+FILE		*ftp_request(struct url *, const char *,
 		     struct url_stat *, struct url *, const char *);
 
 /*

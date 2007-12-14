@@ -56,7 +56,7 @@ int	 fetchDebug;
 #define URL_MALFORMED		1
 #define URL_BAD_SCHEME		2
 #define URL_BAD_PORT		3
-static struct fetcherr _url_errlist[] = {
+static struct fetcherr url_errlist[] = {
 	{ URL_MALFORMED,	FETCH_URL,	"Malformed URL" },
 	{ URL_BAD_SCHEME,	FETCH_URL,	"Invalid URL scheme" },
 	{ URL_BAD_PORT,		FETCH_URL,	"Invalid server port" },
@@ -89,7 +89,7 @@ fetchXGet(struct url *URL, struct url_stat *us, const char *flags)
 		return (fetchXGetHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchXGetHTTP(URL, us, flags));
-	_url_seterr(URL_BAD_SCHEME);
+	url_seterr(URL_BAD_SCHEME);
 	return (NULL);
 }
 
@@ -121,7 +121,7 @@ fetchPut(struct url *URL, const char *flags)
 		return (fetchPutHTTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchPutHTTP(URL, flags));
-	_url_seterr(URL_BAD_SCHEME);
+	url_seterr(URL_BAD_SCHEME);
 	return (NULL);
 }
 
@@ -147,7 +147,7 @@ fetchStat(struct url *URL, struct url_stat *us, const char *flags)
 		return (fetchStatHTTP(URL, us, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchStatHTTP(URL, us, flags));
-	_url_seterr(URL_BAD_SCHEME);
+	url_seterr(URL_BAD_SCHEME);
 	return (-1);
 }
 
@@ -169,7 +169,7 @@ fetchList(struct url *URL, const char *flags)
 		return (fetchListHTTP(URL, flags));
 	else if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0)
 		return (fetchListHTTP(URL, flags));
-	_url_seterr(URL_BAD_SCHEME);
+	url_seterr(URL_BAD_SCHEME);
 	return (NULL);
 }
 
@@ -264,23 +264,23 @@ fetchMakeURL(const char *scheme, const char *host, int port, const char *doc,
 	struct url *u;
 
 	if (!scheme || (!host && !doc)) {
-		_url_seterr(URL_MALFORMED);
+		url_seterr(URL_MALFORMED);
 		return (NULL);
 	}
 
 	if (port < 0 || port > 65535) {
-		_url_seterr(URL_BAD_PORT);
+		url_seterr(URL_BAD_PORT);
 		return (NULL);
 	}
 
 	/* allocate struct url */
 	if ((u = calloc(1, sizeof(*u))) == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		return (NULL);
 	}
 
 	if ((u->doc = strdup(doc ? doc : "/")) == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		free(u);
 		return (NULL);
 	}
@@ -311,7 +311,7 @@ fetchParseURL(const char *URL)
 
 	/* allocate struct url */
 	if ((u = calloc(1, sizeof(*u))) == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		return (NULL);
 	}
 
@@ -373,7 +373,7 @@ fetchParseURL(const char *URL)
 				u->port = u->port * 10 + (*q - '0');
 			else {
 				/* invalid port */
-				_url_seterr(URL_BAD_PORT);
+				url_seterr(URL_BAD_PORT);
 				goto ouch;
 			}
 		p = q;
@@ -390,7 +390,7 @@ nohost:
 
 		/* percent-escape whitespace. */
 		if ((doc = malloc(strlen(p) * 3 + 1)) == NULL) {
-			_fetch_syserr();
+			fetch_syserr();
 			goto ouch;
 		}
 		u->doc = doc;
@@ -406,7 +406,7 @@ nohost:
 		}
 		*doc = '\0';
 	} else if ((u->doc = strdup(p)) == NULL) {
-		_fetch_syserr();
+		fetch_syserr();
 		goto ouch;
 	}
 
