@@ -1771,7 +1771,7 @@ agg_attach(device_t dev)
 	struct resource	*irq = NULL;
 	void	*ih = NULL;
 	char	status[SND_STATUSLEN];
-	int	ret = 0;
+	int	dacn, ret = 0;
 
 	ess = malloc(sizeof(*ess), M_DEVBUF, M_WAITOK | M_ZERO);
 	ess->dev = dev;
@@ -1785,6 +1785,15 @@ agg_attach(device_t dev)
 		goto bad;
 	}
 #endif
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "dac", &dacn) == 0) {
+	    	if (dacn < 1)
+			dacn = 1;
+		else if (dacn > AGG_MAXPLAYCH)
+			dacn = AGG_MAXPLAYCH;
+	} else
+		dacn = AGG_MAXPLAYCH;
 
 	ess->bufsz = pcm_getbuffersize(dev, 4096, AGG_DEFAULT_BUFSZ, 65536);
 	if (bus_dma_tag_create(/*parent*/ bus_get_dma_tag(dev),
@@ -1895,7 +1904,7 @@ agg_attach(device_t dev)
 	}
 	ess->codec = codec;
 
-	ret = pcm_register(dev, ess, AGG_MAXPLAYCH, 1);
+	ret = pcm_register(dev, ess, dacn, 1);
 	if (ret)
 		goto bad;
 
@@ -1903,7 +1912,7 @@ agg_attach(device_t dev)
 	agg_lock(ess);
 	agg_power(ess, powerstate_init);
 	agg_unlock(ess);
-	for (data = 0; data < AGG_MAXPLAYCH; data++)
+	for (data = 0; data < dacn; data++)
 		pcm_addchan(dev, PCMDIR_PLAY, &aggpch_class, ess);
 	pcm_addchan(dev, PCMDIR_REC, &aggrch_class, ess);
 	adjust_pchbase(ess->pch, ess->playchns, ess->bufsz);
