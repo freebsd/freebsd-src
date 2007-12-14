@@ -33,12 +33,24 @@ dev/syscons/scterm-sc.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_powerpc.c	optional	uart
 kern/syscalls.c			optional	ktr
+powerpc/aim/clock.c		standard
+powerpc/aim/copyinout.c		standard
+powerpc/aim/interrupt.c		standard
+powerpc/aim/locore.S		standard	no-obj
+powerpc/aim/machdep.c		standard
+powerpc/aim/mmu_oea.c		standard
+powerpc/aim/nexus.c		standard
+powerpc/aim/ofw_machdep.c	standard
+powerpc/aim/ofwmagic.S		standard
+powerpc/aim/swtch.S		standard
+powerpc/aim/trap.c		standard
+powerpc/aim/uio_machdep.c	standard
+powerpc/aim/uma_machdep.c	standard
+powerpc/aim/vm_machdep.c	standard
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/busdma_machdep.c standard
-powerpc/powerpc/clock.c		standard
-powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/cpu.c		standard
 powerpc/powerpc/elf_machdep.c	standard
@@ -46,15 +58,8 @@ powerpc/powerpc/fpu.c		standard
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
 powerpc/powerpc/in_cksum.c	optional	inet
-powerpc/powerpc/interrupt.c	standard
 powerpc/powerpc/intr_machdep.c	standard
-powerpc/powerpc/locore.S	standard	no-obj
-powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/mmu_if.m	standard
-powerpc/powerpc/mmu_oea.c	standard
-powerpc/powerpc/nexus.c		standard
-powerpc/powerpc/ofwmagic.S	standard
-powerpc/powerpc/ofw_machdep.c	standard
 powerpc/powerpc/openpic.c	standard
 powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
@@ -65,11 +70,6 @@ powerpc/powerpc/stack_machdep.c	optional	ddb | stack
 powerpc/powerpc/suswintr.c	standard
 powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
-powerpc/powerpc/swtch.S		standard
-powerpc/powerpc/trap.c		standard
-powerpc/powerpc/uio_machdep.c	standard
-powerpc/powerpc/uma_machdep.c	standard
-powerpc/powerpc/vm_machdep.c	standard
 
 powerpc/powerpc/db_disasm.c	optional	ddb
 powerpc/powerpc/db_interface.c	optional	ddb
