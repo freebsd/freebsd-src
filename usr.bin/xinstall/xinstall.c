@@ -221,7 +221,12 @@ main(int argc, char *argv[])
 
 	/* can't do file1 file2 directory/file */
 	if (argc != 2) {
-		warnx("wrong number or types of arguments");
+		if (no_target)
+			warnx("target directory `%s' does not exist", 
+			    argv[argc - 1]);
+		else
+			warnx("target `%s' is not a directory",
+			    argv[argc - 1]);
 		usage();
 	}
 
