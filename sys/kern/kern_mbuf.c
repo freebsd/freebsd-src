@@ -106,7 +106,7 @@ tunable_mbinit(void *dummy)
 {
 
 	/* This has to be done before VM init. */
-    nmbclusters = 1024 + maxusers * 64;
+	nmbclusters = 1024 + maxusers * 64;
 	nmbjumbop = nmbclusters / 2;
 	nmbjumbo9 = nmbjumbop / 2;
 	nmbjumbo16 = nmbjumbo9 / 2;
