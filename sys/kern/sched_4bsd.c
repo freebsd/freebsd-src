@@ -878,9 +878,11 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
-
                 /* I feel sleepy */
+		lock_profile_release_lock(&sched_lock.lock_object);
 		cpu_switch(td, newtd, td->td_lock);
+		lock_profile_obtain_lock_success(&sched_lock.lock_object,
+		    0, 0, __FILE__, __LINE__);
 		/*
 		 * Where am I?  What year is it?
 		 * We are in the same thread that went to sleep above,
@@ -1375,6 +1377,7 @@ sched_throw(struct thread *td)
 		mtx_lock_spin(&sched_lock);
 		spinlock_exit();
 	} else {
+		lock_profile_release_lock(&sched_lock.lock_object);
 		MPASS(td->td_lock == &sched_lock);
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1394,6 +1397,8 @@ sched_fork_exit(struct thread *td)
 	 */
 	td->td_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_lock = (uintptr_t)td;
+	lock_profile_obtain_lock_success(&sched_lock.lock_object,
+	    0, 0, __FILE__, __LINE__);
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
 }
 

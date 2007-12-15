@@ -45,6 +45,7 @@
 #endif
 #include <sys/queue.h>
 #include <sys/_lock.h>
+#include <sys/lock_profile.h>
 #include <sys/_mutex.h>
 #include <sys/priority.h>
 #include <sys/rtprio.h>			/* XXX. */
@@ -298,6 +299,7 @@ struct thread {
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
+	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
