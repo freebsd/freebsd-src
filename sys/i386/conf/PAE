@@ -46,6 +46,7 @@ nodevice	asr
 nodevice	dpt
 nodevice	mly
 nodevice	hptmv
+nodevice	hptrr
 
 nodevice	ida
 nodevice	mlx

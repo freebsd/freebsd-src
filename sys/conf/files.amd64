@@ -72,6 +72,11 @@ hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/amd64-elf.raid.o.uu"	\
 	compile-with	"uudecode < $S/dev/hptmv/amd64-elf.raid.o.uu" \
 	no-implicit-rule
+hptrr_lib.o			optional	hptrr			\
+	dependency	"$S/dev/hptrr/amd64-elf.hptrr_lib.o.uu"		\
+	compile-with	"uudecode < $S/dev/hptrr/amd64-elf.hptrr_lib.o.uu" \
+	no-implicit-rule
+#
 rr232x_lib.o		optional	rr232x				\
 	dependency	"$S/dev/rr232x/amd64-elf.rr232x_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/rr232x/amd64-elf.rr232x_lib.o.uu" \
@@ -183,6 +188,9 @@ dev/hptmv/mv.c			optional	hptmv
 dev/hptmv/gui_lib.c		optional	hptmv
 dev/hptmv/hptproc.c		optional	hptmv
 dev/hptmv/ioctl.c		optional	hptmv
+dev/hptrr/hptrr_os_bsd.c	optional	hptrr
+dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
+dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc

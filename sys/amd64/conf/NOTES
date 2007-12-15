@@ -372,9 +372,13 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
-# Highpoint RocketRAID 182x.  This is really just software RAID on a
-# Marvell SATA chip.
+# Highpoint RocketRAID 182x.
 device		hptmv
+
+#
+# Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
+# RR2210, RR174x, RR2522, RR231x, RR230x.
+device		hptrr
 
 #
 # Highpoint RocketRAID 232x.  This is software RAID but with hardware
