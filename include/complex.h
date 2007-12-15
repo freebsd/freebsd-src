@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 The FreeBSD Project.
+ * Copyright (c) 2001-2007 The FreeBSD Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,8 @@ long double complex
 double		creal(double complex);
 float		crealf(float complex);
 long double	creall(long double complex);
+double complex	csqrt(double complex);
+float complex	csqrtf(float complex);
 
 __END_DECLS
 
