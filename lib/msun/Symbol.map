@@ -1,6 +1,8 @@
 /*
  * $FreeBSD$
  */
+
+/* 7.0-CURRENT */
 FBSD_1.0 {
 	__fe_dfl_env;
 	tgamma;
@@ -60,8 +62,6 @@ FBSD_1.0 {
 	asinhf;
 	atan;
 	atanf;
-	carg;
-	cargf;
 	cbrt;
 	cbrtf;
 	ceil;
@@ -182,4 +182,12 @@ FBSD_1.0 {
 	cabsf;
 	drem;
 	dremf;
+};
+
+/* First added in 8.0-CURRENT */
+FBSD_1.1 {
+	carg;
+	cargf;
+	csqrt;
+	csqrtf;
 };
