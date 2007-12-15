@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #define VLAN_NONE 0xfff
 #define SDL(s) ((struct sockaddr_dl *)s) 
-#define RT_ENADDR(rt)  ((u_char *)LLADDR(SDL((rt))))
+#define RT_ENADDR(sa)  ((u_char *)LLADDR(SDL((sa))))
 #define rt_expire rt_rmx.rmx_expire 
 
 struct llinfo_arp { 
@@ -103,11 +103,8 @@ neigh_replace(struct l2t_entry *e, struct rtentry *rt)
 	RT_ADDREF(rt);
 	RT_UNLOCK(rt);
 	
-	if (e->neigh) {
-		RT_LOCK(e->neigh);
-		RT_REMREF(e->neigh);
-		RT_UNLOCK(e->neigh);
-	}
+	if (e->neigh)
+		RTFREE(e->neigh);
 	e->neigh = rt;
 }
 
@@ -117,7 +114,7 @@ neigh_replace(struct l2t_entry *e, struct rtentry *rt)
  * entry locked.
  */
 static int
-setup_l2e_send_pending(struct toedev *dev, struct mbuf *m,
+setup_l2e_send_pending(struct t3cdev *dev, struct mbuf *m,
 			struct l2t_entry *e)
 {
 	struct cpl_l2t_write_req *req;
@@ -130,13 +127,14 @@ setup_l2e_send_pending(struct toedev *dev, struct mbuf *m,
 	 * XXX MH_ALIGN
 	 */
 	req = mtod(m, struct cpl_l2t_write_req *);
+	m->m_pkthdr.len = m->m_len = sizeof(*req);
+	
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_L2T_WRITE_REQ, e->idx));
 	req->params = htonl(V_L2T_W_IDX(e->idx) | V_L2T_W_IFF(e->smt_idx) |
 			    V_L2T_W_VLAN(e->vlan & EVL_VLID_MASK) |
 			    V_L2T_W_PRIO(vlan_prio(e)));
 
-	memcpy(e->dmac, RT_ENADDR(e->neigh), sizeof(e->dmac));
 	memcpy(req->dst_mac, e->dmac, sizeof(req->dst_mac));
 	m_set_priority(m, CPL_PRIORITY_CONTROL);
 	cxgb_ofld_send(dev, m);
@@ -168,21 +166,24 @@ arpq_enqueue(struct l2t_entry *e, struct mbuf *m)
 }
 
 int
-t3_l2t_send_slow(struct toedev *dev, struct mbuf *m,
-		     struct l2t_entry *e)
+t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m, struct l2t_entry *e)
 {
-	struct rtentry *rt;
-	struct mbuf *m0;
-	
-	if ((m0 = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
-		return (ENOMEM);
+	struct rtentry *rt =  e->neigh;
+	struct sockaddr_in sin;
 
-	rt = e->neigh;
+	bzero(&sin, sizeof(struct sockaddr_in));
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_addr.s_addr = e->addr;
+	
+	
+	
+	printf("send slow on rt=%p eaddr=0x%08x\n", rt, e->addr);
 	
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve(rt->rt_ifp, rt, m0, rt->rt_gateway, RT_ENADDR(rt));
+		arpresolve(rt->rt_ifp, rt, NULL, (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
@@ -197,9 +198,8 @@ again:
 		}
 		arpq_enqueue(e, m);
 		mtx_unlock(&e->lock);
-
-		if ((m0 = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
-			return (ENOMEM);
+		printf("enqueueing arp request\n");
+		
 		/*
 		 * Only the first packet added to the arpq should kick off
 		 * resolution.  However, because the m_gethdr below can fail,
@@ -208,7 +208,13 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		if (arpresolve(rt->rt_ifp, rt, m0, rt->rt_gateway, RT_ENADDR(rt)) == 0) {
+		printf("doing arpresolve on 0x%x \n", e->addr);
+		if (arpresolve(rt->rt_ifp, rt, NULL, (struct sockaddr *)&sin, e->dmac) == 0) {
+			printf("mac=%x:%x:%x:%x:%x:%x\n",
+			    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
+			
+			if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
+				return (ENOMEM);
 
 			mtx_lock(&e->lock);
 			if (e->arpq_head) 
@@ -216,16 +222,21 @@ again:
 			else
 				m_freem(m);
 			mtx_unlock(&e->lock);
-		}
+		} else
+			printf("arpresolve returned non-zero\n");
 	}
 	return 0;
 }
 
 void
-t3_l2t_send_event(struct toedev *dev, struct l2t_entry *e)
+t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e)
 {
 	struct rtentry *rt;
 	struct mbuf *m0;
+	struct sockaddr_in sin;
+	sin.sin_family = AF_INET;
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_addr.s_addr = e->addr;
 	
 	if ((m0 = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
@@ -234,7 +245,7 @@ t3_l2t_send_event(struct toedev *dev, struct l2t_entry *e)
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve(rt->rt_ifp, rt, m0, rt->rt_gateway, RT_ENADDR(rt));
+		arpresolve(rt->rt_ifp, rt, m0, (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE) {
 			e->state = L2T_STATE_VALID;
@@ -261,7 +272,7 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		arpresolve(rt->rt_ifp, rt, m0, rt->rt_gateway, RT_ENADDR(rt));
+		arpresolve(rt->rt_ifp, rt, m0, (struct sockaddr *)&sin, e->dmac);
 
 	}
 	return;
@@ -301,6 +312,7 @@ found:
 			}
 		e->state = L2T_STATE_UNUSED;
 	}
+	
 	return e;
 }
 
@@ -318,18 +330,20 @@ found:
 void
 t3_l2e_free(struct l2t_data *d, struct l2t_entry *e)
 {
+	struct rtentry *rt = NULL;
+	
 	mtx_lock(&e->lock);
 	if (atomic_load_acq_int(&e->refcnt) == 0) {  /* hasn't been recycled */
-		if (e->neigh) {
-			RT_LOCK(e->neigh);
-			RT_REMREF(e->neigh);
-			RT_UNLOCK(e->neigh);
-			e->neigh = NULL;
-		}
+		rt = e->neigh;
+		e->neigh = NULL;
 	}
+	
 	mtx_unlock(&e->lock);
 	atomic_add_int(&d->nfree, 1);
+	if (rt)
+		RTFREE(rt);
 }
+
 
 /*
  * Update an L2T entry that was previously used for the same next hop as neigh.
@@ -346,7 +360,7 @@ reuse_entry(struct l2t_entry *e, struct rtentry *neigh)
 	if (neigh != e->neigh)
 		neigh_replace(e, neigh);
 	
-	if (memcmp(e->dmac, RT_ENADDR(neigh), sizeof(e->dmac)) ||
+	if (memcmp(e->dmac, RT_ENADDR(neigh->rt_gateway), sizeof(e->dmac)) ||
 	    (neigh->rt_expire > time_uptime))
 		e->state = L2T_STATE_RESOLVING;
 	else if (la->la_hold == NULL)
@@ -357,14 +371,15 @@ reuse_entry(struct l2t_entry *e, struct rtentry *neigh)
 }
 
 struct l2t_entry *
-t3_l2t_get(struct toedev *dev, struct rtentry *neigh,
-			     unsigned int smt_idx)
+t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh, struct ifnet *ifp,
+	struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct l2t_data *d = L2DATA(dev);
-	u32 addr = *(u32 *) rt_key(neigh);
+	u32 addr = ((struct sockaddr_in *)sa)->sin_addr.s_addr;
 	int ifidx = neigh->rt_ifp->if_index;
 	int hash = arp_hash(addr, ifidx, d);
+	unsigned int smt_idx = ((struct port_info *)ifp->if_softc)->port_id;
 
 	rw_wlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
@@ -379,14 +394,21 @@ t3_l2t_get(struct toedev *dev, struct rtentry *neigh,
 	/* Need to allocate a new entry */
 	e = alloc_l2e(d);
 	if (e) {
+		printf("initializing new entry\n");
+		
 		mtx_lock(&e->lock);          /* avoid race with t3_l2t_free */
 		e->next = d->l2tab[hash].first;
 		d->l2tab[hash].first = e;
+		rw_wunlock(&d->lock);
+		
 		e->state = L2T_STATE_RESOLVING;
 		e->addr = addr;
 		e->ifindex = ifidx;
 		e->smt_idx = smt_idx;
 		atomic_store_rel_int(&e->refcnt, 1);
+		e->neigh = NULL;
+		
+		
 		neigh_replace(e, neigh);
 #ifdef notyet
 		/* 
@@ -398,7 +420,10 @@ t3_l2t_get(struct toedev *dev, struct rtentry *neigh,
 #endif			    
 			e->vlan = VLAN_NONE;
 		mtx_unlock(&e->lock);
+
+		return (e);
 	}
+	
 done:
 	rw_wunlock(&d->lock);
 	return e;
@@ -413,7 +438,7 @@ done:
  * handler.
  */
 static void
-handle_failed_resolution(struct toedev *dev, struct mbuf *arpq)
+handle_failed_resolution(struct t3cdev *dev, struct mbuf *arpq)
 {
 
 	while (arpq) {
@@ -433,21 +458,20 @@ handle_failed_resolution(struct toedev *dev, struct mbuf *arpq)
 
 }
 
-#if defined(NETEVENT) || !defined(CONFIG_CHELSIO_T3_MODULE)
-/*
- * Called when the host's ARP layer makes a change to some entry that is
- * loaded into the HW L2 table.
- */
 void
-t3_l2t_update(struct toedev *dev, struct rtentry *neigh)
+t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct mbuf *arpq = NULL;
 	struct l2t_data *d = L2DATA(dev);
-	u32 addr = *(u32 *) rt_key(neigh);
+	u32 addr = *(u32 *) &((struct sockaddr_in *)sa)->sin_addr;
 	int ifidx = neigh->rt_ifp->if_index;
 	int hash = arp_hash(addr, ifidx, d);
 	struct llinfo_arp *la;
+	u_char edst[ETHER_ADDR_LEN];
+
+
+	printf("t3_l2t_update called with arp info\n");
 	
 	rw_rlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next)
@@ -456,10 +480,16 @@ t3_l2t_update(struct toedev *dev, struct rtentry *neigh)
 			goto found;
 		}
 	rw_runlock(&d->lock);
+	printf("addr=0x%08x not found\n", addr);
 	return;
 
 found:
+	printf("found 0x%08x\n", addr);
+	arpresolve(neigh->rt_ifp, neigh, NULL, sa, edst);
+
 	rw_runlock(&d->lock);
+	memcpy(e->dmac, edst, ETHER_ADDR_LEN);
+	
 	if (atomic_load_acq_int(&e->refcnt)) {
 		if (neigh != e->neigh)
 			neigh_replace(e, neigh);
@@ -470,12 +500,11 @@ found:
 			if (la->la_asked >= 5 /* arp_maxtries */) {
 				arpq = e->arpq_head;
 				e->arpq_head = e->arpq_tail = NULL;
-			} else if (la->la_hold == NULL)
+			} else
 				setup_l2e_send_pending(dev, NULL, e);
 		} else {
-			e->state = (la->la_hold == NULL) ?
-				L2T_STATE_VALID : L2T_STATE_STALE;
-			if (memcmp(e->dmac, RT_ENADDR(neigh), 6))
+			e->state = L2T_STATE_VALID;
+			if (memcmp(e->dmac, RT_ENADDR(neigh->rt_gateway), 6))
 				setup_l2e_send_pending(dev, NULL, e);
 		}
 	}
@@ -484,71 +513,6 @@ found:
 	if (arpq)
 		handle_failed_resolution(dev, arpq);
 }
-#else
-/*
- * Called from a kprobe, interrupts are off.
- */
-void
-t3_l2t_update(struct toedev *dev, struct rtentry *neigh)
-{
-	struct l2t_entry *e;
-	struct l2t_data *d = L2DATA(dev);
-	u32 addr = *(u32 *) rt_key(neigh);
-	int ifidx = neigh->dev->ifindex;
-	int hash = arp_hash(addr, ifidx, d);
-
-	rw_rlock(&d->lock);
-	for (e = d->l2tab[hash].first; e; e = e->next)
-		if (e->addr == addr && e->ifindex == ifidx) {
-			mtx_lock(&e->lock);
-			if (atomic_load_acq_int(&e->refcnt)) {
-				if (neigh != e->neigh)
-					neigh_replace(e, neigh);
-				e->tdev = dev;
-				mod_timer(&e->update_timer, jiffies + 1);
-			}
-			mtx_unlock(&e->lock);
-			break;
-		}
-	rw_runlock(&d->lock);
-}
-
-static void
-update_timer_cb(unsigned long data)
-{
-	struct mbuf *arpq = NULL;
-	struct l2t_entry *e = (struct l2t_entry *)data;
-	struct rtentry *neigh = e->neigh;
-	struct toedev *dev = e->tdev;
-
-	barrier();
-	if (!atomic_load_acq_int(&e->refcnt))
-		return;
-
-	rw_rlock(&neigh->lock);
-	mtx_lock(&e->lock);
-
-	if (atomic_load_acq_int(&e->refcnt)) {
-		if (e->state == L2T_STATE_RESOLVING) {
-			if (neigh->nud_state & NUD_FAILED) {
-				arpq = e->arpq_head;
-				e->arpq_head = e->arpq_tail = NULL;
-			} else if (neigh_is_connected(neigh) && e->arpq_head)
-				setup_l2e_send_pending(dev, NULL, e);
-		} else {
-			e->state = neigh_is_connected(neigh) ?
-				L2T_STATE_VALID : L2T_STATE_STALE;
-			if (memcmp(e->dmac, RT_ENADDR(neigh), sizeof(e->dmac)))
-				setup_l2e_send_pending(dev, NULL, e);
-		}
-	}
-	mtx_unlock(&e->lock);
-	rw_runlock(&neigh->lock);
-
-	if (arpq)
-		handle_failed_resolution(dev, arpq);
-}
-#endif
 
 struct l2t_data *
 t3_init_l2t(unsigned int l2t_capacity)
@@ -570,12 +534,6 @@ t3_init_l2t(unsigned int l2t_capacity)
 		d->l2tab[i].state = L2T_STATE_UNUSED;
 		mtx_init(&d->l2tab[i].lock, "L2TAB", NULL, MTX_DEF);
 		atomic_store_rel_int(&d->l2tab[i].refcnt, 0);
-#ifndef NETEVENT
-#ifdef CONFIG_CHELSIO_T3_MODULE
-		setup_timer(&d->l2tab[i].update_timer, update_timer_cb,
-			    (unsigned long)&d->l2tab[i]);
-#endif
-#endif
 	}
 	return d;
 }
@@ -583,86 +541,6 @@ t3_init_l2t(unsigned int l2t_capacity)
 void
 t3_free_l2t(struct l2t_data *d)
 {
-#ifndef NETEVENT
-#ifdef CONFIG_CHELSIO_T3_MODULE
-	int i;
-
-	/* Stop all L2T timers */
-	for (i = 0; i < d->nentries; ++i)
-		del_timer_sync(&d->l2tab[i].update_timer);
-#endif
-#endif
 	cxgb_free_mem(d);
 }
 
-#ifdef CONFIG_PROC_FS
-#include <linux/module.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-
-static inline void *
-l2t_get_idx(struct seq_file *seq, loff_t pos)
-{
-	struct l2t_data *d = seq->private;
-
-	return pos >= d->nentries ? NULL : &d->l2tab[pos];
-}
-
-static void *
-l2t_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	return *pos ? l2t_get_idx(seq, *pos) : SEQ_START_TOKEN;
-}
-
-static void *
-l2t_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	v = l2t_get_idx(seq, *pos + 1);
-	if (v)
-		++*pos;
-	return v;
-}
-
-static void
-l2t_seq_stop(struct seq_file *seq, void *v)
-{
-}
-
-static char
-l2e_state(const struct l2t_entry *e)
-{
-	switch (e->state) {
-	case L2T_STATE_VALID: return 'V';  /* valid, fast-path entry */
-	case L2T_STATE_STALE: return 'S';  /* needs revalidation, but usable */
-	case L2T_STATE_RESOLVING:
-		return e->arpq_head ? 'A' : 'R';
-	default:
-		return 'U';
-	}
-}
-
-static int
-l2t_seq_show(struct seq_file *seq, void *v)
-{
-	if (v == SEQ_START_TOKEN)
-		seq_puts(seq, "Index IP address      Ethernet address   VLAN  "
-			 "Prio  State   Users SMTIDX  Port\n");
-	else {
-		char ip[20];
-		struct l2t_entry *e = v;
-
-		mtx_lock(&e->lock);
-		sprintf(ip, "%u.%u.%u.%u", NIPQUAD(e->addr));
-		seq_printf(seq, "%-5u %-15s %02x:%02x:%02x:%02x:%02x:%02x  %4d"
-			   "  %3u     %c   %7u   %4u %s\n",
-			   e->idx, ip, e->dmac[0], e->dmac[1], e->dmac[2],
-			   e->dmac[3], e->dmac[4], e->dmac[5],
-			   e->vlan & EVL_VLID_MASK, vlan_prio(e),
-			   l2e_state(e), atomic_load_acq_int(&e->refcnt), e->smt_idx,
-			   e->neigh ? e->neigh->dev->name : "");
-		mtx_unlock(&e->lock);
-	}
-	return 0;
-}
-
-#endif

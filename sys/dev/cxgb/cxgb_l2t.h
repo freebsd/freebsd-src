@@ -31,7 +31,7 @@ $FreeBSD$
 #ifndef _CHELSIO_L2T_H
 #define _CHELSIO_L2T_H
 
-#include <dev/cxgb/ulp/toecore/toedev.h>
+#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #include <sys/lock.h>
 
 #if __FreeBSD_version > 700000
@@ -76,12 +76,6 @@ struct l2t_entry {
 	struct mtx lock;
 	volatile uint32_t refcnt;     /* entry reference count */
 	uint8_t dmac[6];              /* neighbour's MAC address */
-#ifndef NETEVENT
-#ifdef CONFIG_CHELSIO_T3_MODULE
-	struct timer_list update_timer;
-	struct toedev *tdev;
-#endif
-#endif
 };
 
 struct l2t_data {
@@ -92,7 +86,10 @@ struct l2t_data {
 	struct l2t_entry l2tab[0];
 };
 
-typedef void (*arp_failure_handler_func)(struct toedev *dev,
+typedef void (*arp_failure_handler_func)(struct t3cdev *dev,
+					 struct mbuf *m);
+
+typedef void (*opaque_arp_failure_handler_func)(void *dev,
 					 struct mbuf *m);
 
 /*
@@ -111,10 +108,8 @@ struct l2t_mbuf_cb {
 static __inline void set_arp_failure_handler(struct mbuf *m,
 					   arp_failure_handler_func hnd)
 {
-#if 0
-	L2T_SKB_CB(skb)->arp_failure_handler = hnd;
-#endif
-	panic("implement me");
+	m->m_pkthdr.header = (opaque_arp_failure_handler_func)hnd;
+
 }
 
 /*
@@ -123,12 +118,12 @@ static __inline void set_arp_failure_handler(struct mbuf *m,
 #define L2DATA(dev) ((dev)->l2opt)
 
 void t3_l2e_free(struct l2t_data *d, struct l2t_entry *e);
-void t3_l2t_update(struct toedev *dev, struct rtentry *ifp);
-struct l2t_entry *t3_l2t_get(struct toedev *dev, struct rtentry *neigh,
-			     unsigned int smt_idx);
-int t3_l2t_send_slow(struct toedev *dev, struct mbuf *m,
+void t3_l2t_update(struct t3cdev *dev, struct rtentry *rt, struct sockaddr *sa);
+struct l2t_entry *t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh,
+    struct ifnet *ifp, struct sockaddr *sa);
+int t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m,
 		     struct l2t_entry *e);
-void t3_l2t_send_event(struct toedev *dev, struct l2t_entry *e);
+void t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e);
 struct l2t_data *t3_init_l2t(unsigned int l2t_capacity);
 void t3_free_l2t(struct l2t_data *d);
 
@@ -140,14 +135,17 @@ void t3_l2t_proc_free(struct proc_dir_entry *dir);
 #define l2t_proc_free(dir)
 #endif
 
-int cxgb_ofld_send(struct toedev *dev, struct mbuf *m);
+int cxgb_ofld_send(struct t3cdev *dev, struct mbuf *m);
 
-static inline int l2t_send(struct toedev *dev, struct mbuf *m,
+static inline int l2t_send(struct t3cdev *dev, struct mbuf *m,
 			   struct l2t_entry *e)
 {
-	if (__predict_true(e->state == L2T_STATE_VALID))
-		return cxgb_ofld_send(dev, m);
-	return t3_l2t_send_slow(dev, m, e);
+	if (__predict_true(e->state == L2T_STATE_VALID)) {
+		return cxgb_ofld_send(dev, (struct mbuf *)m);
+	}
+	printf("send slow\n");
+	
+	return t3_l2t_send_slow(dev, (struct mbuf *)m, e);
 }
 
 static inline void l2t_release(struct l2t_data *d, struct l2t_entry *e)
