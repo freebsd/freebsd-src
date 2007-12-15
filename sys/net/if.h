@@ -212,11 +212,13 @@ struct if_data {
 #define	IFCAP_WOL_UCAST		0x0800	/* wake on any unicast frame */
 #define	IFCAP_WOL_MCAST		0x1000	/* wake on any multicast frame */
 #define	IFCAP_WOL_MAGIC		0x2000	/* wake on any Magic Packet */
-#define	IFCAP_TOE		0x4000	/* interface can offload TCP */
+#define	IFCAP_TOE4		0x4000	/* interface can offload TCP */
+#define	IFCAP_TOE6		0x8000	/* interface can offload TCP6 */
 
 #define IFCAP_HWCSUM	(IFCAP_RXCSUM | IFCAP_TXCSUM)
 #define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
 #define	IFCAP_WOL	(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST | IFCAP_WOL_MAGIC)
+#define	IFCAP_TSO	(IFCAP_TOE4 | IFCAP_TOE6)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
