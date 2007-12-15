@@ -227,10 +227,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #ifdef ADAPTIVE_RWLOCKS
 	volatile struct thread *owner;
 #endif
-#ifdef LOCK_PROFILING_SHARED
 	uint64_t waittime = 0;
 	int contested = 0;
-#endif
 	uintptr_t x;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -273,12 +271,6 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			MPASS((x & RW_LOCK_READ_WAITERS) == 0);
 			if (atomic_cmpset_acq_ptr(&rw->rw_lock, x,
 			    x + RW_ONE_READER)) {
-#ifdef LOCK_PROFILING_SHARED
-				if (RW_READERS(x) == 0)
-					lock_profile_obtain_lock_success(
-					    &rw->lock_object, contested,
-					    waittime, file, line);
-#endif
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR4(KTR_LOCK,
 					    "%s: %p succeed %p -> %p", __func__,
@@ -289,6 +281,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			cpu_spinwait();
 			continue;
 		}
+		lock_profile_obtain_lock_failed(&rw->lock_object,
+		    &contested, &waittime);
 
 #ifdef ADAPTIVE_RWLOCKS
 		/*
@@ -301,10 +295,6 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
-#ifdef LOCK_PROFILING_SHARED
-			lock_profile_obtain_lock_failed(&rw->lock_object,
-			    &contested, &waittime);
-#endif
 			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
 			    TD_IS_RUNNING(owner))
 				cpu_spinwait();
@@ -369,10 +359,6 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
-#ifdef LOCK_PROFILING_SHARED
-		lock_profile_obtain_lock_failed(&rw->lock_object, &contested,
-		    &waittime);
-#endif
 		turnstile_wait(ts, rw_owner(rw), TS_SHARED_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
@@ -384,7 +370,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	 * however.  turnstiles don't like owners changing between calls to
 	 * turnstile_wait() currently.
 	 */
-
+	lock_profile_obtain_lock_success( &rw->lock_object, contested,
+	    waittime, file, line);
 	LOCK_LOG_LOCK("RLOCK", &rw->lock_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->lock_object, 0, file, line);
 	curthread->td_locks++;
@@ -431,9 +418,6 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		 */
 		KASSERT(!(x & RW_LOCK_READ_WAITERS),
 		    ("%s: waiting readers", __func__));
-#ifdef LOCK_PROFILING_SHARED
-		lock_profile_release_lock(&rw->lock_object);
-#endif
 
 		/*
 		 * If there aren't any waiters for a write lock, then try
@@ -510,6 +494,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		turnstile_chain_unlock(&rw->lock_object);
 		break;
 	}
+	lock_profile_release_lock(&rw->lock_object);
 }
 
 /*
@@ -544,6 +529,8 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
 	while (!_rw_write_lock(rw, tid)) {
+		lock_profile_obtain_lock_failed(&rw->lock_object,
+		    &contested, &waittime);
 #ifdef ADAPTIVE_RWLOCKS
 		/*
 		 * If the lock is write locked and the owner is
@@ -556,8 +543,6 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			if (LOCK_LOG_TEST(&rw->lock_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
 				    __func__, rw, owner);
-			lock_profile_obtain_lock_failed(&rw->lock_object,
-			    &contested, &waittime);
 			while ((struct thread*)RW_OWNER(rw->rw_lock) == owner &&
 			    TD_IS_RUNNING(owner))
 				cpu_spinwait();
@@ -641,8 +626,6 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p blocking on turnstile", __func__,
 			    rw);
-		lock_profile_obtain_lock_failed(&rw->lock_object, &contested,
-		    &waittime);
 		turnstile_wait(ts, rw_owner(rw), TS_EXCLUSIVE_QUEUE);
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p resuming from turnstile",
