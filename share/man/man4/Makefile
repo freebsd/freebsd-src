@@ -102,6 +102,7 @@ MAN=	aac.4 \
 	hme.4 \
 	${_hptiop.4} \
 	${_hptmv.4} \
+	${_hptrr.4} \
 	hwpmc.4 \
 	ichsmb.4 \
 	${_ichwd.4} \
@@ -545,6 +546,7 @@ _amdsmb.4=	amdsmb.4
 _coretemp.4=	coretemp.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
+_hptrr.4=	hptrr.4
 _ichwd.4=	ichwd.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
