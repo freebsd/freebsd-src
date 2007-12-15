@@ -1356,7 +1356,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 	len = (len + 3) >> 2;
 	data32 = cmd;
 
-	/* Clear any left over pending doorbell interupts */
+	/* Clear any left over pending doorbell interrupts */
 	if (MPT_DB_INTR(mpt_rd_intr(mpt)))
 		mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
@@ -2095,7 +2095,7 @@ mpt_send_event_request(struct mpt_softc *mpt, int onoff)
 }
 
 /*
- * Un-mask the interupts on the chip.
+ * Un-mask the interrupts on the chip.
  */
 void
 mpt_enable_ints(struct mpt_softc *mpt)
@@ -2105,7 +2105,7 @@ mpt_enable_ints(struct mpt_softc *mpt)
 }
 
 /*
- * Mask the interupts on the chip.
+ * Mask the interrupts on the chip.
  */
 void
 mpt_disable_ints(struct mpt_softc *mpt)
