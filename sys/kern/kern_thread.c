@@ -555,6 +555,8 @@ thread_link(struct thread *td, struct proc *p)
 	td->td_flags    = TDF_INMEM;
 
 	LIST_INIT(&td->td_contested);
+	LIST_INIT(&td->td_lprof[0]);
+	LIST_INIT(&td->td_lprof[1]);
 	sigqueue_init(&td->td_sigqueue, p);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);

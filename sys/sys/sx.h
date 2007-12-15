@@ -178,11 +178,9 @@ __sx_slock(struct sx *sx, int opts, const char *file, int line)
 	if (!(x & SX_LOCK_SHARED) ||
 	    !atomic_cmpset_acq_ptr(&sx->sx_lock, x, x + SX_ONE_SHARER))
 		error = _sx_slock_hard(sx, opts, file, line);
-#ifdef LOCK_PROFILING_SHARED
-	else if (SX_SHARERS(x) == 0)
+	else
 		lock_profile_obtain_lock_success(&sx->lock_object, 0, 0, file,
 		    line);
-#endif
 
 	return (error);
 }
