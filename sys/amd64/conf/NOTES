@@ -377,6 +377,11 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		hptmv
 
 #
+# Highpoint RocketRAID.  Supports RR172x, RR222x, RR2240, RR232x, RR2340,
+# RR2210, RR174x, RR2522, RR231x, RR230x.
+device		hptrr
+
+#
 # Highpoint RocketRAID 232x.  This is software RAID but with hardware
 # acceleration assistance for RAID_5.
 device		rr232x

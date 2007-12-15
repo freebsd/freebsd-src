@@ -96,6 +96,7 @@ SUBDIR=	${_3dfx} \
 	hme \
 	${_hptiop} \
 	${_hptmv} \
+	${_hptrr} \
 	hwpmc \
 	${_i2c} \
 	${_ibcs2} \
@@ -447,6 +448,7 @@ _dpt=		dpt
 _ex=		ex
 _hptiop=	hptiop
 _hptmv=		hptmv
+_hptrr=		hptrr
 _ichwd=		ichwd
 _ida=		ida
 # Disabled due to non-MPSAFEty in 7.0
@@ -507,6 +509,7 @@ _exca=		exca
 _ext2fs=	ext2fs
 _hptiop=	hptiop
 _hptmv=		hptmv
+_hptrr=		hptrr
 _i2c=		i2c
 _ichwd=		ichwd
 _ida=		ida
