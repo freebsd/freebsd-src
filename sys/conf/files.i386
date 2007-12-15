@@ -77,11 +77,15 @@ hptmvraid.o			optional	hptmv			\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
 	no-implicit-rule
 #
+hptrr_lib.o			optional	hptrr			\
+	dependency	"$S/dev/hptrr/i386-elf.hptrr_lib.o.uu"		\
+	compile-with	"uudecode < $S/dev/hptrr/i386-elf.hptrr_lib.o.uu" \
+	no-implicit-rule
+#
 rr232x_lib.o			optional	rr232x			\
 	dependency	"$S/dev/rr232x/i386-elf.rr232x_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/rr232x/i386-elf.rr232x_lib.o.uu" \
 	no-implicit-rule
-#
 #
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
@@ -194,6 +198,9 @@ dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
 dev/hptmv/hptproc.c		optional hptmv
 dev/hptmv/ioctl.c		optional hptmv
+dev/hptrr/hptrr_os_bsd.c	optional hptrr
+dev/hptrr/hptrr_osm_bsd.c	optional hptrr
+dev/hptrr/hptrr_config.c	optional hptrr
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
