@@ -101,8 +101,8 @@ struct tom_info {
 	int		(*ti_attach)(struct toedev *dev,
 	                             const struct offload_id *entry);
 	int		(*ti_detach)(struct toedev *dev);
-	const char	*name;
-	const struct offload_id	*id_table;
+	const char	*ti_name;
+	const struct offload_id	*ti_id_table;
 };
 
 static __inline void
