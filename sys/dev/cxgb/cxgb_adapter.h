@@ -55,12 +55,14 @@ $FreeBSD$
 
 #ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
-#include <ulp/toecore/toedev.h>
+#include <t3cdev.h>
 #include <sys/mbufq.h>
+#include <ulp/toecore/cxgb_toedev.h>
 #else
 #include <dev/cxgb/cxgb_osdep.h>
+#include <dev/cxgb/t3cdev.h>
 #include <dev/cxgb/sys/mbufq.h>
-#include <dev/cxgb/ulp/toecore/toedev.h>
+#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #endif
 
 #define USE_SX
@@ -371,7 +373,7 @@ struct adapter {
 
 	struct port_info	port[MAX_NPORTS];
 	device_t		portdev[MAX_NPORTS];
-	struct toedev           tdev;
+	struct t3cdev           tdev;
 	char                    fw_version[64];
 	uint32_t                open_device_map;
 	uint32_t                registered_device_map;
@@ -497,7 +499,7 @@ int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
 void t3_sge_err_intr_handler(adapter_t *adapter);
-int t3_offload_tx(struct toedev *, struct mbuf *);
+int t3_offload_tx(struct t3cdev *, struct mbuf *);
 void t3_os_ext_intr_handler(adapter_t *adapter);
 void t3_os_set_hw_addr(adapter_t *adapter, int port_idx, u8 hw_addr[]);
 int t3_mgmt_tx(adapter_t *adap, struct mbuf *m);
@@ -554,7 +556,7 @@ txq_to_qset(struct sge_txq *q, int qidx)
 }
 
 static __inline struct adapter *
-tdev2adap(struct toedev *d)
+tdev2adap(struct t3cdev *d)
 {
 	return container_of(d, struct adapter, tdev);
 }

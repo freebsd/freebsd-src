@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/mbuf.h>
 #include <sys/linker.h>
+#include <sys/syslog.h>
 #include <sys/firmware.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -116,7 +117,7 @@ static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
 
 #ifdef notyet
-static int offload_close(struct toedev *tdev);
+static int offload_close(struct t3cdev *tdev);
 #endif
 
 
@@ -1235,7 +1236,7 @@ setup_rss(adapter_t *adap)
  * after dealing with any active network taps.
  */
 static inline int
-offload_tx(struct toedev *tdev, struct mbuf *m)
+offload_tx(struct t3cdev *tdev, struct mbuf *m)
 {
 	int ret;
 
@@ -1556,7 +1557,7 @@ static int
 offload_open(struct port_info *pi)
 {
 	struct adapter *adapter = pi->adapter;
-	struct toedev *tdev = TOEDEV(pi->ifp);
+	struct t3cdev *tdev = TOEDEV(pi->ifp);
 	int adap_up = adapter->open_device_map & PORT_MASK;
 	int err = 0;
 
@@ -1599,7 +1600,7 @@ out:
 }
 #ifdef notyet
 static int
-offload_close(struct toedev *tdev)
+offload_close(struct t3cev *tdev)
 {
 	struct adapter *adapter = tdev2adap(tdev);
 
