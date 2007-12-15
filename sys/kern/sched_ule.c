@@ -1894,6 +1894,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
+		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
 		cpu_switch(td, newtd, mtx);
 		/*
@@ -1903,6 +1904,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		cpuid = PCPU_GET(cpuid);
 		tdq = TDQ_CPU(cpuid);
+		lock_profile_obtain_lock_success(
+		    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
@@ -2618,6 +2621,7 @@ sched_throw(struct thread *td)
 	} else {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td->td_sched);
+		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 	}
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
@@ -2650,6 +2654,8 @@ sched_fork_exit(struct thread *td)
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 	td->td_oncpu = cpuid;
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED | MA_NOTRECURSED);
+	lock_profile_obtain_lock_success(
+	    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
 }
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0,

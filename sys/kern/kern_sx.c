@@ -302,11 +302,8 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&sx->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &sx->lock_object, 0, 0, file, line);
-#ifdef LOCK_PROFILING_SHARED
-	if (SX_SHARERS(sx->sx_lock) == 1)
-		lock_profile_release_lock(&sx->lock_object);
-#endif
 	__sx_sunlock(sx, file, line);
+	lock_profile_release_lock(&sx->lock_object);
 }
 
 void
@@ -450,6 +447,8 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
 
 	while (!atomic_cmpset_acq_ptr(&sx->sx_lock, SX_LOCK_UNLOCKED, tid)) {
+		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
+		    &waittime);
 #ifdef ADAPTIVE_SX
 		/*
 		 * If the lock is write locked and the owner is
@@ -467,8 +466,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					    "%s: spinning on %p held by %p",
 					    __func__, sx, owner);
 				GIANT_SAVE();
-				lock_profile_obtain_lock_failed(
-				    &sx->lock_object, &contested, &waittime);
 				while (SX_OWNER(sx->sx_lock) == x &&
 				    TD_IS_RUNNING(owner))
 					cpu_spinwait();
@@ -555,8 +552,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 			    __func__, sx);
 
 		GIANT_SAVE();
-		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
-		    &waittime);
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_EXCLUSIVE_QUEUE);
@@ -648,10 +643,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 #ifdef ADAPTIVE_SX
 	volatile struct thread *owner;
 #endif
-#ifdef LOCK_PROFILING_SHARED
 	uint64_t waittime = 0;
 	int contested = 0;
-#endif
 	uintptr_t x;
 	int error = 0;
 
@@ -672,12 +665,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			MPASS(!(x & SX_LOCK_SHARED_WAITERS));
 			if (atomic_cmpset_acq_ptr(&sx->sx_lock, x,
 			    x + SX_ONE_SHARER)) {
-#ifdef LOCK_PROFILING_SHARED
-				if (SX_SHARERS(x) == 0)
-					lock_profile_obtain_lock_success(
-					    &sx->lock_object, contested,
-					    waittime, file, line);
-#endif
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR4(KTR_LOCK,
 					    "%s: %p succeed %p -> %p", __func__,
@@ -687,6 +674,8 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			}
 			continue;
 		}
+		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
+		    &waittime);
 
 #ifdef ADAPTIVE_SX
 		/*
@@ -694,7 +683,7 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 		 * the owner stops running or the state of the lock
 		 * changes.
 		 */
-		else if (sx->lock_object.lo_flags & SX_ADAPTIVESPIN) {
+		if (sx->lock_object.lo_flags & SX_ADAPTIVESPIN) {
 			x = SX_OWNER(x);
 			owner = (struct thread *)x;
 			if (TD_IS_RUNNING(owner)) {
@@ -703,10 +692,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 					    "%s: spinning on %p held by %p",
 					    __func__, sx, owner);
 				GIANT_SAVE();
-#ifdef LOCK_PROFILING_SHARED
-				lock_profile_obtain_lock_failed(
-				    &sx->lock_object, &contested, &waittime);
-#endif
 				while (SX_OWNER(sx->sx_lock) == x &&
 				    TD_IS_RUNNING(owner))
 					cpu_spinwait();
@@ -772,10 +757,6 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			    __func__, sx);
 
 		GIANT_SAVE();
-#ifdef LOCK_PROFILING_SHARED
-		lock_profile_obtain_lock_failed(&sx->lock_object, &contested,
-		    &waittime);
-#endif
 		sleepq_add(&sx->lock_object, NULL, sx->lock_object.lo_name,
 		    SLEEPQ_SX | ((opts & SX_INTERRUPTIBLE) ?
 		    SLEEPQ_INTERRUPTIBLE : 0), SQ_SHARED_QUEUE);
@@ -795,6 +776,9 @@ _sx_slock_hard(struct sx *sx, int opts, const char *file, int line)
 			CTR2(KTR_LOCK, "%s: %p resuming from sleep queue",
 			    __func__, sx);
 	}
+	if (error == 0)
+		lock_profile_obtain_lock_success(&sx->lock_object, contested,
+		    waittime, file, line);
 
 	GIANT_RESTORE();
 	return (error);

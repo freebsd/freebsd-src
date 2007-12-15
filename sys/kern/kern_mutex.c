@@ -123,20 +123,6 @@ struct lock_class lock_class_mtx_spin = {
 struct mtx blocked_lock;
 struct mtx Giant;
 
-#ifdef LOCK_PROFILING
-static inline void lock_profile_init(void)
-{
-        int i;
-        /* Initialize the mutex profiling locks */
-        for (i = 0; i < LPROF_LOCK_SIZE; i++) {
-                mtx_init(&lprof_locks[i], "mprof lock",
-                    NULL, MTX_SPIN|MTX_QUIET|MTX_NOPROFILE);
-        }
-}
-#else
-static inline void lock_profile_init(void) {;}
-#endif
-
 void
 assert_mtx(struct lock_object *lock, int what)
 {
@@ -425,7 +411,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	}
 #endif
 	lock_profile_obtain_lock_success(&m->lock_object, contested,	
-	    waittime, (file), (line));					
+	    waittime, file, line);					
 }
 
 static void
@@ -514,7 +500,8 @@ retry:
 				m->mtx_recurse++;
 				break;
 			}
-			lock_profile_obtain_lock_failed(&m->lock_object, &contested, &waittime);
+			lock_profile_obtain_lock_failed(&m->lock_object,
+			    &contested, &waittime);
 			/* Give interrupts a chance while we spin. */
 			spinlock_exit();
 			while (m->mtx_lock != MTX_UNOWNED) {
@@ -535,8 +522,9 @@ retry:
 			break;
 		_rel_spin_lock(m);	/* does spinlock_exit() */
 	}
-	lock_profile_obtain_lock_success(&m->lock_object, contested,	
-	    waittime, (file), (line));
+	if (m->mtx_recurse == 0)
+		lock_profile_obtain_lock_success(&m->lock_object, contested,	
+		    waittime, (file), (line));
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
 }
 
@@ -794,8 +782,6 @@ mutex_init(void)
 	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
-	
-	lock_profile_init();
 }
 
 #ifdef DDB
