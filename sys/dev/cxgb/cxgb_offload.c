@@ -52,8 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/proc.h>
 
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
@@ -64,16 +66,11 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/route.h>
 
-/*
- * XXX 
- */
-#define LOG_NOTICE 2
-#define BUG_ON(...)
 #define VALIDATE_TID 0
-
+MALLOC_DEFINE(M_CXGB, "cxgb", "Chelsio 10 Gigabit Ethernet and services");
 
 TAILQ_HEAD(, cxgb_client) client_list;
-TAILQ_HEAD(, toedev) ofld_dev_list;
+TAILQ_HEAD(, t3cdev) ofld_dev_list;
 TAILQ_HEAD(, adapter) adapter_list;
 
 static struct mtx cxgb_db_lock;
@@ -85,7 +82,7 @@ static const unsigned int ATID_BASE = 0x100000;
 static int inited = 0;
 
 static inline int
-offload_activated(struct toedev *tdev)
+offload_activated(struct t3cdev *tdev)
 {
 	struct adapter *adapter = tdev2adap(tdev);
 	
@@ -102,15 +99,20 @@ offload_activated(struct toedev *tdev)
 void
 cxgb_register_client(struct cxgb_client *client)
 {
-	struct toedev *tdev;
+	struct t3cdev *tdev;
 
 	mtx_lock(&cxgb_db_lock);
 	TAILQ_INSERT_TAIL(&client_list, client, client_entry);
 
 	if (client->add) {
-		TAILQ_FOREACH(tdev, &ofld_dev_list, ofld_entry) {
+		printf("client->add set\n");
+		
+		TAILQ_FOREACH(tdev, &ofld_dev_list, entry) {
 			if (offload_activated(tdev))
 				client->add(tdev);
+			else
+				printf("%p not activated\n", tdev);
+			
 		}
 	}
 	mtx_unlock(&cxgb_db_lock);
@@ -126,13 +128,13 @@ cxgb_register_client(struct cxgb_client *client)
 void
 cxgb_unregister_client(struct cxgb_client *client)
 {
-	struct toedev *tdev;
+	struct t3cdev *tdev;
 
 	mtx_lock(&cxgb_db_lock);
 	TAILQ_REMOVE(&client_list, client, client_entry);
 
 	if (client->remove) {
-		TAILQ_FOREACH(tdev, &ofld_dev_list, ofld_entry) {
+		TAILQ_FOREACH(tdev, &ofld_dev_list, entry) {
 			if (offload_activated(tdev))
 				client->remove(tdev);
 		}
@@ -147,7 +149,7 @@ cxgb_unregister_client(struct cxgb_client *client)
  *	Call backs all registered clients once a offload device is activated 
  */
 void
-cxgb_add_clients(struct toedev *tdev)
+cxgb_add_clients(struct t3cdev *tdev)
 {
 	struct cxgb_client *client;
 
@@ -166,7 +168,7 @@ cxgb_add_clients(struct toedev *tdev)
  *	Call backs all registered clients once a offload device is deactivated 
  */
 void
-cxgb_remove_clients(struct toedev *tdev)
+cxgb_remove_clients(struct t3cdev *tdev)
 {
 	struct cxgb_client *client;
 
@@ -200,26 +202,29 @@ is_offloading(struct ifnet *ifp)
 static struct ifnet *
 get_iff_from_mac(adapter_t *adapter, const uint8_t *mac, unsigned int vlan)
 {
-#ifdef notyet	
 	int i;
 
 	for_each_port(adapter, i) {
+#ifdef notyet		
 		const struct vlan_group *grp;
+#endif		
 		const struct port_info *p = &adapter->port[i];
-		struct ifnet *ifnet = p->ifp;
+		struct ifnet *ifp = p->ifp;
 
 		if (!memcmp(p->hw_addr, mac, ETHER_ADDR_LEN)) {
+#ifdef notyet	
+			
 			if (vlan && vlan != EVL_VLID_MASK) {
 				grp = p->vlan_grp;
 				dev = grp ? grp->vlan_devices[vlan] : NULL;
 			} else
 				while (dev->master)
 					dev = dev->master;
-			return dev;
+#endif			
+			return (ifp);
 		}
 	}
-#endif	
-	return NULL;
+	return (NULL);
 }
 
 static inline void
@@ -364,7 +369,7 @@ cxgb_rdma_ctl(adapter_t *adapter, unsigned int req, void *data)
 }
 
 static int
-cxgb_offload_ctl(struct toedev *tdev, unsigned int req, void *data)
+cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 {
 	struct adapter *adapter = tdev2adap(tdev);
 	struct tid_range *tid;
@@ -462,7 +467,7 @@ cxgb_offload_ctl(struct toedev *tdev, unsigned int req, void *data)
  * normal to get offload packets at this stage.
  */
 static int
-rx_offload_blackhole(struct toedev *dev, struct mbuf **m, int n)
+rx_offload_blackhole(struct t3cdev *dev, struct mbuf **m, int n)
 {
 	CH_ERR(tdev2adap(dev), "%d unexpected offload packets, first data 0x%x\n",
 	    n, *mtod(m[0], uint32_t *));
@@ -472,24 +477,24 @@ rx_offload_blackhole(struct toedev *dev, struct mbuf **m, int n)
 }
 
 static void
-dummy_neigh_update(struct toedev *dev, struct rtentry *neigh)
+dummy_neigh_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
 {
 }
 
 void
-cxgb_set_dummy_ops(struct toedev *dev)
+cxgb_set_dummy_ops(struct t3cdev *dev)
 {
 	dev->recv         = rx_offload_blackhole;
-	dev->neigh_update = dummy_neigh_update;
+	dev->arp_update = dummy_neigh_update;
 }
 
 /*
  * Free an active-open TID.
  */
 void *
-cxgb_free_atid(struct toedev *tdev, int atid)
+cxgb_free_atid(struct t3cdev *tdev, int atid)
 {
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA(tdev))->tid_maps;
 	union active_open_entry *p = atid2entry(t, atid);
 	void *ctx = p->toe_tid.ctx;
 
@@ -497,7 +502,7 @@ cxgb_free_atid(struct toedev *tdev, int atid)
 	p->next = t->afree;
 	t->afree = p;
 	t->atids_in_use--;
-	mtx_lock(&t->atid_lock);
+	mtx_unlock(&t->atid_lock);
 
 	return ctx;
 }
@@ -506,9 +511,9 @@ cxgb_free_atid(struct toedev *tdev, int atid)
  * Free a server TID and return it to the free pool.
  */
 void
-cxgb_free_stid(struct toedev *tdev, int stid)
+cxgb_free_stid(struct t3cdev *tdev, int stid)
 {
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
 	union listen_entry *p = stid2entry(t, stid);
 
 	mtx_lock(&t->stid_lock);
@@ -518,11 +523,23 @@ cxgb_free_stid(struct toedev *tdev, int stid)
 	mtx_unlock(&t->stid_lock);
 }
 
+/*
+ * Free a server TID and return it to the free pool.
+ */
+void *
+cxgb_get_lctx(struct t3cdev *tdev, int stid)
+{
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
+	union listen_entry *p = stid2entry(t, stid);
+
+	return (p->toe_tid.ctx);
+}
+
 void
-cxgb_insert_tid(struct toedev *tdev, struct cxgb_client *client,
+cxgb_insert_tid(struct t3cdev *tdev, struct cxgb_client *client,
 	void *ctx, unsigned int tid)
 {
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
 
 	t->tid_tab[tid].client = client;
 	t->tid_tab[tid].ctx = ctx;
@@ -539,6 +556,7 @@ mk_tid_release(struct mbuf *m, unsigned int tid)
 
 	m_set_priority(m, CPL_PRIORITY_SETUP);
 	req = mtod(m, struct cpl_tid_release *);
+	m->m_pkthdr.len = m->m_len = sizeof(*req);
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_TID_RELEASE, tid));
 }
@@ -547,8 +565,8 @@ static void
 t3_process_tid_release_list(void *data, int pending)
 {
 	struct mbuf *m;
-	struct toedev *tdev = data;
-	struct toe_data *td = TOE_DATA(tdev);
+	struct t3cdev *tdev = data;
+	struct t3c_data *td = T3C_DATA (tdev);
 
 	mtx_lock(&td->tid_release_lock);
 	while (td->tid_release_list) {
@@ -567,11 +585,13 @@ t3_process_tid_release_list(void *data, int pending)
 
 /* use ctx as a next pointer in the tid release list */
 void
-cxgb_queue_tid_release(struct toedev *tdev, unsigned int tid)
+cxgb_queue_tid_release(struct t3cdev *tdev, unsigned int tid)
 {
-	struct toe_data *td = TOE_DATA(tdev);
+	struct t3c_data *td = T3C_DATA (tdev);
 	struct toe_tid_entry *p = &td->tid_maps.tid_tab[tid];
 
+	printf("queuing tid release\n");
+	
 	mtx_lock(&td->tid_release_lock);
 	p->ctx = td->tid_release_list;
 	td->tid_release_list = p;
@@ -590,11 +610,13 @@ cxgb_queue_tid_release(struct toedev *tdev, unsigned int tid)
  * to the original client context.
  */
 void
-cxgb_remove_tid(struct toedev *tdev, void *ctx, unsigned int tid)
+cxgb_remove_tid(struct t3cdev *tdev, void *ctx, unsigned int tid)
 {
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
 
-	BUG_ON(tid >= t->ntids);
+	if (tid >= t->ntids)
+		panic("tid=%d >= t->ntids=%d", tid, t->ntids);
+	
 	if (tdev->type == T3A)
 		atomic_cmpset_ptr((uintptr_t *)&t->tid_tab[tid].ctx, (long)NULL, (long)ctx);
 	else {
@@ -603,6 +625,8 @@ cxgb_remove_tid(struct toedev *tdev, void *ctx, unsigned int tid)
 		m = m_get(M_NOWAIT, MT_DATA);
 		if (__predict_true(m != NULL)) {
 			mk_tid_release(m, tid);
+			printf("sending tid release\n");
+			
 			cxgb_ofld_send(tdev, m);
 			t->tid_tab[tid].ctx = NULL;
 		} else
@@ -612,11 +636,11 @@ cxgb_remove_tid(struct toedev *tdev, void *ctx, unsigned int tid)
 }
 
 int
-cxgb_alloc_atid(struct toedev *tdev, struct cxgb_client *client,
+cxgb_alloc_atid(struct t3cdev *tdev, struct cxgb_client *client,
 		     void *ctx)
 {
 	int atid = -1;
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
 
 	mtx_lock(&t->atid_lock);
 	if (t->afree) {
@@ -633,11 +657,11 @@ cxgb_alloc_atid(struct toedev *tdev, struct cxgb_client *client,
 }
 
 int
-cxgb_alloc_stid(struct toedev *tdev, struct cxgb_client *client,
+cxgb_alloc_stid(struct t3cdev *tdev, struct cxgb_client *client,
 		     void *ctx)
 {
 	int stid = -1;
-	struct tid_info *t = &(TOE_DATA(tdev))->tid_maps;
+	struct tid_info *t = &(T3C_DATA (tdev))->tid_maps;
 
 	mtx_lock(&t->stid_lock);
 	if (t->sfree) {
@@ -654,7 +678,7 @@ cxgb_alloc_stid(struct toedev *tdev, struct cxgb_client *client,
 }
 
 static int
-do_smt_write_rpl(struct toedev *dev, struct mbuf *m)
+do_smt_write_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_smt_write_rpl *rpl = cplhdr(m);
 
@@ -667,7 +691,7 @@ do_smt_write_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_l2t_write_rpl(struct toedev *dev, struct mbuf *m)
+do_l2t_write_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_l2t_write_rpl *rpl = cplhdr(m);
 
@@ -680,13 +704,13 @@ do_l2t_write_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_act_open_rpl(struct toedev *dev, struct mbuf *m)
+do_act_open_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_act_open_rpl *rpl = cplhdr(m);
 	unsigned int atid = G_TID(ntohl(rpl->atid));
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_atid(&(TOE_DATA(dev))->tid_maps, atid);
+	toe_tid = lookup_atid(&(T3C_DATA (dev))->tid_maps, atid);
 	if (toe_tid->ctx && toe_tid->client && toe_tid->client->handlers &&
 		toe_tid->client->handlers[CPL_ACT_OPEN_RPL]) {
 		return toe_tid->client->handlers[CPL_ACT_OPEN_RPL] (dev, m,
@@ -699,13 +723,13 @@ do_act_open_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_stid_rpl(struct toedev *dev, struct mbuf *m)
+do_stid_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	union opcode_tid *p = cplhdr(m);
 	unsigned int stid = G_TID(ntohl(p->opcode_tid));
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_stid(&(TOE_DATA(dev))->tid_maps, stid);
+	toe_tid = lookup_stid(&(T3C_DATA (dev))->tid_maps, stid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[p->opcode]) {
 		return toe_tid->client->handlers[p->opcode] (dev, m, toe_tid->ctx);
@@ -717,19 +741,16 @@ do_stid_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_hwtid_rpl(struct toedev *dev, struct mbuf *m)
+do_hwtid_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	union opcode_tid *p = cplhdr(m);
 	unsigned int hwtid;
 	struct toe_tid_entry *toe_tid;
 	
-	printf("do_hwtid_rpl m=%p\n", m);
-	return (0);
-	
-	
+	DPRINTF("do_hwtid_rpl opcode=0x%x\n", p->opcode);
 	hwtid = G_TID(ntohl(p->opcode_tid));
 
-	toe_tid = lookup_tid(&(TOE_DATA(dev))->tid_maps, hwtid);
+	toe_tid = lookup_tid(&(T3C_DATA (dev))->tid_maps, hwtid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[p->opcode]) {
 		return toe_tid->client->handlers[p->opcode]
@@ -742,13 +763,13 @@ do_hwtid_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_cr(struct toedev *dev, struct mbuf *m)
+do_cr(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_pass_accept_req *req = cplhdr(m);
 	unsigned int stid = G_PASS_OPEN_TID(ntohl(req->tos_tid));
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_stid(&(TOE_DATA(dev))->tid_maps, stid);
+	toe_tid = lookup_stid(&(T3C_DATA (dev))->tid_maps, stid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[CPL_PASS_ACCEPT_REQ]) {
 		return toe_tid->client->handlers[CPL_PASS_ACCEPT_REQ]
@@ -761,13 +782,13 @@ do_cr(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_abort_req_rss(struct toedev *dev, struct mbuf *m)
+do_abort_req_rss(struct t3cdev *dev, struct mbuf *m)
 {
 	union opcode_tid *p = cplhdr(m);
 	unsigned int hwtid = G_TID(ntohl(p->opcode_tid));
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_tid(&(TOE_DATA(dev))->tid_maps, hwtid);
+	toe_tid = lookup_tid(&(T3C_DATA (dev))->tid_maps, hwtid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[p->opcode]) {
 		return toe_tid->client->handlers[p->opcode]
@@ -800,26 +821,34 @@ do_abort_req_rss(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_act_establish(struct toedev *dev, struct mbuf *m)
+do_act_establish(struct t3cdev *dev, struct mbuf *m)
 {
-	struct cpl_act_establish *req = cplhdr(m);
-	unsigned int atid = G_PASS_OPEN_TID(ntohl(req->tos_tid));
+	struct cpl_act_establish *req;
+	unsigned int atid;
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_atid(&(TOE_DATA(dev))->tid_maps, atid);
-	if (toe_tid->ctx && toe_tid->client->handlers &&
+	req = cplhdr(m);
+	atid = G_PASS_OPEN_TID(ntohl(req->tos_tid));
+	toe_tid = lookup_atid(&(T3C_DATA (dev))->tid_maps, atid);
+	if (toe_tid && toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[CPL_ACT_ESTABLISH]) {
+		printf("active establish callback\n");
+		
 		return toe_tid->client->handlers[CPL_ACT_ESTABLISH]
 						(dev, m, toe_tid->ctx);
 	} else {
+		printf("toe_tid=%p\n", toe_tid);
+	
 		log(LOG_ERR, "%s: received clientless CPL command 0x%x\n",
 			dev->name, CPL_PASS_ACCEPT_REQ);
 		return CPL_RET_BUF_DONE | CPL_RET_BAD_MSG;
 	}
 }
 
+
+
 static int
-do_set_tcb_rpl(struct toedev *dev, struct mbuf *m)
+do_set_tcb_rpl(struct t3cdev *dev, struct mbuf *m)
 {
 	struct cpl_set_tcb_rpl *rpl = cplhdr(m);
 
@@ -831,7 +860,7 @@ do_set_tcb_rpl(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_trace(struct toedev *dev, struct mbuf *m)
+do_trace(struct t3cdev *dev, struct mbuf *m)
 {
 #if 0
 	struct cpl_trace_pkt *p = cplhdr(m);
@@ -847,13 +876,13 @@ do_trace(struct toedev *dev, struct mbuf *m)
 }
 
 static int
-do_term(struct toedev *dev, struct mbuf *m)
+do_term(struct t3cdev *dev, struct mbuf *m)
 {
 	unsigned int hwtid = ntohl(m_get_priority(m)) >> 8 & 0xfffff;
 	unsigned int opcode = G_OPCODE(ntohl(m->m_pkthdr.csum_data));
 	struct toe_tid_entry *toe_tid;
 
-	toe_tid = lookup_tid(&(TOE_DATA(dev))->tid_maps, hwtid);
+	toe_tid = lookup_tid(&(T3C_DATA (dev))->tid_maps, hwtid);
 	if (toe_tid->ctx && toe_tid->client->handlers &&
 		toe_tid->client->handlers[opcode]) {
 		return toe_tid->client->handlers[opcode](dev, m, toe_tid->ctx);
@@ -865,229 +894,61 @@ do_term(struct toedev *dev, struct mbuf *m)
 	return (0);
 }
 
-#if defined(FOO)
-#include <linux/config.h> 
-#include <linux/kallsyms.h> 
-#include <linux/kprobes.h> 
-#include <net/arp.h> 
-
-static int (*orig_arp_constructor)(struct ifnet *);
-
 static void
-neigh_suspect(struct ifnet *neigh)
+cxgb_route_event(void *unused, int event, struct rtentry *rt0,
+    struct rtentry *rt1, struct sockaddr *sa)
 {
-	struct hh_cache *hh;
+	struct toedev *tdev0, *tdev1 = NULL;
 
-	neigh->output = neigh->ops->output;
-
-	for (hh = neigh->hh; hh; hh = hh->hh_next)
-		hh->hh_output = neigh->ops->output;
-}
-
-static void
-neigh_connect(struct ifnet *neigh)
-{
-	struct hh_cache *hh;
-
-	neigh->output = neigh->ops->connected_output;
-
-	for (hh = neigh->hh; hh; hh = hh->hh_next)
-		hh->hh_output = neigh->ops->hh_output;
-}
-
-static inline int
-neigh_max_probes(const struct neighbour *n)
-{
-	const struct neigh_parms *p = n->parms;
-	return (n->nud_state & NUD_PROBE ?
-		p->ucast_probes :
-		p->ucast_probes + p->app_probes + p->mcast_probes);
-}
-
-static void
-neigh_timer_handler_offload(unsigned long arg)
-{
-	unsigned long now, next;
-	struct neighbour *neigh = (struct neighbour *)arg;
-	unsigned state;
-	int notify = 0;
-
-	write_lock(&neigh->lock);
-
-	state = neigh->nud_state;
-	now = jiffies;
-	next = now + HZ;
-
-	if (!(state & NUD_IN_TIMER)) {
-#ifndef CONFIG_SMP
-		log(LOG_WARNING, "neigh: timer & !nud_in_timer\n");
-#endif
-		goto out;
-	}
-
-	if (state & NUD_REACHABLE) {
-		if (time_before_eq(now,
-				   neigh->confirmed + 
-				   neigh->parms->reachable_time)) {
-			next = neigh->confirmed + neigh->parms->reachable_time;
-		} else if (time_before_eq(now,
-					  neigh->used + 
-					  neigh->parms->delay_probe_time)) {
-			neigh->nud_state = NUD_DELAY;
-			neigh->updated = jiffies;
-			neigh_suspect(neigh);
-			next = now + neigh->parms->delay_probe_time;
-		} else {
-			neigh->nud_state = NUD_STALE;
-			neigh->updated = jiffies;
-			neigh_suspect(neigh);
-			cxgb_neigh_update(neigh);
-		}
-	} else if (state & NUD_DELAY) {
-		if (time_before_eq(now,
-				   neigh->confirmed +
-				   neigh->parms->delay_probe_time)) {
-			neigh->nud_state = NUD_REACHABLE;
-			neigh->updated = jiffies;
-			neigh_connect(neigh);
-			cxgb_neigh_update(neigh);
-			next = neigh->confirmed + neigh->parms->reachable_time;
-		} else {
-			neigh->nud_state = NUD_PROBE;
-			neigh->updated = jiffies;
-			atomic_set_int(&neigh->probes, 0);
-			next = now + neigh->parms->retrans_time;
-		}
-	} else {
-		/* NUD_PROBE|NUD_INCOMPLETE */
-		next = now + neigh->parms->retrans_time;
-	}
-	/*
-	 * Needed for read of probes
+	/* 
+	 * ignore events on non-offloaded interfaces
 	 */
-	mb();
-	if ((neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) &&
-	    neigh->probes >= neigh_max_probes(neigh)) {
-		struct mbuf *m;
+	tdev0 = TOEDEV(rt0->rt_ifp);
+	if (rt1)
+		tdev1 = TOEDEV(rt1->rt_ifp);
+	if (tdev0 == NULL && tdev1 == NULL)
+		return;
+        /*
+	 * avoid LORs by dropping the route lock but keeping a reference
+	 * 
+	 */
+	RT_ADDREF(rt0);
+	RT_UNLOCK(rt0);
+	if (rt1) {
+		RT_ADDREF(rt1);
+		RT_UNLOCK(rt1);
+	}
 
-		neigh->nud_state = NUD_FAILED;
-		neigh->updated = jiffies;
-		notify = 1;
-		cxgb_neigh_update(neigh);
-		NEIGH_CACHE_STAT_INC(neigh->tbl, res_failed);
-
-		/* It is very thin place. report_unreachable is very 
-		   complicated routine. Particularly, it can hit the same 
-		   neighbour entry!
-		   So that, we try to be accurate and avoid dead loop. --ANK
-		 */
-		while (neigh->nud_state == NUD_FAILED &&
-		       (skb = __skb_dequeue(&neigh->arp_queue)) != NULL) {
-			write_unlock(&neigh->lock);
-			neigh->ops->error_report(neigh, skb);
-			write_lock(&neigh->lock);
+	switch (event) {
+		case RTEVENT_ARP_UPDATE: {
+			cxgb_neigh_update(rt0, sa);
+			break;
 		}
-		skb_queue_purge(&neigh->arp_queue);
+		case RTEVENT_REDIRECT_UPDATE: {
+			cxgb_redirect(rt0, rt1, sa);
+			cxgb_neigh_update(rt1, sa);
+	
+			break;
+		}
+		case RTEVENT_PMTU_UPDATE:
+		default:
+			break;
 	}
 
-	if (neigh->nud_state & NUD_IN_TIMER) {
-		if (time_before(next, jiffies + HZ/2))
-			next = jiffies + HZ/2;
-		if (!mod_timer(&neigh->timer, next))
-			neigh_hold(neigh);
+	RT_LOCK(rt0);
+	RT_REMREF(rt0);
+	if (rt1) {
+		RT_LOCK(rt1);
+		RT_REMREF(rt1);
 	}
-	if (neigh->nud_state & (NUD_INCOMPLETE | NUD_PROBE)) {
-		struct mbuf *m = skb_peek(&neigh->arp_queue);
-
-		write_unlock(&neigh->lock);
-		neigh->ops->solicit(neigh, skb);
-		atomic_add_int(&neigh->probes, 1);
-		if (m)
-			m_free(m);
-	} else {
-out:
-		write_unlock(&neigh->lock);
-	}
-
-#ifdef CONFIG_ARPD
-	if (notify && neigh->parms->app_probes)
-		neigh_app_notify(neigh);
-#endif
-	neigh_release(neigh);
+	
 }
 
-static int
-arp_constructor_offload(struct neighbour *neigh)
-{
-	if (neigh->ifp && is_offloading(neigh->ifp))
-		neigh->timer.function = neigh_timer_handler_offload;
-	return orig_arp_constructor(neigh);
-}
-
-/*
- * This must match exactly the signature of neigh_update for jprobes to work.
- * It runs from a trap handler with interrupts off so don't disable BH.
- */
-static int
-neigh_update_offload(struct neighbour *neigh, const u8 *lladdr,
-				u8 new, u32 flags)
-{
-	write_lock(&neigh->lock);
-	cxgb_neigh_update(neigh);
-	write_unlock(&neigh->lock);
-	jprobe_return();
-	/* NOTREACHED */
-	return 0;
-}
-
-static struct jprobe neigh_update_jprobe = {
-	.entry = (kprobe_opcode_t *) neigh_update_offload,
-	.kp.addr = (kprobe_opcode_t *) neigh_update
-};
-
-#ifdef MODULE_SUPPORT
-static int
-prepare_arp_with_t3core(void)
-{
-	int err;
-
-	err = register_jprobe(&neigh_update_jprobe);
-	if (err) {
-		log(LOG_ERR, "Could not install neigh_update jprobe, "
-				"error %d\n", err);
-		return err;
-	}
-
-	orig_arp_constructor = arp_tbl.constructor;
-	arp_tbl.constructor  = arp_constructor_offload;
-
-	return 0;
-}
-
-static void
-restore_arp_sans_t3core(void)
-{
-	arp_tbl.constructor = orig_arp_constructor;
-	unregister_jprobe(&neigh_update_jprobe);
-}
-
-#else /* Module suport */
-static inline int
-prepare_arp_with_t3core(void)
-{
-	return 0;
-}
-
-static inline void
-restore_arp_sans_t3core(void)
-{}
-#endif
-#endif
 /*
  * Process a received packet with an unknown/unexpected CPL opcode.
  */
 static int
-do_bad_cpl(struct toedev *dev, struct mbuf *m)
+do_bad_cpl(struct t3cdev *dev, struct mbuf *m)
 {
 	log(LOG_ERR, "%s: received bad CPL command 0x%x\n", dev->name,
 	    *mtod(m, uint32_t *));
@@ -1114,15 +975,19 @@ t3_register_cpl_handler(unsigned int opcode, cpl_handler_func h)
 }
 
 /*
- * TOEDEV's receive method.
+ * T3CDEV's receive method.
  */
 int
-process_rx(struct toedev *dev, struct mbuf **m, int n)
+process_rx(struct t3cdev *dev, struct mbuf **m, int n)
 {
 	while (n--) {
 		struct mbuf *m0 = *m++;
-		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));		
-		int ret = cpl_handlers[opcode] (dev, m0);
+		unsigned int opcode = G_OPCODE(ntohl(m0->m_pkthdr.csum_data));
+		int ret;
+
+		DPRINTF("processing op=0x%x m=%p data=%p\n", opcode, m0, m0->m_data);
+		
+		ret = cpl_handlers[opcode] (dev, m0);
 
 #if VALIDATE_TID
 		if (ret & CPL_RET_UNKNOWN_TID) {
@@ -1143,16 +1008,13 @@ process_rx(struct toedev *dev, struct mbuf **m, int n)
  * Sends an sk_buff to a T3C driver after dealing with any active network taps.
  */
 int
-cxgb_ofld_send(struct toedev *dev, struct mbuf *m)
+cxgb_ofld_send(struct t3cdev *dev, struct mbuf *m)
 {
 	int r;
 
-	critical_enter();
 	r = dev->send(dev, m);
-	critical_exit();
 	return r;
 }
-
 
 /**
  * cxgb_ofld_recv - process n received offload packets
@@ -1166,7 +1028,7 @@ cxgb_ofld_send(struct toedev *dev, struct mbuf *m)
  * it the whole array at once except when there are active taps.
  */
 int
-cxgb_ofld_recv(struct toedev *dev, struct mbuf **m, int n)
+cxgb_ofld_recv(struct t3cdev *dev, struct mbuf **m, int n)
 {
 
 #if defined(CONFIG_CHELSIO_T3)
@@ -1186,19 +1048,19 @@ cxgb_ofld_recv(struct toedev *dev, struct mbuf **m, int n)
 }
 
 void
-cxgb_neigh_update(struct rtentry *rt)
+cxgb_neigh_update(struct rtentry *rt, struct sockaddr *sa)
 {
 
 	if (is_offloading(rt->rt_ifp)) {
-		struct toedev *tdev = TOEDEV(rt->rt_ifp);
+		struct t3cdev *tdev = T3CDEV(rt->rt_ifp);
 
-		BUG_ON(!tdev);
-		t3_l2t_update(tdev, rt);
+		PANIC_IF(!tdev);
+		t3_l2t_update(tdev, rt, sa);
 	}
 }
 
 static void
-set_l2t_ix(struct toedev *tdev, u32 tid, struct l2t_entry *e)
+set_l2t_ix(struct t3cdev *tdev, u32 tid, struct l2t_entry *e)
 {
 	struct mbuf *m;
 	struct cpl_set_tcb_field *req;
@@ -1211,6 +1073,8 @@ set_l2t_ix(struct toedev *tdev, u32 tid, struct l2t_entry *e)
 	
 	m_set_priority(m, CPL_PRIORITY_CONTROL);
 	req = mtod(m, struct cpl_set_tcb_field *);
+	m->m_pkthdr.len = m->m_len = sizeof(*req);
+	
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
 	req->reply = 0;
@@ -1222,11 +1086,11 @@ set_l2t_ix(struct toedev *tdev, u32 tid, struct l2t_entry *e)
 }
 
 void
-cxgb_redirect(struct rtentry *old, struct rtentry *new)
+cxgb_redirect(struct rtentry *old, struct rtentry *new, struct sockaddr *sa)
 {
 	struct ifnet *olddev, *newdev;
 	struct tid_info *ti;
-	struct toedev *tdev;
+	struct t3cdev *tdev;
 	u32 tid;
 	int update_tcb;
 	struct l2t_entry *e;
@@ -1241,16 +1105,16 @@ cxgb_redirect(struct rtentry *old, struct rtentry *new)
 		    "device ignored.\n", __FUNCTION__);
 		return;
 	}
-	tdev = TOEDEV(olddev);
-	BUG_ON(!tdev);
-	if (tdev != TOEDEV(newdev)) {
+	tdev = T3CDEV(olddev);
+	PANIC_IF(!tdev);
+	if (tdev != T3CDEV(newdev)) {
 		log(LOG_WARNING, "%s: Redirect to different "
 		    "offload device ignored.\n", __FUNCTION__);
 		return;
 	}
 
 	/* Add new L2T entry */
-	e = t3_l2t_get(tdev, new, ((struct port_info *)new->rt_ifp->if_softc)->port_id);
+	e = t3_l2t_get(tdev, new, new->rt_ifp, sa);
 	if (!e) {
 		log(LOG_ERR, "%s: couldn't allocate new l2t entry!\n",
 		       __FUNCTION__);
@@ -1258,10 +1122,10 @@ cxgb_redirect(struct rtentry *old, struct rtentry *new)
 	}
 
 	/* Walk tid table and notify clients of dst change. */
-	ti = &(TOE_DATA(tdev))->tid_maps;
+	ti = &(T3C_DATA (tdev))->tid_maps;
 	for (tid=0; tid < ti->ntids; tid++) {
 		te = lookup_tid(ti, tid);
-		BUG_ON(!te);
+		PANIC_IF(!te);
 		if (te->ctx && te->client && te->client->redirect) {
 			update_tcb = te->client->redirect(te->ctx, old, new,
 							  e);
@@ -1282,7 +1146,7 @@ void *
 cxgb_alloc_mem(unsigned long size)
 {
 
-	return malloc(size, M_DEVBUF, M_ZERO);
+	return malloc(size, M_CXGB, M_ZERO|M_NOWAIT);
 }
 
 /*
@@ -1291,7 +1155,7 @@ cxgb_alloc_mem(unsigned long size)
 void
 cxgb_free_mem(void *addr)
 {
-	free(addr, M_DEVBUF);
+	free(addr, M_CXGB);
 }
 
 
@@ -1321,8 +1185,8 @@ init_tid_tabs(struct tid_info *t, unsigned int ntids,
 	t->afree = NULL;
 	t->stids_in_use = t->atids_in_use = 0;
 	atomic_set_int(&t->tids_in_use, 0);
-	mtx_init(&t->stid_lock, "stid", NULL, MTX_DEF);
-	mtx_init(&t->atid_lock, "atid", NULL, MTX_DEF);
+	mtx_init(&t->stid_lock, "stid", NULL, MTX_DUPOK|MTX_DEF);
+	mtx_init(&t->atid_lock, "atid", NULL, MTX_DUPOK|MTX_DEF);
 
 	/*
 	 * Setup the free lists for stid_tab and atid_tab.
@@ -1370,16 +1234,18 @@ remove_adapter(adapter_t *adap)
 int
 cxgb_offload_activate(struct adapter *adapter)
 {
-	struct toedev *dev = &adapter->tdev;
+	struct t3cdev *dev = &adapter->tdev;
 	int natids, err;
-	struct toe_data *t;
+	struct t3c_data *t;
 	struct tid_range stid_range, tid_range;
 	struct mtutab mtutab;
 	unsigned int l2t_capacity;
 
-	t = malloc(sizeof(*t), M_DEVBUF, M_WAITOK);
+	t = malloc(sizeof(*t), M_CXGB, M_WAITOK|M_ZERO);
 	if (!t)
 		return (ENOMEM);
+
+	dev->adapter = adapter;
 
 	err = (EOPNOTSUPP);
 	if (dev->ctl(dev, GET_TX_MAX_CHUNK, &t->tx_max_chunk) < 0 ||
@@ -1387,30 +1253,37 @@ cxgb_offload_activate(struct adapter *adapter)
 	    dev->ctl(dev, GET_L2T_CAPACITY, &l2t_capacity) < 0 ||
 	    dev->ctl(dev, GET_MTUS, &mtutab) < 0 ||
 	    dev->ctl(dev, GET_TID_RANGE, &tid_range) < 0 ||
-	    dev->ctl(dev, GET_STID_RANGE, &stid_range) < 0)
+	    dev->ctl(dev, GET_STID_RANGE, &stid_range) < 0) {
+		device_printf(adapter->dev, "%s: dev->ctl check failed\n", __FUNCTION__);
 		goto out_free;
-
+	}
+      
 	err = (ENOMEM);
 	L2DATA(dev) = t3_init_l2t(l2t_capacity);
-	if (!L2DATA(dev))
+	if (!L2DATA(dev)) {
+		device_printf(adapter->dev, "%s: t3_init_l2t failed\n", __FUNCTION__);
 		goto out_free;
+	}
+	
 
 	natids = min(tid_range.num / 2, MAX_ATIDS);
 	err = init_tid_tabs(&t->tid_maps, tid_range.num, natids,
 			    stid_range.num, ATID_BASE, stid_range.base);
-	if (err)
+	if (err) {	
+		device_printf(adapter->dev, "%s: init_tid_tabs failed\n", __FUNCTION__);
 		goto out_free_l2t;
-
+	}
+	
 	t->mtus = mtutab.mtus;
 	t->nmtus = mtutab.size;
 
 	TASK_INIT(&t->tid_release_task, 0 /* XXX? */, t3_process_tid_release_list, dev);
-	mtx_init(&t->tid_release_lock, "tid release", NULL, MTX_DEF);
+	mtx_init(&t->tid_release_lock, "tid release", NULL, MTX_DUPOK|MTX_DEF);
 	t->dev = dev;
 
-	TOE_DATA(dev) = t;
+	T3C_DATA (dev) = t;
 	dev->recv = process_rx;
-	dev->neigh_update = t3_l2t_update;
+	dev->arp_update = t3_l2t_update;
 #if 0
 	offload_proc_dev_setup(dev);
 #endif	
@@ -1421,24 +1294,31 @@ cxgb_offload_activate(struct adapter *adapter)
 			log(LOG_ERR, "Unable to set offload capabilities\n");
 #endif
 	}
+	printf("adding adapter %p\n", adapter); 
 	add_adapter(adapter);
-	return 0;
+	device_printf(adapter->dev, "offload started\n");
+#if 0
+	printf("failing as test\n");
+	return (ENOMEM);
+#endif
+	return (0);
 
 out_free_l2t:
 	t3_free_l2t(L2DATA(dev));
 	L2DATA(dev) = NULL;
 out_free:
-	free(t, M_DEVBUF);
-	return err;
+	free(t, M_CXGB);
+	return (err);
 
 }
 
 void
 cxgb_offload_deactivate(struct adapter *adapter)
 {
-	struct toedev *tdev = &adapter->tdev;
-	struct toe_data *t = TOE_DATA(tdev);
+	struct t3cdev *tdev = &adapter->tdev;
+	struct t3c_data *t = T3C_DATA(tdev);
 
+	printf("removing adapter %p\n", adapter);
 	remove_adapter(adapter);
 	if (TAILQ_EMPTY(&adapter_list)) {
 #if defined(CONFIG_CHELSIO_T3_MODULE)
@@ -1446,36 +1326,36 @@ cxgb_offload_deactivate(struct adapter *adapter)
 #endif
 	}
 	free_tid_maps(&t->tid_maps);
-	TOE_DATA(tdev) = NULL;
+	T3C_DATA(tdev) = NULL;
 	t3_free_l2t(L2DATA(tdev));
 	L2DATA(tdev) = NULL;
-	free(t, M_DEVBUF);
+	free(t, M_CXGB);
 }
 
 
 static inline void
-register_tdev(struct toedev *tdev)
+register_tdev(struct t3cdev *tdev)
 {
 	static int unit;
 
 	mtx_lock(&cxgb_db_lock);
 	snprintf(tdev->name, sizeof(tdev->name), "ofld_dev%d", unit++);
-	TAILQ_INSERT_TAIL(&ofld_dev_list, tdev, ofld_entry);
+	TAILQ_INSERT_TAIL(&ofld_dev_list, tdev, entry);
 	mtx_unlock(&cxgb_db_lock);
 }
 
 static inline void
-unregister_tdev(struct toedev *tdev)
+unregister_tdev(struct t3cdev *tdev)
 {
 	mtx_lock(&cxgb_db_lock);
-	TAILQ_REMOVE(&ofld_dev_list, tdev, ofld_entry);
+	TAILQ_REMOVE(&ofld_dev_list, tdev, entry);
 	mtx_unlock(&cxgb_db_lock);	
 }
 
 void
 cxgb_adapter_ofld(struct adapter *adapter)
 {
-	struct toedev *tdev = &adapter->tdev;
+	struct t3cdev *tdev = &adapter->tdev;
 
 	cxgb_set_dummy_ops(tdev);
 	tdev->send = t3_offload_tx;
@@ -1492,13 +1372,13 @@ cxgb_adapter_ofld(struct adapter *adapter)
 void
 cxgb_adapter_unofld(struct adapter *adapter)
 {
-	struct toedev *tdev = &adapter->tdev;
+	struct t3cdev *tdev = &adapter->tdev;
 #if 0
 	offload_proc_dev_cleanup(tdev);
 	offload_proc_dev_exit(tdev);
 #endif	
 	tdev->recv = NULL;
-	tdev->neigh_update = NULL;
+	tdev->arp_update = NULL;
 
 	unregister_tdev(tdev);
 }
@@ -1508,10 +1388,8 @@ cxgb_offload_init(void)
 {
 	int i;
 
-	if (inited)
+	if (inited++)
 		return;
-	else
-		inited = 1;
 	
 	mtx_init(&cxgb_db_lock, "ofld db", NULL, MTX_DEF);
 	rw_init(&adapter_list_lock, "ofld adap list");
@@ -1546,6 +1424,9 @@ cxgb_offload_init(void)
 	t3_register_cpl_handler(CPL_RX_DATA_DDP, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_RX_DDP_COMPLETE, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_ISCSI_HDR, do_hwtid_rpl);
+
+	EVENTHANDLER_REGISTER(route_event, cxgb_route_event, NULL, EVENTHANDLER_PRI_ANY);
+	
 #if 0
        if (offload_proc_init())
 	       log(LOG_WARNING, "Unable to create /proc/net/cxgb3 dir\n");
@@ -1555,12 +1436,10 @@ cxgb_offload_init(void)
 void 
 cxgb_offload_exit(void)
 {
-	static int deinited = 0;
 
-	if (deinited)
+	if (--inited)
 		return;
 
-	deinited = 1;
 	mtx_destroy(&cxgb_db_lock);
 	rw_destroy(&adapter_list_lock);
 #if 0	
@@ -1568,77 +1447,4 @@ cxgb_offload_exit(void)
 #endif	
 }
 
-#if 0
-static int
-offload_info_read_proc(char *buf, char **start, off_t offset,
-				  int length, int *eof, void *data)
-{
-	struct toe_data *d = data;
-	struct tid_info *t = &d->tid_maps;
-	int len;
-
-	len = sprintf(buf, "TID range: 0..%d, in use: %u\n"
-		      "STID range: %d..%d, in use: %u\n"
-		      "ATID range: %d..%d, in use: %u\n"
-		      "MSS: %u\n",
-		      t->ntids - 1, atomic_read(&t->tids_in_use), t->stid_base,
-		      t->stid_base + t->nstids - 1, t->stids_in_use,
-		      t->atid_base, t->atid_base + t->natids - 1,
-		      t->atids_in_use, d->tx_max_chunk);
-	if (len > length)
-		len = length;
-	*eof = 1;
-	return len;
-}
-
-static int
-offload_info_proc_setup(struct proc_dir_entry *dir,
-				   struct toe_data *d)
-{
-	struct proc_dir_entry *p;
-
-	if (!dir)
-		return (EINVAL);
-
-	p = create_proc_read_entry("info", 0, dir, offload_info_read_proc, d);
-	if (!p)
-		return (ENOMEM);
-
-	p->owner = THIS_MODULE;
-	return 0;
-}
-
-
-static int
-offload_devices_read_proc(char *buf, char **start, off_t offset,
-				     int length, int *eof, void *data)
-{
-	int len;
-	struct toedev *dev;
-	struct net_device *ndev;
-	
-	len = sprintf(buf, "Device           Interfaces\n");
-	
-	mtx_lock(&cxgb_db_lock);
-	TAILQ_FOREACH(dev, &ofld_dev_list, ofld_entry) {	
-		len += sprintf(buf + len, "%-16s", dev->name);
-		read_lock(&dev_base_lock);
-		for (ndev = dev_base; ndev; ndev = ndev->next) {
-			if (TOEDEV(ndev) == dev)
-				len += sprintf(buf + len, " %s", ndev->name);
-		}
-		read_unlock(&dev_base_lock);
-		len += sprintf(buf + len, "\n");
-		if (len >= length)
-			break;
-	}
-	mtx_unlock(&cxgb_db_lock);
-	
-	if (len > length)
-		len = length;
-	*eof = 1;
-	return len;
-}
-
-#endif
-
+MODULE_VERSION(if_cxgb, 1);

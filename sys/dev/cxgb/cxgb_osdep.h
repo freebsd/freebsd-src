@@ -60,7 +60,7 @@ struct t3_mbuf_hdr {
 
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
-		panic("BUG: %s", exp);      \
+		panic("BUG: %s", #exp);      \
 } while (0)
 
 
@@ -96,9 +96,6 @@ struct t3_mbuf_hdr {
 #endif
 
 #define CXGB_TX_CLEANUP_THRESHOLD        32
-
-#define LOG_WARNING                       1
-#define LOG_ERR                           2
 
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
