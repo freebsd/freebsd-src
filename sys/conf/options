@@ -752,3 +752,6 @@ XFS
 
 # Interrupt filtering
 INTR_FILTER             opt_global.h
+
+#Disable code to dispatch tcp offloading
+TCP_OFFLOAD_DISABLE	opt_inet.h
