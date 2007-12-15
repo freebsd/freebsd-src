@@ -40,7 +40,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	k_tan.c k_tanf.c \
 	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c \
 	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c s_ceill.c \
-	s_copysign.c s_copysignf.c s_cos.c s_cosf.c s_erf.c s_erff.c \
+	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
+	s_csqrt.c s_csqrtf.c s_erf.c s_erff.c \
 	s_exp2.c s_exp2f.c s_expm1.c s_expm1f.c s_fabsf.c s_fdim.c \
 	s_finite.c s_finitef.c \
 	s_floor.c s_floorf.c s_floorl.c s_fma.c s_fmaf.c \
@@ -93,7 +94,7 @@ SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 INCS=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
-	cimag.3 copysign.3 cos.3 cosh.3 erf.3 exp.3 fabs.3 fdim.3 \
+	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
@@ -114,6 +115,7 @@ MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3
 MLINKS+=cosh.3 coshf.3
+MLINKS+=csqrt.3 csqrtf.3
 MLINKS+=erf.3 erfc.3 erf.3 erff.3 erf.3 erfcf.3
 MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3 \
 	exp.3 exp2.3 exp.3 exp2f.3 exp.3 expf.3 \
