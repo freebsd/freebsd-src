@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/taskqueue.h>
 
 #include <sys/proc.h>
@@ -1988,7 +1989,7 @@ is_ctrl_pkt(const struct mbuf *m)
  *	should be sent as regular or control, bits 1-3 select the queue set.
  */
 int
-t3_offload_tx(struct toedev *tdev, struct mbuf *m)
+t3_offload_tx(struct t3cdev *tdev, struct mbuf *m)
 {
 	adapter_t *adap = tdev2adap(tdev);
 	struct sge_qset *qs = &adap->sge.qs[queue_set(m)];
@@ -2009,7 +2010,7 @@ t3_offload_tx(struct toedev *tdev, struct mbuf *m)
  *	Delivers a (partial) bundle of Rx offload packets to an offload device.
  */
 static __inline void
-deliver_partial_bundle(struct toedev *tdev,
+deliver_partial_bundle(struct t3cdev *tdev,
 			struct sge_rspq *q,
 			struct mbuf *mbufs[], int n)
 {
@@ -2020,7 +2021,7 @@ deliver_partial_bundle(struct toedev *tdev,
 }
 
 static __inline int
-rx_offload(struct toedev *tdev, struct sge_rspq *rq,
+rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
     struct mbuf *m, struct mbuf *rx_gather[],
     unsigned int gather_idx)
 {

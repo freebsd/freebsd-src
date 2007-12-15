@@ -3,6 +3,7 @@
  */
 
 
+
 #ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
 #include <common/cxgb_common.h>
@@ -14,11 +15,9 @@
 #include <common/cxgb_sge_defs.h>
 #include <common/cxgb_firmware_exports.h>
 #include <sys/mvec.h>
-#include <ulp/toecore/toedev.h>
 #include <sys/mbufq.h>
 #include <common/jhash.h>
-
-
+#include <ulp/toecore/cxgb_toedev.h>
 #else
 #include <dev/cxgb/cxgb_osdep.h>
 #include <dev/cxgb/common/cxgb_common.h>
@@ -31,7 +30,9 @@
 #include <dev/cxgb/common/cxgb_firmware_exports.h>
 
 #include <dev/cxgb/sys/mvec.h>
-#include <dev/cxgb/ulp/toecore/toedev.h>
 #include <dev/cxgb/sys/mbufq.h>
 #include <dev/cxgb/common/jhash.h>
+#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #endif
+
+
