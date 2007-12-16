@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/stat.h>
 
@@ -132,4 +133,22 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 	}
 
 	return (cnt);
+}
+
+int
+berase(struct uufsd *disk, ufs2_daddr_t blockno, ufs2_daddr_t size)
+{
+	off_t ioarg[2];
+	int rv;
+
+	ERROR(disk, NULL);
+	rv = ufs_disk_write(disk);
+	if (rv == -1) {
+		ERROR(disk, "failed to open disk for writing");
+		return(rv);
+	}
+	ioarg[0] = blockno * disk->d_bsize;
+	ioarg[1] = size;
+	rv = ioctl(disk->d_fd, DIOCGDELETE, ioarg);
+	return (rv);
 }
