@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
+#include <sys/selinfo.h>
 #include <sys/turnstile.h>
 #include <sys/ktr.h>
 #include <sys/umtx.h>
@@ -206,6 +207,7 @@ thread_fini(void *mem, int size)
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);
+	seltdfini(td);
 }
 
 /*

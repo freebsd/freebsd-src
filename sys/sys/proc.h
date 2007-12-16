@@ -142,7 +142,6 @@ struct pargs {
  *      m - Giant
  *      n - not locked, lazy
  *      o - ktrace lock
- *      p - select lock (sellock)
  *      q - td_contested lock
  *      r - p_peers lock
  *      t - thread lock
@@ -210,7 +209,7 @@ struct thread {
 	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
 
-	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
+	struct seltd	*td_sel;	/* Select queue/channel. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 	struct umtx_q   *td_umtxq;	/* (c?) Link for when we're blocked. */
@@ -322,7 +321,7 @@ do {									\
 #define	TDF_SINTR	0x00000008 /* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x00000020 /* This is a per-CPU idle thread. */
-#define	TDF_SELECT	0x00000040 /* Selecting; wakeup/waiting danger. */
+#define	TDF_UNUSEDx40	0x00000040 /* --available-- */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_KTH_SUSP	0x00000100 /* kthread is suspended */
 #define	TDF_UBORROWING	0x00000200 /* Thread is borrowing user pri. */

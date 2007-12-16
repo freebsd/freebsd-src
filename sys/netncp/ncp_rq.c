@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/uio.h>
 
 #include <netncp/ncp.h>
@@ -274,7 +276,9 @@ ncp_request_int(struct ncp_rq *rqp)
 	/*
 	 * Flush out replies on previous reqs
 	 */
-	while (ncp_poll(so, POLLIN) != 0) {
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	while (selsocket(so, POLLIN, &tv, td) == 0) {
 		if (ncp_sock_recv(so, &m, &len) != 0)
 			break;
 		m_freem(m);
@@ -319,7 +323,7 @@ ncp_request_int(struct ncp_rq *rqp)
 		}
 		tv.tv_sec = conn->li.timeout;
 		tv.tv_usec = 0;
-		error = ncp_sock_rselect(so, td, &tv, POLLIN);
+		error = selsocket(so, POLLIN, &tv, td);
 		if (error == EWOULDBLOCK )	/* timeout expired */
 			continue;
 		error = ncp_chkintr(conn, td);
@@ -335,7 +339,9 @@ ncp_request_int(struct ncp_rq *rqp)
 		dosend = 1;	/* resend rq if error */
 		for (;;) {
 			error = 0;
-			if (ncp_poll(so, POLLIN) == 0)
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
+			if (selsocket(so, POLLIN, &tv, td) != 0)
 				break;
 /*			if (so->so_rcv.sb_cc == 0) {
 				break;

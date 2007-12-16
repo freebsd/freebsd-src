@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #define ipx_setnullhost(x) ((x).x_host.s_host[0] = 0); \
 	((x).x_host.s_host[1] = 0); ((x).x_host.s_host[2] = 0);
 
-/*int ncp_poll(struct socket *so, int events);*/
 /*static int ncp_getsockname(struct socket *so, caddr_t asa, int *alen);*/
 static int ncp_soconnect(struct socket *so, struct sockaddr *target,
 			 struct thread *td);
@@ -179,110 +178,6 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 		log(LOG_INFO, "ncp_send: error %d for server %s", error, conn->li.server);
 	}
 	return error;
-}
-
-int
-ncp_poll(struct socket *so, int events)
-{
-	struct thread *td = curthread;
-	int revents;
-
-	/* Fake up enough state to look like we are in poll(2). */
-	mtx_lock(&sellock);
-	thread_lock(td);
-	td->td_flags |= TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-	TAILQ_INIT(&td->td_selq);
-
-	revents = sopoll(so, events, NULL, td);
-
-	/* Tear down the fake poll(2) state. */
-	mtx_lock(&sellock);
-	clear_selinfo_list(td);
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-	return (revents);
-}
-
-int
-ncp_sock_rselect(struct socket *so, struct thread *td, struct timeval *tv,
-		 int events)
-{
-	struct timeval atv, rtv, ttv;
-	int ncoll, timo, error, revents;
-
-	if (tv) {
-		atv = *tv;
-		if (itimerfix(&atv)) {
-			error = EINVAL;
-			goto done_noproclock;
-		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	}
-	timo = 0;
-	mtx_lock(&sellock);
-
-retry:
-	ncoll = nselcoll;
-	thread_lock(td);
-	td->td_flags |= TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-	TAILQ_INIT(&td->td_selq);
-	revents = sopoll(so, events, NULL, td);
-	mtx_lock(&sellock);
-	if (revents) {
-		error = 0;
-		goto done;
-	}
-	if (tv) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			error = EWOULDBLOCK;
-			goto done;
-		}
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timo = tvtohz(&ttv);
-	}
-	/*
-	 * An event of our interest may occur during locking a thread.
-	 * In order to avoid missing the event that occurred during locking
-	 * the process, test TDF_SELECT and rescan file descriptors if
-	 * necessary.
-	 */
-	thread_lock(td);
-	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		thread_unlock(td);
-		goto retry;
-	}
-	thread_unlock(td);
-
-	if (timo > 0)
-		error = cv_timedwait(&selwait, &sellock, timo);
-	else {
-		cv_wait(&selwait, &sellock);
-		error = 0;
-	}
-
-done:
-	clear_selinfo_list(td);
-
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-done_noproclock:
-	if (error == ERESTART)
-		error = 0;
-	return (error);
 }
 
 /*

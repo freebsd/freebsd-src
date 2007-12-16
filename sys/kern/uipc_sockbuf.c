@@ -176,7 +176,8 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	selwakeuppri(&sb->sb_sel, PSOCK);
-	sb->sb_flags &= ~SB_SEL;
+	if (!SEL_WAITING(&sb->sb_sel))
+		sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup(&sb->sb_cc);
