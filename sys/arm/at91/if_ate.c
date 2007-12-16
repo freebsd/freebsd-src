@@ -996,8 +996,6 @@ ate_miibus_readreg(device_t dev, int phy, int reg)
 	 * XXX to make sure that the clock to the emac is on here
 	 */
 
-	if (phy != 0)
-		return (0xffff);
 	sc = device_get_softc(dev);
 	DELAY(1);	/* Hangs w/o this delay really 30.5us atm */
 	WR4(sc, ETH_MAN, ETH_MAN_REG_RD(phy, reg));
