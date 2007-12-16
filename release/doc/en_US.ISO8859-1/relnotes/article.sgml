@@ -628,6 +628,10 @@
 	  have been included in the <filename>GENERIC</filename>
 	  kernel by default.</para>
 
+	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
+	  been added to support the Intel 3945 Wireless LAN
+	  Controller.</para>
+
 	<para>[&arch.amd64;, &arch.i386;] The &man.zyd.4; driver
 	  has been added.  It provides support for ZyDAS ZD1211/ZD1211B USB
 	  IEEE 802.11 b/g wireless network devices.</para>
@@ -882,6 +886,11 @@
 
       <para>[&arch.amd64;, &arch.i386;] The &man.hptiop.4; driver has been added.
 	It supports the Highpoint RocketRAID 3xxx series of controllers.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] The &man.hptrr.4; driver has
+	been added, to support several HighPoint RocketRAID
+	controllers (more details can be found in the manual
+	page). &merged;</para>
 
       <para>[&arch.amd64;, &arch.i386;] The &man.hptmv.4; driver has been updated and now supports
 	amd64 as well as PAE.</para>
