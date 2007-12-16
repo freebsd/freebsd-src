@@ -3,7 +3,11 @@
  */
 
 
+#include <sys/types.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/bus.h>
 #ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
 #include <common/cxgb_common.h>
