@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl JNUln
+.Op Fl EJNUln
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -59,10 +59,6 @@
 The
 .Nm
 utility is used to initialize and clear file systems before first use.
-Before running
-.Nm
-the disk must be labeled using
-.Xr bsdlabel 8 .
 The
 .Nm
 utility builds a file system on the specified special file.
@@ -78,6 +74,14 @@ has numerous options to allow the defaults to be selectively overridden.
 .Pp
 The following options define the general layout policies:
 .Bl -tag -width indent
+.It Fl E
+Erase the content of the disk before making the filesystem.
+The reserved area in front of the superblock (for bootcode) will not be erased.
+
+This is a relevant option for flash based storage devices that use
+wear levelling algorithms.
+
+NB: Erasing may take as long time as writing every sector on the disk.
 .It Fl J
 Enable journaling on the new file system via gjournal.
 .It Fl L Ar volname

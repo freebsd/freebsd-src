@@ -448,6 +448,13 @@ mkfs(struct partition *pp, char *fsys)
 		printf("\twith soft updates\n");
 #	undef B2MBFACTOR
 
+	if (Eflag && !Nflag) {
+		printf("Erasing blocks [%jd...%jd[\n", 
+		    sblock.fs_sblockloc / disk.d_bsize,
+		    sblock.fs_size * sblock.fs_fsize / disk.d_bsize);
+		berase(&disk, sblock.fs_sblockloc / disk.d_bsize,
+		    sblock.fs_size * sblock.fs_fsize - sblock.fs_sblockloc);
+	}
 	/*
 	 * Wipe out old UFS1 superblock(s) if necessary.
 	 */
@@ -466,12 +473,12 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	if (!Nflag)
 		sbwrite(&disk, 0);
-	if (Eflag == 1) {
-		printf("** Exiting on Eflag 1\n");
+	if (Xflag == 1) {
+		printf("** Exiting on Xflag 1\n");
 		exit(0);
 	}
-	if (Eflag == 2)
-		printf("** Leaving BAD MAGIC on Eflag 2\n");
+	if (Xflag == 2)
+		printf("** Leaving BAD MAGIC on Xflag 2\n");
 	else
 		sblock.fs_magic = (Oflag != 1) ? FS_UFS2_MAGIC : FS_UFS1_MAGIC;
 
@@ -529,8 +536,8 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
 	}
-	if (Eflag == 3) {
-		printf("** Exiting on Eflag 3\n");
+	if (Xflag == 3) {
+		printf("** Exiting on Xflag 3\n");
 		exit(0);
 	}
 	if (!Nflag)
