@@ -66,6 +66,22 @@ struct t3_mbuf_hdr {
 
 #define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
 #define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
+#define m_set_sgl(m, sgl) ((m)->m_pkthdr.header = (sgl))
+#define m_get_sgl(m) ((bus_dma_segment_t *)(m)->m_pkthdr.header)
+#define m_set_sgllen(m, len) ((m)->m_pkthdr.ether_vtag = len)
+#define m_get_sgllen(m) ((m)->m_pkthdr.ether_vtag)
+
+/*
+ * XXX FIXME
+ */
+#define m_set_toep(m, a) ((m)->m_pkthdr.header = (a))
+#define m_get_toep(m) ((m)->m_pkthdr.header)
+#define m_set_handler(m, handler) ((m)->m_pkthdr.header = (handler))
+
+#define m_set_socket(m, a) ((m)->m_pkthdr.header = (a))
+#define m_get_socket(m) ((m)->m_pkthdr.header)
+
+#define MT_DONTFREE  128
 
 #if __FreeBSD_version > 700030
 #define INTR_FILTERS
