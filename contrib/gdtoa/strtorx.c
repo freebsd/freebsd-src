@@ -29,6 +29,8 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
+/* $FreeBSD$ */
+
 #include "gdtoaimp.h"
 
 #undef _0
@@ -75,7 +77,7 @@ ULtox(UShort *L, ULong *bits, Long exp, int k)
 		L[_4] = (UShort)bits[0];
 		L[_3] = (UShort)(bits[0] >> 16);
 		L[_2] = (UShort)bits[1];
-		L[_1] = (UShort)(bits[1] >> 16);
+		L[_1] = (UShort)((bits[1] >> 16) | (3 << 14));
 		break;
 
 	  case STRTOG_Infinite:
