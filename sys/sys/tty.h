@@ -69,6 +69,7 @@ struct tty;
 struct pps_state;
 struct cdev;
 struct cdevsw;
+struct thread;
 
 typedef int t_open_t(struct tty *, struct cdev *);
 typedef void t_close_t(struct tty *);
