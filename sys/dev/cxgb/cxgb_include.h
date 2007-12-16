@@ -3,6 +3,8 @@
  */
 
 
+#include <sys/cdefs.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <machine/bus.h>
 #ifdef CONFIG_DEFINED
