@@ -86,8 +86,28 @@ For hexadecimal constants, the scaling is instead done by powers
 of 2.
 .Pp
 Alternatively, if the portion of the string following the optional
-plus or minus sign begins with ``INFINITY'' or ``NAN'', ignoring
-case, it is interpreted as an infinity or a quiet NaN, respectively.
+plus or minus sign begins with
+.Dq INFINITY
+or
+.Dq NAN ,
+ignoring case, it is interpreted as an infinity or a quiet \*(Na,
+respectively.
+The syntax
+.Dq Xo Pf NAN( Ar "s" ) Xc ,
+where
+.Ar s
+is an alphanumeric string, produces the same value as the call
+.Fo nan
+.Qq Ar s Ns
+.Fc
+(respectively,
+.Fo nanf
+.Qq Ar s Ns
+.Fc
+and
+.Fo nanl
+.Qq Ar s Ns
+.Fc . )
 .Pp
 In any of the above cases, leading white-space characters in the
 string (as defined by the
@@ -140,6 +160,7 @@ Overflow or underflow occurred.
 .Xr atof 3 ,
 .Xr atoi 3 ,
 .Xr atol 3 ,
+.Xr nan 3 ,
 .Xr strtol 3 ,
 .Xr strtoul 3 ,
 .Xr wcstod 3
@@ -177,5 +198,3 @@ IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
 ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 .Ed
-.Sh BUGS
-These routines do not recognize the C99 ``NaN(...)'' syntax.
