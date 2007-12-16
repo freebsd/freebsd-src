@@ -88,6 +88,18 @@ ckd()
 	fi
 }
 
+# Verify that the specified file does not exist
+# (is not there)
+cknt()
+{
+	if [ -e $1 ]
+	then
+		notok
+	else
+		ok
+	fi
+}
+
 # A part of a test succeeds
 ok()
 {
@@ -108,6 +120,7 @@ do
 	mkf fa
 	mv fa ${FS}fb
 	ckf fa ${FS}fb
+	cknt fa
 	end
 
 	begin 'Move files into directory'
@@ -117,6 +130,8 @@ do
 	mv fa fb ${FS}1/2/3
 	ckf fa ${FS}1/2/3/fa
 	ckf fb ${FS}1/2/3/fb
+	cknt fa
+	cknt fb
 	end
 
 	begin 'Move file from directory to file'
@@ -124,6 +139,7 @@ do
 	mkf 1/2/3/fa
 	mv 1/2/3/fa ${FS}fb
 	ckf fa ${FS}fb
+	cknt 1/2/3/fa
 	end
 
 	begin 'Move file from directory to directory'
@@ -132,12 +148,14 @@ do
 	mkf da1/da2/da3/fa
 	mv da1/da2/da3/fa ${FS}db1/db2/db3/fb
 	ckf fa ${FS}db1/db2/db3/fb
+	cknt da1/da2/da3/fa
 	end
 
 	begin 'Rename directory'
 	mkd da
 	mv da ${FS}db
 	ckd da ${FS}db
+	cknt da
 	end
 
 	begin 'Move directory to directory name'
@@ -145,6 +163,7 @@ do
 	mkdir -p ${FS}db1/db2/db3
 	mv da1/da2/da3/da ${FS}db1/db2/db3/db
 	ckd da ${FS}db1/db2/db3/db
+	cknt da1/da2/da3/da
 	end
 
 	begin 'Move directory to directory'
@@ -152,6 +171,7 @@ do
 	mkdir -p ${FS}db1/db2/db3
 	mv da1/da2/da3/da ${FS}db1/db2/db3
 	ckd da ${FS}db1/db2/db3/da
+	cknt da1/da2/da3/da
 	end
 
 	begin 'Move directory to existing directory'
@@ -159,12 +179,14 @@ do
 	mkdir -p ${FS}db1/db2/db3/da
 	mv da1/da2/da3/da ${FS}db1/db2/db3
 	ckd da ${FS}db1/db2/db3/da
+	cknt da1/da2/da3/da
 	end
 
 	begin 'Rename fifo'
 	mkp fa
 	mv fa ${FS}fb
 	ckp fa ${FS}fb
+	cknt fa
 	end
 
 	begin 'Move fifos into directory'
@@ -174,6 +196,8 @@ do
 	mv fa fb ${FS}1/2/3
 	ckp fa ${FS}1/2/3/fa
 	ckp fb ${FS}1/2/3/fb
+	cknt fa
+	cknt fb
 	end
 
 	begin 'Move fifo from directory to fifo'
@@ -181,6 +205,7 @@ do
 	mkp 1/2/3/fa
 	mv 1/2/3/fa ${FS}fb
 	ckp fa ${FS}fb
+	cknt 1/2/3/fa
 	end
 
 	begin 'Move fifo from directory to directory'
@@ -189,5 +214,6 @@ do
 	mkp da1/da2/da3/fa
 	mv da1/da2/da3/fa ${FS}db1/db2/db3/fb
 	ckp fa ${FS}db1/db2/db3/fb
+	cknt da1/da2/da3/fa
 	end
 done
