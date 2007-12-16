@@ -41,8 +41,6 @@
 #undef errno
 extern	int	errno;
 
-LT10_COMPAT_DEFAULT(__error);
-
 int *
 __error(void)
 {

@@ -34,9 +34,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_attr_get_np);
-LT10_COMPAT_DEFAULT(pthread_attr_get_np);
-
 __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 
 int

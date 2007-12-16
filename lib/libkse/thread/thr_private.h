@@ -56,39 +56,6 @@
 #include "pthread_md.h"
 #endif
 
-/*
- * Unfortunately, libpthread had symbol versioning before libc.
- * But now libc has symbol versioning, we need to occupy the
- * same version namespace in order to override some libc functions.
- * So in order to avoid breaking binaries requiring symbols from
- * LIBTHREAD_1_0, we need to provide a compatible interface for
- * those symbols.
- */
-#if 0
-#define	SYM_LT10(sym)			__CONCAT(sym, _lt10)
-#define	SYM_FB10(sym)			__CONCAT(sym, _fb10)
-#define	SYM_FBP10(sym)			__CONCAT(sym, _fbp10)
-#define	WEAK_REF(sym, alias)		__weak_reference(sym, alias)
-#define	SYM_COMPAT(sym, impl, ver)	__sym_compat(sym, impl, ver)
-#define	SYM_DEFAULT(sym, impl, ver)	__sym_default(sym, impl, ver)
-
-#define	LT10_COMPAT(sym)				\
-	WEAK_REF(sym, SYM_LT10(sym));			\
-	SYM_COMPAT(sym, SYM_LT10(sym), LIBTHREAD_1_0)
-
-#define	LT10_COMPAT_DEFAULT(sym)			\
-	LT10_COMPAT(sym);				\
-	WEAK_REF(sym, SYM_FB10(sym));			\
-	SYM_DEFAULT(sym, SYM_FB10(sym), FBSD_1.0)
-
-#define	LT10_COMPAT_PRIVATE(sym)			\
-	LT10_COMPAT(sym);				\
-	WEAK_REF(sym, SYM_FBP10(sym));			\
-	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
-#else
-#define	LT10_COMPAT_DEFAULT(sym)
-#define	LT10_COMPAT_PRIVATE(sym)
-#endif
 
 /*
  * Evaluate the storage class specifier.

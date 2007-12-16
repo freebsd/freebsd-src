@@ -43,9 +43,6 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_fork);
-LT10_COMPAT_DEFAULT(fork);
-
 pid_t	_fork(void);
 
 __weak_reference(_fork, fork);

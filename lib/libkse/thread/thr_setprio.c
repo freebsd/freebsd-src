@@ -36,9 +36,6 @@
 
 int	_pthread_setprio(pthread_t pthread, int prio);
 
-LT10_COMPAT_PRIVATE(_pthread_setprio);
-LT10_COMPAT_DEFAULT(pthread_setprio);
-
 __weak_reference(_pthread_setprio, pthread_setprio);
 
 int

@@ -44,9 +44,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__poll);
-LT10_COMPAT_DEFAULT(poll);
-
 int __poll(struct pollfd *fds, unsigned int nfds, int timeout);
 
 __weak_reference(__poll, poll);

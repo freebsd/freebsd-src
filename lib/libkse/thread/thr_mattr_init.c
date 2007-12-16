@@ -40,9 +40,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_mutexattr_init);
-LT10_COMPAT_DEFAULT(pthread_mutexattr_init);
-
 __weak_reference(_pthread_mutexattr_init, pthread_mutexattr_init);
 
 int

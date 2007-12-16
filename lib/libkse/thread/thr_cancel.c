@@ -8,15 +8,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_cancel);
-LT10_COMPAT_DEFAULT(pthread_cancel);
-LT10_COMPAT_PRIVATE(_pthread_setcancelstate);
-LT10_COMPAT_DEFAULT(pthread_setcancelstate);
-LT10_COMPAT_PRIVATE(_pthread_setcanceltype);
-LT10_COMPAT_DEFAULT(pthread_setcanceltype);
-LT10_COMPAT_PRIVATE(_pthread_testcancel);
-LT10_COMPAT_DEFAULT(pthread_testcancel);
-
 __weak_reference(_pthread_cancel, pthread_cancel);
 __weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
 __weak_reference(_pthread_setcanceltype, pthread_setcanceltype);

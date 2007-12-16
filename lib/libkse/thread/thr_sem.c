@@ -43,15 +43,6 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_sem_init);
-LT10_COMPAT_DEFAULT(sem_init);
-LT10_COMPAT_PRIVATE(_sem_wait);
-LT10_COMPAT_DEFAULT(sem_wait);
-LT10_COMPAT_PRIVATE(_sem_timedwait);
-LT10_COMPAT_DEFAULT(sem_timedwait);
-LT10_COMPAT_PRIVATE(_sem_post);
-LT10_COMPAT_DEFAULT(sem_post);
-
 __weak_reference(_sem_init, sem_init);
 __weak_reference(_sem_wait, sem_wait);
 __weak_reference(_sem_timedwait, sem_timedwait);

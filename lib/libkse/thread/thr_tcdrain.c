@@ -38,9 +38,6 @@
 int	_tcdrain(int fd);
 extern int __tcdrain(int);
 
-LT10_COMPAT_PRIVATE(_tcdrain);
-LT10_COMPAT_DEFAULT(tcdrain);
-
 __weak_reference(_tcdrain, tcdrain);
 
 int

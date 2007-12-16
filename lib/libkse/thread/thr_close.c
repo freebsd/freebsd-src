@@ -39,9 +39,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__close);
-LT10_COMPAT_DEFAULT(close);
-
 int __close(int fd);
 
 __weak_reference(__close, close);

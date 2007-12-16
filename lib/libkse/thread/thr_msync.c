@@ -13,9 +13,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__msync);
-LT10_COMPAT_DEFAULT(msync);
-
 int __msync(void *addr, size_t len, int flags);
 
 __weak_reference(__msync, msync);

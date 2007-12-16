@@ -36,11 +36,6 @@
 
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_getconcurrency);
-LT10_COMPAT_DEFAULT(pthread_getconcurrency);
-LT10_COMPAT_PRIVATE(_pthread_setconcurrency);
-LT10_COMPAT_DEFAULT(pthread_setconcurrency);
-
 /*#define DEBUG_CONCURRENCY */
 #ifdef DEBUG_CONCURRENCY
 #define DBG_MSG		stdout_debug

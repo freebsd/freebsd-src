@@ -65,10 +65,6 @@ static struct spinlock_extra	extra[MAX_SPINLOCKS];
 static int			spinlock_count = 0;
 static int			initialized = 0;
 
-LT10_COMPAT_PRIVATE(_spinlock);
-LT10_COMPAT_PRIVATE(_spinlock_debug);
-LT10_COMPAT_PRIVATE(_spinunlock);
-
 /*
  * These are for compatability only.  Spinlocks of this type
  * are deprecated.

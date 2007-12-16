@@ -34,9 +34,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_attr_getdetachstate);
-LT10_COMPAT_DEFAULT(pthread_attr_getdetachstate);
-
 __weak_reference(_pthread_attr_getdetachstate, pthread_attr_getdetachstate);
 
 int

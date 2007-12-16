@@ -36,9 +36,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_mutexattr_destroy);
-LT10_COMPAT_DEFAULT(pthread_mutexattr_destroy);
-
 __weak_reference(_pthread_mutexattr_destroy, pthread_mutexattr_destroy);
 
 int

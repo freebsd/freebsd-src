@@ -66,11 +66,6 @@
 #include "libc_private.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_libkse_debug);
-LT10_COMPAT_PRIVATE(_thread_activated);
-LT10_COMPAT_PRIVATE(_thread_active_threads);
-LT10_COMPAT_PRIVATE(_thread_list);
-
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
 int	__pthread_mutex_trylock(pthread_mutex_t *);

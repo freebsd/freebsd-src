@@ -37,21 +37,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__pthread_cond_wait);
-LT10_COMPAT_PRIVATE(_pthread_cond_wait);
-LT10_COMPAT_DEFAULT(pthread_cond_wait);
-LT10_COMPAT_PRIVATE(__pthread_cond_timedwait);
-LT10_COMPAT_PRIVATE(_pthread_cond_timedwait);
-LT10_COMPAT_DEFAULT(pthread_cond_timedwait);
-LT10_COMPAT_PRIVATE(_pthread_cond_init);
-LT10_COMPAT_DEFAULT(pthread_cond_init);
-LT10_COMPAT_PRIVATE(_pthread_cond_destroy);
-LT10_COMPAT_DEFAULT(pthread_cond_destroy);
-LT10_COMPAT_PRIVATE(_pthread_cond_signal);
-LT10_COMPAT_DEFAULT(pthread_cond_signal);
-LT10_COMPAT_PRIVATE(_pthread_cond_broadcast);
-LT10_COMPAT_DEFAULT(pthread_cond_broadcast);
-
 #define	THR_IN_CONDQ(thr)	(((thr)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
 #define	THR_CONDQ_SET(thr)	(thr)->sflags |= THR_FLAGS_IN_SYNCQ
 #define	THR_CONDQ_CLEAR(thr)	(thr)->sflags &= ~THR_FLAGS_IN_SYNCQ
