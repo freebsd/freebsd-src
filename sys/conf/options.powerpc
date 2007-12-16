@@ -1,8 +1,7 @@
 # $FreeBSD$
 # Options specific to the powerpc platform kernels
 
-OEA			opt_global.h
-IPKDB
+AIM			opt_global.h
 
 GFB_DEBUG		opt_gfb.h
 GFB_NO_FONT_LOADING	opt_gfb.h
