@@ -30,11 +30,11 @@ crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
-dev/ofw/openfirm.c		standard
-dev/ofw/ofw_bus_if.m		standard
-dev/ofw/ofw_bus_subr.c		standard
-dev/ofw/ofw_console.c		standard
-dev/ofw/ofw_disk.c		optional	ofwd
+dev/ofw/openfirm.c		optional	aim
+dev/ofw/ofw_bus_if.m		optional	aim
+dev/ofw/ofw_bus_subr.c		optional	aim
+dev/ofw/ofw_console.c		optional	aim
+dev/ofw/ofw_disk.c		optional	ofwd aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/scc/scc_bfe_macio.c		optional	scc powermac
 dev/syscons/scgfbrndr.c		optional	sc
@@ -57,23 +57,23 @@ libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
-powerpc/aim/clock.c		standard
-powerpc/aim/copyinout.c		standard
-powerpc/aim/interrupt.c		standard
-powerpc/aim/locore.S		standard	no-obj
-powerpc/aim/machdep.c		standard
-powerpc/aim/mmu_oea.c		standard
-powerpc/aim/nexus.c		standard
-powerpc/aim/ofw_machdep.c	standard
-powerpc/aim/ofwmagic.S		standard
-powerpc/aim/swtch.S		standard
-powerpc/aim/trap.c		standard
-powerpc/aim/uio_machdep.c	standard
-powerpc/aim/uma_machdep.c	standard
-powerpc/aim/vm_machdep.c	standard
-powerpc/ofw/ofw_pci.c		optional	pci
-powerpc/ofw/ofw_pcib_pci.c	optional	pci
-powerpc/ofw/ofw_syscons.c	optional	sc
+powerpc/aim/clock.c		optional	aim
+powerpc/aim/copyinout.c		optional	aim
+powerpc/aim/interrupt.c		optional	aim
+powerpc/aim/locore.S		optional	aim no-obj
+powerpc/aim/machdep.c		optional	aim
+powerpc/aim/mmu_oea.c		optional	aim
+powerpc/aim/nexus.c		optional	aim
+powerpc/aim/ofw_machdep.c	optional	aim
+powerpc/aim/ofwmagic.S		optional	aim
+powerpc/aim/swtch.S		optional	aim
+powerpc/aim/trap.c		optional	aim
+powerpc/aim/uio_machdep.c	optional	aim
+powerpc/aim/uma_machdep.c	optional	aim
+powerpc/aim/vm_machdep.c	optional	aim
+powerpc/ofw/ofw_pci.c		optional	pci aim
+powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
+powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata
 powerpc/powermac/ata_macio.c	optional	powermac ata
 powerpc/powermac/grackle.c	optional	powermac pci
