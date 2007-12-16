@@ -29,6 +29,8 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
+/* $FreeBSD$ */
+
 #include "gdtoaimp.h"
 
  float
@@ -52,9 +54,13 @@ strtof(CONST char *s, char **sp)
 		break;
 
 	  case STRTOG_Normal:
-	  case STRTOG_NaNbits:
 		u.L[0] = bits[0] & 0x7fffff | exp + 0x7f + 23 << 23;
 		break;
+
+	  case STRTOG_NaNbits:
+		/* FreeBSD local: always return a quiet NaN */
+		u.L[0] = bits[0] | 0x7fc00000;
+		break;	      
 
 	  case STRTOG_Denormal:
 		u.L[0] = bits[0];
