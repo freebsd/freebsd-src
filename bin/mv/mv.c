@@ -355,8 +355,33 @@ err:		if (unlink(to))
 int
 copy(char *from, char *to)
 {
-	int pid, status;
+	struct stat sb;
+	enum clean {CLEAN_SOURCE, CLEAN_DEST, CLEAN_ODEST, CLEAN_MAX};
+	char *cleanup[CLEAN_MAX];
+	int pid, status, rval, i;
 
+	rval = 0;
+	for (i = 0; i < CLEAN_MAX; i++)
+		cleanup[i] = NULL;
+	/*
+	 * If "to" exists and is a directory, get it out of the way.
+	 * When the copy succeeds, delete it.
+	 */
+	if (stat(to, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+		if (asprintf(&cleanup[CLEAN_ODEST], "%s.XXXXXX", to) == -1) {
+			warnx("asprintf failed");
+			return (1);
+
+		}
+		if (rename(to, cleanup[CLEAN_ODEST]) < 0) {
+			warn("rename of existing target from %s to %s failed",
+			    to, cleanup[CLEAN_ODEST]);
+			free(cleanup[CLEAN_ODEST]);
+			return (1);
+		}
+	}
+	/* Copy source to destination. */
+	cleanup[CLEAN_DEST] = to;
 	if ((pid = fork()) == 0) {
 		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", "--", from, to,
 		    (char *)NULL);
@@ -365,36 +390,71 @@ copy(char *from, char *to)
 	}
 	if (waitpid(pid, &status, 0) == -1) {
 		warn("%s: waitpid", _PATH_CP);
-		return (1);
+		rval = 1;
+		goto done;
 	}
 	if (!WIFEXITED(status)) {
 		warnx("%s: did not terminate normally", _PATH_CP);
-		return (1);
+		rval = 1;
+		goto done;
 	}
 	if (WEXITSTATUS(status)) {
 		warnx("%s: terminated with %d (non-zero) status",
 		    _PATH_CP, WEXITSTATUS(status));
-		return (1);
+		rval = 1;
+		goto done;
 	}
-	if (!(pid = vfork())) {
-		execl(_PATH_RM, "mv", "-rf", "--", from, (char *)NULL);
-		warn("%s", _PATH_RM);
-		_exit(1);
+	/*
+	 * The copy succeeded.  From now on the destination is where users
+	 * will find their files.
+	 */
+	cleanup[CLEAN_DEST] = NULL;
+	cleanup[CLEAN_SOURCE] = from;
+done:
+	/* Clean what needs to be cleaned. */
+	for (i = 0; i < CLEAN_MAX; i++) {
+		if (cleanup[i] == NULL)
+			continue;
+		if (!(pid = vfork())) {
+			execl(_PATH_RM, "mv", "-rf", "--", cleanup[i],
+			    (char *)NULL);
+			warn("%s %s", _PATH_RM, cleanup[i]);
+			_exit(1);
+		}
+		if (waitpid(pid, &status, 0) == -1) {
+			warn("%s %s: waitpid", _PATH_RM, cleanup[i]);
+			rval = 1;
+			continue;
+		}
+		if (!WIFEXITED(status)) {
+			warnx("%s %s: did not terminate normally",
+			    _PATH_RM, cleanup[i]);
+			rval = 1;
+			continue;
+		}
+		if (WEXITSTATUS(status)) {
+			warnx("%s %s: terminated with %d (non-zero) status",
+			    _PATH_RM, cleanup[i], WEXITSTATUS(status));
+			rval = 1;
+			continue;
+		}
+		/*
+		 * If the copy failed, and we just deleted the copy's trash,
+		 * try to salvage the original destination,
+		 */
+		if (i == CLEAN_DEST && cleanup[CLEAN_ODEST]) {
+			if (rename(cleanup[CLEAN_ODEST], to) < 0) {
+				warn("rename back renamed existing target from %s to %s failed",
+				    cleanup[CLEAN_ODEST], to);
+				rval = 1;
+			}
+			free(cleanup[CLEAN_ODEST]);
+			cleanup[CLEAN_ODEST] = NULL;
+		}
 	}
-	if (waitpid(pid, &status, 0) == -1) {
-		warn("%s: waitpid", _PATH_RM);
-		return (1);
-	}
-	if (!WIFEXITED(status)) {
-		warnx("%s: did not terminate normally", _PATH_RM);
-		return (1);
-	}
-	if (WEXITSTATUS(status)) {
-		warnx("%s: terminated with %d (non-zero) status",
-		    _PATH_RM, WEXITSTATUS(status));
-		return (1);
-	}
-	return (0);
+	if (cleanup[CLEAN_ODEST])
+		free(cleanup[CLEAN_ODEST]);
+	return (rval);
 }
 
 void
