@@ -358,7 +358,8 @@ copy(char *from, char *to)
 	struct stat sb;
 	enum clean {CLEAN_SOURCE, CLEAN_DEST, CLEAN_ODEST, CLEAN_MAX};
 	char *cleanup[CLEAN_MAX];
-	int pid, status, rval, i;
+	int pid, status;
+	volatile int i, rval;
 
 	rval = 0;
 	for (i = 0; i < CLEAN_MAX; i++)
