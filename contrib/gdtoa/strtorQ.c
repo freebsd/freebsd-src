@@ -29,6 +29,8 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
+/* $FreeBSD$ */
+
 #include "gdtoaimp.h"
 
 #undef _0
@@ -67,7 +69,8 @@ ULtoQ(ULong *L, ULong *bits, Long exp, int k)
 		L[_3] = bits[0];
 		L[_2] = bits[1];
 		L[_1] = bits[2];
-		L[_0] = (bits[3] & ~0x10000) | ((exp + 0x3fff + 112) << 16);
+		L[_0] = (bits[3] & ~0x10000)
+		    | (((exp + 0x3fff + 112) << 16) | (1 << 15));
 		break;
 
 	  case STRTOG_Denormal:

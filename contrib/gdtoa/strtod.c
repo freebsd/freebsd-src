@@ -29,6 +29,8 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
+/* $FreeBSD$ */
+
 #include "gdtoaimp.h"
 #ifndef NO_FENV_H
 #include <fenv.h>
@@ -258,7 +260,7 @@ strtod
 					if (*s == '(' /*)*/
 					 && hexnan(&s, &fpinan, bits)
 							== STRTOG_NaNbits) {
-						word0(rv) = 0x7ff00000 | bits[1];
+						word0(rv) = 0x7ff80000 | bits[1];
 						word1(rv) = bits[0];
 						}
 					else {
