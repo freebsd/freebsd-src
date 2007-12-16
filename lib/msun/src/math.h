@@ -238,6 +238,7 @@ double	log1p(double);
 double	logb(double);
 long	lrint(double);
 long	lround(double);
+double	nan(const char *) __pure2;
 double	nextafter(double, double);
 double	remainder(double, double);
 double	remquo(double, double, int *);
@@ -341,6 +342,7 @@ long long llrintf(float);
 long long llroundf(float);
 long	lrintf(float);
 long	lroundf(float);
+float	nanf(const char *) __pure2;
 float	nearbyintf(float);
 float	nextafterf(float, float);
 float	remainderf(float, float);
@@ -435,13 +437,15 @@ long double	log10l(long double);
 long double	log1pl(long double);
 long double	log2l(long double);
 long double	logbl(long double);
+#endif
 long double	logl(long double);
+#if 0
 long		lrintl(long double);
 #endif
 long		lroundl(long double);
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
-#if 0
 long double	nanl(const char *) __pure2;
+#if 0
 long double	nearbyintl(long double);
 #endif
 long double	nextafterl(long double, long double);

@@ -24,6 +24,13 @@ ARCH_SUBDIR= ${MACHINE_ARCH}
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
+# long double format
+.if ${LDBL_PREC} == 64
+.PATH:  ${.CURDIR}/ld80
+.elif ${LDBL_PREC} == 113
+.PATH:  ${.CURDIR}/ld128
+.endif
+
 LIB=	m
 SHLIBDIR?= /lib
 SHLIB_MAJOR= 5
@@ -51,7 +58,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_llrint.c s_llrintf.c s_llround.c s_llroundf.c s_llroundl.c \
 	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
 	s_lround.c s_lroundf.c s_lroundl.c s_modff.c \
-	s_nearbyint.c s_nextafter.c s_nextafterf.c \
+	s_nan.c s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_nexttowardf.c s_remquo.c s_remquof.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c s_roundl.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
@@ -71,7 +78,8 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	s_fmal.c s_frexpl.c s_nextafterl.c s_nexttoward.c s_scalbnl.c
+COMMON_SRCS+=	s_fmal.c s_frexpl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
+	s_scalbnl.c
 .endif
 
 # C99 complex functions
@@ -98,7 +106,7 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
-	lgamma.3 lrint.3 lround.3 math.3 nextafter.3 remainder.3 rint.3 \
+	lgamma.3 lrint.3 lround.3 math.3 nan.3 nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
 
 MLINKS+=acos.3 acosf.3
@@ -145,6 +153,7 @@ MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
 MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 lrintf.3
 MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 llroundl.3 \
 	lround.3 lroundf.3 lround.3 lroundl.3
+MLINKS+=nan.3 nanf.3 nan.3 nanl.3
 MLINKS+=nextafter.3 nextafterf.3 nextafter.3 nextafterl.3
 MLINKS+=nextafter.3 nexttoward.3 nextafter.3 nexttowardf.3
 MLINKS+=nextafter.3 nexttowardl.3
