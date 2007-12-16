@@ -245,7 +245,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct g_kerneldump kd;
-	off_t offset, length;
+	off_t offset, length, chunk;
 	int i, error;
 	u_int u;
 
@@ -308,7 +308,23 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			error = EINVAL;
 			break;
 		}
-		error = g_delete_data(cp, offset, length);
+		while (length > 0) { 
+			chunk = length;
+			if (chunk > 1024 * cp->provider->sectorsize)
+				chunk = 1024 * cp->provider->sectorsize;
+			error = g_delete_data(cp, offset, chunk);
+			length -= chunk;
+			offset += chunk;
+			if (error)
+				break;
+			/*
+			 * Since the request size is unbounded, the service
+			 * time is likewise.  We make this ioctl interruptible
+			 * by checking for signals for each bio.
+			 */
+			if (SIGPENDING(td))
+				break;
+		}
 		break;
 	case DIOCGIDENT:
 		error = g_io_getattr("GEOM::ident", cp, &i, data);
