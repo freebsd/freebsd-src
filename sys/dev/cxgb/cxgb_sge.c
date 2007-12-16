@@ -59,7 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <vm/vm.h>
-#include <vm/pmap.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
+
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <sys/mvec.h>
