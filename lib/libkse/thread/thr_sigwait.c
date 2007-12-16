@@ -48,16 +48,6 @@ int	_sigtimedwait(const sigset_t *set, siginfo_t *info,
 int	_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int	_sigwait(const sigset_t *set, int *sig);
 
-LT10_COMPAT_PRIVATE(__sigwait);
-LT10_COMPAT_PRIVATE(_sigwait);
-LT10_COMPAT_DEFAULT(sigwait);
-LT10_COMPAT_PRIVATE(__sigtimedwait);
-LT10_COMPAT_PRIVATE(_sigtimedwait);
-LT10_COMPAT_DEFAULT(sigtimedwait);
-LT10_COMPAT_PRIVATE(__sigwaitinfo);
-LT10_COMPAT_PRIVATE(_sigwaitinfo);
-LT10_COMPAT_DEFAULT(sigwaitinfo);
-
 __weak_reference(__sigwait, sigwait);
 __weak_reference(__sigtimedwait, sigtimedwait);
 __weak_reference(__sigwaitinfo, sigwaitinfo);

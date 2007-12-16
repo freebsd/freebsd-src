@@ -42,9 +42,6 @@
 
 int	__open(const char *path, int flags,...);
 
-LT10_COMPAT_PRIVATE(__open);
-LT10_COMPAT_DEFAULT(open);
-
 __weak_reference(__open, open);
 
 int

@@ -44,9 +44,6 @@ extern int	__pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 int 		_pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 		    const struct timespec *timo, const sigset_t *mask);
 
-LT10_COMPAT_PRIVATE(_pselect);
-LT10_COMPAT_DEFAULT(pselect);
-
 __weak_reference(_pselect, pselect);
 
 int 

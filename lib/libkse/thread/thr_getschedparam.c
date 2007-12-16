@@ -38,9 +38,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_getschedparam);
-LT10_COMPAT_DEFAULT(pthread_getschedparam);
-
 __weak_reference(_pthread_getschedparam, pthread_getschedparam);
 
 int

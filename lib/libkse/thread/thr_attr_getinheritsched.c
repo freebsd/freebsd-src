@@ -38,9 +38,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_attr_getinheritsched);
-LT10_COMPAT_DEFAULT(pthread_attr_getinheritsched);
-
 __weak_reference(_pthread_attr_getinheritsched, pthread_attr_getinheritsched);
 
 int

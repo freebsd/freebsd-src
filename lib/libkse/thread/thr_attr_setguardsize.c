@@ -36,9 +36,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_attr_setguardsize);
-LT10_COMPAT_DEFAULT(pthread_attr_setguardsize);
-
 __weak_reference(_pthread_attr_setguardsize, pthread_attr_setguardsize);
 
 int

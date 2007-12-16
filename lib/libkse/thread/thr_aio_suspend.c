@@ -33,9 +33,6 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_aio_suspend);
-LT10_COMPAT_DEFAULT(aio_suspend);
-
 
 int
 _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct

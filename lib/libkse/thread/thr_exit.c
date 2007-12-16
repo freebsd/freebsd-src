@@ -40,9 +40,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_exit);
-LT10_COMPAT_DEFAULT(pthread_exit);
-
 void	_pthread_exit(void *status);
 
 __weak_reference(_pthread_exit, pthread_exit);

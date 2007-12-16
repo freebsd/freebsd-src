@@ -39,10 +39,6 @@
 int	__nanosleep(const struct timespec *time_to_sleep,
 	    struct timespec *time_remaining);
 
-LT10_COMPAT_PRIVATE(__nanosleep);
-LT10_COMPAT_PRIVATE(_nanosleep);
-LT10_COMPAT_DEFAULT(nanosleep);
-
 __weak_reference(__nanosleep, nanosleep);
 
 int

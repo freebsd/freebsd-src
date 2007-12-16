@@ -42,9 +42,6 @@
 
 ssize_t	__read(int fd, void *buf, size_t nbytes);
 
-LT10_COMPAT_PRIVATE(__read);
-LT10_COMPAT_DEFAULT(read);
-
 __weak_reference(__read, read);
 
 ssize_t

@@ -33,15 +33,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_rwlockattr_destroy);
-LT10_COMPAT_DEFAULT(pthread_rwlockattr_destroy);
-LT10_COMPAT_PRIVATE(_pthread_rwlockattr_getpshared);
-LT10_COMPAT_DEFAULT(pthread_rwlockattr_getpshared);
-LT10_COMPAT_PRIVATE(_pthread_rwlockattr_init);
-LT10_COMPAT_DEFAULT(pthread_rwlockattr_init);
-LT10_COMPAT_PRIVATE(_pthread_rwlockattr_setpshared);
-LT10_COMPAT_DEFAULT(pthread_rwlockattr_setpshared);
-
 __weak_reference(_pthread_rwlockattr_destroy, pthread_rwlockattr_destroy);
 __weak_reference(_pthread_rwlockattr_getpshared, pthread_rwlockattr_getpshared);
 __weak_reference(_pthread_rwlockattr_init, pthread_rwlockattr_init);
