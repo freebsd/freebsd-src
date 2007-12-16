@@ -45,6 +45,7 @@
 
 main()
 {
+	cd `dirname $0`
 	REGRESS=regress.multitest.out
 	DICT=/usr/share/dict/words
 
