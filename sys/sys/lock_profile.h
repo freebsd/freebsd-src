@@ -31,11 +31,10 @@
 #ifndef _SYS_LOCK_PROFILE_H_
 #define _SYS_LOCK_PROFILE_H_
 
-#ifdef _KERNEL
-
 struct lock_profile_object;
 LIST_HEAD(lpohead, lock_profile_object);
 
+#ifdef _KERNEL
 #ifdef LOCK_PROFILING
 #include <sys/lock.h>
 
