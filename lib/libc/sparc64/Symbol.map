@@ -96,4 +96,7 @@ FBSDprivate_1.0 {
 
 	/* used in src/lib/csu/sparc64/crt1.c */
 	__sparc_utrap_setup;
+
+	/* used in libm */
+	__ULtoQ_D2A;
 };
