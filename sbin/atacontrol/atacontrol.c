@@ -175,6 +175,10 @@ cap_print(struct ata_params *parm)
 	printf("heads                 %d\n", parm->heads);
 	printf("sectors/track         %d\n", parm->sectors);
 
+	if (parm->config == ATA_PROTO_CFA ||
+	    (parm->support.command2 & ATA_SUPPORT_CFA))
+		printf("CFA supported\n");
+
 	printf("lba%ssupported         ",
 		parm->capabilities1 & ATA_SUPPORT_LBA ? " " : " not ");
 	if (lbasize)
@@ -236,10 +240,6 @@ cap_print(struct ata_params *parm)
 	printf("power management               %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
-
-	printf("(compact) flash commands       %s	%s\n",
-		parm->support.command2 & ATA_SUPPORT_CFA ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_CFA ? "yes" : "no");
 
 	printf("advanced power management      %s	%s	%d/0x%02X\n",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
