@@ -36,9 +36,6 @@
 
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_getprio);
-LT10_COMPAT_DEFAULT(pthread_getprio);
-
 __weak_reference(_pthread_getprio, pthread_getprio);
 
 int

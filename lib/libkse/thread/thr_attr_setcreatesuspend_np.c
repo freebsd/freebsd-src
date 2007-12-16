@@ -35,9 +35,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_attr_setcreatesuspend_np);
-LT10_COMPAT_DEFAULT(pthread_attr_setcreatesuspend_np);
-
 int _pthread_attr_setcreatesuspend_np(pthread_attr_t *attr);
 
 __weak_reference(_pthread_attr_setcreatesuspend_np, pthread_attr_setcreatesuspend_np);

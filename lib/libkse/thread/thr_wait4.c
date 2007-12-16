@@ -38,9 +38,6 @@
 
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__wait4);
-LT10_COMPAT_DEFAULT(wait4);
-
 pid_t __wait4(pid_t pid, int *istat, int options, struct rusage *rusage);
 
 __weak_reference(__wait4, wait4);

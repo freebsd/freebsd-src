@@ -34,9 +34,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_once);
-LT10_COMPAT_DEFAULT(pthread_once);
-
 __weak_reference(_pthread_once, pthread_once);
 
 #define ONCE_NEVER_DONE		PTHREAD_NEEDS_INIT

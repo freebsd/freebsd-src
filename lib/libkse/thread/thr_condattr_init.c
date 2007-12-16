@@ -37,9 +37,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_condattr_init);
-LT10_COMPAT_DEFAULT(pthread_condattr_init);
-
 __weak_reference(_pthread_condattr_init, pthread_condattr_init);
 
 int

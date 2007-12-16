@@ -46,9 +46,6 @@
 int	__select(int numfds, fd_set *readfds, fd_set *writefds,
 	    fd_set *exceptfds, struct timeval *timeout);
 
-LT10_COMPAT_PRIVATE(__select);
-LT10_COMPAT_DEFAULT(select);
-
 __weak_reference(__select, select);
 
 int 

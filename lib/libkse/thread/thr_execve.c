@@ -36,9 +36,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_execve);
-LT10_COMPAT_DEFAULT(execve);
-
 __weak_reference(_execve, execve);
 
 int 

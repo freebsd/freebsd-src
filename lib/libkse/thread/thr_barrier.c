@@ -33,13 +33,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_barrier_init);
-LT10_COMPAT_DEFAULT(pthread_barrier_init);
-LT10_COMPAT_PRIVATE(_pthread_barrier_wait);
-LT10_COMPAT_DEFAULT(pthread_barrier_wait);
-LT10_COMPAT_PRIVATE(_pthread_barrier_destroy);
-LT10_COMPAT_DEFAULT(pthread_barrier_destroy);
-
 __weak_reference(_pthread_barrier_init,		pthread_barrier_init);
 __weak_reference(_pthread_barrier_wait,		pthread_barrier_wait);
 __weak_reference(_pthread_barrier_destroy,	pthread_barrier_destroy);

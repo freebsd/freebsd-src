@@ -41,10 +41,6 @@
 
 int	__sigsuspend(const sigset_t * set);
 
-LT10_COMPAT_PRIVATE(__sigsuspend);
-LT10_COMPAT_PRIVATE(_sigsuspend);
-LT10_COMPAT_DEFAULT(sigsuspend);
-
 __weak_reference(__sigsuspend, sigsuspend);
 
 int

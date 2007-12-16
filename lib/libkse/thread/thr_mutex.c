@@ -101,23 +101,6 @@ static struct pthread_mutex_attr	static_mutex_attr =
     PTHREAD_MUTEXATTR_STATIC_INITIALIZER;
 static pthread_mutexattr_t		static_mattr = &static_mutex_attr;
 
-LT10_COMPAT_PRIVATE(__pthread_mutex_init);
-LT10_COMPAT_PRIVATE(_pthread_mutex_init);
-LT10_COMPAT_DEFAULT(pthread_mutex_init);
-LT10_COMPAT_PRIVATE(__pthread_mutex_lock);
-LT10_COMPAT_PRIVATE(_pthread_mutex_lock);
-LT10_COMPAT_DEFAULT(pthread_mutex_lock);
-LT10_COMPAT_PRIVATE(__pthread_mutex_timedlock);
-LT10_COMPAT_PRIVATE(_pthread_mutex_timedlock);
-LT10_COMPAT_DEFAULT(pthread_mutex_timedlock);
-LT10_COMPAT_PRIVATE(__pthread_mutex_trylock);
-LT10_COMPAT_PRIVATE(_pthread_mutex_trylock);
-LT10_COMPAT_DEFAULT(pthread_mutex_trylock);
-LT10_COMPAT_PRIVATE(_pthread_mutex_destroy);
-LT10_COMPAT_DEFAULT(pthread_mutex_destroy);
-LT10_COMPAT_PRIVATE(_pthread_mutex_unlock);
-LT10_COMPAT_DEFAULT(pthread_mutex_unlock);
-
 /* Single underscore versions provided for libc internal usage: */
 __weak_reference(__pthread_mutex_init, pthread_mutex_init);
 __weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
