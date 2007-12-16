@@ -182,7 +182,7 @@ main(int argc, char *argv[])
 	testboth(0x1p1L, -INFINITY, 0x1.fffffffffffffp+0L, 0, l);
 	testboth(0x0.fffffffffffffp-1022L, INFINITY, 0x1p-1022L, 0, l);
 	testboth(0x1p-1022L, -INFINITY, 0x0.fffffffffffffp-1022L, ex_under, l);
-#elif LDBL_MANT_DIG == 64
+#elif LDBL_MANT_DIG == 64 && !defined(__i386)
 	testboth(0x1.87654321fffffffep+0L, INFINITY, 0x1.87654322p+0L, 0, l);
 	testboth(0x1.87654322p+0L, -INFINITY, 0x1.87654321fffffffep+0L, 0, l);
 	testboth(0x1.fffffffffffffffep0L, INFINITY, 0x1p1L, 0, l);
