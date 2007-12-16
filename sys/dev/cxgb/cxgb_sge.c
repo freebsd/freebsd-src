@@ -853,7 +853,7 @@ reclaim_more:
 		return;
 	
 	for (i = 0; i < n; i++) {
-		m_freem_vec(m_vec[i]);
+		m_freem(m_vec[i]);
 	}
 	if (p && p->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
 	    txq->size - txq->in_use >= TX_START_MAX_DESC) {
@@ -995,7 +995,7 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
 
-	err = bus_dmamap_load_mvec_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
+	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, stx->map, m0, segs, nsegs, 0);
 #ifdef DEBUG		
 	if (err) {
 		int n = 0;
@@ -1027,7 +1027,7 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 	if (err) {
 		if (cxgb_debug)
 			printf("map failure err=%d pktlen=%d\n", err, pktlen);
-		m_freem_vec(m0);
+		m_freem(m0);
 		*m = NULL;
 		return (err);
 	}
@@ -1882,7 +1882,7 @@ again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
 	check_ring_tx_db(adap, q);
 	
 	for (i = 0; i < cleaned; i++) {
-		m_freem_vec(m_vec[i]);
+		m_freem(m_vec[i]);
 	}
 	return (0);
 }
@@ -1949,7 +1949,7 @@ again:	cleaned = reclaim_completed_tx(q, TX_CLEAN_MAX_DESC, m_vec);
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 	
 	for (i = 0; i < cleaned; i++) {
-		m_freem_vec(m_vec[i]);
+		m_freem(m_vec[i]);
 	}
 }
 
