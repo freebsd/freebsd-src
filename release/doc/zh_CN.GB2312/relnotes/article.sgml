@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 1.1068.2.18 -->
+<!-- Original Revision: 1.1068.2.20 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -594,6 +594,9 @@
 	  <filename>GENERIC</filename> 中加入了 &man.wlan.wep.4;、
 	  &man.wlan.ccmp.4; 和 &man.wlan.tkip.4; 驱动程序。</para>
 
+	<para>[&arch.amd64;, &arch.i386;] 新增了 &man.wpi.4; 驱动程序，
+	  它提供了对 Intel 3945 无线 LAN 控制器的支持。</para>
+
 	<para>[&arch.amd64;, &arch.i386;] 新增了 &man.zyd.4; 驱动程序。
 	  它提供了对 ZyDAS ZD1211/ZD1211B USB
 	  IEEE 802.11 b/g 无线网络设备的支持。</para>
@@ -811,6 +814,10 @@
 
       <para>[&arch.amd64;, &arch.i386;] 新增了 &man.hptiop.4; 驱动。
 	该驱动支持 Highpoint RocketRAID 3xxx 系列控制器。</para>
+
+      <para>[&arch.amd64;, &arch.i386;] 新增了 &man.hptrr.4; 驱动程序，
+	它能够支持多种 HighPoint RocketRAID
+	控制器 (更多细节， 可以在联机手册中找到)。 &merged;</para>
 
       <para>[&arch.amd64;, &arch.i386;] 对 &man.hptmv.4; 驱动程序进行了更新， 它支持
 	amd64 和 PAE 了。</para>
@@ -1340,7 +1347,13 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       </para>
 
     <para><application>PF</application> 由 OpenBSD
-      的 3.7 版更新到了 OpenBSD 4.1 版。</para>
+      的 3.7 版更新到了 OpenBSD 4.1 版。 这一更新包含了一系列功能方面的增强。
+      两个比较显著的变动是， 在 &man.pf.conf.5;
+      中， <literal>keep state</literal> 以及 <literal>flags
+      S/SA</literal> 是 TCP 规则默认的行为了。
+      如有需求， 则需要使用对应的选项 <literal>no state</literal> 和 <literal>flags
+      any</literal> 来分别禁用带状态过滤和 TCP
+      标志检查。</para>
 
     <para><application>sendmail</application> 由
       8.13.8 更新到了 8.14.2 版。  &merged;</para>
