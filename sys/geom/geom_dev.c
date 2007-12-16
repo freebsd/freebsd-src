@@ -302,8 +302,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		offset = ((off_t *)data)[0];
 		length = ((off_t *)data)[1];
 		if ((offset % cp->provider->sectorsize) != 0 ||
-		    (length % cp->provider->sectorsize) != 0 ||
-		     length <= 0 || length > MAXPHYS) {
+		    (length % cp->provider->sectorsize) != 0 || length <= 0) {
 			printf("%s: offset=%jd length=%jd\n", __func__, offset,
 			    length);
 			error = EINVAL;

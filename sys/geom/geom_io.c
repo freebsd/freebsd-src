@@ -652,9 +652,8 @@ g_delete_data(struct g_consumer *cp, off_t offset, off_t length)
 	struct bio *bp;
 	int error;
 
-	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
-	    length <= MAXPHYS, ("g_delete_data(): invalid length %jd",
-	    (intmax_t)length));
+	KASSERT(length > 0 && length >= cp->provider->sectorsize,
+	    ("g_delete_data(): invalid length %jd", (intmax_t)length));
 
 	bp = g_alloc_bio();
 	bp->bio_cmd = BIO_DELETE;
