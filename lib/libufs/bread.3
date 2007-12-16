@@ -31,12 +31,17 @@
 .Fa "struct uufsd *disk" "ufs2_daddr_t blockno"
 .Fa "const void *data" "size_t size"
 .Fc
+.Ft int
+.Fo berase
+.Fa "struct uufsd *disk" "ufs2_daddr_t blockno" "ufs2_daddr_t size"
+.Fc
 .Sh DESCRIPTION
 The
-.Fn bread
-and
+.Fn bread ,
 .Fn bwrite
-functions provide a block read and write API for
+and
+.Fn berase
+functions provide a block read, write and erase API for
 .Xr libufs 3
 consumers.
 They operate on a userland UFS disk structure, and perform the read
@@ -50,6 +55,10 @@ and
 .Fn bwrite
 functions return the amount read or written, or \-1 in case of any error,
 including short read.
+.Pp
+The
+.Fn berase
+function returns non-zero on error.
 .Sh ERRORS
 The function
 .Fn bread
@@ -59,10 +68,6 @@ for any of the errors specified for the library functions
 .Xr ufs_disk_write 3
 or
 .Xr pread 2 .
-Additionally, it may follow the
-.Xr libufs 3
-error methodologies in situations where the amount of data read
-is not equal to the amount requested, or in case of device error.
 .Pp
 The function
 .Fn bwrite
@@ -70,7 +75,15 @@ may fail and set
 .Va errno
 for any of the errors specified for the library function
 .Xr pwrite 2 .
-Additionally, it may follow the
+.Pp
+The function
+.Fn berase
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr ioctl 2 .
+.Pp
+Additionally all three functions may follow the
 .Xr libufs 3
 error methodologies in situations where the amount of data written
 is not equal to the amount requested, or in case of a device error.
