@@ -676,11 +676,11 @@ devstats(int perf_select, long double etime, int havelast)
 		printf("\n");
 		if (Iflag == 0)
 			printf(
-		"device     r/s   w/s    kr/s    kw/s wait svc_t  %b  "
+		"device     r/s   w/s    kr/s    kw/s wait svc_t  %%b  "
 			    );
 		else
 			printf(
-		"device     r/i   w/i    kr/i    kw/i wait svc_t  %b  "
+		"device     r/i   w/i    kr/i    kw/i wait svc_t  %%b  "
 			    );
 		if (Tflag > 0)
 			printf("tin tout ");
