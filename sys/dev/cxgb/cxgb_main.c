@@ -73,10 +73,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
+#include <sys/mvec.h>
 #else
 #include <dev/cxgb/cxgb_include.h>
+#include <dev/cxgb/sys/mvec.h>
 #endif
 
 #ifdef PRIV_SUPPORTED
