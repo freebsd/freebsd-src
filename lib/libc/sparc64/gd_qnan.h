@@ -7,15 +7,15 @@
  * $FreeBSD$
  */
 
-#define f_QNAN 0x7fffffff
-#define d_QNAN0 0x7fffffff
-#define d_QNAN1 0xffffffff
-#define ld_QNAN0 0x7fffffff
-#define ld_QNAN1 0xffffffff
-#define ld_QNAN2 0xffffffff
-#define ld_QNAN3 0xffffffff
+#define f_QNAN 0x7fc00000
+#define d_QNAN0 0x7ff80000
+#define d_QNAN1 0x00000000
+#define ld_QNAN0 0x7fff8000
+#define ld_QNAN1 0x00000000
+#define ld_QNAN2 0x00000000
+#define ld_QNAN3 0x00000000
 #define ldus_QNAN0 0x7fff
-#define ldus_QNAN1 0xffff
-#define ldus_QNAN2 0xffff
-#define ldus_QNAN3 0xffff
-#define ldus_QNAN4 0xffff
+#define ldus_QNAN1 0x8000
+#define ldus_QNAN2 0x0000
+#define ldus_QNAN3 0x0000
+#define ldus_QNAN4 0x0000
