@@ -391,7 +391,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.326
+	Original Revision: 1.326.2.1
 -->
 
 <!--
@@ -493,6 +493,8 @@
     &hwlist.hptiop;
 
     &hwlist.hptmv;
+
+    &hwlist.hptrr;
 
     &hwlist.ida;
 
@@ -755,6 +757,9 @@
 
     <para>[&arch.i386;] NCR / AT&amp;T / 郎讯科技 WaveLan T1-speed
     ISA/无线 LAN 卡 (&man.wl.4; 驱动程序)</para>
+
+    <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 3945ABG MiniPCI
+      网络适配器 (&man.wpi.4; 驱动程序)</para>
 
     &hwlist.zyd;
 
