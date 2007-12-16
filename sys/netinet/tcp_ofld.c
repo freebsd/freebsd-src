@@ -72,7 +72,7 @@ ofld_connect(struct socket *so, struct sockaddr *nam)
 	if (tdev->tod_can_offload(tdev, so) == 0)
 		return (EINVAL);
 
-	if ((error = tdev->tod_connect(tdev, so, ifp)))
+	if ((error = tdev->tod_connect(tdev, so, rt, nam)))
 		return (error);
 
 	return (0);
