@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..21'
+echo '1..24'
 
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
