@@ -1400,7 +1400,8 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 			revents |= events & (POLLIN | POLLRDNORM);
 		} else {
 			selrecord(td, &kq->kq_sel);
-			kq->kq_state |= KQ_SEL;
+			if (SEL_WAITING(&kq->kq_sel))
+				kq->kq_state |= KQ_SEL;
 		}
 	}
 	kqueue_release(kq, 1);
@@ -1486,8 +1487,9 @@ kqueue_close(struct file *fp, struct thread *td)
 	}
 
 	if ((kq->kq_state & KQ_SEL) == KQ_SEL) {
-		kq->kq_state &= ~KQ_SEL;
 		selwakeuppri(&kq->kq_sel, PSOCK);
+		if (!SEL_WAITING(&kq->kq_sel))
+			kq->kq_state &= ~KQ_SEL;
 	}
 
 	KQ_UNLOCK(kq);
@@ -1522,8 +1524,9 @@ kqueue_wakeup(struct kqueue *kq)
 		wakeup(kq);
 	}
 	if ((kq->kq_state & KQ_SEL) == KQ_SEL) {
-		kq->kq_state &= ~KQ_SEL;
 		selwakeuppri(&kq->kq_sel, PSOCK);
+		if (!SEL_WAITING(&kq->kq_sel))
+			kq->kq_state &= ~KQ_SEL;
 	}
 	if (!knlist_empty(&kq->kq_sel.si_note))
 		kqueue_schedtask(kq);

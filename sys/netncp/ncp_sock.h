@@ -45,9 +45,6 @@ int  ncp_sock_connect(struct ncp_conn *ncp);
 int  ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen);
 int  ncp_sock_send(struct socket *so, struct mbuf *data, struct ncp_rq *rqp);
 int  ncp_sock_disconnect(struct ncp_conn *conn);
-int  ncp_poll(struct socket *so, int events);
-int  ncp_sock_rselect(struct socket *so, struct thread *td, struct timeval *tv,
-		      int events);
 int  ncp_sock_checksum(struct ncp_conn *conn, int enable);
 
 void ncp_check_rq(struct ncp_conn *conn);
