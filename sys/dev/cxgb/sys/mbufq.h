@@ -36,6 +36,7 @@ struct mbuf_head {
 	struct mbuf *head;
 	struct mbuf *tail;
 	uint32_t     qlen;
+	uint32_t     qsize;
 	struct mtx   lock;
 };
 
@@ -43,6 +44,7 @@ static __inline void
 mbufq_init(struct mbuf_head *l)
 {
 	l->head = l->tail = NULL;
+	l->qlen = l->qsize = 0;
 }
 
 static __inline int
@@ -57,13 +59,28 @@ mbufq_len(struct mbuf_head *l)
 	return (l->qlen);
 }
 
+static __inline int
+mbufq_size(struct mbuf_head *l)
+{
+	return (l->qsize);
+}
+
+static __inline int
+mbufq_head_size(struct mbuf_head *l)
+{
+	return (l->head ? l->head->m_pkthdr.len : 0);
+}
 
 static __inline void
 mbufq_tail(struct mbuf_head *l, struct mbuf *m)
 {
 	l->qlen++;
-	l->tail->m_nextpkt = m;
+	if (l->head == NULL)
+		l->head = m;
+	else
+		l->tail->m_nextpkt = m;
 	l->tail = m;
+	l->qsize += m->m_pkthdr.len;
 }
 
 static __inline struct mbuf *
@@ -74,9 +91,12 @@ mbufq_dequeue(struct mbuf_head *l)
 	m = l->head;
 	if (m) {
 		if (m == l->tail) 
-			l->tail = NULL;
-		l->head = m->m_nextpkt;
+			l->head = l->tail = NULL;
+		else
+			l->head = m->m_nextpkt;
+		m->m_nextpkt = NULL;
 		l->qlen--;
+		l->qsize -= m->m_pkthdr.len;
 	}
 
 	return (m);
@@ -88,4 +108,16 @@ mbufq_peek(struct mbuf_head *l)
 	return (l->head);
 }
 
+static __inline void
+mbufq_append(struct mbuf_head *a, struct mbuf_head *b)
+{
+	if (a->tail) 
+		a->tail->m_nextpkt = b->head;
+	if (b->tail)
+		a->tail = b->tail;
+	a->qlen += b->qlen;
+	a->qsize += b->qsize;
+	
+	
+}
 #endif  /* CXGB_MBUFQ_H_ */
