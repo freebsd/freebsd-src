@@ -95,84 +95,6 @@ nb_setsockopt_int(struct socket *so, int level, int name, int val)
 }
 
 static int
-nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events,
-	struct thread *td)
-{
-	struct timeval atv, rtv, ttv;
-	int ncoll, timo, error, revents;
-
-	if (tv) {
-		atv = *tv;
-		if (itimerfix(&atv)) {
-			error = EINVAL;
-			goto done_noproclock;
-		}
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
-	}
-	timo = 0;
-	mtx_lock(&sellock);
-retry:
-
-	ncoll = nselcoll;
-	thread_lock(td);
-	td->td_flags |= TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-	/* XXX: Should be done when the thread is initialized. */
-	TAILQ_INIT(&td->td_selq);
-	revents = sopoll(nbp->nbp_tso, events, NULL, td);
-	mtx_lock(&sellock);
-	if (revents) {
-		error = 0;
-		goto done;
-	}
-	if (tv) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			error = EWOULDBLOCK;
-			goto done;
-		}
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timo = tvtohz(&ttv);
-	}
-	/*
-	 * An event of our interest may occur during locking a process.
-	 * In order to avoid missing the event that occurred during locking
-	 * the process, test P_SELECT and rescan file descriptors if
-	 * necessary.
-	 */
-	thread_lock(td);
-	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		thread_unlock(td);
-		goto retry;
-	}
-	thread_unlock(td);
-
-	if (timo > 0)
-		error = cv_timedwait(&selwait, &sellock, timo);
-	else {
-		cv_wait(&selwait, &sellock);
-		error = 0;
-	}
-
-done:
-	clear_selinfo_list(td);
-	
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-done_noproclock:
-	if (error == ERESTART)
-		return 0;
-	return error;
-}
-
-static int
 nb_intr(struct nbpcb *nbp, struct proc *p)
 {
 	return 0;
@@ -302,7 +224,7 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	if (error)
 		return error;
 	TIMESPEC_TO_TIMEVAL(&tv, &nbp->nbp_timo);
-	error = nbssn_rselect(nbp, &tv, POLLIN, td);
+	error = selsocket(nbp->nbp_tso, POLLIN, &tv, td);
 	if (error == EWOULDBLOCK) {	/* Timeout */
 		NBDEBUG("initial request timeout\n");
 		return ETIMEDOUT;

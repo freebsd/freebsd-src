@@ -524,8 +524,9 @@ pipeselwakeup(cpipe)
 
 	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
 	if (cpipe->pipe_state & PIPE_SEL) {
-		cpipe->pipe_state &= ~PIPE_SEL;
 		selwakeuppri(&cpipe->pipe_sel, PSOCK);
+		if (!SEL_WAITING(&cpipe->pipe_sel))
+			cpipe->pipe_state &= ~PIPE_SEL;
 	}
 	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
 		pgsigio(&cpipe->pipe_sigio, SIGIO, 0);
@@ -1354,12 +1355,14 @@ pipe_poll(fp, events, active_cred, td)
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM)) {
 			selrecord(td, &rpipe->pipe_sel);
-			rpipe->pipe_state |= PIPE_SEL;
+			if (SEL_WAITING(&rpipe->pipe_sel))
+				rpipe->pipe_state |= PIPE_SEL;
 		}
 
 		if (events & (POLLOUT | POLLWRNORM)) {
 			selrecord(td, &wpipe->pipe_sel);
-			wpipe->pipe_state |= PIPE_SEL;
+			if (SEL_WAITING(&wpipe->pipe_sel))
+				wpipe->pipe_state |= PIPE_SEL;
 		}
 	}
 #ifdef MAC
