@@ -34,6 +34,7 @@ $FreeBSD$
 
 #ifndef CONFIG_DEFINED
 #define CONFIG_CHELSIO_T3_CORE
+#define DISABLE_MBUF_IOVEC
 #endif
 
 #endif
