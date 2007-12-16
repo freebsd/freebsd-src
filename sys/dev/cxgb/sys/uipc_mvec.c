@@ -40,12 +40,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/sf_buf.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
+
+
 
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
+#include <sys/mvec.h>
 #else
 #include <dev/cxgb/cxgb_include.h>
+#include <dev/cxgb/sys/mvec.h>
 #endif
 
 #include "opt_zero.h"
@@ -66,552 +73,364 @@ __FBSDID("$FreeBSD$");
 extern uint32_t collapse_free;
 extern uint32_t mb_free_vec_free;
 
-struct mbuf_ext {
-	struct mbuf    *me_m;
-	caddr_t         me_base;
-	volatile u_int *me_refcnt;
-	int             me_flags;
-	uint32_t        me_offset;
-};
+uma_zone_t zone_miovec;
+static int mi_inited = 0;
 
-int
-_m_explode(struct mbuf *m) 
+void
+mi_init(void)
 {
-        int i, offset, type, first, len;
-        uint8_t *cl;
-        struct mbuf *m0, *head = NULL;
-        struct mbuf_vec *mv;
+	if (mi_inited > 0)
+		return;
+	else
+		mi_inited++;
 
-#ifdef INVARIANTS
-	len = m->m_len;
-	m0 = m->m_next;
-	while (m0) {
-		KASSERT((m0->m_flags & M_PKTHDR) == 0,
-		    ("pkthdr set on intermediate mbuf - pre"));
-		len += m0->m_len;
-		m0 = m0->m_next;
-		
-	}
-	if (len != m->m_pkthdr.len)
-		panic("at start len=%d pktlen=%d", len, m->m_pkthdr.len);
-#endif
-        mv = mtomv(m);
-	first = mv->mv_first;
-        for (i = mv->mv_count + first - 1; i > first; i--) {
-		type = mbuf_vec_get_type(mv, i);
-                cl = mv->mv_vec[i].mi_base;
-		offset = mv->mv_vec[i].mi_offset;
-		len = mv->mv_vec[i].mi_len;
-		if (__predict_false(type == EXT_MBUF)) {
-			m0 = (struct mbuf *)cl;
-			KASSERT((m0->m_flags & M_EXT) == 0, ("M_EXT set on mbuf"));
-			m0->m_len = len;
-			m0->m_data = cl + offset;
-			goto skip_cluster;
-
-		} else if ((m0 = m_get(M_NOWAIT, MT_DATA)) == NULL) {
-			/*
-			 * Check for extra memory leaks
-			 */
-			m_freem(head); 
-			return (ENOMEM);
-                } 
-		m0->m_flags = 0;
-
-		m_cljset(m0, (uint8_t *)cl, type);
-		m0->m_len = mv->mv_vec[i].mi_len;
-		if (offset)
-			m_adj(m0, offset);
-	skip_cluster:		
-		m0->m_next = head;
-		m->m_len -= m0->m_len;
-		head = m0;
-	}
-	offset = mv->mv_vec[first].mi_offset;
-	cl = mv->mv_vec[first].mi_base;
-	type = mbuf_vec_get_type(mv, first);
-	m->m_flags &= ~(M_IOVEC);
-	m_cljset(m, cl, type);
-	if (offset)
-		m_adj(m, offset);
-	m->m_next = head;
-	head = m;
-	M_SANITY(m, 0);
-
-	return (0);
-} 
-
-static __inline int
-m_vectorize(struct mbuf *m, int max, struct mbuf **vec, int *count)
-{
-	int i, error = 0;
-
-	for (i = 0; i < max; i++) {
-		if (m == NULL)
-			break;
-#ifndef MBUF_PACKET_ZONE_DISABLE
-		if ((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_PACKET))
-			return (EINVAL);
-#endif
-#ifdef ZERO_COPY_SOCKETS
-		if ((m->m_flags & M_EXT) && (m->m_ext.ext_type == EXT_SFBUF))		
-			return (EINVAL);
-#endif
-		M_SANITY(m, 0);
-		vec[i] = m;
-		m = m->m_next;
-	}
-	if (m)
-		error = EFBIG;
-
-	*count = i;
-
-	return (error);
-}
-
-static __inline int
-m_findmbufs(struct mbuf **ivec, int maxbufs, struct mbuf_ext *ovec, int osize, int *ocount)
-{
-	int i, j, nhbufsneed, nhbufs;
-	struct mbuf *m;
-	
-	nhbufsneed = min(((maxbufs - 1)/MAX_MBUF_IOV) + 1, osize);
-	ovec[0].me_m = NULL;
-	
-	for (nhbufs = j = i = 0; i < maxbufs && nhbufs < nhbufsneed; i++) {
-		if ((ivec[i]->m_flags & M_EXT) == 0)
-			continue;
-		m = ivec[i];
-		ovec[nhbufs].me_m = m;
-		ovec[nhbufs].me_base = m->m_ext.ext_buf;
-		ovec[nhbufs].me_refcnt = m->m_ext.ref_cnt;
-		ovec[nhbufs].me_offset = (m->m_data - m->m_ext.ext_buf);
-		ovec[nhbufs].me_flags = m->m_ext.ext_type;
-		nhbufs++;
-	}
-	if (nhbufs == 0) {
-		if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL) 
-			goto m_getfail;
-		ovec[nhbufs].me_m = m;
-		nhbufs = 1;
-	}
-	while (nhbufs < nhbufsneed) {
-		if ((m = m_get(M_NOWAIT, MT_DATA)) == NULL) 
-			goto m_getfail;
-		ovec[nhbufs].me_m = m;
-		nhbufs++;
-	}
-	/* 
-	 * Copy over packet header to new head of chain
-	 */
-	if (ovec[0].me_m != ivec[0]) {
-		ovec[0].me_m->m_flags |= M_PKTHDR;
-		memcpy(&ovec[0].me_m->m_pkthdr, &ivec[0]->m_pkthdr, sizeof(struct pkthdr));
-		SLIST_INIT(&ivec[0]->m_pkthdr.tags);
-	}
-	*ocount = nhbufs;
-	return (0);
-m_getfail:
-	for (i = 0; i < nhbufs; i++)
-		if ((ovec[i].me_m->m_flags & M_EXT) == 0)
-			uma_zfree(zone_mbuf, ovec[i].me_m);
-	return (ENOMEM);
-	
-}
-
-static __inline void
-m_setiovec(struct mbuf_iovec *mi, struct mbuf *m, struct mbuf_ext *extvec, int *me_index,
-    int max_me_index)
-{
-	int idx = *me_index;
-	
-	mi->mi_len = m->m_len;
-	if (idx < max_me_index && extvec[idx].me_m == m) {
-		struct mbuf_ext *me = &extvec[idx];
-		(*me_index)++;
-		mi->mi_base = me->me_base;
-		mi->mi_refcnt = me->me_refcnt;
-		mi->mi_offset = me->me_offset;
-		mi->mi_flags = me->me_flags;
-	} else if (m->m_flags & M_EXT) {
-		mi->mi_base = m->m_ext.ext_buf;
-		mi->mi_refcnt = m->m_ext.ref_cnt;
-		mi->mi_offset =
-		    (m->m_data - m->m_ext.ext_buf);
-		mi->mi_flags = m->m_ext.ext_type;
-	} else {
-		KASSERT(m->m_len < 256, ("mbuf too large len=%d",
-			m->m_len));
-		mi->mi_base = (uint8_t *)m;
-		mi->mi_refcnt = NULL;
-		mi->mi_offset =
-		    (m->m_data - (caddr_t)m);
-		mi->mi_flags = EXT_MBUF;
-	}
-	DPRINTF("type=%d len=%d refcnt=%p cl=%p offset=0x%x\n",
-	    mi->mi_flags, mi->mi_len, mi->mi_refcnt, mi->mi_base,
-	    mi->mi_offset);
-}
-
-int
-_m_collapse(struct mbuf *m, int maxbufs, struct mbuf **mnew)
-{
-	struct mbuf *m0, *lmvec[MAX_BUFS];
-	struct mbuf **mnext;
-	struct mbuf **vec = lmvec;
-	struct mbuf *mhead = NULL;
-	struct mbuf_vec *mv;
-	int err, i, j, max, len, nhbufs;
-	struct mbuf_ext dvec[MAX_HVEC];
-	int hidx = 0, dvecidx;
-
-	M_SANITY(m, 0);
-	if (maxbufs > MAX_BUFS) {
-		if ((vec = malloc(maxbufs * sizeof(struct mbuf *),
-			    M_DEVBUF, M_NOWAIT)) == NULL)
-			return (ENOMEM);
-	}
-
-	if ((err = m_vectorize(m, maxbufs, vec, &max)) != 0)
-		goto out;
-	if ((err = m_findmbufs(vec, max, dvec, MAX_HVEC, &nhbufs)) != 0)
-		goto out;
-
-	KASSERT(max > 0, ("invalid mbuf count"));
-	KASSERT(nhbufs > 0, ("invalid header mbuf count"));
-
-	mhead = m0 = dvec[0].me_m;
-	
-	DPRINTF("nbufs=%d nhbufs=%d\n", max, nhbufs);
-	for (hidx = dvecidx = i = 0, mnext = NULL; i < max; hidx++) {
-		m0 = dvec[hidx].me_m;
-		m0->m_flags &= ~M_EXT;
-		m0->m_flags |= M_IOVEC;
-		
-		if (mnext) 
-			*mnext = m0;
-			
-		mv = mtomv(m0);
-		len = mv->mv_first = 0;
-		for (j = 0; j < MAX_MBUF_IOV && i < max; j++, i++) {
-			struct mbuf_iovec *mi = &mv->mv_vec[j];
-
-			m_setiovec(mi, vec[i], dvec, &dvecidx, nhbufs);
-			len += mi->mi_len;
-		}
-		m0->m_data = mv->mv_vec[0].mi_base + mv->mv_vec[0].mi_offset;
-		mv->mv_count = j;
-		m0->m_len = len;
-		mnext = &m0->m_next;
-		DPRINTF("count=%d len=%d\n", j, len);
-	}
-	
-	/*
-	 * Terminate chain
-	 */
-	m0->m_next = NULL;
-	
-	/*
-	 * Free all mbufs not used by the mbuf iovec chain
-	 */
-	for (i = 0; i < max; i++) 
-		if (vec[i]->m_flags & M_EXT) {
-			vec[i]->m_flags &= ~M_EXT;
-			collapse_free++;
-			uma_zfree(zone_mbuf, vec[i]);
-		}
-	
-	*mnew = mhead;
-out:
-	if (vec != lmvec)
-		free(vec, M_DEVBUF);
-	return (err);
+	zone_miovec = uma_zcreate("MBUF IOVEC", MIOVBYTES,
+	    NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_MAXBUCKET);
 }
 
 void
-mb_free_vec(struct mbuf *m)
+mi_deinit(void)
 {
-	struct mbuf_vec *mv;
-	int i;
+	mi_inited--;
+	if (mi_inited == 0)
+		uma_zdestroy(zone_miovec);
+}
 	
-	KASSERT((m->m_flags & (M_EXT|M_IOVEC)) == M_IOVEC,
-	    ("%s: M_EXT set", __func__));
+void
+dump_mi(struct mbuf_iovec *mi)
+{
+	int i;
+	struct mbuf_vec *mv;
+	
+	printf("mi_flags=0x%08x mi_base=%p mi_data=%p mi_len=%d mi_type=%d\n",
+	    mi->mi_flags, mi->mi_base, mi->mi_data, mi->mi_len, mi->mi_type);
 
-	mv = mtomv(m);
-	KASSERT(mv->mv_count <= MAX_MBUF_IOV,
-	    ("%s: mi_count too large %d", __func__, mv->mv_count));
+	if (mi->mi_type == EXT_CLIOVEC ||
+	    mi->mi_type == EXT_IOVEC) {
+		mv = mtomv((struct mbuf *)mi->mi_base);
+		mi = mv->mv_vec;
+		for (i = 0; i < mv->mv_count; i++, mi++) 
+			dump_mi(mi);
 
-	DPRINTF("count=%d len=%d\n", mv->mv_count, m->m_len);
-	for (i = mv->mv_first; i < mv->mv_count; i++) {
-		uma_zone_t zone = NULL;
-		volatile int *refcnt = mv->mv_vec[i].mi_refcnt;
-		int type = mbuf_vec_get_type(mv, i);
-		void *cl = mv->mv_vec[i].mi_base;
-
-		if ((type != EXT_MBUF) && *refcnt != 1 &&
-		    atomic_fetchadd_int(refcnt, -1) != 1)
-			continue;
-
-		DPRINTF("freeing idx=%d refcnt=%p type=%d cl=%p\n", i, refcnt, type, cl);
-		switch (type) {
-		case EXT_MBUF:
-			mb_free_vec_free++;
-		case EXT_CLUSTER:
-		case EXT_JUMBOP:
-		case EXT_JUMBO9:  
-		case EXT_JUMBO16:
-			zone = m_getzonefromtype(type);
-			uma_zfree(zone, cl);
-			continue;
-		case EXT_SFBUF:
-			*refcnt = 0;
-			uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
-				refcnt));
-#ifdef __i386__
-			sf_buf_mext(cl, mv->mv_vec[i].mi_args);
-#else
-			/*
-			 * Every architecture other than i386 uses a vm_page
-			 * for an sf_buf (well ... sparc64 does but shouldn't)
-			 */
-			sf_buf_mext(cl, PHYS_TO_VM_PAGE(vtophys(cl)));
-#endif			
-			continue;
-		default:
-			KASSERT(m->m_ext.ext_type == 0,
-				("%s: unknown ext_type", __func__));
-			break;
-		}
 	}
-	/*
-	 * Free this mbuf back to the mbuf zone with all iovec
-	 * information purged.
-	 */
-	mb_free_vec_free++;
-	uma_zfree(zone_mbuf, m);
 }
 
-#if (!defined(__sparc64__) && !defined(__sun4v__))
-#include <sys/sysctl.h>
-
-#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
-#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
-
-struct bounce_zone {
-	STAILQ_ENTRY(bounce_zone) links;
-	STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
-	int		total_bpages;
-	int		free_bpages;
-	int		reserved_bpages;
-	int		active_bpages;
-	int		total_bounced;
-	int		total_deferred;
-	bus_size_t	alignment;
-	bus_size_t	boundary;
-	bus_addr_t	lowaddr;
-	char		zoneid[8];
-	char		lowaddrid[20];
-	struct sysctl_ctx_list sysctl_tree;
-	struct sysctl_oid *sysctl_tree_top;
-};
-struct bus_dma_tag {
-	bus_dma_tag_t	  parent;
-	bus_size_t	  alignment;
-	bus_size_t	  boundary;
-	bus_addr_t	  lowaddr;
-	bus_addr_t	  highaddr;
-	bus_dma_filter_t *filter;
-	void		 *filterarg;
-	bus_size_t	  maxsize;
-	u_int		  nsegments;
-	bus_size_t	  maxsegsz;
-	int		  flags;
-	int		  ref_count;
-	int		  map_count;
-	bus_dma_lock_t	 *lockfunc;
-	void		 *lockfuncarg;
-	bus_dma_segment_t *segments;
-	struct bounce_zone *bounce_zone;
-};
-
-struct bus_dmamap {
-	struct bp_list	       bpages;
-	int		       pagesneeded;
-	int		       pagesreserved;
-	bus_dma_tag_t	       dmat;
-	void		      *buf;		/* unmapped buffer pointer */
-	bus_size_t	       buflen;		/* unmapped buffer length */
-	bus_dmamap_callback_t *callback;
-	void		      *callback_arg;
-	STAILQ_ENTRY(bus_dmamap) links;
-};
-
-static struct bus_dmamap nobounce_dmamap;
-
-static __inline int
-run_filter(bus_dma_tag_t dmat, bus_addr_t paddr)
+static __inline struct mbuf *
+_mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 {
-	int retval;
+	struct mbuf *n = m->m_next;
 
-	retval = 0;
+	prefetch(n);
 
-	do {
-		if (((paddr > dmat->lowaddr && paddr <= dmat->highaddr)
-		 || ((paddr & (dmat->alignment - 1)) != 0))
-		 && (dmat->filter == NULL
-		  || (*dmat->filter)(dmat->filterarg, paddr) != 0))
-			retval = 1;
+	mi->mi_flags = m->m_flags;
+	mi->mi_len = m->m_len;
+	
+	if (m->m_flags & M_PKTHDR) {
+		mi->mi_ether_vtag = m->m_pkthdr.ether_vtag;
+		mi->mi_tso_segsz = m->m_pkthdr.tso_segsz;
+#ifdef IFNET_MULTIQ		
+		mi->mi_rss_hash = m->m_pkthdr.rss_hash;
+#endif		
+	}
+	if (m->m_type != MT_DATA) {
+		mi->mi_data = NULL;
+		mi->mi_base = (caddr_t)m;
+		/*
+		 * XXX JMPIOVEC
+		 */
+		mi->mi_size = (m->m_type == EXT_CLIOVEC) ? MCLBYTES : MIOVBYTES;
+		mi->mi_type = m->m_type;
+		mi->mi_len = m->m_pkthdr.len;
+		KASSERT(mi->mi_len, ("empty packet"));
+		mi->mi_refcnt = NULL;
+	} else if (m->m_flags & M_EXT) {
+		memcpy(&mi->mi_ext, &m->m_ext, sizeof(struct m_ext_));
+		mi->mi_data = m->m_data;
+		mi->mi_base = m->m_ext.ext_buf;
+		mi->mi_type = m->m_ext.ext_type;
+		mi->mi_size = m->m_ext.ext_size;
+		mi->mi_refcnt = m->m_ext.ref_cnt;
+	} else {
+		mi->mi_base = (caddr_t)m;
+		mi->mi_data = m->m_data;
+		mi->mi_size = MSIZE;
+		mi->mi_type = EXT_MBUF;
+		mi->mi_refcnt = NULL;
+	}
+	KASSERT(mi->mi_len != 0, ("miov has len 0"));
+	KASSERT(mi->mi_type > 0, ("mi_type is invalid"));
 
-		dmat = dmat->parent;		
-	} while (retval == 0 && dmat != NULL);
-	return (retval);
+	return (n);
 }
 
-static __inline int
-_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
-    			bus_dmamap_t map,
-			void *buf, bus_size_t buflen,
-			pmap_t pmap,
-			int flags,
-			bus_addr_t *lastaddrp,
-			bus_dma_segment_t *segs,
-			int *segp,
-			int first)
+struct mbuf *
+mi_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 {
-	bus_size_t sgsize;
-	bus_addr_t curaddr, lastaddr, baddr, bmask;
-	vm_offset_t vaddr;
-	int needbounce = 0;
-	int seg;
-
-	if (map == NULL)
-		map = &nobounce_dmamap;
-
-	/* Reserve Necessary Bounce Pages */
-	if (map->pagesneeded != 0)
-		panic("don't support bounce pages");
-
-	vaddr = (vm_offset_t)buf;
-	lastaddr = *lastaddrp;
-	bmask = ~(dmat->boundary - 1);
-
-	for (seg = *segp; buflen > 0 ; ) {
-		/*
-		 * Get the physical address for this segment.
-		 */
-		if (pmap)
-			curaddr = pmap_extract(pmap, vaddr);
-		else
-			curaddr = pmap_kextract(vaddr);
-
-
-		/*
-		 * Compute the segment size, and adjust counts.
-		 */
-		sgsize = PAGE_SIZE - ((u_long)curaddr & PAGE_MASK);
-		if (buflen < sgsize)
-			sgsize = buflen;
-
-		/*
-		 * Make sure we don't cross any boundaries.
-		 */
-		if (dmat->boundary > 0) {
-			baddr = (curaddr + dmat->boundary) & bmask;
-			if (sgsize > (baddr - curaddr))
-				sgsize = (baddr - curaddr);
-		}
-
-		if (map->pagesneeded != 0 && run_filter(dmat, curaddr))
-			panic("no bounce page support");
-		
-		/*
-		 * Insert chunk into a segment, coalescing with
-		 * previous segment if possible.
-		 */
-		if (first) {
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-			first = 0;
-		} else {
-			if (needbounce == 0 && curaddr == lastaddr &&
-			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-			    (dmat->boundary == 0 ||
-			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
-				segs[seg].ds_len += sgsize;
-			else {
-				if (++seg >= dmat->nsegments)
-					break;
-				segs[seg].ds_addr = curaddr;
-				segs[seg].ds_len = sgsize;
-			}
-		}
-
-		lastaddr = curaddr + sgsize;
-		vaddr += sgsize;
-		buflen -= sgsize;
+	return _mcl_collapse_mbuf(mi, m);
+}
+	
+void *
+mcl_alloc(int seg_count, int *type) 
+{
+	uma_zone_t zone;
+	
+	if (seg_count > MAX_CL_IOV) {
+		zone = zone_jumbop;
+		*type = EXT_JMPIOVEC;
+	} else if (seg_count > MAX_MIOVEC_IOV) {
+		zone = zone_clust;
+		*type = EXT_CLIOVEC;
+	} else {
+		*type = EXT_IOVEC;
+		zone = zone_miovec;
 	}
-
-	*segp = seg;
-	*lastaddrp = lastaddr;
-
-	/*
-	 * Did we fit?
-	 */
-	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+	return uma_zalloc_arg(zone, NULL, M_NOWAIT);
 }
 
 int
-bus_dmamap_load_mvec_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-                        bus_dma_segment_t *segs, int *nsegs, int flags)
+busdma_map_sg_collapse(struct mbuf **m, bus_dma_segment_t *segs, int *nsegs)
 {
-	int error, i;
+	struct mbuf *m0, *mhead, *n = *m;
+	struct mbuf_iovec *mi;
+	struct mbuf *marray[TX_MAX_SEGS];
+	int i, type, seg_count, defragged = 0, err = 0;
+	struct mbuf_vec *mv;
 
-	M_ASSERTPKTHDR(m0);
-	
-	if ((m0->m_flags & M_IOVEC) == 0)
-		return (bus_dmamap_load_mbuf_sg(dmat, map, m0, segs, nsegs, flags));
-	
-	flags |= BUS_DMA_NOWAIT;
-	*nsegs = 0;
-	error = 0;
-	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		int first = 1;
-		bus_addr_t lastaddr = 0;
-		struct mbuf *m;
+	KASSERT(n->m_pkthdr.len, ("packet has zero header len"));
 		
-		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			struct mbuf_vec *mv;
-			int count, firstcl;
-			if (!(m->m_len > 0))
-				continue;
-			
-			mv = mtomv(m);
-			count = mv->mv_count;
-			firstcl = mv->mv_first;
-			KASSERT(count <= MAX_MBUF_IOV, ("count=%d too large", count));
-			for (i = firstcl; i < count && error == 0; i++) {
-				void *data = mv->mv_vec[i].mi_base + mv->mv_vec[i].mi_offset;
-				int len = mv->mv_vec[i].mi_len;
+	if (n->m_flags & M_PKTHDR && !SLIST_EMPTY(&n->m_pkthdr.tags)) 
+		m_tag_delete_chain(n, NULL);
 
-				if (len == 0)
-					continue;
-				DPRINTF("mapping data=%p len=%d\n", data, len); 
-				error = _bus_dmamap_load_buffer(dmat, NULL, 
-				    data, len, NULL, flags, &lastaddr,
-				    segs, nsegs, first);
-				DPRINTF("%d: addr=0x%jx len=%ju\n", i,
-				    (uintmax_t)segs[i].ds_addr, (uintmax_t)segs[i].ds_len);
-				first = 0;
-			}
-		}
-	} else {
-		error = EINVAL;
+retry:
+	seg_count = 0;
+	if (n->m_next == NULL) {
+		busdma_map_mbuf_fast(n, segs);
+		*nsegs = 1;
+
+		return (0);
 	}
 
-	(*nsegs)++;
+	if (n->m_pkthdr.len <= 104) {
+		caddr_t data;
 
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat->flags, error, *nsegs);
-	return (error);
+		if ((m0 = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL) 
+			return (ENOMEM);
+
+		data = m0->m_data;
+		memcpy(m0, n, sizeof(struct m_hdr) + sizeof(struct pkthdr));
+		m0->m_data = data;
+		m0->m_len = n->m_pkthdr.len;
+		m0->m_flags &= ~M_EXT;
+		m0->m_next = NULL;
+		m0->m_type = n->m_type;
+		n->m_flags &= ~M_PKTHDR;
+		while (n) {
+			memcpy(data, n->m_data, n->m_len);
+			data += n->m_len;
+			n = n->m_next;
+		}
+		m_freem(*m);
+		n = m0;
+		*m = n;
+		DPRINTF("collapsed into immediate - list:%d\n", !SLIST_EMPTY(&m0->m_pkthdr.tags));
+		goto retry;
+	}
+	
+	while (n && seg_count < TX_MAX_SEGS) {
+		marray[seg_count] = n;
+
+		/*
+		 * firmware doesn't like empty segments
+		 */
+		if (__predict_true(n->m_len != 0)) 
+			seg_count++;
+
+		n = n->m_next;
+	}
+#if 0
+	/*
+	 * XXX needs more careful consideration
+	 */
+	if (__predict_false(seg_count == 1)) {
+		n = marray[0];
+		if (n != *m)
+			
+		/* XXX */
+		goto retry;
+	}
+#endif	
+	if (seg_count == 0) {
+		if (cxgb_debug)
+			printf("empty segment chain\n");
+		err = EFBIG;
+		goto err_out;
+	}  else if (seg_count >= TX_MAX_SEGS) {
+		if (cxgb_debug)
+			printf("mbuf chain too long: %d max allowed %d\n", seg_count, TX_MAX_SEGS);
+		if (!defragged) {
+			n = m_defrag(*m, M_DONTWAIT);
+			if (n == NULL) {
+				err = ENOBUFS;
+				goto err_out;
+			}
+			*m = n;
+			defragged = 1;
+			goto retry;
+		}
+		err = EFBIG;
+		goto err_out;
+	}
+
+	if ((m0 = mcl_alloc(seg_count, &type)) == NULL) {
+		err = ENOMEM;
+		goto err_out;
+	}
+	
+	memcpy(m0, *m, sizeof(struct m_hdr) + sizeof(struct pkthdr));
+	m0->m_type = type;
+	KASSERT(m0->m_pkthdr.len, ("empty packet being marshalled"));
+	mv = mtomv(m0);
+	mv->mv_count = seg_count;
+	mv->mv_first = 0;
+	for (i = 0, mi = mv->mv_vec; i < seg_count; mi++, segs++, i++) {
+		n = marray[i];
+		busdma_map_mbuf_fast(n, segs);
+		_mcl_collapse_mbuf(mi, n);
+	}
+	n = *m;
+	while (n) {
+		if (((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT) && (n->m_len > 0))
+			n->m_flags &= ~M_EXT; 
+		else if (n->m_len > 0) {
+			n = n->m_next;
+			continue;
+		}
+		mhead = n->m_next;
+		m_free(n);
+		n = mhead;
+	}
+	*nsegs = seg_count;
+	*m = m0;
+	DPRINTF("pktlen=%d m0=%p *m=%p m=%p\n", m0->m_pkthdr.len, m0, *m, m);
+	return (0);
+err_out:
+	m_freem(*m);
+	*m = NULL;	
+	return (err);
 }
-#endif /* !__sparc64__  && !__sun4v__ */
+
+int 
+busdma_map_sg_vec(struct mbuf **m, struct mbuf **mret, bus_dma_segment_t *segs, int count)
+{
+	struct mbuf *m0, **mp;
+	struct mbuf_iovec *mi;
+	struct mbuf_vec *mv;
+	int i;
+	
+	if (count > MAX_MIOVEC_IOV) {
+		if ((m0 = uma_zalloc_arg(zone_clust, NULL, M_NOWAIT)) == NULL) 
+			return (ENOMEM);
+		m0->m_type = EXT_CLIOVEC;
+	} else {
+		if ((m0 = uma_zalloc_arg(zone_miovec, NULL, M_NOWAIT)) == NULL)
+			return (ENOMEM);
+		m0->m_type = EXT_IOVEC;
+	}
+
+	m0->m_flags = 0;
+	m0->m_pkthdr.len = m0->m_len = (*m)->m_len; /* not the real length but needs to be non-zero */
+	mv = mtomv(m0);
+	mv->mv_count = count;
+	mv->mv_first = 0;
+	for (mp = m, i = 0, mi = mv->mv_vec; i < count; mp++, segs++, mi++, i++) {
+		if ((*mp)->m_flags & M_PKTHDR && !SLIST_EMPTY(&(*mp)->m_pkthdr.tags)) 
+			m_tag_delete_chain(*mp, NULL);
+		busdma_map_mbuf_fast(*mp, segs);
+		_mcl_collapse_mbuf(mi, *mp);
+		KASSERT(mi->mi_len, ("empty packet"));
+	}
+
+	for (mp = m, i = 0; i < count; i++, mp++) {
+		(*mp)->m_next = (*mp)->m_nextpkt = NULL;
+		if (((*mp)->m_flags & (M_EXT|M_NOFREE)) == M_EXT) {
+			(*mp)->m_flags &= ~M_EXT;
+			m_free(*mp);
+		}
+	}
+
+	*mret = m0;
+	return (0);
+}
+
+void
+mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
+{
+	u_int cnt;
+	int dofree;
+	caddr_t cl;
+	
+	/* Account for lazy ref count assign. */
+	dofree = (mi->mi_refcnt == NULL);
+
+	/*
+	 * This is tricky.  We need to make sure to decrement the
+	 * refcount in a safe way but to also clean up if we're the
+	 * last reference.  This method seems to do it without race.
+	 */
+	while (dofree == 0) {
+		cnt = *(mi->mi_refcnt);
+		if (atomic_cmpset_int(mi->mi_refcnt, cnt, cnt - 1)) {
+			if (cnt == 1)
+				dofree = 1;
+			break;
+		}
+	}
+	if (dofree == 0)
+		return;
+
+	cl = mi->mi_base;
+	switch (type) {
+	case EXT_MBUF:
+		m_free_fast((struct mbuf *)cl);
+		break;
+	case EXT_CLUSTER:
+		cxgb_cache_put(zone_clust, cl);
+		break;		
+	case EXT_JUMBOP:
+		cxgb_cache_put(zone_jumbop, cl);
+		break;		
+	case EXT_JUMBO9:
+		cxgb_cache_put(zone_jumbo9, cl);
+		break;		
+	case EXT_JUMBO16:
+		cxgb_cache_put(zone_jumbo16, cl);
+		break;
+	case EXT_SFBUF:
+	case EXT_NET_DRV:
+	case EXT_MOD_TYPE:
+	case EXT_DISPOSABLE:
+		*(mi->mi_refcnt) = 0;
+		uma_zfree(zone_ext_refcnt, __DEVOLATILE(u_int *,
+			mi->mi_ext.ref_cnt));
+		/* FALLTHROUGH */
+	case EXT_EXTREF:
+		KASSERT(mi->mi_ext.ext_free != NULL,
+		    ("%s: ext_free not set", __func__));
+		(*(mi->mi_ext.ext_free))(mi->mi_ext.ext_buf,
+		    mi->mi_ext.ext_args);
+		break;		
+	default:
+		dump_mi(mi);
+		panic("unknown mv type in m_free_vec type=%d idx=%d", type, idx);
+		break;
+	}
+}
+
+int
+_m_explode(struct mbuf *m)
+{
+	panic("IMPLEMENT ME!!!");
+}
+	
+
