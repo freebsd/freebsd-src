@@ -449,9 +449,9 @@ mkfs(struct partition *pp, char *fsys)
 #	undef B2MBFACTOR
 
 	if (Eflag && !Nflag) {
-		printf("Erasing blocks [%jd...%jd[\n", 
+		printf("Erasing sectors [%jd...%jd]\n", 
 		    sblock.fs_sblockloc / disk.d_bsize,
-		    sblock.fs_size * sblock.fs_fsize / disk.d_bsize);
+		    fsbtodb(&sblock, sblock.fs_size) - 1);
 		berase(&disk, sblock.fs_sblockloc / disk.d_bsize,
 		    sblock.fs_size * sblock.fs_fsize - sblock.fs_sblockloc);
 	}
