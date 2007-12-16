@@ -527,6 +527,8 @@
 
     &hwlist.hptmv;
 
+    &hwlist.hptrr;
+
     &hwlist.ida;
 
     &hwlist.iir;
