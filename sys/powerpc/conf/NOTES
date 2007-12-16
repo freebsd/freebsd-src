@@ -10,7 +10,7 @@
 
 #
 # You must specify at least one CPU (the one you intend to run on).
-cpu		OEA
+cpu		AIM
 
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
