@@ -668,6 +668,10 @@ match:
 		goto reply;
 	rt = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (rt != NULL) {
+		sin.sin_addr.s_addr = isaddr.s_addr;
+		EVENTHANDLER_INVOKE(route_event, RTEVENT_ARP_UPDATE, rt, NULL,
+		    (struct sockaddr *)&sin);
+		
 		la = (struct llinfo_arp *)rt->rt_llinfo;
 		if (la == NULL) {
 			RT_UNLOCK(rt);
@@ -775,10 +779,6 @@ match:
 	la->la_preempt = arp_maxtries;
 	hold = la->la_hold;
 	la->la_hold = NULL;
-
-	sin.sin_addr.s_addr = ntohl(itaddr.s_addr);
-	EVENTHANDLER_INVOKE(route_event, RTEVENT_ARP_UPDATE, rt, NULL,
-	    (struct sockaddr *)&sin);
 	RT_UNLOCK(rt);
 	if (hold != NULL)
 		(*ifp->if_output)(ifp, hold, rt_key(rt), rt);
