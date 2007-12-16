@@ -69,4 +69,7 @@ FBSDprivate_1.0 {
 	minbrk;
 	.cerror;
 	curbrk;
+
+	/* used in libm */
+	__ULtox_D2A;
 };
