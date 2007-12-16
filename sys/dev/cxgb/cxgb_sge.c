@@ -58,10 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
+#include <sys/mvec.h>
 #else
 #include <dev/cxgb/cxgb_include.h>
+#include <dev/cxgb/sys/mvec.h>
 #endif
 
 uint32_t collapse_free = 0;
