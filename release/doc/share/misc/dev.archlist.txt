@@ -75,6 +75,7 @@ fwohci	i386,sparc64,ia64,amd64,powerpc
 hifn	i386,pc98,amd64
 hptiop	i386,amd64
 hptmv	i386,amd64
+hptrr	i386,amd64
 ida	i386
 ie	i386
 iir	i386,ia64,amd64
