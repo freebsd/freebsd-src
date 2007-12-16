@@ -104,6 +104,7 @@ __BEGIN_DECLS
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);
 ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
+int berase(struct uufsd *, ufs2_daddr_t, ufs2_daddr_t);
 
 /*
  * cgroup.c
