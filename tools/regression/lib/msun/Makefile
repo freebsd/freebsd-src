@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 TESTS=	test-csqrt test-fenv test-ilogb test-lrint \
-	test-lround test-next test-rem
+	test-lround test-nan test-next test-rem
 CFLAGS+= -O0 -lm
 ARCH!=	uname -m
 
