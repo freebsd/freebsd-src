@@ -237,6 +237,10 @@ cap_print(struct ata_params *parm)
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
 
+	printf("(compact) flash commands       %s	%s\n",
+		parm->support.command2 & ATA_SUPPORT_CFA ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_CFA ? "yes" : "no");
+
 	printf("advanced power management      %s	%s	%d/0x%02X\n",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
