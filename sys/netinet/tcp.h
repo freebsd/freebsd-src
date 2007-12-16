@@ -147,6 +147,9 @@ struct tcphdr {
 #define TCP_NOOPT	0x08	/* don't use TCP options */
 #define TCP_MD5SIG	0x10	/* use MD5 digests (RFC2385) */
 #define	TCP_INFO	0x20	/* retrieve tcp_info structure */
+#define	TCP_CONGESTION	0x40	/* get/set congestion control algorithm */
+
+#define	TCP_CA_NAME_MAX	16	/* max congestion control name length */
 
 #define	TCPI_OPT_TIMESTAMPS	0x01
 #define	TCPI_OPT_SACK		0x02
