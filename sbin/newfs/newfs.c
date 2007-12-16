@@ -111,12 +111,13 @@ __FBSDID("$FreeBSD$");
  */
 #define	NFPI		4
 
+int	Eflag;			/* Erase previous disk contents */
 int	Lflag;			/* add a volume label */
 int	Nflag;			/* run without writing file system */
 int	Oflag = 2;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
-int	Eflag = 0;		/* exit in middle of newfs for testing */
+int	Xflag = 0;		/* exit in middle of newfs for testing */
 int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
@@ -160,10 +161,10 @@ main(int argc, char *argv[])
 
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
+	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
 		switch (ch) {
 		case 'E':
-			Eflag++;
+			Eflag = 1;
 			break;
 		case 'J':
 			Jflag = 1;
@@ -201,6 +202,9 @@ main(int argc, char *argv[])
 			break;
 		case 'U':
 			Uflag = 1;
+			break;
+		case 'X':
+			Xflag++;
 			break;
 		case 'a':
 			if ((maxcontig = atoi(optarg)) <= 0)
@@ -440,6 +444,7 @@ usage()
 	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
+	fprintf(stderr, "\t-E Erase previuos disk content\n");
 	fprintf(stderr, "\t-J Enable journaling via gjournal\n");
 	fprintf(stderr, "\t-L volume label to add to superblock\n");
 	fprintf(stderr,
