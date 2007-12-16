@@ -45,7 +45,7 @@ main(int argc, char *argv[])
 	int r;
 
 	/* Test that the macros are there. */
-	(void)(WRDE_APPEND + WRDE_DOOFS + WRDE_NOCMD + WRDE_REUSE +
+	(void)(WRDE_APPEND + WRDE_DOOFFS + WRDE_NOCMD + WRDE_REUSE +
 	    WRDE_SHOWERR + WRDE_UNDEF);
 	(void)(WRDE_BADCHAR + WRDE_BADVAL + WRDE_CMDSUB + WRDE_NOSPACE +
 	    WRDE_SYNTAX);
@@ -59,9 +59,9 @@ main(int argc, char *argv[])
 	assert(we.we_wordv[2] == NULL);
 	wordfree(&we);
 
-	/* WRDE_DOOFS */
+	/* WRDE_DOOFFS */
 	we.we_offs = 3;
-	r = wordexp("hello world", &we, WRDE_DOOFS);
+	r = wordexp("hello world", &we, WRDE_DOOFFS);
 	assert(r == 0);
 	assert(we.we_wordc == 2);
 	assert(we.we_wordv[0] == NULL);
@@ -95,13 +95,13 @@ main(int argc, char *argv[])
 	assert(we.we_wordv[4] == NULL);
 	wordfree(&we);
 
-	/* WRDE_DOOFS + WRDE_APPEND */
+	/* WRDE_DOOFFS + WRDE_APPEND */
 	we.we_offs = 2;
-	r = wordexp("this is", &we, WRDE_DOOFS);
+	r = wordexp("this is", &we, WRDE_DOOFFS);
 	assert(r == 0);
-	r = wordexp("a test", &we, WRDE_APPEND|WRDE_DOOFS);
+	r = wordexp("a test", &we, WRDE_APPEND|WRDE_DOOFFS);
 	assert(r == 0);
-	r = wordexp("of wordexp", &we, WRDE_APPEND|WRDE_DOOFS);
+	r = wordexp("of wordexp", &we, WRDE_APPEND|WRDE_DOOFFS);
 	assert(r == 0);
 	assert(we.we_wordc == 6);
 	assert(we.we_wordv[0] == NULL);
