@@ -34,9 +34,6 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_waitpid);
-LT10_COMPAT_DEFAULT(waitpid);
-
 extern int __waitpid(pid_t, int *, int);
 
 pid_t _waitpid(pid_t wpid, int *status, int options);

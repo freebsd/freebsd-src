@@ -41,21 +41,6 @@
 
 struct pthread_key _thread_keytable[PTHREAD_KEYS_MAX];
 
-/*
- * XXX - This breaks the linker if LT10_COMPAT_DEFAULT doesn't
- * also include a weak reference to the default symbol.
- */
-LT10_COMPAT_PRIVATE(_thread_keytable);
-
-LT10_COMPAT_PRIVATE(_pthread_key_create);
-LT10_COMPAT_DEFAULT(pthread_key_create);
-LT10_COMPAT_PRIVATE(_pthread_key_delete);
-LT10_COMPAT_DEFAULT(pthread_key_delete);
-LT10_COMPAT_PRIVATE(_pthread_getspecific);
-LT10_COMPAT_DEFAULT(pthread_getspecific);
-LT10_COMPAT_PRIVATE(_pthread_setspecific);
-LT10_COMPAT_DEFAULT(pthread_setspecific);
-
 __weak_reference(_pthread_key_create, pthread_key_create);
 __weak_reference(_pthread_key_delete, pthread_key_delete);
 __weak_reference(_pthread_getspecific, pthread_getspecific);

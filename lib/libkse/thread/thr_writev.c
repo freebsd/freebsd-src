@@ -39,9 +39,6 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(__writev);
-LT10_COMPAT_DEFAULT(writev);
-
 ssize_t __writev(int fd, const struct iovec *iov, int iovcnt);
 
 __weak_reference(__writev, writev);

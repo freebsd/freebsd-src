@@ -42,9 +42,6 @@
 
 ssize_t	__readv(int fd, const struct iovec *iov, int iovcnt);
 
-LT10_COMPAT_PRIVATE(__readv);
-LT10_COMPAT_DEFAULT(readv);
-
 __weak_reference(__readv, readv);
 
 ssize_t

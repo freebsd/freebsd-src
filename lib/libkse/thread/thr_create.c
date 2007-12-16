@@ -44,9 +44,6 @@
 #include "thr_private.h"
 #include "libc_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_create);
-LT10_COMPAT_DEFAULT(pthread_create);
-
 static void free_thread(struct pthread *curthread, struct pthread *thread);
 static int  create_stack(struct pthread_attr *pattr);
 static void free_stack(struct pthread_attr *pattr);

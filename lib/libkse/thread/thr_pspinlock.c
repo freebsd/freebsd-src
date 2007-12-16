@@ -39,17 +39,6 @@
 
 #define SPIN_COUNT 10000
 
-LT10_COMPAT_PRIVATE(_pthread_spin_init);
-LT10_COMPAT_DEFAULT(pthread_spin_init);
-LT10_COMPAT_PRIVATE(_pthread_spin_destroy);
-LT10_COMPAT_DEFAULT(pthread_spin_destroy);
-LT10_COMPAT_PRIVATE(_pthread_spin_trylock);
-LT10_COMPAT_DEFAULT(pthread_spin_trylock);
-LT10_COMPAT_PRIVATE(_pthread_spin_lock);
-LT10_COMPAT_DEFAULT(pthread_spin_lock);
-LT10_COMPAT_PRIVATE(_pthread_spin_unlock);
-LT10_COMPAT_DEFAULT(pthread_spin_unlock);
-
 __weak_reference(_pthread_spin_init, pthread_spin_init);
 __weak_reference(_pthread_spin_destroy, pthread_spin_destroy);
 __weak_reference(_pthread_spin_trylock, pthread_spin_trylock);

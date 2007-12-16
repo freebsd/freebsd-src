@@ -37,25 +37,6 @@
 /* maximum number of times a read lock may be obtained */
 #define	MAX_READ_LOCKS		(INT_MAX - 1)
 
-LT10_COMPAT_PRIVATE(_pthread_rwlock_destroy);
-LT10_COMPAT_DEFAULT(pthread_rwlock_destroy);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_init);
-LT10_COMPAT_DEFAULT(pthread_rwlock_init);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_rdlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_rdlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_timedrdlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_timedrdlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_tryrdlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_tryrdlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_trywrlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_trywrlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_unlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_unlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_wrlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_wrlock);
-LT10_COMPAT_PRIVATE(_pthread_rwlock_timedwrlock);
-LT10_COMPAT_DEFAULT(pthread_rwlock_timedwrlock);
-
 __weak_reference(_pthread_rwlock_destroy, pthread_rwlock_destroy);
 __weak_reference(_pthread_rwlock_init, pthread_rwlock_init);
 __weak_reference(_pthread_rwlock_rdlock, pthread_rwlock_rdlock);

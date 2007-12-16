@@ -36,9 +36,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_condattr_destroy);
-LT10_COMPAT_DEFAULT(pthread_condattr_destroy);
-
 __weak_reference(_pthread_condattr_destroy, pthread_condattr_destroy);
 
 int

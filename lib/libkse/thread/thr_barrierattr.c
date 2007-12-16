@@ -35,15 +35,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_barrierattr_destroy);
-LT10_COMPAT_DEFAULT(pthread_barrierattr_destroy);
-LT10_COMPAT_PRIVATE(_pthread_barrierattr_init);
-LT10_COMPAT_DEFAULT(pthread_barrierattr_init);
-LT10_COMPAT_PRIVATE(_pthread_barrierattr_setpshared);
-LT10_COMPAT_DEFAULT(pthread_barrierattr_setpshared);
-LT10_COMPAT_PRIVATE(_pthread_barrierattr_getpshared);
-LT10_COMPAT_DEFAULT(pthread_barrierattr_getpshared);
-
 __weak_reference(_pthread_barrierattr_destroy, pthread_barrierattr_destroy);
 __weak_reference(_pthread_barrierattr_init, pthread_barrierattr_init);
 __weak_reference(_pthread_barrierattr_setpshared,

@@ -32,9 +32,6 @@
 #include <pthread.h>
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_wait);
-LT10_COMPAT_DEFAULT(wait);
-
 extern int __wait(int *);
 
 pid_t _wait(int *istat);

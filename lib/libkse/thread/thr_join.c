@@ -35,9 +35,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_join);
-LT10_COMPAT_DEFAULT(pthread_join);
-
 __weak_reference(_pthread_join, pthread_join);
 
 int

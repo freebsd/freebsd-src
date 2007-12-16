@@ -39,11 +39,6 @@
 #include "un-namespace.h"
 #include "thr_private.h"
 
-LT10_COMPAT_PRIVATE(_pthread_switch_add_np);
-LT10_COMPAT_DEFAULT(pthread_switch_add_np);
-LT10_COMPAT_PRIVATE(_pthread_switch_delete_np);
-LT10_COMPAT_DEFAULT(pthread_switch_delete_np);
-
 __weak_reference(_pthread_switch_add_np, pthread_switch_add_np);
 __weak_reference(_pthread_switch_delete_np, pthread_switch_delete_np);
 

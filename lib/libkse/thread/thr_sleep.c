@@ -40,11 +40,6 @@ extern int		__usleep(useconds_t);
 
 unsigned int	_sleep(unsigned int seconds);
 
-LT10_COMPAT_PRIVATE(_sleep);
-LT10_COMPAT_DEFAULT(sleep);
-LT10_COMPAT_PRIVATE(_usleep);
-LT10_COMPAT_DEFAULT(usleep);
-
 __weak_reference(_sleep, sleep);
 __weak_reference(_usleep, usleep);
 
