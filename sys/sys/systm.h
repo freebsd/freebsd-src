@@ -56,10 +56,6 @@ extern int kstack_pages;	/* number of kernel stack pages */
 
 extern int nswap;		/* size of swap space */
 
-extern u_int nselcoll;		/* select collisions since boot */
-extern struct mtx sellock;	/* select lock variable */
-extern struct cv selwait;	/* select conditional variable */
-
 extern long physmem;		/* physical memory */
 extern long realmem;		/* 'real' memory */
 

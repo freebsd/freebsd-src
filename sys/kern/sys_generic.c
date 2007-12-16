@@ -69,17 +69,59 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <sys/ktr.h>
+
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
 
 static int	pollscan(struct thread *, struct pollfd *, u_int);
+static int	pollrescan(struct thread *);
 static int	selscan(struct thread *, fd_mask **, fd_mask **, int);
+static int	selrescan(struct thread *, fd_mask **, fd_mask **);
+static void	selfdalloc(struct thread *, void *);
+static void	selfdfree(struct seltd *, struct selfd *);
 static int	dofileread(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
+static void	seltdinit(struct thread *);
+static int	seltdwait(struct thread *, int);
+static void	seltdclear(struct thread *);
+
+/*
+ * One seltd per-thread allocated on demand as needed.
+ *
+ *	t - protected by st_mtx
+ * 	k - Only accessed by curthread or read-only
+ */
+struct seltd {
+	STAILQ_HEAD(, selfd)	st_selq;	/* (k) List of selfds. */
+	struct selfd		*st_free1;	/* (k) free fd for read set. */
+	struct selfd		*st_free2;	/* (k) free fd for write set. */
+	struct mtx		st_mtx;		/* Protects struct seltd */
+	struct cv		st_wait;	/* (t) Wait channel. */
+	int			st_flags;	/* (t) SELTD_ flags. */
+};
+
+#define	SELTD_PENDING	0x0001			/* We have pending events. */
+#define	SELTD_RESCAN	0x0002			/* Doing a rescan. */
+
+/*
+ * One selfd allocated per-thread per-file-descriptor.
+ *	f - protected by sf_mtx
+ */
+struct selfd {
+	STAILQ_ENTRY(selfd)	sf_link;	/* (k) fds owned by this td. */
+	TAILQ_ENTRY(selfd)	sf_threads;	/* (f) fds on this selinfo. */
+	struct selinfo		*sf_si;		/* (f) selinfo when linked. */
+	struct mtx		*sf_mtx;	/* Pointer to selinfo mtx. */
+	struct seltd		*sf_td;		/* (k) owning seltd. */
+	void			*sf_cookie;	/* (k) fd or pollfd. */
+};
+
+static uma_zone_t selfd_zone;
 
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
@@ -629,14 +671,6 @@ out:
 	return (error);
 }
 
-/*
- * sellock and selwait are initialized in selectinit() via SYSINIT.
- */
-struct mtx	sellock;
-struct cv	selwait;
-u_int		nselcoll;	/* Select collisions since boot */
-SYSCTL_UINT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
-
 #ifndef _SYS_SYSPROTO_H_
 struct select_args {
 	int	nd;
@@ -678,7 +712,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
 	int error, timo;
-	u_int ncoll, nbufbytes, ncpbytes, nfdbits;
+	u_int nbufbytes, ncpbytes, nfdbits;
 
 	if (nd < 0)
 		return (EINVAL);
@@ -723,7 +757,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			sbp += ncpbytes / sizeof *sbp;			\
 			error = copyin(name, ibits[x], ncpbytes);	\
 			if (error != 0)					\
-				goto done_nosellock;			\
+				goto done;				\
 		}							\
 	} while (0)
 	getbits(fd_in, 0);
@@ -737,7 +771,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		atv = *tvp;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done_nosellock;
+			goto done;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -746,58 +780,31 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		atv.tv_usec = 0;
 	}
 	timo = 0;
-	TAILQ_INIT(&td->td_selq);
-	mtx_lock(&sellock);
-retry:
-	ncoll = nselcoll;
-	thread_lock(td);
-	td->td_flags |= TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-	error = selscan(td, ibits, obits, nd);
-	mtx_lock(&sellock);
-	if (error || td->td_retval[0])
-		goto done;
-	if (atv.tv_sec || atv.tv_usec) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
-			goto done;
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timo = ttv.tv_sec > 24 * 60 * 60 ?
-		    24 * 60 * 60 * hz : tvtohz(&ttv);
+	seltdinit(td);
+	/* Iterate until the timeout expires or descriptors become ready. */
+	for (;;) {
+		error = selscan(td, ibits, obits, nd);
+		if (error || td->td_retval[0] != 0)
+			break;
+		if (atv.tv_sec || atv.tv_usec) {
+			getmicrouptime(&rtv);
+			if (timevalcmp(&rtv, &atv, >=))
+				break;
+			ttv = atv;
+			timevalsub(&ttv, &rtv);
+			timo = ttv.tv_sec > 24 * 60 * 60 ?
+			    24 * 60 * 60 * hz : tvtohz(&ttv);
+		}
+		error = seltdwait(td, timo);
+		if (error)
+			break;
+		error = selrescan(td, ibits, obits);
+		if (error || td->td_retval[0] != 0)
+			break;
 	}
-
-	/*
-	 * An event of interest may occur while we do not hold
-	 * sellock, so check TDF_SELECT and the number of
-	 * collisions and rescan the file descriptors if
-	 * necessary.
-	 */
-	thread_lock(td);
-	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		thread_unlock(td);
-		goto retry;
-	}
-	thread_unlock(td);
-
-	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &sellock, timo);
-	else
-		error = cv_wait_sig(&selwait, &sellock);
-	
-	if (error == 0)
-		goto retry;
+	seltdclear(td);
 
 done:
-	clear_selinfo_list(td);
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-done_nosellock:
 	/* select is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -820,6 +827,60 @@ done_nosellock:
 	return (error);
 }
 
+/*
+ * Traverse the list of fds attached to this thread's seltd and check for
+ * completion.
+ */
+static int
+selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
+{
+	struct seltd *stp;
+	struct selfd *sfp;
+	struct selfd *sfn;
+	struct selinfo *si;
+	struct file *fp;
+	int msk, fd;
+	int n = 0;
+	/* Note: backend also returns POLLHUP/POLLERR if appropriate. */
+	static int flag[3] = { POLLRDNORM, POLLWRNORM, POLLRDBAND };
+	struct filedesc *fdp = td->td_proc->p_fd;
+
+	stp = td->td_sel;
+	FILEDESC_SLOCK(fdp);
+	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
+		fd = (int)(uintptr_t)sfp->sf_cookie;
+		si = sfp->sf_si;
+		selfdfree(stp, sfp);
+		/* If the selinfo wasn't cleared the event didn't fire. */
+		if (si != NULL)
+			continue;
+		if ((fp = fget_locked(fdp, fd)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			return (EBADF);
+		}
+		for (msk = 0; msk < 3; msk++) {
+			if (ibits[msk] == NULL)
+				continue;
+			if ((ibits[msk][fd/NFDBITS] &
+			    ((fd_mask) 1 << (fd % NFDBITS))) == 0)
+				continue;
+			if (fo_poll(fp, flag[msk], td->td_ucred, td)) {
+				obits[msk][(fd)/NFDBITS] |=
+				    ((fd_mask)1 << ((fd) % NFDBITS));
+				n++;
+			}
+		}
+	}
+	FILEDESC_SUNLOCK(fdp);
+	stp->st_flags = 0;
+	td->td_retval[0] = n;
+	return (0);
+}
+
+/*
+ * Perform the initial filedescriptor scan and register ourselves with
+ * each selinfo.
+ */
 static int
 selscan(td, ibits, obits, nfd)
 	struct thread *td;
@@ -848,6 +909,7 @@ selscan(td, ibits, obits, nfd)
 					FILEDESC_SUNLOCK(fdp);
 					return (EBADF);
 				}
+				selfdalloc(td, (void *)(uintptr_t)fd);
 				if (fo_poll(fp, flag[msk], td->td_ucred,
 				    td)) {
 					obits[msk][(fd)/NFDBITS] |=
@@ -878,7 +940,7 @@ poll(td, uap)
 	struct pollfd smallbits[32];
 	struct timeval atv, rtv, ttv;
 	int error = 0, timo;
-	u_int ncoll, nfds;
+	u_int nfds;
 	size_t ni;
 
 	nfds = uap->nfds;
@@ -894,8 +956,7 @@ poll(td, uap)
 	if ((nfds > lim_cur(td->td_proc, RLIMIT_NOFILE)) &&
 	    (nfds > FD_SETSIZE)) {
 		PROC_UNLOCK(td->td_proc);
-		error = EINVAL;
-		goto done2;
+		return (EINVAL);
 	}
 	PROC_UNLOCK(td->td_proc);
 	ni = nfds * sizeof(struct pollfd);
@@ -905,13 +966,13 @@ poll(td, uap)
 		bits = smallbits;
 	error = copyin(uap->fds, bits, ni);
 	if (error)
-		goto done_nosellock;
+		goto done;
 	if (uap->timeout != INFTIM) {
 		atv.tv_sec = uap->timeout / 1000;
 		atv.tv_usec = (uap->timeout % 1000) * 1000;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done_nosellock;
+			goto done;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
@@ -920,56 +981,31 @@ poll(td, uap)
 		atv.tv_usec = 0;
 	}
 	timo = 0;
-	TAILQ_INIT(&td->td_selq);
-	mtx_lock(&sellock);
-retry:
-	ncoll = nselcoll;
-	thread_lock(td);
-	td->td_flags |= TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-	error = pollscan(td, bits, nfds);
-	mtx_lock(&sellock);
-	if (error || td->td_retval[0])
-		goto done;
-	if (atv.tv_sec || atv.tv_usec) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
-			goto done;
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timo = ttv.tv_sec > 24 * 60 * 60 ?
-		    24 * 60 * 60 * hz : tvtohz(&ttv);
+	seltdinit(td);
+	/* Iterate until the timeout expires or descriptors become ready. */
+	for (;;) {
+		error = pollscan(td, bits, nfds);
+		if (error || td->td_retval[0] != 0)
+			break;
+		if (atv.tv_sec || atv.tv_usec) {
+			getmicrouptime(&rtv);
+			if (timevalcmp(&rtv, &atv, >=))
+				break;
+			ttv = atv;
+			timevalsub(&ttv, &rtv);
+			timo = ttv.tv_sec > 24 * 60 * 60 ?
+			    24 * 60 * 60 * hz : tvtohz(&ttv);
+		}
+		error = seltdwait(td, timo);
+		if (error)
+			break;
+		error = pollrescan(td);
+		if (error || td->td_retval[0] != 0)
+			break;
 	}
-	/*
-	 * An event of interest may occur while we do not hold
-	 * sellock, so check TDF_SELECT and the number of collisions
-	 * and rescan the file descriptors if necessary.
-	 */
-	thread_lock(td);
-	if ((td->td_flags & TDF_SELECT) == 0 || nselcoll != ncoll) {
-		thread_unlock(td);
-		goto retry;
-	}
-	thread_unlock(td);
-
-	if (timo > 0)
-		error = cv_timedwait_sig(&selwait, &sellock, timo);
-	else
-		error = cv_wait_sig(&selwait, &sellock);
-
-	if (error == 0)
-		goto retry;
+	seltdclear(td);
 
 done:
-	clear_selinfo_list(td);
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	mtx_unlock(&sellock);
-
-done_nosellock:
 	/* poll is not restarted after signals... */
 	if (error == ERESTART)
 		error = EINTR;
@@ -983,9 +1019,52 @@ done_nosellock:
 out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
-done2:
 	return (error);
 }
+
+static int
+pollrescan(struct thread *td)
+{
+	struct seltd *stp;
+	struct selfd *sfp;
+	struct selfd *sfn;
+	struct selinfo *si;
+	struct filedesc *fdp;
+	struct file *fp;
+	struct pollfd *fd;
+	int n;
+
+	n = 0;
+	fdp = td->td_proc->p_fd;
+	stp = td->td_sel;
+	FILEDESC_SLOCK(fdp);
+	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
+		fd = (struct pollfd *)sfp->sf_cookie;
+		si = sfp->sf_si;
+		selfdfree(stp, sfp);
+		/* If the selinfo wasn't cleared the event didn't fire. */
+		if (si != NULL)
+			continue;
+		fp = fdp->fd_ofiles[fd->fd];
+		if (fp == NULL) {
+			fd->revents = POLLNVAL;
+			n++;
+			continue;
+		}
+		/*
+		 * Note: backend also returns POLLHUP and
+		 * POLLERR if appropriate.
+		 */
+		fd->revents = fo_poll(fp, fd->events, td->td_ucred, td);
+		if (fd->revents != 0)
+			n++;
+	}
+	FILEDESC_SUNLOCK(fdp);
+	stp->st_flags = 0;
+	td->td_retval[0] = n;
+	return (0);
+}
+
 
 static int
 pollscan(td, fds, nfd)
@@ -993,7 +1072,7 @@ pollscan(td, fds, nfd)
 	struct pollfd *fds;
 	u_int nfd;
 {
-	register struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedesc *fdp = td->td_proc->p_fd;
 	int i;
 	struct file *fp;
 	int n = 0;
@@ -1015,6 +1094,7 @@ pollscan(td, fds, nfd)
 				 * Note: backend also returns POLLHUP and
 				 * POLLERR if appropriate.
 				 */
+				selfdalloc(td, fds);
 				fds->revents = fo_poll(fp, fds->events,
 				    td->td_ucred, td);
 				if (fds->revents != 0)
@@ -1048,23 +1128,90 @@ openbsd_poll(td, uap)
 }
 
 /*
- * Remove the references to the thread from all of the objects we were
- * polling.
- *
- * This code assumes that the underlying owner of the selinfo structure will
- * hold sellock before it changes it, and that it will unlink itself from our
- * list if it goes away.
+ * XXX This was created specifically to support netncp and netsmb.  This
+ * allows the caller to specify a socket to wait for events on.  It returns
+ * 0 if any events matched and an error otherwise.  There is no way to
+ * determine which events fired.
  */
-void
-clear_selinfo_list(td)
-	struct thread *td;
+int
+selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
 {
-	struct selinfo *si;
+	struct timeval atv, rtv, ttv;
+	int error, timo;
 
-	mtx_assert(&sellock, MA_OWNED);
-	TAILQ_FOREACH(si, &td->td_selq, si_thrlist)
-		si->si_thread = NULL;
-	TAILQ_INIT(&td->td_selq);
+	if (tvp != NULL) {
+		atv = *tvp;
+		if (itimerfix(&atv))
+			return (EINVAL);
+		getmicrouptime(&rtv);
+		timevaladd(&atv, &rtv);
+	} else {
+		atv.tv_sec = 0;
+		atv.tv_usec = 0;
+	}
+
+	timo = 0;
+	seltdinit(td);
+	/*
+	 * Iterate until the timeout expires or the socket becomes ready.
+	 */
+	for (;;) {
+		selfdalloc(td, NULL);
+		error = sopoll(so, events, NULL, td);
+		/* error here is actually the ready events. */
+		if (error)
+			return (0);
+		if (atv.tv_sec || atv.tv_usec) {
+			getmicrouptime(&rtv);
+			if (timevalcmp(&rtv, &atv, >=)) {
+				seltdclear(td);
+				return (EWOULDBLOCK);
+			}
+			ttv = atv;
+			timevalsub(&ttv, &rtv);
+			timo = ttv.tv_sec > 24 * 60 * 60 ?
+			    24 * 60 * 60 * hz : tvtohz(&ttv);
+		}
+		error = seltdwait(td, timo);
+		seltdclear(td);
+		if (error)
+			break;
+	}
+	/* XXX Duplicates ncp/smb behavior. */
+	if (error == ERESTART)
+		error = 0;
+	return (error);
+}
+
+/*
+ * Preallocate two selfds associated with 'cookie'.  Some fo_poll routines
+ * have two select sets, one for read and another for write.
+ */
+static void
+selfdalloc(struct thread *td, void *cookie)
+{
+	struct seltd *stp;
+
+	stp = td->td_sel;
+	if (stp->st_free1 == NULL)
+		stp->st_free1 = uma_zalloc(selfd_zone, M_WAITOK|M_ZERO);
+	stp->st_free1->sf_td = stp;
+	stp->st_free1->sf_cookie = cookie;
+	if (stp->st_free2 == NULL)
+		stp->st_free2 = uma_zalloc(selfd_zone, M_WAITOK|M_ZERO);
+	stp->st_free2->sf_td = stp;
+	stp->st_free2->sf_cookie = cookie;
+}
+
+static void
+selfdfree(struct seltd *stp, struct selfd *sfp)
+{
+	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
+	mtx_lock(sfp->sf_mtx);
+	if (sfp->sf_si)
+		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
+	mtx_unlock(sfp->sf_mtx);
+	uma_zfree(selfd_zone, sfp);
 }
 
 /*
@@ -1075,26 +1222,46 @@ selrecord(selector, sip)
 	struct thread *selector;
 	struct selinfo *sip;
 {
+	struct selfd *sfp;
+	struct seltd *stp;
+	struct mtx *mtxp;
 
-	mtx_lock(&sellock);
+	stp = selector->td_sel;
 	/*
-	 * If the selinfo's thread pointer is NULL then take ownership of it.
-	 *
-	 * If the thread pointer is not NULL and it points to another
-	 * thread, then we have a collision.
-	 *
-	 * If the thread pointer is not NULL and points back to us then leave
-	 * it alone as we've already added pointed it at us and added it to
-	 * our list.
+	 * Don't record when doing a rescan.
 	 */
-	if (sip->si_thread == NULL) {
-		sip->si_thread = selector;
-		TAILQ_INSERT_TAIL(&selector->td_selq, sip, si_thrlist);
-	} else if (sip->si_thread != selector) {
-		sip->si_flags |= SI_COLL;
+	if (stp->st_flags & SELTD_RESCAN)
+		return;
+	/*
+	 * Grab one of the preallocated descriptors.
+	 */
+	sfp = NULL;
+	if ((sfp = stp->st_free1) != NULL)
+		stp->st_free1 = NULL;
+	else if ((sfp = stp->st_free2) != NULL)
+		stp->st_free2 = NULL;
+	else
+		panic("selrecord: No free selfd on selq");
+	mtxp = mtx_pool_find(mtxpool_sleep, sip);
+	/*
+	 * Initialize the sfp and queue it in the thread.
+	 */
+	sfp->sf_si = sip;
+	sfp->sf_mtx = mtxp;
+	STAILQ_INSERT_TAIL(&stp->st_selq, sfp, sf_link);
+	/*
+	 * Now that we've locked the sip, check for initialization.
+	 */
+	mtx_lock(mtxp);
+	if (sip->si_mtx == NULL) {
+		sip->si_mtx = mtxp;
+		TAILQ_INIT(&sip->si_tdlist);
 	}
-
-	mtx_unlock(&sellock);
+	/*
+	 * Add this thread to the list of selfds listening on this selinfo.
+	 */
+	TAILQ_INSERT_TAIL(&sip->si_tdlist, sfp, sf_threads);
+	mtx_unlock(sip->si_mtx);
 }
 
 /* Wake up a selecting thread. */
@@ -1122,36 +1289,115 @@ doselwakeup(sip, pri)
 	struct selinfo *sip;
 	int pri;
 {
-	struct thread *td;
+	struct selfd *sfp;
+	struct selfd *sfn;
+	struct seltd *stp;
 
-	mtx_lock(&sellock);
-	td = sip->si_thread;
-	if ((sip->si_flags & SI_COLL) != 0) {
-		nselcoll++;
-		sip->si_flags &= ~SI_COLL;
-		cv_broadcastpri(&selwait, pri);
-	}
-	if (td == NULL) {
-		mtx_unlock(&sellock);
+	/* If it's not initialized there can't be any waiters. */
+	if (sip->si_mtx == NULL)
 		return;
+	/*
+	 * Locking the selinfo locks all selfds associated with it.
+	 */
+	mtx_lock(sip->si_mtx);
+	TAILQ_FOREACH_SAFE(sfp, &sip->si_tdlist, sf_threads, sfn) {
+		/*
+		 * Once we remove this sfp from the list and clear the
+		 * sf_si seltdclear will know to ignore this si.
+		 */
+		TAILQ_REMOVE(&sip->si_tdlist, sfp, sf_threads);
+		sfp->sf_si = NULL;
+		stp = sfp->sf_td;
+		mtx_lock(&stp->st_mtx);
+		stp->st_flags |= SELTD_PENDING;
+		cv_broadcastpri(&stp->st_wait, pri);
+		mtx_unlock(&stp->st_mtx);
 	}
-	TAILQ_REMOVE(&td->td_selq, sip, si_thrlist);
-	sip->si_thread = NULL;
-	thread_lock(td);
-	td->td_flags &= ~TDF_SELECT;
-	thread_unlock(td);
-	sleepq_remove(td, &selwait);
-	mtx_unlock(&sellock);
+	mtx_unlock(sip->si_mtx);
+}
+
+static void
+seltdinit(struct thread *td)
+{
+	struct seltd *stp;
+
+	if ((stp = td->td_sel) != NULL)
+		goto out;
+	td->td_sel = stp = malloc(sizeof(*stp), M_SELECT, M_WAITOK|M_ZERO);
+	mtx_init(&stp->st_mtx, "sellck", NULL, MTX_DEF);
+	cv_init(&stp->st_wait, "select");
+out:
+	stp->st_flags = 0;
+	STAILQ_INIT(&stp->st_selq);
+}
+
+static int
+seltdwait(struct thread *td, int timo)
+{
+	struct seltd *stp;
+	int error;
+
+	stp = td->td_sel;
+	/*
+	 * An event of interest may occur while we do not hold the seltd
+	 * locked so check the pending flag before we sleep.
+	 */
+	mtx_lock(&stp->st_mtx);
+	/*
+	 * Any further calls to selrecord will be a rescan.
+	 */
+	stp->st_flags |= SELTD_RESCAN;
+	if (stp->st_flags & SELTD_PENDING) {
+		mtx_unlock(&stp->st_mtx);
+		return (0);
+	}
+	if (timo > 0)
+		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
+	else
+		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
+	mtx_unlock(&stp->st_mtx);
+
+	return (error);
+}
+
+void
+seltdfini(struct thread *td)
+{
+	struct seltd *stp;
+
+	stp = td->td_sel;
+	if (stp == NULL)
+		return;
+	if (stp->st_free1)
+		uma_zfree(selfd_zone, stp->st_free1);
+	if (stp->st_free2)
+		uma_zfree(selfd_zone, stp->st_free2);
+	td->td_sel = NULL;
+	free(stp, M_SELECT);
+}
+
+/*
+ * Remove the references to the thread from all of the objects we were
+ * polling.
+ */
+static void
+seltdclear(struct thread *td)
+{
+	struct seltd *stp;
+	struct selfd *sfp;
+	struct selfd *sfn;
+
+	stp = td->td_sel;
+	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn)
+		selfdfree(stp, sfp);
+	stp->st_flags = 0;
 }
 
 static void selectinit(void *);
-SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, selectinit, NULL)
-
-/* ARGSUSED*/
+SYSINIT(select, SI_SUB_SYSCALLS, SI_ORDER_ANY, selectinit, NULL);
 static void
-selectinit(dummy)
-	void *dummy;
+selectinit(void *dummy __unused)
 {
-	cv_init(&selwait, "select");
-	mtx_init(&sellock, "sellck", NULL, MTX_DEF);
+	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 }
