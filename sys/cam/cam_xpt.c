@@ -3862,6 +3862,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 						   &work_ccb->ccb_h, 
 						   xpt_links.stqe);
 
+				mtx_unlock(&xsoftc.xpt_lock);
 				continue;
 			} else {
 				/*
