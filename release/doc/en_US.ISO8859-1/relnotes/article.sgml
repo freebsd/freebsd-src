@@ -1484,7 +1484,14 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       </para>
 
     <para><application>PF</application> has been updated from OpenBSD
-      version 3.7 to OpenBSD version 4.1.</para>
+      version 3.7 to OpenBSD version 4.1.  This update includes a
+      number of functional enhancements.  Two notable changes are
+      that <literal>keep state</literal> is now the default behavior
+      for rules in &man.pf.conf.5; and that <literal>flags
+      S/SA</literal> is now the default flags setting for TCP rules.
+      The options <literal>no state</literal> and <literal>flags
+      any</literal> can be used to disable stateful filtering or TCP
+      flags checking, respectively.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.8 to 8.14.2.  &merged;</para>
