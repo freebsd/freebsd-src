@@ -82,7 +82,7 @@ struct toedev {
 	int	(*tod_close)(struct toedev *dev);
 	int	(*tod_can_offload)(struct toedev *dev, struct socket *so);
 	int	(*tod_connect)(struct toedev *dev, struct socket *so,
-		       struct ifnet *egress_ifp);
+	        struct rtentry *rt, struct sockaddr *nam);
 	int	(*tod_send)(struct toedev *dev, struct mbuf *m);
 	int	(*tod_recv)(struct toedev *dev, struct mbuf **m, int n);
 	int	(*tod_ctl)(struct toedev *dev, unsigned int req, void *data);
