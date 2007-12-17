@@ -212,6 +212,7 @@ static int umtx_key_get(void *addr, int type, int share,
 static void umtx_key_release(struct umtx_key *key);
 static struct umtx_pi *umtx_pi_alloc(int);
 static void umtx_pi_free(struct umtx_pi *pi);
+static void umtx_pi_adjust_locked(struct thread *td, u_char oldpri);
 static int do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags);
 static void umtx_thread_cleanup(struct thread *td);
 static void umtx_exec_hook(void *arg __unused, struct proc *p __unused,
@@ -1294,7 +1295,7 @@ umtx_unpropagate_priority(struct umtx_pi *pi)
 {
 	struct umtx_q *uq, *uq_owner;
 	struct umtx_pi *pi2;
-	int pri;
+	int pri, oldpri;
 
 	mtx_assert(&umtx_lock, MA_OWNED);
 
@@ -1313,8 +1314,10 @@ umtx_unpropagate_priority(struct umtx_pi *pi)
 		if (pri > uq_owner->uq_inherited_pri)
 			pri = uq_owner->uq_inherited_pri;
 		thread_lock(pi->pi_owner);
+		oldpri = pi->pi_owner->td_user_pri;
 		sched_unlend_user_prio(pi->pi_owner, pri);
 		thread_unlock(pi->pi_owner);
+		umtx_pi_adjust_locked(pi->pi_owner, oldpri);
 		pi = uq_owner->uq_pi_blocked;
 	}
 }
@@ -1372,21 +1375,13 @@ umtx_pi_claim(struct umtx_pi *pi, struct thread *owner)
 	return (0);
 }
 
-/*
- * Adjust a thread's order position in its blocked PI mutex,
- * this may result new priority propagating process.
- */
-void
-umtx_pi_adjust(struct thread *td, u_char oldpri)
+static void
+umtx_pi_adjust_locked(struct thread *td, u_char oldpri)
 {
 	struct umtx_q *uq;
 	struct umtx_pi *pi;
 
 	uq = td->td_umtxq;
-
-	mtx_assert(&umtx_lock, MA_OWNED);
-	MPASS(TD_ON_UPILOCK(td));
-
 	/*
 	 * Pick up the lock that td is blocked on.
 	 */
@@ -1403,6 +1398,18 @@ umtx_pi_adjust(struct thread *td, u_char oldpri)
 	 */
 	if (uq == TAILQ_FIRST(&pi->pi_blocked) && UPRI(td) < oldpri)
 		umtx_propagate_priority(td);
+}
+
+/*
+ * Adjust a thread's order position in its blocked PI mutex,
+ * this may result new priority propagating process.
+ */
+void
+umtx_pi_adjust(struct thread *td, u_char oldpri)
+{
+	mtx_lock_spin(&umtx_lock);
+	umtx_pi_adjust_locked(td, oldpri);
+	mtx_unlock_spin(&umtx_lock);
 }
 
 /*
@@ -1457,7 +1464,9 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 		TAILQ_INSERT_TAIL(&pi->pi_blocked, uq, uq_lockq);
 
 	uq->uq_pi_blocked = pi;
+	thread_lock(td);
 	td->td_flags |= TDF_UPIBLOCKED;
+	thread_unlock(td);
 	mtx_unlock_spin(&umtx_lock);
 	umtxq_unlock(&uq->uq_key);
 
@@ -1480,7 +1489,9 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 
 	mtx_lock_spin(&umtx_lock);
 	uq->uq_pi_blocked = NULL;
+	thread_lock(td);
 	td->td_flags &= ~TDF_UPIBLOCKED;
+	thread_unlock(td);
 	TAILQ_REMOVE(&pi->pi_blocked, uq, uq_lockq);
 	umtx_unpropagate_priority(pi);
 	mtx_unlock_spin(&umtx_lock);
@@ -2728,6 +2739,8 @@ umtx_thread_cleanup(struct thread *td)
 		pi->pi_owner = NULL;
 		TAILQ_REMOVE(&uq->uq_pi_contested, pi, pi_link);
 	}
+	thread_lock(td);
 	td->td_flags &= ~TDF_UBORROWING;
+	thread_unlock(td);
 	mtx_unlock_spin(&umtx_lock);
 }
