@@ -592,9 +592,7 @@ nss_method_lookup(const char *source, const char *database,
 			return (match->method);
 		}
 	}
-	if (is_dynamic())
-		nss_log(LOG_DEBUG, "%s, %s, %s, not found", source, database,
-		    method);
+
 	*mdata = NULL;
 	return (NULL);
 }
@@ -701,12 +699,18 @@ _nsdispatch(void *retval, const ns_dtab disp_tab[], const char *database,
 
 			if (result & (srclist[i].flags))
 				break;
-		} else if (fb_method != NULL) {
-			fallback_dispatch = 1;
-			va_start(ap, defaults);
-			result = fb_method(retval, (void *)srclist[i].name, ap);
-			va_end(ap);
-			fallback_dispatch = 0;
+		} else {
+			if (fb_method != NULL) {
+				fallback_dispatch = 1;
+				va_start(ap, defaults);
+				result = fb_method(retval,
+				    (void *)srclist[i].name, ap);
+				va_end(ap);
+				fallback_dispatch = 0;
+			} else
+				nss_log(LOG_DEBUG, "%s, %s, %s, not found, "
+				    "and no fallback provided",
+				    srclist[i].name, database, method_name);
 		}
 	}
 
