@@ -28,7 +28,7 @@
 .\"     from: @(#)ieee.3	6.4 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2005
+.Dd December 16, 2007
 .Dt ILOGB 3
 .Os
 .Sh NAME
@@ -36,7 +36,8 @@
 .Nm ilogbf ,
 .Nm ilogbl ,
 .Nm logb ,
-.Nm logbf
+.Nm logbf ,
+.Nm logbl
 .Nd extract exponent
 .Sh LIBRARY
 .Lb libm
@@ -52,6 +53,8 @@
 .Fn logb "double x"
 .Ft float
 .Fn logbf "float x"
+.Ft long double
+.Fn logbl "long double x"
 .Sh DESCRIPTION
 .Fn ilogb ,
 .Fn ilogbf
@@ -71,9 +74,10 @@ and
 returns
 .Dv FP_ILOGB0 .
 .Pp
-.Fn logb x
+.Fn logb x ,
+.Fn logbf x ,
 and
-.Fn logbf x
+.Fn logbl x
 return
 .Fa x Ns 's exponent
 in floating\-point format with the same precision as
@@ -92,32 +96,29 @@ The
 .Fn ilogb ,
 .Fn ilogbf ,
 .Fn ilogbl ,
-.Fn logb
+.Fn logb ,
+.Fn logbf ,
 and
-.Fn logbf
+.Fn logbl
 routines conform to
 .St -isoC-99 .
-.Fn logb
-and
-.Fn logbf
+The latter three
 implement the logb function recommended by
 .St -ieee754 .
 .Sh HISTORY
-The
-.Fn logb
-function appeared in
-.Bx 4.3 .
-The
-.Fn ilogb
-function appeared in
-.Fx 1.1.5 .
-The
-.Fn ilogbf
-and
-.Fn logbf
-functions appeared in
-.Fx 2.0 .
-The
-.Fn ilogbl
-function appeared in
-.Fx 5.4 .
+.Bl -tag -width "Function " -compact
+.It Em Function
+.Em "First Appeared In"
+.It Fn logb
+.Bx 4.3
+.It Fn ilogb
+.Fx 1.1.5
+.It Fn ilogbf
+.Fx 2.0
+.It Fn logbf
+.Fx 2.0
+.It Fn ilogbl
+.Fx 5.4
+.It Fn logbl
+.Fx 8.0
+.El
