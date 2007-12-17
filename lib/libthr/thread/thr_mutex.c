@@ -79,8 +79,14 @@ int	__pthread_mutex_trylock(pthread_mutex_t *mutex);
 int	__pthread_mutex_lock(pthread_mutex_t *mutex);
 int	__pthread_mutex_timedlock(pthread_mutex_t *mutex,
 		const struct timespec *abstime);
-int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
+int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
+    		void *(calloc_cb)(size_t, size_t));
+int	_pthread_mutex_getspinloops_np(pthread_mutex_t *mutex, int *count);
+int	_pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
+int	__pthread_mutex_setspinloops_np(pthread_mutex_t *mutex, int count);
+int	_pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 int	_pthread_mutex_getyieldloops_np(pthread_mutex_t *mutex, int *count);
+int	__pthread_mutex_setyieldloops_np(pthread_mutex_t *mutex, int count);
 
 static int	mutex_self_trylock(pthread_mutex_t);
 static int	mutex_self_lock(pthread_mutex_t,
