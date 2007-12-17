@@ -38,7 +38,7 @@
 RCSID("$FreeBSD$")
 
 ENTRY(logbl)
-	fldt	4(%esp)
+	fldt	8(%rsp)
 	fxtract
 	fstp	%st
 	ret
