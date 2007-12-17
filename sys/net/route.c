@@ -375,7 +375,7 @@ rtredirect(struct sockaddr *dst,
 			error = rtrequest1(RTM_ADD, &info, &rt);
 			if (rt != NULL) {
 				RT_LOCK(rt);
-				EVENTHANDLER_INVOKE(route_event, RTEVENT_REDIRECT_UPDATE, rt0, rt, dst);
+				EVENTHANDLER_INVOKE(route_redirect_event, rt0, rt, dst);
 				flags = rt->rt_flags;
 			}
 			if (rt0)
@@ -397,7 +397,7 @@ rtredirect(struct sockaddr *dst,
 			 */
 			rt_setgate(rt, rt_key(rt), gateway);
 			gwrt = rtalloc1(gateway, 1, 0);
-			EVENTHANDLER_INVOKE(route_event, RTEVENT_REDIRECT_UPDATE, rt, gwrt, dst);
+			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
 			RTFREE_LOCKED(gwrt);
 		}
 	} else

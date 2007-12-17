@@ -362,16 +362,13 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct sockaddr_dl *sdl;
 	int error;
 
-	if (m != NULL) {
-		
-		if (m->m_flags & M_BCAST) {	/* broadcast */
-			(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
-			return (0);
-		}
-		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
-			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-			return (0);
-		}
+	if (m->m_flags & M_BCAST) {	/* broadcast */
+		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
+		return (0);
+	}
+	if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
+		ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
+		return (0);
 	}
 
 	if (rt0 != NULL) {
@@ -452,10 +449,117 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * response yet.  Replace the held mbuf with this
 	 * latest one.
 	 */
-	if (m != NULL) {
-		if (la->la_hold)
-			m_freem(la->la_hold);
-		la->la_hold = m;
+	if (la->la_hold)
+		m_freem(la->la_hold);
+	la->la_hold = m;
+	KASSERT(rt->rt_expire > 0, ("sending ARP request for static entry"));
+
+	/*
+	 * Return EWOULDBLOCK if we have tried less than arp_maxtries. It
+	 * will be masked by ether_output(). Return EHOSTDOWN/EHOSTUNREACH
+	 * if we have already sent arp_maxtries ARP requests. Retransmit the
+	 * ARP request, but not faster than one request per second.
+	 */
+	if (la->la_asked < arp_maxtries)
+		error = EWOULDBLOCK;	/* First request. */
+	else
+		error = (rt == rt0) ? EHOSTDOWN : EHOSTUNREACH;
+
+	if (la->la_asked == 0 || rt->rt_expire != time_uptime) {
+		struct in_addr sin =
+		    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
+
+		rt->rt_expire = time_uptime;
+		callout_reset(&la->la_timer, hz, arptimer, rt);
+		la->la_asked++;
+		RT_UNLOCK(rt);
+
+		arprequest(ifp, &sin, &SIN(dst)->sin_addr,
+		    IF_LLADDR(ifp));
+	} else
+		RT_UNLOCK(rt);
+
+	return (error);
+}
+
+
+int
+arpresolve2(struct ifnet *ifp, struct rtentry *rt0, struct sockaddr *dst,
+    u_char *desten)
+{
+	struct llinfo_arp *la = NULL;
+	struct rtentry *rt = NULL;
+	struct sockaddr_dl *sdl;
+	int error;
+
+	if (rt0 != NULL) {
+		error = rt_check(&rt, &rt0, dst);
+		if (error) 
+			return (error);
+		
+		la = (struct llinfo_arp *)rt->rt_llinfo;
+		if (la == NULL)
+			RT_UNLOCK(rt);
+	}
+	if (la == NULL) {
+		/*
+		 * We enter this block in case if rt0 was NULL,
+		 * or if rt found by rt_check() didn't have llinfo.
+		 */
+		rt = arplookup(SIN(dst)->sin_addr.s_addr, 1, 0);
+		if (rt == NULL) {
+			log(LOG_DEBUG,
+			    "arpresolve: can't allocate route for %s\n",
+			    inet_ntoa(SIN(dst)->sin_addr));
+			return (EINVAL); /* XXX */
+		}
+		la = (struct llinfo_arp *)rt->rt_llinfo;
+		if (la == NULL) {
+			RT_UNLOCK(rt);
+			log(LOG_DEBUG,
+			    "arpresolve: can't allocate llinfo for %s\n",
+			    inet_ntoa(SIN(dst)->sin_addr));
+			return (EINVAL); /* XXX */
+		}
+	}
+	sdl = SDL(rt->rt_gateway);
+	/*
+	 * Check the address family and length is valid, the address
+	 * is resolved; otherwise, try to resolve.
+	 */
+	if ((rt->rt_expire == 0 || rt->rt_expire > time_uptime) &&
+	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
+
+		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
+
+		/*
+		 * If entry has an expiry time and it is approaching,
+		 * send an ARP request.
+		 */
+		if ((rt->rt_expire != 0) &&
+		    (time_uptime + la->la_preempt > rt->rt_expire)) {
+			struct in_addr sin = 
+			    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
+
+			la->la_preempt--;
+			RT_UNLOCK(rt);
+			arprequest(ifp, &sin, &SIN(dst)->sin_addr,
+			    IF_LLADDR(ifp));
+			return (0);
+		} 
+
+		RT_UNLOCK(rt);
+		return (0);
+	}
+	/*
+	 * If ARP is disabled or static on this interface, stop.
+	 * XXX
+	 * Probably should not allocate empty llinfo struct if we are
+	 * not going to be sending out an arp request.
+	 */
+	if (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) {
+		RT_UNLOCK(rt);
+		return (EINVAL);
 	}
 	KASSERT(rt->rt_expire > 0, ("sending ARP request for static entry"));
 
@@ -585,6 +689,7 @@ in_arpinput(struct mbuf *m)
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = 0;
 	
 	if (ifp->if_bridge)
 		bridged = 1;
@@ -673,8 +778,8 @@ match:
 	rt = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (rt != NULL) {
 		sin.sin_addr.s_addr = isaddr.s_addr;
-		EVENTHANDLER_INVOKE(route_event, RTEVENT_ARP_UPDATE, rt, NULL,
-		    (struct sockaddr *)&sin);
+		EVENTHANDLER_INVOKE(route_arp_update_event, rt,
+		    ar_sha(ah), (struct sockaddr *)&sin);
 		
 		la = (struct llinfo_arp *)rt->rt_llinfo;
 		if (la == NULL) {
