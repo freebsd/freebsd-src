@@ -268,6 +268,7 @@ CD=			${_R}/cdrom
 CD_BOOT=		${CD}/bootonly
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+CD_DISC3=		${CD}/disc3
 .if !defined(NODOC)
 CD_DOCS=		${CD}/docs
 .endif
@@ -959,7 +960,7 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 	touch ${.TARGET}
 
-# Build disc1 and disc2 cdrom images
+# Build disc1, disc2 and disc3 cdrom images
 cdrom.2:
 	@echo "Building CDROM disc1 filesystem image"
 	@mkdir -p ${CD_DISC1}/${BUILDNAME}
@@ -993,6 +994,10 @@ cdrom.2:
 	@mkdir -p ${CD_DISC2}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@echo "CD_VOLUME = 2" >> ${CD_DISC2}/cdrom.inf
+	@echo "Building CDROM disc3 filesystem image"
+	@mkdir -p ${CD_DISC3}
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC3}/cdrom.inf
+	@echo "CD_VOLUME = 3" >> ${CD_DISC3}/cdrom.inf
 .if !defined(NODOC)
 	@echo "Building CDROM docs filesystem image"
 	@mkdir -p ${CD_DOCS}
@@ -1035,6 +1040,9 @@ CD_DISC1_PKGS=	${CD_PACKAGE_TREE}/disc1
 .if exists(${CD_PACKAGE_TREE}/disc2)
 CD_DISC2_PKGS=	${CD_PACKAGE_TREE}/disc2
 .endif
+.if exists(${CD_PACKAGE_TREE}/disc3)
+CD_DISC3_PKGS=	${CD_PACKAGE_TREE}/disc3
+.endif
 .endif
 .endif
 
@@ -1054,6 +1062,10 @@ iso.1:
 	    FreeBSD_Packages \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	    FreeBSD_Packages_2 \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc3.iso ${CD_DISC3} \
+	    ${CD_DISC3_PKGS}
 .if !defined(NODOC)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Documentation \
