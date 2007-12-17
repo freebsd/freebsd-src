@@ -78,8 +78,8 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	s_fmal.c s_frexpl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
-	s_scalbnl.c
+COMMON_SRCS+=	s_fmal.c s_frexpl.c s_logbl.c s_nanl.c \
+	s_nextafterl.c s_nexttoward.c s_scalbnl.c
 .endif
 
 # C99 complex functions
@@ -146,7 +146,7 @@ MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 hypotf.3
 MLINKS+=ieee_test.3 scalb.3 ieee_test.3 scalbf.3
 MLINKS+=ieee_test.3 significand.3 ieee_test.3 significandf.3
 MLINKS+=ilogb.3 ilogbf.3 ilogb.3 ilogbl.3 \
-	ilogb.3 logb.3 ilogb.3 logbf.3
+	ilogb.3 logb.3 ilogb.3 logbf.3 ilogb.3 logbl.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
