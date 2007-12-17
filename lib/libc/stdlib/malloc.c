@@ -104,6 +104,20 @@
 #  define MALLOC_DEBUG
 #endif
 
+/*
+ * MALLOC_LAZY_FREE enables the use of a per-thread vector of slots that free()
+ * can atomically stuff object pointers into.  This can reduce arena lock
+ * contention.
+ */
+#define	MALLOC_LAZY_FREE
+
+/*
+ * MALLOC_BALANCE enables monitoring of arena lock contention and dynamically
+ * re-balances arena load if exponentially averaged contention exceeds a
+ * certain threshold.
+ */
+#define	MALLOC_BALANCE
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -216,6 +230,17 @@ __FBSDID("$FreeBSD$");
 #  define NO_TLS
 #endif
 
+#ifdef NO_TLS
+   /* MALLOC_BALANCE requires TLS. */
+#  ifdef MALLOC_BALANCE
+#    undef MALLOC_BALANCE
+#  endif
+   /* MALLOC_LAZY_FREE requires TLS. */
+#  ifdef MALLOC_LAZY_FREE
+#    undef MALLOC_LAZY_FREE
+#  endif
+#endif
+
 /*
  * Size and alignment of memory chunks that are allocated by the OS's virtual
  * memory system.
@@ -261,8 +286,9 @@ __FBSDID("$FreeBSD$");
 #define	RUN_MAX_SMALL_2POW	15
 #define	RUN_MAX_SMALL		(1U << RUN_MAX_SMALL_2POW)
 
+#ifdef MALLOC_LAZY_FREE
 /* Default size of each arena's lazy free cache. */
-#define	LAZY_FREE_2POW_DEFAULT	8
+#  define LAZY_FREE_2POW_DEFAULT	8
 /*
  * Number of pseudo-random probes to conduct before considering the cache to be
  * overly full.  It takes on average n probes to detect fullness of (n-1)/n.
@@ -270,7 +296,8 @@ __FBSDID("$FreeBSD$");
  * deallocation is a trial), so the actual average threshold for clearing the
  * cache is somewhat lower.
  */
-#define	LAZY_FREE_NPROBES	5
+#  define LAZY_FREE_NPROBES	5
+#endif
 
 /*
  * Hyper-threaded CPUs may need a special instruction inside spin loops in
@@ -295,6 +322,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	BLOCK_COST_2POW		4
 
+#ifdef MALLOC_BALANCE
 /*
  * We use an exponential moving average to track recent lock contention, where
  * the size of the history window is N, and alpha=2/(N+1).
@@ -303,13 +331,14 @@ __FBSDID("$FreeBSD$");
  * degradation in accuracy, thus making the moving average decay faster than it
  * would with precise calculation.
  */
-#define	BALANCE_ALPHA_INV_2POW	9
+#  define BALANCE_ALPHA_INV_2POW	9
 
 /*
  * Threshold value for the exponential moving contention average at which to
  * re-assign a thread.
  */
-#define	BALANCE_THRESHOLD_DEFAULT	(1U << (SPIN_LIMIT_2POW-4))
+#  define BALANCE_THRESHOLD_DEFAULT	(1U << (SPIN_LIMIT_2POW-4))
+#endif
 
 /******************************************************************************/
 
@@ -373,7 +402,7 @@ struct arena_stats_s {
 	uint64_t	nmalloc_large;
 	uint64_t	ndalloc_large;
 
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 	/* Number of times this arena reassigned a thread due to contention. */
 	uint64_t	nbalance;
 #endif
@@ -587,13 +616,15 @@ struct arena_s {
 	 */
 	arena_chunk_t		*spare;
 
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 	/*
 	 * The arena load balancing machinery needs to keep track of how much
 	 * lock contention there is.  This value is exponentially averaged.
 	 */
 	uint32_t		contention;
+#endif
 
+#ifdef MALLOC_LAZY_FREE
 	/*
 	 * Deallocation of small objects can be lazy, in which case free_cache
 	 * stores pointers to those objects that have not yet been deallocated.
@@ -734,7 +765,11 @@ static size_t		base_mapped;
 static arena_t		**arenas;
 static unsigned		narenas;
 #ifndef NO_TLS
+#  ifdef MALLOC_BALANCE
 static unsigned		narenas_2pow;
+#  else
+static unsigned		next_arena;
+#  endif
 #endif
 static pthread_mutex_t arenas_lock; /* Protects arenas initialization. */
 
@@ -765,8 +800,10 @@ static bool	opt_abort = false;
 static bool	opt_junk = false;
 #endif
 static bool	opt_hint = false;
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 static int	opt_lazy_free_2pow = LAZY_FREE_2POW_DEFAULT;
+#endif
+#ifdef MALLOC_BALANCE
 static uint64_t	opt_balance_threshold = BALANCE_THRESHOLD_DEFAULT;
 #endif
 static bool	opt_print_stats = false;
@@ -796,7 +833,7 @@ typedef struct {
  * Begin function prototypes for non-inline static functions.
  */
 
-static void	malloc_mutex_init(malloc_mutex_t *a_mutex);
+static void	malloc_mutex_init(malloc_mutex_t *mutex);
 static bool	malloc_spin_init(pthread_mutex_t *lock);
 static void	wrtmessage(const char *p1, const char *p2, const char *p3,
 		const char *p4);
@@ -860,27 +897,27 @@ static bool	malloc_init_hard(void);
  */
 
 static void
-malloc_mutex_init(malloc_mutex_t *a_mutex)
+malloc_mutex_init(malloc_mutex_t *mutex)
 {
 	static const spinlock_t lock = _SPINLOCK_INITIALIZER;
 
-	a_mutex->lock = lock;
+	mutex->lock = lock;
 }
 
 static inline void
-malloc_mutex_lock(malloc_mutex_t *a_mutex)
+malloc_mutex_lock(malloc_mutex_t *mutex)
 {
 
 	if (__isthreaded)
-		_SPINLOCK(&a_mutex->lock);
+		_SPINLOCK(&mutex->lock);
 }
 
 static inline void
-malloc_mutex_unlock(malloc_mutex_t *a_mutex)
+malloc_mutex_unlock(malloc_mutex_t *mutex)
 {
 
 	if (__isthreaded)
-		_SPINUNLOCK(&a_mutex->lock);
+		_SPINUNLOCK(&mutex->lock);
 }
 
 /*
@@ -1013,7 +1050,7 @@ pow2_ceil(size_t x)
 	return (x);
 }
 
-#ifndef NO_TLS
+#if (defined(MALLOC_LAZY_FREE) || defined(MALLOC_BALANCE))
 /*
  * Use a simple linear congruential pseudo-random number generator:
  *
@@ -1032,7 +1069,7 @@ pow2_ceil(size_t x)
  * the next has a cycle of 4, etc.  For this reason, we prefer to use the upper
  * bits.
  */
-#define	PRN_DEFINE(suffix, var, a, c)					\
+#  define PRN_DEFINE(suffix, var, a, c)					\
 static inline void							\
 sprn_##suffix(uint32_t seed)						\
 {									\
@@ -1053,21 +1090,25 @@ prn_##suffix(uint32_t lg_range)						\
 									\
 	return (ret);							\
 }
-#define	SPRN(suffix, seed)	sprn_##suffix(seed)
-#define	PRN(suffix, lg_range)	prn_##suffix(lg_range)
+#  define SPRN(suffix, seed)	sprn_##suffix(seed)
+#  define PRN(suffix, lg_range)	prn_##suffix(lg_range)
+#endif
 
 /*
  * Define PRNGs, one for each purpose, in order to avoid auto-correlation
  * problems.
  */
 
+#ifdef MALLOC_LAZY_FREE
 /* Define the per-thread PRNG used for lazy deallocation. */
 static __thread uint32_t lazy_free_x;
 PRN_DEFINE(lazy_free, lazy_free_x, 12345, 12347)
+#endif
 
+#ifdef MALLOC_BALANCE
 /* Define the PRNG used for arena assignment. */
 static __thread uint32_t balance_x;
-PRN_DEFINE(balance, balance_x, 1297, 1301);
+PRN_DEFINE(balance, balance_x, 1297, 1301)
 #endif
 
 static void
@@ -1270,8 +1311,7 @@ base_chunk_node_dealloc(chunk_node_t *node)
 static void
 stats_print(arena_t *arena)
 {
-	unsigned i;
-	int gap_start;
+	unsigned i, gap_start;
 
 	malloc_printf(
 	    "          allocated/mapped            nmalloc      ndalloc\n");
@@ -1289,12 +1329,12 @@ stats_print(arena_t *arena)
 
 	malloc_printf("bins:     bin   size regs pgs  requests   newruns"
 	    "    reruns maxruns curruns\n");
-	for (i = 0, gap_start = -1; i < ntbins + nqbins + nsbins; i++) {
+	for (i = 0, gap_start = UINT_MAX; i < ntbins + nqbins + nsbins; i++) {
 		if (arena->bins[i].stats.nrequests == 0) {
-			if (gap_start == -1)
+			if (gap_start == UINT_MAX)
 				gap_start = i;
 		} else {
-			if (gap_start != -1) {
+			if (gap_start != UINT_MAX) {
 				if (i > gap_start + 1) {
 					/* Gap of more than one size class. */
 					malloc_printf("[%u..%u]\n",
@@ -1303,7 +1343,7 @@ stats_print(arena_t *arena)
 					/* Gap of one size class. */
 					malloc_printf("[%u]\n", gap_start);
 				}
-				gap_start = -1;
+				gap_start = UINT_MAX;
 			}
 			malloc_printf(
 			    "%13u %1s %4u %4u %3u %9llu %9llu"
@@ -1320,7 +1360,7 @@ stats_print(arena_t *arena)
 			    arena->bins[i].stats.curruns);
 		}
 	}
-	if (gap_start != -1) {
+	if (gap_start != UINT_MAX) {
 		if (i > gap_start + 1) {
 			/* Gap of more than one size class. */
 			malloc_printf("[%u..%u]\n", gap_start, i - 1);
@@ -1356,7 +1396,7 @@ chunk_comp(chunk_node_t *a, chunk_node_t *b)
 }
 
 /* Generate red-black tree code for chunks. */
-RB_GENERATE_STATIC(chunk_tree_s, chunk_node_s, link, chunk_comp);
+RB_GENERATE_STATIC(chunk_tree_s, chunk_node_s, link, chunk_comp)
 
 static void *
 pages_map(void *addr, size_t size)
@@ -1754,6 +1794,7 @@ choose_arena_hard(void)
 
 	assert(__isthreaded);
 
+#ifdef MALLOC_LAZY_FREE
 	/*
 	 * Seed the PRNG used for lazy deallocation.  Since seeding only occurs
 	 * on the first allocation by a thread, it is possible for a thread to
@@ -1765,7 +1806,9 @@ choose_arena_hard(void)
 	 * synchronization.
 	 */
 	SPRN(lazy_free, (uint32_t)(uintptr_t)(_pthread_self()));
+#endif
 
+#ifdef MALLOC_BALANCE
 	/*
 	 * Seed the PRNG used for arena load balancing.  We can get away with
 	 * using the same seed here as for the lazy_free PRNG without
@@ -1773,8 +1816,10 @@ choose_arena_hard(void)
 	 * distinct.
 	 */
 	SPRN(balance, (uint32_t)(uintptr_t)(_pthread_self()));
+#endif
 
 	if (narenas > 1) {
+#ifdef MALLOC_BALANCE
 		unsigned ind;
 
 		ind = PRN(balance, narenas_2pow);
@@ -1784,6 +1829,13 @@ choose_arena_hard(void)
 				ret = arenas_extend(ind);
 			malloc_spin_unlock(&arenas_lock);
 		}
+#else
+		malloc_spin_lock(&arenas_lock);
+		if ((ret = arenas[next_arena]) == NULL)
+			ret = arenas_extend(next_arena);
+		next_arena = (next_arena + 1) % narenas;
+		malloc_spin_unlock(&arenas_lock);
+#endif
 	} else
 		ret = arenas[0];
 
@@ -1809,7 +1861,7 @@ arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 }
 
 /* Generate red-black tree code for arena chunks. */
-RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp);
+RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp)
 
 static inline int
 arena_run_comp(arena_run_t *a, arena_run_t *b)
@@ -1827,7 +1879,7 @@ arena_run_comp(arena_run_t *a, arena_run_t *b)
 }
 
 /* Generate red-black tree code for arena runs. */
-RB_GENERATE_STATIC(arena_run_tree_s, arena_run_s, link, arena_run_comp);
+RB_GENERATE_STATIC(arena_run_tree_s, arena_run_s, link, arena_run_comp)
 
 static inline void *
 arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
@@ -2484,10 +2536,10 @@ arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size)
 	return (good_run_size);
 }
 
+#ifdef MALLOC_BALANCE
 static inline void
 arena_lock_balance(arena_t *arena)
 {
-#ifndef NO_TLS
 	unsigned contention;
 
 	contention = malloc_spin_lock(&arena->lock);
@@ -2520,11 +2572,8 @@ arena_lock_balance(arena_t *arena)
 			}
 		}
 	}
-#else
-	malloc_spin_lock(&arena->lock);
-#endif
-
 }
+#endif
 
 static void *
 arena_malloc(arena_t *arena, size_t size, bool zero)
@@ -2569,7 +2618,11 @@ arena_malloc(arena_t *arena, size_t size, bool zero)
 		}
 		assert(size == bin->reg_size);
 
+#ifdef MALLOC_BALANCE
 		arena_lock_balance(arena);
+#else
+		malloc_spin_lock(&arena->lock);
+#endif
 		if ((run = bin->runcur) != NULL && run->nfree > 0)
 			ret = arena_bin_malloc_easy(arena, bin, run);
 		else
@@ -2597,7 +2650,11 @@ arena_malloc(arena_t *arena, size_t size, bool zero)
 	} else {
 		/* Large allocation. */
 		size = PAGE_CEILING(size);
+#ifdef MALLOC_BALANCE
 		arena_lock_balance(arena);
+#else
+		malloc_spin_lock(&arena->lock);
+#endif
 		ret = (void *)arena_run_alloc(arena, size, zero);
 		if (ret == NULL) {
 			malloc_spin_unlock(&arena->lock);
@@ -2654,7 +2711,11 @@ arena_palloc(arena_t *arena, size_t alignment, size_t size, size_t alloc_size)
 
 	npages = size >> pagesize_2pow;
 
+#ifdef MALLOC_BALANCE
 	arena_lock_balance(arena);
+#else
+	malloc_spin_lock(&arena->lock);
+#endif
 	ret = (void *)arena_run_alloc(arena, alloc_size, false);
 	if (ret == NULL) {
 		malloc_spin_unlock(&arena->lock);
@@ -2738,8 +2799,8 @@ arena_salloc(const void *ptr)
 	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = &chunk->map[pageind];
-	if (mapelm->pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
-	    pagesize_2pow)) {
+	if (mapelm->pos != 0 || ptr != (void *)(((uintptr_t)chunk) + (pageind <<
+	    pagesize_2pow))) {
 		arena_run_t *run;
 
 		pageind -= mapelm->pos;
@@ -2867,7 +2928,7 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 #endif
 }
 
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 static inline void
 arena_dalloc_lazy(arena_t *arena, arena_chunk_t *chunk, void *ptr,
     unsigned pageind, arena_chunk_map_t *mapelm)
@@ -2955,10 +3016,10 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 
 	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
 	mapelm = &chunk->map[pageind];
-	if (mapelm->pos != 0 || ptr != (void *)((uintptr_t)chunk) + (pageind <<
-	    pagesize_2pow)) {
+	if (mapelm->pos != 0 || ptr != (void *)(((uintptr_t)chunk) + (pageind <<
+	    pagesize_2pow))) {
 		/* Small allocation. */
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 		arena_dalloc_lazy(arena, chunk, ptr, pageind, mapelm);
 #else
 		malloc_spin_lock(&arena->lock);
@@ -3004,8 +3065,10 @@ arena_new(arena_t *arena)
 	RB_INIT(&arena->chunks);
 	arena->spare = NULL;
 
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 	arena->contention = 0;
+#endif
+#ifdef MALLOC_LAZY_FREE
 	if (opt_lazy_free_2pow >= 0) {
 		arena->free_cache = (void **) base_alloc(sizeof(void *)
 		    * (1U << opt_lazy_free_2pow));
@@ -3529,12 +3592,14 @@ malloc_print_stats(void)
 
 		_malloc_message("CPUs: ", umax2s(ncpus, s), "\n", "");
 		_malloc_message("Max arenas: ", umax2s(narenas, s), "\n", "");
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 		if (opt_lazy_free_2pow >= 0) {
 			_malloc_message("Lazy free slots: ",
 			    umax2s(1U << opt_lazy_free_2pow, s), "\n", "");
 		} else
 			_malloc_message("Lazy free slots: 0\n", "", "", "");
+#endif
+#ifdef MALLOC_BALANCE
 		_malloc_message("Arena balance threshold: ",
 		    umax2s(opt_balance_threshold, s), "\n", "");
 #endif
@@ -3550,7 +3615,7 @@ malloc_print_stats(void)
 #ifdef MALLOC_STATS
 		{
 			size_t allocated, mapped;
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 			uint64_t nbalance = 0;
 #endif
 			unsigned i;
@@ -3566,7 +3631,7 @@ malloc_print_stats(void)
 					    arenas[i]->stats.allocated_small;
 					allocated +=
 					    arenas[i]->stats.allocated_large;
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 					nbalance += arenas[i]->stats.nbalance;
 #endif
 					malloc_spin_unlock(&arenas[i]->lock);
@@ -3586,7 +3651,7 @@ malloc_print_stats(void)
 			malloc_printf("Allocated: %zu, mapped: %zu\n",
 			    allocated, mapped);
 
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 			malloc_printf("Arena balance reassignments: %llu\n",
 			    nbalance);
 #endif
@@ -3677,7 +3742,7 @@ malloc_init_hard(void)
 		}
 	}
 
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 	if (ncpus == 1)
 		opt_lazy_free_2pow = -1;
 #endif
@@ -3757,12 +3822,12 @@ malloc_init_hard(void)
 				opt_abort = true;
 				break;
 			case 'b':
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 				opt_balance_threshold >>= 1;
 #endif
 				break;
 			case 'B':
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 				if (opt_balance_threshold == 0)
 					opt_balance_threshold = 1;
 				else if ((opt_balance_threshold << 1)
@@ -3803,13 +3868,13 @@ malloc_init_hard(void)
 					opt_chunk_2pow++;
 				break;
 			case 'l':
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 				if (opt_lazy_free_2pow >= 0)
 					opt_lazy_free_2pow--;
 #endif
 				break;
 			case 'L':
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 				if (ncpus > 1)
 					opt_lazy_free_2pow++;
 #endif
@@ -3922,7 +3987,7 @@ malloc_init_hard(void)
 	}
 	arena_maxclass = chunksize - (arena_chunk_header_npages <<
 	    pagesize_2pow);
-#ifndef NO_TLS
+#ifdef MALLOC_LAZY_FREE
 	/*
 	 * Make sure that allocating the free_cache does not exceed the limits
 	 * of what base_alloc() can handle.
@@ -4000,7 +4065,7 @@ malloc_init_hard(void)
 		if (narenas == 0)
 			narenas = 1;
 	}
-#ifndef NO_TLS
+#ifdef MALLOC_BALANCE
 	assert(narenas != 0);
 	for (narenas_2pow = 0;
 	     (narenas >> (narenas_2pow + 1)) != 0;
@@ -4034,6 +4099,12 @@ malloc_init_hard(void)
 	}
 #endif
 
+#ifndef NO_TLS
+#  ifndef MALLOC_BALANCE
+	next_arena = 0;
+#  endif
+#endif
+
 	/* Allocate and initialize arenas. */
 	arenas = (arena_t **)base_alloc(sizeof(arena_t *) * narenas);
 	if (arenas == NULL) {
@@ -4062,11 +4133,15 @@ malloc_init_hard(void)
 	 * threaded mode.
 	 */
 	arenas_map = arenas[0];
+#endif
 	/*
 	 * Seed here for the initial thread, since choose_arena_hard() is only
 	 * called for other threads.  The seed values don't really matter.
 	 */
+#ifdef MALLOC_LAZY_FREE
 	SPRN(lazy_free, 42);
+#endif
+#ifdef MALLOC_BALANCE
 	SPRN(balance, 42);
 #endif
 
