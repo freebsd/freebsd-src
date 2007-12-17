@@ -419,8 +419,7 @@ done:
 		if (!(pid = vfork())) {
 			execl(_PATH_RM, "mv", "-rf", "--", cleanup[i],
 			    (char *)NULL);
-			warn("%s %s", _PATH_RM, cleanup[i]);
-			_exit(1);
+			_exit(EX_OSERR);
 		}
 		if (waitpid(pid, &status, 0) == -1) {
 			warn("%s %s: waitpid", _PATH_RM, cleanup[i]);
@@ -433,7 +432,14 @@ done:
 			rval = 1;
 			continue;
 		}
-		if (WEXITSTATUS(status)) {
+		switch (WEXITSTATUS(status)) {
+		case 0:
+			break;
+		case EX_OSERR:
+			warnx("Failed to exec %s %s", _PATH_RM, cleanup[i]);
+			rval = 1;
+			continue;
+		default:
 			warnx("%s %s: terminated with %d (non-zero) status",
 			    _PATH_RM, cleanup[i], WEXITSTATUS(status));
 			rval = 1;
