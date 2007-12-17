@@ -1012,14 +1012,12 @@ init_offload_socket(struct socket *so, struct toedev *dev, unsigned int tid,
 	SOCK_LOCK_ASSERT(so);
 	
 	printf("initializing offload socket\n");
-#ifdef notyet
 	/*
 	 * We either need to fix push frames to work with sbcompress
 	 * or we need to add this
 	 */
-	so->so_rcv.sb_flags |= SB_TOE;
-	so->so_snd.sb_flags |= SB_TOE;
-#endif	
+	so->so_snd.sb_flags |= SB_NOCOALESCE;
+
 	tp->t_toe = toep;
 	toep->tp_tp = tp;
 	toep->tp_toedev = dev;
