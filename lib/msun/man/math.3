@@ -28,7 +28,7 @@
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2005
+.Dd December 16, 2007
 .Dt MATH 3
 .Os
 .if n \{\
@@ -69,6 +69,11 @@ and
 .Ft "long double"
 .Fn acosl "long double x" ,
 respectively.
+The classification macros and silent order predicates are type generic and
+should not be suffixed with
+.Ql f
+or
+.Ql l .
 .de Cl
 .Bl -column "isgreaterequal" "bessel function of the second kind of the order 0"
 .Em "Name	Description"
@@ -80,7 +85,7 @@ fma	fused multiply-add
 hypot	Euclidean distance
 sqrt	square root
 .El
-.Ss Classification Functions
+.Ss Classification Macros
 .Cl
 fpclassify	classify a floating-point value
 isfinite	determine whether a value is finite
@@ -106,10 +111,10 @@ fmax	maximum function
 fmin	minimum function
 signbit	extract sign bit
 .El
-.\" .Ss Not a Number
-.\" .Cl
-.\" nan	return quiet \*(Na)	0
-.\" .El
+.Ss Not a Number Functions
+.Cl
+nan	generate a quiet \*(Na
+.El
 .Ss Residue and Rounding Functions
 .Cl
 ceil	integer no less than
@@ -199,7 +204,8 @@ For most of these functions, however, incorrect rounding occurs
 rarely, and then only in very-close-to-halfway cases.
 .Sh SEE ALSO
 .Xr fenv 3 ,
-.Xr ieee 3
+.Xr ieee 3 ,
+.Xr tgmath 3
 .Sh HISTORY
 A math library with many of the present functions appeared in
 .At v7 .
@@ -219,9 +225,7 @@ values, were written for or imported into subsequent versions of FreeBSD.
 .Sh BUGS
 The
 .Fn log2
-and
-.Fn nan
-functions are missing, and many functions are not available in their
+function is missing, and many functions are not available in their
 .Vt "long double"
 variants.
 .Pp
