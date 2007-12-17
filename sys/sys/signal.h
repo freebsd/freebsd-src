@@ -153,6 +153,9 @@ union sigval {
 	/* Members as suggested by Annex C of POSIX 1003.1b. */
 	int	sival_int;
 	void	*sival_ptr;
+	/* 6.0 compatibility */
+	int     sigval_int;
+	void    *sigval_ptr;
 };
 #endif
 
