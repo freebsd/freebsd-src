@@ -72,6 +72,7 @@ mac_posixsem_label_free(struct label *label)
 {
 
 	MAC_PERFORM(posixsem_destroy_label, label);
+	mac_labelzone_free(label);
 }
 
 void
