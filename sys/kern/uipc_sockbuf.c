@@ -761,6 +761,7 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 		}
 		if (n && (n->m_flags & M_EOR) == 0 &&
 		    M_WRITABLE(n) &&
+		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
 		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
 		    m->m_len <= M_TRAILINGSPACE(n) &&
 		    n->m_type == m->m_type) {
