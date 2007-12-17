@@ -1407,8 +1407,17 @@ umtx_pi_adjust_locked(struct thread *td, u_char oldpri)
 void
 umtx_pi_adjust(struct thread *td, u_char oldpri)
 {
+	struct umtx_q *uq;
+	struct umtx_pi *pi;
+
+	uq = td->td_umtxq;
 	mtx_lock_spin(&umtx_lock);
-	umtx_pi_adjust_locked(td, oldpri);
+	/*
+	 * Pick up the lock that td is blocked on.
+	 */
+	pi = uq->uq_pi_blocked;
+	if (pi != NULL)
+		umtx_pi_adjust_locked(td, oldpri);
 	mtx_unlock_spin(&umtx_lock);
 }
 
