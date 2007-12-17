@@ -190,6 +190,7 @@ FBSD_1.1 {
 	cargf;
 	csqrt;
 	csqrtf;
+	logbl;
 	nan;
 	nanf;
 	nanl;
