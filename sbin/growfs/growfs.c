@@ -259,8 +259,8 @@ growfs(int fsi, int fso, unsigned int Nflag)
 	 */
 	for (cylno = osblock.fs_ncg; cylno < sblock.fs_ncg; cylno++) {
 		initcg(cylno, utime, fso, Nflag);
-		j = sprintf(tmpbuf, " %d%s",
-		    (int)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+		j = sprintf(tmpbuf, " %jd%s",
+		    (intmax_t)fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 		    cylno < (sblock.fs_ncg-1) ? "," : "" );
 		if (i + j >= width) {
 			printf("\n");
