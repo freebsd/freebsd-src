@@ -362,13 +362,16 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct sockaddr_dl *sdl;
 	int error;
 
-	if (m->m_flags & M_BCAST) {	/* broadcast */
-		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
-		return (0);
-	}
-	if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
-		ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-		return (0);
+	if (m != NULL) {
+		
+		if (m->m_flags & M_BCAST) {	/* broadcast */
+			(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
+			return (0);
+		}
+		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
+			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
+			return (0);
+		}
 	}
 
 	if (rt0 != NULL) {
@@ -449,10 +452,11 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * response yet.  Replace the held mbuf with this
 	 * latest one.
 	 */
-	if (la->la_hold)
-		m_freem(la->la_hold);
-	la->la_hold = m;
-
+	if (m != NULL) {
+		if (la->la_hold)
+			m_freem(la->la_hold);
+		la->la_hold = m;
+	}
 	KASSERT(rt->rt_expire > 0, ("sending ARP request for static entry"));
 
 	/*
