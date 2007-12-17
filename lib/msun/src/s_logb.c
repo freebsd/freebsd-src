@@ -20,6 +20,8 @@ static char rcsid[] = "$FreeBSD$";
  * Use ilogb instead.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -42,3 +44,7 @@ logb(double x)
 	} else
 		return (double) ((ix>>20)-1023);
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(logb, logbl);
+#endif
