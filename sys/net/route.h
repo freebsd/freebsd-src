@@ -361,11 +361,10 @@ int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 #include <sys/eventhandler.h>
-#define RTEVENT_ARP_UPDATE        1
-#define RTEVENT_PMTU_UPDATE       2
-#define RTEVENT_REDIRECT_UPDATE   3
-typedef void (*rtevent_fn)(void *, int, struct rtentry *, struct rtentry *, struct sockaddr *);
-EVENTHANDLER_DECLARE(route_event, rtevent_fn);
+typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);
+typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);
+EVENTHANDLER_DECLARE(route_arp_update_event, rtevent_arp_update_fn);
+EVENTHANDLER_DECLARE(route_redirect_event, rtevent_redirect_fn);
 #endif
 
 #endif
