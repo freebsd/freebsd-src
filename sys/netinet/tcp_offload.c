@@ -47,82 +47,54 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_ofld.h>
+#include <netinet/tcp_offload.h>
 #include <netinet/toedev.h>
 
+
 int
-ofld_connect(struct socket *so, struct sockaddr *nam)
+tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 {
 	struct ifnet *ifp;
 	struct toedev *tdev;
 	struct rtentry *rt;
 	int error;
 
-	rt = rtalloc1(nam, 1, 0);
-	if (rt)
+	/*
+	 * Look up the route used for the connection to 
+	 * determine if it uses an interface capable of
+	 * offloading the connection.
+	 */
+	rt = rtalloc1(nam, 1 /*report*/, 0 /*ignflags*/);
+	if (rt) 
 		RT_UNLOCK(rt);
-	else
+	else 
 		return (EHOSTUNREACH);
 
 	ifp = rt->rt_ifp;
+	if ((ifp->if_capenable & IFCAP_TOE) == 0) {
+		printf("no toe capability on %p\n", ifp);
+		
+		error = EINVAL;
+		goto fail;
+	}
+	
 	tdev = TOEDEV(ifp);
-	if (tdev == NULL)
-		return (EINVAL);
+	if (tdev == NULL) {
+		printf("tdev not set\n");
 
-	if (tdev->tod_can_offload(tdev, so) == 0)
-		return (EINVAL);
+		error = EPERM;
+		goto fail;
+	}
+	
+	if (tdev->tod_can_offload(tdev, so) == 0) {
+		printf("not offloadable\n");
 
-	if ((error = tdev->tod_connect(tdev, so, rt, nam)))
-		return (error);
-
-	return (0);
-}
-
-int
-ofld_send(struct tcpcb *tp)
-{
-
-	return (tp->t_tu->tu_send(tp));
-}
-
-int
-ofld_rcvd(struct tcpcb *tp)
-{
-
-	return (tp->t_tu->tu_rcvd(tp));
-}
-
-int
-ofld_disconnect(struct tcpcb *tp)
-{
-
-	return (tp->t_tu->tu_disconnect(tp));
-}
-
-int
-ofld_abort(struct tcpcb *tp)
-{
-
-	return (tp->t_tu->tu_abort(tp));
-}
-
-void
-ofld_detach(struct tcpcb *tp)
-{
-
-	tp->t_tu->tu_detach(tp);
-}
-
-void
-ofld_listen_open(struct tcpcb *tp)
-{
-
-	EVENTHANDLER_INVOKE(ofld_listen, OFLD_LISTEN_OPEN, tp);
-}
-
-void
-ofld_listen_close(struct tcpcb *tp)
-{
-
-	EVENTHANDLER_INVOKE(ofld_listen, OFLD_LISTEN_CLOSE, tp);
+		error = EPERM;
+		goto fail;
+	}
+	
+	return (tdev->tod_connect(tdev, so, rt, nam));
+fail:
+	RTFREE(rt);
+	return (error);
 }
