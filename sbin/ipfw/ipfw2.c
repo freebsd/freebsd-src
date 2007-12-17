@@ -4392,7 +4392,7 @@ end_mask:
 		if (p.bandwidth==0) /* this is a WF2Q+ queue */
 			s = 0;
 		else
-			s = ck.hz * avg_pkt_size * 8 / p.bandwidth;
+			s = (double)ck.hz * avg_pkt_size * 8 / p.bandwidth;
 
 		/*
 		 * max idle time (in ticks) before avg queue size becomes 0.
@@ -4405,8 +4405,8 @@ end_mask:
 		if (!p.fs.lookup_step)
 			p.fs.lookup_step = 1;
 		weight = 1 - w_q;
-		for (t = p.fs.lookup_step; t > 0; --t)
-			weight *= weight;
+		for (t = p.fs.lookup_step; t > 1; --t)
+			weight *= 1 - w_q;
 		p.fs.lookup_weight = (int)(weight * (1 << SCALE_RED));
 	}
 	i = do_cmd(IP_DUMMYNET_CONFIGURE, &p, sizeof p);
