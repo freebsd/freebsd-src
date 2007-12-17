@@ -169,6 +169,9 @@ THIS SOFTWARE.
 
 #ifndef GDTOAIMP_H_INCLUDED
 #define GDTOAIMP_H_INCLUDED
+
+#define	Long	int
+
 #include "gdtoa.h"
 #include "gd_qnan.h"
 
