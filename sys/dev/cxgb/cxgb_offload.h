@@ -253,7 +253,7 @@ static inline struct toe_tid_entry *lookup_atid(const struct tid_info *t,
 
 void *cxgb_alloc_mem(unsigned long size);
 void cxgb_free_mem(void *addr);
-void cxgb_neigh_update(struct rtentry *rt, struct sockaddr *sa);
+void cxgb_neigh_update(struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa);
 void cxgb_redirect(struct rtentry *old, struct rtentry *new, struct sockaddr *sa);
 int process_rx(struct t3cdev *dev, struct mbuf **m, int n);
 int attach_t3cdev(struct t3cdev *dev);

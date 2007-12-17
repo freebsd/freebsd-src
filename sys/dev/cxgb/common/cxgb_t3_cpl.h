@@ -1131,6 +1131,18 @@ struct cpl_tx_pkt_lso {
 	__be32 lso_info;
 };
 
+struct cpl_tx_pkt_batch_entry {
+	__be32 cntrl;
+	__be32 len;
+	__be64 addr;
+};
+
+struct cpl_tx_pkt_batch {
+	WR_HDR;
+	struct cpl_tx_pkt_batch_entry pkt_entry[7];
+};
+
+
 /* cpl_tx_pkt*.cntrl fields */
 #define S_TXPKT_VLAN    0
 #define M_TXPKT_VLAN    0xFFFF
