@@ -523,6 +523,7 @@ dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci
 dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci
 dev/cxgb/sys/uipc_mvec.c	optional cxgb pci
+dev/cxgb/sys/cxgb_support.c	optional cxgb pci
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
@@ -1888,7 +1889,7 @@ netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet
 netinet/tcp_input.c		optional inet
 netinet/tcp_output.c		optional inet
-netinet/tcp_ofld.c		optional inet
+netinet/tcp_offload.c		optional inet
 netinet/tcp_reass.c		optional inet
 netinet/tcp_sack.c		optional inet
 netinet/tcp_subr.c		optional inet
