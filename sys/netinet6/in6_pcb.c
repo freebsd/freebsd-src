@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -105,6 +106,8 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
 #endif /* IPSEC */
+
+#include <security/mac/mac_framework.h>
 
 struct	in6_addr zeroin6_addr;
 
@@ -434,6 +437,9 @@ in6_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
+#ifdef MAC
+	mac_inpcb_destroy(inp);
+#endif
 	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
