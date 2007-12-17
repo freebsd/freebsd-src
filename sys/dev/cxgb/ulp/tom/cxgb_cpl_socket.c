@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_ofld.h>
+#include <netinet/tcp_offload.h>
 #include <net/route.h>
 
 #include <dev/cxgb/t3cdev.h>
@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/tom/cxgb_tom.h>
 #include <dev/cxgb/ulp/tom/cxgb_t3_ddp.h>
 #include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
+#include <dev/cxgb/ulp/tom/cxgb_tcp.h>
 
 static int	(*pru_sosend)(struct socket *so, struct sockaddr *addr,
     struct uio *uio, struct mbuf *top, struct mbuf *control,
@@ -99,9 +100,6 @@ static int  vm_fault_hold_user_pages(vm_offset_t addr, int len, vm_page_t *mp,
     int *count, int flags);
 #endif
 static void vm_fault_unhold_pages(vm_page_t *m, int count);
-
-
-
 #define TMP_IOV_MAX 16
 
 void
@@ -112,6 +110,15 @@ t3_init_socket_ops(void)
 	prp = pffindtype(AF_INET, SOCK_STREAM);
 	pru_sosend = prp->pr_usrreqs->pru_sosend;
 	pru_soreceive = prp->pr_usrreqs->pru_soreceive;
+	tcp_usrreqs.pru_connect = cxgb_tcp_usrreqs.pru_connect;
+	tcp_usrreqs.pru_abort = cxgb_tcp_usrreqs.pru_abort;
+	tcp_usrreqs.pru_listen = cxgb_tcp_usrreqs.pru_listen;
+	tcp_usrreqs.pru_send = cxgb_tcp_usrreqs.pru_send;
+	tcp_usrreqs.pru_abort = cxgb_tcp_usrreqs.pru_abort;
+	tcp_usrreqs.pru_disconnect = cxgb_tcp_usrreqs.pru_disconnect;
+	tcp_usrreqs.pru_close = cxgb_tcp_usrreqs.pru_close;
+	tcp_usrreqs.pru_shutdown = cxgb_tcp_usrreqs.pru_shutdown;
+	tcp_usrreqs.pru_rcvd = cxgb_tcp_usrreqs.pru_rcvd;
 }
 
 

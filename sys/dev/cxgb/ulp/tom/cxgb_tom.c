@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
-#include <netinet/tcp_ofld.h>
+#include <netinet/tcp_offload.h>
 #include <netinet/tcp_fsm.h>
 #include <net/route.h>
 
@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/tom/cxgb_defs.h>
 #include <dev/cxgb/ulp/tom/cxgb_t3_ddp.h>
 #include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
+#include <dev/cxgb/ulp/tom/cxgb_tcp.h>
+
 
 static int activated = 1;
 TUNABLE_INT("hw.t3toe.activated", &activated);
@@ -177,6 +179,8 @@ toepcb_release(struct toepcb *toep)
 static void
 t3cdev_add(struct tom_data *t)
 {
+	printf("t3cdev_add\n");
+	
 	mtx_lock(&cxgb_list_lock);
 	TAILQ_INSERT_TAIL(&cxgb_list, t, entry);
 	mtx_unlock(&cxgb_list_lock);
@@ -187,7 +191,8 @@ t3cdev_add(struct tom_data *t)
  * initialize its cpl_handlers
  * and register it as a T3C client
  */
-static void t3c_tom_add(struct t3cdev *cdev)
+static void
+t3c_tom_add(struct t3cdev *cdev)
 {
 	int i;
 	unsigned int wr_len;
@@ -195,9 +200,12 @@ static void t3c_tom_add(struct t3cdev *cdev)
 	struct toedev *tdev;
 	struct adap_ports *port_info;
 
+	printf("%s called\n", __FUNCTION__);
+	
+	
 	t = malloc(sizeof(*t), M_CXGB, M_NOWAIT|M_ZERO);
 	
-	if (!t)
+	if (t == NULL)
 		return;
 
 	if (cdev->ctl(cdev, GET_WR_LEN, &wr_len) < 0)
@@ -226,11 +234,15 @@ static void t3c_tom_add(struct t3cdev *cdev)
 	}
 	TOM_DATA(tdev) = t;
 
+	printf("nports=%d\n", port_info->nports);
 	for (i = 0; i < port_info->nports; i++) {
 		struct ifnet *ifp = port_info->lldevs[i];
 		TOEDEV(ifp) = tdev;
+
+		printf("enabling toe on %p\n", ifp);
 		
-		ifp->if_capabilities |= IFCAP_TOE;
+		ifp->if_capabilities |= IFCAP_TOE4;
+		ifp->if_capenable |= IFCAP_TOE4;
 	}
 	t->ports = port_info;
 
@@ -242,8 +254,10 @@ static void t3c_tom_add(struct t3cdev *cdev)
 	return;
 
 out_free_all:
+	printf("out_free_all fail\n");
 	free(port_info, M_CXGB);
 out_free_tom:
+	printf("out_free_tom fail\n");
 	free(t, M_CXGB);
 	return;
 }
@@ -293,8 +307,8 @@ can_offload(struct toedev *dev, struct socket *so)
 	     atomic_load_acq_int(&t->tids_in_use) + t->atids_in_use < tomd->conf.max_conn);
 }
 
-
-static int tom_ctl(struct toedev *dev, unsigned int req, void *data)
+static int
+tom_ctl(struct toedev *dev, unsigned int req, void *data)
 {
 	struct tom_data *t = TOM_DATA(dev);
 	struct t3cdev *cdev = t->cdev;
@@ -377,32 +391,33 @@ t3_toe_attach(struct toedev *dev, const struct offload_id *entry)
 }
 
 static void
-cxgb_toe_listen(void *unused, int event, struct tcpcb *tp)
+cxgb_toe_listen_start(void *unused, struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	struct tom_data *p;
-
-	switch (event) {
-	case OFLD_LISTEN_OPEN:
-	case OFLD_LISTEN_CLOSE:
-		mtx_lock(&cxgb_list_lock);
-		TAILQ_FOREACH(p, &cxgb_list, entry) {
-			if (event == OFLD_LISTEN_OPEN)
-				t3_listen_start(&p->tdev, so, p->cdev);
-			else if (tp->t_state == TCPS_LISTEN) {
-				printf("stopping listen on port=%d\n",
-				    ntohs(tp->t_inpcb->inp_lport));
-				
-				t3_listen_stop(&p->tdev, so, p->cdev);
-			}
-			
-		}
-		mtx_unlock(&cxgb_list_lock);
-		break;
-	default:
-		log(LOG_ERR, "unrecognized listen event %d\n", event);
-		break;
+	
+	mtx_lock(&cxgb_list_lock);
+	TAILQ_FOREACH(p, &cxgb_list, entry) {
+			t3_listen_start(&p->tdev, so, p->cdev);
 	}
+	mtx_unlock(&cxgb_list_lock);
+}
+
+static void
+cxgb_toe_listen_stop(void *unused, struct tcpcb *tp)
+{
+	struct socket *so = tp->t_inpcb->inp_socket;
+	struct tom_data *p;
+	
+	mtx_lock(&cxgb_list_lock);
+	TAILQ_FOREACH(p, &cxgb_list, entry) {
+		if (tp->t_state == TCPS_LISTEN) {
+			printf("stopping listen on port=%d\n",
+			    ntohs(tp->t_inpcb->inp_lport));
+			t3_listen_stop(&p->tdev, so, p->cdev);
+		}
+	}
+	mtx_unlock(&cxgb_list_lock);
 }
 
 static void
@@ -416,7 +431,7 @@ cxgb_register_listeners(void)
 		tp = intotcpcb(inp);
 
 		if (tp->t_state == TCPS_LISTEN)
-			cxgb_toe_listen(NULL, OFLD_LISTEN_OPEN, tp);
+			cxgb_toe_listen_start(NULL, tp);
 	}
 	INP_INFO_RUNLOCK(&tcbinfo);
 }
@@ -450,12 +465,19 @@ t3_tom_init(void)
 		    "Unable to register Chelsio T3 TCP offload module.\n");
 		return -1;
 	}
+	INP_INFO_WLOCK(&tcbinfo);
+
+	INP_INFO_WUNLOCK(&tcbinfo);	    
 
 	mtx_init(&cxgb_list_lock, "cxgb tom list", NULL, MTX_DEF);
-	listen_tag = EVENTHANDLER_REGISTER(ofld_listen, cxgb_toe_listen, NULL, EVENTHANDLER_PRI_ANY);
+	listen_tag = EVENTHANDLER_REGISTER(tcp_offload_listen_start,
+	    cxgb_toe_listen_start, NULL, EVENTHANDLER_PRI_ANY);
+	listen_tag = EVENTHANDLER_REGISTER(tcp_offload_listen_stop,
+	    cxgb_toe_listen_stop, NULL, EVENTHANDLER_PRI_ANY);
 	TAILQ_INIT(&cxgb_list);
 	
 	/* Register to offloading devices */
+	printf("setting add to %p\n", t3c_tom_add);
 	t3c_tom_client.add = t3c_tom_add;
 	cxgb_register_client(&t3c_tom_client);
 	cxgb_register_listeners();

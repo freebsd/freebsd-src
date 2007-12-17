@@ -126,11 +126,11 @@ cxgb_cache_pcpu_init(struct cxgb_cache_pcpu *ccp)
 	if ((err = buf_stack_init(&ccp->ccp_cluster_free, (FL_Q_SIZE >> 1))))
 		return (err);
 
-	if (jumbo_phys_contig)
+#if __FreeBSD_version > 800000		
 		ccp->ccp_jumbo_zone = zone_jumbo16;
-	else
+#else
 		ccp->ccp_jumbo_zone = zone_jumbop;
-
+#endif
 	return (0);
 }
 
