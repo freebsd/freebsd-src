@@ -1,3 +1,4 @@
+
 /*-
  * Copyright (c) 2007, Chelsio Inc.
  * All rights reserved.
@@ -26,36 +27,18 @@
  *
  * $FreeBSD$
  */
-#ifndef _T3CDEV_H_
-#define _T3CDEV_H_
+#ifndef CXGB_TCP_H_
+#define CXGB_TCP_H_
 
-#define T3CNAMSIZ 16
+struct tcpcb *cxgb_tcp_drop(struct tcpcb *tp, int errno);
+void cxgb_tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip);
+struct tcpcb *cxgb_tcp_close(struct tcpcb *tp);
 
-/* Get the t3cdev associated with an ifnet */
-#define T3CDEV(ifp) (&(((struct port_info *)(ifp)->if_softc))->adapter->tdev)
+extern struct pr_usrreqs cxgb_tcp_usrreqs;
+#ifdef INET6
+extern struct pr_usrreqs cxgb_tcp6_usrreqs;
+#endif
 
-struct cxgb3_client;
-
-enum t3ctype {
-        T3A = 0,
-        T3B
-};
-
-struct t3cdev {
-	char name[T3CNAMSIZ];		    /* T3C device name */
-	enum t3ctype type;
-	TAILQ_ENTRY(t3cdev) entry;  /* for list linking */
-        struct ifnet *lldev;     /* LL dev associated with T3C messages */
-	struct adapter *adapter;			    
-	int (*send)(struct t3cdev *dev, struct mbuf *m);
-	int (*recv)(struct t3cdev *dev, struct mbuf **m, int n);
-	int (*ctl)(struct t3cdev *dev, unsigned int req, void *data);
-	void (*arp_update)(struct t3cdev *dev, struct rtentry *neigh, uint8_t *enaddr, struct sockaddr *sa);
-	void *priv;                         /* driver private data */
-	void *l2opt;                        /* optional layer 2 data */
-	void *l3opt;                        /* optional layer 3 data */
-	void *l4opt;                        /* optional layer 4 data */
-	void *ulp;			    /* ulp stuff */
-};
-
-#endif /* _T3CDEV_H_ */
+#include <sys/sysctl.h>
+SYSCTL_DECL(_net_inet_tcp_cxgb);
+#endif  /* CXGB_TCP_H_ */

@@ -115,7 +115,7 @@ neigh_replace(struct l2t_entry *e, struct rtentry *rt)
  */
 static int
 setup_l2e_send_pending(struct t3cdev *dev, struct mbuf *m,
-			struct l2t_entry *e)
+    struct l2t_entry *e)
 {
 	struct cpl_l2t_write_req *req;
 
@@ -183,7 +183,7 @@ t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m, struct l2t_entry *e)
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve(rt->rt_ifp, rt, NULL, (struct sockaddr *)&sin, e->dmac);
+		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
@@ -208,8 +208,8 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		printf("doing arpresolve on 0x%x \n", e->addr);
-		if (arpresolve(rt->rt_ifp, rt, NULL, (struct sockaddr *)&sin, e->dmac) == 0) {
+		printf("doing arpresolve2 on 0x%x \n", e->addr);
+		if (arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac) == 0) {
 			printf("mac=%x:%x:%x:%x:%x:%x\n",
 			    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
 			
@@ -223,7 +223,7 @@ again:
 				m_freem(m);
 			mtx_unlock(&e->lock);
 		} else
-			printf("arpresolve returned non-zero\n");
+			printf("arpresolve2 returned non-zero\n");
 	}
 	return 0;
 }
@@ -245,7 +245,7 @@ t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e)
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve(rt->rt_ifp, rt, m0, (struct sockaddr *)&sin, e->dmac);
+		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE) {
 			e->state = L2T_STATE_VALID;
@@ -262,8 +262,6 @@ again:
 		}
 		mtx_unlock(&e->lock);
 		
-		if ((m0 = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
-			return;
 		/*
 		 * Only the first packet added to the arpq should kick off
 		 * resolution.  However, because the alloc_skb below can fail,
@@ -272,7 +270,7 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		arpresolve(rt->rt_ifp, rt, m0, (struct sockaddr *)&sin, e->dmac);
+		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
 
 	}
 	return;
@@ -459,7 +457,8 @@ handle_failed_resolution(struct t3cdev *dev, struct mbuf *arpq)
 }
 
 void
-t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
+t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh,
+    uint8_t *enaddr, struct sockaddr *sa)
 {
 	struct l2t_entry *e;
 	struct mbuf *arpq = NULL;
@@ -468,8 +467,6 @@ t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
 	int ifidx = neigh->rt_ifp->if_index;
 	int hash = arp_hash(addr, ifidx, d);
 	struct llinfo_arp *la;
-	u_char edst[ETHER_ADDR_LEN];
-
 
 	printf("t3_l2t_update called with arp info\n");
 	
@@ -485,10 +482,11 @@ t3_l2t_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
 
 found:
 	printf("found 0x%08x\n", addr);
-	arpresolve(neigh->rt_ifp, neigh, NULL, sa, edst);
 
 	rw_runlock(&d->lock);
-	memcpy(e->dmac, edst, ETHER_ADDR_LEN);
+	memcpy(e->dmac, enaddr, ETHER_ADDR_LEN);
+	printf("mac=%x:%x:%x:%x:%x:%x\n",
+	    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
 	
 	if (atomic_load_acq_int(&e->refcnt)) {
 		if (neigh != e->neigh)

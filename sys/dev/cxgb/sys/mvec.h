@@ -63,6 +63,9 @@ struct m_ext_ {
 	int		 ext_type;	/* type of external storage */
 };
 
+#define MT_IOVEC        9
+#define MT_CLIOVEC      10
+
 #define EXT_IOVEC       8
 #define EXT_CLIOVEC     9
 #define EXT_JMPIOVEC    10

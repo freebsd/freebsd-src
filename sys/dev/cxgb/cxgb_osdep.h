@@ -36,6 +36,9 @@ $FreeBSD$
 #include <sys/endian.h>
 #include <sys/bus.h>
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #include <dev/mii/mii.h>
 
 #ifdef CONFIG_DEFINED
@@ -52,17 +55,16 @@ $FreeBSD$
 typedef struct adapter adapter_t;
 struct sge_rspq;
 
+
 struct t3_mbuf_hdr {
 	struct mbuf *mh_head;
 	struct mbuf *mh_tail;
 };
 
-
 #define PANIC_IF(exp) do {                  \
 	if (exp)                            \
 		panic("BUG: %s", #exp);      \
 } while (0)
-
 
 #define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
 #define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
@@ -113,6 +115,7 @@ struct t3_mbuf_hdr {
 
 #define CXGB_TX_CLEANUP_THRESHOLD        32
 
+
 #ifdef DEBUG_PRINT
 #define DPRINTF printf
 #else 
@@ -121,19 +124,25 @@ struct t3_mbuf_hdr {
 
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
+
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
+
 
 #define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
 
-#if 0
-#define TX_START_MAX_DESC (TX_ETH_Q_SIZE >> 2)  /* maximum number of descriptors */
-#endif
+
 
 #define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
 						 * call to start used per 	 */
 
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
 						 * to clean per iteration        */
+#define TX_WR_SIZE_MAX    11*1024              /* the maximum total size of packets aggregated into a single
+						* TX WR
+						*/
+#define TX_WR_COUNT_MAX         7              /* the maximum total number of packets that can be
+						* aggregated into a single TX WR
+						*/
 
 
 #if defined(__i386__) || defined(__amd64__)
@@ -142,7 +151,7 @@ struct t3_mbuf_hdr {
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
 
-#define L1_CACHE_BYTES 64
+#define L1_CACHE_BYTES 128
 static __inline
 void prefetch(void *x) 
 { 
@@ -167,6 +176,107 @@ extern void kdb_backtrace(void);
 #define prefetch(x)
 #define L1_CACHE_BYTES 32
 #endif
+
+struct buf_ring {
+	caddr_t          *br_ring;
+	volatile uint32_t br_cons;
+	volatile uint32_t br_prod;
+	int               br_size;
+	struct mtx        br_lock;
+};
+
+struct buf_ring *buf_ring_alloc(int count, int flags);
+void buf_ring_free(struct buf_ring *);
+
+static __inline int
+buf_ring_count(struct buf_ring *mr)
+{
+	int size = mr->br_size;
+	int mask = size - 1;
+	
+	return ((size + mr->br_prod - mr->br_cons) & mask);
+}
+
+static __inline int
+buf_ring_empty(struct buf_ring *mr)
+{
+	return (mr->br_cons == mr->br_prod);
+}
+
+/*
+ * The producer and consumer are independently locked
+ * this relies on the consumer providing his own serialization
+ *
+ */
+static __inline void *
+buf_ring_dequeue(struct buf_ring *mr)
+{
+	int prod, cons, mask;
+	caddr_t *ring, m;
+	
+	ring = (caddr_t *)mr->br_ring;
+	mask = mr->br_size - 1;
+	cons = mr->br_cons;
+	prod = mr->br_prod;
+	m = NULL;
+	if (cons != prod) {
+		m = ring[cons];
+		mr->br_cons = (cons + 1) & mask;
+		mb();
+	}
+	return (m);
+}
+
+
+static __inline int
+__buf_ring_enqueue(struct buf_ring *mr, void *m)
+{
+	
+	int prod, cons, mask, err;
+	
+	cons = mr->br_cons;
+	prod = mr->br_prod;
+	mask = mr->br_size - 1;
+	if (((prod + 1) & mask) != cons) {
+		mr->br_ring[prod] = m;
+		mb();
+		mr->br_prod = (prod + 1) & mask;
+		err = 0;
+	} else
+		err = ENOBUFS;
+
+	return (err);
+}
+
+static __inline int
+buf_ring_enqueue(struct buf_ring *mr, void *m)
+{
+	int err;
+	
+	mtx_lock(&mr->br_lock);
+	err = __buf_ring_enqueue(mr, m);
+	mtx_unlock(&mr->br_lock);
+
+	return (err);
+}
+
+static __inline void *
+buf_ring_peek(struct buf_ring *mr)
+{
+	int prod, cons, mask;
+	caddr_t *ring, m;
+	
+	ring = (caddr_t *)mr->br_ring;
+	mask = mr->br_size - 1;
+	cons = mr->br_cons;
+	prod = mr->br_prod;
+	m = NULL;
+	if (cons != prod)
+		m = ring[cons];
+
+	return (m);
+}
+
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
 
@@ -189,14 +299,11 @@ static const int debug_flags = DBG_RX;
 
 #define t3_os_sleep(x) DELAY((x) * 1000)
 
-#define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | bit), ((*(p)) & ~bit)) 
-
+#define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | (1<<bit)), ((*(p)) & ~(1<<bit)))
 
 #define max_t(type, a, b) (type)max((a), (b))
 #define net_device ifnet
 #define cpu_to_be32            htobe32
-
-
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
@@ -247,19 +354,20 @@ static const int debug_flags = DBG_RX;
 #define swab32(x) bswap32(x)
 #define simple_strtoul strtoul
 
-/* More types and endian definitions */
+
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-
-typedef uint8_t	__u8;
+ 
+typedef uint8_t       __u8;
 typedef uint16_t __u16;
 typedef uint32_t __u32;
 typedef uint8_t __be8;
 typedef uint16_t __be16;
 typedef uint32_t __be32;
 typedef uint64_t __be64;
+
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define __BIG_ENDIAN_BITFIELD
