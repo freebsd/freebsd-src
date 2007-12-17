@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		loader
+SUBDIR=		ofw
 
 .include <bsd.subdir.mk>
