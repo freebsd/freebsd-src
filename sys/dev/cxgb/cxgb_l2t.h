@@ -118,7 +118,7 @@ static __inline void set_arp_failure_handler(struct mbuf *m,
 #define L2DATA(dev) ((dev)->l2opt)
 
 void t3_l2e_free(struct l2t_data *d, struct l2t_entry *e);
-void t3_l2t_update(struct t3cdev *dev, struct rtentry *rt, struct sockaddr *sa);
+void t3_l2t_update(struct t3cdev *dev, struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa);
 struct l2t_entry *t3_l2t_get(struct t3cdev *dev, struct rtentry *neigh,
     struct ifnet *ifp, struct sockaddr *sa);
 int t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m,

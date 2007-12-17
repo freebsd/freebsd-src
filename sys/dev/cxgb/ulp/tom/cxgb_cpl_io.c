@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_ofld.h>
+#include <netinet/tcp_offload.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_syncache.h>
 #include <net/route.h>
@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/ulp/tom/cxgb_tom.h>
 #include <dev/cxgb/ulp/tom/cxgb_t3_ddp.h>
 #include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
+#include <dev/cxgb/ulp/tom/cxgb_tcp.h>
 
 
 
@@ -559,7 +560,7 @@ cxgb_toe_disconnect(struct tcpcb *tp)
 }
 
 static int
-cxgb_toe_abort(struct tcpcb *tp)
+cxgb_toe_reset(struct tcpcb *tp)
 {
 	struct toepcb *toep = tp->t_toe;
        
@@ -620,7 +621,7 @@ cxgb_toe_detach(struct tcpcb *tp)
 
 static struct toe_usrreqs cxgb_toe_usrreqs = {
 	.tu_disconnect = cxgb_toe_disconnect,
-	.tu_abort = cxgb_toe_abort,
+	.tu_reset = cxgb_toe_reset,
 	.tu_send = cxgb_toe_send,
 	.tu_rcvd = cxgb_toe_rcvd,
 	.tu_detach = cxgb_toe_detach,
@@ -1145,7 +1146,7 @@ fail_act_open(struct toepcb *toep, int errno)
 	t3_release_offload_resources(toep);
 	if (tp) {
 		INP_LOCK_ASSERT(tp->t_inpcb);
-		tcp_drop(tp, errno);
+		cxgb_tcp_drop(tp, errno);
 	}
 	
 #ifdef notyet
@@ -1957,7 +1958,7 @@ process_close_con_rpl(struct socket *so, struct mbuf *m)
 			wakeup(&so->so_timeo);
 		} else if ((so->so_options & SO_LINGER) && so->so_linger == 0 &&
 		    (toep->tp_flags & TP_ABORT_SHUTDOWN) == 0) {
-			tp = tcp_drop(tp, 0);
+			tp = cxgb_tcp_drop(tp, 0);
 		}
 
 		break;
@@ -2483,7 +2484,7 @@ handle_syncache_event(int event, void *arg)
 	struct toepcb *toep = arg;
 
 	switch (event) {
-	case SC_ENTRY_PRESENT:
+	case TOE_SC_ENTRY_PRESENT:
 		/*
 		 * entry already exists - free toepcb
 		 * and l2t
@@ -2491,7 +2492,7 @@ handle_syncache_event(int event, void *arg)
 		printf("syncache entry present\n");
 		toepcb_release(toep);
 		break;
-	case SC_DROP:
+	case TOE_SC_DROP:
 		/*
 		 * The syncache has given up on this entry
 		 * either it timed out, or it was evicted

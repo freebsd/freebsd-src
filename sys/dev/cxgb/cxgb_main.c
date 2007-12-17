@@ -44,14 +44,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioccom.h>
 #include <sys/mbuf.h>
 #include <sys/linker.h>
-#include <sys/syslog.h>
 #include <sys/firmware.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
+#include <sys/proc.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -73,22 +74,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
-
-#include <vm/vm.h>
-#include <vm/vm_page.h>
-#include <vm/vm_map.h>
-
 #ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
-#include <sys/mvec.h>
 #else
 #include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/sys/mvec.h>
 #endif
 
 #ifdef PRIV_SUPPORTED
 #include <sys/priv.h>
 #endif
+
+#include <machine/intr_machdep.h>
 
 static int cxgb_setup_msix(adapter_t *, int);
 static void cxgb_teardown_msix(adapter_t *);
@@ -97,8 +93,6 @@ static void cxgb_init_locked(struct port_info *);
 static void cxgb_stop_locked(struct port_info *);
 static void cxgb_set_rxmode(struct port_info *);
 static int cxgb_ioctl(struct ifnet *, unsigned long, caddr_t);
-static void cxgb_start(struct ifnet *);
-static void cxgb_start_proc(void *, int ncount);
 static int cxgb_media_change(struct ifnet *);
 static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
 static int setup_sge_qsets(adapter_t *);
@@ -108,6 +102,10 @@ static void cxgb_tick_handler(void *, int);
 static void cxgb_down_locked(struct adapter *sc);
 static void cxgb_tick(void *);
 static void setup_rss(adapter_t *sc);
+
+#ifndef IFNET_MULTIQUEUE
+static void cxgb_start_proc(void *, int ncount);
+#endif
 
 /* Attachment glue for the PCI controller end of the device.  Each port of
  * the device is attached separately, as defined later.
@@ -122,11 +120,7 @@ static void cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf)
 static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
-
-#ifdef notyet
 static int offload_close(struct t3cdev *tdev);
-#endif
-
 
 static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_probe,		cxgb_controller_probe),
@@ -188,7 +182,6 @@ DRIVER_MODULE(cxgb, cxgbc, cxgb_port_driver, cxgb_port_devclass, 0, 0);
 
 #define SGE_MSIX_COUNT (SGE_QSETS + 1)
 
-extern int collapse_mbufs;
 /*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X, MSI, legacy pin interrupts.  This parameter determines which
@@ -218,10 +211,14 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, ofld_disable, CTLFLAG_RDTUN, &ofld_disable, 0,
  * The driver uses an auto-queue algorithm by default.
  * To disable it and force a single queue-set per port, use singleq = 1.
  */
-static int singleq = 1;
+static int singleq = 0;
 TUNABLE_INT("hw.cxgb.singleq", &singleq);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, singleq, CTLFLAG_RDTUN, &singleq, 0,
     "use a single queue-set per port");
+
+#ifndef IFNET_MULTIQUEUE
+int cxgb_txq_buf_ring_size = 0;
+#endif
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -281,10 +278,24 @@ struct cxgb_ident {
 	{0, 0, 0, NULL}
 };
 
-
 static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
 
-static inline char
+static __inline void
+check_pkt_coalesce(struct sge_qset *qs)
+{
+	struct adapter *sc;
+	struct sge_txq *txq;
+
+	txq = &qs->txq[TXQ_ETH];
+	sc = qs->port->adapter;
+
+	if (sc->tunq_fill[qs->idx] && (txq->in_use < (txq->size - (txq->size>>2)))) 
+		sc->tunq_fill[qs->idx] = 0;
+	else if (!sc->tunq_fill[qs->idx] && (txq->in_use > (txq->size - (txq->size>>2)))) 
+		sc->tunq_fill[qs->idx] = 1;
+}
+
+static __inline char
 t3rev2char(struct adapter *adapter)
 {
 	char rev = 'z';
@@ -582,6 +593,7 @@ cxgb_controller_attach(device_t dev)
 		pi->tx_chan = i >= ai->nports0;
 		pi->txpkt_intf = pi->tx_chan ? 2 * (i - ai->nports0) + 1 : 2 * i;
 		sc->rxpkt_map[pi->txpkt_intf] = i;
+		sc->port[i].tx_chan = i >= ai->nports0;
 		sc->portdev[i] = child;
 		device_set_softc(child, pi);
 	}
@@ -611,7 +623,7 @@ cxgb_controller_attach(device_t dev)
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
 
-	t3_add_sysctls(sc);
+	t3_add_attach_sysctls(sc);
 out:
 	if (error)
 		cxgb_free(sc);
@@ -636,10 +648,14 @@ cxgb_free(struct adapter *sc)
 {
 	int i;
 
+	
+#ifdef IFNET_MULTIQUEUE
+	cxgb_pcpu_shutdown_threads(sc);
+#endif
 	ADAPTER_LOCK(sc);
-	/*
-	 * drops the lock
-	 */
+/*
+ * drops the lock
+ */
 	cxgb_down_locked(sc);
 	
 #ifdef MSI_SUPPORTED
@@ -664,7 +680,7 @@ cxgb_free(struct adapter *sc)
 	 * Wait for last callout
 	 */
 	
-	tsleep(&sc, 0, "cxgb unload", 3*hz);
+	DELAY(hz*100);
 
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		if (sc->portdev[i] != NULL)
@@ -674,15 +690,17 @@ cxgb_free(struct adapter *sc)
 	bus_generic_detach(sc->dev);
 	if (sc->tq != NULL) 
 		taskqueue_free(sc->tq);
-#ifdef notyet
 	if (is_offload(sc)) {
 		cxgb_adapter_unofld(sc);
 		if (isset(&sc->open_device_map,	OFFLOAD_DEVMAP_BIT))
 			offload_close(&sc->tdev);
-	}
-#endif
-
+		else
+			printf("cxgb_free: DEVMAP_BIT not set\n");
+	} else
+		printf("not offloading set\n");	
+#ifndef IFNET_MULTIQUEUE
 	t3_free_sge_resources(sc);
+#endif
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
@@ -696,8 +714,6 @@ cxgb_free(struct adapter *sc)
 	MTX_DESTROY(&sc->sge.reg_lock);
 	MTX_DESTROY(&sc->elmer_lock);
 	ADAPTER_LOCK_DEINIT(sc);
-	
-	return;
 }
 
 /**
@@ -803,7 +819,7 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 			printf("setting up interrupt for port=%d\n",
 			    qs->port->port_id);
 			if (bus_setup_intr(sc->dev, sc->msix_irq_res[k],
-			    INTR_MPSAFE|INTR_TYPE_NET,
+				INTR_MPSAFE|INTR_TYPE_NET,
 #ifdef INTR_FILTERS
 				NULL,
 #endif
@@ -812,9 +828,16 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 				    "interrupt for message %d\n", rid);
 				return (EINVAL);
 			}
+#ifdef IFNET_MULTIQUEUE			
+			if (singleq == 0) {
+				int vector = rman_get_start(sc->msix_irq_res[k]);
+				if (bootverbose)
+					device_printf(sc->dev, "binding vector=%d to cpu=%d\n", vector, k % mp_ncpus);
+				intr_bind(vector, k % mp_ncpus);
+			}
+#endif			
 		}
 	}
-
 
 	return (0);
 }
@@ -892,6 +915,12 @@ cxgb_port_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_start = cxgb_start;
+
+#ifdef IFNET_MULTIQUEUE
+	ifp->if_flags |= IFF_MULTIQ;
+	ifp->if_mq_start = cxgb_pcpu_start;
+#endif
+	
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
@@ -965,7 +994,7 @@ cxgb_port_attach(device_t dev)
 	p->tq = taskqueue_create_fast(p->taskqbuf, M_NOWAIT,
 	    taskqueue_thread_enqueue, &p->tq);
 #endif	
-
+#ifndef IFNET_MULTIQUEUE
 	if (p->tq == NULL) {
 		device_printf(dev, "failed to allocate port task queue\n");
 		return (ENOMEM);
@@ -974,7 +1003,7 @@ cxgb_port_attach(device_t dev)
 	    device_get_nameunit(dev));
 	
 	TASK_INIT(&p->start_task, 0, cxgb_start_proc, ifp);
-
+#endif
 	t3_sge_init_port(p);
 
 	return (0);
@@ -999,6 +1028,9 @@ cxgb_port_detach(device_t dev)
 	}
 
 	ether_ifdetach(p->ifp);
+	printf("waiting for callout to stop ...");
+	DELAY(1000000);
+	printf("done\n");
 	/*
 	 * the lock may be acquired in ifdetach
 	 */
@@ -1247,9 +1279,7 @@ offload_tx(struct t3cdev *tdev, struct mbuf *m)
 {
 	int ret;
 
-	critical_enter();
 	ret = t3_offload_tx(tdev, m);
-	critical_exit();
 	return (ret);
 }
 
@@ -1264,6 +1294,8 @@ write_smt_entry(struct adapter *adapter, int idx)
 		return (ENOMEM);
 
 	req = mtod(m, struct cpl_smt_write_req *);
+	m->m_pkthdr.len = m->m_len = sizeof(struct cpl_smt_write_req);
+	
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_FORWARD));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SMT_WRITE_REQ, idx));
 	req->mtu_idx = NMTUS - 1;  /* should be 0 but there's a T3 bug */
@@ -1325,6 +1357,10 @@ bind_qsets(adapter_t *sc)
 {
 	int i, j;
 
+#ifdef IFNET_MULTIQUEUE
+	cxgb_pcpu_startup_threads(sc);
+#endif
+	
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		const struct port_info *pi = adap2pinfo(sc, i);
 
@@ -1473,6 +1509,7 @@ cxgb_up(struct adapter *sc)
 			goto out;
 
 		setup_rss(sc);
+		t3_add_configured_sysctls(sc);
 		sc->flags |= FULL_INIT_DONE;
 	}
 
@@ -1545,6 +1582,8 @@ cxgb_down_locked(struct adapter *sc)
 		cxgb_teardown_msix(sc);
 	ADAPTER_UNLOCK(sc);
 
+	callout_stop(&sc->cxgb_tick_ch);
+	callout_stop(&sc->sge_timer_ch);
 	callout_drain(&sc->cxgb_tick_ch);
 	callout_drain(&sc->sge_timer_ch);
 	
@@ -1553,26 +1592,28 @@ cxgb_down_locked(struct adapter *sc)
 		for (i = 0; i < sc->params.nports; i++) 
 			taskqueue_drain(sc->tq, &sc->port[i].timer_reclaim_task);
 	}
-#ifdef notyet	
-
-		if (sc->port[i].tq != NULL)
-#endif			
-
 }
 
 static int
 offload_open(struct port_info *pi)
 {
 	struct adapter *adapter = pi->adapter;
-	struct t3cdev *tdev = TOEDEV(pi->ifp);
+	struct t3cdev *tdev = &adapter->tdev;
+#ifdef notyet	
+	    T3CDEV(pi->ifp);
+#endif	
 	int adap_up = adapter->open_device_map & PORT_MASK;
 	int err = 0;
 
+	printf("device_map=0x%x\n", adapter->open_device_map); 
 	if (atomic_cmpset_int(&adapter->open_device_map,
-		(adapter->open_device_map & ~OFFLOAD_DEVMAP_BIT),
-		(adapter->open_device_map | OFFLOAD_DEVMAP_BIT)) == 0)
+		(adapter->open_device_map & ~(1<<OFFLOAD_DEVMAP_BIT)),
+		(adapter->open_device_map | (1<<OFFLOAD_DEVMAP_BIT))) == 0)
 		return (0);
 
+       
+	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT)) 
+		printf("offload_open: DEVMAP_BIT did not get set 0x%x\n", adapter->open_device_map);
 	ADAPTER_LOCK(pi->adapter); 
 	if (!adap_up)
 		err = cxgb_up(adapter);
@@ -1581,7 +1622,7 @@ offload_open(struct port_info *pi)
 		return (err);
 
 	t3_tp_set_offload_mode(adapter, 1);
-	tdev->lldev = adapter->port[0].ifp;
+	tdev->lldev = pi->ifp;
 	err = cxgb_offload_activate(adapter);
 	if (err)
 		goto out;
@@ -1605,15 +1646,18 @@ out:
 	}
 	return (err);
 }
-#ifdef notyet
+
 static int
-offload_close(struct t3cev *tdev)
+offload_close(struct t3cdev *tdev)
 {
 	struct adapter *adapter = tdev2adap(tdev);
 
-	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT))
+	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT)) {
+		printf("offload_close: DEVMAP_BIT not set\n");
+	
 		return (0);
-
+	}
+	
 	/* Call back all registered clients */
 	cxgb_remove_clients(tdev);
 	tdev->lldev = NULL;
@@ -1621,13 +1665,15 @@ offload_close(struct t3cev *tdev)
 	t3_tp_set_offload_mode(adapter, 0);
 	clrbit(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
 
+	ADAPTER_LOCK(adapter);
 	if (!adapter->open_device_map)
-		cxgb_down(adapter);
-
+		cxgb_down_locked(adapter);
+	else
+		ADAPTER_UNLOCK(adapter);
 	cxgb_offload_deactivate(adapter);
 	return (0);
 }
-#endif
+
 
 static void
 cxgb_init(void *arg)
@@ -1667,6 +1713,8 @@ cxgb_init_locked(struct port_info *p)
 		if (err)
 			log(LOG_WARNING,
 			    "Could not initialize offload capabilities\n");
+		else
+			printf("offload opened\n");
 	}
 	cxgb_link_start(p);
 	t3_link_changed(sc, p->port_id);
@@ -1675,8 +1723,7 @@ cxgb_init_locked(struct port_info *p)
 	device_printf(sc->dev, "enabling interrupts on port=%d\n", p->port_id);
 	t3_port_intr_enable(sc, p->port_id);
 
-	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
-	    cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1703,7 +1750,6 @@ cxgb_stop_locked(struct port_info *p)
 	ADAPTER_LOCK_ASSERT_NOTOWNED(p->adapter);
 	
 	ifp = p->ifp;
-
 	t3_port_intr_disable(p->adapter, p->port_id);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	p->phy.ops->power_down(&p->phy, 1);
@@ -1712,7 +1758,6 @@ cxgb_stop_locked(struct port_info *p)
 	ADAPTER_LOCK(p->adapter);
 	clrbit(&p->adapter->open_device_map, p->port_id);
 
-	
 	if (p->adapter->open_device_map == 0) {
 		cxgb_down_locked(p->adapter);
 	} else 
@@ -1786,8 +1831,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 				
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			adapter_t *sc = p->adapter;
-			callout_reset(&sc->cxgb_tick_ch,
-			    sc->params.stats_update_period * hz,
+			callout_reset(&sc->cxgb_tick_ch, hz,
 			    cxgb_tick, sc);
 		}
 		PORT_UNLOCK(p);
@@ -1838,77 +1882,92 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	return (error);
 }
 
+int
+cxgb_tx_common(struct ifnet *ifp, struct sge_qset *qs, uint32_t txmax)
+{
+	struct sge_txq *txq;
+	int err, in_use_init, count;
+	struct mbuf **m_vec;
+
+	txq = &qs->txq[TXQ_ETH];
+	m_vec = txq->txq_m_vec;
+	in_use_init = txq->in_use;
+	err = 0;
+	while ((txq->in_use - in_use_init < txmax) &&
+	    (txq->size > txq->in_use + TX_MAX_DESC)) {
+		check_pkt_coalesce(qs);
+		count = cxgb_dequeue_packet(ifp, txq, m_vec);
+		if (count == 0)
+			break;
+		ETHER_BPF_MTAP(ifp, m_vec[0]);
+		
+		if ((err = t3_encap(qs, m_vec, count)) != 0)
+			break;
+		txq->txq_enqueued += count;
+	}
+#ifndef IFNET_MULTIQUEUE	
+	if (__predict_false(err)) {
+		if (err == ENOMEM) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_LOCK(&ifp->if_snd);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_vec[0]);
+			IFQ_UNLOCK(&ifp->if_snd);
+		}
+	}
+	if (err == 0 && m_vec[0] == NULL) {
+		err = ENOBUFS;
+	}
+	else if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		err = ENOSPC;
+	}
+#else
+	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC)) {
+		err = ENOSPC;
+		setbit(&qs->txq_stopped, TXQ_ETH);
+	}
+	if (err == ENOMEM) {
+		int i;
+		/*
+		 * Sub-optimal :-/
+		 */
+		for (i = 0; i < count; i++)
+			m_freem(m_vec[i]);
+	}
+#endif
+	return (err);
+}
+
+#ifndef IFNET_MULTIQUEUE
 static int
 cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 {
 	struct sge_qset *qs;
 	struct sge_txq *txq;
 	struct port_info *p = ifp->if_softc;
-	struct mbuf *m = NULL;
-	int err, in_use_init, free;
-
+	int err;
+	
 	if (!p->link_config.link_ok)
 		return (ENXIO);
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		return (ENOBUFS);
-
+	}
+	
 	qs = &p->adapter->sge.qs[p->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	err = 0;
 
 	if (txq->flags & TXQ_TRANSMITTING)
 		return (EINPROGRESS);
-	
+
 	mtx_lock(&txq->lock);
 	txq->flags |= TXQ_TRANSMITTING;
-	in_use_init = txq->in_use;
-	while ((txq->in_use - in_use_init < txmax) &&
-	    (txq->size > txq->in_use + TX_MAX_DESC)) {
-		free = 0;
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
-			break;
-		/*
-		 * Convert chain to M_IOVEC
-		 */
-		KASSERT((m->m_flags & M_IOVEC) == 0, ("IOVEC set too early"));
-#ifdef notyet
-		m0 = m;
-		if (collapse_mbufs && m->m_pkthdr.len > MCLBYTES &&
-		    m_collapse(m, TX_MAX_SEGS, &m0) == EFBIG) {
-			if ((m0 = m_defrag(m, M_NOWAIT)) != NULL) {
-				m = m0;
-				m_collapse(m, TX_MAX_SEGS, &m0);
-			} else
-				break;
-		}
-		m = m0;
-#endif		
-		if ((err = t3_encap(p, &m, &free)) != 0)
-			break;
-		BPF_MTAP(ifp, m);
-		if (free)
-			m_freem(m);
-	}
+	cxgb_tx_common(ifp, qs, txmax);
 	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
 
-	if (__predict_false(err)) {
-		if (err == ENOMEM) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IFQ_LOCK(&ifp->if_snd);
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
-			IFQ_UNLOCK(&ifp->if_snd);
-		}
-	}
-	if (err == 0 && m == NULL) 
-		err = ENOBUFS;
-	else if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
-	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		err = ENOSPC;
-	}
 	return (err);
 }
 
@@ -1932,7 +1991,15 @@ cxgb_start_proc(void *arg, int ncount)
 	} while (error == 0);
 }
 
-static void
+int
+cxgb_dequeue_packet(struct ifnet *ifp, struct sge_txq *unused, struct mbuf **m_vec)
+{
+	
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m_vec[0]);
+	return (m_vec[0] ? 1 : 0);
+}
+
+void
 cxgb_start(struct ifnet *ifp)
 {
 	struct port_info *pi = ifp->if_softc;	
@@ -1952,7 +2019,7 @@ cxgb_start(struct ifnet *ifp)
 	if (err == 0)
 		taskqueue_enqueue(pi->tq, &pi->start_task);
 }
-
+#endif
 
 static int
 cxgb_media_change(struct ifnet *ifp)
@@ -2078,12 +2145,26 @@ static void
 cxgb_tick(void *arg)
 {
 	adapter_t *sc = (adapter_t *)arg;
+	int i, running = 0;
+	
+	for_each_port(sc, i) {
+		
+		struct port_info *p = &sc->port[i];
+		struct ifnet *ifp = p->ifp;
+		PORT_LOCK(p);
 
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) 
+			running = 1;
+		PORT_UNLOCK(p);
+	}	
+
+	if (running == 0)
+		return;
+		
 	taskqueue_enqueue(sc->tq, &sc->tick_task);
 	
 	if (sc->open_device_map != 0) 
-		callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
-		    cxgb_tick, sc);
+		callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
 }
 
 static void
@@ -2478,7 +2559,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		 * Read 256 bytes at a time as len can be large and we don't
 		 * want to use huge intermediate buffers.
 		 */
-		useraddr = (uint8_t *)(t + 1);   /* advance to start of buffer */
+		useraddr = (uint8_t *)t->buf; 
 		while (t->len) {
 			unsigned int chunk = min(t->len, sizeof(buf));
 

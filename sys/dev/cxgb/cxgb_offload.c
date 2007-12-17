@@ -108,9 +108,12 @@ cxgb_register_client(struct cxgb_client *client)
 		printf("client->add set\n");
 		
 		TAILQ_FOREACH(tdev, &ofld_dev_list, entry) {
-			if (offload_activated(tdev))
+			if (offload_activated(tdev)) {
+				printf("calling add=%p on %p\n",
+				    client->add, tdev);
+				
 				client->add(tdev);
-			else
+			} else
 				printf("%p not activated\n", tdev);
 			
 		}
@@ -477,7 +480,8 @@ rx_offload_blackhole(struct t3cdev *dev, struct mbuf **m, int n)
 }
 
 static void
-dummy_neigh_update(struct t3cdev *dev, struct rtentry *neigh, struct sockaddr *sa)
+dummy_neigh_update(struct t3cdev *dev, struct rtentry *neigh, uint8_t *enaddr,
+    struct sockaddr *sa)
 {
 }
 
@@ -895,17 +899,32 @@ do_term(struct t3cdev *dev, struct mbuf *m)
 }
 
 static void
-cxgb_route_event(void *unused, int event, struct rtentry *rt0,
+cxgb_arp_update_event(void *unused, struct rtentry *rt0,
+    uint8_t *enaddr, struct sockaddr *sa)
+{
+
+	if (TOEDEV(rt0->rt_ifp) == NULL)
+		return;
+
+	RT_ADDREF(rt0);
+	RT_UNLOCK(rt0);
+	cxgb_neigh_update(rt0, enaddr, sa);
+	RT_LOCK(rt0);
+	RT_REMREF(rt0);
+}
+
+
+static void
+cxgb_redirect_event(void *unused, int event, struct rtentry *rt0,
     struct rtentry *rt1, struct sockaddr *sa)
 {
-	struct toedev *tdev0, *tdev1 = NULL;
+	struct toedev *tdev0, *tdev1;
 
 	/* 
 	 * ignore events on non-offloaded interfaces
 	 */
 	tdev0 = TOEDEV(rt0->rt_ifp);
-	if (rt1)
-		tdev1 = TOEDEV(rt1->rt_ifp);
+	tdev1 = TOEDEV(rt1->rt_ifp);
 	if (tdev0 == NULL && tdev1 == NULL)
 		return;
         /*
@@ -914,34 +933,16 @@ cxgb_route_event(void *unused, int event, struct rtentry *rt0,
 	 */
 	RT_ADDREF(rt0);
 	RT_UNLOCK(rt0);
-	if (rt1) {
-		RT_ADDREF(rt1);
-		RT_UNLOCK(rt1);
-	}
-
-	switch (event) {
-		case RTEVENT_ARP_UPDATE: {
-			cxgb_neigh_update(rt0, sa);
-			break;
-		}
-		case RTEVENT_REDIRECT_UPDATE: {
-			cxgb_redirect(rt0, rt1, sa);
-			cxgb_neigh_update(rt1, sa);
+	RT_ADDREF(rt1);
+	RT_UNLOCK(rt1);
 	
-			break;
-		}
-		case RTEVENT_PMTU_UPDATE:
-		default:
-			break;
-	}
+	cxgb_redirect(rt0, rt1, sa);
+	cxgb_neigh_update(rt1, NULL, sa);
 
 	RT_LOCK(rt0);
 	RT_REMREF(rt0);
-	if (rt1) {
-		RT_LOCK(rt1);
-		RT_REMREF(rt1);
-	}
-	
+	RT_LOCK(rt1);
+	RT_REMREF(rt1);
 }
 
 /*
@@ -1048,14 +1049,14 @@ cxgb_ofld_recv(struct t3cdev *dev, struct mbuf **m, int n)
 }
 
 void
-cxgb_neigh_update(struct rtentry *rt, struct sockaddr *sa)
+cxgb_neigh_update(struct rtentry *rt, uint8_t *enaddr, struct sockaddr *sa)
 {
 
 	if (is_offloading(rt->rt_ifp)) {
 		struct t3cdev *tdev = T3CDEV(rt->rt_ifp);
 
 		PANIC_IF(!tdev);
-		t3_l2t_update(tdev, rt, sa);
+		t3_l2t_update(tdev, rt, enaddr, sa);
 	}
 }
 
@@ -1425,7 +1426,10 @@ cxgb_offload_init(void)
 	t3_register_cpl_handler(CPL_RX_DDP_COMPLETE, do_hwtid_rpl);
 	t3_register_cpl_handler(CPL_ISCSI_HDR, do_hwtid_rpl);
 
-	EVENTHANDLER_REGISTER(route_event, cxgb_route_event, NULL, EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(route_arp_update_event, cxgb_arp_update_event,
+	    NULL, EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(route_redirect_event, cxgb_redirect_event,
+	    NULL, EVENTHANDLER_PRI_ANY);
 	
 #if 0
        if (offload_proc_init())

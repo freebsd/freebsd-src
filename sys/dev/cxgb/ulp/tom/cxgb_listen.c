@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fsm.h>
 
-#include <netinet/tcp_ofld.h>
+#include <netinet/tcp_offload.h>
 #include <net/route.h>
 
 #include <dev/cxgb/t3cdev.h>
