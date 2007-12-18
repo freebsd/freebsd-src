@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#include <netinet/tcp_offload.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -385,6 +386,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 	if (error == 0) {
 		tp->t_state = TCPS_LISTEN;
 		solisten_proto(so, backlog);
+		tcp_offload_listen_open(tp);
 	}
 	SOCK_UNLOCK(so);
 
@@ -476,7 +478,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	TCPDEBUG1();
 	if ((error = tcp_connect(tp, nam, td)) != 0)
 		goto out;
-	error = tcp_output(tp);
+	error = tcp_output_connect(so, nam);
 out:
 	TCPDEBUG2(PRU_CONNECT);
 	INP_UNLOCK(inp);
@@ -528,7 +530,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		inp->inp_vflag &= ~INP_IPV6;
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
 			goto out;
-		error = tcp_output(tp);
+		error = tcp_output_connect(so, nam);
 		goto out;
 	}
 	inp->inp_vflag &= ~INP_IPV4;
@@ -536,7 +538,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_inc.inc_isipv6 = 1;
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
-	error = tcp_output(tp);
+	error = tcp_output_connect(so, nam);
 
 out:
 	TCPDEBUG2(PRU_CONNECT);
@@ -703,7 +705,7 @@ tcp_usr_shutdown(struct socket *so)
 	TCPDEBUG1();
 	socantsendmore(so);
 	tcp_usrclosed(tp);
-	error = tcp_output(tp);
+	error = tcp_output_disconnect(tp);
 
 out:
 	TCPDEBUG2(PRU_SHUTDOWN);
@@ -733,7 +735,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
-	tcp_output(tp);
+	tcp_output_rcvd(tp);
 
 out:
 	TCPDEBUG2(PRU_RCVD);
@@ -838,7 +840,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		if (tp != NULL) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
-			error = tcp_output(tp);
+			error = tcp_output_send(tp);
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags &= ~TF_MORETOCOME;
 		}
@@ -889,7 +891,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		}
 		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
 		tp->t_flags |= TF_FORCEDATA;
-		error = tcp_output(tp);
+		error = tcp_output_send(tp);
 		tp->t_flags &= ~TF_FORCEDATA;
 	}
 out:
@@ -1489,7 +1491,7 @@ tcp_disconnect(struct tcpcb *tp)
 		sbflush(&so->so_rcv);
 		tcp_usrclosed(tp);
 		if (!(inp->inp_vflag & INP_DROPPED))
-			tcp_output(tp);
+			tcp_output_disconnect(tp);
 	}
 }
 
@@ -1511,8 +1513,10 @@ tcp_usrclosed(struct tcpcb *tp)
 	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	switch (tp->t_state) {
-	case TCPS_CLOSED:
 	case TCPS_LISTEN:
+		tcp_offload_listen_close(tp);
+		/* FALLTHROUGH */
+	case TCPS_CLOSED:
 		tp->t_state = TCPS_CLOSED;
 		tp = tcp_close(tp);
 		/*
