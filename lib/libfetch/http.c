@@ -137,15 +137,15 @@ http_new_chunk(struct httpio *io)
 	if (fetch_getln(io->conn) == -1)
 		return (-1);
 
-	if (io->conn->buflen < 2 || !ishexnumber(*io->conn->buf))
+	if (io->conn->buflen < 2 || !isxdigit((int)*io->conn->buf))
 		return (-1);
 
-	for (p = io->conn->buf; *p && !isspace(*p); ++p) {
+	for (p = io->conn->buf; *p && !isspace((int)*p); ++p) {
 		if (*p == ';')
 			break;
-		if (!ishexnumber(*p))
+		if (!isxdigit((int)*p))
 			return (-1);
-		if (isdigit(*p)) {
+		if (isdigit((int)*p)) {
 			io->chunksize = io->chunksize * 16 +
 			    *p - '0';
 		} else {
@@ -417,7 +417,8 @@ http_get_reply(conn_t *conn)
 			return (HTTP_PROTOCOL_ERROR);
 		p += 4;
 	}
-	if (*p != ' ' || !isdigit(p[1]) || !isdigit(p[2]) || !isdigit(p[3]))
+	if (*p != ' ' || !isdigit((int)p[1]) ||
+	    !isdigit((int)p[2]) || !isdigit((int)p[3]))
 		return (HTTP_PROTOCOL_ERROR);
 
 	conn->err = (p[1] - '0') * 100 + (p[2] - '0') * 10 + (p[3] - '0');
@@ -435,7 +436,7 @@ http_match(const char *str, const char *hdr)
 		/* nothing */;
 	if (*str || *hdr != ':')
 		return (NULL);
-	while (*hdr && isspace(*++hdr))
+	while (*hdr && isspace((int)*++hdr))
 		/* nothing */;
 	return (hdr);
 }
@@ -450,7 +451,7 @@ http_next_header(conn_t *conn, const char **p)
 
 	if (fetch_getln(conn) == -1)
 		return (hdr_syserror);
-	while (conn->buflen && isspace(conn->buf[conn->buflen - 1]))
+	while (conn->buflen && isspace((int)conn->buf[conn->buflen - 1]))
 		conn->buflen--;
 	conn->buf[conn->buflen] = '\0';
 	if (conn->buflen == 0)
@@ -499,7 +500,7 @@ http_parse_length(const char *p, off_t *length)
 {
 	off_t len;
 
-	for (len = 0; *p && isdigit(*p); ++p)
+	for (len = 0; *p && isdigit((int)*p); ++p)
 		len = len * 10 + (*p - '0');
 	if (*p)
 		return (-1);
@@ -524,16 +525,16 @@ http_parse_range(const char *p, off_t *offset, off_t *length, off_t *size)
 		first = last = -1;
 		++p;
 	} else {
-		for (first = 0; *p && isdigit(*p); ++p)
+		for (first = 0; *p && isdigit((int)*p); ++p)
 			first = first * 10 + *p - '0';
 		if (*p != '-')
 			return (-1);
-		for (last = 0, ++p; *p && isdigit(*p); ++p)
+		for (last = 0, ++p; *p && isdigit((int)*p); ++p)
 			last = last * 10 + *p - '0';
 	}
 	if (first > last || *p != '/')
 		return (-1);
-	for (len = 0, ++p; *p && isdigit(*p); ++p)
+	for (len = 0, ++p; *p && isdigit((int)*p); ++p)
 		len = len * 10 + *p - '0';
 	if (*p || len < last - first + 1)
 		return (-1);
@@ -747,7 +748,7 @@ http_print_html(FILE *out, FILE *in)
 
 	comment = tag = 0;
 	while ((line = fgetln(in, &len)) != NULL) {
-		while (len && isspace(line[len - 1]))
+		while (len && isspace((int)line[len - 1]))
 			--len;
 		for (p = q = line; q < line + len; ++q) {
 			if (comment && *q == '-') {
