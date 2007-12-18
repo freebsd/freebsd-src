@@ -63,10 +63,10 @@ __FBSDID("$FreeBSD$");
 
 /*
  * The following are range values for pseudo TTY devices.  Pseudo TTYs have a
- * name of /dev/[pt]ty[p-sP-S][0-9a-v], yielding 256 combinations per major.
+ * name of /dev/[pt]ty[l-sL-S][0-9a-v], yielding 256 combinations per major.
  */
 #define PT_MAX		256
-#define	PT_DEV1		"pqrsPQRS"
+#define	PT_DEV1		"pqrsPQRSlmnoLMNO"
 #define PT_DEV2		"0123456789abcdefghijklmnopqrstuv"
 
 /*
