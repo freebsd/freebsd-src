@@ -216,8 +216,10 @@ EVENTHANDLER_DECLARE(tcp_offload_listen_stop, tcp_offload_listen_stop_fn);
 int	tcp_offload_connect(struct socket *so, struct sockaddr *nam);
 
 /*
- * The tcp_gen_* routines are wrappers around the toe_usrreqs calls,
- * in the non-offloaded case they translate to tcp_output.
+ * The tcp_output_* routines are wrappers around the toe_usrreqs calls
+ * which trigger packet transmission. In the non-offloaded case they
+ * translate to tcp_output. The tcp_offload_* routines notify TOE
+ * of specific events. I the non-offloaded case they are no-ops.
  *
  * Listen is a special case because it is a 1 to many relationship
  * and there can be more than one offload driver in the system.
@@ -233,7 +235,7 @@ int	tcp_offload_connect(struct socket *so, struct sockaddr *nam);
 #define	SO_OFFLOADABLE(so)	((so->so_options & SO_NO_OFFLOAD) == 0)
 
 static __inline int
-tcp_gen_connect(struct socket *so, struct sockaddr *nam)
+tcp_output_connect(struct socket *so, struct sockaddr *nam)
 {
 	struct tcpcb *tp = sototcpcb(so);
 	int error;
@@ -251,7 +253,7 @@ tcp_gen_connect(struct socket *so, struct sockaddr *nam)
 }
 
 static __inline int
-tcp_gen_send(struct tcpcb *tp)
+tcp_output_send(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -262,7 +264,7 @@ tcp_gen_send(struct tcpcb *tp)
 }
 
 static __inline int
-tcp_gen_rcvd(struct tcpcb *tp)
+tcp_output_rcvd(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -273,7 +275,7 @@ tcp_gen_rcvd(struct tcpcb *tp)
 }
 
 static __inline int
-tcp_gen_disconnect(struct tcpcb *tp)
+tcp_output_disconnect(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -284,7 +286,7 @@ tcp_gen_disconnect(struct tcpcb *tp)
 }
 
 static __inline int
-tcp_gen_reset(struct tcpcb *tp)
+tcp_output_reset(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -295,7 +297,7 @@ tcp_gen_reset(struct tcpcb *tp)
 }
 
 static __inline void
-tcp_gen_detach(struct tcpcb *tp)
+tcp_offload_detach(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -305,7 +307,7 @@ tcp_gen_detach(struct tcpcb *tp)
 }
 
 static __inline void
-tcp_gen_listen_open(struct tcpcb *tp)
+tcp_offload_listen_open(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
@@ -315,7 +317,7 @@ tcp_gen_listen_open(struct tcpcb *tp)
 }
 
 static __inline void
-tcp_gen_listen_close(struct tcpcb *tp)
+tcp_offload_listen_close(struct tcpcb *tp)
 {
 
 #ifndef TCP_OFFLOAD_DISABLE
