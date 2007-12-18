@@ -596,6 +596,7 @@ ktrsyscall(struct ktr_syscall *ktr)
 				c = ',';
 			} else if (ktr->ktr_code == SYS_quotactl) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				quotactlname((int)*ip);
 				ip++;
 				narg--;
@@ -615,34 +616,40 @@ ktrsyscall(struct ktr_syscall *ktr)
 			} else if (ktr->ktr_code == SYS___semctl) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				semctlname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_semget) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				semgetname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_msgctl) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				shmctlname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_shmat) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				shmatname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_shmctl) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				shmctlname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_minherit) {
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				minheritname((int)*ip);
 				ip++;
 				narg--;
@@ -665,6 +672,7 @@ ktrsyscall(struct ktr_syscall *ktr)
 				narg--;
 			} else if (ktr->ktr_code == SYS_sched_setscheduler) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				schedpolicyname((int)*ip);
 				ip++;
 				narg--;
@@ -681,11 +689,13 @@ ktrsyscall(struct ktr_syscall *ktr)
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				sendfileflagsname((int)*ip);
 				ip++;
 				narg--;
 			} else if (ktr->ktr_code == SYS_kldsym) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				kldsymcmdname((int)*ip);
 				ip++;
 				narg--;
@@ -708,6 +718,7 @@ ktrsyscall(struct ktr_syscall *ktr)
 				   ktr->ktr_code == SYS___acl_delete_link ||
 				   ktr->ktr_code == SYS___acl_aclcheck_link) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				acltypename((int)*ip);
 				ip++;
 				narg--;
@@ -719,6 +730,7 @@ ktrsyscall(struct ktr_syscall *ktr)
 				c = ',';
 			} else if (ktr->ktr_code == SYS_extattrctl) {
 				print_number(ip,narg,c);
+				(void)putchar(',');
 				extattrctlname((int)*ip);
 				ip++;
 				narg--;
