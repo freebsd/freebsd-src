@@ -719,12 +719,14 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 }
 
 static struct url *
-http_get_proxy(const char *flags)
+http_get_proxy(struct url * url, const char *flags)
 {
 	struct url *purl;
 	char *p;
 
 	if (flags != NULL && strchr(flags, 'd') != NULL)
+		return (NULL);
+	if (fetch_no_proxy_match(url->host))
 		return (NULL);
 	if (((p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
 	    *p && (purl = fetchParseURL(p))) {
@@ -1168,7 +1170,7 @@ ouch:
 FILE *
 fetchXGetHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
-	return (http_request(URL, "GET", us, http_get_proxy(flags), flags));
+	return (http_request(URL, "GET", us, http_get_proxy(URL, flags), flags));
 }
 
 /*
@@ -1198,7 +1200,7 @@ fetchStatHTTP(struct url *URL, struct url_stat *us, const char *flags)
 {
 	FILE *f;
 
-	f = http_request(URL, "HEAD", us, http_get_proxy(flags), flags);
+	f = http_request(URL, "HEAD", us, http_get_proxy(URL, flags), flags);
 	if (f == NULL)
 		return (-1);
 	fclose(f);
