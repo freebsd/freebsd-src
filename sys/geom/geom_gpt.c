@@ -101,7 +101,23 @@ is_pmbr(char *mbr)
 static int
 g_gpt_start(struct bio *bp)
 {
+	struct g_provider *pp;
+	struct g_geom *gp;
+	struct g_gpt_softc *gs;
+	struct g_slicer *gsp;
+	struct uuid uuid;
 
+	pp = bp->bio_to;
+	gp = pp->geom;
+	gsp = gp->softc;
+	gs = gsp->softc;
+
+	if (bp->bio_cmd == BIO_GETATTR) {
+		le_uuid_dec(&gs->part[pp->index]->ent_type, &uuid);
+		if (g_handleattr(bp, "GPT::type", &uuid, sizeof(uuid)))
+			return (1);
+	}
+	
 	return (0);
 }
 
