@@ -321,6 +321,8 @@ tcp_init()
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	tcp_msl = TCPTV_MSL;
 	tcp_rexmit_min = TCPTV_MIN;
+	if (tcp_rexmit_min < 1)
+		tcp_rexmit_min = 1;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 
