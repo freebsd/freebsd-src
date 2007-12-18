@@ -108,6 +108,19 @@ FBSD_1.0 {
 	__swbuf;
 	wprintf;
 	wscanf;
+};
+
+FBSDprivate_1.0 {
+	_flockfile;
+	_flockfile_debug_stub;
+	_flockfile_debug;
+	_ftrylockfile;
+	_funlockfile;
+	__vfscanf;
+
+	/*
+	 * xprintf support
+	 */
 	__use_xprintf;
 	__lowercase_hex;
 	__uppercase_hex;
@@ -135,13 +148,4 @@ FBSD_1.0 {
 	__printf_render_time;
 	__printf_arginfo_vis;
 	__printf_render_vis;
-};
-
-FBSDprivate_1.0 {
-	_flockfile;
-	_flockfile_debug_stub;
-	_flockfile_debug;
-	_ftrylockfile;
-	_funlockfile;
-	__vfscanf;
 };
