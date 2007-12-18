@@ -102,11 +102,11 @@ __FBSDID("$FreeBSD$");
 static struct url cached_host;
 static conn_t	*cached_connection;
 
-#define isftpreply(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
-			 && isdigit(foo[2]) \
+#define isftpreply(foo) (isdigit((int)foo[0]) && isdigit((int)foo[1]) \
+			 && isdigit((int)foo[2]) \
 			 && (foo[3] == ' ' || foo[3] == '\0'))
-#define isftpinfo(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
-			&& isdigit(foo[2]) && foo[3] == '-')
+#define isftpinfo(foo) (isdigit((int)foo[0]) && isdigit((int)foo[1]) \
+			&& isdigit((int)foo[2]) && foo[3] == '-')
 
 /*
  * Translate IPv4 mapped IPv6 address to IPv4 address
@@ -150,7 +150,7 @@ ftp_chkerr(conn_t *conn)
 		}
 	}
 
-	while (conn->buflen && isspace(conn->buf[conn->buflen - 1]))
+	while (conn->buflen && isspace((int)conn->buf[conn->buflen - 1]))
 		conn->buflen--;
 	conn->buf[conn->buflen] = '\0';
 
@@ -414,11 +414,11 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 		ftp_seterr(e);
 		return (-1);
 	}
-	for (ln = conn->buf + 4; *ln && isspace(*ln); ln++)
+	for (ln = conn->buf + 4; *ln && isspace((int)*ln); ln++)
 		/* nothing */ ;
-	for (us->size = 0; *ln && isdigit(*ln); ln++)
+	for (us->size = 0; *ln && isdigit((int)*ln); ln++)
 		us->size = us->size * 10 + *ln - '0';
-	if (*ln && !isspace(*ln)) {
+	if (*ln && !isspace((int)*ln)) {
 		ftp_seterr(FTP_PROTOCOL_ERROR);
 		us->size = -1;
 		return (-1);
@@ -432,7 +432,7 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 		ftp_seterr(e);
 		return (-1);
 	}
-	for (ln = conn->buf + 4; *ln && isspace(*ln); ln++)
+	for (ln = conn->buf + 4; *ln && isspace((int)*ln); ln++)
 		/* nothing */ ;
 	switch (strspn(ln, "0123456789")) {
 	case 14:
@@ -691,7 +691,7 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		switch (e) {
 		case FTP_PASSIVE_MODE:
 		case FTP_LPASSIVE_MODE:
-			for (p = ln + 3; *p && !isdigit(*p); p++)
+			for (p = ln + 3; *p && !isdigit((int)*p); p++)
 				/* nothing */ ;
 			if (!*p) {
 				e = FTP_PROTOCOL_ERROR;
