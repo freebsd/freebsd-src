@@ -1935,16 +1935,13 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	src_if = m->m_pkthdr.rcvif;
 	ifp = sc->sc_ifp;
 
-	sc->sc_ifp->if_ipackets++;
-	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
+	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	vlan = VLANTAGOF(m);
 
 	if ((sbif->bif_flags & IFBIF_STP) &&
-	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+		goto drop;
 
 	eh = mtod(m, struct ether_header *);
 
@@ -1956,19 +1953,13 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		 * If the interface has addresses limits then deny any source
 		 * that is not in the cache.
 		 */
-		if (error && sbif->bif_addrmax) {
-			BRIDGE_UNLOCK(sc);
-			m_freem(m);
-			return;
-		}
+		if (error && sbif->bif_addrmax)
+			goto drop;
 	}
 
 	if ((sbif->bif_flags & IFBIF_STP) != 0 &&
-	    sbif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING) {
-		m_freem(m);
-		BRIDGE_UNLOCK(sc);
-		return;
-	}
+	    sbif->bif_stp.bp_state == BSTP_IFSTATE_LEARNING)
+		goto drop;
 
 	/*
 	 * At this point, the port either doesn't participate
@@ -1981,14 +1972,11 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
 		dst_if = bridge_rtlookup(sc, eh->ether_dhost, vlan);
-		if (src_if == dst_if) {
-			BRIDGE_UNLOCK(sc);
-			m_freem(m);
-			return;
-		}
+		if (src_if == dst_if)
+			goto drop;
 	} else {
 		/* ...forward it to all interfaces. */
-		sc->sc_ifp->if_imcasts++;
+		ifp->if_imcasts++;
 		dst_if = NULL;
 	}
 
@@ -2027,32 +2015,21 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	 * At this point, we're dealing with a unicast frame
 	 * going to a different interface.
 	 */
-	if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto drop;
+
 	dbif = bridge_lookup_member_if(sc, dst_if);
-	if (dbif == NULL) {
+	if (dbif == NULL)
 		/* Not a member of the bridge (anymore?) */
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+		goto drop;
 
 	/* Private segments can not talk to each other */
-	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	if (sbif->bif_flags & dbif->bif_flags & IFBIF_PRIVATE)
+		goto drop;
 
 	if ((dbif->bif_flags & IFBIF_STP) &&
-	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
-		BRIDGE_UNLOCK(sc);
-		m_freem(m);
-		return;
-	}
+	    dbif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING)
+		goto drop;
 
 	BRIDGE_UNLOCK(sc);
 
@@ -2061,13 +2038,18 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 	    || PFIL_HOOKED(&inet6_pfil_hook)
 #endif
 	    ) {
-		if (bridge_pfil(&m, sc->sc_ifp, dst_if, PFIL_OUT) != 0)
+		if (bridge_pfil(&m, ifp, dst_if, PFIL_OUT) != 0)
 			return;
 		if (m == NULL)
 			return;
 	}
 
 	bridge_enqueue(sc, dst_if, m);
+	return;
+
+drop:
+	BRIDGE_UNLOCK(sc);
+	m_freem(m);
 }
 
 /*
