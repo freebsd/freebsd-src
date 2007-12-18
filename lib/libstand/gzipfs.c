@@ -41,6 +41,7 @@ struct z_file
     off_t		zf_dataoffset;
     z_stream		zf_zstream;
     char		zf_buf[Z_BUFSIZE];
+    int			zf_endseen;
 };
 
 static int	zf_fill(struct z_file *z);
@@ -252,7 +253,7 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     zf->zf_zstream.next_out = buf;			/* where and how much */
     zf->zf_zstream.avail_out = size;
 
-    while (zf->zf_zstream.avail_out) {
+    while (zf->zf_zstream.avail_out && zf->zf_endseen == 0) {
 	if ((zf->zf_zstream.avail_in == 0) && (zf_fill(zf) == -1)) {
 	    printf("zf_read: fill error\n");
 	    return(EIO);
@@ -266,6 +267,7 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 
 	error = inflate(&zf->zf_zstream, Z_SYNC_FLUSH);	/* decompression pass */
 	if (error == Z_STREAM_END) {			/* EOF, all done */
+	    zf->zf_endseen = 1;
 	    break;
 	}
 	if (error != Z_OK) {				/* argh, decompression error */
