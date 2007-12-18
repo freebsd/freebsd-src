@@ -902,6 +902,7 @@ fp_common:
 				} else
 					cp = (ch >= 'a') ? L"inf" : L"INF";
 				size = 3;
+				flags &= ~ZEROPAD;
 				break;
 			}
 			flags |= FPT;
