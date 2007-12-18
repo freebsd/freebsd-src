@@ -566,7 +566,7 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #define	p2a(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1) \
     printf(m, tcpstat.f1, plural(tcpstat.f1), tcpstat.f2)
 #define	p3(f, m) if (tcpstat.f || sflag <= 1) \
-    printf(m, tcpstat.f, plurales(tcpstat.f))
+    printf(m, tcpstat.f, pluralies(tcpstat.f))
 
 	p(tcps_sndtotal, "\t%lu packet%s sent\n");
 	p2(tcps_sndpack,tcps_sndbyte,
@@ -631,7 +631,7 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
 
-	p(tcps_sc_added, "\t%lu syncache entrie%s added\n"); 
+	p3(tcps_sc_added, "\t%lu syncache entr%s added\n");
 	p1a(tcps_sc_retransmitted, "\t\t%lu retransmitted\n"); 
 	p1a(tcps_sc_dupsyn, "\t\t%lu dupsyn\n"); 
 	p1a(tcps_sc_dropped, "\t\t%lu dropped\n"); 
