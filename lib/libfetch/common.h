@@ -90,6 +90,7 @@ int		 fetch_close(conn_t *);
 int		 fetch_add_entry(struct url_ent **, int *, int *,
 		     const char *, struct url_stat *);
 int		 fetch_netrc_auth(struct url *url);
+int		 fetch_no_proxy_match(const char *);
 
 #define ftp_seterr(n)	 fetch_seterr(ftp_errlist, n)
 #define http_seterr(n)	 fetch_seterr(http_errlist, n)
