@@ -112,6 +112,28 @@ notok()
 	OK=0
 }
 
+# Verify that the exit code passed is for unsuccessful termination
+ckfail()
+{
+	if [ $1 -gt 0 ]
+	then
+		ok
+	else
+		notok
+	fi
+}
+
+# Verify that the exit code passed is for successful termination
+ckok()
+{
+	if [ $1 -eq 0 ]
+	then
+		ok
+	else
+		notok
+	fi
+}
+
 # Run all tests locally and across devices
 echo 1..24
 for FS in '' $TMPDIR/testdir/
@@ -119,6 +141,7 @@ do
 	begin 'Rename file'
 	mkf fa
 	mv fa ${FS}fb
+	ckok $?
 	ckf fa ${FS}fb
 	cknt fa
 	end
@@ -128,6 +151,7 @@ do
 	mkf fb
 	mkdir -p ${FS}1/2/3
 	mv fa fb ${FS}1/2/3
+	ckok $?
 	ckf fa ${FS}1/2/3/fa
 	ckf fb ${FS}1/2/3/fb
 	cknt fa
@@ -138,8 +162,31 @@ do
 	mkdir -p 1/2/3
 	mkf 1/2/3/fa
 	mv 1/2/3/fa ${FS}fb
+	ckok $?
 	ckf fa ${FS}fb
 	cknt 1/2/3/fa
+	end
+
+	begin 'Move file from directory to existing file'
+	mkdir -p 1/2/3
+	mkf 1/2/3/fa
+	:> ${FS}fb
+	mv 1/2/3/fa ${FS}fb
+	ckok $?
+	ckf fa ${FS}fb
+	cknt 1/2/3/fa
+	end
+
+	begin 'Move file from directory to existing directory'
+	mkdir -p 1/2/3
+	mkf 1/2/3/fa
+	mkdir -p db/fa
+	# Should fail per POSIX step 3a:
+	# Destination path is a file of type directory and
+	# source_file is not a file of type directory
+	mv 1/2/3/fa ${FS}db
+	ckfail $?
+	ckf fa 1/2/3/fa
 	end
 
 	begin 'Move file from directory to directory'
@@ -147,6 +194,7 @@ do
 	mkdir -p ${FS}db1/db2/db3
 	mkf da1/da2/da3/fa
 	mv da1/da2/da3/fa ${FS}db1/db2/db3/fb
+	ckok $?
 	ckf fa ${FS}db1/db2/db3/fb
 	cknt da1/da2/da3/fa
 	end
@@ -154,6 +202,7 @@ do
 	begin 'Rename directory'
 	mkd da
 	mv da ${FS}db
+	ckok $?
 	ckd da ${FS}db
 	cknt da
 	end
@@ -162,6 +211,7 @@ do
 	mkd da1/da2/da3/da
 	mkdir -p ${FS}db1/db2/db3
 	mv da1/da2/da3/da ${FS}db1/db2/db3/db
+	ckok $?
 	ckd da ${FS}db1/db2/db3/db
 	cknt da1/da2/da3/da
 	end
@@ -170,21 +220,45 @@ do
 	mkd da1/da2/da3/da
 	mkdir -p ${FS}db1/db2/db3
 	mv da1/da2/da3/da ${FS}db1/db2/db3
+	ckok $?
 	ckd da ${FS}db1/db2/db3/da
 	cknt da1/da2/da3/da
 	end
 
-	begin 'Move directory to existing directory'
+	begin 'Move directory to existing empty directory'
 	mkd da1/da2/da3/da
 	mkdir -p ${FS}db1/db2/db3/da
 	mv da1/da2/da3/da ${FS}db1/db2/db3
+	ckok $?
 	ckd da ${FS}db1/db2/db3/da
 	cknt da1/da2/da3/da
+	end
+
+	begin 'Move directory to existing non-empty directory'
+	mkd da1/da2/da3/da
+	mkdir -p ${FS}db1/db2/db3/da/full
+	# Should fail (per the semantics of rename(2))
+	mv da1/da2/da3/da ${FS}db1/db2/db3
+	ckfail $?
+	ckd da da1/da2/da3/da
+	end
+
+	begin 'Move directory to existing file'
+	mkd da1/da2/da3/da
+	mkdir -p ${FS}db1/db2/db3
+	:> ${FS}db1/db2/db3/da
+	# Should fail per POSIX step 3b:
+	# Destination path is a file not of type directory
+	# and source_file is a file of type directory
+	mv da1/da2/da3/da ${FS}db1/db2/db3/da
+	ckfail $?
+	ckd da da1/da2/da3/da
 	end
 
 	begin 'Rename fifo'
 	mkp fa
 	mv fa ${FS}fb
+	ckok $?
 	ckp fa ${FS}fb
 	cknt fa
 	end
@@ -194,6 +268,7 @@ do
 	mkp fb
 	mkdir -p ${FS}1/2/3
 	mv fa fb ${FS}1/2/3
+	ckok $?
 	ckp fa ${FS}1/2/3/fa
 	ckp fb ${FS}1/2/3/fb
 	cknt fa
@@ -204,6 +279,7 @@ do
 	mkdir -p 1/2/3
 	mkp 1/2/3/fa
 	mv 1/2/3/fa ${FS}fb
+	ckok $?
 	ckp fa ${FS}fb
 	cknt 1/2/3/fa
 	end
@@ -213,6 +289,7 @@ do
 	mkdir -p ${FS}db1/db2/db3
 	mkp da1/da2/da3/fa
 	mv da1/da2/da3/fa ${FS}db1/db2/db3/fb
+	ckok $?
 	ckp fa ${FS}db1/db2/db3/fb
 	cknt da1/da2/da3/fa
 	end
