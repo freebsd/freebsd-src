@@ -110,6 +110,7 @@ t3_init_socket_ops(void)
 	prp = pffindtype(AF_INET, SOCK_STREAM);
 	pru_sosend = prp->pr_usrreqs->pru_sosend;
 	pru_soreceive = prp->pr_usrreqs->pru_soreceive;
+#ifdef TCP_USRREQS_OVERLOAD	
 	tcp_usrreqs.pru_connect = cxgb_tcp_usrreqs.pru_connect;
 	tcp_usrreqs.pru_abort = cxgb_tcp_usrreqs.pru_abort;
 	tcp_usrreqs.pru_listen = cxgb_tcp_usrreqs.pru_listen;
@@ -119,6 +120,7 @@ t3_init_socket_ops(void)
 	tcp_usrreqs.pru_close = cxgb_tcp_usrreqs.pru_close;
 	tcp_usrreqs.pru_shutdown = cxgb_tcp_usrreqs.pru_shutdown;
 	tcp_usrreqs.pru_rcvd = cxgb_tcp_usrreqs.pru_rcvd;
+#endif
 }
 
 
