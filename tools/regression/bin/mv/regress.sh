@@ -26,9 +26,9 @@ end()
 {
 	if [ $OK = 1 ]
 	then
-		echo -n 'ok '
+		printf 'ok '
 	else
-		echo -n 'not ok '
+		printf 'not ok '
 	fi
 	echo "$COUNT - $NAME"
 	cd ..
@@ -45,7 +45,7 @@ mkf()
 # Verify that the file specified is correct
 ckf()
 {
-	if [ -f $2 ] && echo "$1-$1" | diff -q - $2
+	if [ -f $2 ] && echo "$1-$1" | diff - $2 >/dev/null
 	then
 		ok
 	else
@@ -92,7 +92,7 @@ ckd()
 # (is not there)
 cknt()
 {
-	if [ -e $1 ]
+	if [ -r $1 ]
 	then
 		notok
 	else
