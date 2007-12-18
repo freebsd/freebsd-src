@@ -662,7 +662,6 @@ kern_sigaction(td, sig, act, oact, flags)
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
 	if (oact) {
-		oact->sa_handler = ps->ps_sigact[_SIG_IDX(sig)];
 		oact->sa_mask = ps->ps_catchmask[_SIG_IDX(sig)];
 		oact->sa_flags = 0;
 		if (SIGISMEMBER(ps->ps_sigonstack, sig))
@@ -673,8 +672,12 @@ kern_sigaction(td, sig, act, oact, flags)
 			oact->sa_flags |= SA_RESETHAND;
 		if (SIGISMEMBER(ps->ps_signodefer, sig))
 			oact->sa_flags |= SA_NODEFER;
-		if (SIGISMEMBER(ps->ps_siginfo, sig))
+		if (SIGISMEMBER(ps->ps_siginfo, sig)) {
 			oact->sa_flags |= SA_SIGINFO;
+			oact->sa_sigaction =
+			    (__siginfohandler_t *)ps->ps_sigact[_SIG_IDX(sig)];
+		} else
+			oact->sa_handler = ps->ps_sigact[_SIG_IDX(sig)];
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDSTOP)
 			oact->sa_flags |= SA_NOCLDSTOP;
 		if (sig == SIGCHLD && ps->ps_flag & PS_NOCLDWAIT)
