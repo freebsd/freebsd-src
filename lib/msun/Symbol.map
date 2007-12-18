@@ -178,7 +178,6 @@ FBSD_1.0 {
 	truncf;
 	truncl;
 	cabs;
-	z_abs;
 	cabsf;
 	drem;
 	dremf;
