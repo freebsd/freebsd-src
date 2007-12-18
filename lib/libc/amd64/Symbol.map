@@ -71,7 +71,4 @@ FBSDprivate_1.0 {
 	_end;
 	__sys_vfork;
 	_vfork;
-
-	/* used in libm */
-	__ULtox_D2A;
 };
