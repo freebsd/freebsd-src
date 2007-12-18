@@ -1057,12 +1057,14 @@ ftp_cached_connect(struct url *url, struct url *purl, const char *flags)
  * Check the proxy settings
  */
 static struct url *
-ftp_get_proxy(const char *flags)
+ftp_get_proxy(struct url * url, const char *flags)
 {
 	struct url *purl;
 	char *p;
 
 	if (flags != NULL && strchr(flags, 'd') != NULL)
+		return (NULL);
+	if (fetch_no_proxy_match(url->host))
 		return (NULL);
 	if (((p = getenv("FTP_PROXY")) || (p = getenv("ftp_proxy")) ||
 		(p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
@@ -1140,7 +1142,7 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 FILE *
 fetchXGetFTP(struct url *url, struct url_stat *us, const char *flags)
 {
-	return (ftp_request(url, "RETR", us, ftp_get_proxy(flags), flags));
+	return (ftp_request(url, "RETR", us, ftp_get_proxy(url, flags), flags));
 }
 
 /*
@@ -1158,9 +1160,8 @@ fetchGetFTP(struct url *url, const char *flags)
 FILE *
 fetchPutFTP(struct url *url, const char *flags)
 {
-
 	return (ftp_request(url, CHECK_FLAG('a') ? "APPE" : "STOR", NULL,
-	    ftp_get_proxy(flags), flags));
+	    ftp_get_proxy(url, flags), flags));
 }
 
 /*
@@ -1171,9 +1172,10 @@ fetchStatFTP(struct url *url, struct url_stat *us, const char *flags)
 {
 	FILE *f;
 
-	f = ftp_request(url, "STAT", us, ftp_get_proxy(flags), flags);
+	f = ftp_request(url, "STAT", us, ftp_get_proxy(url, flags), flags);
 	if (f == NULL)
 		return (-1);
+	fclose(f);
 	return (0);
 }
 
