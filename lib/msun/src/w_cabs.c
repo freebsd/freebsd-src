@@ -19,10 +19,3 @@ cabs(z)
 {
 	return hypot(creal(z), cimag(z));
 }
-
-double
-z_abs(z)
-	double complex *z;
-{
-	return hypot(creal(*z), cimag(*z));
-}
