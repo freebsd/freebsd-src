@@ -29,19 +29,18 @@
 #include <math.h>
 
 #include "fpmath.h"
-#include "../../../contrib/gdtoa/gdtoaimp.h"
+#include "../src/math_private.h"
 
 long double
 nanl(const char *s)
 {
-	static FPI fpi = { 113, -16494, 16271, 1, SI };
+	union {
+		union IEEEl2bits ieee;
+		uint32_t bits[4];
+	} u;
 
-	union IEEEl2bits result;
-	ULong bits[2];
-	int k;
-
-	s--;
-	k = hexnan(&s, &fpi, bits);
-        ULtoQ((UShort *)&result.e, bits, 16272, k);
-	return (result.e);
+	_scan_nan(u.bits, 4, s);
+	u.ieee.bits.exp = 0x7fff;
+	u.ieee.bits.manh |= 1 << 47;	/* make it a quiet NaN */
+	return (u.ieee.e);
 }

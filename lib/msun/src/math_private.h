@@ -154,6 +154,11 @@ do {								\
   (d) = sf_u.value;						\
 } while (0)
 
+/*
+ * Common routine to process the arguments to nan(), nanf(), and nanl().
+ */
+void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
+
 #ifdef _COMPLEX_H
 /*
  * Inline functions that can be used to construct complex values.
