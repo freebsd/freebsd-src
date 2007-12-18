@@ -33,8 +33,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <netdb.h>
 #include <pwd.h>
@@ -733,4 +735,52 @@ fetch_netrc_auth(struct url *url)
  ferr:
 	fclose(f);
 	return (-1);
+}
+
+/*
+ * The no_proxy environment variable specifies a set of domains for
+ * which the proxy should not be consulted; the contents is a comma-,
+ * or space-separated list of domain names.  A single asterisk will
+ * override all proxy variables and no transactions will be proxied
+ * (for compatability with lynx and curl, see the discussion at
+ * <http://curl.haxx.se/mail/archive_pre_oct_99/0009.html>).
+ */
+int
+fetch_no_proxy_match(const char *host)
+{
+	const char *no_proxy, *p, *q;
+	size_t h_len, d_len;
+
+	if ((no_proxy = getenv("NO_PROXY")) == NULL &&
+	    (no_proxy = getenv("no_proxy")) == NULL)
+		return (0);
+
+	/* asterisk matches any hostname */
+	if (strcmp(no_proxy, "*") == 0)
+		return (1);
+
+	h_len = strlen(host);
+	p = no_proxy;
+	do {
+		/* position p at the beginning of a domain suffix */
+		while (*p == ',' || isspace((int)*p))
+			p++;
+
+		/* position q at the first separator character */
+		for (q = p; *q; ++q)
+			if (*q == ',' || isspace((int)*q))
+				break;
+
+		d_len = q - p;
+		if (d_len > 0 && h_len > d_len &&
+		    strncasecmp(host + h_len - d_len,
+			p, d_len) == 0) {
+			/* domain name matches */
+			return (1);
+		}
+
+		p = q + 1;
+	} while (*q);
+
+	return (0);
 }
