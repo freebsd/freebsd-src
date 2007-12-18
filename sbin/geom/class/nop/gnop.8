@@ -71,9 +71,9 @@ utility is used for setting up transparent providers on existing ones.
 Its main purpose is testing other GEOM classes, as it allows forced provider
 removal and I/O error simulation with a given probability.
 It also gathers the following statistics: number of read requests, number of
-write requests, number of read bytes and number of wrote bytes.
+write requests, number of bytes read and number of bytes written.
 In addition, it can be used as a good starting point for implementing new GEOM
-class.
+classes.
 .Pp
 The first argument to
 .Nm
@@ -157,7 +157,7 @@ The traffic statistics for the given transparent providers can be obtained
 with the
 .Cm list
 command.
-Example below shows the number of bytes written with
+The example below shows the number of bytes written with
 .Xr newfs 8 :
 .Bd -literal -offset indent
 gnop create da0
