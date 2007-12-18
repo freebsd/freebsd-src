@@ -2118,6 +2118,13 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	if (memcmp(eh->ether_dhost, IF_LLADDR(bifp),
 	    ETHER_ADDR_LEN) == 0) {
+		/* Block redundant paths to us */
+		if ((bif->bif_flags & IFBIF_STP) &&
+		    bif->bif_stp.bp_state == BSTP_IFSTATE_DISCARDING) {
+			BRIDGE_UNLOCK(sc);
+			return (m);
+		}
+
 		/*
 		 * Filter on the physical interface.
 		 */
