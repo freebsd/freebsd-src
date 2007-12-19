@@ -108,6 +108,9 @@ Traffic shaping is much more polite to the TCP traffic than rate limit on
 links with bandwidth * delay product less than 6-8 TCP segments, but it
 consumes additional system resources for queue processing.
 .El
+By default, all information rates are measured in bits per second and bursts
+are measured in bytes. But when NG_CAR_COUNT_PACKETS option is enabled,
+rates are measured in packets per second and bursts are in packets.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages and the following
 specific messages.
@@ -120,17 +123,34 @@ Return current node configuration as
 .Vt "struct ng_car_bulkconf"
 .Bd -literal
 struct ng_car_hookconf {
-	u_int64_t cbs;		/* Committed burst size (bytes) */
-	u_int64_t ebs;		/* Exceeded/Peak burst size (bytes) */
-	u_int64_t cir;		/* Committed information rate (bits/s) */
-	u_int64_t pir;		/* Peak information rate (bits/s) */
+	u_int64_t cbs;		/* Committed burst size */
+	u_int64_t ebs;		/* Exceeded/Peak burst size */
+	u_int64_t cir;		/* Committed information rate */
+	u_int64_t pir;		/* Peak information rate */
 	u_int8_t green_action;	/* Action for green packets */
 	u_int8_t yellow_action;	/* Action for yellow packets */
 	u_int8_t red_action;	/* Action for red packets */
-	u_int8_t mode;		/* single/double rate, ... */
-	u_int8_t opt;		/* color-aware or color-blind */
+	u_int8_t mode;		/* operation mode */
+	u_int8_t opt;		/* mode options */
 };
 
+/* possible actions (..._action) */
+enum {
+    NG_CAR_ACTION_FORWARD = 1,
+    NG_CAR_ACTION_DROP
+};
+
+/* operation modes (mode) */
+enum {
+    NG_CAR_SINGLE_RATE = 0,
+    NG_CAR_DOUBLE_RATE,
+    NG_CAR_RED,
+    NG_CAR_SHAPE
+};
+
+/* mode options (opt) */
+#define NG_CAR_COUNT_PACKETS	2
+  
 struct ng_car_bulkconf {
 	struct ng_car_hookconf upstream;
 	struct ng_car_hookconf downstream;
