@@ -12,7 +12,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2001
+.Dd December 18, 2007
 .Dt SYNCACHE 4
 .Os
 .Sh NAME
@@ -132,7 +132,7 @@ Read-only, tunable via
 .Xr loader 8 .
 .It Va rexmtlimit
 Maximum number of times a SYN,ACK is retransmitted before being discarded.
-The default of 3 retransmits corresponds to a 15 second timeout, this value
+The default of 3 retransmits corresponds to a 45 second timeout, this value
 may be increased depending on the RTT to client machines.
 Tunable via
 .Xr sysctl 3 .
