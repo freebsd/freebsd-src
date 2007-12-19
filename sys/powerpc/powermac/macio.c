@@ -369,7 +369,6 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int		needactivate;
 	struct		resource *rv;
 	struct		rman *rm;
-	bus_space_tag_t	tagval;
 	u_long		adjstart, adjend, adjcount;
 	struct		macio_devinfo *dinfo;
 	struct		resource_list_entry *rle;
@@ -408,8 +407,6 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		adjcount = adjend - adjstart;
 
 		rm = &sc->sc_mem_rman;
-
-		tagval = PPC_BUS_SPACE_MEM;
 		break;
 
 	case SYS_RES_IRQ:
@@ -431,7 +428,6 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 		return (resource_list_alloc(&dinfo->mdi_resources, bus, child,
 		    type, rid, start, end, count, flags));
-		break;
 
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
@@ -449,7 +445,7 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, tagval);
+	rman_set_bustag(rv, &bs_le_tag);
 	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {
