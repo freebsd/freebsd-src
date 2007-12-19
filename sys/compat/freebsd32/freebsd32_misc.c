@@ -84,12 +84,23 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_ipc.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
 CTASSERT(sizeof(struct timeval32) == 8);
 CTASSERT(sizeof(struct timespec32) == 8);
+CTASSERT(sizeof(struct itimerval32) == 16);
 CTASSERT(sizeof(struct statfs32) == 256);
 CTASSERT(sizeof(struct rusage32) == 72);
+CTASSERT(sizeof(struct sigaltstack32) == 12);
+CTASSERT(sizeof(struct kevent32) == 20);
+CTASSERT(sizeof(struct iovec32) == 8);
+CTASSERT(sizeof(struct msghdr32) == 28);
+CTASSERT(sizeof(struct stat32) == 96);
+CTASSERT(sizeof(struct sigaction32) == 24);
+
+static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
+static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
 
 int
 freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
@@ -187,14 +198,6 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 	return (error);
 }
 #endif
-
-struct sigaltstack32 {
-	u_int32_t	ss_sp;
-	u_int32_t	ss_size;
-	int		ss_flags;
-};
-
-CTASSERT(sizeof(struct sigaltstack32) == 12);
 
 int
 freebsd32_sigaltstack(struct thread *td,
@@ -481,13 +484,6 @@ freebsd32_mmap(struct thread *td, struct freebsd32_mmap_args *uap)
 	return (mmap(td, &ap));
 }
 
-struct itimerval32 {
-	struct timeval32 it_interval;
-	struct timeval32 it_value;
-};
-
-CTASSERT(sizeof(struct itimerval32) == 16);
-
 int
 freebsd32_setitimer(struct thread *td, struct freebsd32_setitimer_args *uap)
 {
@@ -549,19 +545,6 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	 */
 	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
 }
-
-struct kevent32 {
-	u_int32_t	ident;		/* identifier for this event */
-	short		filter;		/* filter for event */
-	u_short		flags;
-	u_int		fflags;
-	int32_t		data;
-	u_int32_t	udata;		/* opaque user data identifier */
-};
-
-CTASSERT(sizeof(struct kevent32) == 20);
-static int freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count);
-static int freebsd32_kevent_copyin(void *arg, struct kevent *kevp, int count);
 
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
@@ -700,13 +683,6 @@ freebsd32_getrusage(struct thread *td, struct freebsd32_getrusage_args *uap)
 	return (error);
 }
 
-struct iovec32 {
-	u_int32_t iov_base;
-	int	iov_len;
-};
-
-CTASSERT(sizeof(struct iovec32) == 8);
-
 static int
 freebsd32_copyinuio(struct iovec32 *iovp, u_int iovcnt, struct uio **uiop)
 {
@@ -830,17 +806,6 @@ freebsd32_copyiniov(struct iovec32 *iovp32, u_int iovcnt, struct iovec **iovp,
 	*iovp = iov;
 	return (0);
 }
-
-struct msghdr32 {
-	u_int32_t	 msg_name;
-	socklen_t	 msg_namelen;
-	u_int32_t	 msg_iov;
-	int		 msg_iovlen;
-	u_int32_t	 msg_control;
-	socklen_t	 msg_controllen;
-	int		 msg_flags;
-};
-CTASSERT(sizeof(struct msghdr32) == 28);
 
 static int
 freebsd32_copyinmsghdr(struct msghdr32 *msg32, struct msghdr *msg)
@@ -1424,42 +1389,6 @@ freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 	}
 }
 
-struct ipc_perm32 {
-	uint16_t	cuid;
-	uint16_t	cgid;
-	uint16_t	uid;
-	uint16_t	gid;
-	uint16_t	mode;
-	uint16_t	seq;
-	uint32_t	key;
-};
-struct shmid_ds32 {
-	struct ipc_perm32 shm_perm;
-	int32_t		shm_segsz;
-	int32_t		shm_lpid;
-	int32_t		shm_cpid;
-	int16_t		shm_nattch;
-	int32_t		shm_atime;
-	int32_t		shm_dtime;
-	int32_t		shm_ctime;
-	uint32_t	shm_internal;
-};
-struct shm_info32 {
-	int32_t		used_ids;
-	uint32_t	shm_tot;
-	uint32_t	shm_rss;
-	uint32_t	shm_swp;
-	uint32_t	swap_attempts;
-	uint32_t	swap_successes;
-};
-struct shminfo32 {
-	uint32_t	shmmax;
-	uint32_t	shmmin;
-	uint32_t	shmmni;
-	uint32_t	shmseg;
-	uint32_t	shmall;
-};
-
 int
 freebsd32_shmctl(struct thread *td, struct freebsd32_shmctl_args *uap)
 {
@@ -1693,30 +1622,6 @@ freebsd32_sendfile(struct thread *td, struct freebsd32_sendfile_args *uap)
 	return (freebsd32_do_sendfile(td, uap, 0));
 }
 
-struct stat32 {
-	dev_t	st_dev;
-	ino_t	st_ino;
-	mode_t	st_mode;
-	nlink_t	st_nlink;
-	uid_t	st_uid;
-	gid_t	st_gid;
-	dev_t	st_rdev;
-	struct timespec32 st_atimespec;
-	struct timespec32 st_mtimespec;
-	struct timespec32 st_ctimespec;
-	off_t	st_size;
-	int64_t	st_blocks;
-	u_int32_t st_blksize;
-	u_int32_t st_flags;
-	u_int32_t st_gen;
-	struct timespec32 st_birthtimespec;
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
-	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
-};
-
-
-CTASSERT(sizeof(struct stat32) == 96);
-
 static void
 copy_stat( struct stat *in, struct stat32 *out)
 {
@@ -1812,14 +1717,6 @@ done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
-
-struct sigaction32 {
-	u_int32_t	sa_u;
-	int		sa_flags;
-	sigset_t	sa_mask;
-};
-
-CTASSERT(sizeof(struct sigaction32) == 24);
 
 int
 freebsd32_sigaction(struct thread *td, struct freebsd32_sigaction_args *uap)
