@@ -486,7 +486,7 @@ vm_phys_unfree_page(vm_page_t m)
 	 */
 	seg = &vm_phys_segs[m->segind];
 	for (m_set = m, order = 0; m_set->order == VM_NFREEORDER &&
-	    order < VM_NFREEORDER; ) {
+	    order < VM_NFREEORDER - 1; ) {
 		order++;
 		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
 		KASSERT(pa >= seg->start && pa < seg->end,
@@ -499,8 +499,6 @@ vm_phys_unfree_page(vm_page_t m)
 	KASSERT(m_set->order < VM_NFREEORDER,
 	    ("vm_phys_unfree_page: page %p has unexpected order %d",
 	    m_set, m_set->order));
-	KASSERT(order < VM_NFREEORDER,
-	    ("vm_phys_unfree_page: order %d is out of range", order));
 
 	/*
 	 * Next, remove "m_set" from the free lists.  Finally, extract
