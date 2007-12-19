@@ -1220,13 +1220,16 @@ devclass_get_count(devclass_t dc)
  * @brief Get the maximum unit number used in a devclass
  *
  * Note that this is one greater than the highest currently-allocated
- * unit.
+ * unit.  If a null devclass_t is passed in, -1 is returned to indicate
+ * that not even the devclass has been allocated yet.
  *
  * @param dc		the devclass to examine
  */
 int
 devclass_get_maxunit(devclass_t dc)
 {
+	if (dc == NULL)
+		return (-1);
 	return (dc->maxunit);
 }
 
