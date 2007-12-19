@@ -180,7 +180,7 @@ do
 	begin 'Move file from directory to existing directory'
 	mkdir -p 1/2/3
 	mkf 1/2/3/fa
-	mkdir -p db/fa
+	mkdir -p ${FS}db/fa
 	# Should fail per POSIX step 3a:
 	# Destination path is a file of type directory and
 	# source_file is not a file of type directory
