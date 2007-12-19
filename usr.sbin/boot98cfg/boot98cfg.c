@@ -141,7 +141,7 @@ main(int argc, char *argv[])
 			version = strtol(optarg, &endptr, 0);
 			if (errno || *optarg == '\0' || *endptr ||
 			    version < 0 || version > 255)
-				errx(1, "%s: Bad argument to -s option",
+				errx(1, "%s: Bad argument to -v option",
 				    optarg);
 			break;
 		default:
