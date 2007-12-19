@@ -774,16 +774,12 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 				free(log_state, M_MFIBUF);
 			return (error);
 		}
-		/*
-		 * Don't run them yet since we can't parse them.
-		 * We can indirectly get the contents from
-		 * the AEN mechanism via setting it lower then
-		 * current.  The firmware will iterate through them.
-		 */
+		/* The message log is a circular buffer */
 		for (seq = log_state->shutdown_seq_num;
-		     seq <= log_state->newest_seq_num; seq++) {
+		     seq != log_state->newest_seq_num; seq++) {
 			mfi_get_entry(sc, seq);
 		}
+		mfi_get_entry(sc, seq);
 	} else
 		seq = seq_start;
 	mfi_aen_register(sc, seq, class_locale.word);
