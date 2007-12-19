@@ -135,7 +135,7 @@ ckok()
 }
 
 # Run all tests locally and across devices
-echo 1..24
+echo 1..32
 for FS in '' $TMPDIR/testdir/
 do
 	begin 'Rename file'
