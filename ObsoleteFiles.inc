@@ -553,7 +553,6 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-OLD_FILES+=usr/bin/gdbserver
 OLD_FILES+=usr/bin/ssh-keysign
 OLD_FILES+=usr/sbin/gifconfig
 OLD_FILES+=usr/sbin/prefix
