@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2007
+.Dd December 18, 2007
 .Dt BUS_SETUP_INTR 9
 .Os
 .Sh NAME
@@ -90,6 +90,9 @@ To define a time-critical handler (previously known as
 that will not execute any potentially blocking operation, use the
 .Fa filter
 argument.
+See the
+.Sx "Filter Routine" 
+section below for information on writing a filter.
 Otherwise, use the
 .Fa ithread
 argument.
@@ -97,6 +100,9 @@ The defined handler
 will be called with the value
 .Fa arg
 as its only argument.
+See the
+.Sx "ithread Routine" 
+section below for more information on writing an interrupt handler.
 .Pp
 The
 .Fa cookiep
@@ -121,13 +127,86 @@ returns, it is guaranteed that the interrupt function is not active and
 will no longer be called.
 .Pp
 Mutexes are not allowed to be held across calls to these functions.
+.Ss "Filter Routines"
+A filter runs in a context very similar to what was known as an
+.Dv INTR_FAST
+routine in previous versions of 
+.Fx .
+In this context, normal mutexes cannot be used.
+Only the spin lock version of these can be used (specified by passing
+.Dv MTX_SPIN 
+to 
+.Fn mtx_init
+when initializing the mutex).
+.Xr wakeup 9
+and similar routines can be called.
+Atomic operations from
+.Pa machine/atomic
+may be used.
+Reads and writes to hardware through
+.Xr bus_space 9
+may be used.
+PCI configuration registers may be read and written.
+All other kernel interfaces cannot be used.
+.Pp
+In this restricted environment, care must be taken to account for all
+races.
+A careful analysis of races should be done as well.
+It is generally cheaper to take an extra interrupt, for example, than
+to protect variables with spinlocks.
+Read, modify, write cycles of hardware registers need to be carefully
+analyzed if other threads are accessing the same registers.
+.Pp
+Generally, a filter routine will use one of two strategies.
+The first strategy is to simply mask the interrupt in hardware and
+allow the
+.Dv ithread
+routine to read the state from the hardware and then reenable
+interrupts.
+The
+.Dv ithread
+also acknowledges the interrupt before re-enabling the interrupt
+source in hardware.
+Most PCI hardware can mask its interrupt source.
+.Pp
+The second common approach is to use a filter with multiple
+.Xr taskqueue 9
+tasks.
+In this case, the filter acknowledges the interrupts and queues the
+work to the appropriate taskqueue.
+Where one has to multiplex different kinds of interrupt sources, like
+a network card's transmit and receive paths, this can reduce lock
+contention and increase performance.
+.Pp
+You should not
+.Xr malloc 9
+from inside a filter.
+You may not call anything that uses a normal mutex.
+Witness may complain about these.
+.Ss "ithread Routines"
+You can do whatever you want in an ithread routine, except sleep.
+Care must be taken not to sleep in an ithread.
+In addition, one should minimize lock contention in an ithread routine
+because contested locks ripple over to all other ithread routines on
+that interrupt.
+.Ss "Sleeping"
+Sleeping is voluntarily giving up control of your thread.
+All the sleep routine found in
+.Xr msleep 9
+sleep.
+Waiting for a condition variable described in
+.Xr condvar 9
+is sleeping.
+Calling any function that does any of these things is sleeping.
 .Sh RETURN VALUES
 Zero is returned on success,
 otherwise an appropriate error is returned.
 .Sh SEE ALSO
 .Xr random 4 ,
 .Xr device 9 ,
-.Xr driver 9
+.Xr driver 9 ,
+.Xr mtx_init 9 ,
+.Xr wakeup
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
