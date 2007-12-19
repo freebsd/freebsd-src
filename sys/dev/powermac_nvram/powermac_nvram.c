@@ -40,6 +40,7 @@
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/nexusvar.h>
+#include <machine/pio.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>

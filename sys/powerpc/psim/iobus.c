@@ -311,7 +311,6 @@ iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	int  needactivate;
 	struct  resource *rv;
 	struct  rman *rm;
-	bus_space_tag_t tagval;
 
 	sc = device_get_softc(bus);
 
@@ -322,15 +321,13 @@ iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_mem_rman;
-		tagval = PPC_BUS_SPACE_MEM;
 		break;
 	case SYS_RES_IRQ:
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
-					   flags));
-		break;
+		    flags));
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
-			      device_get_nameunit(child));
+		    device_get_nameunit(child));
 		return (NULL);
 	}
 
@@ -342,7 +339,7 @@ iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, tagval);
+	rman_set_bustag(rv, &bs_le_tag);
 	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {

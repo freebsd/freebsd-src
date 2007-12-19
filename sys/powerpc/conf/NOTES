@@ -47,6 +47,8 @@ nodevice	snake_saver
 # isa
 nodevice	pcii
 nodevice	tnt4882
+# sound
+nodevice	snd_cmi
 # wants gdb_cur
 nodevice	dcons
 nodevice	dcons_crom
