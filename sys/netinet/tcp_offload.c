@@ -72,23 +72,17 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 
 	ifp = rt->rt_ifp;
 	if ((ifp->if_capenable & IFCAP_TOE) == 0) {
-		printf("no toe capability on %p\n", ifp);
-		
 		error = EINVAL;
 		goto fail;
 	}
 	
 	tdev = TOEDEV(ifp);
 	if (tdev == NULL) {
-		printf("tdev not set\n");
-
 		error = EPERM;
 		goto fail;
 	}
 	
 	if (tdev->tod_can_offload(tdev, so) == 0) {
-		printf("not offloadable\n");
-
 		error = EPERM;
 		goto fail;
 	}
