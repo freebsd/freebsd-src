@@ -41,6 +41,7 @@
 #include <machine/bus.h>
 #include <machine/md_var.h>
 #include <machine/nexusvar.h>
+#include <machine/pio.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
@@ -347,7 +348,6 @@ uninorth_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct			uninorth_softc *sc;
 	struct			resource *rv;
 	struct			rman *rm;
-	bus_space_tag_t		bt;
 	int			needactivate;
 
 	needactivate = flags & RF_ACTIVE;
@@ -358,18 +358,16 @@ uninorth_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = PPC_BUS_SPACE_MEM;
 		break;
 
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
-		bt = PPC_BUS_SPACE_IO;
 		break;
 
 	case SYS_RES_IRQ:
 		return (bus_alloc_resource(bus, type, rid, start, end, count,
 		    flags));
-		break;
+
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
 		    device_get_nameunit(child));
@@ -384,7 +382,7 @@ uninorth_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, bt);
+	rman_set_bustag(rv, &bs_le_tag);
 	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {

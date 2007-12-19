@@ -40,7 +40,7 @@ typedef u_int32_t bus_size_t;
 /*
  * Access methods for bus resources and address space.
  */
-typedef u_int32_t bus_space_tag_t;
+typedef struct bus_space *bus_space_tag_t;
 typedef u_int32_t bus_space_handle_t;
 
 #endif /* POWERPC_INCLUDE__BUS_H */
