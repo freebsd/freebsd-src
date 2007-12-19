@@ -38,8 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-bus_space_tag_t uart_bus_space_io = PPC_BUS_SPACE_IO;
-bus_space_tag_t uart_bus_space_mem = PPC_BUS_SPACE_MEM;
+bus_space_tag_t uart_bus_space_io = &bs_le_tag;
+bus_space_tag_t uart_bus_space_mem = &bs_le_tag;
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)

@@ -85,6 +85,7 @@ powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
+powerpc/powerpc/bus_machdep.c	standard
 powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/copystr.c	standard
 powerpc/powerpc/cpu.c		standard

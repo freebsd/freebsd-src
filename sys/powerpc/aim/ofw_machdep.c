@@ -415,10 +415,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
 	}
 
-	/* Default to memory mapped I/O. */
-	*tag = PPC_BUS_SPACE_MEM;
-	if (spc == OFW_PCI_PHYS_HI_SPACE_IO)
-		*tag = PPC_BUS_SPACE_IO;
+	*tag = &bs_le_tag;
 	return (bus_space_map(*tag, addr, size, 0, handle));
 }
 
