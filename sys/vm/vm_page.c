@@ -201,7 +201,6 @@ vm_offset_t
 vm_page_startup(vm_offset_t vaddr)
 {
 	vm_offset_t mapped;
-	vm_size_t npages;
 	vm_paddr_t page_range;
 	vm_paddr_t new_end;
 	int i;
@@ -216,9 +215,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t low_water, high_water;
 	int biggestone;
 
-	vm_paddr_t total;
-
-	total = 0;
 	biggestsize = 0;
 	biggestone = 0;
 	nblocks = 0;
@@ -244,7 +240,6 @@ vm_page_startup(vm_offset_t vaddr)
 		if (phys_avail[i + 1] > high_water)
 			high_water = phys_avail[i + 1];
 		++nblocks;
-		total += size;
 	}
 
 	end = phys_avail[biggestone+1];
@@ -308,8 +303,6 @@ vm_page_startup(vm_offset_t vaddr)
 #else
 #error "Either VM_PHYSSEG_DENSE or VM_PHYSSEG_SPARSE must be defined."
 #endif
-	npages = (total - (page_range * sizeof(struct vm_page)) -
-	    (end - new_end)) / PAGE_SIZE;
 	end = new_end;
 
 	/*
@@ -343,16 +336,6 @@ vm_page_startup(vm_offset_t vaddr)
 	for (i = 0; i < page_range; i++)
 		vm_page_array[i].order = VM_NFREEORDER;
 	vm_page_array_size = page_range;
-
-	/*
-	 * This assertion tests the hypothesis that npages and total are
-	 * redundant.  XXX
-	 */
-	page_range = 0;
-	for (i = 0; phys_avail[i + 1] != 0; i += 2)
-		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
-	KASSERT(page_range == npages,
-	    ("vm_page_startup: inconsistent page counts"));
 
 	/*
 	 * Initialize the physical memory allocator.
