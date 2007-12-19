@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
@@ -111,7 +112,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
 struct syncache {
 	TAILQ_ENTRY(syncache)	sc_hash;
 	struct		in_conninfo sc_inc;	/* addresses */
-	u_long		sc_rxttime;		/* retransmit time */
+	int		sc_rxttime;		/* retransmit time */
 	u_int16_t	sc_rxmits;		/* retransmit counter */
 
 	u_int32_t	sc_tsreflect;		/* timestamp to reflect */
@@ -183,7 +184,7 @@ static struct syncache
 
 /*
  * Transmit the SYN,ACK fewer times than TCP_MAXRXTSHIFT specifies.
- * 3 retransmits corresponds to a timeout of (1 + 2 + 4 + 8 == 15) seconds,
+ * 3 retransmits corresponds to a timeout of 3 * (1 + 2 + 4 + 8) == 45 seconds,
  * the odds are that the user has given up attempting to connect by then.
  */
 #define SYNCACHE_MAXREXMTS		3
@@ -344,6 +345,8 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 	sch->sch_length++;
 
 	/* Reinitialize the bucket row's timer. */
+	if (sch->sch_length == 1)
+		sch->sch_nextc = ticks + INT_MAX;
 	syncache_timeout(sc, sch, 1);
 
 	SCH_UNLOCK(sch);
@@ -382,11 +385,12 @@ syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
 	sc->sc_rxttime = ticks +
 		TCPTV_RTOBASE * (tcp_backoff[sc->sc_rxmits]);
 	sc->sc_rxmits++;
-	if (sch->sch_nextc > sc->sc_rxttime)
+	if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc)) {
 		sch->sch_nextc = sc->sc_rxttime;
-	if (!TAILQ_EMPTY(&sch->sch_bucket) && docallout)
-		callout_reset(&sch->sch_timer, sch->sch_nextc - ticks,
-		    syncache_timer, (void *)sch);
+		if (docallout)
+			callout_reset(&sch->sch_timer, sch->sch_nextc - ticks,
+			    syncache_timer, (void *)sch);
+	}
 }
 
 /*
@@ -405,6 +409,12 @@ syncache_timer(void *xsch)
 	/* NB: syncache_head has already been locked by the callout. */
 	SCH_LOCK_ASSERT(sch);
 
+	/*
+	 * In the following cycle we may remove some entries and/or
+	 * advance some timeouts, so re-initialize the bucket timer.
+	 */
+	sch->sch_nextc = tick + INT_MAX;
+
 	TAILQ_FOREACH_SAFE(sc, &sch->sch_bucket, sc_hash, nsc) {
 		/*
 		 * We do not check if the listen socket still exists
@@ -414,8 +424,8 @@ syncache_timer(void *xsch)
 		 * then the RST will be sent by the time the remote
 		 * host does the SYN/ACK->ACK.
 		 */
-		if (sc->sc_rxttime > tick) {
-			if (sc->sc_rxttime < sch->sch_nextc)
+		if (TSTMP_GT(sc->sc_rxttime, tick)) {
+			if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc))
 				sch->sch_nextc = sc->sc_rxttime;
 			continue;
 		}
