@@ -763,12 +763,12 @@ fetch_no_proxy_match(const char *host)
 	p = no_proxy;
 	do {
 		/* position p at the beginning of a domain suffix */
-		while (*p == ',' || isspace((int)*p))
+		while (*p == ',' || isspace((unsigned char)*p))
 			p++;
 
 		/* position q at the first separator character */
 		for (q = p; *q; ++q)
-			if (*q == ',' || isspace((int)*q))
+			if (*q == ',' || isspace((unsigned char)*q))
 				break;
 
 		d_len = q - p;

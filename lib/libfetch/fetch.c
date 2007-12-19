@@ -369,7 +369,7 @@ fetchParseURL(const char *URL)
 	/* port */
 	if (*p == ':') {
 		for (q = ++p; *q && (*q != '/'); q++)
-			if (isdigit((int)*q))
+			if (isdigit((unsigned char)*q))
 				u->port = u->port * 10 + (*q - '0');
 			else {
 				/* invalid port */
@@ -395,7 +395,7 @@ nohost:
 		}
 		u->doc = doc;
 		while (*p != '\0') {
-			if (!isspace((int)*p)) {
+			if (!isspace((unsigned char)*p)) {
 				*doc++ = *p++;
 			} else {
 				*doc++ = '%';
