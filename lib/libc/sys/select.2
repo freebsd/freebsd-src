@@ -222,3 +222,6 @@ Thus, it is unwise to assume that the timeout value will be unmodified
 by the
 .Fn select
 system call.
+.Fx 
+does not modify the return value, which can cause problems for applications
+ported from other systems.
