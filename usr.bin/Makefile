@@ -116,6 +116,7 @@ SUBDIR=	alias \
 	make \
 	makewhatis \
 	mesg \
+	ministat \
 	minigzip \
 	mkdep \
 	mkfifo \
