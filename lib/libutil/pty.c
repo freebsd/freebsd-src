@@ -55,6 +55,7 @@ static int
 new_openpty(int *amaster, int *aslave, char *name, struct termios *termp,
     struct winsize *winp)
 {
+	const char *slavename;
 	int master, slave;
 
 	master = posix_openpt(O_RDWR);
@@ -66,7 +67,18 @@ new_openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 		return (-1);
 	}
 
-	slave = open(ptsname(master), O_RDWR);
+	slavename = ptsname(master);
+	if (slavename == NULL) {
+		close(master);
+		return (-1);
+	}
+
+	if (revoke(slavename) == -1) {
+		close(master);
+		return (-1);
+	}
+
+	slave = open(slavename, O_RDWR);
 	if (slave == -1) {
 		close(master);
 		return (-1);
