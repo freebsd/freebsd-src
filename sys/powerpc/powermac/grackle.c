@@ -398,8 +398,6 @@ grackle_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	}
 
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, &bs_le_tag);
-	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv) != 0) {
@@ -459,6 +457,7 @@ grackle_activate_resource(device_t bus, device_t child, int type, int rid,
 			return (ENOMEM);
 
 		rman_set_virtual(res, p);
+		rman_set_bustag(rv, &bs_le_tag);
 		rman_set_bushandle(res, (u_long)p);
 	}
 
