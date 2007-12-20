@@ -1,6 +1,5 @@
 # $FreeBSD$
 PROG=	ministat
-NO_MAN=
 DPADD=	${LIBM}
 LDADD=	-lm
 
