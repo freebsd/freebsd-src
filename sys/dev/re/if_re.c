@@ -643,8 +643,12 @@ re_setmulti(sc)
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
 		if (ifp->if_flags & IFF_PROMISC)
 			rxfilt |= RL_RXCFG_RX_ALLPHYS;
-		if (ifp->if_flags & IFF_ALLMULTI)
-			rxfilt |= RL_RXCFG_RX_MULTI;
+		/*
+		 * Unlike other hardwares, we have to explicitly set
+		 * RL_RXCFG_RX_MULTI to receive multicast frames in
+		 * promiscuous mode.
+		 */
+		rxfilt |= RL_RXCFG_RX_MULTI;
 		CSR_WRITE_4(sc, RL_RXCFG, rxfilt);
 		CSR_WRITE_4(sc, RL_MAR0, 0xFFFFFFFF);
 		CSR_WRITE_4(sc, RL_MAR4, 0xFFFFFFFF);
