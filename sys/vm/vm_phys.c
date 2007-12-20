@@ -468,7 +468,7 @@ vm_phys_set_pool(int pool, vm_page_t m, int order)
  *
  * The free page queues must be locked.
  */
-void
+boolean_t
 vm_phys_unfree_page(vm_page_t m)
 {
 	struct vm_freelist *fl;
@@ -489,13 +489,15 @@ vm_phys_unfree_page(vm_page_t m)
 	    order < VM_NFREEORDER - 1; ) {
 		order++;
 		pa = m->phys_addr & (~(vm_paddr_t)0 << (PAGE_SHIFT + order));
-		KASSERT(pa >= seg->start && pa < seg->end,
-		    ("vm_phys_unfree_page: paddr %#jx is not within segment %p",
-		    (uintmax_t)pa, seg));
-		m_set = &seg->first_page[atop(pa - seg->start)];
+		if (pa >= seg->start && pa < seg->end)
+			m_set = &seg->first_page[atop(pa - seg->start)];
+		else
+			return (FALSE);
 	}
-	KASSERT(m_set->order >= order, ("vm_phys_unfree_page: page %p's order"
-	    " (%d) is less than expected (%d)", m_set, m_set->order, order));
+	if (m_set->order < order)
+		return (FALSE);
+	if (m_set->order == VM_NFREEORDER)
+		return (FALSE);
 	KASSERT(m_set->order < VM_NFREEORDER,
 	    ("vm_phys_unfree_page: page %p has unexpected order %d",
 	    m_set, m_set->order));
@@ -525,6 +527,7 @@ vm_phys_unfree_page(vm_page_t m)
 		fl[order].lcnt++;
 	}
 	KASSERT(m_set == m, ("vm_phys_unfree_page: fatal inconsistency"));
+	return (TRUE);
 }
 
 /*

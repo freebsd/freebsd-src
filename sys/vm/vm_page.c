@@ -1026,8 +1026,11 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 				mtx_unlock(&vm_page_queue_free_mtx);
 				return (NULL);
 			}
-			vm_phys_unfree_page(m);
-			vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, 0);
+			if (vm_phys_unfree_page(m))
+				vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, 0);
+			else
+				panic("vm_page_alloc: cache page %p is missing"
+				    " from the free queue", m);
 		} else if ((req & VM_ALLOC_IFCACHED) != 0) {
 			mtx_unlock(&vm_page_queue_free_mtx);
 			return (NULL);
