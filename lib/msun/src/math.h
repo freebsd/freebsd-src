@@ -436,7 +436,9 @@ long long	llroundl(long double);
 long double	log10l(long double);
 long double	log1pl(long double);
 long double	log2l(long double);
+#endif
 long double	logbl(long double);
+#if 0
 long double	logl(long double);
 long		lrintl(long double);
 #endif
