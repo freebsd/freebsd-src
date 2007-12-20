@@ -100,7 +100,7 @@ _pthread_exit(void *status)
 	/* Save the return value: */
 	curthread->ret = status;
 	while (curthread->cleanup != NULL) {
-		pthread_cleanup_pop(1);
+		_pthread_cleanup_pop(1);
 	}
 
 	/* Check if there is thread specific data: */
