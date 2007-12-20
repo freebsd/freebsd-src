@@ -169,7 +169,6 @@ global:
 	system;
 	tcdrain;
 	usleep;
-	vfork;
 	wait;
 	wait3;
 	wait4;
@@ -366,7 +365,6 @@ global:
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
-	_vfork;
 
 	/* Debugger needs these. */
 	_libthr_debug;
