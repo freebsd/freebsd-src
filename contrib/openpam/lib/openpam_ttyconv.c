@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#26 $
+ * $Id: openpam_ttyconv.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <sys/types.h>
@@ -87,6 +88,7 @@ prompt(const char *msg)
 	fd = fileno(stdin);
 	buf[0] = '\0';
 	eof = error = 0;
+	saved_alarm = 0;
 	if (openpam_ttyconv_timeout >= 0)
 		saved_alarm = alarm(openpam_ttyconv_timeout);
 	ch = '\0';
@@ -110,7 +112,7 @@ prompt(const char *msg)
 		alarm(0);
 	sigaction(SIGALRM, &saved_action, NULL);
 	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
-	if (openpam_ttyconv_timeout >= 0)
+	if (saved_alarm > 0)
 		alarm(saved_alarm);
 	if (error == EINTR)
 		fputs(" timeout!", stderr);

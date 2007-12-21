@@ -1,10 +1,12 @@
-# $P4: //depot/projects/openpam/lib/Makefile.am#5 $
+# $Id: Makefile.am 395 2007-06-03 20:26:18Z des $
 
 NULL =
 
 INCLUDES = -I$(top_srcdir)/include
 
 lib_LTLIBRARIES = libpam.la
+
+noinst_HEADERS = openpam_impl.h
 
 libpam_la_SOURCES = \
 	openpam_borrow_cred.c \
@@ -54,9 +56,21 @@ libpam_la_CFLAGS = -DOPENPAM_MODULES_DIR='"@OPENPAM_MODULES_DIR@/"'
 
 libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@ @DL_LIBS@
 
-# Not implemented yet:
-#	pam_authenticate_secondary.c
-#	pam_get_mapped_authtok.c
-#	pam_get_mapped_username.c
-#	pam_set_mapped_authtok.c
-#	pam_set_mapped_username.c
+EXTRA_DIST = \
+	pam_authenticate_secondary.c \
+	pam_get_mapped_authtok.c \
+	pam_get_mapped_username.c \
+	pam_set_mapped_authtok.c \
+	pam_set_mapped_username.c \
+	\
+	pam_sm_acct_mgmt.c \
+	pam_sm_authenticate.c \
+	pam_sm_authenticate_secondary.c \
+	pam_sm_chauthtok.c \
+	pam_sm_close_session.c \
+	pam_sm_get_mapped_authtok.c \
+	pam_sm_get_mapped_username.c \
+	pam_sm_open_session.c \
+	pam_sm_set_mapped_authtok.c \
+	pam_sm_set_mapped_username.c \
+	pam_sm_setcred.c
