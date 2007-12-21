@@ -56,18 +56,19 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
-#define PTM_PREFIX	"pty"	/* pseudo tty master naming convention */
-#define PTS_PREFIX	"tty"	/* pseudo tty slave naming convention */
-#define NEWPTS_PREFIX	"pts"
+#define PTYM_PREFIX	"pty"	/* pty(4) master naming convention */
+#define PTYS_PREFIX	"tty"	/* pty(4) slave naming convention */
+#define PTMXM_PREFIX	"ptc/"	/* pts(4) master naming convention */
+#define PTMXS_PREFIX	"pts/"	/* pts(4) slave naming convention */
 #define PTMX		"ptmx"
 
 /*
  * The following are range values for pseudo TTY devices.  Pseudo TTYs have a
  * name of /dev/[pt]ty[l-sL-S][0-9a-v], yielding 256 combinations per major.
  */
-#define PT_MAX		256
-#define	PT_DEV1		"pqrsPQRSlmnoLMNO"
-#define PT_DEV2		"0123456789abcdefghijklmnopqrstuv"
+#define PTY_MAX		256
+#define	PTY_DEV1	"pqrsPQRSlmnoLMNO"
+#define PTY_DEV2	"0123456789abcdefghijklmnopqrstuv"
 
 /*
  * grantpt(3) support utility.
@@ -80,7 +81,7 @@ __FBSDID("$FreeBSD$");
  */
 #define ISPTM(x)	(S_ISCHR((x).st_mode) && 			\
 			 minor((x).st_rdev) >= 0 &&			\
-			 minor((x).st_rdev) < PT_MAX)
+			 minor((x).st_rdev) < PTY_MAX)
 
 
 static int
@@ -103,7 +104,7 @@ __use_pts(void)
 	if (error) {
 		struct stat sb;
 
-		if (stat("/dev/ptmx", &sb) != 0)
+		if (stat(_PATH_DEV PTMX, &sb) != 0)
 			return (0);
 		use_pts = 1;
 	}
@@ -197,7 +198,7 @@ grantpt(int fildes)
 int
 posix_openpt(int oflag)
 {
-	char *mc1, *mc2, master[] = _PATH_DEV PTM_PREFIX "XY";
+	char *mc1, *mc2, master[] = _PATH_DEV PTYM_PREFIX "XY";
 	const char *pc1, *pc2;
 	int fildes, bflag, serrno;
 
@@ -216,12 +217,12 @@ posix_openpt(int oflag)
 			fildes = _open(_PATH_DEV PTMX, oflag);
 			return (fildes);
 		}
-		mc1 = master + strlen(_PATH_DEV PTM_PREFIX);
+		mc1 = master + strlen(_PATH_DEV PTYM_PREFIX);
 		mc2 = mc1 + 1;
 
 		/* Cycle through all possible master PTY devices. */
-		for (pc1 = PT_DEV1; !bflag && (*mc1 = *pc1); ++pc1)
-			for (pc2 = PT_DEV2; (*mc2 = *pc2) != '\0'; ++pc2) {
+		for (pc1 = PTY_DEV1; !bflag && (*mc1 = *pc1); ++pc1)
+			for (pc2 = PTY_DEV2; (*mc2 = *pc2) != '\0'; ++pc2) {
 				/*
 				 * Break out if we successfully open a PTY,
 				 * or if open() fails due to limits.
@@ -249,8 +250,8 @@ posix_openpt(int oflag)
 char *
 ptsname(int fildes)
 {
-	static char slave[] = _PATH_DEV PTS_PREFIX "XY";
-	static char new_slave[] = _PATH_DEV NEWPTS_PREFIX "4294967295";
+	static char pty_slave[] = _PATH_DEV PTYS_PREFIX "XY";
+	static char ptmx_slave[] = _PATH_DEV PTMXS_PREFIX "4294967295";
 	char *retval;
 	struct stat sbuf;
 
@@ -261,17 +262,17 @@ ptsname(int fildes)
 			errno = EINVAL;
 		else {
 			if (!is_pts(fildes)) {
-				(void)snprintf(slave, sizeof(slave),
-					       _PATH_DEV PTS_PREFIX "%s",
+				(void)snprintf(pty_slave, sizeof(pty_slave),
+					       _PATH_DEV PTYS_PREFIX "%s",
 					       devname(sbuf.st_rdev, S_IFCHR) +
-					       strlen(PTM_PREFIX));
-				retval = slave;
+					       strlen(PTYM_PREFIX));
+				retval = pty_slave;
 			} else {
-				(void)snprintf(new_slave, sizeof(new_slave),
-					       _PATH_DEV NEWPTS_PREFIX "%s",
+				(void)snprintf(ptmx_slave, sizeof(ptmx_slave),
+					       _PATH_DEV PTMXS_PREFIX "%s",
 					       devname(sbuf.st_rdev, S_IFCHR) +
-					       strlen(PTM_PREFIX));
-				retval = new_slave;
+					       strlen(PTMXM_PREFIX));
+				retval = ptmx_slave;
 			}
 		}
 	}
