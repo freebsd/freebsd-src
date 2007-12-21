@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_borrow_cred.c#13 $
+ * $Id: openpam_borrow_cred.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <sys/param.h>
@@ -57,7 +58,7 @@ openpam_borrow_cred(pam_handle_t *pamh,
 	const struct passwd *pwd)
 {
 	struct pam_saved_cred *scred;
-	void *scredp;
+	const void *scredp;
 	int r;
 
 	ENTERI(pwd->pw_uid);
