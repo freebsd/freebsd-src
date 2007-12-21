@@ -427,7 +427,7 @@ uninorth_activate_resource(device_t bus, device_t child, int type, int rid,
 		if (p == NULL)
 			return (ENOMEM);
 		rman_set_virtual(res, p);
-		rman_set_bustag(rv, &bs_le_tag);
+		rman_set_bustag(res, &bs_le_tag);
 		rman_set_bushandle(res, (u_long)p);
 	}
 
