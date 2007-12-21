@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_load.c#21 $
+ * $Id: openpam_load.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <dlfcn.h>
@@ -60,11 +61,8 @@ const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
 	"pam_sm_chauthtok"
 };
 
-static pam_module_t *modules;
-
 /*
- * Locate a matching dynamic or static module.  Keep a list of previously
- * found modules to speed up the process.
+ * Locate a matching dynamic or static module.
  */
 
 pam_module_t *
@@ -72,12 +70,6 @@ openpam_load_module(const char *path)
 {
 	pam_module_t *module;
 
-	/* check cache first */
-	for (module = modules; module != NULL; module = module->next)
-		if (strcmp(module->path, path) == 0)
-			goto found;
-
-	/* nope; try to load */
 	module = openpam_dynamic(path);
 	openpam_log(PAM_LOG_DEBUG, "%s dynamic %s",
 	    (module == NULL) ? "no" : "using", path);
@@ -94,14 +86,6 @@ openpam_load_module(const char *path)
 		openpam_log(PAM_LOG_ERROR, "no %s found", path);
 		return (NULL);
 	}
-	openpam_log(PAM_LOG_DEBUG, "adding %s to cache", module->path);
-	module->next = modules;
-	if (module->next != NULL)
-		module->next->prev = module;
-	module->prev = NULL;
-	modules = module;
- found:
-	++module->refcount;
 	return (module);
 }
 
@@ -116,25 +100,10 @@ openpam_release_module(pam_module_t *module)
 {
 	if (module == NULL)
 		return;
-	--module->refcount;
-	if (module->refcount > 0)
-		/* still in use */
-		return;
-	if (module->refcount < 0) {
-		openpam_log(PAM_LOG_ERROR, "module %s has negative refcount",
-		    module->path);
-		module->refcount = 0;
-	}
 	if (module->dlh == NULL)
 		/* static module */
 		return;
 	dlclose(module->dlh);
-	if (module->prev != NULL)
-		module->prev->next = module->next;
-	if (module->next != NULL)
-		module->next->prev = module->prev;
-	if (module == modules)
-		modules = module->next;
 	openpam_log(PAM_LOG_DEBUG, "releasing %s", module->path);
 	FREE(module->path);
 	FREE(module);
