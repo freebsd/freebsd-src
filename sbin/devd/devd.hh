@@ -143,7 +143,7 @@ private:
 class config
 {
 public:
-	config() : _pidfile("") { push_var_table(); }
+	config() { _pidfile = ""; push_var_table(); }
 	virtual ~config() { reset(); }
 	void add_attach(int, event_proc *);
 	void add_detach(int, event_proc *);
