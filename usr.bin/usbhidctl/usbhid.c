@@ -155,13 +155,13 @@ dumpitems(report_desc_t r)
 		}
 	}
 	hid_end_parse(d);
-	size = hid_report_size(r, 0, hid_input);
+	size = hid_report_size(r, hid_input, 0);
 	printf("Total   input size %d bytes\n", size);
 
-	size = hid_report_size(r, 0, hid_output);
+	size = hid_report_size(r, hid_output, 0);
 	printf("Total  output size %d bytes\n", size);
 
-	size = hid_report_size(r, 0, hid_feature);
+	size = hid_report_size(r, hid_feature, 0);
 	printf("Total feature size %d bytes\n", size);
 }
 
@@ -228,7 +228,7 @@ dumpdata(int f, report_desc_t rd, int loop)
 	}
 	hid_end_parse(d);
 	rev(&hids);
-	dlen = hid_report_size(rd, 0, hid_input);
+	dlen = hid_report_size(rd, hid_input, 0);
 	dbuf = malloc(dlen);
 	if (!loop)
 		if (ioctl(f, USB_SET_IMMED, &one) < 0) {
