@@ -1,4 +1,4 @@
-# $P4: //depot/projects/openpam/doc/man/Makefile.am#3 $
+# $Id: Makefile.am 397 2007-10-24 10:01:13Z des $
 
 NULL =
 
@@ -55,12 +55,15 @@ OMAN = \
 	pam_vprompt.3 \
 	$(NULL)
 
+EXTRA_DIST = openpam.man pam.man
+
 ALLCMAN = $(PMAN) $(MMAN) $(OMAN)
-LINKS= $(ALLCMAN:.3=.c)
 
-man3_MANS = $(ALLCMAN) openpam.3 pam.3 pam_conv.3
+LINKS = $(ALLCMAN:.3=.c) openpam_configure.c openpam_dispatch.c
 
-man5_MANS = pam.conf.5
+dist_man3_MANS = $(ALLCMAN) openpam.3 pam.3 pam_conv.3
+
+dist_man5_MANS = pam.conf.5
 
 CLEANFILES = $(ALLCMAN) $(LINKS) openpam.3 pam.3 symlink-stamp
 
@@ -72,12 +75,12 @@ $(LINKS): symlink-stamp
 
 symlink-stamp: Makefile
 	for lnk in $(LINKS); do \
-	    ln -sf $(top_srcdir)/lib/$$lnk ./; \
-	done && \
+	    ln -sf $(top_srcdir)/lib/$$lnk . || exit; \
+	done
 	touch symlink-stamp
 
 .c.3: symlink-stamp
-	perl -w $(GENDOC) $(top_srcdir)/lib/$*.c
+	perl -w $(GENDOC) $<
 
 openpam.3: $(OMAN) $(GENDOC) openpam.man
 	perl -w $(GENDOC) -o $(OMAN) <$(srcdir)/openpam.man
