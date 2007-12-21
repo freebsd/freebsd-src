@@ -1480,8 +1480,8 @@ lagg_fail_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 		return (m);
 	}
 
-	if (sc->sc_primary->lp_link_state == LINK_STATE_DOWN) {
-		tmp_tp = lagg_link_active(sc, NULL);
+	if (!LAGG_PORTACTIVE(sc->sc_primary)) {
+		tmp_tp = lagg_link_active(sc, sc->sc_primary);
 		/*
 		 * If tmp_tp is null, we've recieved a packet when all
 		 * our links are down. Weird, but process it anyways.
