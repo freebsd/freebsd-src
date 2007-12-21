@@ -139,6 +139,7 @@ CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
 CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
 
 HEADERS=	security/openpam.h \
+		security/openpam_attr.h \
 		security/openpam_version.h \
 		security/pam_appl.h \
 		security/pam_constants.h \
