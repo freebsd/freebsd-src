@@ -140,7 +140,7 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
 #ifdef _OPENPAM
       &openpam_nullconv, NULL
 #else
-      &pam_conv, key
+      &pam_conv, (char *)key
 #endif
     };
 
