@@ -470,6 +470,17 @@ Of course, these ports may not work as expected, but if you really know
 what you are doing and are sure about installing a forbidden port, then
 .Va NO_IGNORE
 lets you do it.
+.It Va PORT_DBDIR
+Directory where the results of configuring
+.Va OPTIONS
+are stored.
+Defaults to
+.Pa /var/db/ports .
+Each port where
+.Va OPTIONS
+have been configured will have a uniquely named sub-directory, containing a
+single file
+.Pa options .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
