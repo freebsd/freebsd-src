@@ -16,23 +16,29 @@
   Use the "configure" shell script to configure OpenPAM for your
   system.  Options include:
 
+    --enable-debug
+	Turn debugging on by default.
+
     --with-modules-dir=DIR
 	Indicates the directory where PAM modules will be installed.
 	This option should not be used if you intend to install PAM
 	modules in the system library directory.
 
-    --with-pam-su
-	Builds the sample PAM application.
+    --without-doc
+	Skips the documentation.
 
     --with-pam-unix
 	Builds the sample PAM module.
+
+    --with-su
+	Builds the sample su(1) implementation.
 
   For more information about configuration options, use the --help
   option.
 
   A typical invocation might look like this:
 
-  # ./configure --with-pam-su --with-pam-unix
+  # ./configure --with-pam-unix --with-su
 
 3. COMPILATION
 
@@ -49,4 +55,4 @@
 
   # make install
 
-$P4: //depot/projects/openpam/INSTALL#4 $
+$Id: INSTALL 388 2006-04-12 10:31:52Z des $

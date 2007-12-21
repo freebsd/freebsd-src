@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readline.c 380 2006-03-14 14:42:09Z des $
+ * $Id: openpam_readline.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <ctype.h>
