@@ -1758,6 +1758,23 @@ sched_switchin(struct tdq *tdq, struct thread *td)
 }
 
 /*
+ * Block a thread for switching.  Similar to thread_block() but does not
+ * bump the spin count.
+ */
+static inline struct mtx *
+thread_block_switch(struct thread *td)
+{
+	struct mtx *lock;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	lock = td->td_lock;
+	td->td_lock = &blocked_lock;
+	mtx_unlock_spin(lock);
+
+	return (lock);
+}
+
+/*
  * Handle migration from sched_switch().  This happens only for
  * cpu binding.
  */
@@ -1791,23 +1808,6 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	spinlock_exit();
 #endif
 	return (TDQ_LOCKPTR(tdn));
-}
-
-/*
- * Block a thread for switching.  Similar to thread_block() but does not
- * bump the spin count.
- */
-static inline struct mtx *
-thread_block_switch(struct thread *td)
-{
-	struct mtx *lock;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	lock = td->td_lock;
-	td->td_lock = &blocked_lock;
-	mtx_unlock_spin(lock);
-
-	return (lock);
 }
 
 /*
