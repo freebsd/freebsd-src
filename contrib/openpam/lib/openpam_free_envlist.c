@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_free_envlist.c#2 $
+ * $Id: openpam_free_envlist.c 320 2006-02-16 20:33:19Z des $
  */
 
 #include <stdlib.h>

@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -33,7 +34,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd June 16, 2005
+.Dd December 21, 2007
 .Dt PAM 3
 .Os
 .Sh NAME
@@ -70,9 +71,9 @@
 .Ft "int"
 .Fn pam_end "pam_handle_t *pamh" "int status"
 .Ft "int"
-.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "void **data"
+.Fn pam_get_data "const pam_handle_t *pamh" "const char *module_data_name" "const void **data"
 .Ft "int"
-.Fn pam_get_item "pam_handle_t *pamh" "int item_type" "const void **item"
+.Fn pam_get_item "const pam_handle_t *pamh" "int item_type" "const void **item"
 .Ft "int"
 .Fn pam_get_user "pam_handle_t *pamh" "const char **user" "const char *prompt"
 .Ft "const char *"
@@ -92,9 +93,9 @@
 .Ft "int"
 .Fn pam_start "const char *service" "const char *user" "const struct pam_conv *pam_conv" "pam_handle_t **pamh"
 .Ft "const char *"
-.Fn pam_strerror "pam_handle_t *pamh" "int error_number"
+.Fn pam_strerror "const pam_handle_t *pamh" "int error_number"
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam.man#4 $
+.\" $Id: pam.man 320 2006-02-16 20:33:19Z des $
 .\"
 .Sh DESCRIPTION
 The Pluggable Authentication Modules (PAM) library abstracts a number

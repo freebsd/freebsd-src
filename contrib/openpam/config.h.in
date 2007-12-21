@@ -42,6 +42,9 @@
 /* OpenPAM library major number */
 #undef LIB_MAJ
 
+/* Turn debugging on by default */
+#undef OPENPAM_DEBUG
+
 /* OpenPAM modules directory */
 #undef OPENPAM_MODULES_DIR
 
