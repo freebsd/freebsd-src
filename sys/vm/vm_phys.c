@@ -464,7 +464,9 @@ vm_phys_set_pool(int pool, vm_page_t m, int order)
 }
 
 /*
- * Remove the given physical page "m" from the free lists.
+ * Search for the given physical page "m" in the free lists.  If the search
+ * succeeds, remove "m" from the free lists and return TRUE.  Otherwise, return
+ * FALSE, indicating that "m" is not in the free lists.
  *
  * The free page queues must be locked.
  */
