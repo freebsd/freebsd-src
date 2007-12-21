@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 22, 2007
+.Dd Dec 21, 2007
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -274,7 +274,9 @@ file for the pattern specified by the
 .Va bdeps
 (searches the port build-time dependency),
 .Va rdeps
-(searches the port run-time dependency)
+(searches the port run-time dependency),
+.Va www
+(searches the port web site)
 .Xr make 1
 variables, and their exclusion counterparts:
 .Va xname , xkey
@@ -317,6 +319,14 @@ To find ports that contain
 .Dq Li apache
 in either of the name, path, info
 fields, ignore the rest of the record.
+.Pp
+By default the search is not case-nsensitive.
+In order to make it case-sensitive you can use the
+.Va icase
+variable:
+.Bd -literal -offset indent
+make search name=p5-R icase=0
+.Ed
 .It Cm quicksearch
 Reduced
 .Cm search
