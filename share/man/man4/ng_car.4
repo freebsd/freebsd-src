@@ -183,6 +183,17 @@ Atomically return and clear node statistics.
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
+.Sh EXAMPLES
+Limit outgoing data rate over fxp0 Ethernet interface to 20Mbit/s
+and incoming packet rate to 5000pps.
+.Bd -literal -offset indent
+/usr/sbin/ngctl -f- <<-SEQ
+	mkpeer fxp0: car lower lower
+	name fxp0:lower fxp0_car
+	connect fxp0: fxp0_car: upper upper
+	msg fxp0_car: setconf { downstream={ cir=20000000 cbs=2500000 ebs=2500000 greenAction=1 yellowAction=1 redAction=2 mode=2 } upstream={ cir=5000 cbs=100 ebs=100 greenAction=1 yellowAction=1 redAction=2 mode=2 opt=2 } }
+SEQ
+.Ed
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ngctl 8
