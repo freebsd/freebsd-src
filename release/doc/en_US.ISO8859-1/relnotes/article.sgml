@@ -1,0 +1,1680 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- The marker for MFCs. -->
+<!ENTITY merged "[MERGED]">
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+]>
+
+<article>
+<articleinfo>
+  <title>&os; &release.current; Release Notes</title>
+
+  <corpauthor>The &os; Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <year>2006</year>
+    <year>2007</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
+  <abstract>
+    <para>The release notes for &os; &release.current; contain a summary
+      of the changes made to the &os; base system on the
+      &release.branch; development line.
+      This document lists applicable security advisories that were issued since
+      the last release, as well as significant changes to the &os;
+      kernel and userland.
+      Some brief remarks on upgrading are also presented.</para>
+  </abstract>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>Introduction</title>
+
+  <para>This document contains the release notes for &os;
+    &release.current;.  It
+    describes recently added, changed, or deleted features of &os;.
+    It also provides some notes on upgrading
+    from previous versions of &os;.</para>
+
+<![ %release.type.current [
+
+  <para>The &release.type; distribution to which these release notes
+    apply represents the latest point along the &release.branch; development
+    branch since &release.branch; was created.  Information regarding pre-built, binary
+    &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.snapshot [
+
+  <para>The &release.type; distribution to which these release notes
+    apply represents a point along the &release.branch; development
+    branch between &release.prev; and the future &release.next;.
+    Information regarding
+    pre-built, binary &release.type; distributions along this branch
+    can be found at <ulink url="&release.url;"></ulink>.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>This distribution of &os; &release.current; is a
+    &release.type; distribution.  It can be found at <ulink
+    url="&release.url;"></ulink> or any of its mirrors.  More
+    information on obtaining this (or other) &release.type;
+    distributions of &os; can be found in the <ulink
+    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    &os;</quote> appendix</ulink> to the <ulink
+    url="&url.books.handbook;/">&os;
+    Handbook</ulink>.</para>
+
+]]>
+
+  <para>All users are encouraged to consult the release errata before
+    installing &os;.  The errata document is updated with
+    <quote>late-breaking</quote> information discovered late in the
+    release cycle or after the release.  Typically, it contains
+    information on known bugs, security advisories, and corrections to
+    documentation.  An up-to-date copy of the errata for &os;
+    &release.current; can be found on the &os; Web site.</para>
+
+</sect1>
+
+<sect1 id="new">
+  <title>What's New</title>
+
+  <para>This section describes
+    the most user-visible new or changed features in &os;
+    since &release.prev;.
+    In general, changes described here are unique to the &release.branch;
+    branch unless specifically marked as &merged; features.
+  </para>
+
+  <para>Typical release note items
+    document recent security advisories issued after
+    &release.prev;,
+    new drivers or hardware support, new commands or options,
+    major bug fixes, or contributed software upgrades.  They may also
+    list changes to major ports/packages or release engineering
+    practices.  Clearly the release notes cannot list every single
+    change made to &os; between releases; this document focuses
+    primarily on security advisories, user-visible changes, and major
+    architectural improvements.</para>
+
+  <sect2 id="security">
+    <title>Security Advisories</title>
+
+    <para>Two remote denials of service in BIND (one involving DNSSEC and
+      one involving recursive DNS queries) have been fixed.  For more
+      information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">FreeBSD-SA-07:02.bind</ulink>. &merged;</para>
+
+    <para>Processing of IPv6 type 0 Routing Headers is now
+      controlled by the <varname>net.inet6.ip6.rthdr0_allowed</varname>
+      sysctl variable, which defaults to <literal>0</literal> (off).
+      For more information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:03.ipv6.asc">FreeBSD-SA-07:03.ipv6</ulink>. &merged;</para>
+
+    <para>A potential heap overflow in the &man.file.1; utility
+      (and the &man.libmagic.3; library on which it relies) has been
+      fixed.  More details can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:04.file.asc">FreeBSD-SA-07:04.file</ulink>. &merged;</para>
+
+    <para>Problems with &man.libarchive.3; and &man.tar.1; handling
+      corrupted &man.tar.5; archive files have been fixed.  More
+      details can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:05.libarchive.asc">FreeBSD-SA-07:05.libarchive</ulink>. &merged;</para>
+
+    <para>A buffer overflow in &man.tcpdump.1; has been corrected.
+      More information can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:06.tcpdump.asc">FreeBSD-SA-07:06.tcpdump</ulink>. &merged;</para>
+
+    <para>A bug in &man.named.8;, which could result in an attacker
+      being able to poison a resolver's DNS cache, has been fixed.
+      More details are included in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:07.bind.asc">FreeBSD-SA-07:07.bind</ulink>. &merged;</para>
+
+    <para>A buffer overflow in OpenSSL (fixed incorrectly in a
+      previously security patch) has been corrected.  More details
+      can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:08.openssl.asc">FreeBSD-SA-07:08.openssl</ulink>. &merged;</para>
+
+    <para>An flaw that could lead to the disclosure of
+      previously-generated &man.random.4; data has been corrected.
+      Information regarding this issue can be found in security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:09.random.asc">FreeBSD-SA-07:09.random</ulink>. &merged;</para>
+
+  </sect2>
+
+  <sect2 id="kernel">
+    <title>Kernel Changes</title>
+
+    
+<para>&man.acpi.4; now has support for the HPET time counter.  &merged;</para>
+
+    <para>The &man.acpi.ibm.4; driver now supports setting the fan control
+      mode to manual or automatic, and adjusting the fan speed if the
+      fan control mode is manual.  To enable manual control of the fan speed,
+      the sysctl variable <varname>dev.acpi_ibm.<replaceable>0</replaceable>.fan</varname>
+      needs to be set to zero (manual).  This should only be used with
+      extreme precaution, as disabling automatic fan control might
+      overheat the hardware and lead to permanent damage.</para>
+
+    <para>The &man.apm.4; suspend/resume support has been improved.</para>
+
+    <para>The &man.cpufreq.4; CPU frequency control framework is now
+      enabled in the <filename>GENERIC</filename> kernel.</para>
+
+    <para>Support for the Camellia block cipher has been added to the
+      &os; kernel.  It can now be specified as a cipher in &man.ipsec.4;
+      and &man.geli.8;.  More information on Camellia can be found in
+      RFC 4132.</para>
+
+    <para>The <literal>options COMPAT_43</literal> kernel
+      configuration option has been deemed unnecessary and has been
+      removed from <filename>GENERIC</filename> and related kernel
+      configurations.  This change may result in a small performance
+      increase for some workloads.</para>
+
+    <para>The dumb console driver (&man.dcons.4;) is now enabled in the
+      <filename>GENERIC</filename> kernel.</para>
+
+    <para>The &man.ddb.4; debugger now provides the <literal>show sleepq</literal>
+      command.  This takes a wait channel as an argument and looks
+      for a sleep queue associated with that wait channel.</para>
+
+    <para>A bug in file descriptor handling such that a simple
+      <literal>close(0); dup(fd)</literal> sequence does not return
+      descriptor <literal>0</literal> in some cases, has been fixed.</para>
+
+    <para>The &man.gdb.1; remote debugging interface now supports
+      copying console messages to a remote debugger instance.
+      To enable this, set <literal>debug.gdbcons="1"</literal>
+      in <filename>loader.conf</filename>, enter <literal>boot -d;
+	gdb; step</literal> from the loader prompt,
+      then attach &man.gdb.1; from a remote machine.
+      The sysctl variable <varname>debug.gdbcons</varname> can be
+      used to turn on/off this functionality.</para>
+
+    <para>&man.hwpmc.4; and &man.pmcstat.8; now support profiling
+      of dynamically loaded kernel modules and
+      shared objects loaded with &man.dlopen.3;.</para>
+
+    <para>A new <varname>kern.hostuuid</varname> sysctl variable
+      has been added to hold a host's Universally Unique Identifier
+      (UUID).  This UUID is computed or generated by a new
+      <filename>rc.d/hostid</filename> startup script and, where
+      possible, is saved to disk to be persistent across reboots.</para>
+
+    <para>The <option>INCLUDE_CONFIG_FILE</option> kernel configuration
+      option has been improved.  The full configuration of a running kernel
+      can now be obtained via <command>sysctl -b kern.conftxt</command>.
+      It can also be extracted from a kernel file via
+      <command>config -x kernelfile</command>.  To preserve the literal
+      kernel configuration with all the comments included, the
+      <option>-C</option> option of &man.config.8; can be used.</para>
+
+    <para>Support for Kernel Scheduled Entities (KSE) is now a kernel
+      option (previously it was a mandatory feature in the kernel).
+      It is enabled in the GENERIC kernel (thus there is no change in
+      functionality) for all platforms except &arch.sun4v;.</para>
+
+    <para>The Linux ABI support was enhanced to support emulation of
+      Linux 2.6.16.  This is not enabled by default.  To turn it on
+      the <varname>compat.linux.osrelease</varname> sysctl variable
+      has to be set to <literal>2.6.16</literal>.  Note that this
+      support is still experimental.</para>
+
+    <para>Support for Message Signaled Interrupts (MSI) and Extended
+      Message Signaled Interrupts (MSI-X) has been added to the kernel's
+      PCI support code.  &merged;</para>
+
+    <para>The &man.priv.9; kernel interface has been added.  Its purpose
+      is checking the availability of privilege for threads and credentials.
+      Unlike the existing &man.suser.9; interface, &man.priv.9; exposes a
+      named privilege identifier to the privilege checking code, allowing
+      more complex policies regarding the granting of privilege to be
+      expressed.</para>
+
+    <para>&os; now supports concurrent &man.read.2;/&man.readv.2;
+      access to a file.</para>
+
+    <para>The kernel's &man.sx.9; locks have been optimized to use
+      simple atomic operations for the common cases of obtaining and 
+      releasing shared and exclusive locks.  While this change is not
+      generally user-visible, it is the basis for some substantial
+      performance improvements.</para>
+
+    <para>The ULE process scheduler has been revised to improve its
+      behavior, in particular interactivity under load, for both
+      uniprocessor and multiprocessor machines.  This
+      implementation has commonly been referred to as <quote>ULE
+      3.0</quote>.  (ULE 3.0 was formerly known as SCHED_SMP,
+      which in turn was based on version 2.0 of the ULE scheduler.
+      ULE 2.0 was never a part of any &os; release, however it
+      was the subject of many development, testing, and
+      benchmarking efforts.)</para>
+
+    <para>The <literal>SIGCHLD</literal> signal queuing has been
+      added.  For each child process whose status has been changed,
+      a <literal>SIGCHLD</literal> instance is queued.  If the signal is still pending,
+      and the process changed status several times, the signal information
+      is updated to reflect the latest process status.
+      There is a loader tunable <varname>kern.sigqueue.queue_sigchild</varname>
+      which can control the behavior, setting it to zero disables the
+      <literal>SIGCHLD</literal> queuing feature.</para>
+
+    <para>A new sysctl variable <varname>kern.malloc_stats</varname>
+      has been added.  This allows exporting of kernel malloc
+      statistics via a binary structure stream.</para>
+
+    <para>A new sysctl variable <varname>kern.forcesigexit</varname>
+      has been added.  This forces a process
+      to sigexit if a trap signal is being held by the current thread or
+      ignored by the current process.  It is enabled by default.</para>
+
+    <para>The pcvt(4) driver, an alternative to &man.syscons.4;,
+      has been removed, as it had fallen out of sync with the rest
+      of the kernel.</para>
+
+    <para>RedZone, a buffer corruption protection for the kernel &man.malloc.9;
+      facility has been implemented.  This detects both buffer underflows and
+      overflows at runtime on &man.free.9; and &man.realloc.9;,
+      and prints backtraces from where memory was allocated and from where
+      it was freed.  For more details, see the &man.redzone.9; manual page.</para>
+
+    <para>A new loader tunable <varname>vm.kmem_size_min</varname> has been
+      added.  This allows to specify a minimal size for
+      <varname>vm.kmem_size</varname>.</para>
+
+    <para>A new sysctl variable <varname>vm.zone_stats</varname>
+      has been added.  This allows to export &man.uma.9; allocator
+      statistics via a binary structure stream.</para>
+
+    <para>The sysctl variable <varname>hw.pci.do_powerstate</varname>
+      has been split into two sysctl variables
+      <varname>hw.pci.do_powerstate_nodriver</varname>
+      and <varname>hw.pci.do_powerstate_resume</varname>.
+      Also, these variables have been changed from a boolean to a range.
+      <literal>0</literal> means no power management,
+      <literal>1</literal> means conservative power management which
+      any device class that has caused problems is added to the watch list,
+      <literal>2</literal> means aggressive power management where
+      any device class that is not fundamental to the system is added to the list,
+      and <literal>3</literal> means power them all down unconditionally.
+      The default values are <literal>0</literal> for
+      <varname>hw.pci.do_powerstate_nodriver</varname> and
+      <literal>1</literal> for <varname>hw.pci.do_powerstate_resume</varname>.</para>
+
+    <para>[&arch.ia64;] The <filename>GENERIC</filename> kernel now enables
+      SMP support by default.</para>
+
+    <para>Sample kernel configuration files
+      <filename>src/sys/<replaceable>arch</replaceable>/conf/MAC</filename>
+      for the Mandatory Access Control framework have been added.</para>
+
+    <para><varname>POSIX_TIMERS</varname> support has been updated to 200112L.</para>
+
+    <para>An experimental support for POSIX message queue has been
+      implemented.</para>
+
+    <para>The locking strategy for UNIX domain sockets has been
+      revised to improve concurrency; this change has yielded
+      substantial performance improvements on various SMP workloads
+      (in particular, MySQL on 8-way &arch.amd64; systems) with little
+      or no measured overhead on UP systems.</para>
+
+    <para>Several minor but widespread changes to the Newbus API have
+      been made In order to support some on-going work with interrupt
+      filtering.  Because this change also breaks the kernel ABI, all
+      third-party device drivers will need to be modified and
+      recompiled.</para>
+
+    <sect3 id="boot">
+      <title>Boot Loader Changes</title>
+
+      <para>A new option <option>-S</option>,
+	which allows setting the <filename>boot2</filename>
+	serial console speed in the <filename>/boot.config</filename>
+	file or on the <prompt>boot:</prompt> prompt line,
+	has been added.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] &man.firewire.4; and &man.dcons.4;
+	support has been added to the boot loader.  To enable it,
+	<literal>LOADER_FIREWIRE_SUPPORT=yes</literal> has to be added
+	to <filename>/etc/make.conf</filename> and the loader be rebuilt.
+	</para>
+
+      <!-- Above this line, order boot loader changes by keyword-->
+
+      <para>[&arch.pc98;] The <application>IPLware</application> support
+	in boot0.5 has been enhanced to support version 3.33.</para>
+
+    </sect3>
+
+    <sect3 id="proc">
+      <title>Hardware Support</title>
+
+      <para>The &man.cardbus.4;, &man.pccard.4;,
+	&man.pccbb.4;, and &man.exca.4; drivers are now buildable
+	as kernel modules.</para>
+
+      <para>An &man.acpi.dock.4; driver has been added to provide
+        support for controlling laptop docking station functions via
+        ACPI.  &merged;</para>
+
+      <para>The &man.acpi.thermal.4; driver now supports overriding
+	the <literal>_PSV</literal>, <literal>_HOT</literal>, and
+	<literal>_CRT</literal> temperature values.</para>
+
+    <para>Support for the alpha architecture has been removed.  Alpha
+      support will remain on the RELENG_5 and RELENG_6 codelines.</para>
+
+      <para>The &man.cardbus.4; driver now supports
+	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename>.</para>
+
+      <para>[&arch.i386;, &arch.amd64;] The &man.coretemp.4; driver
+	has been added to provide temperature readings on &intel;
+	&core; processors. &merged;</para>
+
+      <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
+        frequency control for the VIA C7-M family of processors.</para> 
+
+      <para>The &man.firewire.4; code is now MPSAFE.</para>
+
+      <para>icee(4), a generic I2C EEPROM driver, has been added.</para>
+
+      <para>A bug which prevented the &man.ichsmb.4; kernel module
+	from unloading has been fixed.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] Dual-core processors (such as the Intel
+	Core Duo) now have both cores available for use by
+	default in SMP-enabled kernels. &merged;</para>
+
+      <para>[&arch.ia64;, &arch.powerpc;] The loader tunable <varname>debug.mpsafevfs</varname>
+	is set to <literal>1</literal> by default.</para>
+
+      <para>The &man.sab.4; driver has been removed (it has been
+        superceded by the &man.scc.4; driver).</para>
+
+      <para>The &man.scc.4; driver has been added.
+	This provides generic support for serial communications
+	controllers and delegates the control over each channel
+	and mode to a subordinate driver such as &man.uart.4;.</para>
+
+      <para>[&arch.amd64;] The smbios(4) driver support for amd64 has been
+	added.</para>
+
+      <para>[&arch.sun4v;] &os; now has preliminary support for the Sun Microsystems
+	UltraSPARC-T1 architecture.  &os;/sun4v has been demonstrated
+	to run on the Sun Fire T1000 and Sun Fire T2000 servers.
+	More information can be found on the
+	<ulink url="http://www.FreeBSD.org/platforms/sun4v.html">sun4v
+	Project</ulink>
+	page.</para>
+
+      <para>The tnt4882(4) driver, which supports the National Instruments
+	PCI-GPIB card, has been added.</para>
+
+      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.sparc64;] The &man.uart.4; driver has been included in the
+	<filename>GENERIC</filename> kernel by default.
+	When both &man.sio.4; and &man.uart.4; can handle a given serial port,
+	&man.sio.4; will claim it.</para>
+
+      <para>The &man.uark.4; driver, which supports the Arkmicro
+	Technologies ARK3116-based USB serial adapter, has been
+	added.</para>
+
+      <para>The &man.uart.4; driver now supports LOM (Lights Out Management)
+	and RSC (Remote System Control) devices as consoles.</para>
+
+      <para>The zs driver has been removed.  Its functionality
+	has been superceded by that of the &man.uart.4; driver.</para>
+
+      <para>[&arch.i386;] A new loader tunable
+	<varname>hw.apic.enable_extint</varname> has been added.
+	This tunable can be used to disable masking of the ExtINT pin on the first
+	I/O APIC.  At least one chipset for the Intel Pentium III seems
+	to need this, even though all of the pins in the 8259As are masked.
+	The default is still to mask the ExtINT pin.</para>
+
+      <sect4 id="mm">
+	<title>Multimedia Support</title>
+
+	<para>The new midi(4) driver which is based on NetBSD's one
+	  has been added.  This supports &man.snd.cmi.4; and
+	  &man.snd.emu10k1.4; drivers.</para>
+
+	<para>The &man.snd.cmi.4; driver is now MPSAFE.</para>
+
+	<para>The &man.snd.emu10kx.4; driver has been added.  It
+	  supports Creative SoundBlaster Live! and Audigy series sound
+	  cards with optional pseudo-multichannel playback.</para>
+
+	<para>The &man.snd.envy24.4; driver has been added to support
+	  the Envy24 series of audio chips. &merged;</para>
+
+	<para>The &man.snd.envy24ht.4; driver has been added to support
+	  the VIA Envy24HT series of audio chips. &merged;</para>
+
+	<para>The &man.snd.hda.4; driver has been added.  It supports
+	  devices that conform to revision 1.0 of the Intel High Definition
+	  Audio specification. &merged;</para>
+
+	<para>The &man.snd.solo.4; driver is now MPSAFE.  &merged;</para>
+
+	<para>The &man.snd.spicds.4; driver has been added to support
+	  I2S SPI audio codec chips. &merged;</para>
+
+	<para>The &man.uaudio.4; driver now supports 24/32 bit audio
+	  formats and conversion.</para>
+      </sect4>
+
+      <sect4 id="net-if">
+	<title>Network Interface Support</title>
+
+	<para>The &man.ath.4; driver has been updated to
+	  HAL version 0.9.20.3.  &merged;</para>
+
+	<para>The &man.axe.4; driver now supports &man.altq.4;.  &merged;</para>
+
+	<para>The &man.bge.4; driver's Jumbo frame support is now MPSAFE.</para>
+
+	<para>The &man.bge.4; driver now supports big-endian
+	  architectures such as sparc64.</para>
+
+	<para>The &man.cm.4; driver is now MPSAFE.</para>
+
+	<para>The &man.cxgb.4; driver has been added.  It provides support for
+	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
+	  &merged;</para>
+
+	<para>The &man.edsc.4; driver, which provides Ethernet discard network
+	  interfaces, has been added.  &merged;</para>
+
+	<para>The &man.el.4; driver has been removed due to lack of use.</para>
+
+	<para>The &man.em.4; driver has been updated to
+	  version 6.7.3 from Intel.  Among other changes, it now supports
+	  80003, 82571, 82571EB, 82572 and 82575 based adapters, as well as
+	  onboard-NICs on ICH8-based motherboards. &merged;</para>
+
+	<para>The &man.em.4; driver now includes
+	  initial support for suspend and resume features.</para>
+
+	<para>The performance of the &man.em.4; driver has been improved
+	  by using a fast interrupt handler and taskqueue
+	  instead of ithread handler.  This change can be disabled
+	  by defining <literal>NO_EM_FASTINTR</literal> kernel option
+	  for debugging purpose.</para>
+
+	<para>The IP over FireWire (&man.fwip.4;) driver is now enabled in
+	  the <filename>GENERIC</filename> kernel.</para>
+
+	<para>The &man.gem.4; driver now supports &man.altq.4;.</para>
+
+	<para>The firmware images needed by the &man.ipw.4; driver are now
+	  part of the &os; base system.  For the loaded firmware to work the
+	  license at <filename>/usr/share/doc/legal/intel_ipw/LICENSE</filename>
+	  must be agreed to and <literal>legal.intel_ipw.license_ack=1</literal>
+	  has to be added to <filename>/boot/loader.conf</filename>.
+	  Prior versions of the driver used the firmware image in the
+	  <filename role="package">net/ipw-firmware-kmod</filename>
+	  port/package or the
+	  <filename role="package">net/ipw-firmware</filename>
+	  port/package.</para>
+
+	<para>The &man.iwi.4; driver now supports big-endian
+	  architectures such as sparc64.</para>
+
+	<para>The firmware images needed by the &man.iwi.4; driver are now
+	  part of the &os; base system.  For the loaded firmware to work the
+	  license at <filename>/usr/share/doc/legal/intel_iwi/LICENSE</filename>
+	  must be agreed to and <literal>legal.intel_iwi.license_ack=1</literal>
+	  has to be added to <filename>/boot/loader.conf</filename>.
+	  Prior versions of the driver used the firmware image in the
+	  <filename role="package">net/iwi-firmware-kmod</filename>
+	  port/package or the
+	  <filename role="package">net/iwi-firmware</filename>
+	  port/package.</para>
+
+	<para>The ixgbe driver, which supports the Intel 10G PCI-Express
+	  adapter (82598), has been added.</para>
+
+	<para>The lnc(4) driver has been removed.  The &man.le.4; and
+	  &man.pcn.4; drivers support all devices that were supported
+	  by lnc(4).</para>
+
+	<para>The &man.msk.4; driver has been added.  It supports
+	  network interfaces using the Marvell/SysKonnect Yukon II
+	  Gigabit Ethernet controller.  &merged;</para>
+
+	<para>[&arch.amd64;, &arch.i386;] The &man.mxge.4; driver,
+	  which supports Myricom Myri10GE 10 Gigabit Ethernet
+	  adapters, has been added.  For more details, see
+	  &man.mxge.4;.  &merged;</para>
+
+	<para>[&arch.amd64;, &arch.i386;] The &man.nfe.4; driver, an open-source driver for nForce
+	  Ethernet devices, has been added, originally from
+	  OpenBSD.  This driver has replaced the &man.nve.4; driver in
+	  the <filename>GENERIC</filename> kernel.</para>
+
+	<para>[&arch.arm;] The &man.npe.4; driver, which supports the
+	   Intel XScale Network Processing Engine, has been
+	   added. &merged;</para>
+
+	<para>The &man.nxge.4; driver, which supports the Neterion
+	  Xframe 10 Gigabit Ethernet adapter, has been added.</para>
+
+	<para>The &man.re.4; driver now supports the D-Link DGE-528(T)
+	  Gigabit Ethernet card.</para>
+
+	<para>The &man.rum.4; driver has been added.  It supports
+	  WLAN adapters based on the Ralink RT2501USB and RT2601USB
+	  chipsets.</para>
+
+	<para>The &man.ti.4; driver now supports big-endian
+	  architectures such as sparc64.</para>
+
+	<para>The &man.ufoma.4; driver for
+	  FOMA (third generation mobile phone system by NTT DoCoMo, Inc.
+	  in Japan) has been added.
+	  This should support other third generation mobile phones
+	  since the driver is based on USB Implementation Guideline
+	  from MCPC (Mobile Computing Promotion Consortium) in Japan.</para>
+
+	<para>The vgapci(4) driver has been added.  This is a stub
+	  device driver for VGA PCI devices and serves as a bus
+	  so that other drivers such as drm(4),
+	  &man.acpi.video.4;, and &man.agp.4; can attach to
+	  it thus allowing multiple drivers for the same device.</para>
+
+	<para>The &man.vge.4; driver now supports &man.altq.4;.  &merged;</para>
+
+	<para>The &man.wi.4; driver is now buildable as
+	  a kernel module.</para>
+
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;] The &man.wlan.wep.4;,
+	  &man.wlan.ccmp.4;, and &man.wlan.tkip.4; drivers
+	  have been included in the <filename>GENERIC</filename>
+	  kernel by default.</para>
+
+	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
+	  been added to support the Intel 3945 Wireless LAN
+	  Controller.</para>
+
+	<para>[&arch.amd64;, &arch.i386;] The &man.zyd.4; driver
+	  has been added.  It provides support for ZyDAS ZD1211/ZD1211B USB
+	  IEEE 802.11 b/g wireless network devices.</para>
+
+	<para>The network interface groups feature has been imported
+	  from OpenBSD.  This feature allows an administrator to, for
+	  example, apply firewall rules to an entire group of
+	  interfaces.  More information can be found in
+	  &man.ifconfig.8;.</para>
+
+	<para>The 802.11 protocol stack has been significantly reworked.
+	  Among the new features are support for background scanning
+	  and roaming between APs, as well as support that will be
+	  required by 802.11n-capable devices.</para>
+
+	<para>The 802.11 protocol stack now has support for 900 MHz
+	  cards, as well as quarter- and half-channel support
+	  for 802.11a. &merged;</para>
+
+	<para>The &os; network stack now runs entirely free of the
+	  Giant kernel lock, and relies solely on the kernel's
+	  fine-grained locking primitives to manage parallelism.  This
+	  significantly improves the network stack's performance on
+	  multi-processor systems; uni-processor systems could also
+	  see performance gains.
+	  ISDN4BSD and netatm have been temporarily
+	  disconnected from the build.  These modules all require
+	  the Giant kernel lock for their operation; disconnecting
+	  them allows the removal of the NET_NEEDS_GIANT compatability
+	  shim.  It is planned to convert
+	  these modules to fine-grained kernel locking and re-connect
+	  them for &os; 7.1-RELEASE.</para>
+      </sect4>
+    </sect3>
+
+    <sect3 id="net-proto">
+      <title>Network Protocols</title>
+
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] An experimental BPF Just-In-Time compiler
+	has been implemented for both &man.bpf.4; and &man.ng.bpf.4;.
+	To enable this, the
+	<literal>options BPF_JITTER</literal> kernel option is needed.
+	The <varname>net.bpf_jitter.enable</varname>
+	can be used to disable this feature.</para>
+
+      <para>The &man.bpf.4; device now supports several new
+	&man.ioctl.2; calls to allow examining inbound vs. outbound
+	packets, as well as packets that have been injected onto the
+	network.</para>
+
+      <para>The bridge(4) driver has been removed from the tree.  Its
+	functionality has been completely replaced by
+	&man.if.bridge.4;.</para>
+
+      <para>The &man.gre.4; driver, which is for GRE encapsulation
+	found in RFC 1701 and RFC 1702, now supports IPv6 over GRE.</para>
+
+      <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
+	Spanning Tree Protocol (802.1w). &merged;</para>
+
+      <para>The &man.if.bridge.4; driver now supports a
+	<literal>private</literal> flag on bridge ports;
+	no private port on a bridge can communicate with any
+	other private port.  This functionlity is useful in
+	scenarios such as number of customers VLANs bridged
+	with a server network; it might be desirable to prevent
+	the customer VLANs from communicating with each other
+	but allow all of them to access the server network.  The
+	private flag on a bridge port can be set or cleared via
+	&man.ifconfig.8;.</para>
+
+      <para>A hard-coded limit on the number of IPv4 multicast group
+        memberships (formerly 20) has been removed.</para>
+
+      <para>IPv6 multicast forwarding is now dynamically loadable, via
+	the <filename>ip_mroute.ko</filename> module.</para>
+
+      <para>The &man.ipfw.4; packet filter now supports filtering on
+	Routing Header Type 0 and Mobile IPv6 Routing Header Type 2
+	in addition to filtering on the non-differentiated presence
+	of any Routing Header.</para>
+
+      <para>The ip6fw(8) packet filter has been removed.  Since &man.ipfw.4; has gained
+        IPv6 support, it should be used instead.  Please note that some rules might need
+        to be adjusted.</para>
+
+      <para>The KAME IPsec implementation has been removed.  In its
+	place, <literal>FAST_IPSEC</literal> is now the only IPsec
+	implementation supported by the &os; kernel.  The
+	<literal>IPSEC</literal> kernel configuration option, which
+	formerly enabled KAME IPsec, now enables
+	<literal>FAST_IPSEC</literal>.  <literal>FAST_IPSEC</literal>
+	now supports both IPv4 and IPv6, uses fine-grained kernel
+	locking, and supports hardware cryptographic
+	acceleration.</para>
+
+      <para>Support for tunneling IPX over IP has been removed.</para>
+
+      <para>The &man.lagg.4; driver, ported from OpenBSD and NetBSD,
+	has been added to support a variety of protocols and algorithms
+	for link aggregation, failover, and fault tolerance.  &merged;</para>
+
+      <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
+
+      <para>The &man.ng.car.4; Netgraph node has been added.  It implements
+	various traffic shaping and rate limiting algorithms.</para>
+
+      <para>A new &man.ng.deflate.4; Netgraph node type has been
+	added.  It implements Deflate PPP compression. &merged;</para>
+
+      <para>The &man.ng.h4.4; Netgraph node is now MPSAFE.</para>
+
+      <para>The &man.ng.ppp.4; Netgraph node is now MPSAFE.  &merged;</para>
+
+      <para>A new &man.ng.pred1.4; Netgraph node type has been added
+	to implement Predictor-1 PPP compression. &merged;</para>
+
+      <para>The default retransmit timer for NFS over TCP is now 60 seconds.
+	This change prevents the unnecessary retransmission of
+	non-idempotent NFS requests.  The <varname>nfs_access_cache</varname>
+	variable in &man.rc.conf.5; has also been changed to 60.</para>
+
+      <para>The default minimum number of nfsiod kernel threads
+	(&man.sysctl.8; variable <varname>vfs.nfs.iodmin</varname>)
+	has been changed from 4 to 0.</para>
+
+      <para>A new sysctl variable <varname>net.inet.icmp.reply_from_interface</varname>
+	has been added.  This allows the &man.icmp.4;
+	reply to non-local packets to be generated with
+	the IP address the packet came through in.
+	This is useful for routers to show in &man.traceroute.8;
+	the actual path a packet has taken instead of
+	the possibly different return path.</para>
+
+      <para>A new sysctl variable <varname>net.inet.icmp.quotelen</varname>
+	has been added.  This allows to change length of
+	the quotation of the original packet in an ICMP reply.
+	The minimum of 8 bytes is internally enforced.
+	The maximum quotation is the remaining space in the
+	reply mbuf.  This option is added in response to the
+	issues raised in I-D
+	<filename>draft-gont-icmp-payload-00.txt</filename>.</para>
+
+      <para>The &man.icmp.4; now always quotes the entire TCP header
+	when responding and allocate an mbuf cluster if needed.
+	This change fixes the TCP issues raised in I-D
+	<filename>draft-gont-icmp-payload-00.txt</filename>.</para>
+
+      <para>A new socket option <literal>IP_MINTTL</literal> has been added.
+	This may be used to set the minimum acceptable
+	TTL a packet must have when received on a socket.
+	All packets with a lower TTL are silently dropped.
+	This works on already connected/connecting and
+	listening sockets for RAW, UDP, and TCP.  This option
+	is only really useful when set to <literal>255</literal>, preventing packets
+	from outside the directly connected networks reaching
+	local listeners on sockets.  Also, this option allows
+	userland implementation of <quote>The Generalized TTL
+	  Security Mechanism (GTSM)</quote> found in RFC 3682.</para>
+
+      <para>The kernel &man.ppp.4; driver now supports IPv6.</para>
+
+      <para>Stealth forwarding now supports IPv6 as well as IPv4.
+	This behavior can be controlled by using a new sysctl variable
+	<varname>net.inet6.ip6.stealth</varname>.</para>
+
+      <para>The <literal>PIM</literal> kernel option has been removed.
+	The corresponding code is now included in the
+	<literal>MROUTING</literal> kernel option.</para>
+
+      <para>Support has been added for the RFC 3678 Source-Specific
+	Multicast (SSM) socket API.  More details can be found in
+	the &man.sourcefilter.3; manual page.</para>
+
+      <para>Support has been added for the Stream Control Transmission
+	Protocol (SCTP).  SCTP implements a reliable, message-oriented
+	transport protocol, and is defined in RFC 4960.  It is enabled
+	in &os; with the <literal>SCTP</literal> kernel option and is
+	part of the <filename>GENERIC</filename> kernel.  More
+	information can be found in the &man.sctp.4; manual page.</para>
+
+      <para>The <literal>IPV6_V6ONLY</literal> socket option
+	now works for UDP.</para>
+
+      <para>The <literal>TCP_DROP_SYNFIN</literal> kernel option is now
+	included in the kernel by default.  The
+	<varname>net.inet.tcp.drop_synfin</varname> sysctl variable still
+	defaults to <literal>0</literal>.</para>
+
+      <para>The &os; network stack now has support for TCP
+	Segmentation Offload (TSO).  TSO reduces the overhead of
+	sending bulk TCP data by allowing a network interface to
+	convert a large data transfer into multiple TCP segments to be
+	sent on the network.  This functionality can be enabled or
+	disabled on a per-interface basis with
+	the <literal>tso</literal> and <literal>-tso</literal> flags
+	to &man.ifconfig.8;.  Network interfaces and drivers
+	supporting TSO currently include &man.em.4;,
+	&man.mxge.4; and &man.cxgb.4;.</para>
+
+      <para>&os; now supports auto-sizing of TCP socket buffers.  This
+	allows the socket buffer sizes to adapt dynamically to network
+	conditions, rather than being set statically.  The behavior of
+	this feature can be controlled using
+	the <varname>net.inet.tcp.sendbuf_*</varname>
+	and <varname>net.inet.tcp.recvbuf_*</varname> sysctl
+	variables.</para>
+
+      <para>The <varname>net.link.tap.up_on_open</varname> sysctl variable
+	has been added to the &man.tap.4; driver.  If enabled, new tap
+	devices will marked <literal>up</literal> upon creation.  &merged;
+	</para>
+
+    </sect3>
+
+    <sect3 id="disks">
+      <title>Disks and Storage</title>
+
+      <para>The &man.aac.4; driver now supports the Adaptec 2610SA SATA-RAID
+	controller in some Hewlett-Packard machines.</para>
+
+      <para>The &man.ahc.4; driver is now MPSAFE.</para>
+
+      <para>The &man.ahd.4; driver is now MPSAFE.</para>
+
+      <para>The CAM subsystem is now MPSAFE.</para>
+
+      <para>The &man.ciss.4; driver is now MPSAFE.</para>
+
+      <para>A new <literal>GEOM_JOURNAL</literal> class has been added
+	to the GEOM storage transformation system.  It supports
+	block-level journaling operations, which can be used by file
+	system modules to perform file system journaling and to keep
+	file systems in a consistent state.  (Currently, only UFS file
+	systems are supported.)  Its operation can be controlled using
+	the &man.gjournal.8; utility.</para>
+
+      <para>A new GEOM_MULTIPATH class has been added to support
+	multiple access paths to disk devices.  The &man.gmultipath.8;
+	utility has been added to control the behavior of disk devices
+	using this feature.</para>
+
+      <para>A new <literal>GEOM_VIRSTOR</literal> class has been added
+	to provide virtual storage devices of arbitrary size with
+	physical devices as backing store.  More information can be
+	found in the manual page for its control utility,
+	&man.gvirstor.8;.</para>
+
+      <para>The GEOM class kernel module <filename>g_md.ko</filename>
+	has been renamed to <filename>geom_md.ko</filename>
+	for consistency.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] The &man.hptiop.4; driver has been added.
+	It supports the Highpoint RocketRAID 3xxx series of controllers.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] The &man.hptrr.4; driver has
+	been added, to support several HighPoint RocketRAID
+	controllers (more details can be found in the manual
+	page). &merged;</para>
+
+      <para>[&arch.amd64;, &arch.i386;] The &man.hptmv.4; driver has been updated and now supports
+	amd64 as well as PAE.</para>
+
+      <para>The &man.isp.4; driver is now MPSAFE.</para>
+
+      <para>The &man.mpt.4; driver has been updated to support
+	various new features such as RAID volume and RAID member
+	state/settings reporting, periodic volume re-synchronization
+	status reporting, and sysctl variables for volume
+	re-synchronization rate, volume member write cache status,
+	and volume transaction queue depth.  &merged;</para>
+
+      <para>The &man.mpt.4; driver now supports SAS HBA (partially),
+	64-bit PCI, and large data transfer.  &merged;</para>
+
+      <para>The &man.mpt.4; driver is now MPSAFE.</para>
+
+      <para>The &man.twa.4; driver has been updated to the 3.70.03.007
+	release on the 3ware Web site.  It now supports AMCC's 3ware
+	9650 series of SATA controllers.  &merged;</para>
+
+      <para>The &man.iscsi.initiator.4; driver, a kernel driver for
+	the Internet SCSI (iSCSI) protocol, has been added.  This
+	driver allows access to remote SCSI devices over TCP/IP
+	networks.  The &man.iscontrol.8; userland utility is used
+	to control the operation of the driver.</para>
+
+      <para>The scsi_sg driver, which emulates a significant
+	subset of the Linux SCSI SG passthrough device API, has
+	been added.  It is
+	intended to allow programs running under Linux emulation
+	(as well as native &os; applications) to access the
+	<filename>/dev/sg<replaceable>*</replaceable></filename>
+	devices supported by Linux. &merged;</para>
+
+      <para>The &man.umass.4; driver now supports
+	<literal>PLAY_MSF</literal>,
+	<literal>PLAY_TRACK</literal>,
+	<literal>PLAY_TRACK_REL</literal>,
+	<literal>PAUSE</literal>,
+	<literal>PLAY_12</literal> commands so that
+	the &man.cdcontrol.1; utility can handle a USB CD drive.</para>
+    </sect3>
+
+    <sect3 id="fs">
+      <title>File Systems</title>
+
+      <para>A part of the FreeBSD NFS subsystem (the interface with
+	the protocol stack and callouts, the NFS client side) is now MPSAFE.</para>
+
+      <para>The &man.pseudofs.9; pseudo file system construction kit and
+	all of its consumers (&man.procfs.5;, &man.linprocfs.5; and
+	&man.linsysfs.5;), are now MPSAFE.</para>
+
+      <para>[&arch.amd64;, &arch.i386;] Experimental support for the
+	TMPFS file system has been added.  TMPFS is an efficient
+	memory file system originally developed for the NetBSD project
+	during the Google Summer of Code.  More information can be
+	found in the &man.tmpfs.5; manual page.</para>
+
+      <para>The unionfs file system has been re-implemented.  This
+	version solves many crashing and locking issues compared to
+	the previous implementation.  It also adds
+	new <quote>transparent</quote> and <quote>masquerade</quote>
+	modes for automatically creating files in the upper file system
+	layer of unions.  More information can be found in the
+	&man.mount.unionfs.8; manual page.  &merged;</para>
+
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Support for Sun's ZFS has been
+	added.  More information about this file system can be found
+	in the &man.zfs.8; manual page or
+	on the <ulink url="http://www.opensolaris.org/os/community/zfs/">
+	  OpenSolaris ZFS page</ulink>.</para>
+
+      <para>Initial (read-only) support for SGI's XFS file system has been
+	added.</para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>Userland Changes</title>
+
+    <para>The addr2ascii() and ascii2addr() library calls, originally
+      introduced by the INRIA IPv6 implementation, have been removed
+      from <filename>libc</filename>.  They have no consumers in the
+      &os; base system.  In a related change, support
+      for <literal>AF_LINK</literal> addresses has been added to
+      &man.getnameinfo.3;.</para>
+
+    <para>Padding of <varname>ai_addrlen</varname>
+      in <varname>struct addrinfo</varname> has been removed,
+      which was originally for the ABI compatibility.
+      For example, this change breaks the ABI compatibility of the
+      &man.getaddrinfo.3; function on 64-bit architectures, including
+      &os;/amd64, &os;/ia64, and &os;/sparc64.</para>
+
+    <para>The &man.atrun.8; utility has gained PAM support.  Before
+      running a job for a user account, it will check the account
+      status with PAM and refuse to run the job if the account is
+      unavailable.  The default definition of an unavailable account
+      includes those expired and administratively locked out with
+      &man.pw.8;.</para>
+
+    <para>The &man.camcontrol.8; utility now supports
+      a <command>readcap</command> command to display the size of
+      devices. &merged;</para>
+
+    <para>The &man.cron.8; daemon has gained PAM support.  Before
+      running a command from account's private &man.crontab.5; file,
+      it will check the account status with PAM and skip the command
+      if the account is unavailable.  The default definition of an
+      unavailable account includes those expired and administratively
+      locked out with &man.pw.8;.  In addition, &man.cron.8; will
+      skip commands from private &man.crontab.5; files if a
+      &man.nologin.5; file exists, unless the &man.crontab.5; owner's
+      login class is exempt from &man.nologin.5; restriction.
+      Commands from the system file <filename>/etc/crontab</filename>
+      are not subject to the PAM check.</para>
+
+    <para>The &man.dhclient.8; program now supports the Classless Static
+      Route option as described in RFC 3442.</para>
+
+    <para>The &man.dump.8; and &man.restore.8; programs now attempt to
+      save and restore extended attribute information on files.</para>
+
+    <para>A <application>libelf</application> library implementing
+      the SVR4 &man.elf.3; / &man.gelf.3; API for manipulating ELF files
+      has been added.</para>
+
+    <para>The &man.fdisk.8; program now supports a <option>-p</option>
+      flag to print the slice table in fdisk configuration format. &merged;</para>
+
+    <para>T/TCP support in &man.finger.1; (and the <option>-T</option>
+      flag used to enable it) has been removed.</para>
+
+    <para>A bug in the &man.find.1; program which prevents
+      numeric arguments for <option>-user</option> and
+      <option>-group</option> from working as expected
+      has been fixed.</para>
+
+    <para>The &man.freebsd-update.8; command now supports
+      an <command>upgrade</command> command to perform binary upgrades between
+      different versions of &os;. &merged;</para>
+
+    <para>The &man.ftpd.8; utility now has support for RFC2389 (FEAT)
+      and rudimentary support for RFC2640 (UTF8).  The RFC2640 support
+      is optional and can be enabled using the new <option>-8</option>
+      flag.  More information can be found in the &man.ftpd.8; manual
+      page.  &merged;</para>
+
+    <para>The &man.gcc.1; SSP (Stack-Smashing Protector) support is now
+      enabled by default.</para>
+
+    <para>The &man.gbde.8; utility now supports
+      <option>-k</option> and <option>-K</option> options
+      to specify a key file in addition to a passphrase.</para>
+
+    <para>The &man.gpt.8; utility now supports setting GPT partition labels.</para>
+
+    <para>The &man.gvinum.8; utility now supports the
+      <command>resetconfig</command> sub-command.</para>
+
+    <para>An implementation of Generic Security Service API (GSS-API)
+      version 2 and its C binding described in RFC2743 and RFC2744
+      has been added.  This is a new extensible GSS-API layer which
+      can support GSS-API plugins, similar the the Solaris
+      implementation, and the Kerberos 5 GSS mechanism has
+      been rewritten as a plugin library for the new implementation.</para>
+
+    <para>The &man.hccontrol.8; utility now supports HCI node
+      autodetection.</para>
+
+    <para>The &man.id.1; utility now prints the effective user
+      ID after the group ID.</para>
+
+    <para>The &man.ipfwpcap.8; utility has been added; it captures
+      packets on a &man.divert.4; socket and writes them as
+      &man.pcap.3; (also known as &man.tcpdump.1;) format data to a
+      file or pipe. &merged;</para>
+
+    <para>The &man.kdump.1; program now supports printing
+      flags in a system call argument by using symbol names.</para>
+
+    <para>The &man.kenv.1; utility now supports a <option>-q</option>
+      flag to suppress warnings.</para>
+
+    <para>&man.kgdb.1; now supports a <option>-w</option>
+      option to open kmem-based targets in read-write mode.
+      This allows one to use kgdb on <filename>/dev/mem</filename>
+      and be able to patch memory on a live system.</para>
+
+    <para>The &man.libarchive.3; library now supports
+      POSIX.1e-style Extended Attributes.</para>
+
+    <para>The &man.libarchive.3; library now contains support for
+      &man.ar.1;-style archives.</para>
+
+    <para>The <application>libc</application> library now includes
+      initial implementation of symbol maps and symbol version
+      definitions.</para>
+
+    <para>The <application>libedit</application> library has been
+      updated from the NetBSD source tree as of August 2005.</para>
+
+    <para>The <application>libm</application> library now includes
+      initial implementation of symbol maps and symbol version
+      definitions.</para>
+
+    <para>A new &man.malloc.3; implementation has been introduced.
+      This implementation, sometimes referred to
+      as <quote>jemalloc</quote>, was designed to improve the
+      performance of multi-threaded programs, particularly on SMP
+      systems, while preserving the performance of single-threaded
+      programs.  Due to the use of different algorithms and data
+      structures, jemalloc may expose some previously-unknown bugs in
+      userland code, although most of the &os; base system and common
+      ports have been tested and/or fixed.  Note that jemalloc uses
+      &man.mmap.2; to obtain memory and only uses &man.sbrk.2; under
+      limited circumstances (and then only for 32-bit architectures).
+      As a result, the <literal>datasize</literal> resource limit
+      has little practical effect for typical applications.  The
+      <literal>vmemoryuse</literal> resource limit, however, can be
+      used to bound the total virtual memory used by a process, as
+      described in &man.limits.1;.</para>
+
+    <para>The &man.mdconfig.8; utility now supports producing
+      device listings formatted as XML.  Currently, the
+      <command>list</command> and <command>query</command>
+      sub-commands support this feature.</para>
+
+    <para>The &man.mdconfig.8; utility's <option>-u</option> option
+      now supports specifying multiple devices separated
+      by comma character.</para>
+
+    <para>The &man.mdmfs.8; utility now supports a <option>-P</option> flag
+      to allow skipping the &man.newfs.8; process
+      when using a vnode-backed disk.</para>
+
+    <para>The &man.mdmfs.8; utility now supports a <option>-E</option> flag
+      to allow to specify location of the &man.mdconfig.8;
+      utility instead of using the default one
+      (<filename>/sbin/mdconfig</filename>).</para>
+
+    <para>A new function &man.memmem.3; has been implemented in
+      <filename>libc</filename>.  This is the binary equivalent to
+      &man.strstr.3; and found in <filename>glibc</filename>.</para>
+
+    <para>The &man.mount.8; <literal>dev</literal>
+      and <literal>nodev</literal> options have
+      been removed.</para>
+
+    <para>The &man.mount.8; utility now supports &man.mqueuefs.5;.</para>
+
+    <para>A bug which prevents the &man.mount.8; utility from converting
+      a read-only mount to read-write via <command>mount -u -o rw</command>,
+      has been fixed.</para>
+
+    <para>A number of the file
+      system-specific <command>mount_<replaceable>*</replaceable></command>
+      utilities have been removed, in favor of the more general
+      &man.mount.8; command with a <option>-t</option> option.
+      Specifically, these commands are:
+      <command>mount_devfs</command>,
+      <command>mount_ext2fs</command>,
+      <command>mount_fdescfs</command>,
+      <command>mount_linprocfs</command>,
+      <command>mount_procfs</command>,
+      <command>mount_std</command>,
+      <command>mount_linsysfs</command>,
+      <command>mount_reiserfs</command>, and
+      <command>mount_umapfs</command>.
+      </para>
+
+    <para>The mrouted(8) multicast routing daemon has been removed
+      from the &os; base system.  It implements the DVMRP multicast
+      routing protocol, which has largely been replaced by PIM in many
+      multicast installations.  The related map-mbone(8) and mrinfo(8)
+      utilities have also been removed.  These programs are now
+      available in the &os; Ports Collection
+      as <filename role="package">net/mrouted</filename>.</para>
+
+    <para>The &man.netstat.1; utility now supports printing
+      &man.sctp.4; protocol statistics.</para>
+
+    <para>The <filename>/etc/nsswitch.conf</filename> file is now
+      installed statically instead of being generated on every
+      reboot.</para>
+
+    <para>The objformat(1) utility and getobjformat(3) library (the
+      last remnants of a.out object file support) have been removed.</para>
+
+    <para>The &man.pam.nologin.8; module no longer provides
+      an authentication function; instead it now provides an account
+      management function.  Third-party files in
+      <filename>/usr/local/etc/pam.d</filename> may  
+      need manual editing; specifically, lines in these files of
+      the form:
+
+      <screen>auth    required        pam_nologin.so  no_warn</screen></para>
+
+    <para>These lines need to have the word <literal>auth</literal>
+      replaced with the word <literal>account</literal>.</para>
+
+    <para>&man.nscd.8; has been added.  It is a daemon that caches
+      the results of nsswitch lookups (such as those to the password,
+      group, and services databases) for improved performance.</para>
+
+    <para>The &man.pkill.1; utility now supports a
+      <option>-F</option> option which allows to
+      restrict matches to a process whose PID is stored in the
+      pidfile file.  When another new option <option>-L</option>
+      is also specified, the pidfile file must be locked with the
+      &man.flock.2; syscall or created with &man.pidfile.3;.</para>
+
+    <para>The &man.pkill.1; utility now supports a
+      <option>-I</option> flag which works like <option>-i</option>
+      of &man.rm.1;.  When this flag is specified, &man.pkill.1;
+      will ask for confirmation before sending a signal to
+      each matching process.</para>
+
+    <para>The &man.pmcstat.8; program has seen several enhancements:
+      It can now log over a network socket to a remote host.  The
+      <option>-c</option> now takes a comma-seperated list of CPUs
+      to configure for PMC allocation.  The <option>-t</option> option
+      has been enhanced to take a regular expression for selecting
+      processes based on their command names.  &man.pmcstat.8; now
+      allocates system PMCs on all CPUs by default, not just CPU 0.</para>
+
+    <para>The &man.powerd.8; program now supports a
+      <option>-P</option> option, which specifies a pidfile to use.</para>
+
+    <para>The &man.pw.8; program now supports a <option>-M</option>
+      option to set the permissions of a user's newly created home
+      directory.  &merged;</para>
+
+    <para>The DNS resolver library in &os;'s <application>libc</application>
+      has been updated to that from BIND 9.4.1.</para>
+
+    <para>The &man.rpcbind.8; program can now bind its TCP listening
+      socket to an IP address other than INADDR_ANY using the
+      <option>-h</option> flag.  The new <option>-6</option> flag allows
+      it to bind to IPv6 addresses only.</para>
+
+    <para>The &man.rpcgen.1; utility now generates headers and stub files
+      that can be used with ANSI C compilers by default.</para>
+
+    <para>The &man.rpc.lockd.8; and &man.rpc.statd.8; programs now
+      accept <option>-p</option> options to indicate which port they
+      should bind to. &merged;</para>
+
+    <para>The &man.rtld.1; runtime linker now supports ELF symbol versioning
+      using GNU semantics.  This implementation aims to be compatible
+      with symbol versioning support as implemented by GNU libc and
+      documented in <ulink url="http://people.redhat.com/~drepper/symbol-versioning"></ulink>
+      and LSB 3.0.  Also, <function>dlvsym()</function>
+      function has been added to
+      allow lookups for a specific version of a given symbol.</para>
+
+    <para>The &man.sa.8; utility now supports <option>-U</option>
+      and <option>-P</option> flags.  They can be used to specify
+      the per-user and per-process summary file location,
+      respectively.</para>
+
+    <para>The &man.sade.8; disk partitioning and labeling utility has
+      been added.  This utility is based on the partition editing bits
+      of &man.sysinstall.8;.</para>
+
+    <para>A bug in the &man.sed.1; utility which can cause
+      incorrect calculation of pattern space length in some cases
+      has been fixed.</para>
+
+    <para>The &man.sed.1; utility now supports case-insensitive
+      pattern matching; this feature can be enabled by using
+      the <literal>I</literal> flag after the closing delimiter for a
+      regular expression.</para>
+
+    <para>The behavior of the &man.setenv.3; family of library calls
+      has been changed from the historic BSD API to the
+      behavior mandated by POSIX.  As a result, several base system
+      utility that relied on the old API have been updated to track
+      this change.</para>
+
+    <para>The <option>-h</option> flag to &man.setfacl.1; now properly
+      sets the ACL on a symbolic link, not the link target.</para>
+
+    <para>The &man.sockstat.1; utility, which shows connected and
+      listening network sockets, now supports a new <option>-P</option>
+      command-line option, which can be used to filter displayed sockets
+      by protocol name (as listed in &man.protocols.5;).</para>
+
+    <para>The &man.sysctl.8; utility now supports a <option>-q</option>
+      flag to suppress a limited set of warnings and errors.</para>
+
+    <para>The version of tcpslice in the &os; base system has been
+      removed due to obsolescence.  A more up-to-date version can be
+      found in the Ports Collection
+      as <filename role="package">net/tcpslice</filename>.</para>
+
+    <para>The &man.time.1; utility now prints the time that a given
+      command has been running if sent a <literal>SIGINFO</literal> signal.</para>
+
+    <para>The &man.top.1; program now supports a <option>-a</option>
+      flag to display process titles from their argument vectors;
+      this feature is useful for watching processes that change their
+      titles via &man.setproctitle.3;.</para>
+
+    <para>The &man.top.1; program now supports a <option>-j</option>
+      flag to display the &man.jail.8; ID for each process.  &merged;</para>
+
+    <para>The &man.touch.1; utility now supports a <option>-A</option>
+      flag that allows the access and modification times of a file to be
+      adjusted by a specified value.  &merged;</para>
+
+    <para>The &man.truss.1; utility now supports an <option>-s</option>
+      flag for the same functionality as the strace utility
+      (<filename role="package">devel/strace</filename>).</para>
+
+    <para>The &man.truss.1; utility no longer depends on the availability
+      of the &man.procfs.5; file system; it uses the &man.ptrace.2;
+      interface instead for controlling a traced process.</para>
+
+    <para>[&arch.powerpc;] The &man.truss.1; utility now supports &os;/powerpc.</para>
+
+    <para>The usbd(8) utility has been removed.
+      The &man.devd.8; utility and its configuration
+      file now support functionality which is equivalent to it.</para>
+
+    <para>The &man.uuidgen.1; utility has been moved from
+      <filename>/usr/bin</filename> to <filename>/bin</filename>.</para>
+
+    <para>The vnconfig(8) utility, which was long ago replaced by
+      &man.mdconfig.8;, has been removed.</para>
+
+    <para>The wicontrol(8) utility has been removed.  Configuration
+      functions for &man.wi.4; interfaces should be performed using
+      &man.ifconfig.8;.</para>
+
+    <para>The shared library version number of all libraries has
+      been updated due to some possible ABI changes.  The libraries
+      include: snmp_<replaceable>*</replaceable>, libdialog, libg2c, libobjc,
+      libreadline, libregex, libstdc++, libkrb5, libalias, libarchive,
+      libbegemot, libbluetooth, libbsnmp, libbz2, libc_r, libcrypt,
+      libdevstat, libedit, libexpat, libfetch, libftpio, libgpib,
+      libipsec, libkiconv, libmagic, libmp, libncp, libncurses,
+      libnetgraph, libngatm, libopie, libpam, libpthread, libradius,
+      libsdp, libsmb, libtacplus, libthr, libthread_db, libugidfw,
+      libusbhid, libutil, libvgl, libwrap, libypclnt, libm, libcrypto,
+      libssh, and libssl.</para>
+
+    <para>The <function>wcsdup()</function> function has been
+      implemented.  This function is popular in Microsoft and GNU
+      systems.</para>
+
+    <para>The &man.wlandebug.8; utility has been added to the main
+      &os; source tree (it previously lived in a tools area).  It
+      provides control over a number of types of debugging output
+      in the &man.wlan.4; module and related drivers, and can be
+      useful for debugging wireless issues.</para>
+
+    <para>The &man.wpa.passphrase.8; utility has been added.  It
+      generates a 256-bit pre-shared WPA key from an ASCII
+      passphrase. &merged;</para>
+
+    <sect3 id="rc-scripts">
+      <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para>The <filename>ftpd</filename> script for
+	stand-alone &man.ftpd.8; has been added.</para>
+
+      <para>The <filename>gbde_swap</filename> script has
+	been removed in favor a new <filename>encswap</filename>
+	script which also supports &man.geli.8; for swap
+	encryption.</para>
+
+      <para>The <filename>geli</filename> and <filename>geli2</filename>
+	scripts has been added for &man.geli.8; device
+	configuration on boot.</para>
+
+      <para>The <filename>ike</filename> script for
+	IPsec IKE daemon has been removed because no such daemon
+	is included in the base system.</para>
+
+      <para>The <filename>mdconfig</filename> script to
+	handle vnode backed &man.md.4; devices has been added.
+	This is a replacement of the <filename>ramdisk</filename>
+	script, and all of variables in <varname>ramdisk_*</varname>
+	have been changed to <varname>mdconfig_*</varname>.
+	Also, two new &man.rc.conf.5; variables
+	<varname>mdconfig_<replaceable>*</replaceable>_files</varname>
+	and
+	<varname>mdconfig_<replaceable>*</replaceable>_cmd</varname>
+	have been added.  For example:</para>
+
+      <programlisting>mdconfig_md0="-t malloc -s 10m"
+mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
+
+      <para>The <filename>rcconf.sh</filename> script in <filename>/etc/rc.d</filename>
+	has been removed and a variable <varname>early_late_divider</varname>,
+	which designates the script to separate the early and late stages
+	of the boot process, has been added.</para>
+
+      <para>The <filename>rc.initdiskless</filename> script now uses &man.tar.1;
+	instead of &man.pax.1; because &man.pax.1; needs a writable
+	temporary directory that may not be available when this script
+	runs.</para>
+
+      <para>The <filename>pccard</filename> script has been removed
+	since OLDCARD is deprecated.</para>
+
+      <para>The <filename>sendmail</filename> script no longer rebuilds
+	the aliases database if it is missing or older than the aliases
+	file.  &merged; If desired, set the new rc.conf option
+	<varname>sendmail_rebuild_aliases</varname> to "YES" to restore
+	that functionality.</para>
+
+      <para>The <varname>removable_interfaces</varname> variable
+	has been removed.</para>
+
+      <para>A new keyword <literal>NOAUTO</literal> in
+	<varname>ifconfig_<replaceable>ifn</replaceable></varname>
+	has been added. This prevents configuration of an interface
+	at boot time or via <filename>/etc/pccard_ether</filename>,
+	and allows <filename>/etc/rc.d/netif</filename>
+	to be used to start and stop an interface
+	on a purely manual basis.</para>
+
+     <para>The <filename>/etc/rc.d/nfslocking</filename> script
+	has been deprecated and will be removed in a future release.
+	It has been replaced by the <filename>/etc/rc.d/lockd</filename> and
+	<filename>/etc/rc.d/statd</filename> scripts. &merged;</para>
+    </sect3>
+  </sect2>
+
+  <sect2 id="contrib">
+    <title>Contributed Software</title>
+
+    <para><application>Intel ACPI-CA</application>
+      has been updated to 20070320.</para>
+
+    <para><application>awk</application> has been updated from the 24
+      April 2005 release to the 1 May 2007 release. &merged;</para>
+
+    <para><application>BIND</application> has been updated from 9.3.3
+      to 9.4.2.</para>
+
+    <para><application>BSNMPD</application> has been updated from
+      1.11 to 1.12.</para>
+
+    <para><application>BZIP2</application> has been updated from
+      1.0.3 to 1.0.4.
+      &merged;</para>
+
+    <para>GNU <application>Diffutils</application> has been updated
+      from 2.7 to 2.8.7.
+      &merged;</para>
+
+    <para><application>DRM</application> has
+      been updated to a snapshot from DRI CVS as of 20060517.
+      &merged;</para>
+
+    <para>The Forth Inspired Command Language (<application>FICL</application>)
+      used in the boot loader has been updated to 3.03.</para>
+
+    <para><application>FILE</application> has been updated from 4.12
+      to 4.21.</para>
+
+    <para><application>GCC</application> has been updated from 3.4.6
+      to 4.2.1.</para>
+
+    <para><application>GNU Readline library</application> has been
+      updated from 5.0 to 5.2 patch 2. &merged;</para>
+
+    <para>The GNU version of <application>gzip</application> has been
+      replaced with a modified version of gzip ported from NetBSD.
+      &merged;</para>
+
+    <para><application>IPFilter</application> has been updated from
+      4.1.13 to 4.1.28. &merged;</para>
+
+    <para><application>less</application> has been updated from v394
+      to v416. &merged;</para>
+
+    <para><application>libpcap</application> has been updated from
+      0.9.4 to 0.9.8.</para>
+
+    <para><application>netcat</application> has been updated from the
+      version included in OpenBSD 3.9 to the version
+      included in OpenBSD 4.1.  &merged;</para>
+
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7e to 0.9.8e.</para>
+
+    <para><application>ncurses</application> has been updated from
+      5.2-20020615 to 5.6-20061217.  ncurses now also has wide
+      character support.  &merged;</para>
+
+    <para><application>hostapd</application>
+      has been updated from version 0.3.9 to version 0.5.8.
+      </para>
+
+    <para><application>PF</application> has been updated from OpenBSD
+      version 3.7 to OpenBSD version 4.1.  This update includes a
+      number of functional enhancements.  Two notable changes are
+      that <literal>keep state</literal> is now the default behavior
+      for rules in &man.pf.conf.5; and that <literal>flags
+      S/SA</literal> is now the default flags setting for TCP rules.
+      The options <literal>no state</literal> and <literal>flags
+      any</literal> can be used to disable stateful filtering or TCP
+      flags checking, respectively.</para>
+
+    <para><application>sendmail</application> has been updated from
+      8.13.8 to 8.14.2.  &merged;</para>
+
+    <para><application>tcpdump</application> has been updated from
+      3.9.4 to 3.9.8.</para>
+
+    <para>The timezone database has been updated from the
+      <application>tzdata2006g</application> release to the
+      <application>tzdata2007h</application> release. &merged;</para>
+
+    <para><application>tip</application> has been updated to a
+      snapshot from OpenBSD as of 20060831.</para>
+
+    <para>TrustedBSD <application>OpenBSM</application>,
+      has been updated from version 1.0 alpha 12 to
+      version 1.0.</para>
+
+    <para><application>WPA Supplicant</application>
+      has been updated from version 0.3.9 to version 0.5.8.
+      </para>
+
+  </sect2>
+
+  <sect2 id="ports">
+    <title>Ports/Packages Collection Infrastructure</title>
+
+    <para></para>
+
+  </sect2>
+
+  <sect2 id="releng">
+    <title>Release Engineering and Integration</title>
+
+    <para>The default partition sizing algorithm of the
+      &man.sysinstall.8; utility has been changed.</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>On systems where the disk capacity is larger than (3 * RAMsize + 10GB),
+	  the default sizes will now be as follows:</para>
+
+	<informaltable frame="none" pgwide="0">
+	  <tgroup cols="2">
+	    <colspec colwidth="1*">
+	    <colspec colwidth="2*">
+	    <thead>
+	      <row>
+		<entry>Partition</entry>
+		<entry>Size</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row><entry>swap</entry><entry>RAMsize * 2</entry></row>
+	      <row><entry><filename>/</filename></entry><entry>512 MB</entry></row>
+	      <row><entry><filename>/tmp</filename></entry><entry>512 MB</entry></row>
+	      <row><entry><filename>/var</filename></entry><entry>1024 MB + RAMsize</entry></row>
+	      <row><entry><filename>/usr</filename></entry><entry>the rest (8GB or more)</entry></row>
+	    </tbody>
+	  </tgroup>
+	</informaltable>
+      </listitem>
+
+      <listitem>
+	<para>On systems where the disk capacity is larger than
+	  (RAMsize / 8 + 2 GB), the default sizes will be
+	  in the following ranges, with space allocated
+	  proportionally:</para>
+
+	<informaltable frame="none" pgwide="0">
+	  <tgroup cols="2">
+	    <colspec colwidth="1*">
+	    <colspec colwidth="2*">
+	    <thead>
+	      <row>
+		<entry>Partition</entry>
+		<entry>Size</entry>
+	      </row>
+	    </thead>
+
+	    <tbody>
+	      <row><entry>swap</entry><entry>from RAMsize / 8 to RAMsize * 2</entry></row>
+	      <row><entry><filename>/</filename></entry><entry>from 256MB to 512MB</entry></row>
+	      <row><entry><filename>/tmp</filename></entry><entry>from 128MB to 512MB</entry></row>
+	      <row><entry><filename>/var</filename></entry><entry>from 128MB to 1024MB</entry></row>
+	      <row><entry><filename>/usr</filename></entry><entry>from 1536MB to 8192MB</entry></row>
+	    </tbody>
+	  </tgroup>
+	</informaltable>
+      </listitem>
+
+      <listitem>
+	<para>On systems with even less disk space, the existing behavior is not
+	  changed.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>A new <literal>showconfig</literal>
+      target has been added in <filename>src/Makefile</filename>
+      to show the build configuration of the &os; source tree.</para>
+
+    <para>The <filename>src.conf</filename> file, which
+      contains settings that will apply to every build involving
+      the &os; source tree, has been added.
+      For details, see &man.build.7; and &man.src.conf.5;.</para>
+
+    <para>The supported version of
+      the <application>GNOME</application> desktop environment
+      (<filename role="package">x11/gnome2</filename>) has been
+      updated from 2.16.1 to 2.20.1. &merged;</para>
+
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde3</filename>) has been
+      updated from 3.5.4 to 3.5.7. &merged;</para>
+
+    <para>The supported version of
+      the <application>&xorg;</application> windowing system
+      (<filename role="package">x11/xorg</filename>) has been updated
+      from 6.9.0 to 7.3.0. &merged;</para>
+
+    <para>The default value of <varname>X11BASE</varname> has been changed
+      from <filename>/usr/X11R6</filename> to <filename>/usr/local</filename>,
+      the default value of <varname>LOCALBASE</varname>.  &merged;</para>
+  </sect2>
+
+  <sect2 id="doc">
+    <title>Documentation</title>
+
+    <para>Documentation of existing functionality has been improved by
+      the addition of the following manual pages:
+      &man.acpi.sony.4;, &man.device.get.sysctl.9;,
+      &man.ext2fs.5;,
+      &man.mca.8;,
+      &man.nanobsd.8;,
+      &man.snd.mss.4;, &man.snd.t4dwave.4;,
+      &man.sysctl.9;.</para>
+
+    <para>Initial support for kernel subsystem API documentation generating
+      framework using <filename role="package">devel/doxygen</filename>
+      has been added into <filename>src/sys/doc/subsys</filename>.
+      To generate the API document, type <command>make doxygen</command>
+      in <filename>src/</filename> directory.</para>
+  </sect2>
+</sect1>
+
+<sect1 id="upgrade">
+  <title>Upgrading from previous releases of &os;</title>
+
+  <para>[&arch.i386;, &arch.amd64;] Beginning with &os; 6.2-RELEASE,
+    binary upgrades between RELEASE versions (and snapshots of the
+    various security branches) are supported using the
+    &man.freebsd-update.8; utility.  The binary upgrade procedure will
+    update unmodified userland utilities, as well as unmodified GENERIC or
+    SMP kernels distributed as a part of an official &os; release.
+    The &man.freebsd-update.8; utility requires that the host being
+    upgraded have Internet connectivity.</para>
+
+  <para>An older form of binary upgrade is supported through the
+    <command>Upgrade</command> option from the main &man.sysinstall.8;
+    menu on CDROM distribution media.  This type of binary upgrade
+    may be useful on non-&arch.i386;, non-&arch.amd64; machines
+    or on systems with no Internet connectivity.</para>
+
+  <para>Source-based upgrades (those based on recompiling the &os;
+    base system from source code) from previous versions are
+    supported, according to the instructions in
+    <filename>/usr/src/UPDATING</filename>.</para>
+
+  <important>
+    <para>Upgrading &os; should, of course, only be attempted after
+      backing up <emphasis>all</emphasis> data and configuration
+      files.</para>
+  </important>
+</sect1>
+</article>

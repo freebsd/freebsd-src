@@ -1,0 +1,1063 @@
+dnl configure.in for cvs
+AC_INIT([Concurrent Versions System (CVS)],[1.11.17],[bug-cvs@gnu.org],[cvs])
+AC_CONFIG_SRCDIR(src/cvs.h)
+AM_INIT_AUTOMAKE([gnu 1.7.9 dist-bzip2 no-define])
+AC_PREREQ(2.58)
+
+AC_PREFIX_PROGRAM(cvs)
+AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
+
+AC_PROG_CC
+AM_PROG_CC_C_O
+
+dnl FIXME the next three calls should be avoided according to autoconf
+dnl philosophy.  for example, AC_CHECK_LIB should be used to look for crypt.
+dnl
+dnl These are here instead of later because they want to be called before
+dnl anything that calls a C compiler.
+AC_AIX
+AC_MINIX
+
+# Find the posix library needed on INTERACTIVE UNIX (ISC)
+dnl
+dnl From the Autoconf 2.53 manual (AC_ISC_POSIX):
+dnl
+dnl  For INTERACTIVE UNIX (ISC), add `-lcposix' to output variable
+dnl  `LIBS' if necessary for POSIX facilities.  Call this after
+dnl  `AC_PROG_CC' and before any other macros that use POSIX
+dnl  interfaces.  INTERACTIVE UNIX is no longer sold, and Sun says that
+dnl  they will drop support for it on 2006-07-23, so this macro is
+dnl  becoming obsolescent.
+dnl
+AC_SEARCH_LIBS([strerror], [cposix])
+
+dnl
+dnl Autoconf stopped setting $ISC sometime before 2.53
+dnl
+dnl If this is still important, someone should come up with a generic test
+dnl for whether _SYSV3 needs to be defined.  Removed code below:
+dnl
+dnl if test "$ISC" = yes; then
+dnl CFLAGS="$CFLAGS -D_SYSV3"
+dnl # And I don't like this...  In theory it should be found later if server is
+dnl # enabled, but maybe something on INTERACTIVE UNIX (ISC) we didn't ask to
+dnl # link with crypt tries?  Anyhow, the autoconf manual says we can delete
+dnl # this ISC stuff on or after 2006-07-23 when Sun discontinues support and
+dnl # ISC becomes obsolescent, but I suppose that is probably a matter of
+dnl # opinion.
+dnl #
+dnl # N.B.  The reason for doing this is that some moron decided to put a stub
+dnl # for crypt in libc that always returns NULL.  Without this here, the later
+dnl # check will find the stub instead of the real thing, resulting in a server
+dnl # that can't process crypted passwords correctly.
+dnl
+dnl # again, if we have to try and reenable this for ISC, someone should come
+dnl # up with a generic test that figures out whether crypt is good or not -
+dnl # Is it always returning NULL?
+dnl LIBS="-lcrypt $LIBS"
+dnl fi
+dnl
+dnl FIXME - This has been broken for at least a few months anyhow, so I'm
+dnl removing the crypt lib define above, but the correct fix would be to
+dnl provide a CRYPT_WORKS macro or the like that gets called sometime after
+dnl the AC_SEARCH_LIBS call that normally finds crypt, and if crypt doesn't
+dnl work, the macro should be retried with LIBS="-lcrypt $LIBS" forced.
+dnl
+
+AC_PROG_RANLIB
+AC_PROG_YACC
+AC_PROG_LN_S
+AC_EXEEXT
+
+AC_PATH_PROG(PERL, perl, no)
+AC_PATH_PROG(CSH, csh, no)
+# for contrib/rcs2log.sh & src/cvsbug.in.
+AC_PATH_PROG(MKTEMP, mktemp, mktemp)
+if test x"$MKTEMP" = xmktemp; then
+	MKTEMP_SH_FUNCTION=$srcdir/mktemp.sh
+else
+	MKTEMP_SH_FUNCTION=/dev/null
+fi
+AC_SUBST_FILE(MKTEMP_SH_FUNCTION)
+# for src/cvsbug.in
+AC_PATH_PROG(SENDMAIL, sendmail, no, [$PATH:/usr/sbin:/usr/lib])
+# For diff/util.c
+AC_PATH_PROG(PR, pr, no)
+if test x"$PR" != xno; then
+	AC_DEFINE_UNQUOTED([PR_PROGRAM], ["$PR"], [Path to the pr utility])
+fi
+
+dnl FIXME This is truly gross.
+missing_dir=`cd $ac_aux_dir && pwd`
+dnl FIXME I pulled this default list from sanity.sh.  Perhaps these lists
+dnl can be stored in one location?
+dnl
+dnl Yeah, put the value in a variable add it to the substitution list
+dnl then have configure create sanity.sh from sanity.sh.in...
+glocs="$PATH:/usr/local/bin:/usr/contrib/bin:/usr/gnu/bin:/local/bin:/local/gnu/bin:/gnu/bin"
+AC_PATH_PROGS(ROFF, groff roff, $missing_dir/missing roff, $glocs)
+AC_PATH_PROG(PS2PDF, ps2pdf, $missing_dir/missing ps2pdf)
+AC_PATH_PROG(TEXI2DVI, texi2dvi, $missing_dir/missing texi2dvi)
+
+AC_SYS_INTERPRETER
+if test X"$ac_cv_sys_interpreter" != X"yes" ; then
+  # silly trick to avoid problems in AC macros...
+  ac_msg='perl scripts using #! may not be invoked properly'
+  AC_MSG_WARN($ac_msg)
+fi
+
+# BSD's logo is a devil for a reason, hey?
+AC_CACHE_CHECK(for BSD VPATH bug in make, ccvs_cv_bsd_make_vpath_bug,
+[if test ! -d ac_test_dir ; then
+	AC_TRY_COMMAND([mkdir ac_test_dir])
+fi
+cat >conftestmake <<EOF
+VPATH = ac_test_dir
+ac_test_target: ac_test_dep
+	echo BSD VPATH bug present >&2
+ac_test_dep: ac_test_dep_dep
+EOF
+touch ac_test_dir/ac_test_dep_dep
+touch ac_test_dir/ac_test_dep
+touch ac_test_target
+# Don't know why, but the following test doesn't work under FreeBSD 4.2
+# without this sleep command
+sleep 1
+if AC_TRY_COMMAND([make -f conftestmake 2>&1 >/dev/null |grep ^BSD\ VPATH\ bug\ present\$ >/dev/null]) ; then
+	ccvs_cv_bsd_make_vpath_bug=yes
+else
+	ccvs_cv_bsd_make_vpath_bug=no
+fi
+AC_TRY_COMMAND([rm -rf ac_test_dir ac_test_target conftestmake])])
+# We also don't need to worry about the bug when $srcdir = $builddir
+AM_CONDITIONAL(MAKE_TARGETS_IN_VPATH, \
+		test $ccvs_cv_bsd_make_vpath_bug = no \
+		|| test $srcdir = .)
+
+AC_HEADER_DIRENT
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(\
+	errno.h \
+	direct.h \
+	fcntl.h \
+	fnmatch.h \
+	io.h \
+	limits.h \
+	memory.h \
+	ndbm.h \
+	string.h \
+	syslog.h \
+	sys/bsdtypes.h \
+	sys/file.h \
+	sys/param.h \
+	sys/resource.h \
+	sys/select.h \
+	sys/time.h \
+	sys/timeb.h \
+	unistd.h \
+	utime.h\
+)
+AC_HEADER_STAT
+AC_HEADER_TIME
+
+AC_C_CONST
+AC_TYPE_UID_T
+AC_TYPE_MODE_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SIGNAL
+
+AC_CHECK_MEMBERS([struct stat.st_blksize])
+AC_CHECK_MEMBERS([struct stat.st_rdev])
+
+AC_REPLACE_FUNCS(\
+	dup2 \
+	ftruncate \
+	gethostname \
+	memmove \
+	mkdir \
+	rename \
+	strerror \
+	strstr \
+	strtoul\
+	valloc \
+	waitpid \
+)
+
+
+
+dnl
+dnl Begin GNULIB stuff.
+dnl
+gl_XSIZE
+
+dnl We always want to use the GNULIB getpass, so define its name to something
+dnl that won't conflict with system declarations.
+AC_DEFINE([getpass], [cvs_getpass],
+  [We want to always use the GNULIB version of getpass which we have in lib,
+   so define getpass to something that won't conflict with any existing system
+   declarations.])
+
+dnl
+dnl End GNULIB stuff.
+dnl
+
+
+
+AC_CHECK_FUNCS(\
+	fchdir \
+	fchmod \
+	fsync \
+	ftime \
+	geteuid \
+	getgroups \
+	getopt \
+	getpagesize \
+	gettimeofday \
+	initgroups \
+	login \
+	logout \
+	mknod \
+	mkstemp \
+	mktemp \
+	putenv \
+	readlink \
+	regcomp \
+	regerror \
+	regexec \
+	regfree \
+	sigaction \
+	sigblock \
+	sigprocmask \
+	sigsetmask \
+	sigvec \
+	tempnam \
+	timezone \
+	tzset \
+	vprintf \
+	wait3 \
+)
+# we only need one of the following
+AC_CHECK_FUNCS([\
+	nanosleep \
+	usleep \
+	select \
+], [break])
+
+dnl
+dnl The CVS coding standard (as specified in HACKING) is that if it exists
+dnl in SunOS4 and ANSI, we use it.  CVS itself, of course, therefore doesn't
+dnl need HAVE_* defines for such functions, but diff wants them.
+dnl
+AC_DEFINE(HAVE_STRCHR, 1,
+[Define if you have strchr (always for CVS).])
+AC_DEFINE(HAVE_MEMCHR, 1,
+[Define if you have memchr (always for CVS).])
+
+dnl
+dnl Force lib/regex.c to use malloc instead of messing around with alloca
+dnl and define the old re_comp routines that we use.
+dnl
+AC_DEFINE(REGEX_MALLOC, 1,
+[Define to force lib/regex.c to use malloc instead of alloca.])
+AC_DEFINE(_REGEX_RE_COMP, 1,
+[Define to force lib/regex.c to define re_comp et al.])
+dnl
+dnl AC_FUNC_FORK([]) is rather baroque.  It seems to be rather more picky
+dnl than, say, the Single Unix Specification (version 2), which simplifies
+dnl a lot of cases by saying that the child process can't set any variables
+dnl (thus avoiding problems with register allocation) or call any functions
+dnl (thus avoiding problems with whether file descriptors are shared).
+dnl It would be nice if we could just write to the Single Unix Specification.
+dnl I think the only way to do redirection this way is by doing it in the
+dnl parent, and then undoing it afterwards (analogous to windows-NT/run.c).
+dnl That would appear to have a race condition if the user hits ^C (or
+dnl some other signal) at the wrong time, as main_cleanup will try to use
+dnl stdout/stderr.  So maybe we are stuck with AC_FUNC_FORK([]).
+dnl
+AC_FUNC_FORK([])
+AC_FUNC_CLOSEDIR_VOID
+
+dnl
+dnl Check for shadow password support.
+dnl
+dnl We used to try to determine whether shadow passwords were actually in
+dnl use or not, but the code has been changed to work right reguardless,
+dnl so we can go back to a simple check.
+AC_SEARCH_LIBS(getspnam, sec gen, AC_DEFINE(HAVE_GETSPNAM, 1,
+[Define if you have the getspnam function.]))
+
+AC_FUNC_UTIME_NULL
+AC_SYS_LONG_FILE_NAMES
+
+AC_FUNC_FNMATCH
+if test "$ac_cv_func_fnmatch_works" = no; then
+  AC_LIBOBJ(fnmatch)
+  AC_CONFIG_LINKS(lib/fnmatch.h:lib/fnmatch.h.in)
+  AC_LIBSOURCE(fnmatch.h.in)
+fi
+
+dnl for the buffer routine replacements
+AC_FUNC_MMAP
+
+# Try to find connect and gethostbyname.
+AC_CHECK_LIB(nsl, main)
+AC_SEARCH_LIBS(connect, xnet socket inet,
+  AC_DEFINE(HAVE_CONNECT, 1,
+[Define if you have the connect function.]))
+dnl no need to search nsl for gethostbyname here since we should have
+dnl just added libnsl above if we found it.
+AC_SEARCH_LIBS(gethostbyname, netinet)
+
+
+dnl
+dnl begin --with-*
+dnl
+
+dnl
+dnl set $(KRB4) from --with-krb4=value -- WITH_KRB4
+dnl
+dnl If you change this, keep in mind that some systems have a bogus
+dnl libkrb in the system libraries, so --with-krb4=value needs to
+dnl override the system -lkrb.
+dnl
+KRB4=/usr/kerberos
+define(WITH_KRB4,[
+AC_ARG_WITH(
+  [krb4],
+  AC_HELP_STRING(
+    [--with-krb4],
+    [Kerberos 4 directory (default /usr/kerberos)]),
+  [KRB4=$with_krb4],
+)dnl
+AC_MSG_CHECKING([for KRB4 in $KRB4])
+AC_MSG_RESULT([])
+AC_SUBST(KRB4)])dnl
+WITH_KRB4
+
+krb_h=
+AC_MSG_CHECKING([for krb.h])
+if test "$cross_compiling" != yes && test -r $KRB4/include/krb.h; then
+   hold_cflags=$CFLAGS
+   CFLAGS="$CFLAGS -I$KRB4/include"
+   AC_TRY_LINK([#include <krb.h>],[int i;],
+          [krb_h=yes krb_incdir=$KRB4/include],
+          [CFLAGS=$hold_cflags
+           AC_TRY_LINK([#include <krb.h>],[int i;],
+             [krb_h=yes krb_incdir=])])
+   CFLAGS=$hold_cflags
+else
+   AC_TRY_LINK([#include <krb.h>],[int i;],
+             [krb_h=yes krb_incdir=])
+fi
+if test -z "$krb_h"; then
+  AC_TRY_LINK([#include <krb.h>],[int i;],
+    [krb_h=yes krb_incdir=],
+    [if test "$cross_compiling" != yes && test -r $KRB4/include/kerberosIV/krb.h; then
+       hold_cflags=$CFLAGS
+       CFLAGS="$CFLAGS -I$KRB4/include/kerberosIV"
+       AC_TRY_LINK([#include <krb.h>],[int i;],
+	 [krb_h=yes krb_incdir=$KRB4/include/kerberosIV])
+       CFLAGS=$hold_cflags
+     fi])
+fi
+AC_MSG_RESULT($krb_h)
+
+includeopt=
+AC_SUBST(includeopt)
+if test -n "$krb_h"; then
+  krb_lib=
+  if test "$cross_compiling" != yes && test -r $KRB4/lib/libkrb.a; then
+       hold_ldflags=$LDFLAGS
+       LDFLAGS="-L${KRB4}/lib $LDFLAGS"
+       AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=${KRB4}/lib],
+           [LDFLAGS=$hold_ldflags
+            # Using open here instead of printf so we don't
+            # get confused by the cached value for printf from above.
+            AC_CHECK_LIB(krb,open,[krb_lib=yes krb_libdir=])])
+       LDFLAGS=$hold_ldflags
+  else
+       AC_CHECK_LIB(krb,printf,[krb_lib=yes krb_libdir=])
+       AC_CHECK_FUNC(krb_recvauth,[krb_lib=yes krb_libdir=])
+  fi
+  if test -n "$krb_lib"; then
+    AC_DEFINE([HAVE_KERBEROS], 1,
+	      [Define if you have MIT Kerberos version 4 available.])
+    test -n "${krb_libdir}" && LIBS="${LIBS} -L${krb_libdir}"
+    # Put -L${krb_libdir} in LDFLAGS temporarily so that it appears before
+    # -ldes in the command line.  Don't do it permanently so that we honor
+    # the user's setting for LDFLAGS
+    hold_ldflags=$LDFLAGS
+    test -n "${krb_libdir}" && LDFLAGS="$LDFLAGS -L${krb_libdir}"
+    AC_CHECK_LIB(des,printf,[LIBS="${LIBS} -ldes"])
+    AC_CHECK_LIB(krb,krb_recvauth)
+    AC_CHECK_LIB(krb4,krb_recvauth)
+    LDFLAGS=$hold_ldflags
+    if test -n "$krb_incdir"; then
+      includeopt="${includeopt} -I$krb_incdir"
+    fi
+  fi
+fi
+AC_CHECK_FUNCS(krb_get_err_text)
+
+
+dnl
+dnl WITH_GSSAPI is external
+dnl
+dnl TODO - I tried to put these in alphabetical order, but ACX_WITH_GSSAPI
+dnl fails unless called after the KRB4 stuff.  I don't know why.
+dnl
+ACX_WITH_GSSAPI
+
+
+dnl
+dnl begin --with-editor
+dnl
+dnl Set the default editor to use for log messages
+dnl
+
+AC_ARG_VAR(
+  [EDITOR],
+  [The text editor CVS will use by default for log messages.])
+
+# Let the confiscator request a specific editor
+AC_ARG_WITH(
+  [editor],
+  AC_HELP_STRING(
+    [--with-editor],
+    [The default text editor CVS should use for log messages
+     (default autoselects)]), ,
+  [with_editor=yes])
+
+# If --with-editor was supplied with an argument, let it override $EDITOR from
+# the user's environment.  We need to unset EDITOR here because AC_CHECK_PROGS
+# will let the value of EDITOR ride when it is set rather than searching.  We
+# ignore the --without-editor case since it will be caught below.
+if test -n "$EDITOR" && test yes != $with_editor; then
+  AS_UNSET([EDITOR])
+fi
+
+# Set the default when --with-editor wasn't supplied or when it was supplied
+# without an argument.
+if test yes = $with_editor; then
+  with_editor="vim vi emacs nano pico edit"
+fi
+
+if echo $with_editor |grep ^/ >/dev/null; then
+  # If $with_editor is an absolute path, issue a warning if the executable
+  # doesn't exist or isn't usable, but then trust the user and use it
+  # regardless
+  EDITOR=$with_editor
+  AC_MSG_CHECKING([for an editor])
+  AC_MSG_RESULT([$EDITOR])
+  if ! test -f $with_editor \
+      || ! test -x $with_editor; then
+    # warn the user that they may encounter problems
+    AC_MSG_WARN([\`$with_editor' is not a path to an executable file])
+  fi
+elif test no != "${with_editor}"; then
+  # Search for an editor
+  AC_CHECK_PROGS([EDITOR], [$with_editor], [no])
+    if test no = "${EDITOR}"; then
+      AC_MSG_ERROR([
+    Failed to find a text file editor.  CVS cannot be compiled
+    without a default log message editor.  Searched for
+    \`$with_editor'.  Try \`configure --with-editor'.])
+    fi
+else
+  AC_MSG_ERROR([
+    CVS cannot be compiled without a default log message editor.
+    Try \`configure --with-editor'.])
+fi
+
+dnl FIXME - Using --without-editor will probably break a compile at
+dnl the moment, but maybe it is reasonable for someone to want to
+dnl compile a CVS executable that refuses to run if no $EDITOR,
+dnl $CVS_EDITOR, or -e option is specified?  Making a preliminary
+dnl design decision in this direction, subject to discussion.
+dnl
+dnl Still don't know if the above would be useful, but we shouldn't
+dnl be able to get here any longer without $EDITOR defined due to the
+dnl error checking above.
+AC_DEFINE_UNQUOTED(
+  [EDITOR_DFLT], ["$EDITOR"],
+  [The default editor to use, if one does not specify the "-e" option
+   to cvs, or does not have an EDITOR environment variable.  If this
+   is not set to an absolute path to an executable, use the shell to
+   find where the editor actually is.  This allows sites with
+   /usr/bin/vi or /usr/ucb/vi to work equally well (assuming that their
+   PATH is reasonable).])
+
+dnl
+dnl done finding an editor
+dnl
+dnl end --with-editor
+dnl
+
+
+dnl
+dnl Find a temporary directory
+dnl
+AC_ARG_WITH(
+  [tmpdir],
+  AC_HELP_STRING(
+    [--with-tmpdir],
+    [The temporary directory CVS should use as a default
+     (default autoselects)]))
+
+AC_MSG_CHECKING([for temporary directory])
+if test -z "$with_tmpdir" || test yes = "$with_tmpdir"; then
+  for with_tmpdir in /tmp /var/tmp no; do
+    if test -d "$with_tmpdir" && test -x "$with_tmpdir" \
+        && test -w "$with_tmpdir" && test -r "$with_tmpdir"; then
+      break
+    fi
+  done
+  if test no = "$with_tmpdir"; then
+    AC_MSG_WARN([Failed to find usable temporary directory.  Using '/tmp'.])
+    with_tmpdir=/tmp
+  fi
+  AC_MSG_RESULT([$with_tmpdir])
+elif ! echo "$with_tmpdir" |grep '^[[\\/]]'; then
+  AC_MSG_RESULT([$with_tmpdir])
+  AC_MSG_ERROR([--with-tmpdir requires an absolute path.])
+elif ! test -d "$with_tmpdir" || ! test -x "$with_tmpdir" \
+        || ! test -w "$with_tmpdir" || ! test -r "$with_tmpdir"; then
+  AC_MSG_RESULT([$with_tmpdir])
+  AC_MSG_WARN(
+    [User supplied temporary directory ('$with_tmpdir') does not
+     exist or lacks sufficient permissions for read/write.])
+fi
+
+AC_DEFINE_UNQUOTED(
+  [TMPDIR_DFLT], ["$with_tmpdir"],
+  [Directory used for storing temporary files, if not overridden by
+   environment variables or the -T global option.  There should be little
+   need to change this (-T is a better mechanism if you need to use a
+   different directory for temporary files).])
+
+dnl
+dnl done finding tmpdir
+dnl
+
+
+dnl
+dnl Get default umask
+dnl
+
+AC_ARG_WITH(
+  [umask],
+  AC_HELP_STRING(
+    [--with-umask],
+    [Set the umask CVS will use by default in the repository (default 002)]))
+
+if test -z "$with_umask" || test yes = "$with_umask"; then
+  with_umask=002
+elif test no = "$with_umask"; then
+  with_umask=000
+fi
+
+AC_DEFINE_UNQUOTED(
+  [UMASK_DFLT], [$with_umask],
+  [The default umask to use when creating or otherwise setting file or
+   directory permissions in the repository.  Must be a value in the
+   range of 0 through 0777.  For example, a value of 002 allows group
+   rwx access and world rx access; a value of 007 allows group rwx
+   access but no world access.  This value is overridden by the value
+   of the CVSUMASK environment variable, which is interpreted as an
+   octal number.])
+
+dnl
+dnl Done setting default umask
+dnl
+
+dnl
+dnl Set CVS Administrator Group
+dnl
+AC_ARG_WITH(
+  [cvs-admin-group],
+  AC_HELP_STRING(
+    [--with-cvs-admin-group=GROUP],
+    [The CVS admin command is restricted to the members of this group.
+     If this group does not exist, all users are allowed to run CVS admin.
+     To disable the CVS admin command for all users, create an empty group
+     by specifying the --with-cvs-admin-group= option.  To disable access
+     control for CVS admin, run configure with the --without-cvs-admin-group
+     option. (default 'cvsadmin')]), ,
+  [with_cvs_admin_group=cvsadmin])
+
+if test yes = "$with_cvs_admin_group"; then
+  with_cvs_admin_group=cvsadmin
+fi
+if test no != "$with_cvs_admin_group"; then
+  dnl FIXME We should warn if the group doesn't exist
+  AC_DEFINE_UNQUOTED(
+    [CVS_ADMIN_GROUP], ["$with_cvs_admin_group"],
+    [The CVS admin command is restricted to the members of the group
+     CVS_ADMIN_GROUP.  If this group does not exist, all users are
+     allowed to run CVS admin.  To disable the CVS admin command for
+     all users, create an empty CVS_ADMIN_GROUP by running configure
+     with the --with-cvs-admin-group= option.  To disable access control
+     for CVS admin, run configure with the --without-cvs-admin-group
+     option in order to comment out the define below.])
+fi
+
+dnl
+dnl Done setting CVS Administrator Group
+dnl
+
+dnl
+dnl Set the NDBM library to use.
+dnl
+dnl XXX - FIXME - FIXME - FIXME - XXX
+dnl
+dnl This is very bad.  It should really autodetect an appropriate NDBM library
+dnl and, if it doesn't find one, decide to use MY_NDBM.  I'm am defining
+dnl this here since this is no worse than it worked when it was in options.h
+dnl and I am cleaning out options.h so that the Windows version of CVS will
+dnl compile properly for the next release.
+dnl
+dnl That's why this option is in the --with-* section rather than the
+dnl --enable-* section.
+dnl
+dnl XXX - FIXME - FIXME - FIXME - XXX
+dnl
+AC_ARG_ENABLE(
+  [cvs-ndbm],
+  AC_HELP_STRING(
+    [--enable-cvs-ndbm],
+    [Use the NDBM library distributed with CVS rather than attempting to use
+     a system NDBM library.  Disabling this may not work.  (default)]), ,
+  [enable_cvs_ndbm=yes])
+if test no != "$enable_cvs_ndbm"; then
+  AC_DEFINE(
+    [MY_NDBM], [1],
+    [By default, CVS stores its modules and other such items in flat
+     text files (MY_NDBM enables this).  Turning off MY_NDBM causes CVS
+     to look for a system-supplied ndbm database library and use it
+     instead.  That may speed things up, but the default setting
+     generally works fine too.])
+fi
+
+dnl
+dnl Done selecting NDBM library.
+dnl
+
+
+
+dnl
+dnl end --with-*
+dnl
+
+
+dnl
+dnl begin --enables
+dnl
+
+
+# Check for options requesting client and server feature. If none are
+# given and we have connect(), we want the full client & server arrangement.
+AC_ARG_ENABLE(
+  [client],
+  AC_HELP_STRING(
+    [--enable-client],
+    [Include code for running as a remote client (default)]), ,
+  [if test "$ac_cv_search_connect" != no; then
+    enable_client=yes
+  fi])
+if test no != "$enable_client"; then
+  AC_DEFINE(
+    [CLIENT_SUPPORT], [1],
+    [Define if you want CVS to be able to be a remote repository client.])
+fi
+
+AC_ARG_ENABLE(
+  [password-authenticated-client],
+  AC_HELP_STRING(
+    [--enable-password-authenticated-client],
+    [Enable pserver as a remote access method in the CVS client
+     (default)]))
+
+if test no != "$enable_password_authenticated_client"; then
+  if test no != "$enable_client"; then
+    AC_DEFINE(
+      [AUTH_CLIENT_SUPPORT], [1],
+      [Enable AUTH_CLIENT_SUPPORT to enable pserver as a remote access
+       method in the CVS client (default)])
+  else
+    AC_MSG_WARN(
+      [--enable-password-authenticated-client is meaningless with
+       the CVS client disabled (--disable-client)])
+  fi
+fi
+
+
+dnl
+dnl Give the confiscator control over whether the server code is compiled
+dnl
+AC_ARG_ENABLE(
+  [server],
+  AC_HELP_STRING(
+    [--enable-server],
+    [Include code for running as a server (default)]), ,
+  [if test "$ac_cv_search_connect" != no; then
+     enable_server=yes
+   fi])
+
+if test no != "$enable_server"; then
+  AC_DEFINE(
+    [SERVER_SUPPORT], [1],
+    [Define if you want CVS to be able to serve repositories to remote
+     clients.])
+
+  dnl
+  dnl The auth server needs to be able to check passwords against passwd
+  dnl file entries, so we only #define AUTH_SERVER_SUPPORT if we can
+  dnl find the crypt function. 
+  dnl
+  AC_SEARCH_LIBS(
+    [crypt], [crypt],
+    [AC_DEFINE(
+       [HAVE_CRYPT], [1],
+       [Define if you have the crypt function.])
+     AC_DEFINE(
+       [AUTH_SERVER_SUPPORT], [1],
+       [Define if you want to use the password authenticated server.])dnl
+  ])dnl AC_SEARCH_LIBS
+
+  dnl
+  dnl Allow the configurer to enable server flowcontrol.  Read the help
+  dnl strings below for a full explanation.
+  dnl
+  AC_ARG_ENABLE(
+    [server-flow-control],
+    AC_HELP_STRING(
+      [--enable-server-flow-control],
+      [If you are working with a large remote repository and a 'cvs
+       checkout' is swamping your network and memory, define these to
+       enable flow control.  You may optionally pass a low water mark
+       in bytes and a high water mark in bytes, separated by commas.
+       (default is enabled 1M,2M)]),
+    [if test yes = $enable_server_flow_control; then
+       enable_server_flow_control=1M,2M
+     fi],
+    [enable_server_flow_control=1M,2M])
+  if test no != $enable_server_flow_control; then
+    ccvs_lwm=`expr "$enable_server_flow_control" : '\(.*\),'`
+    ccvs_hwm=`expr "$enable_server_flow_control" : '.*,\(.*\)'`
+    ccvs_lwm_E=`expr "$ccvs_lwm" : '[[0-9]][[0-9]]*\(.*\)'`
+    ccvs_lwm=`expr "$ccvs_lwm" : '\([[0-9]][[0-9]]*\)'`
+    test "" != "$ccvs_lwm" || ccvs_lwm_E="?"
+    case $ccvs_lwm_E in
+        G) ccvs_lwm="$ccvs_lwm * 1024 * 1024 * 1024";;
+        M) ccvs_lwm="$ccvs_lwm * 1024 * 1024";;
+        k) ccvs_lwm="$ccvs_lwm * 1024";;
+        b | '') ;;
+        *) AC_MSG_ERROR([Can't parse argument to --enable-server-flow-control
+                        ('$enable_server_flow_control') as <lwm>,<hwm>])
+      esac
+    ccvs_hwm_E=`expr "$ccvs_hwm" : '[[0-9]][[0-9]]*\(.*\)'`
+    ccvs_hwm=`expr "$ccvs_hwm" : '\([[0-9]][[0-9]]*\).*'`
+    test "" != "$ccvs_hwm" || ccvs_hwm_E="?"
+    case $ccvs_hwm_E in
+        G) ccvs_hwm="$ccvs_hwm * 1024 * 1024 * 1024";;
+        M) ccvs_hwm="$ccvs_hwm * 1024 * 1024";;
+        k) ccvs_hwm="$ccvs_hwm * 1024";;
+        b | '') ccvs_hwm="$ccvs_hwm";;
+        *) AC_MSG_ERROR([Can't parse argument to --enable-server-flow-control
+                        ('$enable_server_flow_control') as <lwm>,<hwm>])
+      esac
+
+    AC_DEFINE(
+      [SERVER_FLOWCONTROL], [1],
+      [If you are working with a large remote repository and a 'cvs
+       checkout' is swamping your network and memory, define these to
+       enable flow control.  You will end up with even less probability of
+       a consistent checkout (see Concurrency in cvs.texinfo), but CVS
+       doesn't try to guarantee that anyway.  The master server process
+       will monitor how far it is getting behind, if it reaches the high
+       water mark, it will signal the child process to stop generating
+       data when convenient (ie: no locks are held, currently at the
+       beginning of a new directory).  Once the buffer has drained
+       sufficiently to reach the low water mark, it will be signalled to
+       start again.])
+    AC_DEFINE_UNQUOTED(
+      [SERVER_LO_WATER], [($ccvs_lwm)],
+      [The low water mark in bytes for server flow control.  Required if
+       SERVER_FLOWCONTROL is defined, and useless otherwise.])
+    AC_DEFINE_UNQUOTED(
+      [SERVER_HI_WATER], [($ccvs_hwm)],
+      [The high water mark in bytes for server flow control.  Required if
+       SERVER_FLOWCONTROL is defined, and useless otherwise.])
+  fi # enable_server_flow_control
+fi # enable_server
+
+
+dnl
+dnl begin --enable-case-sensitivity
+dnl
+
+AC_ARG_ENABLE(
+  [case-sensitivity],
+  AC_HELP_STRING(
+    [--enable-case-sensitivity],
+    [Force CVS to expect a case sensitive file system.  Enabling this on a case
+     insensitive system should have little effect on the server or client
+     operation, though client users may ocassionally be suprised that the CVS
+     server appears to be case sensitive.  Disabling this for a case sensitive
+     server disables server support for case insensitive clients, which can
+     confuse all users of case insensitive clients contacting the server.
+     Disabling this for a case sensitive client will cause the client to ask
+     servers to behave case insensitively, which could cause confusion for
+     users, but also probably no real harm.  (default autoselects based on the
+     case sensitivity of the file system containing the current working
+     directory)]),
+    [case "$enable_case_sensitivity" in
+       yes | no | auto) ;;
+       *)
+          AC_MSG_ERROR([Unrecognized argument to --enable-case-sensitivity: \`$enable_case_sensitivity'.  Acceptable values are \`yes', \`no', and \`auto'.])
+          ;;
+     esac],
+  [enable_case_sensitivity=auto])
+
+acx_forced=' (forced)'
+AC_MSG_CHECKING([for a case sensitive file system])
+if test $enable_case_sensitivity = auto; then
+  dnl
+  dnl Check for a case insensitive filesystem, like Mac OS X and Windows have.
+  dnl
+  AC_CACHE_VAL([acx_cv_case_sensitive],
+  [ rm -f ac_TEST_filenames_CASE_sensitive
+    echo foo >ac_test_filenames_case_sensitive
+    if test -f ac_TEST_filenames_CASE_sensitive; then
+      acx_cv_case_sensitive=no
+    else
+      acx_cv_case_sensitive=yes
+    fi
+    rm ac_test_filenames_case_sensitive
+  ])
+  enable_case_sensitivity=$acx_cv_case_sensitive
+  acx_forced=
+fi
+AC_MSG_RESULT([$enable_case_sensitivity$acx_forced])
+if test $enable_case_sensitivity = no; then
+  AC_DEFINE([FILENAMES_CASE_INSENSITIVE], [1],
+            [Define if this executable will be running on case insensitive
+             file systems.  In the client case, this means that it will request
+             that the server pretend to be case insensitive if it isn't
+             already.])
+  dnl Compile fncase.c (containing fncase() & fncmp()) to handle file name
+  dnl comparisons on case insensitive filesystems.
+  AC_LIBOBJ(fncase)
+fi
+
+dnl
+dnl end --enable-case-sensitivity
+dnl
+
+
+dnl
+dnl begin --enable-encryption
+dnl
+
+dnl
+dnl Use --enable-encryption to turn on encryption support, but ignore this
+dnl option unless either client or server is enabled.
+dnl
+AC_ARG_ENABLE(
+  [encryption],
+  AC_HELP_STRING(
+    [--enable-encryption],
+    [Enable encryption support (disabled by default)]), ,
+  [enable_encryption=no])
+if test "$enable_encryption" = yes; then
+  if test no != "$with_client" || test no != "$with_server"; then
+    AC_DEFINE(
+      [ENCRYPTION], [1],
+      [Define to enable encryption support.])
+  else
+    AC_MSG_WARN(
+      [--enable-encryption is meaningless when neither the CVS client
+       nor the CVS server is enabled (--disable-client and --disable-server).])
+  fi
+fi
+
+dnl
+dnl end --enable-encryption
+dnl
+
+
+dnl
+dnl begin --enable-force-editor
+dnl
+
+AC_ARG_ENABLE(
+  [force-editor],
+  AC_HELP_STRING(
+    [--enable-force-editor],
+    [When committing or importing files, you must enter a log message.
+     Normally, you can do this either via the -m flag on the command
+     line, the -F flag on the command line, or an editor will be started
+     for you.  If you like to use logging templates (the rcsinfo file
+     within the $CVSROOT/CVSROOT directory), you might want to force
+     people to use the editor even if they specify a message with -m or
+     -F.  --enable-force-editor will cause the -m or -F message to be
+     appended to the temp file when the editor is started. (disabled
+     by default)]), ,
+  [enable_force_editor=no])
+
+if test yes = "$enable_force_editor"; then
+  AC_DEFINE(
+    [FORCE_USE_EDITOR], [1],
+    [When committing or importing files, you must enter a log message.
+    Normally, you can do this either via the -m flag on the command
+    line, the -F flag on the command line, or an editor will be started
+    for you.  If you like to use logging templates (the rcsinfo file
+    within the $CVSROOT/CVSROOT directory), you might want to force
+    people to use the editor even if they specify a message with -m or
+    -F.  Enabling FORCE_USE_EDITOR will cause the -m or -F message to be
+    appended to the temp file when the editor is started.])
+fi
+
+dnl
+dnl end --enable-force-editor
+dnl
+
+
+dnl
+dnl begin --enable-rootcommit
+dnl
+
+dnl
+dnl I don't like this here, but I don't really like options.h, either.
+dnl Besides, this is causing some problems currently when compiling under
+dnl Windows and moving it here should avoid the issue (the wrong options.h
+dnl is being used).
+dnl
+dnl I don't like making this a runtime option either.  I think I just don't
+dnl like making it easy to get to, but putting it here goes along with the
+dnl Autoconf ideal.
+dnl
+AC_ARG_ENABLE(
+  [rootcommit],
+  AC_HELP_STRING(
+    [--enable-rootcommit],
+    [Allow the root user to commit files (disabled by default)]), ,
+  [enable_rootcommit=no])
+if test "$enable_rootcommit" = no; then
+  AC_DEFINE(
+    [CVS_BADROOT], [1],
+    [When committing a permanent change, CVS and RCS make a log entry of
+     who committed the change.  If you are committing the change logged
+     in as "root" (not under "su" or other root-priv giving program),
+     CVS/RCS cannot determine who is actually making the change.
+
+     As such, by default, CVS prohibits changes committed by users
+     logged in as "root".  You can disable checking by passing the
+     "--enable-rootcommit" option to configure or by commenting out the
+     lines below.])
+fi
+
+dnl
+dnl end --enable-rootcommit
+dnl
+
+
+
+dnl
+dnl end --enable-*
+dnl
+
+
+
+dnl For the moment we will assume that all systems which have
+dnl the unixyness to run configure are unixy enough to do the
+dnl PreservePermissions stuff.  I have this sinking feeling that
+dnl things won't be that simple, before long.
+dnl AC_DEFINE(PRESERVE_PERMISSIONS_SUPPORT, 1,
+dnl [Define if this system supports chown(), link(), and friends.])
+
+dnl On cygwin32, we configure like a Unix system, but we need some support
+dnl libraries.  We do this at the end so that the new libraries are added at
+dnl the end of LIBS.
+dnl
+dnl FIXME: We should be trying to meet the autoconf ideal of checking for
+dnl the properties of the system rather than the name of the os here.  In other
+dnl words, we should check the case sensitivty of the system and then for
+dnl the support functions we are using and which library we find them in.
+AC_CACHE_CHECK(for cygwin32, ccvs_cv_sys_cygwin32,
+[AC_TRY_COMPILE([], [return __CYGWIN32__;],
+ccvs_cv_sys_cygwin32=yes, ccvs_cv_sys_cygwin32=no)])
+if test $ccvs_cv_sys_cygwin32 = yes; then
+  LIBS="$LIBS -ladvapi32"
+
+  dnl On Windows you can only change file times if you can write to
+  dnl the file.  cygwin32 should really handle this for us, but as of
+  dnl January 1998 it doesn't.
+  AC_DEFINE(UTIME_EXPECTS_WRITABLE, 1,
+[Define if utime requires write access to the file (true on Windows,
+but not Unix).])
+
+  dnl On Windows we must use setmode to change between binary and text
+  dnl mode.  This probably doesn't really require two macro definitions
+  AC_DEFINE(USE_SETMODE_STDOUT, 1,
+[Define if setmode is required when writing binary data to stdout.])
+  AC_DEFINE(HAVE_SETMODE, 1,
+[Define if the diff library should use setmode for binary files.])
+fi
+
+dnl associate the setting of the execute bit with the individual scripts
+AC_CONFIG_FILES(contrib/check_cvs, [chmod +x contrib/check_cvs])
+AC_CONFIG_FILES(contrib/clmerge, [chmod +x contrib/clmerge])
+AC_CONFIG_FILES(contrib/cln_hist, [chmod +x contrib/cln_hist])
+AC_CONFIG_FILES(contrib/commit_prep, [chmod +x contrib/commit_prep])
+AC_CONFIG_FILES(contrib/cvs_acls, [chmod +x contrib/cvs_acls])
+AC_CONFIG_FILES(contrib/log, [chmod +x contrib/log])
+AC_CONFIG_FILES(contrib/log_accum, [chmod +x contrib/log_accum])
+AC_CONFIG_FILES(contrib/mfpipe, [chmod +x contrib/mfpipe])
+AC_CONFIG_FILES(contrib/pvcs2rcs, [chmod +x contrib/pvcs2rcs])
+AC_CONFIG_FILES(contrib/rcs2log:contrib/rcs2log.sh, [chmod +x contrib/rcs2log])
+AC_CONFIG_FILES(contrib/rcslock, [chmod +x contrib/rcslock])
+AC_CONFIG_FILES(contrib/sccs2rcs, [chmod +x contrib/sccs2rcs])
+AC_CONFIG_FILES(doc/mkman, [chmod +x doc/mkman])
+AC_CONFIG_FILES(src/cvsbug, [chmod +x src/cvsbug])
+AC_CONFIG_FILES(windows-NT/fix-msvc-mak:windows-NT/fix-msvc-mak-head.pl:windows-NT/fix-msvc-mak.pl,
+                [chmod +x windows-NT/fix-msvc-mak])
+
+dnl the bulk files
+AC_CONFIG_FILES([Makefile \
+	  contrib/Makefile \
+	  cvs.spec \
+	  diff/Makefile \
+	  doc/Makefile \
+	  emx/Makefile \
+	  lib/Makefile \
+	  man/Makefile \
+	  os2/Makefile \
+	  src/Makefile \
+	  tools/Makefile \
+	  vms/Makefile \
+	  windows-NT/Makefile \
+	  windows-NT/SCC/Makefile \
+	  zlib/Makefile])
+
+dnl and we're done
+AC_OUTPUT
+
+
+
+# Report the state of this version of CVS if this is from dev.
+m4_bmatch(m4_defn([AC_PACKAGE_VERSION]),  [[0-9]*\.[0-9]*\.[0-9]*\.[0-9]],
+[    cat <<EOF
+
+You are about to use an unreleased version of CVS.  Be sure to
+read the relevant mailing lists, most importantly <info-cvs@gnu.org>.
+
+Below you will find information on the status of this version of CVS.
+
+
+EOF
+    sed -n '/^\* Status/,$p' $srcdir/BUGS
+])

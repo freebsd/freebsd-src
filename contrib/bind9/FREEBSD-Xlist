@@ -1,0 +1,67 @@
+# $FreeBSD$
+
+# Misc. stuff
+.cvsignore
+aclocal.m4
+config.h.in
+configure
+contrib
+docutil
+
+# Tests
+bin/tests
+lib/tests
+
+# Doc stuff
+doc/arm/latex-fixup.pl
+doc/xsl
+
+# Windows directories
+bin/check/win32
+bin/dig/win32
+bin/dnssec/win32
+bin/named/win32
+bin/nsupdate/win32
+bin/rndc/win32
+bin/win32
+config.h.win32
+lib/bind9/win32
+lib/dns/gen-win32.h
+lib/dns/win32
+lib/isc/win32
+lib/isccc/win32
+lib/isccfg/win32
+lib/lwres/win32
+lib/win32
+win32utils
+
+# Various ports to other OSs
+lib/bind/port/aix*
+lib/bind/port/aux3
+lib/bind/port/bsdos
+lib/bind/port/bsdos2
+lib/bind/port/cygwin
+lib/bind/port/darwin
+lib/bind/port/decunix
+lib/bind/port/hpux
+lib/bind/port/hpux10
+lib/bind/port/hpux9
+lib/bind/port/irix
+lib/bind/port/linux
+lib/bind/port/lynxos
+lib/bind/port/mpe
+lib/bind/port/netbsd
+lib/bind/port/next
+lib/bind/port/openbsd
+lib/bind/port/prand_conf
+lib/bind/port/qnx
+lib/bind/port/rhapsody
+lib/bind/port/sco42
+lib/bind/port/sco50
+lib/bind/port/solaris
+lib/bind/port/sunos
+lib/bind/port/ultrix
+lib/bind/port/unixware20
+lib/bind/port/unixware212
+lib/bind/port/unixware7
+lib/bind/port/unknown

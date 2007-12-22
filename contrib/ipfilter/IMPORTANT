@@ -1,0 +1,11 @@
+		****************************************
+			     IMPORTANT NOTICE
+		****************************************
+1)
+
+If you have BOTH GNU make and the normal make shipped with your system,
+DO NOT use the GNU make to build this package.
+
+Darren
+darrenr@pobox.com
+		****************************************

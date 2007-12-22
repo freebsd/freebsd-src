@@ -1,0 +1,550 @@
+.
+.TH GROFF_TRACE @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+groff_trace \- groff macro package trace.tmac
+.SH SYNOPSIS
+.\" The .SH was moved to this place to make `apropos' happy.
+.
+.
+.\" --------------------------------------------------------------------
+.\" Legalize
+.\" --------------------------------------------------------------------
+.
+.ig
+groff_trace.7
+
+File position: <groff-source>/tmac/groff_trace.man
+
+Last update: 14 July 2002
+
+This file is part of groff, the GNU roff type-setting system.
+
+Copyright (C) 2002 Free Software Foundation, Inc.
+written by Bernd Warken <bwarken@mayn.de>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being this .ig-section and AUTHOR, with no
+Front-Cover Texts, and with no Back-Cover Texts.
+
+A copy of the Free Documentation License is included as a file called
+FDL in the main directory of the groff source package.
+..
+.
+.\" --------------------------------------------------------------------
+.\" Setup
+.\" --------------------------------------------------------------------
+.
+.do nr groff_trace_C \n[.C]
+.cp 0
+.
+.mso www.tmac
+.
+.if n \{\
+.  mso tty-char.tmac
+.  ftr CR R
+.  ftr CI I
+.  ftr CB B
+.\}
+.
+.ds Ellipsis .\|.\|.\&\"
+.
+.\" Global static variables for inter-macro communication
+.rr @+Example_font
+.
+.\" --------------------------------------------------------------------
+.\" setup for the macro definitions below
+.\"
+.\" naming:  namespace:category_macro.variable_name  (experimental)
+.
+.\" --------------------------------------------------------------------
+.\" configuration of prompt for `.Shell_cmd'* macros
+.ds trace:Shell_cmd.prompt_text sh#\"    prompt for shell commands
+.ds trace:Shell_cmd+.prompt_text >\"     prompt on continuation lines
+.ds trace:Shell_cmd_base.prompt_font I\" font for prompts
+.
+.\" automatically determine setup from the configuration above
+.als @f trace:Shell_cmd_base.prompt_font\"
+.als @t trace:Shell_cmd.prompt_text\"
+.als @t+ trace:Shell_cmd+.prompt_text\"
+.ds trace:Shell_cmd.prompt \f[\*[@f]]\*[@t]\f[]\"            needed
+.ds trace:Shell_cmd+.prompt \f[\*[@f]]\*[@t+]\f[]\"          needed
+.nr @w \w'\*[trace:Shell_cmd.prompt]'\"
+.nr @w+ \w'\*[trace:Shell_cmd+.prompt]'\"
+.ft \*[@f]
+.\" Full prompt width is maximum of texts plus 1m
+.nr trace:Shell_cmd_base.prompt_width (\n[@w]>?\n[@w+]+1m)\" needed
+.ft
+.rm @f
+.rm @f+
+.rm @t
+.rm @t+
+.rr @w
+.rr @w+
+.
+.\"--------------------------------------------------------------------
+.\" Ignore all arguments like a comment, even after a .eo call.
+.de c
+..
+.c --------------------------------------------------------------------
+.de BIR
+.  ie (\\n[.$] < 3) \
+.    BI \\$@
+.  el \{\
+.    ds @tmp@ \fB\\$1\f[]\fI\\$2\f[]
+.    shift 2
+.    Text \\*[@tmp@]\fR\\$*\f[]
+.    rm @tmp@
+.  \}
+..
+.c --------------------------------------------------------------------
+.c .Env_var  (<env_var_name> [<punct>])
+.c
+.c Display an environment variable, with optional punctuation.
+.c
+.de Env_var
+.  nh
+.  SM
+.  Text \f[CB]\\$1\f[]\\$2
+.  hy
+..
+.c --------------------------------------------------------------------
+.c .Error  (<text>...)
+.c
+.c Print error message to terminal and abort.
+.c
+.de Error
+.  tm \\$*
+.  ab
+..
+.c --------------------------------------------------------------------
+.de Example
+.  if r@+Example_font \
+.    Error previous .Example was not terminated by a ./Example
+.  nr @+Example_font \\n[.f]
+.  nh
+.  nf
+.c  RS \\n[trace:Shell_cmd_base.prompt_width]u
+.  ft CR
+..
+.c --------------------------------------------------------------------
+.de /Example
+.  if !r@+Example_font \
+.    Error no previous call to .Example
+.  ft \\n[@+Example_font]
+.c  RE
+.  fi
+.  hy
+.  rr @+Example_font
+..
+.c --------------------------------------------------------------------
+.de Macdef
+.  if (\\n[.$] <= 0) \
+.    Error \\$0 needs at least one argument.
+.  ds @s .\f[B]\\$1\f[]\"
+.  shift
+.  if (\\n[.$] > 0) \
+.    as @s \~\f[I]\\$*\f[]\"
+.  IP \\*[@s]
+.  rm @s
+..
+.c --------------------------------------------------------------------
+.de Macdef+
+.  br
+.  ns
+.  Macdef \\$@
+..
+.c --------------------------------------------------------------------
+.c .Shell_cmd  (<CR> [<CI>] ...)
+.c
+.c A shell command line; display args alternating in fonts CR and CI.
+.c
+.c Examples:
+.c   .Shell_cmd "groffer --dpi 100 file"
+.c     result: `sh#  groffer --dpi 100 file'
+.c             with 'sh#' in font I, the rest in CR
+.c
+.c   .Shell_cmd groffer\~--dpi\~100\~file
+.c     result: the same as above
+.c
+.c   .Shell_cmd "groffer --dpi=" value " file"
+.c     result: sh#  groffer --dpi=value file
+.c             with `groffer --dpi=' and `file' in CR; `value' in CI
+.c
+.c   .Shell_cmd groffer\~--dpi= value \~file
+.c     result: the same as the previous example
+.c
+.de Shell_cmd
+.  trace:Shell_cmd_base "\*[trace:Shell_cmd.prompt]" \\$@
+..
+.c --------------------------------------------------------------------
+.c .Shell_cmd+  (<CR> [<CI>] ...)
+.c
+.c A continuation line for .Shell_cmd.
+.c
+.de Shell_cmd+
+.  trace:Shell_cmd_base "\*[trace:Shell_cmd+.prompt]" \\$@
+..
+.c --------------------------------------------------------------------
+.c .Shell_cmd_base  (<prompt> [<CR> [<CI>] ...])
+.c
+.c A shell command line; display args alternating in fonts CR and CI.
+.c Internal, do not use directly.
+.c
+.c Globals: read-only register @.Shell_cmd_width
+.c
+.de trace:Shell_cmd_base
+.  if (\\n[.$] <= 0) \
+.    return
+.  nr @+font \\n[.f]\"
+.  ds @prompt \\$1\"
+.  ft CR
+.  c gap between prompt and command
+.  nr @+gap \\n[trace:Shell_cmd_base.prompt_width]-\\w'\\*[@prompt]'\"
+.  ds @res \\*[@prompt]\h'\\n[@+gap]u'\"
+.  shift
+.  ds @cf CR\"
+.  while (\\n[.$] > 0) \{\
+.    as @res \\f[\\*[@cf]]\\$1\"
+.    shift
+.    ie '\\*[@cf]'CR' \
+.      ds @cf I\"
+.    el \
+.      ds @cf CR\"
+.  \}
+.  br
+.  ad l
+.  nh
+.  nf
+.  Text \\*[@res]\"
+.  fi
+.  hy
+.  ad
+.  br
+.  ft \\n[@+font]
+.  rr @+font
+.  rr @+gap
+.  rm @cf
+.  rm @res
+..
+.c --------------------------------------------------------------------
+.c .Text  (<text>...)
+.c
+.c Treat the arguments as text, no matter how they look.
+.c
+.de Text
+.  if (\\n[.$] == 0) \
+.    return
+.  nop \)\\$*\)
+..
+.c --------------------------------------------------------------------
+.c .Topic  ([<indent>])
+.c
+.c A bulleted paragraph.
+.c
+.de Topic
+.  ie (\\n[.$] = 0) \
+.    .ds @indent 2m\"
+.  el \
+.    .ds @indent \\$1\"
+.  TP \\*[@indent]
+.  Text \[bu]
+.  rm @indent
+..
+.c --------------------------------------------------------------------
+.c .TP+  ()
+.c
+.c Continuation line for .TP header.
+.c
+.de TP+
+.  br
+.  ns
+.  TP \\$1
+..
+.c --------------------------------------------------------------------
+.de 'char
+.  ds @tmp@ `\f(CR\\$1\f[]'
+.  shift
+.  Text \\*[@tmp@]\\$*
+.  rm @tmp@
+..
+.c --------------------------------------------------------------------
+.de option
+.  ds @tmp@ \f(CB\\$1\f[]
+.  shift 1
+.  Text \\*[@tmp@]\\$*
+.  rm @tmp@
+..
+.c --------------------------------------------------------------------
+.de argument
+.  ds @tmp@ \f(CI\\$1\f[]
+.  shift 1
+.  Text \\*[@tmp@]\\$*
+.  rm @tmp@
+..
+.c --------------------------------------------------------------------
+.de request
+.  ds @tmp@ \f(CB\\$1\f[]
+.  shift 1
+.  Text .\\*[@tmp@]\\$*
+.  rm @tmp@
+..
+.c --------------------------------------------------------------------
+.de escape
+.  ds @tmp@ \f[CB]\\$1\f[]
+.  shift 1
+.  Text \[rs]\\*[@tmp@]\\$*
+.  rm @tmp@
+..
+.
+.
+.\" --------------------------------------------------------------------
+.\" SH SYNOPSIS
+.\" --------------------------------------------------------------------
+.
+.B groff -m trace
+.RI [ options\*[Ellipsis] ]
+.RI [ files\*[Ellipsis] ]
+.
+.
+.P
+Elements in brackets denote optional arguments, and the ellipsis means
+that there can be any number of arguments of this kind.
+.
+.
+.\" --------------------------------------------------------------------
+.SH DESCRIPTION
+.\" --------------------------------------------------------------------
+.
+The
+.I trace
+macro package of
+.BR groff (@MAN1EXT@)
+can be a valuable tool for debugging documents written in the roff
+formatting language.
+.
+A call stack trace is protocolled on standard error, that means, a
+diagnostic message is emitted on entering and exiting of a macro call.
+.
+This greatly eases to track down an error in some macro.
+.
+.
+.P
+This tracing process is activated by specifying the groff or troff
+command line option
+.BR "-m\~trace" .
+This works also with the
+.BR groffer (@MAN1EXT@)
+viewer program.
+.
+A finer control can be obtained by including the macro file within the
+document by the groff macro call
+.BR ".mso\~trace.tmac" .
+Only macros that are defined after this line are traced.
+.
+.
+.P
+If some other macro package should be traced as well it must be specified
+after
+.BR "-m\~trace"
+on the command line.
+.
+.
+.P
+The macro file
+.B trace.tmac
+is unusual because it does not contain any macros to be called by a
+user.
+.
+Instead, the existing macro definition and appending facilities are
+modified such that they display diagnostic messages.
+.
+.
+.\" --------------------------------------------------------------------
+.SH EXAMPLES
+.\" --------------------------------------------------------------------
+.
+.P
+In the following examples, a roff fragment is fed into groff via
+standard input.
+.
+As we are only interested in the diagnostic messages (standard error)
+on the terminal, the normal formatted output (standard output) is
+redirected into the nirvana device
+.IR /dev/null .
+The resulting diagnostic messages are displayed directly below the
+corresponding example.
+.
+.
+.\" --------------------------------------------------------------------
+.SS "Command line option"
+.
+.P
+.Shell_cmd "echo '."
+.Shell_cmd+ ".de test_macro"
+.Shell_cmd+ ".."
+.Shell_cmd+ ".test_macro"
+.Shell_cmd+ ".test_macro some dummy arguments"
+.Shell_cmd+ "' | groff -m trace >/dev/null"
+.P
+.Example
+*** de trace enter: test_macro
+*** trace exit: test_macro
+*** de trace enter: test_macro "some" "dummy" "arguments"
+*** trace exit: test_macro "some" "dummy" "arguments"
+./Example
+.
+.P
+The entry and the exit of each macro call is displayed on the terminal
+(standard output) \[em] together with the arguments (if any).
+.
+.
+.\" --------------------------------------------------------------------
+.SS "Nested macro calls"
+.
+.P
+.Shell_cmd "echo '."
+.Shell_cmd+ ".de child"
+.Shell_cmd+ ".."
+.Shell_cmd+ ".de parent"
+.Shell_cmd+ ".child"
+.Shell_cmd+ ".."
+.Shell_cmd+ ".parent"
+.Shell_cmd+ "' | groff -m trace >/dev/null"
+.P
+.Example
+*** de trace enter: parent
+*** de trace enter: child
+*** trace exit: child
+*** trace exit: parent
+./Example
+.
+.P
+This shows that macro calls can be nested.
+.
+This powerful feature can help to tack down quite complex call stacks.
+.
+.
+.\" --------------------------------------------------------------------
+.SS "Activating with .mso"
+.
+.Shell_cmd "echo '."
+.Shell_cmd+ ".de before"
+.Shell_cmd+ ..
+.Shell_cmd+ ".mso trace.tmac"
+.Shell_cmd+ ".de after"
+.Shell_cmd+ ..
+.Shell_cmd+ .before
+.Shell_cmd+ .after
+.Shell_cmd+ .before
+.Shell_cmd+ "' | groff >/dev/null"
+.P
+.Example
+*** de trace enter: after
+*** trace exit: after
+./Example
+.
+.P
+Here, the tracing is activated within the document, not by a command
+line option.
+.
+As tracing was not active when macro
+.I before
+was defined, no call of this macro is protocolled; on the other hand,
+the macro
+.I after
+is fully protocolled.
+.
+.
+.\" --------------------------------------------------------------------
+.SH FILES
+.\" --------------------------------------------------------------------
+.
+The
+.I trace
+macros are kept in the file
+.B trace.tmac
+located in the
+.IR "tmac directory" ;
+see
+.BR groff_tmac (@MAN5EXT@)
+for details.
+.
+.
+.\" --------------------------------------------------------------------
+.SH ENVIRONMENT
+.\" --------------------------------------------------------------------
+.
+.TP
+.Env_var $GROFF_TMAC_PATH
+A colon-separated list of additional tmac directories in which to
+search for macro files; see
+.BR groff_tmac (@MAN5EXT@)
+for details.
+.
+.
+.\" --------------------------------------------------------------------
+.SH AUTHOR
+.\" --------------------------------------------------------------------
+.
+Copyright (C) 2002 Free Software Foundation, Inc.
+.
+.P
+This document is distributed under the terms of the FDL (GNU Free
+Documentation License) version 1.1 or later.
+.
+You should have received a copy of the FDL on your system, it is also
+available on-line at the
+.URL http://\:www.gnu.org/\:copyleft/\:fdl.html "GNU copyleft site" .
+.
+.P
+This document is part of
+.IR groff ,
+the GNU roff distribution.
+.
+It was written by
+.MTO bwarken@mayn.de "Bernd Warken".
+.
+.
+.\" --------------------------------------------------------------------
+.SH "SEE ALSO"
+.\" --------------------------------------------------------------------
+.
+.TP
+.BR groff (@MAN1EXT@)
+An overview of the groff system.
+.
+.
+.TP
+.BR troff (@MAN1EXT@)
+For details on option
+.BR -m .
+.
+.
+.TP
+.BR groffer (@MAN1EXT@)
+A viewer program for all kinds of roff documents.
+.
+.
+.TP
+.BR groff_tmac (@MAN5EXT@)
+A general description of groff macro packages.
+.
+.
+.TP
+.BR groff (@MAN7EXT@)
+A short reference for the groff formatting language.
+.
+.
+.P
+A complete reference for all parts of the groff system is found in the
+groff
+.BR info (1)
+file.
+.
+.cp \n[groff_trace_C]
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

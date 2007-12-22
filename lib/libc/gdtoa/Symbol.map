@@ -1,0 +1,14 @@
+/*
+ * $FreeBSD$
+ */
+
+FBSD_1.0 {
+	/*
+	 * Standard functions from contrib/gdtoa
+	 */
+	strtod;
+	strtof;
+
+	/* FreeBSD additions */
+	strtold;
+};

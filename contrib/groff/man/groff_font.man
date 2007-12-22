@@ -1,0 +1,660 @@
+.ig
+Copyright (C) 1989-1995, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.
+.do nr groff_font_C \n[.C]
+.cp 0
+.
+.de TQ
+.  br
+.  ns
+.  TP \\$1
+..
+.
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.  ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.  el .TP "\\$1"
+..
+.
+.
+.TH GROFF_FONT @MAN5EXT@ "@MDATE@" "Groff Version @VERSION@"
+.
+.
+.SH NAME
+groff_font \- format of groff device and font description files
+.
+.
+.SH DESCRIPTION
+The groff font format is roughly a superset of the ditroff
+font format.
+.
+The font files for device
+.I name
+are stored in a directory
+.BI dev name\c
+\&.
+.
+There are two types of file: a
+device description file called
+.B DESC
+and for each font
+.I F
+a font file called
+.IR F .
+.
+These are text files;
+unlike the ditroff font format,
+there is no associated binary format.
+.
+.
+.SS DESC file format
+.
+The DESC file can contain the following types of line as shown below.
+.
+Later entries in the file override previous values.
+.
+.TP
+.B charset
+This line and everything following in the file are ignored.
+.
+It is allowed for the sake of backwards compatibility.
+.
+.TP
+.BI family\  fam
+The default font family is
+.IR fam .
+.
+.TP
+.BI fonts\  n\ F1\ F2\ F3\|.\|.\|.\|Fn
+Fonts
+.I F1\|.\|.\|.\|Fn
+will be mounted in the font positions 
+.IR m +1,\|.\|.\|., m + n
+where
+.I m
+is the number of styles.
+.
+This command may extend over more than one line.
+.
+A font name of
+.B 0
+will cause no font to be mounted on the corresponding font position.
+.
+.TP
+.BI hor\  n
+The horizontal resolution is
+.I n
+machine units.
+.
+.TP
+.BI image_generator\  string
+Needed for
+.B grohtml
+only.
+It specifies the program to generate PNG images from
+PostScript input.
+Under GNU/Linux this is usually
+.I gs
+but under other systems (notably cygwin) it might be set to another name.
+.
+.TP
+.BI paperlength\  n
+The physical vertical dimension of the output medium in machine units.
+.
+This isn't used by
+.B troff
+itself but by output devices.
+.
+Deprecated.
+.
+Use
+.B papersize
+instead.
+.
+.TP
+.BI papersize\  string
+Select a paper size.
+.
+Valid values for
+.I string
+are the ISO paper types A0-A7, B0-B7, C0-C7, D0-D7, DL, and the US paper
+types letter, legal, tabloid, ledger, statement, executive, com10, and
+monarch.
+.
+Case is not significant for
+.IR string
+if it holds predefined paper types.
+.
+Alternatively,
+.I string
+can be a file name (e.g.\& `/etc/papersize'); if the file can be opened,
+.B groff
+reads the first line and tests for the above paper sizes.
+.
+Finally,
+.I string
+can be a custom paper size in the format
+.IB length , width
+(no spaces before and after the comma).
+.
+Both
+.I length
+and
+.I width
+must have a unit appended; valid values are `i' for inches, `c' for
+centimeters, `p' for points, and `P' for picas.
+.
+Example:
+.BR 12c,235p .
+.
+An argument which starts with a digit is always treated as a custom paper
+format.
+.
+.B papersize
+sets both the vertical and horizontal dimension of the output medium.
+.
+.IP
+More than one argument can be specified;
+.B groff
+scans from left to right and uses the first valid paper specification.
+.
+.TP
+.BI paperwidth\  n
+The physical horizontal dimension of the output medium in machine units.
+.
+Deprecated.
+.
+Use
+.B papersize
+instead.
+.
+This isn't used by
+.BR troff
+itself but by output devices.
+.
+.TP
+.B pass_filenames
+Make troff tell the driver the source file name being processed.
+.
+This is achieved by another tcommand:
+.B F
+.IR filename .
+.
+.TP
+.BI postpro\  program
+Use
+.I program
+as the postprocessor.
+.
+.TP
+.BI prepro\  program
+Call
+.I program
+as a preprocessor.
+.
+.TP
+.BI print\  program
+Use
+.I program
+as the spooler program for printing.
+.
+If omitted, the
+.B \-l
+and
+.B \-L
+options of
+.B groff
+are ignored.
+.
+.TP
+.BI res\  n
+There are
+.I n
+machine units per inch.
+.
+.TP
+.BI sizes\  s1\ s2\|.\|.\|.\|sn\  0
+This means that the device has fonts at
+.IR s1 ,
+.IR s2 ,\|.\|.\|.\| sn
+scaled points.
+.
+The list of sizes must be terminated by a
+.BR 0 .
+.
+Each
+.I si
+can also be a range of sizes
+.IR m \- n .
+.
+The list can extend over more than one line.
+.
+.TP
+.BI sizescale\  n
+The scale factor for pointsizes.
+.
+By default this has a value of 1.
+.
+One
+.I
+scaled point
+is equal to
+one
+.RI point/ n .
+.
+The arguments to the
+.B unitwidth
+and
+.B sizes
+commands are given in scaled points.
+.
+.TP
+.BI styles\  S1\ S2\|.\|.\|.\|Sm
+The first
+.I m
+font positions will be associated with styles
+.IR S1\|.\|.\|.\|Sm .
+.
+.TP
+.B tcommand
+This means that the postprocessor can handle the
+.B t
+and
+.B u
+output commands.
+.
+.TP
+.BI unitwidth\  n
+Quantities in the font files are given in machine units
+for fonts whose point size is
+.I n 
+scaled points.
+.
+.TP
+.B unscaled_charwidths
+Make the font handling module always return unscaled character widths.
+Needed for the
+.B grohtml
+device.
+.
+.TP
+.B use_charnames_in_special
+This command indicates that troff should encode named characters inside
+special commands.
+.
+.TP
+.BI vert\  n
+The vertical resolution is
+.I n
+machine units.
+.
+.LP
+The
+.BR res ,
+.BR unitwidth ,
+.BR fonts ,
+and
+.B sizes
+lines are compulsory.
+.
+Not all commands in the DESC file are used by
+.B troff
+itself; some of the keywords (or even additional ones) are used by
+postprocessors to store arbitrary information about the device.
+.
+.LP
+Here a list of obsolete keywords which are recognized by
+.B groff
+but completely ignored:
+.BR spare1 ,
+.BR spare2 ,
+.BR biggestfont .
+.
+.
+.SS Font file format
+.
+A font file has two sections.
+The first section is a sequence
+of lines each containing a sequence of blank delimited
+words; the first word in the line is a key, and subsequent
+words give a value for that key.
+.
+.TP
+.BI ligatures\  lig1\ lig2\|.\|.\|.\|lign\ \fR[ 0 \fR]
+Characters
+.IR lig1 ,
+.IR lig2 ,\ \|.\|.\|.,\ lign
+are ligatures; possible ligatures are
+.BR ff ,
+.BR fi ,
+.BR fl ,
+.B ffi
+and
+.BR ffl .
+.
+For backwards compatibility, the list of ligatures may be terminated
+with a
+.BR 0.
+.
+The list of ligatures may not extend over more than one line.
+.
+.TP
+.BI name\  F
+The name of the font is
+.IR F .
+.
+.TP
+.BI slant\  n
+The characters of the font have a slant of
+.I n
+degrees.
+.
+(Positive means forward.)
+.
+.TP
+.BI spacewidth\  n
+The normal width of a space is
+.IR n .
+.
+.TP
+.B special
+The font is
+.IR special ;
+this means that when a character is requested that is not present in
+the current font, it will be searched for in any special fonts that
+are mounted.
+.
+.LP
+Other commands are ignored by
+.B troff
+but may be used by postprocessors to store arbitrary information
+about the font in the font file.
+.
+.LP
+The first section can contain comments which start with the
+.B #
+character and extend to the end of a line.
+.
+.LP
+The second section contains one or two subsections.
+.
+It must contain a
+.I charset
+subsection
+and it may also contain a
+.I kernpairs
+subsection.
+.
+These subsections can appear in any order.
+.
+Each subsection starts with a word on a line by itself.
+.
+.LP
+The word
+.B charset
+starts the charset subsection.
+.
+The
+.B charset
+line is followed by a sequence of lines.
+.
+Each line gives information for one character.
+.
+A line comprises a number of fields separated
+by blanks or tabs.
+.
+The format is
+.
+.IP
+.I name metrics type code 
+.RI [ entity_name ]
+.RB [ --
+.IR comment ]
+.
+.LP
+.I name
+identifies the character:
+if
+.I name
+is a single character
+.I c
+then it corresponds to the groff input character
+.IR c ;
+if it is of the form
+.BI \[rs] c
+where c is a single character, then it
+corresponds to the special character
+.BI \[rs][ c ]\fR;
+otherwise it corresponds to the groff input character
+.BI \[rs][ name ]\fR.
+.
+If it is exactly two characters
+.I xx
+it can be entered as
+.BI \[rs]( xx\fR.
+.
+Note that single-letter special characters can't be accessed as
+.BI \[rs] c\fR;
+the only exception is `\[rs]-' which is identical to `\[rs][-]'.
+.
+The name
+.B \-\-\-
+is special and indicates that the character is unnamed;
+such characters can only be used by means of the
+.B \[rs]N
+escape sequence in
+.BR troff .
+.
+.LP
+Groff supports eight-bit characters; however some utilities
+have difficulties with eight-bit characters.
+.
+For this reason, there is a convention that the name
+.BI char n
+is equivalent to the single character whose code is
+.IR n .
+.
+For example,
+.B char163
+would be equivalent to the character with code 163
+which is the pounds sterling sign in ISO Latin-1.
+.
+.LP
+The
+.I type
+field gives the character type:
+.
+.TP
+1
+means the character has a descender, for example, p;
+.
+.TP
+2
+means the character has an ascender, for example, b;
+.
+.TP
+3
+means the character has both an ascender and a descender, for example,
+(.
+.
+.LP
+The
+.I code
+field gives the code which the postprocessor uses to print the character.
+.
+The character can also be input to groff using this code by means of the
+.B \[rs]N
+escape sequence.
+.
+The code can be any integer.
+.
+If it starts with a
+.B 0
+it will be interpreted as octal;
+if it starts with
+.B 0x
+or
+.B 0X
+it will be intepreted as hexadecimal.
+.
+Note, however, that the
+.B \[rs]N
+escape sequence only accepts a decimal integer.
+.
+.LP
+The
+.I entity_name
+field gives an ascii string identifying the glyph which the postprocessor
+uses to print the character.
+.
+This field is optional and has been introduced so that the html device driver
+can encode its character set.
+.
+For example, the character `\[rs][Po]' is represented as `&pound;' in
+html\~4.0.
+.
+.LP
+Anything on the line after the encoding field resp. after `-\&-' will
+be ignored.
+.
+.LP
+The
+.I metrics
+field has the form (in one line; it is broken here for the sake of
+readability):
+.
+.IP
+.I width\c
+.RI [\fB, height\c
+.RI [\fB, depth\c
+.RI [\fB, italic-correction
+.br
+.RI [\fB, left-italic-correction\c
+.RI [\fB, subscript-correction ]]]]]
+.
+.LP
+There must not be any spaces between these subfields.
+.
+Missing subfields are assumed to be 0.
+.
+The subfields are all decimal integers.
+.
+Since there is no associated binary format, these
+values are not required to fit into a variable of type
+.B char
+as they are in ditroff.
+.
+The
+.I width
+subfields gives the width of the character.
+.
+The
+.I height
+subfield gives the height of the character (upwards is positive);
+if a character does not extend above the baseline, it should be
+given a zero height, rather than a negative height.
+.
+The
+.I depth
+subfield gives the depth of the character, that is, the distance
+below the lowest point below the baseline to which the
+character extends (downwards is positive);
+if a character does not extend below above the baseline, it should be
+given a zero depth, rather than a negative depth.
+.
+The
+.I italic-correction
+subfield gives the amount of space that should be added after the
+character when it is immediately to be followed by a character
+from a roman font.
+.
+The
+.I left-italic-correction
+subfield gives the amount of space that should be added before the
+character when it is immediately to be preceded by a character
+from a roman font.
+.
+The
+.I subscript-correction
+gives the amount of space that should be added after a character
+before adding a subscript.
+.
+This should be less than the italic correction.
+.
+.LP
+A line in the charset section can also have the format
+.
+.IP
+.I
+name \fB"
+.
+.LP
+This indicates that
+.I name
+is just another name for the character mentioned in the
+preceding line.
+.
+.LP
+The word
+.B kernpairs
+starts the kernpairs section.
+.
+This contains a sequence of lines of the form:
+.
+.IP
+.I c1 c2 n
+.
+.LP
+This means that when character
+.I c1
+appears next to character
+.I c2
+the space between them should be increased by
+.IR n .
+.
+Most entries in kernpairs section will have a negative value for
+.IR n .
+.
+.
+.SH FILES
+.
+.Tp \w'@FONTDIR@/devname/DESC'u+3n
+.BI @FONTDIR@/dev name /DESC
+Device description file for device
+.IR name .
+.
+.TP
+.BI @FONTDIR@/dev name / F
+Font file for font
+.I F
+of device
+.IR name .
+.
+.
+.SH "SEE ALSO"
+.
+.BR groff_out (@MAN5EXT@),
+.BR @g@troff (@MAN1EXT@).
+.
+.cp \n[groff_font_C]
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

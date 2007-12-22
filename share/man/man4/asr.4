@@ -1,0 +1,115 @@
+.\" Copyright (c) 2003 David E. O'Brien
+.\" Copyright (c) 2000 Adaptec, Inc.
+.\" All rights reserved.
+.\"
+.\" Manpage cleanup by: Jeroen Ruigrok van der Werven <asmodai@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 14, 2004
+.Dt ASR 4
+.Os
+.Sh NAME
+.Nm asr
+.Nd driver for Adaptec I2O based SCSI/ATA host bus adapters
+.Sh SYNOPSIS
+.Cd "device asr"
+.Sh DESCRIPTION
+The Adaptec
+.Nm
+driver provides access to disks
+and disk arrays controlled by I2O based host bus adapters and
+SmartRAID SCSI RAID adapters through the standard SCSI disk
+.Xr da 4
+interface.
+.Pp
+The supported adapters provide 64 bit PCI,
+Compact PCI, Zero Channel PCI,
+and up to four channels of Ultra2, Ultra 160, or Ultra320 SCSI,
+or two channels of 1GB Fibre.
+All support RAID-0, RAID-1, RAID-10, RAID-5 and RAID-50 arrays.
+All SCSI target types are supported.
+For the ATA based controllers, one IDE drive per channel is supported.
+Hot-swapping of IDE drives is not supported at this time.
+.Pp
+All host bus adapters must be configured
+before they can be used with any operating system.
+Please contact Adaptec directly to obtain the latest information
+on configuration utilities for the adapters.
+Currently there are both a Motif based GUI configuration utility
+and a CLI based configuration utility available from the Adaptec Web site.
+The cards and arrays can also be configured via the BIOS based configuration
+tool (SMOR).
+.Sh HARDWARE
+The adapters currently supported by the
+.Nm
+driver include the following:
+.Pp
+.Bl -bullet -compact
+.It
+Adaptec Zero-Channel SCSI RAID 2000S, 2005S, 2010S, 2015S
+.It
+Adaptec SCSI RAID 2100S, 2110S
+.It
+Adaptec ATA-100 RAID 2400A
+.It
+Adaptec SCSI RAID 3200S, 3210S
+.It
+Adaptec SCSI RAID 3400S, 3410S
+.It
+Adaptec SmartRAID PM1554
+.It
+Adaptec SmartRAID PM1564
+.It
+Adaptec SmartRAID PM2554
+.It
+Adaptec SmartRAID PM2564
+.It
+Adaptec SmartRAID PM2664
+.It
+Adaptec SmartRAID PM2754
+.It
+Adaptec SmartRAID PM2865
+.It
+Adaptec SmartRAID PM3754
+.It
+Adaptec SmartRAID PM3755U2B / SmartRAID V Millennium
+.It
+Adaptec SmartRAID PM3757
+.It
+DEC KZPCC-AC (LVD 1-ch, 4MB or 16MB cache),
+DEC KZPCC-CE (LVD 3-ch, 64MB cache),
+DEC KZPCC-XC (LVD 1-ch, 16MB cache),
+DEC KZPCC-XE (LVD 3-ch, 64MB cache) -- rebadged SmartRAID V Millennium
+.El
+.Sh FILES
+.Bl -tag -width "/dev/asr*" -compact
+.It Pa /dev/asr*
+Adaptec SCSI RAID control nodes
+.El
+.Sh NOTES
+The ATA based controllers present their devices as SCSI-like devices via CAM.
+For IDE drives attached to these cards, a subset of standard SCSI commands
+and mode pages are understood via translation performed in the card's firmware.
+.Sh SEE ALSO
+.Xr da 4
+.Sh HISTORY
+The
+.Nm
+(Adaptec SCSI RAID)
+driver first appeared as the dpti2o driver under BSDi
+.Bsx 3.2 ,
+then under
+.Fx 2.2.8
+and was ported over to the CAM layer represented in 4.0.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was kindly donated by Adaptec
+and is maintained by
+.An Mark Salyzyn Aq mark_salyzyn@adaptec.com .
+This manual page was written by
+.An Mark Salyzyn
+and fixed up by
+.An Jeroen Ruigrok van der Werven Aq asmodai@FreeBSD.org .

@@ -1,0 +1,29 @@
+ip #0 28(20) 17 4.4.4.4,6700 > 2.2.2.2,4500
+ip #0 28(20) 17 2.2.2.2,4500 > 3.3.3.1,6700
+ip #0 28(20) 17 1.1.2.3,4500 > 3.3.3.1,6700
+List of active MAP/Redirect filters:
+rdr le0,bge0 1.1.0.0/16 -> 2.2.2.2 ip
+map hme0,ppp0 3.3.3.0/24 -> 4.4.4.4/32
+
+List of active sessions:
+MAP 3.3.3.1         6700  <- -> 4.4.4.4         6700  [2.2.2.2 4500]
+RDR 2.2.2.2         4500  <- -> 1.1.2.3         4500  [3.3.3.1 6700]
+
+Hostmap table:
+3.3.3.1,2.2.2.2 -> 4.4.4.4 (use = 1 hv = 0)
+List of active state sessions:
+3.3.3.1 -> 2.2.2.2 pass 0x40008402 pr 17 state 0/0
+	tag 0 ttl 24 6700 -> 4500
+	forward: pkts in 1 bytes in 28 pkts out 1 bytes out 28
+	backward: pkts in 1 bytes in 28 pkts out 1 bytes out 28
+	pass in keep state	IPv4
+	pkt_flags & 0(0) = 0,		pkt_options & ffffffff = 0, ffffffff = 0 
+	pkt_security & ffff = 0, pkt_auth & ffff = 0
+	is_flx 0x8001 0x8001 0x8001 0x1
+	interfaces: in X[le0],X[hme0] out X[ppp0],X[bge0]
+	Sync status: not synchronized
+List of configured pools
+List of configured hash tables
+List of groups configured (set 0)
+List of groups configured (set 1)
+-------------------------------

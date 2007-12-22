@@ -1,0 +1,317 @@
+Assume that anything that doesn't work or behaves oddly is a bug.
+The documentation should be taken as the authoritative source for
+how things ought to be.
+
+Post to the groff mailing list with bug reports, questions and
+suggestions, or contact me directly at:
+
+    peter@faustus.dyn.ca
+    or
+    ptpi@golden.net
+
+If writing me directly, please include the word "groff" or "mom" in
+the Subject line or you risk my spam filters nuking your message.
+Also, please--no html email.  That, too, gets nuked.
+
+--Peter Schaffter
+
+========================================================================
+
+Version 1.3
+===========
+
+Persistent error in html coding of docs (<nobr> tag).
+---Fixed---
+
+Version 1.2-f
+============
+
+Multiple line subheads near page bottom sometimes printing one line
+of subhead at page bottom, and subsequent lines on next page.
+---Fixed---
+
+Post-quote spacing still wonky when paragraph spacing is turned on.
+---Fixed--- (for good would be nice)
+
+RULE not always resetting quad and quad value.
+---Fixed---
+
+Version 1.2-e
+=============
+
+Some string definitions in om.tmac had superfluous spaces after
+them (e.g. $COVERTITLE).
+---Fixed---
+
+Spacing under quotes not correct when paragraph spacing is turned
+on.
+---Fixed---
+
+
+First word of last line before footnotes is getting chopped.
+---Fixed---
+
+Version 1.2-d
+=============
+
+HEADER_FAMILY not changing header family.
+---Fixed---
+
+FAMILY, after COLLATE, not changing the family of all and every
+page element or tag.
+---Fixed---
+
+Heads and subheads at the start of docs are printing one line lower
+than they should.
+---Fixed---
+ 
+Gaps are appearing at the bottom of pages when there's a linebreak
+followed by a subhead.
+---Fixed---
+
+When LS is invoked after a single text line at the top of a page
+containing a T_MARGIN (set with T_MARGIN or PAGE), mom is performing
+spacing adjustments as if the first line doesn't exist.
+---Fixed---
+
+Changes made to ALD and LS in version 1.2-c should not apply when
+the document processing macros are used.  There is a significant
+conflict with the internal use of ALD when the docheader is only
+one line long (as, for example, when DOCTYPE is CHAPTER).
+---Fixed, pending discovery of further conflicts---
+
+Version 1.2-c
+=============
+
+Deferred footnotes not always being output, and groff complains
+"ending diversion FN_OVERFLOW on exit."
+---Fixed---
+
+First .LS call after a top margin has been set (with .T_MARGIN
+or .PAGE) causing mom to move off the top margin baseline.  Also,
+there are conflicts between ALD, LS and T_MARGIN.
+---Fixed---
+
+DROPCAP not properly restoring a running \*[COND] or \*[EXT] after
+COND or EXT are given as arguments to DROPCAP.
+---Fixed---
+
+Version 1.2
+===========
+
+.PAD not co-operating with mom's fontstyles, esp. when a full
+family+fontstyle is given to .FT.
+---Fixed---
+
+.DROPCAP -- ditto the above.
+---Fixed---
+
+Version 1.1.9
+=============
+
+Footnote markers not resetting properly on new pages when COLUMNS
+is enabled.
+---Fixed---
+
+When overflowed footnote material is the only footnote material on
+the page or in the column, no footnotes are output.
+---Fixed---
+
+The AUTOLEAD used in FOOTNOTE not being disabled after FOOTNOTES
+are output, or after PROCESS_FN_LEFTOVER/PROCESS_FN_IN_DIVER.
+---Fixed---
+
+COL_NEXT and COL_BREAK, when invoked during the last column on a
+page, are overprinting the last column instead of breaking to a new
+page when there are footnotes in the column.
+---Fixed---
+
+BR_AT_LINE_KERN not "break-and-spreading" text when used in
+justified copy.
+---Fixed---
+
+Version 1.1.8
+=============
+
+BLOCKQUOTE_FAMILY not changing blockquote family.
+---Fixed---
+
+FOOTNOTE, whether in column mode or not, was using
+#FN_COUNT_FOR_COLS for all footnote markers and handling.
+---Fixed---
+
+Deferred footnotes that occured on the second to last page of
+documents not printing.
+---Fixed---
+
+Version 1.1.7-a
+===============
+
+Suite number in DOCTYPE LETTER not printing.
+---Fixed---
+
+Footer elements not always vertically aligning.
+---Fixed---
+
+Footer rule gap not always correctly observed.
+---Fixed---
+
+Page numbering, when at top of page, not always falling on
+HDRFTR_MARGIN.
+---Fixed---
+
+Default page numbering style for COPYSTYLE draft is DIGIT instead
+of roman.
+---Fixed---
+
+Hyphens around page numbering when style is DIGIT, ROMAN or ALPHA
+not vertically centered.
+---Fixed---
+
+EXT arg not working with DROPCAP.
+---Fixed---
+
+DOC_QUAD not automatically set immediately after START
+---Fixed--
+
+Tabs behaving erratically during document processing.
+---Fixed---
+
+Version 1.1.7
+=============
+
+When DOCHEADER OFF <distance> is given, if <distance> falls short
+of the top margin of running text, <distance> is not respected and
+bottom margin falls low.
+---Fixed---
+
+
+Version 1.1.6-e
+===============
+
+The " mark (doublequote), when entered while not in document
+processing mode (i.e. just straightforward typesetting), outputs
+nothing unless SMARTQUOTES is invoked explicitly.
+---Fixed---
+
+Version 1.1.6-c
+===============
+
+In document processing mode, docs that use *none* of the
+docprocessing tags being ignored.
+---Fixed---
+
+Version 1.1.6-b
+===============
+
+String tabs not picking up #L_MARGIN when #L_MARGIN not explicitly
+set with L_MARGIN, PAPER or PAGE.
+---Fixed---
+
+Infinite loop when B_MARGIN is set lower than FOOTER_MARGIN during
+doc processing.
+---Fixed---
+
+Version 1.1.6-a
+===============
+
+Mom partially broken when run with groff 1.19.1.  Don't know yet
+what this is, whether bad coding in mom, or a problem with 1.19.1.
+Only solution for now: run mom 1.1.6 with groff 1.18.
+----Fixed---
+
+Top margin of endnotes pages after the first endnotes page when
+PRINTSTYLE is TYPEWRITE and endnotes single-spacing is turned on
+falling one line too high.
+---Fixed---
+
+Version 1.1.6
+=============
+
+DOCHEADER OFF (distance) not being respected.
+---Fixed---
+
+FINIS killing ENDNOTES page numbering and heads.
+---Fixed---
+
+Version 1.1.5
+=============
+
+Draft and revision not appearing in page headers.
+---Fixed---
+
+\*[RULE] not working properly with indents and justified copy.
+---Fixed---
+
+Post-epigraph spacing in TYPEWRITE causing some first pages to run too
+deep.
+---Fixed---
+
+Spacing of docheaders in TYPEWRITE not always consistent.
+---Fixed---
+
+Version 1.1.4
+=============
+
+Blockquotes that span pages running too deep.
+---Fixed---
+
+Version 1.1.3
+=============
+
+Footnotes not outputting on final page of document body when ENDNOTES
+is invoked.
+---Fixed---
+
+Pad not working properly and/or spitting out warnings when fill mode is
+on.
+---Fixed---
+
+Version 1.1.2
+=============
+
+PAGENUM_STYLE being ignored unless entered after START.
+---Fixed---
+
+Version 1.1
+===========
+
+String tabs not working as advertised when set from within other tabs.
+---Fixed---
+
+.COLLATE sometimes depositing a header on the first page of a subsequent doc.
+---Fixed with workaround BREAK_QUOTE---
+
+.UNDERLINE_QUOTES in PRINTSTYLE TYPEWRITE not on by default as advertised.
+---Fixed---
+
+.TI not cooperating with other indent styles.
+---Fixed---
+
+.WS and .SS not cooperating.
+---Fixed---
+
+.RW and .EW not working.
+---Fixed---
+
+========================================================================
+
+KNOWN PROBLEMS
+--------------
+
+The indent macros from the typesetting macro set may not always
+perform well in conjunction with the document processing macros,
+especially when documents are set in columns.  Mostly, this is the
+result of inadequate testing.  There are only so many "who'd want to
+do this anyway?" scenarios I can think of on my own.
+
+Epigraphs at the bottoms of page may sometimes run exactly one line
+deeper than they should.  The alternative (from my point of view) is
+to have them run 1 line shorter than they should.  The problem stems
+from the fact the epigraphs are leaded differently than all other text,
+and there's only so much adjusting that can be done with the whitespace
+surrounding them to get them to bottom align.  Since stylistically,
+epigraphs should never appear at the bottom of a page/column without at
+least some running text beneath them in order to make sense of the role
+they play in page layout, this not likely to be fixed for some time.
+

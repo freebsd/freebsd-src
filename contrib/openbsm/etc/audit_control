@@ -1,0 +1,10 @@
+#
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_control#5 $
+# $FreeBSD$
+#
+dir:/var/audit
+flags:lo
+minfree:20
+naflags:lo
+policy:cnt
+filesz:0

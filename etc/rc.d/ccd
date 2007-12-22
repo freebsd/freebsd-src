@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $NetBSD: ccd,v 1.3 2000/05/13 08:45:06 lukem Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: disks
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="ccd"
+start_cmd="ccd_start"
+stop_cmd=":"
+
+ccd_start()
+{
+	if [ -f /etc/ccd.conf ]; then
+		echo "Configuring CCD devices."
+		ccdconfig -C
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

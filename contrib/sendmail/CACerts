@@ -1,0 +1,236 @@
+# $Id: CACerts,v 8.3 2007/06/11 22:04:46 ca Exp $
+# This file contains some CA certificates that are used to sign the
+# certificates of mail servers of members of the sendmail consortium
+# who may reply to questions etc sent to sendmail.org.
+# It is useful to allow connections from those MTAs that can present
+# a certificate signed by one of these CA certificates.
+#
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 0 (0x0)
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=US, ST=California, L=Berkeley, O=Sendmail Consortium, CN=Certificate Authority/emailAddress=certificates@sendmail.org
+        Validity
+            Not Before: Feb  1 21:51:47 2003 GMT
+            Not After : Jan 31 21:51:47 2008 GMT
+        Subject: C=US, ST=California, L=Berkeley, O=Sendmail Consortium, CN=Certificate Authority/emailAddress=certificates@sendmail.org
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:9a:fb:dc:4c:a3:58:21:1b:84:78:0a:53:56:b3:
+                    8d:84:05:b7:db:dd:d7:81:ea:dd:c1:ab:d4:be:d9:
+                    2b:12:e0:6d:3a:31:d5:f0:7b:13:fc:d8:da:09:0b:
+                    71:11:8e:b9:48:c4:ab:ae:f5:9c:4c:e2:04:27:8e:
+                    c8:03:3a:aa:00:8b:46:f2:79:09:ae:65:b2:9a:66:
+                    e7:ac:a9:ea:32:f7:4a:4e:fd:da:41:48:34:5a:9d:
+                    b0:42:ea:55:40:17:27:5e:67:9e:e5:ce:dc:84:6d:
+                    1d:48:37:23:11:68:9d:a8:d4:58:02:05:ea:88:35:
+                    bd:0d:b6:28:d5:cd:d4:d8:95
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+            DE:CD:6E:B8:89:34:06:3D:E9:CD:A7:FE:45:4F:4E:FB:E1:8D:E7:79
+            X509v3 Authority Key Identifier: 
+            keyid:DE:CD:6E:B8:89:34:06:3D:E9:CD:A7:FE:45:4F:4E:FB:E1:8D:E7:79
+            DirName:/C=US/ST=California/L=Berkeley/O=Sendmail Consortium/CN=Certificate Authority/emailAddress=certificates@sendmail.org
+            serial:00
+
+            X509v3 Basic Constraints: 
+            CA:TRUE
+    Signature Algorithm: md5WithRSAEncryption
+        66:92:b9:57:17:3b:6a:0e:72:b1:85:29:53:9f:11:68:a0:0d:
+        79:43:d0:7c:48:73:b9:71:09:50:08:02:03:0b:28:0c:33:9a:
+        00:ac:94:69:4f:bc:0f:45:6b:f5:3a:ca:6a:87:a1:7f:28:f7:
+        9a:c4:b6:b0:f3:dc:a3:eb:42:95:9f:99:19:f8:b8:84:6d:f1:
+        1d:bc:9f:f0:a0:cc:60:2d:00:6b:17:55:33:16:85:d1:73:e1:
+        00:59:89:33:19:c4:2e:29:5a:39:a7:0e:e7:9b:d2:4c:c7:b9:
+        7d:6a:3e:b4:00:83:86:d3:16:28:fd:ad:55:65:60:4e:14:02:
+        46:d3
+-----BEGIN CERTIFICATE-----
+MIIDsDCCAxmgAwIBAgIBADANBgkqhkiG9w0BAQQFADCBnTELMAkGA1UEBhMCVVMx
+EzARBgNVBAgTCkNhbGlmb3JuaWExETAPBgNVBAcTCEJlcmtlbGV5MRwwGgYDVQQK
+ExNTZW5kbWFpbCBDb25zb3J0aXVtMR4wHAYDVQQDExVDZXJ0aWZpY2F0ZSBBdXRo
+b3JpdHkxKDAmBgkqhkiG9w0BCQEWGWNlcnRpZmljYXRlc0BzZW5kbWFpbC5vcmcw
+HhcNMDMwMjAxMjE1MTQ3WhcNMDgwMTMxMjE1MTQ3WjCBnTELMAkGA1UEBhMCVVMx
+EzARBgNVBAgTCkNhbGlmb3JuaWExETAPBgNVBAcTCEJlcmtlbGV5MRwwGgYDVQQK
+ExNTZW5kbWFpbCBDb25zb3J0aXVtMR4wHAYDVQQDExVDZXJ0aWZpY2F0ZSBBdXRo
+b3JpdHkxKDAmBgkqhkiG9w0BCQEWGWNlcnRpZmljYXRlc0BzZW5kbWFpbC5vcmcw
+gZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAJr73EyjWCEbhHgKU1azjYQFt9vd
+14Hq3cGr1L7ZKxLgbTox1fB7E/zY2gkLcRGOuUjEq671nEziBCeOyAM6qgCLRvJ5
+Ca5lsppm56yp6jL3Sk792kFINFqdsELqVUAXJ15nnuXO3IRtHUg3IxFonajUWAIF
+6og1vQ22KNXN1NiVAgMBAAGjgf0wgfowHQYDVR0OBBYEFN7NbriJNAY96c2n/kVP
+Tvvhjed5MIHKBgNVHSMEgcIwgb+AFN7NbriJNAY96c2n/kVPTvvhjed5oYGjpIGg
+MIGdMQswCQYDVQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTERMA8GA1UEBxMI
+QmVya2VsZXkxHDAaBgNVBAoTE1NlbmRtYWlsIENvbnNvcnRpdW0xHjAcBgNVBAMT
+FUNlcnRpZmljYXRlIEF1dGhvcml0eTEoMCYGCSqGSIb3DQEJARYZY2VydGlmaWNh
+dGVzQHNlbmRtYWlsLm9yZ4IBADAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBAUA
+A4GBAGaSuVcXO2oOcrGFKVOfEWigDXlD0HxIc7lxCVAIAgMLKAwzmgCslGlPvA9F
+a/U6ymqHoX8o95rEtrDz3KPrQpWfmRn4uIRt8R28n/CgzGAtAGsXVTMWhdFz4QBZ
+iTMZxC4pWjmnDueb0kzHuX1qPrQAg4bTFij9rVVlYE4UAkbT
+-----END CERTIFICATE-----
+
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 0 (0x0)
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=US, ST=Illinois, L=De Kalb, O=Northern Illinois University, OU=Computer Science, CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
+        Validity
+            Not Before: May 12 00:40:50 2000 GMT
+            Not After : May 20 00:40:50 2010 GMT
+        Subject: C=US, ST=Illinois, L=De Kalb, O=Northern Illinois University, OU=Computer Science, CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (1024 bit)
+                Modulus (1024 bit):
+                    00:b1:1b:49:06:ef:3f:44:e0:93:ad:8c:a7:f7:21:
+                    7c:87:cb:da:35:f6:4b:a2:fd:8a:a0:07:5b:cc:6a:
+                    9b:89:33:fc:24:f5:b1:24:59:5a:25:50:fd:16:d7:
+                    d4:bc:c7:04:1d:df:90:9b:5e:c3:a8:e9:8b:7d:a3:
+                    5d:9a:e9:7f:e5:2b:ea:15:a7:ad:ba:58:26:0a:11:
+                    49:4f:da:9a:67:7f:b0:a6:66:f4:27:b6:61:4e:3c:
+                    c8:3e:a0:2f:6a:b4:0e:15:d6:39:f8:92:60:85:df:
+                    a6:34:f3:fa:a4:a5:e4:47:49:e7:87:a4:a5:5c:8e:
+                    6a:2f:13:76:5f:29:f3:64:73
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+            B6:31:78:BB:7E:AA:4D:A1:5D:FD:A2:24:18:C6:90:5A:2D:2F:19:48
+            X509v3 Authority Key Identifier: 
+            keyid:B6:31:78:BB:7E:AA:4D:A1:5D:FD:A2:24:18:C6:90:5A:2D:2F:19:48
+            DirName:/C=US/ST=Illinois/L=De Kalb/O=Northern Illinois University/OU=Computer Science/CN=Neil Rickert/emailAddress=rickert@cs.niu.edu
+            serial:00
+
+            X509v3 Basic Constraints: 
+            CA:TRUE
+    Signature Algorithm: md5WithRSAEncryption
+        60:69:23:65:97:51:5c:06:a4:42:cb:00:e7:9a:dc:39:70:c3:
+        d3:5d:bf:0f:e0:04:54:4d:d9:dc:12:57:12:6c:67:fd:5b:b0:
+        39:63:ea:c4:12:65:51:bb:3d:f1:f7:25:b4:cd:0b:f6:5b:7a:
+        61:25:ad:06:0a:01:55:dc:71:05:29:0d:73:e9:30:51:be:d3:
+        e1:b2:89:fc:0f:28:f7:06:75:96:1b:34:75:e0:07:e5:3b:b3:
+        0b:28:24:e5:79:ea:55:39:e7:d2:ee:ec:63:b4:e4:c6:ee:cb:
+        15:d0:c8:eb:3b:4f:36:10:a4:6a:c0:6b:03:e8:29:72:c7:a7:
+        10:00
+-----BEGIN CERTIFICATE-----
+MIID5TCCA06gAwIBAgIBADANBgkqhkiG9w0BAQQFADCBrjELMAkGA1UEBhMCVVMx
+ETAPBgNVBAgTCElsbGlub2lzMRAwDgYDVQQHEwdEZSBLYWxiMSUwIwYDVQQKExxO
+b3J0aGVybiBJbGxpbm9pcyBVbml2ZXJzaXR5MRkwFwYDVQQLExBDb21wdXRlciBT
+Y2llbmNlMRUwEwYDVQQDEwxOZWlsIFJpY2tlcnQxITAfBgkqhkiG9w0BCQEWEnJp
+Y2tlcnRAY3Mubml1LmVkdTAeFw0wMDA1MTIwMDQwNTBaFw0xMDA1MjAwMDQwNTBa
+MIGuMQswCQYDVQQGEwJVUzERMA8GA1UECBMISWxsaW5vaXMxEDAOBgNVBAcTB0Rl
+IEthbGIxJTAjBgNVBAoTHE5vcnRoZXJuIElsbGlub2lzIFVuaXZlcnNpdHkxGTAX
+BgNVBAsTEENvbXB1dGVyIFNjaWVuY2UxFTATBgNVBAMTDE5laWwgUmlja2VydDEh
+MB8GCSqGSIb3DQEJARYScmlja2VydEBjcy5uaXUuZWR1MIGfMA0GCSqGSIb3DQEB
+AQUAA4GNADCBiQKBgQCxG0kG7z9E4JOtjKf3IXyHy9o19kui/YqgB1vMapuJM/wk
+9bEkWVolUP0W19S8xwQd35CbXsOo6Yt9o12a6X/lK+oVp626WCYKEUlP2ppnf7Cm
+ZvQntmFOPMg+oC9qtA4V1jn4kmCF36Y08/qkpeRHSeeHpKVcjmovE3ZfKfNkcwID
+AQABo4IBDzCCAQswHQYDVR0OBBYEFLYxeLt+qk2hXf2iJBjGkFotLxlIMIHbBgNV
+HSMEgdMwgdCAFLYxeLt+qk2hXf2iJBjGkFotLxlIoYG0pIGxMIGuMQswCQYDVQQG
+EwJVUzERMA8GA1UECBMISWxsaW5vaXMxEDAOBgNVBAcTB0RlIEthbGIxJTAjBgNV
+BAoTHE5vcnRoZXJuIElsbGlub2lzIFVuaXZlcnNpdHkxGTAXBgNVBAsTEENvbXB1
+dGVyIFNjaWVuY2UxFTATBgNVBAMTDE5laWwgUmlja2VydDEhMB8GCSqGSIb3DQEJ
+ARYScmlja2VydEBjcy5uaXUuZWR1ggEAMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcN
+AQEEBQADgYEAYGkjZZdRXAakQssA55rcOXDD012/D+AEVE3Z3BJXEmxn/VuwOWPq
+xBJlUbs98fcltM0L9lt6YSWtBgoBVdxxBSkNc+kwUb7T4bKJ/A8o9wZ1lhs0deAH
+5TuzCygk5XnqVTnn0u7sY7Tkxu7LFdDI6ztPNhCkasBrA+gpcsenEAA=
+-----END CERTIFICATE-----
+
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            fa:7c:2c:80:29:3f:c2:64
+        Signature Algorithm: md5WithRSAEncryption
+        Issuer: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2007/emailAddress=ca+ca-rsa2007@esmtp.org
+        Validity
+            Not Before: May  4 02:07:56 2007 GMT
+            Not After : May  3 02:07:56 2010 GMT
+        Subject: C=US, ST=California, L=Berkeley, O=Endmail Org, OU=MTA, CN=Claus Assmann CA RSA 2007/emailAddress=ca+ca-rsa2007@esmtp.org
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key: (2048 bit)
+                Modulus (2048 bit):
+                    00:b0:28:91:31:af:82:ce:72:ef:36:ab:7d:e9:b1:
+                    f5:77:66:38:4b:38:1f:5f:3d:12:d3:c8:fd:9a:f4:
+                    d4:f6:b8:90:f9:26:5f:29:f7:43:f9:34:ec:65:62:
+                    01:bb:64:f1:5d:ea:75:04:3d:92:65:60:a2:06:62:
+                    fa:88:ca:d8:20:50:c8:1e:38:53:b5:18:dd:b7:bd:
+                    c7:08:35:4c:d9:dc:c6:97:56:37:b6:65:33:74:5a:
+                    b2:c3:85:08:2b:b7:26:70:ff:38:02:1a:67:6a:d0:
+                    49:18:10:4b:f8:db:af:06:9c:b1:a8:82:a1:b1:75:
+                    d2:52:9b:53:0c:ca:a7:e3:15:38:79:6d:a1:f5:ef:
+                    7c:8b:fd:bd:04:78:f9:e8:1e:b9:92:ea:74:d7:45:
+                    1e:4c:c8:bd:f4:5c:fc:1a:7f:e7:31:c6:ab:cb:78:
+                    c7:4d:2f:b5:72:10:35:27:4a:1a:fa:53:19:f8:a7:
+                    59:63:eb:e9:15:ab:dc:71:69:8c:42:1c:96:4e:89:
+                    80:66:c9:9e:21:d5:3d:08:19:74:a5:f5:07:a0:ae:
+                    de:79:af:fd:42:c2:79:7e:8c:f8:39:22:3b:c3:c4:
+                    58:3b:d0:0d:e6:a9:11:b6:a2:cd:2e:e5:16:66:fd:
+                    7e:65:33:94:b0:36:80:27:f5:80:76:a9:e5:df:f2:
+                    cf:ef
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Key Identifier: 
+                B2:49:6B:52:45:EE:90:36:D2:79:47:03:33:D9:A0:BA:80:50:DA:1C
+            X509v3 Authority Key Identifier: 
+                keyid:B2:49:6B:52:45:EE:90:36:D2:79:47:03:33:D9:A0:BA:80:50:DA:1C
+                DirName:/C=US/ST=California/L=Berkeley/O=Endmail Org/OU=MTA/CN=Claus Assmann CA RSA 2007/emailAddress=ca+ca-rsa2007@esmtp.org
+                serial:FA:7C:2C:80:29:3F:C2:64
+
+            X509v3 Basic Constraints: 
+                CA:TRUE
+            X509v3 Subject Alternative Name: 
+                email:ca+ca-rsa2007@esmtp.org
+            X509v3 Issuer Alternative Name: 
+                email:ca+ca-rsa2007@esmtp.org
+    Signature Algorithm: md5WithRSAEncryption
+        98:98:7c:d3:d0:5b:72:47:15:e6:22:68:bb:78:0e:78:66:e9:
+        56:16:d8:bc:9d:5a:dc:27:29:fb:91:2d:6a:21:35:18:56:b4:
+        4f:2a:09:c0:08:6f:9a:59:2b:2e:72:9a:fb:50:ba:c7:a9:91:
+        a0:f9:6c:be:cf:78:42:43:02:70:53:97:ba:6a:e3:da:17:e8:
+        1f:c7:3a:5b:e7:bc:eb:e5:24:4c:f5:cf:61:34:1e:20:ed:17:
+        63:ef:81:d3:9e:25:fe:cc:05:19:cc:8a:82:c9:4c:3a:b5:6b:
+        49:51:76:46:02:aa:60:bb:c4:b9:61:48:33:da:79:8d:46:a3:
+        06:20:98:f3:b2:db:3b:ad:c9:1d:0e:97:3d:b7:14:19:d3:7d:
+        04:8b:6a:81:e0:11:5b:e1:35:a3:ff:2f:11:86:1c:31:85:7a:
+        fd:3f:36:ef:99:25:46:2e:b0:cb:43:45:4a:ec:be:d3:3f:a4:
+        77:9b:79:cc:ce:92:63:a5:d9:ed:db:a0:9d:5d:7c:d7:80:f6:
+        c9:41:fb:02:96:8e:fd:f3:da:05:9d:81:a7:25:da:26:35:3b:
+        a9:0c:8c:f5:a7:5d:48:ec:87:c7:7a:60:51:76:f2:de:9b:14:
+        2b:55:8a:43:df:99:19:f3:eb:e7:03:e6:a7:a2:a2:28:dd:d5:
+        07:6a:3f:f7
+-----BEGIN CERTIFICATE-----
+MIIFJzCCBA+gAwIBAgIJAPp8LIApP8JkMA0GCSqGSIb3DQEBBAUAMIGlMQswCQYD
+VQQGEwJVUzETMBEGA1UECBMKQ2FsaWZvcm5pYTERMA8GA1UEBxMIQmVya2VsZXkx
+FDASBgNVBAoTC0VuZG1haWwgT3JnMQwwCgYDVQQLEwNNVEExIjAgBgNVBAMTGUNs
+YXVzIEFzc21hbm4gQ0EgUlNBIDIwMDcxJjAkBgkqhkiG9w0BCQEWF2NhK2NhLXJz
+YTIwMDdAZXNtdHAub3JnMB4XDTA3MDUwNDAyMDc1NloXDTEwMDUwMzAyMDc1Nlow
+gaUxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMREwDwYDVQQHEwhC
+ZXJrZWxleTEUMBIGA1UEChMLRW5kbWFpbCBPcmcxDDAKBgNVBAsTA01UQTEiMCAG
+A1UEAxMZQ2xhdXMgQXNzbWFubiBDQSBSU0EgMjAwNzEmMCQGCSqGSIb3DQEJARYX
+Y2ErY2EtcnNhMjAwN0Blc210cC5vcmcwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+ggEKAoIBAQCwKJExr4LOcu82q33psfV3ZjhLOB9fPRLTyP2a9NT2uJD5Jl8p90P5
+NOxlYgG7ZPFd6nUEPZJlYKIGYvqIytggUMgeOFO1GN23vccINUzZ3MaXVje2ZTN0
+WrLDhQgrtyZw/zgCGmdq0EkYEEv4268GnLGogqGxddJSm1MMyqfjFTh5baH173yL
+/b0EePnoHrmS6nTXRR5MyL30XPwaf+cxxqvLeMdNL7VyEDUnShr6Uxn4p1lj6+kV
+q9xxaYxCHJZOiYBmyZ4h1T0IGXSl9Qegrt55r/1Cwnl+jPg5IjvDxFg70A3mqRG2
+os0u5RZm/X5lM5SwNoAn9YB2qeXf8s/vAgMBAAGjggFWMIIBUjAdBgNVHQ4EFgQU
+sklrUkXukDbSeUcDM9mguoBQ2hwwgdoGA1UdIwSB0jCBz4AUsklrUkXukDbSeUcD
+M9mguoBQ2hyhgaukgagwgaUxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9y
+bmlhMREwDwYDVQQHEwhCZXJrZWxleTEUMBIGA1UEChMLRW5kbWFpbCBPcmcxDDAK
+BgNVBAsTA01UQTEiMCAGA1UEAxMZQ2xhdXMgQXNzbWFubiBDQSBSU0EgMjAwNzEm
+MCQGCSqGSIb3DQEJARYXY2ErY2EtcnNhMjAwN0Blc210cC5vcmeCCQD6fCyAKT/C
+ZDAMBgNVHRMEBTADAQH/MCIGA1UdEQQbMBmBF2NhK2NhLXJzYTIwMDdAZXNtdHAu
+b3JnMCIGA1UdEgQbMBmBF2NhK2NhLXJzYTIwMDdAZXNtdHAub3JnMA0GCSqGSIb3
+DQEBBAUAA4IBAQCYmHzT0FtyRxXmImi7eA54ZulWFti8nVrcJyn7kS1qITUYVrRP
+KgnACG+aWSsucpr7ULrHqZGg+Wy+z3hCQwJwU5e6auPaF+gfxzpb57zr5SRM9c9h
+NB4g7Rdj74HTniX+zAUZzIqCyUw6tWtJUXZGAqpgu8S5YUgz2nmNRqMGIJjzsts7
+rckdDpc9txQZ030Ei2qB4BFb4TWj/y8RhhwxhXr9PzbvmSVGLrDLQ0VK7L7TP6R3
+m3nMzpJjpdnt26CdXXzXgPbJQfsClo7989oFnYGnJdomNTupDIz1p11I7IfHemBR
+dvLemxQrVYpD35kZ8+vnA+anoqIo3dUHaj/3
+-----END CERTIFICATE-----

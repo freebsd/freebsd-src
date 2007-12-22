@@ -1,0 +1,38 @@
+ $FreeBSD$
+
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+#include <i386/ibcs2/ibcs2_xenix.h>
+
+0	AUE_NULL	UNIMPL	nosys
+1	AUE_NULL	UNIMPL	isc_setostype
+2	AUE_RENAME	NOPROTO	{ int ibcs2_rename(char *from, char *to); }
+3	AUE_NULL	NOPROTO	{ int ibcs2_sigaction(int sig, \
+				    struct ibcs2_sigaction *act, \
+				    struct ibcs2_sigaction *oact); }
+4	AUE_NULL	NOPROTO	{ int ibcs2_sigprocmask(int how, \
+				    ibcs2_sigset_t *set, \
+				    ibcs2_sigset_t *oset); }
+5	AUE_NULL	NOPROTO	{ int ibcs2_sigpending(ibcs2_sigset_t *mask); }
+6	AUE_GETGROUPS	NOPROTO	{ int getgroups(u_int gidsetsize, \
+				    gid_t *gidset); }
+7	AUE_SETGROUPS	NOPROTO	{ int setgroups(u_int gidsetsize, \
+				    gid_t *gidset); }
+8	AUE_PATHCONF	NOPROTO	{ int ibcs2_pathconf(char *path, int name); }
+9	AUE_FPATHCONF	NOPROTO	{ int ibcs2_fpathconf(int fd, int name); }
+10	AUE_NULL	UNIMPL	nosys
+11	AUE_WAIT4	NOPROTO	{ int ibcs2_wait(int a1, int a2, int a3); }
+12	AUE_SETSID	NOPROTO	{ int setsid(void); }
+13	AUE_GETPID	NOPROTO	{ pid_t getpid(void); }
+14	AUE_NULL	UNIMPL	isc_adduser
+15	AUE_NULL	UNIMPL	isc_setuser
+16	AUE_NULL	NOPROTO	{ int ibcs2_sysconf(int name); }
+17	AUE_NULL	NOPROTO	{ int ibcs2_sigsuspend(ibcs2_sigset_t *mask); }
+18	AUE_SYMLINK	NOPROTO	{ int ibcs2_symlink(char *path, char *link); }
+19	AUE_READLINK	NOPROTO	{ int ibcs2_readlink(char *path, char *buf, \
+				    int count); }
+20	AUE_NULL	UNIMPL	isc_getmajor

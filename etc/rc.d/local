@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# $NetBSD: local,v 1.6 2002/03/22 04:33:59 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: local
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="local"
+start_cmd="local_start"
+stop_cmd="local_stop"
+
+local_start()
+{
+	echo -n 'Starting local daemons:'
+	if [ -f /etc/rc.local ]; then
+		. /etc/rc.local
+	fi
+	echo '.'
+}
+
+local_stop()
+{
+	echo -n 'Shutting down local daemons:'
+	if [ -f /etc/rc.shutdown.local ]; then
+		. /etc/rc.shutdown.local
+	fi
+	echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

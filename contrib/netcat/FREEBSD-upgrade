@@ -1,0 +1,17 @@
+$FreeBSD$
+
+1. Export from OpenBSD's nc(1) into an empty directory (say "v-nc").
+2. while read pattern; do rm ${pattern} ; done < FREEBSD-Xlist
+3. Checkout our contrib/netcat to another directory (say "f-nc"),
+   with -rOPENBSD, and usr.bin/nc to its ../../
+4. copy the files from v-nc to f-nc
+5. do cvs up -A in f-nc
+6. If there is conflicits, try to resolve them.
+7. do build in f-nc/../../usr.bin/nc
+8. If everything seems ok, do the actual import in v-nc:
+	cvs -n import src/contrib/netcat OPENBSD OPENBSD_<date>
+   Everything appears be Ok? Do:
+	cvs import src/contrib/netcat OPENBSD OPENBSD_<date>
+9. Resolve the conflicits with the patchset obtained in step 6.
+
+delphij@FreeBSD.org - 06 Feb 2005

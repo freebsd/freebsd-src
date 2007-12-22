@@ -1,0 +1,153 @@
+# $FreeBSD$
+
+errors.o: bconfig.h auto-host.h
+
+genattr.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genattrtab.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  gtype-desc.h
+
+genautomata.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+gencheck.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  gencheck.h
+
+genchecksum.o: bconfig.h \
+  auto-host.h
+
+gencodes.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genconditions.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genconfig.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genconstants.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genemit.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genextract.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  insn-config.h
+
+genflags.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+gengenrtl.o: bconfig.h auto-host.h
+
+gengtype.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  gtyp-gen.h
+
+genmddeps.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genmodes.o: bconfig.h auto-host.h
+
+genopinit.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genoutput.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genpeep.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genpreds.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+genrecog.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+gensupport.o: bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+ggc-none.o: bconfig.h auto-host.h \
+  gtype-desc.h
+
+print-rtl.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+read-rtl.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+rtl.o: bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h \
+  gtype-desc.h
+
+insn-modes.o: insn-modes.c config.h auto-host.h \
+  tm.h options.h \
+  insn-modes.h
+
+min-insn-modes.o: min-insn-modes.c bconfig.h auto-host.h \
+  insn-modes.h
+
+gengtype-lex.o: gengtype-lex.c \
+  bconfig.h auto-host.h \
+  gengtype-yacc.h
+
+gengtype-yacc+%DIKED.o: gengtype-yacc+%DIKED.c \
+  bconfig.h \
+  auto-host.h \
+  tm.h options.h \
+
+insn-conditions.o: insn-conditions.c bconfig.h auto-host.h \
+  insn-constants.h \
+  tm.h options.h \
+  insn-modes.h \
+  tm_p.h \
+  tm-preds.h \
+  options.h
+
+gencondmd.o: gencondmd.c \
+  tm.h options.h tm_p.h \
+  tm-preds.h tm-constrs.h tree-check.h \
+  insn-constants.h
+
+gencondmd.o: gencondmd.c bconfig.h auto-host.h \
+  tm.h options.h \
+  insn-constants.h \
+  insn-modes.h \
+  tm_p.h \
+  tm-preds.h \
+  tree-check.h \
+  tm-constrs.h
+
+vec.o: vec.c bconfig.h auto-host.h \
+  insn-modes.h \
+  tree-check.h \
+  gtype-desc.h
