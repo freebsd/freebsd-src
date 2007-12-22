@@ -1,0 +1,14 @@
+2004-04-08  Alan Modra  <amodra@bigpond.net.au>
+
+	Apply from mainline.
+	2004-03-27  Alan Modra  <amodra@bigpond.net.au>
+	* bfdint.texi: Remove all mention of elflink.h.
+
+For older changes see ChangeLog-9103
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

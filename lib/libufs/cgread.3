@@ -1,0 +1,106 @@
+.\" Author:	Juli Mallett <jmallett@FreeBSD.org>
+.\" Date:	June 04, 2003
+.\" Description:
+.\" 	Manual page for libufs functions:
+.\"		cgread(3)
+.\"		cgread1(3)
+.\"		cgwrite1(3)
+.\"
+.\" This file is in the public domain.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 4, 2003
+.Dt CGREAD 3
+.Os
+.Sh NAME
+.Nm cgread , cgread1, cgwrite1
+.Nd read/write cylinder groups of UFS disks
+.Sh LIBRARY
+.Lb libufs
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In ufs/ufs/ufsmount.h
+.In ufs/ufs/dinode.h
+.In ufs/ffs/fs.h
+.In libufs.h
+.Ft int
+.Fn cgread "struct uufsd *disk"
+.Ft int
+.Fn cgread1 "struct uufsd *disk" "int c"
+.Ft int
+.Fn cgwrite1 "struct uufsd *disk" "int c"
+.Sh DESCRIPTION
+The
+.Fn cgread
+and
+.Fn cgread1
+functions provide cylinder group reads for
+.Xr libufs 3
+consumers.
+The
+.Fn cgread1
+function reads from one cylinder group, specified by
+.Fa c
+into the
+.Va d_cg
+field of a userland UFS disk structure.
+It sets the
+.Va d_lcg
+field to the cylinder group number
+.Fa c .
+.Pp
+The
+.Fn cgread
+function operates on sequential cylinder groups.
+Calling the
+.Fn cgread
+function is equivalent to calling
+.Fn cgread1
+with a cylinder group specifier equivalent to the value of the current
+.Va d_ccg
+field, and then incrementing the
+.Va d_ccg
+field.
+.Pp
+The
+.Fn cgwrite1
+function stores cylinder group specified by
+.Fa c
+from
+.Va d_cg
+field of a userland UFS disk structure on disk.
+.Sh RETURN VALUES
+Both functions return 0 if there are no more cylinder groups to read,
+1 if there are more cylinder groups, and \-1 on error.
+.Sh ERRORS
+The function
+.Fn cgread
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bread 3 .
+.Pp
+The function
+.Fn cgread1
+has semantically identical failure conditions to those of
+.Fn cgread .
+.Pp
+The function
+.Fn cgwrite1
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bwrite 3 .
+.Sh SEE ALSO
+.Xr bread 3 ,
+.Xr bwrite 3 ,
+.Xr libufs 3
+.Sh HISTORY
+These functions first appeared as part of
+.Xr libufs 3
+in
+.Fx 5.1 .
+.Sh AUTHORS
+.An Juli Mallett Aq jmallett@FreeBSD.org

@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: devd
+# REQUIRE: netif network_ipv6
+# BEFORE: NETWORKING mountcritremote
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="devd"
+rcvar=`set_rcvar`
+command="/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"
+
+# If devd is disabled, turn it off in the kernel to avoid memory leaks.
+if ! checkyesno ${rcvar}; then
+    sysctl hw.bus.devctl_disable=1
+fi

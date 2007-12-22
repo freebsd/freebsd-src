@@ -1,0 +1,227 @@
+
+
+
+
+
+
+Network Working Group                                            R. Bush
+Request for Comments: 3152                                         RGnet
+BCP: 49                                                      August 2001
+Updates: 2874, 2772, 2766, 2553, 1886
+Category: Best Current Practice
+
+
+                         Delegation of IP6.ARPA
+
+Status of this Memo
+
+   This document specifies an Internet Best Current Practices for the
+   Internet Community, and requests discussion and suggestions for
+   improvements.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2001).  All Rights Reserved.
+
+Abstract
+
+   This document discusses the need for delegation of the IP6.ARPA DNS
+   zone, and specifies a plan for the technical operation thereof.
+
+1. Why IP6.ARPA?
+
+   In the IPv6 address space, there is a need for 'reverse mapping' of
+   addresses to DNS names analogous to that provided by the IN-ADDR.ARPA
+   zone for IPv4.
+
+   The IAB recommended that the ARPA top level domain (the name is now
+   considered an acronym for "Address and Routing Parameters Area") be
+   used for technical infrastructure sub-domains when possible.  It is
+   already in use for IPv4 reverse mapping and has been established as
+   the location for E.164 numbering on the Internet [RFC2916 RFC3026].
+
+   IETF consensus was reached that the IP6.ARPA domain be used for
+   address to DNS name mapping for the IPv6 address space [RFC2874].
+
+2. Obsoleted Usage
+
+   This document deprecates references to IP6.INT in [RFC1886] section
+   2.5, [RFC2553] section 6.2.3, [RFC2766] section 4.1, [RFC2772]
+   section 7.1.c, and [RFC2874] section 2.5.
+
+   In this context, 'deprecate' means that the old usage is not
+   appropriate for new implementations, and IP6.INT will likely be
+   phased out in an orderly fashion.
+
+
+
+Bush                     Best Current Practice                  [Page 1]
+
+RFC 3152                 Delegation of IP6.ARPA              August 2001
+
+
+3. IANA Considerations
+
+   This memo requests that the IANA delegate the IP6.ARPA domain
+   following instructions to be provided by the IAB.  Names within this
+   zone are to be further delegated to the regional IP registries in
+   accordance with the delegation of IPv6 address space to those
+   registries.  The names allocated should be hierarchic in accordance
+   with the address space assignment.
+
+4. Security Considerations
+
+   While DNS spoofing of address to name mapping has been exploited in
+   IPv4, delegation of the IP6.ARPA zone creates no new threats to the
+   security of the internet.
+
+5. References
+
+   [RFC1886]   Thomson, S. and C. Huitema, "DNS Extensions to support IP
+               version 6", RFC 1886, December 1995.
+
+   [RFC2553]   Gilligan, R., Thomson, S., Bound, J. and W. Stevens,
+               "Basic Socket Interface Extensions for IPv6", RFC 2553,
+               March 1999.
+
+   [RFC2766]   Tsirtsis, G. and P. Srisuresh, "Network Address
+               Translation - Protocol Translation (NAT-PT)", RFC 2766,
+               February 2000.
+
+   [RFC2772]   Rockell, R. and R. Fink, "6Bone Backbone Routing
+               Guidelines", RFC 2772, February 2000.
+
+   [RFC2874]   Crawford, M. and C. Huitema, "DNS Extensions to Support
+               IPv6 Address Aggregation and Renumbering", RFC 2874, July
+               2001.
+
+   [RFC2916]   Faltstrom, P., "E.164 number and DNS", RFC 2916,
+               September 2000.
+
+   [RFC3026]   Blane, R., "Liaison to IETF/ISOC on ENUM", RFC 3026,
+               January 2001.
+
+
+
+
+
+
+
+
+
+
+
+Bush                     Best Current Practice                  [Page 2]
+
+RFC 3152                 Delegation of IP6.ARPA              August 2001
+
+
+6. Author's Address
+
+   Randy Bush
+   5147 Crystal Springs
+   Bainbridge Island, WA US-98110
+
+   Phone: +1 206 780 0431
+   EMail: randy@psg.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bush                     Best Current Practice                  [Page 3]
+
+RFC 3152                 Delegation of IP6.ARPA              August 2001
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2001).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bush                     Best Current Practice                  [Page 4]
+

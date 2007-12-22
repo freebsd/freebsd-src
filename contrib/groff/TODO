@@ -1,0 +1,25 @@
+Unicode input:
+  Making groff 21bit input-clean.
+
+Make -Tlj4 work with -X.
+
+Guess man5ext and man7ext variables.
+
+Provide man.sun implementing .TX.
+
+Improve GROFF_PRINT macro in aclocal.m4.
+
+Provide a `check' target.
+
+Provide a `bindist' target.
+
+Implement tmac.bib in terms of tmac.s.
+
+Support long options using GNU getopt.
+
+Catch the following error in -me:
+.(z
+.(l C
+.)z
+
+Arrows for next/previous page from R5 xditview.

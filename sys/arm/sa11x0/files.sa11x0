@@ -1,0 +1,11 @@
+# $FreeBSD$
+arm/sa11x0/assabet_machdep.c	optional	assabet
+arm/sa11x0/sa11x0.c		optional	saip
+arm/sa11x0/sa11x0_ost.c		optional	saip
+arm/sa11x0/sa11x0_io.c		optional	saip
+arm/sa11x0/sa11x0_io_asm.S 	optional	saip
+arm/sa11x0/sa11x0_irq.S		optional	saip
+arm/sa11x0/sa11x0_irqhandler.c 	optional	saip
+arm/sa11x0/uart_cpu_sa1110.c 	optional	uart saip
+arm/sa11x0/uart_dev_sa1110.c	optional	uart saip
+arm/sa11x0/uart_bus_sa1110.c	optional	uart saip

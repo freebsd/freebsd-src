@@ -1,0 +1,53 @@
+Note that all \[charXXX] entity names have been removed from the font files.
+They don't make sense for Unicode.
+
+The following entity from the original troff manual (by Ossanna and
+Kernighan) is unmapped:
+
+  bs    shaded solid ball (Bell System logo, AT&T logo)
+
+Character 0x002D has not been given a name because its Unicode name
+HYPHEN-MINUS is so ambiguous that it is unusable for serious typographic
+use.
+
+\[wp] has been mapped to 0x2118, because according to Unicode 4.1's
+NamesList.txt, U+2118 SCRIPT CAPITAL P is really a Weierstrass `p',
+neither SCRIPT not CAPITAL.
+
+The following line could be added; \[space] is known to devps but is not
+documented and not known to devdvi (actually, there is no space glyph within
+the TeX system).
+
+  space   24   0   0x0020
+
+devps maps \[a~] and `~' to `asciitilde', which is equivalent to 0x02DC, but
+this glyph is just too small.  We map them to 0x007E instead.
+
+devps maps \[a^] and `^' to `circumflex', which is equivalent to 0x02C6, but
+this glyph is just too small.  We map them to 0x005E instead.
+
+devps maps \[*U] to `Upsilon1', which is equivalent to 0x03D2.  We map it to
+0x03A5 instead.
+
+devps maps \[*W] to `Omega', which is equivalent to either 0x2126 or 0x03A9.
+We map it to 0x03A9.
+
+devps maps \[*D] to `Delta', which is equivalent to either 0x2206 or 0x0394.
+We map it to 0x0394.
+
+
+Adding Unicode characters
+-------------------------
+
+Assume you want to use a Unicode character not provided in the list, say
+U+20AC. You need to do two things:
+
+- Add a line
+
+    u20AC   24   0   0x20AC
+
+  (the second column is computed as 24 * wcwidth(0x20AC)) to the file
+  R.proto, or, when groff is already installed, to the four fonts files in
+  $(prefix)/share/groff/<version>/font/devutf8/.
+
+- In your source file, use the notation \[u20AC] to access it.

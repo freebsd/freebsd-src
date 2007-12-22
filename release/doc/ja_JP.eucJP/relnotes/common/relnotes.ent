@@ -1,0 +1,20 @@
+<!-- -*- sgml -*- -->
+
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.3
+-->
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- The marker for MFCs. -->
+<!ENTITY merged "[MFC บั]">
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+
+<!-- Files to be included -->
+<!ENTITY art SYSTEM "../common/new.sgml">

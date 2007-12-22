@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# $NetBSD: nfslocking,v 1.6 2002/03/24 15:52:41 lukem Exp $
+# FreeBSD History: src/etc/rc.d/nfslocking,v 1.11 2004/10/07 13:55:26 mtm
+# $FreeBSD$
+#
+
+# PROVIDE: lockd
+# REQUIRE: nfsserver nfsclient nfsd rpcbind statd
+# BEFORE:  DAEMON
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="lockd"
+rcvar=rpc_lockd_enable
+command="/usr/sbin/rpc.${name}"
+start_precmd='lockd_precmd'
+stop_precmd='checkyesno nfs_server_enable || checkyesno nfs_client_enable'
+status_precmd=$stop_precmd
+
+# Make sure that we are either an NFS client or server, and that we get
+# the correct flags from rc.conf(5).
+#
+lockd_precmd()
+{
+	local ret
+	ret=0
+
+	if ! checkyesno nfs_server_enable && ! checkyesno nfs_client_enable
+	then
+		ret=1
+	fi
+	if ! checkyesno rpcbind_enable && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || ret=1
+	fi
+	rc_flags=${rpc_lockd_flags}
+	return ${ret}
+}
+
+load_rc_config $name
+run_rc_command $1

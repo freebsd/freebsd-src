@@ -1,0 +1,111 @@
+#!/bin/sh -
+#
+# $NetBSD: zdiff,v 1.3 2004/03/29 10:01:00 wiz Exp $
+# $OpenBSD: zdiff,v 1.2 2003/07/29 07:42:44 otto Exp $
+#
+#-
+# Copyright (c) 2003 Todd C. Miller <Todd.Miller@courtesan.com>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+# Sponsored in part by the Defense Advanced Research Projects
+# Agency (DARPA) and Air Force Research Laboratory, Air Force
+# Materiel Command, USAF, under agreement number F39502-99-1-0512.
+#
+# $FreeBSD$
+
+# Set $prog based on $0
+case $0 in
+	*cmp)	prog=cmp
+		;;
+	*)	prog=diff
+		;;
+esac
+USAGE="usage: z$prog [options] file1 [file2]"
+
+# Pull out any command line flags so we can pass them to diff/cmp
+# XXX - assumes there is no optarg
+flags=
+while test $# -ne 0; do
+	case "$1" in
+		--)
+			shift
+			break
+			;;
+		-*)
+			flags="$flags $1"
+			shift
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+if [ $# -eq 1 ]; then
+	# One file given, compare compressed to uncompressed
+	files="$1"
+	case "$1" in
+		*[._-][Zz])
+			files="${1%??}"
+			;;
+		*[._-]gz)
+			files="${1%???}"
+			;;
+		*.t[ag]z)
+			files="${1%??}"ar
+			;;
+		*)	echo "z$prog: unknown suffix" 1>&2
+			exit 1
+	esac
+	gzip -cdfq "$1" | $prog $flags - "$files"
+	status=$?
+elif [ $# -eq 2 ]; then
+	# Two files given, compare the two uncompressing as needed
+	case "$1" in
+		*[._-][Zz]|*[._-]gz|*.t[ag]z)
+			files=-
+			filt="gzip -cdfq $1"
+			;;
+		*)
+			files="$1"
+			;;
+	esac
+	case "$2" in
+		*[._-][Zz]|*[._-]gz|*.t[ag]z)
+			if [ "$files" = "-" ]; then
+				tmp=`mktemp -t z$prog.XXXXXXXXXX` || exit 1
+				trap "rm -f $tmp" 0 1 2 3 13 15
+				gzip -cdfq "$2" > $tmp
+				files="$files $tmp"
+			else
+				files="$files -"
+				filt="gzip -cdfq $2"
+			fi
+			;;
+		*)
+			files="$files $2"
+			;;
+	esac
+	if [ -n "$filt" ]; then
+		$filt | $prog $flags $files
+	else
+		$prog $flags $files
+	fi
+	status=$?
+else
+	echo "$USAGE" 1>&2
+	exit 1
+fi
+
+exit $status

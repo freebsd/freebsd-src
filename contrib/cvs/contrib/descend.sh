@@ -1,0 +1,115 @@
+#! /bin/sh
+#
+# descend - walk down a directory tree and execute a command at each node
+
+fullname=$0
+name=descend
+usage="Usage: $name [-afqrv] command [directory ...]\n
+\040\040-a\040\040All: descend into directories starting with '.'\n
+\040\040-f\040\040Force: ignore errors during descent\n
+\040\040-q\040\040Quiet: don't print directory names\n
+\040\040-r\040\040Restricted: don't descend into RCS, CVS.adm, SCCS directories\n
+\040\040-v\040\040Verbose: print command before executing it"
+
+# Scan for options
+while getopts afqrv option; do
+    case $option in
+	a)
+	    alldirs=$option
+	    options=$options" "-$option
+	    ;;
+	f)
+	    force=$option
+	    options=$options" "-$option
+	    ;;
+	q)
+	    verbose=
+	    quiet=$option
+	    options=$options" "-$option
+	    ;;
+	r)
+	    restricted=$option
+	    options=$options" "-$option
+	    ;;
+	v)
+	    verbose=$option
+	    quiet=
+	    options=$options" "-$option
+	    ;;
+	\?)
+	    /usr/5bin/echo $usage 1>&2
+	    exit 1
+	    ;;
+    esac
+done
+shift `expr $OPTIND - 1`
+
+# Get command to execute
+if [ $# -lt 1 ] ; then
+    /usr/5bin/echo $usage 1>&2
+    exit 1
+else
+    command=$1
+    shift
+fi
+
+# If no directory specified, use '.'
+if [ $# -lt 1 ] ; then
+    default_dir=.
+fi
+
+# For each directory specified
+for dir in $default_dir "$@" ; do
+
+    # Spawn sub-shell so we return to starting directory afterward
+    (cd $dir
+
+	# Execute specified command
+	if [ -z "$quiet" ] ; then
+	    echo In directory `hostname`:`pwd`
+	fi
+	if [ -n "$verbose" ] ; then
+	    echo $command
+	fi
+	eval "$command" || if [ -z "$force" ] ; then exit 1; fi
+
+	# Collect dot file names if necessary
+	if [ -n "$alldirs" ] ; then
+	    dotfiles=.*
+	else
+	    dotfiles=
+	fi
+
+	# For each file in current directory
+	for file in $dotfiles * ; do
+
+	    # Skip '.' and '..'
+	    if [ "$file" = "." -o "$file" = ".." ] ; then
+		continue
+	    fi
+
+	    # If a directory but not a symbolic link
+	    if [ -d "$file" -a ! -h "$file" ] ; then
+
+		# If not skipping this type of directory
+		if [ \( "$file" != "RCS" -a \
+			"$file" != "SCCS" -a \
+			"$file" != "CVS" -a \
+			"$file" != "CVS.adm" \) \
+			-o -z "$restricted" ] ; then
+
+		    # Recursively descend into it
+		    $fullname $options "$command" "$file" \
+		    || if [ -z "$force" ] ; then exit 1; fi
+		fi
+
+	    # Else if a directory AND a symbolic link
+	    elif [ -d "$file" -a -h "$file" ] ; then
+
+		if [ -z "$quiet" ] ; then
+		    echo In directory `hostname`:`pwd`/$file: symbolic link: skipping
+		fi
+	    fi
+	done
+    ) || if [ -z "$force" ] ; then exit 1; fi
+done

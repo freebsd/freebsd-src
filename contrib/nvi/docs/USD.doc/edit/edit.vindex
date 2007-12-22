@@ -1,0 +1,115 @@
+.\" Copyright (c) 1980, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)edit.vindex	8.1 (Berkeley) 6/8/93
+.\"
+.bd I
+.ND
+.TL
+Index
+.sp 3
+.2C
+.nf
+addressing, \fIsee\fR line numbers
+append mode, 4
+backslash (\\), 18
+buffer, 2
+command mode, 4
+context search, 8, 10, 13, 18
+control characters (``^'' notation), 8
+control-d, 6
+current filename, 19, 20
+current line (.), 9, 15
+diagnostic messages, 4
+disk, 2
+documentation, 21
+edit (to begin editing session), 3, 7
+editing commands:
+.in +2
+append (a), 4, 7
+change (c), 16
+copy (co), 13
+delete (d), 13-14
+edit (e), 12
+file (f), 19
+global (g), 18-19
+move (m), 12-13
+number (nu), 9
+preserve (pre), 20-21
+print (p), 8
+quit (q), 5, 11
+quit! (q!), 11
+read (r), 20
+recover (rec), 20
+substitute (s), 9-10, 17, 18
+undo (u), 14, 17
+write (w), 5-6, 11, 19-20
+z, 11
+.sp 10i
+! (shell escape), 19
+$= , 15
++, 15
+\-, 15
+//, 8, 18
+??, 18
+\&\fB.\fR, 9, 15
+\&\fB.\fR=, 9, 15
+.in -2
+erasing
+.ti +2
+characters (#), 8
+.ti +2
+lines (@), 8
+ex (text editor), 21
+\fIEx Reference Manual\fR, 21
+file, 1
+file recovery, 20
+filename, 2
+Interrupt (message), 7
+line numbers, \fIsee also\fR current line
+.ti +2
+dollar sign ($), 8, 12-13, 15
+.ti +2
+dot (.), 9, 15
+.ti +2
+relative (+ and \-), 15, 16
+logging out, 6
+login procedure, 2
+``magic'' characters, 21
+non-printing characters, 8
+``not found'' (message), 3
+program, 1
+recovery \fIsee\fR file recovery
+shell, 18
+shell escape (!), 19
+special characters (^, $, \e), 18
+text input mode, 4
+UNIX, 1
