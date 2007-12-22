@@ -28,6 +28,10 @@ else:
 def disc1_packages():
     pkgs = ['lang/perl5.8']
     pkgs.extend(['x11/xorg',
+		 'x11-drivers/xorg-drivers',
+		 'x11-fonts/xorg-fonts',
+		 'x11-servers/xorg-nestserver',
+		 'x11-servers/xorg-vfbserver',
                  'devel/imake'])
     if arch == 'i386':
         pkgs.append('emulators/linux_base-fc4')
@@ -44,7 +48,10 @@ def disc2_packages():
     else:
 	pkgs = ['x11/gnome2',
 		'x11/kde3']
-    pkgs.extend(['x11-wm/afterstep',
+    return pkgs
+
+def disc3_packages():
+    pkgs = ['x11-wm/afterstep',
             'x11-wm/windowmaker',
             'x11-wm/fvwm2',
             # "Nice to have"
@@ -83,14 +90,15 @@ def disc2_packages():
             'www/lynx',
             'x11/rxvt',
             # Formerly on disc3
-            'ports-mgmt/portaudit'])
+            'ports-mgmt/portaudit']
     return pkgs
 
 # The list of desired packages
 def desired_packages():
     disc1 = disc1_packages()
     disc2 = disc2_packages()
-    return [disc1, disc2]
+    disc3 = disc3_packages()
+    return [disc1, disc2, disc3]
 
 # Suck the entire INDEX file into a two different dictionaries.  The first
 # dictionary maps port names (origins) to package names.  The second
