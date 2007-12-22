@@ -65,9 +65,11 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
@@ -457,6 +459,9 @@ in6_pcbdetach(inp)
 		(void)m_free(inp->inp_options);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
+#ifdef MAC
+	mac_destroy_inpcb(inp);
+#endif
 	INP_UNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
 }
