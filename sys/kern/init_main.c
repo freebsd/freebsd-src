@@ -421,6 +421,7 @@ proc0_init(void *dummy __unused)
 	knlist_init(&p->p_klist, &p->p_mtx, NULL, NULL, NULL);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
+	td->td_tid = PID_MAX + 1;
 	td->td_state = TDS_RUNNING;
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
