@@ -251,7 +251,8 @@ threadinit(void)
 {
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
-	tid_unrhdr = new_unrhdr(PID_MAX + 1, INT_MAX, &tid_lock);
+	/* leave one number for thread0 */
+	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
