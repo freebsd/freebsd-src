@@ -44,7 +44,7 @@
 
 #ifndef NOPAM
 #include <security/pam_appl.h>
-#ifdef _OPENPAM
+#ifdef OPENPAM
 #include <security/openpam.h>
 #endif
 #endif /* !NOPAM */
@@ -101,7 +101,7 @@ Auth2Nam(u_short auth, u_char type)
   return "unknown";
 }
 
-#if !defined(NOPAM) && !defined(_OPENPAM)
+#if !defined(NOPAM) && !defined(OPENPAM)
 static int
 pam_conv(int n, const struct pam_message **msg, struct pam_response **resp,
   void *data)
@@ -116,7 +116,7 @@ pam_conv(int n, const struct pam_message **msg, struct pam_response **resp,
 
   return ((*resp)[0].resp != NULL ? PAM_SUCCESS : PAM_CONV_ERR);
 }
-#endif /* !defined(NOPAM) && !defined(_OPENPAM) */
+#endif /* !defined(NOPAM) && !defined(OPENPAM) */
 
 static int
 auth_CheckPasswd(const char *name, const char *data, const char *key)
@@ -137,16 +137,16 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
     int status;
 
     struct pam_conv pamc = {
-#ifdef _OPENPAM
+#ifdef OPENPAM
       &openpam_nullconv, NULL
 #else
-      &pam_conv, (char *)key
+      &pam_conv, key
 #endif
     };
 
     if (pam_start("ppp", name, &pamc, &pamh) != PAM_SUCCESS)
       return (0);
-#ifdef _OPENPAM
+#ifdef OPENPAM
     if ((status = pam_set_item(pamh, PAM_AUTHTOK, key)) == PAM_SUCCESS)
 #endif
       status = pam_authenticate(pamh, 0);
