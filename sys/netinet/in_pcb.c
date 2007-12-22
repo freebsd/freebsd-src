@@ -197,8 +197,12 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #else
 	error = ipsec_init_pcbpolicy(so, &inp->inp_sp);
 #endif
-	if (error != 0)
+	if (error != 0) {
+#ifdef MAC
+		mac_destroy_inpcb(inp);
+#endif
 		goto out;
+	}
 #endif /*IPSEC*/
 #if defined(INET6)
 	if (INP_SOCKAF(so) == AF_INET6) {
