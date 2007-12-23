@@ -213,7 +213,7 @@ static long
 board_init(void)
 {
 	/*
-	 * Since the USART supprots RS-485 multidrop mode, it allows the
+	 * Since the USART supports RS-485 multidrop mode, it allows the
 	 * TX pins to float.  However, for RS-232 operations, we don't want
 	 * these pins to float.  Instead, they should be pulled up to avoid
 	 * mismatches.  Linux does something similar when it configures the
