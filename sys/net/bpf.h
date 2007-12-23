@@ -536,7 +536,7 @@ struct bpf_hdr {
 
 /*
  * Juniper-private data link type, as per request from
- * Hannes Gredler <hannes@juniper.net>. 
+ * Hannes Gredler <hannes@juniper.net>.
  * The DLT_ are used for prepending meta-information
  * like interface index, interface name
  * before standard Ethernet, PPP, Frelay & C-HDLC Frames
@@ -553,7 +553,7 @@ struct bpf_hdr {
 
 /*
  * Juniper-private data link type, as per request from
- * Hannes Gredler <hannes@juniper.net>. 
+ * Hannes Gredler <hannes@juniper.net>.
  * The DLT_ is used for internal communication with a
  * voice Adapter Card (PIC)
  */
@@ -628,7 +628,7 @@ struct bpf_hdr {
 
 /*
  * Juniper-private data link type, as per request from
- * Hannes Gredler <hannes@juniper.net>. 
+ * Hannes Gredler <hannes@juniper.net>.
  * The DLT_ is used for internal communication with a
  * integrated service module (ISM).
  */
@@ -669,7 +669,7 @@ struct bpf_hdr {
 
 /*
  * Juniper-private data link type, as per request from
- * Hannes Gredler <hannes@juniper.net>. 
+ * Hannes Gredler <hannes@juniper.net>.
  * The DLT_ is used for capturing data on a secure tunnel interface.
  */
 #define DLT_JUNIPER_ST          200

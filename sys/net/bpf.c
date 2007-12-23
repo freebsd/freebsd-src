@@ -726,7 +726,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	struct bpf_d *d = dev->si_drv1;
 	int error = 0;
 
-	/* 
+	/*
 	 * Refresh PID associated with this descriptor.
 	 */
 	BPFD_LOCK(d);
@@ -741,7 +741,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case BIOCGBLEN:
 		case BIOCFLUSH:
 		case BIOCGDLT:
-		case BIOCGDLTLIST: 
+		case BIOCGDLTLIST:
 		case BIOCGETIF:
 		case BIOCGRTIMEOUT:
 		case BIOCGSTATS:
@@ -1224,7 +1224,7 @@ bpfkqfilter(struct cdev *dev, struct knote *kn)
 	if (kn->kn_filter != EVFILT_READ)
 		return (1);
 
-	/* 
+	/*
 	 * Refresh PID associated with this descriptor.
 	 */
 	BPFD_LOCK(d);
