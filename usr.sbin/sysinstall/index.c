@@ -270,6 +270,18 @@ copy_to_sep(char *to, char *from, int sep)
 }
 
 static int
+skip_to_sep(char *from, int sep)
+{
+    char *tok;
+
+    tok = strchr(from, sep);
+    if (!tok)
+	return 0;
+    *tok = '\0';
+    return tok + 1 - from;
+}
+
+static int
 readline(FILE *fp, char *buf, int max)
 {
     int rv, i = 0;
@@ -307,21 +319,21 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
     cp += copy_to_sep(descr, cp, '|');		/* path to pkg-descr */
     cp += copy_to_sep(maint, cp, '|');		/* maintainer */
     cp += copy_to_sep(cats, cp, '|');		/* categories */
-    cp += copy_to_sep(junk, cp, '|');		/* build deps - not used */
+    cp += skip_to_sep(cp, '|');			/* build deps - not used */
     cp += copy_to_sep(rdeps, cp, '|');		/* run deps */
     if (index(cp, '|'))
-        cp += copy_to_sep(junk, cp, '|');	/* url - not used */
+        cp += skip_to_sep(cp, '|');		/* url - not used */
     else {
 	strncpy(junk, cp, 1023);
 	*volume = 0;
 	return 0;
     }
     if (index(cp, '|'))
-	cp += copy_to_sep(junk, cp, '|');	/* extract deps - not used */
+	cp += skip_to_sep(cp, '|');		/* extract deps - not used */
     if (index(cp, '|'))
-	cp += copy_to_sep(junk, cp, '|');	/* patch deps - not used */
+	cp += skip_to_sep(cp, '|');		/* patch deps - not used */
     if (index(cp, '|'))
-	cp += copy_to_sep(junk, cp, '|');	/* fetch deps - not used */
+	cp += skip_to_sep(cp, '|');		/* fetch deps - not used */
     if (index(cp, '|'))
         cp += copy_to_sep(volstr, cp, '|');	/* media volume */
     else {
