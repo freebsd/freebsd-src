@@ -133,6 +133,7 @@ static void	acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what);
 static int	acpi_tz_active_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_tz_cooling_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS);
+static int	acpi_tz_passive_sysctl(SYSCTL_HANDLER_ARGS);
 static void	acpi_tz_notify_handler(ACPI_HANDLE h, UINT32 notify,
 				       void *context);
 static void	acpi_tz_signal(struct acpi_tz_softc *sc, int flags);
@@ -293,6 +294,21 @@ acpi_tz_attach(device_t dev)
     SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
 		      sizeof(sc->tz_zone.ac), "IK", "");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.tc1),
+		    acpi_tz_passive_sysctl, "I",
+		    "thermal constant 1 for passive cooling");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_TC2", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.tc2),
+		    acpi_tz_passive_sysctl, "I",
+		    "thermal constant 2 for passive cooling");
+    SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		    OID_AUTO, "_TSP", CTLTYPE_INT | CTLFLAG_RW,
+		    sc, offsetof(struct acpi_tz_softc, tz_zone.tsp),
+		    acpi_tz_passive_sysctl, "I",
+		    "thermal sampling period for passive cooling");
 
     /*
      * Create thread to service all of the thermal zones.  Register
@@ -745,6 +761,30 @@ acpi_tz_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EINVAL);
 
     *temp_ptr = temp;
+    return (0);
+}
+
+static int
+acpi_tz_passive_sysctl(SYSCTL_HANDLER_ARGS)
+{
+    struct acpi_tz_softc	*sc;
+    int				val, *val_ptr;
+    int				error;
+
+    sc = oidp->oid_arg1;
+    val_ptr = (int *)((uintptr_t)sc + oidp->oid_arg2);
+    val = *val_ptr;
+    error = sysctl_handle_int(oidp, &val, 0, req);
+
+    /* Error or no new value */
+    if (error != 0 || req->newptr == NULL)
+	return (error);
+
+    /* Only allow changing settings if override is set. */
+    if (!acpi_tz_override)
+	return (EPERM);
+
+    *val_ptr = val;
     return (0);
 }
 
