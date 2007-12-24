@@ -466,7 +466,8 @@ snpclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
-	destroy_dev_sched_cb(dev, snp_detach, snp);
+	snp_detach(snp);
+	destroy_dev_sched(dev);
 
 	return (0);
 }
@@ -491,7 +492,7 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	struct snoop *snp;
-	struct tty *tp, *tpo;
+	struct tty *tp;
 	struct cdev *tdev;
 	struct file *fp;
 	int s;
@@ -502,8 +503,6 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		s = *(int *)data;
 		if (s < 0)
 			return (snp_down(snp));
-		if (snp->snp_tty != NULL)
-			return (EBUSY);
 
 		if (fget(td, s, &fp) != 0)
 			return (EINVAL);
@@ -516,6 +515,9 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		tdev = fp->f_vnode->v_rdev;
 		fdrop(fp, td);
 
+		if (snp->snp_tty != NULL)
+			return (EBUSY);
+
 		tp = snpdevtotty(tdev);
 		if (!tp)
 			return (EINVAL);
@@ -523,13 +525,6 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			return (EBUSY);
 
 		s = spltty();
-
-		if (snp->snp_target == NULL) {
-			tpo = snp->snp_tty;
-			if (tpo)
-				tpo->t_state &= ~TS_SNOOP;
-		}
-
 		tp->t_state |= TS_SNOOP;
 		snp->snp_olddisc = tp->t_line;
 		tp->t_line = snooplinedisc;
