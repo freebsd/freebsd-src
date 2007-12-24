@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 struct g_part_bsd_table {
 	struct g_part_table	base;
 	u_char			*label;
+	uint32_t		offset;
 };
 
 struct g_part_bsd_entry {
@@ -137,35 +138,15 @@ g_part_bsd_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 {
 	struct g_part_bsd_entry *entry;
 	struct g_part_bsd_table *table;
-	uint32_t start, size, sectors;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
 
-	sectors = basetable->gpt_sectors;
-
 	entry = (struct g_part_bsd_entry *)baseentry;
 	table = (struct g_part_bsd_table *)basetable;
 
-	start = gpp->gpp_start;
-	size = gpp->gpp_size;
-	if (size < sectors)
-		return (EINVAL);
-	if (start % sectors) {
-		size = size - sectors + (start % sectors);
-		start = start - (start % sectors) + sectors;
-	}
-	if (size % sectors)
-		size = size - (size % sectors);
-	if (size < sectors)
-		return (EINVAL);
-
-	KASSERT(baseentry->gpe_start <= start, (__func__));
-	KASSERT(baseentry->gpe_end >= start + size - 1, (__func__));
-	baseentry->gpe_start = start;
-	baseentry->gpe_end = start + size - 1;
-	entry->part.p_size = size;
-	entry->part.p_offset = start + basetable->gpt_offset;
+	entry->part.p_size = gpp->gpp_size;
+	entry->part.p_offset = gpp->gpp_start + table->offset;
 	entry->part.p_fsize = 0;
 	entry->part.p_frag = 0;
 	entry->part.p_cpg = 0;
@@ -203,14 +184,14 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	le32enc(ptr + 48, basetable->gpt_heads);	/* d_ntracks */
 	le32enc(ptr + 52, ncyls);			/* d_ncylinders */
 	le32enc(ptr + 56, secpercyl);			/* d_secpercyl */
-	le32enc(ptr + 60, ncyls * secpercyl);		/* d_secperunit */
+	le32enc(ptr + 60, msize);			/* d_secperunit */
 	le16enc(ptr + 72, 3600);			/* d_rpm */
 	le32enc(ptr + 132, DISKMAGIC);			/* d_magic2 */
 	le16enc(ptr + 138, basetable->gpt_entries);	/* d_npartitions */
 	le32enc(ptr + 140, BBSIZE);			/* d_bbsize */
 
 	basetable->gpt_first = 0;
-	basetable->gpt_last = ncyls * secpercyl - 1;
+	basetable->gpt_last = msize - 1;
 	basetable->gpt_isleaf = 1;
 
 	baseentry = g_part_new_entry(basetable, RAW_PART + 1,
@@ -218,7 +199,7 @@ g_part_bsd_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	baseentry->gpe_internal = 1;
 	entry = (struct g_part_bsd_entry *)baseentry;
 	entry->part.p_size = basetable->gpt_last + 1;
-	entry->part.p_offset = basetable->gpt_offset;
+	entry->part.p_offset = table->offset;
 
 	return (0);
 }
@@ -320,29 +301,31 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 	sectors = le32dec(buf + 44);
 	if (sectors < 1 || sectors > 63)
 		goto invalid_label;
-	if (sectors != basetable->gpt_sectors) {
-		if (basetable->gpt_fixgeom)
-			goto invalid_label;
+	if (sectors != basetable->gpt_sectors && !basetable->gpt_fixgeom) {
 		g_part_geometry_heads(msize, sectors, &chs, &heads);
-		if (chs == 0)
-			goto invalid_label;
-		basetable->gpt_sectors = sectors;
-		basetable->gpt_heads = heads;
+		if (chs != 0) {
+			basetable->gpt_sectors = sectors;
+			basetable->gpt_heads = heads;
+		}
 	}
 	heads = le32dec(buf + 48);
 	if (heads < 1 || heads > 255)
 		goto invalid_label;
-	if (heads != basetable->gpt_heads) {
-		if (basetable->gpt_fixgeom)
-			goto invalid_label;
+	if (heads != basetable->gpt_heads && !basetable->gpt_fixgeom)
 		basetable->gpt_heads = heads;
-	}
-	chs = le32dec(buf + 52) * heads * sectors;
+	if (sectors != basetable->gpt_sectors ||
+	    heads != basetable->gpt_heads)
+		printf("GEOM: %s: geometry does not match label.\n", pp->name);
+
+	chs = le32dec(buf + 60);
 	if (chs < 1 || chs > msize)
 		goto invalid_label;
+	if (chs != msize)
+		printf("GEOM: %s: media size does not match label.\n",
+		    pp->name);
 
 	basetable->gpt_first = 0;
-	basetable->gpt_last = chs - 1;
+	basetable->gpt_last = msize - 1;
 	basetable->gpt_isleaf = 1;
 
 	basetable->gpt_entries = le16dec(buf + 138);
@@ -350,6 +333,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 	    basetable->gpt_entries > g_part_bsd_scheme.gps_maxent)
 		goto invalid_label;
 
+	table->offset = le32dec(buf + 148 + RAW_PART * 16 + 4);
 	for (index = basetable->gpt_entries - 1; index >= 0; index--) {
 		p = buf + 148 + index * 16;
 		part.p_size = le32dec(p + 0);
@@ -362,11 +346,11 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		if (part.p_fstype == FS_UNUSED && index != RAW_PART)
 			continue;
-		if (part.p_offset < basetable->gpt_offset)
+		if (part.p_offset < table->offset)
 			continue;
 		baseentry = g_part_new_entry(basetable, index + 1,
-		    part.p_offset - basetable->gpt_offset,
-		    part.p_offset - basetable->gpt_offset + part.p_size - 1);
+		    part.p_offset - table->offset,
+		    part.p_offset - table->offset + part.p_size - 1);
 		entry = (struct g_part_bsd_entry *)baseentry;
 		entry->part = part;
 		if (part.p_fstype == FS_UNUSED)
