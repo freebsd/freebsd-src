@@ -838,6 +838,13 @@ mm_install () {
   return $?
 }
 
+if [ ! -d "${TEMPROOT}" ]; then
+	echo "*** FATAL ERROR: The temproot directory (${TEMPROOT})"
+	echo '                 has disappeared!'
+	echo ''
+	exit 1
+fi
+
 echo ''
 echo "*** Beginning comparison"
 echo ''
