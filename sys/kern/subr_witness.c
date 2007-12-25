@@ -1123,7 +1123,7 @@ debugger:
 	if (witness_trace)
 		kdb_backtrace();
 	if (witness_kdb)
-		kdb_enter(__func__);
+		kdb_enter(KDB_WHY_WITNESS, __func__);
 #endif
 }
 
@@ -1396,7 +1396,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 		panic("witness_warn");
 #ifdef KDB
 	else if (witness_kdb && n)
-		kdb_enter(__func__);
+		kdb_enter(KDB_WHY_WITNESS, __func__);
 	else if (witness_trace && n)
 		kdb_backtrace();
 #endif

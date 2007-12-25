@@ -289,7 +289,7 @@ trap(struct trapframe *tf)
 			}
 			if (debugger_on_signal &&
 			    (sig == 4 || sig == 10 || sig == 11))
-				kdb_enter("trapsig");
+				kdb_enter(KDB_WHY_TRAPSIG, "trapsig");
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = sig;
 			ksi.ksi_code = (int)tf->tf_type; /* XXX not POSIX */

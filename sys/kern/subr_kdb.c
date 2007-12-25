@@ -97,6 +97,11 @@ SYSCTL_INT(_debug_kdb, OID_AUTO, stop_cpus, CTLTYPE_INT | CTLFLAG_RW,
 TUNABLE_INT("debug.kdb.stop_cpus", &kdb_stop_cpus);
 #endif
 
+/*
+ * Flag to indicate to debuggers why the debugger was entered.
+ */
+const char * volatile kdb_why = KDB_WHY_UNSET;
+
 static int
 kdb_sysctl_available(SYSCTL_HANDLER_ARGS)
 {
@@ -163,7 +168,7 @@ kdb_sysctl_enter(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (kdb_active)
 		return (EBUSY);
-	kdb_enter("sysctl debug.kdb.enter");
+	kdb_enter(KDB_WHY_SYSCTL, "sysctl debug.kdb.enter");
 	return (0);
 }
 
@@ -295,17 +300,20 @@ kdb_dbbe_select(const char *name)
  * Enter the currently selected debugger. If a message has been provided,
  * it is printed first. If the debugger does not support the enter method,
  * it is entered by using breakpoint(), which enters the debugger through
- * kdb_trap().
+ * kdb_trap().  The 'why' argument will contain a more mechanically usable
+ * string than 'msg', and is relied upon by DDB scripting to identify the
+ * reason for entering the debugger so that the right script can be run.
  */
-
 void
-kdb_enter(const char *msg)
+kdb_enter(const char *why, const char *msg)
 {
 
 	if (kdb_dbbe != NULL && kdb_active == 0) {
 		if (msg != NULL)
 			printf("KDB: enter: %s\n", msg);
+		kdb_why = why;
 		breakpoint();
+		kdb_why = KDB_WHY_UNSET;
 	}
 }
 

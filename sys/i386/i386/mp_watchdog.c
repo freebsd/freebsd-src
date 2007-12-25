@@ -203,7 +203,7 @@ ap_watchdog(u_int cpuid)
 			if (watchdog_nmi)
 				watchdog_ipi_nmi();
 			else
-				kdb_enter("mp_watchdog");
+				kdb_enter(KDB_WHY_WATCHDOG, "mp_watchdog");
 		}
 	}
 	bcopy(old_pcomm, p->p_comm, MAXCOMLEN + 1);

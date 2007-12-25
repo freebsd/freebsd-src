@@ -1277,7 +1277,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
-		kdb_enter("Boot flags requested debugger");
+		kdb_enter(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger");
 #endif
 
 	identify_cpu();		/* Final stage of CPU initialization */

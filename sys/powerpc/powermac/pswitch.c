@@ -139,6 +139,6 @@ pswitch_intr(void *arg)
 
 	dev = (device_t)arg;
 
-	kdb_enter(device_get_nameunit(dev));
+	kdb_enter(KDB_WHY_POWERPC, device_get_nameunit(dev));
 	return (FILTER_HANDLED);
 }
