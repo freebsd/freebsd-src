@@ -28,54 +28,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
 #define _KERNEL
-#include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
 #undef _KERNEL
 
-#include <assert.h>
 #include <err.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <kvm.h>
 #include <limits.h>
-#include <nlist.h>
-#include <paths.h>
 #include <pwd.h>
-#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-/* SysCtlGatherStruct structure. */
-struct scgs_vector {
-	const char *sysctl;
-	off_t offset;
-	size_t size;
-};
-
-int	use_sysctl = 1;
-struct semid_kernel	*sema;
-struct seminfo		seminfo;
-struct msginfo		msginfo;
-struct msqid_kernel	*msqids;
-struct shminfo		shminfo;
-struct shmid_kernel	*shmsegs;
+#include "ipc.h"
 
 char   *fmt_perm(u_short);
 void	cvt_time(time_t, char *);
-void	sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vec);
-void	kget(int idx, void *addr, size_t size);
 void	usage(void);
 uid_t	user2uid(char *username);
+
 void	print_kmsqtotal(struct msginfo msginfo);
 void	print_kmsqheader(int option);
 void	print_kmsqptr(int i, int option, struct msqid_kernel *kmsqptr);
@@ -85,60 +63,6 @@ void	print_kshmptr(int i, int option, struct shmid_kernel *kshmptr);
 void	print_ksemtotal(struct seminfo seminfo);
 void	print_ksemheader(int option);
 void	print_ksemptr(int i, int option, struct semid_kernel *ksemaptr);
-
-static struct nlist symbols[] = {
-	{"sema"},
-#define X_SEMA		0
-	{"seminfo"},
-#define X_SEMINFO	1
-	{"msginfo"},
-#define X_MSGINFO	2
-	{"msqids"},
-#define X_MSQIDS	3
-	{"shminfo"},
-#define X_SHMINFO	4
-	{"shmsegs"},
-#define X_SHMSEGS	5
-	{NULL}
-};
-
-#define	SHMINFO_XVEC	X(shmmax, sizeof(u_long))			\
-			X(shmmin, sizeof(u_long))			\
-			X(shmmni, sizeof(u_long))			\
-			X(shmseg, sizeof(u_long))			\
-			X(shmall, sizeof(u_long))
-
-#define	SEMINFO_XVEC	X(semmap, sizeof(int))				\
-			X(semmni, sizeof(int))				\
-			X(semmns, sizeof(int))				\
-			X(semmnu, sizeof(int))				\
-			X(semmsl, sizeof(int))				\
-			X(semopm, sizeof(int))				\
-			X(semume, sizeof(int))				\
-			X(semusz, sizeof(int))				\
-			X(semvmx, sizeof(int))				\
-			X(semaem, sizeof(int))
-
-#define	MSGINFO_XVEC	X(msgmax, sizeof(int))				\
-			X(msgmni, sizeof(int))				\
-			X(msgmnb, sizeof(int))				\
-			X(msgtql, sizeof(int))				\
-			X(msgssz, sizeof(int))				\
-			X(msgseg, sizeof(int))
-
-#define	X(a, b)	{ "kern.ipc." #a, offsetof(TYPEC, a), (b) },
-#define	TYPEC	struct shminfo
-struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { NULL } };
-#undef	TYPEC
-#define	TYPEC	struct seminfo
-struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { NULL } };
-#undef	TYPEC
-#define	TYPEC	struct msginfo
-struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { NULL } };
-#undef	TYPEC
-#undef	X
-
-static kvm_t *kd;
 
 char   *
 fmt_perm(u_short mode)
@@ -173,12 +97,6 @@ cvt_time(time_t t, char *buf)
 			tm->tm_hour, tm->tm_min, tm->tm_sec);
 	}
 }
-#define	SHMINFO		1
-#define	SHMTOTAL	2
-#define	MSGINFO		4
-#define	MSGTOTAL	8
-#define	SEMINFO		16
-#define	SEMTOTAL	32
 
 #define BIGGEST		1
 #define CREATOR		2
@@ -198,9 +116,6 @@ main(int argc, char *argv[])
 
 	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optTu:y")) != -1)
 		switch (i) {
-		case 'T':
-			display = SHMTOTAL | MSGTOTAL | SEMTOTAL;
-			break;
 		case 'a':
 			option |= BIGGEST | CREATOR | OUTSTANDING | PID | TIME;
 			break;
@@ -239,6 +154,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			display = SEMINFO;
+			break;
+		case 'T':
+			display = SHMTOTAL | MSGTOTAL | SEMTOTAL;
 			break;
 		case 't':
 			option |= TIME;
@@ -364,7 +282,8 @@ main(int argc, char *argv[])
 			print_ksemheader(option);
 
 			for (i = 0; i < seminfo.semmni; i += 1) {
-				if ((kxsema[i].u.sem_perm.mode & SEM_ALLOC) != 0) {
+				if ((kxsema[i].u.sem_perm.mode & SEM_ALLOC)
+				    != 0) {
 					if (user &&
 					    uid != kxsema[i].u.sem_perm.uid)
 						continue;
@@ -408,7 +327,8 @@ print_kmsqtotal(struct msginfo msginfo)
 	    msginfo.msgseg);
 }
 
-void print_kmsqheader(int option) {
+void print_kmsqheader(int option)
+{
 
 	printf("Message Queues:\n");
 	printf("T %12s %12s %-11s %-8s %-8s",
@@ -435,7 +355,7 @@ print_kmsqptr(int i, int option, struct msqid_kernel *kmsqptr)
 	cvt_time(kmsqptr->u.msg_rtime, rtime_buf);
 	cvt_time(kmsqptr->u.msg_ctime, ctime_buf);
 
-	printf("q %12d %12d %s %8s %8s",
+	printf("q %12d %12d %s %-8s %-8s",
 	    IXSEQ_TO_IPCID(i, kmsqptr->u.msg_perm),
 	    (int)kmsqptr->u.msg_perm.key,
 	    fmt_perm(kmsqptr->u.msg_perm.mode),
@@ -443,7 +363,7 @@ print_kmsqptr(int i, int option, struct msqid_kernel *kmsqptr)
 	    group_from_gid(kmsqptr->u.msg_perm.gid, 0));
 
 	if (option & CREATOR)
-		printf(" %8s %8s",
+		printf(" %-8s %-8s",
 		    user_from_uid(kmsqptr->u.msg_perm.cuid, 0),
 		    group_from_gid(kmsqptr->u.msg_perm.cgid, 0));
 
@@ -515,7 +435,7 @@ print_kshmptr(int i, int option, struct shmid_kernel *kshmptr)
 	cvt_time(kshmptr->u.shm_dtime, dtime_buf);
 	cvt_time(kshmptr->u.shm_ctime, ctime_buf);
 
-	printf("m %12d %12d %s %8s %8s",
+	printf("m %12d %12d %s %-8s %-8s",
 	    IXSEQ_TO_IPCID(i, kshmptr->u.shm_perm),
 	    (int)kshmptr->u.shm_perm.key,
 	    fmt_perm(kshmptr->u.shm_perm.mode),
@@ -523,7 +443,7 @@ print_kshmptr(int i, int option, struct shmid_kernel *kshmptr)
 	    group_from_gid(kshmptr->u.shm_perm.gid, 0));
 
 	if (option & CREATOR)
-		printf(" %8s %8s",
+		printf(" %-8s %-8s",
 		    user_from_uid(kshmptr->u.shm_perm.cuid, 0),
 		    group_from_gid(kshmptr->u.shm_perm.cgid, 0));
 
@@ -577,7 +497,8 @@ print_ksemtotal(struct seminfo seminfo)
 }
 
 void
-print_ksemheader(int option) {
+print_ksemheader(int option)
+{
 
 	printf("Semaphores:\n");
 	printf("T %12s %12s %-11s %-8s %-8s",
@@ -599,7 +520,7 @@ print_ksemptr(int i, int option, struct semid_kernel *ksemaptr)
 	cvt_time(ksemaptr->u.sem_otime, otime_buf);
 	cvt_time(ksemaptr->u.sem_ctime, ctime_buf);
 
-	printf("s %12d %12d %s %8s %8s",
+	printf("s %12d %12d %s %-8s %-8s",
 	    IXSEQ_TO_IPCID(i, ksemaptr->u.sem_perm),
 	    (int)ksemaptr->u.sem_perm.key,
 	    fmt_perm(ksemaptr->u.sem_perm.mode),
@@ -607,7 +528,7 @@ print_ksemptr(int i, int option, struct semid_kernel *ksemaptr)
 	    group_from_gid(ksemaptr->u.sem_perm.gid, 0));
 
 	if (option & CREATOR)
-		printf(" %8s %8s",
+		printf(" %-8s %-8s",
 		    user_from_uid(ksemaptr->u.sem_perm.cuid, 0),
 		    group_from_gid(ksemaptr->u.sem_perm.cgid, 0));
 
@@ -621,107 +542,6 @@ print_ksemptr(int i, int option, struct semid_kernel *ksemaptr)
 		    ctime_buf);
 
 	printf("\n");
-}
-
-void
-sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vecarr)
-{
-	struct scgs_vector *xp;
-	size_t tsiz;
-	int rv;
-
-	for (xp = vecarr; xp->sysctl != NULL; xp++) {
-		assert(xp->offset <= size);
-		tsiz = xp->size;
-		rv = sysctlbyname(xp->sysctl, (char *)addr + xp->offset,
-		    &tsiz, NULL, 0);
-		if (rv == -1)
-			err(1, "sysctlbyname: %s", xp->sysctl);
-		if (tsiz != xp->size)
-			errx(1, "%s size mismatch (expected %d, got %d)",
-			    xp->sysctl, xp->size, tsiz);
-	}
-}
-
-void
-kget(int idx, void *addr, size_t size)
-{
-	char *symn;			/* symbol name */
-	size_t tsiz;
-	int rv;
-	unsigned long kaddr;
-	const char *sym2sysctl[] = {	/* symbol to sysctl name table */
-		"kern.ipc.sema",
-		"kern.ipc.seminfo",
-		"kern.ipc.msginfo",
-		"kern.ipc.msqids",
-		"kern.ipc.shminfo",
-		"kern.ipc.shmsegs" };
-
-	assert((unsigned)idx <= sizeof(sym2sysctl) / sizeof(*sym2sysctl));
-	if (!use_sysctl) {
-		symn = symbols[idx].n_name;
-		if (*symn == '_')
-			symn++;
-		if (symbols[idx].n_type == 0 || symbols[idx].n_value == 0)
-			errx(1, "symbol %s undefined", symn);
-		/*
-		 * For some symbols, the value we retrieve is
-		 * actually a pointer; since we want the actual value,
-		 * we have to manually dereference it.
-		 */
-		switch (idx) {
-		case X_MSQIDS:
-			tsiz = sizeof(msqids);
-			rv = kvm_read(kd, symbols[idx].n_value,
-			    &msqids, tsiz);
-			kaddr = (u_long)msqids;
-			break;
-		case X_SHMSEGS:
-			tsiz = sizeof(shmsegs);
-			rv = kvm_read(kd, symbols[idx].n_value,
-			    &shmsegs, tsiz);
-			kaddr = (u_long)shmsegs;
-			break;
-		case X_SEMA:
-			tsiz = sizeof(sema);
-			rv = kvm_read(kd, symbols[idx].n_value,
-			    &sema, tsiz);
-			kaddr = (u_long)sema;
-			break;
-		default:
-			rv = tsiz = 0;
-			kaddr = symbols[idx].n_value;
-			break;
-		}
-		if ((unsigned)rv != tsiz)
-			errx(1, "%s: %s", symn, kvm_geterr(kd));
-		if ((unsigned)kvm_read(kd, kaddr, addr, size) != size)
-			errx(1, "%s: %s", symn, kvm_geterr(kd));
-	} else {
-		switch (idx) {
-		case X_SHMINFO:
-			sysctlgatherstruct(addr, size, shminfo_scgsv);
-			break;
-		case X_SEMINFO:
-			sysctlgatherstruct(addr, size, seminfo_scgsv);
-			break;
-		case X_MSGINFO:
-			sysctlgatherstruct(addr, size, msginfo_scgsv);
-			break;
-		default:
-			tsiz = size;
-			rv = sysctlbyname(sym2sysctl[idx], addr, &tsiz,
-			    NULL, 0);
-			if (rv == -1)
-				err(1, "sysctlbyname: %s", sym2sysctl[idx]);
-			if (tsiz != size)
-				errx(1, "%s size mismatch "
-				    "(expected %d, got %d)",
-				    sym2sysctl[idx], size, tsiz);
-			break;
-		}
-	}
 }
 
 uid_t 
