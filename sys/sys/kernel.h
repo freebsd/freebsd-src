@@ -118,6 +118,7 @@ enum sysinit_sub_id {
 	SI_SUB_MAC_LATE		= 0x21D0000,	/* TrustedBSD MAC subsystem */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
+	SI_SUB_DDB_SERVICES	= 0x2380000,	/* capture, scripting, etc. */
 	SI_SUB_RUN_QUEUE	= 0x2400000,	/* set up run queue*/
 	SI_SUB_KTRACE		= 0x2480000,	/* ktrace */
 	SI_SUB_AUDIT		= 0x24C0000,	/* audit */
