@@ -65,7 +65,7 @@
 static MALLOC_DEFINE(M_AUDIT_PIPE, "audit_pipe", "Audit pipes");
 static MALLOC_DEFINE(M_AUDIT_PIPE_ENTRY, "audit_pipeent",
     "Audit pipe entries and buffers");
-static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_preselect",
+static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
     "Audit pipe preselection structure");
 
 /*
