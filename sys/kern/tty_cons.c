@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
+#include <sys/sbuf.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
@@ -295,39 +296,33 @@ cnunavailable(void)
 }
 
 /*
- * XXX: rewrite to use sbufs instead
+ * sysctl_kern_console() provides output parseable in conscontrol(1).
  */
-
 static int
 sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 {
 	struct cn_device *cnd;
 	struct consdev *cp, **list;
-	char *name, *p;
-	int delete, len, error;
+	char *p;
+	int delete, error;
+	struct sbuf *sb;
 
-	len = 2;
+	sb = sbuf_new(NULL, NULL, CNDEVPATHMAX * 2, SBUF_AUTOEXTEND);
+	if (sb == NULL)
+		return (ENOMEM);
+	sbuf_clear(sb);
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
+		sbuf_printf(sb, "%s,", cnd->cnd_cn->cn_name);
+	sbuf_printf(sb, "/");
 	SET_FOREACH(list, cons_set) {
 		cp = *list;
 		if (cp->cn_name[0] != '\0')
-			len += strlen(cp->cn_name) + 1;
+			sbuf_printf(sb, "%s,", cp->cn_name);
 	}
-	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
-		len += strlen(cnd->cnd_cn->cn_name) + 1;
-	len = len > CNDEVPATHMAX ? len : CNDEVPATHMAX;
-	MALLOC(name, char *, len, M_TEMP, M_WAITOK | M_ZERO);
-	p = name;
-	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
-		p += sprintf(p, "%s,", cnd->cnd_cn->cn_name);
-	*p++ = '/';
-	SET_FOREACH(list, cons_set) {
-		cp = *list;
-		if (cp->cn_name[0] != '\0')
-			p += sprintf(p, "%s,", cp->cn_name);
-	}
-	error = sysctl_handle_string(oidp, name, len, req);
+	sbuf_finish(sb);
+	error = sysctl_handle_string(oidp, sbuf_data(sb), sbuf_len(sb), req);
 	if (error == 0 && req->newptr != NULL) {
-		p = name;
+		p = sbuf_data(sb);
 		error = ENXIO;
 		delete = 0;
 		if (*p == '-') {
@@ -349,7 +344,7 @@ sysctl_kern_console(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 	}
-	FREE(name, M_TEMP);
+	sbuf_delete(sb);
 	return (error);
 }
 
