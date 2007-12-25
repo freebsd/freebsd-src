@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
  * include files marked with XXX are probably not needed
  */
 
+#include <sys/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -620,11 +621,16 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	int p_was_empty = (p->head == NULL);
 	struct dn_heap *sch = &(p->scheduler_heap);
 	struct dn_heap *neh = &(p->not_eligible_heap);
+	int64_t p_numbytes = p->numbytes;
 
 	DUMMYNET_LOCK_ASSERT();
 
 	if (p->if_name[0] == 0)		/* tx clock is simulated */
-		p->numbytes += (curr_time - p->sched_time) * p->bandwidth;
+		/*
+		 * Since result may not fit into p->numbytes (32bit) we
+		 * are using 64bit var here.
+		 */
+		p_numbytes += (curr_time - p->sched_time) * p->bandwidth;
 	else {	/*
 		 * tx clock is for real,
 		 * the ifq must be empty or this is a NOP.
@@ -641,7 +647,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * While we have backlogged traffic AND credit, we need to do
 	 * something on the queue.
 	 */
-	while (p->numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
+	while (p_numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
 		if (sch->elements > 0) {
 			/* Have some eligible pkts to send out. */
 			struct dn_flow_queue *q = sch->p[0].object;
@@ -651,7 +657,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 			int len_scaled = p->bandwidth ? len * 8 * hz : 0;
 
 			heap_extract(sch, NULL); /* Remove queue from heap. */
-			p->numbytes -= len_scaled;
+			p_numbytes -= len_scaled;
 			move_pkt(pkt, q, p, len);
 
 			p->V += (len << MY_M) / p->sum;	/* Update V. */
@@ -692,11 +698,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		}
 
 		if (p->if_name[0] != '\0') { /* Tx clock is from a real thing */
-			p->numbytes = -1;	/* Mark not ready for I/O. */
+			p_numbytes = -1;	/* Mark not ready for I/O. */
 			break;
 		}
 	}
-	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0 &&
+	if (sch->elements == 0 && neh->elements == 0 && p_numbytes >= 0 &&
 	    p->idle_heap.elements > 0) {
 		/*
 		 * No traffic and no events scheduled.
@@ -719,11 +725,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * If we are under credit, schedule the next ready event.
 	 * Also fix the delivery time of the last packet.
 	 */
-	if (p->if_name[0]==0 && p->numbytes < 0) { /* This implies bw > 0. */
+	if (p->if_name[0]==0 && p_numbytes < 0) { /* This implies bw > 0. */
 		dn_key t = 0;		/* Number of ticks i have to wait. */
 
 		if (p->bandwidth > 0)
-			t = (p->bandwidth - 1 - p->numbytes) / p->bandwidth;
+			t = (p->bandwidth - 1 - p_numbytes) / p->bandwidth;
 		dn_tag_get(p->tail)->output_time += t;
 		p->sched_time = curr_time;
 		heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
@@ -732,6 +738,15 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	}
+
+	/* Fit (adjust if necessary) 64bit result into 32bit variable. */
+	if (p_numbytes > INT_MAX)
+		p->numbytes = INT_MAX;
+	else if (p_numbytes < INT_MIN)
+		p->numbytes = INT_MIN;
+	else
+		p->numbytes = p_numbytes;
+
 	/*
 	 * If the delay line was empty call transmit_event() now.
 	 * Otherwise, the scheduler will take care of it.
