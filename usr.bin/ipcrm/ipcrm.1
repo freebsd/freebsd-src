@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\""
-.Dd August 8, 1994
+.Dd December 12, 2007
 .Dt IPCRM 1
 .Os
 .Sh NAME
@@ -31,6 +31,8 @@
 .Nd "remove the specified message queues, semaphore sets, and shared segments"
 .Sh SYNOPSIS
 .Nm
+.Op Fl W
+.Op Fl v
 .Op Fl q Ar msqid
 .Op Fl m Ar shmid
 .Op Fl s Ar semid
@@ -45,6 +47,31 @@ utility removes the specified message queues, semaphores and shared memory
 segments.
 These System V IPC objects can be specified by their
 creation ID or any associated key.
+.Pp
+The following options are generic:
+.Bl -tag -width indent
+.It Fl v
+If specified once with -W or with -1 for an object, it will show
+all removed objects.
+If specified twice with -W or with -1 for an objects, it will show
+all removed objects and all failed removals.
+.It Fl W
+Try to wipe all specified message queues, semaphores and shared
+memory segments.
+.It Fl y
+Use the
+.Xr kvm 3
+interface instead of the
+.Xr sysctl 3
+interface to extract the required information.
+If
+.Nm
+is to operate on the running system,
+using
+.Xr kvm 3
+will require read privileges to
+.Pa /dev/kmem .
+.El
 .Pp
 The following options are used to specify which IPC objects will be removed.
 Any number and combination of these options can be used:
@@ -80,5 +107,13 @@ from the system.
 The identifiers and keys associated with these System V IPC objects can be
 determined by using
 .Xr ipcs 1 .
+If the identifier or the key is -1, it will remove all these objects.
 .Sh SEE ALSO
 .Xr ipcs 1
+.Sh HISTORY
+The wiping of all System V IPC objects was first implemented in
+.Fx 6.4 and 7.1.
+.Sh AUTHORS
+The original author was Adam Glass. 
+The wiping of all System V IPC objects was thought up by Callum
+Gibson and extended and implemented by Edwin Groothuis.
