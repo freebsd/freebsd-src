@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/sysctl.h>
 
 #include <machine/kdb.h>
 #include <machine/pcb.h>
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
 #include <ddb/db_sym.h>
+
+SYSCTL_NODE(_debug, OID_AUTO, ddb, CTLFLAG_RW, 0, "DDB settings");
 
 static dbbe_init_f db_init;
 static dbbe_trap_f db_trap;
