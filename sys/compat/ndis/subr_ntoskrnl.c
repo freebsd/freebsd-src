@@ -3632,7 +3632,7 @@ DbgBreakPoint(void)
 #if __FreeBSD_version < 502113
 	Debugger("DbgBreakPoint(): breakpoint");
 #else
-	kdb_enter("DbgBreakPoint(): breakpoint");
+	kdb_enter(KDB_WHY_NDIS, "DbgBreakPoint(): breakpoint");
 #endif
 }
 

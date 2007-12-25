@@ -117,7 +117,7 @@ SYSCTL_NODE(_security_mac_test, OID_AUTO, counter, CTLFLAG_RW, 0,
 #define	COUNTER_INC(variable)	atomic_add_int(&counter_##variable, 1)
 
 #ifdef KDB
-#define	DEBUGGER(func, string)	kdb_enter((string))
+#define	DEBUGGER(func, string)	kdb_enter(KDB_WHY_MAC, (string))
 #else
 #define	DEBUGGER(func, string)	printf("mac_test: %s: %s\n", (func), (string))
 #endif
