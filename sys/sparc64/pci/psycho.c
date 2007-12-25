@@ -850,7 +850,7 @@ psycho_powerfail(void *arg)
 #ifdef DEBUGGER_ON_POWERFAIL
 	struct psycho_softc *sc = arg;
 
-	kdb_enter("powerfail");
+	kdb_enter(KDB_WHY_POWERFAIL, "powerfail");
 #else
 	static int shutdown;
 

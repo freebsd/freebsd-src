@@ -207,11 +207,13 @@ dcons_check_break(struct dcons_softc *dc, int c)
 #ifdef GDB
 			if (gdb_cur == &dcons_gdb_dbgport) {
 				kdb_dbbe_select("gdb");
-				kdb_enter("Break sequence on dcons gdb port");
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on dcons gdb port");
 			}
 #endif
 		} else
-			kdb_enter("Break sequence on dcons console port");
+			kdb_enter(KDB_WHY_BREAK,
+			    "Break sequence on dcons console port");
 	}
 #else
 	switch (dc->brk_state) {

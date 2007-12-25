@@ -3456,7 +3456,7 @@ vfs_badlock(const char *msg, const char *str, struct vnode *vp)
 	if (vfs_badlock_print)
 		printf("%s: %p %s\n", str, (void *)vp, msg);
 	if (vfs_badlock_ddb)
-		kdb_enter("lock violation");
+		kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
 }
 
 void
@@ -3576,7 +3576,7 @@ vop_strategy_pre(void *ap)
 			printf(
 			    "VOP_STRATEGY: bp is not locked but should be\n");
 		if (vfs_badlock_ddb)
-			kdb_enter("lock violation");
+			kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
 	}
 #endif
 }
