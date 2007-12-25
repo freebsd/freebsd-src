@@ -366,7 +366,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 			}
 			if (debugger_on_signal &&
 			    (sig == 4 || sig == 10 || sig == 11))
-				kdb_enter("trapsig");
+				kdb_enter(KDB_WHY_TRAPSIG, "trapsig");
 #ifdef VERBOSE
 			if (sig == 4 || sig == 10 || sig == 11)
 				printf("trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d sig=%d proc=%s\n", 

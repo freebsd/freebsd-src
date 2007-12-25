@@ -824,7 +824,8 @@ ia64_init(void)
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
-		kdb_enter("Boot flags requested debugger\n");
+		kdb_enter(KDB_WHY_BOOTFLAGS,
+		    "Boot flags requested debugger\n");
 #endif
 
 	ia64_set_tpr(0);

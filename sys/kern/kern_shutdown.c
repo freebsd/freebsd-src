@@ -544,7 +544,7 @@ panic(const char *fmt, ...)
 	if (newpanic && trace_on_panic)
 		kdb_backtrace();
 	if (debugger_on_panic)
-		kdb_enter("panic");
+		kdb_enter(KDB_WHY_PANIC, "panic");
 #ifdef RESTARTABLE_PANICS
 	/* See if the user aborted the panic, in which case we continue. */
 	if (panicstr == NULL) {
