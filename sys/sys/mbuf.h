@@ -312,7 +312,7 @@ struct mbstat {
 #define	MBUF_MEM_NAME		"mbuf"
 #define	MBUF_CLUSTER_MEM_NAME	"mbuf_cluster"
 #define	MBUF_PACKET_MEM_NAME	"mbuf_packet"
-#define	MBUF_JUMBOP_MEM_NAME	"mbuf_jumbo_pagesize"
+#define	MBUF_JUMBOP_MEM_NAME	"mbuf_jumbo_page"
 #define	MBUF_JUMBO9_MEM_NAME	"mbuf_jumbo_9k"
 #define	MBUF_JUMBO16_MEM_NAME	"mbuf_jumbo_16k"
 #define	MBUF_TAG_MEM_NAME	"mbuf_tag"
