@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 		 * Case (1).  Target is not a directory.
 		 */
 		if (argc > 1) {
-			usage();
+			warnx("Target is not a directory");
 			exit(1);
 		}
 		/*
