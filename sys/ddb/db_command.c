@@ -141,6 +141,7 @@ static struct command db_commands[] = {
 	{ "kill",	db_kill,		CS_OWN,	0 },
 	{ "watchdog",	db_watchdog,		0,	0 },
 	{ "thread",	db_set_thread,		CS_OWN,	0 },
+	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
 	{ (char *)0, }
 };
 
