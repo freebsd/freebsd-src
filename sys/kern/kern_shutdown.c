@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_kdb.h"
 #include "opt_mac.h"
 #include "opt_panic.h"
@@ -63,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+
+#include <ddb/ddb.h>
 
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -240,7 +243,12 @@ doadump(void)
 	savectx(&dumppcb);
 	dumptid = curthread->td_tid;
 	dumping++;
-	dumpsys(&dumper);
+#ifdef DDB
+	if (textdump_pending)
+		textdump_dumpsys(&dumper);
+	else
+#endif
+		dumpsys(&dumper);
 }
 
 static int
