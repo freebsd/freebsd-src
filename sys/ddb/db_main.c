@@ -194,6 +194,7 @@ db_trap(int type, int code)
 	jmp_buf jb;
 	void *prev_jb;
 	boolean_t bkpt, watchpt;
+	const char *why;
 
 	/*
 	 * Don't handle the trap if the console is unavailable (i.e. it
@@ -222,6 +223,8 @@ db_trap(int type, int code)
 				db_printf("Stopped at\t");
 			db_print_loc_and_inst(db_dot);
 		}
+		why = kdb_why;
+		db_script_kdbenter(why != KDB_WHY_UNSET ? why : "unknown");
 		db_command_loop();
 		(void)kdb_jmpbuf(prev_jb);
 	}
