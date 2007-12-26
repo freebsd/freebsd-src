@@ -215,7 +215,7 @@ struct pci_match_conf_old {
 	u_int16_t		pc_vendor;	/* PCI Vendor ID */
 	u_int16_t		pc_device;	/* PCI Device ID */
 	u_int8_t		pc_class;	/* PCI class */
-	pci_getconf_flags	flags;		/* Matching expression */
+	pci_getconf_flags_old	flags;		/* Matching expression */
 };
 
 struct pci_io_old {
@@ -527,23 +527,20 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 					    dinfo->conf.pc_progif;
 					conf_old.pc_revid =
 					    dinfo->conf.pc_revid;
-					conf_old.pd_name[0] = '\0';
-					conf_old.pd_unit = 0;
-					if (name) {
-						strncpy(conf_old.pd_name, name,
-						    sizeof(conf_old.pd_name));
-						conf_old.
-						    pd_name[PCI_MAXNAMELEN] = 0;
-						conf_old.pd_unit =
-						    dinfo->conf.pd_unit;
-					}
+					strncpy(conf_old.pd_name,
+					    dinfo->conf.pd_name,
+					    sizeof(conf_old.pd_name));
+					conf_old.pd_name[PCI_MAXNAMELEN] = 0;
+					conf_old.pd_unit =
+					    dinfo->conf.pd_unit;
 					confdata = &conf_old;
 				} else
 #endif
 					confdata = &dinfo->conf;
 				/* Only if we can copy it out do we count it. */
 				if (!(error = copyout(confdata,
-				    &cio->matches[cio->num_matches], confsz)))
+				    (caddr_t)cio->matches +
+				    confsz * cio->num_matches, confsz)))
 					cio->num_matches++;
 			}
 		}
