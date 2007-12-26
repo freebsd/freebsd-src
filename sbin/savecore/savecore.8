@@ -102,6 +102,12 @@ If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
 and information about the core in
 .Ar directory Ns Pa /info.#
+For kernel textdumps generated with the
+.Xr textdump 4
+facility, output will be stored in the
+.Xr tar 5
+format and named
+.Ar director Ns Pa /textdump.tar.#
 The ``#'' is the number from the first line of the file
 .Ar directory Ns Pa /bounds ,
 and it is incremented and stored back into the file each time
@@ -137,6 +143,8 @@ is meant to be called near the end of the initialization file
 .Sh SEE ALSO
 .Xr gzip 1 ,
 .Xr getbootfile 3 ,
+.Xr textdump 4 ,
+.Xr tar 4 ,
 .Xr dumpon 8 ,
 .Xr syslogd 8
 .Sh HISTORY
@@ -144,5 +152,8 @@ The
 .Nm
 utility appeared in
 .Bx 4.1 .
+.Pp
+Support for kernel textdumps appeared in
+.Fx 8.0 .
 .Sh BUGS
 The minfree code does not consider the effect of compression or sparse files.
