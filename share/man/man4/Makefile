@@ -355,6 +355,7 @@ MAN=	aac.4 \
 	tcp.4 \
 	tdfx.4 \
 	termios.4 \
+	textdump.4 \
 	ti.4 \
 	tl.4 \
 	trm.4 \
