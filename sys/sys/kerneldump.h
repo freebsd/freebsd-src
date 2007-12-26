@@ -60,6 +60,7 @@
 struct kerneldumpheader {
 	char		magic[20];
 #define	KERNELDUMPMAGIC		"FreeBSD Kernel Dump"
+#define	TEXTDUMPMAGIC		"FreeBSD Text Dump"
 #define	KERNELDUMPMAGIC_CLEARED	"Cleared Kernel Dump"
 	char		architecture[12];
 	uint32_t	version;
@@ -71,6 +72,7 @@ struct kerneldumpheader {
 #define	KERNELDUMP_SPARC64_VERSION	1
 #define	KERNELDUMP_AMD64_VERSION	2
 #define	KERNELDUMP_ARM_VERSION	1
+#define	KERNELDUMP_TEXT_VERSION	1
 	uint64_t	dumplength;		/* excl headers */
 	uint64_t	dumptime;
 	uint32_t	blocksize;
