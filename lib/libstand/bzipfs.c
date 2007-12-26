@@ -28,7 +28,23 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifndef REGRESSION
 #include "stand.h"
+#else
+#include <sys/errno.h>
+#include <sys/fcntl.h>
+#include <sys/types.h>
+#include <sys/unistd.h>
+
+struct open_file {
+    int                 f_flags;        /* see F_* below */
+    void                *f_fsdata;      /* file system specific data */
+};
+#define F_READ          0x0001  /* file opened for reading */
+#define EOFFSET (ELAST+8)       /* relative seek not supported */
+static inline u_int min(u_int a, u_int b) { return (a < b ? a : b); }
+#define panic(x, y) abort()
+#endif
 
 #include <sys/stat.h>
 #include <string.h>
@@ -41,6 +57,7 @@ struct bz_file
     int			bzf_rawfd;
     bz_stream		bzf_bzstream;
     char		bzf_buf[BZ_BUFSIZE];
+    int			bzf_endseen;
 };
 
 static int	bzf_fill(struct bz_file *z);
@@ -50,6 +67,7 @@ static int	bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	bzf_seek(struct open_file *f, off_t offset, int where);
 static int	bzf_stat(struct open_file *f, struct stat *sb);
 
+#ifndef REGRESSION
 struct fs_ops bzipfs_fsops = {
     "bzip",
     bzf_open, 
@@ -60,6 +78,7 @@ struct fs_ops bzipfs_fsops = {
     bzf_stat,
     null_readdir
 };
+#endif
 
 #if 0
 void *
@@ -220,7 +239,7 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     bzf->bzf_bzstream.next_out = buf;			/* where and how much */
     bzf->bzf_bzstream.avail_out = size;
 
-    while (bzf->bzf_bzstream.avail_out) {
+    while (bzf->bzf_bzstream.avail_out && bzf->bzf_endseen == 0) {
 	if ((bzf->bzf_bzstream.avail_in == 0) && (bzf_fill(bzf) == -1)) {
 	    printf("bzf_read: fill error\n");
 	    return(EIO);
@@ -234,6 +253,7 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 
 	error = BZ2_bzDecompress(&bzf->bzf_bzstream);	/* decompression pass */
 	if (error == BZ_STREAM_END) {			/* EOF, all done */
+	    bzf->bzf_endseen = 1;
 	    break;
 	}
 	if (error != BZ_OK) {				/* argh, decompression error */
@@ -301,3 +321,27 @@ bz_internal_error(int errorcode)
 {
     panic("bzipfs: critical error %d in bzip2 library occured\n", errorcode);
 }
+
+#ifdef REGRESSION
+/* Small test case, open and decompress test.bz2 */
+int main()
+{
+    struct open_file f;
+    char buf[1024];
+    size_t resid;
+    int err;
+
+    memset(&f, '\0', sizeof(f));
+    f.f_flags = F_READ;
+    err = bzf_open("test", &f);
+    if (err != 0)
+	exit(1);
+    do {
+	err = bzf_read(&f, buf, sizeof(buf), &resid);
+    } while (err == 0 && resid != sizeof(buf));
+
+    if (err != 0)
+	exit(2);
+    exit(0);
+}
+#endif
