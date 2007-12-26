@@ -632,6 +632,14 @@ buffer.
 returns the contents of the buffer as a string to an appropriately privileged
 process.
 .Pp
+This facility is particularly useful in concert with the scripting and
+.Xr textdump 4
+facilities, allowing scripted debugging output to be captured and
+committed to disk as part of a textdump for later analysis.
+The contents of the capture buffer may also be inspected in a kernel core dump
+using
+.Xr kgdb 1 .
+.Pp
 .It Ic run
 .It Ic script
 .It Ic scripts
@@ -640,6 +648,20 @@ Run, define, list, and delete scripts.
 See the
 .Sx SCRIPTING
 section for more information on the scripting facility.
+.Pp
+.It Ic textdump set
+.It Ic textdump status
+.It Ic textdump unset
+The
+.Ic textdump set
+command may be used to force the next kernel core dump to be a textdump
+rather than a traditional memory dump or minidump.
+.Ic textdump status
+reports whether a textdump has been scheduled.
+.Ic textdump unset
+cancels a request to perform a textdump as the next kernel core dump.
+More information may be found in
+.Xr textdump 4 .
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
@@ -881,6 +903,7 @@ Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
 .Sh SEE ALSO
 .Xr gdb 1 ,
+.Xr kgdb 1 ,
 .Xr acpi 4 ,
 .Xr CAM 4 ,
 .Xr mac_text 4 ,
@@ -900,3 +923,11 @@ This manual page translated from
 .Xr man 7
 macros by
 .An Garrett Wollman .
+.Pp
+.An Robert N. M. Watson
+added support for
+.Nm
+output capture,
+.Xr textdump 4
+and scripting in
+.Fx 8.0 .
