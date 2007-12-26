@@ -169,6 +169,7 @@ db_cmdfcn_t	db_set_thread;
 db_cmdfcn_t	db_show_regs;
 db_cmdfcn_t	db_show_threads;
 db_cmdfcn_t	db_single_step_cmd;
+db_cmdfcn_t	db_textdump_cmd;
 db_cmdfcn_t	db_trace_until_call_cmd;
 db_cmdfcn_t	db_trace_until_matching_cmd;
 db_cmdfcn_t	db_unscript_cmd;
@@ -211,5 +212,27 @@ void	db_capture_writech(char ch);
  * Interface between DDB  and the script facility.
  */
 void	db_script_kdbenter(const char *eventname);	/* KDB enter event. */
+
+/*
+ * Interface between DDB and the textdump facility.
+ *
+ * Text dump blocks are of a fixed size; textdump_block_buffer is a
+ * statically allocated buffer that code interacting with textdumps can use
+ * to prepare and hold a pending block in when calling writenextblock().
+ */
+#define	TEXTDUMP_BLOCKSIZE	512
+extern char	textdump_block_buffer[TEXTDUMP_BLOCKSIZE];
+
+void	textdump_mkustar(char *block_buffer, const char *filename,
+	    u_int size);
+void	textdump_restoreoff(off_t offset);
+void	textdump_saveoff(off_t *offsetp);
+int	textdump_writenextblock(struct dumperinfo *di, char *buffer);
+
+/*
+ * Interface between the kernel and textdumps.
+ */
+extern int	textdump_pending;	/* Call textdump_dumpsys() instead. */
+void	textdump_dumpsys(struct dumperinfo *di);
 
 #endif /* !_DDB_DDB_H_ */

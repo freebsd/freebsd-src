@@ -57,11 +57,13 @@ static MALLOC_DEFINE(M_DB_CAPTURE, "db_capture", "DDB capture buffer");
 
 #define	DB_CAPTURE_DEFAULTBUFSIZE	48*1024
 #define	DB_CAPTURE_MAXBUFSIZE	512*1024
+#define	DB_CAPTURE_FILENAME	"ddb.txt"	/* Captured DDB output. */
 
 static char *db_capture_buf;
 static u_int db_capture_bufsize = DB_CAPTURE_DEFAULTBUFSIZE;
 static u_int db_capture_maxbufsize = DB_CAPTURE_MAXBUFSIZE; /* Read-only. */
 static u_int db_capture_bufoff;		/* Next location to write in buffer. */
+static u_int db_capture_bufpadding;	/* Amount of zero padding. */
 static int db_capture_inpager;		/* Suspend capture in pager. */
 static int db_capture_inprogress;	/* DDB capture currently in progress. */
 
@@ -79,6 +81,14 @@ SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, maxbufsize, CTLFLAG_RD,
     "Maximum value for debug.ddb.capture.bufsize");
 
 /*
+ * Various compile-time assertions: defaults must be even multiples of
+ * textdump block size.  We also perform run-time checking of
+ * user-configurable values.
+ */
+CTASSERT(DB_CAPTURE_DEFAULTBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
+CTASSERT(DB_CAPTURE_MAXBUFSIZE % TEXTDUMP_BLOCKSIZE == 0);
+
+/*
  * Boot-time allocation of the DDB capture buffer, if any.
  */
 static void
@@ -86,9 +96,9 @@ db_capture_sysinit(__unused void *dummy)
 {
 
 	TUNABLE_INT_FETCH("debug.ddb.capture.bufsize", &db_capture_bufsize);
+	db_capture_bufsize = roundup(db_capture_bufsize, TEXTDUMP_BLOCKSIZE);
 	if (db_capture_bufsize > DB_CAPTURE_MAXBUFSIZE)
 		db_capture_bufsize = DB_CAPTURE_MAXBUFSIZE;
-
 	if (db_capture_bufsize != 0)
 		db_capture_buf = malloc(db_capture_bufsize, M_DB_CAPTURE,
 		    M_WAITOK);
@@ -110,9 +120,9 @@ sysctl_debug_ddb_capture_bufsize(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &size, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
+	size = roundup(size, TEXTDUMP_BLOCKSIZE);
 	if (size > DB_CAPTURE_MAXBUFSIZE)
 		return (EINVAL);
-
 	sx_xlock(&db_capture_sx);
 	if (size != 0) {
 		/*
@@ -216,6 +226,23 @@ db_capture_exitpager(void)
 }
 
 /*
+ * Zero out any bytes left in the last block of the DDB capture buffer.  This
+ * is run shortly before writing the blocks to disk, rather than when output
+ * capture is stopped, in order to avoid injecting nul's into the middle of
+ * output.
+ */
+static void
+db_capture_zeropad(void)
+{
+	u_int len;
+
+	len = min(TEXTDUMP_BLOCKSIZE, (db_capture_bufsize -
+	    db_capture_bufoff) % TEXTDUMP_BLOCKSIZE);
+	bzero(db_capture_buf + db_capture_bufoff, len);
+	db_capture_bufpadding = len;
+}
+
+/*
  * Reset capture state, which flushes buffers.
  */
 static void
@@ -224,6 +251,7 @@ db_capture_reset(void)
 
 	db_capture_inprogress = 0;
 	db_capture_bufoff = 0;
+	db_capture_bufpadding = 0;
 }
 
 /*
@@ -242,7 +270,9 @@ db_capture_start(void)
 }
 
 /*
- * Terminate DDB output capture.
+ * Terminate DDB output capture--real work is deferred to db_capture_dump,
+ * which executes outside of the DDB context.  We don't zero pad here because
+ * capture may be started again before the dump takes place.
  */
 static void
 db_capture_stop(void)
@@ -253,6 +283,28 @@ db_capture_stop(void)
 		return;
 	}
 	db_capture_inprogress = 0;
+}
+
+/*
+ * Dump DDB(4) captured output (and resets capture buffers).
+ */
+void
+db_capture_dump(struct dumperinfo *di)
+{
+	u_int offset;
+
+	if (db_capture_bufoff == 0)
+		return;
+
+	db_capture_zeropad();
+	textdump_mkustar(textdump_block_buffer, DB_CAPTURE_FILENAME,
+	    db_capture_bufoff);
+	(void)textdump_writenextblock(di, textdump_block_buffer);
+	for (offset = 0; offset < db_capture_bufoff + db_capture_bufpadding;
+	    offset += TEXTDUMP_BLOCKSIZE)
+		(void)textdump_writenextblock(di, db_capture_buf + offset);
+	db_capture_bufoff = 0;
+	db_capture_bufpadding = 0;
 }
 
 /*-
