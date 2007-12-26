@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 PROG=		loader
-NEWVERSWHAT=	"bootstrap loader" "Open Firmware/PowerPC"
+NEWVERSWHAT=	"Open Firmware loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
