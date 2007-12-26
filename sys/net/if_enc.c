@@ -293,6 +293,13 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 			printf("%s: unknown IP version\n", __func__);
 	}
 
+	/*
+	 * If the mbuf was consumed by the filter for requeueing (dummynet, etc)
+	 * then error will be zero but we still want to return an error to our
+	 * caller so the null mbuf isn't forwarded further.
+	 */
+	if (*mp == NULL && error == 0)
+		return (-1);	/* Consumed by the filter */
 	if (*mp == NULL)
 		return (error);
 	if (error != 0)
