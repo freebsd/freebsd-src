@@ -361,6 +361,7 @@ ddb/db_output.c			optional	ddb
 ddb/db_print.c			optional	ddb
 ddb/db_ps.c			optional	ddb
 ddb/db_run.c			optional	ddb
+ddb/db_script.c			optional	ddb
 ddb/db_sym.c			optional	ddb
 ddb/db_thread.c			optional	ddb
 ddb/db_variables.c		optional	ddb
