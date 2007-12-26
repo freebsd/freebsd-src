@@ -626,6 +626,10 @@ may be used to query the compile-time limit on the capture buffer size.
 .Dv debug.ddb.capture.bytes
 may be used to query the number of bytes of output currently in the capture
 buffer.
+.Pp
+.Dv debug.ddb.capture.data
+returns the contents of the buffer as a string to an appropriately privileged
+process.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
