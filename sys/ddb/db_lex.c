@@ -35,11 +35,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/libkern.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
 
-static char	db_line[120];
+static char	db_line[DB_MAXLINE];
 static char *	db_lp, *db_endlp;
 
 static int	db_lex(void);
@@ -58,6 +59,32 @@ db_read_line()
 	db_lp = db_line;
 	db_endlp = db_lp + i;
 	return (i);
+}
+
+/*
+ * Simulate a line of input into DDB.
+ */
+void
+db_inject_line(const char *command)
+{
+
+	strlcpy(db_line, command, sizeof(db_line));
+	db_lp = db_line;
+	db_endlp = db_lp + strlen(command);
+}
+
+/*
+ * In rare cases, we may want to pull the remainder of the line input
+ * verbatim, rather than lexing it.  For example, when assigning literal
+ * values associated with scripts.  In that case, return a static pointer to
+ * the current location in the input buffer.  The caller must be aware that
+ * the contents are not stable if other lex/input calls are made.
+ */
+char *
+db_get_line(void)
+{
+
+	return (db_lp);
 }
 
 static void
@@ -264,6 +291,8 @@ db_lex()
 		return (tDOLLAR);
 	    case '!':
 		return (tEXCL);
+	    case ';':
+		return (tSEMI);
 	    case '<':
 		c = db_read_char();
 		if (c == '<')
