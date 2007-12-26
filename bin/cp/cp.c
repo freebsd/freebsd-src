@@ -210,10 +210,9 @@ main(int argc, char *argv[])
 		/*
 		 * Case (1).  Target is not a directory.
 		 */
-		if (argc > 1) {
-			warnx("Target is not a directory");
-			exit(1);
-		}
+		if (argc > 1)
+			errx(1, "%s is not a directory", to.p_path);
+
 		/*
 		 * Need to detect the case:
 		 *	cp -R dir foo
