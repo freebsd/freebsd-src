@@ -79,17 +79,24 @@ Delete the script named
 The following example defines a script that will execute when the kernel
 debugger is entered as a result of a break signal:
 .Bd -literal -offset indent
-ddb script kdb.enter.break="show pcpu;bt"
+ddb script kdb.enter.break="show pcpu; bt"
 .Ed
 .Pp
 The following example will delete the script:
 .Bd -literal -offset indent
 ddb unscript kdb.enter.break
 .Ed
+.Pp
+For further examples, see the
+.Xr ddb 4
+and
+.Xr textdump 4
+man pages.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
-.Xr DDB 4 ,
+.Xr ddb 4 ,
+.Xr textdump 4 ,
 .Xr sysctl 8
 .Sh HISTORY
 .Nm
@@ -101,6 +108,6 @@ first appeared in
 Ideally,
 .Nm
 would not exist, as all pertinent aspects of
-.Xr DDB 4
+.Xr ddb 4
 could be configured directly via
 .Xr sysctl 8 .
