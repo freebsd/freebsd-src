@@ -146,6 +146,7 @@ static struct command db_commands[] = {
 	{ "scripts",	db_scripts_cmd,		0,	0 },
 	{ "unscript",	db_unscript_cmd,	CS_OWN,	0 },
 	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
+	{ "textdump",	db_textdump_cmd,	CS_OWN, 0 },
 	{ (char *)0, }
 };
 
