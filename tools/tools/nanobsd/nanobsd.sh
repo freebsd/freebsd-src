@@ -367,8 +367,8 @@ create_i386_diskimage ( ) (
 		# Data partition (if any) starts at cylinder boundary.
 		if ($7 > 0) {
 			print "p 4 165 " c, dsl * cs
-		} else if ($7 < 0 && $1 > $c) {
-			print "p 4 165 " c, $1 - $c
+		} else if ($7 < 0 && $1 > c) {
+			print "p 4 165 " c, $1 - c
 		} else if ($1 < c) {
 			print "Disk space overcommitted by", \
 			    c - $1, "sectors" > "/dev/stderr"
