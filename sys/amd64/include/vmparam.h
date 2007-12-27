@@ -132,6 +132,20 @@
 #define	VM_NFREEORDER		13
 
 /*
+ * Enable superpage reservations: 1 level.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		1
+#endif
+
+/*
+ * Level 0 reservations consist of 512 pages.
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	9
+#endif
+
+/*
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  * Because of the page that is both a PD and PT, it looks a little
