@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "7.0-BETA">
+<!ENTITY release.current "7.0-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -19,10 +19,10 @@
 <!ENTITY release.prev.stable "6.2-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "7.0-RELEASE">
+<!ENTITY release.next "7.1-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "7-CURRENT">
+<!ENTITY release.branch "7-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
@@ -30,9 +30,9 @@
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 <!ENTITY release.type "snapshot">
-<!ENTITY % release.type.current  "INCLUDE">
+<!ENTITY % release.type.current  "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
@@ -40,7 +40,7 @@
 <!ENTITY release.manpath.xorg          "7.2">
 <!ENTITY release.manpath.netbsd        "3.0">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "7.0-stable">
+<!ENTITY release.manpath.freebsd       "7.0-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
