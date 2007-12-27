@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd December 27, 2007
 .Os
 .Dt VOP_LOCK 9
 .Sh NAME
@@ -89,10 +89,6 @@ Do not sleep to wait for lock.
 Sleep, then return failure.
 .It Dv LK_CANRECURSE
 Allow recursive exclusive lock.
-.It Dv LK_REENABLE
-Lock is to be reenabled after drain.
-.It Dv LK_NOPAUSE
-No spinloop.
 .El
 .Pp
 The lock type may be
@@ -106,8 +102,6 @@ Specify when the caller already has a simple lock
 will unlock the simple lock after getting the lock).
 .It Dv LK_RETRY
 Retry until locked.
-.It Dv LK_NOOBJ
-Do not create object.
 .El
 .It Fa td
 Thread context to use for the locks.
