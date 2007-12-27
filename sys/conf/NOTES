@@ -2106,6 +2106,7 @@ device	tnt4882
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA/PCI) - single card
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
+# asmc: Apple's System Management Console - Intel Macs
 
 # Notes on the Comtrol Rocketport driver:
 #
@@ -2222,6 +2223,9 @@ hint.si.0.irq="12"
 # I2C slaves connected to the external connector of some cards.
 #
 device		bktr
+ 
+# Apple's System Management Console
+device	  	asmc
 
 #
 # PC Card/PCMCIA and Cardbus
