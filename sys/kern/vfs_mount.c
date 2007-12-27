@@ -1286,8 +1286,13 @@ dounmount(mp, flags, td)
 		error = VFS_UNMOUNT(mp, flags, td);
 	}
 	vn_finished_write(mp);
-	if (error) {
-		/* Undo cdir/rdir and rootvnode changes made above. */
+	/*
+	 * If we failed to flush the dirty blocks for this mount point,
+	 * undo all the cdir/rdir and rootvnode changes we made above.
+	 * Unless we failed to do so because the device is reporting that
+	 * it doesn't exist anymore.
+	 */
+	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
 		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
