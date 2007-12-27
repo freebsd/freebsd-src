@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+/* Exit code for a failed exec. */
+#define EXEC_FAILED 127
+
 int fflg, iflg, nflg, vflg;
 
 int	copy(char *, char *);
@@ -198,6 +201,11 @@ do_move(char *from, char *to)
 			}
 		}
 	}
+	/*
+	 * Rename on FreeBSD will fail with EISDIR and ENOTDIR, before failing
+	 * with EXDEV.  Therefore, copy() doesn't have to perform the checks
+	 * specified in the Step 3 of the POSIX mv specification.
+	 */
 	if (!rename(from, to)) {
 		if (vflg)
 			printf("%s -> %s\n", from, to);
@@ -219,7 +227,7 @@ do_move(char *from, char *to)
 		if (!S_ISLNK(sb.st_mode)) {
 			/* Can't mv(1) a mount point. */
 			if (realpath(from, path) == NULL) {
-				warnx("cannot resolve %s: %s", from, path);
+				warn("cannot resolve %s: %s", from, path);
 				return (1);
 			}
 			if (!statfs(path, &sfs) &&
@@ -252,9 +260,9 @@ fastcopy(char *from, char *to, struct stat *sbp)
 	struct timeval tval[2];
 	static u_int blen;
 	static char *bp;
+	acl_t acl;
 	mode_t oldmode;
 	int nread, from_fd, to_fd;
-	acl_t acl;
 
 	if ((from_fd = open(from, O_RDONLY, 0)) < 0) {
 		warn("%s", from);
@@ -305,7 +313,7 @@ err:		if (unlink(to))
 	}
 	/*
 	 * POSIX 1003.2c states that if _POSIX_ACL_EXTENDED is in effect
-	 * for dest_file, then it's ACLs shall reflect the ACLs of the
+	 * for dest_file, then its ACLs shall reflect the ACLs of the
 	 * source_file.
 	 */
 	if (fpathconf(to_fd, _PC_ACL_EXTENDED) == 1 &&
@@ -356,112 +364,78 @@ int
 copy(char *from, char *to)
 {
 	struct stat sb;
-	enum clean {CLEAN_SOURCE, CLEAN_DEST, CLEAN_ODEST, CLEAN_MAX};
-	char *cleanup[CLEAN_MAX];
 	int pid, status;
-	volatile int i, rval;
 
-	rval = 0;
-	for (i = 0; i < CLEAN_MAX; i++)
-		cleanup[i] = NULL;
-	/*
-	 * If "to" exists and is a directory, get it out of the way.
-	 * When the copy succeeds, delete it.
-	 */
-	if (stat(to, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-		if (asprintf(&cleanup[CLEAN_ODEST], "%s.XXXXXX", to) == -1) {
-			warnx("asprintf failed");
-			return (1);
-
+	if (lstat(to, &sb) == 0) {
+		/* Destination path exists. */
+		if (S_ISDIR(sb.st_mode)) {
+			if (rmdir(to) != 0) {
+				warn("rmdir %s", to);
+				return (1);
+			}
+		} else {
+			if (unlink(to) != 0) {
+				warn("unlink %s", to);
+				return (1);
+			}
 		}
-		if (rename(to, cleanup[CLEAN_ODEST]) < 0) {
-			warn("rename of existing target from %s to %s failed",
-			    to, cleanup[CLEAN_ODEST]);
-			free(cleanup[CLEAN_ODEST]);
-			return (1);
-		}
+	} else if (errno != ENOENT) {
+		warn("%s", to);
+		return (1);
 	}
+
 	/* Copy source to destination. */
-	cleanup[CLEAN_DEST] = to;
-	if ((pid = fork()) == 0) {
+	if (!(pid = vfork())) {
 		execl(_PATH_CP, "mv", vflg ? "-PRpv" : "-PRp", "--", from, to,
 		    (char *)NULL);
-		warn("%s", _PATH_CP);
-		_exit(1);
+		_exit(EXEC_FAILED);
 	}
 	if (waitpid(pid, &status, 0) == -1) {
-		warn("%s: waitpid", _PATH_CP);
-		rval = 1;
-		goto done;
+		warn("%s %s %s: waitpid", _PATH_CP, from, to);
+		return (1);
 	}
 	if (!WIFEXITED(status)) {
-		warnx("%s: did not terminate normally", _PATH_CP);
-		rval = 1;
-		goto done;
+		warnx("%s %s %s: did not terminate normally",
+		    _PATH_CP, from, to);
+		return (1);
 	}
-	if (WEXITSTATUS(status)) {
-		warnx("%s: terminated with %d (non-zero) status",
-		    _PATH_CP, WEXITSTATUS(status));
-		rval = 1;
-		goto done;
+	switch (WEXITSTATUS(status)) {
+	case 0:
+		break;
+	case EXEC_FAILED:
+		warnx("%s %s %s: exec failed", _PATH_CP, from, to);
+		return (1);
+	default:
+		warnx("%s %s %s: terminated with %d (non-zero) status",
+		    _PATH_CP, from, to, WEXITSTATUS(status));
+		return (1);
 	}
-	/*
-	 * The copy succeeded.  From now on the destination is where users
-	 * will find their files.
-	 */
-	cleanup[CLEAN_DEST] = NULL;
-	cleanup[CLEAN_SOURCE] = from;
-done:
-	/* Clean what needs to be cleaned. */
-	for (i = 0; i < CLEAN_MAX; i++) {
-		if (cleanup[i] == NULL)
-			continue;
-		if (!(pid = vfork())) {
-			execl(_PATH_RM, "mv", "-rf", "--", cleanup[i],
-			    (char *)NULL);
-			_exit(EX_OSERR);
-		}
-		if (waitpid(pid, &status, 0) == -1) {
-			warn("%s %s: waitpid", _PATH_RM, cleanup[i]);
-			rval = 1;
-			continue;
-		}
-		if (!WIFEXITED(status)) {
-			warnx("%s %s: did not terminate normally",
-			    _PATH_RM, cleanup[i]);
-			rval = 1;
-			continue;
-		}
-		switch (WEXITSTATUS(status)) {
-		case 0:
-			break;
-		case EX_OSERR:
-			warnx("Failed to exec %s %s", _PATH_RM, cleanup[i]);
-			rval = 1;
-			continue;
-		default:
-			warnx("%s %s: terminated with %d (non-zero) status",
-			    _PATH_RM, cleanup[i], WEXITSTATUS(status));
-			rval = 1;
-			continue;
-		}
-		/*
-		 * If the copy failed, and we just deleted the copy's trash,
-		 * try to salvage the original destination,
-		 */
-		if (i == CLEAN_DEST && cleanup[CLEAN_ODEST]) {
-			if (rename(cleanup[CLEAN_ODEST], to) < 0) {
-				warn("rename back renamed existing target from %s to %s failed",
-				    cleanup[CLEAN_ODEST], to);
-				rval = 1;
-			}
-			free(cleanup[CLEAN_ODEST]);
-			cleanup[CLEAN_ODEST] = NULL;
-		}
+
+	/* Delete the source. */
+	if (!(pid = vfork())) {
+		execl(_PATH_RM, "mv", "-rf", "--", from, (char *)NULL);
+		_exit(EXEC_FAILED);
 	}
-	if (cleanup[CLEAN_ODEST])
-		free(cleanup[CLEAN_ODEST]);
-	return (rval);
+	if (waitpid(pid, &status, 0) == -1) {
+		warn("%s %s: waitpid", _PATH_RM, from);
+		return (1);
+	}
+	if (!WIFEXITED(status)) {
+		warnx("%s %s: did not terminate normally", _PATH_RM, from);
+		return (1);
+	}
+	switch (WEXITSTATUS(status)) {
+	case 0:
+		break;
+	case EXEC_FAILED:
+		warnx("%s %s: exec failed", _PATH_RM, from);
+		return (1);
+	default:
+		warnx("%s %s: terminated with %d (non-zero) status",
+		    _PATH_RM, from, WEXITSTATUS(status));
+		return (1);
+	}
+	return (0);
 }
 
 void
