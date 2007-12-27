@@ -1170,6 +1170,7 @@ brelse(struct buf *bp)
 
 	if (bp->b_iocmd == BIO_WRITE &&
 	    (bp->b_ioflags & BIO_ERROR) &&
+	    bp->b_error != ENXIO &&
 	    !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
@@ -1177,6 +1178,9 @@ brelse(struct buf *bp)
 		 * this case is not run and the next case is run to 
 		 * destroy the buffer.  B_INVAL can occur if the buffer
 		 * is outside the range supported by the underlying device.
+		 * If the error is that the device went away (ENXIO), we
+		 * shouldn't redirty the buffer either, but discard the
+		 * data too.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
