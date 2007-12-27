@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2007
+.Dd December 27, 2007
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -165,11 +165,18 @@ the value of the environment variable
 .Ev MALLOC_OPTIONS ,
 and the string pointed to by the global variable
 .Va _malloc_options
-will be interpreted, in that order, character by character as flags.
+will be interpreted, in that order, from left to right as flags.
 .Pp
-Most flags are single letters,
-where uppercase indicates that the behavior is set, or on,
-and lowercase means that the behavior is not set, or off.
+Each flag is a single letter, optionally prefixed by a non-negative base 10
+integer repetition count.
+For example,
+.Dq 3N
+is equivalent to
+.Dq NNN .
+Some flags control parameter magnitudes, where uppercase increases the
+magnitude, and lowercase decreases the magnitude.
+Other flags control boolean parameters, where uppercase indicates that a
+behavior is set, or on, and lowercase means that a behavior is not set, or off.
 .Bl -tag -width indent
 .It A
 All warnings (except for the warning about unknown
@@ -178,7 +185,7 @@ The process will call
 .Xr abort 3
 in these cases.
 .It B
-Increase/decrease the per-arena lock contention threshold at which a thread is
+Double/halve the per-arena lock contention threshold at which a thread is
 randomly re-assigned to an arena.
 This dynamic load balancing tends to push threads away from highly contended
 arenas, which avoids worst case contention scenarios in which threads
@@ -189,7 +196,14 @@ it should be to contention over arenas.
 Therefore, some applications may benefit from increasing or decreasing this
 threshold parameter.
 This option is not available for some configurations (non-PIC).
-This option can be specified multiple times.
+.It D
+Use
+.Xr sbrk 2
+to acquire memory in the data storage segment (DSS).
+This option is enabled by default.
+See the
+.Dq M
+option for related information and interactions.
 .It H
 Use
 .Xr madvise 2
@@ -214,26 +228,38 @@ or
 will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
 .It K
-Increase/decrease the virtual memory chunk size by a factor of two.
+Double/halve the virtual memory chunk size.
 The default chunk size is 1 MB.
-This option can be specified multiple times.
 .It L
-Increase/decrease the per-arena number of slots for lazy deallocation.
+Double/halve the per-arena number of slots for lazy deallocation.
 Lazy deallocation can decrease lock contention, especially for programs that use
 the producer/consumer model.
 The default is 256 slots per arena (so
-.Ev MALLOC_OPTIONS=lllllllll
+.Ev MALLOC_OPTIONS=9l
 will disable lazy deallocation), but note that due to algorithmic details, the
 cache is typically flushed well before it completely fills.
 This option has no impact unless there are multiple CPUs, and lazy deallocation
 does not activate unless the program uses multiple threads.
 This option is not available for some configurations (non-PIC).
-This option can be specified multiple times.
+.It M
+Use
+.Xr mmap 2
+to acquire anonymously mapped memory.
+This option is disabled by default.
+If both the
+.Dq D
+and
+.Dq M
+options are enabled, the allocator prefers the DSS over anonymous mappings,
+but allocation only fails if memory cannot be acquired via either method.
+If neither option is enabled, then the
+.Dq M
+option is implicitly enabled in order to assure that there is a method for
+acquiring memory.
 .It N
-Increase/decrease the number of arenas by a factor of two.
+Double/halve the number of arenas.
 The default number of arenas is four times the number of CPUs, or one if there
 is a single CPU.
-This option can be specified multiple times.
 .It P
 Various statistics are printed at program exit via an
 .Xr atexit 3
@@ -243,16 +269,14 @@ while one or more threads are executing in the memory allocation functions.
 Therefore, this option should only be used with care; it is primarily intended
 as a performance tuning aid during application development.
 .It Q
-Increase/decrease the size of the allocation quantum by a factor of two.
+Double/halve the size of the allocation quantum.
 The default quantum is the minimum allowed by the architecture (typically 8 or
 16 bytes).
-This option can be specified multiple times.
 .It S
-Increase/decrease the size of the maximum size class that is a multiple of the
-quantum by a factor of two.
+Double/halve the size of the maximum size class that is a multiple of the
+quantum.
 Above this size, power-of-two spacing is used for size classes.
 The default value is 512 bytes.
-This option can be specified multiple times.
 .It U
 Generate
 .Dq utrace
@@ -308,12 +332,21 @@ is flawed.
 .Sh IMPLEMENTATION NOTES
 Traditionally, allocators have used
 .Xr sbrk 2
-to obtain memory, but this implementation uses
-.Xr mmap 2 ,
-and only uses
+to obtain memory, which is suboptimal for several reasons, including race
+conditions, increased fragmentation, and artificial limitations on maximum
+usable memory.
+This allocator uses
 .Xr sbrk 2
-under limited circumstances, and only for 32-bit architectures.
-As a result, the
+by default in order to facilitate resource limits, but it can be configured at
+run time to use
+.Xr sbrk 2
+and/or
+.Xr mmap 2 .
+If resource limits are not a primary concern, the preferred configuration is
+.Ev MALLOC_OPTIONS=dM
+or
+.Ev MALLOC_OPTIONS=DM .
+When so configured, the
 .Ar datasize
 resource limit has little practical effect for typical applications.
 The

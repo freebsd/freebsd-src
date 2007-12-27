@@ -125,6 +125,14 @@
  */
 #define	MALLOC_BALANCE
 
+/*
+ * MALLOC_DSS enables use of sbrk(2) to allocate chunks from the data storage
+ * segment (DSS).  In an ideal world, this functionality would be completely
+ * unnecessary, but we are burdened by history and the lack of resource limits
+ * for anonymous mapped memory.
+ */
+#define MALLOC_DSS
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -186,7 +194,6 @@ __FBSDID("$FreeBSD$");
 #ifdef __i386__
 #  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR_2POW	2
-#  define USE_BRK
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
 #endif
 #ifdef __ia64__
@@ -211,13 +218,11 @@ __FBSDID("$FreeBSD$");
 #ifdef __arm__
 #  define QUANTUM_2POW_MIN	3
 #  define SIZEOF_PTR_2POW	2
-#  define USE_BRK
 #  define NO_TLS
 #endif
 #ifdef __powerpc__
 #  define QUANTUM_2POW_MIN	4
 #  define SIZEOF_PTR_2POW	2
-#  define USE_BRK
 #endif
 
 #define	SIZEOF_PTR		(1U << SIZEOF_PTR_2POW)
@@ -710,22 +715,19 @@ static malloc_mutex_t	chunks_mtx;
 /* Tree of chunks that are stand-alone huge allocations. */
 static chunk_tree_t	huge;
 
-#ifdef USE_BRK
-/*
- * Try to use brk for chunk-size allocations, due to address space constraints.
- */
+#ifdef MALLOC_DSS
 /*
  * Protects sbrk() calls.  This must be separate from chunks_mtx, since
  * base_pages_alloc() also uses sbrk(), but cannot lock chunks_mtx (doing so
  * could cause recursive lock acquisition).
  */
-static malloc_mutex_t	brk_mtx;
-/* Result of first sbrk(0) call. */
-static void		*brk_base;
-/* Current end of brk, or ((void *)-1) if brk is exhausted. */
-static void		*brk_prev;
-/* Current upper limit on brk addresses. */
-static void		*brk_max;
+static malloc_mutex_t	dss_mtx;
+/* Base address of the DSS. */
+static void		*dss_base;
+/* Current end of the DSS, or ((void *)-1) if the DSS is exhausted. */
+static void		*dss_prev;
+/* Current upper limit on DSS addresses. */
+static void		*dss_max;
 #endif
 
 #ifdef MALLOC_STATS
@@ -805,6 +807,10 @@ static bool	opt_junk = true;
 #else
 static bool	opt_abort = false;
 static bool	opt_junk = false;
+#endif
+#ifdef MALLOC_DSS
+static bool	opt_dss = true;
+static bool	opt_mmap = false;
 #endif
 static bool	opt_hint = false;
 #ifdef MALLOC_LAZY_FREE
@@ -1176,43 +1182,40 @@ umax2s(uintmax_t x, char *s)
 
 /******************************************************************************/
 
-static bool
-base_pages_alloc(size_t minsize)
+#ifdef MALLOC_DSS
+static inline bool
+base_pages_alloc_dss(size_t minsize)
 {
-	size_t csize;
 
-#ifdef USE_BRK
 	/*
-	 * Do special brk allocation here, since base allocations don't need to
+	 * Do special DSS allocation here, since base allocations don't need to
 	 * be chunk-aligned.
 	 */
-	if (brk_prev != (void *)-1) {
-		void *brk_cur;
+	if (dss_prev != (void *)-1) {
+		void *dss_cur;
 		intptr_t incr;
+		size_t csize = CHUNK_CEILING(minsize);
 
-		if (minsize != 0)
-			csize = CHUNK_CEILING(minsize);
-
-		malloc_mutex_lock(&brk_mtx);
+		malloc_mutex_lock(&dss_mtx);
 		do {
-			/* Get the current end of brk. */
-			brk_cur = sbrk(0);
+			/* Get the current end of the DSS. */
+			dss_cur = sbrk(0);
 
 			/*
 			 * Calculate how much padding is necessary to
-			 * chunk-align the end of brk.  Don't worry about
-			 * brk_cur not being chunk-aligned though.
+			 * chunk-align the end of the DSS.  Don't worry about
+			 * dss_cur not being chunk-aligned though.
 			 */
 			incr = (intptr_t)chunksize
-			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
+			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_cur);
 			if (incr < minsize)
 				incr += csize;
 
-			brk_prev = sbrk(incr);
-			if (brk_prev == brk_cur) {
+			dss_prev = sbrk(incr);
+			if (dss_prev == dss_cur) {
 				/* Success. */
-				malloc_mutex_unlock(&brk_mtx);
-				base_pages = brk_cur;
+				malloc_mutex_unlock(&dss_mtx);
+				base_pages = dss_cur;
 				base_next_addr = base_pages;
 				base_past_addr = (void *)((uintptr_t)base_pages
 				    + incr);
@@ -1221,17 +1224,19 @@ base_pages_alloc(size_t minsize)
 #endif
 				return (false);
 			}
-		} while (brk_prev != (void *)-1);
-		malloc_mutex_unlock(&brk_mtx);
+		} while (dss_prev != (void *)-1);
+		malloc_mutex_unlock(&dss_mtx);
 	}
-	if (minsize == 0) {
-		/*
-		 * Failure during initialization doesn't matter, so avoid
-		 * falling through to the mmap-based page mapping code.
-		 */
-		return (true);
-	}
+
+	return (true);
+}
 #endif
+
+static inline bool
+base_pages_alloc_mmap(size_t minsize)
+{
+	size_t csize;
+
 	assert(minsize != 0);
 	csize = PAGE_CEILING(minsize);
 	base_pages = pages_map(NULL, csize);
@@ -1242,7 +1247,28 @@ base_pages_alloc(size_t minsize)
 #ifdef MALLOC_STATS
 	base_mapped += csize;
 #endif
+
 	return (false);
+}
+
+static bool
+base_pages_alloc(size_t minsize)
+{
+
+#ifdef MALLOC_DSS
+	if (opt_dss) {
+		if (base_pages_alloc_dss(minsize) == false)
+			return (false);
+	}
+
+	if (opt_mmap && minsize != 0)
+#endif
+	{
+		if (base_pages_alloc_mmap(minsize) == false)
+			return (false);
+	}
+
+	return (true);
 }
 
 static void *
@@ -1456,6 +1482,98 @@ pages_unmap(void *addr, size_t size)
 	}
 }
 
+#ifdef MALLOC_DSS
+static inline void *
+chunk_alloc_dss(size_t size)
+{
+
+	/*
+	 * Try to create allocations in the DSS, in order to make full use of
+	 * limited address space.
+	 */
+	if (dss_prev != (void *)-1) {
+		void *dss_cur;
+		intptr_t incr;
+
+		/*
+		 * The loop is necessary to recover from races with other
+		 * threads that are using the DSS for something other than
+		 * malloc.
+		 */
+		malloc_mutex_lock(&dss_mtx);
+		do {
+			void *ret;
+
+			/* Get the current end of the DSS. */
+			dss_cur = sbrk(0);
+
+			/*
+			 * Calculate how much padding is necessary to
+			 * chunk-align the end of the DSS.
+			 */
+			incr = (intptr_t)size
+			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_cur);
+			if (incr == size) {
+				ret = dss_cur;
+			} else {
+				ret = (void *)((intptr_t)dss_cur + incr);
+				incr += size;
+			}
+
+			dss_prev = sbrk(incr);
+			if (dss_prev == dss_cur) {
+				/* Success. */
+				malloc_mutex_unlock(&dss_mtx);
+				dss_max = (void *)((intptr_t)ret + size);
+				return (ret);
+			}
+		} while (dss_prev != (void *)-1);
+		malloc_mutex_unlock(&dss_mtx);
+	}
+
+	return (NULL);
+}
+#endif
+
+static inline void *
+chunk_alloc_mmap(size_t size)
+{
+
+	/*
+	 * Try to over-allocate, but allow the OS to place the allocation
+	 * anywhere.  Beware of size_t wrap-around.
+	 */
+	if (size + chunksize > size) {
+		void *ret;
+
+		if ((ret = pages_map(NULL, size + chunksize)) != NULL) {
+			size_t offset = CHUNK_ADDR2OFFSET(ret);
+
+			/*
+			 * Success.  Clean up unneeded leading/trailing space.
+			 */
+			if (offset != 0) {
+				/* Leading space. */
+				pages_unmap(ret, chunksize - offset);
+
+				ret = (void *)((uintptr_t)ret + (chunksize -
+				    offset));
+
+				/* Trailing space. */
+				pages_unmap((void *)((uintptr_t)ret + size),
+				    offset);
+			} else {
+				/* Trailing space only. */
+				pages_unmap((void *)((uintptr_t)ret + size),
+				    chunksize);
+			}
+			return (ret);
+		}
+	}
+
+	return (NULL);
+}
+
 static void *
 chunk_alloc(size_t size)
 {
@@ -1485,10 +1603,10 @@ chunk_alloc(size_t size)
 			RB_REMOVE(chunk_tree_s, &old_chunks, delchunk);
 			base_chunk_node_dealloc(delchunk);
 
-#ifdef USE_BRK
-			if ((uintptr_t)chunk >= (uintptr_t)brk_base
-			    && (uintptr_t)chunk < (uintptr_t)brk_max) {
-				/* Re-use a previously freed brk chunk. */
+#ifdef MALLOC_DSS
+			if (opt_dss && (uintptr_t)chunk >= (uintptr_t)dss_base
+			    && (uintptr_t)chunk < (uintptr_t)dss_max) {
+				/* Re-use a previously freed DSS chunk. */
 				ret = chunk;
 				/*
 				 * Maintain invariant that all newly allocated
@@ -1505,78 +1623,20 @@ chunk_alloc(size_t size)
 		}
 	}
 
-	/*
-	 * Try to over-allocate, but allow the OS to place the allocation
-	 * anywhere.  Beware of size_t wrap-around.
-	 */
-	if (size + chunksize > size) {
-		if ((ret = pages_map(NULL, size + chunksize)) != NULL) {
-			size_t offset = CHUNK_ADDR2OFFSET(ret);
-
-			/*
-			 * Success.  Clean up unneeded leading/trailing space.
-			 */
-			if (offset != 0) {
-				/* Leading space. */
-				pages_unmap(ret, chunksize - offset);
-
-				ret = (void *)((uintptr_t)ret + (chunksize -
-				    offset));
-
-				/* Trailing space. */
-				pages_unmap((void *)((uintptr_t)ret + size),
-				    offset);
-			} else {
-				/* Trailing space only. */
-				pages_unmap((void *)((uintptr_t)ret + size),
-				    chunksize);
-			}
+#ifdef MALLOC_DSS
+	if (opt_dss) {
+		ret = chunk_alloc_dss(size);
+		if (ret != NULL)
 			goto RETURN;
-		}
 	}
 
-#ifdef USE_BRK
-	/*
-	 * Try to create allocations in brk, in order to make full use of
-	 * limited address space.
-	 */
-	if (brk_prev != (void *)-1) {
-		void *brk_cur;
-		intptr_t incr;
-
-		/*
-		 * The loop is necessary to recover from races with other
-		 * threads that are using brk for something other than malloc.
-		 */
-		malloc_mutex_lock(&brk_mtx);
-		do {
-			/* Get the current end of brk. */
-			brk_cur = sbrk(0);
-
-			/*
-			 * Calculate how much padding is necessary to
-			 * chunk-align the end of brk.
-			 */
-			incr = (intptr_t)size
-			    - (intptr_t)CHUNK_ADDR2OFFSET(brk_cur);
-			if (incr == size) {
-				ret = brk_cur;
-			} else {
-				ret = (void *)((intptr_t)brk_cur + incr);
-				incr += size;
-			}
-
-			brk_prev = sbrk(incr);
-			if (brk_prev == brk_cur) {
-				/* Success. */
-				malloc_mutex_unlock(&brk_mtx);
-				brk_max = (void *)((intptr_t)ret + size);
-				goto RETURN;
-			}
-		} while (brk_prev != (void *)-1);
-		malloc_mutex_unlock(&brk_mtx);
-	}
+	if (opt_mmap)
 #endif
+	{
+		ret = chunk_alloc_mmap(size);
+		if (ret != NULL)
+			goto RETURN;
+	}
 
 	/* All strategies for allocation failed. */
 	ret = NULL;
@@ -1613,48 +1673,41 @@ RETURN:
 	return (ret);
 }
 
-static void
-chunk_dealloc(void *chunk, size_t size)
+#ifdef MALLOC_DSS
+static inline bool
+chunk_dealloc_dss(void *chunk, size_t size)
 {
 	chunk_node_t *node;
 
-	assert(chunk != NULL);
-	assert(CHUNK_ADDR2BASE(chunk) == chunk);
-	assert(size != 0);
-	assert((size & chunksize_mask) == 0);
+	if ((uintptr_t)chunk >= (uintptr_t)dss_base
+	    && (uintptr_t)chunk < (uintptr_t)dss_max) {
+		void *dss_cur;
 
-	malloc_mutex_lock(&chunks_mtx);
-
-#ifdef USE_BRK
-	if ((uintptr_t)chunk >= (uintptr_t)brk_base
-	    && (uintptr_t)chunk < (uintptr_t)brk_max) {
-		void *brk_cur;
-
-		malloc_mutex_lock(&brk_mtx);
-		/* Get the current end of brk. */
-		brk_cur = sbrk(0);
+		malloc_mutex_lock(&dss_mtx);
+		/* Get the current end of the DSS. */
+		dss_cur = sbrk(0);
 
 		/*
-		 * Try to shrink the data segment if this chunk is at the end
-		 * of the data segment.  The sbrk() call here is subject to a
-		 * race condition with threads that use brk(2) or sbrk(2)
-		 * directly, but the alternative would be to leak memory for
-		 * the sake of poorly designed multi-threaded programs.
+		 * Try to shrink the DSS if this chunk is at the end of the
+		 * DSS.  The sbrk() call here is subject to a race condition
+		 * with threads that use brk(2) or sbrk(2) directly, but the
+		 * alternative would be to leak memory for the sake of poorly
+		 * designed multi-threaded programs.
 		 */
-		if (brk_cur == brk_max
-		    && (void *)((uintptr_t)chunk + size) == brk_max
-		    && sbrk(-(intptr_t)size) == brk_max) {
-			malloc_mutex_unlock(&brk_mtx);
-			if (brk_prev == brk_max) {
+		if (dss_cur == dss_max
+		    && (void *)((uintptr_t)chunk + size) == dss_max
+		    && sbrk(-(intptr_t)size) == dss_max) {
+			malloc_mutex_unlock(&dss_mtx);
+			if (dss_prev == dss_max) {
 				/* Success. */
-				brk_prev = (void *)((intptr_t)brk_max
+				dss_prev = (void *)((intptr_t)dss_max
 				    - (intptr_t)size);
-				brk_max = brk_prev;
+				dss_max = dss_prev;
 			}
 		} else {
 			size_t offset;
 
-			malloc_mutex_unlock(&brk_mtx);
+			malloc_mutex_unlock(&dss_mtx);
 			madvise(chunk, size, MADV_FREE);
 
 			/*
@@ -1674,28 +1727,58 @@ chunk_dealloc(void *chunk, size_t size)
 				RB_INSERT(chunk_tree_s, &old_chunks, node);
 			}
 		}
-	} else {
-#endif
-		pages_unmap(chunk, size);
 
-		/*
-		 * Make a record of the chunk's address, so that the address
-		 * range can be recycled if memory usage increases later on.
-		 * Don't bother to create entries if (size > chunksize), since
-		 * doing so could cause scalability issues for truly gargantuan
-		 * objects (many gigabytes or larger).
-		 */
-		if (size == chunksize) {
-			node = base_chunk_node_alloc();
-			if (node != NULL) {
-				node->chunk = (void *)(uintptr_t)chunk;
-				node->size = chunksize;
-				RB_INSERT(chunk_tree_s, &old_chunks, node);
-			}
-		}
-#ifdef USE_BRK
+		return (false);
 	}
+
+	return (true);
+}
 #endif
+
+static inline void
+chunk_dealloc_mmap(void *chunk, size_t size)
+{
+	chunk_node_t *node;
+
+	pages_unmap(chunk, size);
+
+	/*
+	 * Make a record of the chunk's address, so that the address
+	 * range can be recycled if memory usage increases later on.
+	 * Don't bother to create entries if (size > chunksize), since
+	 * doing so could cause scalability issues for truly gargantuan
+	 * objects (many gigabytes or larger).
+	 */
+	if (size == chunksize) {
+		node = base_chunk_node_alloc();
+		if (node != NULL) {
+			node->chunk = (void *)(uintptr_t)chunk;
+			node->size = chunksize;
+			RB_INSERT(chunk_tree_s, &old_chunks, node);
+		}
+	}
+}
+
+static void
+chunk_dealloc(void *chunk, size_t size)
+{
+
+	assert(chunk != NULL);
+	assert(CHUNK_ADDR2BASE(chunk) == chunk);
+	assert(size != 0);
+	assert((size & chunksize_mask) == 0);
+
+	malloc_mutex_lock(&chunks_mtx);
+
+#ifdef MALLOC_DSS
+	if (opt_dss) {
+		if (chunk_dealloc_dss(chunk, size) == false)
+			return;
+	}
+
+	if (opt_mmap)
+#endif
+		chunk_dealloc_mmap(chunk, size);
 
 #ifdef MALLOC_STATS
 	stats_chunks.curchunks -= (size / chunksize);
@@ -2333,7 +2416,7 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 		 * changes, then we will need to account for it here.
 		 */
 		assert(chunk->map[run_ind - 1].pos != POS_EMPTY);
-#if 0
+#if 0 /* Currently unnecessary. */
 		if (prev_npages > 1 && chunk->map[run_ind - 1].pos == POS_EMPTY)
 			chunk->map[run_ind - 1].npages = NPAGES_EMPTY;
 #endif
@@ -3371,8 +3454,8 @@ huge_dalloc(void *ptr)
 	malloc_mutex_unlock(&chunks_mtx);
 
 	/* Unmap chunk. */
-#ifdef USE_BRK
-	if (opt_junk)
+#ifdef MALLOC_DSS
+	if (opt_dss && opt_junk)
 		memset(node->chunk, 0x5a, node->size);
 #endif
 	chunk_dealloc(node->chunk, node->size);
@@ -3587,9 +3670,15 @@ malloc_print_stats(void)
 #endif
 		    "\n", "");
 		_malloc_message("Boolean MALLOC_OPTIONS: ",
-		    opt_abort ? "A" : "a",
-		    opt_junk ? "J" : "j",
-		    opt_hint ? "H" : "h");
+		    opt_abort ? "A" : "a", "", "");
+#ifdef MALLOC_DSS
+		_malloc_message(opt_dss ? "D" : "d", "", "", "");
+#endif
+		_malloc_message(opt_hint ? "H" : "h",
+		    opt_junk ? "J" : "j", "", "");
+#ifdef MALLOC_DSS
+		_malloc_message(opt_mmap ? "M" : "m", "", "", "");
+#endif
 		_malloc_message(opt_utrace ? "PU" : "Pu",
 		    opt_sysv ? "V" : "v",
 		    opt_xmalloc ? "X" : "x",
@@ -3718,7 +3807,7 @@ malloc_init(void)
 static bool
 malloc_init_hard(void)
 {
-	unsigned i, j;
+	unsigned i;
 	int linklen;
 	char buf[PATH_MAX + 1];
 	const char *opts;
@@ -3770,6 +3859,8 @@ malloc_init_hard(void)
 	}
 
 	for (i = 0; i < 3; i++) {
+		unsigned j;
+
 		/* Get runtime configuration. */
 		switch (i) {
 		case 0:
@@ -3819,135 +3910,187 @@ malloc_init_hard(void)
 		}
 
 		for (j = 0; opts[j] != '\0'; j++) {
-			switch (opts[j]) {
-			case 'a':
-				opt_abort = false;
-				break;
-			case 'A':
-				opt_abort = true;
-				break;
-			case 'b':
-#ifdef MALLOC_BALANCE
-				opt_balance_threshold >>= 1;
-#endif
-				break;
-			case 'B':
-#ifdef MALLOC_BALANCE
-				if (opt_balance_threshold == 0)
-					opt_balance_threshold = 1;
-				else if ((opt_balance_threshold << 1)
-				    > opt_balance_threshold)
-					opt_balance_threshold <<= 1;
-#endif
-				break;
-			case 'h':
-				opt_hint = false;
-				break;
-			case 'H':
-				opt_hint = true;
-				break;
-			case 'j':
-				opt_junk = false;
-				break;
-			case 'J':
-				opt_junk = true;
-				break;
-			case 'k':
-				/*
-				 * Chunks always require at least one header
-				 * page, so chunks can never be smaller than
-				 * two pages.
-				 */
-				if (opt_chunk_2pow > pagesize_2pow + 1)
-					opt_chunk_2pow--;
-				break;
-			case 'K':
-				/*
-				 * There must be fewer pages in a chunk than
-				 * can be recorded by the pos field of
-				 * arena_chunk_map_t, in order to make
-				 * POS_EMPTY/POS_FREE special.
-				 */
-				if (opt_chunk_2pow - pagesize_2pow
-				    < (sizeof(uint32_t) << 3) - 1)
-					opt_chunk_2pow++;
-				break;
-			case 'l':
-#ifdef MALLOC_LAZY_FREE
-				if (opt_lazy_free_2pow >= 0)
-					opt_lazy_free_2pow--;
-#endif
-				break;
-			case 'L':
-#ifdef MALLOC_LAZY_FREE
-				if (ncpus > 1)
-					opt_lazy_free_2pow++;
-#endif
-				break;
-			case 'n':
-				opt_narenas_lshift--;
-				break;
-			case 'N':
-				opt_narenas_lshift++;
-				break;
-			case 'p':
-				opt_print_stats = false;
-				break;
-			case 'P':
-				opt_print_stats = true;
-				break;
-			case 'q':
-				if (opt_quantum_2pow > QUANTUM_2POW_MIN)
-					opt_quantum_2pow--;
-				break;
-			case 'Q':
-				if (opt_quantum_2pow < pagesize_2pow - 1)
-					opt_quantum_2pow++;
-				break;
-			case 's':
-				if (opt_small_max_2pow > QUANTUM_2POW_MIN)
-					opt_small_max_2pow--;
-				break;
-			case 'S':
-				if (opt_small_max_2pow < pagesize_2pow - 1)
-					opt_small_max_2pow++;
-				break;
-			case 'u':
-				opt_utrace = false;
-				break;
-			case 'U':
-				opt_utrace = true;
-				break;
-			case 'v':
-				opt_sysv = false;
-				break;
-			case 'V':
-				opt_sysv = true;
-				break;
-			case 'x':
-				opt_xmalloc = false;
-				break;
-			case 'X':
-				opt_xmalloc = true;
-				break;
-			case 'z':
-				opt_zero = false;
-				break;
-			case 'Z':
-				opt_zero = true;
-				break;
-			default: {
-				char cbuf[2];
-				
-				cbuf[0] = opts[j];
-				cbuf[1] = '\0';
-				_malloc_message(_getprogname(),
-				    ": (malloc) Unsupported character in "
-				    "malloc options: '", cbuf, "'\n");
+			unsigned k, nreps;
+			bool nseen;
+
+			/* Parse repetition count, if any. */
+			for (nreps = 0, nseen = false;; j++, nseen = true) {
+				switch (opts[j]) {
+					case '0': case '1': case '2': case '3':
+					case '4': case '5': case '6': case '7':
+					case '8': case '9':
+						nreps *= 10;
+						nreps += opts[j] - '0';
+						break;
+					default:
+						goto OUT;
+				}
 			}
+OUT:
+			if (nseen == false)
+				nreps = 1;
+
+			for (k = 0; k < nreps; k++) {
+				switch (opts[j]) {
+				case 'a':
+					opt_abort = false;
+					break;
+				case 'A':
+					opt_abort = true;
+					break;
+				case 'b':
+#ifdef MALLOC_BALANCE
+					opt_balance_threshold >>= 1;
+#endif
+					break;
+				case 'B':
+#ifdef MALLOC_BALANCE
+					if (opt_balance_threshold == 0)
+						opt_balance_threshold = 1;
+					else if ((opt_balance_threshold << 1)
+					    > opt_balance_threshold)
+						opt_balance_threshold <<= 1;
+#endif
+					break;
+				case 'd':
+#ifdef MALLOC_DSS
+					opt_dss = false;
+#endif
+					break;
+				case 'D':
+#ifdef MALLOC_DSS
+					opt_dss = true;
+#endif
+					break;
+				case 'h':
+					opt_hint = false;
+					break;
+				case 'H':
+					opt_hint = true;
+					break;
+				case 'j':
+					opt_junk = false;
+					break;
+				case 'J':
+					opt_junk = true;
+					break;
+				case 'k':
+					/*
+					 * Chunks always require at least one
+					 * header page, so chunks can never be
+					 * smaller than two pages.
+					 */
+					if (opt_chunk_2pow > pagesize_2pow + 1)
+						opt_chunk_2pow--;
+					break;
+				case 'K':
+					/*
+					 * There must be fewer pages in a chunk
+					 * than can be recorded by the pos
+					 * field of arena_chunk_map_t, in order
+					 * to make POS_EMPTY/POS_FREE special.
+					 */
+					if (opt_chunk_2pow - pagesize_2pow
+					    < (sizeof(uint32_t) << 3) - 1)
+						opt_chunk_2pow++;
+					break;
+				case 'l':
+#ifdef MALLOC_LAZY_FREE
+					if (opt_lazy_free_2pow >= 0)
+						opt_lazy_free_2pow--;
+#endif
+					break;
+				case 'L':
+#ifdef MALLOC_LAZY_FREE
+					if (ncpus > 1)
+						opt_lazy_free_2pow++;
+#endif
+					break;
+				case 'm':
+#ifdef MALLOC_DSS
+					opt_mmap = false;
+#endif
+					break;
+				case 'M':
+#ifdef MALLOC_DSS
+					opt_mmap = true;
+#endif
+					break;
+				case 'n':
+					opt_narenas_lshift--;
+					break;
+				case 'N':
+					opt_narenas_lshift++;
+					break;
+				case 'p':
+					opt_print_stats = false;
+					break;
+				case 'P':
+					opt_print_stats = true;
+					break;
+				case 'q':
+					if (opt_quantum_2pow > QUANTUM_2POW_MIN)
+						opt_quantum_2pow--;
+					break;
+				case 'Q':
+					if (opt_quantum_2pow < pagesize_2pow -
+					    1)
+						opt_quantum_2pow++;
+					break;
+				case 's':
+					if (opt_small_max_2pow >
+					    QUANTUM_2POW_MIN)
+						opt_small_max_2pow--;
+					break;
+				case 'S':
+					if (opt_small_max_2pow < pagesize_2pow
+					    - 1)
+						opt_small_max_2pow++;
+					break;
+				case 'u':
+					opt_utrace = false;
+					break;
+				case 'U':
+					opt_utrace = true;
+					break;
+				case 'v':
+					opt_sysv = false;
+					break;
+				case 'V':
+					opt_sysv = true;
+					break;
+				case 'x':
+					opt_xmalloc = false;
+					break;
+				case 'X':
+					opt_xmalloc = true;
+					break;
+				case 'z':
+					opt_zero = false;
+					break;
+				case 'Z':
+					opt_zero = true;
+					break;
+				default: {
+					char cbuf[2];
+					
+					cbuf[0] = opts[j];
+					cbuf[1] = '\0';
+					_malloc_message(_getprogname(),
+					    ": (malloc) Unsupported character "
+					    "in malloc options: '", cbuf, 
+					    "'\n");
+				}
+				}
 			}
 		}
 	}
+
+#ifdef MALLOC_DSS
+	/* Make sure that there is some method for acquiring memory. */
+	if (opt_dss == false && opt_mmap == false)
+		opt_mmap = true;
+#endif
 
 	/* Take care to call atexit() only once. */
 	if (opt_print_stats) {
@@ -4016,11 +4159,11 @@ malloc_init_hard(void)
 	/* Initialize chunks data. */
 	malloc_mutex_init(&chunks_mtx);
 	RB_INIT(&huge);
-#ifdef USE_BRK
-	malloc_mutex_init(&brk_mtx);
-	brk_base = sbrk(0);
-	brk_prev = brk_base;
-	brk_max = brk_base;
+#ifdef MALLOC_DSS
+	malloc_mutex_init(&dss_mtx);
+	dss_base = sbrk(0);
+	dss_prev = dss_base;
+	dss_max = dss_base;
 #endif
 #ifdef MALLOC_STATS
 	huge_nmalloc = 0;
@@ -4033,13 +4176,14 @@ malloc_init_hard(void)
 #ifdef MALLOC_STATS
 	base_mapped = 0;
 #endif
-#ifdef USE_BRK
+#ifdef MALLOC_DSS
 	/*
 	 * Allocate a base chunk here, since it doesn't actually have to be
 	 * chunk-aligned.  Doing this before allocating any other chunks allows
 	 * the use of space that would otherwise be wasted.
 	 */
-	base_pages_alloc(0);
+	if (opt_dss)
+		base_pages_alloc(0);
 #endif
 	base_chunk_nodes = NULL;
 	malloc_mutex_init(&base_mtx);
