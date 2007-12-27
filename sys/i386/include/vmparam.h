@@ -123,6 +123,25 @@
 #endif
 
 /*
+ * Disable superpage reservations.
+ */
+#ifndef	VM_NRESERVLEVEL
+#define	VM_NRESERVLEVEL		0
+#endif
+
+/*
+ * Level 0 reservations consist of 512 pages under PAE and 1024 pages
+ * otherwise.
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#ifdef PAE
+#define	VM_LEVEL_0_ORDER	9
+#else
+#define	VM_LEVEL_0_ORDER	10
+#endif
+#endif
+
+/*
  * Kernel physical load address.
  */
 #ifndef KERNLOAD
