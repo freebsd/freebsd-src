@@ -1025,6 +1025,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	struct radix_node_head *rnh = rt_tables[dst->sa_family];
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 
+again:
 	RT_LOCK_ASSERT(rt);
 
 	/*
@@ -1057,7 +1058,15 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 			RT_REMREF(rt);
 			return (EADDRINUSE); /* failure */
 		}
-		RT_LOCK(rt);
+		/*
+		 * Try to reacquire the lock on rt, and if it fails,
+		 * clean state and restart from scratch.
+		 */
+		if (!RT_TRYLOCK(rt)) {
+			RTFREE_LOCKED(gwrt);
+			RT_LOCK(rt);
+			goto again;
+		}
 		/*
 		 * If there is already a gwroute, then drop it. If we
 		 * are asked to replace route with itself, then do
