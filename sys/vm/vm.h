@@ -114,6 +114,9 @@ struct vm_page;
 typedef struct vm_page *vm_page_t;
 #endif				/* _KERNEL */
 
+struct vm_reserv;
+typedef struct vm_reserv *vm_reserv_t;
+
 /*
  * Information passed from the machine-independant VM initialization code
  * for use by machine-dependant code (mainly for MMU support)
