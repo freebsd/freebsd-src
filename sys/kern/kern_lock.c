@@ -198,7 +198,15 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 	int extflags, lockflags;
 	int contested = 0;
 	uint64_t waitstart = 0;
-	
+
+	/*
+	 * Lock owner can only be curthread or, at least, NULL in order to
+	 * have a deadlock free implementation of the primitive.
+	 */
+	KASSERT(td == NULL || td == curthread,
+	    ("lockmgr: owner thread (%p) cannot differ from curthread or NULL",
+	    td));
+
 	error = 0;
 	if (td == NULL)
 		thr = LK_KERNPROC;
