@@ -838,10 +838,9 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, VM_PAGE_TO_PHYS(m), tp, tp->tte_data);
 	if (DCACHE_COLOR(VM_PAGE_TO_PHYS(m)) != DCACHE_COLOR(va)) {
-		CTR6(KTR_CT2,
-	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
+		CTR5(KTR_CT2,
+	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p ot=%d pi=%#lx",
 		    va, VM_PAGE_TO_PHYS(m), m->object,
-		    m->object ? m->object->pg_color : -1,
 		    m->object ? m->object->type : -1,
 		    m->pindex);
 		PMAP_STATS_INC(pmap_nkenter_oc);
