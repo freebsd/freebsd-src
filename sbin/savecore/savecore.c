@@ -419,12 +419,32 @@ DoFile(const char *savedir, const char *device)
 		goto closefd;
 	}
 	istextdump = 0;
-	if (memcmp(kdhl.magic, TEXTDUMPMAGIC, sizeof kdhl.magic)) {
+	if (strncmp(kdhl.magic, TEXTDUMPMAGIC, sizeof kdhl) == 0) {
 		if (verbose)
 			printf("textdump magic on last dump header on %s\n",
 			    device);
 		istextdump = 1;
-	} else if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic)) {
+		if (dtoh32(kdhl.version) != KERNELDUMP_TEXT_VERSION) {
+			syslog(LOG_ERR,
+			    "unknown version (%d) in last dump header on %s",
+			    dtoh32(kdhl.version), device);
+	
+			status = STATUS_BAD;
+			if (force == 0)
+				goto closefd;
+		}
+	} else if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic) ==
+	    0) {
+		if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
+			syslog(LOG_ERR,
+			    "unknown version (%d) in last dump header on %s",
+			    dtoh32(kdhl.version), device);
+	
+			status = STATUS_BAD;
+			if (force == 0)
+				goto closefd;
+		}
+	} else {
 		if (verbose)
 			printf("magic mismatch on last dump header on %s\n",
 			    device);
@@ -443,15 +463,15 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR, "unable to force dump - bad magic");
 			goto closefd;
 		}
-	}
-	if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
-		syslog(LOG_ERR,
-		    "unknown version (%d) in last dump header on %s",
-		    dtoh32(kdhl.version), device);
-
-		status = STATUS_BAD;
-		if (force == 0)
-			goto closefd;
+		if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
+			syslog(LOG_ERR,
+			    "unknown version (%d) in last dump header on %s",
+			    dtoh32(kdhl.version), device);
+	
+			status = STATUS_BAD;
+			if (force == 0)
+				goto closefd;
+		}
 	}
 
 	nfound++;
