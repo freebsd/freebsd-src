@@ -37,6 +37,8 @@
 #include "sysinstall.h"
 #include <sys/signal.h>
 #include <sys/fcntl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 const char *StartName;		/* Initial contents of argv[0] */
 
@@ -52,6 +54,7 @@ main(int argc, char **argv)
 {
     int choice, scroll, curr, max, status;
     char titlestr[80], *arch, *osrel, *ostype;
+    struct rlimit rlim;
     
     /* Record name to be able to restart */
     StartName = argv[0];
@@ -68,6 +71,13 @@ main(int argc, char **argv)
 	fprintf(stderr, "Error: This utility should only be run as root.\n");
 	return 1;
     }
+
+    /* If installing packages we'll grow a LOT. */
+    rlim.rlim_cur = rlim.rlim_max = RLIM_INFINITY;
+    if (setrlimit(RLIMIT_DATA, &rlim) != 0)
+	fprintf(stderr, "Warning: setrlimit() failed.\n");
+    if (setrlimit(RLIMIT_STACK, &rlim) != 0)
+	fprintf(stderr, "Warning: setrlimit() failed.\n");
 
 #ifdef PC98
     {
