@@ -61,15 +61,13 @@ The vnode being locked or unlocked.
 .It Fa flags
 One of the lock request types:
 .Pp
-.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.Bl -tag -width ".Dv LK_CANRECURSE" -offset indent -compact
 .It Dv LK_SHARED
 Shared lock.
 .It Dv LK_EXCLUSIVE
 Exclusive lock.
 .It Dv LK_UPGRADE
 Shared-to-exclusive upgrade.
-.It Dv LK_EXCLUPGRADE
-First shared-to-exclusive upgrade.
 .It Dv LK_DOWNGRADE
 Exclusive-to-shared downgrade.
 .It Dv LK_RELEASE
@@ -82,7 +80,7 @@ The lock type may be
 .Em or Ns 'ed
 with these lock flags:
 .Pp
-.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.Bl -tag -width ".Dv LK_CANRECURSE" -offset indent -compact
 .It Dv LK_NOWAIT
 Do not sleep to wait for lock.
 .It Dv LK_SLEEPFAIL
@@ -95,7 +93,7 @@ The lock type may be
 .Em or Ns 'ed
 with these control flags:
 .Pp
-.Bl -tag -width ".Dv LK_EXCLUPGRADE" -offset indent -compact
+.Bl -tag -width ".Dv LK_CANRECURSE" -offset indent -compact
 .It Dv LK_INTERLOCK
 Specify when the caller already has a simple lock
 .Fn ( VOP_LOCK

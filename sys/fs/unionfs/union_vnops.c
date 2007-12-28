@@ -81,7 +81,6 @@ static struct lk_lr_table un_llt[] = {
 	{LK_SHARED, LK_RELEASE},
 	{LK_EXCLUSIVE, LK_RELEASE},
 	{LK_UPGRADE, LK_DOWNGRADE},
-	{LK_EXCLUPGRADE, LK_DOWNGRADE},
 	{LK_DOWNGRADE, LK_UPGRADE},
 	{0, 0}
 };
