@@ -411,6 +411,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # vpd: Vital Product Data kernel interface
 # cy: Cyclades serial driver
 # digi: Digiboard driver
+# asmc: Apple System Management Controller
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -436,7 +437,7 @@ hint.pbio.0.at="isa"
 hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
-
+device		asmc
 #
 # Laptop/Notebook options:
 #
