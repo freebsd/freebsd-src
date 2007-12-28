@@ -1773,13 +1773,16 @@ chunk_dealloc(void *chunk, size_t size)
 #ifdef MALLOC_DSS
 	if (opt_dss) {
 		if (chunk_dealloc_dss(chunk, size) == false)
-			return;
+			goto RETURN;
 	}
 
 	if (opt_mmap)
 #endif
 		chunk_dealloc_mmap(chunk, size);
 
+#ifdef MALLOC_DSS
+RETURN:
+#endif
 #ifdef MALLOC_STATS
 	stats_chunks.curchunks -= (size / chunksize);
 #endif
