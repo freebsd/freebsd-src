@@ -50,6 +50,15 @@ of the
 .Fx
 ports tree, and extract and update an
 uncompressed ports tree.
+.Pp
+In a normal update operation,
+.Nm
+will routinely restore modified files to their unmodified state and
+delete unrecognized local files.
+This behavior is different to
+.Xr cvs 1
+and
+.Xr cvsup 1 .
 .Sh OPTIONS
 The following options are supported:
 .Bl -tag -width "-f conffile"
