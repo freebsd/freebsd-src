@@ -772,6 +772,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # cy: Cyclades serial driver
 # digi: Digiboard driver
 # spic: Sony Programmable I/O controller (VAIO notebooks)
+# asmc: Apple System Management Controller
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -827,7 +828,7 @@ hint.pbio.0.port="0x360"
 device		spic
 hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
-
+device		asmc
 #
 # Laptop/Notebook options:
 #
