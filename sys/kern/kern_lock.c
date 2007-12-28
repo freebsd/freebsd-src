@@ -299,19 +299,6 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 			wakeup((void *)lkp);
 		break;
 
-	case LK_EXCLUPGRADE:
-		/*
-		 * If another process is ahead of us to get an upgrade,
-		 * then we want to fail rather than have an intervening
-		 * exclusive access.
-		 */
-		if (lkp->lk_flags & LK_WANT_UPGRADE) {
-			shareunlock(td, lkp, 1);
-			error = EBUSY;
-			break;
-		}
-		/* FALLTHROUGH normal upgrade */
-
 	case LK_UPGRADE:
 		/*
 		 * Upgrade a shared lock to an exclusive one. If another

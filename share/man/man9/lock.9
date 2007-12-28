@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2006
+.Dd December 27, 2007
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -113,7 +113,7 @@ Its arguments are:
 A pointer to the lock to manipulate.
 .It Fa flags
 Flags indicating what action is to be taken.
-.Bl -tag -width ".Dv LK_EXCLUPGRADE"
+.Bl -tag -width ".Dv LK_CANRECURSE"
 .It Dv LK_SHARED
 Acquire a shared lock.
 If an exclusive lock is currently held, it will be downgraded.
@@ -127,14 +127,6 @@ is not set, the system will
 Downgrade exclusive lock to a shared lock.
 Downgrading a shared lock is not permitted.
 If an exclusive lock has been recursed, all references will be downgraded.
-.It Dv LK_EXCLUPGRADE
-Upgrade a shared lock to an exclusive lock.
-Fails with
-.Er EBUSY
-if there is someone ahead of you in line waiting for an upgrade.
-If this call fails, the shared lock is lost.
-Attempts to upgrade an exclusive lock will cause a
-.Xr panic 9 .
 .It Dv LK_UPGRADE
 Upgrade a shared lock to an exclusive lock.
 If this call fails, the shared lock is lost.
