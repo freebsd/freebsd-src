@@ -84,12 +84,6 @@ struct lock {
  *	have upgraded to an exclusive lock. Other processes may get
  *	exclusive access to the resource between the time that the upgrade
  *	is requested and the time that it is granted.
- *   LK_EXCLUPGRADE - the process must hold a shared lock that it wants to
- *	have upgraded to an exclusive lock. If the request succeeds, no
- *	other processes will have gotten exclusive access to the resource
- *	between the time that the upgrade is requested and the time that
- *	it is granted. However, if another process has already requested
- *	an upgrade, the request will fail (see error returns below).
  *   LK_DOWNGRADE - the process must hold an exclusive lock that it wants
  *	to have downgraded to a shared lock. If the process holds multiple
  *	(recursive) exclusive locks, they will all be downgraded to shared
@@ -107,7 +101,6 @@ struct lock {
 #define	LK_SHARED	0x00000001	/* shared lock */
 #define	LK_EXCLUSIVE	0x00000002	/* exclusive lock */
 #define	LK_UPGRADE	0x00000003	/* shared-to-exclusive upgrade */
-#define	LK_EXCLUPGRADE	0x00000004	/* first shared-to-exclusive upgrade */
 #define	LK_DOWNGRADE	0x00000005	/* exclusive-to-shared downgrade */
 #define	LK_RELEASE	0x00000006	/* release any type of lock */
 #define	LK_DRAIN	0x00000007	/* wait for all lock activity to end */
