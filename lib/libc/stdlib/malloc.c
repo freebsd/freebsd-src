@@ -447,10 +447,7 @@ struct chunk_stats_s {
 typedef struct chunk_node_s chunk_node_t;
 struct chunk_node_s {
 	/* Linkage for the chunk tree. */
-	RB_ENTRY(chunk_node_s) link_ad;
-
-	/* Linkage for the chunk tree. */
-	RB_ENTRY(chunk_node_s) link_szad;
+	RB_ENTRY(chunk_node_s) link;
 
 	/*
 	 * Pointer to the chunk that this tree node is responsible for.  In some
@@ -463,10 +460,8 @@ struct chunk_node_s {
 	/* Total chunk size. */
 	size_t	size;
 };
-typedef struct chunk_tree_ad_s chunk_tree_ad_t;
-RB_HEAD(chunk_tree_ad_s, chunk_node_s);
-typedef struct chunk_tree_szad_s chunk_tree_szad_t;
-RB_HEAD(chunk_tree_szad_s, chunk_node_s);
+typedef struct chunk_tree_s chunk_tree_t;
+RB_HEAD(chunk_tree_s, chunk_node_s);
 
 /******************************************************************************/
 /*
@@ -718,7 +713,7 @@ static size_t		arena_maxclass; /* Max size class for arenas. */
 static malloc_mutex_t	chunks_mtx;
 
 /* Tree of chunks that are stand-alone huge allocations. */
-static chunk_tree_ad_t	huge;
+static chunk_tree_t	huge;
 
 #ifdef MALLOC_DSS
 /*
@@ -743,13 +738,10 @@ static size_t		huge_allocated;
 #endif
 
 /*
- * Trees of chunks that were previously allocated (trees differ only in node
- * ordering).  These are used when allocating chunks, in an attempt to re-use
- * address space.  Depending on funcition, different tree orderings are needed,
- * which is why there are two trees with the same contents.
+ * Tree of chunks that were previously allocated.  This is used when allocating
+ * chunks, in an attempt to re-use address space.
  */
-static chunk_tree_ad_t	old_chunks_ad;
-static chunk_tree_szad_t old_chunks_szad;
+static chunk_tree_t	old_chunks;
 
 /****************************/
 /*
@@ -872,7 +864,7 @@ static void	stats_print(arena_t *arena);
 #endif
 static void	*pages_map(void *addr, size_t size);
 static void	pages_unmap(void *addr, size_t size);
-static void	*chunk_alloc(size_t size, bool zero);
+static void	*chunk_alloc(size_t size);
 static void	chunk_dealloc(void *chunk, size_t size);
 #ifndef NO_TLS
 static arena_t	*choose_arena_hard(void);
@@ -1422,37 +1414,22 @@ stats_print(arena_t *arena)
  */
 
 static inline int
-chunk_ad_comp(chunk_node_t *a, chunk_node_t *b)
+chunk_comp(chunk_node_t *a, chunk_node_t *b)
 {
-	uintptr_t a_chunk = (uintptr_t)a->chunk;
-	uintptr_t b_chunk = (uintptr_t)b->chunk;
 
-	return ((a_chunk > b_chunk) - (a_chunk < b_chunk));
+	assert(a != NULL);
+	assert(b != NULL);
+
+	if ((uintptr_t)a->chunk < (uintptr_t)b->chunk)
+		return (-1);
+	else if (a->chunk == b->chunk)
+		return (0);
+	else
+		return (1);
 }
 
-/* Generate red-black tree code for address-ordered chunks. */
-RB_GENERATE_STATIC(chunk_tree_ad_s, chunk_node_s, link_ad, chunk_ad_comp)
-
-static inline int
-chunk_szad_comp(chunk_node_t *a, chunk_node_t *b)
-{
-	int ret;
-	size_t a_size = a->size;
-	size_t b_size = b->size;
-
-	ret = (a_size > b_size) - (a_size < b_size);
-	if (ret == 0) {
-		uintptr_t a_chunk = (uintptr_t)a->chunk;
-		uintptr_t b_chunk = (uintptr_t)b->chunk;
-
-		ret = (a_chunk > b_chunk) - (a_chunk < b_chunk);
-	}
-
-	return (ret);
-}
-
-/* Generate red-black tree code for size/address-ordered chunks. */
-RB_GENERATE_STATIC(chunk_tree_szad_s, chunk_node_s, link_szad, chunk_szad_comp)
+/* Generate red-black tree code for chunks. */
+RB_GENERATE_STATIC(chunk_tree_s, chunk_node_s, link, chunk_comp)
 
 static void *
 pages_map(void *addr, size_t size)
@@ -1598,62 +1575,51 @@ chunk_alloc_mmap(size_t size)
 }
 
 static void *
-chunk_alloc(size_t size, bool zero)
+chunk_alloc(size_t size)
 {
 	void *ret, *chunk;
 	chunk_node_t *tchunk, *delchunk;
-	chunk_node_t key;
 
 	assert(size != 0);
 	assert((size & chunksize_mask) == 0);
 
 	malloc_mutex_lock(&chunks_mtx);
 
-	/*
-	 * Check for address ranges that were previously chunks and try
-	 * to use them.
-	 */
-	key.chunk = NULL;
-	key.size = size;
-	tchunk = RB_NFIND(chunk_tree_szad_s, &old_chunks_szad, &key);
-	while (tchunk != NULL) {
-		/* Found an address range.  Try to recycle it. */
+	if (size == chunksize) {
+		/*
+		 * Check for address ranges that were previously chunks and try
+		 * to use them.
+		 */
 
-		chunk = tchunk->chunk;
-		delchunk = tchunk;
-		tchunk = RB_NEXT(chunk_tree_szad_s, &old_chunks_szad, delchunk);
+		tchunk = RB_MIN(chunk_tree_s, &old_chunks);
+		while (tchunk != NULL) {
+			/* Found an address range.  Try to recycle it. */
 
-		/* Remove delchunk from the tree. */
-		RB_REMOVE(chunk_tree_szad_s, &old_chunks_szad, delchunk);
-		if (delchunk->size == size) {
-			RB_REMOVE(chunk_tree_ad_s, &old_chunks_ad, delchunk);
+			chunk = tchunk->chunk;
+			delchunk = tchunk;
+			tchunk = RB_NEXT(chunk_tree_s, &old_chunks, delchunk);
+
+			/* Remove delchunk from the tree. */
+			RB_REMOVE(chunk_tree_s, &old_chunks, delchunk);
 			base_chunk_node_dealloc(delchunk);
-		} else {
-			/*
-			 * Insert the remainder of delchunk's address
-			 * range as a smaller chunk.  Its position within
-			 * old_chunks_ad does not change.
-			 */
-			delchunk->chunk =
-			    (void *)((uintptr_t)delchunk->chunk + size);
-			delchunk->size -= size;
-			RB_INSERT(chunk_tree_szad_s, &old_chunks_szad,
-			    delchunk);
-		}
 
 #ifdef MALLOC_DSS
-		if (opt_dss && (uintptr_t)chunk >= (uintptr_t)dss_base
-		    && (uintptr_t)chunk < (uintptr_t)dss_max) {
-			/* Re-use a previously freed DSS chunk. */
-			ret = chunk;
-			if (zero)
+			if (opt_dss && (uintptr_t)chunk >= (uintptr_t)dss_base
+			    && (uintptr_t)chunk < (uintptr_t)dss_max) {
+				/* Re-use a previously freed DSS chunk. */
+				ret = chunk;
+				/*
+				 * Maintain invariant that all newly allocated
+				 * chunks are untouched or zero-filled.
+				 */
 				memset(ret, 0, size);
-			goto RETURN;
-		}
+				goto RETURN;
+			}
 #endif
-		if ((ret = pages_map(chunk, size)) != NULL) {
-			/* Success. */
-			goto RETURN;
+			if ((ret = pages_map(chunk, size)) != NULL) {
+				/* Success. */
+				goto RETURN;
+			}
 		}
 	}
 
@@ -1676,21 +1642,19 @@ chunk_alloc(size_t size, bool zero)
 	ret = NULL;
 RETURN:
 	if (ret != NULL) {
+		chunk_node_t key;
 		/*
-		 * Clean out any entries in old_chunks_* that overlap with the
+		 * Clean out any entries in old_chunks that overlap with the
 		 * memory we just allocated.
 		 */
 		key.chunk = ret;
-		tchunk = RB_NFIND(chunk_tree_ad_s, &old_chunks_ad, &key);
+		tchunk = RB_NFIND(chunk_tree_s, &old_chunks, &key);
 		while (tchunk != NULL
 		    && (uintptr_t)tchunk->chunk >= (uintptr_t)ret
 		    && (uintptr_t)tchunk->chunk < (uintptr_t)ret + size) {
 			delchunk = tchunk;
-			tchunk = RB_NEXT(chunk_tree_ad_s, &old_chunks_ad,
-			    delchunk);
-			RB_REMOVE(chunk_tree_ad_s, &old_chunks_ad, delchunk);
-			RB_REMOVE(chunk_tree_szad_s, &old_chunks_szad,
-			    delchunk);
+			tchunk = RB_NEXT(chunk_tree_s, &old_chunks, delchunk);
+			RB_REMOVE(chunk_tree_s, &old_chunks, delchunk);
 			base_chunk_node_dealloc(delchunk);
 		}
 
@@ -1709,62 +1673,11 @@ RETURN:
 	return (ret);
 }
 
-static inline void
-chunk_dealloc_record(void *chunk, size_t size)
-{
-	chunk_node_t *node, *prev;
-	chunk_node_t key;
-
-	key.chunk = (void *)((uintptr_t)chunk + size);
-	node = RB_NFIND(chunk_tree_ad_s, &old_chunks_ad, &key);
-	/* Try to coalesce forward. */
-	if (node != NULL) {
-		if (node->chunk == key.chunk) {
-			/*
-			 * Coalesce chunk with the following address range.
-			 * This does not change the position within
-			 * old_chunks_ad, so only remove/insert from/into
-			 * old_chunks_szad.
-			 */
-			RB_REMOVE(chunk_tree_szad_s, &old_chunks_szad, node);
-			node->chunk = chunk;
-			node->size += size;
-			RB_INSERT(chunk_tree_szad_s, &old_chunks_szad, node);
-		}
-	} else {
-		/* Coalescing forward failed, so insert a new node. */
-		node = base_chunk_node_alloc();
-		node->chunk = chunk;
-		node->size = size;
-		RB_INSERT(chunk_tree_ad_s, &old_chunks_ad, node);
-		RB_INSERT(chunk_tree_szad_s, &old_chunks_szad, node);
-	}
-
-	/* Try to coalesce backward. */
-	prev = RB_PREV(chunk_tree_ad_s, &old_chunks_ad, node);
-	if (prev != NULL && (void *)((uintptr_t)prev->chunk + prev->size) ==
-	    chunk) {
-		/*
-		 * Coalesce chunk with the previous address range.  This does
-		 * not change the position within old_chunks_ad, so only
-		 * remove/insert node from/into old_chunks_szad.
-		 */
-		RB_REMOVE(chunk_tree_ad_s, &old_chunks_ad, prev);
-		RB_REMOVE(chunk_tree_szad_s, &old_chunks_szad, prev);
-
-		RB_REMOVE(chunk_tree_szad_s, &old_chunks_szad, node);
-		node->chunk = prev->chunk;
-		node->size += prev->size;
-		RB_INSERT(chunk_tree_szad_s, &old_chunks_szad, node);
-
-		base_chunk_node_dealloc(prev);
-	}
-}
-
 #ifdef MALLOC_DSS
 static inline bool
 chunk_dealloc_dss(void *chunk, size_t size)
 {
+	chunk_node_t *node;
 
 	if ((uintptr_t)chunk >= (uintptr_t)dss_base
 	    && (uintptr_t)chunk < (uintptr_t)dss_max) {
@@ -1786,37 +1699,33 @@ chunk_dealloc_dss(void *chunk, size_t size)
 		    && sbrk(-(intptr_t)size) == dss_max) {
 			malloc_mutex_unlock(&dss_mtx);
 			if (dss_prev == dss_max) {
-				chunk_node_t *node;
-
 				/* Success. */
 				dss_prev = (void *)((intptr_t)dss_max
 				    - (intptr_t)size);
 				dss_max = dss_prev;
-
-				/*
-				 * There may now be an unused region at the top
-				 * of the DSS.  If so, recursively deallocate
-				 * it here.  This can cause at most one
-				 * recursion step, since the the chunk tree
-				 * entries are kept coalesced.
-				 */
-				node = RB_MAX(chunk_tree_ad_s, &old_chunks_ad);
-				if (node != NULL &&
-				    (void *)((uintptr_t)node->chunk +
-				    node->size) == dss_max) {
-					RB_REMOVE(chunk_tree_ad_s,
-					    &old_chunks_ad, node);
-					RB_REMOVE(chunk_tree_szad_s,
-					    &old_chunks_szad, node);
-					chunk_dealloc_dss(node->chunk,
-					    node->size);
-					base_chunk_node_dealloc(node);
-				}
 			}
 		} else {
+			size_t offset;
+
 			malloc_mutex_unlock(&dss_mtx);
 			madvise(chunk, size, MADV_FREE);
-			chunk_dealloc_record(chunk, size);
+
+			/*
+			 * Iteratively create records of each chunk-sized
+			 * memory region that 'chunk' is comprised of, so that
+			 * the address range can be recycled if memory usage
+			 * increases later on.
+			 */
+			for (offset = 0; offset < size; offset += chunksize) {
+				node = base_chunk_node_alloc();
+				if (node == NULL)
+					break;
+
+				node->chunk = (void *)((uintptr_t)chunk
+				    + (uintptr_t)offset);
+				node->size = chunksize;
+				RB_INSERT(chunk_tree_s, &old_chunks, node);
+			}
 		}
 
 		return (false);
@@ -1829,9 +1738,25 @@ chunk_dealloc_dss(void *chunk, size_t size)
 static inline void
 chunk_dealloc_mmap(void *chunk, size_t size)
 {
+	chunk_node_t *node;
 
 	pages_unmap(chunk, size);
-	chunk_dealloc_record(chunk, size);
+
+	/*
+	 * Make a record of the chunk's address, so that the address
+	 * range can be recycled if memory usage increases later on.
+	 * Don't bother to create entries if (size > chunksize), since
+	 * doing so could cause scalability issues for truly gargantuan
+	 * objects (many gigabytes or larger).
+	 */
+	if (size == chunksize) {
+		node = base_chunk_node_alloc();
+		if (node != NULL) {
+			node->chunk = (void *)(uintptr_t)chunk;
+			node->size = chunksize;
+			RB_INSERT(chunk_tree_s, &old_chunks, node);
+		}
+	}
 }
 
 static void
@@ -2016,13 +1941,16 @@ choose_arena_hard(void)
 static inline int
 arena_chunk_comp(arena_chunk_t *a, arena_chunk_t *b)
 {
-	uintptr_t a_chunk = (uintptr_t)a;
-	uintptr_t b_chunk = (uintptr_t)b;
 
 	assert(a != NULL);
 	assert(b != NULL);
 
-	return ((a_chunk > b_chunk) - (a_chunk < b_chunk));
+	if ((uintptr_t)a < (uintptr_t)b)
+		return (-1);
+	else if (a == b)
+		return (0);
+	else
+		return (1);
 }
 
 /* Generate red-black tree code for arena chunks. */
@@ -2031,13 +1959,16 @@ RB_GENERATE_STATIC(arena_chunk_tree_s, arena_chunk_s, link, arena_chunk_comp)
 static inline int
 arena_run_comp(arena_run_t *a, arena_run_t *b)
 {
-	uintptr_t a_run = (uintptr_t)a;
-	uintptr_t b_run = (uintptr_t)b;
 
 	assert(a != NULL);
 	assert(b != NULL);
 
-	return ((a_run > b_run) - (a_run < b_run));
+	if ((uintptr_t)a < (uintptr_t)b)
+		return (-1);
+	else if (a == b)
+		return (0);
+	else
+		return (1);
 }
 
 /* Generate red-black tree code for arena runs. */
@@ -2293,7 +2224,7 @@ arena_chunk_alloc(arena_t *arena)
 	} else {
 		unsigned i;
 
-		chunk = (arena_chunk_t *)chunk_alloc(chunksize, true);
+		chunk = (arena_chunk_t *)chunk_alloc(chunksize);
 		if (chunk == NULL)
 			return (NULL);
 #ifdef MALLOC_STATS
@@ -3353,7 +3284,7 @@ huge_malloc(size_t size, bool zero)
 	if (node == NULL)
 		return (NULL);
 
-	ret = chunk_alloc(csize, zero);
+	ret = chunk_alloc(csize);
 	if (ret == NULL) {
 		base_chunk_node_dealloc(node);
 		return (NULL);
@@ -3364,7 +3295,7 @@ huge_malloc(size_t size, bool zero)
 	node->size = csize;
 
 	malloc_mutex_lock(&chunks_mtx);
-	RB_INSERT(chunk_tree_ad_s, &huge, node);
+	RB_INSERT(chunk_tree_s, &huge, node);
 #ifdef MALLOC_STATS
 	huge_nmalloc++;
 	huge_allocated += csize;
@@ -3411,7 +3342,7 @@ huge_palloc(size_t alignment, size_t size)
 	if (node == NULL)
 		return (NULL);
 
-	ret = chunk_alloc(alloc_size, false);
+	ret = chunk_alloc(alloc_size);
 	if (ret == NULL) {
 		base_chunk_node_dealloc(node);
 		return (NULL);
@@ -3446,7 +3377,7 @@ huge_palloc(size_t alignment, size_t size)
 	node->size = chunk_size;
 
 	malloc_mutex_lock(&chunks_mtx);
-	RB_INSERT(chunk_tree_ad_s, &huge, node);
+	RB_INSERT(chunk_tree_s, &huge, node);
 #ifdef MALLOC_STATS
 	huge_nmalloc++;
 	huge_allocated += chunk_size;
@@ -3513,10 +3444,10 @@ huge_dalloc(void *ptr)
 
 	/* Extract from tree of huge allocations. */
 	key.chunk = ptr;
-	node = RB_FIND(chunk_tree_ad_s, &huge, &key);
+	node = RB_FIND(chunk_tree_s, &huge, &key);
 	assert(node != NULL);
 	assert(node->chunk == ptr);
-	RB_REMOVE(chunk_tree_ad_s, &huge, node);
+	RB_REMOVE(chunk_tree_s, &huge, node);
 
 #ifdef MALLOC_STATS
 	huge_ndalloc++;
@@ -3681,7 +3612,7 @@ isalloc(const void *ptr)
 
 		/* Extract from tree of huge allocations. */
 		key.chunk = __DECONST(void *, ptr);
-		node = RB_FIND(chunk_tree_ad_s, &huge, &key);
+		node = RB_FIND(chunk_tree_s, &huge, &key);
 		assert(node != NULL);
 
 		ret = node->size;
@@ -4242,8 +4173,7 @@ OUT:
 	huge_ndalloc = 0;
 	huge_allocated = 0;
 #endif
-	RB_INIT(&old_chunks_ad);
-	RB_INIT(&old_chunks_szad);
+	RB_INIT(&old_chunks);
 
 	/* Initialize base allocation data structures. */
 #ifdef MALLOC_STATS
