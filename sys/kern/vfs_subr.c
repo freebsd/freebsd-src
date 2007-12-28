@@ -2681,7 +2681,7 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 	 * state and dereference a nasty pointer.  Not much to be done
 	 * about that.
 	 */
-	printf("Locked vnodes\n");
+	db_printf("Locked vnodes\n");
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
