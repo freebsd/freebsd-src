@@ -837,6 +837,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			break;
 		    }
 		case NGM_PPPOE_CONNECT:
+		    {
 			/*
 			 * Check the hook exists and is Uninitialised.
 			 * Send a PADI request, and start the timeout logic.
@@ -846,15 +847,27 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * Set up the session to the correct state and
 			 * start it.
 			 */
+			int	i, acnlen = 0, acnsep = 0, srvlen;
+			for (i = 0; i < ourmsg->data_len; i++) {
+				if (ourmsg->data[i] == '\\') {
+					acnlen = i;
+					acnsep = 1;
+					break;
+				}
+			}
+			srvlen = ourmsg->data_len - acnlen - acnsep;
+
+			bcopy(ourmsg->data, neg->ac_name.data, acnlen);
+			neg->ac_name_len = acnlen;
+
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
-			neg->service.hdr.tag_len =
-			    htons((uint16_t)ourmsg->data_len);
-			if (ourmsg->data_len)
-				bcopy(ourmsg->data, neg->service.data,
-				    ourmsg->data_len);
-			neg->service_len = ourmsg->data_len;
+			neg->service.hdr.tag_len = htons((uint16_t)srvlen);
+			bcopy(ourmsg->data + acnlen + acnsep,
+			    neg->service.data, srvlen);
+			neg->service_len = srvlen;
 			pppoe_start(sp);
 			break;
+		    }
 		case NGM_PPPOE_LISTEN:
 			/*
 			 * Check the hook exists and is Uninitialised.
@@ -1407,12 +1420,30 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 			 * It needs to be in PPPOE_SINIT.
 			 */
 			sp = NG_HOOK_PRIVATE(sendhook);
+			if (sp->state == PPPOE_SREQ ||
+			    sp->state == PPPOE_CONNECTED) {
+				break;	/* Multiple PADO is OK. */
+			}
 			if (sp->state != PPPOE_SINIT) {
 				log(LOG_NOTICE, "ng_pppoe[%x]: session "
 				    "in wrong state\n", node->nd_ID);
 				LEAVE(ENETUNREACH);
 			}
 			neg = sp->neg;
+			/* If requested specific AC-name, check it. */
+			if (neg->ac_name_len) {
+				tag = get_tag(ph, PTT_AC_NAME);
+				if (!tag) {
+					/* No PTT_AC_NAME in PADO */
+					break;
+				}
+				if (neg->ac_name_len != htons(tag->tag_len) ||
+				    strncmp(neg->ac_name.data, tag->tag_data,
+				    neg->ac_name_len) != 0) {
+					break;
+				}
+			}
+			sp->state = PPPOE_SREQ;
 			ng_uncallout(&neg->handle, node);
 
 			/*
