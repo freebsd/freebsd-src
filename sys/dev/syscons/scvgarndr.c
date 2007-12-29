@@ -234,7 +234,7 @@ vga_txtclear(scr_stat *scp, int c, int attr)
 static void
 vga_txtborder(scr_stat *scp, int color)
 {
-	(*vidsw[scp->sc->adapter]->set_border)(scp->sc->adp, color);
+	vidd_set_border(scp->sc->adp, color);
 }
 
 static void
@@ -270,9 +270,8 @@ vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 	scp->curs_attr.base = base;
 	scp->curs_attr.height = height;
 #endif
-	(*vidsw[scp->sc->adapter]->set_hw_cursor_shape)(scp->sc->adp,
-							base, height,
-							scp->font_size, blink);
+	vidd_set_hw_cursor_shape(scp->sc->adp, base, height,
+	    scp->font_size, blink);
 }
 
 static void
@@ -312,8 +311,7 @@ draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
 			font[i] ^= 0xff;
 		}
 		/* XXX */
-		(*vidsw[sc->adapter]->load_font)(sc->adp, 0, h, 8, font,
-						 sc->cursor_char, 1);
+		vidd_load_font(sc->adp, 0, h, 8, font, sc->cursor_char, 1);
 		sc_vtb_putc(&scp->scr, at, sc->cursor_char, a);
 	} else
 #endif /* SC_NO_FONT_LOADING */
@@ -348,13 +346,11 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		scp->status |= VR_CURSOR_BLINK;
 		if (on) {
 			scp->status |= VR_CURSOR_ON;
-			(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-							       at%scp->xsize,
-							       at/scp->xsize); 
+			vidd_set_hw_cursor(adp, at%scp->xsize,
+			    at/scp->xsize);
 		} else {
 			if (scp->status & VR_CURSOR_ON)
-				(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-								       -1, -1);
+				vidd_set_hw_cursor(adp, -1, -1);
 			scp->status &= ~VR_CURSOR_ON;
 		}
 	} else {
@@ -438,8 +434,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	while (!(inb(crtc_addr + 6) & 0x08)) /* idle */ ;
 #endif
 	c = scp->sc->mouse_char;
-	(*vidsw[scp->sc->adapter]->load_font)(scp->sc->adp, 0, 32, 8, font_buf,
-					      c, 4); 
+	vidd_load_font(scp->sc->adp, 0, 32, 8, font_buf, c, 4); 
 
 	sc_vtb_putc(&scp->scr, pos, c, sc_vtb_geta(&scp->scr, pos));
 	/* FIXME: may be out of range! */
@@ -627,7 +622,7 @@ vga_pxlborder_planar(scr_stat *scp, int color)
 	int y;
 	int i;
 
-	(*vidsw[scp->sc->adapter]->set_border)(scp->sc->adp, color);
+	vidd_set_border(scp->sc->adp, color);
 
 	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
 	outw(GDCIDX, 0x0003);		/* data rotate/function select */
@@ -1250,7 +1245,7 @@ vga_pxlmouse_planar(scr_stat *scp, int x, int y, int on)
 static void
 vga_grborder(scr_stat *scp, int color)
 {
-	(*vidsw[scp->sc->adapter]->set_border)(scp->sc->adp, color);
+	vidd_set_border(scp->sc->adp, color);
 }
 
 #endif

@@ -484,7 +484,7 @@ int genfbread(genfb_softc_t *sc, video_adapter_t *adp, struct uio *uio,
 		len = imin(len, adp->va_window_size - offset);
 		if (len <= 0)
 			break;
-		(*vidsw[adp->va_index]->set_win_org)(adp, uio->uio_offset);
+		vidd_set_win_org(adp, uio->uio_offset);
 		error = uiomove((caddr_t)(adp->va_window + offset), len, uio);
 		if (error)
 			break;
@@ -505,7 +505,7 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 
 	if (adp == NULL)	/* XXX */
 		return ENXIO;
-	error = (*vidsw[adp->va_index]->ioctl)(adp, cmd, arg);
+	error = vidd_ioctl(adp, cmd, arg);
 	if (error == ENOIOCTL)
 		error = ENODEV;
 	return error;
@@ -514,7 +514,7 @@ int genfbioctl(genfb_softc_t *sc, video_adapter_t *adp, u_long cmd,
 int genfbmmap(genfb_softc_t *sc, video_adapter_t *adp, vm_offset_t offset,
 	      vm_offset_t *paddr, int prot)
 {
-	return (*vidsw[adp->va_index]->mmap)(adp, offset, paddr, prot);
+	return vidd_mmap(adp, offset, paddr, prot);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -686,16 +686,15 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		break;
 
 	case FBIO_MODEINFO:	/* get mode information */
-		error = (*vidsw[adp->va_index]->get_info)(adp, 
-				((video_info_t *)arg)->vi_mode,
-				(video_info_t *)arg); 
+		error = vidd_get_info(adp,
+		    ((video_info_t *)arg)->vi_mode,
+		    (video_info_t *)arg);
 		if (error)
 			error = ENODEV;
 		break;
 
 	case FBIO_FINDMODE:	/* find a matching video mode */
-		error = (*vidsw[adp->va_index]->query_mode)(adp, 
-				(video_info_t *)arg); 
+		error = vidd_query_mode(adp, (video_info_t *)arg);
 		break;
 
 	case FBIO_GETMODE:	/* get video mode */
@@ -703,7 +702,7 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		break;
 
 	case FBIO_SETMODE:	/* set video mode */
-		error = (*vidsw[adp->va_index]->set_mode)(adp, *(int *)arg);
+		error = vidd_set_mode(adp, *(int *)arg);
 		if (error)
 			error = ENODEV;	/* EINVAL? */
 		break;
@@ -722,7 +721,7 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		break;
 
 	case FBIO_BLANK:	/* blank display */
-		error = (*vidsw[adp->va_index]->blank_display)(adp, *(int *)arg);
+		error = vidd_blank_display(adp, *(int *)arg);
 		break;
 
 	case FBIO_GETPALETTE:	/* get color palette */

@@ -360,13 +360,13 @@ xbr_draw(scr_stat* scp, int from, int count, int flip)
 
 	if (!flip) {
 		/* Normal printing */
-		(*vidsw[scp->sc->adapter]->puts)(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
+		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
 	} else {	
 		/* This is for selections and such: invert the color attribute */
 		for (i = count; i-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
 			a = sc_vtb_geta(&scp->vtb, from) >> 8;
-			(*vidsw[scp->sc->adapter]->putc)(adp, from, c, (a >> 4) | ((a & 0xf) << 4));
+			vidd_putc(adp, from, c, (a >> 4) | ((a & 0xf) << 4));
 		}
 	}
 }
@@ -414,7 +414,7 @@ xbr_set_mouse(scr_stat* scp)
 static void
 xbr_draw_mouse(scr_stat* scp, int x, int y, int on)
 {
-	(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y, mouse_pointer, 0xffffffff, 16, 8);
+	vidd_putm(scp->sc->adp, x, y, mouse_pointer, 0xffffffff, 16, 8);
 
 }
 
@@ -624,8 +624,7 @@ xboxfb_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 	int i;
 
 	for (i = 0; i < len; i++) {
-		(*vidsw[adp->va_index]->putc)(adp, off + i, s[i] & 0xff,
-		    (s[i] & 0xff00) >> 8);
+		vidd_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 	}
 	return (0);
 }
