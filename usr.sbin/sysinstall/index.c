@@ -686,7 +686,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     int status = DITEM_SUCCESS;
     PkgNodePtr tmp2;
     IndexEntryPtr id = who->data;
-    WINDOW *w = savescr();
+    WINDOW *w;
 
     /* 
      * Short-circuit the package dependency checks.  We're already
@@ -701,6 +701,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     if (id->installed == 1)
 	return DITEM_SUCCESS;
 
+    w = savescr();
     if (id && id->deps && strlen(id->deps)) {
 	char t[2048 * 8], *cp, *cp2;
 
@@ -742,11 +743,12 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		    msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
 		        dev->volume, id->volume);
 		    DEVICE_INIT(mediaDevice);
-	    	} else {
+		} else {
+		    restorescr(w);
 		    return DITEM_FAILURE;
-	    	}
+		}
 	    }
-    	}
+	}
 	status = package_extract(dev, who->name, depended);
 	if (DITEM_STATUS(status) == DITEM_SUCCESS)
 	    id->installed = 1;
