@@ -72,12 +72,19 @@ main(int argc, char **argv)
 	return 1;
     }
 
-    /* If installing packages we'll grow a LOT. */
+    /*
+     * Given what it does sysinstall (and stuff sysinstall runs like
+     * pkg_add) shouldn't be subject to process limits.  Better to just
+     * let them have what they think they need than have them blow
+     * their brains out during an install (in sometimes strange and
+     * mysterious ways).
+     */
+
     rlim.rlim_cur = rlim.rlim_max = RLIM_INFINITY;
     if (setrlimit(RLIMIT_DATA, &rlim) != 0)
-	fprintf(stderr, "Warning: setrlimit() failed.\n");
+	fprintf(stderr, "Warning: setrlimit() of datasize failed.\n");
     if (setrlimit(RLIMIT_STACK, &rlim) != 0)
-	fprintf(stderr, "Warning: setrlimit() failed.\n");
+	fprintf(stderr, "Warning: setrlimit() of stacksize failed.\n");
 
 #ifdef PC98
     {
