@@ -540,7 +540,7 @@ pppoe_find_svc(node_p node, const char *svc_name, int svc_len)
 		neg = sp->neg;
 
 		if (neg->service_len == svc_len &&
-		    strncmp(svc_name, neg->service.data, svc_len == 0))
+		    strncmp(svc_name, neg->service.data, svc_len) == 0)
 			return (hook);
 	}
 
