@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -820,6 +821,12 @@ exec_map_first_page(imgp)
 	if (object == NULL)
 		return (EACCES);
 	VM_OBJECT_LOCK(object);
+#if VM_NRESERVLEVEL > 0
+	if ((object->flags & OBJ_COLORED) == 0) {
+		object->flags |= OBJ_COLORED;
+		object->pg_color = 0;
+	}
+#endif
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
 		initial_pagein = VM_INITIAL_PAGEIN;
