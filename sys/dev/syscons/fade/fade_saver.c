@@ -51,7 +51,7 @@ fade_saver(video_adapter_t *adp, int blank)
 	if (blank) {
 		if (ISPALAVAIL(adp->va_flags)) {
 			if (count <= 0)
-				save_palette(adp, palette);
+				vidd_save_palette(adp, palette);
 			if (count < 256) {
 				pal[0] = pal[1] = pal[2] = 0;
 				for (i = 3; i < 256*3; i++) {
@@ -60,20 +60,18 @@ fade_saver(video_adapter_t *adp, int blank)
 					else
 						pal[i] = 60;
 				}
-				load_palette(adp, pal);
+				vidd_load_palette(adp, pal);
 				count++;
 			}
 		} else {
-	    		(*vidsw[adp->va_index]->blank_display)(adp,
-							       V_DISPLAY_BLANK);
+	    		vidd_blank_display(adp, V_DISPLAY_BLANK);
 		}
 	} else {
 		if (ISPALAVAIL(adp->va_flags)) {
-			load_palette(adp, palette);
+			vidd_load_palette(adp, palette);
 			count = 0;
 		} else {
-	    		(*vidsw[adp->va_index]->blank_display)(adp,
-							       V_DISPLAY_ON);
+	    		vidd_blank_display(adp, V_DISPLAY_ON);
 		}
 	}
 	return 0;
@@ -82,8 +80,8 @@ fade_saver(video_adapter_t *adp, int blank)
 static int
 fade_init(video_adapter_t *adp)
 {
-	if (!ISPALAVAIL(adp->va_flags)
-	    && (*vidsw[adp->va_index]->blank_display)(adp, V_DISPLAY_ON) != 0)
+	if (!ISPALAVAIL(adp->va_flags) &&
+	    vidd_blank_display(adp, V_DISPLAY_ON) != 0)
 		return ENODEV;
 	return 0;
 }

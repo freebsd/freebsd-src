@@ -98,7 +98,7 @@ pcx_start(video_adapter_t *adp)
 		    pcx_info.bpp, pcx_info.planes);
 
 	for (i = 0; modes[i] >= 0; ++i) {
-		if (get_mode_info(adp, modes[i], &info) != 0)
+		if (vidd_get_info(adp, modes[i], &info) != 0)
 			continue;
 		if (bootverbose)
 			printf("splash_pcx: considering mode %d:\n"
@@ -136,7 +136,7 @@ pcx_splash(video_adapter_t *adp, int on)
 {
 	if (on) {
 		if (!splash_on) {
-			if (set_video_mode(adp, splash_mode) || pcx_draw(adp))
+			if (vidd_set_mode(adp, splash_mode) || pcx_draw(adp))
 				return 1;
 			splash_on = TRUE;
 		}
@@ -208,7 +208,7 @@ pcx_draw(video_adapter_t *adp)
 	if (pcx_info.zlen < 1)
 		return (1);
 
-	load_palette(adp, pcx_info.palette);
+	vidd_load_palette(adp, pcx_info.palette);
 
 	vidmem = (uint8_t *)adp->va_window;
 	swidth = adp->va_info.vi_width;
@@ -219,7 +219,7 @@ pcx_draw(video_adapter_t *adp)
 	banksize = adp->va_window_size;
 
 	for (origin = 0; origin < sheight*sbpsl; origin += banksize) {
-		set_origin(adp, origin);
+		vidd_set_win_org(adp, origin);
 		bzero(vidmem, banksize);
 	}
 
@@ -231,7 +231,7 @@ pcx_draw(video_adapter_t *adp)
 		pos -= banksize;
 		origin += banksize;
 	}
-	set_origin(adp, origin);
+	vidd_set_win_org(adp, origin);
 
 	for (scan = i = 0; scan < pcx_info.height; ++scan, ++y, pos += sbpsl) {
 		for (j = 0; j < pcx_info.bpsl && i < pcx_info.zlen; ++i) {
@@ -251,7 +251,7 @@ pcx_draw(video_adapter_t *adp)
 		if (pos > banksize) {
 			origin += banksize;
 			pos -= banksize;
-			set_origin(adp, origin);
+			vidd_set_win_org(adp, origin);
 		}
 
 		if (pos + pcx_info.width > banksize) {
@@ -260,7 +260,7 @@ pcx_draw(video_adapter_t *adp)
 			bcopy(line, vidmem + pos, j);
 			origin += banksize;
 			pos -= banksize;
-			set_origin(adp, origin);
+			vidd_set_win_org(adp, origin);
 			bcopy(line + j, vidmem, pcx_info.width - j);
 		} else {
 			bcopy(line, vidmem + pos, pcx_info.width);

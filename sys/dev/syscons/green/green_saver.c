@@ -42,16 +42,15 @@
 static int
 green_saver(video_adapter_t *adp, int blank)
 {
-	(*vidsw[adp->va_index]->blank_display)(adp,
-					       (blank) ? V_DISPLAY_STAND_BY
-						       : V_DISPLAY_ON);
+	vidd_blank_display(adp,
+	    (blank) ? V_DISPLAY_STAND_BY : V_DISPLAY_ON);
 	return 0;
 }
 
 static int
 green_init(video_adapter_t *adp)
 {
-	if ((*vidsw[adp->va_index]->blank_display)(adp, V_DISPLAY_ON) == 0)
+	if (vidd_blank_display(adp, V_DISPLAY_ON) == 0)
 		return 0;
 	return ENODEV;
 }
