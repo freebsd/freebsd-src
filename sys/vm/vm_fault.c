@@ -74,6 +74,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -429,6 +431,13 @@ RetryFault:;
 			 */
 			fs.m = NULL;
 			if (!vm_page_count_severe()) {
+#if VM_NRESERVLEVEL > 0
+				if ((fs.object->flags & OBJ_COLORED) == 0) {
+					fs.object->flags |= OBJ_COLORED;
+					fs.object->pg_color = atop(vaddr) -
+					    fs.pindex;
+				}
+#endif
 				fs.m = vm_page_alloc(fs.object, fs.pindex,
 				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
 			}
@@ -1107,6 +1116,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	 */
 	dst_object = vm_object_allocate(OBJT_DEFAULT,
 	    OFF_TO_IDX(dst_entry->end - dst_entry->start));
+#if VM_NRESERVLEVEL > 0
+	dst_object->flags |= OBJ_COLORED;
+	dst_object->pg_color = atop(dst_entry->start);
+#endif
 
 	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
