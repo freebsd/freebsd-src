@@ -263,12 +263,17 @@ int
 linux_stat(struct thread *td, struct linux_stat_args *args)
 {
 	struct stat buf;
+	char *path;
 	int error;
+
+	LCONVPATHEXIST(td, args->path, &path);
+
 #ifdef DEBUG
 	if (ldebug(stat))
-	printf(ARGS(stat, "%s, *"), args->path);
+		printf(ARGS(stat, "%s, *"), args->path);
 #endif
-	error = kern_stat(td, args->path, UIO_SYSSPACE, &buf);
+	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
+	LFREEPATH(path);
 	if (error)
 		return (error);
 	translate_path_major_minor(td, args->path, &buf);
@@ -279,13 +284,17 @@ int
 linux_lstat(struct thread *td, struct linux_lstat_args *args)
 {
 	struct stat buf;
+	char *path;
 	int error;
+
+	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(lstat))
-	printf(ARGS(lstat, "%s, *"), args->path);
+		printf(ARGS(lstat, "%s, *"), args->path);
 #endif
 	error = kern_lstat(td, args->path, UIO_SYSSPACE, &buf);
+	LFREEPATH(path);
 	if (error)
 		return (error);
 	translate_path_major_minor(td, args->path, &buf);
