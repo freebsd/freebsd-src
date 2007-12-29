@@ -219,8 +219,7 @@ kbd_register(keyboard_t *kbd)
 				strcpy(ki.kb_name, kbd->kb_name);
 				ki.kb_unit = kbd->kb_unit;
 
-				(*kbdsw[mux->kb_index]->ioctl)
-					(mux, KBADDKBD, (caddr_t) &ki);
+				kbdd_ioctl(mux, KBADDKBD, (caddr_t) &ki);
 			}
 
 			return (index);
@@ -237,8 +236,7 @@ kbd_register(keyboard_t *kbd)
 				strcpy(ki.kb_name, kbd->kb_name);
 				ki.kb_unit = kbd->kb_unit;
 
-				(*kbdsw[mux->kb_index]->ioctl)
-					(mux, KBADDKBD, (caddr_t) &ki);
+				kbdd_ioctl(mux, KBADDKBD, (caddr_t) &ki);
 			}
 
 			return (index);
@@ -363,7 +361,7 @@ kbd_allocate(char *driver, int unit, void *id, kbd_callback_func_t *func,
 		KBD_BUSY(keyboard[index]);
 		keyboard[index]->kb_callback.kc_func = func;
 		keyboard[index]->kb_callback.kc_arg = arg;
-		(*kbdsw[index]->clear_state)(keyboard[index]);
+		kbdd_clear_state(keyboard[index]);
 	}
 	splx(s);
 	return (index);
@@ -385,7 +383,7 @@ kbd_release(keyboard_t *kbd, void *id)
 		KBD_UNBUSY(kbd);
 		kbd->kb_callback.kc_func = NULL;
 		kbd->kb_callback.kc_arg = NULL;
-		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
+		kbdd_clear_state(kbd);
 		error = 0;
 	}
 	splx(s);
@@ -664,7 +662,7 @@ genkbdioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *
 	kbd = kbd_get_keyboard(KBD_INDEX(dev));
 	if ((kbd == NULL) || !KBD_IS_VALID(kbd))
 		return (ENXIO);
-	error = (*kbdsw[kbd->kb_index]->ioctl)(kbd, cmd, arg);
+	error = kbdd_ioctl(kbd, cmd, arg);
 	if (error == ENOIOCTL)
 		error = ENODEV;
 	return (error);
@@ -723,12 +721,12 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 	}
 
 	/* obtain the current key input mode */
-	if ((*kbdsw[kbd->kb_index]->ioctl)(kbd, KDGKBMODE, (caddr_t)&mode))
+	if (kbdd_ioctl(kbd, KDGKBMODE, (caddr_t)&mode))
 		mode = K_XLATE;
 
 	/* read all pending input */
-	while ((*kbdsw[kbd->kb_index]->check_char)(kbd)) {
-		c = (*kbdsw[kbd->kb_index]->read_char)(kbd, FALSE);
+	while (kbdd_check_char(kbd)) {
+		c = kbdd_read_char(kbd, FALSE);
 		if (c == NOKEY)
 			continue;
 		if (c == ERRKEY)	/* XXX: ring bell? */
@@ -771,8 +769,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 			putc(KEYCHAR(c), &sc->gkb_q);
 			break;
 		case FKEY | SPCLKEY:	/* a function key, return string */
-			cp = (*kbdsw[kbd->kb_index]->get_fkeystr)(kbd,
-			    KEYCHAR(c), &len);
+			cp = kbdd_get_fkeystr(kbd, KEYCHAR(c), &len);
 			if (cp != NULL) {
 				while (len-- >  0)
 					putc(*cp++, &sc->gkb_q);
@@ -1110,7 +1107,7 @@ genkbd_diag(keyboard_t *kbd, int level)
 		(s) |= l ## DOWN;				\
 		(s) ^= l ## ED;					\
 		i = (s) & LOCK_MASK;				\
-		(*kbdsw[(k)->kb_index]->ioctl)((k), KDSETLED, (caddr_t)&i); \
+		kbdd_ioctl((k), KDSETLED, (caddr_t)&i);		\
 	}
 
 static u_int
@@ -1270,8 +1267,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 #else
 			state &= ~CLKED;
 			i = state & LOCK_MASK;
-			(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
-						       (caddr_t)&i);
+			kbdd_ioctl(kbd, KDSETLED, (caddr_t)&i);
 #endif
 			break;
 		case SLK:
@@ -1307,8 +1303,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 #else
 				state |= CLKED;
 				i = state & LOCK_MASK;
-				(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
-							       (caddr_t)&i);
+				kbdd_ioctl(kbd, KDSETLED, (caddr_t)&i);
 #endif
 				break;
 			case SLK:

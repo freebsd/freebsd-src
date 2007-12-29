@@ -393,7 +393,7 @@ sc_attach_unit(int unit, int flags)
     scrn_timer(sc);
 
     /* set up the keyboard */
-    kbd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
     printf("%s%d: %s <%d virtual consoles, flags=0x%x>\n",
@@ -510,7 +510,7 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
 #ifndef __sparc64__
 	if (sc->kbd != NULL) {
 	    key.keynum = KEYCODE_BS;
-	    kbd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
+	    kbdd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
             tp->t_cc[VERASE] = key.key.map[0];
 	}
 #endif
@@ -577,7 +577,7 @@ scclose(struct cdev *dev, int flag, int mode, struct thread *td)
 #endif
 	scp->kbd_mode = K_XLATE;
 	if (scp == scp->sc->cur_scp)
-	    kbd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+	    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 	DPRINTF(5, ("done.\n"));
     }
     spltty();
@@ -641,7 +641,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    ttyld_rint(cur_tty, KEYCHAR(c));
 	    break;
 	case FKEY:  /* function key, return string */
-	    cp = kbd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
+	    cp = kbdd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
 	    if (cp != NULL) {
 	    	while (len-- >  0)
 		    ttyld_rint(cur_tty, *cp++);
@@ -1137,7 +1137,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
     case KDGETREPEAT:      	/* get keyboard repeat & delay rates */
     case KDSETREPEAT:      	/* set keyboard repeat & delay rates (new) */
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbdd_ioctl(sc->kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1152,7 +1152,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
     case KDSETRAD:      	/* set keyboard repeat & delay rates (old) */
 	if (*(int *)data & ~0x7f)
 	    return EINVAL;
-	error = kbd_ioctl(sc->kbd, KDSETRAD, data);
+	error = kbdd_ioctl(sc->kbd, KDSETRAD, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1171,7 +1171,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	case K_CODE: 		/* switch to CODE mode */
 	    scp->kbd_mode = *(int *)data;
 	    if (scp == sc->cur_scp)
-		kbd_ioctl(sc->kbd, KDSKBMODE, data);
+		kbdd_ioctl(sc->kbd, KDSKBMODE, data);
 	    return 0;
 	default:
 	    return EINVAL;
@@ -1183,7 +1183,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return 0;
 
     case KDGKBINFO:
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbdd_ioctl(sc->kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1220,7 +1220,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return 0;
 
     case KDGKBTYPE:     	/* get keyboard type */
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbdd_ioctl(sc->kbd, cmd, data);
 	if (error == ENOIOCTL) {
 	    /* always return something? XXX */
 	    *(int *)data = 0;
@@ -1251,7 +1251,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
     case KBADDKBD:		/* add/remove keyboard to/from mux */
     case KBRELKBD:
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbdd_ioctl(sc->kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1285,7 +1285,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		    }
 		    sc->kbd = kbd_get_keyboard(i); /* sc->kbd == newkbd */
 		    sc->keyboard = i;
-		    kbd_ioctl(sc->kbd, KDSKBMODE,
+		    kbdd_ioctl(sc->kbd, KDSKBMODE,
 			      (caddr_t)&sc->cur_scp->kbd_mode);
 		    update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				     LOCK_MASK);
@@ -1359,7 +1359,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
     case PIO_DEADKEYMAP:	/* set accent key translation table */
     case GETFKEY:		/* get function key string */
     case SETFKEY:		/* set function key string */
-	error = kbd_ioctl(sc->kbd, cmd, data);
+	error = kbdd_ioctl(sc->kbd, cmd, data);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	return error;
@@ -1612,27 +1612,27 @@ sccngetch(int flags)
      * Make sure the keyboard is accessible even when the kbd device
      * driver is disabled.
      */
-    kbd_enable(scp->sc->kbd);
+    kbdd_enable(scp->sc->kbd);
 
     /* we shall always use the keyboard in the XLATE mode here */
     cur_mode = scp->kbd_mode;
     scp->kbd_mode = K_XLATE;
-    kbd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
-    kbd_poll(scp->sc->kbd, TRUE);
+    kbdd_poll(scp->sc->kbd, TRUE);
     c = scgetc(scp->sc, SCGETC_CN | flags);
-    kbd_poll(scp->sc->kbd, FALSE);
+    kbdd_poll(scp->sc->kbd, FALSE);
 
     scp->kbd_mode = cur_mode;
-    kbd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-    kbd_disable(scp->sc->kbd);
+    kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_disable(scp->sc->kbd);
     splx(s);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
 	return KEYCHAR(c);
     case FKEY:	/* function key */
-	p = kbd_get_fkeystr(scp->sc->kbd, KEYCHAR(c), (size_t *)&fkeycp);
+	p = kbdd_get_fkeystr(scp->sc->kbd, KEYCHAR(c), (size_t *)&fkeycp);
 	fkey.len = fkeycp;
 	if ((p != NULL) && (fkey.len > 0)) {
 	    bcopy(p, fkey.str, fkey.len);
@@ -1717,7 +1717,7 @@ scrn_timer(void *arg)
 	    sc->keyboard = sc_allocate_keyboard(sc, -1);
 	    if (sc->keyboard >= 0) {
 		sc->kbd = kbd_get_keyboard(sc->keyboard);
-		kbd_ioctl(sc->kbd, KDSKBMODE,
+		kbdd_ioctl(sc->kbd, KDSKBMODE,
 			  (caddr_t)&sc->cur_scp->kbd_mode);
 		update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				 LOCK_MASK);
@@ -2501,7 +2501,7 @@ exchange_scr(sc_softc_t *sc)
 
     /* set up the keyboard for the new screen */
     if (sc->old_scp->kbd_mode != scp->kbd_mode)
-	kbd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+	kbdd_ioctl(sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     update_kbd_state(scp, scp->status, LOCK_MASK);
 
     mark_all(scp);
@@ -3182,7 +3182,7 @@ next_code:
     scp = sc->cur_scp;
     /* first see if there is something in the keyboard port */
     for (;;) {
-	c = kbd_read_char(sc->kbd, !(flags & SCGETC_NONBLOCK));
+	c = kbdd_read_char(sc->kbd, !(flags & SCGETC_NONBLOCK));
 	if (c == ERRKEY) {
 	    if (!(flags & SCGETC_CN))
 		sc_bell(scp, bios_value.bell_pitch, BELL_DURATION);
@@ -3278,7 +3278,7 @@ next_code:
 	    case NLK: case CLK: case ALK:
 		break;
 	    case SLK:
-		kbd_ioctl(sc->kbd, KDGKBSTATE, (caddr_t)&f);
+		kbdd_ioctl(sc->kbd, KDGKBSTATE, (caddr_t)&f);
 		if (f & SLKED) {
 		    scp->status |= SLKED;
 		} else {
@@ -3446,7 +3446,7 @@ save_kbd_state(scr_stat *scp)
     int state;
     int error;
 
-    error = kbd_ioctl(scp->sc->kbd, KDGKBSTATE, (caddr_t)&state);
+    error = kbdd_ioctl(scp->sc->kbd, KDGKBSTATE, (caddr_t)&state);
     if (error == ENOIOCTL)
 	error = ENODEV;
     if (error == 0) {
@@ -3463,7 +3463,7 @@ update_kbd_state(scr_stat *scp, int new_bits, int mask)
     int error;
 
     if (mask != LOCK_MASK) {
-	error = kbd_ioctl(scp->sc->kbd, KDGKBSTATE, (caddr_t)&state);
+	error = kbdd_ioctl(scp->sc->kbd, KDGKBSTATE, (caddr_t)&state);
 	if (error == ENOIOCTL)
 	    error = ENODEV;
 	if (error)
@@ -3473,7 +3473,7 @@ update_kbd_state(scr_stat *scp, int new_bits, int mask)
     } else {
 	state = new_bits & LOCK_MASK;
     }
-    error = kbd_ioctl(scp->sc->kbd, KDSKBSTATE, (caddr_t)&state);
+    error = kbdd_ioctl(scp->sc->kbd, KDSKBSTATE, (caddr_t)&state);
     if (error == ENOIOCTL)
 	error = ENODEV;
     return error;
@@ -3485,7 +3485,7 @@ update_kbd_leds(scr_stat *scp, int which)
     int error;
 
     which &= LOCK_MASK;
-    error = kbd_ioctl(scp->sc->kbd, KDSETLED, (caddr_t)&which);
+    error = kbdd_ioctl(scp->sc->kbd, KDSETLED, (caddr_t)&which);
     if (error == ENOIOCTL)
 	error = ENODEV;
     return error;
@@ -3693,7 +3693,7 @@ sc_allocate_keyboard(sc_softc_t *sc, int unit)
 			strcpy(ki.kb_name, k->kb_name);
 			ki.kb_unit = k->kb_unit;
 
-			kbd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
+			kbdd_ioctl(k0, KBADDKBD, (caddr_t) &ki);
 		}
 	} else
 		idx0 = kbd_allocate("*", unit, (void *)&sc->keyboard, sckbdevent, sc);

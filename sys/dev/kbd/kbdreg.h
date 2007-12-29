@@ -157,6 +157,50 @@ typedef struct keyboard_switch {
 	kbd_diag_t	*diag;
 } keyboard_switch_t;
 
+/*
+ * Keyboard disciplines: call actual handlers via kbdsw[].
+ */
+#define kbdd_probe(kbd, unit, arg, flags)				\
+	(*kbdsw[(kbd)->kb_index]->probe)((unit), (arg), (flags))
+#define kbdd_init(kbd, unit, kbdpp, arg, flags)				\
+	(*kbdsw[(kbd)->kb_index]->init)((unit), (kbdpp), (arg), (flags))
+#define kbdd_term(kbd)							\
+	(*kbdsw[(kbd)->kb_index]->term)((kbd))
+#define kbdd_intr(kbd, arg)						\
+	(*kbdsw[(kbd)->kb_index]->intr)((kbd), (arg))
+#define kbdd_test_if(kbd)						\
+	(*kbdsw[(kbd)->kb_index]->test_if)((kbd))
+#define kbdd_enable(kbd)							\
+	(*kbdsw[(kbd)->kb_index]->enable)((kbd))
+#define kbdd_disable(kbd)						\
+	(*kbdsw[(kbd)->kb_index]->disable)((kbd))
+#define kbdd_read(kbd, wait)						\
+	(*kbdsw[(kbd)->kb_index]->read)((kbd), (wait))
+#define kbdd_check(kbd)							\
+	(*kbdsw[(kbd)->kb_index]->check)((kbd))
+#define kbdd_read_char(kbd, wait)					\
+	(*kbdsw[(kbd)->kb_index]->read_char)((kbd), (wait))
+#define kbdd_check_char(kbd)						\
+	(*kbdsw[(kbd)->kb_index]->check_char)((kbd))
+#define kbdd_ioctl(kbd, cmd, arg)					\
+	(((kbd) == NULL) ?						\
+	    ENODEV :							\
+ 	    (*kbdsw[(kbd)->kb_index]->ioctl)((kbd), (cmd), (arg)))
+#define kbdd_lock(kbd, lockf)						\
+	(*kbdsw[(kbd)->kb_index]->lock)((kbd), (lockf))
+#define kbdd_clear_state(kbd)						\
+	(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
+#define kbdd_get_state(kbd, buf, len)					\
+	(*kbdsw[(kbd)->kb_index]->get_state)((kbd), (buf), (len))
+#define kbdd_set_state(kbd, buf, len)					\
+	(*kbdsw[(kbd)->kb_index]->set_state)((kbd), (buf), (len))
+#define kbdd_get_fkeystr(kbd, fkey, len)					\
+	(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
+#define kbdd_poll(kbd, on)						\
+	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
+#define kbdd_diag(kbd, level)						\
+	(*kbdsw[(kbd)->kb_index]->diag)((kbd), (leve))
+
 /* keyboard driver */
 typedef struct keyboard_driver {
     SLIST_ENTRY(keyboard_driver) link;
