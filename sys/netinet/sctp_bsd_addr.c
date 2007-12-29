@@ -96,7 +96,7 @@ sctp_iterator_thread(void *v)
 	while (1) {
 		msleep(&sctppcbinfo.iterator_running,
 		    &sctppcbinfo.ipi_iterator_wq_mtx,
-		    0, "waiting_for_work", 0);
+		    PI_NET, "waiting_for_work", 0);
 		sctp_iterator_worker();
 	}
 }
