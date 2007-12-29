@@ -222,14 +222,14 @@ ukbd_detach(device_t self)
 		DPRINTF(("%s: keyboard not attached!?\n", device_get_nameunit(self)));
 		return ENXIO;
 	}
-	(*kbdsw[kbd->kb_index]->disable)(kbd);
+	kbdd_disable(kbd);
 
 #ifdef KBD_INSTALL_CDEV
 	error = kbd_detach(kbd);
 	if (error)
 		return error;
 #endif
-	error = (*kbdsw[kbd->kb_index]->term)(kbd);
+	error = kbdd_term(kbd);
 	if (error)
 		return error;
 
@@ -246,7 +246,7 @@ ukbd_resume(device_t self)
 	kbd = kbd_get_keyboard(kbd_find_keyboard(DRIVER_NAME,
 						 device_get_unit(self)));
 	if (kbd)
-		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
+		kbdd_clear_state(kbd);
 	return (0);
 }
 
@@ -255,7 +255,7 @@ ukbd_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	keyboard_t *kbd = (keyboard_t *)addr;
 
-	(*kbdsw[kbd->kb_index]->intr)(kbd, (void *)status);
+	kbdd_intr(kbd, (void *)status);
 }
 
 #define UKBD_DEFAULT	0
@@ -705,7 +705,7 @@ ukbd_timeout(void *arg)
 	kbd = (keyboard_t *)arg;
 	state = (ukbd_state_t *)kbd->kb_data;
 	s = splusb();
-	(*kbdsw[kbd->kb_index]->intr)(kbd, (void *)USBD_NORMAL_COMPLETION);
+	kbdd_intr(kbd, (void *)USBD_NORMAL_COMPLETION);
 	callout_reset(&state->ks_timeout_handle, hz / 40, ukbd_timeout, arg);
 	splx(s);
 }
