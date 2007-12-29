@@ -516,26 +516,6 @@ typedef struct {
 
 #define ISSIGVALID(sig)	((sig) > 0 && (sig) < NSIG)
 
-#define kbd_read_char(kbd, wait)					\
-		(*kbdsw[(kbd)->kb_index]->read_char)((kbd), (wait))
-#define kbd_check_char(kbd)						\
-		(*kbdsw[(kbd)->kb_index]->check_char)((kbd))
-#define kbd_enable(kbd)							\
-		(*kbdsw[(kbd)->kb_index]->enable)((kbd))
-#define kbd_disable(kbd)						\
-		(*kbdsw[(kbd)->kb_index]->disable)((kbd))
-#define kbd_lock(kbd, lockf)						\
-		(*kbdsw[(kbd)->kb_index]->lock)((kbd), (lockf))
-#define kbd_ioctl(kbd, cmd, arg)					\
-	    (((kbd) == NULL) ?						\
-		ENODEV : (*kbdsw[(kbd)->kb_index]->ioctl)((kbd), (cmd), (arg)))
-#define kbd_clear_state(kbd)						\
-		(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
-#define kbd_get_fkeystr(kbd, fkey, len)					\
-		(*kbdsw[(kbd)->kb_index]->get_fkeystr)((kbd), (fkey), (len))
-#define kbd_poll(kbd, on)						\
-		(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
-
 #define SC_VIDEO_LOCKINIT(sc)						\
 		mtx_init(&(sc)->video_mtx, "syscons video lock", NULL,MTX_SPIN);
 #define SC_VIDEO_LOCK(sc)						\

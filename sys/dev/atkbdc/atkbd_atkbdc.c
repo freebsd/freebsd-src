@@ -158,9 +158,9 @@ atkbdresume(device_t dev)
 		kbd->kb_flags &= ~KB_INITIALIZED;
 		args[0] = device_get_unit(device_get_parent(dev));
 		args[1] = rman_get_start(sc->intr);
-		(*kbdsw[kbd->kb_index]->init)(device_get_unit(dev), &kbd,
-					      args, device_get_flags(dev));
-		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
+		kbdd_init(kbd, device_get_unit(dev), &kbd, args,
+		    device_get_flags(dev));
+		kbdd_clear_state(kbd);
 	}
 	return 0;
 }
@@ -171,7 +171,7 @@ atkbdintr(void *arg)
 	keyboard_t *kbd;
 
 	kbd = (keyboard_t *)arg;
-	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+	kbdd_intr(kbd, NULL);
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
