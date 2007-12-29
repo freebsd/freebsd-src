@@ -1113,7 +1113,7 @@ machfb_puts(video_adapter_t *adp, vm_offset_t off, uint16_t *s, int len)
 				MACHFB_BLANK;
 				blanks = 0;
 			}
-			(*vidsw[adp->va_index]->putc)(adp, off + i, c, a);
+			vidd_putc(adp, off + i, c, a);
 		}
 	}
 	if (blanks != 0)
