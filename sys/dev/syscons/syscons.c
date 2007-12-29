@@ -369,7 +369,7 @@ sc_attach_unit(int unit, int flags)
 
 #ifdef SC_PIXEL_MODE
     if ((sc->config & SC_VESA800X600)
-	&& ((*vidsw[sc->adapter]->get_info)(sc->adp, M_VESA_800x600, &info) == 0)) {
+	&& (vidd_get_info(sc->adp, M_VESA_800x600, &info) == 0)) {
 #ifdef DEV_SPLASH
 	if (sc->flags & SC_SPLASH_SCRN)
 	    splash_term(sc->adp);
@@ -2053,7 +2053,7 @@ set_scrn_saver_mode(scr_stat *scp, int mode, u_char *pal, int border)
 	    scp->status |= GRAPHICS_MODE;
 #ifndef SC_NO_PALETTE_LOADING
 	if (pal != NULL)
-	    load_palette(scp->sc->adp, pal);
+	    vidd_load_palette(scp->sc->adp, pal);
 #endif
 	sc_set_border(scp, border);
 	return 0;
@@ -2091,7 +2091,7 @@ restore_scrn_saver_mode(scr_stat *scp, int changemode)
     }
     if (set_mode(scp) == 0) {
 #ifndef SC_NO_PALETTE_LOADING
-	load_palette(scp->sc->adp, scp->sc->palette);
+	vidd_load_palette(scp->sc->adp, scp->sc->palette);
 #endif
 	--scrn_blanked;
 	splx(s);
@@ -2495,7 +2495,7 @@ exchange_scr(sc_softc_t *sc)
 	sc_set_cursor_image(scp);
 #ifndef SC_NO_PALETTE_LOADING
     if (ISGRAPHSC(sc->old_scp))
-	load_palette(sc->adp, sc->palette);
+	vidd_load_palette(sc->adp, sc->palette);
 #endif
     sc_set_border(scp, scp->border);
 
@@ -2740,8 +2740,8 @@ scinit(int unit, int flags)
 #endif
 
 	/* extract the hardware cursor location and hide the cursor for now */
-	(*vidsw[sc->adapter]->read_hw_cursor)(sc->adp, &col, &row);
-	(*vidsw[sc->adapter]->set_hw_cursor)(sc->adp, -1, -1);
+	vidd_read_hw_cursor(sc->adp, &col, &row);
+	vidd_set_hw_cursor(sc->adp, -1, -1);
 
 	/* set up the first console */
 	sc->first_vty = unit*MAXCONS;
@@ -2843,7 +2843,7 @@ scinit(int unit, int flags)
 #endif /* !SC_NO_FONT_LOADING */
 
 #ifndef SC_NO_PALETTE_LOADING
-	save_palette(sc->adp, sc->palette);
+	vidd_save_palette(sc->adp, sc->palette);
 #endif
 
 #ifdef DEV_SPLASH
@@ -2889,7 +2889,7 @@ scterm(int unit, int flags)
 
 #if 0 /* XXX */
     /* move the hardware cursor to the upper-left corner */
-    (*vidsw[sc->adapter]->set_hw_cursor)(sc->adp, 0, 0);
+    vidd_set_hw_cursor(sc->adp, 0, 0);
 #endif
 
     /* release the keyboard and the video card */
@@ -3023,7 +3023,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
     scp->sc = sc;
     scp->status = 0;
     scp->mode = sc->initial_mode;
-    (*vidsw[sc->adapter]->get_info)(sc->adp, scp->mode, &info);
+    vidd_get_info(sc->adp, scp->mode, &info);
     if (info.vi_flags & V_INFO_GRAPHICS) {
 	scp->status |= GRAPHICS_MODE;
 	scp->xpixel = info.vi_width;
@@ -3437,7 +3437,7 @@ scmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
     scp = sc_get_stat(dev);
     if (scp != scp->sc->cur_scp)
 	return -1;
-    return (*vidsw[scp->sc->adapter]->mmap)(scp->sc->adp, offset, paddr, nprot);
+    return vidd_mmap(scp->sc->adp, offset, paddr, nprot);
 }
 
 static int
@@ -3497,7 +3497,7 @@ set_mode(scr_stat *scp)
     video_info_t info;
 
     /* reject unsupported mode */
-    if ((*vidsw[scp->sc->adapter]->get_info)(scp->sc->adp, scp->mode, &info))
+    if (vidd_get_info(scp->sc->adp, scp->mode, &info))
 	return 1;
 
     /* if this vty is not currently showing, do nothing */
@@ -3505,7 +3505,7 @@ set_mode(scr_stat *scp)
 	return 0;
 
     /* setup video hardware for the given mode */
-    (*vidsw[scp->sc->adapter]->set_mode)(scp->sc->adp, scp->mode);
+    vidd_set_mode(scp->sc->adp, scp->mode);
     scp->rndr->init(scp);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
@@ -3562,8 +3562,7 @@ sc_load_font(scr_stat *scp, int page, int size, int width, u_char *buf,
 
     sc = scp->sc;
     sc->font_loading_in_progress = TRUE;
-    (*vidsw[sc->adapter]->load_font)(sc->adp, page, size, width, buf, base,
-				     count);
+    vidd_load_font(sc->adp, page, size, width, buf, base, count);
     sc->font_loading_in_progress = FALSE;
 }
 
@@ -3575,15 +3574,14 @@ sc_save_font(scr_stat *scp, int page, int size, int width, u_char *buf,
 
     sc = scp->sc;
     sc->font_loading_in_progress = TRUE;
-    (*vidsw[sc->adapter]->save_font)(sc->adp, page, size, width, buf, base,
-				     count);
+    vidd_save_font(sc->adp, page, size, width, buf, base, count);
     sc->font_loading_in_progress = FALSE;
 }
 
 void
 sc_show_font(scr_stat *scp, int page)
 {
-    (*vidsw[scp->sc->adapter]->show_font)(scp->sc->adp, page);
+    vidd_show_font(scp->sc->adp, page);
 }
 #endif /* !SC_NO_FONT_LOADING */
 

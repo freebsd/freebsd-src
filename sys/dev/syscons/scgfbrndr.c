@@ -148,13 +148,13 @@ gfb_nop(scr_stat *scp)
 static void
 gfb_clear(scr_stat *scp, int c, int attr)
 {
-	(*vidsw[scp->sc->adapter]->clear)(scp->sc->adp);
+	vidd_clear(scp->sc->adp);
 }
 
 static void
 gfb_border(scr_stat *scp, int color)
 {
-	(*vidsw[scp->sc->adapter]->set_border)(scp->sc->adp, color);
+	vidd_set_border(scp->sc->adp, color);
 }
 
 static void
@@ -187,13 +187,13 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 		n = (count / adp->va_info.vi_width) + 1;
 
 		/* Scroll to make room for new text rows... */
-		(*vidsw[scp->sc->adapter]->copy)(adp, n, 0, n);
+		vidd_copy(adp, n, 0, n);
 #if 0
-		(*vidsw[scp->sc->adapter]->clear)(adp, n);
+		vidd_clear(adp, n);
 #endif
 
 		/* Display new text rows... */
-		(*vidsw[scp->sc->adapter]->puts)(adp, from,
+		vidd_puts(adp, from,
 		    (u_int16_t *)sc_vtb_pointer(&scp->vtb, from), count);
 	}
 
@@ -212,11 +212,11 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 			for (i = count; i-- > 0; ++from) {
 				c = sc_vtb_getc(&scp->vtb, from);
 				a = sc_vtb_geta(&scp->vtb, from) >> 8;
-				(*vidsw[scp->sc->adapter]->putc)(adp, from, c,
+				vidd_putc(adp, from, c,
 				    (a >> 4) | ((a & 0xf) << 4));
 			}
 		else {
-			(*vidsw[scp->sc->adapter]->puts)(adp, from,
+			vidd_puts(adp, from,
 			    (u_int16_t *)sc_vtb_pointer(&scp->vtb, from),
 			    count);
 		}
@@ -233,8 +233,8 @@ gfb_cursor_shape(scr_stat *scp, int base, int height, int blink)
 	scp->cursor_base = base;
 	scp->cursor_height = height;
 #endif
-	(*vidsw[scp->sc->adapter]->set_hw_cursor_shape)(scp->sc->adp,
-	    base, height, scp->font_size, blink);
+	vidd_set_hw_cursor_shape(scp->sc->adp, base, height, scp->font_size,
+	    blink);
 }
 
 static int pxlblinkrate = 0;
@@ -254,33 +254,29 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 		scp->status |= VR_CURSOR_BLINK;
 		if (on) {
 			scp->status |= VR_CURSOR_ON;
-			(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-			    at%scp->xsize,
-			    at/scp->xsize);
+			vidd_set_hw_cursor(adp, at%scp->xsize, at/scp->xsize);
 		} else {
 			if (scp->status & VR_CURSOR_ON)
-				(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1,
-				    -1);
+				vidd_set_hw_cursor(adp, -1, -1);
 			scp->status &= ~VR_CURSOR_ON;
 		}
 	} else {
 		scp->status &= ~VR_CURSOR_BLINK;
 		if(on) {
 			scp->status |= VR_CURSOR_ON;
-			(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp,
-			    scp->cursor_oldpos,
+			vidd_putc(scp->sc->adp, scp->cursor_oldpos,
 			    sc_vtb_getc(&scp->vtb, scp->cursor_oldpos),
 			    sc_vtb_geta(&scp->vtb, scp->cursor_oldpos) >> 8);
 			a = sc_vtb_geta(&scp->vtb, at) >> 8;
 			c = sc_vtb_getc(&scp->vtb, at);
-			(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp, at,
-			    c, (a >> 4) | ((a & 0xf) << 4));
+			vidd_putc(scp->sc->adp, at, c,
+			    (a >> 4) | ((a & 0xf) << 4));
 			scp->cursor_saveunder_attr = a;
 			scp->cursor_saveunder_char = c;
 		} else {
 			if (scp->status & VR_CURSOR_ON)
-				(*vidsw[scp->sc->adapter]->putc)(scp->sc->adp,
-				    at, scp->cursor_saveunder_char,
+				vidd_putc(scp->sc->adp, at,
+				    scp->cursor_saveunder_char,
 				    scp->cursor_saveunder_attr);
 			scp->status &= ~VR_CURSOR_ON;
 		}
@@ -300,22 +296,19 @@ gfb_cursor(scr_stat *scp, int at, int blink, int on, int flip)
 	if (on) {
 		if (!blink) {
 			scp->status |= VR_CURSOR_ON;
-			(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-			    at%scp->xsize, at/scp->xsize);
+			vidd_set_hw_cursor(adp, at%scp->xsize, at/scp->xsize);
 		} else if (++pxlblinkrate & 4) {
 			pxlblinkrate = 0;
 			scp->status ^= VR_CURSOR_ON;
 			if(scp->status & VR_CURSOR_ON)
-				(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-				    at%scp->xsize, at/scp->xsize);
+				vidd_set_hw_cursor(adp, at%scp->xsize,
+				    at/scp->xsize);
 			else
-				(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1,
-				    -1);
+				vidd_set_hw_cursor(adp, -1, -1);
 		}
 	} else {
 		if (scp->status & VR_CURSOR_ON)
-			(*vidsw[adp->va_index]->set_hw_cursor)(adp,
-			    at%scp->xsize, at/scp->xsize);
+			vidd_set_hw_cursor(adp, at%scp->xsize, at/scp->xsize);
 		scp->status &= ~VR_CURSOR_ON;
 	}
 	if (blink)
@@ -344,16 +337,16 @@ static void
 gfb_mouse(scr_stat *scp, int x, int y, int on)
 {
 #ifdef __sparc64__
-		(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y,
-		    mouse_pointer, on ? 0xffffffff : 0x0, 22, 12);
+		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
+		    on ? 0xffffffff : 0x0, 22, 12);
 #else
 	int i, pos;
 
 	if (on) {
 
 		/* Display the mouse pointer image... */
-		(*vidsw[scp->sc->adapter]->putm)(scp->sc->adp, x, y,
-		    mouse_pointer, 0xffffffff, 16, 8);
+		vidd_putm(scp->sc->adp, x, y, mouse_pointer,
+		    0xffffffff, 16, 8);
 	} else {
 
 		/*

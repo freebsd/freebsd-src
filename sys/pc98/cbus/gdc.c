@@ -177,7 +177,7 @@ gdc_attach(device_t dev)
 #endif /* FB_INSTALL_CDEV */
 
 	if (bootverbose)
-		(*vidsw[sc->adp->va_index]->diag)(sc->adp, bootverbose);
+		vidd_diag(sc->adp, bootverbose);
 
 	return 0;
 }
@@ -1147,7 +1147,7 @@ gdc_set_mode(video_adapter_t *adp, int mode)
     bcopy(&info, &adp->va_info, sizeof(info));
 
     /* move hardware cursor out of the way */
-    (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
+    vidd_set_hw_cursor(adp, -1, -1);
 
     return 0;
 }
@@ -1374,7 +1374,7 @@ packed_fill(video_adapter_t *adp, int val)
     length = adp->va_line_width*adp->va_info.vi_height;
     while (length > 0) {
 	l = imin(length, adp->va_window_size);
-	(*vidsw[adp->va_index]->set_win_org)(adp, at);
+	vidd_set_win_org(adp, at);
 	bzero_io(adp->va_window, l);
 	length -= l;
 	at += l;

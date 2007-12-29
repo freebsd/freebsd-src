@@ -189,20 +189,74 @@ typedef struct video_switch {
     vi_putm_t		*putm;
 } video_switch_t;
 
-#define save_palette(adp, pal)				\
-	(*vidsw[(adp)->va_index]->save_palette)((adp), (pal))
-#define load_palette(adp, pal)				\
-	(*vidsw[(adp)->va_index]->load_palette)((adp), (pal))
-#define get_mode_info(adp, mode, buf)			\
-	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (buf))
-#define set_video_mode(adp, mode)			\
+#define vidd_probe(unit, adpp, arg, flags)				\
+	(*vidsw[(adp)->va_index]->probe)((unit), (adpp), (arg), (flags))
+#define vidd_init(unit, adp, flags)					\
+	(*vidsw[(adp)->va_index]->init)((unit), (adp), (flags))
+#define vidd_get_info(adp, mode, info)					\
+	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (info))
+#define vidd_query_mode(adp, mode)					\
+	(*vidsw[(adp)->va_index]->query_mode)((adp), (mode))
+#define vidd_set_mode(adp, mode)					\
 	(*vidsw[(adp)->va_index]->set_mode)((adp), (mode))
-#define set_border(adp, border)				\
+#define vidd_save_font(adp, page, size, width, data, c, count)		\
+	(*vidsw[(adp)->va_index]->save_font)((adp), (page), (size),	\
+	    (width), (data), (c), (count))
+#define vidd_load_font(adp, page, size, width, data, c, count)		\
+	(*vidsw[(adp)->va_index]->load_font)((adp), (page), (size),	\
+	    (width), (data), (c), (count))
+#define vidd_show_font(adp, page)					\
+	(*vidsw[(adp)->va_index]->show_font)((adp), (page))
+#define vidd_save_palette(adp, pallete)					\
+	(*vidsw[(adp)->va_index]->save_palette)((adp), (pallete))
+#define vidd_load_palette(adp, pallete)					\
+	(*vidsw[(adp)->va_index]->load_palette)((adp), (pallete))
+#define vidd_set_border(adp, border)					\
 	(*vidsw[(adp)->va_index]->set_border)((adp), (border))
-#define set_origin(adp, o)				\
-	(*vidsw[(adp)->va_index]->set_win_org)(adp, o)
-
-/* XXX - add more macros */
+#define vidd_save_state(adp, p, size)					\
+	(*vidsw[(adp)->va_index]->save_state)((adp), (p), (size))
+#define vidd_load_state(adp, p)						\
+	(*vidsw[(adp)->va_index]->load_state)((adp), (p))
+#define vidd_set_win_org(adp, offset)					\
+	(*vidsw[(adp)->va_index]->set_win_org)((adp), (offset))
+#define vidd_read_hw_cursor(adp, col, row)				\
+	(*vidsw[(adp)->va_index]->read_hw_cursor)((adp), (col), (row))
+#define vidd_set_hw_cursor(adp, col, row)				\
+	(*vidsw[(adp)->va_index]->set_hw_cursor)((adp), (col), (row))
+#define vidd_set_hw_cursor_shape(adp, base, height, celsize, blink)	\
+	(*vidsw[(adp)->va_index]->set_hw_cursor_shape)((adp), (base),	\
+	    (height), (celsize), (blink))
+#define vidd_blank_display(adp, mode)					\
+	(*vidsw[(adp)->va_index]->blank_display)((adp), (mode))
+#define vidd_mmap(adp, offset, paddr, prot)				\
+	(*vidsw[(adp)->va_index]->mmap)((adp), (offset), (paddr), (prot))
+#define vidd_ioctl(adp, cmd, data)					\
+	(*vidsw[(adp)->va_index]->ioctl)((adp), (cmd), (data))
+#define vidd_clear(adp)							\
+	(*vidsw[(adp)->va_index]->clear)((adp))
+#define vidd_fill_rect(adp, val, x, y, cx, cy)				\
+	(*vidsw[(adp)->va_index]->fill_rect)((adp), (val), (x), (y),	\
+	    (cx), (cy))
+#define vidd_bitblt(adp, ...)						\
+	(*vidsw[(adp)->va_index]->bitblt)(adp, __VA_ARGS__)
+#define vidd_diag(adp, level)						\
+	(*vidsw[(adp)->va_index]->diag)((adp), (level))
+#define vidd_save_cursor_palette(adp, palette)				\
+	(*vidsw[(adp)->va_index]->save_cursor_palette)((adp), (palette))
+#define vidd_load_cursor_palette(adp, palette)				\
+	(*vidsw[(adp)->va_index]->load_cursor_palette)((adp), (palette))
+#define vidd_copy(adp, src, dst, n)					\
+	(*vidsw[(adp)->va_index]->copy)((adp), (src), (dst), (n))
+#define vidd_putp(adp, offset, p, a, size, bpp, bit_ltor1, byte_ltor2)	\
+	(*vidsw[(adp)->va_index]->putp)((adp), (offset), (p), (a), 	\
+	    (size), (bpp), (bit_ltor1), (bit_ltor2))
+#define vidd_putc(adp, offset, c, a)					\
+	(*vidsw[(adp)->va_index]->putc)((adp), (offset), (c), (a))
+#define vidd_puts(adp, offset, s, len)					\
+	(*vidsw[(adp)->va_index]->puts)((adp), (offset), (s), (len))
+#define vidd_putm(adp, x, y, pixel_image, pixel_mask, size, width)	\
+	(*vidsw[(adp)->va_index]->putm)((adp), (x), (y), (pixel_image),	\
+	    (pixel_mask), (size), (width))
 
 /* video driver */
 typedef struct video_driver {

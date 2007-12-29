@@ -150,7 +150,7 @@ isavga_attach(device_t dev)
 #endif /* FB_INSTALL_CDEV */
 
 	if (0 && bootverbose)
-		(*vidsw[sc->adp->va_index]->diag)(sc->adp, bootverbose);
+		vidd_diag(sc->adp, bootverbose);
 
 #if 0 /* experimental */
 	device_add_child(dev, "fb", -1);
@@ -176,7 +176,7 @@ isavga_suspend(device_t dev)
 		free(sc->state_buf, M_TEMP);
 		sc->state_buf = NULL;
 	}
-	nbytes = (*vidsw[sc->adp->va_index]->save_state)(sc->adp, NULL, 0);
+	nbytes = vidd_save_state(sc->adp, NULL, 0);
 	if (nbytes <= 0)
 		return (0);
 	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT | M_ZERO);
@@ -184,8 +184,7 @@ isavga_suspend(device_t dev)
 		return (0);
 	if (bootverbose)
 		device_printf(dev, "saving %d bytes of video state\n", nbytes);
-	if ((*vidsw[sc->adp->va_index]->save_state)(sc->adp, sc->state_buf,
-	    nbytes) != 0) {
+	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
 		device_printf(dev, "failed to save state (nbytes=%d)\n",
 		    nbytes);
 		free(sc->state_buf, M_TEMP);
@@ -201,8 +200,7 @@ isavga_resume(device_t dev)
 
 	sc = device_get_softc(dev);
 	if (sc->state_buf != NULL) {
-		if ((*vidsw[sc->adp->va_index]->load_state)(sc->adp,
-		    sc->state_buf) != 0)
+		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
 			device_printf(dev, "failed to reload state\n");
 		free(sc->state_buf, M_TEMP);
 		sc->state_buf = NULL;

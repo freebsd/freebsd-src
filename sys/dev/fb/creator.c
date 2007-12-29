@@ -845,9 +845,9 @@ creator_puts(video_adapter_t *adp, vm_offset_t off, u_int16_t *s, int len)
 	int i;
 
 	for (i = 0; i < len; i++) {
-		(*vidsw[adp->va_index]->putc)(adp, off + i, s[i] & 0xff,
-		    (s[i] & 0xff00) >> 8);
+		vidd_putc(adp, off + i, s[i] & 0xff, (s[i] & 0xff00) >> 8);
 	}
+
 	return (0);
 }
 

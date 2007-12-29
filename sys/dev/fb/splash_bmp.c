@@ -94,9 +94,9 @@ bmp_start(video_adapter_t *adp)
 	return ENODEV;
     }
     for (i = 0; modes[i] >= 0; ++i) {
-	if (((*vidsw[adp->va_index]->get_info)(adp, modes[i], &info) == 0)
-	    && (bmp_Init((u_char *)bmp_decoder.data,
-			 info.vi_width, info.vi_height, info.vi_depth) == 0))
+	if ((vidd_get_info(adp, modes[i], &info) == 0) && 
+	    (bmp_Init((u_char *)bmp_decoder.data, info.vi_width,
+		      info.vi_height, info.vi_depth) == 0))
 	    break;
     }
     splash_mode = modes[i];
@@ -127,11 +127,11 @@ bmp_splash(video_adapter_t *adp, int on)
     if (on) {
 	if (!splash_on) {
 	    /* set up the video mode and draw something */
-	    if ((*vidsw[adp->va_index]->set_mode)(adp, splash_mode))
+	    if (vidd_set_mode(adp, splash_mode))
 		return 1;
 	    if (bmp_Draw(adp))
 		return 1;
-	    (*vidsw[adp->va_index]->save_palette)(adp, pal);
+	    vidd_save_palette(adp, pal);
 	    time_stamp = 0;
 	    splash_on = TRUE;
 	}
@@ -160,7 +160,7 @@ bmp_splash(video_adapter_t *adp, int on)
 		for (i = 0; i < sizeof(pal); ++i) {
 		    tpal[i] = pal[i] * brightness / FADE_LEVELS;
 		}
-		(*vidsw[adp->va_index]->load_palette)(adp, tpal);
+		vidd_load_palette(adp, tpal);
 		time_stamp = tv.tv_sec;
 	    }
 	}
@@ -298,7 +298,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	sofs += (x >> 3);
 	newbank = sofs/info->adp->va_window_size;
 	if (info->bank != newbank) {
-	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);
+	    vidd_set_win_org(info->adp, newbank*info->adp->va_window_size);
 	    info->bank = newbank;
 	}
 	sofs %= info->adp->va_window_size;
@@ -313,7 +313,7 @@ bmp_SetPix(BMP_INFO *info, int x, int y, u_char val)
 	sofs += x;
 	newbank = sofs/info->adp->va_window_size;
 	if (info->bank != newbank) {
-	    (*vidsw[info->adp->va_index]->set_win_org)(info->adp, newbank*info->adp->va_window_size);
+	    vidd_set_win_org(info->adp, newbank*info->adp->va_window_size);
 	    info->bank = newbank;
 	}
 	sofs %= info->adp->va_window_size;
@@ -601,8 +601,8 @@ bmp_Draw(video_adapter_t *adp)
     /* clear the screen */
     bmp_info.vidmem = (u_char *)adp->va_window;
     bmp_info.adp = adp;
-    (*vidsw[adp->va_index]->clear)(adp);
-    (*vidsw[adp->va_index]->set_win_org)(adp, 0);
+    vidd_clear(adp);
+    vidd_set_win_org(adp, 0);
     bmp_info.bank = 0;
 
     /* initialise the info structure for drawing */
@@ -612,7 +612,7 @@ bmp_Draw(video_adapter_t *adp)
 #endif
     
     /* set the palette for our image */
-    (*vidsw[adp->va_index]->load_palette)(adp, (u_char *)&bmp_info.palette);
+    vidd_load_palette(adp, (u_char *)&bmp_info.palette);
 
 #if 0
 #ifndef PC98

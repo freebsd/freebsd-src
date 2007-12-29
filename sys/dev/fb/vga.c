@@ -1656,7 +1656,7 @@ setup_grmode:
     update_adapter_info(adp, &info);
 
     /* move hardware cursor out of the way */
-    (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
+    vidd_set_hw_cursor(adp, -1, -1);
 
     return 0;
 #else /* VGA_NO_MODE_CHANGE */
@@ -2502,7 +2502,7 @@ planar_fill(video_adapter_t *adp, int val)
     length = adp->va_line_width*adp->va_info.vi_height;
     while (length > 0) {
 	l = imin(length, adp->va_window_size);
-	(*vidsw[adp->va_index]->set_win_org)(adp, at);
+	vidd_set_win_org(adp, at);
 	bzero_io(adp->va_window, l);
 	length -= l;
 	at += l;
@@ -2522,7 +2522,7 @@ packed_fill(video_adapter_t *adp, int val)
     length = adp->va_line_width*adp->va_info.vi_height;
     while (length > 0) {
 	l = imin(length, adp->va_window_size);
-	(*vidsw[adp->va_index]->set_win_org)(adp, at);
+	vidd_set_win_org(adp, at);
 	fill_io(val, adp->va_window, l);
 	length -= l;
 	at += l;
@@ -2540,7 +2540,7 @@ direct_fill(video_adapter_t *adp, int val)
     length = adp->va_line_width*adp->va_info.vi_height;
     while (length > 0) {
 	l = imin(length, adp->va_window_size);
-	(*vidsw[adp->va_index]->set_win_org)(adp, at);
+	vidd_set_win_org(adp, at);
 	switch (adp->va_info.vi_pixel_size) {
 	case sizeof(u_int16_t):
 	    fillw_io(val, adp->va_window, l/sizeof(u_int16_t));
@@ -2599,7 +2599,7 @@ planar_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
     while (cy > 0) {
 	pos = adp->va_line_width*y + x/8;
 	if (bank != pos/banksize) {
-	    (*vidsw[adp->va_index]->set_win_org)(adp, pos);
+	    vidd_set_win_org(adp, pos);
 	    bank = pos/banksize;
 	}
 	offset = pos%banksize;
@@ -2612,7 +2612,7 @@ planar_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	    if (offset >= banksize) {
 		offset = 0;
 		++bank;		/* next bank */
-		(*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+		vidd_set_win_org(adp, bank*banksize);
 	    }
 	    outw(GDCIDX, 0xff08);	/* bit mask */
 	}
@@ -2624,7 +2624,7 @@ planar_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	    if (offset >= banksize) {
 		offset = 0;
 		++bank;		/* next bank */
-		(*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+		vidd_set_win_org(adp, bank*banksize);
 	    }
 	}
 	if ((x + cx) % 8) {
@@ -2634,7 +2634,7 @@ planar_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	    if (offset >= banksize) {
 		offset = 0;
 		++bank;		/* next bank */
-		(*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+		vidd_set_win_org(adp, bank*banksize);
 	    }
 	    outw(GDCIDX, 0xff08);	/* bit mask */
 	}
@@ -2662,7 +2662,7 @@ packed_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
     while (cy > 0) {
 	pos = adp->va_line_width*y + x*adp->va_info.vi_pixel_size;
 	if (bank != pos/banksize) {
-	    (*vidsw[adp->va_index]->set_win_org)(adp, pos);
+	    vidd_set_win_org(adp, pos);
 	    bank = pos/banksize;
 	}
 	offset = pos%banksize;
@@ -2672,7 +2672,7 @@ packed_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	/* the line may cross the window boundary */
 	if (offset + cx > banksize) {
 	    ++bank;		/* next bank */
-	    (*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+	    vidd_set_win_org(adp, bank*banksize);
 	    end = offset + cx - banksize;
 	    fill_io(val, adp->va_window, end/adp->va_info.vi_pixel_size);
 	}
@@ -2700,7 +2700,7 @@ direct_fill_rect16(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
     while (cy > 0) {
 	pos = adp->va_line_width*y + x*sizeof(u_int16_t);
 	if (bank != pos/banksize) {
-	    (*vidsw[adp->va_index]->set_win_org)(adp, pos);
+	    vidd_set_win_org(adp, pos);
 	    bank = pos/banksize;
 	}
 	offset = pos%banksize;
@@ -2710,7 +2710,7 @@ direct_fill_rect16(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	/* the line may cross the window boundary */
 	if (offset + cx > banksize) {
 	    ++bank;		/* next bank */
-	    (*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+	    vidd_set_win_org(adp, bank*banksize);
 	    end = offset + cx - banksize;
 	    fillw_io(val, adp->va_window, end/sizeof(u_int16_t));
 	}
@@ -2740,7 +2740,7 @@ direct_fill_rect24(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
     while (cy > 0) {
 	pos = adp->va_line_width*y + x*3;
 	if (bank != pos/banksize) {
-	    (*vidsw[adp->va_index]->set_win_org)(adp, pos);
+	    vidd_set_win_org(adp, pos);
 	    bank = pos/banksize;
 	}
 	offset = pos%banksize;
@@ -2751,7 +2751,7 @@ direct_fill_rect24(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	/* the line may cross the window boundary */
 	if (offset + cx >= banksize) {
 	    ++bank;		/* next bank */
-	    (*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+	    vidd_set_win_org(adp, bank*banksize);
 	    j = 0;
 	    end = offset + cx - banksize;
 	    for (; j < end; i = (++i)%3, ++j) {
@@ -2782,7 +2782,7 @@ direct_fill_rect32(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
     while (cy > 0) {
 	pos = adp->va_line_width*y + x*sizeof(u_int32_t);
 	if (bank != pos/banksize) {
-	    (*vidsw[adp->va_index]->set_win_org)(adp, pos);
+	    vidd_set_win_org(adp, pos);
 	    bank = pos/banksize;
 	}
 	offset = pos%banksize;
@@ -2792,7 +2792,7 @@ direct_fill_rect32(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	/* the line may cross the window boundary */
 	if (offset + cx > banksize) {
 	    ++bank;		/* next bank */
-	    (*vidsw[adp->va_index]->set_win_org)(adp, bank*banksize);
+	    vidd_set_win_org(adp, bank*banksize);
 	    end = offset + cx - banksize;
 	    filll_io(val, adp->va_window, end/sizeof(u_int32_t));
 	}

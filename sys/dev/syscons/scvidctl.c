@@ -142,7 +142,7 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     int error;
     int s;
 
-    if ((*vidsw[scp->sc->adapter]->get_info)(scp->sc->adp, mode, &info))
+    if (vidd_get_info(scp->sc->adp, mode, &info))
 	return ENODEV;
 
     /* adjust argument values */
@@ -261,7 +261,7 @@ sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode)
     int error;
     int s;
 
-    if ((*vidsw[scp->sc->adapter]->get_info)(scp->sc->adp, mode, &info))
+    if (vidd_get_info(scp->sc->adp, mode, &info))
 	return ENODEV;
 
     /* stop screen saver, etc */
@@ -332,7 +332,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     int error;
     int s;
 
-    if ((*vidsw[scp->sc->adapter]->get_info)(scp->sc->adp, scp->mode, &info))
+    if (vidd_get_info(scp->sc->adp, scp->mode, &info))
 	return ENODEV;		/* this shouldn't happen */
 
     /* adjust argument values */
@@ -472,7 +472,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 
 #define fb_ioctl(a, c, d)		\
 	(((a) == NULL) ? ENODEV : 	\
-			 (*vidsw[(a)->va_index]->ioctl)((a), (c), (caddr_t)(d)))
+			 vidd_ioctl((a), (c), (caddr_t)(d)))
 
 int
 sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
@@ -723,12 +723,12 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 #endif
 
 #ifndef SC_NO_PALETTE_LOADING
-	    load_palette(adp, scp->sc->palette);
+	    vidd_load_palette(adp, scp->sc->palette);
 #endif
 
 #ifndef PC98
 	    /* move hardware cursor out of the way */
-	    (*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
+	    vidd_set_hw_cursor(adp, -1, -1);
 #endif
 
 	    /* FALLTHROUGH */
@@ -780,7 +780,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *
 	    if (scp == scp->sc->cur_scp) {
 		set_mode(scp);
 #ifndef SC_NO_PALETTE_LOADING
-		load_palette(adp, scp->sc->palette);
+		vidd_load_palette(adp, scp->sc->palette);
 #endif
 	    }
 	    sc_clear_screen(scp);
