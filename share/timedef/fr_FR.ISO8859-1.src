@@ -18,7 +18,7 @@ oct
 nov
 déc
 #
-# Long months names
+# Long months names (as in a date)
 #
 janvier
 février
@@ -77,7 +77,7 @@ Samedi
 #
 %a %e %b %Y %X %Z
 #
-# Long months names (alternative)
+# Long months names (without case ending)
 #
 janvier
 février
