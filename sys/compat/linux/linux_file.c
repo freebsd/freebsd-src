@@ -251,34 +251,41 @@ linux_at(struct thread *td, int dirfd, char *filename, char **newpath, char **fr
 int
 linux_openat(struct thread *td, struct linux_openat_args *args)
 {
-   	char *newpath, *oldpath, *freebuf = NULL, *path;
+	char *newpath, *oldpath, *freebuf, *path;
 	int error;
 
 	oldpath = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	error = copyinstr(args->filename, oldpath, MAXPATHLEN, NULL);
-
+	if (error) {
+		free(oldpath, M_TEMP);
+		return (error);
+	}
 #ifdef DEBUG
 	if (ldebug(openat))
 		printf(ARGS(openat, "%i, %s, 0x%x, 0x%x"), args->dfd,
 		    oldpath, args->flags, args->mode);
 #endif
-
+	newpath = freebuf = NULL;
 	error = linux_at(td, args->dfd, oldpath, &newpath, &freebuf);
-	if (error)
-	   	return (error);
+	if (error == 0) {
 #ifdef DEBUG
-	printf(LMSG("newpath: %s"), newpath);
+		if (ldebug(openat))
+			printf(LMSG("newpath: %s"), newpath);
 #endif
-    	if (args->flags & LINUX_O_CREAT)
-		LCONVPATH_SEG(td, newpath, &path, 1, UIO_SYSSPACE);
-    	else
-		LCONVPATH_SEG(td, newpath, &path, 0, UIO_SYSSPACE);
+		if (args->flags & LINUX_O_CREAT)
+			LCONVPATH_SEG(td, newpath, &path, 1, UIO_SYSSPACE);
+		else
+			LCONVPATH_SEG(td, newpath, &path, 0, UIO_SYSSPACE);
+	}
 	if (freebuf)
 	   	free(freebuf, M_TEMP);
 	if (*oldpath != '/')
    	   	free(newpath, M_TEMP);
-
-	error = linux_common_open(td, path, args->flags, args->mode, 1);
+	if (error == 0) {
+		error = linux_common_open(td, path, args->flags,
+		    args->mode, 1);
+		LFREEPATH(path);
+	}
 	free(oldpath, M_TEMP);
 	return (error);
 }
