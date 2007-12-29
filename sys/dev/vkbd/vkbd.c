@@ -278,11 +278,11 @@ vkbd_dev_close(struct cdev *dev, int foo, int bar, struct thread *td)
 
 	VKBD_UNLOCK(state);
 
-	(*kbdsw[kbd->kb_index]->disable)(kbd);
+	kbdd_disable(kbd);
 #ifdef KBD_INSTALL_CDEV
 	kbd_detach(kbd);
 #endif /* def KBD_INSTALL_CDEV */
-	(*kbdsw[kbd->kb_index]->term)(kbd);
+	kbdd_term(kbd);
 
 	/* XXX FIXME: dev->si_drv1 locking */
 	dev->si_drv1 = NULL;
@@ -437,8 +437,7 @@ vkbd_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 {
 	keyboard_t	*kbd = VKBD_KEYBOARD(dev);
 
-	return ((kbd == NULL)? ENXIO : 
-			(*kbdsw[kbd->kb_index]->ioctl)(kbd, cmd, data));
+	return ((kbd == NULL)? ENXIO : kbdd_ioctl(kbd, cmd, data));
 }
 
 /* Poll device */
@@ -482,7 +481,7 @@ vkbd_dev_intr(void *xkbd, int pending)
 	keyboard_t	*kbd = (keyboard_t *) xkbd;
 	vkbd_state_t	*state = (vkbd_state_t *) kbd->kb_data;
 
-	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+	kbdd_intr(kbd, NULL);
 
 	VKBD_LOCK(state);
 

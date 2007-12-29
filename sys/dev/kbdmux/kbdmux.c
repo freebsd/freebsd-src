@@ -118,27 +118,6 @@ MALLOC_DEFINE(M_KBDMUX, KEYBOARD_NAME, "Keyboard multiplexor");
 	taskqueue_enqueue(taskqueue_swi_giant, &(s)->ks_task)
 #endif /* not yet */
 
-#define	KBDMUX_INTR(kbd, arg) \
-	(*kbdsw[(kbd)->kb_index]->intr)((kbd), (arg))
-
-#define	KBDMUX_IOCTL(kbd, cmd, arg) \
-	(*kbdsw[(kbd)->kb_index]->ioctl)((kbd), (cmd), (caddr_t) (arg))
-
-#define	KBDMUX_CHECK_CHAR(kbd) \
-	(*kbdsw[(kbd)->kb_index]->check_char)((kbd))
-
-#define	KBDMUX_READ_CHAR(kbd, wait) \
-	(*kbdsw[(kbd)->kb_index]->read_char)((kbd), (wait))
-
-#define	KBDMUX_ENABLE(kbd) \
-	(*kbdsw[(kbd)->kb_index]->enable)((kbd))
-
-#define	KBDMUX_POLL(kbd, on) \
-	(*kbdsw[(kbd)->kb_index]->poll)((kbd), (on))
-
-#define	KBDMUX_CLEAR_STATE(kbd) \
-	(*kbdsw[(kbd)->kb_index]->clear_state)((kbd))
-
 /*
  * kbdmux keyboard
  */
@@ -197,7 +176,7 @@ kbdmux_kbd_intr(void *xkbd, int pending)
 	keyboard_t	*kbd = (keyboard_t *) xkbd;
 	kbdmux_state_t	*state = (kbdmux_state_t *) kbd->kb_data;
 
-	KBDMUX_INTR(kbd, NULL);
+	kbdd_intr(kbd, NULL);
 
 	KBDMUX_LOCK(state);
 
@@ -258,8 +237,8 @@ kbdmux_kbd_event(keyboard_t *kbd, int event, void *arg)
 		 * NOKEY.
 		 */
 
-		while (KBDMUX_CHECK_CHAR(kbd)) {
-			c = KBDMUX_READ_CHAR(kbd, 0);
+		while (kbdd_check_char(kbd)) {
+			c = kbdd_read_char(kbd, 0);
 			if (c == NOKEY)
 				break;
 			if (c == ERRKEY)
@@ -662,8 +641,8 @@ next_code:
 			kbdmux_kbd_t	*k;
 
 			SLIST_FOREACH(k, &state->ks_kbds, next) {
-				while (KBDMUX_CHECK_CHAR(k->kbd)) {
-					scancode = KBDMUX_READ_CHAR(k->kbd, 0);
+				while (kbdd_check_char(k->kbd)) {
+					scancode = kbdd_read_char(k->kbd, 0);
 					if (scancode == NOKEY)
 						break;
 					if (scancode == ERRKEY)
@@ -992,16 +971,16 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return (EINVAL); /* bad keyboard */
 		}
 
-		KBDMUX_ENABLE(k->kbd);
-		KBDMUX_CLEAR_STATE(k->kbd);
+		kbdd_enable(k->kbd);
+		kbdd_clear_state(k->kbd);
 
 		/* set K_RAW mode on slave keyboard */
 		mode = K_RAW;
-		error = KBDMUX_IOCTL(k->kbd, KDSKBMODE, &mode);
+		error = kbdd_ioctl(k->kbd, KDSKBMODE, (caddr_t)&mode);
 		if (error == 0) {
 			/* set lock keys state on slave keyboard */
 			mode = state->ks_state & LOCK_MASK;
-			error = KBDMUX_IOCTL(k->kbd, KDSKBSTATE, &mode);
+			error = kbdd_ioctl(k->kbd, KDSKBSTATE, (caddr_t)&mode);
 		}
 
 		if (error != 0) {
@@ -1115,7 +1094,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		/* KDSETLED on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			KBDMUX_IOCTL(k->kbd, KDSETLED, arg);
+			kbdd_ioctl(k->kbd, KDSETLED, arg);
 
 		KBDMUX_UNLOCK(state);
 		break;
@@ -1146,7 +1125,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		/* KDSKBSTATE on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			KBDMUX_IOCTL(k->kbd, KDSKBSTATE, arg);
+			kbdd_ioctl(k->kbd, KDSKBSTATE, arg);
 
 		KBDMUX_UNLOCK(state);
 
@@ -1192,7 +1171,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		/* perform command on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			KBDMUX_IOCTL(k->kbd, cmd, arg);
+			kbdd_ioctl(k->kbd, cmd, arg);
 
 		KBDMUX_UNLOCK(state);
 		break;
@@ -1205,7 +1184,7 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		/* perform command on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
-			KBDMUX_IOCTL(k->kbd, cmd, arg);
+			kbdd_ioctl(k->kbd, cmd, arg);
 
 		KBDMUX_UNLOCK(state);
                 /* FALLTHROUGH */
@@ -1302,7 +1281,7 @@ kbdmux_poll(keyboard_t *kbd, int on)
 
 	/* set poll on slave keyboards */
 	SLIST_FOREACH(k, &state->ks_kbds, next)
-		KBDMUX_POLL(k->kbd, on);
+		kbdd_poll(k->kbd, on);
 
 	KBDMUX_UNLOCK(state);
 
