@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
+#include <sys/types.h>
 #include <err.h>
 #include <stdarg.h>
 #include <stdio.h>
