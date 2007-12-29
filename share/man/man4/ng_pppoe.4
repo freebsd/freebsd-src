@@ -102,10 +102,10 @@ This generic message returns a human-readable version of the node status.
 .It Dv NGM_PPPOE_CONNECT
 Tell a nominated newly created hook that its session should enter
 the state machine as a client.
-It must be newly created and
-a service name can be given as an argument.
-It is legal to specify a zero-length service name.
-This is common on some DSL setups.
+It must be newly created and a service name can be given as an argument.
+It is legal to specify a zero-length service name, this is common
+on some DSL setups. It is possible to request connection to specific
+access concentrator by it's name using "AC-Name\\Service-Name" syntax.
 A session request packet will be broadcast on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
