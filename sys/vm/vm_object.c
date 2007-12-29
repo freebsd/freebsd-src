@@ -65,6 +65,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -90,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_reserv.h>
 #include <vm/uma.h>
 
 #define EASY_SCAN_FACTOR       8
@@ -170,6 +173,11 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	KASSERT(TAILQ_EMPTY(&object->memq),
 	    ("object %p has resident pages",
 	    object));
+#if VM_NRESERVLEVEL > 0
+	KASSERT(LIST_EMPTY(&object->rvq),
+	    ("object %p has reservations",
+	    object));
+#endif
 	KASSERT(object->cache == NULL,
 	    ("object %p has cached pages",
 	    object));
@@ -220,6 +228,9 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
+#if VM_NRESERVLEVEL > 0
+	LIST_INIT(&object->rvq);
+#endif
 	object->cache = NULL;
 
 	mtx_lock(&vm_object_list_mtx);
@@ -241,10 +252,18 @@ vm_object_init(void)
 	VM_OBJECT_LOCK_INIT(&kernel_object_store, "kernel object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
+#if VM_NRESERVLEVEL > 0
+	kernel_object->flags |= OBJ_COLORED;
+	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
+#endif
 
 	VM_OBJECT_LOCK_INIT(&kmem_object_store, "kmem object");
 	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
+#if VM_NRESERVLEVEL > 0
+	kmem_object->flags |= OBJ_COLORED;
+	kmem_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
+#endif
 
 	/*
 	 * The lock portion of struct vm_object must be type stable due
@@ -652,6 +671,10 @@ vm_object_terminate(vm_object_t object)
 	}
 	vm_page_unlock_queues();
 
+#if VM_NRESERVLEVEL > 0
+	if (__predict_false(!LIST_EMPTY(&object->rvq)))
+		vm_reserv_break_all(object);
+#endif
 	if (__predict_false(object->cache != NULL))
 		vm_page_cache_free(object, 0, 0);
 
@@ -1248,7 +1271,13 @@ vm_object_shadow(
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
 		source->generation++;
+#if VM_NRESERVLEVEL > 0
+		result->flags |= source->flags & (OBJ_NEEDGIANT | OBJ_COLORED);
+		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
+		    ((1 << (VM_NFREEORDER - 1)) - 1);
+#else
 		result->flags |= source->flags & OBJ_NEEDGIANT;
+#endif
 		VM_OBJECT_UNLOCK(source);
 	}
 
@@ -1560,6 +1589,14 @@ vm_object_backing_scan(vm_object_t object, int op)
 				continue;
 			}
 
+#if VM_NRESERVLEVEL > 0
+			/*
+			 * Rename the reservation.
+			 */
+			vm_reserv_rename(p, object, backing_object,
+			    backing_offset_index);
+#endif
+
 			/*
 			 * Page does not exist in parent, rename the
 			 * page from the backing object to the main object. 
@@ -1661,6 +1698,14 @@ vm_object_collapse(vm_object_t object)
 			 * object, we can collapse it into the parent.  
 			 */
 			vm_object_backing_scan(object, OBSC_COLLAPSE_WAIT);
+
+#if VM_NRESERVLEVEL > 0
+			/*
+			 * Break any reservations from backing_object.
+			 */
+			if (__predict_false(!LIST_EMPTY(&backing_object->rvq)))
+				vm_reserv_break_all(backing_object);
+#endif
 
 			/*
 			 * Move the pager from backing_object to object.
