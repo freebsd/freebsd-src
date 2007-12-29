@@ -6,7 +6,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short month names
+# Short months names
  1
  2
  3
@@ -20,7 +20,7 @@
 11
 12
 #
-# Long month names
+# Long months names (as in a date)
 #
 1월
 2월
@@ -83,7 +83,7 @@ PM
 #
 %Y년 %B %e일 %A %X %Z
 #
-# Long months names (alternative)
+# Long months names (without case ending)
 #
 1월
 2월

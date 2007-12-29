@@ -21,7 +21,7 @@
 Նյմ
 Դկտ
 #
-# Long months names
+# Long months names (as in a date)
 #
 Հունվար
 Փետրվար
@@ -80,7 +80,7 @@
 #
 %A, %e %B %Y թ. %X (%Z)
 #
-# Long month names in alternative form
+# Long months names (without case ending)
 #
 Հունվար
 Փետրվար
