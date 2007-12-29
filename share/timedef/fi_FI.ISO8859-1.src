@@ -2,7 +2,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short month names
+# Short months names
 #
 Tam
 Hel
@@ -17,7 +17,7 @@ Lok
 Mar
 Jou
 #
-# Long month names
+# Long months names (as in a date)
 #
 Tammikuu
 Helmikuu
@@ -76,7 +76,7 @@ pm
 #
 %a %e %b %Y %X %Z
 #
-# Long months names (alternative)
+# Long months names (without case ending)
 #
 Tammikuu
 Helmikuu

@@ -21,7 +21,7 @@
 άΫΩ
 ΈΟο
 #
-# Long months names
+# Long months names (as in a date)
 #
 Παυέν³ρ
 φ»ορν³ρ
@@ -80,7 +80,7 @@
 #
 %A, %e %B %Y Γ© %X (%Z)
 #
-# Long month names in alternative form
+# Long months names (without case ending)
 #
 Παυέν³ρ
 φ»ορν³ρ

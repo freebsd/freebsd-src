@@ -17,7 +17,7 @@
 л∙с
 сне
 #
-# Long months names
+# Long months names (as in a date)
 #
 студзеня
 лютага
@@ -76,7 +76,7 @@ pm
 #
 %a %e %b %Y %X %Z
 #
-# Long months names (alternative)
+# Long months names (without case ending)
 #
 студзень
 люты
