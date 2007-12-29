@@ -99,6 +99,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vm.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -118,6 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
@@ -318,6 +321,13 @@ vm_page_startup(vm_offset_t vaddr)
 	mapped = pmap_map(&vaddr, new_end, end,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	vm_page_array = (vm_page_t) mapped;
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * Allocate memory for the reservation management system's data
+	 * structures.
+	 */
+	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
+#endif
 #ifdef __amd64__
 	/*
 	 * pmap_map on amd64 comes out of the direct-map, not kvm like i386,
@@ -363,6 +373,12 @@ vm_page_startup(vm_offset_t vaddr)
 		}
 	}
 	freeenv(list);
+#if VM_NRESERVLEVEL > 0
+	/*
+	 * Initialize the reservation management system.
+	 */
+	vm_reserv_init();
+#endif
 	return (vaddr);
 }
 
@@ -1028,15 +1044,33 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 			}
 			if (vm_phys_unfree_page(m))
 				vm_phys_set_pool(VM_FREEPOOL_DEFAULT, m, 0);
+#if VM_NRESERVLEVEL > 0
+			else if (!vm_reserv_reactivate_page(m))
+#else
 			else
+#endif
 				panic("vm_page_alloc: cache page %p is missing"
 				    " from the free queue", m);
 		} else if ((req & VM_ALLOC_IFCACHED) != 0) {
 			mtx_unlock(&vm_page_queue_free_mtx);
 			return (NULL);
-		} else
+#if VM_NRESERVLEVEL > 0
+		} else if (object == NULL ||
+		    (object->flags & OBJ_COLORED) == 0 ||
+		    (m = vm_reserv_alloc_page(object, pindex)) == NULL) {
+#else
+		} else {
+#endif
 			m = vm_phys_alloc_pages(object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
+#if VM_NRESERVLEVEL > 0
+			if (m == NULL && vm_reserv_reclaim()) {
+				m = vm_phys_alloc_pages(object != NULL ?
+				    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT,
+				    0);
+			}
+#endif
+		}
 	} else {
 		/*
 		 * Not allocatable, give up.
@@ -1301,7 +1335,12 @@ vm_page_free_toq(vm_page_t m)
 		m->flags |= PG_FREE;
 		mtx_lock(&vm_page_queue_free_mtx);
 		cnt.v_free_count++;
-		vm_phys_free_pages(m, 0);
+#if VM_NRESERVLEVEL > 0
+		if (!vm_reserv_free_page(m))
+#else
+		if (TRUE)
+#endif
+			vm_phys_free_pages(m, 0);
 		if ((m->flags & PG_ZERO) != 0)
 			++vm_page_zero_count;
 		else
@@ -1548,7 +1587,6 @@ vm_page_cache(vm_page_t m)
 	vm_page_flag_set(m, PG_CACHED);
 	vm_page_flag_clear(m, PG_ZERO);
 	mtx_lock(&vm_page_queue_free_mtx);
-	vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
 	cnt.v_cache_count++;
 	root = object->cache;
 	if (root == NULL) {
@@ -1569,7 +1607,14 @@ vm_page_cache(vm_page_t m)
 		}
 	}
 	object->cache = m;
-	vm_phys_free_pages(m, 0);
+#if VM_NRESERVLEVEL > 0
+	if (!vm_reserv_free_page(m)) {
+#else
+	if (TRUE) {
+#endif
+		vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
+		vm_phys_free_pages(m, 0);
+	}
 	vm_page_free_wakeup();
 	mtx_unlock(&vm_page_queue_free_mtx);
 
