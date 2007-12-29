@@ -18,7 +18,7 @@
 қар
 жел
 #
-# Long months names
+# Long months names (as in a date)
 #
 қаңтар
 ақпан
@@ -77,7 +77,7 @@
 #
 %A, %e %B %Y ж. %X (%Z)
 #
-# Long month names in alternative form
+# Long months names (without case ending)
 #
 қантар
 ақпан

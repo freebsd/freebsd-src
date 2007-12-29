@@ -3,7 +3,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short month names
+# Short months names
 #
 jaan 
 veebr
@@ -18,7 +18,7 @@ okt
 nov  
 dets 
 #
-# Long month names
+# Long months names (as in a date)
 #
 jaanuar
 veebruar
@@ -77,7 +77,7 @@ laupäev
 #
 %A, %d. %B %Y. %T %Z
 #
-# Long months names (alternative)
+# Long months names (without case ending)
 #
 jaanuar
 veebruar
