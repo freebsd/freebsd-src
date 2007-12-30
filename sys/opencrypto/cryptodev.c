@@ -840,12 +840,7 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 			return (error);
 		}
 		/* falloc automatically provides an extra reference to 'f'. */
-		FILE_LOCK(f);
-		f->f_flag = FREAD | FWRITE;
-		f->f_type = DTYPE_CRYPTO;
-		f->f_data = fcr;
-		f->f_ops = &cryptofops;
-		FILE_UNLOCK(f);
+		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
 		*(u_int32_t *)data = fd;
 		fdrop(f, td);
 		break;

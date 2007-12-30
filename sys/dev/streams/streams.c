@@ -251,12 +251,7 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	   return error;
 	}
 
-	FILE_LOCK(fp);
-	fp->f_data = so;
-	fp->f_flag = FREAD|FWRITE;
-	fp->f_ops = &svr4_netops;
-	fp->f_type = DTYPE_SOCKET;
-	FILE_UNLOCK(fp);
+	finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &svr4_netops);
 
 	/*
 	 * Allocate a stream structure and attach it to this socket.

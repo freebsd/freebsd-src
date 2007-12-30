@@ -488,10 +488,12 @@ vn_read(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	int error, ioflag;
+	struct mtx *mtxp;
 	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
+	mtxp = NULL;
 	vp = fp->f_vnode;
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
@@ -505,13 +507,15 @@ vn_read(fp, uio, active_cred, flags, td)
 	 * It is now protected by the FOFFSET_LOCKED flag.
 	 */
 	if ((flags & FOF_OFFSET) == 0) {
-		FILE_LOCK(fp);
+		mtxp = mtx_pool_find(mtxpool_sleep, fp);
+		mtx_lock(mtxp);
 		while(fp->f_vnread_flags & FOFFSET_LOCKED) {
 			fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
-			msleep(&fp->f_vnread_flags,fp->f_mtxp,PUSER -1,"vnread offlock",0);
+			msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
+			    "vnread offlock", 0);
 		}
 		fp->f_vnread_flags |= FOFFSET_LOCKED;
-		FILE_UNLOCK(fp);
+		mtx_unlock(mtxp);
 		vn_lock(vp, LK_SHARED | LK_RETRY, td);
 		uio->uio_offset = fp->f_offset;
 	} else
@@ -526,11 +530,11 @@ vn_read(fp, uio, active_cred, flags, td)
 		error = VOP_READ(vp, uio, ioflag, fp->f_cred);
 	if ((flags & FOF_OFFSET) == 0) {
 		fp->f_offset = uio->uio_offset;
-		FILE_LOCK(fp);
+		mtx_lock(mtxp);
 		if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
 			wakeup(&fp->f_vnread_flags);
 		fp->f_vnread_flags = 0;
-		FILE_UNLOCK(fp);
+		mtx_unlock(mtxp);
 	}
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, td);
