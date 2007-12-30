@@ -1022,6 +1022,8 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		return (error);
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;
+	/* Set the flags early so the finit in devfs can pick them up. */
+	fp->f_flag = flags & FMASK;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1 | MPSAFE, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
@@ -1067,16 +1069,16 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	FILE_LOCK(fp);
-	fp->f_vnode = vp;
-	if (fp->f_data == NULL)
-		fp->f_data = vp;
-	fp->f_flag = flags & FMASK;
-	fp->f_seqcount = 1;
-	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
-	if (fp->f_ops == &badfileops)
-		fp->f_ops = &vnops;
-	FILE_UNLOCK(fp);
+	fp->f_vnode = vp;	/* XXX Does devfs need this? */
+	/*
+	 * If the file wasn't claimed by devfs bind it to the normal
+	 * vnode operations here.
+	 */
+	if (fp->f_ops == &badfileops) {
+		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
+		fp->f_seqcount = 1;
+		finit(fp, flags & FMASK, DTYPE_VNODE, vp, &vnops);
+	}
 
 	VOP_UNLOCK(vp, 0, td);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
@@ -1093,7 +1095,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
 			    type)) != 0)
 			goto bad;
-		fp->f_flag |= FHASLOCK;
+		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 	if (flags & O_TRUNC) {
 		if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
@@ -4179,14 +4181,8 @@ fhopen(td, uap)
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;
-
-	FILE_LOCK(nfp);
 	nfp->f_vnode = vp;
-	nfp->f_data = vp;
-	nfp->f_flag = fmode & FMASK;
-	nfp->f_type = DTYPE_VNODE;
-	nfp->f_ops = &vnops;
-	FILE_UNLOCK(nfp);
+	finit(nfp, fmode & FMASK, DTYPE_VNODE, vp, &vnops);
 	if (fmode & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -4215,7 +4211,7 @@ fhopen(td, uap)
 			goto out;
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		fp->f_flag |= FHASLOCK;
+		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 
 	VOP_UNLOCK(vp, 0, td);

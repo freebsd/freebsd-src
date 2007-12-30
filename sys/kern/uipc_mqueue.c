@@ -1999,12 +1999,8 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
 	mqnode_addref(pn);
 	sx_xunlock(&mqfs_data.mi_lock);
 
-	FILE_LOCK(fp);
-	fp->f_flag = (flags & (FREAD | FWRITE | O_NONBLOCK));
-	fp->f_type = DTYPE_MQUEUE;
-	fp->f_data = pn;
-	fp->f_ops = &mqueueops;
-	FILE_UNLOCK(fp);
+	finit(fp, flags & (FREAD | FWRITE | O_NONBLOCK), DTYPE_MQUEUE, pn,
+	    &mqueueops);
 
 	FILEDESC_XLOCK(fdp);
 	if (fdp->fd_ofiles[fd] == fp)
@@ -2097,6 +2093,7 @@ kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 	struct mqueue *mq;
 	struct file *fp;
 	struct mq_attr attr, oattr;
+	u_int oflag, flag;
 	int error;
 
 	if (uap->attr) {
@@ -2112,13 +2109,15 @@ kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 	oattr.mq_maxmsg  = mq->mq_maxmsg;
 	oattr.mq_msgsize = mq->mq_msgsize;
 	oattr.mq_curmsgs = mq->mq_curmsgs;
-	FILE_LOCK(fp);
-	oattr.mq_flags = (O_NONBLOCK & fp->f_flag);
 	if (uap->attr) {
-		fp->f_flag &= ~O_NONBLOCK;
-		fp->f_flag |= (attr.mq_flags & O_NONBLOCK);
-	}
-	FILE_UNLOCK(fp);
+		do {
+			oflag = flag = fp->f_flag;
+			flag &= ~O_NONBLOCK;
+			flag |= (attr.mq_flags & O_NONBLOCK);
+		} while (atomic_cmpset_int(&fp->f_flag, oflag, flag) == 0);
+	} else
+		oflag = fp->f_flag;
+	oattr.mq_flags = (O_NONBLOCK & oflag);
 	fdrop(fp, td);
 	if (uap->oattr)
 		error = copyout(&oattr, uap->oattr, sizeof(oattr));

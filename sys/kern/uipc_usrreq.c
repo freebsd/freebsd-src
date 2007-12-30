@@ -233,10 +233,11 @@ static void	unp_shutdown(struct unpcb *);
 static void	unp_drop(struct unpcb *, int);
 static void	unp_gc(__unused void *, int);
 static void	unp_scan(struct mbuf *, void (*)(struct file *));
-static void	unp_mark(struct file *);
 static void	unp_discard(struct file *);
 static void	unp_freerights(struct file **, int);
 static int	unp_internalize(struct mbuf **, struct thread *);
+static void	unp_internalize_fp(struct file *);
+static void	unp_externalize_fp(struct file *);
 static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 
 /*
@@ -586,9 +587,9 @@ uipc_detach(struct socket *so)
 		unp_drop(ref, ECONNRESET);
 		UNP_PCB_UNLOCK(ref);
 	}
+	local_unp_rights = unp_rights;
 	UNP_GLOBAL_WUNLOCK();
 	unp->unp_socket->so_pcb = NULL;
-	local_unp_rights = unp_rights;
 	saved_unp_addr = unp->unp_addr;
 	unp->unp_addr = NULL;
 	unp->unp_refcount--;
@@ -1600,10 +1601,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 					panic("unp_externalize fdalloc failed");
 				fp = *rp++;
 				td->td_proc->p_fd->fd_ofiles[f] = fp;
-				FILE_LOCK(fp);
-				fp->f_msgcount--;
-				FILE_UNLOCK(fp);
-				unp_rights--;
+				unp_externalize_fp(fp);
 				*fdp++ = f;
 			}
 			FILEDESC_XUNLOCK(td->td_proc->p_fd);
@@ -1765,11 +1763,8 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 			for (i = 0; i < oldfds; i++) {
 				fp = fdescp->fd_ofiles[*fdp++];
 				*rp++ = fp;
-				FILE_LOCK(fp);
-				fp->f_count++;
-				fp->f_msgcount++;
-				FILE_UNLOCK(fp);
-				unp_rights++;
+				fhold(fp);
+				unp_internalize_fp(fp);
 			}
 			FILEDESC_SUNLOCK(fdescp);
 			break;
@@ -1860,230 +1855,198 @@ unp_addsockcred(struct thread *td, struct mbuf *control)
 	return (m);
 }
 
+static struct unpcb *
+fptounp(struct file *fp)
+{
+	struct socket *so;
+
+	if (fp->f_type != DTYPE_SOCKET)
+		return (NULL);
+	if ((so = fp->f_data) == NULL)
+		return (NULL);
+	if (so->so_proto->pr_domain != &localdomain)
+		return (NULL);
+	return sotounpcb(so);
+}
+
+static void
+unp_discard(struct file *fp)
+{
+
+	unp_externalize_fp(fp);
+	(void) closef(fp, (struct thread *)NULL);
+}
+
+static void
+unp_internalize_fp(struct file *fp)
+{
+	struct unpcb *unp;
+
+	UNP_GLOBAL_WLOCK();
+	if ((unp = fptounp(fp)) != NULL) {
+		unp->unp_file = fp;
+		unp->unp_msgcount++;
+	}
+	unp_rights++;
+	UNP_GLOBAL_WUNLOCK();
+}
+
+static void
+unp_externalize_fp(struct file *fp)
+{
+	struct unpcb *unp;
+
+	UNP_GLOBAL_WLOCK();
+	if ((unp = fptounp(fp)) != NULL)
+		unp->unp_msgcount--;
+	unp_rights--;
+	UNP_GLOBAL_WUNLOCK();
+}
+
 /*
  * unp_defer indicates whether additional work has been defered for a future
  * pass through unp_gc().  It is thread local and does not require explicit
  * synchronization.
  */
-static int	unp_defer;
+static int	unp_marked;
+static int	unp_unreachable;
 
-static int unp_taskcount;
-SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0, "");
+static void
+unp_accessable(struct file *fp)
+{
+	struct unpcb *unp;
+
+	unp = fptounp(fp);
+	if (fp == NULL)
+		return;
+	if (unp->unp_gcflag & UNPGC_REF)
+		return;
+	unp->unp_gcflag &= ~UNPGC_DEAD;
+	unp->unp_gcflag |= UNPGC_REF;
+	unp_marked++;
+}
+
+static void
+unp_gc_process(struct unpcb *unp)
+{
+	struct socket *soa;
+	struct socket *so;
+	struct file *fp;
+
+	/* Already processed. */
+	if (unp->unp_gcflag & UNPGC_SCANNED)
+		return;
+	fp = unp->unp_file;
+	/*
+	 * Check for a socket potentially in a cycle.  It must be in a
+	 * queue as indicated by msgcount, and this must equal the file
+	 * reference count.  Note that when msgcount is 0 the file is NULL.
+	 */
+	if (unp->unp_msgcount != 0 && fp->f_count != 0 &&
+	    fp->f_count == unp->unp_msgcount) {
+		unp->unp_gcflag |= UNPGC_DEAD;
+		unp_unreachable++;
+		return;
+	}
+	/*
+	 * Mark all sockets we reference with RIGHTS.
+	 */
+	so = unp->unp_socket;
+	SOCKBUF_LOCK(&so->so_rcv);
+	unp_scan(so->so_rcv.sb_mb, unp_accessable);
+	SOCKBUF_UNLOCK(&so->so_rcv);
+	/*
+	 * Mark all sockets in our accept queue.
+	 */
+	ACCEPT_LOCK();
+	TAILQ_FOREACH(soa, &so->so_comp, so_list) {
+		SOCKBUF_LOCK(&soa->so_rcv);
+		unp_scan(soa->so_rcv.sb_mb, unp_accessable);
+		SOCKBUF_UNLOCK(&soa->so_rcv);
+	}
+	ACCEPT_UNLOCK();
+	unp->unp_gcflag |= UNPGC_SCANNED;
+}
 
 static int unp_recycled;
 SYSCTL_INT(_net_local, OID_AUTO, recycled, CTLFLAG_RD, &unp_recycled, 0, "");
 
+static int unp_taskcount;
+SYSCTL_INT(_net_local, OID_AUTO, taskcount, CTLFLAG_RD, &unp_taskcount, 0, "");
+
 static void
 unp_gc(__unused void *arg, int pending)
 {
-	struct file *fp, *nextfp;
-	struct socket *so;
-	struct file **extra_ref, **fpp;
-	int nunref, i;
-	int nfiles_snap;
-	int nfiles_slack = 20;
+	struct unp_head *heads[] = { &unp_dhead, &unp_shead, NULL };
+	struct unp_head **head;
+	struct file **unref;
+	struct unpcb *unp;
+	int i;
 
 	unp_taskcount++;
-	unp_defer = 0;
+	UNP_GLOBAL_RLOCK();
 	/*
-	 * Before going through all this, set all FDs to be NOT deferred and
-	 * NOT externally accessible.
+	 * First clear all gc flags from previous runs.
 	 */
-	sx_slock(&filelist_lock);
-	LIST_FOREACH(fp, &filehead, f_list)
-		fp->f_gcflag &= ~(FMARK|FDEFER);
+	for (head = heads; *head != NULL; head++)
+		LIST_FOREACH(unp, *head, unp_link)
+			unp->unp_gcflag &= ~(UNPGC_REF|UNPGC_DEAD);
+	/*
+	 * Scan marking all reachable sockets with UNPGC_REF.  Once a socket
+	 * is reachable all of the sockets it references are reachable.
+	 * Stop the scan once we do a complete loop without discovering
+	 * a new reachable socket.
+	 */
 	do {
-		KASSERT(unp_defer >= 0, ("unp_gc: unp_defer %d", unp_defer));
-		LIST_FOREACH(fp, &filehead, f_list) {
-			FILE_LOCK(fp);
-			/*
-			 * If the file is not open, skip it -- could be a
-			 * file in the process of being opened, or in the
-			 * process of being closed.  If the file is
-			 * "closing", it may have been marked for deferred
-			 * consideration.  Clear the flag now if so.
-			 */
-			if (fp->f_count == 0) {
-				if (fp->f_gcflag & FDEFER)
-					unp_defer--;
-				fp->f_gcflag &= ~(FMARK|FDEFER);
-				FILE_UNLOCK(fp);
-				continue;
-			}
-			/*
-			 * If we already marked it as 'defer' in a
-			 * previous pass, then try to process it this
-			 * time and un-mark it.
-			 */
-			if (fp->f_gcflag & FDEFER) {
-				fp->f_gcflag &= ~FDEFER;
-				unp_defer--;
-			} else {
-				/*
-				 * If it's not deferred, then check if it's
-				 * already marked.. if so skip it
-				 */
-				if (fp->f_gcflag & FMARK) {
-					FILE_UNLOCK(fp);
-					continue;
-				}
-				/*
-				 * If all references are from messages in
-				 * transit, then skip it. it's not externally
-				 * accessible.
-				 */
-				if (fp->f_count == fp->f_msgcount) {
-					FILE_UNLOCK(fp);
-					continue;
-				}
-				/*
-				 * If it got this far then it must be
-				 * externally accessible.
-				 */
-				fp->f_gcflag |= FMARK;
-			}
-			/*
-			 * Either it was deferred, or it is externally
-			 * accessible and not already marked so.  Now check
-			 * if it is possibly one of OUR sockets.
-			 */
-			if (fp->f_type != DTYPE_SOCKET ||
-			    (so = fp->f_data) == NULL) {
-				FILE_UNLOCK(fp);
-				continue;
-			}
-			if (so->so_proto->pr_domain != &localdomain ||
-			    (so->so_proto->pr_flags & PR_RIGHTS) == 0) {
-				FILE_UNLOCK(fp);				
-				continue;
-			}
-
-			/*
-			 * Tell any other threads that do a subsequent
-			 * fdrop() that we are scanning the message
-			 * buffers.
-			 */
-			fp->f_gcflag |= FWAIT;
-			FILE_UNLOCK(fp);
-
-			/*
-			 * So, Ok, it's one of our sockets and it IS
-			 * externally accessible (or was deferred).  Now we
-			 * look to see if we hold any file descriptors in its
-			 * message buffers. Follow those links and mark them
-			 * as accessible too.
-			 */
-			SOCKBUF_LOCK(&so->so_rcv);
-			unp_scan(so->so_rcv.sb_mb, unp_mark);
-			SOCKBUF_UNLOCK(&so->so_rcv);
-
-			/*
-			 * Wake up any threads waiting in fdrop().
-			 */
-			FILE_LOCK(fp);
-			fp->f_gcflag &= ~FWAIT;
-			wakeup(&fp->f_gcflag);
-			FILE_UNLOCK(fp);
-		}
-	} while (unp_defer);
-	sx_sunlock(&filelist_lock);
+		unp_unreachable = 0;
+		unp_marked = 0;
+		for (head = heads; *head != NULL; head++)
+			LIST_FOREACH(unp, *head, unp_link)
+				unp_gc_process(unp);
+	} while (unp_marked);
+	UNP_GLOBAL_RUNLOCK();
+	if (unp_unreachable == 0)
+		return;
 	/*
-	 * XXXRW: The following comments need updating for a post-SMPng and
-	 * deferred unp_gc() world, but are still generally accurate.
-	 *
-	 * We grab an extra reference to each of the file table entries that
-	 * are not otherwise accessible and then free the rights that are
-	 * stored in messages on them.
-	 *
-	 * The bug in the orginal code is a little tricky, so I'll describe
-	 * what's wrong with it here.
-	 *
-	 * It is incorrect to simply unp_discard each entry for f_msgcount
-	 * times -- consider the case of sockets A and B that contain
-	 * references to each other.  On a last close of some other socket,
-	 * we trigger a gc since the number of outstanding rights (unp_rights)
-	 * is non-zero.  If during the sweep phase the gc code unp_discards,
-	 * we end up doing a (full) closef on the descriptor.  A closef on A
-	 * results in the following chain.  Closef calls soo_close, which
-	 * calls soclose.   Soclose calls first (through the switch
-	 * uipc_usrreq) unp_detach, which re-invokes unp_gc.  Unp_gc simply
-	 * returns because the previous instance had set unp_gcing, and we
-	 * return all the way back to soclose, which marks the socket with
-	 * SS_NOFDREF, and then calls sofree.  Sofree calls sorflush to free
-	 * up the rights that are queued in messages on the socket A, i.e.,
-	 * the reference on B.  The sorflush calls via the dom_dispose switch
-	 * unp_dispose, which unp_scans with unp_discard.  This second
-	 * instance of unp_discard just calls closef on B.
-	 *
-	 * Well, a similar chain occurs on B, resulting in a sorflush on B,
-	 * which results in another closef on A.  Unfortunately, A is already
-	 * being closed, and the descriptor has already been marked with
-	 * SS_NOFDREF, and soclose panics at this point.
-	 *
-	 * Here, we first take an extra reference to each inaccessible
-	 * descriptor.  Then, we call sorflush ourself, since we know it is a
-	 * Unix domain socket anyhow.  After we destroy all the rights
-	 * carried in messages, we do a last closef to get rid of our extra
-	 * reference.  This is the last close, and the unp_detach etc will
-	 * shut down the socket.
-	 *
-	 * 91/09/19, bsy@cs.cmu.edu
+	 * Allocate space for a local list of dead unpcbs.
 	 */
-again:
-	nfiles_snap = openfiles + nfiles_slack;	/* some slack */
-	extra_ref = malloc(nfiles_snap * sizeof(struct file *), M_TEMP,
-	    M_WAITOK);
-	sx_slock(&filelist_lock);
-	if (nfiles_snap < openfiles) {
-		sx_sunlock(&filelist_lock);
-		free(extra_ref, M_TEMP);
-		nfiles_slack += 20;
-		goto again;
-	}
-	for (nunref = 0, fp = LIST_FIRST(&filehead), fpp = extra_ref;
-	    fp != NULL; fp = nextfp) {
-		nextfp = LIST_NEXT(fp, f_list);
-		FILE_LOCK(fp);
-		/*
-		 * If it's not open, skip it
-		 */
-		if (fp->f_count == 0) {
-			FILE_UNLOCK(fp);
-			continue;
-		}
-		/*
-		 * If all refs are from msgs, and it's not marked accessible
-		 * then it must be referenced from some unreachable cycle of
-		 * (shut-down) FDs, so include it in our list of FDs to
-		 * remove.
-		 */
-		if (fp->f_count == fp->f_msgcount && !(fp->f_gcflag & FMARK)) {
-			*fpp++ = fp;
-			nunref++;
-			fp->f_count++;
-		}
-		FILE_UNLOCK(fp);
-	}
-	sx_sunlock(&filelist_lock);
+	unref = malloc(unp_unreachable * sizeof(struct file *),
+	    M_TEMP, M_WAITOK);
 	/*
-	 * For each FD on our hit list, do the following two things:
+	 * Iterate looking for sockets which have been specifically marked
+	 * as as unreachable and store them locally.
 	 */
-	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
-		struct file *tfp = *fpp;
-		FILE_LOCK(tfp);
-		if (tfp->f_type == DTYPE_SOCKET &&
-		    tfp->f_data != NULL) {
-			FILE_UNLOCK(tfp);
-			sorflush(tfp->f_data);
-		} else {
-			FILE_UNLOCK(tfp);
-		}
-	}
-	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
-		closef(*fpp, (struct thread *) NULL);
-		unp_recycled++;
-	}
-	free(extra_ref, M_TEMP);
+	UNP_GLOBAL_RLOCK();
+	for (i = 0, head = heads; *head != NULL; head++)
+		LIST_FOREACH(unp, *head, unp_link)
+			if (unp->unp_gcflag & UNPGC_DEAD) {
+				unref[i++] = unp->unp_file;
+				KASSERT(unp->unp_file != NULL,
+				    ("unp_gc: Invalid unpcb."));
+				KASSERT(i <= unp_unreachable,
+				    ("unp_gc: incorrect unreachable count."));
+			}
+	UNP_GLOBAL_RUNLOCK();
+	/*
+	 * All further operation is now done on a local list.  We first ref
+	 * all sockets to avoid closing them until all are flushed.
+	 */
+	for (i = 0; i < unp_unreachable; i++)
+		fhold(unref[i]);
+	/*
+	 * Now flush all sockets, free'ing rights.  This will free the
+	 * struct files associated with these sockets but leave each socket
+	 * with one remaining ref.
+	 */
+	for (i = 0; i < unp_unreachable; i++)
+		sorflush(unref[i]->f_data);
+	/*
+	 * And finally release the sockets so they can be reclaimed.
+	 */
+	for (i = 0; i < unp_unreachable; i++)
+		fdrop(unref[i], NULL);
+	unp_recycled += unp_unreachable;
+	free(unref, M_TEMP);
 }
 
 void
@@ -2141,31 +2104,6 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 		}
 		m0 = m0->m_act;
 	}
-}
-
-static void
-unp_mark(struct file *fp)
-{
-
-	/* XXXRW: Should probably assert file list lock here. */
-
-	if (fp->f_gcflag & FMARK)
-		return;
-	unp_defer++;
-	fp->f_gcflag |= (FMARK|FDEFER);
-}
-
-static void
-unp_discard(struct file *fp)
-{
-
-	UNP_GLOBAL_WLOCK();
-	FILE_LOCK(fp);
-	fp->f_msgcount--;
-	unp_rights--;
-	FILE_UNLOCK(fp);
-	UNP_GLOBAL_WUNLOCK();
-	(void) closef(fp, (struct thread *)NULL);
 }
 
 #ifdef DDB

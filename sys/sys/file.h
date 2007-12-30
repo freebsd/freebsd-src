@@ -99,48 +99,36 @@ struct fileops {
  *
  * Below is the list of locks that protects members in struct file.
  *
- * (fl)	filelist_lock
- * (f)	f_mtx in struct file
+ * (f) protected with mtx_lock(mtx_pool_find(fp))
  * none	not locked
  */
 
 struct file {
-	LIST_ENTRY(file) f_list;/* (fl) list of active files */
-	short	f_type;		/* descriptor type */
-	void	*f_data;	/* file descriptor specific data */
-	u_int	f_flag;		/* see fcntl.h */
-	struct mtx	*f_mtxp;	/* mutex to protect data */
-	struct fileops *f_ops;	/* File operations */
-	struct	ucred *f_cred;	/* credentials associated with descriptor */
-	int	f_count;	/* (f) reference count */
-	struct vnode *f_vnode;	/* NULL or applicable vnode */
-
-	/* DFLAG_SEEKABLE specific fields */
-	off_t	f_offset;
-	short     f_vnread_flags; /* 
-				   * (f) home grown sleep lock for f_offset
-				   * Used only for shared vnode locking in
-				   * vnread()
-				   */
-#define  FOFFSET_LOCKED       0x1
-#define  FOFFSET_LOCK_WAITING 0x2		 
-	/* DTYPE_SOCKET specific fields */
-	short	f_gcflag;	/* used by thread doing fd garbage collection */
-#define	FMARK		0x1	/* mark during gc() */
-#define	FDEFER		0x2	/* defer for next gc pass */
-#define	FWAIT		0x4	/* gc is scanning message buffers */
-	int	f_msgcount;	/* (f) references from message queue */
-
-	/* DTYPE_VNODE specific fields */
-	int	f_seqcount;	/*
-				 * count of sequential accesses -- cleared
-				 * by most seek operations.
-				 */
-	off_t	f_nextoff;	/*
-				 * offset of next expected read or write
-				 */
-	void	*f_label;	/* Place-holder for struct label pointer. */
+	void		*f_data;	/* file descriptor specific data */
+	struct fileops	*f_ops;		/* File operations */
+	struct ucred	*f_cred;	/* associated credentials. */
+	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
+	short		f_type;		/* descriptor type */
+	short     	f_vnread_flags; /* (f) Sleep lock for f_offset */
+	volatile u_int	f_flag;		/* see fcntl.h */
+	volatile int 	f_count;	/* reference count */
+	/*
+	 *  DTYPE_VNODE specific fields.
+	 */
+	int		f_seqcount;	/* Count of sequential accesses. */
+	off_t		f_nextoff;	/* next expected read/write offset. */
+	/*
+	 *  DFLAG_SEEKABLE specific fields
+	 */
+	off_t		f_offset;
+	/*
+	 * Mandatory Access control information.
+	 */
+	void		*f_label;	/* Place-holder for MAC label. */
 };
+
+#define	FOFFSET_LOCKED       0x1
+#define	FOFFSET_LOCK_WAITING 0x2		 
 
 #endif /* _KERNEL */
 
@@ -168,20 +156,17 @@ struct xfile {
 MALLOC_DECLARE(M_FILE);
 #endif
 
-LIST_HEAD(filelist, file);
-extern struct filelist filehead; /* (fl) head of list of open files */
 extern struct fileops vnops;
 extern struct fileops badfileops;
 extern struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
-extern int openfiles;		/* (fl) actual number of open files */
-extern struct sx filelist_lock; /* sx to protect filelist and openfiles */
+extern volatile int openfiles;	/* actual number of open files */
 
 int fget(struct thread *td, int fd, struct file **fpp);
 int fget_read(struct thread *td, int fd, struct file **fpp);
 int fget_write(struct thread *td, int fd, struct file **fpp);
-int fdrop(struct file *fp, struct thread *td);
+int _fdrop(struct file *fp, struct thread *td);
 
 /*
  * The socket operations are used a couple of places.
@@ -196,12 +181,7 @@ fo_kqfilter_t	soo_kqfilter;
 fo_stat_t	soo_stat;
 fo_close_t	soo_close;
 
-/* Lock a file. */
-#define	FILE_LOCK(f)	mtx_lock((f)->f_mtxp)
-#define	FILE_UNLOCK(f)	mtx_unlock((f)->f_mtxp)
-#define	FILE_LOCKED(f)	mtx_owned((f)->f_mtxp)
-#define	FILE_LOCK_ASSERT(f, type) mtx_assert((f)->f_mtxp, (type))
-
+void finit(struct file *, u_int, short, void *, struct fileops *);
 int fgetvp(struct thread *td, int fd, struct vnode **vpp);
 int fgetvp_read(struct thread *td, int fd, struct vnode **vpp);
 int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
@@ -209,18 +189,9 @@ int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
 int fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp);
 void fputsock(struct socket *sp);
 
-#define	fhold_locked(fp)						\
-	do {								\
-		FILE_LOCK_ASSERT(fp, MA_OWNED);				\
-		(fp)->f_count++;					\
-	} while (0)
-
-#define	fhold(fp)							\
-	do {								\
-		FILE_LOCK(fp);						\
-		(fp)->f_count++;					\
-		FILE_UNLOCK(fp);					\
-	} while (0)
+#define	fhold(fp)	atomic_add_int(&(fp)->f_count, 1)
+#define	fdrop(fp, td)							\
+	(atomic_fetchadd_int(&(fp)->f_count, -1) <= 1 ? _fdrop((fp), (td)) : 0)
 
 static __inline fo_rdwr_t	fo_read;
 static __inline fo_rdwr_t	fo_write;
