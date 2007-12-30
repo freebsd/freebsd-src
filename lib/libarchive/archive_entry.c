@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
-# if !defined makedev && (defined mkdev || defined _WIN32 || defined __WIN32__)
-#  define makedev mkdev
-# endif
 #else
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
@@ -73,6 +70,22 @@ __FBSDID("$FreeBSD$");
 
 #undef max
 #define	max(a, b)	((a)>(b)?(a):(b))
+
+/* Play games to come up with a suitable makedev() definition. */
+#ifdef __QNXNTO__
+/* QNX.  <sigh> */
+#include <sys/netmgr.h>
+#define ae_makedev(maj, min) makedev(ND_LOCAL_NODE, (maj), (min))
+#elif defined makedev
+/* There's a "makedev" macro. */
+#define ae_makedev(maj, min) makedev((maj), (min))
+#elif defined mkdev || defined _WIN32 || defined __WIN32__
+/* Windows. <sigh> */
+#define ae_makedev(maj, min) mkdev((maj), (min))
+#else
+/* There's a "makedev" function. */
+#define ae_makedev(maj, min) makedev((maj), (min))
+#endif
 
 static void	aes_clean(struct aes *);
 static void	aes_copy(struct aes *dest, struct aes *src);
@@ -402,7 +415,7 @@ dev_t
 archive_entry_dev(struct archive_entry *entry)
 {
 	if (entry->ae_stat.aest_dev_is_broken_down)
-		return makedev(entry->ae_stat.aest_devmajor,
+		return ae_makedev(entry->ae_stat.aest_devmajor,
 		    entry->ae_stat.aest_devminor);
 	else
 		return (entry->ae_stat.aest_dev);
@@ -548,7 +561,7 @@ dev_t
 archive_entry_rdev(struct archive_entry *entry)
 {
 	if (entry->ae_stat.aest_rdev_is_broken_down)
-		return makedev(entry->ae_stat.aest_rdevmajor,
+		return ae_makedev(entry->ae_stat.aest_rdevmajor,
 		    entry->ae_stat.aest_rdevminor);
 	else
 		return (entry->ae_stat.aest_rdev);
@@ -777,6 +790,14 @@ void
 archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_pathname, name);
+}
+
+void
+archive_entry_set_perm(struct archive_entry *entry, mode_t p)
+{
+	entry->stat_valid = 0;
+	entry->ae_stat.aest_mode &= AE_IFMT;
+	entry->ae_stat.aest_mode |= ~AE_IFMT & p;
 }
 
 void
