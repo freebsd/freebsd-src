@@ -3,7 +3,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short months names
+# Short month names
  1
  2
  3
@@ -17,7 +17,7 @@
 11
 12
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 1月
 2月
@@ -76,7 +76,7 @@
 #
 %Y年%b月%e日 %A %X %Z
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 1月
 2月

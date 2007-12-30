@@ -3,7 +3,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short months names
+# Short month names
 #
 jan
 fév
@@ -18,7 +18,7 @@ oct
 nov
 déc
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 janvier
 février
@@ -33,7 +33,7 @@ octobre
 novembre
 décembre
 #
-# Short weekdays names
+# Short weekday names
 #
 Dim
 Lun
@@ -43,7 +43,7 @@ Jeu
 Ven
 Sam
 #
-# Long weekdays names
+# Long weekday names
 #
 Dimanche
 Lundi
@@ -77,7 +77,7 @@ Samedi
 #
 %a %e %b %Y %X %Z
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 janvier
 février

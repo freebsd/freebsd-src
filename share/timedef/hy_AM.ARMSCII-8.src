@@ -6,7 +6,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short months names
+# Short month names
 #
 Πέν
 φορ
@@ -21,7 +21,7 @@
 άΫΩ
 ΈΟο
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 Παυέν³ρ
 φ»ορν³ρ
@@ -36,7 +36,7 @@
 άαΫ»Ωµ»ρ
 Έ»Οο»Ωµ»ρ
 #
-# Short weekdays names
+# Short weekday names
 #
 ΞρΟ
 ΊρΟ
@@ -46,7 +46,7 @@
 ΰυρ
 ήµΓ
 #
-# Long weekdays names
+# Long weekday names
 #
 ΞΗρ³ΟΗ
 ΊρΟαυί³µΓΗ
@@ -80,7 +80,7 @@
 #
 %A, %e %B %Y Γ© %X (%Z)
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 Παυέν³ρ
 φ»ορν³ρ
