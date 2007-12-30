@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_screen.c,v 1.29 2006/05/27 19:21:38 tom Exp $")
+MODULE_ID("$Id: lib_screen.c,v 1.30 2007/03/10 23:20:41 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 getwin(FILE *filep)
@@ -146,7 +146,10 @@ scr_restore(const char *file)
 	returnCode(ERR);
     } else {
 	delwin(newscr);
-	SP->_newscr = newscr = getwin(fp);
+	SP->_newscr = getwin(fp);
+#if !USE_REENTRANT
+	newscr = SP->_newscr;
+#endif
 	(void) fclose(fp);
 	returnCode(OK);
     }
@@ -184,7 +187,10 @@ scr_init(const char *file)
 	returnCode(ERR);
     } else {
 	delwin(curscr);
-	SP->_curscr = curscr = getwin(fp);
+	SP->_curscr = getwin(fp);
+#if !USE_REENTRANT
+	curscr = SP->_curscr;
+#endif
 	(void) fclose(fp);
 	returnCode(OK);
     }
@@ -199,7 +205,10 @@ scr_set(const char *file)
 	returnCode(ERR);
     } else {
 	delwin(newscr);
-	SP->_newscr = newscr = dupwin(curscr);
+	SP->_newscr = dupwin(curscr);
+#if !USE_REENTRANT
+	newscr = SP->_newscr;
+#endif
 	returnCode(OK);
     }
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
+ *  Author: Thomas E. Dickey            1998-on                             *
  ****************************************************************************/
 
 /*
@@ -39,20 +39,20 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: add_tries.c,v 1.5 2005/11/20 01:32:48 tom Exp $")
+MODULE_ID("$Id: add_tries.c,v 1.8 2006/12/30 23:15:26 tom Exp $")
 
 #define SET_TRY(dst,src) if ((dst->ch = *src++) == 128) dst->ch = '\0'
 #define CMP_TRY(a,b) ((a)? (a == b) : (b == 128))
 
-NCURSES_EXPORT(void)
-_nc_add_to_try(struct tries **tree, const char *str, unsigned code)
+NCURSES_EXPORT(int)
+_nc_add_to_try(TRIES ** tree, const char *str, unsigned code)
 {
-    static bool out_of_memory = FALSE;
-    struct tries *ptr, *savedptr;
+    TRIES *ptr, *savedptr;
     unsigned const char *txt = (unsigned const char *) str;
 
-    if (txt == 0 || *txt == '\0' || out_of_memory || code == 0)
-	return;
+    T((T_CALLED("_nc_add_to_try(%p, %s, %u)"), *tree, _nc_visbuf(str), code));
+    if (txt == 0 || *txt == '\0' || code == 0)
+	returnCode(ERR);
 
     if ((*tree) != 0) {
 	ptr = savedptr = (*tree);
@@ -67,16 +67,15 @@ _nc_add_to_try(struct tries **tree, const char *str, unsigned code)
 	    if (CMP_TRY(ptr->ch, cmp)) {
 		if (*(++txt) == '\0') {
 		    ptr->value = code;
-		    return;
+		    returnCode(OK);
 		}
 		if (ptr->child != 0)
 		    ptr = ptr->child;
 		else
 		    break;
 	    } else {
-		if ((ptr->sibling = typeCalloc(struct tries, 1)) == 0) {
-		    out_of_memory = TRUE;
-		    return;
+		if ((ptr->sibling = typeCalloc(TRIES, 1)) == 0) {
+		    returnCode(ERR);
 		}
 
 		savedptr = ptr = ptr->sibling;
@@ -87,11 +86,10 @@ _nc_add_to_try(struct tries **tree, const char *str, unsigned code)
 	    }
 	}			/* end for (;;) */
     } else {			/* (*tree) == 0 :: First sequence to be added */
-	savedptr = ptr = (*tree) = typeCalloc(struct tries, 1);
+	savedptr = ptr = (*tree) = typeCalloc(TRIES, 1);
 
 	if (ptr == 0) {
-	    out_of_memory = TRUE;
-	    return;
+	    returnCode(ERR);
 	}
 
 	SET_TRY(ptr, txt);
@@ -101,19 +99,16 @@ _nc_add_to_try(struct tries **tree, const char *str, unsigned code)
     /* at this point, we are adding to the try.  ptr->child == 0 */
 
     while (*txt) {
-	ptr->child = typeCalloc(struct tries, 1);
+	ptr->child = typeCalloc(TRIES, 1);
 
 	ptr = ptr->child;
 
 	if (ptr == 0) {
-	    out_of_memory = TRUE;
-
 	    while ((ptr = savedptr) != 0) {
 		savedptr = ptr->child;
 		free(ptr);
 	    }
-
-	    return;
+	    returnCode(ERR);
 	}
 
 	SET_TRY(ptr, txt);
@@ -121,5 +116,5 @@ _nc_add_to_try(struct tries **tree, const char *str, unsigned code)
     }
 
     ptr->value = code;
-    return;
+    returnCode(OK);
 }

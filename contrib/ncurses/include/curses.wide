@@ -1,10 +1,10 @@
+/* $Id: curses.wide,v 1.34 2007/03/10 17:52:23 tom Exp $ */
 /*
+ * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
  * (see that file for the relevant copyright).
  */
 #ifdef _XOPEN_SOURCE_EXTENDED
-
-/* $Id: curses.wide,v 1.32 2006/05/27 19:44:23 tom Exp $ */
 
 extern NCURSES_EXPORT_VAR(cchar_t *) _nc_wacs;
 
@@ -197,9 +197,12 @@ extern NCURSES_EXPORT(int) wvline_set (WINDOW *, const cchar_t *, int);	/* imple
 #define wadd_wchstr(win,str)		wadd_wchnstr(win,str,-1)
 #define waddwstr(win,wstr)		waddnwstr(win,wstr,-1)
 #define wget_wstr(w,t)			wgetn_wstr(w,t,-1)
-#define wgetbkgrnd(win,wch)		(*wch = win->_bkgrnd, OK)
 #define win_wchstr(w,c)			win_wchnstr(w,c,-1)
 #define wins_wstr(w,t)			wins_nwstr(w,t,-1)
+
+#if !NCURSES_OPAQUE
+#define wgetbkgrnd(win,wch)		(*wch = win->_bkgrnd, OK)
+#endif
 
 #define mvadd_wch(y,x,c)		mvwadd_wch(stdscr,y,x,c)
 #define mvadd_wchnstr(y,x,s,n)		mvwadd_wchnstr(stdscr,y,x,s,n)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #include <term.h>		/* clear_screen, cup & friends, cur_term */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.64 2006/01/14 15:36:24 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.67 2007/04/21 20:47:32 tom Exp $")
 
 #ifndef ONLCR			/* Allows compilation under the QNX 4.2 OS */
 #define ONLCR 0
@@ -94,14 +94,12 @@ _nc_initscr(void)
  * aside from possibly delaying a filter() call until some terminals have been
  * initialized.
  */
-static bool filter_mode = FALSE;
-
 NCURSES_EXPORT(void)
 filter(void)
 {
     START_TRACE();
     T((T_CALLED("filter")));
-    filter_mode = TRUE;
+    _nc_prescreen.filter_mode = TRUE;
     returnVoid;
 }
 
@@ -115,7 +113,7 @@ nofilter(void)
 {
     START_TRACE();
     T((T_CALLED("nofilter")));
-    filter_mode = FALSE;
+    _nc_prescreen.filter_mode = FALSE;
     returnVoid;
 }
 #endif
@@ -132,13 +130,6 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
     START_TRACE();
     T((T_CALLED("newterm(\"%s\",%p,%p)"), name, ofp, ifp));
 
-    _nc_handle_sigwinch(0);
-
-    /* allow user to set maximum escape delay from the environment */
-    if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
-	ESCDELAY = value;
-    }
-
     /* this loads the capability entry, then sets LINES and COLS */
     if (setupterm(name, fileno(ofp), &errret) == ERR) {
 	result = 0;
@@ -149,7 +140,21 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 	 */
 	current = SP;
 	_nc_set_screen(0);
-	if (_nc_setupscreen(LINES, COLS, ofp, filter_mode, slk_format) == ERR) {
+
+	/* allow user to set maximum escape delay from the environment */
+	if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
+#if USE_REENTRANT
+	    SP->_ESCDELAY = value;
+#else
+	    ESCDELAY = value;
+#endif
+	}
+
+	if (_nc_setupscreen(LINES,
+			    COLS,
+			    ofp,
+			    _nc_prescreen.filter_mode,
+			    slk_format) == ERR) {
 	    _nc_set_screen(current);
 	    result = 0;
 	} else {
@@ -211,6 +216,5 @@ newterm(NCURSES_CONST char *name, FILE *ofp, FILE *ifp)
 	    result = SP;
 	}
     }
-    _nc_handle_sigwinch(1);
     returnSP(result);
 }

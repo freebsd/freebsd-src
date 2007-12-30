@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.1056 2006/12/17 20:36:26 tom Exp $
+-- $Id: NEWS,v 1.1188 2007/12/22 23:56:08 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -45,9 +45,512 @@ See the AUTHORS file for the corresponding full names.
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
 
+20071222
+	+ continue implementing support for threading demo by adding mutex
+	  for delwin().
+
+20071215
+	+ add several functions to C++ binding which wrap C functions that
+	  pass a WINDOW* parameter (request by Chris Lee).
+
+20071201
+	+ add note about configure options needed for Berkeley database to the
+	  INSTALL file.
+	+ improve checks for version of Berkeley database libraries.
+	+ amend fix for rpath to not modify LDFLAGS if the platform has no
+	  applicable transformation (report by Christian Ebert, cf: 20071124).
+
+20071124
+	+ modify configure option --with-hashed-db to accept a parameter which
+	  is the install-prefix of a given Berkeley Database (prompted by
+	  pierre4d2 comments).
+	+ rewrite wrapper for wcrtomb(), making it work on Solaris.  This is
+	  used in the form library to determine the length of the buffer needed
+	  by field_buffer (report by Alfred Fung).
+	+ remove unneeded window-parameter from C++ binding for wresize (report
+	  by Chris Lee).
+
+20071117
+	+ modify the support for filesystems which do not support mixed-case to
+	  generate 2-character (hexadecimal) codes for the lower-level of the
+	  filesystem terminfo database (request by Michail Vidiassov).
+	+ add configure option --enable-mixed-case, to allow overriding the
+	  configure script's check if the filesystem supports mixed-case
+	  filenames.
+	+ add wresize() to C++ binding (request by Chris Lee).
+	+ define NCURSES_EXT_FUNCS and NCURSES_EXT_COLORS in curses.h to make
+	  it simpler to tell if the extended functions and/or colors are
+	  declared.
+
+20071103
+	+ update memory-leak checks for changes to names.c and codes.c
+	+ correct acsc strings in h19, z100 (patch by Benjamin C W Sittler).
+
+20071020
+	+ continue implementing support for threading demo by adding mutex
+	  for use_window().
+	+ add mrxvt terminfo entry, add/fix xterm building blocks for modified
+	  cursor keys -TD
+	+ compile with FreeBSD "contemporary" TTY interface (patch by
+	  Rong-En Fan).
+
+20071013
+	+ modify makefile rules to allow clear, tput and tset to be built
+	  without libtic.  The other programs (infocmp, tic and toe) rely on
+	  that library.
+	+ add/modify null-pointer checks in several functions for SP and/or
+	  the WINDOW* parameter (report by Thorben Krueger).
+	+ fixes for field_buffer() in formw library (see Redhat Bugzilla
+	  #310071, patches by Miroslav Lichvar).
+	+ improve performance of NCURSES_CHAR_EQ code (patch by Miroslav
+	  Lichvar).
+	+ update/improve mlterm and rxvt terminfo entries, e.g., for
+	  the modified cursor- and keypad-keys -TD
+
+20071006
+	+ add code to curses.priv.h ifdef'd with NCURSES_CHAR_EQ, which
+	  changes the CharEq() macro to an inline function to allow comparing
+	  cchar_t struct's without comparing gaps in a possibly unpacked
+	  memory layout (report by Miroslav Lichvar).
+
+20070929
+	+ add new functions to lib_trace.c to setup mutex's for the _tracef()
+	  calls within the ncurses library.
+	+ for the reentrant model, move _nc_tputs_trace and _nc_outchars into
+	  the SCREEN.
+	+ start modifying test/worm.c to provide threading demo (incomplete).
+	+ separated ifdef's for some BSD-related symbols in tset.c, to make
+	  it compile on LynxOS (report by Greg Gemmer).
+20070915
+	+ modify Ada95/gen/Makefile to use shlib script, to simplify building
+	  shared-library configuration on platforms lacking rpath support.
+	+ build-fix for Ada95/src/Makefile to reflect changed dependency for
+	  the terminal-interface-curses-aux.adb file which is now generated.
+	+ restructuring test/worm.c, for use_window() example.
+
+20070908
+	+ add use_window() and use_screen() functions, to develop into support
+	  for threaded library (incomplete).
+	+ fix typos in man/curs_opaque.3x which kept the install script from
+	  creating symbolic links to two aliases created in 20070818 (report by
+	  Rong-En Fan).
+
+20070901
+	+ remove a spurious newline from output of html.m4, which caused links
+	  for Ada95 html to be incorrect for the files generated using m4.
+	+ start investigating mutex's for SCREEN manipulation (incomplete).
+	+ minor cleanup of codes.c/names.c for --enable-const
+	+ expand/revise "Routine and Argument Names" section of ncurses manpage
+	  to address report by David Givens in newsgroup discussion.
+	+ fix interaction between --without-progs/--with-termcap configure
+	  options (report by Michail Vidiassov).
+	+ fix typo in "--disable-relink" option (report by Michail Vidiassov).
+
+20070825
+	+ fix a sign-extension bug in infocmp's repair_acsc() function
+	  (cf: 971004).
+	+ fix old configure script bug which prevented "--disable-warnings"
+	  option from working (patch by Mike Frysinger).
+
+20070818
+	+ add 9term terminal description (request by Juhapekka Tolvanen) -TD
+	+ modify comp_hash.c's string output to avoid misinterpreting a null
+	  "\0" followed by a digit.
+	+ modify MKnames.awk and MKcodes.awk to support big-strings.
+	  This only applies to the cases (broken linker, reentrant) where
+	  the corresponding arrays are accessed via wrapper functions.
+	+ split MKnames.awk into two scripts, eliminating the shell redirection
+	  which complicated the make process and also the bogus timestamp file
+	  which was introduced to fix "make -j".
+	+ add test/test_opaque.c, test/test_arrays.c
+	+ add wgetscrreg() and wgetparent() for applications that may need it
+	  when NCURSES_OPAQUE is defined (prompted by Bryan Christ).
+
+20070812
+	+ amend treatment of infocmp "-r" option to retain the 1023-byte limit
+	  unless "-T" is given (cf: 981017).
+	+ modify comp_captab.c generation to use big-strings.
+	+ make _nc_capalias_table and _nc_infoalias_table private accessed via
+	  _nc_get_alias_table() since the tables are used only within the tic
+	  library.
+	+ modify configure script to skip Intel compiler in CF_C_INLINE.
+	+ make _nc_info_hash_table and _nc_cap_hash_table private accessed via
+	  _nc_get_hash_table() since the tables are used only within the tic
+	  library.
+
+20070728
+	+ make _nc_capalias_table and _nc_infoalias_table private, accessed via
+	  _nc_get_alias_table() since they are used only by parse_entry.c
+	+ make _nc_key_names private since it is used only by lib_keyname.c
+	+ add --disable-big-strings configure option to control whether
+	  unctrl.c is generated using the big-string optimization - which may
+	  use strings longer than supported by a given compiler.
+	+ reduce relocation tables for tic, infocmp by changing type of
+	  internal hash tables to short, and make those private symbols.
+	+ eliminate large fixed arrays from progs/infocmp.c
+
+20070721
+	+ change winnstr() to stop at the end of the line (cf: 970315).
+	+ add test/test_get_wstr.c
+	+ add test/test_getstr.c
+	+ add test/test_inwstr.c
+	+ add test/test_instr.c
+
+20070716
+	+ restore a call to obtain screen-size in _nc_setupterm(), which
+	  is used in tput and other non-screen applications via setupterm()
+	  (Debian #433357, reported by Florent Bayle, Christian Ohm,
+	  cf: 20070310).
+
+20070714
+	+ add test/savescreen.c test-program
+	+ add check to trace-file open, if the given name is a directory, add
+	  ".log" to the name and try again.
+	+ add konsole-256color entry -TD
+	+ add extra gcc warning options from xterm.
+	+ minor fixes for ncurses/hashmap test-program.
+	+ modify configure script to quiet c++ build with libtool when the
+	  --disable-echo option is used.
+	+ modify configure script to disable ada95 if libtool is selected,
+	  writing a warning message (addresses FreeBSD ports/114493).
+	+ update config.guess, config.sub
+
+20070707
+	+ add continuous-move "M" to demo_panels to help test refresh changes.
+	+ improve fix for refresh of window on top of multi-column characters,
+	  taking into account some split characters on left/right window
+	  boundaries.
+
+20070630
+	+ add "widec" row to _tracedump() output to help diagnose remaining
+	  problems with multi-column characters.
+	+ partial fix for refresh of window on top of multi-column characters
+	  which are partly overwritten (report by Sadrul H Chowdhury).
+	+ ignore A_CHARTEXT bits in vidattr() and vid_attr(), in case
+	  multi-column extension bits are passed there.
+	+ add setlocale() call to demo_panels.c, needed for wide-characters.
+	+ add some output flags to _nc_trace_ttymode to help diagnose a bug
+	  report by Larry Virden, i.e., ONLCR, OCRNL, ONOCR and ONLRET,
+
+20070623
+	+ add test/demo_panels.c
+	+ implement opaque version of setsyx() and getsyx().
+
+20070612
+	+ corrected xterm+pcf2 terminfo modifiers for F1-F4, to match xterm
+	  #226 -TD
+	+ split-out key_name() from MKkeyname.awk since it now depends upon
+	  wunctrl() which is not in libtinfo (report by Rong-En Fan).
+
+20070609
+	+ add test/key_name.c
+	+ add stdscr cases to test/inchs.c and test_inch_wide.c
+	+ update test/configure
+	+ correct formatting of DEL (0x7f) in _nc_vischar().
+	+ null-terminate result of wunctrl().
+	+ add null-pointer check in key_name() (report by Andreas Krennmair,
+	  cf: 20020901).
+
+20070602
+	+ adapt mouse-handling code from menu library in form-library
+	  (discussion with Clive Nicolson).
+	+ add a modification of test/dots.c, i.e., test/dots_mvcur.c to
+	  illustrate how to use mvcur().
+	+ modify wide-character flavor of SetAttr() to preserve the
+	  WidecExt() value stored in the .attr field, e.g., in case it
+	  is overwritten by chgat (report by Aleksi Torhamo).
+	+ correct buffer-size for _nc_viswbuf2n() (report by Aleksi Torhamo).
+	+ build-fixes for Solaris 2.6 and 2.7 (patch by Peter O'Gorman).
+
+20070526
+	+ modify keyname() to use "^X" form only if meta() has been called, or
+	  if keyname() is called without initializing curses, e.g., via
+	  initscr() or newterm() (prompted by LinuxBase #1604).
+	+ document some portability issues in man/curs_util.3x
+	+ add a shadow copy of TTY buffer to _nc_prescreen to fix applications
+	  broken by moving that data into SCREEN (cf: 20061230).
+
+20070512
+	+ add 'O' (wide-character panel test) in ncurses.c to demonstrate a
+	  problem reported by Sadrul H Chowdhury with repainting parts of
+	  a fullwidth cell.
+	+ modify slk_init() so that if there are preceding calls to
+	  ripoffline(), those affect the available lines for soft-keys (adapted
+	  from patch by Clive Nicolson).
+	+ document some portability issues in man/curs_getyx.3x
+
+20070505
+	+ fix a bug in Ada95/samples/ncurses which caused a variable to
+	  become uninitialized in the "b" test.
+	+ fix Ada95/gen/Makefile.in adahtml rule to account for recent
+	  movement of files, fix a few incorrect manpage references in the
+	  generated html.
+	+ add Ada95 binding to _nc_freeall() as Curses_Free_All to help with
+	  memory-checking.
+	+ correct some functions in Ada95 binding which were using return value
+	  from C where none was returned:  idcok(), immedok() and wtimeout().
+	+ amend recent changes for Ada95 binding to make it build with
+	  Cygwin's linker, e.g., with configure options
+		--enable-broken-linker --with-ticlib
+
+20070428
+	+ add a configure check for gcc's options for inlining, use that to
+	  quiet a warning message where gcc's default behavior changed from
+	  3.x to 4.x.
+	+ improve warning message when checking if GPM is linked to curses
+	  library by not warning if its use of "wgetch" is via a weak symbol.
+	+ add loader options when building with static libraries to ensure that
+	  an installed shared library for ncurses does not conflict.  This is
+	  reported as problem with Tru64, but could affect other platforms
+	  (report Martin Mokrejs, analysis by Tim Mooney).
+	+ fix build on cygwin after recent ticlib/termlib changes, i.e.,
+	  + adjust TINFO_SUFFIX value to work with cygwin's dll naming
+	  + revert a change from 20070303 which commented out dependency of
+	    SHLIB_LIST in form/menu/panel/c++ libraries.
+	+ fix initialization of ripoff stack pointer (cf: 20070421).
+
+20070421
+	+ move most static variables into structures _nc_globals and
+	  _nc_prescreen, to simplify storage.
+	+ add/use configure script macro CF_SIG_ATOMIC_T, use the corresponding
+	  type for data manipulated by signal handlers (prompted by comments
+	  in mailing.openbsd.bugs newsgroup).
+	+ modify CF_WITH_LIBTOOL to allow one to pass options such as -static
+	  to the libtool create- and link-operations.
+
+20070414
+	+ fix whitespace in curs_opaque.3x which caused a spurious ';' in
+	  the installed aliases (report by Peter Santoro).
+	+ fix configure script to not try to generate adacurses-config when
+	  Ada95 tree is not built.
+
+20070407
+	+ add man/curs_legacy.3x, man/curs_opaque.3x
+	+ fix acs_map binding for Ada95 when --enable-reentrant is used.
+	+ add adacurses-config to the Ada95 install, based on version from
+	  FreeBSD port, in turn by Juergen Pfeifer in 2000 (prompted by
+	  comment on comp.lang.ada newsgroup).
+	+ fix includes in c++ binding to build with Intel compiler
+	  (cf: 20061209).
+	+ update install rule in Ada95 to use mkdirs.sh
+	> other fixes prompted by inspection for Coverity report:
+	+ modify ifdef's for c++ binding to use try/catch/throw statements
+	+ add a null-pointer check in tack/ansi.c request_cfss()
+	+ fix a memory leak in ncurses/base/wresize.c
+	+ corrected check for valid memu/meml capabilities in
+	  progs/dump_entry.c when handling V_HPUX case.
+	> fixes based on Coverity report:
+	+ remove dead code in test/bs.c
+	+ remove dead code in test/demo_defkey.c
+	+ remove an unused assignment in progs/infocmp.c
+	+ fix a limit check in tack/ansi.c tools_charset()
+	+ fix tack/ansi.c tools_status() to perform the VT320/VT420
+	  tests in request_cfss().  The function had exited too soon.
+	+ fix a memory leak in tic.c's make_namelist()
+	+ fix a couple of places in tack/output.c which did not check for EOF.
+	+ fix a loop-condition in test/bs.c
+	+ add index checks in lib_color.c for color palettes
+	+ add index checks in progs/dump_entry.c for version_filter() handling
+	  of V_BSD case.
+	+ fix a possible null-pointer dereference in copywin()
+	+ fix a possible null-pointer dereference in waddchnstr()
+	+ add a null-pointer check in _nc_expand_try()
+	+ add a null-pointer check in tic.c's make_namelist()
+	+ add a null-pointer check in _nc_expand_try()
+	+ add null-pointer checks in test/cardfile.c
+	+ fix a double-free in ncurses/tinfo/trim_sgr0.c
+	+ fix a double-free in ncurses/base/wresize.c
+	+ add try/catch block to c++/cursesmain.cc
+
+20070331
+	+ modify Ada95 binding to build with --enable-reentrant by wrapping
+	  global variables (bug: acs_map does not yet work).
+	+ modify Ada95 binding to use the new access-functions, allowing it
+	  to build/run when NCURSES_OPAQUE is set.
+	+ add access-functions and macros to return properties of the WINDOW
+	  structure, e.g., when NCURSES_OPAQUE is set.
+	+ improved install-sh's quoting.
+	+ use mkdirs.sh rather than mkinstalldirs, e.g., to use fixes from
+	  other programs.
+
+20070324
+	+ eliminate part of the direct use of WINDOW data from Ada95 interface.
+	+ fix substitutions for termlib filename to make configure option
+	  --enable-reentrant work with --with-termlib.
+	+ change a constructor for NCursesWindow to allow compiling with
+	  NCURSES_OPAQUE set, since we cannot pass a reference to
+	  an opaque pointer.
+
+20070317
+	+ ignore --with-chtype=unsigned since unsigned is always added to
+	  the type in curses.h; do the same for --with-mmask-t.
+	+ change warning regarding --enable-ext-colors and wide-character
+	  in the configure script to an error.
+	+ tweak error message in CF_WITH_LIBTOOL to distinguish other programs
+	  such as Darwin's libtool program (report by Michail Vidiassov)
+	+ modify edit_man.sh to allow for multiple substitutions per line.
+	+ set locale in misc/ncurses-config.in since it uses a range
+	+ change permissions libncurses++.a install (report by Michail
+	  Vidiassov).
+	+ corrected length of temporary buffer in wide-character version
+	  of set_field_buffer() (related to report by Bryan Christ).
+
+20070311
+	+ fix mk-1st.awk script install_shlib() function, broken in 20070224
+	  changes for cygwin (report by  Michail Vidiassov).
+
+20070310
+	+ increase size of array in _nc_visbuf2n() to make "tic -v" work
+	  properly in its similar_sgr() function (report/analysis by Peter
+	  Santoro).
+	+ add --enable-reentrant configure option for ongoing changes to
+	  implement a reentrant version of ncurses:
+	  + libraries are suffixed with "t"
+	  + wrap several global variables (curscr, newscr, stdscr, ttytype,
+	    COLORS, COLOR_PAIRS, COLS, ESCDELAY, LINES and TABSIZE) as
+	    functions returning values stored in SCREEN or cur_term.
+	  + move some initialization (LINES, COLS) from lib_setup.c,
+	    i.e., setupterm() to _nc_setupscreen(), i.e., newterm().
+
+20070303
+	+ regenerated html documentation.
+	+ add NCURSES_OPAQUE symbol to curses.h, will use to make structs
+	  opaque in selected configurations.
+	+ move the chunk in lib_acs.c which resets acs capabilities when
+	  running on a terminal whose locale interferes with those into
+	  _nc_setupscreen(), so the libtinfo/libtinfow files can be made
+	  identical (requested by Miroslav Lichvar).
+	+ do not use configure variable SHLIB_LIBS for building libraries
+	  outside the ncurses directory, since that symbol is customized
+	  only for that directory, and using it introduces an unneeded
+	  dependency on libdl (requested by Miroslav Lichvar).
+	+ modify mk-1st.awk so the generated makefile rules for linking or
+	  installing shared libraries do not first remove the library, in
+	  case it is in use, e.g., libncurses.so by /bin/sh (report by Jeff
+	  Chua).
+	+ revised section "Using NCURSES under XTERM" in ncurses-intro.html
+	  (prompted by newsgroup comment by Nick Guenther).
+
+20070224
+	+ change internal return codes of _nc_wgetch() to check for cases
+	  where KEY_CODE_YES should be returned, e.g., if a KEY_RESIZE was
+	  ungetch'd, and read by wget_wch().
+	+ fix static-library build broken in 20070217 changes to remove "-ldl"
+	  (report by Miroslav Lichvar).
+	+ change makefile/scripts for cygwin to allow building termlib.
+	+ use Form_Hook in manpages to match form.h
+	+ use Menu_Hook in manpages, as well as a few places in menu.h
+	+ correct form- and menu-manpages to use specific Field_Options,
+	  Menu_Options and Item_Options types.
+	+ correct prototype for _tracechar() in manpage (cf: 20011229).
+	+ correct prototype for wunctrl() in manpage.
+
+20070217
+	+ fixes for $(TICS_LIST) in ncurses/Makefile (report by Miroslav
+	  Lichvar).
+	+ modify relinking of shared libraries to apply only when rpath is
+	  enabled, and add --disable-relink option which can be used to
+	  disable the feature altogether (reports by Michail Vidiassov,
+	  Adam J Richter).
+	+ fix --with-termlib option for wide-character configuration, stripping
+	  the "w" suffix in one place (report by Miroslav Lichvar).
+	+ remove "-ldl" from some library lists to reduce dependencies in
+	  programs (report by Miroslav Lichvar).
+	+ correct description of --enable-signed-char in configure --help
+	  (report by Michail Vidiassov).
+	+ add pattern for GNU/kFreeBSD configuration to CF_XOPEN_SOURCE,
+	  which matches an earlier change to CF_SHARED_OPTS, from xterm #224
+	  fixes.
+	+ remove "${DESTDIR}" from -install_name option used for linking
+	  shared libraries on Darwin (report by Michail Vidiassov).
+
+20070210
+	+ add test/inchs.c, test_inch_wide.c, to test win_wchnstr().
+	+ remove libdl from library list for termlib (report by Miroslav
+	  Lichvar).
+	+ fix configure.in to allow --without-progs --with-termlib (patch by
+	  Miroslav Lichvar).
+	+ modify win_wchnstr() to ensure that only a base cell is returned
+	  for each multi-column character (prompted by report by Wei Kong
+	  regarding change in mvwin_wch() cf: 20041023).
+
+20070203
+	+ modify fix_wchnstr() in form library to strip attributes (and color)
+	  from the cchar_t array (field cells) read from a field's window.
+	  Otherwise, when copying the field cells back to the window, the
+	  associated color overrides the field's background color (report by
+	  Ricardo Cantu).
+	+ improve tracing for form library, showing created forms, fields, etc.
+	+ ignore --enable-rpath configure option if --with-shared was omitted.
+	+ add _nc_leaks_tinfo(), _nc_free_tic(), _nc_free_tinfo() entrypoints
+	  to allow leak-checking when both tic- and tinfo-libraries are built.
+	+ drop CF_CPP_VSCAN_FUNC macro from configure script, since C++ binding
+	  no longer relies on it.
+	+ disallow combining configure script options --with-ticlib and
+	  --enable-termcap (report by Rong-En Fan).
+	+ remove tack from ncurses tree.
+
+20070128
+	+ fix typo in configure script that broke --with-termlib option
+	  (report by Rong-En Fan).
+
+20070127
+	+ improve fix for FreeBSD gnu/98975, to allow for null pointer passed
+	  to tgetent() (report by Rong-en Fan).
+	+ update tack/HISTORY and tack/README to tell how to build it after
+	  it is removed from the ncurses tree.
+	+ fix configure check for libtool's version to trim blank lines
+	  (report by sci-fi@hush.ai).
+	+ review/eliminate other original-file artifacts in cursesw.cc, making
+	  its license consistent with ncurses.
+	+ use ncurses vw_scanw() rather than reading into a fixed buffer in
+	  the c++ binding for scanw() methods (prompted by report by Nuno Dias).
+	+ eliminate fixed-buffer vsprintf() calls in c++ binding.
+
+20070120
+	+ add _nc_leaks_tic() to separate leak-checking of tic library from
+	  term/ncurses libraries, and thereby eliminate a library dependency.
+	+ fix test/mk-test.awk to ignore blank lines.
+	+ correct paths in include/headers, for --srcdir (patch by Miroslav
+	  Lichvar).
+
+20070113
+	+ add a break-statement in misc/shlib to ensure that it exits on the
+	  _first_ matched directory (report by Paul Novak).
+	+ add tack/configure, which can be used to build tack outside the
+	  ncurses build-tree.
+	+ add --with-ticlib option, to build/install the tic-support functions
+	  in a separate library (suggested by Miroslav Lichvar).
+
+20070106
+	+ change MKunctrl.awk to reduce relocation table for unctrl.o
+	+ change MKkeyname.awk to reduce relocation table for keyname.o
+	  (patch by Miroslav Lichvar).
+
+20061230
+	+ modify configure check for libtool's version to trim blank lines
+	  (report by sci-fi@hush.ai).
+	+ modify some modules to allow them to be reentrant if _REENTRANT is
+	  defined: lib_baudrate.c, resizeterm.c (local data only)
+	+ eliminate static data from some modules: add_tries.c, hardscroll.c,
+	  lib_ttyflags.c, lib_twait.c
+	+ improve manpage install to add aliases for the transformed program
+	  names, e.g., from --program-prefix.
+	+ used linklint to verify links in the HTML documentation, made fixes
+	  to manpages as needed.
+	+ fix a typo in curs_mouse.3x (report by William McBrine).
+	+ fix install-rule for ncurses5-config to make the bin-directory.
+
+20061223
+	+ modify configure script to omit the tic (terminfo compiler) support
+	  from ncurses library if --without-progs option is given.
+	+ modify install rule for ncurses5-config to do this via "install.libs"
+	+ modify shared-library rules to allow FreeBSD 3.x to use rpath.
+	+ update config.guess, config.sub
+
 20061217 5.6 release for upload to ftp.gnu.org
 
-20061217 
+20061217
 	+ add ifdef's for <wctype.h> for HPUX, which has the corresponding
 	  definitions in <wchar.h>.
 	+ revert the va_copy() change from 20061202, since it was neither
@@ -62,7 +565,7 @@ it is not possible to add this information.
 	+ modify configure --with-gpm option to allow it to accept a parameter,
 	  i.e., the name of the dynamic GPM library to load via dlopen()
 	  (requested by Bryan Henderson).
-	+ add configure option --with-valgrind (from vile).
+	+ add configure option --with-valgrind, changes from vile.
 	+ modify configure script AC_TRY_RUN and AC_TRY_LINK checks to use
 	  'return' in preference to 'exit()'.
 
@@ -1524,7 +2027,8 @@ it is not possible to add this information.
 20031108
 	+ add DJGPP to special case of DOS-style drive letters potentially
 	  appearing in TERMCAP environment variable.
-	+ fix some spelling in comments (reports by jmc, Jonathon Gray).
+	+ fix some spelling in comments (reports by Jason McIntyre, Jonathon
+	  Gray).
 	+ update config.guess, config.sub
 
 20031101
@@ -1814,7 +2318,7 @@ it is not possible to add this information.
 	  "--srcdir" work (report by Warren L Dodge).
 	+ correct missing definition of $(CC) in Ada95/gen/Makefile.in
 	  (reported by Warren L Dodge <warrend@mdhost.cse.tek.com>).
-	+ fix typos and whitespace in manpages (patch by jmc
+	+ fix typos and whitespace in manpages (patch by Jason McIntyre
 	  <jmc@prioris.mini.pw.edu.pl>).
 
 20030503
@@ -3449,7 +3953,7 @@ it is not possible to add this information.
 
 20000923
 	+ modify rs2 capability in xterm-r6 and similar where cursor
-	  save/restore bracketed the sequence for resetting video attributes. 
+	  save/restore bracketed the sequence for resetting video attributes.
 	  The cursor restore would undo that (report by John Hawkinson
 	  <jhawk@MIT.EDU> (see NetBSD misc/11052)).
 	+ using parameter check added to tic, corrected 27 typos in
@@ -4266,7 +4770,7 @@ it is not possible to add this information.
 	  <bledp@voila.fr>)).
 	+ change renaming of dft_fgbg.3x to use_default_colors.3ncurses in
 	  man_db.renames, since Debian is not concerned with 14-character
-	  filename limitation (from Debian bug report by Josip Rodin
+	  filename limitation (Debian bug report by Josip Rodin
 	  <joy@cibalia.gkvk.hr>).
 	+ corrected scoansi terminfo entry by testing with scoterm and console.
 	+ revert change from 990614 to terminal_interface-curses-forms.ads.m4,
@@ -5309,7 +5813,7 @@ it is not possible to add this information.
 
 980321
 	+ revise configure macro CF_SPEED_TYPE so that termcap.h has speed_t
-	  declared (from Adam J. Richter <adam@yggdrasil.com>)
+	  declared (from Adam J Richter <adam@yggdrasil.com>)
 	+ remove spurious curs_set() call from leaveok() (J T Conklin).
 	+ corrected handling leaveok() in doupdate() (patch by Alexander V.
 	  Lukyanov).

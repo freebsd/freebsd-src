@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ungetch.c,v 1.8 2002/08/24 22:08:48 tom Exp $")
+MODULE_ID("$Id: lib_ungetch.c,v 1.9 2007/09/29 21:49:56 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -72,8 +72,10 @@ ungetch(int ch)
     SP->_fifo[head] = ch;
     T(("ungetch %s ok", _tracechar(ch)));
 #ifdef TRACE
-    if (_nc_tracing & TRACE_IEVENT)
+    if (USE_TRACEF(TRACE_IEVENT)) {
 	_nc_fifo_dump();
+	_nc_unlock_global(tracef);
+    }
 #endif
     returnCode(OK);
 }

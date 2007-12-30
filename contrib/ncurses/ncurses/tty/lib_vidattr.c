@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -65,7 +65,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_vidattr.c,v 1.46 2006/01/21 23:39:40 tom Exp $")
+MODULE_ID("$Id: lib_vidattr.c,v 1.49 2007/06/30 21:58:04 tom Exp $")
 
 #define doPut(mode) TPUTS_TRACE(#mode); tputs(mode, 1, outc)
 
@@ -87,10 +87,11 @@ MODULE_ID("$Id: lib_vidattr.c,v 1.46 2006/01/21 23:39:40 tom Exp $")
 		} \
 	}
 
+#define PreviousAttr _nc_prescreen.previous_attr
+
 NCURSES_EXPORT(int)
 vidputs(chtype newmode, int (*outc) (int))
 {
-    static attr_t previous_attr = A_NORMAL;
     attr_t turn_on, turn_off;
     int pair;
     bool reverse = FALSE;
@@ -101,18 +102,19 @@ vidputs(chtype newmode, int (*outc) (int))
 #define fix_pair0 FALSE
 #endif
 
+    newmode &= A_ATTRIBUTES;
     T((T_CALLED("vidputs(%s)"), _traceattr(newmode)));
 
     /* this allows us to go on whether or not newterm() has been called */
     if (SP)
-	previous_attr = AttrOf(SCREEN_ATTRS(SP));
+	PreviousAttr = AttrOf(SCREEN_ATTRS(SP));
 
-    TR(TRACE_ATTRS, ("previous attribute was %s", _traceattr(previous_attr)));
+    TR(TRACE_ATTRS, ("previous attribute was %s", _traceattr(PreviousAttr)));
 
     if ((SP != 0)
 	&& (magic_cookie_glitch > 0)) {
 #if USE_XMC_SUPPORT
-	static chtype table[] =
+	static const chtype table[] =
 	{
 	    A_STANDOUT,
 	    A_UNDERLINE,
@@ -183,7 +185,7 @@ vidputs(chtype newmode, int (*outc) (int))
 	newmode &= ~mask;
     }
 
-    if (newmode == previous_attr)
+    if (newmode == PreviousAttr)
 	returnCode(OK);
 
     pair = PAIR_NUMBER(newmode);
@@ -192,17 +194,17 @@ vidputs(chtype newmode, int (*outc) (int))
 	newmode &= ~A_REVERSE;
     }
 
-    turn_off = (~newmode & previous_attr) & ALL_BUT_COLOR;
-    turn_on = (newmode & ~previous_attr) & ALL_BUT_COLOR;
+    turn_off = (~newmode & PreviousAttr) & ALL_BUT_COLOR;
+    turn_on = (newmode & ~PreviousAttr) & ALL_BUT_COLOR;
 
-    SetColorsIf(((pair == 0) && !fix_pair0), previous_attr);
+    SetColorsIf(((pair == 0) && !fix_pair0), PreviousAttr);
 
     if (newmode == A_NORMAL) {
-	if ((previous_attr & A_ALTCHARSET) && exit_alt_charset_mode) {
+	if ((PreviousAttr & A_ALTCHARSET) && exit_alt_charset_mode) {
 	    doPut(exit_alt_charset_mode);
-	    previous_attr &= ~A_ALTCHARSET;
+	    PreviousAttr &= ~A_ALTCHARSET;
 	}
-	if (previous_attr) {
+	if (PreviousAttr) {
 	    if (exit_attribute_mode) {
 		doPut(exit_attribute_mode);
 	    } else {
@@ -213,10 +215,10 @@ vidputs(chtype newmode, int (*outc) (int))
 		    TurnOff(A_STANDOUT, exit_standout_mode);
 		}
 	    }
-	    previous_attr &= ALL_BUT_COLOR;
+	    PreviousAttr &= ALL_BUT_COLOR;
 	}
 
-	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
+	SetColorsIf((pair != 0) || fix_pair0, PreviousAttr);
     } else if (set_attributes) {
 	if (turn_on || turn_off) {
 	    TPUTS_TRACE("set_attributes");
@@ -230,9 +232,9 @@ vidputs(chtype newmode, int (*outc) (int))
 			(newmode & A_INVIS) != 0,
 			(newmode & A_PROTECT) != 0,
 			(newmode & A_ALTCHARSET) != 0), 1, outc);
-	    previous_attr &= ALL_BUT_COLOR;
+	    PreviousAttr &= ALL_BUT_COLOR;
 	}
-	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
+	SetColorsIf((pair != 0) || fix_pair0, PreviousAttr);
     } else {
 
 	TR(TRACE_ATTRS, ("turning %s off", _traceattr(turn_off)));
@@ -250,9 +252,9 @@ vidputs(chtype newmode, int (*outc) (int))
 	if (turn_off && exit_attribute_mode) {
 	    doPut(exit_attribute_mode);
 	    turn_on |= (newmode & ALL_BUT_COLOR);
-	    previous_attr &= ALL_BUT_COLOR;
+	    PreviousAttr &= ALL_BUT_COLOR;
 	}
-	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
+	SetColorsIf((pair != 0) || fix_pair0, PreviousAttr);
 
 	TR(TRACE_ATTRS, ("turning %s on", _traceattr(turn_on)));
 	/* *INDENT-OFF* */
@@ -283,7 +285,7 @@ vidputs(chtype newmode, int (*outc) (int))
     if (SP)
 	SetAttr(SCREEN_ATTRS(SP), newmode);
     else
-	previous_attr = newmode;
+	PreviousAttr = newmode;
 
     returnCode(OK);
 }
