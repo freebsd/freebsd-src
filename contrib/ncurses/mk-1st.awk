@@ -1,6 +1,6 @@
-# $Id: mk-1st.awk,v 1.68 2006/10/08 00:14:08 tom Exp $
+# $Id: mk-1st.awk,v 1.78 2007/03/24 22:10:55 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -37,9 +37,12 @@
 #	model		  (directory into which we compile, e.g., "obj")
 #	prefix		  (e.g., "lib", for Unix-style libraries)
 #	suffix		  (e.g., "_g.a", for debug libraries)
-#	subset		  ("none", "base", "base+ext_funcs" or "termlib")
+#	subset		  ("none", "base", "base+ext_funcs" or "termlib", etc.)
 #	ShlibVer	  ("rel", "abi" or "auto", to augment DoLinks variable)
 #	ShlibVerInfix ("yes" or "no", determines location of version #)
+#   TermlibRoot   ("tinfo" or other root for libterm.so)
+#   TermlibSuffix (".so" or other suffix for libterm.so)
+#	ReLink		  ("yes", or "no", flag to rebuild shared libs on install)
 #	DoLinks		  ("yes", "reverse" or "no", flag to add symbolic links)
 #	rmSoLocs	  ("yes" or "no", flag to add extra clean target)
 #	ldconfig	  (path for this tool, if used)
@@ -52,6 +55,64 @@
 #	Mixed-case variable names are ok.
 #	HP/UX requires shared libraries to have executable permissions.
 #
+function is_ticlib() {
+		return ( subset ~ /^ticlib$/ );
+	}
+function is_termlib() {
+		return ( subset ~ /^(ticlib\+)?termlib(\+ext_tinfo)?$/ );
+	}
+# see lib_name
+function lib_name_of(a_name) {
+		return sprintf("%s%s%s", prefix, a_name, suffix)
+	}
+# see imp_name
+function imp_name_of(a_name) {
+		if (ShlibVerInfix == "cygdll") {
+			result = sprintf("%s%s%s.a", prefix, a_name, suffix);
+		} else {
+			result = "";
+		}
+		return result;
+	}
+# see abi_name
+function abi_name_of(a_name) {
+		if (ShlibVerInfix == "cygdll") {
+			result = sprintf("%s%s$(ABI_VERSION)%s", "cyg", a_name, suffix);
+		} else if (ShlibVerInfix == "yes") {
+			result = sprintf("%s%s.$(ABI_VERSION)%s", prefix, a_name, suffix);
+		} else {
+			result = sprintf("%s.$(ABI_VERSION)", lib_name_of(a_name));
+		}
+		return result;
+	}
+# see rel_name
+function rel_name_of(a_name) {
+		if (ShlibVerInfix == "cygdll") {
+			result = sprintf("%s%s$(REL_VERSION)%s", "cyg", a_name, suffix);
+		} else if (ShlibVerInfix == "yes") {
+			result = sprintf("%s%s.$(REL_VERSION)%s", prefix, a_name, suffix);
+		} else {
+			result = sprintf("%s.$(REL_VERSION)", lib_name_of(a_name));
+		}
+		return result;
+	}
+# see end_name
+function end_name_of(a_name) {
+		if ( MODEL != "SHARED" ) {
+			result = lib_name_of(a_name);
+		} else if ( DoLinks == "reverse") {
+			result = lib_name_of(a_name);
+		} else {
+			if ( ShlibVer == "rel" ) {
+				result = rel_name_of(a_name);
+			} else if ( ShlibVer == "abi" || ShlibVer == "cygdll" ) {
+				result = abi_name_of(a_name);
+			} else {
+				result = lib_name_of(a_name);
+			}
+		}
+		return result
+	}
 function symlink(src,dst) {
 		if ( src != dst ) {
 			printf "rm -f %s; ", dst
@@ -64,19 +125,19 @@ function rmlink(directory, dst) {
 function removelinks(directory) {
 		rmlink(directory, end_name);
 		if ( DoLinks == "reverse" ) {
-				if ( ShlibVer == "rel" ) {
-					rmlink(directory, abi_name);
-					rmlink(directory, rel_name);
-				} else if ( ShlibVer == "abi" ) {
-					rmlink(directory, abi_name);
-				}
+			if ( ShlibVer == "rel" ) {
+				rmlink(directory, abi_name);
+				rmlink(directory, rel_name);
+			} else if ( ShlibVer == "abi" ) {
+				rmlink(directory, abi_name);
+			}
 		} else {
-				if ( ShlibVer == "rel" ) {
-					rmlink(directory, abi_name);
-					rmlink(directory, lib_name);
-				} else if ( ShlibVer == "abi" ) {
-					rmlink(directory, lib_name);
-				}
+			if ( ShlibVer == "rel" ) {
+				rmlink(directory, abi_name);
+				rmlink(directory, lib_name);
+			} else if ( ShlibVer == "abi" ) {
+				rmlink(directory, lib_name);
+			}
 		}
 	}
 function make_shlib(objs, shlib_list) {
@@ -103,27 +164,53 @@ function sharedlinks(directory) {
 			printf ")\n"
 		}
 	}
-function shlib_rule(directory) {
-		if ( ShlibVer == "cygdll" ) {
-				dst_libs = sprintf("%s/$(SHARED_LIB) %s/$(IMPORT_LIB)", directory, directory);
-		} else {
-				dst_libs = sprintf("%s/%s", directory, end_name);
+# termlib may be named explicitly via "--with-termlib=XXX", which overrides
+# any suffix.  Temporarily override "suffix" to account for this.
+function termlib_end_of() {
+	termlib_save_suffix = suffix;
+	suffix = TermlibSuffix;
+	termlib_temp_result = end_name_of(TermlibRoot);
+	suffix = termlib_save_suffix;
+	return termlib_temp_result;
+}
+function shlib_build(directory) {
+		dst_libs = sprintf("%s/%s", directory, end_name);
+		printf "%s : \\\n", dst_libs
+		printf "\t\t%s \\\n", directory
+		if (subset ~ /^base/ || subset == "ticlib" ) {
+			save_suffix = suffix
+			sub(/^[^.]\./,".",suffix)
+			if (directory != "../lib") {
+				printf "\t\t%s/%s \\\n", "../lib", termlib_end_of();
+			}
+			printf "\t\t%s/%s \\\n", directory, termlib_end_of();
+			suffix = save_suffix
 		}
-		printf "%s : %s $(%s_OBJS)\n", dst_libs, directory, OBJS
+		printf "\t\t$(%s_OBJS)\n", OBJS
 		printf "\t@echo linking $@\n"
-		print "\t-@rm -f %s", dst_libs;
-		if ( subset == "termlib" || subset == "termlib+ext_tinfo" ) {
-				make_shlib(OBJS, "TINFO_LIST")
+		if ( is_ticlib() ) {
+			make_shlib(OBJS, "TICS_LIST")
+		} else if ( is_termlib() ) {
+			make_shlib(OBJS, "TINFO_LIST")
 		} else {
-				make_shlib(OBJS, "SHLIB_LIST")
+			make_shlib(OBJS, "SHLIB_LIST")
 		}
+		sharedlinks(directory)
+	}
+function shlib_install(directory) {
+		src_lib1 = sprintf("../lib/%s", end_name);
+		dst_lib1 = sprintf("%s/%s", directory, end_name);
+		printf "%s : \\\n", dst_lib1
+		printf "\t\t%s \\\n", directory
+		printf "\t\t%s\n", src_lib1
+		printf "\t@echo installing $@\n"
+		printf "\t$(INSTALL_LIB) %s %s\n", src_lib1, dst_lib1;
 		sharedlinks(directory)
 	}
 function install_dll(directory,filename) {
 		src_name = sprintf("../lib/%s", filename);
 		dst_name = sprintf("$(DESTDIR)%s/%s", directory, filename);
 		printf "\t@echo installing %s as %s\n", src_name, dst_name
-		printf "\t-@rm -f %s\n", dst_name
 		if ( directory == "$(bindir)" ) {
 			program = "$(INSTALL) -m 755";
 		} else {
@@ -153,6 +240,9 @@ BEGIN	{
 					printf "#  subset:        %s\n", subset 
 					printf "#  ShlibVer:      %s\n", ShlibVer 
 					printf "#  ShlibVerInfix: %s\n", ShlibVerInfix 
+					printf "#  TermlibRoot:   %s\n", TermlibRoot 
+					printf "#  TermlibSuffix: %s\n", TermlibSuffix 
+					printf "#  ReLink:        %s\n", ReLink 
 					printf "#  DoLinks:       %s\n", DoLinks 
 					printf "#  rmSoLocs:      %s\n", rmSoLocs 
 					printf "#  ldconfig:      %s\n", ldconfig 
@@ -163,7 +253,9 @@ BEGIN	{
 				}
 				using = 1
 			}
-			if ( subset == "termlib" || subset == "termlib+ext_tinfo" ) {
+			if ( is_ticlib() ) {
+				OBJS  = MODEL "_P"
+			} else if ( is_termlib() ) {
 				OBJS  = MODEL "_T"
 			} else {
 				OBJS  = MODEL
@@ -205,33 +297,15 @@ END	{
 		if ( found == 1 )
 		{
 			print  ""
-			lib_name = sprintf("%s%s%s", prefix, name, suffix)
+			lib_name = lib_name_of(name);
 			if ( MODEL == "SHARED" )
 			{
-				if (ShlibVerInfix == "cygdll") {
-					abi_name = sprintf("%s%s$(ABI_VERSION)%s", "cyg", name, suffix);
-					rel_name = sprintf("%s%s$(REL_VERSION)%s", "cyg", name, suffix);
-					imp_name = sprintf("%s%s%s.a", prefix, name, suffix);
-				} else if (ShlibVerInfix == "yes") {
-					abi_name = sprintf("%s%s.$(ABI_VERSION)%s", prefix, name, suffix);
-					rel_name = sprintf("%s%s.$(REL_VERSION)%s", prefix, name, suffix);
-				} else {
-					abi_name = sprintf("%s.$(ABI_VERSION)", lib_name);
-					rel_name = sprintf("%s.$(REL_VERSION)", lib_name);
-				}
-				if ( DoLinks == "reverse") {
-					end_name = lib_name;
-				} else {
-					if ( ShlibVer == "rel" ) {
-						end_name = rel_name;
-					} else if ( ShlibVer == "abi" || ShlibVer == "cygdll" ) {
-						end_name = abi_name;
-					} else {
-						end_name = lib_name;
-					}
-				}
+				abi_name = abi_name_of(name);
+				rel_name = rel_name_of(name);
+				imp_name = imp_name_of(name);
+				end_name = end_name_of(name);
 
-				shlib_rule("../lib")
+				shlib_build("../lib")
 
 				print  ""
 				print  "install \\"
@@ -249,7 +323,11 @@ END	{
 					lib_dir = "$(DESTDIR)$(libdir)";
 					printf "install.%s :: %s/%s\n", name, lib_dir, end_name
 					print ""
-					shlib_rule(lib_dir)
+					if ( ReLink == "yes" ) {
+						shlib_build(lib_dir)
+					} else {
+						shlib_install(lib_dir)
+					}
 				}
 
 				if ( overwrite == "yes" && name == "ncurses" )
@@ -393,3 +471,4 @@ END	{
 			}
 		}
 	}
+# vile:ts=4 sw=4

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,12 +44,12 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_slkset.c,v 1.16 2006/12/17 19:47:09 tom Exp $")
+MODULE_ID("$Id: lib_slkset.c,v 1.17 2007/10/13 20:08:46 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_set(int i, const char *astr, int format)
 {
-    SLK *slk = SP->_slk;
+    SLK *slk;
     int offset;
     int numchrs;
     int numcols;
@@ -59,7 +59,12 @@ slk_set(int i, const char *astr, int format)
 
     T((T_CALLED("slk_set(%d, \"%s\", %d)"), i, str, format));
 
-    if (slk == NULL || i < 1 || i > slk->labcnt || format < 0 || format > 2)
+    if (SP == 0
+	|| (slk = SP->_slk) == 0
+	|| i < 1
+	|| i > slk->labcnt
+	|| format < 0
+	|| format > 2)
 	returnCode(ERR);
     if (str == NULL)
 	str = "";

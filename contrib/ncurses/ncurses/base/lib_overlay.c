@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.22 2006/10/14 20:43:31 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.23 2007/04/07 17:13:52 tom Exp $")
 
 static int
 overlap(const WINDOW *const s, WINDOW *const d, int const flag)
@@ -139,14 +139,17 @@ copywin(const WINDOW *src, WINDOW *dst,
 {
     int sx, sy, dx, dy;
     bool touched;
-    attr_t bk = AttrOf(dst->_nc_bkgd);
-    attr_t mask = ~(attr_t) ((bk & A_COLOR) ? A_COLOR : 0);
+    attr_t bk;
+    attr_t mask;
 
     T((T_CALLED("copywin(%p, %p, %d, %d, %d, %d, %d, %d, %d)"),
        src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
 
     if (!src || !dst)
 	returnCode(ERR);
+
+    bk = AttrOf(dst->_nc_bkgd);
+    mask = ~(attr_t) ((bk & A_COLOR) ? A_COLOR : 0);
 
     /* make sure rectangle exists in source */
     if ((sminrow + dmaxrow - dminrow) > (src->_maxy + 1) ||

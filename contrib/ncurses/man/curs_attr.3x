@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_attr.3x,v 1.30 2006/07/15 18:39:05 tom Exp $
+.\" $Id: curs_attr.3x,v 1.31 2007/03/17 20:30:33 tom Exp $
 .TH curs_attr 3X ""
 .na
 .hy 0
@@ -253,6 +253,9 @@ This implementation returns an error
 if the window pointer is null.
 The \fBwcolor_set\fP function returns an error if the color pair parameter
 is outside the range 0..COLOR_PAIRS-1.
+This implementation also provides
+\fBgetattrs\fR
+for compatibility with older versions of curses.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_addch\fR(3X),

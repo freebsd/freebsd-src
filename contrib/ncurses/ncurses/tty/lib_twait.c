@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -61,38 +62,42 @@
 # endif
 #endif
 
-MODULE_ID("$Id: lib_twait.c,v 1.51 2006/05/27 21:57:43 tom Exp $")
-
-static long
-_nc_gettime(bool first)
-{
-    long res;
+MODULE_ID("$Id: lib_twait.c,v 1.54 2007/08/11 16:32:48 tom Exp $")
 
 #if HAVE_GETTIMEOFDAY
 # define PRECISE_GETTIME 1
-    static struct timeval t0;
-    struct timeval t1;
+# define TimeType struct timeval
+#else
+# define PRECISE_GETTIME 0
+# define TimeType time_t
+#endif
+
+static long
+_nc_gettime(TimeType * t0, bool first)
+{
+    long res;
+
+#if PRECISE_GETTIME
+    TimeType t1;
     gettimeofday(&t1, (struct timezone *) 0);
     if (first) {
-	t0 = t1;
+	*t0 = t1;
 	res = 0;
     } else {
 	/* .tv_sec and .tv_usec are unsigned, be careful when subtracting */
-	if (t0.tv_usec > t1.tv_usec) {	/* Convert 1s in 1e6 microsecs */
-	    t1.tv_usec += 1000000;
+	if (t0->tv_usec > t1.tv_usec) {
+	    t1.tv_usec += 1000000;	/* Convert 1s in 1e6 microsecs */
 	    t1.tv_sec--;
 	}
-	res = (t1.tv_sec - t0.tv_sec) * 1000
-	    + (t1.tv_usec - t0.tv_usec) / 1000;
+	res = (t1.tv_sec - t0->tv_sec) * 1000
+	    + (t1.tv_usec - t0->tv_usec) / 1000;
     }
 #else
-# define PRECISE_GETTIME 0
-    static time_t t0;
     time_t t1 = time((time_t *) 0);
     if (first) {
-	t0 = t1;
+	*t0 = t1;
     }
-    res = (t1 - t0) * 1000;
+    res = (t1 - *t0) * 1000;
 #endif
     TR(TRACE_IEVENT, ("%s time: %ld msec", first ? "get" : "elapsed", res));
     return res;
@@ -147,7 +152,8 @@ _nc_timed_wait(int mode,
 {
     int fd;
     int count;
-    int result;
+    int result = 0;
+    TimeType t0;
 
 #ifdef NCURSES_WGETCH_EVENTS
     int timeout_is_event = 0;
@@ -160,7 +166,7 @@ _nc_timed_wait(int mode,
     struct pollfd *fds = fd_list;
 #elif defined(__BEOS__)
 #elif HAVE_SELECT
-    static fd_set set;
+    fd_set set;
 #endif
 
     long starttime, returntime;
@@ -180,10 +186,10 @@ _nc_timed_wait(int mode,
     }
 #endif
 
-#if PRECISE_GETTIME
+#if PRECISE_GETTIME && HAVE_NANOSLEEP
   retry:
 #endif
-    starttime = _nc_gettime(TRUE);
+    starttime = _nc_gettime(&t0, TRUE);
 
     count = 0;
 
@@ -362,7 +368,7 @@ _nc_timed_wait(int mode,
 
 #endif /* USE_FUNC_POLL, etc */
 
-    returntime = _nc_gettime(FALSE);
+    returntime = _nc_gettime(&t0, FALSE);
 
     if (milliseconds >= 0)
 	milliseconds -= (returntime - starttime);

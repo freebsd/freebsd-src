@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,38 +34,38 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.15 2005/01/22 21:47:25 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.16 2007/04/21 21:28:13 tom Exp $")
 
 /*
  *	_nc_first_name(char *names)
  *
  *	Extract the primary name from a compiled entry.
  */
+#define FirstName _nc_globals.first_name
 
 NCURSES_EXPORT(char *)
 _nc_first_name(const char *const sp)
 /* get the first name from the given name list */
 {
-    static char *buf;
-    register unsigned n;
+    unsigned n;
 
 #if NO_LEAKS
     if (sp == 0) {
-	if (buf != 0)
-	    FreeAndNull(buf);	/* for leak-testing */
+	if (FirstName != 0)
+	    FreeAndNull(FirstName);
 	return 0;
     }
 #endif
 
-    if (buf == 0)
-	buf = typeMalloc(char, MAX_NAME_SIZE + 1);
+    if (FirstName == 0)
+	FirstName = typeMalloc(char, MAX_NAME_SIZE + 1);
     for (n = 0; n < MAX_NAME_SIZE; n++) {
-	if ((buf[n] = sp[n]) == '\0'
-	    || (buf[n] == '|'))
+	if ((FirstName[n] = sp[n]) == '\0'
+	    || (FirstName[n] == '|'))
 	    break;
     }
-    buf[n] = '\0';
-    return (buf);
+    FirstName[n] = '\0';
+    return (FirstName);
 }
 
 /*

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,19 +45,18 @@
 #include <sys/termio.h>		/* needed for ISC */
 #endif
 
-MODULE_ID("$Id: lib_initscr.c,v 1.34 2005/10/22 20:30:38 tom Exp $")
+MODULE_ID("$Id: lib_initscr.c,v 1.35 2007/04/21 20:43:02 tom Exp $")
 
 NCURSES_EXPORT(WINDOW *)
 initscr(void)
 {
-    static bool initialized = FALSE;
     NCURSES_CONST char *name;
 
     START_TRACE();
     T((T_CALLED("initscr()")));
     /* Portable applications must not call initscr() more than once */
-    if (!initialized) {
-	initialized = TRUE;
+    if (!_nc_globals.init_screen) {
+	_nc_globals.init_screen = TRUE;
 
 	if ((name = getenv("TERM")) == 0
 	    || *name == '\0')

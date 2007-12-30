@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -73,6 +73,7 @@
  * SUCH DAMAGE.
  */
 
+#define USE_LIBTINFO
 #define __INTERNAL_CAPS_VISIBLE	/* we need to see has_hardware_tabs */
 #include <progs.priv.h>
 
@@ -103,7 +104,7 @@ char *ttyname(int fd);
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 1.67 2006/09/16 17:51:10 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.70 2007/10/13 22:22:04 tom Exp $")
 
 extern char **environ;
 
@@ -777,7 +778,22 @@ reset_mode(void)
 		      | OFDEL
 #endif
 #ifdef NLDLY
-		      | NLDLY | CRDLY | TABDLY | BSDLY | VTDLY | FFDLY
+		      | NLDLY
+#endif
+#ifdef CRDLY 
+		      | CRDLY
+#endif
+#ifdef TABDLY 
+		      | TABDLY
+#endif
+#ifdef BSDLY 
+		      | BSDLY
+#endif
+#ifdef VTDLY 
+		      | VTDLY
+#endif
+#ifdef FFDLY
+		      | FFDLY
 #endif
 	);
 
@@ -1129,7 +1145,7 @@ main(int argc, char **argv)
 
     obsolete(argv);
     noinit = noset = quiet = Sflag = sflag = showterm = 0;
-    while ((ch = getopt(argc, argv, "a:cd:e:Ii:k:m:np:qQSrsVw")) != EOF) {
+    while ((ch = getopt(argc, argv, "a:cd:e:Ii:k:m:np:qQSrsVw")) != -1) {
 	switch (ch) {
 	case 'c':		/* set control-chars */
 	    opt_c = TRUE;
