@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /* $FreeBSD$ */
@@ -41,6 +42,9 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term, pad_char */
 #include <termcap.h>		/* ospeed */
+#if defined(__FreeBSD__)
+#include <sys/param.h>
+#endif
 
 /*
  * These systems use similar header files, which define B1200 as 1200, etc.,
@@ -48,7 +52,7 @@
  * of the indices up to B115200 fit nicely in a 'short', allowing us to retain
  * ospeed's type for compatibility.
  */
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if (defined(__FreeBSD__) && (__FreeBSD_version < 700000)) || defined(__NetBSD__) || defined(__OpenBSD__)
 #undef B0
 #undef B50
 #undef B75
@@ -78,7 +82,7 @@
 #undef USE_OLD_TTY
 #endif /* USE_OLD_TTY */
 
-MODULE_ID("$Id: lib_baudrate.c,v 1.22 2002/01/19 23:07:53 Andrey.A.Chernov Exp $")
+MODULE_ID("$Id: lib_baudrate.c,v 1.25 2007/10/20 15:00:41 Rong-En.Fan Exp $")
 
 /*
  *	int
@@ -143,16 +147,20 @@ static struct speed const speeds[] =
 NCURSES_EXPORT(int)
 _nc_baudrate(int OSpeed)
 {
+#if !USE_REENTRANT
     static int last_OSpeed;
     static int last_baudrate;
+#endif
 
-    int result;
+    int result = ERR;
     unsigned i;
 
+#if !USE_REENTRANT
     if (OSpeed == last_OSpeed) {
 	result = last_baudrate;
-    } else {
-	result = ERR;
+    }
+#endif
+    if (result == ERR) {
 	if (OSpeed >= 0) {
 	    for (i = 0; i < SIZEOF(speeds); i++) {
 		if (speeds[i].s == OSpeed) {
@@ -161,7 +169,12 @@ _nc_baudrate(int OSpeed)
 		}
 	    }
 	}
-	last_baudrate = result;
+#if !USE_REENTRANT
+	if (OSpeed == last_OSpeed) {
+	    last_OSpeed = OSpeed;
+	    last_baudrate = result;
+	}
+#endif
     }
     return (result);
 }
