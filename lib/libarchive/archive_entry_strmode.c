@@ -26,17 +26,58 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include "archive.h"
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 
-int
-archive_read_support_format_all(struct archive *a)
+#include "archive_entry.h"
+#include "archive_entry_private.h"
+
+const char *
+archive_entry_strmode(struct archive_entry *entry)
 {
-	archive_read_support_format_ar(a);
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_mtree(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
+	static const char *perms = "?rwxrwxrwx ";
+	static const mode_t permbits[] =
+	    { 0400, 0200, 0100, 0040, 0020, 0010, 0004, 0002, 0001 };
+	char *bp = entry->strmode;
+	mode_t mode;
+	int i;
+
+	/* Fill in a default string, then selectively override. */
+	strcpy(bp, perms);
+
+	mode = archive_entry_mode(entry);
+	switch (archive_entry_filetype(entry)) {
+	case AE_IFREG:  bp[0] = '-'; break;
+	case AE_IFBLK:  bp[0] = 'b'; break;
+	case AE_IFCHR:  bp[0] = 'c'; break;
+	case AE_IFDIR:  bp[0] = 'd'; break;
+	case AE_IFLNK:  bp[0] = 'l'; break;
+	case AE_IFSOCK: bp[0] = 's'; break;
+	case AE_IFIFO:  bp[0] = 'p'; break;
+	}
+
+	for (i = 0; i < 9; i++)
+		if (!(mode & permbits[i]))
+			bp[i+1] = '-';
+
+	if (mode & S_ISUID) {
+		if (mode & S_IXUSR) bp[3] = 's';
+		else bp[3] = 'S';
+	}
+	if (mode & S_ISGID) {
+		if (mode & S_IXGRP) bp[6] = 's';
+		else bp[6] = 'S';
+	}
+	if (mode & S_ISVTX) {
+		if (mode & S_IXOTH) bp[9] = 't';
+		else bp[9] = 'T';
+	}
+	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
+		bp[10] = '+';
+
+	return (bp);
 }

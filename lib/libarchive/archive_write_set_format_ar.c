@@ -76,7 +76,7 @@ static ssize_t		 archive_write_ar_data(struct archive_write *,
 			     const void *buff, size_t s);
 static int		 archive_write_ar_destroy(struct archive_write *);
 static int		 archive_write_ar_finish_entry(struct archive_write *);
-static const char	*basename(const char *path);
+static const char	*ar_basename(const char *path);
 static int		 format_octal(int64_t v, char *p, int s);
 static int		 format_decimal(int64_t v, char *p, int s);
 
@@ -192,11 +192,11 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		goto size;
 	}
 
-	/* 
+	/*
 	 * Otherwise, entry is a normal archive member.
 	 * Strip leading paths from filenames, if any.
 	 */
-	if ((filename = basename(pathname)) == NULL) {
+	if ((filename = ar_basename(pathname)) == NULL) {
 		/* Reject filenames with trailing "/" */
 		archive_set_error(&a->archive, EINVAL,
 		    "Invalid filename");
@@ -507,7 +507,7 @@ format_decimal(int64_t v, char *p, int s)
 }
 
 static const char *
-basename(const char *path)
+ar_basename(const char *path)
 {
 	const char *endp, *startp;
 

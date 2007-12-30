@@ -421,6 +421,12 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	/* We've created the object and are ready to pour data into it. */
 	if (ret == ARCHIVE_OK)
 		a->archive.state = ARCHIVE_STATE_DATA;
+	/*
+	 * If it's not open, tell our client not to try writing.
+	 * In particular, dirs, links, etc, don't get written to.
+	 */
+	if (a->fd < 0)
+		archive_entry_set_size(entry, 0);
 done:
 	/* Restore the user's umask before returning. */
 	umask(a->user_umask);
