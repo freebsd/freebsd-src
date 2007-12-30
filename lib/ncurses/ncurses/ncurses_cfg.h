@@ -53,10 +53,8 @@
 #include <stdlib.h>
 #endif
 #define BSD_TPUTS 1
-#define CC_HAS_INLINE_FUNCS 1
 #define CC_HAS_PROTOS 1
 #define CPP_HAS_STATIC_CAST 1
-#define CPP_HAS_VSCAN_FUNC 1
 #define ETIP_NEEDS_MATH_H 1
 #define GCC_NORETURN __attribute__((noreturn))
 #define GCC_PRINTF 1
@@ -78,6 +76,7 @@
 #define HAVE_GETTTYNAM 1
 #define HAVE_HAS_KEY 1
 #define HAVE_INTTYPES_H 1
+#define HAVE_IOSTREAM 1
 #define HAVE_ISASCII 1
 #define HAVE_ISSETUGID 1
 #define HAVE_LANGINFO_CODESET 1
@@ -145,9 +144,10 @@
 #define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
 #define NCURSES_PATHSEP ':'
-#define NCURSES_VERSION_STRING "5.6.20061217"
+#define NCURSES_VERSION_STRING "5.6.20071222"
 #define NDEBUG 1
 #define RETSIGTYPE void
+#define SIG_ATOMIC_T volatile sig_atomic_t
 #define SIZEOF_SIGNED_CHAR 1
 #define STDC_HEADERS 1
 #define SYSTEM_NAME "FreeBSD"
@@ -160,7 +160,6 @@
 #define USE_HASHMAP 1
 #define USE_LINKS 1
 #define USE_SIGWINCH 1
-#define USE_STDIO_VSCAN 1
 #define USE_SYSMOUSE 1
 #define USE_TERMCAP 1
 #ifdef ENABLE_WIDEC
