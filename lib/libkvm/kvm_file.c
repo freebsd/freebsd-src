@@ -68,40 +68,78 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 #define KREAD(kd, addr, obj) \
 	(kvm_read(kd, addr, obj, sizeof(*obj)) != sizeof(*obj))
 
+#define KREADN(kd, addr, obj, cnt) \
+	(kvm_read(kd, addr, obj, (cnt)) != (cnt))
+
 /*
  * Get file structures.
  */
 static int
-kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
+kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 	kvm_t *kd;
-	int op, arg, nfiles;
-	long filehead_o;
+	int op, arg, nprocs;
+	long allproc_o;
 {
-	int buflen = kd->arglen, n = 0;
+	struct proc proc;
+	struct filedesc filed;
+	int buflen = kd->arglen, ocnt = 0, n = 0, once = 0, i;
+	struct file **ofiles;
 	struct file *fp;
+	struct proc *p;
 	char *where = kd->argspc;
-	struct filelist filehead;
 
-	/*
-	 * first copyout filehead
-	 */
-	if (buflen > sizeof (filehead)) {
-		if (KREAD(kd, filehead_o, &filehead)) {
-			_kvm_err(kd, kd->program, "can't read filehead");
+	if (buflen < sizeof (struct file *) + sizeof (struct file))
+		return (0);
+	if (KREAD(kd, allproc_o, &p)) {
+		_kvm_err(kd, kd->program, "cannot read allproc");
+		return (0);
+	}
+	for (; p != NULL; p = LIST_NEXT(&proc, p_list)) {
+		if (KREAD(kd, (u_long)p, &proc)) {
+			_kvm_err(kd, kd->program, "can't read proc at %x", p);
+			goto fail;
+		}
+		if (proc.p_state == PRS_NEW)
+			continue;
+		if (proc.p_fd == NULL)
+			continue;
+		if (KREAD(kd, (u_long)p->p_fd, &filed)) {
+			_kvm_err(kd, kd->program, "can't read filedesc at %x",
+			    p->p_fd);
+			goto fail;
+		}
+		if (filed.fd_lastfile + 1 > ocnt) {
+			ocnt = filed.fd_lastfile + 1;
+			free(ofiles);
+			ofiles = (struct file **)_kvm_malloc(kd,
+				ocnt * sizeof(struct file *));
+			if (ofiles == 0)
+				return (0);
+		}
+		if (KREADN(kd, (u_long)filed.fd_ofiles, ofiles,
+		    ocnt * sizeof(struct file *))) {
+			_kvm_err(kd, kd->program, "can't read ofiles at %x",
+			    filed.fd_ofiles);
 			return (0);
 		}
-		buflen -= sizeof (filehead);
-		where += sizeof (filehead);
-		*(struct filelist *)kd->argspc = filehead;
-	}
-	/*
-	 * followed by an array of file structures
-	 */
-	LIST_FOREACH(fp, &filehead, f_list) {
-		if (buflen > sizeof (struct file)) {
+		for (i = 0; i <= filed.fd_lastfile; i++) {
+			if ((fp = ofiles[i]) == NULL)
+				continue;
+			/*
+			 * copyout filehead (legacy)
+			 */
+			if (!once) {
+				*(struct file **)kd->argspc = fp;
+				*(struct file **)where = fp;
+				buflen -= sizeof (fp);
+				where += sizeof (fp);
+				once = 1;
+			}
+			if (buflen < sizeof (struct file))
+				goto fail;
 			if (KREAD(kd, (long)fp, ((struct file *)where))) {
 				_kvm_err(kd, kd->program, "can't read kfp");
-				return (0);
+				goto fail;
 			}
 			buflen -= sizeof (struct file);
 			fp = (struct file *)where;
@@ -109,11 +147,12 @@ kvm_deadfiles(kd, op, arg, filehead_o, nfiles)
 			n++;
 		}
 	}
-	if (n != nfiles) {
-		_kvm_err(kd, kd->program, "inconsistant nfiles");
-		return (0);
-	}
-	return (nfiles);
+	free(ofiles);
+	return (n);
+fail:
+	free(ofiles);
+	return (0);
+	
 }
 
 char *
@@ -122,11 +161,11 @@ kvm_getfiles(kd, op, arg, cnt)
 	int op, arg;
 	int *cnt;
 {
-	int mib[2], st, nfiles;
+	int mib[2], st, n, nfiles, nprocs;
 	size_t size;
-	struct file *fp, *fplim;
-	struct filelist filehead;
 
+	_kvm_syserr(kd, kd->program, "kvm_getfiles has been broken for years");
+	return (0);
 	if (ISALIVE(kd)) {
 		size = 0;
 		mib[0] = CTL_KERN;
@@ -144,21 +183,18 @@ kvm_getfiles(kd, op, arg, cnt)
 			return (0);
 		kd->arglen = size;
 		st = sysctl(mib, 2, kd->argspc, &size, NULL, 0);
-		if (st == -1 || size < sizeof(filehead)) {
+		if (st != 0) {
 			_kvm_syserr(kd, kd->program, "kvm_getfiles");
 			return (0);
 		}
-		filehead = *(struct filelist *)kd->argspc;
-		fp = (struct file *)(kd->argspc + sizeof (filehead));
-		fplim = (struct file *)(kd->argspc + size);
-		for (nfiles = 0; LIST_FIRST(&filehead) && (fp < fplim); nfiles++, fp++)
-			LIST_FIRST(&filehead) = LIST_NEXT(fp, f_list);
+		nfiles = size / sizeof(struct xfile);
 	} else {
-		struct nlist nl[3], *p;
+		struct nlist nl[4], *p;
 
-		nl[0].n_name = "_filehead";
-		nl[1].n_name = "_nfiles";
-		nl[2].n_name = 0;
+		nl[0].n_name = "_allproc";
+		nl[1].n_name = "_nprocs";
+		nl[2].n_name = "_nfiles";
+		nl[3].n_name = 0;
 
 		if (kvm_nlist(kd, nl) != 0) {
 			for (p = nl; p->n_type != 0; ++p)
@@ -167,11 +203,15 @@ kvm_getfiles(kd, op, arg, cnt)
 				 "%s: no such symbol", p->n_name);
 			return (0);
 		}
-		if (KREAD(kd, nl[0].n_value, &nfiles)) {
+		if (KREAD(kd, nl[1].n_value, &nprocs)) {
+			_kvm_err(kd, kd->program, "can't read nprocs");
+			return (0);
+		}
+		if (KREAD(kd, nl[2].n_value, &nfiles)) {
 			_kvm_err(kd, kd->program, "can't read nfiles");
 			return (0);
 		}
-		size = sizeof(filehead) + (nfiles + 10) * sizeof(struct file);
+		size = sizeof(void *) + (nfiles + 10) * sizeof(struct file);
 		if (kd->argspc == 0)
 			kd->argspc = (char *)_kvm_malloc(kd, size);
 		else if (kd->arglen < size)
@@ -179,9 +219,12 @@ kvm_getfiles(kd, op, arg, cnt)
 		if (kd->argspc == 0)
 			return (0);
 		kd->arglen = size;
-		nfiles = kvm_deadfiles(kd, op, arg, nl[1].n_value, nfiles);
-		if (nfiles == 0)
+		n = kvm_deadfiles(kd, op, arg, nl[0].n_value, nprocs);
+		if (n != nfiles) {
+			_kvm_err(kd, kd->program, "inconsistant nfiles");
 			return (0);
+		}
+		nfiles = n;
 	}
 	*cnt = nfiles;
 	return (kd->argspc);
