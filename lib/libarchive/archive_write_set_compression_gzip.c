@@ -378,6 +378,10 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 			state->stream.avail_out = bytes_written;
 		}
 
+		/* If there's nothing to do, we're done. */
+		if (!finishing && state->stream.avail_in == 0)
+			return (ARCHIVE_OK);
+
 		ret = deflate(&(state->stream),
 		    finishing ? Z_FINISH : Z_NO_FLUSH );
 
@@ -396,7 +400,9 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 		default:
 			/* Any other return value indicates an error. */
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-			    "GZip compression failed");
+			    "GZip compression failed:"
+			    " deflate() call returned status %d",
+			    ret);
 			return (ARCHIVE_FATAL);
 		}
 	}

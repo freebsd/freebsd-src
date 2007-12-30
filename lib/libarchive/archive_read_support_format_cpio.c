@@ -118,6 +118,8 @@ static int	archive_read_format_cpio_read_data(struct archive_read *,
 static int	archive_read_format_cpio_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	be4(const unsigned char *);
+static int	find_odc_header(struct archive_read *);
+static int	find_newc_header(struct archive_read *);
 static int	header_bin_be(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
 static int	header_bin_le(struct archive_read *, struct cpio *,
@@ -126,6 +128,8 @@ static int	header_newc(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
 static int	header_odc(struct archive_read *, struct cpio *,
 		    struct archive_entry *, size_t *, size_t *);
+static int	is_octal(const char *, size_t);
+static int	is_hex(const char *, size_t);
 static int	le4(const unsigned char *);
 static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry);
 
@@ -161,13 +165,14 @@ archive_read_support_format_cpio(struct archive *_a)
 static int
 archive_read_format_cpio_bid(struct archive_read *a)
 {
-	int bid, bytes_read;
+	int bytes_read;
 	const void *h;
 	const unsigned char *p;
 	struct cpio *cpio;
+	int bid;
 
 	cpio = (struct cpio *)(a->format->data);
-	bid = 0;
+
 	bytes_read = (a->decompressor->read_ahead)(a, &h, 6);
 	/* Convert error code into error return. */
 	if (bytes_read < 0)
@@ -176,6 +181,7 @@ archive_read_format_cpio_bid(struct archive_read *a)
 		return (-1);
 
 	p = (const unsigned char *)h;
+	bid = 0;
 	if (memcmp(p, "070707", 6) == 0) {
 		/* ASCII cpio archive (odc, POSIX.1) */
 		cpio->read_header = header_odc;
@@ -231,7 +237,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	cpio = (struct cpio *)(a->format->data);
 	r = (cpio->read_header(a, cpio, entry, &namelength, &name_pad));
 
-	if (r != ARCHIVE_OK)
+	if (r < ARCHIVE_WARN)
 		return (r);
 
 	/* Read name from buffer. */
@@ -266,7 +272,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	/* Detect and record hardlinks to previously-extracted entries. */
 	record_hardlink(cpio, entry);
 
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -306,6 +312,82 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 	}
 }
 
+/*
+ * Skip forward to the next cpio newc header by searching for the
+ * 07070[12] string.  This should be generalized and merged with
+ * find_odc_header below.
+ */
+static int
+is_hex(const char *p, size_t len)
+{
+	while (len-- > 0) {
+		if (*p < '0' || (*p > '9' && *p < 'a') || *p > 'f') {
+			return (0);
+		}
+	        ++p;
+	}
+	return (1);
+}
+
+static int
+find_newc_header(struct archive_read *a)
+{
+	const void *h;
+	const char *p, *q;
+	size_t skip, bytes, skipped = 0;
+
+	for (;;) {
+		bytes = (a->decompressor->read_ahead)(a, &h, 2048);
+		if (bytes < sizeof(struct cpio_newc_header))
+			return (ARCHIVE_FATAL);
+		p = h;
+		q = p + bytes;
+
+		/* Try the typical case first, then go into the slow search.*/
+		if (memcmp("07070", p, 5) == 0
+		    && (p[5] == '1' || p[5] == '2')
+		    && is_hex(p, sizeof(struct cpio_newc_header)))
+			return (ARCHIVE_OK);
+
+		/*
+		 * Scan ahead until we find something that looks
+		 * like an odc header.
+		 */
+		while (p + sizeof(struct cpio_newc_header) < q) {
+			switch (p[5]) {
+			case '1':
+			case '2':
+				if (memcmp("07070", p, 5) == 0
+					&& is_hex(p, sizeof(struct cpio_newc_header))) {
+					skip = p - (const char *)h;
+					(a->decompressor->consume)(a, skip);
+					skipped += skip;
+					if (skipped > 0) {
+						archive_set_error(&a->archive,
+						    0,
+						    "Skipped %d bytes before "
+						    "finding valid header",
+						    (int)skipped);
+						return (ARCHIVE_WARN);
+					}
+					return (ARCHIVE_OK);
+				}
+				p += 2;
+				break;
+			case '0':
+				p++;
+				break;
+			default:
+				p += 6;
+				break;
+			}
+		}
+		skip = p - (const char *)h;
+		(a->decompressor->consume)(a, skip);
+		skipped += skip;
+	}
+}
+
 static int
 header_newc(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
@@ -313,6 +395,11 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	const void *h;
 	const struct cpio_newc_header *header;
 	size_t bytes;
+	int r;
+
+	r = find_newc_header(a);
+	if (r < ARCHIVE_WARN)
+		return (r);
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_newc_header));
@@ -357,7 +444,81 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	/* Pad file contents to a multiple of 4. */
 	cpio->entry_padding = 3 & -cpio->entry_bytes_remaining;
-	return (ARCHIVE_OK);
+	return (r);
+}
+
+/*
+ * Skip forward to the next cpio odc header by searching for the
+ * 070707 string.  This is a hand-optimized search that could
+ * probably be easily generalized to handle all character-based
+ * cpio variants.
+ */
+static int
+is_octal(const char *p, size_t len)
+{
+	while (len-- > 0) {
+		if (*p < '0' || *p > '7')
+			return (0);
+	        ++p;
+	}
+	return (1);
+}
+
+static int
+find_odc_header(struct archive_read *a)
+{
+	const void *h;
+	const char *p, *q;
+	size_t skip, bytes, skipped = 0;
+
+	for (;;) {
+		bytes = (a->decompressor->read_ahead)(a, &h, 512);
+		if (bytes < sizeof(struct cpio_odc_header))
+			return (ARCHIVE_FATAL);
+		p = h;
+		q = p + bytes;
+
+		/* Try the typical case first, then go into the slow search.*/
+		if (memcmp("070707", p, 6) == 0
+		    && is_octal(p, sizeof(struct cpio_odc_header)))
+			return (ARCHIVE_OK);
+
+		/*
+		 * Scan ahead until we find something that looks
+		 * like an odc header.
+		 */
+		while (p + sizeof(struct cpio_odc_header) < q) {
+			switch (p[5]) {
+			case '7':
+				if (memcmp("070707", p, 6) == 0
+					&& is_octal(p, sizeof(struct cpio_odc_header))) {
+					skip = p - (const char *)h;
+					(a->decompressor->consume)(a, skip);
+					skipped += skip;
+					if (skipped > 0) {
+						archive_set_error(&a->archive,
+						    0,
+						    "Skipped %d bytes before "
+						    "finding valid header",
+						    (int)skipped);
+						return (ARCHIVE_WARN);
+					}
+					return (ARCHIVE_OK);
+				}
+				p += 2;
+				break;
+			case '0':
+				p++;
+				break;
+			default:
+				p += 6;
+				break;
+			}
+		}
+		skip = p - (const char *)h;
+		(a->decompressor->consume)(a, skip);
+		skipped += skip;
+	}
 }
 
 static int
@@ -365,11 +526,17 @@ header_odc(struct archive_read *a, struct cpio *cpio,
     struct archive_entry *entry, size_t *namelength, size_t *name_pad)
 {
 	const void *h;
+	int r;
 	const struct cpio_odc_header *header;
 	size_t bytes;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX octet-oriented cpio";
+
+	/* Find the start of the next header. */
+	r = find_odc_header(a);
+	if (r < ARCHIVE_WARN)
+		return (r);
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_odc_header));
@@ -400,7 +567,7 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	    atol8(header->c_filesize, sizeof(header->c_filesize));
 	archive_entry_set_size(entry, cpio->entry_bytes_remaining);
 	cpio->entry_padding = 0;
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
@@ -574,7 +741,7 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry)
          */
         for (le = cpio->links_head; le; le = le->next) {
                 if (le->dev == dev && le->ino == ino) {
-                        archive_entry_set_hardlink(entry, le->name);
+                        archive_entry_copy_hardlink(entry, le->name);
 
                         if (--le->links <= 0) {
                                 if (le->previous != NULL)
@@ -583,6 +750,7 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry)
                                         le->next->previous = le->previous;
                                 if (cpio->links_head == le)
                                         cpio->links_head = le->next;
+				free(le->name);
                                 free(le);
                         }
 
