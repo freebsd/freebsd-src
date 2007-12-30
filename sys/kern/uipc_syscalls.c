@@ -180,12 +180,7 @@ socket(td, uap)
 	if (error) {
 		fdclose(fdp, fp, fd, td);
 	} else {
-		FILE_LOCK(fp);
-		fp->f_data = so;	/* already has ref count */
-		fp->f_flag = FREAD|FWRITE;
-		fp->f_type = DTYPE_SOCKET;
-		fp->f_ops = &socketops;
-		FILE_UNLOCK(fp);
+		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &socketops);
 		td->td_retval[0] = fd;
 	}
 	fdrop(fp, td);
@@ -423,12 +418,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	if (pgid != 0)
 		fsetown(pgid, &so->so_sigio);
 
-	FILE_LOCK(nfp);
-	nfp->f_data = so;	/* nfp has ref count from falloc */
-	nfp->f_flag = fflag;
-	nfp->f_type = DTYPE_SOCKET;
-	nfp->f_ops = &socketops;
-	FILE_UNLOCK(nfp);
+	finit(nfp, fflag, DTYPE_SOCKET, so, &socketops);
 	/* Sync socket nonblocking/async state with file flags */
 	tmp = fflag & FNONBLOCK;
 	(void) fo_ioctl(nfp, FIONBIO, &tmp, td->td_ucred, td);
@@ -640,16 +630,8 @@ socketpair(td, uap)
 		 if (error)
 			goto free4;
 	}
-	FILE_LOCK(fp1);
-	fp1->f_flag = FREAD|FWRITE;
-	fp1->f_type = DTYPE_SOCKET;
-	fp1->f_ops = &socketops;
-	FILE_UNLOCK(fp1);
-	FILE_LOCK(fp2);
-	fp2->f_flag = FREAD|FWRITE;
-	fp2->f_type = DTYPE_SOCKET;
-	fp2->f_ops = &socketops;
-	FILE_UNLOCK(fp2);
+	finit(fp1, FREAD | FWRITE, DTYPE_SOCKET, fp1->f_data, &socketops);
+	finit(fp2, FREAD | FWRITE, DTYPE_SOCKET, fp2->f_data, &socketops);
 	so1 = so2 = NULL;
 	error = copyout(sv, uap->rsv, 2 * sizeof (int));
 	if (error)
@@ -2270,12 +2252,7 @@ sctp_peeloff(td, uap)
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 	ACCEPT_UNLOCK();
-	FILE_LOCK(nfp);
-	nfp->f_data = so;
-	nfp->f_flag = fflag;
-	nfp->f_type = DTYPE_SOCKET;
-	nfp->f_ops = &socketops;
-	FILE_UNLOCK(nfp);
+	finit(nfp, fflag, DTYPE_SOCKET, so, &socketops);
 	error = sctp_do_peeloff(head, so, (sctp_assoc_t)uap->name);
 	if (error)
 		goto noconnection;

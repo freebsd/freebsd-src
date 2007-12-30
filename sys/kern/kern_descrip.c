@@ -95,7 +95,6 @@ static int do_dup(struct thread *td, enum dup_type type, int old, int new,
 static int	fd_first_free(struct filedesc *, int, int);
 static int	fd_last_used(struct filedesc *, int, int);
 static void	fdgrowtable(struct filedesc *, int);
-static int	fdrop_locked(struct file *fp, struct thread *td);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 
@@ -137,9 +136,7 @@ struct filedesc0 {
 /*
  * Descriptor management.
  */
-struct filelist filehead;	/* head of list of open files */
-int openfiles;			/* actual number of open files */
-struct sx filelist_lock;	/* sx to protect filelist */
+volatile int openfiles;			/* actual number of open files */
 struct mtx sigio_lock;		/* mtx to protect pointers to sigio */
 void	(*mq_fdclose)(struct thread *td, int fd, struct file *fp);
 
@@ -428,9 +425,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EBADF;
 			break;
 		}
-		FILE_LOCK(fp);
 		td->td_retval[0] = OFLAGS(fp->f_flag);
-		FILE_UNLOCK(fp);
 		FILEDESC_SUNLOCK(fdp);
 		break;
 
@@ -441,12 +436,13 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EBADF;
 			break;
 		}
-		FILE_LOCK(fp);
-		fhold_locked(fp);
-		fp->f_flag &= ~FCNTLFLAGS;
-		fp->f_flag |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
-		FILE_UNLOCK(fp);
+		fhold(fp);
 		FILEDESC_SUNLOCK(fdp);
+		do {
+			tmp = flg = fp->f_flag;
+			tmp &= ~FCNTLFLAGS;
+			tmp |= FFLAGS(arg & ~O_ACCMODE) & FCNTLFLAGS;
+		} while(atomic_cmpset_int(&fp->f_flag, flg, tmp) == 0);
 		tmp = fp->f_flag & FNONBLOCK;
 		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		if (error) {
@@ -459,9 +455,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			fdrop(fp, td);
 			break;
 		}
-		FILE_LOCK(fp);
-		fp->f_flag &= ~FNONBLOCK;
-		FILE_UNLOCK(fp);
+		atomic_clear_int(&fp->f_flag, FNONBLOCK);
 		tmp = 0;
 		(void)fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
 		fdrop(fp, td);
@@ -1359,15 +1353,13 @@ int
 falloc(struct thread *td, struct file **resultfp, int *resultfd)
 {
 	struct proc *p = td->td_proc;
-	struct file *fp, *fq;
+	struct file *fp;
 	int error, i;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
 	static struct timeval lastfail;
 	static int curfail;
 
 	fp = uma_zalloc(file_zone, M_WAITOK | M_ZERO);
-	sx_xlock(&filelist_lock);
-
 	if ((openfiles >= maxuserfiles &&
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles >= maxfiles) {
@@ -1375,18 +1367,16 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
 				td->td_ucred->cr_ruid);
 		}
-		sx_xunlock(&filelist_lock);
 		uma_zfree(file_zone, fp);
 		return (ENFILE);
 	}
-	openfiles++;
+	atomic_add_int(&openfiles, 1);
 
 	/*
 	 * If the process has file descriptor zero open, add the new file
 	 * descriptor to the list of open files at that point, otherwise
 	 * put it at the front of the list of open files.
 	 */
-	fp->f_mtxp = mtx_pool_alloc(mtxpool_sleep);
 	fp->f_count = 1;
 	if (resultfp)
 		fp->f_count++;
@@ -1395,12 +1385,6 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	fp->f_data = NULL;
 	fp->f_vnode = NULL;
 	FILEDESC_XLOCK(p->p_fd);
-	if ((fq = p->p_fd->fd_ofiles[0])) {
-		LIST_INSERT_AFTER(fq, fp, f_list);
-	} else {
-		LIST_INSERT_HEAD(&filehead, fp, f_list);
-	}
-	sx_xunlock(&filelist_lock);
 	if ((error = fdalloc(td, 0, &i))) {
 		FILEDESC_XUNLOCK(p->p_fd);
 		fdrop(fp, td);
@@ -1962,6 +1946,23 @@ closef(struct file *fp, struct thread *td)
 }
 
 /*
+ * Initialize the file pointer with the specified properties.
+ * 
+ * The ops are set with release semantics to be certain that the flags, type,
+ * and data are visible when ops is.  This is to prevent ops methods from being
+ * called with bad data.
+ */
+void
+finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
+{
+	fp->f_data = data;
+	fp->f_flag = flag;
+	fp->f_type = type;
+	atomic_store_rel_ptr((volatile uintptr_t *)&fp->f_ops, (uintptr_t)ops);
+}
+
+
+/*
  * Extract the file pointer associated with the specified descriptor for the
  * current user process.
  *
@@ -2135,54 +2136,20 @@ fputsock(struct socket *so)
 	sorele(so);
 }
 
-int
-fdrop(struct file *fp, struct thread *td)
-{
-
-	FILE_LOCK(fp);
-	return (fdrop_locked(fp, td));
-}
-
 /*
- * Drop reference on struct file passed in, may call closef if the
- * reference hits zero.
- * Expects struct file locked, and will unlock it.
+ * Handle the last reference to a file being closed.
  */
-static int
-fdrop_locked(struct file *fp, struct thread *td)
+int
+_fdrop(struct file *fp, struct thread *td)
 {
 	int error;
 
-	FILE_LOCK_ASSERT(fp, MA_OWNED);
-
-	if (--fp->f_count > 0) {
-		FILE_UNLOCK(fp);
-		return (0);
-	}
-
-	/*
-	 * We might have just dropped the last reference to a file
-	 * object that is for a UNIX domain socket whose message
-	 * buffers are being examined in unp_gc().  If that is the
-	 * case, FWAIT will be set in f_gcflag and we need to wait for
-	 * unp_gc() to finish its scan.
-	 */
-	while (fp->f_gcflag & FWAIT)
-		msleep(&fp->f_gcflag, fp->f_mtxp, 0, "fpdrop", 0);
-
-	/* We have the last ref so we can proceed without the file lock. */
-	FILE_UNLOCK(fp);
-	if (fp->f_count < 0)
-		panic("fdrop: count < 0");
+	error = 0;
+	if (fp->f_count != 0)
+		panic("fdrop: count %d", fp->f_count);
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, td);
-	else
-		error = 0;
-
-	sx_xlock(&filelist_lock);
-	LIST_REMOVE(fp, f_list);
-	openfiles--;
-	sx_xunlock(&filelist_lock);
+	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
 	uma_zfree(file_zone, fp);
 
@@ -2225,9 +2192,7 @@ flock(struct thread *td, struct flock_args *uap)
 	lf.l_len = 0;
 	if (uap->how & LOCK_UN) {
 		lf.l_type = F_UNLCK;
-		FILE_LOCK(fp);
-		fp->f_flag &= ~FHASLOCK;
-		FILE_UNLOCK(fp);
+		atomic_clear_int(&fp->f_flag, FHASLOCK);
 		error = VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
 		goto done2;
 	}
@@ -2239,9 +2204,7 @@ flock(struct thread *td, struct flock_args *uap)
 		error = EBADF;
 		goto done2;
 	}
-	FILE_LOCK(fp);
-	fp->f_flag |= FHASLOCK;
-	FILE_UNLOCK(fp);
+	atomic_set_int(&fp->f_flag, FHASLOCK);
 	error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
 	    (uap->how & LOCK_NB) ? F_FLOCK : F_FLOCK | F_WAIT);
 done2:
@@ -2286,9 +2249,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		 * Check that the mode the file is being opened for is a
 		 * subset of the mode of the existing descriptor.
 		 */
-		FILE_LOCK(wfp);
 		if (((mode & (FREAD|FWRITE)) | wfp->f_flag) != wfp->f_flag) {
-			FILE_UNLOCK(wfp);
 			FILEDESC_XUNLOCK(fdp);
 			return (EACCES);
 		}
@@ -2297,8 +2258,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		fdp->fd_ofileflags[indx] = fdp->fd_ofileflags[dfd];
 		if (fp == NULL)
 			fdused(fdp, indx);
-		fhold_locked(wfp);
-		FILE_UNLOCK(wfp);
+		fhold(wfp);
 		FILEDESC_XUNLOCK(fdp);
 		if (fp != NULL)
 			/*
@@ -2419,29 +2379,23 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	int error, n;
 
-	/*
-	 * Note: because the number of file descriptors is calculated
-	 * in different ways for sizing vs returning the data,
-	 * there is information leakage from the first loop.  However,
-	 * it is of a similar order of magnitude to the leakage from
-	 * global system statistics such as kern.openfiles.
-	 */
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
 	if (req->oldptr == NULL) {
-		n = 16;		/* A slight overestimate. */
-		sx_slock(&filelist_lock);
-		LIST_FOREACH(fp, &filehead, f_list) {
-			/*
-			 * We should grab the lock, but this is an
-			 * estimate, so does it really matter?
-			 */
-			/* mtx_lock(fp->f_mtxp); */
-			n += fp->f_count;
-			/* mtx_unlock(f->f_mtxp); */
+		n = 0;
+		sx_slock(&allproc_lock);
+		FOREACH_PROC_IN_SYSTEM(p) {
+			if (p->p_state == PRS_NEW)
+				continue;
+			fdp = fdhold(p);
+			if (fdp == NULL)
+				continue;
+			/* overestimates sparse tables. */
+			n += fdp->fd_lastfile;
+			fddrop(fdp);
 		}
-		sx_sunlock(&filelist_lock);
+		sx_sunlock(&allproc_lock);
 		return (SYSCTL_OUT(req, 0, n * sizeof(xf)));
 	}
 	error = 0;
@@ -2472,7 +2426,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_vnode = fp->f_vnode;
 			xf.xf_type = fp->f_type;
 			xf.xf_count = fp->f_count;
-			xf.xf_msgcount = fp->f_msgcount;
+			xf.xf_msgcount = 0;
 			xf.xf_offset = fp->f_offset;
 			xf.xf_flag = fp->f_flag;
 			error = SYSCTL_OUT(req, &xf, sizeof(xf));
@@ -2523,7 +2477,6 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			continue;
 		bzero(kif, sizeof(*kif));
 		kif->kf_structsize = sizeof(*kif);
-		FILE_LOCK(fp);
 		vp = NULL;
 		so = NULL;
 		kif->kf_fd = i;
@@ -2531,7 +2484,6 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		case DTYPE_VNODE:
 			kif->kf_type = KF_TYPE_VNODE;
 			vp = fp->f_vnode;
-			vref(vp);
 			break;
 
 		case DTYPE_SOCKET:
@@ -2583,8 +2535,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		if (fp->f_flag & FHASLOCK)
 			kif->kf_flags |= KF_FLAG_HASLOCK;
 		kif->kf_offset = fp->f_offset;
-		FILE_UNLOCK(fp);
 		if (vp != NULL) {
+			vref(vp);
 			switch (vp->v_type) {
 			case VNON:
 				kif->kf_vnode_type = KF_VTYPE_VNON;
@@ -2736,7 +2688,7 @@ db_print_file(struct file *fp, int header)
 	p = file_to_first_proc(fp);
 	db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
 	    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
-	    fp->f_gcflag, fp->f_count, fp->f_msgcount, fp->f_vnode,
+	    0, fp->f_count, 0, fp->f_vnode,
 	    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
 }
 
@@ -2754,13 +2706,24 @@ DB_SHOW_COMMAND(file, db_show_file)
 
 DB_SHOW_COMMAND(files, db_show_files)
 {
+	struct filedesc *fdp;
 	struct file *fp;
+	struct proc *p;
 	int header;
+	int n;
 
 	header = 1;
-	LIST_FOREACH(fp, &filehead, f_list) {
-		db_print_file(fp, header);
-		header = 0;
+	FOREACH_PROC_IN_SYSTEM(p) {
+		if (p->p_state == PRS_NEW)
+			continue;
+		if ((fdp = p->p_fd) == NULL)
+			continue;
+		for (n = 0; n < fdp->fd_nfiles; ++n) {
+			if ((fp = fdp->fd_ofiles[n]) == NULL)
+				continue;
+			db_print_file(fp, header);
+			header = 0;
+		}
 	}
 }
 #endif
@@ -2772,7 +2735,7 @@ SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
     &maxfiles, 0, "Maximum number of files");
 
 SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
-    &openfiles, 0, "System-wide number of open files");
+    __DEVOLATILE(int *, &openfiles), 0, "System-wide number of open files");
 
 /* ARGSUSED*/
 static void
@@ -2781,7 +2744,6 @@ filelistinit(void *dummy)
 
 	file_zone = uma_zcreate("Files", sizeof(struct file), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
-	sx_init(&filelist_lock, "filelist lock");
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 	mtx_init(&fdesc_mtx, "fdesc", NULL, MTX_DEF);
 }

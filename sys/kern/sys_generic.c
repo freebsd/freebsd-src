@@ -646,21 +646,17 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 		FILEDESC_XUNLOCK(fdp);
 		goto out;
 	case FIONBIO:
-		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
-			fp->f_flag |= FNONBLOCK;
+			atomic_set_int(&fp->f_flag, FNONBLOCK);
 		else
-			fp->f_flag &= ~FNONBLOCK;
-		FILE_UNLOCK(fp);
+			atomic_clear_int(&fp->f_flag, FNONBLOCK);
 		data = (void *)&tmp;
 		break;
 	case FIOASYNC:
-		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
-			fp->f_flag |= FASYNC;
+			atomic_set_int(&fp->f_flag, FASYNC);
 		else
-			fp->f_flag &= ~FASYNC;
-		FILE_UNLOCK(fp);
+			atomic_clear_int(&fp->f_flag, FASYNC);
 		data = (void *)&tmp;
 		break;
 	}
