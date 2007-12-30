@@ -19,6 +19,9 @@ then imported by:
 
 The date in the tag can be obtained from contrib/ncurses/dist.mk.
 
+Remove files that are removed in this release in vendor branch (NCURSES)
+instead of HEAD.
+
 To make local changes to ncurses, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the vendor (NCURSES) branch.
 
@@ -38,9 +41,6 @@ Current local changes:
 
 ncurses/tinfo/comp_scan.c
   rev 1.2: native termcap tweaking
-
-ncurses/tinfo/lib_baudrate.c
-  rev 1.2: switch to contemporary TTY interface
 
 ncurses/tinfo/lib_termcap.c
   rev 1.2: native termcap tweaking
