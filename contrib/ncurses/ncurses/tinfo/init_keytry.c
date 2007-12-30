@@ -36,7 +36,7 @@
 
 #include <term_entry.h>
 
-MODULE_ID("$Id: init_keytry.c,v 1.8 2006/01/21 23:43:28 tom Exp $")
+MODULE_ID("$Id: init_keytry.c,v 1.10 2007/04/29 22:57:50 tom Exp $")
 
 /*
 **      _nc_init_keytry()
@@ -56,7 +56,7 @@ MODULE_ID("$Id: init_keytry.c,v 1.8 2006/01/21 23:43:28 tom Exp $")
 #endif*/
 
 #if	BROKEN_LINKER
-struct tinfo_fkeys *
+const struct tinfo_fkeys *
 _nc_tinfo_fkeysf(void)
 {
     return _nc_tinfo_fkeys;
@@ -76,9 +76,9 @@ _nc_init_keytry(void)
     if (SP != 0) {
 	for (n = 0; _nc_tinfo_fkeys[n].code; n++) {
 	    if (_nc_tinfo_fkeys[n].offset < STRCOUNT) {
-		_nc_add_to_try(&(SP->_keytry),
-			       CUR Strings[_nc_tinfo_fkeys[n].offset],
-			       _nc_tinfo_fkeys[n].code);
+		(void) _nc_add_to_try(&(SP->_keytry),
+				      CUR Strings[_nc_tinfo_fkeys[n].offset],
+				      _nc_tinfo_fkeys[n].code);
 	    }
 	}
 #if NCURSES_XNAMES
@@ -96,9 +96,9 @@ _nc_init_keytry(void)
 		    && *name == 'k'
 		    && value != 0
 		    && key_defined(value) == 0) {
-		    _nc_add_to_try(&(SP->_keytry),
-				   value,
-				   n - STRCOUNT + KEY_MAX);
+		    (void) _nc_add_to_try(&(SP->_keytry),
+					  value,
+					  n - STRCOUNT + KEY_MAX);
 		}
 	    }
 	}

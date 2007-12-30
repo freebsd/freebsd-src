@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,16 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: captoinfo.1m,v 1.20 2006/05/13 15:14:01 tom Exp $
-.TH captoinfo 1M ""
+.\" $Id: captoinfo.1m,v 1.22 2007/06/02 20:40:07 tom Exp $
+.TH @CAPTOINFO@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fBcaptoinfo\fR - convert a \fItermcap\fR description into a \fIterminfo\fR description
+\fB@CAPTOINFO@\fR - convert a \fItermcap\fR description into a \fIterminfo\fR description
 .SH SYNOPSIS
-\fBcaptoinfo\fR [\fB-v\fR\fIn\fR \fIwidth\fR]  [\fB-V\fR] [\fB-1\fR] [\fB-w\fR \fIwidth\fR] \fIfile\fR . . .
+\fB@CAPTOINFO@\fR [\fB-v\fR\fIn\fR \fIwidth\fR]  [\fB-V\fR] [\fB-1\fR] [\fB-w\fR \fIwidth\fR] \fIfile\fR . . .
 .SH DESCRIPTION
-\fBcaptoinfo\fR looks in \fIfile\fR for \fBtermcap\fR descriptions.  For each
+\fB@CAPTOINFO@\fR looks in \fIfile\fR for \fBtermcap\fR descriptions.  For each
 one found, an equivalent \fBterminfo\fR description is written to standard
 output.  Termcap \fBtc\fR capabilities are translated directly to terminfo
 \fBuse\fR capabilities.
@@ -67,7 +67,7 @@ Compiled terminal description database.
 .SH TRANSLATIONS FROM NONSTANDARD CAPABILITIES
 .PP
 Some obsolete nonstandard capabilities will automatically be translated
-into standard (SVr4/XSI Curses) terminfo capabilities by \fBcaptoinfo\fR.
+into standard (SVr4/XSI Curses) terminfo capabilities by \fB@CAPTOINFO@\fR.
 Whenever one of these automatic translations is done, the program
 will issue an notification to stderr, inviting the user to check that
 it has not mistakenly translated a completely unknown and random
@@ -145,7 +145,7 @@ GG	acs magic cookie count
 .TE
 .PP
 If the single-line capabilities occur in an entry, they will automatically
-be composed into an \fBacsc\fR string.  The double-line capabilities and
+be composed into an \fIacsc\fR string.  The double-line capabilities and
 \fBGG\fR are discarded with a warning message.
 .PP
 IBM's AIX has a terminfo facility descended from SVr1 terminfo but incompatible
@@ -164,17 +164,17 @@ font2	s2ds
 font3	s3ds
 .TE
 .PP
-Additionally, the AIX \fBbox1\fR capability will be automatically translated to
-an \fBacsc\fR string.
+Additionally, the AIX \fIbox1\fR capability will be automatically translated to
+an \fIacsc\fR string.
 .PP
 Hewlett-Packard's terminfo library supports two nonstandard terminfo
-capabilities \fBmeml\fR (memory lock) and \fBmemu\fR (memory unlock).
+capabilities \fImeml\fR (memory lock) and \fImemu\fR (memory unlock).
 These will be discarded with a warning message.
 .SH NOTES
-This utility is actually a link to \fItic\fR(1M), running in \fI-I\fR mode.
-You can use other \fItic\fR options such as \fB-f\fR and  \fB-x\fR.
+This utility is actually a link to \fB@TIC@\fR(1M), running in \fI-I\fR mode.
+You can use other \fB@TIC@\fR options such as \fB-f\fR and  \fB-x\fR.
 .PP
-The trace option isn't identical to SVr4's.  Under SVr4, instead of following
+The trace option is not identical to SVr4's.  Under SVr4, instead of following
 the \fB-v\fR with a trace level n, you repeat it n times.
 .SH SEE ALSO
 \fB@INFOCMP@\fR(1M),

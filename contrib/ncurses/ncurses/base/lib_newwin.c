@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.38 2006/10/14 20:31:19 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.42 2007/12/22 23:20:18 tom Exp $")
 
 static WINDOW *
 remove_window_from_screen(WINDOW *win)
@@ -52,16 +52,22 @@ remove_window_from_screen(WINDOW *win)
 	SCREEN *sp = *scan;
 	if (sp->_curscr == win) {
 	    sp->_curscr = 0;
+#if !USE_REENTRANT
 	    if (win == curscr)
 		curscr = 0;
+#endif
 	} else if (sp->_stdscr == win) {
 	    sp->_stdscr = 0;
+#if !USE_REENTRANT
 	    if (win == stdscr)
 		stdscr = 0;
+#endif
 	} else if (sp->_newscr == win) {
 	    sp->_newscr = 0;
+#if !USE_REENTRANT
 	    if (win == newscr)
 		newscr = 0;
+#endif
 	} else {
 	    scan = &(*scan)->_next_screen;
 	    continue;
@@ -79,29 +85,34 @@ _nc_freewin(WINDOW *win)
     int i;
     int result = ERR;
 
+    T((T_CALLED("_nc_freewin(%p)"), win));
+
     if (win != 0) {
-	for (p = _nc_windows, q = 0; p != 0; q = p, p = p->next) {
-	    if (&(p->win) == win) {
-		remove_window_from_screen(win);
-		if (q == 0)
-		    _nc_windows = p->next;
-		else
-		    q->next = p->next;
+	if (_nc_try_global(windowlist) == 0) {
+	    for (p = _nc_windows, q = 0; p != 0; q = p, p = p->next) {
+		if (&(p->win) == win) {
+		    remove_window_from_screen(win);
+		    if (q == 0)
+			_nc_windows = p->next;
+		    else
+			q->next = p->next;
 
-		if (!(win->_flags & _SUBWIN)) {
-		    for (i = 0; i <= win->_maxy; i++)
-			FreeIfNeeded(win->_line[i].text);
+		    if (!(win->_flags & _SUBWIN)) {
+			for (i = 0; i <= win->_maxy; i++)
+			    FreeIfNeeded(win->_line[i].text);
+		    }
+		    free(win->_line);
+		    free(p);
+
+		    result = OK;
+		    T(("...deleted win=%p", win));
+		    break;
 		}
-		free(win->_line);
-		free(p);
-
-		result = OK;
-		T(("...deleted win=%p", win));
-		break;
 	    }
+	    _nc_unlock_global(windowlist);
 	}
     }
-    return result;
+    returnCode(result);
 }
 
 NCURSES_EXPORT(WINDOW *)
@@ -208,23 +219,34 @@ _nc_makenew(int num_lines, int num_columns, int begy, int begx, int flags)
     WINDOW *win;
     bool is_pad = (flags & _ISPAD);
 
-    T(("_nc_makenew(%d,%d,%d,%d)", num_lines, num_columns, begy, begx));
+    T((T_CALLED("_nc_makenew(%d,%d,%d,%d)"), num_lines, num_columns, begy, begx));
 
     if (SP == 0)
-	return 0;
+	returnWin(0);
 
     if (!dimension_limit(num_lines) || !dimension_limit(num_columns))
-	return 0;
+	returnWin(0);
 
     if ((wp = typeCalloc(WINDOWLIST, 1)) == 0)
-	return 0;
+	returnWin(0);
+
+#ifdef USE_PTHREADS
+    {
+	pthread_mutexattr_t recattr;
+	memset(&recattr, 0, sizeof(recattr));
+	pthread_mutexattr_settype(&recattr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&(wp->mutex_use_window), &recattr);
+    }
+#endif
 
     win = &(wp->win);
 
     if ((win->_line = typeCalloc(struct ldat, ((unsigned) num_lines))) == 0) {
 	free(win);
-	return 0;
+	returnWin(0);
     }
+
+    _nc_lock_global(windowlist);
 
     win->_curx = 0;
     win->_cury = 0;
@@ -303,5 +325,6 @@ _nc_makenew(int num_lines, int num_columns, int begy, int begx, int flags)
 
     T((T_CREATE("window %p"), win));
 
-    return (win);
+    _nc_unlock_global(windowlist);
+    returnWin(win);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -74,7 +74,7 @@
 #include <ctype.h>
 #include <term.h>
 
-MODULE_ID("$Id: tty_update.c,v 1.238 2006/11/25 22:33:21 tom Exp $")
+MODULE_ID("$Id: tty_update.c,v 1.243 2007/10/13 20:03:32 tom Exp $")
 
 /*
  * This define controls the line-breakout optimization.  Every once in a
@@ -289,7 +289,7 @@ PutAttrChar(CARG_CH_T ch)
 #endif
     {
 	PUTC(CHDEREF(ch), SP->_ofp);	/* macro's fastest... */
-	TRACE_OUTCHARS(1);
+	COUNT_OUTCHARS(1);
     }
     SP->_curscol += chlen;
     if (char_padding) {
@@ -624,13 +624,18 @@ doupdate(void)
 
     T((T_CALLED("doupdate()")));
 
+    if (curscr == 0
+	|| newscr == 0)
+	returnCode(ERR);
+
 #ifdef TRACE
-    if (_nc_tracing & TRACE_UPDATE) {
+    if (USE_TRACEF(TRACE_UPDATE)) {
 	if (curscr->_clear)
 	    _tracef("curscr is clear");
 	else
 	    _tracedump("curscr", curscr);
 	_tracedump("newscr", newscr);
+	_nc_unlock_global(tracef);
     }
 #endif /* TRACE */
 
@@ -640,7 +645,7 @@ doupdate(void)
 	SP->_fifohold--;
 
 #if USE_SIZECHANGE
-    if (SP->_endwin || SP->_sig_winch) {
+    if (SP->_endwin || _nc_handle_sigwinch(FALSE)) {
 	/*
 	 * This is a transparent extension:  XSI does not address it,
 	 * and applications need not know that ncurses can do it.
@@ -666,7 +671,7 @@ doupdate(void)
     }
 #if USE_TRACE_TIMES
     /* zero the metering machinery */
-    _nc_outchars = 0;
+    RESET_OUTCHARS();
     (void) times(&before);
 #endif /* USE_TRACE_TIMES */
 
@@ -826,9 +831,10 @@ doupdate(void)
 
 #ifdef TRACE
 	/* show altered highlights after magic-cookie check */
-	if (_nc_tracing & TRACE_UPDATE) {
+	if (USE_TRACEF(TRACE_UPDATE)) {
 	    _tracef("After magic-cookie check...");
 	    _tracedump("newscr", newscr);
+	    _nc_unlock_global(tracef);
 	}
 #endif /* TRACE */
     }
@@ -836,7 +842,6 @@ doupdate(void)
 
     nonempty = 0;
     if (curscr->_clear || newscr->_clear) {	/* force refresh ? */
-	TR(TRACE_UPDATE, ("clearing and updating from scratch"));
 	ClrUpdate();
 	curscr->_clear = FALSE;	/* reset flag */
 	newscr->_clear = FALSE;	/* reset flag */
@@ -967,7 +972,7 @@ ClrUpdate(void)
     NCURSES_CH_T blank = ClrBlank(stdscr);
     int nonempty = min(screen_lines, newscr->_maxy + 1);
 
-    TR(TRACE_UPDATE, ("ClrUpdate() called"));
+    TR(TRACE_UPDATE, (T_CALLED("ClrUpdate")));
 
     ClearScreen(blank);
 
@@ -977,6 +982,8 @@ ClrUpdate(void)
 
     for (i = 0; i < nonempty; i++)
 	TransformLine(i);
+
+    TR(TRACE_UPDATE, (T_RETURN("")));
 }
 
 /*

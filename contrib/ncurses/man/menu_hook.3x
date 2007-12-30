@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,28 +27,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_hook.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
+.\" $Id: menu_hook.3x,v 1.9 2007/02/24 17:34:08 tom Exp $
 .TH menu_hook 3X ""
 .SH NAME
 \fBmenu_hook\fR - set hooks for automatic invocation by applications
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
-int set_item_init(MENU *menu, void (*func)(MENU *));
+int set_item_init(MENU *menu, Menu_Hook func);
 .br
-void (*)(MENU *) item_init(const MENU *menu);
+Menu_Hook item_init(const MENU *menu);
 .br
-int set_item_term(MENU *menu, void (*func)(MENU *));
+int set_item_term(MENU *menu, Menu_Hook func);
 .br
-void (*)(MENU *) item_term(const MENU *menu);
+Menu_Hook item_term(const MENU *menu);
 .br
-int set_menu_init(MENU *menu, void (*func)(MENU *));
+int set_menu_init(MENU *menu, Menu_Hook func);
 .br
-void (*)(MENU *) menu_init(const MENU *menu);
+Menu_Hook menu_init(const MENU *menu);
 .br
-int set_menu_term(MENU *menu, void (*func)(MENU *));
+int set_menu_term(MENU *menu, Menu_Hook func);
 .br
-void (*)(MENU *) menu_term(const MENU *menu);
+Menu_Hook menu_term(const MENU *menu);
 .br
 .SH DESCRIPTION
 These functions make it possible to set hook functions to be called at various

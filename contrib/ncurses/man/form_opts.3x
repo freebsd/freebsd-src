@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,20 +27,20 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_opts.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
+.\" $Id: form_opts.3x,v 1.9 2007/02/24 17:34:36 tom Exp $
 .TH form_opts 3X ""
 .SH NAME
 \fBform_opts\fR - set and get form options
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
-int set_form_opts(FORM *form, OPTIONS opts);
+int set_form_opts(FORM *form, Field_Options opts);
 .br
-int form_opts_on(FORM *form, OPTIONS opts);
+int form_opts_on(FORM *form, Field_Options opts);
 .br
-int form_opts_off(FORM *form, OPTIONS opts);
+int form_opts_off(FORM *form, Field_Options opts);
 .br
-OPTIONS form_opts(const FORM *form);
+Field_Options form_opts(const FORM *form);
 .br
 .SH DESCRIPTION
 The function \fBset_form_opts\fR sets all the given form's option bits (form

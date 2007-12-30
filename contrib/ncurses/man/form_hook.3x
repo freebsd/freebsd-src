@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,28 +27,28 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_hook.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
+.\" $Id: form_hook.3x,v 1.9 2007/02/24 17:34:18 tom Exp $
 .TH form_hook 3X ""
 .SH NAME
 \fBform_hook\fR - set hooks for automatic invocation by applications
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
-int set_field_init(FORM *form, void (*func)(FORM *));
+int set_field_init(FORM *form, Form_Hook func);
 .br
-void (*)(FORM *) field_init(const FORM *form);
+Form_Hook field_init(const FORM *form);
 .br
-int set_field_term(FORM *form, void (*func)(FORM *));
+int set_field_term(FORM *form, Form_Hook func);
 .br
-void (*)(FORM *) field_term(const FORM *form);
+Form_Hook field_term(const FORM *form);
 .br
-int set_form_init(FORM *form, void (*func)(FORM *));
+int set_form_init(FORM *form, Form_Hook func);
 .br
-void (*)(FORM *) form_init(const FORM *form);
+Form_Hook form_init(const FORM *form);
 .br
-int set_form_term(FORM *form, void (*func)(FORM *));
+int set_form_term(FORM *form, Form_Hook func);
 .br
-void (*)(FORM *) form_term(const FORM *form);
+Form_Hook form_term(const FORM *form);
 .br
 .SH DESCRIPTION
 These functions make it possible to set hook functions to be called at various

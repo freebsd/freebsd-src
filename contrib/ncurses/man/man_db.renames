@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: man_db.renames,v 0.36 2006/05/13 23:47:25 tom Exp $
+# $Id: man_db.renames,v 0.39 2007/04/07 23:06:31 tom Exp $
 # Manual-page renamings for the man_db program
 #
 # Files:
@@ -67,8 +67,10 @@ curs_insstr.3x			insstr.3ncurses
 curs_instr.3x			instr.3ncurses
 curs_inwstr.3x			inwstr.3ncurses
 curs_kernel.3x			kernel.3ncurses
+curs_legacy.3x			legacy.3ncurses
 curs_mouse.3x			mouse.3ncurses
 curs_move.3x			move.3ncurses
+curs_opaque.3x			opaque.3ncurses
 curs_outopts.3x			outopts.3ncurses
 curs_overlay.3x			overlay.3ncurses
 curs_pad.3x			pad.3ncurses
@@ -159,12 +161,15 @@ tset.1				tset.1
 vprintf.3s			vprintf.3
 wresize.3x			wresize.3ncurses
 #
-# Other cross-references:
-addch.3x			addch.3ncurses
-can_change_color.3x		can_change_color.3ncurses
-curs_attr_get.3x		attr_get.3ncurses
-dup_field.3x			dup_field.3ncurses
-init_pair.3x			init_pair.3ncurses
-#
 # Other:
 tack.1m				tack.1
+#
+getty.1				getty.8
+scanf.3				scanf.3
+ttys.5				ttys.4
+termio.7			termios.3
+system.3			system.3
+regcomp.3x			regcomp.3
+regexec.3x			regexec.3
+#
+# vile:cfgmode

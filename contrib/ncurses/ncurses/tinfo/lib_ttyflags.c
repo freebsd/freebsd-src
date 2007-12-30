@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,31 +38,35 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.13 2006/12/10 01:31:54 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.15 2007/05/26 18:54:25 tom Exp $")
 
 NCURSES_EXPORT(int)
 _nc_get_tty_mode(TTY * buf)
 {
     int result = OK;
 
-    if (cur_term == 0) {
+    if (buf == 0) {
 	result = ERR;
     } else {
-	for (;;) {
-	    if (GET_TTY(cur_term->Filedes, buf) != 0) {
-		if (errno == EINTR)
-		    continue;
-		result = ERR;
+	if (cur_term == 0) {
+	    result = ERR;
+	} else {
+	    for (;;) {
+		if (GET_TTY(cur_term->Filedes, buf) != 0) {
+		    if (errno == EINTR)
+			continue;
+		    result = ERR;
+		}
+		break;
 	    }
-	    break;
 	}
+
+	if (result == ERR)
+	    memset(buf, 0, sizeof(*buf));
+
+	TR(TRACE_BITS, ("_nc_get_tty_mode(%d): %s",
+			cur_term->Filedes, _nc_trace_ttymode(buf)));
     }
-
-    if (result == ERR)
-	memset(buf, 0, sizeof(*buf));
-
-    TR(TRACE_BITS, ("_nc_get_tty_mode(%d): %s",
-		    cur_term->Filedes, _nc_trace_ttymode(buf)));
     return (result);
 }
 
@@ -71,22 +75,26 @@ _nc_set_tty_mode(TTY * buf)
 {
     int result = OK;
 
-    if (cur_term == 0) {
+    if (buf == 0) {
 	result = ERR;
     } else {
-	for (;;) {
-	    if (SET_TTY(cur_term->Filedes, buf) != 0) {
-		if (errno == EINTR)
-		    continue;
-		if ((errno == ENOTTY) && (SP != 0))
-		    SP->_notty = TRUE;
-		result = ERR;
+	if (cur_term == 0) {
+	    result = ERR;
+	} else {
+	    for (;;) {
+		if (SET_TTY(cur_term->Filedes, buf) != 0) {
+		    if (errno == EINTR)
+			continue;
+		    if ((errno == ENOTTY) && (SP != 0))
+			SP->_notty = TRUE;
+		    result = ERR;
+		}
+		break;
 	    }
-	    break;
 	}
+	TR(TRACE_BITS, ("_nc_set_tty_mode(%d): %s",
+			cur_term->Filedes, _nc_trace_ttymode(buf)));
     }
-    TR(TRACE_BITS, ("_nc_set_tty_mode(%d): %s",
-		    cur_term->Filedes, _nc_trace_ttymode(buf)));
     return (result);
 }
 
@@ -164,19 +172,33 @@ reset_shell_mode(void)
     returnCode(ERR);
 }
 
+static TTY *
+saved_tty(void)
+{
+    TTY *result = 0;
+
+    if (SP != 0) {
+	result = &(SP->_saved_tty);
+    } else {
+	if (_nc_prescreen.saved_tty == 0) {
+	    _nc_prescreen.saved_tty = typeCalloc(TTY, 1);
+	}
+	result = _nc_prescreen.saved_tty;
+    }
+    return result;
+}
+
 /*
 **	savetty()  and  resetty()
 **
 */
-
-static TTY buf;
 
 NCURSES_EXPORT(int)
 savetty(void)
 {
     T((T_CALLED("savetty()")));
 
-    returnCode(_nc_get_tty_mode(&buf));
+    returnCode(_nc_get_tty_mode(saved_tty()));
 }
 
 NCURSES_EXPORT(int)
@@ -184,5 +206,5 @@ resetty(void)
 {
     T((T_CALLED("resetty()")));
 
-    returnCode(_nc_set_tty_mode(&buf));
+    returnCode(_nc_set_tty_mode(saved_tty()));
 }
