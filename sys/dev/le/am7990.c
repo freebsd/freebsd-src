@@ -421,10 +421,9 @@ am7990_intr(void *arg)
 	 * Clear interrupt source flags and turn off interrupts. If we
 	 * don't clear these flags before processing their sources we
 	 * could completely miss some interrupt events as the NIC can
-	 * change these flags while we're in this handler. We turn off
-	 * interrupts so we don't get another RX interrupt while still
-	 * processing the previous one in ifp->if_input() with the
-	 * driver lock dropped.
+	 * change these flags while we're in this handler. We toggle
+	 * the interrupt enable bit in order to keep receiving them
+	 * (some chips work without this, some don't).
 	 */
 	(*sc->sc_wrcsr)(sc, LE_CSR0, isr & ~(LE_C0_INEA | LE_C0_TDMD |
 	    LE_C0_STOP | LE_C0_STRT | LE_C0_INIT));
