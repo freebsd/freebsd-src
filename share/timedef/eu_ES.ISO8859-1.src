@@ -3,7 +3,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short months names
+# Short month names
 #
 Urt
 Ots
@@ -18,7 +18,7 @@ Urr
 Aza
 Abe
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 urtarrila
 otsaila
@@ -33,7 +33,7 @@ urria
 azaroa
 abendua
 #
-# Short weekdays names
+# Short weekday names
 #
 ig.
 al.
@@ -43,7 +43,7 @@ og.
 or.
 lr.
 #
-# Long weekdays names
+# Long weekday names
 #
 igandea
 astelehena
@@ -77,7 +77,7 @@ p.m.
 #
 %Y(e)ko %B-ren %ea, %X %Z
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 urtarrila
 otsaila

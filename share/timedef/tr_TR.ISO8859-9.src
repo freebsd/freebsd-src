@@ -5,7 +5,7 @@
 #
 # Evren Yurtesen <yurtesen@ispro.net.tr>
 # 
-# Short months names
+# Short month names
 #
 Oca
 Þub
@@ -20,7 +20,7 @@ Eki
 Kas
 Ara
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 Ocak
 Þubat
@@ -79,7 +79,7 @@ PM
 #
 %e %b %Y %a %Z %X
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 Ocak
 Þubat
