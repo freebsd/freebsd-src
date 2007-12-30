@@ -261,7 +261,7 @@ Library Overview
      lib_tracedmp.c lib_tracemse.c trace_buf.c
 
    It  is  rather unlikely you will ever need to change these, unless you
-   want to introduce a new debug trace level for some reasoon.
+   want to introduce a new debug trace level for some reason.
 
    There  is  another  group  of  files  that  do direct I/O via tputs(),
    computations  on  the  terminal  capabilities,  or  queries  to the OS

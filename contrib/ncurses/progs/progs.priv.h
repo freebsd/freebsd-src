@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *  Author: Thomas E. Dickey                    1997-on                     *
  ****************************************************************************/
 /*
- * $Id: progs.priv.h,v 1.30 2006/11/26 00:28:01 tom Exp $
+ * $Id: progs.priv.h,v 1.33 2007/10/13 20:33:53 tom Exp $
  *
  *	progs.priv.h
  *
@@ -110,7 +110,16 @@ extern int optind;
 #include <term_entry.h>
 #include <tic.h>
 #include <nc_tparm.h>
+
 #include <nc_alloc.h>
+#if HAVE_NC_FREEALL
+#undef ExitProgram
+#ifdef USE_LIBTINFO
+#define ExitProgram(code) _nc_free_tinfo(code)
+#else
+#define ExitProgram(code) _nc_free_tic(code)
+#endif
+#endif
 
 /* usually in <unistd.h> */
 #ifndef STDOUT_FILENO

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.70 2006/12/17 15:55:48 tom Exp $
+# $Id: Makefile.in,v 1.77 2007/10/13 22:25:53 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -98,9 +98,8 @@ ABI_VERSION	= @cf_cv_abi_version@
 LOCAL_LIBDIR	= @top_builddir@/lib
 
 LD		= @LD@
-LINK		= @LINK_PROGS@ $(LIBTOOL_LINK) $(CC)
-LDFLAGS		= @EXTRA_LDFLAGS@ \
-		@TINFO_ARGS@ @LDFLAGS@ @LD_MODEL@ @LIBS@
+LINK		= @LINK_PROGS@ $(LIBTOOL_LINK)
+LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
 
 LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)
 LDFLAGS_NORMAL	= $(LDFLAGS) $(CFLAGS_NORMAL)
@@ -109,6 +108,12 @@ LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
 LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
 
 LDFLAGS_DEFAULT	= $(LDFLAGS_@DFT_UPR_MODEL@)
+
+LIBS_TIC	= @LDFLAGS_STATIC@ @TICS_ARGS@ @TINFO_ARGS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TIC	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TIC)
+
+LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_ARGS@ @LDFLAGS_SHARED@ @LD_MODEL@ @LIBS@
+LDFLAGS_TINFO	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
 
 LINT		= @LINT@
 LINT_OPTS	= @LINT_OPTS@
@@ -200,7 +205,7 @@ uninstall.progs:
 	-@rm -f $(DESTDIR)$(bindir)/$(actual_reset)
 
 $(DESTDIR)$(bindir) :
-	sh $(srcdir)/../mkinstalldirs $@
+	sh $(srcdir)/../mkdirs.sh $@
 
 #
 # Utilities normally built by make all start here
@@ -211,40 +216,38 @@ DEPS_TIC = \
 	$(MODEL)/dump_entry$o
 
 tic$x: $(DEPS_TIC) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TIC) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_TIC) $(LDFLAGS_TIC) -o $@
 
 DEPS_TOE = \
-	$(MODEL)/toe$o \
-	$(MODEL)/dump_entry$o
+	$(MODEL)/toe$o
 
 toe$x: $(DEPS_TOE) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_TOE) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_TOE) $(LDFLAGS_TIC) -o $@
 
 DEPS_CLEAR = \
 	$(MODEL)/clear$o
 
 clear$x: $(DEPS_CLEAR) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_CLEAR) $(LDFLAGS_TINFO) -o $@
 
 DEPS_TPUT = \
 	$(MODEL)/tput$o
 
 tput$x: $(DEPS_TPUT) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_TPUT) $(LDFLAGS_TINFO) -o $@
 
 DEPS_INFOCMP = \
 	$(MODEL)/infocmp$o \
 	$(MODEL)/dump_entry$o
 
 infocmp$x: $(DEPS_INFOCMP) $(DEPS_CURSES)
-	@ECHO_LINK@ $(LINK) $(DEPS_INFOCMP) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_INFOCMP) $(LDFLAGS_TIC) -o $@
 
 DEPS_TSET = \
-	$(MODEL)/tset$o \
-	$(MODEL)/dump_entry$o
+	$(MODEL)/tset$o
 
 tset$x: $(DEPS_TSET) $(DEPS_CURSES) transform.h
-	@ECHO_LINK@ $(LINK) $(DEPS_TSET) $(LDFLAGS_DEFAULT) -o $@
+	@ECHO_LINK@ $(LINK) $(DEPS_TSET) $(LDFLAGS_TINFO) -o $@
 
 termsort.c: $(srcdir)/MKtermsort.sh
 	sh $(srcdir)/MKtermsort.sh $(AWK) $(srcdir)/../include/@TERMINFO_CAPS@ >$@

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 1998,2000,2004,2005                            *
+ *  Author: Thomas E. Dickey                                                *
  ****************************************************************************/
 
 /*
@@ -37,31 +37,32 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: home_terminfo.c,v 1.9 2005/07/02 19:43:38 tom Exp $")
+MODULE_ID("$Id: home_terminfo.c,v 1.10 2007/04/21 23:11:53 tom Exp $")
 
 #define my_length (strlen(home) + sizeof(PRIVATE_INFO))
 
 /* ncurses extension...fall back on user's private directory */
 
+#define MyBuffer _nc_globals.home_terminfo
+
 NCURSES_EXPORT(char *)
 _nc_home_terminfo(void)
 {
     char *result = 0;
-#ifdef USE_HOME_TERMINFO
+#if USE_HOME_TERMINFO
     char *home;
-    static char *temp = 0;
 
     if (use_terminfo_vars()) {
-	if (temp == 0) {
+	if (MyBuffer == 0) {
 	    if ((home = getenv("HOME")) != 0
 		&& my_length <= PATH_MAX) {
-		temp = typeMalloc(char, my_length);
-		if (temp == 0)
+		MyBuffer = typeMalloc(char, my_length);
+		if (MyBuffer == 0)
 		    _nc_err_abort(MSG_NO_MEMORY);
-		(void) sprintf(temp, PRIVATE_INFO, home);
+		(void) sprintf(MyBuffer, PRIVATE_INFO, home);
 	    }
 	}
-	result = temp;
+	result = MyBuffer;
     }
 #endif
     return result;

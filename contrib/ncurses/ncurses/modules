@@ -1,6 +1,6 @@
-# $Id: modules,v 1.107 2006/08/12 14:19:44 tom Exp $
+# $Id: modules,v 1.112 2007/09/08 22:03:34 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -127,14 +127,15 @@ charable	lib		$(wide)
 lib_add_wch	lib		$(wide)
 lib_box_set	lib		$(wide)
 lib_cchar	lib		$(wide)
-lib_get_wch	lib		$(wide)
 lib_erasewchar	lib		$(wide)
+lib_get_wch	lib		$(wide)
 lib_get_wstr	lib		$(wide)
 lib_hline_set	lib		$(wide)
 lib_in_wch	lib		$(wide)
 lib_in_wchnstr	lib		$(wide)
 lib_ins_wch	lib		$(wide)
 lib_inwstr	lib		$(wide)
+lib_key_name	lib		$(wide)
 lib_pecho_wchar	lib		$(wide)
 lib_slk_wset	lib		$(wide)
 lib_unget_wch	lib		$(wide)
@@ -151,24 +152,20 @@ lib_dft_fgbg	lib		$(base)		../include/term.h
 lib_print	lib		$(tinfo)	../include/term.h
 resizeterm	lib		$(base)		../include/term.h
 trace_xnames	lib		$(trace)	../include/term.h $(INCDIR)/term_entry.h
+use_screen	lib		$(tinfo)
+use_window	lib		$(base)
 wresize		lib		$(base)		../include/term.h
 
 # Support for termcap (and tic, etc.), which can be a separate library
 @ termlib
 access		lib		$(tinfo)
 add_tries	lib		$(tinfo)
-alloc_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 alloc_ttype	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-captoinfo	lib		$(tinfo)	$(INCDIR)/tic.h
 codes		lib		.
-comp_captab	lib		.		$(INCDIR)/tic.h ../include/term.h ../include/hashsize.h
 comp_error	lib		$(tinfo)	$(INCDIR)/tic.h
-comp_expand	lib		$(tinfo)	$(INCDIR)/tic.h
-comp_hash	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h ../include/hashsize.h
-comp_parse	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
-comp_scan	lib		$(tinfo)	$(INCDIR)/tic.h
 db_iterator	lib		$(tinfo)	$(INCDIR)/tic.h
 doalloc		lib		$(tinfo)
+entries		lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 fallback	lib		.		../include/term.h $(INCDIR)/tic.h
 free_ttype	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 getenv_num	lib		$(tinfo)
@@ -200,7 +197,6 @@ lib_ttyflags	lib		$(tinfo)	../include/term.h
 lib_twait	lib		$(serial)
 name_match	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h
 names		lib		.
-parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h ../include/parametrized.h $(INCDIR)/capdefaults.c
 read_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 read_termcap	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 setbuf		lib		$(tinfo)
@@ -211,6 +207,17 @@ tries		lib		$(base)
 trim_sgr0	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 unctrl		lib		.
 visbuf		lib		$(trace)	$(INCDIR)/tic.h
+
+# Modules used only for tic, other programs using internal interfaces
+@ ticlib
+alloc_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
+captoinfo	lib		$(tinfo)	$(INCDIR)/tic.h
+comp_captab	lib		.		$(INCDIR)/tic.h ../include/term.h ../include/hashsize.h
+comp_expand	lib		$(tinfo)	$(INCDIR)/tic.h
+comp_hash	lib		$(tinfo)	../include/term.h $(INCDIR)/tic.h ../include/hashsize.h
+comp_parse	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
+comp_scan	lib		$(tinfo)	$(INCDIR)/tic.h
+parse_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h ../include/parametrized.h $(INCDIR)/capdefaults.c
 write_entry	lib		$(tinfo)	../include/term.h $(INCDIR)/term_entry.h $(INCDIR)/tic.h
 
 # Extensions to the termlib library
@@ -221,3 +228,5 @@ key_defined	lib		$(base)
 keybound	lib		$(base)
 keyok		lib		$(base)
 version		lib		$(base)
+
+# vile:makemode

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.24 2006/11/04 21:50:03 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.28 2007/05/26 20:09:06 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .na
@@ -64,7 +64,7 @@
 .br
 \fBint del_curterm(TERMINAL *\fR\fIoterm\fR\fB);\fR
 .br
-\fBint restartterm(const char *\fR\fIterm\fR\fB, int \fR\fIfildes\fR\fB, int *\fR\fIerrret\fR\fB);\fR
+\fBint restartterm(char *\fR\fIterm\fR\fB, int \fR\fIfildes\fR\fB, int *\fR\fIerrret\fR\fB);\fR
 .br
 \fBchar *tparm(char *\fR\fIstr\fR\fB, ...);\fR
 .br
@@ -99,16 +99,22 @@ recommended.
 Initially, \fBsetupterm\fR should be called.  Note that
 \fBsetupterm\fR is automatically called by \fBinitscr\fR and
 \fBnewterm\fR.  This defines the set of terminal-dependent variables
-[listed in \fBterminfo\fR(\*n)].  The \fBterminfo\fR variables
+[listed in \fBterminfo\fR(\*n)].
+The \fBterminfo\fR variables
 \fBlines\fR and \fBcolumns\fR are initialized by \fBsetupterm\fR as
-follows: If \fBuse_env(FALSE)\fR has been called, values for
+follows:
+.RS
+.PP
+If \fBuse_env(FALSE)\fR has been called, values for
 \fBlines\fR and \fBcolumns\fR specified in \fBterminfo\fR are used.
+.PP
 Otherwise, if the environment variables \fBLINES\fR and \fBCOLUMNS\fR
 exist, their values are used.  If these environment variables do not
 exist and the program is running in a window, the current window size
 is used.  Otherwise, if the environment variables do not exist, the
 values for \fBlines\fR and \fBcolumns\fR specified in the
 \fBterminfo\fR database are used.
+.RE
 .PP
 The header files \fBcurses.h\fR and \fBterm.h\fR should be included (in this
 order) to get the definitions for these strings, numbers, and flags.
@@ -183,7 +189,8 @@ except that it is called after restoring memory to a previous state (for
 example, when reloading a game saved as a core image dump).  It assumes that
 the windows and the input and output options are the same as when memory was
 saved, but the terminal type and baud rate may be different.  Accordingly,
-it saves various tty state bits, does a setupterm, and then restores the bits.
+it saves various tty state bits, calls \fBsetupterm\fP,
+and then restores the bits.
 .PP
 The \fBtparm\fR routine instantiates the string \fIstr\fR with
 parameters \fIpi\fR.  A pointer is returned to the result of \fIstr\fR
@@ -288,6 +295,9 @@ The function \fBsetterm\fR is not described in the XSI Curses standard and must
 be considered non-portable.  All other functions are as described in the XSI
 curses standard.
 .PP
+\fBsetupterm\fP copies the terminal name to the array \fBttytype\fP.
+This is not part of X/Open Curses, but is assumed by some applications.
+.PP
 In System V Release 4, \fBset_curterm\fR has an \fBint\fR return type and
 returns \fBOK\fR or \fBERR\fR.  We have chosen to implement the XSI Curses
 semantics.
@@ -309,7 +319,7 @@ the SCREEN data allocated in either \fBinitscr\fR or \fBnewterm\fR.
 So though it is documented as a terminfo function,
 \fBmvcur\fR is really a curses function which is not well specified.
 .PP
-XSI states that the old location must be given.
+XSI states that the old location must be given for \fBmvcur\fP.
 This implementation allows the caller to use -1's for the old ordinates.
 In that case, the old location is unknown.
 .PP
@@ -317,7 +327,7 @@ Extended terminal capability names, e.g., as defined by \fBtic\ -x\fP,
 are not stored in the arrays described in this section.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_kernel\fR(3X), \fBcurs_termcap\fR(3X),
-\fBputc\fR(3S), \fBterminfo\fR(\*n)
+\fBputc\fR(3), \fBterminfo\fR(\*n)
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

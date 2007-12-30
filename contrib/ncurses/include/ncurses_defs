@@ -1,6 +1,6 @@
-# $Id: ncurses_defs,v 1.30 2006/08/05 19:27:02 tom Exp $
+# $Id: ncurses_defs,v 1.35 2007/10/06 21:18:16 tom Exp $
 ##############################################################################
-# Copyright (c) 2000-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 2000-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -33,10 +33,8 @@
 
 BROKEN_LINKER
 BSD_TPUTS
-CC_HAS_INLINE_FUNCS
 CC_HAS_PROTOS
 CPP_HAS_PARAM_INIT
-CPP_HAS_VSCAN_FUNC
 CURSES_ACS_ARRAY	acs_map
 CURSES_WACS_ARRAY	_nc_wacs
 DECL_ERRNO
@@ -68,6 +66,7 @@ HAVE_GPM_H
 HAVE_GPP_BUILTIN_H
 HAVE_GXX_BUILTIN_H
 HAVE_HAS_KEY
+HAVE_IOSTREAM
 HAVE_ISASCII
 HAVE_ISSETUGID
 HAVE_LANGINFO_CODESET
@@ -159,6 +158,7 @@ HAVE_WORKING_POLL
 HAVE_WRESIZE
 HAVE__DOSCAN
 MIXEDCASE_FILENAMES
+NCURSES_CHAR_EQ
 NCURSES_EXPANDED
 NCURSES_EXT_COLORS
 NCURSES_EXT_FUNCS
@@ -189,12 +189,10 @@ USE_LINKS
 USE_MY_MEMMOVE
 USE_OK_BCOPY
 USE_RCS_IDS
+USE_REENTRANT
 USE_SAFE_SPRINTF
 USE_SCROLL_HINTS
 USE_SIGWINCH
-USE_STDIO_VSCAN
-USE_STRSTREAM_VSCAN
-USE_STRSTREAM_VSCAN_CAST
 USE_SYMLINKS
 USE_SYSMOUSE
 USE_TERMCAP

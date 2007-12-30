@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.114 2006/12/17 19:58:19 tom Exp $
+-- $Id: INSTALL,v 1.122 2007/12/01 19:37:47 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -304,6 +304,11 @@ SUMMARY OF CONFIGURE OPTIONS:
 	return deceptive results, so you may have to override the configure
 	script.  Or you may be building tic for a smaller machine.
 
+    --disable-big-strings
+	Disable compile-time optimization of predefined tables which puts
+	all of their strings into a very long string, to reduce relocation
+	overhead.
+
     --disable-database
 	Use only built-in data.  The ncurses libraries normally read terminfo
 	and termcap data from disk.  You can configure ncurses to have a
@@ -334,6 +339,16 @@ SUMMARY OF CONFIGURE OPTIONS:
 	For testing, compile-in code that frees memory that normally would not
 	be freed, to simplify analysis of memory-leaks.
 
+	Any implementation of curses must not free the memory associated with
+	a screen, since (even after calling endwin()), it must be available
+	for use in the next call to refresh().  There are also chunks of
+	memory held for performance reasons.  That makes it hard to analyze
+	curses applications for memory leaks.  To work around this, build
+	a debugging version of the ncurses library which frees those chunks
+	which it can, and provides the _nc_free_and_exit() function to free
+	the remainder on exit.  The ncurses utility and test programs use this
+	feature, e.g., via the ExitProgram() macro.
+
     --disable-lp64
 	The header files will ignore use of the _LP64 symbol to make chtype
 	and mmask_t types 32 bits (they may be long on 64-bit hosts, for
@@ -357,6 +372,13 @@ SUMMARY OF CONFIGURE OPTIONS:
 	installed into a subdirectory, e.g., /usr/local/include/ncurses,
 	rather than the include directory.  This makes it simpler to avoid
 	compile-time conflicts with other versions of curses.h
+
+    --disable-relink
+	If --enable-rpath is given, the generated makefiles normally will
+	rebuild the libraries during install.  Use this option to simply
+	copy whatever the linked produced.
+
+	This option is ignored if --enable-rpath is not given.
 
     --disable-root-environ
 	Compile with environment restriction, so certain environment variables
@@ -476,11 +498,21 @@ SUMMARY OF CONFIGURE OPTIONS:
 	may not be accurate, or that your stty settings have disabled the use
 	of tabs.
 
+    --enable-mixed-case
+	Controls whether the filesystem on which the terminfo database resides
+	supports mixed-case filenames (normal for UNIX, but not on other
+	systems).  If you do not specify this option, the configure script
+	checks the current filesystem.
+
     --enable-no-padding
 	Compile-in support for the $NCURSES_NO_PADDING environment variable,
 	which allows you to suppress the effect of non-mandatory padding in
 	terminfo entries.  This is the default, unless you have disabled the
 	extended functions.
+
+    --enable-reentrant
+	Compile experimental configuration which improves reentrant use of the
+	library by reducing global and static variables.
 
     --enable-rpath
 	Use rpath option when generating shared libraries, and (with some
@@ -494,6 +526,9 @@ SUMMARY OF CONFIGURE OPTIONS:
 	you may be able to use workarounds such as the $LD_LIBRARY_PATH
 	environment variable, they do not work with setuid applications since
 	the LD_LIBRARY_PATH variable would be unset in that situation.
+
+	This option does not apply to --with-libtool, since libtool makes
+	extra assumptions about rpath.
 
     --enable-safe-sprintf
 	Compile with experimental safe-sprintf code.  You may consider using
@@ -659,10 +694,16 @@ SUMMARY OF CONFIGURE OPTIONS:
 
 	See also --without-dlsym
 
-    --with-hashed-db
+    --with-hashed-db[=XXX]
 	Use a hashed database for storing terminfo data rather than storing
 	each compiled entry in a separate binary file within a directory
 	tree.
+	
+	In particular, this uses the Berkeley database 1.8.5 interface, as
+	provided by that and its successors db 2, 3, and 4.  The actual
+	interface is slightly different in the successor versions of the
+	Berkeley database.  The database should have been configured using
+	"--enable-compat185".
 
 	If you use this option for configuring ncurses, tic will only be able
 	to write entries in the hashed database.  infocmp can still read
@@ -673,6 +714,12 @@ SUMMARY OF CONFIGURE OPTIONS:
 
 	You cannot have a directory containing both hashed-database and
 	filesystem-based terminfo entries.
+
+	Use the parameter value to give the install-prefix used for the
+	datbase, e.g.,
+		--with-hashed-db=/usr/local/BigBase
+	to find the corresponding include- and lib-directories under the
+	given directory.
 
 	See also the --enable-getcap option.
 
@@ -832,6 +879,15 @@ SUMMARY OF CONFIGURE OPTIONS:
     --with-termpath=XXX
 	Specify a search-list of termcap files which will be compiled into the
 	ncurses library (default:  /etc/termcap:/usr/share/misc/termcap)
+
+    --with-ticlib[=XXX]
+	When building the ncurses library, build a separate library for
+	the modules that are used only by the utility programs.  Normally
+	those would be bundled with the termlib or ncurses libraries.
+
+	If an option value is given, that overrides the name of the tic
+	library.  As in termlib, there is no ABI difference between the
+	"wide" libticw.so and libtic.so
 
     --with-trace
 	Configure the trace() function as part of the all models of the ncurses
