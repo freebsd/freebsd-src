@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 # In Portugal we don't use the 12 + am/pm but the 24h format
 #
-# Short months names
+# Short month names
 #
 Jan
 Fev
@@ -19,7 +19,7 @@ Out
 Nov
 Dez
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 Janeiro
 Fevereiro
@@ -34,7 +34,7 @@ Outubro
 Novembro
 Dezembro
 #
-# Short weekdays names
+# Short weekday names
 #
 Dom
 Seg
@@ -44,7 +44,7 @@ Qui
 Sex
 Sáb
 #
-# Long weekdays names
+# Long weekday names
 #
 Domingo
 Segunda Feira
@@ -78,7 +78,7 @@ Sábado
 #
 %a %e %b %Y %X %Z
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 Janeiro
 Fevereiro

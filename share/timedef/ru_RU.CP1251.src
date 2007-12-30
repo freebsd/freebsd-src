@@ -3,7 +3,7 @@
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
 #
-# Short months names
+# Short month names
 #
 €нв
 фев
@@ -18,7 +18,7 @@
 но€
 дек
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 €нвар€
 феврал€
@@ -33,7 +33,7 @@
 но€бр€
 декабр€
 #
-# Short weekdays names
+# Short weekday names
 #
 вс
 пн
@@ -43,7 +43,7 @@
 пт
 сб
 #
-# Long weekdays names
+# Long weekday names
 #
 воскресенье
 понедельник
@@ -77,7 +77,7 @@
 #
 %A, %e %B %Y г. %X (%Z)
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 €нварь
 февраль
