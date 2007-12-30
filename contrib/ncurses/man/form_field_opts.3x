@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,20 +27,20 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_opts.3x,v 1.12 2006/11/04 17:12:00 tom Exp $
+.\" $Id: form_field_opts.3x,v 1.13 2007/02/24 17:34:27 tom Exp $
 .TH form_field_opts 3X ""
 .SH NAME
 \fBform_field_opts\fR - set and get field options
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
-int set_field_opts(FIELD *field, OPTIONS opts);
+int set_field_opts(FIELD *field, Field_Options opts);
 .br
-int field_opts_on(FIELD *field, OPTIONS opts);
+int field_opts_on(FIELD *field, Field_Options opts);
 .br
-int field_opts_off(FIELD *field, OPTIONS opts);
+int field_opts_off(FIELD *field, Field_Options opts);
 .br
-OPTIONS field_opts(const FIELD *field);
+Field_Options field_opts(const FIELD *field);
 .br
 .SH DESCRIPTION
 The function \fBset_field_opts\fR sets all the given field's option bits (field

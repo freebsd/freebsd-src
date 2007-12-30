@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_mouse.3x,v 1.28 2005/05/15 16:18:19 tom Exp $
+.\" $Id: curs_mouse.3x,v 1.30 2006/12/30 23:43:34 tom Exp $
 .TH curs_mouse 3X ""
 .na
 .hy 0
@@ -158,22 +158,23 @@ if it is and FALSE otherwise.
 It is useful for determining what subset of
 the screen windows enclose the location of a mouse event.
 .PP
-The \fBwmouse_trafo\fR function transforms a given pair of coordinates from
-stdscr-relative coordinates to screen-relative coordinates or vice versa.
+The \fBwmouse_trafo\fR function transforms a given pair of coordinates
+from stdscr-relative coordinates
+to coordinates relative to the given window or vice versa.
 Please remember, that stdscr-relative coordinates are not always identical
-to screen-relative coordinates due to the mechanism to reserve lines on top
-or bottom of the screen for other purposes (ripoff() call, see also slk_...
-functions).
+to window-relative coordinates due to the mechanism to reserve lines on top
+or bottom of the screen for other purposes
+(see the \fBripoffline()\fP and \fBslk_init\fR calls, for example).
 If the parameter \fBto_screen\fR is \fBTRUE\fR, the pointers
-\fBpY, pX\fR must reference the coordinates of a location inside the window
-\fBwin\fR.
-They are converted to screen-relative coordinates and returned
+\fBpY, pX\fR must reference the coordinates of a location
+inside the window \fBwin\fR.
+They are converted to window-relative coordinates and returned
 through the pointers.
 If the conversion was successful, the function returns \fBTRUE\fR.
 If one of the parameters was NULL or the location is
 not inside the window, \fBFALSE\fR is returned.
 If \fBto_screen\fR is
-\fBFALSE\fR, the pointers \fBpY, pX\fR must reference screen-relative
+\fBFALSE\fR, the pointers \fBpY, pX\fR must reference window-relative
 coordinates.
 They are converted to stdscr-relative coordinates if the
 window \fBwin\fR encloses this point.
@@ -183,6 +184,10 @@ window, \fBFALSE\fR is returned.
 Please notice, that the referenced coordinates
 are only replaced by the converted coordinates if the transformation was
 successful.
+.PP
+The \fBmouse_trafo\fR function performs the same translation
+as \fBwmouse_trafo\fR,
+using stdscr for \fBwin\fR.
 .PP
 The \fBmouseinterval\fR function sets the maximum time (in thousands of a
 second) that can elapse between press and release events for them to
@@ -259,7 +264,7 @@ OS/2 EMX
 .RE
 If you are using an unsupported configuration,
 mouse events will not be visible to
-\fBncurses\fR(3X) (and the \fBwmousemask\fR function will always
+\fBncurses\fR(3X) (and the \fBmousemask\fR function will always
 return \fB0\fR).
 .PP
 If the terminfo entry contains a \fBXM\fR string,
@@ -276,14 +281,17 @@ for use with touch screens (which may be pressure-sensitive) or with
 3D-mice/trackballs/power gloves.
 .SH BUGS
 Mouse events under xterm will not in fact be ignored during cooked mode,
-if they have been enabled by \fBwmousemask\fR.
+if they have been enabled by \fBmousemask\fR.
 Instead, the xterm mouse
 report sequence will appear in the string read.
 .PP
 Mouse events under xterm will not be detected correctly in a window with
 its keypad bit off, since they are interpreted as a variety of function key.
-Your terminfo description must have \fBkmous\fR set to "\\E[M" (the beginning
-of the response from xterm for mouse clicks).
+Your terminfo description should have \fBkmous\fR set to "\\E[M"
+(the beginning of the response from xterm for mouse clicks).
+Other values for \fBkmous\fR are permitted,
+but under the same assumption,
+i.e., it is the beginning of the response.
 .PP
 Because there are no standard terminal responses that would serve to identify
 terminals which support the xterm mouse protocol, \fBncurses\fR assumes that
@@ -291,7 +299,9 @@ if your $TERM environment variable contains "xterm",
 or \fBkmous\fR is defined in
 the terminal description, then the terminal may send mouse events.
 .SH SEE ALSO
-\fBcurses\fR(3X).
+\fBcurses\fR(3X),
+\fBcurs_kernel\fR(3X),
+\fBcurs_slk\fR(3X).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:

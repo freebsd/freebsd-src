@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,13 +40,11 @@
 
 #include <sys/stat.h>
 
-#include <dump_entry.h>
-
 #if USE_HASHED_DB
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: toe.c,v 1.41 2006/08/19 18:18:09 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.46 2007/10/13 22:26:38 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
@@ -59,8 +57,7 @@ static void
 ExitProgram(int code)
 {
     _nc_free_entries(_nc_head);
-    _nc_leaks_dump_entry();
-    _nc_free_and_exit(code);
+    _nc_free_tic(code);
 }
 #endif
 
@@ -326,7 +323,7 @@ main(int argc, char *argv[])
 
     _nc_progname = _nc_rootname(argv[0]);
 
-    while ((this_opt = getopt(argc, argv, "0123456789ahuvUV")) != EOF) {
+    while ((this_opt = getopt(argc, argv, "0123456789ahuvUV")) != -1) {
 	/* handle optional parameter */
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {

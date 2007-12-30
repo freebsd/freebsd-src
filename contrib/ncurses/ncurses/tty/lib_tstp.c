@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.32 2006/04/01 19:31:34 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.36 2007/04/21 19:51:29 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -234,14 +234,12 @@ tstp(int dummy GCC_UNUSED)
 static void
 cleanup(int sig)
 {
-    static int nested;
-
     /*
      * Actually, doing any sort of I/O from within an signal handler is
      * "unsafe".  But we'll _try_ to clean up the screen and terminal
      * settings on the way out.
      */
-    if (!nested++
+    if (!_nc_globals.cleanup_nested++
 	&& (sig == SIGINT
 	    || sig == SIGQUIT)) {
 #if HAVE_SIGACTION || HAVE_SIGVEC
@@ -277,7 +275,7 @@ cleanup(int sig)
 static void
 sigwinch(int sig GCC_UNUSED)
 {
-    _nc_handle_sigwinch(-1);
+    _nc_globals.have_sigwinch = 1;
 }
 #endif /* USE_SIGWINCH */
 
@@ -351,29 +349,27 @@ CatchIfDefault(int sig, RETSIGTYPE (*handler) (int))
 NCURSES_EXPORT(void)
 _nc_signal_handler(bool enable)
 {
-    static bool initialized = FALSE;
-
     T((T_CALLED("_nc_signal_handler(%d)"), enable));
 #if USE_SIGTSTP			/* Xenix 2.x doesn't have SIGTSTP, for example */
     {
 	static bool ignore_tstp = FALSE;
 
 	if (!ignore_tstp) {
-	    static sigaction_t act, oact;
+	    static sigaction_t new_sigaction, old_sigaction;
 
 	    if (!enable) {
-		act.sa_handler = SIG_IGN;
-		sigaction(SIGTSTP, &act, &oact);
-	    } else if (act.sa_handler != SIG_DFL) {
-		sigaction(SIGTSTP, &oact, NULL);
-	    } else if (sigaction(SIGTSTP, NULL, &oact) == 0
-		       && (oact.sa_handler == SIG_DFL)) {
-		sigemptyset(&act.sa_mask);
+		new_sigaction.sa_handler = SIG_IGN;
+		sigaction(SIGTSTP, &new_sigaction, &old_sigaction);
+	    } else if (new_sigaction.sa_handler != SIG_DFL) {
+		sigaction(SIGTSTP, &old_sigaction, NULL);
+	    } else if (sigaction(SIGTSTP, NULL, &old_sigaction) == 0
+		       && (old_sigaction.sa_handler == SIG_DFL)) {
+		sigemptyset(&new_sigaction.sa_mask);
 #ifdef SA_RESTART
-		act.sa_flags |= SA_RESTART;
+		new_sigaction.sa_flags |= SA_RESTART;
 #endif /* SA_RESTART */
-		act.sa_handler = tstp;
-		(void) sigaction(SIGTSTP, &act, NULL);
+		new_sigaction.sa_handler = tstp;
+		(void) sigaction(SIGTSTP, &new_sigaction, NULL);
 	    } else {
 		ignore_tstp = TRUE;
 	    }
@@ -381,14 +377,14 @@ _nc_signal_handler(bool enable)
     }
 #endif /* !USE_SIGTSTP */
 
-    if (!initialized) {
+    if (!_nc_globals.init_signals) {
 	if (enable) {
 	    CatchIfDefault(SIGINT, cleanup);
 	    CatchIfDefault(SIGTERM, cleanup);
 #if USE_SIGWINCH
 	    CatchIfDefault(SIGWINCH, sigwinch);
 #endif
-	    initialized = TRUE;
+	    _nc_globals.init_signals = TRUE;
 	}
     }
     returnVoid;

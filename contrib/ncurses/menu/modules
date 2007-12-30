@@ -1,6 +1,6 @@
-# $Id: modules,v 1.16 2004/12/25 22:06:33 tom Exp $
+# $Id: modules,v 1.17 2006/12/24 00:52:39 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2004 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey	1996-on
 #
 
 @ base
@@ -59,3 +59,5 @@ m_sub		lib		$(srcdir)	$(MENU_PRIV_H)
 m_trace		lib		$(srcdir)	$(MENU_PRIV_H)
 m_userptr	lib		$(srcdir)	$(MENU_PRIV_H)
 m_win		lib		$(srcdir)	$(MENU_PRIV_H)
+
+# vile:makemode

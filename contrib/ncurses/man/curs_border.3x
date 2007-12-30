@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border.3x,v 1.18 2006/02/25 21:49:19 tom Exp $
+.\" $Id: curs_border.3x,v 1.19 2007/02/24 16:15:38 tom Exp $
 .TH curs_border 3X ""
 .na
 .hy 0
@@ -64,9 +64,9 @@
 .br
 \fBint wvline(WINDOW *win, chtype ch, int n);\fR
 .br
-\fBmvhline(int y, int x, chtype ch, int n);\fR
+\fBint mvhline(int y, int x, chtype ch, int n);\fR
 .br
-\fBmvwhline(WINDOW *, int y, int x, chtype ch, int n);\fR
+\fBint mvwhline(WINDOW *, int y, int x, chtype ch, int n);\fR
 .br
 \fBint mvvline(int y, int x, chtype ch, int n);\fR
 .br

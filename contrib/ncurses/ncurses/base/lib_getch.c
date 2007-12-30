@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,12 +41,20 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.75 2006/03/04 20:06:09 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.80 2007/09/29 20:39:34 tom Exp $")
 
 #include <fifo_defs.h>
 
+#if USE_REENTRANT
+NCURSES_EXPORT(int)
+NCURSES_PUBLIC_VAR(ESCDELAY) (void)
+{
+    return SP ? SP->_ESCDELAY : 1000;
+}
+#else
 NCURSES_EXPORT_VAR(int)
 ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
+#endif
 
 #ifdef NCURSES_WGETCH_EVENTS
 #define TWAIT_MASK 7
@@ -104,8 +112,10 @@ fifo_pull(void)
 	h_inc();
 
 #ifdef TRACE
-    if (_nc_tracing & TRACE_IEVENT)
+    if (USE_TRACEF(TRACE_IEVENT)) {
 	_nc_fifo_dump();
+	_nc_unlock_global(tracef);
+    }
 #endif
     return ch;
 }
@@ -200,8 +210,10 @@ fifo_push(EVENTLIST_0th(_nc_eventlist * evl))
     t_inc();
     TR(TRACE_IEVENT, ("pushed %s at %d", _tracechar(ch), tail));
 #ifdef TRACE
-    if (_nc_tracing & TRACE_IEVENT)
+    if (USE_TRACEF(TRACE_IEVENT)) {
 	_nc_fifo_dump();
+	_nc_unlock_global(tracef);
+    }
 #endif
     return ch;
 }
@@ -234,15 +246,16 @@ _nc_wgetch(WINDOW *win,
     T((T_CALLED("_nc_wgetch(%p)"), win));
 
     *result = 0;
-    if (win == 0 || SP == 0)
+    if (win == 0 || SP == 0) {
 	returnCode(ERR);
+    }
 
     if (cooked_key_in_fifo()) {
 	if (wgetch_should_refresh(win))
 	    wrefresh(win);
 
 	*result = fifo_pull();
-	returnCode(OK);
+	returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
     }
 #ifdef NCURSES_WGETCH_EVENTS
     if (evl && (evl->count == 0))
@@ -281,12 +294,10 @@ _nc_wgetch(WINDOW *win,
 	/* Return it first */
 	if (rc == KEY_EVENT) {
 	    *result = rc;
-	    returnCode(OK);
-	}
+	} else
 #endif
-
-	*result = fifo_pull();
-	returnCode(OK);
+	    *result = fifo_pull();
+	returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
     }
 
     if (win->_use_keypad != SP->_keypad_on)
@@ -318,7 +329,7 @@ _nc_wgetch(WINDOW *win,
 #ifdef NCURSES_WGETCH_EVENTS
 	    if (rc & 4) {
 		*result = KEY_EVENT;
-		returnCode(OK);
+		returnCode(KEY_CODE_YES);
 	    }
 #endif
 	    if (!rc)
@@ -384,7 +395,7 @@ _nc_wgetch(WINDOW *win,
 
     if (ch == ERR) {
 #if USE_SIZECHANGE
-	if (SP->_sig_winch) {
+	if (_nc_handle_sigwinch(FALSE)) {
 	    _nc_update_screensize();
 	    /* resizeterm can push KEY_RESIZE */
 	    if (cooked_key_in_fifo()) {
@@ -493,7 +504,7 @@ wgetch(WINDOW *win)
 static int
 kgetch(EVENTLIST_0th(_nc_eventlist * evl))
 {
-    struct tries *ptr;
+    TRIES *ptr;
     int ch = 0;
     int timeleft = ESCDELAY;
 

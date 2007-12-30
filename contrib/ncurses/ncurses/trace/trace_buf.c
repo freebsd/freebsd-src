@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,46 +35,42 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_buf.c,v 1.12 2003/03/15 21:21:36 tom Exp $")
+MODULE_ID("$Id: trace_buf.c,v 1.13 2007/04/21 22:50:08 tom Exp $")
 
-typedef struct {
-    char *text;
-    size_t size;
-} LIST;
+#define MyList _nc_globals.tracebuf_ptr
+#define MySize _nc_globals.tracebuf_used
 
 static char *
 _nc_trace_alloc(int bufnum, size_t want)
 {
     char *result = 0;
-    static LIST *list;
-    static size_t have;
 
     if (bufnum >= 0) {
-	if ((size_t) (bufnum + 1) > have) {
+	if ((size_t) (bufnum + 1) > MySize) {
 	    size_t need = (bufnum + 1) * 2;
-	    if ((list = typeRealloc(LIST, need, list)) == 0)
+	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) == 0)
 		return (0);
-	    while (need > have)
-		list[have++].text = 0;
+	    while (need > MySize)
+		MyList[MySize++].text = 0;
 	}
 
-	if (list[bufnum].text == 0
-	    || want > list[bufnum].size) {
-	    if ((list[bufnum].text = typeRealloc(char, want, list[bufnum].text))
-		!= 0)
-		  list[bufnum].size = want;
+	if (MyList[bufnum].text == 0
+	    || want > MyList[bufnum].size) {
+	    MyList[bufnum].text = typeRealloc(char, want, MyList[bufnum].text);
+	    if (MyList[bufnum].text != 0)
+		MyList[bufnum].size = want;
 	}
 
-	result = list[bufnum].text;
+	result = MyList[bufnum].text;
     }
 #if NO_LEAKS
     else {
-	if (have) {
-	    while (have--) {
-		if (list[have].text != 0)
-		    free(list[have].text);
+	if (MySize) {
+	    while (MySize--) {
+		if (MyList[MySize].text != 0)
+		    free(MyList[MySize].text);
 	    }
-	    free(list);
+	    free(MyList);
 	}
     }
 #endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,33 +39,37 @@
 #include <curses.priv.h>
 #include <term.h>		/* acs_chars */
 
-MODULE_ID("$Id: lib_traceatr.c,v 1.56 2006/12/02 21:18:28 tom Exp $")
+MODULE_ID("$Id: lib_traceatr.c,v 1.59 2007/06/09 17:22:10 tom Exp $")
 
 #define COLOR_OF(c) ((c < 0) ? "default" : (c > 7 ? color_of(c) : colors[c].name))
 
 #ifdef TRACE
 
-static const char l_brace[] = {L_BRACE, 0};
-static const char r_brace[] = {R_BRACE, 0};
+static const char l_brace[] = StringOf(L_BRACE);
+static const char r_brace[] = StringOf(R_BRACE);
 
 #ifndef USE_TERMLIB
+
+#define my_buffer _nc_globals.traceatr_color_buf
+#define my_select _nc_globals.traceatr_color_sel
+#define my_cached _nc_globals.traceatr_color_last
+
 static char *
 color_of(int c)
 {
-    static char buffer[2][80];
-    static int sel;
-    static int last = -1;
-
-    if (c != last) {
-	last = c;
-	sel = !sel;
+    if (c != my_cached) {
+	my_cached = c;
+	my_select = !my_select;
 	if (c == COLOR_DEFAULT)
-	    strcpy(buffer[sel], "default");
+	    strcpy(my_buffer[my_select], "default");
 	else
-	    sprintf(buffer[sel], "color%d", c);
+	    sprintf(my_buffer[my_select], "color%d", c);
     }
-    return buffer[sel];
+    return my_buffer[my_select];
 }
+
+#undef my_buffer
+#undef my_select
 #endif /* !USE_TERMLIB */
 
 NCURSES_EXPORT(char *)
@@ -173,17 +177,19 @@ _nc_retrace_attr_t(attr_t code)
 const char *
 _nc_altcharset_name(attr_t attr, chtype ch)
 {
+    typedef struct {
+	unsigned int val;
+	const char *name;
+    } ALT_NAMES;
+
     const char *result = 0;
 
     if ((attr & A_ALTCHARSET) && (acs_chars != 0)) {
 	char *cp;
 	char *found = 0;
-	static const struct {
-	    unsigned int val;
-	    const char *name;
-	} names[] =
+	/* *INDENT-OFF* */
+	static const ALT_NAMES names[] =
 	{
-	    /* *INDENT-OFF* */
 	    { 'l', "ACS_ULCORNER" },	/* upper left corner */
 	    { 'm', "ACS_LLCORNER" },	/* lower left corner */
 	    { 'k', "ACS_URCORNER" },	/* upper right corner */
@@ -217,9 +223,9 @@ _nc_altcharset_name(attr_t attr, chtype ch)
 	    { '|', "ACS_NEQUAL" },	/* not equal */
 	    { '}', "ACS_STERLING" },	/* UK pound sign */
 	    { '\0', (char *) 0 }
-		/* *INDENT-OFF* */
-	},
-	    *sp;
+	};
+	/* *INDENT-OFF* */
+	const ALT_NAMES *sp;
 
 	for (cp = acs_chars; cp[0] && cp[1]; cp += 2) {
 	    if (ChCharOf(cp[1]) == ChCharOf(ch)) {
