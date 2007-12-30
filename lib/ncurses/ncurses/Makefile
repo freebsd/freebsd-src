@@ -18,9 +18,11 @@ NCURSES_PATCH!=	egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES_DIR}/dist.mk | sed -e 's%^
 # From autoconf (!)
 .if defined(ENABLE_WIDEC)
 NCURSES_CH_T=		cchar_t
+NCURSES_OK_WCHAR_T=	1
 NEED_WCHAR_H=		1
 .else
 NCURSES_CH_T=		chtype
+NCURSES_OK_WCHAR_T=
 NEED_WCHAR_H=		0
 .endif
 NCURSES_CONST=		const
@@ -30,8 +32,10 @@ NCURSES_INLINE=		inline
 NCURSES_LIBUTF8=	0
 NCURSES_MBSTATE_T=	0
 NCURSES_MOUSE_VERSION=	1
+NCURSES_OPAQUE=		0
 NCURSES_OSPEED=		short
 NCURSES_SBOOL=		char
+NCURSES_SIZE_T=		short
 NCURSES_TPARM_VARARGS=	1
 NCURSES_WCHAR_T=	0
 NCURSES_WINT_T=		0
@@ -39,6 +43,8 @@ NCURSES_XNAMES=		1
 BROKEN_LINKER=		0
 BUILTIN_BOOL=		1
 ENABLE_LP64=		0
+ENABLE_OPAQUE=		NCURSES_OPAQUE
+ENABLE_REENTRANT=	0
 HAVE_TCGETATTR=		1
 HAVE_TERMIOS_H=		1
 HAVE_TERMIO_H=		0
@@ -49,6 +55,7 @@ ONEUL=			1UL
 TYPEOF_CHTYPE=		long
 TYPEOF_MMASK_T=		long
 TYPE_OF_BOOL=		unsigned char
+USE_BIG_STRINGS=	1
 USE_CXX_BOOL=		defined(__cplusplus)
 
 GENSRCS=	\
@@ -174,6 +181,7 @@ SRCS+=	\
 	comp_scan.c \
 	db_iterator.c \
 	doalloc.c \
+	entries.c \
 	free_ttype.c \
 	getenv_num.c \
 	hashed_db.c \
@@ -231,6 +239,7 @@ SRCS+=	\
 	lib_in_wchnstr.c \
 	lib_ins_wch.c \
 	lib_inwstr.c \
+	lib_key_name.c \
 	lib_pecho_wchar.c \
 	lib_slk_wset.c \
 	lib_unget_wch.c \
@@ -261,13 +270,8 @@ DBGSRCS= \
 # Used instead of the hideous read_termcap.c abomination.
 SRCS+=	termcap.c
 
-# Components of names.c and codes.c
-NAMESRCS=	boolnames boolfnames numnames numfnames strnames strfnames
-CODESRCS=	boolcodes numcodes strcodes
-
 CLEANFILES=	${GENSRCS} ${GENHDRS} keys.list make_hash term.h.new \
-		make_keys MKterm.h.awk comp_captab.c curses.head \
-		namehdr nameftr codeftr ${NAMESRCS} ${CODESRCS}
+		make_keys MKterm.h.awk comp_captab.c curses.head
 
 CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
 
@@ -309,29 +313,27 @@ FILESGROUPS=	DOCS
 .endif
 
 # Generated source
-namehdr nameftr codeftr ${NAMESRCS} ${CODESRCS}: MKnames.awk Caps
-	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKnames.awk ${NCURSES_DIR}/include/Caps
+.ORDER: names.c codes.c
 
-.ORDER: namehdr ${NAMESRCS} ${CODESRCS} nameftr codeftr names.c codes.c
+names.c: MKnames.awk
+	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKnames.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > names.c
 
-names.c: namehdr ${NAMESRCS} nameftr
-	cat namehdr ${NAMESRCS} nameftr > $@
-
-codes.c: namehdr ${CODESRCS} codeftr
-	cat namehdr ${CODESRCS} codeftr > $@
+codes.c: MKcodes.awk
+	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_gen.c: MKlib_gen.sh curses.h
 	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c: keys.list MKkeyname.awk
-	${AWK} -f ${NCURSES_DIR}/ncurses/base/MKkeyname.awk keys.list > lib_keyname.c
+	${AWK} -f ${NCURSES_DIR}/ncurses/base/MKkeyname.awk bigstrings=${USE_BIG_STRINGS} keys.list > lib_keyname.c
 
 unctrl.c: MKunctrl.awk
-	echo | ${AWK} -f ${NCURSES_DIR}/ncurses/base/MKunctrl.awk > unctrl.c
+	echo | ${AWK} -f ${NCURSES_DIR}/ncurses/base/MKunctrl.awk bigstrings=${USE_BIG_STRINGS} > unctrl.c
 
-comp_captab.c: MKcaptab.awk Caps make_hash
-	sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.awk "${AWK}" \
+comp_captab.c: MKcaptab.sh MKcaptab.awk Caps make_hash
+	sh ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.sh "${AWK}" \
+	    ${USE_BIG_STRINGS} ${NCURSES_DIR}/ncurses/tinfo/MKcaptab.awk \
 	    ${NCURSES_DIR}/include/Caps > comp_captab.c
 
 expanded.c: MKexpanded.sh
@@ -388,6 +390,7 @@ make_hash: comp_hash.c hashsize.h ncurses_def.h ${HEADERS}
 # ./configure generated
 MKterm.h.awk: MKterm.h.awk.in
 	sed <${NCURSES_DIR}/include/MKterm.h.awk.in >$@ \
+	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
@@ -396,7 +399,8 @@ MKterm.h.awk: MKterm.h.awk.in
 	    -e "/@NCURSES_XNAMES@/s%%${NCURSES_XNAMES}%" \
 	    -e "/@HAVE_TERMIOS_H@/s%%${HAVE_TERMIOS_H}%" \
 	    -e "/@HAVE_TERMIO_H@/s%%${HAVE_TERMIO_H}%" \
-	    -e "/@HAVE_TCGETATTR@/s%%${HAVE_TCGETATTR}%"
+	    -e "/@HAVE_TCGETATTR@/s%%${HAVE_TCGETATTR}%" \
+	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g"
 
 termcap.h: termcap.h.in
 	sed <${NCURSES_DIR}/include/termcap.h.in >$@ \
@@ -419,7 +423,10 @@ curses.head: curses.h.in
 	    -e "/@NCURSES_MBSTATE_T@/s%%${NCURSES_MBSTATE_T}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_MOUSE_VERSION@/s%%${NCURSES_MOUSE_VERSION}%" \
+	    -e "/@NCURSES_OK_WCHAR_T@/s%%${NCURSES_OK_WCHAR_T}%" \
+	    -e "/@NCURSES_OPAQUE@/s%%${NCURSES_OPAQUE}%" \
 	    -e "/@NCURSES_PATCH@/s%%${NCURSES_PATCH}%" \
+	    -e "/@NCURSES_SIZE_T@/s%%${NCURSES_SIZE_T}%" \
 	    -e "/@NCURSES_TPARM_VARARGS@/s%%${NCURSES_TPARM_VARARGS}%" \
 	    -e "/@NCURSES_WCHAR_T@/s%%${NCURSES_WCHAR_T}%" \
 	    -e "/@NCURSES_WCHAR_T@/s%%${NCURSES_WCHAR_T}%" \
@@ -429,6 +436,8 @@ curses.head: curses.h.in
 	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
 	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
 	    -e "s%@cf_cv_enable_lp64@%${ENABLE_LP64}%g" \
+	    -e "s%@cf_cv_enable_opaque@%${ENABLE_OPAQUE}%g" \
+	    -e "s%@cf_cv_enable_reentrant@%${ENABLE_REENTRANT}%g" \
 	    -e "s%@cf_cv_header_stdbool_h@%${HEADER_STDBOOL}%g" \
 	    -e "s%@cf_cv_type_of_bool@%${TYPE_OF_BOOL}%g" \
 	    -e "s%@cf_cv_typeof_chtype@%${TYPEOF_CHTYPE}%g" \
@@ -477,8 +486,10 @@ MAN=	\
 	curs_instr.3 \
 	curs_inwstr.3 \
 	curs_kernel.3 \
+	curs_legacy.3 \
 	curs_mouse.3 \
 	curs_move.3 \
+	curs_opaque.3 \
 	curs_outopts.3 \
 	curs_overlay.3 \
 	curs_pad.3 \
@@ -721,6 +732,14 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_kernel.3 ripoffline.3 \
 	curs_kernel.3 savetty.3 \
 	curs_kernel.3 setsyx.3 \
+	curs_legacy.3 getbegx.3 \
+	curs_legacy.3 getbegy.3 \
+	curs_legacy.3 getcurx.3 \
+	curs_legacy.3 getcury.3 \
+	curs_legacy.3 getmaxx.3 \
+	curs_legacy.3 getmaxy.3 \
+	curs_legacy.3 getparx.3 \
+	curs_legacy.3 getpary.3 \
 	curs_mouse.3 getmouse.3 \
 	curs_mouse.3 mouse_trafo.3 \
 	curs_mouse.3 mouseinterval.3 \
@@ -730,6 +749,19 @@ MLINKS=	ncurses.3 curses.3 \
 	curs_mouse.3 wmouse_trafo.3 \
 	curs_move.3 move.3 \
 	curs_move.3 wmove.3 \
+	curs_opaque.3 is_cleared.3 \
+	curs_opaque.3 is_idcok.3 \
+	curs_opaque.3 is_idlok.3 \
+	curs_opaque.3 is_immedok.3 \
+	curs_opaque.3 is_keypad.3 \
+	curs_opaque.3 is_leaveok.3 \
+	curs_opaque.3 is_nodelay.3 \
+	curs_opaque.3 is_notimeout.3 \
+	curs_opaque.3 is_scrollok.3 \
+	curs_opaque.3 is_syncok.3 \
+	curs_opaque.3 is_timeout.3 \
+	curs_opaque.3 wgetparent.3 \
+	curs_opaque.3 wgetscrreg.3 \
 	curs_outopts.3 clearok.3 \
 	curs_outopts.3 idcok.3 \
 	curs_outopts.3 idlok.3 \
