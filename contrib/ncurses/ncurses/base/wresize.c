@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,13 +32,13 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.24 2006/10/14 20:43:31 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.27 2007/12/22 23:20:53 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
 {
     while (--length >= 0)
-	free(data->text);
+	free(data[length].text);
     free(data);
     return ERR;
 }
@@ -53,6 +53,8 @@ repair_subwindows(WINDOW *cmp)
     WINDOWLIST *wp;
     struct ldat *pline = cmp->_line;
     int row;
+
+    _nc_lock_global(windowlist);
 
     for (wp = _nc_windows; wp != 0; wp = wp->next) {
 	WINDOW *tst = &(wp->win);
@@ -75,6 +77,7 @@ repair_subwindows(WINDOW *cmp)
 	    repair_subwindows(tst);
 	}
     }
+    _nc_unlock_global(windowlist);
 }
 
 /*
@@ -96,8 +99,10 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 			  (long) win->_begy, (long) win->_begx,
 			  (long) win->_maxy, (long) win->_maxx,
 			  (long) win->_regtop, (long) win->_regbottom));
-	if (_nc_tracing & TRACE_UPDATE)
+	if (USE_TRACEF(TRACE_UPDATE)) {
 	    _tracedump("...before", win);
+	    _nc_unlock_global(tracef);
+	}
     }
 #endif
 
@@ -232,8 +237,10 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 		      (long) win->_begy, (long) win->_begx,
 		      (long) win->_maxy, (long) win->_maxx,
 		      (long) win->_regtop, (long) win->_regbottom));
-    if (_nc_tracing & TRACE_UPDATE)
+    if (USE_TRACEF(TRACE_UPDATE)) {
 	_tracedump("...after:", win);
+	_nc_unlock_global(tracef);
+    }
 #endif
     returnCode(OK);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2003,2006 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,26 +32,27 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: key_defined.c,v 1.3 2003/05/17 23:12:27 tom Exp $")
+MODULE_ID("$Id: key_defined.c,v 1.6 2006/12/30 23:22:55 tom Exp $")
 
 static int
-find_definition(struct tries *tree, const char *str)
+find_definition(TRIES * tree, const char *str)
 {
-    struct tries *ptr;
-    int result = 0;
+    TRIES *ptr;
+    int result = OK;
 
     if (str != 0 && *str != '\0') {
 	for (ptr = tree; ptr != 0; ptr = ptr->sibling) {
 	    if (UChar(*str) == UChar(ptr->ch)) {
 		if (str[1] == '\0' && ptr->child != 0) {
-		    result = -1;
-		} else if ((result = find_definition(ptr->child, str + 1)) == 0) {
+		    result = ERR;
+		} else if ((result = find_definition(ptr->child, str + 1))
+			   == OK) {
 		    result = ptr->value;
 		} else if (str[1] == '\0') {
-		    result = -1;
+		    result = ERR;
 		}
 	    }
-	    if (result != 0)
+	    if (result != OK)
 		break;
 	}
     }
@@ -60,7 +61,8 @@ find_definition(struct tries *tree, const char *str)
 
 /*
  * Returns the keycode associated with the given string.  If none is found,
- * return 0.  If the string is only a prefix to other strings, return -1.
+ * return OK.  If the string is only a prefix to other strings, return ERR.
+ * Otherwise, return the keycode's value (neither OK/ERR).
  */
 NCURSES_EXPORT(int)
 key_defined(const char *str)

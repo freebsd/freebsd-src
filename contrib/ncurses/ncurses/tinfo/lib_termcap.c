@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,26 +45,20 @@
 
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.58 2006/09/02 19:39:46 Miroslav.Lichvar Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.61 2007/06/02 19:36:03 tom Exp $")
 
 NCURSES_EXPORT_VAR(char *) UP = 0;
 NCURSES_EXPORT_VAR(char *) BC = 0;
 
-typedef struct {
-    long sequence;
-    char *fix_sgr0;		/* this holds the filtered sgr0 string */
-    char *last_bufp;		/* help with fix_sgr0 leak */
-    TERMINAL *last_term;
-} CACHE;
+#define MyCache  _nc_globals.tgetent_cache
+#define CacheInx _nc_globals.tgetent_index
+#define CacheSeq _nc_globals.tgetent_sequence
 
-#define MAX_CACHE 4
-static CACHE cache[MAX_CACHE];
-static int in_cache = 0;
-
-#define FIX_SGR0 cache[in_cache].fix_sgr0
-#define LAST_TRM cache[in_cache].last_term
-#define LAST_BUF cache[in_cache].last_bufp
-#define LAST_SEQ cache[in_cache].sequence
+#define FIX_SGR0 MyCache[CacheInx].fix_sgr0
+#define LAST_TRM MyCache[CacheInx].last_term
+#define LAST_BUF MyCache[CacheInx].last_bufp
+#define LAST_USE MyCache[CacheInx].last_used
+#define LAST_SEQ MyCache[CacheInx].sequence
 
 /***************************************************************************
  *
@@ -84,8 +78,6 @@ static int in_cache = 0;
 NCURSES_EXPORT(int)
 tgetent(char *bufp, const char *name)
 {
-    static long sequence;
-
     int errcode;
     int n;
     bool found_cache = FALSE;
@@ -100,11 +92,17 @@ tgetent(char *bufp, const char *name)
      * caller, but if tgetent() is called with the same buffer, that is
      * good enough, since the previous data would be invalidated by the
      * current call.
+     *
+     * bufp may be a null pointer, e.g., GNU termcap.  That allocates data,
+     * which is good until the next tgetent() call.  The conventional termcap
+     * is inconvenient because of the fixed buffer size, but because it uses
+     * caller-supplied buffers, can have multiple terminal descriptions in
+     * use at a given time.
      */
-    for (n = 0; n < MAX_CACHE; ++n) {
-	bool same_result = (bufp != 0 && cache[n].last_bufp == bufp);
+    for (n = 0; n < TGETENT_MAX; ++n) {
+	bool same_result = (MyCache[n].last_used && MyCache[n].last_bufp == bufp);
 	if (same_result) {
-	    in_cache = n;
+	    CacheInx = n;
 	    if (FIX_SGR0 != 0) {
 		FreeAndNull(FIX_SGR0);
 	    }
@@ -114,10 +112,10 @@ tgetent(char *bufp, const char *name)
 	    if (LAST_TRM != 0 && LAST_TRM != cur_term) {
 		TERMINAL *trm = LAST_TRM;
 		del_curterm(LAST_TRM);
-		for (in_cache = 0; in_cache < MAX_CACHE; ++in_cache)
+		for (CacheInx = 0; CacheInx < TGETENT_MAX; ++CacheInx)
 		    if (LAST_TRM == trm)
 			LAST_TRM = 0;
-		in_cache = n;
+		CacheInx = n;
 	    }
 	    found_cache = TRUE;
 	    break;
@@ -126,15 +124,15 @@ tgetent(char *bufp, const char *name)
     if (!found_cache) {
 	int best = 0;
 
-	for (in_cache = 0; in_cache < MAX_CACHE; ++in_cache) {
-	    if (LAST_SEQ < cache[best].sequence) {
-		best = in_cache;
+	for (CacheInx = 0; CacheInx < TGETENT_MAX; ++CacheInx) {
+	    if (LAST_SEQ < MyCache[best].sequence) {
+		best = CacheInx;
 	    }
 	}
-	in_cache = best;
+	CacheInx = best;
     }
     LAST_TRM = cur_term;
-    LAST_SEQ = ++sequence;
+    LAST_SEQ = ++CacheSeq;
 
     PC = 0;
     UP = 0;
@@ -164,6 +162,7 @@ tgetent(char *bufp, const char *name)
 	    }
 	}
 	LAST_BUF = bufp;
+	LAST_USE = TRUE;
 
 	(void) baudrate();	/* sets ospeed as a side-effect */
 
@@ -282,9 +281,10 @@ tgetstr(NCURSES_CONST char *id, char **area)
 NCURSES_EXPORT(void)
 _nc_tgetent_leaks(void)
 {
-    for (in_cache = 0; in_cache < MAX_CACHE; ++in_cache) {
+    for (CacheInx = 0; CacheInx < TGETENT_MAX; ++CacheInx) {
 	FreeIfNeeded(FIX_SGR0);
-	del_curterm(LAST_TRM);
+	if (LAST_TRM != 0)
+	    del_curterm(LAST_TRM);
     }
 }
 #endif

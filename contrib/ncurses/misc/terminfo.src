@@ -6,8 +6,8 @@
 # Report bugs and new terminal descriptions to
 #	bug-ncurses@gnu.org
 #
-#	$Revision: 1.303 $
-#	$Date: 2006/10/07 17:52:03 $
+#	$Revision: 1.318 $
+#	$Date: 2007/11/03 19:02:01 $
 #
 # The original header is preserved below for reference.  It is noted that there
 # is a "newer" version which differs in some cosmetic details (but actually
@@ -316,6 +316,16 @@ glasstty|classic glass tty interpreting ASCII control characters,
 vanilla|dumb tty,
 	OTbs,
 	bel=^G, cr=^M, cud1=^J, ind=^J,
+
+# This is almost the same as "dumb", but with no prespecified width.
+# DEL and ^C are hardcoded to act as kill characters.
+# ^D acts as a line break (just like newline).
+# It also interprets
+#      \033];xxx\007 
+# for compatibility with xterm -TD
+9term|Plan9 terminal emulator for X,
+	am,
+	OTnl=^J, bel=^G, cud1=^J,
 
 #### ANSI.SYS/ISO 6429/ECMA-48 Capabilities
 #
@@ -2691,8 +2701,9 @@ putty|PuTTY terminal emulator,
 vt100-putty|Reset PuTTY to pure vt100,
 	rs2=\E<\E["p\Ec\E[?3l\E]R\E[40"p\E[61"p\E[50;1;2"p,
 	use=vt100,
+# palette is hardcoded...
 putty-256color|PuTTY 0.58 with xterm 256-colors,
-	use=xterm+256color, use=putty,
+	initc@, use=xterm+256color, use=putty,
 
 # One of the keyboard selections is "VT100+".
 # pterm (the X11 port) uses shifted F1-F10 as F11-F20
@@ -3015,11 +3026,10 @@ xterm-xfree86|xterm terminal emulator (XFree86),
 xterm-new|modern xterm terminal emulator,
 	npc,
 	indn=\E[%p1%dS, kDC=\E[3;2~, kEND=\E[1;2F, kHOM=\E[1;2H,
-	kIC=\E[2;2~, kLFT=\E[1;2D, kNXT=\E[6;2~, kPRV=\E[5;2~,
-	kRIT=\E[1;2C, kb2=\EOE, kcbt=\E[Z, kcub1=\EOD, kcud1=\EOB,
-	kcuf1=\EOC, kcuu1=\EOA, kend=\EOF, kent=\EOM, khome=\EOH,
-	kich1=\E[2~, kind=\E[1;2B, kmous=\E[M, knp=\E[6~,
-	kpp=\E[5~, kri=\E[1;2A, rin=\E[%p1%dT, use=xterm+pcfkeys,
+	kIC=\E[2;2~, kNXT=\E[6;2~, kPRV=\E[5;2~, kb2=\EOE,
+	kcbt=\E[Z, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
+	kend=\EOF, kent=\EOM, khome=\EOH, kich1=\E[2~, kmous=\E[M,
+	knp=\E[6~, kpp=\E[5~, rin=\E[%p1%dT, use=xterm+pcfkeys,
 	use=xterm-basic,
 #
 # This fragment describes as much of XFree86 xterm's "pc-style" function
@@ -3060,25 +3070,30 @@ xterm+pcfkeys|fragment for PC-style fkeys,
 # modifyCursorKeys resource.  These fragments list the modified cursor-keys
 # that might apply to xterm+pcfkeys with different values of that resource.
 xterm+pcc3|fragment with modifyCursorKeys:3,
-	kDN=\E[>1;2B, kDN5=\E[>1;5B, kDN6=\E[>1;6B,
+	kLFT=\E[>1;2D, kRIT=\E[>1;2C, kind=\E[>1;2B,
+	kri=\E[>1;2A, kDN=\E[>1;2B, kDN5=\E[>1;5B, kDN6=\E[>1;6B,
 	kLFT5=\E[>1;5D, kLFT6=\E[>1;6D, kRIT5=\E[>1;5C,
 	kRIT6=\E[>1;6C, kUP=\E[>1;2A, kUP5=\E[>1;5A,
 	kUP6=\E[>1;6A,
 
 xterm+pcc2|fragment with modifyCursorKeys:2,
+	kLFT=\E[1;2D, kRIT=\E[1;2C, kind=\E[1;2B, kri=\E[1;2A,
 	kDN=\E[1;2B, kDN5=\E[1;5B, kDN6=\E[1;6B, kLFT5=\E[1;5D,
 	kLFT6=\E[1;6D, kRIT5=\E[1;5C, kRIT6=\E[1;6C, kUP=\E[1;2A,
 	kUP5=\E[1;5A, kUP6=\E[1;6A,
 
 xterm+pcc1|fragment with modifyCursorKeys:1,
-	kDN=\E[2B, kDN5=\E[5B, kDN6=\E[6B, kLFT5=\E[5D,
-	kLFT6=\E[6D, kRIT5=\E[5C, kRIT6=\E[6C, kUP=\E[2A,
-	kUP5=\E[5A, kUP6=\E[6A,
+	kLFT=\E[2D, kRIT=\E[2C, kind=\E[2B, kri=\E[2A, kDN=\E[2B,
+	kDN5=\E[5B, kDN6=\E[6B, kLFT5=\E[5D, kLFT6=\E[6D,
+	kRIT5=\E[5C, kRIT6=\E[6C, kUP=\E[2A, kUP5=\E[5A,
+	kUP6=\E[6A,
 
 xterm+pcc0|fragment with modifyCursorKeys:0,
-	kDN=\EO2B, kDN5=\EO5B, kDN6=\EO6B, kLFT5=\EO5D,
-	kLFT6=\EO6D, kRIT5=\EO5C, kRIT6=\EO6C, kUP=\EO2A,
-	kUP5=\EO5A, kUP6=\EO6A,
+	kLFT=\EO2D, kRIT=\EO2C, kind=\EO2B, kri=\EO2A, kDN=\EO2B,
+	kDN5=\EO5B, kDN6=\EO6B, kLFT5=\EO5D, kLFT6=\EO6D,
+	kRIT5=\EO5C, kRIT6=\EO6C, kUP=\EO2A, kUP5=\EO5A,
+	kUP6=\EO6A,
+
 #
 # Here are corresponding fragments from xterm patch #216:
 #
@@ -3101,24 +3116,37 @@ xterm+pcf0|fragment with modifyFunctionKeys:0,
 	kf59=\E[23;3~, kf6=\E[17~, kf60=\E[24;3~, kf61=\EO4P,
 	kf62=\EO4Q, kf63=\EO4R, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
 #
-xterm+pcf2|fragment with modifyFunctionKeys:0,
+xterm+pcf2|fragment with modifyFunctionKeys:2,
 	kf1=\EOP, kf10=\E[21~, kf11=\E[23~, kf12=\E[24~,
-	kf13=\E[2P, kf14=\E[2Q, kf15=\E[2R, kf16=\E[2S,
+	kf13=\E[1;2P, kf14=\E[1;2Q, kf15=\E[1;2R, kf16=\E[1;2S,
 	kf17=\E[15;2~, kf18=\E[17;2~, kf19=\E[18;2~, kf2=\EOQ,
 	kf20=\E[19;2~, kf21=\E[20;2~, kf22=\E[21;2~,
-	kf23=\E[23;2~, kf24=\E[24;2~, kf25=\E[5P, kf26=\E[5Q,
-	kf27=\E[5R, kf28=\E[5S, kf29=\E[15;5~, kf3=\EOR,
+	kf23=\E[23;2~, kf24=\E[24;2~, kf25=\E[1;5P, kf26=\E[1;5Q,
+	kf27=\E[1;5R, kf28=\E[1;5S, kf29=\E[15;5~, kf3=\EOR,
 	kf30=\E[17;5~, kf31=\E[18;5~, kf32=\E[19;5~,
 	kf33=\E[20;5~, kf34=\E[21;5~, kf35=\E[23;5~,
-	kf36=\E[24;5~, kf37=\E[6P, kf38=\E[6Q, kf39=\E[6R,
-	kf4=\EOS, kf40=\E[6S, kf41=\E[15;6~, kf42=\E[17;6~,
+	kf36=\E[24;5~, kf37=\E[1;6P, kf38=\E[1;6Q, kf39=\E[1;6R,
+	kf4=\EOS, kf40=\E[1;6S, kf41=\E[15;6~, kf42=\E[17;6~,
 	kf43=\E[18;6~, kf44=\E[19;6~, kf45=\E[20;6~,
-	kf46=\E[21;6~, kf47=\E[23;6~, kf48=\E[24;6~, kf49=\E[3P,
-	kf5=\E[15~, kf50=\E[3Q, kf51=\E[3R, kf52=\E[3S,
-	kf53=\E[15;3~, kf54=\E[17;3~, kf55=\E[18;3~,
-	kf56=\E[19;3~, kf57=\E[20;3~, kf58=\E[21;3~,
-	kf59=\E[23;3~, kf6=\E[17~, kf60=\E[24;3~, kf61=\E[4P,
-	kf62=\E[4Q, kf63=\E[4R, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
+	kf46=\E[21;6~, kf47=\E[23;6~, kf48=\E[24;6~,
+	kf49=\E[1;3P, kf5=\E[15~, kf50=\E[1;3Q, kf51=\E[1;3R,
+	kf52=\E[1;3S, kf53=\E[15;3~, kf54=\E[17;3~,
+	kf55=\E[18;3~, kf56=\E[19;3~, kf57=\E[20;3~,
+	kf58=\E[21;3~, kf59=\E[23;3~, kf6=\E[17~, kf60=\E[24;3~,
+	kf61=\E[1;4P, kf62=\E[1;4Q, kf63=\E[1;4R, kf7=\E[18~,
+	kf8=\E[19~, kf9=\E[20~,
+#
+# Those chunks use the new-style (the xterm oldFunctionKeys resource is false).
+# Alternatively, the same scheme with old-style function keys as in xterm-r6
+# is shown here (because that is used in mrxvt and mlterm):
+xterm+r6f2|xterm with oldFunctionKeys and modifyFunctionKeys:2,
+	kf1=\E[11~, kf13=\E[11;2~, kf14=\E[12;2~, kf15=\E[13;2~,
+	kf16=\E[14;2~, kf2=\E[12~, kf25=\E[11;5~, kf26=\E[12;5~,
+	kf27=\E[13;5~, kf28=\E[14;5~, kf3=\E[13~, kf37=\E[11;6~,
+	kf38=\E[12;6~, kf39=\E[13;6~, kf4=\E[14~, kf40=\E[14;6~,
+	kf49=\E[11;3~, kf50=\E[12;3~, kf51=\E[13;3~,
+	kf52=\E[14;3~, kf61=\E[11;4~, kf62=\E[12;4~,
+	kf63=\E[13;4~, use=xterm+pcf2,
 #
 # This chunk is used for building the VT220/Sun/PC keyboard variants.
 xterm-basic|modern xterm terminal emulator - common,
@@ -3157,6 +3185,8 @@ xterm-xi|xterm on XI Graphics Accelerated X under BSD/OS 3.1,
 xterm-16color|xterm with 16 colors like aixterm,
 	use=ibm+16color, use=xterm-new,
 
+# This is a compile-time feature of XFree86 xterm beginning with
+# patch #111 (1999/7/10) -TD
 xterm+256color|xterm 256-color feature,
 	ccc,
 	colors#256, pairs#32767,
@@ -3165,6 +3195,18 @@ xterm+256color|xterm 256-color feature,
 	setaf=\E[%?%p1%{8}%<%t3%p1%d%e%p1%{16}%<%t9%p1%{8}%-%d%e38;5;%p1%d%;m,
 	setb@, setf@,
 
+# This is a compile-time feature of XFree86 xterm beginning with
+# patch #115 (1999/9/18) -TD
+#
+# Note that the escape sequences used are the same as for 256-colors - xterm
+# has a different table of default color resource values.  If built for
+# 256-colors, it can still handle an 88-color palette by using the initc
+# capability.
+#
+# At this time (2007/7/14), except for rxvt 2.7.x, none of the other terminals
+# which support the xterm+256color feature support the associated initc
+# capability.  So it is cancelled in the entries which use this and/or the
+# xterm+256color block.
 xterm+88color|xterm 88-color feature,
 	colors#88, pairs#7744, use=xterm+256color,
 
@@ -3444,11 +3486,23 @@ gnome-fc5|GNOME Terminal,
 	rs2=\E7\E[r\E8\E[m\E[?7h\E[!p\E[?1;3;4;6l\E[4l\E>\E[?1000l\E[?25h,
 	use=ansi+enq, use=xterm+pcc0, use=gnome-rh90,
 
-gnome|GNOME Terminal,
-	use=gnome-fc5,
+# GNOME Terminal 2.18.1 (2007 snapshot)
+#
+# For any "recent" version of gnome-terminal, it is futile to attempt to
+# support modifiers on cursor- and keypad keys because the program usually
+# is hardcoded to set $TERM to "xterm", and on startup, it builds a subset
+# of the keys (which more/less correspond to the termcap values), and will
+# interpret those according to the $TERM value, but others not in the
+# terminfo according to some constantly changing set of hacker guidelines -TD
+gnome-2007|GNOME Terminal snapshot 2.18.1,
+	use=xterm+pcc2, use=gnome-fc5,
 
+gnome|GNOME Terminal,
+	use=gnome-2007,
+
+# palette is hardcoded...
 gnome-256color|GNOME Terminal with xterm 256-colors,
-	use=xterm+256color, use=gnome,
+	initc@, use=xterm+256color, use=gnome,
 
 # XFCE Terminal 0.2.5.4beta2
 #
@@ -3551,14 +3605,29 @@ konsole-16color|klone of xterm-16color,
 konsole|KDE console window,
 	use=konsole-xf4x,
 
-# Based on mlterm 2.9.2's mlterm.ti, with corrections/additions from reading
-# the source code and running tack -TD
+# palette is hardcoded...
+konsole-256color|KDE console window with xterm 256-colors,
+	initc@, use=xterm+256color, use=konsole,
+
+# This is mlterm 2.9.3's mlterm.ti, with some additions/corrections -TD
 #
-# This is nominally a vt102 emulator, with features borrowed from rxvt and
+# It is nominally a vt102 emulator, with features borrowed from rxvt and
 # xterm.
 #
-# There are some problems with vttest:
-#	test of character sets leaves it in line-drawing mode.
+# The function keys are numbered based on shift/control/alt modifiers, except
+# that the control-modifier itself is used to spawn a new copy of mlterm (the
+# "-P" option).  So control/F1 to control/F12 may not be usable, depending on
+# how it is configured.
+#
+#				kf1 to kf12	\E[11~   to \E[24~
+#	shift			kf1 to kf12	\E[11;2~ to \E[24;2~
+#	alt			kf1 to kf12	\E[11;3~ to \E[24;3~
+#	shift/alt		kf1 to kf12	\E[11;4~ to \E[24;4~
+#	control			kf1 to kf12	\E[11;5~ to \E[24;5~ (maybe)
+#	control/shift		kf1 to kf12	\E[11;6~ to \E[24;6~
+#	control/alt		kf1 to kf12	\E[11;7~ to \E[24;7~
+#	control/shit/alt	kf1 to kf12	\E[11;8~ to \E[24;8~
+#
 mlterm|multi lingual terminal emulator,
 	am, eslok, km, mc5i, mir, msgr, npc, xenl,
 	colors#8, cols#80, it#8, lines#24, pairs#64,
@@ -3574,21 +3643,29 @@ mlterm|multi lingual terminal emulator,
 	ich1=\E[@, il=\E[%p1%dL, il1=\E[L, ind=^J, indn=\E[%p1%dS,
 	is2=\E7\E[r\E[m\E[?7h\E[?1;3;4;6l\E[4l\E8\E>,
 	kbs=\177, kcub1=\EOD, kcud1=\EOB, kcuf1=\EOC, kcuu1=\EOA,
-	kdch1=\E[3~, kend=\EOF, kent=\EOM, kf1=\E[11~, kf10=\E[21~,
-	kf11=\E[23~, kf12=\E[24~, kf2=\E[12~, kf3=\E[13~,
-	kf4=\E[14~, kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~,
-	kf9=\E[20~, kfnd=\E[1~, khome=\EOH, kich1=\E[2~,
-	kmous=\E[M, knp=\E[6~, kpp=\E[5~, kslt=\E[4~, mc0=\E[i,
-	nel=\EE, op=\E[39;49m, rc=\E8, rev=\E[7m, ri=\EM,
-	rin=\E[%p1%dT, rmacs=\E(B, rmam=\E[?7l,
-	rmcup=\E[2J\E[?47l\E8, rmir=\E[4l, rmkx=\E[?1l\E>,
-	rmso=\E[27m, rmul=\E[24m,
+	kdch1=\E[3~, kend=\EOF, kent=\EOM, kfnd=\E[1~, khome=\EOH,
+	kich1=\E[2~, kmous=\E[M, knp=\E[6~, kpp=\E[5~, kslt=\E[4~,
+	mc0=\E[i, nel=\EE, op=\E[39;49m, rc=\E8, rev=\E[7m, ri=\EM,
+	rin=\E[%p1%dT, rmacs=\E(B, rmam=\E[?7l, rmcup=\E[?1049l,
+	rmir=\E[4l, rmkx=\E[?1l\E>, rmso=\E[27m, rmul=\E[24m,
 	rs2=\E7\E[r\E8\E[m\E[?7h\E[?1;3;4;6l\E[4l\E>\E[?1000l,
 	sc=\E7, setab=\E[4%p1%dm, setaf=\E[3%p1%dm,
 	sgr=\E[0%?%p6%t;1%;%?%p2%t;4%;%?%p1%p3%|%t;7%;m%?%p9%t\E(0%e\E(B%;,
-	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smcup=\E7\E[?47h,
+	sgr0=\E[m\E(B, smacs=\E(0, smam=\E[?7h, smcup=\E[?1049h,
 	smir=\E[4h, smkx=\E[?1h\E=, smso=\E[7m, smul=\E[4m,
-	tbc=\E[3g, vpa=\E[%i%p1%dd, use=vt100+enq,
+	tbc=\E[3g, u6=\E[%i%d;%dR, u7=\E[6n, u8=\E[?1;2c, u9=\E[c,
+	vpa=\E[%i%p1%dd, use=mlterm+pcfkeys, use=xterm+r6f2,
+
+# The insert/delete/home/end keys do not respond to modifiers because mlterm
+# looks in its termcap to decide which string to send.  If it used terminfo
+# (when available), it could use the extended names introduced for xterm.
+mlterm+pcfkeys|fragment for PC-style fkeys,
+	kLFT=\EO1;2D, kNXT=\E[6;2~, kPRV=\E[5;2~, kRIT=\EO1;2C,
+	kDN=\EO1;2B, kDN5=\EO1;5B, kDN6=\EO1;6B, kIC5=\E[2;5~,
+	kIC6=\E[2;6~, kLFT5=\EO1;5D, kLFT6=\EO1;6D,
+	kNXT5=\E[6;5~, kNXT6=\E[6;6~, kPRV5=\E[5;5~,
+	kPRV6=\E[5;6~, kRIT5=\EO1;5C, kRIT6=\EO1;6C, kUP=\EO1;2A,
+	kUP5=\EO1;5A, kUP6=\EO1;6A,
 
 # From: Thomas Dickey <dickey@clark.net> 04 Oct 1997
 # Updated: Oezguer Kesim <kesim@math.fu-berlin.de> 02 Nov 1997
@@ -3607,7 +3684,7 @@ mlterm|multi lingual terminal emulator,
 #
 # rxvt is normally configured to look for "xterm" or "xterm-color" as $TERM.
 # Since rxvt is not really compatible with xterm, it should be configured as
-# "rxvt" (monochrome) and "rxvt-color".
+# "rxvt" or "rxvt-color".
 #
 # removed dch/dch1 because they are inconsistent with bce/ech -TD
 # remove km as per tack test -TD
@@ -3677,6 +3754,7 @@ rxvt-basic|rxvt terminal base (X Window System),
 #  F18              ESC [ 32 ~   ESC [ 32 $   ESC [ 32 ^   ESC [ 32 @
 #  F19              ESC [ 33 ~   ESC [ 33 $   ESC [ 33 ^   ESC [ 33 @
 #  F20              ESC [ 34 ~   ESC [ 34 $   ESC [ 34 ^   ESC [ 34 @
+#
 #                                                          Application
 #  Up               ESC [ A      ESC [ a      ESC O a      ESC O A
 #  Down             ESC [ B      ESC [ b      ESC O b      ESC O B
@@ -3704,10 +3782,18 @@ rxvt-basic|rxvt terminal base (X Window System),
 #  XK_KP_8          8                                      ESC O x
 #  XK_KP_9          9                                      ESC O y
 #
+# The source-code for rxvt actually defines mappings for F21-F35, using
+# "ESC [ 35 ~" to "ESC [  49 ~".  Keyboards with more than 12 function keys
+# are rare, so this entry uses the shift- and control-modifiers as in
+# xterm+pcfkeys to define keys past F12.
+#
+# kIC is normally not used, since rxvt performs a paste for that (shifted
+# insert), unless private mode 35 is set.
+#
 # kDN, kDN5, kDN6, etc are extensions based on the names from xterm+pcfkeys -TD
 # Removed kDN6, etc (control+shift) since rxvt does not implement this -TD
 rxvt+pcfkeys|fragment for PC-style fkeys,
-	kDC=\E[3$, kEND=\E[8$, kHOM=\E[7$, kIC=\E2$, kLFT=\E[d,
+	kDC=\E[3$, kEND=\E[8$, kHOM=\E[7$, kIC=\E[2$, kLFT=\E[d,
 	kNXT=\E[6$, kPRV=\E[5$, kRIT=\E[c, kcub1=\E[D, kcud1=\E[B,
 	kcuf1=\E[C, kcuu1=\E[A, kdch1=\E[3~, kel=\E[8\^,
 	kend=\E[8~, kf1=\E[11~, kf10=\E[21~, kf11=\E[23~,
@@ -3722,7 +3808,10 @@ rxvt+pcfkeys|fragment for PC-style fkeys,
 	kf41=\E[33\^, kf42=\E[34\^, kf43=\E[23@, kf44=\E[24@,
 	kf5=\E[15~, kf6=\E[17~, kf7=\E[18~, kf8=\E[19~, kf9=\E[20~,
 	kfnd=\E[1~, khome=\E[7~, kich1=\E[2~, knp=\E[6~, kpp=\E[5~,
-	kslt=\E[4~, kDN=\E[b, kDN5=\EOb, kLFT5=\EOd, kRIT5=\EOc,
+	kslt=\E[4~, kDC5=\E[3\^, kDC6=\E[3@, kDN=\E[b, kDN5=\EOb,
+	kEND5=\E[8\^, kEND6=\E[8@, kHOM5=\E[7\^, kHOM6=\E[7@,
+	kIC5=\E[2\^, kIC6=\E[2@, kLFT5=\EOd, kNXT5=\E[6\^,
+	kNXT6=\E[6@, kPRV5=\E[5\^, kPRV6=\E[5@, kRIT5=\EOc,
 	kUP=\E[a, kUP5=\EOa,
 
 rxvt|rxvt terminal emulator (X Window System),
@@ -3746,6 +3835,13 @@ rxvt-cygwin-native|rxvt terminal emulator (native MS Window System port) on cygw
 # NO_BRIGHTCOLOR defined.  rxvt needs more work...
 rxvt-16color|xterm with 16 colors like aixterm,
 	ncv#32, use=ibm+16color, use=rxvt,
+
+# mrxvt 0.5.3
+#
+# mrxvt is based on rxvt 2.7.11, but has by default XTERM_FKEYS defined, which
+# makes its function-keys different from other flavors of rxvt -TD
+mrxvt|multitabbed rxvt,
+	use=xterm+pcc2, use=xterm+r6f2, use=rxvt,
 
 # From: Michael Jennings <mej@valinux.com>
 #
@@ -15183,6 +15279,82 @@ ncr7901|ncr 7901 model,
 	sgr0=^O, smso=\E0Q\016, smul=\E0`\016,
 	vpa=\013%p1%{64}%+%c,
 
+# Newbury Data Recording Limited (Newbury Data)
+#
+# Have been manufacturing and reselling  various peripherals for a long time
+# They don't make terminals anymore, but are still in business (in 2007).
+# Their e-mail address is at ndsales@newburydata.co.uk
+# and their post address is:
+#
+# Newbury Data Recording Ltd,
+# Premier Park, Road One,
+# Winsford, Cheshire, CW7 3PT
+#
+# Their technical support is still good, they sent me for free a printed copy
+# of the 9500 user manual and I got it just 1 week after I first contacted them
+# (in 2005)!
+
+# NDR 9500
+# Manufactured in the early/mid eighties, behaves almost the same as a
+# Televideo 950.  Take a 950, change its cabinet for a more 80s-ish one (but
+# keep the same keyboard layout), add an optional 25-line mode, replace the DIP
+# switches with a menu and remove the "lock line" feature (ESC !  1 and ESC ! 
+# 2), here is the NDR 9500.  Even the line-lock, albeit disabled, is
+# recognized:  if you type in "ESC !", the next (third) character is not
+# echoed, showing that the terminal was actually waiting for a parameter!
+ndr9500|nd9500|Newbury Data 9500,
+	am, bw, hs, mc5i, mir, msgr, ul, xon,
+	cols#80, lines#24, wsl#79,
+	acsc=qKnImAjDwNuLtMvOlBkCxJ, bel=^G, cbt=\EI, civis=\E.0,
+	clear=\E;, cnorm=\E.1, cr=^M, cub1=^H, cud1=^V, cuf1=^L,
+	cup=\E=%p1%{32}%+%c%p2%{32}%+%c, cuu1=^K, dch1=\EW,
+	dim=\E), dl1=\ER, dsl=\Eh, ed=\EY, el=\ET,
+	flash=\Eb$<50/>\Ed, fsl=^M, home=^^, ht=^I, hts=\E1,
+	ich1=\EQ, il1=\EE, ind=^J, is2=\Ew\E'\EDF\El\Er\EO,
+	kDC=\Er, kDL=\EO, kEOL=\Et, kIC=\Eq, kcbt=\EI, kclr=^Z,
+	kcub1=^H, kcud1=^V, kcuf1=^L, kcuu1=^K, kdch1=\EW, kdl1=\ER,
+	ked=\EY, kel=\ET, kent=^M, kf1=^A@\r, kf10=^AI\r, kf11=^AJ\r,
+	kf12=^A`\r, kf13=^Aa\r, kf14=^Ab\r, kf15=^Ac\r, kf16=^Ad\r,
+	kf17=^Ae\r, kf18=^Af\r, kf19=^Ag\r, kf2=^AA\r, kf20=^Ah\r,
+	kf21=^Ai\r, kf22=^Aj\r, kf3=^AB\r, kf4=^AC\r, kf5=^AD\r,
+	kf6=^AE\r, kf7=^AF\r, kf8=^AG\r, kf9=^AH\r, khome=^^,
+	kich1=\EQ, kil1=\EE, kprt=\EP, mc4=\Ea, mc5=\E`, nel=^_,
+	pfloc=\E|%{48}%p1%+%c2%p2\031,
+	pfx=\E|%{48}%p1%+%c1%p2\031, prot=\E), ri=\Ej,
+	rmacs=\E%%, rmir=\Er, rmso=\E(, rmxon=^N,
+	sgr=\E%%\E(%?%p1%p5%p8%|%|%t\E)%;%?%p9%t\E$%;,
+	sgr0=\EG0\E%%\E(, smacs=\E$, smir=\Eq, smso=\E), smxon=^O,
+	tbc=\E3, tsl=\Eg\Ef\011%p1%{32}%+%c, .kbs=^H,
+
+ndr9500-nl|NDR 9500 with no status line,
+	hs@,
+	wsl@,
+	dsl@, fsl@, tsl@, use=ndr9500,
+
+ndr9500-25|NDR 9500 with 25th line enabled,
+	lines#25, use=ndr9500,
+
+ndr9500-25-nl|NDR 9500 with 25 lines and no status line,
+	lines#25, use=ndr9500-nl,
+
+ndr9500-mc|NDR 9500 with magic cookies (enables underline inverse video invisible and blink),
+	msgr@,
+	xmc#1,
+	blink=\EG2, invis=\EG1, rev=\EG4, rmso=\EG0, rmul=\EG0,
+	sgr=\E%%\E(%?%p5%p8%|%t\E)%;%?%p9%t\E$%;\EG%{48}%?%p7%t%{1}%+%;%?%p4%t%{2}%+%;%?%p3%p1%|%t%{4}%+%;%?%p2%t%{8}%+%;%c,
+	sgr0=\EG0\E%%\E(, smso=\EG4, smul=\EG8, use=ndr9500,
+
+ndr9500-25-mc|NDR 500 with 25 lines and magic cookies,
+	lines#25, use=ndr9500-mc,
+
+ndr9500-mc-nl|NDR 9500 with magic cookies and no status line,
+	hs@,
+	wsl@,
+	dsl@, fsl@, tsl@, use=ndr9500-mc,
+
+ndr9500-25-mc-nl|NDR 9500 with 25 lines and magic cookies and no status line,
+	lines#25, use=ndr9500-mc-nl,
+
 #### Perkin-Elmer (Owl)
 #
 # These are official terminfo entries from within Perkin-Elmer.
@@ -18147,19 +18319,19 @@ h19-us|h19us|h19-smul|heathkit w/keypad shifted/underscore cursor,
 h19|heath|h19-b|heathkit|heath-19|z19|zenith|heathkit h19,
 	OTbs, am, eslok, hs, mir, msgr,
 	cols#80, it#8, lines#24,
-	acsc=, bel=^G, clear=\EE, cnorm=\Ey4, cr=^M, cub1=^H, cud1=\EB,
-	cuf1=\EC, cup=\EY%p1%{32}%+%c%p2%{32}%+%c, cuu1=\EA,
-	cvvis=\Ex4, dch1=\EN, ed=\EJ, el=\EK, fsl=\Ek\Ey5, home=\EH,
-	ht=^I, ind=^J, ip=<1.5/>, kbs=^H, kcub1=\ED, kcud1=\EB,
-	kcuf1=\EC, kcuu1=\EA, kf1=\ES, kf2=\ET, kf3=\EU, kf4=\EV,
-	kf5=\EW, kf6=\EP, kf7=\EQ, kf8=\ER, khome=\EH, lf6=blue,
-	lf7=red, lf8=white, ri=\EI, rmacs=\EG, rmir=\EO, rmso=\Eq,
-	smacs=\EF, smir=\E@, smso=\Ep,
-	tsl=\Ej\Ex5\EY8%p1%{32}%+%c\Eo\Eo,
+	acsc=~\^x`qanbkcjdmelfgg+hai.kwsutvutvozs{, bel=^G,
+	clear=\EE, cnorm=\Ey4, cr=^M, cub1=^H, cud1=\EB, cuf1=\EC,
+	cup=\EY%p1%{32}%+%c%p2%{32}%+%c, cuu1=\EA, cvvis=\Ex4,
+	dch1=\EN, ed=\EJ, el=\EK, fsl=\Ek\Ey5, home=\EH, ht=^I, ind=^J,
+	ip=<1.5/>, kbs=^H, kcub1=\ED, kcud1=\EB, kcuf1=\EC,
+	kcuu1=\EA, kf1=\ES, kf2=\ET, kf3=\EU, kf4=\EV, kf5=\EW,
+	kf6=\EP, kf7=\EQ, kf8=\ER, khome=\EH, lf6=blue, lf7=red,
+	lf8=white, ri=\EI, rmacs=\EG, rmir=\EO, rmso=\Eq, smacs=\EF,
+	smir=\E@, smso=\Ep, tsl=\Ej\Ex5\EY8%p1%{32}%+%c\Eo\Eo,
 h19-u|heathkit with underscore cursor,
 	cnorm@, cvvis@, use=h19-b,
 h19-g|h19g|heathkit w/block cursor,
-	cnorm=\Ex4, use=h19-b,
+	cnorm=\Ex4, cvvis@, use=h19-b,
 alto-h19|altoh19|altoheath|alto-heath|alto emulating heathkit h19,
 	lines#60,
 	dl1=\EM, il1=\EL, use=h19,
@@ -18285,14 +18457,15 @@ z100|h100|z110|z-100|h-100|heath/zenith z-100 pc with color monitor,
 z100bw|h100bw|z110bw|z-100bw|h-100bw|heath/zenith z-100 pc,
 	OTbs, OTpt, mir, msgr,
 	OTkn#10, cols#80, it#8, lines#24,
-	acsc=, clear=\EE$<5*/>, cnorm=\Ey4, cub1=^H, cud1=\EB,
-	cuf1=\EC, cup=\EY%p1%{32}%+%c%p2%{32}%+%c$<1*/>,
-	cuu1=\EA, cvvis=\Ex4, dch1=\EN$<1*/>, dl1=\EM$<5*/>,
-	ed=\EJ, el=\EK, home=\EH, ht=^I, il1=\EL$<5*/>, kbs=^H,
-	kcub1=\ED, kcud1=\EB, kcuf1=\EC, kcuu1=\EA, kf0=\EJ, kf1=\ES,
-	kf2=\ET, kf3=\EU, kf4=\EV, kf5=\EW, kf6=\EP, kf7=\EQ, kf8=\ER,
-	kf9=\EOI, khome=\EH, ri=\EI, rmacs=\EG, rmir=\EO, rmso=\Eq,
-	smacs=\EF, smir=\E@, smso=\Ep,
+	acsc=~\^x`qanbkcjdmelfgg+hai.kwsutvutvozs{,
+	clear=\EE$<5*/>, cnorm=\Ey4, cub1=^H, cud1=\EB, cuf1=\EC,
+	cup=\EY%p1%{32}%+%c%p2%{32}%+%c$<1*/>, cuu1=\EA,
+	cvvis=\Ex4, dch1=\EN$<1*/>, dl1=\EM$<5*/>, ed=\EJ, el=\EK,
+	home=\EH, ht=^I, il1=\EL$<5*/>, kbs=^H, kcub1=\ED, kcud1=\EB,
+	kcuf1=\EC, kcuu1=\EA, kf0=\EJ, kf1=\ES, kf2=\ET, kf3=\EU,
+	kf4=\EV, kf5=\EW, kf6=\EP, kf7=\EQ, kf8=\ER, kf9=\EOI,
+	khome=\EH, ri=\EI, rmacs=\EG, rmir=\EO, rmso=\Eq, smacs=\EF,
+	smir=\E@, smso=\Ep,
 p19|h19-b with il1/dl1,
 	dl1=\EM$<2*/>, il1=\EL$<2*/>, use=h19-b,
 # From: <ucscc!B.fiatlux@ucbvax.berkeley.edu>
@@ -20696,6 +20869,99 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 #	* Back off the xterm entry to use r6 as a base.
 # 9.13.22 (Sat Nov 30 11:51:31 EST 1996):
 #	* Added dec-vt220 at Adrian Garside's request.
+#
+#-(original-changelog-1996/12/29-to-1998/02/28-by-TD)---------------------------
+#
+# 10.1.0 (Sun Dec 29 02:36:31 EST 1996): withdrawn
+#	* Minor corrections to xterm entries.
+#	* Replaced EWAN telnet entry.
+#	* Dropped the reorder script generator.  It was a fossil.
+# 9.13.23 (Fri Feb 21 16:36:06 EST 1997):
+#	* Replaced minitel-2 entry.
+#	* Added MGR, ansi-nt.
+# 9.13.24 (Sun Feb 23 20:55:23 EST 1997):
+#	* Thorsten Lockert added termcap `bs' to a lot of types, working from
+#	  the 4.4BSD Lite2 file.
+#
+# 10.1.1 (Sat May  3 21:41:27 EDT 1997):
+#	* Use setaf/setab consistently with SVr4.
+#	* Remove ech, el1 from cons25w, they do not work in FreeBSD 2.1.5
+# 10.1.2 (Sat May 24 21:10:57 EDT 1997)
+#	* update xterm-xf86-v32 to match XFree86 3.2A (changes F1-F4)
+#	* add xterm-16color, for XFree86 3.3
+# 10.1.3 (Sat May 31 12:21:05 EDT 1997)
+#	* correct typo in emu
+#	* correct typo in vt102-w (Robert Wuest)
+#	* make new entry xterm-xf86-v33, restored xterm-xf86-v32.
+# 10.1.4 (Sun Jun 15 08:29:05 EDT 1997)
+#	* remove ech capability from rxvt (it does the wrong thing)
+# 10.1.5 (Sat Jun 28 21:34:36 EDT 1997)
+#	* remove spurious newlines from several entries (hp+color, wy50,
+#	  wy350, wy370-nk, wy99gt-tek, wy370-tek, ibm3161, tek4205, ctrm,
+#	  gs6300)
+# 10.1.6 (Sat Jul  5 15:08:16 EDT 1997)
+#	* correct rmso capability of wy50-mc
+# 10.1.7 (Sat Jul 12 20:05:55 EDT 1997)
+#	* add cbt to xterm-xf86-v32
+#	* disentangle some entries from 'xterm', preferring xterm-r6 in case
+#	  'xterm' is derived from xterm-xf86-v32, which implements ech and
+#	  other capabilities not in xterm-r6.
+#	* remove alternate character set from kterm entry.
+# 10.1.8 (Sat Aug  2 18:43:18 EDT 1997)
+#	* correct acsc entries for ACS_LANTERN, which is 'i', not 'I'.
+# 10.1.9 (Sat Aug 23 17:54:38 EDT 1997)
+#	* add xterm-8bit entry.
+# 10.1.10 (Sat Oct  4 18:17:13 EDT 1997)
+#	* repair several places where early version of tic replaced \, with \\\,
+#	* make acsc entries canonical form (sorted, uniq).
+#	* modify acsc entries for linux, linux-koi8
+#	* new rxvt entry, from corrected copy of distribution in rxvt 2.21b
+#	* add color, mouse support to kterm.
+# 10.1.11 (Sat Oct 11 14:57:10 EDT 1997)
+#	* correct wy120 smxon/tbc capabilities which were stuck together.
+# 10.1.12 (Sat Oct 18 17:38:41 EDT 1997)
+#	* add entry for xterm-xf86-v39t
+# 10.1.13 (Sat Nov  8 13:43:33 EST 1997)
+#	* add u8,u9 to sun-il description
+# 10.1.14 (Sat Nov 22 19:59:03 EST 1997)
+#	* add vt220-js, pilot, rbcomm, datapoint entries from esr's 27-jun-97
+#	  version.
+#	* add hds200 description (Walter Skorski)
+#	* add EMX 0.9b descriptions
+#	* correct rmso/smso capabilities in wy30-mc and wy50-mc (Daniel Weaver)
+#	* rename xhpterm back to hpterm.
+# 10.1.15 (Sat Nov 29 19:21:59 EST 1997)
+#	* change initc in linux-c-nc to use 0..1000 range.
+# 10.1.16 (Sat Dec 13 19:41:59 EST 1997)
+#	* remove hpa/vpa from rxvt, which implements them incorrectly.
+#	* add sgr0 for rxvt.
+#	* remove bogus smacs/rmacs from EMX descriptions.
+# 10.1.17 (Sat Dec 20 17:54:10 EST 1997)
+#	* revised entry for att7300
+# 10.1.18 (Sat Jan  3 17:58:49 EST 1998)
+#	* use \0 rather than \200.
+#	* rename rxvt-color to rxvt to match rxvt 2.4.5 distribution.
+# 10.1.19 (Sat Jan 17 14:24:57 EST 1998)
+#	* change xterm (xterm-xf86-v40), xterm-8bit rs1 to use hard reset.
+#	* rename xterm-xf86-v39t to xterm-xf86-v40
+#	* remove bold/underline from sun console entries since they're not
+#	  implemented.
+# 10.1.20 (Sat Jan 24 11:02:51 EST 1998)
+#	* add beterm entry (Fred Fish)
+#	* add irix-color/xwsh entry.
+#	* turn ncv off for linux.
+# 10.1.21 (Sat Jan 31 17:39:16 EST 1998)
+#	* set ncv for FreeBSD console (treat colors with reverse specially).
+#	* remove sgr string from qnx based on report by Xiaodan Tang
+# 10.1.22 (Wed Feb 11 18:40:12 EST 1998)
+#	* remove spurious commas from descriptions
+#	* correct xterm-8bit to match XFree86 3.9Ad F1-F4.
+# 10.1.23 (Sat Feb 28 17:48:38 EST 1998)
+#	* add linux-koi8r to replace linux-koi8 (which uses a corrupt acsc,
+#	  apparently based on cp-866).
+#
+#-(replaced-changelog-1998/02/28-by-ESR)----------------------------------------
+#
 # 9.13.23 (Fri Feb 21 16:36:06 EST 1997):
 #	* Replaced minitel-2 entry.
 #	* Added MGR, ansi-nt.
@@ -20747,6 +21013,8 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 #	* Incorporated NCR terminfos from the Boundless Technology FTP site.
 #	* Incorporated att700 from the Boundless Technology FTP site.
 #	* Miscellaneous contact-address and Web-page updates.
+#
+#-(changelog-beginning-ncurses-4.2)---------------------------------------------
 #
 # 1998/5/9
 #	* add nxterm and xterm-color terminfo description (request by Cristian
@@ -21308,6 +21576,36 @@ v3220|LANPAR Vision II model 3220/3221/3222,
 # 2006-10-07
 #	* add several GNU Screen variations with 16- and 256-colors, and
 #	  status line (Alain Bench).
+#
+# 2007-03-03
+#	* add Newbury Data entries (Jean-Charles Billaud).
+#
+# 2007-06-10
+#	* corrected xterm+pcf2 modifiers for F1-F4, match xterm #226 -TD
+#
+# 2007-07-14
+#	* restore section of pre-ncurses-4.2 changelog to fix attribution -TD
+#	* add konsole-256color entry -TD
+#
+# 2007-08-18
+#	* add 9term entry (request by Juhapekka Tolvanen) -TD
+#
+# 2007-10-13
+#	* correct kIC in rxvt+pcfkeys (prompted by Debian #446444) -TD
+#	* add shift-control- and control-modified keys for rxvt editing
+#	  keypad -TD
+#	* update mlterm entry to 2.9.3 -TD
+#	* add mlterm+pcfkeys -TD
+#
+# 2007-10-20
+#	* move kLFT, kRIT, kind and kri capabilities from xterm-new to
+#	  xterm+pcc0, etc., to make the corresponding building blocks reflect
+#	  xterm's capabilities -TD
+#	* add mrxvt entry -TD
+#	* add xterm+r6f2, use in mlterm and mrxvt entries -TD
+#
+# 2007-11-03
+#	* correct acsc strings for h19 and z100 (Benjamin Sittler)
 #
 # The following sets edit modes for GNU EMACS.
 # Local Variables:

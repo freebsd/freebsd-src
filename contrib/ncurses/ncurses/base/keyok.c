@@ -27,12 +27,12 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey            1997-on                             *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: keyok.c,v 1.6 2006/06/17 18:18:43 tom Exp $")
+MODULE_ID("$Id: keyok.c,v 1.7 2006/12/30 16:22:33 tom Exp $")
 
 /*
  * Enable (or disable) ncurses' interpretation of a keycode by adding (or
@@ -57,18 +57,20 @@ keyok(int c, bool flag)
 	if (flag) {
 	    while ((s = _nc_expand_try(SP->_key_ok, ch, &count, 0)) != 0
 		   && _nc_remove_key(&(SP->_key_ok), ch)) {
-		_nc_add_to_try(&(SP->_keytry), s, ch);
+		code = _nc_add_to_try(&(SP->_keytry), s, ch);
 		free(s);
-		code = OK;
 		count = 0;
+		if (code != OK)
+		    break;
 	    }
 	} else {
 	    while ((s = _nc_expand_try(SP->_keytry, ch, &count, 0)) != 0
 		   && _nc_remove_key(&(SP->_keytry), ch)) {
-		_nc_add_to_try(&(SP->_key_ok), s, ch);
+		code = _nc_add_to_try(&(SP->_key_ok), s, ch);
 		free(s);
-		code = OK;
 		count = 0;
+		if (code != OK)
+		    break;
 	    }
 	}
     }

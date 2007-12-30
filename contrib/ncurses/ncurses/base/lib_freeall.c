@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                    1996,1997                   *
+ *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
 
 #include <curses.priv.h>
@@ -40,7 +40,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.38 2006/12/02 22:36:43 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.45 2007/12/22 23:29:37 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -50,18 +50,22 @@ NCURSES_EXPORT(void)
 _nc_freeall(void)
 {
     WINDOWLIST *p, *q;
-    char *s;
     static va_list empty_va;
 
     T((T_CALLED("_nc_freeall()")));
 #if NO_LEAKS
-    _nc_free_tparm();
-    if (_nc_oldnums != 0) {
-	FreeAndNull(_nc_oldnums);
+    if (SP != 0) {
+	if (SP->_oldnum_list != 0) {
+	    FreeAndNull(SP->_oldnum_list);
+	}
     }
 #endif
     if (SP != 0) {
+	_nc_lock_global(windowlist);
+
 	while (_nc_windows != 0) {
+	    bool deleted = FALSE;
+
 	    /* Delete only windows that're not a parent */
 	    for (p = _nc_windows; p != 0; p = p->next) {
 		bool found = FALSE;
@@ -76,38 +80,37 @@ _nc_freeall(void)
 		}
 
 		if (!found) {
-		    delwin(&(p->win));
+		    if (delwin(&(p->win)) != ERR)
+			deleted = TRUE;
 		    break;
 		}
 	    }
+
+	    /*
+	     * Don't continue to loop if the list is trashed.
+	     */
+	    if (!deleted)
+		break;
 	}
 	delscreen(SP);
+	_nc_unlock_global(windowlist);
     }
-#if NO_LEAKS
-    _nc_tgetent_leaks();
-#endif
-    del_curterm(cur_term);
-    _nc_free_entries(_nc_head);
-    _nc_get_type(0);
-    _nc_first_name(0);
+    if (cur_term != 0)
+	del_curterm(cur_term);
+
 #if USE_WIDEC_SUPPORT
     FreeIfNeeded(_nc_wacs);
 #endif
-#if NO_LEAKS
-    _nc_alloc_entry_leaks();
-    _nc_captoinfo_leaks();
-    _nc_comp_scan_leaks();
-    _nc_keyname_leaks();
-    _nc_tic_expand(0, FALSE, 0);
-#endif
-
-    if ((s = _nc_home_terminfo()) != 0)
-	free(s);
-
     (void) _nc_printf_string(0, empty_va);
 #ifdef TRACE
     (void) _nc_trace_buf(-1, 0);
 #endif
+
+#if BROKEN_LINKER || USE_REENTRANT
+    FreeIfNeeded(_nc_prescreen.real_acs_map);
+#endif
+
+    _nc_leaks_tinfo();
 
 #if HAVE_LIBDBMALLOC
     malloc_dump(malloc_errfd);

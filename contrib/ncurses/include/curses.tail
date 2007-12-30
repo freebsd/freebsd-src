@@ -1,8 +1,9 @@
+/* $Id: curses.tail,v 1.15 2007/03/10 17:51:24 tom Exp $ */
 /*
+ * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
  * (see that file for the relevant copyright).
  */
-/* $Id: curses.tail,v 1.14 2006/05/27 16:28:29 tom Exp $ */
 
 /* mouse interface */
 

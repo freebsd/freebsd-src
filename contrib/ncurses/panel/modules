@@ -1,5 +1,6 @@
+# $Id: modules,v 1.9 2006/12/24 00:53:17 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2006 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1995,1997
+# Author: Thomas E. Dickey	1995-on
 #
 
 @ base
@@ -47,3 +48,4 @@ p_update	lib		$(srcdir)	$(PANEL_PRIV_H)
 p_user		lib		$(srcdir)	$(PANEL_PRIV_H)
 p_win		lib		$(srcdir)	$(PANEL_PRIV_H)
 
+# vile:makemode

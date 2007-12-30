@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: dist.mk,v 1.567 2006/12/17 19:58:35 tom Exp $
+# $Id: dist.mk,v 1.620 2007/12/22 20:41:31 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -37,7 +37,7 @@ SHELL = /bin/sh
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 5
 NCURSES_MINOR = 6
-NCURSES_PATCH = 20061217
+NCURSES_PATCH = 20071222
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
@@ -106,6 +106,7 @@ manhtml:
 	   fi ;\
 	done
 	# change some things to make weblint happy:
+	@cat man_alias.sed           >> subst.tmp
 	@echo 's/<B>/<STRONG>/g'     >> subst.tmp
 	@echo 's/<\/B>/<\/STRONG>/g' >> subst.tmp
 	@echo 's/<I>/<EM>/g'         >> subst.tmp
