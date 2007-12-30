@@ -1168,19 +1168,13 @@ brelse(struct buf *bp)
 		return;
 	}
 
-	if (bp->b_iocmd == BIO_WRITE &&
-	    (bp->b_ioflags & BIO_ERROR) &&
-	    bp->b_error != ENXIO &&
-	    !(bp->b_flags & B_INVAL)) {
+	if (bp->b_iocmd == BIO_WRITE && (bp->b_ioflags & BIO_ERROR) &&
+	    bp->b_error == EIO && !(bp->b_flags & B_INVAL)) {
 		/*
 		 * Failed write, redirty.  Must clear BIO_ERROR to prevent
-		 * pages from being scrapped.  If B_INVAL is set then
-		 * this case is not run and the next case is run to 
-		 * destroy the buffer.  B_INVAL can occur if the buffer
-		 * is outside the range supported by the underlying device.
-		 * If the error is that the device went away (ENXIO), we
-		 * shouldn't redirty the buffer either, but discard the
-		 * data too.
+		 * pages from being scrapped.  If the error is anything
+		 * other than an I/O error (EIO), assume that retryingi
+		 * is futile.
 		 */
 		bp->b_ioflags &= ~BIO_ERROR;
 		bdirty(bp);
