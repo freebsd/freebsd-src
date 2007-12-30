@@ -350,7 +350,7 @@ opencal(void)
 			    }
 			if (!found)
 			    errx(1, "can't open calendar file \"%s\": %s (%d)",
-                                 calendarFile, strerror (errno), errno);
+                                 calendarFile, strerror(errno), errno);
 		}
 	}
 	if (pipe(pdes) < 0)
