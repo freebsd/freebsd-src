@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# Short months names
+# Short month names
 #
 sty
 lut
@@ -15,7 +15,7 @@ paź
 lis
 gru
 #
-# Long months names (as in a date)
+# Long month names (as in a date)
 #
 stycznia
 lutego
@@ -74,7 +74,7 @@ sobota
 #
 %a %e %b %X %Y %Z
 #
-# Long months names (without case ending)
+# Long month names (without case ending)
 #
 styczeń
 luty
