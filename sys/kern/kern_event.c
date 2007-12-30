@@ -531,12 +531,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	SLIST_INSERT_HEAD(&fdp->fd_kqlist, kq, kq_list);
 	FILEDESC_XUNLOCK(fdp);
 
-	FILE_LOCK(fp);
-	fp->f_flag = FREAD | FWRITE;
-	fp->f_type = DTYPE_KQUEUE;
-	fp->f_data = kq;
-	fp->f_ops = &kqueueops;
-	FILE_UNLOCK(fp);
+	finit(fp, FREAD | FWRITE, DTYPE_KQUEUE, kq, &kqueueops);
 	fdrop(fp, td);
 
 	td->td_retval[0] = fd;
@@ -990,24 +985,17 @@ kqueue_acquire(struct file *fp, struct kqueue **kqp)
 
 	error = 0;
 
-	FILE_LOCK(fp);
-	do {
-		kq = fp->f_data;
-		if (fp->f_type != DTYPE_KQUEUE || kq == NULL) {
-			error = EBADF;
-			break;
-		}
-		*kqp = kq;
-		KQ_LOCK(kq);
-		if ((kq->kq_state & KQ_CLOSING) == KQ_CLOSING) {
-			KQ_UNLOCK(kq);
-			error = EBADF;
-			break;
-		}
-		kq->kq_refcnt++;
+	kq = fp->f_data;
+	if (fp->f_type != DTYPE_KQUEUE || kq == NULL)
+		return (EBADF);
+	*kqp = kq;
+	KQ_LOCK(kq);
+	if ((kq->kq_state & KQ_CLOSING) == KQ_CLOSING) {
 		KQ_UNLOCK(kq);
-	} while (0);
-	FILE_UNLOCK(fp);
+		return (EBADF);
+	}
+	kq->kq_refcnt++;
+	KQ_UNLOCK(kq);
 
 	return error;
 }

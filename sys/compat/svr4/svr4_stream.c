@@ -1481,8 +1481,6 @@ svr4_do_putmsg(td, uap, fp)
 		 uap->dat, uap->flags);
 #endif /* DEBUG_SVR4 */
 
-	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
-
 	if (uap->ctl != NULL) {
 	  if ((error = copyin(uap->ctl, &ctl, sizeof(ctl))) != 0) {
 #ifdef DEBUG_SVR4
@@ -1655,8 +1653,6 @@ svr4_do_getmsg(td, uap, fp)
 	retval = td->td_retval;
 	error = 0;
 	afp = NULL;
-
-	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
 	memset(&sc, 0, sizeof(sc));
 

@@ -363,12 +363,7 @@ pipe(td, uap)
 	 * to avoid races against processes which manage to dup() the read
 	 * side while we are blocked trying to allocate the write side.
 	 */
-	FILE_LOCK(rf);
-	rf->f_flag = FREAD | FWRITE;
-	rf->f_type = DTYPE_PIPE;
-	rf->f_data = rpipe;
-	rf->f_ops = &pipeops;
-	FILE_UNLOCK(rf);
+	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
 	error = falloc(td, &wf, &fd);
 	if (error) {
 		fdclose(fdp, rf, td->td_retval[0], td);
@@ -378,12 +373,7 @@ pipe(td, uap)
 		return (error);
 	}
 	/* An extra reference on `wf' has been held for us by falloc(). */
-	FILE_LOCK(wf);
-	wf->f_flag = FREAD | FWRITE;
-	wf->f_type = DTYPE_PIPE;
-	wf->f_data = wpipe;
-	wf->f_ops = &pipeops;
-	FILE_UNLOCK(wf);
+	finit(wf, FREAD | FWRITE, DTYPE_PIPE, wpipe, &pipeops);
 	fdrop(wf, td);
 	td->td_retval[1] = fd;
 	fdrop(rf, td);

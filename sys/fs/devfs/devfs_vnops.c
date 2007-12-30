@@ -800,12 +800,9 @@ devfs_open(struct vop_open_args *ap)
 	if(fp == NULL)
 		return (error);
 #endif
-	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops,
 	     ("Could not vnode bypass device on fdops %p", fp->f_ops));
-	fp->f_data = dev;
-	fp->f_ops = &devfs_ops_f;
-	FILE_UNLOCK(fp);
+	finit(fp, fp->f_flag, DTYPE_VNODE, dev, &devfs_ops_f);
 	return (error);
 }
 
