@@ -40,7 +40,7 @@ struct ichwd_device {
 struct ichwd_softc {
 	device_t		 device;
 	device_t		 ich;
-	int                      ich_version;
+	int			 ich_version;
 
 	int			 active;
 	unsigned int		 timeout;
