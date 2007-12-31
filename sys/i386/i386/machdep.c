@@ -192,6 +192,10 @@ static void freebsd4_sendsig(sig_t catcher, ksiginfo_t *, sigset_t *mask);
 long Maxmem = 0;
 long realmem = 0;
 
+#ifdef PAE
+FEATURE(pae, "Physical Address Extensions");
+#endif
+
 /*
  * The number of PHYSMAP entries must be one less than the number of
  * PHYSSEG entries because the PHYSMAP entry that spans the largest
