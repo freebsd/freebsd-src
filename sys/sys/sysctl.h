@@ -322,6 +322,13 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	sysctl_add_oid(ctx, parent, nbr, name, (access),			    \
 	ptr, arg, handler, fmt, __DESCR(descr))
 
+/*
+ * A macro to generate a read-only sysctl to indicate the presense of optional
+ * kernel features.
+ */
+#define	FEATURE(name, desc)						\
+	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD, 0, 1, desc)
+	
 #endif /* _KERNEL */
 
 /*
@@ -621,6 +628,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
  */
 extern struct sysctl_oid_list sysctl__children;
 SYSCTL_DECL(_kern);
+SYSCTL_DECL(_kern_features);
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_DECL(_kern_proc);
 SYSCTL_DECL(_sysctl);
