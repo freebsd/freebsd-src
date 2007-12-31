@@ -333,6 +333,8 @@ char hostuuid[64] = "00000000-0000-0000-0000-000000000000";
 SYSCTL_STRING(_kern, KERN_HOSTUUID, hostuuid, CTLFLAG_RW, hostuuid,
     sizeof(hostuuid), "Host UUID");
 
+SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features");
+
 /*
  * This is really cheating.  These actually live in the libc, something
  * which I'm not quite sure is a good idea anyway, but in order for
