@@ -260,7 +260,7 @@ struct lacp_softc {
 #define	LACP_PORT(_lp)	((struct lacp_port *)(_lp)->lp_psc)
 #define	LACP_SOFTC(_sc)	((struct lacp_softc *)(_sc)->sc_psc)
 
-void		lacp_input(struct lagg_port *, struct mbuf *);
+struct mbuf	*lacp_input(struct lagg_port *, struct mbuf *);
 struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
 int		lacp_attach(struct lagg_softc *);
 int		lacp_detach(struct lagg_softc *);
