@@ -877,7 +877,7 @@ xreadlink (link)
 {
     char *file = NULL;
     int buflen = BUFSIZ;
-    int linklen;
+    int link_name_len;
 
     /* Get the name of the file to which `from' is linked.
        FIXME: what portability issues arise here?  Are readlink &
@@ -886,14 +886,15 @@ xreadlink (link)
     {
 	file = xrealloc (file, buflen);
 	errno = 0;
-	linklen = readlink (link, file, buflen - 1);
+	link_name_len = readlink (link, file, buflen - 1);
 	buflen *= 2;
     }
-    while (linklen == -1 && errno == ENAMETOOLONG);
+    while (link_name_len < 0 && errno == ENAMETOOLONG);
 
-    if (linklen == -1)
+    if (link_name_len < 0)
 	error (1, errno, "cannot readlink %s", link);
-    file[linklen] = '\0';
+
+    file[link_name_len] = '\0';
 
     return file;
 }
