@@ -1700,8 +1700,9 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 
 	/* Tap off LACP control messages */
 	if (etype == ETHERTYPE_SLOW) {
-		lacp_input(lp, m);
-		return (NULL);
+		m = lacp_input(lp, m);
+		if (m == NULL)
+			return (NULL);
 	}
 
 	/*

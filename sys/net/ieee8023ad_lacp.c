@@ -213,7 +213,7 @@ static const lacp_timer_func_t lacp_timer_funcs[LACP_NTIMER] = {
 	[LACP_TIMER_WAIT_WHILE] = lacp_sm_mux_timer,
 };
 
-void
+struct mbuf *
 lacp_input(struct lagg_port *lgp, struct mbuf *m)
 {
 	struct lagg_softc *sc = lgp->lp_softc;
@@ -222,7 +222,7 @@ lacp_input(struct lagg_port *lgp, struct mbuf *m)
 
 	if (m->m_pkthdr.len < sizeof(struct ether_header) + sizeof(subtype)) {
 		m_freem(m);
-		return;
+		return (NULL);
 	}
 
 	m_copydata(m, sizeof(struct ether_header), sizeof(subtype), &subtype);
@@ -237,10 +237,10 @@ lacp_input(struct lagg_port *lgp, struct mbuf *m)
 			break;
 
 		default:
-			/* Unknown LACP packet type */
-			m_freem(m);
-			break;
+			/* Not a subtype we are interested in */
+			return (m);
 	}
+	return (NULL);
 }
 
 static void
