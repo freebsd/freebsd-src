@@ -914,7 +914,7 @@ acpi_tz_thread(void *arg)
 
     for (;;) {
 	/* If the number of devices has changed, re-evaluate. */
-	if (devclass_get_maxunit(acpi_tz_devclass) != devcount) {
+	if (devclass_get_count(acpi_tz_devclass) != devcount) {
 	    if (devs != NULL) {
 		free(devs, M_TEMP);
 		free(sc, M_TEMP);
