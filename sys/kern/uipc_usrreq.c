@@ -1916,8 +1916,7 @@ unp_accessable(struct file *fp)
 {
 	struct unpcb *unp;
 
-	unp = fptounp(fp);
-	if (fp == NULL)
+	if ((unp = fptounp(fp)) == NULL)
 		return;
 	if (unp->unp_gcflag & UNPGC_REF)
 		return;
@@ -1942,8 +1941,7 @@ unp_gc_process(struct unpcb *unp)
 	 * queue as indicated by msgcount, and this must equal the file
 	 * reference count.  Note that when msgcount is 0 the file is NULL.
 	 */
-	if (unp->unp_msgcount != 0 && fp->f_count != 0 &&
-	    fp->f_count == unp->unp_msgcount) {
+	if (fp && fp->f_count != 0 && fp->f_count == unp->unp_msgcount) {
 		unp->unp_gcflag |= UNPGC_DEAD;
 		unp_unreachable++;
 		return;
