@@ -183,7 +183,8 @@ t3_l2t_send_slow(struct t3cdev *dev, struct mbuf *m, struct l2t_entry *e)
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
+		arpresolve(rt->rt_ifp, rt, NULL,
+		     (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE)
 			e->state = L2T_STATE_VALID;
@@ -208,8 +209,9 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		printf("doing arpresolve2 on 0x%x \n", e->addr);
-		if (arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac) == 0) {
+		printf("doing arpresolve on 0x%x \n", e->addr);
+		if (arpresolve(rt->rt_ifp, rt, NULL,
+		     (struct sockaddr *)&sin, e->dmac) == 0) {
 			printf("mac=%x:%x:%x:%x:%x:%x\n",
 			    e->dmac[0], e->dmac[1], e->dmac[2], e->dmac[3], e->dmac[4], e->dmac[5]);
 			
@@ -223,7 +225,7 @@ again:
 				m_freem(m);
 			mtx_unlock(&e->lock);
 		} else
-			printf("arpresolve2 returned non-zero\n");
+			printf("arpresolve returned non-zero\n");
 	}
 	return 0;
 }
@@ -245,7 +247,8 @@ t3_l2t_send_event(struct t3cdev *dev, struct l2t_entry *e)
 again:
 	switch (e->state) {
 	case L2T_STATE_STALE:     /* entry is stale, kick off revalidation */
-		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
+		arpresolve(rt->rt_ifp, rt, NULL,
+		     (struct sockaddr *)&sin, e->dmac);
 		mtx_lock(&e->lock);
 		if (e->state == L2T_STATE_STALE) {
 			e->state = L2T_STATE_VALID;
@@ -270,7 +273,8 @@ again:
 		 * A better way would be to use a work request to retry L2T
 		 * entries when there's no memory.
 		 */
-		arpresolve2(rt->rt_ifp, rt, (struct sockaddr *)&sin, e->dmac);
+		arpresolve(rt->rt_ifp, rt, NULL,
+		    (struct sockaddr *)&sin, e->dmac);
 
 	}
 	return;
