@@ -1946,6 +1946,8 @@ vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
 			continue;
+		if (opt->len == 0 || opt->value == NULL)
+			return (0);
 		if (((char *)opt->value)[opt->len - 1] != '\0')
 			return (0);
 		va_start(ap, fmt);
