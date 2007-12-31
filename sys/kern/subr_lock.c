@@ -150,11 +150,11 @@ struct lock_profile_object {
  */
 struct lock_prof {
 	SLIST_ENTRY(lock_prof) link;
+	struct lock_class *class;
 	const char	*file;
 	const char	*name;
 	int		line;
 	int		ticks;
-	const char	*type;
 	uintmax_t	cnt_max;
 	uintmax_t	cnt_tot;
 	uintmax_t	cnt_wait;
@@ -249,6 +249,7 @@ lock_prof_reset(void)
 
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
+	pause("lpreset", hz / 10);
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		lpc = lp_cpu[cpu];
 		for (i = 0; i < LPROF_CACHE_SIZE; i++) {
@@ -277,7 +278,7 @@ lock_prof_output(struct lock_prof *lp, struct sbuf *sb)
 	    lp->cnt_cur == 0 ? (uintmax_t)0 :
 	    lp->cnt_wait / (lp->cnt_cur * 1000),
 	    (uintmax_t)0, lp->cnt_contest_locking,
-	    p, lp->line, lp->type, lp->name);
+	    p, lp->line, lp->class->lc_name, lp->name);
 }
 
 static void
@@ -290,7 +291,7 @@ lock_prof_sum(struct lock_prof *match, struct lock_prof *dst, int hash,
 
 	dst->file = match->file;
 	dst->line = match->line;
-	dst->type = match->type;
+	dst->class = match->class;
 	dst->name = match->name;
 
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
@@ -301,7 +302,7 @@ lock_prof_sum(struct lock_prof *match, struct lock_prof *dst, int hash,
 			if (l->ticks == t)
 				continue;
 			if (l->file != match->file || l->line != match->line ||
-			    l->name != match->name || l->type != match->type)
+			    l->name != match->name)
 				continue;
 			l->ticks = t;
 			if (l->cnt_max > dst->cnt_max)
@@ -342,11 +343,15 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 	static int multiplier = 1;
 	struct sbuf *sb;
 	int error, cpu, t;
+	int enabled;
 
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
 	sbuf_printf(sb, "\n%6s %12s %12s %11s %5s %5s %12s %12s %s\n",
 	    "max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
+	enabled = lock_prof_enable;
+	lock_prof_enable = 0;
+	pause("lpreset", hz / 10);
 	t = ticks;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (lp_cpu[cpu] == NULL)
@@ -359,6 +364,7 @@ retry_sbufops:
 			goto retry_sbufops;
 		}
 	}
+	lock_prof_enable = enabled;
 
 	sbuf_finish(sb);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
@@ -436,7 +442,7 @@ lock_profile_lookup(struct lock_object *lo, int spin, const char *file,
 	SLIST_REMOVE_HEAD(&type->lpt_lpalloc, link);
 	lp->file = p;
 	lp->line = line;
-	lp->type = lo->lo_type;
+	lp->class = LOCK_CLASS(lo);
 	lp->name = lo->lo_name;
 	SLIST_INSERT_HEAD(&type->lpt_hash[hash], lp, link);
 	return (lp);
