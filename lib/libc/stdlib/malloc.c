@@ -743,7 +743,6 @@ static void		*dss_max;
  * address space.  Depending on funcition, different tree orderings are needed,
  * which is why there are two trees with the same contents.
  */
-static malloc_mutex_t	dss_chunks_mtx;
 static chunk_tree_ad_t	dss_chunks_ad;
 static chunk_tree_szad_t dss_chunks_szad;
 #endif
@@ -1203,42 +1202,41 @@ base_pages_alloc_dss(size_t minsize)
 	 * Do special DSS allocation here, since base allocations don't need to
 	 * be chunk-aligned.
 	 */
+	malloc_mutex_lock(&dss_mtx);
 	if (dss_prev != (void *)-1) {
-		void *dss_cur;
 		intptr_t incr;
 		size_t csize = CHUNK_CEILING(minsize);
 
-		malloc_mutex_lock(&dss_mtx);
 		do {
 			/* Get the current end of the DSS. */
-			dss_cur = sbrk(0);
+			dss_max = sbrk(0);
 
 			/*
 			 * Calculate how much padding is necessary to
 			 * chunk-align the end of the DSS.  Don't worry about
-			 * dss_cur not being chunk-aligned though.
+			 * dss_max not being chunk-aligned though.
 			 */
 			incr = (intptr_t)chunksize
-			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_cur);
+			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_max);
 			if (incr < minsize)
 				incr += csize;
 
 			dss_prev = sbrk(incr);
-			if (dss_prev == dss_cur) {
+			if (dss_prev == dss_max) {
 				/* Success. */
-				malloc_mutex_unlock(&dss_mtx);
-				base_pages = dss_cur;
+				dss_max = (void *)((intptr_t)dss_prev + incr);
+				base_pages = dss_prev;
 				base_next_addr = base_pages;
-				base_past_addr = (void *)((uintptr_t)base_pages
-				    + incr);
+				base_past_addr = dss_max;
 #ifdef MALLOC_STATS
 				base_mapped += incr;
 #endif
+				malloc_mutex_unlock(&dss_mtx);
 				return (false);
 			}
 		} while (dss_prev != (void *)-1);
-		malloc_mutex_unlock(&dss_mtx);
 	}
+	malloc_mutex_unlock(&dss_mtx);
 
 	return (true);
 }
@@ -1516,8 +1514,8 @@ static inline void *
 chunk_alloc_dss(size_t size)
 {
 
+	malloc_mutex_lock(&dss_mtx);
 	if (dss_prev != (void *)-1) {
-		void *dss_cur;
 		intptr_t incr;
 
 		/*
@@ -1525,36 +1523,35 @@ chunk_alloc_dss(size_t size)
 		 * threads that are using the DSS for something other than
 		 * malloc.
 		 */
-		malloc_mutex_lock(&dss_mtx);
 		do {
 			void *ret;
 
 			/* Get the current end of the DSS. */
-			dss_cur = sbrk(0);
+			dss_max = sbrk(0);
 
 			/*
 			 * Calculate how much padding is necessary to
 			 * chunk-align the end of the DSS.
 			 */
 			incr = (intptr_t)size
-			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_cur);
-			if (incr == size) {
-				ret = dss_cur;
-			} else {
-				ret = (void *)((intptr_t)dss_cur + incr);
+			    - (intptr_t)CHUNK_ADDR2OFFSET(dss_max);
+			if (incr == size)
+				ret = dss_max;
+			else {
+				ret = (void *)((intptr_t)dss_max + incr);
 				incr += size;
 			}
 
 			dss_prev = sbrk(incr);
-			if (dss_prev == dss_cur) {
+			if (dss_prev == dss_max) {
 				/* Success. */
+				dss_max = (void *)((intptr_t)dss_prev + incr);
 				malloc_mutex_unlock(&dss_mtx);
-				dss_max = (void *)((intptr_t)ret + size);
 				return (ret);
 			}
 		} while (dss_prev != (void *)-1);
-		malloc_mutex_unlock(&dss_mtx);
 	}
+	malloc_mutex_unlock(&dss_mtx);
 
 	return (NULL);
 }
@@ -1567,7 +1564,7 @@ chunk_recycle_dss(size_t size, bool zero)
 
 	key.chunk = NULL;
 	key.size = size;
-	malloc_mutex_lock(&dss_chunks_mtx);
+	malloc_mutex_lock(&dss_mtx);
 	node = RB_NFIND(chunk_tree_szad_s, &dss_chunks_szad, &key);
 	if (node != NULL && (uintptr_t)node->chunk < (uintptr_t)dss_max) {
 		void *ret = node->chunk;
@@ -1588,13 +1585,13 @@ chunk_recycle_dss(size_t size, bool zero)
 			node->size -= size;
 			RB_INSERT(chunk_tree_szad_s, &dss_chunks_szad, node);
 		}
-		malloc_mutex_unlock(&dss_chunks_mtx);
+		malloc_mutex_unlock(&dss_mtx);
 
 		if (zero)
 			memset(ret, 0, size);
 		return (ret);
 	}
-	malloc_mutex_unlock(&dss_chunks_mtx);
+	malloc_mutex_unlock(&dss_mtx);
 
 	return (NULL);
 }
@@ -1729,22 +1726,25 @@ chunk_dealloc_dss_record(void *chunk, size_t size)
 	key.chunk = (void *)((uintptr_t)chunk + size);
 	node = RB_NFIND(chunk_tree_ad_s, &dss_chunks_ad, &key);
 	/* Try to coalesce forward. */
-	if (node != NULL) {
-		if (node->chunk == key.chunk) {
-			/*
-			 * Coalesce chunk with the following address range.
-			 * This does not change the position within
-			 * dss_chunks_ad, so only remove/insert from/into
-			 * dss_chunks_szad.
-			 */
-			RB_REMOVE(chunk_tree_szad_s, &dss_chunks_szad, node);
-			node->chunk = chunk;
-			node->size += size;
-			RB_INSERT(chunk_tree_szad_s, &dss_chunks_szad, node);
-		}
+	if (node != NULL && node->chunk == key.chunk) {
+		/*
+		 * Coalesce chunk with the following address range.  This does
+		 * not change the position within dss_chunks_ad, so only
+		 * remove/insert from/into dss_chunks_szad.
+		 */
+		RB_REMOVE(chunk_tree_szad_s, &dss_chunks_szad, node);
+		node->chunk = chunk;
+		node->size += size;
+		RB_INSERT(chunk_tree_szad_s, &dss_chunks_szad, node);
 	} else {
-		/* Coalescing forward failed, so insert a new node. */
+		/*
+		 * Coalescing forward failed, so insert a new node.
+		 * Drop dss_mtx during node allocation, since it is possible
+		 * that a new base chunk will be allocated.
+		 */
+		malloc_mutex_unlock(&dss_mtx);
 		node = base_chunk_node_alloc();
+		malloc_mutex_lock(&dss_mtx);
 		if (node == NULL)
 			return (NULL);
 		node->chunk = chunk;
@@ -1780,12 +1780,10 @@ static inline bool
 chunk_dealloc_dss(void *chunk, size_t size)
 {
 
+	malloc_mutex_lock(&dss_mtx);
 	if ((uintptr_t)chunk >= (uintptr_t)dss_base
 	    && (uintptr_t)chunk < (uintptr_t)dss_max) {
 		chunk_node_t *node;
-		void *dss_cur;
-
-		malloc_mutex_lock(&dss_chunks_mtx);
 
 		/* Try to coalesce with other unused chunks. */
 		node = chunk_dealloc_dss_record(chunk, size);
@@ -1794,9 +1792,8 @@ chunk_dealloc_dss(void *chunk, size_t size)
 			size = node->size;
 		}
 
-		malloc_mutex_lock(&dss_mtx);
 		/* Get the current end of the DSS. */
-		dss_cur = sbrk(0);
+		dss_max = sbrk(0);
 
 		/*
 		 * Try to shrink the DSS if this chunk is at the end of the
@@ -1805,32 +1802,27 @@ chunk_dealloc_dss(void *chunk, size_t size)
 		 * alternative would be to leak memory for the sake of poorly
 		 * designed multi-threaded programs.
 		 */
-		if (dss_cur == dss_max
-		    && (void *)((uintptr_t)chunk + size) == dss_max
+		if ((void *)((uintptr_t)chunk + size) == dss_max
 		    && (dss_prev = sbrk(-(intptr_t)size)) == dss_max) {
-			malloc_mutex_unlock(&dss_mtx);
-			if (dss_prev == dss_max) {
-				/* Success. */
-				dss_prev = (void *)((intptr_t)dss_max
-				    - (intptr_t)size);
-				dss_max = dss_prev;
+			/* Success. */
+			dss_max = (void *)((intptr_t)dss_prev - (intptr_t)size);
 
-				if (node != NULL) {
-					RB_REMOVE(chunk_tree_ad_s,
-					    &dss_chunks_ad, node);
-					RB_REMOVE(chunk_tree_szad_s,
-					    &dss_chunks_szad, node);
-					base_chunk_node_dealloc(node);
-				}
+			if (node != NULL) {
+				RB_REMOVE(chunk_tree_ad_s, &dss_chunks_ad,
+				    node);
+				RB_REMOVE(chunk_tree_szad_s, &dss_chunks_szad,
+				    node);
+				base_chunk_node_dealloc(node);
 			}
+			malloc_mutex_unlock(&dss_mtx);
 		} else {
 			malloc_mutex_unlock(&dss_mtx);
 			madvise(chunk, size, MADV_FREE);
 		}
 
-		malloc_mutex_unlock(&dss_chunks_mtx);
 		return (false);
 	}
+	malloc_mutex_unlock(&dss_mtx);
 
 	return (true);
 }
@@ -4239,7 +4231,6 @@ OUT:
 	dss_base = sbrk(0);
 	dss_prev = dss_base;
 	dss_max = dss_base;
-	malloc_mutex_init(&dss_chunks_mtx);
 	RB_INIT(&dss_chunks_ad);
 	RB_INIT(&dss_chunks_szad);
 #endif
@@ -4627,7 +4618,7 @@ _malloc_prefork(void)
 	malloc_mutex_lock(&huge_mtx);
 
 #ifdef MALLOC_DSS
-	malloc_mutex_lock(&dss_chunks_mtx);
+	malloc_mutex_lock(&dss_mtx);
 #endif
 }
 
@@ -4639,7 +4630,7 @@ _malloc_postfork(void)
 	/* Release all mutexes, now that fork() has completed. */
 
 #ifdef MALLOC_DSS
-	malloc_mutex_unlock(&dss_chunks_mtx);
+	malloc_mutex_unlock(&dss_mtx);
 #endif
 
 	malloc_mutex_unlock(&huge_mtx);
