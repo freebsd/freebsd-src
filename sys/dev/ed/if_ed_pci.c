@@ -49,14 +49,20 @@ static struct _pcsid
 	const char	*desc;
 } pci_ids[] =
 {
-	{ ED_RTL8029_PCI_ID, "RealTek 8029" },
-	{ 0x50004a14, "NetVin 5000" },
+	{ ED_RTL8029_PCI_ID, "RealTek 8029" }, /* Needs realtek full duplex */
+	{ 0x50004a14, "NetVin NV5000SC" },
 	{ 0x09401050, "ProLAN" },
-	{ 0x140111f6, "Compex" },
-	{ 0x30008e2e, "KTI" },
+	{ 0x140111f6, "Compex RL2000" },
+	{ 0x30008e2e, "KTI ET32P2" },
 	{ 0x19808c4a, "Winbond W89C940" },
 	{ 0x0e3410bd, "Surecom NE-34" },
-	{ 0x09261106, "VIA VT86C926" },
+	{ 0x09261106, "VIA VT86C926" },		/* only do 16-bit */
+	{ 0x5a5a1050, "Winbond W89C940F" },
+#if 0
+	/* Holtek needs special lovin', disabled by default */
+	{ 0x005812c3, "Holtek HT80232" },	/* Only 16-bit I/O, Holtek fdx */
+	{ 0x559812c3, "Holtek HT80229" },	/* Only 32-bit I/O, Holtek fdx, STOP_PG_60? */
+#endif
 	{ 0x00000000, NULL }
 };
 
