@@ -110,6 +110,9 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(1, archive_entry_ctime(ae));
 	assertEqualInt(0, archive_entry_stat(ae)->st_nlink);
 	assertEqualInt(0, archive_entry_uid(ae));
+	assertEqualIntA(a, ARCHIVE_EOF,
+	    archive_read_data_block(a, &p, &size, &offset));
+	assertEqualInt(size, 0);
 
 	/* A directory. */
 	assert(0 == archive_read_next_header(a, &ae));
