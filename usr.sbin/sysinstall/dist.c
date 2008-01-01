@@ -92,7 +92,7 @@ static Distribution DistTable[] = {
     DTE_SUBDIST("src",	    &Dists, SRC,      SrcDistTable),
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
-    DTE_SUBDIST("X.Org",    &Dists, XORG,     XOrgDistTable),
+    DTE_PACKAGE("X.Org",    &Dists, XORG,     "xorg"),
     DTE_END,
 };
 
@@ -129,28 +129,6 @@ static Distribution SrcDistTable[] = {
     DTE_TARBALL("susbin",   &SrcDists, SRC_USBIN,   "/usr/src"),
     DTE_TARBALL("stools",   &SrcDists, SRC_TOOLS,   "/usr/src"),
     DTE_TARBALL("srescue",  &SrcDists, SRC_RESCUE,  "/usr/src"),
-    DTE_END,
-};
-
-/* The X.Org distribution */
-static Distribution XOrgDistTable[] = {
-    DTE_PACKAGE("Xbin",	 &XOrgDists, XORG_APPS,		 "xorg-apps"),
-    DTE_PACKAGE("Xlib",	 &XOrgDists, XORG_LIB,		 "xorg-libraries"),
-    DTE_PACKAGE("Xdoc",  &XOrgDists, XORG_DOC,		 "xorg-docs"),
-    DTE_PACKAGE("Xprog", &XOrgDists, XORG_IMAKE,	 "imake"),
-
-    DTE_PACKAGE("Xsrv",  &XOrgDists, XORG_SERVER,	 "xorg-server"),
-    DTE_PACKAGE("Xdrv",  &XOrgDists, XORG_DRIVERS,	 "xorg-drivers"),
-    DTE_PACKAGE("Xnest", &XOrgDists, XORG_NESTSERVER,	 "xorg-nestserver"),
-    DTE_PACKAGE("Xvfb",  &XOrgDists, XORG_VFBSERVER,	 "xorg-vfbserver"),
-
-    DTE_PACKAGE("Xfmsc", &XOrgDists, XORG_FONTS_MISC,	 "xorg-fonts-miscbitmaps"),
-    DTE_PACKAGE("Xf75",  &XOrgDists, XORG_FONTS_75,	 "xorg-fonts-75dpi"),
-    DTE_PACKAGE("Xf100", &XOrgDists, XORG_FONTS_100,	 "xorg-fonts-100dpi"),
-    DTE_PACKAGE("Xfcyr", &XOrgDists, XORG_FONTS_CYR,	 "xorg-fonts-cyrillic"),
-    DTE_PACKAGE("Xft1",  &XOrgDists, XORG_FONTS_T1,	 "xorg-fonts-type1"),
-    DTE_PACKAGE("Xftt",  &XOrgDists, XORG_FONTS_TT,	 "xorg-fonts-truetype"),
-    DTE_PACKAGE("Xfali", &XOrgDists, XORG_FONTS_ALIAS,	 "font-alias"),
     DTE_END,
 };
 
@@ -209,8 +187,8 @@ static int
 distSetX(void)
 {
     Dists |= DIST_XORG;
-    XOrgDists = DIST_XORG_MISC_ALL | DIST_XORG_SERVER | _DIST_XORG_FONTS_BASE;
-    return distSetXOrg(NULL);
+    XOrgDists = DIST_XORG_ALL;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -454,18 +432,6 @@ distSetSrc(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     else
 	i = DITEM_SUCCESS;
-    distVerifyFlags();
-    return i | DITEM_RESTORE;
-}
-
-int
-distSetXOrg(dialogMenuItem *self)
-{
-    int i = DITEM_SUCCESS;
-
-    dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuXOrgSelect, FALSE))
-	i = DITEM_FAILURE;
     distVerifyFlags();
     return i | DITEM_RESTORE;
 }
