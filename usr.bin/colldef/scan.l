@@ -30,13 +30,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <ctype.h>
 #include <err.h>
 #include <limits.h>
 #include <unistd.h>
 #include <string.h>
 #include <sysexits.h>
-#include <sys/types.h>
 #include "common.h"
 #include "y.tab.h"
 
