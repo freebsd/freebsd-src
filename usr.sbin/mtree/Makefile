@@ -4,7 +4,7 @@
 .PATH: ${.CURDIR}/../../usr.bin/cksum
 
 PROG=	mtree
-MAN=	mtree.8
+MAN=	mtree.8 mtree.5
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 SRCS+=	specspec.c
 
