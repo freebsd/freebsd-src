@@ -31,6 +31,7 @@
     <year>2005</year>
     <year>2006</year>
     <year>2007</year>
+    <year>2008</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -139,7 +140,27 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>The &man.ddb.4; kernel debugger now has an output capture
+      facility.  Input and output from &man.ddb.4; can now be captured
+      to a memory buffer for later inspection using &man.sysctl.8; or
+      a textdump.  The new <command>capture</command> command controls
+      this feature.</para>
+
+    <para>The &man.ddb.4; debugger now supports a simple scripting
+      facility, which supports a set of named scripts consisting of a
+      set of &man.ddb.4; commands.  These commands can be managed from
+      within &man.ddb.4; or with the use of the new &man.ddb.8;
+      utility.  More details can be found in the &man.ddb.4; manual
+      page.</para>
+
+    <para>The kernel now supports a new textdump format of kernel
+      dumps.  A textdump provides higher-level information via
+      mechanically generated/extracted debugging output, rather than a
+      simple memory dump.  This facility can be used to generate brief
+      kernel bug reports that are rich in debugging information, but
+      are not dependent on kernel symbol tables or precisely
+      synchronized source code.  More information can be found in the
+      &man.textdump.4; manual page.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -214,8 +235,15 @@
     <para><application>less</application> has been updated from
       v408 to v416.</para>
 
+    <para><application>ncurses</application> has been updated from
+      5.6-20061217 to 5.6-20071222.</para>
+
     <para><application>sendmail</application> has been updated from
       8.14.1 to 8.14.2.  &merged;</para>
+
+    <para>The timezone database has been updated from
+      the <application>tzdata2007h</application> release to
+      the <application>tzdata2007k</application> release.</para>
 
   </sect2>
 
