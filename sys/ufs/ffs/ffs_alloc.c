@@ -552,7 +552,8 @@ ffs_reallocblks_ufs1(ap)
 		ssize = len;
 	} else {
 #ifdef DIAGNOSTIC
-		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
+		if (start_lvl > 0 &&
+		    start_ap[start_lvl - 1].in_lbn == idp->in_lbn)
 			panic("ffs_reallocblk: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
@@ -759,7 +760,8 @@ ffs_reallocblks_ufs2(ap)
 		ssize = len;
 	} else {
 #ifdef DIAGNOSTIC
-		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
+		if (start_lvl > 0 &&
+		    start_ap[start_lvl - 1].in_lbn == idp->in_lbn)
 			panic("ffs_reallocblk: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
