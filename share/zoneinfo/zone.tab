@@ -1,4 +1,4 @@
-# @(#)zone.tab	8.12
+# @(#)zone.tab	8.13
 #
 # TZ zone descriptions
 #
@@ -341,8 +341,7 @@ SE	+5920+01803	Europe/Stockholm
 SG	+0117+10351	Asia/Singapore
 SH	-1555-00542	Atlantic/St_Helena
 SI	+4603+01431	Europe/Ljubljana
-SJ	+7800+01600	Arctic/Longyearbyen	Svalbard
-SJ	+7059-00805	Atlantic/Jan_Mayen	Jan Mayen
+SJ	+7800+01600	Arctic/Longyearbyen
 SK	+4809+01707	Europe/Bratislava
 SL	+0830-01315	Africa/Freetown
 SM	+4355+01228	Europe/San_Marino
