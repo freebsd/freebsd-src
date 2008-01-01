@@ -103,7 +103,6 @@ MAN=	archive_entry.3					\
 	cpio.5						\
 	libarchive.3					\
 	libarchive-formats.5				\
-	mtree.5						\
 	tar.5
 
 # Symlink the man pages under each function name.
