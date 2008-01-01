@@ -97,7 +97,7 @@ void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
 		    boolean_t);
-void	 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
+void		 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		    vm_prot_t prot);
 void		 pmap_enter_object(pmap_t pmap, vm_offset_t start,
 		    vm_offset_t end, vm_page_t m_start, vm_prot_t prot);
