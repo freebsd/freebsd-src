@@ -41,7 +41,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	struct archive *a;
 	size_t used;
 	size_t prefix_length = 0;
-	int i = 0;
+	unsigned i = 0;
 
 	if (prefix) {
 		strcpy(filename, prefix);
