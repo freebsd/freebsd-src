@@ -49,7 +49,8 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
-#define	__FBSDID(a)     /* null */
+/* Just leaving this macro replacement empty leads to a dangling semicolon. */
+#define	__FBSDID(a)     struct _undefined_hack
 #endif
 
 #ifdef HAVE_LIBARCHIVE
