@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2007 Bruce M. Simpson <bms@FreeBSD.org>
  * All rights reserved.
  *
@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include "netstat.h"
 
-#define __NETSTAT_BURN_BRIDGES
+#define	__NETSTAT_BURN_BRIDGES
 
 #ifdef __NETSTAT_BURN_BRIDGES
 

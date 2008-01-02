@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1989 Stephen Deering
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -121,7 +121,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 
 		printf(" %2u    %6u   %4d   %-15.15s",
 					/* opposite math of add_vif() */
-		    vifi, v->v_threshold, v->v_rate_limit * 1000 / 1024, 
+		    vifi, v->v_threshold, v->v_rate_limit * 1000 / 1024,
 		    routename(v->v_lcl_addr.s_addr));
 		printf(" %-15.15s", (v->v_flags & VIFF_TUNNEL) ?
 		    routename(v->v_rmt_addr.s_addr) : "");
@@ -151,7 +151,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 			printf("  %3d   ", mfc.mfc_parent);
 			for (vifi = 0; vifi <= maxvif; vifi++) {
 				if (mfc.mfc_ttls[vifi] > 0)
-					printf(" %u:%u", vifi, 
+					printf(" %u:%u", vifi,
 					       mfc.mfc_ttls[vifi]);
 			}
 			printf("\n");
@@ -160,7 +160,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 			{
 				struct bw_meter bw_meter, *bwm;
 				int banner_printed2 = 0;
-				
+
 				bwm = mfc.mfc_bw_meter;
 				while (bwm) {
 				    /* XXX KVM */

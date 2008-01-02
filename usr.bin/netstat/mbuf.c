@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.
  * Copyright (c) 2005 Robert N. M. Watson
@@ -300,7 +300,7 @@ mbpr(void *kvmd, u_long mbaddr)
 			goto out;
 		}
 	} else {
-		if (kread(mbaddr, (char *)&mbstat, sizeof mbstat))
+		if (kread(mbaddr, (char *)&mbstat, sizeof mbstat) != 0)
 			goto out;
 	}
 	printf("%lu requests for sfbufs denied\n", mbstat.sf_allocfail);

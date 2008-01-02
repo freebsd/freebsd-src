@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 
-#define TCPSTATES
+#define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
 #include <netipx/ipx.h>
@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <netipx/spx.h>
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
-#define SANAMES
+#define	SANAMES
 #include <netipx/spx_debug.h>
 
 #include <nlist.h>
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "netstat.h"
 
-static char *ipx_prpr (struct ipx_addr *);
+static char *ipx_prpr(struct ipx_addr *);
 
 /*
  * Print a summary of connections related to a Network Systems
@@ -145,9 +145,9 @@ ipxprotopr(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 }
 
-#define ANY(x,y,z) \
+#define	ANY(x,y,z) \
 	    if (x || sflag <= 1) printf("\t%u %s%s%s\n", x, y, plural(x), z)
-#define ANYl(x,y,z) \
+#define	ANYl(x,y,z) \
 	    if (x || sflag <= 1) printf("\t%lu %s%s%s\n", x, y, plural(x), z)
 
 /*
@@ -157,7 +157,7 @@ void
 spx_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
 	struct spx_istat spx_istat;
-#define spxstat spx_istat.newstats
+#define	spxstat spx_istat.newstats
 
 	if (off == 0)
 		return;

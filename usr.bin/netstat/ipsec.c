@@ -1,10 +1,9 @@
-/*	$FreeBSD$	*/
 /*	$KAME: ipsec.c,v 1.33 2003/07/25 09:54:32 itojun Exp $	*/
 
-/*
+/*-
  * Copyright (c) 2005 NTT Multimedia Communications Laboratories, Inc.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,11 +25,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-/*
+/*-
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,7 +40,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -55,8 +53,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -217,7 +214,7 @@ print_ipsecstats(const struct ipsecstat *ipsecstat)
     printf(m, (uintmax_t)ipsecstat->f, plural(ipsecstat->f))
 #define	pes(f, m) if (ipsecstat->f || sflag <= 1) \
     printf(m, (uintmax_t)ipsecstat->f, plurales(ipsecstat->f))
-#define hist(f, n, t) \
+#define	hist(f, n, t) \
     ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
 	p(in_success, "\t%ju inbound packet%s processed successfully\n");
@@ -318,7 +315,7 @@ ipsec_hist_new(const u_int32_t *hist, size_t histmax,
 		}
 	}
 }
-  
+
 static void
 print_ahstats(const struct ahstat *ahstat)
 {
@@ -326,7 +323,7 @@ print_ahstats(const struct ahstat *ahstat)
     printf("\t%u" m, (unsigned int)ahstat->f, plural(ahstat->f))
 #define	p64(f, m) if (ahstat->f || sflag <= 1) \
     printf("\t%ju" m, (uintmax_t)ahstat->f, plural(ahstat->f))
-#define hist(f, n, t) \
+#define	hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
 	p32(ahs_hdrops, " packet%s shorter than header shows\n");
@@ -375,7 +372,7 @@ print_espstats(const struct espstat *espstat)
     printf("\t%u" m, (unsigned int)espstat->f, plural(espstat->f))
 #define	p64(f, m) if (espstat->f || sflag <= 1) \
     printf("\t%ju" m, (uintmax_t)espstat->f, plural(espstat->f))
-#define hist(f, n, t) \
+#define	hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
 	p32(esps_hdrops, " packet%s shorter than header shows\n");
@@ -425,7 +422,7 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
     printf("\t%u" m, (unsigned int)ipcompstat->f, plural(ipcompstat->f))
 #define	p64(f, m) if (ipcompstat->f || sflag <= 1) \
     printf("\t%ju" m, (uintmax_t)ipcompstat->f, plural(ipcompstat->f))
-#define hist(f, n, t) \
+#define	hist(f, n, t) \
     ipsec_hist_new((f), sizeof(f)/sizeof(f[0]), (n), (t));
 
 	p32(ipcomps_hdrops, " packet%s shorter than header shows\n");
