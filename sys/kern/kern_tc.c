@@ -898,14 +898,14 @@ cpu_tick_calibrate(int reset)
 		    t_delta.sec == 16 && t_delta.frac >= (0x01LL << 56))) {
 			/* too long */
 			if (bootverbose)
-				printf("%ju.%016jx too long\n",
+				printf("t_delta %ju.%016jx too long\n",
 				    (uintmax_t)t_delta.sec,
 				    (uintmax_t)t_delta.frac);
 		} else if (t_delta.sec < 15 ||
 		    (t_delta.sec == 15 && t_delta.frac <= (0xffLL << 56))) {
 			/* too short */
 			if (bootverbose)
-				printf("%ju.%016jx too short\n",
+				printf("t_delta %ju.%016jx too short\n",
 				    (uintmax_t)t_delta.sec,
 				    (uintmax_t)t_delta.frac);
 		} else {
