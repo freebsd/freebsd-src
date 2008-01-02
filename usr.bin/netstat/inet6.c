@@ -1,5 +1,5 @@
 /*	BSDI inet.c,v 2.3 1995/10/24 02:19:29 prb Exp	*/
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -100,7 +100,7 @@ static	const char *ip6nh[] = {
 	"#16",
 	"UDP",
 	"#18",
-	"#19",	
+	"#19",
 	"#20",
 	"#21",
 	"IDP",
@@ -110,7 +110,7 @@ static	const char *ip6nh[] = {
 	"#26",
 	"#27",
 	"#28",
-	"TP",	
+	"TP",
 	"#30",
 	"#31",
 	"#32",
@@ -120,7 +120,7 @@ static	const char *ip6nh[] = {
 	"#36",
 	"#37",
 	"#38",
-	"#39",	
+	"#39",
 	"#40",
 	"IP6",
 	"#42",
@@ -130,7 +130,7 @@ static	const char *ip6nh[] = {
 	"#46",
 	"#47",
 	"#48",
-	"#49",	
+	"#49",
 	"ESP",
 	"AH",
 	"#52",
@@ -140,7 +140,7 @@ static	const char *ip6nh[] = {
 	"#56",
 	"#57",
 	"ICMP6",
-	"no next header",	
+	"no next header",
 	"destination option",
 	"#61",
 	"mobility",
@@ -150,7 +150,7 @@ static	const char *ip6nh[] = {
 	"#66",
 	"#67",
 	"#68",
-	"#69",	
+	"#69",
 	"#70",
 	"#71",
 	"#72",
@@ -160,7 +160,7 @@ static	const char *ip6nh[] = {
 	"#76",
 	"#77",
 	"#78",
-	"#79",	
+	"#79",
 	"ISOIP",
 	"#81",
 	"#82",
@@ -170,7 +170,7 @@ static	const char *ip6nh[] = {
 	"#86",
 	"#87",
 	"#88",
-	"OSPF",	
+	"OSPF",
 	"#80",
 	"#91",
 	"#92",
@@ -180,7 +180,7 @@ static	const char *ip6nh[] = {
 	"#96",
 	"Ethernet",
 	"#98",
-	"#99",	
+	"#99",
 	"#100",
 	"#101",
 	"#102",
@@ -190,7 +190,7 @@ static	const char *ip6nh[] = {
 	"#106",
 	"#107",
 	"#108",
-	"#109",	
+	"#109",
 	"#110",
 	"#111",
 	"#112",
@@ -200,7 +200,7 @@ static	const char *ip6nh[] = {
 	"#116",
 	"#117",
 	"#118",
-	"#119",	
+	"#119",
 	"#120",
 	"#121",
 	"#122",
@@ -210,7 +210,7 @@ static	const char *ip6nh[] = {
 	"#126",
 	"#127",
 	"#128",
-	"#129",	
+	"#129",
 	"#130",
 	"#131",
 	"#132",
@@ -220,7 +220,7 @@ static	const char *ip6nh[] = {
 	"#136",
 	"#137",
 	"#138",
-	"#139",	
+	"#139",
 	"#140",
 	"#141",
 	"#142",
@@ -230,7 +230,7 @@ static	const char *ip6nh[] = {
 	"#146",
 	"#147",
 	"#148",
-	"#149",	
+	"#149",
 	"#150",
 	"#151",
 	"#152",
@@ -240,7 +240,7 @@ static	const char *ip6nh[] = {
 	"#156",
 	"#157",
 	"#158",
-	"#159",	
+	"#159",
 	"#160",
 	"#161",
 	"#162",
@@ -250,7 +250,7 @@ static	const char *ip6nh[] = {
 	"#166",
 	"#167",
 	"#168",
-	"#169",	
+	"#169",
 	"#170",
 	"#171",
 	"#172",
@@ -260,7 +260,7 @@ static	const char *ip6nh[] = {
 	"#176",
 	"#177",
 	"#178",
-	"#179",	
+	"#179",
 	"#180",
 	"#181",
 	"#182",
@@ -270,7 +270,7 @@ static	const char *ip6nh[] = {
 	"#186",
 	"#187",
 	"#188",
-	"#189",	
+	"#189",
 	"#180",
 	"#191",
 	"#192",
@@ -280,7 +280,7 @@ static	const char *ip6nh[] = {
 	"#196",
 	"#197",
 	"#198",
-	"#199",	
+	"#199",
 	"#200",
 	"#201",
 	"#202",
@@ -290,7 +290,7 @@ static	const char *ip6nh[] = {
 	"#206",
 	"#207",
 	"#208",
-	"#209",	
+	"#209",
 	"#210",
 	"#211",
 	"#212",
@@ -300,7 +300,7 @@ static	const char *ip6nh[] = {
 	"#216",
 	"#217",
 	"#218",
-	"#219",	
+	"#219",
 	"#220",
 	"#221",
 	"#222",
@@ -310,7 +310,7 @@ static	const char *ip6nh[] = {
 	"#226",
 	"#227",
 	"#228",
-	"#229",	
+	"#229",
 	"#230",
 	"#231",
 	"#232",
@@ -320,7 +320,7 @@ static	const char *ip6nh[] = {
 	"#236",
 	"#237",
 	"#238",
-	"#239",	
+	"#239",
 	"#240",
 	"#241",
 	"#242",
@@ -330,7 +330,7 @@ static	const char *ip6nh[] = {
 	"#246",
 	"#247",
 	"#248",
-	"#249",	
+	"#249",
 	"#250",
 	"#251",
 	"#252",
@@ -423,7 +423,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("\t\t%ju one mbuf\n", (uintmax_t)ip6stat.ip6s_m1);
 	for (first = 1, i = 0; i < 32; i++) {
 		char ifbuf[IFNAMSIZ];
-		if (ip6stat.ip6s_m2m[i] != 0) {		
+		if (ip6stat.ip6s_m2m[i] != 0) {
 			if (first) {
 				printf("\t\ttwo or more mbuf:\n");
 				first = 0;
@@ -436,7 +436,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("\t\t%ju one ext mbuf\n",
 	    (uintmax_t)ip6stat.ip6s_mext1);
 	printf("\t\t%ju two or more ext mbuf\n",
-	    (uintmax_t)ip6stat.ip6s_mext2m);	
+	    (uintmax_t)ip6stat.ip6s_mext2m);
 	p(ip6s_exthdrtoolong,
 	    "\t%ju packet%s whose headers are not continuous\n");
 	p(ip6s_nogif, "\t%ju tunneling packet%s that can't find gif\n");
@@ -444,7 +444,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	    "\t%ju packet%s discarded because of too many headers\n");
 
 	/* for debugging source address selection */
-#define PRINT_SCOPESTAT(s,i) do {\
+#define	PRINT_SCOPESTAT(s,i) do {\
 		switch(i) { /* XXX hardcoding in each case */\
 		case 1:\
 			p(s, "\t\t%ju node-local%s\n");\
@@ -601,7 +601,7 @@ static	const char *icmp6names[] = {
 	"#16",
 	"#17",
 	"#18",
-	"#19",	
+	"#19",
 	"#20",
 	"#21",
 	"#22",
@@ -611,7 +611,7 @@ static	const char *icmp6names[] = {
 	"#26",
 	"#27",
 	"#28",
-	"#29",	
+	"#29",
 	"#30",
 	"#31",
 	"#32",
@@ -621,7 +621,7 @@ static	const char *icmp6names[] = {
 	"#36",
 	"#37",
 	"#38",
-	"#39",	
+	"#39",
 	"#40",
 	"#41",
 	"#42",
@@ -631,7 +631,7 @@ static	const char *icmp6names[] = {
 	"#46",
 	"#47",
 	"#48",
-	"#49",	
+	"#49",
 	"#50",
 	"#51",
 	"#52",
@@ -641,7 +641,7 @@ static	const char *icmp6names[] = {
 	"#56",
 	"#57",
 	"#58",
-	"#59",	
+	"#59",
 	"#60",
 	"#61",
 	"#62",
@@ -651,7 +651,7 @@ static	const char *icmp6names[] = {
 	"#66",
 	"#67",
 	"#68",
-	"#69",	
+	"#69",
 	"#70",
 	"#71",
 	"#72",
@@ -661,7 +661,7 @@ static	const char *icmp6names[] = {
 	"#76",
 	"#77",
 	"#78",
-	"#79",	
+	"#79",
 	"#80",
 	"#81",
 	"#82",
@@ -671,7 +671,7 @@ static	const char *icmp6names[] = {
 	"#86",
 	"#87",
 	"#88",
-	"#89",	
+	"#89",
 	"#80",
 	"#91",
 	"#92",
@@ -681,7 +681,7 @@ static	const char *icmp6names[] = {
 	"#96",
 	"#97",
 	"#98",
-	"#99",	
+	"#99",
 	"#100",
 	"#101",
 	"#102",
@@ -691,7 +691,7 @@ static	const char *icmp6names[] = {
 	"#106",
 	"#107",
 	"#108",
-	"#109",	
+	"#109",
 	"#110",
 	"#111",
 	"#112",
@@ -701,7 +701,7 @@ static	const char *icmp6names[] = {
 	"#116",
 	"#117",
 	"#118",
-	"#119",	
+	"#119",
 	"#120",
 	"#121",
 	"#122",
@@ -711,7 +711,7 @@ static	const char *icmp6names[] = {
 	"#126",
 	"#127",
 	"echo",
-	"echo reply",	
+	"echo reply",
 	"multicast listener query",
 	"multicast listener report",
 	"multicast listener done",
@@ -731,7 +731,7 @@ static	const char *icmp6names[] = {
 	"#146",
 	"#147",
 	"#148",
-	"#149",	
+	"#149",
 	"#150",
 	"#151",
 	"#152",
@@ -741,7 +741,7 @@ static	const char *icmp6names[] = {
 	"#156",
 	"#157",
 	"#158",
-	"#159",	
+	"#159",
 	"#160",
 	"#161",
 	"#162",
@@ -751,7 +751,7 @@ static	const char *icmp6names[] = {
 	"#166",
 	"#167",
 	"#168",
-	"#169",	
+	"#169",
 	"#170",
 	"#171",
 	"#172",
@@ -761,7 +761,7 @@ static	const char *icmp6names[] = {
 	"#176",
 	"#177",
 	"#178",
-	"#179",	
+	"#179",
 	"#180",
 	"#181",
 	"#182",
@@ -771,7 +771,7 @@ static	const char *icmp6names[] = {
 	"#186",
 	"#187",
 	"#188",
-	"#189",	
+	"#189",
 	"#180",
 	"#191",
 	"#192",
@@ -781,7 +781,7 @@ static	const char *icmp6names[] = {
 	"#196",
 	"#197",
 	"#198",
-	"#199",	
+	"#199",
 	"#200",
 	"#201",
 	"#202",
@@ -791,7 +791,7 @@ static	const char *icmp6names[] = {
 	"#206",
 	"#207",
 	"#208",
-	"#209",	
+	"#209",
 	"#210",
 	"#211",
 	"#212",
@@ -801,7 +801,7 @@ static	const char *icmp6names[] = {
 	"#216",
 	"#217",
 	"#218",
-	"#219",	
+	"#219",
 	"#220",
 	"#221",
 	"#222",
@@ -811,7 +811,7 @@ static	const char *icmp6names[] = {
 	"#226",
 	"#227",
 	"#228",
-	"#229",	
+	"#229",
 	"#230",
 	"#231",
 	"#232",
@@ -821,7 +821,7 @@ static	const char *icmp6names[] = {
 	"#236",
 	"#237",
 	"#238",
-	"#239",	
+	"#239",
 	"#240",
 	"#241",
 	"#242",
@@ -831,7 +831,7 @@ static	const char *icmp6names[] = {
 	"#246",
 	"#247",
 	"#248",
-	"#249",	
+	"#249",
 	"#250",
 	"#251",
 	"#252",
@@ -866,14 +866,14 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)icmp6stat.f, plural(icmp6stat.f))
-#define p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
+#define	p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
 
 	p(icp6s_error, "\t%ju call%s to icmp6_error\n");
 	p(icp6s_canterror,
 	    "\t%ju error%s not generated in response to an icmp6 message\n");
 	p(icp6s_toofreq,
 	  "\t%ju error%s not generated because of rate limitation\n");
-#define NELEM (int)(sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
+#define	NELEM (int)(sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_outhist[i] != 0) {
 			if (first) {
@@ -888,7 +888,7 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(icp6s_tooshort, "\t%ju message%s < minimum length\n");
 	p(icp6s_checksum, "\t%ju bad checksum%s\n");
 	p(icp6s_badlen, "\t%ju message%s with bad length\n");
-#define NELEM (int)(sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
+#define	NELEM (int)(sizeof(icmp6stat.icp6s_inhist)/sizeof(icmp6stat.icp6s_inhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_inhist[i] != 0) {
 			if (first) {
@@ -954,7 +954,7 @@ icmp6_ifstats(char *ifname)
 	}
 
 	p(ifs6_in_msg, "\t%ju total input message%s\n");
-	p(ifs6_in_error, "\t%ju total input error message%s\n"); 
+	p(ifs6_in_error, "\t%ju total input error message%s\n");
 	p(ifs6_in_dstunreach, "\t%ju input destination unreachable error%s\n");
 	p(ifs6_in_adminprohib, "\t%ju input administratively prohibited error%s\n");
 	p(ifs6_in_timeexceed, "\t%ju input time exceeded error%s\n");
@@ -1080,7 +1080,7 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
  * Pretty print an Internet address (net address + port).
  * Take numeric_addr and numeric_port into consideration.
  */
-#define GETSERVBYPORT6(port, proto, ret)\
+#define	GETSERVBYPORT6(port, proto, ret)\
 {\
 	if (strcmp((proto), "tcp6") == 0)\
 		(ret) = getservbyport((int)(port), "tcp");\
@@ -1147,7 +1147,7 @@ inet6name(struct in6_addr *in6p)
 		strcpy(line, "*");
 	else if (cp)
 		strcpy(line, cp);
-	else 
+	else
 		sprintf(line, "%s",
 			inet_ntop(AF_INET6, (void *)in6p, ntop_buf,
 				sizeof(ntop_buf)));

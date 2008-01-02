@@ -28,7 +28,6 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)sctp.c	0.1 (Berkeley) 4/18/2007";
@@ -64,27 +63,27 @@ __FBSDID("$FreeBSD$");
 
 #ifdef SCTP
 
-void	inetprint (struct in_addr *, int, const char *, int);
+void	inetprint(struct in_addr *, int, const char *, int);
 static void sctp_statesprint(uint32_t state);
 
-#define NETSTAT_SCTP_STATES_CLOSED		0x0
-#define NETSTAT_SCTP_STATES_BOUND		0x1
-#define NETSTAT_SCTP_STATES_LISTEN		0x2
-#define NETSTAT_SCTP_STATES_COOKIE_WAIT		0x3
-#define NETSTAT_SCTP_STATES_COOKIE_ECHOED	0x4
-#define NETSTAT_SCTP_STATES_ESTABLISHED		0x5
-#define NETSTAT_SCTP_STATES_SHUTDOWN_SENT	0x6
-#define NETSTAT_SCTP_STATES_SHUTDOWN_RECEIVED	0x7
-#define NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT	0x8
-#define NETSTAT_SCTP_STATES_SHUTDOWN_PENDING	0x9
+#define	NETSTAT_SCTP_STATES_CLOSED		0x0
+#define	NETSTAT_SCTP_STATES_BOUND		0x1
+#define	NETSTAT_SCTP_STATES_LISTEN		0x2
+#define	NETSTAT_SCTP_STATES_COOKIE_WAIT		0x3
+#define	NETSTAT_SCTP_STATES_COOKIE_ECHOED	0x4
+#define	NETSTAT_SCTP_STATES_ESTABLISHED		0x5
+#define	NETSTAT_SCTP_STATES_SHUTDOWN_SENT	0x6
+#define	NETSTAT_SCTP_STATES_SHUTDOWN_RECEIVED	0x7
+#define	NETSTAT_SCTP_STATES_SHUTDOWN_ACK_SENT	0x8
+#define	NETSTAT_SCTP_STATES_SHUTDOWN_PENDING	0x9
 
 char *sctpstates[] = {
 	"CLOSED",
 	"BOUND",
-	"LISTEN", 
-	"COOKIE_WAIT", 
-	"COOKIE_ECHOED", 
-	"ESTABLISHED", 
+	"LISTEN",
+	"COOKIE_WAIT",
+	"COOKIE_ECHOED",
+	"ESTABLISHED",
 	"SHUTDOWN_SENT",
 	"SHUTDOWN_RECEIVED",
 	"SHUTDOWN_ACK_SENT",
@@ -117,7 +116,7 @@ sctp_skip_xinpcb_ifneed(char *buf, const size_t buflen, size_t *offset)
 		if (xladdr->last == 1)
 			break;
 	}
-	
+
 	while (*offset < buflen) {
 		xstcb = (struct xsctp_tcb *)(buf + *offset);
 		*offset += sizeof(struct xsctp_tcb);
@@ -176,11 +175,11 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 		*offset += sizeof(struct xsctp_laddr);
 		if (xladdr->last == 1)
 			break;
-		
+
 		prev_xl = xl;
 		xl = malloc(sizeof(struct xladdr_entry));
 		if (xl == NULL) {
-			warnx("malloc %lu bytes", 
+			warnx("malloc %lu bytes",
 			    (u_long)sizeof(struct xladdr_entry));
 			goto out;
 		}
@@ -191,17 +190,17 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 			LIST_INSERT_AFTER(prev_xl, xl, xladdr_entries);
 		xl_total++;
 	}
-	
+
 	while (*offset < buflen) {
 		xraddr = (struct xsctp_raddr *)(buf + *offset);
 		*offset += sizeof(struct xsctp_raddr);
 		if (xraddr->last == 1)
 			break;
-		
+
 		prev_xr = xr;
 		xr = malloc(sizeof(struct xraddr_entry));
 		if (xr == NULL) {
-			warnx("malloc %lu bytes", 
+			warnx("malloc %lu bytes",
 			    (u_long)sizeof(struct xraddr_entry));
 			goto out;
 		}
@@ -212,7 +211,7 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 			LIST_INSERT_AFTER(prev_xr, xr, xraddr_entries);
 		xr_total++;
 	}
-	
+
 	/*
 	 * Let's print the address infos.
 	 */
@@ -222,12 +221,12 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 	for (i = 0; i < x_max; i++) {
 		if (((*indent == 0) && i > 0) || *indent > 0)
 			printf("%-11s ", " ");
-		
+
 		if (xl != NULL) {
 			sa = &(xl->xladdr->address.sa);
 			if ((sa->sa_family) == AF_INET)
-				inetprint(&((struct sockaddr_in *)sa)->sin_addr, 
-				    htons(xstcb->local_port), 
+				inetprint(&((struct sockaddr_in *)sa)->sin_addr,
+				    htons(xstcb->local_port),
 				    name, numeric_port);
 #ifdef INET6
 			else {
@@ -238,7 +237,7 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 			}
 #endif
 		}
-		
+
 		if (xr != NULL && !Lflag) {
 			sa = &(xr->xraddr->address.sa);
 			if ((sa->sa_family) == AF_INET)
@@ -254,19 +253,19 @@ sctp_process_tcb(struct xsctp_tcb *xstcb, const char *name,
 			}
 #endif
 		}
-		
+
 		if (xl != NULL)
 			xl = LIST_NEXT(xl, xladdr_entries);
 		if (xr != NULL)
 			xr = LIST_NEXT(xr, xraddr_entries);
-		
+
 		if (i == 0 && !Lflag)
 			sctp_statesprint(xstcb->state);
-		
+
 		if (i < x_max)
 			putchar('\n');
 	}
-	
+
 out:
 	/*
 	 * Free the list which be used to handle the address.
@@ -277,7 +276,7 @@ out:
 		free(xl);
 		xl = xl_tmp;
 	}
-	
+
 	xr = LIST_FIRST(&xraddr_head);
 	while (xr != NULL) {
 		xr_tmp = LIST_NEXT(xr, xraddr_entries);
@@ -363,19 +362,19 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
 		printf("%8lx ", (u_long)xinpcb);
 
 	printf("%-5.5s ", name);
-	
+
 	if (xinpcb->flags & SCTP_PCB_FLAGS_TCPTYPE)
 		tname = "1to1";
 	else if (xinpcb->flags & SCTP_PCB_FLAGS_UDPTYPE)
 		tname = "1toN";
 	else
 		return;
-	
+
 	printf("%-5.5s ", tname);
 
 	if (Lflag) {
 		char buf1[9];
-		
+
 		snprintf(buf1, 9, "%hu/%hu", xinpcb->qlen, xinpcb->maxqlen);
 		printf("%-8.8s ", buf1);
 	}
@@ -399,7 +398,7 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
 
 		sa = &(xladdr->address.sa);
 		if ((sa->sa_family) == AF_INET)
-			inetprint(&((struct sockaddr_in *)sa)->sin_addr, 
+			inetprint(&((struct sockaddr_in *)sa)->sin_addr,
 			    htons(xinpcb->local_port), name, numeric_port);
 #ifdef INET6
 		else {
@@ -440,7 +439,7 @@ sctp_protopr(u_long off __unused,
 	size_t offset = 0;
 	size_t len = 0;
 	struct xsctp_inpcb *xinpcb;
-	
+
 	if (proto != IPPROTO_SCTP)
 		return;
 
