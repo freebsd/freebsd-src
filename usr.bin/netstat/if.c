@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -82,7 +82,7 @@ static void catchalarm(int);
 static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 #endif
 
-/* 
+/*
  * Dump pfsync statistics structure.
  */
 void
@@ -105,9 +105,9 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 	printf("%s:\n", name);
 
-#define p(f, m) if (pfsyncstat.f || sflag <= 1) \
+#define	p(f, m) if (pfsyncstat.f || sflag <= 1) \
 	printf(m, (uintmax_t)pfsyncstat.f, plural(pfsyncstat.f))
-#define p2(f, m) if (pfsyncstat.f || sflag <= 1) \
+#define	p2(f, m) if (pfsyncstat.f || sflag <= 1) \
 	printf(m, (uintmax_t)pfsyncstat.f)
 
 	p(pfsyncs_ipackets, "\t%ju packet%s received (IPv4)\n");
@@ -214,10 +214,10 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		sidewaysintpr(interval1, ifnetaddr);
 		return;
 	}
-	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
+	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead) != 0)
 		return;
 	ifnetaddr = (u_long)TAILQ_FIRST(&ifnethead);
-	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
+	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
 		return;
 
 	if (!pfunc) {
@@ -253,11 +253,11 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 
 		if (ifaddraddr == 0) {
 			ifnetfound = ifnetaddr;
-			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
+			if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet) != 0)
 				return;
 			strlcpy(name, ifnet.if_xname, sizeof(name));
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
-			if (interface != 0 && (strcmp(name, interface) != 0))
+			if (interface != 0 && strcmp(name, interface) != 0)
 				continue;
 			cp = index(name, '\0');
 
@@ -298,11 +298,12 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 			printf("%-13.13s ", "none");
 			printf("%-17.17s ", "none");
 		} else {
-			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)) {
+			if (kread(ifaddraddr, (char *)&ifaddr, sizeof ifaddr)
+			    != 0) {
 				ifaddraddr = 0;
 				continue;
 			}
-#define CP(x) ((char *)(x))
+#define	CP(x) ((char *)(x))
 			cp = (CP(ifaddr.ifa.ifa_addr) - CP(ifaddraddr)) +
 				CP(&ifaddr);
 			sa = (struct sockaddr *)cp;
@@ -455,15 +456,15 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 
 			TAILQ_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
 				if (kread((u_long)multiaddr, (char *)&ifma,
-					  sizeof ifma))
+					  sizeof ifma) != 0)
 					break;
 				multiaddr = &ifma;
 				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
-					  sizeof msa))
+					  sizeof msa) != 0)
 					break;
 				if (msa.sa.sa_family != sa->sa_family)
 					continue;
-				
+
 				fmt = 0;
 				switch (msa.sa.sa_family) {
 				case AF_INET:
@@ -541,7 +542,7 @@ sidewaysintpr(int interval1, u_long off)
 	int oldmask, first;
 	u_long interesting_off;
 
-	if (kread(off, (char *)&ifnethead, sizeof ifnethead))
+	if (kread(off, (char *)&ifnethead, sizeof ifnethead) != 0)
 		return;
 	firstifnet = (u_long)TAILQ_FIRST(&ifnethead);
 
@@ -556,7 +557,7 @@ sidewaysintpr(int interval1, u_long off)
 	for (off = firstifnet, ip = iftot; off;) {
 		char name[IFNAMSIZ];
 
-		if (kread(off, (char *)&ifnet, sizeof ifnet))
+		if (kread(off, (char *)&ifnet, sizeof ifnet) != 0)
 			break;
 		strlcpy(name, ifnet.if_xname, sizeof(name));
 		if (interface && strcmp(name, interface) == 0) {
@@ -607,7 +608,7 @@ banner:
 loop:
 	if (interesting != NULL) {
 		ip = interesting;
-		if (kread(interesting_off, (char *)&ifnet, sizeof ifnet)) {
+		if (kread(interesting_off, (char *)&ifnet, sizeof ifnet) != 0) {
 			printf("???\n");
 			exit(1);
 		};
@@ -618,7 +619,7 @@ loop:
 			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
 			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
 			show_stat("lu", 10, ifnet.if_obytes - ip->ift_ob, 1);
-			show_stat("NRSlu", 5, 
+			show_stat("NRSlu", 5,
 			    ifnet.if_collisions - ip->ift_co, 1);
 			if (dflag)
 				show_stat("LSu", 5,
@@ -644,7 +645,7 @@ loop:
 		for (off = firstifnet, ip = iftot;
 		     off && SLIST_NEXT(ip, chain) != NULL;
 		     ip = SLIST_NEXT(ip, chain)) {
-			if (kread(off, (char *)&ifnet, sizeof ifnet)) {
+			if (kread(off, (char *)&ifnet, sizeof ifnet) != 0) {
 				off = 0;
 				continue;
 			}
