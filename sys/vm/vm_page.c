@@ -1332,8 +1332,8 @@ vm_page_free_toq(vm_page_t m)
 		m->flags &= ~PG_ZERO;
 		vm_pageq_enqueue(PQ_HOLD, m);
 	} else {
-		m->flags |= PG_FREE;
 		mtx_lock(&vm_page_queue_free_mtx);
+		m->flags |= PG_FREE;
 		cnt.v_free_count++;
 #if VM_NRESERVLEVEL > 0
 		if (!vm_reserv_free_page(m))
@@ -1584,9 +1584,9 @@ vm_page_cache(vm_page_t m)
 	 * Insert the page into the object's collection of cached pages
 	 * and the physical memory allocator's cache/free page queues.
 	 */
-	vm_page_flag_set(m, PG_CACHED);
 	vm_page_flag_clear(m, PG_ZERO);
 	mtx_lock(&vm_page_queue_free_mtx);
+	m->flags |= PG_CACHED;
 	cnt.v_cache_count++;
 	root = object->cache;
 	if (root == NULL) {
