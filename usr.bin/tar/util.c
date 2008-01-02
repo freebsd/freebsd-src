@@ -199,56 +199,6 @@ yes(const char *fmt, ...)
 	return (0);
 }
 
-void
-bsdtar_strmode(struct archive_entry *entry, char *bp)
-{
-	static const char *perms = "?rwxrwxrwx ";
-	static const mode_t permbits[] =
-	    { S_IRUSR, S_IWUSR, S_IXUSR, S_IRGRP, S_IWGRP, S_IXGRP,
-	      S_IROTH, S_IWOTH, S_IXOTH };
-	mode_t mode;
-	int i;
-
-	/* Fill in a default string, then selectively override. */
-	strcpy(bp, perms);
-
-	mode = archive_entry_mode(entry);
-	switch (mode & S_IFMT) {
-	case S_IFREG:  bp[0] = '-'; break;
-	case S_IFBLK:  bp[0] = 'b'; break;
-	case S_IFCHR:  bp[0] = 'c'; break;
-	case S_IFDIR:  bp[0] = 'd'; break;
-	case S_IFLNK:  bp[0] = 'l'; break;
-	case S_IFSOCK: bp[0] = 's'; break;
-#ifdef S_IFIFO
-	case S_IFIFO:  bp[0] = 'p'; break;
-#endif
-#ifdef S_IFWHT
-	case S_IFWHT:  bp[0] = 'w'; break;
-#endif
-	}
-
-	for (i = 0; i < 9; i++)
-		if (!(mode & permbits[i]))
-			bp[i+1] = '-';
-
-	if (mode & S_ISUID) {
-		if (mode & S_IXUSR) bp[3] = 's';
-		else bp[3] = 'S';
-	}
-	if (mode & S_ISGID) {
-		if (mode & S_IXGRP) bp[6] = 's';
-		else bp[6] = 'S';
-	}
-	if (mode & S_ISVTX) {
-		if (mode & S_IXOTH) bp[9] = 't';
-		else bp[9] = 'T';
-	}
-	if (archive_entry_acl_count(entry, ARCHIVE_ENTRY_ACL_TYPE_ACCESS))
-		bp[10] = '+';
-}
-
-
 /*
  * Read lines from file and do something with each one.  If option_null
  * is set, lines are terminated with zero bytes; otherwise, they're
