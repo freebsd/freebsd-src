@@ -291,8 +291,9 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	}
 	if (!now)
 		time(&now);
-	bsdtar_strmode(entry, tmp);
-	fprintf(out, "%s %d ", tmp, (int)(st->st_nlink));
+	fprintf(out, "%s %d ",
+	    archive_entry_strmode(entry),
+	    (int)(st->st_nlink));
 
 	/* Use uname if it's present, else uid. */
 	p = archive_entry_uname(entry);
