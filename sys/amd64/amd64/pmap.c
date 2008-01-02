@@ -1554,7 +1554,7 @@ pmap_growkernel(vm_offset_t addr)
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc(NULL, nkpt,
 			    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
-			if (!nkpg)
+			if (nkpg == NULL)
 				panic("pmap_growkernel: no memory to grow kernel");
 			pmap_zero_page(nkpg);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
@@ -1572,12 +1572,9 @@ pmap_growkernel(vm_offset_t addr)
 			continue;
 		}
 
-		/*
-		 * This index is bogus, but out of the way
-		 */
-		nkpg = vm_page_alloc(NULL, nkpt,
+		nkpg = vm_page_alloc(NULL, pmap_pde_pindex(kernel_vm_end),
 		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
-		if (!nkpg)
+		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
