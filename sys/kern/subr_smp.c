@@ -106,7 +106,7 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 /* Variables needed for SMP rendezvous. */
 static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
-static void (* volatile smp_rv_teardown_func)(void *arg);
+static void (*volatile smp_rv_teardown_func)(void *arg);
 static void * volatile smp_rv_func_arg;
 static volatile int smp_rv_waiters[3];
 
@@ -286,7 +286,8 @@ restart_cpus(cpumask_t map)
 	return 1;
 }
 
-void smp_no_rendevous_barrier(void *dummy)
+void
+smp_no_rendevous_barrier(void *dummy)
 {
 #ifdef SMP
 	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
@@ -309,7 +310,7 @@ smp_rendezvous_action(void)
 	void (*local_setup_func)(void*)   = smp_rv_setup_func;
 	void (*local_action_func)(void*)   = smp_rv_action_func;
 	void (*local_teardown_func)(void*) = smp_rv_teardown_func;
- 
+
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
 	while (smp_rv_waiters[0] < mp_ncpus)
@@ -319,17 +320,16 @@ smp_rendezvous_action(void)
 	if (local_setup_func != smp_no_rendevous_barrier) {
 		if (smp_rv_setup_func != NULL)
 			smp_rv_setup_func(smp_rv_func_arg);
+
 		/* spin on entry rendezvous */
 		atomic_add_int(&smp_rv_waiters[1], 1);
 		while (smp_rv_waiters[1] < mp_ncpus)
                 	cpu_spinwait();
 	}
 
-
 	/* action function */
 	if (local_action_func != NULL)
 		local_action_func(local_func_arg);
-
 
 	/* spin on exit rendezvous */
 	atomic_add_int(&smp_rv_waiters[2], 1);
@@ -337,6 +337,7 @@ smp_rendezvous_action(void)
                 return;
 	while (smp_rv_waiters[2] < mp_ncpus)
 		cpu_spinwait();
+
 	/* teardown function */
 	if (local_teardown_func != NULL)
 		local_teardown_func(local_func_arg);
@@ -371,18 +372,16 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rv_waiters[2] = 0;
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
-		
-
 	/* signal other processors, which will enter the IPI with interrupts off */
 	ipi_all_but_self(IPI_RENDEZVOUS);
 
 	/* call executor function */
 	smp_rendezvous_action();
 
-	if (teardown_func == smp_no_rendevous_barrier) { 
+	if (teardown_func == smp_no_rendevous_barrier)
 		while (atomic_load_acq_int(&smp_rv_waiters[2]) < mp_ncpus)
 			cpu_spinwait();
-	}
+
 	/* release lock */
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
@@ -404,9 +403,9 @@ SYSINIT(cpu_mp_setvariables, SI_SUB_TUNABLES, SI_ORDER_FIRST,
     mp_setvariables_for_up, NULL)
 
 void
-smp_rendezvous(void (* setup_func)(void *), 
-	       void (* action_func)(void *),
-	       void (* teardown_func)(void *),
+smp_rendezvous(void (*setup_func)(void *), 
+	       void (*action_func)(void *),
+	       void (*teardown_func)(void *),
 	       void *arg)
 {
 
