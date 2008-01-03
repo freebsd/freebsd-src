@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006,2007 Jason Evans <jasone@FreeBSD.org>.
+ * Copyright (C) 2006-2008 Jason Evans <jasone@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,7 @@
  * unnecessary, but we are burdened by history and the lack of resource limits
  * for anonymous mapped memory.
  */
-#define MALLOC_DSS
+#define	MALLOC_DSS
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -821,7 +821,7 @@ static bool	opt_junk = false;
 #endif
 #ifdef MALLOC_DSS
 static bool	opt_dss = true;
-static bool	opt_mmap = false;
+static bool	opt_mmap = true;
 #endif
 static bool	opt_hint = false;
 #ifdef MALLOC_LAZY_FREE
@@ -1646,6 +1646,7 @@ chunk_alloc_mmap(size_t size)
 				return (NULL);
 
 			/* Clean up unneeded leading/trailing space. */
+			offset = CHUNK_ADDR2OFFSET(ret);
 			if (offset != 0) {
 				/* Leading space. */
 				pages_unmap(ret, chunksize - offset);
@@ -1661,11 +1662,11 @@ chunk_alloc_mmap(size_t size)
 				pages_unmap((void *)((uintptr_t)ret + size),
 				    chunksize);
 			}
+		} else {
+			/* Clean up unneeded leading space. */
+			pages_unmap(ret, chunksize - offset);
+			ret = (void *)((uintptr_t)ret + (chunksize - offset));
 		}
-
-		/* Clean up unneeded leading space. */
-		pages_unmap(ret, chunksize - offset);
-		ret = (void *)((uintptr_t)ret + (chunksize - offset));
 	}
 
 	return (ret);
