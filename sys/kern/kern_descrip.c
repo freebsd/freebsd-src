@@ -2392,7 +2392,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			if (fdp == NULL)
 				continue;
 			/* overestimates sparse tables. */
-			n += fdp->fd_lastfile;
+			if (fdp->fd_lastfile > 0)
+				n += fdp->fd_lastfile;
 			fddrop(fdp);
 		}
 		sx_sunlock(&allproc_lock);
