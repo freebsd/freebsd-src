@@ -2302,8 +2302,8 @@ retry:
  *	insert this page into the given map NOW.
  */
 void
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
-	   boolean_t wired)
+pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
+    vm_prot_t prot, boolean_t wired)
 {
 	vm_paddr_t pa;
 	pd_entry_t *pde;
