@@ -145,7 +145,7 @@ struct syscall syscalls[] = {
 	  { { Int, 0 }, { BinString | IN, 1 }, { Int, 2 }}},
 	{ "ioctl", 1, 3,
 	  { { Int, 0 }, { Ioctl, 1 }, { Hex, 2 }}},
-	{ "break", 1, 1, { { Hex, 0 }}},
+	{ "break", 1, 1, { { Ptr, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
 	{ "access", 1, 2, { { Name | IN, 0 }, { Int, 1 }}},
 	{ "sigaction", 1, 3,
