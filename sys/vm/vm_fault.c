@@ -888,7 +888,7 @@ readrest:
 	 * back on the active queue until later so that the pageout daemon
 	 * won't find it (yet).
 	 */
-	pmap_enter(fs.map->pmap, vaddr, fs.m, prot, wired);
+	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
@@ -1177,9 +1177,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		VM_OBJECT_UNLOCK(dst_object);
 
 		/*
-		 * Enter it in the pmap...
+		 * Enter it in the pmap as a read and/or execute access.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
+		pmap_enter(dst_map->pmap, vaddr, prot & ~VM_PROT_WRITE, dst_m,
+		    prot, FALSE);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
