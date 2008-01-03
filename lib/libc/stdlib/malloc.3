@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2007
+.Dd January 3, 2008
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -245,7 +245,7 @@ This option is not available for some configurations (non-PIC).
 Use
 .Xr mmap 2
 to acquire anonymously mapped memory.
-This option is disabled by default.
+This option is enabled by default.
 If both the
 .Dq D
 and
@@ -335,24 +335,24 @@ Traditionally, allocators have used
 to obtain memory, which is suboptimal for several reasons, including race
 conditions, increased fragmentation, and artificial limitations on maximum
 usable memory.
-This allocator uses
+This allocator uses both
 .Xr sbrk 2
-by default in order to facilitate resource limits, but it can be configured at
-run time to use
-.Xr sbrk 2
-and/or
-.Xr mmap 2 .
+and
+.Xr mmap 2
+by default, but it can be configured at run time to use only one or the other.
 If resource limits are not a primary concern, the preferred configuration is
 .Ev MALLOC_OPTIONS=dM
 or
 .Ev MALLOC_OPTIONS=DM .
 When so configured, the
 .Ar datasize
-resource limit has little practical effect for typical applications.
-The
+resource limit has little practical effect for typical applications; use
+.Ev MALLOC_OPTIONS=Dm
+if that is a concern.
+Regardless of allocator configuration, the
 .Ar vmemoryuse
-resource limit, however, can be used to bound the total virtual memory used by
-a process, as described in
+resource limit can be used to bound the total virtual memory used by a
+process, as described in
 .Xr limits 1 .
 .Pp
 This allocator uses multiple arenas in order to reduce lock contention for
