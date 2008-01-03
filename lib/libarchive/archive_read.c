@@ -741,3 +741,14 @@ __archive_read_register_compression(struct archive_read *a,
 	__archive_errx(1, "Not enough slots for compression registration");
 	return (NULL); /* Never actually executed. */
 }
+
+/* used internally to simplify read-ahead */
+const void *
+__archive_read_ahead(struct archive_read *a, size_t len)
+{
+	const void *h;
+
+	if ((a->decompressor->read_ahead)(a, &h, len) < (ssize_t)len)
+		return (NULL);
+	return (h);
+}
