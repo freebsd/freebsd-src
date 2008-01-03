@@ -78,11 +78,11 @@ The command:
 # echo "1:ad(1,a)/boot/loader" > /boot.config
 .Ed
 .Pp
-will instruct the second boot stage of
-.Xr loader 8
-on the first disk to boot with the third boot stage of
-.Xr loader 8
-from the second disk.
+will instruct the second stage of
+.Xr boot 8
+on the first disk to boot with the third
+.Xr boot 8
+stage from the second disk.
 .Pp
 The command:
 .Bd -literal -offset indent
