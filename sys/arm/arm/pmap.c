@@ -3170,8 +3170,7 @@ pmap_remove_all(vm_page_t m)
 
 #if defined(PMAP_DEBUG)
 	/*
-	 * XXX this makes pmap_page_protect(NONE) illegal for non-managed
-	 * pages!
+	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
 	 */
 	if (m->flags & PG_FICTITIOUS) {
 		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%x", VM_PAGE_TO_PHYS(m));
