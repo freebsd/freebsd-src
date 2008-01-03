@@ -406,7 +406,8 @@ retry:
 		/*
 		 * Because this is kernel_pmap, this call will not block.
 		 */
-		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL, 1);
+		pmap_enter(kernel_pmap, addr + i, VM_PROT_ALL, m, VM_PROT_ALL,
+		    TRUE);
 		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
