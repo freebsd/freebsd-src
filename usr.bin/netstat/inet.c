@@ -928,8 +928,8 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 					icmpstat.icps_outhist[i]);
 		}
 	p(icps_badcode, "\t%lu message%s with bad code fields\n");
-	p(icps_tooshort, "\t%lu message%s < minimum length\n");
-	p(icps_checksum, "\t%lu bad checksum%s\n");
+	p(icps_tooshort, "\t%lu message%s less than the minimum length\n");
+	p(icps_checksum, "\t%lu message%s with bad checksum\n");
 	p(icps_badlen, "\t%lu message%s with bad length\n");
 	p1a(icps_bmcastecho, "\t%lu multicast echo requests ignored\n");
 	p1a(icps_bmcasttstamp, "\t%lu multicast timestamp requests ignored\n");
