@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 30, 2007
+.Dd January 3, 2008
 .Dt PCI 4
 .Os
 .Sh NAME
@@ -54,13 +54,21 @@ granting access to the
 device.
 If used improperly, this driver can allow userland applications to
 crash a machine or cause data loss.
+.Pp
+The 
+.Nm 
+driver implements the pci bus in the kernel.
+It enumerates and devices on the pci bus and gives pci client drivers the
+chance to attach to them.
+It assigns resources to children, when the BIOS doesn't.
+It takes care of routing interrupts when necessary.
+It reprobes the unattached pci children when pci client drivers are dynamically
+loaded at runtime.
 .Sh KERNEL CONFIGURATION
-It is only necessary to specify one
+The 
 .Nm
-controller in the kernel.
-Additional
-.Tn PCI
-busses are handled automatically as they are encountered.
+device is included in the kernel as described in the SYNOPSIS section.
+The pci driver cannot be built as a kld.
 .Sh IOCTLS
 The following
 .Xr ioctl 2
