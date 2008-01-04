@@ -402,7 +402,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	"Current listen queue sizes (qlen/incqlen/maxqlen)");
 			putchar('\n');
 			if (Aflag)
-				printf("%-8.8s ", "Socket");
+				printf("%-8.8s ", "Tcpcb");
 			if (Lflag)
 				printf("%-5.5s %-14.14s %-22.22s\n",
 					"Proto", "Listen", "Local Address");
