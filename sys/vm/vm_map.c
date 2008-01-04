@@ -2712,7 +2712,9 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	cow &= ~orient;
 	KASSERT(orient != 0, ("No stack grow direction"));
 
-	if (addrbos < vm_map_min(map) || addrbos > map->max_offset)
+	if (addrbos < vm_map_min(map) ||
+	    addrbos > vm_map_max(map) ||
+	    addrbos + max_ssize < addrbos)
 		return (KERN_NO_SPACE);
 
 	init_ssize = (max_ssize < sgrowsiz) ? max_ssize : sgrowsiz;
