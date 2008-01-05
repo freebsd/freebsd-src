@@ -2186,17 +2186,16 @@ sched_clock(struct thread *td)
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
 	ts = td->td_sched;
-	/*
-	 * We only do slicing code for TIMESHARE threads.
-	 */
-	if (td->td_pri_class != PRI_TIMESHARE)
+	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
-	/*
-	 * We used a tick; charge it to the thread so that we can compute our
-	 * interactivity.
-	 */
-	td->td_sched->ts_runtime += tickincr;
-	sched_interact_update(td);
+	if (td->td_pri_class == PRI_TIMESHARE) {
+		/*
+		 * We used a tick; charge it to the thread so
+		 * that we can compute our interactivity.
+		 */
+		td->td_sched->ts_runtime += tickincr;
+		sched_interact_update(td);
+	}
 	/*
 	 * We used up one time slice.
 	 */
