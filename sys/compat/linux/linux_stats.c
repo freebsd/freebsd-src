@@ -270,13 +270,15 @@ linux_stat(struct thread *td, struct linux_stat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(stat))
-		printf(ARGS(stat, "%s, *"), args->path);
+		printf(ARGS(stat, "%s, *"), path);
 #endif
 	error = kern_stat(td, path, UIO_SYSSPACE, &buf);
-	LFREEPATH(path);
-	if (error)
+	if (error) {
+		LFREEPATH(path);
 		return (error);
-	translate_path_major_minor(td, args->path, &buf);
+	}
+	translate_path_major_minor(td, path, &buf);
+	LFREEPATH(path);
 	return(stat_copyout(&buf, args->up));
 }
 
@@ -291,13 +293,15 @@ linux_lstat(struct thread *td, struct linux_lstat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(lstat))
-		printf(ARGS(lstat, "%s, *"), args->path);
+		printf(ARGS(lstat, "%s, *"), path);
 #endif
-	error = kern_lstat(td, args->path, UIO_SYSSPACE, &buf);
-	LFREEPATH(path);
-	if (error)
+	error = kern_lstat(td, path, UIO_SYSSPACE, &buf);
+	if (error) {
+		LFREEPATH(path);
 		return (error);
-	translate_path_major_minor(td, args->path, &buf);
+	}
+	translate_path_major_minor(td, path, &buf);
+	LFREEPATH(path);
 	return(stat_copyout(&buf, args->up));
 }
 
