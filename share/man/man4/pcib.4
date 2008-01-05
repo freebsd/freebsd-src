@@ -31,11 +31,19 @@
 .Nm pcib
 .Nd PCI bridge driver
 .Sh SYNOPSIS
-.Cd device pcib
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pcib"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides for host and pci bridges in a pci system.
+driver provides for host and
+.Tn PCI
+bridges in a
+.Tn PCI
+system.
 .Sh BUGS
 This man page is too short.
-
