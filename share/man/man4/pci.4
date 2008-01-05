@@ -57,18 +57,30 @@ crash a machine or cause data loss.
 .Pp
 The 
 .Nm 
-driver implements the pci bus in the kernel.
-It enumerates and devices on the pci bus and gives pci client drivers the
-chance to attach to them.
-It assigns resources to children, when the BIOS doesn't.
+driver implements the
+.Tn PCI
+bus in the kernel.
+It enumerates any devices on the
+.Tn PCI
+bus and gives
+.Tn PCI
+client drivers the chance to attach to them.
+It assigns resources to children, when the BIOS does not.
 It takes care of routing interrupts when necessary.
-It reprobes the unattached pci children when pci client drivers are dynamically
+It reprobes the unattached
+.Tn PCI
+children when
+.Tn PCI
+client drivers are dynamically
 loaded at runtime.
 .Sh KERNEL CONFIGURATION
 The 
 .Nm
 device is included in the kernel as described in the SYNOPSIS section.
-The pci driver cannot be built as a kld.
+The
+.Nm
+driver cannot be built as a
+.Xr kld 4 .
 .Sh IOCTLS
 The following
 .Xr ioctl 2
