@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd October 22, 2006
+.Dd December 27, 2007
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -104,9 +104,10 @@ Tell a nominated newly created hook that its session should enter
 the state machine as a client.
 It must be newly created and a service name can be given as an argument.
 It is legal to specify a zero-length service name, this is common
-on some DSL setups. It is possible to request connection to specific
-access concentrator by it's name using "AC-Name\\Service-Name" syntax.
-A session request packet will be broadcast on the Ethernet.
+on some DSL setups.
+It is possible to request a connection to a specific
+access concentrator by its name using the "AC-Name\\Service-Name" syntax.
+A session request packet will be broadcasted on the Ethernet.
 This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
