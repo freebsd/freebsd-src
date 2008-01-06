@@ -199,8 +199,10 @@ RE	REU	638	Reunion
 RO	ROU	642	Romania
 RU	RUS	643	Russian Federation
 RW	RWA	646	Rwanda
+BL	BLM	652	Saint Barthelemy
 KN	KNA	659	Saint Kitts and Nevis
 LC	LCA	662	Saint Lucia
+MF	MAF	663	Saint Martin (French part)
 VC	VCT	670	Saint Vincent and the Grenadines
 WS	WSM	882	Samoa
 SM	SMR	674	San Marino
@@ -513,3 +515,6 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter V-12 2006-09-26
 #  Removed SERBIA AND MONTENEGRO (CS).  Added SERBIA (RS) and MONTENEGRO (ME).
+#
+# Newsletter VI-1 2007-09-21
+#  Added SAINT BARTHELEMY (BL) and SAINT MARTIN (MF).
