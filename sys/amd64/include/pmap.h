@@ -231,7 +231,6 @@ struct	pv_entry;
 struct	pv_chunk;
 
 struct md_page {
-	int pv_list_count;
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
