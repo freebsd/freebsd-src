@@ -269,15 +269,24 @@ main(int argc, char **argv)
 			printw(" %6.0f", (double)ld[0]);
 			printw(" %6.0f", (double)ld[1]);
 			printw(" %6.0f", (double)ld[2] * 1024);
-			printw(" %6.1f", (double)ld[3]);
+			if (ld[3] > 1e3) 
+				printw(" %6.0f", (double)ld[3]);
+			else
+				printw(" %6.1f", (double)ld[3]);
 			printw(" %6.0f", (double)ld[4]);
 			printw(" %6.0f", (double)ld[5] * 1024);
-			printw(" %6.1f", (double)ld[6]);
+			if (ld[6] > 1e3) 
+				printw(" %6.0f", (double)ld[6]);
+			else
+				printw(" %6.1f", (double)ld[6]);
 
 			if (flag_d) {
 				printw(" %6.0f", (double)ld[8]);
 				printw(" %6.0f", (double)ld[9] * 1024);
-				printw(" %6.1f", (double)ld[10]);
+				if (ld[10] > 1e3) 
+					printw(" %6.0f", (double)ld[10]);
+				else
+					printw(" %6.1f", (double)ld[10]);
 			}
 
 			if (ld[7] > 80)
