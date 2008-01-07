@@ -594,6 +594,7 @@ vendor PNY		0x154b	PNY
 vendor OQO		0x1557	OQO
 vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor FIBERLINE	0x1582	Fiberline
+vendor SPARKLAN		0x15a9	SparkLAN
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
@@ -2110,6 +2111,9 @@ product SONYERICSSON DCU10	0x0528	USB Cable
 /* SOURCENEXT products */
 product SOURCENEXT KEIKAI8	0x039f	KeikaiDenwa 8
 product SOURCENEXT KEIKAI8_CHG	0x012e	KeikaiDenwa 8 with charger
+
+/* SparkLAN products */
+product SPARKLAN RT2573		0x0004	 RT2573
 
 /* Sphairon Access Systems GmbH products */
 product SPHAIRON UB801R		0x0110	UB801R
