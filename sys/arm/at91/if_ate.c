@@ -191,7 +191,7 @@ ate_attach(device_t dev)
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
 	if ((err = ate_get_mac(sc, eaddr)) != 0) {
-		device_printf(dev, "No MAC address set");
+		device_printf(dev, "No MAC address set\n");
 		goto out;
 	}
 	ate_set_mac(sc, eaddr);
