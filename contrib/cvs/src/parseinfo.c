@@ -429,6 +429,16 @@ warning: this CVS does not support PreservePermissions");
 	    else if (strcmp (p, "stat") == 0)
 	      RereadLogAfterVerify = LOGMSG_REREAD_STAT;
 	}
+	else if (strcmp(line, "LocalKeyword") == 0)
+	{
+	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
+	    RCS_setlocalid(p);
+	}
+	else if (strcmp(line, "KeywordExpand") == 0)
+	{
+	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
+	    RCS_setincexc(p);
+	}
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a
