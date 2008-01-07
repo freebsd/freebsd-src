@@ -323,7 +323,11 @@ failed:
 	if (bp)
 		brelse (bp);
 	mp->mnt_data = NULL;
+	DROP_GIANT();
+	g_topology_lock();
 	g_vfs_close(cp, td);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	return (error);
 }
 
@@ -353,7 +357,11 @@ hpfs_unmount(
 	}
 
 	vinvalbuf(hpmp->hpm_devvp, V_SAVE, td, 0, 0);
+	DROP_GIANT();
+	g_topology_lock();
 	g_vfs_close(hpmp->hpm_cp, td);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(hpmp->hpm_devvp);
 
 	dprintf(("hpfs_umount: freeing memory...\n"));
