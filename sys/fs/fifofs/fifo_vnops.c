@@ -61,10 +61,12 @@ static fo_poll_t        fifo_poll_f;
 static fo_kqfilter_t    fifo_kqfilter_f;
 static fo_stat_t        fifo_stat_f;
 static fo_close_t       fifo_close_f;
+static fo_truncate_t    fifo_truncate_f;
 
 struct fileops fifo_ops_f = {
 	.fo_read =      fifo_read_f,
 	.fo_write =     fifo_write_f,
+	.fo_truncate =  fifo_truncate_f,
 	.fo_ioctl =     fifo_ioctl_f,
 	.fo_poll =      fifo_poll_f,
 	.fo_kqfilter =  fifo_kqfilter_f,
@@ -721,6 +723,13 @@ fifo_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread 
 {
 
 	return (vnops.fo_stat(fp, sb, cred, td));
+}
+
+static int
+fifo_truncate_f(struct file *fp, off_t length, struct ucred *cred, struct thread *td)
+{
+
+	return (vnops.fo_truncate(fp, length, cred, td));
 }
 
 static int

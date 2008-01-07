@@ -82,6 +82,7 @@ int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
 int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
+int	kern_ftruncate(struct thread *td, int fd, off_t length);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,

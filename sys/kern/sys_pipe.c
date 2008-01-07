@@ -140,6 +140,7 @@ __FBSDID("$FreeBSD$");
  */
 static fo_rdwr_t	pipe_read;
 static fo_rdwr_t	pipe_write;
+static fo_truncate_t	pipe_truncate;
 static fo_ioctl_t	pipe_ioctl;
 static fo_poll_t	pipe_poll;
 static fo_kqfilter_t	pipe_kqfilter;
@@ -149,6 +150,7 @@ static fo_close_t	pipe_close;
 static struct fileops pipeops = {
 	.fo_read = pipe_read,
 	.fo_write = pipe_write,
+	.fo_truncate = pipe_truncate,
 	.fo_ioctl = pipe_ioctl,
 	.fo_poll = pipe_poll,
 	.fo_kqfilter = pipe_kqfilter,
@@ -1228,6 +1230,18 @@ pipe_write(fp, uio, active_cred, flags, td)
 	pipeunlock(wpipe);
 	PIPE_UNLOCK(rpipe);
 	return (error);
+}
+
+/* ARGSUSED */
+static int
+pipe_truncate(fp, length, active_cred, td)
+	struct file *fp;
+	off_t length;
+	struct ucred *active_cred;
+	struct thread *td;
+{
+
+	return (EINVAL);
 }
 
 /*
