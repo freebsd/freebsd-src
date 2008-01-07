@@ -84,6 +84,7 @@ struct mbuf_iovec {
 				      * along that needs 1 byte
 				      */
 	uint16_t     mi_pad;
+	struct mbuf *mi_mbuf; 	/* need to be able to handle the @#$@@#%$ing packet zone */
 #define mi_size      mi_ext.ext_size
 #define mi_base      mi_ext.ext_buf
 #define mi_args      mi_ext.ext_args

@@ -125,6 +125,7 @@ _mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 
 	mi->mi_flags = m->m_flags;
 	mi->mi_len = m->m_len;
+	mi->mi_mbuf = NULL;
 	
 	if (m->m_flags & M_PKTHDR) {
 		mi->mi_ether_vtag = m->m_pkthdr.ether_vtag;
@@ -151,6 +152,7 @@ _mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 		mi->mi_type = m->m_ext.ext_type;
 		mi->mi_size = m->m_ext.ext_size;
 		mi->mi_refcnt = m->m_ext.ref_cnt;
+		mi->mi_mbuf = m;
 	} else {
 		mi->mi_base = (caddr_t)m;
 		mi->mi_data = m->m_data;
@@ -267,7 +269,8 @@ retry:
 		goto err_out;
 	}  else if (seg_count >= TX_MAX_SEGS) {
 		if (cxgb_debug)
-			printf("mbuf chain too long: %d max allowed %d\n", seg_count, TX_MAX_SEGS);
+			printf("mbuf chain too long: %d max allowed %d\n",
+			    seg_count, TX_MAX_SEGS);
 		if (!defragged) {
 			n = m_defrag(*m, M_DONTWAIT);
 			if (n == NULL) {
@@ -300,9 +303,10 @@ retry:
 	}
 	n = *m;
 	while (n) {
-		if (((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT) && (n->m_len > 0))
+		if (((n->m_flags & (M_EXT|M_NOFREE)) == M_EXT) &&
+		    (n->m_len > 0) && (n->m_ext.ext_type != EXT_PACKET) )
 			n->m_flags &= ~M_EXT; 
-		else if (n->m_len > 0) {
+		else if ((n->m_len > 0) || (n->m_ext.ext_type == EXT_PACKET)) {
 			n = n->m_next;
 			continue;
 		}
@@ -380,6 +384,10 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 	 */
 	while (dofree == 0) {
 		cnt = *(mi->mi_refcnt);
+		if (mi->mi_type == EXT_PACKET) {
+			dofree = 1;
+			break;
+		}
 		if (atomic_cmpset_int(mi->mi_refcnt, cnt, cnt - 1)) {
 			if (cnt == 1)
 				dofree = 1;
@@ -419,7 +427,10 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 		    ("%s: ext_free not set", __func__));
 		(*(mi->mi_ext.ext_free))(mi->mi_ext.ext_buf,
 		    mi->mi_ext.ext_args);
-		break;		
+		break;
+	case EXT_PACKET:
+		uma_zfree(zone_pack, mi->mi_mbuf);
+		break;
 	default:
 		dump_mi(mi);
 		panic("unknown mv type in m_free_vec type=%d idx=%d", type, idx);
