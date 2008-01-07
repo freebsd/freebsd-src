@@ -86,6 +86,8 @@ struct fcrypt {
 
 static	int cryptof_rw(struct file *fp, struct uio *uio,
 		    struct ucred *cred, int flags, struct thread *);
+static	int cryptof_truncate(struct file *, off_t, struct ucred *,
+		    struct thread *);
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
 static	int cryptof_poll(struct file *, int, struct ucred *, struct thread *);
@@ -97,6 +99,7 @@ static	int cryptof_close(struct file *, struct thread *);
 static struct fileops cryptofops = {
     .fo_read = cryptof_rw,
     .fo_write = cryptof_rw,
+    .fo_truncate = cryptof_truncate,
     .fo_ioctl = cryptof_ioctl,
     .fo_poll = cryptof_poll,
     .fo_kqfilter = cryptof_kqfilter,
@@ -127,6 +130,17 @@ cryptof_rw(
 {
 
 	return (EIO);
+}
+
+static int
+cryptof_truncate(
+	struct file *fp,
+	off_t length,
+	struct ucred *active_cred,
+	struct thread *td)
+{
+
+	return (EINVAL);
 }
 
 /*

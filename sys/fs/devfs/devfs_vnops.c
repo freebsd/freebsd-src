@@ -1278,6 +1278,13 @@ devfs_symlink(struct vop_symlink_args *ap)
 	return (devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, td));
 }
 
+static int
+devfs_truncate_f(struct file *fp, off_t length, struct ucred *cred, struct thread *td)
+{
+
+	return (vnops.fo_truncate(fp, length, cred, td));
+}
+
 /* ARGSUSED */
 static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
@@ -1322,6 +1329,7 @@ dev2udev(struct cdev *x)
 static struct fileops devfs_ops_f = {
 	.fo_read =	devfs_read_f,
 	.fo_write =	devfs_write_f,
+	.fo_truncate =	devfs_truncate_f,
 	.fo_ioctl =	devfs_ioctl_f,
 	.fo_poll =	devfs_poll_f,
 	.fo_kqfilter =	devfs_kqfilter_f,

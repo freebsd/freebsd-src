@@ -3086,68 +3086,6 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 	return (error);
 }
 
-/*
- * Truncate a file given a file descriptor.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct ftruncate_args {
-	int	fd;
-	int	pad;
-	off_t	length;
-};
-#endif
-int
-ftruncate(td, uap)
-	struct thread *td;
-	register struct ftruncate_args /* {
-		int fd;
-		int pad;
-		off_t length;
-	} */ *uap;
-{
-	struct mount *mp;
-	struct vattr vattr;
-	struct vnode *vp;
-	struct file *fp;
-	int vfslocked;
-	int error;
-
-	AUDIT_ARG(fd, uap->fd);
-	if (uap->length < 0)
-		return(EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
-		return (error);
-	if ((fp->f_flag & FWRITE) == 0) {
-		fdrop(fp, td);
-		return (EINVAL);
-	}
-	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-		goto drop;
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
-	if (vp->v_type == VDIR)
-		error = EISDIR;
-#ifdef MAC
-	else if ((error = mac_vnode_check_write(td->td_ucred, fp->f_cred,
-	    vp))) {
-	}
-#endif
-	else if ((error = vn_writechk(vp)) == 0) {
-		VATTR_NULL(&vattr);
-		vattr.va_size = uap->length;
-		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
-	}
-	VOP_UNLOCK(vp, 0, td);
-	vn_finished_write(mp);
-drop:
-	VFS_UNLOCK_GIANT(vfslocked);
-	fdrop(fp, td);
-	return (error);
-}
-
 #if defined(COMPAT_43)
 /*
  * Truncate a file given its path name.
@@ -3175,34 +3113,6 @@ otruncate(td, uap)
 	nuap.path = uap->path;
 	nuap.length = uap->length;
 	return (truncate(td, &nuap));
-}
-
-/*
- * Truncate a file given a file descriptor.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct oftruncate_args {
-	int	fd;
-	long	length;
-};
-#endif
-int
-oftruncate(td, uap)
-	struct thread *td;
-	register struct oftruncate_args /* {
-		int fd;
-		long length;
-	} */ *uap;
-{
-	struct ftruncate_args /* {
-		int fd;
-		int pad;
-		off_t length;
-	} */ nuap;
-
-	nuap.fd = uap->fd;
-	nuap.length = uap->length;
-	return (ftruncate(td, &nuap));
 }
 #endif /* COMPAT_43 */
 

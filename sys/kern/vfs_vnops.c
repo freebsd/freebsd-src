@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
+static fo_truncate_t	vn_truncate;
 static fo_ioctl_t	vn_ioctl;
 static fo_poll_t	vn_poll;
 static fo_kqfilter_t	vn_kqfilter;
@@ -75,6 +76,7 @@ static fo_close_t	vn_closefile;
 struct 	fileops vnops = {
 	.fo_read = vn_read,
 	.fo_write = vn_write,
+	.fo_truncate = vn_truncate,
 	.fo_ioctl = vn_ioctl,
 	.fo_poll = vn_poll,
 	.fo_kqfilter = vn_kqfilter,
@@ -602,6 +604,53 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR)
 		vn_finished_write(mp);
 unlock:
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+/*
+ * File table truncate routine.
+ */
+static int
+vn_truncate(fp, length, active_cred, td)
+	struct file *fp;
+	off_t length;
+	struct ucred *active_cred;
+	struct thread *td;
+{
+	struct vattr vattr;
+	struct mount *mp;
+	struct vnode *vp;
+	int vfslocked;
+	int error;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
+	VOP_LEASE(vp, td, active_cred, LEASE_WRITE);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (vp->v_type == VDIR) {
+		error = EISDIR;
+		goto out;
+	}
+#ifdef MAC
+	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
+	if (error)
+		goto out;
+#endif
+	error = vn_writechk(vp);
+	if (error == 0) {
+		VATTR_NULL(&vattr);
+		vattr.va_size = length;
+		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
+	}
+out:
+	VOP_UNLOCK(vp, 0, td);
+	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
