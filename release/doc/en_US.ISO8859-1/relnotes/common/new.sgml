@@ -403,7 +403,7 @@
 
     <para>The timezone database has been updated from the
       <application>tzdata2006g</application> release to the
-      <application>tzdata2007h</application> release.</para>
+      <application>tzdata2007k</application> release.</para>
 
     <para>TrustedBSD <application>OpenBSM</application> has been
       updated from 1.0 alpha 12 to 1.0.</para>
