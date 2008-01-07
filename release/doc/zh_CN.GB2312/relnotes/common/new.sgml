@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.87.2.3
+     Original revision: 1.883.2.87.2.6
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -175,7 +175,7 @@
 
 	<para>新增了用于支持 Ethernet discard 网络接口的 &man.edsc.4; 驱动程序。</para>
 
-	<para>&man.em.4; 升级到来自Intel的版本 6.6.6 。</para>
+	<para>&man.em.4; 升级到来自Intel的版本 6.7.2。</para>
 
 	<para>加入了 &man.msk.4; 驱动。该驱动支持使用Marvell/SysKonnect Yukon II 千兆以太网控制器的网卡。</para>
 
@@ -302,7 +302,7 @@
 
     <para><application>IPFilter</application>从4.1.13更新到4.1.28。</para>
 
-    <para><application>less</application>从v381更新到v409。</para>
+    <para><application>less</application>从v381更新到v416。</para>
 
     <para><application>ncurses</application>从5.2-20020615更新到5.6-20061217。
       新版的ncurses已经提供宽字符的支持。</para>
@@ -316,7 +316,7 @@
 
     <para>timezone数据库从
       <application>tzdata2006g</application>版更新到
-      <application>tzdata2007h</application>版.</para>
+      <application>tzdata2007k</application>版.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>从1.0 alpha12更新到1.0。</para>
   </sect2>
