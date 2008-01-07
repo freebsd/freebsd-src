@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 1.1068.2.20 -->
+<!-- Original Revision: 1.1068.2.21 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -1363,7 +1363,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>时区数据库从
       <application>tzdata2006g</application> 版升级到了
-      <application>tzdata2007h</application> 版。 &merged;</para>
+      <application>tzdata2007k</application> 版。 &merged;</para>
 
     <para><application>tip</application> 更新到了来自
       OpenBSD 与 20060831 的快照版本。</para>
