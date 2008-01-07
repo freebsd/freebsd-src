@@ -300,6 +300,9 @@ options 	COMPAT_FREEBSD5
 # Enable FreeBSD6 compatibility syscalls
 options 	COMPAT_FREEBSD6
 
+# Enable FreeBSD7 compatibility syscalls
+options 	COMPAT_FREEBSD7
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
