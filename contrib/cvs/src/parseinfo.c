@@ -367,6 +367,16 @@ warning: this CVS does not support PreservePermissions");
 	       opendir it or something, but I don't see any particular
 	       reason to do that now rather than waiting until lock.c.  */
 	}
+	else if (strcmp(line, "LocalKeyword") == 0)
+	{
+	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
+	    RCS_setlocalid(p);
+	}
+	else if (strcmp(line, "KeywordExpand") == 0)
+	{
+	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
+	    RCS_setincexc(p);
+	}
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a
