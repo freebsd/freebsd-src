@@ -29,6 +29,7 @@ options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_43TTY	# BSD 4.3 TTY compat [KEEP THIS!]
 options 	COMPAT_FREEBSD5	# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6	# Compatible with FreeBSD6
+options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
 options 	GDB		# Support remote GDB
