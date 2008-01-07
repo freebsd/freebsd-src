@@ -282,8 +282,8 @@ _sem_post(sem_t *sem)
 
 	if ((*sem)->nwaiters) {
 		retval = _thr_umtx_wake(&(*sem)->count, 1);
-		if (retval > 0)
-			retval = 0;
+		if (retval != 0)
+			retval = -1;
 	}
 	return (retval);
 }
