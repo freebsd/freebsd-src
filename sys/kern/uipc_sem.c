@@ -442,6 +442,9 @@ static void
 sem_free(struct ksem *ks)
 {
 
+#ifdef MAC
+	mac_posixsem_destroy(ks);
+#endif
 	nsems--;
 	if (ks->ks_onlist)
 		LIST_REMOVE(ks, ks_entry);
