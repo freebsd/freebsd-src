@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
@@ -69,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
-#include <sys/ktr.h>
+#include <security/audit/audit.h>
 
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
@@ -543,6 +544,70 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 	td->td_retval[0] = cnt;
 	return (error);
 }
+
+/*
+ * Truncate a file given a file descriptor.
+ *
+ * Can't use fget_write() here, since must return EINVAL and not EBADF if the
+ * descriptor isn't writable.
+ */
+int
+kern_ftruncate(td, fd, length)
+	struct thread *td;
+	int fd;
+	off_t length;
+{
+	struct file *fp;
+	int error;
+
+	AUDIT_ARG(fd, fd);
+	if (length < 0)
+		return (EINVAL);
+	error = fget(td, fd, &fp);
+	if (error)
+		return (error);
+	AUDIT_ARG(file, td->td_proc, fp);
+	if (!(fp->f_flag & FWRITE)) {
+		fdrop(fp, td);
+		return (EINVAL);
+	}
+	error = fo_truncate(fp, length, td->td_ucred, td);
+	fdrop(fp, td);
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct ftruncate_args {
+	int	fd;
+	int	pad;
+	off_t	length;
+};
+#endif
+int
+ftruncate(td, uap)
+	struct thread *td;
+	struct ftruncate_args *uap;
+{
+
+	return (kern_ftruncate(td, uap->fd, uap->length));
+}
+
+#if defined(COMPAT_43)
+#ifndef _SYS_SYSPROTO_H_
+struct oftruncate_args {
+	int	fd;
+	long	length;
+};
+#endif
+int
+oftruncate(td, uap)
+	struct thread *td;
+	struct oftruncate_args *uap;
+{
+
+	return (kern_ftruncate(td, uap->fd, uap->length));
+}
+#endif /* COMPAT_43 */
 
 #ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {

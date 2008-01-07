@@ -2317,6 +2317,14 @@ mqf_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 }
 
 static int
+mqf_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+static int
 mqf_ioctl(struct file *fp, u_long cmd, void *data,
 	struct ucred *active_cred, struct thread *td)
 {
@@ -2433,6 +2441,7 @@ filt_mqwrite(struct knote *kn, long hint)
 static struct fileops mqueueops = {
 	.fo_read		= mqf_read,
 	.fo_write		= mqf_write,
+	.fo_truncate		= mqf_truncate,
 	.fo_ioctl		= mqf_ioctl,
 	.fo_poll		= mqf_poll,
 	.fo_kqfilter		= mqf_kqfilter,

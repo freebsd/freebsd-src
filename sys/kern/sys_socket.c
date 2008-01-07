@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 struct fileops	socketops = {
 	.fo_read = soo_read,
 	.fo_write = soo_write,
+	.fo_truncate = soo_truncate,
 	.fo_ioctl = soo_ioctl,
 	.fo_poll = soo_poll,
 	.fo_kqfilter = soo_kqfilter,
@@ -107,6 +108,14 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		PROC_UNLOCK(uio->uio_td->td_proc);
 	}
 	return (error);
+}
+
+int
+soo_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
 }
 
 int

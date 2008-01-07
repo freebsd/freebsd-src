@@ -69,6 +69,8 @@ typedef int fo_rdwr_t(struct file *fp, struct uio *uio,
 		    struct ucred *active_cred, int flags,
 		    struct thread *td);
 #define	FOF_OFFSET	1	/* Use the offset in uio argument */
+typedef	int fo_truncate_t(struct file *fp, off_t length,
+		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_ioctl_t(struct file *fp, u_long com, void *data,
 		    struct ucred *active_cred, struct thread *td);
 typedef	int fo_poll_t(struct file *fp, int events,
@@ -82,6 +84,7 @@ typedef	int fo_flags_t;
 struct fileops {
 	fo_rdwr_t	*fo_read;
 	fo_rdwr_t	*fo_write;
+	fo_truncate_t	*fo_truncate;
 	fo_ioctl_t	*fo_ioctl;
 	fo_poll_t	*fo_poll;
 	fo_kqfilter_t	*fo_kqfilter;
@@ -175,6 +178,7 @@ int _fdrop(struct file *fp, struct thread *td);
  */
 fo_rdwr_t	soo_read;
 fo_rdwr_t	soo_write;
+fo_truncate_t	soo_truncate;
 fo_ioctl_t	soo_ioctl;
 fo_poll_t	soo_poll;
 fo_kqfilter_t	soo_kqfilter;
@@ -195,6 +199,7 @@ void fputsock(struct socket *sp);
 
 static __inline fo_rdwr_t	fo_read;
 static __inline fo_rdwr_t	fo_write;
+static __inline fo_truncate_t	fo_truncate;
 static __inline fo_ioctl_t	fo_ioctl;
 static __inline fo_poll_t	fo_poll;
 static __inline fo_kqfilter_t	fo_kqfilter;
@@ -223,6 +228,17 @@ fo_write(fp, uio, active_cred, flags, td)
 {
 
 	return ((*fp->f_ops->fo_write)(fp, uio, active_cred, flags, td));
+}
+
+static __inline int
+fo_truncate(fp, length, active_cred, td)
+	struct file *fp;
+	off_t length;
+	struct ucred *active_cred;
+	struct thread *td;
+{
+
+	return ((*fp->f_ops->fo_truncate)(fp, length, active_cred, td));
 }
 
 static __inline int

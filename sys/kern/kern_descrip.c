@@ -2760,6 +2760,13 @@ badfo_readwrite(struct file *fp, struct uio *uio, struct ucred *active_cred, int
 }
 
 static int
+badfo_truncate(struct file *fp, off_t length, struct ucred *active_cred, struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+static int
 badfo_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred, struct thread *td)
 {
 
@@ -2797,6 +2804,7 @@ badfo_close(struct file *fp, struct thread *td)
 struct fileops badfileops = {
 	.fo_read = badfo_readwrite,
 	.fo_write = badfo_readwrite,
+	.fo_truncate = badfo_truncate,
 	.fo_ioctl = badfo_ioctl,
 	.fo_poll = badfo_poll,
 	.fo_kqfilter = badfo_kqfilter,
