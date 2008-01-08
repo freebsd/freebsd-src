@@ -237,7 +237,7 @@ static void	swp_sizecheck(void);
 static void	swp_pager_async_iodone(struct buf *bp);
 static int	swapongeom(struct thread *, struct vnode *);
 static int	swaponvp(struct thread *, struct vnode *, u_long);
-static int	swapoff_one(struct swdevt *sp, struct thread *td);
+static int	swapoff_one(struct swdevt *sp, struct ucred *cred);
 
 /*
  * Swap bitmap functions
@@ -2100,7 +2100,7 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	error = swapoff_one(sp, td);
+	error = swapoff_one(sp, td->td_ucred);
 done:
 	swdev_syscall_active = 0;
 	wakeup_one(&swdev_syscall_active);
@@ -2109,7 +2109,7 @@ done:
 }
 
 static int
-swapoff_one(struct swdevt *sp, struct thread *td)
+swapoff_one(struct swdevt *sp, struct ucred *cred)
 {
 	u_long nblks, dvbase;
 #ifdef MAC
@@ -2118,9 +2118,9 @@ swapoff_one(struct swdevt *sp, struct thread *td)
 
 	mtx_assert(&Giant, MA_OWNED);
 #ifdef MAC
-	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = mac_system_check_swapoff(td->td_ucred, sp->sw_vp);
-	(void) VOP_UNLOCK(sp->sw_vp, 0, td);
+	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	error = mac_system_check_swapoff(cred, sp->sw_vp);
+	(void) VOP_UNLOCK(sp->sw_vp, 0, curthread);
 	if (error != 0)
 		return (error);
 #endif
@@ -2153,7 +2153,7 @@ swapoff_one(struct swdevt *sp, struct thread *td)
 	 */
 	swap_pager_swapoff(sp);
 
-	sp->sw_close(td, sp);
+	sp->sw_close(curthread, sp);
 	sp->sw_id = NULL;
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
@@ -2189,7 +2189,7 @@ swapoff_all(void)
 			devname = sp->sw_vp->v_rdev->si_name;
 		else
 			devname = "[file]";
-		error = swapoff_one(sp, &thread0);
+		error = swapoff_one(sp, thread0.td_ucred);
 		if (error != 0) {
 			printf("Cannot remove swap device %s (error=%d), "
 			    "skipping.\n", devname, error);
