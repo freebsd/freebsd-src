@@ -130,11 +130,11 @@ struct pfil_head inet6_pfil_hook;
 
 struct ip6stat ip6stat;
 
-static void ip6_init2 __P((void *));
-static struct ip6aux *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
-static int ip6_hopopts_input __P((u_int32_t *, u_int32_t *, struct mbuf **, int *));
+static void ip6_init2(void *);
+static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
+static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
-static struct mbuf *ip6_pullexthdr __P((struct mbuf *, size_t, int));
+static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 #endif
 
 /*

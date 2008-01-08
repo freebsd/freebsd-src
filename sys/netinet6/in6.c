@@ -127,7 +127,7 @@ static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *));
 static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 	struct sockaddr_in6 *, int));
-static void in6_unlink_ifa __P((struct in6_ifaddr *, struct ifnet *));
+static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 int	(*faithprefix_p)(struct in6_addr *);

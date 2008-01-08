@@ -367,7 +367,7 @@ udp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	void *cmdarg;
-	struct inpcb *(*notify) __P((struct inpcb *, int)) = udp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
 	struct udp_portonly {
 		u_int16_t uh_sport;
 		u_int16_t uh_dport;
