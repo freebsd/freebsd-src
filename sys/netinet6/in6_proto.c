@@ -339,7 +339,7 @@ struct ip6protosw inet6sw[] = {
 },
 };
 
-extern int in6_inithead __P((void **, int));
+extern int in6_inithead(void **, int);
 
 struct domain inet6domain = {
 	.dom_family =		AF_INET6,

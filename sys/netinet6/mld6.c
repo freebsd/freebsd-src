@@ -148,7 +148,7 @@ mld_starttimer(struct in6_multi *in6m)
 
 	/* start or restart the timer */
 	callout_reset(in6m->in6m_timer_ch, in6m->in6m_timer,
-	    (void (*) __P((void *)))mld_timeo, in6m);
+	    (void (*)(void *))mld_timeo, in6m);
 }
 
 static void
