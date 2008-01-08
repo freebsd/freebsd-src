@@ -1,0 +1,155 @@
+.\"-
+.\" Copyright (c) 2007-2008 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 8, 2008
+.Dt UNZIP 1
+.Os
+.Sh NAME
+.Nm unzip
+.Nd extract files from a ZIP archive
+.Sh SYNOPSIS
+.Nm
+.Op Fl ajLlnoqu
+.Op Fl d Ar dir
+.Ar zipfile
+.Sh DESCRIPTION
+.\" ...
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Fl a
+When extracting a text file, convert DOS-style line endings to
+Unix-style line endings.
+.It Fl d Ar dir
+Extract files into the specified directory rather than the current
+directory.
+.It Fl j
+Ignore directories stored in the zipfile; instead, extract all files
+directly into the extraction directory.
+.It Fl L
+Convert the names of the extracted files and directories to lowercase.
+.It Fl l
+List, rather than extract, the contents of the zipfile.
+.It Fl n
+No overwrite.
+When extacting a file from the zipfile, if a file with the same name
+already exists on disk, the file is silently skipped.
+.It Fl o
+Overwrite.
+When extacting a file from the zipfile, if a file with the same name
+already exists on disk, the existing file is replaced with the file
+from the zipfile.
+.It Fl q
+Quiet: print less information while extracting.
+.It Fl u
+Update.
+When extacting a file from the zipfile, if a file with the same name
+already exists on disk, the existing file is replaced with the file
+from the zipfile if and only if the latter is newer than the former.
+Otherwise, the file is silently skipped.
+.El
+.Pp
+Note that only one of
+.Fl n ,
+.Fl o
+and
+.Fl u
+may be specified.
+.Sh ENVIRONMENT
+If the
+.Ev UNZIP_DEBUG
+environment variable is defined, the
+.Fl q
+command-line option has no effect, and additional debugging
+information will be printed to
+.Va stderr .
+.Sh COMPATIBILITY
+The
+.Nm
+utility aims to be sufficiently compatible with other implementations
+to serve as a drop-in replacement in the context of the
+.Xr ports 7
+system.
+No attempt has been made to replicate functionality which is not
+required for that purpose.
+.Pp
+For compatibility reasons, command-line options will be recognized if
+they are listed not only before but also after the name of the
+zipfile.
+.Pp
+Normally, the
+.Fl a
+option should only affect files which are marked as text files in the
+zipfile's central directory.
+Since the
+.Xr archive 3
+library reads zipfiles sequentially, and does not use the central
+directory, that information is not available to the
+.Nm
+utility.
+Instead, the
+.Nm
+utility will assume that a file is a text file if no non-ASCII
+characters are present within the first block of data decompressed for
+that file.
+If non-ASCII characters appear in subsequent blocks of data, a warning
+will be issued.
+.Pp
+The
+.Nm
+utility is only able to process ZIP archives handled by
+.Xr libarchive 3 .
+Depending on the installed version of
+.Xr libarchive ,
+this may or may not include self-extracting archives.
+.Sh BUGS
+The
+.Nm
+utility currently does not support asking the user whether to
+overwrite or skip a file that already exists on disk.
+To be on the safe side, it will fail if it encounters a file that
+already exists and neither the
+.Fl n
+nor the
+.Fl o
+command line option was specified.
+.Sh SEE ALSO
+.Xr libarchive 3
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 8.0 .
+.Sh AUTHORS
+The
+.Nm
+utility and this manual page were written by
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+It uses the
+.Xr archive 3
+library developed by
+.An Tim Kientzle Aq kientzle@FreeBSD.org .
