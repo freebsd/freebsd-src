@@ -2871,6 +2871,22 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* shm_open */
+	case 482: {
+		struct shm_open_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		iarg[1] = p->flags; /* int */
+		iarg[2] = p->mode; /* mode_t */
+		*n_args = 3;
+		break;
+	}
+	/* shm_unlink */
+	case 483: {
+		struct shm_unlink_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
