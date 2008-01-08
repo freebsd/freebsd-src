@@ -1560,7 +1560,7 @@ ehci_sync_hc(ehci_softc_t *sc)
 	}
 	DPRINTFN(2,("ehci_sync_hc: enter\n"));
 	/* get doorbell */
-	lockmgr(&sc->sc_doorbell_lock, LK_EXCLUSIVE, NULL, NULL);
+	lockmgr(&sc->sc_doorbell_lock, LK_EXCLUSIVE, NULL, curthread);
 	s = splhardusb();
 	/* ask for doorbell */
 	EOWRITE4(sc, EHCI_USBCMD, EOREAD4(sc, EHCI_USBCMD) | EHCI_CMD_IAAD);
@@ -1571,7 +1571,7 @@ ehci_sync_hc(ehci_softc_t *sc)
 		    EOREAD4(sc, EHCI_USBCMD), EOREAD4(sc, EHCI_USBSTS)));
 	splx(s);
 	/* release doorbell */
-	lockmgr(&sc->sc_doorbell_lock, LK_RELEASE, NULL, NULL);
+	lockmgr(&sc->sc_doorbell_lock, LK_RELEASE, NULL, curthread);
 #ifdef DIAGNOSTIC
 	if (error)
 		printf("ehci_sync_hc: tsleep() = %d\n", error);

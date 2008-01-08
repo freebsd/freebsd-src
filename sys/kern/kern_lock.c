@@ -105,7 +105,7 @@ unlock_lockmgr(struct lock_object *lock)
 	panic("lockmgr locks do not support sleep interlocking");
 }
 
-#define	COUNT(td, x)	if ((td)) (td)->td_locks += (x)
+#define	COUNT(td, x)	((td)->td_locks += (x))
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
 
@@ -194,24 +194,18 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 
 {
 	int error;
-	struct thread *thr;
 	int extflags, lockflags;
 	int contested = 0;
 	uint64_t waitstart = 0;
 
 	/*
-	 * Lock owner can only be curthread or, at least, NULL in order to
-	 * have a deadlock free implementation of the primitive.
+	 * Lock owner can only be curthread in order to have a deadlock
+	 * free implementation of the primitive.
 	 */
-	KASSERT(td == NULL || td == curthread,
-	    ("lockmgr: owner thread (%p) cannot differ from curthread or NULL",
-	    td));
+	KASSERT(td == curthread,
+	    ("lockmgr: owner thread (%p) cannot differ from curthread", td));
 
 	error = 0;
-	if (td == NULL)
-		thr = LK_KERNPROC;
-	else
-		thr = td;
 
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
@@ -260,7 +254,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 		 * lock requests or upgrade requests ( but not the exclusive
 		 * lock itself ).
 		 */
-		if (lkp->lk_lockholder != thr) {
+		if (lkp->lk_lockholder != td) {
 			lockflags = LK_HAVE_EXCL;
 			if (td != NULL && !(td->td_pflags & TDP_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
@@ -286,10 +280,10 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
-		KASSERT(lkp->lk_lockholder == thr && lkp->lk_exclusivecount != 0,
+		KASSERT(lkp->lk_lockholder == td && lkp->lk_exclusivecount != 0,
 			("lockmgr: not holding exclusive lock "
 			"(owner thread (%p) != thread (%p), exlcnt (%d) != 0",
-			lkp->lk_lockholder, thr, lkp->lk_exclusivecount));
+			lkp->lk_lockholder, td, lkp->lk_exclusivecount));
 		sharelock(td, lkp, lkp->lk_exclusivecount);
 		COUNT(td, -lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
@@ -308,7 +302,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
-		if (lkp->lk_lockholder == thr)
+		if (lkp->lk_lockholder == td)
 			panic("lockmgr: upgrade exclusive lock");
 		if (lkp->lk_sharecount <= 0)
 			panic("lockmgr: upgrade without shared");
@@ -342,7 +336,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 			if (lkp->lk_exclusivecount != 0)
 				panic("lockmgr: non-zero exclusive count");
 			lkp->lk_flags |= LK_HAVE_EXCL;
-			lkp->lk_lockholder = thr;
+			lkp->lk_lockholder = td;
 			lkp->lk_exclusivecount = 1;
 			COUNT(td, 1);
 			lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
@@ -362,7 +356,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 		/* FALLTHROUGH exclusive request */
 
 	case LK_EXCLUSIVE:
-		if (lkp->lk_lockholder == thr && thr != LK_KERNPROC) {
+		if (lkp->lk_lockholder == td) {
 			/*
 			 *	Recursive lock.
 			 */
@@ -400,7 +394,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 			break;
 		}	
 		lkp->lk_flags |= LK_HAVE_EXCL;
-		lkp->lk_lockholder = thr;
+		lkp->lk_lockholder = td;
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
@@ -413,10 +407,10 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 
 	case LK_RELEASE:
 		if (lkp->lk_exclusivecount != 0) {
-			if (lkp->lk_lockholder != thr &&
+			if (lkp->lk_lockholder != td &&
 			    lkp->lk_lockholder != LK_KERNPROC) {
 				panic("lockmgr: thread %p, not %s %p unlocking",
-				    thr, "exclusive lock holder",
+				    td, "exclusive lock holder",
 				    lkp->lk_lockholder);
 			}
 			if (lkp->lk_lockholder != LK_KERNPROC)
@@ -433,7 +427,7 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 			shareunlock(td, lkp, 1);
 		else  {
 			printf("lockmgr: thread %p unlocking unheld lock\n",
-			    thr);
+			    td);
 			kdb_backtrace();
 		}
 
@@ -448,14 +442,14 @@ _lockmgr(struct lock *lkp, u_int flags, struct mtx *interlkp,
 		 * check for holding a shared lock, but at least we can
 		 * check for an exclusive one.
 		 */
-		if (lkp->lk_lockholder == thr)
+		if (lkp->lk_lockholder == td)
 			panic("lockmgr: draining against myself");
 
 		error = acquiredrain(lkp, extflags);
 		if (error)
 			break;
 		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
-		lkp->lk_lockholder = thr;
+		lkp->lk_lockholder = td;
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
 #if defined(DEBUG_LOCKS)
@@ -541,6 +535,31 @@ lockdestroy(lkp)
 	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
 	lock_destroy(&lkp->lk_object);
+}
+
+/*
+ * Disown the lockmgr.
+ */
+void
+lockmgr_disown(struct lock *lkp)
+{
+	struct thread *td;
+
+	td = curthread;
+	KASSERT(lkp->lk_exclusivecount || lkp->lk_lockholder == LK_KERNPROC,
+	    ("%s: %p lockmgr must be exclusively locked", __func__, lkp));
+	KASSERT(lkp->lk_lockholder == td,
+	    ("%s: %p lockmgr must be locked by curthread (%p)", __func__, lkp,
+	    td));
+
+	/*
+	 * Drop the lock reference and switch the owner.  This will result
+	 * in an atomic operation like td_lock is only accessed by curthread
+	 * and lk_lockholder only needs one write.
+	 */
+	if (lkp->lk_lockholder == td)
+		td->td_locks--;
+	lkp->lk_lockholder = LK_KERNPROC;
 }
 
 /*
