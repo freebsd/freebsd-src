@@ -1780,7 +1780,7 @@ udav_lock_mii(struct udav_softc *sc)
 #if defined(__NetBSD__)
 	lockmgr(&sc->sc_mii_lock, LK_EXCLUSIVE, NULL);
 #elif defined(__FreeBSD__)
-	lockmgr(&sc->sc_mii_lock, LK_EXCLUSIVE, NULL, NULL);
+	lockmgr(&sc->sc_mii_lock, LK_EXCLUSIVE, NULL, curthread);
 #endif
 }
 
@@ -1793,7 +1793,7 @@ udav_unlock_mii(struct udav_softc *sc)
 #if defined(__NetBSD__)
 	lockmgr(&sc->sc_mii_lock, LK_RELEASE, NULL);
 #elif defined(__FreeBSD__)
-	lockmgr(&sc->sc_mii_lock, LK_RELEASE, NULL, NULL);
+	lockmgr(&sc->sc_mii_lock, LK_RELEASE, NULL, curthread);
 #endif
 	if (--sc->sc_refcnt < 0)
 		usb_detach_wakeup(sc->sc_dev);

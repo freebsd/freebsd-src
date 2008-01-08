@@ -78,8 +78,10 @@ int		hpfs_breadstruct (struct hpfsmount *, lsn_t, u_int, u_int32_t,
 	hpfs_breadstruct(hpmp, lsn, D_BSIZE, D_MAGIC, bpp)
 
 #if 0
-#define	hpfs_hplock(hp, p)	lockmgr(&(hp)->h_intlock, LK_EXCLUSIVE, (p), NULL)
-#define	hpfs_hpunlock(hp, p)	lockmgr(&(hp)->h_intlock, LK_RELEASE, (p), NULL)
+#define	hpfs_hplock(hp, p)						\
+	lockmgr(&(hp)->h_intlock, LK_EXCLUSIVE, (p), curthread)
+#define	hpfs_hpunlock(hp, p)						\
+	lockmgr(&(hp)->h_intlock, LK_RELEASE, (p), curthread)
 #endif
 
 int		hpfs_hpbmap (struct hpfsnode *, daddr_t, daddr_t *, int *);
