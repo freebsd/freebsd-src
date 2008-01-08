@@ -118,6 +118,8 @@ static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct vnode *, vm_ooffset_t, vm_object_t *);
 static int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct cdev *, vm_ooffset_t, vm_object_t *);
+static int vm_mmap_shm(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
+    int *, struct shmfd *, vm_ooffset_t, vm_object_t *);
 
 /*
  * MPSAFE
@@ -300,16 +302,29 @@ mmap(td, uap)
 		pos = 0;
 	} else {
 		/*
-		 * Mapping file, get fp for validation. Obtain vnode and make
-		 * sure it is of appropriate type.
-		 * don't let the descriptor disappear on us if we block
+		 * Mapping file, get fp for validation and
+		 * don't let the descriptor disappear on us if we block.
 		 */
 		if ((error = fget(td, uap->fd, &fp)) != 0)
 			goto done;
+		if (fp->f_type == DTYPE_SHM) {
+			handle = fp->f_data;
+			handle_type = OBJT_SWAP;
+			maxprot = VM_PROT_NONE;
+
+			/* FREAD should always be set. */
+			if (fp->f_flag & FREAD)
+				maxprot |= VM_PROT_EXECUTE | VM_PROT_READ;
+			if (fp->f_flag & FWRITE)
+				maxprot |= VM_PROT_WRITE;
+			goto map;
+		}
 		if (fp->f_type != DTYPE_VNODE) {
 			error = ENODEV;
 			goto done;
 		}
+#if defined(COMPAT_FREEBSD7) || defined(COMPAT_FREEBSD6) || \
+    defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4)
 		/*
 		 * POSIX shared-memory objects are defined to have
 		 * kernel persistence, and are not defined to support
@@ -320,6 +335,7 @@ mmap(td, uap)
 		 */
 		if (fp->f_flag & FPOSIXSHM)
 			flags |= MAP_NOSYNC;
+#endif
 		vp = fp->f_vnode;
 		/*
 		 * Ensure that file and memory protections are
@@ -360,6 +376,7 @@ mmap(td, uap)
 		handle = (void *)vp;
 		handle_type = OBJT_VNODE;
 	}
+map:
 
 	/*
 	 * Do not allow more then a certain number of vm_map_entry structures
@@ -1291,6 +1308,35 @@ vm_mmap_cdev(struct thread *td, vm_size_t objsize,
 }
 
 /*
+ * vm_mmap_shm()
+ *
+ * MPSAFE
+ *
+ * Helper function for vm_mmap.  Perform sanity check specific for mmap
+ * operations on shm file descriptors.
+ */
+int
+vm_mmap_shm(struct thread *td, vm_size_t objsize,
+    vm_prot_t prot, vm_prot_t *maxprotp, int *flagsp,
+    struct shmfd *shmfd, vm_ooffset_t foff, vm_object_t *objp)
+{
+	int error;
+
+	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	    (prot & PROT_WRITE) != 0)
+		return (EACCES);
+#ifdef MAC
+	error = mac_posixshm_check_mmap(td->td_ucred, shmfd, prot, *flagsp);
+	if (error != 0)
+		return (error);
+#endif
+	error = shm_mmap(shmfd, objsize, foff, objp);
+	if (error)
+		return (error);
+	return (0);
+}
+
+/*
  * vm_mmap()
  *
  * MPSAFE
@@ -1352,6 +1398,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		break;
 	case OBJT_VNODE:
 		error = vm_mmap_vnode(td, size, prot, &maxprot, &flags,
+		    handle, foff, &object);
+		break;
+	case OBJT_SWAP:
+		error = vm_mmap_shm(td, size, prot, &maxprot, &flags,
 		    handle, foff, &object);
 		break;
 	case OBJT_DEFAULT:
