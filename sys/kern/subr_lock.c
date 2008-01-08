@@ -492,7 +492,7 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
 	if (lock_prof_skipcount &&
-	    (++lock_prof_count % lock_prof_skipcount) == 0)
+	    (++lock_prof_count % lock_prof_skipcount) != 0)
 		return;
 	spin = LOCK_CLASS(lo) == &lock_class_mtx_spin;
 	if (spin && lock_prof_skipspin == 1)
