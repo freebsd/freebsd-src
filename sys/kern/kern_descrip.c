@@ -2646,6 +2646,8 @@ file_type_to_name(short type)
 		return ("crpt");
 	case DTYPE_MQUEUE:
 		return ("mque");
+	case DTYPE_SHM:
+		return ("shm");
 	default:
 		return ("unkn");
 	}

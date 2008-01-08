@@ -1540,6 +1540,7 @@ kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
 kern/uipc_mqueue.c		optional p1003_1b_mqueue
 kern/uipc_sem.c			optional p1003_1b_semaphores
+kern/uipc_shm.c			standard
 kern/uipc_sockbuf.c		standard
 kern/uipc_socket.c		standard
 kern/uipc_syscalls.c		standard
@@ -2046,6 +2047,7 @@ security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
 security/mac/mac_pipe.c		optional mac
 security/mac/mac_posix_sem.c	optional mac
+security/mac/mac_posix_shm.c	optional mac
 security/mac/mac_priv.c		optional mac
 security/mac/mac_process.c	optional mac
 security/mac/mac_socket.c	optional mac

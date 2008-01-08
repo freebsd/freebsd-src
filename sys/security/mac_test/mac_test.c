@@ -94,6 +94,7 @@ SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
 #define	MAGIC_SYSV_SHM	0x76119ab0
 #define	MAGIC_PIPE	0xdc6c9919
 #define	MAGIC_POSIX_SEM	0x78ae980c
+#define	MAGIC_POSIX_SHM	0x4e853fc9
 #define	MAGIC_PROC	0x3b4be98f
 #define	MAGIC_CRED	0x9a5a4987
 #define	MAGIC_VNODE	0x1a67a45c
@@ -1114,6 +1115,92 @@ test_posixsem_init_label(struct label *label)
 
 	LABEL_INIT(label, MAGIC_POSIX_SEM);
 	COUNTER_INC(posixsem_init_label);
+}
+
+COUNTER_DECL(posixshm_check_mmap);
+static int
+test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel, int prot, int flags)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_open);
+static int
+test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_stat);
+static int
+test_posixshm_check_stat(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmfdlabel)
+{
+
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_truncate);
+static int
+test_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmfdlabel)
+{
+
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_unlink);
+static int
+test_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_create);
+static void
+test_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+   struct label *shmfdlabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_create);
+}
+
+COUNTER_DECL(posixshm_destroy_label);
+static void
+test_posixshm_destroy_label(struct label *label)
+{
+
+	LABEL_DESTROY(label, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_destroy_label);
+}
+
+COUNTER_DECL(posixshm_init_label);
+static void
+test_posixshm_init_label(struct label *label)
+{
+
+	LABEL_INIT(label, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_init_label);
 }
 
 COUNTER_DECL(proc_check_debug);
@@ -2808,6 +2895,15 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_create = test_posixsem_create,
 	.mpo_posixsem_destroy_label = test_posixsem_destroy_label,
 	.mpo_posixsem_init_label = test_posixsem_init_label,
+
+	.mpo_posixshm_check_mmap = test_posixshm_check_mmap,
+	.mpo_posixshm_check_open = test_posixshm_check_open,
+	.mpo_posixshm_check_stat = test_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = test_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = test_posixshm_check_unlink,
+	.mpo_posixshm_create = test_posixshm_create,
+	.mpo_posixshm_destroy_label = test_posixshm_destroy_label,
+	.mpo_posixshm_init_label = test_posixshm_init_label,
 
 	.mpo_proc_check_debug = test_proc_check_debug,
 	.mpo_proc_check_sched = test_proc_check_sched,

@@ -71,6 +71,7 @@ struct msg;
 struct msqid_kernel;
 struct proc;
 struct semid_kernel;
+struct shmfd;
 struct shmid_kernel;
 struct sockaddr;
 struct socket;
@@ -197,6 +198,18 @@ int	mac_posixsem_check_wait(struct ucred *cred, struct ksem *ks);
 void 	mac_posixsem_create(struct ucred *cred, struct ksem *ks);
 void	mac_posixsem_destroy(struct ksem *);
 void	mac_posixsem_init(struct ksem *);
+
+int	mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+	    int prot, int flags);
+int	mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd);
+int	mac_posixshm_check_stat(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
+int	mac_posixshm_check_truncate(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
+int	mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd);
+void 	mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd);
+void	mac_posixshm_destroy(struct shmfd *);
+void	mac_posixshm_init(struct shmfd *);
 
 int	mac_priv_check(struct ucred *cred, int priv);
 int	mac_priv_grant(struct ucred *cred, int priv);

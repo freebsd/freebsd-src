@@ -59,6 +59,7 @@ struct socket;
 #define	DTYPE_KQUEUE	5	/* event queue */
 #define	DTYPE_CRYPTO	6	/* crypto */
 #define	DTYPE_MQUEUE	7	/* posix message queue */
+#define	DTYPE_SHM	8	/* swap-backed shared memory */
 
 #ifdef _KERNEL
 
