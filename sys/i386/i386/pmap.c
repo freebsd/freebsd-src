@@ -2119,15 +2119,8 @@ pmap_remove_all(vm_page_t m)
 	pt_entry_t *pte, tpte;
 	vm_page_t free;
 
-#if defined(PMAP_DIAGNOSTIC)
-	/*
-	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
-	 */
-	if (m->flags & PG_FICTITIOUS) {
-		panic("pmap_remove_all: illegal for unmanaged page, va: 0x%x",
-		    VM_PAGE_TO_PHYS(m));
-	}
-#endif
+	KASSERT((m->flags & PG_FICTITIOUS) == 0,
+	    ("pmap_remove_all: page %p is fictitious", m));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	sched_pin();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
