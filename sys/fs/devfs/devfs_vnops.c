@@ -992,17 +992,20 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 
 	vnode_destroy_vobject(vp);
 
+	VI_LOCK(vp);
 	dev_lock();
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
 
 	if (dev == NULL) {
 		dev_unlock();
+		VI_UNLOCK(vp);
 		return (0);
 	}
 
 	dev->si_usecount -= vp->v_usecount;
 	dev_unlock();
+	VI_UNLOCK(vp);
 	dev_rel(dev);
 	return (0);
 }
