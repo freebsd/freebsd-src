@@ -340,11 +340,8 @@ static __inline void BUF_KERNPROC(struct buf *);
 static __inline void
 BUF_KERNPROC(struct buf *bp)
 {
-	struct thread *td = curthread;
 
-	if (!TD_IS_IDLETHREAD(td) && bp->b_lock.lk_lockholder == td)
-		td->td_locks--;
-	bp->b_lock.lk_lockholder = LK_KERNPROC;
+	lockmgr_disown(&bp->b_lock);
 }
 #endif
 /*

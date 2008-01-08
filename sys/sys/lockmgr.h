@@ -197,6 +197,7 @@ void	lockdestroy(struct lock *);
 
 int	_lockmgr(struct lock *, u_int flags,
 		 struct mtx *, struct thread *p, char *file, int line);
+void	lockmgr_disown(struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
