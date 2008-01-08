@@ -359,7 +359,7 @@ ntfs_ntget(ip)
 	mtx_lock(&ip->i_interlock);
 	ip->i_usecount++;
 	lockmgr(&ip->i_lock, LK_EXCLUSIVE | LK_INTERLOCK, &ip->i_interlock,
-	    NULL);
+	    curthread);
 
 	return 0;
 }
@@ -391,7 +391,7 @@ ntfs_ntlookup(
 			return (0);
 		}
 	} while (lockmgr(&ntfs_hashlock, LK_EXCLUSIVE | LK_SLEEPFAIL, NULL,
-	    NULL));
+	    curthread));
 
 	MALLOC(ip, struct ntnode *, sizeof(struct ntnode), M_NTFSNTNODE,
 		M_WAITOK | M_ZERO);
@@ -413,7 +413,7 @@ ntfs_ntlookup(
 
 	ntfs_nthashins(ip);
 
-	lockmgr(&ntfs_hashlock, LK_RELEASE, NULL, NULL);
+	lockmgr(&ntfs_hashlock, LK_RELEASE, NULL, curthread);
 
 	*ipp = ip;
 
@@ -450,7 +450,7 @@ ntfs_ntput(ip)
 
 	if (ip->i_usecount > 0) {
 		lockmgr(&ip->i_lock, LK_RELEASE|LK_INTERLOCK, &ip->i_interlock,
-		    NULL);
+		    curthread);
 		return;
 	}
 
@@ -1982,7 +1982,7 @@ ntfs_toupper_use(mp, ntmp)
 	struct vnode *vp;
 
 	/* get exclusive access */
-	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, curthread);
 	
 	/* only read the translation data from a file if it hasn't been
 	 * read already */
@@ -2005,7 +2005,7 @@ ntfs_toupper_use(mp, ntmp)
 
     out:
 	ntfs_toupper_usecount++;
-	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, curthread);
 	return (error);
 }
 
@@ -2017,7 +2017,7 @@ void
 ntfs_toupper_unuse()
 {
 	/* get exclusive access */
-	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_EXCLUSIVE, NULL, curthread);
 
 	ntfs_toupper_usecount--;
 	if (ntfs_toupper_usecount == 0) {
@@ -2032,7 +2032,7 @@ ntfs_toupper_unuse()
 #endif
 	
 	/* release the lock */
-	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, NULL);
+	lockmgr(&ntfs_toupper_lock, LK_RELEASE, NULL, curthread);
 } 
 
 int
