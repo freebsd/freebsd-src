@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2005
+.\" Copyright (c) 2005,2008
 .\"	Hartmut Brandt.
 .\" 	All rights reserved.
 .\"
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2005
+.Dd January 8, 2008
 .Dt BSD.SNMPMOD.MK 7
 .Os
 .Sh NAME
@@ -66,6 +66,21 @@ which contains the definition of the MIB tree implemented by the module.
 A list of extra MIB definition files for
 .Xr gensnmptree 1 .
 This is optional.
+This file list is given to both calls to
+.Xr gensnmptree 1 \(em
+the one that extracts the symbols in
+.Va XSYM
+from the MIB definitions and the one that
+generates the table with OIDs served by this module.
+.It Va EXTRAMIBSYMS
+A list of extra MIB definition files for
+.Xr gensnmptree 1 .
+This is optional.
+This file list is given only to the call to
+.Xr gensnmptree 1
+that extracts symbols from MIB definition files.
+It is useful if there are dependencies on other MIBs or for extracting global
+definitions for enumeration constants.
 .It Va XSYM
 A list of symbols to be extracted from the MIB definition files by
 .Xr gensnmptree 1 .
