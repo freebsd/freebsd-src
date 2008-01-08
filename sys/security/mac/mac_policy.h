@@ -83,6 +83,7 @@ struct pipepair;
 struct proc;
 struct sbuf;
 struct semid_kernel;
+struct shmfd;
 struct shmid_kernel;
 struct sockaddr;
 struct socket;
@@ -304,6 +305,24 @@ typedef void	(*mpo_posixsem_create_t)(struct ucred *cred,
 		    struct ksem *ks, struct label *kslabel);
 typedef void    (*mpo_posixsem_destroy_label_t)(struct label *label);
 typedef void    (*mpo_posixsem_init_label_t)(struct label *label);
+
+typedef int	(*mpo_posixshm_check_mmap_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel, int prot,
+		    int flags);
+typedef int	(*mpo_posixshm_check_open_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel);
+typedef int	(*mpo_posixshm_check_stat_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct shmfd *shmfd,
+		    struct label *shmlabel);
+typedef int	(*mpo_posixshm_check_truncate_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct shmfd *shmfd,
+		    struct label *shmlabel);
+typedef int	(*mpo_posixshm_check_unlink_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel);
+typedef void	(*mpo_posixshm_create_t)(struct ucred *cred,
+		    struct shmfd *shmfd, struct label *shmlabel);
+typedef void	(*mpo_posixshm_destroy_label_t)(struct label *label);
+typedef void	(*mpo_posixshm_init_label_t)(struct label *label);
 
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
@@ -732,6 +751,15 @@ struct mac_policy_ops {
 	mpo_posixsem_create_t			mpo_posixsem_create;
 	mpo_posixsem_destroy_label_t		mpo_posixsem_destroy_label;
 	mpo_posixsem_init_label_t		mpo_posixsem_init_label;
+
+	mpo_posixshm_check_mmap_t		mpo_posixshm_check_mmap;
+	mpo_posixshm_check_open_t		mpo_posixshm_check_open;
+	mpo_posixshm_check_stat_t		mpo_posixshm_check_stat;
+	mpo_posixshm_check_truncate_t		mpo_posixshm_check_truncate;
+	mpo_posixshm_check_unlink_t		mpo_posixshm_check_unlink;
+	mpo_posixshm_create_t			mpo_posixshm_create;
+	mpo_posixshm_destroy_label_t		mpo_posixshm_destroy_label;
+	mpo_posixshm_init_label_t		mpo_posixshm_init_label;
 
 	mpo_priv_check_t			mpo_priv_check;
 	mpo_priv_grant_t			mpo_priv_grant;
