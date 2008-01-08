@@ -7,7 +7,7 @@ SRCS+=		${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CLEANFILES+=	${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CFLAGS+=	-I.
 
-${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
+${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS} ${EXTRAMIBSYMS}
 	cat ${.ALLSRC} | gensnmptree -e ${XSYM} > ${.TARGET}
 
 .ORDER: ${MOD}_tree.c ${MOD}_tree.h
