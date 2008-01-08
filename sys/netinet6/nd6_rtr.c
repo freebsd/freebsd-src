@@ -64,25 +64,25 @@ __FBSDID("$FreeBSD$");
 
 #define SDL(s)	((struct sockaddr_dl *)s)
 
-static int rtpref __P((struct nd_defrouter *));
-static struct nd_defrouter *defrtrlist_update __P((struct nd_defrouter *));
+static int rtpref(struct nd_defrouter *);
+static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
 static int prelist_update __P((struct nd_prefixctl *, struct nd_defrouter *,
     struct mbuf *, int));
-static struct in6_ifaddr *in6_ifadd __P((struct nd_prefixctl *,	int));
+static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *,	int);
 static struct nd_pfxrouter *pfxrtr_lookup __P((struct nd_prefix *,
 	struct nd_defrouter *));
-static void pfxrtr_add __P((struct nd_prefix *, struct nd_defrouter *));
-static void pfxrtr_del __P((struct nd_pfxrouter *));
+static void pfxrtr_add(struct nd_prefix *, struct nd_defrouter *);
+static void pfxrtr_del(struct nd_pfxrouter *);
 static struct nd_pfxrouter *find_pfxlist_reachable_router
-	__P((struct nd_prefix *));
-static void defrouter_delreq __P((struct nd_defrouter *));
-static void nd6_rtmsg __P((int, struct rtentry *));
+(struct nd_prefix *);
+static void defrouter_delreq(struct nd_defrouter *);
+static void nd6_rtmsg(int, struct rtentry *);
 
-static int in6_init_prefix_ltimes __P((struct nd_prefix *));
+static int in6_init_prefix_ltimes(struct nd_prefix *);
 static void in6_init_address_ltimes __P((struct nd_prefix *,
 	struct in6_addrlifetime *));
 
-static int rt6_deleteroute __P((struct radix_node *, void *));
+static int rt6_deleteroute(struct radix_node *, void *);
 
 extern int nd6_recalc_reachtm_interval;
 
