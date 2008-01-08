@@ -73,12 +73,12 @@ struct callout in6_tmpaddrtimer_ch;
 extern struct inpcbinfo udbinfo;
 extern struct inpcbinfo ripcbinfo;
 
-static int get_rand_ifid __P((struct ifnet *, struct in6_addr *));
-static int generate_tmp_ifid __P((u_int8_t *, const u_int8_t *, u_int8_t *));
-static int get_ifid __P((struct ifnet *, struct ifnet *, struct in6_addr *));
-static int in6_ifattach_linklocal __P((struct ifnet *, struct ifnet *));
-static int in6_ifattach_loopback __P((struct ifnet *));
-static void in6_purgemaddrs __P((struct ifnet *));
+static int get_rand_ifid(struct ifnet *, struct in6_addr *);
+static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);
+static int get_ifid(struct ifnet *, struct ifnet *, struct in6_addr *);
+static int in6_ifattach_linklocal(struct ifnet *, struct ifnet *);
+static int in6_ifattach_loopback(struct ifnet *);
+static void in6_purgemaddrs(struct ifnet *);
 
 #define EUI64_GBIT	0x01
 #define EUI64_UBIT	0x02

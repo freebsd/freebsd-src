@@ -121,15 +121,15 @@ static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **));
 
-static struct in6_addrpolicy *lookup_addrsel_policy __P((struct sockaddr_in6 *));
+static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
-static void init_policy_queue __P((void));
-static int add_addrsel_policyent __P((struct in6_addrpolicy *));
-static int delete_addrsel_policyent __P((struct in6_addrpolicy *));
+static void init_policy_queue(void);
+static int add_addrsel_policyent(struct in6_addrpolicy *);
+static int delete_addrsel_policyent(struct in6_addrpolicy *);
 static int walk_addrsel_policy __P((int (*)(struct in6_addrpolicy *, void *),
 				    void *));
-static int dump_addrsel_policyent __P((struct in6_addrpolicy *, void *));
-static struct in6_addrpolicy *match_addrsel_policy __P((struct sockaddr_in6 *));
+static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
+static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
 /*
  * Return an IPv6 address, which is the most appropriate for a given
@@ -1010,7 +1010,7 @@ delete_addrsel_policyent(struct in6_addrpolicy *key)
 }
 
 static int
-walk_addrsel_policy(int (*callback) __P((struct in6_addrpolicy *, void *)),
+walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *),
     void *w)
 {
 	struct addrsel_policyent *pol;

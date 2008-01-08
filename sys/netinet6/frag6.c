@@ -62,11 +62,11 @@ __FBSDID("$FreeBSD$");
  */
 #define IN6_IFSTAT_STRICT
 
-static void frag6_enq __P((struct ip6asfrag *, struct ip6asfrag *));
-static void frag6_deq __P((struct ip6asfrag *));
-static void frag6_insque __P((struct ip6q *, struct ip6q *));
-static void frag6_remque __P((struct ip6q *));
-static void frag6_freef __P((struct ip6q *));
+static void frag6_enq(struct ip6asfrag *, struct ip6asfrag *);
+static void frag6_deq(struct ip6asfrag *);
+static void frag6_insque(struct ip6q *, struct ip6q *);
+static void frag6_remque(struct ip6q *);
+static void frag6_freef(struct ip6q *);
 
 static struct mtx ip6qlock;
 /*
