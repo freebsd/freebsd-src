@@ -21,7 +21,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
-	pause.c pmadvise.c popen.c posixshm.c pselect.c \
+	pause.c pmadvise.c popen.c pselect.c \
 	psignal.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c sem.c semctl.c \
@@ -59,7 +59,7 @@ MAN+=	alarm.3 arc4random.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
 	sem_open.3 sem_post.3 sem_wait.3 \
-	setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
+	setjmp.3 setmode.3 setproctitle.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 \
 	statvfs.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 \
@@ -133,7 +133,6 @@ MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
 	setjmp.3 siglongjmp.3 setjmp.3 sigsetjmp.3
 MLINKS+=setmode.3 getmode.3
-MLINKS+=shm_open.3 shm_unlink.3
 MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 	sigsetops.3 sigismember.3

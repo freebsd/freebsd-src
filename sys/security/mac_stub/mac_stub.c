@@ -578,6 +578,53 @@ stub_posixsem_create(struct ucred *cred, struct ksem *ks,
 }
 
 static int
+stub_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel, int prot, int flags)
+{
+
+	return (0);
+}
+
+static int
+stub_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_posixshm_check_stat(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shmfd, struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_posixshm_check_truncate(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shmfd, struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static void
+stub_posixshm_create(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmlabel)
+{
+
+}
+
+static int
 stub_priv_check(struct ucred *cred, int priv)
 {
 
@@ -1549,6 +1596,15 @@ static struct mac_policy_ops stub_ops =
 	.mpo_posixsem_create = stub_posixsem_create,
 	.mpo_posixsem_destroy_label = stub_destroy_label,
 	.mpo_posixsem_init_label = stub_init_label,
+
+	.mpo_posixshm_check_mmap = stub_posixshm_check_mmap,
+	.mpo_posixshm_check_open = stub_posixshm_check_open,
+	.mpo_posixshm_check_stat = stub_posixshm_check_stat,
+	.mpo_posixshm_check_truncate = stub_posixshm_check_truncate,
+	.mpo_posixshm_check_unlink = stub_posixshm_check_unlink,
+	.mpo_posixshm_create = stub_posixshm_create,
+	.mpo_posixshm_destroy_label = stub_destroy_label,
+	.mpo_posixshm_init_label = stub_init_label,
 
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
