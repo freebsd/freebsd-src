@@ -121,13 +121,10 @@ typedef enum {
 #define	SSE_RND_OFF	13	/* rounding control offset */
 #define	SSE_FZ_OFF	15	/* flush to zero offset */
 
-#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE) \
-    && !defined(__cplusplus)
+#ifdef __GNUCLIKE_ASM
 
 #define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
-#define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
-#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : : "m" (*(addr)))
 #define	__stmxcsr(addr)	__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
@@ -149,18 +146,18 @@ __fpgetround(void)
 	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	return ((_cw & FP_RND_FLD) >> FP_RND_OFF);
+	return ((fp_rnd_t)((_cw & FP_RND_FLD) >> FP_RND_OFF));
 }
 
 static __inline fp_rnd_t
 __fpsetround(fp_rnd_t _m)
 {
-	unsigned short _cw;
-	unsigned _mxcsr;
 	fp_rnd_t _p;
+	unsigned _mxcsr;
+	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	_p = (_cw & FP_RND_FLD) >> FP_RND_OFF;
+	_p = (fp_rnd_t)((_cw & FP_RND_FLD) >> FP_RND_OFF);
 	_cw &= ~FP_RND_FLD;
 	_cw |= (_m << FP_RND_OFF) & FP_RND_FLD;
 	__fldcw(&_cw);
@@ -182,17 +179,17 @@ __fpgetprec(void)
 	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	return ((_cw & FP_PRC_FLD) >> FP_PRC_OFF);
+	return ((fp_prec_t)((_cw & FP_PRC_FLD) >> FP_PRC_OFF));
 }
 
 static __inline fp_prec_t
-__fpsetprec(fp_rnd_t _m)
+__fpsetprec(fp_prec_t _m)
 {
 	fp_prec_t _p;
 	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	_p = (_cw & FP_PRC_FLD) >> FP_PRC_OFF;
+	_p = (fp_prec_t)((_cw & FP_PRC_FLD) >> FP_PRC_OFF);
 	_cw &= ~FP_PRC_FLD;
 	_cw |= (_m << FP_PRC_OFF) & FP_PRC_FLD;
 	__fldcw(&_cw);
@@ -237,21 +234,19 @@ __fpsetmask(fp_except_t _m)
 static __inline fp_except_t
 __fpgetsticky(void)
 {
-	fp_except_t _ex;
-	unsigned _mxcsr;
+	unsigned _ex, _mxcsr;
 	unsigned short _sw;
 
 	__fnstsw(&_sw);
 	_ex = (_sw & FP_STKY_FLD) >> FP_STKY_OFF;
 	__stmxcsr(&_mxcsr);
 	_ex |= (_mxcsr & SSE_STKY_FLD) >> SSE_STKY_OFF;
-	return (_ex);
+	return ((fp_except_t)_ex);
 }
 
-#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE && !__cplusplus */
+#endif /* __GNUCLIKE_ASM */
 
-#if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) && \
-    defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
+#if !defined(__IEEEFP_NOINLINES__) && defined(__GNUCLIKE_ASM)
 
 #define	fpgetround()	__fpgetround()
 #define	fpsetround(_m)	__fpsetround(_m)
@@ -264,8 +259,7 @@ __fpgetsticky(void)
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
 
-#else /* !(!__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM &&
-         __CC_SUPPORTS___INLINE) */
+#else /* !(!__IEEEFP_NOINLINES__ && __GNUCLIKE_ASM) */
 
 /* Augment the userland declarations. */
 __BEGIN_DECLS
@@ -273,7 +267,6 @@ fp_prec_t	fpgetprec(void);
 fp_prec_t	fpsetprec(fp_prec_t);
 __END_DECLS
 
-#endif /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM &&
-          __CC_SUPPORTS___INLINE */
+#endif /* !__IEEEFP_NOINLINES__ && __GNUCLIKE_ASM */
 
 #endif /* !_MACHINE_IEEEFP_H_ */
