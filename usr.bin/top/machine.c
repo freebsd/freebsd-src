@@ -60,7 +60,11 @@ extern struct process_select ps;
 extern char* printable(char *);
 static int smpmode;
 enum displaymodes displaymode;
+#ifdef TOP_USERNAME_LEN
+static int namelength = TOP_USERNAME_LEN;
+#else
 static int namelength = 8;
+#endif
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
@@ -223,7 +227,7 @@ static void getsysctl(const char *name, void *ptr, size_t len);
 static int swapmode(int *retavail, int *retfree);
 
 int
-machine_init(struct statics *statics)
+machine_init(struct statics *statics, char do_unames)
 {
 	int pagesize;
 	size_t modelen;
@@ -237,9 +241,11 @@ machine_init(struct statics *statics)
 	    modelen != sizeof(smpmode))
 		smpmode = 0;
 
-	while ((pw = getpwent()) != NULL) {
+	if (do_unames) {
+	    while ((pw = getpwent()) != NULL) {
 		if (strlen(pw->pw_name) > namelength)
 			namelength = strlen(pw->pw_name);
+	    }
 	}
 	if (smpmode && namelength > SMPUNAMELEN)
 		namelength = SMPUNAMELEN;
