@@ -1160,20 +1160,25 @@ gdt_internal_cache_cmd(struct gdt_softc *gdt,union ccb *ccb)
         break;
       case INQUIRY:
         {
-            struct scsi_inquiry_data *inq;
+            struct scsi_inquiry_data inq;
+            size_t copylen = MIN(sizeof(inq), ccb->csio.dxfer_len);
 
-            inq = (struct scsi_inquiry_data *)ccb->csio.data_ptr;       
-            bzero(inq, sizeof(struct scsi_inquiry_data));
-            inq->device = (gdt->sc_hdr[t].hd_devtype & 4) ?
+            bzero(&inq, sizeof(inq));
+            inq.device = (gdt->sc_hdr[t].hd_devtype & 4) ?
                 T_CDROM : T_DIRECT;
-            inq->dev_qual2 = (gdt->sc_hdr[t].hd_devtype & 1) ? 0x80 : 0;
-            inq->version = SCSI_REV_2;
-            inq->response_format = 2; 
-            inq->additional_length = 32; 
-            inq->flags = SID_CmdQue | SID_Sync; 
-            strcpy(inq->vendor, gdt->oem_name);
-            sprintf(inq->product, "Host Drive   #%02d", t);
-            strcpy(inq->revision, "   ");
+            inq.dev_qual2 = (gdt->sc_hdr[t].hd_devtype & 1) ? 0x80 : 0;
+            inq.version = SCSI_REV_2;
+            inq.response_format = 2; 
+            inq.additional_length = 32; 
+            inq.flags = SID_CmdQue | SID_Sync; 
+            strncpy(inq.vendor, gdt->oem_name, sizeof(inq.vendor));
+            snprintf(inq.product, sizeof(inq.product),
+                     "Host Drive   #%02d", t);
+            strncpy(inq.revision, "   ", sizeof(inq.revision));
+            bcopy(&inq, ccb->csio.data_ptr, copylen );
+            if( ccb->csio.dxfer_len > copylen )
+                bzero( ccb->csio.data_ptr+copylen,
+                       ccb->csio.dxfer_len - copylen );
             break;
         }
       case MODE_SENSE_6:
@@ -1182,18 +1187,24 @@ gdt_internal_cache_cmd(struct gdt_softc *gdt,union ccb *ccb)
                 struct scsi_mode_hdr_6 hd;
                 struct scsi_mode_block_descr bd;
                 struct scsi_control_page cp;
-            } *mpd;
+            } mpd;
+            size_t copylen = MIN(sizeof(mpd), ccb->csio.dxfer_len);
             u_int8_t page;
 
-            mpd = (struct mpd_data *)ccb->csio.data_ptr;        
-            bzero(mpd, sizeof(struct mpd_data));
-            mpd->hd.datalen = sizeof(struct scsi_mode_hdr_6) +
+            /*mpd = (struct mpd_data *)ccb->csio.data_ptr;*/
+            bzero(&mpd, sizeof(mpd));
+            mpd.hd.datalen = sizeof(struct scsi_mode_hdr_6) +
                 sizeof(struct scsi_mode_block_descr);
-            mpd->hd.dev_specific = (gdt->sc_hdr[t].hd_devtype & 2) ? 0x80 : 0;
-            mpd->hd.block_descr_len = sizeof(struct scsi_mode_block_descr);
-            mpd->bd.block_len[0] = (GDT_SECTOR_SIZE & 0x00ff0000) >> 16;
-            mpd->bd.block_len[1] = (GDT_SECTOR_SIZE & 0x0000ff00) >> 8;
-            mpd->bd.block_len[2] = (GDT_SECTOR_SIZE & 0x000000ff);
+            mpd.hd.dev_specific = (gdt->sc_hdr[t].hd_devtype & 2) ? 0x80 : 0;
+            mpd.hd.block_descr_len = sizeof(struct scsi_mode_block_descr);
+            mpd.bd.block_len[0] = (GDT_SECTOR_SIZE & 0x00ff0000) >> 16;
+            mpd.bd.block_len[1] = (GDT_SECTOR_SIZE & 0x0000ff00) >> 8;
+            mpd.bd.block_len[2] = (GDT_SECTOR_SIZE & 0x000000ff);
+
+            bcopy(&mpd, ccb->csio.data_ptr, copylen );
+            if( ccb->csio.dxfer_len > copylen )
+                bzero( ccb->csio.data_ptr+copylen,
+                       ccb->csio.dxfer_len - copylen );
             page=((struct scsi_mode_sense_6 *)ccb->csio.cdb_io.cdb_bytes)->page;
             switch (page) {
               default:
@@ -1204,12 +1215,17 @@ gdt_internal_cache_cmd(struct gdt_softc *gdt,union ccb *ccb)
         }
       case READ_CAPACITY:
         {
-            struct scsi_read_capacity_data *rcd;
+            struct scsi_read_capacity_data rcd;
+            size_t copylen = MIN(sizeof(rcd), ccb->csio.dxfer_len);
               
-            rcd = (struct scsi_read_capacity_data *)ccb->csio.data_ptr; 
-            bzero(rcd, sizeof(struct scsi_read_capacity_data));
-            scsi_ulto4b(gdt->sc_hdr[t].hd_size - 1, rcd->addr);
-            scsi_ulto4b(GDT_SECTOR_SIZE, rcd->length);
+            /*rcd = (struct scsi_read_capacity_data *)ccb->csio.data_ptr;*/
+            bzero(&rcd, sizeof(rcd));
+            scsi_ulto4b(gdt->sc_hdr[t].hd_size - 1, rcd.addr);
+            scsi_ulto4b(GDT_SECTOR_SIZE, rcd.length);
+            bcopy(&rcd, ccb->csio.data_ptr, copylen );
+            if( ccb->csio.dxfer_len > copylen )
+                bzero( ccb->csio.data_ptr+copylen,
+                       ccb->csio.dxfer_len - copylen );
             break;
         }
       default:
