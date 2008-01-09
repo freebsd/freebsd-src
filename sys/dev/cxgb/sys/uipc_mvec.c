@@ -384,7 +384,7 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 	 */
 	while (dofree == 0) {
 		cnt = *(mi->mi_refcnt);
-		if (mi->mi_type == EXT_PACKET) {
+		if (mi->mi_type == EXT_PACKET && cnt == 1) {
 			dofree = 1;
 			break;
 		}
