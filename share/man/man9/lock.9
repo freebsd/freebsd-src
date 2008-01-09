@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2007
+.Dd January 09, 2008
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Nm lockcount ,
 .Nm lockmgr ,
 .Nm lockstatus ,
+.Nm lockmgr_disown ,
 .Nm lockmgr_printinfo
 .Nd "lockmgr family of functions"
 .Sh SYNOPSIS
@@ -50,6 +51,8 @@
 .Fn lockmgr "struct lock *lkp" "u_int flags" "struct mtx *interlkp" "struct thread *td"
 .Ft int
 .Fn lockstatus "struct lock *lkp" "struct thread *td"
+.Ft void
+.Fn lockmgr_disown "struct lock *lkp"
 .Ft void
 .Fn lockmgr_printinfo "struct lock *lkp"
 .Sh DESCRIPTION
@@ -185,6 +188,12 @@ is
 and an exclusive lock is held,
 .Dv LK_EXCLUSIVE
 will be returned.
+.Pp
+The
+.Fn lockmgr_disown
+function switch the owner from curthread to be
+.Dv LK_KERNPROC,
+if the lock is alredy held.
 .Pp
 The
 .Fn lockmgr_printinfo
