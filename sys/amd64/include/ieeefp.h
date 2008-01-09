@@ -35,12 +35,12 @@
  * $FreeBSD$
  */
 
-/*
- *	IEEE floating point type and constant definitions.
- */
-
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
+
+/*
+ * IEEE floating point type, constant and function definitions.
+ */
 
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
@@ -143,7 +143,6 @@ typedef enum {
  * merge the two together.  I think.
  */
 
-/* Set rounding control */
 static __inline__ fp_rnd_t
 __fpgetround(void)
 {
@@ -173,9 +172,10 @@ __fpsetround(fp_rnd_t _m)
 }
 
 /*
- * Set precision for fadd/fsub/fsqrt etc x87 instructions
+ * Get or set the rounding precision for x87 arithmetic operations.
  * There is no equivalent SSE mode or control.
  */
+
 static __inline__ fp_prec_t
 __fpgetprec(void)
 {
@@ -200,11 +200,11 @@ __fpsetprec(fp_rnd_t _m)
 }
 
 /*
- * Look at the exception masks
- * Note that x87 masks are inverse of the fp*() functions
- * API.  ie: mask = 1 means disable for x87 and SSE, but
- * for the fp*() api, mask = 1 means enabled.
+ * Get or set the exception mask.
+ * Note that the x87 mask bits are inverted by the API -- a mask bit of 1
+ * means disable for x87 and SSE, but for fp*mask() it means enable.
  */
+
 static __inline__ fp_except_t
 __fpgetmask(void)
 {
@@ -234,7 +234,6 @@ __fpsetmask(fp_except_t _m)
 	return (_p);
 }
 
-/* See which sticky exceptions are pending, and reset them */
 static __inline__ fp_except_t
 __fpgetsticky(void)
 {
@@ -265,10 +264,10 @@ __fpgetsticky(void)
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
 
-#else /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
-         && __CC_SUPPORTS___INLINE__ */
+#else /* !(!__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
+         && __CC_SUPPORTS___INLINE__) */
 
-/* Augment the userland declarations */
+/* Augment the userland declarations. */
 __BEGIN_DECLS
 extern fp_prec_t fpgetprec(void);
 extern fp_prec_t fpsetprec(fp_prec_t);
