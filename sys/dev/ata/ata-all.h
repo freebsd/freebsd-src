@@ -464,6 +464,8 @@ struct ata_lowlevel {
     int (*begin_transaction)(struct ata_request *request);
     int (*end_transaction)(struct ata_request *request);
     int (*command)(struct ata_request *request);
+    void (*tf_read)(struct ata_request *request);
+    void (*tf_write)(struct ata_request *request);
 };
 
 /* structure holding resources for an ATA channel */
