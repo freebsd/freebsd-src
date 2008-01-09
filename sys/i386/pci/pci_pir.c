@@ -398,12 +398,6 @@ pci_pir_parse(void)
 		pci_pir_dump_links();
 	}
 
-	/* Check for unique IRQ masks. */
-	TAILQ_FOREACH(pci_link, &pci_links, pl_links) {
-		if (pci_link->pl_irqmask != 0 && powerof2(pci_link->pl_irqmask))
-			pci_link->pl_irq = ffs(pci_link->pl_irqmask) - 1;
-	}
-
 	/*
 	 * Check to see if the BIOS has already routed any of the links by
 	 * checking each device connected to each link to see if it has a
@@ -516,15 +510,20 @@ pci_pir_route_interrupt(int bus, int device, int func, int pin)
 	}
 
 	/*
-	 * Pick a new interrupt if we don't have one already.  We look for
-	 * an interrupt from several different sets.  First, we check the
-	 * set of PCI only interrupts from the $PIR.  Second, we check the
-	 * set of known-good interrupts that the BIOS has already used.
-	 * Lastly, we check the "all possible valid IRQs" set.
+	 * Pick a new interrupt if we don't have one already.  We look
+	 * for an interrupt from several different sets.  First, if
+	 * this link only has one valid IRQ, use that.  Second, we
+	 * check the set of PCI only interrupts from the $PIR.  Third,
+	 * we check the set of known-good interrupts that the BIOS has
+	 * already used.  Lastly, we check the "all possible valid
+	 * IRQs" set.
 	 */
 	if (!PCI_INTERRUPT_VALID(pci_link->pl_irq)) {
-		irq = pci_pir_choose_irq(pci_link,
-		    pci_route_table->pt_header.ph_pci_irqs);
+		if (pci_link->pl_irqmask != 0 && powerof2(pci_link->pl_irqmask))
+			irq = ffs(pci_link->pl_irqmask) - 1;
+		else
+			irq = pci_pir_choose_irq(pci_link,
+			    pci_route_table->pt_header.ph_pci_irqs);
 		if (!PCI_INTERRUPT_VALID(irq))
 			irq = pci_pir_choose_irq(pci_link, pir_bios_irqs);
 		if (!PCI_INTERRUPT_VALID(irq))
