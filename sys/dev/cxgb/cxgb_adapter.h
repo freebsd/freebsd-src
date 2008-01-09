@@ -120,8 +120,8 @@ struct port_info {
 	uint8_t		port_id;
 	uint8_t		tx_chan;
 	uint8_t		txpkt_intf;
-	uint8_t		nqsets;
 	uint8_t         first_qset;
+	uint32_t	nqsets;
 	
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
 	struct taskqueue *tq;
@@ -284,6 +284,8 @@ struct sge_txq {
 	uint32_t        txq_skipped;
 	uint32_t        txq_coalesced;
 	uint32_t        txq_enqueued;
+	uint32_t	txq_dump_start;
+	uint32_t	txq_dump_count;
 	unsigned long   txq_frees;
 	struct mtx      lock;
 	struct sg_ent  txq_sgl[TX_MAX_SEGS / 2 + 1];
