@@ -496,8 +496,11 @@ m_getjcl(int how, short type, int flags, int size)
 static __inline void
 m_free_fast(struct mbuf *m)
 {
-	KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
-
+#ifdef INVARIANTS
+	if (m->m_flags & M_PKTHDR)
+		KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
+#endif
+	
 	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
 }
 
