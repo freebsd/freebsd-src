@@ -121,13 +121,13 @@ typedef enum {
 #define	SSE_RND_OFF	13	/* rounding control offset */
 #define	SSE_FZ_OFF	15	/* flush to zero offset */
 
-#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE__) \
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE) \
     && !defined(__cplusplus)
 
-#define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
-#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fldcw(addr)	__asm __volatile("fldcw %0" : : "m" (*(addr)))
+#define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
+#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 #define	__ldmxcsr(addr)	__asm __volatile("ldmxcsr %0" : : "m" (*(addr)))
 #define	__stmxcsr(addr)	__asm __volatile("stmxcsr %0" : "=m" (*(addr)))
@@ -143,7 +143,7 @@ typedef enum {
  * merge the two together.  I think.
  */
 
-static __inline__ fp_rnd_t
+static __inline fp_rnd_t
 __fpgetround(void)
 {
 	unsigned short _cw;
@@ -152,11 +152,11 @@ __fpgetround(void)
 	return ((_cw & FP_RND_FLD) >> FP_RND_OFF);
 }
 
-static __inline__ fp_rnd_t
+static __inline fp_rnd_t
 __fpsetround(fp_rnd_t _m)
 {
 	unsigned short _cw;
-	unsigned int _mxcsr;
+	unsigned _mxcsr;
 	fp_rnd_t _p;
 
 	__fnstcw(&_cw);
@@ -176,7 +176,7 @@ __fpsetround(fp_rnd_t _m)
  * There is no equivalent SSE mode or control.
  */
 
-static __inline__ fp_prec_t
+static __inline fp_prec_t
 __fpgetprec(void)
 {
 	unsigned short _cw;
@@ -185,11 +185,11 @@ __fpgetprec(void)
 	return ((_cw & FP_PRC_FLD) >> FP_PRC_OFF);
 }
 
-static __inline__ fp_prec_t
+static __inline fp_prec_t
 __fpsetprec(fp_rnd_t _m)
 {
-	unsigned short _cw;
 	fp_prec_t _p;
+	unsigned short _cw;
 
 	__fnstcw(&_cw);
 	_p = (_cw & FP_PRC_FLD) >> FP_PRC_OFF;
@@ -205,53 +205,53 @@ __fpsetprec(fp_rnd_t _m)
  * means disable for x87 and SSE, but for fp*mask() it means enable.
  */
 
-static __inline__ fp_except_t
+static __inline fp_except_t
 __fpgetmask(void)
 {
 	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	return ((~_cw) & FP_MSKS_FLD);
+	return ((~_cw & FP_MSKS_FLD) >> FP_MSKS_OFF);
 }
 
-static __inline__ fp_except_t
+static __inline fp_except_t
 __fpsetmask(fp_except_t _m)
 {
-	unsigned short _cw;
-	unsigned int _mxcsr;
 	fp_except_t _p;
+	unsigned _mxcsr;
+	unsigned short _cw;
 
 	__fnstcw(&_cw);
-	_p = (~_cw) & FP_MSKS_FLD;
+	_p = (~_cw & FP_MSKS_FLD) >> FP_MSKS_OFF;
 	_cw &= ~FP_MSKS_FLD;
-	_cw |= (~_m) & FP_MSKS_FLD;
+	_cw |= (~_m >> FP_MSKS_OFF) & FP_MSKS_FLD;
 	__fldcw(&_cw);
 	__stmxcsr(&_mxcsr);
 	/* XXX should we clear non-ieee SSE_DAZ_FLD and SSE_FZ_FLD ? */
 	_mxcsr &= ~SSE_MSKS_FLD;
-	_mxcsr |= ((~_m) << SSE_MSKS_OFF) & SSE_MSKS_FLD;
+	_mxcsr |= (~_m << SSE_MSKS_OFF) & SSE_MSKS_FLD;
 	__ldmxcsr(&_mxcsr);
 	return (_p);
 }
 
-static __inline__ fp_except_t
+static __inline fp_except_t
 __fpgetsticky(void)
 {
-	unsigned short _sw;
-	unsigned int _mxcsr;
 	fp_except_t _ex;
+	unsigned _mxcsr;
+	unsigned short _sw;
 
 	__fnstsw(&_sw);
-	_ex = _sw & FP_STKY_FLD;
+	_ex = (_sw & FP_STKY_FLD) >> FP_STKY_OFF;
 	__stmxcsr(&_mxcsr);
-	_ex |= _mxcsr & SSE_STKY_FLD;
+	_ex |= (_mxcsr & SSE_STKY_FLD) >> SSE_STKY_OFF;
 	return (_ex);
 }
 
-#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE__ && !__cplusplus */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE && !__cplusplus */
 
-#if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) \
-    && defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE__)
+#if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) && \
+    defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 #define	fpgetround()	__fpgetround()
 #define	fpsetround(_m)	__fpsetround(_m)
@@ -264,16 +264,16 @@ __fpgetsticky(void)
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
 
-#else /* !(!__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
-         && __CC_SUPPORTS___INLINE__) */
+#else /* !(!__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM &&
+         __CC_SUPPORTS___INLINE) */
 
 /* Augment the userland declarations. */
 __BEGIN_DECLS
-extern fp_prec_t fpgetprec(void);
-extern fp_prec_t fpsetprec(fp_prec_t);
+fp_prec_t	fpgetprec(void);
+fp_prec_t	fpsetprec(fp_prec_t);
 __END_DECLS
 
-#endif /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
-          && __CC_SUPPORTS___INLINE__ */
+#endif /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM &&
+          __CC_SUPPORTS___INLINE */
 
 #endif /* !_MACHINE_IEEEFP_H_ */
