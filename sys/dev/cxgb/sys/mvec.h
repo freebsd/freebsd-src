@@ -247,6 +247,7 @@ m_freem_iovec(struct mbuf_iovec *mi)
 	case EXT_NET_DRV:
 	case EXT_MOD_TYPE:
 	case EXT_DISPOSABLE:
+	case EXT_PACKET:	
 	case EXT_EXTREF:
 		mb_free_ext_fast(mi, mi->mi_type, -1);
 		break;
