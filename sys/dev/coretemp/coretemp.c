@@ -143,6 +143,11 @@ coretemp_attach(device_t dev)
 	cpu_model += ((cpu_id >> 16) & 0xf) << 4;
 	cpu_mask = cpu_id & 15;
 
+#if 0 /*
+       * XXXrpaulo: I have this CPU model and when it returns from C3
+       * coretemp continues to function properly.
+       */
+	 
 	/*
 	 * Check for errata AE18.
 	 * "Processor Digital Thermal Sensor (DTS) Readout stops
@@ -159,6 +164,7 @@ coretemp_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+#endif
 	/*
 	 * On some Core 2 CPUs, there's an undocumented MSR that
 	 * can tell us if Tj(max) is 100 or 85.
