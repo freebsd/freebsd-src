@@ -659,7 +659,7 @@ found:
 		saved_ino = dp->i_ino;
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, saved_ino, LK_EXCLUSIVE, &tdp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)
 			return (error);
 		*vpp = tdp;

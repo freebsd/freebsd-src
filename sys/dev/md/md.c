@@ -530,7 +530,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	if (bp->bio_cmd == BIO_FLUSH) {
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
@@ -560,12 +560,12 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 */
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (bp->bio_cmd == BIO_READ) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
 		VOP_UNLOCK(vp, 0, td);
 	} else {
 		(void) vn_start_write(vp, &mp, V_WAIT);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_WRITE(vp, &auio, sc->flags & MD_ASYNC ? 0 : IO_SYNC,
 		    sc->cred);
 		VOP_UNLOCK(vp, 0, td);
@@ -895,7 +895,7 @@ mdsetcred(struct md_s *sc, struct ucred *cred)
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_resid = aiov.iov_len;
-		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(sc->vnode, &auio, 0, sc->cred);
 		VOP_UNLOCK(sc->vnode, 0, curthread);
 		free(tmpbuf, M_TEMP);
@@ -947,7 +947,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 
 	error = mdsetcred(sc, td->td_ucred);
 	if (error != 0) {
-		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
@@ -984,7 +984,7 @@ mddestroy(struct md_s *sc, struct thread *td)
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
 		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
-		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(sc->vnode, 0, td);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?

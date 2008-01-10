@@ -1397,8 +1397,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			VM_OBJECT_UNLOCK(obj);
 			if (vp != NULL) {
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY,
-				    curthread);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
 				vput(vp);

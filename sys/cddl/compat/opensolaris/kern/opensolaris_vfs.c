@@ -192,7 +192,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	/*
 	 * Allocate and initialize the filesystem.
 	 */
-	vn_lock(vp, LK_SHARED | LK_RETRY, td);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td);
 	VOP_UNLOCK(vp, 0, td);
 
@@ -238,7 +238,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 * mnt_optnew.
 	*/
 	mp->mnt_optnew = NULL;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	/*
 	 * Put the new filesystem on the mount list after root.
 	 */

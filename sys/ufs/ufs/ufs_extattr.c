@@ -612,7 +612,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 
-	vn_lock(backing_vnode, LK_SHARED | LK_RETRY, td);
+	vn_lock(backing_vnode, LK_SHARED | LK_RETRY);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
 
@@ -672,8 +672,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 
 	LIST_REMOVE(uele, uele_entries);
 
-	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_RETRY,
-	    td);
+	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_RETRY);
 	ASSERT_VOP_LOCKED(uele->uele_backing_vnode, "ufs_extattr_disable");
 	VOP_UNLOCK(uele->uele_backing_vnode, 0, td);
 	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
@@ -875,8 +874,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	 * being applied to the backing file, as the lock is already held.
 	 */
 	if (attribute->uele_backing_vnode != vp)
-		vn_lock(attribute->uele_backing_vnode, LK_SHARED |
-		    LK_RETRY, td);
+		vn_lock(attribute->uele_backing_vnode, LK_SHARED | LK_RETRY);
 
 	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
 	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
@@ -1085,8 +1083,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	 * being applied to the backing file, as the lock is already held.
 	 */
 	if (attribute->uele_backing_vnode != vp)
-		vn_lock(attribute->uele_backing_vnode, 
-		    LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(attribute->uele_backing_vnode, LK_EXCLUSIVE | LK_RETRY);
 
 	ioflag = IO_NODELOCKED;
 	if (ufs_extattr_sync)
@@ -1182,8 +1179,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	 * modifying is it, as we already hold the lock.
 	 */
 	if (attribute->uele_backing_vnode != vp)
-		vn_lock(attribute->uele_backing_vnode,
-		    LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(attribute->uele_backing_vnode, LK_EXCLUSIVE | LK_RETRY);
 
 	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
 	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);

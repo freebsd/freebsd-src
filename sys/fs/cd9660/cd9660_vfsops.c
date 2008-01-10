@@ -170,7 +170,7 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * or has superuser abilities
 	 */
 	accessmode = VREAD;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
@@ -224,7 +224,7 @@ iso_mountfs(devvp, mp, td)
 	struct bufobj *bo;
 	char *cs_local, *cs_disk;
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);

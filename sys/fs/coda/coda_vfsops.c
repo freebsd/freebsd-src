@@ -297,7 +297,7 @@ coda_root(vfsp, flags, vpp, td)
 		/* On Mach, this is vref.  On NetBSD, VOP_LOCK */
 #if	1
 		vref(*vpp);
-		vn_lock(*vpp, LK_EXCLUSIVE, td);
+		vn_lock(*vpp, LK_EXCLUSIVE);
 #else
 		vget(*vpp, LK_EXCLUSIVE, td);
 #endif
@@ -320,7 +320,7 @@ coda_root(vfsp, flags, vpp, td)
 	*vpp = mi->mi_rootvp;
 #if	1
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, td);
+	vn_lock(*vpp, LK_EXCLUSIVE);
 #else
 	vget(*vpp, LK_EXCLUSIVE, td);
 #endif
@@ -340,7 +340,7 @@ coda_root(vfsp, flags, vpp, td)
 	*vpp = mi->mi_rootvp;
 #if	1
 	vref(*vpp);
-	vn_lock(*vpp, LK_EXCLUSIVE, td);
+	vn_lock(*vpp, LK_EXCLUSIVE);
 #else
 	vget(*vpp, LK_EXCLUSIVE, td);
 #endif

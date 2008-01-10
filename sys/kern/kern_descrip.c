@@ -1183,7 +1183,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (vp != NULL) {
 		int vfslocked;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0, td);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -2579,7 +2579,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
 			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
 			vput(vp);
 			VFS_UNLOCK_GIANT(vfslocked);

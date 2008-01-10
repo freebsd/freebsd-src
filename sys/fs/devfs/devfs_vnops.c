@@ -247,7 +247,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 	} else {
 		vp->v_type = VBAD;
 	}
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	mtx_lock(&devfs_de_interlock);
 	vp->v_data = de;
 	de->de_vnode = vp;
@@ -372,7 +372,7 @@ devfs_close(struct vop_close_args *ap)
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 	}
 	dev_relthread(dev);
-	vn_lock(vp, vp_locked | LK_RETRY, td);
+	vn_lock(vp, vp_locked | LK_RETRY);
 	vdrop(vp);
 	return (error);
 }
@@ -593,7 +593,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		de = de->de_dir;
 		error = devfs_allocv(de, dvp->v_mount, vpp, td);
 		*dm_unlock = 0;
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		return (error);
 	}
 
@@ -786,7 +786,7 @@ devfs_open(struct vop_open_args *ap)
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	}
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	dev_relthread(dev);
 
@@ -1101,7 +1101,7 @@ devfs_revoke(struct vop_revoke_args *ap)
 	} else
 		dev_unlock();
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	return (0);
 }
 

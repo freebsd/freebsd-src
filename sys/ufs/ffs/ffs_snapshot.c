@@ -406,14 +406,14 @@ restart:
 		vn_finished_write(wrtmp);
 		if ((error = vfs_write_suspend(vp->v_mount)) != 0) {
 			vn_start_write(NULL, &wrtmp, V_WAIT);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			goto out;
 		}
 		if (mp->mnt_kern_flag & MNTK_SUSPENDED)
 			break;
 		vn_start_write(NULL, &wrtmp, V_WAIT);
 	}
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (ip->i_effnlink == 0) {
 		error = ENOENT;		/* Snapshot file unlinked */
 		goto out1;
@@ -534,7 +534,7 @@ loop:
 			continue;
 		}
 		vholdl(xvp);
-		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0) {
+		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK) != 0) {
 			MNT_ILOCK(mp);
 			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			vdrop(xvp);
@@ -801,7 +801,7 @@ out1:
 		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		     (int) fs->fs_bsize, NOCRED, &nbp);
 	brelse(nbp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (ip->i_effnlink == 0)
 		error = ENOENT;		/* Snapshot file unlinked */
 	else
@@ -2001,7 +2001,7 @@ ffs_snapshot_mount(mp)
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
 		printf("ffs_snapshot_mount: read_1 failed %d\n", error);
 		VOP_UNLOCK(vp, 0, td);
@@ -2451,7 +2451,7 @@ process_deferred_inactive(struct mount *mp)
 		}
 		MNT_IUNLOCK(mp);
 		vholdl(vp);
-		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		if (error != 0) {
 			vdrop(vp);
 			MNT_ILOCK(mp);

@@ -365,7 +365,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 			continue;
 		vp = (struct vnode *)object->handle;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		result = vme->max_protection;
 		mac_vnode_check_mmap_downgrade(cred, vp, &result);
 		VOP_UNLOCK(vp, 0, td);
@@ -401,7 +401,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 				 */
 				vm_object_reference(object);
 				(void) vn_start_write(vp, &mp, V_WAIT);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				VM_OBJECT_LOCK(object);
 				vm_object_page_clean(object,
 				    OFF_TO_IDX(offset),

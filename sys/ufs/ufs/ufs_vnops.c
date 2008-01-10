@@ -831,7 +831,7 @@ ufs_remove(ap)
 		 */
 		VOP_UNLOCK(vp, 0, td);
 		(void) VOP_FSYNC(dvp, MNT_WAIT, td);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
 out:
 	return (error);
@@ -1037,7 +1037,7 @@ abortit:
 		goto abortit;
 	}
 
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE, td)) != 0)
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
 		goto abortit;
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
@@ -1342,7 +1342,7 @@ bad:
 out:
 	if (doingdirectory)
 		ip->i_flag &= ~IN_RENAME;
-	if (vn_lock(fvp, LK_EXCLUSIVE, td) == 0) {
+	if (vn_lock(fvp, LK_EXCLUSIVE) == 0) {
 		ip->i_effnlink--;
 		ip->i_nlink--;
 		DIP_SET(ip, i_nlink, ip->i_nlink);

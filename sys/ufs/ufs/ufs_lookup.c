@@ -562,7 +562,7 @@ found:
 		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
 		error = VFS_VGET(pdp->v_mount, saved_ino,
 		    cnp->cn_lkflags, &tdp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
 			return (error);
 		*vpp = tdp;
@@ -787,7 +787,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 				VOP_UNLOCK(tvp, 0, td);
 			error = VOP_FSYNC(dvp, MNT_WAIT, td);
 			if (tvp != NULL)
-				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
+				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 			return (error);
 		}
 		if (DOINGASYNC(dvp)) {
@@ -950,7 +950,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
 		    IO_NORMAL | IO_SYNC, cr, td);
 		if (tvp != NULL)
-			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 	}
 	return (error);
 }
