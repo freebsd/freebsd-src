@@ -1048,13 +1048,13 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case LOCAL_CREDS:
-			/* Unocked read. */
+			/* Unlocked read. */
 			optval = unp->unp_flags & UNP_WANTCRED ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 
 		case LOCAL_CONNWAIT:
-			/* Unocked read. */
+			/* Unlocked read. */
 			optval = unp->unp_flags & UNP_CONNWAIT ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
