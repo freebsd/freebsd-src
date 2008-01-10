@@ -580,10 +580,13 @@ main(int argc, char **argv)
 	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
 		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
 	cpumask = (1 << ncpu) - 1;
-	if (sysctlbyname("machdep.hlt_cpus", &haltedcpus, &dummy,
-	    NULL, 0) < 0)
-		err(EX_OSERR, "ERROR: Cannot determine which CPUs are halted");
-	cpumask &= ~haltedcpus;
+	if (ncpu > 1) {
+		if (sysctlbyname("machdep.hlt_cpus", &haltedcpus, &dummy,
+		    NULL, 0) < 0)
+			err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
+			    "halted");
+		cpumask &= ~haltedcpus;
+	}
 
 	while ((option = getopt(argc, argv,
 	    "CD:EG:M:NO:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:z:")) != -1)
