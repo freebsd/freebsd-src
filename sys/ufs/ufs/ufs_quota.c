@@ -554,7 +554,7 @@ quotaon(td, mp, type, fname)
 	if (*vpp != vp)
 		quotaoff1(td, mp, type);
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_SYSTEM;
 	VOP_UNLOCK(vp, 0, td);
 	*vpp = vp;
@@ -693,7 +693,7 @@ again:
 	UFS_UNLOCK(ump);
 
 	vfslocked = VFS_LOCK_GIANT(qvp->v_mount);
-	vn_lock(qvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(qvp, LK_EXCLUSIVE | LK_RETRY);
 	qvp->v_vflag &= ~VV_SYSTEM;
 	VOP_UNLOCK(qvp, 0, td);
 	error = vn_close(qvp, FREAD|FWRITE, td->td_ucred, td);
@@ -1087,7 +1087,6 @@ dqget(vp, id, ump, type, dqp)
 	int type;
 	struct dquot **dqp;
 {
-	struct thread *td = curthread;		/* XXX */
 	struct dquot *dq, *dq1;
 	struct dqhash *dqh;
 	struct vnode *dqvp;
@@ -1154,7 +1153,7 @@ hfound:		DQI_LOCK(dq);
 	 */
 	if (vp != dqvp) {
 		DQH_UNLOCK();
-		vn_lock(dqvp, LK_SHARED | LK_RETRY, td);
+		vn_lock(dqvp, LK_SHARED | LK_RETRY);
 		dqvplocked = 1;
 		DQH_LOCK();
 		/*
@@ -1342,7 +1341,6 @@ dqsync(vp, dq)
 	struct vnode *vp;
 	struct dquot *dq;
 {
-	struct thread *td = curthread;		/* XXX */
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
@@ -1379,7 +1377,7 @@ dqsync(vp, dq)
 
 	(void) vn_start_secondary_write(dqvp, &mp, V_WAIT);
 	if (vp != dqvp)
-		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY);
 
 	VFS_UNLOCK_GIANT(vfslocked);
 	DQI_LOCK(dq);

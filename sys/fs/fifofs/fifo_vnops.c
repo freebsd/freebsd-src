@@ -257,7 +257,7 @@ fail1:
 			VOP_UNLOCK(vp, 0, td);
 			error = msleep(&fip->fi_readers, &fifo_mtx,
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_readers--;
 				if (fip->fi_readers == 0) {
@@ -277,7 +277,7 @@ fail1:
 			VOP_UNLOCK(vp, 0, td);
 			error = msleep(&fip->fi_writers, &fifo_mtx,
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_writers--;
 				if (fip->fi_writers == 0) {

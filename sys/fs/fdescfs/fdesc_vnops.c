@@ -234,7 +234,7 @@ fdesc_lookup(ap)
 		goto bad;
 	VTOFDESC(fvp)->fd_fd = fd;
 	if (fvp != dvp)
-		vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY);
 	*vpp = fvp;
 	return (0);
 
@@ -409,7 +409,7 @@ fdesc_setattr(ap)
 	}
 	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) == 0) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
 		VOP_UNLOCK(vp, 0, ap->a_td);
 		vn_finished_write(mp);

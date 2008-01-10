@@ -487,9 +487,9 @@ nfs_upgrade_vnlock(struct vnode *vp, struct thread *td)
  	if ((old_lock = VOP_ISLOCKED(vp, td)) != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
  			/* Upgrade to exclusive lock, this might block */
- 			vn_lock(vp, LK_UPGRADE | LK_RETRY, td);
+ 			vn_lock(vp, LK_UPGRADE | LK_RETRY);
  		} else {
- 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+ 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
  		}
   	}
 	return old_lock;
@@ -501,7 +501,7 @@ nfs_downgrade_vnlock(struct vnode *vp, struct thread *td, int old_lock)
 	if (old_lock != LK_EXCLUSIVE) {
  		if (old_lock == LK_SHARED) {
  			/* Downgrade from exclusive lock, this might block */
- 			vn_lock(vp, LK_DOWNGRADE, td);
+ 			vn_lock(vp, LK_DOWNGRADE);
  		} else {
  			VOP_UNLOCK(vp, 0, td);
  		}

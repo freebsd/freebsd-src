@@ -687,7 +687,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 */
 	*retdirp = dp;
 	if (v3) {
-		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY);
 		*retdirattr_retp = VOP_GETATTR(dp, retdirattrp,
 			ndp->ni_cnd.cn_cred, td);
 		VOP_UNLOCK(dp, 0, td);

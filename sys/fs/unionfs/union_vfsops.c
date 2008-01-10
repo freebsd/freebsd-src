@@ -190,7 +190,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	if (ufile == 0 && udir != 0)
 		ufile = udir;
 
-	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY, td);
+	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
 	if (!error) {
 		if (udir == 0)
@@ -289,7 +289,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	 */
 	if (below) {
 		VOP_UNLOCK(upperrootvp, 0, td);
-		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(lowerrootvp, LK_EXCLUSIVE | LK_RETRY);
 		ump->um_lowervp = upperrootvp;
 		ump->um_uppervp = lowerrootvp;
 	} else {
@@ -429,7 +429,7 @@ unionfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 
 	vref(vp);
 	if (flags & LK_TYPE_MASK)
-		vn_lock(vp, flags, td);
+		vn_lock(vp, flags);
 
 	*vpp = vp;
 

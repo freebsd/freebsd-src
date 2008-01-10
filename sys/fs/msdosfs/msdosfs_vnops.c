@@ -1032,7 +1032,7 @@ abortit:
 		goto abortit;
 	}
 
-	error = vn_lock(fvp, LK_EXCLUSIVE, td);
+	error = vn_lock(fvp, LK_EXCLUSIVE);
 	if (error)
 		goto abortit;
 	dp = VTODE(fdvp);
@@ -1480,7 +1480,7 @@ msdosfs_rmdir(ap)
 	error = detrunc(ip, (u_long)0, IO_SYNC, cnp->cn_cred, td);
 	cache_purge(vp);
 
-	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 out:
 	return (error);
 }

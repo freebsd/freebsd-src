@@ -2206,7 +2206,7 @@ flushbufqueues(int queue, int flushdeps)
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT, td) == 0) {
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT) == 0) {
 			mtx_unlock(&bqlock);
 			CTR3(KTR_BUF, "flushbufqueue(%p) vp %p flags %X",
 			    bp, bp->b_vp, bp->b_flags);

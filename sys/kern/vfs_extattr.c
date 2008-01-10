@@ -162,7 +162,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	if (error)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	aiov.iov_base = data;
 	aiov.iov_len = nbytes;
@@ -328,7 +328,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	/*
 	 * Slightly unusual semantics: if the user provides a NULL data
@@ -509,7 +509,7 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	if (error)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 #ifdef MAC
 	error = mac_vnode_check_deleteextattr(td->td_ucred, vp, attrnamespace,
@@ -651,7 +651,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	auiop = NULL;
 	sizep = NULL;

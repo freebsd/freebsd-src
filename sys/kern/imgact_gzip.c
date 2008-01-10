@@ -241,7 +241,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 */
 	error = exec_new_vmspace(gz->ip, &aout_sysvec);
 
-	vn_lock(gz->ip->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(gz->ip->vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error) {
 		gz->where = __LINE__;
 		return (error);

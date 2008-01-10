@@ -364,7 +364,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		return (error);
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef AUDIT
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 #endif
@@ -732,7 +732,7 @@ fchdir(td, uap)
 	VREF(vp);
 	fdrop(fp, td);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
@@ -1103,7 +1103,7 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 		VATTR_NULL(&vat);
 		vat.va_size = 0;
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
@@ -1462,7 +1462,7 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 				vput(nd.ni_dvp);
 			vrele(nd.ni_vp);
 			error = EEXIST;
-		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td))
+		} else if ((error = vn_lock(vp, LK_EXCLUSIVE | LK_RETRY))
 		    == 0) {
 			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
@@ -1767,7 +1767,7 @@ lseek(td, uap)
 		offset += fp->f_offset;
 		break;
 	case L_XTND:
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, cred, td);
 		VOP_UNLOCK(vp, 0, td);
 		if (error)
@@ -2398,7 +2398,7 @@ setfflags(td, vp, flags)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_flags = flags;
 #ifdef MAC
@@ -2500,7 +2500,7 @@ fchflags(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0, td);
 #endif
@@ -2526,7 +2526,7 @@ setfmode(td, vp, mode)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_mode = mode & ALLPERMS;
 #ifdef MAC
@@ -2640,7 +2640,7 @@ fchmod(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0, td);
 #endif
@@ -2667,7 +2667,7 @@ setfown(td, vp, uid, gid)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VATTR_NULL(&vattr);
 	vattr.va_uid = uid;
 	vattr.va_gid = gid;
@@ -2797,7 +2797,7 @@ fchown(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0, td);
 #endif
@@ -2860,7 +2860,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	setbirthtime = 0;
 	if (numtimes < 3 && VOP_GETATTR(vp, &vattr, td->td_ucred, td) == 0 &&
 	    timespeccmp(&ts[1], &vattr.va_birthtime, < ))
@@ -3010,7 +3010,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0, td);
 #endif
@@ -3067,7 +3067,7 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR)
 		error = EISDIR;
 #ifdef MAC
@@ -3165,7 +3165,7 @@ fsync(td, uap)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	if (vp->v_object != NULL) {
 		VM_OBJECT_LOCK(vp->v_object);
@@ -3550,7 +3550,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = uap->count;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
@@ -3692,8 +3692,8 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
 	auio.uio_resid = uap->count;
-	/* vn_lock(vp, LK_SHARED | LK_RETRY, td); */
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	/* vn_lock(vp, LK_SHARED | LK_RETRY); */
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
@@ -4054,7 +4054,7 @@ fhopen(td, uap)
 			goto out;
 		}
 		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);	/* XXX */
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);	/* XXX */
 #ifdef MAC
 		/*
 		 * We don't yet have fp->f_cred, so use td->td_ucred, which
@@ -4120,7 +4120,7 @@ fhopen(td, uap)
 			fdrop(fp, td);
 			goto out;
 		}
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		atomic_set_int(&fp->f_flag, FHASLOCK);
 	}
 

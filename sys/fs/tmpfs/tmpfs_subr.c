@@ -360,7 +360,7 @@ loop:
 		goto unlock;
 	MPASS(vp != NULL);
 
-	(void) vn_lock(vp, lkflag | LK_RETRY, td);
+	(void) vn_lock(vp, lkflag | LK_RETRY);
 
 	vp->v_data = node;
 	vp->v_type = node->tn_type;

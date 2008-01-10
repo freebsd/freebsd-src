@@ -429,7 +429,7 @@ success:
 		if (ltype == VOP_ISLOCKED(*vpp, td))
 			return (-1);
 		else if (ltype == LK_EXCLUSIVE)
-			vn_lock(*vpp, LK_UPGRADE | LK_RETRY, td);
+			vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
 		return (-1);
 	}
 	ltype = 0;	/* silence gcc warning */
@@ -441,7 +441,7 @@ success:
 	CACHE_UNLOCK();
 	error = vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, td);
 	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(dvp, ltype | LK_RETRY, td);
+		vn_lock(dvp, ltype | LK_RETRY);
 	if ((cnp->cn_flags & ISLASTCN) && (cnp->cn_lkflags & LK_EXCLUSIVE))
 		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
 	if (error) {
