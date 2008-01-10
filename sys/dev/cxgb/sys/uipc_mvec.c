@@ -384,7 +384,7 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 	 */
 	while (dofree == 0) {
 		cnt = *(mi->mi_refcnt);
-		if (mi->mi_type == EXT_PACKET && cnt == 1) {
+		if (cnt == 1) {
 			dofree = 1;
 			break;
 		}
@@ -429,6 +429,8 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 		    mi->mi_ext.ext_args);
 		break;
 	case EXT_PACKET:
+		if (*(mi->mi_refcnt) == 0)
+			*(mi->mi_refcnt) = 1;
 		uma_zfree(zone_pack, mi->mi_mbuf);
 		break;
 	default:
