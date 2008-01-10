@@ -254,7 +254,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	sx_sunlock(&allprison_lock);
 
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
-	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY);
 	if ((error = change_dir(pr->pr_root, td)) != 0)
 		goto e_unlock;
 #ifdef MAC

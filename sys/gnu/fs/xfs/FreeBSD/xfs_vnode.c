@@ -135,7 +135,7 @@ vn_purge(struct xfs_vnode        *xfs_vp)
 
         vp = xfs_vp->v_vnode;
 
-        vn_lock(vp, LK_EXCLUSIVE, curthread);
+        vn_lock(vp, LK_EXCLUSIVE);
 	if (vp->v_holdcnt == 0)
 		vhold(vp);
 	vgone(vp);

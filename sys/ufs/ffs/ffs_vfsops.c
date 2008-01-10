@@ -261,7 +261,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_ACCESS(devvp, VREAD | VWRITE,
 			    td->td_ucred, td);
 			if (error)
@@ -467,7 +467,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	 * Step 1: invalidate all cached meta-data.
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
 	VOP_UNLOCK(devvp, 0, td);
@@ -1120,7 +1120,7 @@ ffs_flushfiles(mp, flags, td)
 	/*
 	 * Flush filesystem metadata.
 	 */
-	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_FSYNC(ump->um_devvp, MNT_WAIT, td);
 	VOP_UNLOCK(ump->um_devvp, 0, td);
 	return (error);
@@ -1270,7 +1270,7 @@ loop:
 	bo = &devvp->v_bufobj;
 	if (waitfor != MNT_LAZY &&
 	    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK);
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0, td);

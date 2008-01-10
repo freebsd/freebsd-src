@@ -205,7 +205,7 @@ rescan:
 	*vpp = vp;
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
 	
 	ASSERT_VOP_LOCKED(dvp, "nwfs_allocvp");

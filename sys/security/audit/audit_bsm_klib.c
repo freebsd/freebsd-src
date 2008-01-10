@@ -526,7 +526,7 @@ canon_path(struct thread *td, char *path, char *cpath)
 		 * attention.
 		 */
 		vfslocked = VFS_LOCK_GIANT(vnp->v_mount);
-		vn_lock(vnp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vnp, LK_EXCLUSIVE | LK_RETRY);
 		error = vn_fullpath(td, vnp, &retbuf, &freebuf);
 		if (error == 0) {
 			/* Copy and free buffer allocated by vn_fullpath().

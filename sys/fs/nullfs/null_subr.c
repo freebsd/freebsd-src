@@ -192,7 +192,7 @@ null_insmntque_dtr(struct vnode *vp, void *xp)
 	vp->v_vnlock = &vp->v_lock;
 	FREE(xp, M_NULLFSNODE);
 	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
 	vput(vp);
 }

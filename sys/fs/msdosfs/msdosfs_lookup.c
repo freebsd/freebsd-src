@@ -522,7 +522,7 @@ foundroot:
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);
 		error = deget(pmp, cluster, blkoff,  &tdp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td); 
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY); 
 		if (error)
 			return (error);
 		*vpp = DETOV(tdp);

@@ -932,7 +932,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1605,7 +1605,7 @@ nfs_rename(struct vop_rename_args *ap)
 		error = 0;
 		goto out;
 	}
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE, fcnp->cn_thread)) != 0)
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
 		goto out;
 
 	/*

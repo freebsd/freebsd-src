@@ -104,7 +104,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
 		    cnp->cn_lkflags, vpp, td);
 
-		vn_lock(dvp, ltype | LK_RETRY, td);
+		vn_lock(dvp, ltype | LK_RETRY);
 		vdrop(dvp);
 	} else if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
 		VREF(dvp);
@@ -925,7 +925,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	/* If we need to move the directory between entries, lock the
 	 * source so that we can safely operate on it. */
 	if (tdvp != fdvp) {
-		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY, tcnp->cn_thread);
+		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)
 			goto out;
 	}

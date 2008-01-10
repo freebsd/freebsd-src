@@ -743,7 +743,7 @@ ntfs_vgetex(
 	ntfs_ntput(ip);
 
 	if (lkflags & LK_TYPE_MASK) {
-		error = vn_lock(vp, lkflags, td);
+		error = vn_lock(vp, lkflags);
 		if (error) {
 			vput(vp);
 			return (error);

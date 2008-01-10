@@ -236,7 +236,7 @@ exec_linux_imgact(struct image_params *imgp)
     imgp->proc->p_sysent = &linux_sysvec;
 
 fail:
-    vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+    vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
     return (error);
 }
 

@@ -598,7 +598,7 @@ imgact_pecoff(struct image_params * imgp)
 	error = exec_pecoff_coff_makecmds(imgp, fp, peofs);
 fail:   
 	free(fp, M_TEMP);
-        vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+        vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 	return error;
 }
 

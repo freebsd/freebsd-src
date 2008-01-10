@@ -706,8 +706,7 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	if (vd != NULL) {
 		if (vget(vd->mv_vnode, 0, curthread) == 0) {
 			*vpp = vd->mv_vnode;
-			vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE,
-			    curthread);
+			vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE);
 			return (0);
 		}
 		/* XXX if this can happen, we're in trouble */
@@ -716,7 +715,7 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	error = getnewvnode("mqueue", mp, &mqfs_vnodeops, vpp);
 	if (error)
 		return (error);
-	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
 		*vpp = NULLVP;
@@ -824,7 +823,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 		KASSERT(pd->mn_parent, ("non-root directory has no parent"));
 		pn = pd->mn_parent;
 		error = mqfs_allocv(dvp->v_mount, vpp, pn);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		return (error);
 	}
 

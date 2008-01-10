@@ -1777,7 +1777,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto out;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	obj = vp->v_object;
 	if (obj != NULL) {
 		/*
@@ -2024,7 +2024,7 @@ retry_space:
 				 */
 				bsize = vp->v_mount->mnt_stat.f_iosize;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_SHARED | LK_RETRY, td);
+				vn_lock(vp, LK_SHARED | LK_RETRY);
 
 				/*
 				 * XXXMAC: Because we don't have fp->f_cred

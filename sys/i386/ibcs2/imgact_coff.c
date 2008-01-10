@@ -485,7 +485,7 @@ exec_coff_imgact(imgp)
 	DPRINTF(("%s(%d):  returning successfully!\n", __FILE__, __LINE__));
 
 fail:
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 
 	return error;
 }

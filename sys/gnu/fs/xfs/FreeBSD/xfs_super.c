@@ -148,7 +148,7 @@ xfs_blkdev_get(
 		return (error);
 	}
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 
 	ronly = ((XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY) != 0);
 	accessmode = VREAD;

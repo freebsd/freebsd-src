@@ -75,7 +75,7 @@ procfs_doprocfile(PFS_FILL_ARGS)
 	textvp = p->p_textvp;
 	VI_LOCK(textvp);
 	vholdl(textvp);
-	err = vn_lock(textvp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+	err = vn_lock(textvp, LK_EXCLUSIVE | LK_INTERLOCK);
 	vdrop(textvp);
 	if (err)
 		return (err);

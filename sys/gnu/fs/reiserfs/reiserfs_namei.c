@@ -82,7 +82,7 @@ reiserfs_lookup(struct vop_cachedlookup_args *ap)
 			VOP_UNLOCK(pdp, 0, td);
 			error = reiserfs_iget(vdp->v_mount,
 			    saved_ino, &vp, td);
-			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
 			if (error != 0)
 				return (error);
 			*vpp = vp;

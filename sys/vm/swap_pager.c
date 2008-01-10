@@ -2118,7 +2118,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 
 	mtx_assert(&Giant, MA_OWNED);
 #ifdef MAC
-	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	(void) vn_lock(sp->sw_vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_system_check_swapoff(cred, sp->sw_vp);
 	(void) VOP_UNLOCK(sp->sw_vp, 0, curthread);
 	if (error != 0)
@@ -2458,7 +2458,7 @@ swapongeom(struct thread *td, struct vnode *vp)
 	int error;
 	struct swh0h0 swh;
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	swh.dev = vp->v_rdev;
 	swh.vp = vp;
@@ -2527,7 +2527,7 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	}
 	mtx_unlock(&sw_dev_mtx);
     
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_system_check_swapon(td->td_ucred, vp);
 	if (error == 0)

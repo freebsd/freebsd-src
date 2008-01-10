@@ -222,7 +222,7 @@ zfs_vop_fsync(vnode_t *vp, int flag, cred_t *cr)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto drop;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_FSYNC(vp, MNT_WAIT, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);

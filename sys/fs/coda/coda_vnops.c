@@ -931,11 +931,11 @@ coda_lookup(struct vop_lookup_args *ap)
 	     */
 	    if (*ap->a_vpp) {
 		if ((error = VOP_LOCK(*ap->a_vpp, LK_EXCLUSIVE, td))) {
-		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
+		    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE);
 		    return (error);
 		}
 	    }
-	    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE, td);
+	    vn_lock(dvp, LK_RETRY|LK_EXCLUSIVE);
 	} else {
 	    /* The parent is locked, and may be the same as the child */
 	    if (*ap->a_vpp && (*ap->a_vpp != dvp)) {

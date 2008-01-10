@@ -103,7 +103,6 @@ portal_lookup(ap)
 	struct vnode **vpp = ap->a_vpp;
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
-	struct thread *td = cnp->cn_thread;
 	struct portalnode *pt;
 	int error;
 	struct vnode *fvp = 0;
@@ -153,7 +152,7 @@ portal_lookup(ap)
 	pt->pt_fileid = portal_fileid++;
 
 	*vpp = fvp;
-	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(fvp, dvp->v_mount);
 	if (error != 0) {
 		*vpp = NULLVP;
