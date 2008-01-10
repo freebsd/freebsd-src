@@ -2781,7 +2781,8 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 			if (m == NULL) {
 				log(LOG_WARNING, "failed to get mbuf for packet\n");
-				break;
+				budget_left--;
+				break;	
 			} else {
 				m->m_next = m->m_nextpkt = NULL;
 			}
@@ -2878,10 +2879,10 @@ process_responses_gts(adapter_t *adap, struct sge_rspq *rq)
 		printf("next_holdoff=%d\n", rq->next_holdoff);
 		last_holdoff = rq->next_holdoff;
 	}
-	if (work)
-		t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
-		    V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
-	return work;
+	t3_write_reg(adap, A_SG_GTS, V_RSPQ(rq->cntxt_id) |
+	    V_NEWTIMER(rq->next_holdoff) | V_NEWINDEX(rq->cidx));
+	
+	return (work);
 }
 
 
@@ -2944,8 +2945,13 @@ t3_intr_msix(void *data)
 	struct sge_qset *qs = data;
 	adapter_t *adap = qs->port->adapter;
 	struct sge_rspq *rspq = &qs->rspq;
-
-	if (mtx_trylock(&rspq->lock)) {
+#ifndef IFNET_MULTIQUEUE
+	mtx_lock(&rspq->lock);
+#else	
+	if (mtx_trylock(&rspq->lock)) 
+#endif
+	{
+		
 		if (process_responses_gts(adap, rspq) == 0)
 			rspq->unhandled_irqs++;
 		mtx_unlock(&rspq->lock);
@@ -2957,12 +2963,15 @@ static int
 t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 {
 	struct sge_rspq *rspq;
+	struct sge_qset *qs;
 	int i, err, dump_end, idx;
 	static int multiplier = 1;
 	struct sbuf *sb;
 	struct rsp_desc *rspd;
+	uint32_t data[4];
 	
 	rspq = arg1;
+	qs = rspq_to_qset(rspq);
 	if (rspq->rspq_dump_count == 0) 
 		return (0);
 	if (rspq->rspq_dump_count > RSPQ_Q_SIZE) {
@@ -2978,12 +2987,21 @@ t3_dump_rspq(SYSCTL_HANDLER_ARGS)
 		rspq->rspq_dump_start = 0;
 		return (EINVAL);
 	}
+	err = t3_sge_read_rspq(qs->port->adapter, rspq->cntxt_id, data);
+	if (err)
+		return (err);
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
-	
-	sbuf_printf(sb, "\n start=%d -> end=%d\n", rspq->rspq_dump_start,
-	    (rspq->rspq_dump_start + rspq->rspq_dump_count) & (RSPQ_Q_SIZE-1));
 
+	sbuf_printf(sb, " \n index=%u size=%u MSI-X/RspQ=%u intr enable=%u intr armed=%u\n",
+	    (data[0] & 0xffff), data[0] >> 16, ((data[2] >> 20) & 0x3f),
+	    ((data[2] >> 26) & 1), ((data[2] >> 27) & 1));
+	sbuf_printf(sb, " generation=%u CQ mode=%u FL threshold=%u\n",
+	    ((data[2] >> 28) & 1), ((data[2] >> 31) & 1), data[3]);
+	
+	sbuf_printf(sb, " start=%d -> end=%d\n", rspq->rspq_dump_start,
+	    (rspq->rspq_dump_start + rspq->rspq_dump_count) & (RSPQ_Q_SIZE-1));
+	
 	dump_end = rspq->rspq_dump_start + rspq->rspq_dump_count;
 	for (i = rspq->rspq_dump_start; i < dump_end; i++) {
 		idx = i & (RSPQ_Q_SIZE-1);
@@ -3021,6 +3039,7 @@ t3_dump_txq(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	struct tx_desc *txd;
 	uint32_t *WR, wr_hi, wr_lo, gen;
+	uint32_t data[4];
 	
 	txq = arg1;
 	qs = txq_to_qset(txq, TXQ_ETH);
@@ -3040,10 +3059,21 @@ t3_dump_txq(SYSCTL_HANDLER_ARGS)
 		txq->txq_dump_start = 0;
 		return (EINVAL);
 	}
+	err = t3_sge_read_ecntxt(qs->port->adapter, txq->cntxt_id, data);
+	if (err)
+		return (err);
+	
+	    
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
-	
-	sbuf_printf(sb, "\n qid=%d start=%d -> end=%d\n", qs->idx,
+
+	sbuf_printf(sb, " \n credits=%u GTS=%u index=%u size=%u rspq#=%u cmdq#=%u\n",
+	    (data[0] & 0x7fff), ((data[0] >> 15) & 1), (data[0] >> 16), 
+	    (data[1] & 0xffff), ((data[3] >> 4) & 7), ((data[3] >> 7) & 1));
+	sbuf_printf(sb, " TUN=%u TOE=%u generation%u uP token=%u valid=%u\n",
+	    ((data[3] >> 8) & 1), ((data[3] >> 9) & 1), ((data[3] >> 10) & 1),
+	    ((data[3] >> 11) & 0xfffff), ((data[3] >> 31) & 1));
+	sbuf_printf(sb, " qid=%d start=%d -> end=%d\n", qs->idx,
 	    txq->txq_dump_start,
 	    (txq->txq_dump_start + txq->txq_dump_count) & (TX_ETH_Q_SIZE-1));
 
@@ -3259,9 +3289,6 @@ t3_add_configured_sysctls(adapter_t *sc)
 
 			
 			
-			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
-			    CTLFLAG_RD, &qs->rspq.credits,
-			    0, "#credits");
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "size",
 			    CTLFLAG_RD, &qs->rspq.size,
 			    0, "#entries in response queue");
