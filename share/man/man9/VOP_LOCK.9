@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2007
+.Dd January 10, 2008
 .Os
 .Dt VOP_LOCK 9
 .Sh NAME
@@ -48,7 +48,7 @@
 .Ft int
 .Fn VOP_ISLOCKED "struct vnode *vp" "struct thread *td"
 .Ft int
-.Fn vn_lock "struct vnode *vp" "int flags" "struct thread *td"
+.Fn vn_lock "struct vnode *vp" "int flags"
 .Sh DESCRIPTION
 These calls are used to serialize access to the file system, such as
 to prevent two writes to the same file from happening at the
@@ -110,6 +110,9 @@ Kernel code should use
 to lock a vnode rather than calling
 .Fn VOP_LOCK
 directly.
+.Fn vn_lock
+also doesn't want a thread specified as argument but it
+assumes curthread to be used.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh PSEUDOCODE
