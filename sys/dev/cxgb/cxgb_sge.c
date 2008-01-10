@@ -1094,22 +1094,6 @@ wr_gen2(struct tx_desc *d, unsigned int gen)
 #endif
 }
 
-#if 0
-static int print_wr = 0;
-static __inline void
-do_print_wr(struct tx_desc *d, int flits)
-{
-	int i = 0;
-	
-	if (print_wr)
-		while (flits--) {
-			printf("flit[%d]: 0x%016lx\n", i, d->flit[i]);
-			i++;
-		}
-}
-#endif
-
-
 /**
  *	write_wr_hdr_sgl - write a WR header and, optionally, SGL
  *	@ndesc: number of Tx descriptors spanned by the SGL
@@ -2969,11 +2953,66 @@ t3_intr_msix(void *data)
 }
 
 #define QDUMP_SBUF_SIZE		32 * 400
+static int
+t3_dump_rspq(SYSCTL_HANDLER_ARGS)
+{
+	struct sge_rspq *rspq;
+	int i, err, dump_end, idx;
+	static int multiplier = 1;
+	struct sbuf *sb;
+	struct rsp_desc *rspd;
+	
+	rspq = arg1;
+	if (rspq->rspq_dump_count == 0) 
+		return (0);
+	if (rspq->rspq_dump_count > RSPQ_Q_SIZE) {
+		log(LOG_WARNING,
+		    "dump count is too large %d\n", rspq->rspq_dump_count);
+		rspq->rspq_dump_count = 0;
+		return (EINVAL);
+	}
+	if (rspq->rspq_dump_start > (RSPQ_Q_SIZE-1)) {
+		log(LOG_WARNING,
+		    "dump start of %d is greater than queue size\n",
+		    rspq->rspq_dump_start);
+		rspq->rspq_dump_start = 0;
+		return (EINVAL);
+	}
+retry_sbufops:
+	sb = sbuf_new(NULL, NULL, QDUMP_SBUF_SIZE*multiplier, SBUF_FIXEDLEN);
+	
+	sbuf_printf(sb, "\n start=%d -> end=%d\n", rspq->rspq_dump_start,
+	    (rspq->rspq_dump_start + rspq->rspq_dump_count) & (RSPQ_Q_SIZE-1));
+
+	dump_end = rspq->rspq_dump_start + rspq->rspq_dump_count;
+	for (i = rspq->rspq_dump_start; i < dump_end; i++) {
+		idx = i & (RSPQ_Q_SIZE-1);
+		
+		rspd = &rspq->desc[idx];
+		sbuf_printf(sb, "\tidx=%04d opcode=%02x cpu_idx=%x hash_type=%x cq_idx=%x\n",
+		    idx, rspd->rss_hdr.opcode, rspd->rss_hdr.cpu_idx,
+		    rspd->rss_hdr.hash_type, be16toh(rspd->rss_hdr.cq_idx));
+		sbuf_printf(sb, "\trss_hash_val=%x flags=%08x len_cq=%x intr_gen=%x\n",
+		    rspd->rss_hdr.rss_hash_val, be32toh(rspd->flags),
+		    be32toh(rspd->len_cq), rspd->intr_gen);
+	}
+	if (sbuf_overflowed(sb)) {
+		sbuf_delete(sb);
+		multiplier++;
+		goto retry_sbufops;
+	}
+	sbuf_finish(sb);
+	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+	return (err);
+}	
+
+
 /* 
  * broken by recent mbuf changes 
  */ 
 static int
-t3_dump_queue(SYSCTL_HANDLER_ARGS)
+t3_dump_txq(SYSCTL_HANDLER_ARGS)
 {
 	struct sge_txq *txq;
 	struct sge_qset *qs;
@@ -3160,6 +3199,15 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    0, "#times a cluster was freed through ext_free"); 
 }
 
+
+static const char *rspq_name = "rspq";
+static const char *txq_names[] =
+{
+	"txq_eth",
+	"txq_ofld",
+	"txq_ctrl"	
+};		
+
 void
 t3_add_configured_sysctls(adapter_t *sc)
 {
@@ -3191,8 +3239,8 @@ t3_add_configured_sysctls(adapter_t *sc)
 		
 		for (j = 0; j < pi->nqsets; j++) {
 			struct sge_qset *qs = &sc->sge.qs[pi->first_qset + j];
-			struct sysctl_oid *qspoid;
-			struct sysctl_oid_list *qspoidlist;
+			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid;
+			struct sysctl_oid_list *qspoidlist, *rspqpoidlist, *txqpoidlist;
 			struct sge_txq *txq = &qs->txq[TXQ_ETH];
 			
 			snprintf(qs->namebuf, QS_NAME_LEN, "qs%d", j);
@@ -3201,63 +3249,100 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    qs->namebuf, CTLFLAG_RD, NULL, "qset statistics");
 			qspoidlist = SYSCTL_CHILDREN(qspoid);
 			
-			SYSCTL_ADD_INT(ctx, qspoidlist, OID_AUTO, "dropped",
+			rspqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    rspq_name, CTLFLAG_RD, NULL, "rspq statistics");
+			rspqpoidlist = SYSCTL_CHILDREN(rspqpoid);
+
+			txqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    txq_names[0], CTLFLAG_RD, NULL, "txq statistics");
+			txqpoidlist = SYSCTL_CHILDREN(txqpoid);
+
+			
+			
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
+			    CTLFLAG_RD, &qs->rspq.credits,
+			    0, "#credits");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "size",
+			    CTLFLAG_RD, &qs->rspq.size,
+			    0, "#entries in response queue");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "cidx",
+			    CTLFLAG_RD, &qs->rspq.cidx,
+			    0, "consumer index");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "credits",
+			    CTLFLAG_RD, &qs->rspq.credits,
+			    0, "#credits");
+			SYSCTL_ADD_XLONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
+			    CTLFLAG_RD, &qs->rspq.phys_addr,
+			    "physical_address_of the queue");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_start",
+			    CTLFLAG_RW, &qs->rspq.rspq_dump_start,
+			    0, "start rspq dump entry");
+			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_count",
+			    CTLFLAG_RW, &qs->rspq.rspq_dump_count,
+			    0, "#rspq entries to dump");
+			SYSCTL_ADD_PROC(ctx, rspqpoidlist, OID_AUTO, "qdump",
+			    CTLTYPE_STRING | CTLFLAG_RD, &qs->rspq,
+			    0, t3_dump_rspq, "A", "dump of the response queue");
+
+			
+			
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "dropped",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].txq_drops,
 			    0, "#tunneled packets dropped");
-			SYSCTL_ADD_INT(ctx, qspoidlist, OID_AUTO, "sendqlen",
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "queue_pidx",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_pidx",
 			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_prod,
 			    0, "#tunneled packets queue producer index");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "queue_cidx",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_cidx",
 			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_cons,
 			    0, "#tunneled packets queue consumer index");
-			SYSCTL_ADD_INT(ctx, qspoidlist, OID_AUTO, "processed",
+			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "processed",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].processed,
 			    0, "#tunneled packets processed by the card");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "cleaned",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "cleaned",
 			    CTLFLAG_RD, &txq->cleaned,
 			    0, "#tunneled packets cleaned");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "in_use",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "in_use",
 			    CTLFLAG_RD, &txq->in_use,
 			    0, "#tunneled packet slots in use");
-			SYSCTL_ADD_ULONG(ctx, qspoidlist, OID_AUTO, "frees",
+			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "frees",
 			    CTLFLAG_RD, &txq->txq_frees,
 			    "#tunneled packets freed");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "skipped",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "skipped",
 			    CTLFLAG_RD, &txq->txq_skipped,
 			    0, "#tunneled packet descriptors skipped");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "coalesced",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "coalesced",
 			    CTLFLAG_RD, &txq->txq_coalesced,
 			    0, "#tunneled packets coalesced");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "enqueued",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "enqueued",
 			    CTLFLAG_RD, &txq->txq_enqueued,
 			    0, "#tunneled packets enqueued to hardware");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "stopped_flags",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "stopped_flags",
 			    CTLFLAG_RD, &qs->txq_stopped,
 			    0, "tx queues stopped");
-			SYSCTL_ADD_XLONG(ctx, qspoidlist, OID_AUTO, "phys_addr",
+			SYSCTL_ADD_XLONG(ctx, txqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &txq->phys_addr,
 			    "physical_address_of the queue");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "qgen",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "qgen",
 			    CTLFLAG_RW, &qs->txq[TXQ_ETH].gen,
 			    0, "txq generation");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "hw_cidx",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "hw_cidx",
 			    CTLFLAG_RD, &txq->cidx,
 			    0, "hardware queue cidx");			
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "hw_pidx",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "hw_pidx",
 			    CTLFLAG_RD, &txq->pidx,
 			    0, "hardware queue pidx");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "dump_start",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "dump_start",
 			    CTLFLAG_RW, &qs->txq[TXQ_ETH].txq_dump_start,
 			    0, "txq start idx for dump");
-			SYSCTL_ADD_UINT(ctx, qspoidlist, OID_AUTO, "dump_count",
+			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "dump_count",
 			    CTLFLAG_RW, &qs->txq[TXQ_ETH].txq_dump_count,
 			    0, "txq #entries to dump");			
-			SYSCTL_ADD_PROC(ctx, qspoidlist, OID_AUTO, "qdump",
+			SYSCTL_ADD_PROC(ctx, txqpoidlist, OID_AUTO, "qdump",
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_ETH],
-			    0, t3_dump_queue, "A", "dump of the transmit queue");
+			    0, t3_dump_txq, "A", "dump of the transmit queue");
 		}
 	}
 }

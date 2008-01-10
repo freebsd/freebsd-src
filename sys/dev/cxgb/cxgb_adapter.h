@@ -196,12 +196,7 @@ struct sge_rspq {
 	uint32_t	holdoff_tmr;
 	uint32_t	next_holdoff;
 	uint32_t        imm_data;
-	struct rsp_desc	*desc;
 	uint32_t	cntxt_id;
-	struct mtx      lock;
-	struct mbuf     *rx_head;    /* offload packet receive queue head */
-	struct mbuf     *rx_tail;    /* offload packet receive queue tail */
-
 	uint32_t        offload_pkts;
 	uint32_t        offload_bundles;
 	uint32_t        pure_rsps;
@@ -212,9 +207,12 @@ struct sge_rspq {
 	bus_dmamap_t	desc_map;
 
 	struct t3_mbuf_hdr rspq_mh;
+	struct rsp_desc	*desc;
+	struct mtx      lock;
 #define RSPQ_NAME_LEN  32
 	char            lockbuf[RSPQ_NAME_LEN];
-
+	uint32_t	rspq_dump_start;
+	uint32_t	rspq_dump_count;
 };
 
 #ifndef DISABLE_MBUF_IOVEC
@@ -231,8 +229,6 @@ struct sge_fl {
 	uint32_t	cidx;
 	uint32_t	pidx;
 	uint32_t	gen;
-	struct rx_desc	*desc;
-	struct rx_sw_desc *sdesc;
 	bus_addr_t	phys_addr;
 	uint32_t	cntxt_id;
 	uint64_t	empty;
@@ -240,6 +236,8 @@ struct sge_fl {
 	bus_dmamap_t	desc_map;
 	bus_dma_tag_t   entry_tag;
 	uma_zone_t      zone;
+	struct rx_desc	*desc;
+	struct rx_sw_desc *sdesc;
 	int             type;
 };
 
