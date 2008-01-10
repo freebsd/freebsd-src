@@ -218,6 +218,13 @@ TUNABLE_INT("hw.cxgb.singleq", &singleq);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, singleq, CTLFLAG_RDTUN, &singleq, 0,
     "use a single queue-set per port");
 
+
+
+int cxgb_use_16k_clusters = 0;
+TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
+    &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
+
 #ifndef IFNET_MULTIQUEUE
 int cxgb_txq_buf_ring_size = 0;
 #endif
@@ -1921,6 +1928,7 @@ cxgb_tx_common(struct ifnet *ifp, struct sge_qset *qs, uint32_t txmax)
 	}
 	else if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC) &&
 	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		setbit(&qs->txq_stopped, TXQ_ETH);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		err = ENOSPC;
 	}
@@ -1953,20 +1961,17 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 	if (!p->link_config.link_ok)
 		return (ENXIO);
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return (ENOBUFS);
-	}
 	
 	qs = &p->adapter->sge.qs[p->first_qset];
 	txq = &qs->txq[TXQ_ETH];
-	err = 0;
-
 	if (txq->flags & TXQ_TRANSMITTING)
 		return (EINPROGRESS);
 
 	mtx_lock(&txq->lock);
 	txq->flags |= TXQ_TRANSMITTING;
-	cxgb_tx_common(ifp, qs, txmax);
+	err = cxgb_tx_common(ifp, qs, txmax);
 	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
 
