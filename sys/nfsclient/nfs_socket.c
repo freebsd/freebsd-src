@@ -264,7 +264,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	int error, rcvreserve, sndreserve;
 	int pktscale;
 	struct sockaddr *saddr;
-	struct thread *td = &thread0; /* only used for socreate and sobind */
+	struct thread *td = curthread; /* only used for socreate and sobind */
 
 	if (nmp->nm_sotype == SOCK_STREAM) {
 		mtx_lock(&nmp->nm_mtx);
