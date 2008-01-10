@@ -250,7 +250,7 @@ static int wid_if;
 static int wid_expire;
 
 static void
-size_cols(int ef, struct radix_node *rn)
+size_cols(int ef __unused, struct radix_node *rn)
 {
 	wid_dst = WID_DST_DEFAULT(ef);
 	wid_gw = WID_GW_DEFAULT(ef);
@@ -808,7 +808,7 @@ routename(u_long in)
 	0)
 
 static void
-domask(char *dst, u_long addr, u_long mask)
+domask(char *dst, u_long addr __unused, u_long mask)
 {
 	int b, i;
 
