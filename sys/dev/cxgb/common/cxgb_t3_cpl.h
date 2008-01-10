@@ -306,6 +306,7 @@ struct work_request_hdr {
 #define S_WR_GEN    31
 #define V_WR_GEN(x) ((x) << S_WR_GEN)
 #define F_WR_GEN    V_WR_GEN(1U)
+#define G_WR_GEN(x) ((x) >> S_WR_GEN)
 
 # define WR_HDR struct work_request_hdr wr
 # define RSS_HDR
