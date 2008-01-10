@@ -287,7 +287,7 @@ vn_close(vp, flags, file_cred, td)
 	VFS_ASSERT_GIANT(vp->v_mount);
 
 	vn_start_write(vp, &mp, V_WAIT);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
@@ -371,14 +371,14 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		} else {
 			/*
 			 * XXX This should be LK_SHARED but I don't trust VFS
 			 * enough to leave it like that until it has been
 			 * reviewed further.
 			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		}
 
 	}
@@ -525,10 +525,10 @@ vn_read(fp, uio, active_cred, flags, td)
 		}
 		fp->f_vnread_flags |= FOFFSET_LOCKED;
 		mtx_unlock(mtxp);
-		vn_lock(vp, LK_SHARED | LK_RETRY, td);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
 		uio->uio_offset = fp->f_offset;
 	} else
-		vn_lock(vp, LK_SHARED | LK_RETRY, td);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	ioflag |= sequential_heuristic(uio, fp);
 
@@ -588,7 +588,7 @@ vn_write(fp, uio, active_cred, flags, td)
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
@@ -632,7 +632,7 @@ vn_truncate(fp, length, active_cred, td)
 		return (error);
 	}
 	VOP_LEASE(vp, td, active_cred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (vp->v_type == VDIR) {
 		error = EISDIR;
 		goto out;
@@ -670,7 +670,7 @@ vn_statfile(fp, sb, active_cred, td)
 	int error;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -805,7 +805,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 	case VREG:
 	case VDIR:
 		if (com == FIONREAD) {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_GETATTR(vp, &vattr, active_cred, td);
 			VOP_UNLOCK(vp, 0, td);
 			if (!error)
@@ -842,7 +842,7 @@ vn_poll(fp, events, active_cred, td)
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 #ifdef MAC
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
 	VOP_UNLOCK(vp, 0, td);
 	if (!error)
@@ -858,7 +858,7 @@ vn_poll(fp, events, active_cred, td)
  * acquire requested lock.
  */
 int
-_vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
+_vn_lock(struct vnode *vp, int flags, char *file, int line)
 {
 	int error;
 
@@ -881,7 +881,8 @@ _vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
 		 * lockmgr drops interlock before it will return for
 		 * any reason.  So force the code above to relock it.
 		 */
-		error = VOP_LOCK1(vp, flags | LK_INTERLOCK, td, file, line);
+		error = VOP_LOCK1(vp, flags | LK_INTERLOCK, curthread, file,
+		    line);
 		flags &= ~LK_INTERLOCK;
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
 		    ("LK_RETRY set with incompatible flags %d\n", flags));
@@ -891,7 +892,7 @@ _vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
 		 */
 		if (error == 0 && vp->v_iflag & VI_DOOMED &&
 		    (flags & LK_RETRY) == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0, curthread);
 			error = ENOENT;
 			break;
 		}
@@ -1222,7 +1223,7 @@ vn_extattr_get(struct vnode *vp, int ioflg, int attrnamespace,
 	auio.uio_resid = *buflen;
 
 	if ((ioflg & IO_NODELOCKED) == 0)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
 
@@ -1266,7 +1267,7 @@ vn_extattr_set(struct vnode *vp, int ioflg, int attrnamespace,
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		if ((error = vn_start_write(vp, &mp, V_WAIT)) != 0)
 			return (error);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
 
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
@@ -1292,7 +1293,7 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		if ((error = vn_start_write(vp, &mp, V_WAIT)) != 0)
 			return (error);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
 
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");

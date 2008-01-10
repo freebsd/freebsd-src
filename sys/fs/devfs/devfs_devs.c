@@ -259,7 +259,7 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 		vholdl(vp);
 		sx_unlock(&dm->dm_lock);
 		if (!vp_locked)
-			vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, td);
+			vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
 		else
 			VI_UNLOCK(vp);
 		vgone(vp);

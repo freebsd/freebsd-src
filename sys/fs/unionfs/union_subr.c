@@ -167,7 +167,7 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		vp->v_vflag |= VV_ROOT;
 
 	if (lkflags & LK_TYPE_MASK)
-		vn_lock(vp, lkflags | LK_RETRY, td);
+		vn_lock(vp, lkflags | LK_RETRY);
 
 	*vpp = vp;
 
@@ -386,7 +386,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 	if ((error = relookup(dvp, vpp, cn))) {
 		uma_zfree(namei_zone, cn->cn_pnbuf);
 		cn->cn_flags &= ~HASBUF;
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 	} else
 		vrele(dvp);
 
@@ -556,7 +556,7 @@ unionfs_node_update(struct unionfs_node *unp, struct vnode *uvp,
 		panic("unionfs: no exclusive lock");
 	VI_UNLOCK(vp);
 	for (count = 1; count < lockcnt; count++)
-		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY, td);
+		vn_lock(uvp, LK_EXCLUSIVE | LK_CANRECURSE | LK_RETRY);
 }
 
 /*

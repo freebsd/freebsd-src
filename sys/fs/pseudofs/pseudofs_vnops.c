@@ -428,13 +428,13 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		goto failed;
 
 	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
+		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
  failed:
 	if (cnp->cn_flags & ISDOTDOT)
-		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
+		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY);
 	PFS_RETURN(error);
 }
 

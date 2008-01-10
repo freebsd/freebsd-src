@@ -608,8 +608,8 @@ int	vn_close(struct vnode *vp,
 void	vn_finished_write(struct mount *mp);
 void	vn_finished_secondary_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
-int	_vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line);
-#define vn_lock(vp, flags, td) _vn_lock(vp, flags, td, __FILE__, __LINE__)
+int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
+#define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, struct file *fp);

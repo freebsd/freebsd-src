@@ -1249,7 +1249,7 @@ smbfs_lookup(ap)
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
 			return error;
 		*vpp = vp;

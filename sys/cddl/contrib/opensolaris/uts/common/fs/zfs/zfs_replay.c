@@ -109,7 +109,7 @@ zfs_replay_create(zfsvfs_t *zfsvfs, lr_create_t *lr, boolean_t byteswap)
 	cn.cn_thread = curthread;
 	cn.cn_flags = SAVENAME;
 
-	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY);
 	switch ((int)lr->lr_common.lrc_txtype) {
 	case TX_CREATE:
 		error = VOP_CREATE(ZTOV(dzp), &vp, &cn, &va);
@@ -162,7 +162,7 @@ zfs_replay_remove(zfsvfs_t *zfsvfs, lr_remove_t *lr, boolean_t byteswap)
 	cn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	cn.cn_cred = kcred;
 	cn.cn_thread = curthread;
-	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_LOOKUP(ZTOV(dzp), &vp, &cn);
 	if (error != 0) {
 		VOP_UNLOCK(ZTOV(dzp), 0, curthread);
@@ -211,8 +211,8 @@ zfs_replay_link(zfsvfs_t *zfsvfs, lr_link_t *lr, boolean_t byteswap)
 	cn.cn_thread = curthread;
 	cn.cn_flags = SAVENAME;
 
-	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY, curthread);
-	vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(ZTOV(dzp), LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(ZTOV(zp), LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_LINK(ZTOV(dzp), ZTOV(zp), &cn);
 	VOP_UNLOCK(ZTOV(zp), 0, curthread);
 	VOP_UNLOCK(ZTOV(dzp), 0, curthread);
@@ -255,7 +255,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 	scn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	scn.cn_cred = kcred;
 	scn.cn_thread = td;
-	vn_lock(ZTOV(sdzp), LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(ZTOV(sdzp), LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_LOOKUP(ZTOV(sdzp), &svp, &scn);
 	VOP_UNLOCK(ZTOV(sdzp), 0, td);
 	if (error != 0)
@@ -270,7 +270,7 @@ zfs_replay_rename(zfsvfs_t *zfsvfs, lr_rename_t *lr, boolean_t byteswap)
 	tcn.cn_lkflags = LK_EXCLUSIVE | LK_RETRY;
 	tcn.cn_cred = kcred;
 	tcn.cn_thread = td;
-	vn_lock(ZTOV(tdzp), LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(ZTOV(tdzp), LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_LOOKUP(ZTOV(tdzp), &tvp, &tcn);
 	if (error == EJUSTRETURN)
 		tvp = NULL;
@@ -360,7 +360,7 @@ zfs_replay_setattr(zfsvfs_t *zfsvfs, lr_setattr_t *lr, boolean_t byteswap)
 	ZFS_TIME_DECODE(&va.va_mtime, lr->lr_mtime);
 
 	vp = ZTOV(zp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_SETATTR(vp, &va, kcred, curthread);
 	VOP_UNLOCK(vp, 0, curthread);
 	VN_RELE(vp);

@@ -1004,7 +1004,7 @@ insmntque_stddtr(struct vnode *vp, void *dtr_arg)
 	/* XXX non mp-safe fs may still call insmntque with vnode
 	   unlocked */
 	if (!VOP_ISLOCKED(vp, td))
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
 	vput(vp);
 }
@@ -1662,7 +1662,7 @@ restart:
 		mtx_lock(&sync_mtx);
 		return (1);
 	}
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	(void) VOP_FSYNC(vp, MNT_LAZY, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
@@ -2059,7 +2059,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 		oweinact = 1;
 	}
 	vholdl(vp);
-	if ((error = vn_lock(vp, flags | LK_INTERLOCK, td)) != 0) {
+	if ((error = vn_lock(vp, flags | LK_INTERLOCK)) != 0) {
 		vdrop(vp);
 		return (error);
 	}
@@ -2154,7 +2154,7 @@ vrele(struct vnode *vp)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
+	if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
 		VI_LOCK(vp);
 		if (vp->v_usecount > 0)
 			vp->v_iflag &= ~VI_OWEINACT;
@@ -2359,7 +2359,7 @@ loop:
 		VI_LOCK(vp);
 		vholdl(vp);
 		MNT_IUNLOCK(mp);
-		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td);
+		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE);
 		if (error) {
 			vdrop(vp);
 			MNT_ILOCK(mp);
@@ -3869,7 +3869,7 @@ vfs_knllock(void *arg)
 {
 	struct vnode *vp = arg;
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 }
 
 static void

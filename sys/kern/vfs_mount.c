@@ -1061,7 +1061,7 @@ vfs_domount(
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	/*
 	 * Put the new filesystem on the mount list after root.
 	 */
@@ -1204,7 +1204,7 @@ dounmount(mp, flags, td)
 		mnt_gen_r = mp->mnt_gen;
 		VI_LOCK(coveredvp);
 		vholdl(coveredvp);
-		vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, td);
+		vn_lock(coveredvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
 		vdrop(coveredvp);
 		/*
 		 * Check for mp being unmounted while waiting for the

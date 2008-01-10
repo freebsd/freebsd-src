@@ -354,7 +354,7 @@ found:
 					     LK_EXCLUSIVE, &tdp,
 					     saved_ino != ino, ep);
 		brelse(bp);
-		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
 			return (error);
 		*vpp = tdp;

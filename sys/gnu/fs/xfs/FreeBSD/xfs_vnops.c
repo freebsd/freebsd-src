@@ -1294,7 +1294,7 @@ _xfs_cachedlookup(
 	tvp = cvp->v_vnode;
 
 	if (nameiop == DELETE && islastcn) {
-		if ((error = vn_lock(tvp, LK_EXCLUSIVE, td))) {
+		if ((error = vn_lock(tvp, LK_EXCLUSIVE))) {
 			vrele(tvp);
 			goto err_out;
 		}
@@ -1310,7 +1310,7 @@ _xfs_cachedlookup(
 	 }
 
 	if (nameiop == RENAME && islastcn) {
-		if ((error = vn_lock(tvp, LK_EXCLUSIVE, td))) {
+		if ((error = vn_lock(tvp, LK_EXCLUSIVE))) {
 			vrele(tvp);
 			goto err_out;
 		}
@@ -1323,9 +1323,9 @@ _xfs_cachedlookup(
 
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
-		error = vn_lock(tvp, cnp->cn_lkflags, td);
+		error = vn_lock(tvp, cnp->cn_lkflags);
 		if (error) {
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 			vrele(tvp);
 			goto err_out;
 		}
@@ -1334,7 +1334,7 @@ _xfs_cachedlookup(
 		*vpp = tvp;
 		KASSERT(tvp == dvp, ("not same directory"));
 	} else {
-		if ((error = vn_lock(tvp, cnp->cn_lkflags, td))) {
+		if ((error = vn_lock(tvp, cnp->cn_lkflags))) {
 			vrele(tvp);
 			goto err_out;
 		}

@@ -136,7 +136,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	error = VFS_STATFS(vp->v_mount, mnt_stat, td);
 	if (error)
 		goto fail;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_GETATTR(vp, &vattr, cred, td);
 	VOP_UNLOCK(vp, 0, td);
 	if (error)

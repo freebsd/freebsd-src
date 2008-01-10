@@ -205,10 +205,10 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	if (vp->v_type == VDIR) {
 		lks = LK_EXCLUSIVE;/*lockstatus(vp->v_vnlock, td);*/
 		if (lks == LK_SHARED)
-			vn_lock(vp, LK_UPGRADE | LK_RETRY, td);
+			vn_lock(vp, LK_UPGRADE | LK_RETRY);
 		error = smbfs_readvdir(vp, uiop, cred);
 		if (lks == LK_SHARED)
-			vn_lock(vp, LK_DOWNGRADE | LK_RETRY, td);
+			vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
 		return error;
 	}
 

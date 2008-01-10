@@ -408,7 +408,8 @@ lookup(struct nameidata *ndp)
 		cnp->cn_lkflags = LK_EXCLUSIVE;
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
-	vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
+	vn_lock(dp,
+	    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY));
 
 dirloop:
 	/*
@@ -546,7 +547,9 @@ dirloop:
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
-			vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
+			vn_lock(dp,
+			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 		}
 	}
 
@@ -572,7 +575,7 @@ unionlookup:
 	if (dp != vp_crossmp &&
 	    VOP_ISLOCKED(dp, td) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
-		vn_lock(dp, LK_UPGRADE|LK_RETRY, td);
+		vn_lock(dp, LK_UPGRADE|LK_RETRY);
 	/*
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.
@@ -601,7 +604,9 @@ unionlookup:
 			VREF(dp);
 			vput(tdp);
 			VFS_UNLOCK_GIANT(tvfslocked);
-			vn_lock(dp, compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags | LK_RETRY), td);
+			vn_lock(dp,
+			    compute_cn_lkflags(dp->v_mount, cnp->cn_lkflags |
+			    LK_RETRY));
 			goto unionlookup;
 		}
 
@@ -678,7 +683,7 @@ unionlookup:
 		ndp->ni_dvp = vp_crossmp;
 		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
 		vfs_unbusy(mp, td);
-		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT, td))
+		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
 		if (error) {
 			dpunlocked = 1;
@@ -778,7 +783,7 @@ success:
 	 */
 	if ((cnp->cn_flags & (ISLASTCN | LOCKSHARED | LOCKLEAF)) ==
 	    (ISLASTCN | LOCKLEAF) && VOP_ISLOCKED(dp, td) != LK_EXCLUSIVE) {
-		vn_lock(dp, LK_UPGRADE | LK_RETRY, td);
+		vn_lock(dp, LK_UPGRADE | LK_RETRY);
 	}
 	if (vfslocked && dvfslocked)
 		VFS_UNLOCK_GIANT(dvfslocked);	/* Only need one */
@@ -825,7 +830,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = dvp;
 	cnp->cn_lkflags = LK_EXCLUSIVE;
-	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY);
 
 	/*
 	 * Search a new directory.

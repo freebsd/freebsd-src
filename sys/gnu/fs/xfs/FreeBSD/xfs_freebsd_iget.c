@@ -390,7 +390,7 @@ xfs_vn_allocate(xfs_mount_t *mp, xfs_inode_t *ip, struct xfs_vnode **vpp)
 	}
 
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(vp, XVFSTOMNT(XFS_MTOVFS(mp)));
 	if (error != 0) {
 		kmem_free(vdata, sizeof(*vdata));

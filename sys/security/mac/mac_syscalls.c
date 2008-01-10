@@ -255,7 +255,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		vp = fp->f_vnode;
 		intlabel = mac_vnode_label_alloc();
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		mac_vnode_copy_label(vp->v_label, intlabel);
 		VOP_UNLOCK(vp, 0, td);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -448,7 +448,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 			mac_vnode_label_free(intlabel);
 			break;
 		}
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = vn_setlabel(vp, intlabel, td->td_ucred);
 		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);

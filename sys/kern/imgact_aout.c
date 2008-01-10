@@ -98,7 +98,6 @@ exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
 	const struct exec *a_out = (const struct exec *) imgp->image_header;
-	struct thread *td = curthread;
 	struct vmspace *vmspace;
 	vm_map_t map;
 	vm_object_t object;
@@ -193,14 +192,14 @@ exec_aout_imgact(imgp)
 	 * However, in cases where the vnode lock is external, such as nullfs,
 	 * v_usecount may become zero.
 	 */
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0, curthread);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)
 	 */
 	error = exec_new_vmspace(imgp, &aout_sysvec);
 
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error)
 		return (error);
 

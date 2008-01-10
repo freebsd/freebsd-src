@@ -1484,7 +1484,7 @@ loop1:
 			if (vn_start_write(vp, &mntp, V_NOWAIT) != 0) {
 			    VOP_UNLOCK(vp, 0, td);
 			    error = vn_start_write(NULL, &mntp, V_WAIT);
-			    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+			    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			}
 		        mvfslocked = VFS_LOCK_GIANT(mntp);
 		    }
@@ -1888,7 +1888,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
 
-			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 			VOP_UNLOCK(dirp, 0, td);
 		}
@@ -2090,7 +2090,7 @@ out:
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (dirp) {
-		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 		VOP_UNLOCK(dirp, 0, td);
 	}
@@ -2207,7 +2207,7 @@ out:
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
 
-			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 			VOP_UNLOCK(dirp, 0, td);
 		}
@@ -2418,12 +2418,12 @@ out1:
 		tond.ni_vp = NULL;
 
 		if (fdirp) {
-			vn_lock(fdirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(fdirp, LK_EXCLUSIVE | LK_RETRY);
 			fdiraft_ret = VOP_GETATTR(fdirp, &fdiraft, cred, td);
 			VOP_UNLOCK(fdirp, 0, td);
 		}
 		if (tdirp) {
-			vn_lock(tdirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(tdirp, LK_EXCLUSIVE | LK_RETRY);
 			tdiraft_ret = VOP_GETATTR(tdirp, &tdiraft, cred, td);
 			VOP_UNLOCK(tdirp, 0, td);
 		}
@@ -2558,7 +2558,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		vp = NULL;
 		goto out2;
 	}
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* fall through */
@@ -2583,7 +2583,7 @@ out2:
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
 
-			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 			VOP_UNLOCK(dirp, 0, td);
 		}
@@ -2759,7 +2759,7 @@ out:
 		pathcp = NULL;
 	}
 	if (dirp) {
-		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 		VOP_UNLOCK(dirp, 0, td);
 	}
@@ -2921,7 +2921,7 @@ out:
 			}
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
-			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 			VOP_UNLOCK(dirp, 0, td);
 		}
@@ -3058,7 +3058,7 @@ out:
 				vput(nd.ni_vp);
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
-			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
 			VOP_UNLOCK(dirp, 0, td);
 		}
@@ -3234,7 +3234,7 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
@@ -3516,7 +3516,7 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_td = NULL;
 	eofflag = 0;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;

@@ -664,7 +664,7 @@ ntfs_lookup(ap)
 				 LK_EXCLUSIVE, ap->a_vpp); 
 		ntfs_ntvattrrele(vap);
 		if (error) {
-			vn_lock(dvp,LK_EXCLUSIVE|LK_RETRY,cnp->cn_thread);
+			vn_lock(dvp,LK_EXCLUSIVE|LK_RETRY);
 			return (error);
 		}
 	} else {

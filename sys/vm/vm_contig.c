@@ -123,7 +123,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			VM_OBJECT_UNLOCK(object);
 			(void) vn_start_write(vp, &mp, V_WAIT);
 			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			VM_OBJECT_LOCK(object);
 			vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(object);

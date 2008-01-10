@@ -325,7 +325,7 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 	 *	uvp is either NULL, or locked and held.
 	 */
 
-	error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY);
 	if (error != 0)
 		panic("vn_lock LK_RETRY returned error %d", error);
 	if (bufp)
@@ -378,7 +378,7 @@ linux_getcwd_common (lvp, rvp, bpp, bufp, limit, flags, td)
 				goto out;
 			}
 			VREF(lvp);
-			error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY, td);
+			error = vn_lock(lvp, LK_EXCLUSIVE | LK_RETRY);
 			if (error != 0)
 				panic("vn_lock LK_RETRY returned %d", error);
 		}

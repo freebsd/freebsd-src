@@ -429,7 +429,7 @@ zfsctl_root_lookup_vop(ap)
 
 	err = zfsctl_root_lookup(dvp, nm, vpp, NULL, 0, NULL, cr);
 	if (err == 0 && (nm[0] != '.' || nm[1] != '\0'))
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 
 	return (err);
 }
@@ -692,7 +692,7 @@ zfsctl_snapdir_lookup(ap)
 			 */
 			goto domount;
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, ap->a_cnp->cn_thread);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
 		return (0);
@@ -732,7 +732,7 @@ domount:
 	kmem_free(mountpoint, mountpoint_len);
 	/* FreeBSD: This line was moved from below to avoid a lock recursion. */
 	if (err == 0)
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
+		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	mutex_exit(&sdp->sd_lock);
 
 	/*

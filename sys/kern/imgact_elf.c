@@ -680,7 +680,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	error = exec_new_vmspace(imgp, sv);
 	imgp->proc->p_sysent = sv;
 
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 	if (error)
 		return (error);
 
@@ -824,7 +824,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 			error = __elfN(load_file)(imgp->proc, interp, &addr,
 			    &imgp->entry_addr, sv->sv_pagesize);
 		}
-		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0) {
 			uprintf("ELF interpreter %s not found\n", interp);
 			return (error);

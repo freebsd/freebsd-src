@@ -312,7 +312,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			 * that user has necessary permissions on the device.
 			 */
 			devvp = pmp->pm_devvp;
-			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_ACCESS(devvp, VREAD | VWRITE,
 			    td->td_ucred, td);
 			if (error)
@@ -928,7 +928,7 @@ loop:
 	 * Flush filesystem control info.
 	 */
 	if (waitfor != MNT_LAZY) {
-		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(pmp->pm_devvp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(pmp->pm_devvp, waitfor, td);
 		if (error)
 			allerror = error;

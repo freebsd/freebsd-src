@@ -958,7 +958,7 @@ lookloop:
 			VOP_UNLOCK(dvp, 0, a->a_cnp->cn_thread);
 		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
 		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, a->a_cnp->cn_thread);
+			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY);
 		if (!error) {
 			/*
 			 * Remember where this entry was if it's the final

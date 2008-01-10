@@ -199,7 +199,7 @@ ext2_mount(mp, td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 			error = VOP_ACCESS(devvp, VREAD | VWRITE,
 			    td->td_ucred, td);
 			if (error)
@@ -517,7 +517,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 	 * Step 1: invalidate all cached meta-data.
 	 */
 	devvp = VFSTOEXT2(mp)->um_devvp;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ext2_reload: dirty1");
 	VOP_UNLOCK(devvp, 0, td);
@@ -916,7 +916,7 @@ loop:
 	 * Force stale file system control information to be flushed.
 	 */
 	if (waitfor != MNT_LAZY) {
-		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 		if ((error = VOP_FSYNC(ump->um_devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(ump->um_devvp, 0, td);
