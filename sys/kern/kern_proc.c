@@ -84,7 +84,8 @@ MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
 static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
-static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp);
+static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp,
+    int preferthread);
 static void pgadjustjobc(struct pgrp *pgrp, int entering);
 static void pgdelete(struct pgrp *);
 static int proc_ctor(void *mem, int size, void *arg, int flags);
@@ -765,11 +766,12 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 }
 
 /*
- * Fill in information that is thread specific.
- * Must be called with p_slock locked.
+ * Fill in information that is thread specific.  Must be called with p_slock
+ * locked.  If 'preferthread' is set, overwrite certain process-related
+ * fields that are maintained for both threads and processes.
  */
 static void
-fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
+fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 {
 	struct proc *p;
 
@@ -829,6 +831,9 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;
 
+	if (preferthread)
+		kp->ki_runtime = cputick2usec(td->td_runtime);
+
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;
 
@@ -848,7 +853,7 @@ fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 	fill_kinfo_proc_only(p, kp);
 	PROC_SLOCK(p);
 	if (FIRST_THREAD_IN_PROC(p) != NULL)
-		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
+		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
 	PROC_SUNLOCK(p);
 }
 
@@ -918,7 +923,8 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 	if (flags & KERN_PROC_NOTHREADS) {
 		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), &kinfo_proc);
+			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p),
+			    &kinfo_proc, 0);
 		PROC_SUNLOCK(p);
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 				   sizeof(kinfo_proc));
@@ -926,7 +932,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 		PROC_SLOCK(p);
 		if (FIRST_THREAD_IN_PROC(p) != NULL)
 			FOREACH_THREAD_IN_PROC(p, td) {
-				fill_kinfo_thread(td, &kinfo_proc);
+				fill_kinfo_thread(td, &kinfo_proc, 1);
 				error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
 						   sizeof(kinfo_proc));
 				if (error)
