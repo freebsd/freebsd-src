@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/sys/mvec.h>
 #endif
 
+extern int cxgb_use_16k_clusters;
+
 struct buf_stack {
 	caddr_t            *bs_stack;
 	volatile int        bs_head;
@@ -120,14 +122,17 @@ cxgb_cache_pcpu_init(struct cxgb_cache_pcpu *ccp)
 {
 	int err;
 	
-	if ((err = buf_stack_init(&ccp->ccp_jumbo_free, (JUMBO_Q_SIZE >> 1))))
+	if ((err = buf_stack_init(&ccp->ccp_jumbo_free, (JUMBO_Q_SIZE >> 2))))
 		return (err);
 	
-	if ((err = buf_stack_init(&ccp->ccp_cluster_free, (FL_Q_SIZE >> 1))))
+	if ((err = buf_stack_init(&ccp->ccp_cluster_free, (FL_Q_SIZE >> 2))))
 		return (err);
 
 #if __FreeBSD_version > 800000		
+	if (cxgb_use_16k_clusters) 
 		ccp->ccp_jumbo_zone = zone_jumbo16;
+	else
+		ccp->ccp_jumbo_zone = zone_jumbo9;
 #else
 		ccp->ccp_jumbo_zone = zone_jumbop;
 #endif
