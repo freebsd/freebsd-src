@@ -244,6 +244,7 @@ struct thread {
 	u_int		td_estcpu;	/* (t) estimated cpu utilization */
 	u_int		td_slptick;	/* (t) Time at sleep. */
 	struct rusage	td_ru;		/* (t) rusage information */
+	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	uint64_t	td_runtime;	/* (t) How many cpu ticks we've run. */
 	u_int 		td_pticks;	/* (t) Statclock hits for profiling */
 	u_int		td_sticks;	/* (t) Statclock hits in system mode. */

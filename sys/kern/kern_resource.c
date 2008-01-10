@@ -849,7 +849,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	}
 	/* Make sure the per-thread stats are current. */
 	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td->td_runtime == 0)
+		if (td->td_incruntime == 0)
 			continue;
 		thread_lock(td);
 		ruxagg(&p->p_rux, td);
@@ -1021,11 +1021,11 @@ ruxagg(struct rusage_ext *rux, struct thread *td)
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	PROC_SLOCK_ASSERT(td->td_proc, MA_OWNED);
-	rux->rux_runtime += td->td_runtime;
+	rux->rux_runtime += td->td_incruntime;
 	rux->rux_uticks += td->td_uticks;
 	rux->rux_sticks += td->td_sticks;
 	rux->rux_iticks += td->td_iticks;
-	td->td_runtime = 0;
+	td->td_incruntime = 0;
 	td->td_uticks = 0;
 	td->td_iticks = 0;
 	td->td_sticks = 0;
