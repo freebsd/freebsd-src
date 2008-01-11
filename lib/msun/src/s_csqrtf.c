@@ -54,13 +54,13 @@ csqrtf(float complex z)
 		return (cpackf(INFINITY, b));
 	if (isnan(a)) {
 		t = (b - b) / (b - b);	/* raise invalid if b is not a NaN */
-		return (cpackf(t, t));	/* return NaN + NaN i */
+		return (cpackf(a, t));	/* return NaN + NaN i */
 	}
 	if (isinf(a)) {
 		/*
-		 * csqrtf(inf + nan i)  = inf +  nan i
+		 * csqrtf(inf + NaN i)  = inf +  NaN i
 		 * csqrtf(inf + y i)    = inf +  0 i
-		 * csqrtf(-inf + nan i) = nan +- inf i
+		 * csqrtf(-inf + NaN i) = NaN +- inf i
 		 * csqrtf(-inf + y i)   = 0   +  inf i
 		 */
 		if (signbit(a))
