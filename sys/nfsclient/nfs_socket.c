@@ -264,7 +264,22 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	int error, rcvreserve, sndreserve;
 	int pktscale;
 	struct sockaddr *saddr;
-	struct thread *td = curthread; /* only used for socreate and sobind */
+	struct ucred *origcred;
+	struct thread *td = curthread;
+
+	/*
+	 * We need to establish the socket using the credentials of
+	 * the mountpoint.  Some parts of this process (such as
+	 * sobind() and soconnect()) will use the curent thread's
+	 * credential instead of the socket credential.  To work
+	 * around this, temporarily change the current thread's
+	 * credential to that of the mountpoint.
+	 *
+	 * XXX: It would be better to explicitly pass the correct
+	 * credential to sobind() and soconnect().
+	 */
+	origcred = td->td_ucred;
+	td->td_ucred = nmp->nm_mountp->mnt_cred;
 
 	if (nmp->nm_sotype == SOCK_STREAM) {
 		mtx_lock(&nmp->nm_mtx);
@@ -453,6 +468,9 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	so->so_snd.sb_flags |= SB_NOINTR;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
+	/* Restore current thread's credentials. */
+	td->td_ucred = origcred;
+
 	mtx_lock(&nmp->nm_mtx);
 	/* Initialize other non-zero congestion variables */
 	nfs_init_rtt(nmp);
@@ -463,6 +481,9 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	return (0);
 
 bad:
+	/* Restore current thread's credentials. */
+	td->td_ucred = origcred;
+
 	nfs_disconnect(nmp);
 	return (error);
 }
