@@ -202,10 +202,13 @@ static void sge_txq_reclaim_handler(void *arg, int ncount);
  *	queue's lock held.
  */
 static __inline int
-reclaim_completed_tx(struct sge_txq *q)
+reclaim_completed_tx_(struct sge_txq *q, int reclaim_min)
 {
 	int reclaim = desc_reclaimable(q);
 
+	if (reclaim < reclaim_min)
+		return (0);
+	
 	mtx_assert(&q->lock, MA_OWNED);
 	if (reclaim > 0) {
 		t3_free_tx_desc(q, reclaim);
@@ -215,6 +218,13 @@ reclaim_completed_tx(struct sge_txq *q)
 	return (reclaim);
 }
 
+int
+reclaim_completed_tx(struct sge_txq *q, int reclaim_min)
+{
+	return reclaim_completed_tx_(q, reclaim_min);
+}
+
+	
 /**
  *	should_restart_tx - are there enough resources to restart a Tx queue?
  *	@q: the Tx queue
@@ -775,6 +785,13 @@ t3_sge_init_adapter(adapter_t *sc)
 }
 
 int
+t3_sge_reset_adapter(adapter_t *sc)
+{
+	callout_reset(&sc->sge_timer_ch, TX_RECLAIM_PERIOD, sge_timer_cb, sc);
+	return (0);
+}
+
+int
 t3_sge_init_port(struct port_info *pi)
 {
 	TASK_INIT(&pi->timer_reclaim_task, 0, sge_timer_reclaim, pi);
@@ -815,7 +832,7 @@ refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
 }
 
 static __inline void
-sge_txq_reclaim_(struct sge_txq *txq)
+sge_txq_reclaim_(struct sge_txq *txq, int force)
 {
 	int reclaimable, n;
 	struct port_info *pi;
@@ -823,11 +840,13 @@ sge_txq_reclaim_(struct sge_txq *txq)
 	pi = txq->port;
 reclaim_more:
 	n = 0;
-	reclaimable = desc_reclaimable(txq);
-	if (reclaimable > 0 && mtx_trylock(&txq->lock)) {
-		n = reclaim_completed_tx(txq);
-		mtx_unlock(&txq->lock);
-	}
+	if ((reclaimable = desc_reclaimable(txq)) < 16)
+		return;
+	if (mtx_trylock(&txq->lock) == 0) 
+		return;
+	n = reclaim_completed_tx_(txq, 16);
+	mtx_unlock(&txq->lock);
+
 	if (pi && pi->ifp->if_drv_flags & IFF_DRV_OACTIVE &&
 	    txq->size - txq->in_use >= TX_START_MAX_DESC) {
 		struct sge_qset *qs = txq_to_qset(txq, TXQ_ETH);
@@ -847,8 +866,10 @@ sge_txq_reclaim_handler(void *arg, int ncount)
 {
 	struct sge_txq *q = arg;
 
-	sge_txq_reclaim_(q);
+	sge_txq_reclaim_(q, TRUE);
 }
+
+
 
 static void
 sge_timer_reclaim(void *arg, int ncount)
@@ -866,10 +887,10 @@ sge_timer_reclaim(void *arg, int ncount)
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
 		txq = &qs->txq[TXQ_ETH];
-		sge_txq_reclaim_(txq);
+		sge_txq_reclaim_(txq, FALSE);
 
 		txq = &qs->txq[TXQ_OFLD];
-		sge_txq_reclaim_(txq);
+		sge_txq_reclaim_(txq, FALSE);
 		
 		lock = (sc->flags & USING_MSIX) ? &qs->rspq.lock :
 			    &sc->sge.qs[0].rspq.lock;
@@ -1981,7 +2002,7 @@ ofld_xmit(adapter_t *adap, struct sge_txq *q, struct mbuf *m)
 	KASSERT(stx->mi.mi_base == NULL, ("mi_base set"));
 	
 	mtx_lock(&q->lock);
-again:	reclaim_completed_tx(q);
+again:	reclaim_completed_tx_(q, 16);
 	ret = check_desc_avail(adap, q, m, ndesc, TXQ_OFLD);
 	if (__predict_false(ret)) {
 		if (ret == 1) {
@@ -2034,7 +2055,7 @@ restart_offloadq(void *data, int npending)
 	int nsegs, cleaned;
 		
 	mtx_lock(&q->lock);
-again:	cleaned = reclaim_completed_tx(q);
+again:	cleaned = reclaim_completed_tx_(q, 16);
 
 	while ((m = mbufq_peek(&q->sendq)) != NULL) {
 		unsigned int gen, pidx;
