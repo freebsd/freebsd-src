@@ -1712,7 +1712,6 @@ cxgb_init_locked(struct port_info *p)
 	}
 	if (p->adapter->open_device_map == 0) {
 		t3_intr_clear(sc);
-		t3_sge_init_adapter(sc);
 	}
 	setbit(&p->adapter->open_device_map, p->port_id);
 	ADAPTER_UNLOCK(p->adapter);
@@ -1733,6 +1732,7 @@ cxgb_init_locked(struct port_info *p)
 	t3_port_intr_enable(sc, p->port_id);
 
 	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
+	t3_sge_reset_adapter(sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1963,7 +1963,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return (ENOBUFS);
-	
+
 	qs = &p->adapter->sge.qs[p->first_qset];
 	txq = &qs->txq[TXQ_ETH];
 	if (txq->flags & TXQ_TRANSMITTING)
@@ -1971,6 +1971,7 @@ cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
 
 	mtx_lock(&txq->lock);
 	txq->flags |= TXQ_TRANSMITTING;
+	reclaim_completed_tx(txq, TX_ETH_Q_SIZE >> 1);
 	err = cxgb_tx_common(ifp, qs, txmax);
 	txq->flags &= ~TXQ_TRANSMITTING;
 	mtx_unlock(&txq->lock);
