@@ -546,16 +546,19 @@ lockmgr_disown(struct lock *lkp)
 	struct thread *td;
 
 	td = curthread;
-	KASSERT(lkp->lk_exclusivecount,
+	KASSERT(panicstr != NULL || lkp->lk_exclusivecount,
 	    ("%s: %p lockmgr must be exclusively locked", __func__, lkp));
-	KASSERT(lkp->lk_lockholder == td || lkp->lk_lockholder == LK_KERNPROC,
+	KASSERT(panicstr != NULL || lkp->lk_lockholder == td ||
+	    lkp->lk_lockholder == LK_KERNPROC,
 	    ("%s: %p lockmgr must be locked by curthread (%p)", __func__, lkp,
 	    td));
 
 	/*
 	 * Drop the lock reference and switch the owner.  This will result
 	 * in an atomic operation like td_lock is only accessed by curthread
-	 * and lk_lockholder only needs one write.
+	 * and lk_lockholder only needs one write.  Note also that the lock
+	 * owner can be alredy KERNPROC, so in that case just skip the
+	 * decrement.
 	 */
 	if (lkp->lk_lockholder == td)
 		td->td_locks--;
