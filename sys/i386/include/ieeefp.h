@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Peter Wemm.
  * Copyright (c) 1990 Andrew Moore, Talke Studio
  * All rights reserved.
  *
@@ -34,29 +35,30 @@
  * $FreeBSD$
  */
 
-/*
- *	IEEE floating point type and constant definitions.
- */
-
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
+
+/*
+ * IEEE floating point type, constant and function definitions.
+ * XXX: FP*FLD, FP*REG and FP*OFF are undocumented pollution.
+ */
 
 #ifndef _SYS_CDEFS_H_
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
 /*
- * FP rounding modes
+ * Rounding modes.
  */
 typedef enum {
 	FP_RN=0,	/* round to nearest */
-	FP_RM,		/* round down to minus infinity */
-	FP_RP,		/* round up to plus infinity */
+	FP_RM,		/* round down towards minus infinity */
+	FP_RP,		/* round up towards plus infinity */
 	FP_RZ		/* truncate */
 } fp_rnd_t;
 
 /*
- * FP precision modes
+ * Precision (i.e., rounding precision) modes.
  */
 typedef enum {
 	FP_PS=0,	/* 24 bit (single-precision) */
@@ -68,7 +70,7 @@ typedef enum {
 #define fp_except_t	int
 
 /*
- * FP exception masks
+ * Exception bit masks.
  */
 #define FP_X_INV	0x01	/* invalid operation */
 #define FP_X_DNML	0x02	/* denormal */
@@ -79,7 +81,7 @@ typedef enum {
 #define FP_X_STK	0x40	/* stack fault */
 
 /*
- * FP registers
+ * FPU control and status register numbers (indexes into the env array).
  */
 #define FP_MSKS_REG	0	/* exception masks */
 #define FP_PRC_REG	0	/* precision */
@@ -87,26 +89,34 @@ typedef enum {
 #define FP_STKY_REG	1	/* sticky flags */
 
 /*
- * FP register bit field masks
+ * FPU control word bit-field masks.
  */
 #define FP_MSKS_FLD	0x3f	/* exception masks field */
 #define FP_PRC_FLD	0x300	/* precision control field */
-#define FP_RND_FLD	0xc00	/* round control field */
+#define	FP_RND_FLD	0xc00	/* rounding control field */
+
+/*
+ * FPU status word bit-field masks.
+ */
 #define FP_STKY_FLD	0x3f	/* sticky flags field */
 
 /*
- * FP register bit field offsets
+ * FPU control word bit-field offsets (shift counts).
  */
 #define FP_MSKS_OFF	0	/* exception masks offset */
 #define FP_PRC_OFF	8	/* precision control offset */
-#define FP_RND_OFF	10	/* round control offset */
+#define	FP_RND_OFF	10	/* rounding control offset */
+
+/*
+ * FPU status word bit-field offsets (shift counts).
+ */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
 #ifdef __GNUCLIKE_ASM
 
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
-#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
+#define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 
 /*
