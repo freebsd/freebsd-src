@@ -1205,6 +1205,7 @@ fdc_thread(void *arg)
 		mtx_lock(&fdc->fdc_mtx);
 	}
 	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
+	wakeup(&fdc->fdc_thread);
 	mtx_unlock(&fdc->fdc_mtx);
 
 	kproc_exit(0);
@@ -1383,6 +1384,7 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 	struct fd_data *fd;
 	struct fdc_data *fdc;
 	int ar, aw, ae;
+	int busy;
 
 	fd = pp->geom->softc;
 	fdc = fd->fdc;
@@ -1403,6 +1405,7 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 		return (0);
 	}
 
+	busy = 0;
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0) {
 		if (fdmisccmd(fd, BIO_PROBE, NULL))
 			return (ENXIO);
@@ -1415,10 +1418,14 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 			mtx_unlock(&fdc->fdc_mtx);
 		}
 		device_busy(fd->dev);
+		busy = 1;
 	}
 
-	if (w > 0 && (fd->flags & FD_WP))
+	if (w > 0 && (fd->flags & FD_WP)) {
+		if (busy)
+			device_unbusy(fd->dev);
 		return (EROFS);
+	}
 
 	pp->sectorsize = fd->sectorsize;
 	pp->stripesize = fd->ft->heads * fd->ft->sectrac * fd->sectorsize;
