@@ -40,6 +40,7 @@
 
 /*
  * IEEE floating point type, constant and function definitions.
+ * XXX: {FP,SSE}*FLD and {FP,SSE}*OFF are undocumented pollution.
  */
 
 #ifndef _SYS_CDEFS_H_
@@ -47,17 +48,17 @@
 #endif
 
 /*
- * FP rounding modes
+ * Rounding modes.
  */
 typedef enum {
 	FP_RN=0,	/* round to nearest */
-	FP_RM,		/* round down to minus infinity */
-	FP_RP,		/* round up to plus infinity */
+	FP_RM,		/* round down towards minus infinity */
+	FP_RP,		/* round up towards plus infinity */
 	FP_RZ		/* truncate */
 } fp_rnd_t;
 
 /*
- * FP precision modes
+ * Precision (i.e., rounding precision) modes.
  */
 typedef enum {
 	FP_PS=0,	/* 24 bit (single-precision) */
@@ -69,7 +70,7 @@ typedef enum {
 #define fp_except_t	int
 
 /*
- * FP exception masks
+ * Exception bit masks.
  */
 #define FP_X_INV	0x01	/* invalid operation */
 #define FP_X_DNML	0x02	/* denormal */
@@ -80,23 +81,19 @@ typedef enum {
 #define FP_X_STK	0x40	/* stack fault */
 
 /*
- * FP registers
- */
-#define FP_MSKS_REG	0	/* exception masks */
-#define FP_PRC_REG	0	/* precision */
-#define FP_RND_REG	0	/* direction */
-#define FP_STKY_REG	1	/* sticky flags */
-
-/*
- * FP register bit field masks
+ * FPU control word bit-field masks.
  */
 #define FP_MSKS_FLD	0x3f	/* exception masks field */
 #define FP_PRC_FLD	0x300	/* precision control field */
-#define FP_RND_FLD	0xc00	/* round control field */
+#define	FP_RND_FLD	0xc00	/* rounding control field */
+
+/*
+ * FPU status word bit-field masks.
+ */
 #define FP_STKY_FLD	0x3f	/* sticky flags field */
 
 /*
- * SSE mxcsr register bit field masks
+ * SSE mxcsr register bit-field masks.
  */
 #define	SSE_STKY_FLD	0x3f	/* exception flags */
 #define	SSE_DAZ_FLD	0x40	/* Denormals are zero */
@@ -105,15 +102,19 @@ typedef enum {
 #define	SSE_FZ_FLD	0x8000	/* flush to zero on underflow */
 
 /*
- * FP register bit field offsets
+ * FPU control word bit-field offsets (shift counts).
  */
 #define FP_MSKS_OFF	0	/* exception masks offset */
 #define FP_PRC_OFF	8	/* precision control offset */
-#define FP_RND_OFF	10	/* round control offset */
+#define	FP_RND_OFF	10	/* rounding control offset */
+
+/*
+ * FPU status word bit-field offsets (shift counts).
+ */
 #define FP_STKY_OFF	0	/* sticky flags offset */
 
 /*
- * SSE mxcsr register bit field offsets
+ * SSE mxcsr register bit-field offsets (shift counts).
  */
 #define	SSE_STKY_OFF	0	/* exception flags offset */
 #define	SSE_DAZ_OFF	6	/* DAZ exception mask offset */
@@ -221,7 +222,7 @@ __fpsetmask(fp_except_t _m)
 	__fnstcw(&_cw);
 	_p = (~_cw & FP_MSKS_FLD) >> FP_MSKS_OFF;
 	_cw &= ~FP_MSKS_FLD;
-	_cw |= (~_m >> FP_MSKS_OFF) & FP_MSKS_FLD;
+	_cw |= (~_m << FP_MSKS_OFF) & FP_MSKS_FLD;
 	__fldcw(&_cw);
 	__stmxcsr(&_mxcsr);
 	/* XXX should we clear non-ieee SSE_DAZ_FLD and SSE_FZ_FLD ? */
@@ -248,13 +249,13 @@ __fpgetsticky(void)
 
 #if !defined(__IEEEFP_NOINLINES__) && defined(__GNUCLIKE_ASM)
 
-#define	fpgetround()	__fpgetround()
-#define	fpsetround(_m)	__fpsetround(_m)
-#define	fpgetprec()	__fpgetprec()
-#define	fpsetprec(_m)	__fpsetprec(_m)
 #define	fpgetmask()	__fpgetmask()
-#define	fpsetmask(_m)	__fpsetmask(_m)
+#define	fpgetprec()	__fpgetprec()
+#define	fpgetround()	__fpgetround()
 #define	fpgetsticky()	__fpgetsticky()
+#define	fpsetmask(m)	__fpsetmask(m)
+#define	fpsetprec(m)	__fpsetprec(m)
+#define	fpsetround(m)	__fpsetround(m)
 
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
