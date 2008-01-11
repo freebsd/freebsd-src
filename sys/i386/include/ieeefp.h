@@ -115,6 +115,7 @@ typedef enum {
 #ifdef __GNUCLIKE_ASM
 
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
+#define	__fnclex()	__asm __volatile("fnclex")
 #define	__fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
 #define	__fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
@@ -165,8 +166,6 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 	return _p;
 }
 
-#endif /* __GNUCLIKE_ASM */
-
 /*
  * SysV/386 FP control interface
  */
@@ -185,8 +184,32 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 	    (FP_MSKS_FLD >> FP_MSKS_OFF))
 #define	fpgetsticky()	((fp_except_t)					\
 	((__fpgetreg(FP_STKY_REG) & FP_STKY_FLD) >> FP_STKY_OFF))
-#define	fpresetsticky(m) ((fp_except_t)					\
-	__fpsetreg(0, FP_STKY_REG, (m), FP_STKY_OFF))
+
+static __inline fp_except_t
+fpresetsticky(fp_except_t _m)
+{
+	struct {
+		unsigned _cw;
+		unsigned _sw;
+		unsigned _other[5];
+	} _env;
+	fp_except_t _p;
+
+	_m &= FP_STKY_FLD >> FP_STKY_OFF;
+	_p = fpgetsticky();
+	if ((_p & ~_m) == _p)
+		return (_p);
+	if ((_p & ~_m) == 0) {
+		__fnclex();
+		return (_p);
+	}
+	__fnstenv(&_env);
+	_env._sw &= ~_m;
+	__fldenv(&_env);
+	return (_p);
+}
+
+#endif /* __GNUCLIKE_ASM */
 
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
