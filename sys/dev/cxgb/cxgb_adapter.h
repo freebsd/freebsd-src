@@ -549,6 +549,7 @@ void t3_intr_msix(void *data);
 int t3_encap(struct sge_qset *, struct mbuf **, int);
 
 int t3_sge_init_adapter(adapter_t *);
+int t3_sge_reset_adapter(adapter_t *);
 int t3_sge_init_port(struct port_info *);
 void t3_sge_deinit_sw(adapter_t *);
 void t3_free_tx_desc(struct sge_txq *q, int n);
@@ -618,5 +619,5 @@ void t3_free_qset(adapter_t *sc, struct sge_qset *q);
 int cxgb_dequeue_packet(struct ifnet *, struct sge_txq *, struct mbuf **);
 void cxgb_start(struct ifnet *ifp);
 void refill_fl_service(adapter_t *adap, struct sge_fl *fl);
-
+int reclaim_completed_tx(struct sge_txq *q, int reclaim_min);
 #endif
