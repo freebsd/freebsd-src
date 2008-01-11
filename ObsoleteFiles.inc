@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080108: Moved to section 2
+OLD_FILES+=usr/share/man/man3/shm_open.3.gz
+OLD_FILES+=usr/share/man/man3/shm_unlink.3.gz
 # 20071207: Merged with fortunes-o.real
 OLD_FILES+=usr/share/games/fortune/fortunes2-o
 OLD_FILES+=usr/share/games/fortune/fortunes2-o.dat
@@ -25,6 +28,8 @@ OLD_FILES+=usr/lib/libkse_pic.a
 .endif
 # 20071129: Removed a Solaris compatibility header
 OLD_FILES+=usr/include/sys/_elf_solaris.h
+# 20071125: Renamed to pmc_get_msr()
+OLD_FILES+=usr/share/man/man3/pmc_x86_get_msr.3.gz
 # 20071108: Removed very crunch OLDCARD support file
 OLD_FILES+=etc/defaults/pccard.conf
 # 20071104: Removed bsdlabel, fdisk and gpt from rescue on ia64.
@@ -33,6 +38,8 @@ OLD_FILES+=rescue/bsdlabel
 OLD_FILES+=rescue/fdisk
 OLD_FILES+=rescue/gpt
 .endif
+# 20071026: kthread(9)/kproc(9) API changes
+OLD_FILES+=usr/share/man/man9/kthread_create.9.gz
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
