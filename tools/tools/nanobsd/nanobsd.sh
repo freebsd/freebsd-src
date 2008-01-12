@@ -53,6 +53,10 @@ NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 # XXX: MAKEOBJDIRPREFIX handling... ?
 #NANO_OBJ=""
 
+# The directory to put the final images
+# default is ${NANO_OBJ}
+#NANO_DISKIMGDIR=""
+
 # Parallel Make
 NANO_PMAKE="make -j 3"
 
@@ -113,6 +117,10 @@ NANO_HEADS=16
 # boot0 flags/options and configuration
 NANO_BOOT0CFG="-o packet -s 1 -m 3"
 NANO_BOOTLOADER="boot/boot0sio"
+
+# Backing type of md(4) device
+# Can be "file" or "swap"
+NANO_MD_BACKING="file"
 
 #######################################################################
 # Not a variable at this time
@@ -377,14 +385,20 @@ create_i386_diskimage ( ) (
 	}
 	' > ${MAKEOBJDIRPREFIX}/_.fdisk
 
-	IMG=${MAKEOBJDIRPREFIX}/_.disk.full
+	IMG=${NANO_DISKIMGDIR}/_.disk.full
 	MNT=${MAKEOBJDIRPREFIX}/_.mnt
 	mkdir -p ${MNT}
 
-	dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-	    count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
-
-	MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} -y ${NANO_HEADS}`
+	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		MD=`mdconfig -a -t swap -s ${NANO_MEDIASIZE} -x ${NANO_SECTS} \
+			-y ${NANO_HEADS}`
+	else
+		echo "Creating md backing file..."
+		dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
+			count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
+		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
+			-y ${NANO_HEADS}`
+	fi
 
 	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
@@ -400,14 +414,17 @@ create_i386_diskimage ( ) (
 	newfs ${NANO_NEWFS} /dev/${MD}s1a
 	mount /dev/${MD}s1a ${MNT}
 	df -i ${MNT}
+	echo "Copying worlddir..."
 	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
 	df -i ${MNT}
+	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${MAKEOBJDIRPREFIX}/_.mtree
 	( cd ${MNT} && du -k ) > ${MAKEOBJDIRPREFIX}/_.du
 	umount ${MNT}
 
 	if [ $NANO_IMAGES -gt 1 -a $NANO_INIT_IMG2 -gt 0 ] ; then
 		# Duplicate to second image (if present)
+		echo "Duplicating to second image..."
 		dd if=/dev/${MD}s1 of=/dev/${MD}s2 bs=64k
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
@@ -428,7 +445,13 @@ create_i386_diskimage ( ) (
 		# XXX: fill from where ?
 	fi
 
-	dd if=/dev/${MD}s1 of=${MAKEOBJDIRPREFIX}/_.disk.image bs=64k
+	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
+		echo "Writing out _.disk.full..."
+		dd if=/dev/${MD} of=${IMG} bs=64k
+	fi
+
+	echo "Writing out _.disk.image..."
+	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	mdconfig -d -u $MD
 	) > ${MAKEOBJDIRPREFIX}/_.di 2>&1
 )
@@ -617,6 +640,10 @@ if [ "x${NANO_OBJ}" = "x" ] ; then
 	NANO_OBJ=${MAKEOBJDIRPREFIX}
 else
 	MAKEOBJDIRPREFIX=${NANO_OBJ}
+fi
+
+if [ "x${NANO_DISKIMGDIR}" = "x" ] ; then
+	NANO_DISKIMGDIR=${MAKEOBJDIRPREFIX}
 fi
 
 NANO_WORLDDIR=${MAKEOBJDIRPREFIX}/_.w
