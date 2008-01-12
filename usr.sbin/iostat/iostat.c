@@ -735,9 +735,10 @@ devstats(int perf_select, long double etime, int havelast)
 		}
 
 		if (xflag > 0) {
-			asprintf(&devname, "%s%d",
+			if (asprintf(&devname, "%s%d",
 			    cur.dinfo->devices[di].device_name,
-			    cur.dinfo->devices[di].unit_number);
+			    cur.dinfo->devices[di].unit_number) == 1)
+				errx(1, "asprintf() failed (out of memory?)");
 			/*
 			 * If zflag is set, skip any devices with zero I/O.
 			 */
@@ -781,6 +782,7 @@ devstats(int perf_select, long double etime, int havelast)
 				}
 				printf("\n");
 			}
+			free(devname);
 		} else if (oflag > 0) {
 			int msdig = (ms_per_transaction < 100.0) ? 1 : 0;
 
