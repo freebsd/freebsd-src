@@ -532,10 +532,12 @@ ktrsyscall(struct ktr_syscall *ktr)
 				print_number(ip,narg,c);
 				(void)putchar(',');
 				sockoptlevelname((int)*ip, decimal);
-				ip++;
-				narg--;
-				(void)putchar(',');
-				sockoptname((int)*ip);
+				if ((int)*ip == SOL_SOCKET) {
+					ip++;
+					narg--;
+					(void)putchar(',');
+					sockoptname((int)*ip);
+				}
 				ip++;
 				narg--;
 #ifdef SYS_freebsd6_lseek
