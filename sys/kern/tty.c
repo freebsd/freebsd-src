@@ -3040,16 +3040,19 @@ ttygone(struct tty *tp)
  *
  * XXX: This shall sleep until all threads have left the driver.
  */
- 
 void
 ttyfree(struct tty *tp)
 {
+	struct cdev *dev;
 	u_int unit;
  
 	mtx_assert(&Giant, MA_OWNED);
 	ttygone(tp);
 	unit = tp->t_devunit;
-	destroy_dev(tp->t_mdev);
+	dev = tp->t_mdev;
+	tp->t_dev = NULL;
+	ttyrel(tp);
+	destroy_dev(dev);
 	free_unr(tty_unit, unit);
 }
 
@@ -3065,7 +3068,6 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	tp = TAILQ_FIRST(&tty_list);
 	if (tp != NULL)
 		ttyref(tp);
-	mtx_unlock(&tty_list_mutex);
 	while (tp != NULL) {
 		bzero(&xt, sizeof xt);
 		xt.xt_size = sizeof xt;
@@ -3074,6 +3076,18 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		xt.xt_cancc = tp->t_canq.c_cc;
 		xt.xt_outcc = tp->t_outq.c_cc;
 		XT_COPY(line);
+
+		/*
+		 * XXX: We hold the tty list lock while doing this to
+		 * work around a race with pty/pts tty destruction.
+		 * They set t_dev to NULL and then call ttyrel() to
+		 * free the structure which will block on the list
+		 * lock before they call destroy_dev() on the cdev
+		 * backing t_dev.
+		 *
+		 * XXX: ttyfree() now does the same since it has been
+		 * fixed to not leak ttys.
+		 */
 		if (tp->t_dev != NULL)
 			xt.xt_dev = dev2udev(tp->t_dev);
 		XT_COPY(state);
@@ -3096,6 +3110,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		XT_COPY(olowat);
 		XT_COPY(ospeedwat);
 #undef XT_COPY
+		mtx_unlock(&tty_list_mutex);
 		error = SYSCTL_OUT(req, &xt, sizeof xt);
 		if (error != 0) {
 			ttyrel(tp);
@@ -3108,7 +3123,9 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		mtx_unlock(&tty_list_mutex);
 		ttyrel(tp);
 		tp = tp2;
+		mtx_lock(&tty_list_mutex);
 	}
+	mtx_unlock(&tty_list_mutex);
 	return (0);
 }
 
