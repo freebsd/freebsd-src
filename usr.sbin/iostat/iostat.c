@@ -737,8 +737,8 @@ devstats(int perf_select, long double etime, int havelast)
 		if (xflag > 0) {
 			if (asprintf(&devname, "%s%d",
 			    cur.dinfo->devices[di].device_name,
-			    cur.dinfo->devices[di].unit_number) == 1)
-				errx(1, "asprintf() failed (out of memory?)");
+			    cur.dinfo->devices[di].unit_number) == -1)
+				err(1, "asprintf");
 			/*
 			 * If zflag is set, skip any devices with zero I/O.
 			 */
