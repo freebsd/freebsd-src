@@ -1,5 +1,4 @@
 $FreeBSD$
-
 */*.com
 */*.dep
 */*.dsp
@@ -11,6 +10,7 @@ build.com
 cvs.spec*
 cvsnt.*
 doc/*.info*
+doc/*.pdf
 doc/*.ps
 doc/texinfo.tex
 emx
@@ -18,4 +18,5 @@ lib/getdate.c
 os2
 vms
 windows-NT
+ylwrap
 zlib
