@@ -105,10 +105,6 @@ static void cxgb_down_locked(struct adapter *sc);
 static void cxgb_tick(void *);
 static void setup_rss(adapter_t *sc);
 
-#ifndef IFNET_MULTIQUEUE
-static void cxgb_start_proc(void *, int ncount);
-#endif
-
 /* Attachment glue for the PCI controller end of the device.  Each port of
  * the device is attached separately, as defined later.
  */
@@ -224,10 +220,6 @@ int cxgb_use_16k_clusters = 0;
 TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
-
-#ifndef IFNET_MULTIQUEUE
-int cxgb_txq_buf_ring_size = 0;
-#endif
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -658,9 +650,7 @@ cxgb_free(struct adapter *sc)
 	int i;
 
 	
-#ifdef IFNET_MULTIQUEUE
 	cxgb_pcpu_shutdown_threads(sc);
-#endif
 	ADAPTER_LOCK(sc);
 /*
  * drops the lock
@@ -707,9 +697,6 @@ cxgb_free(struct adapter *sc)
 			printf("cxgb_free: DEVMAP_BIT not set\n");
 	} else
 		printf("not offloading set\n");	
-#ifndef IFNET_MULTIQUEUE
-	t3_free_sge_resources(sc);
-#endif
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
@@ -1003,16 +990,6 @@ cxgb_port_attach(device_t dev)
 	p->tq = taskqueue_create_fast(p->taskqbuf, M_NOWAIT,
 	    taskqueue_thread_enqueue, &p->tq);
 #endif	
-#ifndef IFNET_MULTIQUEUE
-	if (p->tq == NULL) {
-		device_printf(dev, "failed to allocate port task queue\n");
-		return (ENOMEM);
-	}	
-	taskqueue_start_threads(&p->tq, 1, PI_NET, "%s taskq",
-	    device_get_nameunit(dev));
-	
-	TASK_INIT(&p->start_task, 0, cxgb_start_proc, ifp);
-#endif
 	t3_sge_init_port(p);
 
 	return (0);
@@ -1366,10 +1343,7 @@ bind_qsets(adapter_t *sc)
 {
 	int i, j;
 
-#ifdef IFNET_MULTIQUEUE
 	cxgb_pcpu_startup_threads(sc);
-#endif
-	
 	for (i = 0; i < (sc)->params.nports; ++i) {
 		const struct port_info *pi = adap2pinfo(sc, i);
 
@@ -1914,7 +1888,7 @@ cxgb_tx_common(struct ifnet *ifp, struct sge_qset *qs, uint32_t txmax)
 			break;
 		txq->txq_enqueued += count;
 	}
-#ifndef IFNET_MULTIQUEUE	
+#if 0 /* !MULTIQ */
 	if (__predict_false(err)) {
 		if (err == ENOMEM) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1948,86 +1922,6 @@ cxgb_tx_common(struct ifnet *ifp, struct sge_qset *qs, uint32_t txmax)
 #endif
 	return (err);
 }
-
-#ifndef IFNET_MULTIQUEUE
-static int
-cxgb_start_tx(struct ifnet *ifp, uint32_t txmax)
-{
-	struct sge_qset *qs;
-	struct sge_txq *txq;
-	struct port_info *p = ifp->if_softc;
-	int err;
-	
-	if (!p->link_config.link_ok)
-		return (ENXIO);
-
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		return (ENOBUFS);
-
-	qs = &p->adapter->sge.qs[p->first_qset];
-	txq = &qs->txq[TXQ_ETH];
-	if (txq->flags & TXQ_TRANSMITTING)
-		return (EINPROGRESS);
-
-	mtx_lock(&txq->lock);
-	txq->flags |= TXQ_TRANSMITTING;
-	reclaim_completed_tx(txq, TX_ETH_Q_SIZE >> 1);
-	err = cxgb_tx_common(ifp, qs, txmax);
-	txq->flags &= ~TXQ_TRANSMITTING;
-	mtx_unlock(&txq->lock);
-
-	return (err);
-}
-
-static void
-cxgb_start_proc(void *arg, int ncount)
-{
-	struct ifnet *ifp = arg;
-	struct port_info *pi = ifp->if_softc;	
-	struct sge_qset *qs;
-	struct sge_txq *txq;
-	int error;
-
-	qs = &pi->adapter->sge.qs[pi->first_qset];
-	txq = &qs->txq[TXQ_ETH];
-
-	do {
-		if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
-			taskqueue_enqueue(pi->tq, &txq->qreclaim_task);
-
-		error = cxgb_start_tx(ifp, TX_START_MAX_DESC);
-	} while (error == 0);
-}
-
-int
-cxgb_dequeue_packet(struct ifnet *ifp, struct sge_txq *unused, struct mbuf **m_vec)
-{
-	
-	IFQ_DRV_DEQUEUE(&ifp->if_snd, m_vec[0]);
-	return (m_vec[0] ? 1 : 0);
-}
-
-void
-cxgb_start(struct ifnet *ifp)
-{
-	struct port_info *pi = ifp->if_softc;	
-	struct sge_qset *qs;
-	struct sge_txq *txq;
-	int err;
-
-	qs = &pi->adapter->sge.qs[pi->first_qset];
-	txq = &qs->txq[TXQ_ETH];
-	
-	if (desc_reclaimable(txq) > TX_CLEAN_MAX_DESC >> 2)
-		taskqueue_enqueue(pi->tq,
-		    &txq->qreclaim_task);
-	
-	err = cxgb_start_tx(ifp, TX_START_MAX_DESC);
-	
-	if (err == 0)
-		taskqueue_enqueue(pi->tq, &pi->start_task);
-}
-#endif
 
 static int
 cxgb_media_change(struct ifnet *ifp)
