@@ -203,6 +203,12 @@ buf_ring_empty(struct buf_ring *mr)
 	return (mr->br_cons == mr->br_prod);
 }
 
+static __inline int
+buf_ring_full(struct buf_ring *mr)
+{
+	return (mr->br_cons == (mr->br_prod + 1));
+}
+
 /*
  * The producer and consumer are independently locked
  * this relies on the consumer providing his own serialization
@@ -217,6 +223,7 @@ buf_ring_dequeue(struct buf_ring *mr)
 	ring = (caddr_t *)mr->br_ring;
 	mask = mr->br_size - 1;
 	cons = mr->br_cons;
+	mb();
 	prod = mr->br_prod;
 	m = NULL;
 	if (cons != prod) {
@@ -234,9 +241,10 @@ __buf_ring_enqueue(struct buf_ring *mr, void *m)
 	
 	int prod, cons, mask, err;
 	
-	cons = mr->br_cons;
-	prod = mr->br_prod;
 	mask = mr->br_size - 1;
+	prod = mr->br_prod;
+	mb();
+	cons = mr->br_cons;
 	if (((prod + 1) & mask) != cons) {
 		mr->br_ring[prod] = m;
 		mb();
