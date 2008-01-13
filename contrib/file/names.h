@@ -32,7 +32,7 @@
  * appear at fixed offsets into the file. Don't make HOWMANY
  * too high unless you have a very fast CPU.
  *
- * $File: names.h,v 1.27 2007/05/08 16:47:03 christos Exp $
+ * $File: names.h,v 1.29 2007/12/27 20:30:35 christos Exp $
  */
 
 /*
@@ -43,19 +43,18 @@
 /* these types are used to index the table 'types': keep em in sync! */
 #define	L_C	0		/* first and foremost on UNIX */
 #define	L_CC	1		/* Bjarne's postincrement */
-#define	L_FORT	2		/* the oldest one */
-#define	L_MAKE	3		/* Makefiles */
-#define	L_PLI	4		/* PL/1 */
-#define	L_MACH	5		/* some kinda assembler */
-#define	L_ENG	6		/* English */
-#define	L_PAS	7		/* Pascal */
-#define	L_MAIL	8		/* Electronic mail */
-#define	L_NEWS	9		/* Usenet Netnews */
-#define	L_JAVA	10		/* Java code */
-#define	L_HTML	11		/* HTML */
-#define	L_BCPL	12		/* BCPL */
-#define	L_M4	13		/* M4 */
-#define	L_PO	14		/* PO */
+#define	L_MAKE	2		/* Makefiles */
+#define	L_PLI	3		/* PL/1 */
+#define	L_MACH	4		/* some kinda assembler */
+#define	L_ENG	5		/* English */
+#define	L_PAS	6		/* Pascal */
+#define	L_MAIL	7		/* Electronic mail */
+#define	L_NEWS	8		/* Usenet Netnews */
+#define	L_JAVA	9		/* Java code */
+#define	L_HTML	10		/* HTML */
+#define	L_BCPL	11		/* BCPL */
+#define	L_M4	12		/* M4 */
+#define	L_PO	13		/* PO */
 
 static const struct {
 	const char *human;
@@ -63,7 +62,6 @@ static const struct {
 } types[] = {
 	{ "C program",					"text/x-c", },
 	{ "C++ program",				"text/x-c++" },
-	{ "FORTRAN program",				"text/x-fortran" },
 	{ "make commands",				"text/x-makefile" },
 	{ "PL/1 program",				"text/x-pl1" },
 	{ "assembler program",				"text/x-asm" },
