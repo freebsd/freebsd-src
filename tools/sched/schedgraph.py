@@ -38,10 +38,11 @@ from Tkinter import *
 #	options 	KTR_ENTRIES=32768
 #	options 	KTR_COMPILE=(KTR_SCHED)
 #	options 	KTR_MASK=(KTR_SCHED)
-#	options 	KTR_CPUMASK=0x3
 # - It is encouraged to increase KTR_ENTRIES size to gather enough
 #    information for analysis; e.g.
 #	options 	KTR_ENTRIES=262144
+#   as 32768 entries may only correspond to a second or two of profiling
+#   data depending on your workload.
 # - Rebuild kernel with proper changes to KERNCONF and boot new kernel.
 # - Run your workload to be profiled.
 # - While the workload is continuing (i.e. before it finishes), disable
@@ -1225,7 +1226,7 @@ class KTRFile:
 
 class SchedDisplay(Canvas):
 	def __init__(self, master):
-		self.ratio = 1
+		self.ratio = 10
 		self.ktrfile = None
 		self.sources = None
 		self.bdheight = 10 
