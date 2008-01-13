@@ -604,14 +604,10 @@ static inline int offload_running(adapter_t *adapter)
         return isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT);
 }
 
-#ifdef IFNET_MULTIQUEUE
 int cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m);
 int cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *m);
-int32_t cxgb_pcpu_get_cookie(struct ifnet *ifp, struct in6_addr *lip, uint16_t lport,
-    struct in6_addr *rip, uint16_t rport, int ipv6);
 void cxgb_pcpu_shutdown_threads(struct adapter *sc);
 void cxgb_pcpu_startup_threads(struct adapter *sc);
-#endif
 
 int process_responses(adapter_t *adap, struct sge_qset *qs, int budget);
 int cxgb_tx_common(struct ifnet *ifp, struct sge_qset  *qs, uint32_t txmax);
