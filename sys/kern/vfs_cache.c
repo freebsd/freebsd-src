@@ -435,7 +435,7 @@ success:
 	ltype = 0;	/* silence gcc warning */
 	if (cnp->cn_flags & ISDOTDOT) {
 		ltype = VOP_ISLOCKED(dvp, td);
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 	}
 	VI_LOCK(*vpp);
 	CACHE_UNLOCK();

@@ -220,13 +220,13 @@ acct(struct thread *td, struct acct_args *uap)
 #ifdef MAC
 		error = mac_system_check_acct(td->td_ucred, nd.ni_vp);
 		if (error) {
-			VOP_UNLOCK(nd.ni_vp, 0, td);
+			VOP_UNLOCK(nd.ni_vp, 0);
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			VFS_UNLOCK_GIANT(vfslocked);
 			return (error);
 		}
 #endif
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, flags, td->td_ucred, td);
 			VFS_UNLOCK_GIANT(vfslocked);

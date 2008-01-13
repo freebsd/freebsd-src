@@ -491,7 +491,7 @@ interpret:
 	}
 
 	/* close files on exec */
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0);
 	fdcloseexec(td);
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 
@@ -591,7 +591,7 @@ interpret:
 		 */
 		PROC_UNLOCK(p);
 		setugidsafety(td);
-		VOP_UNLOCK(imgp->vp, 0, td);
+		VOP_UNLOCK(imgp->vp, 0);
 		error = fdcheckstd(td);
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)
@@ -725,7 +725,7 @@ done1:
 		crfree(oldcred);
 	else
 		crfree(newcred);
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0);
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */

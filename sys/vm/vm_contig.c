@@ -127,7 +127,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 			VM_OBJECT_LOCK(object);
 			vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(object);
-			VOP_UNLOCK(vp, 0, curthread);
+			VOP_UNLOCK(vp, 0);
 			VFS_UNLOCK_GIANT(vfslocked);
 			vm_object_deallocate(object);
 			vn_finished_write(mp);

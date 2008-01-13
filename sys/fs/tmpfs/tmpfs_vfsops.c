@@ -219,7 +219,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
-	VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
+	VOP_UNLOCK(mp->mnt_vnodecovered, 0);
 	if (error)
 		return (error);
 

@@ -230,7 +230,7 @@ static int nwfs_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Lose the lock but keep the ref.
 	 */
-	VOP_UNLOCK(vp, 0, curthread);
+	VOP_UNLOCK(vp, 0);
 	NCPVODEBUG("rootvp.vrefcnt=%d\n",vrefcnt(vp));
 	return error;
 bad:

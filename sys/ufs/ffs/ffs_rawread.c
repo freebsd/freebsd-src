@@ -118,13 +118,13 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 				upgraded = 1;
 			else
 				upgraded = 0;
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			(void) vn_start_write(vp, &mp, V_WAIT);
-			VOP_LOCK(vp, LK_EXCLUSIVE, td);
+			VOP_LOCK(vp, LK_EXCLUSIVE);
 		} else if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
 			upgraded = 1;
 			/* Upgrade to exclusive lock, this might block */
-			VOP_LOCK(vp, LK_UPGRADE, td);
+			VOP_LOCK(vp, LK_UPGRADE);
 		} else
 			upgraded = 0;
 			
@@ -134,7 +134,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		if ((vp->v_iflag & VI_DOOMED) != 0) {
 			VI_UNLOCK(vp);
 			if (upgraded != 0)
-				VOP_LOCK(vp, LK_DOWNGRADE, td);
+				VOP_LOCK(vp, LK_DOWNGRADE);
 			vn_finished_write(mp);
 			return (EIO);
 		}
@@ -157,7 +157,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			splx(spl);
 			VI_UNLOCK(vp);
 			if (upgraded != 0)
-				VOP_LOCK(vp, LK_DOWNGRADE, td);
+				VOP_LOCK(vp, LK_DOWNGRADE);
 			vn_finished_write(mp);
 			return (error);
 		}
@@ -167,7 +167,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 			VI_UNLOCK(vp);
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0) {
 				if (upgraded != 0)
-					VOP_LOCK(vp, LK_DOWNGRADE, td);
+					VOP_LOCK(vp, LK_DOWNGRADE);
 				vn_finished_write(mp);
 				return (error);
 			}
@@ -179,7 +179,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		splx(spl);
 		VI_UNLOCK(vp);
 		if (upgraded != 0)
-			VOP_LOCK(vp, LK_DOWNGRADE, td);
+			VOP_LOCK(vp, LK_DOWNGRADE);
 		vn_finished_write(mp);
 	} else {
 		splx(spl);

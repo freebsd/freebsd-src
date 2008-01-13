@@ -617,7 +617,6 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	const Elf_Note *note, *note_end;
 	char *path;
 	const char *note_name;
-	struct thread *td = curthread;
 	struct sysentvec *sv;
 
 	/*
@@ -675,7 +674,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	 * However, in cases where the vnode lock is external, such as nullfs,
 	 * v_usecount may become zero.
 	 */
-	VOP_UNLOCK(imgp->vp, 0, td);
+	VOP_UNLOCK(imgp->vp, 0);
 
 	error = exec_new_vmspace(imgp, sv);
 	imgp->proc->p_sysent = sv;
@@ -803,7 +802,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 
 	if (interp != NULL) {
 		int have_interp = FALSE;
-		VOP_UNLOCK(imgp->vp, 0, td);
+		VOP_UNLOCK(imgp->vp, 0);
 		if (brand_info->emul_path != NULL &&
 		    brand_info->emul_path[0] != '\0') {
 			path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);

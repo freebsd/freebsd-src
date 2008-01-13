@@ -108,7 +108,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 */
 	if ((mp->mnt_vnodecovered->v_op == &null_vnodeops) &&
 		VOP_ISLOCKED(mp->mnt_vnodecovered, NULL)) {
-		VOP_UNLOCK(mp->mnt_vnodecovered, 0, td);
+		VOP_UNLOCK(mp->mnt_vnodecovered, 0);
 		isvnunlocked = 1;
 	}
 	/*
@@ -158,7 +158,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 * Make sure the node alias worked
 	 */
 	if (error) {
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(lowerrootvp);
 		free(xmp, M_NULLFSMNT);	/* XXX */
 		return (error);
@@ -175,7 +175,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Unlock the node (either the lower or the alias)
 	 */
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL) {
 		MNT_ILOCK(mp);

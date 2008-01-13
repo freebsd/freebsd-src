@@ -324,7 +324,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	error = g_vfs_open(devvp, &cp, "udf", 0);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return error;
 

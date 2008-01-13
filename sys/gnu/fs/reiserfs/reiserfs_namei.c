@@ -79,7 +79,7 @@ reiserfs_lookup(struct vop_cachedlookup_args *ap)
 		pdp = vdp;
 		if (flags & ISDOTDOT) {
 			saved_ino = (struct cpu_key *)&(de.de_dir_id);
-			VOP_UNLOCK(pdp, 0, td);
+			VOP_UNLOCK(pdp, 0);
 			error = reiserfs_iget(vdp->v_mount,
 			    saved_ino, &vp, td);
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY);

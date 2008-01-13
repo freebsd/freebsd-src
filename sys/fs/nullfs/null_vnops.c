@@ -296,7 +296,7 @@ null_bypass(struct vop_generic_args *ap)
 			*(vps_p[i]) = old_vps[i];
 #if 0
 			if (reles & VDESC_VP0_WILLUNLOCK)
-				VOP_UNLOCK(*(vps_p[i]), 0, curthread);
+				VOP_UNLOCK(*(vps_p[i]), 0);
 #endif
 			if (reles & VDESC_VP0_WILLRELE)
 				vrele(*(vps_p[i]));
@@ -513,7 +513,6 @@ null_lock(struct vop_lock1_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
-	struct thread *td = ap->a_td;
 	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
@@ -544,7 +543,7 @@ null_lock(struct vop_lock1_args *ap)
 		 * here.
 		 */
 		vholdl(lvp);
-		error = VOP_LOCK(lvp, flags, td);
+		error = VOP_LOCK(lvp, flags);
 
 		/*
 		 * We might have slept to get the lock and someone might have
@@ -566,7 +565,7 @@ null_lock(struct vop_lock1_args *ap)
 				panic("Unsupported lock request %d\n",
 				    ap->a_flags);
 			}
-			VOP_UNLOCK(lvp, 0, td);
+			VOP_UNLOCK(lvp, 0);
 			error = vop_stdlock(ap);
 		}
 		vdrop(lvp);
@@ -587,7 +586,6 @@ null_unlock(struct vop_unlock_args *ap)
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
 	int mtxlkflag = 0;
-	struct thread *td = ap->a_td;
 	struct null_node *nn;
 	struct vnode *lvp;
 	int error;
@@ -604,7 +602,7 @@ null_unlock(struct vop_unlock_args *ap)
 		flags |= LK_INTERLOCK;
 		vholdl(lvp);
 		VI_UNLOCK(vp);
-		error = VOP_UNLOCK(lvp, flags, td);
+		error = VOP_UNLOCK(lvp, flags);
 		vdrop(lvp);
 		if (mtxlkflag == 0)
 			VI_LOCK(vp);

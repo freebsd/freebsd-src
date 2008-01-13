@@ -411,7 +411,7 @@ fdesc_setattr(ap)
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) == 0) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
-		VOP_UNLOCK(vp, 0, ap->a_td);
+		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
 	fdrop(fp, ap->a_td);

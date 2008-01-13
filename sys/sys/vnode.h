@@ -701,7 +701,7 @@ void	vop_unlock_pre(void *a);
 		    | (noffset > osize ? NOTE_EXTEND : 0));		\
 	}
 
-#define VOP_LOCK(vp, flags, td) VOP_LOCK1(vp, flags, td, __FILE__, __LINE__)
+#define VOP_LOCK(vp, flags) VOP_LOCK1(vp, flags, __FILE__, __LINE__)
 
 
 void	vput(struct vnode *vp);

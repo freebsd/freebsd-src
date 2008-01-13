@@ -368,7 +368,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		result = vme->max_protection;
 		mac_vnode_check_mmap_downgrade(cred, vp, &result);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		/*
 		 * Find out what maximum protection we may be allowing now
 		 * but a policy needs to get removed.
@@ -409,7 +409,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 					PAGE_MASK),
 				    OBJPC_SYNC);
 				VM_OBJECT_UNLOCK(object);
-				VOP_UNLOCK(vp, 0, td);
+				VOP_UNLOCK(vp, 0);
 				vn_finished_write(mp);
 				vm_object_deallocate(object);
 				/*

@@ -284,7 +284,7 @@ ntfs_mountfs(devvp, mp, td)
 
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 

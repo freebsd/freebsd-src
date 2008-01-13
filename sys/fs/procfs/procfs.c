@@ -80,7 +80,7 @@ procfs_doprocfile(PFS_FILL_ARGS)
 	if (err)
 		return (err);
 	vn_fullpath(td, textvp, &fullpath, &freepath);
-	VOP_UNLOCK(textvp, 0, td);
+	VOP_UNLOCK(textvp, 0);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);

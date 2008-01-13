@@ -137,7 +137,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		if (udvp != NULLVP) {
 			dtmpvp = udvp;
 			if (ldvp != NULLVP)
-				VOP_UNLOCK(ldvp, 0, td);
+				VOP_UNLOCK(ldvp, 0);
 		}
 		else
 			dtmpvp = ldvp;
@@ -145,7 +145,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		error = VOP_LOOKUP(dtmpvp, &vp, cnp);
 
 		if (dtmpvp == udvp && ldvp != NULLVP) {
-			VOP_UNLOCK(udvp, 0, td);
+			VOP_UNLOCK(udvp, 0);
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		}
 
@@ -157,10 +157,10 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 			 */
 			if (nameiop == DELETE  || nameiop == RENAME ||
 			    (cnp->cn_lkflags & LK_TYPE_MASK))
-				VOP_UNLOCK(vp, 0, td);
+				VOP_UNLOCK(vp, 0);
 			vrele(vp);
 
-			VOP_UNLOCK(dvp, 0, td);
+			VOP_UNLOCK(dvp, 0);
 			*(ap->a_vpp) = dunp->un_dvp;
 			vref(dunp->un_dvp);
 
@@ -198,7 +198,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 			}
 			if (nameiop == DELETE || nameiop == RENAME ||
 			    (cnp->cn_lkflags & LK_TYPE_MASK))
-				VOP_UNLOCK(uvp, 0, td);
+				VOP_UNLOCK(uvp, 0);
 		}
 
 		/* check whiteout */
@@ -242,7 +242,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 				return (lerror);
 			}
 			if (cnp->cn_lkflags & LK_TYPE_MASK)
-				VOP_UNLOCK(lvp, 0, td);
+				VOP_UNLOCK(lvp, 0);
 		}
 	}
 
@@ -277,7 +277,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 			goto unionfs_lookup_out;
 
 		if (LK_SHARED == (cnp->cn_lkflags & LK_TYPE_MASK))
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 		if (LK_EXCLUSIVE != VOP_ISLOCKED(vp, td)) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			lockflag = 1;
@@ -285,7 +285,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 		error = unionfs_mkshadowdir(MOUNTTOUNIONFSMOUNT(dvp->v_mount),
 		    udvp, VTOUNIONFS(vp), cnp, td);
 		if (lockflag != 0)
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 		if (error != 0) {
 			UNIONFSDEBUG("unionfs_lookup: Unable to create shadow dir.");
 			if ((cnp->cn_lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE)
@@ -342,7 +342,6 @@ unionfs_create(struct vop_create_args *ap)
 {
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
-	struct thread  *td;
 	struct vnode   *udvp;
 	struct vnode   *vp;
 	int		error;
@@ -351,15 +350,14 @@ unionfs_create(struct vop_create_args *ap)
 
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
-	td = curthread;
 	udvp = dunp->un_uppervp;
 	error = EROFS;
 
 	if (udvp != NULLVP) {
 		if ((error = VOP_CREATE(udvp, &vp, cnp, ap->a_vap)) == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			error = unionfs_nodeget(ap->a_dvp->v_mount, vp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, td);
+			    ap->a_dvp, ap->a_vpp, cnp, curthread);
 			vrele(vp);
 		}
 	}
@@ -407,7 +405,6 @@ unionfs_mknod(struct vop_mknod_args *ap)
 {
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
-	struct thread  *td;
 	struct vnode   *udvp;
 	struct vnode   *vp;
 	int		error;
@@ -416,15 +413,14 @@ unionfs_mknod(struct vop_mknod_args *ap)
 
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
-	td = curthread;
 	udvp = dunp->un_uppervp;
 	error = EROFS;
 
 	if (udvp != NULLVP) {
 		if ((error = VOP_MKNOD(udvp, &vp, cnp, ap->a_vap)) == 0) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			error = unionfs_nodeget(ap->a_dvp->v_mount, vp, NULLVP,
-			    ap->a_dvp, ap->a_vpp, cnp, td);
+			    ap->a_dvp, ap->a_vpp, cnp, curthread);
 			vrele(vp);
 		}
 	}
@@ -576,7 +572,7 @@ unionfs_close_abort:
 	unionfs_tryrem_node_status(unp, td, unsp);
 
 	if (locked != 0)
-		VOP_UNLOCK(ap->a_vp, 0, td);
+		VOP_UNLOCK(ap->a_vp, 0);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_close: leave (%d)\n", error);
 
@@ -882,7 +878,7 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
 	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
+	VOP_UNLOCK(ap->a_vp, 0);
 
 	if (ovp == NULLVP)
 		return (EBADF);
@@ -907,7 +903,7 @@ unionfs_poll(struct vop_poll_args *ap)
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
 	unionfs_tryrem_node_status(unp, ap->a_td, unsp);
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
+	VOP_UNLOCK(ap->a_vp, 0);
 
 	if (ovp == NULLVP)
 		return (EBADF);
@@ -1111,7 +1107,7 @@ unionfs_rename(struct vop_rename_args *ap)
 			if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
 				goto unionfs_rename_abort;
 			error = unionfs_copyfile(unp, 1, fcnp->cn_cred, td);
-			VOP_UNLOCK(fvp, 0, td);
+			VOP_UNLOCK(fvp, 0);
 			if (error != 0)
 				goto unionfs_rename_abort;
 			break;
@@ -1119,7 +1115,7 @@ unionfs_rename(struct vop_rename_args *ap)
 			if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
 				goto unionfs_rename_abort;
 			error = unionfs_mkshadowdir(ump, rfdvp, unp, fcnp, td);
-			VOP_UNLOCK(fvp, 0, td);
+			VOP_UNLOCK(fvp, 0);
 			if (error != 0)
 				goto unionfs_rename_abort;
 			break;
@@ -1173,13 +1169,13 @@ unionfs_rename(struct vop_rename_args *ap)
 		if ((error = vn_lock(fdvp, LK_EXCLUSIVE)) != 0)
 			goto unionfs_rename_abort;
 		error = unionfs_relookup_for_delete(fdvp, fcnp, td);
-		VOP_UNLOCK(fdvp, 0, td);
+		VOP_UNLOCK(fdvp, 0);
 		if (error != 0)
 			goto unionfs_rename_abort;
 
 		/* Locke of tvp is canceled in order to avoid recursive lock. */
 		if (tvp != NULLVP && tvp != tdvp)
-			VOP_UNLOCK(tvp, 0, td);
+			VOP_UNLOCK(tvp, 0);
 		error = unionfs_relookup_for_rename(tdvp, tcnp, td);
 		if (tvp != NULLVP && tvp != tdvp)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
@@ -1201,11 +1197,11 @@ unionfs_rename(struct vop_rename_args *ap)
 	if (fvp != rfvp)
 		vrele(fvp);
 	if (ltdvp != NULLVP)
-		VOP_UNLOCK(ltdvp, 0, td);
+		VOP_UNLOCK(ltdvp, 0);
 	if (tdvp != rtdvp)
 		vrele(tdvp);
 	if (ltvp != NULLVP)
-		VOP_UNLOCK(ltvp, 0, td);
+		VOP_UNLOCK(ltvp, 0);
 	if (tvp != rtvp && tvp != NULLVP) {
 		if (rtvp == NULLVP)
 			vput(tvp);
@@ -1273,7 +1269,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 		}
 
 		if ((error = VOP_MKDIR(udvp, &uvp, cnp, ap->a_vap)) == 0) {
-			VOP_UNLOCK(uvp, 0, td);
+			VOP_UNLOCK(uvp, 0);
 			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
 			    ap->a_dvp, ap->a_vpp, cnp, td);
@@ -1364,7 +1360,7 @@ unionfs_symlink(struct vop_symlink_args *ap)
 	if (udvp != NULLVP) {
 		error = VOP_SYMLINK(udvp, &uvp, cnp, ap->a_vap, ap->a_target);
 		if (error == 0) {
-			VOP_UNLOCK(uvp, 0, td);
+			VOP_UNLOCK(uvp, 0);
 			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
 			    ap->a_dvp, ap->a_vpp, cnp, td);
@@ -1661,16 +1657,14 @@ unionfs_lock(struct vop_lock1_args *ap)
 	struct vnode   *vp;
 	struct vnode   *uvp;
 	struct vnode   *lvp;
-	struct thread  *td;
 
 	error = 0;
 	uhold = 0;
 	flags = ap->a_flags;
 	vp = ap->a_vp;
-	td = ap->a_td;
 
 	if (LK_RELEASE == (flags & LK_TYPE_MASK) || !(flags & LK_TYPE_MASK))
-		return (VOP_UNLOCK(vp, flags, td));
+		return (VOP_UNLOCK(vp, flags));
 
 	if ((revlock = unionfs_get_llt_revlock(flags)) == 0)
 		panic("unknown lock type: 0x%x", flags & LK_TYPE_MASK);
@@ -1709,14 +1703,14 @@ unionfs_lock(struct vop_lock1_args *ap)
 		VI_UNLOCK(vp);
 		ap->a_flags &= ~LK_INTERLOCK;
 
-		error = VOP_LOCK(lvp, flags, td);
+		error = VOP_LOCK(lvp, flags);
 
 		VI_LOCK(vp);
 		unp = VTOUNIONFS(vp);
 		if (unp == NULL) {
 			VI_UNLOCK(vp);
 			if (error == 0)
-				VOP_UNLOCK(lvp, 0, td);
+				VOP_UNLOCK(lvp, 0);
 			vdrop(lvp);
 			return (vop_stdlock(ap));
 		}
@@ -1731,16 +1725,16 @@ unionfs_lock(struct vop_lock1_args *ap)
 		VI_UNLOCK(vp);
 		ap->a_flags &= ~LK_INTERLOCK;
 
-		error = VOP_LOCK(uvp, flags, td);
+		error = VOP_LOCK(uvp, flags);
 
 		VI_LOCK(vp);
 		unp = VTOUNIONFS(vp);
 		if (unp == NULL) {
 			VI_UNLOCK(vp);
 			if (error == 0) {
-				VOP_UNLOCK(uvp, 0, td);
+				VOP_UNLOCK(uvp, 0);
 				if (lvp != NULLVP)
-					VOP_UNLOCK(lvp, 0, td);
+					VOP_UNLOCK(lvp, 0);
 			}
 			if (lvp != NULLVP)
 				vdrop(lvp);
@@ -1751,7 +1745,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 		if (error != 0 && lvp != NULLVP) {
 			VI_UNLOCK(vp);
 			if ((revlock & LK_TYPE_MASK) == LK_RELEASE)
-				VOP_UNLOCK(lvp, revlock, td);
+				VOP_UNLOCK(lvp, revlock);
 			else
 				vn_lock(lvp, revlock | LK_RETRY);
 			goto unionfs_lock_abort;
@@ -1811,7 +1805,7 @@ unionfs_unlock(struct vop_unlock_args *ap)
 		VI_UNLOCK(vp);
 		ap->a_flags &= ~LK_INTERLOCK;
 
-		error = VOP_UNLOCK(lvp, flags, ap->a_td);
+		error = VOP_UNLOCK(lvp, flags);
 
 		VI_LOCK(vp);
 	}
@@ -1825,7 +1819,7 @@ unionfs_unlock(struct vop_unlock_args *ap)
 		VI_UNLOCK(vp);
 		ap->a_flags &= ~LK_INTERLOCK;
 
-		error = VOP_UNLOCK(uvp, flags, ap->a_td);
+		error = VOP_UNLOCK(uvp, flags);
 
 		VI_LOCK(vp);
 	}
@@ -1898,7 +1892,7 @@ unionfs_advlock(struct vop_advlock_args *ap)
 			unionfs_tryrem_node_status(unp, td, unsp);
 	}
 
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	error = VOP_ADVLOCK(uvp, ap->a_id, ap->a_op, ap->a_fl, ap->a_flags);
 
@@ -1907,7 +1901,7 @@ unionfs_advlock(struct vop_advlock_args *ap)
 	return error;
 
 unionfs_advlock_abort:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_advlock: leave (%d)\n", error);
 
