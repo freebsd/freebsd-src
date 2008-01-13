@@ -211,6 +211,11 @@ when using GSSAPI.])
   AC_SEARCH_LIBS([__dn_expand], [resolv])
 
   #
+  # crypto             Need by gssapi under FreeBSD 5.4
+  #
+  AC_SEARCH_LIBS([RC4], [crypto])
+
+  #
   # crypt              Needed by roken under FreeBSD 4.6.
   #
   AC_SEARCH_LIBS([crypt], [crypt])
@@ -254,17 +259,22 @@ when using GSSAPI.])
   AC_SEARCH_LIBS([krb5_free_context], [krb5])
 
   #
+  # gss			This may be the only lib needed under HP-UX, so find it
+  #			first.
+  #
   # gssapi_krb5		Only lib needed with MIT K5 v1.2.1, so find it first in
   #			order to prefer MIT Kerberos.  If both MIT & Heimdal
   #			Kerberos are installed and in the path, this will leave
   #			some of the libraries above in LIBS unnecessarily, but
   #			noone would ever do that, right?
   #
+  # gss			HP-UX			???
+  #
   # gssapi_krb5		MIT K5 v1.2.2-beta1	-lkrb5
   #
   # gssapi		Heimdal K 0.3d		-lkrb5
   #
-  AC_SEARCH_LIBS([gss_import_name], [gssapi_krb5 gssapi])
+  AC_SEARCH_LIBS([gss_import_name], [gss gssapi_krb5 gssapi])
 fi
 ])dnl
 

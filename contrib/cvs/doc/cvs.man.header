@@ -2,9 +2,9 @@
 .\" cvs.man.header, cvs.texinfo, & cvs.man.footer files.  Please make changes
 .\" there.  A full copyright & license notice may also be found in cvs.texinfo.
 .\"
-.\" Copyright 2004 The Free Software Foundation,
-.\"                Derek R. Price,
-.\"                & Ximbiot <http://ximbiot.com>
+.\" Man page autogeneration, including this header file, is
+.\" Copyright 2004-2005 The Free Software Foundation, Inc.,
+.\"                     Derek R. Price, & Ximbiot <http://ximbiot.com>.
 .\"
 .\" This documentation is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by

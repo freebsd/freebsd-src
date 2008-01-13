@@ -103,7 +103,7 @@
 #   pvcs_archives.
 # * You must use the -pflat option when processing single filenames
 #   passed as arguments to the script.  This is probably a bug.
-# * questions, comments, additions can be sent to info-cvs@gnu.org
+# * questions, comments, additions can be sent to info-cvs@nongnu.org
 #########################################################################
 
 

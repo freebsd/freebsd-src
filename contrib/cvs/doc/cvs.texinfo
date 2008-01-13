@@ -4,13 +4,14 @@
 @macro copyleftnotice
 @noindent
 Copyright @copyright{} 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-                       2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+                       2001, 2002, 2003, 2004, 2005
+                       Free Software Foundation, Inc.
 
 @multitable @columnfractions .12 .88
 @item Portions
-@item @tab Copyright @copyright{} 1999, 2000, 2001, 2002, 2003, 2004
+@item @tab Copyright @copyright{} 1999, 2000, 2001, 2002, 2003, 2004, 2005
                                   Derek R. Price,
-@item @tab Copyright @copyright{} 2002, 2003, 2004
+@item @tab Copyright @copyright{} 2002, 2003, 2004, 2005
                                   Ximbiot @url{http://ximbiot.com},
 @item @tab Copyright @copyright{} 1992, 1993, 1999 Signum Support AB,
 @item @tab and Copyright @copyright{} others.
@@ -127,6 +128,10 @@ approved by the Free Software Foundation.
 @copyleftnotice
 @end titlepage
 
+@summarycontents
+
+@contents
+
 @comment ================================================================
 @comment                   The real text starts here
 @comment ================================================================
@@ -232,7 +237,7 @@ versions.
 on the same project.  It is all too easy to overwrite
 each others' changes unless you are extremely careful.
 Some editors, like @sc{gnu} Emacs, try to make sure that
-the same file is never modified by two people at the
+two people never modify the same file at the
 same time.  Unfortunately, if someone is using another
 editor, that safeguard will not work.  @sc{cvs} solves this problem
 by insulating the different developers from each other.  Every
@@ -261,21 +266,20 @@ free download from the Internet.  For more information
 on downloading @sc{cvs} and other @sc{cvs} topics, see:
 
 @example
-@url{http://www.cvshome.org/}
-@url{http://www.loria.fr/~molli/cvs-index.html}
+@url{http://cvs.nongnu.org/}
 @end example
 
 @cindex Mailing list
 @cindex List, mailing list
 @cindex Newsgroups
-There is a mailing list, known as @email{info-cvs@@gnu.org},
+There is a mailing list, known as @email{info-cvs@@nongnu.org},
 devoted to @sc{cvs}.  To subscribe or
 unsubscribe
 write to
-@email{info-cvs-request@@gnu.org}.
+@email{info-cvs-request@@nongnu.org}.
 If you prefer a Usenet group, there is a one-way mirror (posts to the email
-list are usually sent to the news group, but not visa versa) of
-@email{info-cvs@@gnu.org} at @url{news:gnu.cvs.help}.  The right
+list are usually sent to the news group, but not vice versa) of
+@email{info-cvs@@nongnu.org} at @url{news:gnu.cvs.help}.  The right
 Usenet group for posts is @url{news:comp.software.config-mgmt} which is for
 @sc{cvs} discussions (along with other configuration
 management systems).  In the future, it might be
@@ -290,11 +294,11 @@ if there is sufficient @sc{cvs} traffic on
 @c would need to take a more comprehensive look at the
 @c whole comp.software.config-mgmt.* hierarchy).
 
-You can also subscribe to the @email{bug-cvs@@gnu.org} mailing list,
+You can also subscribe to the @email{bug-cvs@@nongnu.org} mailing list,
 described in more detail in @ref{BUGS}.  To subscribe
-send mail to @email{bug-cvs-request@@gnu.org}.  There is a two-way
+send mail to @email{bug-cvs-request@@nongnu.org}.  There is a two-way
 Usenet mirror (posts to the Usenet group are usually sent to the email list and
-visa versa) of @email{bug-cvs@@gnu.org} named @url{news:gnu.cvs.bug}.
+vice versa) of @email{bug-cvs@@nongnu.org} named @url{news:gnu.cvs.bug}.
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node What is CVS not?
@@ -1805,7 +1809,15 @@ It is possible to commit an erroneous administrative
 file.  You can often fix the error and check in a new
 revision, but sometimes a particularly bad error in the
 administrative file makes it impossible to commit new
-revisions.
+revisions.  If and when this happens, you can correct
+the problem by temporarily copying a corrected administrative file
+directly into the @code{$CVSROOT/CVSROOT} repository directory,
+then committing the same correction via a checkout of the @file{CVSROOT}
+module.  It is important that the correction also be made via the
+checked out copy, or the next checkout and commit to the
+<code>CVSROOT</code> module will overwrite the correction that was
+copied directly into the repository, possibly breaking things in such
+a way as to prevent commits again.
 @c @xref{Bad administrative files} for a hint
 @c about how to solve such situations.
 @c -- administrative file checking--
@@ -1865,6 +1877,13 @@ and server1, to update everything else.
 @cindex Repository, setting up
 @cindex Creating a repository
 @cindex Setting up a repository
+
+This section describes how to set up a @sc{cvs} repository for any
+sort of access method.  After completing the setup described in this
+section, you should be able to access your @sc{cvs} repository immediately
+via the local access method and several remote access methods.  For
+more information on setting up remote access to the repository you create
+in this section, please read the section on @xref{Remote repositories}.
 
 To set up a @sc{cvs} repository, first choose the
 machine and disk on which you want to store the
@@ -3178,8 +3197,13 @@ $ cvs import -m "Created directory structure" yoyodyne/@var{dir} yoyo start
 This will add yoyodyne/@var{dir} as a directory under
 @code{$CVSROOT}.
 
-Then, use @code{add} to add files (and new directories)
-as they appear.
+Use @code{checkout} to get the new project.  Then, use @code{add}
+to add files (and new directories) as needed.
+
+@example
+$ cd ..
+$ cvs co yoyodyne/@var{dir}
+@end example
 
 Check that the permissions @sc{cvs} sets on the
 directories inside @code{$CVSROOT} are reasonable.
@@ -3817,7 +3841,8 @@ The sticky tags will remain on your working files until
 you delete them with @samp{cvs update -A}.  The
 @samp{-A} option merges local changes into the version of the
 file from the head of the trunk, removing any sticky tags,
-dates, or options.  See @ref{update} for more on the operation
+dates, or options (other than sticky @samp{-k} options on locally
+modified files).  See @ref{update} for more on the operation
 of @code{cvs update}.
 
 @cindex Sticky date
@@ -4605,6 +4630,13 @@ for this is to release the working directory after the merge has been
 committed and check it out again.
 @end ignore
 
+As a result of using @samp{-kk} during the merge, each file examined by the
+update will have @samp{-kk} set as sticky options.  Running @code{update -A}
+will clear the sticky options on unmodified files, but it will not clear
+the sticky options on modified files.  To get back to the default keyword
+substitution for modified files, you must commit the results of the merge
+and then run @code{update -A}.
+
 @c ---------------------------------------------------------------------
 @node Recursive behavior
 @chapter Recursive behavior
@@ -4971,7 +5003,7 @@ later merge the removals to another branch if you want
 @cindex Removing directories
 @cindex Directories, removing
 
-In concept removing directories is somewhat similar to
+In concept, removing directories is somewhat similar to
 removing files---you want the directory to not exist in
 your current working directories, but you also want to
 be able to retrieve old releases in which the directory
@@ -4998,7 +5030,7 @@ removing it.
 @c need for -P and so that a file can be a directory in
 @c one revision and a regular file in another.
 Note that @samp{-P} is implied by the @samp{-r} or @samp{-D}
-options of @code{checkout}.  This way
+options of @code{checkout}.  This way,
 @sc{cvs} will be able to correctly create the directory
 or not depending on whether the particular version you
 are checking out contains any files in that directory.
@@ -5197,9 +5229,9 @@ like this:
 @enumerate
 @item
 Inform everyone who has a checked out copy of the directory that the
-directory will be renamed.  They should commit all
-their changes, and remove their working copies,
-before you take the steps below.
+directory will be renamed.  They should commit all their changes in all their
+copies of the project containing the directory to be removed, and remove
+all their working copies of said project, before you take the steps below.
 
 @item
 Rename the directory inside the repository.
@@ -5938,10 +5970,12 @@ these options, see @ref{Invoking CVS}.
 @cindex Merging a file
 @cindex Update, introduction
 
-When you want to update or merge a file, use the @code{update}
+When you want to update or merge a file, use the @code{cvs update -d}
 command.  For files that are not up to date this is roughly equivalent
 to a @code{checkout} command: the newest revision of the file is
-extracted from the repository and put in your working directory.
+extracted from the repository and put in your working directory.  The
+@code{-d} option, not necessary with @code{checkout}, tells @sc{cvs}
+that you wish it to create directories added by other developers.
 
 Your modifications to a file are never lost when you
 use @code{update}.  If no newer revision exists,
@@ -6978,8 +7012,10 @@ each working directory copy of a file also has a
 substitution mode.  The former is set by the @samp{-k}
 option to @code{cvs add} and @code{cvs admin}; the
 latter is set by the @samp{-k} or @samp{-A} options to @code{cvs
-checkout} or @code{cvs update}.  @code{cvs diff} also
-has a @samp{-k} option.  For some examples,
+checkout} or @code{cvs update}.
+@code{cvs diff} and @code{cvs rdiff} also
+have @samp{-k} options.
+For some examples,
 see @ref{Binary files}, and @ref{Merging and keywords}.
 @c The fact that -A is overloaded to mean both reset
 @c sticky options and reset sticky tags/dates is
@@ -7198,6 +7234,9 @@ $ cd wdiff-0.05
 $ cvs import -m "Import of FSF v. 0.05" fsf/wdiff FSF_DIST WDIFF_0_05
 @end example
 
+@strong{WARNING: If you use a release tag that already exists in one of the
+repository archives, files removed by an import may not be detected.}
+
 For files that have not been modified locally, the newly created
 revision becomes the head revision.  If you have made local
 changes, @code{import} will warn you that you must merge the changes
@@ -7409,7 +7448,7 @@ for other files to access source files from a central
 location.  Many people have come up with some such a
 @c two such people are paul@sander.cupertino.ca.us (for
 @c a previous employer)
-@c and gtornblo@senet.abb.se (spicm and related tools),
+@c and gunnar.tornblom@se.abb.com (spicm and related tools),
 @c but as far as I know
 @c no one has nicely packaged or released such a system (or
 @c instructions for constructing one).
@@ -7909,7 +7948,7 @@ option as in other commands.  (Other command options,
 which are listed with the individual commands, may have
 different behavior from one @sc{cvs} command to the other).
 
-@strong{Note: the @samp{history} command is an exception; it supports
+@strong{The @samp{history} command is an exception; it supports
 many options that conflict even with these standard options.}
 
 @table @code
@@ -8131,7 +8170,7 @@ file, and continues to use it with future update
 commands on the same file until you specify otherwise.
 
 The @samp{-k} option is available with the @code{add},
-@code{checkout}, @code{diff}, @code{import} and
+@code{checkout}, @code{diff}, @code{rdiff}, @code{import} and
 @code{update} commands.
 
 @item -l
@@ -8158,10 +8197,10 @@ Do not run any tag program.  (A program can be
 specified to run in the modules
 database (@pxref{modules}); this option bypasses it).
 
-@strong{Note: this is not the same as the @samp{cvs -n}
+@strong{This is not the same as the @samp{cvs -n}
 program option, which you can specify to the left of a cvs command!}
 
-Available with the @code{checkout}, @code{commit}, @code{export},
+Available with the @code{checkout}, @code{export},
 and @code{rtag} commands.
 
 @item -P
@@ -8224,17 +8263,20 @@ on sticky tags/dates, @pxref{Sticky tags}).
 The tag can be either a symbolic or numeric tag, as
 described in @ref{Tags}, or the name of a branch, as
 described in @ref{Branching and merging}.
+When a command expects a specific revision,
+the name of a branch is interpreted as the most recent
+revision on that branch.
 
 Specifying the @samp{-q} global option along with the
 @samp{-r} command option is often useful, to suppress
 the warning messages when the @sc{rcs} file
 does not contain the specified tag.
 
-@strong{Note: this is not the same as the overall @samp{cvs -r} option,
+@strong{This is not the same as the overall @samp{cvs -r} option,
 which you can specify to the left of a @sc{cvs} command!}
 
-@samp{-r} is available with the @code{checkout}, @code{commit},
-@code{diff}, @code{history}, @code{export}, @code{rdiff},
+@samp{-r} is available with the @code{annotate}, @code{checkout},
+@code{commit}, @code{diff}, @code{history}, @code{export}, @code{rdiff}, 
 @code{rtag}, and @code{update} commands.
 
 @item -W
@@ -8539,10 +8581,10 @@ it is created.  The state is visible in the output from
 @var{cvs log} (@pxref{log}), and in the
 @samp{$@splitrcskeyword{Log}$} and @samp{$@splitrcskeyword{State}$} keywords
 (@pxref{Keyword substitution}).  Note that @sc{cvs}
-uses the @code{dead} state for its own purposes; to
+uses the @code{dead} state for its own purposes (@pxref{Attic}); to
 take a file to or from the @code{dead} state use
-commands like @code{cvs remove} and @code{cvs add}, not
-@code{cvs admin -s}.
+commands like @code{cvs remove} and @code{cvs add}
+(@pxref{Adding and removing}), not @code{cvs admin -s}.
 
 @item -t[@var{file}]
 Useful with @sc{cvs}.  Write descriptive text from the
@@ -8835,6 +8877,7 @@ options with @code{checkout}:
 @table @code
 @item -A
 Reset any sticky tags, dates, or @samp{-k} options.
+Does not reset sticky @samp{-k} options on modified files.
 See @ref{Sticky tags}, for more information on sticky tags/dates.
 
 @item -c
@@ -8932,7 +8975,7 @@ $ cvs checkout -D yesterday tc
 
 @itemize @bullet
 @item
-Synopsis: commit [-lnRf] [-m 'log_message' |
+Synopsis: commit [-lRf] [-m 'log_message' |
 -F file] [-r revision] [files@dots{}]
 @item
 Requires: working directory, repository.
@@ -9872,7 +9915,7 @@ various formats.
 Logging must be enabled by creating the file
 @file{$CVSROOT/CVSROOT/history}.
 
-@strong{Note: @code{history} uses @samp{-f}, @samp{-l},
+@strong{@code{history} uses @samp{-f}, @samp{-l},
 @samp{-n}, and @samp{-p} in ways that conflict with the
 normal use inside @sc{cvs} (@pxref{Common options}).}
 
@@ -10091,8 +10134,10 @@ At least three arguments are required.
 @var{repository} is needed to identify the collection
 of source.  @var{vendortag} is a tag for the entire
 branch (e.g., for 1.1.1).  You must also specify at
-least one @var{releasetag} to identify the files at
-the leaves created each time you execute @code{import}.
+least one @var{releasetag} to uniquely identify the files at
+the leaves created each time you execute @code{import}.  The
+@var{releasetag} should be new, not previously existing in the
+repository file, and uniquely identify the imported release,
 
 @c I'm not completely sure this belongs here.  But
 @c we need to say it _somewhere_ reasonably obvious; it
@@ -10247,7 +10292,7 @@ Coordinated Universal Time (UTC).  (Other parts of
 @c client then communicates to the server, is the
 @c right solution.
 
-@strong{Note: @code{log} uses @samp{-R} in a way that conflicts
+@strong{@code{log} uses @samp{-R} in a way that conflicts
 with the normal use inside @sc{cvs} (@pxref{Common options}).}
 
 @menu
@@ -10260,7 +10305,12 @@ with the normal use inside @sc{cvs} (@pxref{Common options}).}
 @appendixsubsec log options
 
 By default, @code{log} prints all information that is
-available.  All other options restrict the output.
+available.  All other options restrict the output.  Note that the revision
+selection options (@code{-d}, @code{-r}, @code{-s}, and @code{-w}) have no
+effect, other than possibly causing a search for files in Attic directories,
+when used in conjunction with the options that restrict the output to only
+@code{log} header fields (@code{-b}, @code{-h}, @code{-R}, and @code{-t})
+unless the @code{-S} option is also specified.
 
 @table @code
 @item -b
@@ -10391,7 +10441,10 @@ Suppress the header if no revisions are selected.
 @item -s @var{states}
 Print information about revisions whose state
 attributes match one of the states given in the
-comma-separated list @var{states}.
+comma-separated list @var{states}.  Individual states may
+be any text string, though @sc{cvs} commonly only uses two
+states, @samp{Exp} and @samp{dead}.  See @ref{admin options}
+for more information.
 
 @item -t
 Print the same as @samp{-h}, plus the descriptive text.
@@ -10472,6 +10525,10 @@ Use the most recent revision no later than @var{date}.
 @item -f
 If no matching revision is found, retrieve the most
 recent revision (instead of ignoring the file).
+
+@item -k @var{kflag}
+Process keywords according to @var{kflag}.  See
+@ref{Keyword substitution}.
 
 @item -l
 Local; don't descend subdirectories.
@@ -10746,6 +10803,7 @@ These special options are also available with
 @table @code
 @item -A
 Reset any sticky tags, dates, or @samp{-k} options.
+Does not reset sticky @samp{-k} options on modified files.
 See @ref{Sticky tags}, for more information on sticky tags/dates.
 
 @item -C
@@ -10826,7 +10884,7 @@ by one character indicating the status of the file:
 @item U @var{file}
 The file was brought up to date with respect to the
 repository.  This is done for any file that exists in
-the repository but not in your source, and for files
+the repository but not in your working directory, and for files
 that you haven't changed but are not the most recent
 versions available in the repository.
 
@@ -11074,7 +11132,8 @@ Delete revisions from the repository.  See
 Run quietly; do not print diagnostics.
 
 @item -s@var{state}[:@var{rev}]
-Set the state.
+Set the state.  See @ref{admin options} for more information on possible
+states.
 
 @c Does not work for client/server CVS
 @item -t
@@ -11853,6 +11912,8 @@ file, which defines the modules inside the repository.
 @menu
 * modules::                     Defining modules
 * Wrappers::                    Specify binary-ness based on file name
+* Trigger Scripts::		Some notes on the commit support files and
+				taginfo, referenced below.
 * commit files::                The commit support files (commitinfo,
                                 verifymsg, editinfo, loginfo)
 * taginfo::                     Verifying/Logging tags
@@ -12349,59 +12410,26 @@ cvs import -I ! -W "*.exe -k 'b'" first-dir vendortag reltag
 @c One catch--"cvs diff" will not invoke the wrappers
 @c (probably a CVS bug, although I haven't thought it out).
 
-@c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-@node commit files
-@appendixsec The commit support files
-@cindex Committing, administrative support files
+@c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+@node Trigger Scripts
+@appendixsec The Trigger Scripts
+@cindex Info files
+@cindex Trigger scripts
 
-The @samp{-i} flag in the @file{modules} file can be
-used to run a certain program whenever files are
-committed (@pxref{modules}).  The files described in
-this section provide other, more flexible, ways to run
-programs whenever something is committed.
+Several of the administrative files support triggers, or the launching external
+scripts or programs at specific times before or after particular events.  The
+individual files are discussed in the later sections, @ref{commit files} and
+@ref{taginfo}, but some of the common elements are discussed here.
 
-There are three kinds of programs that can be run on
-commit.  They are specified in files in the repository,
-as described below.  The following table summarizes the
-file names and the purpose of the corresponding
-programs.
-
-@table @file
-@item commitinfo
-The program is responsible for checking that the commit
-is allowed.  If it exits with a non-zero exit status
-the commit will be aborted.
-
-@item verifymsg
-The specified program is used to evaluate the log message,
-and possibly verify that it contains all required
-fields.  This is most useful in combination with the
-@file{rcsinfo} file, which can hold a log message
-template (@pxref{rcsinfo}).
-
-@item editinfo
-The specified program is used to edit the log message,
-and possibly verify that it contains all required
-fields.  This is most useful in combination with the
-@file{rcsinfo} file, which can hold a log message
-template (@pxref{rcsinfo}).  (obsolete)
-
-@item loginfo
-The specified program is called when the commit is
-complete.  It receives the log message and some
-additional information and can store the log message in
-a file, or mail it to appropriate persons, or maybe
-post it to a local newsgroup, or@dots{}  Your
-imagination is the limit!
-@end table
+All the trigger scripts are launched in a copy of the user sandbox being
+committed, on the server, in client-server mode.  In local mode, the scripts
+are actually launched directly from the user sandbox directory being committed.
+For most intents and purposes, the same scripts can be run in both locations
+without alteration.
 
 @menu
-* syntax::                      The common syntax
-* commitinfo::                  Pre-commit checking
-* verifymsg::                   How are log messages evaluated?
-* editinfo::                    Specifying how log messages are created
-                                (obsolete)
-* loginfo::                     Where should log messages be sent?
+* syntax::			The common syntax
+* Trigger Script Security::	Trigger script security
 @end menu
 
 @c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
@@ -12465,6 +12493,78 @@ is used as a file name or command-line as appropriate.
 @c includes the filename--"directory name" above should be
 @c unambiguous but there is nothing like an example to
 @c confirm people's understanding of this sort of thing).
+
+@c . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+@node Trigger Script Security
+@appendixsubsec Security and the Trigger Scripts
+@cindex Info files, security
+@cindex Trigger scripts, security
+
+Security is a huge subject, and implementing a secure system is a non-trivial
+task.  This section will barely touch on all the issues involved, but it is
+well to note that, as with any script you will be allowing an untrusted
+user to run on your server, there are measures you can take to help prevent
+your trigger scripts from being abused.
+
+For instance, since the CVS trigger scripts all run in a copy of the user's
+sandbox on the server, a naively coded Perl trigger script which attempts to
+use a Perl module that is not installed on the system can be hijacked by any
+user with commit access who is checking in a file with the correct name.  Other
+scripting languages may be vulnerable to similar hacks.
+
+One way to make a script more secure, at least with Perl, is to use scripts
+which invoke the @code{-T}, or "taint-check" switch on their @code{#!} line.
+In the most basic terms, this causes Perl to avoid running code that may have
+come from an external source.  Please run the @code{perldoc perlsec} command
+for more on Perl security.  Again, other languages may implement other security
+verification hooks which look more or less like Perl's "taint-check" mechanism.
+
+@c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+@node commit files
+@appendixsec The commit support files
+@cindex Committing, administrative support files
+
+There are three kinds of trigger scripts (@pxref{Trigger Scripts}) that can be
+run at various times during a commit.  They are specified in files in the
+repository, as described below.  The following table summarizes the
+file names and the purpose of the corresponding programs.
+
+@table @file
+@item commitinfo
+The program is responsible for checking that the commit
+is allowed.  If it exits with a non-zero exit status
+the commit will be aborted.
+
+@item verifymsg
+The specified program is used to evaluate the log message,
+and possibly verify that it contains all required
+fields.  This is most useful in combination with the
+@file{rcsinfo} file, which can hold a log message
+template (@pxref{rcsinfo}).
+
+@item editinfo
+The specified program is used to edit the log message,
+and possibly verify that it contains all required
+fields.  This is most useful in combination with the
+@file{rcsinfo} file, which can hold a log message
+template (@pxref{rcsinfo}).  (obsolete)
+
+@item loginfo
+The specified program is called when the commit is
+complete.  It receives the log message and some
+additional information and can store the log message in
+a file, or mail it to appropriate persons, or maybe
+post it to a local newsgroup, or@dots{}  Your
+imagination is the limit!
+@end table
+
+@menu
+* commitinfo::                  Pre-commit checking
+* verifymsg::                   How are log messages evaluated?
+* editinfo::                    Specifying how log messages are created
+                                (obsolete)
+* loginfo::                     Where should log messages be sent?
+@end menu
 
 @c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 @node commitinfo
@@ -12694,7 +12794,7 @@ RereadLogAfterVerify=always
 @cindex Per-module editor
 @cindex Log messages, editing
 
-@strong{Note: The @file{editinfo} feature has been
+@strong{The @file{editinfo} feature has been
 rendered obsolete.  To set a default editor for log
 messages use the @code{CVSEDITOR}, @code{EDITOR} environment variables
 (@pxref{Environment variables}) or the @samp{-e} global
@@ -13046,9 +13146,9 @@ directory.
 The @file{taginfo} file defines programs to execute
 when someone executes a @code{tag} or @code{rtag}
 command.  The @file{taginfo} file has the standard form
-for administrative files (@pxref{syntax}),
+for trigger scripts (@pxref{Trigger Scripts}),
 where each line is a regular expression
-followed by a command to execute.  The arguments passed
+followed by a command to execute (@pxref{syntax}).  The arguments passed
 to the command are, in order, the @var{tagname},
 @var{operation} (@code{add} for @code{tag},
 @code{mov} for @code{tag -F}, and @code{del} for
@@ -13490,7 +13590,7 @@ that the file should be checked with the file system
 @samp{stat()} function to see if it has changed (see warning below)
 before rereading.  The default value is @samp{always}.
 
-@strong{Note: the `stat' mode can cause CVS to pause for up to
+@strong{The `stat' mode can cause CVS to pause for up to
 one extra second per directory committed.  This can be less IO and
 CPU intensive but is not recommended for use with large repositories}
 
@@ -14092,6 +14192,19 @@ logged in as "root".  (You can disable this option by passing the
 On some systems this means editing the appropriate @file{config.h} file
 before building @sc{cvs}.)
 
+@item Terminated with fatal signal 11
+This message usually indicates that @sc{cvs} (the server, if you're
+using client/server mode) has run out of (virtual) memory.
+Although @sc{cvs} tries to catch the error and issue a more meaningful
+message, there are many circumstances where that is not possible.
+If you appear to have lots of memory available to the system,
+the problem is most likely that you're running into a system-wide
+limit on the amount of memory a single process can use or a
+similar process-specific limit.
+The mechanisms for displaying and setting such limits vary from
+system to system, so you'll have to consult an expert for your
+particular system if you don't know how to do that.
+
 @item Too many arguments!
 This message is typically printed by the @file{log.pl}
 script which is in the @file{contrib} directory in the
@@ -14182,9 +14295,21 @@ vi $*
 exit 0
 @end example
 
-@c "warning: foo was lost" and "no longer pertinent" (both normal).
-@c Would be nice to write these up--they are
-@c potentially confusing for the new user.
+@item cvs update: warning: @var{file} was lost
+This means that the working copy of @var{file} has been deleted
+but it has not been removed from @sc{cvs}.
+This is nothing to be concerned about,
+the update will just recreate the local file from the repository.
+(This is a convenient way to discard local changes to a file:
+just delete it and then run @code{cvs update}.)
+
+@item cvs update: warning: @var{file} is not (any longer) pertinent
+This means that the working copy of @var{file} has been deleted,
+it has not been removed from @sc{cvs} in the current working directory,
+but it has been removed from @sc{cvs} in some other working directory.
+This is nothing to be concerned about,
+the update would have removed the local file anyway.
+
 @end table
 
 @node Connection
@@ -14449,12 +14574,11 @@ distribution.  It contains much more information on the
 process of submitting fixes.
 
 @item
-There may be resources on the net which can help.  Two
-good places to start are:
+There may be resources on the net which can help.  A
+good place to start is:
 
 @example
-@url{http://www.cvshome.org}
-@url{http://www.loria.fr/~molli/cvs-index.html}
+@url{http://cvs.nongnu.org/}
 @end example
 
 If you are so inspired, increasing the information
@@ -14467,7 +14591,7 @@ page on mailing lists or newsgroups when the subject
 came up.
 
 @item
-It is also possible to report bugs to @email{bug-cvs@@gnu.org}.
+It is also possible to report bugs to @email{bug-cvs@@nongnu.org}.
 Note that someone may or may not want to do anything
 with your bug report---if you need a solution consider
 one of the options mentioned above.  People probably do
@@ -14476,20 +14600,20 @@ in consequences and/or easy to fix, however.  You can
 also increase your odds by being as clear as possible
 about the exact nature of the bug and any other
 relevant information.  The way to report bugs is to
-send email to @email{bug-cvs@@gnu.org}.  Note
-that submissions to @email{bug-cvs@@gnu.org} may be distributed
+send email to @email{bug-cvs@@nongnu.org}.  Note
+that submissions to @email{bug-cvs@@nongnu.org} may be distributed
 under the terms of the @sc{gnu} Public License, so if
 you don't like this, don't submit them.  There is
 usually no justification for sending mail directly to
 one of the @sc{cvs} maintainers rather than to
-@email{bug-cvs@@gnu.org}; those maintainers who want to hear
-about such bug reports read @email{bug-cvs@@gnu.org}.  Also note
+@email{bug-cvs@@nongnu.org}; those maintainers who want to hear
+about such bug reports read @email{bug-cvs@@nongnu.org}.  Also note
 that sending a bug report to other mailing lists or
 newsgroups is @emph{not} a substitute for sending it to
-@email{bug-cvs@@gnu.org}.  It is fine to discuss @sc{cvs} bugs on
+@email{bug-cvs@@nongnu.org}.  It is fine to discuss @sc{cvs} bugs on
 whatever forum you prefer, but there are not
 necessarily any maintainers reading bug reports sent
-anywhere except @email{bug-cvs@@gnu.org}.
+anywhere except @email{bug-cvs@@nongnu.org}.
 @end itemize
 
 @cindex Known bugs in this manual or CVS
@@ -14506,10 +14630,6 @@ comprehensive, detailed list of known bugs.
 @cindex Index
 
 @printindex cp
-
-@summarycontents
-
-@contents
 
 @bye
 
