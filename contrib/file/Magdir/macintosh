@@ -357,4 +357,4 @@
 >>>>0xa54	belong		x		number of blocks: %d
 
 # From: Remi Mommsen <mommsen@slac.stanford.edu>
-0		string		BOMStore	Mac OS X bill of materials (BOM) fil
+0		string		BOMStore	Mac OS X bill of materials (BOM) file

@@ -41,7 +41,7 @@
 #include <time.h>
 
 #ifndef lint
-FILE_RCSID("@(#)$File: print.c,v 1.59 2007/03/05 02:41:29 christos Exp $")
+FILE_RCSID("@(#)$File: print.c,v 1.61 2007/12/27 16:35:59 christos Exp $")
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -157,6 +157,16 @@ file_mdump(struct magic *m)
 			(void)fprintf(stderr, "%s,",
 			    file_fmttime((uint32_t)m->value.q, 0));
 			break;
+		case FILE_FLOAT:
+		case FILE_BEFLOAT:
+		case FILE_LEFLOAT:
+			(void) fprintf(stderr, "%G", m->value.f);
+			break;
+		case FILE_DOUBLE:
+		case FILE_BEDOUBLE:
+		case FILE_LEDOUBLE:
+			(void) fprintf(stderr, "%G", m->value.d);
+			break;
 		case FILE_DEFAULT:
 			/* XXX - do anything here? */
 			break;
@@ -189,7 +199,7 @@ file_magwarn(struct magic_set *ms, const char *f, ...)
 protected const char *
 file_fmttime(uint32_t v, int local)
 {
-	char *pp, *rt;
+	char *pp;
 	time_t t = (time_t)v;
 	struct tm *tm;
 
@@ -219,7 +229,6 @@ file_fmttime(uint32_t v, int local)
 		pp = asctime(tm);
 	}
 
-	if ((rt = strchr(pp, '\n')) != NULL)
-		*rt = '\0';
+	pp[strcspn(pp, "\n")] = '\0';
 	return pp;
 }
