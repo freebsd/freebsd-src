@@ -5,3 +5,9 @@
 0	string		%PDF-		PDF document
 >5	byte		x		\b, version %c
 >7	byte		x		\b.%c
+
+# From: Nick Schmalenberger <nick@schmalenberger.us>
+# Forms Data Format
+0       string          %FDF-           FDF text
+>5      byte            x               \b, version %c
+>7      byte            x               \b.%c

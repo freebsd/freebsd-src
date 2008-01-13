@@ -77,6 +77,7 @@ Magdir/digital \
 Magdir/dolby \
 Magdir/dump \
 Magdir/editors \
+Magdir/efi \
 Magdir/elf \
 Magdir/encore \
 Magdir/epoc \
@@ -85,6 +86,7 @@ Magdir/fcs \
 Magdir/filesystems \
 Magdir/flash \
 Magdir/fonts \
+Magdir/fortran \
 Magdir/frame \
 Magdir/freebsd \
 Magdir/fsav \
