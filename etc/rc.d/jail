@@ -8,6 +8,12 @@
 # BEFORE: securelevel
 # KEYWORD: nojail shutdown
 
+# WARNING: This script deals with untrusted data (the data and
+# processes inside the jails) and care must be taken when changing the
+# code related to this!  If you have any doubt whether a change is
+# correct and have security impact, please get the patch reviewed by
+# the FreeBSD Security Team prior to commit.
+
 . /etc/rc.subr
 
 name="jail"
