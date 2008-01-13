@@ -221,7 +221,8 @@ arg_should_not_be_sent_to_server (arg)
     /* Try to decide whether we should send arg to the server by
        checking the contents of the corresponding CVSADM directory. */
     {
-	char *t, *this_root;
+	char *t, *root_string;
+	cvsroot_t *this_root = NULL;
 
 	/* Calculate "dirname arg" */
 	for (t = arg + strlen (arg) - 1; t >= arg; t--)
@@ -251,25 +252,31 @@ arg_should_not_be_sent_to_server (arg)
 	    /* Since we didn't find it in the list, check the CVSADM
                files on disk.  */
 	    this_root = Name_Root (arg, (char *) NULL);
+	    root_string = this_root->original;
 	    *t = c;
 	}
 	else
 	{
 	    /* We're at the beginning of the string.  Look at the
                CVSADM files in cwd.  */
-	    this_root = (CVSroot_cmdline ? xstrdup(CVSroot_cmdline)
-			 : Name_Root ((char *) NULL, (char *) NULL));
+	    if (CVSroot_cmdline)
+		root_string = CVSroot_cmdline;
+	    else
+	    {
+		this_root = Name_Root ((char *) NULL, (char *) NULL);
+		root_string = this_root->original;
+	    }
 	}
 
 	/* Now check the value for root. */
-	if (this_root && current_parsed_root
-	    && (strcmp (this_root, current_parsed_root->original) != 0))
+	if (root_string && current_parsed_root
+	    && (strcmp (root_string, current_parsed_root->original) != 0))
 	{
 	    /* Don't send this, since the CVSROOTs don't match. */
-	    free (this_root);
+	    if (this_root) free_cvsroot_t (this_root);
 	    return 1;
 	}
-	free (this_root);
+	if (this_root) free_cvsroot_t (this_root);
     }
     
     /* OK, let's send it. */
@@ -886,12 +893,6 @@ read_line (resultp)
 #if defined(CLIENT_SUPPORT) || defined(SERVER_SUPPORT)
 
 /*
- * Zero if compression isn't supported or requested; non-zero to indicate
- * a compression level to request from gzip.
- */
-int gzip_level;
-
-/*
  * Level of compression to use when running gzip on a single file.
  */
 int file_gzip_level;
@@ -1113,6 +1114,8 @@ call_in_directory (pathname, func, data)
     int reposdirname_absolute;
     int newdir = 0;
 
+    assert (pathname);
+
     reposname = NULL;
     read_line (&reposname);
     assert (reposname != NULL);
@@ -1193,44 +1196,6 @@ call_in_directory (pathname, func, data)
 
     if (CVS_CHDIR (toplevel_wd) < 0)
 	error (1, errno, "could not chdir to %s", toplevel_wd);
-
-    /* Create the CVS directory at the top level if needed.  The
-       isdir seems like an unneeded system call, but it *does*
-       need to be called both if the CVS_CHDIR below succeeds
-       (e.g.  "cvs co .") or if it fails (e.g. basicb-1a in
-       testsuite).  We only need to do this for the "." case,
-       since the server takes care of forcing this directory to be
-       created in all other cases.  If we don't create CVSADM
-       here, the call to Entries_Open below will fail.  FIXME:
-       perhaps this means that we should change our algorithm
-       below that calls Create_Admin instead of having this code
-       here? */
-    if (/* I think the reposdirname_absolute case has to do with
-	   things like "cvs update /foo/bar".  In any event, the
-	   code below which tries to put toplevel_repos into
-	   CVS/Repository is almost surely unsuited to
-	   the reposdirname_absolute case.  */
-	!reposdirname_absolute
-	&& (strcmp (dir_name, ".") == 0)
-	&& ! isdir (CVSADM))
-    {
-	char *repo;
-	char *r;
-
-	newdir = 1;
-
-	repo = xmalloc (strlen (toplevel_repos)
-			+ 10);
-	strcpy (repo, toplevel_repos);
-	r = repo + strlen (repo);
-	if (r[-1] != '.' || r[-2] != '/')
-	    strcpy (r, "/.");
-
-	Create_Admin (".", ".", repo, (char *) NULL,
-		      (char *) NULL, 0, 1, 1);
-
-	free (repo);
-    }
 
     if (CVS_CHDIR (dir_name) < 0)
     {
@@ -1492,7 +1457,44 @@ handle_copy_file (args, len)
 {
     call_in_directory (args, copy_a_file, (char *)NULL);
 }
-
+
+
+
+/* Attempt to read a file size from a string.  Accepts base 8 (0N), base 16
+ * (0xN), or base 10.  Exits on error.
+ *
+ * RETURNS
+ *   The file size, in a size_t.
+ *
+ * FATAL ERRORS
+ *   1.  As strtoul().
+ *   2.  If the number read exceeds SIZE_MAX.
+ */
+static size_t
+strto_file_size (const char *s)
+{
+    unsigned long tmp;
+    char *endptr;
+
+    /* Read it.  */
+    errno = 0;
+    tmp = strtoul (s, &endptr, 0);
+
+    /* Check for errors.  */
+    if (errno || endptr == s)
+	error (1, errno, "Server sent invalid file size `%s'", s);
+    if (*endptr != '\0')
+	error (1, 0,
+	       "Server sent trailing characters in file size `%s'",
+	       endptr);
+    if (tmp > SIZE_MAX)
+	error (1, 0, "Server sent file size exceeding client max.");
+
+    /* Return it.  */
+    return (size_t)tmp;
+}
+
+
 
 static void read_counted_file PROTO ((char *, char *));
 
@@ -1525,9 +1527,7 @@ read_counted_file (filename, fullname)
     if (size_string[0] == 'z')
 	error (1, 0, "\
 protocol error: compressed files not supported for that operation");
-    /* FIXME: should be doing more error checking, probably.  Like using
-       strtoul and making sure we used up the whole line.  */
-    size = atoi (size_string);
+    size = strto_file_size (size_string);
     free (size_string);
 
     /* A more sophisticated implementation would use only a limited amount
@@ -1809,11 +1809,12 @@ update_entries (data_arg, ent_list, short_pathname, filename)
     {
 	char *size_string;
 	char *mode_string;
-	int size;
+	size_t size;
 	char *buf;
 	char *temp_filename;
 	int use_gzip;
 	int patch_failed;
+	char *s;
 
 	read_line (&mode_string);
 	
@@ -1821,13 +1822,14 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 	if (size_string[0] == 'z')
 	{
 	    use_gzip = 1;
-	    size = atoi (size_string+1);
+	    s = size_string + 1;
 	}
 	else
 	{
 	    use_gzip = 0;
-	    size = atoi (size_string);
+	    s = size_string;
 	}
+	size = strto_file_size (s);
 	free (size_string);
 
 	/* Note that checking this separately from writing the file is
@@ -1928,7 +1930,7 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 #ifdef USE_VMS_FILENAMES
         /* A VMS rename of "blah.dat" to "foo" to implies a
            destination of "foo.dat" which is unfortinate for CVS */
-       sprintf (temp_filename, "%s_new_", filename);
+	sprintf (temp_filename, "%s_new_", filename);
 #else
 #ifdef _POSIX_NO_TRUNC
 	sprintf (temp_filename, ".new.%.9s", filename);
@@ -1981,6 +1983,8 @@ update_entries (data_arg, ent_list, short_pathname, filename)
 		   entirely possible that future files will not have
 		   the same problem.  */
 		error (0, errno, "cannot write %s", short_pathname);
+		free (temp_filename);
+		free (buf);
 		goto discard_file_and_return;
 	    }
 
@@ -2837,7 +2841,10 @@ send_a_repository (dir, repository, update_dir_in)
     const char *repository;
     const char *update_dir_in;
 {
-    char *update_dir = xstrdup (update_dir_in);
+    char *update_dir;
+
+    assert (update_dir_in);
+    update_dir = xstrdup (update_dir_in);
 
     if (toplevel_repos == NULL && repository != NULL)
     {
@@ -3097,7 +3104,7 @@ handle_mbinary (args, len)
 
     /* Get the size.  */
     read_line (&size_string);
-    size = atoi (size_string);
+    size = strto_file_size (size_string);
     free (size_string);
 
     /* OK, now get all the data.  The algorithm here is that we read
@@ -3246,7 +3253,7 @@ handle_mt (args, len)
 	    else if (importmergecmd.seen)
 	    {
 		if (strcmp (tag, "conflicts") == 0)
-		    importmergecmd.conflicts = atoi (text);
+		    importmergecmd.conflicts = text ? atoi (text) : -1;
 		else if (strcmp (tag, "mergetag1") == 0)
 		    importmergecmd.mergetag1 = xstrdup (text);
 		else if (strcmp (tag, "mergetag2") == 0)
@@ -3914,6 +3921,7 @@ auth_server (root, lto_server, lfrom_server, verify_only, do_gssapi, hostinfo)
 
         /* Paranoia. */
         memset (password, 0, strlen (password));
+	free (password);
 # else /* ! AUTH_CLIENT_SUPPORT */
 	error (1, 0, "INTERNAL ERROR: This client does not support pserver authentication");
 # endif /* AUTH_CLIENT_SUPPORT */
@@ -4028,7 +4036,7 @@ connect_to_forked_server (to_server, from_server)
 	fprintf (stderr, " -> Forking server: %s %s\n", command[0], command[1]);
     }
 
-    child_pid = piped_child (command, &tofd, &fromfd);
+    child_pid = piped_child (command, &tofd, &fromfd, 0);
     if (child_pid < 0)
 	error (1, 0, "could not fork server process");
 
@@ -4232,7 +4240,8 @@ connect_to_gserver (root, sock, hostinfo)
 
 	    if (need > sizeof buf)
 	    {
-		int got;
+		ssize_t got;
+		size_t total;
 
 		/* This usually means that the server sent us an error
 		   message.  Read it byte by byte and print it out.
@@ -4241,13 +4250,19 @@ connect_to_gserver (root, sock, hostinfo)
 		   want to do this to work with older servers.  */
 		buf[0] = cbuf[0];
 		buf[1] = cbuf[1];
-		got = recv (sock, buf + 2, sizeof buf - 2, 0);
-		if (got < 0)
-		    error (1, 0, "recv() from server %s: %s",
-			   root->hostname, SOCK_STRERROR (SOCK_ERRNO));
-		buf[got + 2] = '\0';
-		if (buf[got + 1] == '\n')
-		    buf[got + 1] = '\0';
+		total = 2;
+		while (got = recv (sock, buf + total, sizeof buf - total, 0))
+		{
+		    if (got < 0)
+			error (1, 0, "recv() from server %s: %s",
+			       root->hostname, SOCK_STRERROR (SOCK_ERRNO));
+		    total += got;
+		    if (strrchr (buf + total - got, '\n'))
+			break;
+		}
+		buf[total] = '\0';
+		if (buf[total - 1] == '\n')
+		    buf[total - 1] = '\0';
 		error (1, 0, "error from server %s: %s", root->hostname,
 		       buf);
 	    }
@@ -4328,6 +4343,7 @@ start_server ()
 #endif /* HAVE_GSSAPI */
 
 	case ext_method:
+	case extssh_method:
 #ifdef NO_EXT_METHOD
 	    error (0, 0, ":ext: method not supported by this port of CVS");
 	    error (1, 0, "try :server: instead");
@@ -4712,27 +4728,7 @@ start_rsh_server (root, to_server, from_server)
     char *rsh_argv[10];
 
     if (!cvs_rsh)
-	/* People sometimes suggest or assume that this should default
-	   to "remsh" on systems like HPUX in which that is the
-	   system-supplied name for the rsh program.  However, that
-	   causes various problems (keep in mind that systems such as
-	   HPUX might have non-system-supplied versions of "rsh", like
-	   a Kerberized one, which one might want to use).  If we
-	   based the name on what is found in the PATH of the person
-	   who runs configure, that would make it harder to
-	   consistently produce the same result in the face of
-	   different people producing binary distributions.  If we
-	   based it on "remsh" always being the default for HPUX
-	   (e.g. based on uname), that might be slightly better but
-	   would require us to keep track of what the defaults are for
-	   each system type, and probably would cope poorly if the
-	   existence of remsh or rsh varies from OS version to OS
-	   version.  Therefore, it seems best to have the default
-	   remain "rsh", and tell HPUX users to specify remsh, for
-	   example in CVS_RSH or other such mechanisms to be devised,
-	   if that is what they want (the manual already tells them
-	   that).  */
-	cvs_rsh = "rsh";
+	cvs_rsh = RSH_DFLT;
     if (!cvs_server)
 	cvs_server = "cvs";
 
@@ -4837,7 +4833,7 @@ start_rsh_server (root, to_server, from_server)
 	        fprintf (stderr, "%s ", argv[i]);
 	    putc ('\n', stderr);
 	}
-	child_pid = piped_child (argv, &tofd, &fromfd);
+	child_pid = piped_child (argv, &tofd, &fromfd, 1);
 
 	if (child_pid < 0)
 	    error (1, errno, "cannot start server via rsh");
@@ -4856,10 +4852,10 @@ start_rsh_server (root, to_server, from_server)
 /* Send an argument STRING.  */
 void
 send_arg (string)
-    char *string;
+    const char *string;
 {
     char buf[1];
-    char *p = string;
+    const char *p = string;
 
     send_to_server ("Argument ", 0);
 
@@ -5151,7 +5147,10 @@ warning: ignoring -k options due to server limitations");
     }
     else if (vers->ts_rcs == NULL
 	     || args->force
-	     || strcmp (vers->ts_user, vers->ts_rcs) != 0)
+	     || strcmp (vers->ts_conflict
+			&& supported_request ("Empty-conflicts")
+		        ? vers->ts_conflict : vers->ts_rcs, vers->ts_user)
+	     || (vers->ts_conflict && !strcmp (cvs_cmd_name, "diff")))
     {
 	if (args->no_contents
 	    && supported_request ("Is-modified"))
@@ -5357,36 +5356,15 @@ send_dirleave_proc (callerdat, dir, err, update_dir, entries)
 }
 
 /*
- * Send each option in a string to the server, one by one.
- * This assumes that the options are separated by spaces, for example
- * STRING might be "--foo -C5 -y".
+ * Send each option in an array to the server, one by one.
+ * argv might be "--foo=bar",  "-C", "5", "-y".
  */
-
 void
-send_option_string (string)
-    char *string;
+send_options (int argc, char *const *argv)
 {
-    char *copy;
-    char *p;
-
-    copy = xstrdup (string);
-    p = copy;
-    while (1)
-    {
-        char *s;
-	char l;
-
-	for (s = p; *s != ' ' && *s != '\0'; s++)
-	    ;
-	l = *s;
-	*s = '\0';
-	if (s != p)
-	    send_arg (p);
-	if (l == '\0')
-	    break;
-	p = s + 1;
-    }
-    free (copy);
+    int i;
+    for (i = 0; i < argc; i++)
+	send_arg (argv[i]);
 }
 
 

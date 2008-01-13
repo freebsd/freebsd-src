@@ -1,9 +1,18 @@
 /*
+ * Copyright (C) 1994-2005 The Free Software Foundation, Inc.
  *
- *    You may distribute under the terms of the GNU General Public License
- *    as specified in the README file that comes with the CVS 1.0 kit.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
  *
- * **************** History of Users and Module ****************
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/* **************** History of Users and Module ****************
  *
  * LOGGING:  Append record to "${CVSROOT}/CVSROOTADM/CVSROOTADM_HISTORY".
  *
@@ -236,7 +245,7 @@ static short tz_local;
 static time_t tz_seconds_east_of_GMT;
 static char *tz_name = "+0000";
 
-char *logHistory = ALL_HISTORY_REC_TYPES;
+char *logHistory;
 
 /* -r, -t, or -b options, malloc'd.  These are "" if the option in
    question is not specified or is overridden by another option.  The
@@ -257,24 +266,24 @@ static struct hrec *last_backto;
    we do.  */
 static char *rec_types;
 
-static int hrec_count;
-static int hrec_max;
+static size_t hrec_count;
+static size_t hrec_max;
 
 static char **user_list;	/* Ptr to array of ptrs to user names */
-static int user_max;		/* Number of elements allocated */
-static int user_count;		/* Number of elements used */
+static size_t user_max;		/* Number of elements allocated */
+static size_t user_count;		/* Number of elements used */
 
 static struct file_list_str
 {
     char *l_file;
     char *l_module;
 } *file_list;			/* Ptr to array file name structs */
-static int file_max;		/* Number of elements allocated */
-static int file_count;		/* Number of elements used */
+static size_t file_max;		/* Number of elements allocated */
+static size_t file_count;		/* Number of elements used */
 
 static char **mod_list;		/* Ptr to array of ptrs to module names */
-static int mod_max;		/* Number of elements allocated */
-static int mod_count;		/* Number of elements used */
+static size_t mod_max;		/* Number of elements allocated */
+static size_t mod_count;	/* Number of elements used */
 
 static char *histfile;		/* Ptr to the history file name */
 
@@ -442,7 +451,7 @@ history (argc, argv)
 		backto = xstrdup (optarg);
 		break;
 	    case 'f':			/* For specified file */
-		save_file ("", optarg, (char *) NULL);
+		save_file (NULL, optarg, NULL);
 		break;
 	    case 'm':			/* Full module report */
 		if (!module_report++) report_count++;
@@ -451,7 +460,7 @@ history (argc, argv)
 		save_module (optarg);
 		break;
 	    case 'p':			/* For specified directory */
-		save_file (optarg, "", (char *) NULL);
+		save_file (optarg, NULL, NULL);
 		break;
 	    case 'r':			/* Since specified Tag/Rev */
 		if (since_date || *since_tag || *backto)
@@ -534,7 +543,7 @@ history (argc, argv)
     argc -= optind;
     argv += optind;
     for (i = 0; i < argc; i++)
-	save_file ("", argv[i], (char *) NULL);
+	save_file (NULL, argv[i], NULL);
 
 
     /* ================ Now analyze the arguments a bit */
@@ -724,9 +733,10 @@ history_write (type, update_dir, revs, name, repository)
 				 * readonlyfs.
 				 */
 	return;
-    if ( strchr(logHistory, type) == NULL )	
+    if (strchr (logHistory, type) == NULL)
 	return;
-    fname = xmalloc (strlen (current_parsed_root->directory) + sizeof (CVSROOTADM)
+    fname = xmalloc (strlen (current_parsed_root->directory)
+		     + sizeof (CVSROOTADM)
 		     + sizeof (CVSROOTADM_HISTORY) + 3);
     (void) sprintf (fname, "%s/%s/%s", current_parsed_root->directory,
 		    CVSROOTADM, CVSROOTADM_HISTORY);
@@ -752,6 +762,11 @@ history_write (type, update_dir, revs, name, repository)
 		 CLIENT_SERVER_STR, fname);
     if (noexec)
 	goto out;
+
+    if (!history_lock (current_parsed_root->directory))
+	/* history_lock() will already have printed an error on failure.  */
+	goto out;
+
     fd = CVS_OPEN (fname, O_WRONLY | O_APPEND | OPEN_BINARY, 0666);
     if (fd < 0)
     {
@@ -789,7 +804,7 @@ history_write (type, update_dir, revs, name, repository)
 		if (save_cwd (&cwd))
 		    error_exit ();
 
-		if ( CVS_CHDIR (pwdir) < 0 || (homedir = xgetwd ()) == NULL)
+		if (CVS_CHDIR (pwdir) < 0 || (homedir = xgetwd ()) == NULL)
 		    homedir = pwdir;
 
 		if (restore_cwd (&cwd, NULL))
@@ -896,6 +911,7 @@ history_write (type, update_dir, revs, name, repository)
 	error (1, errno, "cannot close history file: %s", fname);
     free (workdir);
  out:
+    clear_history_lock ();
     free (fname);
 }
 
@@ -910,7 +926,8 @@ save_user (name)
     if (user_count == user_max)
     {
 	user_max = xsum (user_max, USER_INCREMENT);
-	if (size_overflow_p (xtimes (user_max, sizeof (char *))))
+	if (user_count == user_max
+	    || size_overflow_p (xtimes (user_max, sizeof (char *))))
 	{
 	    error (0, 0, "save_user: too many users");
 	    return;
@@ -944,7 +961,8 @@ save_file (dir, name, module)
     if (file_count == file_max)
     {
 	file_max = xsum (file_max, FILE_INCREMENT);
-	if (size_overflow_p (xtimes (file_max, sizeof (*fl))))
+	if (file_count == file_max
+	    || size_overflow_p (xtimes (file_max, sizeof (*fl))))
 	{
 	    error (0, 0, "save_file: too many files");
 	    return;
@@ -952,7 +970,9 @@ save_file (dir, name, module)
 	file_list = xrealloc (file_list, xtimes (file_max, sizeof (*fl)));
     }
     fl = &file_list[file_count++];
-    fl->l_file = cp = xmalloc (strlen (dir) + strlen (name) + 2);
+    fl->l_file = cp = xmalloc (dir ? strlen (dir) : 0
+			       + name ? strlen (name) : 0
+			       + 2);
     fl->l_module = module;
 
     if (dir && *dir)
@@ -989,7 +1009,8 @@ save_module (module)
     if (mod_count == mod_max)
     {
 	mod_max = xsum (mod_max, MODULE_INCREMENT);
-	if (size_overflow_p (xtimes (mod_max, sizeof (char *))))
+	if (mod_count == mod_max
+	    || size_overflow_p (xtimes (mod_max, sizeof (char *))))
 	{
 	    error (0, 0, "save_module: too many modules");
 	    return;
@@ -1142,9 +1163,13 @@ read_hrecs (fname)
 	{
 	    struct hrec *old_head = hrec_head;
 
-	    hrec_max += HREC_INCREMENT;
-	    hrec_head = xrealloc ((char *) hrec_head,
-				  hrec_max * sizeof (struct hrec));
+	    hrec_max = xsum (hrec_max, HREC_INCREMENT);
+	    if (hrec_count == hrec_max
+		|| size_overflow_p (xtimes (hrec_max, sizeof (struct hrec))))
+		error (1, 0, "Too many history records in history file.");
+
+	    hrec_head = xrealloc (hrec_head,
+				  xtimes (hrec_max, sizeof (struct hrec)));
 	    if (last_since_tag)
 		last_since_tag = hrec_head + (last_since_tag - old_head);
 	    if (last_backto)
@@ -1393,6 +1418,8 @@ select_hrec (hr)
 		    if (within (cp, cp2))
 		    {
 			hr->mod = fl->l_module;
+			if (cmpfile != NULL)
+			    free (cmpfile);
 			break;
 		    }
 		    if (cmpfile != NULL)
