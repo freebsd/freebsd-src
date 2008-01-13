@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -63,8 +68,9 @@ static int have_rev1_label, have_rev2_label;
 static char *user_file_rev;
 
 static char *options;
-static char *opts;
-static size_t opts_allocated = 1;
+static char **diff_argv;
+static int diff_argc;
+static size_t diff_arg_allocated;
 static int diff_errors;
 static int empty_files = 0;
 
@@ -209,6 +215,54 @@ static struct option const longopts[] =
     {0, 0, 0, 0}
 };
 
+
+
+/* Add one of OPT or LONGOPT, and ARGUMENT, when present, to global DIFF_ARGV.
+ *
+ * INPUTS
+ *   opt		A character option representation.
+ *   longopt		A long option name.
+ *   argument		Optional option argument.
+ *   
+ * GLOBALS
+ *   diff_argc		The number of arguments in DIFF_ARGV.
+ *   diff_argv		Array of argument strings.
+ *   diff_arg_allocated	Allocated length of DIFF_ARGV.
+ *
+ * NOTES
+ *   Behavior when both OPT & LONGOPT are provided is undefined.
+ *
+ * RETURNS
+ *   Nothing.
+ */
+static void
+add_diff_args (char opt, const char *longopt, const char *argument)
+{
+    char *tmp;
+
+    /* Add opt or longopt to diff_arv.  */
+    assert (opt || (longopt && *longopt));
+    assert (!(opt && (longopt && *longopt)));
+    if (opt)
+    {
+	tmp = xmalloc (3);
+	sprintf (tmp, "-%c", opt);
+    }
+    else
+    {
+	tmp = xmalloc (3 + strlen (longopt));
+	sprintf (tmp, "--%s", longopt);
+    }
+    run_add_arg_p (&diff_argc, &diff_arg_allocated, &diff_argv, tmp);
+    free (tmp);
+
+    /* When present, add ARGUMENT to DIFF_ARGV.  */
+    if (argument)
+	run_add_arg_p (&diff_argc, &diff_arg_allocated, &diff_argv, argument);
+}
+
+
+
 /* CVS 1.9 and similar versions seemed to have pretty weird handling
    of -y and -T.  In the cases where it called rcsdiff,
    they would have the meanings mentioned below.  In the cases where it
@@ -245,7 +299,6 @@ diff (argc, argv)
     int argc;
     char **argv;
 {
-    char tmp[50];
     int c, err = 0;
     int local = 0;
     int which;
@@ -265,12 +318,11 @@ diff (argc, argv)
     /* Clean out our global variables (multiroot can call us multiple
        times and the server can too, if the client sends several
        diff commands).  */
-    if (opts == NULL)
+    if (diff_argc)
     {
-	opts_allocated = 1;
-	opts = xmalloc (opts_allocated);
+	run_arg_free_p (diff_argc, diff_argv);
+	diff_argc = 0;
     }
-    opts[0] = '\0';
     diff_rev1 = NULL;
     diff_rev2 = NULL;
     diff_date1 = NULL;
@@ -293,7 +345,7 @@ diff (argc, argv)
 	switch (c)
 	{
 	    case 'y':
-		xrealloc_and_strcat (&opts, &opts_allocated, " --side-by-side");
+		add_diff_args (0, "side-by-side", NULL);
 		break;
 	    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
 	    case 'h': case 'i': case 'n': case 'p': case 's': case 't':
@@ -301,8 +353,7 @@ diff (argc, argv)
             case '0': case '1': case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9':
 	    case 'B': case 'H': case 'T':
-		(void) sprintf (tmp, " -%c", (char) c);
-		xrealloc_and_strcat (&opts, &opts_allocated, tmp);
+		add_diff_args (c, NULL, NULL);
 		break;
 	    case 'L':
 		if (have_rev1_label++)
@@ -311,33 +362,15 @@ diff (argc, argv)
 			error (0, 0, "extra -L arguments ignored");
 			break;
 		    }
-
-	        xrealloc_and_strcat (&opts, &opts_allocated, " -L");
-	        xrealloc_and_strcat (&opts, &opts_allocated, optarg);
-		break;
+		/* Fall through.  */
 	    case 'C': case 'F': case 'I': case 'U': case 'W':
-		(void) sprintf (tmp, " -%c", (char) c);
-		xrealloc_and_strcat (&opts, &opts_allocated, tmp);
-		xrealloc_and_strcat (&opts, &opts_allocated, optarg);
+		add_diff_args (c, NULL, optarg);
 		break;
-	    case 131:
-		/* --ifdef.  */
-		xrealloc_and_strcat (&opts, &opts_allocated, " --ifdef=");
-		xrealloc_and_strcat (&opts, &opts_allocated, optarg);
-		break;
-	    case 129: case 130:           case 132: case 133: case 134:
+	    case 129: case 130: case 131: case 132: case 133: case 134:
 	    case 135: case 136: case 137: case 138: case 139: case 140:
 	    case 141: case 142: case 143: case 145: case 146:
-		xrealloc_and_strcat (&opts, &opts_allocated, " --");
-		xrealloc_and_strcat (&opts, &opts_allocated,
-				     longopts[option_index].name);
-		if (longopts[option_index].has_arg == 1
-		    || (longopts[option_index].has_arg == 2
-			&& optarg != NULL))
-		{
-		    xrealloc_and_strcat (&opts, &opts_allocated, "=");
-		    xrealloc_and_strcat (&opts, &opts_allocated, optarg);
-		}
+		add_diff_args (0, longopts[option_index].name,
+			      longopts[option_index].has_arg ? optarg : NULL);
 		break;
 	    case 'R':
 		local = 0;
@@ -416,7 +449,7 @@ diff (argc, argv)
 	    send_arg("-l");
 	if (empty_files)
 	    send_arg("-N");
-	send_option_string (opts);
+	send_options (diff_argc, diff_argv);
 	if (options[0] != '\0')
 	    send_arg (options);
 	if (diff_join1)
@@ -446,24 +479,24 @@ diff (argc, argv)
         err = get_responses_and_close ();
     } else
 #endif
-    {
-	if (diff_rev1 != NULL)
-	    tag_check_valid (diff_rev1, argc, argv, local, 0, "");
-	if (diff_rev2 != NULL)
-	    tag_check_valid (diff_rev2, argc, argv, local, 0, "");
+    { /* FreeBSD addition - warning idention not changed til matching-} */
+    if (diff_rev1 != NULL)
+	tag_check_valid (diff_rev1, argc, argv, local, 0, "");
+    if (diff_rev2 != NULL)
+	tag_check_valid (diff_rev2, argc, argv, local, 0, "");
 
-	which = W_LOCAL;
-	if (diff_rev1 != NULL || diff_date1 != NULL)
-	    which |= W_REPOS | W_ATTIC;
+    which = W_LOCAL;
+    if (diff_rev1 != NULL || diff_date1 != NULL)
+	which |= W_REPOS | W_ATTIC;
 
-	wrap_setup ();
+    wrap_setup ();
 
-	/* start the recursion processor */
-	err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
-			       diff_dirleaveproc, NULL, argc, argv, local,
-			       which, 0, CVS_LOCK_READ, (char *) NULL, 1,
-			       (char *) NULL);
-    }
+    /* start the recursion processor */
+    err = start_recursion (diff_fileproc, diff_filesdoneproc, diff_dirproc,
+			   diff_dirleaveproc, NULL, argc, argv, local,
+			   which, 0, CVS_LOCK_READ, (char *) NULL, 1,
+			   (char *) NULL);
+    } /* FreeBSD addition */
 
     /* clean up */
     free (options);
@@ -522,7 +555,7 @@ diff_fileproc (callerdat, finfo)
 		int exists;
 
 		exists = 0;
-		/* special handling for TAG_HEAD XXX */
+		/* special handling for TAG_HEAD */
 		if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
 		{
 		    char *head =
@@ -733,8 +766,8 @@ RCS file: ", 0);
 	if (empty_file == DIFF_ADDED)
 	{
 	    if (use_rev2 == NULL)
-                status = diff_exec (DEVNULL, finfo->file, label1, label2, opts,
-                                    RUN_TTY);
+                status = diff_exec (DEVNULL, finfo->file, label1, label2,
+				    diff_argc, diff_argv, RUN_TTY);
 	    else
 	    {
 		int retcode;
@@ -750,7 +783,8 @@ RCS file: ", 0);
 		if( retcode != 0 )
 		    goto out;
 
-		status = diff_exec (DEVNULL, tmp, label1, label2, opts, RUN_TTY);
+		status = diff_exec (DEVNULL, tmp, label1, label2,
+				    diff_argc, diff_argv, RUN_TTY);
 	    }
 	}
 	else
@@ -766,16 +800,16 @@ RCS file: ", 0);
 	    if (retcode != 0)
 		goto out;
 
-	    status = diff_exec (tmp, DEVNULL, label1, label2, opts, RUN_TTY);
+	    status = diff_exec (tmp, DEVNULL, label1, label2,
+				diff_argc, diff_argv, RUN_TTY);
 	}
     }
     else
     {
-	status = RCS_exec_rcsdiff(vers->srcfile, opts,
-                                  *options ? options : vers->options,
-                                  use_rev1, rev1_cache, use_rev2,
-                                  label1, label2,
-                                  finfo->file);
+	status = RCS_exec_rcsdiff (vers->srcfile, diff_argc, diff_argv,
+                                   *options ? options : vers->options,
+                                   use_rev1, rev1_cache, use_rev2,
+                                   label1, label2, finfo->file);
 
     }
 
@@ -919,7 +953,7 @@ diff_file_nodiff( finfo, vers, empty_file, rev1_cache )
 
     if (diff_rev1 || diff_date1)
     {
-	/* special handling for TAG_HEAD XXX */
+	/* special handling for TAG_HEAD */
 	if (diff_rev1 && strcmp (diff_rev1, TAG_HEAD) == 0)
 	{
 	    if (vers->vn_rcs != NULL && vers->srcfile != NULL)
@@ -935,7 +969,7 @@ diff_file_nodiff( finfo, vers, empty_file, rev1_cache )
     }
     if (diff_rev2 || diff_date2)
     {
-	/* special handling for TAG_HEAD XXX */
+	/* special handling for TAG_HEAD */
 	if (diff_rev2 && strcmp (diff_rev2, TAG_HEAD) == 0)
 	{
 	    if (vers->vn_rcs != NULL && vers->srcfile != NULL)
