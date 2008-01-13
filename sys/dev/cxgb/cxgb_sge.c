@@ -2472,7 +2472,8 @@ init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
 	struct mbuf *m;
 	int header_size;
 	
-	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) + sizeof(struct m_ext_) + sizeof(uint32_t);
+	header_size = sizeof(struct m_hdr) + sizeof(struct pkthdr) +
+	    sizeof(struct m_ext_) + sizeof(uint32_t);
 	
 	bzero(cl, header_size);
 	m = (struct mbuf *)cl;
