@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -53,8 +58,8 @@
    On a related note, see the comments at diff_exec, later in this file,
    for more on the diff library.  */
 
-static void RCS_output_diff_options PROTO ((const char *, const char *,
-                                            const char *, const char *));
+static void RCS_output_diff_options PROTO ((int, char *const *, const char *,
+				            const char *, const char *));
 
 
 /* Stuff to deal with passing arguments the way libdiff.a wants to deal
@@ -66,17 +71,18 @@ static void RCS_output_diff_options PROTO ((const char *, const char *,
    argument will be parsed into whitespace separated words and added
    to the global call_diff_argv list.
 
-   Then, optionally, call call_diff_arg for each additional argument
+   Then, optionally, call call_diff_add_arg for each additional argument
    that you'd like to pass to the diff library.
 
    Finally, call call_diff or call_diff3 to produce the diffs.  */
 
 static char **call_diff_argv;
 static int call_diff_argc;
-static int call_diff_argc_allocated;
+static size_t call_diff_argc_allocated;
 
 static void call_diff_add_arg PROTO ((const char *));
-static void call_diff_setup PROTO ((const char *prog));
+static void call_diff_setup PROTO ((const char *prog,
+				    int argc, char * const *argv));
 static int call_diff PROTO ((const char *out));
 static int call_diff3 PROTO ((char *out));
 
@@ -85,62 +91,37 @@ static void call_diff_flush_output PROTO((void));
 static void call_diff_write_stdout PROTO((const char *));
 static void call_diff_error PROTO((const char *, const char *, const char *));
 
-/* VARARGS */
-static void 
-call_diff_setup (prog)
-    const char *prog;
-{
-    char *cp;
-    int i;
-    char *call_diff_prog;
 
-    /* clean out any malloc'ed values from call_diff_argv */
-    for (i = 0; i < call_diff_argc; i++)
-    {
-	if (call_diff_argv[i])
-	{
-	    free (call_diff_argv[i]);
-	    call_diff_argv[i] = (char *) 0;
-	}
-    }
-    call_diff_argc = 0;
-
-    call_diff_prog = xstrdup (prog);
-
-    /* put each word into call_diff_argv, allocating it as we go */
-    for (cp = strtok (call_diff_prog, " \t");
-	 cp != NULL;
-	 cp = strtok ((char *) NULL, " \t"))
-	call_diff_add_arg (cp);
-    free (call_diff_prog);
-}
-
-static void
-call_diff_arg (s)
-    const char *s;
-{
-    call_diff_add_arg (s);
-}
 
 static void
 call_diff_add_arg (s)
     const char *s;
 {
-    /* allocate more argv entries if we've run out */
-    if (call_diff_argc >= call_diff_argc_allocated)
-    {
-	call_diff_argc_allocated += 50;
-	call_diff_argv = (char **)
-	    xrealloc ((char *) call_diff_argv,
-		      call_diff_argc_allocated * sizeof (char **));
-    }
-
-    if (s)
-	call_diff_argv[call_diff_argc++] = xstrdup (s);
-    else
-	/* Not post-incremented on purpose!  */
-	call_diff_argv[call_diff_argc] = (char *) 0;
+    run_add_arg_p (&call_diff_argc, &call_diff_argc_allocated, &call_diff_argv,
+		   s);
 }
+
+
+
+/* VARARGS */
+static void 
+call_diff_setup (prog, argc, argv)
+    const char *prog;
+    int argc;
+    char * const *argv;
+{
+    int i;
+
+    /* clean out any malloc'ed values from call_diff_argv */
+    run_arg_free_p (call_diff_argc, call_diff_argv);
+    call_diff_argc = 0;
+
+    /* put each word into call_diff_argv, allocating it as we go */
+    call_diff_add_arg (prog);
+    for (i = 0; i < argc; i++)
+	call_diff_add_arg (argv[i]);
+}
+
 
 /* Callback function for the diff library to write data to the output
    file.  This is used when we are producing output to stdout.  */
@@ -213,6 +194,8 @@ static int
 call_diff (out)
     const char *out;
 {
+    call_diff_add_arg (NULL);
+
     if (out == RUN_TTY)
 	return diff_run (call_diff_argc, call_diff_argv, NULL,
 			 &call_diff_stdout_callbacks);
@@ -264,6 +247,7 @@ RCS_merge(rcs, path, workfile, options, rev1, rev2)
        symbolic). */
     xrev1 = RCS_gettag (rcs, rev1, 0, NULL);
     xrev2 = RCS_gettag (rcs, rev2, 0, NULL);
+    assert (xrev1 && xrev2);
 
     /* Check out chosen revisions.  The error message when RCS_checkout
        fails is not very informative -- it is taken verbatim from RCS 5.7,
@@ -304,21 +288,21 @@ RCS_merge(rcs, path, workfile, options, rev1, rev2)
     /* Remember that the first word in the `call_diff_setup' string is used now
        only for diagnostic messages -- CVS no longer forks to run diff3. */
     diffout = cvs_temp_name();
-    call_diff_setup ("diff3");
-    call_diff_arg ("-E");
-    call_diff_arg ("-am");
+    call_diff_setup ("diff3", 0, NULL);
+    call_diff_add_arg ("-E");
+    call_diff_add_arg ("-am");
 
-    call_diff_arg ("-L");
-    call_diff_arg (workfile);
-    call_diff_arg ("-L");
-    call_diff_arg (xrev1);
-    call_diff_arg ("-L");
-    call_diff_arg (xrev2);
+    call_diff_add_arg ("-L");
+    call_diff_add_arg (workfile);
+    call_diff_add_arg ("-L");
+    call_diff_add_arg (xrev1);
+    call_diff_add_arg ("-L");
+    call_diff_add_arg (xrev2);
 
-    call_diff_arg ("--");
-    call_diff_arg (workfile);
-    call_diff_arg (tmp1);
-    call_diff_arg (tmp2);
+    call_diff_add_arg ("--");
+    call_diff_add_arg (workfile);
+    call_diff_add_arg (tmp1);
+    call_diff_add_arg (tmp2);
 
     retval = call_diff3 (diffout);
 
@@ -384,10 +368,11 @@ RCS_merge(rcs, path, workfile, options, rev1, rev2)
    about this--any such features are undocumented in the context of
    CVS, and I'm not sure how important to users.  */
 int
-RCS_exec_rcsdiff(rcsfile, opts, options, rev1, rev1_cache, rev2,
-                 label1, label2, workfile )
+RCS_exec_rcsdiff (rcsfile, diff_argc, diff_argv, options, rev1, rev1_cache,
+		  rev2, label1, label2, workfile)
     RCSNode *rcsfile;
-    const char *opts;
+    int diff_argc;
+    char * const *diff_argv;
     const char *options;
     const char *rev1;
     const char *rev1_cache;
@@ -467,8 +452,9 @@ RCS file: ", 0);
 	use_file2 = tmpfile2;
     }
 
-    RCS_output_diff_options (opts, rev1, rev2, workfile);
-    status = diff_exec( use_file1, use_file2, label1, label2, opts, RUN_TTY );
+    RCS_output_diff_options (diff_argc, diff_argv, rev1, rev2, workfile);
+    status = diff_exec (use_file1, use_file2, label1, label2,
+			diff_argc, diff_argv, RUN_TTY);
     if (status >= 0)
     {
 	retval = status;
@@ -547,16 +533,15 @@ RCS file: ", 0);
    message on stderr.  */
 
 int
-diff_exec (file1, file2, label1, label2, options, out)
+diff_exec (file1, file2, label1, label2, dargc, dargv, out)
     const char *file1;
     const char *file2;
     const char *label1;
     const char *label2;
-    const char *options;
+    int dargc;
+    char * const *dargv;
     const char *out;
 {
-    char *args;
-
 #ifdef PRESERVE_PERMISSIONS_SUPPORT
     /* If either file1 or file2 are special files, pretend they are
        /dev/null.  Reason: suppose a file that represents a block
@@ -590,18 +575,15 @@ diff_exec (file1, file2, label1, label2, options, out)
     }
 #endif
 
-    args = xmalloc (strlen (options) + 10);
-    /* The first word in this string is used only for error reporting. */
-    sprintf (args, "diff %s", options);
-    call_diff_setup (args);
+    /* The first arg to call_diff_setup is used only for error reporting. */
+    call_diff_setup ("diff", dargc, dargv);
     if (label1)
-	call_diff_arg (label1);
+	call_diff_add_arg (label1);
     if (label2)
-	call_diff_arg (label2);
-    call_diff_arg ("--");
-    call_diff_arg (file1);
-    call_diff_arg (file2);
-    free (args);
+	call_diff_add_arg (label2);
+    call_diff_add_arg ("--");
+    call_diff_add_arg (file1);
+    call_diff_add_arg (file2);
 
     return call_diff (out);
 }
@@ -613,19 +595,23 @@ diff_exec (file1, file2, label1, label2, options, out)
    that I have seen. */
 
 static void
-RCS_output_diff_options (opts, rev1, rev2, workfile)
-    const char *opts;
+RCS_output_diff_options (diff_argc, diff_argv, rev1, rev2, workfile)
+    int diff_argc;
+    char * const *diff_argv;
     const char *rev1;
     const char *rev2;
     const char *workfile;
 {
-    char *tmp;
-
-    tmp = (char *) xmalloc (strlen (opts) + strlen (rev1) + 10);
-
-    sprintf (tmp, "diff%s -r%s", opts, rev1);
-    cvs_output (tmp, 0);
-    free (tmp);
+    int i;
+    
+    cvs_output ("diff", 0);
+    for (i = 0; i < diff_argc; i++)
+    {
+        cvs_output (" ", 1);
+	cvs_output (diff_argv[i], 0);
+    }
+    cvs_output (" -r", 3);
+    cvs_output (rev1, 0);
 
     if (rev2)
     {

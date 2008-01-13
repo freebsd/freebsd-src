@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS kit.
@@ -284,7 +289,7 @@ static const char *const modules_contents[] = {
 
 static const char *const config_contents[] = {
     "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
-    "#SystemAuth=no\n",
+    "#SystemAuth=yes\n",
     "\n",
     "# Put CVS lock files in this directory rather than directly in the repository.\n",
     "#LockDir=/var/lock/cvs\n",
@@ -305,7 +310,7 @@ static const char *const config_contents[] = {
     "#LogHistory=" ALL_HISTORY_REC_TYPES "\n",
     "\n",
     "# Set `RereadLogAfterVerify' to `always' (the default) to allow the verifymsg\n",
-    "# script to change the log message.  Set it to `stat' to force CVS to verify",
+    "# script to change the log message.  Set it to `stat' to force CVS to verify\n",
     "# that the file has changed before reading it (this can take up to an extra\n",
     "# second per directory being committed, so it is not recommended for large\n",
     "# repositories.  Set it to `never' (the previous CVS behavior) to prevent\n",
@@ -579,7 +584,17 @@ checkout_file (file, temp)
 	free (rcs);
 	return (1);
     }
+
     rcsnode = RCS_parsercsfile (rcs);
+    if (!rcsnode)
+    {
+	/* Probably not necessary (?); RCS_parsercsfile already printed a
+	   message.  */
+	error (0, 0, "Failed to parse `%s'.", rcs);
+	free (rcs);
+	return 1;
+    }
+
     retcode = RCS_checkout (rcsnode, NULL, NULL, NULL, NULL, temp,
 			    (RCSCHECKOUTPROC) NULL, (void *) NULL);
     if (retcode != 0)
