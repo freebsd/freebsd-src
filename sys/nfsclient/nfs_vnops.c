@@ -930,7 +930,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
@@ -1622,7 +1622,7 @@ nfs_rename(struct vop_rename_args *ap)
 	 * this condition can result in potential (silent) data loss.
 	 */
 	error = VOP_FSYNC(fvp, MNT_WAIT, fcnp->cn_thread);
-	VOP_UNLOCK(fvp, 0, fcnp->cn_thread);
+	VOP_UNLOCK(fvp, 0);
 	if (!error && tvp)
 		error = VOP_FSYNC(tvp, MNT_WAIT, tcnp->cn_thread);
 	if (error)

@@ -1185,7 +1185,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
 		if (uap->name != _PC_PIPE_BUF) {

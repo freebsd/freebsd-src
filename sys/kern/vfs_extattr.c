@@ -192,7 +192,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	td->td_retval[0] = cnt;
 
 done:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -374,7 +374,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		td->td_retval[0] = size;
 
 done:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	return (error);
 }
 
@@ -526,7 +526,7 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 #ifdef MAC
 done:
 #endif
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
 }
@@ -691,7 +691,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		td->td_retval[0] = size;
 
 done:
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	return (error);
 }
 

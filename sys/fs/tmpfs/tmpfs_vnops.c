@@ -99,7 +99,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 
 		ltype = VOP_ISLOCKED(dvp, td);
 		vhold(dvp);
-		VOP_UNLOCK(dvp, 0, td);
+		VOP_UNLOCK(dvp, 0);
 		/* Allocate a new vnode on the matching entry. */
 		error = tmpfs_alloc_vp(dvp->v_mount, dnode->tn_dir.tn_parent,
 		    cnp->cn_lkflags, vpp, td);
@@ -1056,7 +1056,7 @@ tmpfs_rename(struct vop_rename_args *v)
 
 out_locked:
 	if (fdnode != tdnode)
-		VOP_UNLOCK(fdvp, 0, tcnp->cn_thread);
+		VOP_UNLOCK(fdvp, 0);
 
 out:
 	/* Release target nodes. */

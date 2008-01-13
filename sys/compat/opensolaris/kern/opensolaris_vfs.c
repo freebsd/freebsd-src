@@ -194,7 +194,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 */
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	mp->mnt_optnew = NULL;
 	vfs_setmntopt(mp, "from", fspec, 0);
@@ -260,7 +260,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 			panic("mount: lost mount");
 		mountcheckdirs(vp, mvp);
 		vput(mvp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
@@ -272,7 +272,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vfs_unbusy(mp, td);
 		vfs_mount_destroy(mp);
 	}

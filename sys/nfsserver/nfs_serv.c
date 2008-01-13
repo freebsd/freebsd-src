@@ -545,7 +545,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 * via the original nd.  Confused?  You aren't alone!
 			 */
 			ind = nd;
-			VOP_UNLOCK(nd.ni_vp, 0, td);
+			VOP_UNLOCK(nd.ni_vp, 0);
 			ind.ni_pathlen = strlen(nfs_pub.np_index);
 			ind.ni_cnd.cn_nameptr = ind.ni_cnd.cn_pnbuf =
 			    nfs_pub.np_index;
@@ -1482,7 +1482,7 @@ loop1:
 		    mvfslocked = 0;
 		    if (!error) {
 			if (vn_start_write(vp, &mntp, V_NOWAIT) != 0) {
-			    VOP_UNLOCK(vp, 0, td);
+			    VOP_UNLOCK(vp, 0);
 			    error = vn_start_write(NULL, &mntp, V_WAIT);
 			    vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			}
@@ -1890,7 +1890,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-			VOP_UNLOCK(dirp, 0, td);
+			VOP_UNLOCK(dirp, 0);
 		}
 	}
 ereply:
@@ -2092,7 +2092,7 @@ out:
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-		VOP_UNLOCK(dirp, 0, td);
+		VOP_UNLOCK(dirp, 0);
 	}
 ereply:
 	nfsm_reply(NFSX_SRVFH(1) + NFSX_POSTOPATTR(1) + NFSX_WCCDATA(1));
@@ -2209,7 +2209,7 @@ out:
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-			VOP_UNLOCK(dirp, 0, td);
+			VOP_UNLOCK(dirp, 0);
 		}
 		vrele(dirp);
 		dirp = NULL;
@@ -2420,12 +2420,12 @@ out1:
 		if (fdirp) {
 			vn_lock(fdirp, LK_EXCLUSIVE | LK_RETRY);
 			fdiraft_ret = VOP_GETATTR(fdirp, &fdiraft, cred, td);
-			VOP_UNLOCK(fdirp, 0, td);
+			VOP_UNLOCK(fdirp, 0);
 		}
 		if (tdirp) {
 			vn_lock(tdirp, LK_EXCLUSIVE | LK_RETRY);
 			tdiraft_ret = VOP_GETATTR(tdirp, &tdiraft, cred, td);
-			VOP_UNLOCK(tdirp, 0, td);
+			VOP_UNLOCK(tdirp, 0);
 		}
 		nfsm_srvwcc_data(fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
 		nfsm_srvwcc_data(tdirfor_ret, &tdirfor, tdiraft_ret, &tdiraft);
@@ -2528,7 +2528,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = EPERM;		/* POSIX */
 		goto out1;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | MPSAFE | MPSAFE;
@@ -2585,7 +2585,7 @@ out2:
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-			VOP_UNLOCK(dirp, 0, td);
+			VOP_UNLOCK(dirp, 0);
 		}
 	}
 ereply:
@@ -2761,7 +2761,7 @@ out:
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-		VOP_UNLOCK(dirp, 0, td);
+		VOP_UNLOCK(dirp, 0);
 	}
 	if (nd.ni_startdir) {
 		vrele(nd.ni_startdir);
@@ -2923,7 +2923,7 @@ out:
 			nd.ni_vp = NULL;
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-			VOP_UNLOCK(dirp, 0, td);
+			VOP_UNLOCK(dirp, 0);
 		}
 	}
 	nfsm_reply(NFSX_SRVFH(v3) + NFSX_POSTOPATTR(v3) + NFSX_WCCDATA(v3));
@@ -3060,7 +3060,7 @@ out:
 			nd.ni_vp = NULL;
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
-			VOP_UNLOCK(dirp, 0, td);
+			VOP_UNLOCK(dirp, 0);
 		}
 	}
 	nfsm_reply(NFSX_WCCDATA(v3));
@@ -3217,7 +3217,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 
 	/*
 	 * end section.  Allocate rbuf and continue
@@ -3248,7 +3248,7 @@ again:
 		if (!error)
 			error = getret;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error) {
 		vrele(vp);
 		vp = NULL;
@@ -3503,7 +3503,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
@@ -3524,7 +3524,7 @@ again:
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (!cookies && !error)
 		error = NFSERR_PERM;
 	if (!error)

@@ -192,7 +192,7 @@ exec_aout_imgact(imgp)
 	 * However, in cases where the vnode lock is external, such as nullfs,
 	 * v_usecount may become zero.
 	 */
-	VOP_UNLOCK(imgp->vp, 0, curthread);
+	VOP_UNLOCK(imgp->vp, 0);
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack)

@@ -1055,7 +1055,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		    OFF_TO_IDX(offset + size + PAGE_MASK),
 		    flags);
 		VM_OBJECT_UNLOCK(object);
-		VOP_UNLOCK(vp, 0, curthread);
+		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		vn_finished_write(mp);
 		VM_OBJECT_LOCK(object);

@@ -2136,7 +2136,6 @@ SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
 static int
 flushbufqueues(int queue, int flushdeps)
 {
-	struct thread *td = curthread;
 	struct buf sentinel;
 	struct vnode *vp;
 	struct mount *mp;
@@ -2212,7 +2211,7 @@ flushbufqueues(int queue, int flushdeps)
 			    bp, bp->b_vp, bp->b_flags);
 			vfs_bio_awrite(bp);
 			vn_finished_write(mp);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			flushwithdeps += hasdeps;
 			flushed++;
 			waitrunningbufspace();

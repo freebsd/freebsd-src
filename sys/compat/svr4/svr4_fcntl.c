@@ -272,7 +272,7 @@ fd_revoke(td, fd)
 #ifdef MAC
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	error = mac_vnode_check_revoke(td->td_ucred, vp);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error)
 		goto out;
 #endif

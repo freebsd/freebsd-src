@@ -100,7 +100,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 		return (error);
 	}
 
-	VOP_UNLOCK(rvp, 0, td);
+	VOP_UNLOCK(rvp, 0);
 
 	vfs_mountedfrom(mp, "devfs");
 

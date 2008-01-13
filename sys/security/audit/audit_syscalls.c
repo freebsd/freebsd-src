@@ -656,14 +656,14 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	vp = nd.ni_vp;
 #ifdef MAC
 	error = mac_system_check_auditctl(td->td_ucred, vp);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 #else
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 #endif
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (vp->v_type != VREG) {

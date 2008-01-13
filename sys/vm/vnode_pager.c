@@ -112,7 +112,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 			VM_OBJECT_UNLOCK(object);
 			return (0);
 		}
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
 		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vodead", 0);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);

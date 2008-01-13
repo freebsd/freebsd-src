@@ -105,7 +105,7 @@ xfs_initialize_vnode(
 	 * and unlock the inode.
 	 */
 	if (ip->i_d.di_mode != 0 && unlock)
-		VOP_UNLOCK(xvp->v_vnode, 0, curthread);
+		VOP_UNLOCK(xvp->v_vnode, 0);
 }
 
 #if 0
@@ -189,7 +189,7 @@ xfs_blkdev_get(
 		vput(devvp);
 		return (error);
 	}
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 
 	devvp->v_bufobj.bo_private = cp;
 	devvp->v_bufobj.bo_ops = &xfs_bo_ops;

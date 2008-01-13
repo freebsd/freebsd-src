@@ -690,7 +690,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		vn_lock(dp, LK_EXCLUSIVE | LK_RETRY);
 		*retdirattr_retp = VOP_GETATTR(dp, retdirattrp,
 			ndp->ni_cnd.cn_cred, td);
-		VOP_UNLOCK(dp, 0, td);
+		VOP_UNLOCK(dp, 0);
 	}
 
 	if (pubflag) {
@@ -801,7 +801,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			else
 				uma_zfree(namei_zone, cnp->cn_pnbuf);
 			if (ndp->ni_vp && !lockleaf)
-				VOP_UNLOCK(ndp->ni_vp, 0, td);
+				VOP_UNLOCK(ndp->ni_vp, 0);
 			break;
 		}
 
@@ -809,7 +809,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 * Validate symlink
 		 */
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			VOP_UNLOCK(ndp->ni_dvp, 0, td);
+			VOP_UNLOCK(ndp->ni_dvp, 0);
 		if (!pubflag) {
 			error = EINVAL;
 			goto badlink2;
@@ -1083,7 +1083,6 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
     struct ucred *cred, struct nfssvc_sock *slp, struct sockaddr *nam,
     int *rdonlyp, int pubflag)
 {
-	struct thread *td = curthread; /* XXX */
 	struct mount *mp;
 	int i;
 	struct ucred *credanon;
@@ -1140,7 +1139,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 		*rdonlyp = 0;
 
 	if (!lockflag)
-		VOP_UNLOCK(*vpp, 0, td);
+		VOP_UNLOCK(*vpp, 0);
 out:
 	vfs_rel(mp);
 	if (error) {

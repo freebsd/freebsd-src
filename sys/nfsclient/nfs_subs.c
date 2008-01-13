@@ -503,7 +503,7 @@ nfs_downgrade_vnlock(struct vnode *vp, struct thread *td, int old_lock)
  			/* Downgrade from exclusive lock, this might block */
  			vn_lock(vp, LK_DOWNGRADE);
  		} else {
- 			VOP_UNLOCK(vp, 0, td);
+ 			VOP_UNLOCK(vp, 0);
  		}
   	}
 }

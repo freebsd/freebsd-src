@@ -267,10 +267,10 @@ ffs_mount(struct mount *mp, struct thread *td)
 			if (error)
 				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 			if (error) {
-				VOP_UNLOCK(devvp, 0, td);
+				VOP_UNLOCK(devvp, 0);
 				return (error);
 			}
-			VOP_UNLOCK(devvp, 0, td);
+			VOP_UNLOCK(devvp, 0);
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
@@ -470,7 +470,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 
 	/*
 	 * Step 2: re-read superblock from disk.
@@ -565,7 +565,7 @@ loop:
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		    (int)fs->fs_bsize, NOCRED, &bp);
 		if (error) {
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vrele(vp);
 			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			return (error);
@@ -573,7 +573,7 @@ loop:
 		ffs_load_inode(bp, ip, fs, ip->i_number);
 		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vrele(vp);
 		MNT_ILOCK(mp);
 	}
@@ -623,7 +623,7 @@ ffs_mountfs(devvp, mp, td)
 		error = g_access(cp, 0, 0, -1);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return (error);
 	if (devvp->v_rdev->si_iosize_max != 0)
@@ -1122,7 +1122,7 @@ ffs_flushfiles(mp, flags, td)
 	 */
 	vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_FSYNC(ump->um_devvp, MNT_WAIT, td);
-	VOP_UNLOCK(ump->um_devvp, 0, td);
+	VOP_UNLOCK(ump->um_devvp, 0);
 	return (error);
 }
 
@@ -1273,7 +1273,7 @@ loop:
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK);
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
-		VOP_UNLOCK(devvp, 0, td);
+		VOP_UNLOCK(devvp, 0);
 		if (allerror == 0 && waitfor == MNT_WAIT) {
 			MNT_ILOCK(mp);
 			goto loop;

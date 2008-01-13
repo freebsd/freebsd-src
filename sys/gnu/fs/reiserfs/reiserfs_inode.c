@@ -804,7 +804,7 @@ reiserfs_iget(
 		vp->v_vflag |= VV_ROOT;
 
 #if 0
-	if (VOP_LOCK(vp, LK_EXCLUSIVE, td) != 0)
+	if (VOP_LOCK(vp, LK_EXCLUSIVE) != 0)
 		panic("reiserfs/iget: unexpected lock failure");
 
 	/*

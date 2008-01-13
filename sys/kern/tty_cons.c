@@ -405,7 +405,7 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 	error = vn_open(&nd, &openflag, 0, NULL);
 	if (error == 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		VOP_UNLOCK(nd.ni_vp, 0, td);
+		VOP_UNLOCK(nd.ni_vp, 0);
 		if (nd.ni_vp->v_type == VCHR)
 			cnd->cnd_vp = nd.ni_vp;
 		else

@@ -77,12 +77,12 @@ kobj_open_file_vnode(const char *file)
 
 	flags = FREAD;
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
-	error = vn_open_cred(&nd, &flags, 0, td->td_ucred, NULL);
+	error = vn_open_cred(&nd, &flags, 0, curthread->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (NULL);
 	/* We just unlock so we hold a reference. */
-	VOP_UNLOCK(nd.ni_vp, 0, td);
+	VOP_UNLOCK(nd.ni_vp, 0);
 	return (nd.ni_vp);
 }
 
@@ -125,7 +125,7 @@ kobj_get_filesize_vnode(struct _buf *file, uint64_t *size)
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	if (error == 0)
 		*size = (uint64_t)va.va_size;
 	return (error);
@@ -178,7 +178,7 @@ kobj_read_file_vnode(struct _buf *file, char *buf, unsigned size, unsigned off)
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READ(vp, &auio, IO_UNIT | IO_SYNC, td->td_ucred);
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	return (error != 0 ? -1 : size - auio.uio_resid);
 }
 

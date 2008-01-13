@@ -955,7 +955,7 @@ lookloop:
 	/* Did we have a match? */
 	if (id) {
 		if (flags & ISDOTDOT)
-			VOP_UNLOCK(dvp, 0, a->a_cnp->cn_thread);
+			VOP_UNLOCK(dvp, 0);
 		error = udf_vget(udfmp->im_mountp, id, LK_EXCLUSIVE, &tdp);
 		if (flags & ISDOTDOT)
 			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY);

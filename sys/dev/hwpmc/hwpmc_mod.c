@@ -678,14 +678,12 @@ pmc_force_context_switch(void)
 static void
 pmc_getfilename(struct vnode *v, char **fullpath, char **freepath)
 {
-	struct thread *td;
 
-	td = curthread;
 	*fullpath = "unknown";
 	*freepath = NULL;
 	vn_lock(v, LK_CANRECURSE | LK_EXCLUSIVE | LK_RETRY);
-	vn_fullpath(td, v, fullpath, freepath);
-	VOP_UNLOCK(v, 0, td);
+	vn_fullpath(curthread, v, fullpath, freepath);
+	VOP_UNLOCK(v, 0);
 }
 
 /*

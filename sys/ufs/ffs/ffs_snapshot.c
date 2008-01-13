@@ -274,7 +274,7 @@ restart:
 	}
 	VOP_LEASE(nd.ni_dvp, td, KERNCRED, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
-	VOP_UNLOCK(nd.ni_dvp, 0, td);
+	VOP_UNLOCK(nd.ni_dvp, 0);
 	if (error) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vn_finished_write(wrtmp);
@@ -382,7 +382,7 @@ restart:
 	 */
 	if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
 		goto out;
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	/*
 	 * All allocations are done, so we can now snapshot the system.
 	 *
@@ -544,7 +544,7 @@ loop:
 		if (xvp->v_usecount == 0 &&
 		    (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) {
 			VI_UNLOCK(xvp);
-			VOP_UNLOCK(xvp, 0, td);
+			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
 			MNT_ILOCK(mp);
 			continue;
@@ -554,14 +554,14 @@ loop:
 			vprint("ffs_snapshot: busy vnode", xvp);
 		if (VOP_GETATTR(xvp, &vat, td->td_ucred, td) == 0 &&
 		    vat.va_nlink > 0) {
-			VOP_UNLOCK(xvp, 0, td);
+			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
 			MNT_ILOCK(mp);
 			continue;
 		}
 		xp = VTOI(xvp);
 		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
-			VOP_UNLOCK(xvp, 0, td);
+			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
 			MNT_ILOCK(mp);
 			continue;
@@ -592,7 +592,7 @@ loop:
 		if (!error)
 			error = ffs_freefile(ump, copy_fs, vp, xp->i_number,
 			    xp->i_mode);
-		VOP_UNLOCK(xvp, 0, td);
+		VOP_UNLOCK(xvp, 0);
 		vdrop(xvp);
 		if (error) {
 			free(copy_fs->fs_csp, M_UFSMNT);
@@ -796,7 +796,7 @@ out1:
 	 * the snapshot lock until the buffer has been written.
 	 */
 	VREF(vp);	/* Protect against ffs_snapgone() */
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	(void) bread(ip->i_devvp,
 		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		     (int) fs->fs_bsize, NOCRED, &nbp);
@@ -836,7 +836,7 @@ out:
 	if (error)
 		vput(vp);
 	else
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 	vrele(nd.ni_dvp);
 	vn_finished_write(wrtmp);
 	process_deferred_inactive(mp);
@@ -1978,7 +1978,7 @@ ffs_snapshot_mount(mp)
 			TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
 		vp->v_vflag |= VV_SYSTEM;
 		VI_UNLOCK(devvp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		lastvp = vp;
 	}
 	vp = lastvp;
@@ -2004,7 +2004,7 @@ ffs_snapshot_mount(mp)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
 		printf("ffs_snapshot_mount: read_1 failed %d\n", error);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		return;
 	}
 	MALLOC(snapblklist, void *, snaplistsize * sizeof(daddr_t),
@@ -2016,11 +2016,11 @@ ffs_snapshot_mount(mp)
 	auio.uio_offset -= sizeof(snaplistsize);
 	if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
 		printf("ffs_snapshot_mount: read_2 failed %d\n", error);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		FREE(snapblklist, M_UFSMNT);
 		return;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	VI_LOCK(devvp);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_mount");
 	sn->sn_listsize = snaplistsize;
@@ -2468,7 +2468,7 @@ process_deferred_inactive(struct mount *mp)
 		VI_LOCK(vp);
 		if ((vp->v_iflag & VI_OWEINACT) == 0 || vp->v_usecount > 0) {
 			VI_UNLOCK(vp);
-			VOP_UNLOCK(vp, 0, td);
+			VOP_UNLOCK(vp, 0);
 			vdrop(vp);
 			MNT_ILOCK(mp);
 			continue;
@@ -2488,7 +2488,7 @@ process_deferred_inactive(struct mount *mp)
 			 ("process_deferred_inactive: got VI_OWEINACT"));
 		vp->v_iflag &= ~VI_DOINGINACT;
 		VI_UNLOCK(vp);
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(vp, 0);
 		vdrop(vp);
 		MNT_ILOCK(mp);
 	}

@@ -253,7 +253,7 @@ smbfs_mount(struct mount *mp, struct thread *td)
 		vfs_mount_error(mp, "smbfs_root error: %d", error);
 		goto bad;
 	}
-	VOP_UNLOCK(vp, 0, td);
+	VOP_UNLOCK(vp, 0);
 	SMBVDEBUG("root.v_usecount = %d\n", vrefcnt(vp));
 
 #ifdef DIAGNOSTICS

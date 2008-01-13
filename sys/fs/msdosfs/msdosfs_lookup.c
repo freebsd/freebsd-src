@@ -108,7 +108,6 @@ msdosfs_lookup(ap)
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	struct thread *td = cnp->cn_thread;
 	int unlen;
 
 	int wincnt = 1;
@@ -520,7 +519,7 @@ foundroot:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, td);
+		VOP_UNLOCK(pdp, 0);
 		error = deget(pmp, cluster, blkoff,  &tdp);
 		vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY); 
 		if (error)

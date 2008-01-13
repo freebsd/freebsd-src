@@ -65,7 +65,6 @@ exec_linux_imgact(struct image_params *imgp)
     unsigned long virtual_offset, file_offset;
     vm_offset_t buffer;
     unsigned long bss_size;
-    struct thread *td = curthread;
     int error;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
@@ -114,7 +113,7 @@ exec_linux_imgact(struct image_params *imgp)
     }
     PROC_UNLOCK(imgp->proc);
 
-    VOP_UNLOCK(imgp->vp, 0, td);
+    VOP_UNLOCK(imgp->vp, 0);
 
     /*
      * Destroy old process VM and create a new one (with a new stack)

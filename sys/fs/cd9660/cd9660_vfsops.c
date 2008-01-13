@@ -178,7 +178,7 @@ cd9660_mount(struct mount *mp, struct thread *td)
 		vput(devvp);
 		return (error);
 	}
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = iso_mountfs(devvp, mp, td);
@@ -230,7 +230,7 @@ iso_mountfs(devvp, mp, td)
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	VOP_UNLOCK(devvp, 0, td);
+	VOP_UNLOCK(devvp, 0);
 	if (error)
 		return error;
 	if (devvp->v_rdev->si_iosize_max != 0)
