@@ -45,13 +45,19 @@
 #include "tar.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: is_tar.c,v 1.27 2007/01/12 17:38:28 christos Exp $")
+FILE_RCSID("@(#)$File: is_tar.c,v 1.29 2007/10/17 19:33:31 christos Exp $")
 #endif
 
 #define	isodigit(c)	( ((c) >= '0') && ((c) <= '7') )
 
 private int is_tar(const unsigned char *, size_t);
 private int from_oct(int, const char *);	/* Decode octal number */
+
+static const char *tartype[] = {
+	"tar archive",
+	"POSIX tar archive",
+	"POSIX tar archive (GNU)",
+};
 
 protected int
 file_is_tar(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
@@ -60,26 +66,19 @@ file_is_tar(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
 	 * Do the tar test first, because if the first file in the tar
 	 * archive starts with a dot, we can confuse it with an nroff file.
 	 */
-	switch (is_tar(buf, nbytes)) {
-	case 1:
-	        if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
-		    "application/x-tar" : "tar archive") == -1)
-			return -1;
-		return 1;
-	case 2:
-		if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
-		    "application/x-tar, POSIX" : "POSIX tar archive") == -1)
-			return -1;
-		return 1;
-	case 3:
-		if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
-		    "application/x-tar, POSIX (GNU)" :
-		    "POSIX tar archive (GNU)") == -1)
-			return -1;
-		return 1;
-	default:
+	int tar = is_tar(buf, nbytes);
+	int mime = ms->flags & MAGIC_MIME;
+
+	if (tar < 1 || tar > 3)
 		return 0;
-	}
+
+	if (mime == MAGIC_MIME_ENCODING)
+		return 0;
+
+	if (file_printf(ms, mime ? "application/x-tar" :
+	    tartype[tar - 1]) == -1)
+		return -1;
+	return 1;
 }
 
 /*

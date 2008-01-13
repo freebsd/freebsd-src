@@ -531,6 +531,7 @@
 
 # ZIP archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 0	string		PK\003\004
+>4	byte		0x00		Zip archive data
 >4	byte		0x09		Zip archive data, at least v0.9 to extract
 >4	byte		0x0a		Zip archive data, at least v1.0 to extract
 >4	byte		0x0b		Zip archive data, at least v1.1 to extract
@@ -731,3 +732,19 @@
 >4	lelong	0x1000006D	(EPOC release 3/4/5)
 >4	lelong	0x10003A12	(EPOC release 6)
 0	lelong	0x10201A7A	Symbian installation file (Symbian OS 9.x)
+
+# Pack200 Java archives, http://jcp.org/en/jsr/detail?id=200
+0	belong	0xcafed00d	Pack200 Java archive
+
+# From "Nelson A. de Oliveira" <naoliv@gmail.com>
+0	string	MPQ\032		MoPaQ (MPQ) archive
+
+# From: Dirk Jagdmann <doj@cubic.org>
+# xar archive format: http://code.google.com/p/xar/
+0	string	xar!		xar archive
+>6	beshort	x		- version %ld
+
+# From: "Nelson A. de Oliveira" <naoliv@gmail.com>
+# .kgb
+0	string KGB_arch		KGB Archiver file
+>10	string x		with compression level %.1s
